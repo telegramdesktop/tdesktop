@@ -7,13 +7,11 @@
 	<key>CFBundleGetInfoString</key>
 	<string>Telegram Desktop messaging app</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.tdesktop.$(PRODUCT_NAME:rfc1034identifier)</string>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.9.2</string>
-        <key>LSMinimumSystemVersion</key>
-        <string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<string>0.9.3</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleURLTypes</key>
@@ -31,6 +29,8 @@
 			</array>
 		</dict>
 	</array>
+	<key>LSMinimumSystemVersion</key>
+	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>NOTE</key>
 	<string></string>
 	<key>NSPrincipalClass</key>

@@ -2661,7 +2661,7 @@ void MainWidget::onActiveChannelUpdateFull() {
 void MainWidget::msgUpdated(PeerId peer, const HistoryItem *msg) {
 	if (!msg) return;
 	history.msgUpdated(peer, msg);
-	if (!msg->history()->dialogs.isEmpty()) dialogs.dlgUpdated(msg->history()->dialogs[0]);
+	if (!msg->history()->dialogs.isEmpty() && msg->history()->lastMsg == msg) dialogs.dlgUpdated(msg->history()->dialogs[0]);
 	if (overview) overview->msgUpdated(peer, msg);
 }
 
@@ -3568,6 +3568,11 @@ void MainWidget::onSelfParticipantUpdated(ChannelData *channel) {
 	}
 }
 
+bool MainWidget::contentOverlapped(const QRect &globalRect) {
+	return (history.contentOverlapped(globalRect) ||
+			_mediaType.overlaps(globalRect));
+}
+
 void MainWidget::usernameResolveDone(QPair<bool, QString> toProfileStartToken, const MTPcontacts_ResolvedPeer &result) {
 	App::wnd()->hideLayer();
 	if (result.type() != mtpc_contacts_resolvedPeer) return;
@@ -4131,20 +4136,19 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 
 			feedUpdate(MTP_updateMessageID(d.vid, MTP_long(randomId))); // ignore real date
 			if (peerId) {
-				HistoryItem *item = App::histItemById(peerToChannel(peerId), d.vid.v);
-				if (!text.isEmpty()) {
-					bool hasLinks = d.has_entities() && !d.ventities.c_vector().v.isEmpty();
-					if (item && ((hasLinks && !item->hasTextLinks()) || (!hasLinks && item->textHasLinks()))) {
-						bool was = item->hasTextLinks();
-						item->setText(text, d.has_entities() ? linksFromMTP(d.ventities.c_vector().v) : LinksInText());
-						item->initDimensions();
-						itemResized(item);
-						if (!was && item->hasTextLinks() && (!item->history()->isChannel() || item->fromChannel())) {
-							item->history()->addToOverview(item, OverviewLinks);
+				if (HistoryItem *item = App::histItemById(peerToChannel(peerId), d.vid.v)) {
+					if (!text.isEmpty()) {
+						bool hasLinks = d.has_entities() && !d.ventities.c_vector().v.isEmpty();
+						if ((hasLinks && !item->hasTextLinks()) || (!hasLinks && item->textHasLinks())) {
+							item->setText(text, d.has_entities() ? linksFromMTP(d.ventities.c_vector().v) : LinksInText());
+							item->initDimensions();
+							itemResized(item);
+							if (item->hasTextLinks() && (!item->history()->isChannel() || item->fromChannel())) {
+								item->history()->addToOverview(item, OverviewLinks);
+							}
 						}
 					}
-				}
-				if (item) {
+
 					item->setMedia(d.has_media() ? (&d.vmedia) : 0);
 				}
 			}

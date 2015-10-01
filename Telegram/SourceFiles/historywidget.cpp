@@ -34,7 +34,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
-HistoryList::HistoryList(HistoryWidget *historyWidget, ScrollArea *scroll, History *history) : QWidget(0)
+HistoryInner::HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, History *history) : QWidget(0)
     , hist(history)
 	, ySkip(0)
 	, botInfo(history->peer->isUser() ? history->peer->asUser()->botInfo : 0)
@@ -82,20 +82,22 @@ HistoryList::HistoryList(HistoryWidget *historyWidget, ScrollArea *scroll, Histo
 	setMouseTracking(true);
 }
 
-void HistoryList::messagesReceived(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed) {
+void HistoryInner::messagesReceived(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed) {
 	hist->addOlderSlice(messages, collapsed);
 }
 
-void HistoryList::messagesReceivedDown(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed) {
+void HistoryInner::messagesReceivedDown(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed) {
 	hist->addNewerSlice(messages, collapsed);
 }
 
-void HistoryList::updateMsg(const HistoryItem *msg) {
+void HistoryInner::updateMsg(const HistoryItem *msg) {
 	if (!msg || msg->detached() || !hist || hist != msg->history()) return;
 	update(0, ySkip + msg->block()->y + msg->y, width(), msg->height());
 }
 
-void HistoryList::paintEvent(QPaintEvent *e) {
+void HistoryInner::paintEvent(QPaintEvent *e) {
+	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) return;
+
 	if (!App::main()) return;
 
 	QRect r(e->rect());
@@ -107,7 +109,7 @@ void HistoryList::paintEvent(QPaintEvent *e) {
 	}
 
 	if (!_firstLoading && botInfo && !botInfo->text.isEmpty() && botDescHeight > 0) {
-		if (r.top() < botDescRect.y() + botDescRect.height() && r.bottom() > botDescRect.y()) {
+		if (r.y() < botDescRect.y() + botDescRect.height() && r.y() + r.height() > botDescRect.y()) {
 			textstyleSet(&st::inTextStyle);
 			App::roundRect(p, botDescRect, st::msgInBg, MessageInCorners, &st::msgInShadow);
 
@@ -131,7 +133,7 @@ void HistoryList::paintEvent(QPaintEvent *e) {
 		SelectedItems::const_iterator selEnd = _selected.cend();
 		bool hasSel = !_selected.isEmpty();
 
-		int32 drawToY = r.bottom() - ySkip;
+		int32 drawToY = r.y() + r.height() - ySkip;
 
 		int32 selfromy = 0, seltoy = 0;
 		if (_dragSelFrom && _dragSelTo) {
@@ -174,7 +176,7 @@ void HistoryList::paintEvent(QPaintEvent *e) {
 	}
 }
 
-bool HistoryList::event(QEvent *e) {
+bool HistoryInner::event(QEvent *e) {
 	if (e->type() == QEvent::TouchBegin || e->type() == QEvent::TouchUpdate || e->type() == QEvent::TouchEnd || e->type() == QEvent::TouchCancel) {
 		QTouchEvent *ev = static_cast<QTouchEvent*>(e);
 		if (ev->device()->type() == QTouchDevice::TouchScreen) {
@@ -185,7 +187,7 @@ bool HistoryList::event(QEvent *e) {
 	return QWidget::event(e);
 }
 
-void HistoryList::onTouchScrollTimer() {
+void HistoryInner::onTouchScrollTimer() {
 	uint64 nowTime = getms();
 	if (_touchScrollState == TouchScrollAcceleration && _touchWaitingAcceleration && (nowTime - _touchAccelerationTime) > 40) {
 		_touchScrollState = TouchScrollManual;
@@ -206,7 +208,7 @@ void HistoryList::onTouchScrollTimer() {
 	}
 }
 
-void HistoryList::touchUpdateSpeed() {
+void HistoryInner::touchUpdateSpeed() {
 	const uint64 nowTime = getms();
 	if (_touchPrevPosValid) {
 		const int elapsed = nowTime - _touchSpeedTime;
@@ -245,19 +247,19 @@ void HistoryList::touchUpdateSpeed() {
 	_touchPrevPos = _touchPos;
 }
 
-void HistoryList::touchResetSpeed() {
+void HistoryInner::touchResetSpeed() {
 	_touchSpeed = QPoint();
 	_touchPrevPosValid = false;
 }
 
-void HistoryList::touchDeaccelerate(int32 elapsed) {
+void HistoryInner::touchDeaccelerate(int32 elapsed) {
 	int32 x = _touchSpeed.x();
 	int32 y = _touchSpeed.y();
 	_touchSpeed.setX((x == 0) ? x : (x > 0) ? qMax(0, x - elapsed) : qMin(0, x + elapsed));
 	_touchSpeed.setY((y == 0) ? y : (y > 0) ? qMax(0, y - elapsed) : qMin(0, y + elapsed));
 }
 
-void HistoryList::touchEvent(QTouchEvent *e) {
+void HistoryInner::touchEvent(QTouchEvent *e) {
 	const Qt::TouchPointStates &states(e->touchPointStates());
 	if (e->type() == QEvent::TouchCancel) { // cancel
 		if (!_touchInProgress) return;
@@ -353,31 +355,31 @@ void HistoryList::touchEvent(QTouchEvent *e) {
 	}
 }
 
-void HistoryList::mouseMoveEvent(QMouseEvent *e) {
+void HistoryInner::mouseMoveEvent(QMouseEvent *e) {
 	if (!(e->buttons() & (Qt::LeftButton | Qt::MiddleButton)) && (textlnkDown() || _dragAction != NoDrag)) {
 		mouseReleaseEvent(e);
 	}
 	dragActionUpdate(e->globalPos());
 }
 
-void HistoryList::dragActionUpdate(const QPoint &screenPos) {
+void HistoryInner::dragActionUpdate(const QPoint &screenPos) {
 	_dragPos = screenPos;
 	onUpdateSelected();
 }
 
-void HistoryList::touchScrollUpdated(const QPoint &screenPos) {
+void HistoryInner::touchScrollUpdated(const QPoint &screenPos) {
 	_touchPos = screenPos;
 	historyWidget->touchScroll(_touchPos - _touchPrevPos);
 	touchUpdateSpeed();
 }
 
-QPoint HistoryList::mapMouseToItem(QPoint p, HistoryItem *item) {
+QPoint HistoryInner::mapMouseToItem(QPoint p, HistoryItem *item) {
 	if (!item || item->detached()) return QPoint(0, 0);
 	p.setY(p.y() - (height() - hist->height - st::historyPadding) - item->block()->y - item->y);
 	return p;
 }
 
-void HistoryList::mousePressEvent(QMouseEvent *e) {
+void HistoryInner::mousePressEvent(QMouseEvent *e) {
 	if (_menu) {
 		e->accept();
 		return; // ignore mouse press, that was hiding context menu
@@ -385,7 +387,7 @@ void HistoryList::mousePressEvent(QMouseEvent *e) {
 	dragActionStart(e->globalPos(), e->button());
 }
 
-void HistoryList::dragActionStart(const QPoint &screenPos, Qt::MouseButton button) {
+void HistoryInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton button) {
 	dragActionUpdate(screenPos);
 	if (button != Qt::LeftButton) return;
 
@@ -492,7 +494,7 @@ void HistoryList::dragActionStart(const QPoint &screenPos, Qt::MouseButton butto
 	}
 }
 
-void HistoryList::dragActionCancel() {
+void HistoryInner::dragActionCancel() {
 	_dragItem = 0;
 	_dragAction = NoDrag;
 	_dragStartPos = QPoint(0, 0);
@@ -501,7 +503,7 @@ void HistoryList::dragActionCancel() {
 	historyWidget->noSelectingScroll();
 }
 
-void HistoryList::onDragExec() {
+void HistoryInner::onDragExec() {
 	if (_dragAction != Dragging) return;
 
 	bool uponSelected = false;
@@ -589,7 +591,7 @@ void HistoryList::onDragExec() {
 	}
 }
 
-void HistoryList::itemRemoved(HistoryItem *item) {
+void HistoryInner::itemRemoved(HistoryItem *item) {
 	SelectedItems::iterator i = _selected.find(item);
 	if (i != _selected.cend()) {
 		_selected.erase(i);
@@ -609,7 +611,7 @@ void HistoryList::itemRemoved(HistoryItem *item) {
 	updateDragSelection(_dragSelFrom, _dragSelTo, _dragSelecting, true);
 }
 
-void HistoryList::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
+void HistoryInner::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
 	if (_dragItem == oldItem) _dragItem = newItem;
 
 	SelectedItems::iterator i = _selected.find(oldItem);
@@ -623,7 +625,7 @@ void HistoryList::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
 	if (_dragSelTo == oldItem) _dragSelTo = newItem;
 }
 
-void HistoryList::dragActionFinish(const QPoint &screenPos, Qt::MouseButton button) {
+void HistoryInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton button) {
 	TextLinkPtr needClick;
 
 	dragActionUpdate(screenPos);
@@ -712,14 +714,14 @@ void HistoryList::dragActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 	historyWidget->updateTopBarSelection();
 }
 
-void HistoryList::mouseReleaseEvent(QMouseEvent *e) {
+void HistoryInner::mouseReleaseEvent(QMouseEvent *e) {
 	dragActionFinish(e->globalPos(), e->button());
 	if (!rect().contains(e->pos())) {
 		leaveEvent(e);
 	}
 }
 
-void HistoryList::mouseDoubleClickEvent(QMouseEvent *e) {
+void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 	if (!hist) return;
 
 	if (((_dragAction == Selecting && !_selected.isEmpty() && _selected.cbegin().value() != FullItemSel) || (_dragAction == NoDrag && (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel))) && _dragSelType == TextSelectLetters && _dragItem) {
@@ -748,7 +750,7 @@ void HistoryList::mouseDoubleClickEvent(QMouseEvent *e) {
 	}
 }
 
-void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
+void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	if (_menu) {
 		_menu->deleteLater();
 		_menu = 0;
@@ -929,34 +931,34 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	}
 }
 
-void HistoryList::onMenuDestroy(QObject *obj) {
+void HistoryInner::onMenuDestroy(QObject *obj) {
 	if (_menu == obj) {
 		_menu = 0;
 	}
 }
 
-void HistoryList::copySelectedText() {
+void HistoryInner::copySelectedText() {
 	QString sel = getSelectedText();
 	if (!sel.isEmpty()) {
 		QApplication::clipboard()->setText(sel);
 	}
 }
 
-void HistoryList::openContextUrl() {
+void HistoryInner::openContextUrl() {
 	HistoryItem *was = App::hoveredLinkItem();
 	App::hoveredLinkItem(App::contextItem());
 	_contextMenuLnk->onClick(Qt::LeftButton);
 	App::hoveredLinkItem(was);
 }
 
-void HistoryList::copyContextUrl() {
+void HistoryInner::copyContextUrl() {
 	QString enc = _contextMenuLnk->encoded();
 	if (!enc.isEmpty()) {
 		QApplication::clipboard()->setText(enc);
 	}
 }
 
-void HistoryList::saveContextImage() {
+void HistoryInner::saveContextImage() {
     PhotoLink *lnk = dynamic_cast<PhotoLink*>(_contextMenuLnk.data());
 	if (!lnk) return;
 	
@@ -971,7 +973,7 @@ void HistoryList::saveContextImage() {
 	}
 }
 
-void HistoryList::copyContextImage() {
+void HistoryInner::copyContextImage() {
     PhotoLink *lnk = dynamic_cast<PhotoLink*>(_contextMenuLnk.data());
 	if (!lnk) return;
 	
@@ -981,7 +983,7 @@ void HistoryList::copyContextImage() {
 	QApplication::clipboard()->setPixmap(photo->full->pix());
 }
 
-void HistoryList::cancelContextDownload() {
+void HistoryInner::cancelContextDownload() {
     VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
     AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
     DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
@@ -989,7 +991,7 @@ void HistoryList::cancelContextDownload() {
 	if (loader) loader->cancel();
 }
 
-void HistoryList::showContextInFolder() {
+void HistoryInner::showContextInFolder() {
     VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
     AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
     DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
@@ -997,7 +999,7 @@ void HistoryList::showContextInFolder() {
 	if (!already.isEmpty()) psShowInFolder(already);
 }
 
-void HistoryList::openContextFile() {
+void HistoryInner::openContextFile() {
     VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
     AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
     DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
@@ -1006,7 +1008,7 @@ void HistoryList::openContextFile() {
 	if (lnkDocument) DocumentOpenLink(lnkDocument->document()).onClick(Qt::LeftButton);
 }
 
-void HistoryList::saveContextFile() {
+void HistoryInner::saveContextFile() {
     VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
     AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
     DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
@@ -1015,7 +1017,7 @@ void HistoryList::saveContextFile() {
 	if (lnkDocument) DocumentSaveLink::doSave(lnkDocument->document(), true);
 }
 
-void HistoryList::copyContextText() {
+void HistoryInner::copyContextText() {
 	HistoryItem *item = App::contextItem();
 	if (item && item->type() != HistoryItemMsg) {
 		item = 0;
@@ -1029,11 +1031,11 @@ void HistoryList::copyContextText() {
 	}
 }
 
-void HistoryList::resizeEvent(QResizeEvent *e) {
+void HistoryInner::resizeEvent(QResizeEvent *e) {
 	onUpdateSelected();
 }
 
-QString HistoryList::getSelectedText() const {
+QString HistoryInner::getSelectedText() const {
 	SelectedItems sel = _selected;
 
 	if (_dragAction == Selecting && _dragSelFrom && _dragSelTo) {
@@ -1070,7 +1072,7 @@ QString HistoryList::getSelectedText() const {
 	return result;
 }
 
-void HistoryList::keyPressEvent(QKeyEvent *e) {
+void HistoryInner::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		historyWidget->onListEscapePressed();
 	} else if (e == QKeySequence::Copy && !_selected.isEmpty()) {
@@ -1086,7 +1088,7 @@ void HistoryList::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-int32 HistoryList::recountHeight(HistoryItem *resizedItem) {
+int32 HistoryInner::recountHeight(HistoryItem *resizedItem) {
 	int32 st = hist->lastScrollTop;
 
 	int32 ph = scrollArea->height(), minadd = 0;
@@ -1127,7 +1129,7 @@ int32 HistoryList::recountHeight(HistoryItem *resizedItem) {
 	return st + (newYSkip - wasYSkip);
 }
 
-void HistoryList::updateBotInfo(bool recount) {
+void HistoryInner::updateBotInfo(bool recount) {
 	int32 newh = 0;
 	if (botInfo && !botInfo->description.isEmpty()) {
 		if (botInfo->text.isEmpty()) {
@@ -1164,16 +1166,16 @@ void HistoryList::updateBotInfo(bool recount) {
 	}
 }
 
-bool HistoryList::wasSelectedText() const {
+bool HistoryInner::wasSelectedText() const {
 	return _wasSelectedText;
 }
 
-void HistoryList::setFirstLoading(bool loading) {
+void HistoryInner::setFirstLoading(bool loading) {
 	_firstLoading = loading;
 	update();
 }
 
-HistoryItem *HistoryList::atTopImportantMsg(int32 top, int32 height, int32 &bottomUnderScrollTop) const {
+HistoryItem *HistoryInner::atTopImportantMsg(int32 top, int32 height, int32 &bottomUnderScrollTop) const {
 	if (hist->isEmpty()) return 0;
 
 	adjustCurrent(top);
@@ -1205,7 +1207,7 @@ HistoryItem *HistoryList::atTopImportantMsg(int32 top, int32 height, int32 &bott
 	return 0;
 }
 
-void HistoryList::updateSize() {
+void HistoryInner::updateSize() {
 	int32 ph = scrollArea->height(), minadd = 0;
 	int32 newYSkip = ph - (hist->height + st::historyPadding);
 	if (botInfo && !botInfo->text.isEmpty()) {
@@ -1234,11 +1236,11 @@ void HistoryList::updateSize() {
 	}
 }
 
-void HistoryList::enterEvent(QEvent *e) {
+void HistoryInner::enterEvent(QEvent *e) {
 	return QWidget::enterEvent(e);
 }
 
-void HistoryList::leaveEvent(QEvent *e) {
+void HistoryInner::leaveEvent(QEvent *e) {
 	if (textlnkOver()) {
 		updateMsg(App::hoveredItem());
 		updateMsg(App::hoveredLinkItem());
@@ -1253,12 +1255,12 @@ void HistoryList::leaveEvent(QEvent *e) {
 	return QWidget::leaveEvent(e);
 }
 
-HistoryList::~HistoryList() {
+HistoryInner::~HistoryInner() {
 	delete _menu;
 	_dragAction = NoDrag;
 }
 
-void HistoryList::adjustCurrent(int32 y) const {
+void HistoryInner::adjustCurrent(int32 y) const {
 	if (hist->isEmpty()) return;
 	if (currentBlock >= hist->blocks.size()) {
 		currentBlock = hist->blocks.size() - 1;
@@ -1286,7 +1288,7 @@ void HistoryList::adjustCurrent(int32 y) const {
 	}
 }
 
-HistoryItem *HistoryList::prevItem(HistoryItem *item) {
+HistoryItem *HistoryInner::prevItem(HistoryItem *item) {
 	if (!item) return 0;
 	HistoryBlock *block = item->block();
 	int32 blockIndex = hist->blocks.indexOf(block), itemIndex = block->items.indexOf(item);
@@ -1300,7 +1302,7 @@ HistoryItem *HistoryList::prevItem(HistoryItem *item) {
 	return 0;
 }
 
-HistoryItem *HistoryList::nextItem(HistoryItem *item) {
+HistoryItem *HistoryInner::nextItem(HistoryItem *item) {
 	if (!item) return 0;
 	HistoryBlock *block = item->block();
 	int32 blockIndex = hist->blocks.indexOf(block), itemIndex = block->items.indexOf(item);
@@ -1314,18 +1316,18 @@ HistoryItem *HistoryList::nextItem(HistoryItem *item) {
 	return 0;
 }
 
-bool HistoryList::canCopySelected() const {
+bool HistoryInner::canCopySelected() const {
 	return !_selected.isEmpty();
 }
 
-bool HistoryList::canDeleteSelected() const {
+bool HistoryInner::canDeleteSelected() const {
 	if (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel) return false;
 	int32 selectedForForward, selectedForDelete;
 	getSelectionState(selectedForForward, selectedForDelete);
 	return (selectedForForward == selectedForDelete);
 }
 
-void HistoryList::getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const {
+void HistoryInner::getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const {
 	selectedForForward = selectedForDelete = 0;
 	for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
 		if (i.key()->type() == HistoryItemMsg && i.value() == FullItemSel) {
@@ -1340,7 +1342,7 @@ void HistoryList::getSelectionState(int32 &selectedForForward, int32 &selectedFo
 	}
 }
 
-void HistoryList::clearSelectedItems(bool onlyTextSelection) {
+void HistoryInner::clearSelectedItems(bool onlyTextSelection) {
 	if (!_selected.isEmpty() && (!onlyTextSelection || _selected.cbegin().value() != FullItemSel)) {
 		_selected.clear();
 		historyWidget->updateTopBarSelection();
@@ -1348,7 +1350,7 @@ void HistoryList::clearSelectedItems(bool onlyTextSelection) {
 	}
 }
 
-void HistoryList::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
+void HistoryInner::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
 	if (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel) return;
 
 	for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
@@ -1359,7 +1361,7 @@ void HistoryList::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
 	}
 }
 
-void HistoryList::selectItem(HistoryItem *item) {
+void HistoryInner::selectItem(HistoryItem *item) {
 	if (!_selected.isEmpty() && _selected.cbegin().value() != FullItemSel) {
 		_selected.clear();
 	} else if (_selected.size() == MaxSelectedItems && _selected.constFind(item) == _selected.cend()) {
@@ -1370,12 +1372,12 @@ void HistoryList::selectItem(HistoryItem *item) {
 	historyWidget->update();
 }
 
-void HistoryList::onTouchSelect() {
+void HistoryInner::onTouchSelect() {
 	_touchSelect = true;
 	dragActionStart(_touchPos);
 }
 
-void HistoryList::onUpdateSelected() {
+void HistoryInner::onUpdateSelected() {
 	if (!hist) return;
 
 	QPoint mousePos(mapFromGlobal(_dragPos));
@@ -1539,7 +1541,7 @@ void HistoryList::onUpdateSelected() {
 	}
 }
 
-void HistoryList::updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dragSelTo, bool dragSelecting, bool force) {
+void HistoryInner::updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dragSelTo, bool dragSelecting, bool force) {
 	if (_dragSelFrom != dragSelFrom || _dragSelTo != dragSelTo || _dragSelecting != dragSelecting) {
 		_dragSelFrom = dragSelFrom;
 		_dragSelTo = dragSelTo;
@@ -1558,11 +1560,11 @@ void HistoryList::updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dra
 	update();
 }
 
-void HistoryList::applyDragSelection() {
+void HistoryInner::applyDragSelection() {
 	applyDragSelection(&_selected);
 }
 
-void HistoryList::applyDragSelection(SelectedItems *toItems) const {
+void HistoryInner::applyDragSelection(SelectedItems *toItems) const {
 	if (!toItems->isEmpty() && toItems->cbegin().value() != FullItemSel) {
 		toItems->clear();
 	}
@@ -1606,7 +1608,7 @@ void HistoryList::applyDragSelection(SelectedItems *toItems) const {
 	}
 }
 
-void HistoryList::showLinkTip() {
+void HistoryInner::showLinkTip() {
 	TextLinkPtr lnk = textlnkOver();
 	int32 dd = QApplication::startDragDistance();
 	QPoint dp(mapFromGlobal(_dragPos));
@@ -1620,7 +1622,7 @@ void HistoryList::showLinkTip() {
 	}
 }
 
-void HistoryList::onParentGeometryChanged() {
+void HistoryInner::onParentGeometryChanged() {
 	bool needToUpdate = (_dragAction != NoDrag || _touchScroll || rect().contains(mapFromGlobal(QCursor::pos())));
 	if (needToUpdate) {
 		dragActionUpdate(QCursor::pos());
@@ -1746,8 +1748,8 @@ void BotKeyboard::paintEvent(QPaintEvent *e) {
 		for (; j != s; ++j) {
 			const Button &btn(_btns.at(i).at(j));
 			QRect rect(btn.rect);
-			if (rect.top() >= r.bottom()) break;
-			if (rect.bottom() < r.top()) continue;
+			if (rect.y() >= r.y() + r.height()) break;
+			if (rect.y() + rect.height() < r.y()) continue;
 
 			if (rtl()) rect.moveLeft(width() - rect.left() - rect.width());
 
@@ -2913,6 +2915,8 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 		if (_history->unreadBar) {
 			_history->unreadBar->destroy();
 		}
+
+		App::main()->dlgUpdated(_history);
 		_history = 0;
 	}
 
@@ -2933,9 +2937,6 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 
 	_showAtMsgId = showAtMsgId;
 	_histInited = false;
-	if (_history) {
-		App::main()->dlgUpdated(_history);
-	}
 
 	_peer = peerId ? App::peer(peerId) : 0;
 	_channel = _peer ? peerToChannel(_peer->id) : NoChannel;
@@ -2979,7 +2980,7 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 			_history->lastWidth = 0;
 		}
 
-		_list = new HistoryList(this, &_scroll, _history);
+		_list = new HistoryInner(this, &_scroll, _history);
 		_list->hide();
 		_scroll.hide();
 		_scroll.setWidget(_list);
@@ -3076,6 +3077,14 @@ void HistoryWidget::updateNotifySettings() {
 	if (!_peer || !_peer->isChannel()) return;
 
 	_muteUnmute.setText(lang(_history->mute ? lng_channel_unmute : lng_channel_mute));
+}
+
+bool HistoryWidget::contentOverlapped(const QRect &globalRect) {
+	return (_attachDragDocument.overlaps(globalRect) ||
+			_attachDragPhoto.overlaps(globalRect) ||
+			_attachType.overlaps(globalRect) ||
+			_attachMention.overlaps(globalRect) ||
+			_emojiPan.overlaps(globalRect));
 }
 
 void HistoryWidget::updateReportSpamStatus() {
@@ -6203,6 +6212,8 @@ void HistoryWidget::drawRecording(Painter &p) {
 }
 
 void HistoryWidget::paintEvent(QPaintEvent *e) {
+	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) return;
+
 	Painter p(this);
 	QRect r(e->rect());
 	if (r != rect()) {

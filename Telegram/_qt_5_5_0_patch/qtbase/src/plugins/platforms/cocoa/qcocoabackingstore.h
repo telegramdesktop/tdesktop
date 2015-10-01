@@ -62,7 +62,7 @@ public:
 private:
     QImage m_qImage;
     QSize m_requestedSize;
-	bool m_imageWasEqual;
+	bool m_qImageNeedsClear, m_imageWasEqual;
 };
 
 QT_END_NAMESPACE

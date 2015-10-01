@@ -38,30 +38,28 @@ void SessionsInner::paintEvent(QPaintEvent *e) {
 	p.setFont(st::linkFont->f);
 	int32 x = st::sessionPadding.left(), xact = st::sessionTerminateSkip + st::sessionTerminate.iconPos.x();// st::sessionTerminateSkip + st::sessionTerminate.width + st::sessionTerminateSkip;
 	int32 w = width();
-	int32 from = (r.top() >= 0) ? qFloor(r.top() / st::sessionHeight) : 0, count = _list->size();
-	if (from < count) {
-		int32 to = (r.bottom() >= 0 ? qFloor(r.bottom() / st::sessionHeight) : 0) + 1;
-		if (to > count) to = count;
-		p.translate(0, from * st::sessionHeight);
-		for (int32 i = from; i < to; ++i) {
-			const SessionData &auth(_list->at(i));
+	int32 count = _list->size();
+	int32 from = floorclamp(r.y(), st::sessionHeight, 0, count);
+	int32 to = ceilclamp(r.y() + r.height(), st::sessionHeight, 0, count);
+	p.translate(0, from * st::sessionHeight);
+	for (int32 i = from; i < to; ++i) {
+		const SessionData &auth(_list->at(i));
 
-			p.setFont(st::sessionNameFont->f);
-			p.setPen(st::black->p);
-			p.drawTextLeft(x, st::sessionPadding.top(), w, auth.name, auth.nameWidth);
+		p.setFont(st::sessionNameFont->f);
+		p.setPen(st::black->p);
+		p.drawTextLeft(x, st::sessionPadding.top(), w, auth.name, auth.nameWidth);
 
-			p.setFont(st::sessionActiveFont->f);
-			p.setPen(st::sessionActiveColor->p);
-			p.drawTextRight(xact, st::sessionPadding.top(), w, auth.active, auth.activeWidth);
+		p.setFont(st::sessionActiveFont->f);
+		p.setPen(st::sessionActiveColor->p);
+		p.drawTextRight(xact, st::sessionPadding.top(), w, auth.active, auth.activeWidth);
 
-			p.setFont(st::sessionInfoFont->f);
-			p.setPen(st::black->p);
-			p.drawTextLeft(x, st::sessionPadding.top() + st::sessionNameFont->height, w, auth.info, auth.infoWidth);
-			p.setPen(st::sessionInfoColor->p);
-			p.drawTextLeft(x, st::sessionPadding.top() + st::sessionNameFont->height + st::sessionInfoFont->height, w, auth.ip, auth.ipWidth);
+		p.setFont(st::sessionInfoFont->f);
+		p.setPen(st::black->p);
+		p.drawTextLeft(x, st::sessionPadding.top() + st::sessionNameFont->height, w, auth.info, auth.infoWidth);
+		p.setPen(st::sessionInfoColor->p);
+		p.drawTextLeft(x, st::sessionPadding.top() + st::sessionNameFont->height + st::sessionInfoFont->height, w, auth.ip, auth.ipWidth);
 
-			p.translate(0, st::sessionHeight);
-		}
+		p.translate(0, st::sessionHeight);
 	}
 }
 

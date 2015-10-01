@@ -357,7 +357,7 @@ void PsMainWindow::psFirstShow() {
 namespace {
 	void _sendKeySequence(Qt::Key key, Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
 		QWidget *focused = QApplication::focusWidget();
-		if (qobject_cast<QLineEdit*>(focused) || qobject_cast<FlatTextarea*>(focused) || qobject_cast<HistoryList*>(focused)) {
+		if (qobject_cast<QLineEdit*>(focused) || qobject_cast<FlatTextarea*>(focused) || qobject_cast<HistoryInner*>(focused)) {
 			QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyPress, key, modifiers));
 			QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyRelease, key, modifiers));
 		}
@@ -429,7 +429,7 @@ void PsMainWindow::psMacUpdateMenu() {
 		canUndo = edit->isUndoAvailable();
 		canRedo = edit->isRedoAvailable();
 		canPaste = !App::app()->clipboard()->text().isEmpty();
-	} else if (HistoryList *list = qobject_cast<HistoryList*>(focused)) {
+	} else if (HistoryInner *list = qobject_cast<HistoryInner*>(focused)) {
 		canCopy = list->canCopySelected();
 		canDelete = list->canDeleteSelected();
 	}
@@ -509,7 +509,7 @@ void PsMainWindow::psPlatformNotify(HistoryItem *item, int32 fwdCount) {
 bool PsMainWindow::eventFilter(QObject *obj, QEvent *evt) {
 	QEvent::Type t = evt->type();
 	if (t == QEvent::FocusIn || t == QEvent::FocusOut) {
-		if (qobject_cast<QLineEdit*>(obj) || qobject_cast<FlatTextarea*>(obj) || qobject_cast<HistoryList*>(obj)) {
+		if (qobject_cast<QLineEdit*>(obj) || qobject_cast<FlatTextarea*>(obj) || qobject_cast<HistoryInner*>(obj)) {
 			psMacUpdateMenu();
 		}
 	}

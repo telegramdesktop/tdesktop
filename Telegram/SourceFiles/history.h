@@ -77,7 +77,7 @@ struct DialogRow {
 	DialogRow(History *history = 0, DialogRow *prev = 0, DialogRow *next = 0, int32 pos = 0) : prev(prev), next(next), history(history), pos(pos), attached(0) {
 	}
 
-	void paint(Painter &p, int32 w, bool act, bool sel) const;
+	void paint(Painter &p, int32 w, bool act, bool sel, bool onlyBackground) const;
 
 	DialogRow *prev, *next;
 	History *history;
@@ -89,7 +89,7 @@ struct FakeDialogRow {
 	FakeDialogRow(HistoryItem *item) : _item(item), _cacheFor(0), _cache(st::dlgRichMinWidth) {
 	}
 
-	void paint(Painter &p, int32 w, bool act, bool sel) const;
+	void paint(Painter &p, int32 w, bool act, bool sel, bool onlyBackground) const;
 
 	HistoryItem *_item;
 	mutable const HistoryItem *_cacheFor;
@@ -447,13 +447,13 @@ struct DialogsList {
 		}
 	}
 
-	void paint(Painter &p, int32 w, int32 hFrom, int32 hTo, PeerData *act, PeerData *sel) const {
+	void paint(Painter &p, int32 w, int32 hFrom, int32 hTo, PeerData *act, PeerData *sel, bool onlyBackground) const {
 		adjustCurrent(hFrom, st::dlgHeight);
 
 		DialogRow *drawFrom = current;
 		p.translate(0, drawFrom->pos * st::dlgHeight);
 		while (drawFrom != end && drawFrom->pos * st::dlgHeight < hTo) {
-			drawFrom->paint(p, w, (drawFrom->history->peer == act), (drawFrom->history->peer == sel));
+			drawFrom->paint(p, w, (drawFrom->history->peer == act), (drawFrom->history->peer == sel), onlyBackground);
 			drawFrom = drawFrom->next;
 			p.translate(0, st::dlgHeight);
 		}

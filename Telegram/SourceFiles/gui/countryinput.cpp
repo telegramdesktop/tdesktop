@@ -304,11 +304,8 @@ void CountryList::paintEvent(QPaintEvent *e) {
 
 	int l = countriesNow->size();
 	if (l) {
-		int from = (r.top() > _st.verticalMargin) ? (r.top() - _st.verticalMargin) / _st.rowHeight : 0, to = from + (r.height() / _st.rowHeight) + 2;
-		if (to >= l) {
-			if (from >= l) return;
-			to = l;
-		}
+		int32 from = floorclamp(r.y() - _st.verticalMargin, _st.rowHeight, 0, l);
+		int32 to = ceilclamp(r.y() + r.height() - _st.verticalMargin, _st.rowHeight, 0, l);
 		p.setFont(_st.font->f);
 		QRectF textRect(_st.margin + _st.borderMargin, _st.verticalMargin + from * _st.rowHeight, width() - 2 * _st.margin - 2 * _st.borderMargin, _st.rowHeight - _st.borderWidth);
 		for (int i = from; i < to; ++i) {

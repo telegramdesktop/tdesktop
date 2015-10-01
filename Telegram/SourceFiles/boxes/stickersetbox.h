@@ -19,7 +19,16 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 
-class StickerSetInner : public QWidget, public RPCSender {
+class StickerSetPanel : public TWidget {
+public:
+
+	StickerSetPanel(QWidget *parent) : TWidget(parent) {
+	}
+	void paintEvent(QPaintEvent *e);
+
+};
+
+class StickerSetInner : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -64,6 +73,8 @@ private:
 	MTPInputStickerSet _input;
 
 	mtpRequestId _installRequest;
+
+	StickerSetPanel *_panel;
 };
 
 class StickerSetBox : public ScrollableBox, public RPCSender {

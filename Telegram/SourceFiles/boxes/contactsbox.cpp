@@ -150,8 +150,12 @@ bool ContactsInner::addAdminFail(const RPCError &error, mtpRequestId req) {
 	if (req != _addAdminRequestId) return true;
 
 	_addAdminRequestId = 0;
-	if (_addAdminBox) _addAdminBox->onClose();
-	emit adminAdded();
+	if (error.type() == "USERS_TOO_MUCH") {
+		App::wnd()->replaceLayer(new MaxInviteBox(_channel->invitationUrl));
+	} else {
+		if (_addAdminBox) _addAdminBox->onClose();
+		emit adminAdded();
+	}
 	return true;
 }
 
@@ -173,23 +177,29 @@ void ContactsInner::peerUpdated(PeerData *peer) {
 				}
 			}
 		}
+		update();
 	} else {
+		int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2;
 		ContactsData::iterator i = _contactsData.find(peer);
 		if (i != _contactsData.cend()) {
 			for (DialogRow *row = _contacts->list.begin; row->next; row = row->next) {
-				if (row->attached == i.value()) row->attached = 0;
+				if (row->attached == i.value()) {
+					row->attached = 0;
+					update(0, rh * row->pos, width(), rh);
+				}
 			}
 			if (!_filter.isEmpty()) {
 				for (int32 j = 0, s = _filtered.size(); j < s; ++j) {
-					if (_filtered[j]->attached == i.value()) _filtered[j]->attached = 0;
+					if (_filtered[j]->attached == i.value()) {
+						_filtered[j]->attached = 0;
+						update(0, rh * j, width(), rh);
+					}
 				}
 			}
 			delete i.value();
 			_contactsData.erase(i);
 		}
 	}
-
-	parentWidget()->update();
 }
 
 void ContactsInner::loadProfilePhotos(int32 yFrom) {
@@ -338,10 +348,11 @@ void ContactsInner::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	Painter p(this);
 
+	p.setClipRect(r);
 	_time = unixtime();
 	p.fillRect(r, st::white->b);
 
-	int32 yFrom = r.top(), yTo = r.bottom();
+	int32 yFrom = r.y(), yTo = r.y() + r.height();
 	int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2;
 	if (_filter.isEmpty()) {
 		if (_contacts->list.count || !_byUsername.isEmpty()) {
@@ -365,16 +376,12 @@ void ContactsInner::paintEvent(QPaintEvent *e) {
 
 				yFrom -= _contacts->list.count * rh + st::searchedBarHeight;
 				yTo -= _contacts->list.count * rh + st::searchedBarHeight;
-				int32 from = (yFrom >= 0) ? (yFrom / rh) : 0;
-				if (from < _byUsername.size()) {
-					int32 to = (yTo / rh) + 1;
-					if (to > _byUsername.size()) to = _byUsername.size();
-
-					p.translate(0, from * rh);
-					for (; from < to; ++from) {
-						paintDialog(p, _byUsername[from], d_byUsername[from], (_byUsernameSel == from));
-						p.translate(0, rh);
-					}
+				int32 from = floorclamp(yFrom, rh, 0, _byUsername.size());
+				int32 to = ceilclamp(yTo, rh, 0, _byUsername.size());
+				p.translate(0, from * rh);
+				for (; from < to; ++from) {
+					paintDialog(p, _byUsername[from], d_byUsername[from], (_byUsernameSel == from));
+					p.translate(0, rh);
 				}
 			}
 		} else {
@@ -405,16 +412,12 @@ void ContactsInner::paintEvent(QPaintEvent *e) {
 			p.drawText(QRect(0, 0, width(), st::noContactsHeight), text, style::al_center);
 		} else {
 			if (!_filtered.isEmpty()) {
-				int32 from = (yFrom >= 0) ? (yFrom / rh) : 0;
-				if (from < _filtered.size()) {
-					int32 to = (yTo / rh) + 1;
-					if (to > _filtered.size()) to = _filtered.size();
-
-					p.translate(0, from * rh);
-					for (; from < to; ++from) {
-						paintDialog(p, _filtered[from]->history->peer, contactData(_filtered[from]), (_filteredSel == from));
-						p.translate(0, rh);
-					}
+				int32 from = floorclamp(yFrom, rh, 0, _filtered.size());
+				int32 to = ceilclamp(yTo, rh, 0, _filtered.size());
+				p.translate(0, from * rh);
+				for (; from < to; ++from) {
+					paintDialog(p, _filtered[from]->history->peer, contactData(_filtered[from]), (_filteredSel == from));
+					p.translate(0, rh);
 				}
 			}
 			if (!_byUsernameFiltered.isEmpty()) {
@@ -426,16 +429,12 @@ void ContactsInner::paintEvent(QPaintEvent *e) {
 
 				yFrom -= _filtered.size() * rh + st::searchedBarHeight;
 				yTo -= _filtered.size() * rh + st::searchedBarHeight;
-				int32 from = (yFrom >= 0) ? (yFrom / rh) : 0;
-				if (from < _byUsernameFiltered.size()) {
-					int32 to = (yTo / rh) + 1;
-					if (to > _byUsernameFiltered.size()) to = _byUsernameFiltered.size();
-
-					p.translate(0, from * rh);
-					for (; from < to; ++from) {
-						paintDialog(p, _byUsernameFiltered[from], d_byUsernameFiltered[from], (_byUsernameSel == from));
-						p.translate(0, rh);
-					}
+				int32 from = floorclamp(yFrom, rh, 0, _byUsernameFiltered.size());
+				int32 to = ceilclamp(yTo, rh, 0, _byUsernameFiltered.size());
+				p.translate(0, from * rh);
+				for (; from < to; ++from) {
+					paintDialog(p, _byUsernameFiltered[from], d_byUsernameFiltered[from], (_byUsernameSel == from));
+					p.translate(0, rh);
 				}
 			}
 		}
@@ -446,12 +445,31 @@ void ContactsInner::enterEvent(QEvent *e) {
 	setMouseTracking(true);
 }
 
+void ContactsInner::updateSelectedRow() {
+	int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2;
+	if (_filter.isEmpty()) {
+		if (_sel) {
+			update(0, _sel->pos * rh, width(), rh);
+		}
+		if (_byUsernameSel >= 0) {
+			update(0, _contacts->list.count * rh + st::searchedBarHeight + _byUsernameSel * rh, width(), rh);
+		}
+	} else {
+		if (_filteredSel >= 0) {
+			update(0, _filteredSel * rh, width(), rh);
+		}
+		if (_byUsernameSel >= 0) {
+			update(0, _filtered.size() * rh + st::searchedBarHeight + _byUsernameSel * rh, width(), rh);
+		}
+	}
+}
+
 void ContactsInner::leaveEvent(QEvent *e) {
 	setMouseTracking(false);
 	if (_sel || _filteredSel >= 0 || _byUsernameSel >= 0) {
+		updateSelectedRow();
 		_sel = 0;
 		_filteredSel = _byUsernameSel = -1;
-		parentWidget()->update();
 	}
 }
 
@@ -554,7 +572,7 @@ void ContactsInner::chooseParticipant() {
 			}
 		}
 	}
-	parentWidget()->update();
+	update();
 }
 
 void ContactsInner::changeCheckState(DialogRow *row) {
@@ -596,18 +614,20 @@ void ContactsInner::updateSel() {
 		int32 byUsernameSel = (in && p.y() >= _contacts->list.count * rh + st::searchedBarHeight) ? ((p.y() - _contacts->list.count * rh - st::searchedBarHeight) / rh) : -1;
 		if (byUsernameSel >= _byUsername.size()) byUsernameSel = -1;
 		if (newSel != _sel || byUsernameSel != _byUsernameSel) {
+			updateSelectedRow();
 			_sel = newSel;
 			_byUsernameSel = byUsernameSel;
-			parentWidget()->update();
+			updateSelectedRow();
 		}
 	} else {
 		int32 newFilteredSel = (in && p.y() >= 0 && p.y() < _filtered.size() * rh) ? (p.y() / rh) : -1;
 		int32 byUsernameSel = (in && p.y() >= _filtered.size() * rh + st::searchedBarHeight) ? ((p.y() - _filtered.size() * rh - st::searchedBarHeight) / rh) : -1;
 		if (byUsernameSel >= _byUsernameFiltered.size()) byUsernameSel = -1;
 		if (newFilteredSel != _filteredSel || byUsernameSel != _byUsernameSel) {
+			updateSelectedRow();
 			_filteredSel = newFilteredSel;
 			_byUsernameSel = byUsernameSel;
-			parentWidget()->update();
+			updateSelectedRow();
 		}
 	}
 }
@@ -745,7 +765,7 @@ void ContactsInner::updateFilter(QString filter) {
 				emit searchByUsername();
 			}
 		}
-		if (parentWidget()) parentWidget()->update();
+		update();
 		loadProfilePhotos(0);
 	}
 }
@@ -984,7 +1004,7 @@ void ContactsInner::selectSkip(int32 dir) {
 			emit mustScrollTo(skip + _byUsernameSel * rh, skip + (_byUsernameSel + 1) * rh);
 		}
 	}
-	parentWidget()->update();
+	update();
 }
 
 void ContactsInner::selectSkipPage(int32 h, int32 dir) {
@@ -1441,7 +1461,7 @@ void MembersInner::paintEvent(QPaintEvent *e) {
 	_time = unixtime();
 	p.fillRect(r, st::white->b);
 
-	int32 yFrom = r.top(), yTo = r.bottom();
+	int32 yFrom = r.y() - st::membersPadding.top(), yTo = r.y() + r.height() - st::membersPadding.top();
 	int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2;
 
 	p.translate(0, st::membersPadding.top());
@@ -1450,19 +1470,15 @@ void MembersInner::paintEvent(QPaintEvent *e) {
 		p.setPen(st::noContactsColor->p);
 		p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_contacts_loading), style::al_center);
 	} else {
-		int32 from = (yFrom >= 0) ? (yFrom / rh) : 0;
-		if (from < _rows.size()) {
-			int32 to = (yTo / rh) + 1;
-			if (to > _rows.size()) to = _rows.size();
-
-			p.translate(0, from * rh);
-			for (; from < to; ++from) {
-				bool sel = (from == _sel);
-				bool kickSel = (from == _kickSel && (_kickDown < 0 || from == _kickDown));
-				bool kickDown = kickSel && (from == _kickDown);
-				paintDialog(p, _rows[from], data(from), sel, kickSel, kickDown);
-				p.translate(0, rh);
-			}
+		int32 from = floorclamp(yFrom, rh, 0, _rows.size());
+		int32 to = ceilclamp(yTo, rh, 0, _rows.size());
+		p.translate(0, from * rh);
+		for (; from < to; ++from) {
+			bool sel = (from == _sel);
+			bool kickSel = (from == _kickSel && (_kickDown < 0 || from == _kickDown));
+			bool kickDown = kickSel && (from == _kickDown);
+			paintDialog(p, _rows[from], data(from), sel, kickSel, kickDown);
+			p.translate(0, rh);
 		}
 	}
 }
@@ -1474,8 +1490,8 @@ void MembersInner::enterEvent(QEvent *e) {
 void MembersInner::leaveEvent(QEvent *e) {
 	setMouseTracking(false);
 	if (_sel >= 0) {
+		updateSelectedRow();
 		_sel = -1;
-		parentWidget()->update();
 	}
 }
 
@@ -1581,7 +1597,7 @@ void MembersInner::selectSkip(int32 dir) {
 		emit mustScrollTo(_sel * rh, (_sel + 1) * rh);
 	}
 
-	parentWidget()->update();
+	update();
 }
 
 void MembersInner::selectSkipPage(int32 h, int32 dir) {
@@ -1700,23 +1716,32 @@ void MembersInner::updateSel() {
 		newKickSel = -1;
 	}
 	if (newSel != _sel || newKickSel != _kickSel) {
+		updateSelectedRow();
 		_sel = newSel;
 		_kickSel = newKickSel;
-		parentWidget()->update();
+		updateSelectedRow();
 		setCursor(_kickSel >= 0 ? style::cur_pointer : style::cur_default);
 	}
 }
 
 void MembersInner::peerUpdated(PeerData *peer) {
-	parentWidget()->update();
+	update();
+}
+
+void MembersInner::updateSelectedRow() {
+	if (_sel >= 0) {
+		int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2;
+		update(0, st::membersPadding.top() + _sel * rh, width(), rh);
+	}
 }
 
 void MembersInner::onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
+	int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2;
 	for (int32 i = 0, l = _rows.size(); i < l; ++i) {
 		if (_rows.at(i) == peer) {
 			if (_datas.at(i)) {
 				_datas.at(i)->name.setText(st::profileListNameFont, peer->name, _textNameOptions);
-				parentWidget()->update();
+				update(0, st::membersPadding.top() + i * rh, width(), rh);
 			} else {
 				break;
 			}

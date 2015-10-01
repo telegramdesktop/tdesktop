@@ -19,12 +19,12 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 class MainWidget;
 
-class DialogsListWidget : public QWidget {
+class DialogsInner : public SplittedWidget {
 	Q_OBJECT
 
 public:
 
-	DialogsListWidget(QWidget *parent, MainWidget *main);
+	DialogsInner(QWidget *parent, MainWidget *main);
 
 	void dialogsReceived(const QVector<MTPDialog> &dialogs);
 	void addSavedPeersAfter(const QDateTime &date);
@@ -42,15 +42,14 @@ public:
 	int32 peopleOffset() const;
 	int32 searchedOffset() const;
 
-	void paintEvent(QPaintEvent *e);
 	void mouseMoveEvent(QMouseEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void resizeEvent(QResizeEvent *e);
 	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
 
-	void peopleResultPaint(PeerData *peer, Painter &p, int32 w, bool act, bool sel) const;
-	void searchInPeerPaint(Painter &p, int32 w) const;
+	void peopleResultPaint(PeerData *peer, Painter &p, int32 w, bool act, bool sel, bool onlyBackground) const;
+	void searchInPeerPaint(Painter &p, int32 w, bool onlyBackground) const;
 
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
@@ -106,7 +105,7 @@ public:
 
 	PeerData *updateFromParentDrag(QPoint globalPos);
 
-	~DialogsListWidget();
+	~DialogsInner();
 
 public slots:
 
@@ -126,9 +125,14 @@ signals:
 	void completeHashtag(QString tag);
 	void refreshHashtags();
 
+protected:
+
+	void paintRegion(Painter &p, const QRegion &region, bool paintingOther);
+
 private:
 
 	void clearSearchResults(bool clearPeople = true);
+	void updateSelectedRow();
 
 	DialogsIndexed dialogs;
 	DialogsIndexed contactsNoDialogs;
@@ -265,8 +269,8 @@ private:
 
 	FlatInput _filter;
 	IconedButton _newGroup, _addContact, _cancelSearch;
-	ScrollArea scroll;
-	DialogsListWidget list;
+	ScrollArea _scroll;
+	DialogsInner _inner;
 
 	QPixmap _animCache, _bgAnimCache;
 	anim::ivalue a_coord, a_bgCoord;

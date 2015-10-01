@@ -526,6 +526,15 @@ LocalImage::LocalImage(const QPixmap &pixmap, QByteArray format) : Image(format)
 	}
 }
 
+LocalImage::LocalImage(const QByteArray &filecontent, QByteArray fmt, const QPixmap &pixmap) {
+	data = pixmap;
+	format = fmt;
+	saved = filecontent;
+	if (!data.isNull()) {
+		globalAquiredSize += int64(data.width()) * data.height() * 4;
+	}
+}
+
 const QPixmap &LocalImage::pixData() const {
 	return data;
 }
@@ -562,6 +571,10 @@ LocalImage *getImage(const QByteArray &filecontent, QByteArray format) {
 
 LocalImage *getImage(const QPixmap &pixmap, QByteArray format) {
 	return new LocalImage(pixmap, format);
+}
+
+LocalImage *getImage(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap) {
+	return new LocalImage(filecontent, format, pixmap);
 }
 
 void clearStorageImages() {
@@ -607,17 +620,12 @@ int32 StorageImage::height() const {
 
 bool StorageImage::check() const {
 	if (loader->done()) {
-		switch (loader->fileType()) {
-		case mtpc_storage_fileGif: format = "GIF"; break;
-		case mtpc_storage_fileJpeg: format = "JPG"; break;
-		case mtpc_storage_filePng: format = "PNG"; break;
-		default: format = QByteArray(); break;
-		}
 		if (!data.isNull()) {
 			globalAquiredSize -= int64(data.width()) * data.height() * 4;
 		}
+		format = loader->imageFormat();
+		data = loader->imagePixmap();
 		QByteArray bytes = loader->bytes();
-		data = QPixmap::fromImage(App::readImage(bytes, &format, false), Qt::ColorOnly);
 		if (!data.isNull()) {
 			globalAquiredSize += int64(data.width()) * data.height() * 4;
 		}

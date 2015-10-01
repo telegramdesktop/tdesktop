@@ -134,6 +134,10 @@ _saveMsgStarted(0), _saveMsgOpacity(0)
 }
 
 void MediaView::moveToScreen() {
+	if (App::wnd() && windowHandle() && App::wnd()->windowHandle() && windowHandle()->screen() != App::wnd()->windowHandle()->screen()) {
+		windowHandle()->setScreen(App::wnd()->windowHandle()->screen());
+	}
+
 	QPoint wndCenter(App::wnd()->x() + App::wnd()->width() / 2, App::wnd()->y() + App::wnd()->height() / 2);
 	QRect avail = App::app() ? App::app()->desktop()->screenGeometry(wndCenter) : QDesktopWidget().screenGeometry(wndCenter);
 	if (avail != geometry()) {

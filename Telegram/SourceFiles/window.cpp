@@ -368,7 +368,7 @@ _connecting(0), _clearManager(0), dragging(false), _inactivePress(false), _shoul
 		setObjectName(qsl("MainWindow"));
 	}
 	resize(st::wndDefWidth, st::wndDefHeight);
-	setWindowOpacity(1);
+
 	setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
 	centralwidget = new QWidget(this);
 	centralwidget->setObjectName(qsl("centralwidget"));
@@ -388,6 +388,9 @@ _connecting(0), _clearManager(0), dragging(false), _inactivePress(false), _shoul
 
 	connect(this, SIGNAL(imageLoaded()), this, SLOT(update()));
 	connect(this, SIGNAL(imageLoaded()), this, SLOT(notifyUpdateAllPhotos()));
+
+	setAttribute(Qt::WA_NoSystemBackground);
+	setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
 void Window::inactivePress(bool inactive) {
@@ -852,7 +855,20 @@ void Window::layerHidden() {
 }
 
 void Window::hideMediaview() {
-	if (_mediaView && !_mediaView->isHidden()) _mediaView->hide();
+    if (_mediaView && !_mediaView->isHidden()) {
+        _mediaView->hide();
+#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
+        if (App::wnd()) {
+            App::wnd()->activateWindow();
+        }
+#endif
+    }
+}
+
+bool Window::contentOverlapped(const QRect &globalRect) {
+	if (main && main->contentOverlapped(globalRect)) return true;
+	if (layerBG && layerBG->contentOverlapped(globalRect)) return true;
+	return false;
 }
 
 void Window::setInnerFocus() {
@@ -1167,7 +1183,7 @@ void Window::resizeEvent(QResizeEvent *e) {
 		cSetWideMode(wideMode);
 		updateWideMode();
 	}
-	title->setGeometry(QRect(0, 0, width(), st::titleHeight + st::titleShadow));
+	title->setGeometry(0, 0, width(), st::titleHeight);
 	if (layerBG) layerBG->resize(width(), height());
 	if (_connecting) _connecting->setGeometry(0, height() - _connecting->height(), _connecting->width(), _connecting->height());
 	emit resized(QSize(width(), height() - st::titleHeight));

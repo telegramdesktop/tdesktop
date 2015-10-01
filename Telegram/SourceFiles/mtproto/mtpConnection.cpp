@@ -2728,11 +2728,19 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 	} return 1;
 
 	case mtpc_new_session_created: {
-		if (badTime) return 0;
-
 		const mtpPrime *start = from;
 		MTPNewSession msg(from, end);
 		const MTPDnew_session_created &data(msg.c_new_session_created());
+
+		if (badTime) {
+			if (requestsFixTimeSalt(QVector<MTPlong>(1, data.vfirst_msg_id), serverTime, serverSalt)) {
+				badTime = false;
+			} else {
+				DEBUG_LOG(("Message Info: error, such message was not sent recently %1").arg(data.vfirst_msg_id.v));
+				return 0;
+			}
+		}
+
 		DEBUG_LOG(("Message Info: new server session created, unique_id %1, first_msg_id %2, server_salt %3").arg(data.vunique_id.v).arg(data.vfirst_msg_id.v).arg(data.vserver_salt.v));
 		sessionData->setSalt(data.vserver_salt.v);
 

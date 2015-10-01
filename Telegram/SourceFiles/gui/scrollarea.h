@@ -81,7 +81,7 @@ signals:
 
 private:
 
-	ScrollArea *_area;
+	ScrollArea *area();
 	const style::flatScroll *_st;
 
 	bool _vertical;
@@ -100,6 +100,62 @@ private:
 	QRect _bar;
 };
 
+class SplittedWidget : public TWidget {
+	Q_OBJECT
+
+public:
+
+	SplittedWidget(QWidget *parent) : TWidget(parent), _otherWidth(0) {
+		setAttribute(Qt::WA_OpaquePaintEvent);
+	}
+	void paintEvent(QPaintEvent *e); // paintEvent done through paintRegion
+	void setHeight(int32 newHeight) {
+		resize(width(), newHeight);
+		emit resizeOther();
+	}
+	void update(int x, int y, int w, int h) {
+		update(QRect(x, y, w, h));
+	}
+	void update(const QRect&);
+	void update(const QRegion&);
+
+public slots:
+
+	void update() {
+		update(0, 0, fullWidth(), height());
+	}
+
+signals:
+
+	void resizeOther();
+	void updateOther(const QRect&);
+	void updateOther(const QRegion&);
+
+protected:
+
+	int32 otherWidth() const {
+		return _otherWidth;
+	}
+	int32 fullWidth() const {
+		return width() + otherWidth();
+	}
+	virtual void paintRegion(Painter &p, const QRegion &region, bool paintingOther) = 0;
+
+private:
+
+	int32 _otherWidth;
+	void setOtherWidth(int32 otherWidth) {
+		_otherWidth = otherWidth;
+	}
+	void resize(int32 w, int32 h) {
+		TWidget::resize(w, h);
+	}
+	friend class ScrollArea;
+	friend class SplittedWidgetOther;
+
+};
+
+class SplittedWidgetOther;
 class ScrollArea : public QScrollArea {
 	Q_OBJECT
 
@@ -127,6 +183,7 @@ public:
 	int scrollTop() const;
 
 	void setWidget(QWidget *widget);
+	QWidget *takeWidget();
 
 	void rangeChanged(int oldMax, int newMax, bool vertical);
 
@@ -144,6 +201,11 @@ public slots:
 
 	void onTouchTimer();
 	void onTouchScrollTimer();
+
+	void onResizeOther();
+	void onUpdateOther(const QRect&);
+	void onUpdateOther(const QRegion&);
+	void onVerticalScroll();
 
 signals:
 
@@ -192,4 +254,14 @@ private:
 
 	bool _widgetAcceptsTouch;
 
+	friend class SplittedWidgetOther;
+	SplittedWidgetOther *_other;
+
+};
+
+class SplittedWidgetOther : public TWidget {
+public:
+	SplittedWidgetOther(ScrollArea *parent) : TWidget(parent) {
+	}
+	void paintEvent(QPaintEvent *e);
 };

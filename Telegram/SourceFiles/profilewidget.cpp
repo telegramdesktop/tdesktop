@@ -651,6 +651,8 @@ bool ProfileInner::event(QEvent *e) {
 }
 
 void ProfileInner::paintEvent(QPaintEvent *e) {
+	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) return;
+
 	Painter p(this);
 
 	QRect r(e->rect());
@@ -810,7 +812,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 			for (Participants::const_iterator i = _participants.cbegin(), e = _participants.cend(); i != e; ++i, ++cnt) {
 				int32 top = partfrom + cnt * _pHeight;
 				if (top + _pHeight <= r.top()) continue;
-				if (top > r.bottom()) break;
+				if (top >= r.y() + r.height()) break;
 
 				if (_selectedRow == cnt) {
 					p.fillRect(_left - st::profileListPadding.width(), top, _width + 2 * st::profileListPadding.width(), _pHeight, st::profileHoverBG->b);
@@ -1553,7 +1555,9 @@ void ProfileWidget::mousePressEvent(QMouseEvent *e) {
 }
 
 void ProfileWidget::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) return;
+
+	Painter p(this);
 	if (animating() && _showing) {
 		p.setOpacity(a_bgAlpha.current());
 		p.drawPixmap(a_bgCoord.current(), 0, _bgAnimCache);

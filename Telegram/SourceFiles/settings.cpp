@@ -208,7 +208,7 @@ void settingsParseArgs(int argc, char *argv[]) {
 RecentEmojiPack &cGetRecentEmojis() {
 	if (cRecentEmojis().isEmpty()) {
 		RecentEmojiPack r;
-		if (!cRecentEmojisPreload().isEmpty()) {
+		if (!cRecentEmojisPreload().isEmpty() && false) {
 			RecentEmojisPreload p(cRecentEmojisPreload());
 			cSetRecentEmojisPreload(RecentEmojisPreload());
 			r.reserve(p.size());

@@ -752,6 +752,8 @@ namespace App {
 				}
 			}
 
+			existing->setMedia(m.has_media() ? (&m.vmedia) : 0);
+
 			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
 		}
 	}

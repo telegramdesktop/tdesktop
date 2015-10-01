@@ -398,6 +398,8 @@ public:
 	void gotRangeDifference(ChannelData *channel, const MTPupdates_ChannelDifference &diff);
 	void onSelfParticipantUpdated(ChannelData *channel);
 
+	bool contentOverlapped(const QRect &globalRect);
+
 	~MainWidget();
 
 signals:

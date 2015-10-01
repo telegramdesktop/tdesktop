@@ -205,7 +205,8 @@ RecentStickerPack &cGetRecentStickers();
 DeclareSetting(uint64, LastStickersUpdate);
 
 static const uint64 DefaultStickerSetId = 0; // for backward compatibility
-static const uint64 CustomStickerSetId = 0xFFFFFFFFFFFFFFFFLLU, RecentStickerSetId = 0xFFFFFFFFFFFFFFFELLU;
+static const uint64 CustomStickerSetId = 0xFFFFFFFFFFFFFFFFULL, RecentStickerSetId = 0xFFFFFFFFFFFFFFFEULL;
+static const uint64 NoneStickerSetId = 0xFFFFFFFFFFFFFFFDULL; // for emoji/stickers panel
 struct StickerSet {
 	StickerSet(uint64 id, uint64 access, const QString &title, const QString &shortName, int32 count, int32 hash, int32 flags) : id(id), access(access), title(title), shortName(shortName), count(count), hash(hash), flags(flags) {
 	}

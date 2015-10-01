@@ -149,10 +149,11 @@ void stopGif() {
 	animated.stop();
 }
 
-void DialogRow::paint(Painter &p, int32 w, bool act, bool sel) const {
+void DialogRow::paint(Painter &p, int32 w, bool act, bool sel, bool onlyBackground) const {
 	QRect fullRect(0, 0, w, st::dlgHeight);
 	p.fillRect(fullRect, (act ? st::dlgActiveBG : (sel ? st::dlgHoverBG : st::dlgBG))->b);
-	
+	if (onlyBackground) return;
+
 	p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, history->peer->photo->pix(st::dlgPhotoSize));
 
 	int32 nameleft = st::dlgPaddingHor + st::dlgPhotoSize + st::dlgPhotoPadding;
@@ -240,10 +241,11 @@ void DialogRow::paint(Painter &p, int32 w, bool act, bool sel) const {
 	history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
-void FakeDialogRow::paint(Painter &p, int32 w, bool act, bool sel) const {
+void FakeDialogRow::paint(Painter &p, int32 w, bool act, bool sel, bool onlyBackground) const {
 	QRect fullRect(0, 0, w, st::dlgHeight);
 	p.fillRect(fullRect, (act ? st::dlgActiveBG : (sel ? st::dlgHoverBG : st::dlgBG))->b);
-
+	if (onlyBackground) return;
+	
 	History *history = _item->history();
 
 	p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, history->peer->photo->pix(st::dlgPhotoSize));
@@ -2112,7 +2114,7 @@ void History::updateShowFrom() {
 		--i;
 		for (HistoryBlock::Items::const_iterator j = (*i)->items.cend(); j != (*i)->items.cbegin();) {
 			--j;
-			if ((*j)->type() == HistoryItemMsg && (*j)->id > 0) {
+			if ((*j)->type() == HistoryItemMsg && (*j)->id > 0 && (!(*j)->out() || !showFrom)) {
 				if ((*j)->id >= inboxReadBefore) {
 					showFrom = *j;
 				} else {
@@ -2894,11 +2896,11 @@ int32 HistoryPhoto::resize(int32 width, const HistoryItem *parent) {
 }
 
 const QString HistoryPhoto::inDialogsText() const {
-	return lang(lng_in_dlg_photo);
+	return _caption.isEmpty() ? lang(lng_in_dlg_photo) : _caption.original(0, 0xFFFF, false);
 }
 
 const QString HistoryPhoto::inHistoryText() const {
-	return qsl("[ ") + lang(lng_in_dlg_photo) + qsl(" ]");
+	return qsl("[ ") + lang(lng_in_dlg_photo) + (_caption.isEmpty() ? QString() : (qsl(", ") + _caption.original(0, 0xFFFF))) + qsl(" ]");
 }
 
 const Text &HistoryPhoto::captionForClone() const {
@@ -3228,11 +3230,11 @@ void HistoryVideo::unregItem(HistoryItem *item) {
 }
 
 const QString HistoryVideo::inDialogsText() const {
-	return lang(lng_in_dlg_video);
+	return _caption.isEmpty() ? lang(lng_in_dlg_video) : _caption.original(0, 0xFFFF, false);
 }
 
 const QString HistoryVideo::inHistoryText() const {
-	return qsl("[ ") + lang(lng_in_dlg_video) + qsl(" ]");
+	return qsl("[ ") + lang(lng_in_dlg_video) + (_caption.isEmpty() ? QString() : (qsl(", ") + _caption.original(0, 0xFFFF))) + qsl(" ]");
 }
 
 bool HistoryVideo::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {

@@ -45,9 +45,10 @@ namespace {
 }
 
 mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &volume, int32 local, const uint64 &secret, int32 size) : prev(0), next(0),
-priority(0), inQueue(false), complete(false), triedLocal(false), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
-dc(dc), locationType(0), volume(volume), local(local), secret(secret),
-id(0), access(0), fileIsOpen(false), size(size), type(mtpc_storage_fileUnknown) {
+priority(0), inQueue(false), complete(false),
+_localStatus(LocalNotTried), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
+dc(dc), _locationType(UnknownFileLocation), volume(volume), local(local), secret(secret),
+id(0), access(0), fileIsOpen(false), size(size), type(mtpc_storage_fileUnknown), _localTaskId(0) {
 	LoaderQueues::iterator i = queues.find(dc);
 	if (i == queues.cend()) {
 		i = queues.insert(dc, mtpFileLoaderQueue());
@@ -55,10 +56,11 @@ id(0), access(0), fileIsOpen(false), size(size), type(mtpc_storage_fileUnknown) 
 	queue = &i.value();
 }
 
-mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, mtpTypeId locType, const QString &to, int32 size) : prev(0), next(0),
-priority(0), inQueue(false), complete(false), triedLocal(false), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
-dc(dc), locationType(locType), volume(0), local(0), secret(0),
-id(id), access(access), file(to), fname(to), fileIsOpen(false), duplicateInData(false), size(size), type(mtpc_storage_fileUnknown) {
+mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, LocationType type, const QString &to, int32 size, bool todata) : prev(0), next(0),
+priority(0), inQueue(false), complete(false),
+_localStatus(LocalNotTried), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
+dc(dc), _locationType(type), volume(0), local(0), secret(0),
+id(id), access(access), file(to), fname(to), fileIsOpen(false), duplicateInData(todata), size(size), type(mtpc_storage_fileUnknown), _localTaskId(0) {
 	LoaderQueues::iterator i = queues.find(MTP::dld[0] + dc);
 	if (i == queues.cend()) {
 		i = queues.insert(MTP::dld[0] + dc, mtpFileLoaderQueue());
@@ -66,31 +68,32 @@ id(id), access(access), file(to), fname(to), fileIsOpen(false), duplicateInData(
 	queue = &i.value();
 }
 
-mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, mtpTypeId locType, const QString &to, int32 size, bool todata) : prev(0), next(0),
-priority(0), inQueue(false), complete(false), triedLocal(false), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
-dc(dc), locationType(locType), volume(0), local(0), secret(0),
-id(id), access(access), file(to), fname(to), fileIsOpen(false), duplicateInData(todata), size(size), type(mtpc_storage_fileUnknown) {
-	LoaderQueues::iterator i = queues.find(MTP::dld[0] + dc);
-	if (i == queues.cend()) {
-		i = queues.insert(MTP::dld[0] + dc, mtpFileLoaderQueue());
+QByteArray mtpFileLoader::imageFormat() const {
+	if (_imageFormat.isEmpty() && _locationType == UnknownFileLocation) {
+		readImage();
 	}
-	queue = &i.value();
+	return _imageFormat;
 }
 
-QString mtpFileLoader::fileName() const {
-	return fname;
+QPixmap mtpFileLoader::imagePixmap() const {
+	if (_imagePixmap.isNull() && _locationType == UnknownFileLocation) {
+		readImage();
+	}
+	return _imagePixmap;
 }
 
-bool mtpFileLoader::done() const {
-	return complete;
-}
-
-mtpTypeId mtpFileLoader::fileType() const {
-	return type;
-}
-
-const QByteArray &mtpFileLoader::bytes() const {
-	return data;
+void mtpFileLoader::readImage() const {
+	QByteArray format;
+	switch (type) {
+	case mtpc_storage_fileGif: format = "GIF"; break;
+	case mtpc_storage_fileJpeg: format = "JPG"; break;
+	case mtpc_storage_filePng: format = "PNG"; break;
+	default: format = QByteArray(); break;
+	}
+	_imagePixmap = QPixmap::fromImage(App::readImage(data, &format, false), Qt::ColorOnly);
+	if (!_imagePixmap.isNull()) {
+		_imageFormat = format;
+	}
 }
 
 float64 mtpFileLoader::currentProgress() const {
@@ -150,11 +153,20 @@ bool mtpFileLoader::loadPart() {
 
 	int32 limit = DocumentDownloadPartSize;
 	MTPInputFileLocation loc;
-	switch (locationType) {
-	case 0: loc = MTP_inputFileLocation(MTP_long(volume), MTP_int(local), MTP_long(secret)); limit = DownloadPartSize; break;
-	case mtpc_inputVideoFileLocation: loc = MTP_inputVideoFileLocation(MTP_long(id), MTP_long(access)); break;
-	case mtpc_inputAudioFileLocation: loc = MTP_inputAudioFileLocation(MTP_long(id), MTP_long(access)); break;
-	case mtpc_inputDocumentFileLocation: loc = MTP_inputDocumentFileLocation(MTP_long(id), MTP_long(access)); break;
+	switch (_locationType) {
+	case UnknownFileLocation:
+		loc = MTP_inputFileLocation(MTP_long(volume), MTP_int(local), MTP_long(secret));
+		limit = DownloadPartSize;
+	break;
+	case VideoFileLocation:
+		loc = MTP_inputVideoFileLocation(MTP_long(id), MTP_long(access));
+	break;
+	case AudioFileLocation:
+		loc = MTP_inputAudioFileLocation(MTP_long(id), MTP_long(access));
+	break;
+	case DocumentFileLocation:
+		loc = MTP_inputDocumentFileLocation(MTP_long(id), MTP_long(access));
+	break;
 	default:
 		finishFail();
 		return false;
@@ -188,7 +200,7 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 	Requests::iterator i = requests.find(req);
 	if (i == requests.cend()) return loadNext();
 
-	int32 limit = locationType ? DocumentDownloadPartSize : DownloadPartSize;
+	int32 limit = (_locationType == UnknownFileLocation) ? DownloadPartSize : DocumentDownloadPartSize;
 	int32 dcIndex = i.value();
 	_dataRequested[dc].v[dcIndex] -= limit;
 
@@ -254,24 +266,26 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 			App::app()->killDownloadSessionsStart(dc);
 		}
 
-		if (!locationType && triedLocal && (fname.isEmpty() || duplicateInData)) {
-			Local::writeImage(storageKey(dc, volume, local), StorageImageSaved(mtpToStorageType(type), data));
-		} else if (locationType && triedLocal) {
-			if (!fname.isEmpty()) {
-				Local::writeFileLocation(mediaKey(mtpToLocationType(locationType), dc, id), FileLocation(mtpToStorageType(type), fname));
-			}
-			if (duplicateInData) {
-				if (locationType == mtpc_inputDocumentFileLocation) {
-					Local::writeStickerImage(mediaKey(mtpToLocationType(locationType), dc, id), data);
-				} else if (locationType == mtpc_inputAudioFileLocation) {
-					Local::writeAudio(mediaKey(mtpToLocationType(locationType), dc, id), data);
+		if (_localStatus == LocalNotFound || _localStatus == LocalFailed) {
+			if (_locationType != UnknownFileLocation) { // audio, video, document
+				MediaKey mkey = mediaKey(_locationType, dc, id);
+				if (!fname.isEmpty()) {
+					Local::writeFileLocation(mkey, FileLocation(mtpToStorageType(type), fname));
 				}
+				if (duplicateInData) {
+					if (_locationType == DocumentFileLocation) {
+						Local::writeStickerImage(mkey, data);
+					} else if (_locationType == AudioFileLocation) {
+						Local::writeAudio(mkey, data);
+					}
+				}
+			} else {
+				Local::writeImage(storageKey(dc, volume, local), StorageImageSaved(mtpToStorageType(type), data));
 			}
 		}
 	}
 	emit progress(this);
 	loadNext();
-//	LOG(("Part loaded, handle time: %1").arg(getms() - ms));
 }
 
 bool mtpFileLoader::partFailed(const RPCError &error) {
@@ -303,53 +317,98 @@ void mtpFileLoader::pause() {
 	removeFromQueue();
 }
 
-void mtpFileLoader::start(bool loadFirst, bool prior) {
-	if (complete) return;
-	if (!triedLocal) {
-		if (!locationType) {
-			triedLocal = true;
-			StorageImageSaved cached = Local::readImage(storageKey(dc, volume, local));
-			if (cached.type != StorageFileUnknown) {
-				data = cached.data;
-				type = mtpFromStorageType(cached.type);
-			}
-		} else if (locationType) {
-			if (!fname.isEmpty()) {
-				triedLocal = true;
-			}
-			if (duplicateInData) {
-				if (locationType == mtpc_inputDocumentFileLocation) {
-					triedLocal = true;
-					data = Local::readStickerImage(mediaKey(mtpToLocationType(locationType), dc, id));
-					if (!data.isEmpty()) type = mtpc_storage_filePartial;
-				} else if (locationType == mtpc_inputAudioFileLocation) {
-					triedLocal = true;
-					data = Local::readAudio(mediaKey(mtpToLocationType(locationType), dc, id));
-					if (!data.isEmpty()) type = mtpc_storage_filePartial;
-				}
-			}
+bool mtpFileLoader::tryLoadLocal() {
+	if (_localStatus == LocalNotFound || _localStatus == LocalLoaded || _localStatus == LocalFailed) {
+		return false;
+	}
+	if (_localStatus == LocalLoading) {
+		return true;
+	}
+
+	if (_locationType == UnknownFileLocation) {
+		_localTaskId = Local::startImageLoad(storageKey(dc, volume, local), this);
+		if (_localTaskId) {
+			_localStatus = LocalLoading;
+			return true;
 		}
-		if (triedLocal && !data.isEmpty()) {
-			if (!fname.isEmpty() && duplicateInData) {
-				if (!fileIsOpen) fileIsOpen = file.open(QIODevice::WriteOnly);
-				if (!fileIsOpen) {
-					return finishFail();
-				}
-				if (file.write(data) != qint64(data.size())) {
-					return finishFail();
-				}
+	} else {
+		if (duplicateInData) {
+			MediaKey mkey = mediaKey(_locationType, dc, id);
+			if (_locationType == DocumentFileLocation) {
+				_localTaskId = Local::startStickerImageLoad(mkey, this);
+			} else if (_locationType == AudioFileLocation) {
+				_localTaskId = Local::startAudioLoad(mkey, this);
 			}
-			complete = true;
-			if (fileIsOpen) {
-				file.close();
-				fileIsOpen = false;
-				psPostprocessFile(QFileInfo(file).absoluteFilePath());
-			}
-			emit App::wnd()->imageLoaded();
-			emit progress(this);
-			return loadNext();
 		}
 	}
+
+	if (data.isEmpty()) {
+		_localStatus = LocalNotFound;
+		return false;
+	}
+
+	_localStatus = LocalLoaded;
+	if (!fname.isEmpty() && duplicateInData) {
+		if (!fileIsOpen) fileIsOpen = file.open(QIODevice::WriteOnly);
+		if (!fileIsOpen) {
+			finishFail();
+			return true;
+		}
+		if (file.write(data) != qint64(data.size())) {
+			finishFail();
+			return true;
+		}
+	}
+	complete = true;
+	if (fileIsOpen) {
+		file.close();
+		fileIsOpen = false;
+		psPostprocessFile(QFileInfo(file).absoluteFilePath());
+	}
+	emit App::wnd()->imageLoaded();
+	emit progress(this);
+	loadNext();
+	return true;
+}
+
+void mtpFileLoader::localLoaded(const StorageImageSaved &result, const QByteArray &imageFormat, const QPixmap &imagePixmap) {
+	_localTaskId = 0;
+	if (result.type == StorageFileUnknown) {
+		_localStatus = LocalFailed;
+		start(true);
+		return;
+	}
+	data = result.data;
+	type = mtpFromStorageType(result.type);
+	if (!imagePixmap.isNull()) {
+		_imageFormat = imageFormat;
+		_imagePixmap = imagePixmap;
+	}
+	_localStatus = LocalLoaded;
+	if (!fname.isEmpty() && duplicateInData) {
+		if (!fileIsOpen) fileIsOpen = file.open(QIODevice::WriteOnly);
+		if (!fileIsOpen) {
+			finishFail();
+			return;
+		}
+		if (file.write(data) != qint64(data.size())) {
+			finishFail();
+			return;
+		}
+	}
+	complete = true;
+	if (fileIsOpen) {
+		file.close();
+		fileIsOpen = false;
+		psPostprocessFile(QFileInfo(file).absoluteFilePath());
+	}
+	emit App::wnd()->imageLoaded();
+	emit progress(this);
+	loadNext();
+}
+
+void mtpFileLoader::start(bool loadFirst, bool prior) {
+	if (complete || tryLoadLocal()) return;
 
 	if (!fname.isEmpty() && !duplicateInData && !fileIsOpen) {
 		fileIsOpen = file.open(QIODevice::WriteOnly);
@@ -464,7 +523,7 @@ void mtpFileLoader::cancel() {
 void mtpFileLoader::cancelRequests() {
 	if (requests.isEmpty()) return;
 
-	int32 limit = locationType ? DocumentDownloadPartSize : DownloadPartSize;
+	int32 limit = (_locationType == UnknownFileLocation) ? DownloadPartSize : DocumentDownloadPartSize;
 	DataRequested &dr(_dataRequested[dc]);
 	for (Requests::const_iterator i = requests.cbegin(), e = requests.cend(); i != e; ++i) {
 		MTP::cancel(i.key());
@@ -489,6 +548,9 @@ void mtpFileLoader::started(bool loadFirst, bool prior) {
 }
 
 mtpFileLoader::~mtpFileLoader() {
+	if (_localTaskId) {
+		Local::cancelTask(_localTaskId);
+	}
 	removeFromQueue();
 	cancelRequests();
 }
