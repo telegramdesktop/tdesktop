@@ -877,7 +877,7 @@ public:
 	virtual bool serviceMsg() const {
 		return false;
 	}
-	virtual void updateMedia(const MTPMessageMedia &media) {
+	virtual void updateMedia(const MTPMessageMedia *media) {
 	}
 
 	virtual QString selectedText(uint32 selection) const {
@@ -1531,9 +1531,11 @@ public:
     QString notificationHeader() const;
     QString notificationText() const;
     
-	void updateMedia(const MTPMessageMedia &media) {
-		if (_media) {
-			_media->updateFrom(media);
+	void updateMedia(const MTPMessageMedia *media) {
+		if (media && _media && _media->type() != MediaTypeWebPage) {
+			_media->updateFrom(*media);
+		} else {
+			setMedia(media);
 		}
 	}
 

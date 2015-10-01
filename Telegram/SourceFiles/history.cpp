@@ -1338,14 +1338,8 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 			regged = true;
 		}
 
-		const MTPMessageMedia *media = 0;
-		switch (msg.type()) {
-		case mtpc_message:
-			media = msg.c_message().has_media() ? (&msg.c_message().vmedia) : 0;
-		break;
-		}
-		if (media) {
-			existing->updateMedia(*media);
+		if (msg.type() == mtpc_message) {
+			existing->updateMedia(msg.c_message().has_media() ? (&msg.c_message().vmedia) : 0);
 		}
 		return (returnExisting || regged) ? existing : 0;
 	}

@@ -752,7 +752,7 @@ namespace App {
 				}
 			}
 
-			existing->setMedia(m.has_media() ? (&m.vmedia) : 0);
+			existing->updateMedia(m.has_media() ? (&m.vmedia) : 0);
 
 			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
 		}
@@ -1930,7 +1930,7 @@ namespace App {
 		prepareCorners(InShadowCorners, st::msgRadius, st::msgInShadow);
 		prepareCorners(InSelectedShadowCorners, st::msgRadius, st::msgInSelectShadow);
 		prepareCorners(ForwardCorners, st::msgRadius, st::forwardBg);
-		prepareCorners(MediaviewSaveCorners, st::msgRadius, st::emojiPanHover);
+		prepareCorners(MediaviewSaveCorners, st::msgRadius, st::medviewSaveMsg);
 		prepareCorners(EmojiHoverCorners, st::msgRadius, st::emojiPanHover);
 		prepareCorners(StickerHoverCorners, st::msgRadius, st::emojiPanHover);
 		prepareCorners(BotKeyboardCorners, st::msgRadius, st::botKbBg);
