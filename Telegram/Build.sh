@@ -1,3 +1,5 @@
+set -e
+
 while IFS='' read -r line || [[ -n "$line" ]]; do
   set $line
   eval $1="$2"
@@ -24,11 +26,17 @@ if [ "$BuildTarget" == "linux" ]; then
   echo "Building version $AppVersionStrFull for Linux 64bit.."
   UpdateFile="tlinuxupd$AppVersion"
   SetupFile="tsetup.$AppVersionStrFull.tar.xz"
+  WorkPath="./../Linux"
+  HomePath="./../../Telegram"
+  FixScript="$HomePath/FixMake.sh"
   ReleasePath="./../Linux/Release"
 elif [ "$BuildTarget" == "linux32" ]; then
   echo "Building version $AppVersionStrFull for Linux 32bit.."
   UpdateFile="tlinux32upd$AppVersion"
   SetupFile="tsetup32.$AppVersionStrFull.tar.xz"
+  WorkPath="./../Linux"
+  HomePath="./../../Telegram"
+  FixScript="$HomePath/FixMake32.sh"
   ReleasePath="./../Linux/Release"
 elif [ "$BuildTarget" == "mac" ]; then
   echo "Building version $AppVersionStrFull for OS X 10.8+.."
@@ -73,6 +81,20 @@ fi
 #fi
 
 if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
+  mkdir -p "$WorkPath/ReleaseIntermediateUpdater"
+  cd "$WorkPath/ReleaseIntermediateUpdater"
+  /usr/local/Qt-5.5.0/bin/qmake "$HomePath/Updater.pro"
+  make
+  echo "Updater build complete!"
+  cd "$HomePath"
+ 
+  mkdir -p "$WorkPath/ReleaseIntermediate"
+  cd "$WorkPath/ReleaseIntermediate"
+  /usr/local/Qt-5.5.0/bin/qmake "$HomePath/Telegram.pro"
+  eval "$FixScript"
+  make
+  echo "Telegram build complete!"
+  cd "$HomePath" 
   if [ ! -f "$ReleasePath/Telegram" ]; then
     echo "Telegram not found!"
     exit 1
@@ -106,8 +128,8 @@ fi
 
 if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" == "macstore" ]; then
 
-  touch ./SourceFiles/telegram.qrc or exit 1
-  xcodebuild -project Telegram.xcodeproj -alltargets -configuration Release build or exit 1
+  touch ./SourceFiles/telegram.qrc
+  xcodebuild -project Telegram.xcodeproj -alltargets -configuration Release build
 
   if [ ! -d "$ReleasePath/$BinaryName.app" ]; then
     echo "$BinaryName.app not found!"
