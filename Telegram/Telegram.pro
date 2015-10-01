@@ -73,10 +73,8 @@ unix {
     linux-g++-64:QMAKE_TARGET.arch = x86_64
 
     contains(QMAKE_TARGET.arch, x86_64) {
-        CONFIG(release,debug|release):QMAKE_PRE_LINK = ./../../Telegram/FixMake.sh
         DEFINES += Q_OS_LINUX64
     } else {
-        CONFIG(release,debug|release):QMAKE_PRE_LINK = ./../../Telegram/FixMake32.sh
         DEFINES += Q_OS_LINUX32
     }
 }
