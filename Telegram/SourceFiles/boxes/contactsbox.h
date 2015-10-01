@@ -108,6 +108,7 @@ public slots:
 
 private:
 
+	void updateSelectedRow();
 	void addAdminDone(const MTPBool &result, mtpRequestId req);
 	bool addAdminFail(const RPCError &error, mtpRequestId req);
 
@@ -296,6 +297,7 @@ public slots:
 
 private:
 
+	void updateSelectedRow();
 	void clearSel();
 	MemberData *data(int32 index);
 

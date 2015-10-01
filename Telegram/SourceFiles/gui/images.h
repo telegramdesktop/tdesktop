@@ -117,7 +117,8 @@ public:
 	LocalImage(const QString &file, QByteArray format = QByteArray());
 	LocalImage(const QByteArray &filecontent, QByteArray format = QByteArray());
 	LocalImage(const QPixmap &pixmap, QByteArray format = QByteArray());
-	
+	LocalImage(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap);
+
 	int32 width() const;
 	int32 height() const;
 
@@ -143,6 +144,7 @@ private:
 LocalImage *getImage(const QString &file, QByteArray format);
 LocalImage *getImage(const QByteArray &filecontent, QByteArray format);
 LocalImage *getImage(const QPixmap &pixmap, QByteArray format);
+LocalImage *getImage(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap);
 
 typedef QPair<uint64, uint64> StorageKey;
 inline uint64 storageMix32To64(int32 a, int32 b) {
@@ -219,6 +221,8 @@ public:
 	ImagePtr(const QString &file, QByteArray format = QByteArray()) : Parent(getImage(file, format)) {
 	}
 	ImagePtr(const QByteArray &filecontent, QByteArray format = QByteArray()) : Parent(getImage(filecontent, format)) {
+	}
+	ImagePtr(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap) : Parent(getImage(filecontent, format, pixmap)) {
 	}
 	ImagePtr(const QPixmap &pixmap, QByteArray format) : Parent(getImage(pixmap, format)) {
 	}

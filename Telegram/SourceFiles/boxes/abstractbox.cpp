@@ -90,6 +90,7 @@ void AbstractBox::animStep(float64 ms) {
 	if (ms >= 1) {
 		a_opacity.finish();
 		_cache = QPixmap();
+		setAttribute(Qt::WA_OpaquePaintEvent);
 		if (!_hiding) {
 			showAll();
 			showDone();
@@ -129,6 +130,7 @@ void AbstractBox::startHide() {
 		hideAll();
 	}
 	a_opacity.start(0);
+	setAttribute(Qt::WA_OpaquePaintEvent, false);
 }
 
 ScrollableBox::ScrollableBox(const style::flatScroll &scroll) : AbstractBox(),

@@ -47,6 +47,16 @@ public:
 
 	bool eventFilter(QObject *obj, QEvent *e);
 
+	bool overlaps(const QRect &globalRect) {
+		if (isHidden() || animating()) return false;
+
+		return QRect(_st.padding.left(),
+					 _st.padding.top(),
+					 _width - _st.padding.left() - _st.padding.right(),
+					 _height - _st.padding.top() - _st.padding.bottom()
+					 ).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
+	}
+
 signals:
 
 	void hiding();
@@ -108,6 +118,16 @@ public:
 
 	bool animStep(float64 ms);
 
+	bool overlaps(const QRect &globalRect) {
+		if (isHidden() || animating()) return false;
+
+		return QRect(st::dragPadding.left(),
+					 st::dragPadding.top(),
+					 width() - st::dragPadding.left() - st::dragPadding.right(),
+					 height() - st::dragPadding.top() - st::dragPadding.bottom()
+					 ).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
+	}
+
 signals:
 
 	void dropped(const QMimeData *data);
@@ -132,6 +152,7 @@ private:
 
 };
 
+class EmojiPanel;
 static const int EmojiColorsCount = 5;
 
 class EmojiColorPicker : public TWidget, public Animated {
@@ -139,7 +160,7 @@ class EmojiColorPicker : public TWidget, public Animated {
 
 public:
 
-	EmojiColorPicker(QWidget *parent);
+	EmojiColorPicker();
 
 	void showEmoji(uint32 code);
 
@@ -193,14 +214,12 @@ private:
 
 };
 
-static const int32 SwitcherSelected = (INT_MAX / 2);
-
 class EmojiPanInner : public TWidget, public Animated {
 	Q_OBJECT
 
 public:
 
-	EmojiPanInner(QWidget *parent = 0);
+	EmojiPanInner();
 
 	void setMaxHeight(int32 h);
 	void paintEvent(QPaintEvent *e);
@@ -224,6 +243,9 @@ public:
 	void refreshRecent();
 
 	void setScrollTop(int top);
+
+	void fillPanels(QVector<EmojiPanel*> &panels);
+	void refreshPanels(QVector<EmojiPanel*> &panels);
 	
 public slots:
 
@@ -234,6 +256,8 @@ public slots:
 	void onPickerHidden();
 	void onColorSelected(EmojiPtr emoji);
 
+	bool checkPickerHide();
+
 signals:
 
 	void selected(EmojiPtr emoji);
@@ -243,12 +267,16 @@ signals:
 	void scrollToY(int y);
 	void disableScroll(bool dis);
 
+	void needRefreshPanels();
+
 private:
 
 	int32 _maxHeight;
 
 	int32 countHeight();
 	void selectEmoji(EmojiPtr emoji);
+
+	QRect emojiRect(int tab, int sel);
 
 	typedef QMap<int32, uint64> Animations; // index - showing, -index - hiding
 	Animations _animations;
@@ -267,9 +295,6 @@ private:
 
 	EmojiColorPicker _picker;
 	QTimer _showPickerTimer;
-
-	float64 _switcherHover;
-	int32 _stickersWidth;
 };
 
 struct StickerIcon {
@@ -287,7 +312,7 @@ class StickerPanInner : public TWidget, public Animated {
 
 public:
 
-	StickerPanInner(QWidget *parent = 0);
+	StickerPanInner();
 
 	void setMaxHeight(int32 h);
 	void paintEvent(QPaintEvent *e);
@@ -309,6 +334,8 @@ public:
 	void refreshRecent(bool resize = true);
 
 	void fillIcons(QVector<StickerIcon> &icons);
+	void fillPanels(QVector<EmojiPanel*> &panels);
+	void refreshPanels(QVector<EmojiPanel*> &panels);
 
 	void setScrollTop(int top);
 	void preloadImages();
@@ -322,7 +349,7 @@ public slots:
 signals:
 
 	void selected(DocumentData *sticker);
-	void removing(uint64 setId);
+	void removing(quint64 setId);
 
 	void refreshIcons();
 
@@ -330,6 +357,7 @@ signals:
 
 	void scrollToY(int y);
 	void disableScroll(bool dis);
+	void needRefreshPanels();
 
 private:
 
@@ -339,6 +367,7 @@ private:
 
 	int32 countHeight();
 	void selectEmoji(EmojiPtr emoji);
+	QRect stickerRect(int tab, int sel);
 
 	typedef QMap<int32, uint64> Animations; // index - showing, -index - hiding
 	Animations _animations;
@@ -359,9 +388,62 @@ private:
 
 	int32 _selected, _pressedSel;
 	QPoint _lastMousePos;
+};
 
-	float64 _switcherHover;
-	int32 _emojiWidth;
+class EmojiPanel : public TWidget {
+	Q_OBJECT
+
+public:
+
+	EmojiPanel(QWidget *parent, const QString &text, uint64 setId, bool special, int32 wantedY); // NoneStickerSetId if in emoji
+	void setText(const QString &text);
+	void setDeleteVisible(bool isVisible);
+
+	void paintEvent(QPaintEvent *e);
+	void mousePressEvent(QMouseEvent *e);
+
+	int32 wantedY() const {
+		return _wantedY;
+	}
+	void setWantedY(int32 y) {
+		_wantedY = y;
+	}
+
+signals:
+
+	void deleteClicked(quint64 setId);
+	void mousePressed();
+
+public slots:
+
+	void onDelete();
+
+private:
+
+	void updateText();
+
+	int32 _wantedY;
+	QString _text, _fullText;
+	uint64 _setId;
+	bool _special, _deleteVisible;
+	IconedButton *_delete;
+
+};
+
+class EmojiSwitchButton : public Button {
+	Q_OBJECT
+
+public:
+
+	EmojiSwitchButton(QWidget *parent, bool toStickers); // otherwise toEmoji
+	void paintEvent(QPaintEvent *e);
+
+protected:
+
+	bool _toStickers;
+	QString _text;
+	int32 _textWidth;
+
 };
 
 class EmojiPan : public TWidget, public Animated {
@@ -397,6 +479,16 @@ public:
 	bool eventFilter(QObject *obj, QEvent *e);
 	void stickersInstalled(uint64 setId);
 
+	bool overlaps(const QRect &globalRect) {
+		if (isHidden() || !_cache.isNull()) return false;
+
+		return QRect(st::dropdownDef.padding.left(),
+					 st::dropdownDef.padding.top(),
+					 _width - st::dropdownDef.padding.left() - st::dropdownDef.padding.right(),
+					 _height - st::dropdownDef.padding.top() - st::dropdownDef.padding.bottom()
+					 ).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
+	}
+
 public slots:
 
 	void refreshStickers();
@@ -411,11 +503,12 @@ public slots:
 	void onScroll();
 	void onSwitch();
 
-	void onRemoveSet(uint64 setId);
+	void onRemoveSet(quint64 setId);
 	void onRemoveSetSure();
 	void onDelayedHide();
 
 	void onRefreshIcons();
+	void onRefreshPanels();
 
 signals:
 
@@ -434,6 +527,7 @@ private:
 	void updateIcons();
 
 	void prepareTab(int32 &left, int32 top, int32 _width, FlatRadiobutton &tab);
+	void updatePanelsPositions(const QVector<EmojiPanel*> &panels, int32 st);
 
 	void showAll();
 	void hideAll();
@@ -472,8 +566,12 @@ private:
 
 	ScrollArea e_scroll;
 	EmojiPanInner e_inner;
+	QVector<EmojiPanel*> e_panels;
+	EmojiSwitchButton e_switch;
 	ScrollArea s_scroll;
 	StickerPanInner s_inner;
+	QVector<EmojiPanel*> s_panels;
+	EmojiSwitchButton s_switch;
 
 	uint64 _removingSetId;
 
@@ -556,6 +654,12 @@ public:
 
 	bool eventFilter(QObject *obj, QEvent *e);
 	QString getSelected() const;
+
+	bool overlaps(const QRect &globalRect) {
+		if (isHidden() || !testAttribute(Qt::WA_OpaquePaintEvent)) return false;
+
+		return rect().contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
+	}
 
 	~MentionsDropdown();
 

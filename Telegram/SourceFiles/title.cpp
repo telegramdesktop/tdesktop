@@ -65,6 +65,7 @@ TitleWidget::TitleWidget(Window *window)
     , lastMaximized(!(window->windowState() & Qt::WindowMaximized))
 {
 	setGeometry(0, 0, wnd->width(), st::titleHeight);
+	setAttribute(Qt::WA_OpaquePaintEvent);
 	_lock.hide();
 	_update.hide();
     _cancel.hide();
@@ -363,7 +364,7 @@ void TitleWidget::maximizedChanged(bool maximized, bool force) {
 HitTestType TitleWidget::hitTest(const QPoint &p) {
 	if (App::wnd() && App::wnd()->layerShown()) return HitTestNone;
 
-	int x(p.x()), y(p.y()), w(width()), h(height() - st::titleShadow);
+	int x(p.x()), y(p.y()), w(width()), h(height());
 	if (cWideMode() && hider && x >= App::main()->dlgsWidth()) return HitTestNone;
 
 	if (x >= st::titleIconPos.x() && y >= st::titleIconPos.y() && x < st::titleIconPos.x() + st::titleIconImg.pxWidth() && y < st::titleIconPos.y() + st::titleIconImg.pxHeight()) {

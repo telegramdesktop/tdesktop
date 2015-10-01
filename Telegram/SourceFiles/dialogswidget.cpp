@@ -69,11 +69,14 @@ int32 DialogsInner::searchedOffset() const {
 }
 
 void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingOther) {
+	QRegion original(rtl() ? region.translated(-otherWidth(), 0) : region);
+	if (App::wnd() && App::wnd()->contentOverlapped(this, original)) return;
+
 	if (!App::main()) return;
 
 	QRect r(region.boundingRect());
-	if (!paintingOther && !r.contains(rect())) {
-		p.setClipRect(rect().intersected(r));
+	if (!paintingOther) {
+		p.setClipRect(r);
 	}
 
 	if (_state == DefaultState) {
@@ -94,16 +97,12 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
 		if (!hashtagResults.isEmpty()) {
-			int32 from = r.top() / int32(st::mentionHeight);
-			if (from < 0) {
-				from = 0;
-			} else if (from > hashtagResults.size()) {
-				from = hashtagResults.size();
-			}
+			int32 from = floorclamp(r.y(), st::mentionHeight, 0, hashtagResults.size());
+			int32 to = ceilclamp(r.y() + r.height(), st::mentionHeight, 0, hashtagResults.size());
 			p.translate(0, from * st::mentionHeight);
 			if (from < hashtagResults.size()) {
-				int32 to = (r.bottom() / int32(st::mentionHeight)) + 1, w = fullWidth(), htagwidth = w - st::dlgPaddingHor * 2;
-				if (to > hashtagResults.size()) to = hashtagResults.size();
+				int32 w = fullWidth(), htagwidth = w - st::dlgPaddingHor * 2;
+
 				p.setFont(st::mentionFont->f);
 				p.setPen(st::black->p);
 				for (; from < to; ++from) {
@@ -142,16 +141,11 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 		}
 		if (!filterResults.isEmpty()) {
 			int32 skip = filteredOffset();
-			int32 from = (r.top() - skip) / int32(st::dlgHeight);
-			if (from < 0) {
-				from = 0;
-			} else if (from > filterResults.size()) {
-				from = filterResults.size();
-			}
+			int32 from = floorclamp(r.y() - skip, st::dlgHeight, 0, filterResults.size());
+			int32 to = ceilclamp(r.y() + r.height() - skip, st::dlgHeight, 0, filterResults.size());
 			p.translate(0, from * st::dlgHeight);
 			if (from < filterResults.size()) {
-				int32 to = (r.bottom() / int32(st::dlgHeight)) + 1, w = fullWidth();
-				if (to > filterResults.size()) to = filterResults.size();
+				int32 w = fullWidth();
 				for (; from < to; ++from) {
 					bool active = (filterResults[from]->history->peer == App::main()->activePeer() && !App::main()->activeMsgId());
 					bool selected = (from == filteredSel);
@@ -171,16 +165,11 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			p.translate(0, st::searchedBarHeight);
 
 			int32 skip = peopleOffset();
-			int32 from = (r.top() - skip) / int32(st::dlgHeight);
-			if (from < 0) {
-				from = 0;
-			} else if (from > peopleResults.size()) {
-				from = peopleResults.size();
-			}
+			int32 from = floorclamp(r.y() - skip, st::dlgHeight, 0, peopleResults.size());
+			int32 to = ceilclamp(r.y() + r.height() - skip, st::dlgHeight, 0, peopleResults.size());
 			p.translate(0, from * st::dlgHeight);
 			if (from < peopleResults.size()) {
-				int32 to = ((r.bottom() - skip) / int32(st::dlgHeight)) + 1, w = fullWidth();
-				if (to > peopleResults.size()) to = peopleResults.size();
+				int32 w = fullWidth();
 				for (; from < to; ++from) {
 					bool active = (peopleResults[from] == App::main()->activePeer() && !App::main()->activeMsgId());
 					bool selected = (from == peopleSel);
@@ -215,16 +204,11 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			p.translate(0, st::searchedBarHeight);
 
 			int32 skip = searchedOffset();
-			int32 from = (r.top() - skip) / int32(st::dlgHeight);
-			if (from < 0) {
-				from = 0;
-			} else if (from > searchResults.size()) {
-				from = searchResults.size();
-			}
+			int32 from = floorclamp(r.y() - skip, st::dlgHeight, 0, searchResults.size());
+			int32 to = ceilclamp(r.y() + r.height() - skip, st::dlgHeight, 0, searchResults.size());
 			p.translate(0, from * st::dlgHeight);
 			if (from < searchResults.size()) {
-				int32 to = ((r.bottom() - skip) / int32(st::dlgHeight)) + 1, w = fullWidth();
-				if (to > searchResults.size()) to = searchResults.size();
+				int32 w = fullWidth();
 				for (; from < to; ++from) {
 					bool active = (searchResults[from]->_item->history()->peer == App::main()->activePeer() && searchResults[from]->_item->id == App::main()->activeMsgId());
 					bool selected = (from == searchedSel);
@@ -941,7 +925,7 @@ void DialogsInner::refresh(bool toTop) {
 			h = searchedOffset() + (searchResults.count() * st::dlgHeight);
 		}
 	}
-	setHeight(h	);
+	setHeight(h);
 	if (toTop) {
 		emit mustScrollTo(0, 0);
 		loadPeerPhotos(0);
@@ -2192,6 +2176,8 @@ void DialogsWidget::keyPressEvent(QKeyEvent *e) {
 }
 
 void DialogsWidget::paintEvent(QPaintEvent *e) {
+	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) return;
+
 	QPainter p(this);
 	QRect r(e->rect());
 	if (r != rect()) {

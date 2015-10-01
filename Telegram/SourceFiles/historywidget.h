@@ -534,6 +534,8 @@ public:
 
 	void updateNotifySettings();
 
+	bool contentOverlapped(const QRect &globalRect);
+
 	~HistoryWidget();
 
 signals:

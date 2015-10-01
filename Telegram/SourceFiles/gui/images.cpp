@@ -526,6 +526,15 @@ LocalImage::LocalImage(const QPixmap &pixmap, QByteArray format) : Image(format)
 	}
 }
 
+LocalImage::LocalImage(const QByteArray &filecontent, QByteArray fmt, const QPixmap &pixmap) {
+	data = pixmap;
+	format = fmt;
+	saved = filecontent;
+	if (!data.isNull()) {
+		globalAquiredSize += int64(data.width()) * data.height() * 4;
+	}
+}
+
 const QPixmap &LocalImage::pixData() const {
 	return data;
 }
@@ -562,6 +571,10 @@ LocalImage *getImage(const QByteArray &filecontent, QByteArray format) {
 
 LocalImage *getImage(const QPixmap &pixmap, QByteArray format) {
 	return new LocalImage(pixmap, format);
+}
+
+LocalImage *getImage(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap) {
+	return new LocalImage(filecontent, format, pixmap);
 }
 
 void clearStorageImages() {

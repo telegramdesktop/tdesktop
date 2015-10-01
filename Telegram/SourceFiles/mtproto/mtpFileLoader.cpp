@@ -335,11 +335,9 @@ bool mtpFileLoader::tryLoadLocal() {
 		if (duplicateInData) {
 			MediaKey mkey = mediaKey(_locationType, dc, id);
 			if (_locationType == DocumentFileLocation) {
-				data = Local::readStickerImage(mkey);
-				if (!data.isEmpty()) type = mtpc_storage_filePartial;
+				_localTaskId = Local::startStickerImageLoad(mkey, this);
 			} else if (_locationType == AudioFileLocation) {
-				data = Local::readAudio(mkey);
-				if (!data.isEmpty()) type = mtpc_storage_filePartial;
+				_localTaskId = Local::startAudioLoad(mkey, this);
 			}
 		}
 	}
@@ -382,7 +380,7 @@ void mtpFileLoader::localLoaded(const StorageImageSaved &result, const QByteArra
 	}
 	data = result.data;
 	type = mtpFromStorageType(result.type);
-	if (_locationType == UnknownFileLocation) { // photo
+	if (!imagePixmap.isNull()) {
 		_imageFormat = imageFormat;
 		_imagePixmap = imagePixmap;
 	}

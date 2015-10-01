@@ -38,14 +38,13 @@ public:
 		emit resized();
 	}
 
-	virtual QRect boxRect() const {
-		QRect res(rect());
-		res.moveTopLeft(geometry().topLeft());
-		return res;
-	}
-
 	void mousePressEvent(QMouseEvent *e) {
 		e->accept();
+	}
+
+	bool overlaps(const QRect &globalRect) {
+		if (isHidden() || !testAttribute(Qt::WA_OpaquePaintEvent)) return false;
+		return rect().contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
 
 signals:
@@ -77,6 +76,8 @@ public:
 
 	bool canSetFocus() const;
 	void setInnerFocus();
+
+	bool contentOverlapped(const QRect &globalRect);
 
 	~BackgroundWidget();
 

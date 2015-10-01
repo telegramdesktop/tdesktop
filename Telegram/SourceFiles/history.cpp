@@ -2114,7 +2114,7 @@ void History::updateShowFrom() {
 		--i;
 		for (HistoryBlock::Items::const_iterator j = (*i)->items.cend(); j != (*i)->items.cbegin();) {
 			--j;
-			if ((*j)->type() == HistoryItemMsg && (*j)->id > 0) {
+			if ((*j)->type() == HistoryItemMsg && (*j)->id > 0 && (!(*j)->out() || !showFrom)) {
 				if ((*j)->id >= inboxReadBefore) {
 					showFrom = *j;
 				} else {
@@ -2896,11 +2896,11 @@ int32 HistoryPhoto::resize(int32 width, const HistoryItem *parent) {
 }
 
 const QString HistoryPhoto::inDialogsText() const {
-	return lang(lng_in_dlg_photo);
+	return _caption.isEmpty() ? lang(lng_in_dlg_photo) : _caption.original(0, 0xFFFF, false);
 }
 
 const QString HistoryPhoto::inHistoryText() const {
-	return qsl("[ ") + lang(lng_in_dlg_photo) + qsl(" ]");
+	return qsl("[ ") + lang(lng_in_dlg_photo) + (_caption.isEmpty() ? QString() : (qsl(", ") + _caption.original(0, 0xFFFF))) + qsl(" ]");
 }
 
 const Text &HistoryPhoto::captionForClone() const {
@@ -3230,11 +3230,11 @@ void HistoryVideo::unregItem(HistoryItem *item) {
 }
 
 const QString HistoryVideo::inDialogsText() const {
-	return lang(lng_in_dlg_video);
+	return _caption.isEmpty() ? lang(lng_in_dlg_video) : _caption.original(0, 0xFFFF, false);
 }
 
 const QString HistoryVideo::inHistoryText() const {
-	return qsl("[ ") + lang(lng_in_dlg_video) + qsl(" ]");
+	return qsl("[ ") + lang(lng_in_dlg_video) + (_caption.isEmpty() ? QString() : (qsl(", ") + _caption.original(0, 0xFFFF))) + qsl(" ]");
 }
 
 bool HistoryVideo::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {

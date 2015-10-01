@@ -233,6 +233,14 @@ public:
 	bool isActive(bool cached = true) const;
 	void hideMediaview();
 
+	bool contentOverlapped(const QRect &globalRect);
+	bool contentOverlapped(QWidget *w, QPaintEvent *e) {
+		return contentOverlapped(QRect(w->mapToGlobal(e->rect().topLeft()), e->rect().size()));
+	}
+	bool contentOverlapped(QWidget *w, const QRegion &r) {
+		return contentOverlapped(QRect(w->mapToGlobal(r.boundingRect().topLeft()), r.boundingRect().size()));
+	}
+
 public slots:
 
 	void updateIsActive(int timeout = 0);

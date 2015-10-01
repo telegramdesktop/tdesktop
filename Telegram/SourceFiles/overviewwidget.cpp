@@ -988,6 +988,8 @@ QPixmap OverviewInner::genPix(PhotoData *photo, int32 size) {
 }
 
 void OverviewInner::paintEvent(QPaintEvent *e) {
+	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) return;
+
 	Painter p(this);
 
 	QRect r(e->rect());
@@ -1014,10 +1016,10 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 	bool hasSel = !_selected.isEmpty();
 
 	if (_type == OverviewPhotos) {
-		int32 rowFrom = int32(r.top() - _addToY - st::overviewPhotoSkip) / int32(_vsize + st::overviewPhotoSkip);
-		int32 rowTo = int32(r.bottom() - _addToY - st::overviewPhotoSkip) / int32(_vsize + st::overviewPhotoSkip) + 1;
 		History::MediaOverview &overview(_hist->overview[_type]);
 		int32 count = overview.size();
+		int32 rowFrom = floorclamp(r.y() - _addToY - st::overviewPhotoSkip, _vsize + st::overviewPhotoSkip, 0, count);
+		int32 rowTo = ceilclamp(r.y() + r.height() - _addToY - st::overviewPhotoSkip, _vsize + st::overviewPhotoSkip, 0, count);
 		float64 w = float64(_width - st::overviewPhotoSkip) / _photosInRow;
 		for (int32 row = rowFrom; row < rowTo; ++row) {
 			if (row * _photosInRow >= _photosToAdd + count) break;
@@ -1097,10 +1099,10 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 			}
 		}
 	} else if (_type == OverviewAudioDocuments) {
-		int32 from = int32(r.top() - _addToY) / int32(_audioHeight);
-		int32 to = int32(r.bottom() - _addToY) / int32(_audioHeight) + 1;
 		History::MediaOverview &overview(_hist->overview[_type]);
 		int32 count = overview.size();
+		int32 from = floorclamp(r.y() - _addToY, _audioHeight, 0, count);
+		int32 to = ceilclamp(r.y() + r.height() - _addToY, _audioHeight, 0, count);
 		p.translate(_audioLeft, _addToY + from * _audioHeight);
 		for (int32 index = from; index < to; ++index) {
 			if (index >= count) break;
@@ -1128,7 +1130,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 		for (int32 i = 0, l = _items.size(); i < l; ++i) {
 			if (i + 1 == l || _addToY + _items[i + 1].y > r.top()) {
 				int32 left = st::dlgPhotoSize + st::dlgPhotoPadding, top = st::linksMargin + st::linksBorder, curY = _items[i].y;
-				if (_addToY + curY >= r.bottom()) break;
+				if (_addToY + curY >= r.y() + r.height()) break;
 
 				p.translate(0, curY - y);
 				if (_items[i].msgid) { // draw item
@@ -1220,7 +1222,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 			--i;
 			if (!i || (_addToY + _height - _items[i - 1].y > r.top())) {
 				int32 curY = _height - _items[i].y;
-				if (_addToY + curY >= r.bottom()) break;
+				if (_addToY + curY >= r.y() + r.height()) break;
 
 				p.translate(0, curY - y);
 				if (_items[i].msgid) { // draw item
@@ -2598,7 +2600,9 @@ void OverviewWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void OverviewWidget::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) return;
+
+	Painter p(this);
 	if (animating() && _showing) {
 		p.setOpacity(a_bgAlpha.current());
 		p.drawPixmap(a_bgCoord.current(), 0, _bgAnimCache);

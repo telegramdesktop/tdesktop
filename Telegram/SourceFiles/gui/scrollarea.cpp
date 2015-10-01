@@ -598,7 +598,7 @@ void ScrollArea::touchScrollUpdated(const QPoint &screenPos) {
 
 void ScrollArea::disableScroll(bool dis) {
 	_disabled = dis;
-	if (_disabled) {
+	if (_disabled && _st.hiding) {
 		hor.hideTimeout(0);
 		vert.hideTimeout(0);
 	}
@@ -706,6 +706,7 @@ void ScrollArea::setWidget(QWidget *w) {
 	} else if (!_other && splitted) {
 		_other = new SplittedWidgetOther(this);
 		_other->setAttribute(Qt::WA_OpaquePaintEvent);
+		_other->resize(vert.width(), _other->height());
 		connect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onVerticalScroll()));
 		hor.raise();
 		vert.raise();
@@ -720,7 +721,7 @@ void ScrollArea::setWidget(QWidget *w) {
 		}
 		if (splitted) {
 			splitted->setOtherWidth(vert.width());
-			w->resize(width() - splitted->otherWidth(), w->height());
+			w->setGeometry(rtl() ? splitted->otherWidth() : 0, 0, width() - splitted->otherWidth(), w->height());
 			connect(splitted, SIGNAL(resizeOther()), this, SLOT(onResizeOther()));
 			connect(splitted, SIGNAL(updateOther(const QRect&)), this, SLOT(onUpdateOther(const QRect&)));
 			connect(splitted, SIGNAL(updateOther(const QRegion&)), this, SLOT(onUpdateOther(const QRegion&)));

@@ -936,6 +936,9 @@ struct DocumentData {
 		if (loader->done()) {
 			location = FileLocation(mtpToStorageType(loader->fileType()), loader->fileName());
 			data = loader->bytes();
+			if (sticker() && !loader->imagePixmap().isNull()) {
+				sticker()->img = ImagePtr(data, loader->imageFormat(), loader->imagePixmap());
+			}
 		}
 		loader->deleteLater();
 		loader->rpcInvalidate();

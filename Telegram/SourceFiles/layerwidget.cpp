@@ -54,7 +54,7 @@ void BackgroundWidget::paintEvent(QPaintEvent *e) {
 	p.fillRect(rect(), st::layerBG->b);
 
 	p.setOpacity(aBackground.current());
-	shadow.paint(p, w->boxRect(), st::boxShadowShift);
+	shadow.paint(p, w->geometry(), st::boxShadowShift);
 }
 
 void BackgroundWidget::keyPressEvent(QKeyEvent *e) {
@@ -103,6 +103,11 @@ void BackgroundWidget::setInnerFocus() {
 	if (w) {
 		w->setInnerFocus();
 	}
+}
+
+bool BackgroundWidget::contentOverlapped(const QRect &globalRect) {
+	if (isHidden()) return false;
+	return w && w->overlaps(globalRect);
 }
 
 void BackgroundWidget::resizeEvent(QResizeEvent *e) {

@@ -3568,6 +3568,11 @@ void MainWidget::onSelfParticipantUpdated(ChannelData *channel) {
 	}
 }
 
+bool MainWidget::contentOverlapped(const QRect &globalRect) {
+	return (history.contentOverlapped(globalRect) ||
+			_mediaType.overlaps(globalRect));
+}
+
 void MainWidget::usernameResolveDone(QPair<bool, QString> toProfileStartToken, const MTPcontacts_ResolvedPeer &result) {
 	App::wnd()->hideLayer();
 	if (result.type() != mtpc_contacts_resolvedPeer) return;

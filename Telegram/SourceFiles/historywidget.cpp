@@ -96,6 +96,8 @@ void HistoryInner::updateMsg(const HistoryItem *msg) {
 }
 
 void HistoryInner::paintEvent(QPaintEvent *e) {
+	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) return;
+
 	if (!App::main()) return;
 
 	QRect r(e->rect());
@@ -107,7 +109,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	}
 
 	if (!_firstLoading && botInfo && !botInfo->text.isEmpty() && botDescHeight > 0) {
-		if (r.top() < botDescRect.y() + botDescRect.height() && r.bottom() > botDescRect.y()) {
+		if (r.y() < botDescRect.y() + botDescRect.height() && r.y() + r.height() > botDescRect.y()) {
 			textstyleSet(&st::inTextStyle);
 			App::roundRect(p, botDescRect, st::msgInBg, MessageInCorners, &st::msgInShadow);
 
@@ -131,7 +133,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		SelectedItems::const_iterator selEnd = _selected.cend();
 		bool hasSel = !_selected.isEmpty();
 
-		int32 drawToY = r.bottom() - ySkip;
+		int32 drawToY = r.y() + r.height() - ySkip;
 
 		int32 selfromy = 0, seltoy = 0;
 		if (_dragSelFrom && _dragSelTo) {
@@ -1746,8 +1748,8 @@ void BotKeyboard::paintEvent(QPaintEvent *e) {
 		for (; j != s; ++j) {
 			const Button &btn(_btns.at(i).at(j));
 			QRect rect(btn.rect);
-			if (rect.top() >= r.bottom()) break;
-			if (rect.bottom() < r.top()) continue;
+			if (rect.y() >= r.y() + r.height()) break;
+			if (rect.y() + rect.height() < r.y()) continue;
 
 			if (rtl()) rect.moveLeft(width() - rect.left() - rect.width());
 
@@ -3075,6 +3077,14 @@ void HistoryWidget::updateNotifySettings() {
 	if (!_peer || !_peer->isChannel()) return;
 
 	_muteUnmute.setText(lang(_history->mute ? lng_channel_unmute : lng_channel_mute));
+}
+
+bool HistoryWidget::contentOverlapped(const QRect &globalRect) {
+	return (_attachDragDocument.overlaps(globalRect) ||
+			_attachDragPhoto.overlaps(globalRect) ||
+			_attachType.overlaps(globalRect) ||
+			_attachMention.overlaps(globalRect) ||
+			_emojiPan.overlaps(globalRect));
 }
 
 void HistoryWidget::updateReportSpamStatus() {
@@ -6202,6 +6212,8 @@ void HistoryWidget::drawRecording(Painter &p) {
 }
 
 void HistoryWidget::paintEvent(QPaintEvent *e) {
+	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) return;
+
 	Painter p(this);
 	QRect r(e->rect());
 	if (r != rect()) {

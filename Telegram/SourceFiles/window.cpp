@@ -865,6 +865,12 @@ void Window::hideMediaview() {
     }
 }
 
+bool Window::contentOverlapped(const QRect &globalRect) {
+	if (main && main->contentOverlapped(globalRect)) return true;
+	if (layerBG && layerBG->contentOverlapped(globalRect)) return true;
+	return false;
+}
+
 void Window::setInnerFocus() {
 	if (layerBG && layerBG->canSetFocus()) {
 		layerBG->setInnerFocus();
@@ -1177,7 +1183,7 @@ void Window::resizeEvent(QResizeEvent *e) {
 		cSetWideMode(wideMode);
 		updateWideMode();
 	}
-	title->setGeometry(QRect(0, 0, width(), st::titleHeight + st::titleShadow));
+	title->setGeometry(0, 0, width(), st::titleHeight);
 	if (layerBG) layerBG->resize(width(), height());
 	if (_connecting) _connecting->setGeometry(0, height() - _connecting->height(), _connecting->width(), _connecting->height());
 	emit resized(QSize(width(), height() - st::titleHeight));

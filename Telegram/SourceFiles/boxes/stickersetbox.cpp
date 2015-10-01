@@ -26,9 +26,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "localstorage.h"
 
+void StickerSetPanel::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	p.fillRect(e->rect(), st::emojiPanHeaderBg->b);
+}
+
 StickerSetInner::StickerSetInner(const MTPInputStickerSet &set) :
 _loaded(false), _setId(0), _setAccess(0), _setCount(0), _setHash(0), _setFlags(0), _bottom(0),
-_input(set), _installRequest(0) {
+_input(set), _installRequest(0), _panel(0) {
 	switch (set.type()) {
 	case mtpc_inputStickerSetID: _setId = set.c_inputStickerSetID().vid.v; _setAccess = set.c_inputStickerSetID().vaccess_hash.v; break;
 	case mtpc_inputStickerSetShortName: _setShortName = qs(set.c_inputStickerSetShortName().vshort_name); break;
@@ -68,6 +73,9 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 	} else {
 		int32 rows = _pack.size() / StickerPanPerRow + ((_pack.size() % StickerPanPerRow) ? 1 : 0);
 		resize(st::stickersPadding + StickerPanPerRow * st::stickersSize.width(), rows * st::stickersSize.height() + st::stickersAddOrShare);
+		_panel = new StickerSetPanel(parentWidget());
+		_panel->setGeometry(0, parentWidget()->height() - st::stickersAddOrShare, width(), st::stickersAddOrShare);
+		_panel->show();
 	}
 	_loaded = true;
 
@@ -178,16 +186,12 @@ void StickerSetInner::paintEvent(QPaintEvent *e) {
 			}
 		}
 	}
-	p.fillRect(0, _bottom - st::stickersAddOrShare, width(), st::stickersAddOrShare, st::emojiPanHeaderBg->b);
 }
 
 void StickerSetInner::setScrollBottom(int32 bottom) {
 	if (bottom == _bottom) return;
 
-	QRegion upd = QRect(0, _bottom - st::stickersAddOrShare, width(), st::stickersAddOrShare);
 	_bottom = bottom;
-	upd += QRect(0, _bottom - st::stickersAddOrShare, width(), st::stickersAddOrShare);
-	repaint(upd);
 }
 
 bool StickerSetInner::loaded() const {
