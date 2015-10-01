@@ -1,3 +1,5 @@
+set -e
+
 while IFS='' read -r line || [[ -n "$line" ]]; do
   set $line
   eval $1="$2"
@@ -106,8 +108,8 @@ fi
 
 if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" == "macstore" ]; then
 
-  touch ./SourceFiles/telegram.qrc or exit 1
-  xcodebuild -project Telegram.xcodeproj -alltargets -configuration Release build or exit 1
+  touch ./SourceFiles/telegram.qrc
+  xcodebuild -project Telegram.xcodeproj -alltargets -configuration Release build
 
   if [ ! -d "$ReleasePath/$BinaryName.app" ]; then
     echo "$BinaryName.app not found!"
