@@ -2,7 +2,7 @@
 
 This is the complete source code and the build instructions for the alpha version of the official desktop client for the [Telegram][telegram] messenger, based on the [Telegram API][telegram_api] and the [MTProto][telegram_proto] secure protocol.
 
-The source code is published under GPLv3, the license is available [here][license].
+The source code is published under GPLv3 with OpenSSL exception, the license is available [here][license].
 
 ## Supported systems
 
@@ -23,7 +23,7 @@ The source code is published under GPLv3, the license is available [here][licens
 * OpenAL Soft ([LGPL](http://kcat.strangesoft.net/openal.html))
 * Opus codec ([BSD license](http://www.opus-codec.org/license/))
 * FFmpeg ([LGPL](https://www.ffmpeg.org/legal.html))
-* Open Sans font ([Apache License](http://www.apache.org/licenses/LICENSE-2.0.html))
+* Open Sans font ([Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0.html))
 
 ## Build instructions
 
