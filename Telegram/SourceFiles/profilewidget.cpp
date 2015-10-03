@@ -93,7 +93,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 			_photoLink = TextLinkPtr(new PhotoLink(userPhoto, _peer));
 		}
 		if ((_peerUser->botInfo && !_peerUser->botInfo->inited) || (_peerUser->photoId == UnknownPeerPhotoId) || (_peerUser->photoId && !userPhoto->date) || (_peerUser->blocked == UserBlockUnknown)) {
-			App::api()->requestFullPeer(_peer);
+			if (App::api()) App::api()->requestFullPeer(_peer);
 		}
 	} else if (_peerChat) {
 		PhotoData *chatPhoto = (_peerChat->photoId && _peerChat->photoId != UnknownPeerPhotoId) ? App::photo(_peerChat->photoId) : 0;
@@ -101,7 +101,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 			_photoLink = TextLinkPtr(new PhotoLink(chatPhoto, _peer));
 		}
 		if (_peerChat->photoId == UnknownPeerPhotoId) {
-			App::api()->requestFullPeer(_peer);
+			if (App::api()) App::api()->requestFullPeer(_peer);
 		}
 	} else if (_peerChannel) {
 		PhotoData *chatPhoto = (_peerChannel->photoId && _peerChannel->photoId != UnknownPeerPhotoId) ? App::photo(_peerChannel->photoId) : 0;
@@ -607,7 +607,7 @@ void ProfileInner::reorderParticipants() {
 			}
 		}
 		if (_peerChat->count > 0 && _participants.isEmpty()) {
-			App::api()->requestFullPeer(_peer);
+			if (App::api()) App::api()->requestFullPeer(_peer);
 			if (_onlineText.isEmpty()) _onlineText = lng_chat_status_members(lt_count, _peerChat->count);
         } else if (onlineCount && !onlyMe) {
 			_onlineText = lng_chat_status_members_online(lt_count, _participants.size(), lt_count_online, onlineCount);

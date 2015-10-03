@@ -626,7 +626,7 @@ namespace App {
 						} else {
 							if (i.key()->botInfo) {
 								botStatus = (botStatus > 0/* || i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
-								if (requestBotInfos && !i.key()->botInfo->inited) App::api()->requestFullPeer(i.key());
+								if (requestBotInfos && !i.key()->botInfo->inited && App::api()) App::api()->requestFullPeer(i.key());
 							}
 							if (!found && i.key()->id == h->lastKeyboardFrom) {
 								found = true;
@@ -676,7 +676,7 @@ namespace App {
 					chat->count++;
 					if (user->botInfo) {
 						chat->botStatus = (chat->botStatus > 0/* || !user->botInfo->readsAllHistory*/) ? 2 : 1;
-						if (!user->botInfo->inited) App::api()->requestFullPeer(user);
+						if (!user->botInfo->inited && App::api()) App::api()->requestFullPeer(user);
 					}
 				}
 			} else {

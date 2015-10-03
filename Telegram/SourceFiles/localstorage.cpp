@@ -3112,7 +3112,7 @@ namespace Local {
 			peers.push_back(peer);
 		}
 		App::emitPeerUpdated();
-		App::api()->requestPeers(peers);
+		if (App::api()) App::api()->requestPeers(peers);
 	}
 
 	void addSavedPeer(PeerData *peer, const QDateTime &position) {

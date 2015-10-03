@@ -796,7 +796,7 @@ void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
 				history->peer->asChannel()->ptsReceived(d.vpts.v);
 				if (!history->peer->asChannel()->amCreator()) {
 					if (HistoryItem *top = App::histItemById(history->channelId(), d.vtop_important_message.v)) {
-						if (top->date <= date(history->peer->asChannel()->date)) {
+						if (top->date <= date(history->peer->asChannel()->date) && App::api()) {
 							App::api()->requestSelfParticipant(history->peer->asChannel());
 						}
 					}

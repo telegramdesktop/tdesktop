@@ -6963,7 +6963,7 @@ HistoryReply::HistoryReply(History *history, HistoryBlock *block, const MTPDmess
 , replyToVersion(0)
 , _maxReplyWidth(0)
 {
-	if (!updateReplyTo()) {
+	if (!updateReplyTo() && App::api()) {
 		App::api()->requestReplyTo(this, history->peer->asChannel(), replyToMsgId);
 	}
 }
@@ -6974,7 +6974,7 @@ HistoryReply::HistoryReply(History *history, HistoryBlock *block, MsgId msgId, i
 , replyToVersion(0)
 , _maxReplyWidth(0)
 {
-	if (!updateReplyTo()) {
+	if (!updateReplyTo() && App::api()) {
 		App::api()->requestReplyTo(this, history->peer->asChannel(), replyToMsgId);
 	}
 }
@@ -7285,7 +7285,7 @@ void HistoryReply::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, i
 HistoryReply::~HistoryReply() {
 	if (replyToMsg) {
 		App::historyUnregReply(this, replyToMsg);
-	} else if (replyToMsgId) {
+	} else if (replyToMsgId && App::api()) {
 		App::api()->itemRemoved(this);
 	}
 }

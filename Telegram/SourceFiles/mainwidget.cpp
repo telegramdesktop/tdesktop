@@ -4109,7 +4109,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 		bool noFrom = !App::userLoaded(d.vfrom_id.v);
 		if (!App::chatLoaded(d.vchat_id.v) || noFrom || (d.has_fwd_from_id() && !App::peerLoaded(peerFromMTP(d.vfwd_from_id)))) {
 			MTP_LOG(0, ("getDifference { good - getting user for updateShortChatMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
-			if (noFrom) App::api()->requestFullPeer(App::chatLoaded(d.vchat_id.v));
+			if (noFrom && App::api()) App::api()->requestFullPeer(App::chatLoaded(d.vchat_id.v));
 			return getDifference();
 		}
 
@@ -4524,7 +4524,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				deleteConversation(channel, false);
 			} else if (!channel->amCreator() && App::history(channel->id)) { // create history
 				_updatedChannels.insert(channel, true);
-				App::api()->requestSelfParticipant(channel);
+				if (App::api()) App::api()->requestSelfParticipant(channel);
 			}
 		}
 	} break;

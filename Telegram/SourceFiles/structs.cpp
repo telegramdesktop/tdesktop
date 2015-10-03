@@ -385,7 +385,7 @@ void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see 
 		photoId = newPhotoId;
 		photo = newPhoto;
 		photoLoc = newPhotoLoc;
-		emit App::main()->peerPhotoChanged(this);
+		if (App::main()) emit App::main()->peerPhotoChanged(this);
 	}
 }
 
@@ -397,8 +397,10 @@ void ChannelData::setName(const QString &newName, const QString &usern) {
 
 void ChannelData::updateFull(bool force) {
 	if (!_lastFullUpdate || force || getms(true) > _lastFullUpdate + UpdateFullChannelTimeout) {
-		App::api()->requestFullPeer(this);
-		if (!amCreator() && !inviter) App::api()->requestSelfParticipant(this);
+		if (App::api()) {
+			App::api()->requestFullPeer(this);
+			if (!amCreator() && !inviter) App::api()->requestSelfParticipant(this);
+		}
 	}
 }
 

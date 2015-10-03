@@ -75,7 +75,7 @@ HistoryInner::HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, His
 
 	_trippleClickTimer.setSingleShot(true);
 
-	if (botInfo && !botInfo->inited) {
+	if (botInfo && !botInfo->inited && App::api()) {
 		App::api()->requestFullPeer(hist->peer);
 	}
 
@@ -2746,7 +2746,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 		}
 	}
 
-	if (!setsToRequest.isEmpty()) {
+	if (!setsToRequest.isEmpty() && App::api()) {
 		for (QMap<uint64, uint64>::const_iterator i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
 			App::api()->scheduleStickerSetRequest(i.key(), i.value());
 		}
@@ -3018,7 +3018,7 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 		}
 		if (_replyToId) {
 			updateReplyTo();
-			if (!_replyTo) App::api()->requestReplyTo(0, _peer->asChannel(), _replyToId);
+			if (!_replyTo && App::api()) App::api()->requestReplyTo(0, _peer->asChannel(), _replyToId);
 		}
 		resizeEvent(0);
 		if (!_previewCancelled) {
@@ -5914,10 +5914,12 @@ void HistoryWidget::peerUpdated(PeerData *data) {
 	if (data && data == _peer) {
 		updateListSize();
 		if (_peer->isChannel()) updateReportSpamStatus();
-		if (data->isChat() && data->asChat()->count > 0 && data->asChat()->participants.isEmpty()) {
-			App::api()->requestFullPeer(data);
-		} else if (data->isUser() && data->asUser()->blocked == UserBlockUnknown) {
-			App::api()->requestFullPeer(data);
+		if (App::api()) {
+			if (data->isChat() && data->asChat()->count > 0 && data->asChat()->participants.isEmpty()) {
+				App::api()->requestFullPeer(data);
+			} else if (data->isUser() && data->asUser()->blocked == UserBlockUnknown) {
+				App::api()->requestFullPeer(data);
+			}
 		}
 		if (!_showAnim.animating()) {
 			bool resize = (_unblock.isHidden() == isBlocked() || (!isBlocked() && _joinChannel.isHidden() == isJoinChannel()));

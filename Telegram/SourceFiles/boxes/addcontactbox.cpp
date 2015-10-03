@@ -577,7 +577,7 @@ bool EditChannelBox::onSaveFail(const RPCError &error, mtpRequestId req) {
 		_saveDescriptionRequestId = 0;
 		if (err == qstr("CHAT_ABOUT_NOT_MODIFIED")) {
 			_channel->about = _sentDescription;
-			emit App::api()->fullPeerUpdated(_channel);
+			if (App::api()) emit App::api()->fullPeerUpdated(_channel);
 			onClose();
 		} else {
 			_description.setFocus();
@@ -595,6 +595,6 @@ void EditChannelBox::onSaveTitleDone(const MTPUpdates &updates) {
 void EditChannelBox::onSaveDescriptionDone(const MTPBool &result) {
 	_saveDescriptionRequestId = 0;
 	_channel->about = _sentDescription;
-	emit App::api()->fullPeerUpdated(_channel);
+	if (App::api()) emit App::api()->fullPeerUpdated(_channel);
 	onClose();
 }

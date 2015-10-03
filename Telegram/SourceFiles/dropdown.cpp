@@ -2976,7 +2976,7 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 		QMultiMap<int32, UserData*> ordered;
 		rows.reserve(_chat->participants.isEmpty() ? _chat->lastAuthors.size() : _chat->participants.size());
 		if (_chat->participants.isEmpty()) {
-			if (_chat->count > 0) {
+			if (_chat->count > 0 && App::api()) {
 				App::api()->requestFullPeer(_chat);
 			}
 		} else {
@@ -3015,7 +3015,7 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 		int32 cnt = 0;
 		if (_chat) {
 			if (_chat->participants.isEmpty()) {
-				if (_chat->count > 0) {
+				if (_chat->count > 0 && App::api()) {
 					App::api()->requestFullPeer(_chat);
 				}
 			} else {
@@ -3023,14 +3023,14 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 				for (ChatData::Participants::const_iterator i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
 					UserData *user = i.key();
 					if (!user->botInfo) continue;
-					if (!user->botInfo->inited) App::api()->requestFullPeer(user);
+					if (!user->botInfo->inited && App::api()) App::api()->requestFullPeer(user);
 					if (user->botInfo->commands.isEmpty()) continue;
 					bots.insert(user, true);
 					cnt += user->botInfo->commands.size();
 				}
 			}
 		} else if (_user && _user->botInfo) {
-			if (!_user->botInfo->inited) App::api()->requestFullPeer(_user);
+			if (!_user->botInfo->inited && App::api()) App::api()->requestFullPeer(_user);
 			cnt = _user->botInfo->commands.size();
 			bots.insert(_user, true);
 		}
@@ -3042,7 +3042,7 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 					UserData *user = *i;
 					if (!user->botInfo) continue;
 					if (!bots.contains(user)) continue;
-					if (!user->botInfo->inited) App::api()->requestFullPeer(user);
+					if (!user->botInfo->inited && App::api()) App::api()->requestFullPeer(user);
 					if (user->botInfo->commands.isEmpty()) continue;
 					bots.remove(user);
 					for (int32 j = 0, l = user->botInfo->commands.size(); j < l; ++j) {
