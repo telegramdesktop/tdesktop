@@ -12,6 +12,9 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014 John Preston, https://desktop.telegram.org
 '''
@@ -53,6 +56,9 @@ out.write('It is distributed in the hope that it will be useful,\n');
 out.write('but WITHOUT ANY WARRANTY; without even the implied warranty of\n');
 out.write('MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n');
 out.write('GNU General Public License for more details.\n');
+out.write('\n');
+out.write('In addition, as a special exception, the copyright holders give permission\n');
+out.write('to link the code of portions of this program with the OpenSSL library.\n');
 out.write('\n');
 out.write('Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n');
 out.write('Copyright (c) 2014 John Preston, https://desktop.telegram.org\n');
