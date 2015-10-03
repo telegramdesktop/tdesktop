@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -191,8 +194,8 @@ void FlatInput::focusOutEvent(QFocusEvent *e) {
 
 void FlatInput::resizeEvent(QResizeEvent *e) {
 	int32 availw = width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1;
-	if (_st.font->m.width(_fullph) > availw) {
-		_ph = _st.font->m.elidedText(_fullph, Qt::ElideRight, availw);
+	if (_st.font->width(_fullph) > availw) {
+		_ph = _st.font->elided(_fullph, availw);
 	} else {
 		_ph = _fullph;
 	}
@@ -455,7 +458,7 @@ _replacingEmojis(false) {
 	_inner.setFont(_st->font->f);
 	_inner.setAlignment(cRtl() ? Qt::AlignRight : Qt::AlignLeft);
 
-	_placeholder = _st->font->m.elidedText(_placeholderFull, Qt::ElideRight, width() - _st->textMargins.left() - _st->textMargins.right() - _st->placeholderMargins.left() - _st->placeholderMargins.right() - 1);
+	_placeholder = _st->font->elided(_placeholderFull, width() - _st->textMargins.left() - _st->textMargins.right() - _st->placeholderMargins.left() - _st->placeholderMargins.right() - 1);
 
 	QPalette p(palette());
 	p.setColor(QPalette::Text, _st->textFg->c);
@@ -1057,7 +1060,7 @@ void InputField::InputFieldInner::paintEvent(QPaintEvent *e) {
 }
 
 void InputField::resizeEvent(QResizeEvent *e) {
-	_placeholder = _st->font->m.elidedText(_placeholderFull, Qt::ElideRight, width() - _st->textMargins.left() - _st->textMargins.right() - _st->placeholderMargins.left() - _st->placeholderMargins.right() - 1);
+	_placeholder = _st->font->elided(_placeholderFull, width() - _st->textMargins.left() - _st->textMargins.right() - _st->placeholderMargins.left() - _st->placeholderMargins.right() - 1);
 	_inner.setGeometry(rect().marginsRemoved(_st->textMargins));
 	TWidget::resizeEvent(e);
 }

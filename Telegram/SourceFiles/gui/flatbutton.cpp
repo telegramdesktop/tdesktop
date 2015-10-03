@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "gui/flatbutton.h"
@@ -69,7 +72,7 @@ void FlatButton::setAutoFontSize(int32 padding, const QString &txt) {
 }
 
 int32 FlatButton::textWidth() const {
-	return _st.font->m.width(_text);
+	return _st.font->width(_text);
 }
 
 void FlatButton::resizeEvent(QResizeEvent *e) {
@@ -77,7 +80,7 @@ void FlatButton::resizeEvent(QResizeEvent *e) {
 		_autoFont = _st.font;
 		for (int32 s = _st.font->f.pixelSize(); s >= st::fsize; --s) {
 			_autoFont = style::font(s, _st.font->flags(), _st.font->family());
-			if (2 * _autoFontPadding + _autoFont->m.width(_textForAutoSize) <= width()) {
+			if (2 * _autoFontPadding + _autoFont->width(_textForAutoSize) <= width()) {
 				break;
 			}
 		}
@@ -149,7 +152,7 @@ void BottomButton::paintEvent(QPaintEvent *e) {
 
 LinkButton::LinkButton(QWidget *parent, const QString &text, const style::linkButton &st) : Button(parent), _text(text), _st(st) {
 	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
-	resize(_st.font->m.width(_text), _st.font->height);
+	resize(_st.font->width(_text), _st.font->height);
 	setCursor(style::cur_pointer);
 }
 
@@ -162,7 +165,7 @@ void LinkButton::paintEvent(QPaintEvent *e) {
 
 void LinkButton::setText(const QString &text) {
 	_text = text;
-	resize(_st.font->m.width(_text), _st.font->height);
+	resize(_st.font->width(_text), _st.font->height);
 	update();
 }
 
@@ -177,9 +180,9 @@ IconedButton::IconedButton(QWidget *parent, const style::iconedButton &st, const
 	_text(text), _st(st), _width(_st.width), a_opacity(_st.opacity), a_bg(_st.bgColor->c), _opacity(1) {
 
 	if (_width < 0) {
-		_width = _st.font->m.width(text) - _width;
+		_width = _st.font->width(text) - _width;
 	} else if (!_width) {
-		_width = _st.font->m.width(text) + _st.height - _st.font->height;
+		_width = _st.font->width(text) + _st.height - _st.font->height;
 	}
 	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
 	resize(_width, _st.height);
@@ -195,9 +198,9 @@ void IconedButton::setText(const QString &text) {
 	if (_text != text) {
 		_text = text;
 		if (_st.width < 0) {
-			_width = _st.font->m.width(text) - _st.width;
+			_width = _st.font->width(text) - _st.width;
 		} else if (!_st.width) {
-			_width = _st.font->m.width(text) + _st.height - _st.font->height;
+			_width = _st.font->width(text) + _st.height - _st.font->height;
 		}
 		resize(_width, _st.height);
 		update();
@@ -289,5 +292,72 @@ void MaskedButton::paintEvent(QPaintEvent *e) {
 		const QPoint &t((_state & StateDown) ? _st.downIconPos : _st.iconPos);
 		p.fillRect(QRect(t, QSize(i.pxWidth(), i.pxHeight())), a_bg.current());
 		p.drawPixmap(t, App::sprite(), i);
+	}
+}
+
+BoxButton::BoxButton(QWidget *parent, const QString &text, const style::BoxButton &st) : Button(parent),
+_text(text), _fullText(text), _textWidth(st.font->width(text)),
+_st(st),
+a_textBgOverOpacity(0), a_textFg(st.textFg->c), _a_over(animFunc(this, &BoxButton::animStep_over)) {
+	if (_st.width <= 0) {
+		resize(_textWidth - _st.width, _st.height);
+	} else if (_st.width < _textWidth + (_st.height - _st.font->height)) {
+		_text = _st.font->elided(_fullText, qMax(_st.width - (_st.height - _st.font->height), 1.));
+		_textWidth = _st.font->width(_text);
+	}
+
+	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
+
+	setCursor(style::cur_pointer);
+
+	setAttribute(Qt::WA_OpaquePaintEvent);
+}
+
+void BoxButton::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	p.fillRect(rect(), _st.textBg->b);
+
+	float64 o = a_textBgOverOpacity.current();
+	if (o > 0) {
+		p.setOpacity(o);
+		App::roundRect(p, rect(), _st.textBgOver);
+		p.setOpacity(1);
+		p.setPen(a_textFg.current());
+	} else {
+		p.setPen(_st.textFg);
+	}
+	p.setFont(_st.font);
+	p.drawText((width() - _textWidth) / 2, _st.textTop + _st.font->ascent, _text);
+}
+
+bool BoxButton::animStep_over(float64 ms) {
+	float64 dt = ms / _st.duration;
+	bool res = true;
+	if (dt >= 1) {
+		a_textFg.finish();
+		a_textBgOverOpacity.finish();
+		res = false;
+	} else {
+		a_textFg.update(dt, anim::linear);
+		a_textBgOverOpacity.update(dt, anim::linear);
+	}
+	update();
+	return res;
+}
+
+void BoxButton::onStateChange(int oldState, ButtonStateChangeSource source) {
+	float64 textBgOverOpacity = (_state & StateOver) ? 1 : 0;
+	style::color textFg = (_state & StateOver) ? (_st.textFgOver) : _st.textFg;
+
+	a_textBgOverOpacity.start(textBgOverOpacity);
+	a_textFg.start(textFg->c);
+	if (source == ButtonByUser || source == ButtonByPress) {
+		_a_over.stop();
+		a_textBgOverOpacity.finish();
+		a_textFg.finish();
+		update();
+	} else {
+		_a_over.start();
 	}
 }

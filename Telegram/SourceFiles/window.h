@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
@@ -178,7 +181,7 @@ public:
 	void showPhoto(PhotoData *photo, HistoryItem *item);
 	void showPhoto(PhotoData *photo, PeerData *item);
 	void showDocument(DocumentData *doc, HistoryItem *item);
-	void showLayer(LayeredWidget *w, bool fast = false);
+	void showLayer(LayeredWidget *w, bool forceFast = false);
 	void replaceLayer(LayeredWidget *w);
 	void hideLayer(bool fast = false);
 	bool hideInnerLayer();

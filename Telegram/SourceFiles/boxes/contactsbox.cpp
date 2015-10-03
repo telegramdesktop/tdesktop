@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -322,15 +325,15 @@ void ContactsInner::paintDialog(Painter &p, PeerData *peer, ContactData *data, b
 	if (uname && !data->inchat && !data->check && !_lastQuery.isEmpty() && peer->userName().startsWith(_lastQuery, Qt::CaseInsensitive)) {
 		int32 availw = width() - (left + st::profileListPhotoSize + st::profileListPadding.width() * 2);
 		QString first = '@' + peer->userName().mid(0, _lastQuery.size()), second = peer->userName().mid(_lastQuery.size());
-		int32 w = st::profileSubFont->m.width(first);
+		int32 w = st::profileSubFont->width(first);
 		if (w >= availw || second.isEmpty()) {
 			p.setPen(st::profileOnlineColor->p);
-			p.drawText(left + st::profileListPhotoSize + st::profileListPadding.width(), st::profileListPadding.height() + st::profileListPhotoSize - st::profileListStatusBottom, st::profileSubFont->m.elidedText(first, Qt::ElideRight, availw));
+			p.drawText(left + st::profileListPhotoSize + st::profileListPadding.width(), st::profileListPadding.height() + st::profileListPhotoSize - st::profileListStatusBottom, st::profileSubFont->elided(first, availw));
 		} else {
 			p.setPen(st::profileOnlineColor->p);
 			p.drawText(left + st::profileListPhotoSize + st::profileListPadding.width(), st::profileListPadding.height() + st::profileListPhotoSize - st::profileListStatusBottom, first);
 			p.setPen(st::profileOfflineColor->p);
-			p.drawText(left + st::profileListPhotoSize + st::profileListPadding.width() + w, st::profileListPadding.height() + st::profileListPhotoSize - st::profileListStatusBottom, st::profileSubFont->m.elidedText(second, Qt::ElideRight, availw - w));
+			p.drawText(left + st::profileListPhotoSize + st::profileListPadding.width() + w, st::profileListPadding.height() + st::profileListPhotoSize - st::profileListStatusBottom, st::profileSubFont->elided(second, availw - w));
 		}
 	} else {
 		if (data->inchat || data->check) {
@@ -1300,7 +1303,7 @@ void ContactsBox::paintEvent(QPaintEvent *e) {
 
 		if (!addingAdmin) {
 			p.setPen(st::newGroupLimitFg);
-			p.drawTextLeft(st::boxTitlePos.x() + st::boxTitleFont->m.width(title) + st::addContactDelta, st::boxTitlePos.y(), width(), QString("%1 / %2").arg(_inner.selectedCount()).arg(cMaxGroupCount()));
+			p.drawTextLeft(st::old_boxTitlePos.x() + st::old_boxTitleFont->width(title) + st::addContactDelta, st::old_boxTitlePos.y(), width(), QString("%1 / %2").arg(_inner.selectedCount()).arg(cMaxGroupCount()));
 
 			// paint button sep
 			p.fillRect(st::btnSelectCancel.width, size().height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
@@ -1421,7 +1424,7 @@ bool ContactsBox::creationFail(const RPCError &error) {
 		_filter.notaBene();
 		return true;
 	} else if (error.type() == "PEER_FLOOD") {
-		App::wnd()->replaceLayer(new ConfirmBox(lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)))));
+		App::wnd()->replaceLayer(new InformBox(lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)))));
 		return true;
 	}
 	return false;
@@ -1430,7 +1433,7 @@ bool ContactsBox::creationFail(const RPCError &error) {
 MembersInner::MembersInner(ChannelData *channel, MembersFilter filter) : _channel(channel), _filter(filter),
 _kickText(lang(lng_profile_kick)),
 _time(0),
-_kickWidth(st::normalFont->m.width(_kickText)),
+_kickWidth(st::normalFont->width(_kickText)),
 _sel(-1),
 _kickSel(-1),
 _kickDown(-1),
@@ -1667,6 +1670,7 @@ QMap<UserData*, bool> MembersInner::already() const {
 }
 
 void MembersInner::clearSel() {
+	updateSelectedRow();
 	_sel = _kickSel = _kickDown = -1;
 	_lastMousePos = QCursor::pos();
 	updateSel();
@@ -1938,8 +1942,7 @@ void MembersBox::onAdd() {
 	}
 	ContactsBox *box = new ContactsBox(_inner.channel(), _inner.filter(), _inner.already());
 	if (_inner.filter() == MembersFilterRecent) {
-		App::wnd()->hideLayer(true);
-		App::wnd()->showLayer(box, true);
+		App::wnd()->showLayer(box);
 	} else {
 		_addBox = box;
 		connect(_addBox, SIGNAL(adminAdded()), this, SLOT(onAdminAdded()));
@@ -1971,6 +1974,7 @@ void MembersBox::showAll() {
 }
 
 void MembersBox::showDone() {
+	_inner.clearSel();
 	setFocus();
 }
 
@@ -1978,7 +1982,7 @@ NewGroupBox::NewGroupBox() : AbstractBox(),
 _group(this, qsl("group_type"), 0, lang(lng_create_group_title), true),
 _channel(this, qsl("group_type"), 1, lang(lng_create_channel_title)),
 _aboutGroupWidth(width() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::rbDefFlat.textLeft),
-_aboutGroup(st::normalFont, lng_create_group_about(lt_count, QString::number(cMaxGroupCount())), _defaultOptions, _aboutGroupWidth),
+_aboutGroup(st::normalFont, lng_create_group_about(lt_count, cMaxGroupCount()), _defaultOptions, _aboutGroupWidth),
 _aboutChannel(st::normalFont, lang(lng_create_channel_about), _defaultOptions, _aboutGroupWidth),
 _next(this, lang(lng_create_group_next), st::btnSelectDone),
 _cancel(this, lang(lng_cancel), st::btnSelectCancel) {
@@ -2304,7 +2308,7 @@ bool GroupInfoBox::creationFail(const RPCError &error) {
 		_name.notaBene();
 		return true;
 	} else if (error.type() == "PEER_FLOOD") {
-		App::wnd()->replaceLayer(new ConfirmBox(lng_cant_invite_not_contact_channel(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)))));
+		App::wnd()->replaceLayer(new InformBox(lng_cant_invite_not_contact_channel(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)))));
 		return true;
 	}
 	return false;
@@ -2315,8 +2319,7 @@ void GroupInfoBox::exportDone(const MTPExportedChatInvite &result) {
 	if (result.type() == mtpc_chatInviteExported) {
 		_createdChannel->invitationUrl = qs(result.c_chatInviteExported().vlink);
 	}
-	App::wnd()->hideLayer(true);
-	App::wnd()->showLayer(new SetupChannelBox(_createdChannel), true);
+	App::wnd()->showLayer(new SetupChannelBox(_createdChannel));
 }
 
 void GroupInfoBox::onDescriptionResized() {
@@ -2395,7 +2398,7 @@ a_goodOpacity(0, 0), a_good(animFunc(this, &SetupChannelBox::goodAnimStep)) {
 
 	_checkRequestId = MTP::send(MTPchannels_CheckUsername(_channel->inputChannel, MTP_string("preston")), RPCDoneHandlerPtr(), rpcFail(&SetupChannelBox::onFirstCheckFail));
 
-	_link.setTextMargin(style::margins(st::newGroupLink.textMrg.left() + st::newGroupLink.font->m.width(_linkPlaceholder), st::newGroupLink.textMrg.top(), st::newGroupLink.textMrg.right(), st::newGroupLink.textMrg.bottom()));
+	_link.setTextMargin(style::margins(st::newGroupLink.textMrg.left() + st::newGroupLink.font->width(_linkPlaceholder), st::newGroupLink.textMrg.top(), st::newGroupLink.textMrg.right(), st::newGroupLink.textMrg.bottom()));
 
 	_aboutPublicHeight = _aboutPublic.countHeight(_aboutPublicWidth);
 	setMaxHeight(st::newGroupPadding.top() + _public.height() + _aboutPublicHeight + st::newGroupSkip + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth)/* + st::newGroupSkip + _comments.height() + _aboutComments.countHeight(_aboutPublicWidth)*/ + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top() + _link.height() + st::newGroupLinkPadding.bottom() + _save.height());
@@ -2569,7 +2572,7 @@ bool SetupChannelBox::goodAnimStep(float64 ms) {
 
 void SetupChannelBox::closePressed() {
 	if (!_existing) {
-		App::wnd()->showLayer(new ContactsBox(_channel), true);
+		App::wnd()->showLayer(new ContactsBox(_channel));
 	}
 }
 
@@ -2654,7 +2657,7 @@ void SetupChannelBox::onPrivacyChange() {
 	if (_public.checked()) {
 		if (_tooMuchUsernames) {
 			_private.setChecked(true);
-			App::wnd()->replaceLayer(new ConfirmBox(lang(lng_channels_too_much_public), true));
+			App::wnd()->replaceLayer(new InformBox(lang(lng_channels_too_much_public)));
 			return;
 		}
 		_link.show();
@@ -2715,8 +2718,7 @@ bool SetupChannelBox::onCheckFail(const RPCError &error) {
 	QString err(error.type());
 	if (err == "CHANNELS_ADMIN_PUBLIC_TOO_MUCH") {
 		if (_existing) {
-			App::wnd()->hideLayer(true);
-			App::wnd()->showLayer(new ConfirmBox(lang(lng_channels_too_much_public_existing), true), true);
+			App::wnd()->showLayer(new InformBox(lang(lng_channels_too_much_public_existing)));
 		} else {
 			_tooMuchUsernames = true;
 			_private.setChecked(true);
@@ -2744,8 +2746,7 @@ bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
 	QString err(error.type());
 	if (err == "CHANNELS_ADMIN_PUBLIC_TOO_MUCH") {
 		if (_existing) {
-			App::wnd()->hideLayer(true);
-			App::wnd()->showLayer(new ConfirmBox(lang(lng_channels_too_much_public_existing), true), true);
+			App::wnd()->showLayer(new InformBox(lang(lng_channels_too_much_public_existing)));
 		} else {
 			_tooMuchUsernames = true;
 			_private.setChecked(true);

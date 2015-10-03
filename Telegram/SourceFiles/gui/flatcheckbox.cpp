@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -27,7 +30,7 @@ FlatCheckbox::FlatCheckbox(QWidget *parent, const QString &text, bool checked, c
 	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
 	setCursor(_st.cursor);
 	int32 w = _st.width, h = _st.height;
-    if (w <= 0) w = _st.textLeft + _st.font->m.width(_text) + 2;
+    if (w <= 0) w = _st.textLeft + _st.font->width(_text) + 2;
 	if (h <= 0) h = qMax(_st.font->height, _st.imageRect.pxHeight());
 	resize(QSize(w, h));
 }

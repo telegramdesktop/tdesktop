@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -32,8 +35,8 @@ _text(this, lang(lng_about_text), st::aboutLabel, st::aboutTextStyle) {
 	_version.move(0, st::aboutVersionTop);
 	_text.move(0, st::aboutTextTop);
 
-	_headerWidth = st::aboutHeaderFont->m.width(qsl("Telegram "));
-	_subheaderWidth = st::aboutSubheaderFont->m.width(qsl("Desktop"));
+	_headerWidth = st::aboutHeaderFont->width(qsl("Telegram "));
+	_subheaderWidth = st::aboutSubheaderFont->width(qsl("Desktop"));
 
 	_done.move(0, height() - _done.height());
 

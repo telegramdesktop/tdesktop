@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -42,7 +45,7 @@ ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const Q
 
 void ConnectingWidget::set(const QString &text, const QString &reconnect) {
 	_text = text;
-	_textWidth = st::linkFont->m.width(_text) + st::linkFont->spacew;
+	_textWidth = st::linkFont->width(_text) + st::linkFont->spacew;
 	int32 _reconnectWidth = 0;
 	if (reconnect.isEmpty()) {
 		_reconnect.hide();
@@ -187,7 +190,7 @@ void NotifyWindow::updateNotifyDisplay() {
 		QDateTime now(QDateTime::currentDateTime()), lastTime(item->date);
 		QDate nowDate(now.date()), lastDate(lastTime.date());
 		QString dt = lastTime.toString(cTimeFormat());
-		int32 dtWidth = st::dlgHistFont->m.width(dt);
+		int32 dtWidth = st::dlgHistFont->width(dt);
 		rectForName.setWidth(rectForName.width() - dtWidth - st::dlgDateSkip);
 		p.setFont(st::dlgDateFont->f);
 		p.setPen(st::dlgDateColor->p);
@@ -212,7 +215,7 @@ void NotifyWindow::updateNotifyDisplay() {
 				p.drawText(r.left(), r.top() + st::dlgHistFont->ascent, lng_forward_messages(lt_count, fwdCount));
 			}
 		} else {
-			static QString notifyText = st::dlgHistFont->m.elidedText(lang(lng_notification_preview), Qt::ElideRight, itemWidth);
+			static QString notifyText = st::dlgHistFont->elided(lang(lng_notification_preview), itemWidth);
 			p.setPen(st::dlgSystemColor->p);
 			p.drawText(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height + st::dlgHistFont->ascent, notifyText);
 		}
@@ -222,7 +225,7 @@ void NotifyWindow::updateNotifyDisplay() {
 			history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 		} else {
 			p.setFont(st::msgNameFont->f);
-			static QString notifyTitle = st::msgNameFont->m.elidedText(qsl("Telegram Desktop"), Qt::ElideRight, rectForName.width());
+			static QString notifyTitle = st::msgNameFont->elided(qsl("Telegram Desktop"), rectForName.width());
 			p.drawText(rectForName.left(), rectForName.top() + st::msgNameFont->ascent, notifyTitle);
 		}
 	}
@@ -770,7 +773,8 @@ void Window::showDocument(DocumentData *doc, HistoryItem *item) {
 	_mediaView->setFocus();
 }
 
-void Window::showLayer(LayeredWidget *w, bool fast) {
+void Window::showLayer(LayeredWidget *w, bool forceFast) {
+	bool fast = forceFast || layerShown();
 	hideLayer(true);
 	layerBG = new BackgroundWidget(this, w);
 	if (fast) {
@@ -1059,7 +1063,7 @@ void Window::onShowNewChannel() {
 void Window::onLogout() {
 	if (isHidden()) showFromTray();
 
-	ConfirmBox *box = new ConfirmBox(lang(lng_sure_logout));
+	ConfirmBox *box = new ConfirmBox(lang(lng_sure_logout), lang(lng_box_logout), st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onLogoutSure()));
 	App::wnd()->showLayer(box);
 }
@@ -1638,7 +1642,7 @@ void Window::placeSmallCounter(QImage &img, int size, int count, style::color bg
 		fontSize = (cntSize < 2) ? 22 : 22;
 	}
 	style::font f(fontSize);
-	int32 w = f->m.width(cnt), d, r;
+	int32 w = f->width(cnt), d, r;
 	if (size == 16) {
 		d = (cntSize < 2) ? 2 : 1;
 		r = (cntSize < 2) ? 4 : 3;
@@ -1687,7 +1691,7 @@ QImage Window::iconWithCounter(int size, int count, style::color bg, bool smallI
 				fontSize = (cntSize < 2) ? 22 : ((cntSize < 3) ? 20 : 16);
 			}
 			style::font f(fontSize);
-			int32 w = f->m.width(cnt), d, r;
+			int32 w = f->width(cnt), d, r;
 			if (size == 16) {
 				d = (cntSize < 2) ? 5 : ((cntSize < 3) ? 2 : 1);
 				r = (cntSize < 2) ? 8 : ((cntSize < 3) ? 7 : 3);

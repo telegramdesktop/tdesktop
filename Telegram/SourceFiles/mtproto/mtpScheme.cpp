@@ -17,7 +17,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "mtpScheme.h"
@@ -7467,36 +7467,30 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 	const mtpPrime *start = from;
 	mtpTypeId type = cons, vtype = vcons;
 	int32 stage = 0, flag = 0;
-	try {
-		while (!types.isEmpty()) {
-			type = types.back();
-			vtype = vtypes.back();
-			stage = stages.back();
-			flag = flags.back();
-			if (!type) {
-				if (from >= end) {
-					throw Exception("from >= end");
-				} else if (stage) {
-					throw Exception("unknown type on stage > 0");
-				}
-				types.back() = type = *from;
-				start = ++from;
-			}
 
-			int32 lev = level + types.size() - 1;
-			TextSerializers::const_iterator it = _serializers.constFind(type);
-			if (it != _serializers.cend()) {
-				(*it.value())(to, stage, lev, types, vtypes, stages, flags, start, end, flag);
-			} else {
-				mtpTextSerializeCore(to, from, end, type, lev, vtype);
-				types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
-				}
+	while (!types.isEmpty()) {
+		type = types.back();
+		vtype = vtypes.back();
+		stage = stages.back();
+		flag = flags.back();
+		if (!type) {
+			if (from >= end) {
+				throw Exception("from >= end");
+			} else if (stage) {
+				throw Exception("unknown type on stage > 0");
+			}
+			types.back() = type = *from;
+			start = ++from;
 		}
-	} catch (Exception &e) {
-		to.add("[ERROR] ");
-		to.add("(").add(e.what()).add("), cons: 0x").add(mtpWrapNumber(type, 16));
-		if (vtype) to.add(", vcons: 0x").add(mtpWrapNumber(vtype));
-		to.add(", ").add(mb(start, (end - start) * sizeof(mtpPrime)).str());
+
+		int32 lev = level + types.size() - 1;
+		TextSerializers::const_iterator it = _serializers.constFind(type);
+		if (it != _serializers.cend()) {
+			(*it.value())(to, stage, lev, types, vtypes, stages, flags, start, end, flag);
+		} else {
+			mtpTextSerializeCore(to, from, end, type, lev, vtype);
+			types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+		}
 	}
 }
 

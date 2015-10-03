@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -274,6 +277,7 @@ public:
 	bool isLoaded() const {
 		return !_loading;
 	}
+	void clearSel();
 
 	QMap<UserData*, bool> already() const;
 
@@ -298,7 +302,6 @@ public slots:
 private:
 
 	void updateSelectedRow();
-	void clearSel();
 	MemberData *data(int32 index);
 
 	void membersReceived(const MTPchannels_ChannelParticipants &result, mtpRequestId req);

@@ -12,6 +12,9 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014 John Preston, https://desktop.telegram.org
 '''
@@ -53,6 +56,9 @@ out.write('It is distributed in the hope that it will be useful,\n');
 out.write('but WITHOUT ANY WARRANTY; without even the implied warranty of\n');
 out.write('MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n');
 out.write('GNU General Public License for more details.\n');
+out.write('\n');
+out.write('In addition, as a special exception, the copyright holders give permission\n');
+out.write('to link the code of portions of this program with the OpenSSL library.\n');
 out.write('\n');
 out.write('Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n');
 out.write('Copyright (c) 2014 John Preston, https://desktop.telegram.org\n');
@@ -728,36 +734,29 @@ textSerializeFull += '\ttypes.reserve(20); vtypes.reserve(20); stages.reserve(20
 textSerializeFull += '\ttypes.push_back(mtpTypeId(cons)); vtypes.push_back(mtpTypeId(vcons)); stages.push_back(0); flags.push_back(0);\n\n';
 textSerializeFull += '\tconst mtpPrime *start = from;\n';
 textSerializeFull += '\tmtpTypeId type = cons, vtype = vcons;\n';
-textSerializeFull += '\tint32 stage = 0, flag = 0;\n';
-textSerializeFull += '\ttry {\n';
-textSerializeFull += '\t\twhile (!types.isEmpty()) {\n';
-textSerializeFull += '\t\t\ttype = types.back();\n';
-textSerializeFull += '\t\t\tvtype = vtypes.back();\n';
-textSerializeFull += '\t\t\tstage = stages.back();\n';
-textSerializeFull += '\t\t\tflag = flags.back();\n';
-textSerializeFull += '\t\t\tif (!type) {\n';
-textSerializeFull += '\t\t\t\tif (from >= end) {\n';
-textSerializeFull += '\t\t\t\t\tthrow Exception("from >= end");\n';
-textSerializeFull += '\t\t\t\t} else if (stage) {\n';
-textSerializeFull += '\t\t\t\t\tthrow Exception("unknown type on stage > 0");\n';
-textSerializeFull += '\t\t\t\t}\n';
-textSerializeFull += '\t\t\t\ttypes.back() = type = *from;\n';
-textSerializeFull += '\t\t\t\tstart = ++from;\n';
-textSerializeFull += '\t\t\t}\n\n';
-textSerializeFull += '\t\t\tint32 lev = level + types.size() - 1;\n';
-textSerializeFull += '\t\t\tTextSerializers::const_iterator it = _serializers.constFind(type);\n';
-textSerializeFull += '\t\t\tif (it != _serializers.cend()) {\n';
-textSerializeFull += '\t\t\t\t(*it.value())(to, stage, lev, types, vtypes, stages, flags, start, end, flag);\n';
-textSerializeFull += '\t\t\t} else {\n';
-textSerializeFull += '\t\t\t\tmtpTextSerializeCore(to, from, end, type, lev, vtype);\n';
-textSerializeFull += '\t\t\t\ttypes.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();\n';
-textSerializeFull += '\t\t\t\t}\n';
+textSerializeFull += '\tint32 stage = 0, flag = 0;\n\n';
+textSerializeFull += '\twhile (!types.isEmpty()) {\n';
+textSerializeFull += '\t\ttype = types.back();\n';
+textSerializeFull += '\t\tvtype = vtypes.back();\n';
+textSerializeFull += '\t\tstage = stages.back();\n';
+textSerializeFull += '\t\tflag = flags.back();\n';
+textSerializeFull += '\t\tif (!type) {\n';
+textSerializeFull += '\t\t\tif (from >= end) {\n';
+textSerializeFull += '\t\t\t\tthrow Exception("from >= end");\n';
+textSerializeFull += '\t\t\t} else if (stage) {\n';
+textSerializeFull += '\t\t\t\tthrow Exception("unknown type on stage > 0");\n';
+textSerializeFull += '\t\t\t}\n';
+textSerializeFull += '\t\t\ttypes.back() = type = *from;\n';
+textSerializeFull += '\t\t\tstart = ++from;\n';
+textSerializeFull += '\t\t}\n\n';
+textSerializeFull += '\t\tint32 lev = level + types.size() - 1;\n';
+textSerializeFull += '\t\tTextSerializers::const_iterator it = _serializers.constFind(type);\n';
+textSerializeFull += '\t\tif (it != _serializers.cend()) {\n';
+textSerializeFull += '\t\t\t(*it.value())(to, stage, lev, types, vtypes, stages, flags, start, end, flag);\n';
+textSerializeFull += '\t\t} else {\n';
+textSerializeFull += '\t\t\tmtpTextSerializeCore(to, from, end, type, lev, vtype);\n';
+textSerializeFull += '\t\t\ttypes.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();\n';
 textSerializeFull += '\t\t}\n';
-textSerializeFull += '\t} catch (Exception &e) {\n';
-textSerializeFull += '\t\tto.add("[ERROR] ");\n';
-textSerializeFull += '\t\tto.add("(").add(e.what()).add("), cons: 0x").add(mtpWrapNumber(type, 16));\n';
-textSerializeFull += '\t\tif (vtype) to.add(", vcons: 0x").add(mtpWrapNumber(vtype));\n';
-textSerializeFull += '\t\tto.add(", ").add(mb(start, (end - start) * sizeof(mtpPrime)).str());\n';
 textSerializeFull += '\t}\n';
 textSerializeFull += '}\n';
 

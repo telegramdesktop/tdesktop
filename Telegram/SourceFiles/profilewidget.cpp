@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
@@ -75,7 +78,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 
 	// participants
 	_pHeight(st::profileListPhotoSize + st::profileListPadding.height() * 2),
-	_kickWidth(st::linkFont->m.width(lang(lng_profile_kick))),
+	_kickWidth(st::linkFont->width(lang(lng_profile_kick))),
 	_selectedRow(-1), _lastPreload(0), _contactId(0),
 	_kickOver(0), _kickDown(0), _kickConfirm(0),
 	
@@ -93,7 +96,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 			_photoLink = TextLinkPtr(new PhotoLink(userPhoto, _peer));
 		}
 		if ((_peerUser->botInfo && !_peerUser->botInfo->inited) || (_peerUser->photoId == UnknownPeerPhotoId) || (_peerUser->photoId && !userPhoto->date) || (_peerUser->blocked == UserBlockUnknown)) {
-			App::api()->requestFullPeer(_peer);
+			if (App::api()) App::api()->requestFullPeer(_peer);
 		}
 	} else if (_peerChat) {
 		PhotoData *chatPhoto = (_peerChat->photoId && _peerChat->photoId != UnknownPeerPhotoId) ? App::photo(_peerChat->photoId) : 0;
@@ -101,7 +104,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 			_photoLink = TextLinkPtr(new PhotoLink(chatPhoto, _peer));
 		}
 		if (_peerChat->photoId == UnknownPeerPhotoId) {
-			App::api()->requestFullPeer(_peer);
+			if (App::api()) App::api()->requestFullPeer(_peer);
 		}
 	} else if (_peerChannel) {
 		PhotoData *chatPhoto = (_peerChannel->photoId && _peerChannel->photoId != UnknownPeerPhotoId) ? App::photo(_peerChannel->photoId) : 0;
@@ -276,7 +279,7 @@ void ProfileInner::onUpdatePhoto() {
 
 void ProfileInner::onClearHistory() {
 	if (_peerChannel) return;
-	ConfirmBox *box = new ConfirmBox(_peer->isUser() ? lng_sure_delete_history(lt_contact, _peer->name) : lng_sure_delete_group_history(lt_group, _peer->name));
+	ConfirmBox *box = new ConfirmBox(_peer->isUser() ? lng_sure_delete_history(lt_contact, _peer->name) : lng_sure_delete_group_history(lt_group, _peer->name), lang(lng_box_delete), st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onClearHistorySure()));
 	App::wnd()->showLayer(box);
 }
@@ -287,7 +290,7 @@ void ProfileInner::onClearHistorySure() {
 }
 
 void ProfileInner::onDeleteConversation() {
-	ConfirmBox *box = new ConfirmBox(_peer->isUser() ? lng_sure_delete_history(lt_contact, _peer->name) : (_peer->isChat() ? lng_sure_delete_and_exit(lt_group, _peer->name) : lang(lng_sure_leave_channel)));
+	ConfirmBox *box = new ConfirmBox(_peer->isUser() ? lng_sure_delete_history(lt_contact, _peer->name) : (_peer->isChat() ? lng_sure_delete_and_exit(lt_group, _peer->name) : lang(lng_sure_leave_channel)), lang(_peer->isUser() ? lng_box_delete : lng_box_leave), _peer->isChannel() ? st::defaultBoxButton : st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteConversationSure()));
 	App::wnd()->showLayer(box);
 }
@@ -308,7 +311,7 @@ void ProfileInner::onDeleteConversationSure() {
 
 void ProfileInner::onDeleteChannel() {
 	if (!_peerChannel) return;
-	ConfirmBox *box = new ConfirmBox(lang(lng_sure_delete_channel), lang(lng_selected_delete_confirm), QString(), st::btnRedDone);
+	ConfirmBox *box = new ConfirmBox(lang(lng_sure_delete_channel), lang(lng_box_delete), st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteChannelSure()));
 	App::wnd()->showLayer(box);
 }
@@ -398,7 +401,7 @@ void ProfileInner::onInvitationLink() {
 	if (!_peerChat && !_peerChannel) return;
 
 	QApplication::clipboard()->setText(_peerChat ? _peerChat->invitationUrl : (_peerChannel ? _peerChannel->invitationUrl : QString()));
-	App::wnd()->showLayer(new ConfirmBox(lang(lng_group_invite_copied), true));
+	App::wnd()->showLayer(new InformBox(lang(lng_group_invite_copied)));
 }
 
 void ProfileInner::onPublicLink() {
@@ -406,7 +409,7 @@ void ProfileInner::onPublicLink() {
 	
 	if (_peerChannel->isPublic()) {
 		QApplication::clipboard()->setText(qsl("https://telegram.me/") + _peerChannel->username);
-		App::wnd()->showLayer(new ConfirmBox(lang(lng_channel_public_link_copied), true));
+		App::wnd()->showLayer(new InformBox(lang(lng_channel_public_link_copied)));
 	} else {
 		App::wnd()->showLayer(new SetupChannelBox(_peerChannel, true));
 	}
@@ -607,7 +610,7 @@ void ProfileInner::reorderParticipants() {
 			}
 		}
 		if (_peerChat->count > 0 && _participants.isEmpty()) {
-			App::api()->requestFullPeer(_peer);
+			if (App::api()) App::api()->requestFullPeer(_peer);
 			if (_onlineText.isEmpty()) _onlineText = lng_chat_status_members(lt_count, _peerChat->count);
         } else if (onlineCount && !onlyMe) {
 			_onlineText = lng_chat_status_members_online(lt_count, _participants.size(), lt_count_online, onlineCount);
@@ -716,7 +719,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	top += st::profileButtonTop;
 
 	if (_peerChat && _peerChat->isForbidden) {
-		int32 w = st::btnShareContact.font->m.width(lang(lng_profile_chat_unaccessible));
+		int32 w = st::btnShareContact.font->width(lang(lng_profile_chat_unaccessible));
 		p.setFont(st::btnShareContact.font->f);
 		p.setPen(st::profileOfflineColor->p);
 		p.drawText(_left + (_width - w) / 2, top + st::btnShareContact.textTop + st::btnShareContact.font->ascent, lang(lng_profile_chat_unaccessible));
@@ -952,7 +955,7 @@ void ProfileInner::mouseReleaseEvent(QMouseEvent *e) {
 	updateSelected();
 	if (_kickDown && _kickDown == _kickOver) {
 		_kickConfirm = _kickOver;
-		ConfirmBox *box = new ConfirmBox(lng_profile_sure_kick(lt_user, _kickOver->firstName));
+		ConfirmBox *box = new ConfirmBox(lng_profile_sure_kick(lt_user, _kickOver->firstName), lang(lng_box_remove));
 		connect(box, SIGNAL(confirmed()), this, SLOT(onKickConfirm()));
 		App::wnd()->showLayer(box);
 	}
@@ -1142,10 +1145,10 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	top += st::profileHeaderSkip;
 
 	// invite link stuff
-	int32 _inviteLinkTextWidth(st::linkFont->m.width(lang(lng_group_invite_link)) + st::linkFont->spacew);
+	int32 _inviteLinkTextWidth(st::linkFont->width(lang(lng_group_invite_link)) + st::linkFont->spacew);
 	if (_amCreator && (!_peerChannel || !_peerChannel->isPublic())) {
 		if (!_invitationText.isEmpty()) {
-			_invitationLink.setText(st::linkFont->m.elidedText(_invitationText, Qt::ElideRight, _width - _inviteLinkTextWidth));
+			_invitationLink.setText(st::linkFont->elided(_invitationText, _width - _inviteLinkTextWidth));
 		}
 		if ((_peerChat && !_peerChat->invitationUrl.isEmpty()) || (_peerChannel && !_peerChannel->invitationUrl.isEmpty())) {
 			_invitationLink.move(_left + _inviteLinkTextWidth, top);

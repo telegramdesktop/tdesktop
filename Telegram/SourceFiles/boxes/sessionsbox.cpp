@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -69,7 +72,7 @@ void SessionsInner::onTerminate() {
 			_terminating = i.key();
 
 			if (_terminateBox) _terminateBox->deleteLater();
-			_terminateBox = new ConfirmBox(lang(lng_settings_reset_one_sure), lang(lng_settings_reset_button));
+			_terminateBox = new ConfirmBox(lang(lng_settings_reset_one_sure), lang(lng_settings_reset_button), st::attentionBoxButton);
 			connect(_terminateBox, SIGNAL(confirmed()), this, SLOT(onTerminateSure()));
 			connect(_terminateBox, SIGNAL(destroyed(QObject*)), this, SLOT(onNoTerminateBox(QObject*)));
 			App::wnd()->replaceLayer(_terminateBox);
@@ -161,7 +164,7 @@ _terminateAll(this, lang(lng_sessions_terminate_all)), _terminateBox(0), _shortP
 	connect(App::wnd(), SIGNAL(newAuthorization()), this, SLOT(onNewAuthorization()));
 	connect(&_shortPollTimer, SIGNAL(timeout()), this, SLOT(onShortPollAuthorizations()));
 
-	init(&_inner, _done.height(), st::boxTitleHeight + st::sessionHeight + st::boxTitleHeight);
+	init(&_inner, _done.height(), st::old_boxTitleHeight + st::sessionHeight + st::old_boxTitleHeight);
 	_inner.resize(width(), st::noContactsHeight);
 
 	prepare();
@@ -173,7 +176,7 @@ _terminateAll(this, lang(lng_sessions_terminate_all)), _terminateBox(0), _shortP
 void SessionsBox::resizeEvent(QResizeEvent *e) {
 	ScrollableBox::resizeEvent(e);
 	_done.move(0, height() - _done.height());
-	_terminateAll.moveToRight(st::sessionPadding.left(), st::boxTitleHeight + st::sessionHeight + st::boxTitlePos.y() + st::boxTitleFont->ascent - st::linkFont->ascent, width());
+	_terminateAll.moveToRight(st::sessionPadding.left(), st::old_boxTitleHeight + st::sessionHeight + st::old_boxTitlePos.y() + st::old_boxTitleFont->ascent - st::linkFont->ascent, width());
 }
 
 void SessionsBox::hideAll() {
@@ -202,7 +205,7 @@ void SessionsBox::paintEvent(QPaintEvent *e) {
 	if (paint(p)) return;
 
 	paintTitle(p, lang(lng_sessions_header), true);
-	p.translate(0, st::boxTitleHeight);
+	p.translate(0, st::old_boxTitleHeight);
 
 	if (_loading) {
 		p.setFont(st::noContactsFont->f);
@@ -231,10 +234,10 @@ void SessionsBox::paintEvent(QPaintEvent *e) {
 
 			p.setFont(st::sessionInfoFont->f);
 			p.setPen(st::sessionInfoColor->p);
-			p.drawText(QRect(st::sessionPadding.left(), st::boxTitleHeight + st::boxTitlePos.y(), width() - st::sessionPadding.left() - st::sessionPadding.right(), _scroll.height()), lang(lng_sessions_other_desc), style::al_topleft);
+			p.drawText(QRect(st::sessionPadding.left(), st::old_boxTitleHeight + st::old_boxTitlePos.y(), width() - st::sessionPadding.left() - st::sessionPadding.right(), _scroll.height()), lang(lng_sessions_other_desc), style::al_topleft);
 
 			// paint shadow
-			p.fillRect(0, height() - st::sessionsCloseButton.height - st::scrollDef.bottomsh - st::sessionHeight - st::boxTitleHeight, width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
+			p.fillRect(0, height() - st::sessionsCloseButton.height - st::scrollDef.bottomsh - st::sessionHeight - st::old_boxTitleHeight, width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
 		} else {
 			paintTitle(p, lang(lng_sessions_other_header), false);
 		}
@@ -245,7 +248,7 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 	_loading = false;
 	_shortPollRequest = 0;
 
-	int32 availCurrent = st::boxWidth - st::sessionPadding.left() - st::sessionTerminateSkip;
+	int32 availCurrent = st::boxWideWidth - st::sessionPadding.left() - st::sessionTerminateSkip;
 	int32 availOther = availCurrent - st::sessionTerminate.iconPos.x();// -st::sessionTerminate.width - st::sessionTerminateSkip;
 
 	_list.clear();
@@ -282,7 +285,7 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 		}
 		data.name = appName;
 		if (!appVer.isEmpty()) data.name += ' ' + appVer;
-		data.nameWidth = st::sessionNameFont->m.width(data.name);
+		data.nameWidth = st::sessionNameFont->width(data.name);
 
 		QString country = qs(d.vcountry), platform = qs(d.vplatform);
 		//CountriesByISO2::const_iterator j = countries.constFind(country);
@@ -297,18 +300,18 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 			data.active = QString();
 			data.activeWidth = 0;
 			if (data.nameWidth > availCurrent) {
-				data.name = st::sessionNameFont->m.elidedText(data.name, Qt::ElideRight, availCurrent);
-				data.nameWidth = st::sessionNameFont->m.width(data.name);
+				data.name = st::sessionNameFont->elided(data.name, availCurrent);
+				data.nameWidth = st::sessionNameFont->width(data.name);
 			}
-			data.infoWidth = st::sessionInfoFont->m.width(data.info);
+			data.infoWidth = st::sessionInfoFont->width(data.info);
 			if (data.infoWidth > availCurrent) {
-				data.info = st::sessionInfoFont->m.elidedText(data.info, Qt::ElideRight, availCurrent);
-				data.infoWidth = st::sessionInfoFont->m.width(data.info);
+				data.info = st::sessionInfoFont->elided(data.info, availCurrent);
+				data.infoWidth = st::sessionInfoFont->width(data.info);
 			}
-			data.ipWidth = st::sessionInfoFont->m.width(data.ip);
+			data.ipWidth = st::sessionInfoFont->width(data.ip);
 			if (data.ipWidth > availCurrent) {
-				data.ip = st::sessionInfoFont->m.elidedText(data.ip, Qt::ElideRight, availCurrent);
-				data.ipWidth = st::sessionInfoFont->m.width(data.ip);
+				data.ip = st::sessionInfoFont->elided(data.ip, availCurrent);
+				data.ipWidth = st::sessionInfoFont->width(data.ip);
 			}
 			_current = data;
 		} else {
@@ -322,21 +325,21 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 			} else {
 				data.active = lastDate.toString(qsl("d.MM.yy"));
 			}
-			data.activeWidth = st::sessionActiveFont->m.width(data.active);
+			data.activeWidth = st::sessionActiveFont->width(data.active);
 			int32 availForName = availOther - st::sessionPadding.right() - data.activeWidth;
 			if (data.nameWidth > availForName) {
-				data.name = st::sessionNameFont->m.elidedText(data.name, Qt::ElideRight, availForName);
-				data.nameWidth = st::sessionNameFont->m.width(data.name);
+				data.name = st::sessionNameFont->elided(data.name, availForName);
+				data.nameWidth = st::sessionNameFont->width(data.name);
 			}
-			data.infoWidth = st::sessionInfoFont->m.width(data.info);
+			data.infoWidth = st::sessionInfoFont->width(data.info);
 			if (data.infoWidth > availOther) {
-				data.info = st::sessionInfoFont->m.elidedText(data.info, Qt::ElideRight, availOther);
-				data.infoWidth = st::sessionInfoFont->m.width(data.info);
+				data.info = st::sessionInfoFont->elided(data.info, availOther);
+				data.infoWidth = st::sessionInfoFont->width(data.info);
 			}
-			data.ipWidth = st::sessionInfoFont->m.width(data.ip);
+			data.ipWidth = st::sessionInfoFont->width(data.ip);
 			if (data.ipWidth > availOther) {
-				data.ip = st::sessionInfoFont->m.elidedText(data.ip, Qt::ElideRight, availOther);
-				data.ipWidth = st::sessionInfoFont->m.width(data.ip);
+				data.ip = st::sessionInfoFont->elided(data.ip, availOther);
+				data.ipWidth = st::sessionInfoFont->width(data.ip);
 			}
 
 			_list.push_back(data);
@@ -359,7 +362,7 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 
 void SessionsBox::onTerminateAll() {
 	if (_terminateBox) _terminateBox->deleteLater();
-	_terminateBox = new ConfirmBox(lang(lng_settings_reset_sure), lang(lng_settings_reset_button));
+	_terminateBox = new ConfirmBox(lang(lng_settings_reset_sure), lang(lng_settings_reset_button), st::attentionBoxButton);
 	connect(_terminateBox, SIGNAL(confirmed()), this, SLOT(onTerminateAllSure()));
 	connect(_terminateBox, SIGNAL(destroyed(QObject*)), this, SLOT(onNoTerminateBox(QObject*)));
 	App::wnd()->replaceLayer(_terminateBox);

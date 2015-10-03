@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -70,7 +73,7 @@ void DownloadPathBox::showAll() {
 	_saveButton.show();
 	_cancelButton.show();
 
-	int32 h = st::boxTitleHeight + st::downloadSkip + _defaultRadio.height() + st::downloadSkip + _tempRadio.height() + st::downloadSkip + _dirRadio.height();
+	int32 h = st::old_boxTitleHeight + st::downloadSkip + _defaultRadio.height() + st::downloadSkip + _tempRadio.height() + st::downloadSkip + _dirRadio.height();
 	if (_dirRadio.checked()) h += st::boxPadding.top() + _dirInput.height();
 	h += st::downloadSkip + _saveButton.height();
 	
@@ -91,7 +94,7 @@ void DownloadPathBox::paintEvent(QPaintEvent *e) {
 }
 
 void DownloadPathBox::resizeEvent(QResizeEvent *e) {
-	_defaultRadio.move(st::boxPadding.left(), st::boxTitleHeight + st::downloadSkip);
+	_defaultRadio.move(st::boxPadding.left(), st::old_boxTitleHeight + st::downloadSkip);
 	_tempRadio.move(st::boxPadding.left(), _defaultRadio.y() + _defaultRadio.height() + st::downloadSkip);
 	_dirRadio.move(st::boxPadding.left(), _tempRadio.y() + _tempRadio.height() + st::downloadSkip);
 	int32 inputy = _dirRadio.y() + _dirRadio.height() + st::boxPadding.top();

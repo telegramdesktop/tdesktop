@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -154,7 +157,7 @@ private:
 	struct Link {
 		Link() : width(0) {
 		}
-		Link(const QString &url, const QString &text) : url(url), text(text), width(st::msgFont->m.width(text)) {
+		Link(const QString &url, const QString &text) : url(url), text(text), width(st::msgFont->width(text)) {
 		}
 		QString url, text;
 		int32 width;

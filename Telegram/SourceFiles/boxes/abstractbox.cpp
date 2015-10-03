@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -24,8 +27,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "window.h"
 
-AbstractBox::AbstractBox() : _maxHeight(0), _hiding(false), a_opacity(0, 1) {
-	resize(st::boxWidth, 0);
+AbstractBox::AbstractBox(int32 w) : _maxHeight(0), _hiding(false), a_opacity(0, 1) {
+	resize(w, 0);
 }
 
 void AbstractBox::prepare() {
@@ -65,20 +68,20 @@ bool AbstractBox::paint(QPainter &p) {
 void AbstractBox::paintTitle(Painter &p, const QString &title, bool withShadow) {
 	if (withShadow) {
 		// paint shadow
-		p.fillRect(0, st::boxTitleHeight, width(), st::scrollDef.topsh, st::scrollDef.shColor->b);
+		p.fillRect(0, st::old_boxTitleHeight, width(), st::scrollDef.topsh, st::scrollDef.shColor->b);
 	}
 
 	// paint box title
-	p.setFont(st::boxTitleFont->f);
+	p.setFont(st::old_boxTitleFont->f);
 	p.setPen(st::black->p);
-	p.drawTextLeft(st::boxTitlePos.x(), st::boxTitlePos.y(), width(), title);
+	p.drawTextLeft(st::old_boxTitlePos.x(), st::old_boxTitlePos.y(), width(), title);
 }
 
 void AbstractBox::paintGrayTitle(QPainter &p, const QString &title) {
 	// draw box title
 	p.setFont(st::boxFont->f);
 	p.setPen(st::boxGrayTitle->p);
-	p.drawText(QRect(st::boxTitlePos.x(), st::boxTitlePos.y(), width() - 2 * st::boxTitlePos.x(), st::boxFont->height), title, style::al_top);
+	p.drawText(QRect(st::old_boxTitlePos.x(), st::old_boxTitlePos.y(), width() - 2 * st::old_boxTitlePos.x(), st::boxFont->height), title, style::al_top);
 }
 
 void AbstractBox::paintEvent(QPaintEvent *e) {
@@ -134,7 +137,7 @@ void AbstractBox::startHide() {
 }
 
 ScrollableBox::ScrollableBox(const style::flatScroll &scroll) : AbstractBox(),
-_scroll(this, scroll), _innerPtr(0), _topSkip(st::boxTitleHeight), _bottomSkip(0) {
+_scroll(this, scroll), _innerPtr(0), _topSkip(st::old_boxTitleHeight), _bottomSkip(0) {
 }
 
 void ScrollableBox::resizeEvent(QResizeEvent *e) {

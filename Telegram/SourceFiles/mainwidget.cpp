@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -96,7 +99,7 @@ void TopBarWidget::onDeleteContact() {
 	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
 	UserData *u = p ? p->asUser() : 0;
 	if (u) {
-		ConfirmBox *box = new ConfirmBox(lng_sure_delete_contact(lt_contact, p->name));
+		ConfirmBox *box = new ConfirmBox(lng_sure_delete_contact(lt_contact, p->name), lang(lng_box_delete));
 		connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteContactSure()));
 		App::wnd()->showLayer(box);
 	}
@@ -116,7 +119,7 @@ void TopBarWidget::onDeleteAndExit() {
 	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
 	ChatData *c = p ? p->asChat() : 0;
 	if (c) {
-		ConfirmBox *box = new ConfirmBox(lng_sure_delete_and_exit(lt_group, p->name));
+		ConfirmBox *box = new ConfirmBox(lng_sure_delete_and_exit(lt_group, p->name), lang(lng_box_leave), st::attentionBoxButton);
 		connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteAndExitSure()));
 		App::wnd()->showLayer(box);
 	}
@@ -359,7 +362,7 @@ void TopBarWidget::showSelected(uint32 selCount, bool canDelete) {
 	_selCount = selCount;
 	_canDelete = canDelete;
 	_selStr = (_selCount > 0) ? lng_selected_count(lt_count, _selCount) : QString();
-	_selStrWidth = st::btnDefLink.font->m.width(_selStr);
+	_selStrWidth = st::btnDefLink.font->width(_selStr);
 	setCursor((!p && _selCount) ? style::cur_default : style::cur_pointer);
 	showAll();
 }
@@ -400,7 +403,7 @@ _failDifferenceTimeout(1), _lastUpdateTime(0), _handlingChannelDifference(false)
 	connect(_api, SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
 	connect(this, SIGNAL(peerUpdated(PeerData*)), &history, SLOT(peerUpdated(PeerData*)));
 	connect(&_topBar, SIGNAL(clicked()), this, SLOT(onTopBarClick()));
-	connect(&history, SIGNAL(peerShown(PeerData*)), this, SLOT(onPeerShown(PeerData*)));
+	connect(&history, SIGNAL(historyShown(History*,MsgId)), this, SLOT(onHistoryShown(History*,MsgId)));
 	connect(&updateNotifySettingTimer, SIGNAL(timeout()), this, SLOT(onUpdateNotifySettings()));
 	connect(this, SIGNAL(showPeerAsync(quint64,qint32)), this, SLOT(showPeerHistory(quint64,qint32)), Qt::QueuedConnection);
 	if (audioPlayer()) {
@@ -444,7 +447,7 @@ _failDifferenceTimeout(1), _lastUpdateTime(0), _handlingChannelDifference(false)
 bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
 	PeerData *p = App::peer(peer);
 	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && (p->asChat()->haveLeft || p->asChat()->isForbidden)) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
-		App::wnd()->showLayer(new ConfirmBox(lang(lng_forward_cant), true));
+		App::wnd()->showLayer(new InformBox(lang(lng_forward_cant)));
 		return false;
 	}
 	history.cancelReply();
@@ -655,7 +658,7 @@ void MainWidget::noHider(HistoryHider *destroyed) {
 				_forwardConfirm->startHide();
 				_forwardConfirm = 0;
 			}
-			onPeerShown(history.peer());
+			onHistoryShown(history.history(), history.msgId());
 			if (profile || overview || (history.peer() && history.peer()->id)) {
 				dialogs.enableShadow(false);
 				QPixmap animCache = myGrab(this, QRect(0, _playerHeight + st::topBarHeight, _dialogsWidth, height() - _playerHeight - st::topBarHeight)),
@@ -700,7 +703,7 @@ void MainWidget::hiderLayer(HistoryHider *h) {
 		dialogs.enableShadow();
 		_topBar.enableShadow();
 
-		onPeerShown(0);
+		onHistoryShown(0, 0);
 		if (overview) {
 			overview->hide();
 		} else if (profile) {
@@ -721,7 +724,7 @@ void MainWidget::forwardLayer(int32 forwardSelected) {
 
 void MainWidget::deleteLayer(int32 selectedCount) {
 	QString str((selectedCount < 0) ? lang(selectedCount < -1 ? lng_selected_cancel_sure_this : lng_selected_delete_sure_this) : lng_selected_delete_sure(lt_count, selectedCount));
-	ConfirmBox *box = new ConfirmBox((selectedCount < 0) ? str : str.arg(selectedCount), lang(lng_selected_delete_confirm));
+	ConfirmBox *box = new ConfirmBox((selectedCount < 0) ? str : str.arg(selectedCount), lang(lng_box_delete));
 	if (selectedCount < 0) {
 		connect(box, SIGNAL(confirmed()), overview ? overview : static_cast<QWidget*>(&history), SLOT(onDeleteContextSure()));
 	} else {
@@ -741,7 +744,7 @@ bool MainWidget::selectingPeer(bool withConfirm) {
 void MainWidget::offerPeer(PeerId peer) {
 	App::wnd()->hideLayer();
 	if (_hider->offerPeer(peer) && !cWideMode()) {
-		_forwardConfirm = new ConfirmBox(_hider->offeredText(), lang(lng_forward));
+		_forwardConfirm = new ConfirmBox(_hider->offeredText(), lang(lng_forward_send));
 		connect(_forwardConfirm, SIGNAL(confirmed()), _hider, SLOT(forward()));
 		connect(_forwardConfirm, SIGNAL(cancelled()), this, SLOT(onForwardCancel()));
 		connect(_forwardConfirm, SIGNAL(destroyed(QObject*)), this, SLOT(onForwardCancel(QObject*)));
@@ -879,7 +882,7 @@ bool MainWidget::addParticipantFail(UserData *user, const RPCError &error) {
 	} else if (error.type() == "PEER_FLOOD") {
 		text = lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)));
 	}
-	App::wnd()->showLayer(new ConfirmBox(text, true));
+	App::wnd()->showLayer(new InformBox(text));
 	return false;
 }
 
@@ -893,7 +896,7 @@ bool MainWidget::addParticipantsFail(const RPCError &error) {
 	} else if (error.type() == "PEER_FLOOD") {
 		text = lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)));
 	}
-	App::wnd()->showLayer(new ConfirmBox(text, true));
+	App::wnd()->showLayer(new InformBox(text));
 	return false;
 }
 
@@ -1015,7 +1018,7 @@ bool MainWidget::sendMessageFail(const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
 
 	if (error.type() == qsl("PEER_FLOOD")) {
-		App::wnd()->showLayer(new ConfirmBox(lng_cant_send_to_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info))), true));
+		App::wnd()->showLayer(new InformBox(lng_cant_send_to_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)))));
 		return true;
 	}
 	return false;
@@ -2631,11 +2634,13 @@ QRect MainWidget::historyRect() const {
 }
 
 void MainWidget::dlgUpdated(DialogRow *row) {
+	if (!row) return;
 	dialogs.dlgUpdated(row);
 }
 
-void MainWidget::dlgUpdated(History *row) {
-	dialogs.dlgUpdated(row);
+void MainWidget::dlgUpdated(History *row, MsgId msgId) {
+	if (!row) return;
+	dialogs.dlgUpdated(row, msgId);
 }
 
 void MainWidget::windowShown() {
@@ -2757,7 +2762,7 @@ void MainWidget::hideAll() {
 void MainWidget::showAll() {
 	if (cPasswordRecovered()) {
 		cSetPasswordRecovered(false);
-		App::wnd()->showLayer(new ConfirmBox(lang(lng_signin_password_removed), true, lang(lng_continue)));
+		App::wnd()->showLayer(new InformBox(lang(lng_signin_password_removed)));
 	}
 	if (cWideMode()) {
 		if (_hider) {
@@ -2783,7 +2788,7 @@ void MainWidget::showAll() {
 		if (_hider) {
 			_hider->hide();
 			if (!_forwardConfirm && _hider->wasOffered()) {
-				_forwardConfirm = new ConfirmBox(_hider->offeredText(), lang(lng_forward));
+				_forwardConfirm = new ConfirmBox(_hider->offeredText(), lang(lng_forward_send));
 				connect(_forwardConfirm, SIGNAL(confirmed()), _hider, SLOT(forward()));
 				connect(_forwardConfirm, SIGNAL(cancelled()), this, SLOT(onForwardCancel()));
 				App::wnd()->showLayer(_forwardConfirm, true);
@@ -2922,8 +2927,8 @@ void MainWidget::onTopBarClick() {
 	}
 }
 
-void MainWidget::onPeerShown(PeerData *peer) {
-	if ((cWideMode() || !selectingPeer()) && (profile || overview || (peer && peer->id))) {
+void MainWidget::onHistoryShown(History *history, MsgId atMsgId) {
+	if ((cWideMode() || !selectingPeer()) && (profile || overview || history)) {
 		_topBar.show();
 	} else {
 		_topBar.hide();
@@ -2932,6 +2937,7 @@ void MainWidget::onPeerShown(PeerData *peer) {
 	if (animating()) {
 		_topBar.hide();
 	}
+	dlgUpdated(history, atMsgId);
 }
 
 void MainWidget::searchInPeer(PeerData *peer) {
@@ -3609,7 +3615,7 @@ bool MainWidget::usernameResolveFail(QString name, const RPCError &error) {
 	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
 
 	if (error.code() == 400) {
-		App::wnd()->showLayer(new ConfirmBox(lng_username_not_found(lt_user, name), true));
+		App::wnd()->showLayer(new InformBox(lng_username_not_found(lt_user, name)));
 	}
 	return true;
 }
@@ -3646,7 +3652,7 @@ bool MainWidget::inviteCheckFail(const RPCError &error) {
 	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
 
 	if (error.code() == 400) {
-		App::wnd()->showLayer(new ConfirmBox(lang(lng_group_invite_bad_link), true));
+		App::wnd()->showLayer(new InformBox(lang(lng_group_invite_bad_link)));
 	}
 	return true;
 }
@@ -3684,7 +3690,7 @@ bool MainWidget::inviteImportFail(const RPCError &error) {
 	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
 
 	if (error.code() == 400) {
-		App::wnd()->showLayer(new ConfirmBox(lang(error.type() == qsl("USERS_TOO_MUCH") ? lng_group_invite_no_room : lng_group_invite_bad_link), true), App::wnd()->layerShown());
+		App::wnd()->showLayer(new InformBox(lang(error.type() == qsl("USERS_TOO_MUCH") ? lng_group_invite_no_room : lng_group_invite_bad_link)));
 	}
 	return true;
 }
@@ -4106,7 +4112,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 		bool noFrom = !App::userLoaded(d.vfrom_id.v);
 		if (!App::chatLoaded(d.vchat_id.v) || noFrom || (d.has_fwd_from_id() && !App::peerLoaded(peerFromMTP(d.vfwd_from_id)))) {
 			MTP_LOG(0, ("getDifference { good - getting user for updateShortChatMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
-			if (noFrom) App::api()->requestFullPeer(App::chatLoaded(d.vchat_id.v));
+			if (noFrom && App::api()) App::api()->requestFullPeer(App::chatLoaded(d.vchat_id.v));
 			return getDifference();
 		}
 
@@ -4281,7 +4287,14 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		// update before applying skipped
 		PeerId id = peerFromMTP(d.vpeer);
 		App::feedOutboxRead(id, d.vmax_id.v);
-		if (history.peer() && history.peer()->id == id) history.update();
+		if (history.peer() && history.peer()->id == id) {
+			history.update();
+		}
+		if (History *h = App::historyLoaded(id)) {
+			if (h->lastMsg->out() && h->lastMsg->id <= d.vmax_id.v) {
+				dlgUpdated(h, h->lastMsg->id);
+			}
+		}
 
 		ptsApplySkippedUpdates();
 	} break;
@@ -4494,7 +4507,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateServiceNotification: {
 		const MTPDupdateServiceNotification &d(update.c_updateServiceNotification());
 		if (d.vpopup.v) {
-			App::wnd()->showLayer(new ConfirmBox(qs(d.vmessage), true));
+			App::wnd()->showLayer(new InformBox(qs(d.vmessage)));
 			App::wnd()->serviceNotification(qs(d.vmessage), d.vmedia);
 		} else {
 			App::wnd()->serviceNotification(qs(d.vmessage), d.vmedia);
@@ -4514,7 +4527,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				deleteConversation(channel, false);
 			} else if (!channel->amCreator() && App::history(channel->id)) { // create history
 				_updatedChannels.insert(channel, true);
-				App::api()->requestSelfParticipant(channel);
+				if (App::api()) App::api()->requestSelfParticipant(channel);
 			}
 		}
 	} break;

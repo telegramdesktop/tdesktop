@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -32,9 +35,9 @@ _done(this, lang(lng_about_done), st::langsCloseButton) {
 
 	int32 opts[] = { 60, 300, 3600, 18000 }, cnt = sizeof(opts) / sizeof(opts[0]);
 
-	resizeMaxHeight(st::langsWidth, st::boxTitleHeight + st::langsPadding.top() + st::langsPadding.bottom() + cnt * (st::langPadding.top() + st::rbDefFlat.height + st::langPadding.bottom()) + _done.height());
+	resizeMaxHeight(st::langsWidth, st::old_boxTitleHeight + st::langsPadding.top() + st::langsPadding.bottom() + cnt * (st::langPadding.top() + st::rbDefFlat.height + st::langPadding.bottom()) + _done.height());
 
-	int32 y = st::boxTitleHeight + st::langsPadding.top();
+	int32 y = st::old_boxTitleHeight + st::langsPadding.top();
 	_options.reserve(cnt);
 	for (int32 i = 0; i < cnt; ++i) {
 		int32 v = opts[i];

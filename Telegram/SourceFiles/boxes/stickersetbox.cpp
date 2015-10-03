@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -58,7 +61,7 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 		if (d.vset.type() == mtpc_stickerSet) {
 			const MTPDstickerSet &s(d.vset.c_stickerSet());
 			_setTitle = qs(s.vtitle);
-			_title = st::boxTitleFont->m.elidedText(_setTitle, Qt::ElideRight, width() - st::btnStickersClose.width - st::boxTitlePos.x());
+			_title = st::old_boxTitleFont->elided(_setTitle, width() - st::btnStickersClose.width - st::old_boxTitlePos.x());
 			_setShortName = qs(s.vshort_name);
 			_setId = s.vid.v;
 			_setAccess = s.vaccess_hash.v;
@@ -69,7 +72,7 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 	}
 
 	if (_pack.isEmpty()) {
-		App::wnd()->showLayer(new ConfirmBox(lang(lng_stickers_not_found), true), true);
+		App::wnd()->showLayer(new InformBox(lang(lng_stickers_not_found)));
 	} else {
 		int32 rows = _pack.size() / StickerPanPerRow + ((_pack.size() % StickerPanPerRow) ? 1 : 0);
 		resize(st::stickersPadding + StickerPanPerRow * st::stickersSize.width(), rows * st::stickersSize.height() + st::stickersAddOrShare);
@@ -87,7 +90,7 @@ bool StickerSetInner::failedSet(const RPCError &error) {
 
 	_loaded = true;
 
-	App::wnd()->showLayer(new ConfirmBox(lang(lng_stickers_not_found), true), true);
+	App::wnd()->showLayer(new InformBox(lang(lng_stickers_not_found)));
 
 	return true;
 }
@@ -134,7 +137,7 @@ void StickerSetInner::installDone(const MTPBool &result) {
 bool StickerSetInner::installFailed(const RPCError &error) {
 	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
 
-	App::wnd()->showLayer(new ConfirmBox(lang(lng_stickers_not_found), true), true);
+	App::wnd()->showLayer(new InformBox(lang(lng_stickers_not_found)));
 
 	return true;
 }
@@ -261,7 +264,7 @@ void StickerSetBox::onAddStickers() {
 void StickerSetBox::onShareStickers() {
 	QString url = qsl("https://telegram.me/addstickers/") + _inner.shortName();
 	QApplication::clipboard()->setText(url);
-	App::wnd()->showLayer(new ConfirmBox(lang(lng_stickers_copied), true), true);
+	App::wnd()->showLayer(new InformBox(lang(lng_stickers_copied)));
 }
 
 void StickerSetBox::onUpdateButtons() {

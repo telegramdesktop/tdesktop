@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "text.h"
@@ -330,7 +333,7 @@ public:
 		} else {
 			QUrl url(original), good(url.isValid() ? url.toEncoded() : "");
 			QString readable = good.isValid() ? good.toDisplayString() : original;
-			result = _t->_font->m.elidedText(readable, Qt::ElideRight, st::linkCropLimit);
+			result = _t->_font->elided(readable, st::linkCropLimit);
 			fullDisplayed = (result == readable) ? 1 : 0;
 		}
 	}
@@ -1569,7 +1572,7 @@ public:
 		line.length = lineLength;
 		eShapeLine(line);
 
-		int32 elideWidth = _f->m.width(_Elide);
+		int32 elideWidth = _f->width(_Elide);
 		_wLeft = _w - elideWidth - _elideRemoveFromEnd;
 
 		int firstItem = engine.findItem(line.from), lastItem = engine.findItem(line.from + line.length - 1);

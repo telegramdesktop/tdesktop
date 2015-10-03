@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -59,7 +62,7 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : _img(new ReadyLocalMedi
 				_thumbw = 10;
 			}
 		}
-		resizeMaxHeight(st::boxWidth, _thumbh + st::boxPadding.top() + st::boxFont->height + st::boxPadding.bottom() + st::boxPadding.bottom() + _compressed.height() + _sendButton.height());
+		resizeMaxHeight(st::boxWideWidth, _thumbh + st::boxPadding.top() + st::boxFont->height + st::boxPadding.bottom() + st::boxPadding.bottom() + _compressed.height() + _sendButton.height());
 
 		_thumb = QPixmap::fromImage(_thumb.toImage().scaled(_thumbw * cIntRetinaFactor(), _thumbh * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
 		_thumb.setDevicePixelRatio(cRetinaFactor());
@@ -84,12 +87,12 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : _img(new ReadyLocalMedi
 			_thumb = QPixmap::fromImage(_thumb.toImage().scaledToWidth(_thumbw * cIntRetinaFactor(), Qt::SmoothTransformation), Qt::ColorOnly);
 			_thumb.setDevicePixelRatio(cRetinaFactor());
 		}
-		resizeMaxHeight(st::boxWidth, st::boxPadding.top() + st::boxFont->height + st::boxPadding.bottom() + st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom() + st::boxPadding.bottom() + _sendButton.height());
+		resizeMaxHeight(st::boxWideWidth, st::boxPadding.top() + st::boxFont->height + st::boxPadding.bottom() + st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom() + st::boxPadding.bottom() + _sendButton.height());
 
 		_name = _img->filename;
-		_namew = st::mediaFont->m.width(_name);
+		_namew = st::mediaFont->width(_name);
 		_size = formatSizeText(_img->filesize);
-		_textw = qMax(_namew, st::mediaFont->m.width(_size));
+		_textw = qMax(_namew, st::mediaFont->width(_size));
 	}
 	prepare();
 }
@@ -106,11 +109,11 @@ _phone(phone), _fname(fname), _lname(lname), _replyTo(replyTo) {
 	_compressed.hide();
 
 	_name = lng_full_name(lt_first_name, _fname, lt_last_name, _lname);
-	_namew = st::mediaFont->m.width(_name);
+	_namew = st::mediaFont->width(_name);
 	_size = _phone;
-	_textw = qMax(_namew, st::mediaFont->m.width(_size));
+	_textw = qMax(_namew, st::mediaFont->width(_size));
 
-	resizeMaxHeight(st::boxWidth, st::boxPadding.top() + st::boxFont->height + st::boxPadding.bottom() + st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom() + st::boxPadding.bottom() + _sendButton.height());
+	resizeMaxHeight(st::boxWideWidth, st::boxPadding.top() + st::boxFont->height + st::boxPadding.bottom() + st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom() + st::boxPadding.bottom() + _sendButton.height());
 	prepare();
 }
 
@@ -161,7 +164,7 @@ void PhotoSendBox::paintEvent(QPaintEvent *e) {
 		p.setFont(st::mediaFont->f);
 		p.setPen(st::black->c);
 		if (twidth < _namew) {
-			p.drawText(x + tleft, y + st::mediaPadding.top() + st::mediaNameTop + st::mediaFont->ascent, st::mediaFont->m.elidedText(_name, Qt::ElideRight, twidth));
+			p.drawText(x + tleft, y + st::mediaPadding.top() + st::mediaNameTop + st::mediaFont->ascent, st::mediaFont->elided(_name, twidth));
 		} else {
 			p.drawText(x + tleft, y + st::mediaPadding.top() + st::mediaNameTop + st::mediaFont->ascent, _name);
 		}

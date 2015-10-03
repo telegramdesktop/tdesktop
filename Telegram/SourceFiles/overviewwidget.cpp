@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
@@ -116,7 +119,7 @@ OverviewInner::CachedLink::CachedLink(HistoryItem *item) : titleWidth(0), page(0
 			}
 		}
 	}
-	titleWidth = st::webPageTitleFont->m.width(title);
+	titleWidth = st::webPageTitleFont->width(title);
 }
 
 int32 OverviewInner::CachedLink::countHeight(int32 w) {
@@ -1187,7 +1190,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 					p.setPen(st::black->p);
 					p.setFont(st::webPageTitleFont->f);
 					if (!lnk->title.isEmpty()) {
-						p.drawText(left, top + st::webPageTitleFont->ascent, (_linksWidth - left < lnk->titleWidth) ? st::webPageTitleFont->m.elidedText(lnk->title, Qt::ElideRight, _linksWidth - left) : lnk->title);
+						p.drawText(left, top + st::webPageTitleFont->ascent, (_linksWidth - left < lnk->titleWidth) ? st::webPageTitleFont->elided(lnk->title, _linksWidth - left) : lnk->title);
 						top += st::webPageTitleFont->height;
 					}
 					p.setFont(st::msgFont->f);
@@ -1200,7 +1203,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 					for (int32 j = 0, c = lnk->urls.size(); j < c; ++j) {
 						bool sel = (_mousedItem == _items[i].msgid && j + 1 == _lnkOverIndex);
 						if (sel) p.setFont(st::msgFont->underline()->f);
-						p.drawText(left, top + st::msgFont->ascent, (_linksWidth - left < lnk->urls[j].width) ? st::msgFont->m.elidedText(lnk->urls[j].text, Qt::ElideRight, _linksWidth - left) : lnk->urls[j].text);
+						p.drawText(left, top + st::msgFont->ascent, (_linksWidth - left < lnk->urls[j].width) ? st::msgFont->elided(lnk->urls[j].text, _linksWidth - left) : lnk->urls[j].text);
 						if (sel) p.setFont(st::msgFont->f);
 						top += st::msgFont->height;
 					}
@@ -1257,7 +1260,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 					int32 left = st::msgServiceMargin.left(), width = _width - st::msgServiceMargin.left() - st::msgServiceMargin.left(), height = st::msgServiceFont->height + st::msgServicePadding.top() + st::msgServicePadding.bottom();
 					if (width < 1) return;
 
-					int32 strwidth = st::msgServiceFont->m.width(str) + st::msgServicePadding.left() + st::msgServicePadding.right();
+					int32 strwidth = st::msgServiceFont->width(str) + st::msgServicePadding.left() + st::msgServicePadding.right();
 
 					QRect trect(QRect(left, st::msgServiceMargin.top(), width, height).marginsAdded(-st::msgServicePadding));
 					left += (width - strwidth) / 2;
