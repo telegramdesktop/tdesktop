@@ -24,7 +24,7 @@ class AbstractBox : public LayeredWidget {
 
 public:
 
-	AbstractBox();
+	AbstractBox(int32 w = st::boxWideWidth);
 	void parentResized();
 	void animStep(float64 ms);
 	void keyPressEvent(QKeyEvent *e);
@@ -73,7 +73,7 @@ public:
 	
 protected:
 
-	void init(QWidget *inner, int32 bottomSkip = 0, int32 topSkip = st::boxTitleHeight);
+	void init(QWidget *inner, int32 bottomSkip = 0, int32 topSkip = st::old_boxTitleHeight);
 
 	virtual void hideAll();
 	virtual void showAll();

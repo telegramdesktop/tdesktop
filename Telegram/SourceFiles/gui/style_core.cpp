@@ -41,8 +41,8 @@ namespace style {
 		height = m.height();
 		ascent = m.ascent();
 		descent = m.descent();
-		spacew = m.width(QLatin1Char(' '));
-		elidew = m.width(QLatin1Char('.')) * 3;
+		spacew = width(QLatin1Char(' '));
+		elidew = width(QLatin1Char('.')) * 3;
 	}
 
 	Font FontData::bold(bool set) const {

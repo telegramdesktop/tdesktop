@@ -806,7 +806,7 @@ const QString &FlatTextarea::getLastText() const {
 
 void FlatTextarea::setPlaceholder(const QString &ph) {
 	_ph = ph;
-	_phelided = _st.font->m.elidedText(_ph, Qt::ElideRight, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1);
+	_phelided = _st.font->elided(_ph, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1);
 	if (_phVisible) update();
 }
 
@@ -893,7 +893,7 @@ void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 }
 
 void FlatTextarea::resizeEvent(QResizeEvent *e) {
-	_phelided = _st.font->m.elidedText(_ph, Qt::ElideRight, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1);
+	_phelided = _st.font->elided(_ph, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1);
 	QTextEdit::resizeEvent(e);
 	checkContentHeight();
 }

@@ -44,7 +44,7 @@ struct ReplyMarkup {
 };
 
 enum RoundCorners {
-	MaskCorners = 0x00, // for images
+	NoneCorners = 0x00, // for images
 	BlackCorners,
 	ServiceCorners,
 	ServiceSelectedCorners,
@@ -260,7 +260,6 @@ namespace App {
 	void openLocalUrl(const QString &url);
 
 	QImage **cornersMask();
-	QPixmap **corners(RoundCorners index);
 	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *sh = 0);
 	inline void roundRect(Painter &p, const QRect &rect, const style::color &bg, RoundCorners index, const style::color *sh = 0) {
 		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, index, sh);
@@ -268,6 +267,10 @@ namespace App {
 	void roundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &sh, RoundCorners index);
 	inline void roundShadow(Painter &p, const QRect &rect, const style::color &sh, RoundCorners index) {
 		return roundShadow(p, rect.x(), rect.y(), rect.width(), rect.height(), sh, index);
+	}
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg);
+	inline void roundRect(Painter &p, const QRect &rect, const style::color &bg) {
+		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg);
 	}
 
 	void initBackground(int32 id = DefaultChatBackground, const QImage &p = QImage(), bool nowrite = false);

@@ -219,7 +219,7 @@ public:
 
 	void createDialog(History *history);
 	void dlgUpdated(DialogRow *row);
-	void dlgUpdated(History *row);
+	void dlgUpdated(History *row, MsgId msgId);
 
 	void windowShown();
 
@@ -443,7 +443,7 @@ public slots:
 
 	void showPeerHistory(quint64 peer, qint32 msgId, bool back = false);
 	void onTopBarClick();
-	void onPeerShown(PeerData *peer);
+	void onHistoryShown(History *history, MsgId atMsgId);
 
 	void searchInPeer(PeerData *peer);
 

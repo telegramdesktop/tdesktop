@@ -69,7 +69,7 @@ private:
 	mtpRequestId _setRequest;
 
 	QByteArray _newSalt, _curSalt;
-	bool _hasRecovery;
+	bool _hasRecovery, _skipEmailWarning;
 	QString _hint;
 
 	int32 _aboutHeight;

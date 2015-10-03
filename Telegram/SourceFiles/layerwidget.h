@@ -19,7 +19,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "gui/boxshadow.h"
 
-class LayeredWidget : public QWidget {
+class LayeredWidget : public TWidget {
 	Q_OBJECT
 
 public:

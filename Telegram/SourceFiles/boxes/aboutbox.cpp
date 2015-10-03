@@ -32,8 +32,8 @@ _text(this, lang(lng_about_text), st::aboutLabel, st::aboutTextStyle) {
 	_version.move(0, st::aboutVersionTop);
 	_text.move(0, st::aboutTextTop);
 
-	_headerWidth = st::aboutHeaderFont->m.width(qsl("Telegram "));
-	_subheaderWidth = st::aboutSubheaderFont->m.width(qsl("Desktop"));
+	_headerWidth = st::aboutHeaderFont->width(qsl("Telegram "));
+	_subheaderWidth = st::aboutSubheaderFont->width(qsl("Desktop"));
 
 	_done.move(0, height() - _done.height());
 

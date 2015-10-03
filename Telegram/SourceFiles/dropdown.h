@@ -431,8 +431,6 @@ private:
 };
 
 class EmojiSwitchButton : public Button {
-	Q_OBJECT
-
 public:
 
 	EmojiSwitchButton(QWidget *parent, bool toStickers); // otherwise toEmoji

@@ -27,7 +27,7 @@ FlatCheckbox::FlatCheckbox(QWidget *parent, const QString &text, bool checked, c
 	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
 	setCursor(_st.cursor);
 	int32 w = _st.width, h = _st.height;
-    if (w <= 0) w = _st.textLeft + _st.font->m.width(_text) + 2;
+    if (w <= 0) w = _st.textLeft + _st.font->width(_text) + 2;
 	if (h <= 0) h = qMax(_st.font->height, _st.imageRect.pxHeight());
 	resize(QSize(w, h));
 }

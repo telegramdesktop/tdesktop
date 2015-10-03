@@ -35,7 +35,7 @@ void PhoneInput::paintEvent(QPaintEvent *e) {
 		if (!ph.isEmpty()) {
 			p.setClipRect(rect());
 			QRect phRect(placeholderRect());
-			int tw = phFont()->m.width(t);
+			int tw = phFont()->width(t);
 			if (tw < phRect.width()) {
 				phRect.setLeft(phRect.left() + tw);
 				phPrepare(p);

@@ -157,7 +157,7 @@ void _placeCounter(QImage &img, int size, int count, style::color bg, style::col
 		fontSize = 16;
 	}
 	style::font f(fontSize);
-	int32 w = f->m.width(cnt), d, r;
+	int32 w = f->width(cnt), d, r;
 	if (size == 22) {
 		d = (cntSize < 2) ? 3 : 2;
 		r = (cntSize < 2) ? 6 : 5;

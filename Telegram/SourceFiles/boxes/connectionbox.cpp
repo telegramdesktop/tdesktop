@@ -69,7 +69,7 @@ void ConnectionBox::showAll() {
 	_tcpProxyRadio.show();
 	_tryIPv6.show();
 
-	int32 h = st::boxTitleHeight + st::connectionSkip + _autoRadio.height() + st::connectionSkip + _httpProxyRadio.height() + st::connectionSkip + _tcpProxyRadio.height() + st::connectionSkip + st::lineWidth + st::connectionSkip + _tryIPv6.height() + st::connectionSkip;
+	int32 h = st::old_boxTitleHeight + st::connectionSkip + _autoRadio.height() + st::connectionSkip + _httpProxyRadio.height() + st::connectionSkip + _tcpProxyRadio.height() + st::connectionSkip + st::lineWidth + st::connectionSkip + _tryIPv6.height() + st::connectionSkip;
 	if (_httpProxyRadio.checked() || _tcpProxyRadio.checked()) {
 		h += 2 * st::boxPadding.top() + 2 * _hostInput.height();
 		_hostInput.show();
@@ -113,7 +113,7 @@ void ConnectionBox::paintEvent(QPaintEvent *e) {
 }
 
 void ConnectionBox::resizeEvent(QResizeEvent *e) {
-	_autoRadio.move(st::boxPadding.left(), st::boxTitleHeight + st::connectionSkip);
+	_autoRadio.move(st::boxPadding.left(), st::old_boxTitleHeight + st::connectionSkip);
 	_httpProxyRadio.move(st::boxPadding.left(), _autoRadio.y() + _autoRadio.height() + st::connectionSkip);
 
 	int32 inputy = 0;

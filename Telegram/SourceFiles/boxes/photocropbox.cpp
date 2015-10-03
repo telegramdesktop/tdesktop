@@ -43,7 +43,7 @@ PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer, bool upload) :
 		connect(this, SIGNAL(ready(const QImage &)), this, SLOT(onReady(const QImage &)));
 	}
 
-	int32 s = st::cropBoxWidth - st::boxPadding.left() - st::boxPadding.right();
+	int32 s = st::boxWideWidth - st::boxPadding.left() - st::boxPadding.right();
 	_thumb = QPixmap::fromImage(img.scaled(s, s, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
 	_thumbw = _thumb.width();
 	_thumbh = _thumb.height();
@@ -55,11 +55,11 @@ PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer, bool upload) :
 	_cropx = (_thumbw - _cropw) / 2;
 	_cropy = (_thumbh - _cropw) / 2;
 
-	_thumbx = (st::cropBoxWidth - _thumbw) / 2;
+	_thumbx = (st::boxWideWidth - _thumbw) / 2;
 	_thumby = st::boxPadding.top() * 2 + st::boxFont->height;
 	setMouseTracking(true);
 
-	resizeMaxHeight(st::cropBoxWidth, _thumbh + st::boxPadding.top() + st::boxFont->height + st::boxPadding.top() + st::boxPadding.bottom() + _sendButton.height());
+	resizeMaxHeight(st::boxWideWidth, _thumbh + st::boxPadding.top() + st::boxFont->height + st::boxPadding.top() + st::boxPadding.bottom() + _sendButton.height());
 }
 
 void PhotoCropBox::mousePressEvent(QMouseEvent *e) {

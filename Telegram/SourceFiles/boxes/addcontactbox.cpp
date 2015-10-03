@@ -63,15 +63,15 @@ void AddContactBox::initBox() {
 	if (_peer) {
 		if (_peer->isUser()) {
 			_boxTitle = lang(_peer == App::self() ? lng_edit_self_title : lng_edit_contact_title);
-			setMaxHeight(st::boxTitleHeight + st::addContactPadding.top() + 2 * _firstInput.height() + 1 * st::addContactDelta + st::addContactPadding.bottom() + _addButton.height());
+			setMaxHeight(st::old_boxTitleHeight + st::addContactPadding.top() + 2 * _firstInput.height() + 1 * st::addContactDelta + st::addContactPadding.bottom() + _addButton.height());
 		} else if (_peer->isChat()) {
 			_boxTitle = lang(lng_edit_group_title);
-			setMaxHeight(st::boxTitleHeight + st::addContactPadding.top() + 1 * _firstInput.height() + st::addContactPadding.bottom() + _addButton.height());
+			setMaxHeight(st::old_boxTitleHeight + st::addContactPadding.top() + 1 * _firstInput.height() + st::addContactPadding.bottom() + _addButton.height());
 		}
 	} else {
 		bool readyToAdd = !_phoneInput.text().isEmpty() && (!_firstInput.text().isEmpty() || !_lastInput.text().isEmpty());
 		_boxTitle = lang(readyToAdd ? lng_confirm_contact_data : lng_enter_contact_data);
-		setMaxHeight(st::boxTitleHeight + st::addContactPadding.top() + 3 * _firstInput.height() + 2 * st::addContactDelta + st::addContactPadding.bottom() + _addButton.height());
+		setMaxHeight(st::old_boxTitleHeight + st::addContactPadding.top() + 3 * _firstInput.height() + 2 * st::addContactDelta + st::addContactPadding.bottom() + _addButton.height());
 	}
 	_retryButton.hide();
 
@@ -169,7 +169,7 @@ void AddContactBox::paintEvent(QPaintEvent *e) {
 	} else {
 		// draw box text
 		p.setPen(st::black->p);
-		p.setFont(st::boxTitleFont->f);
+		p.setFont(st::old_boxTitleFont->f);
 		int32 h = size().height() - st::boxPadding.top() * 2 - _retryButton.height() - st::boxPadding.bottom();
 		p.drawText(QRect(st::boxPadding.left(), st::boxPadding.top(), width() - st::boxPadding.left() - st::boxPadding.right(), h), lng_contact_not_joined(lt_name, _sentName), style::al_topleft);
 	}
@@ -183,11 +183,11 @@ void AddContactBox::paintEvent(QPaintEvent *e) {
 
 void AddContactBox::resizeEvent(QResizeEvent *e) {
 	if (_invertOrder) {
-		_lastInput.setGeometry(st::addContactPadding.left(), st::boxTitleHeight + st::addContactPadding.top(), width() - st::addContactPadding.left() - st::addContactPadding.right(), _lastInput.height());
+		_lastInput.setGeometry(st::addContactPadding.left(), st::old_boxTitleHeight + st::addContactPadding.top(), width() - st::addContactPadding.left() - st::addContactPadding.right(), _lastInput.height());
 		_firstInput.setGeometry(st::addContactPadding.left(), _lastInput.y() + _lastInput.height() + st::addContactDelta, _lastInput.width(), _lastInput.height());
 		_phoneInput.setGeometry(st::addContactPadding.left(), _firstInput.y() + _firstInput.height() + st::addContactDelta, _lastInput.width(), _lastInput.height());
 	} else {
-		_firstInput.setGeometry(st::addContactPadding.left(), st::boxTitleHeight + st::addContactPadding.top(), width() - st::addContactPadding.left() - st::addContactPadding.right(), _firstInput.height());
+		_firstInput.setGeometry(st::addContactPadding.left(), st::old_boxTitleHeight + st::addContactPadding.top(), width() - st::addContactPadding.left() - st::addContactPadding.right(), _firstInput.height());
 		_lastInput.setGeometry(st::addContactPadding.left(), _firstInput.y() + _firstInput.height() + st::addContactDelta, _firstInput.width(), _firstInput.height());
 		_phoneInput.setGeometry(st::addContactPadding.left(), _lastInput.y() + _lastInput.height() + st::addContactDelta, _lastInput.width(), _lastInput.height());
 	}
@@ -309,7 +309,7 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 		_lastInput.hide();
 		_phoneInput.hide();
 		_retryButton.show();
-		int32 theight = st::boxTitleFont->m.boundingRect(0, 0, width() - st::boxPadding.left() - st::boxPadding.right(), 1, Qt::TextWordWrap, lng_contact_not_joined(lt_name, _sentName)).height();
+		int32 theight = st::old_boxTitleFont->m.boundingRect(0, 0, width() - st::boxPadding.left() - st::boxPadding.right(), 1, Qt::TextWordWrap, lng_contact_not_joined(lt_name, _sentName)).height();
 		int32 h = st::boxPadding.top() * 2 + theight + _retryButton.height() + st::boxPadding.bottom();
 		setMaxHeight(h);
 		update();
@@ -342,7 +342,7 @@ void AddContactBox::onRetry() {
 	_phoneInput.setDisabled(false);
 	_retryButton.hide();
 	_firstInput.setFocus();
-	setMaxHeight(st::boxTitleHeight + st::addContactPadding.top() + 3 * _firstInput.height() + 2 * st::addContactDelta + st::addContactPadding.bottom() + _addButton.height());
+	setMaxHeight(st::old_boxTitleHeight + st::addContactPadding.top() + 3 * _firstInput.height() + 2 * st::addContactDelta + st::addContactPadding.bottom() + _addButton.height());
 	update();
 }
 
@@ -473,7 +473,7 @@ QRect EditChannelBox::descriptionRect() const {
 }
 
 void EditChannelBox::updateMaxHeight() {
-	int32 h = st::boxTitleHeight + st::newGroupPadding.top() + _title.height();
+	int32 h = st::old_boxTitleHeight + st::newGroupPadding.top() + _title.height();
 	h += st::newGroupDescriptionSkip + st::newGroupDescriptionPadding.top() + _description.height() + st::newGroupDescriptionPadding.bottom();
 	h += st::newGroupPublicLinkSkip + _publicLink.height();
 	h += st::newGroupPadding.bottom() + _saveButton.height();
@@ -497,7 +497,7 @@ bool EditChannelBox::eventFilter(QObject *obj, QEvent *e) {
 
 void EditChannelBox::resizeEvent(QResizeEvent *e) {
 	_title.resize(width() - st::newGroupPadding.left() - st::newGroupPadding.right(), _title.height());
-	_title.moveToLeft(st::newGroupPadding.left(), st::boxTitleHeight + st::newGroupPadding.top(), width());
+	_title.moveToLeft(st::newGroupPadding.left(), st::old_boxTitleHeight + st::newGroupPadding.top(), width());
 
 	_description.moveToLeft(st::newGroupPadding.left() + st::newGroupDescriptionPadding.left(), _title.y() + _title.height() + st::newGroupDescriptionSkip + st::newGroupDescriptionPadding.top(), width());
 

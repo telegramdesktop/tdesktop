@@ -70,7 +70,7 @@ void DownloadPathBox::showAll() {
 	_saveButton.show();
 	_cancelButton.show();
 
-	int32 h = st::boxTitleHeight + st::downloadSkip + _defaultRadio.height() + st::downloadSkip + _tempRadio.height() + st::downloadSkip + _dirRadio.height();
+	int32 h = st::old_boxTitleHeight + st::downloadSkip + _defaultRadio.height() + st::downloadSkip + _tempRadio.height() + st::downloadSkip + _dirRadio.height();
 	if (_dirRadio.checked()) h += st::boxPadding.top() + _dirInput.height();
 	h += st::downloadSkip + _saveButton.height();
 	
@@ -91,7 +91,7 @@ void DownloadPathBox::paintEvent(QPaintEvent *e) {
 }
 
 void DownloadPathBox::resizeEvent(QResizeEvent *e) {
-	_defaultRadio.move(st::boxPadding.left(), st::boxTitleHeight + st::downloadSkip);
+	_defaultRadio.move(st::boxPadding.left(), st::old_boxTitleHeight + st::downloadSkip);
 	_tempRadio.move(st::boxPadding.left(), _defaultRadio.y() + _defaultRadio.height() + st::downloadSkip);
 	_dirRadio.move(st::boxPadding.left(), _tempRadio.y() + _tempRadio.height() + st::downloadSkip);
 	int32 inputy = _dirRadio.y() + _dirRadio.height() + st::boxPadding.top();

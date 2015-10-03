@@ -91,6 +91,40 @@ dialogsSearchField: InputField(defaultInputField) {
 	width: 240px;
 	height: 34px;
 }
+
+boxWidth: 320px;
+boxWideWidth: 364px;
+boxPadding: margins(26px, 30px, 26px, 16px);
+boxMaxListHeight: 600px;
+boxFontSize: 13px;
+boxTextFont: font(boxFontSize);
+boxTitleFont: font(boxFontSize semibold);
+boxButtonFont: font(boxFontSize semibold);
+boxTitleHeight: 54px;
+defaultBoxButton: BoxButton {
+	textFg: #2f9fea;
+	textFgOver: #2f9fea;
+	textBg: white;
+	textBgOver: #edf7ff;
+
+	width: -24px;
+	height: 36px;
+
+	textTop: 9px;
+
+	font: boxButtonFont;
+	duration: 200;
+}
+cancelBoxButton: BoxButton(defaultBoxButton) {
+	textFg: #aeaeae;
+}
+attentionBoxButton: BoxButton(defaultBoxButton) {
+	textFg: #ea4b2f;
+	textFgOver: #ea4b2f;
+	textBgOver: #fff0ed;
+}
+boxButtonPadding: margins(12px, 16px, 22px, 16px);
+
 titleBG: #6389a8;
 titleColor: #0f8dcc;//rgb(20, 136, 210);
 titleHeight: 39px;
@@ -936,6 +970,9 @@ defaultTextStyle: textStyle {
 	selectOverlay: msgSelectOverlay;
 	lineHeight: 0px;
 }
+boxTextStyle: textStyle(defaultTextStyle) {
+	lineHeight: 22px;
+}
 serviceTextStyle: textStyle(defaultTextStyle) {
 	lnkFlags: msgServiceFont;
 	lnkOverFlags: font(fsize semibold underline);
@@ -1207,18 +1244,14 @@ layerHideDuration: 200;
 layerPadding: margins(10px, 10px, 10px, 10px);
 
 boxFont: font(16px);
-boxPadding: margins(18px, 18px, 18px, 18px);
 boxVerticalMargin: 10px;
-
-boxWidth: 364px;
-boxMaxListHeight: 600px;
 
 boxBG: white;
 boxGrayTitle: #777;
 
-boxTitlePos: point(20px, 15px);
-boxTitleFont: font(17px);
-boxTitleHeight: 52px;
+old_boxTitlePos: point(20px, 15px);
+old_boxTitleFont: font(17px);
+old_boxTitleHeight: 52px;
 
 confirmMaxHeight: 320px;
 confirmCompressedSkip: 10px;
@@ -1229,6 +1262,9 @@ inpAddContact: flatInput(inpDefGray) {
 	textMrg: margins(10px, 5px, 10px, 5px);
 	font: font(15px);
 }
+contactUserIcon: sprite(120px, 90px, 18px, 18px);
+contactPhoneIcon: sprite(138px, 90px, 18px, 18px);
+contactAddIcon: sprite(307px, 248px, 22px, 16px);
 
 btnNewGroup: iconedButton(btnDefIconed) {
 	icon: sprite(189px, 118px, 18px, 17px);
@@ -1280,7 +1316,6 @@ notifyHeight: 80px;
 notifyDeltaX: 6px;
 notifyDeltaY: 7px;
 
-cropBoxWidth: 364px;
 cropPointSize: 10px;
 cropMinSize: 20px;
 
@@ -1331,10 +1366,11 @@ btnShareContact: flatButton(btnDefNext, btnDefBig) {
 	overFont: font(17px);
 }
 profileMinBtnPadding: 10px;
+inviteCheckIcon: sprite(187px, 61px, 18px, 14px);
+inviteCheckActiveIcon: sprite(187px, 75px, 18px, 14px);
 
 membersPadding: margins(0px, 10px, 0px, 10px);
 
-forwardWidth: 364px;
 forwardMargins: margins(30px, 10px, 30px, 10px);
 forwardFont: font(16px); 
 forwardBg: rgba(0, 0, 0, 76);
@@ -1431,7 +1467,7 @@ newGroupName: flatInput(inpDefGray) {
 newGroupLink: flatInput(inpDefFlat) {
 	width: 340px;
 	height: 42px;
-	font: font(15px);
+	font: boxTextFont;
 	textMrg: margins(12px, 4px, 12px, 4px);
 	bgColor: transparent;
 	bgActive: transparent;
@@ -1559,7 +1595,7 @@ aboutCloseButton: flatButton(contactsClose) {
 	downTextTop: 16px;
 }
 btnInfoClose: flatButton(aboutCloseButton) {
-	width: boxWidth;
+	width: boxWideWidth;
 }
 
 emojiTextFont: font(16px);
@@ -1839,7 +1875,6 @@ stickerIconPadding: 5px;
 stickerIconOpacity: 0.7;
 stickerIconSel: 2px;
 stickerIconSelColor: #58b2ed;
-stickerIconRecent: sprite(342px, 50px, 21px, 22px);
 stickerIconLeft: sprite(342px, 72px, 40px, 1px);
 stickerIconRight: sprite(342px, 73px, 40px, 1px);
 stickerIconMove: 400;
@@ -2114,7 +2149,7 @@ sessionsHeight: 440px;
 sessionHeight: 70px;
 sessionPadding: margins(20px, 10px, 20px, 0);
 sessionsCloseButton: flatButton(aboutCloseButton) {
-	width: boxWidth;
+	width: boxWideWidth;
 }
 sessionNameFont: msgNameFont;
 sessionActiveFont: msgDateFont;

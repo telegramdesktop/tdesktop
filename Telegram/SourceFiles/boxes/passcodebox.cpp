@@ -25,8 +25,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 
 PasscodeBox::PasscodeBox(bool turningOff) : _replacedBy(0), _turningOff(turningOff), _cloudPwd(false),
-_setRequest(0), _hasRecovery(false), _aboutHeight(0),
-_about(st::boxWidth - st::addContactPadding.left() - st::addContactPadding.right()),
+_setRequest(0), _hasRecovery(false), _skipEmailWarning(false), _aboutHeight(0),
+_about(st::boxWideWidth - st::addContactPadding.left() - st::addContactPadding.right()),
 _saveButton(this, lang(_turningOff ? lng_passcode_remove_button : lng_settings_save), st::btnSelectDone),
 _cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
 _oldPasscode(this, st::inpAddContact, lang(lng_passcode_enter_old)),
@@ -40,8 +40,8 @@ _recover(this, lang(lng_signin_recover)) {
 }
 
 PasscodeBox::PasscodeBox(const QByteArray &newSalt, const QByteArray &curSalt, bool hasRecovery, const QString &hint, bool turningOff) : _replacedBy(0), _turningOff(turningOff), _cloudPwd(true),
-_setRequest(0), _newSalt(newSalt), _curSalt(curSalt), _hasRecovery(hasRecovery), _hint(hint), _aboutHeight(0),
-_about(st::boxWidth - st::addContactPadding.left() - st::addContactPadding.right()),
+_setRequest(0), _newSalt(newSalt), _curSalt(curSalt), _hasRecovery(hasRecovery), _skipEmailWarning(false), _hint(hint), _aboutHeight(0),
+_about(st::boxWideWidth - st::addContactPadding.left() - st::addContactPadding.right()),
 _saveButton(this, lang(_turningOff ? lng_passcode_remove_button : lng_settings_save), st::btnSelectDone),
 _cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
 _oldPasscode(this, st::inpAddContact, lang(lng_cloud_password_enter_old)),
@@ -57,24 +57,24 @@ _recover(this, lang(lng_signin_recover)) {
 void PasscodeBox::init() {
 	_about.setRichText(st::usernameFont, lang(_cloudPwd ? lng_cloud_password_about : lng_passcode_about));
 	if (!_hint.isEmpty()) _hintText.setText(st::usernameFont, lng_signin_hint(lt_password_hint, _hint));
-	_aboutHeight = _about.countHeight(st::boxWidth - st::addContactPadding.left() - st::addContactPadding.right());
+	_aboutHeight = _about.countHeight(st::boxWideWidth - st::addContactPadding.left() - st::addContactPadding.right());
 	_oldPasscode.setEchoMode(QLineEdit::Password);
 	_newPasscode.setEchoMode(QLineEdit::Password);
 	_reenterPasscode.setEchoMode(QLineEdit::Password);
 	if (_turningOff) {
 		_oldPasscode.show();
 		_boxTitle = lang(_cloudPwd ? lng_cloud_password_remove : lng_passcode_remove);
-		setMaxHeight(st::boxTitleHeight + st::addContactPadding.top() + 1 * _oldPasscode.height() + st::usernameSkip + _aboutHeight + (_hasRecovery ? ((st::usernameSkip + _recover.height()) / 2) : 0) + st::addContactPadding.bottom() + _saveButton.height());
+		setMaxHeight(st::old_boxTitleHeight + st::addContactPadding.top() + 1 * _oldPasscode.height() + st::usernameSkip + _aboutHeight + (_hasRecovery ? ((st::usernameSkip + _recover.height()) / 2) : 0) + st::addContactPadding.bottom() + _saveButton.height());
 	} else {
 		bool has = _cloudPwd ? (!_curSalt.isEmpty()) : cHasPasscode();
 		if (has) {
 			_oldPasscode.show();
 			_boxTitle = lang(_cloudPwd ? lng_cloud_password_change : lng_passcode_change);
-			setMaxHeight(st::boxTitleHeight + st::addContactPadding.top() + 3 * _oldPasscode.height() + st::usernameSkip * 2 + 1 * st::addContactDelta + (_cloudPwd ? _passwordHint.height() + st::addContactDelta : 0) + _aboutHeight + (_hasRecovery ? ((st::usernameSkip + _recover.height()) / 2) : 0) + st::addContactPadding.bottom() + _saveButton.height());
+			setMaxHeight(st::old_boxTitleHeight + st::addContactPadding.top() + 3 * _oldPasscode.height() + st::usernameSkip * 2 + 1 * st::addContactDelta + (_cloudPwd ? _passwordHint.height() + st::addContactDelta : 0) + _aboutHeight + (_hasRecovery ? ((st::usernameSkip + _recover.height()) / 2) : 0) + st::addContactPadding.bottom() + _saveButton.height());
 		} else {
 			_oldPasscode.hide();
 			_boxTitle = lang(_cloudPwd ? lng_cloud_password_create : lng_passcode_create);
-			setMaxHeight(st::boxTitleHeight + st::addContactPadding.top() + 2 * _oldPasscode.height() + st::usernameSkip + 1 * st::addContactDelta + (_cloudPwd ? _passwordHint.height() + st::addContactDelta : 0) + _aboutHeight + (_cloudPwd ? st::addContactDelta + _recoverEmail.height() + st::usernameSkip : st::addContactPadding.bottom()) + _saveButton.height());
+			setMaxHeight(st::old_boxTitleHeight + st::addContactPadding.top() + 2 * _oldPasscode.height() + st::usernameSkip + 1 * st::addContactDelta + (_cloudPwd ? _passwordHint.height() + st::addContactDelta : 0) + _aboutHeight + (_cloudPwd ? st::addContactDelta + _recoverEmail.height() + st::usernameSkip : st::addContactPadding.bottom()) + _saveButton.height());
 		}
 	}
 
@@ -220,7 +220,7 @@ void PasscodeBox::paintEvent(QPaintEvent *e) {
 
 void PasscodeBox::resizeEvent(QResizeEvent *e) {
 	bool has = _cloudPwd ? (!_curSalt.isEmpty()) : cHasPasscode();
-	_oldPasscode.setGeometry(st::addContactPadding.left(), st::boxTitleHeight + st::addContactPadding.top(), width() - st::addContactPadding.left() - st::addContactPadding.right(), _oldPasscode.height());
+	_oldPasscode.setGeometry(st::addContactPadding.left(), st::old_boxTitleHeight + st::addContactPadding.top(), width() - st::addContactPadding.left() - st::addContactPadding.right(), _oldPasscode.height());
 	_newPasscode.setGeometry(st::addContactPadding.left(), _oldPasscode.y() + ((_turningOff || has) ? (_oldPasscode.height() + st::usernameSkip) : 0), _oldPasscode.width(), _oldPasscode.height());
 	_reenterPasscode.setGeometry(st::addContactPadding.left(), _newPasscode.y() + _newPasscode.height() + st::addContactDelta, _newPasscode.width(), _newPasscode.height());
 	_passwordHint.setGeometry(st::addContactPadding.left(), _reenterPasscode.y() + _reenterPasscode.height() + st::usernameSkip, _reenterPasscode.width(), _reenterPasscode.height());
@@ -241,18 +241,21 @@ void PasscodeBox::resizeEvent(QResizeEvent *e) {
 }
 
 void PasscodeBox::showDone() {
-	if (_oldPasscode.isHidden()) {
+	if (_skipEmailWarning && !_recoverEmail.isHidden()) {
+		_recoverEmail.setFocus();
+	} else if (_oldPasscode.isHidden()) {
 		_newPasscode.setFocus();
 	} else {
 		_oldPasscode.setFocus();
 	}
+	_skipEmailWarning = false;
 }
 
 void PasscodeBox::setPasswordDone(const MTPBool &result) {
 	_setRequest = 0;
 	emit reloadPassword();
-	ConfirmBox *box = new ConfirmBox(lang(_reenterPasscode.isHidden() ? lng_cloud_password_removed : (_oldPasscode.isHidden() ? lng_cloud_password_was_set : lng_cloud_password_updated)), true, lang(lng_about_done));
-	App::wnd()->showLayer(box, true);
+	ConfirmBox *box = new InformBox(lang(_reenterPasscode.isHidden() ? lng_cloud_password_removed : (_oldPasscode.isHidden() ? lng_cloud_password_was_set : lng_cloud_password_updated)));
+	App::wnd()->showLayer(box);
 }
 
 bool PasscodeBox::setPasswordFail(const RPCError &error) {
@@ -280,8 +283,7 @@ bool PasscodeBox::setPasswordFail(const RPCError &error) {
 		_recoverEmail.notaBene();
 		update();
 	} else if (err == "EMAIL_UNCONFIRMED") {
-		ConfirmBox *box = new ConfirmBox(lang(lng_cloud_password_almost), true, lang(lng_about_done));
-		App::wnd()->showLayer(box, true);
+		App::wnd()->showLayer(new InformBox(lang(lng_cloud_password_almost)));
 		emit reloadPassword();
 	} else if (error.type().startsWith(qsl("FLOOD_WAIT_"))) {
 		if (_oldPasscode.isHidden()) return false;
@@ -349,7 +351,8 @@ void PasscodeBox::onSave(bool force) {
 			return;
 		}
 		if (!_recoverEmail.isHidden() && email.isEmpty() && !force) {
-			_replacedBy = new ConfirmBox(lang(lng_cloud_password_about_recover));
+			_skipEmailWarning = true;
+			_replacedBy = new ConfirmBox(lang(lng_cloud_password_about_recover), lang(lng_cloud_password_skip_email), st::attentionBoxButton);
 			connect(_replacedBy, SIGNAL(confirmed()), this, SLOT(onForceNoMail()));
 			connect(_replacedBy, SIGNAL(destroyed(QObject*)), this, SLOT(onBoxDestroyed(QObject*)));
 			App::wnd()->replaceLayer(_replacedBy);
@@ -459,11 +462,11 @@ bool PasscodeBox::recoverStartFail(const RPCError &error) {
 }
 
 RecoverBox::RecoverBox(const QString &pattern) :
-_submitRequest(0), _pattern(st::usernameFont->m.elidedText(lng_signin_recover_hint(lt_recover_email, pattern), Qt::ElideRight, st::boxWidth - st::addContactPadding.left() - st::addContactPadding.right())),
+_submitRequest(0), _pattern(st::usernameFont->elided(lng_signin_recover_hint(lt_recover_email, pattern), st::boxWideWidth - st::addContactPadding.left() - st::addContactPadding.right())),
 _saveButton(this, lang(lng_passcode_submit), st::btnSelectDone),
 _cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
 _recoverCode(this, st::inpAddContact, lang(lng_signin_code)) {
-	setMaxHeight(st::boxTitleHeight + st::addContactPadding.top() + st::usernameSkip + _recoverCode.height() + st::usernameSkip + st::addContactPadding.bottom() + _saveButton.height());
+	setMaxHeight(st::old_boxTitleHeight + st::addContactPadding.top() + st::usernameSkip + _recoverCode.height() + st::usernameSkip + st::addContactPadding.bottom() + _saveButton.height());
 
 	connect(&_saveButton, SIGNAL(clicked()), this, SLOT(onSubmit()));
 	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -521,7 +524,7 @@ void RecoverBox::paintEvent(QPaintEvent *e) {
 }
 
 void RecoverBox::resizeEvent(QResizeEvent *e) {
-	_recoverCode.setGeometry(st::addContactPadding.left(), st::boxTitleHeight + st::addContactPadding.top() + st::usernameSkip, width() - st::addContactPadding.left() - st::addContactPadding.right(), _recoverCode.height());
+	_recoverCode.setGeometry(st::addContactPadding.left(), st::old_boxTitleHeight + st::addContactPadding.top() + st::usernameSkip, width() - st::addContactPadding.left() - st::addContactPadding.right(), _recoverCode.height());
 
 	int32 buttonTop = height() - _cancelButton.height();
 	_cancelButton.move(0, buttonTop);
@@ -553,8 +556,7 @@ void RecoverBox::codeSubmitDone(bool recover, const MTPauth_Authorization &resul
 	_submitRequest = 0;
 
 	emit reloadPassword();
-	ConfirmBox *box = new ConfirmBox(lang(lng_cloud_password_removed), true, lang(lng_about_done));
-	App::wnd()->showLayer(box, true);
+	App::wnd()->showLayer(new InformBox(lang(lng_cloud_password_removed)));
 }
 
 bool RecoverBox::codeSubmitFail(const RPCError &error) {
@@ -563,8 +565,7 @@ bool RecoverBox::codeSubmitFail(const RPCError &error) {
 	const QString &err = error.type();
 	if (err == "PASSWORD_EMPTY") {
 		emit reloadPassword();
-		ConfirmBox *box = new ConfirmBox(lang(lng_cloud_password_removed), true, lang(lng_about_done));
-		App::wnd()->showLayer(box, true);
+		App::wnd()->showLayer(new InformBox(lang(lng_cloud_password_removed)));
 		return true;
 	} else if (err == "PASSWORD_RECOVERY_NA") {
 		onClose();

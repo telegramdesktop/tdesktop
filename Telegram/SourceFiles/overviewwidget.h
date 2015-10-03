@@ -154,7 +154,7 @@ private:
 	struct Link {
 		Link() : width(0) {
 		}
-		Link(const QString &url, const QString &text) : url(url), text(text), width(st::msgFont->m.width(text)) {
+		Link(const QString &url, const QString &text) : url(url), text(text), width(st::msgFont->width(text)) {
 		}
 		QString url, text;
 		int32 width;

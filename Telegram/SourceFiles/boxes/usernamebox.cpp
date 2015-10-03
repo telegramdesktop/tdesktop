@@ -27,14 +27,14 @@ UsernameBox::UsernameBox() :
 _saveButton(this, lang(lng_settings_save), st::usernameDone),
 _cancelButton(this, lang(lng_cancel), st::usernameCancel),
 _usernameInput(this, st::inpAddContact, qsl("@username"), App::self()->username),
-_saveRequest(0), _checkRequest(0), _about(st::usernameWidth - 2 * st::boxTitlePos.x())  {
+_saveRequest(0), _checkRequest(0), _about(st::usernameWidth - 2 * st::old_boxTitlePos.x())  {
 	_about.setRichText(st::usernameFont, lang(lng_username_about));
 	_goodText = App::self()->username.isEmpty() ? QString() : lang(lng_username_available);
 	initBox();
 }
 
 void UsernameBox::initBox() {
-	resizeMaxHeight(st::usernameWidth, st::boxTitleHeight + st::addContactPadding.top() + _usernameInput.height() + st::addContactPadding.bottom() + _about.countHeight(st::usernameWidth - 2 * st::boxTitlePos.x()) + st::usernameSkip + _saveButton.height());
+	resizeMaxHeight(st::usernameWidth, st::old_boxTitleHeight + st::addContactPadding.top() + _usernameInput.height() + st::addContactPadding.bottom() + _about.countHeight(st::usernameWidth - 2 * st::old_boxTitlePos.x()) + st::usernameSkip + _saveButton.height());
 
 	connect(&_saveButton, SIGNAL(clicked()), this, SLOT(onSave()));
 	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -85,20 +85,20 @@ void UsernameBox::paintEvent(QPaintEvent *e) {
 	if (!_errorText.isEmpty()) {
 		p.setPen(st::setErrColor->p);
 		p.setFont(st::setErrFont->f);
-		int32 w = st::setErrFont->m.width(_errorText);
+		int32 w = st::setErrFont->width(_errorText);
 		p.drawText((width() - w) / 2, _usernameInput.y() + _usernameInput.height() + ((st::usernameSkip - st::setErrFont->height) / 2) + st::setErrFont->ascent, _errorText);
 	} else if (!_goodText.isEmpty()) {
 		p.setPen(st::setGoodColor->p);
 		p.setFont(st::setErrFont->f);
-		int32 w = st::setErrFont->m.width(_goodText);
+		int32 w = st::setErrFont->width(_goodText);
 		p.drawText((width() - w) / 2, _usernameInput.y() + _usernameInput.height() + ((st::usernameSkip - st::setErrFont->height) / 2) + st::setErrFont->ascent, _goodText);
 	}
 	p.setPen(st::usernameColor->p);
-	_about.draw(p, st::boxTitlePos.x(), _usernameInput.y() + _usernameInput.height() + st::usernameSkip, width() - 2 * st::boxTitlePos.x());
+	_about.draw(p, st::old_boxTitlePos.x(), _usernameInput.y() + _usernameInput.height() + st::usernameSkip, width() - 2 * st::old_boxTitlePos.x());
 }
 
 void UsernameBox::resizeEvent(QResizeEvent *e) {
-	_usernameInput.setGeometry(st::addContactPadding.left(), st::boxTitleHeight + st::addContactPadding.top(), width() - st::addContactPadding.left() - st::addContactPadding.right(), _usernameInput.height());
+	_usernameInput.setGeometry(st::addContactPadding.left(), st::old_boxTitleHeight + st::addContactPadding.top(), width() - st::addContactPadding.left() - st::addContactPadding.right(), _usernameInput.height());
 
 	int32 buttonTop = height() - _cancelButton.height();
 	_cancelButton.move(0, buttonTop);

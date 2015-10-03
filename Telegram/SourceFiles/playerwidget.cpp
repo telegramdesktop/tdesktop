@@ -201,7 +201,7 @@ void PlayerWidget::updateDownTime() {
 	QString time = formatDurationText(qRound(_downDuration * _downProgress) / _downFrequency);
 	if (time != _time) {
 		_time = time;
-		_timeWidth = st::linkFont->m.width(_time);
+		_timeWidth = st::linkFont->width(_time);
 		rtlupdate(_infoRect);
 	}
 }
@@ -583,7 +583,7 @@ void PlayerWidget::updateState(SongMsgId playing, AudioPlayerState playingState,
 	if (time != _time || showPause != _showPause) {
 		if (_time != time) {
 			_time = time;
-			_timeWidth = st::linkFont->m.width(_time);
+			_timeWidth = st::linkFont->width(_time);
 		}
 		_showPause = showPause;
 		if (duration != _duration || position != _position || loaded != _loaded) {

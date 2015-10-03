@@ -19,13 +19,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 
+class InformBox;
 class ConfirmBox : public AbstractBox {
 	Q_OBJECT
 
 public:
 
-	ConfirmBox(const QString &text, const QString &doneText = QString(), const QString &cancelText = QString(), const style::flatButton &doneStyle = st::btnSelectDone, const style::flatButton &cancelStyle = st::btnSelectCancel);
-	ConfirmBox(const QString &text, bool noDone, const QString &cancelText = QString());
+	ConfirmBox(const QString &text, const QString &doneText = QString(), const style::BoxButton &doneStyle = st::defaultBoxButton, const QString &cancelText = QString(), const style::BoxButton &cancelStyle = st::cancelBoxButton);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
@@ -53,12 +53,13 @@ protected:
 
 private:
 
+	ConfirmBox(const QString &text, const QString &doneText, const style::BoxButton &doneStyle, bool informative);
+	friend class InformBox;
+
 	void init(const QString &text);
 
-	bool _infoMsg;
+	bool _informative;
 
-	FlatButton _confirm, _cancel;
-	BottomButton _close;
 	Text _text;
 	int32 _textWidth, _textHeight;
 
@@ -66,6 +67,14 @@ private:
 
 	QPoint _lastMousePos;
 	TextLinkPtr _myLink;
+
+	BoxButton _confirm, _cancel;
+};
+
+class InformBox : public ConfirmBox {
+public:
+	InformBox(const QString &text, const QString &doneText = QString(), const style::BoxButton &doneStyle = st::defaultBoxButton) : ConfirmBox(text, doneText, doneStyle, true) {
+	}
 };
 
 class ConfirmLinkBox : public ConfirmBox {
@@ -108,7 +117,7 @@ private:
 	void updateSelected(const QPoint &cursorGlobalPosition);
 	bool goodAnimStep(float64 ms);
 
-	BottomButton _close;
+	BoxButton _close;
 	Text _text;
 	int32 _textWidth, _textHeight;
 

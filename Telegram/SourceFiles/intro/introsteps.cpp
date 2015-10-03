@@ -49,7 +49,7 @@ _next(this, lang(lng_start_msgs), st::btnIntroNext) {
 		_changeLang.show();
 	}
 
-	_headerWidth = st::introHeaderFont->m.width(qsl("Telegram Desktop"));
+	_headerWidth = st::introHeaderFont->width(qsl("Telegram Desktop"));
 
 	setGeometry(parent->innerRect());
 

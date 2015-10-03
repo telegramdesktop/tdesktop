@@ -351,11 +351,9 @@ private:
 	UserData *_sharedContact;
 	bool _forwardSelected, _sendPath;
 
-	FlatButton forwardButton;
-	FlatButton cancelButton;
+	BoxButton _send, _cancel;
 	PeerData *offered;
-	anim::fvalue aOpacity;
-	anim::transition aOpacityFunc;
+	anim::fvalue a_opacity;
 	QRect box;
 	bool hiding;
 
@@ -456,7 +454,9 @@ public:
 
 	void shareContact(const PeerId &peer, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, int32 userId = 0);
 
+	History *history() const;
 	PeerData *peer() const;
+	void setMsgId(MsgId showAtMsgId);
 	MsgId msgId() const;
 	HistoryItem *atTopImportantMsg(int32 &bottomUnderScrollTop) const;
 
@@ -541,7 +541,7 @@ public:
 signals:
 
 	void cancelled();
-	void peerShown(PeerData *);
+	void historyShown(History *history, MsgId atMsgId);
 
 public slots:
 

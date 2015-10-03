@@ -31,42 +31,38 @@ TextParseOptions _confirmBoxTextOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 
-ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const QString &cancelText, const style::flatButton &doneStyle, const style::flatButton &cancelStyle) : _infoMsg(false),
-_confirm(this, doneText.isEmpty() ? lang(lng_continue) : doneText, doneStyle),
-_cancel(this, cancelText.isEmpty() ? lang(lng_cancel) : cancelText, cancelStyle),
-_close(this, QString(), st::btnInfoClose),
-_text(100) {
+ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const style::BoxButton &doneStyle, const QString &cancelText, const style::BoxButton &cancelStyle) : AbstractBox(st::boxWidth), 
+_informative(false),
+_text(100),
+_confirm(this, doneText.isEmpty() ? lang(lng_box_ok) : doneText, doneStyle),
+_cancel(this, cancelText.isEmpty() ? lang(lng_box_cancel) : cancelText, cancelStyle) {
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(const QString &text, bool noDone, const QString &cancelText) : _infoMsg(true),
-_confirm(this, QString(), st::btnSelectDone),
-_cancel(this, QString(), st::btnSelectCancel),
-_close(this, cancelText.isEmpty() ? lang(lng_close) : cancelText, st::btnInfoClose),
-_text(100) {
+ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const style::BoxButton &doneStyle, bool informative) : AbstractBox(st::boxWidth),
+_informative(true),
+_text(100),
+_confirm(this, doneText.isEmpty() ? lang(lng_box_ok) : doneText, doneStyle),
+_cancel(this, QString(), st::cancelBoxButton) {
 	init(text);
 }
 
 void ConfirmBox::init(const QString &text) {
-	_text.setText(st::boxFont, text, (_infoMsg ? _confirmBoxTextOptions : _textPlainOptions));
+	_text.setText(st::boxTextFont, text, _informative ? _confirmBoxTextOptions : _textPlainOptions);
 
-	_textWidth = st::boxWidth + 10 - st::boxPadding.left() - st::boxPadding.right();
-	_textHeight = qMin(_text.countHeight(_textWidth), 16 * st::boxFont->height);
-	setMaxHeight(st::boxPadding.top() + _textHeight + st::boxPadding.bottom() + (_infoMsg ? _close.height() : _confirm.height()));
+	textstyleSet(&st::boxTextStyle);
+	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxPadding.right();
+	_textHeight = qMin(_text.countHeight(_textWidth), 16 * int(st::boxTextStyle.lineHeight));
+	setMaxHeight(st::boxPadding.top() + _textHeight + st::boxPadding.bottom() + st::boxButtonPadding.top() + _confirm.height() + st::boxButtonPadding.bottom());
+	textstyleRestore();
 
-	if (_infoMsg) {
-		_confirm.hide();
+	connect(&_confirm, SIGNAL(clicked()), this, SIGNAL(confirmed()));
+	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onCancel()));
+	if (_informative) {
 		_cancel.hide();
-
-		connect(&_close, SIGNAL(clicked()), this, SLOT(onCancel()));
-
-		setMouseTracking(_text.hasLinks());
-	} else {
-		_close.hide();
-
-		connect(&_confirm, SIGNAL(clicked()), this, SIGNAL(confirmed()));
-		connect(&_cancel, SIGNAL(clicked()), this, SLOT(onCancel()));
+		connect(this, SIGNAL(confirmed()), this, SLOT(onCancel()));
 	}
+	setMouseTracking(_text.hasLinks());
 
 	prepare();
 }
@@ -121,7 +117,9 @@ void ConfirmBox::updateLink() {
 void ConfirmBox::updateHover() {
 	QPoint m(mapFromGlobal(_lastMousePos));
 	bool wasMy = (_myLink == textlnkOver());
+	textstyleSet(&st::boxTextStyle);
 	_myLink = _text.link(m.x() - st::boxPadding.left(), m.y() - st::boxPadding.top(), _textWidth, (_text.maxWidth() < width()) ? style::al_center : style::al_left);
+	textstyleRestore();
 	if (_myLink != textlnkOver()) {
 		if (wasMy || _myLink || rect().contains(m)) {
 			textlnkOver(_myLink);
@@ -138,12 +136,11 @@ void ConfirmBox::closePressed() {
 void ConfirmBox::hideAll() {
 	_confirm.hide();
 	_cancel.hide();
-	_close.hide();
 }
 
 void ConfirmBox::showAll() {
-	if (_infoMsg) {
-		_close.show();
+	if (_informative) {
+		_confirm.show();
 	} else {
 		_confirm.show();
 		_cancel.show();
@@ -162,27 +159,16 @@ void ConfirmBox::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 	if (paint(p)) return;
 
-	if (!_infoMsg) {
-		// paint shadows
-		p.fillRect(0, height() - st::btnSelectCancel.height - st::scrollDef.bottomsh, width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
-
-		// paint button sep
-		p.fillRect(st::btnSelectCancel.width, height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
-	}
-
 	// draw box title / text
-	p.setFont(st::boxFont->f);
 	p.setPen(st::black->p);
-	_text.drawElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, 16, (_text.maxWidth() < width()) ? style::al_center : style::al_left);
+	textstyleSet(&st::boxTextStyle);
+	_text.drawElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, 16, style::al_left);
+	textstyleRestore();
 }
 
 void ConfirmBox::resizeEvent(QResizeEvent *e) {
-	if (_infoMsg) {
-		_close.move(0, st::boxPadding.top() + _textHeight + st::boxPadding.bottom());
-	} else {
-		_confirm.move(width() - _confirm.width(), st::boxPadding.top() + _textHeight + st::boxPadding.bottom());
-		_cancel.move(0, st::boxPadding.top() + _textHeight + st::boxPadding.bottom());
-	}
+	_confirm.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _confirm.height(), width());
+	_cancel.moveToRight(st::boxButtonPadding.right() + _confirm.width() + st::boxButtonPadding.left(), _confirm.y(), width());
 }
 
 ConfirmLinkBox::ConfirmLinkBox(const QString &url) : ConfirmBox(lang(lng_open_this_link) + qsl("\n\n") + url, lang(lng_open_link)), _url(url) {
@@ -198,16 +184,16 @@ void ConfirmLinkBox::onOpenLink() {
 	App::wnd()->hideLayer();
 }
 
-MaxInviteBox::MaxInviteBox(const QString &link) :
-_close(this, lang(lng_close), st::btnInfoClose),
-_text(st::boxFont, lng_participant_invite_sorry(lt_count, QString::number(cMaxGroupCount())), _confirmBoxTextOptions),
+MaxInviteBox::MaxInviteBox(const QString &link) : AbstractBox(st::boxWidth),
+_close(this, lang(lng_box_ok), st::defaultBoxButton),
+_text(st::boxTextFont, lng_participant_invite_sorry(lt_count, cMaxGroupCount()), _confirmBoxTextOptions, st::boxWidth - st::boxPadding.left() - st::boxPadding.right()),
 _link(link), _linkOver(false),
 a_goodOpacity(0, 0), a_good(animFunc(this, &MaxInviteBox::goodAnimStep)) {
 	setMouseTracking(true);
 
-	_textWidth = st::boxWidth + 10 - st::boxPadding.left() - st::boxPadding.right();
-	_textHeight = qMin(_text.countHeight(_textWidth), 16 * st::boxFont->height);
-	setMaxHeight(st::boxPadding.top() + _textHeight + st::newGroupLinkPadding.top() + st::newGroupLink.height + st::newGroupLinkPadding.bottom() + _close.height());
+	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxPadding.right();
+	_textHeight = qMin(_text.countHeight(_textWidth), 16 * int(st::boxTextStyle.lineHeight));
+	setMaxHeight(st::boxPadding.top() + _textHeight + st::newGroupLinkPadding.top() + st::newGroupLink.height + st::newGroupLinkPadding.bottom() + _close.height() + st::boxButtonPadding.bottom());
 
 	connect(&_close, SIGNAL(clicked()), this, SLOT(onClose()));
 
@@ -269,9 +255,8 @@ void MaxInviteBox::paintEvent(QPaintEvent *e) {
 	if (paint(p)) return;
 
 	// draw box title / text
-	p.setFont(st::boxFont->f);
 	p.setPen(st::black->p);
-	_text.drawElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, 16, (_text.maxWidth() < width()) ? style::al_center : style::al_left);
+	_text.drawElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, 16, style::al_left);
 
 	QTextOption option(style::al_left);
 	option.setWrapMode(QTextOption::WrapAnywhere);
@@ -288,6 +273,6 @@ void MaxInviteBox::paintEvent(QPaintEvent *e) {
 }
 
 void MaxInviteBox::resizeEvent(QResizeEvent *e) {
-	_close.move(0, height() - _close.height());
+	_close.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _close.height(), width());
 	_invitationLink = QRect(st::newGroupPadding.left(), st::boxPadding.top() + _textHeight + st::newGroupLinkPadding.top() + (st::newGroupLink.height / 2) - st::newGroupLinkFont->height, width() - st::newGroupPadding.left() - st::newGroupPadding.right(), 2 * st::newGroupLinkFont->height);
 }

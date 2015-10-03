@@ -199,7 +199,7 @@ void CountryInput::onFinishCountry() {
 }
 
 void CountryInput::setText(const QString &newText) {
-	_text = _st.font->m.elidedText(newText, Qt::ElideRight, width() - _st.textMrg.left() - _st.textMrg.right());
+	_text = _st.font->elided(newText, width() - _st.textMrg.left() - _st.textMrg.right());
 }
 
 CountryInput::~CountryInput() {
@@ -315,7 +315,7 @@ void CountryList::paintEvent(QPaintEvent *e) {
 			}
 			p.setFont(_st.font->f);
 			p.setPen(_st.color->p);
-			p.drawText(textRect, _st.font->m.elidedText(QString::fromUtf8((*countriesNow)[i]->name), Qt::ElideRight, width() - 2 * _st.margin - _st.codeWidth), QTextOption(style::al_left));
+			p.drawText(textRect, _st.font->elided(QString::fromUtf8((*countriesNow)[i]->name), width() - 2 * _st.margin - _st.codeWidth), QTextOption(style::al_left));
 			p.setFont(_st.codeFont->f);
 			p.setPen(_st.codeColor->p);
 			p.drawText(textRect, QString("+") + (*countriesNow)[i]->code, QTextOption(style::al_right));
@@ -495,8 +495,8 @@ void CountrySelect::paintEvent(QPaintEvent *e) {
 
 			// draw box title / text
 			p.setPen(st::black->p);
-			p.setFont(st::boxTitleFont->f);
-			p.drawText(_innerLeft + st::boxTitlePos.x(), _innerTop + st::boxTitlePos.y() + st::boxTitleFont->ascent, lang(lng_country_select));
+			p.setFont(st::old_boxTitleFont->f);
+			p.drawText(_innerLeft + st::old_boxTitlePos.x(), _innerTop + st::old_boxTitlePos.y() + st::old_boxTitleFont->ascent, lang(lng_country_select));
 		}
 	}
 }

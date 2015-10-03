@@ -57,7 +57,7 @@ public:
 	void createDialog(History *history);
 	void moveDialogToTop(const History::DialogLinks &links);
 	void dlgUpdated(DialogRow *row);
-	void dlgUpdated(History *row);
+	void dlgUpdated(History *row, MsgId msgId);
 	void removePeer(PeerData *peer);
 	void removeContact(UserData *user);
 
@@ -200,7 +200,7 @@ public:
 	void loadDialogs();
 	void createDialog(History *history);
 	void dlgUpdated(DialogRow *row);
-	void dlgUpdated(History *row);
+	void dlgUpdated(History *row, MsgId msgId);
 
 	void dialogsToUp();
 

@@ -274,6 +274,7 @@ public:
 	bool isLoaded() const {
 		return !_loading;
 	}
+	void clearSel();
 
 	QMap<UserData*, bool> already() const;
 
@@ -298,7 +299,6 @@ public slots:
 private:
 
 	void updateSelectedRow();
-	void clearSel();
 	MemberData *data(int32 index);
 
 	void membersReceived(const MTPchannels_ChannelParticipants &result, mtpRequestId req);

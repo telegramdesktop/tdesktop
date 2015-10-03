@@ -136,3 +136,30 @@ public:
 	void paintEvent(QPaintEvent *e);
 
 };
+
+class BoxButton : public Button {
+	Q_OBJECT
+
+public:
+
+	BoxButton(QWidget *parent, const QString &text, const style::BoxButton &st);
+
+	void paintEvent(QPaintEvent *e);
+
+	bool animStep_over(float64 ms);
+
+public slots:
+
+	void onStateChange(int oldState, ButtonStateChangeSource source);
+
+private:
+
+	QString _text, _fullText;
+	int32 _textWidth;
+
+	const style::BoxButton &_st;
+
+	anim::fvalue a_textBgOverOpacity;
+	anim::cvalue a_textFg;
+	Animation _a_over;
+};
