@@ -1726,7 +1726,7 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 }
 
 bool DialogsWidget::dialogsFailed(const RPCError &error, mtpRequestId req) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	LOG(("RPC Error: %1 %2: %3").arg(error.code()).arg(error.type()).arg(error.description()));
 	if (_dialogsRequest == req) {
@@ -1853,7 +1853,7 @@ void DialogsWidget::contactsReceived(const MTPcontacts_Contacts &contacts) {
 }
 
 bool DialogsWidget::contactsFailed(const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	return true;
 }
@@ -1943,7 +1943,7 @@ void DialogsWidget::peopleReceived(const MTPcontacts_Found &result, mtpRequestId
 }
 
 bool DialogsWidget::searchFailed(const RPCError &error, mtpRequestId req) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (_searchRequest == req) {
 		_searchRequest = 0;
@@ -1953,7 +1953,7 @@ bool DialogsWidget::searchFailed(const RPCError &error, mtpRequestId req) {
 }
 
 bool DialogsWidget::peopleFailed(const RPCError &error, mtpRequestId req) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (_peopleRequest == req) {
 		_peopleRequest = 0;

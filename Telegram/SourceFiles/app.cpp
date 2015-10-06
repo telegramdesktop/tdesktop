@@ -94,7 +94,7 @@ namespace {
 
 	HistoryItem *hoveredItem = 0, *pressedItem = 0, *hoveredLinkItem = 0, *pressedLinkItem = 0, *contextItem = 0, *mousedItem = 0;
 
-	QPixmap *sprite = 0, *emojis = 0, *emojisLarge = 0;
+	QPixmap *sprite = 0, *emoji = 0, *emojiLarge = 0;
 
 	struct CornersPixmaps {
 		CornersPixmaps() {
@@ -107,9 +107,9 @@ namespace {
 	CornersMap cornersMap;
 	QImage *cornersMask[4] = { 0 };
 
-	typedef QMap<uint64, QPixmap> EmojisMap;
-	EmojisMap mainEmojisMap;
-	QMap<int32, EmojisMap> otherEmojisMap;
+	typedef QMap<uint64, QPixmap> EmojiMap;
+	EmojiMap mainEmojiMap;
+	QMap<int32, EmojiMap> otherEmojiMap;
 
 	int32 serviceImageCacheSize = 0;
 
@@ -1919,13 +1919,13 @@ namespace App {
             if (cRetina()) ::sprite->setDevicePixelRatio(cRetinaFactor());
 		}
 		emojiInit();
-		if (!::emojis) {
-			::emojis = new QPixmap(QLatin1String(EName));
-            if (cRetina()) ::emojis->setDevicePixelRatio(cRetinaFactor());
+		if (!::emoji) {
+			::emoji = new QPixmap(QLatin1String(EName));
+            if (cRetina()) ::emoji->setDevicePixelRatio(cRetinaFactor());
 		}
-		if (!::emojisLarge) {
-			::emojisLarge = new QPixmap(QLatin1String(EmojiNames[EIndex + 1]));
-			if (cRetina()) ::emojisLarge->setDevicePixelRatio(cRetinaFactor());
+		if (!::emojiLarge) {
+			::emojiLarge = new QPixmap(QLatin1String(EmojiNames[EIndex + 1]));
+			if (cRetina()) ::emojiLarge->setDevicePixelRatio(cRetinaFactor());
 		}
 
 		QImage mask[4];
@@ -1975,10 +1975,10 @@ namespace App {
 
 			delete ::sprite;
 			::sprite = 0;
-			delete ::emojis;
-			::emojis = 0;
-			delete ::emojisLarge;
-			::emojisLarge = 0;
+			delete ::emoji;
+			::emoji = 0;
+			delete ::emojiLarge;
+			::emojiLarge = 0;
 			for (int32 j = 0; j < 4; ++j) {
 				for (int32 i = 0; i < RoundCornersCount; ++i) {
 					delete ::corners[i].p[j]; ::corners[i].p[j] = 0;
@@ -1991,8 +1991,8 @@ namespace App {
 				}
 			}
 			::cornersMap.clear();
-			mainEmojisMap.clear();
-			otherEmojisMap.clear();
+			mainEmojiMap.clear();
+			otherEmojiMap.clear();
 
 			clearAllImages();
 		} else {
@@ -2055,17 +2055,17 @@ namespace App {
 		return *::sprite;
 	}
 
-	const QPixmap &emojis() {
-		return *::emojis;
+	const QPixmap &emoji() {
+		return *::emoji;
 	}
 
-	const QPixmap &emojisLarge() {
-		return *::emojisLarge;
+	const QPixmap &emojiLarge() {
+		return *::emojiLarge;
 	}
 
 	const QPixmap &emojiSingle(EmojiPtr emoji, int32 fontHeight) {
-		EmojisMap *map = &(fontHeight == st::taDefFlat.font->height ? mainEmojisMap : otherEmojisMap[fontHeight]);
-		EmojisMap::const_iterator i = map->constFind(emojiKey(emoji));
+		EmojiMap *map = &(fontHeight == st::taDefFlat.font->height ? mainEmojiMap : otherEmojiMap[fontHeight]);
+		EmojiMap::const_iterator i = map->constFind(emojiKey(emoji));
 		if (i == map->cend()) {
 			QImage img(ESize + st::emojiPadding * cIntRetinaFactor() * 2, fontHeight * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
             if (cRetina()) img.setDevicePixelRatio(cRetinaFactor());

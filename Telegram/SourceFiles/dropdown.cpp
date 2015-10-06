@@ -690,7 +690,7 @@ void EmojiColorPicker::drawVariant(Painter &p, int variant) {
 		p.setOpacity(1);
 	}
 	int esize = EmojiSizes[EIndex + 1];
-	p.drawPixmapLeft(w.x() + (st::emojiPanSize.width() - (esize / cIntRetinaFactor())) / 2, w.y() + (st::emojiPanSize.height() - (esize / cIntRetinaFactor())) / 2, width(), App::emojisLarge(), QRect(_variants[variant]->x * esize, _variants[variant]->y * esize, esize, esize));
+	p.drawPixmapLeft(w.x() + (st::emojiPanSize.width() - (esize / cIntRetinaFactor())) / 2, w.y() + (st::emojiPanSize.height() - (esize / cIntRetinaFactor())) / 2, width(), App::emojiLarge(), QRect(_variants[variant]->x * esize, _variants[variant]->y * esize, esize, esize));
 }
 
 EmojiPanInner::EmojiPanInner() : _maxHeight(int(st::emojiPanMaxHeight)),
@@ -802,7 +802,7 @@ void EmojiPanInner::paintEvent(QPaintEvent *e) {
 					App::roundRect(p, QRect(tl, st::emojiPanSize), st::emojiPanHover, StickerHoverCorners);
 					p.setOpacity(1);
 				}
-				p.drawPixmapLeft(w.x() + (st::emojiPanSize.width() - (_esize / cIntRetinaFactor())) / 2, w.y() + (st::emojiPanSize.height() - (_esize / cIntRetinaFactor())) / 2, width(), App::emojisLarge(), QRect(_emojis[c][index]->x * _esize, _emojis[c][index]->y * _esize, _esize, _esize));
+				p.drawPixmapLeft(w.x() + (st::emojiPanSize.width() - (_esize / cIntRetinaFactor())) / 2, w.y() + (st::emojiPanSize.height() - (_esize / cIntRetinaFactor())) / 2, width(), App::emojiLarge(), QRect(_emojis[c][index]->x * _esize, _emojis[c][index]->y * _esize, _esize, _esize));
 			}
 		}
 	}
@@ -964,7 +964,7 @@ QRect EmojiPanInner::emojiRect(int tab, int sel) {
 			x = st::emojiPanPadding + ((sel % EmojiPanPerRow) * st::emojiPanSize.width());
 			break;
 		} else {
-			int cnt = emojiPackCount(emojiTabAtIndex(i));
+			int cnt = _counts[i];
 			int rows = (cnt / EmojiPanPerRow) + ((cnt % EmojiPanPerRow) ? 1 : 0);
 			y += st::emojiPanHeader + rows * st::emojiPanSize.height();
 		}
@@ -1083,10 +1083,11 @@ void EmojiPanInner::fillPanels(QVector<EmojiPanel*> &panels) {
 	for (int c = 0; c < emojiTabCount; ++c) {
 		panels.push_back(new EmojiPanel(parentWidget(), lang(LangKey(lng_emoji_category0 + c)), NoneStickerSetId, true, y));
 		connect(panels.back(), SIGNAL(mousePressed()), this, SLOT(checkPickerHide()));
-		int cnt = emojiPackCount(emojiTabAtIndex(c)), rows = (cnt / EmojiPanPerRow) + ((cnt % EmojiPanPerRow) ? 1 : 0);
+		int cnt = _counts[c], rows = (cnt / EmojiPanPerRow) + ((cnt % EmojiPanPerRow) ? 1 : 0);
 		panels.back()->show();
 		y += st::emojiPanHeader + rows * st::emojiPanSize.height();
 	}
+	_picker.raise();
 }
 
 void EmojiPanInner::refreshPanels(QVector<EmojiPanel*> &panels) {
@@ -1095,7 +1096,7 @@ void EmojiPanInner::refreshPanels(QVector<EmojiPanel*> &panels) {
 	int32 y = 0;
 	for (int c = 0; c < emojiTabCount; ++c) {
 		panels.at(c)->setWantedY(y);
-		int cnt = emojiPackCount(emojiTabAtIndex(c)), rows = (cnt / EmojiPanPerRow) + ((cnt % EmojiPanPerRow) ? 1 : 0);
+		int cnt = _counts[c], rows = (cnt / EmojiPanPerRow) + ((cnt % EmojiPanPerRow) ? 1 : 0);
 		y += st::emojiPanHeader + rows * st::emojiPanSize.height();
 	}
 }
@@ -1972,7 +1973,7 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 
 	if (_toCache.isNull()) {
 		if (_cache.isNull()) {
-			p.fillRect(rtlrect(r.x() + r.width() - st::emojiScroll.width, r.y(), st::emojiScroll.width, e_scroll.height(), width()), st::white->b);
+			p.fillRect(myrtlrect(r.x() + r.width() - st::emojiScroll.width, r.y(), st::emojiScroll.width, e_scroll.height()), st::white->b);
 			if (_stickersShown) {
 				p.fillRect(r.left(), _iconsTop, r.width(), st::rbEmoji.height, st::emojiPanCategories->b);
 				if (!_icons.isEmpty()) {

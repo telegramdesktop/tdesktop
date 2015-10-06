@@ -324,7 +324,7 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result) {
 }
 
 bool ApiWrap::gotPeerFullFailed(PeerData *peer, const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	_fullPeerRequests.remove(peer);
 	return true;
@@ -408,7 +408,7 @@ void ApiWrap::gotUsers(const MTPVector<MTPUser> &result) {
 }
 
 bool ApiWrap::gotPeerFailed(PeerData *peer, const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	_peerRequests.remove(peer);
 	return true;
@@ -582,7 +582,7 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 }
 
 bool ApiWrap::gotStickerSetFail(uint64 setId, const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	_stickerSetRequests.remove(setId);
 	return true;

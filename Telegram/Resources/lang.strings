@@ -177,19 +177,23 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_dlg_search_chat" = "Search in this chat";
 "lng_dlg_search_for_messages" = "Search for messages";
 
-"lng_settings_save" = "Save";
+"lng_settings_save" = "SAVE";
 "lng_settings_upload" = "Set Profile Photo";
 "lng_settings_crop_profile" = "Select a square area for your profile photo";
 "lng_settings_uploading_photo" = "Uploading photo..";
 
-"lng_username_title" = "Change username";
+"lng_username_title" = "Username";
 "lng_username_about" = "You can choose a username on Telegram.\nIf you do, other people will be able to find\nyou by this username and contact you\nwithout knowing your phone number.\n\nYou can use a-z, 0-9 and underscores.\nMinimum length is 5 characters.";
+"lng_username_choose" = "Choose your username.";
 "lng_username_invalid" = "This username is invalid.";
 "lng_username_occupied" = "This username is already occupied.";
 "lng_username_too_short" = "This username is too short.";
 "lng_username_bad_symbols" = "This username has bad symbols.";
 "lng_username_available" = "This username is available.";
 "lng_username_not_found" = "User @{user} not found.";
+"lng_username_link_willbe" = "Such link will open a chat with you:";
+"lng_username_link" = "This link opens a chat with you:";
+"lng_username_copied" = "Link copied to clipboard.";
 
 "lng_settings_section_contact_info" = "Contact info";
 "lng_settings_phone_number" = "Phone number:";
@@ -228,9 +232,9 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_settings_scale_auto" = "Auto ({cur})";
 
 "lng_settings_section_chat" = "Chat options";
-"lng_settings_replace_emojis" = "Replace emojis";
+"lng_settings_replace_emojis" = "Replace emoji";
 "lng_settings_view_emojis" = "View list";
-"lng_settings_emoji_list" = "List of supported emojis";
+"lng_settings_emoji_list" = "List of supported emoji";
 "lng_settings_send_enter" = "Send by Enter";
 "lng_settings_send_ctrlenter" = "Send by Ctrl+Enter";
 "lng_settings_send_cmdenter" = "Send by Cmd+Enter";
@@ -334,7 +338,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_connection_port_ph" = "Port";
 "lng_connection_user_ph" = "Username";
 "lng_connection_password_ph" = "Password";
-"lng_connection_save" = "Save";
+"lng_connection_save" = "SAVE";
 "lng_settings_show_sessions" = "Show all sessions";
 "lng_settings_reset" = "Terminate all other sessions";
 "lng_settings_reset_sure" = "Are you sure you want to terminate\nall other sessions?";
@@ -425,11 +429,11 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_participant_filter" = "Search";
 "lng_participant_invite" = "Invite";
 "lng_participant_invite_sorry" = "Sorry, you can only add the first {count:_not_used|# member|# members} to a channel personally.\n\nFrom now on, people will need to join via your invite link.";
-"lng_create_group_back" = "Back";
-"lng_create_group_next" = "Next";
-"lng_create_group_create" = "Create";
+"lng_create_group_back" = "BACK";
+"lng_create_group_next" = "NEXT";
+"lng_create_group_create" = "CREATE";
 "lng_create_group_title" = "New Group";
-"lng_create_group_about" = "Groups are ideal for smaller communities, they can have up to {count:_not_used|# member|# members}";
+"lng_create_group_about" = "Groups are ideal for smaller communities,\nthey can have up to {count:_not_used|# member|# members}";
 "lng_create_channel_title" = "New Channel";
 "lng_create_channel_about" = "Channels are a tool for broadcasting your messages to unlimited audiences";
 "lng_create_public_channel_title" = "Public Channel";
@@ -438,8 +442,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_create_private_channel_about" = "Only people with a special invite link may join";
 "lng_create_channel_comments" = "Enable Comments";
 "lng_create_channel_comments_about" = "If you enable comments, members will be able to discuss your posts in the channel";
-"lng_create_group_save" = "Save";
-"lng_create_group_skip" = "Skip";
+"lng_create_group_skip" = "SKIP";
 
 "lng_create_channel_link_invalid" = "This link is invalid";
 "lng_create_channel_link_occupied" = "Sorry, this link is already occupied";

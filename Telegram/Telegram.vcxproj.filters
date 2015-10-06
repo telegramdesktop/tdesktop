@@ -84,9 +84,6 @@
     <ClCompile Include="SourceFiles\gui\flatinput.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\gui\phoneinput.cpp">
-      <Filter>gui</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\gui\countryinput.cpp">
       <Filter>gui</Filter>
     </ClCompile>
@@ -316,15 +313,6 @@
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_photocropbox.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_phoneinput.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_phoneinput.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_phoneinput.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_mtpSession.cpp">
@@ -1021,9 +1009,6 @@
     <CustomBuild Include="Resources\style_classes.txt" />
     <CustomBuild Include="Resources\style.txt" />
     <CustomBuild Include="SourceFiles\gui\flatinput.h">
-      <Filter>gui</Filter>
-    </CustomBuild>
-    <CustomBuild Include="SourceFiles\gui\phoneinput.h">
       <Filter>gui</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\gui\countryinput.h">

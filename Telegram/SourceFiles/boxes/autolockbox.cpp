@@ -29,39 +29,39 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "window.h"
 
 AutoLockBox::AutoLockBox() :
-_done(this, lang(lng_about_done), st::langsCloseButton) {
+_close(this, lang(lng_box_ok), st::defaultBoxButton) {
 
 	bool haveTestLang = (cLang() == languageTest);
 
 	int32 opts[] = { 60, 300, 3600, 18000 }, cnt = sizeof(opts) / sizeof(opts[0]);
 
-	resizeMaxHeight(st::langsWidth, st::old_boxTitleHeight + st::langsPadding.top() + st::langsPadding.bottom() + cnt * (st::langPadding.top() + st::rbDefFlat.height + st::langPadding.bottom()) + _done.height());
+	resizeMaxHeight(st::langsWidth, st::boxTitleHeight + cnt * (st::boxOptionListPadding.top() + st::langsButton.height) + st::boxOptionListPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _close.height() + st::boxButtonPadding.bottom());
 
-	int32 y = st::old_boxTitleHeight + st::langsPadding.top();
+	int32 y = st::boxTitleHeight + st::boxOptionListPadding.top();
 	_options.reserve(cnt);
 	for (int32 i = 0; i < cnt; ++i) {
 		int32 v = opts[i];
-		_options.push_back(new FlatRadiobutton(this, qsl("autolock"), v, (v % 3600) ? lng_passcode_autolock_minutes(lt_count, v / 60) : lng_passcode_autolock_hours(lt_count, v / 3600), (cAutoLock() == v), st::langButton));
-		_options.back()->move(st::langsPadding.left() + st::langPadding.left(), y + st::langPadding.top());
-		y += st::langPadding.top() + _options.back()->height() + st::langPadding.bottom();
+		_options.push_back(new Radiobutton(this, qsl("autolock"), v, (v % 3600) ? lng_passcode_autolock_minutes(lt_count, v / 60) : lng_passcode_autolock_hours(lt_count, v / 3600), (cAutoLock() == v), st::langsButton));
+		_options.back()->move(st::boxPadding.left() + st::boxOptionListPadding.left(), y);
+		y += _options.back()->height() + st::boxOptionListPadding.top();
 		connect(_options.back(), SIGNAL(changed()), this, SLOT(onChange()));
 	}
 
-	connect(&_done, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(&_close, SIGNAL(clicked()), this, SLOT(onClose()));
 
-	_done.move(0, height() - _done.height());
+	_close.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _close.height());
 	prepare();
 }
 
 void AutoLockBox::hideAll() {
-	_done.hide();
+	_close.hide();
 	for (int32 i = 0, l = _options.size(); i < l; ++i) {
 		_options[i]->hide();
 	}
 }
 
 void AutoLockBox::showAll() {
-	_done.show();
+	_close.show();
 	for (int32 i = 0, l = _options.size(); i < l; ++i) {
 		_options[i]->show();
 	}
@@ -71,7 +71,7 @@ void AutoLockBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
 
-	paintTitle(p, lang(lng_passcode_autolock), true);
+	paintTitle(p, lang(lng_passcode_autolock));
 }
 
 void AutoLockBox::onChange() {

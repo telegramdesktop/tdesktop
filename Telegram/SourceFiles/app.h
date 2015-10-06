@@ -205,8 +205,8 @@ namespace App {
 	HistoryItem *mousedItem();
 
 	const QPixmap &sprite();
-	const QPixmap &emojis();
-	const QPixmap &emojisLarge();
+	const QPixmap &emoji();
+	const QPixmap &emojiLarge();
 	const QPixmap &emojiSingle(EmojiPtr emoji, int32 fontHeight);
 
 	void initMedia();

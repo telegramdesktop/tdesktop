@@ -38,7 +38,7 @@ signals:
 
 protected:
 
-	void correctValue(QKeyEvent *e, const QString &was);
+	void correctValue(const QString &was, QString &now);
 
 };
 

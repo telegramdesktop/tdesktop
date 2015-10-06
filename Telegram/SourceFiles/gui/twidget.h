@@ -158,11 +158,11 @@ virtual void leaveToChildEvent(QEvent *e) { /* e -- from enterEvent() of child T
 } \
 virtual void enterFromChildEvent(QEvent *e) { /* e -- from leaveEvent() of child TWidget */ \
 } \
-void moveToLeft(int x, int y, int outerw) { \
-	move(rtl() ? (outerw - x - width()) : x, y); \
+void moveToLeft(int x, int y, int outerw = 0) { \
+	move(rtl() ? ((outerw > 0 ? outerw : parentWidget()->width()) - x - width()) : x, y); \
 } \
-void moveToRight(int x, int y, int outerw) { \
-	move(rtl() ? x : (outerw - x - width()), y); \
+void moveToRight(int x, int y, int outerw = 0) { \
+	move(rtl() ? x : ((outerw > 0 ? outerw : parentWidget()->width()) - x - width()), y); \
 } \
 QPoint myrtlpoint(int x, int y) const { \
 	return rtlpoint(x, y, width()); \

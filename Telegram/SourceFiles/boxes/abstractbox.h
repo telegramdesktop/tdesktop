@@ -42,7 +42,9 @@ protected:
 
 	void prepare();
 	bool paint(QPainter &p);
-	void paintTitle(Painter &p, const QString &title, bool withShadow);
+	void paintTitle(Painter &p, const QString &title);
+	void paintBlueTitle(Painter &p, const QString &title, const QString &additional = QString());
+	void paintOldTitle(Painter &p, const QString &title, bool withShadow);
 	void paintGrayTitle(QPainter &p, const QString &title);
 	void setMaxHeight(int32 maxHeight);
 	void resizeMaxHeight(int32 newWidth, int32 maxHeight);

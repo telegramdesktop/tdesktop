@@ -42,6 +42,6 @@ protected:
 
 private:
 
-	QVector<FlatRadiobutton*> _options;
-	BottomButton _done;
+	QVector<Radiobutton*> _options;
+	BoxButton _close;
 };

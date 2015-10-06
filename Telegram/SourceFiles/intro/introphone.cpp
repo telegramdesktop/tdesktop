@@ -274,7 +274,7 @@ bool IntroPhone::phoneSubmitFail(const RPCError &error) {
 		showError(lang(lng_bad_phone));
 		enableAll(true);
 		return true;
-	} else if (error.type().startsWith(qsl("FLOOD_WAIT_"))) {
+	} else if (mtpIsFlood(error)) {
 		showError(lang(lng_flood_error));
 		enableAll(true);
 		return true;

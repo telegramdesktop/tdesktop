@@ -300,7 +300,7 @@ void ContactsInner::paintDialog(Painter &p, PeerData *peer, ContactData *data, b
 	} else {
 		p.setPen(st::profileListNameColor->p);
 	}
-	int32 iconw = (_chat || _creating != CreatingGroupNone) ? st::profileCheckRect.pxWidth() : st::contactsImg.pxWidth();
+	int32 iconw = (_chat || _creating != CreatingGroupNone) ? st::inviteCheckIcon.pxWidth() : st::contactsImg.pxWidth();
 	int32 namew = width() - left - st::profileListPhotoSize - st::profileListPadding.width() - st::participantDelta - st::scrollDef.width - iconw;
 	if (peer->isChannel() && peer->asChannel()->isVerified()) {
 		namew -= st::verifiedCheck.pxWidth() + st::verifiedCheckPos.x();
@@ -314,7 +314,7 @@ void ContactsInner::paintDialog(Painter &p, PeerData *peer, ContactData *data, b
 		}
 	} else if (_chat || _creating != CreatingGroupNone) {
 		if (sel || data->check) {
-			p.drawPixmap(QPoint(width() - st::profileCheckRect.pxWidth() - st::profileCheckDeltaX, st::profileListPadding.height() + (st::profileListPhotoSize - st::profileCheckRect.pxHeight()) / 2 - st::profileCheckDeltaY), App::sprite(), (data->check ? st::profileCheckActiveRect : st::profileCheckRect));
+			p.drawPixmap(QPoint(width() - st::inviteCheckIcon.pxWidth() - st::profileCheckDeltaX, st::profileListPadding.height() + (st::profileListPhotoSize - st::inviteCheckIcon.pxHeight()) / 2 - st::profileCheckDeltaY), App::sprite(), (data->check ? st::inviteCheckActiveIcon : st::inviteCheckIcon));
 		}
 	} else if (sel) {
 		p.drawPixmap(QPoint(width() - st::contactsImg.pxWidth() - st::profileCheckDeltaX, st::profileListPadding.height() + (st::profileListPhotoSize - st::contactsImg.pxHeight()) / 2 - st::profileCheckDeltaY), App::sprite(), st::contactsImg);
@@ -1109,7 +1109,7 @@ ContactsBox::ContactsBox(ChannelData *channel, MembersFilter filter, const Membe
 _addContact(this, lang(lng_add_contact_button), st::contactsAdd),
 _filter(this, st::contactsFilter, lang(lng_participant_filter)),
 _next(this, lang(lng_participant_invite), st::btnSelectDone),
-_cancel(this, lang(filter == MembersFilterAdmins ? lng_contacts_done : lng_cancel), (filter == MembersFilterAdmins ? st::contactsClose : st::btnSelectCancel)),
+_cancel(this, lang(filter == MembersFilterAdmins ? lng_contacts_done : lng_box_cancel), (filter == MembersFilterAdmins ? st::contactsClose : st::btnSelectCancel)),
 _creationRequestId(0) {
 	init();
 }
@@ -1118,7 +1118,7 @@ ContactsBox::ContactsBox(ChatData *chat) : ItemListBox(st::boxNoTopScroll), _inn
 _addContact(this, lang(lng_add_contact_button), st::contactsAdd),
 _filter(this, st::contactsFilter, lang(lng_participant_filter)),
 _next(this, lang(lng_participant_invite), st::btnSelectDone),
-_cancel(this, lang(lng_cancel), st::btnSelectCancel),
+_cancel(this, lang(lng_box_cancel), st::btnSelectCancel),
 _creationRequestId(0) {
 	init();
 }
@@ -1127,13 +1127,13 @@ ContactsBox::ContactsBox(UserData *bot) : ItemListBox(st::boxNoTopScroll), _inne
 _addContact(this, lang(lng_add_contact_button), st::contactsAdd),
 _filter(this, st::contactsFilter, lang(lng_participant_filter)),
 _next(this, lang(lng_create_group_next), st::btnSelectDone),
-_cancel(this, lang(lng_cancel), st::contactsClose),
+_cancel(this, lang(lng_box_cancel), st::contactsClose),
 _creationRequestId(0) {
 	init();
 }
 
 void ContactsBox::init() {
-	ItemListBox::init(&_inner, _cancel.height(), st::contactsAdd.height + st::newGroupNamePadding.top() + _filter.height() + st::newGroupNamePadding.bottom());
+	ItemListBox::init(&_inner, _cancel.height(), st::contactsAdd.height + st::old_newGroupNamePadding.top() + _filter.height() + st::old_newGroupNamePadding.bottom());
 
 	connect(&_inner, SIGNAL(chosenChanged()), this, SLOT(update()));
 	if (_inner.chat()) {
@@ -1224,7 +1224,7 @@ void ContactsBox::peopleReceived(const MTPcontacts_Found &result, mtpRequestId r
 }
 
 bool ContactsBox::peopleFailed(const RPCError &error, mtpRequestId req) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (_peopleRequest == req) {
 		_peopleRequest = 0;
@@ -1299,26 +1299,26 @@ void ContactsBox::paintEvent(QPaintEvent *e) {
 	bool addingAdmin = _inner.channel() && _inner.channelFilter() == MembersFilterAdmins;
 	if (_inner.chat() || _inner.creating() != CreatingGroupNone) {
 		QString title(lang(addingAdmin ? lng_channel_add_admin : lng_profile_add_participant));
-		paintTitle(p, title, true);
+		paintOldTitle(p, title, true);
 
 		if (!addingAdmin) {
 			p.setPen(st::newGroupLimitFg);
-			p.drawTextLeft(st::old_boxTitlePos.x() + st::old_boxTitleFont->width(title) + st::addContactDelta, st::old_boxTitlePos.y(), width(), QString("%1 / %2").arg(_inner.selectedCount()).arg(cMaxGroupCount()));
+			p.drawTextLeft(st::old_boxTitlePos.x() + st::old_boxTitleFont->width(title) + st::addContactSkip, st::old_boxTitlePos.y(), width(), QString("%1 / %2").arg(_inner.selectedCount()).arg(cMaxGroupCount()));
 
 			// paint button sep
 			p.fillRect(st::btnSelectCancel.width, size().height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
 		}
 	} else if (_inner.bot()) {
-		paintTitle(p, lang(lng_bot_choose_group), true);
+		paintOldTitle(p, lang(lng_bot_choose_group), true);
 	} else {
-		paintTitle(p, lang(lng_contacts_header), true);
+		paintOldTitle(p, lang(lng_contacts_header), true);
 	}
 }
 
 void ContactsBox::resizeEvent(QResizeEvent *e) {
 	ItemListBox::resizeEvent(e);
 	_addContact.move(width() - _addContact.width(), 0);
-	_filter.move(st::newGroupNamePadding.left(), _addContact.height() + st::newGroupNamePadding.top());
+	_filter.move(st::old_newGroupNamePadding.left(), _addContact.height() + st::old_newGroupNamePadding.top());
 	_inner.resize(width(), _inner.height());
 	_next.move(width() - _next.width(), height() - _next.height());
 	_cancel.move(0, height() - _cancel.height());
@@ -1915,7 +1915,7 @@ void MembersBox::paintEvent(QPaintEvent *e) {
 	if (paint(p)) return;
 
 	QString title(lang(_inner.filter() == MembersFilterRecent ? lng_channel_members : lng_channel_admins));
-	paintTitle(p, title, false);
+	paintOldTitle(p, title, false);
 }
 
 void MembersBox::resizeEvent(QResizeEvent *e) {
@@ -1981,13 +1981,13 @@ void MembersBox::showDone() {
 NewGroupBox::NewGroupBox() : AbstractBox(),
 _group(this, qsl("group_type"), 0, lang(lng_create_group_title), true),
 _channel(this, qsl("group_type"), 1, lang(lng_create_channel_title)),
-_aboutGroupWidth(width() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::rbDefFlat.textLeft),
+_aboutGroupWidth(width() - st::boxPadding.left() - st::boxPadding.right() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::defaultRadiobutton.textPosition.x()),
 _aboutGroup(st::normalFont, lng_create_group_about(lt_count, cMaxGroupCount()), _defaultOptions, _aboutGroupWidth),
 _aboutChannel(st::normalFont, lang(lng_create_channel_about), _defaultOptions, _aboutGroupWidth),
-_next(this, lang(lng_create_group_next), st::btnSelectDone),
-_cancel(this, lang(lng_cancel), st::btnSelectCancel) {
+_next(this, lang(lng_create_group_next), st::defaultBoxButton),
+_cancel(this, lang(lng_box_cancel), st::cancelBoxButton) {
 	_aboutGroupHeight = _aboutGroup.countHeight(_aboutGroupWidth);
-	setMaxHeight(st::newGroupPadding.top() + _group.height() + _aboutGroupHeight + st::newGroupSkip + _channel.height() + _aboutChannel.countHeight(_aboutGroupWidth) + st::newGroupPadding.bottom() + _next.height());
+	setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _group.height() + _aboutGroupHeight + st::newGroupSkip + _channel.height() + _aboutChannel.countHeight(_aboutGroupWidth) + st::newGroupPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _next.height() + st::boxButtonPadding.bottom());
 
 	connect(&_next, SIGNAL(clicked()), this, SLOT(onNext()));
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -2027,28 +2027,19 @@ void NewGroupBox::paintEvent(QPaintEvent *e) {
 
 	p.setPen(st::newGroupAboutFg->p);
 
-	QRect aboutGroup(st::newGroupPadding.left() + st::rbDefFlat.textLeft, _group.y() + _group.height(), width() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::rbDefFlat.textLeft, _aboutGroupHeight);
-	if (rtl()) aboutGroup.setX(width() - aboutGroup.x() - aboutGroup.width());
+	QRect aboutGroup = myrtlrect(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _group.y() + _group.height() + st::lineWidth, width() - st::boxPadding.left() - st::boxPadding.right() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::defaultRadiobutton.textPosition.x(), _aboutGroupHeight);
 	_aboutGroup.draw(p, aboutGroup.x(), aboutGroup.y(), aboutGroup.width());
 
-	QRect aboutChannel(st::newGroupPadding.left() + st::rbDefFlat.textLeft, _channel.y() + _channel.height(), width() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::rbDefFlat.textLeft, _aboutGroupHeight);
-	if (rtl()) aboutChannel.setX(width() - aboutChannel.x() - aboutChannel.width());
+	QRect aboutChannel = myrtlrect(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _channel.y() + _channel.height() + st::lineWidth, width() - st::boxPadding.left() - st::boxPadding.right() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::defaultRadiobutton.textPosition.x(), _aboutGroupHeight);
 	_aboutChannel.draw(p, aboutChannel.x(), aboutChannel.y(), aboutChannel.width());
-
-	// paint shadow
-	p.fillRect(0, height() - st::btnSelectCancel.height - st::scrollDef.bottomsh, width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
-
-	// paint button sep
-	p.fillRect(st::btnSelectCancel.width, height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
 }
 
 void NewGroupBox::resizeEvent(QResizeEvent *e) {
-	_group.moveToLeft(st::newGroupPadding.left(), st::newGroupPadding.top(), width());
-	_channel.moveToLeft(st::newGroupPadding.left(), _group.y() + _group.height() + _aboutGroupHeight + st::newGroupSkip, width());
+	_group.moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), st::boxPadding.top() + st::newGroupPadding.top());
+	_channel.moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), _group.y() + _group.height() + _aboutGroupHeight + st::newGroupSkip);
 
-	int32 buttonTop = height() - st::btnSelectCancel.height;
-	_cancel.moveToLeft(0, buttonTop, width());
-	_next.moveToRight(0, buttonTop, width());
+	_next.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _next.height());
+	_cancel.moveToRight(st::boxButtonPadding.right() + _next.width() + st::boxButtonPadding.left(), _next.y());
 }
 
 void NewGroupBox::onNext() {
@@ -2058,33 +2049,25 @@ void NewGroupBox::onNext() {
 GroupInfoBox::GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose) : AbstractBox(),
 _creating(creating),
 a_photoOver(0, 0),
-a_photo(animFunc(this, &GroupInfoBox::photoAnimStep)),
+_a_photoOver(animFunc(this, &GroupInfoBox::animStep_photoOver)),
 _photoOver(false),
-_descriptionOver(false),
-a_descriptionBg(st::newGroupName.bgColor->c, st::newGroupName.bgColor->c),
-a_descriptionBorder(st::newGroupName.borderColor->c, st::newGroupName.borderColor->c),
-a_description(animFunc(this, &GroupInfoBox::descriptionAnimStep)),
-_name(this, st::newGroupName, lang(_creating == CreatingGroupChannel ? lng_dlg_new_channel_name : lng_dlg_new_group_name)),
-_photo(this, lang(lng_create_group_photo), st::newGroupPhoto),
+_title(this, st::newGroupName, lang(_creating == CreatingGroupChannel ? lng_dlg_new_channel_name : lng_dlg_new_group_name)),
 _description(this, st::newGroupDescription, lang(lng_create_group_description)),
-_next(this, lang(_creating == CreatingGroupChannel ? lng_create_group_create : lng_create_group_next), st::btnSelectDone),
-_cancel(this, lang(fromTypeChoose ? lng_create_group_back : lng_cancel), st::btnSelectCancel),
+_next(this, lang(_creating == CreatingGroupChannel ? lng_create_group_create : lng_create_group_next), st::defaultBoxButton),
+_cancel(this, lang(fromTypeChoose ? lng_create_group_back : lng_box_cancel), st::cancelBoxButton),
 _creationRequestId(0), _createdChannel(0) {
 
 	setMouseTracking(true);
 
-	_description.resize(width() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::newGroupDescriptionPadding.left() - st::newGroupDescriptionPadding.right(), _name.height() - st::newGroupDescriptionPadding.top() - st::newGroupDescriptionPadding.bottom());
-	_description.setMinHeight(_description.height());
-	_description.setMaxHeight(3 * _description.height() + 2 * st::newGroupDescriptionPadding.top() + 2 * st::newGroupDescriptionPadding.bottom());
+	_description.setMaxLength(MaxChannelDescription);
+	_description.resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - (st::boxButtonPadding.right() - (st::defaultBoxButton.width / 2)), _description.height());
 
 	updateMaxHeight();
-	_description.setMaxLength(MaxChannelDescription);
 	connect(&_description, SIGNAL(resized()), this, SLOT(onDescriptionResized()));
 	connect(&_description, SIGNAL(submitted(bool)), this, SLOT(onNext()));
 	connect(&_description, SIGNAL(cancelled()), this, SLOT(onClose()));
-	_description.installEventFilter(this);
 
-	connect(&_photo, SIGNAL(clicked()), this, SLOT(onPhoto()));
+	connect(&_title, SIGNAL(submitted(bool)), this, SLOT(onNameSubmit()));
 
 	connect(&_next, SIGNAL(clicked()), this, SLOT(onNext()));
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -2093,16 +2076,14 @@ _creationRequestId(0), _createdChannel(0) {
 }
 
 void GroupInfoBox::hideAll() {
-	_name.hide();
-	_photo.hide();
+	_title.hide();
 	_description.hide();
 	_cancel.hide();
 	_next.hide();
 }
 
 void GroupInfoBox::showAll() {
-	_name.show();
-	_photo.show();
+	_title.show();
 	if (_creating == CreatingGroupChannel) {
 		_description.show();
 	} else {
@@ -2113,24 +2094,7 @@ void GroupInfoBox::showAll() {
 }
 
 void GroupInfoBox::showDone() {
-	_name.setFocus();
-}
-
-void GroupInfoBox::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		if (_name.hasFocus()) {
-			if (_name.text().trimmed().isEmpty()) {
-				_name.setFocus();
-				_name.notaBene();
-			} else if (_description.isHidden()) {
-				onNext();
-			} else {
-				_description.setFocus();
-			}
-		}
-	} else {
-		AbstractBox::keyPressEvent(e);
-	}
+	_title.setFocus();
 }
 
 void GroupInfoBox::paintEvent(QPaintEvent *e) {
@@ -2140,57 +2104,39 @@ void GroupInfoBox::paintEvent(QPaintEvent *e) {
 	QRect phRect(photoRect());
 	if (phRect.intersects(e->rect())) {
 		if (_photoSmall.isNull()) {
-			int32 s = st::newGroupPhotoSize * cIntRetinaFactor();
-			QRect ph(st::setPhotoImg), overph(st::setOverPhotoImg);
-			if (a_photoOver.current() < 1) {
-				p.drawPixmapLeft(phRect.topLeft(), width(), App::sprite(), QRect(ph.x() + (ph.width() - s) / 2, ph.y() + (ph.height() - s) / 2, s, s));
+			float64 o = a_photoOver.current();
+			if (o > 0) {
+				if (o < 1) {
+					QColor c;
+					c.setRedF(st::newGroupPhotoBg->c.redF() * (1. - o) + st::newGroupPhotoBgOver->c.redF() * o);
+					c.setGreenF(st::newGroupPhotoBg->c.greenF() * (1. - o) + st::newGroupPhotoBgOver->c.greenF() * o);
+					c.setBlueF(st::newGroupPhotoBg->c.blueF() * (1. - o) + st::newGroupPhotoBgOver->c.blueF() * o);
+					p.fillRect(phRect, c);
+				} else {
+					p.fillRect(phRect, st::newGroupPhotoBgOver->b);
+				}
+			} else {
+				p.fillRect(phRect, st::newGroupPhotoBg->b);
 			}
-			if (a_photoOver.current() > 0) {
-				p.setOpacity(a_photoOver.current());
-				p.drawPixmapLeft(phRect.topLeft(), width(), App::sprite(), QRect(overph.x() + (overph.width() - s) / 2, overph.y() + (overph.height() - s) / 2, s, s));
-				p.setOpacity(1);
-			}
+			p.drawSprite(phRect.topLeft() + st::newGroupPhotoIconPosition, st::newGroupPhotoIcon);
 		} else {
-			p.drawPixmap(st::newGroupPadding.left(), st::newGroupPadding.left(), _photoSmall);
+			p.drawPixmap(phRect.topLeft(), _photoSmall);
 		}
 		if (phRect.contains(e->rect())) {
 			return;
 		}
 	}
-	QRect descRect(descriptionRect());
-	if (_creating == CreatingGroupChannel && descRect.intersects(e->rect())) {
-		p.fillRect(descRect, a_descriptionBg.current());
-		if (st::newGroupName.borderWidth) {
-			QBrush b(a_descriptionBorder.current());
-			p.fillRect(descRect.x(), descRect.y(), descRect.width() - st::newGroupName.borderWidth, st::newGroupName.borderWidth, b);
-			p.fillRect(descRect.x() + descRect.width() - st::newGroupName.borderWidth, descRect.y(), st::newGroupName.borderWidth, descRect.height() - st::newGroupName.borderWidth, b);
-			p.fillRect(descRect.x() + st::newGroupName.borderWidth, descRect.y() + descRect.height() - st::newGroupName.borderWidth, descRect.width() - st::newGroupName.borderWidth, st::newGroupName.borderWidth, b);
-			p.fillRect(descRect.x(), descRect.y() + st::newGroupName.borderWidth, st::newGroupName.borderWidth, descRect.height() - st::newGroupName.borderWidth, b);
-		}
-		if (descRect.contains(e->rect())) {
-			return;
-		}
-	}
-
-	// paint shadow
-	p.fillRect(0, height() - st::btnSelectCancel.height - st::scrollDef.bottomsh, width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
-
-	// paint button sep
-	p.fillRect(st::btnSelectCancel.width, height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
 }
 
 void GroupInfoBox::resizeEvent(QResizeEvent *e) {
-	int32 nameLeft = st::newGroupPhotoSize + st::newGroupPhotoSkip;
-	_name.resize(width() - st::newGroupPadding.left() - st::newGroupPadding.right() - nameLeft, _name.height());
-	_name.moveToLeft(st::newGroupPadding.left() + nameLeft, st::newGroupPadding.top(), width());
-	_photo.moveToLeft(_name.x(), _name.y() + st::newGroupPhotoSize - _photo.height(), width());
+	int32 nameLeft = st::newGroupPhotoSize + st::newGroupNamePosition.x();
+	_title.resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - (st::boxButtonPadding.right() - (st::defaultBoxButton.width / 2)) - nameLeft, _title.height());
+	_title.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left() + nameLeft, st::boxPadding.top() + st::newGroupInfoPadding.top() + st::newGroupNamePosition.y());
 
-	_description.moveToLeft(st::newGroupPadding.left() + st::newGroupDescriptionPadding.left(), _photo.y() + _photo.height() + st::newGroupDescriptionSkip + st::newGroupDescriptionPadding.top(), width());
+	_description.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::boxPadding.top() + st::newGroupInfoPadding.top() + st::newGroupPhotoSize + st::newGroupDescriptionPadding.top());
 
-	int32 buttonTop = (_creating == CreatingGroupChannel) ? (_description.y() + _description.height() + st::newGroupDescriptionPadding.bottom()) : (_photo.y() + _photo.height());
-	buttonTop += st::newGroupPadding.bottom();
-	_cancel.move(0, buttonTop);
-	_next.move(width() - _next.width(), buttonTop);
+	_next.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _next.height());
+	_cancel.moveToRight(st::boxButtonPadding.right() + _next.width() + st::boxButtonPadding.left(), _next.y());
 }
 
 void GroupInfoBox::mouseMoveEvent(QMouseEvent *e) {
@@ -2205,24 +2151,17 @@ void GroupInfoBox::updateSelected(const QPoint &cursorGlobalPosition) {
 		_photoOver = photoOver;
 		if (_photoSmall.isNull()) {
 			a_photoOver.start(_photoOver ? 1 : 0);
-			a_photo.start();
+			_a_photoOver.start();
 		}
 	}
 
-	bool descriptionOver = _photoOver ? false : descriptionRect().contains(p);
-	if (descriptionOver != _descriptionOver) {
-		_descriptionOver = descriptionOver;
-	}
-
-	setCursor(_photoOver ? style::cur_pointer : (_descriptionOver ? style::cur_text : style::cur_default));
+	setCursor(_photoOver ? style::cur_pointer : style::cur_default);
 }
 
 void GroupInfoBox::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (_photoOver) {
 		onPhoto();
-	} else if (_descriptionOver) {
-		_description.setFocus();
 	}
 }
 
@@ -2230,22 +2169,7 @@ void GroupInfoBox::leaveEvent(QEvent *e) {
 	updateSelected(QCursor::pos());
 }
 
-bool GroupInfoBox::descriptionAnimStep(float64 ms) {
-	float dt = ms / st::newGroupName.phDuration;
-	bool res = true;
-	if (dt >= 1) {
-		res = false;
-		a_descriptionBg.finish();
-		a_descriptionBorder.finish();
-	} else {
-		a_descriptionBg.update(dt, st::newGroupName.phColorFunc);
-		a_descriptionBorder.update(dt, st::newGroupName.phColorFunc);
-	}
-	update(descriptionRect());
-	return res;
-}
-
-bool GroupInfoBox::photoAnimStep(float64 ms) {
+bool GroupInfoBox::animStep_photoOver(float64 ms) {
 	float64 dt = ms / st::setPhotoDuration;
 	bool res = true;
 	if (dt >= 1) {
@@ -2258,34 +2182,30 @@ bool GroupInfoBox::photoAnimStep(float64 ms) {
 	return res;
 }
 
-bool GroupInfoBox::eventFilter(QObject *obj, QEvent *e) {
-	if (obj == &_description) {
-		if (e->type() == QEvent::FocusIn) {
-			a_descriptionBorder.start(st::newGroupName.borderActive->c);
-			a_descriptionBg.start(st::newGroupName.bgActive->c);
-			a_description.start();
-		} else if (e->type() == QEvent::FocusOut) {
-			a_descriptionBorder.start(st::newGroupName.borderColor->c);
-			a_descriptionBg.start(st::newGroupName.bgColor->c);
-			a_description.start();
-		}
+void GroupInfoBox::onNameSubmit() {
+	if (_title.getLastText().trimmed().isEmpty()) {
+		_title.setFocus();
+		_title.showError();
+	} else if (_description.isHidden()) {
+		onNext();
+	} else {
+		_description.setFocus();
 	}
-	return AbstractBox::eventFilter(obj, e);
 }
 
 void GroupInfoBox::onNext() {
 	if (_creationRequestId) return;
 
-	QString name = _name.text().trimmed();
-	if (name.isEmpty()) {
-		_name.setFocus();
-		_name.notaBene();
+	QString title = _title.getLastText().trimmed();
+	if (title.isEmpty()) {
+		_title.setFocus();
+		_title.showError();
 		return;
 	}
 	if (_creating == CreatingGroupGroup) {
-		App::wnd()->replaceLayer(new ContactsBox(name, _photoBig));
+		App::wnd()->replaceLayer(new ContactsBox(title, _photoBig));
 	} else {
-		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_int(MTPmessages_CreateChannel_flag_broadcast), MTP_string(name), MTP_string(_description.getLastText().trimmed()), MTP_vector<MTPInputUser>(0)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
+		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_int(MTPmessages_CreateChannel_flag_broadcast), MTP_string(title), MTP_string(_description.getLastText().trimmed()), MTP_vector<MTPInputUser>(0)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
 	}
 }
 
@@ -2304,8 +2224,8 @@ bool GroupInfoBox::creationFail(const RPCError &error) {
 
 	_creationRequestId = 0;
 	if (error.type() == "NO_CHAT_TITLE") {
-		_name.setFocus();
-		_name.notaBene();
+		_title.setFocus();
+		_title.showError();
 		return true;
 	} else if (error.type() == "PEER_FLOOD") {
 		App::wnd()->replaceLayer(new InformBox(lng_cant_invite_not_contact_channel(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)))));
@@ -2327,18 +2247,14 @@ void GroupInfoBox::onDescriptionResized() {
 	update();
 }
 
-QRect GroupInfoBox::descriptionRect() const {
-	return rtlrect(_description.x() - st::newGroupDescriptionPadding.left(), _description.y() - st::newGroupDescriptionPadding.top(), _description.width() + st::newGroupDescriptionPadding.left() + st::newGroupDescriptionPadding.right(), _description.height() + st::newGroupDescriptionPadding.top() + st::newGroupDescriptionPadding.bottom(), width());
-}
-
 QRect GroupInfoBox::photoRect() const {
-	return rtlrect(st::newGroupPadding.left(), st::newGroupPadding.top(), st::newGroupPhotoSize, st::newGroupPhotoSize, width());
+	return myrtlrect(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::boxPadding.top() + st::newGroupInfoPadding.top(), st::newGroupPhotoSize, st::newGroupPhotoSize);
 }
 
 void GroupInfoBox::updateMaxHeight() {
-	int32 h = st::newGroupPadding.top() + st::newGroupPhotoSize + st::newGroupPadding.bottom() + _next.height();
+	int32 h = st::boxPadding.top() + st::newGroupInfoPadding.top() + st::newGroupPhotoSize + st::boxPadding.bottom() + st::newGroupInfoPadding.bottom() + st::boxButtonPadding.top() + _next.height() + st::boxButtonPadding.bottom();
 	if (_creating == CreatingGroupChannel) {
-		h += st::newGroupDescriptionSkip + st::newGroupDescriptionPadding.top() + _description.height() + st::newGroupDescriptionPadding.bottom();
+		h += st::newGroupDescriptionPadding.top() + _description.height() + st::newGroupDescriptionPadding.bottom();
 	}
 	setMaxHeight(h);
 }
@@ -2382,26 +2298,23 @@ _existing(existing),
 _public(this, qsl("channel_privacy"), 0, lang(lng_create_public_channel_title), true),
 _private(this, qsl("channel_privacy"), 1, lang(lng_create_private_channel_title)),
 _comments(this, lang(lng_create_channel_comments), false),
-_aboutPublicWidth(width() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::rbDefFlat.textLeft),
+_aboutPublicWidth(width() - st::boxPadding.left() - st::boxPadding.right() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::defaultRadiobutton.textPosition.x()),
 _aboutPublic(st::normalFont, lang(lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth),
 _aboutPrivate(st::normalFont, lang(lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth),
 _aboutComments(st::normalFont, lang(lng_create_channel_comments_about), _defaultOptions, _aboutPublicWidth),
-_linkPlaceholder(qsl("telegram.me/")),
-_link(this, st::newGroupLink, QString(), channel->username),
+_link(this, st::newGroupLink, QString(), channel->username, true),
 _linkOver(false),
-_save(this, lang(lng_create_group_save), st::btnSelectDone),
-_skip(this, lang(existing ? lng_cancel : lng_create_group_skip), st::btnSelectCancel),
+_save(this, lang(lng_settings_save), st::defaultBoxButton),
+_skip(this, lang(existing ? lng_box_cancel : lng_create_group_skip), st::cancelBoxButton),
 _tooMuchUsernames(false),
 _saveRequestId(0), _checkRequestId(0),
-a_goodOpacity(0, 0), a_good(animFunc(this, &SetupChannelBox::goodAnimStep)) {
+a_goodOpacity(0, 0), _a_goodFade(animFunc(this, &SetupChannelBox::animStep_goodFade)) {
 	setMouseTracking(true);
 
 	_checkRequestId = MTP::send(MTPchannels_CheckUsername(_channel->inputChannel, MTP_string("preston")), RPCDoneHandlerPtr(), rpcFail(&SetupChannelBox::onFirstCheckFail));
 
-	_link.setTextMargin(style::margins(st::newGroupLink.textMrg.left() + st::newGroupLink.font->width(_linkPlaceholder), st::newGroupLink.textMrg.top(), st::newGroupLink.textMrg.right(), st::newGroupLink.textMrg.bottom()));
-
 	_aboutPublicHeight = _aboutPublic.countHeight(_aboutPublicWidth);
-	setMaxHeight(st::newGroupPadding.top() + _public.height() + _aboutPublicHeight + st::newGroupSkip + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth)/* + st::newGroupSkip + _comments.height() + _aboutComments.countHeight(_aboutPublicWidth)*/ + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top() + _link.height() + st::newGroupLinkPadding.bottom() + _save.height());
+	setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public.height() + _aboutPublicHeight + st::newGroupSkip + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth)/* + st::newGroupSkip + _comments.height() + _aboutComments.countHeight(_aboutPublicWidth)*/ + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top() + _link.height() + st::newGroupLinkPadding.bottom() + _save.height());
 
 	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
 	connect(&_skip, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -2430,7 +2343,7 @@ void SetupChannelBox::hideAll() {
 void SetupChannelBox::showAll() {
 	_public.show();
 	_private.show();
-//	_comments.show();
+	//_comments.show();
 	if (_public.checked()) {
 		_link.show();
 	} else {
@@ -2449,7 +2362,7 @@ void SetupChannelBox::keyPressEvent(QKeyEvent *e) {
 		if (_link.hasFocus()) {
 			if (_link.text().trimmed().isEmpty()) {
 				_link.setFocus();
-				_link.notaBene();
+				_link.showError();
 			} else {
 				onSave();
 			}
@@ -2465,67 +2378,57 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 
 	p.setPen(st::newGroupAboutFg);
 
-	QRect aboutPublic = rtlrect(st::newGroupPadding.left() + st::rbDefFlat.textLeft, _public.y() + _public.height(), width() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::rbDefFlat.textLeft, _aboutPublicHeight, width());
+	QRect aboutPublic = myrtlrect(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _public.y() + _public.height(), width() - st::boxPadding.left() - st::boxPadding.right() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::defaultRadiobutton.textPosition.x(), _aboutPublicHeight);
 	_aboutPublic.draw(p, aboutPublic.x(), aboutPublic.y(), aboutPublic.width());
 
-	QRect aboutPrivate = rtlrect(st::newGroupPadding.left() + st::rbDefFlat.textLeft, _private.y() + _private.height(), width() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::rbDefFlat.textLeft, _aboutPublicHeight, width());
+	QRect aboutPrivate = myrtlrect(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _private.y() + _private.height(), width() - st::boxPadding.left() - st::boxPadding.right() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::defaultRadiobutton.textPosition.x(), _aboutPublicHeight);
 	_aboutPrivate.draw(p, aboutPrivate.x(), aboutPrivate.y(), aboutPrivate.width());
 
-//	QRect aboutComments = rtlrect(st::newGroupPadding.left() + st::rbDefFlat.textLeft, _comments.y() + _comments.height(), width() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::rbDefFlat.textLeft, _aboutPublicHeight, width());
-//	_aboutComments.draw(p, aboutComments.x(), aboutComments.y(), aboutComments.width());
+	//QRect aboutComments = myrtlrect(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _comments.y() + _comments.height(), width() - st::boxPadding.left() - st::boxPadding.right() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::defaultRadiobutton.textPosition.x(), _aboutPublicHeight);
+	//_aboutComments.draw(p, aboutComments.x(), aboutComments.y(), aboutComments.width());
 
 	p.setPen(st::black);
 	p.setFont(st::newGroupLinkFont);
-	p.drawTextLeft(st::newGroupPadding.left(), _link.y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop, width(), lang(_link.isHidden() ? lng_create_group_invite_link : lng_create_group_link));
+	p.drawTextLeft(st::boxPadding.left() + st::newGroupPadding.left() + st::newGroupLink.textMargins.left(), _link.y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop, width(), lang(_link.isHidden() ? lng_create_group_invite_link : lng_create_group_link));
 
 	if (_link.isHidden()) {
 		QTextOption option(style::al_left);
 		option.setWrapMode(QTextOption::WrapAnywhere);
-		p.setFont(_linkOver ? st::newGroupLink.font->underline() : st::newGroupLink.font);
+		p.setFont(_linkOver ? st::boxTextFont->underline() : st::boxTextFont);
 		p.setPen(st::btnDefLink.color);
 		p.drawText(_invitationLink, _channel->invitationUrl, option);
 		if (!_goodTextLink.isEmpty() && a_goodOpacity.current() > 0) {
 			p.setOpacity(a_goodOpacity.current());
-			p.setPen(st::setGoodColor->p);
-			p.setFont(st::setErrFont->f);
-			p.drawTextRight(st::newGroupPadding.right(), _link.y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop + st::newGroupLinkFont->ascent - st::setErrFont->ascent, width(), _goodTextLink);
+			p.setPen(st::setGoodColor);
+			p.setFont(st::boxTextFont);
+			p.drawTextRight(st::boxButtonPadding.right() - (st::defaultBoxButton.width / 2), _link.y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop + st::newGroupLinkFont->ascent - st::boxTextFont->ascent, width(), _goodTextLink);
 			p.setOpacity(1);
 		}
 	} else {
-		p.setFont(st::newGroupLink.font);
-		p.setPen(st::newGroupLink.phColor);
-		p.drawText(QRect(_link.x() + st::newGroupLink.textMrg.left(), _link.y() + st::newGroupLink.textMrg.top(), _link.width(), _link.height() - st::newGroupLink.textMrg.top() - st::newGroupLink.textMrg.bottom()), _linkPlaceholder, style::al_left);
-
 		if (!_errorText.isEmpty()) {
-			p.setPen(st::setErrColor->p);
-			p.setFont(st::setErrFont->f);
-			p.drawTextRight(st::newGroupPadding.right(), _link.y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop + st::newGroupLinkFont->ascent - st::setErrFont->ascent, width(), _errorText);
+			p.setPen(st::setErrColor);
+			p.setFont(st::boxTextFont);
+			p.drawTextRight(st::boxButtonPadding.right() - (st::defaultBoxButton.width / 2), _link.y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop + st::newGroupLinkFont->ascent - st::boxTextFont->ascent, width(), _errorText);
 		} else if (!_goodText.isEmpty()) {
-			p.setPen(st::setGoodColor->p);
-			p.setFont(st::setErrFont->f);
-			p.drawTextRight(st::newGroupPadding.right(), _link.y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop + st::newGroupLinkFont->ascent - st::setErrFont->ascent, width(), _goodText);
+			p.setPen(st::setGoodColor);
+			p.setFont(st::boxTextFont);
+			p.drawTextRight(st::boxButtonPadding.right() - (st::defaultBoxButton.width / 2), _link.y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop + st::newGroupLinkFont->ascent - st::boxTextFont->ascent, width(), _goodText);
 		}
 	}
-
-	// paint shadow
-	p.fillRect(0, height() - st::btnSelectCancel.height - st::scrollDef.bottomsh, width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
-
-	// paint button sep
-	p.fillRect(st::btnSelectCancel.width, height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
 }
 
 void SetupChannelBox::resizeEvent(QResizeEvent *e) {
-	_public.moveToLeft(st::newGroupPadding.left(), st::newGroupPadding.top(), width());
-	_private.moveToLeft(st::newGroupPadding.left(), _public.y() + _public.height() + _aboutPublicHeight + st::newGroupSkip, width());
-//	_comments.moveToLeft(st::newGroupPadding.left(), _private.y() + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip, width());
+	_public.moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), st::boxPadding.top() + st::newGroupPadding.top());
+	_private.moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), _public.y() + _public.height() + _aboutPublicHeight + st::newGroupSkip);
+	//_comments.moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), _private.y() + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip);
 
-//	_link.setGeometry(st::newGroupLinkPadding.left(), _comments.y() + _comments.height() + _aboutComments.countHeight(_aboutPublicWidth) + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top(), width() - st::newGroupPadding.left() - st::newGroupPadding.right(), _link.height());
-	_link.setGeometry(st::newGroupLinkPadding.left(), _private.y() + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top(), width() - st::newGroupPadding.left() - st::newGroupPadding.right(), _link.height());
-	_invitationLink = QRect(_link.x(), _link.y() + (_link.height() / 2) - st::newGroupLinkFont->height, _link.width(), 2 * st::newGroupLinkFont->height);
+	_link.resize(width() - st::boxPadding.left() - st::newGroupLinkPadding.left() - (st::boxButtonPadding.right() - (st::defaultBoxButton.width / 2)), _link.height());
+	//_link.moveToLeft(st::boxPadding.left() + st::newGroupLinkPadding.left(), _comments.y() + _comments.height() + _aboutComments.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top());
+	_link.moveToLeft(st::boxPadding.left() + st::newGroupLinkPadding.left(), _private.y() + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top());
+	_invitationLink = QRect(_link.x(), _link.y() + (_link.height() / 2) - st::boxTextFont->height, _link.width(), 2 * st::boxTextFont->height);
 
-	int32 buttonTop = _link.y() + _link.height() + st::newGroupLinkPadding.bottom();
-	_skip.moveToLeft(0, buttonTop, width());
-	_save.moveToRight(0, buttonTop, width());
+	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
+	_skip.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
 }
 
 void SetupChannelBox::mouseMoveEvent(QMouseEvent *e) {
@@ -2538,7 +2441,7 @@ void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
 		App::app()->clipboard()->setText(_channel->invitationUrl);
 		_goodTextLink = lang(lng_create_channel_link_copied);
 		a_goodOpacity = anim::fvalue(1, 0);
-		a_good.start();
+		_a_goodFade.start();
 	}
 }
 
@@ -2557,7 +2460,7 @@ void SetupChannelBox::updateSelected(const QPoint &cursorGlobalPosition) {
 	}
 }
 
-bool SetupChannelBox::goodAnimStep(float64 ms) {
+bool SetupChannelBox::animStep_goodFade(float64 ms) {
 	float dt = ms / st::newGroupLinkFadeDuration;
 	bool res = true;
 	if (dt >= 1) {
@@ -2594,7 +2497,7 @@ void SetupChannelBox::onSave() {
 	QString link = _link.text().trimmed();
 	if (link.isEmpty()) {
 		_link.setFocus();
-		_link.notaBene();
+		_link.showError();
 		return;
 	}
 
@@ -2617,7 +2520,7 @@ void SetupChannelBox::onChange() {
 		int32 i, len = name.size();
 		for (int32 i = 0; i < len; ++i) {
 			QChar ch = name.at(i);
-			if ((ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z') && (ch < '0' || ch > '9') && ch != '_' && (ch != '@' || i > 0)) {
+			if ((ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z') && (ch < '0' || ch > '9') && ch != '_') {
 				if (_errorText != lang(lng_create_channel_link_bad_symbols)) {
 					_errorText = lang(lng_create_channel_link_bad_symbols);
 					update();
@@ -2675,7 +2578,7 @@ void SetupChannelBox::onUpdateDone(const MTPBool &result) {
 }
 
 bool SetupChannelBox::onUpdateFail(const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	_saveRequestId = 0;
 	QString err(error.type());
@@ -2685,13 +2588,13 @@ bool SetupChannelBox::onUpdateFail(const RPCError &error) {
 		return true;
 	} else if (err == "USERNAME_INVALID") {
 		_link.setFocus();
-		_link.notaBene();
+		_link.showError();
 		_errorText = lang(lng_create_channel_link_invalid);
 		update();
 		return true;
 	} else if (err == "USERNAME_OCCUPIED" || err == "USERNAMES_UNAVAILABLE") {
 		_link.setFocus();
-		_link.notaBene();
+		_link.showError();
 		_errorText = lang(lng_create_channel_link_occupied);
 		update();
 		return true;
@@ -2712,7 +2615,7 @@ void SetupChannelBox::onCheckDone(const MTPBool &result) {
 }
 
 bool SetupChannelBox::onCheckFail(const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	_checkRequestId = 0;
 	QString err(error.type());
@@ -2740,7 +2643,7 @@ bool SetupChannelBox::onCheckFail(const RPCError &error) {
 }
 
 bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	_checkRequestId = 0;
 	QString err(error.type());

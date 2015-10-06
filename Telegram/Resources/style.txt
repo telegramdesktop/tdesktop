@@ -61,49 +61,24 @@ wndShadowShift: 1px;
 layerAlpha: 0.5;
 layerBG: black;
 
-defaultInputField: InputField {
-	textFg: black;
-	textMargins: margins(5px, 5px, 5px, 5px);
-	textAlign: align(left);
-
-	placeholderFg: #999;
-	placeholderFgActive: #aaa;
-	placeholderMargins: margins(2px, 0px, 2px, 0px);
-	placeholderAlign: align(topleft);
-	placeholderShift: 50px;
-	duration: 100;
-
-	borderFg: #e0e0e0;
-	borderFgActive: #62c0f7;
-	borderFgError: #e48383;
-
-	border: 1px;
-	borderActive: 2px;
-	borderError: 2px;
-
-	font: normalFont;
-
-	height: 32px;
-}
-dialogsSearchField: InputField(defaultInputField) {
-	textMargins: margins(34px, 7px, 34px, 7px);
-
-	iconSprite: sprite(227px, 21px, 24px, 24px);
-	iconPosition: point(6px, 5px);
-
-	width: 240px;
-	height: 34px;
-}
-
 boxWidth: 320px;
 boxWideWidth: 364px;
-boxPadding: margins(26px, 30px, 26px, 16px);
+boxPadding: margins(26px, 30px, 26px, 8px);
 boxMaxListHeight: 600px;
-boxFontSize: 13px;
+boxFontSize: 14px;
 boxTextFont: font(boxFontSize);
+
 boxTitleFont: font(boxFontSize semibold);
-boxButtonFont: font(boxFontSize semibold);
+boxTitlePosition: point(26px, 28px);
 boxTitleHeight: 54px;
+
+boxBlueTitleHeight: 54px;
+boxBlueTitleBg: #6393b5;
+boxBlueTitleAdditionalFg: #dae9f5;
+boxBlueTitleAdditionalSkip: 12px;
+boxBlueTitlePosition: point(23px, 18px);
+
+boxButtonFont: font(boxFontSize semibold);
 defaultBoxButton: BoxButton {
 	textFg: #2f9fea;
 	textFgOver: #2f9fea;
@@ -113,7 +88,7 @@ defaultBoxButton: BoxButton {
 	width: -24px;
 	height: 36px;
 
-	textTop: 9px;
+	textTop: 8px;
 
 	font: boxButtonFont;
 	duration: 200;
@@ -127,6 +102,109 @@ attentionBoxButton: BoxButton(defaultBoxButton) {
 	textBgOver: #fff0ed;
 }
 boxButtonPadding: margins(12px, 16px, 22px, 16px);
+defaultBoxLinkButton: linkButton {
+	color: #0080c0;
+	overColor: #0080c0;
+	downColor: #0073ad;
+	font: boxTextFont;
+	overFont: font(boxFontSize underline);
+}
+
+defaultInputArea: InputArea {
+	textFg: black;
+	textMargins: margins(5px, 6px, 5px, 4px);
+
+	placeholderFg: #999;
+	placeholderFgActive: #aaa;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderShift: 50px;
+	duration: 120;
+
+	borderFg: #e0e0e0;
+	borderFgActive: #62c0f7;
+	borderFgError: #e48383;
+
+	border: 1px;
+	borderActive: 2px;
+	borderError: 2px;
+
+	font: boxTextFont;
+
+	heightMin: 32px;
+	heightMax: 128px;
+}
+defaultInputField: InputField {
+	textFg: black;
+	textMargins: margins(5px, 5px, 5px, 5px);
+	textAlign: align(topleft);
+
+	placeholderFg: #999;
+	placeholderFgActive: #aaa;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderShift: 50px;
+	duration: 120;
+
+	borderFg: #e0e0e0;
+	borderFgActive: #62c0f7;
+	borderFgError: #e48383;
+
+	border: 1px;
+	borderActive: 2px;
+	borderError: 2px;
+
+	font: boxTextFont;
+
+	height: 32px;
+}
+dialogsSearchField: InputField(defaultInputField) {
+	textMargins: margins(34px, 7px, 34px, 7px);
+
+	iconSprite: sprite(227px, 21px, 24px, 24px);
+	iconPosition: point(6px, 5px);
+
+	width: 240px;
+	height: 34px;
+}
+defaultCheckbox: Checkbox {
+	textFg: black;
+	textBg: white;
+
+	checkFg: #d9d9d9;
+	checkFgOver: #bfbfbf;
+	checkFgActive: #4eb3ee;
+
+	width: -46px;
+	height: 22px;
+
+	textPosition: point(34px, 0px);
+	diameter: 22px;
+	thickness: 2px;
+	checkIcon: sprite(106px, 136px, 14px, 10px);
+
+	font: boxTextFont;
+	duration: 120;
+}
+defaultRadiobutton: Radiobutton {
+	textFg: black;
+	textBg: white;
+
+	checkFg: #d9d9d9;
+	checkFgOver: #bfbfbf;
+	checkFgActive: #4eb3ee;
+
+	width: -46px;
+	height: 22px;
+
+	textPosition: point(34px, 0px);
+	diameter: 22px;
+	thickness: 2px;
+	checkSkip: 65px; // * 0.1
+
+	font: boxTextFont;
+	duration: 120;
+}
 
 titleBG: #6389a8;
 titleColor: #0f8dcc;//rgb(20, 136, 210);
@@ -643,7 +721,7 @@ setNameInput: flatInput(inpDefFlat) {
 	textMrg: margins(3px, 3px, 3px, 3px);
 }
 setErrBG: #ffa5a5;
-setErrColor: #800000;
+setErrColor: #d84d4d;
 setErrHeight: 30px;
 setErrFont: font(fsize);
 setGoodColor: #008000;
@@ -756,9 +834,9 @@ dlgActiveSendImg: sprite(142px, 25px, 17px, 11px);
 dlgChatImgPos: point(1px, 4px);
 dlgChatImg: sprite(104px, 26px, 16px, 11px);
 dlgActiveChatImg: sprite(104px, 37px, 16px, 11px);
-dlgChannelImgPos: point(2px, 3px);
-dlgChannelImg: sprite(104px, 0px, 14px, 13px);
-dlgActiveChannelImg: sprite(104px, 13px, 14px, 13px);
+dlgChannelImgPos: point(3px, 4px);
+dlgChannelImg: sprite(105px, 1px, 12px, 11px);
+dlgActiveChannelImg: sprite(105px, 14px, 12px, 11px);
 dlgImgSkip: 22px;
 
 dlgCheckLeft: 5px;
@@ -1259,7 +1337,7 @@ old_boxTitleHeight: 52px;
 confirmMaxHeight: 320px;
 confirmCompressedSkip: 10px;
 addContactPadding: margins(18px, 24px, 18px, 24px);
-addContactDelta: 14px;
+addContactSkip: 14px;
 inpAddContact: flatInput(inpDefGray) {
 	height: 42px;
 	textMrg: margins(10px, 5px, 10px, 5px);
@@ -1349,8 +1427,6 @@ profileListStatusBottom: 6px;
 profileHoverBG: #f5f5f5;
 profileActiveBG: #6294b9;
 profileSubFont: font(fsize);
-profileCheckRect: sprite(78px, 114px, 24px, 24px);
-profileCheckActiveRect: sprite(128px, 108px, 24px, 24px);
 profileCheckDeltaX: 18px;
 profileCheckDeltaY: 1px;
 profileListNameFont: font(fsize semibold);
@@ -1461,82 +1537,55 @@ contactsFilter: flatInput(dlgFilter) {
 }
 inpCountry: flatInput(contactsFilter) {
 }
-newGroupName: flatInput(inpDefGray) {
-	width: 340px;
-	height: 42px;
-	font: font(15px);
-	textMrg: margins(12px, 4px, 12px, 4px);
-}
-newGroupLink: flatInput(inpDefFlat) {
-	width: 340px;
-	height: 42px;
-	font: boxTextFont;
-	textMrg: margins(12px, 4px, 12px, 4px);
-	bgColor: transparent;
-	bgActive: transparent;
-	borderWidth: 2px;
-	borderColor: #f2f2f2;
-	borderActive: #80cff9;
-	borderError: #ed8080;
-	phColor: #828282;
-	phFocusColor: #949494;
-}
+
+old_newGroupNamePadding: margins(12px, 15px, 12px, 13px);
+
 newGroupLimitFg: #a4a4a4;
 newGroupAboutFg: #808080;
-newGroupNamePadding: margins(12px, 15px, 12px, 13px);
-newGroupPadding: margins(26px, 28px, 26px, 24px);
-newGroupSkip: 15px;
-newGroupLinkPadding: margins(26px, 27px, 26px, 27px);
+newGroupPadding: margins(4px, 6px, 4px, 3px);
+newGroupSkip: 17px;
+newGroupInfoPadding: margins(0px, -4px, 0px, 1px);
+
+newGroupLink: InputField(defaultInputField) {
+	textMargins: margins(0px, 6px, 0px, 4px);
+}
+newGroupLinkPadding: margins(4px, 27px, 4px, 27px);
 newGroupLinkTop: -3px;
 newGroupLinkFont: font(16px);
-newGroupPhoto: flatButton(btnDefNext, btnDefBig) {
-	width: 199px;
-	height: 42px;
 
-	textTop: 9px;
-	overTextTop: 9px;
-	downTextTop: 10px;
+newGroupPhotoSize: 76px;
+newGroupPhotoBg: #4eb5f0;
+newGroupPhotoBgOver: #3fa9e7;
+newGroupPhotoIcon: sprite(74px, 104px, 30px, 27px);
+newGroupPhotoIconPosition: point(23px, 25px);
 
-	font: font(17px);
-	overFont: font(17px);
+newGroupNamePosition: point(27px, 20px);
+newGroupName: InputField(defaultInputField) {
+	textMargins: margins(1px, 6px, 1px, 4px);
 }
-newGroupPhotoSize: 96px;
-newGroupPhotoSkip: 18px;
-newGroupDescriptionSkip: 28px;
-newGroupPublicLinkSkip: 27px;
-newGroupDescription: flatTextarea(taDefFlat) {
-	font: font(15px);
-	bgColor: transparent;
-	phColor: #828282;
-	phFocusColor: #949494;
+
+newGroupDescriptionPadding: margins(0px, 23px, 0px, 14px);
+newGroupDescription: InputArea(defaultInputArea) {
+	textMargins: margins(1px, 6px, 1px, 4px);
+	heightMax: 115px;
 }
-newGroupDescriptionPadding: margins(5px, 6px, 5px, 6px);
+
+newGroupPublicLinkPadding: margins(0px, 20px, 0px, 5px);
 newGroupLinkFadeDuration: 5000;
 
-connectionSkip: 20px;
-inpConnectionHost: flatInput(inpDefGray) {
-	font: font(fsize);
-	height: 34px;
-	bgColor: #f2f2f2;
-	phColor: #949494;
-	phFocusColor: #a4a4a4;
-	textMrg: margins(4px, 2px, 5px, 4px);
-	width: 205px;
-
-	borderWidth: 2px;
-	borderColor: #f2f2f2;
-	borderActive: #80cff9;
-	borderError: #ed8080;
+connectionHostInputField: InputField(defaultInputField) {
+	width: 160px;
 }
-inpConnectionPort: flatInput(inpConnectionHost) {
-	width: 80px;
+connectionPortInputField: InputField(defaultInputField) {
+	width: 55px;
 }
-inpConnectionUser: flatInput(inpConnectionHost) {
-	width: 130px;
+connectionUserInputField: InputField(defaultInputField) {
+	width: 95px;
 }
-inpConnectionPassword: flatInput(inpConnectionHost) {
-	width: 155px;
+connectionPasswordInputField: InputField(defaultInputField) {
+	width: 120px;
 }
+connectionIPv6Skip: 11px;
 
 contactsClose: flatButton {
 	color: btnYesColor;
@@ -1668,18 +1717,6 @@ dragMargin: margins(0px, 10px, 0px, 10px);
 dragPadding: margins(20px, 10px, 20px, 10px);
 
 dragHeight: 72px;
-
-downloadSkip: 20px;
-inpDownloadDir: flatInput(inpDefGray) {
-	font: font(fsize);
-	height: 34px;
-	bgColor: #fff;
-	textMrg: margins(5px, 2px, 5px, 4px);
-	width: 295px;
-
-	borderWidth: 2px;
-	borderColor: #f2f2f2;
-}
 
 dpiSlider: slider {
 	color: #ccc;
@@ -2087,33 +2124,28 @@ minPhotoSize: 100px;
 maxMediaSize: 420px;
 maxStickerSize: 256px;
 
-usernameFont: font(14px);
-usernameColor: #777;
-usernameWidth: 336px;
-usernameSkip: 32px;
-usernameInput: flatInput(inpAddContact) {
-	bgColor: transparent;
+downloadPathSkip: 10px;
+
+usernamePadding: margins(23px, 22px, 21px, 12px);
+usernameSkip: 49px;
+usernameTextStyle: textStyle(defaultTextStyle) {
+	lineHeight: 20px;
 }
-usernameDone: flatButton(btnSelectDone) {
-	width: 168px;
+usernameField: InputField(defaultInputField) {
+	textMargins: margins(0px, 6px, 0px, 4px);
 }
-usernameCancel: flatButton(btnSelectCancel) {
-	width: 167px;
-}
+usernameDefaultFg: #777;
 
 youtubeIcon: sprite(336px, 221px, 60px, 60px);
 vimeoIcon: sprite(336px, 283px, 60px, 60px);
 videoIcon: sprite(0px, 340px, 60px, 60px);
 locationSize: size(320, 240);
 
-langsWidth: 220px;
-langsPadding: margins(10px, 10px, 10px, 10px);
-langPadding: margins(10px, 10px, 10px, 10px);
-langButton: flatCheckbox(rbDefFlat) {
+boxOptionListPadding: margins(2px, 20px, 2px, 2px);
+
+langsWidth: 256px;
+langsButton: Radiobutton(defaultRadiobutton) {
 	width: 200px;
-}
-langsCloseButton: flatButton(aboutCloseButton) {
-	width: langsWidth;
 }
 
 backgroundPadding: 10px;

@@ -59,7 +59,6 @@ private:
 
 };
 
-class RadiobuttonsGroup;
 class FlatRadiobutton : public FlatCheckbox {
 	Q_OBJECT
 
@@ -77,7 +76,94 @@ public slots:
 
 private:
 
-	RadiobuttonsGroup *_group;
+	void *_group;
+	int32 _value;
+
+};
+
+class Checkbox : public Button {
+	Q_OBJECT
+
+public:
+
+	Checkbox(QWidget *parent, const QString &text, bool checked = false, const style::Checkbox &st = st::defaultCheckbox);
+
+	bool checked() const;
+	void setChecked(bool checked);
+
+	bool animStep_over(float64 ms);
+	bool animStep_checked(float64 ms);
+
+	void paintEvent(QPaintEvent *e);
+
+public slots:
+
+	void onClicked();
+	void onStateChange(int oldState, ButtonStateChangeSource source);
+
+signals:
+
+	void changed();
+
+private:
+
+	const style::Checkbox &_st;
+	anim::fvalue a_over, a_checked;
+	Animation _a_over, _a_checked;
+
+	QString _text, _fullText;
+	int32 _textWidth;
+	QRect _checkRect;
+
+	bool _checked;
+
+};
+
+class Radiobutton : public Button {
+	Q_OBJECT
+
+public:
+
+	Radiobutton(QWidget *parent, const QString &group, int32 value, const QString &text, bool checked = false, const style::Radiobutton &st = st::defaultRadiobutton);
+
+	bool checked() const;
+	void setChecked(bool checked);
+
+	int32 val() const {
+		return _value;
+	}
+
+	bool animStep_over(float64 ms);
+	bool animStep_checked(float64 ms);
+
+	void paintEvent(QPaintEvent *e);
+
+	~Radiobutton();
+
+public slots:
+
+	void onClicked();
+	void onStateChange(int oldState, ButtonStateChangeSource source);
+
+signals:
+
+	void changed();
+
+private:
+
+	void onChanged();
+
+	const style::Radiobutton &_st;
+	anim::fvalue a_over, a_checked;
+	Animation _a_over, _a_checked;
+
+	QString _text, _fullText;
+	int32 _textWidth;
+	QRect _checkRect;
+
+	bool _checked;
+
+	void *_group;
 	int32 _value;
 
 };

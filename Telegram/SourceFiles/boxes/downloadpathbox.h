@@ -44,9 +44,11 @@ protected:
 
 private:
 
+	void setPathText(const QString &text);
+
 	QString _path;
 
-	FlatRadiobutton _defaultRadio, _tempRadio, _dirRadio;
-	FlatInput _dirInput;
-	FlatButton _saveButton, _cancelButton;
+	Radiobutton _default, _temp, _dir;
+	LinkButton _pathLink;
+	BoxButton _save, _cancel;
 };

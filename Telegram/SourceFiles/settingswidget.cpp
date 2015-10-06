@@ -822,7 +822,7 @@ void SettingsInner::mousePressEvent(QMouseEvent *e) {
 		return;
 	}
 	if (QRect(_uploadPhoto.x() + st::setNameLeft, st::setTop + st::setNameTop, qMin(_uploadPhoto.width() - int(st::setNameLeft), _nameText.maxWidth()), st::setNameFont->height).contains(e->pos())) {
-		App::wnd()->showLayer(new AddContactBox(self()));
+		App::wnd()->showLayer(new EditNameTitleBox(self()));
 	} else if (QRect(_left, st::setTop, st::setPhotoSize, st::setPhotoSize).contains(e->pos())) {
 		if (_photoLink) {
 			App::photo(self()->photoId)->full->load();
@@ -938,7 +938,7 @@ void SettingsInner::offPasswordDone(const MTPBool &result) {
 }
 
 bool SettingsInner::offPasswordFail(const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	onReloadPassword();
 	return true;
@@ -1459,6 +1459,7 @@ void SettingsInner::onIncludeMuted() {
 }
 
 void SettingsInner::onWindowsNotifications() {
+	if (cPlatform() != dbipWindows) return;
 	cSetWindowsNotifications(!cWindowsNotifications());
 	App::wnd()->notifyClearFast();
 	cSetCustomNotifies(!cWindowsNotifications());

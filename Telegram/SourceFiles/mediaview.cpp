@@ -245,21 +245,21 @@ void MediaView::updateControls() {
 		if (_doc->loader) {
 			_docDownload.hide();
 			_docSaveAs.hide();
-			_docCancel.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop, width());
+			_docCancel.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
 			_docCancel.show();
 			if (!_docRadialFirst) _docRadialFirst = _docRadialLast = _docRadialStart = getms();
 			if (!animating()) anim::start(this);
 			anim::step(this);
 		} else {
 			if (_doc->already(true).isEmpty()) {
-				_docDownload.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop, width());
+				_docDownload.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
 				_docDownload.show();
-				_docSaveAs.moveToLeft(_docRect.x() + 2.5 * st::mvDocPadding + st::mvDocBlue.pxWidth() + _docDownload.width(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop, width());
+				_docSaveAs.moveToLeft(_docRect.x() + 2.5 * st::mvDocPadding + st::mvDocBlue.pxWidth() + _docDownload.width(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
 				_docSaveAs.show();
 				_docCancel.hide();
 			} else {
 				_docDownload.hide();
-				_docSaveAs.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop, width());
+				_docSaveAs.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
 				_docSaveAs.show();
 				_docCancel.hide();
 			}
@@ -329,13 +329,13 @@ void MediaView::updateDropdown() {
 	_btnToMessage->setVisible(_msgid > 0);
 	_btnShowInFolder->setVisible(_doc && !_doc->already(true).isEmpty());
 	_btnSaveAs->setVisible(true);
-	_btnCopy->setVisible((_doc && !_current.isNull()) || (_photo && _photo->full->loaded()));
+	_btnCopy->setVisible((_doc && (!_current.isNull() || !_currentGif.isNull())) || (_photo && _photo->full->loaded()));
 	_btnForward->setVisible(_canForward);
 	_btnDelete->setVisible(_canDelete || (_photo && App::self() && App::self()->photoId == _photo->id) || (_photo && _photo->peer && _photo->peer->photoId == _photo->id && (_photo->peer->isChat() || (_photo->peer->isChannel() && _photo->peer->asChannel()->amCreator()))));
 	_btnViewAll->setVisible((_overview != OverviewCount) && _history);
 	_btnViewAll->setText(lang(_doc ? lng_mediaview_files_all : lng_mediaview_photos_all));
 	_dropdown.updateButtons();
-	_dropdown.moveToRight(0, height() - _dropdown.height(), width());
+	_dropdown.moveToRight(0, height() - _dropdown.height());
 }
 
 bool MediaView::animStep(float64 msp) {
@@ -644,9 +644,11 @@ void MediaView::onCopy() {
 		_dropdown.hideStart();
 	}
 	if (_doc) {
-		if (_current.isNull()) return;
-
-		QApplication::clipboard()->setPixmap(_current);
+		if (!_current.isNull()) {
+			QApplication::clipboard()->setPixmap(_current);
+		} else if (!_currentGif.isNull()) {
+			QApplication::clipboard()->setPixmap(_currentGif.current(_currentGif.w, _currentGif.h, false));
+		}
 	} else {
 		if (!_photo || !_photo->full->loaded()) return;
 
@@ -992,8 +994,6 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 }
 
 void MediaView::paintEvent(QPaintEvent *e) {
-//	uint64 ms = getms();
-
 	QRect r(e->rect());
 	QRegion region(e->region());
 	QVector<QRect> rs(region.rects());

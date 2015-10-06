@@ -4466,5 +4466,5 @@ LinksInText textParseLinks(const QString &text, int32 flags, bool rich) { // som
 }
 
 void emojiDraw(QPainter &p, EmojiPtr e, int x, int y) {
-	p.drawPixmap(QPoint(x, y), App::emojis(), QRect(e->x * ESize, e->y * ESize, ESize, ESize));
+	p.drawPixmap(QPoint(x, y), App::emoji(), QRect(e->x * ESize, e->y * ESize, ESize, ESize));
 }

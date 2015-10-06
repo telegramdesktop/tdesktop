@@ -301,9 +301,12 @@ _st(st),
 a_textBgOverOpacity(0), a_textFg(st.textFg->c), _a_over(animFunc(this, &BoxButton::animStep_over)) {
 	if (_st.width <= 0) {
 		resize(_textWidth - _st.width, _st.height);
-	} else if (_st.width < _textWidth + (_st.height - _st.font->height)) {
-		_text = _st.font->elided(_fullText, qMax(_st.width - (_st.height - _st.font->height), 1.));
-		_textWidth = _st.font->width(_text);
+	} else {
+		if (_st.width < _textWidth + (_st.height - _st.font->height)) {
+			_text = _st.font->elided(_fullText, qMax(_st.width - (_st.height - _st.font->height), 1.));
+			_textWidth = _st.font->width(_text);
+		}
+		resize(_st.width, _st.height);
 	}
 
 	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));

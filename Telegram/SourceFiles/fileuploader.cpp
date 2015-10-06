@@ -285,7 +285,7 @@ void FileUploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 }
 
 bool FileUploader::partFailed(const RPCError &error, mtpRequestId requestId) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (requestsSent.constFind(requestId) != requestsSent.cend() || docRequestsSent.constFind(requestId) != docRequestsSent.cend()) { // failed to upload current file
 		currentFailed();

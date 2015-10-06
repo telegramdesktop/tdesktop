@@ -75,6 +75,50 @@ private:
 	QString _sentName;
 };
 
+class EditNameTitleBox : public AbstractBox, public RPCSender {
+	Q_OBJECT
+
+public:
+
+	EditNameTitleBox(PeerData *peer);
+	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
+
+	void setInnerFocus() {
+		_first.setFocus();
+	}
+
+public slots:
+
+	void onSave();
+	void onSubmit();
+
+protected:
+
+	void hideAll();
+	void showAll();
+	void showDone();
+
+private:
+
+	void onSaveSelfDone(const MTPUser &user);
+	bool onSaveSelfFail(const RPCError &error);
+
+	void onSaveChatDone(const MTPUpdates &updates);
+	bool onSaveChatFail(const RPCError &e);
+
+	PeerData *_peer;
+	QString _boxTitle;
+
+	BoxButton _save, _cancel;
+	InputField _first, _last;
+
+	bool _invertOrder;
+
+	mtpRequestId _requestId;
+	QString _sentName;
+};
+
 class EditChannelBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
@@ -84,13 +128,6 @@ public:
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void leaveEvent(QEvent *e);
-
-	bool eventFilter(QObject *obj, QEvent *e);
-
-	bool descriptionAnimStep(float64 ms);
 
 	void setInnerFocus() {
 		if (!_description.hasFocus()) {
@@ -114,9 +151,7 @@ protected:
 
 private:
 
-	QRect descriptionRect() const;
 	void updateMaxHeight();
-	void updateSelected(const QPoint &cursorGlobalPosition);
 
 	void onSaveTitleDone(const MTPUpdates &updates);
 	void onSaveDescriptionDone(const MTPBool &result);
@@ -125,15 +160,10 @@ private:
 	void saveDescription();
 
 	ChannelData *_channel;
-	QString _boxTitle;
 
-	FlatButton _saveButton, _cancelButton;
-	FlatInput _title;
-
-	bool _descriptionOver;
-	anim::cvalue a_descriptionBg, a_descriptionBorder;
-	Animation a_description;
-	FlatTextarea _description;
+	BoxButton _save, _cancel;
+	InputField _title;
+	InputArea _description;
 
 	LinkButton _publicLink;
 

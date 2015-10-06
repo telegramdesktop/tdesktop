@@ -30,7 +30,6 @@ public:
 	LanguageBox();
 	void mousePressEvent(QMouseEvent *e);
 	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
 	~LanguageBox();
 
 public slots:
@@ -46,6 +45,6 @@ protected:
 
 private:
 
-	QVector<FlatRadiobutton*> _langs;
-	BottomButton _done;
+	QVector<Radiobutton*> _langs;
+	BoxButton _close;
 };

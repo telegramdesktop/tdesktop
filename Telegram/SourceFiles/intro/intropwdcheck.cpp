@@ -203,7 +203,7 @@ bool IntroPwdCheck::pwdSubmitFail(const RPCError &error) {
 		return true;
 	} else if (err == "PASSWORD_EMPTY") {
 		intro()->onIntroBack();
-	} else if (err.startsWith(qsl("FLOOD_WAIT_"))) {
+	} else if (mtpIsFlood(error)) {
 		showError(lang(lng_flood_error));
 		_pwdField.notaBene();
 		return true;
@@ -237,7 +237,7 @@ bool IntroPwdCheck::codeSubmitFail(const RPCError &error) {
 		showError(lang(lng_signin_wrong_code));
 		_codeField.notaBene();
 		return true;
-	} else if (err.startsWith(qsl("FLOOD_WAIT_"))) {
+	} else if (mtpIsFlood(error)) {
 		showError(lang(lng_flood_error));
 		_codeField.notaBene();
 		return true;

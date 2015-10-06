@@ -65,7 +65,7 @@ bool AbstractBox::paint(QPainter &p) {
 	return result;
 }
 
-void AbstractBox::paintTitle(Painter &p, const QString &title, bool withShadow) {
+void AbstractBox::paintOldTitle(Painter &p, const QString &title, bool withShadow) {
 	if (withShadow) {
 		// paint shadow
 		p.fillRect(0, st::old_boxTitleHeight, width(), st::scrollDef.topsh, st::scrollDef.shColor->b);
@@ -75,6 +75,29 @@ void AbstractBox::paintTitle(Painter &p, const QString &title, bool withShadow) 
 	p.setFont(st::old_boxTitleFont->f);
 	p.setPen(st::black->p);
 	p.drawTextLeft(st::old_boxTitlePos.x(), st::old_boxTitlePos.y(), width(), title);
+}
+
+void AbstractBox::paintTitle(Painter &p, const QString &title) {
+	// paint box title
+	p.setFont(st::boxTitleFont);
+	p.setPen(st::black);
+	p.drawTextLeft(st::boxTitlePosition.x(), st::boxTitlePosition.y(), width(), title);
+}
+
+void AbstractBox::paintBlueTitle(Painter &p, const QString &title, const QString &additional) {
+	// paint box title
+	p.fillRect(0, 0, width(), st::boxBlueTitleHeight, st::boxBlueTitleBg->b);
+	p.setFont(st::boxTitleFont);
+	p.setPen(st::white);
+
+	int32 titleWidth = st::boxTitleFont->width(title);
+	p.drawTextLeft(st::boxBlueTitlePosition.x(), st::boxBlueTitlePosition.y(), width(), title, titleWidth);
+
+	if (!additional.isEmpty()) {
+		p.setFont(st::boxTextFont);
+		p.setPen(st::boxBlueTitleAdditionalFg);
+		p.drawTextLeft(st::boxBlueTitlePosition.x() + titleWidth + st::boxBlueTitleAdditionalSkip, st::boxBlueTitlePosition.y(), width(), additional);
+	}
 }
 
 void AbstractBox::paintGrayTitle(QPainter &p, const QString &title) {

@@ -536,7 +536,7 @@ void CountrySelect::onFilterUpdate() {
 
 void CountrySelect::resizeEvent(QResizeEvent *e) {
 	if (width() != e->oldSize().width()) {
-		_innerWidth = st::newGroupNamePadding.left() + _filter.width() + st::newGroupNamePadding.right();
+		_innerWidth = st::old_newGroupNamePadding.left() + _filter.width() + st::old_newGroupNamePadding.right();
 		_innerLeft = (width() - _innerWidth) / 2;
 
 		_list.resize(_innerWidth, _list.height());
@@ -550,9 +550,9 @@ void CountrySelect::resizeEvent(QResizeEvent *e) {
 		}
 	}
 
-	_filter.move(_innerLeft + st::newGroupNamePadding.left(), _innerTop + st::contactsAdd.height + st::newGroupNamePadding.top());
-	int32 scrollTop = _filter.y() + _filter.height() + st::newGroupNamePadding.bottom();
-	int32 scrollHeight = _innerHeight - st::contactsAdd.height - st::newGroupNamePadding.top() - _filter.height() - st::newGroupNamePadding.bottom() - _cancelButton.height();
+	_filter.move(_innerLeft + st::old_newGroupNamePadding.left(), _innerTop + st::contactsAdd.height + st::old_newGroupNamePadding.top());
+	int32 scrollTop = _filter.y() + _filter.height() + st::old_newGroupNamePadding.bottom();
+	int32 scrollHeight = _innerHeight - st::contactsAdd.height - st::old_newGroupNamePadding.top() - _filter.height() - st::old_newGroupNamePadding.bottom() - _cancelButton.height();
 	_scroll.setGeometry(_innerLeft, scrollTop, _innerWidth, scrollHeight);
 
 	int btnTop = scrollTop + scrollHeight;

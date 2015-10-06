@@ -1695,8 +1695,8 @@ _clear(this, lang(lng_profile_delete_conversation)) {
 
 void ReportSpamPanel::resizeEvent(QResizeEvent *e) {
 	_report.resize(width() - (_hide.width() + st::reportSpamSeparator) * 2, _report.height());
-	_report.moveToLeft(_hide.width() + st::reportSpamSeparator, 0, width());
-	_hide.moveToRight(0, 0, width());
+	_report.moveToLeft(_hide.width() + st::reportSpamSeparator, 0);
+	_hide.moveToRight(0, 0);
 	_clear.move((width() - _clear.width()) / 2, height() - _clear.height() - ((height() - st::msgFont->height - _clear.height()) / 2));
 }
 
@@ -2217,8 +2217,8 @@ void HistoryHider::resizeEvent(QResizeEvent *e) {
 		_cancel.hide();
 	}
 	box = QRect((width() - w) / 2, (height() - h) / 2, w, h);
-	_send.moveToRight(width() - (box.x() + box.width()) + st::boxButtonPadding.right(), box.y() + h - st::boxButtonPadding.bottom() - _send.height(), width());
-	_cancel.moveToRight(width() - (box.x() + box.width()) + st::boxButtonPadding.right() + _send.width() + st::boxButtonPadding.left(), _send.y(), width());
+	_send.moveToRight(width() - (box.x() + box.width()) + st::boxButtonPadding.right(), box.y() + h - st::boxButtonPadding.bottom() - _send.height());
+	_cancel.moveToRight(width() - (box.x() + box.width()) + st::boxButtonPadding.right() + _send.width() + st::boxButtonPadding.left(), _send.y());
 }
 
 bool HistoryHider::offerPeer(PeerId peer) {
@@ -2762,7 +2762,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 }
 
 bool HistoryWidget::stickersFailed(const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	LOG(("App Fail: Failed to get stickers!"));
 
@@ -3418,7 +3418,7 @@ void HistoryWidget::historyCleared(History *history) {
 }
 
 bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (error.type() == qstr("CHANNEL_PRIVATE")) {
 		App::main()->showDialogs();
@@ -3820,7 +3820,7 @@ void HistoryWidget::unblockDone(PeerData *peer, const MTPBool &result, mtpReques
 }
 
 bool HistoryWidget::unblockFail(const RPCError &error, mtpRequestId req) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (_unblockRequest == req) _unblockRequest = 0;
 	return false;
@@ -3874,7 +3874,7 @@ void HistoryWidget::joinDone(const MTPUpdates &result, mtpRequestId req) {
 }
 
 bool HistoryWidget::joinFail(const RPCError &error, mtpRequestId req) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (_unblockRequest == req) _unblockRequest = 0;
 	if (error.type() == qstr("CHANNEL_PRIVATE")) {
@@ -5119,7 +5119,7 @@ void HistoryWidget::reportSpamDone(PeerData *peer, const MTPBool &result, mtpReq
 }
 
 bool HistoryWidget::reportSpamFail(const RPCError &error, mtpRequestId req) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (req == _reportSpamRequest) {
 		_reportSpamRequest = 0;

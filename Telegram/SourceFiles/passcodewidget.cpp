@@ -34,13 +34,13 @@ _passcode(this, st::passcodeInput),
 _submit(this, lang(lng_passcode_submit), st::passcodeSubmit),
 _logout(this, lang(lng_passcode_logout)) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
-	connect(App::wnd(), SIGNAL(resized(const QSize &)), this, SLOT(onParentResize(const QSize &)));
+	connect(App::wnd(), SIGNAL(resized(const QSize&)), this, SLOT(onParentResize(const QSize&)));
 
 	_passcode.setEchoMode(QLineEdit::Password);
 	connect(&_submit, SIGNAL(clicked()), this, SLOT(onSubmit()));
 
 	connect(&_passcode, SIGNAL(changed()), this, SLOT(onChanged()));
-	connect(&_passcode, SIGNAL(accepted()), this, SLOT(onSubmit()));
+	connect(&_passcode, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 
 	connect(&_logout, SIGNAL(clicked()), App::wnd(), SLOT(onLogout()));
 

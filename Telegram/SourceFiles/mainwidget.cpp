@@ -89,6 +89,8 @@ void TopBarWidget::onEdit() {
 	if (p) {
 		if (p->isChannel()) {
 			App::wnd()->showLayer(new EditChannelBox(p->asChannel()));
+		} else if (p->isChat()) {
+			App::wnd()->showLayer(new EditNameTitleBox(p));
 		} else {
 			App::wnd()->showLayer(new AddContactBox(p));
 		}
@@ -771,7 +773,7 @@ DragState MainWidget::getDragState(const QMimeData *mime) {
 }
 
 bool MainWidget::leaveChatFailed(PeerData *peer, const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (error.type() == qstr("USER_NOT_PARTICIPANT") || error.type() == qstr("CHAT_ID_INVALID")) { // left this chat already
 		deleteConversation(peer);
@@ -907,7 +909,7 @@ void MainWidget::kickParticipant(ChatData *chat, UserData *user) {
 }
 
 bool MainWidget::kickParticipantFail(ChatData *chat, const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	error.type();
 	return false;
@@ -1479,7 +1481,7 @@ void MainWidget::itemResized(HistoryItem *row, bool scrollToIt) {
 }
 
 bool MainWidget::overviewFailed(PeerData *peer, const RPCError &error, mtpRequestId req) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	MediaOverviewType type = OverviewCount;
 	for (int32 i = 0; i < OverviewCount; ++i) {
@@ -1641,7 +1643,7 @@ void MainWidget::partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &
 }
 
 bool MainWidget::readRequestFail(PeerData *peer, const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	readRequestDone(peer);
 	return false;
@@ -2086,7 +2088,7 @@ void MainWidget::serviceHistoryDone(const MTPmessages_Messages &msgs) {
 }
 
 bool MainWidget::serviceHistoryFail(const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	App::wnd()->showDelayedServiceMsgs();
 	return false;
@@ -3612,7 +3614,7 @@ void MainWidget::usernameResolveDone(QPair<bool, QString> toProfileStartToken, c
 }
 
 bool MainWidget::usernameResolveFail(QString name, const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (error.code() == 400) {
 		App::wnd()->showLayer(new InformBox(lng_username_not_found(lt_user, name)));
@@ -3649,7 +3651,7 @@ void MainWidget::inviteCheckDone(QString hash, const MTPChatInvite &invite) {
 }
 
 bool MainWidget::inviteCheckFail(const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (error.code() == 400) {
 		App::wnd()->showLayer(new InformBox(lang(lng_group_invite_bad_link)));
@@ -3687,7 +3689,7 @@ void MainWidget::inviteImportDone(const MTPUpdates &updates) {
 }
 
 bool MainWidget::inviteImportFail(const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (error.code() == 400) {
 		App::wnd()->showLayer(new InformBox(lang(error.type() == qsl("USERS_TOO_MUCH") ? lng_group_invite_no_room : lng_group_invite_bad_link)));
@@ -3792,7 +3794,7 @@ void MainWidget::gotNotifySetting(MTPInputNotifyPeer peer, const MTPPeerNotifySe
 }
 
 bool MainWidget::failNotifySetting(MTPInputNotifyPeer peer, const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	gotNotifySetting(peer, MTP_peerNotifySettingsEmpty());
 	return true;

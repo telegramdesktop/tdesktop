@@ -328,7 +328,7 @@ void Application::chatPhotoDone(PeerId peer, const MTPUpdates &updates) {
 }
 
 bool Application::peerPhotoFail(PeerId peer, const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	LOG(("Application Error: update photo failed %1: %2").arg(error.type()).arg(error.description()));
 	cancelPhotoUpdate(peer);

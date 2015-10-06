@@ -24,12 +24,12 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "flattextarea.h"
 #include "window.h"
 
-FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v) : QTextEdit(QString(), parent),
+FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v) : QTextEdit(parent),
 _minHeight(-1), _maxHeight(-1), _maxLength(-1), _ctrlEnterSubmit(true),
 _oldtext(v), _phVisible(!v.length()),
 a_phLeft(_phVisible ? 0 : st.phShift), a_phAlpha(_phVisible ? 1 : 0), a_phColor(st.phColor->c),
 _st(st), _undoAvailable(false), _redoAvailable(false), _inDrop(false), _inHeightCheck(false), _fakeMargin(0),
-_touchPress(false), _touchRightButton(false), _touchMove(false), _replacingEmojis(false) {
+_touchPress(false), _touchRightButton(false), _touchMove(false), _correcting(false) {
 	setAcceptRichText(false);
 	resize(_st.width, _st.font->height);
 	
@@ -576,6 +576,9 @@ void FlatTextarea::insertFromMimeData(const QMimeData *source) {
 	if (!_inDrop) emit spacedReturnedPasted();
 }
 
+void FlatTextarea::correctValue(const QString &was, QString &now) {
+}
+
 void FlatTextarea::insertEmoji(EmojiPtr emoji, QTextCursor c) {
 	QTextImageFormat imageFormat;
 	int32 ew = ESize + st::emojiPadding * cIntRetinaFactor() * 2, eh = _st.font->height * cIntRetinaFactor();
@@ -650,17 +653,6 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 
 			insertEmoji(emoji, c);
 
-			for (Insertions::iterator i = _insertions.begin(), e = _insertions.end(); i != e; ++i) {
-				if (i->first >= removedUpto) {
-					i->first -= removedUpto - emojiPosition - 1;
-				} else if (i->first >= emojiPosition) {
-					i->second -= removedUpto - emojiPosition;
-					i->first = emojiPosition + 1;
-				} else if (i->first + i->second > emojiPosition + 1) {
-					i->second -= qMin(removedUpto, i->first + i->second) - emojiPosition;
-				}
-			}
-
 			charsAdded -= removedUpto - position;
 			position = emojiPosition + 1;
 
@@ -673,9 +665,11 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 }
 
 void FlatTextarea::onDocumentContentsChange(int position, int charsRemoved, int charsAdded) {
-	if (_replacingEmojis) return;
+	if (_correcting) return;
 
-	_replacingEmojis = true;
+	QTextCursor(document()->docHandle(), 0).joinPreviousEditBlock();
+
+	_correcting = true;
 	if (_maxLength >= 0) {
 		QTextCursor c(document()->docHandle(), 0);
 		c.movePosition(QTextCursor::End);
@@ -697,7 +691,7 @@ void FlatTextarea::onDocumentContentsChange(int position, int charsRemoved, int 
 			}
 		}
 	}
-	_replacingEmojis = false;
+	_correcting = false;
 
 	if (!_links.isEmpty()) {
 		bool changed = false;
@@ -715,7 +709,10 @@ void FlatTextarea::onDocumentContentsChange(int position, int charsRemoved, int 
 		if (changed) emit linksChanged();
 	}
 
-	if (document()->availableRedoSteps() > 0) return;
+	if (document()->availableRedoSteps() > 0) {
+		QTextCursor(document()->docHandle(), 0).endEditBlock();
+		return;
+	}
 
 	const int takeBack = 3;
 
@@ -725,45 +722,29 @@ void FlatTextarea::onDocumentContentsChange(int position, int charsRemoved, int 
 		charsAdded += position;
 		position = 0;
 	}
-	if (charsAdded <= 0) return;
+	if (charsAdded <= 0) {
+		QTextCursor(document()->docHandle(), 0).endEditBlock();
+		return;
+	}
 
-	//	_insertions.push_back(Insertion(position, charsAdded));
-	_replacingEmojis = true;
-
+	_correcting = true;
 	QSizeF s = document()->pageSize();
 	processDocumentContentsChange(position, charsAdded);
 	if (document()->pageSize() != s) {
 		document()->setPageSize(s);
 	}
-	_replacingEmojis = false;
+	_correcting = false;
+
+	QTextCursor(document()->docHandle(), 0).endEditBlock();
 }
 
 void FlatTextarea::onDocumentContentsChanged() {
-	if (_replacingEmojis) return;
-
-	if (!_insertions.isEmpty()) {
-		if (document()->availableRedoSteps() > 0) {
-			_insertions.clear();
-		} else {
-			_replacingEmojis = true;
-			QSizeF s = document()->pageSize();
-			
-			do {
-				Insertion i = _insertions.front();
-				_insertions.pop_front();
-				if (i.second > 0) {
-					processDocumentContentsChange(i.first, i.second);
-				}
-			} while (!_insertions.isEmpty());
-
-			if (document()->pageSize() != s) {
-				document()->setPageSize(s);
-			}
-			_replacingEmojis = false;
-		}
-	}
+	if (_correcting) return;
 
 	QString curText(getText());
+	_correcting = true;
+	correctValue(_oldtext, curText);
+	_correcting = false;
 	if (_oldtext != curText) {
 		_oldtext = curText;
 		emit changed();
@@ -801,10 +782,6 @@ bool FlatTextarea::animStep(float64 ms) {
 	}
 	update();
 	return res;
-}
-
-const QString &FlatTextarea::getLastText() const {
-	return _oldtext;
 }
 
 void FlatTextarea::setPlaceholder(const QString &ph) {

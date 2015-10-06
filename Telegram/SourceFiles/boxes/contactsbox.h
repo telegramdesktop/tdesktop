@@ -418,10 +418,10 @@ protected:
 
 private:
 
-	FlatRadiobutton _group, _channel;
+	Radiobutton _group, _channel;
 	int32 _aboutGroupWidth, _aboutGroupHeight;
 	Text _aboutGroup, _aboutChannel;
-	FlatButton _next, _cancel;
+	BoxButton _next, _cancel;
 
 };
 
@@ -431,20 +431,16 @@ class GroupInfoBox : public AbstractBox, public RPCSender {
 public:
 
 	GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose);
-	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
 	void mouseMoveEvent(QMouseEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void leaveEvent(QEvent *e);
 
-	bool eventFilter(QObject *obj, QEvent *e);
-
-	bool descriptionAnimStep(float64 ms);
-	bool photoAnimStep(float64 ms);
+	bool animStep_photoOver(float64 ms);
 
 	void setInnerFocus() {
-		_name.setFocus();
+		_title.setFocus();
 	}
 
 public slots:
@@ -453,6 +449,7 @@ public slots:
 	void onPhotoReady(const QImage &img);
 
 	void onNext();
+	void onNameSubmit();
 	void onDescriptionResized();
 
 protected:
@@ -463,7 +460,6 @@ protected:
 
 private:
 
-	QRect descriptionRect() const;
 	QRect photoRect() const;
 
 	void updateMaxHeight();
@@ -471,18 +467,15 @@ private:
 	CreatingGroupType _creating;
 
 	anim::fvalue a_photoOver;
-	Animation a_photo;
-	bool _photoOver, _descriptionOver;
+	Animation _a_photoOver;
+	bool _photoOver;
 
-	anim::cvalue a_descriptionBg, a_descriptionBorder;
-	Animation a_description;
+	InputField _title;
+	InputArea _description;
 
-	FlatInput _name;
-	FlatButton _photo;
-	FlatTextarea _description;
 	QImage _photoBig;
 	QPixmap _photoSmall;
-	FlatButton _next, _cancel;
+	BoxButton _next, _cancel;
 
 	// channel creation
 	int32 _creationRequestId;
@@ -533,20 +526,7 @@ protected:
 private:
 
 	void updateSelected(const QPoint &cursorGlobalPosition);
-	bool goodAnimStep(float64 ms);
-
-	ChannelData *_channel;
-	bool _existing;
-
-	FlatRadiobutton _public, _private;
-	FlatCheckbox _comments;
-	int32 _aboutPublicWidth, _aboutPublicHeight;
-	Text _aboutPublic, _aboutPrivate, _aboutComments;
-	QString _linkPlaceholder;
-	UsernameInput _link;
-	QRect _invitationLink;
-	bool _linkOver;
-	FlatButton _save, _skip;
+	bool animStep_goodFade(float64 ms);
 
 	void onUpdateDone(const MTPBool &result);
 	bool onUpdateFail(const RPCError &error);
@@ -555,6 +535,18 @@ private:
 	bool onCheckFail(const RPCError &error);
 	bool onFirstCheckFail(const RPCError &error);
 
+	ChannelData *_channel;
+	bool _existing;
+
+	Radiobutton _public, _private;
+	Checkbox _comments;
+	int32 _aboutPublicWidth, _aboutPublicHeight;
+	Text _aboutPublic, _aboutPrivate, _aboutComments;
+	UsernameInput _link;
+	QRect _invitationLink;
+	bool _linkOver;
+	BoxButton _save, _skip;
+
 	bool _tooMuchUsernames;
 
 	mtpRequestId _saveRequestId, _checkRequestId;
@@ -562,7 +554,7 @@ private:
 
 	QString _goodTextLink;
 	anim::fvalue a_goodOpacity;
-	Animation a_good;
+	Animation _a_goodFade;
 
 	QTimer _checkTimer;
 };

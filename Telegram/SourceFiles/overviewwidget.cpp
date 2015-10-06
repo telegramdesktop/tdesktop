@@ -366,7 +366,7 @@ void OverviewInner::searchReceived(bool fromStart, const MTPmessages_Messages &r
 }
 
 bool OverviewInner::searchFailed(const RPCError &error, mtpRequestId req) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (_searchRequest == req) {
 		_searchRequest = 0;

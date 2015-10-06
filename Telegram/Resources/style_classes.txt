@@ -286,6 +286,73 @@ BoxButton {
 	duration: number;
 }
 
+Checkbox {
+	textFg: color;
+	textBg: color;
+
+	checkFg: color;
+	checkFgOver: color;
+	checkFgActive: color;
+
+	width: number;
+	height: number;
+
+	textPosition: point;
+	diameter: number;
+	thickness: number;
+	checkIcon: sprite;
+
+	font: font;
+	duration: number;
+}
+
+Radiobutton {
+	textFg: color;
+	textBg: color;
+
+	checkFg: color;
+	checkFgOver: color;
+	checkFgActive: color;
+
+	width: number;
+	height: number;
+
+	textPosition: point;
+	diameter: number;
+	thickness: number;
+	checkSkip: number;
+
+	font: font;
+	duration: number;
+}
+
+InputArea {
+	textFg: color;
+	textMargins: margins;
+
+	placeholderFg: color;
+	placeholderFgActive: color;
+	placeholderMargins: margins;
+	placeholderAlign: align;
+	placeholderShift: number;
+
+	duration: number;
+
+	borderFg: color;
+	borderFgActive: color;
+	borderFgError: color;
+
+	border: number;
+	borderActive: number;
+	borderError: number;
+
+	font: font;
+
+	width: number;
+	heightMin: number;
+	heightMax: number;
+}
+
 InputField {
 	textFg: color;
 	textMargins: margins;

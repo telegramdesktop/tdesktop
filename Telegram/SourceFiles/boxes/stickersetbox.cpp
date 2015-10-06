@@ -86,7 +86,7 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 }
 
 bool StickerSetInner::failedSet(const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	_loaded = true;
 
@@ -135,7 +135,7 @@ void StickerSetInner::installDone(const MTPBool &result) {
 }
 
 bool StickerSetInner::installFailed(const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	App::wnd()->showLayer(new InformBox(lang(lng_stickers_not_found)));
 
@@ -234,7 +234,7 @@ _closeStickers(this, lang(lng_close), st::btnStickersAdd) {
 	setMaxHeight(st::stickersMaxHeight);
 	connect(App::main(), SIGNAL(stickersUpdated()), this, SLOT(onStickersUpdated()));
 
-	init(&_inner, 0, st::boxFont->height + st::newGroupNamePadding.top() + st::newGroupNamePadding.bottom());
+	init(&_inner, 0, st::boxFont->height + st::old_newGroupNamePadding.top() + st::old_newGroupNamePadding.bottom());
 
 	connect(&_close, SIGNAL(clicked()), this, SLOT(onClose()));
 	connect(&_addStickers, SIGNAL(clicked()), this, SLOT(onAddStickers()));
@@ -315,13 +315,13 @@ void StickerSetBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
 
-	paintTitle(p, _inner.title(), false);
+	paintOldTitle(p, _inner.title(), false);
 }
 
 void StickerSetBox::resizeEvent(QResizeEvent *e) {
 	ScrollableBox::resizeEvent(e);
 	_inner.resize(width(), _inner.height());
-	_close.moveToRight(0, 0, width());
+	_close.moveToRight(0, 0);
 	_addStickers.move((width() - _addStickers.width()) / 2, height() - (st::stickersAddOrShare + _addStickers.height()) / 2);
 	_shareStickers.move((width() - _shareStickers.width()) / 2, height() - (st::stickersAddOrShare + _shareStickers.height()) / 2);
 	_closeStickers.move((width() - _closeStickers.width()) / 2, height() - (st::stickersAddOrShare + _closeStickers.height()) / 2);

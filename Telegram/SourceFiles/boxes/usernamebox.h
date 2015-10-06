@@ -28,7 +28,6 @@ class UsernameBox : public AbstractBox, public RPCSender {
 public:
 
 	UsernameBox();
-	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
@@ -38,6 +37,8 @@ public slots:
 	
 	void onCheck();
 	void onChanged();
+
+	void onLinkClick();
 
 protected:
 
@@ -54,13 +55,14 @@ private:
 	bool onCheckFail(const RPCError &error);
 
 	QString getName() const;
-	void initBox();
+	void updateLinkText();
 
-	FlatButton _saveButton, _cancelButton;
-	UsernameInput _usernameInput;
+	BoxButton _save, _cancel;
+	UsernameInput _username;
+	LinkButton _link;
 
-	mtpRequestId _saveRequest, _checkRequest;
-	QString _sentUsername, _checkUsername, _errorText, _goodText;
+	mtpRequestId _saveRequestId, _checkRequestId;
+	QString _sentUsername, _checkUsername, _errorText, _goodText, _copiedTextLink;
 
 	Text _about;
 	QTimer _checkTimer;

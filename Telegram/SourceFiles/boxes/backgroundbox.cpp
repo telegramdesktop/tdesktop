@@ -177,7 +177,7 @@ void BackgroundInner::resizeEvent(QResizeEvent *e) {
 BackgroundBox::BackgroundBox() : ItemListBox(st::boxScroll), _inner(),
 _close(this, lang(lng_cancel), st::contactsClose) {
 
-	init(&_inner, _close.height(), st::boxFont->height + st::newGroupNamePadding.top() + st::newGroupNamePadding.bottom());
+	init(&_inner, _close.height(), st::boxFont->height + st::old_newGroupNamePadding.top() + st::old_newGroupNamePadding.bottom());
 
 	connect(&_close, SIGNAL(clicked()), this, SLOT(onClose()));
 	connect(&_inner, SIGNAL(backgroundChosen(int)), this, SLOT(onBackgroundChosen(int)));

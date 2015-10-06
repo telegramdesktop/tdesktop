@@ -109,7 +109,7 @@ void SessionsInner::terminateDone(uint64 hash, const MTPBool &result) {
 }
 
 bool SessionsInner::terminateFail(uint64 hash, const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	TerminateButtons::iterator i = _terminateButtons.find(hash);
 	if (i != _terminateButtons.end()) {
@@ -176,7 +176,7 @@ _terminateAll(this, lang(lng_sessions_terminate_all)), _terminateBox(0), _shortP
 void SessionsBox::resizeEvent(QResizeEvent *e) {
 	ScrollableBox::resizeEvent(e);
 	_done.move(0, height() - _done.height());
-	_terminateAll.moveToRight(st::sessionPadding.left(), st::old_boxTitleHeight + st::sessionHeight + st::old_boxTitlePos.y() + st::old_boxTitleFont->ascent - st::linkFont->ascent, width());
+	_terminateAll.moveToRight(st::sessionPadding.left(), st::old_boxTitleHeight + st::sessionHeight + st::old_boxTitlePos.y() + st::old_boxTitleFont->ascent - st::linkFont->ascent);
 }
 
 void SessionsBox::hideAll() {
@@ -204,7 +204,7 @@ void SessionsBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
 
-	paintTitle(p, lang(lng_sessions_header), true);
+	paintOldTitle(p, lang(lng_sessions_header), true);
 	p.translate(0, st::old_boxTitleHeight);
 
 	if (_loading) {
@@ -230,7 +230,7 @@ void SessionsBox::paintEvent(QPaintEvent *e) {
 		p.drawTextLeft(x, st::sessionPadding.top() + st::sessionNameFont->height + st::sessionInfoFont->height, w, _current.ip, _current.ipWidth);
 		p.translate(0, st::sessionHeight);
 		if (_list.isEmpty()) {
-			paintTitle(p, lang(lng_sessions_no_other), true);
+			paintOldTitle(p, lang(lng_sessions_no_other), true);
 
 			p.setFont(st::sessionInfoFont->f);
 			p.setPen(st::sessionInfoColor->p);
@@ -239,7 +239,7 @@ void SessionsBox::paintEvent(QPaintEvent *e) {
 			// paint shadow
 			p.fillRect(0, height() - st::sessionsCloseButton.height - st::scrollDef.bottomsh - st::sessionHeight - st::old_boxTitleHeight, width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
 		} else {
-			paintTitle(p, lang(lng_sessions_other_header), false);
+			paintOldTitle(p, lang(lng_sessions_other_header), false);
 		}
 	}
 }
@@ -418,7 +418,7 @@ void SessionsBox::terminateAllDone(const MTPBool &result) {
 }
 
 bool SessionsBox::terminateAllFail(const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	MTP::send(MTPaccount_GetAuthorizations(), rpcDone(&SessionsBox::gotAuthorizations));
 	if (_shortPollRequest) {

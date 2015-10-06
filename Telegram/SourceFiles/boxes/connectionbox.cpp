@@ -27,24 +27,29 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "window.h"
 
-ConnectionBox::ConnectionBox() :
-    _saveButton(this, lang(lng_connection_save), st::btnSelectDone),
-    _cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
-    _hostInput(this, st::inpConnectionHost, lang(lng_connection_host_ph), cConnectionProxy().host),
-    _portInput(this, st::inpConnectionPort, lang(lng_connection_port_ph), QString::number(cConnectionProxy().port)),
-    _userInput(this, st::inpConnectionUser, lang(lng_connection_user_ph), cConnectionProxy().user),
-	_passwordInput(this, st::inpConnectionPassword, lang(lng_connection_password_ph), cConnectionProxy().password),
-	_autoRadio(this, qsl("conn_type"), dbictAuto, lang(lng_connection_auto_rb), (cConnectionType() == dbictAuto)),
-	_httpProxyRadio(this, qsl("conn_type"), dbictHttpProxy, lang(lng_connection_http_proxy_rb), (cConnectionType() == dbictHttpProxy)),
-	_tcpProxyRadio(this, qsl("conn_type"), dbictTcpProxy, lang(lng_connection_tcp_proxy_rb), (cConnectionType() == dbictTcpProxy)),
-	_tryIPv6(this, lang(lng_connection_try_ipv6), cTryIPv6()) {
+ConnectionBox::ConnectionBox() : AbstractBox(st::boxWidth),
+_hostInput(this, st::connectionHostInputField, lang(lng_connection_host_ph), cConnectionProxy().host),
+_portInput(this, st::connectionPortInputField, lang(lng_connection_port_ph), QString::number(cConnectionProxy().port)),
+_userInput(this, st::connectionUserInputField, lang(lng_connection_user_ph), cConnectionProxy().user),
+_passwordInput(this, st::connectionPasswordInputField, lang(lng_connection_password_ph), cConnectionProxy().password),
+_autoRadio(this, qsl("conn_type"), dbictAuto, lang(lng_connection_auto_rb), (cConnectionType() == dbictAuto)),
+_httpProxyRadio(this, qsl("conn_type"), dbictHttpProxy, lang(lng_connection_http_proxy_rb), (cConnectionType() == dbictHttpProxy)),
+_tcpProxyRadio(this, qsl("conn_type"), dbictTcpProxy, lang(lng_connection_tcp_proxy_rb), (cConnectionType() == dbictTcpProxy)),
+_tryIPv6(this, lang(lng_connection_try_ipv6), cTryIPv6()),
+_save(this, lang(lng_connection_save), st::defaultBoxButton),
+_cancel(this, lang(lng_box_cancel), st::cancelBoxButton) {
 
-	connect(&_saveButton, SIGNAL(clicked()), this, SLOT(onSave()));
-	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
+	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	connect(&_autoRadio, SIGNAL(changed()), this, SLOT(onChange()));
 	connect(&_httpProxyRadio, SIGNAL(changed()), this, SLOT(onChange()));
 	connect(&_tcpProxyRadio, SIGNAL(changed()), this, SLOT(onChange()));
+
+	connect(&_hostInput, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
+	connect(&_portInput, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
+	connect(&_userInput, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
+	connect(&_passwordInput, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 
 	_passwordInput.setEchoMode(QLineEdit::Password);
 
@@ -62,8 +67,8 @@ void ConnectionBox::hideAll() {
 	_userInput.hide();
 	_passwordInput.hide();
 
-	_saveButton.hide();
-	_cancelButton.hide();
+	_save.hide();
+	_cancel.hide();
 }
 
 void ConnectionBox::showAll() {
@@ -72,9 +77,9 @@ void ConnectionBox::showAll() {
 	_tcpProxyRadio.show();
 	_tryIPv6.show();
 
-	int32 h = st::old_boxTitleHeight + st::connectionSkip + _autoRadio.height() + st::connectionSkip + _httpProxyRadio.height() + st::connectionSkip + _tcpProxyRadio.height() + st::connectionSkip + st::lineWidth + st::connectionSkip + _tryIPv6.height() + st::connectionSkip;
+	int32 h = st::boxTitleHeight + st::boxOptionListPadding.top() + _autoRadio.height() + st::boxOptionListPadding.top() + _httpProxyRadio.height() + st::boxOptionListPadding.top() + _tcpProxyRadio.height() + st::boxOptionListPadding.top() + st::connectionIPv6Skip + _tryIPv6.height() + st::boxOptionListPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom();
 	if (_httpProxyRadio.checked() || _tcpProxyRadio.checked()) {
-		h += 2 * st::boxPadding.top() + 2 * _hostInput.height();
+		h += 2 * st::boxOptionListPadding.top() + 2 * _hostInput.height();
 		_hostInput.show();
 		_portInput.show();
 		_userInput.show();
@@ -86,10 +91,10 @@ void ConnectionBox::showAll() {
 		_passwordInput.hide();
 	}
 
-	_saveButton.show();
-	_cancelButton.show();
+	_save.show();
+	_cancel.show();
 
-	setMaxHeight(h + _saveButton.height());
+	setMaxHeight(h);
 	resizeEvent(0);
 }
 
@@ -103,52 +108,43 @@ void ConnectionBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
 
-	paintTitle(p, lang(lng_connection_header), true);
-
-	// paint separator
-	p.fillRect(st::boxPadding.left(), _tryIPv6.y() - st::connectionSkip - st::lineWidth, width() - st::boxPadding.left() - st::boxPadding.right(), st::lineWidth, st::scrollDef.shColor->b);
-
-	// paint shadow
-	p.fillRect(0, height() - st::btnSelectCancel.height - st::scrollDef.bottomsh, width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
-
-	// paint button sep
-	p.fillRect(st::btnSelectCancel.width, height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
+	paintTitle(p, lang(lng_connection_header));
 }
 
 void ConnectionBox::resizeEvent(QResizeEvent *e) {
-	_autoRadio.move(st::boxPadding.left(), st::old_boxTitleHeight + st::connectionSkip);
-	_httpProxyRadio.move(st::boxPadding.left(), _autoRadio.y() + _autoRadio.height() + st::connectionSkip);
+	_autoRadio.moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxTitleHeight + st::boxOptionListPadding.top());
+	_httpProxyRadio.moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _autoRadio.y() + _autoRadio.height() + st::boxOptionListPadding.top());
 
 	int32 inputy = 0;
 	if (_httpProxyRadio.checked()) {
-		inputy = _httpProxyRadio.y() + _httpProxyRadio.height() + st::boxPadding.top();
-		_tcpProxyRadio.move(st::boxPadding.left(), inputy + st::boxPadding.top() + 2 * _hostInput.height() + st::connectionSkip);
+		inputy = _httpProxyRadio.y() + _httpProxyRadio.height() + st::boxOptionListPadding.top();
+		_tcpProxyRadio.moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), inputy + st::boxOptionListPadding.top() + 2 * _hostInput.height() + st::boxOptionListPadding.top());
 	} else {
-		_tcpProxyRadio.move(st::boxPadding.left(), _httpProxyRadio.y() + _httpProxyRadio.height() + st::connectionSkip);
+		_tcpProxyRadio.moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _httpProxyRadio.y() + _httpProxyRadio.height() + st::boxOptionListPadding.top());
 		if (_tcpProxyRadio.checked()) {
-			inputy = _tcpProxyRadio.y() + _tcpProxyRadio.height() + st::boxPadding.top();
+			inputy = _tcpProxyRadio.y() + _tcpProxyRadio.height() + st::boxOptionListPadding.top();
 		}
 	}
 
 	if (inputy) {
-		_hostInput.move(st::boxPadding.left() + st::rbDefFlat.textLeft, inputy);
-		_portInput.move(width() - st::boxPadding.right() - _portInput.width(), inputy);
-		_userInput.move(st::boxPadding.left() + st::rbDefFlat.textLeft, _hostInput.y() + _hostInput.height() + st::boxPadding.top());
-		_passwordInput.move(width() - st::boxPadding.right() - _passwordInput.width(), _userInput.y());
+		_hostInput.moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left() + st::defaultRadiobutton.textPosition.x() - st::defaultInputField.textMargins.left(), inputy);
+		_portInput.moveToRight(st::boxButtonPadding.right() - (st::defaultBoxButton.width / 2), inputy);
+		_userInput.moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left() + st::defaultRadiobutton.textPosition.x() - st::defaultInputField.textMargins.left(), _hostInput.y() + _hostInput.height() + st::boxOptionListPadding.top());
+		_passwordInput.moveToRight(st::boxButtonPadding.right() - (st::defaultBoxButton.width / 2), _userInput.y());
 	}
 
-	int32 tryipv6y = (_tcpProxyRadio.checked() ? (_userInput.y() + _userInput.height()) : (_tcpProxyRadio.y() + _tcpProxyRadio.height())) + st::connectionSkip + st::lineWidth + st::connectionSkip;
-	_tryIPv6.move(st::boxPadding.left(), tryipv6y);
+	int32 tryipv6y = (_tcpProxyRadio.checked() ? (_userInput.y() + _userInput.height()) : (_tcpProxyRadio.y() + _tcpProxyRadio.height())) + st::boxOptionListPadding.top() + st::connectionIPv6Skip;
+	_tryIPv6.moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), tryipv6y);
 
-	_saveButton.move(width() - _saveButton.width(), _tryIPv6.y() + _tryIPv6.height() + st::connectionSkip);
-	_cancelButton.move(0, _saveButton.y());
+	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
+	_cancel.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
 }
 
 void ConnectionBox::onChange() {
 	showAll();
 	if (_httpProxyRadio.checked() || _tcpProxyRadio.checked()) {
 		_hostInput.setFocus();
-		if (_httpProxyRadio.checked() && !_portInput.text().toInt()) {
+		if (_httpProxyRadio.checked() && !_portInput.getLastText().toInt()) {
 			_portInput.setText(qsl("80"));
 			_portInput.updatePlaceholder();
 		}
@@ -156,13 +152,41 @@ void ConnectionBox::onChange() {
 	update();
 }
 
+void ConnectionBox::onSubmit() {
+	if (_hostInput.hasFocus()) {
+		if (!_hostInput.getLastText().trimmed().isEmpty()) {
+			_portInput.setFocus();
+		} else {
+			_hostInput.showError();
+		}
+	} else if (_portInput.hasFocus()) {
+		if (_portInput.getLastText().trimmed().toInt() > 0) {
+			_userInput.setFocus();
+		} else {
+			_portInput.showError();
+		}
+	} else if (_userInput.hasFocus()) {
+		_passwordInput.setFocus();
+	} else if (_passwordInput.hasFocus()) {
+		if (_hostInput.getLastText().trimmed().isEmpty()) {
+			_hostInput.setFocus();
+			_hostInput.showError();
+		} else if (_portInput.getLastText().trimmed().toInt() <= 0) {
+			_portInput.setFocus();
+			_portInput.showError();
+		} else {
+			onSave();
+		}
+	}
+}
+
 void ConnectionBox::onSave() {
 	if (_httpProxyRadio.checked() || _tcpProxyRadio.checked()) {
 		ConnectionProxy p;
-		p.host = _hostInput.text().trimmed();
-		p.user = _userInput.text().trimmed();
-		p.password = _passwordInput.text().trimmed();
-		p.port = _portInput.text().toInt();
+		p.host = _hostInput.getLastText().trimmed();
+		p.user = _userInput.getLastText().trimmed();
+		p.password = _passwordInput.getLastText().trimmed();
+		p.port = _portInput.getLastText().toInt();
 		if (p.host.isEmpty()) {
 			_hostInput.setFocus();
 			return;
