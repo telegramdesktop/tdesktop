@@ -35,7 +35,7 @@ TitleHider::TitleHider(QWidget *parent) : QWidget(parent), _level(0) {
 void TitleHider::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 	p.setOpacity(_level * st::layerAlpha);
-	p.fillRect(App::main()->dlgsWidth() - st::dlgShadow, 0, width() + st::dlgShadow - App::main()->dlgsWidth(), height(), st::layerBG->b);
+	p.fillRect(App::main()->dlgsWidth() - st::dlgShadow, 0, width() + st::dlgShadow - App::main()->dlgsWidth(), height(), st::layerBg->b);
 }
 
 void TitleHider::mousePressEvent(QMouseEvent *e) {

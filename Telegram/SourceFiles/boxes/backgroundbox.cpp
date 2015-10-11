@@ -28,6 +28,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 BackgroundInner::BackgroundInner() :
 _bgCount(0), _rows(0), _over(-1), _overDown(-1) {
+	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 	if (App::cServerBackgrounds().isEmpty()) {
 		resize(BackgroundsInRow * (st::backgroundSize.width() + st::backgroundPadding) + st::backgroundPadding, 2 * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
 		MTP::send(MTPaccount_GetWallPapers(), rpcDone(&BackgroundInner::gotWallpapers));
@@ -174,39 +175,21 @@ BackgroundInner::~BackgroundInner() {
 void BackgroundInner::resizeEvent(QResizeEvent *e) {
 }
 
-BackgroundBox::BackgroundBox() : ItemListBox(st::boxScroll), _inner(),
-_close(this, lang(lng_cancel), st::contactsClose) {
+BackgroundBox::BackgroundBox() : ItemListBox(st::backgroundScroll)
+, _inner() {
 
-	init(&_inner, _close.height(), st::boxFont->height + st::old_newGroupNamePadding.top() + st::old_newGroupNamePadding.bottom());
+	init(&_inner);
 
-	connect(&_close, SIGNAL(clicked()), this, SLOT(onClose()));
 	connect(&_inner, SIGNAL(backgroundChosen(int)), this, SLOT(onBackgroundChosen(int)));
 
 	prepare();
 }
 
-void BackgroundBox::hideAll() {
-	ItemListBox::hideAll();
-	_close.hide();
-}
-
-void BackgroundBox::showAll() {
-	ItemListBox::showAll();
-	_close.show();
-	_close.raise();
-}
-
 void BackgroundBox::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 	if (paint(p)) return;
 
-	paintGrayTitle(p, lang(lng_backgrounds_header));
-}
-
-void BackgroundBox::resizeEvent(QResizeEvent *e) {
-	ItemListBox::resizeEvent(e);
-	_inner.resize(width(), _inner.height());
-	_close.move(0, height() - _close.height());
+	paintTitle(p, lang(lng_backgrounds_header));
 }
 
 void BackgroundBox::onBackgroundChosen(int index) {

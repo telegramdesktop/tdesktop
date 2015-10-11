@@ -59,24 +59,30 @@ wndShadow: sprite(209px, 46px, 19px, 19px);
 wndShadowShift: 1px;
 
 layerAlpha: 0.5;
-layerBG: black;
+layerBg: black;
 
+boxBg: white;
+boxVerticalMargin: 10px;
 boxWidth: 320px;
 boxWideWidth: 364px;
-boxPadding: margins(26px, 30px, 26px, 8px);
+boxPadding: margins(26px, 30px, 34px, 8px);
 boxMaxListHeight: 600px;
 boxFontSize: 14px;
 boxTextFont: font(boxFontSize);
 
-boxTitleFont: font(boxFontSize semibold);
+boxTitleFg: #444444;
+boxTitleFont: font(boxFontSize bold);
 boxTitlePosition: point(26px, 28px);
 boxTitleHeight: 54px;
 
-boxBlueTitleHeight: 54px;
 boxBlueTitleBg: #6393b5;
 boxBlueTitleAdditionalFg: #dae9f5;
 boxBlueTitleAdditionalSkip: 12px;
 boxBlueTitlePosition: point(23px, 18px);
+boxBlueCloseIcon: sprite(120px, 108px, 12px, 12px);
+boxBlueCloseBg: #c8e1f0;
+boxBlueCloseDuration: 150;
+boxBlueShadow: sprite(132px, 108px, 1px, 4px);
 
 boxButtonFont: font(boxFontSize semibold);
 defaultBoxButton: BoxButton {
@@ -204,6 +210,73 @@ defaultRadiobutton: Radiobutton {
 
 	font: boxTextFont;
 	duration: 120;
+}
+solidScroll: flatScroll {
+	barColor: #3f729734;
+	bgColor: #214f751a;
+	barOverColor: #3f729734;
+	bgOverColor: #214f751a;
+
+	round: 0px;
+	minHeight: 20px;
+
+	deltax: 5px;
+	width: 14px;
+	deltat: 6px;
+	deltab: 6px;
+
+	topsh: 0px;
+	bottomsh: 0px;
+	shColor: rgba(0, 0, 0, 18);
+
+	duration: 150;
+	hiding: 0;
+}
+boxScroll: flatScroll(solidScroll) {
+	width: 18px;
+	deltax: 6px;
+}
+boxScrollSkip: 6px;
+boxScrollShadowBg: #00000012;
+
+boxSearchField: InputField(defaultInputField) {
+	textMargins: margins(41px, 16px, 41px, 0px);
+
+	placeholderFg: #999;
+	placeholderFgActive: #aaa;
+	placeholderMargins: margins(4px, 0px, 4px, 0px);
+
+	border: 0px;
+	borderActive: 0px;
+	borderError: 0px;
+
+	height: 48px;
+
+	iconSprite: sprite(227px, 21px, 24px, 24px);
+	iconPosition: point(15px, 14px);
+}
+boxSearchCancel: iconedButton {
+	color: white;
+	bgColor: white;
+	overBgColor: white;
+	font: font(fsize);
+
+	opacity: 0.3;
+	overOpacity: 0.4;
+
+	textPos: point(0px, 0px);
+	downTextPos: point(0px, 0px);
+
+	duration: 150;
+	cursor: cursor(pointer);
+
+	icon: sprite(133px, 108px, 12px, 12px);
+	iconPos: point(8px, 18px);
+	downIcon: sprite(133px, 108px, 12px, 12px);
+	downIconPos: point(8px, 18px);
+
+	width: 41px;
+	height: 48px;
 }
 
 titleBG: #6389a8;
@@ -586,72 +659,25 @@ inpIntroPassword: flatInput(inpIntroPhone) {
 }
 
 introSelectDelta: 30px;
-btnSelectDone: flatButton(btnDefFlat) {
-	color: btnYesColor;
-	overColor: btnYesHover;
-	downColor: btnYesHover;
-
-	bgColor: white;
-	overBgColor: btnBoxWhiteHover;
-	downBgColor: btnBoxWhiteHover;
-
-	width: 182px;
-	height: 52px;
-
-	textTop: 14px;
-	overTextTop: 14px;
-	downTextTop: 15px;
-
-	font: font(17px);
-	overFont: font(17px);
-}
-btnSelectCancel: flatButton(btnSelectDone) {
-	width: 181px;
-	color: btnNoColor;
-	overColor: btnNoHover;
-	downColor: btnNoHover;
-}
 btnSelectSep: #e0e0e0;
 btnRedLink: linkButton(btnDefLink) {
 	color: #d15948;
 	overColor: #d15948;
 	downColor: #db6352;
 }
-btnRedDone: flatButton(btnSelectDone) {
-	color: #d15948;
-	overColor: #d15948;
-	downColor: #db6352;
+
+countryRowHeight: 36px;
+countryRowNameFont: font(fsize semibold);
+countryRowPadding: margins(22px, 9px, 8px, 0px);
+countryRowCodeFont: font(fsize);
+countryRowBgOver: #f5f8fa;
+countryRowCodeFg: #808080;
+countryRowCodeFgOver: #7c99b2;
+countriesSkip: 12px;
+countriesScroll: flatScroll(boxScroll) {
+	deltat: 9px;
+	deltab: 3px;
 }
-
-countryList: countryList {
-	notFoundColor: #aaa;//rgb(20, 136, 210);
-	notFoundFont: font(18px);
-
-	verticalMargin: 0px;
-
-	font: font(18px);
-	codeFont: font(16px);
-	rowHeight: 42px;
-	color: #000;
-	codeColor: #aaaaaa;//rgb(20, 136, 210);
-	bgColor: #FFF;
-	bgHovered: #f5f5f5;
-	margin: 13px;
-	codeWidth: 60px;
-
-	borderMargin: 0px;
-	borderColor: rgba(228, 233, 240, 127);
-	borderWidth: 0px;
-}
-
-countriesSlideShift: 500px;
-countriesSlideDuration: 200;
-countriesHideFunc: transition(easeInCirc);
-countriesShowFunc: transition(easeOutCirc);
-countriesBackHideFunc: transition(linear);
-countriesBackShowFunc: transition(linear);
-countriesAlphaHideFunc: transition(easeOutCirc);
-countriesAlphaShowFunc: transition(easeInCirc);
 
 introErrWidth: 450px;
 introErrDuration: 200;
@@ -724,7 +750,7 @@ setErrBG: #ffa5a5;
 setErrColor: #d84d4d;
 setErrHeight: 30px;
 setErrFont: font(fsize);
-setGoodColor: #008000;
+setGoodColor: #4ab44a;
 
 setBackgroundSize: 120px;
 
@@ -1324,28 +1350,35 @@ layerSlideDuration: 200;
 layerHideDuration: 200;
 layerPadding: margins(10px, 10px, 10px, 10px);
 
-boxFont: font(16px);
-boxVerticalMargin: 10px;
-
-boxBG: white;
-boxGrayTitle: #777;
-
-old_boxTitlePos: point(20px, 15px);
-old_boxTitleFont: font(17px);
-old_boxTitleHeight: 52px;
-
-confirmMaxHeight: 320px;
-confirmCompressedSkip: 10px;
-addContactPadding: margins(18px, 24px, 18px, 24px);
-addContactSkip: 14px;
-inpAddContact: flatInput(inpDefGray) {
-	height: 42px;
-	textMrg: margins(10px, 5px, 10px, 5px);
-	font: font(15px);
-}
+contactPadding: margins(49px, 22px, 0px, 6px);
+contactSkip: 13px;
+contactPhoneSkip: 30px;
 contactUserIcon: sprite(120px, 90px, 18px, 18px);
 contactPhoneIcon: sprite(138px, 90px, 18px, 18px);
-contactAddIcon: sprite(307px, 248px, 22px, 16px);
+contactIconTop: 10px;
+
+contactsPhotoSize: 42px;
+contactsPadding: margins(16px, 7px, 16px, 7px);
+contactsNameTop: 2px;
+contactsNameFont: font(fsize semibold);
+contactsStatusTop: 23px;
+contactsStatusFont: font(fsize);
+contactsStatusFg: #999999;
+contactsStatusFgOver: #7c99b2;
+contactsStatusFgOnline: #3b8dcc;
+contactsBgOver: #f5f8fa;
+contactsBgActive: #6f9cbd;
+contactsCheckPosition: point(8px, 16px);
+contactsCheckIcon: sprite(187px, 61px, 18px, 14px);
+contactsCheckActiveIcon: sprite(187px, 75px, 18px, 14px);
+contactsNewItemHeight: 53px;
+contactsNewItemIcon: sprite(307px, 248px, 22px, 16px);
+contactsNewItemIconPosition: point(29px, 19px);
+contactsNewItemTop: 18px;
+contactsNewItemFg: #4b82af;
+contactsScroll: flatScroll(boxScroll) {
+	deltab: 0px;
+}
 
 btnNewGroup: iconedButton(btnDefIconed) {
 	icon: sprite(189px, 118px, 18px, 17px);
@@ -1397,8 +1430,19 @@ notifyHeight: 80px;
 notifyDeltaX: 6px;
 notifyDeltaY: 7px;
 
+boxPhotoPadding: margins(28px, 28px, 28px, 18px);
+boxPhotoCompressedPadding: margins(0px, 2px, 0px, 22px);
+boxPhotoTextFg: #808080;
 cropPointSize: 10px;
+cropSkip: 13px;
 cropMinSize: 20px;
+confirmCaptionArea: InputArea(defaultInputArea) {
+	textMargins: margins(1px, 6px, 1px, 4px);
+	heightMax: 56px;
+}
+confirmBg: #f2f2f2;
+confirmMaxHeight: 245px;
+confirmCompressedSkip: 10px;
 
 profileMaxWidth: 410px;
 profilePadding: margins(28px, 30px, 28px, 0px);
@@ -1427,8 +1471,6 @@ profileListStatusBottom: 6px;
 profileHoverBG: #f5f5f5;
 profileActiveBG: #6294b9;
 profileSubFont: font(fsize);
-profileCheckDeltaX: 18px;
-profileCheckDeltaY: 1px;
 profileListNameFont: font(fsize semibold);
 profileListNameColor: #000;
 profileOnlineColor: titleTypingColor;
@@ -1445,8 +1487,6 @@ btnShareContact: flatButton(btnDefNext, btnDefBig) {
 	overFont: font(17px);
 }
 profileMinBtnPadding: 10px;
-inviteCheckIcon: sprite(187px, 61px, 18px, 14px);
-inviteCheckActiveIcon: sprite(187px, 75px, 18px, 14px);
 
 membersPadding: margins(0px, 10px, 0px, 10px);
 
@@ -1497,14 +1537,6 @@ profileNameInput: flatInput(setNameInput) {
 	width: 230px;
 }
 
-boxScroll: flatScroll(scrollDef) {
-	topsh: -2px;
-	bottomsh: -2px;
-}
-boxNoTopScroll: flatScroll(boxScroll) {
-	topsh: 0;
-}
-
 participantInnerAdd: flatButton(btnDefNext) {
 	width: 145px;
 	height: 40px;
@@ -1538,8 +1570,6 @@ contactsFilter: flatInput(dlgFilter) {
 inpCountry: flatInput(contactsFilter) {
 }
 
-old_newGroupNamePadding: margins(12px, 15px, 12px, 13px);
-
 newGroupLimitFg: #a4a4a4;
 newGroupAboutFg: #808080;
 newGroupPadding: margins(4px, 6px, 4px, 3px);
@@ -1547,10 +1577,10 @@ newGroupSkip: 17px;
 newGroupInfoPadding: margins(0px, -4px, 0px, 1px);
 
 newGroupLink: InputField(defaultInputField) {
-	textMargins: margins(0px, 6px, 0px, 4px);
+	textMargins: margins(0px, 6px, 0px, 0px);
 }
-newGroupLinkPadding: margins(4px, 27px, 4px, 27px);
-newGroupLinkTop: -3px;
+newGroupLinkPadding: margins(4px, 27px, 4px, 12px);
+newGroupLinkTop: 3px;
 newGroupLinkFont: font(16px);
 
 newGroupPhotoSize: 76px;
@@ -1561,7 +1591,7 @@ newGroupPhotoIconPosition: point(23px, 25px);
 
 newGroupNamePosition: point(27px, 20px);
 newGroupName: InputField(defaultInputField) {
-	textMargins: margins(1px, 6px, 1px, 4px);
+	textMargins: margins(1px, 6px, 1px, 0px);
 }
 
 newGroupDescriptionPadding: margins(0px, 23px, 0px, 14px);
@@ -1587,26 +1617,6 @@ connectionPasswordInputField: InputField(defaultInputField) {
 }
 connectionIPv6Skip: 11px;
 
-contactsClose: flatButton {
-	color: btnYesColor;
-	overColor: btnYesHover;
-	downColor: btnYesHover;
-
-	bgColor: white;
-	overBgColor: white;
-	downBgColor: white;
-
-	width: 364px;
-	height: 46px;
-
-	textTop: 12px;
-	overTextTop: 12px;
-	downTextTop: 13px;
-
-	font: font(16px);
-	overFont: font(16px);
-}
-contactsImg: sprite(31px, 104px, 9px, 16px);
 contactsAdd: flatButton(topBarButton) {
 	width: -40px;
 	height: 52px;
@@ -1639,21 +1649,34 @@ aboutLabel: flatLabel(labelDefFlat) {
 aboutTextStyle: textStyle(defaultTextStyle) {
 	lineHeight: 24px;
 }
-aboutCloseButton: flatButton(contactsClose) {
+aboutCloseButton: flatButton {
+	color: btnYesColor;
+	overColor: btnYesHover;
+	downColor: btnYesHover;
+
+	bgColor: white;
+	overBgColor: white;
+	downBgColor: white;
+
 	width: aboutWidth;
 	height: 52px;
+
 	textTop: 15px;
 	overTextTop: 15px;
 	downTextTop: 16px;
+
+	font: font(16px);
+	overFont: font(16px);
 }
 btnInfoClose: flatButton(aboutCloseButton) {
 	width: boxWideWidth;
 }
 
-emojiTextFont: font(16px);
-emojiReplaceWidth: 56px;
+emojiTextFont: font(15px);
+emojiReplaceWidth: 52px;
 emojiReplaceHeight: 56px;
 emojiReplaceInnerHeight: 42px;
+emojiReplacePadding: 14px;
 
 connectingBG: #fffe;
 connectingColor: #777;
@@ -1732,54 +1755,16 @@ dpiFont2: linkFont;
 dpiFont3: linkFont;
 dpiFont4: linkFont;
 
-newScroll: flatScroll(scrollDef) {
-	barColor: #3f729734;
-	bgColor: #214f751a;
-	barOverColor: #3f729734;
-	bgOverColor: #214f751a;
-
-	deltax: 5px;
-	width: 14px;
-	deltat: 6px;
-	deltab: 6px;
-
-	topsh: 0px;
-	bottomsh: 0px;
-
-	hiding: 0;
-}
-
-stickersMaxHeight: 340px;
-stickersAddOrShare: 70px;
-btnStickersAdd: flatButton(btnDefNext, btnDefBig) {
-	width: 200px;
-	height: 42px;
-
-	textTop: 9px;
-	overTextTop: 9px;
-	downTextTop: 10px;
-
-	font: font(17px);
-	overFont: font(17px);
-
-	bgColor: #15c23c;
-	overBgColor: #13a835;
-	downBgColor: #13a835;
-}
-btnStickersClose: iconedButton(notifyClose) {
-	iconPos: point(21px, 21px);
-	downIconPos: point(21px, 22px);
-	width: 52px;
-	height: 48px;
-}
-stickersWidth: 344px;
-stickersPadding: 10px;
+stickersMaxHeight: 440px;
+stickersPadding: margins(19px, 17px, 19px, 17px);
 stickersSize: size(64px, 64px);
-stickersScroll: flatScroll(newScroll) {
-	deltab: 76px;
+stickersScroll: flatScroll(boxScroll) {
+	deltax: 7px;
+	deltat: 23px;
+	deltab: 9px;
 }
 
-emojiScroll: flatScroll(newScroll) {
+emojiScroll: flatScroll(solidScroll) {
 	deltat: 48px;
 }
 emojiRecentOver: sprite(0px, 196px, 21px, 22px);
@@ -1945,7 +1930,7 @@ botKbTinyButton: botKeyboardButton {
 	textTop: 2px;
 	downTextTop: 3px;
 }
-botKbScroll: flatScroll(newScroll) {
+botKbScroll: flatScroll(solidScroll) {
 	deltax: 3px;
 	width: 10px;
 }
@@ -2150,6 +2135,12 @@ langsButton: Radiobutton(defaultRadiobutton) {
 
 backgroundPadding: 10px;
 backgroundSize: size(108px, 193px);
+backgroundScroll: flatScroll(boxScroll) {
+	width: 10px;
+	deltax: 3px;
+	deltat: 10px;
+	deltab: 0px;
+}
 
 passcodeHeaderFont: font(19px);
 passcodeHeaderHeight: 80px;

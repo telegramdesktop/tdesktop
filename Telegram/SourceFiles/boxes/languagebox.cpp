@@ -112,15 +112,15 @@ void LanguageBox::onChange() {
 		if (_langs[i]->checked() && langId != cLang()) {
 			LangLoaderResult result;
 			if (langId > 0) {
-				LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[langId] + qsl(".strings"), LangLoaderRequest(lng_sure_save_language, lng_box_cancel, lng_box_ok));
+				LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[langId] + qsl(".strings"), LangLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
 				result = loader.found();
 			} else if (langId == languageTest) {
-				LangLoaderPlain loader(cLangFile(), LangLoaderRequest(lng_sure_save_language, lng_box_cancel, lng_box_ok));
+				LangLoaderPlain loader(cLangFile(), LangLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
 				result = loader.found();
 			}
 			QString text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),
 			        save = result.value(lng_box_ok, langOriginal(lng_box_ok)),
-					cancel = result.value(lng_box_cancel, langOriginal(lng_box_cancel));
+					cancel = result.value(lng_cancel, langOriginal(lng_cancel));
 			ConfirmBox *box = new ConfirmBox(text, save, st::defaultBoxButton, cancel);
 			connect(box, SIGNAL(confirmed()), this, SLOT(onSave()));
 			connect(box, SIGNAL(closed()), this, SLOT(onRestore()));

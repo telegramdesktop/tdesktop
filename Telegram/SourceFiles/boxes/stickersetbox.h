@@ -22,15 +22,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 
-class StickerSetPanel : public TWidget {
-public:
-
-	StickerSetPanel(QWidget *parent) : TWidget(parent) {
-	}
-	void paintEvent(QPaintEvent *e);
-
-};
-
 class StickerSetInner : public TWidget, public RPCSender {
 	Q_OBJECT
 
@@ -50,6 +41,8 @@ public:
 
 	void setScrollBottom(int32 bottom);
 	void install();
+
+	QString getTitle() const;
 
 	~StickerSetInner();
 
@@ -76,8 +69,6 @@ private:
 	MTPInputStickerSet _input;
 
 	mtpRequestId _installRequest;
-
-	StickerSetPanel *_panel;
 };
 
 class StickerSetBox : public ScrollableBox, public RPCSender {
@@ -111,6 +102,7 @@ protected:
 private:
 
 	StickerSetInner _inner;
-	IconedButton _close;
-	FlatButton _addStickers, _shareStickers, _closeStickers;
+	ScrollableBoxShadow _shadow;
+	BoxButton _add, _share, _cancel;
+	QString _title;
 };

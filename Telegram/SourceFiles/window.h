@@ -198,9 +198,6 @@ public:
 	void noBox(BackgroundWidget *was);
 	void layerFinishedHide(BackgroundWidget *was);
 
-	void topWidget(QWidget *w);
-	void noTopWidget(QWidget *w);
-
 	void fixOrder();
 
 	enum TempDirState {
@@ -309,12 +306,11 @@ private:
 	IntroWidget *intro;
 	MainWidget *main;
 	SettingsWidget *settings;
-	BackgroundWidget *layerBG;
+	BackgroundWidget *layerBg;
 
 	QTimer _isActiveTimer;
 	bool _isActive;
 
-	QWidget *_topWidget; // temp hack for CountrySelect
 	ConnectingWidget *_connecting;
 
 	Local::ClearManager *_clearManager;

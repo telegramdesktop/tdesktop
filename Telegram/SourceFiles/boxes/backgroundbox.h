@@ -58,19 +58,13 @@ public:
 
 	BackgroundBox();
 	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
 
 public slots:
 
 	void onBackgroundChosen(int index);
 
-protected:
-
-	void hideAll();
-	void showAll();
-
 private:
 
 	BackgroundInner _inner;
-	BottomButton _close;
+
 };

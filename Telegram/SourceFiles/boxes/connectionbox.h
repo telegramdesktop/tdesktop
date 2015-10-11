@@ -48,7 +48,7 @@ private:
 	InputField _hostInput;
 	PortInput _portInput;
 	InputField _userInput;
-	MaskedInputField _passwordInput;
+	PasswordField _passwordInput;
 	Radiobutton _autoRadio, _httpProxyRadio, _tcpProxyRadio;
 	Checkbox _tryIPv6;
 

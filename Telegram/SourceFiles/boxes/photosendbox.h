@@ -33,6 +33,15 @@ public:
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
+
+	void setInnerFocus() {
+		if (_caption.isHidden()) {
+			setFocus();
+		} else {
+			_caption.setFocus();
+		}
+	}
+
 	~PhotoSendBox();
 
 signals:
@@ -41,6 +50,8 @@ signals:
 
 public slots:
 
+	void onCompressedChange();
+	void onCaptionResized();
 	void onSend(bool ctrlShiftEnter = false);
 
 protected:
@@ -48,15 +59,19 @@ protected:
 	void closePressed();
 	void hideAll();
 	void showAll();
+	void showDone();
 
 private:
+
+	void updateBoxSize();
 
 	ReadyLocalMedia *_img;
 	int32 _thumbx, _thumby, _thumbw, _thumbh;
 	QString _name, _size;
 	int32 _namew, _textw;
-	FlatCheckbox _compressed;
-	FlatButton _sendButton, _cancelButton;
+	InputArea _caption;
+	Checkbox _compressed;
+	BoxButton _send, _cancel;
 	QPixmap _thumb;
 
 	QString _phone, _fname, _lname;

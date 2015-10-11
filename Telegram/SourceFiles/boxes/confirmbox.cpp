@@ -38,7 +38,7 @@ ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const style
 _informative(false),
 _text(100),
 _confirm(this, doneText.isEmpty() ? lang(lng_box_ok) : doneText, doneStyle),
-_cancel(this, cancelText.isEmpty() ? lang(lng_box_cancel) : cancelText, cancelStyle) {
+_cancel(this, cancelText.isEmpty() ? lang(lng_cancel) : cancelText, cancelStyle) {
 	init(text);
 }
 
@@ -54,7 +54,7 @@ void ConfirmBox::init(const QString &text) {
 	_text.setText(st::boxTextFont, text, _informative ? _confirmBoxTextOptions : _textPlainOptions);
 
 	textstyleSet(&st::boxTextStyle);
-	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxPadding.right();
+	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right();
 	_textHeight = qMin(_text.countHeight(_textWidth), 16 * int(st::boxTextStyle.lineHeight));
 	setMaxHeight(st::boxPadding.top() + _textHeight + st::boxPadding.bottom() + st::boxButtonPadding.top() + _confirm.height() + st::boxButtonPadding.bottom());
 	textstyleRestore();
@@ -189,14 +189,14 @@ void ConfirmLinkBox::onOpenLink() {
 
 MaxInviteBox::MaxInviteBox(const QString &link) : AbstractBox(st::boxWidth),
 _close(this, lang(lng_box_ok), st::defaultBoxButton),
-_text(st::boxTextFont, lng_participant_invite_sorry(lt_count, cMaxGroupCount()), _confirmBoxTextOptions, st::boxWidth - st::boxPadding.left() - st::boxPadding.right()),
+_text(st::boxTextFont, lng_participant_invite_sorry(lt_count, cMaxGroupCount()), _confirmBoxTextOptions, st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right()),
 _link(link), _linkOver(false),
 a_goodOpacity(0, 0), a_good(animFunc(this, &MaxInviteBox::goodAnimStep)) {
 	setMouseTracking(true);
 
-	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxPadding.right();
+	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right();
 	_textHeight = qMin(_text.countHeight(_textWidth), 16 * int(st::boxTextStyle.lineHeight));
-	setMaxHeight(st::boxPadding.top() + _textHeight + st::boxTextFont->height + st::boxTextFont->height * 2 + st::newGroupLinkPadding.bottom() + _close.height() + st::boxButtonPadding.bottom());
+	setMaxHeight(st::boxPadding.top() + _textHeight + st::boxTextFont->height + st::boxTextFont->height * 2 + st::newGroupLinkPadding.bottom() + st::boxButtonPadding.top() + _close.height() + st::boxButtonPadding.bottom());
 
 	connect(&_close, SIGNAL(clicked()), this, SLOT(onClose()));
 
@@ -277,5 +277,5 @@ void MaxInviteBox::paintEvent(QPaintEvent *e) {
 
 void MaxInviteBox::resizeEvent(QResizeEvent *e) {
 	_close.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _close.height());
-	_invitationLink = myrtlrect(st::boxPadding.left(), st::boxPadding.top() + _textHeight + st::boxTextFont->height, width() - st::boxPadding.left() - (st::boxButtonPadding.right() - (st::defaultBoxButton.width / 2)), 2 * st::boxTextFont->height);
+	_invitationLink = myrtlrect(st::boxPadding.left(), st::boxPadding.top() + _textHeight + st::boxTextFont->height, width() - st::boxPadding.left() - st::boxPadding.right(), 2 * st::boxTextFont->height);
 }

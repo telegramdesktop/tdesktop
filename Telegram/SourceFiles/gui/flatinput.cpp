@@ -400,10 +400,10 @@ void CountryCodeInput::correctValue(const QString &was, QString &now) {
 	}
 }
 
-PhoneInput::PhoneInput(QWidget *parent, const style::flatInput &st) : FlatInput(parent, st, lang(lng_phone_ph)) {
+PhonePartInput::PhonePartInput(QWidget *parent, const style::flatInput &st) : FlatInput(parent, st, lang(lng_phone_ph)) {
 }
 
-void PhoneInput::paintEvent(QPaintEvent *e) {
+void PhonePartInput::paintEvent(QPaintEvent *e) {
 	FlatInput::paintEvent(e);
 
 	Painter p(this);
@@ -423,7 +423,7 @@ void PhoneInput::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void PhoneInput::keyPressEvent(QKeyEvent *e) {
+void PhonePartInput::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Backspace && text().isEmpty()) {
 		emit voidBackspace(e);
 	} else {
@@ -431,7 +431,7 @@ void PhoneInput::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-void PhoneInput::correctValue(const QString &was, QString &now) {
+void PhonePartInput::correctValue(const QString &was, QString &now) {
 	QString newText;
 	int oldPos(cursorPosition()), newPos(-1), oldLen(now.length()), digitCount = 0;
 	for (int i = 0; i < oldLen; ++i) {
@@ -497,7 +497,7 @@ void PhoneInput::correctValue(const QString &was, QString &now) {
 	}
 }
 
-void PhoneInput::addedToNumber(const QString &added) {
+void PhonePartInput::addedToNumber(const QString &added) {
 	setFocus();
 	QString wasText(getLastText()), newText = added + wasText;
 	setText(newText);
@@ -506,7 +506,7 @@ void PhoneInput::addedToNumber(const QString &added) {
 	updatePlaceholder();
 }
 
-void PhoneInput::onChooseCode(const QString &code) {
+void PhonePartInput::onChooseCode(const QString &code) {
 	pattern = phoneNumberParse(code);
 	if (!pattern.isEmpty() && pattern.at(0) == code.size()) {
 		pattern.pop_front();
@@ -1119,6 +1119,10 @@ void InputArea::customUpDown(bool custom) {
 	_customUpDown = custom;
 }
 
+void InputArea::setCtrlEnterSubmit(bool ctrlEnterSubmit) {
+	_ctrlEnterSubmit = ctrlEnterSubmit;
+}
+
 void InputArea::InputAreaInner::keyPressEvent(QKeyEvent *e) {
 	bool shift = e->modifiers().testFlag(Qt::ShiftModifier), alt = e->modifiers().testFlag(Qt::AltModifier);
 	bool macmeta = (cPlatform() == dbipMac) && e->modifiers().testFlag(Qt::ControlModifier) && !e->modifiers().testFlag(Qt::MetaModifier) && !e->modifiers().testFlag(Qt::AltModifier);
@@ -1201,7 +1205,7 @@ _oldtext(val),
 _undoAvailable(false),
 _redoAvailable(false),
 
-_customUpDown(false),
+_customUpDown(true),
 
 _placeholderFull(ph),
 _placeholderVisible(val.isEmpty()),
@@ -1717,6 +1721,13 @@ void InputField::onRedoAvailable(bool avail) {
 	if (App::wnd()) App::wnd()->updateGlobalMenu();
 }
 
+void InputField::selectAll() {
+	QTextCursor c(_inner.textCursor());
+	c.setPosition(0);
+	c.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+	_inner.setTextCursor(c);
+}
+
 bool InputField::animStep_placeholderFg(float64 ms) {
 	float dt = ms / _st.duration;
 	bool res = true;
@@ -2102,10 +2113,14 @@ bool MaskedInputField::animStep_border(float64 ms) {
 	return res;
 }
 
-void MaskedInputField::setPlaceholder(const QString &placeholder) {
-	_placeholderFull = placeholder;
-	resizeEvent(0);
-	update();
+bool MaskedInputField::setPlaceholder(const QString &placeholder) {
+	if (_placeholderFull != placeholder) {
+		_placeholderFull = placeholder;
+		resizeEvent(0);
+		update();
+		return true;
+	}
+	return false;
 }
 
 void MaskedInputField::setPlaceholderFast(bool fast) {
@@ -2213,7 +2228,7 @@ void MaskedInputField::onTextEdited() {
 }
 
 void MaskedInputField::onTextChange(const QString &text) {
-	_oldtext = text;
+	_oldtext = QLineEdit::text();
 	if (_error) {
 		_error = false;
 		startBorderAnimation();
@@ -2223,6 +2238,10 @@ void MaskedInputField::onTextChange(const QString &text) {
 
 void MaskedInputField::onCursorPositionChanged(int oldPosition, int position) {
 	_oldcursor = position;
+}
+
+PasswordField::PasswordField(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val) : MaskedInputField(parent, st, ph, val) {
+	setEchoMode(QLineEdit::Password);
 }
 
 PortInput::PortInput(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val) : MaskedInputField(parent, st, ph, val) {
@@ -2305,5 +2324,145 @@ void UsernameInput::correctValue(const QString &was, int32 wasCursor, QString &n
 	if (newCursor != nowCursor) {
 		nowCursor = newCursor;
 		setCursorPosition(newCursor);
+	}
+}
+
+PhoneInput::PhoneInput(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val) : MaskedInputField(parent, st, ph, val)
+, _defaultPlaceholder(ph) {
+	QString phone(val);
+	if (phone.isEmpty()) {
+		clearText();
+	} else {
+		int32 pos = phone.size();
+		correctValue(QString(), 0, phone, pos);
+	}
+}
+
+void PhoneInput::focusInEvent(QFocusEvent *e) {
+	MaskedInputField::focusInEvent(e);
+	setSelection(cursorPosition(), cursorPosition());
+}
+
+void PhoneInput::clearText() {
+	QString phone;
+	if (App::self()) {
+		QVector<int> newPattern = phoneNumberParse(App::self()->phone);
+		if (!newPattern.isEmpty()) {
+			phone = App::self()->phone.mid(0, newPattern.at(0));
+		}
+	}
+	setText(phone);
+	int32 pos = phone.size();
+	correctValue(QString(), 0, phone, pos);
+}
+
+void PhoneInput::paintPlaceholder(Painter &p) {
+	QString t(getLastText());
+	if (!pattern.isEmpty() && !t.isEmpty()) {
+		QString ph = placeholder().mid(t.size());
+		if (!ph.isEmpty()) {
+			p.setClipRect(rect());
+			QRect phRect(placeholderRect());
+			int tw = phFont()->width(t);
+			if (tw < phRect.width()) {
+				phRect.setLeft(phRect.left() + tw);
+				placeholderPreparePaint(p);
+				p.drawText(phRect, ph, style::al_topleft);
+			}
+		}
+	} else {
+		MaskedInputField::paintPlaceholder(p);
+	}
+}
+
+void PhoneInput::correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) {
+	QString digits(now);
+	digits.replace(QRegularExpression(qsl("[^\\d]")), QString());
+	pattern = phoneNumberParse(digits);
+
+	QString newPlaceholder;
+	if (pattern.isEmpty()) {
+		newPlaceholder = lang(lng_contact_phone);
+	} else if (pattern.size() == 1 && pattern.at(0) == digits.size()) {
+		newPlaceholder = QString(pattern.at(0) + 2, ' ') + lang(lng_contact_phone);
+	} else {
+		newPlaceholder.reserve(20);
+		for (int i = 0, l = pattern.size(); i < l; ++i) {
+			if (i) {
+				newPlaceholder.append(' ');
+			} else {
+				newPlaceholder.append('+');
+			}
+			newPlaceholder.append(i ? QString(pattern.at(i), QChar(0x2212)) : digits.mid(0, pattern.at(i)));
+		}
+	}
+	if (setPlaceholder(newPlaceholder)) {
+		setPlaceholderFast(!pattern.isEmpty());
+		updatePlaceholder();
+	}
+
+	QString newText;
+	int oldPos(nowCursor), newPos(-1), oldLen(now.length()), digitCount = qMin(digits.size(), MaxPhoneCodeLength + MaxPhoneTailLength);
+
+	bool inPart = !pattern.isEmpty(), plusFound = false;
+	int curPart = 0, leftInPart = inPart ? pattern.at(curPart) : 0;
+	newText.reserve(oldLen + 1);
+	newText.append('+');
+	for (int i = 0; i < oldLen; ++i) {
+		if (i == oldPos && newPos < 0) {
+			newPos = newText.length();
+		}
+
+		QChar ch(now[i]);
+		if (ch.isDigit()) {
+			if (!digitCount--) {
+				break;
+			}
+			if (inPart) {
+				if (leftInPart) {
+					--leftInPart;
+				} else {
+					newText += ' ';
+					++curPart;
+					inPart = curPart < pattern.size();
+					leftInPart = inPart ? (pattern.at(curPart) - 1) : 0;
+
+					++oldPos;
+				}
+			}
+			newText += ch;
+		} else if (ch == ' ' || ch == '-' || ch == '(' || ch == ')') {
+			if (inPart) {
+				if (leftInPart) {
+				} else {
+					newText += ch;
+					++curPart;
+					inPart = curPart < pattern.size();
+					leftInPart = inPart ? pattern.at(curPart) : 0;
+				}
+			} else {
+				newText += ch;
+			}
+		} else if (ch == '+') {
+			plusFound = true;
+		}
+	}
+	if (!plusFound && newText == qstr("+")) {
+		newText = QString();
+		newPos = 0;
+	}
+	int32 newlen = newText.size();
+	while (newlen > 0 && newText.at(newlen - 1).isSpace()) {
+		--newlen;
+	}
+	if (newlen < newText.size()) newText = newText.mid(0, newlen);
+	if (newPos < 0) {
+		newPos = newText.length();
+	}
+	if (newText != now) {
+		now = newText;
+		setText(newText);
+		updatePlaceholder();
+		setCursorPosition(newPos);
 	}
 }

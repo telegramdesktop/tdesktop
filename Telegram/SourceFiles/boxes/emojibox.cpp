@@ -71,14 +71,14 @@ namespace {
 	const uint32 replacesCount = sizeof(replaces) / sizeof(EmojiReplace), replacesInRow = 7;
 }
 
-EmojiBox::EmojiBox() : _esize(EmojiSizes[EIndex + 1]), _done(this, lang(lng_about_done), st::aboutCloseButton) {
+EmojiBox::EmojiBox() : _esize(EmojiSizes[EIndex + 1]) {
+	setBlueTitle(true);
+
 	fillBlocks();
 
 	_blockHeight = st::emojiReplaceInnerHeight;
 	
-	resizeMaxHeight(_blocks[0].size() * st::emojiReplaceWidth + (st::emojiReplaceWidth - _esize), st::boxPadding.top() + st::boxFont->height + _blocks.size() * st::emojiReplaceHeight + (st::emojiReplaceHeight - _blockHeight) + _done.height());
-
-	connect(&_done, SIGNAL(clicked()), this, SLOT(onClose()));
+	resizeMaxHeight(_blocks[0].size() * st::emojiReplaceWidth + 2 * st::emojiReplacePadding, st::boxTitleHeight + st::emojiReplacePadding + _blocks.size() * st::emojiReplaceHeight + (st::emojiReplaceHeight - _blockHeight) + st::emojiReplacePadding);
 
 	prepare();
 }
@@ -113,14 +113,6 @@ void EmojiBox::fillBlocks() {
 	}
 }
 
-void EmojiBox::hideAll() {
-	_done.hide();
-}
-
-void EmojiBox::showAll() {
-	_done.show();
-}
-
 void EmojiBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
 		onClose();
@@ -130,14 +122,14 @@ void EmojiBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void EmojiBox::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 	if (paint(p)) return;
 
-	paintGrayTitle(p, lang(lng_settings_emoji_list));
+	paintTitle(p, lang(lng_settings_emoji_list));
 
 	p.setFont(st::emojiTextFont->f);
 	p.setPen(st::black->p);
-	int32 top = st::boxPadding.top() + st::boxFont->height + (st::emojiReplaceHeight - _blockHeight) / 2;
+	int32 top = st::boxTitleHeight + st::emojiReplacePadding + (st::emojiReplaceHeight - _blockHeight) / 2;
 	for (Blocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); i != e; ++i) {
 		int32 rowSize = i->size(), left = (width() - rowSize * st::emojiReplaceWidth) / 2;
 		for (BlockRow::const_iterator j = i->cbegin(), en = i->cend(); j != en; ++j) {
@@ -150,8 +142,4 @@ void EmojiBox::paintEvent(QPaintEvent *e) {
 		}
 		top += st::emojiReplaceHeight;
 	}
-}
-
-void EmojiBox::resizeEvent(QResizeEvent *e) {
-	_done.setGeometry(0, height() - _done.height(), width(), _done.height());
 }

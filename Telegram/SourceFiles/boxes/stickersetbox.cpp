@@ -29,14 +29,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 #include "localstorage.h"
 
-void StickerSetPanel::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	p.fillRect(e->rect(), st::emojiPanHeaderBg->b);
-}
-
 StickerSetInner::StickerSetInner(const MTPInputStickerSet &set) :
 _loaded(false), _setId(0), _setAccess(0), _setCount(0), _setHash(0), _setFlags(0), _bottom(0),
-_input(set), _installRequest(0), _panel(0) {
+_input(set), _installRequest(0) {
+	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 	switch (set.type()) {
 	case mtpc_inputStickerSetID: _setId = set.c_inputStickerSetID().vid.v; _setAccess = set.c_inputStickerSetID().vaccess_hash.v; break;
 	case mtpc_inputStickerSetShortName: _setShortName = qs(set.c_inputStickerSetShortName().vshort_name); break;
@@ -61,7 +57,7 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 		if (d.vset.type() == mtpc_stickerSet) {
 			const MTPDstickerSet &s(d.vset.c_stickerSet());
 			_setTitle = qs(s.vtitle);
-			_title = st::old_boxTitleFont->elided(_setTitle, width() - st::btnStickersClose.width - st::old_boxTitlePos.x());
+			_title = st::boxTitleFont->elided(_setTitle, width() - st::boxTitlePosition.x() - st::boxTitleHeight);
 			_setShortName = qs(s.vshort_name);
 			_setId = s.vid.v;
 			_setAccess = s.vaccess_hash.v;
@@ -75,10 +71,7 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 		App::wnd()->showLayer(new InformBox(lang(lng_stickers_not_found)));
 	} else {
 		int32 rows = _pack.size() / StickerPanPerRow + ((_pack.size() % StickerPanPerRow) ? 1 : 0);
-		resize(st::stickersPadding + StickerPanPerRow * st::stickersSize.width(), rows * st::stickersSize.height() + st::stickersAddOrShare);
-		_panel = new StickerSetPanel(parentWidget());
-		_panel->setGeometry(0, parentWidget()->height() - st::stickersAddOrShare, width(), st::stickersAddOrShare);
-		_panel->show();
+		resize(st::stickersPadding.left() + StickerPanPerRow * st::stickersSize.width(), st::stickersPadding.top() + rows * st::stickersSize.height() + st::stickersPadding.bottom());
 	}
 	_loaded = true;
 
@@ -157,7 +150,7 @@ void StickerSetInner::paintEvent(QPaintEvent *e) {
 			if (index >= _pack.size()) break;
 
 			DocumentData *doc = _pack.at(index);
-			QPoint pos(st::stickerPanPadding + j * st::stickersSize.width(), i * st::stickersSize.height());
+			QPoint pos(st::stickersPadding.left() + j * st::stickersSize.width(), st::stickersPadding.top() + i * st::stickersSize.height());
 
 			bool goodThumb = !doc->thumb->isNull() && ((doc->thumb->width() >= 128) || (doc->thumb->height() >= 128));
 			if (goodThumb) {
@@ -225,21 +218,20 @@ void StickerSetInner::install() {
 StickerSetInner::~StickerSetInner() {
 }
 
-StickerSetBox::StickerSetBox(const MTPInputStickerSet &set) : ScrollableBox(st::stickersScroll), _inner(set),
-_close(this, st::btnStickersClose),
-_addStickers(this, lng_stickers_add_pack(lt_count, 0), st::btnStickersAdd),
-_shareStickers(this, lang(lng_stickers_share_pack), st::btnStickersAdd),
-_closeStickers(this, lang(lng_close), st::btnStickersAdd) {
-	resize(st::stickersWidth, height());
+StickerSetBox::StickerSetBox(const MTPInputStickerSet &set) : ScrollableBox(st::stickersScroll)
+, _inner(set)
+, _shadow(this)
+, _add(this, lang(lng_stickers_add_pack), st::defaultBoxButton)
+, _share(this, lang(lng_stickers_share_pack), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 	setMaxHeight(st::stickersMaxHeight);
 	connect(App::main(), SIGNAL(stickersUpdated()), this, SLOT(onStickersUpdated()));
 
-	init(&_inner, 0, st::boxFont->height + st::old_newGroupNamePadding.top() + st::old_newGroupNamePadding.bottom());
+	init(&_inner, st::boxButtonPadding.bottom() + _cancel.height() + st::boxButtonPadding.top());
 
-	connect(&_close, SIGNAL(clicked()), this, SLOT(onClose()));
-	connect(&_addStickers, SIGNAL(clicked()), this, SLOT(onAddStickers()));
-	connect(&_shareStickers, SIGNAL(clicked()), this, SLOT(onShareStickers()));
-	connect(&_closeStickers, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(&_add, SIGNAL(clicked()), this, SLOT(onAddStickers()));
+	connect(&_share, SIGNAL(clicked()), this, SLOT(onShareStickers()));
+	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	connect(&_inner, SIGNAL(updateButtons()), this, SLOT(onUpdateButtons()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
@@ -268,7 +260,9 @@ void StickerSetBox::onShareStickers() {
 }
 
 void StickerSetBox::onUpdateButtons() {
-	if (!_close.isHidden()) showAll();
+	if (!_cancel.isHidden()) {
+		showAll();
+	}
 }
 
 void StickerSetBox::onScroll() {
@@ -277,37 +271,35 @@ void StickerSetBox::onScroll() {
 
 void StickerSetBox::hideAll() {
 	ScrollableBox::hideAll();
-	_close.hide();
-	_addStickers.hide();
-	_shareStickers.hide();
+	_shadow.hide();
+	_cancel.hide();
+	_add.hide();
+	_share.hide();
 }
 
 void StickerSetBox::showAll() {
 	ScrollableBox::showAll();
-	_close.show();
+	_shadow.show();
+	_cancel.show();
 	int32 cnt = _inner.notInstalled();
 	if (_inner.loaded()) {
 		if (_inner.official()) {
-			_addStickers.hide();
-			_shareStickers.hide();
-			_closeStickers.show();
+			_add.hide();
+			_share.hide();
 		} else if (_inner.notInstalled()) {
-			_addStickers.setText(lng_stickers_add_pack(lt_count, cnt));
-			_addStickers.show();
-			_addStickers.raise();
-			_shareStickers.hide();
-			_closeStickers.hide();
+			_add.show();
+			_add.raise();
+			_share.hide();
 		} else {
-			_shareStickers.show();
-			_shareStickers.raise();
-			_addStickers.hide();
-			_closeStickers.hide();
+			_share.show();
+			_share.raise();
+			_add.hide();
 		}
 	} else {
-		_addStickers.hide();
-		_shareStickers.hide();
-		_closeStickers.hide();
+		_add.hide();
+		_share.hide();
 	}
+	resizeEvent(0);
 	update();
 }
 
@@ -315,14 +307,20 @@ void StickerSetBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
 
-	paintOldTitle(p, _inner.title(), false);
+	paintTitle(p, _inner.title());
 }
 
 void StickerSetBox::resizeEvent(QResizeEvent *e) {
 	ScrollableBox::resizeEvent(e);
 	_inner.resize(width(), _inner.height());
-	_close.moveToRight(0, 0);
-	_addStickers.move((width() - _addStickers.width()) / 2, height() - (st::stickersAddOrShare + _addStickers.height()) / 2);
-	_shareStickers.move((width() - _shareStickers.width()) / 2, height() - (st::stickersAddOrShare + _shareStickers.height()) / 2);
-	_closeStickers.move((width() - _closeStickers.width()) / 2, height() - (st::stickersAddOrShare + _closeStickers.height()) / 2);
+	_shadow.setGeometry(0, height() - st::boxButtonPadding.bottom() - _cancel.height() - st::boxButtonPadding.top() - st::lineWidth, width(), st::lineWidth);
+	_add.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _add.height());
+	_share.moveToRight(st::boxButtonPadding.right(), _add.y());
+	if (_add.isHidden() && _share.isHidden()) {
+		_cancel.moveToRight(st::boxButtonPadding.right(), _add.y());
+	} else if (_add.isHidden()) {
+		_cancel.moveToRight(st::boxButtonPadding.right() + _share.width() + st::boxButtonPadding.left(), _add.y());
+	} else {
+		_cancel.moveToRight(st::boxButtonPadding.right() + _add.width() + st::boxButtonPadding.left(), _add.y());
+	}
 }

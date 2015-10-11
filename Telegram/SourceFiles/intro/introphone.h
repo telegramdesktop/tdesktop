@@ -53,7 +53,6 @@ public:
 public slots:
 
 	void countryChanged();
-	void onSelectClose();
 	void onInputChange();
 	void onSubmitPhone(bool force = false);
 	void onCheckRequest();
@@ -76,7 +75,7 @@ private:
 	QRect textRect;
 
 	CountryInput country;
-	PhoneInput phone;
+	PhonePartInput phone;
 	CountryCodeInput code;
 
 	FlatLabel _signup;

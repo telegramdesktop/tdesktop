@@ -20,13 +20,13 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtWidgets/QWidget>
 #include "style.h"
 
 #include "gui/flatinput.h"
 #include "gui/scrollarea.h"
 #include "gui/flatbutton.h"
 #include "gui/boxshadow.h"
+#include "boxes/abstractbox.h"
 
 QString findValidCode(QString fullCode);
 
@@ -51,12 +51,10 @@ public slots:
 
 	void onChooseCode(const QString &code);
 	bool onChooseCountry(const QString &country);
-	void onFinishCountry();
 
 signals:
 
 	void codeChanged(const QString &code);
-	void selectClosed();
 
 private:
 
@@ -72,6 +70,89 @@ private:
 
 };
 
+class CountrySelectInner : public TWidget {
+	Q_OBJECT
+
+public:
+
+	CountrySelectInner();
+	void paintEvent(QPaintEvent *e);
+	void enterEvent(QEvent *e);
+	void leaveEvent(QEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+	void mousePressEvent(QMouseEvent *e);
+
+	void updateFilter(QString filter = QString());
+
+	void selectSkip(int32 dir);
+	void selectSkipPage(int32 h, int32 dir);
+
+	void chooseCountry();
+	
+	void refresh();
+
+signals:
+
+	void countryChosen(const QString &iso);
+	void mustScrollTo(int ymin, int ymax);
+
+public slots:
+
+	void updateSel();
+
+private:
+
+	void updateSelectedRow();
+
+	int32 _rowHeight;
+
+	int32 _sel;
+	QString _filter;
+	bool _mouseSel;
+
+	QPoint _lastMousePos;
+};
+
+class CountrySelectBox : public ItemListBox {
+	Q_OBJECT
+
+public:
+
+	CountrySelectBox();
+	void keyPressEvent(QKeyEvent *e);
+	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
+
+	void setInnerFocus() {
+		_filter.setFocus();
+	}
+
+signals:
+
+	void countryChosen(const QString &iso);
+
+public slots:
+
+	void onFilterUpdate();
+	void onFilterCancel();
+	void onSubmit();
+
+protected:
+
+	void showDone();
+	void hideAll();
+	void showAll();
+
+private:
+
+	CountrySelectInner _inner;
+	InputField _filter;
+	IconedButton _filterCancel;
+
+	ScrollableBoxShadow _topShadow;
+};
+
+/** /
 class CountryList : public QWidget {
 	Q_OBJECT
 
@@ -153,7 +234,7 @@ private:
 	FlatInput _filter;
 	ScrollArea _scroll;
 	CountryList _list;
-	FlatButton _doneButton, _cancelButton;
+	BoxButton _doneButton, _cancelButton;
 	int32 _innerLeft, _innerTop, _innerWidth, _innerHeight;
 
 	anim::fvalue a_alpha, a_bgAlpha;
@@ -164,3 +245,4 @@ private:
 	BoxShadow _shadow;
 
 };
+*/

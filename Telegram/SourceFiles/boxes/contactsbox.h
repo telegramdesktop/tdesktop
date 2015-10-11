@@ -22,12 +22,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 
-enum CreatingGroupType {
-	CreatingGroupNone,
-	CreatingGroupGroup,
-	CreatingGroupChannel,
-};
-
 enum MembersFilter {
 	MembersFilterRecent,
 	MembersFilterAdmins,
@@ -96,6 +90,7 @@ signals:
 	void searchByUsername();
 	void chosenChanged();
 	void adminAdded();
+	void addRequested();
 
 public slots:
 
@@ -114,6 +109,9 @@ private:
 	void updateSelectedRow();
 	void addAdminDone(const MTPBool &result, mtpRequestId req);
 	bool addAdminFail(const RPCError &error, mtpRequestId req);
+
+	int32 _rowHeight, _newItemHeight;
+	bool _newItemSel;
 
 	ChatData *_chat;
 	ChannelData *_channel;
@@ -194,9 +192,10 @@ signals:
 public slots:
 
 	void onFilterUpdate();
+	void onFilterCancel();
+	void onChosenChanged();
 	void onScroll();
 
-	void onAdd();
 	void onInvite();
 	void onCreate();
 
@@ -214,11 +213,13 @@ private:
 	void init();
 
 	ContactsInner _inner;
-	FlatButton _addContact;
-	FlatInput _filter;
+	InputField _filter;
+	IconedButton _filterCancel;
 
-	FlatButton _next, _cancel;
+	BoxButton _next, _cancel;
 	MembersFilter _membersFilter;
+
+	ScrollableBoxShadow _topShadow, *_bottomShadow;
 
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
 	bool peopleFailed(const RPCError &error, mtpRequestId req);
@@ -286,7 +287,7 @@ public:
 signals:
 
 	void mustScrollTo(int ymin, int ymax);
-
+	void addRequested();
 	void loaded();
 
 public slots:
@@ -313,6 +314,9 @@ private:
 	void removeKicked();
 
 	void clear();
+
+	int32 _rowHeight, _newItemHeight;
+	bool _newItemSel;
 
 	ChannelData *_channel;
 	MembersFilter _filter;
@@ -374,7 +378,6 @@ public:
 
 public slots:
 
-	void onLoaded();
 	void onScroll();
 
 	void onAdd();
@@ -382,179 +385,13 @@ public slots:
 
 protected:
 
-	void hideAll();
-	void showAll();
 	void showDone();
 
 private:
 
 	MembersInner _inner;
-	FlatButton _add, _done;
 
 	ContactsBox *_addBox;
 
 	SingleTimer _loadTimer;
-};
-
-class NewGroupBox : public AbstractBox {
-	Q_OBJECT
-
-public:
-
-	NewGroupBox();
-	void keyPressEvent(QKeyEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-
-public slots:
-
-	void onNext();
-
-protected:
-
-	void hideAll();
-	void showAll();
-	void showDone();
-
-private:
-
-	Radiobutton _group, _channel;
-	int32 _aboutGroupWidth, _aboutGroupHeight;
-	Text _aboutGroup, _aboutChannel;
-	BoxButton _next, _cancel;
-
-};
-
-class GroupInfoBox : public AbstractBox, public RPCSender {
-	Q_OBJECT
-
-public:
-
-	GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void leaveEvent(QEvent *e);
-
-	bool animStep_photoOver(float64 ms);
-
-	void setInnerFocus() {
-		_title.setFocus();
-	}
-
-public slots:
-
-	void onPhoto();
-	void onPhotoReady(const QImage &img);
-
-	void onNext();
-	void onNameSubmit();
-	void onDescriptionResized();
-
-protected:
-
-	void hideAll();
-	void showAll();
-	void showDone();
-
-private:
-
-	QRect photoRect() const;
-
-	void updateMaxHeight();
-	void updateSelected(const QPoint &cursorGlobalPosition);
-	CreatingGroupType _creating;
-
-	anim::fvalue a_photoOver;
-	Animation _a_photoOver;
-	bool _photoOver;
-
-	InputField _title;
-	InputArea _description;
-
-	QImage _photoBig;
-	QPixmap _photoSmall;
-	BoxButton _next, _cancel;
-
-	// channel creation
-	int32 _creationRequestId;
-	ChannelData *_createdChannel;
-
-	void creationDone(const MTPUpdates &updates);
-	bool creationFail(const RPCError &e);
-	void exportDone(const MTPExportedChatInvite &result);
-};
-
-class SetupChannelBox : public AbstractBox, public RPCSender {
-	Q_OBJECT
-
-public:
-
-	SetupChannelBox(ChannelData *channel, bool existing = false);
-	void keyPressEvent(QKeyEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void leaveEvent(QEvent *e);
-
-	void closePressed();
-
-	void setInnerFocus() {
-		if (_link.isHidden()) {
-			setFocus();
-		} else {
-			_link.setFocus();
-		}
-	}
-
-public slots:
-
-	void onSave();
-	void onChange();
-	void onCheck();
-
-	void onPrivacyChange();
-
-protected:
-
-	void hideAll();
-	void showAll();
-	void showDone();
-
-private:
-
-	void updateSelected(const QPoint &cursorGlobalPosition);
-	bool animStep_goodFade(float64 ms);
-
-	void onUpdateDone(const MTPBool &result);
-	bool onUpdateFail(const RPCError &error);
-
-	void onCheckDone(const MTPBool &result);
-	bool onCheckFail(const RPCError &error);
-	bool onFirstCheckFail(const RPCError &error);
-
-	ChannelData *_channel;
-	bool _existing;
-
-	Radiobutton _public, _private;
-	Checkbox _comments;
-	int32 _aboutPublicWidth, _aboutPublicHeight;
-	Text _aboutPublic, _aboutPrivate, _aboutComments;
-	UsernameInput _link;
-	QRect _invitationLink;
-	bool _linkOver;
-	BoxButton _save, _skip;
-
-	bool _tooMuchUsernames;
-
-	mtpRequestId _saveRequestId, _checkRequestId;
-	QString _sentUsername, _checkUsername, _errorText, _goodText;
-
-	QString _goodTextLink;
-	anim::fvalue a_goodOpacity;
-	Animation _a_goodFade;
-
-	QTimer _checkTimer;
 };

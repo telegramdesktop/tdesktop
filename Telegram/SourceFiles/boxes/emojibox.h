@@ -30,19 +30,12 @@ public:
 	EmojiBox();
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-
-protected:
-
-	void hideAll();
-	void showAll();
 
 private:
 
 	void fillBlocks();
 
 	int32 _esize;
-	BottomButton _done;
 
 	int32 _blockHeight;
 	struct Block {

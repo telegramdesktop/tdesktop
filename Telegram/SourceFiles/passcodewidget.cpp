@@ -186,7 +186,7 @@ void PasscodeWidget::paintEvent(QPaintEvent *e) {
 		p.drawText(QRect(0, _passcode.y() - st::passcodeHeaderHeight, width(), st::passcodeHeaderHeight), lang(lng_passcode_enter), style::al_center);
 
 		if (!_error.isEmpty()) {
-			p.setFont(st::boxFont->f);
+			p.setFont(st::boxTextFont->f);
 			p.setPen(st::setErrColor->p);
 			p.drawText(QRect(0, _passcode.y() + _passcode.height(), width(), st::usernameSkip), _error, style::al_center);
 		}

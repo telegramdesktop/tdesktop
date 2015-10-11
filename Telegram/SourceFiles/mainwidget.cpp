@@ -91,8 +91,8 @@ void TopBarWidget::onEdit() {
 			App::wnd()->showLayer(new EditChannelBox(p->asChannel()));
 		} else if (p->isChat()) {
 			App::wnd()->showLayer(new EditNameTitleBox(p));
-		} else {
-			App::wnd()->showLayer(new AddContactBox(p));
+		} else if (p->isUser()) {
+			App::wnd()->showLayer(new AddContactBox(p->asUser()));
 		}
 	}
 }

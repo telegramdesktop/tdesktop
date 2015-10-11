@@ -33,7 +33,7 @@ DownloadPathBox::DownloadPathBox() :
 	_dir(this, qsl("dir_type"), 2, lang(lng_download_path_dir_radio), !_path.isEmpty() && _path != qsl("tmp")),
 	_pathLink(this, QString(), st::defaultBoxLinkButton),
 	_save(this, lang(lng_connection_save), st::defaultBoxButton),
-	_cancel(this, lang(lng_box_cancel), st::cancelBoxButton) {
+	_cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 
 	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -143,6 +143,6 @@ void DownloadPathBox::onSave() {
 }
 
 void DownloadPathBox::setPathText(const QString &text) {
-	int32 availw = st::boxWideWidth - st::boxPadding.left() - st::defaultRadiobutton.textPosition.x() - (st::boxButtonPadding.right() - (st::defaultBoxButton.width / 2));
+	int32 availw = st::boxWideWidth - st::boxPadding.left() - st::defaultRadiobutton.textPosition.x() - st::boxPadding.right();
 	_pathLink.setText(st::boxTextFont->elided(text, availw));
 }

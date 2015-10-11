@@ -135,12 +135,12 @@ private:
 
 };
 
-class PhoneInput : public FlatInput {
+class PhonePartInput : public FlatInput {
 	Q_OBJECT
 
 public:
 
-	PhoneInput(QWidget *parent, const style::flatInput &st);
+	PhonePartInput(QWidget *parent, const style::flatInput &st);
 
 	void paintEvent(QPaintEvent *e);
 	void keyPressEvent(QKeyEvent *e);
@@ -203,6 +203,7 @@ public:
 	bool isRedoAvailable() const;
 
 	void customUpDown(bool isCustom);
+	void setCtrlEnterSubmit(bool ctrlEnterSubmit);
 
 	void setTextCursor(const QTextCursor &cursor) {
 		return _inner.setTextCursor(cursor);
@@ -333,6 +334,10 @@ public:
 	void contextMenuEvent(QContextMenuEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
+	void setMaxLength(int32 maxLength) {
+		_maxLength = maxLength;
+	}
+
 	void showError();
 
 	const QString &getLastText() const {
@@ -396,6 +401,8 @@ public slots:
 
 	void onUndoAvailable(bool avail);
 	void onRedoAvailable(bool avail);
+
+	void selectAll();
 
 signals:
 
@@ -499,7 +506,7 @@ public:
 
 	void showError();
 
-	void setPlaceholder(const QString &ph);
+	bool setPlaceholder(const QString &ph);
 	void setPlaceholderFast(bool fast);
 	void updatePlaceholder();
 
@@ -591,9 +598,14 @@ private:
 	QPoint _touchStart;
 };
 
-class PortInput : public MaskedInputField {
-	Q_OBJECT
+class PasswordField : public MaskedInputField {
+public:
 
+	PasswordField(QWidget *parent, const style::InputField &st, const QString &ph = QString(), const QString &val = QString());
+
+};
+
+class PortInput : public MaskedInputField {
 public:
 
 	PortInput(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val);
@@ -617,5 +629,25 @@ protected:
 private:
 
 	QString _linkPlaceholder;
+
+};
+
+class PhoneInput : public MaskedInputField {
+public:
+
+	PhoneInput(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val);
+
+	void focusInEvent(QFocusEvent *e);
+	void clearText();
+
+protected:
+
+	void paintPlaceholder(Painter &p);
+	void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor);
+
+private:
+
+	QString _defaultPlaceholder;
+	QVector<int> pattern;
 
 };

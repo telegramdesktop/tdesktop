@@ -37,7 +37,7 @@ _httpProxyRadio(this, qsl("conn_type"), dbictHttpProxy, lang(lng_connection_http
 _tcpProxyRadio(this, qsl("conn_type"), dbictTcpProxy, lang(lng_connection_tcp_proxy_rb), (cConnectionType() == dbictTcpProxy)),
 _tryIPv6(this, lang(lng_connection_try_ipv6), cTryIPv6()),
 _save(this, lang(lng_connection_save), st::defaultBoxButton),
-_cancel(this, lang(lng_box_cancel), st::cancelBoxButton) {
+_cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 
 	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -50,8 +50,6 @@ _cancel(this, lang(lng_box_cancel), st::cancelBoxButton) {
 	connect(&_portInput, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(&_userInput, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(&_passwordInput, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-
-	_passwordInput.setEchoMode(QLineEdit::Password);
 
 	prepare();
 }
@@ -128,9 +126,9 @@ void ConnectionBox::resizeEvent(QResizeEvent *e) {
 
 	if (inputy) {
 		_hostInput.moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left() + st::defaultRadiobutton.textPosition.x() - st::defaultInputField.textMargins.left(), inputy);
-		_portInput.moveToRight(st::boxButtonPadding.right() - (st::defaultBoxButton.width / 2), inputy);
+		_portInput.moveToRight(st::boxPadding.right(), inputy);
 		_userInput.moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left() + st::defaultRadiobutton.textPosition.x() - st::defaultInputField.textMargins.left(), _hostInput.y() + _hostInput.height() + st::boxOptionListPadding.top());
-		_passwordInput.moveToRight(st::boxButtonPadding.right() - (st::defaultBoxButton.width / 2), _userInput.y());
+		_passwordInput.moveToRight(st::boxPadding.right(), _userInput.y());
 	}
 
 	int32 tryipv6y = (_tcpProxyRadio.checked() ? (_userInput.y() + _userInput.height()) : (_tcpProxyRadio.y() + _tcpProxyRadio.height())) + st::boxOptionListPadding.top() + st::connectionIPv6Skip;

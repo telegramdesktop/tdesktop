@@ -29,14 +29,14 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 PasscodeBox::PasscodeBox(bool turningOff) : _replacedBy(0), _turningOff(turningOff), _cloudPwd(false),
 _setRequest(0), _hasRecovery(false), _skipEmailWarning(false), _aboutHeight(0),
-_about(st::boxWideWidth - st::addContactPadding.left() - st::addContactPadding.right()),
-_saveButton(this, lang(_turningOff ? lng_passcode_remove_button : lng_settings_save), st::btnSelectDone),
-_cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
-_oldPasscode(this, st::inpAddContact, lang(lng_passcode_enter_old)),
-_newPasscode(this, st::inpAddContact, lang(cHasPasscode() ? lng_passcode_enter_new : lng_passcode_enter_first)),
-_reenterPasscode(this, st::inpAddContact, lang(lng_passcode_confirm_new)),
-_passwordHint(this, st::inpAddContact, lang(lng_cloud_password_hint)),
-_recoverEmail(this, st::inpAddContact, lang(lng_cloud_password_email)),
+_about(st::boxWideWidth - st::boxPadding.left() - st::boxPadding.right()),
+_saveButton(this, lang(_turningOff ? lng_passcode_remove_button : lng_settings_save), st::defaultBoxButton),
+_cancelButton(this, lang(lng_cancel), st::cancelBoxButton),
+_oldPasscode(this, st::defaultInputField, lang(lng_passcode_enter_old)),
+_newPasscode(this, st::defaultInputField, lang(cHasPasscode() ? lng_passcode_enter_new : lng_passcode_enter_first)),
+_reenterPasscode(this, st::defaultInputField, lang(lng_passcode_confirm_new)),
+_passwordHint(this, st::defaultInputField, lang(lng_cloud_password_hint)),
+_recoverEmail(this, st::defaultInputField, lang(lng_cloud_password_email)),
 _recover(this, lang(lng_signin_recover)) {
 	init();
 	prepare();
@@ -44,14 +44,14 @@ _recover(this, lang(lng_signin_recover)) {
 
 PasscodeBox::PasscodeBox(const QByteArray &newSalt, const QByteArray &curSalt, bool hasRecovery, const QString &hint, bool turningOff) : _replacedBy(0), _turningOff(turningOff), _cloudPwd(true),
 _setRequest(0), _newSalt(newSalt), _curSalt(curSalt), _hasRecovery(hasRecovery), _skipEmailWarning(false), _hint(hint), _aboutHeight(0),
-_about(st::boxWideWidth - st::addContactPadding.left() - st::addContactPadding.right()),
-_saveButton(this, lang(_turningOff ? lng_passcode_remove_button : lng_settings_save), st::btnSelectDone),
-_cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
-_oldPasscode(this, st::inpAddContact, lang(lng_cloud_password_enter_old)),
-_newPasscode(this, st::inpAddContact, lang(curSalt.isEmpty() ? lng_cloud_password_enter_first : lng_cloud_password_enter_new)),
-_reenterPasscode(this, st::inpAddContact, lang(lng_cloud_password_confirm_new)),
-_passwordHint(this, st::inpAddContact, lang(lng_cloud_password_hint)),
-_recoverEmail(this, st::inpAddContact, lang(lng_cloud_password_email)),
+_about(st::boxWideWidth - st::boxPadding.left() - st::boxPadding.right()),
+_saveButton(this, lang(_turningOff ? lng_passcode_remove_button : lng_settings_save), st::defaultBoxButton),
+_cancelButton(this, lang(lng_cancel), st::cancelBoxButton),
+_oldPasscode(this, st::defaultInputField, lang(lng_cloud_password_enter_old)),
+_newPasscode(this, st::defaultInputField, lang(curSalt.isEmpty() ? lng_cloud_password_enter_first : lng_cloud_password_enter_new)),
+_reenterPasscode(this, st::defaultInputField, lang(lng_cloud_password_confirm_new)),
+_passwordHint(this, st::defaultInputField, lang(lng_cloud_password_hint)),
+_recoverEmail(this, st::defaultInputField, lang(lng_cloud_password_email)),
 _recover(this, lang(lng_signin_recover)) {
 	init();
 	prepare();
@@ -60,24 +60,24 @@ _recover(this, lang(lng_signin_recover)) {
 void PasscodeBox::init() {
 	_about.setRichText(st::normalFont, lang(_cloudPwd ? lng_cloud_password_about : lng_passcode_about));
 	if (!_hint.isEmpty()) _hintText.setText(st::normalFont, lng_signin_hint(lt_password_hint, _hint));
-	_aboutHeight = _about.countHeight(st::boxWideWidth - st::addContactPadding.left() - st::addContactPadding.right());
+	_aboutHeight = _about.countHeight(st::boxWideWidth - st::boxPadding.left() - st::boxPadding.right());
 	_oldPasscode.setEchoMode(QLineEdit::Password);
 	_newPasscode.setEchoMode(QLineEdit::Password);
 	_reenterPasscode.setEchoMode(QLineEdit::Password);
 	if (_turningOff) {
 		_oldPasscode.show();
 		_boxTitle = lang(_cloudPwd ? lng_cloud_password_remove : lng_passcode_remove);
-		setMaxHeight(st::old_boxTitleHeight + st::addContactPadding.top() + 1 * _oldPasscode.height() + st::usernameSkip + _aboutHeight + (_hasRecovery ? ((st::usernameSkip + _recover.height()) / 2) : 0) + st::addContactPadding.bottom() + _saveButton.height());
+		setMaxHeight(st::boxTitleHeight + st::contactPadding.top() + 1 * _oldPasscode.height() + st::usernameSkip + _aboutHeight + (_hasRecovery ? ((st::usernameSkip + _recover.height()) / 2) : 0) + st::contactPadding.bottom() + _saveButton.height());
 	} else {
 		bool has = _cloudPwd ? (!_curSalt.isEmpty()) : cHasPasscode();
 		if (has) {
 			_oldPasscode.show();
 			_boxTitle = lang(_cloudPwd ? lng_cloud_password_change : lng_passcode_change);
-			setMaxHeight(st::old_boxTitleHeight + st::addContactPadding.top() + 3 * _oldPasscode.height() + st::usernameSkip * 2 + 1 * st::addContactSkip + (_cloudPwd ? _passwordHint.height() + st::addContactSkip : 0) + _aboutHeight + (_hasRecovery ? ((st::usernameSkip + _recover.height()) / 2) : 0) + st::addContactPadding.bottom() + _saveButton.height());
+			setMaxHeight(st::boxTitleHeight + st::contactPadding.top() + 3 * _oldPasscode.height() + st::usernameSkip * 2 + 1 * st::contactSkip + (_cloudPwd ? _passwordHint.height() + st::contactSkip : 0) + _aboutHeight + (_hasRecovery ? ((st::usernameSkip + _recover.height()) / 2) : 0) + st::contactPadding.bottom() + _saveButton.height());
 		} else {
 			_oldPasscode.hide();
 			_boxTitle = lang(_cloudPwd ? lng_cloud_password_create : lng_passcode_create);
-			setMaxHeight(st::old_boxTitleHeight + st::addContactPadding.top() + 2 * _oldPasscode.height() + st::usernameSkip + 1 * st::addContactSkip + (_cloudPwd ? _passwordHint.height() + st::addContactSkip : 0) + _aboutHeight + (_cloudPwd ? st::addContactSkip + _recoverEmail.height() + st::usernameSkip : st::addContactPadding.bottom()) + _saveButton.height());
+			setMaxHeight(st::boxTitleHeight + st::contactPadding.top() + 2 * _oldPasscode.height() + st::usernameSkip + 1 * st::contactSkip + (_cloudPwd ? _passwordHint.height() + st::contactSkip : 0) + _aboutHeight + (_cloudPwd ? st::contactSkip + _recoverEmail.height() + st::usernameSkip : st::contactPadding.bottom()) + _saveButton.height());
 		}
 	}
 
@@ -158,12 +158,12 @@ void PasscodeBox::keyPressEvent(QKeyEvent *e) {
 		} else if (_reenterPasscode.hasFocus()) {
 			if (has && _oldPasscode.text().isEmpty()) {
 				_oldPasscode.setFocus();
-				_oldPasscode.notaBene();
+				_oldPasscode.showError();
 			} else if (_newPasscode.text().isEmpty()) {
 				_newPasscode.setFocus();
-				_newPasscode.notaBene();
+				_newPasscode.showError();
 			} else if (_reenterPasscode.text().isEmpty()) {
-				_reenterPasscode.notaBene();
+				_reenterPasscode.showError();
 			} else if (!_passwordHint.isHidden()) {
 				_passwordHint.setFocus();
 			} else {
@@ -187,19 +187,16 @@ void PasscodeBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
 
-	paintOldTitle(p, _boxTitle, true);
+	paintTitle(p, _boxTitle);
 
-	// paint shadow
-	p.fillRect(0, height() - st::btnSelectCancel.height - st::scrollDef.bottomsh, width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
-
-	int32 w = width() - st::addContactPadding.left() - st::addContactPadding.right();
-	int32 abouty = (_passwordHint.isHidden() ? (_reenterPasscode.isHidden() ? _oldPasscode : _reenterPasscode).y() + st::usernameSkip : _passwordHint.y() + st::addContactSkip) + _oldPasscode.height();
+	int32 w = width() - st::boxPadding.left() - st::boxPadding.right();
+	int32 abouty = (_passwordHint.isHidden() ? (_reenterPasscode.isHidden() ? _oldPasscode : _reenterPasscode).y() + st::usernameSkip : _passwordHint.y() + st::contactSkip) + _oldPasscode.height();
 	p.setPen(st::black);
-	_about.draw(p, st::addContactPadding.left(), abouty, w);
+	_about.draw(p, st::boxPadding.left(), abouty, w);
 
 	if (!_hint.isEmpty() && _oldError.isEmpty()) {
 		p.setPen(st::black->p);
-		_hintText.drawElided(p, st::addContactPadding.left(), _oldPasscode.y() + _oldPasscode.height() + ((st::usernameSkip - st::normalFont->height) / 2), w, 1, style::al_top);
+		_hintText.drawElided(p, st::boxPadding.left(), _oldPasscode.y() + _oldPasscode.height() + ((st::usernameSkip - st::normalFont->height) / 2), w, 1, style::al_top);
 	}
 
 	if (!_oldError.isEmpty()) {
@@ -216,25 +213,22 @@ void PasscodeBox::paintEvent(QPaintEvent *e) {
 		p.setPen(st::setErrColor->p);
 		p.drawText(QRect(0, _recoverEmail.y() + _recoverEmail.height(), width(), st::usernameSkip), _emailError, style::al_center);
 	}
-
-	// paint button sep
-	p.fillRect(st::btnSelectCancel.width, size().height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
 }
 
 void PasscodeBox::resizeEvent(QResizeEvent *e) {
 	bool has = _cloudPwd ? (!_curSalt.isEmpty()) : cHasPasscode();
-	_oldPasscode.setGeometry(st::addContactPadding.left(), st::old_boxTitleHeight + st::addContactPadding.top(), width() - st::addContactPadding.left() - st::addContactPadding.right(), _oldPasscode.height());
-	_newPasscode.setGeometry(st::addContactPadding.left(), _oldPasscode.y() + ((_turningOff || has) ? (_oldPasscode.height() + st::usernameSkip) : 0), _oldPasscode.width(), _oldPasscode.height());
-	_reenterPasscode.setGeometry(st::addContactPadding.left(), _newPasscode.y() + _newPasscode.height() + st::addContactSkip, _newPasscode.width(), _newPasscode.height());
-	_passwordHint.setGeometry(st::addContactPadding.left(), _reenterPasscode.y() + _reenterPasscode.height() + st::usernameSkip, _reenterPasscode.width(), _reenterPasscode.height());
+	_oldPasscode.setGeometry(st::boxPadding.left(), st::boxTitleHeight + st::contactPadding.top(), width() - st::boxPadding.left() - st::boxPadding.right(), _oldPasscode.height());
+	_newPasscode.setGeometry(st::boxPadding.left(), _oldPasscode.y() + ((_turningOff || has) ? (_oldPasscode.height() + st::usernameSkip) : 0), _oldPasscode.width(), _oldPasscode.height());
+	_reenterPasscode.setGeometry(st::boxPadding.left(), _newPasscode.y() + _newPasscode.height() + st::contactSkip, _newPasscode.width(), _newPasscode.height());
+	_passwordHint.setGeometry(st::boxPadding.left(), _reenterPasscode.y() + _reenterPasscode.height() + st::usernameSkip, _reenterPasscode.width(), _reenterPasscode.height());
 
-	_recoverEmail.setGeometry(st::addContactPadding.left(), _passwordHint.y() + _passwordHint.height() + st::addContactSkip + _aboutHeight + st::addContactSkip, _passwordHint.width(), _passwordHint.height());
+	_recoverEmail.setGeometry(st::boxPadding.left(), _passwordHint.y() + _passwordHint.height() + st::contactSkip + _aboutHeight + st::contactSkip, _passwordHint.width(), _passwordHint.height());
 
 	if (!_recover.isHidden()) {
 		if (_turningOff) {
 			_recover.move((width() - _recover.width()) / 2, _oldPasscode.y() + _oldPasscode.height() + st::usernameSkip + _aboutHeight + ((st::usernameSkip - _recover.height()) / 2));
 		} else {
-			_recover.move((width() - _recover.width()) / 2, _passwordHint.y() + _passwordHint.height() + st::addContactSkip + _aboutHeight + ((st::usernameSkip - _recover.height()) / 2));
+			_recover.move((width() - _recover.width()) / 2, _passwordHint.y() + _passwordHint.height() + st::contactSkip + _aboutHeight + ((st::usernameSkip - _recover.height()) / 2));
 		}
 	}
 
@@ -274,7 +268,7 @@ bool PasscodeBox::setPasswordFail(const RPCError &error) {
 		}
 	} else if (err == "NEW_PASSWORD_BAD") {
 		_newPasscode.setFocus();
-		_newPasscode.notaBene();
+		_newPasscode.showError();
 		_newError = lang(lng_cloud_password_bad);
 		update();
 	} else if (err == "NEW_SALT_INVALID") {
@@ -283,7 +277,7 @@ bool PasscodeBox::setPasswordFail(const RPCError &error) {
 	} else if (err == "EMAIL_INVALID") {
 		_emailError = lang(lng_cloud_password_bad_email);
 		_recoverEmail.setFocus();
-		_recoverEmail.notaBene();
+		_recoverEmail.showError();
 		update();
 	} else if (err == "EMAIL_UNCONFIRMED") {
 		App::wnd()->showLayer(new InformBox(lang(lng_cloud_password_almost)));
@@ -293,7 +287,7 @@ bool PasscodeBox::setPasswordFail(const RPCError &error) {
 
 		_oldPasscode.selectAll();
 		_oldPasscode.setFocus();
-		_oldPasscode.notaBene();
+		_oldPasscode.showError();
 		_oldError = lang(lng_flood_error);
 	}
 	return true;
@@ -308,7 +302,7 @@ void PasscodeBox::onSave(bool force) {
 		if (!passcodeCanTry()) {
 			_oldError = lang(lng_flood_error);
 			_oldPasscode.setFocus();
-			_oldPasscode.notaBene();
+			_oldPasscode.showError();
 			update();
 			return;
 		}
@@ -325,13 +319,13 @@ void PasscodeBox::onSave(bool force) {
 	}
 	if (!_turningOff && pwd.isEmpty()) {
 		_newPasscode.setFocus();
-		_newPasscode.notaBene();
+		_newPasscode.showError();
 		if (isHidden() && _replacedBy && !_replacedBy->isHidden()) _replacedBy->onClose();
 		return;
 	}
 	if (pwd != conf) {
 		_reenterPasscode.setFocus();
-		_reenterPasscode.notaBene();
+		_reenterPasscode.showError();
 		if (!conf.isEmpty()) {
 			_newError = lang(_cloudPwd ? lng_cloud_password_differ : lng_passcode_differ);
 			update();
@@ -339,15 +333,15 @@ void PasscodeBox::onSave(bool force) {
 		if (isHidden() && _replacedBy && !_replacedBy->isHidden()) _replacedBy->onClose();
 	} else if (!_turningOff && has && old == pwd) {
 		_newPasscode.setFocus();
-		_newPasscode.notaBene();
+		_newPasscode.showError();
 		_newError = lang(_cloudPwd ? lng_cloud_password_is_same : lng_passcode_is_same);
 		update();
 		if (isHidden() && _replacedBy && !_replacedBy->isHidden()) _replacedBy->onClose();
 	} else if (_cloudPwd) {
-		QString hint = _passwordHint.text(), email = _recoverEmail.text().trimmed();
+		QString hint = _passwordHint.getLastText(), email = _recoverEmail.getLastText().trimmed();
 		if (_cloudPwd && pwd == hint && !_passwordHint.isHidden() && !_newPasscode.isHidden()) {
 			_newPasscode.setFocus();
-			_newPasscode.notaBene();
+			_newPasscode.showError();
 			_newError = lang(lng_cloud_password_bad);
 			update();
 			if (isHidden() && _replacedBy && !_replacedBy->isHidden()) _replacedBy->onClose();
@@ -392,7 +386,7 @@ void PasscodeBox::onSave(bool force) {
 void PasscodeBox::onBadOldPasscode() {
 	_oldPasscode.selectAll();
 	_oldPasscode.setFocus();
-	_oldPasscode.notaBene();
+	_oldPasscode.showError();
 	_oldError = lang(_cloudPwd ? lng_cloud_password_wrong : lng_passcode_wrong);
 	update();
 }
@@ -465,11 +459,11 @@ bool PasscodeBox::recoverStartFail(const RPCError &error) {
 }
 
 RecoverBox::RecoverBox(const QString &pattern) :
-_submitRequest(0), _pattern(st::normalFont->elided(lng_signin_recover_hint(lt_recover_email, pattern), st::boxWideWidth - st::addContactPadding.left() - st::addContactPadding.right())),
-_saveButton(this, lang(lng_passcode_submit), st::btnSelectDone),
-_cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
-_recoverCode(this, st::inpAddContact, lang(lng_signin_code)) {
-	setMaxHeight(st::old_boxTitleHeight + st::addContactPadding.top() + st::usernameSkip + _recoverCode.height() + st::usernameSkip + st::addContactPadding.bottom() + _saveButton.height());
+_submitRequest(0), _pattern(st::normalFont->elided(lng_signin_recover_hint(lt_recover_email, pattern), st::boxWideWidth - st::boxPadding.left() - st::boxPadding.right())),
+_saveButton(this, lang(lng_passcode_submit), st::defaultBoxButton),
+_cancelButton(this, lang(lng_cancel), st::cancelBoxButton),
+_recoverCode(this, st::defaultInputField, lang(lng_signin_code)) {
+	setMaxHeight(st::boxTitleHeight + st::contactPadding.top() + st::usernameSkip + _recoverCode.height() + st::usernameSkip + st::contactPadding.bottom() + _saveButton.height());
 
 	connect(&_saveButton, SIGNAL(clicked()), this, SLOT(onSubmit()));
 	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -493,9 +487,9 @@ void RecoverBox::showAll() {
 
 void RecoverBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		if (_recoverCode.text().isEmpty()) {
+		if (_recoverCode.getLastText().isEmpty()) {
 			_recoverCode.setFocus();
-			_recoverCode.notaBene();
+			_recoverCode.showError();
 		} else {
 			onSubmit();
 		}
@@ -508,26 +502,20 @@ void RecoverBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
 
-	paintOldTitle(p, lang(lng_signin_recover), true);
-
-	// paint shadow
-	p.fillRect(0, height() - st::btnSelectCancel.height - st::scrollDef.bottomsh, width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
+	paintTitle(p, lang(lng_signin_recover));
 
 	p.setFont(st::normalFont->f);
-	int32 w = width() - st::addContactPadding.left() - st::addContactPadding.right();
-	p.drawText(QRect(st::addContactPadding.left(), _recoverCode.y() - st::usernameSkip - st::addContactPadding.top(), w, st::addContactPadding.top() + st::usernameSkip), _pattern, style::al_center);
+	int32 w = width() - st::boxPadding.left() - st::boxPadding.right();
+	p.drawText(QRect(st::boxPadding.left(), _recoverCode.y() - st::usernameSkip - st::contactPadding.top(), w, st::contactPadding.top() + st::usernameSkip), _pattern, style::al_center);
 
 	if (!_error.isEmpty()) {
 		p.setPen(st::setErrColor->p);
 		p.drawText(QRect(0, _recoverCode.y() + _recoverCode.height(), width(), st::usernameSkip), _error, style::al_center);
 	}
-
-	// paint button sep
-	p.fillRect(st::btnSelectCancel.width, size().height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
 }
 
 void RecoverBox::resizeEvent(QResizeEvent *e) {
-	_recoverCode.setGeometry(st::addContactPadding.left(), st::old_boxTitleHeight + st::addContactPadding.top() + st::usernameSkip, width() - st::addContactPadding.left() - st::addContactPadding.right(), _recoverCode.height());
+	_recoverCode.setGeometry(st::boxPadding.left(), st::boxTitleHeight + st::contactPadding.top() + st::usernameSkip, width() - st::boxPadding.left() - st::boxPadding.right(), _recoverCode.height());
 
 	int32 buttonTop = height() - _cancelButton.height();
 	_cancelButton.move(0, buttonTop);
@@ -541,9 +529,9 @@ void RecoverBox::showDone() {
 void RecoverBox::onSubmit() {
 	if (_submitRequest) return;
 
-	QString code = _recoverCode.text().trimmed();
+	QString code = _recoverCode.getLastText().trimmed();
 	if (code.isEmpty()) {
-		_recoverCode.notaBene();
+		_recoverCode.showError();
 		return;
 	}
 
@@ -580,12 +568,12 @@ bool RecoverBox::codeSubmitFail(const RPCError &error) {
 	} else if (err == "CODE_INVALID") {
 		_error = lang(lng_signin_wrong_code);
 		update();
-		_recoverCode.notaBene();
+		_recoverCode.showError();
 		return true;
 	} else if (mtpIsFlood(error)) {
 		_error = lang(lng_flood_error);
 		update();
-		_recoverCode.notaBene();
+		_recoverCode.showError();
 		return true;
 	}
 	if (cDebug()) { // internal server error

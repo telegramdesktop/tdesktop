@@ -22,6 +22,31 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 #include "layerwidget.h"
 
+class BlueTitleShadow : public TWidget {
+public:
+	BlueTitleShadow(QWidget *parent) : TWidget(parent) {
+	}
+	void paintEvent(QPaintEvent *e);
+};
+
+class BlueTitleClose : public Button {
+	Q_OBJECT
+
+public:
+	BlueTitleClose(QWidget *parent);
+	void paintEvent(QPaintEvent *e);
+
+public slots:
+
+	void onStateChange(int oldState, ButtonStateChangeSource source);
+
+private:
+	bool animStep_over(float64 ms);
+	anim::cvalue a_iconFg;
+	Animation _a_over;
+
+};
+
 class AbstractBox : public LayeredWidget {
 	Q_OBJECT
 
@@ -31,8 +56,12 @@ public:
 	void parentResized();
 	void animStep(float64 ms);
 	void keyPressEvent(QKeyEvent *e);
+	void resizeEvent(QResizeEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void startHide();
+
+	void setBlueTitle(bool blue);
+	void raiseShadow();
 	
 public slots:
 
@@ -42,18 +71,19 @@ protected:
 
 	void prepare();
 	bool paint(QPainter &p);
-	void paintTitle(Painter &p, const QString &title);
-	void paintBlueTitle(Painter &p, const QString &title, const QString &additional = QString());
-	void paintOldTitle(Painter &p, const QString &title, bool withShadow);
-	void paintGrayTitle(QPainter &p, const QString &title);
+	void paintTitle(Painter &p, const QString &title, const QString &additional = QString());
 	void setMaxHeight(int32 maxHeight);
 	void resizeMaxHeight(int32 newWidth, int32 maxHeight);
 
 	virtual void closePressed() {
 	}
 	virtual void hideAll() {
+		if (_blueClose) _blueClose->hide();
+		if (_blueShadow) _blueShadow->hide();
 	}
 	virtual void showAll() {
+		if (_blueClose) _blueClose->show();
+		if (_blueShadow) _blueShadow->show();
 	}
 	virtual void showDone() {
 		setFocus();
@@ -68,17 +98,28 @@ private:
 	QPixmap _cache;
 
 	anim::fvalue a_opacity;
+
+	bool _blueTitle;
+	BlueTitleClose *_blueClose;
+	BlueTitleShadow *_blueShadow;
+};
+
+class ScrollableBoxShadow : public TWidget {
+public:
+	ScrollableBoxShadow(QWidget *parent) : TWidget(parent) {
+	}
+	void paintEvent(QPaintEvent *e);
 };
 
 class ScrollableBox : public AbstractBox {
 public:
 
-	ScrollableBox(const style::flatScroll &scroll);
+	ScrollableBox(const style::flatScroll &scroll, int32 w = st::boxWideWidth);
 	void resizeEvent(QResizeEvent *e);
 	
 protected:
 
-	void init(QWidget *inner, int32 bottomSkip = 0, int32 topSkip = st::old_boxTitleHeight);
+	void init(QWidget *inner, int32 bottomSkip = st::boxScrollSkip, int32 topSkip = st::boxTitleHeight);
 
 	virtual void hideAll();
 	virtual void showAll();
@@ -95,6 +136,12 @@ private:
 class ItemListBox : public ScrollableBox {
 public:
 
-	ItemListBox(const style::flatScroll &scroll);
+	ItemListBox(const style::flatScroll &scroll, int32 w = st::boxWideWidth);
 
+};
+
+enum CreatingGroupType {
+	CreatingGroupNone,
+	CreatingGroupGroup,
+	CreatingGroupChannel,
 };

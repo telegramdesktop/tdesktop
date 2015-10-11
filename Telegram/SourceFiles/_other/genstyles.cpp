@@ -1965,7 +1965,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org\n\
 				while (!already.isEmpty() && (already.size() > k.size() || !already.endsWith(k.at(already.size() - 1)))) {
 					if (!onlyLastChanged) {
 						tnum << QString("\t").repeated(1 + already.size()) << "}\n";
-						tnum << QString("\t").repeated(1 + already.size()) << "return result;\n";
+						tnum << QString("\t").repeated(already.size()) << "break;\n";
 					}
 					already = already.mid(0, already.size() - 1);
 					onlyLastChanged = false;

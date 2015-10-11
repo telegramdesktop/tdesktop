@@ -63,7 +63,6 @@ IntroPhone::IntroPhone(IntroWidget *parent) : IntroStage(parent),
 	connect(&code, SIGNAL(codeChanged(const QString &)), &phone, SLOT(onChooseCode(const QString &)));
 	connect(&country, SIGNAL(codeChanged(const QString &)), &phone, SLOT(onChooseCode(const QString &)));
 	connect(&code, SIGNAL(addedToNumber(const QString &)), &phone, SLOT(addedToNumber(const QString &)));
-	connect(&country, SIGNAL(selectClosed()), this, SLOT(onSelectClose()));
 	connect(&phone, SIGNAL(changed()), this, SLOT(onInputChange()));
 	connect(&code, SIGNAL(changed()), this, SLOT(onInputChange()));
 	connect(intro(), SIGNAL(countryChanged()), this, SLOT(countryChanged()));
@@ -160,10 +159,6 @@ void IntroPhone::countryChanged() {
 	if (!changed) {
 		selectCountry(intro()->currentCountry());
 	}
-}
-
-void IntroPhone::onSelectClose() {
-	phone.setFocus();
 }
 
 void IntroPhone::onInputChange() {

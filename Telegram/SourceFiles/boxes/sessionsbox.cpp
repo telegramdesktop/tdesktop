@@ -164,7 +164,7 @@ _terminateAll(this, lang(lng_sessions_terminate_all)), _terminateBox(0), _shortP
 	connect(App::wnd(), SIGNAL(newAuthorization()), this, SLOT(onNewAuthorization()));
 	connect(&_shortPollTimer, SIGNAL(timeout()), this, SLOT(onShortPollAuthorizations()));
 
-	init(&_inner, _done.height(), st::old_boxTitleHeight + st::sessionHeight + st::old_boxTitleHeight);
+	init(&_inner, _done.height(), st::boxTitleHeight + st::sessionHeight + st::boxTitleHeight);
 	_inner.resize(width(), st::noContactsHeight);
 
 	prepare();
@@ -176,7 +176,7 @@ _terminateAll(this, lang(lng_sessions_terminate_all)), _terminateBox(0), _shortP
 void SessionsBox::resizeEvent(QResizeEvent *e) {
 	ScrollableBox::resizeEvent(e);
 	_done.move(0, height() - _done.height());
-	_terminateAll.moveToRight(st::sessionPadding.left(), st::old_boxTitleHeight + st::sessionHeight + st::old_boxTitlePos.y() + st::old_boxTitleFont->ascent - st::linkFont->ascent);
+	_terminateAll.moveToRight(st::sessionPadding.left(), st::boxTitleHeight + st::sessionHeight + st::boxTitlePosition.y() + st::boxTitleFont->ascent - st::linkFont->ascent);
 }
 
 void SessionsBox::hideAll() {
@@ -204,8 +204,8 @@ void SessionsBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
 
-	paintOldTitle(p, lang(lng_sessions_header), true);
-	p.translate(0, st::old_boxTitleHeight);
+	paintTitle(p, lang(lng_sessions_header));
+	p.translate(0, st::boxTitleHeight);
 
 	if (_loading) {
 		p.setFont(st::noContactsFont->f);
@@ -230,16 +230,16 @@ void SessionsBox::paintEvent(QPaintEvent *e) {
 		p.drawTextLeft(x, st::sessionPadding.top() + st::sessionNameFont->height + st::sessionInfoFont->height, w, _current.ip, _current.ipWidth);
 		p.translate(0, st::sessionHeight);
 		if (_list.isEmpty()) {
-			paintOldTitle(p, lang(lng_sessions_no_other), true);
+			paintTitle(p, lang(lng_sessions_no_other));
 
 			p.setFont(st::sessionInfoFont->f);
 			p.setPen(st::sessionInfoColor->p);
-			p.drawText(QRect(st::sessionPadding.left(), st::old_boxTitleHeight + st::old_boxTitlePos.y(), width() - st::sessionPadding.left() - st::sessionPadding.right(), _scroll.height()), lang(lng_sessions_other_desc), style::al_topleft);
+			p.drawText(QRect(st::sessionPadding.left(), st::boxTitleHeight + st::boxTitlePosition.y(), width() - st::sessionPadding.left() - st::sessionPadding.right(), _scroll.height()), lang(lng_sessions_other_desc), style::al_topleft);
 
 			// paint shadow
-			p.fillRect(0, height() - st::sessionsCloseButton.height - st::scrollDef.bottomsh - st::sessionHeight - st::old_boxTitleHeight, width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
+			p.fillRect(0, height() - st::sessionsCloseButton.height - st::scrollDef.bottomsh - st::sessionHeight - st::boxTitleHeight, width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
 		} else {
-			paintOldTitle(p, lang(lng_sessions_other_header), false);
+			paintTitle(p, lang(lng_sessions_other_header));
 		}
 	}
 }

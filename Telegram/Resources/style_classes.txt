@@ -198,27 +198,6 @@ countryInput {
 	align: align;
 }
 
-countryList {
-	notFoundColor: color;
-	notFoundFont: font;
-	
-	verticalMargin: number;
-
-	font: font;
-	codeFont: font;
-	rowHeight: number;
-	color: color;
-	codeColor: color;
-	bgColor: color;
-	bgHovered: color;
-	margin: number;
-	codeWidth: number;
-
-	borderMargin: number;
-	borderColor: color;
-	borderWidth: number;
-}
-
 slider {
 	color: color;
 	thikness: number;

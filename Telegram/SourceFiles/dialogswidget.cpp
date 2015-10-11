@@ -48,7 +48,8 @@ _addContactLnk(this, lang(lng_add_contact_button)),
 _cancelSearchInPeer(this, st::btnCancelSearch),
 _overDelete(false),
 _searchInPeer(0) {
-	connect(main, SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)));
+	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
+	connect(main, SIGNAL(peerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)));
 	connect(main, SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(onPeerPhotoChanged(PeerData*)));
 	connect(main, SIGNAL(dialogRowReplaced(DialogRow*,DialogRow*)), this, SLOT(onDialogRowReplaced(DialogRow*,DialogRow*)));
 	connect(&_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
@@ -1525,7 +1526,6 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : QWidget(parent)
 	connect(&_addContact, SIGNAL(clicked()), this, SLOT(onAddContact()));
 	connect(&_newGroup, SIGNAL(clicked()), this, SLOT(onNewGroup()));
 	connect(&_cancelSearch, SIGNAL(clicked()), this, SLOT(onCancelSearch()));
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 
 	_chooseByDragTimer.setSingleShot(true);
 	connect(&_chooseByDragTimer, SIGNAL(timeout()), this, SLOT(onChooseByDrag()));

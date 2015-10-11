@@ -28,18 +28,18 @@ class AddContactBox : public AbstractBox, public RPCSender {
 public:
 
 	AddContactBox(QString fname = QString(), QString lname = QString(), QString phone = QString());
-	AddContactBox(PeerData *peer);
-	void keyPressEvent(QKeyEvent *e);
+	AddContactBox(UserData *user);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
 	void setInnerFocus() {
-		_firstInput.setFocus();
+		_first.setFocus();
 	}
 
 public slots:
 
-	void onSend();
+	void onSubmit();
+	void onSave();
 	void onRetry();
 
 protected:
@@ -52,20 +52,17 @@ private:
 
 	void onImportDone(const MTPcontacts_ImportedContacts &res);
 
-	void onSaveSelfDone(const MTPUser &user);
-	bool onSaveSelfFail(const RPCError &error);
-
-	void onSaveChatDone(const MTPUpdates &updates);
 	void onSaveUserDone(const MTPcontacts_ImportedContacts &res);
-	bool onSaveFail(const RPCError &e);
+	bool onSaveUserFail(const RPCError &e);
 
 	void initBox();
 
-	PeerData *_peer;
+	UserData *_user;
 	QString _boxTitle;
 
-	FlatButton _addButton, _retryButton, _cancelButton;
-	FlatInput _firstInput, _lastInput, _phoneInput;
+	BoxButton _save, _cancel, _retry;
+	InputField _first, _last;
+	PhoneInput _phone;
 
 	bool _invertOrder;
 
@@ -73,6 +70,169 @@ private:
 
 	mtpRequestId _addRequest;
 	QString _sentName;
+};
+
+class NewGroupBox : public AbstractBox {
+	Q_OBJECT
+
+public:
+
+	NewGroupBox();
+	void keyPressEvent(QKeyEvent *e);
+	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
+
+public slots:
+
+	void onNext();
+
+protected:
+
+	void hideAll();
+	void showAll();
+	void showDone();
+
+private:
+
+	Radiobutton _group, _channel;
+	int32 _aboutGroupWidth, _aboutGroupHeight;
+	Text _aboutGroup, _aboutChannel;
+	BoxButton _next, _cancel;
+
+};
+
+class GroupInfoBox : public AbstractBox, public RPCSender {
+	Q_OBJECT
+
+public:
+
+	GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose);
+	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+	void mousePressEvent(QMouseEvent *e);
+	void leaveEvent(QEvent *e);
+
+	bool animStep_photoOver(float64 ms);
+
+	void setInnerFocus() {
+		_title.setFocus();
+	}
+
+public slots:
+
+	void onPhoto();
+	void onPhotoReady(const QImage &img);
+
+	void onNext();
+	void onNameSubmit();
+	void onDescriptionResized();
+
+protected:
+
+	void hideAll();
+	void showAll();
+	void showDone();
+
+private:
+
+	QRect photoRect() const;
+
+	void updateMaxHeight();
+	void updateSelected(const QPoint &cursorGlobalPosition);
+	CreatingGroupType _creating;
+
+	anim::fvalue a_photoOver;
+	Animation _a_photoOver;
+	bool _photoOver;
+
+	InputField _title;
+	InputArea _description;
+
+	QImage _photoBig;
+	QPixmap _photoSmall;
+	BoxButton _next, _cancel;
+
+	// channel creation
+	int32 _creationRequestId;
+	ChannelData *_createdChannel;
+
+	void creationDone(const MTPUpdates &updates);
+	bool creationFail(const RPCError &e);
+	void exportDone(const MTPExportedChatInvite &result);
+};
+
+class SetupChannelBox : public AbstractBox, public RPCSender {
+	Q_OBJECT
+
+public:
+
+	SetupChannelBox(ChannelData *channel, bool existing = false);
+	void keyPressEvent(QKeyEvent *e);
+	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+	void mousePressEvent(QMouseEvent *e);
+	void leaveEvent(QEvent *e);
+
+	void closePressed();
+
+	void setInnerFocus() {
+		if (_link.isHidden()) {
+			setFocus();
+		} else {
+			_link.setFocus();
+		}
+	}
+
+public slots:
+
+	void onSave();
+	void onChange();
+	void onCheck();
+
+	void onPrivacyChange();
+
+protected:
+
+	void hideAll();
+	void showAll();
+	void showDone();
+
+private:
+
+	void updateSelected(const QPoint &cursorGlobalPosition);
+	bool animStep_goodFade(float64 ms);
+
+	void onUpdateDone(const MTPBool &result);
+	bool onUpdateFail(const RPCError &error);
+
+	void onCheckDone(const MTPBool &result);
+	bool onCheckFail(const RPCError &error);
+	bool onFirstCheckFail(const RPCError &error);
+
+	ChannelData *_channel;
+	bool _existing;
+
+	Radiobutton _public, _private;
+	Checkbox _comments;
+	int32 _aboutPublicWidth, _aboutPublicHeight;
+	Text _aboutPublic, _aboutPrivate, _aboutComments;
+	UsernameInput _link;
+	QRect _invitationLink;
+	bool _linkOver;
+	BoxButton _save, _skip;
+
+	bool _tooMuchUsernames;
+
+	mtpRequestId _saveRequestId, _checkRequestId;
+	QString _sentUsername, _checkUsername, _errorText, _goodText;
+
+	QString _goodTextLink;
+	anim::fvalue a_goodOpacity;
+	Animation _a_goodFade;
+
+	QTimer _checkTimer;
 };
 
 class EditNameTitleBox : public AbstractBox, public RPCSender {

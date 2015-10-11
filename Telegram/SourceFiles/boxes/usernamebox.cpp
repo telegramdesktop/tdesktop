@@ -28,16 +28,18 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 UsernameBox::UsernameBox() : AbstractBox(st::boxWidth),
 _save(this, lang(lng_settings_save), st::defaultBoxButton),
-_cancel(this, lang(lng_box_cancel), st::cancelBoxButton),
+_cancel(this, lang(lng_cancel), st::cancelBoxButton),
 _username(this, st::usernameField, qsl("@username"), App::self()->username, false),
 _link(this, QString(), st::defaultBoxLinkButton),
 _saveRequestId(0), _checkRequestId(0),
 _about(st::boxWidth - st::usernamePadding.left()) {
+	setBlueTitle(true);
+
 	_goodText = App::self()->username.isEmpty() ? QString() : lang(lng_username_available);
 
 	textstyleSet(&st::usernameTextStyle);
 	_about.setRichText(st::boxTextFont, lang(lng_username_about));
-	resizeMaxHeight(st::boxWidth, st::boxBlueTitleHeight + st::usernamePadding.top() + _username.height() + st::usernameSkip + _about.countHeight(st::boxWidth - st::usernamePadding.left() - st::usernamePadding.right()) + 3 * st::usernameTextStyle.lineHeight + st::usernamePadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+	resizeMaxHeight(st::boxWidth, st::boxTitleHeight + st::usernamePadding.top() + _username.height() + st::usernameSkip + _about.countHeight(st::boxWidth - st::usernamePadding.left() - st::usernamePadding.right()) + 3 * st::usernameTextStyle.lineHeight + st::usernamePadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
 	textstyleRestore();
 
 	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
@@ -58,6 +60,8 @@ void UsernameBox::hideAll() {
 	_save.hide();
 	_cancel.hide();
 	_link.hide();
+
+	AbstractBox::hideAll();
 }
 
 void UsernameBox::showAll() {
@@ -65,6 +69,8 @@ void UsernameBox::showAll() {
 	_save.show();
 	_cancel.show();
 	updateLinkText();
+
+	AbstractBox::showAll();
 }
 
 void UsernameBox::showDone() {
@@ -75,7 +81,7 @@ void UsernameBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
 
-	paintBlueTitle(p, lang(lng_username_title));
+	paintTitle(p, lang(lng_username_title));
 
 	if (!_copiedTextLink.isEmpty()) {
 		p.setPen(st::usernameDefaultFg);
@@ -112,7 +118,7 @@ void UsernameBox::paintEvent(QPaintEvent *e) {
 
 void UsernameBox::resizeEvent(QResizeEvent *e) {
 	_username.resize(width() - st::usernamePadding.left() - st::usernamePadding.right(), _username.height());
-	_username.moveToLeft(st::usernamePadding.left(), st::boxBlueTitleHeight + st::usernamePadding.top());
+	_username.moveToLeft(st::usernamePadding.left(), st::boxTitleHeight + st::usernamePadding.top());
 
 	textstyleSet(&st::usernameTextStyle);
 	int32 availw = st::boxWidth - st::usernamePadding.left(), h = _about.countHeight(availw);
@@ -122,6 +128,8 @@ void UsernameBox::resizeEvent(QResizeEvent *e) {
 
 	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
+
+	AbstractBox::resizeEvent(e);
 }
 
 void UsernameBox::onSave() {

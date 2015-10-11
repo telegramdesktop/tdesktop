@@ -81,6 +81,7 @@ struct ReadyLocalMedia {
 
 	bool broadcast;
 	bool ctrlShiftEnter;
+	QString caption;
 };
 typedef QList<ReadyLocalMedia> ReadyLocalMedias;
 

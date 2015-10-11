@@ -58,7 +58,7 @@ private:
 	int32 _thumbx, _thumby, _thumbw, _thumbh;
 	int32 _cropx, _cropy, _cropw;
 	int32 _fromposx, _fromposy, _fromcropx, _fromcropy, _fromcropw;
-	FlatButton _sendButton, _cancelButton;
+	BoxButton _done, _cancel;
 	QImage _img;
 	QPixmap _thumb;
 	PeerId _peerId;

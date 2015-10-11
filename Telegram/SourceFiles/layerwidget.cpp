@@ -54,7 +54,7 @@ void BackgroundWidget::paintEvent(QPaintEvent *e) {
 		p.setClipRect(e->rect());
 	}
 	p.setOpacity(st::layerAlpha * aBackground.current());
-	p.fillRect(rect(), st::layerBG->b);
+	p.fillRect(rect(), st::layerBg->b);
 
 	p.setOpacity(aBackground.current());
 	shadow.paint(p, w->geometry(), st::boxShadowShift);

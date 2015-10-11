@@ -80,8 +80,9 @@ private:
 	QString _boxTitle;
 	Text _about, _hintText;
 
-	FlatButton _saveButton, _cancelButton;
-	FlatInput _oldPasscode, _newPasscode, _reenterPasscode, _passwordHint, _recoverEmail;
+	BoxButton _saveButton, _cancelButton;
+	PasswordField _oldPasscode, _newPasscode, _reenterPasscode;
+	InputField _passwordHint, _recoverEmail;
 	LinkButton _recover;
 
 	QString _oldError, _newError, _emailError;
@@ -122,8 +123,8 @@ private:
 
 	QString _pattern;
 
-	FlatButton _saveButton, _cancelButton;
-	FlatInput _recoverCode;
+	BoxButton _saveButton, _cancelButton;
+	InputField _recoverCode;
 
 	QString _error;
 };

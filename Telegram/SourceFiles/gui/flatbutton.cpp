@@ -296,7 +296,7 @@ void MaskedButton::paintEvent(QPaintEvent *e) {
 }
 
 BoxButton::BoxButton(QWidget *parent, const QString &text, const style::BoxButton &st) : Button(parent),
-_text(text), _fullText(text), _textWidth(st.font->width(text)),
+_text(text.toUpper()), _fullText(text.toUpper()), _textWidth(st.font->width(_text)),
 _st(st),
 a_textBgOverOpacity(0), a_textFg(st.textFg->c), _a_over(animFunc(this, &BoxButton::animStep_over)) {
 	if (_st.width <= 0) {

@@ -83,6 +83,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	_kickOver(0), _kickDown(0), _kickConfirm(0),
 	
 	_menu(0) {
+	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 
 	connect(App::api(), SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
 

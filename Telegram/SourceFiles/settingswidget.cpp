@@ -199,6 +199,8 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_supportGetRequest(0)
 {
 	if (self()) {
+		connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
+
 		_nameText.setText(st::setNameFont, _nameCache, _textNameOptions);
 		PhotoData *selfPhoto = (self()->photoId && self()->photoId != UnknownPeerPhotoId) ? App::photo(self()->photoId) : 0;
 		if (selfPhoto && selfPhoto->date) _photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
@@ -1207,12 +1209,12 @@ void SettingsInner::chooseCustomLang() {
     QByteArray arr;
     if (filedialogGetOpenFile(file, arr, qsl("Choose language .strings file"), qsl("Language files (*.strings)"))) {
         _testlang = QFileInfo(file).absoluteFilePath();
-		LangLoaderPlain loader(_testlang, LangLoaderRequest(lng_sure_save_language, lng_box_cancel, lng_box_ok));
+		LangLoaderPlain loader(_testlang, LangLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
         if (loader.errors().isEmpty()) {
             LangLoaderResult result = loader.found();
             QString text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),
 				save = result.value(lng_box_ok, langOriginal(lng_box_ok)),
-				cancel = result.value(lng_box_cancel, langOriginal(lng_box_cancel));
+				cancel = result.value(lng_cancel, langOriginal(lng_cancel));
             ConfirmBox *box = new ConfirmBox(text, save, st::defaultBoxButton, cancel);
             connect(box, SIGNAL(confirmed()), this, SLOT(onSaveTestLang()));
             App::wnd()->showLayer(box);

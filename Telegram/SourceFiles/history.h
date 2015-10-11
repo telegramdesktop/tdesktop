@@ -1100,6 +1100,9 @@ public:
 	virtual ImagePtr replyPreview() {
 		return ImagePtr();
 	}
+	virtual QString getCaption() const {
+		return QString();
+	}
 
 	int32 currentWidth() const {
 		return qMin(w, _maxw);
@@ -1151,6 +1154,10 @@ public:
 		return !data->thumb->isNull();
 	}
 	ImagePtr replyPreview();
+
+	QString getCaption() const {
+		return _caption.original(0, 0xFFFFU, true);
+	}
 
 private:
 	int16 pixw, pixh;
