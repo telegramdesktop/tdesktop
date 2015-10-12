@@ -1029,13 +1029,12 @@ void Window::updateTrayMenu(bool force) {
     if (!trayIconMenu || (cPlatform() == dbipWindows && !force)) return;
 
     bool active = isActive(false);
+    QString notificationItem = lang(cDesktopNotify()
+        ? lng_disable_notifications_from_tray : lng_enable_notifications_from_tray);
+
+    QAction *first = trayIconMenu->actions().at(0);
+    first->setText(notificationItem);
     if (cPlatform() == dbipWindows || cPlatform() == dbipMac) {
-		QString notificationItem = lang(cDesktopNotify() 
-			? lng_disable_notifications_from_tray : lng_enable_notifications_from_tray);
-
-        QAction *first = trayIconMenu->actions().at(0);
-		first->setText(notificationItem);
-
         QAction *second = trayIconMenu->actions().at(1);
         second->setText(lang(active ? lng_minimize_to_tray : lng_open_from_tray));
         disconnect(second, SIGNAL(triggered(bool)), 0, 0);
