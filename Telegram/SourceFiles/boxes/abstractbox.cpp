@@ -179,7 +179,9 @@ void AbstractBox::resizeMaxHeight(int32 newWidth, int32 maxHeight) {
 		QRect g(geometry());
 		_maxHeight = maxHeight;
 		resize(newWidth, countHeight());
-		if (parentWidget()) parentWidget()->update(geometry().united(g).marginsAdded(QMargins(st::boxShadow.pxWidth(), st::boxShadow.pxHeight(), st::boxShadow.pxWidth(), st::boxShadow.pxHeight())));
+		if (parentWidget()) {
+			parentWidget()->update(geometry().united(g).marginsAdded(QMargins(st::boxShadow.pxWidth(), st::boxShadow.pxHeight(), st::boxShadow.pxWidth(), st::boxShadow.pxHeight())));
+		}
 	}
 }
 

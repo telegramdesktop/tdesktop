@@ -1650,6 +1650,7 @@ bool MessageField::hasSendText() const {
 }
 
 void MessageField::onEmojiInsert(EmojiPtr emoji) {
+	if (isHidden()) return;
 	insertEmoji(emoji, textCursor());
 }
 
@@ -2633,7 +2634,9 @@ void HistoryWidget::activate() {
 }
 
 void HistoryWidget::setInnerFocus() {
-	if (_list) {
+	if (_scroll.isHidden()) {
+		setFocus();
+	} else if (_list) {
 		if (_selCount || (_list && _list->wasSelectedText()) || _recording || isBotStart() || isBlocked() || !_canSendMessages) {
 			_list->setFocus();
 		} else {
@@ -3035,7 +3038,7 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 		doneShow();
 	}
 
-	if (App::wnd()) App::wnd()->setInnerFocus();
+	if (App::wnd()) QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
 
 	App::main()->dlgUpdated(wasHistory, wasMsgId);
 	emit historyShown(_history, _showAtMsgId);
@@ -5616,7 +5619,7 @@ void HistoryWidget::onFieldTabbed() {
 }
 
 void HistoryWidget::onStickerSend(DocumentData *sticker) {
-	if (!_history || !sticker) return;
+	if (!_history || !sticker || !canSendMessages(_peer)) return;
 
 	App::main()->readServerHistory(_history, false);
 	fastShowAtEnd(_history);

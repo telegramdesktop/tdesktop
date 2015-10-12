@@ -28,9 +28,14 @@ class AboutBox : public AbstractBox {
 public:
 
 	AboutBox();
+	void resizeEvent(QResizeEvent *e);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	
+public slots:
+
+	void onVersion();
+
 protected:
 
 	void hideAll();
@@ -38,7 +43,9 @@ protected:
 
 private:
 
-	BottomButton _done;
-	FlatLabel _version, _text;
-	int32 _headerWidth, _subheaderWidth;
+	LinkButton _version;
+	FlatLabel _text1, _text2, _text3;
+	BoxButton _done;
 };
+
+QString telegramFaqLink();

@@ -66,14 +66,6 @@ private:
 	float64 _opacity;
 };
 
-class BottomButton : public FlatButton {
-public:
-
-	BottomButton(QWidget *parent, const QString &text, const style::flatButton &st);
-	void paintEvent(QPaintEvent *e);
-
-};
-
 class LinkButton : public Button {
 	Q_OBJECT
 

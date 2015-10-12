@@ -155,7 +155,7 @@ bool ScrollBar::animStep(float64 ms) {
 		a_bg.update(dt, anim::linear);
 		a_bar.update(dt, anim::linear);
 	}
-	update();// parentWidget()->update(geometry());
+	update();
 	return res;
 }
 

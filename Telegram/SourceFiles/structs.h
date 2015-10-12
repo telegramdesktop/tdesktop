@@ -454,7 +454,7 @@ private:
 class ChannelData : public PeerData {
 public:
 
-	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), count(1), adminsCount(1), date(0), version(0), isForbidden(true), botStatus(-1), inviter(0), _lastFullUpdate(0) {
+	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), count(1), adminsCount(1), date(0), version(0), flags(0), flagsFull(0), isForbidden(true), botStatus(-1), inviter(0), _lastFullUpdate(0) {
 		setName(QString(), QString());
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
@@ -472,7 +472,7 @@ public:
 	int32 count, adminsCount;
 	int32 date;
 	int32 version;
-	int32 flags;
+	int32 flags, flagsFull;
 	bool isBroadcast() const {
 		return flags & MTPDchannel_flag_is_broadcast;
 	}
@@ -499,6 +499,9 @@ public:
 	}
 	bool canPublish() const {
 		return amCreator() || amEditor();
+	}
+	bool canViewParticipants() const {
+		return flagsFull & MTPDchannelFull_flag_can_view_participants;
 	}
 	bool isForbidden;
 	bool isVerified() const {

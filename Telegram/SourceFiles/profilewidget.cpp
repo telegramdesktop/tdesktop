@@ -697,7 +697,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	} else if (_peerChannel && (_peerChannel->isPublic() || _amCreator)) {
 		addbyname = st::profileStatusTop + st::linkFont->ascent - (st::profileNameTop + st::profileNameFont->ascent);
 	}
-	if (!_peerChannel || (!_amCreator && !_peerChannel->amEditor() && !_peerChannel->amModerator())) {
+	if (!_peerChannel || !_peerChannel->canViewParticipants()) {
 		p.setPen((_peerUser && App::onlineColorUse(_peerUser, l_time) ? st::profileOnlineColor : st::profileOfflineColor)->p);
 		p.drawText(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop + st::linkFont->ascent, _onlineText);
 	}
@@ -1461,11 +1461,14 @@ void ProfileInner::showAll() {
 			_username.hide();
 		}
 		if (_amCreator || _peerChannel->amEditor() || _peerChannel->amModerator()) {
-			_members.show();
 			_admins.show();
 		} else {
-			_members.hide();
 			_admins.hide();
+		}
+		if (_peerChannel->canViewParticipants()) {
+			_members.show();
+		} else {
+			_members.hide();
 		}
 	}
 	_enableNotifications.show();
@@ -1696,5 +1699,9 @@ ProfileWidget::~ProfileWidget() {
 }
 
 void ProfileWidget::activate() {
-	_inner.setFocus();
+	if (_scroll.isHidden()) {
+		setFocus();
+	} else {
+		_inner.setFocus();
+	}
 }

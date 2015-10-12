@@ -138,18 +138,6 @@ void FlatButton::paintEvent(QPaintEvent *e) {
 	p.drawText(r, _text, style::al_top);
 }
 
-BottomButton::BottomButton(QWidget *w, const QString &t, const style::flatButton &s) : FlatButton(w, t, s) {
-	resize(width(), height() + 1);
-}
-
-void BottomButton::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
-
-	p.fillRect(0, 0, width(), st::lineWidth, st::scrollDef.shColor->b);
-
-	FlatButton::paintEvent(e);
-}
-
 LinkButton::LinkButton(QWidget *parent, const QString &text, const style::linkButton &st) : Button(parent), _text(text), _st(st) {
 	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
 	resize(_st.font->width(_text), _st.font->height);

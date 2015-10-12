@@ -115,6 +115,11 @@ defaultBoxLinkButton: linkButton {
 	font: boxTextFont;
 	overFont: font(boxFontSize underline);
 }
+redBoxLinkButton: linkButton(defaultBoxLinkButton) {
+	color: #d15948;
+	overColor: #d15948;
+	downColor: #db6352;
+}
 
 defaultInputArea: InputArea {
 	textFg: black;
@@ -142,7 +147,7 @@ defaultInputArea: InputArea {
 }
 defaultInputField: InputField {
 	textFg: black;
-	textMargins: margins(5px, 5px, 5px, 5px);
+	textMargins: margins(0px, 6px, 0px, 4px);
 	textAlign: align(topleft);
 
 	placeholderFg: #999;
@@ -254,6 +259,8 @@ boxSearchField: InputField(defaultInputField) {
 
 	iconSprite: sprite(227px, 21px, 24px, 24px);
 	iconPosition: point(15px, 14px);
+
+	font: normalFont;
 }
 boxSearchCancel: iconedButton {
 	color: white;
@@ -1576,9 +1583,6 @@ newGroupPadding: margins(4px, 6px, 4px, 3px);
 newGroupSkip: 17px;
 newGroupInfoPadding: margins(0px, -4px, 0px, 1px);
 
-newGroupLink: InputField(defaultInputField) {
-	textMargins: margins(0px, 6px, 0px, 0px);
-}
 newGroupLinkPadding: margins(4px, 27px, 4px, 12px);
 newGroupLinkTop: 3px;
 newGroupLinkFont: font(16px);
@@ -1590,9 +1594,6 @@ newGroupPhotoIcon: sprite(74px, 104px, 30px, 27px);
 newGroupPhotoIconPosition: point(23px, 25px);
 
 newGroupNamePosition: point(27px, 20px);
-newGroupName: InputField(defaultInputField) {
-	textMargins: margins(1px, 6px, 1px, 0px);
-}
 
 newGroupDescriptionPadding: margins(0px, 23px, 0px, 14px);
 newGroupDescription: InputArea(defaultInputArea) {
@@ -1627,49 +1628,22 @@ contactsAdd: flatButton(topBarButton) {
 }
 
 aboutIcon: sprite(0px, 0px, 104px, 104px);
-aboutIconTop: 28px;
-aboutWidth: 448px;
-aboutHeight: 441px;
-aboutHeaderFont: font(24px semibold);
-aboutSubheaderFont: font(24px);
-aboutHeaderTop: 139px;
-aboutVersion: flatLabel(labelDefFlat) {
-	font: font(16px);
-	width: aboutWidth;
-	align: align(center);
+aboutWidth: 390px;
+aboutVersionTop: -3px;
+aboutVersionLink: linkButton(btnDefLink) {
+	color: #999;
+	overColor: #999;
+	downColor: #999;
 }
-aboutVersionTop: 178px;
-aboutTextFont: font(15px);
-aboutTextTop: 221px;
+aboutTextTop: 34px;
+aboutSkip: 14px;
 aboutLabel: flatLabel(labelDefFlat) {
-	font: aboutTextFont;
-	width: aboutWidth;
-	align: align(center);
+	font: normalFont;
+	width: 330px;
+	align: align(topleft);
 }
 aboutTextStyle: textStyle(defaultTextStyle) {
-	lineHeight: 24px;
-}
-aboutCloseButton: flatButton {
-	color: btnYesColor;
-	overColor: btnYesHover;
-	downColor: btnYesHover;
-
-	bgColor: white;
-	overBgColor: white;
-	downBgColor: white;
-
-	width: aboutWidth;
-	height: 52px;
-
-	textTop: 15px;
-	overTextTop: 15px;
-	downTextTop: 16px;
-
-	font: font(16px);
-	overFont: font(16px);
-}
-btnInfoClose: flatButton(aboutCloseButton) {
-	width: boxWideWidth;
+	lineHeight: 22px;
 }
 
 emojiTextFont: font(15px);
@@ -2116,9 +2090,6 @@ usernameSkip: 49px;
 usernameTextStyle: textStyle(defaultTextStyle) {
 	lineHeight: 20px;
 }
-usernameField: InputField(defaultInputField) {
-	textMargins: margins(0px, 6px, 0px, 4px);
-}
 usernameDefaultFg: #777;
 
 youtubeIcon: sprite(336px, 221px, 60px, 60px);
@@ -2144,7 +2115,6 @@ backgroundScroll: flatScroll(boxScroll) {
 
 passcodeHeaderFont: font(19px);
 passcodeHeaderHeight: 80px;
-passcodeSkip: 40px;
 passcodeInput: flatInput(inpIntroPhone) {
 }
 passcodeSubmit: flatButton(btnIntroNext) {
@@ -2155,6 +2125,9 @@ passcodeSubmit: flatButton(btnIntroNext) {
 	font: font(19px);
 	overFont: font(19px);
 }
+passcodeSubmitSkip: 40px;
+passcodePadding: margins(0px, 22px, 0px, 3px);
+passcodeSkip: 31px;
 
 mentionHeight: 40px;
 mentionScroll: flatScroll(scrollDef) {
@@ -2171,19 +2144,22 @@ mentionFgOver: #707070;
 mentionFgActive: #0080c0;
 mentionFgOverActive: #0077b3;
 
+sessionsScroll: flatScroll(boxScroll) {
+	deltax: 5px;
+	width: 14px;
+}
 sessionsHeight: 440px;
 sessionHeight: 70px;
-sessionPadding: margins(20px, 10px, 20px, 0);
-sessionsCloseButton: flatButton(aboutCloseButton) {
-	width: boxWideWidth;
-}
+sessionCurrentPadding: margins(0px, 7px, 0px, 4px);
+sessionCurrentHeight: 118px;
+sessionPadding: margins(21px, 10px, 21px, 0);
 sessionNameFont: msgNameFont;
 sessionActiveFont: msgDateFont;
 sessionActiveColor: #aaa;
 sessionInfoFont: msgFont;
 sessionInfoColor: dlgTextColor;
 sessionTerminateTop: 30px;
-sessionTerminateSkip: 10px;
+sessionTerminateSkip: 18px;
 sessionTerminate: iconedButton(notifyClose) {
 	iconPos: point(3px, 3px);
 	downIconPos: point(3px, 4px);

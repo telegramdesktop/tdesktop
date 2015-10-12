@@ -25,36 +25,48 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "window.h"
 
-AboutBox::AboutBox() :
-_done(this, lang(lng_about_done), st::aboutCloseButton),
-_version(this, qsl("[a href=\"https://desktop.telegram.org/#changelog\"]") + textClean(lng_about_version(lt_version, QString::fromWCharArray(AppVersionStr) + (cDevVersion() ? " dev" : ""))) + qsl("[/a]"), st::aboutVersion, st::defaultTextStyle),
-_text(this, lang(lng_about_text), st::aboutLabel, st::aboutTextStyle) {
-	
-	resizeMaxHeight(st::aboutWidth, st::aboutHeight);
+AboutBox::AboutBox() : AbstractBox(st::aboutWidth)
+, _version(this, lng_about_version(lt_version, QString::fromWCharArray(AppVersionStr) + (cDevVersion() ? " dev" : "")), st::aboutVersionLink)
+, _text1(this, lang(lng_about_text_1), st::aboutLabel, st::aboutTextStyle)
+, _text2(this, lang(lng_about_text_2), st::aboutLabel, st::aboutTextStyle)
+, _text3(this, QString(), st::aboutLabel, st::aboutTextStyle)
+, _done(this, lang(lng_close), st::defaultBoxButton) {
+	_text3.setRichText(lng_about_text_3(lt_faq_open, qsl("[a href=\"%1\"]").arg(telegramFaqLink()), lt_faq_close, qsl("[/a]")));
 
-	_version.move(0, st::aboutVersionTop);
-	_text.move(0, st::aboutTextTop);
+	setMaxHeight(st::boxTitleHeight + st::aboutTextTop + _text1.height() + st::aboutSkip + _text2.height() + st::aboutSkip + _text3.height() + st::boxButtonPadding.top() + _done.height() + st::boxButtonPadding.bottom());
 
-	_headerWidth = st::aboutHeaderFont->width(qsl("Telegram "));
-	_subheaderWidth = st::aboutSubheaderFont->width(qsl("Desktop"));
-
-	_done.move(0, height() - _done.height());
-
+	connect(&_version, SIGNAL(clicked()), this, SLOT(onVersion()));
 	connect(&_done, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	prepare();
 }
 
 void AboutBox::hideAll() {
-	_done.hide();
 	_version.hide();
-	_text.hide();
+	_text1.hide();
+	_text2.hide();
+	_text3.hide();
+	_done.hide();
 }
 
 void AboutBox::showAll() {
-	_done.show();
 	_version.show();
-	_text.show();
+	_text1.show();
+	_text2.show();
+	_text3.show();
+	_done.show();
+}
+
+void AboutBox::resizeEvent(QResizeEvent *e) {
+	_version.moveToLeft(st::boxPadding.left(), st::boxTitleHeight + st::aboutVersionTop);
+	_text1.moveToLeft(st::boxPadding.left(), st::boxTitleHeight + st::aboutTextTop);
+	_text2.moveToLeft(st::boxPadding.left(), _text1.y() + _text1.height() + st::aboutSkip);
+	_text3.moveToLeft(st::boxPadding.left(), _text2.y() + _text2.height() + st::aboutSkip);
+	_done.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _done.height());
+}
+
+void AboutBox::onVersion() {
+	QDesktopServices::openUrl(qsl("https://desktop.telegram.org/?_hash=changelog"));
 }
 
 void AboutBox::keyPressEvent(QKeyEvent *e) {
@@ -66,15 +78,21 @@ void AboutBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void AboutBox::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 	if (paint(p)) return;
 
-	p.drawPixmap(QPoint((width() - st::aboutIcon.pxWidth()) / 2, st::aboutIconTop), App::sprite(), st::aboutIcon);
+	paintTitle(p, qsl("Telegram Desktop"));
+}
 
-	p.setPen(st::black->p);
-	p.setFont(st::aboutHeaderFont->f);
-	p.drawText((width() - (_headerWidth + _subheaderWidth)) / 2, st::aboutHeaderTop + st::aboutHeaderFont->ascent, qsl("Telegram"));
-
-	p.setFont(st::aboutSubheaderFont->f);
-	p.drawText((width() - (_headerWidth + _subheaderWidth)) / 2 + _headerWidth, st::aboutHeaderTop + st::aboutSubheaderFont->ascent, qsl("Desktop"));
+QString telegramFaqLink() {
+	QString result = qsl("https://telegram.org/faq");
+	if (cLang() > languageDefault && cLang() < languageCount) {
+		const char *code = LanguageCodes[cLang()];
+		if (qstr("de") == code || qstr("es") == code || qstr("it") == code || qstr("ko") == code) {
+			result += qsl("/") + code;
+		} else if (qstr("pt_BR") == code) {
+			result += qsl("/br");
+		}
+	}
+	return result;
 }

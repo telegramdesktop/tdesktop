@@ -761,7 +761,7 @@ void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 			}
 		} else {
 			_selected.clear();
-			parentWidget()->update();
+			update();
 		}
 	} else if (_dragAction == Selecting) {
 		if (_dragSelFrom && _dragSelTo) {
@@ -1669,7 +1669,7 @@ void OverviewInner::updateDragSelection(MsgId dragSelFrom, int32 dragSelFromInde
 			qSwap(_dragSelFromIndex, _dragSelToIndex);
 		}
 		_dragSelecting = dragSelecting;
-		parentWidget()->update();
+		update();
 	}
 }
 
@@ -2045,7 +2045,7 @@ void OverviewInner::onNeedSearchMessages() {
 	if (!onSearchMessages(true)) {
 		_searchTimer.start(AutoSearchTimeout);
 		if (_inSearch && _searchFull && _searchResults.isEmpty()) {
-			parentWidget()->update();
+			update();
 		}
 	}
 }
@@ -2415,7 +2415,7 @@ void OverviewInner::itemRemoved(HistoryItem *item) {
 	}
 	updateDragSelection(_dragSelFrom, _dragSelFromIndex, _dragSelTo, _dragSelToIndex, _dragSelecting);
 
-	parentWidget()->update();
+	update();
 }
 
 void OverviewInner::itemResized(HistoryItem *item, bool scrollToIt) {
@@ -2447,7 +2447,7 @@ void OverviewInner::itemResized(HistoryItem *item, bool scrollToIt) {
 							_scroll->scrollToY(_addToY + _height - _items[i].y);
 						}
 					}
-					parentWidget()->update();
+					update();
 				}
 				break;
 			}
@@ -2881,7 +2881,11 @@ OverviewWidget::~OverviewWidget() {
 }
 
 void OverviewWidget::activate() {
-	_inner.activate();
+	if (_scroll.isHidden()) {
+		setFocus();
+	} else {
+		_inner.activate();
+	}
 }
 
 QPoint OverviewWidget::clampMousePosition(QPoint point) {

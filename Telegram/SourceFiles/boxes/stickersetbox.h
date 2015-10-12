@@ -103,6 +103,6 @@ private:
 
 	StickerSetInner _inner;
 	ScrollableBoxShadow _shadow;
-	BoxButton _add, _share, _cancel;
+	BoxButton _add, _share, _cancel, _done;
 	QString _title;
 };

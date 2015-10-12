@@ -263,7 +263,7 @@ void MaxInviteBox::paintEvent(QPaintEvent *e) {
 
 	QTextOption option(style::al_left);
 	option.setWrapMode(QTextOption::WrapAnywhere);
-	p.setFont(_linkOver ? st::newGroupLink.font->underline() : st::newGroupLink.font);
+	p.setFont(_linkOver ? st::defaultInputField.font->underline() : st::defaultInputField.font);
 	p.setPen(st::btnDefLink.color);
 	p.drawText(_invitationLink, _link, option);
 	if (!_goodTextLink.isEmpty() && a_goodOpacity.current() > 0) {

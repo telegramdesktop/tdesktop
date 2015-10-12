@@ -138,7 +138,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_bad_phone" = "Invalid phone number. Please try again.";
 "lng_bad_phone_noreg" = "Phone number not registered.";
-"lng_bad_code" = "You have entered an invalid code. Please try again.";
+"lng_bad_code" = "You have entered an invalid code.";
 "lng_bad_name" = "Please enter your first and last name.";
 "lng_bad_photo" = "Bad image selected.";
 
@@ -150,16 +150,17 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_signin_password" = "Your cloud password";
 "lng_signin_code" = "Code from e-mail";
 "lng_signin_recover" = "Forgot password?";
+"lng_signin_recover_title" = "Password reset";
 "lng_signin_hint" = "Hint: {password_hint}";
 "lng_signin_recover_hint" = "Code was sent to {recover_email}";
 "lng_signin_bad_password" = "You have entered a wrong password.";
-"lng_signin_wrong_code" = "You have entered an invalid code. Please try again.";
+"lng_signin_wrong_code" = "You have entered an invalid code.";
 "lng_signin_try_password" = "Having trouble accessing your e-mail?";
 "lng_signin_password_removed" = "Your cloud password was disabled.\nYou can set a new one in Settings.";
 "lng_signin_no_email_forgot" = "Since you haven't provided a recovery\ne-mail when setting up your password, your remaining options are either to remember your password or to reset your account.";
 "lng_signin_cant_email_forgot" = "If you can't restore access to the e-mail, your remaining options are either to remember your password or to reset your account.";
 "lng_signin_reset_account" = "Reset your account";
-"lng_signin_sure_reset" = "Warning!\n\nYou will lose all your chats and messages,\nalong with any media and files you shared!\n\nDo you want to reset your account?";
+"lng_signin_sure_reset" = "Warning!\n\nYou will lose all your chats and messages, along with any media and files you shared!\n\nDo you want to reset your account?";
 "lng_signin_reset" = "Reset";
 
 "lng_signup_title" = "Information and photo";
@@ -280,7 +281,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_passcode_turn_on" = "Turn on local passcode";
 "lng_passcode_change" = "Change local passcode";
-"lng_passcode_create" = "Create local passcode";
+"lng_passcode_create" = "Local passcode";
 "lng_passcode_remove" = "Remove local passcode";
 "lng_passcode_turn_off" = "Turn off";
 "lng_passcode_autolock" = "Auto-Lock";
@@ -288,11 +289,11 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_passcode_autolock_inactive" = "Auto-Lock if inactive for:";
 "lng_passcode_autolock_minutes" = "{count:_not_used_|# minute|# minutes}";
 "lng_passcode_autolock_hours" = "{count:_not_used_|# hour|# hours}";
-"lng_passcode_enter_old" = "Enter old passcode";
+"lng_passcode_enter_old" = "Enter current passcode";
 "lng_passcode_enter_first" = "Enter a passcode";
 "lng_passcode_enter_new" = "Enter new passcode";
 "lng_passcode_confirm_new" = "Re-enter new passcode";
-"lng_passcode_about" = "When a local passcode is set, a lock icon appears in the top menu. Click it to lock the app.\n\nNote: if you forget your local passcode, you'll need to relogin in Telegram Desktop.";
+"lng_passcode_about" = "When a local passcode is set, a lock icon appears in the top right corner of the window. Click it to lock the app.\n\nNote: if you forget your local passcode, you'll need to relogin in Telegram Desktop.";
 "lng_passcode_differ" = "Passcodes are different";
 "lng_passcode_wrong" = "Wrong passcode";
 "lng_passcode_is_same" = "Passcode was not changed";
@@ -302,22 +303,23 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_cloud_password_waiting" = "Confirmation link sent to {email}..";
 "lng_cloud_password_change" = "Change cloud password";
-"lng_cloud_password_create" = "Create cloud password";
+"lng_cloud_password_create" = "Cloud password";
 "lng_cloud_password_remove" = "Remove cloud password";
 "lng_cloud_password_set" = "Enable two-step verification";
 "lng_cloud_password_edit" = "Change cloud password";
-"lng_cloud_password_enter_old" = "Enter old password";
+"lng_cloud_password_enter_old" = "Enter current password";
 "lng_cloud_password_enter_first" = "Enter a password";
 "lng_cloud_password_enter_new" = "Enter new password";
 "lng_cloud_password_confirm_new" = "Re-enter new password";
 "lng_cloud_password_hint" = "Enter password hint";
+"lng_cloud_password_change_hint" = "Enter new password hint";
 "lng_cloud_password_bad" = "Password and hint cannot be the same.";
 "lng_cloud_password_email" = "Enter recovery e-mail";
 "lng_cloud_password_bad_email" = "Incorrect e-mail, please try other.";
-"lng_cloud_password_about" = "This password will be required when you log in on a new device in addition to the pin code.";
+"lng_cloud_password_about" = "This password will be asked when you log in on a new device in addition to the pin code.";
 "lng_cloud_password_about_recover" = "Warning! Are you sure you don't want to\nadd a password recovery e-mail?\n\nIf you forget your password, you will\nlose access to your Telegram account.";
 "lng_cloud_password_skip_email" = "Skip e-mail";
-"lng_cloud_password_almost" = "A confirmation link was sent to the e-mail you provided. Two-step verification will be enabled as soon as you follow that link.";
+"lng_cloud_password_almost" = "A confirmation link was sent to the\ne-mail you provided. Two-step verification will be enabled as soon as you follow that link.";
 "lng_cloud_password_was_set" = "Two-step verification enabled.";
 "lng_cloud_password_updated" = "Your cloud password was updated.";
 "lng_cloud_password_removed" = "Two-step verification was disabled.";
@@ -361,8 +363,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_sessions_header" = "Current session";
 "lng_sessions_other_header" = "Active sessions";
 "lng_sessions_no_other" = "No other sessions";
-"lng_sessions_other_desc" = "You can log in to Telegram from other\nmobile, tablet and desktop devices, using\nthe same phone number. All your data\nwill be instantly synchronized.";
-"lng_sessions_terminate_all" = "Terminate all";
+"lng_sessions_other_desc" = "You can log in to Telegram from other mobile, tablet and desktop devices, using the same phone number. All your data will be instantly synchronized.";
+"lng_sessions_terminate_all" = "Terminate all other sessions";
 
 "lng_preview_loading" = "Getting Link Info..";
 
@@ -693,7 +695,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_contacts_header" = "Contacts";
 "lng_contact_not_joined" = "Unfortunately {name} did not join Telegram yet, but you can send your friend an invitation.\n\nWe will notify you about any of your contacts who is joining Telegram.";
 "lng_try_other_contact" = "Try other";
-"lng_contacts_done" = "Close";
 "lng_create_group_link" = "Link";
 "lng_create_group_invite_link" = "Invite link";
 "lng_create_group_photo" = "Set Photo";
@@ -717,8 +718,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_box_delete" = "Delete";
 "lng_box_leave" = "Leave";
 
-"lng_about_version" = "Version {version}";
-"lng_about_text" = "Official free messaging app based on [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] and\n[a href=\"https://core.telegram.org/api\"]Telegram API[/a] for speed and security\n\nThis software is licensed under [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3,\nsource code is available on [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
+"lng_about_version" = "version {version}";
+"lng_about_text_1" = "Official free messaging app based on [a href=\"https://core.telegram.org/api\"]Telegram API[/a]\nfor speed and security";
+"lng_about_text_2" = "This software is licensed under [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3.\nSource code is available on [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
+"lng_about_text_3" = "Visit {faq_open}Telegram FAQ{faq_close} for more info.";
 "lng_about_done" = "Done";
 
 "lng_search_found_results" = "{count:No messages found|Found # message|Found # messages}";

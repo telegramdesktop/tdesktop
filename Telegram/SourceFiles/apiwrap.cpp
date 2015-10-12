@@ -271,6 +271,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result) {
 		const MTPDchannelFull &f(d.vfull_chat.c_channelFull());
 		PhotoData *photo = App::feedPhoto(f.vchat_photo);
 		ChannelData *channel = peer->asChannel();
+		channel->flagsFull = f.vflags.v;
 		if (photo) {
 			channel->photoId = photo->id;
 			photo->peer = channel;

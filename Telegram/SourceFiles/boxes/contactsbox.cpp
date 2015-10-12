@@ -1133,7 +1133,7 @@ ContactsBox::ContactsBox() : ItemListBox(st::contactsScroll)
 , _filter(this, st::boxSearchField, lang(lng_participant_filter))
 , _filterCancel(this, st::boxSearchCancel)
 , _next(this, lang(lng_create_group_next), st::defaultBoxButton)
-, _cancel(this, lang(lng_contacts_done), st::cancelBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _topShadow(this)
 , _bottomShadow(0)
 , _creationRequestId(0) {
@@ -1171,7 +1171,7 @@ ContactsBox::ContactsBox(ChannelData *channel, MembersFilter filter, const Membe
 , _filter(this, st::boxSearchField, lang(lng_participant_filter))
 , _filterCancel(this, st::boxSearchCancel)
 , _next(this, lang(lng_participant_invite), st::defaultBoxButton)
-, _cancel(this, lang(filter == MembersFilterAdmins ? lng_contacts_done : lng_cancel), st::cancelBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _topShadow(this)
 , _bottomShadow(0)
 , _creationRequestId(0) {

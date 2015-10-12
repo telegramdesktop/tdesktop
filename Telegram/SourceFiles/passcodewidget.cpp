@@ -188,14 +188,14 @@ void PasscodeWidget::paintEvent(QPaintEvent *e) {
 		if (!_error.isEmpty()) {
 			p.setFont(st::boxTextFont->f);
 			p.setPen(st::setErrColor->p);
-			p.drawText(QRect(0, _passcode.y() + _passcode.height(), width(), st::usernameSkip), _error, style::al_center);
+			p.drawText(QRect(0, _passcode.y() + _passcode.height(), width(), st::passcodeSubmitSkip), _error, style::al_center);
 		}
 	}
 }
 
 void PasscodeWidget::resizeEvent(QResizeEvent *e) {
 	_passcode.move((width() - _passcode.width()) / 2, (height() / 3));
-	_submit.move(_passcode.x(), _passcode.y() + _passcode.height() + st::passcodeSkip);
+	_submit.move(_passcode.x(), _passcode.y() + _passcode.height() + st::passcodeSubmitSkip);
 	_logout.move(_passcode.x() + (_passcode.width() - _logout.width()) / 2, _submit.y() + _submit.height() + st::linkFont->ascent);
 }
 

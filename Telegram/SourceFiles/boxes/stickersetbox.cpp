@@ -223,7 +223,8 @@ StickerSetBox::StickerSetBox(const MTPInputStickerSet &set) : ScrollableBox(st::
 , _shadow(this)
 , _add(this, lang(lng_stickers_add_pack), st::defaultBoxButton)
 , _share(this, lang(lng_stickers_share_pack), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
+, _done(this, lang(lng_about_done), st::defaultBoxButton) {
 	setMaxHeight(st::stickersMaxHeight);
 	connect(App::main(), SIGNAL(stickersUpdated()), this, SLOT(onStickersUpdated()));
 
@@ -232,6 +233,7 @@ StickerSetBox::StickerSetBox(const MTPInputStickerSet &set) : ScrollableBox(st::
 	connect(&_add, SIGNAL(clicked()), this, SLOT(onAddStickers()));
 	connect(&_share, SIGNAL(clicked()), this, SLOT(onShareStickers()));
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(&_done, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	connect(&_inner, SIGNAL(updateButtons()), this, SLOT(onUpdateButtons()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
@@ -260,7 +262,7 @@ void StickerSetBox::onShareStickers() {
 }
 
 void StickerSetBox::onUpdateButtons() {
-	if (!_cancel.isHidden()) {
+	if (!_cancel.isHidden() || !_done.isHidden()) {
 		showAll();
 	}
 }
@@ -275,29 +277,36 @@ void StickerSetBox::hideAll() {
 	_cancel.hide();
 	_add.hide();
 	_share.hide();
+	_done.hide();
 }
 
 void StickerSetBox::showAll() {
 	ScrollableBox::showAll();
-	_shadow.show();
-	_cancel.show();
 	int32 cnt = _inner.notInstalled();
 	if (_inner.loaded()) {
+		_shadow.show();
 		if (_inner.official()) {
 			_add.hide();
 			_share.hide();
+			_cancel.hide();
+			_done.show();
 		} else if (_inner.notInstalled()) {
 			_add.show();
-			_add.raise();
+			_cancel.show();
 			_share.hide();
+			_done.hide();
 		} else {
 			_share.show();
-			_share.raise();
+			_cancel.show();
 			_add.hide();
+			_done.hide();
 		}
 	} else {
+		_shadow.hide();
 		_add.hide();
 		_share.hide();
+		_cancel.show();
+		_done.hide();
 	}
 	resizeEvent(0);
 	update();
@@ -316,6 +325,7 @@ void StickerSetBox::resizeEvent(QResizeEvent *e) {
 	_shadow.setGeometry(0, height() - st::boxButtonPadding.bottom() - _cancel.height() - st::boxButtonPadding.top() - st::lineWidth, width(), st::lineWidth);
 	_add.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _add.height());
 	_share.moveToRight(st::boxButtonPadding.right(), _add.y());
+	_done.moveToRight(st::boxButtonPadding.right(), _add.y());
 	if (_add.isHidden() && _share.isHidden()) {
 		_cancel.moveToRight(st::boxButtonPadding.right(), _add.y());
 	} else if (_add.isHidden()) {

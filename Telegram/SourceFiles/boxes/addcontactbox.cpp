@@ -342,7 +342,7 @@ _creating(creating),
 a_photoOver(0, 0),
 _a_photoOver(animFunc(this, &GroupInfoBox::animStep_photoOver)),
 _photoOver(false),
-_title(this, st::newGroupName, lang(_creating == CreatingGroupChannel ? lng_dlg_new_channel_name : lng_dlg_new_group_name)),
+_title(this, st::defaultInputField, lang(_creating == CreatingGroupChannel ? lng_dlg_new_channel_name : lng_dlg_new_group_name)),
 _description(this, st::newGroupDescription, lang(lng_create_group_description)),
 _next(this, lang(_creating == CreatingGroupChannel ? lng_create_group_create : lng_create_group_next), st::defaultBoxButton),
 _cancel(this, lang(fromTypeChoose ? lng_create_group_back : lng_cancel), st::cancelBoxButton),
@@ -613,7 +613,7 @@ _aboutPublicWidth(width() - st::boxPadding.left() - st::boxButtonPadding.right()
 _aboutPublic(st::normalFont, lang(lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth),
 _aboutPrivate(st::normalFont, lang(lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth),
 _aboutComments(st::normalFont, lang(lng_create_channel_comments_about), _defaultOptions, _aboutPublicWidth),
-_link(this, st::newGroupLink, QString(), channel->username, true),
+_link(this, st::defaultInputField, QString(), channel->username, true),
 _linkOver(false),
 _save(this, lang(lng_settings_save), st::defaultBoxButton),
 _skip(this, lang(existing ? lng_cancel : lng_create_group_skip), st::cancelBoxButton),
@@ -700,7 +700,7 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 
 	p.setPen(st::black);
 	p.setFont(st::newGroupLinkFont);
-	p.drawTextLeft(st::boxPadding.left() + st::newGroupPadding.left() + st::newGroupLink.textMargins.left(), _link.y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop, width(), lang(_link.isHidden() ? lng_create_group_invite_link : lng_create_group_link));
+	p.drawTextLeft(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultInputField.textMargins.left(), _link.y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop, width(), lang(_link.isHidden() ? lng_create_group_invite_link : lng_create_group_link));
 
 	if (_link.isHidden()) {
 		QTextOption option(style::al_left);
@@ -1155,7 +1155,7 @@ EditChannelBox::EditChannelBox(ChannelData *channel) :
 _channel(channel),
 _save(this, lang(lng_settings_save), st::defaultBoxButton),
 _cancel(this, lang(lng_cancel), st::cancelBoxButton),
-_title(this, st::newGroupName, lang(lng_dlg_new_channel_name), _channel->name),
+_title(this, st::defaultInputField, lang(lng_dlg_new_channel_name), _channel->name),
 _description(this, st::newGroupDescription, lang(lng_create_group_description), _channel->about),
 _publicLink(this, lang(channel->isPublic() ? lng_profile_edit_public_link : lng_profile_create_public_link), st::defaultBoxLinkButton),
 _saveTitleRequestId(0), _saveDescriptionRequestId(0) {

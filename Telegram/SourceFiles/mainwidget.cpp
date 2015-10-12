@@ -2204,8 +2204,10 @@ void MainWidget::setInnerFocus() {
 		} else {
 			dialogsActivate();
 		}
+	} else if (overview) {
+		overview->activate();
 	} else if (profile) {
-		profile->setFocus();
+		profile->activate();
 	} else {
 		history.setInnerFocus();
 	}

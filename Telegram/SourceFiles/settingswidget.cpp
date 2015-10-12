@@ -22,6 +22,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "style.h"
 #include "lang.h"
 
+#include "boxes/aboutbox.h"
 #include "settingswidget.h"
 #include "mainwidget.h"
 #include "application.h"
@@ -1192,16 +1193,7 @@ void SettingsInner::onAskQuestionSure() {
 }
 
 void SettingsInner::onTelegramFAQ() {
-	QString url = qsl("https://telegram.org/faq");
-	if (cLang() > languageDefault && cLang() < languageCount) {
-		const char *code = LanguageCodes[cLang()];
-		if (qstr("de") == code || qstr("es") == code || qstr("it") == code || qstr("ko") == code) {
-			url += qsl("/") + code;
-		} else if (qstr("pt_BR") == code) {
-			url += qsl("/br");
-		}
-	}
-	QDesktopServices::openUrl(url);
+	QDesktopServices::openUrl(telegramFaqLink());
 }
 
 void SettingsInner::chooseCustomLang() {

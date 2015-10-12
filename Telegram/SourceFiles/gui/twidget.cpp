@@ -44,14 +44,11 @@ void myEnsureResized(QWidget *target) {
 }
 
 QPixmap myGrab(QWidget *target, const QRect &rect) {
-    if (!cRetina()) return target->grab(rect);
-    
-	myEnsureResized(target);
-    
+	myEnsureResized(target);    
     qreal dpr = App::app()->devicePixelRatio();
     QPixmap result(rect.size() * dpr);
     result.setDevicePixelRatio(dpr);
     result.fill(Qt::transparent);
-    target->render(&result, QPoint(), QRegion(rect), QWidget::DrawWindowBackground | QWidget::DrawChildren | QWidget::IgnoreMask);
-    return result;
+    target->render(&result, QPoint(), QRegion(rect), QWidget::DrawChildren | QWidget::IgnoreMask);
+	return result;
 }

@@ -29,7 +29,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 UsernameBox::UsernameBox() : AbstractBox(st::boxWidth),
 _save(this, lang(lng_settings_save), st::defaultBoxButton),
 _cancel(this, lang(lng_cancel), st::cancelBoxButton),
-_username(this, st::usernameField, qsl("@username"), App::self()->username, false),
+_username(this, st::defaultInputField, qsl("@username"), App::self()->username, false),
 _link(this, QString(), st::defaultBoxLinkButton),
 _saveRequestId(0), _checkRequestId(0),
 _about(st::boxWidth - st::usernamePadding.left()) {
