@@ -28,6 +28,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_menu_restart" = "Restart";
 "lng_menu_back" = "Back";
 
+"lng_disable_notifications_from_tray" = "Disable notifications";
+"lng_enable_notifications_from_tray" = "Enable notifications";
 "lng_open_from_tray" = "Open Telegram";
 "lng_minimize_to_tray" = "Minimize to tray";
 "lng_quit_from_tray" = "Quit Telegram";

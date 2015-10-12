@@ -857,6 +857,7 @@ void SettingsInner::updateSize(int32 newWidth) {
 	}
 }
 
+
 void SettingsInner::updateOnlineDisplay() {
 }
 
@@ -1479,6 +1480,11 @@ void SettingsInner::onDesktopNotify() {
 	}
 }
 
+void SettingsInner::enableDisplayNotify(bool enable)
+{
+	_desktopNotify.setChecked(enable);
+}
+
 void SettingsInner::onSenderName() {
 	_messagePreview.setDisabled(!_senderName.checked());
 	if (!_senderName.checked() && _messagePreview.checked()) {
@@ -1861,6 +1867,11 @@ void SettingsWidget::updateWideMode() {
 	} else {
 		_close.hide();
 	}
+}
+
+void SettingsWidget::updateDisplayNotify()
+{
+	_inner.enableDisplayNotify(cDesktopNotify());
 }
 
 void SettingsWidget::updateOnlineDisplay() {

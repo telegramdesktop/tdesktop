@@ -449,10 +449,15 @@ void Window::firstShow() {
 	trayIconMenu = new QMenu(this);
 	trayIconMenu->setFont(QFont("Tahoma"));
 #endif
+	QString notificationItem = lang(cDesktopNotify() 
+		? lng_disable_notifications_from_tray : lng_enable_notifications_from_tray);
+	
 	if (cPlatform() == dbipWindows || cPlatform() == dbipMac) {
+		trayIconMenu->addAction(notificationItem, this, SLOT(toggleDisplayNotifyFromTray()))->setEnabled(true);
 		trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
 		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
 	} else {
+		trayIconMenu->addAction(notificationItem, this, SLOT(toggleDisplayNotifyFromTray()))->setEnabled(true);
 		trayIconMenu->addAction(lang(lng_open_from_tray), this, SLOT(showFromTray()))->setEnabled(true);
 		trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
 		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
@@ -1025,13 +1030,19 @@ void Window::updateTrayMenu(bool force) {
 
     bool active = isActive(false);
     if (cPlatform() == dbipWindows || cPlatform() == dbipMac) {
+		QString notificationItem = lang(cDesktopNotify() 
+			? lng_disable_notifications_from_tray : lng_enable_notifications_from_tray);
+
         QAction *first = trayIconMenu->actions().at(0);
-        first->setText(lang(active ? lng_minimize_to_tray : lng_open_from_tray));
-        disconnect(first, SIGNAL(triggered(bool)), 0, 0);
-        connect(first, SIGNAL(triggered(bool)), this, active ? SLOT(minimizeToTray()) : SLOT(showFromTray()));
-    } else {
+		first->setText(notificationItem);
+
         QAction *second = trayIconMenu->actions().at(1);
-        second->setDisabled(!isVisible());
+        second->setText(lang(active ? lng_minimize_to_tray : lng_open_from_tray));
+        disconnect(second, SIGNAL(triggered(bool)), 0, 0);
+        connect(second, SIGNAL(triggered(bool)), this, active ? SLOT(minimizeToTray()) : SLOT(showFromTray()));
+    } else {
+        QAction *third = trayIconMenu->actions().at(2);
+        third->setDisabled(!isVisible());
     }
 #ifndef Q_OS_WIN
     if (trayIcon) {
@@ -1164,6 +1175,13 @@ void Window::toggleTray(QSystemTrayIcon::ActivationReason reason) {
 		} else {
 			showFromTray(reason);
 		}
+	}
+}
+
+void Window::toggleDisplayNotifyFromTray() {
+	cSetDesktopNotify(!cDesktopNotify());
+	if (settings) {
+		settings->updateDisplayNotify();
 	}
 }
 
