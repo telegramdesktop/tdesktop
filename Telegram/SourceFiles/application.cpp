@@ -683,8 +683,8 @@ void Application::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (cDevVersion() && Local::oldMapVersion() < 9003) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Dialogs and emoji render made much faster\n\xe2\x80\x94 Bug fixes and other minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
+			if (cDevVersion() && Local::oldMapVersion() < 9004) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 New design for all modal windows\n\xe2\x80\x94 Toggle notifications from tray menu\n\xe2\x80\x94 Bug fixes and other minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
 			} else if (Local::oldMapVersion() < 9000) {
 				versionFeatures = lng_new_version_text(lt_link, qsl("https://telegram.org/blog/channels"));//lang(lng_new_version_text).trimmed();
 			} else {
