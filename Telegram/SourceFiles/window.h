@@ -261,6 +261,7 @@ public slots:
 	void showFromTray(QSystemTrayIcon::ActivationReason reason = QSystemTrayIcon::Unknown);
 	bool minimizeToTray();
 	void toggleTray(QSystemTrayIcon::ActivationReason reason = QSystemTrayIcon::Unknown);
+	void toggleDisplayNotifyFromTray();
 
 	void onInactiveTimer();
 
