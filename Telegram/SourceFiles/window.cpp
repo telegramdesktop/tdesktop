@@ -1171,6 +1171,12 @@ void Window::toggleDisplayNotifyFromTray() {
 	cSetDesktopNotify(!cDesktopNotify());
 	if (settings) {
 		settings->updateDisplayNotify();
+	} else {
+		if (!cDesktopNotify()) {
+			notifyClear();
+		}
+		Local::writeUserSettings();
+		updateTrayMenu();
 	}
 }
 

@@ -806,6 +806,7 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			cSetDesktopNotify(v == 1);
+			if (App::wnd()) App::wnd()->updateTrayMenu();
 		} break;
 
 		case dbiWindowsNotifications: {

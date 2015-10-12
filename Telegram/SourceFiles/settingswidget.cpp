@@ -1467,12 +1467,12 @@ void SettingsInner::onDesktopNotify() {
 		App::wnd()->notifyClear();
 		_senderName.setDisabled(true);
 		_messagePreview.setDisabled(true);
-		Local::writeUserSettings();
 	} else {
 		_senderName.setDisabled(false);
 		_messagePreview.setDisabled(!_senderName.checked());
-		Local::writeUserSettings();
 	}
+	Local::writeUserSettings();
+	if (App::wnd()) App::wnd()->updateTrayMenu();
 }
 
 void SettingsInner::enableDisplayNotify(bool enable)
