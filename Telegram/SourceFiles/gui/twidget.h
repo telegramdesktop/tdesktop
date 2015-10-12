@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -155,11 +158,11 @@ virtual void leaveToChildEvent(QEvent *e) { /* e -- from enterEvent() of child T
 } \
 virtual void enterFromChildEvent(QEvent *e) { /* e -- from leaveEvent() of child TWidget */ \
 } \
-void moveToLeft(int x, int y, int outerw) { \
-	move(rtl() ? (outerw - x - width()) : x, y); \
+void moveToLeft(int x, int y, int outerw = 0) { \
+	move(rtl() ? ((outerw > 0 ? outerw : parentWidget()->width()) - x - width()) : x, y); \
 } \
-void moveToRight(int x, int y, int outerw) { \
-	move(rtl() ? x : (outerw - x - width()), y); \
+void moveToRight(int x, int y, int outerw = 0) { \
+	move(rtl() ? x : ((outerw > 0 ? outerw : parentWidget()->width()) - x - width()), y); \
 } \
 QPoint myrtlpoint(int x, int y) const { \
 	return rtlpoint(x, y, width()); \

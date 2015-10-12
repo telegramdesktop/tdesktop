@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -60,7 +63,6 @@ IntroPhone::IntroPhone(IntroWidget *parent) : IntroStage(parent),
 	connect(&code, SIGNAL(codeChanged(const QString &)), &phone, SLOT(onChooseCode(const QString &)));
 	connect(&country, SIGNAL(codeChanged(const QString &)), &phone, SLOT(onChooseCode(const QString &)));
 	connect(&code, SIGNAL(addedToNumber(const QString &)), &phone, SLOT(addedToNumber(const QString &)));
-	connect(&country, SIGNAL(selectClosed()), this, SLOT(onSelectClose()));
 	connect(&phone, SIGNAL(changed()), this, SLOT(onInputChange()));
 	connect(&code, SIGNAL(changed()), this, SLOT(onInputChange()));
 	connect(intro(), SIGNAL(countryChanged()), this, SLOT(countryChanged()));
@@ -157,10 +159,6 @@ void IntroPhone::countryChanged() {
 	if (!changed) {
 		selectCountry(intro()->currentCountry());
 	}
-}
-
-void IntroPhone::onSelectClose() {
-	phone.setFocus();
 }
 
 void IntroPhone::onInputChange() {
@@ -271,7 +269,7 @@ bool IntroPhone::phoneSubmitFail(const RPCError &error) {
 		showError(lang(lng_bad_phone));
 		enableAll(true);
 		return true;
-	} else if (error.type().startsWith(qsl("FLOOD_WAIT_"))) {
+	} else if (mtpIsFlood(error)) {
 		showError(lang(lng_flood_error));
 		enableAll(true);
 		return true;

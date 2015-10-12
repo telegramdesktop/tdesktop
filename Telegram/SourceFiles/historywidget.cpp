@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -64,6 +67,7 @@ HistoryInner::HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, His
     , _touchAccelerationTime(0)
     , _touchTime(0)
     , _menu(0) {
+	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 
 	linkTipTimer.setSingleShot(true);
 	connect(&linkTipTimer, SIGNAL(timeout()), this, SLOT(showLinkTip()));
@@ -75,7 +79,7 @@ HistoryInner::HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, His
 
 	_trippleClickTimer.setSingleShot(true);
 
-	if (botInfo && !botInfo->inited) {
+	if (botInfo && !botInfo->inited && App::api()) {
 		App::api()->requestFullPeer(hist->peer);
 	}
 
@@ -1104,7 +1108,7 @@ int32 HistoryInner::recountHeight(HistoryItem *resizedItem) {
 		int32 tw = scrollArea->width() - st::msgMargin.left() - st::msgMargin.right();
 		if (tw > st::msgMaxWidth) tw = st::msgMaxWidth;
 		tw -= st::msgPadding.left() + st::msgPadding.right();
-		int32 mw = qMax(botInfo->text.maxWidth(), st::msgNameFont->m.width(lang(lng_bot_description)));
+		int32 mw = qMax(botInfo->text.maxWidth(), st::msgNameFont->width(lang(lng_bot_description)));
 		if (tw > mw) tw = mw;
 
 		botDescWidth = tw;
@@ -1138,7 +1142,7 @@ void HistoryInner::updateBotInfo(bool recount) {
 				int32 tw = scrollArea->width() - st::msgMargin.left() - st::msgMargin.right();
 				if (tw > st::msgMaxWidth) tw = st::msgMaxWidth;
 				tw -= st::msgPadding.left() + st::msgPadding.right();
-				int32 mw = qMax(botInfo->text.maxWidth(), st::msgNameFont->m.width(lang(lng_bot_description)));
+				int32 mw = qMax(botInfo->text.maxWidth(), st::msgNameFont->width(lang(lng_bot_description)));
 				if (tw > mw) tw = mw;
 
 				botDescWidth = tw;
@@ -1646,6 +1650,7 @@ bool MessageField::hasSendText() const {
 }
 
 void MessageField::onEmojiInsert(EmojiPtr emoji) {
+	if (isHidden()) return;
 	insertEmoji(emoji, textCursor());
 }
 
@@ -1692,8 +1697,8 @@ _clear(this, lang(lng_profile_delete_conversation)) {
 
 void ReportSpamPanel::resizeEvent(QResizeEvent *e) {
 	_report.resize(width() - (_hide.width() + st::reportSpamSeparator) * 2, _report.height());
-	_report.moveToLeft(_hide.width() + st::reportSpamSeparator, 0, width());
-	_hide.moveToRight(0, 0, width());
+	_report.moveToLeft(_hide.width() + st::reportSpamSeparator, 0);
+	_hide.moveToRight(0, 0);
 	_clear.move((width() - _clear.width()) / 2, height() - _clear.height() - ((height() - st::msgFont->height - _clear.height()) / 2));
 }
 
@@ -1837,7 +1842,8 @@ void BotKeyboard::mouseReleaseEvent(QMouseEvent *e) {
 	updateSelected();
 	if (_sel == down && down >= 0) {
 		int row = (down / MatrixRowShift), col = down % MatrixRowShift;
-		App::sendBotCommand(_btns.at(row).at(col).cmd, _wasForMsgId.msg);
+		QString cmd(_btns.at(row).at(col).cmd);
+		App::sendBotCommand(cmd, _wasForMsgId.msg);
 	}
 }
 
@@ -2032,11 +2038,10 @@ HistoryHider::HistoryHider(MainWidget *parent, bool forwardSelected) : QWidget(p
 , _sharedContact(0)
 , _forwardSelected(forwardSelected)
 , _sendPath(false)
-, forwardButton(this, lang(lng_forward), st::btnSelectDone)
-, cancelButton(this, lang(lng_cancel), st::btnSelectCancel)
+, _send(this, lang(lng_forward_send), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , offered(0)
-, aOpacity(0, 1)
-, aOpacityFunc(anim::easeOutCirc)
+, a_opacity(0, 1)
 , hiding(false)
 , _forwardRequest(0)
 , toTextWidth(0)
@@ -2049,11 +2054,10 @@ HistoryHider::HistoryHider(MainWidget *parent, UserData *sharedContact) : QWidge
 , _sharedContact(sharedContact)
 , _forwardSelected(false)
 , _sendPath(false)
-, forwardButton(this, lang(lng_forward_send), st::btnSelectDone)
-, cancelButton(this, lang(lng_cancel), st::btnSelectCancel)
+, _send(this, lang(lng_forward_send), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , offered(0)
-, aOpacity(0, 1)
-, aOpacityFunc(anim::easeOutCirc)
+, a_opacity(0, 1)
 , hiding(false)
 , _forwardRequest(0)
 , toTextWidth(0)
@@ -2066,11 +2070,10 @@ HistoryHider::HistoryHider(MainWidget *parent) : QWidget(parent)
 , _sharedContact(0)
 , _forwardSelected(false)
 , _sendPath(true)
-, forwardButton(this, lang(lng_forward_send), st::btnSelectDone)
-, cancelButton(this, lang(lng_cancel), st::btnSelectCancel)
+, _send(this, lang(lng_forward_send), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , offered(0)
-, aOpacity(0, 1)
-, aOpacityFunc(anim::easeOutCirc)
+, a_opacity(0, 1)
 , hiding(false)
 , _forwardRequest(0)
 , toTextWidth(0)
@@ -2080,11 +2083,11 @@ HistoryHider::HistoryHider(MainWidget *parent) : QWidget(parent)
 }
 
 void HistoryHider::init() {
-	connect(&forwardButton, SIGNAL(clicked()), this, SLOT(forward()));
-	connect(&cancelButton, SIGNAL(clicked()), this, SLOT(startHide()));
+	connect(&_send, SIGNAL(clicked()), this, SLOT(forward()));
+	connect(&_cancel, SIGNAL(clicked()), this, SLOT(startHide()));
 	connect(App::wnd()->getTitle(), SIGNAL(hiderClicked()), this, SLOT(startHide()));
 
-	_chooseWidth = st::forwardFont->m.width(lang(lng_forward_choose));
+	_chooseWidth = st::forwardFont->width(lang(lng_forward_choose));
 
 	resizeEvent(0);
 	anim::start(this);
@@ -2094,17 +2097,15 @@ bool HistoryHider::animStep(float64 ms) {
 	float64 dt = ms / 200;
 	bool res = true;
 	if (dt >= 1) {
-		aOpacity.finish();
+		a_opacity.finish();
 		if (hiding)	{
 			QTimer::singleShot(0, this, SLOT(deleteLater()));
 		}
 		res = false;
 	} else {
-		aOpacity.update(dt, aOpacityFunc);
+		a_opacity.update(dt, anim::linear);
 	}
-	App::wnd()->getTitle()->setHideLevel(aOpacity.current());
-	forwardButton.setOpacity(aOpacity.current());
-	cancelButton.setOpacity(aOpacity.current());
+	App::wnd()->getTitle()->setHideLevel(a_opacity.current());
 	update();
 	return res;
 }
@@ -2116,9 +2117,9 @@ bool HistoryHider::withConfirm() const {
 void HistoryHider::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (!hiding || !cacheForAnim.isNull() || !offered) {
-		p.setOpacity(aOpacity.current() * st::layerAlpha);
-		p.fillRect(0, st::titleShadow, width(), height() - st::titleShadow, st::layerBG->b);
-		p.setOpacity(aOpacity.current());
+		p.setOpacity(a_opacity.current() * st::layerAlpha);
+		p.fillRect(rect(), st::layerBg->b);
+		p.setOpacity(a_opacity.current());
 	}
 	if (cacheForAnim.isNull() || !offered) {
 		p.setFont(st::forwardFont->f);
@@ -2126,16 +2127,10 @@ void HistoryHider::paintEvent(QPaintEvent *e) {
 			shadow.paint(p, box, st::boxShadowShift);
 
 			// fill bg
-			p.fillRect(box, st::boxBG->b);
-
-			// paint shadows
-			p.fillRect(box.x(), box.y() + box.height() - st::btnSelectCancel.height - st::scrollDef.bottomsh, box.width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
-
-			// paint button sep
-			p.fillRect(box.x() + st::btnSelectCancel.width, box.y() + box.height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
+			p.fillRect(box, st::boxBg->b);
 
 			p.setPen(st::black->p);
-			toText.drawElided(p, box.left() + (box.width() - toTextWidth) / 2, box.top() + st::boxPadding.top(), toTextWidth + 1);
+			toText.drawElided(p, box.left() + st::boxPadding.left(), box.top() + st::boxPadding.top(), toTextWidth + 2);
 		} else {
 			int32 w = st::forwardMargins.left() + _chooseWidth + st::forwardMargins.right(), h = st::forwardMargins.top() + st::forwardFont->height + st::forwardMargins.bottom();
 			App::roundRect(p, (width() - w) / 2, (height() - h) / 2, w, h, st::forwardBg, ForwardCorners);
@@ -2179,7 +2174,9 @@ void HistoryHider::startHide() {
 	if (cWideMode()) {
 		if (offered) cacheForAnim = myGrab(this, box);
 		if (_forwardRequest) MTP::cancel(_forwardRequest);
-		aOpacity.start(0);
+		a_opacity.start(0);
+		_send.hide();
+		_cancel.hide();
 		anim::start(this);
 	} else {
 		QTimer::singleShot(0, this, SLOT(deleteLater()));
@@ -2209,24 +2206,27 @@ MainWidget *HistoryHider::parent() {
 }
 
 void HistoryHider::resizeEvent(QResizeEvent *e) {
-	int32 w = st::forwardWidth, h = st::boxPadding.top() + st::forwardFont->height + st::boxPadding.bottom();
+	int32 w = st::boxWidth, h = st::boxPadding.top() + st::boxPadding.bottom();
 	if (offered) {
-		forwardButton.show();
-		cancelButton.show();
-		h += forwardButton.height() + st::scrollDef.bottomsh;
+		if (!hiding) {
+			_send.show();
+			_cancel.show();
+		}
+		h += st::boxTextFont->height + st::boxButtonPadding.top() + _send.height() + st::boxButtonPadding.bottom();
 	} else {
-		forwardButton.hide();
-		cancelButton.hide();
+		h += st::forwardFont->height;
+		_send.hide();
+		_cancel.hide();
 	}
 	box = QRect((width() - w) / 2, (height() - h) / 2, w, h);
-	cancelButton.move(box.x(), box.y() + h - cancelButton.height());
-	forwardButton.move(box.x() + box.width() - forwardButton.width(), cancelButton.y());
+	_send.moveToRight(width() - (box.x() + box.width()) + st::boxButtonPadding.right(), box.y() + h - st::boxButtonPadding.bottom() - _send.height());
+	_cancel.moveToRight(width() - (box.x() + box.width()) + st::boxButtonPadding.right() + _send.width() + st::boxButtonPadding.left(), _send.y());
 }
 
 bool HistoryHider::offerPeer(PeerId peer) {
 	if (!peer) {
 		offered = 0;
-		toText.setText(st::boxFont, QString());
+		toText.setText(st::boxTextFont, QString());
 		toTextWidth = 0;
 		resizeEvent(0);
 		return false;
@@ -2255,10 +2255,10 @@ bool HistoryHider::offerPeer(PeerId peer) {
 		return false;
 	}
 
-	toText.setText(st::boxFont, phrase, _textNameOptions);
+	toText.setText(st::boxTextFont, phrase, _textNameOptions);
 	toTextWidth = toText.maxWidth();
-	if (toTextWidth > box.width() - st::boxPadding.left() - st::boxPadding.right()) {
-		toTextWidth = box.width() - st::boxPadding.left() - st::boxPadding.right();
+	if (toTextWidth > box.width() - st::boxPadding.left() - st::boxButtonPadding.right()) {
+		toTextWidth = box.width() - st::boxPadding.left() - st::boxButtonPadding.right();
 	}
 	
 	resizeEvent(0);
@@ -2342,7 +2342,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _recording(false), _inRecord(false), _inField(false), _inReply(false)
 , a_recordingLevel(0, 0), _recordingSamples(0)
 , a_recordOver(0, 0), a_recordDown(0, 0), a_recordCancel(st::recordCancel->c, st::recordCancel->c)
-, _recordCancelWidth(st::recordFont->m.width(lang(lng_record_cancel)))
+, _recordCancelWidth(st::recordFont->width(lang(lng_record_cancel)))
 , _kbShown(false)
 , _kbWasHidden(false)
 , _kbReplyTo(0)
@@ -2634,7 +2634,9 @@ void HistoryWidget::activate() {
 }
 
 void HistoryWidget::setInnerFocus() {
-	if (_list) {
+	if (_scroll.isHidden()) {
+		setFocus();
+	} else if (_list) {
 		if (_selCount || (_list && _list->wasSelectedText()) || _recording || isBotStart() || isBlocked() || !_canSendMessages) {
 			_list->setFocus();
 		} else {
@@ -2751,7 +2753,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 		}
 	}
 
-	if (!setsToRequest.isEmpty()) {
+	if (!setsToRequest.isEmpty() && App::api()) {
 		for (QMap<uint64, uint64>::const_iterator i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
 			App::api()->scheduleStickerSetRequest(i.key(), i.value());
 		}
@@ -2764,7 +2766,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 }
 
 bool HistoryWidget::stickersFailed(const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	LOG(("App Fail: Failed to get stickers!"));
 
@@ -2842,7 +2844,7 @@ void HistoryWidget::fastShowAtEnd(History *h) {
 
 	clearAllLoadRequests();
 
-	_showAtMsgId = ShowAtTheEndMsgId;
+	setMsgId(ShowAtUnreadMsgId);
 	_histInited = false;
 
 	if (h->isReadyFor(_showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop)) {
@@ -2854,6 +2856,9 @@ void HistoryWidget::fastShowAtEnd(History *h) {
 }
 
 void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
+	MsgId wasMsgId = _showAtMsgId;
+	History *wasHistory = _history;
+
 	if (_history) {
 		if (_peer->id == peerId) {
 			_history->lastWidth = 0;
@@ -2881,7 +2886,9 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 
 				historyLoaded();
 			}
-			emit peerShown(_peer);
+			App::main()->dlgUpdated(wasHistory, wasMsgId);
+			emit historyShown(_history, _showAtMsgId);
+
 			App::main()->topBar()->update();
 			update();
 			return;
@@ -2915,8 +2922,6 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 		if (_history->unreadBar) {
 			_history->unreadBar->destroy();
 		}
-
-		App::main()->dlgUpdated(_history);
 		_history = 0;
 	}
 
@@ -2994,9 +2999,6 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 			firstLoadMessages();
 			doneShow();
 		}
-		if (_history) {
-			App::main()->dlgUpdated(_history);
-		}
 
 		App::main()->peerUpdated(_peer);
 		
@@ -3023,7 +3025,7 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 		}
 		if (_replyToId) {
 			updateReplyTo();
-			if (!_replyTo) App::api()->requestReplyTo(0, _peer->asChannel(), _replyToId);
+			if (!_replyTo && App::api()) App::api()->requestReplyTo(0, _peer->asChannel(), _replyToId);
 		}
 		resizeEvent(0);
 		if (!_previewCancelled) {
@@ -3036,9 +3038,11 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 		doneShow();
 	}
 
-	if (App::wnd()) App::wnd()->setInnerFocus();
+	if (App::wnd()) QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
 
-	emit peerShown(_peer);
+	App::main()->dlgUpdated(wasHistory, wasMsgId);
+	emit historyShown(_history, _showAtMsgId);
+
 	App::main()->topBar()->update();
 	update();
 }
@@ -3418,11 +3422,11 @@ void HistoryWidget::historyCleared(History *history) {
 }
 
 bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (error.type() == qstr("CHANNEL_PRIVATE")) {
 		App::main()->showDialogs();
-		App::wnd()->showLayer(new ConfirmBox(lang(lng_channel_not_accessible), true));
+		App::wnd()->showLayer(new InformBox(lang(lng_channel_not_accessible)));
 		return true;
 	}
 
@@ -3541,7 +3545,8 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 			calcNextReplyReturn();
 		}
 
-		_showAtMsgId = _delayedShowAtMsgId;
+		setMsgId(_delayedShowAtMsgId);
+
 		_histInited = false;
 
 		if (_history->isChannel() && wasOnlyImportant != _history->asChannelHistory()->onlyImportant()) {
@@ -3819,7 +3824,7 @@ void HistoryWidget::unblockDone(PeerData *peer, const MTPBool &result, mtpReques
 }
 
 bool HistoryWidget::unblockFail(const RPCError &error, mtpRequestId req) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (_unblockRequest == req) _unblockRequest = 0;
 	return false;
@@ -3873,11 +3878,11 @@ void HistoryWidget::joinDone(const MTPUpdates &result, mtpRequestId req) {
 }
 
 bool HistoryWidget::joinFail(const RPCError &error, mtpRequestId req) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (_unblockRequest == req) _unblockRequest = 0;
 	if (error.type() == qstr("CHANNEL_PRIVATE")) {
-		App::wnd()->showLayer(new ConfirmBox(lang(lng_channel_not_accessible), true));
+		App::wnd()->showLayer(new InformBox(lang(lng_channel_not_accessible)));
 		return true;
 	}
 	return false;
@@ -3943,8 +3948,21 @@ void HistoryWidget::onSendPaths(const PeerId &peer) {
 	uploadMedias(cSendPaths(), ToPrepareDocument);
 }
 
+History *HistoryWidget::history() const {
+	return _history;
+}
+
 PeerData *HistoryWidget::peer() const {
 	return _peer;
+}
+
+void HistoryWidget::setMsgId(MsgId showAtMsgId) { // sometimes _showAtMsgId is set directly
+	if (_showAtMsgId != showAtMsgId) {
+		MsgId wasMsgId = _showAtMsgId;
+		_showAtMsgId = showAtMsgId;
+		App::main()->dlgUpdated(_history, wasMsgId);
+		emit historyShown(_history, _showAtMsgId);
+	}
 }
 
 MsgId HistoryWidget::msgId() const {
@@ -4637,7 +4655,7 @@ void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
 	}
 	if (_titlePeerText != text) {
 		_titlePeerText = text;
-		_titlePeerTextWidth = st::dlgHistFont->m.width(_titlePeerText);
+		_titlePeerTextWidth = st::dlgHistFont->width(_titlePeerText);
 		if (App::main()) {
 			App::main()->topBar()->update();
 		}
@@ -4864,7 +4882,7 @@ void HistoryWidget::confirmSendImage(const ReadyLocalMedia &img) {
 		flags |= MTPDmessage::flag_from_id;
 	}
 	if (img.type == ToPreparePhoto) {
-		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(img.peer), MTPPeer(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(img.photo, MTP_string("")), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
+		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(img.peer), MTPPeer(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(img.photo, MTP_string(img.caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
 	} else if (img.type == ToPrepareDocument) {
 		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(img.peer), MTPPeer(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(img.document), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
 	} else if (img.type == ToPrepareAudio) {
@@ -4905,7 +4923,8 @@ void HistoryWidget::onPhotoUploaded(const FullMsgId &newId, const MTPInputFile &
 		if (fromChannelName) {
 			sendFlags |= MTPmessages_SendMessage_flag_broadcast;
 		}
-		hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedPhoto(file, MTP_string("")), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendPhotoFail, randomId), 0, 0, hist->sendRequestId);
+		QString caption = item->getMedia() ? item->getMedia()->getCaption() : QString();
+		hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedPhoto(file, MTP_string(caption)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendPhotoFail, randomId), 0, 0, hist->sendRequestId);
 	}
 }
 
@@ -5078,7 +5097,7 @@ void HistoryWidget::onAudioFailed(const FullMsgId &newId) {
 }
 
 void HistoryWidget::onReportSpamClicked() {
-	ConfirmBox *box = new ConfirmBox(lang(_peer->isUser() ? lng_report_spam_sure : (_peer->isChat() ? lng_report_spam_sure_group : lng_report_spam_sure_channel)), lang(lng_report_spam_ok));
+	ConfirmBox *box = new ConfirmBox(lang(_peer->isUser() ? lng_report_spam_sure : (_peer->isChat() ? lng_report_spam_sure_group : lng_report_spam_sure_channel)), lang(lng_report_spam_ok), st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onReportSpamSure()));
 	App::wnd()->showLayer(box);
 	_clearPeer = _peer;
@@ -5105,7 +5124,7 @@ void HistoryWidget::reportSpamDone(PeerData *peer, const MTPBool &result, mtpReq
 }
 
 bool HistoryWidget::reportSpamFail(const RPCError &error, mtpRequestId req) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (req == _reportSpamRequest) {
 		_reportSpamRequest = 0;
@@ -5323,7 +5342,7 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, 
 	} else if (initial && _showAtMsgId > 0) {
 		HistoryItem *item = App::histItemById(_channel, _showAtMsgId);
 		if (!item || item->detached()) {
-			_showAtMsgId = 0;
+			setMsgId(0);
 			_histInited = false;
 			return updateListSize(addToY, initial);
 		} else {
@@ -5354,7 +5373,7 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, 
 			if (item) {
 				toY = qMax(firstItemY + item->y + item->block()->y - _fixedInScrollMsgTop, 0);
 			} else {
-				_showAtMsgId = ShowAtUnreadMsgId;
+				setMsgId(ShowAtUnreadMsgId);
 				_fixedInScrollMsgId = 0;
 				_fixedInScrollMsgTop = 0;
 				_histInited = false;
@@ -5370,7 +5389,7 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, 
 		if (toY < _scroll.scrollTopMax() + st::unreadBarHeight) {
 			_history->addUnreadBar();
 			if (_history->unreadBar) {
-				_showAtMsgId = ShowAtUnreadMsgId;
+				setMsgId(ShowAtUnreadMsgId);
 				_histInited = false;
 				return updateListSize(0, true);
 			}
@@ -5600,7 +5619,7 @@ void HistoryWidget::onFieldTabbed() {
 }
 
 void HistoryWidget::onStickerSend(DocumentData *sticker) {
-	if (!_history || !sticker) return;
+	if (!_history || !sticker || !canSendMessages(_peer)) return;
 
 	App::main()->readServerHistory(_history, false);
 	fastShowAtEnd(_history);
@@ -5903,10 +5922,12 @@ void HistoryWidget::peerUpdated(PeerData *data) {
 	if (data && data == _peer) {
 		updateListSize();
 		if (_peer->isChannel()) updateReportSpamStatus();
-		if (data->isChat() && data->asChat()->count > 0 && data->asChat()->participants.isEmpty()) {
-			App::api()->requestFullPeer(data);
-		} else if (data->isUser() && data->asUser()->blocked == UserBlockUnknown) {
-			App::api()->requestFullPeer(data);
+		if (App::api()) {
+			if (data->isChat() && data->asChat()->count > 0 && data->asChat()->participants.isEmpty()) {
+				App::api()->requestFullPeer(data);
+			} else if (data->isUser() && data->asUser()->blocked == UserBlockUnknown) {
+				App::api()->requestFullPeer(data);
+			}
 		}
 		if (!_showAnim.animating()) {
 			bool resize = (_unblock.isHidden() == isBlocked() || (!isBlocked() && _joinChannel.isHidden() == isJoinChannel()));
@@ -6131,7 +6152,7 @@ void HistoryWidget::drawField(Painter &p) {
 			} else {
 				p.setFont(st::msgDateFont->f);
 				p.setPen(st::msgInDateColor->p);
-				p.drawText(replyLeft, backy + st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->m.elidedText(lang(lng_profile_loading), Qt::ElideRight, width() - replyLeft - _replyForwardPreviewCancel.width() - st::msgReplyPadding.right()));
+				p.drawText(replyLeft, backy + st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(lang(lng_profile_loading), width() - replyLeft - _replyForwardPreviewCancel.width() - st::msgReplyPadding.right()));
 			}
 		}
 	} else if (from && text) {
@@ -6204,7 +6225,7 @@ void HistoryWidget::drawRecording(Painter &p) {
 	p.setPen(st::black->p);
 	p.drawText(_attachPhoto.x() + _attachEmoji.width(), _attachPhoto.y() + st::recordTextTop + st::recordFont->ascent, duration);
 
-	int32 left = _attachPhoto.x() + _attachEmoji.width() + st::recordFont->m.width(duration) + ((_send.width() - st::btnRecordAudio.pxWidth()) / 2);
+	int32 left = _attachPhoto.x() + _attachEmoji.width() + st::recordFont->width(duration) + ((_send.width() - st::btnRecordAudio.pxWidth()) / 2);
 	int32 right = width() - _send.width();
 
 	p.setPen(a_recordCancel.current());
@@ -6271,7 +6292,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		}
 	} else {
 		style::font font(st::msgServiceFont);
-		int32 w = font->m.width(lang(lng_willbe_history)) + st::msgPadding.left() + st::msgPadding.right(), h = font->height + st::msgServicePadding.top() + st::msgServicePadding.bottom() + 2;
+		int32 w = font->width(lang(lng_willbe_history)) + st::msgPadding.left() + st::msgPadding.right(), h = font->height + st::msgServicePadding.top() + st::msgServicePadding.bottom() + 2;
 		QRect tr((width() - w) / 2, (height() - _field.height() - 2 * st::sendPadding - h) / 2, w, h);
 		App::roundRect(p, tr, App::msgServiceBg(), ServiceCorners);
 

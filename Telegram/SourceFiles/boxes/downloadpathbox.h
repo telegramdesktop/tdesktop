@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -41,9 +44,11 @@ protected:
 
 private:
 
+	void setPathText(const QString &text);
+
 	QString _path;
 
-	FlatRadiobutton _defaultRadio, _tempRadio, _dirRadio;
-	FlatInput _dirInput;
-	FlatButton _saveButton, _cancelButton;
+	Radiobutton _default, _temp, _dir;
+	LinkButton _pathLink;
+	BoxButton _save, _cancel;
 };

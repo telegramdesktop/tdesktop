@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -27,7 +30,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 SysBtn::SysBtn(QWidget *parent, const style::sysButton &st, const QString &text) : Button(parent),
 _st(st), a_color(_st.color->c), _overLevel(0), _text(text) {
-	int32 w = _st.size.width() + (_text.isEmpty() ? 0 : ((_st.size.width() - _st.img.pxWidth()) / 2 + st::titleTextButton.font->m.width(_text)));
+	int32 w = _st.size.width() + (_text.isEmpty() ? 0 : ((_st.size.width() - _st.img.pxWidth()) / 2 + st::titleTextButton.font->width(_text)));
 	resize(w, _st.size.height());
 	setCursor(style::cur_default);
 	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
@@ -35,7 +38,7 @@ _st(st), a_color(_st.color->c), _overLevel(0), _text(text) {
 
 void SysBtn::setText(const QString &text) {
 	_text = text;
-	int32 w = _st.size.width() + (_text.isEmpty() ? 0 : ((_st.size.width() - _st.img.pxWidth()) / 2 + st::titleTextButton.font->m.width(_text)));
+	int32 w = _st.size.width() + (_text.isEmpty() ? 0 : ((_st.size.width() - _st.img.pxWidth()) / 2 + st::titleTextButton.font->width(_text)));
 	resize(w, _st.size.height());
 }
 

@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
@@ -116,7 +119,7 @@ OverviewInner::CachedLink::CachedLink(HistoryItem *item) : titleWidth(0), page(0
 			}
 		}
 	}
-	titleWidth = st::webPageTitleFont->m.width(title);
+	titleWidth = st::webPageTitleFont->width(title);
 }
 
 int32 OverviewInner::CachedLink::countHeight(int32 w) {
@@ -134,57 +137,58 @@ int32 OverviewInner::CachedLink::countHeight(int32 w) {
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
 OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, const PeerData *peer, MediaOverviewType type) : QWidget(0)
-	, _overview(overview)
-	, _scroll(scroll)
-	, _resizeIndex(-1)
-	, _resizeSkip(0)
-	, _peer(App::peer(peer->id))
-	, _type(type)
-	, _hist(App::history(peer->id))
-	, _channel(peerToChannel(peer->id))
-	, _photosInRow(1)
-	, _photosToAdd(0)
-	, _selMode(false)
-	, _audioLeft(st::msgMargin.left())
-	, _audioWidth(st::msgMinWidth)
-	, _audioHeight(st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom())
-	, _linksLeft(st::linksSearchMargin.left())
-	, _linksWidth(st::msgMinWidth)
-	, _search(this, st::dlgFilter, lang(lng_dlg_filter))
-	, _cancelSearch(this, st::btnCancelSearch)
-	, _itemsToBeLoaded(LinksOverviewPerPage * 2)
-	, _inSearch(false)
-	, _searchFull(false)
-	, _searchRequest(0)
-	, _lastSearchId(0)
-	, _searchedCount(0)
-	, _width(st::wndMinWidth)
-	, _height(0)
-	, _minHeight(0)
-	, _addToY(0)
-	, _cursor(style::cur_default)
-	, _cursorState(HistoryDefaultCursorState)
-	, _dragAction(NoDrag)
-	, _dragItem(0), _selectedMsgId(0)
-	, _dragItemIndex(-1)
-	, _mousedItem(0)
-	, _mousedItemIndex(-1)
-	, _lnkOverIndex(0)
-	, _lnkDownIndex(0)
-	, _dragWasInactive(false)
-	, _dragSelFrom(0)
-	, _dragSelTo(0)
-	, _dragSelecting(false)
-	, _touchScroll(false)
-	, _touchSelect(false)
-	, _touchInProgress(false)
-	, _touchScrollState(TouchScrollManual)
-	, _touchPrevPosValid(false)
-	, _touchWaitingAcceleration(false)
-	, _touchSpeedTime(0)
-	, _touchAccelerationTime(0)
-	, _touchTime(0)
-	, _menu(0) {
+, _overview(overview)
+, _scroll(scroll)
+, _resizeIndex(-1)
+, _resizeSkip(0)
+, _peer(App::peer(peer->id))
+, _type(type)
+, _hist(App::history(peer->id))
+, _channel(peerToChannel(peer->id))
+, _photosInRow(1)
+, _photosToAdd(0)
+, _selMode(false)
+, _audioLeft(st::msgMargin.left())
+, _audioWidth(st::msgMinWidth)
+, _audioHeight(st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom())
+, _linksLeft(st::linksSearchMargin.left())
+, _linksWidth(st::msgMinWidth)
+, _search(this, st::dlgFilter, lang(lng_dlg_filter))
+, _cancelSearch(this, st::btnCancelSearch)
+, _itemsToBeLoaded(LinksOverviewPerPage * 2)
+, _inSearch(false)
+, _searchFull(false)
+, _searchRequest(0)
+, _lastSearchId(0)
+, _searchedCount(0)
+, _width(st::wndMinWidth)
+, _height(0)
+, _minHeight(0)
+, _addToY(0)
+, _cursor(style::cur_default)
+, _cursorState(HistoryDefaultCursorState)
+, _dragAction(NoDrag)
+, _dragItem(0), _selectedMsgId(0)
+, _dragItemIndex(-1)
+, _mousedItem(0)
+, _mousedItemIndex(-1)
+, _lnkOverIndex(0)
+, _lnkDownIndex(0)
+, _dragWasInactive(false)
+, _dragSelFrom(0)
+, _dragSelTo(0)
+, _dragSelecting(false)
+, _touchScroll(false)
+, _touchSelect(false)
+, _touchInProgress(false)
+, _touchScrollState(TouchScrollManual)
+, _touchPrevPosValid(false)
+, _touchWaitingAcceleration(false)
+, _touchSpeedTime(0)
+, _touchAccelerationTime(0)
+, _touchTime(0)
+, _menu(0) {
+	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 
 	resize(_width, height());
 
@@ -363,7 +367,7 @@ void OverviewInner::searchReceived(bool fromStart, const MTPmessages_Messages &r
 }
 
 bool OverviewInner::searchFailed(const RPCError &error, mtpRequestId req) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (_searchRequest == req) {
 		_searchRequest = 0;
@@ -757,7 +761,7 @@ void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 			}
 		} else {
 			_selected.clear();
-			parentWidget()->update();
+			update();
 		}
 	} else if (_dragAction == Selecting) {
 		if (_dragSelFrom && _dragSelTo) {
@@ -1187,7 +1191,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 					p.setPen(st::black->p);
 					p.setFont(st::webPageTitleFont->f);
 					if (!lnk->title.isEmpty()) {
-						p.drawText(left, top + st::webPageTitleFont->ascent, (_linksWidth - left < lnk->titleWidth) ? st::webPageTitleFont->m.elidedText(lnk->title, Qt::ElideRight, _linksWidth - left) : lnk->title);
+						p.drawText(left, top + st::webPageTitleFont->ascent, (_linksWidth - left < lnk->titleWidth) ? st::webPageTitleFont->elided(lnk->title, _linksWidth - left) : lnk->title);
 						top += st::webPageTitleFont->height;
 					}
 					p.setFont(st::msgFont->f);
@@ -1200,7 +1204,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 					for (int32 j = 0, c = lnk->urls.size(); j < c; ++j) {
 						bool sel = (_mousedItem == _items[i].msgid && j + 1 == _lnkOverIndex);
 						if (sel) p.setFont(st::msgFont->underline()->f);
-						p.drawText(left, top + st::msgFont->ascent, (_linksWidth - left < lnk->urls[j].width) ? st::msgFont->m.elidedText(lnk->urls[j].text, Qt::ElideRight, _linksWidth - left) : lnk->urls[j].text);
+						p.drawText(left, top + st::msgFont->ascent, (_linksWidth - left < lnk->urls[j].width) ? st::msgFont->elided(lnk->urls[j].text, _linksWidth - left) : lnk->urls[j].text);
 						if (sel) p.setFont(st::msgFont->f);
 						top += st::msgFont->height;
 					}
@@ -1257,7 +1261,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 					int32 left = st::msgServiceMargin.left(), width = _width - st::msgServiceMargin.left() - st::msgServiceMargin.left(), height = st::msgServiceFont->height + st::msgServicePadding.top() + st::msgServicePadding.bottom();
 					if (width < 1) return;
 
-					int32 strwidth = st::msgServiceFont->m.width(str) + st::msgServicePadding.left() + st::msgServicePadding.right();
+					int32 strwidth = st::msgServiceFont->width(str) + st::msgServicePadding.left() + st::msgServicePadding.right();
 
 					QRect trect(QRect(left, st::msgServiceMargin.top(), width, height).marginsAdded(-st::msgServicePadding));
 					left += (width - strwidth) / 2;
@@ -1665,7 +1669,7 @@ void OverviewInner::updateDragSelection(MsgId dragSelFrom, int32 dragSelFromInde
 			qSwap(_dragSelFromIndex, _dragSelToIndex);
 		}
 		_dragSelecting = dragSelecting;
-		parentWidget()->update();
+		update();
 	}
 }
 
@@ -2041,7 +2045,7 @@ void OverviewInner::onNeedSearchMessages() {
 	if (!onSearchMessages(true)) {
 		_searchTimer.start(AutoSearchTimeout);
 		if (_inSearch && _searchFull && _searchResults.isEmpty()) {
-			parentWidget()->update();
+			update();
 		}
 	}
 }
@@ -2411,7 +2415,7 @@ void OverviewInner::itemRemoved(HistoryItem *item) {
 	}
 	updateDragSelection(_dragSelFrom, _dragSelFromIndex, _dragSelTo, _dragSelToIndex, _dragSelecting);
 
-	parentWidget()->update();
+	update();
 }
 
 void OverviewInner::itemResized(HistoryItem *item, bool scrollToIt) {
@@ -2443,7 +2447,7 @@ void OverviewInner::itemResized(HistoryItem *item, bool scrollToIt) {
 							_scroll->scrollToY(_addToY + _height - _items[i].y);
 						}
 					}
-					parentWidget()->update();
+					update();
 				}
 				break;
 			}
@@ -2877,7 +2881,11 @@ OverviewWidget::~OverviewWidget() {
 }
 
 void OverviewWidget::activate() {
-	_inner.activate();
+	if (_scroll.isHidden()) {
+		setFocus();
+	} else {
+		_inner.activate();
+	}
 }
 
 QPoint OverviewWidget::clampMousePosition(QPoint point) {

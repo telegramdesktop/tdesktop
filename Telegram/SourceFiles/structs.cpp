@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -385,7 +388,7 @@ void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see 
 		photoId = newPhotoId;
 		photo = newPhoto;
 		photoLoc = newPhotoLoc;
-		emit App::main()->peerPhotoChanged(this);
+		if (App::main()) emit App::main()->peerPhotoChanged(this);
 	}
 }
 
@@ -397,8 +400,10 @@ void ChannelData::setName(const QString &newName, const QString &usern) {
 
 void ChannelData::updateFull(bool force) {
 	if (!_lastFullUpdate || force || getms(true) > _lastFullUpdate + UpdateFullChannelTimeout) {
-		App::api()->requestFullPeer(this);
-		if (!amCreator() && !inviter) App::api()->requestSelfParticipant(this);
+		if (App::api()) {
+			App::api()->requestFullPeer(this);
+			if (!amCreator() && !inviter) App::api()->requestSelfParticipant(this);
+		}
 	}
 }
 
@@ -960,7 +965,7 @@ void PeerLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton && App::main()) {
 		if (peer() && peer()->isChannel() && App::main()->historyPeer() != peer()) {
 			if (!peer()->asChannel()->isPublic() && !peer()->asChannel()->amIn()) {
-				App::wnd()->showLayer(new ConfirmBox(lang(lng_channel_not_accessible), true));
+				App::wnd()->showLayer(new InformBox(lang(lng_channel_not_accessible)));
 			} else {
 				App::main()->showPeerHistory(peer()->id, ShowAtUnreadMsgId);
 			}

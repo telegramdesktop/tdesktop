@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 textStyle {
 	lnkFlags: font;
@@ -195,27 +198,6 @@ countryInput {
 	align: align;
 }
 
-countryList {
-	notFoundColor: color;
-	notFoundFont: font;
-	
-	verticalMargin: number;
-
-	font: font;
-	codeFont: font;
-	rowHeight: number;
-	color: color;
-	codeColor: color;
-	bgColor: color;
-	bgHovered: color;
-	margin: number;
-	codeWidth: number;
-
-	borderMargin: number;
-	borderColor: color;
-	borderWidth: number;
-}
-
 slider {
 	color: color;
 	thikness: number;
@@ -266,6 +248,88 @@ botKeyboardButton {
 	height: number;
 	textTop: number;
 	downTextTop: number;
+}
+
+BoxButton {
+	textFg: color;
+	textFgOver: color;
+	textBg: color; // rect of textBg with rounded rect of textBgOver upon it
+	textBgOver: color;
+
+	width: number;
+	height: number;
+
+	textTop: number;
+
+	font: font;
+	duration: number;
+}
+
+Checkbox {
+	textFg: color;
+	textBg: color;
+
+	checkFg: color;
+	checkFgOver: color;
+	checkFgActive: color;
+
+	width: number;
+	height: number;
+
+	textPosition: point;
+	diameter: number;
+	thickness: number;
+	checkIcon: sprite;
+
+	font: font;
+	duration: number;
+}
+
+Radiobutton {
+	textFg: color;
+	textBg: color;
+
+	checkFg: color;
+	checkFgOver: color;
+	checkFgActive: color;
+
+	width: number;
+	height: number;
+
+	textPosition: point;
+	diameter: number;
+	thickness: number;
+	checkSkip: number;
+
+	font: font;
+	duration: number;
+}
+
+InputArea {
+	textFg: color;
+	textMargins: margins;
+
+	placeholderFg: color;
+	placeholderFgActive: color;
+	placeholderMargins: margins;
+	placeholderAlign: align;
+	placeholderShift: number;
+
+	duration: number;
+
+	borderFg: color;
+	borderFgActive: color;
+	borderFgError: color;
+
+	border: number;
+	borderActive: number;
+	borderError: number;
+
+	font: font;
+
+	width: number;
+	heightMin: number;
+	heightMax: number;
 }
 
 InputField {

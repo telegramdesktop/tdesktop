@@ -12,12 +12,14 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtWidgets/QLineEdit>
 #include "style.h"
 #include "animation.h"
 
@@ -53,11 +55,11 @@ public:
 	QSize minimumSizeHint() const;
 
 	void customUpDown(bool isCustom);
-	QString getLastText() const {
-		return text();
+	const QString &getLastText() const {
+		return _oldtext;
 	}
 
-	void setTextMargin(const QMargins &mrg);
+	void setTextMargins(const QMargins &mrg);
 
 public slots:
 
@@ -70,13 +72,13 @@ signals:
 
 	void changed();
 	void cancelled();
-	void accepted();
+	void submitted(bool ctrlShiftEnter);
 	void focused();
 	void blurred();
 
 protected:
 
-	virtual void correctValue(QKeyEvent *e, const QString &was);
+	virtual void correctValue(const QString &was, QString &now);
 
 	style::font phFont() {
 		return _st.font;
@@ -86,9 +88,8 @@ protected:
 
 private:
 
-	QString _ph, _fullph, _oldtext;
+	QString _oldtext, _ph, _fullph;
 	bool _fastph;
-	QKeyEvent *_kev;
 
 	bool _customUpDown;
 
@@ -114,7 +115,7 @@ public:
 
 	CountryCodeInput(QWidget *parent, const style::flatInput &st);
 
-	public slots:
+public slots:
 
 	void startErasing(QKeyEvent *e);
 	void codeSelected(const QString &code);
@@ -126,7 +127,7 @@ signals:
 
 protected:
 
-	void correctValue(QKeyEvent *e, const QString &was);
+	void correctValue(const QString &was, QString &now);
 
 private:
 
@@ -134,24 +135,41 @@ private:
 
 };
 
-
-class UsernameInput : public FlatInput {
-public:
-
-	UsernameInput(QWidget *parent, const style::flatInput &st, const QString &ph = QString(), const QString &val = QString());
-
-protected:
-
-	void correctValue(QKeyEvent *e, const QString &was);
-
-};
-
-class InputField : public TWidget {
+class PhonePartInput : public FlatInput {
 	Q_OBJECT
 
 public:
 
-	InputField(QWidget *parent, const style::InputField &st, const QString &ph = QString(), const QString &val = QString());
+	PhonePartInput(QWidget *parent, const style::flatInput &st);
+
+	void paintEvent(QPaintEvent *e);
+	void keyPressEvent(QKeyEvent *e);
+
+public slots:
+
+	void addedToNumber(const QString &added);
+	void onChooseCode(const QString &code);
+
+signals:
+
+	void voidBackspace(QKeyEvent *e);
+
+protected:
+
+	void correctValue(const QString &was, QString &now);
+
+private:
+
+	QVector<int> pattern;
+
+};
+
+class InputArea : public TWidget {
+	Q_OBJECT
+
+public:
+
+	InputArea(QWidget *parent, const style::InputArea &st, const QString &ph = QString(), const QString &val = QString());
 
 	void touchEvent(QTouchEvent *e);
 	void paintEvent(QPaintEvent *e);
@@ -160,14 +178,20 @@ public:
 	void contextMenuEvent(QContextMenuEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
-	const QString &getLastText() const;
+	void showError();
+
+	void setMaxLength(int32 maxLength) {
+		_maxLength = maxLength;
+	}
+
+	const QString &getLastText() const {
+		return _oldtext;
+	}
 	void updatePlaceholder();
 
-	int32 fakeMargin() const;
-
-	bool placeholderFgStep(float64 ms);
-	bool placeholderShiftStep(float64 ms);
-	bool borderStep(float64 ms);
+	bool animStep_placeholderFg(float64 ms);
+	bool animStep_placeholderShift(float64 ms);
+	bool animStep_border(float64 ms);
 
 	QSize sizeHint() const;
 	QSize minimumSizeHint() const;
@@ -179,6 +203,7 @@ public:
 	bool isRedoAvailable() const;
 
 	void customUpDown(bool isCustom);
+	void setCtrlEnterSubmit(bool ctrlEnterSubmit);
 
 	void setTextCursor(const QTextCursor &cursor) {
 		return _inner.setTextCursor(cursor);
@@ -187,12 +212,16 @@ public:
 		return _inner.textCursor();
 	}
 	void setText(const QString &text) {
-		return _inner.setText(text);
+		_inner.setText(text);
+		updatePlaceholder();
 	}
 	void clear() {
-		return _inner.clear();
+		_inner.clear();
+		updatePlaceholder();
 	}
-
+	bool hasFocus() const {
+		return _inner.hasFocus();
+	}
 
 public slots:
 
@@ -213,11 +242,10 @@ signals:
 
 	void focused();
 	void blurred();
+	void resized();
 
 protected:
 
-	virtual void correctValue(QKeyEvent *e, const QString &was);
-	
 	void insertEmoji(EmojiPtr emoji, QTextCursor c);
 	TWidget *tparent() {
 		return qobject_cast<TWidget*>(parentWidget());
@@ -227,6 +255,178 @@ protected:
 	}
 
 private:
+
+	int32 _maxLength;
+	bool heightAutoupdated();
+	void checkContentHeight();
+
+	friend class InputAreaInner;
+	class InputAreaInner : public QTextEdit {
+	public:
+		InputAreaInner(InputArea *parent, const QString &val = QString());
+
+		bool viewportEvent(QEvent *e);
+		void focusInEvent(QFocusEvent *e);
+		void focusOutEvent(QFocusEvent *e);
+		void keyPressEvent(QKeyEvent *e);
+		void paintEvent(QPaintEvent *e);
+
+		QMimeData *createMimeDataFromSelection() const;
+
+		QVariant loadResource(int type, const QUrl &name);
+
+	private:
+
+		InputArea *f() const {
+			return static_cast<InputArea*>(parentWidget());
+		}
+		friend class InputArea;
+	};
+
+	void focusInInner();
+	void focusOutInner();
+
+	void processDocumentContentsChange(int position, int charsAdded);
+
+	void startBorderAnimation();
+
+	InputAreaInner _inner;
+
+	QString _oldtext;
+
+	bool _undoAvailable, _redoAvailable, _inHeightCheck, _ctrlEnterSubmit;
+
+	bool _customUpDown;
+
+	QString _placeholder, _placeholderFull;
+	bool _placeholderVisible;
+	anim::ivalue a_placeholderLeft;
+	anim::fvalue a_placeholderOpacity;
+	anim::cvalue a_placeholderFg;
+	Animation _a_placeholderFg, _a_placeholderShift;
+
+	anim::fvalue a_borderOpacityActive;
+	anim::cvalue a_borderFg;
+	Animation _a_border;
+
+	bool _focused, _error;
+
+	const style::InputArea &_st;
+
+	QTimer _touchTimer;
+	bool _touchPress, _touchRightButton, _touchMove;
+	QPoint _touchStart;
+
+	bool _correcting;
+};
+
+class InputField : public TWidget {
+	Q_OBJECT
+
+public:
+
+	InputField(QWidget *parent, const style::InputField &st, const QString &ph = QString(), const QString &val = QString());
+
+	void touchEvent(QTouchEvent *e);
+	void paintEvent(QPaintEvent *e);
+	void focusInEvent(QFocusEvent *e);
+	void mousePressEvent(QMouseEvent *e);
+	void contextMenuEvent(QContextMenuEvent *e);
+	void resizeEvent(QResizeEvent *e);
+
+	void setMaxLength(int32 maxLength) {
+		_maxLength = maxLength;
+	}
+
+	void showError();
+
+	const QString &getLastText() const {
+		return _oldtext;
+	}
+	void updatePlaceholder();
+
+	bool animStep_placeholderFg(float64 ms);
+	bool animStep_placeholderShift(float64 ms);
+	bool animStep_border(float64 ms);
+
+	QSize sizeHint() const;
+	QSize minimumSizeHint() const;
+
+	QString getText(int32 start = 0, int32 end = -1) const;
+	bool hasText() const;
+
+	bool isUndoAvailable() const;
+	bool isRedoAvailable() const;
+
+	void customUpDown(bool isCustom);
+
+	void setTextCursor(const QTextCursor &cursor) {
+		return _inner.setTextCursor(cursor);
+	}
+	QTextCursor textCursor() const {
+		return _inner.textCursor();
+	}
+	void setText(const QString &text) {
+		_inner.setText(text);
+		updatePlaceholder();
+	}
+	void clear() {
+		_inner.clear();
+		updatePlaceholder();
+	}
+	bool hasFocus() const {
+		return _inner.hasFocus();
+	}
+	void setFocus() {
+		_inner.setFocus();
+		QTextCursor c(_inner.textCursor());
+		c.movePosition(QTextCursor::End);
+		_inner.setTextCursor(c);
+	}
+	void clearFocus() {
+		_inner.clearFocus();
+	}
+	void setCursorPosition(int pos) {
+		QTextCursor c(_inner.textCursor());
+		c.setPosition(pos);
+		_inner.setTextCursor(c);
+	}
+
+public slots:
+
+	void onTouchTimer();
+
+	void onDocumentContentsChange(int position, int charsRemoved, int charsAdded);
+	void onDocumentContentsChanged();
+
+	void onUndoAvailable(bool avail);
+	void onRedoAvailable(bool avail);
+
+	void selectAll();
+
+signals:
+
+	void changed();
+	void submitted(bool ctrlShiftEnter);
+	void cancelled();
+	void tabbed();
+
+	void focused();
+	void blurred();
+
+protected:
+
+	void insertEmoji(EmojiPtr emoji, QTextCursor c);
+	TWidget *tparent() {
+		return qobject_cast<TWidget*>(parentWidget());
+	}
+	const TWidget *tparent() const {
+		return qobject_cast<const TWidget*>(parentWidget());
+	}
+
+private:
+
+	int32 _maxLength;
 
 	friend class InputFieldInner;
 	class InputFieldInner : public QTextEdit {
@@ -250,20 +450,20 @@ private:
 		}
 		friend class InputField;
 	};
-	InputFieldInner _inner;
+
 	void focusInInner();
 	void focusOutInner();
 
 	void processDocumentContentsChange(int position, int charsAdded);
 
-	QString _oldtext;
+	void startBorderAnimation();
 
-	QKeyEvent *_keyEvent;
+	InputFieldInner _inner;
+
+	QString _oldtext;
 
 	bool _undoAvailable, _redoAvailable;
 
-	int32 _fakeMargin;
-	
 	bool _customUpDown;
 	
 	QString _placeholder, _placeholderFull;
@@ -271,22 +471,183 @@ private:
 	anim::ivalue a_placeholderLeft;
 	anim::fvalue a_placeholderOpacity;
 	anim::cvalue a_placeholderFg;
-	Animation _placeholderFgAnim, _placeholderShiftAnim;
+	Animation _a_placeholderFg, _a_placeholderShift;
 	
 	anim::fvalue a_borderOpacityActive;
 	anim::cvalue a_borderFg;
-	Animation _borderAnim;
+	Animation _a_border;
 	
 	bool _focused, _error;
 	
-	const style::InputField *_st;
+	const style::InputField &_st;
 
 	QTimer _touchTimer;
 	bool _touchPress, _touchRightButton, _touchMove;
 	QPoint _touchStart;
 
-	bool _replacingEmojis;
-	typedef QPair<int, int> Insertion;
-	typedef QList<Insertion> Insertions;
-	Insertions _insertions;
+	bool _correcting;
+};
+
+class MaskedInputField : public QLineEdit {
+	Q_OBJECT
+	T_WIDGET
+
+public:
+
+	MaskedInputField(QWidget *parent, const style::InputField &st, const QString &placeholder = QString(), const QString &val = QString());
+
+	bool event(QEvent *e);
+	void touchEvent(QTouchEvent *e);
+	void paintEvent(QPaintEvent *e);
+	void focusInEvent(QFocusEvent *e);
+	void focusOutEvent(QFocusEvent *e);
+	void keyPressEvent(QKeyEvent *e);
+	void resizeEvent(QResizeEvent *e);
+
+	void showError();
+
+	bool setPlaceholder(const QString &ph);
+	void setPlaceholderFast(bool fast);
+	void updatePlaceholder();
+
+	QRect getTextRect() const;
+
+	bool animStep_placeholderFg(float64 ms);
+	bool animStep_placeholderShift(float64 ms);
+	bool animStep_border(float64 ms);
+
+	QSize sizeHint() const;
+	QSize minimumSizeHint() const;
+
+	void customUpDown(bool isCustom);
+	const QString &getLastText() const {
+		return _oldtext;
+	}
+	void setText(const QString &text) {
+		QLineEdit::setText(text);
+		updatePlaceholder();
+	}
+	void clear() {
+		QLineEdit::clear();
+		updatePlaceholder();
+	}
+
+public slots:
+
+	void onTextChange(const QString &text);
+	void onCursorPositionChanged(int oldPosition, int position);
+
+	void onTextEdited();
+
+	void onTouchTimer();
+
+signals:
+
+	void changed();
+	void cancelled();
+	void submitted(bool ctrlShiftEnter);
+	void focused();
+	void blurred();
+
+protected:
+
+	virtual void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor);
+	virtual void paintPlaceholder(Painter &p);
+
+	style::font phFont() {
+		return _st.font;
+	}
+
+	void placeholderPreparePaint(Painter &p);
+	const QString &placeholder() const;
+	QRect placeholderRect() const;
+
+	void setTextMargins(const QMargins &mrg);
+	const style::InputField &_st;
+
+private:
+
+	void startBorderAnimation();
+
+	int32 _maxLength;
+
+	QString _oldtext;
+	int32 _oldcursor;
+
+	bool _undoAvailable, _redoAvailable;
+
+	bool _customUpDown;
+
+	QString _placeholder, _placeholderFull;
+	bool _placeholderVisible, _placeholderFast;
+	anim::ivalue a_placeholderLeft;
+	anim::fvalue a_placeholderOpacity;
+	anim::cvalue a_placeholderFg;
+	Animation _a_placeholderFg, _a_placeholderShift;
+
+	anim::fvalue a_borderOpacityActive;
+	anim::cvalue a_borderFg;
+	Animation _a_border;
+
+	bool _focused, _error;
+
+	style::margins _textMargins;
+
+	QTimer _touchTimer;
+	bool _touchPress, _touchRightButton, _touchMove;
+	QPoint _touchStart;
+};
+
+class PasswordField : public MaskedInputField {
+public:
+
+	PasswordField(QWidget *parent, const style::InputField &st, const QString &ph = QString(), const QString &val = QString());
+
+};
+
+class PortInput : public MaskedInputField {
+public:
+
+	PortInput(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val);
+
+protected:
+
+	void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor);
+
+};
+
+class UsernameInput : public MaskedInputField {
+public:
+
+	UsernameInput(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val, bool isLink);
+	void paintPlaceholder(Painter &p);
+
+protected:
+
+	void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor);
+
+private:
+
+	QString _linkPlaceholder;
+
+};
+
+class PhoneInput : public MaskedInputField {
+public:
+
+	PhoneInput(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val);
+
+	void focusInEvent(QFocusEvent *e);
+	void clearText();
+
+protected:
+
+	void paintPlaceholder(Painter &p);
+	void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor);
+
+private:
+
+	QString _defaultPlaceholder;
+	QVector<int> pattern;
+
 };

@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "genstyles.h"
 
@@ -374,8 +377,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of\n\
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n\
 GNU General Public License for more details.\n\
 \n\
+In addition, as a special exception, the copyright holders give permission\n\
+to link the code of portions of this program with the OpenSSL library.\n\
+\n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
-Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org\n\
 */\n";
 			tout << "#pragma once\n\n#include \"style.h\"\n\nnamespace style {\n";
 			for (int i = 0, l = byIndex.size(); i < l; ++i) {
@@ -1537,8 +1543,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of\n\
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n\
 GNU General Public License for more details.\n\
 \n\
+In addition, as a special exception, the copyright holders give permission\n\
+to link the code of portions of this program with the OpenSSL library.\n\
+\n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
-Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org\n\
 */\n";
 			tout << "#pragma once\n\n#include \"style.h\"\n\nnamespace st {\n";
 			tcpp << "\
@@ -1560,8 +1569,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of\n\
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n\
 GNU General Public License for more details.\n\
 \n\
+In addition, as a special exception, the copyright holders give permission\n\
+to link the code of portions of this program with the OpenSSL library.\n\
+\n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
-Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org\n\
 */\n";
 			tcpp << "#include \"stdafx.h\"\n#include \"style_auto.h\"\n\nnamespace {\n";
 			for (int i = 0, l = scalars.size(); i < l; ++i) {
@@ -1934,8 +1946,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of\n\
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n\
 GNU General Public License for more details.\n\
 \n\
+In addition, as a special exception, the copyright holders give permission\n\
+to link the code of portions of this program with the OpenSSL library.\n\
+\n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
-Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org\n\
 */\n";
 			tnum << "#include \"stdafx.h\"\n#include \"numbers.h\"\n\n";
 			tnum << "QVector<int> phoneNumberParse(const QString &number) {\n";
@@ -1950,7 +1965,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 				while (!already.isEmpty() && (already.size() > k.size() || !already.endsWith(k.at(already.size() - 1)))) {
 					if (!onlyLastChanged) {
 						tnum << QString("\t").repeated(1 + already.size()) << "}\n";
-						tnum << QString("\t").repeated(1 + already.size()) << "return result;\n";
+						tnum << QString("\t").repeated(already.size()) << "break;\n";
 					}
 					already = already.mid(0, already.size() - 1);
 					onlyLastChanged = false;

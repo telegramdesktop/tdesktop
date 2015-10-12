@@ -12,6 +12,9 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014 John Preston, https://desktop.telegram.org
 '''
@@ -33,7 +36,8 @@ funcsText = '';
 typesText = '';
 dataTexts = '';
 inlineMethods = '';
-textSerialize = '';
+textSerializeInit = '';
+textSerializeMethods = '';
 forwards = '';
 forwTypedefs = '';
 out = open('mtpScheme.h', 'w')
@@ -52,6 +56,9 @@ out.write('It is distributed in the hope that it will be useful,\n');
 out.write('but WITHOUT ANY WARRANTY; without even the implied warranty of\n');
 out.write('MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n');
 out.write('GNU General Public License for more details.\n');
+out.write('\n');
+out.write('In addition, as a special exception, the copyright holders give permission\n');
+out.write('to link the code of portions of this program with the OpenSSL library.\n');
 out.write('\n');
 out.write('Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n');
 out.write('Copyright (c) 2014 John Preston, https://desktop.telegram.org\n');
@@ -305,21 +312,19 @@ def addTextSerialize(lst, dct, dataLetter):
       conditionsList = data[5];
       conditions = data[6];
 
-      if len(result):
-        result += '\n';
-      result += '\t\t\tcase mtpc_' + name + ':\n';
+      result += 'void _serialize_' + name + '(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {\n';
       if (len(prms)):
-        result += '\t\t\t\tif (stage) {\n';
-        result += '\t\t\t\t\tto.add(",\\n").addSpaces(lev);\n';
-        result += '\t\t\t\t} else {\n';
-        result += '\t\t\t\t\tto.add("{ ' + name + '");\n';
-        result += '\t\t\t\t\tto.add("\\n").addSpaces(lev);\n';
-        result += '\t\t\t\t}\n';
-        result += '\t\t\t\tswitch (stage) {\n';
+        result += '\tif (stage) {\n';
+        result += '\t\tto.add(",\\n").addSpaces(lev);\n';
+        result += '\t} else {\n';
+        result += '\t\tto.add("{ ' + name + '");\n';
+        result += '\t\tto.add("\\n").addSpaces(lev);\n';
+        result += '\t}\n';
+        result += '\tswitch (stage) {\n';
         stage = 0;
         for k in prmsList:
           v = prms[k];
-          result += '\t\t\t\tcase ' + str(stage) + ': to.add("  ' + k + ': "); ++stages.back(); ';
+          result += '\tcase ' + str(stage) + ': to.add("  ' + k + ': "); ++stages.back(); ';
           if (k == hasFlags):
             result += 'if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; ';
           if (k in conditionsList):
@@ -370,15 +375,27 @@ def addTextSerialize(lst, dct, dataLetter):
             result += '} else { to.add("[ SKIPPED BY BIT ' + conditions[k] + ' IN FIELD ' + hasFlags + ' ]"); } ';
           result += 'break;\n';
           stage = stage + 1;
-        result += '\t\t\t\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n';
-        result += '\t\t\t\t}\n';
+        result += '\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n';
+        result += '\t}\n';
       else:
-        result += '\t\t\t\tto.add("{ ' + name + ' }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();\n';
-      result += '\t\t\tbreak;\n';
+        result += '\tto.add("{ ' + name + ' }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();\n';
+      result += '}\n\n';
   return result;
 
-textSerialize += addTextSerialize(typesList, typesDict, 'D') + '\n';
-textSerialize += addTextSerialize(funcsList, funcsDict, '');
+# text serialization: types and funcs
+def addTextSerializeInit(lst, dct):
+  result = '';
+  for restype in lst:
+    v = dct[restype];
+    for data in v:
+      name = data[0];
+      result += '\t\t_serializers.insert(mtpc_' + name + ', _serialize_' + name + ');\n';
+  return result;
+
+textSerializeMethods += addTextSerialize(typesList, typesDict, 'D');
+textSerializeInit += addTextSerializeInit(typesList, typesDict) + '\n';
+textSerializeMethods += addTextSerialize(funcsList, funcsDict, '');
+textSerializeInit += addTextSerializeInit(funcsList, funcsDict) + '\n';
 
 for restype in typesList:
   v = typesDict[restype];
@@ -662,86 +679,84 @@ for restype in typesList:
   inlineMethods += creatorsText;
   typesText += 'typedef MTPBoxed<MTP' + restype + '> MTP' + resType + ';\n'; # boxed type definition
 
+# manual types added here
+textSerializeMethods += 'void _serialize_rpc_result(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {\n';
+textSerializeMethods += '\tif (stage) {\n';
+textSerializeMethods += '\t\tto.add(",\\n").addSpaces(lev);\n';
+textSerializeMethods += '\t} else {\n';
+textSerializeMethods += '\t\tto.add("{ rpc_result");\n';
+textSerializeMethods += '\t\tto.add("\\n").addSpaces(lev);\n';
+textSerializeMethods += '\t}\n';
+textSerializeMethods += '\tswitch (stage) {\n';
+textSerializeMethods += '\tcase 0: to.add("  req_msg_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeMethods += '\tcase 1: to.add("  result: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeMethods += '\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n';
+textSerializeMethods += '\t}\n';
+textSerializeMethods += '}\n\n';
+textSerializeInit += '\t\t_serializers.insert(mtpc_rpc_result, _serialize_rpc_result);\n';
+
+textSerializeMethods += 'void _serialize_msg_container(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {\n';
+textSerializeMethods += '\tif (stage) {\n';
+textSerializeMethods += '\t\tto.add(",\\n").addSpaces(lev);\n';
+textSerializeMethods += '\t} else {\n';
+textSerializeMethods += '\t\tto.add("{ msg_container");\n';
+textSerializeMethods += '\t\tto.add("\\n").addSpaces(lev);\n';
+textSerializeMethods += '\t}\n';
+textSerializeMethods += '\tswitch (stage) {\n';
+textSerializeMethods += '\tcase 0: to.add("  messages: "); ++stages.back(); types.push_back(mtpc_vector); vtypes.push_back(mtpc_core_message); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeMethods += '\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n';
+textSerializeMethods += '\t}\n';
+textSerializeMethods += '}\n\n';
+textSerializeInit += '\t\t_serializers.insert(mtpc_msg_container, _serialize_msg_container);\n';
+
+textSerializeMethods += 'void _serialize_core_message(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {\n';
+textSerializeMethods += '\tif (stage) {\n';
+textSerializeMethods += '\t\tto.add(",\\n").addSpaces(lev);\n';
+textSerializeMethods += '\t} else {\n';
+textSerializeMethods += '\t\tto.add("{ core_message");\n';
+textSerializeMethods += '\t\tto.add("\\n").addSpaces(lev);\n';
+textSerializeMethods += '\t}\n';
+textSerializeMethods += '\tswitch (stage) {\n';
+textSerializeMethods += '\tcase 0: to.add("  msg_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeMethods += '\tcase 1: to.add("  seq_no: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeMethods += '\tcase 2: to.add("  bytes: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeMethods += '\tcase 3: to.add("  body: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeMethods += '\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n';
+textSerializeMethods += '\t}\n';
+textSerializeMethods += '}\n\n';
+textSerializeInit += '\t\t_serializers.insert(mtpc_core_message, _serialize_core_message);\n';
+
 textSerializeFull = '\nvoid mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons) {\n';
+textSerializeFull += '\tif (_serializers.isEmpty()) initTextSerializers();\n\n';
 textSerializeFull += '\tQVector<mtpTypeId> types, vtypes;\n';
 textSerializeFull += '\tQVector<int32> stages, flags;\n';
 textSerializeFull += '\ttypes.reserve(20); vtypes.reserve(20); stages.reserve(20); flags.reserve(20);\n';
 textSerializeFull += '\ttypes.push_back(mtpTypeId(cons)); vtypes.push_back(mtpTypeId(vcons)); stages.push_back(0); flags.push_back(0);\n\n';
 textSerializeFull += '\tconst mtpPrime *start = from;\n';
 textSerializeFull += '\tmtpTypeId type = cons, vtype = vcons;\n';
-textSerializeFull += '\tint32 stage = 0, flag = 0;\n';
-textSerializeFull += '\ttry {\n';
-textSerializeFull += '\t\twhile (!types.isEmpty()) {\n';
-textSerializeFull += '\t\t\ttype = types.back();\n';
-textSerializeFull += '\t\t\tvtype = vtypes.back();\n';
-textSerializeFull += '\t\t\tstage = stages.back();\n';
-textSerializeFull += '\t\t\tflag = flags.back();\n';
-textSerializeFull += '\t\t\tif (!type) {\n';
-textSerializeFull += '\t\t\t\tif (from >= end) {\n';
-textSerializeFull += '\t\t\t\t\tthrow Exception("from >= end");\n';
-textSerializeFull += '\t\t\t\t} else if (stage) {\n';
-textSerializeFull += '\t\t\t\t\tthrow Exception("unknown type on stage > 0");\n';
-textSerializeFull += '\t\t\t\t}\n';
-textSerializeFull += '\t\t\t\ttypes.back() = type = *from;\n';
-textSerializeFull += '\t\t\t\tstart = ++from;\n';
-textSerializeFull += '\t\t\t}\n\n';
-textSerializeFull += '\t\t\tint32 lev = level + types.size() - 1;\n';
-textSerializeFull += '\t\t\tswitch (type) {\n' + textSerialize + '\n';
-
-# manual types added here
-textSerializeFull += '\t\t\tcase mtpc_rpc_result:\n';
-textSerializeFull += '\t\t\t\tif (stage) {\n';
-textSerializeFull += '\t\t\t\t\tto.add(",\\n").addSpaces(lev);\n';
-textSerializeFull += '\t\t\t\t} else {\n';
-textSerializeFull += '\t\t\t\t\tto.add("{ rpc_result");\n';
-textSerializeFull += '\t\t\t\t\tto.add("\\n").addSpaces(lev);\n';
-textSerializeFull += '\t\t\t\t}\n';
-textSerializeFull += '\t\t\t\tswitch (stage) {\n';
-textSerializeFull += '\t\t\t\tcase 0: to.add("  req_msg_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
-textSerializeFull += '\t\t\t\tcase 1: to.add("  result: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
-textSerializeFull += '\t\t\t\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n';
-textSerializeFull += '\t\t\t\t}\n';
-textSerializeFull += '\t\t\tbreak;\n\n';
-textSerializeFull += '\t\t\tcase mtpc_msg_container:\n';
-textSerializeFull += '\t\t\t\tif (stage) {\n';
-textSerializeFull += '\t\t\t\t\tto.add(",\\n").addSpaces(lev);\n';
-textSerializeFull += '\t\t\t\t} else {\n';
-textSerializeFull += '\t\t\t\t\tto.add("{ msg_container");\n';
-textSerializeFull += '\t\t\t\t\tto.add("\\n").addSpaces(lev);\n';
-textSerializeFull += '\t\t\t\t}\n';
-textSerializeFull += '\t\t\t\tswitch (stage) {\n';
-textSerializeFull += '\t\t\t\tcase 0: to.add("  messages: "); ++stages.back(); types.push_back(mtpc_vector); vtypes.push_back(mtpc_core_message); stages.push_back(0); flags.push_back(0); break;\n';
-textSerializeFull += '\t\t\t\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n';
-textSerializeFull += '\t\t\t\t}\n';
-textSerializeFull += '\t\t\tbreak;\n\n';
-
-textSerializeFull += '\t\t\tcase mtpc_core_message: {\n';
-textSerializeFull += '\t\t\t\tif (stage) {\n';
-textSerializeFull += '\t\t\t\t\tto.add(",\\n").addSpaces(lev);\n';
-textSerializeFull += '\t\t\t\t} else {\n';
-textSerializeFull += '\t\t\t\t\tto.add("{ core_message");\n';
-textSerializeFull += '\t\t\t\t\tto.add("\\n").addSpaces(lev);\n';
-textSerializeFull += '\t\t\t\t}\n';
-textSerializeFull += '\t\t\t\tswitch (stage) {\n';
-textSerializeFull += '\t\t\t\tcase 0: to.add("  msg_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
-textSerializeFull += '\t\t\t\tcase 1: to.add("  seq_no: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
-textSerializeFull += '\t\t\t\tcase 2: to.add("  bytes: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
-textSerializeFull += '\t\t\t\tcase 3: to.add("  body: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
-textSerializeFull += '\t\t\t\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n';
-textSerializeFull += '\t\t\t\t}\n';
-textSerializeFull += '\t\t\t\t} break;\n\n';
-
-textSerializeFull += '\t\t\tdefault:\n';
-textSerializeFull += '\t\t\t\tmtpTextSerializeCore(to, from, end, type, lev, vtype);\n';
-textSerializeFull += '\t\t\t\ttypes.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();\n';
-textSerializeFull += '\t\t\tbreak;\n';
+textSerializeFull += '\tint32 stage = 0, flag = 0;\n\n';
+textSerializeFull += '\twhile (!types.isEmpty()) {\n';
+textSerializeFull += '\t\ttype = types.back();\n';
+textSerializeFull += '\t\tvtype = vtypes.back();\n';
+textSerializeFull += '\t\tstage = stages.back();\n';
+textSerializeFull += '\t\tflag = flags.back();\n';
+textSerializeFull += '\t\tif (!type) {\n';
+textSerializeFull += '\t\t\tif (from >= end) {\n';
+textSerializeFull += '\t\t\t\tthrow Exception("from >= end");\n';
+textSerializeFull += '\t\t\t} else if (stage) {\n';
+textSerializeFull += '\t\t\t\tthrow Exception("unknown type on stage > 0");\n';
 textSerializeFull += '\t\t\t}\n';
+textSerializeFull += '\t\t\ttypes.back() = type = *from;\n';
+textSerializeFull += '\t\t\tstart = ++from;\n';
+textSerializeFull += '\t\t}\n\n';
+textSerializeFull += '\t\tint32 lev = level + types.size() - 1;\n';
+textSerializeFull += '\t\tTextSerializers::const_iterator it = _serializers.constFind(type);\n';
+textSerializeFull += '\t\tif (it != _serializers.cend()) {\n';
+textSerializeFull += '\t\t\t(*it.value())(to, stage, lev, types, vtypes, stages, flags, start, end, flag);\n';
+textSerializeFull += '\t\t} else {\n';
+textSerializeFull += '\t\t\tmtpTextSerializeCore(to, from, end, type, lev, vtype);\n';
+textSerializeFull += '\t\t\ttypes.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();\n';
 textSerializeFull += '\t\t}\n';
-textSerializeFull += '\t} catch (Exception &e) {\n';
-textSerializeFull += '\t\tto.add("[ERROR] ");\n';
-textSerializeFull += '\t\tto.add("(").add(e.what()).add("), cons: 0x").add(mtpWrapNumber(type, 16));\n';
-textSerializeFull += '\t\tif (vtype) to.add(", vcons: 0x").add(mtpWrapNumber(vtype));\n';
-textSerializeFull += '\t\tto.add(", ").add(mb(start, (end - start) * sizeof(mtpPrime)).str());\n';
 textSerializeFull += '\t}\n';
 textSerializeFull += '}\n';
 
@@ -776,6 +791,14 @@ outCpp.write('Copyright (c) 2014 John Preston, https://desktop.telegram.org\n');
 outCpp.write('*/\n');
 outCpp.write('#include "stdafx.h"\n#include "mtpScheme.h"\n\n');
 outCpp.write('#if (defined _DEBUG || defined _WITH_DEBUG)\n\n');
+outCpp.write('typedef QVector<mtpTypeId> Types;\ntypedef QVector<int32> StagesFlags;\n\n');
+outCpp.write(textSerializeMethods);
+outCpp.write('namespace {\n');
+outCpp.write('\ttypedef void(*mtpTextSerializer)(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag);\n');
+outCpp.write('\ttypedef QMap<mtpTypeId, mtpTextSerializer> TextSerializers;\n\tTextSerializers _serializers;\n\n');
+outCpp.write('\tvoid initTextSerializers() {\n');
+outCpp.write(textSerializeInit);
+outCpp.write('\t}\n}\n');
 outCpp.write(textSerializeFull + '\n#endif\n');
 
 print('Done, written {0} constructors, {1} functions.'.format(consts, funcs));

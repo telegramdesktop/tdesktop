@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -45,7 +48,8 @@ _addContactLnk(this, lang(lng_add_contact_button)),
 _cancelSearchInPeer(this, st::btnCancelSearch),
 _overDelete(false),
 _searchInPeer(0) {
-	connect(main, SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)));
+	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
+	connect(main, SIGNAL(peerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)));
 	connect(main, SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(onPeerPhotoChanged(PeerData*)));
 	connect(main, SIGNAL(dialogRowReplaced(DialogRow*,DialogRow*)), this, SLOT(onDialogRowReplaced(DialogRow*,DialogRow*)));
 	connect(&_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
@@ -115,13 +119,13 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 
 						}
 						QString first = (_hashtagFilter.size() < 2) ? QString() : ('#' + hashtagResults.at(from).mid(0, _hashtagFilter.size() - 1)), second = (_hashtagFilter.size() < 2) ? ('#' + hashtagResults.at(from)) : hashtagResults.at(from).mid(_hashtagFilter.size() - 1);
-						int32 firstwidth = st::mentionFont->m.width(first), secondwidth = st::mentionFont->m.width(second);
+						int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second);
 						if (htagwidth < firstwidth + secondwidth) {
 							if (htagwidth < firstwidth + st::mentionFont->elidew) {
-								first = st::mentionFont->m.elidedText(first + second, Qt::ElideRight, htagwidth);
+								first = st::mentionFont->elided(first + second, htagwidth);
 								second = QString();
 							} else {
-								second = st::mentionFont->m.elidedText(second, Qt::ElideRight, htagwidth - firstwidth);
+								second = st::mentionFont->elided(second, htagwidth - firstwidth);
 							}
 						}
 
@@ -251,19 +255,19 @@ void DialogsInner::peopleResultPaint(PeerData *peer, Painter &p, int32 w, bool a
 	QString username = peer->userName();
 	if (!act && username.toLower().startsWith(peopleQuery)) {
 		QString first = '@' + username.mid(0, peopleQuery.size()), second = username.mid(peopleQuery.size());
-		int32 w = st::dlgHistFont->m.width(first);
+		int32 w = st::dlgHistFont->width(first);
 		if (w >= tr.width()) {
 			p.setPen(st::dlgSystemColor->p);
-			p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->m.elidedText(first, Qt::ElideRight, tr.width()));
+			p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->elided(first, tr.width()));
 		} else {
 			p.setPen(st::dlgSystemColor->p);
 			p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, first);
 			p.setPen(st::dlgTextColor->p);
-			p.drawText(tr.left() + w, tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->m.elidedText(second, Qt::ElideRight, tr.width() - w));
+			p.drawText(tr.left() + w, tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->elided(second, tr.width() - w));
 		}
 	} else {
 		p.setPen((act ? st::dlgActiveColor : st::dlgSystemColor)->p);
-		p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->m.elidedText('@' + username, Qt::ElideRight, tr.width()));
+		p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->elided('@' + username, tr.width()));
 	}
 
 	p.setPen((act ? st::dlgActiveColor : st::dlgNameColor)->p);
@@ -293,7 +297,7 @@ void DialogsInner::searchInPeerPaint(Painter &p, int32 w, bool onlyBackground) c
 	QRect tr(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, namewidth, st::dlgFont->height);
 	p.setFont(st::dlgHistFont->f);
 	p.setPen(st::dlgTextColor->p);
-	p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->m.elidedText(lang(lng_dlg_search_chat), Qt::ElideRight, tr.width()));
+	p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->elided(lang(lng_dlg_search_chat), tr.width()));
 
 	p.setPen(st::dlgNameColor->p);
 	_searchInPeer->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
@@ -484,7 +488,7 @@ void DialogsInner::dlgUpdated(DialogRow *row) {
 	}
 }
 
-void DialogsInner::dlgUpdated(History *history) {
+void DialogsInner::dlgUpdated(History *history, MsgId msgId) {
 	if (_state == DefaultState) {
 		DialogRow *row = 0;
 		DialogsList::RowByPeer::iterator i = dialogs.list.rowByPeer.find(history->peer->id);
@@ -518,7 +522,7 @@ void DialogsInner::dlgUpdated(History *history) {
 		if (!searchResults.isEmpty()) {
 			int32 cnt = 0, add = searchedOffset();
 			for (SearchResults::const_iterator i = searchResults.cbegin(), e = searchResults.cend(); i != e; ++i) {
-				if ((*i)->_item->history() == history) {
+				if ((*i)->_item->history() == history && (*i)->_item->id == msgId) {
 					update(0, add + cnt * st::dlgHeight, fullWidth(), st::dlgHeight);
 					break;
 				}
@@ -796,7 +800,7 @@ void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
 				history->peer->asChannel()->ptsReceived(d.vpts.v);
 				if (!history->peer->asChannel()->amCreator()) {
 					if (HistoryItem *top = App::histItemById(history->channelId(), d.vtop_important_message.v)) {
-						if (top->date <= date(history->peer->asChannel()->date)) {
+						if (top->date <= date(history->peer->asChannel()->date) && App::api()) {
 							App::api()->requestSelfParticipant(history->peer->asChannel());
 						}
 					}
@@ -1522,7 +1526,6 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : QWidget(parent)
 	connect(&_addContact, SIGNAL(clicked()), this, SLOT(onAddContact()));
 	connect(&_newGroup, SIGNAL(clicked()), this, SLOT(onNewGroup()));
 	connect(&_cancelSearch, SIGNAL(clicked()), this, SLOT(onCancelSearch()));
-	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 
 	_chooseByDragTimer.setSingleShot(true);
 	connect(&_chooseByDragTimer, SIGNAL(timeout()), this, SLOT(onChooseByDrag()));
@@ -1558,8 +1561,8 @@ void DialogsWidget::dlgUpdated(DialogRow *row) {
 	_inner.dlgUpdated(row);
 }
 
-void DialogsWidget::dlgUpdated(History *row) {
-	_inner.dlgUpdated(row);
+void DialogsWidget::dlgUpdated(History *row, MsgId msgId) {
+	_inner.dlgUpdated(row, msgId);
 }
 
 void DialogsWidget::dialogsToUp() {
@@ -1723,7 +1726,7 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 }
 
 bool DialogsWidget::dialogsFailed(const RPCError &error, mtpRequestId req) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	LOG(("RPC Error: %1 %2: %3").arg(error.code()).arg(error.type()).arg(error.description()));
 	if (_dialogsRequest == req) {
@@ -1850,7 +1853,7 @@ void DialogsWidget::contactsReceived(const MTPcontacts_Contacts &contacts) {
 }
 
 bool DialogsWidget::contactsFailed(const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	return true;
 }
@@ -1940,7 +1943,7 @@ void DialogsWidget::peopleReceived(const MTPcontacts_Found &result, mtpRequestId
 }
 
 bool DialogsWidget::searchFailed(const RPCError &error, mtpRequestId req) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (_searchRequest == req) {
 		_searchRequest = 0;
@@ -1950,7 +1953,7 @@ bool DialogsWidget::searchFailed(const RPCError &error, mtpRequestId req) {
 }
 
 bool DialogsWidget::peopleFailed(const RPCError &error, mtpRequestId req) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (_peopleRequest == req) {
 		_peopleRequest = 0;

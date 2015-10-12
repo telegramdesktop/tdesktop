@@ -12,13 +12,17 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
 #include "lang.h"
 
+#include "boxes/aboutbox.h"
 #include "settingswidget.h"
 #include "mainwidget.h"
 #include "application.h"
@@ -144,10 +148,10 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 
 	_dpiAutoScale(this, lng_settings_scale_auto(lt_cur, scaleLabel(cScreenScale())), (cConfigScale() == dbisAuto)),
 	_dpiSlider(this, st::dpiSlider, dbisScaleCount - 1, cEvalScale(cConfigScale()) - 1),
-	_dpiWidth1(st::dpiFont1->m.width(scaleLabel(dbisOne))),
-	_dpiWidth2(st::dpiFont2->m.width(scaleLabel(dbisOneAndQuarter))),
-	_dpiWidth3(st::dpiFont3->m.width(scaleLabel(dbisOneAndHalf))),
-	_dpiWidth4(st::dpiFont4->m.width(scaleLabel(dbisTwo))),
+	_dpiWidth1(st::dpiFont1->width(scaleLabel(dbisOne))),
+	_dpiWidth2(st::dpiFont2->width(scaleLabel(dbisOneAndQuarter))),
+	_dpiWidth3(st::dpiFont3->width(scaleLabel(dbisOneAndHalf))),
+	_dpiWidth4(st::dpiFont4->width(scaleLabel(dbisTwo))),
 
 	// chat options
 	_replaceEmojis(this, lang(lng_settings_replace_emojis), cReplaceEmojis()),
@@ -157,12 +161,12 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
     _ctrlEnterSend(this, qsl("send_key"), 1, lang((cPlatform() == dbipMac) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), cCtrlEnter()),
 
 	_dontAskDownloadPath(this, lang(lng_download_path_dont_ask), !cAskDownloadPath()),
-    _downloadPathWidth(st::linkFont->m.width(lang(lng_download_path_label)) + st::linkFont->spacew),
-	_downloadPathEdit(this, cDownloadPath().isEmpty() ? lang(lng_download_path_default) : ((cDownloadPath() == qsl("tmp")) ? lang(lng_download_path_temp) : st::linkFont->m.elidedText(QDir::toNativeSeparators(cDownloadPath()), Qt::ElideRight, st::setWidth - st::setVersionLeft - _downloadPathWidth))),
+    _downloadPathWidth(st::linkFont->width(lang(lng_download_path_label)) + st::linkFont->spacew),
+	_downloadPathEdit(this, cDownloadPath().isEmpty() ? lang(lng_download_path_default) : ((cDownloadPath() == qsl("tmp")) ? lang(lng_download_path_temp) : st::linkFont->elided(QDir::toNativeSeparators(cDownloadPath()), st::setWidth - st::setVersionLeft - _downloadPathWidth))),
 	_downloadPathClear(this, lang(lng_download_path_clear)),
-	_tempDirClearingWidth(st::linkFont->m.width(lang(lng_download_path_clearing))),
-	_tempDirClearedWidth(st::linkFont->m.width(lang(lng_download_path_cleared))),
-	_tempDirClearFailedWidth(st::linkFont->m.width(lang(lng_download_path_clear_failed))),
+	_tempDirClearingWidth(st::linkFont->width(lang(lng_download_path_clearing))),
+	_tempDirClearedWidth(st::linkFont->width(lang(lng_download_path_cleared))),
+	_tempDirClearFailedWidth(st::linkFont->width(lang(lng_download_path_clear_failed))),
 
 	// chat background
 	_backFromGallery(this, lang(lng_settings_bg_from_gallery)),
@@ -173,22 +177,22 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	// local storage
 	_localStorageClear(this, lang(lng_local_storage_clear)),
 	_localStorageHeight(1),
-	_storageClearingWidth(st::linkFont->m.width(lang(lng_local_storage_clearing))),
-	_storageClearedWidth(st::linkFont->m.width(lang(lng_local_storage_cleared))),
-	_storageClearFailedWidth(st::linkFont->m.width(lang(lng_local_storage_clear_failed))),
+	_storageClearingWidth(st::linkFont->width(lang(lng_local_storage_clearing))),
+	_storageClearedWidth(st::linkFont->width(lang(lng_local_storage_cleared))),
+	_storageClearFailedWidth(st::linkFont->width(lang(lng_local_storage_clear_failed))),
 
 	// advanced
 	_passcodeEdit(this, lang(cHasPasscode() ? lng_passcode_change : lng_passcode_turn_on)),
 	_passcodeTurnOff(this, lang(lng_passcode_turn_off)),
 	_autoLock(this, (cAutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, cAutoLock() / 60) : lng_passcode_autolock_hours(lt_count, cAutoLock() / 3600)),
 	_autoLockText(lang(psIdleSupported() ? lng_passcode_autolock_away : lng_passcode_autolock_inactive) + ' '),
-	_autoLockWidth(st::linkFont->m.width(_autoLockText)),
+	_autoLockWidth(st::linkFont->width(_autoLockText)),
 	_passwordEdit(this, lang(lng_cloud_password_set)),
 	_passwordTurnOff(this, lang(lng_passcode_turn_off)),
 	_hasPasswordRecovery(false),
 	_connectionType(this, lang(lng_connection_auto_connecting)),
 	_connectionTypeText(lang(lng_connection_type) + ' '),
-	_connectionTypeWidth(st::linkFont->m.width(_connectionTypeText)),
+	_connectionTypeWidth(st::linkFont->width(_connectionTypeText)),
 	_showSessions(this, lang(lng_settings_show_sessions)),
 	_askQuestion(this, lang(lng_settings_ask_question)),
 	_telegramFAQ(this, lang(lng_settings_faq)),
@@ -196,6 +200,8 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_supportGetRequest(0)
 {
 	if (self()) {
+		connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
+
 		_nameText.setText(st::setNameFont, _nameCache, _textNameOptions);
 		PhotoData *selfPhoto = (self()->photoId && self()->photoId != UnknownPeerPhotoId) ? App::photo(self()->photoId) : 0;
 		if (selfPhoto && selfPhoto->date) _photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
@@ -248,9 +254,9 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	connect(&_dpiSlider, SIGNAL(changed(int32)), this, SLOT(onScaleChange()));
 
 	_curVersionText = lng_settings_current_version(lt_version, QString::fromWCharArray(AppVersionStr) + (cDevVersion() ? " dev" : "")) + ' ';
-	_curVersionWidth = st::linkFont->m.width(_curVersionText);
+	_curVersionWidth = st::linkFont->width(_curVersionText);
 	_newVersionText = lang(lng_settings_update_ready) + ' ';
-	_newVersionWidth = st::linkFont->m.width(_newVersionText);
+	_newVersionWidth = st::linkFont->width(_newVersionText);
 
 	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	connect(App::app(), SIGNAL(updateChecking()), this, SLOT(onUpdateChecking()));
@@ -819,7 +825,7 @@ void SettingsInner::mousePressEvent(QMouseEvent *e) {
 		return;
 	}
 	if (QRect(_uploadPhoto.x() + st::setNameLeft, st::setTop + st::setNameTop, qMin(_uploadPhoto.width() - int(st::setNameLeft), _nameText.maxWidth()), st::setNameFont->height).contains(e->pos())) {
-		App::wnd()->showLayer(new AddContactBox(self()));
+		App::wnd()->showLayer(new EditNameTitleBox(self()));
 	} else if (QRect(_left, st::setTop, st::setPhotoSize, st::setPhotoSize).contains(e->pos())) {
 		if (_photoLink) {
 			App::photo(self()->photoId)->full->load();
@@ -853,6 +859,7 @@ void SettingsInner::updateSize(int32 newWidth) {
 		resize(newWidth, _logOut.geometry().bottom() + st::setBottom);
 	}
 }
+
 
 void SettingsInner::updateOnlineDisplay() {
 }
@@ -921,7 +928,7 @@ void SettingsInner::gotPassword(const MTPaccount_Password &result) {
 		if (!pattern.isEmpty()) _waitingConfirm = lng_cloud_password_waiting(lt_email, pattern);
 	} break;
 	}
-	_waitingConfirm = st::linkFont->m.elidedText(_waitingConfirm, Qt::ElideRight, st::setWidth - _passwordTurnOff.width());
+	_waitingConfirm = st::linkFont->elided(_waitingConfirm, st::setWidth - _passwordTurnOff.width());
 	_passwordEdit.setText(lang(_curPasswordSalt.isEmpty() ? lng_cloud_password_set : lng_cloud_password_edit));
 	showAll();
 	update();
@@ -935,7 +942,7 @@ void SettingsInner::offPasswordDone(const MTPBool &result) {
 }
 
 bool SettingsInner::offPasswordFail(const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	onReloadPassword();
 	return true;
@@ -1175,7 +1182,7 @@ void SettingsInner::onShowSessions() {
 void SettingsInner::onAskQuestion() {
 	if (!App::self()) return;
 
-	ConfirmBox *box = new ConfirmBox(lang(lng_settings_ask_sure), lang(lng_settings_ask_ok), lang(lng_settings_faq_button));
+	ConfirmBox *box = new ConfirmBox(lang(lng_settings_ask_sure), lang(lng_settings_ask_ok), st::defaultBoxButton, lang(lng_settings_faq_button));
 	connect(box, SIGNAL(confirmed()), this, SLOT(onAskQuestionSure()));
 	connect(box, SIGNAL(cancelPressed()), this, SLOT(onTelegramFAQ()));
 	App::wnd()->showLayer(box);
@@ -1187,16 +1194,7 @@ void SettingsInner::onAskQuestionSure() {
 }
 
 void SettingsInner::onTelegramFAQ() {
-	QString url = qsl("https://telegram.org/faq");
-	if (cLang() > languageDefault && cLang() < languageCount) {
-		const char *code = LanguageCodes[cLang()];
-		if (qstr("de") == code || qstr("es") == code || qstr("it") == code || qstr("ko") == code) {
-			url += qsl("/") + code;
-		} else if (qstr("pt_BR") == code) {
-			url += qsl("/br");
-		}
-	}
-	QDesktopServices::openUrl(url);
+	QDesktopServices::openUrl(telegramFaqLink());
 }
 
 void SettingsInner::chooseCustomLang() {
@@ -1204,17 +1202,17 @@ void SettingsInner::chooseCustomLang() {
     QByteArray arr;
     if (filedialogGetOpenFile(file, arr, qsl("Choose language .strings file"), qsl("Language files (*.strings)"))) {
         _testlang = QFileInfo(file).absoluteFilePath();
-        LangLoaderPlain loader(_testlang, LangLoaderRequest(lng_sure_save_language, lng_cancel, lng_continue));
+		LangLoaderPlain loader(_testlang, LangLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
         if (loader.errors().isEmpty()) {
             LangLoaderResult result = loader.found();
             QString text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),
-                save = result.value(lng_continue, langOriginal(lng_continue)),
-                cancel = result.value(lng_cancel, langOriginal(lng_cancel));
-            ConfirmBox *box = new ConfirmBox(text, save, cancel);
+				save = result.value(lng_box_ok, langOriginal(lng_box_ok)),
+				cancel = result.value(lng_cancel, langOriginal(lng_cancel));
+            ConfirmBox *box = new ConfirmBox(text, save, st::defaultBoxButton, cancel);
             connect(box, SIGNAL(confirmed()), this, SLOT(onSaveTestLang()));
             App::wnd()->showLayer(box);
         } else {
-            App::wnd()->showLayer(new ConfirmBox("Custom lang failed :(\n\nError: " + loader.errors(), true, lang(lng_close)));
+			App::wnd()->showLayer(new InformBox("Custom lang failed :(\n\nError: " + loader.errors()));
         }
     }
 }
@@ -1438,7 +1436,7 @@ void SettingsInner::setScale(DBIScale newScale) {
 		_dpiSlider.setSelected(newScale - 1);
 	}
 	if (cEvalScale(cConfigScale()) != cEvalScale(cRealScale())) {
-		ConfirmBox *box = new ConfirmBox(lang(lng_settings_need_restart), lang(lng_settings_restart_now), lang(lng_settings_restart_later));
+		ConfirmBox *box = new ConfirmBox(lang(lng_settings_need_restart), lang(lng_settings_restart_now), st::defaultBoxButton, lang(lng_settings_restart_later));
 		connect(box, SIGNAL(confirmed()), this, SLOT(onRestartNow()));
 		App::wnd()->showLayer(box);
 	}
@@ -1456,6 +1454,7 @@ void SettingsInner::onIncludeMuted() {
 }
 
 void SettingsInner::onWindowsNotifications() {
+	if (cPlatform() != dbipWindows) return;
 	cSetWindowsNotifications(!cWindowsNotifications());
 	App::wnd()->notifyClearFast();
 	cSetCustomNotifies(!cWindowsNotifications());
@@ -1468,12 +1467,17 @@ void SettingsInner::onDesktopNotify() {
 		App::wnd()->notifyClear();
 		_senderName.setDisabled(true);
 		_messagePreview.setDisabled(true);
-		Local::writeUserSettings();
 	} else {
 		_senderName.setDisabled(false);
 		_messagePreview.setDisabled(!_senderName.checked());
-		Local::writeUserSettings();
 	}
+	Local::writeUserSettings();
+	if (App::wnd()) App::wnd()->updateTrayMenu();
+}
+
+void SettingsInner::enableDisplayNotify(bool enable)
+{
+	_desktopNotify.setChecked(enable);
 }
 
 void SettingsInner::onSenderName() {
@@ -1626,7 +1630,7 @@ void SettingsInner::onDownloadPathEdited() {
 	} else if (cDownloadPath() == qsl("tmp")) {
 		path = lang(lng_download_path_temp);
 	} else {
-		path = st::linkFont->m.elidedText(QDir::toNativeSeparators(cDownloadPath()), Qt::ElideRight, st::setWidth - st::setVersionLeft - _downloadPathWidth);
+		path = st::linkFont->elided(QDir::toNativeSeparators(cDownloadPath()), st::setWidth - st::setVersionLeft - _downloadPathWidth);
 	}
 	_downloadPathEdit.setText(path);
 	showAll();
@@ -1858,6 +1862,11 @@ void SettingsWidget::updateWideMode() {
 	} else {
 		_close.hide();
 	}
+}
+
+void SettingsWidget::updateDisplayNotify()
+{
+	_inner.enableDisplayNotify(cDesktopNotify());
 }
 
 void SettingsWidget::updateOnlineDisplay() {

@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -49,7 +52,7 @@ _next(this, lang(lng_start_msgs), st::btnIntroNext) {
 		_changeLang.show();
 	}
 
-	_headerWidth = st::introHeaderFont->m.width(qsl("Telegram Desktop"));
+	_headerWidth = st::introHeaderFont->width(qsl("Telegram Desktop"));
 
 	setGeometry(parent->innerRect());
 

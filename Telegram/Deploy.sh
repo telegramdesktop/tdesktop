@@ -45,7 +45,7 @@ elif [ "$BuildTarget" == "mac" ]; then
   WinDeployPath="./../../tother/tsetup/$AppVersionStrMajor/$AppVersionStrFull"
   WinUpdateFile="tupdate$AppVersion"
   WinSetupFile="tsetup.$AppVersionStrFull.exe"
-  WinPortableFile="tportable.$AppVersionStr.zip"
+  WinPortableFile="tportable.$AppVersionStrFull.zip"
   WinRemoteFolder="tsetup"
   DropboxPath="./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor"
   DropboxDeployPath="$DropboxPath/$AppVersionStrFull"

@@ -73,10 +73,8 @@ unix {
     linux-g++-64:QMAKE_TARGET.arch = x86_64
 
     contains(QMAKE_TARGET.arch, x86_64) {
-        CONFIG(release,debug|release):QMAKE_PRE_LINK = ./../../Telegram/FixMake.sh
         DEFINES += Q_OS_LINUX64
     } else {
-        CONFIG(release,debug|release):QMAKE_PRE_LINK = ./../../Telegram/FixMake32.sh
         DEFINES += Q_OS_LINUX32
     }
 }
@@ -134,7 +132,6 @@ SOURCES += \
     ./SourceFiles/gui/flatlabel.cpp \
     ./SourceFiles/gui/flattextarea.cpp \
     ./SourceFiles/gui/images.cpp \
-    ./SourceFiles/gui/phoneinput.cpp \
     ./SourceFiles/gui/scrollarea.cpp \
     ./SourceFiles/gui/style_core.cpp \
     ./SourceFiles/gui/text.cpp \
@@ -227,7 +224,6 @@ HEADERS += \
     ./SourceFiles/gui/flatlabel.h \
     ./SourceFiles/gui/flattextarea.h \
     ./SourceFiles/gui/images.h \
-    ./SourceFiles/gui/phoneinput.h \
     ./SourceFiles/gui/scrollarea.h \
     ./SourceFiles/gui/style_core.h \
     ./SourceFiles/gui/text.h \

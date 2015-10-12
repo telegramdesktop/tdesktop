@@ -13,7 +13,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
  
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "pspecific_mac_p.h"
@@ -939,8 +939,10 @@ void objc_finish() {
 }
 
 void objc_registerCustomScheme() {
+	#ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 	OSStatus result = LSSetDefaultHandlerForURLScheme(CFSTR("tg"), (CFStringRef)[[NSBundle mainBundle] bundleIdentifier]);
 	DEBUG_LOG(("App Info: set default handler for 'tg' scheme result: %1").arg(result));
+	#endif
 }
 
 BOOL _execUpdater(BOOL update = YES) {

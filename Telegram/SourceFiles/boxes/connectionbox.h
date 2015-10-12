@@ -12,12 +12,14 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "gui/phoneinput.h"
 #include "abstractbox.h"
 
 class ConnectionBox : public AbstractBox {
@@ -32,6 +34,7 @@ public:
 public slots:
 
 	void onChange();
+	void onSubmit();
 	void onSave();
 
 protected:
@@ -42,10 +45,12 @@ protected:
 
 private:
 
-	FlatButton _saveButton, _cancelButton;
-	FlatInput _hostInput;
+	InputField _hostInput;
 	PortInput _portInput;
-	FlatInput _userInput, _passwordInput;
-	FlatRadiobutton _autoRadio, _httpProxyRadio, _tcpProxyRadio;
-	FlatCheckbox _tryIPv6;
+	InputField _userInput;
+	PasswordField _passwordInput;
+	Radiobutton _autoRadio, _httpProxyRadio, _tcpProxyRadio;
+	Checkbox _tryIPv6;
+
+	BoxButton _save, _cancel;
 };

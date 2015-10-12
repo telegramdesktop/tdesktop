@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -229,11 +232,11 @@ void MediaView::updateDocSize() {
 	} else {
 		_docSize = formatSizeText(_doc->size);
 	}
-	_docSizeWidth = st::mvFont->m.width(_docSize);
+	_docSizeWidth = st::mvFont->width(_docSize);
 	int32 maxw = st::mvDocSize.width() - st::mvDocBlue.pxWidth() - st::mvDocPadding * 3;
 	if (_docSizeWidth > maxw) {
-		_docSize = st::mvFont->m.elidedText(_docSize, Qt::ElideRight, maxw);
-		_docSizeWidth = st::mvFont->m.width(_docSize);
+		_docSize = st::mvFont->elided(_docSize, maxw);
+		_docSizeWidth = st::mvFont->width(_docSize);
 	}
 }
 
@@ -242,21 +245,21 @@ void MediaView::updateControls() {
 		if (_doc->loader) {
 			_docDownload.hide();
 			_docSaveAs.hide();
-			_docCancel.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop, width());
+			_docCancel.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
 			_docCancel.show();
 			if (!_docRadialFirst) _docRadialFirst = _docRadialLast = _docRadialStart = getms();
 			if (!animating()) anim::start(this);
 			anim::step(this);
 		} else {
 			if (_doc->already(true).isEmpty()) {
-				_docDownload.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop, width());
+				_docDownload.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
 				_docDownload.show();
-				_docSaveAs.moveToLeft(_docRect.x() + 2.5 * st::mvDocPadding + st::mvDocBlue.pxWidth() + _docDownload.width(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop, width());
+				_docSaveAs.moveToLeft(_docRect.x() + 2.5 * st::mvDocPadding + st::mvDocBlue.pxWidth() + _docDownload.width(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
 				_docSaveAs.show();
 				_docCancel.hide();
 			} else {
 				_docDownload.hide();
-				_docSaveAs.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop, width());
+				_docSaveAs.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
 				_docSaveAs.show();
 				_docCancel.hide();
 			}
@@ -292,10 +295,10 @@ void MediaView::updateControls() {
 	if (_from) {
 		_fromName.setText(st::mvFont, _from->name);
 		_nameNav = myrtlrect(st::mvTextLeft, height() - st::mvTextTop, qMin(_fromName.maxWidth(), width() / 3), st::mvFont->height);
-		_dateNav = myrtlrect(st::mvTextLeft + _nameNav.width() + st::mvTextSkip, height() - st::mvTextTop, st::mvFont->m.width(_dateText), st::mvFont->height);
+		_dateNav = myrtlrect(st::mvTextLeft + _nameNav.width() + st::mvTextSkip, height() - st::mvTextTop, st::mvFont->width(_dateText), st::mvFont->height);
 	} else {
 		_nameNav = QRect();
-		_dateNav = myrtlrect(st::mvTextLeft, height() - st::mvTextTop, st::mvFont->m.width(_dateText), st::mvFont->height);
+		_dateNav = myrtlrect(st::mvTextLeft, height() - st::mvTextTop, st::mvFont->width(_dateText), st::mvFont->height);
 	}
 	updateHeader();
 	if (_photo || (_history && _overview == OverviewPhotos)) {
@@ -326,13 +329,13 @@ void MediaView::updateDropdown() {
 	_btnToMessage->setVisible(_msgid > 0);
 	_btnShowInFolder->setVisible(_doc && !_doc->already(true).isEmpty());
 	_btnSaveAs->setVisible(true);
-	_btnCopy->setVisible((_doc && !_current.isNull()) || (_photo && _photo->full->loaded()));
+	_btnCopy->setVisible((_doc && (!_current.isNull() || !_currentGif.isNull())) || (_photo && _photo->full->loaded()));
 	_btnForward->setVisible(_canForward);
-	_btnDelete->setVisible(_canDelete || (_photo && App::self() && App::self()->photoId == _photo->id) || (_photo && _photo->peer && _photo->peer->photoId == _photo->id));
+	_btnDelete->setVisible(_canDelete || (_photo && App::self() && App::self()->photoId == _photo->id) || (_photo && _photo->peer && _photo->peer->photoId == _photo->id && (_photo->peer->isChat() || (_photo->peer->isChannel() && _photo->peer->asChannel()->amCreator()))));
 	_btnViewAll->setVisible((_overview != OverviewCount) && _history);
 	_btnViewAll->setText(lang(_doc ? lng_mediaview_files_all : lng_mediaview_photos_all));
 	_dropdown.updateButtons();
-	_dropdown.moveToRight(0, height() - _dropdown.height(), width());
+	_dropdown.moveToRight(0, height() - _dropdown.height());
 }
 
 bool MediaView::animStep(float64 msp) {
@@ -641,9 +644,11 @@ void MediaView::onCopy() {
 		_dropdown.hideStart();
 	}
 	if (_doc) {
-		if (_current.isNull()) return;
-
-		QApplication::clipboard()->setPixmap(_current);
+		if (!_current.isNull()) {
+			QApplication::clipboard()->setPixmap(_current);
+		} else if (!_currentGif.isNull()) {
+			QApplication::clipboard()->setPixmap(_currentGif.current(_currentGif.w, _currentGif.h, false));
+		}
 	} else {
 		if (!_photo || !_photo->full->loaded()) return;
 
@@ -912,18 +917,18 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 		_docName = (!_doc || _doc->name.isEmpty()) ? lang(_doc ? (_doc->type == StickerDocument ? lng_in_dlg_sticker : lng_mediaview_doc_image) : lng_message_empty) : _doc->name;
 		int32 lastDot = _docName.lastIndexOf('.');
 		_docExt = _doc ? ((lastDot < 0 || lastDot + 2 > _docName.size()) ? _docName : _docName.mid(lastDot + 1)) : QString();
-		_docNameWidth = st::mvDocNameFont->m.width(_docName);
+		_docNameWidth = st::mvDocNameFont->width(_docName);
 		if (_docNameWidth > maxw) {
-			_docName = st::mvDocNameFont->m.elidedText(_docName, Qt::ElideMiddle, maxw);
-			_docNameWidth = st::mvDocNameFont->m.width(_docName);
+			_docName = st::mvDocNameFont->elided(_docName, maxw, Qt::ElideMiddle);
+			_docNameWidth = st::mvDocNameFont->width(_docName);
 		}
 
 		int32 extmaxw = (st::mvDocBlue.pxWidth() - st::mvDocExtPadding * 2);
 
-		_docExtWidth = st::mvDocExtFont->m.width(_docExt);
+		_docExtWidth = st::mvDocExtFont->width(_docExt);
 		if (_docExtWidth > extmaxw) {
-			_docExt = st::mvDocNameFont->m.elidedText(_docExt, Qt::ElideMiddle, extmaxw);
-			_docExtWidth = st::mvDocNameFont->m.width(_docExt);
+			_docExt = st::mvDocNameFont->elided(_docExt, extmaxw, Qt::ElideMiddle);
+			_docExtWidth = st::mvDocNameFont->width(_docExt);
 		}
 
 		_docRadialFirst = _docRadialLast = _docRadialStart = 0;
@@ -989,8 +994,6 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 }
 
 void MediaView::paintEvent(QPaintEvent *e) {
-//	uint64 ms = getms();
-
 	QRect r(e->rect());
 	QRegion region(e->region());
 	QVector<QRect> rs(region.rects());
@@ -1953,75 +1956,13 @@ void MediaView::updateHeader() {
 		}
 	}
 	_headerHasLink = (_overview != OverviewCount) && _history;
-	int32 hwidth = st::mvThickFont->m.width(_headerText);
+	int32 hwidth = st::mvThickFont->width(_headerText);
 	if (hwidth > width() / 3) {
 		hwidth = width() / 3;
-		_headerText = st::mvThickFont->m.elidedText(_headerText, Qt::ElideMiddle, hwidth);
+		_headerText = st::mvThickFont->elided(_headerText, hwidth, Qt::ElideMiddle);
 	}
 	_headerNav = myrtlrect(st::mvTextLeft, height() - st::mvHeaderTop, hwidth, st::mvThickFont->height);
 }
-//
-//void MediaView::updatePolaroid() {
-//	if (_doc) {
-//		_polaroidIn = _polaroidOut = QRect(0, 0, _avail.width(), _avail.height() - st::medviewBottomBar);
-//		int32 minus1 = width() - _delete.x(), minus2 = _overview.x() + st::medviewHeaderFont->m.width(_header) - st::medviewOverview.width;
-//		if (minus2 > minus1) minus1 = minus2;
-//
-//		int32 dateWidth = st::medviewDateFont->m.width(_dateText), maxWidth = width() - 2 * minus1;
-//		if (_from) {
-//			int32 nameWidth = _fromName.maxWidth();
-//			if (maxWidth < dateWidth) {
-//				maxWidth = dateWidth;
-//			}
-//			if (nameWidth > maxWidth) {
-//				nameWidth = maxWidth;
-//			}
-//			_nameNav = QRect((_avail.width() - nameWidth) / 2, _avail.y() + _avail.height() - ((st::medviewPolaroid.bottom() + st::medviewBottomBar) / 2) + st::medviewNameTop, nameWidth, st::medviewNameFont->height);
-//			_dateNav = QRect((_avail.width() - dateWidth) / 2, _avail.y() + _avail.height() - ((st::medviewPolaroid.bottom() + st::medviewBottomBar) / 2) + st::medviewDateTop, dateWidth, st::medviewDateFont->height);
-//		} else {
-//			_nameNav = QRect(_avail.x() - 1, _avail.y() - 1, 0, 0);
-//			_dateNav = QRect((_avail.width() - dateWidth) / 2, _avail.y() + _avail.height() - ((st::medviewPolaroid.bottom() + st::medviewBottomBar) / 2) + ((st::medviewNameTop + st::medviewDateTop) / 2), dateWidth, st::medviewDateFont->height);
-//		}
-//	} else {
-//		int32 pminw = qMin(st::medviewPolaroidMin.width(), int(_avail.width() - 2 * st::medviewNavBarWidth));
-//
-//		int32 pl = _x - st::medviewPolaroid.left(), plw = st::medviewPolaroid.left();
-//		if (pl < st::medviewNavBarWidth) pl = st::medviewNavBarWidth;
-//		int32 pr = _x + _w + st::medviewPolaroid.right(), prw = st::medviewPolaroid.right();
-//		if (pr > _avail.width() - st::medviewNavBarWidth) pr = _avail.width() - st::medviewNavBarWidth;
-//
-//		if (_w + st::medviewPolaroid.left() + st::medviewPolaroid.right() < pminw) {
-//			pl = (_avail.width() - pminw) / 2;
-//			plw = _x - pl;
-//			pr = pl + pminw;
-//			prw = pr - (_x + _w);
-//		}
-//
-//		int32 pminh = qMin(st::medviewPolaroidMin.height(), int(_avail.height() - st::medviewBottomBar));
-//
-//		int32 pt = _y - st::medviewPolaroid.top(), pth = st::medviewPolaroid.top();
-//		if (pt < 0) pt = 0;
-//		int32 pb = _y + _h + st::medviewPolaroid.bottom(), pbh = st::medviewPolaroid.bottom();
-//		if (pb > _avail.height() - st::medviewBottomBar) pb = _avail.height() - st::medviewBottomBar;
-//
-//		if (_h + st::medviewPolaroid.top() + st::medviewPolaroid.bottom() < pminh) {
-//			pt = (_avail.height() - st::medviewBottomBar - pminh) / 2;
-//			pth = _y - pt;
-//			pb = pt + pminh;
-//			pbh = pb - (_y + _h);
-//		}
-//
-//		_polaroidOut = QRect(pl, pt, pr - pl, pb - pt);
-//		_polaroidIn = QRect(pl + plw, pt + pth, pr - pl - prw - plw, pb - pt - pbh - pth);
-//
-//		int32 nameWidth = _fromName.maxWidth(), maxWidth = _polaroidOut.width() - st::medviewPolaroid.left() - st::medviewPolaroid.right(), dateWidth = st::medviewDateFont->m.width(_dateText);
-//		if (nameWidth > maxWidth) {
-//			nameWidth = maxWidth;
-//		}
-//		_nameNav = QRect(_polaroidIn.x() + ((_polaroidIn.width() - nameWidth) / 2), _polaroidOut.y() + _polaroidOut.height() - st::medviewPolaroid.bottom() + st::medviewNameTop, nameWidth, st::medviewNameFont->height);
-//		_dateNav = QRect(_polaroidIn.x() + ((_polaroidIn.width() - dateWidth) / 2), _polaroidOut.y() + _polaroidOut.height() - st::medviewPolaroid.bottom() + st::medviewDateTop, dateWidth, st::medviewDateFont->height);
-//	}
-//}
 
 QColor MediaView::overColor(const QColor &a, float64 ca, const QColor &b, float64 cb) {
 	QColor res;

@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -27,7 +30,6 @@ public:
 	PasscodeBox(bool turningOff = false);
 	PasscodeBox(const QByteArray &newSalt, const QByteArray &curSalt, bool hasRecovery, const QString &hint, bool turningOff = false);
 	void init();
-	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
@@ -42,6 +44,7 @@ public slots:
 	void onBoxDestroyed(QObject *obj);
 	void onRecoverByEmail();
 	void onRecoverExpired();
+	void onSubmit();
 
 signals:
 
@@ -69,16 +72,16 @@ private:
 	mtpRequestId _setRequest;
 
 	QByteArray _newSalt, _curSalt;
-	bool _hasRecovery;
-	QString _hint;
+	bool _hasRecovery, _skipEmailWarning;
 
 	int32 _aboutHeight;
 
 	QString _boxTitle;
 	Text _about, _hintText;
 
-	FlatButton _saveButton, _cancelButton;
-	FlatInput _oldPasscode, _newPasscode, _reenterPasscode, _passwordHint, _recoverEmail;
+	BoxButton _saveButton, _cancelButton;
+	PasswordField _oldPasscode, _newPasscode, _reenterPasscode;
+	InputField _passwordHint, _recoverEmail;
 	LinkButton _recover;
 
 	QString _oldError, _newError, _emailError;
@@ -90,7 +93,6 @@ class RecoverBox : public AbstractBox, public RPCSender {
 public:
 
 	RecoverBox(const QString &pattern);
-	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
@@ -119,8 +121,8 @@ private:
 
 	QString _pattern;
 
-	FlatButton _saveButton, _cancelButton;
-	FlatInput _recoverCode;
+	BoxButton _saveButton, _cancelButton;
+	InputField _recoverCode;
 
 	QString _error;
 };

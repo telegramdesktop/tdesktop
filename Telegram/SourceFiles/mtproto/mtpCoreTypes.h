@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -206,7 +209,7 @@ typedef QMap<mtpRequestId, mtpResponse> mtpResponseMap;
 
 class mtpErrorUnexpected : public Exception {
 public:
-	mtpErrorUnexpected(mtpTypeId typeId, const QString &type) : Exception(QString("MTP Unexpected type id %1 read in %2").arg(typeId).arg(type), false) { // maybe api changed?..
+	mtpErrorUnexpected(mtpTypeId typeId, const QString &type) : Exception(QString("MTP Unexpected type id #%1 read in %2").arg(uint32(typeId), 0, 16).arg(type), false) { // maybe api changed?..
 	}
 };
 
@@ -1005,7 +1008,11 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 
 inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end) {
 	MTPStringLogger to;
-	mtpTextSerializeType(to, from, end, mtpc_core_message);
+	try {
+		mtpTextSerializeType(to, from, end, mtpc_core_message);
+	} catch (Exception &e) {
+		to.add("[ERROR] (").add(e.what()).add(")");
+	}
 	return QString::fromUtf8(to.p, to.size);
 }
 

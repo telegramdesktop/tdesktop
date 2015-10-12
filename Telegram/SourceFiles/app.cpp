@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -91,14 +94,22 @@ namespace {
 
 	HistoryItem *hoveredItem = 0, *pressedItem = 0, *hoveredLinkItem = 0, *pressedLinkItem = 0, *contextItem = 0, *mousedItem = 0;
 
-	QPixmap *sprite = 0, *emojis = 0, *emojisLarge = 0;
+	QPixmap *sprite = 0, *emoji = 0, *emojiLarge = 0;
 
-	QPixmap *corners[RoundCornersCount][4] = { { 0 } };
+	struct CornersPixmaps {
+		CornersPixmaps() {
+			memset(p, 0, sizeof(p));
+		}
+		QPixmap *p[4];
+	};
+	CornersPixmaps corners[RoundCornersCount];
+	typedef QMap<uint32, CornersPixmaps> CornersMap;
+	CornersMap cornersMap;
 	QImage *cornersMask[4] = { 0 };
 
-	typedef QMap<uint64, QPixmap> EmojisMap;
-	EmojisMap mainEmojisMap;
-	QMap<int32, EmojisMap> otherEmojisMap;
+	typedef QMap<uint64, QPixmap> EmojiMap;
+	EmojiMap mainEmojiMap;
+	QMap<int32, EmojiMap> otherEmojiMap;
 
 	int32 serviceImageCacheSize = 0;
 
@@ -618,7 +629,7 @@ namespace App {
 						} else {
 							if (i.key()->botInfo) {
 								botStatus = (botStatus > 0/* || i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
-								if (requestBotInfos && !i.key()->botInfo->inited) App::api()->requestFullPeer(i.key());
+								if (requestBotInfos && !i.key()->botInfo->inited && App::api()) App::api()->requestFullPeer(i.key());
 							}
 							if (!found && i.key()->id == h->lastKeyboardFrom) {
 								found = true;
@@ -668,7 +679,7 @@ namespace App {
 					chat->count++;
 					if (user->botInfo) {
 						chat->botStatus = (chat->botStatus > 0/* || !user->botInfo->readsAllHistory*/) ? 2 : 1;
-						if (!user->botInfo->inited) App::api()->requestFullPeer(user);
+						if (!user->botInfo->inited && App::api()) App::api()->requestFullPeer(user);
 					}
 				}
 			} else {
@@ -752,7 +763,7 @@ namespace App {
 				}
 			}
 
-			existing->setMedia(m.has_media() ? (&m.vmedia) : 0);
+			existing->updateMedia(m.has_media() ? (&m.vmedia) : 0);
 
 			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
 		}
@@ -1887,9 +1898,11 @@ namespace App {
 		cors[1] = rect.copy(r * 2, 0, r, r);
 		cors[2] = rect.copy(0, r * 2, r, r + (shadow ? s : 0));
 		cors[3] = rect.copy(r * 2, r * 2, r, r + (shadow ? s : 0));
-		for (int i = 0; i < 4; ++i) {
-			::corners[index][i] = new QPixmap(QPixmap::fromImage(cors[i], Qt::ColorOnly));
-			::corners[index][i]->setDevicePixelRatio(cRetinaFactor());
+		if (index != NoneCorners) {
+			for (int i = 0; i < 4; ++i) {
+				::corners[index].p[i] = new QPixmap(QPixmap::fromImage(cors[i], Qt::ColorOnly));
+				::corners[index].p[i]->setDevicePixelRatio(cRetinaFactor());
+			}
 		}
 	}
 
@@ -1906,17 +1919,17 @@ namespace App {
             if (cRetina()) ::sprite->setDevicePixelRatio(cRetinaFactor());
 		}
 		emojiInit();
-		if (!::emojis) {
-			::emojis = new QPixmap(QLatin1String(EName));
-            if (cRetina()) ::emojis->setDevicePixelRatio(cRetinaFactor());
+		if (!::emoji) {
+			::emoji = new QPixmap(QLatin1String(EName));
+            if (cRetina()) ::emoji->setDevicePixelRatio(cRetinaFactor());
 		}
-		if (!::emojisLarge) {
-			::emojisLarge = new QPixmap(QLatin1String(EmojiNames[EIndex + 1]));
-			if (cRetina()) ::emojisLarge->setDevicePixelRatio(cRetinaFactor());
+		if (!::emojiLarge) {
+			::emojiLarge = new QPixmap(QLatin1String(EmojiNames[EIndex + 1]));
+			if (cRetina()) ::emojiLarge->setDevicePixelRatio(cRetinaFactor());
 		}
 
 		QImage mask[4];
-		prepareCorners(MaskCorners, st::msgRadius, st::white, 0, mask);
+		prepareCorners(NoneCorners, st::msgRadius, st::white, 0, mask);
 		for (int i = 0; i < 4; ++i) {
 			::cornersMask[i] = new QImage(mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied));
 			::cornersMask[i]->setDevicePixelRatio(cRetinaFactor());
@@ -1930,7 +1943,7 @@ namespace App {
 		prepareCorners(InShadowCorners, st::msgRadius, st::msgInShadow);
 		prepareCorners(InSelectedShadowCorners, st::msgRadius, st::msgInSelectShadow);
 		prepareCorners(ForwardCorners, st::msgRadius, st::forwardBg);
-		prepareCorners(MediaviewSaveCorners, st::msgRadius, st::emojiPanHover);
+		prepareCorners(MediaviewSaveCorners, st::msgRadius, st::medviewSaveMsg);
 		prepareCorners(EmojiHoverCorners, st::msgRadius, st::emojiPanHover);
 		prepareCorners(StickerHoverCorners, st::msgRadius, st::emojiPanHover);
 		prepareCorners(BotKeyboardCorners, st::msgRadius, st::botKbBg);
@@ -1962,18 +1975,24 @@ namespace App {
 
 			delete ::sprite;
 			::sprite = 0;
-			delete ::emojis;
-			::emojis = 0;
-			delete ::emojisLarge;
-			::emojisLarge = 0;
+			delete ::emoji;
+			::emoji = 0;
+			delete ::emojiLarge;
+			::emojiLarge = 0;
 			for (int32 j = 0; j < 4; ++j) {
 				for (int32 i = 0; i < RoundCornersCount; ++i) {
-					delete ::corners[i][j]; ::corners[i][j] = 0;
+					delete ::corners[i].p[j]; ::corners[i].p[j] = 0;
 				}
 				delete ::cornersMask[j]; ::cornersMask[j] = 0;
 			}
-			mainEmojisMap.clear();
-			otherEmojisMap.clear();
+			for (CornersMap::const_iterator i = ::cornersMap.cbegin(), e = ::cornersMap.cend(); i != e; ++i) {
+				for (int32 j = 0; j < 4; ++j) {
+					delete i->p[j];
+				}
+			}
+			::cornersMap.clear();
+			mainEmojiMap.clear();
+			otherEmojiMap.clear();
 
 			clearAllImages();
 		} else {
@@ -2036,17 +2055,17 @@ namespace App {
 		return *::sprite;
 	}
 
-	const QPixmap &emojis() {
-		return *::emojis;
+	const QPixmap &emoji() {
+		return *::emoji;
 	}
 
-	const QPixmap &emojisLarge() {
-		return *::emojisLarge;
+	const QPixmap &emojiLarge() {
+		return *::emojiLarge;
 	}
 
 	const QPixmap &emojiSingle(EmojiPtr emoji, int32 fontHeight) {
-		EmojisMap *map = &(fontHeight == st::taDefFlat.font->height ? mainEmojisMap : otherEmojisMap[fontHeight]);
-		EmojisMap::const_iterator i = map->constFind(emojiKey(emoji));
+		EmojiMap *map = &(fontHeight == st::taDefFlat.font->height ? mainEmojiMap : otherEmojiMap[fontHeight]);
+		EmojiMap::const_iterator i = map->constFind(emojiKey(emoji));
 		if (i == map->cend()) {
 			QImage img(ESize + st::emojiPadding * cIntRetinaFactor() * 2, fontHeight * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
             if (cRetina()) img.setDevicePixelRatio(cRetinaFactor());
@@ -2394,13 +2413,8 @@ namespace App {
 	QImage **cornersMask() {
 		return ::cornersMask;
 	}
-	QPixmap **corners(RoundCorners index) {
-		return ::corners[index];
-	}
-
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *sh) {
-		QPixmap **c = ::corners[index];
-		int32 cw = c[0]->width() / cIntRetinaFactor(), ch = c[0]->height() / cIntRetinaFactor();
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, const CornersPixmaps &c, const style::color *sh) {
+		int32 cw = c.p[0]->width() / cIntRetinaFactor(), ch = c.p[0]->height() / cIntRetinaFactor();
 		if (w < 2 * cw || h < 2 * ch) return;
 		if (w > 2 * cw) {
 			p.fillRect(QRect(x + cw, y, w - 2 * cw, ch), bg->b);
@@ -2410,20 +2424,41 @@ namespace App {
 		if (h > 2 * ch) {
 			p.fillRect(QRect(x, y + ch, w, h - 2 * ch), bg->b);
 		}
-		p.drawPixmap(QPoint(x, y), *c[0]);
-		p.drawPixmap(QPoint(x + w - cw, y), *c[1]);
-		p.drawPixmap(QPoint(x, y + h - ch), *c[2]);
-		p.drawPixmap(QPoint(x + w - cw, y + h - ch), *c[3]);
+		p.drawPixmap(QPoint(x, y), *c.p[0]);
+		p.drawPixmap(QPoint(x + w - cw, y), *c.p[1]);
+		p.drawPixmap(QPoint(x, y + h - ch), *c.p[2]);
+		p.drawPixmap(QPoint(x + w - cw, y + h - ch), *c.p[3]);
+	}
+
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *sh) {
+		roundRect(p, x, y, w, h, bg, ::corners[index], sh);
 	}
 
 	void roundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &sh, RoundCorners index) {
-		QPixmap **c = App::corners(index);
-		int32 cw = c[0]->width() / cIntRetinaFactor(), ch = c[0]->height() / cIntRetinaFactor();
+		const CornersPixmaps &c = ::corners[index];
+		int32 cw = c.p[0]->width() / cIntRetinaFactor(), ch = c.p[0]->height() / cIntRetinaFactor();
 		p.fillRect(x + cw, y + h, w - 2 * cw, st::msgShadow, sh->b);
 		p.fillRect(x, y + h - ch, cw, st::msgShadow, sh->b);
 		p.fillRect(x + w - cw, y + h - ch, cw, st::msgShadow, sh->b);
-		p.drawPixmap(x, y + h - ch + st::msgShadow, *c[2]);
-		p.drawPixmap(x + w - cw, y + h - ch + st::msgShadow, *c[3]);
+		p.drawPixmap(x, y + h - ch + st::msgShadow, *c.p[2]);
+		p.drawPixmap(x + w - cw, y + h - ch + st::msgShadow, *c.p[3]);
+	}
+
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg) {
+		uint32 colorKey = ((uint32(bg->c.alpha()) & 0xFF) << 24) | ((uint32(bg->c.red()) & 0xFF) << 16) | ((uint32(bg->c.green()) & 0xFF) << 8) | ((uint32(bg->c.blue()) & 0xFF) << 24);
+		CornersMap::const_iterator i = cornersMap.find(colorKey);
+		if (i == cornersMap.cend()) {
+			QImage images[4];
+			prepareCorners(NoneCorners, st::msgRadius, bg, 0, images);
+
+			CornersPixmaps pixmaps;
+			for (int j = 0; j < 4; ++j) {
+				pixmaps.p[j] = new QPixmap(QPixmap::fromImage(images[j], Qt::ColorOnly));
+				pixmaps.p[j]->setDevicePixelRatio(cRetinaFactor());
+			}
+			i = cornersMap.insert(colorKey, pixmaps);
+		}
+		roundRect(p, x, y, w, h, bg, i.value(), 0);
 	}
 
 	void initBackground(int32 id, const QImage &p, bool nowrite) {

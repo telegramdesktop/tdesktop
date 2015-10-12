@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -31,13 +34,13 @@ _passcode(this, st::passcodeInput),
 _submit(this, lang(lng_passcode_submit), st::passcodeSubmit),
 _logout(this, lang(lng_passcode_logout)) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
-	connect(App::wnd(), SIGNAL(resized(const QSize &)), this, SLOT(onParentResize(const QSize &)));
+	connect(App::wnd(), SIGNAL(resized(const QSize&)), this, SLOT(onParentResize(const QSize&)));
 
 	_passcode.setEchoMode(QLineEdit::Password);
 	connect(&_submit, SIGNAL(clicked()), this, SLOT(onSubmit()));
 
 	connect(&_passcode, SIGNAL(changed()), this, SLOT(onChanged()));
-	connect(&_passcode, SIGNAL(accepted()), this, SLOT(onSubmit()));
+	connect(&_passcode, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 
 	connect(&_logout, SIGNAL(clicked()), App::wnd(), SLOT(onLogout()));
 
@@ -183,16 +186,16 @@ void PasscodeWidget::paintEvent(QPaintEvent *e) {
 		p.drawText(QRect(0, _passcode.y() - st::passcodeHeaderHeight, width(), st::passcodeHeaderHeight), lang(lng_passcode_enter), style::al_center);
 
 		if (!_error.isEmpty()) {
-			p.setFont(st::boxFont->f);
+			p.setFont(st::boxTextFont->f);
 			p.setPen(st::setErrColor->p);
-			p.drawText(QRect(0, _passcode.y() + _passcode.height(), width(), st::usernameSkip), _error, style::al_center);
+			p.drawText(QRect(0, _passcode.y() + _passcode.height(), width(), st::passcodeSubmitSkip), _error, style::al_center);
 		}
 	}
 }
 
 void PasscodeWidget::resizeEvent(QResizeEvent *e) {
 	_passcode.move((width() - _passcode.width()) / 2, (height() / 3));
-	_submit.move(_passcode.x(), _passcode.y() + _passcode.height() + st::passcodeSkip);
+	_submit.move(_passcode.x(), _passcode.y() + _passcode.height() + st::passcodeSubmitSkip);
 	_logout.move(_passcode.x() + (_passcode.width() - _logout.width()) / 2, _submit.y() + _submit.height() + st::linkFont->ascent);
 }
 

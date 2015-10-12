@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
@@ -178,7 +181,7 @@ public:
 	void showPhoto(PhotoData *photo, HistoryItem *item);
 	void showPhoto(PhotoData *photo, PeerData *item);
 	void showDocument(DocumentData *doc, HistoryItem *item);
-	void showLayer(LayeredWidget *w, bool fast = false);
+	void showLayer(LayeredWidget *w, bool forceFast = false);
 	void replaceLayer(LayeredWidget *w);
 	void hideLayer(bool fast = false);
 	bool hideInnerLayer();
@@ -194,9 +197,6 @@ public:
 	void noMain(MainWidget *was);
 	void noBox(BackgroundWidget *was);
 	void layerFinishedHide(BackgroundWidget *was);
-
-	void topWidget(QWidget *w);
-	void noTopWidget(QWidget *w);
 
 	void fixOrder();
 
@@ -261,6 +261,7 @@ public slots:
 	void showFromTray(QSystemTrayIcon::ActivationReason reason = QSystemTrayIcon::Unknown);
 	bool minimizeToTray();
 	void toggleTray(QSystemTrayIcon::ActivationReason reason = QSystemTrayIcon::Unknown);
+	void toggleDisplayNotifyFromTray();
 
 	void onInactiveTimer();
 
@@ -306,12 +307,11 @@ private:
 	IntroWidget *intro;
 	MainWidget *main;
 	SettingsWidget *settings;
-	BackgroundWidget *layerBG;
+	BackgroundWidget *layerBg;
 
 	QTimer _isActiveTimer;
 	bool _isActive;
 
-	QWidget *_topWidget; // temp hack for CountrySelect
 	ConnectingWidget *_connecting;
 
 	Local::ClearManager *_clearManager;

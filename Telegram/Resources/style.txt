@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 defaultFontFamily: 'Open Sans';
 semibold: 'Open Sans Semibold';
@@ -56,19 +59,78 @@ wndShadow: sprite(209px, 46px, 19px, 19px);
 wndShadowShift: 1px;
 
 layerAlpha: 0.5;
-layerBG: black;
+layerBg: black;
 
-defaultInputField: InputField {
+boxBg: white;
+boxVerticalMargin: 10px;
+boxWidth: 320px;
+boxWideWidth: 364px;
+boxPadding: margins(26px, 30px, 34px, 8px);
+boxMaxListHeight: 600px;
+boxFontSize: 14px;
+boxTextFont: font(boxFontSize);
+
+boxTitleFg: #444444;
+boxTitleFont: font(boxFontSize bold);
+boxTitlePosition: point(26px, 28px);
+boxTitleHeight: 54px;
+
+boxBlueTitleBg: #6393b5;
+boxBlueTitleAdditionalFg: #dae9f5;
+boxBlueTitleAdditionalSkip: 12px;
+boxBlueTitlePosition: point(23px, 18px);
+boxBlueCloseIcon: sprite(120px, 108px, 12px, 12px);
+boxBlueCloseBg: #c8e1f0;
+boxBlueCloseDuration: 150;
+boxBlueShadow: sprite(132px, 108px, 1px, 4px);
+
+boxButtonFont: font(boxFontSize semibold);
+defaultBoxButton: BoxButton {
+	textFg: #2f9fea;
+	textFgOver: #2f9fea;
+	textBg: white;
+	textBgOver: #edf7ff;
+
+	width: -24px;
+	height: 36px;
+
+	textTop: 8px;
+
+	font: boxButtonFont;
+	duration: 200;
+}
+cancelBoxButton: BoxButton(defaultBoxButton) {
+	textFg: #aeaeae;
+}
+attentionBoxButton: BoxButton(defaultBoxButton) {
+	textFg: #ea4b2f;
+	textFgOver: #ea4b2f;
+	textBgOver: #fff0ed;
+}
+boxButtonPadding: margins(12px, 16px, 22px, 16px);
+defaultBoxLinkButton: linkButton {
+	color: #0080c0;
+	overColor: #0080c0;
+	downColor: #0073ad;
+	font: boxTextFont;
+	overFont: font(boxFontSize underline);
+}
+redBoxLinkButton: linkButton(defaultBoxLinkButton) {
+	color: #d15948;
+	overColor: #d15948;
+	downColor: #db6352;
+}
+
+defaultInputArea: InputArea {
 	textFg: black;
-	textMargins: margins(5px, 5px, 5px, 5px);
-	textAlign: align(left);
+	textMargins: margins(5px, 6px, 5px, 4px);
 
 	placeholderFg: #999;
 	placeholderFgActive: #aaa;
 	placeholderMargins: margins(2px, 0px, 2px, 0px);
 	placeholderAlign: align(topleft);
 	placeholderShift: 50px;
-	duration: 100;
+	duration: 120;
 
 	borderFg: #e0e0e0;
 	borderFgActive: #62c0f7;
@@ -78,7 +140,32 @@ defaultInputField: InputField {
 	borderActive: 2px;
 	borderError: 2px;
 
-	font: normalFont;
+	font: boxTextFont;
+
+	heightMin: 32px;
+	heightMax: 128px;
+}
+defaultInputField: InputField {
+	textFg: black;
+	textMargins: margins(0px, 6px, 0px, 4px);
+	textAlign: align(topleft);
+
+	placeholderFg: #999;
+	placeholderFgActive: #aaa;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderShift: 50px;
+	duration: 120;
+
+	borderFg: #e0e0e0;
+	borderFgActive: #62c0f7;
+	borderFgError: #e48383;
+
+	border: 1px;
+	borderActive: 2px;
+	borderError: 2px;
+
+	font: boxTextFont;
 
 	height: 32px;
 }
@@ -91,6 +178,114 @@ dialogsSearchField: InputField(defaultInputField) {
 	width: 240px;
 	height: 34px;
 }
+defaultCheckbox: Checkbox {
+	textFg: black;
+	textBg: white;
+
+	checkFg: #d9d9d9;
+	checkFgOver: #bfbfbf;
+	checkFgActive: #4eb3ee;
+
+	width: -46px;
+	height: 22px;
+
+	textPosition: point(34px, 0px);
+	diameter: 22px;
+	thickness: 2px;
+	checkIcon: sprite(106px, 136px, 14px, 10px);
+
+	font: boxTextFont;
+	duration: 120;
+}
+defaultRadiobutton: Radiobutton {
+	textFg: black;
+	textBg: white;
+
+	checkFg: #d9d9d9;
+	checkFgOver: #bfbfbf;
+	checkFgActive: #4eb3ee;
+
+	width: -46px;
+	height: 22px;
+
+	textPosition: point(34px, 0px);
+	diameter: 22px;
+	thickness: 2px;
+	checkSkip: 65px; // * 0.1
+
+	font: boxTextFont;
+	duration: 120;
+}
+solidScroll: flatScroll {
+	barColor: #3f729734;
+	bgColor: #214f751a;
+	barOverColor: #3f729734;
+	bgOverColor: #214f751a;
+
+	round: 0px;
+	minHeight: 20px;
+
+	deltax: 5px;
+	width: 14px;
+	deltat: 6px;
+	deltab: 6px;
+
+	topsh: 0px;
+	bottomsh: 0px;
+	shColor: rgba(0, 0, 0, 18);
+
+	duration: 150;
+	hiding: 0;
+}
+boxScroll: flatScroll(solidScroll) {
+	width: 18px;
+	deltax: 6px;
+}
+boxScrollSkip: 6px;
+boxScrollShadowBg: #00000012;
+
+boxSearchField: InputField(defaultInputField) {
+	textMargins: margins(41px, 16px, 41px, 0px);
+
+	placeholderFg: #999;
+	placeholderFgActive: #aaa;
+	placeholderMargins: margins(4px, 0px, 4px, 0px);
+
+	border: 0px;
+	borderActive: 0px;
+	borderError: 0px;
+
+	height: 48px;
+
+	iconSprite: sprite(227px, 21px, 24px, 24px);
+	iconPosition: point(15px, 14px);
+
+	font: normalFont;
+}
+boxSearchCancel: iconedButton {
+	color: white;
+	bgColor: white;
+	overBgColor: white;
+	font: font(fsize);
+
+	opacity: 0.3;
+	overOpacity: 0.4;
+
+	textPos: point(0px, 0px);
+	downTextPos: point(0px, 0px);
+
+	duration: 150;
+	cursor: cursor(pointer);
+
+	icon: sprite(133px, 108px, 12px, 12px);
+	iconPos: point(8px, 18px);
+	downIcon: sprite(133px, 108px, 12px, 12px);
+	downIconPos: point(8px, 18px);
+
+	width: 41px;
+	height: 48px;
+}
+
 titleBG: #6389a8;
 titleColor: #0f8dcc;//rgb(20, 136, 210);
 titleHeight: 39px;
@@ -471,72 +666,25 @@ inpIntroPassword: flatInput(inpIntroPhone) {
 }
 
 introSelectDelta: 30px;
-btnSelectDone: flatButton(btnDefFlat) {
-	color: btnYesColor;
-	overColor: btnYesHover;
-	downColor: btnYesHover;
-
-	bgColor: white;
-	overBgColor: btnBoxWhiteHover;
-	downBgColor: btnBoxWhiteHover;
-
-	width: 182px;
-	height: 52px;
-
-	textTop: 14px;
-	overTextTop: 14px;
-	downTextTop: 15px;
-
-	font: font(17px);
-	overFont: font(17px);
-}
-btnSelectCancel: flatButton(btnSelectDone) {
-	width: 181px;
-	color: btnNoColor;
-	overColor: btnNoHover;
-	downColor: btnNoHover;
-}
 btnSelectSep: #e0e0e0;
 btnRedLink: linkButton(btnDefLink) {
 	color: #d15948;
 	overColor: #d15948;
 	downColor: #db6352;
 }
-btnRedDone: flatButton(btnSelectDone) {
-	color: #d15948;
-	overColor: #d15948;
-	downColor: #db6352;
+
+countryRowHeight: 36px;
+countryRowNameFont: font(fsize semibold);
+countryRowPadding: margins(22px, 9px, 8px, 0px);
+countryRowCodeFont: font(fsize);
+countryRowBgOver: #f5f8fa;
+countryRowCodeFg: #808080;
+countryRowCodeFgOver: #7c99b2;
+countriesSkip: 12px;
+countriesScroll: flatScroll(boxScroll) {
+	deltat: 9px;
+	deltab: 3px;
 }
-
-countryList: countryList {
-	notFoundColor: #aaa;//rgb(20, 136, 210);
-	notFoundFont: font(18px);
-
-	verticalMargin: 0px;
-
-	font: font(18px);
-	codeFont: font(16px);
-	rowHeight: 42px;
-	color: #000;
-	codeColor: #aaaaaa;//rgb(20, 136, 210);
-	bgColor: #FFF;
-	bgHovered: #f5f5f5;
-	margin: 13px;
-	codeWidth: 60px;
-
-	borderMargin: 0px;
-	borderColor: rgba(228, 233, 240, 127);
-	borderWidth: 0px;
-}
-
-countriesSlideShift: 500px;
-countriesSlideDuration: 200;
-countriesHideFunc: transition(easeInCirc);
-countriesShowFunc: transition(easeOutCirc);
-countriesBackHideFunc: transition(linear);
-countriesBackShowFunc: transition(linear);
-countriesAlphaHideFunc: transition(easeOutCirc);
-countriesAlphaShowFunc: transition(easeInCirc);
 
 introErrWidth: 450px;
 introErrDuration: 200;
@@ -606,10 +754,10 @@ setNameInput: flatInput(inpDefFlat) {
 	textMrg: margins(3px, 3px, 3px, 3px);
 }
 setErrBG: #ffa5a5;
-setErrColor: #800000;
+setErrColor: #d84d4d;
 setErrHeight: 30px;
 setErrFont: font(fsize);
-setGoodColor: #008000;
+setGoodColor: #4ab44a;
 
 setBackgroundSize: 120px;
 
@@ -719,9 +867,9 @@ dlgActiveSendImg: sprite(142px, 25px, 17px, 11px);
 dlgChatImgPos: point(1px, 4px);
 dlgChatImg: sprite(104px, 26px, 16px, 11px);
 dlgActiveChatImg: sprite(104px, 37px, 16px, 11px);
-dlgChannelImgPos: point(2px, 3px);
-dlgChannelImg: sprite(104px, 0px, 14px, 13px);
-dlgActiveChannelImg: sprite(104px, 13px, 14px, 13px);
+dlgChannelImgPos: point(3px, 4px);
+dlgChannelImg: sprite(105px, 1px, 12px, 11px);
+dlgActiveChannelImg: sprite(105px, 14px, 12px, 11px);
 dlgImgSkip: 22px;
 
 dlgCheckLeft: 5px;
@@ -935,6 +1083,9 @@ defaultTextStyle: textStyle {
 	selectBg: msgInSelectBg;
 	selectOverlay: msgSelectOverlay;
 	lineHeight: 0px;
+}
+boxTextStyle: textStyle(defaultTextStyle) {
+	lineHeight: 22px;
 }
 serviceTextStyle: textStyle(defaultTextStyle) {
 	lnkFlags: msgServiceFont;
@@ -1206,28 +1357,34 @@ layerSlideDuration: 200;
 layerHideDuration: 200;
 layerPadding: margins(10px, 10px, 10px, 10px);
 
-boxFont: font(16px);
-boxPadding: margins(18px, 18px, 18px, 18px);
-boxVerticalMargin: 10px;
+contactPadding: margins(49px, 22px, 0px, 6px);
+contactSkip: 13px;
+contactPhoneSkip: 30px;
+contactUserIcon: sprite(120px, 90px, 18px, 18px);
+contactPhoneIcon: sprite(138px, 90px, 18px, 18px);
+contactIconTop: 10px;
 
-boxWidth: 364px;
-boxMaxListHeight: 600px;
-
-boxBG: white;
-boxGrayTitle: #777;
-
-boxTitlePos: point(20px, 15px);
-boxTitleFont: font(17px);
-boxTitleHeight: 52px;
-
-confirmMaxHeight: 320px;
-confirmCompressedSkip: 10px;
-addContactPadding: margins(18px, 24px, 18px, 24px);
-addContactDelta: 14px;
-inpAddContact: flatInput(inpDefGray) {
-	height: 42px;
-	textMrg: margins(10px, 5px, 10px, 5px);
-	font: font(15px);
+contactsPhotoSize: 42px;
+contactsPadding: margins(16px, 7px, 16px, 7px);
+contactsNameTop: 2px;
+contactsNameFont: font(fsize semibold);
+contactsStatusTop: 23px;
+contactsStatusFont: font(fsize);
+contactsStatusFg: #999999;
+contactsStatusFgOver: #7c99b2;
+contactsStatusFgOnline: #3b8dcc;
+contactsBgOver: #f5f8fa;
+contactsBgActive: #6f9cbd;
+contactsCheckPosition: point(8px, 16px);
+contactsCheckIcon: sprite(187px, 61px, 18px, 14px);
+contactsCheckActiveIcon: sprite(187px, 75px, 18px, 14px);
+contactsNewItemHeight: 53px;
+contactsNewItemIcon: sprite(307px, 248px, 22px, 16px);
+contactsNewItemIconPosition: point(29px, 19px);
+contactsNewItemTop: 18px;
+contactsNewItemFg: #4b82af;
+contactsScroll: flatScroll(boxScroll) {
+	deltab: 0px;
 }
 
 btnNewGroup: iconedButton(btnDefIconed) {
@@ -1280,9 +1437,19 @@ notifyHeight: 80px;
 notifyDeltaX: 6px;
 notifyDeltaY: 7px;
 
-cropBoxWidth: 364px;
+boxPhotoPadding: margins(28px, 28px, 28px, 18px);
+boxPhotoCompressedPadding: margins(0px, 2px, 0px, 22px);
+boxPhotoTextFg: #808080;
 cropPointSize: 10px;
+cropSkip: 13px;
 cropMinSize: 20px;
+confirmCaptionArea: InputArea(defaultInputArea) {
+	textMargins: margins(1px, 6px, 1px, 4px);
+	heightMax: 56px;
+}
+confirmBg: #f2f2f2;
+confirmMaxHeight: 245px;
+confirmCompressedSkip: 10px;
 
 profileMaxWidth: 410px;
 profilePadding: margins(28px, 30px, 28px, 0px);
@@ -1311,10 +1478,6 @@ profileListStatusBottom: 6px;
 profileHoverBG: #f5f5f5;
 profileActiveBG: #6294b9;
 profileSubFont: font(fsize);
-profileCheckRect: sprite(78px, 114px, 24px, 24px);
-profileCheckActiveRect: sprite(128px, 108px, 24px, 24px);
-profileCheckDeltaX: 18px;
-profileCheckDeltaY: 1px;
 profileListNameFont: font(fsize semibold);
 profileListNameColor: #000;
 profileOnlineColor: titleTypingColor;
@@ -1334,7 +1497,6 @@ profileMinBtnPadding: 10px;
 
 membersPadding: margins(0px, 10px, 0px, 10px);
 
-forwardWidth: 364px;
 forwardMargins: margins(30px, 10px, 30px, 10px);
 forwardFont: font(16px); 
 forwardBg: rgba(0, 0, 0, 76);
@@ -1382,14 +1544,6 @@ profileNameInput: flatInput(setNameInput) {
 	width: 230px;
 }
 
-boxScroll: flatScroll(scrollDef) {
-	topsh: -2px;
-	bottomsh: -2px;
-}
-boxNoTopScroll: flatScroll(boxScroll) {
-	topsh: 0;
-}
-
 participantInnerAdd: flatButton(btnDefNext) {
 	width: 145px;
 	height: 40px;
@@ -1422,103 +1576,48 @@ contactsFilter: flatInput(dlgFilter) {
 }
 inpCountry: flatInput(contactsFilter) {
 }
-newGroupName: flatInput(inpDefGray) {
-	width: 340px;
-	height: 42px;
-	font: font(15px);
-	textMrg: margins(12px, 4px, 12px, 4px);
-}
-newGroupLink: flatInput(inpDefFlat) {
-	width: 340px;
-	height: 42px;
-	font: font(15px);
-	textMrg: margins(12px, 4px, 12px, 4px);
-	bgColor: transparent;
-	bgActive: transparent;
-	borderWidth: 2px;
-	borderColor: #f2f2f2;
-	borderActive: #80cff9;
-	borderError: #ed8080;
-	phColor: #828282;
-	phFocusColor: #949494;
-}
+
 newGroupLimitFg: #a4a4a4;
 newGroupAboutFg: #808080;
-newGroupNamePadding: margins(12px, 15px, 12px, 13px);
-newGroupPadding: margins(26px, 28px, 26px, 24px);
-newGroupSkip: 15px;
-newGroupLinkPadding: margins(26px, 27px, 26px, 27px);
-newGroupLinkTop: -3px;
+newGroupPadding: margins(4px, 6px, 4px, 3px);
+newGroupSkip: 17px;
+newGroupInfoPadding: margins(0px, -4px, 0px, 1px);
+
+newGroupLinkPadding: margins(4px, 27px, 4px, 12px);
+newGroupLinkTop: 3px;
 newGroupLinkFont: font(16px);
-newGroupPhoto: flatButton(btnDefNext, btnDefBig) {
-	width: 199px;
-	height: 42px;
 
-	textTop: 9px;
-	overTextTop: 9px;
-	downTextTop: 10px;
+newGroupPhotoSize: 76px;
+newGroupPhotoBg: #4eb5f0;
+newGroupPhotoBgOver: #3fa9e7;
+newGroupPhotoIcon: sprite(74px, 104px, 30px, 27px);
+newGroupPhotoIconPosition: point(23px, 25px);
 
-	font: font(17px);
-	overFont: font(17px);
+newGroupNamePosition: point(27px, 20px);
+
+newGroupDescriptionPadding: margins(0px, 23px, 0px, 14px);
+newGroupDescription: InputArea(defaultInputArea) {
+	textMargins: margins(1px, 6px, 1px, 4px);
+	heightMax: 115px;
 }
-newGroupPhotoSize: 96px;
-newGroupPhotoSkip: 18px;
-newGroupDescriptionSkip: 28px;
-newGroupPublicLinkSkip: 27px;
-newGroupDescription: flatTextarea(taDefFlat) {
-	font: font(15px);
-	bgColor: transparent;
-	phColor: #828282;
-	phFocusColor: #949494;
-}
-newGroupDescriptionPadding: margins(5px, 6px, 5px, 6px);
+
+newGroupPublicLinkPadding: margins(0px, 20px, 0px, 5px);
 newGroupLinkFadeDuration: 5000;
 
-connectionSkip: 20px;
-inpConnectionHost: flatInput(inpDefGray) {
-	font: font(fsize);
-	height: 34px;
-	bgColor: #f2f2f2;
-	phColor: #949494;
-	phFocusColor: #a4a4a4;
-	textMrg: margins(4px, 2px, 5px, 4px);
-	width: 205px;
-
-	borderWidth: 2px;
-	borderColor: #f2f2f2;
-	borderActive: #80cff9;
-	borderError: #ed8080;
+connectionHostInputField: InputField(defaultInputField) {
+	width: 160px;
 }
-inpConnectionPort: flatInput(inpConnectionHost) {
-	width: 80px;
+connectionPortInputField: InputField(defaultInputField) {
+	width: 55px;
 }
-inpConnectionUser: flatInput(inpConnectionHost) {
-	width: 130px;
+connectionUserInputField: InputField(defaultInputField) {
+	width: 95px;
 }
-inpConnectionPassword: flatInput(inpConnectionHost) {
-	width: 155px;
+connectionPasswordInputField: InputField(defaultInputField) {
+	width: 120px;
 }
+connectionIPv6Skip: 11px;
 
-contactsClose: flatButton {
-	color: btnYesColor;
-	overColor: btnYesHover;
-	downColor: btnYesHover;
-
-	bgColor: white;
-	overBgColor: white;
-	downBgColor: white;
-
-	width: 364px;
-	height: 46px;
-
-	textTop: 12px;
-	overTextTop: 12px;
-	downTextTop: 13px;
-
-	font: font(16px);
-	overFont: font(16px);
-}
-contactsImg: sprite(31px, 104px, 9px, 16px);
 contactsAdd: flatButton(topBarButton) {
 	width: -40px;
 	height: 52px;
@@ -1529,43 +1628,29 @@ contactsAdd: flatButton(topBarButton) {
 }
 
 aboutIcon: sprite(0px, 0px, 104px, 104px);
-aboutIconTop: 28px;
-aboutWidth: 448px;
-aboutHeight: 441px;
-aboutHeaderFont: font(24px semibold);
-aboutSubheaderFont: font(24px);
-aboutHeaderTop: 139px;
-aboutVersion: flatLabel(labelDefFlat) {
-	font: font(16px);
-	width: aboutWidth;
-	align: align(center);
+aboutWidth: 390px;
+aboutVersionTop: -3px;
+aboutVersionLink: linkButton(btnDefLink) {
+	color: #999;
+	overColor: #999;
+	downColor: #999;
 }
-aboutVersionTop: 178px;
-aboutTextFont: font(15px);
-aboutTextTop: 221px;
+aboutTextTop: 34px;
+aboutSkip: 14px;
 aboutLabel: flatLabel(labelDefFlat) {
-	font: aboutTextFont;
-	width: aboutWidth;
-	align: align(center);
+	font: normalFont;
+	width: 330px;
+	align: align(topleft);
 }
 aboutTextStyle: textStyle(defaultTextStyle) {
-	lineHeight: 24px;
-}
-aboutCloseButton: flatButton(contactsClose) {
-	width: aboutWidth;
-	height: 52px;
-	textTop: 15px;
-	overTextTop: 15px;
-	downTextTop: 16px;
-}
-btnInfoClose: flatButton(aboutCloseButton) {
-	width: boxWidth;
+	lineHeight: 22px;
 }
 
-emojiTextFont: font(16px);
-emojiReplaceWidth: 56px;
+emojiTextFont: font(15px);
+emojiReplaceWidth: 52px;
 emojiReplaceHeight: 56px;
 emojiReplaceInnerHeight: 42px;
+emojiReplacePadding: 14px;
 
 connectingBG: #fffe;
 connectingColor: #777;
@@ -1630,18 +1715,6 @@ dragPadding: margins(20px, 10px, 20px, 10px);
 
 dragHeight: 72px;
 
-downloadSkip: 20px;
-inpDownloadDir: flatInput(inpDefGray) {
-	font: font(fsize);
-	height: 34px;
-	bgColor: #fff;
-	textMrg: margins(5px, 2px, 5px, 4px);
-	width: 295px;
-
-	borderWidth: 2px;
-	borderColor: #f2f2f2;
-}
-
 dpiSlider: slider {
 	color: #ccc;
 	thikness: 2px;
@@ -1656,54 +1729,16 @@ dpiFont2: linkFont;
 dpiFont3: linkFont;
 dpiFont4: linkFont;
 
-newScroll: flatScroll(scrollDef) {
-	barColor: #3f729734;
-	bgColor: #214f751a;
-	barOverColor: #3f729734;
-	bgOverColor: #214f751a;
-
-	deltax: 5px;
-	width: 14px;
-	deltat: 6px;
-	deltab: 6px;
-
-	topsh: 0px;
-	bottomsh: 0px;
-
-	hiding: 0;
-}
-
-stickersMaxHeight: 340px;
-stickersAddOrShare: 70px;
-btnStickersAdd: flatButton(btnDefNext, btnDefBig) {
-	width: 200px;
-	height: 42px;
-
-	textTop: 9px;
-	overTextTop: 9px;
-	downTextTop: 10px;
-
-	font: font(17px);
-	overFont: font(17px);
-
-	bgColor: #15c23c;
-	overBgColor: #13a835;
-	downBgColor: #13a835;
-}
-btnStickersClose: iconedButton(notifyClose) {
-	iconPos: point(21px, 21px);
-	downIconPos: point(21px, 22px);
-	width: 52px;
-	height: 48px;
-}
-stickersWidth: 344px;
-stickersPadding: 10px;
+stickersMaxHeight: 440px;
+stickersPadding: margins(19px, 17px, 19px, 17px);
 stickersSize: size(64px, 64px);
-stickersScroll: flatScroll(newScroll) {
-	deltab: 76px;
+stickersScroll: flatScroll(boxScroll) {
+	deltax: 7px;
+	deltat: 23px;
+	deltab: 9px;
 }
 
-emojiScroll: flatScroll(newScroll) {
+emojiScroll: flatScroll(solidScroll) {
 	deltat: 48px;
 }
 emojiRecentOver: sprite(0px, 196px, 21px, 22px);
@@ -1839,7 +1874,6 @@ stickerIconPadding: 5px;
 stickerIconOpacity: 0.7;
 stickerIconSel: 2px;
 stickerIconSelColor: #58b2ed;
-stickerIconRecent: sprite(342px, 50px, 21px, 22px);
 stickerIconLeft: sprite(342px, 72px, 40px, 1px);
 stickerIconRight: sprite(342px, 73px, 40px, 1px);
 stickerIconMove: 400;
@@ -1870,7 +1904,7 @@ botKbTinyButton: botKeyboardButton {
 	textTop: 2px;
 	downTextTop: 3px;
 }
-botKbScroll: flatScroll(newScroll) {
+botKbScroll: flatScroll(solidScroll) {
 	deltax: 3px;
 	width: 10px;
 }
@@ -2049,41 +2083,38 @@ minPhotoSize: 100px;
 maxMediaSize: 420px;
 maxStickerSize: 256px;
 
-usernameFont: font(14px);
-usernameColor: #777;
-usernameWidth: 336px;
-usernameSkip: 32px;
-usernameInput: flatInput(inpAddContact) {
-	bgColor: transparent;
+downloadPathSkip: 10px;
+
+usernamePadding: margins(23px, 22px, 21px, 12px);
+usernameSkip: 49px;
+usernameTextStyle: textStyle(defaultTextStyle) {
+	lineHeight: 20px;
 }
-usernameDone: flatButton(btnSelectDone) {
-	width: 168px;
-}
-usernameCancel: flatButton(btnSelectCancel) {
-	width: 167px;
-}
+usernameDefaultFg: #777;
 
 youtubeIcon: sprite(336px, 221px, 60px, 60px);
 vimeoIcon: sprite(336px, 283px, 60px, 60px);
 videoIcon: sprite(0px, 340px, 60px, 60px);
 locationSize: size(320, 240);
 
-langsWidth: 220px;
-langsPadding: margins(10px, 10px, 10px, 10px);
-langPadding: margins(10px, 10px, 10px, 10px);
-langButton: flatCheckbox(rbDefFlat) {
+boxOptionListPadding: margins(2px, 20px, 2px, 2px);
+
+langsWidth: 256px;
+langsButton: Radiobutton(defaultRadiobutton) {
 	width: 200px;
-}
-langsCloseButton: flatButton(aboutCloseButton) {
-	width: langsWidth;
 }
 
 backgroundPadding: 10px;
 backgroundSize: size(108px, 193px);
+backgroundScroll: flatScroll(boxScroll) {
+	width: 10px;
+	deltax: 3px;
+	deltat: 10px;
+	deltab: 0px;
+}
 
 passcodeHeaderFont: font(19px);
 passcodeHeaderHeight: 80px;
-passcodeSkip: 40px;
 passcodeInput: flatInput(inpIntroPhone) {
 }
 passcodeSubmit: flatButton(btnIntroNext) {
@@ -2094,6 +2125,9 @@ passcodeSubmit: flatButton(btnIntroNext) {
 	font: font(19px);
 	overFont: font(19px);
 }
+passcodeSubmitSkip: 40px;
+passcodePadding: margins(0px, 22px, 0px, 3px);
+passcodeSkip: 31px;
 
 mentionHeight: 40px;
 mentionScroll: flatScroll(scrollDef) {
@@ -2110,19 +2144,22 @@ mentionFgOver: #707070;
 mentionFgActive: #0080c0;
 mentionFgOverActive: #0077b3;
 
+sessionsScroll: flatScroll(boxScroll) {
+	deltax: 5px;
+	width: 14px;
+}
 sessionsHeight: 440px;
 sessionHeight: 70px;
-sessionPadding: margins(20px, 10px, 20px, 0);
-sessionsCloseButton: flatButton(aboutCloseButton) {
-	width: boxWidth;
-}
+sessionCurrentPadding: margins(0px, 7px, 0px, 4px);
+sessionCurrentHeight: 118px;
+sessionPadding: margins(21px, 10px, 21px, 0);
 sessionNameFont: msgNameFont;
 sessionActiveFont: msgDateFont;
 sessionActiveColor: #aaa;
 sessionInfoFont: msgFont;
 sessionInfoColor: dlgTextColor;
 sessionTerminateTop: 30px;
-sessionTerminateSkip: 10px;
+sessionTerminateSkip: 18px;
 sessionTerminate: iconedButton(notifyClose) {
 	iconPos: point(3px, 3px);
 	downIconPos: point(3px, 4px);

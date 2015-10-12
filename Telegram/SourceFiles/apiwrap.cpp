@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -268,6 +271,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result) {
 		const MTPDchannelFull &f(d.vfull_chat.c_channelFull());
 		PhotoData *photo = App::feedPhoto(f.vchat_photo);
 		ChannelData *channel = peer->asChannel();
+		channel->flagsFull = f.vflags.v;
 		if (photo) {
 			channel->photoId = photo->id;
 			photo->peer = channel;
@@ -321,7 +325,7 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result) {
 }
 
 bool ApiWrap::gotPeerFullFailed(PeerData *peer, const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	_fullPeerRequests.remove(peer);
 	return true;
@@ -405,7 +409,7 @@ void ApiWrap::gotUsers(const MTPVector<MTPUser> &result) {
 }
 
 bool ApiWrap::gotPeerFailed(PeerData *peer, const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	_peerRequests.remove(peer);
 	return true;
@@ -579,7 +583,7 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 }
 
 bool ApiWrap::gotStickerSetFail(uint64 setId, const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	_stickerSetRequests.remove(setId);
 	return true;

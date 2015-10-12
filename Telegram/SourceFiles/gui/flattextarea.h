@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -43,7 +46,9 @@ public:
 	void setMinHeight(int32 minHeight);
 	void setMaxHeight(int32 maxHeight);
 
-	const QString &getLastText() const;
+	const QString &getLastText() const {
+		return _oldtext;
+	}
 	void setPlaceholder(const QString &ph);
 	void updatePlaceholder();
 
@@ -58,7 +63,6 @@ public:
 	EmojiPtr getSingleEmoji() const;
 	void getMentionHashtagBotCommandStart(QString &start) const;
 	void removeSingleEmoji();
-	QString getText(int32 start = 0, int32 end = -1) const;
 	bool hasText() const;
 
 	bool isUndoAvailable() const;
@@ -96,6 +100,9 @@ signals:
 
 protected:
 
+	QString getText(int32 start = 0, int32 end = -1) const;
+	virtual void correctValue(const QString &was, QString &now);
+
 	void insertEmoji(EmojiPtr emoji, QTextCursor c);
 
 	QVariant loadResource(int type, const QUrl &name);
@@ -127,10 +134,7 @@ private:
 	bool _touchPress, _touchRightButton, _touchMove;
 	QPoint _touchStart;
 
-	bool _replacingEmojis;
-	typedef QPair<int, int> Insertion;
-	typedef QList<Insertion> Insertions;
-	Insertions _insertions;
+	bool _correcting;
 
 	typedef QPair<int, int> LinkRange;
 	typedef QList<LinkRange> LinkRanges;

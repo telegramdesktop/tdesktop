@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
@@ -687,7 +690,7 @@ void EmojiColorPicker::drawVariant(Painter &p, int variant) {
 		p.setOpacity(1);
 	}
 	int esize = EmojiSizes[EIndex + 1];
-	p.drawPixmapLeft(w.x() + (st::emojiPanSize.width() - (esize / cIntRetinaFactor())) / 2, w.y() + (st::emojiPanSize.height() - (esize / cIntRetinaFactor())) / 2, width(), App::emojisLarge(), QRect(_variants[variant]->x * esize, _variants[variant]->y * esize, esize, esize));
+	p.drawPixmapLeft(w.x() + (st::emojiPanSize.width() - (esize / cIntRetinaFactor())) / 2, w.y() + (st::emojiPanSize.height() - (esize / cIntRetinaFactor())) / 2, width(), App::emojiLarge(), QRect(_variants[variant]->x * esize, _variants[variant]->y * esize, esize, esize));
 }
 
 EmojiPanInner::EmojiPanInner() : _maxHeight(int(st::emojiPanMaxHeight)),
@@ -799,7 +802,7 @@ void EmojiPanInner::paintEvent(QPaintEvent *e) {
 					App::roundRect(p, QRect(tl, st::emojiPanSize), st::emojiPanHover, StickerHoverCorners);
 					p.setOpacity(1);
 				}
-				p.drawPixmapLeft(w.x() + (st::emojiPanSize.width() - (_esize / cIntRetinaFactor())) / 2, w.y() + (st::emojiPanSize.height() - (_esize / cIntRetinaFactor())) / 2, width(), App::emojisLarge(), QRect(_emojis[c][index]->x * _esize, _emojis[c][index]->y * _esize, _esize, _esize));
+				p.drawPixmapLeft(w.x() + (st::emojiPanSize.width() - (_esize / cIntRetinaFactor())) / 2, w.y() + (st::emojiPanSize.height() - (_esize / cIntRetinaFactor())) / 2, width(), App::emojiLarge(), QRect(_emojis[c][index]->x * _esize, _emojis[c][index]->y * _esize, _esize, _esize));
 			}
 		}
 	}
@@ -961,7 +964,7 @@ QRect EmojiPanInner::emojiRect(int tab, int sel) {
 			x = st::emojiPanPadding + ((sel % EmojiPanPerRow) * st::emojiPanSize.width());
 			break;
 		} else {
-			int cnt = emojiPackCount(emojiTabAtIndex(i));
+			int cnt = _counts[i];
 			int rows = (cnt / EmojiPanPerRow) + ((cnt % EmojiPanPerRow) ? 1 : 0);
 			y += st::emojiPanHeader + rows * st::emojiPanSize.height();
 		}
@@ -1080,10 +1083,11 @@ void EmojiPanInner::fillPanels(QVector<EmojiPanel*> &panels) {
 	for (int c = 0; c < emojiTabCount; ++c) {
 		panels.push_back(new EmojiPanel(parentWidget(), lang(LangKey(lng_emoji_category0 + c)), NoneStickerSetId, true, y));
 		connect(panels.back(), SIGNAL(mousePressed()), this, SLOT(checkPickerHide()));
-		int cnt = emojiPackCount(emojiTabAtIndex(c)), rows = (cnt / EmojiPanPerRow) + ((cnt % EmojiPanPerRow) ? 1 : 0);
+		int cnt = _counts[c], rows = (cnt / EmojiPanPerRow) + ((cnt % EmojiPanPerRow) ? 1 : 0);
 		panels.back()->show();
 		y += st::emojiPanHeader + rows * st::emojiPanSize.height();
 	}
+	_picker.raise();
 }
 
 void EmojiPanInner::refreshPanels(QVector<EmojiPanel*> &panels) {
@@ -1092,7 +1096,7 @@ void EmojiPanInner::refreshPanels(QVector<EmojiPanel*> &panels) {
 	int32 y = 0;
 	for (int c = 0; c < emojiTabCount; ++c) {
 		panels.at(c)->setWantedY(y);
-		int cnt = emojiPackCount(emojiTabAtIndex(c)), rows = (cnt / EmojiPanPerRow) + ((cnt % EmojiPanPerRow) ? 1 : 0);
+		int cnt = _counts[c], rows = (cnt / EmojiPanPerRow) + ((cnt % EmojiPanPerRow) ? 1 : 0);
 		y += st::emojiPanHeader + rows * st::emojiPanSize.height();
 	}
 }
@@ -1772,9 +1776,9 @@ void EmojiPanel::updateText() {
 		}
 	} else {
 		QString switchText = lang((_setId != NoneStickerSetId) ? lng_switch_emoji : lng_switch_stickers);
-		availw -= st::emojiSwitchSkip + st::emojiPanHeaderFont->m.width(switchText);
+		availw -= st::emojiSwitchSkip + st::emojiPanHeaderFont->width(switchText);
 	}
-	_text = st::emojiPanHeaderFont->m.elidedText(_fullText, Qt::ElideRight, availw);
+	_text = st::emojiPanHeaderFont->elided(_fullText, availw);
 	update();
 }
 
@@ -1805,7 +1809,7 @@ void EmojiPanel::paintEvent(QPaintEvent *e) {
 
 EmojiSwitchButton::EmojiSwitchButton(QWidget *parent, bool toStickers) : Button(parent),
 _toStickers(toStickers), _text(lang(_toStickers ? lng_switch_stickers : lng_switch_emoji)),
-_textWidth(st::emojiPanHeaderFont->m.width(_text)) {
+_textWidth(st::emojiPanHeaderFont->width(_text)) {
 	int32 w = st::emojiSwitchSkip + _textWidth + (st::emojiSwitchSkip - st::emojiSwitchImgSkip);
 	setCursor(style::cur_pointer);
 	resize(w, st::emojiPanHeader);
@@ -1969,7 +1973,7 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 
 	if (_toCache.isNull()) {
 		if (_cache.isNull()) {
-			p.fillRect(rtlrect(r.x() + r.width() - st::emojiScroll.width, r.y(), st::emojiScroll.width, e_scroll.height(), width()), st::white->b);
+			p.fillRect(myrtlrect(r.x() + r.width() - st::emojiScroll.width, r.y(), st::emojiScroll.width, e_scroll.height()), st::white->b);
 			if (_stickersShown) {
 				p.fillRect(r.left(), _iconsTop, r.width(), st::rbEmoji.height, st::emojiPanCategories->b);
 				if (!_icons.isEmpty()) {
@@ -2613,7 +2617,7 @@ void EmojiPan::onRemoveSet(quint64 setId) {
 	StickerSets::const_iterator it = cStickerSets().constFind(setId);
 	if (it != cStickerSets().cend() && !(it->flags & MTPDstickerSet_flag_official)) {
 		_removingSetId = it->id;
-		ConfirmBox *box = new ConfirmBox(lng_stickers_remove_pack(lt_sticker_pack, it->title));
+		ConfirmBox *box = new ConfirmBox(lng_stickers_remove_pack(lt_sticker_pack, it->title), lang(lng_box_remove));
 		connect(box, SIGNAL(confirmed()), this, SLOT(onRemoveSetSure()));
 		connect(box, SIGNAL(destroyed(QObject*)), this, SLOT(onDelayedHide()));
 		App::wnd()->showLayer(box);
@@ -2662,7 +2666,7 @@ MentionsInner::MentionsInner(MentionsDropdown *parent, MentionRows *rows, Hashta
 void MentionsInner::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
-	int32 atwidth = st::mentionFont->m.width('@'), hashwidth = st::mentionFont->m.width('#');
+	int32 atwidth = st::mentionFont->width('@'), hashwidth = st::mentionFont->width('#');
 	int32 mentionleft = 2 * st::mentionPadding.left() + st::mentionPhotoSize;
 	int32 mentionwidth = width() - mentionleft - 2 * st::mentionPadding.right();
 	int32 htagleft = st::btnAttachPhoto.width + st::taMsgField.textMrg.left() - st::dlgShadow, htagwidth = width() - st::mentionPadding.right() - htagleft - st::mentionScroll.width;
@@ -2683,19 +2687,19 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 		if (!_rows->isEmpty()) {
 			UserData *user = _rows->at(i);
 			QString first = (_parent->filter().size() < 2) ? QString() : ('@' + user->username.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('@' + user->username) : user->username.mid(_parent->filter().size() - 1);
-			int32 firstwidth = st::mentionFont->m.width(first), secondwidth = st::mentionFont->m.width(second), unamewidth = firstwidth + secondwidth, namewidth = user->nameText.maxWidth();
+			int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second), unamewidth = firstwidth + secondwidth, namewidth = user->nameText.maxWidth();
 			if (mentionwidth < unamewidth + namewidth) {
 				namewidth = (mentionwidth * namewidth) / (namewidth + unamewidth);
 				unamewidth = mentionwidth - namewidth;
 				if (firstwidth < unamewidth + st::mentionFont->elidew) {
 					if (firstwidth < unamewidth) {
-						first = st::mentionFont->m.elidedText(first, Qt::ElideRight, unamewidth);
+						first = st::mentionFont->elided(first, unamewidth);
 					} else if (!second.isEmpty()) {
-						first = st::mentionFont->m.elidedText(first + second, Qt::ElideRight, unamewidth);
+						first = st::mentionFont->elided(first + second, unamewidth);
 						second = QString();
 					}
 				} else {
-					second = st::mentionFont->m.elidedText(second, Qt::ElideRight, unamewidth - firstwidth);
+					second = st::mentionFont->elided(second, unamewidth - firstwidth);
 				}
 			}
 			user->photo->load();
@@ -2712,13 +2716,13 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 		} else if (!_hrows->isEmpty()) {
 			QString hrow = _hrows->at(i);
 			QString first = (_parent->filter().size() < 2) ? QString() : ('#' + hrow.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('#' + hrow) : hrow.mid(_parent->filter().size() - 1);
-			int32 firstwidth = st::mentionFont->m.width(first), secondwidth = st::mentionFont->m.width(second);
+			int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second);
 			if (htagwidth < firstwidth + secondwidth) {
 				if (htagwidth < firstwidth + st::mentionFont->elidew) {
-					first = st::mentionFont->m.elidedText(first + second, Qt::ElideRight, htagwidth);
+					first = st::mentionFont->elided(first + second, htagwidth);
 					second = QString();
 				} else {
-					second = st::mentionFont->m.elidedText(second, Qt::ElideRight, htagwidth - firstwidth);
+					second = st::mentionFont->elided(second, htagwidth - firstwidth);
 				}
 			}
 
@@ -2747,13 +2751,13 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 
 			int32 addleft = 0, widthleft = mentionwidth;
 			QString first = (_parent->filter().size() < 2) ? QString() : ('/' + toHighlight.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('/' + toHighlight) : toHighlight.mid(_parent->filter().size() - 1);
-			int32 firstwidth = st::mentionFont->m.width(first), secondwidth = st::mentionFont->m.width(second);
+			int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second);
 			if (widthleft < firstwidth + secondwidth) {
 				if (widthleft < firstwidth + st::mentionFont->elidew) {
-					first = st::mentionFont->m.elidedText(first + second, Qt::ElideRight, widthleft);
+					first = st::mentionFont->elided(first + second, widthleft);
 					second = QString();
 				} else {
-					second = st::mentionFont->m.elidedText(second, Qt::ElideRight, widthleft - firstwidth);
+					second = st::mentionFont->elided(second, widthleft - firstwidth);
 				}
 			}
 			p.setFont(st::mentionFont->f);
@@ -2976,7 +2980,7 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 		QMultiMap<int32, UserData*> ordered;
 		rows.reserve(_chat->participants.isEmpty() ? _chat->lastAuthors.size() : _chat->participants.size());
 		if (_chat->participants.isEmpty()) {
-			if (_chat->count > 0) {
+			if (_chat->count > 0 && App::api()) {
 				App::api()->requestFullPeer(_chat);
 			}
 		} else {
@@ -3015,7 +3019,7 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 		int32 cnt = 0;
 		if (_chat) {
 			if (_chat->participants.isEmpty()) {
-				if (_chat->count > 0) {
+				if (_chat->count > 0 && App::api()) {
 					App::api()->requestFullPeer(_chat);
 				}
 			} else {
@@ -3023,14 +3027,14 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 				for (ChatData::Participants::const_iterator i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
 					UserData *user = i.key();
 					if (!user->botInfo) continue;
-					if (!user->botInfo->inited) App::api()->requestFullPeer(user);
+					if (!user->botInfo->inited && App::api()) App::api()->requestFullPeer(user);
 					if (user->botInfo->commands.isEmpty()) continue;
 					bots.insert(user, true);
 					cnt += user->botInfo->commands.size();
 				}
 			}
 		} else if (_user && _user->botInfo) {
-			if (!_user->botInfo->inited) App::api()->requestFullPeer(_user);
+			if (!_user->botInfo->inited && App::api()) App::api()->requestFullPeer(_user);
 			cnt = _user->botInfo->commands.size();
 			bots.insert(_user, true);
 		}
@@ -3042,7 +3046,7 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 					UserData *user = *i;
 					if (!user->botInfo) continue;
 					if (!bots.contains(user)) continue;
-					if (!user->botInfo->inited) App::api()->requestFullPeer(user);
+					if (!user->botInfo->inited && App::api()) App::api()->requestFullPeer(user);
 					if (user->botInfo->commands.isEmpty()) continue;
 					bots.remove(user);
 					for (int32 j = 0, l = user->botInfo->commands.size(); j < l; ++j) {

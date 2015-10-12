@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -61,14 +64,6 @@ private:
 
 	anim::cvalue a_bg, a_text;
 	float64 _opacity;
-};
-
-class BottomButton : public FlatButton {
-public:
-
-	BottomButton(QWidget *parent, const QString &text, const style::flatButton &st);
-	void paintEvent(QPaintEvent *e);
-
 };
 
 class LinkButton : public Button {
@@ -135,4 +130,31 @@ public:
 
 	void paintEvent(QPaintEvent *e);
 
+};
+
+class BoxButton : public Button {
+	Q_OBJECT
+
+public:
+
+	BoxButton(QWidget *parent, const QString &text, const style::BoxButton &st);
+
+	void paintEvent(QPaintEvent *e);
+
+	bool animStep_over(float64 ms);
+
+public slots:
+
+	void onStateChange(int oldState, ButtonStateChangeSource source);
+
+private:
+
+	QString _text, _fullText;
+	int32 _textWidth;
+
+	const style::BoxButton &_st;
+
+	anim::fvalue a_textBgOverOpacity;
+	anim::cvalue a_textFg;
+	Animation _a_over;
 };

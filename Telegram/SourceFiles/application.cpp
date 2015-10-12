@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "application.h"
@@ -58,7 +61,7 @@ namespace {
 			if (e->type() == QEvent::KeyPress) {
 				QKeyEvent *ev = static_cast<QKeyEvent*>(e);
 				if (cPlatform() == dbipMac) {
-					if (ev->key() == Qt::Key_W && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
+					if (ev->key() == Qt::Key_W && (ev->modifiers() & Qt::ControlModifier)) {
 						if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
 							App::wnd()->minimizeToTray();
 							return true;
@@ -68,7 +71,7 @@ namespace {
 							App::wnd()->updateGlobalMenu();
 							return true;
 						}
-					} else if (ev->key() == Qt::Key_M && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
+					} else if (ev->key() == Qt::Key_M && (ev->modifiers() & Qt::ControlModifier)) {
 						App::wnd()->setWindowState(Qt::WindowMinimized);
 						return true;
 					}
@@ -325,7 +328,7 @@ void Application::chatPhotoDone(PeerId peer, const MTPUpdates &updates) {
 }
 
 bool Application::peerPhotoFail(PeerId peer, const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	LOG(("Application Error: update photo failed %1: %2").arg(error.type()).arg(error.description()));
 	cancelPhotoUpdate(peer);
@@ -680,8 +683,8 @@ void Application::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (cDevVersion() && Local::oldMapVersion() < 9003) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Dialogs and emoji render made much faster\n\xe2\x80\x94 Bug fixes and other minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
+			if (cDevVersion() && Local::oldMapVersion() < 9004) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 New design for all modal windows\n\xe2\x80\x94 Toggle notifications from tray menu\n\xe2\x80\x94 Bug fixes and other minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
 			} else if (Local::oldMapVersion() < 9000) {
 				versionFeatures = lng_new_version_text(lt_link, qsl("https://telegram.org/blog/channels"));//lang(lng_new_version_text).trimmed();
 			} else {

@@ -13,7 +13,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
  
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "pspecific.h"
@@ -1165,6 +1165,7 @@ namespace {
 }
 
 void psRegisterCustomScheme() {
+    #ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
     QString home(_psHomeDir());
     if (home.isEmpty()) return;
 
@@ -1249,6 +1250,7 @@ void psRegisterCustomScheme() {
             LOG(("App Error: Could not open '%1' for write").arg(file));
         }
     }
+    #endif
 }
 
 void psNewVersion() {

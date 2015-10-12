@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -30,12 +33,12 @@ struct SessionData {
 };
 typedef QList<SessionData> SessionsList;
 
-class SessionsInner : public QWidget, public RPCSender {
+class SessionsInner : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
 
-	SessionsInner(SessionsList *list);
+	SessionsInner(SessionsList *list, SessionData *current);
 
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
@@ -47,11 +50,15 @@ public:
 signals:
 
 	void oneTerminated();
+	void allTerminated();
+	void terminateAll();
 
 public slots:
 
 	void onTerminate();
 	void onTerminateSure();
+	void onTerminateAll();
+	void onTerminateAllSure();
 	void onNoTerminateBox(QObject *obj);
 
 private:
@@ -59,12 +66,17 @@ private:
 	void terminateDone(uint64 hash, const MTPBool &result);
 	bool terminateFail(uint64 hash, const RPCError &error);
 
+	void terminateAllDone(const MTPBool &res);
+	bool terminateAllFail(const RPCError &error);
+
 	SessionsList *_list;
+	SessionData *_current;
 
 	typedef QMap<uint64, IconedButton*> TerminateButtons;
 	TerminateButtons _terminateButtons;
 
 	uint64 _terminating;
+	LinkButton _terminateAll;
 	ConfirmBox *_terminateBox;
 
 };
@@ -80,10 +92,9 @@ public:
 
 public slots:
 
-	void onTerminateAll();
-	void onTerminateAllSure();
-	void onNoTerminateBox(QObject *obj);
 	void onOneTerminated();
+	void onAllTerminated();
+	void onTerminateAll();
 	void onShortPollAuthorizations();
 	void onNewAuthorization();
 
@@ -95,8 +106,6 @@ protected:
 private:
 
 	void gotAuthorizations(const MTPaccount_Authorizations &result);
-	void terminateAllDone(const MTPBool &res);
-	bool terminateAllFail(const RPCError &error);
 
 	bool _loading;
 
@@ -104,10 +113,8 @@ private:
 	SessionsList _list;
 
 	SessionsInner _inner;
-	FlatButton _done;
-
-	LinkButton _terminateAll;
-	ConfirmBox *_terminateBox;
+	ScrollableBoxShadow _shadow;
+	BoxButton _done;
 
 	SingleTimer _shortPollTimer;
 	mtpRequestId _shortPollRequest;

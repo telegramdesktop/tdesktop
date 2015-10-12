@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -877,7 +880,7 @@ public:
 	virtual bool serviceMsg() const {
 		return false;
 	}
-	virtual void updateMedia(const MTPMessageMedia &media) {
+	virtual void updateMedia(const MTPMessageMedia *media) {
 	}
 
 	virtual QString selectedText(uint32 selection) const {
@@ -1097,6 +1100,9 @@ public:
 	virtual ImagePtr replyPreview() {
 		return ImagePtr();
 	}
+	virtual QString getCaption() const {
+		return QString();
+	}
 
 	int32 currentWidth() const {
 		return qMin(w, _maxw);
@@ -1148,6 +1154,10 @@ public:
 		return !data->thumb->isNull();
 	}
 	ImagePtr replyPreview();
+
+	QString getCaption() const {
+		return _caption.original(0, 0xFFFFU, true);
+	}
 
 private:
 	int16 pixw, pixh;
@@ -1531,9 +1541,11 @@ public:
     QString notificationHeader() const;
     QString notificationText() const;
     
-	void updateMedia(const MTPMessageMedia &media) {
-		if (_media) {
-			_media->updateFrom(media);
+	void updateMedia(const MTPMessageMedia *media) {
+		if (media && _media && _media->type() != MediaTypeWebPage) {
+			_media->updateFrom(*media);
+		} else {
+			setMedia(media);
 		}
 	}
 

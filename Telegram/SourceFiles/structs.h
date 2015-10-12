@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -451,7 +454,7 @@ private:
 class ChannelData : public PeerData {
 public:
 
-	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), count(1), adminsCount(1), date(0), version(0), isForbidden(true), botStatus(-1), inviter(0), _lastFullUpdate(0) {
+	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), count(1), adminsCount(1), date(0), version(0), flags(0), flagsFull(0), isForbidden(true), botStatus(-1), inviter(0), _lastFullUpdate(0) {
 		setName(QString(), QString());
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
@@ -469,7 +472,7 @@ public:
 	int32 count, adminsCount;
 	int32 date;
 	int32 version;
-	int32 flags;
+	int32 flags, flagsFull;
 	bool isBroadcast() const {
 		return flags & MTPDchannel_flag_is_broadcast;
 	}
@@ -496,6 +499,9 @@ public:
 	}
 	bool canPublish() const {
 		return amCreator() || amEditor();
+	}
+	bool canViewParticipants() const {
+		return flagsFull & MTPDchannelFull_flag_can_view_participants;
 	}
 	bool isForbidden;
 	bool isVerified() const {

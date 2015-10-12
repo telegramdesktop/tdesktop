@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "updater.h"
 
@@ -27,8 +30,8 @@ bool equal(const wstring &a, const wstring &b) {
 
 void updateError(const WCHAR *msg, DWORD errorCode) {
 	WCHAR errMsg[2048];
-	LPTSTR errorText = NULL, errorTextDefault = L"(Unknown error)";
-	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&errorText, 0, 0);
+	LPWSTR errorText = NULL, errorTextDefault = L"(Unknown error)";
+	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&errorText, 0, 0);
 	if (!errorText) {
 		errorText = errorTextDefault;
 	}
@@ -143,11 +146,11 @@ bool update() {
 
 	HANDLE versionFile = CreateFile((tdataDir + L"\\version").c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 	if (versionFile != INVALID_HANDLE_VALUE) {
-		if (ReadFile(versionFile, &versionNum, sizeof(DWORD), &readLen, NULL) != TRUE || readLen != sizeof(DWORD)) {
+		if (!ReadFile(versionFile, &versionNum, sizeof(DWORD), &readLen, NULL) || readLen != sizeof(DWORD)) {
 			versionNum = 0;
-		} else if (ReadFile(versionFile, &versionLen, sizeof(DWORD), &readLen, NULL) != TRUE || readLen != sizeof(DWORD) || versionLen > 63) {
+		} else if (!ReadFile(versionFile, &versionLen, sizeof(DWORD), &readLen, NULL) || readLen != sizeof(DWORD) || versionLen > 63) {
 			versionNum = 0;
-		} else if (ReadFile(versionFile, versionStr, versionLen, &readLen, NULL) != TRUE || readLen != versionLen) {
+		} else if (!ReadFile(versionFile, versionStr, versionLen, &readLen, NULL) || readLen != versionLen) {
 			versionNum = 0;
 		}
 		CloseHandle(versionFile);
@@ -242,14 +245,14 @@ bool update() {
 			int copyTries = 0;
 			do {
 				copyResult = CopyFile(fname.c_str(), tofname.c_str(), FALSE);
-				if (copyResult == FALSE) {
+				if (!copyResult) {
 					++copyTries;
 					Sleep(100);
 				} else {
 					break;
 				}
 			} while (copyTries < 30);
-			if (copyResult == FALSE) {
+			if (!copyResult) {
 				writeLog(L"Error: failed to copy, asking to retry..");
 				WCHAR errMsg[2048];
 				wsprintf(errMsg, L"Failed to update Telegram :(\n%s is not accessible.", tofname.c_str());
@@ -258,7 +261,7 @@ bool update() {
 					return false;
 				}
 			}
-		} while (copyResult == FALSE);
+		} while (!copyResult);
 	}
 
 	writeLog(L"Update succeed! Clearing folder..");
@@ -289,7 +292,7 @@ void updateRegistry() {
 					}
 				}
 				if (locationType == REG_EXPAND_SZ || locationType == REG_SZ) {
-					if (PathCanonicalize(exp, locationStr) == TRUE) {
+					if (PathCanonicalize(exp, locationStr)) {
 						memcpy(locationStr, exp, bufSize * sizeof(WCHAR));
 						if (GetFullPathName(L".", bufSize, exp, 0) < bufSize) {
 							wstring installpath = locationStr, mypath = exp;
@@ -323,7 +326,7 @@ void updateRegistry() {
 
 #include <ShlObj.h>
 
-int APIENTRY WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdParamarg, int cmdShow) {
+int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdParamarg, int cmdShow) {
 	openLog();
 
 #ifdef _NEED_WIN_GENERATE_DUMP
