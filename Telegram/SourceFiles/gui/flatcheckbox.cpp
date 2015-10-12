@@ -159,25 +159,25 @@ class Radiobuttons : public QMap<QString, TemplateRadiobuttonsGroup<Type> *> {
 public:
 
 	TemplateRadiobuttonsGroup<Type> *reg(const QString &group) {
-		Parent::const_iterator i = constFind(group);
-		if (i == cend()) {
-			i = insert(group, new TemplateRadiobuttonsGroup<Type>(group));
+		typename Parent::const_iterator i = Parent::constFind(group);
+		if (i == Parent::cend()) {
+			i = Parent::insert(group, new TemplateRadiobuttonsGroup<Type>(group));
 		}
 		return i.value();
 	}
 
 	int remove(const QString &group) {
-		Parent::iterator i = find(group);
-		if (i != cend()) {
+		typename Parent::iterator i = Parent::find(group);
+		if (i != Parent::cend()) {
 			delete i.value();
-			erase(i);
+			Parent::erase(i);
 			return 1;
 		}
 		return 0;
 	}
 
 	~Radiobuttons() {
-		for (Parent::const_iterator i = cbegin(), e = cend(); i != e; ++i) {
+		for (typename Parent::const_iterator i = Parent::cbegin(), e = Parent::cend(); i != e; ++i) {
 			delete *i;
 		}
 	}

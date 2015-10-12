@@ -431,7 +431,7 @@ void Window::init() {
 
 	App::app()->installEventFilter(this);
 	connect(windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(stateChanged(Qt::WindowState)));
-	connect(windowHandle(), SIGNAL(activeChanged()), this, SLOT(checkHistoryActivation()));
+	connect(windowHandle(), SIGNAL(activeChanged()), this, SLOT(checkHistoryActivation()), Qt::QueuedConnection);
 
 	QPalette p(palette());
 	p.setColor(QPalette::Window, st::wndBG->c);

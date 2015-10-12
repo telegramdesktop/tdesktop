@@ -132,7 +132,6 @@ SOURCES += \
     ./SourceFiles/gui/flatlabel.cpp \
     ./SourceFiles/gui/flattextarea.cpp \
     ./SourceFiles/gui/images.cpp \
-    ./SourceFiles/gui/phoneinput.cpp \
     ./SourceFiles/gui/scrollarea.cpp \
     ./SourceFiles/gui/style_core.cpp \
     ./SourceFiles/gui/text.cpp \
@@ -225,7 +224,6 @@ HEADERS += \
     ./SourceFiles/gui/flatlabel.h \
     ./SourceFiles/gui/flattextarea.h \
     ./SourceFiles/gui/images.h \
-    ./SourceFiles/gui/phoneinput.h \
     ./SourceFiles/gui/scrollarea.h \
     ./SourceFiles/gui/style_core.h \
     ./SourceFiles/gui/text.h \

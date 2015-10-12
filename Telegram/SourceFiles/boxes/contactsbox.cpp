@@ -2010,7 +2010,7 @@ void MembersBox::paintEvent(QPaintEvent *e) {
 	if (paint(p)) return;
 
 	QString title(lang(_inner.filter() == MembersFilterRecent ? lng_channel_members : lng_channel_admins));
-	paintTitle(p, title, false);
+	paintTitle(p, title);
 }
 
 void MembersBox::resizeEvent(QResizeEvent *e) {
