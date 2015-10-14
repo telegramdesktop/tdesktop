@@ -1,3 +1,5 @@
+set -e
+
 while IFS='' read -r line || [[ -n "$line" ]]; do
   set $line
   eval $1="$2"
