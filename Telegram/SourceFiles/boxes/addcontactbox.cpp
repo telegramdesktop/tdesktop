@@ -135,12 +135,12 @@ void AddContactBox::resizeEvent(QResizeEvent *e) {
 	_phone.resize(_first.width(), _last.height());
 	if (_invertOrder) {
 		_last.moveToLeft(st::boxPadding.left() + st::contactPadding.left(), st::boxTitleHeight + st::contactPadding.top());
-		_first.moveToLeft(_last.x(), _last.y() + _last.height() + st::contactSkip);
-		_phone.moveToLeft(_first.x(), _first.y() + _first.height() + st::contactPhoneSkip);
+		_first.moveToLeft(st::boxPadding.left() + st::contactPadding.left(), _last.y() + _last.height() + st::contactSkip);
+		_phone.moveToLeft(st::boxPadding.left() + st::contactPadding.left(), _first.y() + _first.height() + st::contactPhoneSkip);
 	} else {
 		_first.moveToLeft(st::boxPadding.left() + st::contactPadding.left(), st::boxTitleHeight + st::contactPadding.top());
-		_last.moveToLeft(_first.x(), _first.y() + _first.height() + st::contactSkip);
-		_phone.moveToLeft(_last.x(), _last.y() + _last.height() + st::contactPhoneSkip);
+		_last.moveToLeft(st::boxPadding.left() + st::contactPadding.left(), _first.y() + _first.height() + st::contactSkip);
+		_phone.moveToLeft(st::boxPadding.left() + st::contactPadding.left(), _last.y() + _last.height() + st::contactPhoneSkip);
 	}
 
 	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
@@ -165,7 +165,9 @@ void AddContactBox::onSubmit() {
 void AddContactBox::onSave() {
 	if (_addRequest) return;
 
-	QString firstName = _first.getLastText().trimmed(), lastName = _last.getLastText().trimmed(), phone = _phone.getLastText().trimmed();
+	QString firstName = prepareSentText(_first.getLastText());
+	QString lastName = prepareSentText(_last.getLastText());
+	QString phone = _phone.getLastText().trimmed();
 	if (firstName.isEmpty() && lastName.isEmpty()) {
 		if (_invertOrder) {
 			_last.setFocus();
@@ -318,11 +320,11 @@ void NewGroupBox::paintEvent(QPaintEvent *e) {
 
 	p.setPen(st::newGroupAboutFg->p);
 
-	QRect aboutGroup = myrtlrect(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _group.y() + _group.height() + st::lineWidth, _aboutGroupWidth, _aboutGroupHeight);
-	_aboutGroup.draw(p, aboutGroup.x(), aboutGroup.y(), aboutGroup.width());
+	QRect aboutGroup(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _group.y() + _group.height() + st::lineWidth, _aboutGroupWidth, _aboutGroupHeight);
+	_aboutGroup.drawLeft(p, aboutGroup.x(), aboutGroup.y(), aboutGroup.width(), width());
 
-	QRect aboutChannel = myrtlrect(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _channel.y() + _channel.height() + st::lineWidth, _aboutGroupWidth, _aboutGroupHeight);
-	_aboutChannel.draw(p, aboutChannel.x(), aboutChannel.y(), aboutChannel.width());
+	QRect aboutChannel(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _channel.y() + _channel.height() + st::lineWidth, _aboutGroupWidth, _aboutGroupHeight);
+	_aboutChannel.drawLeft(p, aboutChannel.x(), aboutChannel.y(), aboutChannel.width(), width());
 }
 
 void NewGroupBox::resizeEvent(QResizeEvent *e) {
@@ -489,7 +491,7 @@ void GroupInfoBox::onNameSubmit() {
 void GroupInfoBox::onNext() {
 	if (_creationRequestId) return;
 
-	QString title = _title.getLastText().trimmed();
+	QString title = prepareSentText(_title.getLastText());
 	if (title.isEmpty()) {
 		_title.setFocus();
 		_title.showError();
@@ -498,7 +500,7 @@ void GroupInfoBox::onNext() {
 	if (_creating == CreatingGroupGroup) {
 		App::wnd()->replaceLayer(new ContactsBox(title, _photoBig));
 	} else {
-		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_int(MTPmessages_CreateChannel_flag_broadcast), MTP_string(title), MTP_string(_description.getLastText().trimmed()), MTP_vector<MTPInputUser>(0)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
+		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_int(MTPmessages_CreateChannel_flag_broadcast), MTP_string(title), MTP_string(prepareSentText(_description.getLastText())), MTP_vector<MTPInputUser>(0)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
 	}
 }
 
@@ -689,14 +691,14 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 
 	p.setPen(st::newGroupAboutFg);
 
-	QRect aboutPublic = myrtlrect(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _public.y() + _public.height(), _aboutPublicWidth, _aboutPublicHeight);
-	_aboutPublic.draw(p, aboutPublic.x(), aboutPublic.y(), aboutPublic.width());
+	QRect aboutPublic(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _public.y() + _public.height(), _aboutPublicWidth, _aboutPublicHeight);
+	_aboutPublic.drawLeft(p, aboutPublic.x(), aboutPublic.y(), aboutPublic.width(), width());
 
-	QRect aboutPrivate = myrtlrect(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _private.y() + _private.height(), _aboutPublicWidth, _aboutPublicHeight);
-	_aboutPrivate.draw(p, aboutPrivate.x(), aboutPrivate.y(), aboutPrivate.width());
+	QRect aboutPrivate(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _private.y() + _private.height(), _aboutPublicWidth, _aboutPublicHeight);
+	_aboutPrivate.drawLeft(p, aboutPrivate.x(), aboutPrivate.y(), aboutPrivate.width(), width());
 
-	//QRect aboutComments = myrtlrect(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _comments.y() + _comments.height(), _aboutPublicWidth, _aboutPublicHeight);
-	//_aboutComments.draw(p, aboutComments.x(), aboutComments.y(), aboutComments.width());
+	//QRect aboutComments(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _comments.y() + _comments.height(), _aboutPublicWidth, _aboutPublicHeight);
+	//_aboutComments.drawLeft(p, aboutComments.x(), aboutComments.y(), aboutComments.width(), width());
 
 	p.setPen(st::black);
 	p.setFont(st::newGroupLinkFont);
@@ -1078,7 +1080,7 @@ void EditNameTitleBox::resizeEvent(QResizeEvent *e) {
 void EditNameTitleBox::onSave() {
 	if (_requestId) return;
 
-	QString first = _first.getLastText().trimmed(), last = _last.getLastText().trimmed();
+	QString first = prepareSentText(_first.getLastText()), last = prepareSentText(_last.getLastText());
 	if (first.isEmpty() && last.isEmpty()) {
 		if (_invertOrder) {
 			_last.setFocus();
@@ -1169,7 +1171,7 @@ _saveTitleRequestId(0), _saveDescriptionRequestId(0) {
 
 	updateMaxHeight();
 	connect(&_description, SIGNAL(resized()), this, SLOT(onDescriptionResized()));
-	connect(&_description, SIGNAL(submitted(bool)), this, SLOT(onNext()));
+	connect(&_description, SIGNAL(submitted(bool)), this, SLOT(onSave()));
 	connect(&_description, SIGNAL(cancelled()), this, SLOT(onClose()));
 
 	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
@@ -1251,7 +1253,7 @@ void EditChannelBox::resizeEvent(QResizeEvent *e) {
 void EditChannelBox::onSave() {
 	if (_saveTitleRequestId || _saveDescriptionRequestId) return;
 
-	QString title = _title.getLastText().trimmed(), description = _description.getLastText().trimmed();
+	QString title = prepareSentText(_title.getLastText()), description = prepareSentText(_description.getLastText());
 	if (title.isEmpty()) {
 		_title.setFocus();
 		_title.showError();

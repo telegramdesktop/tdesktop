@@ -121,7 +121,7 @@ void ConfirmBox::updateHover() {
 	QPoint m(mapFromGlobal(_lastMousePos));
 	bool wasMy = (_myLink == textlnkOver());
 	textstyleSet(&st::boxTextStyle);
-	_myLink = _text.link(m.x() - st::boxPadding.left(), m.y() - st::boxPadding.top(), _textWidth, (_text.maxWidth() < width()) ? style::al_center : style::al_left);
+	_myLink = _text.linkLeft(m.x() - st::boxPadding.left(), m.y() - st::boxPadding.top(), _textWidth, width(), (_text.maxWidth() < width()) ? style::al_center : style::al_left);
 	textstyleRestore();
 	if (_myLink != textlnkOver()) {
 		if (wasMy || _myLink || rect().contains(m)) {
@@ -165,7 +165,7 @@ void ConfirmBox::paintEvent(QPaintEvent *e) {
 	// draw box title / text
 	p.setPen(st::black->p);
 	textstyleSet(&st::boxTextStyle);
-	_text.drawElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, 16, style::al_left);
+	_text.drawLeftElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, width(), 16, style::al_left);
 	textstyleRestore();
 }
 
@@ -259,7 +259,7 @@ void MaxInviteBox::paintEvent(QPaintEvent *e) {
 
 	// draw box title / text
 	p.setPen(st::black->p);
-	_text.drawElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, 16, style::al_left);
+	_text.drawLeftElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, width(), 16, style::al_left);
 
 	QTextOption option(style::al_left);
 	option.setWrapMode(QTextOption::WrapAnywhere);

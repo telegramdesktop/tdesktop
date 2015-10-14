@@ -1662,11 +1662,36 @@ void MessageField::dropEvent(QDropEvent *e) {
 }
 
 bool MessageField::canInsertFromMimeData(const QMimeData *source) const {
+	if (source->hasUrls()) {
+		int32 files = 0;
+		for (int32 i = 0; i < source->urls().size(); ++i) {
+			if (source->urls().at(i).isLocalFile()) {
+				++files;
+			}
+		}
+		if (files > 1) return false;
+	}
 	if (source->hasImage()) return true;
 	return FlatTextarea::canInsertFromMimeData(source);
 }
 
 void MessageField::insertFromMimeData(const QMimeData *source) {
+	if (source->hasUrls()) {
+		int32 files = 0;
+		QUrl url;
+		for (int32 i = 0; i < source->urls().size(); ++i) {
+			if (source->urls().at(i).isLocalFile()) {
+				url = source->urls().at(i);
+				++files;
+			}
+		}
+		if (files > 1) return;
+		if (files) {
+			QString file(url.toLocalFile());
+			history->uploadFile(file);
+			return;
+		}
+	}
 	if (source->hasImage()) {
 		QImage img = qvariant_cast<QImage>(source->imageData());
 		if (!img.isNull()) {
@@ -3738,17 +3763,6 @@ void HistoryWidget::onVisibleChanged() {
 	QTimer::singleShot(0, this, SLOT(onListScroll()));
 }
 
-QString HistoryWidget::prepareMessage(QString result) {
-	result = result.replace('\t', qsl(" "));
-
-	result = result.replace(" --", QString::fromUtf8(" \xe2\x80\x94"));
-	result = result.replace("-- ", QString::fromUtf8("\xe2\x80\x94 "));
-	result = result.replace("<<", QString::fromUtf8("\xc2\xab"));
-	result = result.replace(">>", QString::fromUtf8("\xc2\xbb"));
-
-	return (cReplaceEmojis() ? replaceEmojis(result) : result).trimmed();
-}
-
 void HistoryWidget::onHistoryToEnd() {
 	if (_replyReturn) {
 		showPeerHistory(_peer->id, _replyReturn->id);
@@ -3777,7 +3791,7 @@ void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
 	if (!_history) return;
 
 	bool lastKeyboardUsed = lastForceReplyReplied(FullMsgId(_channel, replyTo));
-	QString text = prepareMessage(_field.getLastText());
+	QString text = prepareSentText(_field.getLastText());
 	if (!text.isEmpty()) {
 		App::main()->readServerHistory(_history, false);
 		fastShowAtEnd(_history);
@@ -4112,6 +4126,8 @@ void HistoryWidget::onPhotoSelect() {
 	if (filedialogGetOpenFiles(files, file, lang(lng_choose_images), filter)) {
 		if (!file.isEmpty()) {
 			uploadMedia(file, ToPreparePhoto);
+		//} else if (files.size() == 1) {
+		//	uploadWithConfirm(files.at(0), false, true);
 		} else if (!files.isEmpty()) {
 			uploadMedias(files, ToPreparePhoto);
 		}
@@ -4140,6 +4156,8 @@ void HistoryWidget::onDocumentSelect() {
 	if (filedialogGetOpenFiles(files, file, lang(lng_choose_images), filter)) {
 		if (!file.isEmpty()) {
 			uploadMedia(file, ToPrepareDocument);
+		//} else if (files.size() == 1) {
+		//	uploadWithConfirm(files.at(0), false, false);
 		} else if (!files.isEmpty()) {
 			uploadMedias(files, ToPrepareDocument);
 		}
@@ -4439,17 +4457,22 @@ void HistoryWidget::dropEvent(QDropEvent *e) {
 void HistoryWidget::onPhotoDrop(const QMimeData *data) {
 	if (!_history) return;
 
-	if (data->hasImage()) {
-		QImage image = qvariant_cast<QImage>(data->imageData());
-		if (image.isNull()) return;
+	QStringList files = getMediasFromMime(data);
+	if (files.isEmpty()) {
+		if (data->hasImage()) {
+			QImage image = qvariant_cast<QImage>(data->imageData());
+			if (image.isNull()) return;
 
-		uploadImage(image, false, data->text());
-	} else {
-		QStringList files = getMediasFromMime(data);
-		if (files.isEmpty()) return;
-
-		uploadMedias(files, ToPreparePhoto);
+			uploadImage(image, false, data->text());
+		}
+		return;
 	}
+
+	//if (files.size() == 1) {
+	//	uploadWithConfirm(files.at(0), false, true);
+	//} else {
+		uploadMedias(files, ToPreparePhoto);
+	//}
 }
 
 void HistoryWidget::onDocumentDrop(const QMimeData *data) {
@@ -4458,21 +4481,30 @@ void HistoryWidget::onDocumentDrop(const QMimeData *data) {
 	QStringList files = getMediasFromMime(data);
 	if (files.isEmpty()) return;
 
-	uploadMedias(files, ToPrepareDocument);
+	//if (files.size() == 1) {
+	//	uploadWithConfirm(files.at(0), false, false);
+	//} else {
+		uploadMedias(files, ToPrepareDocument);
+	//}
 }
 
 void HistoryWidget::onFilesDrop(const QMimeData *data) {
-	if (data->hasImage()) {
-		QImage image = qvariant_cast<QImage>(data->imageData());
-		if (image.isNull()) return;
+	QStringList files = getMediasFromMime(data);
+	if (files.isEmpty()) {
+		if (data->hasImage()) {
+			QImage image = qvariant_cast<QImage>(data->imageData());
+			if (image.isNull()) return;
 
-		uploadImage(image, false, data->text());
-	} else {
-		QStringList files = getMediasFromMime(data);
-		if (files.isEmpty()) return;
-
-		uploadMedias(files, ToPrepareAuto);
+			uploadImage(image, false, data->text());
+		}
+		return;
 	}
+
+	//if (files.size() == 1) {
+	//	uploadWithConfirm(files.at(0), false, true);
+	//} else {
+		uploadMedias(files, ToPrepareAuto);
+	//}
 }
 
 void HistoryWidget::onKbToggle(bool manual) {

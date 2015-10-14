@@ -2326,6 +2326,7 @@ void History::setLastMessage(HistoryItem *msg) {
 	} else {
 		lastMsg = 0;
 	}
+	if (!dialogs.isEmpty() && App::main()) App::main()->dlgUpdated(dialogs[0]);
 }
 
 void History::setPosInDialogsDate(const QDateTime &date) {

@@ -209,5 +209,16 @@ inline QString replaceEmojis(const QString &text) {
 	return result;
 }
 
+inline QString prepareSentText(QString result) {
+	result = result.replace('\t', qsl(" "));
+
+	result = result.replace(" --", QString::fromUtf8(" \xe2\x80\x94"));
+	result = result.replace("-- ", QString::fromUtf8("\xe2\x80\x94 "));
+	result = result.replace("<<", QString::fromUtf8("\xc2\xab"));
+	result = result.replace(">>", QString::fromUtf8("\xc2\xbb"));
+
+	return (cReplaceEmojis() ? replaceEmojis(result) : result).trimmed();
+}
+
 int emojiPackCount(DBIEmojiTab tab);
 EmojiPack emojiPack(DBIEmojiTab tab);
