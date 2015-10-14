@@ -4305,8 +4305,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			history.update();
 		}
 		if (History *h = App::historyLoaded(id)) {
-			if (h->lastMsg->out() && h->lastMsg->id <= d.vmax_id.v) {
+			if (h->lastMsg && h->lastMsg->out() && h->lastMsg->id <= d.vmax_id.v) {
 				dlgUpdated(h, h->lastMsg->id);
+			}
+			if (!h->dialogs.isEmpty()) {
+				dlgUpdated(h->dialogs[0]);
 			}
 		}
 
