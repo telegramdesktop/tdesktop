@@ -532,7 +532,7 @@ void PhonePartInput::onChooseCode(const QString &code) {
 
 InputArea::InputArea(QWidget *parent, const style::InputArea &st, const QString &ph, const QString &val) : TWidget(parent),
 _maxLength(-1),
-_inner(this, val),
+_inner(this),
 _oldtext(val),
 
 _undoAvailable(false),
@@ -589,6 +589,8 @@ _correcting(false) {
 	_touchTimer.setSingleShot(true);
 	connect(&_touchTimer, SIGNAL(timeout()), this, SLOT(onTouchTimer()));
 
+	connect(_inner.document(), SIGNAL(contentsChange(int,int,int)), this, SLOT(onDocumentContentsChange(int,int,int)));
+	connect(_inner.document(), SIGNAL(contentsChanged()), this, SLOT(onDocumentContentsChanged()));
 	connect(&_inner, SIGNAL(undoAvailable(bool)), this, SLOT(onUndoAvailable(bool)));
 	connect(&_inner, SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
 	if (App::wnd()) connect(&_inner, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
@@ -596,6 +598,9 @@ _correcting(false) {
 	setCursor(style::cur_text);
 	heightAutoupdated();
 
+	if (!val.isEmpty()) {
+		_inner.setPlainText(val);
+	}
 	_inner.document()->clearUndoRedoStacks();
 }
 
@@ -630,12 +635,7 @@ void InputArea::checkContentHeight() {
 	}
 }
 
-InputArea::InputAreaInner::InputAreaInner(InputArea *parent, const QString &val) : QTextEdit(parent) {
-	connect(document(), SIGNAL(contentsChange(int, int, int)), parent, SLOT(onDocumentContentsChange(int, int, int)));
-	connect(document(), SIGNAL(contentsChanged()), parent, SLOT(onDocumentContentsChanged()));
-	if (!val.isEmpty()) {
-		setPlainText(val);
-	}
+InputArea::InputAreaInner::InputAreaInner(InputArea *parent) : QTextEdit(parent) {
 }
 
 bool InputArea::InputAreaInner::viewportEvent(QEvent *e) {
@@ -1201,7 +1201,7 @@ void InputArea::showError() {
 
 InputField::InputField(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val) : TWidget(parent),
 _maxLength(-1),
-_inner(this, val),
+_inner(this),
 _oldtext(val),
 
 _undoAvailable(false),
@@ -1260,11 +1260,16 @@ _correcting(false) {
 	_touchTimer.setSingleShot(true);
 	connect(&_touchTimer, SIGNAL(timeout()), this, SLOT(onTouchTimer()));
 
+	connect(_inner.document(), SIGNAL(contentsChange(int,int,int)), this, SLOT(onDocumentContentsChange(int,int,int)));
+	connect(_inner.document(), SIGNAL(contentsChanged()), this, SLOT(onDocumentContentsChanged()));
 	connect(&_inner, SIGNAL(undoAvailable(bool)), this, SLOT(onUndoAvailable(bool)));
 	connect(&_inner, SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
 	if (App::wnd()) connect(&_inner, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
 	
 	setCursor(style::cur_text);
+	if (!val.isEmpty()) {
+		_inner.setPlainText(val);
+	}
 	_inner.document()->clearUndoRedoStacks();
 }
 
@@ -1272,12 +1277,7 @@ void InputField::onTouchTimer() {
 	_touchRightButton = true;
 }
 
-InputField::InputFieldInner::InputFieldInner(InputField *parent, const QString &val) : QTextEdit(parent) {
-	connect(document(), SIGNAL(contentsChange(int, int, int)), parent, SLOT(onDocumentContentsChange(int, int, int)));
-	connect(document(), SIGNAL(contentsChanged()), parent, SLOT(onDocumentContentsChanged()));
-	if (!val.isEmpty()) {
-		setPlainText(val);
-	}
+InputField::InputFieldInner::InputFieldInner(InputField *parent) : QTextEdit(parent) {
 }
 
 bool InputField::InputFieldInner::viewportEvent(QEvent *e) {
