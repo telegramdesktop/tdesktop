@@ -130,6 +130,7 @@ Open **VS2013 x86 Native Tools Command Prompt.bat** (should be in **\\Program Fi
     cd /d/TBuild/Libraries/ffmpeg-2.6.3
     pacman -S msys/make
     pacman -S mingw64/mingw-w64-x86_64-opus
+    pacman -S diffutils
     pacman -S pkg-config
 
     PKG_CONFIG_PATH="/mingw64/lib/pkgconfig:$PKG_CONFIG_PATH"
