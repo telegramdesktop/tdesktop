@@ -128,6 +128,7 @@ Open **VS2013 x86 Native Tools Command Prompt.bat** (should be in **\\Program Fi
     PATH="/c/Program Files (x86)/Microsoft Visual Studio 12.0/VC/BIN:$PATH"
 
     cd /d/TBuild/Libraries/ffmpeg-2.6.3
+    pacman -Sy
     pacman -S msys/make
     pacman -S mingw64/mingw-w64-x86_64-opus
     pacman -S diffutils
