@@ -1345,7 +1345,7 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 		}
 
 		if (msg.type() == mtpc_message) {
-			existing->updateMedia(msg.c_message().has_media() ? (&msg.c_message().vmedia) : 0);
+			existing->updateMedia(msg.c_message().has_media() ? (&msg.c_message().vmedia) : 0, (block ? false : true));
 		}
 		return (returnExisting || regged) ? existing : 0;
 	}
@@ -6259,7 +6259,7 @@ HistoryMedia *HistoryMessage::getMedia(bool inOverview) const {
 	return _media;
 }
 
-void HistoryMessage::setMedia(const MTPMessageMedia *media) {
+void HistoryMessage::setMedia(const MTPMessageMedia *media, bool allowEmitResize) {
 	if ((!_media || _media->isImageLink()) && (!media || media->type() == mtpc_messageMediaEmpty)) return;
 
 	bool mediaWasDisplayed = false;
@@ -6280,7 +6280,7 @@ void HistoryMessage::setMedia(const MTPMessageMedia *media) {
 		_textHeight = 0;
 	}
 	initDimensions();
-	if (App::main()) App::main()->itemResized(this);
+	if (allowEmitResize && App::main()) App::main()->itemResized(this);
 }
 
 void HistoryMessage::setText(const QString &text, const LinksInText &links) {
