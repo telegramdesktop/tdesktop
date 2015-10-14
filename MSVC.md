@@ -14,9 +14,9 @@ or download in ZIP and extract to **D:\TBuild\**, rename **tdesktop-master** to 
 
 ###Prepare libraries
 
-####OpenSSL 1.0.1h
+####OpenSSL 1.0.1p
 
-https://www.openssl.org/related/binaries.html > **OpenSSL for Windows** > Download [**Win32 OpenSSL v1.0.1h** (16 Mb)](http://slproweb.com/download/Win32OpenSSL-1_0_1h.exe)
+http://slproweb.com/products/Win32OpenSSL.html > Download [**Win32 OpenSSL v1.0.1p** (19.8 Mb)](http://slproweb.com/download/Win32OpenSSL-1_0_1p.exe)
 
 Install to **D:\TBuild\Libraries\OpenSSL-Win32**, while installing **Copy OpenSSL DLLs to** choose **The OpenSSL binaries (/bin) directory**
 
