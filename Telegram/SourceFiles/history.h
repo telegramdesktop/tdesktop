@@ -880,7 +880,7 @@ public:
 	virtual bool serviceMsg() const {
 		return false;
 	}
-	virtual void updateMedia(const MTPMessageMedia *media) {
+	virtual void updateMedia(const MTPMessageMedia *media, bool allowEmitResize) {
 	}
 
 	virtual QString selectedText(uint32 selection) const {
@@ -929,8 +929,6 @@ public:
 
 	virtual HistoryMedia *getMedia(bool inOverview = false) const {
 		return 0;
-	}
-	virtual void setMedia(const MTPMessageMedia *media) {
 	}
 	virtual void setText(const QString &text, const LinksInText &links) {
 	}
@@ -1541,11 +1539,11 @@ public:
     QString notificationHeader() const;
     QString notificationText() const;
     
-	void updateMedia(const MTPMessageMedia *media) {
+	void updateMedia(const MTPMessageMedia *media, bool allowEmitResize) {
 		if (media && _media && _media->type() != MediaTypeWebPage) {
 			_media->updateFrom(*media);
 		} else {
-			setMedia(media);
+			setMedia(media, allowEmitResize);
 		}
 	}
 
@@ -1553,7 +1551,7 @@ public:
 	LinksInText textLinks() const;
 	QString inDialogsText() const;
 	HistoryMedia *getMedia(bool inOverview = false) const;
-	void setMedia(const MTPMessageMedia *media);
+	void setMedia(const MTPMessageMedia *media, bool allowEmitResize);
 	void setText(const QString &text, const LinksInText &links);
 	void getTextWithLinks(QString &text, LinksInText &links);
 	bool textHasLinks();

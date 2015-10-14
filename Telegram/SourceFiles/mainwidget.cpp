@@ -4169,7 +4169,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 						}
 					}
 
-					item->updateMedia(d.has_media() ? (&d.vmedia) : 0);
+					item->updateMedia(d.has_media() ? (&d.vmedia) : 0, true);
 				}
 			}
 		}
