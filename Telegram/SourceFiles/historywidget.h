@@ -475,8 +475,6 @@ public:
 
 	bool touchScroll(const QPoint &delta);
     
-	QString prepareMessage(QString text);
-
 	uint64 animActiveTime(MsgId id) const;
 	void stopAnimActive();
 

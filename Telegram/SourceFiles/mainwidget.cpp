@@ -1227,7 +1227,7 @@ void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, 
 	int32 fixInScrollMsgTop = 0;
 	hist->getReadyFor(ShowAtTheEndMsgId, fixInScrollMsgId, fixInScrollMsgTop);
 	readServerHistory(hist, false);
-	sendPreparedText(hist, history.prepareMessage(text), replyTo, broadcast);
+	sendPreparedText(hist, prepareSentText(text), replyTo, broadcast);
 }
 
 void MainWidget::saveRecentHashtags(const QString &text) {
@@ -2378,6 +2378,7 @@ void MainWidget::showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) 
 			overview = 0;
 		}
 		clearBotStartToken(_peerInStack);
+		dlgUpdated();
 		_peerInStack = 0;
 		_msgIdInStack = 0;
 		_stack.clear();
@@ -2503,8 +2504,10 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 		} else if (profile) {
 			_stack.push_back(new StackItemProfile(profile->peer(), profile->lastScrollTop()));
 		} else if (history.peer()) {
+			dlgUpdated();
 			_peerInStack = history.peer();
 			_msgIdInStack = history.msgId();
+			dlgUpdated();
 			_stack.push_back(new StackItemHistory(_peerInStack, _msgIdInStack, history.replyReturns(), history.kbWasHidden()));
 		}
 	}
@@ -2557,8 +2560,10 @@ void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop)
 		} else if (profile) {
 			_stack.push_back(new StackItemProfile(profile->peer(), profile->lastScrollTop()));
 		} else {
+			dlgUpdated();
 			_peerInStack = history.peer();
 			_msgIdInStack = history.msgId();
+			dlgUpdated();
 			_stack.push_back(new StackItemHistory(_peerInStack, _msgIdInStack, history.replyReturns(), history.kbWasHidden()));
 		}
 	}
@@ -2599,12 +2604,14 @@ void MainWidget::showBackFromStack() {
 	StackItem *item = _stack.back();
 	_stack.pop_back();
 	if (item->type() == HistoryStackItem) {
+		dlgUpdated();
 		_peerInStack = 0;
 		_msgIdInStack = 0;
 		for (int32 i = _stack.size(); i > 0;) {
 			if (_stack.at(--i)->type() == HistoryStackItem) {
 				_peerInStack = static_cast<StackItemHistory*>(_stack.at(i))->peer;
 				_msgIdInStack = static_cast<StackItemHistory*>(_stack.at(i))->msgId;
+				dlgUpdated();
 				break;
 			}
 		}
@@ -2638,8 +2645,11 @@ QRect MainWidget::historyRect() const {
 }
 
 void MainWidget::dlgUpdated(DialogRow *row) {
-	if (!row) return;
-	dialogs.dlgUpdated(row);
+	if (row) {
+		dialogs.dlgUpdated(row);
+	} else if (_peerInStack) {
+		dialogs.dlgUpdated(App::history(_peerInStack->id), _msgIdInStack);
+	}
 }
 
 void MainWidget::dlgUpdated(History *row, MsgId msgId) {

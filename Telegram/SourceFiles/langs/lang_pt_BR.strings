@@ -28,6 +28,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_menu_restart" = "Reiniciar";
 "lng_menu_back" = "Anterior";
 
+"lng_disable_notifications_from_tray" = "Desabilitar notificações";
+"lng_enable_notifications_from_tray" = "Habilitar notificações";
 "lng_open_from_tray" = "Abrir Telegram";
 "lng_minimize_to_tray" = "Minimizar";
 "lng_quit_from_tray" = "Sair do Telegram";
@@ -64,6 +66,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_month_day" = "{month} {day}";
 "lng_month_day_year" = "{day} {month}, {year}";
+
+"lng_box_ok" = "OK";
 
 "lng_cancel" = "Cancelar";
 "lng_continue" = "Continuar";
@@ -113,6 +117,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_intro_finish" = "CADASTRAR";
 "lng_intro_submit" = "ENVIAR";
 
+"lng_photo_caption" = "Legenda";
+
 "lng_phone_ph" = "Seu número de telefone";
 "lng_phone_title" = "Seu Telefone";
 "lng_phone_desc" = "Confirme o código de seu país e\npreencha seu número de telefone.";
@@ -122,7 +128,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_country_ph" = "Busca";
 "lng_country_done" = "Concluído";
 "lng_country_none" = "País não encontrado";
-"lng_country_select" = "Selecionar País";
+"lng_country_select" = "Selecionar país";
 
 "lng_code_ph" = "Código";
 "lng_code_desc" = "Enviamos uma SMS com um código de ativação\npara o seu telefone. Insira-o abaixo.";
@@ -134,7 +140,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_bad_phone" = "Número de telefone inválido. Tente novamente.";
 "lng_bad_phone_noreg" = "Número de telefone não registrado.";
-"lng_bad_code" = "Você colocou um código inválido. Tente novamente.";
+"lng_bad_code" = "Você inseriu um código inválido.";
 "lng_bad_name" = "Por favor, insira seu nome e sobrenome.";
 "lng_bad_photo" = "Erro na imagem selecionada.";
 
@@ -146,17 +152,18 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_signin_password" = "Sua senha";
 "lng_signin_code" = "Código do e-mail";
 "lng_signin_recover" = "Esqueceu sua senha?";
+"lng_signin_recover_title" = "Resetar senha";
 "lng_signin_hint" = "Dica: {password_hint}";
 "lng_signin_recover_hint" = "Código enviado para {recover_email}";
 "lng_signin_bad_password" = "Você colocou uma senha errada.";
-"lng_signin_wrong_code" = "Você colocou um código inválido. Tente novamente.";
+"lng_signin_wrong_code" = "Você inseriu um código inválido";
 "lng_signin_try_password" = "Problemas ao acessar seu e-mail?";
-"lng_signin_password_removed" = "Sua senha foi desativada.\nVocê pode definir uma nova em Configurações.";
+"lng_signin_password_removed" = "Sua senha da nuvem foi desativada.\nVocê pode definir uma nova em Configurações.";
 "lng_signin_no_email_forgot" = "Se você não providenciar um e-mail\nde recuperação ao configurar sua senha, suas opções restantes serão lembrar sua senha ou apagar sua conta.";
 "lng_signin_cant_email_forgot" = "Se você não pode restaurar o acesso ao e-mail, suas opções restantes serão lembrar sua senha ou apagar sua conta.";
 "lng_signin_reset_account" = "Apagar sua conta";
-"lng_sigin_sure_reset" = "Atenção!\n\nVocê irá perder todos os seus chats e mensagens,\njuntamente com qualquer mídias e arquivos compartilhados!\n\nVocê deseja apagar sua conta?";
-"lng_sigin_reset" = "Apagar";
+"lng_signin_sure_reset" = "Atenção!\n\nVocê perderá todos seus chats e mensagens, juntamente com qualquer mídias e arquivos!\n\nVocê deseja apagar sua conta?";
+"lng_signin_reset" = "Apagar";
 
 "lng_signup_title" = "Informação e foto";
 "lng_signup_desc" = "Por favor, insira nome e\ncarregue uma foto.";
@@ -179,14 +186,18 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_settings_crop_profile" = "Selecione uma área para a foto do perfil";
 "lng_settings_uploading_photo" = "Carregando foto..";
 
-"lng_username_title" = "Alterar nome de usuário";
+"lng_username_title" = "Nome de usuário";
 "lng_username_about" = "Você pode escolher um nome de usuário no Telegram.\nAssim, outras pessoas poderão te encontrar\npelo nome de usuário e entrar em contato\nsem precisar saber seu telefone.\n\nVocê pode usar a-z, 0-9 e underline.\nO tamanho mínimo é 5 caracteres.";
+"lng_username_choose" = "Escolha seu nome de usuário";
 "lng_username_invalid" = "Nome de usuário inválido.";
 "lng_username_occupied" = "Nome de usuário ocupado.";
 "lng_username_too_short" = "Nome de usuário muito curto.";
 "lng_username_bad_symbols" = "Nome de usuário com símbolos incompatíveis.";
 "lng_username_available" = "Nome de usuário disponível.";
 "lng_username_not_found" = "Usuário @{user} não encontrado.";
+"lng_username_link_willbe" = "O seguinte link abrirá um chat com você:";
+"lng_username_link" = "Esse link abre um chat com você:";
+"lng_username_copied" = "Link copiado para área de transferência.";
 
 "lng_settings_section_contact_info" = "Informação de contato";
 "lng_settings_phone_number" = "Número de telefone:";
@@ -204,9 +215,9 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_notification_preview" = "Você tem uma nova mensagem";
 
 "lng_settings_section_general" = "Geral";
-"lng_settings_change_lang" = "Alterar linguagem";
-"lng_languages" = "Linguagens";
-"lng_sure_save_language" = "Telegram irá reiniciar\npara alterar a linguagem";
+"lng_settings_change_lang" = "Alterar idioma";
+"lng_languages" = "Idiomas";
+"lng_sure_save_language" = "Telegram irá reiniciar\npara alterar o idioma";
 "lng_settings_auto_update" = "Atualizar automaticamente";
 "lng_settings_current_version" = "Versão {version}";
 "lng_settings_check_now" = "Verificar atualizações";
@@ -225,9 +236,9 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_settings_scale_auto" = "Auto ({cur})";
 
 "lng_settings_section_chat" = "Opções de conversa";
-"lng_settings_replace_emojis" = "Substituir emojis";
+"lng_settings_replace_emojis" = "Substituir emoji";
 "lng_settings_view_emojis" = "Lista de visualização";
-"lng_settings_emoji_list" = "Lista de emojis suportados";
+"lng_settings_emoji_list" = "Emojis suportados";
 "lng_settings_send_enter" = "Enviar com Enter";
 "lng_settings_send_ctrlenter" = "Enviar com Ctrl+Enter";
 "lng_settings_send_cmdenter" = "Enviar com Cmd+Enter";
@@ -246,12 +257,12 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_download_path_clear" = "Limpar tudo";
 "lng_download_path_header" = "Escolher caminho do download";
 "lng_download_path_default_radio" = "Pasta do Telegram no sistema «Downloads»";
-"lng_download_path_temp_radio" = "Pasta temporária, limpar ao sair ou desinstalar";
-"lng_download_path_dir_radio" = "Pasta escolhida, limpar apenas manualmente";
+"lng_download_path_temp_radio" = "Pasta temporária, limpar ao sair";
+"lng_download_path_dir_radio" = "Pasta escolhida, limpar manualmente";
 "lng_download_path_choose" = "Escolher caminho do download";
 "lng_sure_clear_downloads" = "Deseja remover todos os arquivos baixados da pasta temporária? Isso será feito automaticamente ao sair ou desinstalar o programa.";
 "lng_download_path_failed" = "Download do arquivo não pôde iniciar. Isso pode ter acontecido por um problema na pasta de downlaod.\n\nVocê pode alterar o caminho dos downloads em Configurações.";
-"lng_download_path_settings" = "Vá para Configurações";
+"lng_download_path_settings" = "Configurações";
 "lng_download_finish_failed" = "Arquivo baixado não pôde ser finalizado.\n\nGostaria de tentar novamente?";
 "lng_download_path_clearing" = "Limpando..";
 "lng_download_path_cleared" = "Concluído!";
@@ -272,7 +283,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_passcode_turn_on" = "Ativar senha de bloqueio";
 "lng_passcode_change" = "Alterar senha de bloqueio";
-"lng_passcode_create" = "Criar senha de bloqueio";
+"lng_passcode_create" = "Senha de bloqueio";
 "lng_passcode_remove" = "Remover senha de bloqueio";
 "lng_passcode_turn_off" = "Desativar";
 "lng_passcode_autolock" = "Auto-bloquear";
@@ -284,7 +295,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_passcode_enter_first" = "Insira uma senha";
 "lng_passcode_enter_new" = "Insira sua nova senha";
 "lng_passcode_confirm_new" = "Re-insira sua nova senha";
-"lng_passcode_about" = "Quando uma senha de bloqueio é definida, um ícone de cadeado aparece acima. Clique para bloquear o app.\n\nNota: caso esqueça sua senha, terá de relogar no Telegram Desktop.";
+"lng_passcode_about" = "Quando uma senha de bloqueio é definida, um ícone de cadeado aparece acima, à direita. Clique para bloquear o app.\n\nNota: caso esqueça sua senha, terá de relogar no Telegram Desktop.";
 "lng_passcode_differ" = "As senhas não correspondem";
 "lng_passcode_wrong" = "Senha errada";
 "lng_passcode_is_same" = "Senha não alterada";
@@ -293,24 +304,26 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_passcode_logout" = "Sair";
 
 "lng_cloud_password_waiting" = "Link de confirmação enviado para {email}..";
-"lng_cloud_password_change" = "Alterar senha";
-"lng_cloud_password_create" = "Criar senha";
-"lng_cloud_password_remove" = "Remover senha";
+"lng_cloud_password_change" = "Alterar senha da nuvem";
+"lng_cloud_password_create" = "Senha da nuvem";
+"lng_cloud_password_remove" = "Remover senha da nuvem";
 "lng_cloud_password_set" = "Ativar verificação em duas etapas";
-"lng_cloud_password_edit" = "Alterar senha";
+"lng_cloud_password_edit" = "Alterar senha da nuvem";
 "lng_cloud_password_enter_old" = "Insira sua senha atual";
 "lng_cloud_password_enter_first" = "Insira uma senha";
 "lng_cloud_password_enter_new" = "Insira sua nova senha";
 "lng_cloud_password_confirm_new" = "Re-insira sua nova senha";
 "lng_cloud_password_hint" = "Insira uma dica de senha";
+"lng_cloud_password_change_hint" = "Insira uma dica de senha";
 "lng_cloud_password_bad" = "Senha e dica de senha não podem ser iguais.";
 "lng_cloud_password_email" = "E-mail de recuperação";
 "lng_cloud_password_bad_email" = "E-mail incorreto, por favor, tente outro.";
-"lng_cloud_password_about" = "Essa senha será requisitada quando você entrar em um novo dispositivo, após o código via SMS.";
+"lng_cloud_password_about" = "Essa senha será requisitada quando você entrar em um novo dispositivo, após o seu PIN.";
 "lng_cloud_password_about_recover" = "Atenção! Você tem certeza que não quer\nadicionar um email para recuperação de senha?\n\nSe você esquecer sua senha, perderá\nseu acesso a sua conta no Telegram.";
-"lng_cloud_password_almost" = "Link de confirmação enviado\npara o email fornecido.\n\nA verificação em duas etapas será\nativada assim que você abrir o link.";
+"lng_cloud_password_skip_email" = "Pular e-mail";
+"lng_cloud_password_almost" = "Link de confirmação enviado para\no email fornecido. A verificação em duas etapas será ativada assim que você abrir o link.";
 "lng_cloud_password_was_set" = "Verificação em duas etapas ativada.";
-"lng_cloud_password_updated" = "Sua senha foi atualizada.";
+"lng_cloud_password_updated" = "Sua senha da nuvem foi atualizada.";
 "lng_cloud_password_removed" = "Verificação em duas etapas desativada.";
 "lng_cloud_password_differ" = "As senhas não correspondem.";
 "lng_cloud_password_wrong" = "Senha errada";
@@ -339,21 +352,21 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_settings_reset_done" = "Outras sessões encerradas";
 "lng_settings_ask_question" = "Fazer uma Pergunta";
 "lng_settings_ask_sure" = "Entenda que o suporte do Telegram é feito por voluntários. Tentaremos responder o mais rápido possível, mas poderemos demorar um pouco.\n\nPor favor verifique a página de Perguntas Frequentes do Telegram: há dicas e respostas para a maioria das perguntas.";
-"lng_settings_faq_button" = "Perguntas Frequentes";
+"lng_settings_faq_button" = "Ler o FAQ";
 "lng_settings_ask_ok" = "Perguntar";
 "lng_settings_faq" = "Perguntas Frequentes";
 "lng_settings_logout" = "Sair";
 "lng_sure_logout" = "Tem certeza que deseja sair?";
 
-"lng_settings_need_restart" = "Você precisará reiniciar para aplicar\nalgumas das novas configurações. Reiniciar agora?";
-"lng_settings_restart_now" = "Reiniciar";
-"lng_settings_restart_later" = "Depois";
+"lng_settings_need_restart" = "Você precisará reiniciar para aplicar algumas das novas configurações. Reiniciar agora?";
+"lng_settings_restart_now" = "REINICIAR";
+"lng_settings_restart_later" = "DEPOIS";
 
 "lng_sessions_header" = "Sessão atual";
 "lng_sessions_other_header" = "Sessões ativas";
 "lng_sessions_no_other" = "Nenhuma outra sessão";
-"lng_sessions_other_desc" = "Você pode entrar no Telegram de outro\ncelular, tablet e computadores, usando\no mesmo número de telefone. Todos seus\ndados estarão sincronizados instantaneamente.";
-"lng_sessions_terminate_all" = "Encerrar tudo";
+"lng_sessions_other_desc" = "Você pode entrar no Telegram de outro celular, tablet e computadores, usando o mesmo número de telefone. Todos seus dados estarão sincronizados.";
+"lng_sessions_terminate_all" = "Encerrar todas as outras sessões";
 
 "lng_preview_loading" = "Obtendo informações..";
 
@@ -411,7 +424,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_profile_audio_files_header" = "Reprodução";
 "lng_profile_copy_phone" = "Copiar número de telefone";
 
-"lng_channel_add_admins" = "Adicionar";
+"lng_channel_add_admins" = "Novo administrador";
+"lng_channel_add_members" = "Adicionar membros";
 "lng_channel_members" = "Membros";
 "lng_channel_admins" = "Administradores";
 "lng_channel_add_admin" = "Adicionar Administrador";
@@ -419,12 +433,12 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_participant_filter" = "Buscar";
 "lng_participant_invite" = "Convidar";
-"lng_participant_invite_sorry" = "Desculpe, você só pode adicionar\nos primeiros {count} ao canal.\n\nDe agora em diante, precisarão\ndo link de convite para entrar.";
+"lng_participant_invite_sorry" = "Desculpe, você só pode adicionar os primeiros {count:_not_used|# membro|# membros} ao canal.\n\nDe agora em diante, precisarão do link de convite para entrar.";
 "lng_create_group_back" = "Voltar";
 "lng_create_group_next" = "Próximo";
 "lng_create_group_create" = "Criar";
 "lng_create_group_title" = "Novo Grupo";
-"lng_create_group_about" = "Grupos são ideais para comunidades menores, eles podem ter até {count} membros";
+"lng_create_group_about" = "Grupos são ideais para comunidades menores, \neles podem ter até {count:_not_used|# membro|# membros}";
 "lng_create_channel_title" = "Novo Canal";
 "lng_create_channel_about" = "Canais são uma ferramenta para transmitir suas mensagens para audiências ilimitadas";
 "lng_create_public_channel_title" = "Canal Público";
@@ -433,7 +447,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_create_private_channel_about" = "Somente pessoas com um link especial de convite poderão entrar";
 "lng_create_channel_comments" = "Habilitar Comentários";
 "lng_create_channel_comments_about" = "Se você habilitar comentários, membros poderão discutir seus posts no canal";
-"lng_create_group_save" = "Salvar";
 "lng_create_group_skip" = "Pular";
 
 "lng_create_channel_link_invalid" = "Esse link é inválido";
@@ -454,8 +467,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_sure_delete_history" = "Você tem certeza que deseja apagar todo o seu histórico de mensagens com {contact}?\n\nEssa ação não pode ser desfeita.";
 "lng_sure_delete_group_history" = "Você tem certeza que deseja apagar todo o histórico de «{group}»?\n\nEssa ação não pode ser desfeita.";
 "lng_sure_delete_and_exit" = "Você tem certeza que deseja apagar todo o seu histórico de mensagens e deixar «{group}»?\n\nEssa ação não pode ser desfeita.";
-"lng_sure_leave_channel" = "Tem certeza que deseja\nsair deste canal?";
-"lng_sure_delete_channel" = "Tem certeza que deseja\napagar este canal?\n\nTodos os membros serão removidos\ne todas as mensagens serão perdidas.";
+"lng_sure_leave_channel" = "Tem certeza que deseja sair\ndeste canal?";
+"lng_sure_delete_channel" = "Tem certeza que deseja apagar este canal? Todos os membros serão removidos e todas as mensagens serão perdidas.";
 
 "lng_message_empty" = "Mensagem Vazia";
 "lng_media_unsupported" = "Mídia Não-Suportada";
@@ -481,10 +494,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_channel_hide_comments" = "Ocultar Comentários";
 "lng_channel_not_accessible" = "Desculpe, esse canal não está acessível.";
 
-"lng_channels_too_much_public_existing" = "Desculpe, você já criou\nmuitos canais públicos.\n\nApague um primeiro.";
-"lng_channels_too_much_public" = "Desculpe, você já criou\nmuitos canal públicos.\n\nVocê pode criar um canal privado ou \napagar um de seus canais públicos.";
+"lng_channels_too_much_public_existing" = "Desculpe, você já criou muitos canais públicos. Apague um primeiro.";
+"lng_channels_too_much_public" = "Desculpe, você já criou muitos canais públicos.\n\nVocê pode criar um canal privado\nou apagar um de seus canais públicos.";
 
-"lng_group_invite_bad_link" = "Link de convite quebrado\nou expirado.";
+"lng_group_invite_bad_link" = "Link de convite quebrado ou expirado.";
 "lng_group_invite_want_join" = "Você deseja entrar no grupo «{title}»?";
 "lng_group_invite_want_join_channel" = "Você deseja entrar no canal «{title}»?";
 "lng_group_invite_join" = "Entrar";
@@ -495,7 +508,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_group_invite_create_new" = "Desativar link";
 "lng_group_invite_about_new" = "Seu link de convite será desativado\ne iremos gerar um novo link para você.";
 "lng_group_invite_copied" = "Link copiado para área de transferência.";
-"lng_group_invite_no_room" = "Não foi possível entrar no grupo porque\nele já possui muitos membros.";
+"lng_group_invite_no_room" = "Não foi possível entrar no grupo porque ele já possui muitos membros.";
 
 "lng_channel_public_link_copied" = "Link copiado para área de transferência.";
 
@@ -531,9 +544,11 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_switch_stickers" = "Stickers";
 "lng_switch_emoji" = "Emoji";
 
+"lng_box_remove" = "Remover";
+
 "lng_custom_stickers" = "Stickers customizados";
 "lng_stickers_remove_pack" = "Remover «{sticker_pack}»?";
-"lng_stickers_add_pack" = "Adicionar {count:_not_used_|# Sticker|# Stickers}";
+"lng_stickers_add_pack" = "Adicionar aos Stickers";
 "lng_stickers_share_pack" = "Compartilhar Stickers";
 "lng_stickers_not_found" = "Pacote de sticker não encontrado.";
 "lng_stickers_copied" = "Link copiado para a àrea de transferência.";
@@ -550,9 +565,9 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_report_spam" = "Reportar Spam";
 "lng_report_spam_hide" = "Ocultar";
 "lng_report_spam_thanks" = "Obrigado por reportar!";
-"lng_report_spam_sure" = "Tem certeza que deseja\nreportar spam deste usuário?";
-"lng_report_spam_sure_group" = "Tem certeza que deseja\nreportar esse grupo por spam?";
-"lng_report_spam_sure_channel" = "Você tem certeza que deseja\nreportar esse canal por spam?";
+"lng_report_spam_sure" = "Tem certeza que deseja reportar spam desse usuário?";
+"lng_report_spam_sure_group" = "Tem certeza que deseja reportar spam desse grupo?";
+"lng_report_spam_sure_channel" = "Tem certeza que deseja reportar spam desse canal?";
 "lng_report_spam_ok" = "Reportar";
 "lng_cant_send_to_not_contact" = "Você só pode enviar mensagens para\ncontatos mútuos no momento. {more_info}";
 "lng_cant_invite_not_contact" = "Você só pode adicionar contatos\nmútuos ao grupo no momento. {more_info}";
@@ -665,7 +680,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_forward_share_contact" = "Compartilhar contato com {recipient}?";
 "lng_forward_send_file_confirm" = "Enviar «{name}» para {recipient}";
 "lng_forward_send_files_confirm" = "Enviar arquivos selecionados para {recipient}?";
-"lng_forward" = "Encaminhar";
 "lng_forward_send" = "Enviar";
 "lng_forward_messages" = "{count:_not_used_|Mensagem encaminhada|# mensagens encaminhadas}";
 "lng_forwarding_from" = "{user} e {count:_not_used_|# outro|# outros}";
@@ -679,11 +693,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_edit_self_title" = "Editar seu nome";
 "lng_confirm_contact_data" = "Novo Contato";
 "lng_add_contact" = "Criar";
-"lng_add_contact_button" = "Adicionar Contato";
+"lng_add_contact_button" = "Novo contato";
 "lng_contacts_header" = "Contatos";
 "lng_contact_not_joined" = "Infelizmente {name} não entrou para o Telegram ainda, mas você pode enviá-lo um convite.\n\nNós iremos te notificar sobre qualquer um de seus contatos que entrarem para o Telegram.";
 "lng_try_other_contact" = "Tentar outro";
-"lng_contacts_done" = "Fechar";
 "lng_create_group_link" = "Link";
 "lng_create_group_invite_link" = "Link de convite";
 "lng_create_group_photo" = "Definir Foto";
@@ -704,10 +717,13 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_selected_cancel_sure_this" = "Você deseja cancelar o envio?";
 "lng_selected_delete_sure_this" = "Você deseja apagar essa mensagem?";
 "lng_selected_delete_sure" = "Você deseja apagar {count:_not_used_|# mensagem|# mensagens}?";
-"lng_selected_delete_confirm" = "Apagar";
+"lng_box_delete" = "Apagar";
+"lng_box_leave" = "Sair";
 
-"lng_about_version" = "Versão {version}";
-"lng_about_text" = "Aplicativo oficial e grátis baseado em [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] e\n[a href=\"https://core.telegram.org/api\"]Telegram API[/a] para velocidade e segurança\n\nEsse software é licenciado sob [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versão 3,\ncódigo fonte disponível no [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
+"lng_about_version" = "versão {version}";
+"lng_about_text_1" = "Mensageiro oficial gratuito baseado na [a href=\"https://core.telegram.org/api\"]Telegram API[/a]\npara velocidade e segurança";
+"lng_about_text_2" = "Software sob a licença [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versão 3.\nCódigo fonte disponível no [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
+"lng_about_text_3" = "Visite as {faq_open}Perguntas Frequentes{faq_close} para mais informações.";
 "lng_about_done" = "Concluído";
 
 "lng_search_found_results" = "{count:Nenhuma mensagem encontrada|Encontrada # mensagem|Encontradas # mensagens}";
@@ -737,7 +753,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras menores melhorias";
-"lng_new_version_text" = "— Introduzindo Canais — Uma grande nova maneira de transmitir suas mensagens, com audiência ilimitada\n— Outras melhorias e resoluções\n\nMais sobre os canais aqui: {link}";
+"lng_new_version_text" = "— Maior velocidade\n— Primeiros passos para o novo design";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 

@@ -439,7 +439,7 @@ void DialogsInner::createDialog(History *history) {
 	if (creating) {
 		refresh();
 	} else if (_state == DefaultState && movedFrom != movedTo) {
-		update(0, qMin(movedFrom, movedTo) * st::dlgHeight, fullWidth(), qAbs(movedFrom - movedTo) * st::dlgHeight);
+		update(0, qMin(movedFrom, movedTo) * st::dlgHeight, fullWidth(), (qAbs(movedFrom - movedTo) + 1) * st::dlgHeight);
 	}
 }
 

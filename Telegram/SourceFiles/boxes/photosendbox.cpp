@@ -267,7 +267,7 @@ void PhotoSendBox::onSend(bool ctrlShiftEnter) {
 		}
 		if (_compressed.isHidden() || _compressed.checked()) {
 			_img->ctrlShiftEnter = ctrlShiftEnter;
-			_img->caption = _caption.isHidden() ? QString() : _caption.getLastText();
+			_img->caption = _caption.isHidden() ? QString() : prepareSentText(_caption.getLastText());
 			if (App::main()) App::main()->confirmSendImage(*_img);
 		} else {
 			if (App::main()) App::main()->confirmSendImageUncompressed(ctrlShiftEnter, _replyTo);

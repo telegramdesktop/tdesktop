@@ -341,7 +341,7 @@ void ContactsInner::paintDialog(Painter &p, PeerData *peer, ContactData *data, b
 		namew -= st::verifiedCheck.pxWidth() + st::verifiedCheckPos.x();
 		p.drawSpriteLeft(namex + qMin(data->name.maxWidth(), namew) + st::verifiedCheckPos.x(), st::contactsPadding.top() + st::contactsNameTop + st::verifiedCheckPos.y(), width(), st::verifiedCheck);
 	}
-	data->name.drawElided(p, namex, st::contactsPadding.top() + st::contactsNameTop, namew);
+	data->name.drawLeftElided(p, namex, st::contactsPadding.top() + st::contactsNameTop, namew, width());
 
 	if (_chat || (_creating != CreatingGroupNone && (!_channel || _channelFilter != MembersFilterAdmins))) {
 		if (sel || data->check) {
@@ -1641,7 +1641,7 @@ void MembersInner::paintDialog(Painter &p, PeerData *peer, MemberData *data, boo
 		namew -= st::verifiedCheck.pxWidth() + st::verifiedCheckPos.x();
 		p.drawSpriteLeft(namex + qMin(data->name.maxWidth(), namew) + st::verifiedCheckPos.x(), st::contactsPadding.top() + st::contactsNameTop + st::verifiedCheckPos.y(), width(), st::verifiedCheck);
 	}
-	data->name.drawElided(p, namex, st::contactsPadding.top() + st::contactsNameTop, namew);
+	data->name.drawLeftElided(p, namex, st::contactsPadding.top() + st::contactsNameTop, namew, width());
 
 	if (data->canKick) {
 		p.setFont((kickSel ? st::linkOverFont : st::linkFont)->f);

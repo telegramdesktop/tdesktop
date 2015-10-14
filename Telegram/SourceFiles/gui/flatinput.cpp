@@ -589,14 +589,14 @@ _correcting(false) {
 	_touchTimer.setSingleShot(true);
 	connect(&_touchTimer, SIGNAL(timeout()), this, SLOT(onTouchTimer()));
 
-	connect(_inner.document(), SIGNAL(contentsChange(int, int, int)), this, SLOT(onDocumentContentsChange(int, int, int)));
-	connect(_inner.document(), SIGNAL(contentsChanged()), this, SLOT(onDocumentContentsChanged()));
 	connect(&_inner, SIGNAL(undoAvailable(bool)), this, SLOT(onUndoAvailable(bool)));
 	connect(&_inner, SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
 	if (App::wnd()) connect(&_inner, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
 
 	setCursor(style::cur_text);
 	heightAutoupdated();
+
+	_inner.document()->clearUndoRedoStacks();
 }
 
 void InputArea::onTouchTimer() {
@@ -631,6 +631,8 @@ void InputArea::checkContentHeight() {
 }
 
 InputArea::InputAreaInner::InputAreaInner(InputArea *parent, const QString &val) : QTextEdit(parent) {
+	connect(document(), SIGNAL(contentsChange(int, int, int)), parent, SLOT(onDocumentContentsChange(int, int, int)));
+	connect(document(), SIGNAL(contentsChanged()), parent, SLOT(onDocumentContentsChanged()));
 	if (!val.isEmpty()) {
 		setPlainText(val);
 	}
@@ -1258,13 +1260,12 @@ _correcting(false) {
 	_touchTimer.setSingleShot(true);
 	connect(&_touchTimer, SIGNAL(timeout()), this, SLOT(onTouchTimer()));
 
-	connect(_inner.document(), SIGNAL(contentsChange(int, int, int)), this, SLOT(onDocumentContentsChange(int, int, int)));
-	connect(_inner.document(), SIGNAL(contentsChanged()), this, SLOT(onDocumentContentsChanged()));
 	connect(&_inner, SIGNAL(undoAvailable(bool)), this, SLOT(onUndoAvailable(bool)));
 	connect(&_inner, SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
 	if (App::wnd()) connect(&_inner, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
 	
 	setCursor(style::cur_text);
+	_inner.document()->clearUndoRedoStacks();
 }
 
 void InputField::onTouchTimer() {
@@ -1272,6 +1273,8 @@ void InputField::onTouchTimer() {
 }
 
 InputField::InputFieldInner::InputFieldInner(InputField *parent, const QString &val) : QTextEdit(parent) {
+	connect(document(), SIGNAL(contentsChange(int, int, int)), parent, SLOT(onDocumentContentsChange(int, int, int)));
+	connect(document(), SIGNAL(contentsChanged()), parent, SLOT(onDocumentContentsChanged()));
 	if (!val.isEmpty()) {
 		setPlainText(val);
 	}

@@ -221,7 +221,7 @@ public:
 	void activate();
 
 	void createDialog(History *history);
-	void dlgUpdated(DialogRow *row);
+	void dlgUpdated(DialogRow *row = 0);
 	void dlgUpdated(History *row, MsgId msgId);
 
 	void windowShown();
