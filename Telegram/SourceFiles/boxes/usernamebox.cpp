@@ -39,7 +39,7 @@ _about(st::boxWidth - st::usernamePadding.left()) {
 
 	textstyleSet(&st::usernameTextStyle);
 	_about.setRichText(st::boxTextFont, lang(lng_username_about));
-	resizeMaxHeight(st::boxWidth, st::boxTitleHeight + st::usernamePadding.top() + _username.height() + st::usernameSkip + _about.countHeight(st::boxWidth - st::usernamePadding.left() - st::usernamePadding.right()) + 3 * st::usernameTextStyle.lineHeight + st::usernamePadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+	resizeMaxHeight(st::boxWidth, st::boxTitleHeight + st::usernamePadding.top() + _username.height() + st::usernameSkip + _about.countHeight(st::boxWidth - st::usernamePadding.left()) + 3 * st::usernameTextStyle.lineHeight + st::usernamePadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
 	textstyleRestore();
 
 	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
@@ -102,7 +102,7 @@ void UsernameBox::paintEvent(QPaintEvent *e) {
 	}
 	p.setPen(st::black);
 	textstyleSet(&st::usernameTextStyle);
-	int32 availw = st::boxWidth - st::usernamePadding.left() - st::usernamePadding.right(), h = _about.countHeight(availw);
+	int32 availw = st::boxWidth - st::usernamePadding.left(), h = _about.countHeight(availw);
 	_about.drawLeft(p, st::usernamePadding.left(), _username.y() + _username.height() + st::usernameSkip, availw, width());
 	textstyleRestore();
 
@@ -121,7 +121,7 @@ void UsernameBox::resizeEvent(QResizeEvent *e) {
 	_username.moveToLeft(st::usernamePadding.left(), st::boxTitleHeight + st::usernamePadding.top());
 
 	textstyleSet(&st::usernameTextStyle);
-	int32 availw = st::boxWidth - st::usernamePadding.left() - st::usernamePadding.right(), h = _about.countHeight(availw);
+	int32 availw = st::boxWidth - st::usernamePadding.left(), h = _about.countHeight(availw);
 	textstyleRestore();
 	int32 linky = _username.y() + _username.height() + st::usernameSkip + h + st::usernameTextStyle.lineHeight + ((st::usernameTextStyle.lineHeight - st::boxTextFont->height) / 2);
 	_link.moveToLeft(st::usernamePadding.left(), linky + st::usernameTextStyle.lineHeight + ((st::usernameTextStyle.lineHeight - st::boxTextFont->height) / 2));
