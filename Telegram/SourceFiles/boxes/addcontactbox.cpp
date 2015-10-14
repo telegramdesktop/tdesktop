@@ -1168,6 +1168,7 @@ _saveTitleRequestId(0), _saveDescriptionRequestId(0) {
 	_title.setMaxLength(MaxGroupChannelTitle);
 	_description.setMaxLength(MaxChannelDescription);
 	_description.resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _description.height());
+	myEnsureResized(&_description);
 
 	updateMaxHeight();
 	connect(&_description, SIGNAL(resized()), this, SLOT(onDescriptionResized()));

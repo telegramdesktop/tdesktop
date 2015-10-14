@@ -263,7 +263,7 @@ private:
 	friend class InputAreaInner;
 	class InputAreaInner : public QTextEdit {
 	public:
-		InputAreaInner(InputArea *parent, const QString &val = QString());
+		InputAreaInner(InputArea *parent);
 
 		bool viewportEvent(QEvent *e);
 		void focusInEvent(QFocusEvent *e);
@@ -431,7 +431,7 @@ private:
 	friend class InputFieldInner;
 	class InputFieldInner : public QTextEdit {
 	public:
-		InputFieldInner(InputField *parent, const QString &val = QString());
+		InputFieldInner(InputField *parent);
 
 		bool viewportEvent(QEvent *e);
 		void focusInEvent(QFocusEvent *e);
