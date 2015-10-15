@@ -1573,7 +1573,7 @@ void DialogsWidget::dialogsToUp() {
 }
 
 void DialogsWidget::animShow(const QPixmap &bgAnimCache) {
-	MTP::pause();
+	if (App::app()) App::app()->mtpPause();
 
 	_bgAnimCache = bgAnimCache;
 	_animCache = myGrab(this, rect());

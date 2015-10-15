@@ -3993,7 +3993,7 @@ HistoryItem *HistoryWidget::atTopImportantMsg(int32 &bottomUnderScrollTop) const
 }
 
 void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back) {
-	MTP::pause();
+	if (App::app()) App::app()->mtpPause();
 
 	_bgAnimCache = bgAnimCache;
 	_bgAnimTopBarCache = bgAnimTopBarCache;

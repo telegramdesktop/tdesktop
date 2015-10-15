@@ -65,6 +65,7 @@ public:
 	bool isPhotoUpdating(const PeerId &peer);
 	void cancelPhotoUpdate(const PeerId &peer);
 
+	void mtpPause();
 	void mtpUnpause();
 
 	void selfPhotoCleared(const MTPUserProfilePhoto &result);
@@ -165,7 +166,7 @@ private:
 	UpdateDownloader *updateDownloader;
 	#endif
 
-	QTimer writeUserConfigTimer;
+	SingleTimer _mtpUnpauseTimer;
 
 	Translator *_translator;
 

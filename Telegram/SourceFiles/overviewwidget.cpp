@@ -2781,7 +2781,7 @@ void OverviewWidget::fastShow(bool back, int32 lastScrollTop) {
 }
 
 void OverviewWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back, int32 lastScrollTop) {
-	MTP::pause();
+	if (App::app()) App::app()->mtpPause();
 
 	stopGif();
 	_bgAnimCache = bgAnimCache;

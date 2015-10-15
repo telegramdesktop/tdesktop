@@ -1616,7 +1616,7 @@ int32 ProfileWidget::lastScrollTop() const {
 }
 
 void ProfileWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back, int32 lastScrollTop) {
-	MTP::pause();
+	if (App::app()) App::app()->mtpPause();
 
 	stopGif();
 	_bgAnimCache = bgAnimCache;

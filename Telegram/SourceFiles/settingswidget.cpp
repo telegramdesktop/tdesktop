@@ -1768,7 +1768,7 @@ void SettingsWidget::onParentResize(const QSize &newSize) {
 }
 
 void SettingsWidget::animShow(const QPixmap &bgAnimCache, bool back) {
-	MTP::pause();
+	if (App::app()) App::app()->mtpPause();
 
 	_bgAnimCache = bgAnimCache;
 

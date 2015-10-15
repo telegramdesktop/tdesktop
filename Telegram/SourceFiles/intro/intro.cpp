@@ -145,7 +145,7 @@ bool IntroWidget::createNext() {
 }
 
 void IntroWidget::prepareMove() {
-	MTP::pause();
+	if (App::app()) App::app()->mtpPause();
 
 	if (cacheForHide.isNull() || cacheForHideInd != current) makeHideCache();
 
@@ -200,7 +200,7 @@ void IntroWidget::makeShowCache(int stage) {
 }
 
 void IntroWidget::animShow(const QPixmap &bgAnimCache, bool back) {
-	MTP::pause();
+	if (App::app()) App::app()->mtpPause();
 
 	_bgAnimCache = bgAnimCache;
 

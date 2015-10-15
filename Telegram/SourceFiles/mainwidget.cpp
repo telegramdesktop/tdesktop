@@ -2705,7 +2705,7 @@ void MainWidget::historyCleared(History *hist) {
 }
 
 void MainWidget::animShow(const QPixmap &bgAnimCache, bool back) {
-	MTP::pause();
+	if (App::app()) App::app()->mtpPause();
 
 	_bgAnimCache = bgAnimCache;
 
