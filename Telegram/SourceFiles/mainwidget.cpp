@@ -3091,8 +3091,11 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 			switch (msg.type()) {
 			case mtpc_message: {
 				const MTPDmessage &d(msg.c_message());
-				msgsIds.insert((uint64(uint32(d.vid.v)) << 32) | uint64(i), i + 1);
-				App::checkEntitiesAndViewsUpdate(d); // new message, index my forwarded messages to links overview
+				if (App::checkEntitiesAndViewsUpdate(d)) { // new message, index my forwarded messages to links overview, already in blocks
+					LOG(("Skipping message, because it is already in blocks!"));
+				} else {
+					msgsIds.insert((uint64(uint32(d.vid.v)) << 32) | uint64(i), i + 1);
+				}
 			} break;
 			case mtpc_messageEmpty: msgsIds.insert((uint64(uint32(msg.c_messageEmpty().vid.v)) << 32) | uint64(i), i + 1); break;
 			case mtpc_messageService: msgsIds.insert((uint64(uint32(msg.c_messageService().vid.v)) << 32) | uint64(i), i + 1); break;
@@ -4202,14 +4205,19 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 
 		// update before applying skipped
+		bool needToAdd = true;
 		if (d.vmessage.type() == mtpc_message) { // index forwarded messages to links overview
-			App::checkEntitiesAndViewsUpdate(d.vmessage.c_message());
+			if (App::checkEntitiesAndViewsUpdate(d.vmessage.c_message())) { // already in blocks
+				LOG(("Skipping message, because it is already in blocks!"));
+				needToAdd = false;
+			}
 		}
-		HistoryItem *item = App::histories().addNewMessage(d.vmessage, NewMessageUnread);
-		if (item) {
-			history.peerMessagesUpdated(item->history()->peer->id);
+		if (needToAdd) {
+			HistoryItem *item = App::histories().addNewMessage(d.vmessage, NewMessageUnread);
+			if (item) {
+				history.peerMessagesUpdated(item->history()->peer->id);
+			}
 		}
-
 		ptsApplySkippedUpdates();
 	} break;
 
@@ -4562,14 +4570,19 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 
 		// update before applying skipped
+		bool needToAdd = true;
 		if (d.vmessage.type() == mtpc_message) { // index forwarded messages to links overview
-			App::checkEntitiesAndViewsUpdate(d.vmessage.c_message());
+			if (App::checkEntitiesAndViewsUpdate(d.vmessage.c_message())) { // already in blocks
+				LOG(("Skipping message, because it is already in blocks!"));
+				needToAdd = false;
+			}
 		}
-		HistoryItem *item = App::histories().addNewMessage(d.vmessage, NewMessageUnread);
-		if (item) {
-			history.peerMessagesUpdated(item->history()->peer->id);
+		if (needToAdd) {
+			HistoryItem *item = App::histories().addNewMessage(d.vmessage, NewMessageUnread);
+			if (item) {
+				history.peerMessagesUpdated(item->history()->peer->id);
+			}
 		}
-
 		if (channel && !_handlingChannelDifference) {
 			channel->ptsApplySkippedUpdates();
 		}

@@ -747,7 +747,7 @@ namespace App {
 		}
 	}
 
-	void checkEntitiesAndViewsUpdate(const MTPDmessage &m) {
+	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m) {
 		PeerId peerId = peerFromMTP(m.vto_id);
 		if (m.has_from_id() && peerToUser(peerId) == MTP::authedId()) {
 			peerId = peerFromUser(m.vfrom_id);
@@ -766,7 +766,10 @@ namespace App {
 			existing->updateMedia(m.has_media() ? (&m.vmedia) : 0, true);
 
 			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
+
+			return !existing->detached();
 		}
+		return false;
 	}
 
 	void feedMsgs(const MTPVector<MTPMessage> &msgs, NewMessageType type) {
@@ -777,9 +780,15 @@ namespace App {
 			switch (msg.type()) {
 			case mtpc_message: {
 				const MTPDmessage &d(msg.c_message());
-				msgsIds.insert((uint64(uint32(d.vid.v)) << 32) | uint64(i), i);
+				bool needToAdd = true;
 				if (type == NewMessageUnread) { // new message, index my forwarded messages to links overview
-					checkEntitiesAndViewsUpdate(d);
+					if (checkEntitiesAndViewsUpdate(d)) { // already in blocks
+						LOG(("Skipping message, because it is already in blocks!"));
+						needToAdd = false;
+					}
+				}
+				if (needToAdd) {
+					msgsIds.insert((uint64(uint32(d.vid.v)) << 32) | uint64(i), i);
 				}
 			} break;
 			case mtpc_messageEmpty: msgsIds.insert((uint64(uint32(msg.c_messageEmpty().vid.v)) << 32) | uint64(i), i); break;
