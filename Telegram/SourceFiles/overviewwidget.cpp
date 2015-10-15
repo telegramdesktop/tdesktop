@@ -2776,9 +2776,13 @@ void OverviewWidget::fastShow(bool back, int32 lastScrollTop) {
 	show();
 	_inner.activate();
 	doneShow();
+
+	if (App::app()) App::app()->mtpUnpause();
 }
 
 void OverviewWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back, int32 lastScrollTop) {
+	MTP::pause();
+
 	stopGif();
 	_bgAnimCache = bgAnimCache;
 	_bgAnimTopBarCache = bgAnimTopBarCache;
@@ -2814,6 +2818,8 @@ bool OverviewWidget::animStep(float64 ms) {
 		_bgAnimCache = _animCache = _animTopBarCache = _bgAnimTopBarCache = QPixmap();
 		App::main()->topBar()->stopAnim();
 		doneShow();
+
+		if (App::app()) App::app()->mtpUnpause();
 	} else {
 		a_bgCoord.update(dt1, st::introHideFunc);
 		a_bgAlpha.update(dt1, st::introAlphaHideFunc);

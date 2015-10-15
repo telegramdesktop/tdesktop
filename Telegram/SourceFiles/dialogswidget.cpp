@@ -22,6 +22,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "style.h"
 #include "lang.h"
 
+#include "application.h"
 #include "window.h"
 #include "dialogswidget.h"
 #include "mainwidget.h"
@@ -1572,6 +1573,8 @@ void DialogsWidget::dialogsToUp() {
 }
 
 void DialogsWidget::animShow(const QPixmap &bgAnimCache) {
+	MTP::pause();
+
 	_bgAnimCache = bgAnimCache;
 	_animCache = myGrab(this, rect());
 	_scroll.hide();
@@ -1600,6 +1603,8 @@ bool DialogsWidget::animStep(float64 ms) {
 		_filter.show();
 		onFilterUpdate(true);
 		activate();
+
+		if (App::app()) App::app()->mtpUnpause();
 	} else {
 		a_bgCoord.update(dt1, st::introHideFunc);
 		a_bgAlpha.update(dt1, st::introAlphaHideFunc);

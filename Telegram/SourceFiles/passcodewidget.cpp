@@ -112,6 +112,8 @@ void PasscodeWidget::onChanged() {
 }
 
 void PasscodeWidget::animShow(const QPixmap &bgAnimCache, bool back) {
+	MTP::pause();
+
 	_bgAnimCache = bgAnimCache;
 
 	anim::stop(this);
@@ -143,6 +145,8 @@ bool PasscodeWidget::animStep(float64 ms) {
 
 		showAll();
 		if (App::wnd()) App::wnd()->setInnerFocus();
+
+		if (App::app()) App::app()->mtpUnpause();
 	} else {
 		a_bgCoord.update(dt1, st::introHideFunc);
 		a_bgAlpha.update(dt1, st::introAlphaHideFunc);

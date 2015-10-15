@@ -2705,6 +2705,8 @@ void MainWidget::historyCleared(History *hist) {
 }
 
 void MainWidget::animShow(const QPixmap &bgAnimCache, bool back) {
+	MTP::pause();
+
 	_bgAnimCache = bgAnimCache;
 
 	anim::stop(this);
@@ -2737,6 +2739,8 @@ bool MainWidget::animStep(float64 ms) {
 		anim::stop(this);
 		showAll();
 		activate();
+
+		if (App::app()) App::app()->mtpUnpause();
 	} else {
 		a_bgCoord.update(dt1, st::introHideFunc);
 		a_bgAlpha.update(dt1, st::introAlphaHideFunc);

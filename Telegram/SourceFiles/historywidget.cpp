@@ -22,6 +22,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "style.h"
 #include "lang.h"
 
+#include "application.h"
 #include "boxes/confirmbox.h"
 #include "historywidget.h"
 #include "gui/filedialog.h"
@@ -3992,6 +3993,8 @@ HistoryItem *HistoryWidget::atTopImportantMsg(int32 &bottomUnderScrollTop) const
 }
 
 void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back) {
+	MTP::pause();
+
 	_bgAnimCache = bgAnimCache;
 	_bgAnimTopBarCache = bgAnimTopBarCache;
 	_animCache = myGrab(this, rect());
@@ -4042,6 +4045,8 @@ bool HistoryWidget::showStep(float64 ms) {
 		App::main()->topBar()->stopAnim();
 		App::main()->topBar()->enableShadow();
 		doneShow();
+
+		if (App::app()) App::app()->mtpUnpause();
 	} else {
 		a_bgCoord.update(dt1, st::introHideFunc);
 		a_bgAlpha.update(dt1, st::introAlphaHideFunc);

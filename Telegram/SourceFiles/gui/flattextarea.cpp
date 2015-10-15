@@ -186,6 +186,7 @@ void FlatTextarea::paintEvent(QPaintEvent *e) {
 		p.setPen(a_phColor.current());
 		p.drawText(phRect, _ph, QTextOption(_st.phAlign));
 		p.restore();
+		p.setOpacity(1);
 	}
 	QTextEdit::paintEvent(e);
 }

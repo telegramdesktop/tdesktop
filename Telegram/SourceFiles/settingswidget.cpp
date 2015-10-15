@@ -1768,6 +1768,8 @@ void SettingsWidget::onParentResize(const QSize &newSize) {
 }
 
 void SettingsWidget::animShow(const QPixmap &bgAnimCache, bool back) {
+	MTP::pause();
+
 	_bgAnimCache = bgAnimCache;
 
 	anim::stop(this);
@@ -1799,6 +1801,8 @@ bool SettingsWidget::animStep(float64 ms) {
 
 		showAll();
 		_inner.setFocus();
+
+		if (App::app()) App::app()->mtpUnpause();
 	} else {
 		a_bgCoord.update(dt1, st::introHideFunc);
 		a_bgAlpha.update(dt1, st::introAlphaHideFunc);

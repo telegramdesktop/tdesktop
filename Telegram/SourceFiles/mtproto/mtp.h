@@ -26,6 +26,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 namespace _mtp_internal {
 	MTProtoSessionPtr getSession(int32 dc = 0); // 0 - current set dc
 
+	bool paused();
+
 	void registerRequest(mtpRequestId requestId, int32 dc);
 	void unregisterRequest(mtpRequestId requestId);
 
@@ -85,6 +87,9 @@ namespace MTP {
 	bool started();
 	void restart();
 	void restart(int32 dcMask);
+
+	void pause();
+	void unpause();
 
 	void configure(int32 dc, int32 user);
 

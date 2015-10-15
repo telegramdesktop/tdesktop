@@ -229,6 +229,8 @@ public:
 	void stop();
 	void kill();
 
+	void unpaused();
+
 	int32 getDcWithShift() const;
 	~MTProtoSession();
 
@@ -281,6 +283,7 @@ private:
 	MTProtoConnections connections;
 
 	bool _killed;
+	bool _needToReceive;
 	
 	MTPSessionData data;
 

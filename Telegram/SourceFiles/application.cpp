@@ -296,6 +296,14 @@ void Application::cancelPhotoUpdate(const PeerId &peer) {
 	}
 }
 
+void Application::mtpUnpause() {
+	QTimer::singleShot(1, this, SLOT(doMtpUnpause()));
+}
+
+void Application::doMtpUnpause() {
+	MTP::unpause();
+}
+
 void Application::selfPhotoCleared(const MTPUserProfilePhoto &result) {
 	if (!App::self()) return;
 	App::self()->setPhoto(result);

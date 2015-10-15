@@ -1616,6 +1616,8 @@ int32 ProfileWidget::lastScrollTop() const {
 }
 
 void ProfileWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back, int32 lastScrollTop) {
+	MTP::pause();
+
 	stopGif();
 	_bgAnimCache = bgAnimCache;
 	_bgAnimTopBarCache = bgAnimTopBarCache;
@@ -1651,6 +1653,8 @@ bool ProfileWidget::animStep(float64 ms) {
 		_scroll.show();
 		_inner.start();
 		activate();
+
+		if (App::app()) App::app()->mtpUnpause();
 	} else {
 		a_bgCoord.update(dt1, st::introHideFunc);
 		a_bgAlpha.update(dt1, st::introAlphaHideFunc);

@@ -145,6 +145,8 @@ bool IntroWidget::createNext() {
 }
 
 void IntroWidget::prepareMove() {
+	MTP::pause();
+
 	if (cacheForHide.isNull() || cacheForHideInd != current) makeHideCache();
 
 	stages[current + moving]->prepareShow();
@@ -198,6 +200,8 @@ void IntroWidget::makeShowCache(int stage) {
 }
 
 void IntroWidget::animShow(const QPixmap &bgAnimCache, bool back) {
+	MTP::pause();
+
 	_bgAnimCache = bgAnimCache;
 
 	anim::stop(this);
@@ -245,6 +249,7 @@ bool IntroWidget::animStep(float64 ms) {
 				_back.setOpacity(1);
 				_back.show();
 			}
+			if (App::app()) App::app()->mtpUnpause();
 		} else {
 			a_bgCoord.update(dt1, st::introHideFunc);
 			a_bgAlpha.update(dt1, st::introAlphaHideFunc);
@@ -265,6 +270,7 @@ bool IntroWidget::animStep(float64 ms) {
 		if (!stages[current]->hasBack()) {
 			_back.hide();
 		}
+		if (App::app()) App::app()->mtpUnpause();
 	} else {
 		xCoordShow.update(dt2, st::introShowFunc);
 		cAlphaShow.update(dt2, st::introAlphaShowFunc);
