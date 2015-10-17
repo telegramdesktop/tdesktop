@@ -20,7 +20,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-class PasscodeWidget : public QWidget, public Animated {
+class PasscodeWidget : public TWidget {
 	Q_OBJECT
 
 public:
@@ -34,7 +34,8 @@ public:
 	void setInnerFocus();
 
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
-	bool animStep(float64 ms);
+	bool animStep_show(float64 ms);
+	void animStop_show();
 
 	~PasscodeWidget();
 
@@ -45,16 +46,15 @@ public slots:
 	void onChanged();
 	void onSubmit();
 
-signals:
-
 private:
 
 	void showAll();
 	void hideAll();
 
-	QPixmap _animCache, _bgAnimCache;
-	anim::ivalue a_coord, a_bgCoord;
-	anim::fvalue a_alpha, a_bgAlpha;
+	Animation _a_show;
+	QPixmap _cacheUnder, _cacheOver;
+	anim::ivalue a_coordUnder, a_coordOver;
+	anim::fvalue a_shadow;
 
 	FlatInput _passcode;
 	FlatButton _submit;

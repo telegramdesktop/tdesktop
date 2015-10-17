@@ -2544,16 +2544,19 @@ OverviewWidget::OverviewWidget(QWidget *parent, const PeerData *peer, MediaOverv
 , _scroll(this, st::historyScroll, false)
 , _inner(this, &_scroll, peer, type)
 , _noDropResizeIndex(false)
-, _showing(false)
+, _a_show(animFunc(this, &OverviewWidget::animStep_show))
 , _scrollSetAfterShow(0)
 , _scrollDelta(0)
 , _selCount(0)
 , _sideShadow(this, st::shadowColor)
-, _topShadow(this, st::shadowColor) {
+, _topShadow(this, st::shadowColor)
+, _inGrab(false) {
 	_scroll.setFocusPolicy(Qt::NoFocus);
 	_scroll.setWidget(&_inner);
 	_scroll.move(0, 0);
 	_inner.move(0, 0);
+
+	_sideShadow.setVisible(cWideMode());
 
 	updateScrollColors();
 
@@ -2604,8 +2607,8 @@ void OverviewWidget::resizeEvent(QResizeEvent *e) {
 		_noDropResizeIndex = false;
 	}
 
-	_topShadow.resize(width() - (cWideMode() ? st::lineWidth : 0), st::lineWidth);
-	_topShadow.moveToLeft(cWideMode() ? st::lineWidth : 0, 0);
+	_topShadow.resize(width() - ((cWideMode() && !_inGrab) ? st::lineWidth : 0), st::lineWidth);
+	_topShadow.moveToLeft((cWideMode() && !_inGrab) ? st::lineWidth : 0, 0);
 	_sideShadow.resize(st::lineWidth, height());
 	_sideShadow.moveToLeft(0, 0);
 }
@@ -2614,11 +2617,16 @@ void OverviewWidget::paintEvent(QPaintEvent *e) {
 	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) return;
 
 	Painter p(this);
-	if (animating() && _showing) {
-		p.setOpacity(a_bgAlpha.current());
-		p.drawPixmap(a_bgCoord.current(), 0, _bgAnimCache);
-		p.setOpacity(a_alpha.current());
-		p.drawPixmap(a_coord.current(), 0, _animCache);
+	if (_a_show.animating()) {
+		if (a_coordOver.current() > 0) {
+			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current(), 0, a_coordOver.current(), height()));
+			p.setOpacity(a_shadow.current() * st::slideFadeOut);
+			p.fillRect(0, 0, a_coordOver.current(), height(), st::black->b);
+			p.setOpacity(1);
+		}
+		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
+		p.setOpacity(a_shadow.current());
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow);
 		return;
 	}
 
@@ -2675,18 +2683,18 @@ void OverviewWidget::scrollReset() {
 }
 
 void OverviewWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) {
-	if (animating() && _showing) {
-		p.setOpacity(a_bgAlpha.current());
-		p.drawPixmap(a_bgCoord.current(), 0, _bgAnimTopBarCache);
-		p.setOpacity(a_alpha.current());
-		p.drawPixmap(a_coord.current(), 0, _animTopBarCache);
-	} else {
-		p.setOpacity(st::topBarBackAlpha + (1 - st::topBarBackAlpha) * over);
-		p.drawPixmap(QPoint(st::topBarBackPadding.left(), (st::topBarHeight - st::topBarBackImg.pxHeight()) / 2), App::sprite(), st::topBarBackImg);
-		p.setFont(st::topBarBackFont->f);
-		p.setPen(st::topBarBackColor->p);
-		p.drawText(st::topBarBackPadding.left() + st::topBarBackImg.pxWidth() + st::topBarBackPadding.right(), (st::topBarHeight - st::topBarBackFont->height) / 2 + st::topBarBackFont->ascent, _header);
+	if (_a_show.animating()) {
+		p.drawPixmap(a_coordUnder.current(), 0, _cacheTopBarUnder);
+		p.drawPixmap(a_coordOver.current(), 0, _cacheTopBarOver);
+		p.setOpacity(a_shadow.current());
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), st::topBarHeight), App::sprite(), st::slideShadow);
+		return;
 	}
+	p.setOpacity(st::topBarBackAlpha + (1 - st::topBarBackAlpha) * over);
+	p.drawPixmap(QPoint(st::topBarBackPadding.left(), (st::topBarHeight - st::topBarBackImg.pxHeight()) / 2), App::sprite(), st::topBarBackImg);
+	p.setFont(st::topBarBackFont->f);
+	p.setPen(st::topBarBackColor->p);
+	p.drawText(st::topBarBackPadding.left() + st::topBarBackImg.pxWidth() + st::topBarBackPadding.right(), (st::topBarHeight - st::topBarBackFont->height) / 2 + st::topBarBackFont->ascent, _header);
 }
 
 void OverviewWidget::topBarClick() {
@@ -2784,58 +2792,61 @@ void OverviewWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimT
 	if (App::app()) App::app()->mtpPause();
 
 	stopGif();
-	_bgAnimCache = bgAnimCache;
-	_bgAnimTopBarCache = bgAnimTopBarCache;
+
+	(back ? _cacheOver : _cacheUnder) = bgAnimCache;
+	(back ? _cacheTopBarOver : _cacheTopBarUnder) = bgAnimTopBarCache;
 	resizeEvent(0);
 	_scroll.scrollToY(lastScrollTop < 0 ? countBestScroll() : lastScrollTop);
-	_animCache = myGrab(this, rect());
+	(back ? _cacheUnder : _cacheOver) = myGrab(this);
 	App::main()->topBar()->stopAnim();
-	_animTopBarCache = myGrab(App::main()->topBar(), QRect(0, 0, width(), st::topBarHeight));
+	(back ? _cacheTopBarUnder : _cacheTopBarOver) = myGrab(App::main()->topBar());
 	App::main()->topBar()->startAnim();
+
 	_scrollSetAfterShow = _scroll.scrollTop();
 	_scroll.hide();
-	a_coord = back ? anim::ivalue(-st::introSlideShift, 0) : anim::ivalue(st::introSlideShift, 0);
-	a_alpha = anim::fvalue(0, 1);
-	a_bgCoord = back ? anim::ivalue(0, st::introSlideShift) : anim::ivalue(0, -st::introSlideShift);
-	a_bgAlpha = anim::fvalue(1, 0);
-
-	anim::start(this);
-	_sideShadow.hide();
 	_topShadow.hide();
 
-	_showing = true;
+	a_coordUnder = back ? anim::ivalue(-qFloor(st::slideShift * width()), 0) : anim::ivalue(0, -qFloor(st::slideShift * width()));
+	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
+	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
+	_a_show.start();
+
 	show();
-	_inner.activate();
+
 	App::main()->topBar()->update();
+	_inner.activate();
 }
 
-bool OverviewWidget::animStep(float64 ms) {
-	float64 fullDuration = st::introSlideDelta + st::introSlideDuration, dt = ms / fullDuration;
-	float64 dt1 = (ms > st::introSlideDuration) ? 1 : (ms / st::introSlideDuration), dt2 = (ms > st::introSlideDelta) ? (ms - st::introSlideDelta) / (st::introSlideDuration) : 0;
+bool OverviewWidget::animStep_show(float64 ms) {
+	float64 dt = ms / st::slideDuration;
 	bool res = true;
-	if (dt2 >= 1) {
-		res = _showing = false;
-		_sideShadow.show();
+	if (dt >= 1) {
+		_a_show.stop();
+		_sideShadow.setVisible(cWideMode());
 		_topShadow.show();
 
-		a_bgCoord.finish();
-		a_bgAlpha.finish();
-		a_coord.finish();
-		a_alpha.finish();
-		_bgAnimCache = _animCache = _animTopBarCache = _bgAnimTopBarCache = QPixmap();
+		res = false;
+		a_coordUnder.finish();
+		a_coordOver.finish();
+		a_shadow.finish();
+		_cacheUnder = _cacheOver = _cacheTopBarUnder = _cacheTopBarOver = QPixmap();
 		App::main()->topBar()->stopAnim();
+
 		doneShow();
 
 		if (App::app()) App::app()->mtpUnpause();
 	} else {
-		a_bgCoord.update(dt1, st::introHideFunc);
-		a_bgAlpha.update(dt1, st::introAlphaHideFunc);
-		a_coord.update(dt2, st::introShowFunc);
-		a_alpha.update(dt2, st::introAlphaShowFunc);
+		a_coordUnder.update(dt, st::slideFunction);
+		a_coordOver.update(dt, st::slideFunction);
+		a_shadow.update(dt, st::slideFunction);
 	}
 	update();
 	App::main()->topBar()->update();
 	return res;
+}
+
+void OverviewWidget::updateWideMode() {
+	_sideShadow.setVisible(cWideMode());
 }
 
 void OverviewWidget::doneShow() {

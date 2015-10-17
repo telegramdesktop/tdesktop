@@ -55,7 +55,16 @@ public:
 	void showAll();
 	void showSelected(uint32 selCount, bool canDelete = false);
 
+	void updateWideMode();
+
 	FlatButton *mediaTypeButton();
+
+	void grabStart() {
+		_sideShadow.hide();
+	}
+	void grabFinish() {
+		_sideShadow.setVisible(cWideMode());
+	}
 
 public slots:
 
@@ -177,7 +186,7 @@ enum ForwardWhatMessages {
 	ForwardPressedLinkMessage
 };
 
-class MainWidget : public TWidget, public Animated, public RPCSender {
+class MainWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -199,7 +208,8 @@ public:
 	int32 contentScrollAddToY() const;
 
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
-	bool animStep(float64 ms);
+	bool animStep_show(float64 ms);
+	void animStop_show();
 
 	void start(const MTPUser &user);
 
@@ -403,6 +413,9 @@ public:
 
 	bool contentOverlapped(const QRect &globalRect);
 
+	QPixmap grabTopBar();
+	QPixmap grabInner();
+
 	~MainWidget();
 
 signals:
@@ -539,9 +552,10 @@ private:
 	void overviewPreloaded(PeerData *data, const MTPmessages_Messages &result, mtpRequestId req);
 	bool overviewFailed(PeerData *data, const RPCError &error, mtpRequestId req);
 
-	QPixmap _animCache, _bgAnimCache;
-	anim::ivalue a_coord, a_bgCoord;
-	anim::fvalue a_alpha, a_bgAlpha;
+	Animation _a_show;
+	QPixmap _cacheUnder, _cacheOver;
+	anim::ivalue a_coordUnder, a_coordOver;
+	anim::fvalue a_shadow;
 
 	int32 _dialogsWidth;
 

@@ -201,7 +201,7 @@ private:
 
 };
 
-class ProfileWidget : public TWidget, public RPCSender, public Animated {
+class ProfileWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -221,7 +221,7 @@ public:
 	int32 lastScrollTop() const;
 
 	void animShow(const QPixmap &oldAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false, int32 lastScrollTop = -1);
-	bool animStep(float64 ms);
+	bool animStep_show(float64 ms);
 
 	void updateOnlineDisplay();
 	void updateOnlineDisplayTimer();
@@ -230,6 +230,18 @@ public:
 
 	void updateNotifySettings();
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
+	void updateWideMode();
+
+	void grabStart() {
+		_sideShadow.hide();
+		_inGrab = true;
+		resizeEvent(0);
+	}
+	void grabFinish() {
+		_sideShadow.setVisible(cWideMode());
+		_inGrab = false;
+		resizeEvent(0);
+	}
 
 	void clear();
 	~ProfileWidget();
@@ -244,12 +256,13 @@ private:
 	ScrollArea _scroll;
 	ProfileInner _inner;
 
-	bool _showing;
-	QPixmap _animCache, _bgAnimCache, _animTopBarCache, _bgAnimTopBarCache;
-	anim::ivalue a_coord, a_bgCoord;
-	anim::fvalue a_alpha, a_bgAlpha;
+	Animation _a_show;
+	QPixmap _cacheUnder, _cacheOver, _cacheTopBarUnder, _cacheTopBarOver;
+	anim::ivalue a_coordUnder, a_coordOver;
+	anim::fvalue a_shadow;
 
 	PlainShadow _sideShadow, _topShadow;
+	bool _inGrab;
 
 };
 

@@ -463,8 +463,10 @@ public:
 	HistoryItem *atTopImportantMsg(int32 &bottomUnderScrollTop) const;
 
 	void animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false);
-	bool showStep(float64 ms);
+	bool animStep_show(float64 ms);
 	void animStop();
+
+	void updateWideMode();
 	void doneShow();
 
 	QPoint clampMousePosition(QPoint point);
@@ -535,6 +537,17 @@ public:
 	void updateNotifySettings();
 
 	bool contentOverlapped(const QRect &globalRect);
+
+	void grabStart() {
+		_sideShadow.hide();
+		_inGrab = true;
+		resizeEvent(0);
+	}
+	void grabFinish() {
+		_sideShadow.setVisible(cWideMode());
+		_inGrab = false;
+		resizeEvent(0);
+	}
 
 	~HistoryWidget();
 
@@ -772,10 +785,10 @@ private:
 	QString _titlePeerText;
 	int32 _titlePeerTextWidth;
 
-	Animation _showAnim;
-	QPixmap _animCache, _bgAnimCache, _animTopBarCache, _bgAnimTopBarCache;
-	anim::ivalue a_coord, a_bgCoord;
-	anim::fvalue a_alpha, a_bgAlpha;
+	Animation _a_show;
+	QPixmap _cacheUnder, _cacheOver, _cacheTopBarUnder, _cacheTopBarOver;
+	anim::ivalue a_coordUnder, a_coordOver;
+	anim::fvalue a_shadow;
 
 	QTimer _scrollTimer;
 	int32 _scrollDelta;
@@ -791,6 +804,7 @@ private:
 	QTimer _saveDraftTimer;
 
 	PlainShadow _sideShadow, _topShadow;
+	bool _inGrab;
 
 };
 

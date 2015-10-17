@@ -629,7 +629,7 @@ private:
 	bool _overDelete;
 };
 
-class MentionsDropdown : public QWidget, public Animated {
+class MentionsDropdown : public TWidget, public Animated {
 	Q_OBJECT
 
 public:

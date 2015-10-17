@@ -307,10 +307,11 @@ versionColor: #777;
 
 shadowColor: rgba(0, 0, 0, 24);
 
-slideDuration: 4000;
+slideDuration: 240;
 slideShift: 0.3;
-slideShadowLeft: sprite(348px, 70px, 48px, 1px);
-slideShadowRight: sprite(348px, 71px, 48px, 1px);
+slideFadeOut: 0.3;
+slideShadow: sprite(348px, 71px, 48px, 1px);
+slideFunction: transition(easeOutCirc);
 
 btnDefIconed: iconedButton {
 	color: white;
@@ -605,7 +606,7 @@ introPointHideAlphaT: transition(easeOutCirc);
 introStepSize: size(400px, 200px);
 introSize: size(400px, 400px);
 introSlideShift: 500px; // intro hiding animation
-introSlideDuration: 4000;
+introSlideDuration: 200;
 introSlideDelta: 0; // between hide start and show start
 introHideFunc: transition(easeInCirc);
 introShowFunc: transition(easeOutCirc);

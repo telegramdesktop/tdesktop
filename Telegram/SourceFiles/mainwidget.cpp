@@ -277,12 +277,11 @@ void TopBarWidget::startAnim() {
 	_mediaType.hide();
 
 	_animating = true;
-	_sideShadow.hide();
 }
 
 void TopBarWidget::stopAnim() {
     _animating = false;
-	_sideShadow.show();
+	_sideShadow.setVisible(cWideMode());
 	showAll();
 }
 
@@ -352,6 +351,7 @@ void TopBarWidget::showAll() {
 			_info.hide();
 		}
 	}
+	_sideShadow.setVisible(cWideMode());
 	resizeEvent(0);
 }
 
@@ -366,6 +366,10 @@ void TopBarWidget::showSelected(uint32 selCount, bool canDelete) {
 	showAll();
 }
 
+void TopBarWidget::updateWideMode() {
+	showAll();
+}
+
 FlatButton *TopBarWidget::mediaTypeButton() {
 	return &_mediaType;
 }
@@ -374,21 +378,49 @@ MainWidget *TopBarWidget::main() {
 	return static_cast<MainWidget*>(parentWidget());
 }
 
-MainWidget::MainWidget(Window *window) : TWidget(window),
-_started(0), failedObjId(0), _toForwardNameVersion(0), _dialogsWidth(st::dlgMinWidth),
-dialogs(this), history(this), profile(0), overview(0), _player(this), _topBar(this),
-_forwardConfirm(0), _hider(0), _peerInStack(0), _msgIdInStack(0),
-_playerHeight(0), _contentScrollAddToY(0), _mediaType(this), _mediaTypeMask(0),
-updDate(0), updQts(-1), updSeq(0), _getDifferenceTimeByPts(0), _getDifferenceTimeAfterFail(0),
-_onlineRequest(0), _lastWasOnline(false), _lastSetOnline(0), _isIdle(false),
-_failDifferenceTimeout(1), _lastUpdateTime(0), _handlingChannelDifference(false), _cachedX(0), _cachedY(0), _background(0), _api(new ApiWrap(this)) {
+MainWidget::MainWidget(Window *window) : TWidget(window)
+, _started(0)
+, failedObjId(0)
+, _toForwardNameVersion(0)
+, _dialogsWidth(st::dlgMinWidth)
+, _a_show(animFunc(this, &MainWidget::animStep_show))
+, dialogs(this)
+, history(this)
+, profile(0)
+, overview(0)
+, _player(this)
+, _topBar(this)
+, _forwardConfirm(0)
+, _hider(0)
+, _peerInStack(0)
+, _msgIdInStack(0)
+, _playerHeight(0)
+, _contentScrollAddToY(0)
+, _mediaType(this)
+, _mediaTypeMask(0)
+, updDate(0)
+, updQts(-1)
+, updSeq(0)
+, _getDifferenceTimeByPts(0)
+, _getDifferenceTimeAfterFail(0)
+, _onlineRequest(0)
+, _lastWasOnline(false)
+, _lastSetOnline(0)
+, _isIdle(false)
+, _failDifferenceTimeout(1)
+, _lastUpdateTime(0)
+, _handlingChannelDifference(false)
+, _cachedX(0)
+, _cachedY(0)
+, _background(0)
+, _api(new ApiWrap(this)) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 
 	MTP::setGlobalDoneHandler(rpcDone(&MainWidget::updateReceived));
 	_ptsWaiter.setRequesting(true);
 	updateScrollColors();
 
-	connect(window, SIGNAL(resized(const QSize &)), this, SLOT(onParentResize(const QSize &)));
+	connect(window, SIGNAL(resized(const QSize&)), this, SLOT(onParentResize(const QSize&)));
 	connect(&dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
 	connect(&history, SIGNAL(cancelled()), &dialogs, SLOT(activate()));
 	connect(this, SIGNAL(peerPhotoChanged(PeerData*)), this, SIGNAL(dialogsUpdated()));
@@ -644,6 +676,30 @@ void MainWidget::onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data)
 	}
 }
 
+QPixmap MainWidget::grabInner() {
+	if (overview && !overview->isHidden()) {
+		return myGrab(overview);
+	} else if (profile && !profile->isHidden()) {
+		return myGrab(profile);
+	} else if (!cWideMode() && history.isHidden()) {
+		return myGrab(&dialogs, QRect(0, st::topBarHeight, dialogs.width(), dialogs.height() - st::topBarHeight));
+	} else if (history.peer()) {
+		return myGrab(&history);
+	} else {
+		return myGrab(&history, QRect(0, st::topBarHeight, history.width(), history.height() - st::topBarHeight));
+	}
+}
+
+QPixmap MainWidget::grabTopBar() {
+	if (!_topBar.isHidden()) {
+		return myGrab(&_topBar);
+	} else if (!cWideMode() && history.isHidden()) {
+		return myGrab(&dialogs, QRect(0, 0, dialogs.width(), st::topBarHeight));
+	} else {
+		return myGrab(&history, QRect(0, 0, history.width(), st::topBarHeight));
+	}
+}
+
 void MainWidget::noHider(HistoryHider *destroyed) {
 	if (_hider == destroyed) {
 		_hider = 0;
@@ -659,8 +715,7 @@ void MainWidget::noHider(HistoryHider *destroyed) {
 			}
 			onHistoryShown(history.history(), history.msgId());
 			if (profile || overview || (history.peer() && history.peer()->id)) {
-				QPixmap animCache = myGrab(this, QRect(0, _playerHeight + st::topBarHeight, _dialogsWidth, height() - _playerHeight - st::topBarHeight)),
-					animTopBarCache = myGrab(this, QRect(_topBar.x(), _topBar.y(), _topBar.width(), st::topBarHeight));
+				QPixmap animCache = grabInner(), animTopBarCache = grabTopBar();
 				dialogs.hide();
 				if (overview) {
 					overview->show();
@@ -1837,7 +1892,7 @@ void MainWidget::documentPlayProgress(const SongMsgId &songId) {
 	if (playing == songId) {
 		_player.updateState(playing, playingState, playingPosition, playingDuration, playingFrequency);
 
-		if (!(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing && !animating()) {
+		if (!(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing && !_a_show.animating()) {
 			if (_player.isHidden()) {
 				_player.clearSelection();
 				_player.show();
@@ -2328,20 +2383,16 @@ void MainWidget::showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) 
 	}
 
 	QPixmap animCache, animTopBarCache;
-	if (!animating() && ((history.isHidden() && (profile || overview)) || (!cWideMode() && (history.isHidden() || !peerId)))) {
+	if (!_a_show.animating() && ((history.isHidden() && (profile || overview)) || (!cWideMode() && (history.isHidden() || !peerId)))) {
 		if (peerId) {
-			if (cWideMode()) {
-				animCache = myGrab(this, QRect(_dialogsWidth, _playerHeight + st::topBarHeight, width() - _dialogsWidth, height() - _playerHeight - st::topBarHeight));
-			} else {
-				animCache = myGrab(this, QRect(0, _playerHeight + st::topBarHeight, _dialogsWidth, height() - _playerHeight - st::topBarHeight));
-			}
+			animCache = grabInner();
 		} else if (cWideMode()) {
 			animCache = myGrab(this, QRect(_dialogsWidth, _playerHeight, width() - _dialogsWidth, height() - _playerHeight));
 		} else {
 			animCache = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
 		}
 		if (peerId || cWideMode()) {
-			animTopBarCache = myGrab(this, QRect(_topBar.x(), _topBar.y(), _topBar.width(), st::topBarHeight));
+			animTopBarCache = grabTopBar();
 		}
 		history.show();
 	}
@@ -2373,7 +2424,7 @@ void MainWidget::showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) 
 	if (onlyDialogs) {
 		_topBar.hide();
 		history.hide();
-		if (!animating()) {
+		if (!_a_show.animating()) {
 			dialogs.show();
 			if (!animCache.isNull()) {
 				dialogs.animShow(animCache);
@@ -2390,7 +2441,7 @@ void MainWidget::showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) 
 			_viewsIncremented.remove(activePeer());
 		}
 		if (!cWideMode() && !dialogs.isHidden()) dialogs.hide();
-		if (!animating()) {
+		if (!_a_show.animating()) {
 			if (history.isHidden()) history.show();
 			if (!animCache.isNull()) {
 				history.animShow(animCache, animTopBarCache, back);
@@ -2477,9 +2528,9 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 	QRect topBarRect = QRect(_topBar.x(), _topBar.y(), _topBar.width(), st::topBarHeight);
 	QRect historyRect = QRect(history.x(), topBarRect.y() + topBarRect.height(), history.width(), history.y() + history.height() - topBarRect.y() - topBarRect.height());
 	QPixmap animCache, animTopBarCache;
-	if (!animating() && (!cWideMode() || profile || overview || history.peer())) {
-		animCache = myGrab(this, historyRect);
-		animTopBarCache = myGrab(this, topBarRect);
+	if (!_a_show.animating() && (!cWideMode() || profile || overview || history.peer())) {
+		animCache = grabInner();
+		animTopBarCache = grabTopBar();
 	}
 	if (!back) {
 		if (overview) {
@@ -2532,7 +2583,7 @@ void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop)
 	App::wnd()->hideSettings();
 	if (profile && profile->peer() == peer) return;
 
-	QPixmap animCache = myGrab(this, history.geometry()), animTopBarCache = myGrab(this, QRect(_topBar.x(), _topBar.y(), _topBar.width(), st::topBarHeight));
+	QPixmap animCache = grabInner(), animTopBarCache = grabTopBar();
 	if (!back) {
 		if (overview) {
 			_stack.push_back(new StackItemOverview(overview->peer(), overview->type(), overview->lastWidth(), overview->lastScrollTop()));
@@ -2686,60 +2737,66 @@ void MainWidget::historyCleared(History *hist) {
 void MainWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 	if (App::app()) App::app()->mtpPause();
 
-	_bgAnimCache = bgAnimCache;
+	(back ? _cacheOver : _cacheUnder) = bgAnimCache;
 
-	anim::stop(this);
+	_a_show.stop();
+
 	showAll();
-	_animCache = myGrab(this, rect());
-
-	a_coord = back ? anim::ivalue(-st::introSlideShift, 0) : anim::ivalue(st::introSlideShift, 0);
-	a_alpha = anim::fvalue(0, 1);
-	a_bgCoord = back ? anim::ivalue(0, st::introSlideShift) : anim::ivalue(0, -st::introSlideShift);
-	a_bgAlpha = anim::fvalue(1, 0);
-
+	(back ? _cacheUnder : _cacheOver) = myGrab(this);
 	hideAll();
-	anim::start(this);
+
+	a_coordUnder = back ? anim::ivalue(-qFloor(st::slideShift * width()), 0) : anim::ivalue(0, -qFloor(st::slideShift * width()));
+	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
+	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
+	_a_show.start();
+
 	show();
 }
 
-bool MainWidget::animStep(float64 ms) {
-	float64 fullDuration = st::introSlideDelta + st::introSlideDuration, dt = ms / fullDuration;
-	float64 dt1 = (ms > st::introSlideDuration) ? 1 : (ms / st::introSlideDuration), dt2 = (ms > st::introSlideDelta) ? (ms - st::introSlideDelta) / (st::introSlideDuration) : 0;
+bool MainWidget::animStep_show(float64 ms) {
+	float64 dt = ms / st::slideDuration;
 	bool res = true;
-	if (dt2 >= 1) {
+	if (dt >= 1) {
+		_a_show.stop();
+
 		res = false;
-		a_bgCoord.finish();
-		a_bgAlpha.finish();
-		a_coord.finish();
-		a_alpha.finish();
+		a_coordUnder.finish();
+		a_coordOver.finish();
+		a_shadow.finish();
 
-		_animCache = _bgAnimCache = QPixmap();
+		_cacheUnder = _cacheOver = QPixmap();
 
-		anim::stop(this);
 		showAll();
 		activate();
 
 		if (App::app()) App::app()->mtpUnpause();
 	} else {
-		a_bgCoord.update(dt1, st::introHideFunc);
-		a_bgAlpha.update(dt1, st::introAlphaHideFunc);
-		a_coord.update(dt2, st::introShowFunc);
-		a_alpha.update(dt2, st::introAlphaShowFunc);
+		a_coordUnder.update(dt, st::slideFunction);
+		a_coordOver.update(dt, st::slideFunction);
+		a_shadow.update(dt, st::slideFunction);
 	}
 	update();
 	return res;
 }
 
+void MainWidget::animStop_show() {
+	_a_show.stop();
+}
+
 void MainWidget::paintEvent(QPaintEvent *e) {
 	if (_background) checkChatBackground();
 
-	QPainter p(this);
-	if (animating()) {
-		p.setOpacity(a_bgAlpha.current());
-		p.drawPixmap(a_bgCoord.current(), 0, _bgAnimCache);
-		p.setOpacity(a_alpha.current());
-		p.drawPixmap(a_coord.current(), 0, _animCache);
-	} else {
+	Painter p(this);
+	if (_a_show.animating()) {
+		if (a_coordOver.current() > 0) {
+			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current(), 0, a_coordOver.current(), height()));
+			p.setOpacity(a_shadow.current() * st::slideFadeOut);
+			p.fillRect(0, 0, a_coordOver.current(), height(), st::black->b);
+			p.setOpacity(1);
+		}
+		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
+		p.setOpacity(a_shadow.current());
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow);
 	}
 }
 
@@ -2872,7 +2929,11 @@ void MainWidget::keyPressEvent(QKeyEvent *e) {
 
 void MainWidget::updateWideMode() {
 	showAll();
-	_topBar.showAll();
+	_topBar.updateWideMode();
+	history.updateWideMode();
+	if (overview) overview->updateWideMode();
+	if (profile) profile->updateWideMode();
+	_player.updateWideMode();
 }
 
 bool MainWidget::needBackButton() {
@@ -2943,7 +3004,7 @@ void MainWidget::onHistoryShown(History *history, MsgId atMsgId) {
 		_topBar.hide();
 	}
 	resizeEvent(0);
-	if (animating()) {
+	if (_a_show.animating()) {
 		_topBar.hide();
 	}
 	dlgUpdated(history, atMsgId);
@@ -3907,6 +3968,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 }
 
 void MainWidget::activate() {
+	if (_a_show.animating()) return;
 	if (!profile && !overview) {
 		if (_hider) {
 			if (_hider->wasOffered()) {
@@ -3943,7 +4005,7 @@ void MainWidget::addNewContact(int32 uid, bool show) {
 }
 
 bool MainWidget::isActive() const {
-	return !_isIdle && isVisible() && !animating();
+	return !_isIdle && isVisible() && !_a_show.animating();
 }
 
 bool MainWidget::historyIsActive() const {

@@ -176,7 +176,7 @@ private:
 
 };
 
-class DialogsWidget : public TWidget, public Animated, public RPCSender {
+class DialogsWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -208,7 +208,7 @@ public:
 	void dialogsToUp();
 
 	void animShow(const QPixmap &bgAnimCache);
-	bool animStep(float64 ms);
+	bool animStep_show(float64 ms);
 
 	void destroyData();
 
@@ -271,9 +271,10 @@ private:
 	ScrollArea _scroll;
 	DialogsInner _inner;
 
-	QPixmap _animCache, _bgAnimCache;
-	anim::ivalue a_coord, a_bgCoord;
-	anim::fvalue a_alpha, a_bgAlpha;
+	Animation _a_show;
+	QPixmap _cacheUnder, _cacheOver;
+	anim::ivalue a_coordUnder, a_coordOver;
+	anim::fvalue a_shadow;
 
 	PeerData *_searchInPeer;
 

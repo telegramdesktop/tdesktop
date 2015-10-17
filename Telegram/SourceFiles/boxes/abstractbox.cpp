@@ -88,7 +88,7 @@ AbstractBox::AbstractBox(int32 w) : LayeredWidget()
 
 void AbstractBox::prepare() {
 	showAll();
-	_cache = myGrab(this, rect());
+	_cache = myGrab(this);
 	hideAll();
 }
 
@@ -197,7 +197,7 @@ void AbstractBox::onClose() {
 void AbstractBox::startHide() {
 	_hiding = true;
 	if (_cache.isNull()) {
-		_cache = myGrab(this, rect());
+		_cache = myGrab(this);
 		hideAll();
 	}
 	a_opacity.start(0);

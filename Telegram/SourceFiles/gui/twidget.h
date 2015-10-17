@@ -202,13 +202,17 @@ public:
 	bool event(QEvent *e) {
 		return QWidget::event(e);
 	}
+	virtual void grabStart() {
+	}
+	virtual void grabFinish() {
+	}
 
 private:
 
 };
 
 void myEnsureResized(QWidget *target);
-QPixmap myGrab(QWidget *target, const QRect &rect);
+QPixmap myGrab(TWidget *target, QRect rect = QRect());
 
 class PlainShadow : public TWidget {
 public:

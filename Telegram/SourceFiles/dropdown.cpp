@@ -2913,7 +2913,7 @@ void MentionsInner::onParentGeometryChanged() {
 	}
 }
 
-MentionsDropdown::MentionsDropdown(QWidget *parent) : QWidget(parent),
+MentionsDropdown::MentionsDropdown(QWidget *parent) : TWidget(parent),
 _scroll(this, st::mentionScroll), _inner(this, &_rows, &_hrows, &_crows), _chat(0), _user(0), _channel(0), _hiding(false), a_opacity(0), _shadow(st::dropdownDef.shadow) {
 	_hideTimer.setSingleShot(true);
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideStart()));
@@ -3138,7 +3138,7 @@ void MentionsDropdown::hideStart() {
 	if (!_hiding) {
 		if (_cache.isNull()) {
 			_scroll.show();
-			_cache = myGrab(this, rect());
+			_cache = myGrab(this);
 		}
 		_scroll.hide();
 		_hiding = true;
@@ -3161,7 +3161,7 @@ void MentionsDropdown::showStart() {
 	}
 	if (_cache.isNull()) {
 		_scroll.show();
-		_cache = myGrab(this, rect());
+		_cache = myGrab(this);
 	}
 	_scroll.hide();
 	_hiding = false;

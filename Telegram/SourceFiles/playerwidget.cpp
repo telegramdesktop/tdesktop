@@ -57,6 +57,7 @@ PlayerWidget::PlayerWidget(QWidget *parent) : TWidget(parent)
 	resize(st::wndMinWidth, st::playerHeight);
 	setMouseTracking(true);
 	memset(_stateHovers, 0, sizeof(_stateHovers));
+	_sideShadow.setVisible(cWideMode());
 }
 
 void PlayerWidget::paintEvent(QPaintEvent *e) {
@@ -335,6 +336,10 @@ void PlayerWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) 
 		}
 		updateControls();
 	}
+}
+
+void PlayerWidget::updateWideMode() {
+	_sideShadow.setVisible(cWideMode());
 }
 
 bool PlayerWidget::seekingSong(const SongMsgId &song) const {
