@@ -1182,6 +1182,11 @@ void Window::toggleTray(QSystemTrayIcon::ActivationReason reason) {
 }
 
 void Window::toggleDisplayNotifyFromTray() {
+	if (App::passcoded()) {
+		if (!isActive()) showFromTray();
+		showLayer(new InformBox(lang(lng_passcode_need_unblock)));
+		return;
+	}
 	cSetDesktopNotify(!cDesktopNotify());
 	if (settings) {
 		settings->updateDisplayNotify();

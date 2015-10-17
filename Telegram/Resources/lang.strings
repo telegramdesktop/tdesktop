@@ -302,6 +302,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_passcode_enter" = "Enter your local passcode";
 "lng_passcode_submit" = "Submit";
 "lng_passcode_logout" = "Log out";
+"lng_passcode_need_unblock" = "You need to unlock me first.";
 
 "lng_cloud_password_waiting" = "Confirmation link sent to {email}..";
 "lng_cloud_password_change" = "Change cloud password";
