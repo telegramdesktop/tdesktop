@@ -311,7 +311,7 @@ private:
 
 };
 
-class HistoryHider : public QWidget, public Animated {
+class HistoryHider : public TWidget, public Animated {
 	Q_OBJECT
 
 public:
@@ -412,7 +412,6 @@ public:
 	void checkMentionDropdown();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
-	void topBarShadowParams(int32 &x, float64 &o);
 	void topBarClick();
 
 	void loadMessages();
@@ -790,6 +789,8 @@ private:
 	uint64 _saveDraftStart;
 	bool _saveDraftText;
 	QTimer _saveDraftTimer;
+
+	PlainShadow _sideShadow, _topShadow;
 
 };
 

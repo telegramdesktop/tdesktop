@@ -1489,8 +1489,7 @@ MsgId DialogsInner::lastSearchId() const {
 	return _lastSearchId;
 }
 
-DialogsWidget::DialogsWidget(MainWidget *parent) : QWidget(parent)
-, _drawShadow(true)
+DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
 , _dragInScroll(false)
 , _dragForward(false)
 , _dialogsOffset(0)
@@ -2137,7 +2136,7 @@ void DialogsWidget::onCompleteHashtag(QString tag) {
 }
 
 void DialogsWidget::resizeEvent(QResizeEvent *e) {
-	int32 w = width() - st::dlgShadow;
+	int32 w = width();
 	_filter.setGeometry(st::dlgPaddingHor, st::dlgFilterPadding, w - 2 * st::dlgPaddingHor, _filter.height());
 	_newGroup.move(w - _newGroup.width() - st::dlgPaddingHor, _filter.y());
 	_addContact.move(w - _addContact.width() - st::dlgPaddingHor, _filter.y());
@@ -2198,19 +2197,13 @@ void DialogsWidget::paintEvent(QPaintEvent *e) {
 		p.drawPixmap(a_coord.current(), 0, _animCache);
 		return;
 	}
-	QRect above(0, 0, width() - (cWideMode() ? st::dlgShadow : 0), _scroll.y());
+	QRect above(0, 0, width(), _scroll.y());
 	if (above.intersects(r)) {
 		p.fillRect(above.intersected(r), st::white->b);
 	}
-	QRect below(0, _scroll.y() + qMin(_scroll.height(), _inner.height()), width() - (cWideMode() ? st::dlgShadow : 0), height());
+	QRect below(0, _scroll.y() + qMin(_scroll.height(), _inner.height()), width(), height());
 	if (below.intersects(r)) {
 		p.fillRect(below.intersected(r), st::white->b);
-	}
-	if (cWideMode() && _drawShadow) {
-		QRect sh(width() - st::dlgShadow, 0, st::dlgShadow, height());
-		if (r.intersects(sh)) {
-			p.fillRect(sh, st::dlgShadowColor->b);
-		}
 	}
 }
 
@@ -2307,8 +2300,4 @@ void DialogsWidget::onDialogMoved(int movedFrom, int movedTo) {
 	if (st > movedTo && st < movedFrom) {
 		_scroll.scrollToY(st + st::dlgHeight);
 	}
-}
-
-void DialogsWidget::enableShadow(bool enable) {
-	_drawShadow = enable;
 }

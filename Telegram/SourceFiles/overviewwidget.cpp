@@ -2540,14 +2540,16 @@ OverviewInner::~OverviewInner() {
 	_links.clear();
 }
 
-OverviewWidget::OverviewWidget(QWidget *parent, const PeerData *peer, MediaOverviewType type) : QWidget(parent)
+OverviewWidget::OverviewWidget(QWidget *parent, const PeerData *peer, MediaOverviewType type) : TWidget(parent)
 , _scroll(this, st::historyScroll, false)
 , _inner(this, &_scroll, peer, type)
 , _noDropResizeIndex(false)
 , _showing(false)
 , _scrollSetAfterShow(0)
 , _scrollDelta(0)
-, _selCount(0) {
+, _selCount(0)
+, _sideShadow(this, st::shadowColor)
+, _topShadow(this, st::shadowColor) {
 	_scroll.setFocusPolicy(Qt::NoFocus);
 	_scroll.setWidget(&_inner);
 	_scroll.move(0, 0);
@@ -2601,6 +2603,11 @@ void OverviewWidget::resizeEvent(QResizeEvent *e) {
 		_scroll.scrollToY(newScrollTop);
 		_noDropResizeIndex = false;
 	}
+
+	_topShadow.resize(width() - (cWideMode() ? st::lineWidth : 0), st::lineWidth);
+	_topShadow.moveToLeft(cWideMode() ? st::lineWidth : 0, 0);
+	_sideShadow.resize(st::lineWidth, height());
+	_sideShadow.moveToLeft(0, 0);
 }
 
 void OverviewWidget::paintEvent(QPaintEvent *e) {
@@ -2679,13 +2686,6 @@ void OverviewWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth)
 		p.setFont(st::topBarBackFont->f);
 		p.setPen(st::topBarBackColor->p);
 		p.drawText(st::topBarBackPadding.left() + st::topBarBackImg.pxWidth() + st::topBarBackPadding.right(), (st::topBarHeight - st::topBarBackFont->height) / 2 + st::topBarBackFont->ascent, _header);
-	}
-}
-
-void OverviewWidget::topBarShadowParams(int32 &x, float64 &o) {
-	if (animating() && a_coord.current() >= 0) {
-		x = a_coord.current();
-		o = a_alpha.current();
 	}
 }
 
@@ -2798,7 +2798,11 @@ void OverviewWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimT
 	a_alpha = anim::fvalue(0, 1);
 	a_bgCoord = back ? anim::ivalue(0, st::introSlideShift) : anim::ivalue(0, -st::introSlideShift);
 	a_bgAlpha = anim::fvalue(1, 0);
+
 	anim::start(this);
+	_sideShadow.hide();
+	_topShadow.hide();
+
 	_showing = true;
 	show();
 	_inner.activate();
@@ -2811,6 +2815,9 @@ bool OverviewWidget::animStep(float64 ms) {
 	bool res = true;
 	if (dt2 >= 1) {
 		res = _showing = false;
+		_sideShadow.show();
+		_topShadow.show();
+
 		a_bgCoord.finish();
 		a_bgAlpha.finish();
 		a_coord.finish();

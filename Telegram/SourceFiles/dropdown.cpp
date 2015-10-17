@@ -2669,7 +2669,7 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 	int32 atwidth = st::mentionFont->width('@'), hashwidth = st::mentionFont->width('#');
 	int32 mentionleft = 2 * st::mentionPadding.left() + st::mentionPhotoSize;
 	int32 mentionwidth = width() - mentionleft - 2 * st::mentionPadding.right();
-	int32 htagleft = st::btnAttachPhoto.width + st::taMsgField.textMrg.left() - st::dlgShadow, htagwidth = width() - st::mentionPadding.right() - htagleft - st::mentionScroll.width;
+	int32 htagleft = st::btnAttachPhoto.width + st::taMsgField.textMrg.left() - st::lineWidth, htagwidth = width() - st::mentionPadding.right() - htagleft - st::mentionScroll.width;
 
 	int32 from = qFloor(e->rect().top() / st::mentionHeight), to = qFloor(e->rect().bottom() / st::mentionHeight) + 1;
 	int32 last = _rows->isEmpty() ? (_hrows->isEmpty() ? _crows->size() : _hrows->size()) : _rows->size();
@@ -2778,8 +2778,8 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 		}
 	}
 
-	p.fillRect(cWideMode() ? st::dlgShadow : 0, _parent->innerTop(), width() - (cWideMode() ? st::dlgShadow : 0), st::titleShadow, st::titleShadowColor->b);
-	p.fillRect(cWideMode() ? st::dlgShadow : 0, _parent->innerBottom() - st::titleShadow, width() - (cWideMode() ? st::dlgShadow : 0), st::titleShadow, st::titleShadowColor->b);
+	p.fillRect(cWideMode() ? st::lineWidth : 0, _parent->innerTop(), width() - (cWideMode() ? st::lineWidth : 0), st::lineWidth, st::shadowColor->b);
+	p.fillRect(cWideMode() ? st::lineWidth : 0, _parent->innerBottom() - st::lineWidth, width() - (cWideMode() ? st::lineWidth : 0), st::lineWidth, st::shadowColor->b);
 }
 
 void MentionsInner::mouseMoveEvent(QMouseEvent *e) {

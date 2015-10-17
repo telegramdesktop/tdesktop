@@ -263,7 +263,7 @@ private:
 	ContextMenu *_menu;
 };
 
-class OverviewWidget : public QWidget, public RPCSender, public Animated {
+class OverviewWidget : public TWidget, public RPCSender, public Animated {
 	Q_OBJECT
 
 public:
@@ -280,7 +280,6 @@ public:
 	void scrollReset();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
-	void topBarShadowParams(int32 &x, float64 &o);
 	void topBarClick();
 
 	PeerData *peer() const;
@@ -352,6 +351,8 @@ private:
 	int32 _scrollDelta;
 
 	int32 _selCount;
+
+	PlainShadow _sideShadow, _topShadow;
 
 };
 

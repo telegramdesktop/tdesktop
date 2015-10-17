@@ -209,3 +209,16 @@ private:
 
 void myEnsureResized(QWidget *target);
 QPixmap myGrab(QWidget *target, const QRect &rect);
+
+class PlainShadow : public TWidget {
+public:
+	PlainShadow(QWidget *parent, const style::color &color) : TWidget(parent), _color(color) {
+	}
+	void paintEvent(QPaintEvent *e) {
+		Painter(this).fillRect(e->rect(), _color->b);
+	}
+
+private:
+	const style::color &_color;
+
+};

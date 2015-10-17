@@ -201,7 +201,7 @@ private:
 
 };
 
-class ProfileWidget : public QWidget, public RPCSender, public Animated {
+class ProfileWidget : public TWidget, public RPCSender, public Animated {
 	Q_OBJECT
 
 public:
@@ -215,7 +215,6 @@ public:
     void dropEvent(QDropEvent *e);
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
-	void topBarShadowParams(int32 &x, float64 &o);
 	void topBarClick();
 
 	PeerData *peer() const;
@@ -249,6 +248,8 @@ private:
 	QPixmap _animCache, _bgAnimCache, _animTopBarCache, _bgAnimTopBarCache;
 	anim::ivalue a_coord, a_bgCoord;
 	anim::fvalue a_alpha, a_bgAlpha;
+
+	PlainShadow _sideShadow, _topShadow;
 
 };
 

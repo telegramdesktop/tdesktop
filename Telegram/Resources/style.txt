@@ -289,8 +289,6 @@ boxSearchCancel: iconedButton {
 titleBG: #6389a8;
 titleColor: #0f8dcc;//rgb(20, 136, 210);
 titleHeight: 39px;
-titleShadowColor: rgba(0, 0, 0, 24);//#ebebeb
-titleShadow: 1px;
 titleIconPos: point(7px, 7px);
 titleIconImg: sprite(160px, 100px, 26px, 26px);
 titleFont: font(17px);
@@ -306,6 +304,13 @@ titleTypingColor: #0080c0;
 
 statusFont: font(fsize);
 versionColor: #777;
+
+shadowColor: rgba(0, 0, 0, 24);
+
+slideDuration: 4000;
+slideShift: 0.3;
+slideShadowLeft: sprite(348px, 70px, 48px, 1px);
+slideShadowRight: sprite(348px, 71px, 48px, 1px);
 
 btnDefIconed: iconedButton {
 	color: white;
@@ -600,7 +605,7 @@ introPointHideAlphaT: transition(easeOutCirc);
 introStepSize: size(400px, 200px);
 introSize: size(400px, 400px);
 introSlideShift: 500px; // intro hiding animation
-introSlideDuration: 200;
+introSlideDuration: 4000;
 introSlideDelta: 0; // between hide start and show start
 introHideFunc: transition(easeInCirc);
 introShowFunc: transition(easeOutCirc);
@@ -828,9 +833,6 @@ noContactsFont: font(fsize);
 noContactsColor: #777;
 
 dlgSep: 8px;
-
-dlgShadowColor: rgba(0, 0, 0, 24);//#ebebeb
-dlgShadow: 1px;
 
 dlgMinWidth: 260px;
 dlgRichMinWidth: 150px;
@@ -1344,7 +1346,7 @@ newMsgSound: ':/gui/art/newmsg.wav';
 unreadBarHeight: 32px;
 unreadBarFont: font(fsize semibold);
 unreadBarBG: #fcfbfa;
-unreadBarBorder: titleShadowColor;
+unreadBarBorder: shadowColor;
 unreadBarColor: #538bb4;
 
 searchedBarHeight: unreadBarHeight;

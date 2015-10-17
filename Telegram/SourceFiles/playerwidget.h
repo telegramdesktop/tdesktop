@@ -113,4 +113,6 @@ private:
 	anim::fvalue a_progress, a_loadProgress;
 	Animation _progressAnim;
 
+	PlainShadow _sideShadow;
+
 };

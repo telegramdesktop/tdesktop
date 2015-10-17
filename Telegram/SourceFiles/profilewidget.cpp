@@ -1523,11 +1523,12 @@ QString ProfileInner::overviewLinkText(int32 type, int32 count) {
 	return QString();
 }
 
-ProfileWidget::ProfileWidget(QWidget *parent, const PeerData *peer) : QWidget(parent)
-    , _scroll(this, st::setScroll)
-    , _inner(this, &_scroll, peer)
-    , _showing(false)
-{
+ProfileWidget::ProfileWidget(QWidget *parent, const PeerData *peer) : TWidget(parent)
+, _scroll(this, st::setScroll)
+, _inner(this, &_scroll, peer)
+, _showing(false)
+, _sideShadow(this, st::shadowColor)
+, _topShadow(this, st::shadowColor) {
 	_scroll.setWidget(&_inner);
 	_scroll.move(0, 0);
 	_inner.move(0, 0);
@@ -1556,6 +1557,11 @@ void ProfileWidget::resizeEvent(QResizeEvent *e) {
 			_inner.allowDecreaseHeight(_scroll.scrollTopMax() - _scroll.scrollTop());
 		}
 	}
+
+	_topShadow.resize(width() - (cWideMode() ? st::lineWidth : 0), st::lineWidth);
+	_topShadow.moveToLeft(cWideMode() ? st::lineWidth : 0, 0);
+	_sideShadow.resize(st::lineWidth, height());
+	_sideShadow.moveToLeft(0, 0);
 }
 
 void ProfileWidget::mousePressEvent(QMouseEvent *e) {
@@ -1596,13 +1602,6 @@ void ProfileWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) 
 	}
 }
 
-void ProfileWidget::topBarShadowParams(int32 &x, float64 &o) {
-	if (animating() && a_coord.current() >= 0) {
-		x = a_coord.current();
-		o = a_alpha.current();
-	}
-}
-
 void ProfileWidget::topBarClick() {
 	App::main()->showBackFromStack();
 }
@@ -1631,7 +1630,11 @@ void ProfileWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTo
 	a_alpha = anim::fvalue(0, 1);
 	a_bgCoord = back ? anim::ivalue(0, st::introSlideShift) : anim::ivalue(0, -st::introSlideShift);
 	a_bgAlpha = anim::fvalue(1, 0);
+
 	anim::start(this);
+	_sideShadow.hide();
+	_topShadow.hide();
+
 	_showing = true;
 	show();
 	_inner.setFocus();
@@ -1644,6 +1647,9 @@ bool ProfileWidget::animStep(float64 ms) {
 	bool res = true;
 	if (dt2 >= 1) {
 		res = _showing = false;
+		_sideShadow.show();
+		_topShadow.show();
+
 		a_bgCoord.finish();
 		a_bgAlpha.finish();
 		a_coord.finish();

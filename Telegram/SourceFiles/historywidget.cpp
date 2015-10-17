@@ -1712,7 +1712,7 @@ ReportSpamPanel::ReportSpamPanel(HistoryWidget *parent) : TWidget(parent),
 _report(this, lang(lng_report_spam), st::reportSpamHide),
 _hide(this, lang(lng_report_spam_hide), st::reportSpamHide),
 _clear(this, lang(lng_profile_delete_conversation)) {
-	resize(parent->width(), _hide.height() + st::titleShadow);
+	resize(parent->width(), _hide.height() + st::lineWidth);
 
 	connect(&_report, SIGNAL(clicked()), this, SIGNAL(reportClicked()));
 	connect(&_hide, SIGNAL(clicked()), this, SIGNAL(hideClicked()));
@@ -1730,12 +1730,8 @@ void ReportSpamPanel::resizeEvent(QResizeEvent *e) {
 
 void ReportSpamPanel::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	p.fillRect(QRect(0, 0, width(), height() - st::titleShadow), st::reportSpamBg->b);
-	if (cWideMode()) {
-		p.fillRect(st::titleShadow, height() - st::titleShadow, width() - st::titleShadow, st::titleShadow, st::titleShadowColor->b);
-	} else {
-		p.fillRect(0, height() - st::titleShadow, width(), st::titleShadow, st::titleShadowColor->b);
-	}
+	p.fillRect(QRect(0, 0, width(), height() - st::lineWidth), st::reportSpamBg->b);
+	p.fillRect(cWideMode() ? st::lineWidth : 0, height() - st::lineWidth, width() - (cWideMode() ? st::lineWidth : 0), st::lineWidth, st::shadowColor->b);
 	if (!_clear.isHidden()) {
 		p.setPen(st::black->p);
 		p.setFont(st::msgFont->f);
@@ -2060,7 +2056,7 @@ void BotKeyboard::updateSelected() {
 	}
 }
 
-HistoryHider::HistoryHider(MainWidget *parent, bool forwardSelected) : QWidget(parent)
+HistoryHider::HistoryHider(MainWidget *parent, bool forwardSelected) : TWidget(parent)
 , _sharedContact(0)
 , _forwardSelected(forwardSelected)
 , _sendPath(false)
@@ -2076,7 +2072,7 @@ HistoryHider::HistoryHider(MainWidget *parent, bool forwardSelected) : QWidget(p
 	init();
 }
 
-HistoryHider::HistoryHider(MainWidget *parent, UserData *sharedContact) : QWidget(parent)
+HistoryHider::HistoryHider(MainWidget *parent, UserData *sharedContact) : TWidget(parent)
 , _sharedContact(sharedContact)
 , _forwardSelected(false)
 , _sendPath(false)
@@ -2092,7 +2088,7 @@ HistoryHider::HistoryHider(MainWidget *parent, UserData *sharedContact) : QWidge
 	init();
 }
 
-HistoryHider::HistoryHider(MainWidget *parent) : QWidget(parent)
+HistoryHider::HistoryHider(MainWidget *parent) : TWidget(parent)
 , _sharedContact(0)
 , _forwardSelected(false)
 , _sendPath(true)
@@ -2388,7 +2384,9 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _showAnim(animFunc(this, &HistoryWidget::showStep))
 , _scrollDelta(0)
 , _saveDraftStart(0)
-, _saveDraftText(false) {
+, _saveDraftText(false)
+, _sideShadow(this, st::shadowColor)
+, _topShadow(this, st::shadowColor) {
 	_scroll.setFocusPolicy(Qt::NoFocus);
 
 	setAcceptDrops(true);
@@ -4025,7 +4023,11 @@ void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTo
 	a_alpha = anim::fvalue(0, 1);
 	a_bgCoord = back ? anim::ivalue(0, st::introSlideShift) : anim::ivalue(0, -st::introSlideShift);
 	a_bgAlpha = anim::fvalue(1, 0);
+
+	_sideShadow.hide();
+	_topShadow.hide();
 	_showAnim.start();
+
 	App::main()->topBar()->update();
 	activate();
 }
@@ -4036,6 +4038,9 @@ bool HistoryWidget::showStep(float64 ms) {
 	bool res = true;
 	if (dt2 >= 1) {
 		_showAnim.stop();
+		_sideShadow.show();
+		_topShadow.show();
+
 		res = false;
 		a_bgCoord.finish();
 		a_bgAlpha.finish();
@@ -4043,7 +4048,6 @@ bool HistoryWidget::showStep(float64 ms) {
 		a_alpha.finish();
 		_bgAnimCache = _animCache = _animTopBarCache = _bgAnimTopBarCache = QPixmap();
 		App::main()->topBar()->stopAnim();
-		App::main()->topBar()->enableShadow();
 		doneShow();
 
 		if (App::app()) App::app()->mtpUnpause();
@@ -4073,6 +4077,8 @@ void HistoryWidget::doneShow() {
 void HistoryWidget::animStop() {
 	if (!_showAnim.animating()) return;
 	_showAnim.stop();
+	_sideShadow.show();
+	_topShadow.show();
 }
 
 bool HistoryWidget::recordStep(float64 ms) {
@@ -4641,13 +4647,6 @@ void HistoryWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) 
 	} else {
 		p.setOpacity(st::topBarForwardAlpha + (1 - st::topBarForwardAlpha) * over);
 		p.drawPixmap(QPoint((st::topBarForwardPadding.right() - st::topBarBackwardImg.pxWidth()) / 2, (st::topBarHeight - st::topBarBackwardImg.pxHeight()) / 2), App::sprite(), st::topBarBackwardImg);
-	}
-}
-
-void HistoryWidget::topBarShadowParams(int32 &x, float64 &o) {
-	if (_showAnim.animating() && a_coord.current() >= 0) {
-		x = a_coord.current();
-		o = a_alpha.current();
 	}
 }
 
@@ -5275,6 +5274,11 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 		_attachDragPhoto.move(st::dragMargin.left(), st::dragMargin.top());
 	break;
 	}
+
+	_topShadow.resize(width() - (cWideMode() ? st::lineWidth : 0), st::lineWidth);
+	_topShadow.moveToLeft(cWideMode() ? st::lineWidth : 0, 0);
+	_sideShadow.resize(st::lineWidth, height());
+	_sideShadow.moveToLeft(0, 0);
 }
 
 void HistoryWidget::itemRemoved(HistoryItem *item) {

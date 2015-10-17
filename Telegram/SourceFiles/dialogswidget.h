@@ -176,7 +176,7 @@ private:
 
 };
 
-class DialogsWidget : public QWidget, public Animated, public RPCSender {
+class DialogsWidget : public TWidget, public Animated, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -222,8 +222,6 @@ public:
 	DialogsIndexed &contactsList();
 	DialogsIndexed &dialogsList();
 
-	void enableShadow(bool enable = true);
-	
 	void searchMessages(const QString &query, PeerData *inPeer = 0);
 	void onSearchMore(MsgId minMsgId);
 
@@ -255,8 +253,6 @@ public slots:
 	void onChooseByDrag();
 
 private:
-
-	bool _drawShadow;
 
 	bool _dragInScroll, _dragForward;
 	QTimer _chooseByDragTimer;

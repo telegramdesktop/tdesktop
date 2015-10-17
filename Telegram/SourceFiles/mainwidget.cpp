@@ -35,18 +35,25 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 #include "audio.h"
 
-TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w),
-	a_over(0), _drawShadow(true), _selPeer(0), _selCount(0), _canDelete(false), _selStrLeft(-st::topBarButton.width / 2), _selStrWidth(0), _animating(false),
-	_clearSelection(this, lang(lng_selected_clear), st::topBarButton),
-	_forward(this, lang(lng_selected_forward), st::topBarActionButton),
-	_delete(this, lang(lng_selected_delete), st::topBarActionButton),
-	_selectionButtonsWidth(_clearSelection.width() + _forward.width() + _delete.width()), _forwardDeleteWidth(qMax(_forward.textWidth(), _delete.textWidth())),
-	_info(this, lang(lng_topbar_info), st::topBarButton),
-	_edit(this, lang(lng_profile_edit_contact), st::topBarButton),
-	_leaveGroup(this, lang(lng_profile_delete_and_exit), st::topBarButton),
-	_addContact(this, lang(lng_profile_add_contact), st::topBarButton),
-	_deleteContact(this, lang(lng_profile_delete_contact), st::topBarButton),
-	_mediaType(this, lang(lng_media_type), st::topBarButton) {
+TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
+, a_over(0)
+, _selPeer(0)
+, _selCount(0)
+, _canDelete(false)
+, _selStrLeft(-st::topBarButton.width / 2)
+, _selStrWidth(0)
+, _animating(false)
+, _clearSelection(this, lang(lng_selected_clear), st::topBarButton)
+, _forward(this, lang(lng_selected_forward), st::topBarActionButton)
+, _delete(this, lang(lng_selected_delete), st::topBarActionButton)
+, _selectionButtonsWidth(_clearSelection.width() + _forward.width() + _delete.width()), _forwardDeleteWidth(qMax(_forward.textWidth(), _delete.textWidth()))
+, _info(this, lang(lng_topbar_info), st::topBarButton)
+, _edit(this, lang(lng_profile_edit_contact), st::topBarButton)
+, _leaveGroup(this, lang(lng_profile_delete_and_exit), st::topBarButton)
+, _addContact(this, lang(lng_profile_add_contact), st::topBarButton)
+, _deleteContact(this, lang(lng_profile_delete_contact), st::topBarButton)
+, _mediaType(this, lang(lng_media_type), st::topBarButton)
+, _sideShadow(this, st::shadowColor) {
 
 	connect(&_forward, SIGNAL(clicked()), this, SLOT(onForwardSelection()));
 	connect(&_delete, SIGNAL(clicked()), this, SLOT(onDeleteSelection()));
@@ -170,10 +177,6 @@ bool TopBarWidget::animStep(float64 ms) {
 	return res;
 }
 
-void TopBarWidget::enableShadow(bool enable) {
-	_drawShadow = enable;
-}
-
 void TopBarWidget::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
@@ -187,18 +190,6 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 			p.setFont(st::linkFont->f);
 			p.setPen(st::btnDefLink.color->p);
 			p.drawText(_selStrLeft, st::topBarButton.textTop + st::linkFont->ascent, _selStr);
-		}
-	}
-	if (_drawShadow) {
-		int32 shadowCoord = 0;
-		float64 shadowOpacity = 1.;
-		main()->topBarShadowParams(shadowCoord, shadowOpacity);
-
-		p.setOpacity(shadowOpacity);
-		if (cWideMode()) {
-			p.fillRect(shadowCoord + st::titleShadow, st::topBarHeight, width() - st::titleShadow, st::titleShadow, st::titleShadowColor->b);
-		} else {
-			p.fillRect(shadowCoord, st::topBarHeight, width(), st::titleShadow, st::titleShadowColor->b);
 		}
 	}
 }
@@ -269,6 +260,9 @@ void TopBarWidget::resizeEvent(QResizeEvent *e) {
 	if (!_edit.isHidden()) _edit.move(r -= _edit.width(), 0);
 	if (!_addContact.isHidden()) _addContact.move(r -= _addContact.width(), 0);
 	if (!_mediaType.isHidden()) _mediaType.move(r -= _mediaType.width(), 0);
+
+	_sideShadow.resize(st::lineWidth, height());
+	_sideShadow.moveToLeft(0, 0);
 }
 
 void TopBarWidget::startAnim() {
@@ -281,12 +275,15 @@ void TopBarWidget::startAnim() {
     _delete.hide();
     _forward.hide();
 	_mediaType.hide();
-    _animating = true;
+
+	_animating = true;
+	_sideShadow.hide();
 }
 
 void TopBarWidget::stopAnim() {
     _animating = false;
-    showAll();
+	_sideShadow.show();
+	showAll();
 }
 
 void TopBarWidget::showAll() {
@@ -377,7 +374,7 @@ MainWidget *TopBarWidget::main() {
 	return static_cast<MainWidget*>(parentWidget());
 }
 
-MainWidget::MainWidget(Window *window) : QWidget(window),
+MainWidget::MainWidget(Window *window) : TWidget(window),
 _started(0), failedObjId(0), _toForwardNameVersion(0), _dialogsWidth(st::dlgMinWidth),
 dialogs(this), history(this), profile(0), overview(0), _player(this), _topBar(this),
 _forwardConfirm(0), _hider(0), _peerInStack(0), _msgIdInStack(0),
@@ -662,11 +659,8 @@ void MainWidget::noHider(HistoryHider *destroyed) {
 			}
 			onHistoryShown(history.history(), history.msgId());
 			if (profile || overview || (history.peer() && history.peer()->id)) {
-				dialogs.enableShadow(false);
 				QPixmap animCache = myGrab(this, QRect(0, _playerHeight + st::topBarHeight, _dialogsWidth, height() - _playerHeight - st::topBarHeight)),
 					animTopBarCache = myGrab(this, QRect(_topBar.x(), _topBar.y(), _topBar.width(), st::topBarHeight));
-				dialogs.enableShadow();
-				_topBar.enableShadow();
 				dialogs.hide();
 				if (overview) {
 					overview->show();
@@ -700,10 +694,7 @@ void MainWidget::hiderLayer(HistoryHider *h) {
 		dialogsToUp();
 
 		_hider->hide();
-		dialogs.enableShadow(false);
 		QPixmap animCache = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
-		dialogs.enableShadow();
-		_topBar.enableShadow();
 
 		onHistoryShown(0, 0);
 		if (overview) {
@@ -1846,7 +1837,7 @@ void MainWidget::documentPlayProgress(const SongMsgId &songId) {
 	if (playing == songId) {
 		_player.updateState(playing, playingState, playingPosition, playingDuration, playingFrequency);
 
-		if (!(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+		if (!(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing && !animating()) {
 			if (_player.isHidden()) {
 				_player.clearSelection();
 				_player.show();
@@ -2338,9 +2329,7 @@ void MainWidget::showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) 
 
 	QPixmap animCache, animTopBarCache;
 	if (!animating() && ((history.isHidden() && (profile || overview)) || (!cWideMode() && (history.isHidden() || !peerId)))) {
-		dialogs.enableShadow(false);
 		if (peerId) {
-			_topBar.enableShadow(false);
 			if (cWideMode()) {
 				animCache = myGrab(this, QRect(_dialogsWidth, _playerHeight + st::topBarHeight, width() - _dialogsWidth, height() - _playerHeight - st::topBarHeight));
 			} else {
@@ -2354,8 +2343,6 @@ void MainWidget::showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) 
 		if (peerId || cWideMode()) {
 			animTopBarCache = myGrab(this, QRect(_topBar.x(), _topBar.y(), _topBar.width(), st::topBarHeight));
 		}
-		dialogs.enableShadow();
-		_topBar.enableShadow();
 		history.show();
 	}
 	if (history.peer() && history.peer()->id != peerId) clearBotStartToken(history.peer());
@@ -2487,8 +2474,6 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 		return;
 	}
 
-	dialogs.enableShadow(false);
-	_topBar.enableShadow(false);
 	QRect topBarRect = QRect(_topBar.x(), _topBar.y(), _topBar.width(), st::topBarHeight);
 	QRect historyRect = QRect(history.x(), topBarRect.y() + topBarRect.height(), history.width(), history.y() + history.height() - topBarRect.y() - topBarRect.height());
 	QPixmap animCache, animTopBarCache;
@@ -2496,8 +2481,6 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 		animCache = myGrab(this, historyRect);
 		animTopBarCache = myGrab(this, topBarRect);
 	}
-	dialogs.enableShadow();
-	_topBar.enableShadow();
 	if (!back) {
 		if (overview) {
 			_stack.push_back(new StackItemOverview(overview->peer(), overview->type(), overview->lastWidth(), overview->lastScrollTop()));
@@ -2549,11 +2532,7 @@ void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop)
 	App::wnd()->hideSettings();
 	if (profile && profile->peer() == peer) return;
 
-	dialogs.enableShadow(false);
-	_topBar.enableShadow(false);
 	QPixmap animCache = myGrab(this, history.geometry()), animTopBarCache = myGrab(this, QRect(_topBar.x(), _topBar.y(), _topBar.width(), st::topBarHeight));
-	dialogs.enableShadow();
-	_topBar.enableShadow();
 	if (!back) {
 		if (overview) {
 			_stack.push_back(new StackItemOverview(overview->peer(), overview->type(), overview->lastWidth(), overview->lastScrollTop()));
@@ -2775,6 +2754,7 @@ void MainWidget::hideAll() {
 	}
 	_topBar.hide();
 	_mediaType.hide();
+	_player.hide();
 }
 
 void MainWidget::showAll() {
@@ -2834,6 +2814,22 @@ void MainWidget::showAll() {
 			dialogs.hide();
 		}
 	}
+	if (audioPlayer()) {
+		SongMsgId playing;
+		AudioPlayerState playingState = AudioPlayerStopped;
+		int64 playingPosition = 0, playingDuration = 0;
+		int32 playingFrequency = 0;
+		audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
+		if (playing) {
+			_player.updateState(playing, playingState, playingPosition, playingDuration, playingFrequency);
+			if (!(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+				_player.clearSelection();
+				_player.show();
+				_playerHeight = _player.height();
+			}
+		}
+	}
+
 	App::wnd()->checkHistoryActivation();
 }
 
@@ -2841,20 +2837,27 @@ void MainWidget::resizeEvent(QResizeEvent *e) {
 	int32 tbh = _topBar.isHidden() ? 0 : st::topBarHeight;
 	if (cWideMode()) {
 		_dialogsWidth = snap<int>((width() * 5) / 14, st::dlgMinWidth, st::dlgMaxWidth);
-		dialogs.setGeometry(0, 0, _dialogsWidth + st::dlgShadow, height());
-		_player.setGeometry(_dialogsWidth, 0, width() - _dialogsWidth, _player.height());
-		_topBar.setGeometry(_dialogsWidth, _playerHeight, width() - _dialogsWidth, st::topBarHeight + st::titleShadow);
-		history.setGeometry(_dialogsWidth, _playerHeight + tbh, width() - _dialogsWidth, height() - _playerHeight - tbh);
-		if (_hider) _hider->setGeometry(QRect(_dialogsWidth, 0, width() - _dialogsWidth, height()));
+		dialogs.resize(_dialogsWidth, height());
+		dialogs.moveToLeft(0, 0);
+		_player.resize(width() - _dialogsWidth, _player.height());
+		_player.moveToLeft(_dialogsWidth, 0);
+		_topBar.resize(width() - _dialogsWidth, st::topBarHeight);
+		_topBar.moveToLeft(_dialogsWidth, _playerHeight);
+		history.resize(width() - _dialogsWidth, height() - _playerHeight - tbh);
+		history.moveToLeft(_dialogsWidth, _playerHeight + tbh);
+		if (_hider) {
+			_hider->resize(width() - _dialogsWidth, height());
+			_hider->moveToLeft(_dialogsWidth, 0);
+		}
 	} else {
 		_dialogsWidth = width();
 		_player.setGeometry(0, 0, _dialogsWidth, _player.height());
-		dialogs.setGeometry(0, _playerHeight, _dialogsWidth + st::dlgShadow, height() - _playerHeight);
-		_topBar.setGeometry(0, _playerHeight, _dialogsWidth, st::topBarHeight + st::titleShadow);
+		dialogs.setGeometry(0, _playerHeight, _dialogsWidth, height() - _playerHeight);
+		_topBar.setGeometry(0, _playerHeight, _dialogsWidth, st::topBarHeight);
 		history.setGeometry(0, _playerHeight + tbh, _dialogsWidth, height() - _playerHeight - tbh);
-		if (_hider) _hider->setGeometry(QRect(0, 0, _dialogsWidth, height()));
+		if (_hider) _hider->setGeometry(0, 0, _dialogsWidth, height());
 	}
-	_mediaType.move(width() - _mediaType.width(), _playerHeight + st::topBarHeight);
+	_mediaType.moveToLeft(width() - _mediaType.width(), _playerHeight + st::topBarHeight);
 	if (profile) profile->setGeometry(history.geometry());
 	if (overview) overview->setGeometry(history.geometry());
 	_contentScrollAddToY = 0;
@@ -2887,18 +2890,6 @@ void MainWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) {
 		overview->paintTopBar(p, over, decreaseWidth);
 	} else {
 		history.paintTopBar(p, over, decreaseWidth);
-	}
-}
-
-void MainWidget::topBarShadowParams(int32 &x, float64 &o) {
-	if (!cWideMode() && dialogs.isHidden()) {
-		if (profile) {
-			if (!_peerInStack) profile->topBarShadowParams(x, o);
-		} else if (overview) {
-			if (!_peerInStack) overview->topBarShadowParams(x, o);
-		} else {
-			history.topBarShadowParams(x, o);
-		}
 	}
 }
 

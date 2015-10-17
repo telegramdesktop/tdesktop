@@ -220,11 +220,6 @@ void AbstractBox::raiseShadow() {
 	}
 }
 
-void ScrollableBoxShadow::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	p.fillRect(e->rect(), st::boxScrollShadowBg->b);
-}
-
 ScrollableBox::ScrollableBox(const style::flatScroll &scroll, int32 w) : AbstractBox(w),
 _scroll(this, scroll), _innerPtr(0), _topSkip(st::boxTitleHeight), _bottomSkip(st::boxScrollSkip) {
 	setBlueTitle(true);

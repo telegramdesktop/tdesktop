@@ -78,7 +78,6 @@ private:
 
 	MainWidget *main();
 	anim::fvalue a_over;
-	bool _drawShadow;
 
 	PeerData *_selPeer;
 	uint32 _selCount;
@@ -95,6 +94,8 @@ private:
 	FlatButton _info;
 	FlatButton _edit, _leaveGroup, _addContact, _deleteContact;
 	FlatButton _mediaType;
+
+	PlainShadow _sideShadow;
 
 };
 
@@ -176,7 +177,7 @@ enum ForwardWhatMessages {
 	ForwardPressedLinkMessage
 };
 
-class MainWidget : public QWidget, public Animated, public RPCSender {
+class MainWidget : public TWidget, public Animated, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -192,7 +193,6 @@ public:
 	void showDialogs();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
-	void topBarShadowParams(int32 &x, float64 &o);
 	TopBarWidget *topBar();
 
 	PlayerWidget *player();
