@@ -47,9 +47,8 @@ QPixmap myGrab(TWidget *target, QRect rect) {
 	myEnsureResized(target);    
 	if (rect.isNull()) rect = target->rect();
 
-	qreal dpr = App::app()->devicePixelRatio();
-    QPixmap result(rect.size() * dpr);
-    result.setDevicePixelRatio(dpr);
+    QPixmap result(rect.size() * cRetinaFactor());
+    result.setDevicePixelRatio(cRetinaFactor());
     result.fill(Qt::transparent);
 
 	target->grabStart();

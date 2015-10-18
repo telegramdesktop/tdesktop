@@ -382,8 +382,8 @@ MainWidget::MainWidget(Window *window) : TWidget(window)
 , _started(0)
 , failedObjId(0)
 , _toForwardNameVersion(0)
-, _dialogsWidth(st::dlgMinWidth)
 , _a_show(animFunc(this, &MainWidget::animStep_show))
+, _dialogsWidth(st::dlgMinWidth)
 , dialogs(this)
 , history(this)
 , profile(0)
@@ -2813,7 +2813,7 @@ void MainWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (_a_show.animating()) {
 		if (a_coordOver.current() > 0) {
-			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current(), 0, a_coordOver.current(), height()));
+			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * cRetinaFactor(), 0, a_coordOver.current() * cRetinaFactor(), height() * cRetinaFactor()));
 			p.setOpacity(a_shadow.current() * st::slideFadeOut);
 			p.fillRect(0, 0, a_coordOver.current(), height(), st::black->b);
 			p.setOpacity(1);
