@@ -40,6 +40,7 @@
 #include <private/qguiapplication_p.h>
 #include <qpa/qplatformtheme.h>
 #include <qstylehints.h>
+#include <QtCore/QLocale>
 #ifndef QT_NO_ACCESSIBILITY
 #include "qaccessible.h"
 #endif
@@ -1879,10 +1880,17 @@ void QWidgetLineControl::processKeyEvent(QKeyEvent* event)
         unknown = false;
     }
 
-    // QTBUG-35734: ignore Ctrl/Ctrl+Shift; accept only AltGr (Alt+Ctrl) on German keyboards
-    if (unknown && !isReadOnly()
-        && event->modifiers() != Qt::ControlModifier
-        && event->modifiers() != (Qt::ControlModifier | Qt::ShiftModifier)) {
+	// QTBUG-35734: ignore Ctrl/Ctrl+Shift; accept only AltGr (Alt+Ctrl) on German keyboards
+	//
+	bool skip = false;
+	if (QGuiApplication::inputMethod()->locale().language() == QLocale::German) {
+		if (event->modifiers() == Qt::ControlModifier
+			|| event->modifiers() == (Qt::ShiftModifier | Qt::ControlModifier)) {
+			skip = true;
+		}
+	}
+
+	if (unknown && !isReadOnly() && !skip) {
         QString t = event->text();
 		if (!t.isEmpty() && (t.at(0).isPrint() || t.at(0).unicode() == 0x200C || t.at(0).unicode() == 0x200D)) {
             insert(t);

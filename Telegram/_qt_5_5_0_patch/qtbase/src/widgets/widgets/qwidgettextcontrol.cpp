@@ -1342,17 +1342,21 @@ void QWidgetTextControlPrivate::keyPressEvent(QKeyEvent *e)
 
 process:
     {
-        if (QGuiApplication::inputMethod()->locale().language() == QLocale::German)
-        {
-            // QTBUG-35734: ignore Ctrl/Ctrl+Shift; accept only AltGr (Alt+Ctrl) on German keyboards
-            // 
+		// QTBUG-35734: ignore Ctrl/Ctrl+Shift; accept only AltGr (Alt+Ctrl) on German keyboards
+		//
+		bool skip = false;
+        if (QGuiApplication::inputMethod()->locale().language() == QLocale::German) {
             if (e->modifiers() == Qt::ControlModifier
                 || e->modifiers() == (Qt::ShiftModifier | Qt::ControlModifier)) {
-                e->ignore();
-                return;
+				skip = true;
             }
         }
-        QString text = e->text();
+		if (skip) {
+			e->ignore();
+			return;
+		}
+
+		QString text = e->text();
 		if (!text.isEmpty() && (text.at(0).isPrint() || text.at(0) == QLatin1Char('\t') || text.at(0).unicode() == 0x200C || text.at(0).unicode() == 0x200D)) {
             if (overwriteMode
                 // no need to call deleteChar() if we have a selection, insertText
