@@ -1891,7 +1891,7 @@ void MainWidget::documentPlayProgress(const SongMsgId &songId) {
 				name = pattern.isEmpty() ? qsl(".unknown") : pattern.replace('*', QString());
 			}
 			if (pattern.isEmpty()) {
-				filter = qsl("All files (*.*)");
+				filter = QString();
 			} else {
 				filter = mimeType.filterString() + qsl(";;All files (*.*)");
 			}

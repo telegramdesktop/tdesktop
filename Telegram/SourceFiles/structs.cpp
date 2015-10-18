@@ -547,7 +547,37 @@ QString saveFileName(const QString &title, const QString &filter, const QString 
 			}
 		}
 
-		return filedialogGetSaveFile(name, title, filter, name) ? name : QString();
+		// check if extension of filename is present in filter
+		// it should be in first filter section on the first place
+		// place it there, if it is not
+		QString ext = QFileInfo(name).suffix(), fil = filter, sep = qsl(";;");
+		if (!ext.isEmpty()) {
+			if (QRegularExpression(qsl("^[a-zA-Z_0-9]+$")).match(ext).hasMatch()) {
+				QStringList filters = filter.split(sep);
+				if (filters.size() > 1) {
+					QString first = filters.at(0);
+					int32 start = first.indexOf(qsl("(*."));
+					if (start >= 0) {
+						if (!QRegularExpression(qsl("\\(\\*\\.") + ext + qsl("[\\)\\s]"), QRegularExpression::CaseInsensitiveOption).match(first).hasMatch()) {
+							QRegularExpressionMatch m = QRegularExpression(qsl(" \\*\\.") + ext + qsl("[\\)\\s]"), QRegularExpression::CaseInsensitiveOption).match(first);
+							if (m.hasMatch() && m.capturedStart() > start + 3) {
+								int32 oldpos = m.capturedStart(), oldend = m.capturedEnd();
+								fil = first.mid(0, start + 3) + ext + qsl(" *.") + first.mid(start + 3, oldpos - start - 3) + first.mid(oldend - 1) + sep + filters.mid(1).join(sep);
+							} else {
+								fil = first.mid(0, start + 3) + ext + qsl(" *.") + first.mid(start + 3) + sep + filters.mid(1).join(sep);
+							}
+						}
+					} else {
+						fil = QString();
+					}
+				} else {
+					fil = QString();
+				}
+			} else {
+				fil = QString();
+			}
+		}
+		return filedialogGetSaveFile(name, title, fil, name) ? name : QString();
 	}
 
 	QString path;
@@ -818,7 +848,7 @@ void DocumentOpenLink::doOpen(DocumentData *data) {
 	}
 
 	if (pattern.isEmpty()) {
-		filter = qsl("All files (*.*)");
+		filter = QString();
 	} else {
 		filter = mimeType.filterString() + qsl(";;All files (*.*)");
 	}
@@ -857,7 +887,7 @@ void DocumentSaveLink::doSave(DocumentData *data, bool forceSavingAs) {
 		}
 
 		if (pattern.isEmpty()) {
-			filter = qsl("All files (*.*)");
+			filter = QString();
 		} else {
 			filter = mimeType.filterString() + qsl(";;All files (*.*)");
 		}
