@@ -496,7 +496,7 @@ void MediaView::onSaveAs() {
 		}
 
 		if (pattern.isEmpty()) {
-			filter = qsl("All files (*.*)");
+			filter = QString();
 		} else {
 			filter = mimeType.filterString() + qsl(";;All files (*.*)");
 		}
