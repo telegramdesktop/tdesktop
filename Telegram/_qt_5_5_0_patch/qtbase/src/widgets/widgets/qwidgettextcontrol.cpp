@@ -74,7 +74,7 @@
 #include <QtWidgets/qlineedit.h>
 #include <QtGui/qaccessible.h>
 #include <QtCore/qmetaobject.h>
-#include <QLocale.h>
+#include <QtCore/QLocale>
 
 #ifndef QT_NO_SHORTCUT
 #include "private/qapplication_p.h"
