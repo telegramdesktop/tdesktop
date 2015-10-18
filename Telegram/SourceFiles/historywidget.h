@@ -319,6 +319,7 @@ public:
 	HistoryHider(MainWidget *parent, bool forwardSelected); // forward messages
 	HistoryHider(MainWidget *parent, UserData *sharedContact); // share contact
 	HistoryHider(MainWidget *parent); // send path from command line argument
+	HistoryHider(MainWidget *parent, const QString &url, const QString &text); // share url
 
 	bool animStep(float64 ms);
 	bool withConfirm() const;
@@ -353,6 +354,8 @@ private:
 
 	UserData *_sharedContact;
 	bool _forwardSelected, _sendPath;
+
+	QString _shareUrl, _shareText;
 
 	BoxButton _send, _cancel;
 	PeerData *offered;
@@ -520,6 +523,7 @@ public:
 	DragState getDragState(const QMimeData *d);
 
 	void fastShowAtEnd(History *h);
+	void applyDraft(bool parseLinks = true);
 	void showPeerHistory(const PeerId &peer, MsgId showAtMsgId);
 	void clearDelayedShowAt();
 	void clearAllLoadRequests();

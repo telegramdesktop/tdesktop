@@ -2294,7 +2294,7 @@ void DialogsWidget::onCancelSearchInPeer() {
 		_searchRequest = 0;
 	}
 	if (_searchInPeer) {
-		if (!cWideMode()) {
+		if (!cWideMode() && !App::main()->selectingPeer()) {
 			App::main()->showPeerHistory(_searchInPeer->id, ShowAtUnreadMsgId);
 		}
 		_searchInPeer = 0;
@@ -2304,7 +2304,7 @@ void DialogsWidget::onCancelSearchInPeer() {
 	_filter.clear();
 	_filter.updatePlaceholder();
 	onFilterUpdate();
-	if (cWideMode()) {
+	if (cWideMode() && !App::main()->selectingPeer()) {
 		emit cancelled();
 	}
 }

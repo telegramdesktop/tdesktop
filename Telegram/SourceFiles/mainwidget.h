@@ -285,9 +285,11 @@ public:
 	void forwardLayer(int32 forwardSelected = 0); // -1 - send paths
 	void deleteLayer(int32 selectedCount = -1); // -1 - context item, else selected, -2 - cancel upload
 	void shareContactLayer(UserData *contact);
+	void shareUrlLayer(const QString &url, const QString &text);
 	void hiderLayer(HistoryHider *h);
 	void noHider(HistoryHider *destroyed);
 	bool onForward(const PeerId &peer, ForwardWhatMessages what);
+	bool onShareUrl(const PeerId &peer, const QString &url, const QString &text);
 	void onShareContact(const PeerId &peer, UserData *contact);
 	void onSendPaths(const PeerId &peer);
 	void onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data);

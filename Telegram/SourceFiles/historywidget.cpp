@@ -2104,6 +2104,24 @@ HistoryHider::HistoryHider(MainWidget *parent) : TWidget(parent)
 	init();
 }
 
+HistoryHider::HistoryHider(MainWidget *parent, const QString &url, const QString &text) : TWidget(parent)
+, _sharedContact(0)
+, _forwardSelected(false)
+, _sendPath(false)
+, _shareUrl(url)
+, _shareText(text)
+, _send(this, lang(lng_forward_send), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
+, offered(0)
+, a_opacity(0, 1)
+, hiding(false)
+, _forwardRequest(0)
+, toTextWidth(0)
+, shadow(st::boxShadow)
+{
+	init();
+}
+
 void HistoryHider::init() {
 	connect(&_send, SIGNAL(clicked()), this, SLOT(forward()));
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(startHide()));
@@ -2211,6 +2229,8 @@ void HistoryHider::forward() {
 			parent()->onShareContact(offered->id, _sharedContact);
 		} else if (_sendPath) {
 			parent()->onSendPaths(offered->id);
+		} else if (!_shareUrl.isEmpty()) {
+			parent()->onShareUrl(offered->id, _shareUrl, _shareText);
 		} else {
 			parent()->onForward(offered->id, _forwardSelected ? ForwardSelectedMessages : ForwardContextMessage);
 		}
@@ -2268,6 +2288,13 @@ bool HistoryHider::offerPeer(PeerId peer) {
 			}
 			phrase = lng_forward_send_file_confirm(lt_name, name, lt_recipient, recipient);
 		}
+	} else if (!_shareUrl.isEmpty()) {
+		PeerId to = offered->id;
+		offered = 0;
+		if (parent()->onShareUrl(to, _shareUrl, _shareText)) {
+			startHide();
+		}
+		return false;
 	} else {
 		PeerId to = offered->id;
 		offered = 0;
@@ -2880,6 +2907,17 @@ void HistoryWidget::fastShowAtEnd(History *h) {
 	}
 }
 
+void HistoryWidget::applyDraft(bool parseLinks) {
+	if (!_history) return;
+	setFieldText(_history->draft);
+	_field.setFocus();
+	_history->draftCursor.applyTo(_field, &_synthedTextUpdate);
+	_previewCancelled = _history->draftPreviewCancelled;
+	if (parseLinks) {
+		onPreviewParse();
+	}
+}
+
 void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 	MsgId wasMsgId = _showAtMsgId;
 	History *wasHistory = _history;
@@ -3028,13 +3066,8 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 		App::main()->peerUpdated(_peer);
 		
 		if (_history->draftToId > 0 || !_history->draft.isEmpty()) {
-			setFieldText(_history->draft);
-			_field.setFocus();
-			_history->draftCursor.applyTo(_field, &_synthedTextUpdate);
+			applyDraft(false);
 			_replyToId = readyToForward() ? 0 : _history->draftToId;
-			if (_history->draftPreviewCancelled) {
-				_previewCancelled = true;
-			}
 		} else {
 			Local::MessageDraft draft = Local::readDraft(_peer->id);
 			setFieldText(draft.text);
@@ -3044,9 +3077,7 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 				cur.applyTo(_field, &_synthedTextUpdate);
 			}
 			_replyToId = readyToForward() ? 0 : draft.replyTo;
-			if (draft.previewCancelled) {
-				_previewCancelled = true;
-			}
+			_previewCancelled = draft.previewCancelled;
 		}
 		if (_replyToId) {
 			updateReplyTo();

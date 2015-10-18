@@ -509,6 +509,26 @@ bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
 	return true;
 }
 
+bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QString &text) {
+	PeerData *p = App::peer(peer);
+	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && (p->asChat()->haveLeft || p->asChat()->isForbidden)) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
+		App::wnd()->showLayer(new InformBox(lang(lng_share_cant)));
+		return false;
+	}
+	History *h = App::history(peer);
+	h->draft = url + '\n' + text;
+	h->draftCursor.anchor = url.size() + 1;
+	h->draftCursor.position = h->draftCursor.anchor + text.size();
+	h->draftPreviewCancelled = false;
+	bool opened = history.peer() && (history.peer()->id == peer);
+	if (opened) {
+		history.applyDraft();
+	} else {
+		showPeerHistory(peer, ShowAtUnreadMsgId);
+	}
+	return true;
+}
+
 bool MainWidget::hasForwardingItems() {
 	return !_toForward.isEmpty();
 }
@@ -783,6 +803,10 @@ void MainWidget::deleteLayer(int32 selectedCount) {
 
 void MainWidget::shareContactLayer(UserData *contact) {
 	hiderLayer(new HistoryHider(this, contact));
+}
+
+void MainWidget::shareUrlLayer(const QString &url, const QString &text) {
+	hiderLayer(new HistoryHider(this, url, text));
 }
 
 bool MainWidget::selectingPeer(bool withConfirm) {
@@ -3577,6 +3601,22 @@ void MainWidget::openLocalUrl(const QString &url) {
 		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://addstickers/?\\?set=([a-zA-Z0-9\\.\\_]+)(&|$)"), QRegularExpression::CaseInsensitiveOption).match(u);
 		if (m.hasMatch()) {
 			stickersBox(MTP_inputStickerSetShortName(MTP_string(m.captured(1))));
+		}
+	} else if (u.startsWith(qstr("tg://msg_url"), Qt::CaseInsensitive)) {
+		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://msg_url/?\\?(.+)(#|$)"), QRegularExpression::CaseInsensitiveOption).match(u);
+		if (m.hasMatch()) {
+			QStringList params = m.captured(1).split('&');
+			QString url, text;
+			for (int32 i = 0, l = params.size(); i < l; ++i) {
+				if (params.at(i).startsWith(qstr("url="), Qt::CaseInsensitive)) {
+					url = myUrlDecode(params.at(i).mid(4));
+				} else if (params.at(i).startsWith(qstr("text="), Qt::CaseInsensitive)) {
+					text = myUrlDecode(params.at(i).mid(5));
+				}
+			}
+			if (!url.isEmpty()) {
+				shareUrlLayer(url, text);
+			}
 		}
 	}
 }
