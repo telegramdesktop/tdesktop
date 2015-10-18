@@ -126,6 +126,56 @@ index 8b2b988..2d1cdd9 100644
      virtual void setFilter() = 0;
      virtual void selectNameFilter(const QString &filter) = 0;
      virtual QString selectedNameFilter() const = 0;
+diff --git a/qtbase/src/gui/painting/qbackingstore.cpp b/qtbase/src/gui/painting/qbackingstore.cpp
+index 19074e4..c39c6a1 100644
+--- a/qtbase/src/gui/painting/qbackingstore.cpp
++++ b/qtbase/src/gui/painting/qbackingstore.cpp
+@@ -153,6 +153,15 @@ void QBackingStore::beginPaint(const QRegion &region)
+     d_ptr->platformBackingStore->beginPaint(region);
+ }
+ 
++void QBackingStore::beforeBeginPaint(QWindow *win)
++{
++	if (!win)
++		win = window();
++	if (!win->handle())
++		return;
++	d_ptr->platformBackingStore->beforeBeginPaint(win);
++}
++
+ /*!
+     This function is called after painting onto the surface has ended.
+ 
+@@ -163,6 +172,15 @@ void QBackingStore::endPaint()
+     d_ptr->platformBackingStore->endPaint();
+ }
+ 
++void QBackingStore::afterEndPaint(QWindow *win)
++{
++	if (!win)
++		win = window();
++	if (!win->handle())
++		return;
++	d_ptr->platformBackingStore->afterEndPaint(win);
++}
++
+ /*!
+       Sets the size of the windowsurface to be \a size.
+ 
+diff --git a/qtbase/src/gui/painting/qbackingstore.h b/qtbase/src/gui/painting/qbackingstore.h
+index ee3c05f..faa5fbc 100644
+--- a/qtbase/src/gui/painting/qbackingstore.h
++++ b/qtbase/src/gui/painting/qbackingstore.h
+@@ -69,7 +69,9 @@ public:
+     bool scroll(const QRegion &area, int dx, int dy);
+ 
+     void beginPaint(const QRegion &);
++	void beforeBeginPaint(QWindow *window);
+     void endPaint();
++	void afterEndPaint(QWindow *window);
+ 
+     void setStaticContents(const QRegion &region);
+     QRegion staticContents() const;
 diff --git a/qtbase/src/gui/painting/qimagescale.cpp b/qtbase/src/gui/painting/qimagescale.cpp
 index 9b4eabc..a3e0e04 100644
 --- a/qtbase/src/gui/painting/qimagescale.cpp
@@ -167,6 +217,22 @@ index c58662e..468d671 100644
          }
  
          // Make sure we're inside the viewport.
+diff --git a/qtbase/src/gui/painting/qplatformbackingstore.h b/qtbase/src/gui/painting/qplatformbackingstore.h
+index eac97e9..0cb1c9a 100644
+--- a/qtbase/src/gui/painting/qplatformbackingstore.h
++++ b/qtbase/src/gui/painting/qplatformbackingstore.h
+@@ -131,7 +131,11 @@ public:
+     virtual bool scroll(const QRegion &area, int dx, int dy);
+ 
+     virtual void beginPaint(const QRegion &);
++	virtual void beforeBeginPaint(QWindow *window) {
++	}
+     virtual void endPaint();
++	virtual void afterEndPaint(QWindow *window) {
++	}
+ 
+ private:
+     QPlatformBackingStorePrivate *d_ptr;
 diff --git a/qtbase/src/gui/text/qtextlayout.cpp b/qtbase/src/gui/text/qtextlayout.cpp
 index 7da3e84..0829250 100644
 --- a/qtbase/src/gui/text/qtextlayout.cpp
@@ -11213,6 +11279,99 @@ index f3a0216..643ebdd 100644
      }
  
      if ([self canQuit]) {
+diff --git a/qtbase/src/plugins/platforms/cocoa/qcocoabackingstore.h b/qtbase/src/plugins/platforms/cocoa/qcocoabackingstore.h
+index 3737584..1014a21 100644
+--- a/qtbase/src/plugins/platforms/cocoa/qcocoabackingstore.h
++++ b/qtbase/src/plugins/platforms/cocoa/qcocoabackingstore.h
+@@ -55,11 +55,14 @@ public:
+     void resize (const QSize &size, const QRegion &);
+     bool scroll(const QRegion &area, int dx, int dy);
+     void beginPaint(const QRegion &region);
++	void beforeBeginPaint(QWindow *widget);
++	void afterEndPaint(QWindow *widget);
+     qreal getBackingStoreDevicePixelRatio();
+ 
+ private:
+     QImage m_qImage;
+     QSize m_requestedSize;
++	bool m_qImageNeedsClear, m_imageWasEqual;
+ };
+ 
+ QT_END_NAMESPACE
+diff --git a/qtbase/src/plugins/platforms/cocoa/qcocoabackingstore.mm b/qtbase/src/plugins/platforms/cocoa/qcocoabackingstore.mm
+index 6a4f7ed..cab243e 100644
+--- a/qtbase/src/plugins/platforms/cocoa/qcocoabackingstore.mm
++++ b/qtbase/src/plugins/platforms/cocoa/qcocoabackingstore.mm
+@@ -38,7 +38,7 @@
+ QT_BEGIN_NAMESPACE
+ 
+ QCocoaBackingStore::QCocoaBackingStore(QWindow *window)
+-    : QPlatformBackingStore(window)
++    : QPlatformBackingStore(window), m_qImageNeedsClear(false), m_imageWasEqual(false)
+ {
+ }
+ 
+@@ -57,9 +57,10 @@ QPaintDevice *QCocoaBackingStore::paintDevice()
+     if (m_qImage.size() != effectiveBufferSize) {
+         QImage::Format format = (window()->format().hasAlpha() || cocoaWindow->m_drawContentBorderGradient)
+                 ? QImage::Format_ARGB32_Premultiplied : QImage::Format_RGB32;
++		m_qImageNeedsClear = window()->requestedFormat().hasAlpha() || cocoaWindow->m_drawContentBorderGradient;
+         m_qImage = QImage(effectiveBufferSize, format);
+         m_qImage.setDevicePixelRatio(windowDevicePixelRatio);
+-        if (format == QImage::Format_ARGB32_Premultiplied)
++        if (m_qImageNeedsClear)
+             m_qImage.fill(Qt::transparent);
+     }
+     return &m_qImage;
+@@ -98,7 +99,7 @@ bool QCocoaBackingStore::scroll(const QRegion &area, int dx, int dy)
+ 
+ void QCocoaBackingStore::beginPaint(const QRegion &region)
+ {
+-    if (m_qImage.hasAlphaChannel()) {
++    if (m_qImageNeedsClear && m_qImage.hasAlphaChannel()) {
+         QPainter p(&m_qImage);
+         p.setCompositionMode(QPainter::CompositionMode_Source);
+         const QVector<QRect> rects = region.rects();
+@@ -108,6 +109,26 @@ void QCocoaBackingStore::beginPaint(const QRegion &region)
+     }
+ }
+ 
++void QCocoaBackingStore::beforeBeginPaint(QWindow *win) {
++	m_imageWasEqual = false;
++	if (!m_qImage.isNull()) {
++		if (QCocoaWindow *cocoaWindow = static_cast<QCocoaWindow *>(win->handle())) {
++			if ([cocoaWindow->m_qtView beforeBeginPaint:this])
++				m_imageWasEqual = true;
++		}
++	}
++}
++
++void QCocoaBackingStore::afterEndPaint(QWindow *win) {
++	if (!m_qImage.isNull()) {
++		if (QCocoaWindow *cocoaWindow = static_cast<QCocoaWindow *>(win->handle())) {
++			if (m_imageWasEqual)
++				[cocoaWindow->m_qtView afterEndPaint:this];
++		}
++	}
++	m_imageWasEqual = false;
++}
++
+ qreal QCocoaBackingStore::getBackingStoreDevicePixelRatio()
+ {
+     return m_qImage.devicePixelRatio();
+diff --git a/qtbase/src/plugins/platforms/cocoa/qcocoacursor.mm b/qtbase/src/plugins/platforms/cocoa/qcocoacursor.mm
+index 06e957c..922809f 100644
+--- a/qtbase/src/plugins/platforms/cocoa/qcocoacursor.mm
++++ b/qtbase/src/plugins/platforms/cocoa/qcocoacursor.mm
+@@ -73,7 +73,7 @@ void QCocoaCursor::setPos(const QPoint &position)
+     pos.x = position.x();
+     pos.y = position.y();
+ 
+-    CGEventRef e = CGEventCreateMouseEvent(0, kCGEventMouseMoved, pos, 0);
++    CGEventRef e = CGEventCreateMouseEvent(0, kCGEventMouseMoved, pos, kCGMouseButtonLeft);
+     CGEventPost(kCGHIDEventTap, e);
+     CFRelease(e);
+ }
 diff --git a/qtbase/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm b/qtbase/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
 index 713758c..9c695aa 100644
 --- a/qtbase/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
@@ -11363,11 +11522,45 @@ index 92fc66a..d18884a 100644
          NSImage *image = static_cast<NSImage *>(qt_mac_create_nsimage(pixmap));
          [iconButton setImage:image];
          [image release];
+diff --git a/qtbase/src/plugins/platforms/cocoa/qnsview.h b/qtbase/src/plugins/platforms/cocoa/qnsview.h
+index 32bc15d..1940b25 100644
+--- a/qtbase/src/plugins/platforms/cocoa/qnsview.h
++++ b/qtbase/src/plugins/platforms/cocoa/qnsview.h
+@@ -86,6 +86,8 @@ Q_FORWARD_DECLARE_OBJC_CLASS(QT_MANGLE_NAMESPACE(QNSViewMouseMoveHelper));
+ - (void)setQCocoaGLContext:(QCocoaGLContext *)context;
+ #endif
+ - (void)flushBackingStore:(QCocoaBackingStore *)backingStore region:(const QRegion &)region offset:(QPoint)offset;
++- (BOOL)beforeBeginPaint:(QCocoaBackingStore *)backingStore;
++- (void)afterEndPaint:(QCocoaBackingStore *)backingStore;
+ - (void)setMaskRegion:(const QRegion *)region;
+ - (void)invalidateWindowShadowIfNeeded;
+ - (void)drawRect:(NSRect)dirtyRect;
 diff --git a/qtbase/src/plugins/platforms/cocoa/qnsview.mm b/qtbase/src/plugins/platforms/cocoa/qnsview.mm
-index d44cdb3..cfc8705 100644
+index d44cdb3..f31ad9e 100644
 --- a/qtbase/src/plugins/platforms/cocoa/qnsview.mm
 +++ b/qtbase/src/plugins/platforms/cocoa/qnsview.mm
-@@ -1348,7 +1348,7 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
+@@ -484,6 +484,20 @@ QT_WARNING_POP
+     }
+ }
+ 
++- (BOOL) beforeBeginPaint:(QCocoaBackingStore *)backingStore
++{
++	if (!m_backingStore.isNull() && m_backingStore.constBits() == backingStore->toImage().constBits()) {
++		m_backingStore = QImage();
++		return true;
++	}
++	return false;
++}
++
++- (void) afterEndPaint:(QCocoaBackingStore *)backingStore
++{
++	m_backingStore = backingStore->toImage();
++}
++
+ - (BOOL) hasMask
+ {
+     return m_maskImage != 0;
+@@ -1348,7 +1362,7 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
  #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_8
      if (QSysInfo::QSysInfo::MacintoshVersion >= QSysInfo::MV_10_8) {
          // On 10.8 and above, MayBegin is likely to happen.  We treat it the same as an actual begin.
@@ -11376,7 +11569,7 @@ index d44cdb3..cfc8705 100644
              m_scrolling = true;
              ph = Qt::ScrollBegin;
          }
-@@ -1489,6 +1489,10 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
+@@ -1489,6 +1503,10 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
                  && qtKey == Qt::Key_Period) {
              [self handleKeyEvent:nsevent eventType:int(QEvent::KeyPress)];
              return YES;
@@ -11633,6 +11826,42 @@ index fff90b4..71d060b 100644
      void destroyWindow();
      inline bool isDropSiteEnabled() const { return m_dropTarget != 0; }
      void setDropSiteEnabled(bool enabled);
+diff --git a/qtbase/src/tools/qlalr/lalr.cpp b/qtbase/src/tools/qlalr/lalr.cpp
+index 3d0d5de..cb8071b 100644
+--- a/qtbase/src/tools/qlalr/lalr.cpp
++++ b/qtbase/src/tools/qlalr/lalr.cpp
+@@ -238,11 +238,11 @@ void Grammar::buildExtendedGrammar ()
+   non_terminals.insert (accept_symbol);
+ }
+ 
+-struct _Nullable: public std::unary_function<Name, bool>
++struct __Nullable: public std::unary_function<Name, bool>
+ {
+   Automaton *_M_automaton;
+ 
+-  _Nullable (Automaton *aut):
++  __Nullable (Automaton *aut):
+     _M_automaton (aut) {}
+ 
+   bool operator () (Name name) const
+@@ -300,7 +300,7 @@ void Automaton::buildNullables ()
+ 
+       for (RulePointer rule = _M_grammar->rules.begin (); rule != _M_grammar->rules.end (); ++rule)
+         {
+-          NameList::iterator nn = std::find_if (rule->rhs.begin (), rule->rhs.end (), std::not1 (_Nullable (this)));
++          NameList::iterator nn = std::find_if (rule->rhs.begin (), rule->rhs.end (), std::not1 (__Nullable (this)));
+ 
+           if (nn == rule->rhs.end ())
+             changed |= nullables.insert (rule->lhs).second;
+@@ -635,7 +635,7 @@ void Automaton::buildIncludesDigraph ()
+                   if (! _M_grammar->isNonTerminal (*A))
+                     continue;
+ 
+-                  NameList::iterator first_not_nullable = std::find_if (dot, rule->rhs.end (), std::not1 (_Nullable (this)));
++                  NameList::iterator first_not_nullable = std::find_if (dot, rule->rhs.end (), std::not1 (__Nullable (this)));
+                   if (first_not_nullable != rule->rhs.end ())
+                     continue;
+ 
 diff --git a/qtbase/src/widgets/dialogs/qfiledialog.cpp b/qtbase/src/widgets/dialogs/qfiledialog.cpp
 index a9d5574..ea8aa43 100644
 --- a/qtbase/src/widgets/dialogs/qfiledialog.cpp
@@ -11725,6 +11954,30 @@ index e701eb0..1bdaff5 100644
              if (k->key() == Qt::Key_Backtab
                  || (k->key() == Qt::Key_Tab && (k->modifiers() & Qt::ShiftModifier)))
                  res = focusNextPrevChild(false);
+diff --git a/qtbase/src/widgets/kernel/qwidgetbackingstore.cpp b/qtbase/src/widgets/kernel/qwidgetbackingstore.cpp
+index d107083..1d2aff0 100644
+--- a/qtbase/src/widgets/kernel/qwidgetbackingstore.cpp
++++ b/qtbase/src/widgets/kernel/qwidgetbackingstore.cpp
+@@ -303,6 +303,8 @@ void QWidgetBackingStore::beginPaint(QRegion &toClean, QWidget *widget, QBacking
+     // Always flush repainted areas.
+     dirtyOnScreen += toClean;
+ 
++	backingStore->beforeBeginPaint(tlw->windowHandle());
++
+ #ifdef QT_NO_PAINT_DEBUG
+     backingStore->beginPaint(toClean);
+ #else
+@@ -332,7 +334,9 @@ void QWidgetBackingStore::endPaint(const QRegion &cleaned, QBackingStore *backin
+     backingStore->endPaint();
+ #endif
+ 
+-    flush();
++	backingStore->afterEndPaint(tlw->windowHandle());
++
++	flush();
+ }
+ 
+ /*!
 diff --git a/qtbase/src/widgets/util/qsystemtrayicon.cpp b/qtbase/src/widgets/util/qsystemtrayicon.cpp
 index dc2737c..aa9bc91 100644
 --- a/qtbase/src/widgets/util/qsystemtrayicon.cpp
@@ -11739,12 +11992,36 @@ index dc2737c..aa9bc91 100644
  }
  
 diff --git a/qtbase/src/widgets/widgets/qwidgetlinecontrol.cpp b/qtbase/src/widgets/widgets/qwidgetlinecontrol.cpp
-index 759e41a..fbd3064 100644
+index 759e41a..ba72f4b 100644
 --- a/qtbase/src/widgets/widgets/qwidgetlinecontrol.cpp
 +++ b/qtbase/src/widgets/widgets/qwidgetlinecontrol.cpp
-@@ -1884,7 +1884,7 @@ void QWidgetLineControl::processKeyEvent(QKeyEvent* event)
-         && event->modifiers() != Qt::ControlModifier
-         && event->modifiers() != (Qt::ControlModifier | Qt::ShiftModifier)) {
+@@ -40,6 +40,7 @@
+ #include <private/qguiapplication_p.h>
+ #include <qpa/qplatformtheme.h>
+ #include <qstylehints.h>
++#include <QtCore/QLocale>
+ #ifndef QT_NO_ACCESSIBILITY
+ #include "qaccessible.h"
+ #endif
+@@ -1879,12 +1880,19 @@ void QWidgetLineControl::processKeyEvent(QKeyEvent* event)
+         unknown = false;
+     }
+ 
+-    // QTBUG-35734: ignore Ctrl/Ctrl+Shift; accept only AltGr (Alt+Ctrl) on German keyboards
+-    if (unknown && !isReadOnly()
+-        && event->modifiers() != Qt::ControlModifier
+-        && event->modifiers() != (Qt::ControlModifier | Qt::ShiftModifier)) {
++	// QTBUG-35734: ignore Ctrl/Ctrl+Shift; accept only AltGr (Alt+Ctrl) on German keyboards
++	//
++	bool skip = false;
++	if (QGuiApplication::inputMethod()->locale().language() == QLocale::German) {
++		if (event->modifiers() == Qt::ControlModifier
++			|| event->modifiers() == (Qt::ShiftModifier | Qt::ControlModifier)) {
++			skip = true;
++		}
++	}
++
++	if (unknown && !isReadOnly() && !skip) {
          QString t = event->text();
 -        if (!t.isEmpty() && t.at(0).isPrint()) {
 +		if (!t.isEmpty() && (t.at(0).isPrint() || t.at(0).unicode() == 0x200C || t.at(0).unicode() == 0x200D)) {
@@ -11752,14 +12029,43 @@ index 759e41a..fbd3064 100644
  #ifndef QT_NO_COMPLETER
              complete(event->key());
 diff --git a/qtbase/src/widgets/widgets/qwidgettextcontrol.cpp b/qtbase/src/widgets/widgets/qwidgettextcontrol.cpp
-index faa63cb..f3de539 100644
+index faa63cb..53dc1bf 100644
 --- a/qtbase/src/widgets/widgets/qwidgettextcontrol.cpp
 +++ b/qtbase/src/widgets/widgets/qwidgettextcontrol.cpp
-@@ -1348,7 +1348,7 @@ process:
-             return;
+@@ -74,6 +74,7 @@
+ #include <QtWidgets/qlineedit.h>
+ #include <QtGui/qaccessible.h>
+ #include <QtCore/qmetaobject.h>
++#include <QtCore/QLocale>
+ 
+ #ifndef QT_NO_SHORTCUT
+ #include "private/qapplication_p.h"
+@@ -1341,14 +1342,22 @@ void QWidgetTextControlPrivate::keyPressEvent(QKeyEvent *e)
+ 
+ process:
+     {
+-        // QTBUG-35734: ignore Ctrl/Ctrl+Shift; accept only AltGr (Alt+Ctrl) on German keyboards
+-        if (e->modifiers() == Qt::ControlModifier
+-            || e->modifiers() == (Qt::ShiftModifier | Qt::ControlModifier)) {
+-            e->ignore();
+-            return;
++		// QTBUG-35734: ignore Ctrl/Ctrl+Shift; accept only AltGr (Alt+Ctrl) on German keyboards
++		//
++		bool skip = false;
++        if (QGuiApplication::inputMethod()->locale().language() == QLocale::German) {
++            if (e->modifiers() == Qt::ControlModifier
++                || e->modifiers() == (Qt::ShiftModifier | Qt::ControlModifier)) {
++				skip = true;
++            }
          }
-         QString text = e->text();
+-        QString text = e->text();
 -        if (!text.isEmpty() && (text.at(0).isPrint() || text.at(0) == QLatin1Char('\t'))) {
++		if (skip) {
++			e->ignore();
++			return;
++		}
++
++		QString text = e->text();
 +		if (!text.isEmpty() && (text.at(0).isPrint() || text.at(0) == QLatin1Char('\t') || text.at(0).unicode() == 0x200C || text.at(0).unicode() == 0x200D)) {
              if (overwriteMode
                  // no need to call deleteChar() if we have a selection, insertText
