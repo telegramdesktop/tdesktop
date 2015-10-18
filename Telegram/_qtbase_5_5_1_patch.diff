@@ -1,207 +1,59 @@
-diff --git a/qtbase/mkspecs/common/msvc-desktop.conf b/qtbase/mkspecs/common/msvc-desktop.conf
-index e638af6..e44ee5e 100644
---- a/qtbase/mkspecs/common/msvc-desktop.conf
-+++ b/qtbase/mkspecs/common/msvc-desktop.conf
-@@ -28,9 +28,9 @@ QMAKE_YACCFLAGS         = -d
+diff --git a/mkspecs/common/msvc-desktop.conf b/mkspecs/common/msvc-desktop.conf
+index 369f95b..656fe77 100644
+--- a/mkspecs/common/msvc-desktop.conf
++++ b/mkspecs/common/msvc-desktop.conf
+@@ -28,9 +28,10 @@ QMAKE_YACCFLAGS         = -d
  QMAKE_CFLAGS            = -nologo -Zc:wchar_t
  QMAKE_CFLAGS_WARN_ON    = -W3
  QMAKE_CFLAGS_WARN_OFF   = -W0
 -QMAKE_CFLAGS_RELEASE    = -O2 -MD
 -QMAKE_CFLAGS_RELEASE_WITH_DEBUGINFO += -O2 -MD -Zi
 -QMAKE_CFLAGS_DEBUG      = -Zi -MDd
++# make this build use static runtime library
 +QMAKE_CFLAGS_RELEASE    = -O2 -MT
 +QMAKE_CFLAGS_RELEASE_WITH_DEBUGINFO += -O2 -MT -Zi
 +QMAKE_CFLAGS_DEBUG      = -Zi -MTd
  QMAKE_CFLAGS_YACC       =
  QMAKE_CFLAGS_LTCG       = -GL
  QMAKE_CFLAGS_SSE2       = -arch:SSE2
-diff --git a/qtbase/qmake/generators/mac/pbuilder_pbx.cpp b/qtbase/qmake/generators/mac/pbuilder_pbx.cpp
-index 81bb068..a0fe016 100644
---- a/qtbase/qmake/generators/mac/pbuilder_pbx.cpp
-+++ b/qtbase/qmake/generators/mac/pbuilder_pbx.cpp
-@@ -1500,11 +1500,15 @@ ProjectBuilderMakefileGenerator::writeMakeParts(QTextStream &t)
-                             plist_in_text.replace("@TYPEINFO@",
-                                 (project->isEmpty("QMAKE_PKGINFO_TYPEINFO")
-                                     ? QString::fromLatin1("????") : project->first("QMAKE_PKGINFO_TYPEINFO").left(4).toQString()));
--                            QFile plist_out_file(Option::output_dir + "/Info.plist");
--                            if (plist_out_file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-+							QString plist_dir;
-+							if (!project->isEmpty("PLIST_DIR"))
-+								plist_dir = project->first("PLIST_DIR").toQString();
-+							QString plist_in_filename = QFileInfo(plist_in_file).fileName();
-+							QFile plist_out_file(Option::output_dir + "/" + plist_dir + plist_in_filename);
-+							if (plist_out_file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-                                 QTextStream plist_out(&plist_out_file);
-                                 plist_out << plist_in_text;
--                                t << "\t\t\t\t" << writeSettings("INFOPLIST_FILE", "Info.plist") << ";\n";
-+								t << "\t\t\t\t" << writeSettings("INFOPLIST_FILE", fixForOutput(plist_dir + plist_in_filename)) << ";\n";
-                             }
-                         }
-                     }
-diff --git a/qtbase/qmake/generators/makefile.cpp b/qtbase/qmake/generators/makefile.cpp
-index 4a03faf..2c18c48 100644
---- a/qtbase/qmake/generators/makefile.cpp
-+++ b/qtbase/qmake/generators/makefile.cpp
-@@ -167,7 +167,7 @@ MakefileGenerator::initOutPaths()
-         v["PRECOMPILED_DIR"] = v["OBJECTS_DIR"];
-     static const char * const dirs[] = { "OBJECTS_DIR", "DESTDIR",
-                                          "SUBLIBS_DIR", "DLLDESTDIR",
--                                         "PRECOMPILED_DIR", 0 };
-+										 "PRECOMPILED_DIR", "PLIST_DIR", 0 };
-     for (int x = 0; dirs[x]; x++) {
-         const ProKey dkey(dirs[x]);
-         if (v[dkey].isEmpty())
-diff --git a/qtbase/src/3rdparty/pcre/pcre16_valid_utf16.c b/qtbase/src/3rdparty/pcre/pcre16_valid_utf16.c
-index 0907653..96f6e19 100644
---- a/qtbase/src/3rdparty/pcre/pcre16_valid_utf16.c
-+++ b/qtbase/src/3rdparty/pcre/pcre16_valid_utf16.c
-@@ -101,7 +101,7 @@ for (p = string; length-- > 0; p++)
-     {
-     /* Normal UTF-16 code point. Neither high nor low surrogate. */
-     }
--  else if ((c & 0x0400) == 0)
-+  else if ((c & 0xfc00) == 0xd800)
-     {
-     /* High surrogate. Must be a followed by a low surrogate. */
-     if (length == 0)
-diff --git a/qtbase/src/corelib/kernel/qobjectdefs.h b/qtbase/src/corelib/kernel/qobjectdefs.h
-index 4d01264..9bee473 100644
---- a/qtbase/src/corelib/kernel/qobjectdefs.h
-+++ b/qtbase/src/corelib/kernel/qobjectdefs.h
-@@ -142,7 +142,7 @@ inline void qYouForgotTheQ_OBJECT_Macro(T1, T2) {}
- # define Q_DECL_HIDDEN_STATIC_METACALL Q_DECL_HIDDEN
- #endif
- 
--#if defined(Q_CC_CLANG) && Q_CC_CLANG >= 306
-+#if defined(Q_CC_CLANG) && (Q_CC_CLANG >= 306) && 0
- #  define Q_OBJECT_NO_OVERRIDE_WARNING      QT_WARNING_DISABLE_CLANG("-Winconsistent-missing-override")
- #else
- #  define Q_OBJECT_NO_OVERRIDE_WARNING
-diff --git a/qtbase/src/corelib/tools/qunicodetables.cpp b/qtbase/src/corelib/tools/qunicodetables.cpp
-index 73dce81..76c6933 100644
---- a/qtbase/src/corelib/tools/qunicodetables.cpp
-+++ b/qtbase/src/corelib/tools/qunicodetables.cpp
-@@ -5839,7 +5839,7 @@ static const Properties uc_properties[] = {
+diff --git a/src/corelib/tools/qunicodetables.cpp b/src/corelib/tools/qunicodetables.cpp
+index 73dce81..dc26d0e 100644
+--- a/src/corelib/tools/qunicodetables.cpp
++++ b/src/corelib/tools/qunicodetables.cpp
+@@ -5839,7 +5839,8 @@ static const Properties uc_properties[] = {
      { 1, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 0, 7, 4, 4, 21, 11 },
      { 0, 17, 230, 5, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 4, 4, 4, 21, 11 },
      { 18, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 85, 0, 8, 8, 12, 11 },
 -    { 25, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 12, 17, 2 },
++	// some bad characters appeared in ui in case 2 was here instead of 11
 +    { 25, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 12, 17, 11 },
      { 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 14, 9, 11, 11 },
      { 3, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 14, 9, 11, 11 },
      { 3, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 14, 9, 11, 11 },
-diff --git a/qtbase/src/gui/image/qbmphandler.cpp b/qtbase/src/gui/image/qbmphandler.cpp
-index f124ced..eb78a13 100644
---- a/qtbase/src/gui/image/qbmphandler.cpp
-+++ b/qtbase/src/gui/image/qbmphandler.cpp
-@@ -212,6 +212,9 @@ static bool read_dib_body(QDataStream &s, const BMP_INFOHDR &bi, int offset, int
-     int blue_scale = 0;
-     int alpha_scale = 0;
- 
-+	if (!d->isSequential())
-+		d->seek(startpos + BMP_FILEHDR_SIZE + (bi.biSize >= BMP_WIN4 ? BMP_WIN : bi.biSize)); // goto start of colormap
-+
-     if (bi.biSize >= BMP_WIN4 || (comp == BMP_BITFIELDS && (nbits == 16 || nbits == 32))) {
-         if (d->read((char *)&red_mask, sizeof(red_mask)) != sizeof(red_mask))
-             return false;
-@@ -299,9 +302,6 @@ static bool read_dib_body(QDataStream &s, const BMP_INFOHDR &bi, int offset, int
-     image.setDotsPerMeterX(bi.biXPelsPerMeter);
-     image.setDotsPerMeterY(bi.biYPelsPerMeter);
- 
--    if (!d->isSequential())
--        d->seek(startpos + BMP_FILEHDR_SIZE + (bi.biSize >= BMP_WIN4? BMP_WIN : bi.biSize)); // goto start of colormap
--
-     if (ncols > 0) {                                // read color table
-         uchar rgb[4];
-         int   rgb_len = t == BMP_OLD ? 3 : 4;
-diff --git a/qtbase/src/gui/kernel/qplatformdialoghelper.h b/qtbase/src/gui/kernel/qplatformdialoghelper.h
-index 8b2b988..2d1cdd9 100644
---- a/qtbase/src/gui/kernel/qplatformdialoghelper.h
-+++ b/qtbase/src/gui/kernel/qplatformdialoghelper.h
-@@ -363,6 +363,7 @@ public:
+diff --git a/src/gui/kernel/qplatformdialoghelper.h b/src/gui/kernel/qplatformdialoghelper.h
+index 8b2b988..9de806d 100644
+--- a/src/gui/kernel/qplatformdialoghelper.h
++++ b/src/gui/kernel/qplatformdialoghelper.h
+@@ -363,6 +363,8 @@ public:
      virtual QUrl directory() const = 0;
      virtual void selectFile(const QUrl &filename) = 0;
      virtual QList<QUrl> selectedFiles() const = 0;
++	// adding select-by-url for Windows file dialog
 +	virtual QByteArray selectedRemoteContent() const { return QByteArray(); }
      virtual void setFilter() = 0;
      virtual void selectNameFilter(const QString &filter) = 0;
      virtual QString selectedNameFilter() const = 0;
-diff --git a/qtbase/src/gui/painting/qbackingstore.cpp b/qtbase/src/gui/painting/qbackingstore.cpp
-index 19074e4..c39c6a1 100644
---- a/qtbase/src/gui/painting/qbackingstore.cpp
-+++ b/qtbase/src/gui/painting/qbackingstore.cpp
-@@ -153,6 +153,15 @@ void QBackingStore::beginPaint(const QRegion &region)
-     d_ptr->platformBackingStore->beginPaint(region);
- }
- 
-+void QBackingStore::beforeBeginPaint(QWindow *win)
-+{
-+	if (!win)
-+		win = window();
-+	if (!win->handle())
-+		return;
-+	d_ptr->platformBackingStore->beforeBeginPaint(win);
-+}
-+
- /*!
-     This function is called after painting onto the surface has ended.
- 
-@@ -163,6 +172,15 @@ void QBackingStore::endPaint()
-     d_ptr->platformBackingStore->endPaint();
- }
- 
-+void QBackingStore::afterEndPaint(QWindow *win)
-+{
-+	if (!win)
-+		win = window();
-+	if (!win->handle())
-+		return;
-+	d_ptr->platformBackingStore->afterEndPaint(win);
-+}
-+
- /*!
-       Sets the size of the windowsurface to be \a size.
- 
-diff --git a/qtbase/src/gui/painting/qbackingstore.h b/qtbase/src/gui/painting/qbackingstore.h
-index ee3c05f..faa5fbc 100644
---- a/qtbase/src/gui/painting/qbackingstore.h
-+++ b/qtbase/src/gui/painting/qbackingstore.h
-@@ -69,7 +69,9 @@ public:
-     bool scroll(const QRegion &area, int dx, int dy);
- 
-     void beginPaint(const QRegion &);
-+	void beforeBeginPaint(QWindow *window);
-     void endPaint();
-+	void afterEndPaint(QWindow *window);
- 
-     void setStaticContents(const QRegion &region);
-     QRegion staticContents() const;
-diff --git a/qtbase/src/gui/painting/qimagescale.cpp b/qtbase/src/gui/painting/qimagescale.cpp
-index 9b4eabc..a3e0e04 100644
---- a/qtbase/src/gui/painting/qimagescale.cpp
-+++ b/qtbase/src/gui/painting/qimagescale.cpp
-@@ -313,7 +313,10 @@ static void qt_qimageScaleAARGBA_up_xy(QImageScaleInfo *isi, unsigned int *dest,
-             for (int x = dxx; x < end; x++) {
-                 const unsigned int *pix = sptr + xpoints[x];
-                 const int xap = xapoints[x];
--                *dptr = INTERPOLATE_PIXEL_256(pix[0], 256 - xap, pix[1], xap);
-+				if (xap > 0)
-+					*dptr = INTERPOLATE_PIXEL_256(pix[0], 256 - xap, pix[1], xap);
-+				else
-+					*dptr = pix[0];
-                 dptr++;
-             }
-         }
-diff --git a/qtbase/src/gui/painting/qpaintengine_p.h b/qtbase/src/gui/painting/qpaintengine_p.h
-index c58662e..468d671 100644
---- a/qtbase/src/gui/painting/qpaintengine_p.h
-+++ b/qtbase/src/gui/painting/qpaintengine_p.h
-@@ -79,8 +79,18 @@ public:
+diff --git a/src/gui/painting/qpaintengine_p.h b/src/gui/painting/qpaintengine_p.h
+index c58662e..432f2cd 100644
+--- a/src/gui/painting/qpaintengine_p.h
++++ b/src/gui/painting/qpaintengine_p.h
+@@ -79,9 +79,19 @@ public:
          if (hasSystemTransform) {
              if (systemTransform.type() <= QTransform::TxTranslate)
                  systemClip.translate(qRound(systemTransform.dx()), qRound(systemTransform.dy()));
 -            else
 -                systemClip = systemTransform.map(systemClip);
+-        }
 +			else {
 +// Transform the system clip region back from device pixels to device-independent pixels before
 +// applying systemTransform, which already has transform from device-independent pixels to device pixels
@@ -214,39 +66,26 @@ index c58662e..468d671 100644
 +				systemClip = systemTransform.map(systemClip);
 +#endif
 +			}
-         }
++		}
  
          // Make sure we're inside the viewport.
-diff --git a/qtbase/src/gui/painting/qplatformbackingstore.h b/qtbase/src/gui/painting/qplatformbackingstore.h
-index eac97e9..0cb1c9a 100644
---- a/qtbase/src/gui/painting/qplatformbackingstore.h
-+++ b/qtbase/src/gui/painting/qplatformbackingstore.h
-@@ -131,7 +131,11 @@ public:
-     virtual bool scroll(const QRegion &area, int dx, int dy);
- 
-     virtual void beginPaint(const QRegion &);
-+	virtual void beforeBeginPaint(QWindow *window) {
-+	}
-     virtual void endPaint();
-+	virtual void afterEndPaint(QWindow *window) {
-+	}
- 
- private:
-     QPlatformBackingStorePrivate *d_ptr;
-diff --git a/qtbase/src/gui/text/qtextlayout.cpp b/qtbase/src/gui/text/qtextlayout.cpp
-index 7da3e84..0829250 100644
---- a/qtbase/src/gui/text/qtextlayout.cpp
-+++ b/qtbase/src/gui/text/qtextlayout.cpp
-@@ -643,6 +643,9 @@ int QTextLayout::nextCursorPosition(int oldPos, CursorMode mode) const
+         if (hasSystemViewport) {
+diff --git a/src/gui/text/qtextlayout.cpp b/src/gui/text/qtextlayout.cpp
+index 013cd8a..1a40867 100644
+--- a/src/gui/text/qtextlayout.cpp
++++ b/src/gui/text/qtextlayout.cpp
+@@ -643,7 +643,10 @@ int QTextLayout::nextCursorPosition(int oldPos, CursorMode mode) const
          while (oldPos < len && !attributes[oldPos].graphemeBoundary)
              oldPos++;
      } else {
+-        if (oldPos < len && d->atWordSeparator(oldPos)) {
++		// skip to the end of the current word, not to the start of the next one
 +		while (oldPos < len && attributes[oldPos].whiteSpace)
 +			oldPos++;
-+
-         if (oldPos < len && d->atWordSeparator(oldPos)) {
++		if (oldPos < len && d->atWordSeparator(oldPos)) {
              oldPos++;
              while (oldPos < len && d->atWordSeparator(oldPos))
+                 oldPos++;
 @@ -651,8 +654,6 @@ int QTextLayout::nextCursorPosition(int oldPos, CursorMode mode) const
              while (oldPos < len && !attributes[oldPos].whiteSpace && !d->atWordSeparator(oldPos))
                  oldPos++;
@@ -256,28 +95,30 @@ index 7da3e84..0829250 100644
      }
  
      return oldPos;
-diff --git a/qtbase/src/gui/text/qtextlayout.h b/qtbase/src/gui/text/qtextlayout.h
-index 47dcd38..64c3810 100644
---- a/qtbase/src/gui/text/qtextlayout.h
-+++ b/qtbase/src/gui/text/qtextlayout.h
-@@ -186,6 +186,8 @@ private:
+diff --git a/src/gui/text/qtextlayout.h b/src/gui/text/qtextlayout.h
+index 47dcd38..afe60f1 100644
+--- a/src/gui/text/qtextlayout.h
++++ b/src/gui/text/qtextlayout.h
+@@ -186,6 +186,9 @@ private:
                                 QRectF *brect, int tabstops, int* tabarray, int tabarraylen,
                                 QPainter *painter);
      QTextEngine *d;
 +
++	// allow access to private constructor
 +	friend class TextBlock;
  };
  
  
-diff --git a/qtbase/src/network/socket/qnativesocketengine_win.cpp b/qtbase/src/network/socket/qnativesocketengine_win.cpp
-index 72f85c8..a1c2e08 100644
---- a/qtbase/src/network/socket/qnativesocketengine_win.cpp
-+++ b/qtbase/src/network/socket/qnativesocketengine_win.cpp
-@@ -685,7 +685,13 @@ bool QNativeSocketEnginePrivate::nativeConnect(const QHostAddress &address, quin
+diff --git a/src/network/socket/qnativesocketengine_win.cpp b/src/network/socket/qnativesocketengine_win.cpp
+index 708be2d..5cd58a2 100644
+--- a/src/network/socket/qnativesocketengine_win.cpp
++++ b/src/network/socket/qnativesocketengine_win.cpp
+@@ -685,7 +685,14 @@ bool QNativeSocketEnginePrivate::nativeConnect(const QHostAddress &address, quin
                              errorDetected = true;
                              break;
                          }
 -                        if (value == WSAEADDRNOTAVAIL) {
++						// handle network unreachable error as well
 +						if (value == WSAENETUNREACH) {
 +							setError(QAbstractSocket::NetworkError, NetworkUnreachableErrorString);
 +							socketState = QAbstractSocket::UnconnectedState;
@@ -288,14 +129,15 @@ index 72f85c8..a1c2e08 100644
                              setError(QAbstractSocket::NetworkError, AddressNotAvailableErrorString);
                              socketState = QAbstractSocket::UnconnectedState;
                              errorDetected = true;
-diff --git a/qtbase/src/platformsupport/fontdatabases/basic/qbasicfontdatabase.cpp b/qtbase/src/platformsupport/fontdatabases/basic/qbasicfontdatabase.cpp
-index 65cdabd..190683e 100644
---- a/qtbase/src/platformsupport/fontdatabases/basic/qbasicfontdatabase.cpp
-+++ b/qtbase/src/platformsupport/fontdatabases/basic/qbasicfontdatabase.cpp
-@@ -198,6 +198,78 @@ void QBasicFontDatabase::releaseHandle(void *handle)
+diff --git a/src/platformsupport/fontdatabases/basic/qbasicfontdatabase.cpp b/src/platformsupport/fontdatabases/basic/qbasicfontdatabase.cpp
+index c41061a..fcb9c40 100644
+--- a/src/platformsupport/fontdatabases/basic/qbasicfontdatabase.cpp
++++ b/src/platformsupport/fontdatabases/basic/qbasicfontdatabase.cpp
+@@ -190,6 +190,79 @@ void QBasicFontDatabase::releaseHandle(void *handle)
  
  extern FT_Library qt_getFreetype();
  
++// enable Open Sans Semibold reading
 +// copied from freetype with some modifications
 +
 +#ifndef FT_PARAM_TAG_IGNORE_PREFERRED_FAMILY
@@ -368,10 +210,10 @@ index 65cdabd..190683e 100644
 +
 +// end
 +
- QStringList QBasicFontDatabase::addTTFile(const QByteArray &fontData, const QByteArray &file, QSupportedWritingSystems *supportedWritingSystems)
+ QStringList QBasicFontDatabase::addTTFile(const QByteArray &fontData, const QByteArray &file)
  {
      FT_Library library = qt_getFreetype();
-@@ -209,9 +281,9 @@ QStringList QBasicFontDatabase::addTTFile(const QByteArray &fontData, const QByt
+@@ -201,9 +274,9 @@ QStringList QBasicFontDatabase::addTTFile(const QByteArray &fontData, const QByt
          FT_Face face;
          FT_Error error;
          if (!fontData.isEmpty()) {
@@ -383,85 +225,115 @@ index 65cdabd..190683e 100644
          }
          if (error != FT_Err_Ok) {
              qDebug() << "FT_New_Face failed with index" << index << ":" << hex << error;
-diff --git a/qtbase/src/platformsupport/fontdatabases/fontconfig/qfontconfigdatabase.cpp b/qtbase/src/platformsupport/fontdatabases/fontconfig/qfontconfigdatabase.cpp
-index 112bb8e..9f1df70 100644
---- a/qtbase/src/platformsupport/fontdatabases/fontconfig/qfontconfigdatabase.cpp
-+++ b/qtbase/src/platformsupport/fontdatabases/fontconfig/qfontconfigdatabase.cpp
-@@ -373,6 +373,15 @@ static void populateFromPattern(FcPattern *pattern)
-         return;
+diff --git a/src/platformsupport/fontdatabases/fontconfig/qfontconfigdatabase.cpp b/src/platformsupport/fontdatabases/fontconfig/qfontconfigdatabase.cpp
+index 112bb8e..45be6c6 100644
+--- a/src/platformsupport/fontdatabases/fontconfig/qfontconfigdatabase.cpp
++++ b/src/platformsupport/fontdatabases/fontconfig/qfontconfigdatabase.cpp
+@@ -374,6 +374,17 @@ static void populateFromPattern(FcPattern *pattern)
  
      familyName = QString::fromUtf8((const char *)value);
-+    if (familyName == QLatin1String("Open Sans")) {
-+        FcChar8 *styl = 0;
-+        if (FcPatternGetString(pattern, FC_STYLE, 0, &styl) == FcResultMatch) {
-+            QString style = QString::fromUtf8(reinterpret_cast<const char *>(styl));
-+            if (style == QLatin1String("Semibold")) {
-+                familyName.append(QChar(QChar::Space)).append(style);
-+            }
-+        }
-+    }
  
++	// enable Open Sans Semibold reading
++	if (familyName == QLatin1String("Open Sans")) {
++		FcChar8 *styl = 0;
++		if (FcPatternGetString(pattern, FC_STYLE, 0, &styl) == FcResultMatch) {
++			QString style = QString::fromUtf8(reinterpret_cast<const char *>(styl));
++			if (style == QLatin1String("Semibold")) {
++				familyName.append(QChar(QChar::Space)).append(style);
++			}
++		}
++	}
++
      slant_value = FC_SLANT_ROMAN;
      weight_value = FC_WEIGHT_REGULAR;
-@@ -781,6 +790,15 @@ QStringList QFontconfigDatabase::addApplicationFont(const QByteArray &fontData,
+     spacing_value = FC_PROPORTIONAL;
+@@ -717,6 +728,18 @@ QStringList QFontconfigDatabase::fallbacksForFamily(const QString &family, QFont
+                 continue;
+             //         capitalize(value);
+             QString familyName = QString::fromUtf8((const char *)value);
++
++			// enable Open Sans Semibold reading
++			if (familyName == QLatin1String("Open Sans")) {
++				FcChar8 *styl = 0;
++				if (FcPatternGetString(fontSet->fonts[i], FC_STYLE, 0, &styl) == FcResultMatch) {
++					QString style = QString::fromUtf8(reinterpret_cast<const char *>(styl));
++					if (style == QLatin1String("Semibold")) {
++						familyName.append(QChar(QChar::Space)).append(style);
++					}
++				}
++			}
++
+             if (!fallbackFamilies.contains(familyName,Qt::CaseInsensitive) &&
+                 familyName.compare(family, Qt::CaseInsensitive)) {
+                 fallbackFamilies << familyName;
+@@ -781,7 +804,19 @@ QStringList QFontconfigDatabase::addApplicationFont(const QByteArray &fontData,
          FcChar8 *fam = 0;
          if (FcPatternGetString(pattern, FC_FAMILY, 0, &fam) == FcResultMatch) {
              QString family = QString::fromUtf8(reinterpret_cast<const char *>(fam));
-+            if (family == QLatin1String("Open Sans")) {
-+                FcChar8 *styl = 0;
-+                if (FcPatternGetString(pattern, FC_STYLE, 0, &styl) == FcResultMatch) {
-+                    QString style = QString::fromUtf8(reinterpret_cast<const char *>(styl));
-+                    if (style == QLatin1String("Semibold")) {
-+                        family.append(QChar(QChar::Space)).append(style);
-+                    }
-+                }
-+            }
-             families << family;
+-            families << family;
++
++			// enable Open Sans Semibold reading
++			if (family == QLatin1String("Open Sans")) {
++				FcChar8 *styl = 0;
++				if (FcPatternGetString(pattern, FC_STYLE, 0, &styl) == FcResultMatch) {
++					QString style = QString::fromUtf8(reinterpret_cast<const char *>(styl));
++					if (style == QLatin1String("Semibold")) {
++						family.append(QChar(QChar::Space)).append(style);
++					}
++				}
++			}
++			
++			families << family;
          }
          populateFromPattern(pattern);
-diff --git a/qtbase/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm b/qtbase/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
-index be70092..1594dac 100644
---- a/qtbase/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
-+++ b/qtbase/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
-@@ -263,6 +263,10 @@ static void getFontDescription(CTFontDescriptorRef font, FontDescription *fd)
+ 
+diff --git a/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm b/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
+index be70092..9330322 100644
+--- a/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
++++ b/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
+@@ -263,6 +263,13 @@ static void getFontDescription(CTFontDescriptorRef font, FontDescription *fd)
  
      fd->foundryName = QStringLiteral("CoreText");
      fd->familyName = (CFStringRef) CTFontDescriptorCopyAttribute(font, kCTFontFamilyNameAttribute);
++
++    // enable Open Sans Semibold reading
 +    QCFString _displayName = (CFStringRef) CTFontDescriptorCopyAttribute(font, kCTFontDisplayNameAttribute);
 +    if (_displayName == QStringLiteral("Open Sans Semibold")) {
 +        fd->familyName = _displayName;
 +    }
++
      fd->styleName = (CFStringRef)CTFontDescriptorCopyAttribute(font, kCTFontStyleNameAttribute);
      fd->weight = QFont::Normal;
      fd->style = QFont::StyleNormal;
-diff --git a/qtbase/src/plugins/platforminputcontexts/compose/compose.pro b/qtbase/src/plugins/platforminputcontexts/compose/compose.pro
-index a9da36c..65183b6 100644
---- a/qtbase/src/plugins/platforminputcontexts/compose/compose.pro
-+++ b/qtbase/src/plugins/platforminputcontexts/compose/compose.pro
-@@ -20,7 +20,7 @@ HEADERS += $$PWD/qcomposeplatforminputcontext.h \
+diff --git a/src/plugins/platforminputcontexts/compose/compose.pro b/src/plugins/platforminputcontexts/compose/compose.pro
+index a9da36c..fa9b5b7 100644
+--- a/src/plugins/platforminputcontexts/compose/compose.pro
++++ b/src/plugins/platforminputcontexts/compose/compose.pro
+@@ -20,7 +20,8 @@ HEADERS += $$PWD/qcomposeplatforminputcontext.h \
  contains(QT_CONFIG, xkbcommon-qt): {
      # dont't need x11 dependency for compose key plugin
      QT_CONFIG -= use-xkbcommon-x11support
 -    include(../../../3rdparty/xkbcommon.pri)
++# add fcitx input context plugin to our static build
 +#    include(../../../3rdparty/xkbcommon.pri)
  } else {
      LIBS += $$QMAKE_LIBS_XKBCOMMON
      QMAKE_CXXFLAGS += $$QMAKE_CFLAGS_XKBCOMMON
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/fcitx.json b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitx.json
+diff --git a/src/plugins/platforminputcontexts/fcitx/fcitx.json b/src/plugins/platforminputcontexts/fcitx/fcitx.json
 new file mode 100644
 index 0000000..6d2b389
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitx.json
++++ b/src/plugins/platforminputcontexts/fcitx/fcitx.json
 @@ -0,0 +1,3 @@
 +{
 +    "Keys": [ "fcitx" ]
 +}
 \ No newline at end of file
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/fcitx.pro b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitx.pro
+diff --git a/src/plugins/platforminputcontexts/fcitx/fcitx.pro b/src/plugins/platforminputcontexts/fcitx/fcitx.pro
 new file mode 100644
-index 0000000..cbd3ab7
+index 0000000..6f4f1e5
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitx.pro
++++ b/src/plugins/platforminputcontexts/fcitx/fcitx.pro
 @@ -0,0 +1,38 @@
 +TARGET = fcitxplatforminputcontextplugin
 +
@@ -471,41 +343,41 @@ index 0000000..cbd3ab7
 +load(qt_plugin)
 +
 +QT += dbus gui-private
-+SOURCES +=	$$PWD/fcitxqtconnection.cpp \
-+			$$PWD/fcitxqtformattedpreedit.cpp \
-+			$$PWD/fcitxqtinputcontextproxy.cpp \
-+			$$PWD/fcitxqtinputmethoditem.cpp \
-+			$$PWD/fcitxqtinputmethodproxy.cpp \
-+			$$PWD/fcitxqtkeyboardlayout.cpp \
-+			$$PWD/fcitxqtkeyboardproxy.cpp \
-+			$$PWD/keyuni.cpp \
-+			$$PWD/main.cpp \
-+			$$PWD/qfcitxplatforminputcontext.cpp \
-+			$$PWD/utils.cpp
++SOURCES += $$PWD/fcitxqtconnection.cpp \
++     $$PWD/fcitxqtformattedpreedit.cpp \
++     $$PWD/fcitxqtinputcontextproxy.cpp \
++     $$PWD/fcitxqtinputmethoditem.cpp \
++     $$PWD/fcitxqtinputmethodproxy.cpp \
++     $$PWD/fcitxqtkeyboardlayout.cpp \
++     $$PWD/fcitxqtkeyboardproxy.cpp \
++     $$PWD/keyuni.cpp \
++     $$PWD/main.cpp \
++     $$PWD/qfcitxplatforminputcontext.cpp \
++     $$PWD/utils.cpp
 +
-+HEADERS +=	$$PWD/fcitxqtconnection.h \
-+			$$PWD/fcitxqtconnection_p.h \
-+			$$PWD/fcitxqtdbusaddons_export.h \
-+			$$PWD/fcitxqtdbusaddons_version.h \
-+			$$PWD/fcitxqtformattedpreedit.h \
-+			$$PWD/fcitxqtinputcontextproxy.h \
-+			$$PWD/fcitxqtinputmethoditem.h \
-+			$$PWD/fcitxqtinputmethodproxy.h \
-+			$$PWD/fcitxqtkeyboardlayout.h \
-+			$$PWD/fcitxqtkeyboardproxy.h \
-+			$$PWD/keydata.h \
-+			$$PWD/keyserver_x11.h \
-+			$$PWD/keyuni.h \
-+			$$PWD/main.h \
-+			$$PWD/qfcitxplatforminputcontext.h \
-+			$$PWD/utils.h
++HEADERS += $$PWD/fcitxqtconnection.h \
++     $$PWD/fcitxqtconnection_p.h \
++     $$PWD/fcitxqtdbusaddons_export.h \
++     $$PWD/fcitxqtdbusaddons_version.h \
++     $$PWD/fcitxqtformattedpreedit.h \
++     $$PWD/fcitxqtinputcontextproxy.h \
++     $$PWD/fcitxqtinputmethoditem.h \
++     $$PWD/fcitxqtinputmethodproxy.h \
++     $$PWD/fcitxqtkeyboardlayout.h \
++     $$PWD/fcitxqtkeyboardproxy.h \
++     $$PWD/keydata.h \
++     $$PWD/keyserver_x11.h \
++     $$PWD/keyuni.h \
++     $$PWD/main.h \
++     $$PWD/qfcitxplatforminputcontext.h \
++     $$PWD/utils.h
 +
 +OTHER_FILES += $$PWD/fcitx.json
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtconnection.cpp b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtconnection.cpp
+diff --git a/src/plugins/platforminputcontexts/fcitx/fcitxqtconnection.cpp b/src/plugins/platforminputcontexts/fcitx/fcitxqtconnection.cpp
 new file mode 100644
 index 0000000..a50178a
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtconnection.cpp
++++ b/src/plugins/platforminputcontexts/fcitx/fcitxqtconnection.cpp
 @@ -0,0 +1,369 @@
 +/***************************************************************************
 + *   Copyright (C) 2012~2012 by CSSlayer                                   *
@@ -876,11 +748,11 @@ index 0000000..a50178a
 +        createConnection();
 +    }
 +}
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtconnection.h b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtconnection.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/fcitxqtconnection.h b/src/plugins/platforminputcontexts/fcitx/fcitxqtconnection.h
 new file mode 100644
 index 0000000..efe255f
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtconnection.h
++++ b/src/plugins/platforminputcontexts/fcitx/fcitxqtconnection.h
 @@ -0,0 +1,111 @@
 +/***************************************************************************
 + *   Copyright (C) 2012~2012 by CSSlayer                                   *
@@ -993,11 +865,11 @@ index 0000000..efe255f
 +};
 +
 +#endif // FCITXCONNECTION_H
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtconnection_p.h b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtconnection_p.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/fcitxqtconnection_p.h b/src/plugins/platforminputcontexts/fcitx/fcitxqtconnection_p.h
 new file mode 100644
 index 0000000..dda726a
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtconnection_p.h
++++ b/src/plugins/platforminputcontexts/fcitx/fcitxqtconnection_p.h
 @@ -0,0 +1,68 @@
 +/***************************************************************************
 + *   Copyright (C) 2012~2012 by CSSlayer                                   *
@@ -1067,11 +939,11 @@ index 0000000..dda726a
 +
 +
 +#endif // FCITXCONNECTION_P_H
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtdbusaddons_export.h b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtdbusaddons_export.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/fcitxqtdbusaddons_export.h b/src/plugins/platforminputcontexts/fcitx/fcitxqtdbusaddons_export.h
 new file mode 100644
 index 0000000..3fabfb9
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtdbusaddons_export.h
++++ b/src/plugins/platforminputcontexts/fcitx/fcitxqtdbusaddons_export.h
 @@ -0,0 +1,41 @@
 +
 +#ifndef FCITXQTDBUSADDONS_EXPORT_H
@@ -1114,11 +986,11 @@ index 0000000..3fabfb9
 +#endif
 +
 +#endif
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtdbusaddons_version.h b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtdbusaddons_version.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/fcitxqtdbusaddons_version.h b/src/plugins/platforminputcontexts/fcitx/fcitxqtdbusaddons_version.h
 new file mode 100644
 index 0000000..7b6dbf4
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtdbusaddons_version.h
++++ b/src/plugins/platforminputcontexts/fcitx/fcitxqtdbusaddons_version.h
 @@ -0,0 +1,11 @@
 +
 +#ifndef FCITXQT5DBUSADDONS_VERSION_H
@@ -1131,11 +1003,11 @@ index 0000000..7b6dbf4
 +#define FCITXQT5DBUSADDONS_VERSION ((1<<16)|(0<<8)|(0))
 +
 +#endif
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtformattedpreedit.cpp b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtformattedpreedit.cpp
+diff --git a/src/plugins/platforminputcontexts/fcitx/fcitxqtformattedpreedit.cpp b/src/plugins/platforminputcontexts/fcitx/fcitxqtformattedpreedit.cpp
 new file mode 100644
 index 0000000..c6af845
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtformattedpreedit.cpp
++++ b/src/plugins/platforminputcontexts/fcitx/fcitxqtformattedpreedit.cpp
 @@ -0,0 +1,78 @@
 +/***************************************************************************
 + *   Copyright (C) 2012~2012 by CSSlayer                                   *
@@ -1215,11 +1087,11 @@ index 0000000..c6af845
 +    preedit.setFormat(format);
 +    return argument;
 +}
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtformattedpreedit.h b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtformattedpreedit.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/fcitxqtformattedpreedit.h b/src/plugins/platforminputcontexts/fcitx/fcitxqtformattedpreedit.h
 new file mode 100644
 index 0000000..a00355c
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtformattedpreedit.h
++++ b/src/plugins/platforminputcontexts/fcitx/fcitxqtformattedpreedit.h
 @@ -0,0 +1,51 @@
 +/***************************************************************************
 + *   Copyright (C) 2012~2012 by CSSlayer                                   *
@@ -1272,11 +1144,11 @@ index 0000000..a00355c
 +Q_DECLARE_METATYPE(FcitxQtFormattedPreeditList)
 +
 +#endif
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtinputcontextproxy.cpp b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtinputcontextproxy.cpp
+diff --git a/src/plugins/platforminputcontexts/fcitx/fcitxqtinputcontextproxy.cpp b/src/plugins/platforminputcontexts/fcitx/fcitxqtinputcontextproxy.cpp
 new file mode 100644
 index 0000000..b47d332
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtinputcontextproxy.cpp
++++ b/src/plugins/platforminputcontexts/fcitx/fcitxqtinputcontextproxy.cpp
 @@ -0,0 +1,26 @@
 +/*
 + * This file was generated by qdbusxml2cpp version 0.8
@@ -1304,11 +1176,11 @@ index 0000000..b47d332
 +{
 +}
 +
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtinputcontextproxy.h b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtinputcontextproxy.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/fcitxqtinputcontextproxy.h b/src/plugins/platforminputcontexts/fcitx/fcitxqtinputcontextproxy.h
 new file mode 100644
 index 0000000..19874dc
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtinputcontextproxy.h
++++ b/src/plugins/platforminputcontexts/fcitx/fcitxqtinputcontextproxy.h
 @@ -0,0 +1,136 @@
 +/*
 + * This file was generated by qdbusxml2cpp version 0.8
@@ -1446,11 +1318,11 @@ index 0000000..19874dc
 +};
 +
 +#endif
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethoditem.cpp b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethoditem.cpp
+diff --git a/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethoditem.cpp b/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethoditem.cpp
 new file mode 100644
 index 0000000..d28ed11
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethoditem.cpp
++++ b/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethoditem.cpp
 @@ -0,0 +1,95 @@
 +/***************************************************************************
 + *   Copyright (C) 2011~2012 by CSSlayer                                   *
@@ -1547,11 +1419,11 @@ index 0000000..d28ed11
 +    im.setEnabled(enabled);
 +    return argument;
 +}
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethoditem.h b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethoditem.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethoditem.h b/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethoditem.h
 new file mode 100644
 index 0000000..6b8c780
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethoditem.h
++++ b/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethoditem.h
 @@ -0,0 +1,64 @@
 +/***************************************************************************
 + *   Copyright (C) 2011~2012 by CSSlayer                                   *
@@ -1617,11 +1489,11 @@ index 0000000..6b8c780
 +Q_DECLARE_METATYPE(FcitxQtInputMethodItemList)
 +
 +#endif
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethodproxy.cpp b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethodproxy.cpp
+diff --git a/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethodproxy.cpp b/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethodproxy.cpp
 new file mode 100644
 index 0000000..068f4c2
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethodproxy.cpp
++++ b/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethodproxy.cpp
 @@ -0,0 +1,26 @@
 +/*
 + * This file was generated by qdbusxml2cpp version 0.8
@@ -1649,11 +1521,11 @@ index 0000000..068f4c2
 +{
 +}
 +
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethodproxy.h b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethodproxy.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethodproxy.h b/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethodproxy.h
 new file mode 100644
 index 0000000..7aa37e2
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethodproxy.h
++++ b/src/plugins/platforminputcontexts/fcitx/fcitxqtinputmethodproxy.h
 @@ -0,0 +1,217 @@
 +/*
 + * This file was generated by qdbusxml2cpp version 0.8
@@ -1872,11 +1744,11 @@ index 0000000..7aa37e2
 +};
 +
 +#endif
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardlayout.cpp b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardlayout.cpp
+diff --git a/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardlayout.cpp b/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardlayout.cpp
 new file mode 100644
 index 0000000..32cd981
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardlayout.cpp
++++ b/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardlayout.cpp
 @@ -0,0 +1,100 @@
 +/***************************************************************************
 + *   Copyright (C) 2011~2012 by CSSlayer                                   *
@@ -1978,11 +1850,11 @@ index 0000000..32cd981
 +    layout.setLangCode(langCode);
 +    return argument;
 +}
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardlayout.h b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardlayout.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardlayout.h b/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardlayout.h
 new file mode 100644
 index 0000000..d33438d
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardlayout.h
++++ b/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardlayout.h
 @@ -0,0 +1,58 @@
 +/***************************************************************************
 + *   Copyright (C) 2011~2012 by CSSlayer                                   *
@@ -2042,11 +1914,11 @@ index 0000000..d33438d
 +Q_DECLARE_METATYPE(FcitxQtKeyboardLayoutList)
 +
 +#endif
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardproxy.cpp b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardproxy.cpp
+diff --git a/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardproxy.cpp b/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardproxy.cpp
 new file mode 100644
 index 0000000..7523a92
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardproxy.cpp
++++ b/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardproxy.cpp
 @@ -0,0 +1,26 @@
 +/*
 + * This file was generated by qdbusxml2cpp version 0.8
@@ -2074,11 +1946,11 @@ index 0000000..7523a92
 +{
 +}
 +
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardproxy.h b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardproxy.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardproxy.h b/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardproxy.h
 new file mode 100644
 index 0000000..42a6561
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardproxy.h
++++ b/src/plugins/platforminputcontexts/fcitx/fcitxqtkeyboardproxy.h
 @@ -0,0 +1,74 @@
 +/*
 + * This file was generated by qdbusxml2cpp version 0.8
@@ -2154,11 +2026,11 @@ index 0000000..42a6561
 +};
 +
 +#endif
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/interfaces/org.fcitx.Fcitx.InputContext.xml b/qtbase/src/plugins/platforminputcontexts/fcitx/interfaces/org.fcitx.Fcitx.InputContext.xml
+diff --git a/src/plugins/platforminputcontexts/fcitx/interfaces/org.fcitx.Fcitx.InputContext.xml b/src/plugins/platforminputcontexts/fcitx/interfaces/org.fcitx.Fcitx.InputContext.xml
 new file mode 100644
 index 0000000..1423d69
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/interfaces/org.fcitx.Fcitx.InputContext.xml
++++ b/src/plugins/platforminputcontexts/fcitx/interfaces/org.fcitx.Fcitx.InputContext.xml
 @@ -0,0 +1,81 @@
 +<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
 +"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
@@ -2241,11 +2113,11 @@ index 0000000..1423d69
 +    </signal>
 +  </interface>
 +</node>
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/interfaces/org.fcitx.Fcitx.InputMethod.xml b/qtbase/src/plugins/platforminputcontexts/fcitx/interfaces/org.fcitx.Fcitx.InputMethod.xml
+diff --git a/src/plugins/platforminputcontexts/fcitx/interfaces/org.fcitx.Fcitx.InputMethod.xml b/src/plugins/platforminputcontexts/fcitx/interfaces/org.fcitx.Fcitx.InputMethod.xml
 new file mode 100644
 index 0000000..00dc20a
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/interfaces/org.fcitx.Fcitx.InputMethod.xml
++++ b/src/plugins/platforminputcontexts/fcitx/interfaces/org.fcitx.Fcitx.InputMethod.xml
 @@ -0,0 +1,81 @@
 +<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
 +"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
@@ -2328,11 +2200,11 @@ index 0000000..00dc20a
 +    </property>
 +  </interface>
 +</node>
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/interfaces/org.fcitx.Fcitx.Keyboard.xml b/qtbase/src/plugins/platforminputcontexts/fcitx/interfaces/org.fcitx.Fcitx.Keyboard.xml
+diff --git a/src/plugins/platforminputcontexts/fcitx/interfaces/org.fcitx.Fcitx.Keyboard.xml b/src/plugins/platforminputcontexts/fcitx/interfaces/org.fcitx.Fcitx.Keyboard.xml
 new file mode 100644
 index 0000000..28ffa53
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/interfaces/org.fcitx.Fcitx.Keyboard.xml
++++ b/src/plugins/platforminputcontexts/fcitx/interfaces/org.fcitx.Fcitx.Keyboard.xml
 @@ -0,0 +1,20 @@
 +<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN" "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
 +<node>
@@ -2355,11 +2227,11 @@ index 0000000..28ffa53
 +    </interface>
 +</node>
 \ No newline at end of file
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/keydata.h b/qtbase/src/plugins/platforminputcontexts/fcitx/keydata.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/keydata.h b/src/plugins/platforminputcontexts/fcitx/keydata.h
 new file mode 100644
 index 0000000..5cee565
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/keydata.h
++++ b/src/plugins/platforminputcontexts/fcitx/keydata.h
 @@ -0,0 +1,1612 @@
 +/***************************************************************************
 + *   Copyright (C) 2012~2013 by CSSlayer                                   *
@@ -3973,11 +3845,11 @@ index 0000000..5cee565
 +};
 +
 +#endif // KEYDATA_H
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/keyserver_x11.h b/qtbase/src/plugins/platforminputcontexts/fcitx/keyserver_x11.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/keyserver_x11.h b/src/plugins/platforminputcontexts/fcitx/keyserver_x11.h
 new file mode 100644
 index 0000000..e735210
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/keyserver_x11.h
++++ b/src/plugins/platforminputcontexts/fcitx/keyserver_x11.h
 @@ -0,0 +1,173 @@
 +/*
 +    Copyright (C) 2001 Ellis Whitehead <ellis@kde.org>
@@ -4152,11 +4024,11 @@ index 0000000..e735210
 +}
 +
 +#endif
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/keyuni.cpp b/qtbase/src/plugins/platforminputcontexts/fcitx/keyuni.cpp
+diff --git a/src/plugins/platforminputcontexts/fcitx/keyuni.cpp b/src/plugins/platforminputcontexts/fcitx/keyuni.cpp
 new file mode 100644
 index 0000000..a4dec94
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/keyuni.cpp
++++ b/src/plugins/platforminputcontexts/fcitx/keyuni.cpp
 @@ -0,0 +1,56 @@
 +/***************************************************************************
 + *   Copyright (C) 2012~2013 by CSSlayer                                   *
@@ -4214,11 +4086,11 @@ index 0000000..a4dec94
 +    /* No matching Unicode value found */
 +    return 0;
 +}
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/keyuni.h b/qtbase/src/plugins/platforminputcontexts/fcitx/keyuni.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/keyuni.h b/src/plugins/platforminputcontexts/fcitx/keyuni.h
 new file mode 100644
 index 0000000..02af14d
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/keyuni.h
++++ b/src/plugins/platforminputcontexts/fcitx/keyuni.h
 @@ -0,0 +1,29 @@
 +/***************************************************************************
 + *   Copyright (C) 2012~2013 by CSSlayer                                   *
@@ -4249,11 +4121,11 @@ index 0000000..02af14d
 +
 +
 +#endif // KEYUNI_H
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/main.cpp b/qtbase/src/plugins/platforminputcontexts/fcitx/main.cpp
+diff --git a/src/plugins/platforminputcontexts/fcitx/main.cpp b/src/plugins/platforminputcontexts/fcitx/main.cpp
 new file mode 100644
 index 0000000..d522818
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/main.cpp
++++ b/src/plugins/platforminputcontexts/fcitx/main.cpp
 @@ -0,0 +1,35 @@
 +/***************************************************************************
 + *   Copyright (C) 2012~2013 by CSSlayer                                   *
@@ -4290,11 +4162,11 @@ index 0000000..d522818
 +        return new QFcitxPlatformInputContext;
 +    return 0;
 +}
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/main.h b/qtbase/src/plugins/platforminputcontexts/fcitx/main.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/main.h b/src/plugins/platforminputcontexts/fcitx/main.h
 new file mode 100644
 index 0000000..9938da1
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/main.h
++++ b/src/plugins/platforminputcontexts/fcitx/main.h
 @@ -0,0 +1,37 @@
 +/***************************************************************************
 + *   Copyright (C) 2012~2013 by CSSlayer                                   *
@@ -4333,11 +4205,11 @@ index 0000000..9938da1
 +};
 +
 +#endif // MAIN_H
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/qfcitxplatforminputcontext.cpp b/qtbase/src/plugins/platforminputcontexts/fcitx/qfcitxplatforminputcontext.cpp
+diff --git a/src/plugins/platforminputcontexts/fcitx/qfcitxplatforminputcontext.cpp b/src/plugins/platforminputcontexts/fcitx/qfcitxplatforminputcontext.cpp
 new file mode 100644
 index 0000000..adbf1bd
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/qfcitxplatforminputcontext.cpp
++++ b/src/plugins/platforminputcontexts/fcitx/qfcitxplatforminputcontext.cpp
 @@ -0,0 +1,770 @@
 +/***************************************************************************
 + *   Copyright (C) 2011~2013 by CSSlayer                                   *
@@ -5109,11 +4981,11 @@ index 0000000..adbf1bd
 +
 +
 +// kate: indent-mode cstyle; space-indent on; indent-width 0;
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/qfcitxplatforminputcontext.h b/qtbase/src/plugins/platforminputcontexts/fcitx/qfcitxplatforminputcontext.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/qfcitxplatforminputcontext.h b/src/plugins/platforminputcontexts/fcitx/qfcitxplatforminputcontext.h
 new file mode 100644
 index 0000000..1371278
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/qfcitxplatforminputcontext.h
++++ b/src/plugins/platforminputcontexts/fcitx/qfcitxplatforminputcontext.h
 @@ -0,0 +1,269 @@
 +/***************************************************************************
 + *   Copyright (C) 2012~2013 by CSSlayer                                   *
@@ -5384,11 +5256,11 @@ index 0000000..1371278
 +};
 +
 +#endif // QFCITXPLATFORMINPUTCONTEXT_H
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/utils.cpp b/qtbase/src/plugins/platforminputcontexts/fcitx/utils.cpp
+diff --git a/src/plugins/platforminputcontexts/fcitx/utils.cpp b/src/plugins/platforminputcontexts/fcitx/utils.cpp
 new file mode 100644
 index 0000000..fe4eda1
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/utils.cpp
++++ b/src/plugins/platforminputcontexts/fcitx/utils.cpp
 @@ -0,0 +1,177 @@
 +/***************************************************************************
 + *   Copyright (C) 2012~2013 by CSSlayer                                   *
@@ -5567,11 +5439,11 @@ index 0000000..fe4eda1
 +
 +    return 1;
 +}
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/utils.h b/qtbase/src/plugins/platforminputcontexts/fcitx/utils.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/utils.h b/src/plugins/platforminputcontexts/fcitx/utils.h
 new file mode 100644
 index 0000000..ae0c79c
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/utils.h
++++ b/src/plugins/platforminputcontexts/fcitx/utils.h
 @@ -0,0 +1,35 @@
 +/***************************************************************************
 + *   Copyright (C) 2012~2013 by CSSlayer                                   *
@@ -5608,11 +5480,11 @@ index 0000000..ae0c79c
 +
 +
 +#endif // UTILS_H
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-compat.h b/qtbase/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-compat.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-compat.h b/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-compat.h
 new file mode 100644
 index 0000000..299732f
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-compat.h
++++ b/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-compat.h
 @@ -0,0 +1,98 @@
 +/*
 + * Copyright © 2012 Daniel Stone
@@ -5712,11 +5584,11 @@ index 0000000..299732f
 +#define XKB_MAP_COMPILE_NO_FLAGS XKB_KEYMAP_COMPILE_NO_FLAGS
 +
 +#endif
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-compose.h b/qtbase/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-compose.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-compose.h b/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-compose.h
 new file mode 100644
 index 0000000..7414c37
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-compose.h
++++ b/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-compose.h
 @@ -0,0 +1,488 @@
 +/*
 + * Copyright © 2013 Ran Benita
@@ -6206,11 +6078,11 @@ index 0000000..7414c37
 +#endif
 +
 +#endif /* _XKBCOMMON_COMPOSE_H */
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-keysyms.h b/qtbase/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-keysyms.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-keysyms.h b/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-keysyms.h
 new file mode 100644
-index 0000000..69c582e
+index 0000000..3e8d644
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-keysyms.h
++++ b/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-keysyms.h
 @@ -0,0 +1,3012 @@
 +#ifndef _XKBCOMMON_KEYSYMS_H
 +#define _XKBCOMMON_KEYSYMS_H
@@ -6294,7 +6166,7 @@ index 0000000..69c582e
 + * Unicode number plus 0x01000000. The keysym values in the range
 + * 0x01000100 to 0x0110ffff are reserved to represent Unicode
 + * characters in the range U+0100 to U+10FFFF.
-+ * 
++ *
 + * While most newer Unicode-based X11 clients do already accept
 + * Unicode-mapped keysyms in the range 0x01000100 to 0x0110ffff, it
 + * will remain necessary for clients -- in the interest of
@@ -8165,7 +8037,7 @@ index 0000000..69c582e
 +/*
 + * Vietnamese
 + */
-+ 
++
 +#define XKB_KEY_Abelowdot                  0x1001ea0  /* U+1EA0 LATIN CAPITAL LETTER A WITH DOT BELOW */
 +#define XKB_KEY_abelowdot                  0x1001ea1  /* U+1EA1 LATIN SMALL LETTER A WITH DOT BELOW */
 +#define XKB_KEY_Ahook                      0x1001ea2  /* U+1EA2 LATIN CAPITAL LETTER A WITH HOOK ABOVE */
@@ -8306,7 +8178,7 @@ index 0000000..69c582e
 +#define XKB_KEY_approxeq                   0x1002248  /* U+2245 ALMOST EQUAL TO */
 +#define XKB_KEY_notapproxeq                0x1002247  /* U+2247 NOT ALMOST EQUAL TO */
 +#define XKB_KEY_notidentical               0x1002262  /* U+2262 NOT IDENTICAL TO */
-+#define XKB_KEY_stricteq                   0x1002263  /* U+2263 STRICTLY EQUIVALENT TO */          
++#define XKB_KEY_stricteq                   0x1002263  /* U+2263 STRICTLY EQUIVALENT TO */
 +
 +#define XKB_KEY_braille_dot_1                 0xfff1
 +#define XKB_KEY_braille_dot_2                 0xfff2
@@ -8676,7 +8548,7 @@ index 0000000..69c582e
 + * functionality.
 + */
 +
-+#define XKB_KEY_XF86ModeLock		0x1008FF01	/* Mode Switch Lock */
++#define XKB_KEY_XF86ModeLock   0x1008FF01  /* Mode Switch Lock */
 +
 +/*
 + * Note, 0x1008FF07 - 0x1008FF0F are free and should be used for misc new
@@ -8709,192 +8581,192 @@ index 0000000..69c582e
 +/*
 + * Keys found on some "Internet" keyboards.
 + */
-+#define XKB_KEY_XF86Standby		0x1008FF10   /* System into standby mode   */
-+#define XKB_KEY_XF86AudioLowerVolume	0x1008FF11   /* Volume control down        */
-+#define XKB_KEY_XF86AudioMute	0x1008FF12   /* Mute sound from the system */
-+#define XKB_KEY_XF86AudioRaiseVolume	0x1008FF13   /* Volume control up          */
-+#define XKB_KEY_XF86AudioPlay	0x1008FF14   /* Start playing of audio >   */
-+#define XKB_KEY_XF86AudioStop	0x1008FF15   /* Stop playing audio         */
-+#define XKB_KEY_XF86AudioPrev	0x1008FF16   /* Previous track             */
-+#define XKB_KEY_XF86AudioNext	0x1008FF17   /* Next track                 */
-+#define XKB_KEY_XF86HomePage		0x1008FF18   /* Display user's home page   */
-+#define XKB_KEY_XF86Mail		0x1008FF19   /* Invoke user's mail program */
-+#define XKB_KEY_XF86Start		0x1008FF1A   /* Start application          */
-+#define XKB_KEY_XF86Search		0x1008FF1B   /* Search                     */
-+#define XKB_KEY_XF86AudioRecord	0x1008FF1C   /* Record audio application   */
++#define XKB_KEY_XF86Standby    0x1008FF10   /* System into standby mode   */
++#define XKB_KEY_XF86AudioLowerVolume 0x1008FF11   /* Volume control down        */
++#define XKB_KEY_XF86AudioMute  0x1008FF12   /* Mute sound from the system */
++#define XKB_KEY_XF86AudioRaiseVolume 0x1008FF13   /* Volume control up          */
++#define XKB_KEY_XF86AudioPlay  0x1008FF14   /* Start playing of audio >   */
++#define XKB_KEY_XF86AudioStop  0x1008FF15   /* Stop playing audio         */
++#define XKB_KEY_XF86AudioPrev  0x1008FF16   /* Previous track             */
++#define XKB_KEY_XF86AudioNext  0x1008FF17   /* Next track                 */
++#define XKB_KEY_XF86HomePage   0x1008FF18   /* Display user's home page   */
++#define XKB_KEY_XF86Mail   0x1008FF19   /* Invoke user's mail program */
++#define XKB_KEY_XF86Start    0x1008FF1A   /* Start application          */
++#define XKB_KEY_XF86Search   0x1008FF1B   /* Search                     */
++#define XKB_KEY_XF86AudioRecord  0x1008FF1C   /* Record audio application   */
 +
 +/* These are sometimes found on PDA's (e.g. Palm, PocketPC or elsewhere)   */
-+#define XKB_KEY_XF86Calculator	0x1008FF1D   /* Invoke calculator program  */
-+#define XKB_KEY_XF86Memo		0x1008FF1E   /* Invoke Memo taking program */
-+#define XKB_KEY_XF86ToDoList		0x1008FF1F   /* Invoke To Do List program  */
-+#define XKB_KEY_XF86Calendar		0x1008FF20   /* Invoke Calendar program    */
-+#define XKB_KEY_XF86PowerDown	0x1008FF21   /* Deep sleep the system      */
-+#define XKB_KEY_XF86ContrastAdjust	0x1008FF22   /* Adjust screen contrast     */
-+#define XKB_KEY_XF86RockerUp		0x1008FF23   /* Rocker switches exist up   */
-+#define XKB_KEY_XF86RockerDown	0x1008FF24   /* and down                   */
-+#define XKB_KEY_XF86RockerEnter	0x1008FF25   /* and let you press them     */
++#define XKB_KEY_XF86Calculator 0x1008FF1D   /* Invoke calculator program  */
++#define XKB_KEY_XF86Memo   0x1008FF1E   /* Invoke Memo taking program */
++#define XKB_KEY_XF86ToDoList   0x1008FF1F   /* Invoke To Do List program  */
++#define XKB_KEY_XF86Calendar   0x1008FF20   /* Invoke Calendar program    */
++#define XKB_KEY_XF86PowerDown  0x1008FF21   /* Deep sleep the system      */
++#define XKB_KEY_XF86ContrastAdjust 0x1008FF22   /* Adjust screen contrast     */
++#define XKB_KEY_XF86RockerUp   0x1008FF23   /* Rocker switches exist up   */
++#define XKB_KEY_XF86RockerDown 0x1008FF24   /* and down                   */
++#define XKB_KEY_XF86RockerEnter  0x1008FF25   /* and let you press them     */
 +
 +/* Some more "Internet" keyboard symbols */
-+#define XKB_KEY_XF86Back		0x1008FF26   /* Like back on a browser     */
-+#define XKB_KEY_XF86Forward		0x1008FF27   /* Like forward on a browser  */
-+#define XKB_KEY_XF86Stop		0x1008FF28   /* Stop current operation     */
-+#define XKB_KEY_XF86Refresh		0x1008FF29   /* Refresh the page           */
-+#define XKB_KEY_XF86PowerOff		0x1008FF2A   /* Power off system entirely  */
-+#define XKB_KEY_XF86WakeUp		0x1008FF2B   /* Wake up system from sleep  */
++#define XKB_KEY_XF86Back   0x1008FF26   /* Like back on a browser     */
++#define XKB_KEY_XF86Forward    0x1008FF27   /* Like forward on a browser  */
++#define XKB_KEY_XF86Stop   0x1008FF28   /* Stop current operation     */
++#define XKB_KEY_XF86Refresh    0x1008FF29   /* Refresh the page           */
++#define XKB_KEY_XF86PowerOff   0x1008FF2A   /* Power off system entirely  */
++#define XKB_KEY_XF86WakeUp   0x1008FF2B   /* Wake up system from sleep  */
 +#define XKB_KEY_XF86Eject            0x1008FF2C   /* Eject device (e.g. DVD)    */
 +#define XKB_KEY_XF86ScreenSaver      0x1008FF2D   /* Invoke screensaver         */
 +#define XKB_KEY_XF86WWW              0x1008FF2E   /* Invoke web browser         */
 +#define XKB_KEY_XF86Sleep            0x1008FF2F   /* Put system to sleep        */
-+#define XKB_KEY_XF86Favorites	0x1008FF30   /* Show favorite locations    */
-+#define XKB_KEY_XF86AudioPause	0x1008FF31   /* Pause audio playing        */
-+#define XKB_KEY_XF86AudioMedia	0x1008FF32   /* Launch media collection app */
-+#define XKB_KEY_XF86MyComputer	0x1008FF33   /* Display "My Computer" window */
-+#define XKB_KEY_XF86VendorHome	0x1008FF34   /* Display vendor home web site */
-+#define XKB_KEY_XF86LightBulb	0x1008FF35   /* Light bulb keys exist       */
-+#define XKB_KEY_XF86Shop		0x1008FF36   /* Display shopping web site   */
-+#define XKB_KEY_XF86History		0x1008FF37   /* Show history of web surfing */
-+#define XKB_KEY_XF86OpenURL		0x1008FF38   /* Open selected URL           */
-+#define XKB_KEY_XF86AddFavorite	0x1008FF39   /* Add URL to favorites list   */
-+#define XKB_KEY_XF86HotLinks		0x1008FF3A   /* Show "hot" links            */
-+#define XKB_KEY_XF86BrightnessAdjust	0x1008FF3B   /* Invoke brightness adj. UI   */
-+#define XKB_KEY_XF86Finance		0x1008FF3C   /* Display financial site      */
-+#define XKB_KEY_XF86Community	0x1008FF3D   /* Display user's community    */
-+#define XKB_KEY_XF86AudioRewind	0x1008FF3E   /* "rewind" audio track        */
-+#define XKB_KEY_XF86BackForward	0x1008FF3F   /* ??? */
-+#define XKB_KEY_XF86Launch0		0x1008FF40   /* Launch Application          */
-+#define XKB_KEY_XF86Launch1		0x1008FF41   /* Launch Application          */
-+#define XKB_KEY_XF86Launch2		0x1008FF42   /* Launch Application          */
-+#define XKB_KEY_XF86Launch3		0x1008FF43   /* Launch Application          */
-+#define XKB_KEY_XF86Launch4		0x1008FF44   /* Launch Application          */
-+#define XKB_KEY_XF86Launch5		0x1008FF45   /* Launch Application          */
-+#define XKB_KEY_XF86Launch6		0x1008FF46   /* Launch Application          */
-+#define XKB_KEY_XF86Launch7		0x1008FF47   /* Launch Application          */
-+#define XKB_KEY_XF86Launch8		0x1008FF48   /* Launch Application          */
-+#define XKB_KEY_XF86Launch9		0x1008FF49   /* Launch Application          */
-+#define XKB_KEY_XF86LaunchA		0x1008FF4A   /* Launch Application          */
-+#define XKB_KEY_XF86LaunchB		0x1008FF4B   /* Launch Application          */
-+#define XKB_KEY_XF86LaunchC		0x1008FF4C   /* Launch Application          */
-+#define XKB_KEY_XF86LaunchD		0x1008FF4D   /* Launch Application          */
-+#define XKB_KEY_XF86LaunchE		0x1008FF4E   /* Launch Application          */
-+#define XKB_KEY_XF86LaunchF		0x1008FF4F   /* Launch Application          */
++#define XKB_KEY_XF86Favorites  0x1008FF30   /* Show favorite locations    */
++#define XKB_KEY_XF86AudioPause 0x1008FF31   /* Pause audio playing        */
++#define XKB_KEY_XF86AudioMedia 0x1008FF32   /* Launch media collection app */
++#define XKB_KEY_XF86MyComputer 0x1008FF33   /* Display "My Computer" window */
++#define XKB_KEY_XF86VendorHome 0x1008FF34   /* Display vendor home web site */
++#define XKB_KEY_XF86LightBulb  0x1008FF35   /* Light bulb keys exist       */
++#define XKB_KEY_XF86Shop   0x1008FF36   /* Display shopping web site   */
++#define XKB_KEY_XF86History    0x1008FF37   /* Show history of web surfing */
++#define XKB_KEY_XF86OpenURL    0x1008FF38   /* Open selected URL           */
++#define XKB_KEY_XF86AddFavorite  0x1008FF39   /* Add URL to favorites list   */
++#define XKB_KEY_XF86HotLinks   0x1008FF3A   /* Show "hot" links            */
++#define XKB_KEY_XF86BrightnessAdjust 0x1008FF3B   /* Invoke brightness adj. UI   */
++#define XKB_KEY_XF86Finance    0x1008FF3C   /* Display financial site      */
++#define XKB_KEY_XF86Community  0x1008FF3D   /* Display user's community    */
++#define XKB_KEY_XF86AudioRewind  0x1008FF3E   /* "rewind" audio track        */
++#define XKB_KEY_XF86BackForward  0x1008FF3F   /* ??? */
++#define XKB_KEY_XF86Launch0    0x1008FF40   /* Launch Application          */
++#define XKB_KEY_XF86Launch1    0x1008FF41   /* Launch Application          */
++#define XKB_KEY_XF86Launch2    0x1008FF42   /* Launch Application          */
++#define XKB_KEY_XF86Launch3    0x1008FF43   /* Launch Application          */
++#define XKB_KEY_XF86Launch4    0x1008FF44   /* Launch Application          */
++#define XKB_KEY_XF86Launch5    0x1008FF45   /* Launch Application          */
++#define XKB_KEY_XF86Launch6    0x1008FF46   /* Launch Application          */
++#define XKB_KEY_XF86Launch7    0x1008FF47   /* Launch Application          */
++#define XKB_KEY_XF86Launch8    0x1008FF48   /* Launch Application          */
++#define XKB_KEY_XF86Launch9    0x1008FF49   /* Launch Application          */
++#define XKB_KEY_XF86LaunchA    0x1008FF4A   /* Launch Application          */
++#define XKB_KEY_XF86LaunchB    0x1008FF4B   /* Launch Application          */
++#define XKB_KEY_XF86LaunchC    0x1008FF4C   /* Launch Application          */
++#define XKB_KEY_XF86LaunchD    0x1008FF4D   /* Launch Application          */
++#define XKB_KEY_XF86LaunchE    0x1008FF4E   /* Launch Application          */
++#define XKB_KEY_XF86LaunchF    0x1008FF4F   /* Launch Application          */
 +
-+#define XKB_KEY_XF86ApplicationLeft	0x1008FF50   /* switch to application, left */
-+#define XKB_KEY_XF86ApplicationRight	0x1008FF51   /* switch to application, right*/
-+#define XKB_KEY_XF86Book		0x1008FF52   /* Launch bookreader           */
-+#define XKB_KEY_XF86CD		0x1008FF53   /* Launch CD/DVD player        */
-+#define XKB_KEY_XF86Calculater	0x1008FF54   /* Launch Calculater           */
-+#define XKB_KEY_XF86Clear		0x1008FF55   /* Clear window, screen        */
-+#define XKB_KEY_XF86Close		0x1008FF56   /* Close window                */
-+#define XKB_KEY_XF86Copy		0x1008FF57   /* Copy selection              */
-+#define XKB_KEY_XF86Cut		0x1008FF58   /* Cut selection               */
-+#define XKB_KEY_XF86Display		0x1008FF59   /* Output switch key           */
-+#define XKB_KEY_XF86DOS		0x1008FF5A   /* Launch DOS (emulation)      */
-+#define XKB_KEY_XF86Documents	0x1008FF5B   /* Open documents window       */
-+#define XKB_KEY_XF86Excel		0x1008FF5C   /* Launch spread sheet         */
-+#define XKB_KEY_XF86Explorer		0x1008FF5D   /* Launch file explorer        */
-+#define XKB_KEY_XF86Game		0x1008FF5E   /* Launch game                 */
-+#define XKB_KEY_XF86Go		0x1008FF5F   /* Go to URL                   */
-+#define XKB_KEY_XF86iTouch		0x1008FF60   /* Logitch iTouch- don't use   */
-+#define XKB_KEY_XF86LogOff		0x1008FF61   /* Log off system              */
-+#define XKB_KEY_XF86Market		0x1008FF62   /* ??                          */
-+#define XKB_KEY_XF86Meeting		0x1008FF63   /* enter meeting in calendar   */
-+#define XKB_KEY_XF86MenuKB		0x1008FF65   /* distingush keyboard from PB */
-+#define XKB_KEY_XF86MenuPB		0x1008FF66   /* distinuish PB from keyboard */
-+#define XKB_KEY_XF86MySites		0x1008FF67   /* Favourites                  */
-+#define XKB_KEY_XF86New		0x1008FF68   /* New (folder, document...    */
-+#define XKB_KEY_XF86News		0x1008FF69   /* News                        */
-+#define XKB_KEY_XF86OfficeHome	0x1008FF6A   /* Office home (old Staroffice)*/
-+#define XKB_KEY_XF86Open		0x1008FF6B   /* Open                        */
-+#define XKB_KEY_XF86Option		0x1008FF6C   /* ?? */
-+#define XKB_KEY_XF86Paste		0x1008FF6D   /* Paste                       */
-+#define XKB_KEY_XF86Phone		0x1008FF6E   /* Launch phone; dial number   */
-+#define XKB_KEY_XF86Q		0x1008FF70   /* Compaq's Q - don't use      */
-+#define XKB_KEY_XF86Reply		0x1008FF72   /* Reply e.g., mail            */
-+#define XKB_KEY_XF86Reload		0x1008FF73   /* Reload web page, file, etc. */
-+#define XKB_KEY_XF86RotateWindows	0x1008FF74   /* Rotate windows e.g. xrandr  */
-+#define XKB_KEY_XF86RotationPB	0x1008FF75   /* don't use                   */
-+#define XKB_KEY_XF86RotationKB	0x1008FF76   /* don't use                   */
-+#define XKB_KEY_XF86Save		0x1008FF77   /* Save (file, document, state */
-+#define XKB_KEY_XF86ScrollUp		0x1008FF78   /* Scroll window/contents up   */
-+#define XKB_KEY_XF86ScrollDown	0x1008FF79   /* Scrool window/contentd down */
-+#define XKB_KEY_XF86ScrollClick	0x1008FF7A   /* Use XKB mousekeys instead   */
-+#define XKB_KEY_XF86Send		0x1008FF7B   /* Send mail, file, object     */
-+#define XKB_KEY_XF86Spell		0x1008FF7C   /* Spell checker               */
-+#define XKB_KEY_XF86SplitScreen	0x1008FF7D   /* Split window or screen      */
-+#define XKB_KEY_XF86Support		0x1008FF7E   /* Get support (??)            */
-+#define XKB_KEY_XF86TaskPane		0x1008FF7F   /* Show tasks */
-+#define XKB_KEY_XF86Terminal		0x1008FF80   /* Launch terminal emulator    */
-+#define XKB_KEY_XF86Tools		0x1008FF81   /* toolbox of desktop/app.     */
-+#define XKB_KEY_XF86Travel		0x1008FF82   /* ?? */
-+#define XKB_KEY_XF86UserPB		0x1008FF84   /* ?? */
-+#define XKB_KEY_XF86User1KB		0x1008FF85   /* ?? */
-+#define XKB_KEY_XF86User2KB		0x1008FF86   /* ?? */
-+#define XKB_KEY_XF86Video		0x1008FF87   /* Launch video player       */
-+#define XKB_KEY_XF86WheelButton	0x1008FF88   /* button from a mouse wheel */
-+#define XKB_KEY_XF86Word		0x1008FF89   /* Launch word processor     */
-+#define XKB_KEY_XF86Xfer		0x1008FF8A
-+#define XKB_KEY_XF86ZoomIn		0x1008FF8B   /* zoom in view, map, etc.   */
-+#define XKB_KEY_XF86ZoomOut		0x1008FF8C   /* zoom out view, map, etc.  */
++#define XKB_KEY_XF86ApplicationLeft  0x1008FF50   /* switch to application, left */
++#define XKB_KEY_XF86ApplicationRight 0x1008FF51   /* switch to application, right*/
++#define XKB_KEY_XF86Book   0x1008FF52   /* Launch bookreader           */
++#define XKB_KEY_XF86CD   0x1008FF53   /* Launch CD/DVD player        */
++#define XKB_KEY_XF86Calculater 0x1008FF54   /* Launch Calculater           */
++#define XKB_KEY_XF86Clear    0x1008FF55   /* Clear window, screen        */
++#define XKB_KEY_XF86Close    0x1008FF56   /* Close window                */
++#define XKB_KEY_XF86Copy   0x1008FF57   /* Copy selection              */
++#define XKB_KEY_XF86Cut    0x1008FF58   /* Cut selection               */
++#define XKB_KEY_XF86Display    0x1008FF59   /* Output switch key           */
++#define XKB_KEY_XF86DOS    0x1008FF5A   /* Launch DOS (emulation)      */
++#define XKB_KEY_XF86Documents  0x1008FF5B   /* Open documents window       */
++#define XKB_KEY_XF86Excel    0x1008FF5C   /* Launch spread sheet         */
++#define XKB_KEY_XF86Explorer   0x1008FF5D   /* Launch file explorer        */
++#define XKB_KEY_XF86Game   0x1008FF5E   /* Launch game                 */
++#define XKB_KEY_XF86Go   0x1008FF5F   /* Go to URL                   */
++#define XKB_KEY_XF86iTouch   0x1008FF60   /* Logitch iTouch- don't use   */
++#define XKB_KEY_XF86LogOff   0x1008FF61   /* Log off system              */
++#define XKB_KEY_XF86Market   0x1008FF62   /* ??                          */
++#define XKB_KEY_XF86Meeting    0x1008FF63   /* enter meeting in calendar   */
++#define XKB_KEY_XF86MenuKB   0x1008FF65   /* distingush keyboard from PB */
++#define XKB_KEY_XF86MenuPB   0x1008FF66   /* distinuish PB from keyboard */
++#define XKB_KEY_XF86MySites    0x1008FF67   /* Favourites                  */
++#define XKB_KEY_XF86New    0x1008FF68   /* New (folder, document...    */
++#define XKB_KEY_XF86News   0x1008FF69   /* News                        */
++#define XKB_KEY_XF86OfficeHome 0x1008FF6A   /* Office home (old Staroffice)*/
++#define XKB_KEY_XF86Open   0x1008FF6B   /* Open                        */
++#define XKB_KEY_XF86Option   0x1008FF6C   /* ?? */
++#define XKB_KEY_XF86Paste    0x1008FF6D   /* Paste                       */
++#define XKB_KEY_XF86Phone    0x1008FF6E   /* Launch phone; dial number   */
++#define XKB_KEY_XF86Q    0x1008FF70   /* Compaq's Q - don't use      */
++#define XKB_KEY_XF86Reply    0x1008FF72   /* Reply e.g., mail            */
++#define XKB_KEY_XF86Reload   0x1008FF73   /* Reload web page, file, etc. */
++#define XKB_KEY_XF86RotateWindows  0x1008FF74   /* Rotate windows e.g. xrandr  */
++#define XKB_KEY_XF86RotationPB 0x1008FF75   /* don't use                   */
++#define XKB_KEY_XF86RotationKB 0x1008FF76   /* don't use                   */
++#define XKB_KEY_XF86Save   0x1008FF77   /* Save (file, document, state */
++#define XKB_KEY_XF86ScrollUp   0x1008FF78   /* Scroll window/contents up   */
++#define XKB_KEY_XF86ScrollDown 0x1008FF79   /* Scrool window/contentd down */
++#define XKB_KEY_XF86ScrollClick  0x1008FF7A   /* Use XKB mousekeys instead   */
++#define XKB_KEY_XF86Send   0x1008FF7B   /* Send mail, file, object     */
++#define XKB_KEY_XF86Spell    0x1008FF7C   /* Spell checker               */
++#define XKB_KEY_XF86SplitScreen  0x1008FF7D   /* Split window or screen      */
++#define XKB_KEY_XF86Support    0x1008FF7E   /* Get support (??)            */
++#define XKB_KEY_XF86TaskPane   0x1008FF7F   /* Show tasks */
++#define XKB_KEY_XF86Terminal   0x1008FF80   /* Launch terminal emulator    */
++#define XKB_KEY_XF86Tools    0x1008FF81   /* toolbox of desktop/app.     */
++#define XKB_KEY_XF86Travel   0x1008FF82   /* ?? */
++#define XKB_KEY_XF86UserPB   0x1008FF84   /* ?? */
++#define XKB_KEY_XF86User1KB    0x1008FF85   /* ?? */
++#define XKB_KEY_XF86User2KB    0x1008FF86   /* ?? */
++#define XKB_KEY_XF86Video    0x1008FF87   /* Launch video player       */
++#define XKB_KEY_XF86WheelButton  0x1008FF88   /* button from a mouse wheel */
++#define XKB_KEY_XF86Word   0x1008FF89   /* Launch word processor     */
++#define XKB_KEY_XF86Xfer   0x1008FF8A
++#define XKB_KEY_XF86ZoomIn   0x1008FF8B   /* zoom in view, map, etc.   */
++#define XKB_KEY_XF86ZoomOut    0x1008FF8C   /* zoom out view, map, etc.  */
 +
-+#define XKB_KEY_XF86Away		0x1008FF8D   /* mark yourself as away     */
-+#define XKB_KEY_XF86Messenger	0x1008FF8E   /* as in instant messaging   */
-+#define XKB_KEY_XF86WebCam		0x1008FF8F   /* Launch web camera app.    */
-+#define XKB_KEY_XF86MailForward	0x1008FF90   /* Forward in mail           */
-+#define XKB_KEY_XF86Pictures		0x1008FF91   /* Show pictures             */
-+#define XKB_KEY_XF86Music		0x1008FF92   /* Launch music application  */
++#define XKB_KEY_XF86Away   0x1008FF8D   /* mark yourself as away     */
++#define XKB_KEY_XF86Messenger  0x1008FF8E   /* as in instant messaging   */
++#define XKB_KEY_XF86WebCam   0x1008FF8F   /* Launch web camera app.    */
++#define XKB_KEY_XF86MailForward  0x1008FF90   /* Forward in mail           */
++#define XKB_KEY_XF86Pictures   0x1008FF91   /* Show pictures             */
++#define XKB_KEY_XF86Music    0x1008FF92   /* Launch music application  */
 +
-+#define XKB_KEY_XF86Battery		0x1008FF93   /* Display battery information */
-+#define XKB_KEY_XF86Bluetooth	0x1008FF94   /* Enable/disable Bluetooth    */
-+#define XKB_KEY_XF86WLAN		0x1008FF95   /* Enable/disable WLAN         */
-+#define XKB_KEY_XF86UWB		0x1008FF96   /* Enable/disable UWB	    */
++#define XKB_KEY_XF86Battery    0x1008FF93   /* Display battery information */
++#define XKB_KEY_XF86Bluetooth  0x1008FF94   /* Enable/disable Bluetooth    */
++#define XKB_KEY_XF86WLAN   0x1008FF95   /* Enable/disable WLAN         */
++#define XKB_KEY_XF86UWB    0x1008FF96   /* Enable/disable UWB      */
 +
-+#define XKB_KEY_XF86AudioForward	0x1008FF97   /* fast-forward audio track    */
-+#define XKB_KEY_XF86AudioRepeat	0x1008FF98   /* toggle repeat mode          */
-+#define XKB_KEY_XF86AudioRandomPlay	0x1008FF99   /* toggle shuffle mode         */
-+#define XKB_KEY_XF86Subtitle		0x1008FF9A   /* cycle through subtitle      */
-+#define XKB_KEY_XF86AudioCycleTrack	0x1008FF9B   /* cycle through audio tracks  */
-+#define XKB_KEY_XF86CycleAngle	0x1008FF9C   /* cycle through angles        */
-+#define XKB_KEY_XF86FrameBack	0x1008FF9D   /* video: go one frame back    */
-+#define XKB_KEY_XF86FrameForward	0x1008FF9E   /* video: go one frame forward */
-+#define XKB_KEY_XF86Time		0x1008FF9F   /* display, or shows an entry for time seeking */
-+#define XKB_KEY_XF86Select		0x1008FFA0   /* Select button on joypads and remotes */
-+#define XKB_KEY_XF86View		0x1008FFA1   /* Show a view options/properties */
-+#define XKB_KEY_XF86TopMenu		0x1008FFA2   /* Go to a top-level menu in a video */
++#define XKB_KEY_XF86AudioForward 0x1008FF97   /* fast-forward audio track    */
++#define XKB_KEY_XF86AudioRepeat  0x1008FF98   /* toggle repeat mode          */
++#define XKB_KEY_XF86AudioRandomPlay  0x1008FF99   /* toggle shuffle mode         */
++#define XKB_KEY_XF86Subtitle   0x1008FF9A   /* cycle through subtitle      */
++#define XKB_KEY_XF86AudioCycleTrack  0x1008FF9B   /* cycle through audio tracks  */
++#define XKB_KEY_XF86CycleAngle 0x1008FF9C   /* cycle through angles        */
++#define XKB_KEY_XF86FrameBack  0x1008FF9D   /* video: go one frame back    */
++#define XKB_KEY_XF86FrameForward 0x1008FF9E   /* video: go one frame forward */
++#define XKB_KEY_XF86Time   0x1008FF9F   /* display, or shows an entry for time seeking */
++#define XKB_KEY_XF86Select   0x1008FFA0   /* Select button on joypads and remotes */
++#define XKB_KEY_XF86View   0x1008FFA1   /* Show a view options/properties */
++#define XKB_KEY_XF86TopMenu    0x1008FFA2   /* Go to a top-level menu in a video */
 +
-+#define XKB_KEY_XF86Red		0x1008FFA3   /* Red button                  */
-+#define XKB_KEY_XF86Green		0x1008FFA4   /* Green button                */
-+#define XKB_KEY_XF86Yellow		0x1008FFA5   /* Yellow button               */
++#define XKB_KEY_XF86Red    0x1008FFA3   /* Red button                  */
++#define XKB_KEY_XF86Green    0x1008FFA4   /* Green button                */
++#define XKB_KEY_XF86Yellow   0x1008FFA5   /* Yellow button               */
 +#define XKB_KEY_XF86Blue             0x1008FFA6   /* Blue button                 */
 +
-+#define XKB_KEY_XF86Suspend		0x1008FFA7   /* Sleep to RAM                */
-+#define XKB_KEY_XF86Hibernate	0x1008FFA8   /* Sleep to disk               */
-+#define XKB_KEY_XF86TouchpadToggle	0x1008FFA9   /* Toggle between touchpad/trackstick */
-+#define XKB_KEY_XF86TouchpadOn	0x1008FFB0   /* The touchpad got switched on */
-+#define XKB_KEY_XF86TouchpadOff	0x1008FFB1   /* The touchpad got switched off */
++#define XKB_KEY_XF86Suspend    0x1008FFA7   /* Sleep to RAM                */
++#define XKB_KEY_XF86Hibernate  0x1008FFA8   /* Sleep to disk               */
++#define XKB_KEY_XF86TouchpadToggle 0x1008FFA9   /* Toggle between touchpad/trackstick */
++#define XKB_KEY_XF86TouchpadOn 0x1008FFB0   /* The touchpad got switched on */
++#define XKB_KEY_XF86TouchpadOff  0x1008FFB1   /* The touchpad got switched off */
 +
-+#define XKB_KEY_XF86AudioMicMute	0x1008FFB2   /* Mute the Mic from the system */
++#define XKB_KEY_XF86AudioMicMute 0x1008FFB2   /* Mute the Mic from the system */
 +
 +/* Keys for special action keys (hot keys) */
 +/* Virtual terminals on some operating systems */
-+#define XKB_KEY_XF86Switch_VT_1	0x1008FE01
-+#define XKB_KEY_XF86Switch_VT_2	0x1008FE02
-+#define XKB_KEY_XF86Switch_VT_3	0x1008FE03
-+#define XKB_KEY_XF86Switch_VT_4	0x1008FE04
-+#define XKB_KEY_XF86Switch_VT_5	0x1008FE05
-+#define XKB_KEY_XF86Switch_VT_6	0x1008FE06
-+#define XKB_KEY_XF86Switch_VT_7	0x1008FE07
-+#define XKB_KEY_XF86Switch_VT_8	0x1008FE08
-+#define XKB_KEY_XF86Switch_VT_9	0x1008FE09
-+#define XKB_KEY_XF86Switch_VT_10	0x1008FE0A
-+#define XKB_KEY_XF86Switch_VT_11	0x1008FE0B
-+#define XKB_KEY_XF86Switch_VT_12	0x1008FE0C
++#define XKB_KEY_XF86Switch_VT_1  0x1008FE01
++#define XKB_KEY_XF86Switch_VT_2  0x1008FE02
++#define XKB_KEY_XF86Switch_VT_3  0x1008FE03
++#define XKB_KEY_XF86Switch_VT_4  0x1008FE04
++#define XKB_KEY_XF86Switch_VT_5  0x1008FE05
++#define XKB_KEY_XF86Switch_VT_6  0x1008FE06
++#define XKB_KEY_XF86Switch_VT_7  0x1008FE07
++#define XKB_KEY_XF86Switch_VT_8  0x1008FE08
++#define XKB_KEY_XF86Switch_VT_9  0x1008FE09
++#define XKB_KEY_XF86Switch_VT_10 0x1008FE0A
++#define XKB_KEY_XF86Switch_VT_11 0x1008FE0B
++#define XKB_KEY_XF86Switch_VT_12 0x1008FE0C
 +
-+#define XKB_KEY_XF86Ungrab		0x1008FE20   /* force ungrab               */
-+#define XKB_KEY_XF86ClearGrab	0x1008FE21   /* kill application with grab */
-+#define XKB_KEY_XF86Next_VMode	0x1008FE22   /* next video mode available  */
-+#define XKB_KEY_XF86Prev_VMode	0x1008FE23   /* prev. video mode available */
-+#define XKB_KEY_XF86LogWindowTree	0x1008FE24   /* print window tree to log   */
-+#define XKB_KEY_XF86LogGrabInfo	0x1008FE25   /* print all active grabs to log */
++#define XKB_KEY_XF86Ungrab   0x1008FE20   /* force ungrab               */
++#define XKB_KEY_XF86ClearGrab  0x1008FE21   /* kill application with grab */
++#define XKB_KEY_XF86Next_VMode 0x1008FE22   /* next video mode available  */
++#define XKB_KEY_XF86Prev_VMode 0x1008FE23   /* prev. video mode available */
++#define XKB_KEY_XF86LogWindowTree  0x1008FE24   /* print window tree to log   */
++#define XKB_KEY_XF86LogGrabInfo  0x1008FE25   /* print all active grabs to log */
 +/*
 + * Copyright (c) 1991, Oracle and/or its affiliates. All rights reserved.
 + *
@@ -8947,60 +8819,60 @@ index 0000000..69c582e
 + * Floating Accent
 + */
 +
-+#define XKB_KEY_SunFA_Grave		0x1005FF00
-+#define XKB_KEY_SunFA_Circum		0x1005FF01
-+#define XKB_KEY_SunFA_Tilde		0x1005FF02
-+#define XKB_KEY_SunFA_Acute		0x1005FF03
-+#define XKB_KEY_SunFA_Diaeresis	0x1005FF04
-+#define XKB_KEY_SunFA_Cedilla	0x1005FF05
++#define XKB_KEY_SunFA_Grave    0x1005FF00
++#define XKB_KEY_SunFA_Circum   0x1005FF01
++#define XKB_KEY_SunFA_Tilde    0x1005FF02
++#define XKB_KEY_SunFA_Acute    0x1005FF03
++#define XKB_KEY_SunFA_Diaeresis  0x1005FF04
++#define XKB_KEY_SunFA_Cedilla  0x1005FF05
 +
 +/*
 + * Miscellaneous Functions
 + */
 +
-+#define XKB_KEY_SunF36		0x1005FF10	/* Labeled F11 */
-+#define XKB_KEY_SunF37		0x1005FF11	/* Labeled F12 */
++#define XKB_KEY_SunF36   0x1005FF10  /* Labeled F11 */
++#define XKB_KEY_SunF37   0x1005FF11  /* Labeled F12 */
 +
-+#define XKB_KEY_SunSys_Req   	0x1005FF60
-+#define XKB_KEY_SunPrint_Screen	0x0000FF61	/* Same as XK_Print */
++#define XKB_KEY_SunSys_Req     0x1005FF60
++#define XKB_KEY_SunPrint_Screen  0x0000FF61  /* Same as XK_Print */
 +
 +/*
 + * International & Multi-Key Character Composition
 + */
 +
-+#define XKB_KEY_SunCompose		0x0000FF20	/* Same as XK_Multi_key */
-+#define XKB_KEY_SunAltGraph		0x0000FF7E	/* Same as XK_Mode_switch */
++#define XKB_KEY_SunCompose   0x0000FF20  /* Same as XK_Multi_key */
++#define XKB_KEY_SunAltGraph    0x0000FF7E  /* Same as XK_Mode_switch */
 +
 +/*
 + * Cursor Control
 + */
 +
-+#define XKB_KEY_SunPageUp		0x0000FF55 	/* Same as XK_Prior */
-+#define XKB_KEY_SunPageDown		0x0000FF56	/* Same as XK_Next */
++#define XKB_KEY_SunPageUp    0x0000FF55  /* Same as XK_Prior */
++#define XKB_KEY_SunPageDown    0x0000FF56  /* Same as XK_Next */
 +
 +/*
 + * Open Look Functions
 + */
 +
-+#define XKB_KEY_SunUndo		0x0000FF65	/* Same as XK_Undo */
-+#define XKB_KEY_SunAgain		0x0000FF66	/* Same as XK_Redo */
-+#define XKB_KEY_SunFind		0x0000FF68	/* Same as XK_Find */
-+#define XKB_KEY_SunStop		0x0000FF69	/* Same as XK_Cancel */
-+#define XKB_KEY_SunProps		0x1005FF70
-+#define XKB_KEY_SunFront		0x1005FF71
-+#define XKB_KEY_SunCopy		0x1005FF72
-+#define XKB_KEY_SunOpen		0x1005FF73
-+#define XKB_KEY_SunPaste		0x1005FF74
-+#define XKB_KEY_SunCut		0x1005FF75
++#define XKB_KEY_SunUndo    0x0000FF65  /* Same as XK_Undo */
++#define XKB_KEY_SunAgain   0x0000FF66  /* Same as XK_Redo */
++#define XKB_KEY_SunFind    0x0000FF68  /* Same as XK_Find */
++#define XKB_KEY_SunStop    0x0000FF69  /* Same as XK_Cancel */
++#define XKB_KEY_SunProps   0x1005FF70
++#define XKB_KEY_SunFront   0x1005FF71
++#define XKB_KEY_SunCopy    0x1005FF72
++#define XKB_KEY_SunOpen    0x1005FF73
++#define XKB_KEY_SunPaste   0x1005FF74
++#define XKB_KEY_SunCut   0x1005FF75
 +
-+#define XKB_KEY_SunPowerSwitch		0x1005FF76
-+#define XKB_KEY_SunAudioLowerVolume		0x1005FF77
-+#define XKB_KEY_SunAudioMute			0x1005FF78
-+#define XKB_KEY_SunAudioRaiseVolume		0x1005FF79
-+#define XKB_KEY_SunVideoDegauss		0x1005FF7A
-+#define XKB_KEY_SunVideoLowerBrightness	0x1005FF7B
-+#define XKB_KEY_SunVideoRaiseBrightness	0x1005FF7C
-+#define XKB_KEY_SunPowerSwitchShift		0x1005FF7D
++#define XKB_KEY_SunPowerSwitch   0x1005FF76
++#define XKB_KEY_SunAudioLowerVolume    0x1005FF77
++#define XKB_KEY_SunAudioMute     0x1005FF78
++#define XKB_KEY_SunAudioRaiseVolume    0x1005FF79
++#define XKB_KEY_SunVideoDegauss    0x1005FF7A
++#define XKB_KEY_SunVideoLowerBrightness  0x1005FF7B
++#define XKB_KEY_SunVideoRaiseBrightness  0x1005FF7C
++#define XKB_KEY_SunPowerSwitchShift    0x1005FF7D
 +/***********************************************************
 +
 +Copyright 1988, 1998  The Open Group
@@ -9030,13 +8902,13 @@ index 0000000..69c582e
 +
 +                        All Rights Reserved
 +
-+Permission to use, copy, modify, and distribute this software and its 
-+documentation for any purpose and without fee is hereby granted, 
++Permission to use, copy, modify, and distribute this software and its
++documentation for any purpose and without fee is hereby granted,
 +provided that the above copyright notice appear in all copies and that
-+both that copyright notice and this permission notice appear in 
++both that copyright notice and this permission notice appear in
 +supporting documentation, and that the name of Digital not be
 +used in advertising or publicity pertaining to distribution of the
-+software without specific, written prior permission.  
++software without specific, written prior permission.
 +
 +DIGITAL DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 +ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -9065,7 +8937,7 @@ index 0000000..69c582e
 +
 +/* special keysym for LK2** "Remove" key on editing keypad */
 +
-+#define XKB_KEY_DRemove	0x1000FF00   /* Remove */
++#define XKB_KEY_DRemove  0x1000FF00   /* Remove */
 +/*
 +
 +Copyright 1987, 1998  The Open Group
@@ -9125,72 +8997,72 @@ index 0000000..69c582e
 +
 +
 +
-+#define XKB_KEY_hpClearLine		0x1000FF6F
-+#define XKB_KEY_hpInsertLine		0x1000FF70
-+#define XKB_KEY_hpDeleteLine		0x1000FF71
-+#define XKB_KEY_hpInsertChar		0x1000FF72
-+#define XKB_KEY_hpDeleteChar		0x1000FF73
-+#define XKB_KEY_hpBackTab		0x1000FF74
-+#define XKB_KEY_hpKP_BackTab		0x1000FF75
-+#define XKB_KEY_hpModelock1		0x1000FF48
-+#define XKB_KEY_hpModelock2		0x1000FF49
-+#define XKB_KEY_hpReset		0x1000FF6C
-+#define XKB_KEY_hpSystem		0x1000FF6D
-+#define XKB_KEY_hpUser		0x1000FF6E
-+#define XKB_KEY_hpmute_acute		0x100000A8
-+#define XKB_KEY_hpmute_grave		0x100000A9
-+#define XKB_KEY_hpmute_asciicircum	0x100000AA
-+#define XKB_KEY_hpmute_diaeresis	0x100000AB
-+#define XKB_KEY_hpmute_asciitilde	0x100000AC
-+#define XKB_KEY_hplira		0x100000AF
-+#define XKB_KEY_hpguilder		0x100000BE
-+#define XKB_KEY_hpYdiaeresis		0x100000EE
-+#define XKB_KEY_hpIO			0x100000EE
-+#define XKB_KEY_hplongminus		0x100000F6
-+#define XKB_KEY_hpblock		0x100000FC
++#define XKB_KEY_hpClearLine    0x1000FF6F
++#define XKB_KEY_hpInsertLine   0x1000FF70
++#define XKB_KEY_hpDeleteLine   0x1000FF71
++#define XKB_KEY_hpInsertChar   0x1000FF72
++#define XKB_KEY_hpDeleteChar   0x1000FF73
++#define XKB_KEY_hpBackTab    0x1000FF74
++#define XKB_KEY_hpKP_BackTab   0x1000FF75
++#define XKB_KEY_hpModelock1    0x1000FF48
++#define XKB_KEY_hpModelock2    0x1000FF49
++#define XKB_KEY_hpReset    0x1000FF6C
++#define XKB_KEY_hpSystem   0x1000FF6D
++#define XKB_KEY_hpUser   0x1000FF6E
++#define XKB_KEY_hpmute_acute   0x100000A8
++#define XKB_KEY_hpmute_grave   0x100000A9
++#define XKB_KEY_hpmute_asciicircum 0x100000AA
++#define XKB_KEY_hpmute_diaeresis 0x100000AB
++#define XKB_KEY_hpmute_asciitilde  0x100000AC
++#define XKB_KEY_hplira   0x100000AF
++#define XKB_KEY_hpguilder    0x100000BE
++#define XKB_KEY_hpYdiaeresis   0x100000EE
++#define XKB_KEY_hpIO     0x100000EE
++#define XKB_KEY_hplongminus    0x100000F6
++#define XKB_KEY_hpblock    0x100000FC
 +
 +
 +
-+#define XKB_KEY_osfCopy		0x1004FF02
-+#define XKB_KEY_osfCut		0x1004FF03
-+#define XKB_KEY_osfPaste		0x1004FF04
-+#define XKB_KEY_osfBackTab		0x1004FF07
-+#define XKB_KEY_osfBackSpace		0x1004FF08
-+#define XKB_KEY_osfClear		0x1004FF0B
-+#define XKB_KEY_osfEscape		0x1004FF1B
-+#define XKB_KEY_osfAddMode		0x1004FF31
-+#define XKB_KEY_osfPrimaryPaste	0x1004FF32
-+#define XKB_KEY_osfQuickPaste	0x1004FF33
-+#define XKB_KEY_osfPageLeft		0x1004FF40
-+#define XKB_KEY_osfPageUp		0x1004FF41
-+#define XKB_KEY_osfPageDown		0x1004FF42
-+#define XKB_KEY_osfPageRight		0x1004FF43
-+#define XKB_KEY_osfActivate		0x1004FF44
-+#define XKB_KEY_osfMenuBar		0x1004FF45
-+#define XKB_KEY_osfLeft		0x1004FF51
-+#define XKB_KEY_osfUp		0x1004FF52
-+#define XKB_KEY_osfRight		0x1004FF53
-+#define XKB_KEY_osfDown		0x1004FF54
-+#define XKB_KEY_osfEndLine		0x1004FF57
-+#define XKB_KEY_osfBeginLine		0x1004FF58
-+#define XKB_KEY_osfEndData		0x1004FF59
-+#define XKB_KEY_osfBeginData		0x1004FF5A
-+#define XKB_KEY_osfPrevMenu		0x1004FF5B
-+#define XKB_KEY_osfNextMenu		0x1004FF5C
-+#define XKB_KEY_osfPrevField		0x1004FF5D
-+#define XKB_KEY_osfNextField		0x1004FF5E
-+#define XKB_KEY_osfSelect		0x1004FF60
-+#define XKB_KEY_osfInsert		0x1004FF63
-+#define XKB_KEY_osfUndo		0x1004FF65
-+#define XKB_KEY_osfMenu		0x1004FF67
-+#define XKB_KEY_osfCancel		0x1004FF69
-+#define XKB_KEY_osfHelp		0x1004FF6A
-+#define XKB_KEY_osfSelectAll		0x1004FF71
-+#define XKB_KEY_osfDeselectAll	0x1004FF72
-+#define XKB_KEY_osfReselect		0x1004FF73
-+#define XKB_KEY_osfExtend		0x1004FF74
-+#define XKB_KEY_osfRestore		0x1004FF78
-+#define XKB_KEY_osfDelete		0x1004FFFF
++#define XKB_KEY_osfCopy    0x1004FF02
++#define XKB_KEY_osfCut   0x1004FF03
++#define XKB_KEY_osfPaste   0x1004FF04
++#define XKB_KEY_osfBackTab   0x1004FF07
++#define XKB_KEY_osfBackSpace   0x1004FF08
++#define XKB_KEY_osfClear   0x1004FF0B
++#define XKB_KEY_osfEscape    0x1004FF1B
++#define XKB_KEY_osfAddMode   0x1004FF31
++#define XKB_KEY_osfPrimaryPaste  0x1004FF32
++#define XKB_KEY_osfQuickPaste  0x1004FF33
++#define XKB_KEY_osfPageLeft    0x1004FF40
++#define XKB_KEY_osfPageUp    0x1004FF41
++#define XKB_KEY_osfPageDown    0x1004FF42
++#define XKB_KEY_osfPageRight   0x1004FF43
++#define XKB_KEY_osfActivate    0x1004FF44
++#define XKB_KEY_osfMenuBar   0x1004FF45
++#define XKB_KEY_osfLeft    0x1004FF51
++#define XKB_KEY_osfUp    0x1004FF52
++#define XKB_KEY_osfRight   0x1004FF53
++#define XKB_KEY_osfDown    0x1004FF54
++#define XKB_KEY_osfEndLine   0x1004FF57
++#define XKB_KEY_osfBeginLine   0x1004FF58
++#define XKB_KEY_osfEndData   0x1004FF59
++#define XKB_KEY_osfBeginData   0x1004FF5A
++#define XKB_KEY_osfPrevMenu    0x1004FF5B
++#define XKB_KEY_osfNextMenu    0x1004FF5C
++#define XKB_KEY_osfPrevField   0x1004FF5D
++#define XKB_KEY_osfNextField   0x1004FF5E
++#define XKB_KEY_osfSelect    0x1004FF60
++#define XKB_KEY_osfInsert    0x1004FF63
++#define XKB_KEY_osfUndo    0x1004FF65
++#define XKB_KEY_osfMenu    0x1004FF67
++#define XKB_KEY_osfCancel    0x1004FF69
++#define XKB_KEY_osfHelp    0x1004FF6A
++#define XKB_KEY_osfSelectAll   0x1004FF71
++#define XKB_KEY_osfDeselectAll 0x1004FF72
++#define XKB_KEY_osfReselect    0x1004FF73
++#define XKB_KEY_osfExtend    0x1004FF74
++#define XKB_KEY_osfRestore   0x1004FF78
++#define XKB_KEY_osfDelete    0x1004FFFF
 +
 +
 +
@@ -9224,11 +9096,11 @@ index 0000000..69c582e
 +
 +
 +#endif
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-names.h b/qtbase/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-names.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-names.h b/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-names.h
 new file mode 100644
 index 0000000..ecb551f
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-names.h
++++ b/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-names.h
 @@ -0,0 +1,45 @@
 +/*
 + * Copyright © 2012 Intel Corporation
@@ -9275,11 +9147,11 @@ index 0000000..ecb551f
 +#define XKB_LED_NAME_SCROLL     "Scroll Lock"
 +
 +#endif
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-x11.h b/qtbase/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-x11.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-x11.h b/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-x11.h
 new file mode 100644
 index 0000000..0158315
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-x11.h
++++ b/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon-x11.h
 @@ -0,0 +1,244 @@
 +/*
 + * Copyright © 2013 Ran Benita
@@ -9525,11 +9397,11 @@ index 0000000..0158315
 +#endif
 +
 +#endif /* _XKBCOMMON_X11_H */
-diff --git a/qtbase/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon.h b/qtbase/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon.h
+diff --git a/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon.h b/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon.h
 new file mode 100644
 index 0000000..f0c9202
 --- /dev/null
-+++ b/qtbase/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon.h
++++ b/src/plugins/platforminputcontexts/fcitx/xkbcommon/xkbcommon.h
 @@ -0,0 +1,1723 @@
 +/*
 + * Copyright 1985, 1987, 1990, 1998  The Open Group
@@ -11254,68 +11126,66 @@ index 0000000..f0c9202
 +#endif
 +
 +#endif /* _XKBCOMMON_H_ */
-diff --git a/qtbase/src/plugins/platforminputcontexts/platforminputcontexts.pro b/qtbase/src/plugins/platforminputcontexts/platforminputcontexts.pro
-index faea54b..0967cb3 100644
---- a/qtbase/src/plugins/platforminputcontexts/platforminputcontexts.pro
-+++ b/qtbase/src/plugins/platforminputcontexts/platforminputcontexts.pro
-@@ -1,6 +1,7 @@
+diff --git a/src/plugins/platforminputcontexts/platforminputcontexts.pro b/src/plugins/platforminputcontexts/platforminputcontexts.pro
+index faea54b..78afa43 100644
+--- a/src/plugins/platforminputcontexts/platforminputcontexts.pro
++++ b/src/plugins/platforminputcontexts/platforminputcontexts.pro
+@@ -1,6 +1,8 @@
  TEMPLATE = subdirs
  
  qtHaveModule(dbus) {
++# add fcitx input context plugin to our static build
 +!mac:!win32:SUBDIRS += fcitx
  !mac:!win32:SUBDIRS += ibus
  }
  
-diff --git a/qtbase/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm b/qtbase/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
-index f3a0216..643ebdd 100644
---- a/qtbase/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
-+++ b/qtbase/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
-@@ -210,7 +210,7 @@ QT_END_NAMESPACE
+diff --git a/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm b/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
+index 6c673a4..e90b3ba 100644
+--- a/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
++++ b/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
+@@ -210,7 +210,8 @@ QT_END_NAMESPACE
      if (reflectionDelegate) {
          if ([reflectionDelegate respondsToSelector:@selector(applicationShouldTerminate:)])
              return [reflectionDelegate applicationShouldTerminate:sender];
 -        return NSTerminateNow;
++        // don't terminate if reflectionDelegate does not respond to that selector, just use the default
 +        //return NSTerminateNow;
      }
  
      if ([self canQuit]) {
-diff --git a/qtbase/src/plugins/platforms/cocoa/qcocoabackingstore.h b/qtbase/src/plugins/platforms/cocoa/qcocoabackingstore.h
-index 3737584..1014a21 100644
---- a/qtbase/src/plugins/platforms/cocoa/qcocoabackingstore.h
-+++ b/qtbase/src/plugins/platforms/cocoa/qcocoabackingstore.h
-@@ -55,11 +55,14 @@ public:
-     void resize (const QSize &size, const QRegion &);
-     bool scroll(const QRegion &area, int dx, int dy);
-     void beginPaint(const QRegion &region);
-+	void beforeBeginPaint(QWindow *widget);
-+	void afterEndPaint(QWindow *widget);
-     qreal getBackingStoreDevicePixelRatio();
- 
+diff --git a/src/plugins/platforms/cocoa/qcocoabackingstore.h b/src/plugins/platforms/cocoa/qcocoabackingstore.h
+index 3737584..1f015e9 100644
+--- a/src/plugins/platforms/cocoa/qcocoabackingstore.h
++++ b/src/plugins/platforms/cocoa/qcocoabackingstore.h
+@@ -60,6 +60,8 @@ public:
  private:
      QImage m_qImage;
      QSize m_requestedSize;
-+	bool m_qImageNeedsClear, m_imageWasEqual;
++	// optimize redraw - don't clear image if it will be fully redrawn
++	bool m_qImageNeedsClear;
  };
  
  QT_END_NAMESPACE
-diff --git a/qtbase/src/plugins/platforms/cocoa/qcocoabackingstore.mm b/qtbase/src/plugins/platforms/cocoa/qcocoabackingstore.mm
-index 6a4f7ed..cab243e 100644
---- a/qtbase/src/plugins/platforms/cocoa/qcocoabackingstore.mm
-+++ b/qtbase/src/plugins/platforms/cocoa/qcocoabackingstore.mm
-@@ -38,7 +38,7 @@
+diff --git a/src/plugins/platforms/cocoa/qcocoabackingstore.mm b/src/plugins/platforms/cocoa/qcocoabackingstore.mm
+index ca92103..f681b08 100644
+--- a/src/plugins/platforms/cocoa/qcocoabackingstore.mm
++++ b/src/plugins/platforms/cocoa/qcocoabackingstore.mm
+@@ -38,7 +38,8 @@
  QT_BEGIN_NAMESPACE
  
  QCocoaBackingStore::QCocoaBackingStore(QWindow *window)
 -    : QPlatformBackingStore(window)
-+    : QPlatformBackingStore(window), m_qImageNeedsClear(false), m_imageWasEqual(false)
++    // optimize redraw - don't clear image if it will be fully redrawn
++    : QPlatformBackingStore(window), m_qImageNeedsClear(false)
  {
  }
  
-@@ -57,9 +57,10 @@ QPaintDevice *QCocoaBackingStore::paintDevice()
+@@ -59,9 +60,11 @@ QPaintDevice *QCocoaBackingStore::paintDevice()
      if (m_qImage.size() != effectiveBufferSize) {
          QImage::Format format = (window()->format().hasAlpha() || cocoaWindow->m_drawContentBorderGradient)
                  ? QImage::Format_ARGB32_Premultiplied : QImage::Format_RGB32;
-+		m_qImageNeedsClear = window()->requestedFormat().hasAlpha() || cocoaWindow->m_drawContentBorderGradient;
++        // optimize redraw - don't clear image if it will be fully redrawn
++        m_qImageNeedsClear = window()->requestedFormat().hasAlpha() || cocoaWindow->m_drawContentBorderGradient;
          m_qImage = QImage(effectiveBufferSize, format);
          m_qImage.setDevicePixelRatio(windowDevicePixelRatio);
 -        if (format == QImage::Format_ARGB32_Premultiplied)
@@ -11323,103 +11193,71 @@ index 6a4f7ed..cab243e 100644
              m_qImage.fill(Qt::transparent);
      }
      return &m_qImage;
-@@ -98,7 +99,7 @@ bool QCocoaBackingStore::scroll(const QRegion &area, int dx, int dy)
+@@ -100,7 +103,8 @@ bool QCocoaBackingStore::scroll(const QRegion &area, int dx, int dy)
  
  void QCocoaBackingStore::beginPaint(const QRegion &region)
  {
 -    if (m_qImage.hasAlphaChannel()) {
++    // optimize redraw - don't clear image if it will be fully redrawn
 +    if (m_qImageNeedsClear && m_qImage.hasAlphaChannel()) {
          QPainter p(&m_qImage);
          p.setCompositionMode(QPainter::CompositionMode_Source);
          const QVector<QRect> rects = region.rects();
-@@ -108,6 +109,26 @@ void QCocoaBackingStore::beginPaint(const QRegion &region)
-     }
- }
- 
-+void QCocoaBackingStore::beforeBeginPaint(QWindow *win) {
-+	m_imageWasEqual = false;
-+	if (!m_qImage.isNull()) {
-+		if (QCocoaWindow *cocoaWindow = static_cast<QCocoaWindow *>(win->handle())) {
-+			if ([cocoaWindow->m_qtView beforeBeginPaint:this])
-+				m_imageWasEqual = true;
-+		}
-+	}
-+}
-+
-+void QCocoaBackingStore::afterEndPaint(QWindow *win) {
-+	if (!m_qImage.isNull()) {
-+		if (QCocoaWindow *cocoaWindow = static_cast<QCocoaWindow *>(win->handle())) {
-+			if (m_imageWasEqual)
-+				[cocoaWindow->m_qtView afterEndPaint:this];
-+		}
-+	}
-+	m_imageWasEqual = false;
-+}
-+
- qreal QCocoaBackingStore::getBackingStoreDevicePixelRatio()
- {
-     return m_qImage.devicePixelRatio();
-diff --git a/qtbase/src/plugins/platforms/cocoa/qcocoacursor.mm b/qtbase/src/plugins/platforms/cocoa/qcocoacursor.mm
-index 06e957c..922809f 100644
---- a/qtbase/src/plugins/platforms/cocoa/qcocoacursor.mm
-+++ b/qtbase/src/plugins/platforms/cocoa/qcocoacursor.mm
-@@ -73,7 +73,7 @@ void QCocoaCursor::setPos(const QPoint &position)
-     pos.x = position.x();
-     pos.y = position.y();
- 
--    CGEventRef e = CGEventCreateMouseEvent(0, kCGEventMouseMoved, pos, 0);
-+    CGEventRef e = CGEventCreateMouseEvent(0, kCGEventMouseMoved, pos, kCGMouseButtonLeft);
-     CGEventPost(kCGHIDEventTap, e);
-     CFRelease(e);
- }
-diff --git a/qtbase/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm b/qtbase/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
-index 713758c..9c695aa 100644
---- a/qtbase/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
-+++ b/qtbase/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
-@@ -94,6 +94,7 @@ QT_USE_NAMESPACE
+diff --git a/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm b/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
+index 713758c..9a509b2 100755
+--- a/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
++++ b/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
+@@ -94,6 +94,8 @@ QT_USE_NAMESPACE
      QCocoaSystemTrayIcon *systray;
      NSStatusItem *item;
      QCocoaMenu *menu;
-+	bool menuVisible, iconSelected;
++    // create a good os x tray icon
++    bool menuVisible, iconSelected;
      QIcon icon;
      QT_MANGLE_NAMESPACE(QNSImageView) *imageCell;
  }
-@@ -197,7 +198,7 @@ void QCocoaSystemTrayIcon::updateIcon(const QIcon &icon)
+@@ -197,7 +199,8 @@ void QCocoaSystemTrayIcon::updateIcon(const QIcon &icon)
      // (device independent pixels). The menu height on past and
      // current OS X versions is 22 points. Provide some future-proofing
      // by deriving the icon height from the menu height.
 -    const int padding = 4;
++    // create a good os x tray icon
 +    const int padding = 0;
      const int menuHeight = [[[NSApplication sharedApplication] mainMenu] menuBarHeight];
      const int maxImageHeight = menuHeight - padding;
  
-@@ -207,8 +208,9 @@ void QCocoaSystemTrayIcon::updateIcon(const QIcon &icon)
+@@ -207,8 +210,11 @@ void QCocoaSystemTrayIcon::updateIcon(const QIcon &icon)
      // devicePixelRatio for the "best" screen on the system.
      qreal devicePixelRatio = qApp->devicePixelRatio();
      const int maxPixmapHeight = maxImageHeight * devicePixelRatio;
-+	const QIcon::Mode mode = m_sys->item->iconSelected ? QIcon::Selected : QIcon::Normal;
++    // create a good os x tray icon
++    const QIcon::Mode mode = m_sys->item->iconSelected ? QIcon::Selected : QIcon::Normal;
      QSize selectedSize;
 -    Q_FOREACH (const QSize& size, sortByHeight(icon.availableSizes())) {
++    // create a good os x tray icon
 +    Q_FOREACH (const QSize& size, sortByHeight(icon.availableSizes(mode))) {
          // Select a pixmap based on the height. We want the largest pixmap
          // with a height smaller or equal to maxPixmapHeight. The pixmap
          // may rectangular; assume it has a reasonable size. If there is
-@@ -224,9 +226,9 @@ void QCocoaSystemTrayIcon::updateIcon(const QIcon &icon)
+@@ -224,9 +230,11 @@ void QCocoaSystemTrayIcon::updateIcon(const QIcon &icon)
  
      // Handle SVG icons, which do not return anything for availableSizes().
      if (!selectedSize.isValid())
 -        selectedSize = icon.actualSize(QSize(maxPixmapHeight, maxPixmapHeight));
++        // create a good os x tray icon
 +        selectedSize = icon.actualSize(QSize(maxPixmapHeight, maxPixmapHeight), mode);
  
 -    QPixmap pixmap = icon.pixmap(selectedSize);
++    // create a good os x tray icon
 +    QPixmap pixmap = icon.pixmap(selectedSize, mode);
  
      // Draw a low-resolution icon if there is not enough pixels for a retina
      // icon. This prevents showing a small icon on retina displays.
-@@ -373,6 +375,10 @@ QT_END_NAMESPACE
+@@ -373,6 +381,11 @@ QT_END_NAMESPACE
      Q_UNUSED(notification);
      down = NO;
  
++    // create a good os x tray icon
 +    parent->iconSelected = false;
 +    parent->systray->updateIcon(parent->icon);
 +    parent->menuVisible = false;
@@ -11427,184 +11265,165 @@ index 713758c..9c695aa 100644
      [self setNeedsDisplay:YES];
  }
  
-@@ -381,6 +387,9 @@ QT_END_NAMESPACE
-     down = YES;
+@@ -382,6 +395,10 @@ QT_END_NAMESPACE
      int clickCount = [mouseEvent clickCount];
      [self setNeedsDisplay:YES];
-+	
-+	parent->iconSelected = (clickCount != 2) && parent->menu;
-+    parent->systray->updateIcon(parent->icon);
  
++    // create a good os x tray icon
++    parent->iconSelected = (clickCount != 2) && parent->menu;
++    parent->systray->updateIcon(parent->icon);
++
      if (clickCount == 2) {
          [self menuTrackingDone:nil];
-@@ -398,6 +407,10 @@ QT_END_NAMESPACE
+         [parent doubleClickSelector:self];
+@@ -398,6 +415,11 @@ QT_END_NAMESPACE
  -(void)mouseUp:(NSEvent *)mouseEvent
  {
      Q_UNUSED(mouseEvent);
 +
++    // create a good os x tray icon
 +    parent->iconSelected = false;
 +    parent->systray->updateIcon(parent->icon);
 +
      [self menuTrackingDone:nil];
  }
  
-@@ -409,6 +422,10 @@ QT_END_NAMESPACE
+@@ -409,6 +431,11 @@ QT_END_NAMESPACE
  -(void)rightMouseUp:(NSEvent *)mouseEvent
  {
      Q_UNUSED(mouseEvent);
 +
++    // create a good os x tray icon
 +    parent->iconSelected = false;
 +    parent->systray->updateIcon(parent->icon);
 +
      [self menuTrackingDone:nil];
  }
  
-@@ -424,7 +441,7 @@ QT_END_NAMESPACE
+@@ -424,7 +451,8 @@ QT_END_NAMESPACE
  }
  
  -(void)drawRect:(NSRect)rect {
 -    [[parent item] drawStatusBarBackgroundInRect:rect withHighlight:down];
-+	[[parent item] drawStatusBarBackgroundInRect:rect withHighlight:parent->menu ? down : NO];
++    // create a good os x tray icon
++    [[parent item] drawStatusBarBackgroundInRect:rect withHighlight:parent->menu ? down : NO];
      [super drawRect:rect];
  }
  @end
-@@ -437,6 +454,7 @@ QT_END_NAMESPACE
+@@ -436,7 +464,9 @@ QT_END_NAMESPACE
+     self = [super init];
      if (self) {
          item = [[[NSStatusBar systemStatusBar] statusItemWithLength:NSSquareStatusItemLength] retain];
++        // create a good os x tray icon
          menu = 0;
-+		menuVisible = false;
++        menuVisible = false;
          systray = sys;
          imageCell = [[QNSImageView alloc] initWithParent:self];
          [item setView: imageCell];
-@@ -481,6 +499,7 @@ QT_END_NAMESPACE
+@@ -481,6 +511,8 @@ QT_END_NAMESPACE
           selector:@selector(menuTrackingDone:)
               name:NSMenuDidEndTrackingNotification
                   object:m];
-+		menuVisible = true;
++        // create a good os x tray icon
++        menuVisible = true;
          [item popUpStatusItemMenu: m];
      }
  }
-diff --git a/qtbase/src/plugins/platforms/cocoa/qcocoawindow.mm b/qtbase/src/plugins/platforms/cocoa/qcocoawindow.mm
-index 92fc66a..d18884a 100644
---- a/qtbase/src/plugins/platforms/cocoa/qcocoawindow.mm
-+++ b/qtbase/src/plugins/platforms/cocoa/qcocoawindow.mm
-@@ -142,7 +142,7 @@ static bool isMouseEvent(NSEvent *ev)
+diff --git a/src/plugins/platforms/cocoa/qcocoawindow.mm b/src/plugins/platforms/cocoa/qcocoawindow.mm
+index 3188463..cbee264 100644
+--- a/src/plugins/platforms/cocoa/qcocoawindow.mm
++++ b/src/plugins/platforms/cocoa/qcocoawindow.mm
+@@ -142,7 +142,8 @@ static bool isMouseEvent(NSEvent *ev)
      if (!self.window.delegate)
          return; // Already detached, pending NSAppKitDefined event
  
 -    if (pw && pw->frameStrutEventsEnabled() && isMouseEvent(theEvent)) {
++    // fix restore after minimize or close by window buttons
 +    if (pw && pw->frameStrutEventsEnabled() && pw->m_synchedWindowState != Qt::WindowMinimized && pw->m_isExposed && isMouseEvent(theEvent)) {
          NSPoint loc = [theEvent locationInWindow];
          NSRect windowFrame = [self.window convertRectFromScreen:[self.window frame]];
          NSRect contentFrame = [[self.window contentView] frame];
-@@ -924,6 +924,14 @@ void QCocoaWindow::setWindowFilePath(const QString &filePath)
+@@ -924,6 +925,15 @@ void QCocoaWindow::setWindowFilePath(const QString &filePath)
      [m_nsWindow setRepresentedFilename: fi.exists() ? QCFString::toNSString(filePath) : @""];
  }
  
++// create a good os x window icon
 +qreal _win_devicePixelRatio() {
-+  qreal result = 1.0;
-+  foreach (QScreen *screen, QGuiApplication::screens()) {
-+    result = qMax(result, screen->devicePixelRatio());
-+  }
-+  return result;
++    qreal result = 1.0;
++    foreach (QScreen *screen, QGuiApplication::screens()) {
++        result = qMax(result, screen->devicePixelRatio());
++    }
++    return result;
 +}
 +
  void QCocoaWindow::setWindowIcon(const QIcon &icon)
  {
      QCocoaAutoReleasePool pool;
-@@ -939,7 +947,8 @@ void QCocoaWindow::setWindowIcon(const QIcon &icon)
+@@ -939,7 +949,9 @@ void QCocoaWindow::setWindowIcon(const QIcon &icon)
      if (icon.isNull()) {
          [iconButton setImage:nil];
      } else {
 -        QPixmap pixmap = icon.pixmap(QSize(22, 22));
++        // create a good os x window icon
 +        CGFloat hgt = 16. * _win_devicePixelRatio();
 +        QPixmap pixmap = icon.pixmap(QSize(hgt, hgt));
          NSImage *image = static_cast<NSImage *>(qt_mac_create_nsimage(pixmap));
          [iconButton setImage:image];
          [image release];
-diff --git a/qtbase/src/plugins/platforms/cocoa/qnsview.h b/qtbase/src/plugins/platforms/cocoa/qnsview.h
-index 32bc15d..1940b25 100644
---- a/qtbase/src/plugins/platforms/cocoa/qnsview.h
-+++ b/qtbase/src/plugins/platforms/cocoa/qnsview.h
-@@ -86,6 +86,8 @@ Q_FORWARD_DECLARE_OBJC_CLASS(QT_MANGLE_NAMESPACE(QNSViewMouseMoveHelper));
- - (void)setQCocoaGLContext:(QCocoaGLContext *)context;
- #endif
- - (void)flushBackingStore:(QCocoaBackingStore *)backingStore region:(const QRegion &)region offset:(QPoint)offset;
-+- (BOOL)beforeBeginPaint:(QCocoaBackingStore *)backingStore;
-+- (void)afterEndPaint:(QCocoaBackingStore *)backingStore;
- - (void)setMaskRegion:(const QRegion *)region;
- - (void)invalidateWindowShadowIfNeeded;
- - (void)drawRect:(NSRect)dirtyRect;
-diff --git a/qtbase/src/plugins/platforms/cocoa/qnsview.mm b/qtbase/src/plugins/platforms/cocoa/qnsview.mm
-index d44cdb3..f31ad9e 100644
---- a/qtbase/src/plugins/platforms/cocoa/qnsview.mm
-+++ b/qtbase/src/plugins/platforms/cocoa/qnsview.mm
-@@ -484,6 +484,20 @@ QT_WARNING_POP
-     }
- }
- 
-+- (BOOL) beforeBeginPaint:(QCocoaBackingStore *)backingStore
-+{
-+	if (!m_backingStore.isNull() && m_backingStore.constBits() == backingStore->toImage().constBits()) {
-+		m_backingStore = QImage();
-+		return true;
-+	}
-+	return false;
-+}
-+
-+- (void) afterEndPaint:(QCocoaBackingStore *)backingStore
-+{
-+	m_backingStore = backingStore->toImage();
-+}
-+
- - (BOOL) hasMask
- {
-     return m_maskImage != 0;
-@@ -1348,7 +1362,7 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
+diff --git a/src/plugins/platforms/cocoa/qnsview.mm b/src/plugins/platforms/cocoa/qnsview.mm
+index 1ec33df..03c84a1 100644
+--- a/src/plugins/platforms/cocoa/qnsview.mm
++++ b/src/plugins/platforms/cocoa/qnsview.mm
+@@ -1357,7 +1357,8 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
  #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_8
      if (QSysInfo::QSysInfo::MacintoshVersion >= QSysInfo::MV_10_8) {
          // On 10.8 and above, MayBegin is likely to happen.  We treat it the same as an actual begin.
 -        if (phase == NSEventPhaseMayBegin) {
++        // fix actual begin handle of swipe on trackpad
 +        if (phase == NSEventPhaseMayBegin || phase == NSEventPhaseBegan) {
              m_scrolling = true;
              ph = Qt::ScrollBegin;
          }
-@@ -1489,6 +1503,10 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
+@@ -1502,6 +1503,11 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
                  && qtKey == Qt::Key_Period) {
              [self handleKeyEvent:nsevent eventType:int(QEvent::KeyPress)];
              return YES;
++        // enable Ctrl+Tab and Ctrl+Shift+Tab / Ctrl+Backtab handle in-app
 +        } else if ([nsevent modifierFlags] & NSControlKeyMask
-+		        && (qtKey == Qt::Key_Tab || qtKey == Qt::Key_Backtab)) {
++                && (qtKey == Qt::Key_Tab || qtKey == Qt::Key_Backtab)) {
 +            [self handleKeyEvent:nsevent eventType:int(QEvent::KeyPress)];
 +            return YES;
          }
      }
      return [super performKeyEquivalent:nsevent];
-diff --git a/qtbase/src/plugins/platforms/windows/qwindowsdialoghelpers.cpp b/qtbase/src/plugins/platforms/windows/qwindowsdialoghelpers.cpp
-index da0ba27..1d42b79 100644
---- a/qtbase/src/plugins/platforms/windows/qwindowsdialoghelpers.cpp
-+++ b/qtbase/src/plugins/platforms/windows/qwindowsdialoghelpers.cpp
-@@ -713,6 +713,8 @@ public:
+diff --git a/src/plugins/platforms/windows/qwindowsdialoghelpers.cpp b/src/plugins/platforms/windows/qwindowsdialoghelpers.cpp
+index da0ba27..9fd21d4 100644
+--- a/src/plugins/platforms/windows/qwindowsdialoghelpers.cpp
++++ b/src/plugins/platforms/windows/qwindowsdialoghelpers.cpp
+@@ -713,6 +713,9 @@ public:
      QList<QUrl> selectedFiles() const;
      void setSelectedFiles(const QList<QUrl> &);
      QString selectedFile() const;
++	// adding select-by-url for Windows file dialog
 +	void setSelectedRemoteContent(const QByteArray &);
 +	QByteArray selectedRemoteContent() const;
  
  private:
      class Data : public QSharedData {
-@@ -720,6 +722,7 @@ private:
+@@ -720,6 +723,8 @@ private:
          QUrl directory;
          QString selectedNameFilter;
          QList<QUrl> selectedFiles;
++		// adding select-by-url for Windows file dialog
 +		QByteArray selectedRemoteContent;
          QMutex mutex;
      };
      QExplicitlySharedDataPointer<Data> m_data;
-@@ -773,6 +776,20 @@ inline void QWindowsFileDialogSharedData::setSelectedFiles(const QList<QUrl> &ur
+@@ -773,6 +778,21 @@ inline void QWindowsFileDialogSharedData::setSelectedFiles(const QList<QUrl> &ur
      m_data->selectedFiles = urls;
  }
  
++// adding select-by-url for Windows file dialog
 +inline QByteArray QWindowsFileDialogSharedData::selectedRemoteContent() const
 +{
 +	m_data->mutex.lock();
@@ -11622,20 +11441,22 @@ index da0ba27..1d42b79 100644
  inline void QWindowsFileDialogSharedData::fromOptions(const QSharedPointer<QFileDialogOptions> &o)
  {
      QMutexLocker (&m_data->mutex);
-@@ -896,6 +913,7 @@ public:
+@@ -896,6 +916,8 @@ public:
      // Return the result for tracking in OnFileOk(). Differs from selection for
      // example by appended default suffixes, etc.
      virtual QList<QUrl> dialogResult() const = 0;
++	// adding select-by-url for Windows file dialog
 +	virtual QByteArray dialogRemoteContent() const { return QByteArray(); }
  
      inline void onFolderChange(IShellItem *);
      inline void onSelectionChange();
-@@ -1332,8 +1350,15 @@ void QWindowsNativeFileDialogBase::selectFile(const QString &fileName) const
+@@ -1332,8 +1354,16 @@ void QWindowsNativeFileDialogBase::selectFile(const QString &fileName) const
  {
      // Hack to prevent CLSIDs from being set as file name due to
      // QFileDialogPrivate::initialSelection() being QString-based.
 -    if (!isClsid(fileName))
 -        m_fileDialog->SetFileName((wchar_t*)fileName.utf16());
++	// fix handle of full fileName
 +	if (!isClsid(fileName))
 +	{
 +		QString file = QDir::toNativeSeparators(fileName);
@@ -11648,26 +11469,29 @@ index da0ba27..1d42b79 100644
  }
  
  // Return the index of the selected filter, accounting for QFileDialog
-@@ -1403,6 +1428,7 @@ bool QWindowsNativeFileDialogBase::onFileOk()
+@@ -1403,6 +1433,8 @@ bool QWindowsNativeFileDialogBase::onFileOk()
  {
      // Store selected files as GetResults() returns invalid data after the dialog closes.
      m_data.setSelectedFiles(dialogResult());
++	// adding select-by-url for Windows file dialog
 +	m_data.setSelectedRemoteContent(dialogRemoteContent());
      return true;
  }
  
-@@ -1531,6 +1557,7 @@ public:
+@@ -1531,6 +1563,8 @@ public:
          QWindowsNativeFileDialogBase(data) {}
      virtual QList<QUrl> selectedFiles() const;
      virtual QList<QUrl> dialogResult() const;
++	// adding select-by-url for Windows file dialog
 +	virtual QByteArray dialogRemoteContent() const;
  
  private:
      inline IFileOpenDialog *openFileDialog() const
-@@ -1546,6 +1573,54 @@ QList<QUrl> QWindowsNativeOpenFileDialog::dialogResult() const
+@@ -1546,6 +1580,55 @@ QList<QUrl> QWindowsNativeOpenFileDialog::dialogResult() const
      return result;
  }
  
++// adding select-by-url for Windows file dialog
 +QByteArray QWindowsNativeOpenFileDialog::dialogRemoteContent() const {
 +	QByteArray result;
 +	IShellItemArray *items = 0;
@@ -11719,18 +11543,20 @@ index da0ba27..1d42b79 100644
  QList<QUrl> QWindowsNativeOpenFileDialog::selectedFiles() const
  {
      QList<QUrl> result;
-@@ -1609,6 +1684,7 @@ public:
+@@ -1609,6 +1692,8 @@ public:
      virtual QUrl directory() const Q_DECL_OVERRIDE;
      virtual void selectFile(const QUrl &filename) Q_DECL_OVERRIDE;
      virtual QList<QUrl> selectedFiles() const Q_DECL_OVERRIDE;
++	// adding select-by-url for Windows file dialog
 +	virtual QByteArray selectedRemoteContent() const Q_DECL_OVERRIDE;
      virtual void setFilter() Q_DECL_OVERRIDE;
      virtual void selectNameFilter(const QString &filter) Q_DECL_OVERRIDE;
      virtual QString selectedNameFilter() const Q_DECL_OVERRIDE;
-@@ -1702,6 +1778,11 @@ QList<QUrl> QWindowsFileDialogHelper::selectedFiles() const
+@@ -1702,6 +1787,12 @@ QList<QUrl> QWindowsFileDialogHelper::selectedFiles() const
      return m_data.selectedFiles();
  }
  
++// adding select-by-url for Windows file dialog
 +QByteArray QWindowsFileDialogHelper::selectedRemoteContent() const
 +{
 +	return m_data.selectedRemoteContent();
@@ -11739,18 +11565,20 @@ index da0ba27..1d42b79 100644
  void QWindowsFileDialogHelper::setFilter()
  {
      qCDebug(lcQpaDialogs) << __FUNCTION__;
-@@ -1992,6 +2073,7 @@ public:
+@@ -1992,6 +2083,8 @@ public:
      virtual QUrl directory() const Q_DECL_OVERRIDE;
      virtual void selectFile(const QUrl &url) Q_DECL_OVERRIDE;
      virtual QList<QUrl> selectedFiles() const Q_DECL_OVERRIDE;
++	// adding select-by-url for Windows file dialog
 +	virtual QByteArray selectedRemoteContent() const Q_DECL_OVERRIDE;
      virtual void setFilter() Q_DECL_OVERRIDE {}
      virtual void selectNameFilter(const QString &) Q_DECL_OVERRIDE;
      virtual QString selectedNameFilter() const Q_DECL_OVERRIDE;
-@@ -2035,6 +2117,11 @@ QList<QUrl> QWindowsXpFileDialogHelper::selectedFiles() const
+@@ -2035,6 +2128,12 @@ QList<QUrl> QWindowsXpFileDialogHelper::selectedFiles() const
      return m_data.selectedFiles();
  }
  
++// adding select-by-url for Windows file dialog
 +QByteArray QWindowsXpFileDialogHelper::selectedRemoteContent() const
 +{
 +	return m_data.selectedRemoteContent();
@@ -11759,45 +11587,45 @@ index da0ba27..1d42b79 100644
  void QWindowsXpFileDialogHelper::selectNameFilter(const QString &f)
  {
      m_data.setSelectedNameFilter(f); // Dialog cannot be updated at run-time.
-diff --git a/qtbase/src/plugins/platforms/windows/qwindowsservices.cpp b/qtbase/src/plugins/platforms/windows/qwindowsservices.cpp
-index cc697ba..8e15e86 100644
---- a/qtbase/src/plugins/platforms/windows/qwindowsservices.cpp
-+++ b/qtbase/src/plugins/platforms/windows/qwindowsservices.cpp
-@@ -125,8 +125,9 @@ static inline bool launchMail(const QUrl &url)
+diff --git a/src/plugins/platforms/windows/qwindowsservices.cpp b/src/plugins/platforms/windows/qwindowsservices.cpp
+index cc697ba..e1d9bce 100644
+--- a/src/plugins/platforms/windows/qwindowsservices.cpp
++++ b/src/plugins/platforms/windows/qwindowsservices.cpp
+@@ -123,6 +123,8 @@ static inline bool launchMail(const QUrl &url)
+             command.prepend(doubleQuote);
+         }
      }
++	// fix mail launch if no param is expected here
++	if (command.indexOf(QStringLiteral("%1")) < 0) return false;
      // Pass the url as the parameter. Should use QProcess::startDetached(),
      // but that cannot handle a Windows command line [yet].
--    command.replace(QStringLiteral("%1"), url.toString(QUrl::FullyEncoded));
--    if (debug)
-+	if (command.indexOf(QStringLiteral("%1")) < 0) return false;
-+	command.replace(QStringLiteral("%1"), url.toString(QUrl::FullyEncoded));
-+	if (debug)
-         qDebug() << __FUNCTION__ << "Launching" << command;
-     //start the process
-     PROCESS_INFORMATION pi;
-diff --git a/qtbase/src/plugins/platforms/windows/qwindowswindow.cpp b/qtbase/src/plugins/platforms/windows/qwindowswindow.cpp
-index 543c081..d80429b 100644
---- a/qtbase/src/plugins/platforms/windows/qwindowswindow.cpp
-+++ b/qtbase/src/plugins/platforms/windows/qwindowswindow.cpp
-@@ -973,7 +973,7 @@ void QWindowsWindow::destroyWindow()
+     command.replace(QStringLiteral("%1"), url.toString(QUrl::FullyEncoded));
+diff --git a/src/plugins/platforms/windows/qwindowswindow.cpp b/src/plugins/platforms/windows/qwindowswindow.cpp
+index 288f73c..73230ed 100644
+--- a/src/plugins/platforms/windows/qwindowswindow.cpp
++++ b/src/plugins/platforms/windows/qwindowswindow.cpp
+@@ -973,7 +973,8 @@ void QWindowsWindow::destroyWindow()
          // Clear any transient child relationships as Windows will otherwise destroy them (QTBUG-35499, QTBUG-36666)
          if (QWindow *transientChild = findTransientChild(window()))
              if (QWindowsWindow *tw = QWindowsWindow::baseWindowOf(transientChild))
 -                tw->updateTransientParent();
++				// fix possibility of add / remove taskbar icon of the window
 +				tw->clearTransientParent();
          QWindowsContext *context = QWindowsContext::instance();
          if (context->windowUnderMouse() == window())
              context->clearWindowUnderMouse();
-@@ -1178,11 +1178,24 @@ void QWindowsWindow::updateTransientParent() const
+@@ -1178,11 +1179,26 @@ void QWindowsWindow::updateTransientParent() const
          if (const QWindowsWindow *tw = QWindowsWindow::baseWindowOf(tp))
              if (!tw->testFlag(WithinDestroy)) // Prevent destruction by parent window (QTBUG-35499, QTBUG-36666)
                  newTransientParent = tw->handle();
 -    if (newTransientParent != oldTransientParent)
++	// fix possibility of add / remove taskbar icon of the window
 +	if (newTransientParent && newTransientParent != oldTransientParent)
          SetWindowLongPtr(m_data.hwnd, GWL_HWNDPARENT, (LONG_PTR)newTransientParent);
  #endif // !Q_OS_WINCE
  }
  
++// fix possibility of add / remove taskbar icon of the window
 +void QWindowsWindow::clearTransientParent() const
 +{
 +#ifndef Q_OS_WINCE
@@ -11814,62 +11642,28 @@ index 543c081..d80429b 100644
  static inline bool testShowWithoutActivating(const QWindow *window)
  {
      // QWidget-attribute Qt::WA_ShowWithoutActivating .
-diff --git a/qtbase/src/plugins/platforms/windows/qwindowswindow.h b/qtbase/src/plugins/platforms/windows/qwindowswindow.h
-index fff90b4..71d060b 100644
---- a/qtbase/src/plugins/platforms/windows/qwindowswindow.h
-+++ b/qtbase/src/plugins/platforms/windows/qwindowswindow.h
-@@ -273,6 +273,7 @@ private:
+diff --git a/src/plugins/platforms/windows/qwindowswindow.h b/src/plugins/platforms/windows/qwindowswindow.h
+index fff90b4..47375a7 100644
+--- a/src/plugins/platforms/windows/qwindowswindow.h
++++ b/src/plugins/platforms/windows/qwindowswindow.h
+@@ -273,6 +273,8 @@ private:
      inline void setWindowState_sys(Qt::WindowState newState);
      inline void setParent_sys(const QPlatformWindow *parent);
      inline void updateTransientParent() const;
++	// fix possibility of add / remove taskbar icon of the window
 +	inline void clearTransientParent() const;
      void destroyWindow();
      inline bool isDropSiteEnabled() const { return m_dropTarget != 0; }
      void setDropSiteEnabled(bool enabled);
-diff --git a/qtbase/src/tools/qlalr/lalr.cpp b/qtbase/src/tools/qlalr/lalr.cpp
-index 3d0d5de..cb8071b 100644
---- a/qtbase/src/tools/qlalr/lalr.cpp
-+++ b/qtbase/src/tools/qlalr/lalr.cpp
-@@ -238,11 +238,11 @@ void Grammar::buildExtendedGrammar ()
-   non_terminals.insert (accept_symbol);
- }
- 
--struct _Nullable: public std::unary_function<Name, bool>
-+struct __Nullable: public std::unary_function<Name, bool>
- {
-   Automaton *_M_automaton;
- 
--  _Nullable (Automaton *aut):
-+  __Nullable (Automaton *aut):
-     _M_automaton (aut) {}
- 
-   bool operator () (Name name) const
-@@ -300,7 +300,7 @@ void Automaton::buildNullables ()
- 
-       for (RulePointer rule = _M_grammar->rules.begin (); rule != _M_grammar->rules.end (); ++rule)
-         {
--          NameList::iterator nn = std::find_if (rule->rhs.begin (), rule->rhs.end (), std::not1 (_Nullable (this)));
-+          NameList::iterator nn = std::find_if (rule->rhs.begin (), rule->rhs.end (), std::not1 (__Nullable (this)));
- 
-           if (nn == rule->rhs.end ())
-             changed |= nullables.insert (rule->lhs).second;
-@@ -635,7 +635,7 @@ void Automaton::buildIncludesDigraph ()
-                   if (! _M_grammar->isNonTerminal (*A))
-                     continue;
- 
--                  NameList::iterator first_not_nullable = std::find_if (dot, rule->rhs.end (), std::not1 (_Nullable (this)));
-+                  NameList::iterator first_not_nullable = std::find_if (dot, rule->rhs.end (), std::not1 (__Nullable (this)));
-                   if (first_not_nullable != rule->rhs.end ())
-                     continue;
- 
-diff --git a/qtbase/src/widgets/dialogs/qfiledialog.cpp b/qtbase/src/widgets/dialogs/qfiledialog.cpp
-index a9d5574..ea8aa43 100644
---- a/qtbase/src/widgets/dialogs/qfiledialog.cpp
-+++ b/qtbase/src/widgets/dialogs/qfiledialog.cpp
-@@ -1199,6 +1199,14 @@ QList<QUrl> QFileDialogPrivate::userSelectedFiles() const
+diff --git a/src/widgets/dialogs/qfiledialog.cpp b/src/widgets/dialogs/qfiledialog.cpp
+index c9e6a19..d150ac8 100644
+--- a/src/widgets/dialogs/qfiledialog.cpp
++++ b/src/widgets/dialogs/qfiledialog.cpp
+@@ -1201,6 +1201,15 @@ QList<QUrl> QFileDialogPrivate::userSelectedFiles() const
      return files;
  }
  
++// adding select-by-url for Windows file dialog
 +QByteArray QFileDialogPrivate::userSelectedRemoteContent() const
 +{
 +	if (nativeDialogInUse)
@@ -11881,10 +11675,11 @@ index a9d5574..ea8aa43 100644
  QStringList QFileDialogPrivate::addDefaultSuffixToFiles(const QStringList &filesToFix) const
  {
      QStringList files;
-@@ -1262,6 +1270,13 @@ QStringList QFileDialog::selectedFiles() const
+@@ -1264,6 +1273,14 @@ QStringList QFileDialog::selectedFiles() const
      return files;
  }
  
++// adding select-by-url for Windows file dialog
 +QByteArray QFileDialog::selectedRemoteContent() const
 +{
 +	Q_D(const QFileDialog);
@@ -11895,42 +11690,46 @@ index a9d5574..ea8aa43 100644
  /*!
      Returns a list of urls containing the selected files in the dialog.
      If no files are selected, or the mode is not ExistingFiles or
-diff --git a/qtbase/src/widgets/dialogs/qfiledialog.h b/qtbase/src/widgets/dialogs/qfiledialog.h
-index 95209bc..0dca0ef 100644
---- a/qtbase/src/widgets/dialogs/qfiledialog.h
-+++ b/qtbase/src/widgets/dialogs/qfiledialog.h
-@@ -106,6 +106,7 @@ public:
+diff --git a/src/widgets/dialogs/qfiledialog.h b/src/widgets/dialogs/qfiledialog.h
+index 95209bc..e58ae5d 100644
+--- a/src/widgets/dialogs/qfiledialog.h
++++ b/src/widgets/dialogs/qfiledialog.h
+@@ -106,6 +106,8 @@ public:
  
      void selectFile(const QString &filename);
      QStringList selectedFiles() const;
++	// adding select-by-url for Windows file dialog
 +	QByteArray selectedRemoteContent() const;
  
      void selectUrl(const QUrl &url);
      QList<QUrl> selectedUrls() const;
-diff --git a/qtbase/src/widgets/dialogs/qfiledialog_p.h b/qtbase/src/widgets/dialogs/qfiledialog_p.h
-index f610e46..16fa44e 100644
---- a/qtbase/src/widgets/dialogs/qfiledialog_p.h
-+++ b/qtbase/src/widgets/dialogs/qfiledialog_p.h
-@@ -123,6 +123,7 @@ public:
+diff --git a/src/widgets/dialogs/qfiledialog_p.h b/src/widgets/dialogs/qfiledialog_p.h
+index f610e46..37d4b9d 100644
+--- a/src/widgets/dialogs/qfiledialog_p.h
++++ b/src/widgets/dialogs/qfiledialog_p.h
+@@ -123,6 +123,8 @@ public:
      static QString initialSelection(const QUrl &path);
      QStringList typedFiles() const;
      QList<QUrl> userSelectedFiles() const;
++	// adding select-by-url for Windows file dialog
 +	QByteArray userSelectedRemoteContent() const;
      QStringList addDefaultSuffixToFiles(const QStringList &filesToFix) const;
      QList<QUrl> addDefaultSuffixToUrls(const QList<QUrl> &urlsToFix) const;
      bool removeDirectory(const QString &path);
-@@ -256,6 +257,7 @@ public:
+@@ -256,6 +258,8 @@ public:
      QUrl directory_sys() const;
      void selectFile_sys(const QUrl &filename);
      QList<QUrl> selectedFiles_sys() const;
++	// adding select-by-url for Windows file dialog
 +	QByteArray selectedRemoteContent_sys() const;
      void setFilter_sys();
      void selectNameFilter_sys(const QString &filter);
      QString selectedNameFilter_sys() const;
-@@ -393,6 +395,13 @@ inline QList<QUrl> QFileDialogPrivate::selectedFiles_sys() const
+@@ -393,6 +397,14 @@ inline QList<QUrl> QFileDialogPrivate::selectedFiles_sys() const
      return QList<QUrl>();
  }
  
++// adding select-by-url for Windows file dialog
 +inline QByteArray QFileDialogPrivate::selectedRemoteContent_sys() const
 +{
 +	if (QPlatformFileDialogHelper *helper = platformFileDialogHelper())
@@ -11941,60 +11740,40 @@ index f610e46..16fa44e 100644
  inline void QFileDialogPrivate::setFilter_sys()
  {
      if (QPlatformFileDialogHelper *helper = platformFileDialogHelper())
-diff --git a/qtbase/src/widgets/kernel/qwidget.cpp b/qtbase/src/widgets/kernel/qwidget.cpp
-index e701eb0..1bdaff5 100644
---- a/qtbase/src/widgets/kernel/qwidget.cpp
-+++ b/qtbase/src/widgets/kernel/qwidget.cpp
-@@ -8683,7 +8683,7 @@ bool QWidget::event(QEvent *event)
+diff --git a/src/widgets/kernel/qwidget.cpp b/src/widgets/kernel/qwidget.cpp
+index 49da4d1..96a9846 100644
+--- a/src/widgets/kernel/qwidget.cpp
++++ b/src/widgets/kernel/qwidget.cpp
+@@ -8696,7 +8696,8 @@ bool QWidget::event(QEvent *event)
      case QEvent::KeyPress: {
          QKeyEvent *k = (QKeyEvent *)event;
          bool res = false;
 -        if (!(k->modifiers() & (Qt::ControlModifier | Qt::AltModifier))) {  //### Add MetaModifier?
++		// enable Ctrl+Tab and Ctrl+Shift+Tab / Ctrl+Backtab handle in-app
 +		if (!(k->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))) {  //### Add MetaModifier?
              if (k->key() == Qt::Key_Backtab
                  || (k->key() == Qt::Key_Tab && (k->modifiers() & Qt::ShiftModifier)))
                  res = focusNextPrevChild(false);
-diff --git a/qtbase/src/widgets/kernel/qwidgetbackingstore.cpp b/qtbase/src/widgets/kernel/qwidgetbackingstore.cpp
-index d107083..1d2aff0 100644
---- a/qtbase/src/widgets/kernel/qwidgetbackingstore.cpp
-+++ b/qtbase/src/widgets/kernel/qwidgetbackingstore.cpp
-@@ -303,6 +303,8 @@ void QWidgetBackingStore::beginPaint(QRegion &toClean, QWidget *widget, QBacking
-     // Always flush repainted areas.
-     dirtyOnScreen += toClean;
- 
-+	backingStore->beforeBeginPaint(tlw->windowHandle());
-+
- #ifdef QT_NO_PAINT_DEBUG
-     backingStore->beginPaint(toClean);
- #else
-@@ -332,7 +334,9 @@ void QWidgetBackingStore::endPaint(const QRegion &cleaned, QBackingStore *backin
-     backingStore->endPaint();
- #endif
- 
--    flush();
-+	backingStore->afterEndPaint(tlw->windowHandle());
-+
-+	flush();
- }
- 
- /*!
-diff --git a/qtbase/src/widgets/util/qsystemtrayicon.cpp b/qtbase/src/widgets/util/qsystemtrayicon.cpp
-index dc2737c..aa9bc91 100644
---- a/qtbase/src/widgets/util/qsystemtrayicon.cpp
-+++ b/qtbase/src/widgets/util/qsystemtrayicon.cpp
-@@ -711,6 +711,8 @@ void QSystemTrayIconPrivate::updateMenu_sys_qpa()
+diff --git a/src/widgets/util/qsystemtrayicon.cpp b/src/widgets/util/qsystemtrayicon.cpp
+index 358e4c3..1f0e978 100644
+--- a/src/widgets/util/qsystemtrayicon.cpp
++++ b/src/widgets/util/qsystemtrayicon.cpp
+@@ -711,7 +711,10 @@ void QSystemTrayIconPrivate::updateMenu_sys_qpa()
      if (menu) {
          addPlatformMenu(menu);
          qpa_sys->updateMenu(menu->platformMenu());
+-    }
++	// create a good os x tray icon
 +	} else {
 +		qpa_sys->updateMenu(0);
-     }
++	}
  }
  
-diff --git a/qtbase/src/widgets/widgets/qwidgetlinecontrol.cpp b/qtbase/src/widgets/widgets/qwidgetlinecontrol.cpp
-index 759e41a..ba72f4b 100644
---- a/qtbase/src/widgets/widgets/qwidgetlinecontrol.cpp
-+++ b/qtbase/src/widgets/widgets/qwidgetlinecontrol.cpp
+ void QSystemTrayIconPrivate::updateToolTip_sys_qpa()
+diff --git a/src/widgets/widgets/qwidgetlinecontrol.cpp b/src/widgets/widgets/qwidgetlinecontrol.cpp
+index 759e41a..b4166f8 100644
+--- a/src/widgets/widgets/qwidgetlinecontrol.cpp
++++ b/src/widgets/widgets/qwidgetlinecontrol.cpp
 @@ -40,6 +40,7 @@
  #include <private/qguiapplication_p.h>
  #include <qpa/qplatformtheme.h>
@@ -12003,16 +11782,15 @@ index 759e41a..ba72f4b 100644
  #ifndef QT_NO_ACCESSIBILITY
  #include "qaccessible.h"
  #endif
-@@ -1879,12 +1880,19 @@ void QWidgetLineControl::processKeyEvent(QKeyEvent* event)
-         unknown = false;
+@@ -1880,11 +1881,19 @@ void QWidgetLineControl::processKeyEvent(QKeyEvent* event)
      }
  
--    // QTBUG-35734: ignore Ctrl/Ctrl+Shift; accept only AltGr (Alt+Ctrl) on German keyboards
+     // QTBUG-35734: ignore Ctrl/Ctrl+Shift; accept only AltGr (Alt+Ctrl) on German keyboards
 -    if (unknown && !isReadOnly()
 -        && event->modifiers() != Qt::ControlModifier
 -        && event->modifiers() != (Qt::ControlModifier | Qt::ShiftModifier)) {
-+	// QTBUG-35734: ignore Ctrl/Ctrl+Shift; accept only AltGr (Alt+Ctrl) on German keyboards
-+	//
++	// enable Ctrl+key and Ctrl+Shift+key in all locales except German
++	// see https://github.com/telegramdesktop/tdesktop/pull/1185
 +	bool skip = false;
 +	if (QGuiApplication::inputMethod()->locale().language() == QLocale::German) {
 +		if (event->modifiers() == Qt::ControlModifier
@@ -12020,52 +11798,40 @@ index 759e41a..ba72f4b 100644
 +			skip = true;
 +		}
 +	}
-+
 +	if (unknown && !isReadOnly() && !skip) {
          QString t = event->text();
 -        if (!t.isEmpty() && t.at(0).isPrint()) {
++		// enable ZWJ and ZWNJ characters to be in text input
 +		if (!t.isEmpty() && (t.at(0).isPrint() || t.at(0).unicode() == 0x200C || t.at(0).unicode() == 0x200D)) {
              insert(t);
  #ifndef QT_NO_COMPLETER
              complete(event->key());
-diff --git a/qtbase/src/widgets/widgets/qwidgettextcontrol.cpp b/qtbase/src/widgets/widgets/qwidgettextcontrol.cpp
-index faa63cb..53dc1bf 100644
---- a/qtbase/src/widgets/widgets/qwidgettextcontrol.cpp
-+++ b/qtbase/src/widgets/widgets/qwidgettextcontrol.cpp
-@@ -74,6 +74,7 @@
- #include <QtWidgets/qlineedit.h>
- #include <QtGui/qaccessible.h>
- #include <QtCore/qmetaobject.h>
-+#include <QtCore/QLocale>
- 
- #ifndef QT_NO_SHORTCUT
- #include "private/qapplication_p.h"
-@@ -1341,14 +1342,22 @@ void QWidgetTextControlPrivate::keyPressEvent(QKeyEvent *e)
- 
+diff --git a/src/widgets/widgets/qwidgettextcontrol.cpp b/src/widgets/widgets/qwidgettextcontrol.cpp
+index 72007ac..5846f60 100644
+--- a/src/widgets/widgets/qwidgettextcontrol.cpp
++++ b/src/widgets/widgets/qwidgettextcontrol.cpp
+@@ -1342,13 +1342,22 @@ void QWidgetTextControlPrivate::keyPressEvent(QKeyEvent *e)
  process:
      {
--        // QTBUG-35734: ignore Ctrl/Ctrl+Shift; accept only AltGr (Alt+Ctrl) on German keyboards
+         // QTBUG-35734: ignore Ctrl/Ctrl+Shift; accept only AltGr (Alt+Ctrl) on German keyboards
 -        if (e->modifiers() == Qt::ControlModifier
 -            || e->modifiers() == (Qt::ShiftModifier | Qt::ControlModifier)) {
--            e->ignore();
--            return;
-+		// QTBUG-35734: ignore Ctrl/Ctrl+Shift; accept only AltGr (Alt+Ctrl) on German keyboards
-+		//
++		// enable Ctrl+key and Ctrl+Shift+key in all locales except German
++		// see https://github.com/telegramdesktop/tdesktop/pull/1185
 +		bool skip = false;
-+        if (QGuiApplication::inputMethod()->locale().language() == QLocale::German) {
-+            if (e->modifiers() == Qt::ControlModifier
-+                || e->modifiers() == (Qt::ShiftModifier | Qt::ControlModifier)) {
++		if (QGuiApplication::inputMethod()->locale().language() == QLocale::German) {
++			if (e->modifiers() == Qt::ControlModifier
++				|| e->modifiers() == (Qt::ShiftModifier | Qt::ControlModifier)) {
 +				skip = true;
-+            }
-         }
--        QString text = e->text();
--        if (!text.isEmpty() && (text.at(0).isPrint() || text.at(0) == QLatin1Char('\t'))) {
-+		if (skip) {
-+			e->ignore();
-+			return;
++			}
 +		}
-+
-+		QString text = e->text();
++		if (skip) {
+             e->ignore();
+             return;
+         }
+         QString text = e->text();
+-        if (!text.isEmpty() && (text.at(0).isPrint() || text.at(0) == QLatin1Char('\t'))) {
++		// enable ZWJ and ZWNJ characters to be in text input
 +		if (!text.isEmpty() && (text.at(0).isPrint() || text.at(0) == QLatin1Char('\t') || text.at(0).unicode() == 0x200C || text.at(0).unicode() == 0x200D)) {
              if (overwriteMode
                  // no need to call deleteChar() if we have a selection, insertText

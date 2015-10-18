@@ -69,7 +69,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PreprocessorDefinitions>AL_LIBTYPE_STATIC;UNICODE;WIN32;WIN64;HAVE_STDINT_H;ZLIB_WINAPI;_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.\..\..\Libraries\lzma\C;.\..\..\Libraries\libexif-0.6.20;.\..\..\Libraries\zlib-1.2.8;.\..\..\Libraries\OpenSSL-Win32\include;.\..\..\Libraries\ffmpeg-2.6.3;.\..\..\Libraries\openal-soft\include;.\SourceFiles;.\GeneratedFiles;.;$(QTDIR)\include;.\GeneratedFiles\$(ConfigurationName);.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.5.0\QtCore;.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.5.0\QtGui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\..\..\Libraries\lzma\C;.\..\..\Libraries\libexif-0.6.20;.\..\..\Libraries\zlib-1.2.8;.\..\..\Libraries\OpenSSL-Win32\include;.\..\..\Libraries\ffmpeg-2.6.3;.\..\..\Libraries\openal-soft\include;.\SourceFiles;.\GeneratedFiles;.;$(QTDIR)\include;.\GeneratedFiles\$(ConfigurationName);.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.5.1\QtCore;.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.5.1\QtGui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
       <PrecompiledHeader>Use</PrecompiledHeader>
