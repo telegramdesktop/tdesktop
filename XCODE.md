@@ -140,7 +140,7 @@ Then in Terminal go to **/Users/user/TBuild/Libraries/ffmpeg-2.6.3** and run
 
 In Terminal go to **/Users/user/TBuild/Libraries** and run
 
-    git clone https://code.qt.io/qt/qt5.git QtStatic
+    git clone git://code.qt.io/qt/qt5.git QtStatic
     cd QtStatic
     git checkout v5.5.1
     perl init-repository --module-subset=qtbase,qtimageformats
