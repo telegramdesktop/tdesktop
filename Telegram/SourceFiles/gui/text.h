@@ -676,7 +676,7 @@ inline bool chIsTrimmed(QChar ch, bool rich = false) {
 }
 inline bool chIsDiac(QChar ch) { // diac and variation selectors
 	QChar::Category c = ch.category();
-	return (c == QChar::Mark_NonSpacing);
+	return (c == QChar::Mark_NonSpacing) || (ch.unicode() == 1652);
 }
 inline int32 chMaxDiacAfterSymbol() {
 	return 2;
