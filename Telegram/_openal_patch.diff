@@ -1,35 +1,22 @@
-diff --git a/Alc/backends/mmdevapi.c b/Alc/backends/mmdevapi.c
-index cfd12d8..8a6f9fb 100644
---- a/Alc/backends/mmdevapi.c
-+++ b/Alc/backends/mmdevapi.c
-@@ -1719,7 +1719,7 @@ static void ALCmmdevBackendFactory_deinit(ALCmmdevBackendFactory* UNUSED(self))
- 
- static ALCboolean ALCmmdevBackendFactory_querySupport(ALCmmdevBackendFactory* UNUSED(self), ALCbackend_Type type)
- {
--    if(type == ALCbackend_Playback || type == ALCbackend_Capture)
-+    if(type == ALCbackend_Playback/* || type == ALCbackend_Capture*/)
-         return ALC_TRUE;
-     return ALC_FALSE;
- }
 diff --git a/Alc/backends/winmm.c b/Alc/backends/winmm.c
-index 03805ab..5035a36 100644
+index bf97ef2..1cd5774 100644
 --- a/Alc/backends/winmm.c
 +++ b/Alc/backends/winmm.c
-@@ -220,7 +220,7 @@ FORCE_ALIGN static int ALCwinmmPlayback_mixerProc(void *arg)
+@@ -221,7 +221,7 @@ FORCE_ALIGN static int ALCwinmmPlayback_mixerProc(void *arg)
      SetRTPriority();
      althrd_setname(althrd_current(), MIXER_THREAD_NAME);
  
 -    while(GetMessage(&msg, NULL, 0, 0))
-+    if (!self->killNow) while(GetMessage(&msg, NULL, 0, 0))
++	if (!self->killNow) while(GetMessage(&msg, NULL, 0, 0))
      {
          if(msg.message != WOM_DONE)
              continue;
-@@ -505,7 +505,7 @@ static int ALCwinmmCapture_captureProc(void *arg)
+@@ -506,7 +506,7 @@ static int ALCwinmmCapture_captureProc(void *arg)
  
      althrd_setname(althrd_current(), RECORD_THREAD_NAME);
  
 -    while(GetMessage(&msg, NULL, 0, 0))
-+	if (!self->killNow) while (GetMessage(&msg, NULL, 0, 0))
++	if (!self->killNow) while(GetMessage(&msg, NULL, 0, 0))
      {
          if(msg.message != WIM_DATA)
              continue;

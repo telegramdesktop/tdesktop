@@ -368,7 +368,8 @@ static const mtpTypeId mtpLayers[] = {
 	mtpc_invokeWithLayer16,
 	mtpc_invokeWithLayer17,
 	mtpc_invokeWithLayer18,
-}, mtpLayerMaxSingle = sizeof(mtpLayers) / sizeof(mtpLayers[0]);
+};
+static const uint32 mtpLayerMaxSingle = sizeof(mtpLayers) / sizeof(mtpLayers[0]);
 static const mtpPrime mtpCurrentLayer = 38;
 
 template <typename bareT>
