@@ -29,7 +29,7 @@ class IntroPwdCheck;
 class IntroStage;
 class Text;
 
-class IntroWidget : public QWidget, public Animated {
+class IntroWidget : public TWidget {
 	Q_OBJECT
 
 public:
@@ -44,7 +44,10 @@ public:
 	void updateWideMode();
 
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
-	bool animStep(float64 ms);
+	bool animStep_show(float64 ms);
+	void animStop_show();
+		
+	bool animStep_stage(float64 ms);
 
 	QRect innerRect() const;
 	QString currentCountry() const;
@@ -94,14 +97,16 @@ private:
 
 	int32 _langChangeTo;
 
-	QPixmap cacheForHide, cacheForShow;
-	int cacheForHideInd, cacheForShowInd;
-	anim::ivalue xCoordHide, xCoordShow;
-	anim::fvalue cAlphaHide, cAlphaShow;
+	Animation _a_stage;
+	QPixmap _cacheHide, _cacheShow;
+	int _cacheHideIndex, _cacheShowIndex;
+	anim::ivalue a_coordHide, a_coordShow;
+	anim::fvalue a_opacityHide, a_opacityShow;
 
-	QPixmap _animCache, _bgAnimCache;
-	anim::ivalue a_coord, a_bgCoord;
-	anim::fvalue a_alpha, a_bgAlpha;
+	Animation _a_show;
+	QPixmap _cacheUnder, _cacheOver;
+	anim::ivalue a_coordUnder, a_coordOver;
+	anim::fvalue a_shadow;
 
 	Window *wnd;
 	IntroSteps *steps;
@@ -110,7 +115,7 @@ private:
 	IntroSignup *signup;
 	IntroPwdCheck *pwdcheck;
 	IntroStage *stages[5];
-	int current, moving, visibilityChanging;
+	int current, moving;
 
 	QString _phone, _phone_hash;
 	int32 _callTimeout;
@@ -129,10 +134,10 @@ private:
 
 };
 
-class IntroStage : public QWidget {
+class IntroStage : public TWidget {
 public:
 
-	IntroStage(IntroWidget *parent) : QWidget(parent) {
+	IntroStage(IntroWidget *parent) : TWidget(parent) {
 	}
 
 	virtual void activate() = 0; // show and activate

@@ -190,8 +190,8 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	connect(this, SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
 	#endif
 	connect(this, SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
-	//connect(&writeUserConfigTimer, SIGNAL(timeout()), this, SLOT(onWriteUserConfig()));
-	//writeUserConfigTimer.setSingleShot(true);
+
+	connect(&_mtpUnpauseTimer, SIGNAL(timeout()), this, SLOT(doMtpUnpause()));
 
 	connect(&killDownloadSessionsTimer, SIGNAL(timeout()), this, SLOT(killDownloadSessions()));
 
@@ -294,6 +294,19 @@ void Application::cancelPhotoUpdate(const PeerId &peer) {
 			++i;
 		}
 	}
+}
+
+void Application::mtpPause() {
+	MTP::pause();
+	_mtpUnpauseTimer.start(st::slideDuration * 2);
+}
+
+void Application::mtpUnpause() {
+	_mtpUnpauseTimer.start(1);
+}
+
+void Application::doMtpUnpause() {
+	MTP::unpause();
 }
 
 void Application::selfPhotoCleared(const MTPUserProfilePhoto &result) {

@@ -302,6 +302,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_passcode_enter" = "Enter your local passcode";
 "lng_passcode_submit" = "Submit";
 "lng_passcode_logout" = "Log out";
+"lng_passcode_need_unblock" = "You need to unlock me first.";
 
 "lng_cloud_password_waiting" = "Confirmation link sent to {email}..";
 "lng_cloud_password_change" = "Change cloud password";
@@ -684,6 +685,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_forward_messages" = "{count:_not_used_|Forwarded message|# forwarded messages}";
 "lng_forwarding_from" = "{user} and {count:_not_used_|# other|# others}";
 "lng_forwarding_from_two" = "{user} and {second_user}";
+
+"lng_share_cant" = "Sorry, no way to share here :(";
 
 "lng_contact_phone" = "Phone number";
 "lng_enter_contact_data" = "New Contact";

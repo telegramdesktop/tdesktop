@@ -55,6 +55,7 @@ public:
 	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	int32 updatingSize();
 	int32 updatingReady();
+	void stopUpdate();
 	#endif
 
 	FileUploader *uploader();
@@ -64,7 +65,8 @@ public:
 	bool isPhotoUpdating(const PeerId &peer);
 	void cancelPhotoUpdate(const PeerId &peer);
 
-	void stopUpdate();
+	void mtpPause();
+	void mtpUnpause();
 
 	void selfPhotoCleared(const MTPUserProfilePhoto &result);
 	void chatPhotoCleared(PeerId peer, const MTPUpdates &updates);
@@ -108,6 +110,8 @@ public slots:
 	void socketReading();
 	void newInstanceConnected();
 	void closeApplication();
+
+	void doMtpUnpause();
 
 	void readClients();
 	void removeClients();
@@ -162,7 +166,7 @@ private:
 	UpdateDownloader *updateDownloader;
 	#endif
 
-	QTimer writeUserConfigTimer;
+	SingleTimer _mtpUnpauseTimer;
 
 	Translator *_translator;
 

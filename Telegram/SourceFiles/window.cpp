@@ -480,21 +480,21 @@ void Window::clearWidgets() {
 		_passcode = 0;
 	}
 	if (settings) {
-		anim::stop(settings);
+		settings->animStop_show();
 		settings->hide();
 		settings->deleteLater();
 		settings->rpcInvalidate();
 		settings = 0;
 	}
 	if (main) {
-		anim::stop(main);
+		main->animStop_show();
 		main->hide();
 		main->deleteLater();
 		main->rpcInvalidate();
 		main = 0;
 	}
 	if (intro) {
-		anim::stop(intro);
+		intro->animStop_show();
 		intro->hide();
 		intro->deleteLater();
 		intro->rpcInvalidate();
@@ -504,12 +504,26 @@ void Window::clearWidgets() {
 	updateGlobalMenu();
 }
 
+QPixmap Window::grabInner() {
+	QPixmap result;
+	if (settings) {
+		result = myGrab(settings);
+	} else if (intro) {
+		result = myGrab(intro);
+	} else if (main) {
+		result = myGrab(main);
+	} else if (_passcode) {
+		result = myGrab(_passcode);
+	}
+	return result;
+}
+
 void Window::clearPasscode() {
 	if (!_passcode) return;
 
-	QPixmap bg = myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight));
+	QPixmap bg = grabInner();
 
-	anim::stop(_passcode);
+	_passcode->animStop_show();
 	_passcode->hide();
 	_passcode->deleteLater();
 	_passcode = 0;
@@ -526,9 +540,10 @@ void Window::clearPasscode() {
 }
 
 void Window::setupPasscode(bool anim) {
-	QPixmap bg = myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight));
+	QPixmap bg = grabInner();
+
 	if (_passcode) {
-		anim::stop(_passcode);
+		_passcode->animStop_show();
 		_passcode->hide();
 		_passcode->deleteLater();
 	}
@@ -572,9 +587,9 @@ void Window::checkAutoLock() {
 void Window::setupIntro(bool anim) {
 	cSetContactsReceived(false);
 	cSetDialogsReceived(false);
-	if (intro && (intro->animating() || intro->isVisible()) && !main) return;
+	if (intro && !intro->isHidden() && !main) return;
 
-	QPixmap bg = anim ? myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight)) : QPixmap();
+	QPixmap bg = anim ? grabInner() : QPixmap();
 
 	clearWidgets();
 	intro = new IntroWidget(this);
@@ -630,7 +645,7 @@ void Window::sendServiceHistoryRequest() {
 void Window::setupMain(bool anim, const MTPUser *self) {
 	Local::readStickers();
 
-	QPixmap bg = anim ? myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight)) : QPixmap();
+	QPixmap bg = anim ? grabInner() : QPixmap();
 	clearWidgets();
 	main = new MainWidget(this);
 	main->move(0, st::titleHeight);
@@ -667,13 +682,13 @@ void Window::showSettings() {
 	if (settings) {
 		return hideSettings();
 	}
-	QPixmap bg = myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight));
+	QPixmap bg = grabInner();
 
 	if (intro) {
-		anim::stop(intro);
+		intro->animStop_show();
 		intro->hide();
 	} else if (main) {
-		anim::stop(main);
+		main->animStop_show();
 		main->hide();
 	}
 	settings = new SettingsWidget(this);
@@ -687,7 +702,7 @@ void Window::hideSettings(bool fast) {
 	if (!settings || _passcode) return;
 
 	if (fast) {
-		anim::stop(settings);
+		settings->animStop_show();
 		settings->hide();
 		settings->deleteLater();
 		settings->rpcInvalidate();
@@ -698,9 +713,9 @@ void Window::hideSettings(bool fast) {
 			main->show();
 		}
 	} else {
-		QPixmap bg = myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight));
+		QPixmap bg = grabInner();
 
-		anim::stop(settings);
+		settings->animStop_show();
 		settings->hide();
 		settings->deleteLater();
 		settings->rpcInvalidate();
@@ -1167,6 +1182,11 @@ void Window::toggleTray(QSystemTrayIcon::ActivationReason reason) {
 }
 
 void Window::toggleDisplayNotifyFromTray() {
+	if (App::passcoded()) {
+		if (!isActive()) showFromTray();
+		showLayer(new InformBox(lang(lng_passcode_need_unblock)));
+		return;
+	}
 	cSetDesktopNotify(!cDesktopNotify());
 	if (settings) {
 		settings->updateDisplayNotify();
@@ -1750,7 +1770,7 @@ void Window::sendPaths() {
 		if (layerShown()) {
 			hideLayer();
 		}
-		if (main && !main->animating()) {
+		if (main) {
 			main->activate();
 		}
 	}

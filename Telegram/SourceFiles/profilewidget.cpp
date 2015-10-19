@@ -1523,15 +1523,20 @@ QString ProfileInner::overviewLinkText(int32 type, int32 count) {
 	return QString();
 }
 
-ProfileWidget::ProfileWidget(QWidget *parent, const PeerData *peer) : QWidget(parent)
-    , _scroll(this, st::setScroll)
-    , _inner(this, &_scroll, peer)
-    , _showing(false)
-{
+ProfileWidget::ProfileWidget(QWidget *parent, const PeerData *peer) : TWidget(parent)
+, _scroll(this, st::setScroll)
+, _inner(this, &_scroll, peer)
+, _a_show(animFunc(this, &ProfileWidget::animStep_show))
+, _sideShadow(this, st::shadowColor)
+, _topShadow(this, st::shadowColor)
+, _inGrab(false) {
 	_scroll.setWidget(&_inner);
 	_scroll.move(0, 0);
 	_inner.move(0, 0);
 	_scroll.show();
+
+	_sideShadow.setVisible(cWideMode());
+
 	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(updateSelected()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 }
@@ -1556,6 +1561,11 @@ void ProfileWidget::resizeEvent(QResizeEvent *e) {
 			_inner.allowDecreaseHeight(_scroll.scrollTopMax() - _scroll.scrollTop());
 		}
 	}
+
+	_topShadow.resize(width() - ((cWideMode() && !_inGrab) ? st::lineWidth : 0), st::lineWidth);
+	_topShadow.moveToLeft((cWideMode() && !_inGrab) ? st::lineWidth : 0, 0);
+	_sideShadow.resize(st::lineWidth, height());
+	_sideShadow.moveToLeft(0, 0);
 }
 
 void ProfileWidget::mousePressEvent(QMouseEvent *e) {
@@ -1565,11 +1575,16 @@ void ProfileWidget::paintEvent(QPaintEvent *e) {
 	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) return;
 
 	Painter p(this);
-	if (animating() && _showing) {
-		p.setOpacity(a_bgAlpha.current());
-		p.drawPixmap(a_bgCoord.current(), 0, _bgAnimCache);
-		p.setOpacity(a_alpha.current());
-		p.drawPixmap(a_coord.current(), 0, _animCache);
+	if (_a_show.animating()) {
+		if (a_coordOver.current() > 0) {
+			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * cRetinaFactor(), 0, a_coordOver.current() * cRetinaFactor(), height() * cRetinaFactor()));
+			p.setOpacity(a_shadow.current() * st::slideFadeOut);
+			p.fillRect(0, 0, a_coordOver.current(), height(), st::black->b);
+			p.setOpacity(1);
+		}
+		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
+		p.setOpacity(a_shadow.current());
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow);
 	} else {
 		p.fillRect(e->rect(), st::white->b);
 	}
@@ -1582,25 +1597,19 @@ void ProfileWidget::dropEvent(QDropEvent *e) {
 }
 
 void ProfileWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) {
-	if (animating() && _showing) {
-		p.setOpacity(a_bgAlpha.current());
-		p.drawPixmap(a_bgCoord.current(), 0, _bgAnimTopBarCache);
-		p.setOpacity(a_alpha.current());
-		p.drawPixmap(a_coord.current(), 0, _animTopBarCache);
-	} else {
-		p.setOpacity(st::topBarBackAlpha + (1 - st::topBarBackAlpha) * over);
-		p.drawPixmap(QPoint(st::topBarBackPadding.left(), (st::topBarHeight - st::topBarBackImg.pxHeight()) / 2), App::sprite(), st::topBarBackImg);
-		p.setFont(st::topBarBackFont->f);
-		p.setPen(st::topBarBackColor->p);
-		p.drawText(st::topBarBackPadding.left() + st::topBarBackImg.pxWidth() + st::topBarBackPadding.right(), (st::topBarHeight - st::topBarBackFont->height) / 2 + st::topBarBackFont->ascent, lang(peer()->isUser() ? lng_profile_info : (peer()->isChat() ? lng_profile_group_info : lng_profile_channel_info)));
+	if (_a_show.animating()) {
+		p.drawPixmap(a_coordUnder.current(), 0, _cacheTopBarUnder);
+		p.drawPixmap(a_coordOver.current(), 0, _cacheTopBarOver);
+		p.setOpacity(a_shadow.current());
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), st::topBarHeight), App::sprite(), st::slideShadow);
+		return;
 	}
-}
 
-void ProfileWidget::topBarShadowParams(int32 &x, float64 &o) {
-	if (animating() && a_coord.current() >= 0) {
-		x = a_coord.current();
-		o = a_alpha.current();
-	}
+	p.setOpacity(st::topBarBackAlpha + (1 - st::topBarBackAlpha) * over);
+	p.drawPixmap(QPoint(st::topBarBackPadding.left(), (st::topBarHeight - st::topBarBackImg.pxHeight()) / 2), App::sprite(), st::topBarBackImg);
+	p.setFont(st::topBarBackFont->f);
+	p.setPen(st::topBarBackColor->p);
+	p.drawText(st::topBarBackPadding.left() + st::topBarBackImg.pxWidth() + st::topBarBackPadding.right(), (st::topBarHeight - st::topBarBackFont->height) / 2 + st::topBarBackFont->ascent, lang(peer()->isUser() ? lng_profile_info : (peer()->isChat() ? lng_profile_group_info : lng_profile_channel_info)));
 }
 
 void ProfileWidget::topBarClick() {
@@ -1616,46 +1625,56 @@ int32 ProfileWidget::lastScrollTop() const {
 }
 
 void ProfileWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back, int32 lastScrollTop) {
+	if (App::app()) App::app()->mtpPause();
+
 	stopGif();
-	_bgAnimCache = bgAnimCache;
-	_bgAnimTopBarCache = bgAnimTopBarCache;
+
+	(back ? _cacheOver : _cacheUnder) = bgAnimCache;
+	(back ? _cacheTopBarOver : _cacheTopBarUnder) = bgAnimTopBarCache;
 	if (lastScrollTop >= 0) _scroll.scrollToY(lastScrollTop);
-	_animCache = myGrab(this, rect());
+	(back ? _cacheUnder : _cacheOver) = myGrab(this);
 	App::main()->topBar()->stopAnim();
-	_animTopBarCache = myGrab(App::main()->topBar(), QRect(0, 0, width(), st::topBarHeight));
+	(back ? _cacheTopBarUnder : _cacheTopBarOver) = myGrab(App::main()->topBar());
 	App::main()->topBar()->startAnim();
+
 	_scroll.hide();
-	a_coord = back ? anim::ivalue(-st::introSlideShift, 0) : anim::ivalue(st::introSlideShift, 0);
-	a_alpha = anim::fvalue(0, 1);
-	a_bgCoord = back ? anim::ivalue(0, st::introSlideShift) : anim::ivalue(0, -st::introSlideShift);
-	a_bgAlpha = anim::fvalue(1, 0);
-	anim::start(this);
-	_showing = true;
+	_topShadow.hide();
+
+	a_coordUnder = back ? anim::ivalue(-qFloor(st::slideShift * width()), 0) : anim::ivalue(0, -qFloor(st::slideShift * width()));
+	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
+	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
+	_a_show.start();
+
 	show();
-	_inner.setFocus();
+
 	App::main()->topBar()->update();
+	_inner.setFocus();
 }
 
-bool ProfileWidget::animStep(float64 ms) {
-	float64 fullDuration = st::introSlideDelta + st::introSlideDuration, dt = ms / fullDuration;
-	float64 dt1 = (ms > st::introSlideDuration) ? 1 : (ms / st::introSlideDuration), dt2 = (ms > st::introSlideDelta) ? (ms - st::introSlideDelta) / (st::introSlideDuration) : 0;
+bool ProfileWidget::animStep_show(float64 ms) {
+	float64 dt = ms / st::slideDuration;
 	bool res = true;
-	if (dt2 >= 1) {
-		res = _showing = false;
-		a_bgCoord.finish();
-		a_bgAlpha.finish();
-		a_coord.finish();
-		a_alpha.finish();
-		_bgAnimCache = _animCache = _animTopBarCache = _bgAnimTopBarCache = QPixmap();
+	if (dt >= 1) {
+		_a_show.stop();
+		_sideShadow.setVisible(cWideMode());
+		_topShadow.show();
+
+		res = false;
+		a_coordUnder.finish();
+		a_coordOver.finish();
+		a_shadow.finish();
+		_cacheUnder = _cacheOver = _cacheTopBarUnder = _cacheTopBarOver = QPixmap();
 		App::main()->topBar()->stopAnim();
+
 		_scroll.show();
 		_inner.start();
 		activate();
+
+		if (App::app()) App::app()->mtpUnpause();
 	} else {
-		a_bgCoord.update(dt1, st::introHideFunc);
-		a_bgAlpha.update(dt1, st::introAlphaHideFunc);
-		a_coord.update(dt2, st::introShowFunc);
-		a_alpha.update(dt2, st::introAlphaShowFunc);
+		a_coordUnder.update(dt, st::slideFunction);
+		a_coordOver.update(dt, st::slideFunction);
+		a_shadow.update(dt, st::slideFunction);
 	}
 	update();
 	App::main()->topBar()->update();
@@ -1687,6 +1706,10 @@ void ProfileWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type)
 		}
 		_scroll.scrollToY(_scroll.scrollTop() + addToScroll);
 	}
+}
+
+void ProfileWidget::updateWideMode() {
+	_sideShadow.setVisible(cWideMode());
 }
 
 void ProfileWidget::clear() {

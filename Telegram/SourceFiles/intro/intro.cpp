@@ -52,10 +52,12 @@ namespace {
 	}
 }
 
-IntroWidget::IntroWidget(Window *window) : QWidget(window),
+IntroWidget::IntroWidget(Window *window) : TWidget(window),
 _langChangeTo(0),
-cacheForHideInd(0),
-cacheForShowInd(0),
+_a_stage(animFunc(this, &IntroWidget::animStep_stage)),
+_cacheHideIndex(0),
+_cacheShowIndex(0),
+_a_show(animFunc(this, &IntroWidget::animStep_show)),
 wnd(window),
 steps(new IntroSteps(this)),
 phone(0),
@@ -64,7 +66,6 @@ signup(0),
 pwdcheck(0),
 current(0),
 moving(0),
-visibilityChanging(0),
 _callTimeout(60),
 _registered(false),
 _hasRecovery(false),
@@ -85,7 +86,7 @@ _backFrom(0), _backTo(0) {
 	memset(stages + 1, 0, sizeof(QWidget*) * 3);
 	_back.raise();
 
-	connect(window, SIGNAL(resized(const QSize &)), this, SLOT(onParentResize(const QSize &)));
+	connect(window, SIGNAL(resized(const QSize&)), this, SLOT(onParentResize(const QSize&)));
 
 	show();
 	setFocus();
@@ -145,21 +146,23 @@ bool IntroWidget::createNext() {
 }
 
 void IntroWidget::prepareMove() {
-	if (cacheForHide.isNull() || cacheForHideInd != current) makeHideCache();
+	if (App::app()) App::app()->mtpPause();
+
+	if (_cacheHide.isNull() || _cacheHideIndex != current) makeHideCache();
 
 	stages[current + moving]->prepareShow();
-	if (cacheForShow.isNull() || cacheForShowInd != current + moving) makeShowCache();
+	if (_cacheShow.isNull() || _cacheShowIndex != current + moving) makeShowCache();
 
 	int32 m = (moving > 0) ? 1 : -1;
-	xCoordHide = anim::ivalue(0, -m * st::introSlideShift);
-	cAlphaHide = anim::fvalue(1, 0);
-	xCoordShow = anim::ivalue(m * st::introSlideShift, 0);
-	cAlphaShow = anim::fvalue(0, 1);
-	anim::start(this);
+	a_coordHide = anim::ivalue(0, -m * st::introSlideShift);
+	a_opacityHide = anim::fvalue(1, 0);
+	a_coordShow = anim::ivalue(m * st::introSlideShift, 0);
+	a_opacityShow = anim::fvalue(0, 1);
+	_a_stage.start();
 
 	_backTo = stages[current + moving]->hasBack() ? 1 : 0;
 	_backFrom = stages[current]->hasBack() ? 1 : 0;
-	animStep(0);
+	animStep_stage(0);
 	if (_backFrom > 0 || _backTo > 0) {
 		_back.show();
 	} else {
@@ -170,37 +173,39 @@ void IntroWidget::prepareMove() {
 }
 
 void IntroWidget::onDoneStateChanged(int oldState, ButtonStateChangeSource source) {
-	if (animating()) return;
+	if (_a_stage.animating()) return;
 	if (source == ButtonByPress) {
 		if (oldState & Button::StateDown) {
-			cacheForHide = QPixmap();
+			_cacheHide = QPixmap();
 		} else {
 			makeHideCache();
 		}
 	} else if (source == ButtonByHover && current != 2) {
 		if (!createNext()) return;
-		if (!cacheForShow) makeShowCache(current + 1);
+		if (!_cacheShow) makeShowCache(current + 1);
 	}
 }
 
 void IntroWidget::makeHideCache(int stage) {
 	if (stage < 0) stage = current;
 	int w = st::introSize.width(), h = st::introSize.height();
-	cacheForHide = myGrab(stages[stage], QRect(st::introSlideShift, 0, w, h));
-	cacheForHideInd = stage;
+	_cacheHide = myGrab(stages[stage], QRect(st::introSlideShift, 0, w, h));
+	_cacheHideIndex = stage;
 }
 
 void IntroWidget::makeShowCache(int stage) {
 	if (stage < 0) stage = current + moving;
 	int w = st::introSize.width(), h = st::introSize.height();
-	cacheForShow = myGrab(stages[stage], QRect(st::introSlideShift, 0, w, h));
-	cacheForShowInd = stage;
+	_cacheShow = myGrab(stages[stage], QRect(st::introSlideShift, 0, w, h));
+	_cacheShowIndex = stage;
 }
 
 void IntroWidget::animShow(const QPixmap &bgAnimCache, bool back) {
-	_bgAnimCache = bgAnimCache;
+	if (App::app()) App::app()->mtpPause();
 
-	anim::stop(this);
+	(back ? _cacheOver : _cacheUnder) = bgAnimCache;
+
+	_a_show.stop();
 	stages[current]->show();
 	if (stages[current]->hasBack()) {
 		_back.setOpacity(1);
@@ -208,55 +213,65 @@ void IntroWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 	} else {
 		_back.hide();
 	}
-	_animCache = myGrab(this, rect());
-
-	visibilityChanging = 1;
-	a_coord = back ? anim::ivalue(-st::introSlideShift, 0) : anim::ivalue(st::introSlideShift, 0);
-	a_alpha = anim::fvalue(0, 1);
-	a_bgCoord = back ? anim::ivalue(0, st::introSlideShift) : anim::ivalue(0, -st::introSlideShift);
-	a_bgAlpha = anim::fvalue(1, 0);
+	(back ? _cacheUnder : _cacheOver) = myGrab(this);
 
 	stages[current]->deactivate();
 	stages[current]->hide();
 	_back.hide();
-	anim::start(this);
+
+	a_coordUnder = back ? anim::ivalue(-qFloor(st::slideShift * width()), 0) : anim::ivalue(0, -qFloor(st::slideShift * width()));
+	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
+	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
+	_a_show.start();
+
 	show();
 }
 
-bool IntroWidget::animStep(float64 ms) {
+bool IntroWidget::animStep_show(float64 ms) {
+	float64 dt = ms / st::slideDuration;
+	bool res = true;
+	if (dt >= 1) {
+		_a_show.stop();
+
+		res = false;
+		a_coordUnder.finish();
+		a_coordOver.finish();
+		a_shadow.finish();
+
+		_cacheUnder = _cacheOver = QPixmap();
+
+		setFocus();
+		stages[current]->show();
+		stages[current]->activate();
+		if (stages[current]->hasBack()) {
+			_back.setOpacity(1);
+			_back.show();
+		}
+		if (App::app()) App::app()->mtpUnpause();
+	} else {
+		a_coordUnder.update(dt, st::slideFunction);
+		a_coordOver.update(dt, st::slideFunction);
+		a_shadow.update(dt, st::slideFunction);
+	}
+	update();
+	return res;
+}
+
+void IntroWidget::animStop_show() {
+	_a_show.stop();
+}
+
+bool IntroWidget::animStep_stage(float64 ms) {
+	bool res = true;
+
 	float64 fullDuration = st::introSlideDelta + st::introSlideDuration, dt = ms / fullDuration;
 	float64 dt1 = (ms > st::introSlideDuration) ? 1 : (ms / st::introSlideDuration), dt2 = (ms > st::introSlideDelta) ? (ms - st::introSlideDelta) / (st::introSlideDuration) : 0;
-	bool res = true;
-	if (visibilityChanging) {
-		if (dt2 >= 1) {
-			res = false;
-			a_bgCoord.finish();
-			a_bgAlpha.finish();
-			a_coord.finish();
-			a_alpha.finish();
-
-			_animCache = _bgAnimCache = QPixmap();
-
-			visibilityChanging = 0;
-			setFocus();
-			stages[current]->show();
-			stages[current]->activate();
-			if (stages[current]->hasBack()) {
-				_back.setOpacity(1);
-				_back.show();
-			}
-		} else {
-			a_bgCoord.update(dt1, st::introHideFunc);
-			a_bgAlpha.update(dt1, st::introAlphaHideFunc);
-			a_coord.update(dt2, st::introShowFunc);
-			a_alpha.update(dt2, st::introAlphaShowFunc);
-		}
-	} else if (dt >= 1) {
+	if (dt >= 1) {
 		res = false;
-		xCoordShow.finish();
-		cAlphaShow.finish();
+		a_coordShow.finish();
+		a_opacityShow.finish();
 
-		cacheForHide = cacheForShow = QPixmap();
+		_cacheHide = _cacheShow = QPixmap();
 
 		current += moving;
 		moving = 0;
@@ -265,13 +280,14 @@ bool IntroWidget::animStep(float64 ms) {
 		if (!stages[current]->hasBack()) {
 			_back.hide();
 		}
+		if (App::app()) App::app()->mtpUnpause();
 	} else {
-		xCoordShow.update(dt2, st::introShowFunc);
-		cAlphaShow.update(dt2, st::introAlphaShowFunc);
-		xCoordHide.update(dt1, st::introHideFunc);
-		cAlphaHide.update(dt1, st::introAlphaHideFunc);
+		a_coordShow.update(dt2, st::introShowFunc);
+		a_opacityShow.update(dt2, st::introAlphaShowFunc);
+		a_coordHide.update(dt1, st::introHideFunc);
+		a_opacityHide.update(dt1, st::introAlphaHideFunc);
 		if (_backFrom != _backTo) {
-			_back.setOpacity((_backFrom > _backTo) ? cAlphaHide.current() : cAlphaShow.current());
+			_back.setOpacity((_backFrom > _backTo) ? a_opacityHide.current() : a_opacityShow.current());
 		} else {
 			_back.setOpacity(1);
 		}
@@ -289,18 +305,21 @@ void IntroWidget::paintEvent(QPaintEvent *e) {
 		p.setClipRect(e->rect());
 	}
 	p.fillRect(e->rect(), st::white->b);
-	if (animating()) {
-		if (visibilityChanging) {
-			p.setOpacity(a_bgAlpha.current());
-			p.drawPixmap(a_bgCoord.current(), 0, _bgAnimCache);
-			p.setOpacity(a_alpha.current());
-			p.drawPixmap(a_coord.current(), 0, _animCache);
-		} else {
-			p.setOpacity(cAlphaHide.current());
-			p.drawPixmap(stages[current]->x() + st::introSlideShift + xCoordHide.current(), stages[current]->y(), cacheForHide);
-			p.setOpacity(cAlphaShow.current());
-			p.drawPixmap(stages[current + moving]->x() + st::introSlideShift + xCoordShow.current(), stages[current + moving]->y(), cacheForShow);
+	if (_a_show.animating()) {
+		if (a_coordOver.current() > 0) {
+			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * cRetinaFactor(), 0, a_coordOver.current() * cRetinaFactor(), height() * cRetinaFactor()));
+			p.setOpacity(a_shadow.current() * st::slideFadeOut);
+			p.fillRect(0, 0, a_coordOver.current(), height(), st::black->b);
+			p.setOpacity(1);
 		}
+		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
+		p.setOpacity(a_shadow.current());
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow);
+	} else if (_a_stage.animating()) {
+		p.setOpacity(a_opacityHide.current());
+		p.drawPixmap(stages[current]->x() + st::introSlideShift + a_coordHide.current(), stages[current]->y(), _cacheHide);
+		p.setOpacity(a_opacityShow.current());
+		p.drawPixmap(stages[current + moving]->x() + st::introSlideShift + a_coordShow.current(), stages[current + moving]->y(), _cacheShow);
 	}
 }
 
@@ -402,7 +421,8 @@ void IntroWidget::finish(const MTPUser &user, const QImage &photo) {
 }
 
 void IntroWidget::keyPressEvent(QKeyEvent *e) {
-	if (animating()) return;
+	if (_a_show.animating() || _a_stage.animating()) return;
+
 	if (e->key() == Qt::Key_Escape) {
 		stages[current]->onBack();
 	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return || e->key() == Qt::Key_Space) {

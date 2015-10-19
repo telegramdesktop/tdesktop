@@ -76,6 +76,8 @@ public:
 	QMimeData *createMimeDataFromSelection() const;
 	void setCtrlEnterSubmit(bool ctrlEnterSubmit);
 
+	void setTextFast(const QString &text);
+
 public slots:
 
 	void onTouchTimer();

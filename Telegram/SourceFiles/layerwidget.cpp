@@ -30,6 +30,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 BackgroundWidget::BackgroundWidget(QWidget *parent, LayeredWidget *w) : QWidget(parent), w(w),
 aBackground(0), aBackgroundFunc(anim::easeOutCirc), hiding(false), shadow(st::boxShadow) {
 	w->setParent(this);
+	if (App::app()) App::app()->mtpPause();
 	setGeometry(0, 0, App::wnd()->width(), App::wnd()->height());
 	aBackground.start(1);
 	anim::start(this);
@@ -62,7 +63,7 @@ void BackgroundWidget::paintEvent(QPaintEvent *e) {
 
 void BackgroundWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
-		startHide();
+		onClose();
 	}
 }
 
@@ -91,6 +92,8 @@ bool BackgroundWidget::onInnerClose() {
 
 void BackgroundWidget::startHide() {
 	if (hiding) return;
+	if (App::app()) App::app()->mtpPause();
+
 	hiding = true;
 	if (App::wnd()) App::wnd()->setInnerFocus();
 	aBackground.start(0);
@@ -146,6 +149,7 @@ bool BackgroundWidget::animStep(float64 ms) {
 		}
 		anim::stop(this);
 		res = false;
+		if (App::app()) App::app()->mtpUnpause();
 	} else {
 		aBackground.update(dt, aBackgroundFunc);
 	}

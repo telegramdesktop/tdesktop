@@ -202,10 +202,27 @@ public:
 	bool event(QEvent *e) {
 		return QWidget::event(e);
 	}
+	virtual void grabStart() {
+	}
+	virtual void grabFinish() {
+	}
 
 private:
 
 };
 
 void myEnsureResized(QWidget *target);
-QPixmap myGrab(QWidget *target, const QRect &rect);
+QPixmap myGrab(TWidget *target, QRect rect = QRect());
+
+class PlainShadow : public TWidget {
+public:
+	PlainShadow(QWidget *parent, const style::color &color) : TWidget(parent), _color(color) {
+	}
+	void paintEvent(QPaintEvent *e) {
+		Painter(this).fillRect(e->rect(), _color->b);
+	}
+
+private:
+	const style::color &_color;
+
+};

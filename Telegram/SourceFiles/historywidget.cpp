@@ -22,6 +22,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "style.h"
 #include "lang.h"
 
+#include "application.h"
 #include "boxes/confirmbox.h"
 #include "historywidget.h"
 #include "gui/filedialog.h"
@@ -1711,7 +1712,7 @@ ReportSpamPanel::ReportSpamPanel(HistoryWidget *parent) : TWidget(parent),
 _report(this, lang(lng_report_spam), st::reportSpamHide),
 _hide(this, lang(lng_report_spam_hide), st::reportSpamHide),
 _clear(this, lang(lng_profile_delete_conversation)) {
-	resize(parent->width(), _hide.height() + st::titleShadow);
+	resize(parent->width(), _hide.height() + st::lineWidth);
 
 	connect(&_report, SIGNAL(clicked()), this, SIGNAL(reportClicked()));
 	connect(&_hide, SIGNAL(clicked()), this, SIGNAL(hideClicked()));
@@ -1729,12 +1730,8 @@ void ReportSpamPanel::resizeEvent(QResizeEvent *e) {
 
 void ReportSpamPanel::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	p.fillRect(QRect(0, 0, width(), height() - st::titleShadow), st::reportSpamBg->b);
-	if (cWideMode()) {
-		p.fillRect(st::titleShadow, height() - st::titleShadow, width() - st::titleShadow, st::titleShadow, st::titleShadowColor->b);
-	} else {
-		p.fillRect(0, height() - st::titleShadow, width(), st::titleShadow, st::titleShadowColor->b);
-	}
+	p.fillRect(QRect(0, 0, width(), height() - st::lineWidth), st::reportSpamBg->b);
+	p.fillRect(cWideMode() ? st::lineWidth : 0, height() - st::lineWidth, width() - (cWideMode() ? st::lineWidth : 0), st::lineWidth, st::shadowColor->b);
 	if (!_clear.isHidden()) {
 		p.setPen(st::black->p);
 		p.setFont(st::msgFont->f);
@@ -2059,7 +2056,7 @@ void BotKeyboard::updateSelected() {
 	}
 }
 
-HistoryHider::HistoryHider(MainWidget *parent, bool forwardSelected) : QWidget(parent)
+HistoryHider::HistoryHider(MainWidget *parent, bool forwardSelected) : TWidget(parent)
 , _sharedContact(0)
 , _forwardSelected(forwardSelected)
 , _sendPath(false)
@@ -2075,7 +2072,7 @@ HistoryHider::HistoryHider(MainWidget *parent, bool forwardSelected) : QWidget(p
 	init();
 }
 
-HistoryHider::HistoryHider(MainWidget *parent, UserData *sharedContact) : QWidget(parent)
+HistoryHider::HistoryHider(MainWidget *parent, UserData *sharedContact) : TWidget(parent)
 , _sharedContact(sharedContact)
 , _forwardSelected(false)
 , _sendPath(false)
@@ -2091,10 +2088,28 @@ HistoryHider::HistoryHider(MainWidget *parent, UserData *sharedContact) : QWidge
 	init();
 }
 
-HistoryHider::HistoryHider(MainWidget *parent) : QWidget(parent)
+HistoryHider::HistoryHider(MainWidget *parent) : TWidget(parent)
 , _sharedContact(0)
 , _forwardSelected(false)
 , _sendPath(true)
+, _send(this, lang(lng_forward_send), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
+, offered(0)
+, a_opacity(0, 1)
+, hiding(false)
+, _forwardRequest(0)
+, toTextWidth(0)
+, shadow(st::boxShadow)
+{
+	init();
+}
+
+HistoryHider::HistoryHider(MainWidget *parent, const QString &url, const QString &text) : TWidget(parent)
+, _sharedContact(0)
+, _forwardSelected(false)
+, _sendPath(false)
+, _shareUrl(url)
+, _shareText(text)
 , _send(this, lang(lng_forward_send), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , offered(0)
@@ -2214,6 +2229,8 @@ void HistoryHider::forward() {
 			parent()->onShareContact(offered->id, _sharedContact);
 		} else if (_sendPath) {
 			parent()->onSendPaths(offered->id);
+		} else if (!_shareUrl.isEmpty()) {
+			parent()->onShareUrl(offered->id, _shareUrl, _shareText);
 		} else {
 			parent()->onForward(offered->id, _forwardSelected ? ForwardSelectedMessages : ForwardContextMessage);
 		}
@@ -2271,6 +2288,13 @@ bool HistoryHider::offerPeer(PeerId peer) {
 			}
 			phrase = lng_forward_send_file_confirm(lt_name, name, lt_recipient, recipient);
 		}
+	} else if (!_shareUrl.isEmpty()) {
+		PeerId to = offered->id;
+		offered = 0;
+		if (parent()->onShareUrl(to, _shareUrl, _shareText)) {
+			startHide();
+		}
+		return false;
 	} else {
 		PeerId to = offered->id;
 		offered = 0;
@@ -2384,10 +2408,13 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _confirmImageId(0)
 , _confirmWithText(false)
 , _titlePeerTextWidth(0)
-, _showAnim(animFunc(this, &HistoryWidget::showStep))
+, _a_show(animFunc(this, &HistoryWidget::animStep_show))
 , _scrollDelta(0)
 , _saveDraftStart(0)
-, _saveDraftText(false) {
+, _saveDraftText(false)
+, _sideShadow(this, st::shadowColor)
+, _topShadow(this, st::shadowColor)
+, _inGrab(false) {
 	_scroll.setFocusPolicy(Qt::NoFocus);
 
 	setAcceptDrops(true);
@@ -2845,7 +2872,7 @@ void HistoryWidget::setKbWasHidden() {
 	if (_kbWasHidden || (!_keyboard.hasMarkup() && !_keyboard.forceReply())) return;
 
 	_kbWasHidden = true;
-	if (!_showAnim.animating()) {
+	if (!_a_show.animating()) {
 		_kbScroll.hide();
 		_attachEmoji.show();
 		_kbHide.hide();
@@ -2877,6 +2904,17 @@ void HistoryWidget::fastShowAtEnd(History *h) {
 	} else {
 		firstLoadMessages();
 		doneShow();
+	}
+}
+
+void HistoryWidget::applyDraft(bool parseLinks) {
+	if (!_history) return;
+	setFieldText(_history->draft);
+	_field.setFocus();
+	_history->draftCursor.applyTo(_field, &_synthedTextUpdate);
+	_previewCancelled = _history->draftPreviewCancelled;
+	if (parseLinks) {
+		onPreviewParse();
 	}
 }
 
@@ -3028,13 +3066,8 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 		App::main()->peerUpdated(_peer);
 		
 		if (_history->draftToId > 0 || !_history->draft.isEmpty()) {
-			setFieldText(_history->draft);
-			_field.setFocus();
-			_history->draftCursor.applyTo(_field, &_synthedTextUpdate);
+			applyDraft(false);
 			_replyToId = readyToForward() ? 0 : _history->draftToId;
-			if (_history->draftPreviewCancelled) {
-				_previewCancelled = true;
-			}
 		} else {
 			Local::MessageDraft draft = Local::readDraft(_peer->id);
 			setFieldText(draft.text);
@@ -3044,9 +3077,7 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 				cur.applyTo(_field, &_synthedTextUpdate);
 			}
 			_replyToId = readyToForward() ? 0 : draft.replyTo;
-			if (draft.previewCancelled) {
-				_previewCancelled = true;
-			}
+			_previewCancelled = draft.previewCancelled;
 		}
 		if (_replyToId) {
 			updateReplyTo();
@@ -3187,7 +3218,7 @@ void HistoryWidget::updateReportSpamStatus() {
 }
 
 void HistoryWidget::updateControlsVisibility() {
-	if (!_history || _showAnim.animating()) {
+	if (!_history || _a_show.animating()) {
 		_reportSpamPanel.hide();
 		_scroll.hide();
 		_kbScroll.hide();
@@ -3596,7 +3627,7 @@ void HistoryWidget::windowShown() {
 
 bool HistoryWidget::isActive() const {
 	if (!_history) return true;
-	if (_firstLoadRequest || _showAnim.animating()) return false;
+	if (_firstLoadRequest || _a_show.animating()) return false;
 	if (_history->loadedAtBottom()) return true;
 	if (_history->showFrom && !_history->showFrom->detached() && _history->unreadBar) return true;
 	return false;
@@ -3773,7 +3804,7 @@ void HistoryWidget::onHistoryToEnd() {
 
 void HistoryWidget::onCollapseComments() {
 	MsgId switchAt = SwitchAtTopMsgId;
-	bool collapseCommentsVisible = !_showAnim.animating() && _history && !_firstLoadRequest && _history->isChannel() && !_history->asChannelHistory()->onlyImportant();
+	bool collapseCommentsVisible = !_a_show.animating() && _history && !_firstLoadRequest && _history->isChannel() && !_history->asChannelHistory()->onlyImportant();
 	if (collapseCommentsVisible) {
 		if (HistoryItem *collapse = _history->asChannelHistory()->collapse()) {
 			if (!collapse->detached()) {
@@ -3992,12 +4023,15 @@ HistoryItem *HistoryWidget::atTopImportantMsg(int32 &bottomUnderScrollTop) const
 }
 
 void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back) {
-	_bgAnimCache = bgAnimCache;
-	_bgAnimTopBarCache = bgAnimTopBarCache;
-	_animCache = myGrab(this, rect());
+	if (App::app()) App::app()->mtpPause();
+
+	(back ? _cacheOver : _cacheUnder) = bgAnimCache;
+	(back ? _cacheTopBarOver : _cacheTopBarUnder) = bgAnimTopBarCache;
+	(back ? _cacheUnder : _cacheOver) = myGrab(this);
 	App::main()->topBar()->stopAnim();
-	_animTopBarCache = myGrab(App::main()->topBar(), QRect(0, 0, width(), st::topBarHeight));
+	(back ? _cacheTopBarUnder : _cacheTopBarOver) = myGrab(App::main()->topBar());
 	App::main()->topBar()->startAnim();
+
 	_scroll.hide();
 	_kbScroll.hide();
 	_reportSpamPanel.hide();
@@ -4018,35 +4052,38 @@ void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTo
 	_botStart.hide();
 	_joinChannel.hide();
 	_muteUnmute.hide();
-	a_coord = back ? anim::ivalue(-st::introSlideShift, 0) : anim::ivalue(st::introSlideShift, 0);
-	a_alpha = anim::fvalue(0, 1);
-	a_bgCoord = back ? anim::ivalue(0, st::introSlideShift) : anim::ivalue(0, -st::introSlideShift);
-	a_bgAlpha = anim::fvalue(1, 0);
-	_showAnim.start();
+	_topShadow.hide();
+
+	a_coordUnder = back ? anim::ivalue(-qFloor(st::slideShift * width()), 0) : anim::ivalue(0, -qFloor(st::slideShift * width()));
+	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
+	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
+	_a_show.start();
+
 	App::main()->topBar()->update();
 	activate();
 }
 
-bool HistoryWidget::showStep(float64 ms) {
-	float64 fullDuration = st::introSlideDelta + st::introSlideDuration, dt = ms / fullDuration;
-	float64 dt1 = (ms > st::introSlideDuration) ? 1 : (ms / st::introSlideDuration), dt2 = (ms > st::introSlideDelta) ? (ms - st::introSlideDelta) / (st::introSlideDuration) : 0;
+bool HistoryWidget::animStep_show(float64 ms) {
+	float64 dt = ms / st::slideDuration;
 	bool res = true;
-	if (dt2 >= 1) {
-		_showAnim.stop();
+	if (dt >= 1) {
+		_a_show.stop();
+		_sideShadow.setVisible(cWideMode());
+		_topShadow.show();
+
 		res = false;
-		a_bgCoord.finish();
-		a_bgAlpha.finish();
-		a_coord.finish();
-		a_alpha.finish();
-		_bgAnimCache = _animCache = _animTopBarCache = _bgAnimTopBarCache = QPixmap();
+		a_coordUnder.finish();
+		a_coordOver.finish();
+		a_shadow.finish();
+		_cacheUnder = _cacheOver = _cacheTopBarUnder = _cacheTopBarOver = QPixmap();
 		App::main()->topBar()->stopAnim();
-		App::main()->topBar()->enableShadow();
 		doneShow();
+
+		if (App::app()) App::app()->mtpUnpause();
 	} else {
-		a_bgCoord.update(dt1, st::introHideFunc);
-		a_bgAlpha.update(dt1, st::introAlphaHideFunc);
-		a_coord.update(dt2, st::introShowFunc);
-		a_alpha.update(dt2, st::introAlphaShowFunc);
+		a_coordUnder.update(dt, st::slideFunction);
+		a_coordOver.update(dt, st::slideFunction);
+		a_shadow.update(dt, st::slideFunction);
 	}
 	update();
 	App::main()->topBar()->update();
@@ -4065,9 +4102,15 @@ void HistoryWidget::doneShow() {
 	}
 }
 
+void HistoryWidget::updateWideMode() {
+	_sideShadow.setVisible(cWideMode());
+}
+
 void HistoryWidget::animStop() {
-	if (!_showAnim.animating()) return;
-	_showAnim.stop();
+	if (!_a_show.animating()) return;
+	_a_show.stop();
+	_sideShadow.setVisible(cWideMode());
+	_topShadow.show();
 }
 
 bool HistoryWidget::recordStep(float64 ms) {
@@ -4605,11 +4648,11 @@ void HistoryWidget::selectMessage() {
 }
 
 void HistoryWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) {
-	if (_showAnim.animating()) {
-		p.setOpacity(a_bgAlpha.current());
-		p.drawPixmap(a_bgCoord.current(), 0, _bgAnimTopBarCache);
-		p.setOpacity(a_alpha.current());
-		p.drawPixmap(a_coord.current(), 0, _animTopBarCache);
+	if (_a_show.animating()) {
+		p.drawPixmap(a_coordUnder.current(), 0, _cacheTopBarUnder);
+		p.drawPixmap(a_coordOver.current(), 0, _cacheTopBarOver);
+		p.setOpacity(a_shadow.current());
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), st::topBarHeight), App::sprite(), st::slideShadow);
 		return;
 	}
 
@@ -4636,13 +4679,6 @@ void HistoryWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) 
 	} else {
 		p.setOpacity(st::topBarForwardAlpha + (1 - st::topBarForwardAlpha) * over);
 		p.drawPixmap(QPoint((st::topBarForwardPadding.right() - st::topBarBackwardImg.pxWidth()) / 2, (st::topBarHeight - st::topBarBackwardImg.pxHeight()) / 2), App::sprite(), st::topBarBackwardImg);
-	}
-}
-
-void HistoryWidget::topBarShadowParams(int32 &x, float64 &o) {
-	if (_showAnim.animating() && a_coord.current() >= 0) {
-		x = a_coord.current();
-		o = a_alpha.current();
 	}
 }
 
@@ -4753,7 +4789,7 @@ void HistoryWidget::onFieldFocused() {
 }
 
 void HistoryWidget::checkMentionDropdown() {
-	if (!_history || _showAnim.animating()) return;
+	if (!_history || _a_show.animating()) return;
 
 	QString start;
 	_field.getMentionHashtagBotCommandStart(start);
@@ -5270,6 +5306,11 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 		_attachDragPhoto.move(st::dragMargin.left(), st::dragMargin.top());
 	break;
 	}
+
+	_topShadow.resize(width() - ((cWideMode() && !_inGrab) ? st::lineWidth : 0), st::lineWidth);
+	_topShadow.moveToLeft((cWideMode() && !_inGrab) ? st::lineWidth : 0, 0);
+	_sideShadow.resize(st::lineWidth, height());
+	_sideShadow.moveToLeft(0, 0);
 }
 
 void HistoryWidget::itemRemoved(HistoryItem *item) {
@@ -5472,7 +5513,7 @@ void HistoryWidget::updateBotKeyboard() {
 	if (hasMarkup || forceReply) {
 		if (_keyboard.singleUse() && _keyboard.hasMarkup() && _keyboard.forMsgId() == FullMsgId(_channel, _history->lastKeyboardId) && _history->lastKeyboardUsed) _kbWasHidden = true;
 		if (!isBotStart() && !isBlocked() && (wasVisible || _replyTo || (!_field.hasSendText() && !_kbWasHidden))) {
-			if (!_showAnim.animating()) {
+			if (!_a_show.animating()) {
 				if (hasMarkup) {
 					_kbScroll.show();
 					_attachEmoji.hide();
@@ -5495,7 +5536,7 @@ void HistoryWidget::updateBotKeyboard() {
 				_replyForwardPreviewCancel.show();
 			}
 		} else {
-			if (!_showAnim.animating()) {
+			if (!_a_show.animating()) {
 				_kbScroll.hide();
 				_attachEmoji.show();
 				_kbHide.hide();
@@ -5529,7 +5570,7 @@ void HistoryWidget::updateBotKeyboard() {
 }
 
 void HistoryWidget::updateToEndVisibility() {
-	bool toEndVisible = !_showAnim.animating() && _history && !_firstLoadRequest && (!_history->loadedAtBottom() || _replyReturn || _scroll.scrollTop() + st::wndMinHeight < _scroll.scrollTopMax());
+	bool toEndVisible = !_a_show.animating() && _history && !_firstLoadRequest && (!_history->loadedAtBottom() || _replyReturn || _scroll.scrollTop() + st::wndMinHeight < _scroll.scrollTopMax());
 	if (toEndVisible && _toHistoryEnd.isHidden()) {
 		_toHistoryEnd.show();
 	} else if (!toEndVisible && !_toHistoryEnd.isHidden()) {
@@ -5539,7 +5580,7 @@ void HistoryWidget::updateToEndVisibility() {
 
 void HistoryWidget::updateCollapseCommentsVisibility() {
 	int32 collapseCommentsLeft = (width() - _collapseComments.width()) / 2, collapseCommentsTop = st::msgServiceMargin.top();
-	bool collapseCommentsVisible = !_showAnim.animating() && _history && !_firstLoadRequest && _history->isChannel() && !_history->asChannelHistory()->onlyImportant();
+	bool collapseCommentsVisible = !_a_show.animating() && _history && !_firstLoadRequest && _history->isChannel() && !_history->asChannelHistory()->onlyImportant();
 	if (collapseCommentsVisible) {
 		if (HistoryItem *collapse = _history->asChannelHistory()->collapse()) {
 			if (!collapse->detached()) {
@@ -5697,7 +5738,7 @@ void HistoryWidget::onStickerSend(DocumentData *sticker) {
 
 void HistoryWidget::setFieldText(const QString &text) {
 	_synthedTextUpdate = true;
-	_field.setPlainText(text);
+	_field.setTextFast(text);
 	_synthedTextUpdate = false;
 
 	_previewCancelled = false;
@@ -5961,7 +6002,7 @@ void HistoryWidget::peerUpdated(PeerData *data) {
 				App::api()->requestFullPeer(data);
 			}
 		}
-		if (!_showAnim.animating()) {
+		if (!_a_show.animating()) {
 			bool resize = (_unblock.isHidden() == isBlocked() || (!isBlocked() && _joinChannel.isHidden() == isJoinChannel()));
 			bool newCanSendMessages = canSendMessages(_peer);
 			if (newCanSendMessages != _canSendMessages) {
@@ -6272,11 +6313,16 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 	if (r != rect()) {
 		p.setClipRect(r);
 	}
-	if (_showAnim.animating()) {
-		p.setOpacity(a_bgAlpha.current());
-		p.drawPixmap(a_bgCoord.current(), 0, _bgAnimCache);
-		p.setOpacity(a_alpha.current());
-		p.drawPixmap(a_coord.current(), 0, _animCache);
+	if (_a_show.animating()) {
+		if (a_coordOver.current() > 0) {
+			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * cRetinaFactor(), 0, a_coordOver.current() * cRetinaFactor(), height() * cRetinaFactor()));
+			p.setOpacity(a_shadow.current() * st::slideFadeOut);
+			p.fillRect(0, 0, a_coordOver.current(), height(), st::black->b);
+			p.setOpacity(1);
+		}
+		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
+		p.setOpacity(a_shadow.current());
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow);
 		return;
 	}
 

@@ -68,7 +68,17 @@ _touchPress(false), _touchRightButton(false), _touchMove(false), _correcting(fal
 	if (App::wnd()) connect(this, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
 
 	if (!v.isEmpty()) {
-		setPlainText(v);
+		setTextFast(v);
+	}
+}
+
+void FlatTextarea::setTextFast(const QString &text) {
+	setPlainText(text);
+	if (animating()) {
+		a_phLeft.finish();
+		a_phAlpha.finish();
+		anim::stop(this);
+		update();
 	}
 }
 
@@ -186,6 +196,7 @@ void FlatTextarea::paintEvent(QPaintEvent *e) {
 		p.setPen(a_phColor.current());
 		p.drawText(phRect, _ph, QTextOption(_st.phAlign));
 		p.restore();
+		p.setOpacity(1);
 	}
 	QTextEdit::paintEvent(e);
 }

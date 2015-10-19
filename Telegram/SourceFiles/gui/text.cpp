@@ -798,7 +798,6 @@ namespace {
 		++stop;
 		start = stop;
 	}
-
 }
 
 void TextLink::onClick(Qt::MouseButton button) const {
@@ -807,21 +806,19 @@ void TextLink::onClick(Qt::MouseButton button) const {
 		QRegularExpressionMatch telegramMeUser = QRegularExpression(qsl("^https?://telegram\\.me/([a-zA-Z0-9\\.\\_]+)/?(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
 		QRegularExpressionMatch telegramMeGroup = QRegularExpression(qsl("^https?://telegram\\.me/joinchat/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
 		QRegularExpressionMatch telegramMeStickers = QRegularExpression(qsl("^https?://telegram\\.me/addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
+		QRegularExpressionMatch telegramMeShareUrl = QRegularExpression(qsl("^https?://telegram\\.me/share/url\\?(.+)$"), QRegularExpression::CaseInsensitiveOption).match(url);
 		if (telegramMeUser.hasMatch()) {
-			QString params = url.mid(telegramMeUser.captured(0).size()), start, startToken;
-			if (!params.isEmpty()) {
-				QRegularExpressionMatch startParams = QRegularExpression(qsl("(^|&)(start|startgroup)=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), QRegularExpression::CaseInsensitiveOption).match(params);
-				if (startParams.hasMatch()) {
-					start = startParams.captured(2);
-					startToken = startParams.captured(3);
-				}
-			}
-			App::openPeerByName(telegramMeUser.captured(1), start == qsl("startgroup"), startToken);
+			QString params = url.mid(telegramMeUser.captured(0).size());
+			url = qsl("tg://resolve/?domain=") + myUrlEncode(telegramMeUser.captured(1)) + (params.isEmpty() ? QString() : '&' + params);
 		} else if (telegramMeGroup.hasMatch()) {
-			App::joinGroupByHash(telegramMeGroup.captured(1));
+			url = qsl("tg://join?invite=") + myUrlEncode(telegramMeGroup.captured(1));
 		} else if (telegramMeStickers.hasMatch()) {
-			App::stickersBox(telegramMeStickers.captured(1));
-		} else if (QRegularExpression(qsl("^tg://[a-zA-Z0-9]+"), QRegularExpression::CaseInsensitiveOption).match(url).hasMatch()) {
+			url = qsl("tg://addstickers?set=") + myUrlEncode(telegramMeStickers.captured(1));
+		} else if (telegramMeShareUrl.hasMatch()) {
+			url = qsl("tg://msg_url?") + telegramMeShareUrl.captured(1);
+		}
+
+		if (QRegularExpression(qsl("^tg://[a-zA-Z0-9]+"), QRegularExpression::CaseInsensitiveOption).match(url).hasMatch()) {
 			App::openLocalUrl(url);
 		} else {
 			QDesktopServices::openUrl(url);

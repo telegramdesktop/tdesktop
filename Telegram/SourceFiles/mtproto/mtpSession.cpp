@@ -66,7 +66,15 @@ void MTPSessionData::clear() {
 }
 
 
-MTProtoSession::MTProtoSession() : _killed(false), data(this), dcWithShift(0), dc(0), msSendCall(0), msWait(0), _ping(false) {
+MTProtoSession::MTProtoSession() : QObject()
+, _killed(false)
+, _needToReceive(false)
+, data(this)
+, dcWithShift(0)
+, dc(0)
+, msSendCall(0)
+, msWait(0)
+, _ping(false) {
 }
 
 void MTProtoSession::start(int32 dcenter) {
@@ -142,6 +150,13 @@ void MTProtoSession::kill() {
 	stop();
 	_killed = true;
 	DEBUG_LOG(("Session Info: marked session dcWithShift %1 as killed").arg(dcWithShift));
+}
+
+void MTProtoSession::unpaused() {
+	if (_needToReceive) {
+		_needToReceive = false;
+		tryToReceive();
+	}
 }
 
 void MTProtoSession::sendAnything(quint64 msCanWait) {
@@ -492,6 +507,10 @@ int32 MTProtoSession::getDcWithShift() const {
 }
 
 void MTProtoSession::tryToReceive() {
+	if (_mtp_internal::paused()) {
+		_needToReceive = true;
+		return;
+	}
 	int32 cnt = 0;
 	while (true) {
 		mtpRequestId requestId;

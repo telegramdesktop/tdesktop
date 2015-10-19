@@ -1751,11 +1751,14 @@ void SettingsInner::onPhotoUpdateDone(PeerId peer) {
 	update();
 }
 
-SettingsWidget::SettingsWidget(Window *parent) : QWidget(parent),
-	_scroll(this, st::setScroll), _inner(this), _close(this, st::setClose) {
+SettingsWidget::SettingsWidget(Window *parent) : TWidget(parent)
+, _a_show(animFunc(this, &SettingsWidget::animStep_show))
+, _scroll(this, st::setScroll)
+, _inner(this)
+, _close(this, st::setClose) {
 	_scroll.setWidget(&_inner);
 
-	connect(App::wnd(), SIGNAL(resized(const QSize &)), this, SLOT(onParentResize(const QSize &)));
+	connect(App::wnd(), SIGNAL(resized(const QSize&)), this, SLOT(onParentResize(const QSize&)));
 	connect(&_close, SIGNAL(clicked()), App::wnd(), SLOT(showSettings()));
 
 	setGeometry(QRect(0, st::titleHeight, Application::wnd()->width(), Application::wnd()->height() - st::titleHeight));
@@ -1768,60 +1771,72 @@ void SettingsWidget::onParentResize(const QSize &newSize) {
 }
 
 void SettingsWidget::animShow(const QPixmap &bgAnimCache, bool back) {
-	_bgAnimCache = bgAnimCache;
+	if (App::app()) App::app()->mtpPause();
 
-	anim::stop(this);
+	(back ? _cacheOver : _cacheUnder) = bgAnimCache;
+
+	_a_show.stop();
+
 	showAll();
-	_animCache = myGrab(this, rect());
-    
-	a_coord = back ? anim::ivalue(-st::introSlideShift, 0) : anim::ivalue(st::introSlideShift, 0);
-	a_alpha = anim::fvalue(0, 1);
-	a_bgCoord = back ? anim::ivalue(0, st::introSlideShift) : anim::ivalue(0, -st::introSlideShift);
-	a_bgAlpha = anim::fvalue(1, 0);
-
+	(back ? _cacheUnder : _cacheOver) = myGrab(this);
 	hideAll();
-	anim::start(this);
+
+	a_coordUnder = back ? anim::ivalue(-qFloor(st::slideShift * width()), 0) : anim::ivalue(0, -qFloor(st::slideShift * width()));
+	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
+	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
+	_a_show.start();
+
 	show();
 }
 
-bool SettingsWidget::animStep(float64 ms) {
-	float64 fullDuration = st::introSlideDelta + st::introSlideDuration, dt = ms / fullDuration;
-	float64 dt1 = (ms > st::introSlideDuration) ? 1 : (ms / st::introSlideDuration), dt2 = (ms > st::introSlideDelta) ? (ms - st::introSlideDelta) / (st::introSlideDuration) : 0;
+bool SettingsWidget::animStep_show(float64 ms) {
+	float64 dt = ms / st::slideDuration;
 	bool res = true;
-	if (dt2 >= 1) {
-		res = false;
-		a_bgCoord.finish();
-		a_bgAlpha.finish();
-		a_coord.finish();
-		a_alpha.finish();
+	if (dt >= 1) {
+		_a_show.stop();
 
-		_animCache = _bgAnimCache = QPixmap();
+		res = false;
+		a_coordUnder.finish();
+		a_coordOver.finish();
+		a_shadow.finish();
+
+		_cacheUnder = _cacheOver = QPixmap();
 
 		showAll();
 		_inner.setFocus();
+
+		if (App::app()) App::app()->mtpUnpause();
 	} else {
-		a_bgCoord.update(dt1, st::introHideFunc);
-		a_bgAlpha.update(dt1, st::introAlphaHideFunc);
-		a_coord.update(dt2, st::introShowFunc);
-		a_alpha.update(dt2, st::introAlphaShowFunc);
+		a_coordUnder.update(dt, st::slideFunction);
+		a_coordOver.update(dt, st::slideFunction);
+		a_shadow.update(dt, st::slideFunction);
 	}
 	update();
 	return res;
+}
+
+void SettingsWidget::animStop_show() {
+	_a_show.stop();
 }
 
 void SettingsWidget::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	bool trivial = (rect() == r);
 
-	QPainter p(this);
+	Painter p(this);
 	if (!trivial) {
 		p.setClipRect(r);
 	}
-	if (animating()) {
-		p.setOpacity(a_bgAlpha.current());
-		p.drawPixmap(a_bgCoord.current(), 0, _bgAnimCache);
-		p.setOpacity(a_alpha.current());
-		p.drawPixmap(a_coord.current(), 0, _animCache);
+	if (_a_show.animating()) {
+		if (a_coordOver.current() > 0) {
+			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * cRetinaFactor(), 0, a_coordOver.current() * cRetinaFactor(), height() * cRetinaFactor()));
+			p.setOpacity(a_shadow.current() * st::slideFadeOut);
+			p.fillRect(0, 0, a_coordOver.current(), height(), st::black->b);
+			p.setOpacity(1);
+		}
+		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
+		p.setOpacity(a_shadow.current());
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow);
 	} else {
 		p.fillRect(rect(), st::setBG->b);
 	}

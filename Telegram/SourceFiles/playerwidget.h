@@ -51,6 +51,7 @@ public:
 	void clearSelection();
 
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
+	void updateWideMode();
 
 	bool seekingSong(const SongMsgId &song) const;
 
@@ -112,5 +113,7 @@ private:
 
 	anim::fvalue a_progress, a_loadProgress;
 	Animation _progressAnim;
+
+	PlainShadow _sideShadow;
 
 };

@@ -104,11 +104,10 @@ private:
 	BlueTitleShadow *_blueShadow;
 };
 
-class ScrollableBoxShadow : public TWidget {
+class ScrollableBoxShadow : public PlainShadow {
 public:
-	ScrollableBoxShadow(QWidget *parent) : TWidget(parent) {
+	ScrollableBoxShadow(QWidget *parent) : PlainShadow(parent, st::boxScrollShadowBg) {
 	}
-	void paintEvent(QPaintEvent *e);
 };
 
 class ScrollableBox : public AbstractBox {

@@ -311,7 +311,7 @@ private:
 
 };
 
-class HistoryHider : public QWidget, public Animated {
+class HistoryHider : public TWidget, public Animated {
 	Q_OBJECT
 
 public:
@@ -319,6 +319,7 @@ public:
 	HistoryHider(MainWidget *parent, bool forwardSelected); // forward messages
 	HistoryHider(MainWidget *parent, UserData *sharedContact); // share contact
 	HistoryHider(MainWidget *parent); // send path from command line argument
+	HistoryHider(MainWidget *parent, const QString &url, const QString &text); // share url
 
 	bool animStep(float64 ms);
 	bool withConfirm() const;
@@ -353,6 +354,8 @@ private:
 
 	UserData *_sharedContact;
 	bool _forwardSelected, _sendPath;
+
+	QString _shareUrl, _shareText;
 
 	BoxButton _send, _cancel;
 	PeerData *offered;
@@ -412,7 +415,6 @@ public:
 	void checkMentionDropdown();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
-	void topBarShadowParams(int32 &x, float64 &o);
 	void topBarClick();
 
 	void loadMessages();
@@ -464,8 +466,10 @@ public:
 	HistoryItem *atTopImportantMsg(int32 &bottomUnderScrollTop) const;
 
 	void animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false);
-	bool showStep(float64 ms);
+	bool animStep_show(float64 ms);
 	void animStop();
+
+	void updateWideMode();
 	void doneShow();
 
 	QPoint clampMousePosition(QPoint point);
@@ -519,6 +523,7 @@ public:
 	DragState getDragState(const QMimeData *d);
 
 	void fastShowAtEnd(History *h);
+	void applyDraft(bool parseLinks = true);
 	void showPeerHistory(const PeerId &peer, MsgId showAtMsgId);
 	void clearDelayedShowAt();
 	void clearAllLoadRequests();
@@ -536,6 +541,17 @@ public:
 	void updateNotifySettings();
 
 	bool contentOverlapped(const QRect &globalRect);
+
+	void grabStart() {
+		_sideShadow.hide();
+		_inGrab = true;
+		resizeEvent(0);
+	}
+	void grabFinish() {
+		_sideShadow.setVisible(cWideMode());
+		_inGrab = false;
+		resizeEvent(0);
+	}
 
 	~HistoryWidget();
 
@@ -773,10 +789,10 @@ private:
 	QString _titlePeerText;
 	int32 _titlePeerTextWidth;
 
-	Animation _showAnim;
-	QPixmap _animCache, _bgAnimCache, _animTopBarCache, _bgAnimTopBarCache;
-	anim::ivalue a_coord, a_bgCoord;
-	anim::fvalue a_alpha, a_bgAlpha;
+	Animation _a_show;
+	QPixmap _cacheUnder, _cacheOver, _cacheTopBarUnder, _cacheTopBarOver;
+	anim::ivalue a_coordUnder, a_coordOver;
+	anim::fvalue a_shadow;
 
 	QTimer _scrollTimer;
 	int32 _scrollDelta;
@@ -790,6 +806,9 @@ private:
 	uint64 _saveDraftStart;
 	bool _saveDraftText;
 	QTimer _saveDraftTimer;
+
+	PlainShadow _sideShadow, _topShadow;
+	bool _inGrab;
 
 };
 

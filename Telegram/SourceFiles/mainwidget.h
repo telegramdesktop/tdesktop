@@ -55,7 +55,16 @@ public:
 	void showAll();
 	void showSelected(uint32 selCount, bool canDelete = false);
 
+	void updateWideMode();
+
 	FlatButton *mediaTypeButton();
+
+	void grabStart() {
+		_sideShadow.hide();
+	}
+	void grabFinish() {
+		_sideShadow.setVisible(cWideMode());
+	}
 
 public slots:
 
@@ -78,7 +87,6 @@ private:
 
 	MainWidget *main();
 	anim::fvalue a_over;
-	bool _drawShadow;
 
 	PeerData *_selPeer;
 	uint32 _selCount;
@@ -95,6 +103,8 @@ private:
 	FlatButton _info;
 	FlatButton _edit, _leaveGroup, _addContact, _deleteContact;
 	FlatButton _mediaType;
+
+	PlainShadow _sideShadow;
 
 };
 
@@ -176,7 +186,7 @@ enum ForwardWhatMessages {
 	ForwardPressedLinkMessage
 };
 
-class MainWidget : public QWidget, public Animated, public RPCSender {
+class MainWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -192,14 +202,14 @@ public:
 	void showDialogs();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
-	void topBarShadowParams(int32 &x, float64 &o);
 	TopBarWidget *topBar();
 
 	PlayerWidget *player();
 	int32 contentScrollAddToY() const;
 
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
-	bool animStep(float64 ms);
+	bool animStep_show(float64 ms);
+	void animStop_show();
 
 	void start(const MTPUser &user);
 
@@ -275,9 +285,11 @@ public:
 	void forwardLayer(int32 forwardSelected = 0); // -1 - send paths
 	void deleteLayer(int32 selectedCount = -1); // -1 - context item, else selected, -2 - cancel upload
 	void shareContactLayer(UserData *contact);
+	void shareUrlLayer(const QString &url, const QString &text);
 	void hiderLayer(HistoryHider *h);
 	void noHider(HistoryHider *destroyed);
 	bool onForward(const PeerId &peer, ForwardWhatMessages what);
+	bool onShareUrl(const PeerId &peer, const QString &url, const QString &text);
 	void onShareContact(const PeerId &peer, UserData *contact);
 	void onSendPaths(const PeerId &peer);
 	void onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data);
@@ -402,6 +414,9 @@ public:
 	void onSelfParticipantUpdated(ChannelData *channel);
 
 	bool contentOverlapped(const QRect &globalRect);
+
+	QPixmap grabTopBar();
+	QPixmap grabInner();
 
 	~MainWidget();
 
@@ -539,9 +554,10 @@ private:
 	void overviewPreloaded(PeerData *data, const MTPmessages_Messages &result, mtpRequestId req);
 	bool overviewFailed(PeerData *data, const RPCError &error, mtpRequestId req);
 
-	QPixmap _animCache, _bgAnimCache;
-	anim::ivalue a_coord, a_bgCoord;
-	anim::fvalue a_alpha, a_bgAlpha;
+	Animation _a_show;
+	QPixmap _cacheUnder, _cacheOver;
+	anim::ivalue a_coordUnder, a_coordOver;
+	anim::fvalue a_shadow;
 
 	int32 _dialogsWidth;
 

@@ -16,9 +16,9 @@ or download in ZIP and extract to **/Users/user/TBuild** rename **tdesktop-maste
 
 In your build Terminal run
 
-    MACOSX_DEPLOYMENT_TARGET=10.7
+    MACOSX_DEPLOYMENT_TARGET=10.8
 
-to set minimal supported OS version to 10.7 for future console builds.
+to set minimal supported OS version to 10.8 for future console builds.
 
 ####OpenSSL 1.0.1g
 
@@ -136,26 +136,26 @@ Then in Terminal go to **/Users/user/TBuild/Libraries/ffmpeg-2.6.3** and run
     make
     sudo make install
 
-####Qt 5.5.0, slightly patched
+####Qt 5.5.1, slightly patched
 
-http://download.qt-project.org/official_releases/qt/5.5/5.5.0/single/qt-everywhere-opensource-src-5.5.0.tar.gz
+In Terminal go to **/Users/user/TBuild/Libraries** and run
 
-Extract to **/Users/user/TBuild/Libraries**, rename **qt-everywhere-opensource-src-5.5.0** to **QtStatic** to have **/Users/user/TBuild/Libraries/QtStatic/qtbase** folder
+    git clone https://code.qt.io/qt/qt5.git QtStatic
+    cd QtStatic
+    git checkout v5.5.1
+    perl init-repository --module-subset=qtbase,qtimageformats
 
-Apply patch:
+#####Apply the patch
 
-* OR copy (with overwrite!) everything from **/Users/user/TBuild/tdesktop/\_qt\_5\_5\_0\_patch/** to **/Users/user/TBuild/Libraries/QtStatic/**
-* OR copy **/Users/user/TBuild/tdesktop/\_qt\_5\_5\_0\_patch.diff** to **/Users/user/TBuild/Libraries/QtStatic/**, go there in Terminal and run
-
-    git apply _qt_5_5_0_patch.diff
+    cd qtbase
+    git apply ./../../../tdesktop/Telegram/_qtbase_5_5_1_patch.diff
+    cd ..
 
 #####Building library
 
-In Terminal go to **/Users/user/TBuild/Libraries/QtStatic** and there run
-
     ./configure -debug-and-release -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang
-    make -j4 module-qtbase module-qtimageformats
-    sudo make module-qtbase-install_subtargets module-qtimageformats-install_subtargets
+    make -j4
+    sudo make -j4 install
 
 building (**make** command) will take really long time.
 

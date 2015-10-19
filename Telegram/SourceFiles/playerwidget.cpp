@@ -32,15 +32,32 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 #include "audio.h"
 
-PlayerWidget::PlayerWidget(QWidget *parent) : TWidget(parent),
-_prevAvailable(false), _nextAvailable(false), _fullAvailable(false),
-_over(OverNone), _down(OverNone), _downCoord(0), _downFrequency(AudioVoiceMsgFrequency), _downProgress(0.),
-_stateAnim(animFunc(this, &PlayerWidget::stateStep)),
-_index(-1), _history(0), _timeWidth(0), _repeat(false), _showPause(false), _position(0), _duration(0), _loaded(0),
-a_progress(0., 0.), a_loadProgress(0., 0.), _progressAnim(animFunc(this, &PlayerWidget::progressStep)) {
+PlayerWidget::PlayerWidget(QWidget *parent) : TWidget(parent)
+, _prevAvailable(false)
+, _nextAvailable(false)
+, _fullAvailable(false)
+, _over(OverNone)
+, _down(OverNone)
+, _downCoord(0)
+, _downFrequency(AudioVoiceMsgFrequency)
+, _downProgress(0.)
+, _stateAnim(animFunc(this, &PlayerWidget::stateStep))
+, _index(-1)
+, _history(0)
+, _timeWidth(0)
+, _repeat(false)
+, _showPause(false)
+, _position(0)
+, _duration(0)
+, _loaded(0)
+, a_progress(0., 0.)
+, a_loadProgress(0., 0.)
+, _progressAnim(animFunc(this, &PlayerWidget::progressStep))
+, _sideShadow(this, st::shadowColor) {
 	resize(st::wndMinWidth, st::playerHeight);
 	setMouseTracking(true);
 	memset(_stateHovers, 0, sizeof(_stateHovers));
+	_sideShadow.setVisible(cWideMode());
 }
 
 void PlayerWidget::paintEvent(QPaintEvent *e) {
@@ -321,6 +338,10 @@ void PlayerWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) 
 	}
 }
 
+void PlayerWidget::updateWideMode() {
+	_sideShadow.setVisible(cWideMode());
+}
+
 bool PlayerWidget::seekingSong(const SongMsgId &song) const {
 	return (_down == OverPlayback) && (song == _song);
 }
@@ -492,7 +513,7 @@ void PlayerWidget::stopPressed() {
 void PlayerWidget::resizeEvent(QResizeEvent *e) {
 	int32 availh = (height() - st::playerLineHeight);
 	int32 ch = st::playerPlay.pxHeight() + st::playerSkip, ct = (availh - ch) / 2;
-	_playbackRect = QRect(cWideMode() ? st::dlgShadow : 0, height() - st::playerMoverSize.height(), width() - (cWideMode() ? st::dlgShadow : 0), st::playerMoverSize.height());
+	_playbackRect = QRect(cWideMode() ? st::lineWidth : 0, height() - st::playerMoverSize.height(), width() - (cWideMode() ? st::lineWidth : 0), st::playerMoverSize.height());
 	_prevRect = _fullAvailable ? QRect(st::playerSkip / 2, ct, st::playerPrev.pxWidth() + st::playerSkip, ch) : QRect();
 	_playRect = QRect(_fullAvailable ? (_prevRect.x() + _prevRect.width()) : (st::playerSkip / 2), ct, st::playerPlay.pxWidth() + st::playerSkip, ch);
 	_nextRect = _fullAvailable ? QRect(_playRect.x() + _playRect.width(), ct, st::playerNext.pxWidth() + st::playerSkip, ch) : QRect();
@@ -504,6 +525,10 @@ void PlayerWidget::resizeEvent(QResizeEvent *e) {
 
 	int32 infoLeft = (_fullAvailable ? (_nextRect.x() + _nextRect.width()) : (_playRect.x() + _playRect.width()));
 	_infoRect = QRect(infoLeft + st::playerSkip / 2, 0, (_fullAvailable ? _fullRect.x() : _repeatRect.x()) - infoLeft - st::playerSkip, availh);
+
+	_sideShadow.resize(st::lineWidth, height());
+	_sideShadow.moveToLeft(0, 0);
+
 	update();
 }
 

@@ -43,12 +43,17 @@ void myEnsureResized(QWidget *target) {
 	}
 }
 
-QPixmap myGrab(QWidget *target, const QRect &rect) {
+QPixmap myGrab(TWidget *target, QRect rect) {
 	myEnsureResized(target);    
-    qreal dpr = App::app()->devicePixelRatio();
-    QPixmap result(rect.size() * dpr);
-    result.setDevicePixelRatio(dpr);
+	if (rect.isNull()) rect = target->rect();
+
+    QPixmap result(rect.size() * cRetinaFactor());
+    result.setDevicePixelRatio(cRetinaFactor());
     result.fill(Qt::transparent);
+
+	target->grabStart();
     target->render(&result, QPoint(), QRegion(rect), QWidget::DrawChildren | QWidget::IgnoreMask);
+	target->grabFinish();
+
 	return result;
 }

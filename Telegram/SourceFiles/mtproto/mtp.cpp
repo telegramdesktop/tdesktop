@@ -353,6 +353,8 @@ namespace {
 		return false;
 	}
 
+	bool _paused = false;
+
 }
 
 namespace _mtp_internal {
@@ -371,6 +373,10 @@ namespace _mtp_internal {
 		
 		sessions.insert(dcWithShift, result);
 		return result;
+	}
+
+	bool paused() {
+		return _paused;
 	}
 	
 	void registerRequest(mtpRequestId requestId, int32 dcWithShift) {
@@ -651,6 +657,7 @@ namespace MTP {
 			(*i)->restart();
 		}
 	}
+
 	void restart(int32 dcMask) {
 		if (!_started) return;
 
@@ -659,6 +666,19 @@ namespace MTP {
 			if (((*i)->getDcWithShift() % int(_mtp_internal::dcShift)) == dcMask) {
 				(*i)->restart();
 			}
+		}
+	}
+
+	void pause() {
+		if (!_started) return;
+		_paused = true;
+	}
+
+	void unpause() {
+		if (!_started) return;
+		_paused = false;
+		for (Sessions::const_iterator i = sessions.cbegin(), e = sessions.cend(); i != e; ++i) {
+			(*i)->unpaused();
 		}
 	}
 

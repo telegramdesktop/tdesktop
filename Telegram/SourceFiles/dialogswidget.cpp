@@ -22,6 +22,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "style.h"
 #include "lang.h"
 
+#include "application.h"
 #include "window.h"
 #include "dialogswidget.h"
 #include "mainwidget.h"
@@ -1488,8 +1489,7 @@ MsgId DialogsInner::lastSearchId() const {
 	return _lastSearchId;
 }
 
-DialogsWidget::DialogsWidget(MainWidget *parent) : QWidget(parent)
-, _drawShadow(true)
+DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
 , _dragInScroll(false)
 , _dragForward(false)
 , _dialogsOffset(0)
@@ -1503,6 +1503,7 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : QWidget(parent)
 , _cancelSearch(this, st::btnCancelSearch)
 , _scroll(this, st::dlgScroll)
 , _inner(&_scroll, parent)
+, _a_show(animFunc(this, &DialogsWidget::animStep_show))
 , _searchInPeer(0)
 , _searchFull(false)
 , _peopleFull(false)
@@ -1572,39 +1573,51 @@ void DialogsWidget::dialogsToUp() {
 }
 
 void DialogsWidget::animShow(const QPixmap &bgAnimCache) {
-	_bgAnimCache = bgAnimCache;
-	_animCache = myGrab(this, rect());
+	if (App::app()) App::app()->mtpPause();
+
+	bool back = true;
+	(back ? _cacheOver : _cacheUnder) = bgAnimCache;
+
+	_a_show.stop();
+
+	(back ? _cacheUnder : _cacheOver) = myGrab(this);
+
 	_scroll.hide();
 	_filter.hide();
 	_cancelSearch.hide();
 	_newGroup.hide();
-	a_coord = anim::ivalue(-st::introSlideShift, 0);
-	a_alpha = anim::fvalue(0, 1);
-	a_bgCoord = anim::ivalue(0, st::introSlideShift);
-	a_bgAlpha = anim::fvalue(1, 0);
-	anim::start(this);
+
+	a_coordUnder = back ? anim::ivalue(-qFloor(st::slideShift * width()), 0) : anim::ivalue(0, -qFloor(st::slideShift * width()));
+	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
+	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
+	_a_show.start();
+
+	show();
 }
 
-bool DialogsWidget::animStep(float64 ms) {
-	float64 fullDuration = st::introSlideDelta + st::introSlideDuration, dt = ms / fullDuration;
-	float64 dt1 = (ms > st::introSlideDuration) ? 1 : (ms / st::introSlideDuration), dt2 = (ms > st::introSlideDelta) ? (ms - st::introSlideDelta) / (st::introSlideDuration) : 0;
+bool DialogsWidget::animStep_show(float64 ms) {
+	float64 dt = ms / st::slideDuration;
 	bool res = true;
-	if (dt2 >= 1) {
+	if (dt >= 1) {
+		_a_show.stop();
+
 		res = false;
-		a_bgCoord.finish();
-		a_bgAlpha.finish();
-		a_coord.finish();
-		a_alpha.finish();
-		_bgAnimCache = _animCache = QPixmap();
+		a_coordUnder.finish();
+		a_coordOver.finish();
+		a_shadow.finish();
+
+		_cacheUnder = _cacheOver = QPixmap();
+
 		_scroll.show();
 		_filter.show();
 		onFilterUpdate(true);
 		activate();
+
+		if (App::app()) App::app()->mtpUnpause();
 	} else {
-		a_bgCoord.update(dt1, st::introHideFunc);
-		a_bgAlpha.update(dt1, st::introAlphaHideFunc);
-		a_coord.update(dt2, st::introShowFunc);
-		a_alpha.update(dt2, st::introAlphaShowFunc);
+		a_coordUnder.update(dt, st::slideFunction);
+		a_coordOver.update(dt, st::slideFunction);
+		a_shadow.update(dt, st::slideFunction);
 	}
 	update();
 	return res;
@@ -2059,7 +2072,7 @@ void DialogsWidget::onListScroll() {
 }
 
 void DialogsWidget::onFilterUpdate(bool force) {
-	if (animating() && !force) return;
+	if (_a_show.animating() && !force) return;
 
 	QString filterText = _filter.getLastText();
 	_inner.onFilterUpdate(filterText);
@@ -2132,7 +2145,7 @@ void DialogsWidget::onCompleteHashtag(QString tag) {
 }
 
 void DialogsWidget::resizeEvent(QResizeEvent *e) {
-	int32 w = width() - st::dlgShadow;
+	int32 w = width();
 	_filter.setGeometry(st::dlgPaddingHor, st::dlgFilterPadding, w - 2 * st::dlgPaddingHor, _filter.height());
 	_newGroup.move(w - _newGroup.width() - st::dlgPaddingHor, _filter.y());
 	_addContact.move(w - _addContact.width() - st::dlgPaddingHor, _filter.y());
@@ -2186,26 +2199,25 @@ void DialogsWidget::paintEvent(QPaintEvent *e) {
 	if (r != rect()) {
 		p.setClipRect(r);
 	}
-	if (animating()) {
-		p.setOpacity(a_bgAlpha.current());
-		p.drawPixmap(a_bgCoord.current(), 0, _bgAnimCache);
-		p.setOpacity(a_alpha.current());
-		p.drawPixmap(a_coord.current(), 0, _animCache);
+	if (_a_show.animating()) {
+		if (a_coordOver.current() > 0) {
+			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * cRetinaFactor(), 0, a_coordOver.current() * cRetinaFactor(), height() * cRetinaFactor()));
+			p.setOpacity(a_shadow.current() * st::slideFadeOut);
+			p.fillRect(0, 0, a_coordOver.current(), height(), st::black->b);
+			p.setOpacity(1);
+		}
+		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
+		p.setOpacity(a_shadow.current());
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow);
 		return;
 	}
-	QRect above(0, 0, width() - (cWideMode() ? st::dlgShadow : 0), _scroll.y());
+	QRect above(0, 0, width(), _scroll.y());
 	if (above.intersects(r)) {
 		p.fillRect(above.intersected(r), st::white->b);
 	}
-	QRect below(0, _scroll.y() + qMin(_scroll.height(), _inner.height()), width() - (cWideMode() ? st::dlgShadow : 0), height());
+	QRect below(0, _scroll.y() + qMin(_scroll.height(), _inner.height()), width(), height());
 	if (below.intersects(r)) {
 		p.fillRect(below.intersected(r), st::white->b);
-	}
-	if (cWideMode() && _drawShadow) {
-		QRect sh(width() - st::dlgShadow, 0, st::dlgShadow, height());
-		if (r.intersects(sh)) {
-			p.fillRect(sh, st::dlgShadowColor->b);
-		}
 	}
 }
 
@@ -2282,7 +2294,7 @@ void DialogsWidget::onCancelSearchInPeer() {
 		_searchRequest = 0;
 	}
 	if (_searchInPeer) {
-		if (!cWideMode()) {
+		if (!cWideMode() && !App::main()->selectingPeer()) {
 			App::main()->showPeerHistory(_searchInPeer->id, ShowAtUnreadMsgId);
 		}
 		_searchInPeer = 0;
@@ -2292,7 +2304,7 @@ void DialogsWidget::onCancelSearchInPeer() {
 	_filter.clear();
 	_filter.updatePlaceholder();
 	onFilterUpdate();
-	if (cWideMode()) {
+	if (cWideMode() && !App::main()->selectingPeer()) {
 		emit cancelled();
 	}
 }
@@ -2302,8 +2314,4 @@ void DialogsWidget::onDialogMoved(int movedFrom, int movedTo) {
 	if (st > movedTo && st < movedFrom) {
 		_scroll.scrollToY(st + st::dlgHeight);
 	}
-}
-
-void DialogsWidget::enableShadow(bool enable) {
-	_drawShadow = enable;
 }

@@ -293,6 +293,8 @@ signals:
 
 private:
 
+	QPixmap grabInner();
+
 	void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color);
 	QImage icon16, icon32, icon64, iconbig16, iconbig32, iconbig64;
 
