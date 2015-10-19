@@ -1,4 +1,4 @@
-##Build instructions for Qt Creator 3.1.2 under Ubuntu 14.04
+##Build instructions for Qt Creator 3.5.1 under Ubuntu 12.04
 
 ###Prepare
 
@@ -87,18 +87,20 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
     make
     sudo make install
 
-####Qt 5.5.0, slightly patched
+####Qt 5.5.1, slightly patched
 
-http://download.qt-project.org/official_releases/qt/5.5/5.5.0/single/qt-everywhere-opensource-src-5.5.0.tar.gz
+In Terminal go to **/home/user/TBuild/Libraries** and run
 
-Extract to **/home/user/TBuild/Libraries**, rename **qt-everywhere-opensource-src-5.5.0** to **QtStatic** to have **/home/user/TBuild/Libraries/QtStatic/qtbase** folder
+    git clone git://code.qt.io/qt/qt5.git QtStatic
+    cd QtStatic
+    git checkout v5.5.1
+    perl init-repository --module-subset=qtbase,qtimageformats
 
-Apply patch:
+#####Apply the patch
 
-* OR copy (with overwrite!) everything from **/home/user/TBuild/tdesktop/Telegram/\_qt\_5\_5\_0\_patch/** to **/home/user/TBuild/Libraries/QtStatic/**
-* OR copy **/home/user/TBuild/tdesktop/Telegram/\_qt\_5\_5\_0\_patch.diff** to **/home/user/TBuild/Libraries/QtStatic/**, go there in Terminal and run
-
-    git apply _qt_5_5_0_patch.diff
+    cd qtbase
+    git apply ./../../../tdesktop/Telegram/_qtbase_5_5_1_patch.diff
+    cd ..
 
 #####Building library
 
@@ -108,17 +110,17 @@ Install some packages for Qt (see **/home/user/TBuild/Libraries/QtStatic/qtbase/
 
 In Terminal go to **/home/user/TBuild/Libraries/QtStatic** and there run
 
-    ./configure -release -opensource -confirm-license -qt-xcb -no-opengl -static -nomake examples -nomake tests -skip qtquick1 -skip qtdeclarative
-    make module-qtbase module-qtimageformats
-    sudo make module-qtbase-install_subtargets module-qtimageformats-install_subtargets
+    ./configure -release -opensource -confirm-license -qt-xcb -no-opengl -static -nomake examples -nomake tests
+    make -j4
+    sudo make -j4 install
 
 building (**make** command) will take really long time.
 
 ###Building Telegram Desktop
 
 * Launch Qt Creator, all projects will be taken from **/home/user/TBuild/tdesktop/Telegram**
-* Tools > Options > Build & Run > Qt Versions tab > Add > File System /usr/local/Qt-5.5.0/bin/qmake > **Qt 5.5.0 (Qt-5.5.0)** > Apply
-* Tools > Options > Build & Run > Kits tab > Desktop (default) > change **Qt version** to **Qt 5.5.0 (Qt-5.5.0)** > Apply
+* Tools > Options > Build & Run > Qt Versions tab > Add > File System /usr/local/Qt-5.5.1/bin/qmake > **Qt 5.5.1 (Qt-5.5.1)** > Apply
+* Tools > Options > Build & Run > Kits tab > Desktop (default) > change **Qt version** to **Qt 5.5.1 (Qt-5.5.1)** > Apply
 * Open MetaStyle.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediateStyle** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediateStyle** and build for Debug
 * Open MetaLang.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediateLang** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediateLang** and build for Debug
 * Open Telegram.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediate** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediate** and build for Debug, if GeneratedFiles are not found click **Run qmake** from **Build** menu and try again

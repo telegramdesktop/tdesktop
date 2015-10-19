@@ -30,7 +30,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * [Visual Studio 2015][msvc]
 * [XCode 7][xcode]
 * [XCode 7 for OS X 10.6 and 10.7][xcode_old]
-* [Qt Creator 3.2.0 Ubuntu][qtcreator]
+* [Qt Creator 3.5.1 Ubuntu][qtcreator]
 
 ## Projects in Telegram solution
 
