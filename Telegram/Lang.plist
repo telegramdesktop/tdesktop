@@ -7,7 +7,7 @@
 	<key>CFBundleGetInfoString</key>
 	<string>MetaLang compiler</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.tdesktop.${PRODUCT_NAME:rfc1034identifier}</string>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleSignature</key>

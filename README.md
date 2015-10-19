@@ -14,7 +14,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 ## Third-party libraries
 
-* Qt 5.3.2 and 5.5.0, slightly patched ([LGPL](http://doc.qt.io/qt-5/lgpl.html))
+* Qt 5.3.2 and 5.5.1, slightly patched ([LGPL](http://doc.qt.io/qt-5/lgpl.html))
 * OpenSSL 1.0.1g ([OpenSSL License](https://www.openssl.org/source/license.html))
 * zlib 1.2.8 ([zlib License](http://www.zlib.net/zlib_license.html))
 * libexif 0.6.20 ([LGPL](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html))
@@ -27,9 +27,9 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 ## Build instructions
 
-* [Visual Studio 2013][msvc]
-* [XCode 6.4][xcode]
-* [XCode 6.4 for OS X 10.6 and 10.7][xcode_old]
+* [Visual Studio 2015][msvc]
+* [XCode 7][xcode]
+* [XCode 7 for OS X 10.6 and 10.7][xcode_old]
 * [Qt Creator 3.2.0 Ubuntu][qtcreator]
 
 ## Projects in Telegram solution
