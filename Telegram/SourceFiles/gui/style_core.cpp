@@ -60,6 +60,10 @@ namespace style {
 		return otherFlagsFont(FontUnderline, set);
 	}
 
+	uint32 FontData::size() const {
+		return _size;
+	}
+
 	uint32 FontData::flags() const {
 		return _flags;
 	}
@@ -88,7 +92,7 @@ namespace style {
 			style::_fontFamilies.push_back(family);
 			i = _fontFamilyMap.insert(family, style::_fontFamilies.size() - 1);
 		}
-		init(i.value(), size, flags, 0);
+		init(size, flags, i.value(), 0);
 	}
 
 	Font::Font(uint32 size, uint32 flags, uint32 family) {

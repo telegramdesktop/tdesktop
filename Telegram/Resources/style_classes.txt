@@ -19,10 +19,11 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 textStyle {
-	lnkFlags: font;
-	lnkOverFlags: font;
-	lnkColor: color;
-	lnkDownColor: color;
+	linkFlags: font;
+	linkFlagsOver: font;
+	linkFg: color;
+	linkFgDown: color;
+	monoFg: color;
 	selectBg: color;
 	selectOverlay: color;
 	lineHeight: number;
@@ -240,6 +241,25 @@ dropdown {
 
 	duration: number;
 	width: number;
+}
+
+PopupMenu {
+	skip: number;
+
+	shadow: sprite;
+	shadowShift: number;
+
+	itemBg: color;
+	itemBgOver: color;
+	itemFg: color;
+	itemFgOver: color;
+	itemPadding: margins;
+	itemFont: font;
+
+	duration: number;
+
+	widthMin: number;
+	widthMax: number;
 }
 
 botKeyboardButton {

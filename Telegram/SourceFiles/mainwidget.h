@@ -328,8 +328,7 @@ public:
 	DialogsIndexed &contactsList();
 	DialogsIndexed &dialogsList();
     
-    void sendMessage(History *history, const QString &text, MsgId replyTo, bool broadcast);
-	void sendPreparedText(History *hist, const QString &text, MsgId replyTo, bool broadcast, WebPageId webPageId = 0);
+	void sendMessage(History *hist, const QString &text, MsgId replyTo, bool broadcast, WebPageId webPageId = 0);
 	void saveRecentHashtags(const QString &text);
     
     void readServerHistory(History *history, bool force = true);
@@ -469,6 +468,7 @@ public slots:
 
 	void onPhotosSelect();
 	void onVideosSelect();
+	void onSongsSelect();
 	void onDocumentsSelect();
 	void onAudiosSelect();
 	void onLinksSelect();

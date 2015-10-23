@@ -33,6 +33,7 @@ public:
 	BoxShadow(const style::sprite &topLeft);
 
 	void paint(QPainter &p, const QRect &box, int32 shifty, int32 flags = Left | Top | Right | Bottom);
+	style::margins getDimensions(int32 shifty) const;
 
 private:
 

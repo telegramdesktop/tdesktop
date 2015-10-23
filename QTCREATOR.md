@@ -110,7 +110,7 @@ Install some packages for Qt (see **/home/user/TBuild/Libraries/QtStatic/qtbase/
 
 In Terminal go to **/home/user/TBuild/Libraries/QtStatic** and there run
 
-    ./configure -release -opensource -confirm-license -qt-xcb -no-opengl -static -nomake examples -nomake tests
+    ./configure -release -opensource -confirm-license -qt-zlib -qt-libpng -qt-libjpeg -qt-freetype -qt-harfbuzz -qt-pcre -qt-xcb -qt-xkbcommon-x11 -no-opengl -static -nomake examples -nomake tests
     make -j4
     sudo make -j4 install
 

@@ -416,13 +416,14 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_profile_photos_header" = "Photos overview";
 "lng_profile_videos" = "{count:_not_used_|# video file|# video files} »";
 "lng_profile_videos_header" = "Video files overview";
+"lng_profile_songs" = "{count:_not_used_|# audio file|# audio files} »";
+"lng_profile_songs_header" = "Audio files overview";
 "lng_profile_files" = "{count:_not_used_|# file|# files} »";
 "lng_profile_files_header" = "Files overview";
 "lng_profile_audios" = "{count:_not_used_|# voice message|# voice messages} »";
 "lng_profile_audios_header" = "Voice messages overview";
 "lng_profile_shared_links" = "{count:_not_used_|# shared link|# shared links} »";
 "lng_profile_shared_links_header" = "Shared links overview";
-"lng_profile_audio_files_header" = "Playlist";
 "lng_profile_copy_phone" = "Copy phone number";
 
 "lng_channel_add_admins" = "New administrator";
@@ -523,6 +524,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_media_type" = "Media type";
 "lng_media_type_photos" = "Photos";
 "lng_media_type_videos" = "Video files";
+"lng_media_type_songs" = "Audio files";
 "lng_media_type_files" = "Files";
 "lng_media_type_audios" = "Voice messages";
 "lng_media_type_links" = "Shared links";

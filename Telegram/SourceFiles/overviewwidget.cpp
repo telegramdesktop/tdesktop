@@ -32,11 +32,11 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 OverviewInner::CachedLink::CachedLink(HistoryItem *item) : titleWidth(0), page(0), pixw(0), pixh(0), text(st::msgMinWidth) {
 	QString msgText;
-	LinksInText msgLinks;
-	item->getTextWithLinks(msgText, msgLinks);
+	EntitiesInText msgLinks;
+	item->getTextWithEntities(msgText, msgLinks);
 	int32 from = 0, till = msgText.size(), lnk = msgLinks.size();
 	for (int32 i = 0; i < lnk; ++i) {
-		if (msgLinks[i].type != LinkInTextUrl && msgLinks[i].type != LinkInTextCustomUrl && msgLinks[i].type != LinkInTextEmail) {
+		if (msgLinks[i].type != EntityInTextUrl && msgLinks[i].type != EntityInTextCustomUrl && msgLinks[i].type != EntityInTextEmail) {
 			continue;
 		}
 		QString url = msgLinks[i].text, text = msgText.mid(msgLinks[i].offset, msgLinks[i].length);
@@ -44,7 +44,7 @@ OverviewInner::CachedLink::CachedLink(HistoryItem *item) : titleWidth(0), page(0
 	}
 	while (lnk > 0 && till > from) {
 		--lnk;
-		if (msgLinks[lnk].type != LinkInTextUrl && msgLinks[lnk].type != LinkInTextCustomUrl && msgLinks[lnk].type != LinkInTextEmail) {
+		if (msgLinks[lnk].type != EntityInTextUrl && msgLinks[lnk].type != EntityInTextCustomUrl && msgLinks[lnk].type != EntityInTextEmail) {
 			++lnk;
 			break;
 		}
@@ -1777,7 +1777,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
 	DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
 	if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument) {
-		_menu = new ContextMenu(_overview);
+		_menu = new PopupMenu();
 		if (App::hoveredLinkItem()) {
 			_menu->addAction(lang(lng_context_to_msg), this, SLOT(goToMessage()))->setEnabled(true);
 		}
@@ -1818,7 +1818,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (_selectedMsgId > 0) updateMsg(App::histItemById(_channel, _selectedMsgId));
 	} else if (!ignoreMousedItem && App::mousedItem() && App::mousedItem()->id == _mousedItem) {
 		_contextMenuUrl = _lnkOverIndex ? urlByIndex(_mousedItem, _mousedItemIndex, _lnkOverIndex) : QString();
-		_menu = new ContextMenu(_overview);
+		_menu = new PopupMenu();
 		if ((_contextMenuLnk && dynamic_cast<TextLink*>(_contextMenuLnk.data())) || (!_contextMenuUrl.isEmpty() && !urlIsEmail(_contextMenuUrl))) {
 			_menu->addAction(lang(lng_context_open_link), this, SLOT(openContextUrl()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_link), this, SLOT(copyContextUrl()))->setEnabled(true);
@@ -2720,9 +2720,9 @@ void OverviewWidget::switchType(MediaOverviewType type) {
 	switch (type) {
 	case OverviewPhotos: _header = lang(lng_profile_photos_header); break;
 	case OverviewVideos: _header = lang(lng_profile_videos_header); break;
+	case OverviewAudioDocuments: _header = lang(lng_profile_songs_header); break;
 	case OverviewDocuments: _header = lang(lng_profile_files_header); break;
 	case OverviewAudios: _header = lang(lng_profile_audios_header); break;
-	case OverviewAudioDocuments: _header = lang(lng_profile_audio_files_header); break;
 	case OverviewLinks: _header = lang(lng_profile_shared_links_header); break;
 	}
 	noSelectingScroll();

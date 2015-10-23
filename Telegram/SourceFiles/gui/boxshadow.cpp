@@ -107,3 +107,8 @@ void BoxShadow::paint(QPainter &p, const QRect &box, int32 shifty, int32 flags) 
 		}
 	}
 }
+
+style::margins BoxShadow::getDimensions(int32 shifty) const {
+	int32 d = _colors.size() / cIntRetinaFactor();
+	return style::margins(d - shifty, d - 2 * shifty, d - shifty, d);
+}

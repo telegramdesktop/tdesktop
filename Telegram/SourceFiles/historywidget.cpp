@@ -803,7 +803,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
     AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
     DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
 	if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument) {
-		_menu = new ContextMenu(historyWidget);
+		_menu = new PopupMenu();
 		if (isUponSelected > 0) {
 			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
 		}
@@ -853,59 +853,59 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		HistoryServiceMsg *srv = dynamic_cast<HistoryServiceMsg*>(item);
 
 		if (isUponSelected > 0) {
-			if (!_menu) _menu = new ContextMenu(this);
+			if (!_menu) _menu = new PopupMenu();
 			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
 			if (item && item->id > 0 && isUponSelected != 2 && canSendMessages) {
 				_menu->addAction(lang(lng_context_reply_msg), historyWidget, SLOT(onReplyToMessage()));
 			}
 		} else {
 			if (item && item->id > 0 && isUponSelected != -2 && canSendMessages) {
-				if (!_menu) _menu = new ContextMenu(this);
+				if (!_menu) _menu = new PopupMenu();
 				_menu->addAction(lang(lng_context_reply_msg), historyWidget, SLOT(onReplyToMessage()));
 			}
 			if (item && !isUponSelected && !_contextMenuLnk) {
 				if (HistorySticker *sticker = dynamic_cast<HistorySticker*>(msg ? msg->getMedia() : 0)) {
 					DocumentData *doc = sticker->document();
 					if (doc && doc->sticker() && doc->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
-						if (!_menu) _menu = new ContextMenu(this);
+						if (!_menu) _menu = new PopupMenu();
 						_menu->addAction(lang(doc->sticker()->setInstalled() ? lng_context_pack_info : lng_context_pack_add), historyWidget, SLOT(onStickerPackInfo()));
 					}
 				}
 				QString contextMenuText = item->selectedText(FullItemSel);
 				if (!contextMenuText.isEmpty() && (!msg || !msg->getMedia() || msg->getMedia()->type() != MediaTypeSticker)) {
-					if (!_menu) _menu = new ContextMenu(this);
+					if (!_menu) _menu = new PopupMenu();
 					_menu->addAction(lang(lng_context_copy_text), this, SLOT(copyContextText()))->setEnabled(true);
 				}
 			}
 		}
 
 		if (_contextMenuLnk && dynamic_cast<TextLink*>(_contextMenuLnk.data())) {
-			if (!_menu) _menu = new ContextMenu(historyWidget);
+			if (!_menu) _menu = new PopupMenu();
 			_menu->addAction(lang(lng_context_open_link), this, SLOT(openContextUrl()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_link), this, SLOT(copyContextUrl()))->setEnabled(true);
 		} else if (_contextMenuLnk && dynamic_cast<EmailLink*>(_contextMenuLnk.data())) {
-			if (!_menu) _menu = new ContextMenu(historyWidget);
+			if (!_menu) _menu = new PopupMenu();
 			_menu->addAction(lang(lng_context_open_email), this, SLOT(openContextUrl()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_email), this, SLOT(copyContextUrl()))->setEnabled(true);
 		} else if (_contextMenuLnk && dynamic_cast<MentionLink*>(_contextMenuLnk.data())) {
-			if (!_menu) _menu = new ContextMenu(historyWidget);
+			if (!_menu) _menu = new PopupMenu();
 			_menu->addAction(lang(lng_context_open_mention), this, SLOT(openContextUrl()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_mention), this, SLOT(copyContextUrl()))->setEnabled(true);
 		} else if (_contextMenuLnk && dynamic_cast<HashtagLink*>(_contextMenuLnk.data())) {
-			if (!_menu) _menu = new ContextMenu(historyWidget);
+			if (!_menu) _menu = new PopupMenu();
 			_menu->addAction(lang(lng_context_open_hashtag), this, SLOT(openContextUrl()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_hashtag), this, SLOT(copyContextUrl()))->setEnabled(true);
 		} else {
 		}
 		if (isUponSelected > 1) {
-			if (!_menu) _menu = new ContextMenu(this);
+			if (!_menu) _menu = new PopupMenu();
 			_menu->addAction(lang(lng_context_forward_selected), historyWidget, SLOT(onForwardSelected()));
 			if (selectedForDelete == selectedForForward) {
 				_menu->addAction(lang(lng_context_delete_selected), historyWidget, SLOT(onDeleteSelected()));
 			}
 			_menu->addAction(lang(lng_context_clear_selection), historyWidget, SLOT(onClearSelected()));
 		} else if (item && ((isUponSelected != -2 && (canForward || canDelete)) || item->id > 0)) {
-			if (!_menu) _menu = new ContextMenu(this);
+			if (!_menu) _menu = new PopupMenu();
 			if (isUponSelected != -2) {
 				if (canForward) {
 					_menu->addAction(lang(lng_context_forward_msg), historyWidget, SLOT(forwardMessage()))->setEnabled(true);
@@ -920,7 +920,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 		} else {
 			if (App::mousedItem() && !App::mousedItem()->serviceMsg() && App::mousedItem()->id > 0) {
-				if (!_menu) _menu = new ContextMenu(this);
+				if (!_menu) _menu = new PopupMenu();
 				_menu->addAction(lang(lng_context_select_msg), historyWidget, SLOT(selectMessage()))->setEnabled(true);
 				item = App::mousedItem();
 			}
@@ -1138,7 +1138,7 @@ void HistoryInner::updateBotInfo(bool recount) {
 	int32 newh = 0;
 	if (botInfo && !botInfo->description.isEmpty()) {
 		if (botInfo->text.isEmpty()) {
-			botInfo->text.setText(st::msgFont, botInfo->description, _historyBotOptions);
+			botInfo->text.setText(st::msgFont, botInfo->description, _historyBotNoMonoOptions);
 			if (recount) {
 				int32 tw = scrollArea->width() - st::msgMargin.left() - st::msgMargin.right();
 				if (tw > st::msgMaxWidth) tw = st::msgMaxWidth;
@@ -1643,7 +1643,7 @@ bool MessageField::hasSendText() const {
 	const QString &text(getLastText());
 	for (const QChar *ch = text.constData(), *e = ch + text.size(); ch != e; ++ch) {
 		ushort code = ch->unicode();
-		if (code != ' ' && code != '\n' && code != '\r' && !replaceCharBySpace(code)) {
+		if (code != ' ' && code != '\n' && code != '\r' && !chReplacedBySpace(code)) {
 			return true;
 		}
 	}
@@ -2528,6 +2528,9 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_attachDragDocument.hide();
 	_attachDragPhoto.hide();
 
+	_topShadow.hide();
+	_sideShadow.setVisible(cWideMode());
+
 	connect(&_attachDragDocument, SIGNAL(dropped(const QMimeData*)), this, SLOT(onDocumentDrop(const QMimeData*)));
 	connect(&_attachDragPhoto, SIGNAL(dropped(const QMimeData*)), this, SLOT(onPhotoDrop(const QMimeData*)));
 }
@@ -2890,20 +2893,24 @@ void HistoryWidget::setKbWasHidden() {
 }
 
 void HistoryWidget::fastShowAtEnd(History *h) {
-	h->getReadyFor(ShowAtTheEndMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
+	if (h == _history) {
+		h->getReadyFor(ShowAtTheEndMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
 
-	if (_history != h) return;
+		clearAllLoadRequests();
 
-	clearAllLoadRequests();
+		setMsgId(ShowAtUnreadMsgId);
+		_histInited = false;
 
-	setMsgId(ShowAtUnreadMsgId);
-	_histInited = false;
-
-	if (h->isReadyFor(_showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop)) {
-		historyLoaded();
-	} else {
-		firstLoadMessages();
-		doneShow();
+		if (h->isReadyFor(_showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop)) {
+			historyLoaded();
+		} else {
+			firstLoadMessages();
+			doneShow();
+		}
+	} else if (h) {
+		MsgId fixInScrollMsgId = 0;
+		int32 fixInScrollMsgTop = 0;
+		h->getReadyFor(ShowAtTheEndMsgId, fixInScrollMsgId, fixInScrollMsgTop);
 	}
 }
 
@@ -3218,6 +3225,7 @@ void HistoryWidget::updateReportSpamStatus() {
 }
 
 void HistoryWidget::updateControlsVisibility() {
+	_topShadow.setVisible(_peer ? true : false);
 	if (!_history || _a_show.animating()) {
 		_reportSpamPanel.hide();
 		_scroll.hide();
@@ -3822,28 +3830,19 @@ void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
 	if (!_history) return;
 
 	bool lastKeyboardUsed = lastForceReplyReplied(FullMsgId(_channel, replyTo));
-	QString text = prepareSentText(_field.getLastText());
-	if (!text.isEmpty()) {
-		App::main()->readServerHistory(_history, false);
-		fastShowAtEnd(_history);
 
-		WebPageId webPageId = _previewCancelled ? 0xFFFFFFFFFFFFFFFFULL : ((_previewData && _previewData->pendingTill >= 0) ? _previewData->id : 0);
-		App::main()->sendPreparedText(_history, text, replyTo, _broadcast.checked(), webPageId);
+	WebPageId webPageId = _previewCancelled ? 0xFFFFFFFFFFFFFFFFULL : ((_previewData && _previewData->pendingTill >= 0) ? _previewData->id : 0);
+	App::main()->sendMessage(_history, _field.getLastText(), replyTo, _broadcast.checked(), webPageId);
 
-		setFieldText(QString());
-		_saveDraftText = true;
-		_saveDraftStart = getms();
-		onDraftSave();
+	setFieldText(QString());
+	_saveDraftText = true;
+	_saveDraftStart = getms();
+	onDraftSave();
 
-		if (!_attachMention.isHidden()) _attachMention.hideStart();
-		if (!_attachType.isHidden()) _attachType.hideStart();
-		if (!_emojiPan.isHidden()) _emojiPan.hideStart();
+	if (!_attachMention.isHidden()) _attachMention.hideStart();
+	if (!_attachType.isHidden()) _attachType.hideStart();
+	if (!_emojiPan.isHidden()) _emojiPan.hideStart();
 
-	} else if (readyToForward()) {
-		App::main()->readServerHistory(_history, false);
-		fastShowAtEnd(_history);
-		App::main()->finishForwarding(_history, _broadcast.checked());
-	}
 	if (replyTo < 0) cancelReply(lastKeyboardUsed);
 	if (_previewData && _previewData->pendingTill) previewCancel();
 	_field.setFocus();
@@ -4069,7 +4068,7 @@ bool HistoryWidget::animStep_show(float64 ms) {
 	if (dt >= 1) {
 		_a_show.stop();
 		_sideShadow.setVisible(cWideMode());
-		_topShadow.show();
+		_topShadow.setVisible(_peer ? true : false);
 
 		res = false;
 		a_coordUnder.finish();
@@ -4110,7 +4109,7 @@ void HistoryWidget::animStop() {
 	if (!_a_show.animating()) return;
 	_a_show.stop();
 	_sideShadow.setVisible(cWideMode());
-	_topShadow.show();
+	_topShadow.setVisible(_peer ? true : false);
 }
 
 bool HistoryWidget::recordStep(float64 ms) {
@@ -4306,9 +4305,6 @@ void HistoryWidget::stopRecording(bool send) {
 void HistoryWidget::sendBotCommand(const QString &cmd, MsgId replyTo) { // replyTo != 0 from ReplyKeyboardMarkup, == 0 from cmd links
 	if (!_history) return;
 
-	App::main()->readServerHistory(_history, false);
-	fastShowAtEnd(_history);
-
 	bool lastKeyboardUsed = (_keyboard.forMsgId() == FullMsgId(_channel, _history->lastKeyboardId)) && (_keyboard.forMsgId() == FullMsgId(_channel, replyTo));
 
 	QString toSend = cmd;
@@ -4320,7 +4316,7 @@ void HistoryWidget::sendBotCommand(const QString &cmd, MsgId replyTo) { // reply
 		toSend += '@' + username;
 	}
 
-	App::main()->sendPreparedText(_history, toSend, replyTo ? ((!_peer->isUser()/* && (botStatus == 0 || botStatus == 2)*/) ? replyTo : -1) : 0, false);
+	App::main()->sendMessage(_history, toSend, replyTo ? ((!_peer->isUser()/* && (botStatus == 0 || botStatus == 2)*/) ? replyTo : -1) : 0, false);
 	if (replyTo) {
 		cancelReply();
 		if (_keyboard.singleUse() && _keyboard.hasMarkup() && lastKeyboardUsed) {
@@ -5724,10 +5720,6 @@ void HistoryWidget::onStickerSend(DocumentData *sticker) {
 	if (sticker->sticker()) App::main()->incrementSticker(sticker);
 
 	App::historyRegRandom(randomId, newId);
-	App::main()->historyToDown(_history);
-
-	App::main()->dialogsToUp();
-	peerMessagesUpdated(_peer->id);
 
 	if (!_attachMention.isHidden()) _attachMention.hideStart();
 	if (!_attachType.isHidden()) _attachType.hideStart();

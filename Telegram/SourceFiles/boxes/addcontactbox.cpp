@@ -165,8 +165,8 @@ void AddContactBox::onSubmit() {
 void AddContactBox::onSave() {
 	if (_addRequest) return;
 
-	QString firstName = prepareSentText(_first.getLastText());
-	QString lastName = prepareSentText(_last.getLastText());
+	QString firstName = prepareText(_first.getLastText());
+	QString lastName = prepareText(_last.getLastText());
 	QString phone = _phone.getLastText().trimmed();
 	if (firstName.isEmpty() && lastName.isEmpty()) {
 		if (_invertOrder) {
@@ -491,7 +491,7 @@ void GroupInfoBox::onNameSubmit() {
 void GroupInfoBox::onNext() {
 	if (_creationRequestId) return;
 
-	QString title = prepareSentText(_title.getLastText());
+	QString title = prepareText(_title.getLastText()), description = prepareText(_description.getLastText(), true);
 	if (title.isEmpty()) {
 		_title.setFocus();
 		_title.showError();
@@ -500,7 +500,7 @@ void GroupInfoBox::onNext() {
 	if (_creating == CreatingGroupGroup) {
 		App::wnd()->replaceLayer(new ContactsBox(title, _photoBig));
 	} else {
-		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_int(MTPmessages_CreateChannel_flag_broadcast), MTP_string(title), MTP_string(prepareSentText(_description.getLastText())), MTP_vector<MTPInputUser>(0)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
+		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_int(MTPmessages_CreateChannel_flag_broadcast), MTP_string(title), MTP_string(description), MTP_vector<MTPInputUser>(0)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
 	}
 }
 
@@ -1080,7 +1080,7 @@ void EditNameTitleBox::resizeEvent(QResizeEvent *e) {
 void EditNameTitleBox::onSave() {
 	if (_requestId) return;
 
-	QString first = prepareSentText(_first.getLastText()), last = prepareSentText(_last.getLastText());
+	QString first = prepareText(_first.getLastText()), last = prepareText(_last.getLastText());
 	if (first.isEmpty() && last.isEmpty()) {
 		if (_invertOrder) {
 			_last.setFocus();
@@ -1254,7 +1254,7 @@ void EditChannelBox::resizeEvent(QResizeEvent *e) {
 void EditChannelBox::onSave() {
 	if (_saveTitleRequestId || _saveDescriptionRequestId) return;
 
-	QString title = prepareSentText(_title.getLastText()), description = prepareSentText(_description.getLastText());
+	QString title = prepareText(_title.getLastText()), description = prepareText(_description.getLastText(), true);
 	if (title.isEmpty()) {
 		_title.setFocus();
 		_title.showError();

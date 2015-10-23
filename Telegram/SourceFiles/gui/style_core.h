@@ -124,6 +124,7 @@ namespace style {
 		Font italic(bool set = true) const;
 		Font underline(bool set = true) const;
 
+		uint32 size() const;
 		uint32 flags() const;
 		uint32 family() const;
 

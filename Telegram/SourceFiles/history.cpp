@@ -45,12 +45,24 @@ TextParseOptions _textDlgOptions = {
 	Qt::LayoutDirectionAuto, // lang-dependent
 };
 TextParseOptions _historyTextOptions = {
-	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText, // flags
+	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText | TextParseMono, // flags
 	0, // maxw
 	0, // maxh
 	Qt::LayoutDirectionAuto, // dir
 };
 TextParseOptions _historyBotOptions = {
+	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands | TextParseMultiline | TextParseRichText | TextParseMono, // flags
+	0, // maxw
+	0, // maxh
+	Qt::LayoutDirectionAuto, // dir
+};
+TextParseOptions _historyTextNoMonoOptions = {
+	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText, // flags
+	0, // maxw
+	0, // maxh
+	Qt::LayoutDirectionAuto, // dir
+};
+TextParseOptions _historyBotNoMonoOptions = {
 	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands | TextParseMultiline | TextParseRichText, // flags
 	0, // maxw
 	0, // maxh
@@ -112,16 +124,26 @@ namespace {
 	inline const HistoryForwarded *toHistoryForwarded(const HistoryItem *item) {
 		return item ? item->toHistoryForwarded() : 0;
 	}
-	inline const TextParseOptions &itemTextParseOptions(HistoryItem *item) {
-		return itemTextParseOptions(item->history(), item->from());
+	inline const TextParseOptions &itemTextOptions(HistoryItem *item) {
+		return itemTextOptions(item->history(), item->from());
+	}
+	inline const TextParseOptions &itemTextNoMonoOptions(HistoryItem *item) {
+		return itemTextNoMonoOptions(item->history(), item->from());
 	}
 }
 
-const TextParseOptions &itemTextParseOptions(History *h, PeerData *f) {
+const TextParseOptions &itemTextOptions(History *h, PeerData *f) {
 	if ((h->peer->isUser() && h->peer->asUser()->botInfo) || (f->isUser() && f->asUser()->botInfo) || (h->peer->isChat() && h->peer->asChat()->botStatus >= 0) || (h->peer->isChannel() && h->peer->asChannel()->botStatus >= 0)) {
 		return _historyBotOptions;
 	}
 	return _historyTextOptions;
+}
+
+const TextParseOptions &itemTextNoMonoOptions(History *h, PeerData *f) {
+	if ((h->peer->isUser() && h->peer->asUser()->botInfo) || (f->isUser() && f->asUser()->botInfo) || (h->peer->isChat() && h->peer->asChat()->botStatus >= 0) || (h->peer->isChannel() && h->peer->asChannel()->botStatus >= 0)) {
+		return _historyBotNoMonoOptions;
+	}
+	return _historyTextNoMonoOptions;
 }
 
 void historyInit() {
@@ -2330,7 +2352,7 @@ void History::setLastMessage(HistoryItem *msg) {
 }
 
 void History::setPosInDialogsDate(const QDateTime &date) {
-	bool updateDialog = (App::main() && (!peer->isChannel() || peer->asChannel()->amIn()));
+	bool updateDialog = (App::main() && (!peer->isChannel() || peer->asChannel()->amIn() || !dialogs.isEmpty()));
 	if (!lastMsgDate.isNull() && lastMsgDate >= date) {
 		if (!updateDialog || !dialogs.isEmpty()) {
 			return;
@@ -2785,7 +2807,7 @@ HistoryPhoto::HistoryPhoto(const MTPDphoto &photo, const QString &caption, Histo
 , _caption(st::minPhotoSize)
 , openl(new PhotoLink(data)) {
 	if (!caption.isEmpty()) {
-		_caption.setText(st::msgFont, caption + parent->skipBlock(), itemTextParseOptions(parent));
+		_caption.setText(st::msgFont, caption + parent->skipBlock(), itemTextNoMonoOptions(parent));
 	}
 	init();
 }
@@ -2819,7 +2841,7 @@ void HistoryPhoto::initDimensions(const HistoryItem *parent) {
 	_minh = qMax(thumbh, int32(st::minPhotoSize));
 	const HistoryReply *reply = toHistoryReply(parent);
 	const HistoryForwarded *fwd = toHistoryForwarded(parent);
-	if (reply || !_caption.isEmpty()) {
+	if (reply || (fwd && fwd->fromForwarded()->isChannel()) || !_caption.isEmpty()) {
 		_maxw += st::mediaPadding.left() + st::mediaPadding.right();
 		if (reply) {
 			_minh += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
@@ -2846,7 +2868,7 @@ int32 HistoryPhoto::resize(int32 width, const HistoryItem *parent) {
 	const HistoryForwarded *fwd = reply ? 0 : toHistoryForwarded(parent);
 
 	pixw = qMin(width, _maxw);
-	if (reply || !_caption.isEmpty()) {
+	if (reply || (fwd && fwd->fromForwarded()->isChannel()) || !_caption.isEmpty()) {
 		pixw -= st::mediaPadding.left() + st::mediaPadding.right();
 	}
 
@@ -2873,7 +2895,7 @@ int32 HistoryPhoto::resize(int32 width, const HistoryItem *parent) {
 	if (pixh < 1) pixh = 1;
 	w = qMax(pixw, int16(st::minPhotoSize));
 	_height = qMax(pixh, int16(st::minPhotoSize));
-	if (reply || !_caption.isEmpty()) {
+	if (reply || (fwd && fwd->fromForwarded()->isChannel()) || !_caption.isEmpty()) {
 		if (reply) {
 			_height += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		} else {
@@ -2921,7 +2943,7 @@ void HistoryPhoto::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 	const HistoryReply *reply = toHistoryReply(parent);
 	const HistoryForwarded *fwd = reply ? 0 : toHistoryForwarded(parent);
 	int replyFrom = 0, fwdFrom = 0;
-	if (reply || !_caption.isEmpty()) {
+	if (reply || (fwd && fwd->fromForwarded()->isChannel()) || !_caption.isEmpty()) {
 		skipx = st::mediaPadding.left();
 		if (reply) {
 			skipy = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
@@ -2971,7 +2993,7 @@ void HistoryPhoto::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height) {
 		lnk = openl;
 		if (_caption.isEmpty()) {
-			int32 fullRight = skipx + width + (skipx ? st::mediaPadding.right() : 0), fullBottom = _height;
+			int32 fullRight = skipx + width, fullBottom = _height - (skipx ? st::mediaPadding.bottom() : 0);
 			bool inDate = parent->pointInTime(fullRight, fullBottom, x, y, InfoDisplayOverImage);
 			if (inDate) {
 				state = HistoryInDateCursorState;
@@ -3026,7 +3048,7 @@ void HistoryPhoto::draw(Painter &p, const HistoryItem *parent, bool selected, in
 
 	if (width < 0) width = w;
 	int skipx = 0, skipy = 0, height = _height;
-	if (reply || !_caption.isEmpty()) {
+	if (reply || (fwd && fwd->fromForwarded()->isChannel()) || !_caption.isEmpty()) {
 		skipx = st::mediaPadding.left();
 
 		style::color bg(selected ? (outbg ? st::msgOutSelectBg : st::msgInSelectBg) : (outbg ? st::msgOutBg : st::msgInBg));
@@ -3103,7 +3125,7 @@ void HistoryPhoto::draw(Painter &p, const HistoryItem *parent, bool selected, in
 	// date
 	QString time(parent->timeText());
 	if (_caption.isEmpty()) {
-		int32 fullRight = skipx + width + (skipx ? st::mediaPadding.right() : 0), fullBottom = _height;
+		int32 fullRight = skipx + width, fullBottom = _height - (skipx ? st::mediaPadding.bottom() : 0);
 		parent->drawInfo(p, fullRight, fullBottom, selected, InfoDisplayOverImage);
 	} else {
 		p.setPen(st::black->p);
@@ -3171,7 +3193,7 @@ HistoryVideo::HistoryVideo(const MTPDvideo &video, const QString &caption, Histo
 , _uplDone(0)
 {
 	if (!caption.isEmpty()) {
-		_caption.setText(st::msgFont, caption + parent->skipBlock(), itemTextParseOptions(parent));
+		_caption.setText(st::msgFont, caption + parent->skipBlock(), itemTextNoMonoOptions(parent));
 	}
 
 	_size = formatDurationAndSizeText(data->duration, data->size);
@@ -5896,7 +5918,7 @@ void HistoryImageLink::draw(Painter &p, const HistoryItem *parent, bool selected
 		App::roundRect(p, skipx, skipy, width, height, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
 	}
 
-	int32 fullRight = skipx + width + (skipx ? st::mediaPadding.right() : 0), fullBottom = _height;
+	int32 fullRight = skipx + width, fullBottom = _height - (skipx ? st::mediaPadding.bottom() : 0);
 	parent->drawInfo(p, fullRight, fullBottom, selected, InfoDisplayOverImage);
 }
 
@@ -6033,7 +6055,8 @@ void HistoryImageLink::getState(TextLinkPtr &lnk, HistoryCursorState &state, int
 	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height && data) {
 		lnk = link;
 
-		bool inDate = parent->pointInTime(skipx + width + (skipx ? st::mediaPadding.right() : 0), _height, x, y, InfoDisplayOverImage);
+		int32 fullRight = skipx + width, fullBottom = _height - (skipx ? st::mediaPadding.bottom() : 0);
+		bool inDate = parent->pointInTime(fullRight, fullBottom, x, y, InfoDisplayOverImage);
 		if (inDate) {
 			state = HistoryInDateCursorState;
 		}
@@ -6057,10 +6080,10 @@ HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, const MTPD
 	QString text(textClean(qs(msg.vmessage)));
 	initTime();
 	initMedia(msg.has_media() ? (&msg.vmedia) : 0, text);
-	setText(text, msg.has_entities() ? linksFromMTP(msg.ventities.c_vector().v) : LinksInText());
+	setText(text, msg.has_entities() ? entitiesFromMTP(msg.ventities.c_vector().v) : EntitiesInText());
 }
 
-HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const LinksInText &links, HistoryMedia *fromMedia) :
+HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const EntitiesInText &entities, HistoryMedia *fromMedia) :
 HistoryItem(history, block, msgId, flags, date, from)
 , _text(st::msgMinWidth)
 , _textWidth(0)
@@ -6073,7 +6096,7 @@ HistoryItem(history, block, msgId, flags, date, from)
 		_media = fromMedia->clone();
 		_media->regItem(this);
 	}
-	setText(msg, links);
+	setText(msg, entities);
 }
 
 HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, DocumentData *doc) :
@@ -6086,7 +6109,7 @@ HistoryItem(history, block, msgId, flags, date, from)
 {
 	initTime();
 	initMediaFromDocument(doc);
-	setText(QString(), LinksInText());
+	setText(QString(), EntitiesInText());
 }
 
 QString formatViewsCount(int32 views) {
@@ -6246,8 +6269,8 @@ QString HistoryMessage::selectedText(uint32 selection) const {
 	return _text.original(selectedFrom, selectedTo);
 }
 
-LinksInText HistoryMessage::textLinks() const {
-	return _text.calcLinksInText();
+EntitiesInText HistoryMessage::textEntities() const {
+	return _text.calcEntitiesInText();
 }
 
 QString HistoryMessage::inDialogsText() const {
@@ -6283,16 +6306,16 @@ void HistoryMessage::setMedia(const MTPMessageMedia *media, bool allowEmitResize
 	if (allowEmitResize && App::main()) App::main()->itemResized(this);
 }
 
-void HistoryMessage::setText(const QString &text, const LinksInText &links) {
+void HistoryMessage::setText(const QString &text, const EntitiesInText &entities) {
 	if (!_media || !text.isEmpty()) { // !justMedia()
 		if (_media && _media->isDisplayed()) {
-			_text.setMarkedText(st::msgFont, text, links, itemTextParseOptions(this));
+			_text.setMarkedText(st::msgFont, text, entities, itemTextOptions(this));
 		} else {
-			_text.setMarkedText(st::msgFont, text + skipBlock(), links, itemTextParseOptions(this));
+			_text.setMarkedText(st::msgFont, text + skipBlock(), entities, itemTextOptions(this));
 		}
 		if (id > 0) {
-			for (int32 i = 0, l = links.size(); i != l; ++i) {
-				if (links.at(i).type == LinkInTextUrl || links.at(i).type == LinkInTextCustomUrl || links.at(i).type == LinkInTextEmail) {
+			for (int32 i = 0, l = entities.size(); i != l; ++i) {
+				if (entities.at(i).type == EntityInTextUrl || entities.at(i).type == EntityInTextCustomUrl || entities.at(i).type == EntityInTextEmail) {
 					_flags |= MTPDmessage_flag_HAS_TEXT_LINKS;
 					break;
 				}
@@ -6303,9 +6326,9 @@ void HistoryMessage::setText(const QString &text, const LinksInText &links) {
 	}
 }
 
-void HistoryMessage::getTextWithLinks(QString &text, LinksInText &links) {
+void HistoryMessage::getTextWithEntities(QString &text, EntitiesInText &links) {
 	if (_text.isEmpty()) return;
-	links = _text.calcLinksInText();
+	links = _text.calcEntitiesInText();
 	text = _text.original();
 }
 
@@ -6750,7 +6773,7 @@ HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const 
 	fwdNameUpdated();
 }
 
-HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg) : HistoryMessage(history, block, id, newMessageFlags(history->peer) | (!history->peer->isChannel() && msg->getMedia() && (msg->getMedia()->type() == MediaTypeAudio/* || msg->getMedia()->type() == MediaTypeVideo*/) ? MTPDmessage_flag_media_unread : 0), date, from, msg->justMedia() ? QString() : msg->HistoryMessage::selectedText(FullItemSel), msg->HistoryMessage::textLinks(), msg->getMedia())
+HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg) : HistoryMessage(history, block, id, newMessageFlags(history->peer) | (!history->peer->isChannel() && msg->getMedia() && (msg->getMedia()->type() == MediaTypeAudio/* || msg->getMedia()->type() == MediaTypeVideo*/) ? MTPDmessage_flag_media_unread : 0), date, from, msg->justMedia() ? QString() : msg->HistoryMessage::selectedText(FullItemSel), msg->HistoryMessage::textEntities(), msg->getMedia())
 , fwdDate(msg->dateForwarded())
 , fwdFrom(msg->fromForwarded())
 , fwdFromVersion(fwdFrom->nameVersion)

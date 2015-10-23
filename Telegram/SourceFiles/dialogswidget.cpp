@@ -440,7 +440,7 @@ void DialogsInner::createDialog(History *history) {
 	if (creating) {
 		refresh();
 	} else if (_state == DefaultState && movedFrom != movedTo) {
-		update(0, qMin(movedFrom, movedTo) * st::dlgHeight, fullWidth(), (qAbs(movedFrom - movedTo) + 1) * st::dlgHeight);
+		update(0, qMin(movedFrom, movedTo), fullWidth(), qAbs(movedFrom - movedTo) + st::dlgHeight);
 	}
 }
 
@@ -495,17 +495,12 @@ void DialogsInner::dlgUpdated(History *history, MsgId msgId) {
 		DialogsList::RowByPeer::iterator i = dialogs.list.rowByPeer.find(history->peer->id);
 		if (i != dialogs.list.rowByPeer.cend()) {
 			update(0, i.value()->pos * st::dlgHeight, fullWidth(), st::dlgHeight);
-		} else {
-			i = contactsNoDialogs.list.rowByPeer.end();// find(history->peer->id);
-			if (i != contactsNoDialogs.list.rowByPeer.cend()) {
-				update(0, (dialogs.list.count + i.value()->pos) * st::dlgHeight, fullWidth(), st::dlgHeight);
-			}
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
 		int32 cnt = 0, add = filteredOffset();
 		for (FilteredDialogs::const_iterator i = filterResults.cbegin(), e = filterResults.cend(); i != e; ++i) {
 			if ((*i)->history == history) {
-				update(0, cnt * st::dlgHeight, fullWidth(), st::dlgHeight);
+				update(0, add + cnt * st::dlgHeight, fullWidth(), st::dlgHeight);
 				break;
 			}
 			++cnt;

@@ -33,7 +33,8 @@ static const uint32 FullItemSel = 0xFFFFFFFF;
 
 typedef QMap<int32, HistoryItem*> SelectedItemSet;
 
-extern TextParseOptions _textNameOptions, _textDlgOptions, _historyTextOptions, _historyBotOptions;
+extern TextParseOptions _textNameOptions, _textDlgOptions;
+extern TextParseOptions _historyTextOptions, _historyBotOptions, _historyTextNoMonoOptions, _historyBotNoMonoOptions;
 
 #include "structs.h"
 
@@ -116,9 +117,9 @@ enum HistoryMediaType {
 enum MediaOverviewType {
 	OverviewPhotos,
 	OverviewVideos,
+	OverviewAudioDocuments,
 	OverviewDocuments,
 	OverviewAudios,
-	OverviewAudioDocuments,
 	OverviewLinks,
 
 	OverviewCount
@@ -139,9 +140,9 @@ inline MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
 	switch (type) {
 	case OverviewPhotos: return MTP_inputMessagesFilterPhotos();
 	case OverviewVideos: return MTP_inputMessagesFilterVideo();
+	case OverviewAudioDocuments: return MTP_inputMessagesFilterAudioDocuments();
 	case OverviewDocuments: return MTP_inputMessagesFilterDocument();
 	case OverviewAudios: return MTP_inputMessagesFilterAudio();
-	case OverviewAudioDocuments: return MTP_inputMessagesFilterAudioDocuments();
 	case OverviewLinks: return MTP_inputMessagesFilterUrl();
 	default: type = OverviewCount; break;
 	}
@@ -930,9 +931,9 @@ public:
 	virtual HistoryMedia *getMedia(bool inOverview = false) const {
 		return 0;
 	}
-	virtual void setText(const QString &text, const LinksInText &links) {
+	virtual void setText(const QString &text, const EntitiesInText &links) {
 	}
-	virtual void getTextWithLinks(QString &text, LinksInText &links) {
+	virtual void getTextWithEntities(QString &text, EntitiesInText &links) {
 	}
 	virtual bool textHasLinks() {
 		return false;
@@ -1502,7 +1503,7 @@ class HistoryMessage : public HistoryItem {
 public:
 
 	HistoryMessage(History *history, HistoryBlock *block, const MTPDmessage &msg);
-	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const LinksInText &links, HistoryMedia *media); // local forwarded
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const EntitiesInText &entities, HistoryMedia *media); // local forwarded
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, DocumentData *doc); // local sticker and reply sticker
 
 	void initTime();
@@ -1548,12 +1549,12 @@ public:
 	}
 
 	QString selectedText(uint32 selection) const;
-	LinksInText textLinks() const;
+	EntitiesInText textEntities() const;
 	QString inDialogsText() const;
 	HistoryMedia *getMedia(bool inOverview = false) const;
 	void setMedia(const MTPMessageMedia *media, bool allowEmitResize);
-	void setText(const QString &text, const LinksInText &links);
-	void getTextWithLinks(QString &text, LinksInText &links);
+	void setText(const QString &text, const EntitiesInText &entities);
+	void getTextWithEntities(QString &text, EntitiesInText &entities);
 	bool textHasLinks();
 
 	int32 infoWidth() const {
@@ -1897,4 +1898,5 @@ protected:
 	bool freezed;
 };
 
-const TextParseOptions &itemTextParseOptions(History *h, PeerData *f);
+const TextParseOptions &itemTextOptions(History *h, PeerData *f);
+const TextParseOptions &itemTextNoMonoOptions(History *h, PeerData *f);

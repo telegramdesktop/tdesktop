@@ -40,6 +40,12 @@
     <Filter Include="langs">
       <UniqueIdentifier>{67311646-a8af-4626-976d-0a5733bf90e8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resources">
+      <UniqueIdentifier>{df139398-6d5d-4bd5-8abe-b509b102f5d8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Version">
+      <UniqueIdentifier>{9d7bbb7d-817b-4f19-a719-74e674bdc84b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SourceFiles\main.cpp">
@@ -1006,8 +1012,6 @@
     <CustomBuild Include="SourceFiles\gui\flatbutton.h">
       <Filter>gui</Filter>
     </CustomBuild>
-    <CustomBuild Include="Resources\style_classes.txt" />
-    <CustomBuild Include="Resources\style.txt" />
     <CustomBuild Include="SourceFiles\gui\flatinput.h">
       <Filter>gui</Filter>
     </CustomBuild>
@@ -1143,10 +1147,6 @@
     <CustomBuild Include="SourceFiles\localstorage.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
-    <CustomBuild Include="Resources\lang.strings" />
-    <CustomBuild Include="SourceFiles\telegram.qrc" />
-    <CustomBuild Include="SourceFiles\telegram_emojis.qrc" />
-    <CustomBuild Include="SourceFiles\telegram_wnd.qrc" />
     <CustomBuild Include="SourceFiles\boxes\languagebox.h">
       <Filter>boxes</Filter>
     </CustomBuild>
@@ -1189,13 +1189,27 @@
     <CustomBuild Include="SourceFiles\playerwidget.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
-    <CustomBuild Include="Resources\numbers.txt" />
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="SourceFiles\art\icon256.ico" />
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="Telegram.rc" />
+    <CustomBuild Include="Resources\lang.strings">
+      <Filter>Resources</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Resources\numbers.txt">
+      <Filter>Resources</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Resources\style.txt">
+      <Filter>Resources</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Resources\style_classes.txt">
+      <Filter>Resources</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\telegram.qrc">
+      <Filter>Resources</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\telegram_emojis.qrc">
+      <Filter>Resources</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\telegram_wnd.qrc">
+      <Filter>Resources</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <None Include="SourceFiles\langs\lang_it.strings">
@@ -1219,5 +1233,24 @@
     <None Include="SourceFiles\pspecific_mac_p.mm">
       <Filter>Source Files</Filter>
     </None>
+    <None Include="Telegram.xcodeproj\project.pbxproj">
+      <Filter>Version</Filter>
+    </None>
+    <None Include="Telegram.plist">
+      <Filter>Version</Filter>
+    </None>
+    <None Include="Version">
+      <Filter>Version</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="SourceFiles\art\icon256.ico">
+      <Filter>Resources</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Telegram.rc">
+      <Filter>Version</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>
