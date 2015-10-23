@@ -20,79 +20,96 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+enum EntityInTextType {
+	EntityInTextUrl,
+	EntityInTextCustomUrl,
+	EntityInTextEmail,
+	EntityInTextHashtag,
+	EntityInTextMention,
+	EntityInTextBotCommand,
+
+	EntityInTextBold,
+	EntityInTextItalic,
+	EntityInTextCode, // inline
+	EntityInTextPre,  // block
+};
+struct EntityInText {
+	EntityInText(EntityInTextType type, int32 offset, int32 length, const QString &text = QString()) : type(type), offset(offset), length(length), text(text) {
+	}
+	EntityInTextType type;
+	int32 offset, length;
+	QString text;
+};
+typedef QList<EntityInText> EntitiesInText;
+
 // text preprocess
 QString textClean(const QString &text);
 QString textRichPrepare(const QString &text);
 QString textOneLine(const QString &text, bool trim = true, bool rich = false);
 QString textAccentFold(const QString &text);
 QString textSearchKey(const QString &text);
-bool textSplit(QString &sendingText, QString &leftText, int32 limit);
+bool textSplit(QString &sendingText, EntitiesInText &sendingEntities, QString &leftText, EntitiesInText &leftEntities, int32 limit);
 
 enum {
-	TextParseMultiline = 0x001,
-	TextParseLinks = 0x002,
-	TextParseRichText = 0x004,
-	TextParseMentions = 0x008,
-	TextParseHashtags = 0x010,
-	TextParseBotCommands = 0x020,
+	TextParseMultiline    = 0x001,
+	TextParseLinks        = 0x002,
+	TextParseRichText     = 0x004,
+	TextParseMentions     = 0x008,
+	TextParseHashtags     = 0x010,
+	TextParseBotCommands  = 0x020,
+	TextParseMono         = 0x040,
 
-	TextTwitterMentions = 0x040,
-	TextTwitterHashtags = 0x080,
-	TextInstagramMentions = 0x100,
-	TextInstagramHashtags = 0x200,
+	TextTwitterMentions   = 0x100,
+	TextTwitterHashtags   = 0x200,
+	TextInstagramMentions = 0x400,
+	TextInstagramHashtags = 0x800,
 };
 
-enum LinkInTextType {
-	LinkInTextUrl,
-	LinkInTextCustomUrl,
-	LinkInTextEmail,
-	LinkInTextHashtag,
-	LinkInTextMention,
-	LinkInTextBotCommand,
-};
-struct LinkInText {
-	LinkInText(LinkInTextType type, int32 offset, int32 length, const QString &text = QString()) : type(type), offset(offset), length(length), text(text) {
-	}
-	LinkInTextType type;
-	int32 offset, length;
-	QString text;
-};
-typedef QList<LinkInText> LinksInText;
-inline LinksInText linksFromMTP(const QVector<MTPMessageEntity> &entities) {
-	LinksInText result;
+inline EntitiesInText entitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
+	EntitiesInText result;
 	if (!entities.isEmpty()) {
 		result.reserve(entities.size());
 		for (int32 i = 0, l = entities.size(); i != l; ++i) {
 			const MTPMessageEntity &e(entities.at(i));
 			switch (e.type()) {
-			case mtpc_messageEntityUrl: { const MTPDmessageEntityUrl &d(e.c_messageEntityUrl()); result.push_back(LinkInText(LinkInTextUrl, d.voffset.v, d.vlength.v)); } break;
-			case mtpc_messageEntityTextUrl: { const MTPDmessageEntityTextUrl &d(e.c_messageEntityTextUrl()); result.push_back(LinkInText(LinkInTextCustomUrl, d.voffset.v, d.vlength.v, textClean(qs(d.vurl)))); } break;
-			case mtpc_messageEntityEmail: { const MTPDmessageEntityEmail &d(e.c_messageEntityEmail()); result.push_back(LinkInText(LinkInTextEmail, d.voffset.v, d.vlength.v)); } break;
-			case mtpc_messageEntityHashtag: { const MTPDmessageEntityHashtag &d(e.c_messageEntityHashtag()); result.push_back(LinkInText(LinkInTextHashtag, d.voffset.v, d.vlength.v)); } break;
-			case mtpc_messageEntityMention: { const MTPDmessageEntityMention &d(e.c_messageEntityMention()); result.push_back(LinkInText(LinkInTextMention, d.voffset.v, d.vlength.v)); } break;
-			case mtpc_messageEntityBotCommand: { const MTPDmessageEntityBotCommand &d(e.c_messageEntityBotCommand()); result.push_back(LinkInText(LinkInTextBotCommand, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityUrl: { const MTPDmessageEntityUrl &d(e.c_messageEntityUrl()); result.push_back(EntityInText(EntityInTextUrl, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityTextUrl: { const MTPDmessageEntityTextUrl &d(e.c_messageEntityTextUrl()); result.push_back(EntityInText(EntityInTextCustomUrl, d.voffset.v, d.vlength.v, textClean(qs(d.vurl)))); } break;
+			case mtpc_messageEntityEmail: { const MTPDmessageEntityEmail &d(e.c_messageEntityEmail()); result.push_back(EntityInText(EntityInTextEmail, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityHashtag: { const MTPDmessageEntityHashtag &d(e.c_messageEntityHashtag()); result.push_back(EntityInText(EntityInTextHashtag, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityMention: { const MTPDmessageEntityMention &d(e.c_messageEntityMention()); result.push_back(EntityInText(EntityInTextMention, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityBotCommand: { const MTPDmessageEntityBotCommand &d(e.c_messageEntityBotCommand()); result.push_back(EntityInText(EntityInTextBotCommand, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityBold: { const MTPDmessageEntityBold &d(e.c_messageEntityBold()); result.push_back(EntityInText(EntityInTextBold, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityItalic: { const MTPDmessageEntityItalic &d(e.c_messageEntityItalic()); result.push_back(EntityInText(EntityInTextItalic, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityCode: { const MTPDmessageEntityCode &d(e.c_messageEntityCode()); result.push_back(EntityInText(EntityInTextCode, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityPre: { const MTPDmessageEntityPre &d(e.c_messageEntityPre()); result.push_back(EntityInText(EntityInTextPre, d.voffset.v, d.vlength.v, textClean(qs(d.vlanguage)))); } break;
 			}
 		}
 	}
 	return result;
 }
-inline MTPVector<MTPMessageEntity> linksToMTP(const LinksInText &links) {
+inline MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool sending = false) {
 	MTPVector<MTPMessageEntity> result(MTP_vector<MTPMessageEntity>(0));
 	QVector<MTPMessageEntity> &v(result._vector().v);
 	for (int32 i = 0, s = links.size(); i != s; ++i) {
-		const LinkInText &l(links.at(i));
+		const EntityInText &l(links.at(i));
+		if (l.length <= 0 || (sending && l.type != EntityInTextCode && l.type != EntityInTextPre)) continue;
+
 		switch (l.type) {
-		case LinkInTextUrl: v.push_back(MTP_messageEntityUrl(MTP_int(l.offset), MTP_int(l.length))); break;
-		case LinkInTextCustomUrl: v.push_back(MTP_messageEntityTextUrl(MTP_int(l.offset), MTP_int(l.length), MTP_string(l.text))); break;
-		case LinkInTextEmail: v.push_back(MTP_messageEntityEmail(MTP_int(l.offset), MTP_int(l.length))); break;
-		case LinkInTextHashtag: v.push_back(MTP_messageEntityHashtag(MTP_int(l.offset), MTP_int(l.length))); break;
-		case LinkInTextMention: v.push_back(MTP_messageEntityMention(MTP_int(l.offset), MTP_int(l.length))); break;
-		case LinkInTextBotCommand: v.push_back(MTP_messageEntityBotCommand(MTP_int(l.offset), MTP_int(l.length))); break;
+		case EntityInTextUrl: v.push_back(MTP_messageEntityUrl(MTP_int(l.offset), MTP_int(l.length))); break;
+		case EntityInTextCustomUrl: v.push_back(MTP_messageEntityTextUrl(MTP_int(l.offset), MTP_int(l.length), MTP_string(l.text))); break;
+		case EntityInTextEmail: v.push_back(MTP_messageEntityEmail(MTP_int(l.offset), MTP_int(l.length))); break;
+		case EntityInTextHashtag: v.push_back(MTP_messageEntityHashtag(MTP_int(l.offset), MTP_int(l.length))); break;
+		case EntityInTextMention: v.push_back(MTP_messageEntityMention(MTP_int(l.offset), MTP_int(l.length))); break;
+		case EntityInTextBotCommand: v.push_back(MTP_messageEntityBotCommand(MTP_int(l.offset), MTP_int(l.length))); break;
+		case EntityInTextBold: v.push_back(MTP_messageEntityBold(MTP_int(l.offset), MTP_int(l.length))); break;
+		case EntityInTextItalic: v.push_back(MTP_messageEntityItalic(MTP_int(l.offset), MTP_int(l.length))); break;
+		case EntityInTextCode: v.push_back(MTP_messageEntityCode(MTP_int(l.offset), MTP_int(l.length))); break;
+		case EntityInTextPre: v.push_back(MTP_messageEntityPre(MTP_int(l.offset), MTP_int(l.length), MTP_string(l.text))); break;
 		}
 	}
 	return result;
 }
-LinksInText textParseLinks(const QString &text, int32 flags, bool rich = false);
+EntitiesInText textParseEntities(QString &text, int32 flags, bool rich = false); // changes text if (flags & TextParseMono)
 
 #include "gui/emoji_config.h"
 
@@ -101,16 +118,20 @@ void emojiDraw(QPainter &p, EmojiPtr e, int x, int y);
 #include "../../../QtStatic/qtbase/src/gui/text/qfontengine_p.h"
 
 enum TextBlockType {
-	TextBlockNewline = 0x01,
-	TextBlockText    = 0x02,
-	TextBlockEmoji   = 0x03,
-	TextBlockSkip    = 0x04,
+	TextBlockTNewline = 0x01,
+	TextBlockTText    = 0x02,
+	TextBlockTEmoji   = 0x03,
+	TextBlockTSkip    = 0x04,
 };
 
 enum TextBlockFlags {
-	TextBlockBold      = 0x01,
-	TextBlockItalic    = 0x02,
-	TextBlockUnderline = 0x04,
+	TextBlockFBold      = 0x01,
+	TextBlockFItalic    = 0x02,
+	TextBlockFUnderline = 0x04,
+	TextBlockFTilde     = 0x08, // hack for ~ in OpenSans
+	TextBlockFSemibold  = 0x10,
+	TextBlockFCode      = 0x20,
+	TextBlockFPre       = 0x40,
 };
 
 class ITextBlock {
@@ -195,7 +216,7 @@ public:
 private:
 
 	NewlineBlock(const style::font &font, const QString &str, uint16 from, uint16 length) : ITextBlock(font, str, from, length, 0, st::transparent, 0), _nextDir(Qt::LayoutDirectionAuto) {
-		_flags |= ((TextBlockNewline & 0x0F) << 8);
+		_flags |= ((TextBlockTNewline & 0x0F) << 8);
 	}
 
 	Qt::LayoutDirection _nextDir;
@@ -525,17 +546,17 @@ public:
 	int32 countHeight(int32 width) const;
 	void setText(style::font font, const QString &text, const TextParseOptions &options = _defaultOptions);
 	void setRichText(style::font font, const QString &text, TextParseOptions options = _defaultOptions, const TextCustomTagsMap &custom = TextCustomTagsMap());
-	void setMarkedText(style::font font, const QString &text, const LinksInText &links, const TextParseOptions &options = _defaultOptions);
+	void setMarkedText(style::font font, const QString &text, const EntitiesInText &entities, const TextParseOptions &options = _defaultOptions);
 
 	void setLink(uint16 lnkIndex, const TextLinkPtr &lnk);
 	bool hasLinks() const;
 
 	bool hasSkipBlock() const {
-		return _blocks.isEmpty() ? false : _blocks.back()->type() == TextBlockSkip;
+		return _blocks.isEmpty() ? false : _blocks.back()->type() == TextBlockTSkip;
 	}
 	void setSkipBlock(int32 width, int32 height);
 	void removeSkipBlock();
-	LinksInText calcLinksInText() const;
+	EntitiesInText calcEntitiesInText() const;
 
 	int32 maxWidth() const {
 		return _maxWidth.ceil().toInt();
@@ -674,6 +695,15 @@ inline bool chIsBad(QChar ch) {
 inline bool chIsTrimmed(QChar ch, bool rich = false) {
 	return (!rich || ch != TextCommand) && (chIsSpace(ch) || chIsBad(ch));
 }
+inline bool chReplacedBySpace(QChar ch) {
+	// \xe2\x80[\xa8 - \xac\xad] // 8232 - 8237
+	// QString from1 = QString::fromUtf8("\xe2\x80\xa8"), to1 = QString::fromUtf8("\xe2\x80\xad");
+	// \xcc[\xb3\xbf\x8a] // 819, 831, 778
+	// QString bad1 = QString::fromUtf8("\xcc\xb3"), bad2 = QString::fromUtf8("\xcc\xbf"), bad3 = QString::fromUtf8("\xcc\x8a");
+	// [\x00\x01\x02\x07\x08\x0b-\x1f] // '\t' = 0x09
+	return (/*code >= 0x00 && */ch <= 0x02) || (ch >= 0x07 && ch <= 0x09) || (ch >= 0x0b && ch <= 0x1f) ||
+		(ch == 819) || (ch == 831) || (ch == 778) || (ch >= 8232 && ch <= 8237);
+}
 inline bool chIsDiac(QChar ch) { // diac and variation selectors
 	QChar::Category c = ch.category();
 	return (c == QChar::Mark_NonSpacing) || (ch.unicode() == 1652);
@@ -779,4 +809,91 @@ inline QString myUrlEncode(const QString &str) {
 }
 inline QString myUrlDecode(const QString &enc) {
 	return QUrl::fromPercentEncoding(enc.toUtf8());
+}
+
+QString prepareTextWithEntities(QString result, EntitiesInText &entities, int32 flags);
+
+inline QString prepareText(QString result, bool checkLinks = false) {
+	EntitiesInText entities;
+	return prepareTextWithEntities(result, entities, checkLinks ? (TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands) : 0);
+}
+
+inline void moveStringPart(QChar *start, int32 &to, int32 &from, int32 count, EntitiesInText &entities) {
+	if (count > 0) {
+		if (to < from) {
+			memmove(start + to, start + from, count * sizeof(QChar));
+			for (EntitiesInText::iterator i = entities.begin(), e = entities.end(); i != e; ++i) {
+				if (i->offset >= from + count) break;
+				if (i->offset + i->length < from) continue;
+				if (i->offset >= from) {
+					i->offset -= (from - to);
+					i->length += (from - to);
+				}
+				if (i->offset + i->length < from + count) {
+					i->length -= (from - to);
+				}
+			}
+		}
+		to += count;
+		from += count;
+	}
+}
+
+// replace bad symbols with space and remove \r
+inline void cleanTextWithEntities(QString &result, EntitiesInText &entities) {
+	result = result.replace('\t', qstr("  "));
+	int32 len = result.size(), to = 0, from = 0;
+	QChar *start = result.data();
+	for (QChar *ch = start, *end = start + len; ch < end; ++ch) {
+		if (ch->unicode() == '\r') {
+			moveStringPart(start, to, from, (ch - start) - from, entities);
+			++from;
+		} else if (chReplacedBySpace(*ch)) {
+			*ch = ' ';
+		}
+	}
+	moveStringPart(start, to, from, len - from, entities);
+	if (to < len) result.resize(to);
+}
+
+inline void trimTextWithEntities(QString &result, EntitiesInText &entities) {
+	for (QChar *s = result.data(), *e = s + result.size(), *ch = e; ch != s;) { // rtrim
+		--ch;
+		if (!chIsTrimmed(*ch)) {
+			if (ch + 1 < e) {
+				int32 l = ch + 1 - s;
+				for (EntitiesInText::iterator i = entities.begin(), e = entities.end(); i != e; ++i) {
+					if (i->offset > l) {
+						i->offset = l;
+						i->length = 0;
+					} else if (i->offset + i->length > l) {
+						i->length = l - i->offset;
+					}
+				}
+				result.resize(l);
+			}
+			break;
+		}
+	}
+
+	for (QChar *s = result.data(), *ch = s, *e = s + result.size(); ch != e; ++ch) { // ltrim
+		if (!chIsTrimmed(*ch)) {
+			if (ch > s) {
+				int32 l = ch - s;
+				for (EntitiesInText::iterator i = entities.begin(), e = entities.end(); i != e; ++i) {
+					if (i->offset + i->length <= l) {
+						i->length = 0;
+						i->offset = 0;
+					} else if (i->offset < l) {
+						i->length = i->offset + i->length - l;
+						i->offset = 0;
+					} else {
+						i->offset -= l;
+					}
+				}
+				result = result.mid(l);
+			}
+			break;
+		}
+	}
 }

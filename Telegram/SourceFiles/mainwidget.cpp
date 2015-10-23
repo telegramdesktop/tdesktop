@@ -1203,61 +1203,25 @@ DialogsIndexed &MainWidget::dialogsList() {
 	return dialogs.dialogsList();
 }
 
-QString cleanMessage(const QString &text) {
-	QString result = text;
-	QChar *_start = result.data(), *_end = _start + result.size(), *start = _start, *end = _end, *ch = start, *copy = 0;
-	for (; ch != end; ++ch) {
-		if (ch->unicode() == '\r') {
-			copy = ch + 1;
-			break;
-		} else if (MessageField::replaceCharBySpace(ch->unicode())) {
-			*ch = ' ';
-		}
-	}
-	if (copy) {
-		for (; copy != end; ++copy) {
-			if (copy->unicode() == '\r') {
-				continue;
-			} else if (MessageField::replaceCharBySpace(copy->unicode())) {
-				*ch++ = ' ';
-			} else {
-				*ch++ = *copy;
-			}
-		}
-		end = ch;
+void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, bool broadcast, WebPageId webPageId) {
+	readServerHistory(hist, false);
+	history.fastShowAtEnd(hist);
+
+	if (!hist || !history.canSendMessages(hist->peer)) {
+		return;
 	}
 
-	// PHP trim() removes [ \t\n\r\x00\x0b], we have removed [\t\r\x00\x0b] before, so
-	for (; start != end; ++start) {
-		if (start->unicode() != ' ' && start->unicode() != '\n') {
-			break;
-		}
-	}
-	for (QChar *e = end - 1; start != end; end = e) {
-		if (e->unicode() != ' ' && e->unicode() != '\n') {
-			break;
-		}
-		--e;
-	}
-	if (start == end) {
-		return QString();
-	} else if (start > _start) {
-		return QString(start, end - start);
-	} else if (end < _end) {
-		result.resize(end - start);
-	}
-	return result;
-}
-
-void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId replyTo, bool broadcast, WebPageId webPageId) {
 	saveRecentHashtags(text);
-	QString sendingText, leftText = text;
+
+	EntitiesInText sendingEntities, leftEntities;
+	QString sendingText, leftText = prepareTextWithEntities(text, leftEntities, itemTextOptions(hist, App::self()).flags);
+
 	if (replyTo < 0) replyTo = history.replyToId();
-	while (textSplit(sendingText, leftText, MaxMessageSize)) {
+	while (textSplit(sendingText, sendingEntities, leftText, leftEntities, MaxMessageSize)) {
 		FullMsgId newId(peerToChannel(hist->peer->id), clientMsgId());
 		uint64 randomId = MTP::nonce<uint64>();
 
-		sendingText = cleanMessage(sendingText);
+		trimTextWithEntities(sendingText, sendingEntities);
 
 		App::historyRegRandom(randomId, newId);
 		App::historyRegSentData(randomId, hist->peer->id, sendingText);
@@ -1284,20 +1248,15 @@ void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId repl
 		} else {
 			flags |= MTPDmessage::flag_from_id;
 		}
-		MTPVector<MTPMessageEntity> localEntities = linksToMTP(textParseLinks(sendingText, itemTextParseOptions(hist, App::self()).flags));
+		MTPVector<MTPMessageEntity> localEntities = linksToMTP(sendingEntities), sentEntities = linksToMTP(sendingEntities, true);
+		if (!sentEntities.c_vector().v.isEmpty()) {
+			sendFlags |= MTPmessages_SendMessage::flag_entities;
+		}
 		hist->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(hist->peer->id), MTPPeer(), MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, localEntities, MTP_int(1)), NewMessageUnread);
-		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, localEntities), rpcDone(&MainWidget::sentUpdatesReceived, randomId), rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
+		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, sentEntities), rpcDone(&MainWidget::sentUpdatesReceived, randomId), rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 	}
 
 	finishForwarding(hist, broadcast);
-}
-
-void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, bool broadcast) {
-	MsgId fixInScrollMsgId = 0;
-	int32 fixInScrollMsgTop = 0;
-	hist->getReadyFor(ShowAtTheEndMsgId, fixInScrollMsgId, fixInScrollMsgTop);
-	readServerHistory(hist, false);
-	sendPreparedText(hist, prepareSentText(text), replyTo, broadcast);
 }
 
 void MainWidget::saveRecentHashtags(const QString &text) {
@@ -2115,9 +2074,10 @@ void MainWidget::dialogsCancelled() {
 void MainWidget::serviceNotification(const QString &msg, const MTPMessageMedia &media) {
 	int32 flags = MTPDmessage_flag_unread | MTPDmessage::flag_entities | MTPDmessage::flag_from_id;
 	QString sendingText, leftText = msg;
+	EntitiesInText sendingEntities, leftEntities = textParseEntities(leftText, _historyTextNoMonoOptions.flags);
 	HistoryItem *item = 0;
-	while (textSplit(sendingText, leftText, MaxMessageSize)) {
-		MTPVector<MTPMessageEntity> localEntities = linksToMTP(textParseLinks(sendingText, _historyTextOptions.flags));
+	while (textSplit(sendingText, sendingEntities, leftText, leftEntities, MaxMessageSize)) {
+		MTPVector<MTPMessageEntity> localEntities = linksToMTP(sendingEntities);
 		item = App::histories().addNewMessage(MTP_message(MTP_int(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(MTP::authedId())), MTPPeer(), MTPint(), MTPint(), MTP_int(unixtime()), MTP_string(sendingText), media, MTPnullMarkup, localEntities, MTPint()), NewMessageUnread);
 	}
 	if (item) {
@@ -4260,7 +4220,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 					if (!text.isEmpty()) {
 						bool hasLinks = d.has_entities() && !d.ventities.c_vector().v.isEmpty();
 						if ((hasLinks && !item->hasTextLinks()) || (!hasLinks && item->textHasLinks())) {
-							item->setText(text, d.has_entities() ? linksFromMTP(d.ventities.c_vector().v) : LinksInText());
+							item->setText(text, d.has_entities() ? entitiesFromMTP(d.ventities.c_vector().v) : EntitiesInText());
 							item->initDimensions();
 							itemResized(item);
 							if (item->hasTextLinks() && (!item->history()->isChannel() || item->fromChannel())) {

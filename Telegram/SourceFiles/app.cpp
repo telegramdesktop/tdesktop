@@ -95,6 +95,7 @@ namespace {
 	HistoryItem *hoveredItem = 0, *pressedItem = 0, *hoveredLinkItem = 0, *pressedLinkItem = 0, *contextItem = 0, *mousedItem = 0;
 
 	QPixmap *sprite = 0, *emoji = 0, *emojiLarge = 0;
+	style::font monofont;
 
 	struct CornersPixmaps {
 		CornersPixmaps() {
@@ -755,7 +756,7 @@ namespace App {
 		if (HistoryItem *existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
 			bool hasLinks = m.has_entities() && !m.ventities.c_vector().v.isEmpty();
 			if ((hasLinks && !existing->hasTextLinks()) || (!hasLinks && existing->textHasLinks())) {
-				existing->setText(qs(m.vmessage), m.has_entities() ? linksFromMTP(m.ventities.c_vector().v) : LinksInText());
+				existing->setText(qs(m.vmessage), m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText());
 				existing->initDimensions();
 				if (App::main()) App::main()->itemResized(existing);
 				if (existing->hasTextLinks() && (!existing->history()->isChannel() || existing->fromChannel())) {
@@ -1915,10 +1916,27 @@ namespace App {
 		}
 	}
 
+	void tryFontFamily(QString &family, const QString &tryFamily) {
+		if (family.isEmpty()) {
+			if (!QFontInfo(QFont(tryFamily)).family().trimmed().compare(tryFamily, Qt::CaseInsensitive)) {
+				family = tryFamily;
+			}
+		}
+	}
+
 	void initMedia() {
 		deinitMedia(false);
 		audioInit();
 
+		if (!::monofont) {
+			QString family;
+			tryFontFamily(family, qsl("Consolas"));
+			tryFontFamily(family, qsl("Liberation Mono"));
+			tryFontFamily(family, qsl("Menlo"));
+			tryFontFamily(family, qsl("Courier"));
+			if (family.isEmpty()) family = QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
+			::monofont = style::font(st::normalFont->f.pixelSize(), 0, family);
+		}
 		if (!::sprite) {
 			if (rtl()) {
 				::sprite = new QPixmap(QPixmap::fromImage(QImage(st::spriteFile).mirrored(true, false)));
@@ -2058,6 +2076,10 @@ namespace App {
 
 	HistoryItem *mousedItem() {
 		return ::mousedItem;
+	}
+
+	const style::font &monofont() {
+		return ::monofont;
 	}
 
 	const QPixmap &sprite() {

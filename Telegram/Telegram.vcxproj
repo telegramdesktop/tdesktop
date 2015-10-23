@@ -86,8 +86,7 @@
       <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;Shlwapi.lib;Gdiplus.lib;imm32.lib;winmm.lib;qtmaind.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Cored.lib;Qt5Guid.lib;qtharfbuzzngd.lib;qtpcred.lib;qtfreetyped.lib;Qt5Widgetsd.lib;Qt5Networkd.lib;Qt5PlatformSupportd.lib;platforms\qwindowsd.lib;imageformats\qwebpd.lib;libeay32.lib;ssleay32.lib;Crypt32.lib;zlibstat.lib;LzmaLib.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;OpenAL32.lib;common.lib;libavformat\libavformat.a;libavcodec\libavcodec.a;libavutil\libavutil.a;libswresample\libswresample.a;opus.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ImageHasSafeExceptionHandlers />
-      <IgnoreSpecificDefaultLibraries>
-      </IgnoreSpecificDefaultLibraries>
+      <IgnoreSpecificDefaultLibraries>LIBCMT</IgnoreSpecificDefaultLibraries>
       <ImportLibrary>$(SolutionDir)$(Platform)\$(Configuration)Intermediate\$(TargetName).lib</ImportLibrary>
     </Link>
     <CustomBuildStep>

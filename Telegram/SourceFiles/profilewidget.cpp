@@ -165,12 +165,12 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	// about
 	if (_peerUser && _peerUser->botInfo) {
 		if (!_peerUser->botInfo->shareText.isEmpty()) {
-			_about.setText(st::linkFont, _peerUser->botInfo->shareText, _historyBotOptions);
+			_about.setText(st::linkFont, _peerUser->botInfo->shareText, _historyBotNoMonoOptions);
 		}
 		updateBotLinksVisibility();
 	} else {
 		if (_peerChannel && !_peerChannel->about.isEmpty()) {
-			_about.setText(st::linkFont, _peerChannel->about, _historyTextOptions);
+			_about.setText(st::linkFont, _peerChannel->about, _historyTextNoMonoOptions);
 		}
 		_botSettings.hide();
 		_botHelp.hide();
@@ -470,7 +470,7 @@ void ProfileInner::onFullPeerUpdated(PeerData *peer) {
 			if (_peerUser->botInfo->shareText.isEmpty()) {
 				_about = Text(st::wndMinWidth - st::profilePadding.left() - st::profilePadding.right());
 			} else {
-				_about.setText(st::linkFont, _peerUser->botInfo->shareText, _historyBotOptions);
+				_about.setText(st::linkFont, _peerUser->botInfo->shareText, _historyBotNoMonoOptions);
 			}
 			updateBotLinksVisibility();
 			resizeEvent(0);
@@ -487,7 +487,7 @@ void ProfileInner::onFullPeerUpdated(PeerData *peer) {
 		if (_peerChannel->about.isEmpty()) {
 			_about = Text(st::wndMinWidth - st::profilePadding.left() - st::profilePadding.right());
 		} else {
-			_about.setText(st::linkFont, _peerChannel->about, _historyTextOptions);
+			_about.setText(st::linkFont, _peerChannel->about, _historyTextNoMonoOptions);
 		}
 		showAll();
 		resizeEvent(0);

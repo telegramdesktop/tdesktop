@@ -204,6 +204,7 @@ namespace App {
 	void mousedItem(HistoryItem *item);
 	HistoryItem *mousedItem();
 
+	const style::font &monofont();
 	const QPixmap &sprite();
 	const QPixmap &emoji();
 	const QPixmap &emojiLarge();

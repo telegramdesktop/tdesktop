@@ -538,7 +538,7 @@ _oldtext(val),
 _undoAvailable(false),
 _redoAvailable(false),
 _inHeightCheck(false),
-_ctrlEnterSubmit(true),
+_ctrlEnterSubmit(CtrlEnterSubmitCtrlEnter),
 
 _customUpDown(false),
 
@@ -1121,14 +1121,17 @@ void InputArea::customUpDown(bool custom) {
 	_customUpDown = custom;
 }
 
-void InputArea::setCtrlEnterSubmit(bool ctrlEnterSubmit) {
+void InputArea::setCtrlEnterSubmit(CtrlEnterSubmit ctrlEnterSubmit) {
 	_ctrlEnterSubmit = ctrlEnterSubmit;
 }
 
 void InputArea::InputAreaInner::keyPressEvent(QKeyEvent *e) {
 	bool shift = e->modifiers().testFlag(Qt::ShiftModifier), alt = e->modifiers().testFlag(Qt::AltModifier);
 	bool macmeta = (cPlatform() == dbipMac) && e->modifiers().testFlag(Qt::ControlModifier) && !e->modifiers().testFlag(Qt::MetaModifier) && !e->modifiers().testFlag(Qt::AltModifier);
-	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier), ctrlGood = (ctrl && f()->_ctrlEnterSubmit) || (!ctrl && !shift && !f()->_ctrlEnterSubmit) || (ctrl && shift);
+	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier);
+	bool ctrlGood = (ctrl && shift) ||
+		(ctrl && (f()->_ctrlEnterSubmit == CtrlEnterSubmitCtrlEnter || f()->_ctrlEnterSubmit == CtrlEnterSubmitBoth)) ||
+		(!ctrl && !shift && (f()->_ctrlEnterSubmit == CtrlEnterSubmitEnter || f()->_ctrlEnterSubmit == CtrlEnterSubmitBoth));
 	bool enter = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return);
 
 	if (macmeta && e->key() == Qt::Key_Backspace) {

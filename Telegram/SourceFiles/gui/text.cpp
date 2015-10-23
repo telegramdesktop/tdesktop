@@ -38,6 +38,8 @@ namespace {
 	const QRegularExpression _reHashtag(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])#[\\w]{2,64}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
 	const QRegularExpression _reMention(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])@[A-Za-z_0-9]{5,32}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
 	const QRegularExpression _reBotCommand(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])/[A-Za-z_0-9]{1,64}(@[A-Za-z_0-9]{5,32})?([\\W]|$)"));
+	const QRegularExpression _rePre(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])(````?)[\\s\\S]+?(````?)([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)"), QRegularExpression::UseUnicodePropertiesOption);
+	const QRegularExpression _reCode(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])(`)[^\\n]+?(`)([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)"), QRegularExpression::UseUnicodePropertiesOption);
 	QSet<int32> _validProtocols, _validTopDomains;
 
 	const style::textStyle *_textStyle = 0;
@@ -49,11 +51,11 @@ namespace {
 	}
 
 	inline int32 _blockHeight(const ITextBlock *b, const style::font &font) {
-		return (b->type() == TextBlockSkip) ? static_cast<const SkipBlock*>(b)->height() : (_textStyle->lineHeight > font->height) ? _textStyle->lineHeight : font->height;
+		return (b->type() == TextBlockTSkip) ? static_cast<const SkipBlock*>(b)->height() : (_textStyle->lineHeight > font->height) ? _textStyle->lineHeight : font->height;
 	}
 
 	inline QFixed _blockRBearing(const ITextBlock *b) {
-		return (b->type() == TextBlockText) ? static_cast<const TextBlock*>(b)->f_rbearing() : 0;
+		return (b->type() == TextBlockTText) ? static_cast<const TextBlock*>(b)->f_rbearing() : 0;
 	}
 }
 
@@ -295,12 +297,20 @@ public:
 		if (lnkIndex < 0x8000 && lnkIndex > maxLnkIndex) maxLnkIndex = lnkIndex;
 		int32 len = int32(_t->_text.size()) + skipBack - blockStart;
 		if (len > 0) {
-			lastSkipped = lastSpace = false;
+			bool newline = !emoji && (len == 1 && _t->_text.at(blockStart) == QChar::LineFeed);
+			if (newlineAwaited) {
+				newlineAwaited = false;
+				if (!newline) {
+					_t->_text.insert(blockStart, QChar::LineFeed);
+					createBlock(skipBack - len);
+				}
+			}
+			lastSkipped = false;
 			if (emoji) {
 				_t->_blocks.push_back(new EmojiBlock(_t->_font, _t->_text, blockStart, len, flags, color, lnkIndex, emoji));
 				emoji = 0;
 				lastSkipped = true;
-			} else if (len == 1 && _t->_text.at(blockStart) == QChar::LineFeed) {
+			} else if (newline) {
 				_t->_blocks.push_back(new NewlineBlock(_t->_font, _t->_text, blockStart, len));
 			} else {
 				_t->_blocks.push_back(new TextBlock(_t->_font, _t->_text, _t->_minResizeWidth, blockStart, len, flags, color, lnkIndex));
@@ -315,6 +325,12 @@ public:
 		_t->_text.push_back('_');
 		_t->_blocks.push_back(new SkipBlock(_t->_font, _t->_text, blockStart++, w, h, lnkIndex));
 		blockCreated();
+	}
+
+	void createNewlineBlock() {
+		createBlock();
+		_t->_text.push_back(QChar::LineFeed);
+		createBlock();
 	}
 
 	void getLinkData(const QString &original, QString &result, int32 &fullDisplayed) {
@@ -338,35 +354,96 @@ public:
 		}
 	}
 
-	bool checkWaitedLink() {
-		if (waitingLink == linksEnd || ptr < start + waitingLink->offset || links.size() >= 0x7FFF) {
-			return true;
+	void checkCommand() {
+		QChar c = ((ptr < end) ? *ptr : 0);
+		while (c == TextCommand) {
+			if (!readCommand()) {
+				break;
+			}
+		}
+	}
+
+	void checkEntities() {
+		while (!removeFlags.isEmpty() && (ptr >= removeFlags.firstKey() || ptr >= end)) {
+			const QList<int32> &removing(removeFlags.first());
+			for (int32 i = removing.size(); i > 0;) {
+				int32 flag = removing.at(--i);
+				if (flags & flag) {
+					createBlock();
+					flags &= ~flag;
+					if (flag == TextBlockFPre) {
+						newlineAwaited = true;
+					}
+				}
+			}
+			removeFlags.erase(removeFlags.begin());
+		}
+		if (waitingEntity == entitiesEnd || ptr < start + waitingEntity->offset) {
+			return;
 		}
 
-		createBlock();
-
+		bool lnk = false;
+		int32 startFlags = 0;
 		int32 fullDisplayed;
 		QString lnkUrl, lnkText;
-		if (waitingLink->type == LinkInTextCustomUrl) {
-			lnkUrl = waitingLink->text;
-			lnkText = QString(start + waitingLink->offset, waitingLink->length);
+		if (waitingEntity->type == EntityInTextCustomUrl) {
+			lnk = true;
+			lnkUrl = waitingEntity->text;
+			lnkText = QString(start + waitingEntity->offset, waitingEntity->length);
 			fullDisplayed = -5;
+		} else if (waitingEntity->type == EntityInTextBold) {
+			startFlags = TextBlockFSemibold;
+		} else if (waitingEntity->type == EntityInTextItalic) {
+			startFlags = TextBlockFItalic;
+		} else if (waitingEntity->type == EntityInTextCode) {
+			startFlags = TextBlockFCode;
+		} else if (waitingEntity->type == EntityInTextPre) {
+			startFlags = TextBlockFPre;
+			createBlock();
+			if (!_t->_blocks.isEmpty() && _t->_blocks.back()->type() != TextBlockTNewline) {
+				createNewlineBlock();
+			}
 		} else {
-			lnkUrl = QString(start + waitingLink->offset, waitingLink->length);
+			lnk = true;
+			lnkUrl = QString(start + waitingEntity->offset, waitingEntity->length);
 			getLinkData(lnkUrl, lnkText, fullDisplayed);
 		}
 
-		links.push_back(TextLinkData(lnkUrl, fullDisplayed));
-		lnkIndex = 0x8000 + links.size();
+		if (lnk) {
+			createBlock();
 
-		_t->_text += lnkText;
-		ptr = start + waitingLink->offset + waitingLink->length;
+			links.push_back(TextLinkData(lnkUrl, fullDisplayed));
+			lnkIndex = 0x8000 + links.size();
 
-		createBlock();
-		++waitingLink;
-		lnkIndex = 0;
+			_t->_text += lnkText;
+			ptr = start + waitingEntity->offset + waitingEntity->length;
 
-		return true;
+			createBlock();
+
+			lnkIndex = 0;
+		} else if (startFlags) {
+			if (!(flags & startFlags)) {
+				createBlock();
+				flags |= startFlags;
+				removeFlags[start + waitingEntity->offset + waitingEntity->length].push_front(startFlags);
+			}
+		}
+
+		++waitingEntity;
+		if (links.size() >= 0x7FFF) {
+			while (waitingEntity != entitiesEnd && (
+				waitingEntity->type == EntityInTextUrl ||
+				waitingEntity->type == EntityInTextCustomUrl ||
+				waitingEntity->type == EntityInTextEmail ||
+				waitingEntity->type == EntityInTextHashtag ||
+				waitingEntity->type == EntityInTextMention ||
+				waitingEntity->type == EntityInTextBotCommand ||
+				waitingEntity->length <= 0)) {
+				++waitingEntity;
+			}
+		} else {
+			while (waitingEntity != entitiesEnd && waitingEntity->length <= 0) ++waitingEntity;
+		}
 	}
 	
 	bool readCommand() {
@@ -380,44 +457,44 @@ public:
 
 		switch (cmd) {
 		case TextCommandBold:
-			if (!(flags & TextBlockBold)) {
+			if (!(flags & TextBlockFBold)) {
 				createBlock();
-				flags |= TextBlockBold;
+				flags |= TextBlockFBold;
 			}
 		break;
 
 		case TextCommandNoBold:
-			if (flags & TextBlockBold) {
+			if (flags & TextBlockFBold) {
 				createBlock();
-				flags &= ~TextBlockBold;
+				flags &= ~TextBlockFBold;
 			}
 		break;
 
 		case TextCommandItalic:
-			if (!(flags & TextBlockItalic)) {
+			if (!(flags & TextBlockFItalic)) {
 				createBlock();
-				flags |= TextBlockItalic;
+				flags |= TextBlockFItalic;
 			}
 		break;
 
 		case TextCommandNoItalic:
-			if (flags & TextBlockItalic) {
+			if (flags & TextBlockFItalic) {
 				createBlock();
-				flags &= ~TextBlockItalic;
+				flags &= ~TextBlockFItalic;
 			}
 		break;
 
 		case TextCommandUnderline:
-			if (!(flags & TextBlockUnderline)) {
+			if (!(flags & TextBlockFUnderline)) {
 				createBlock();
-				flags |= TextBlockUnderline;
+				flags |= TextBlockFUnderline;
 			}
 		break;
 
 		case TextCommandNoUnderline:
-			if (flags & TextBlockUnderline) {
+			if (flags & TextBlockFUnderline) {
 				createBlock();
-				flags &= ~TextBlockUnderline;
+				flags &= ~TextBlockFUnderline;
 			}
 		break;
 
@@ -461,26 +538,16 @@ public:
 	}
 
 	void parseCurrentChar() {
-		ch = ((ptr < end) ? *ptr : 0);
-		while (rich && ch == TextCommand) {
-			if (readCommand()) {
-				ch = ((ptr < end) ? *ptr : 0);
-			} else {
-				ch = QChar::Space;
-			}
-		}
-
 		int skipBack = 0;
+		ch = ((ptr < end) ? *ptr : 0);
 		chInt = ch.unicode();
-		bool skip = false, isNewLine = multiline && chIsNewline(ch), isSpace = chIsSpace(ch, rich), isDiac = chIsDiac(ch);
+		bool skip = false, isNewLine = multiline && chIsNewline(ch), isSpace = chIsSpace(ch), isDiac = chIsDiac(ch), isTilde = (ch == '~');
 		if (chIsBad(ch) || ch.isLowSurrogate()) {
 			skip = true;
 		} else if (isDiac) {
 			if (lastSkipped || emoji || ++diacs > chMaxDiacAfterSymbol()) {
 				skip = true;
 			}
-		} else if (isSpace && lastSpace && !isNewLine) {
-			skip = true;
 		} else if (ch.isHighSurrogate()) {
 			if (ptr + 1 >= end || !(ptr + 1)->isLowSurrogate()) {
 				skip = true;
@@ -502,14 +569,23 @@ public:
 		}
 
 		lastSkipped = skip;
-		lastSpace = isSpace;
 		if (skip) {
 			ch = 0;
 		} else {
+			if (isTilde) {
+				if (!(flags & TextBlockFTilde)) {
+					createBlock();
+					flags |= TextBlockFTilde;
+				}
+			}
+			else {
+				if (flags & TextBlockFTilde) {
+					createBlock();
+					flags &= ~TextBlockFTilde;
+				}
+			}
 			if (isNewLine) {
-				createBlock();
-				_t->_text.push_back(QChar::LineFeed);
-				createBlock();
+				createNewlineBlock();
 			} else if (isSpace) {
 				_t->_text.push_back(QChar::Space);
 			} else {
@@ -546,11 +622,11 @@ public:
 		lnkIndex(0),
 		stopAfterWidth(QFIXED_MAX) {
 		if (options.flags & TextParseLinks) {
-			lnkRanges = textParseLinks(src, options.flags, rich);
+			entities = textParseEntities(src, options.flags, rich);
 		}
 		parse(options);
 	}
-	TextParser(Text *t, const QString &text, const LinksInText &links, const TextParseOptions &options) : _t(t),
+	TextParser(Text *t, const QString &text, const EntitiesInText &preparsed, const TextParseOptions &options) : _t(t),
 		src(text),
 		rich(options.flags & TextParseRichText),
 		multiline(options.flags & TextParseMultiline),
@@ -558,31 +634,32 @@ public:
 		flags(0),
 		lnkIndex(0),
 		stopAfterWidth(QFIXED_MAX) {
-		if ((options.flags & TextParseLinks) && !links.isEmpty()) {
+		if ((options.flags & TextParseLinks) && !preparsed.isEmpty()) {
 			bool parseMentions = (options.flags & TextParseMentions);
 			bool parseHashtags = (options.flags & TextParseHashtags);
 			bool parseBotCommands = (options.flags & TextParseBotCommands);
-			if (parseMentions && parseHashtags && parseBotCommands) {
-				lnkRanges = links;
+			bool parseMono = (options.flags & TextParseMono);
+			if (parseMentions && parseHashtags && parseBotCommands && parseMono) {
+				entities = preparsed;
 			} else {
-				int32 i = 0, l = links.size();
-				lnkRanges.reserve(l);
+				int32 i = 0, l = preparsed.size();
+				entities.reserve(l);
 				const QChar *p = text.constData(), s = text.size();
 				for (; i < l; ++i) {
-					LinkInTextType t = links.at(i).type;
-					if ((t == LinkInTextMention && !parseMentions) ||
-						(t == LinkInTextHashtag && !parseHashtags) ||
-						(t == LinkInTextBotCommand && !parseBotCommands)) {
+					EntityInTextType t = preparsed.at(i).type;
+					if ((t == EntityInTextMention && !parseMentions) ||
+						(t == EntityInTextHashtag && !parseHashtags) ||
+						(t == EntityInTextBotCommand && !parseBotCommands) ||
+						((t == EntityInTextBold || t == EntityInTextItalic || t == EntityInTextCode || t == EntityInTextPre) && !parseMono)) {
 						continue;
 					}
-					lnkRanges.push_back(links.at(i));
+					entities.push_back(preparsed.at(i));
 				}
 			}
 		}
 		parse(options);
 	}
 	void parse(const TextParseOptions &options) {
-		int flags = options.flags;
 		if (options.maxw > 0 && options.maxh > 0) {
 			stopAfterWidth = ((options.maxh / _t->_font->height) + 1) * options.maxw;
 		}
@@ -603,26 +680,25 @@ public:
 
 		diacs = 0;
 		sumWidth = 0;
-		sumFinished = false;
+		sumFinished = newlineAwaited = false;
 		blockStart = 0;
 		emoji = 0;
 
 		ch = chInt = 0;
 		lastSkipped = false;
-		lastSpace = true;
-		waitingLink = lnkRanges.cbegin();
-		linksEnd = lnkRanges.cend();
+		entitiesEnd = entities.cend();
+		waitingEntity = entities.cbegin();
+		while (waitingEntity != entitiesEnd && waitingEntity->length <= 0) ++waitingEntity;
 		for (; ptr <= end; ++ptr) {
-			if (!checkWaitedLink()) {
-				break;
-			}
+			checkEntities();
+			if (rich) checkCommand();
 			parseCurrentChar();
-
 			parseEmojiFromCurrent();
 
 			if (sumFinished || _t->_text.size() >= 0x8000) break; // 32k max
 		}
 		createBlock();
+		removeFlags.clear();
 
 		_t->_links.resize(maxLnkIndex);
 		for (Text::TextBlocks::const_iterator i = _t->_blocks.cbegin(), e = _t->_blocks.cend(); i != e; ++i) {
@@ -671,12 +747,12 @@ public:
 private:
 
 	Text *_t;
-	const QString &src;
+	QString src;
 	const QChar *start, *end, *ptr;
 	bool rich, multiline;
 
-	LinksInText lnkRanges;
-	LinksInText::const_iterator waitingLink, linksEnd;
+	EntitiesInText entities;
+	EntitiesInText::const_iterator waitingEntity, entitiesEnd;
 
 	struct TextLinkData {
 		TextLinkData(const QString &url = QString(), int32 fullDisplayed = 1) : url(url), fullDisplayed(fullDisplayed) {
@@ -687,6 +763,9 @@ private:
 	typedef QVector<TextLinkData> TextLinks;
 	TextLinks links;
 
+	typedef QMap<const QChar*, QList<int32> > RemoveFlagsMap;
+	RemoveFlagsMap removeFlags;
+
 	uint16 maxLnkIndex;
 
 	// current state
@@ -696,14 +775,13 @@ private:
 	int32 blockStart; // offset in result, from which current parsed block is started
 	int32 diacs; // diac chars skipped without good char
 	QFixed sumWidth, stopAfterWidth; // summary width of all added words
-	bool sumFinished;
+	bool sumFinished, newlineAwaited;
 	style::color color; // current color, could be invalid
 
 	// current char data
 	QChar ch; // current char (low surrogate, if current char is surrogate pair)
 	uint32 chInt; // full ch, could be surrogate pair
 	bool lastSkipped; // did we skip current char
-	bool lastSpace; // was last char a space character
 };
 
 namespace {
@@ -880,7 +958,7 @@ public:
 		} else {
 			_parStart = (*i)->from();
 			for (; i != e; ++i) {
-				if ((*i)->type() == TextBlockNewline) {
+				if ((*i)->type() == TextBlockTNewline) {
 					break;
 				}
 			}
@@ -906,7 +984,7 @@ public:
 					i = n;
 					++n;
 				}
-				if ((*i)->type() != TextBlockEmoji && *curr >= 0x590) {
+				if ((*i)->type() != TextBlockTEmoji && *curr >= 0x590) {
 					ignore = false;
 					break;
 				}
@@ -964,7 +1042,7 @@ public:
 
 		_parDirection = _t->_startDir;
 		if (_parDirection == Qt::LayoutDirectionAuto) _parDirection = cLangDir();
-		if ((*_t->_blocks.cbegin())->type() != TextBlockNewline) {
+		if ((*_t->_blocks.cbegin())->type() != TextBlockTNewline) {
 			initNextParagraph(_t->_blocks.cbegin());
 		}
 
@@ -984,7 +1062,7 @@ public:
 			int32 blockHeight = _blockHeight(b, _t->_font);
 			QFixed _rb = _blockRBearing(b);
 
-			if (_btype == TextBlockNewline) {
+			if (_btype == TextBlockTNewline) {
 				if (!_lineHeight) _lineHeight = blockHeight;
 				ushort nextStart = _blockEnd(_t, i, e);
 				if (!drawLine(nextStart, i + 1, e)) return;
@@ -1022,7 +1100,7 @@ public:
 				continue;
 			}
 
-			if (_btype == TextBlockText) {
+			if (_btype == TextBlockTText) {
 				TextBlock *t = static_cast<TextBlock*>(b);
 				QFixed f_wLeft = _wLeft;
 				int32 f_lineHeight = _lineHeight;
@@ -1169,10 +1247,13 @@ public:
 			const TextLinkPtr &l(_t->_links.at(block->lnkIndex() - 1));
 			if (l == _overLnk) {
 				if (l == _downLnk) {
-					return _textStyle->lnkDownColor->p;
+					return _textStyle->linkFgDown->p;
 				}
 			}
-			return _textStyle->lnkColor->p;
+			return _textStyle->linkFg->p;
+		}
+		if ((block->flags() & TextBlockFCode) || (block->flags() & TextBlockFPre)) {
+			return _textStyle->monoFg->p;
 		}
 		return _originalPen;
 	}
@@ -1221,7 +1302,7 @@ public:
 				if (_parDirection == Qt::RightToLeft) {
 					*_getSymbol = (_lineEnd > _lineStart) ? (_lineEnd - 1) : _lineStart;
 					*_getSymbolAfter = (_lineEnd > _lineStart) ? true : false;
-					*_getSymbolUpon = ((_lnkX >= _x) && (_lineEnd < _t->_text.size()) && (!_endBlock || _endBlock->type() != TextBlockSkip)) ? true : false;
+					*_getSymbolUpon = ((_lnkX >= _x) && (_lineEnd < _t->_text.size()) && (!_endBlock || _endBlock->type() != TextBlockTSkip)) ? true : false;
 				} else {
 					*_getSymbol = _lineStart;
 					*_getSymbolAfter = false;
@@ -1236,14 +1317,14 @@ public:
 				} else {
 					*_getSymbol = (_lineEnd > _lineStart) ? (_lineEnd - 1) : _lineStart;
 					*_getSymbolAfter = (_lineEnd > _lineStart) ? true : false;
-					*_getSymbolUpon = ((_lnkX < _x + _w) && (_lineEnd < _t->_text.size()) && (!_endBlock || _endBlock->type() != TextBlockSkip)) ? true : false;
+					*_getSymbolUpon = ((_lnkX < _x + _w) && (_lineEnd < _t->_text.size()) && (!_endBlock || _endBlock->type() != TextBlockTSkip)) ? true : false;
 				}
 				return false;
 			}
 		}
 
 		bool selectFromStart = (_selectedTo > _lineStart) && (_lineStart > 0) && (_selectedFrom <= _lineStart);
-		bool selectTillEnd = (_selectedTo >= _lineEnd) && (_lineEnd < _t->_text.size()) && (_selectedFrom < _lineEnd) && (!_endBlock || _endBlock->type() != TextBlockSkip);
+		bool selectTillEnd = (_selectedTo >= _lineEnd) && (_lineEnd < _t->_text.size()) && (_selectedFrom < _lineEnd) && (!_endBlock || _endBlock->type() != TextBlockTSkip);
 
 		if ((selectFromStart && _parDirection == Qt::LeftToRight) || (selectTillEnd && _parDirection == Qt::RightToLeft)) {
 			if (x > _x) {
@@ -1288,13 +1369,13 @@ public:
 				nextBlock = (++blockIndex < _blocksSize) ? _t->_blocks[blockIndex] : 0;
 			}
 			TextBlockType _type = currentBlock->type();
-			if (_type == TextBlockSkip) {
+			if (_type == TextBlockTSkip) {
 				levels[i] = si.analysis.bidiLevel = 0;
 			} else {
 				levels[i] = si.analysis.bidiLevel;
 			}
 			if (si.analysis.flags == QScriptAnalysis::Object) {
-				if (_type == TextBlockEmoji || _type == TextBlockSkip) {
+				if (_type == TextBlockTEmoji || _type == TextBlockTSkip) {
 					si.width = currentBlock->f_width() + (nextBlock == _endBlock && (!nextBlock || nextBlock->from() >= trimmedLineEnd) ? 0 : currentBlock->f_rpadding());
 				}
 			}
@@ -1332,12 +1413,12 @@ public:
 					if (currentBlock->lnkIndex() && _lnkY >= _y + _yDelta && _lnkY < _y + _yDelta + _fontHeight) {
 						_lnkResult = &_t->_links.at(currentBlock->lnkIndex() - 1);
 					}
-					if (_inTextFlag && _type != TextBlockSkip) {
+					if (_inTextFlag && _type != TextBlockTSkip) {
 						*_inTextFlag = true;
 					}
 					return false;
 				} else if (_getSymbol && _lnkX >= x && _lnkX < x + si.width) {
-					if (_type == TextBlockSkip) {
+					if (_type == TextBlockTSkip) {
 						if (_parDirection == Qt::RightToLeft) {
 							*_getSymbol = _lineStart;
 							*_getSymbolAfter = false;
@@ -1376,7 +1457,7 @@ public:
 						*_getSymbolUpon = true;
 					}
 					return false;
-				} else if (_p && _type == TextBlockEmoji) {
+				} else if (_p && _type == TextBlockTEmoji) {
 					QFixed glyphX = x;
 					if (rtl) {
 						glyphX += (si.width - currentBlock->f_width());
@@ -1583,11 +1664,11 @@ public:
 			}
 			TextBlockType _type = currentBlock->type();
 			if (si.analysis.flags == QScriptAnalysis::Object) {
-				if (_type == TextBlockEmoji || _type == TextBlockSkip) {
+				if (_type == TextBlockTEmoji || _type == TextBlockTSkip) {
 					si.width = currentBlock->f_width() + currentBlock->f_rpadding();
 				}
 			}
-			if (_type == TextBlockEmoji || _type == TextBlockSkip || _type == TextBlockNewline) {
+			if (_type == TextBlockTEmoji || _type == TextBlockTSkip || _type == TextBlockTNewline) {
 				if (_wLeft < si.width) {
 					lineText = lineText.mid(0, currentBlock->from() - _localFrom) + _Elide;
 					lineLength = currentBlock->from() + _Elide.size() - _lineStart;
@@ -1596,7 +1677,7 @@ public:
 					return;
 				}
 				_wLeft -= si.width;
-			} else if (_type == TextBlockText) {
+			} else if (_type == TextBlockTText) {
 				unsigned short *logClusters = engine.logClusters(&si);
 				QGlyphLayout glyphs = engine.shapedGlyphs(&si);
 
@@ -1686,9 +1767,26 @@ public:
 
 	style::font applyFlags(int32 flags, const style::font &f) {
 		style::font result = f;
-		if (flags & TextBlockBold) result = result->bold();
-		if (flags & TextBlockItalic) result = result->italic();
-		if (flags & TextBlockUnderline) result = result->underline();
+		if ((flags & TextBlockFPre) || (flags & TextBlockFCode)) {
+			result = App::monofont();
+			if (result->size() != f->size() || result->flags() != f->flags()) {
+				result = style::font(f->size(), f->flags(), result->family());
+			}
+		} else {
+			if (flags & TextBlockFBold) {
+				result = result->bold();
+			} else if (flags & TextBlockFSemibold) {
+				result = st::semiboldFont;
+				if (result->size() != f->size() || result->flags() != f->flags()) {
+					result = style::font(f->size(), f->flags(), result->family());
+				}
+			}
+			if (flags & TextBlockFItalic) result = result->italic();
+			if (flags & TextBlockFUnderline) result = result->underline();
+			if ((flags & TextBlockFTilde) && f->size() == 13) {
+				result = style::font(f->size() + 1, result->flags(), result->family());
+			}
+		}
 		return result;
 	}
 
@@ -1702,12 +1800,12 @@ public:
 			const TextLinkPtr &l(_t->_links.at(block->lnkIndex() - 1));
 			if (l == _overLnk) {
 				if (l == _downLnk || !_downLnk) {
-					if (_t->_font != _textStyle->lnkOverFlags) newFont = _textStyle->lnkOverFlags;
+					if (_t->_font != _textStyle->linkFlagsOver) newFont = _textStyle->linkFlagsOver;
 				} else {
-					if (_t->_font != _textStyle->lnkFlags) newFont = _textStyle->lnkFlags;
+					if (_t->_font != _textStyle->linkFlags) newFont = _textStyle->linkFlags;
 				}
 			} else {
-				if (_t->_font != _textStyle->lnkFlags) newFont = _textStyle->lnkFlags;
+				if (_t->_font != _textStyle->linkFlags) newFont = _textStyle->linkFlags;
 			}
 		}
 		if (newFont != _f) {
@@ -1757,7 +1855,7 @@ public:
 				nextBlock = (++blockIndex < _blocksSize) ? _t->_blocks[blockIndex] : 0;
 			}
 			TextBlockType _type = currentBlock->type();
-			if (_type == TextBlockEmoji || _type == TextBlockSkip) {
+			if (_type == TextBlockTEmoji || _type == TextBlockTSkip) {
 				analysis->script = QChar::Script_Common;
 				analysis->flags = QScriptAnalysis::Object;
 			} else {
@@ -1833,9 +1931,9 @@ public:
 			TextBlockType _itype = (*i)->type();
 			if (eor == _parLength)
 				dir = control.basicDirection();
-			else if (_itype == TextBlockEmoji)
+			else if (_itype == TextBlockTEmoji)
 				dir = QChar::DirCS;
-			else if (_itype == TextBlockSkip)
+			else if (_itype == TextBlockTSkip)
 				dir = QChar::DirCS;
 			else
 				dir = QChar::direction(unicode[sor]);
@@ -1868,9 +1966,9 @@ public:
 
 		QChar::Direction sdir;
 		TextBlockType _stype = (*_parStartBlock)->type();
-		if (_stype == TextBlockEmoji)
+		if (_stype == TextBlockTEmoji)
 			sdir = QChar::DirCS;
-		else if (_stype == TextBlockSkip)
+		else if (_stype == TextBlockTSkip)
 			sdir = QChar::DirCS;
 		else
 			sdir = QChar::direction(*unicode);
@@ -1894,9 +1992,9 @@ public:
 			TextBlockType _itype = (*i)->type();
 			if (current == (int)_parLength)
 				dirCurrent = control.basicDirection();
-			else if (_itype == TextBlockEmoji)
+			else if (_itype == TextBlockTEmoji)
 				dirCurrent = QChar::DirCS;
-			else if (_itype == TextBlockSkip)
+			else if (_itype == TextBlockTSkip)
 				dirCurrent = QChar::DirCS;
 			else
 				dirCurrent = QChar::direction(unicode[current]);
@@ -2385,7 +2483,7 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 		int32 blockHeight = _blockHeight(b, _font);
 		QFixed _rb = _blockRBearing(b);
 
-		if (_btype == TextBlockNewline) {
+		if (_btype == TextBlockTNewline) {
 			if (!lineHeight) lineHeight = blockHeight;
 			if (initial) {
 				Qt::LayoutDirection dir = optionsDir;
@@ -2440,12 +2538,12 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 	}
 }
 
-void Text::setMarkedText(style::font font, const QString &text, const LinksInText &links, const TextParseOptions &options) {
+void Text::setMarkedText(style::font font, const QString &text, const EntitiesInText &entities, const TextParseOptions &options) {
 	if (!_textStyle) _initDefault();
 	_font = font;
 	clean();
 	{
-		TextParser parser(this, text, links, options);
+		TextParser parser(this, text, entities, options);
 	}
 	recountNaturalSize(true, options.dir);
 }
@@ -2538,7 +2636,7 @@ bool Text::hasLinks() const {
 }
 
 void Text::setSkipBlock(int32 width, int32 height) {
-	if (!_blocks.isEmpty() && _blocks.back()->type() == TextBlockSkip) {
+	if (!_blocks.isEmpty() && _blocks.back()->type() == TextBlockTSkip) {
 		SkipBlock *block = static_cast<SkipBlock*>(_blocks.back());
 		if (block->width() == width && block->height() == height) return;
 		_text.resize(block->from());
@@ -2550,19 +2648,22 @@ void Text::setSkipBlock(int32 width, int32 height) {
 }
 
 void Text::removeSkipBlock() {
-	if (!_blocks.isEmpty() && _blocks.back()->type() == TextBlockSkip) {
+	if (!_blocks.isEmpty() && _blocks.back()->type() == TextBlockTSkip) {
 		_text.resize(_blocks.back()->from());
 		_blocks.pop_back();
 		recountNaturalSize(false);
 	}
 }
 
-LinksInText Text::calcLinksInText() const {
-	LinksInText result;
+EntitiesInText Text::calcEntitiesInText() const {
+	EntitiesInText result;
 	int32 lnkFrom = 0, lnkIndex = 0, offset = 0;
+	int32 flags = 0, italicFrom = 0, italicOffset = 0, boldFrom = 0, boldOffset = 0;
+	int32 codeFrom = 0, codeOffset = 0, preFrom = 0, preOffset = 0;
 	for (TextBlocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); true; ++i) {
 		int32 blockLnkIndex = (i == e) ? 0 : (*i)->lnkIndex();
 		int32 blockFrom = (i == e) ? _text.size() : (*i)->from();
+		int32 blockFlags = (i == e) ? 0 : (*i)->flags();
 		if (blockLnkIndex != lnkIndex) {
 			if (lnkIndex) { // write link
 				const TextLinkPtr &lnk(_links.at(lnkIndex - 1));
@@ -2573,40 +2674,86 @@ LinksInText Text::calcLinksInText() const {
 					QStringRef r = _text.midRef(rangeFrom, rangeTo - rangeFrom);
 					if (url.isEmpty()) {
 						offset += r.size();
+						italicOffset += r.size();
+						boldOffset += r.size();
+						codeOffset += r.size();
+						preOffset += r.size();
 					} else {
 						QUrl u(url);
 						if (r.size() <= 3 || _text.midRef(lnkFrom, r.size() - 3) == (u.isValid() ? u.toDisplayString() : url).midRef(0, r.size() - 3)) { // same link
 							if (url.at(0) == '@') {
-								result.push_back(LinkInText(LinkInTextMention, offset, url.size()));
+								result.push_back(EntityInText(EntityInTextMention, offset, url.size()));
 							} else if (url.at(0) == '#') {
-								result.push_back(LinkInText(LinkInTextHashtag, offset, url.size()));
+								result.push_back(EntityInText(EntityInTextHashtag, offset, url.size()));
 							} else if (url.at(0) == '/') {
-								result.push_back(LinkInText(LinkInTextBotCommand, offset, url.size()));
+								result.push_back(EntityInText(EntityInTextBotCommand, offset, url.size()));
 							} else if (url.indexOf('@') > 0 && url.indexOf('/') <= 0) {
-								result.push_back(LinkInText(LinkInTextEmail, offset, url.size()));
+								result.push_back(EntityInText(EntityInTextEmail, offset, url.size()));
 							} else {
-								result.push_back(LinkInText(LinkInTextUrl, offset, url.size()));
+								result.push_back(EntityInText(EntityInTextUrl, offset, url.size()));
 							}
 							offset += url.size();
+							italicOffset += url.size();
+							boldOffset += url.size();
+							codeOffset += url.size();
+							preOffset += url.size();
 						} else {
-							result.push_back(LinkInText(LinkInTextCustomUrl, offset, r.size(), url));
+							result.push_back(EntityInText(EntityInTextCustomUrl, offset, r.size(), url));
 							offset += r.size();
+							italicOffset += r.size();
+							boldOffset += r.size();
+							codeOffset += r.size();
+							preOffset += r.size();
 						}
 					}
 				}
 			}
 			lnkIndex = blockLnkIndex;
 			lnkFrom = blockFrom;
+		} else if (blockFlags != flags) {
+			if ((blockFlags & TextBlockFItalic) && !(flags & TextBlockFItalic)) {
+				italicFrom = blockFrom;
+			} else if ((flags & TextBlockFItalic) && !(blockFlags & TextBlockFItalic)) {
+				result.push_back(EntityInText(EntityInTextItalic, italicOffset, blockFrom - italicFrom));
+			}
+			if ((blockFlags & TextBlockFSemibold) && !(flags & TextBlockFSemibold)) {
+				boldFrom = blockFrom;
+			} else if ((flags & TextBlockFSemibold) && !(blockFlags & TextBlockFSemibold)) {
+				result.push_back(EntityInText(EntityInTextBold, boldOffset, blockFrom - boldFrom));
+			}
+			if ((blockFlags & TextBlockFCode) && !(flags & TextBlockFCode)) {
+				codeFrom = blockFrom;
+			} else if ((flags & TextBlockFCode) && !(blockFlags & TextBlockFCode)) {
+				result.push_back(EntityInText(EntityInTextCode, codeOffset, blockFrom - codeFrom));
+			}
+			if ((blockFlags & TextBlockFPre) && !(flags & TextBlockFPre)) {
+				preFrom = blockFrom;
+			} else if ((flags & TextBlockFPre) && !(blockFlags & TextBlockFPre)) {
+				result.push_back(EntityInText(EntityInTextPre, preOffset, blockFrom - preFrom));
+			}
+			flags = blockFlags;
 		}
 		if (i == e) break;
 
 		TextBlockType type = (*i)->type();
-		if (type == TextBlockSkip) continue;
+		if (type == TextBlockTSkip) continue;
 
-		if (!blockLnkIndex) {
-			int32 rangeFrom = (*i)->from(), rangeTo = uint16((*i)->from() + TextPainter::_blockLength(this, i, e));
-			if (rangeTo > rangeFrom) {
+		int32 rangeFrom = (*i)->from(), rangeTo = uint16((*i)->from() + TextPainter::_blockLength(this, i, e));
+		if (rangeTo > rangeFrom) {
+			if (!blockLnkIndex) {
 				offset += rangeTo - rangeFrom;
+			}
+			if (!(blockFlags & TextBlockFItalic)) {
+				italicOffset += rangeTo - rangeFrom;
+			}
+			if (!(blockFlags & TextBlockFSemibold)) {
+				boldOffset += rangeTo - rangeFrom;
+			}
+			if (!(blockFlags & TextBlockFCode)) {
+				codeOffset += rangeTo - rangeFrom;
+			}
+			if (!(blockFlags & TextBlockFPre)) {
+				preOffset += rangeTo - rangeFrom;
 			}
 		}
 	}
@@ -2629,7 +2776,7 @@ int32 Text::countHeight(int32 w) const {
 		int32 blockHeight = _blockHeight(b, _font);
 		QFixed _rb = _blockRBearing(b);
 
-		if (_btype == TextBlockNewline) {
+		if (_btype == TextBlockTNewline) {
 			if (!lineHeight) lineHeight = blockHeight;
 			result += lineHeight;
 			lineHeight = 0;
@@ -2653,7 +2800,7 @@ int32 Text::countHeight(int32 w) const {
 			continue;
 		}
 
-		if (_btype == TextBlockText) {
+		if (_btype == TextBlockTText) {
 			TextBlock *t = static_cast<TextBlock*>(b);
 			QFixed f_wLeft = widthLeft;
 			int32 f_lineHeight = lineHeight;
@@ -2821,7 +2968,7 @@ QString Text::original(uint16 selectedFrom, uint16 selectedTo, bool expandLinks)
 		if (i == e) break;
 
 		TextBlockType type = (*i)->type();
-		if (type == TextBlockSkip) continue;
+		if (type == TextBlockTSkip) continue;
 
 		if (!blockLnkIndex) {
 			int32 rangeFrom = qMax(selectedFrom, (*i)->from()), rangeTo = qMin(selectedTo, uint16((*i)->from() + TextPainter::_blockLength(this, i, e)));
@@ -3074,15 +3221,34 @@ private:
 };
 
 TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResizeWidth, uint16 from, uint16 length, uchar flags, const style::color &color, uint16 lnkIndex) : ITextBlock(font, str, from, length, flags, color, lnkIndex) {
-	_flags |= ((TextBlockText & 0x0F) << 8);
+	_flags |= ((TextBlockTText & 0x0F) << 8);
 	if (length) {
 		style::font blockFont = font;
 		if (!flags && lnkIndex) {
 			// should use textStyle lnkFlags somehow.. not supported
 		}
-		if (flags & TextBlockBold) blockFont = blockFont->bold();
-		if (flags & TextBlockItalic) blockFont = blockFont->italic();
-		if (flags & TextBlockUnderline) blockFont = blockFont->underline();
+
+		if ((flags & TextBlockFPre) || (flags & TextBlockFCode)) {
+			blockFont = App::monofont();
+			if (blockFont->size() != font->size() || blockFont->flags() != font->flags()) {
+				blockFont = style::font(font->size(), font->flags(), blockFont->family());
+			}
+		} else {
+			if (flags & TextBlockFBold) {
+				blockFont = blockFont->bold();
+			}
+			else if (flags & TextBlockFSemibold) {
+				blockFont = st::semiboldFont;
+				if (blockFont->size() != font->size() || blockFont->flags() != font->flags()) {
+					blockFont = style::font(font->size(), font->flags(), blockFont->family());
+				}
+			}
+			if (flags & TextBlockFItalic) blockFont = blockFont->italic();
+			if (flags & TextBlockFUnderline) blockFont = blockFont->underline();
+			if ((flags & TextBlockFTilde) && font->size() == 13) {
+				blockFont = style::font(font->size() + 1, blockFont->flags(), blockFont->family());
+			}
+		}
 
 		QStackTextEngine engine(str.mid(_from, length), blockFont->f);
 		engine.itemize();
@@ -3098,12 +3264,12 @@ TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResi
 }
 
 EmojiBlock::EmojiBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, const style::color &color, uint16 lnkIndex, const EmojiData *emoji) : ITextBlock(font, str, from, length, flags, color, lnkIndex), emoji(emoji) {
-	_flags |= ((TextBlockEmoji & 0x0F) << 8);
+	_flags |= ((TextBlockTEmoji & 0x0F) << 8);
 	_width = int(st::emojiSize + 2 * st::emojiPadding);
 }
 
 SkipBlock::SkipBlock(const style::font &font, const QString &str, uint16 from, int32 w, int32 h, uint16 lnkIndex) : ITextBlock(font, str, from, 1, 0, style::color(), lnkIndex), _height(h) {
-	_flags |= ((TextBlockSkip & 0x0F) << 8);
+	_flags |= ((TextBlockTSkip & 0x0F) << 8);
 	_width = w;
 }
 
@@ -4196,51 +4362,69 @@ QString textSearchKey(const QString &text) {
 	return textAccentFold(text.trimmed().toLower());
 }
 
-bool textSplit(QString &sendingText, QString &leftText, int32 limit) {
+bool textSplit(QString &sendingText, EntitiesInText &sendingEntities, QString &leftText, EntitiesInText &leftEntities, int32 limit) {
 	if (leftText.isEmpty() || !limit) return false;
 
-	LinksInText links = textParseLinks(leftText, TextParseLinks | TextParseMentions | TextParseHashtags);
-	int32 currentLink = 0, lnkCount = links.size();
+	int32 currentEntity = 0, goodEntity = currentEntity, entityCount = leftEntities.size();
+	bool goodInEntity = false, goodCanBreakEntity = false;
 
 	int32 s = 0, half = limit / 2, goodLevel = 0;
 	for (const QChar *start = leftText.constData(), *ch = start, *end = leftText.constEnd(), *good = ch; ch != end; ++ch, ++s) {
-		while (currentLink < lnkCount && ch >= start + links[currentLink].offset + links[currentLink].length) {
-			++currentLink;
+		while (currentEntity < entityCount && ch >= start + leftEntities[currentEntity].offset + leftEntities[currentEntity].length) {
+			++currentEntity;
 		}
 
-		bool inLink = (currentLink < lnkCount) && (ch > start + links[currentLink].offset) && (ch < start + links[currentLink].offset + links[currentLink].length);
+#define MARK_GOOD_AS_LEVEL(level) \
+if (goodLevel <= (level)) {\
+goodLevel = (level);\
+good = ch;\
+goodEntity = currentEntity;\
+goodInEntity = inEntity;\
+goodCanBreakEntity = canBreakEntity;\
+}
+
 		if (s > half) {
-			if (inLink) {
-				if (!goodLevel) good = ch;
+			bool inEntity = (currentEntity < entityCount) && (ch > start + leftEntities[currentEntity].offset) && (ch < start + leftEntities[currentEntity].offset + leftEntities[currentEntity].length);
+			EntityInTextType entityType = (currentEntity < entityCount) ? leftEntities[currentEntity].type : EntityInTextBold;
+			bool canBreakEntity = (entityType == EntityInTextPre || entityType == EntityInTextCode);
+			int32 noEntityLevel = inEntity ? 0 : 1;
+			if (inEntity && !canBreakEntity) {
+				MARK_GOOD_AS_LEVEL(0);
 			} else {
 				if (chIsNewline(*ch)) {
-					if (ch + 1 < end && chIsNewline(*(ch + 1)) && goodLevel <= 7) {
-						goodLevel = 7;
-						good = ch;
-					} else if (goodLevel <= 6) {
-						goodLevel = 6;
-						good = ch;
+					if (inEntity) {
+						if (ch + 1 < end && chIsNewline(*(ch + 1))) {
+							MARK_GOOD_AS_LEVEL(12);
+						} else {
+							MARK_GOOD_AS_LEVEL(11);
+						}
+					} else if (ch + 1 < end && chIsNewline(*(ch + 1))) {
+						MARK_GOOD_AS_LEVEL(15);
+					} else if (currentEntity < entityCount && ch + 1 == start + leftEntities[currentEntity].offset && leftEntities[currentEntity].type == EntityInTextPre) {
+						MARK_GOOD_AS_LEVEL(14);
+					} else if (currentEntity > 0 && ch == start + leftEntities[currentEntity - 1].offset + leftEntities[currentEntity - 1].length && leftEntities[currentEntity - 1].type == EntityInTextPre) {
+						MARK_GOOD_AS_LEVEL(14);
+					} else {
+						MARK_GOOD_AS_LEVEL(13);
 					}
 				} else if (chIsSpace(*ch)) {
-					if (chIsSentenceEnd(*(ch - 1)) && goodLevel <= 5) {
-						goodLevel = 5;
-						good = ch;
-					} else if (chIsSentencePartEnd(*(ch - 1)) && goodLevel <= 4) {
-						goodLevel = 4;
-						good = ch;
-					} else if (goodLevel <= 3) {
-						goodLevel = 3;
-						good = ch;
+					if (chIsSentenceEnd(*(ch - 1))) {
+						MARK_GOOD_AS_LEVEL(9 + noEntityLevel);
+					} else if (chIsSentencePartEnd(*(ch - 1))) {
+						MARK_GOOD_AS_LEVEL(7 + noEntityLevel);
+					} else {
+						MARK_GOOD_AS_LEVEL(5 + noEntityLevel);
 					}
-				} else if (chIsWordSeparator(*(ch - 1)) && goodLevel <= 2) {
-					goodLevel = 2;
-					good = ch;
-				} else if (goodLevel <= 1) {
-					goodLevel = 1;
-					good = ch;
+				} else if (chIsWordSeparator(*(ch - 1))) {
+					MARK_GOOD_AS_LEVEL(3 + noEntityLevel);
+				} else {
+					MARK_GOOD_AS_LEVEL(1 + noEntityLevel);
 				}
 			}
 		}
+
+#undef MARK_GOOD_AS_LEVEL
+
 		int elen = 0;
 		EmojiPtr e = emojiFromText(ch, end, elen);
 		if (e) {
@@ -4258,24 +4442,159 @@ bool textSplit(QString &sendingText, QString &leftText, int32 limit) {
 		if (s >= limit) {
 			sendingText = leftText.mid(0, good - start);
 			leftText = leftText.mid(good - start);
+			if (goodInEntity) {
+				if (goodCanBreakEntity) {
+					sendingEntities = leftEntities.mid(0, goodEntity + 1);
+					sendingEntities.back().length = good - start - sendingEntities.back().offset;
+					leftEntities = leftEntities.mid(goodEntity);
+					for (EntitiesInText::iterator i = leftEntities.begin(), e = leftEntities.end(); i != e; ++i) {
+						i->offset -= good - start;
+						if (i->offset < 0) {
+							i->length += i->offset;
+							i->offset = 0;
+						}
+					}
+				} else {
+					sendingEntities = leftEntities.mid(0, goodEntity);
+					leftEntities = leftEntities.mid(goodEntity + 1);
+				}
+			} else {
+				sendingEntities = leftEntities.mid(0, goodEntity);
+				leftEntities = leftEntities.mid(goodEntity);
+				for (EntitiesInText::iterator i = leftEntities.begin(), e = leftEntities.end(); i != e; ++i) {
+					i->offset -= good - start;
+				}
+			}
 			return true;
 		}
 	}
 	sendingText = leftText;
 	leftText = QString();
+	sendingEntities = leftEntities;
+	leftEntities = EntitiesInText();
 	return true;
 }
 
-LinksInText textParseLinks(const QString &text, int32 flags, bool rich) { // some code is duplicated in flattextarea.cpp!
-	LinksInText result;
+EntitiesInText textParseEntities(QString &text, int32 flags, bool rich) { // some code is duplicated in flattextarea.cpp!
+	EntitiesInText result, mono;
 
 	bool withHashtags = (flags & TextParseHashtags);
 	bool withMentions = (flags & TextParseMentions);
 	bool withBotCommands = (flags & TextParseBotCommands);
+	bool withMono = (flags & TextParseMono);
+
+	if (withMono) { // parse mono entities (code and pre)
+		QString newText;
+
+		int32 offset = 0, matchOffset = offset, len = text.size(), nextCmd = rich ? 0 : len;
+		const QChar *start = text.constData();
+		for (; matchOffset < len;) {
+			if (nextCmd <= matchOffset) {
+				for (nextCmd = matchOffset; nextCmd < len; ++nextCmd) {
+					if (*(start + nextCmd) == TextCommand) {
+						break;
+					}
+				}
+			}
+			QRegularExpressionMatch mPre = _rePre.match(text, matchOffset);
+			QRegularExpressionMatch mCode = _reCode.match(text, matchOffset), mTag;
+			if (!mPre.hasMatch() && !mCode.hasMatch()) break;
+
+			int32 preStart = mPre.hasMatch() ? mPre.capturedStart() : INT_MAX,
+				preEnd = mPre.hasMatch() ? mPre.capturedEnd() : INT_MAX,
+				codeStart = mCode.hasMatch() ? mCode.capturedStart() : INT_MAX,
+				codeEnd = mCode.hasMatch() ? mCode.capturedEnd() : INT_MAX,
+				tagStart, tagEnd;
+			if (mPre.hasMatch()) {
+				if (!mPre.capturedRef(1).isEmpty()) {
+					++preStart;
+				}
+				if (!mPre.capturedRef(4).isEmpty()) {
+					--preEnd;
+				}
+			}
+			if (mCode.hasMatch()) {
+				if (!mCode.capturedRef(1).isEmpty()) {
+					++codeStart;
+				}
+				if (!mCode.capturedRef(4).isEmpty()) {
+					--codeEnd;
+				}
+			}
+
+			bool pre = (preStart <= codeStart);
+			if (pre) {
+				tagStart = preStart;
+				tagEnd = preEnd;
+				mTag = mPre;
+			} else {
+				tagStart = codeStart;
+				tagEnd = codeEnd;
+				mTag = mCode;
+			}
+			if (tagStart > nextCmd) {
+				const QChar *after = textSkipCommand(start + nextCmd, start + len);
+				if (after > start + nextCmd && tagStart < (after - start)) {
+					nextCmd = matchOffset = after - start;
+					continue;
+				}
+			}
+
+			if (newText.isEmpty()) newText.reserve(text.size());
+
+			bool addNewlineBefore = false, addNewlineAfter = false;
+			int32 outerStart = tagStart, outerEnd = tagEnd;
+			int32 innerStart = tagStart + mTag.capturedLength(2), innerEnd = tagEnd - mTag.capturedLength(3);
+			if (pre) {
+				while (outerStart > 0 && chIsSpace(*(start + outerStart - 1), rich) && !chIsNewline(*(start + outerStart - 1))) {
+					--outerStart;
+				}
+				addNewlineBefore = (outerStart > 0 && !chIsNewline(*(start + outerStart - 1)));
+
+				for (int32 testInnerStart = innerStart; testInnerStart < innerEnd; ++testInnerStart) {
+					if (chIsNewline(*(start + testInnerStart))) {
+						innerStart = testInnerStart + 1;
+						break;
+					} else if (!chIsSpace(*(start + testInnerStart))) {
+						break;
+					}
+				}
+				for (int32 testInnerEnd = innerEnd; innerStart < testInnerEnd;) {
+					--testInnerEnd;
+					if (chIsNewline(*(start + testInnerEnd))) {
+						innerEnd = testInnerEnd;
+						break;
+					} else if (!chIsSpace(*(start + testInnerEnd))) {
+						break;
+					}
+				}
+
+				while (outerEnd < len && chIsSpace(*(start + outerEnd)) && !chIsNewline(*(start + outerEnd))) {
+					++outerEnd;
+				}
+				addNewlineAfter = (outerEnd < len && !chIsNewline(*(start + outerEnd)));
+			}
+			if (outerStart > offset) newText.append(start + offset, outerStart - offset);
+			if (addNewlineBefore) newText.append('\n');
+
+			int32 tagLength = innerEnd - innerStart;
+			mono.push_back(EntityInText(pre ? EntityInTextPre : EntityInTextCode, newText.size(), tagLength));
+
+			newText.append(start + innerStart, tagLength);
+			if (addNewlineAfter) newText.append('\n');
+
+			offset = matchOffset = outerEnd;
+		}
+		if (!newText.isEmpty()) {
+			newText.append(start + offset, len - offset);
+			text = newText;
+		}
+	}
+	int32 monoEntity = 0, monoCount = mono.size(), monoTill = 0;
 
 	initLinkSets();
 	int32 len = text.size(), nextCmd = rich ? 0 : len;
-	const QChar *start = text.unicode(), *end = start + text.size();
+	const QChar *start = text.constData(), *end = start + text.size();
 	for (int32 offset = 0, matchOffset = offset, mentionSkip = 0; offset < len;) {
 		if (nextCmd <= offset) {
 			for (nextCmd = offset; nextCmd < len; ++nextCmd) {
@@ -4290,21 +4609,21 @@ LinksInText textParseLinks(const QString &text, int32 flags, bool rich) { // som
 		QRegularExpressionMatch mMention = withMentions ? _reMention.match(text, qMax(mentionSkip, matchOffset)) : QRegularExpressionMatch();
 		QRegularExpressionMatch mBotCommand = withBotCommands ? _reBotCommand.match(text, matchOffset) : QRegularExpressionMatch();
 
-		LinkInTextType lnkType = LinkInTextUrl;
-		int32 lnkOffset = 0, lnkLength = 0;
-		int32 domainOffset = mDomain.hasMatch() ? mDomain.capturedStart() : INT_MAX,
+		EntityInTextType lnkType = EntityInTextUrl;
+		int32 lnkStart = 0, lnkLength = 0;
+		int32 domainStart = mDomain.hasMatch() ? mDomain.capturedStart() : INT_MAX,
 			domainEnd = mDomain.hasMatch() ? mDomain.capturedEnd() : INT_MAX,
-			explicitDomainOffset = mExplicitDomain.hasMatch() ? mExplicitDomain.capturedStart() : INT_MAX,
+			explicitDomainStart = mExplicitDomain.hasMatch() ? mExplicitDomain.capturedStart() : INT_MAX,
 			explicitDomainEnd = mExplicitDomain.hasMatch() ? mExplicitDomain.capturedEnd() : INT_MAX,
-			hashtagOffset = mHashtag.hasMatch() ? mHashtag.capturedStart() : INT_MAX,
+			hashtagStart = mHashtag.hasMatch() ? mHashtag.capturedStart() : INT_MAX,
 			hashtagEnd = mHashtag.hasMatch() ? mHashtag.capturedEnd() : INT_MAX,
-			mentionOffset = mMention.hasMatch() ? mMention.capturedStart() : INT_MAX,
+			mentionStart = mMention.hasMatch() ? mMention.capturedStart() : INT_MAX,
 			mentionEnd = mMention.hasMatch() ? mMention.capturedEnd() : INT_MAX,
-			botCommandOffset = mBotCommand.hasMatch() ? mBotCommand.capturedStart() : INT_MAX,
+			botCommandStart = mBotCommand.hasMatch() ? mBotCommand.capturedStart() : INT_MAX,
 			botCommandEnd = mBotCommand.hasMatch() ? mBotCommand.capturedEnd() : INT_MAX;
 		if (mHashtag.hasMatch()) {
 			if (!mHashtag.capturedRef(1).isEmpty()) {
-				++hashtagOffset;
+				++hashtagStart;
 			}
 			if (!mHashtag.capturedRef(2).isEmpty()) {
 				--hashtagEnd;
@@ -4312,19 +4631,19 @@ LinksInText textParseLinks(const QString &text, int32 flags, bool rich) { // som
 		}
 		while (mMention.hasMatch()) {
 			if (!mMention.capturedRef(1).isEmpty()) {
-				++mentionOffset;
+				++mentionStart;
 			}
 			if (!mMention.capturedRef(2).isEmpty()) {
 				--mentionEnd;
 			}
-			if (!(start + mentionOffset + 1)->isLetter() || !(start + mentionEnd - 1)->isLetterOrNumber()) {
+			if (!(start + mentionStart + 1)->isLetter() || !(start + mentionEnd - 1)->isLetterOrNumber()) {
 				mentionSkip = mentionEnd;
 				mMention = _reMention.match(text, qMax(mentionSkip, matchOffset));
 				if (mMention.hasMatch()) {
-					mentionOffset = mMention.capturedStart();
+					mentionStart = mMention.capturedStart();
 					mentionEnd = mMention.capturedEnd();
 				} else {
-					mentionOffset = INT_MAX;
+					mentionStart = INT_MAX;
 					mentionEnd = INT_MAX;
 				}
 			} else {
@@ -4333,7 +4652,7 @@ LinksInText textParseLinks(const QString &text, int32 flags, bool rich) { // som
 		}
 		if (mBotCommand.hasMatch()) {
 			if (!mBotCommand.capturedRef(1).isEmpty()) {
-				++botCommandOffset;
+				++botCommandStart;
 			}
 			if (!mBotCommand.capturedRef(3).isEmpty()) {
 				--botCommandEnd;
@@ -4343,50 +4662,50 @@ LinksInText textParseLinks(const QString &text, int32 flags, bool rich) { // som
 			break;
 		}
 
-		if (explicitDomainOffset < domainOffset) {
-			domainOffset = explicitDomainOffset;
+		if (explicitDomainStart < domainStart) {
+			domainStart = explicitDomainStart;
 			domainEnd = explicitDomainEnd;
 			mDomain = mExplicitDomain;
 		}
-		if (mentionOffset < hashtagOffset && mentionOffset < domainOffset && mentionOffset < botCommandOffset) {
-			if (mentionOffset > nextCmd) {
+		if (mentionStart < hashtagStart && mentionStart < domainStart && mentionStart < botCommandStart) {
+			if (mentionStart > nextCmd) {
 				const QChar *after = textSkipCommand(start + nextCmd, start + len);
-				if (after > start + nextCmd && mentionOffset < (after - start)) {
+				if (after > start + nextCmd && mentionStart < (after - start)) {
 					nextCmd = offset = matchOffset = after - start;
 					continue;
 				}
 			}
-			lnkType = LinkInTextMention;
-			lnkOffset = mentionOffset;
-			lnkLength = mentionEnd - mentionOffset;
-		} else if (hashtagOffset < domainOffset && hashtagOffset < botCommandOffset) {
-			if (hashtagOffset > nextCmd) {
+			lnkType = EntityInTextMention;
+			lnkStart = mentionStart;
+			lnkLength = mentionEnd - mentionStart;
+		} else if (hashtagStart < domainStart && hashtagStart < botCommandStart) {
+			if (hashtagStart > nextCmd) {
 				const QChar *after = textSkipCommand(start + nextCmd, start + len);
-				if (after > start + nextCmd && hashtagOffset < (after - start)) {
-					nextCmd = offset = matchOffset = after - start;
-					continue;
-				}
-			}
-
-			lnkType = LinkInTextHashtag;
-			lnkOffset = hashtagOffset;
-			lnkLength = hashtagEnd - hashtagOffset;
-		} else if (botCommandOffset < domainOffset) {
-			if (botCommandOffset > nextCmd) {
-				const QChar *after = textSkipCommand(start + nextCmd, start + len);
-				if (after > start + nextCmd && botCommandOffset < (after - start)) {
+				if (after > start + nextCmd && hashtagStart < (after - start)) {
 					nextCmd = offset = matchOffset = after - start;
 					continue;
 				}
 			}
 
-			lnkType = LinkInTextBotCommand;
-			lnkOffset = botCommandOffset;
-			lnkLength = botCommandEnd - botCommandOffset;
+			lnkType = EntityInTextHashtag;
+			lnkStart = hashtagStart;
+			lnkLength = hashtagEnd - hashtagStart;
+		} else if (botCommandStart < domainStart) {
+			if (botCommandStart > nextCmd) {
+				const QChar *after = textSkipCommand(start + nextCmd, start + len);
+				if (after > start + nextCmd && botCommandStart < (after - start)) {
+					nextCmd = offset = matchOffset = after - start;
+					continue;
+				}
+			}
+
+			lnkType = EntityInTextBotCommand;
+			lnkStart = botCommandStart;
+			lnkLength = botCommandEnd - botCommandStart;
 		} else {
-			if (domainOffset > nextCmd) {
+			if (domainStart > nextCmd) {
 				const QChar *after = textSkipCommand(start + nextCmd, start + len);
-				if (after > start + nextCmd && domainOffset < (after - start)) {
+				if (after > start + nextCmd && domainStart < (after - start)) {
 					nextCmd = offset = matchOffset = after - start;
 					continue;
 				}
@@ -4398,25 +4717,25 @@ LinksInText textParseLinks(const QString &text, int32 flags, bool rich) { // som
 			bool isProtocolValid = protocol.isEmpty() || _validProtocols.contains(hashCrc32(protocol.constData(), protocol.size() * sizeof(QChar)));
 			bool isTopDomainValid = !protocol.isEmpty() || _validTopDomains.contains(hashCrc32(topDomain.constData(), topDomain.size() * sizeof(QChar)));
 
-			if (protocol.isEmpty() && domainOffset > offset + 1 && *(start + domainOffset - 1) == QChar('@')) {
-				QString forMailName = text.mid(offset, domainOffset - offset - 1);
+			if (protocol.isEmpty() && domainStart > offset + 1 && *(start + domainStart - 1) == QChar('@')) {
+				QString forMailName = text.mid(offset, domainStart - offset - 1);
 				QRegularExpressionMatch mMailName = _reMailName.match(forMailName);
 				if (mMailName.hasMatch()) {
-					int32 mailOffset = offset + mMailName.capturedStart();
-					if (mailOffset < offset) {
-						mailOffset = offset;
+					int32 mailStart = offset + mMailName.capturedStart();
+					if (mailStart < offset) {
+						mailStart = offset;
 					}
-					lnkType = LinkInTextEmail;
-					lnkOffset = mailOffset;
-					lnkLength = domainEnd - mailOffset;
+					lnkType = EntityInTextEmail;
+					lnkStart = mailStart;
+					lnkLength = domainEnd - mailStart;
 				}
 			}
-			if (lnkType == LinkInTextUrl && !lnkLength) {
+			if (lnkType == EntityInTextUrl && !lnkLength) {
 				if (!isProtocolValid || !isTopDomainValid) {
 					matchOffset = domainEnd;
 					continue;
 				}
-				lnkOffset = domainOffset;
+				lnkStart = domainStart;
 
 				QStack<const QChar*> parenth;
 				const QChar *domainEnd = start + mDomain.capturedEnd(), *p = domainEnd;
@@ -4451,12 +4770,22 @@ LinksInText textParseLinks(const QString &text, int32 flags, bool rich) { // som
 						continue;
 					}
 				}
-				lnkLength = (p - start) - lnkOffset;
+				lnkLength = (p - start) - lnkStart;
 			}
 		}
-		result.push_back(LinkInText(lnkType, lnkOffset, lnkLength));
+		for (; monoEntity < monoCount && mono[monoEntity].offset <= lnkStart; ++monoEntity) {
+			monoTill = qMax(monoTill, mono[monoEntity].offset + mono[monoEntity].length);
+			result.push_back(mono[monoEntity]);
+		}
+		if (lnkStart >= monoTill) {
+			result.push_back(EntityInText(lnkType, lnkStart, lnkLength));
+		}
 
-		offset = matchOffset = lnkOffset + lnkLength;
+		offset = matchOffset = lnkStart + lnkLength;
+	}
+	for (; monoEntity < monoCount; ++monoEntity) {
+		monoTill = qMax(monoTill, mono[monoEntity].offset + mono[monoEntity].length);
+		result.push_back(mono[monoEntity]);
 	}
 
 	return result;
@@ -4464,4 +4793,57 @@ LinksInText textParseLinks(const QString &text, int32 flags, bool rich) { // som
 
 void emojiDraw(QPainter &p, EmojiPtr e, int x, int y) {
 	p.drawPixmap(QPoint(x, y), App::emoji(), QRect(e->x * ESize, e->y * ESize, ESize, ESize));
+}
+
+void replaceStringWithEntities(const QLatin1String &from, QChar to, QString &result, EntitiesInText &entities, bool checkSpace = false) {
+	int32 len = from.size(), s = result.size(), offset = 0, length = 0;
+	EntitiesInText::iterator i = entities.begin(), e = entities.end();
+	for (QChar *start = result.data(); offset < s;) {
+		int32 nextOffset = result.indexOf(from, offset);
+		if (nextOffset < 0) {
+			moveStringPart(start, length, offset, s - offset, entities);
+			break;
+		}
+
+		if (checkSpace) {
+			bool spaceBefore = (nextOffset > 0) && (start + nextOffset - 1)->isSpace();
+			bool spaceAfter = (nextOffset + len < s) && (start + nextOffset + len)->isSpace();
+			if (!spaceBefore && !spaceAfter) {
+				moveStringPart(start, length, offset, nextOffset - offset + len + 1, entities);
+				continue;
+			}
+		}
+		if (i != e) {
+			if (i->offset < nextOffset + len && i->offset + i->length > nextOffset) {
+				moveStringPart(start, length, offset, nextOffset - offset + len, entities);
+				continue;
+			}
+		}
+		moveStringPart(start, length, offset, nextOffset - offset, entities);
+
+		*(start + length) = to;
+		++length;
+		offset += len;
+	}
+	if (length < s) result.resize(length);
+}
+
+QString prepareTextWithEntities(QString result, EntitiesInText &entities, int32 flags) {
+	cleanTextWithEntities(result, entities);
+
+	if (flags) {
+		entities = textParseEntities(result, flags);
+	}
+
+	replaceStringWithEntities(qstr("--"), QChar(8212), result, entities, true);
+	replaceStringWithEntities(qstr("<<"), QChar(171), result, entities);
+	replaceStringWithEntities(qstr(">>"), QChar(187), result, entities);
+
+	if (cReplaceEmojis()) {
+		result = replaceEmojis(result, entities);
+	}
+
+	trimTextWithEntities(result, entities);
+
+	return result;
 }

@@ -32,11 +32,11 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 OverviewInner::CachedLink::CachedLink(HistoryItem *item) : titleWidth(0), page(0), pixw(0), pixh(0), text(st::msgMinWidth) {
 	QString msgText;
-	LinksInText msgLinks;
-	item->getTextWithLinks(msgText, msgLinks);
+	EntitiesInText msgLinks;
+	item->getTextWithEntities(msgText, msgLinks);
 	int32 from = 0, till = msgText.size(), lnk = msgLinks.size();
 	for (int32 i = 0; i < lnk; ++i) {
-		if (msgLinks[i].type != LinkInTextUrl && msgLinks[i].type != LinkInTextCustomUrl && msgLinks[i].type != LinkInTextEmail) {
+		if (msgLinks[i].type != EntityInTextUrl && msgLinks[i].type != EntityInTextCustomUrl && msgLinks[i].type != EntityInTextEmail) {
 			continue;
 		}
 		QString url = msgLinks[i].text, text = msgText.mid(msgLinks[i].offset, msgLinks[i].length);
@@ -44,7 +44,7 @@ OverviewInner::CachedLink::CachedLink(HistoryItem *item) : titleWidth(0), page(0
 	}
 	while (lnk > 0 && till > from) {
 		--lnk;
-		if (msgLinks[lnk].type != LinkInTextUrl && msgLinks[lnk].type != LinkInTextCustomUrl && msgLinks[lnk].type != LinkInTextEmail) {
+		if (msgLinks[lnk].type != EntityInTextUrl && msgLinks[lnk].type != EntityInTextCustomUrl && msgLinks[lnk].type != EntityInTextEmail) {
 			++lnk;
 			break;
 		}

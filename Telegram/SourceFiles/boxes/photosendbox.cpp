@@ -102,7 +102,7 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : AbstractBox(st::boxWide
 	}
 	updateBoxSize();
 	_caption.setMaxLength(MaxPhotoCaption);
-	_caption.setCtrlEnterSubmit(false);
+	_caption.setCtrlEnterSubmit(CtrlEnterSubmitBoth);
 	connect(&_compressed, SIGNAL(changed()), this, SLOT(onCompressedChange()));
 	connect(&_caption, SIGNAL(resized()), this, SLOT(onCaptionResized()));
 	connect(&_caption, SIGNAL(submitted(bool)), this, SLOT(onSend(bool)));
@@ -267,7 +267,7 @@ void PhotoSendBox::onSend(bool ctrlShiftEnter) {
 		}
 		if (_compressed.isHidden() || _compressed.checked()) {
 			_img->ctrlShiftEnter = ctrlShiftEnter;
-			_img->caption = _caption.isHidden() ? QString() : prepareSentText(_caption.getLastText());
+			_img->caption = _caption.isHidden() ? QString() : prepareText(_caption.getLastText(), true);
 			if (App::main()) App::main()->confirmSendImage(*_img);
 		} else {
 			if (App::main()) App::main()->confirmSendImageUncompressed(ctrlShiftEnter, _replyTo);

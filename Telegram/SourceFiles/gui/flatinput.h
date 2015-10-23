@@ -164,6 +164,12 @@ private:
 
 };
 
+enum CtrlEnterSubmit {
+	CtrlEnterSubmitEnter,
+	CtrlEnterSubmitCtrlEnter,
+	CtrlEnterSubmitBoth,
+};
+
 class InputArea : public TWidget {
 	Q_OBJECT
 
@@ -203,7 +209,7 @@ public:
 	bool isRedoAvailable() const;
 
 	void customUpDown(bool isCustom);
-	void setCtrlEnterSubmit(bool ctrlEnterSubmit);
+	void setCtrlEnterSubmit(CtrlEnterSubmit ctrlEnterSubmit);
 
 	void setTextCursor(const QTextCursor &cursor) {
 		return _inner.setTextCursor(cursor);
@@ -294,7 +300,8 @@ private:
 
 	QString _oldtext;
 
-	bool _undoAvailable, _redoAvailable, _inHeightCheck, _ctrlEnterSubmit;
+	CtrlEnterSubmit _ctrlEnterSubmit;
+	bool _undoAvailable, _redoAvailable, _inHeightCheck;
 
 	bool _customUpDown;
 
