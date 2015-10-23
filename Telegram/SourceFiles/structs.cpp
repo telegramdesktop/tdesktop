@@ -528,6 +528,22 @@ void PhotoLink::onClick(Qt::MouseButton button) const {
 	}
 }
 
+QString joinList(const QStringList &list, const QString &sep) {
+	QString result;
+	if (list.isEmpty()) return result;
+
+	int32 l = list.size(), s = sep.size() * (l - 1);
+	for (int32 i = 0; i < l; ++i) {
+		s += list.at(i).size();
+	}
+	result.reserve(s);
+	result.append(list.at(0));
+	for (int32 i = 1; i < l; ++i) {
+		result.append(sep).append(list.at(i));
+	}
+	return result;
+}
+
 QString saveFileName(const QString &title, const QString &filter, const QString &prefix, QString name, bool savingAs, const QDir &dir) {
 #ifdef Q_OS_WIN
 	name = name.replace(QRegularExpression(qsl("[\\\\\\/\\:\\*\\?\\\"\\<\\>\\|]")), qsl("_"));
@@ -562,9 +578,9 @@ QString saveFileName(const QString &title, const QString &filter, const QString 
 							QRegularExpressionMatch m = QRegularExpression(qsl(" \\*\\.") + ext + qsl("[\\)\\s]"), QRegularExpression::CaseInsensitiveOption).match(first);
 							if (m.hasMatch() && m.capturedStart() > start + 3) {
 								int32 oldpos = m.capturedStart(), oldend = m.capturedEnd();
-								fil = first.mid(0, start + 3) + ext + qsl(" *.") + first.mid(start + 3, oldpos - start - 3) + first.mid(oldend - 1) + sep + filters.mid(1).join(sep);
+								fil = first.mid(0, start + 3) + ext + qsl(" *.") + first.mid(start + 3, oldpos - start - 3) + first.mid(oldend - 1) + sep + joinList(filters.mid(1), sep);
 							} else {
-								fil = first.mid(0, start + 3) + ext + qsl(" *.") + first.mid(start + 3) + sep + filters.mid(1).join(sep);
+								fil = first.mid(0, start + 3) + ext + qsl(" *.") + first.mid(start + 3) + sep + joinList(filters.mid(1), sep);
 							}
 						}
 					} else {
