@@ -1218,7 +1218,7 @@ void ProfileInner::contextMenuEvent(QContextMenuEvent *e) {
 	if (!_phoneText.isEmpty() || (_peerUser && !_peerUser->username.isEmpty())) {
 		QRect info(_left + st::profilePhotoSize + st::profilePhoneLeft, st::profilePadding.top(), _width - st::profilePhotoSize - st::profilePhoneLeft, st::profilePhotoSize);
 		if (info.contains(mapFromGlobal(e->globalPos()))) {
-			_menu = new ContextMenu(this);
+			_menu = new PopupMenu();
 			if (!_phoneText.isEmpty()) {
 				_menu->addAction(lang(lng_profile_copy_phone), this, SLOT(onCopyPhone()))->setEnabled(true);
 			}

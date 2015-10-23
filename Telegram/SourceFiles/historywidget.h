@@ -180,7 +180,7 @@ private:
 	uint64 _touchSpeedTime, _touchAccelerationTime, _touchTime;
 	QTimer _touchScrollTimer;
 
-	ContextMenu *_menu;
+	PopupMenu *_menu;
 
 };
 

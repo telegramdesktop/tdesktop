@@ -2445,6 +2445,15 @@ void Text::setMarkedText(style::font font, const QString &text, const LinksInTex
 	_font = font;
 	clean();
 	{
+//		QByteArray ba = text.toUtf8();
+//		const char *ch = ba.constData();
+//		LOG(("STR: %1").arg(text));
+//		LOG(("BYTES: %1").arg(mb(ba.constData(), ba.size()).str()));
+//		for (int32 i = 0; i < text.size(); ++i) {
+//			LOG(("LETTER %1: '%2' - %3").arg(i).arg(text.at(i)).arg(text.at(i).unicode()));
+//		}
+//		int32 w = _font->width(text);
+
 		TextParser parser(this, text, links, options);
 	}
 	recountNaturalSize(true, options.dir);

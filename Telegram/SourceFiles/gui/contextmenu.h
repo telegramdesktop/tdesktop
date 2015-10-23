@@ -83,3 +83,73 @@ private:
 	bool _deleteOnHide;
 
 };
+
+class PopupMenu : public TWidget {
+	Q_OBJECT
+
+public:
+
+	PopupMenu(const style::PopupMenu &st = st::defaultPopupMenu);
+	QAction *addAction(const QString &text, const QObject *receiver, const char* member);
+	void resetActions();
+
+	typedef QVector<QAction*> Actions;
+	Actions &actions();
+
+	void resizeEvent(QResizeEvent *e);
+	void paintEvent(QPaintEvent *e);
+	void keyPressEvent(QKeyEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+	void mousePressEvent(QMouseEvent *e);
+	void leaveEvent(QEvent *e);
+	void enterEvent(QEvent *e);
+
+	void focusOutEvent(QFocusEvent *e);
+
+	void fastHide();
+
+	bool animStep_hide(float64 ms);
+
+	void updateSelected();
+
+	void deleteOnHide();
+	void popup(const QPoint &p);
+
+	~PopupMenu();
+
+public slots:
+
+	void hideStart();
+	void hideFinish();
+
+	void actionChanged();
+	void activeWindowChanged();
+
+private:
+
+	void clearActions();
+	void setSelected(int32 selected);
+	void updateSelectedItem();
+	void itemPressed();
+
+	const style::PopupMenu &_st;
+
+	Actions _actions;
+
+	int32 _itemHeight;
+	QRect _inner;
+	style::margins _padding;
+
+	QPoint _mouse;
+	bool _mouseSelection;
+
+	BoxShadow _shadow;
+	int32 _selected;
+
+	QPixmap _cache;
+	anim::fvalue a_opacity;
+	Animation _a_hide;
+
+	bool _deleteOnHide;
+
+};
