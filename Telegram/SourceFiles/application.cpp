@@ -696,8 +696,8 @@ void Application::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (cDevVersion() && Local::oldMapVersion() < 9004) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 New design for all modal windows\n\xe2\x80\x94 Toggle notifications from tray menu\n\xe2\x80\x94 Bug fixes and other minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
+			if (cDevVersion() && Local::oldMapVersion() < 9007) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Tilde symbol display fixed\n\xe2\x80\x94 Bold and Italic text display from bots supported\n\xe2\x80\x94 Send code without text and emoji replaces using `such syntax` for inline parts and ```such syntax``` for blocks of code\n\xe2\x80\x94 Some bugfixes and improvements");// .replace('@', qsl("@") + QChar(0x200D));
 			} else if (Local::oldMapVersion() < 9005) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			} else {

@@ -535,10 +535,10 @@ _maxLength(-1),
 _inner(this),
 _oldtext(val),
 
+_ctrlEnterSubmit(CtrlEnterSubmitCtrlEnter),
 _undoAvailable(false),
 _redoAvailable(false),
 _inHeightCheck(false),
-_ctrlEnterSubmit(CtrlEnterSubmitCtrlEnter),
 
 _customUpDown(false),
 

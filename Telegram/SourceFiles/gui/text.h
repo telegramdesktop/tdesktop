@@ -689,8 +689,11 @@ const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink =
 inline bool chIsSpace(QChar ch, bool rich = false) {
 	return ch.isSpace() || (ch < 32 && !(rich && ch == TextCommand)) || (ch == QChar::ParagraphSeparator) || (ch == QChar::LineSeparator) || (ch == QChar::ObjectReplacementCharacter) || (ch == QChar::SoftHyphen) || (ch == QChar::CarriageReturn) || (ch == QChar::Tabulation);
 }
+inline bool chIsDiac(QChar ch) { // diac and variation selectors
+	return (ch.category() == QChar::Mark_NonSpacing) || (ch.unicode() == 1652);
+}
 inline bool chIsBad(QChar ch) {
-	return (ch == 0) || (ch >= 8232 && ch < 8237) || (ch >= 65024 && ch < 65040 && ch != 65039) || (ch >= 127 && ch < 160 && ch != 156);
+	return (ch == 0) || (ch >= 8232 && ch < 8237) || (ch >= 65024 && ch < 65040 && ch != 65039) || (ch >= 127 && ch < 160 && ch != 156) || (cPlatform() == dbipMac && ch >= 0x0B00 && ch <= 0x0B7F && chIsDiac(ch) && QSysInfo::macVersion() >= QSysInfo::MV_10_11); // tmp hack see https://bugreports.qt.io/browse/QTBUG-48910
 }
 inline bool chIsTrimmed(QChar ch, bool rich = false) {
 	return (!rich || ch != TextCommand) && (chIsSpace(ch) || chIsBad(ch));
@@ -703,10 +706,6 @@ inline bool chReplacedBySpace(QChar ch) {
 	// [\x00\x01\x02\x07\x08\x0b-\x1f] // '\t' = 0x09
 	return (/*code >= 0x00 && */ch <= 0x02) || (ch >= 0x07 && ch <= 0x09) || (ch >= 0x0b && ch <= 0x1f) ||
 		(ch == 819) || (ch == 831) || (ch == 778) || (ch >= 8232 && ch <= 8237);
-}
-inline bool chIsDiac(QChar ch) { // diac and variation selectors
-	QChar::Category c = ch.category();
-	return (c == QChar::Mark_NonSpacing) || (ch.unicode() == 1652);
 }
 inline int32 chMaxDiacAfterSymbol() {
 	return 2;
