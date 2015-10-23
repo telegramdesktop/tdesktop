@@ -62,6 +62,8 @@ wndShadowShift: 1px;
 layerAlpha: 0.5;
 layerBg: black;
 
+overBg: #edf2f5;
+
 boxBg: white;
 boxVerticalMargin: 10px;
 boxWidth: 320px;
@@ -238,6 +240,25 @@ solidScroll: flatScroll {
 	duration: 150;
 	hiding: 0;
 }
+defaultPopupMenu: PopupMenu {
+	skip: 5px;
+
+	shadow: sprite(241px, 46px, 6px, 6px);
+	shadowShift: 1px;
+
+	itemBg: white;
+	itemBgOver: overBg;
+	itemFg: black;
+	itemFgOver: black;
+	itemPadding: margins(20px, 8px, 20px, 7px);
+	itemFont: normalFont;
+
+	duration: 120;
+
+	widthMin: 150px;
+	widthMax: 300px;
+}
+almostTransparent: #ffffff0d;
 boxScroll: flatScroll(solidScroll) {
 	width: 18px;
 	deltax: 6px;
@@ -684,7 +705,7 @@ countryRowHeight: 36px;
 countryRowNameFont: semiboldFont;
 countryRowPadding: margins(22px, 9px, 8px, 0px);
 countryRowCodeFont: font(fsize);
-countryRowBgOver: #f5f8fa;
+countryRowBgOver: overBg;
 countryRowCodeFg: #808080;
 countryRowCodeFgOver: #7c99b2;
 countriesSkip: 12px;
@@ -1166,8 +1187,8 @@ mediaSaveButton: flatButton(btnDefFlat) {
 	downColor: #507da2;
 
 	bgColor: white;
-	overBgColor: #f5f8fa;
-	downBgColor: #f5f8fa;
+	overBgColor: overBg;
+	downBgColor: overBg;
 
 	width: -28px;
 	height: 34px;
@@ -1381,7 +1402,7 @@ contactsStatusFont: font(fsize);
 contactsStatusFg: #999999;
 contactsStatusFgOver: #7c99b2;
 contactsStatusFgOnline: #3b8dcc;
-contactsBgOver: #f5f8fa;
+contactsBgOver: overBg;
 contactsBgActive: #6f9cbd;
 contactsCheckPosition: point(8px, 16px);
 contactsCheckIcon: sprite(187px, 61px, 18px, 14px);

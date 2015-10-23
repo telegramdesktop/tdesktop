@@ -444,7 +444,7 @@ void Window::init() {
 
 void Window::firstShow() {
 #ifdef Q_OS_WIN
-	trayIconMenu = new ContextMenu(this);
+	trayIconMenu = new PopupMenu();
 #else
 	trayIconMenu = new QMenu(this);
 	trayIconMenu->setFont(QFont("Tahoma"));

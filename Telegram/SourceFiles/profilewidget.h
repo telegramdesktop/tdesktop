@@ -194,7 +194,7 @@ private:
 	QPoint _lastPos;
 
 	QString _onlineText;
-	ContextMenu *_menu;
+	PopupMenu *_menu;
 
 	void blockDone(bool blocked, const MTPBool &result);
 	bool blockFail(const RPCError &error);

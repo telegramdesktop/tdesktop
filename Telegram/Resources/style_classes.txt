@@ -243,6 +243,25 @@ dropdown {
 	width: number;
 }
 
+PopupMenu {
+	skip: number;
+
+	shadow: sprite;
+	shadowShift: number;
+
+	itemBg: color;
+	itemBgOver: color;
+	itemFg: color;
+	itemFgOver: color;
+	itemPadding: margins;
+	itemFont: font;
+
+	duration: number;
+
+	widthMin: number;
+	widthMax: number;
+}
+
 botKeyboardButton {
 	margin: number;
 	padding: number;
