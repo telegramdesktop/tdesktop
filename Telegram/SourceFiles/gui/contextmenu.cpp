@@ -363,6 +363,7 @@ void PopupMenu::paintEvent(QPaintEvent *e) {
 	QPainter::CompositionMode m = p.compositionMode();
 	p.setCompositionMode(QPainter::CompositionMode_Source);
 	if (_a_hide.animating()) {
+		p.setOpacity(a_opacity.current());
 		p.drawPixmap(0, 0, _cache);
 		return;
 	}
@@ -494,13 +495,9 @@ void PopupMenu::fastHide() {
 void PopupMenu::hideStart() {
 	if (isHidden()) return;
 
-	if (cPlatform() == dbipMac) {
-		fastHide(); // animated itself
-	} else {
-		_cache = myGrab(this);
-		a_opacity.start(0);
-		_a_hide.start();
-	}
+	_cache = myGrab(this);
+	a_opacity.start(0);
+	_a_hide.start();
 }
 
 void PopupMenu::hideFinish() {
