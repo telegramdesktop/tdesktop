@@ -453,7 +453,6 @@ static const int variants[] = { 0, 2, 3, 4 }, variantsCount = sizeof(variants) /
 static const char *variantNames[] = { "dbisOne", "dbisOneAndQuarter", "dbisOneAndHalf", "dbisTwo" };
 
 static const char *variantPostfixes[] = { "", "_125x", "_150x", "_200x" };
-QPixmap *spriteMax = 0;
 QImage *variantSprites = 0;
 int *spriteWidths = 0;
 QImage *variantGrids = 0;
@@ -853,8 +852,7 @@ ScalarValue prepareSprite(int variant, const char *&text, const char *end) {
 		QImage lastCopy = variantSprites[variantsCount - 1].copy(adjustPx(varLast, sprite.x(), true), adjustPx(varLast, sprite.y(), true), adjustPx(varLast, sprite.width(), true), adjustPx(varLast, sprite.height(), true));
 		for (int i = 1; i < variantsCount - 1; ++i) {
 			QPainter p(&variantSprites[i]);
-			QPixmap copy = QPixmap::fromImage(lastCopy.scaled(adjustPx(variants[i], sprite.width(), true), adjustPx(variants[i], sprite.height(), true), Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
-			p.drawPixmap(QPoint(adjustPx(variants[i], sprite.x(), true), adjustPx(variants[i], sprite.y(), true)), copy);
+			p.drawImage(QPoint(adjustPx(variants[i], sprite.x(), true), adjustPx(variants[i], sprite.y(), true)), lastCopy.scaled(adjustPx(variants[i], sprite.width(), true), adjustPx(variants[i], sprite.height(), true), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
 		}
 
 		for (int i = 0; i < variantsCount; ++i) {
@@ -1397,9 +1395,6 @@ bool genStyles(const QString &classes_in, const QString &classes_out, const QStr
 	}
 	variantSprites[variantsCount - 1] = QImage(spriteLast);
 	spriteWidths[variantsCount - 1] = variantSprites[variantsCount - 1].width();
-
-	QPixmap spriteMaxPix = QPixmap::fromImage(variantSprites[variantsCount - 1], Qt::ColorOnly);
-	spriteMax = &spriteMaxPix;
 
 	if (!variantSprites[0].width() || !variantSprites[0].height()) {
 		cout << "Could not open input sprite file '" << sprite0.toUtf8().constData() << "'!\n";

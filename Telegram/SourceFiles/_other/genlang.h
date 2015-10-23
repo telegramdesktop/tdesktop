@@ -24,14 +24,12 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include <QtCore/QDir>
 #include <QtCore/QRegularExpression>
 #include <QtGui/QImage>
-#include <QtGui/QPixmap>
 #include <QtGui/QPainter>
 #include <iostream>
 #include <exception>
 #include <QtCore/QTextStream>
 #include <QtCore/QString>
 #include <QtCore/QCoreApplication>
-#include <QtGui/QGuiApplication>
 
 using std::string;
 using std::cout;

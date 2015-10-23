@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
 #endif
 	QObject *taskImpl = new GenStyles(classes_in, classes_out, styles_in, styles_out, path_to_sprites);
 
-	QGuiApplication a(argc, argv);
+	QCoreApplication a(argc, argv);
 
 	QObject::connect(taskImpl, SIGNAL(finished()), &a, SLOT(quit()));
 	QTimer::singleShot(0, taskImpl, SLOT(run()));
