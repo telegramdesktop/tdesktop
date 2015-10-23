@@ -2841,7 +2841,7 @@ void HistoryPhoto::initDimensions(const HistoryItem *parent) {
 	_minh = qMax(thumbh, int32(st::minPhotoSize));
 	const HistoryReply *reply = toHistoryReply(parent);
 	const HistoryForwarded *fwd = toHistoryForwarded(parent);
-	if (reply || !_caption.isEmpty()) {
+	if (reply || (fwd && fwd->fromForwarded()->isChannel()) || !_caption.isEmpty()) {
 		_maxw += st::mediaPadding.left() + st::mediaPadding.right();
 		if (reply) {
 			_minh += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
@@ -2868,7 +2868,7 @@ int32 HistoryPhoto::resize(int32 width, const HistoryItem *parent) {
 	const HistoryForwarded *fwd = reply ? 0 : toHistoryForwarded(parent);
 
 	pixw = qMin(width, _maxw);
-	if (reply || !_caption.isEmpty()) {
+	if (reply || (fwd && fwd->fromForwarded()->isChannel()) || !_caption.isEmpty()) {
 		pixw -= st::mediaPadding.left() + st::mediaPadding.right();
 	}
 
@@ -2895,7 +2895,7 @@ int32 HistoryPhoto::resize(int32 width, const HistoryItem *parent) {
 	if (pixh < 1) pixh = 1;
 	w = qMax(pixw, int16(st::minPhotoSize));
 	_height = qMax(pixh, int16(st::minPhotoSize));
-	if (reply || !_caption.isEmpty()) {
+	if (reply || (fwd && fwd->fromForwarded()->isChannel()) || !_caption.isEmpty()) {
 		if (reply) {
 			_height += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		} else {
@@ -2943,7 +2943,7 @@ void HistoryPhoto::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 	const HistoryReply *reply = toHistoryReply(parent);
 	const HistoryForwarded *fwd = reply ? 0 : toHistoryForwarded(parent);
 	int replyFrom = 0, fwdFrom = 0;
-	if (reply || !_caption.isEmpty()) {
+	if (reply || (fwd && fwd->fromForwarded()->isChannel()) || !_caption.isEmpty()) {
 		skipx = st::mediaPadding.left();
 		if (reply) {
 			skipy = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
@@ -2993,7 +2993,7 @@ void HistoryPhoto::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height) {
 		lnk = openl;
 		if (_caption.isEmpty()) {
-			int32 fullRight = skipx + width + (skipx ? st::mediaPadding.right() : 0), fullBottom = _height;
+			int32 fullRight = skipx + width, fullBottom = _height - (skipx ? st::mediaPadding.bottom() : 0);
 			bool inDate = parent->pointInTime(fullRight, fullBottom, x, y, InfoDisplayOverImage);
 			if (inDate) {
 				state = HistoryInDateCursorState;
@@ -3048,7 +3048,7 @@ void HistoryPhoto::draw(Painter &p, const HistoryItem *parent, bool selected, in
 
 	if (width < 0) width = w;
 	int skipx = 0, skipy = 0, height = _height;
-	if (reply || !_caption.isEmpty()) {
+	if (reply || (fwd && fwd->fromForwarded()->isChannel()) || !_caption.isEmpty()) {
 		skipx = st::mediaPadding.left();
 
 		style::color bg(selected ? (outbg ? st::msgOutSelectBg : st::msgInSelectBg) : (outbg ? st::msgOutBg : st::msgInBg));
@@ -3125,7 +3125,7 @@ void HistoryPhoto::draw(Painter &p, const HistoryItem *parent, bool selected, in
 	// date
 	QString time(parent->timeText());
 	if (_caption.isEmpty()) {
-		int32 fullRight = skipx + width + (skipx ? st::mediaPadding.right() : 0), fullBottom = _height;
+		int32 fullRight = skipx + width, fullBottom = _height - (skipx ? st::mediaPadding.bottom() : 0);
 		parent->drawInfo(p, fullRight, fullBottom, selected, InfoDisplayOverImage);
 	} else {
 		p.setPen(st::black->p);
@@ -5918,7 +5918,7 @@ void HistoryImageLink::draw(Painter &p, const HistoryItem *parent, bool selected
 		App::roundRect(p, skipx, skipy, width, height, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
 	}
 
-	int32 fullRight = skipx + width + (skipx ? st::mediaPadding.right() : 0), fullBottom = _height;
+	int32 fullRight = skipx + width, fullBottom = _height - (skipx ? st::mediaPadding.bottom() : 0);
 	parent->drawInfo(p, fullRight, fullBottom, selected, InfoDisplayOverImage);
 }
 
@@ -6055,7 +6055,8 @@ void HistoryImageLink::getState(TextLinkPtr &lnk, HistoryCursorState &state, int
 	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height && data) {
 		lnk = link;
 
-		bool inDate = parent->pointInTime(skipx + width + (skipx ? st::mediaPadding.right() : 0), _height, x, y, InfoDisplayOverImage);
+		int32 fullRight = skipx + width, fullBottom = _height - (skipx ? st::mediaPadding.bottom() : 0);
+		bool inDate = parent->pointInTime(fullRight, fullBottom, x, y, InfoDisplayOverImage);
 		if (inDate) {
 			state = HistoryInDateCursorState;
 		}

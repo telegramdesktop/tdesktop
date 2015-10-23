@@ -100,6 +100,7 @@ public slots:
 
 	void onMediaPhotos();
 	void onMediaVideos();
+	void onMediaSongs();
 	void onMediaDocuments();
 	void onMediaAudios();
 	void onMediaLinks();

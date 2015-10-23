@@ -117,9 +117,9 @@ enum HistoryMediaType {
 enum MediaOverviewType {
 	OverviewPhotos,
 	OverviewVideos,
+	OverviewAudioDocuments,
 	OverviewDocuments,
 	OverviewAudios,
-	OverviewAudioDocuments,
 	OverviewLinks,
 
 	OverviewCount
@@ -140,9 +140,9 @@ inline MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
 	switch (type) {
 	case OverviewPhotos: return MTP_inputMessagesFilterPhotos();
 	case OverviewVideos: return MTP_inputMessagesFilterVideo();
+	case OverviewAudioDocuments: return MTP_inputMessagesFilterAudioDocuments();
 	case OverviewDocuments: return MTP_inputMessagesFilterDocument();
 	case OverviewAudios: return MTP_inputMessagesFilterAudio();
-	case OverviewAudioDocuments: return MTP_inputMessagesFilterAudioDocuments();
 	case OverviewLinks: return MTP_inputMessagesFilterUrl();
 	default: type = OverviewCount; break;
 	}

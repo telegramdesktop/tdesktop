@@ -1722,6 +1722,12 @@ dropdownMediaVideos: iconedButton(dropdownMediaPhotos) {
 	icon: sprite(92px, 348px, 24px, 24px);
 	downIcon: sprite(92px, 348px, 24px, 24px);
 }
+dropdownMediaSongs: iconedButton(dropdownMediaPhotos) {
+	icon: sprite(60px, 374px, 24px, 26px);
+	downIcon: sprite(60px, 374px, 24px, 26px);
+	iconPos: point(12px, 12px);
+	downIconPos: point(12px, 13px);
+}
 dropdownMediaDocuments: iconedButton(dropdownAttachDocument) {
 	width: 200px;
 }

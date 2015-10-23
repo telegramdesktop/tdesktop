@@ -468,6 +468,7 @@ public slots:
 
 	void onPhotosSelect();
 	void onVideosSelect();
+	void onSongsSelect();
 	void onDocumentsSelect();
 	void onAudiosSelect();
 	void onLinksSelect();

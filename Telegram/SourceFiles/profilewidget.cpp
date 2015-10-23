@@ -182,6 +182,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	// shared media
 	connect((_mediaButtons[OverviewPhotos] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaPhotos()));
 	connect((_mediaButtons[OverviewVideos] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaVideos()));
+	connect((_mediaButtons[OverviewAudioDocuments] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaSongs()));
 	connect((_mediaButtons[OverviewDocuments] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaDocuments()));
 	connect((_mediaButtons[OverviewAudios] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaAudios()));
 	connect((_mediaButtons[OverviewLinks] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaLinks()));
@@ -384,6 +385,10 @@ void ProfileInner::onMediaPhotos() {
 
 void ProfileInner::onMediaVideos() {
 	App::main()->showMediaOverview(_peer, OverviewVideos);
+}
+
+void ProfileInner::onMediaSongs() {
+	App::main()->showMediaOverview(_peer, OverviewAudioDocuments);
 }
 
 void ProfileInner::onMediaDocuments() {
@@ -769,8 +774,6 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	p.setPen(st::black->p);
 	bool mediaFound = false;
 	for (int i = 0; i < OverviewCount; ++i) {
-		if (i == OverviewAudioDocuments) continue;
-
 		if (!_mediaButtons[i]->isHidden()) {
 			mediaFound = true;
 			top += _mediaButtons[i]->height() + st::setLittleSkip;
@@ -1019,7 +1022,6 @@ bool ProfileInner::updateMediaLinks(int32 *addToScroll) {
 	QPoint p(addToScroll ? mapFromGlobal(QCursor::pos()) : QPoint(0, 0));
 	bool oneWasShown = false;
 	for (int i = 0; i < OverviewCount; ++i) {
-		if (i == OverviewAudioDocuments) continue;
 		if (!_mediaButtons[i]->isHidden()) {
 			oneWasShown = true;
 			break;
@@ -1032,8 +1034,6 @@ bool ProfileInner::updateMediaLinks(int32 *addToScroll) {
 	int32 y = _mediaButtons[OverviewPhotos]->y();
 	if (addToScroll) *addToScroll = 0;
 	for (int i = 0; i < OverviewCount; ++i) {
-		if (i == OverviewAudioDocuments) continue;
-
 		int32 addToY = _mediaButtons[i]->height() + st::setLittleSkip;
 
 		int32 count = (_hist->overviewCount[i] > 0) ? _hist->overviewCount[i] : (_hist->overviewCount[i] == 0 ? _hist->overview[i].size() : -1);
@@ -1168,8 +1168,6 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 
 	bool mediaFound = false;
 	for (int i = 0; i < OverviewCount; ++i) {
-		if (i == OverviewAudioDocuments) continue;
-
 		_mediaButtons[i]->move(_left, top);
 		if (!_mediaButtons[i]->isHidden()) {
 			mediaFound = true;
@@ -1516,6 +1514,7 @@ QString ProfileInner::overviewLinkText(int32 type, int32 count) {
 	switch (type) {
 	case OverviewPhotos: return lng_profile_photos(lt_count, count);
 	case OverviewVideos: return lng_profile_videos(lt_count, count);
+	case OverviewAudioDocuments: return lng_profile_songs(lt_count, count);
 	case OverviewDocuments: return lng_profile_files(lt_count, count);
 	case OverviewAudios: return lng_profile_audios(lt_count, count);
 	case OverviewLinks: return lng_profile_shared_links(lt_count, count);
