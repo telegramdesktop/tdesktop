@@ -777,7 +777,7 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 	_caption = Text();
 	if (HistoryMessage *itemMsg = item ? item->toHistoryMessage() : 0) {
 		if (HistoryPhoto *photoMsg = dynamic_cast<HistoryPhoto*>(itemMsg->getMedia())) {
-			_caption.setText(st::mvCaptionFont, photoMsg->captionForClone().original(0, 0xFFFF), (item->from()->isUser() && item->from()->asUser()->botInfo) ? _captionBotOptions : _captionTextOptions);
+			_caption.setText(st::mvCaptionFont, photoMsg->getCaption(), (item->from()->isUser() && item->from()->asUser()->botInfo) ? _captionBotOptions : _captionTextOptions);
 		}
 	}
 

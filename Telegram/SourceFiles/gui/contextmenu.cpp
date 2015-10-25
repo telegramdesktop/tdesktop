@@ -301,8 +301,8 @@ PopupMenu::PopupMenu(const style::PopupMenu &st) : TWidget(0)
 QAction *PopupMenu::addAction(const QString &text, const QObject *receiver, const char* member) {
 	QAction *a = 0;
 	_actions.push_back(a = new QAction(text, this));
-	connect(a, SIGNAL(triggered(bool)), receiver, member);
 	connect(a, SIGNAL(triggered(bool)), this, SLOT(hideStart()));
+	connect(a, SIGNAL(triggered(bool)), receiver, member);
 	connect(a, SIGNAL(changed()), this, SLOT(actionChanged()));
 
 	int32 w = _st.widthMin, mw = _st.widthMax;

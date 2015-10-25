@@ -556,7 +556,6 @@ public:
 	}
 	void setSkipBlock(int32 width, int32 height);
 	void removeSkipBlock();
-	EntitiesInText calcEntitiesInText() const;
 
 	int32 maxWidth() const {
 		return _maxWidth.ceil().toInt();
@@ -602,7 +601,13 @@ public:
 	bool isNull() const {
 		return !_font;
 	}
-	QString original(uint16 selectedFrom = 0, uint16 selectedTo = 0xFFFF, bool expandLinks = true) const;
+	enum ExpandLinksMode {
+		ExpandLinksNone,
+		ExpandLinksShortened,
+		ExpandLinksAll,
+	};
+	QString original(uint16 selectedFrom = 0, uint16 selectedTo = 0xFFFF, ExpandLinksMode mode = ExpandLinksShortened) const;
+	EntitiesInText originalEntities() const;
 
 	bool lastDots(int32 dots, int32 maxdots = 3) { // hack for typing animation
 		if (_text.size() < maxdots) return false;
@@ -856,6 +861,7 @@ inline void cleanTextWithEntities(QString &result, EntitiesInText &entities) {
 }
 
 inline void trimTextWithEntities(QString &result, EntitiesInText &entities) {
+	bool foundNotTrimmed = false;
 	for (QChar *s = result.data(), *e = s + result.size(), *ch = e; ch != s;) { // rtrim
 		--ch;
 		if (!chIsTrimmed(*ch)) {
@@ -871,8 +877,14 @@ inline void trimTextWithEntities(QString &result, EntitiesInText &entities) {
 				}
 				result.resize(l);
 			}
+			foundNotTrimmed = true;
 			break;
 		}
+	}
+	if (!foundNotTrimmed) {
+		result.clear();
+		entities.clear();
+		return;
 	}
 
 	for (QChar *s = result.data(), *ch = s, *e = s + result.size(); ch != e; ++ch) { // ltrim

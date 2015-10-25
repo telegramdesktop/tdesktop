@@ -2919,15 +2919,11 @@ int32 HistoryPhoto::resize(int32 width, const HistoryItem *parent) {
 }
 
 const QString HistoryPhoto::inDialogsText() const {
-	return _caption.isEmpty() ? lang(lng_in_dlg_photo) : _caption.original(0, 0xFFFF, false);
+	return _caption.isEmpty() ? lang(lng_in_dlg_photo) : _caption.original(0, 0xFFFF, Text::ExpandLinksNone);
 }
 
 const QString HistoryPhoto::inHistoryText() const {
-	return qsl("[ ") + lang(lng_in_dlg_photo) + (_caption.isEmpty() ? QString() : (qsl(", ") + _caption.original(0, 0xFFFF))) + qsl(" ]");
-}
-
-const Text &HistoryPhoto::captionForClone() const {
-	return _caption;
+	return qsl("[ ") + lang(lng_in_dlg_photo) + (_caption.isEmpty() ? QString() : (qsl(", ") + _caption.original(0, 0xFFFF, Text::ExpandLinksAll))) + qsl(" ]");
 }
 
 bool HistoryPhoto::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
@@ -3253,11 +3249,11 @@ void HistoryVideo::unregItem(HistoryItem *item) {
 }
 
 const QString HistoryVideo::inDialogsText() const {
-	return _caption.isEmpty() ? lang(lng_in_dlg_video) : _caption.original(0, 0xFFFF, false);
+	return _caption.isEmpty() ? lang(lng_in_dlg_video) : _caption.original(0, 0xFFFF, Text::ExpandLinksNone);
 }
 
 const QString HistoryVideo::inHistoryText() const {
-	return qsl("[ ") + lang(lng_in_dlg_video) + (_caption.isEmpty() ? QString() : (qsl(", ") + _caption.original(0, 0xFFFF))) + qsl(" ]");
+	return qsl("[ ") + lang(lng_in_dlg_video) + (_caption.isEmpty() ? QString() : (qsl(", ") + _caption.original(0, 0xFFFF, Text::ExpandLinksAll))) + qsl(" ]");
 }
 
 bool HistoryVideo::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
@@ -4595,7 +4591,7 @@ const QString HistoryContact::inDialogsText() const {
 }
 
 const QString HistoryContact::inHistoryText() const {
-	return qsl("[ ") + lang(lng_in_dlg_contact) + qsl(" : ") + name.original(0, 0xFFFF, false) + qsl(", ") + phone + qsl(" ]");
+	return qsl("[ ") + lang(lng_in_dlg_contact) + qsl(" : ") + name.original() + qsl(", ") + phone + qsl(" ]");
 }
 
 bool HistoryContact::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
@@ -4653,7 +4649,7 @@ void HistoryContact::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32
 }
 
 HistoryMedia *HistoryContact::clone() const {
-	return new HistoryContact(userId, name.original(0, 0xFFFF, false), phone);
+	return new HistoryContact(userId, name.original(), phone);
 }
 
 void HistoryContact::draw(Painter &p, const HistoryItem *parent, bool selected, int32 width) const {
@@ -6261,21 +6257,17 @@ bool HistoryMessage::uploading() const {
 
 QString HistoryMessage::selectedText(uint32 selection) const {
 	if (_media && selection == FullItemSel) {
-		QString text = _text.original(0, 0xFFFF), mediaText = _media->inHistoryText();
+		QString text = _text.original(0, 0xFFFF, Text::ExpandLinksAll), mediaText = _media->inHistoryText();
 		return text.isEmpty() ? mediaText : (mediaText.isEmpty() ? text : (text + ' ' + mediaText));
 	}
-	uint16 selectedFrom = (selection == FullItemSel) ? 0 : (selection >> 16) & 0xFFFF;
+	uint16 selectedFrom = (selection == FullItemSel) ? 0 : ((selection >> 16) & 0xFFFF);
 	uint16 selectedTo = (selection == FullItemSel) ? 0xFFFF : (selection & 0xFFFF);
-	return _text.original(selectedFrom, selectedTo);
-}
-
-EntitiesInText HistoryMessage::textEntities() const {
-	return _text.calcEntitiesInText();
+	return _text.original(selectedFrom, selectedTo, Text::ExpandLinksAll);
 }
 
 QString HistoryMessage::inDialogsText() const {
 	QString result = _media ? _media->inDialogsText() : QString();
-	return result.isEmpty() ? _text.original(0, 0xFFFF, false) : result;
+	return result.isEmpty() ? _text.original(0, 0xFFFF, Text::ExpandLinksNone) : result;
 }
 
 HistoryMedia *HistoryMessage::getMedia(bool inOverview) const {
@@ -6326,10 +6318,12 @@ void HistoryMessage::setText(const QString &text, const EntitiesInText &entities
 	}
 }
 
-void HistoryMessage::getTextWithEntities(QString &text, EntitiesInText &links) {
-	if (_text.isEmpty()) return;
-	links = _text.calcEntitiesInText();
-	text = _text.original();
+QString HistoryMessage::originalText() const {
+	return _text.isEmpty() ? QString() : _text.original();
+}
+
+EntitiesInText HistoryMessage::originalEntities() const {
+	return _text.isEmpty() ? EntitiesInText() : _text.originalEntities();
 }
 
 bool HistoryMessage::textHasLinks() {
@@ -6773,7 +6767,7 @@ HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const 
 	fwdNameUpdated();
 }
 
-HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg) : HistoryMessage(history, block, id, newMessageFlags(history->peer) | (!history->peer->isChannel() && msg->getMedia() && (msg->getMedia()->type() == MediaTypeAudio/* || msg->getMedia()->type() == MediaTypeVideo*/) ? MTPDmessage_flag_media_unread : 0), date, from, msg->justMedia() ? QString() : msg->HistoryMessage::selectedText(FullItemSel), msg->HistoryMessage::textEntities(), msg->getMedia())
+HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg) : HistoryMessage(history, block, id, newMessageFlags(history->peer) | (!history->peer->isChannel() && msg->getMedia() && (msg->getMedia()->type() == MediaTypeAudio/* || msg->getMedia()->type() == MediaTypeVideo*/) ? MTPDmessage_flag_media_unread : 0), date, from, msg->HistoryMessage::originalText(), msg->HistoryMessage::originalEntities(), msg->getMedia())
 , fwdDate(msg->dateForwarded())
 , fwdFrom(msg->fromForwarded())
 , fwdFromVersion(fwdFrom->nameVersion)
@@ -7434,7 +7428,7 @@ QString HistoryServiceMsg::selectedText(uint32 selection) const {
 }
 
 QString HistoryServiceMsg::inDialogsText() const {
-	return _text.original(0, 0xFFFF, false);
+	return _text.original(0, 0xFFFF, Text::ExpandLinksNone);
 }
 
 QString HistoryServiceMsg::inReplyText() const {
@@ -7569,7 +7563,7 @@ void HistoryServiceMsg::drawInDialog(Painter &p, const QRect &r, bool act, const
 }
 
 QString HistoryServiceMsg::notificationText() const {
-    QString msg = _text.original(0, 0xFFFF);
+    QString msg = _text.original();
     if (msg.size() > 0xFF) msg = msg.mid(0, 0xFF) + qsl("..");
     return msg;
 }

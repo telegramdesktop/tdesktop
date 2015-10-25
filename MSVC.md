@@ -92,21 +92,17 @@ or download in ZIP and extract to **D:\TBuild\Libraries\**, rename **libexif-0.6
 Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **\\Program Files (x86)\\Microsoft Visual Studio 14.0\\Common7\\Tools\\Shortcuts\\** folder), go to **D:\\TBuild\\Libraries** and run
 
     git clone git://repo.or.cz/openal-soft.git
-    git checkout 9b6b084d
+    git checkout 298fdb22
     git apply ./../../tdesktop/Telegram/_openal_patch.diff
 
 #####Building library
 
 * Install [CMake](http://www.cmake.org/)
-* Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **\\Program Files (x86)\\Microsoft Visual Studio 14.0\\Common7\\Tools\\Shortcuts\\** folder) and go to **D:\TBuild\Libraries\openal-soft\build\**
-* Run **cmake -G "Visual Studio 14 2015" -D LIBTYPE:STRING=STATIC ..**
-* Open in VS2015 **D:\TBuild\Libraries\openal-soft\build\OpenAL.sln**
-* For **Debug** configuration
-  * OpenAL32 Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded Debug (/MTd)** – **OK**
-  * common Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded Debug (/MTd)** – **OK**
-* For **Release** configuration
-  * OpenAL32 Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded (/MT)** – **OK**
-  * common Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded (/MT)** – **OK**
+* Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **\\Program Files (x86)\\Microsoft Visual Studio 14.0\\Common7\\Tools\\Shortcuts\\** folder), go to **D:\TBuild\Libraries\openal-soft\build\** and run
+
+    cmake -G "Visual Studio 14 2015" -D LIBTYPE:STRING=STATIC -D FORCE_STATIC_VCRT:STRING=ON ..
+
+* Open in VS2015 **D:\TBuild\Libraries\openal-soft\build\OpenAL.sln** and build Debug and Release configurations
 
 ####Opus codec
 
