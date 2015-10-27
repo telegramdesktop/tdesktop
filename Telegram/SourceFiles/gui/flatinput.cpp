@@ -970,9 +970,17 @@ void InputArea::onDocumentContentsChange(int position, int charsRemoved, int cha
 	QString oldtext(_oldtext);
 	QTextCursor(_inner.document()->docHandle(), 0).joinPreviousEditBlock();
 
-	QTextCursor c(_inner.document()->docHandle(), 0);
-	c.movePosition(QTextCursor::End);
-	int pos = c.position();
+	if (!position) { // Qt bug workaround https://bugreports.qt.io/browse/QTBUG-49062
+		QTextCursor c(_inner.document()->docHandle(), 0);
+		c.movePosition(QTextCursor::End);
+		if (position + charsAdded > c.position()) {
+			int32 toSubstract = position + charsAdded - c.position();
+			if (charsRemoved >= toSubstract) {
+				charsAdded -= toSubstract;
+				charsRemoved -= toSubstract;
+			}
+		}
+	}
 
 	_correcting = true;
 	if (_maxLength >= 0) {
@@ -1645,9 +1653,17 @@ void InputField::onDocumentContentsChange(int position, int charsRemoved, int ch
 	QString oldtext(_oldtext);
 	QTextCursor(_inner.document()->docHandle(), 0).joinPreviousEditBlock();
 
-	QTextCursor c(_inner.document()->docHandle(), 0);
-	c.movePosition(QTextCursor::End);
-	int pos = c.position();
+	if (!position) { // Qt bug workaround https://bugreports.qt.io/browse/QTBUG-49062
+		QTextCursor c(_inner.document()->docHandle(), 0);
+		c.movePosition(QTextCursor::End);
+		if (position + charsAdded > c.position()) {
+			int32 toSubstract = position + charsAdded - c.position();
+			if (charsRemoved >= toSubstract) {
+				charsAdded -= toSubstract;
+				charsRemoved -= toSubstract;
+			}
+		}
+	}
 
 	_correcting = true;
 	if (_maxLength >= 0) {
