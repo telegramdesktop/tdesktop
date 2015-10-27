@@ -1108,7 +1108,7 @@ void MainWidget::onResendAsDocument() {
 					photo->full->forget();
 					QByteArray data = photo->full->savedData();
 					if (!data.isEmpty()) {
-						history.uploadMedia(data, ToPrepareDocument, item->history()->peer->id);
+						history.uploadMedia(data, PrepareDocument, item->history()->peer->id);
 					}
 				}
 			}
@@ -2044,6 +2044,16 @@ void MainWidget::updateOnlineDisplay() {
 	history.updateOnlineDisplay(history.x(), width() - history.x() - st::sysBtnDelta * 2 - st::sysCls.img.pxWidth() - st::sysRes.img.pxWidth() - st::sysMin.img.pxWidth());
 	if (profile) profile->updateOnlineDisplay();
 	if (App::wnd()->settingsWidget()) App::wnd()->settingsWidget()->updateOnlineDisplay();
+}
+
+void MainWidget::onSendFileConfirm(const FileLoadResultPtr &file, bool ctrlShiftEnter) {
+	bool lastKeyboardUsed = history.lastForceReplyReplied(FullMsgId(peerToChannel(file->to.peer), file->to.replyTo));
+	history.confirmSendFile(file, ctrlShiftEnter);
+	history.cancelReply(lastKeyboardUsed);
+}
+
+void MainWidget::onSendFileCancel(const FileLoadResultPtr &file) {
+	history.cancelSendFile(file);
 }
 
 void MainWidget::confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo) {

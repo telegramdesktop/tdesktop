@@ -430,15 +430,18 @@ public:
 	void sendActionDone(const MTPBool &result, mtpRequestId req);
 
 	void destroyData();
-	void uploadImage(const QImage &img, bool withText = false, const QString &source = QString());
-	void uploadFile(const QString &file, bool withText = false); // with confirmation
+	void uploadImage(const QImage &img, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, const QString &source = QString(), bool withText = false);
+	void uploadFile(const QString &file, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, bool withText = false); // with confirmation
 	void shareContactConfirmation(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool withText = false);
 	void uploadConfirmImageUncompressed(bool ctrlShiftEnter, MsgId replyTo);
-	void uploadMedias(const QStringList &files, ToPrepareMediaType type);
-	void uploadMedia(const QByteArray &fileContent, ToPrepareMediaType type, PeerId peer = 0);
+	void uploadMedias(const QStringList &files, PrepareMediaType type);
+	void uploadMedia(const QByteArray &fileContent, PrepareMediaType type, PeerId peer = 0);
 	void confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo);
 	void confirmSendImage(const ReadyLocalMedia &img);
 	void cancelSendImage();
+
+	void confirmSendFile(const FileLoadResultPtr &file, bool ctrlShiftEnter);
+	void cancelSendFile(const FileLoadResultPtr &file);
 
 	void updateControlsVisibility();
 	void updateOnlineDisplay(int32 x, int32 w);
@@ -767,6 +770,7 @@ private:
 
 	int32 _selCount; // < 0 - text selected, focus list, not _field
 
+	TaskQueue _fileLoader;
 	LocalImageLoader _imageLoader;
 	bool _synthedTextUpdate;
 
@@ -775,6 +779,8 @@ private:
 	PhotoId _confirmImageId;
 	bool _confirmWithText;
 	QString _confirmSource;
+
+	uint64 _confirmWithTextId;
 
 	QString _titlePeerText;
 	int32 _titlePeerTextWidth;

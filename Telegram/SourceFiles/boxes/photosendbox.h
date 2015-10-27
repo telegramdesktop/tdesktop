@@ -28,6 +28,7 @@ class PhotoSendBox : public AbstractBox {
 
 public:
 
+	PhotoSendBox(const FileLoadResultPtr &file);
 	PhotoSendBox(const ReadyLocalMedia &img);
 	PhotoSendBox(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo);
 	void keyPressEvent(QKeyEvent *e);
@@ -47,6 +48,7 @@ public:
 signals:
 
 	void confirmed();
+	void cancelled();
 
 public slots:
 
@@ -65,6 +67,7 @@ private:
 
 	void updateBoxSize();
 
+	FileLoadResultPtr _file;
 	ReadyLocalMedia *_img;
 	int32 _thumbx, _thumby, _thumbw, _thumbh;
 	QString _name, _size;

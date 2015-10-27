@@ -265,6 +265,9 @@ public:
 	void orderWidgets();
 	QRect historyRect() const;
 
+	void onSendFileConfirm(const FileLoadResultPtr &file, bool ctrlShiftEnter);
+	void onSendFileCancel(const FileLoadResultPtr &file);
+
 	void confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo);
 	void confirmSendImage(const ReadyLocalMedia &img);
 	void confirmSendImageUncompressed(bool ctrlShiftEnter, MsgId replyTo);

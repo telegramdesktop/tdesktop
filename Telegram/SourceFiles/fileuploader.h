@@ -29,6 +29,7 @@ public:
 
 	FileUploader();
 	void uploadMedia(const FullMsgId &msgId, const ReadyLocalMedia &image);
+	void uploadFile(const FullMsgId &msgId, const FileLoadResultPtr &file);
 
 	int32 currentOffset(const FullMsgId &msgId) const; // -1 means file not found
 	int32 fullSize(const FullMsgId &msgId) const;
@@ -63,21 +64,32 @@ private:
 	struct File {
 		File(const ReadyLocalMedia &media) : media(media), docSentParts(0) {
 			partsCount = media.parts.size();
-			if (media.type == ToPrepareDocument || media.type == ToPrepareAudio) {
-				docSize = media.file.isEmpty() ? media.data.size() : media.filesize;
-				if (docSize >= 1024 * 1024 || !setPartSize(DocumentUploadPartSize0)) {
-					if (docSize > 32 * 1024 * 1024 || !setPartSize(DocumentUploadPartSize1)) {
-						if (!setPartSize(DocumentUploadPartSize2)) {
-							if (!setPartSize(DocumentUploadPartSize3)) {
-								if (!setPartSize(DocumentUploadPartSize4)) {
-									LOG(("Upload Error: bad doc size: %1").arg(docSize));
-								}
+			if (type() == PrepareDocument || type() == PrepareAudio) {
+				setDocSize(media.file.isEmpty() ? media.data.size() : media.filesize);
+			} else {
+				docSize = docPartSize = docPartsCount = 0;
+			}
+		}
+		File(const FileLoadResultPtr &file) : file(file), docSentParts(0) {
+			partsCount = (type() == PreparePhoto) ? file->fileparts.size() : file->thumbparts.size();
+			if (type() == PrepareDocument || type() == PrepareAudio) {
+				setDocSize(file->filesize);
+			} else {
+				docSize = docPartSize = docPartsCount = 0;
+			}
+		}
+		void setDocSize(int32 size) {
+			docSize = size;
+			if (docSize >= 1024 * 1024 || !setPartSize(DocumentUploadPartSize0)) {
+				if (docSize > 32 * 1024 * 1024 || !setPartSize(DocumentUploadPartSize1)) {
+					if (!setPartSize(DocumentUploadPartSize2)) {
+						if (!setPartSize(DocumentUploadPartSize3)) {
+							if (!setPartSize(DocumentUploadPartSize4)) {
+								LOG(("Upload Error: bad doc size: %1").arg(docSize));
 							}
 						}
 					}
 				}
-			} else {
-				docSize = docPartSize = docPartsCount = 0;
 			}
 		}
 		bool setPartSize(uint32 partSize) {
@@ -86,8 +98,22 @@ private:
 			return (docPartsCount <= DocumentMaxPartsCount);
 		}
 
+		FileLoadResultPtr file;
 		ReadyLocalMedia media;
 		int32 partsCount;
+
+		const uint64 &id() const {
+			return file ? file->id : media.id;
+		}
+		PrepareMediaType type() const {
+			return file ? file->type : media.type;
+		}
+		const uint64 &thumbId() const {
+			return file ? file->thumbId : media.thumbId;
+		}
+		const QString &filename() const {
+			return file ? file->filename : media.filename;
+		}
 
 		HashMd5 md5Hash;
 

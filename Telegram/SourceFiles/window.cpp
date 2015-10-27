@@ -810,6 +810,14 @@ void Window::replaceLayer(LayeredWidget *w) {
 	}
 }
 
+void Window::showLayerLast(LayeredWidget *w) {
+	if (layerBg) {
+		layerBg->showLayerLast(w);
+	} else {
+		layerBg = new BackgroundWidget(this, w);
+	}
+}
+
 void Window::showConnecting(const QString &text, const QString &reconnect) {
 	if (_connecting) {
 		_connecting->set(text, reconnect);

@@ -312,9 +312,11 @@ enum {
 	MessagesFirstLoad = 30, // first history part size requested
 	MessagesPerPage = 50, // next history part size
 
+	FileLoaderQueueStopTimeout = 5000,
+
 	DownloadPartSize = 64 * 1024, // 64kb for photo
 	DocumentDownloadPartSize = 128 * 1024, // 128kb for document
-	MaxUploadPhotoSize = 32 * 1024 * 1024, // 32mb photos max
+	MaxUploadPhotoSize = 256 * 1024 * 1024, // 256mb photos max
     MaxUploadDocumentSize = 1500 * 1024 * 1024, // 1500mb documents max
     UseBigFilesFrom = 10 * 1024 * 1024, // mtp big files methods used for files greater than 10mb
 	MaxFileQueries = 16, // max 16 file parts downloaded at the same time

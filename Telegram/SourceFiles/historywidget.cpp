@@ -1696,7 +1696,7 @@ void MessageField::insertFromMimeData(const QMimeData *source) {
 	if (source->hasImage()) {
 		QImage img = qvariant_cast<QImage>(source->imageData());
 		if (!img.isNull()) {
-			history->uploadImage(img, false, source->text());
+			history->uploadImage(img, FileLoadAlwaysConfirm, source->text());
 			return;
 		}
 	}
@@ -2402,11 +2402,13 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _attachDrag(DragStateNone)
 , _attachDragDocument(this)
 , _attachDragPhoto(this)
+, _fileLoader(this, FileLoaderQueueStopTimeout)
 , _imageLoader(this)
 , _synthedTextUpdate(false)
 , _serviceImageCacheSize(0)
 , _confirmImageId(0)
 , _confirmWithText(false)
+, _confirmWithTextId(0)
 , _titlePeerTextWidth(0)
 , _a_show(animFunc(this, &HistoryWidget::animStep_show))
 , _scrollDelta(0)
@@ -2709,7 +2711,7 @@ void HistoryWidget::onRecordDone(QByteArray result, qint32 samples) {
 
 	App::wnd()->activateWindow();
 	int32 duration = samples / AudioVoiceMsgFrequency;
-	_imageLoader.append(result, duration, _peer->id, _broadcast.checked(), replyToId(), ToPrepareAudio);
+	_imageLoader.append(result, duration, _peer->id, _broadcast.checked(), replyToId(), PrepareAudio);
 	cancelReply(lastForceReplyReplied());
 }
 
@@ -3989,7 +3991,7 @@ void HistoryWidget::onSendPaths(const PeerId &peer) {
 	App::main()->showPeerHistory(peer, ShowAtTheEndMsgId);
 	if (!_history) return;
 
-	uploadMedias(cSendPaths(), ToPrepareDocument);
+	uploadMedias(cSendPaths(), PrepareDocument);
 }
 
 History *HistoryWidget::history() const {
@@ -4167,11 +4169,11 @@ void HistoryWidget::onPhotoSelect() {
 	QByteArray file;
 	if (filedialogGetOpenFiles(files, file, lang(lng_choose_images), filter)) {
 		if (!file.isEmpty()) {
-			uploadMedia(file, ToPreparePhoto);
+			uploadMedia(file, PreparePhoto);
 		//} else if (files.size() == 1) {
 		//	uploadWithConfirm(files.at(0), false, true);
 		} else if (!files.isEmpty()) {
-			uploadMedias(files, ToPreparePhoto);
+			uploadMedias(files, PreparePhoto);
 		}
 	}
 }
@@ -4197,11 +4199,11 @@ void HistoryWidget::onDocumentSelect() {
 	QByteArray file;
 	if (filedialogGetOpenFiles(files, file, lang(lng_choose_images), filter)) {
 		if (!file.isEmpty()) {
-			uploadMedia(file, ToPrepareDocument);
+			uploadMedia(file, PrepareDocument);
 		//} else if (files.size() == 1) {
 		//	uploadWithConfirm(files.at(0), false, false);
 		} else if (!files.isEmpty()) {
-			uploadMedias(files, ToPrepareDocument);
+			uploadMedias(files, PrepareDocument);
 		}
 	}
 }
@@ -4502,7 +4504,7 @@ void HistoryWidget::onPhotoDrop(const QMimeData *data) {
 			QImage image = qvariant_cast<QImage>(data->imageData());
 			if (image.isNull()) return;
 
-			uploadImage(image, false, data->text());
+			uploadImage(image, FileLoadNoForceConfirm, data->text());
 		}
 		return;
 	}
@@ -4510,7 +4512,7 @@ void HistoryWidget::onPhotoDrop(const QMimeData *data) {
 	//if (files.size() == 1) {
 	//	uploadWithConfirm(files.at(0), false, true);
 	//} else {
-		uploadMedias(files, ToPreparePhoto);
+		uploadMedias(files, PreparePhoto);
 	//}
 }
 
@@ -4523,7 +4525,7 @@ void HistoryWidget::onDocumentDrop(const QMimeData *data) {
 	//if (files.size() == 1) {
 	//	uploadWithConfirm(files.at(0), false, false);
 	//} else {
-		uploadMedias(files, ToPrepareDocument);
+		uploadMedias(files, PrepareDocument);
 	//}
 }
 
@@ -4534,7 +4536,7 @@ void HistoryWidget::onFilesDrop(const QMimeData *data) {
 			QImage image = qvariant_cast<QImage>(data->imageData());
 			if (image.isNull()) return;
 
-			uploadImage(image, false, data->text());
+			uploadImage(image, FileLoadNoForceConfirm, data->text());
 		}
 		return;
 	}
@@ -4542,7 +4544,7 @@ void HistoryWidget::onFilesDrop(const QMimeData *data) {
 	//if (files.size() == 1) {
 	//	uploadWithConfirm(files.at(0), false, true);
 	//} else {
-		uploadMedias(files, ToPrepareAuto);
+		uploadMedias(files, PrepareAuto);
 	//}
 }
 
@@ -4804,22 +4806,26 @@ void HistoryWidget::onFieldCursorChanged() {
 	onDraftSaveDelayed();
 }
 
-void HistoryWidget::uploadImage(const QImage &img, bool withText, const QString &source) {
-	if (!_history || _confirmImageId) return;
+void HistoryWidget::uploadImage(const QImage &img, FileLoadForceConfirmType confirm, const QString &source, bool withText) {
+	if (!_history) return;
 
 	App::wnd()->activateWindow();
-	_confirmImage = img;
-	_confirmWithText = withText;
-	_confirmSource = source;
-	_confirmImageId = _imageLoader.append(img, _peer->id, _broadcast.checked(), replyToId(), ToPreparePhoto);
+	FileLoadTask *task = new FileLoadTask(img, FileLoadTo(_peer->id, _broadcast.checked(), replyToId()), confirm, source);
+	if (withText) {
+		_confirmWithTextId = task->fileid();
+	}
+	_fileLoader.addTask(task);
 }
 
-void HistoryWidget::uploadFile(const QString &file, bool withText) {
-	if (!_history || _confirmImageId) return;
+void HistoryWidget::uploadFile(const QString &file, FileLoadForceConfirmType confirm, bool withText) {
+	if (!_history) return;
 
 	App::wnd()->activateWindow();
-	_confirmWithText = withText;
-	_confirmImageId = _imageLoader.append(file, _peer->id, _broadcast.checked(), replyToId(), ToPrepareDocument);
+	FileLoadTask *task = new FileLoadTask(file, PrepareAuto, FileLoadTo(_peer->id, _broadcast.checked(), replyToId()), confirm);
+	if (withText) {
+		_confirmWithTextId = task->fileid();
+	}
+	_fileLoader.addTask(task);
 }
 
 void HistoryWidget::shareContactConfirmation(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool withText) {
@@ -4840,14 +4846,14 @@ void HistoryWidget::uploadConfirmImageUncompressed(bool ctrlShiftEnter, MsgId re
 		onSend(ctrlShiftEnter, replyTo);
 	}
 	bool lastKeyboardUsed = lastForceReplyReplied(FullMsgId(_channel, replyTo));
-	_imageLoader.append(_confirmImage, peerId, _broadcast.checked(), replyTo, ToPrepareDocument, ctrlShiftEnter);
+	_imageLoader.append(_confirmImage, peerId, _broadcast.checked(), replyTo, PrepareDocument, ctrlShiftEnter);
 	_confirmImageId = 0;
 	_confirmWithText = false;
 	_confirmImage = QImage();
 	cancelReply(lastKeyboardUsed);
 }
 
-void HistoryWidget::uploadMedias(const QStringList &files, ToPrepareMediaType type) {
+void HistoryWidget::uploadMedias(const QStringList &files, PrepareMediaType type) {
 	if (!_history) return;
 
 	App::wnd()->activateWindow();
@@ -4855,7 +4861,7 @@ void HistoryWidget::uploadMedias(const QStringList &files, ToPrepareMediaType ty
 	cancelReply(lastForceReplyReplied());
 }
 
-void HistoryWidget::uploadMedia(const QByteArray &fileContent, ToPrepareMediaType type, PeerId peer) {
+void HistoryWidget::uploadMedia(const QByteArray &fileContent, PrepareMediaType type, PeerId peer) {
 	if (!peer && !_history) return;
 
 	App::wnd()->activateWindow();
@@ -4945,11 +4951,11 @@ void HistoryWidget::confirmSendImage(const ReadyLocalMedia &img) {
 	} else {
 		flags |= MTPDmessage::flag_from_id;
 	}
-	if (img.type == ToPreparePhoto) {
+	if (img.type == PreparePhoto) {
 		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(img.peer), MTPPeer(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(img.photo, MTP_string(img.caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
-	} else if (img.type == ToPrepareDocument) {
+	} else if (img.type == PrepareDocument) {
 		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(img.peer), MTPPeer(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(img.document), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
-	} else if (img.type == ToPrepareAudio) {
+	} else if (img.type == PrepareAudio) {
 		if (!h->peer->isChannel()) {
 			flags |= MTPDmessage_flag_media_unread;
 		}
@@ -4968,6 +4974,67 @@ void HistoryWidget::cancelSendImage() {
 	_confirmImageId = 0;
 	_confirmWithText = false;
 	_confirmImage = QImage();
+}
+
+void HistoryWidget::confirmSendFile(const FileLoadResultPtr &file, bool ctrlShiftEnter) {
+	if (_confirmWithTextId && _confirmWithTextId == file->id) {
+		onSend(ctrlShiftEnter, file->to.replyTo);
+		_confirmWithTextId = 0;
+	}
+
+	FullMsgId newId(peerToChannel(file->to.peer), clientMsgId());
+
+	connect(App::uploader(), SIGNAL(photoReady(const FullMsgId&, const MTPInputFile&)), this, SLOT(onPhotoUploaded(const FullMsgId&, const MTPInputFile&)), Qt::UniqueConnection);
+	connect(App::uploader(), SIGNAL(documentReady(const FullMsgId&, const MTPInputFile&)), this, SLOT(onDocumentUploaded(const FullMsgId&, const MTPInputFile&)), Qt::UniqueConnection);
+	connect(App::uploader(), SIGNAL(thumbDocumentReady(const FullMsgId&, const MTPInputFile&, const MTPInputFile&)), this, SLOT(onThumbDocumentUploaded(const FullMsgId&, const MTPInputFile&, const MTPInputFile&)), Qt::UniqueConnection);
+	connect(App::uploader(), SIGNAL(audioReady(const FullMsgId&, const MTPInputFile&)), this, SLOT(onAudioUploaded(const FullMsgId&, const MTPInputFile&)), Qt::UniqueConnection);
+	connect(App::uploader(), SIGNAL(photoProgress(const FullMsgId&)), this, SLOT(onPhotoProgress(const FullMsgId&)), Qt::UniqueConnection);
+	connect(App::uploader(), SIGNAL(documentProgress(const FullMsgId&)), this, SLOT(onDocumentProgress(const FullMsgId&)), Qt::UniqueConnection);
+	connect(App::uploader(), SIGNAL(audioProgress(const FullMsgId&)), this, SLOT(onAudioProgress(const FullMsgId&)), Qt::UniqueConnection);
+	connect(App::uploader(), SIGNAL(photoFailed(const FullMsgId&)), this, SLOT(onPhotoFailed(const FullMsgId&)), Qt::UniqueConnection);
+	connect(App::uploader(), SIGNAL(documentFailed(const FullMsgId&)), this, SLOT(onDocumentFailed(const FullMsgId&)), Qt::UniqueConnection);
+	connect(App::uploader(), SIGNAL(audioFailed(const FullMsgId&)), this, SLOT(onAudioFailed(const FullMsgId&)), Qt::UniqueConnection);
+
+	App::uploader()->uploadFile(newId, file);
+
+	History *h = App::history(file->to.peer);
+
+	fastShowAtEnd(h);
+
+	int32 flags = newMessageFlags(h->peer) | MTPDmessage::flag_media; // unread, out
+	if (file->to.replyTo) flags |= MTPDmessage::flag_reply_to_msg_id;
+	bool fromChannelName = h->peer->isChannel() && h->peer->asChannel()->canPublish() && (h->peer->asChannel()->isBroadcast() || file->to.broadcast);
+	if (fromChannelName) {
+		flags |= MTPDmessage::flag_views;
+	} else {
+		flags |= MTPDmessage::flag_from_id;
+	}
+	if (file->type == PreparePhoto) {
+		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(file->to.peer), MTPPeer(), MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(file->photo, MTP_string(file->photoCaption)), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
+	} else if (file->type == PrepareDocument) {
+		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(file->to.peer), MTPPeer(), MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(file->document), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
+	} else if (file->type == PrepareAudio) {
+		if (!h->peer->isChannel()) {
+			flags |= MTPDmessage_flag_media_unread;
+		}
+		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(file->to.peer), MTPPeer(), MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaAudio(file->audio), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
+	}
+
+	if (_peer && file->to.peer == _peer->id) {
+		App::main()->historyToDown(_history);
+	}
+	App::main()->dialogsToUp();
+	peerMessagesUpdated(file->to.peer);
+}
+
+void HistoryWidget::cancelSendFile(const FileLoadResultPtr &file) {
+	if (_confirmWithTextId && file->id == _confirmWithTextId) {
+		setFieldText(QString());
+		_confirmWithTextId = 0;
+	}
+	if (!file->originalText.isEmpty()) {
+		_field.textCursor().insertText(file->originalText);
+	}
 }
 
 void HistoryWidget::onPhotoUploaded(const FullMsgId &newId, const MTPInputFile &file) {

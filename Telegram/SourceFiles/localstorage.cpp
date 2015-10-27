@@ -1828,7 +1828,7 @@ namespace Local {
 		if (!_started) {
 			_started = true;
 			_manager = new _local_inner::Manager();
-			_localLoader = new TaskQueue(0, 5000);
+			_localLoader = new TaskQueue(0, FileLoaderQueueStopTimeout);
 		}
 	}
 

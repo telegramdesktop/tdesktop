@@ -676,6 +676,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_really_send_file" = "Do you want to send this file?";
 "lng_really_share_contact" = "Do you want to share this contact?";
 "lng_send_image_compressed" = "Send compressed image";
+"lng_send_image_empty" = "Could not send an empty file :(";
+"lng_send_image_too_large" = "Could not send a file, because it is larger than 1.5 GB :(";
 
 "lng_forward_choose" = "Choose recipient..";
 "lng_forward_cant" = "Sorry, no way to forward here :(";
