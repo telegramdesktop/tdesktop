@@ -160,14 +160,15 @@ and run
 
     git clone git://code.qt.io/qt/qt5.git QtStatic
     cd QtStatic
-    git checkout 5.5.1
+    git checkout 5.5
     perl init-repository --module-subset=qtbase,qtimageformats
+    git checkout v5.5.1
+    cd qtimageformats && git checkout v5.5.1 && cd ..
+    cd qtbase && git checkout v5.5.1 && cd ..
 
 #####Apply the patch
 
-    cd qtbase
-    git apply ../../../tdesktop/Telegram/_qtbase_5_5_1_patch.diff
-    cd ..
+    cd qtbase && git apply ../../../tdesktop/Telegram/_qtbase_5_5_1_patch.diff && cd ..
 
 #####Building library
 
