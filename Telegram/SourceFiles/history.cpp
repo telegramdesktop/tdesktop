@@ -4380,6 +4380,10 @@ HistorySticker::HistorySticker(DocumentData *document) : HistoryMedia()
 	data->thumb->load();
 	if (!data->sticker()->alt.isEmpty()) {
 		_emoji = data->sticker()->alt;
+		int32 elen = 0;
+		if (EmojiPtr e = emojiFromText(_emoji.constData(), _emoji.constEnd(), elen)) {
+			_emoji = emojiString(e);
+		}
 	}
 }
 
