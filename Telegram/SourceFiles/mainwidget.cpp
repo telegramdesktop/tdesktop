@@ -4318,7 +4318,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					}
 				}
 				if (App::wnd()) App::wnd()->changingMsgId(msgRow, d.vid.v);
-				msgRow->id = d.vid.v;
+				msgRow->setId(d.vid.v);
+				if (msgRow->history()->peer->isSelf()) {
+					msgRow->history()->unregTyping(App::self());
+				}
 				if (!App::historyRegItem(msgRow)) {
 					msgUpdated(h->peer->id, msgRow);
 				} else {
@@ -4560,7 +4563,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		UserData *user = App::userLoaded(d.vuser_id.v);
 		if (user) {
 			user->setPhone(qs(d.vphone));
-			user->setName(user->firstName, user->lastName, (user->contact || isServiceUser(user->id) || user->input.type() == mtpc_inputPeerSelf || user->phone.isEmpty()) ? QString() : App::formatPhone(user->phone), user->username);
+			user->setName(user->firstName, user->lastName, (user->contact || isServiceUser(user->id) || user->isSelf() || user->phone.isEmpty()) ? QString() : App::formatPhone(user->phone), user->username);
 			App::markPeerUpdated(user);
 		}
 	} break;

@@ -891,13 +891,7 @@ HistoryItem *ChannelHistory::addNewToBlocks(const MTPMessage &msg, NewMessageTyp
 		if (item && isImportant) {
 			setLastMessage(item);
 			if (type == NewMessageUnread) {
-				if (item->unread()) {
-					newItemAdded(item);
-				} else if (item->out()) {
-					outboxRead(item);
-				} else {
-					inboxRead(item);
-				}
+				newItemAdded(item);
 			}
 		}
 		return item;
@@ -1565,13 +1559,7 @@ HistoryItem *History::addNewMessage(const MTPMessage &msg, NewMessageType type) 
 		if (item) {
 			setLastMessage(item);
 			if (type == NewMessageUnread) {
-				if (item->unread()) {
-					newItemAdded(item);
-				} else if (item->out()) {
-					outboxRead(item);
-				} else {
-					inboxRead(item);
-				}
+				newItemAdded(item);
 			}
 		}
 		return item;
@@ -1677,13 +1665,7 @@ HistoryItem *History::addNewItem(HistoryBlock *to, bool newBlock, HistoryItem *a
 		height += dh;
 	}
 	if (newMsg) {
-		if (adding->unread()) {
-			newItemAdded(adding);
-		} else if (adding->out()) {
-			outboxRead(adding);
-		} else {
-			inboxRead(adding);
-		}
+		newItemAdded(adding);
 	}
 
 	if (!isChannel() || adding->fromChannel()) {
@@ -1764,12 +1746,17 @@ void History::newItemAdded(HistoryItem *item) {
 	}
 	if (item->out()) {
 		if (unreadBar) unreadBar->destroy();
+		if (!item->unread()) {
+			outboxRead(item);
+		}
 	} else if (item->unread()) {
 		bool skip = false;
 		if (!isChannel() || peer->asChannel()->amIn()) {
 			notifies.push_back(item);
 			App::main()->newUnreadMsg(this, item);
 		}
+	} else {
+		inboxRead(item);
 	}
 }
 
@@ -6379,6 +6366,10 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, bool select
 			}
 		}
 		p.drawPixmap(iconPos, App::sprite(), *iconRect);
+	} else if (id < 0 && history()->peer->isSelf()) {
+		iconPos = QPoint(infoRight - infoW, infoBottom - st::msgViewsImg.pxHeight() + st::msgViewsPos.y());
+		iconRect = &(overimg ? st::msgInvSendingViewsImg : st::msgSendingViewsImg);
+		p.drawPixmap(iconPos, App::sprite(), *iconRect);
 	}
 	if (out() && !fromChannel()) {
 		iconPos = QPoint(infoRight - st::msgCheckImg.pxWidth() + st::msgCheckPos.x(), infoBottom - st::msgCheckImg.pxHeight() + st::msgCheckPos.y());
@@ -6403,6 +6394,22 @@ void HistoryMessage::setViewsCount(int32 count) {
 	_viewsText = (_views >= 0) ? formatViewsCount(_views) : QString();
 	_viewsWidth = _viewsText.isEmpty() ? 0 : st::msgDateFont->width(_viewsText);
 	if (was == _viewsWidth) {
+		if (App::main()) App::main()->msgUpdated(history()->peer->id, this);
+	} else {
+		if (_text.hasSkipBlock()) {
+			_text.setSkipBlock(HistoryMessage::skipBlockWidth(), HistoryMessage::skipBlockHeight());
+			_textWidth = 0;
+			_textHeight = 0;
+		}
+		initDimensions();
+		if (App::main()) App::main()->itemResized(this);
+	}
+}
+
+void HistoryMessage::setId(MsgId newId) {
+	bool wasPositive = (id > 0), positive = (newId > 0);
+	id = newId;
+	if (wasPositive == positive) {
 		if (App::main()) App::main()->msgUpdated(history()->peer->id, this);
 	} else {
 		if (_text.hasSkipBlock()) {

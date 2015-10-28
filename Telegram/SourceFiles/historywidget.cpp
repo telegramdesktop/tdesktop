@@ -5765,7 +5765,7 @@ void HistoryWidget::onStickerSend(DocumentData *sticker) {
 
 	bool lastKeyboardUsed = lastForceReplyReplied();
 
-	bool out = (_peer->input.type() != mtpc_inputPeerSelf), unread = (_peer->input.type() != mtpc_inputPeerSelf);
+	bool out = !_peer->isSelf(), unread = !_peer->isSelf();
 	int32 flags = newMessageFlags(_peer) | MTPDmessage::flag_media; // unread, out
 	int32 sendFlags = 0;
 	if (replyToId()) {

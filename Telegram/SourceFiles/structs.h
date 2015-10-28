@@ -207,6 +207,9 @@ public:
 	bool isChannel() const {
 		return peerIsChannel(id);
 	}
+	bool isSelf() const {
+		return (input.type() == mtpc_inputPeerSelf);
+	}
 	UserData *asUser();
 	const UserData *asUser() const;
 	ChatData *asChat();
@@ -582,9 +585,8 @@ inline const QString &PeerData::userName() const {
 	return isUser() ? asUser()->username : (isChannel() ? asChannel()->username : emptyUsername());
 }
 
-
 inline int32 newMessageFlags(PeerData *p) {
-	return (p->input.type() == mtpc_inputPeerSelf) ? 0 : (((p->isChat() || (p->isUser() && !p->asUser()->botInfo)) ? MTPDmessage_flag_unread : 0) | MTPDmessage_flag_out);
+	return p->isSelf() ? 0 : (((p->isChat() || (p->isUser() && !p->asUser()->botInfo)) ? MTPDmessage_flag_unread : 0) | MTPDmessage_flag_out);
 }
 
 typedef QMap<char, QPixmap> PreparedPhotoThumbs;
