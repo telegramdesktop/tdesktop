@@ -175,7 +175,7 @@ struct FileLoadTo {
 };
 
 struct FileLoadResult {
-	FileLoadResult(const uint64 &id, const FileLoadTo &to) : id(id), to(to), type(PrepareAuto), thumbId(0), filesize(0) {
+	FileLoadResult(const uint64 &id, const FileLoadTo &to) : id(id), to(to), type(PrepareAuto), filesize(0), thumbId(0) {
 	}
 
 	uint64 id;

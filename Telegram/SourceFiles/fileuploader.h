@@ -102,13 +102,13 @@ private:
 		ReadyLocalMedia media;
 		int32 partsCount;
 
-		const uint64 &id() const {
+		uint64 id() const {
 			return file ? file->id : media.id;
 		}
 		PrepareMediaType type() const {
 			return file ? file->type : media.type;
 		}
-		const uint64 &thumbId() const {
+		uint64 thumbId() const {
 			return file ? file->thumbId : media.thumbId;
 		}
 		const QString &filename() const {
