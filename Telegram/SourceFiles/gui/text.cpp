@@ -575,13 +575,12 @@ public:
 		if (skip) {
 			ch = 0;
 		} else {
-			if (isTilde) {
+			if (isTilde) { // tilde fix in OpenSans
 				if (!(flags & TextBlockFTilde)) {
 					createBlock();
 					flags |= TextBlockFTilde;
 				}
-			}
-			else {
+			} else {
 				if (flags & TextBlockFTilde) {
 					createBlock();
 					flags &= ~TextBlockFTilde;
@@ -1786,8 +1785,8 @@ public:
 			}
 			if (flags & TextBlockFItalic) result = result->italic();
 			if (flags & TextBlockFUnderline) result = result->underline();
-			if ((flags & TextBlockFTilde) && f->size() == 13) {
-				result = style::font(f->size() + 1, result->flags(), result->family());
+			if ((flags & TextBlockFTilde) && !cRetina() && f->size() == 13 && f->flags() == 0) { // tilde fix in OpenSans
+				result = st::semiboldFont;
 			}
 		}
 		return result;
@@ -3245,8 +3244,8 @@ TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResi
 			}
 			if (flags & TextBlockFItalic) blockFont = blockFont->italic();
 			if (flags & TextBlockFUnderline) blockFont = blockFont->underline();
-			if ((flags & TextBlockFTilde) && font->size() == 13) {
-				blockFont = style::font(font->size() + 1, blockFont->flags(), blockFont->family());
+			if ((flags & TextBlockFTilde) && !cRetina() && font->size() == 13 && font->flags() == 0) { // tilde fix in OpenSans
+				blockFont = st::semiboldFont;
 			}
 		}
 

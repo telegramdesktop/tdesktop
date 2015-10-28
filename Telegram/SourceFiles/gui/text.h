@@ -128,7 +128,7 @@ enum TextBlockFlags {
 	TextBlockFBold      = 0x01,
 	TextBlockFItalic    = 0x02,
 	TextBlockFUnderline = 0x04,
-	TextBlockFTilde     = 0x08, // hack for ~ in OpenSans
+	TextBlockFTilde     = 0x08, // tilde fix in OpenSans
 	TextBlockFSemibold  = 0x10,
 	TextBlockFCode      = 0x20,
 	TextBlockFPre       = 0x40,
