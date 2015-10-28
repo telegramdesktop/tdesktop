@@ -29,7 +29,7 @@ public:
 
 	FileUploader();
 	void uploadMedia(const FullMsgId &msgId, const ReadyLocalMedia &image);
-	void uploadFile(const FullMsgId &msgId, const FileLoadResultPtr &file);
+	void upload(const FullMsgId &msgId, const FileLoadResultPtr &file);
 
 	int32 currentOffset(const FullMsgId &msgId) const; // -1 means file not found
 	int32 fullSize(const FullMsgId &msgId) const;

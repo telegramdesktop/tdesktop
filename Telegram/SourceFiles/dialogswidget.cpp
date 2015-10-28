@@ -747,8 +747,6 @@ PeerData *DialogsInner::updateFromParentDrag(QPoint globalPos) {
 	lastMousePos = globalPos;
 	selByMouse = true;
 	onUpdateSelected(true);
-	update();
-
 	if (_state == DefaultState) {
 		if (sel) return sel->history->peer;
 	} else if (_state == FilteredState || _state == SearchedState) {

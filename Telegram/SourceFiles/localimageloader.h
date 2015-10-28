@@ -86,72 +86,6 @@ struct ReadyLocalMedia {
 	ReadyLocalMedia() : type(PrepareAuto) { // temp
 	}
 };
-typedef QList<ReadyLocalMedia> ReadyLocalMedias;
-
-class LocalImageLoader;
-class LocalImageLoaderPrivate : public QObject {
-	Q_OBJECT
-
-public:
-
-	LocalImageLoaderPrivate(LocalImageLoader *loader, QThread *thread);
-	~LocalImageLoaderPrivate();
-
-public slots:
-
-	void prepareImages();
-
-signals:
-
-	void imageReady();
-	void imageFailed(quint64 id);
-
-private:
-
-	LocalImageLoader *loader;
-
-};
-
-class LocalImageLoader : public QObject {
-	Q_OBJECT
-
-public:
-
-	LocalImageLoader(QObject *parent);
-	void append(const QStringList &files, const PeerId &peer, bool broadcast, MsgId replyTo, PrepareMediaType t);
-	PhotoId append(const QByteArray &img, const PeerId &peer, bool broadcast, MsgId replyTo, PrepareMediaType t);
-	AudioId append(const QByteArray &audio, int32 duration, const PeerId &peer, bool broadcast, MsgId replyTo, PrepareMediaType t);
-	PhotoId append(const QImage &img, const PeerId &peer, bool broadcast, MsgId replyTo, PrepareMediaType t, bool ctrlShiftEnter = false);
-	PhotoId append(const QString &file, const PeerId &peer, bool broadcast, MsgId replyTo, PrepareMediaType t);
-
-	QMutex *readyMutex();
-	ReadyLocalMedias &readyList();
-
-	QMutex *toPrepareMutex();
-	ToPrepareMedias &toPrepareMedias();
-
-	~LocalImageLoader();
-
-public slots:
-
-	void onImageReady();
-	void onImageFailed(quint64 id);
-
-signals:
-
-	void imageReady();
-	void imageFailed(quint64 id);
-	void needToPrepare();
-
-private:
-
-	ReadyLocalMedias ready;
-	ToPrepareMedias toPrepare;
-	QMutex readyLock, toPrepareLock;
-	QThread *thread;
-	LocalImageLoaderPrivate *priv;
-
-};
 
 class Task {
 public:
@@ -167,6 +101,7 @@ public:
 
 };
 typedef QSharedPointer<Task> TaskPtr;
+typedef QList<TaskPtr> TasksList;
 
 class TaskQueueWorker;
 class TaskQueue : public QObject {
@@ -177,6 +112,7 @@ public:
 	TaskQueue(QObject *parent, int32 stopTimeoutMs = 0); // <= 0 - never stop worker
 
 	TaskId addTask(TaskPtr task);
+	void addTasks(const TasksList &tasks);
 	void cancelTask(TaskId id); // this task finish() won't be called
 	
 	TaskId addTask(Task *task) {
@@ -196,10 +132,11 @@ public slots:
 
 private:
 
-	typedef QList<TaskPtr> Tasks;
 	friend class TaskQueueWorker;
 
-	Tasks _tasksToProcess, _tasksToFinish;
+	void wakeThread();
+
+	TasksList _tasksToProcess, _tasksToFinish;
 	QMutex _tasksToProcessMutex, _tasksToFinishMutex;
 	QThread *_thread;
 	TaskQueueWorker *_worker;
@@ -301,7 +238,7 @@ public:
 
 	FileLoadTask(const QString &filepath, PrepareMediaType type, const FileLoadTo &to, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm);
 	FileLoadTask(const QByteArray &content, PrepareMediaType type, const FileLoadTo &to);
-	FileLoadTask(const QImage &image, const FileLoadTo &to, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, const QString &originalText = QString());
+	FileLoadTask(const QImage &image, PrepareMediaType type, const FileLoadTo &to, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, const QString &originalText = QString());
 	FileLoadTask(const QByteArray &audio, int32 duration, const FileLoadTo &to);
 
 	uint64 fileid() const {

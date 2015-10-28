@@ -52,7 +52,7 @@ void FileUploader::uploadMedia(const FullMsgId &msgId, const ReadyLocalMedia &me
 	sendNext();
 }
 
-void FileUploader::uploadFile(const FullMsgId &msgId, const FileLoadResultPtr &file) {
+void FileUploader::upload(const FullMsgId &msgId, const FileLoadResultPtr &file) {
 	if (file->type == PreparePhoto) {
 		App::feedPhoto(file->photo, file->photoThumbs);
 	} else if (file->type == PrepareDocument) {

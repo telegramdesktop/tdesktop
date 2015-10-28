@@ -1069,23 +1069,6 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 	}
 }
 
-bool MainWidget::sendPhotoFail(uint64 randomId, const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
-
-	if (error.type() == qsl("PHOTO_INVALID_DIMENSIONS")) {
-		if (_resendImgRandomIds.isEmpty()) {
-			ConfirmBox *box = new ConfirmBox(lang(lng_bad_image_for_photo));
-			connect(box, SIGNAL(confirmed()), this, SLOT(onResendAsDocument()));
-			connect(box, SIGNAL(cancelled()), this, SLOT(onCancelResend()));
-			connect(box, SIGNAL(destroyed(QObject*)), this, SLOT(onCancelResend()));
-			App::wnd()->showLayer(box);
-		}
-		_resendImgRandomIds.push_back(randomId);
-		return true;
-	}
-	return sendMessageFail(error);
-}
-
 bool MainWidget::sendMessageFail(const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
 
@@ -1094,51 +1077,6 @@ bool MainWidget::sendMessageFail(const RPCError &error) {
 		return true;
 	}
 	return false;
-}
-
-void MainWidget::onResendAsDocument() {
-	QMap<History*, bool> historiesToCheck;
-	QList<uint64> tmp = _resendImgRandomIds;
-	_resendImgRandomIds.clear();
-	for (int32 i = 0, l = tmp.size(); i < l; ++i) {
-		if (HistoryItem *item = App::histItemById(App::histItemByRandom(tmp.at(i)))) {
-			if (HistoryPhoto *media = dynamic_cast<HistoryPhoto*>(item->getMedia())) {
-				PhotoData *photo = media->photo();
-				if (!photo->full->isNull()) {
-					photo->full->forget();
-					QByteArray data = photo->full->savedData();
-					if (!data.isEmpty()) {
-						history.uploadMedia(data, PrepareDocument, item->history()->peer->id);
-					}
-				}
-			}
-			History *h = item->history();
-			bool wasLast = (h->lastMsg == item);
-			item->destroy();
-			if (wasLast && !h->lastMsg) historiesToCheck.insert(h, true);
-		}
-	}
-	for (QMap<History*, bool>::const_iterator i = historiesToCheck.cbegin(), e = historiesToCheck.cend(); i != e; ++i) {
-		checkPeerHistory(i.key()->peer);
-	}
-	App::wnd()->hideLayer(true);
-}
-
-void MainWidget::onCancelResend() {
-	QMap<History*, bool> historiesToCheck;
-	QList<uint64> tmp = _resendImgRandomIds;
-	_resendImgRandomIds.clear();
-	for (int32 i = 0, l = tmp.size(); i < l; ++i) {
-		if (HistoryItem *item = App::histItemById(App::histItemByRandom(tmp.at(i)))) {
-			History *h = item->history();
-			bool wasLast = (h->lastMsg == item);
-			item->destroy();
-			if (wasLast && !h->lastMsg) historiesToCheck.insert(h, true);
-		}
-	}
-	for (QMap<History*, bool>::const_iterator i = historiesToCheck.cbegin(), e = historiesToCheck.cend(); i != e; ++i) {
-		checkPeerHistory(i.key()->peer);
-	}
 }
 
 void MainWidget::onCacheBackground() {
@@ -2056,22 +1994,12 @@ void MainWidget::onSendFileCancel(const FileLoadResultPtr &file) {
 	history.cancelSendFile(file);
 }
 
-void MainWidget::confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo) {
-	history.confirmShareContact(ctrlShiftEnter, phone, fname, lname, replyTo);
+void MainWidget::onShareContactConfirm(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool ctrlShiftEnter) {
+	history.confirmShareContact(phone, fname, lname, replyTo, ctrlShiftEnter);
 }
 
-void MainWidget::confirmSendImage(const ReadyLocalMedia &img) {
-	bool lastKeyboardUsed = history.lastForceReplyReplied(FullMsgId(peerToChannel(img.peer), img.replyTo));
-	history.confirmSendImage(img);
-	history.cancelReply(lastKeyboardUsed);
-}
-
-void MainWidget::confirmSendImageUncompressed(bool ctrlShiftEnter, MsgId replyTo) {
-	history.uploadConfirmImageUncompressed(ctrlShiftEnter, replyTo);
-}
-
-void MainWidget::cancelSendImage() {
-	history.cancelSendImage();
+void MainWidget::onShareContactCancel() {
+	history.cancelShareContact();
 }
 
 void MainWidget::dialogsCancelled() {

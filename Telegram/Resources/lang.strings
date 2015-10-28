@@ -144,8 +144,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_bad_name" = "Please enter your first and last name.";
 "lng_bad_photo" = "Bad image selected.";
 
-"lng_bad_image_for_photo" = "This image can't be sent that way.\nWould you like to send it as a file?";
-
 "lng_signin_title" = "Cloud password check";
 "lng_signin_desc" = "Please enter your cloud password.";
 "lng_signin_recover_desc" = "Please enter the code from the e-mail.";

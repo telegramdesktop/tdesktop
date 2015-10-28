@@ -29,7 +29,6 @@ class PhotoSendBox : public AbstractBox {
 public:
 
 	PhotoSendBox(const FileLoadResultPtr &file);
-	PhotoSendBox(const ReadyLocalMedia &img);
 	PhotoSendBox(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
@@ -42,8 +41,6 @@ public:
 			_caption.setFocus();
 		}
 	}
-
-	~PhotoSendBox();
 
 signals:
 
@@ -68,11 +65,11 @@ private:
 	void updateBoxSize();
 
 	FileLoadResultPtr _file;
-	ReadyLocalMedia *_img;
 	int32 _thumbx, _thumby, _thumbw, _thumbh;
 	QString _name, _size;
 	int32 _namew, _textw;
 	InputArea _caption;
+	bool _compressedFromSettings;
 	Checkbox _compressed;
 	BoxButton _send, _cancel;
 	QPixmap _thumb;
@@ -80,5 +77,6 @@ private:
 	QString _phone, _fname, _lname;
 	MsgId _replyTo;
 
+	bool _confirmed;
 
 };
