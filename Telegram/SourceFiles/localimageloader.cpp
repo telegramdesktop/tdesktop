@@ -22,400 +22,12 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "localimageloader.h"
 #include "gui/filedialog.h"
 #include "audio.h"
-#include <libexif/exif-data.h>
 
-LocalImageLoaderPrivate::LocalImageLoaderPrivate(LocalImageLoader *loader, QThread *thread) : QObject(0)
-    , loader(loader)
-{
-	moveToThread(thread);
-	connect(loader, SIGNAL(needToPrepare()), this, SLOT(prepareImages()));
-	connect(this, SIGNAL(imageReady()), loader, SLOT(onImageReady()));
-	connect(this, SIGNAL(imageFailed(quint64)), loader, SLOT(onImageFailed(quint64)));
-};
-
-void LocalImageLoaderPrivate::prepareImages() {
-	QString file, filename, mime, stickerMime = qsl("image/webp");
-    int32 filesize = 0;
-	QImage img;
-	QByteArray data;
-	PeerId peer;
-    uint64 id, thumbId = 0;
-	int32 duration = 0;
-	QString thumbExt = "jpg";
-	ToPrepareMediaType type;
-	bool animated = false;
-	bool broadcast = false;
-	bool ctrlShiftEnter = false;
-	MsgId replyTo;
-	{
-		QMutexLocker lock(loader->toPrepareMutex());
-		ToPrepareMedias &list(loader->toPrepareMedias());
-		if (list.isEmpty()) return;
-
-		file = list.front().file;
-		img = list.front().img;
-		data = list.front().data;
-		peer = list.front().peer;
-		id = list.front().id;
-		type = list.front().type;
-		duration = list.front().duration;
-		broadcast = list.front().broadcast;
-		ctrlShiftEnter = list.front().ctrlShiftEnter;
-		replyTo = list.front().replyTo;
-	}
-
-	if (img.isNull()) {
-		if (!file.isEmpty()) {
-			QFileInfo info(file);
-			if (type == ToPrepareAuto) {
-				QString lower(file.toLower());
-				const QStringList &photoExtensions(cPhotoExtensions());
-				for (QStringList::const_iterator i = photoExtensions.cbegin(), e = photoExtensions.cend(); i != e; ++i) {
-					if (lower.lastIndexOf(*i) == lower.size() - i->size()) {
-						if (info.size() < MaxUploadPhotoSize) {
-							type = ToPreparePhoto;
-							break;
-						}
-					}
-				}
-				if (type == ToPrepareAuto && info.size() < MaxUploadDocumentSize) {
-					type = ToPrepareDocument;
-				}
-			}
-			if (type != ToPrepareAuto && info.size() < MaxUploadPhotoSize) {
-				bool opaque = (mime != stickerMime);
-				img = App::readImage(file, 0, opaque, &animated);
-				if (animated) {
-					type = ToPrepareDocument;
-				}
-			}
-			if (type == ToPrepareDocument) {
-				mime = mimeTypeForFile(info).name();
-			}
-			filename = info.fileName();
-			filesize = info.size();
-		} else if (!data.isEmpty()) {
-			if (type != ToPrepareAudio) {
-				img = App::readImage(data, 0, true, &animated);
-				if (type == ToPrepareAuto) {
-					if (!img.isNull() && data.size() < MaxUploadPhotoSize) {
-						type = ToPreparePhoto;
-					} else if (data.size() < MaxUploadDocumentSize) {
-						type = ToPrepareDocument;
-					} else {
-						img = QImage();
-					}
-				}
-			}
-			MimeType mimeType = mimeTypeForData(data);
-			if (type == ToPrepareDocument || type == ToPrepareAudio) {
-				mime = mimeType.name();
-			}
-			if (mime == "image/jpeg") {
-				filename = filedialogDefaultName(qsl("image"), qsl(".jpg"), QString(), true);
-			} else if (type == ToPrepareAudio) {
-				filename = filedialogDefaultName(qsl("audio"), qsl(".ogg"), QString(), true);
-				mime = "audio/ogg";
-			} else {
-				QString ext;
-				QStringList patterns = mimeType.globPatterns();
-				if (!patterns.isEmpty()) {
-					ext = patterns.front().replace('*', QString());
-				}
-				filename = filedialogDefaultName((type == ToPrepareAudio) ? qsl("audio") : qsl("doc"), ext, QString(), true);
-			}
-			filesize = data.size();
-		}
-	} else {
-		if (type == ToPrepareDocument) {
-			filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
-			mime = mimeTypeForName("image/png").name();
-			data = QByteArray();
-			{
-				QBuffer b(&data);
-				img.save(&b, "PNG");
-			}
-			filesize = data.size();
-		} else {
-			if (img.hasAlphaChannel()) {
-				QImage solid(img.width(), img.height(), QImage::Format_ARGB32_Premultiplied);
-				solid.fill(st::white->c);
-				{
-					QPainter(&solid).drawImage(0, 0, img);
-				}
-				img = solid;
-			}
-			type = ToPreparePhoto;
-			filename = qsl("Untitled.jpg");
-			filesize = 0;
-		}
-	}
-
-	if ((img.isNull() && ((type != ToPrepareDocument && type != ToPrepareAudio) || !filesize)) || type == ToPrepareAuto || (img.isNull() && file.isEmpty() && data.isEmpty())) { // if could not decide what type
-		{
-			QMutexLocker lock(loader->toPrepareMutex());
-			ToPrepareMedias &list(loader->toPrepareMedias());
-			list.pop_front();
-		}
-
-		QTimer::singleShot(1, this, SLOT(prepareImages()));
-
-		emit imageFailed(id);
-	} else {
-		PreparedPhotoThumbs photoThumbs;
-		QVector<MTPPhotoSize> photoSizes;
-
-		QVector<MTPDocumentAttribute> attributes(1, MTP_documentAttributeFilename(MTP_string(filename)));
-
-		MTPPhotoSize thumb(MTP_photoSizeEmpty(MTP_string("")));
-		MTPPhoto photo(MTP_photoEmpty(MTP_long(0)));
-		MTPDocument document(MTP_documentEmpty(MTP_long(0)));
-		MTPAudio audio(MTP_audioEmpty(MTP_long(0)));
-
-		bool isSong = false;
-		QByteArray jpeg;
-		if (type == ToPrepareDocument) {
-			if (mime == qstr("audio/mp3") || mime == qstr("audio/m4a") || mime == qstr("audio/aac") || mime == qstr("audio/ogg") || mime == qstr("audio/flac") ||
-				filename.endsWith(qstr(".mp3"), Qt::CaseInsensitive) || filename.endsWith(qstr(".m4a"), Qt::CaseInsensitive) ||
-				filename.endsWith(qstr(".aac"), Qt::CaseInsensitive) || filename.endsWith(qstr(".ogg"), Qt::CaseInsensitive) ||
-				filename.endsWith(qstr(".flac"), Qt::CaseInsensitive)) {
-				
-				QImage cover;
-				QByteArray coverBytes, coverFormat;
-				MTPDocumentAttribute audioAttribute = audioReadSongAttributes(file, data, cover, coverBytes, coverFormat);
-				if (audioAttribute.type() == mtpc_documentAttributeAudio) {
-					attributes.push_back(audioAttribute);
-					isSong = true;
-					if (!cover.isNull()) { // cover to thumb
-						int32 cw = cover.width(), ch = cover.height();
-						if (cw < 20 * ch && ch < 20 * cw) {
-							QPixmap full = (cw > 90 || ch > 90) ? QPixmap::fromImage(cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(cover, Qt::ColorOnly);
-							{
-								QByteArray thumbFormat = "JPG";
-								int32 thumbQuality = 87;
-
-								QBuffer jpegBuffer(&jpeg);
-								full.save(&jpegBuffer, thumbFormat, thumbQuality);
-							}
-
-							photoThumbs.insert('0', full);
-							thumb = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0));
-
-							thumbId = MTP::nonce<uint64>();
-						}
-					}
-				}
-			}
-		}
-		if (type == ToPreparePhoto) {
-			int32 w = img.width(), h = img.height();
-
-			QPixmap thumb = (w > 100 || h > 100) ? QPixmap::fromImage(img.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(img);
-			photoThumbs.insert('s', thumb);
-			photoSizes.push_back(MTP_photoSize(MTP_string("s"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0)));
-
-			QPixmap medium = (w > 320 || h > 320) ? QPixmap::fromImage(img.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(img);
-			photoThumbs.insert('m', medium);
-			photoSizes.push_back(MTP_photoSize(MTP_string("m"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
-
-			QPixmap full = (w > 1280 || h > 1280) ? QPixmap::fromImage(img.scaled(1280, 1280, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(img);
-			photoThumbs.insert('y', full);
-			photoSizes.push_back(MTP_photoSize(MTP_string("y"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0)));
-
-			{
-				QBuffer jpegBuffer(&jpeg);
-				full.save(&jpegBuffer, "JPG", 77);
-			}
-			if (!filesize) filesize = jpeg.size();
-		
-			photo = MTP_photo(MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_vector<MTPPhotoSize>(photoSizes));
-
-			thumbId = id;
-		} else if ((type == ToPrepareVideo || type == ToPrepareDocument) && !img.isNull() && !isSong) {
-			int32 w = img.width(), h = img.height();
-			QByteArray thumbFormat = "JPG";
-			int32 thumbQuality = 87;
-			if (animated) {
-				attributes.push_back(MTP_documentAttributeAnimated());
-			} else if (mime == stickerMime && w > 0 && h > 0 && w <= StickerMaxSize && h <= StickerMaxSize && filesize < StickerInMemory) {
-				attributes.push_back(MTP_documentAttributeSticker(MTP_string(""), MTP_inputStickerSetEmpty()));
-				thumbFormat = "webp";
-				thumbExt = qsl("webp");
-			}
-			attributes.push_back(MTP_documentAttributeImageSize(MTP_int(w), MTP_int(h)));
-			if (w < 20 * h && h < 20 * w) {
-				QPixmap full = (w > 90 || h > 90) ? QPixmap::fromImage(img.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(img, Qt::ColorOnly);
-
-				{
-					QBuffer jpegBuffer(&jpeg);
-					full.save(&jpegBuffer, thumbFormat, thumbQuality);
-				}
-
-				photoThumbs.insert('0', full);
-				thumb = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0));
-
-				thumbId = MTP::nonce<uint64>();
-			}
-		}
-
-		if (type == ToPrepareDocument) {
-			document = MTP_document(MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_string(mime), MTP_int(filesize), thumb, MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));
-		} else if (type == ToPrepareAudio) {
-			audio = MTP_audio(MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_int(duration), MTP_string(mime), MTP_int(filesize), MTP_int(MTP::maindc()));
-		}
-
-		{
-			QMutexLocker lock(loader->readyMutex());
-			loader->readyList().push_back(ReadyLocalMedia(type, file, filename, filesize, data, id, thumbId, thumbExt, peer, photo, audio, photoThumbs, document, jpeg, broadcast, ctrlShiftEnter, replyTo));
-		}
-
-		{
-			QMutexLocker lock(loader->toPrepareMutex());
-			ToPrepareMedias &list(loader->toPrepareMedias());
-			list.pop_front();
-		}
-
-		QTimer::singleShot(1, this, SLOT(prepareImages()));
-
-		emit imageReady();
-	}
-}
-
-LocalImageLoaderPrivate::~LocalImageLoaderPrivate() {
-	loader = 0;
-}
-
-LocalImageLoader::LocalImageLoader(QObject *parent) : QObject(parent), thread(0), priv(0) {
-}
-
-void LocalImageLoader::append(const QStringList &files, const PeerId &peer, bool broadcast, MsgId replyTo, ToPrepareMediaType t) {
-	{
-		QMutexLocker lock(toPrepareMutex());
-		for (QStringList::const_iterator i = files.cbegin(), e = files.cend(); i != e; ++i) {
-			toPrepare.push_back(ToPrepareMedia(*i, peer, t, broadcast, false, replyTo));
-		}
-	}
-	if (!thread) {
-		thread = new QThread();
-		priv = new LocalImageLoaderPrivate(this, thread);
-		thread->start();
-	}
-	emit needToPrepare();
-}
-
-PhotoId LocalImageLoader::append(const QByteArray &img, const PeerId &peer, bool broadcast, MsgId replyTo, ToPrepareMediaType t) {
-	PhotoId result = 0;
-	{
-		QMutexLocker lock(toPrepareMutex());
-		toPrepare.push_back(ToPrepareMedia(img, peer, t, broadcast, false, replyTo));
-		result = toPrepare.back().id;
-	}
-	if (!thread) {
-		thread = new QThread();
-		priv = new LocalImageLoaderPrivate(this, thread);
-		thread->start();
-	}
-	emit needToPrepare();
-	return result;
-}
-
-AudioId LocalImageLoader::append(const QByteArray &audio, int32 duration, const PeerId &peer, bool broadcast, MsgId replyTo, ToPrepareMediaType t) {
-	AudioId result = 0;
-	{
-		QMutexLocker lock(toPrepareMutex());
-		toPrepare.push_back(ToPrepareMedia(audio, duration, peer, t, broadcast, false, replyTo));
-		result = toPrepare.back().id;
-	}
-	if (!thread) {
-		thread = new QThread();
-		priv = new LocalImageLoaderPrivate(this, thread);
-		thread->start();
-	}
-	emit needToPrepare();
-	return result;
-}
-
-PhotoId LocalImageLoader::append(const QImage &img, const PeerId &peer, bool broadcast, MsgId replyTo, ToPrepareMediaType t, bool ctrlShiftEnter) {
-	PhotoId result = 0;
-	{
-		QMutexLocker lock(toPrepareMutex());
-		toPrepare.push_back(ToPrepareMedia(img, peer, t, broadcast, ctrlShiftEnter, replyTo));
-		result = toPrepare.back().id;
-	}
-	if (!thread) {
-		thread = new QThread();
-		priv = new LocalImageLoaderPrivate(this, thread);
-		thread->start();
-	}
-	emit needToPrepare();
-	return result;
-}
-
-PhotoId LocalImageLoader::append(const QString &file, const PeerId &peer, bool broadcast, MsgId replyTo, ToPrepareMediaType t) {
-	PhotoId result = 0;
-	{
-		QMutexLocker lock(toPrepareMutex());
-		toPrepare.push_back(ToPrepareMedia(file, peer, t, broadcast, false, replyTo));
-		result = toPrepare.back().id;
-	}
-	if (!thread) {
-		thread = new QThread();
-		priv = new LocalImageLoaderPrivate(this, thread);
-		thread->start();
-	}
-	emit needToPrepare();
-	return result;
-}
-
-void LocalImageLoader::onImageReady() {
-	{
-		QMutexLocker lock(toPrepareMutex());
-		if (toPrepare.isEmpty()) {
-			if (priv) priv->deleteLater();
-			priv = 0;
-			if (thread) thread->deleteLater();
-			thread = 0;
-		}
-	}
-
-	emit imageReady();
-}
-
-void LocalImageLoader::onImageFailed(quint64 id) {
-	{
-		QMutexLocker lock(toPrepareMutex());
-		if (toPrepare.isEmpty()) {
-			if (priv) priv->deleteLater();
-			priv = 0;
-			if (thread) thread->deleteLater();
-			thread = 0;
-		}
-	}
-
-	emit imageFailed(id);
-}
-
-QMutex *LocalImageLoader::readyMutex() {
-	return &readyLock;
-}
-
-ReadyLocalMedias &LocalImageLoader::readyList() {
-	return ready;
-}
-
-QMutex *LocalImageLoader::toPrepareMutex() {
-	return &toPrepareLock;
-}
-
-ToPrepareMedias &LocalImageLoader::toPrepareMedias() {
-	return toPrepare;
-}
-
-LocalImageLoader::~LocalImageLoader() {
-	delete priv;
-	delete thread;
-}
-
+#include "boxes/photosendbox.h"
+#include "mainwidget.h"
+#include "window.h"
+#include "lang.h"
+#include "boxes/confirmbox.h"
 
 TaskQueue::TaskQueue(QObject *parent, int32 stopTimeoutMs) : QObject(parent), _thread(0), _worker(0), _stopTimer(0) {
 	if (stopTimeoutMs > 0) {
@@ -431,6 +43,22 @@ TaskId TaskQueue::addTask(TaskPtr task) {
 		QMutexLocker lock(&_tasksToProcessMutex);
 		_tasksToProcess.push_back(task);
 	}
+
+	wakeThread();
+
+	return task->id();
+}
+
+void TaskQueue::addTasks(const TasksList &tasks) {
+	{
+		QMutexLocker lock(&_tasksToProcessMutex);
+		_tasksToProcess.append(tasks);
+	}
+
+	wakeThread();
+}
+
+void TaskQueue::wakeThread() {
 	if (!_thread) {
 		_thread = new QThread();
 
@@ -444,8 +72,6 @@ TaskId TaskQueue::addTask(TaskPtr task) {
 	}
 	if (_stopTimer) _stopTimer->stop();
 	emit taskAdded();
-
-	return task->id();
 }
 
 void TaskQueue::cancelTask(TaskId id) {
@@ -533,4 +159,260 @@ void TaskQueueWorker::onTaskAdded() {
 	} while (someTasksLeft && !thread()->isInterruptionRequested());
 
 	_inTaskAdded = false;
+}
+
+FileLoadTask::FileLoadTask(const QString &filepath, PrepareMediaType type, const FileLoadTo &to, FileLoadForceConfirmType confirm) : _id(MTP::nonce<uint64>())
+, _to(to)
+, _filepath(filepath)
+, _duration(0)
+, _type(type)
+, _confirm(confirm)
+, _result(0) {
+}
+
+FileLoadTask::FileLoadTask(const QByteArray &content, PrepareMediaType type, const FileLoadTo &to) : _id(MTP::nonce<uint64>())
+, _to(to)
+, _content(content)
+, _duration(0)
+, _type(type)
+, _confirm(FileLoadNoForceConfirm)
+, _result(0) {
+}
+
+FileLoadTask::FileLoadTask(const QImage &image, PrepareMediaType type, const FileLoadTo &to, FileLoadForceConfirmType confirm, const QString &originalText) : _id(MTP::nonce<uint64>())
+, _to(to)
+, _image(image)
+, _duration(0)
+, _type(type)
+, _confirm(confirm)
+, _originalText(originalText)
+, _result(0) {
+}
+
+FileLoadTask::FileLoadTask(const QByteArray &audio, int32 duration, const FileLoadTo &to) : _id(MTP::nonce<uint64>())
+, _to(to)
+, _content(audio)
+, _duration(duration)
+, _type(PrepareAudio)
+, _confirm(FileLoadNoForceConfirm)
+, _result(0) {
+}
+
+void FileLoadTask::process() {
+	const QString stickerMime = qsl("image/webp");
+
+	_result = FileLoadResultPtr(new FileLoadResult(_id, _to));
+
+	QString filename, filemime;
+	qint64 filesize = 0;
+	QByteArray filedata;
+
+	uint64 thumbId = 0;
+	QString thumbname = "thumb.jpg";
+	QByteArray thumbdata;
+
+	bool animated = false;
+	QImage fullimage = _image;
+
+	if (!_filepath.isEmpty()) {
+		QFileInfo info(_filepath);
+		filesize = info.size();
+		filemime = mimeTypeForFile(info).name();
+		filename = info.fileName();
+		if (filesize <= MaxUploadPhotoSize && _type != PrepareAudio) {
+			bool opaque = (filemime != stickerMime);
+			fullimage = App::readImage(_filepath, 0, opaque, &animated);
+		}
+	} else if (!_content.isEmpty()) {
+		filesize = _content.size();
+		MimeType mimeType = mimeTypeForData(_content);
+		filemime = mimeType.name();
+		if (filesize <= MaxUploadPhotoSize && _type != PrepareAudio) {
+			bool opaque = (filemime != stickerMime);
+			fullimage = App::readImage(_content, 0, opaque, &animated);
+		}
+		if (filemime == "image/jpeg") {
+			filename = filedialogDefaultName(qsl("image"), qsl(".jpg"), QString(), true);
+		} else if (_type == PrepareAudio) {
+			filename = filedialogDefaultName(qsl("audio"), qsl(".ogg"), QString(), true);
+			filemime = "audio/ogg";
+		} else {
+			QString ext;
+			QStringList patterns = mimeType.globPatterns();
+			if (!patterns.isEmpty()) {
+				ext = patterns.front().replace('*', QString());
+			}
+			filename = filedialogDefaultName(qsl("file"), ext, QString(), true);
+		}
+	} else if (!_image.isNull()) {
+		_image = QImage();
+
+		filemime = mimeTypeForName("image/png").name();
+		filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
+		{
+			QBuffer buffer(&_content);
+			fullimage.save(&buffer, "PNG");
+		}
+		filesize = _content.size();
+
+		if (fullimage.hasAlphaChannel()) {
+			QImage solid(fullimage.width(), fullimage.height(), QImage::Format_ARGB32_Premultiplied);
+			solid.fill(st::white->c);
+			{
+				QPainter(&solid).drawImage(0, 0, fullimage);
+			}
+			fullimage = solid;
+		}
+	}
+	_result->filesize = (int32)qMin(filesize, qint64(INT_MAX));
+
+	if (!filesize || filesize > MaxUploadDocumentSize) {
+		return;
+	}
+
+	PreparedPhotoThumbs photoThumbs;
+	QVector<MTPPhotoSize> photoSizes;
+	QPixmap thumb;
+
+	QVector<MTPDocumentAttribute> attributes(1, MTP_documentAttributeFilename(MTP_string(filename)));
+
+	MTPPhotoSize thumbSize(MTP_photoSizeEmpty(MTP_string("")));
+	MTPPhoto photo(MTP_photoEmpty(MTP_long(0)));
+	MTPDocument document(MTP_documentEmpty(MTP_long(0)));
+	MTPAudio audio(MTP_audioEmpty(MTP_long(0)));
+
+	bool song = false;
+	if (_type != PrepareAudio) {
+		if (filemime == qstr("audio/mp3") || filemime == qstr("audio/m4a") || filemime == qstr("audio/aac") || filemime == qstr("audio/ogg") || filemime == qstr("audio/flac") ||
+			filename.endsWith(qstr(".mp3"), Qt::CaseInsensitive) || filename.endsWith(qstr(".m4a"), Qt::CaseInsensitive) ||
+			filename.endsWith(qstr(".aac"), Qt::CaseInsensitive) || filename.endsWith(qstr(".ogg"), Qt::CaseInsensitive) ||
+			filename.endsWith(qstr(".flac"), Qt::CaseInsensitive)) {
+
+			QImage cover;
+			QByteArray coverBytes, coverFormat;
+			MTPDocumentAttribute audioAttribute = audioReadSongAttributes(_filepath, _content, cover, coverBytes, coverFormat);
+			if (audioAttribute.type() == mtpc_documentAttributeAudio) {
+				attributes.push_back(audioAttribute);
+				song = true;
+				if (!cover.isNull()) { // cover to thumb
+					int32 cw = cover.width(), ch = cover.height();
+					if (cw < 20 * ch && ch < 20 * cw) {
+						QPixmap full = (cw > 90 || ch > 90) ? QPixmap::fromImage(cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(cover, Qt::ColorOnly);
+						{
+							QByteArray thumbFormat = "JPG";
+							int32 thumbQuality = 87;
+
+							QBuffer buffer(&thumbdata);
+							full.save(&buffer, thumbFormat, thumbQuality);
+						}
+
+						thumb = full;
+						thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0));
+
+						thumbId = MTP::nonce<uint64>();
+					}
+				}
+			}
+		}
+	}
+
+	if (!fullimage.isNull() && fullimage.width() > 0 && !song) {
+		int32 w = fullimage.width(), h = fullimage.height();
+		attributes.push_back(MTP_documentAttributeImageSize(MTP_int(w), MTP_int(h)));
+
+		if (w < 20 * h && h < 20 * w) {
+			if (animated) {
+				attributes.push_back(MTP_documentAttributeAnimated());
+			} else if (_type != PrepareDocument) {
+				QPixmap thumb = (w > 100 || h > 100) ? QPixmap::fromImage(fullimage.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(fullimage);
+				photoThumbs.insert('s', thumb);
+				photoSizes.push_back(MTP_photoSize(MTP_string("s"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0)));
+
+				QPixmap medium = (w > 320 || h > 320) ? QPixmap::fromImage(fullimage.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(fullimage);
+				photoThumbs.insert('m', medium);
+				photoSizes.push_back(MTP_photoSize(MTP_string("m"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
+
+				QPixmap full = (w > 1280 || h > 1280) ? QPixmap::fromImage(fullimage.scaled(1280, 1280, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(fullimage);
+				photoThumbs.insert('y', full);
+				photoSizes.push_back(MTP_photoSize(MTP_string("y"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0)));
+
+				{
+					QBuffer buffer(&filedata);
+					full.save(&buffer, "JPG", 77);
+				}
+
+				photo = MTP_photo(MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_vector<MTPPhotoSize>(photoSizes));
+			}
+
+			QByteArray thumbFormat = "JPG";
+			int32 thumbQuality = 87;
+			if (!animated && filemime == stickerMime && w > 0 && h > 0 && w <= StickerMaxSize && h <= StickerMaxSize && filesize < StickerInMemory) {
+				attributes.push_back(MTP_documentAttributeSticker(MTP_string(""), MTP_inputStickerSetEmpty()));
+				thumbFormat = "webp";
+				thumbname = qsl("thumb.webp");
+			}
+
+			QPixmap full = (w > 90 || h > 90) ? QPixmap::fromImage(fullimage.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(fullimage, Qt::ColorOnly);
+
+			{
+				QBuffer buffer(&thumbdata);
+				full.save(&buffer, thumbFormat, thumbQuality);
+			}
+
+			thumb = full;
+			thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0));
+
+			thumbId = MTP::nonce<uint64>();
+		}
+	}
+
+	if (_type == PrepareAudio) {
+		audio = MTP_audio(MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_int(_duration), MTP_string(filemime), MTP_int(filesize), MTP_int(MTP::maindc()));
+	} else {
+		document = MTP_document(MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_string(filemime), MTP_int(filesize), thumbSize, MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));
+		if (photo.type() == mtpc_photoEmpty) {
+			_type = PrepareDocument;
+		}
+	}
+	
+	_result->type = _type;
+	_result->filepath = _filepath;
+	_result->content = _content;
+
+	_result->filename = filename;
+	_result->setFileData(filedata);
+
+	_result->thumbId = thumbId;
+	_result->thumbname = thumbname;
+	_result->setThumbData(thumbdata);
+	_result->thumb = thumb;
+
+	_result->photo = photo;
+	_result->audio = audio;
+	_result->document = document;
+	_result->photoThumbs = photoThumbs;
+}
+
+void FileLoadTask::finish() {
+	if (!_result || !_result->filesize) {
+		if (_result) App::main()->onSendFileCancel(_result);
+		App::wnd()->replaceLayer(new InformBox(lang(lng_send_image_empty)));
+		return;
+	}
+	if (_result->filesize > MaxUploadDocumentSize) {
+		App::main()->onSendFileCancel(_result);
+		App::wnd()->replaceLayer(new InformBox(lang(lng_send_image_too_large)));
+		return;
+	}
+	if (App::main()) {
+		bool confirm = (_confirm == FileLoadAlwaysConfirm) || (_result->photo.type() != mtpc_photoEmpty && _confirm != FileLoadNeverConfirm);
+		if (confirm) {
+			App::wnd()->showLayerLast(new PhotoSendBox(_result));
+		} else {
+			if (_result->type == PrepareAuto) {
+				_result->type = (_result->photo.type() != mtpc_photoEmpty) ? PreparePhoto : PrepareDocument;
+			}
+			App::main()->onSendFileConfirm(_result, false);
+		}
+	}
 }

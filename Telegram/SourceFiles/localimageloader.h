@@ -20,29 +20,29 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-enum ToPrepareMediaType {
-	ToPrepareAuto,
-	ToPreparePhoto,
-	ToPrepareAudio,
-	ToPrepareVideo,
-	ToPrepareDocument,
+enum PrepareMediaType {
+	PrepareAuto,
+	PreparePhoto,
+	PrepareAudio,
+	PrepareVideo,
+	PrepareDocument,
 };
 
 struct ToPrepareMedia {
-	ToPrepareMedia(const QString &file, const PeerId &peer, ToPrepareMediaType t, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) : id(MTP::nonce<PhotoId>()), file(file), peer(peer), type(t), duration(0), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
+	ToPrepareMedia(const QString &file, const PeerId &peer, PrepareMediaType t, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) : id(MTP::nonce<PhotoId>()), file(file), peer(peer), type(t), duration(0), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
 	}
-	ToPrepareMedia(const QImage &img, const PeerId &peer, ToPrepareMediaType t, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) : id(MTP::nonce<PhotoId>()), img(img), peer(peer), type(t), duration(0), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
+	ToPrepareMedia(const QImage &img, const PeerId &peer, PrepareMediaType t, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) : id(MTP::nonce<PhotoId>()), img(img), peer(peer), type(t), duration(0), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
 	}
-	ToPrepareMedia(const QByteArray &data, const PeerId &peer, ToPrepareMediaType t, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) : id(MTP::nonce<PhotoId>()), data(data), peer(peer), type(t), duration(0), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
+	ToPrepareMedia(const QByteArray &data, const PeerId &peer, PrepareMediaType t, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) : id(MTP::nonce<PhotoId>()), data(data), peer(peer), type(t), duration(0), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
 	}
-	ToPrepareMedia(const QByteArray &data, int32 duration, const PeerId &peer, ToPrepareMediaType t, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) : id(MTP::nonce<PhotoId>()), data(data), peer(peer), type(t), duration(duration), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
+	ToPrepareMedia(const QByteArray &data, int32 duration, const PeerId &peer, PrepareMediaType t, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) : id(MTP::nonce<PhotoId>()), data(data), peer(peer), type(t), duration(duration), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
 	}
 	PhotoId id;
 	QString file;
 	QImage img;
 	QByteArray data;
 	PeerId peer;
-	ToPrepareMediaType type;
+	PrepareMediaType type;
 	int32 duration;
 	bool broadcast;
 	bool ctrlShiftEnter;
@@ -50,9 +50,9 @@ struct ToPrepareMedia {
 };
 typedef QList<ToPrepareMedia> ToPrepareMedias;
 
-typedef QMap<int32, QByteArray> LocalFileParts;
+typedef QMap<int32, QByteArray> UploadFileParts;
 struct ReadyLocalMedia {
-	ReadyLocalMedia(ToPrepareMediaType type, const QString &file, const QString &filename, int32 filesize, const QByteArray &data, const uint64 &id, const uint64 &thumbId, const QString &thumbExt, const PeerId &peer, const MTPPhoto &photo, const MTPAudio &audio, const PreparedPhotoThumbs &photoThumbs, const MTPDocument &document, const QByteArray &jpeg, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) :
+	ReadyLocalMedia(PrepareMediaType type, const QString &file, const QString &filename, int32 filesize, const QByteArray &data, const uint64 &id, const uint64 &thumbId, const QString &thumbExt, const PeerId &peer, const MTPPhoto &photo, const MTPAudio &audio, const PreparedPhotoThumbs &photoThumbs, const MTPDocument &document, const QByteArray &jpeg, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) :
 		replyTo(replyTo), type(type), file(file), filename(filename), filesize(filesize), data(data), thumbExt(thumbExt), id(id), thumbId(thumbId), peer(peer), photo(photo), document(document), audio(audio), photoThumbs(photoThumbs), broadcast(broadcast), ctrlShiftEnter(ctrlShiftEnter) {
 		if (!jpeg.isEmpty()) {
 			int32 size = jpeg.size();
@@ -64,7 +64,7 @@ struct ReadyLocalMedia {
 		}
 	}
 	MsgId replyTo;
-	ToPrepareMediaType type;
+	PrepareMediaType type;
 	QString file, filename;
 	int32 filesize;
 	QByteArray data;
@@ -76,78 +76,15 @@ struct ReadyLocalMedia {
 	MTPDocument document;
 	MTPAudio audio;
 	PreparedPhotoThumbs photoThumbs;
-	LocalFileParts parts;
+	UploadFileParts parts;
 	QByteArray jpeg_md5;
 
 	bool broadcast;
 	bool ctrlShiftEnter;
 	QString caption;
-};
-typedef QList<ReadyLocalMedia> ReadyLocalMedias;
 
-class LocalImageLoader;
-class LocalImageLoaderPrivate : public QObject {
-	Q_OBJECT
-
-public:
-
-	LocalImageLoaderPrivate(LocalImageLoader *loader, QThread *thread);
-	~LocalImageLoaderPrivate();
-
-public slots:
-
-	void prepareImages();
-
-signals:
-
-	void imageReady();
-	void imageFailed(quint64 id);
-
-private:
-
-	LocalImageLoader *loader;
-
-};
-
-class LocalImageLoader : public QObject {
-	Q_OBJECT
-
-public:
-
-	LocalImageLoader(QObject *parent);
-	void append(const QStringList &files, const PeerId &peer, bool broadcast, MsgId replyTo, ToPrepareMediaType t);
-	PhotoId append(const QByteArray &img, const PeerId &peer, bool broadcast, MsgId replyTo, ToPrepareMediaType t);
-	AudioId append(const QByteArray &audio, int32 duration, const PeerId &peer, bool broadcast, MsgId replyTo, ToPrepareMediaType t);
-	PhotoId append(const QImage &img, const PeerId &peer, bool broadcast, MsgId replyTo, ToPrepareMediaType t, bool ctrlShiftEnter = false);
-	PhotoId append(const QString &file, const PeerId &peer, bool broadcast, MsgId replyTo, ToPrepareMediaType t);
-
-	QMutex *readyMutex();
-	ReadyLocalMedias &readyList();
-
-	QMutex *toPrepareMutex();
-	ToPrepareMedias &toPrepareMedias();
-
-	~LocalImageLoader();
-
-public slots:
-
-	void onImageReady();
-	void onImageFailed(quint64 id);
-
-signals:
-
-	void imageReady();
-	void imageFailed(quint64 id);
-	void needToPrepare();
-
-private:
-
-	ReadyLocalMedias ready;
-	ToPrepareMedias toPrepare;
-	QMutex readyLock, toPrepareLock;
-	QThread *thread;
-	LocalImageLoaderPrivate *priv;
-
+	ReadyLocalMedia() : type(PrepareAuto) { // temp
+	}
 };
 
 class Task {
@@ -164,6 +101,7 @@ public:
 
 };
 typedef QSharedPointer<Task> TaskPtr;
+typedef QList<TaskPtr> TasksList;
 
 class TaskQueueWorker;
 class TaskQueue : public QObject {
@@ -174,10 +112,10 @@ public:
 	TaskQueue(QObject *parent, int32 stopTimeoutMs = 0); // <= 0 - never stop worker
 
 	TaskId addTask(TaskPtr task);
+	void addTasks(const TasksList &tasks);
 	void cancelTask(TaskId id); // this task finish() won't be called
 	
-	template <typename DerivedTask>
-	TaskId addTask(DerivedTask *task) {
+	TaskId addTask(Task *task) {
 		return addTask(TaskPtr(task));
 	}
 
@@ -194,10 +132,11 @@ public slots:
 
 private:
 
-	typedef QList<TaskPtr> Tasks;
 	friend class TaskQueueWorker;
 
-	Tasks _tasksToProcess, _tasksToFinish;
+	void wakeThread();
+
+	TasksList _tasksToProcess, _tasksToFinish;
 	QMutex _tasksToProcessMutex, _tasksToFinishMutex;
 	QThread *_thread;
 	TaskQueueWorker *_worker;
@@ -224,5 +163,103 @@ public slots:
 private:
 	TaskQueue *_queue;
 	bool _inTaskAdded;
+
+};
+
+struct FileLoadTo {
+	FileLoadTo(const PeerId &peer, bool broadcast, MsgId replyTo) : peer(peer), broadcast(broadcast), replyTo(replyTo) {
+	}
+	PeerId peer;
+	bool broadcast;
+	MsgId replyTo;
+};
+
+struct FileLoadResult {
+	FileLoadResult(const uint64 &id, const FileLoadTo &to) : id(id), to(to), type(PrepareAuto), thumbId(0), filesize(0) {
+	}
+
+	uint64 id;
+	FileLoadTo to;
+	PrepareMediaType type;
+	QString filepath;
+	QByteArray content;
+
+	QString filename;
+	int32 filesize;
+	UploadFileParts fileparts;
+	QByteArray filemd5;
+
+	uint64 thumbId; // id is always file-id of media, thumbId is file-id of thumb ( == id for photos)
+	QString thumbname;
+	UploadFileParts thumbparts;
+	QByteArray thumbmd5;
+	QPixmap thumb;
+
+	MTPPhoto photo;
+	MTPAudio audio;
+	MTPDocument document;
+
+	PreparedPhotoThumbs photoThumbs;
+	QString photoCaption;
+
+	QString originalText; // when pasted had an image mime save text mime here to insert if image send was cancelled
+
+	void setFileData(const QByteArray &filedata) {
+		if (!filedata.isEmpty()) {
+			int32 size = filedata.size();
+			for (int32 i = 0, part = 0; i < size; i += UploadPartSize, ++part) {
+				fileparts.insert(part, filedata.mid(i, UploadPartSize));
+			}
+			filemd5.resize(32);
+			hashMd5Hex(filedata.constData(), filedata.size(), filemd5.data());
+		}
+	}
+	void setThumbData(const QByteArray &thumbdata) {
+		if (!thumbdata.isEmpty()) {
+			int32 size = thumbdata.size();
+			for (int32 i = 0, part = 0; i < size; i += UploadPartSize, ++part) {
+				thumbparts.insert(part, thumbdata.mid(i, UploadPartSize));
+			}
+			thumbmd5.resize(32);
+			hashMd5Hex(thumbdata.constData(), thumbdata.size(), thumbmd5.data());
+		}
+	}
+};
+typedef QSharedPointer<FileLoadResult> FileLoadResultPtr;
+
+enum FileLoadForceConfirmType {
+	FileLoadNoForceConfirm,
+	FileLoadNeverConfirm,
+	FileLoadAlwaysConfirm,
+};
+
+class FileLoadTask : public Task {
+public:
+
+	FileLoadTask(const QString &filepath, PrepareMediaType type, const FileLoadTo &to, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm);
+	FileLoadTask(const QByteArray &content, PrepareMediaType type, const FileLoadTo &to);
+	FileLoadTask(const QImage &image, PrepareMediaType type, const FileLoadTo &to, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, const QString &originalText = QString());
+	FileLoadTask(const QByteArray &audio, int32 duration, const FileLoadTo &to);
+
+	uint64 fileid() const {
+		return _id;
+	}
+
+	void process();
+	void finish();
+
+protected:
+
+	uint64 _id;
+	FileLoadTo _to;
+	QString _filepath;
+	QImage _image;
+	QByteArray _content;
+	int32 _duration;
+	PrepareMediaType _type;
+	FileLoadForceConfirmType _confirm;
+	QString _originalText;
+
+	FileLoadResultPtr _result;
 
 };

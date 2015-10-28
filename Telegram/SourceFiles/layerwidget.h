@@ -74,6 +74,7 @@ public:
 	void updateWideMode();
 
 	void replaceInner(LayeredWidget *n);
+	void showLayerLast(LayeredWidget *n);
 
 	bool animStep(float64 ms);
 

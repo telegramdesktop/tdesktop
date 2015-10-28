@@ -515,7 +515,7 @@ void Application::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId)
 	int32 filesize = 0;
 	QByteArray data;
 
-	ReadyLocalMedia ready(ToPreparePhoto, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, MTP_audioEmpty(MTP_long(0)), photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false, false, 0);
+	ReadyLocalMedia ready(PreparePhoto, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, MTP_audioEmpty(MTP_long(0)), photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false, false, 0);
 
 	connect(App::uploader(), SIGNAL(photoReady(const FullMsgId&, const MTPInputFile&)), App::app(), SLOT(photoUpdated(const FullMsgId&, const MTPInputFile&)), Qt::UniqueConnection);
 
@@ -697,7 +697,7 @@ void Application::checkMapVersion() {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
 			if (cDevVersion() && Local::oldMapVersion() < 9007) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Tilde symbol display fixed\n\xe2\x80\x94 Bold and Italic text display from bots supported\n\xe2\x80\x94 Send code without text and emoji replaces using `such syntax` for inline parts and ```such syntax``` for blocks of code\n\xe2\x80\x94 Some bugfixes and improvements");// .replace('@', qsl("@") + QChar(0x200D));
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Tilde symbol fixed in message input field\n\xe2\x80\x94 Add a caption to any photo you send\n\xe2\x80\x94 Bad sound quality bug fixed\n\xe2\x80\x94 Some bugfixes and improvements");// .replace('@', qsl("@") + QChar(0x200D));
 			} else if (Local::oldMapVersion() < 9005) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			} else {

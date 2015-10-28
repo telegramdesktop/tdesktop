@@ -1210,7 +1210,10 @@ void ContactsBox::init() {
 
 	connect(&_inner, SIGNAL(chosenChanged()), this, SLOT(onChosenChanged()));
 	connect(&_inner, SIGNAL(addRequested()), App::wnd(), SLOT(onShowAddContact()));
-	if (_inner.chat() || _inner.channel()) {
+	if (_inner.channel() && _inner.channelFilter() == MembersFilterAdmins) {
+		_next.hide();
+		_cancel.hide();
+	} else if (_inner.chat() || _inner.channel()) {
 		connect(&_next, SIGNAL(clicked()), this, SLOT(onInvite()));
 		_bottomShadow = new ScrollableBoxShadow(this);
 	} else if (_inner.creating() != CreatingGroupNone) {
@@ -1326,7 +1329,7 @@ void ContactsBox::showAll() {
 	if (_inner.channel() && _inner.channelFilter() == MembersFilterAdmins) {
 		_next.hide();
 		_cancel.hide();
-	} else if (_inner.chat()) {
+	} else if (_inner.chat() || _inner.channel()) {
 		_next.show();
 		_cancel.show();
 	} else if (_inner.creating() != CreatingGroupNone) {

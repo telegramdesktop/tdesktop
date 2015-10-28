@@ -378,6 +378,9 @@ public:
 			}
 			removeFlags.erase(removeFlags.begin());
 		}
+		while (waitingEntity != entitiesEnd && start + waitingEntity->offset + waitingEntity->length <= ptr) {
+			++waitingEntity;
+		}
 		if (waitingEntity == entitiesEnd || ptr < start + waitingEntity->offset) {
 			return;
 		}
@@ -572,13 +575,12 @@ public:
 		if (skip) {
 			ch = 0;
 		} else {
-			if (isTilde) {
+			if (isTilde) { // tilde fix in OpenSans
 				if (!(flags & TextBlockFTilde)) {
 					createBlock();
 					flags |= TextBlockFTilde;
 				}
-			}
-			else {
+			} else {
 				if (flags & TextBlockFTilde) {
 					createBlock();
 					flags &= ~TextBlockFTilde;
@@ -1783,8 +1785,8 @@ public:
 			}
 			if (flags & TextBlockFItalic) result = result->italic();
 			if (flags & TextBlockFUnderline) result = result->underline();
-			if ((flags & TextBlockFTilde) && f->size() == 13) {
-				result = style::font(f->size() + 1, result->flags(), result->family());
+			if ((flags & TextBlockFTilde) && !cRetina() && f->size() == 13 && f->flags() == 0) { // tilde fix in OpenSans
+				result = st::semiboldFont;
 			}
 		}
 		return result;
@@ -2664,111 +2666,6 @@ void Text::removeSkipBlock() {
 	}
 }
 
-EntitiesInText Text::calcEntitiesInText() const {
-	EntitiesInText result;
-	int32 lnkFrom = 0, lnkIndex = 0, offset = 0;
-	int32 flags = 0, italicFrom = 0, italicOffset = 0, boldFrom = 0, boldOffset = 0;
-	int32 codeFrom = 0, codeOffset = 0, preFrom = 0, preOffset = 0;
-	for (TextBlocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); true; ++i) {
-		int32 blockLnkIndex = (i == e) ? 0 : (*i)->lnkIndex();
-		int32 blockFrom = (i == e) ? _text.size() : (*i)->from();
-		int32 blockFlags = (i == e) ? 0 : (*i)->flags();
-		if (blockLnkIndex != lnkIndex) {
-			if (lnkIndex) { // write link
-				const TextLinkPtr &lnk(_links.at(lnkIndex - 1));
-				const QString &url(lnk ? lnk->text() : QString());
-
-				int32 rangeFrom = lnkFrom, rangeTo = blockFrom;
-				if (rangeTo > rangeFrom) {
-					QStringRef r = _text.midRef(rangeFrom, rangeTo - rangeFrom);
-					if (url.isEmpty()) {
-						offset += r.size();
-						italicOffset += r.size();
-						boldOffset += r.size();
-						codeOffset += r.size();
-						preOffset += r.size();
-					} else {
-						QUrl u(url);
-						if (r.size() <= 3 || _text.midRef(lnkFrom, r.size() - 3) == (u.isValid() ? u.toDisplayString() : url).midRef(0, r.size() - 3)) { // same link
-							if (url.at(0) == '@') {
-								result.push_back(EntityInText(EntityInTextMention, offset, url.size()));
-							} else if (url.at(0) == '#') {
-								result.push_back(EntityInText(EntityInTextHashtag, offset, url.size()));
-							} else if (url.at(0) == '/') {
-								result.push_back(EntityInText(EntityInTextBotCommand, offset, url.size()));
-							} else if (url.indexOf('@') > 0 && url.indexOf('/') <= 0) {
-								result.push_back(EntityInText(EntityInTextEmail, offset, url.size()));
-							} else {
-								result.push_back(EntityInText(EntityInTextUrl, offset, url.size()));
-							}
-							offset += url.size();
-							italicOffset += url.size();
-							boldOffset += url.size();
-							codeOffset += url.size();
-							preOffset += url.size();
-						} else {
-							result.push_back(EntityInText(EntityInTextCustomUrl, offset, r.size(), url));
-							offset += r.size();
-							italicOffset += r.size();
-							boldOffset += r.size();
-							codeOffset += r.size();
-							preOffset += r.size();
-						}
-					}
-				}
-			}
-			lnkIndex = blockLnkIndex;
-			lnkFrom = blockFrom;
-		} else if (blockFlags != flags) {
-			if ((blockFlags & TextBlockFItalic) && !(flags & TextBlockFItalic)) {
-				italicFrom = blockFrom;
-			} else if ((flags & TextBlockFItalic) && !(blockFlags & TextBlockFItalic)) {
-				result.push_back(EntityInText(EntityInTextItalic, italicOffset, blockFrom - italicFrom));
-			}
-			if ((blockFlags & TextBlockFSemibold) && !(flags & TextBlockFSemibold)) {
-				boldFrom = blockFrom;
-			} else if ((flags & TextBlockFSemibold) && !(blockFlags & TextBlockFSemibold)) {
-				result.push_back(EntityInText(EntityInTextBold, boldOffset, blockFrom - boldFrom));
-			}
-			if ((blockFlags & TextBlockFCode) && !(flags & TextBlockFCode)) {
-				codeFrom = blockFrom;
-			} else if ((flags & TextBlockFCode) && !(blockFlags & TextBlockFCode)) {
-				result.push_back(EntityInText(EntityInTextCode, codeOffset, blockFrom - codeFrom));
-			}
-			if ((blockFlags & TextBlockFPre) && !(flags & TextBlockFPre)) {
-				preFrom = blockFrom;
-			} else if ((flags & TextBlockFPre) && !(blockFlags & TextBlockFPre)) {
-				result.push_back(EntityInText(EntityInTextPre, preOffset, blockFrom - preFrom));
-			}
-			flags = blockFlags;
-		}
-		if (i == e) break;
-
-		TextBlockType type = (*i)->type();
-		if (type == TextBlockTSkip) continue;
-
-		int32 rangeFrom = (*i)->from(), rangeTo = uint16((*i)->from() + TextPainter::_blockLength(this, i, e));
-		if (rangeTo > rangeFrom) {
-			if (!blockLnkIndex) {
-				offset += rangeTo - rangeFrom;
-			}
-			if (!(blockFlags & TextBlockFItalic)) {
-				italicOffset += rangeTo - rangeFrom;
-			}
-			if (!(blockFlags & TextBlockFSemibold)) {
-				boldOffset += rangeTo - rangeFrom;
-			}
-			if (!(blockFlags & TextBlockFCode)) {
-				codeOffset += rangeTo - rangeFrom;
-			}
-			if (!(blockFlags & TextBlockFPre)) {
-				preOffset += rangeTo - rangeFrom;
-			}
-		}
-	}
-	return result;
-}
-
 int32 Text::countHeight(int32 w) const {
 	QFixed width = w;
 	if (width < _minResizeWidth) width = _minResizeWidth;
@@ -2942,7 +2839,7 @@ uint32 Text::adjustSelection(uint16 from, uint16 to, TextSelectType selectType) 
 	return (from << 16) | to;
 }
 
-QString Text::original(uint16 selectedFrom, uint16 selectedTo, bool expandLinks) const {
+QString Text::original(uint16 selectedFrom, uint16 selectedTo, ExpandLinksMode mode) const {
 	QString result;
 	result.reserve(_text.size());
 
@@ -2959,14 +2856,19 @@ QString Text::original(uint16 selectedFrom, uint16 selectedTo, bool expandLinks)
 
 				if (rangeTo > rangeFrom) {
 					QStringRef r = _text.midRef(rangeFrom, rangeTo - rangeFrom);
-					if (url.isEmpty() || !expandLinks || lnkFrom != rangeFrom || blockFrom != rangeTo) {
+					if (url.isEmpty() || mode == ExpandLinksNone || lnkFrom != rangeFrom || blockFrom != rangeTo) {
 						result += r;
 					} else {
 						QUrl u(url);
-						if (r.size() <= 3 || _text.midRef(lnkFrom, r.size() - 3) == (u.isValid() ? u.toDisplayString() : url).midRef(0, r.size() - 3)) { // same link
+						QString displayed = (u.isValid() ? u.toDisplayString() : url);
+						bool shortened = (r.size() > 3) && (_text.midRef(lnkFrom, r.size() - 3) == displayed.midRef(0, r.size() - 3));
+						bool same = (r == displayed.midRef(0, r.size())) || (r == url.midRef(0, r.size()));
+						if (same || shortened) {
 							result += url;
-						} else {
+						} else if (mode == ExpandLinksAll) {
 							result.append(r).append(qsl(" ( ")).append(url).append(qsl(" )"));
+						} else {
+							result += r;
 						}
 					}
 				}
@@ -2983,6 +2885,94 @@ QString Text::original(uint16 selectedFrom, uint16 selectedTo, bool expandLinks)
 			int32 rangeFrom = qMax(selectedFrom, (*i)->from()), rangeTo = qMin(selectedTo, uint16((*i)->from() + TextPainter::_blockLength(this, i, e)));
 			if (rangeTo > rangeFrom) {
 				result += _text.midRef(rangeFrom, rangeTo - rangeFrom);
+			}
+		}
+	}
+	return result;
+}
+
+EntitiesInText Text::originalEntities() const {
+	EntitiesInText result;
+
+	int32 originalLength = 0, lnkStart = 0, italicStart = 0, boldStart = 0, codeStart = 0, preStart = 0;
+	int32 lnkFrom = 0, lnkIndex = 0, flags = 0;
+	for (TextBlocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); true; ++i) {
+		int32 blockLnkIndex = (i == e) ? 0 : (*i)->lnkIndex();
+		int32 blockFrom = (i == e) ? _text.size() : (*i)->from();
+		int32 blockFlags = (i == e) ? 0 : (*i)->flags();
+		if (blockFlags != flags) {
+			if ((flags & TextBlockFItalic) && !(blockFlags & TextBlockFItalic)) { // write italic
+				result.push_back(EntityInText(EntityInTextItalic, italicStart, originalLength - italicStart));
+			} else if ((blockFlags & TextBlockFItalic) && !(flags & TextBlockFItalic)) {
+				italicStart = originalLength;
+			}
+			if ((flags & TextBlockFSemibold) && !(blockFlags & TextBlockFSemibold)) {
+				result.push_back(EntityInText(EntityInTextBold, boldStart, originalLength - boldStart));
+			} else if ((blockFlags & TextBlockFSemibold) && !(flags & TextBlockFSemibold)) {
+				boldStart = originalLength;
+			}
+			if ((flags & TextBlockFCode) && !(blockFlags & TextBlockFCode)) {
+				result.push_back(EntityInText(EntityInTextCode, codeStart, originalLength - codeStart));
+			} else if ((blockFlags & TextBlockFCode) && !(flags & TextBlockFCode)) {
+				codeStart = originalLength;
+			}
+			if ((flags & TextBlockFPre) && !(blockFlags & TextBlockFPre)) {
+				result.push_back(EntityInText(EntityInTextPre, preStart, originalLength - preStart));
+			} else if ((blockFlags & TextBlockFPre) && !(flags & TextBlockFPre)) {
+				preStart = originalLength;
+			}
+			flags = blockFlags;
+		}
+		if (blockLnkIndex != lnkIndex) {
+			if (lnkIndex) { // write link
+				const TextLinkPtr &lnk(_links.at(lnkIndex - 1));
+				const QString &url(lnk ? lnk->text() : QString());
+
+				int32 rangeFrom = lnkFrom, rangeTo = blockFrom;
+				if (rangeTo > rangeFrom) {
+					QStringRef r = _text.midRef(rangeFrom, rangeTo - rangeFrom);
+					if (url.isEmpty()) {
+						originalLength += r.size();
+					} else {
+						QUrl u(url);
+						QString displayed = (u.isValid() ? u.toDisplayString() : url);
+						bool shortened = (r.size() > 3) && (_text.midRef(lnkFrom, r.size() - 3) == displayed.midRef(0, r.size() - 3));
+						bool same = (r == displayed.midRef(0, r.size())) || (r == url.midRef(0, r.size()));
+						if (same || shortened) {
+							originalLength += url.size();
+							if (url.at(0) == '@') {
+								result.push_back(EntityInText(EntityInTextMention, lnkStart, originalLength - lnkStart));
+							} else if (url.at(0) == '#') {
+								result.push_back(EntityInText(EntityInTextHashtag, lnkStart, originalLength - lnkStart));
+							} else if (url.at(0) == '/') {
+								result.push_back(EntityInText(EntityInTextBotCommand, lnkStart, originalLength - lnkStart));
+							} else if (url.indexOf('@') > 0 && url.indexOf('/') <= 0) {
+								result.push_back(EntityInText(EntityInTextEmail, lnkStart, originalLength - lnkStart));
+							} else {
+								result.push_back(EntityInText(EntityInTextUrl, lnkStart, originalLength - lnkStart));
+							}
+						} else {
+							originalLength += r.size();
+							result.push_back(EntityInText(EntityInTextCustomUrl, lnkStart, originalLength - lnkStart, url));
+						}
+					}
+				}
+			}
+			lnkIndex = blockLnkIndex;
+			if (lnkIndex) {
+				lnkFrom = blockFrom;
+				lnkStart = originalLength;
+			}
+		}
+		if (i == e) break;
+
+		TextBlockType type = (*i)->type();
+		if (type == TextBlockTSkip) continue;
+
+		if (!blockLnkIndex) {
+			int32 rangeFrom = (*i)->from(), rangeTo = uint16((*i)->from() + TextPainter::_blockLength(this, i, e));
+			if (rangeTo > rangeFrom) {
+				originalLength += rangeTo - rangeFrom;
 			}
 		}
 	}
@@ -3254,8 +3244,8 @@ TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResi
 			}
 			if (flags & TextBlockFItalic) blockFont = blockFont->italic();
 			if (flags & TextBlockFUnderline) blockFont = blockFont->underline();
-			if ((flags & TextBlockFTilde) && font->size() == 13) {
-				blockFont = style::font(font->size() + 1, blockFont->flags(), blockFont->family());
+			if ((flags & TextBlockFTilde) && !cRetina() && font->size() == 13 && font->flags() == 0) { // tilde fix in OpenSans
+				blockFont = st::semiboldFont;
 			}
 		}
 
@@ -4822,12 +4812,19 @@ void replaceStringWithEntities(const QLatin1String &from, QChar to, QString &res
 				continue;
 			}
 		}
-		if (i != e) {
-			if (i->offset < nextOffset + len && i->offset + i->length > nextOffset) {
-				moveStringPart(start, length, offset, nextOffset - offset + len, entities);
-				continue;
+
+		bool skip = false;
+		for (; i != e; ++i) { // find and check next finishing entity
+			if (i->offset + i->length > nextOffset) {
+				skip = (i->offset < nextOffset + len);
+				break;
 			}
 		}
+		if (skip) {
+			moveStringPart(start, length, offset, nextOffset - offset + len, entities);
+			continue;
+		}
+
 		moveStringPart(start, length, offset, nextOffset - offset, entities);
 
 		*(start + length) = to;

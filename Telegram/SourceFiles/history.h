@@ -831,7 +831,7 @@ public:
 	}
 	bool unread() const {
 		if ((out() && (id > 0 && id < _history->outboxReadBefore)) || (!out() && id > 0 && id < _history->inboxReadBefore)) return false;
-		return (id > 0 && !out() && channelId() != NoChannel) ? true : (_flags & MTPDmessage_flag_unread);
+		return (id > 0 && !out() && channelId() != NoChannel) ? true : (history()->peer->isSelf() ? false : (_flags & MTPDmessage_flag_unread));
 	}
 	bool notifyByFrom() const {
 		return _flags & MTPDmessage_flag_notify_by_from;
@@ -858,7 +858,7 @@ public:
 		return _history->isChannel() && isImportantChannelMessage(id, _flags);
 	}
 	virtual bool needCheck() const {
-		return out();
+		return out() || (id < 0 && history()->peer->isSelf());
 	}
 	virtual bool hasPoint(int32 x, int32 y) const {
 		return false;
@@ -898,6 +898,9 @@ public:
 	}
 	virtual void setViewsCount(int32 count) {
 	}
+	virtual void setId(MsgId newId) {
+		id = newId;
+	}
 	virtual void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const = 0;
     virtual QString notificationHeader() const {
         return QString();
@@ -933,7 +936,11 @@ public:
 	}
 	virtual void setText(const QString &text, const EntitiesInText &links) {
 	}
-	virtual void getTextWithEntities(QString &text, EntitiesInText &links) {
+	virtual QString originalText() const {
+		return QString();
+	}
+	virtual EntitiesInText originalEntities() const {
+		return EntitiesInText();
 	}
 	virtual bool textHasLinks() {
 		return false;
@@ -1129,7 +1136,6 @@ public:
 	}
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
-	const Text &captionForClone() const;
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	HistoryMedia *clone() const;
@@ -1155,7 +1161,7 @@ public:
 	ImagePtr replyPreview();
 
 	QString getCaption() const {
-		return _caption.original(0, 0xFFFFU, true);
+		return _caption.original();
 	}
 
 private:
@@ -1521,6 +1527,7 @@ public:
 
 	void drawInfo(Painter &p, int32 right, int32 bottom, bool selected, InfoDisplayType type) const;
 	void setViewsCount(int32 count);
+	void setId(MsgId newId);
 	void draw(Painter &p, uint32 selection) const;
 	virtual void drawMessageText(Painter &p, const QRect &trect, uint32 selection) const;
 
@@ -1549,18 +1556,20 @@ public:
 	}
 
 	QString selectedText(uint32 selection) const;
-	EntitiesInText textEntities() const;
 	QString inDialogsText() const;
 	HistoryMedia *getMedia(bool inOverview = false) const;
 	void setMedia(const MTPMessageMedia *media, bool allowEmitResize);
 	void setText(const QString &text, const EntitiesInText &entities);
-	void getTextWithEntities(QString &text, EntitiesInText &entities);
+	QString originalText() const;
+	EntitiesInText originalEntities() const;
 	bool textHasLinks();
 
 	int32 infoWidth() const {
 		int32 result = _timeWidth;
 		if (!_viewsText.isEmpty()) {
 			result += st::msgDateViewsSpace + _viewsWidth + st::msgDateCheckSpace + st::msgViewsImg.pxWidth();
+		} else if (id < 0 && history()->peer->isSelf()) {
+			result += st::msgDateCheckSpace + st::msgCheckImg.pxWidth();
 		}
 		if (out() && !fromChannel()) {
 			result += st::msgDateCheckSpace + st::msgCheckImg.pxWidth();
@@ -1571,6 +1580,8 @@ public:
 		int32 result = 0;
 		if (!_viewsText.isEmpty()) {
 			result += st::msgDateViewsSpace + _viewsWidth + st::msgDateCheckSpace + st::msgViewsImg.pxWidth();
+		} else if (id < 0 && history()->peer->isSelf()) {
+			result += st::msgDateCheckSpace + st::msgCheckImg.pxWidth();
 		}
 		return result;
 	}

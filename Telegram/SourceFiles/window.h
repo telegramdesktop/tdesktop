@@ -181,8 +181,11 @@ public:
 	void showPhoto(PhotoData *photo, HistoryItem *item);
 	void showPhoto(PhotoData *photo, PeerData *item);
 	void showDocument(DocumentData *doc, HistoryItem *item);
+
 	void showLayer(LayeredWidget *w, bool forceFast = false);
 	void replaceLayer(LayeredWidget *w);
+	void showLayerLast(LayeredWidget *w);
+
 	void hideLayer(bool fast = false);
 	bool hideInnerLayer();
 

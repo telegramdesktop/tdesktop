@@ -265,10 +265,10 @@ public:
 	void orderWidgets();
 	QRect historyRect() const;
 
-	void confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo);
-	void confirmSendImage(const ReadyLocalMedia &img);
-	void confirmSendImageUncompressed(bool ctrlShiftEnter, MsgId replyTo);
-	void cancelSendImage();
+	void onSendFileConfirm(const FileLoadResultPtr &file, bool ctrlShiftEnter);
+	void onSendFileCancel(const FileLoadResultPtr &file);
+	void onShareContactConfirm(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool ctrlShiftEnter);
+	void onShareContactCancel();
 
 	void destroyData();
 	void updateOnlineDisplayIn(int32 msecs);
@@ -318,7 +318,6 @@ public:
 	void checkPeerHistory(PeerData *peer);
 	void checkedHistory(PeerData *peer, const MTPmessages_Messages &result);
 
-	bool sendPhotoFail(uint64 randomId, const RPCError &e);
 	bool sendMessageFail(const RPCError &error);
 
 	void forwardSelectedItems();
@@ -475,9 +474,6 @@ public slots:
 
 	void onForwardCancel(QObject *obj = 0);
 
-	void onResendAsDocument();
-	void onCancelResend();
-
 	void onCacheBackground();
 
 	void onInviteImport();
@@ -506,8 +502,6 @@ private:
 	uint64 failedObjId;
 	QString failedFileName;
 	void loadFailed(mtpFileLoader *loader, bool started, const char *retrySlot);
-
-	QList<uint64> _resendImgRandomIds;
 
 	SelectedItemSet _toForward;
 	Text _toForwardFrom, _toForwardText;

@@ -31,31 +31,31 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "gui/filedialog.h"
 
 OverviewInner::CachedLink::CachedLink(HistoryItem *item) : titleWidth(0), page(0), pixw(0), pixh(0), text(st::msgMinWidth) {
-	QString msgText;
-	EntitiesInText msgLinks;
-	item->getTextWithEntities(msgText, msgLinks);
-	int32 from = 0, till = msgText.size(), lnk = msgLinks.size();
+	QString msgText = item->originalText();
+	EntitiesInText msgEntities = item->originalEntities();
+
+	int32 from = 0, till = msgText.size(), lnk = msgEntities.size();
 	for (int32 i = 0; i < lnk; ++i) {
-		if (msgLinks[i].type != EntityInTextUrl && msgLinks[i].type != EntityInTextCustomUrl && msgLinks[i].type != EntityInTextEmail) {
+		if (msgEntities[i].type != EntityInTextUrl && msgEntities[i].type != EntityInTextCustomUrl && msgEntities[i].type != EntityInTextEmail) {
 			continue;
 		}
-		QString url = msgLinks[i].text, text = msgText.mid(msgLinks[i].offset, msgLinks[i].length);
+		QString url = msgEntities[i].text, text = msgText.mid(msgEntities[i].offset, msgEntities[i].length);
 		urls.push_back(Link(url.isEmpty() ? text : url, text));
 	}
 	while (lnk > 0 && till > from) {
 		--lnk;
-		if (msgLinks[lnk].type != EntityInTextUrl && msgLinks[lnk].type != EntityInTextCustomUrl && msgLinks[lnk].type != EntityInTextEmail) {
+		if (msgEntities[lnk].type != EntityInTextUrl && msgEntities[lnk].type != EntityInTextCustomUrl && msgEntities[lnk].type != EntityInTextEmail) {
 			++lnk;
 			break;
 		}
-		int32 afterLinkStart = msgLinks[lnk].offset + msgLinks[lnk].length;
+		int32 afterLinkStart = msgEntities[lnk].offset + msgEntities[lnk].length;
 		if (till > afterLinkStart) {
 			if (!QRegularExpression(qsl("^[,.\\s_=+\\-;:`'\"\\(\\)\\[\\]\\{\\}<>*&^%\\$#@!\\\\/]+$")).match(msgText.mid(afterLinkStart, till - afterLinkStart)).hasMatch()) {
 				++lnk;
 				break;
 			}
 		}
-		till = msgLinks[lnk].offset;
+		till = msgEntities[lnk].offset;
 	}
 	if (!lnk) {
 		if (QRegularExpression(qsl("^[,.\\s\\-;:`'\"\\(\\)\\[\\]\\{\\}<>*&^%\\$#@!\\\\/]+$")).match(msgText.mid(from, till - from)).hasMatch()) {

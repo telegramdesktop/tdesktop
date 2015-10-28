@@ -27,8 +27,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "photosendbox.h"
 
-PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : AbstractBox(st::boxWideWidth)
-, _img(new ReadyLocalMedia(img))
+PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxWideWidth)
+, _file(file)
 , _thumbx(0)
 , _thumby(0)
 , _thumbw(0)
@@ -36,16 +36,20 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : AbstractBox(st::boxWide
 , _namew(0)
 , _textw(0)
 , _caption(this, st::confirmCaptionArea, lang(lng_photo_caption))
-, _compressed(this, lang(lng_send_image_compressed), cCompressPastedImage())
+, _compressedFromSettings(_file->type == PrepareAuto)
+, _compressed(this, lang(lng_send_image_compressed), _compressedFromSettings ? cCompressPastedImage() : true)
 , _send(this, lang(lng_send_button), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _replyTo(img.replyTo) {
+, _replyTo(_file->to.replyTo)
+, _confirmed(false) {
 	connect(&_send, SIGNAL(clicked()), this, SLOT(onSend()));
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
-
-	if (_img->type == ToPreparePhoto) {
+	if (_file->photo.type() != mtpc_photoEmpty) {
+		_file->type = PreparePhoto;
+	}
+	if (_file->type == PreparePhoto) {
 		int32 maxW = 0, maxH = 0;
-		for (PreparedPhotoThumbs::const_iterator i = _img->photoThumbs.cbegin(), e = _img->photoThumbs.cend(); i != e; ++i) {
+		for (PreparedPhotoThumbs::const_iterator i = _file->photoThumbs.cbegin(), e = _file->photoThumbs.cend(); i != e; ++i) {
 			if (i->width() >= maxW && i->height() >= maxH) {
 				_thumb = *i;
 				maxW = _thumb.width();
@@ -75,8 +79,8 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : AbstractBox(st::boxWide
 		_thumb.setDevicePixelRatio(cRetinaFactor());
 	} else {
 		_compressed.hide();
-		if (!_img->photoThumbs.isEmpty()) {
-			_thumb = _img->photoThumbs.cbegin().value();
+		if (!_file->thumb.isNull()) {
+			_thumb = _file->thumb;
 			int32 tw = _thumb.width(), th = _thumb.height();
 			if (_thumb.isNull() || !tw || !th) {
 				_thumbw = _thumbx = _thumby = 0;
@@ -95,9 +99,9 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : AbstractBox(st::boxWide
 			_thumb.setDevicePixelRatio(cRetinaFactor());
 		}
 
-		_name = _img->filename;
+		_name = _file->filename;
 		_namew = st::mediaFont->width(_name);
-		_size = formatSizeText(_img->filesize);
+		_size = formatSizeText(_file->filesize);
 		_textw = qMax(_namew, st::mediaFont->width(_size));
 	}
 	updateBoxSize();
@@ -111,7 +115,6 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : AbstractBox(st::boxWide
 }
 
 PhotoSendBox::PhotoSendBox(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo) : AbstractBox(st::boxWideWidth)
-, _img(0)
 , _thumbx(0)
 , _thumby(0)
 , _thumbw(0)
@@ -156,7 +159,7 @@ void PhotoSendBox::onCaptionResized() {
 }
 
 void PhotoSendBox::updateBoxSize() {
-	if (_img && _img->type == ToPreparePhoto) {
+	if (_file && _file->type == PreparePhoto) {
 		setMaxHeight(st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom() + st::boxPhotoCompressedPadding.top() + _compressed.height() + (_compressed.checked() ? (st::boxPhotoCompressedPadding.bottom() + _caption.height()) : 0) + st::boxButtonPadding.top() + _send.height() + st::boxButtonPadding.bottom());
 	} else {
 		setMaxHeight(st::boxPhotoPadding.top() + st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom() + st::boxPhotoPadding.bottom() + st::boxButtonPadding.top() + _send.height() + st::boxButtonPadding.bottom());
@@ -175,7 +178,7 @@ void PhotoSendBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
 
-	if (_img && _img->type == ToPreparePhoto) {
+	if (_file && _file->type == PreparePhoto) {
 		if (_thumbx > st::boxPhotoPadding.left()) {
 			p.fillRect(st::boxPhotoPadding.left(), st::boxPhotoPadding.top(), _thumbx - st::boxPhotoPadding.left(), _thumbh, st::confirmBg->b);
 		}
@@ -197,7 +200,7 @@ void PhotoSendBox::paintEvent(QPaintEvent *e) {
 		if (_thumbw) {
 			int32 rf(cIntRetinaFactor());
 			p.drawPixmap(QPoint(x + st::mediaPadding.left(), y + st::mediaPadding.top()), _thumb, QRect(_thumbx * rf, _thumby * rf, st::mediaThumbSize * rf, st::mediaThumbSize * rf));
-		} else if (_img) {
+		} else if (_file) {
 			p.drawPixmap(QPoint(x + st::mediaPadding.left(), y + st::mediaPadding.top()), App::sprite(), st::mediaDocOutImg);
 		} else {
 			p.drawPixmap(x + st::mediaPadding.left(), y + st::mediaPadding.top(), userDefPhoto(1)->pix(st::mediaThumbSize));
@@ -225,7 +228,13 @@ void PhotoSendBox::resizeEvent(QResizeEvent *e) {
 }
 
 void PhotoSendBox::closePressed() {
-	if (App::main()) App::main()->cancelSendImage();
+	if (!_confirmed && App::main()) {
+		if (_file) {
+			App::main()->onSendFileCancel(_file);
+		} else {
+			App::main()->onShareContactCancel();
+		}
+	}
 }
 
 void PhotoSendBox::hideAll() {
@@ -238,7 +247,7 @@ void PhotoSendBox::hideAll() {
 void PhotoSendBox::showAll() {
 	_send.show();
 	_cancel.show();
-	if (_img && _img->type == ToPreparePhoto) {
+	if (_file && _file->type == PreparePhoto) {
 		_compressed.show();
 		if (_compressed.checked()) {
 			_caption.show();
@@ -256,28 +265,31 @@ void PhotoSendBox::showDone() {
 }
 
 void PhotoSendBox::onSend(bool ctrlShiftEnter) {
-	if (!_img) {
-		if (App::main()) App::main()->confirmShareContact(ctrlShiftEnter, _phone, _fname, _lname, _replyTo);
-	} else {
-		if (!_compressed.isHidden()) {
-			if (_compressed.checked() != cCompressPastedImage()) {
-				cSetCompressPastedImage(_compressed.checked());
-				Local::writeUserSettings();
+	if (App::main()) {
+		if (_file) {
+			if (_compressed.isHidden()) {
+				if (_file->type == PrepareAuto) {
+					_file->type = PrepareDocument;
+				}
+			} else {
+				if (_compressedFromSettings && _compressed.checked() != cCompressPastedImage()) {
+					cSetCompressPastedImage(_compressed.checked());
+					Local::writeUserSettings();
+				}
+				if (_compressed.checked()) {
+					_file->type = PreparePhoto;
+				} else {
+					_file->type = PrepareDocument;
+				}
 			}
-		}
-		if (_compressed.isHidden() || _compressed.checked()) {
-			_img->ctrlShiftEnter = ctrlShiftEnter;
-			_img->caption = _caption.isHidden() ? QString() : prepareText(_caption.getLastText(), true);
-			if (App::main()) App::main()->confirmSendImage(*_img);
+			if (!_caption.isHidden()) {
+				_file->photoCaption = prepareText(_caption.getLastText(), true);
+			}
+			App::main()->onSendFileConfirm(_file, ctrlShiftEnter);
 		} else {
-			if (App::main()) App::main()->confirmSendImageUncompressed(ctrlShiftEnter, _replyTo);
+			App::main()->onShareContactConfirm(_phone, _fname, _lname, _replyTo, ctrlShiftEnter);
 		}
 	}
-	emit confirmed();
-	emit closed();
-}
-
-PhotoSendBox::~PhotoSendBox() {
-	delete _img;
-	closePressed();
+	_confirmed = true;
+	onClose();
 }

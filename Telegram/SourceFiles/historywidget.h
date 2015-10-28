@@ -430,15 +430,17 @@ public:
 	void sendActionDone(const MTPBool &result, mtpRequestId req);
 
 	void destroyData();
-	void uploadImage(const QImage &img, bool withText = false, const QString &source = QString());
-	void uploadFile(const QString &file, bool withText = false); // with confirmation
-	void shareContactConfirmation(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool withText = false);
-	void uploadConfirmImageUncompressed(bool ctrlShiftEnter, MsgId replyTo);
-	void uploadMedias(const QStringList &files, ToPrepareMediaType type);
-	void uploadMedia(const QByteArray &fileContent, ToPrepareMediaType type, PeerId peer = 0);
-	void confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo);
-	void confirmSendImage(const ReadyLocalMedia &img);
-	void cancelSendImage();
+
+	void uploadImage(const QImage &img, PrepareMediaType type, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, const QString &source = QString(), bool withText = false);
+	void uploadFile(const QString &file, PrepareMediaType type, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, bool withText = false); // with confirmation
+	void uploadFiles(const QStringList &files, PrepareMediaType type);
+	void uploadFileContent(const QByteArray &fileContent, PrepareMediaType type);
+	void shareContactWithConfirm(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool withText = false);
+
+	void confirmSendFile(const FileLoadResultPtr &file, bool ctrlShiftEnter);
+	void cancelSendFile(const FileLoadResultPtr &file);
+	void confirmShareContact(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool ctrlShiftEnter);
+	void cancelShareContact();
 
 	void updateControlsVisibility();
 	void updateOnlineDisplay(int32 x, int32 w);
@@ -605,11 +607,6 @@ public slots:
 	void onKbToggle(bool manual = true);
 	void onCmdStart();
 
-	void onPhotoReady();
-	void onSendConfirmed();
-	void onSendCancelled();
-	void onPhotoFailed(quint64 id);
-
 	void activate();
 	void onMentionHashtagOrBotCommandInsert(QString str);
 	void onTextChange();
@@ -767,14 +764,13 @@ private:
 
 	int32 _selCount; // < 0 - text selected, focus list, not _field
 
-	LocalImageLoader _imageLoader;
+	TaskQueue _fileLoader;
 	bool _synthedTextUpdate;
 
 	int64 _serviceImageCacheSize;
-	QImage _confirmImage;
-	PhotoId _confirmImageId;
-	bool _confirmWithText;
 	QString _confirmSource;
+
+	uint64 _confirmWithTextId;
 
 	QString _titlePeerText;
 	int32 _titlePeerTextWidth;

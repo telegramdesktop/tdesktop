@@ -16,7 +16,7 @@ or download in ZIP and extract to **D:\TBuild\**, rename **tdesktop-master** to 
 
 ####OpenSSL
 
-Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **\\Program Files (x86)\\Microsoft Visual Studio 14.0\\Common7\\Tools\\Shortcuts\\** folder), go to **D:\\TBuild\\Libraries** and run
+Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder), go to **D:\\TBuild\\Libraries** and run
 
     git clone https://github.com/openssl/openssl.git
     cd openssl
@@ -89,24 +89,20 @@ or download in ZIP and extract to **D:\TBuild\Libraries\**, rename **libexif-0.6
 
 ####OpenAL Soft, slightly patched
 
-Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **\\Program Files (x86)\\Microsoft Visual Studio 14.0\\Common7\\Tools\\Shortcuts\\** folder), go to **D:\\TBuild\\Libraries** and run
+Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder), go to **D:\\TBuild\\Libraries** and run
 
     git clone git://repo.or.cz/openal-soft.git
-    git checkout 9b6b084d
+    git checkout 90349b38
     git apply ./../../tdesktop/Telegram/_openal_patch.diff
 
 #####Building library
 
 * Install [CMake](http://www.cmake.org/)
-* Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **\\Program Files (x86)\\Microsoft Visual Studio 14.0\\Common7\\Tools\\Shortcuts\\** folder) and go to **D:\TBuild\Libraries\openal-soft\build\**
-* Run **cmake -G "Visual Studio 14 2015" -D LIBTYPE:STRING=STATIC ..**
-* Open in VS2015 **D:\TBuild\Libraries\openal-soft\build\OpenAL.sln**
-* For **Debug** configuration
-  * OpenAL32 Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded Debug (/MTd)** – **OK**
-  * common Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded Debug (/MTd)** – **OK**
-* For **Release** configuration
-  * OpenAL32 Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded (/MT)** – **OK**
-  * common Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded (/MT)** – **OK**
+* Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder), go to **D:\TBuild\Libraries\openal-soft\build\** and run
+
+    cmake -G "Visual Studio 14 2015" -D LIBTYPE:STRING=STATIC -D FORCE_STATIC_VCRT:STRING=ON ..
+
+* Open in VS2015 **D:\TBuild\Libraries\openal-soft\build\OpenAL.sln** and build Debug and Release configurations
 
 ####Opus codec
 
@@ -124,7 +120,7 @@ to have **D:\TBuild\Libraries\opus\win32**
 
 ####FFmpeg
 
-Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **\\Program Files (x86)\\Microsoft Visual Studio 14.0\\Common7\\Tools\\Shortcuts\\** folder) and run
+Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder) and run
 
     git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
@@ -136,7 +132,7 @@ http://msys2.github.io/ > Download [msys2-x86_64-20150512.exe](http://sourceforg
 
 Download [yasm for Win64](http://www.tortall.net/projects/yasm/releases/yasm-1.3.0-win64.exe) from http://yasm.tortall.net/Download.html, rename **yasm-1.3.0-win64.exe** to **yasm.exe** and place it to your Visual C++ **bin** directory, like **\\Program Files (x86)\\Microsoft Visual Studio 14\\VC\\bin\\**
 
-Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **\\Program Files (x86)\\Microsoft Visual Studio 14.0\\Common7\\Tools\\Shortcuts\\** folder), go to **D:\\msys64\\** and launch **msys2_shell.bat**, there run
+Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder), go to **D:\\msys64\\** and launch **msys2_shell.bat**, there run
 
     PATH="/c/Program Files (x86)/Microsoft Visual Studio 14.0/VC/BIN:$PATH"
 
@@ -157,7 +153,7 @@ Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **\\Program Fi
 ####Qt 5.5.1, slightly patched
 
 * Install Python 3.3.2 from https://www.python.org/download/releases/3.3.2 > [**Windows x86 MSI Installer (3.3.2)**](https://www.python.org/ftp/python/3.3.2/python-3.3.2.msi)
-* Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **\\Program Files (x86)\\Microsoft Visual Studio 14.0\\Common7\\Tools\\Shortcuts\\** folder)
+* Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder)
 
 There go to Libraries directory
 

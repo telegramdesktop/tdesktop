@@ -138,6 +138,18 @@ void BackgroundWidget::replaceInner(LayeredWidget *n) {
 	update();
 }
 
+void BackgroundWidget::showLayerLast(LayeredWidget *n) {
+	_hidden.push_front(n);
+	n->setParent(this);
+	connect(n, SIGNAL(closed()), this, SLOT(onInnerClose()));
+	connect(n, SIGNAL(resized()), this, SLOT(update()));
+	connect(n, SIGNAL(destroyed(QObject*)), this, SLOT(boxDestroyed(QObject*)));
+	n->parentResized();
+	n->animStep(1);
+	n->hide();
+	update();
+}
+
 bool BackgroundWidget::animStep(float64 ms) {
 	float64 dt = ms / (hiding ? st::layerHideDuration : st::layerSlideDuration);
 	w->animStep(dt);

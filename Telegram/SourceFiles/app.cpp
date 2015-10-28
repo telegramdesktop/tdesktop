@@ -967,8 +967,8 @@ namespace App {
 				}
 			}
 
-			bool showPhone = !isServiceUser(user->id) && (user->input.type() != mtpc_inputPeerSelf) && !user->contact;
-			bool showPhoneChanged = !isServiceUser(user->id) && (user->input.type() != mtpc_inputPeerSelf) && ((showPhone && !wasShowPhone) || (!showPhone && wasShowPhone));
+			bool showPhone = !isServiceUser(user->id) && !user->isSelf() && !user->contact;
+			bool showPhoneChanged = !isServiceUser(user->id) && !user->isSelf() && ((showPhone && !wasShowPhone) || (!showPhone && wasShowPhone));
 			if (showPhoneChanged) {
 				user->setName(textOneLine(user->firstName), textOneLine(user->lastName), showPhone ? App::formatPhone(user->phone) : QString(), textOneLine(user->username));
 			}
