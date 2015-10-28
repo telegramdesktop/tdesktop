@@ -93,7 +93,7 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
 
     git clone git://code.qt.io/qt/qt5.git QtStatic
     cd QtStatic
-    git checkout v5.5.1
+    git checkout 5.5.1
     perl init-repository --module-subset=qtbase,qtimageformats
 
 #####Apply the patch
