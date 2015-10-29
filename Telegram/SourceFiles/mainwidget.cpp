@@ -3653,14 +3653,7 @@ void MainWidget::inviteCheckDone(QString hash, const MTPChatInvite &invite) {
 		const MTPDchatInviteAlready &d(invite.c_chatInviteAlready());
 		PeerData *chat = App::feedChats(MTP_vector<MTPChat>(1, d.vchat));
 		if (chat) {
-			if (chat->isChat() && chat->asChat()->haveLeft) {
-				ConfirmBox *box = new ConfirmBox(lng_group_invite_want_join(lt_title, chat->name), lang(lng_group_invite_join));
-				_inviteHash = '/' + QString::number(chat->id);
-				connect(box, SIGNAL(confirmed()), this, SLOT(onInviteImport()));
-				App::wnd()->showLayer(box);
-			} else {
-				showPeerHistory(chat->id, ShowAtUnreadMsgId);
-			}
+			showPeerHistory(chat->id, ShowAtUnreadMsgId);
 		}
 	} break;
 	}
@@ -3677,12 +3670,7 @@ bool MainWidget::inviteCheckFail(const RPCError &error) {
 
 void MainWidget::onInviteImport() {
 	if (_inviteHash.isEmpty()) return;
-	if (_inviteHash.at(0) == '/') {
-		PeerId id = _inviteHash.midRef(1).toULongLong();
-		MTP::send(MTPmessages_AddChatUser(MTP_int(peerToChat(id)), App::self()->inputUser, MTP_int(ForwardOnAdd)), rpcDone(&MainWidget::inviteImportDone), rpcFail(&MainWidget::inviteImportFail), 0, 5);
-	} else {
-		MTP::send(MTPmessages_ImportChatInvite(MTP_string(_inviteHash)), rpcDone(&MainWidget::inviteImportDone), rpcFail(&MainWidget::inviteImportFail));
-	}
+	MTP::send(MTPmessages_ImportChatInvite(MTP_string(_inviteHash)), rpcDone(&MainWidget::inviteImportDone), rpcFail(&MainWidget::inviteImportFail));
 }
 
 void MainWidget::inviteImportDone(const MTPUpdates &updates) {
