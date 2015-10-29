@@ -305,7 +305,8 @@ QAction *PopupMenu::addAction(const QString &text, const QObject *receiver, cons
 	connect(a, SIGNAL(triggered(bool)), receiver, member);
 	connect(a, SIGNAL(changed()), this, SLOT(actionChanged()));
 
-	int32 w = _st.widthMin, mw = _st.widthMax;
+	int32 w = _padding.left() + _st.widthMin + _padding.right();
+	int32 mw = _padding.left() + _st.widthMax + _padding.right();
 	for (int32 i = 0, l = _actions.size(); i < l; ++i) {
 		int32 goodw = _padding.left() + _st.itemPadding.left() + _st.itemFont->width(_actions[i]->text()) + _st.itemPadding.right() + _padding.right();
 		w = snap(goodw, w, mw);
@@ -321,7 +322,8 @@ PopupMenu::Actions &PopupMenu::actions() {
 }
 
 void PopupMenu::actionChanged() {
-	int32 w = _st.widthMin, mw = _st.widthMax;
+	int32 w = _padding.left() + _st.widthMin + _padding.right();
+	int32 mw = _padding.left() + _st.widthMax + _padding.right();
 	for (int32 i = 0, l = _actions.size(); i < l; ++i) {
 		int32 goodw = _padding.left() + _st.itemPadding.left() + _st.itemFont->width(_actions[i]->text()) + _st.itemPadding.right() + _padding.right();
 		w = snap(goodw, w, mw);
@@ -340,7 +342,7 @@ void PopupMenu::activeWindowChanged() {
 
 void PopupMenu::resetActions() {
 	clearActions();
-	resize(_st.widthMin, _padding.top() + (_st.skip * 2) + _padding.bottom());
+	resize(_padding.left() + _st.widthMin + _padding.right(), _padding.top() + (_st.skip * 2) + _padding.bottom());
 }
 
 void PopupMenu::clearActions() {

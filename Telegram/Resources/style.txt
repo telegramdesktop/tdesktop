@@ -250,12 +250,12 @@ defaultPopupMenu: PopupMenu {
 	itemBgOver: overBg;
 	itemFg: black;
 	itemFgOver: black;
-	itemPadding: margins(20px, 8px, 20px, 7px);
+	itemPadding: margins(17px, 8px, 17px, 7px);
 	itemFont: normalFont;
 
 	duration: 120;
 
-	widthMin: 150px;
+	widthMin: 160px;
 	widthMax: 300px;
 }
 almostTransparent: #ffffff0d;
