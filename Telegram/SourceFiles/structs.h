@@ -372,9 +372,16 @@ public:
 class ChatData : public PeerData {
 public:
 
-	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_int(bareId())), count(0), date(0), version(0), creator(0), inviterForSpamReport(0), isForbidden(false), haveLeft(true), botStatus(0) {
+	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_int(bareId())), count(0), date(0), version(0), creator(0), inviterForSpamReport(0), flags(0), isForbidden(false), botStatus(0) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
+	void invalidateParticipants(bool invalidateCount = true) {
+		participants = ChatData::Participants();
+		admins = ChatData::Admins();
+		invitedByMe = ChatData::InvitedByMe();
+		botStatus = 0;
+		if (invalidateCount) count = 0;
+	}
 
 	MTPint inputChat;
 
@@ -384,12 +391,35 @@ public:
 	int32 creator;
 	int32 inviterForSpamReport; // > 0 - user who invited me to chat in unread service msg, < 0 - have outgoing message
 
+	int32 flags;
 	bool isForbidden;
-	bool haveLeft;
+	bool amIn() const {
+		return !isForbidden && !haveLeft() && !wasKicked();
+	}
+	bool canEdit() const {
+		return amCreator() || (adminsEnabled() ? amAdmin() : amIn());
+	}
+	bool haveLeft() const {
+		return flags & MTPDchat::flag_left;
+	}
+	bool wasKicked() const {
+		return flags & MTPDchat::flag_kicked;
+	}
+	bool adminsEnabled() const {
+		return flags & MTPDchat::flag_admins_enabled;
+	}
+	bool amCreator() const {
+		return flags & MTPDchat::flag_creator;
+	}
+	bool amAdmin() const {
+		return flags & MTPDchat::flag_admin;
+	}
 	typedef QMap<UserData*, int32> Participants;
 	Participants participants;
-	typedef QMap<UserData*, bool> CanKick;
-	CanKick cankick;
+	typedef QMap<UserData*, bool> InvitedByMe;
+	InvitedByMe invitedByMe;
+	typedef QMap<UserData*, bool> Admins;
+	Admins admins;
 	typedef QList<UserData*> LastAuthors;
 	LastAuthors lastAuthors;
 	typedef QMap<PeerData*, bool> MarkupSenders;

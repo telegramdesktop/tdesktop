@@ -103,7 +103,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_channel_status" = "channel";
 
 "lng_channel_members_link" = "{count:_not_used_|# member|# members} »";
-"lng_channel_admins_link" = "{count:_not_used_|# administrator|# administrators} »";
+"lng_channel_admins_link" = "{count:Manage administrators|# administrator|# administrators} »";
 
 "lng_server_error" = "Internal server error.";
 "lng_flood_error" = "Too many tries. Please try again later.";
@@ -430,7 +430,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_channel_admins" = "Administrators";
 "lng_channel_add_admin" = "Add Administrator";
 "lng_channel_admin_sure" = "Add {user} to administrators?";
-"lng_channel_admins_too_much" = "Sorry, you have reached the limit of channel administrators. Please remove some administrator first.";
+"lng_channel_admins_too_much" = "Sorry, you have reached the limit of channel administrators. Please remove one administrator first.";
 
 "lng_participant_filter" = "Search";
 "lng_participant_invite" = "Invite";

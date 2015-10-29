@@ -490,7 +490,7 @@ private:
 
 	void sendReadRequest(PeerData *peer, MsgId upTo);
 	void channelWasRead(PeerData *peer, const MTPBool &result);
-    void partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &result);
+    void historyWasRead(PeerData *peer, const MTPmessages_AffectedMessages &result);
 	bool readRequestFail(PeerData *peer, const RPCError &error);
 	void readRequestDone(PeerData *peer);
 

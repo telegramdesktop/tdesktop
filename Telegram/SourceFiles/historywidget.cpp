@@ -4435,7 +4435,7 @@ bool HistoryWidget::canSendMessages(PeerData *peer) const {
 		if (peer->isUser()) {
 			return peer->asUser()->access != UserNoAccess;
 		} else if (peer->isChat()) {
-			return !peer->asChat()->isForbidden && !peer->asChat()->haveLeft;
+			return peer->asChat()->amIn();
 		} else if (peer->isChannel()) {
 			return peer->asChannel()->amIn() && (peer->asChannel()->canPublish() || !peer->asChannel()->isBroadcast());
 		}
@@ -4683,7 +4683,7 @@ void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
 		text = App::onlineText(_peer->asUser(), t);
 	} else if (_peer->isChat()) {
 		ChatData *chat = _peer->asChat();
-		if (chat->isForbidden || chat->haveLeft) {
+		if (!chat->amIn()) {
 			text = lang(lng_chat_status_unaccessible);
 		} else if (chat->participants.isEmpty()) {
 			text = _titlePeerText.isEmpty() ? lng_chat_status_members(lt_count, chat->count < 0 ? 0 : chat->count) : _titlePeerText;

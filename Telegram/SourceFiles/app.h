@@ -105,6 +105,8 @@ namespace App {
 	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos, bool emitPeerUpdated = true);
 	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d, bool emitPeerUpdated = true);
 	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d, bool emitPeerUpdated = true);
+	void feedChatAdmins(const MTPDupdateChatAdmins &d, bool emitPeerUpdated = true);
+	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d, bool emitPeerUpdated = true);
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m); // returns true if item found and it is not detached
 	void feedMsgs(const MTPVector<MTPMessage> &msgs, NewMessageType type);
 	void feedInboxRead(const PeerId &peer, MsgId upTo);

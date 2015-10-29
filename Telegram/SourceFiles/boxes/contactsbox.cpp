@@ -129,7 +129,7 @@ ContactsInner::ContactsInner(UserData *bot) : TWidget()
 , _addContactLnk(this, lang(lng_add_contact_button)) {
 	DialogsIndexed &v(App::main()->dialogsList());
 	for (DialogRow *r = v.list.begin; r != v.list.end; r = r->next) {
-		if (r->history->peer->isChat() && !r->history->peer->asChat()->isForbidden && !r->history->peer->asChat()->haveLeft) {
+		if (r->history->peer->isChat() && r->history->peer->asChat()->amIn()) {
 			_contacts->addToEnd(r->history);
 		}
 	}
@@ -197,12 +197,12 @@ bool ContactsInner::addAdminFail(const RPCError &error, mtpRequestId req) {
 	if (req != _addAdminRequestId) return true;
 
 	_addAdminRequestId = 0;
+	if (_addAdminBox) _addAdminBox->onClose();
 	if (error.type() == "USERS_TOO_MUCH") {
 		App::wnd()->replaceLayer(new MaxInviteBox(_channel->invitationUrl));
 	} else if (error.type() == "ADMINS_TOO_MUCH") {
 		App::wnd()->replaceLayer(new InformBox(lang(lng_channel_admins_too_much)));
 	} else  {
-		if (_addAdminBox) _addAdminBox->onClose();
 		emit adminAdded();
 	}
 	return true;
@@ -210,7 +210,7 @@ bool ContactsInner::addAdminFail(const RPCError &error, mtpRequestId req) {
 
 void ContactsInner::peerUpdated(PeerData *peer) {
 	if (_chat && (!peer || peer == _chat)) {
-		if (_chat->isForbidden || _chat->haveLeft) {
+		if (!_chat->amIn()) {
 			App::wnd()->hideLayer();
 		} else if (!_chat->participants.isEmpty() || _chat->count <= 0) {
 			for (ContactsData::iterator i = _contactsData.begin(), e = _contactsData.end(); i != e; ++i) {
@@ -308,7 +308,7 @@ ContactsInner::ContactData *ContactsInner::contactData(DialogRow *row) {
 				data->online = App::onlineText(peer->asUser(), _time);
 			} else if (peer->isChat()) {
 				ChatData *chat = peer->asChat();
-				if (chat->isForbidden || chat->haveLeft) {
+				if (!chat->amIn()) {
 					data->online = lang(lng_chat_status_unaccessible);
 				} else {
 					data->online = lng_chat_status_members(lt_count, chat->count);

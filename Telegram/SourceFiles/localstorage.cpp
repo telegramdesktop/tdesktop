@@ -2973,8 +2973,10 @@ namespace Local {
 		} else if (peer->isChat()) {
 			ChatData *chat = peer->asChat();
 
+			qint32 flagsData = (AppVersion >= 9009) ? chat->flags : (chat->haveLeft() ? 1 : 0);
+
 			stream << chat->name << qint32(chat->count) << qint32(chat->date) << qint32(chat->version) << qint32(chat->creator);
-			stream << qint32(chat->isForbidden ? 1 : 0) << qint32(chat->haveLeft ? 1 : 0) << chat->invitationUrl;
+			stream << qint32(chat->isForbidden ? 1 : 0) << qint32(flagsData) << chat->invitationUrl;
 		} else if (peer->isChannel()) {
 			ChannelData *channel = peer->asChannel();
 
@@ -3028,16 +3030,22 @@ namespace Local {
 			ChatData *chat = result->asChat();
 
 			QString name, invitationUrl;
-			qint32 count, date, version, creator, forbidden, left;
-			from.stream >> name >> count >> date >> version >> creator >> forbidden >> left >> invitationUrl;
+			qint32 count, date, version, creator, forbidden, flagsData, flags;
+			from.stream >> name >> count >> date >> version >> creator >> forbidden >> flagsData >> invitationUrl;
 
+			if (from.version >= 9009) {
+				flags = flagsData;
+			} else {
+				// flagsData was haveLeft
+				flags = (flagsData == 1 ? MTPDchat::flag_left : 0);
+			}
 			chat->updateName(name, QString(), QString());
 			chat->count = count;
 			chat->date = date;
 			chat->version = version;
 			chat->creator = creator;
 			chat->isForbidden = (forbidden == 1);
-			chat->haveLeft = (left == 1);
+			chat->flags = flags;
 			chat->invitationUrl = invitationUrl;
 
 			chat->input = MTP_inputPeerChat(MTP_int(peerToChat(chat->id)));

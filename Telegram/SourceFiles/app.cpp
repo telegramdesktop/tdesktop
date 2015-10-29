@@ -502,9 +502,14 @@ namespace App {
 				ChatData *cdata = data->asChat();
 				cdata->setPhoto(d.vphoto);
 				cdata->date = d.vdate.v;
+
+				if (!(cdata->flags & MTPDchat::flag_admins_enabled) && (d.vflags.v & MTPDchat::flag_admins_enabled)) {
+					cdata->invalidateParticipants(false);
+				}
+				cdata->flags = d.vflags.v;
+
 				cdata->count = d.vparticipants_count.v;
-				cdata->isForbidden = d.is_kicked();
-				cdata->haveLeft = d.is_left();
+				cdata->isForbidden = false;
 				if (cdata->version < d.vversion.v) {
 					cdata->version = d.vversion.v;
 					cdata->participants = ChatData::Participants();
@@ -523,8 +528,8 @@ namespace App {
 				cdata->setPhoto(MTP_chatPhotoEmpty());
 				cdata->date = 0;
 				cdata->count = -1;
+				cdata->flags = 0;
 				cdata->isForbidden = true;
-				cdata->haveLeft = false;
 			} break;
 			case mtpc_channel: {
 				const MTPDchannel &d(chat.c_channel());
@@ -589,34 +594,55 @@ namespace App {
 			const MTPDchatParticipantsForbidden &d(p.c_chatParticipantsForbidden());
 			chat = App::chat(d.vchat_id.v);
 			chat->count = -1;
+			chat->participants = ChatData::Participants();
+			chat->invitedByMe = ChatData::InvitedByMe();
+			chat->admins = ChatData::Admins();
 		} break;
 
 		case mtpc_chatParticipants: {
 			const MTPDchatParticipants &d(p.c_chatParticipants());
 			chat = App::chat(d.vchat_id.v);
-			chat->creator = d.vadmin_id.v;
 			if (!requestBotInfos || chat->version <= d.vversion.v) { // !requestBotInfos is true on getFullChat result
 				chat->version = d.vversion.v;
 				const QVector<MTPChatParticipant> &v(d.vparticipants.c_vector().v);
 				chat->count = v.size();
 				int32 pversion = chat->participants.isEmpty() ? 1 : (chat->participants.begin().value() + 1);
-				chat->cankick = ChatData::CanKick();
+				chat->invitedByMe = ChatData::InvitedByMe();
+				chat->admins = ChatData::Admins();
 				for (QVector<MTPChatParticipant>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
-					if (i->type() != mtpc_chatParticipant) continue;
+					int32 uid = 0, inviter = 0;
+					switch (i->type()) {
+					case mtpc_chatParticipantCreator: {
+						const MTPDchatParticipantCreator &p(i->c_chatParticipantCreator());
+						uid = p.vuser_id.v;
+						chat->creator = uid;
+					} break;
+					case mtpc_chatParticipantAdmin: {
+						const MTPDchatParticipantAdmin &p(i->c_chatParticipantAdmin());
+						uid = p.vuser_id.v;
+						inviter = p.vinviter_id.v;
+					} break;
+					case mtpc_chatParticipant: {
+						const MTPDchatParticipant &p(i->c_chatParticipant());
+						uid = p.vuser_id.v;
+						inviter = p.vinviter_id.v;
+					} break;
+					}
+					if (!uid) continue;
 
-					const MTPDchatParticipant &p(i->c_chatParticipant());
-					//if (p.vuser_id.v == MTP::authedId()) {
-					//	chat->inviter = p.vinviter_id.v; // we use inviter only from service msgs
-					//	chat->inviteDate = p.vdate.v;
-					//}
-					UserData *user = App::userLoaded(p.vuser_id.v);
+					UserData *user = App::userLoaded(uid);
 					if (user) {
 						chat->participants[user] = pversion;
-						if (p.vinviter_id.v == MTP::authedId()) {
-							chat->cankick[user] = true;
+						if (inviter == MTP::authedId()) {
+							chat->invitedByMe[user] = true;
+						}
+						if (i->type() == mtpc_chatParticipantAdmin) {
+							chat->admins[user] = true;
 						}
 					} else {
 						chat->participants = ChatData::Participants();
+						chat->invitedByMe = ChatData::InvitedByMe();
+						chat->admins = ChatData::Admins();
 						chat->botStatus = 0;
 						break;
 					}
@@ -660,12 +686,17 @@ namespace App {
 
 	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d, bool emitPeerUpdated) {
 		ChatData *chat = App::chat(d.vchat_id.v);
-		if (chat->version <= d.vversion.v && chat->count >= 0) {
+		if (chat->version + 1 < d.vversion.v) {
+			chat->invalidateParticipants();
+			if (App::main()) {
+				if (emitPeerUpdated) {
+					App::main()->peerUpdated(chat);
+				} else {
+					markPeerUpdated(chat);
+				}
+			}
+		} else if (chat->version <= d.vversion.v && chat->count >= 0) {
 			chat->version = d.vversion.v;
-			//if (d.vuser_id.v == MTP::authedId()) {
-			//	chat->inviter = d.vinviter_id.v; // we use inviter only from service msgs
-			//	chat->inviteDate = unixtime(); // no event date here :(
-			//}
 			UserData *user = App::userLoaded(d.vuser_id.v);
 			if (user) {
 				if (chat->participants.isEmpty() && chat->count) {
@@ -674,9 +705,9 @@ namespace App {
 				} else if (chat->participants.find(user) == chat->participants.end()) {
 					chat->participants[user] = (chat->participants.isEmpty() ? 1 : chat->participants.begin().value());
 					if (d.vinviter_id.v == MTP::authedId()) {
-						chat->cankick[user] = true;
+						chat->invitedByMe[user] = true;
 					} else {
-						chat->cankick.remove(user);
+						chat->invitedByMe.remove(user);
 					}
 					chat->count++;
 					if (user->botInfo) {
@@ -685,8 +716,7 @@ namespace App {
 					}
 				}
 			} else {
-				chat->participants = ChatData::Participants();
-				chat->botStatus = 0;
+				chat->invalidateParticipants(false);
 				chat->count++;
 			}
 			if (App::main()) {
@@ -701,7 +731,16 @@ namespace App {
 
 	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d, bool emitPeerUpdated) {
 		ChatData *chat = App::chat(d.vchat_id.v);
-		if (chat->version <= d.vversion.v && chat->count > 0) {
+		if (chat->version + 1 < d.vversion.v) {
+			chat->invalidateParticipants();
+			if (App::main()) {
+				if (emitPeerUpdated) {
+					App::main()->peerUpdated(chat);
+				} else {
+					markPeerUpdated(chat);
+				}
+			}
+		} else if (chat->version <= d.vversion.v && chat->count > 0) {
 			chat->version = d.vversion.v;
 			UserData *user = App::userLoaded(d.vuser_id.v);
 			if (user) {
@@ -712,6 +751,8 @@ namespace App {
 					if (i != chat->participants.end()) {
 						chat->participants.erase(i);
 						chat->count--;
+						chat->invitedByMe.remove(user);
+						chat->admins.remove(user);
 
 						History *h = App::historyLoaded(chat->id);
 						if (h && h->lastKeyboardFrom == user->id) {
@@ -735,9 +776,65 @@ namespace App {
 					}
 				}
 			} else {
-				chat->participants = ChatData::Participants();
-				chat->botStatus = 0;
+				chat->invalidateParticipants(false);
 				chat->count--;
+			}
+			if (App::main()) {
+				if (emitPeerUpdated) {
+					App::main()->peerUpdated(chat);
+				} else {
+					markPeerUpdated(chat);
+				}
+			}
+		}
+	}
+
+	void feedChatAdmins(const MTPDupdateChatAdmins &d, bool emitPeerUpdated) {
+		ChatData *chat = App::chat(d.vchat_id.v);
+		if (chat->version <= d.vversion.v) {
+			bool badVersion = (chat->version + 1 < d.vversion.v);
+			if (badVersion) {
+				chat->invalidateParticipants();
+			}
+			chat->version = d.vversion.v;
+			if (mtpIsTrue(d.venabled)) {
+				chat->flags |= MTPDchat::flag_admins_enabled;
+				if (!badVersion) {
+					chat->invalidateParticipants(false);
+				}
+			} else {
+				chat->flags &= ~MTPDchat::flag_admins_enabled;
+			}
+			if (emitPeerUpdated) {
+				App::main()->peerUpdated(chat);
+			} else {
+				markPeerUpdated(chat);
+			}
+		}
+	}
+
+	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d, bool emitPeerUpdated) {
+		ChatData *chat = App::chat(d.vchat_id.v);
+		if (chat->version + 1 < d.vversion.v) {
+			chat->invalidateParticipants();
+			if (App::main()) {
+				if (emitPeerUpdated) {
+					App::main()->peerUpdated(chat);
+				} else {
+					markPeerUpdated(chat);
+				}
+			}
+		} else if (chat->version <= d.vversion.v && chat->count > 0) {
+			chat->version = d.vversion.v;
+			UserData *user = App::userLoaded(d.vuser_id.v);
+			if (user) {
+				if (mtpIsTrue(d.vis_admin)) {
+					chat->admins.insert(user, true);
+				} else {
+					chat->admins.remove(user);
+				}
+			} else {
+				chat->invalidateParticipants(false);
 			}
 			if (App::main()) {
 				if (emitPeerUpdated) {

@@ -293,10 +293,10 @@ void TopBarWidget::showAll() {
 	PeerData *p = App::main() ? App::main()->profilePeer() : 0, *h = App::main() ? App::main()->historyPeer() : 0, *o = App::main() ? App::main()->overviewPeer() : 0;
 	if (p && (p->isChat() || (p->isUser() && (p->asUser()->contact >= 0 || !App::phoneFromSharedContact(peerToUser(p->id)).isEmpty())))) {
 		if (p->isChat()) {
-			if (p->asChat()->isForbidden) {
-				_edit.hide();
-			} else {
+			if (p->asChat()->amIn()) {
 				_edit.show();
+			} else {
+				_edit.hide();
 			}
 			_leaveGroup.show();
 			_addContact.hide();
@@ -477,7 +477,7 @@ MainWidget::MainWidget(Window *window) : TWidget(window)
 
 bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
 	PeerData *p = App::peer(peer);
-	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && (p->asChat()->haveLeft || p->asChat()->isForbidden)) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
+	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->amIn()) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
 		App::wnd()->showLayer(new InformBox(lang(lng_forward_cant)));
 		return false;
 	}
@@ -511,7 +511,7 @@ bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
 
 bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QString &text) {
 	PeerData *p = App::peer(peer);
-	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && (p->asChat()->haveLeft || p->asChat()->isForbidden)) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
+	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->amIn()) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
 		App::wnd()->showLayer(new InformBox(lang(lng_share_cant)));
 		return false;
 	}
@@ -1032,7 +1032,7 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 	if (!v) return;
 
 	if (v->isEmpty()) {
-		if (peer->isChat() && peer->asChat()->haveLeft) {
+		if (peer->isChat() && peer->asChat()->haveLeft()) {
 			deleteConversation(peer, false);
 		} else if (peer->isChannel()) {
 			if (peer->asChannel()->inviter > 0 && peer->asChannel()->amIn()) {
@@ -1591,7 +1591,7 @@ void MainWidget::sendReadRequest(PeerData *peer, MsgId upTo) {
 	if (peer->isChannel()) {
 		_readRequests.insert(peer, qMakePair(MTP::send(MTPchannels_ReadHistory(peer->asChannel()->inputChannel, MTP_int(upTo)), rpcDone(&MainWidget::channelWasRead, peer), rpcFail(&MainWidget::readRequestFail, peer)), upTo));
 	} else {
-		_readRequests.insert(peer, qMakePair(MTP::send(MTPmessages_ReadHistory(peer->input, MTP_int(upTo), MTP_int(0)), rpcDone(&MainWidget::partWasRead, peer), rpcFail(&MainWidget::readRequestFail, peer)), upTo));
+		_readRequests.insert(peer, qMakePair(MTP::send(MTPmessages_ReadHistory(peer->input, MTP_int(upTo)), rpcDone(&MainWidget::historyWasRead, peer), rpcFail(&MainWidget::readRequestFail, peer)), upTo));
 	}
 }
 
@@ -1599,19 +1599,9 @@ void MainWidget::channelWasRead(PeerData *peer, const MTPBool &result) {
 	readRequestDone(peer);
 }
 
-void MainWidget::partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &result) {
-	const MTPDmessages_affectedHistory &d(result.c_messages_affectedHistory());
-	if (ptsUpdated(d.vpts.v, d.vpts_count.v)) {
-		ptsApplySkippedUpdates();
-		App::emitPeerUpdated();
-	}
-
-	int32 offset = d.voffset.v;
-	if (!MTP::authedId() || offset <= 0) {
-		readRequestDone(peer);
-    } else {
-        _readRequests[peer].first = MTP::send(MTPmessages_ReadHistory(peer->input, MTP_int(_readRequests[peer].second), MTP_int(offset)), rpcDone(&MainWidget::partWasRead, peer));
-    }
+void MainWidget::historyWasRead(PeerData *peer, const MTPmessages_AffectedMessages &result) {
+	messagesAffected(peer, result);
+	readRequestDone(peer);
 }
 
 bool MainWidget::readRequestFail(PeerData *peer, const RPCError &error) {
@@ -4372,18 +4362,23 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateChatParticipants: {
-		const MTPDupdateChatParticipants &d(update.c_updateChatParticipants());
-		App::feedParticipants(d.vparticipants, true, false);
+		App::feedParticipants(update.c_updateChatParticipants().vparticipants, true, false);
 	} break;
 
 	case mtpc_updateChatParticipantAdd: {
-		const MTPDupdateChatParticipantAdd &d(update.c_updateChatParticipantAdd());
-		App::feedParticipantAdd(d, false);
+		App::feedParticipantAdd(update.c_updateChatParticipantAdd(), false);
 	} break;
 
 	case mtpc_updateChatParticipantDelete: {
-		const MTPDupdateChatParticipantDelete &d(update.c_updateChatParticipantDelete());
-		App::feedParticipantDelete(d, false);
+		App::feedParticipantDelete(update.c_updateChatParticipantDelete(), false);
+	} break;
+
+	case mtpc_updateChatAdmins: {
+		App::feedChatAdmins(update.c_updateChatAdmins(), false);
+	} break;
+
+	case mtpc_updateChatParticipantAdmin: {
+		App::feedParticipantAdmin(update.c_updateChatParticipantAdmin(), false);
 	} break;
 
 	case mtpc_updateUserStatus: {
