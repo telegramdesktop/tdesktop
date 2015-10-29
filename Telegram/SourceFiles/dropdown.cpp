@@ -1272,7 +1272,7 @@ void StickerPanInner::paintEvent(QPaintEvent *e) {
 		tilly = y + st::emojiPanHeader + (rows * st::stickerPanSize.height());
 		if (r.top() >= tilly) continue;
 
-		bool special = (_sets[c].flags & MTPDstickerSet_flag_official);
+		bool special = (_sets[c].flags & MTPDstickerSet::flag_official);
 		y += st::emojiPanHeader;
 
 		int32 fromrow = floorclamp(r.y() - y, st::stickerPanSize.height(), 0, rows);
@@ -1552,7 +1552,7 @@ void StickerPanInner::refreshRecent(bool performResize) {
 			}
 		}
 		if (_sets.isEmpty() || _sets.at(0).id != RecentStickerSetId) {
-			_sets.push_back(DisplayedSet(RecentStickerSetId, MTPDstickerSet_flag_official, lang(lng_emoji_category0), recent.size() * 2, recent));
+			_sets.push_back(DisplayedSet(RecentStickerSetId, MTPDstickerSet::flag_official, lang(lng_emoji_category0), recent.size() * 2, recent));
 		} else {
 			_sets[0].pack = recent;
 			_sets[0].hovers.resize(recent.size() * 2);
@@ -1606,7 +1606,7 @@ void StickerPanInner::fillPanels(QVector<EmojiPanel*> &panels) {
 	int y = 0;
 	panels.reserve(_sets.size());
 	for (int32 i = 0, l = _sets.size(); i < l; ++i) {
-		bool special = (_sets.at(i).flags & MTPDstickerSet_flag_official);
+		bool special = (_sets.at(i).flags & MTPDstickerSet::flag_official);
 		panels.push_back(new EmojiPanel(parentWidget(), _sets.at(i).title, _sets.at(i).id, special, y));
 		panels.back()->show();
 		connect(panels.back(), SIGNAL(deleteClicked(quint64)), this, SIGNAL(removing(quint64)));
@@ -1639,7 +1639,7 @@ void StickerPanInner::updateSelected() {
 	for (int c = 0, l = _sets.size(); c < l; ++c) {
 		const DisplayedSet &set(_sets.at(c));
 		int cnt = set.pack.size();
-		bool special = (set.flags & MTPDstickerSet_flag_official);
+		bool special = (set.flags & MTPDstickerSet::flag_official);
 
 		y = ytill;
 		ytill = y + st::emojiPanHeader + ((cnt / StickerPanPerRow) + ((cnt % StickerPanPerRow) ? 1 : 0)) * st::stickerPanSize.height();
@@ -2615,7 +2615,7 @@ void EmojiPan::onSwitch() {
 
 void EmojiPan::onRemoveSet(quint64 setId) {
 	StickerSets::const_iterator it = cStickerSets().constFind(setId);
-	if (it != cStickerSets().cend() && !(it->flags & MTPDstickerSet_flag_official)) {
+	if (it != cStickerSets().cend() && !(it->flags & MTPDstickerSet::flag_official)) {
 		_removingSetId = it->id;
 		ConfirmBox *box = new ConfirmBox(lng_stickers_remove_pack(lt_sticker_pack, it->title), lang(lng_box_remove));
 		connect(box, SIGNAL(confirmed()), this, SLOT(onRemoveSetSure()));
@@ -2627,7 +2627,7 @@ void EmojiPan::onRemoveSet(quint64 setId) {
 void EmojiPan::onRemoveSetSure() {
 	App::wnd()->hideLayer();
 	StickerSets::iterator it = cRefStickerSets().find(_removingSetId);
-	if (it != cRefStickerSets().cend() && !(it->flags & MTPDstickerSet_flag_official)) {
+	if (it != cRefStickerSets().cend() && !(it->flags & MTPDstickerSet::flag_official)) {
 		if (it->id && it->access) {
 			MTP::send(MTPmessages_UninstallStickerSet(MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access))));
 		} else if (!it->shortName.isEmpty()) {

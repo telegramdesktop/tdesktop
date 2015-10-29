@@ -500,7 +500,7 @@ void GroupInfoBox::onNext() {
 	if (_creating == CreatingGroupGroup) {
 		App::wnd()->replaceLayer(new ContactsBox(title, _photoBig));
 	} else {
-		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_int(MTPmessages_CreateChannel_flag_broadcast), MTP_string(title), MTP_string(description), MTP_vector<MTPInputUser>(0)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
+		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_int(MTPchannels_CreateChannel::flag_broadcast), MTP_string(title), MTP_string(description), MTP_vector<MTPInputUser>(0)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
 	}
 }
 
@@ -918,7 +918,7 @@ bool SetupChannelBox::onUpdateFail(const RPCError &error) {
 
 void SetupChannelBox::onCheckDone(const MTPBool &result) {
 	_checkRequestId = 0;
-	QString newError = (result.v || _checkUsername == _channel->username) ? QString() : lang(lng_create_channel_link_occupied);
+	QString newError = (mtpIsTrue(result) || _checkUsername == _channel->username) ? QString() : lang(lng_create_channel_link_occupied);
 	QString newGood = newError.isEmpty() ? lang(lng_create_channel_link_available) : QString();
 	if (_errorText != newError || _goodText != newGood) {
 		_errorText = newError;

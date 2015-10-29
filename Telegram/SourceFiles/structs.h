@@ -477,25 +477,25 @@ public:
 	int32 version;
 	int32 flags, flagsFull;
 	bool isBroadcast() const {
-		return flags & MTPDchannel_flag_is_broadcast;
+		return flags & MTPDchannel::flag_broadcast;
 	}
 	bool isPublic() const {
 		return flags & MTPDchannel::flag_username;
 	}
 	bool amCreator() const {
-		return flags & MTPDchannel_flag_am_creator;
+		return flags & MTPDchannel::flag_creator;
 	}
 	bool amEditor() const {
-		return flags & MTPDchannel_flag_am_editor;
+		return flags & MTPDchannel::flag_editor;
 	}
 	bool amModerator() const {
-		return flags & MTPDchannel_flag_am_moderator;
+		return flags & MTPDchannel::flag_moderator;
 	}
 	bool haveLeft() const {
-		return flags & MTPDchannel_flag_have_left;
+		return flags & MTPDchannel::flag_left;
 	}
 	bool wasKicked() const {
-		return flags & MTPDchannel_flag_was_kicked;
+		return flags & MTPDchannel::flag_kicked;
 	}
 	bool amIn() const {
 		return !isForbidden && !haveLeft() && !wasKicked();
@@ -504,11 +504,11 @@ public:
 		return amCreator() || amEditor();
 	}
 	bool canViewParticipants() const {
-		return flagsFull & MTPDchannelFull_flag_can_view_participants;
+		return flagsFull & MTPDchannelFull::flag_can_view_participants;
 	}
 	bool isForbidden;
 	bool isVerified() const {
-		return flags & MTPDchannel_flag_is_verified;
+		return flags & MTPDchannel::flag_verified;
 	}
 
 	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
@@ -586,7 +586,7 @@ inline const QString &PeerData::userName() const {
 }
 
 inline int32 newMessageFlags(PeerData *p) {
-	return p->isSelf() ? 0 : (((p->isChat() || (p->isUser() && !p->asUser()->botInfo)) ? MTPDmessage_flag_unread : 0) | MTPDmessage_flag_out);
+	return p->isSelf() ? 0 : (((p->isChat() || (p->isUser() && !p->asUser()->botInfo)) ? MTPDmessage::flag_unread : 0) | MTPDmessage::flag_out);
 }
 
 typedef QMap<char, QPixmap> PreparedPhotoThumbs;

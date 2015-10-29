@@ -262,7 +262,7 @@ void FileUploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 		j = docRequestsSent.find(requestId);
 	}
 	if (i != requestsSent.cend() || j != docRequestsSent.cend()) {
-		if (!result.v) { // failed to upload current file
+		if (mtpIsFalse(result)) { // failed to upload current file
 			currentFailed();
 			return;
 		} else {

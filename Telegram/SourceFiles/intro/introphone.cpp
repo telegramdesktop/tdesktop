@@ -223,7 +223,7 @@ void IntroPhone::phoneCheckDone(const MTPauth_CheckedPhone &result) {
 	stopCheck();
 
 	const MTPDauth_checkedPhone &d(result.c_auth_checkedPhone());
-	if (d.vphone_registered.v) {
+	if (mtpIsTrue(d.vphone_registered)) {
 		disableAll();
 		showError("");
 
@@ -242,11 +242,11 @@ void IntroPhone::phoneSubmitDone(const MTPauth_SentCode &result) {
 	
 	if (result.type() == mtpc_auth_sentCode) {
 		const MTPDauth_sentCode &d(result.c_auth_sentCode());
-		intro()->setPhone(sentPhone, d.vphone_code_hash.c_string().v.c_str(), d.vphone_registered.v);
+		intro()->setPhone(sentPhone, d.vphone_code_hash.c_string().v.c_str(), mtpIsTrue(d.vphone_registered));
 		intro()->setCallTimeout(d.vsend_call_timeout.v);
 	} else if (result.type() == mtpc_auth_sentAppCode) {
 		const MTPDauth_sentAppCode &d(result.c_auth_sentAppCode());
-		intro()->setPhone(sentPhone, d.vphone_code_hash.c_string().v.c_str(), d.vphone_registered.v);
+		intro()->setPhone(sentPhone, d.vphone_code_hash.c_string().v.c_str(), mtpIsTrue(d.vphone_registered));
 		intro()->setCallTimeout(d.vsend_call_timeout.v);
 		intro()->setCodeByTelegram(true);
 	}

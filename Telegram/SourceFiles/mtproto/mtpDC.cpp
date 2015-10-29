@@ -149,7 +149,7 @@ namespace {
 
 		const MTPDconfig &data(result.c_config());
 
-		DEBUG_LOG(("MTP Info: got config, chat_size_max: %1, date: %2, test_mode: %3, this_dc: %4, dc_options.length: %5").arg(data.vchat_size_max.v).arg(data.vdate.v).arg(data.vtest_mode.v).arg(data.vthis_dc.v).arg(data.vdc_options.c_vector().v.size()));
+		DEBUG_LOG(("MTP Info: got config, chat_size_max: %1, date: %2, test_mode: %3, this_dc: %4, dc_options.length: %5").arg(data.vchat_size_max.v).arg(data.vdate.v).arg(mtpIsTrue(data.vtest_mode)).arg(data.vthis_dc.v).arg(data.vdc_options.c_vector().v.size()));
 
 		mtpUpdateDcOptions(data.vdc_options.c_vector().v);
 		cSetMaxGroupCount(data.vchat_size_max.v);

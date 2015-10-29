@@ -67,12 +67,6 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 		}
 	} break;
 
-	case mtpc_boolTrue:
-	case mtpc_boolFalse: {
-		MTPbool value(from, end, cons);
-		to.add(value.v ? "[TRUE]" : "[FALSE]");
-	} break;
-
 	case mtpc_vector: {
 		if (from >= end) {
 			throw Exception("from >= end in vector");

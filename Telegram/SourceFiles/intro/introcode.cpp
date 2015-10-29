@@ -235,7 +235,7 @@ void IntroCode::codeSubmitDone(const MTPauth_Authorization &result) {
 	stopCheck();
 	code.setDisabled(false);
 	const MTPDauth_authorization &d(result.c_auth_authorization());
-	if (d.vuser.type() != mtpc_user || !(d.vuser.c_user().vflags.v & MTPDuser_flag_self)) { // wtf?
+	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
 		showError(lang(lng_server_error));
 		return;
 	}
@@ -309,7 +309,7 @@ void IntroCode::gotPassword(const MTPaccount_Password &result) {
 	case mtpc_account_password: {
 		const MTPDaccount_password &d(result.c_account_password());
 		intro()->setPwdSalt(qba(d.vcurrent_salt));
-		intro()->setHasRecovery(d.vhas_recovery.v);
+		intro()->setHasRecovery(mtpIsTrue(d.vhas_recovery));
 		intro()->setPwdHint(qs(d.vhint));
 		intro()->onIntroNext();
 	} break;

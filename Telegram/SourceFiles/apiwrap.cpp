@@ -316,7 +316,7 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result) {
 	App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), d.vnotify_settings);
 
 	peer->asUser()->setBotInfo(d.vbot_info);
-	peer->asUser()->blocked = d.vblocked.v ? UserIsBlocked : UserIsNotBlocked;
+	peer->asUser()->blocked = mtpIsTrue(d.vblocked) ? UserIsBlocked : UserIsNotBlocked;
 
 	_fullPeerRequests.remove(peer);
 	App::clearPeerUpdated(peer);
@@ -502,7 +502,7 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 	it->hash = s.vhash.v;
 	it->shortName = qs(s.vshort_name);
 	QString title = qs(s.vtitle);
-	if ((it->flags & MTPDstickerSet_flag_official) && !title.compare(qstr("Great Minds"), Qt::CaseInsensitive)) {
+	if ((it->flags & MTPDstickerSet::flag_official) && !title.compare(qstr("Great Minds"), Qt::CaseInsensitive)) {
 		title = lang(lng_stickers_default_set);
 	}
 	it->title = title;

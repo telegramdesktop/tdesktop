@@ -1902,7 +1902,7 @@ namespace Local {
 
 			const BuiltInDc *bdcsipv6 = builtInDcsIPv6();
 			for (int i = 0, l = builtInDcsCountIPv6(); i < l; ++i) {
-				int32 flags = MTPDdcOption_flag_ipv6, idWithShift = bdcsipv6[i].id + (flags * _mtp_internal::dcShift);
+				int32 flags = MTPDdcOption::flag_ipv6, idWithShift = bdcsipv6[i].id + (flags * _mtp_internal::dcShift);
 				dcOpts.insert(idWithShift, mtpDcOption(bdcsipv6[i].id, flags, bdcsipv6[i].ip, bdcsipv6[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: %2:%3").arg(bdcsipv6[i].id).arg(bdcsipv6[i].ip).arg(bdcsipv6[i].port));
 			}
@@ -1946,7 +1946,7 @@ namespace Local {
 
 			const BuiltInDc *bdcsipv6 = builtInDcsIPv6();
 			for (int i = 0, l = builtInDcsCountIPv6(); i < l; ++i) {
-				dcOpts.insert(bdcsipv6[i].id + (MTPDdcOption_flag_ipv6 * _mtp_internal::dcShift), mtpDcOption(bdcsipv6[i].id, MTPDdcOption_flag_ipv6, bdcsipv6[i].ip, bdcsipv6[i].port));
+				dcOpts.insert(bdcsipv6[i].id + (MTPDdcOption::flag_ipv6 * _mtp_internal::dcShift), mtpDcOption(bdcsipv6[i].id, MTPDdcOption::flag_ipv6, bdcsipv6[i].ip, bdcsipv6[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: %2:%3").arg(bdcsipv6[i].id).arg(bdcsipv6[i].ip).arg(bdcsipv6[i].port));
 			}
 
@@ -2571,7 +2571,7 @@ namespace Local {
 			for (StickerSets::const_iterator i = sets.cbegin(); i != sets.cend(); ++i) {
 				bool notLoaded = (i->flags & MTPDstickerSet_flag_NOT_LOADED);
 				if (notLoaded) {
-					if (!(i->flags & MTPDstickerSet_flag_disabled)) { // waiting to receive
+					if (!(i->flags & MTPDstickerSet::flag_disabled)) { // waiting to receive
 						return;
 					}
 				} else {
@@ -2630,7 +2630,7 @@ namespace Local {
 
 		cSetStickersHash(QByteArray());
 
-		StickerSet &def(sets.insert(DefaultStickerSetId, StickerSet(DefaultStickerSetId, 0, lang(lng_stickers_default_set), QString(), 0, 0, MTPDstickerSet_flag_official)).value());
+		StickerSet &def(sets.insert(DefaultStickerSetId, StickerSet(DefaultStickerSetId, 0, lang(lng_stickers_default_set), QString(), 0, 0, MTPDstickerSet::flag_official)).value());
 		StickerSet &custom(sets.insert(CustomStickerSetId, StickerSet(CustomStickerSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, 0)).value());
 
 		QMap<uint64, bool> read;
@@ -2723,7 +2723,7 @@ namespace Local {
 
 			if (setId == DefaultStickerSetId) {
 				setTitle = lang(lng_stickers_default_set);
-				setFlags |= MTPDstickerSet_flag_official;
+				setFlags |= MTPDstickerSet::flag_official;
 				order.push_front(setId);
 			} else if (setId == CustomStickerSetId) {
 				setTitle = lang(lng_custom_stickers);

@@ -295,7 +295,7 @@ void NotifyWindow::mousePressEvent(QMouseEvent *e) {
 			App::wnd()->notifyClear();
 		} else {
 			App::wnd()->hideSettings();
-			App::main()->showPeerHistory(peer, (!history->peer->isUser() && item && item->notifyByFrom() && item->id > 0) ? item->id : ShowAtUnreadMsgId);
+			App::main()->showPeerHistory(peer, (!history->peer->isUser() && item && item->mentionsMe() && item->id > 0) ? item->id : ShowAtUnreadMsgId);
 		}
 		e->ignore();
 	}
@@ -1305,7 +1305,7 @@ void Window::quit() {
 void Window::notifySchedule(History *history, HistoryItem *item) {
 	if (App::quiting() || !history->currentNotification() || !main) return;
 
-	PeerData *notifyByFrom = (!history->peer->isUser() && item->notifyByFrom()) ? item->from() : 0;
+	PeerData *notifyByFrom = (!history->peer->isUser() && item->mentionsMe()) ? item->from() : 0;
 
 	bool haveSetting = (history->peer->notify != UnknownNotifySettings);
 	if (haveSetting) {

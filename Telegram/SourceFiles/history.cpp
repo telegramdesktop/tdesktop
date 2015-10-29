@@ -686,7 +686,7 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 	if (!inviter) return 0;
 
 	if (peerToUser(inviter->id) == MTP::authedId()) unread = false;
-	int32 flags = (unread ? MTPDmessage_flag_unread : 0);
+	int32 flags = (unread ? MTPDmessage::flag_unread : 0);
 	QDateTime inviteDate = peer->asChannel()->inviteDate;
 	if (unread) _maxReadMessageDate = inviteDate;
 	if (isEmpty()) {
@@ -1698,7 +1698,7 @@ HistoryItem *History::addNewItem(HistoryBlock *to, bool newBlock, HistoryItem *a
 		}
 		if (adding->hasReplyMarkup()) {
 			int32 markupFlags = App::replyMarkup(channelId(), adding->id).flags;
-			if (!(markupFlags & MTPDreplyKeyboardMarkup_flag_personal) || adding->notifyByFrom()) {
+			if (!(markupFlags & MTPDreplyKeyboardMarkup::flag_selective) || adding->mentionsMe()) {
 				if (peer->isChat()) {
 					peer->asChat()->markupSenders.insert(adding->from(), true);
 				}
@@ -1907,7 +1907,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 						}
 						if (!lastKeyboardInited && item->hasReplyMarkup() && !item->out()) { // chats with bots
 							int32 markupFlags = App::replyMarkup(channelId(), item->id).flags;
-							if (!(markupFlags & MTPDreplyKeyboardMarkup_flag_personal) || item->notifyByFrom()) {
+							if (!(markupFlags & MTPDreplyKeyboardMarkup::flag_selective) || item->mentionsMe()) {
 								bool wasKeyboardHide = peer->asChat()->markupSenders.contains(item->from());
 								if (!wasKeyboardHide) {
 									peer->asChat()->markupSenders.insert(item->from(), true);
@@ -1928,7 +1928,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 						}
 					} else if (!lastKeyboardInited && item->hasReplyMarkup() && !item->out()) { // conversations with bots
 						int32 markupFlags = App::replyMarkup(channelId(), item->id).flags;
-						if (!(markupFlags & MTPDreplyKeyboardMarkup_flag_personal) || item->notifyByFrom()) {
+						if (!(markupFlags & MTPDreplyKeyboardMarkup::flag_selective) || item->mentionsMe()) {
 							if (markupFlags & MTPDreplyKeyboardMarkup_flag_ZERO) {
 								clearLastKeyboard();
 							} else {
@@ -6778,7 +6778,7 @@ HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const 
 	fwdNameUpdated();
 }
 
-HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg) : HistoryMessage(history, block, id, newMessageFlags(history->peer) | (!history->peer->isChannel() && msg->getMedia() && (msg->getMedia()->type() == MediaTypeAudio/* || msg->getMedia()->type() == MediaTypeVideo*/) ? MTPDmessage_flag_media_unread : 0), date, from, msg->HistoryMessage::originalText(), msg->HistoryMessage::originalEntities(), msg->getMedia())
+HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg) : HistoryMessage(history, block, id, newMessageFlags(history->peer) | (!history->peer->isChannel() && msg->getMedia() && (msg->getMedia()->type() == MediaTypeAudio/* || msg->getMedia()->type() == MediaTypeVideo*/) ? MTPDmessage::flag_media_unread : 0), date, from, msg->HistoryMessage::originalText(), msg->HistoryMessage::originalEntities(), msg->getMedia())
 , fwdDate(msg->dateForwarded())
 , fwdFrom(msg->fromForwarded())
 , fwdFromVersion(fwdFrom->nameVersion)

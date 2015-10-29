@@ -1883,8 +1883,8 @@ bool BotKeyboard::updateMarkup(HistoryItem *to) {
 		_btns.clear();
 		const ReplyMarkup &markup(App::replyMarkup(to->channelId(), to->id));
 		_forceReply = markup.flags & MTPDreplyKeyboardMarkup_flag_FORCE_REPLY;
-		_maximizeSize = !(markup.flags & MTPDreplyKeyboardMarkup_flag_resize);
-		_singleUse = _forceReply || (markup.flags & MTPDreplyKeyboardMarkup_flag_single_use);
+		_maximizeSize = !(markup.flags & MTPDreplyKeyboardMarkup::flag_resize);
+		_singleUse = _forceReply || (markup.flags & MTPDreplyKeyboardMarkup::flag_single_use);
 
 		const ReplyMarkup::Commands &commands(markup.commands);
 		if (!commands.isEmpty()) {
@@ -2767,7 +2767,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 			const MTPDstickerSet &set(d_sets.at(i).c_stickerSet());
 			StickerSets::iterator i = sets.find(set.vid.v);
 			QString title = qs(set.vtitle);
-			if (set.vflags.v & MTPDstickerSet_flag_official) {
+			if (set.vflags.v & MTPDstickerSet::flag_official) {
 				if (!title.compare(qstr("Great Minds"), Qt::CaseInsensitive)) {
 					title = lang(lng_stickers_default_set);
 				}
@@ -2778,7 +2778,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 
 			if (i == sets.cend()) {
 				i = sets.insert(set.vid.v, StickerSet(set.vid.v, set.vaccess_hash.v, title, qs(set.vshort_name), set.vcount.v, set.vhash.v, set.vflags.v | MTPDstickerSet_flag_NOT_LOADED));
-				if (!(i->flags & MTPDstickerSet_flag_disabled)) {
+				if (!(i->flags & MTPDstickerSet::flag_disabled)) {
 					setsToRequest.insert(set.vid.v, set.vaccess_hash.v);
 				}
 			} else {
@@ -2790,7 +2790,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 					i->count = set.vcount.v;
 					i->hash = set.vhash.v;
 					i->flags |= MTPDstickerSet_flag_NOT_LOADED; // need to request this set
-					if (!(i->flags & MTPDstickerSet_flag_disabled)) {
+					if (!(i->flags & MTPDstickerSet::flag_disabled)) {
 						setsToRequest.insert(set.vid.v, set.vaccess_hash.v);
 					}
 				}
@@ -4888,7 +4888,7 @@ void HistoryWidget::confirmSendFile(const FileLoadResultPtr &file, bool ctrlShif
 		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(file->to.peer), MTPPeer(), MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(file->document), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
 	} else if (file->type == PrepareAudio) {
 		if (!h->peer->isChannel()) {
-			flags |= MTPDmessage_flag_media_unread;
+			flags |= MTPDmessage::flag_media_unread;
 		}
 		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(file->to.peer), MTPPeer(), MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaAudio(file->audio), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
 	}

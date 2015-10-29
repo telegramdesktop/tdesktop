@@ -383,7 +383,7 @@ namespace App {
 				PeerId peer(peerFromUser(d.vid.v));
 				data = App::user(peer);
 				int32 flags = d.vflags.v;
-				if (flags & MTPDuser_flag_self) {
+				if (d.is_self()) {
 					data->input = MTP_inputPeerSelf();
 					data->inputUser = MTP_inputUserSelf();
 				} else if (!d.has_access_hash()) {
@@ -393,7 +393,7 @@ namespace App {
 					data->input = MTP_inputPeerUser(d.vid, d.vaccess_hash);
 					data->inputUser = MTP_inputUser(d.vid, d.vaccess_hash);
 				}
-				if (flags & MTPDuser_flag_deleted) {
+				if (d.is_deleted()) {
 					data->setPhone(QString());
 					data->setName(lang(lng_deleted), QString(), QString(), QString());
 					data->setPhoto(MTP_userProfilePhotoEmpty());
@@ -410,8 +410,8 @@ namespace App {
 
 					bool nameChanged = (data->firstName != fname) || (data->lastName != lname);
 
-					bool showPhone = !isServiceUser(data->id) && !(flags & (MTPDuser_flag_self | MTPDuser_flag_contact | MTPDuser_flag_mutual_contact));
-					bool showPhoneChanged = !isServiceUser(data->id) && !(flags & (MTPDuser_flag_self)) && ((showPhone && data->contact) || (!showPhone && !data->contact));
+					bool showPhone = !isServiceUser(data->id) && !d.is_self() && !d.is_contact() && !d.is_mutual_contact();
+					bool showPhoneChanged = !isServiceUser(data->id) && !d.is_self() && ((showPhone && data->contact) || (!showPhone && !data->contact));
 
 					// see also Local::readPeer
 
@@ -429,17 +429,17 @@ namespace App {
 				wasContact = (data->contact > 0);
 				if (d.has_bot_info_version()) {
 					data->setBotInfoVersion(d.vbot_info_version.v);
-					data->botInfo->readsAllHistory = (d.vflags.v & MTPDuser_flag_bot_reads_all);
-					data->botInfo->cantJoinGroups = (d.vflags.v & MTPDuser_flag_bot_cant_join);
+					data->botInfo->readsAllHistory = d.is_bot_chat_history();
+					data->botInfo->cantJoinGroups = d.is_bot_nochats();
 				} else {
 					data->setBotInfoVersion(-1);
 				}
-				data->contact = (flags & (MTPDuser_flag_contact | MTPDuser_flag_mutual_contact)) ? 1 : (data->phone.isEmpty() ? -1 : 0);
+				data->contact = (d.is_contact() || d.is_mutual_contact()) ? 1 : (data->phone.isEmpty() ? -1 : 0);
 				if (data->contact == 1 && cReportSpamStatuses().value(data->id, dbiprsNoButton) != dbiprsNoButton) {
 					cRefReportSpamStatuses().insert(data->id, dbiprsNoButton);
 					Local::writeReportSpamStatuses();
 				}
-				if ((flags & MTPDuser_flag_self) && ::self != data) {
+				if (d.is_self() && ::self != data) {
 					::self = data;
 					if (App::wnd()) App::wnd()->updateGlobalMenu();
 				}
@@ -502,8 +502,8 @@ namespace App {
 				cdata->setPhoto(d.vphoto);
 				cdata->date = d.vdate.v;
 				cdata->count = d.vparticipants_count.v;
-				cdata->isForbidden = (d.vflags.v & MTPDchat_flag_kicked);
-				cdata->haveLeft = (d.vflags.v & MTPDchat_flag_left);
+				cdata->isForbidden = d.is_kicked();
+				cdata->haveLeft = d.is_left();
 				if (cdata->version < d.vversion.v) {
 					cdata->version = d.vversion.v;
 					cdata->participants = ChatData::Participants();

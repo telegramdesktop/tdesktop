@@ -1771,7 +1771,7 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 	} else if (_searchQuery != q) {
 		_searchQuery = q;
 		_searchFull = false;
-		int32 flags = (_searchInPeer && _searchInPeer->isChannel()) ? MTPmessages_Search_flag_only_important : 0;
+		int32 flags = (_searchInPeer && _searchInPeer->isChannel()) ? MTPmessages_Search::flag_important_only : 0;
 		if (_searchRequest) {
 			MTP::cancel(_searchRequest);
 		}
@@ -1825,7 +1825,7 @@ void DialogsWidget::searchMessages(const QString &query, PeerData *inPeer) {
 
 void DialogsWidget::onSearchMore(MsgId minMsgId) {
 	if (!_searchRequest && !_searchFull) {
-		int32 flags = (_searchInPeer && _searchInPeer->isChannel()) ? MTPmessages_Search_flag_only_important : 0;
+		int32 flags = (_searchInPeer && _searchInPeer->isChannel()) ? MTPmessages_Search::flag_important_only : 0;
 		_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _searchInPeer ? _searchInPeer->input : MTP_inputPeerEmpty(), MTP_string(_searchQuery), MTP_inputMessagesFilterEmpty(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(minMsgId), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, !minMsgId), rpcFail(&DialogsWidget::searchFailed));
 		if (!minMsgId) {
 			_searchQueries.insert(_searchRequest, _searchQuery);

@@ -780,7 +780,7 @@ enum InfoDisplayType {
 };
 
 inline bool isImportantChannelMessage(MsgId id, int32 flags) { // client-side important msgs always has_views or has_from_id
-	return (flags & MTPDmessage_flag_out) || (flags & MTPDmessage_flag_notify_by_from) || ((id > 0 || flags != 0) && !(flags & MTPDmessage::flag_from_id));
+	return (flags & MTPDmessage::flag_out) || (flags & MTPDmessage::flag_mentioned) || ((id > 0 || flags != 0) && !(flags & MTPDmessage::flag_from_id));
 }
 
 enum HistoryItemType {
@@ -827,20 +827,20 @@ public:
 		_block = block;
 	}
 	bool out() const {
-		return _flags & MTPDmessage_flag_out;
+		return _flags & MTPDmessage::flag_out;
 	}
 	bool unread() const {
 		if ((out() && (id > 0 && id < _history->outboxReadBefore)) || (!out() && id > 0 && id < _history->inboxReadBefore)) return false;
-		return (id > 0 && !out() && channelId() != NoChannel) ? true : (history()->peer->isSelf() ? false : (_flags & MTPDmessage_flag_unread));
+		return (id > 0 && !out() && channelId() != NoChannel) ? true : (history()->peer->isSelf() ? false : (_flags & MTPDmessage::flag_unread));
 	}
-	bool notifyByFrom() const {
-		return _flags & MTPDmessage_flag_notify_by_from;
+	bool mentionsMe() const {
+		return _flags & MTPDmessage::flag_mentioned;
 	}
 	bool isMediaUnread() const {
-		return (_flags & MTPDmessage_flag_media_unread) && (channelId() == NoChannel);
+		return (_flags & MTPDmessage::flag_media_unread) && (channelId() == NoChannel);
 	}
 	void markMediaRead() {
-		_flags &= ~MTPDmessage_flag_media_unread;
+		_flags &= ~MTPDmessage::flag_media_unread;
 	}
 	bool hasReplyMarkup() const {
 		return _flags & MTPDmessage::flag_reply_markup;

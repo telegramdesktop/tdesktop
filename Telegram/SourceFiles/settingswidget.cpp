@@ -921,7 +921,7 @@ void SettingsInner::gotPassword(const MTPaccount_Password &result) {
 	case mtpc_account_password: {
 		const MTPDaccount_password &d(result.c_account_password());
 		_curPasswordSalt = qba(d.vcurrent_salt);
-		_hasPasswordRecovery = d.vhas_recovery.v;
+		_hasPasswordRecovery = mtpIsTrue(d.vhas_recovery);
 		_curPasswordHint = qs(d.vhint);
 		_newPasswordSalt = qba(d.vnew_salt);
 		QString pattern = qs(d.vemail_unconfirmed_pattern);
