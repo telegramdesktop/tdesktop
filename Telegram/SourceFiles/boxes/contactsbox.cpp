@@ -199,7 +199,9 @@ bool ContactsInner::addAdminFail(const RPCError &error, mtpRequestId req) {
 	_addAdminRequestId = 0;
 	if (error.type() == "USERS_TOO_MUCH") {
 		App::wnd()->replaceLayer(new MaxInviteBox(_channel->invitationUrl));
-	} else {
+	} else if (error.type() == "ADMINS_TOO_MUCH") {
+		App::wnd()->replaceLayer(new InformBox(lang(lng_channel_admins_too_much)));
+	} else  {
 		if (_addAdminBox) _addAdminBox->onClose();
 		emit adminAdded();
 	}
