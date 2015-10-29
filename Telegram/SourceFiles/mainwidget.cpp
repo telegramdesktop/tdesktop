@@ -537,7 +537,11 @@ void MainWidget::fillForwardingInfo(Text *&from, Text *&text, bool &serviceColor
 	if (_toForward.isEmpty()) return;
 	int32 version = 0;
 	for (SelectedItemSet::const_iterator i = _toForward.cbegin(), e = _toForward.cend(); i != e; ++i) {
-		version += i.value()->from()->nameVersion;
+		if (HistoryForwarded *fwd = i.value()->toHistoryForwarded()) {
+			version += fwd->fromForwarded()->nameVersion;
+		} else {
+			version += i.value()->from()->nameVersion;
+		}
 	}
 	if (version != _toForwardNameVersion) {
 		updateForwardingTexts();
@@ -562,9 +566,9 @@ void MainWidget::updateForwardingTexts() {
 			if (HistoryForwarded *fwd = i.value()->toHistoryForwarded()) {
 				from = fwd->fromForwarded();
 			}
-			if (!fromUsersMap.contains(i.value()->from())) {
-				fromUsersMap.insert(i.value()->from(), true);
-				fromUsers.push_back(i.value()->from());
+			if (!fromUsersMap.contains(from)) {
+				fromUsersMap.insert(from, true);
+				fromUsers.push_back(from);
 			}
 			version += i.value()->from()->nameVersion;
 		}
