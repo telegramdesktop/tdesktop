@@ -372,6 +372,7 @@ namespace App {
 				data->setName(lang(lng_deleted), QString(), QString(), QString());
 				data->setPhoto(MTP_userProfilePhotoEmpty());
 				data->access = UserNoAccess;
+				data->flags = 0;
 				data->setBotInfoVersion(-1);
 				wasContact = (data->contact > 0);
 				status = &emptyStatus;
@@ -382,7 +383,7 @@ namespace App {
 
 				PeerId peer(peerFromUser(d.vid.v));
 				data = App::user(peer);
-				int32 flags = d.vflags.v;
+				data->flags = d.vflags.v;
 				if (d.is_self()) {
 					data->input = MTP_inputPeerSelf();
 					data->inputUser = MTP_inputUserSelf();

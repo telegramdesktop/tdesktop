@@ -210,6 +210,7 @@ public:
 	bool isSelf() const {
 		return (input.type() == mtpc_inputPeerSelf);
 	}
+	bool isVerified() const;
 	UserData *asUser();
 	const UserData *asUser() const;
 	ChatData *asChat();
@@ -329,7 +330,7 @@ struct PhotoData;
 class UserData : public PeerData {
 public:
 
-	UserData(const PeerId &id) : PeerData(id), access(0), onlineTill(0), contact(-1), blocked(UserBlockUnknown), photosCount(-1), botInfo(0) {
+	UserData(const PeerId &id) : PeerData(id), access(0), flags(0), onlineTill(0), contact(-1), blocked(UserBlockUnknown), photosCount(-1), botInfo(0) {
 		setName(QString(), QString(), QString(), QString());
 	}
 	void setPhoto(const MTPUserProfilePhoto &photo);
@@ -343,6 +344,11 @@ public:
 	void madeAction(); // pseudo-online
 
 	uint64 access;
+
+	int32 flags;
+	bool isVerified() const {
+		return flags & MTPDuser::flag_verified;
+	}
 
 	MTPInputUser inputUser;
 
@@ -583,6 +589,9 @@ inline const QString &PeerData::shortName() const {
 }
 inline const QString &PeerData::userName() const {
 	return isUser() ? asUser()->username : (isChannel() ? asChannel()->username : emptyUsername());
+}
+inline bool PeerData::isVerified() const {
+	return isUser() ? asUser()->isVerified() : (isChannel() ? asChannel()->isVerified() : false);
 }
 
 inline int32 newMessageFlags(PeerData *p) {

@@ -686,7 +686,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	
 	int32 namew = _width - st::profilePhotoSize - st::profileNameLeft;
 	p.setPen(st::black->p);
-	if (_peerChannel && _peerChannel->isVerified()) {
+	if (_peer->isVerified()) {
 		namew -= st::verifiedCheckProfile.pxWidth() + st::verifiedCheckProfilePos.x();
 		int32 cx = _left + st::profilePhotoSize + st::profileNameLeft + qMin(_nameText.maxWidth(), namew);
 		p.drawSprite(QPoint(cx, top + st::profileNameTop) + st::verifiedCheckProfilePos, st::verifiedCheckProfile);

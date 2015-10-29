@@ -337,7 +337,7 @@ void ContactsInner::paintDialog(Painter &p, PeerData *peer, ContactData *data, b
 	int32 namex = st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left();
 	int32 iconw = (_chat || _creating != CreatingGroupNone) ? (st::contactsCheckPosition.x() * 2 + st::contactsCheckIcon.pxWidth()) : 0;
 	int32 namew = width() - namex - st::contactsPadding.right() - iconw;
-	if (peer->isChannel() && peer->asChannel()->isVerified()) {
+	if (peer->isVerified()) {
 		namew -= st::verifiedCheck.pxWidth() + st::verifiedCheckPos.x();
 		p.drawSpriteLeft(namex + qMin(data->name.maxWidth(), namew) + st::verifiedCheckPos.x(), st::contactsPadding.top() + st::contactsNameTop + st::verifiedCheckPos.y(), width(), st::verifiedCheck);
 	}
@@ -1640,7 +1640,7 @@ void MembersInner::paintDialog(Painter &p, PeerData *peer, MemberData *data, boo
 
 	int32 namex = st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left();
 	int32 namew = width() - namex - st::contactsPadding.right() - (data->canKick ? (_kickWidth + st::contactsCheckPosition.x() * 2) : 0);
-	if (peer->isChannel() && peer->asChannel()->isVerified()) {
+	if (peer->isVerified()) {
 		namew -= st::verifiedCheck.pxWidth() + st::verifiedCheckPos.x();
 		p.drawSpriteLeft(namex + qMin(data->name.maxWidth(), namew) + st::verifiedCheckPos.x(), st::contactsPadding.top() + st::contactsNameTop + st::verifiedCheckPos.y(), width(), st::verifiedCheck);
 	}

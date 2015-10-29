@@ -245,12 +245,12 @@ void DialogsInner::peopleResultPaint(PeerData *peer, Painter &p, int32 w, bool a
 	} else if (peer->isChannel()) {
 		p.drawPixmap(QPoint(rectForName.left() + st::dlgChannelImgPos.x(), rectForName.top() + st::dlgChannelImgPos.y()), App::sprite(), (act ? st::dlgActiveChannelImg : st::dlgChannelImg));
 		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
-		if (peer->asChannel()->isVerified()) {
-			rectForName.setWidth(rectForName.width() - st::verifiedCheck.pxWidth() - st::verifiedCheckPos.x());
-			p.drawSprite(rectForName.topLeft() + QPoint(qMin(peer->dialogName().maxWidth(), rectForName.width()), 0) + st::verifiedCheckPos, (act ? st::verifiedCheckInv : st::verifiedCheck));
-		}
 	}
-	
+	if (peer->isVerified()) {
+		rectForName.setWidth(rectForName.width() - st::verifiedCheck.pxWidth() - st::verifiedCheckPos.x());
+		p.drawSprite(rectForName.topLeft() + QPoint(qMin(peer->dialogName().maxWidth(), rectForName.width()), 0) + st::verifiedCheckPos, (act ? st::verifiedCheckInv : st::verifiedCheck));
+	}
+
 	QRect tr(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, namewidth, st::dlgFont->height);
 	p.setFont(st::dlgHistFont->f);
 	QString username = peer->userName();

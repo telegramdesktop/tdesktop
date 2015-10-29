@@ -2935,8 +2935,16 @@ namespace Local {
 		if (peer->isUser()) {
 			UserData *user = peer->asUser();
 
-			// first + last + phone + username + access + onlineTill + contact + botInfoVersion
-			result += _stringSize(user->firstName) + _stringSize(user->lastName) + _stringSize(user->phone) + _stringSize(user->username) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
+			// first + last + phone + username + access
+			result += _stringSize(user->firstName) + _stringSize(user->lastName) + _stringSize(user->phone) + _stringSize(user->username) + sizeof(quint64);
+
+			// flags
+			if (AppVersion >= 9009) {
+				result += sizeof(qint32);
+			}
+
+			// onlineTill + contact + botInfoVersion
+			result += sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
 		} else if (peer->isChat()) {
 			ChatData *chat = peer->asChat();
 
@@ -2945,8 +2953,8 @@ namespace Local {
 		} else if (peer->isChannel()) {
 			ChannelData *channel = peer->asChannel();
 
-			// name + access + date + version + adminned + forbidden + left + invitationUrl
-			result += _stringSize(channel->name) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(channel->invitationUrl);
+			// name + access + date + version + forbidden + flags + invitationUrl
+			result += _stringSize(channel->name) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(channel->invitationUrl);
 		}
 		return result;
 	}
@@ -2957,7 +2965,11 @@ namespace Local {
 		if (peer->isUser()) {
 			UserData *user = peer->asUser();
 
-			stream << user->firstName << user->lastName << user->phone << user->username << quint64(user->access) << qint32(user->onlineTill) << qint32(user->contact) << qint32(user->botInfo ? user->botInfo->version : -1);
+			stream << user->firstName << user->lastName << user->phone << user->username << quint64(user->access);
+			if (AppVersion >= 9009) {
+				stream << qint32(user->flags);
+			}
+			stream << qint32(user->onlineTill) << qint32(user->contact) << qint32(user->botInfo ? user->botInfo->version : -1);
 		} else if (peer->isChat()) {
 			ChatData *chat = peer->asChat();
 
@@ -2985,8 +2997,12 @@ namespace Local {
 
 			QString first, last, phone, username;
 			quint64 access;
-			qint32 onlineTill, contact, botInfoVersion;
-			from.stream >> first >> last >> phone >> username >> access >> onlineTill >> contact >> botInfoVersion;
+			qint32 flags = 0, onlineTill, contact, botInfoVersion;
+			from.stream >> first >> last >> phone >> username >> access;
+			if (from.version >= 9009) {
+				from.stream >> flags;
+			}
+			from.stream >> onlineTill >> contact >> botInfoVersion;
 
 			bool showPhone = !isServiceUser(user->id) && (peerToUser(user->id) != MTP::authedId()) && (contact <= 0);
 			QString pname = (showPhone && !phone.isEmpty()) ? App::formatPhone(phone) : QString();
@@ -2994,6 +3010,7 @@ namespace Local {
 			user->setName(first, last, pname, username);
 
 			user->access = access;
+			user->flags = flags;
 			user->onlineTill = onlineTill;
 			user->contact = contact;
 			user->setBotInfoVersion(botInfoVersion);
