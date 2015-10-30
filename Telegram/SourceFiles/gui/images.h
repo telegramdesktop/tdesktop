@@ -43,7 +43,7 @@ struct StorageImageLocation {
 };
 
 inline bool operator==(const StorageImageLocation &a, const StorageImageLocation &b) {
-	return !memcmp(&a, &b, sizeof(StorageImageLocation));
+	return (a.width == b.width) && (a.height == b.height) && (a.dc == b.dc) && (a.volume == b.volume) && (a.local == b.local) && (a.secret == b.secret);
 }
 inline bool operator!=(const StorageImageLocation &a, const StorageImageLocation &b) {
 	return !(a == b);
