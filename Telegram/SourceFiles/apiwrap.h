@@ -37,6 +37,9 @@ public:
 	void requestPeer(PeerData *peer);
 	void requestPeers(const QList<PeerData*> &peers);
 
+	void processFullPeer(PeerData *peer, const MTPmessages_ChatFull &result);
+	void processFullPeer(PeerData *peer, const MTPUserFull &result);
+
 	void requestSelfParticipant(ChannelData *channel);
 
 	void requestWebPageDelayed(WebPageData *page);
@@ -75,8 +78,8 @@ private:
 	MessageIds collectMessageIds(const ReplyToRequests &requests);
 	ReplyToRequests *replyToRequests(ChannelData *channel, bool onlyExisting = false);
 
-	void gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result);
-	void gotUserFull(PeerData *peer, const MTPUserFull &result);
+	void gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mtpRequestId req);
+	void gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestId req);
 	bool gotPeerFullFailed(PeerData *peer, const RPCError &err);
 	typedef QMap<PeerData*, mtpRequestId> PeerRequests;
 	PeerRequests _fullPeerRequests;

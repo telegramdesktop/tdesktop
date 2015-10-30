@@ -71,6 +71,8 @@ namespace style {
 			return !!ptr;
 		}
 
+		operator const QFont &() const;
+
 	private:
 		FontData *ptr;
 
@@ -143,12 +145,16 @@ namespace style {
 
 	};
 
-inline bool operator==(const Font &a, const Font &b) {
-	return a.v() == b.v();
-}
-inline bool operator!=(const Font &a, const Font &b) {
-	return a.v() != b.v();
-}
+	inline bool operator==(const Font &a, const Font &b) {
+		return a.v() == b.v();
+	}
+	inline bool operator!=(const Font &a, const Font &b) {
+		return a.v() != b.v();
+	}
+
+	inline Font::operator const QFont &() const {
+		return ptr->f;
+	}
 
 	class ColorData;
 	class Color {
@@ -163,6 +169,9 @@ inline bool operator!=(const Font &a, const Font &b) {
 
 		void set(const QColor &newv);
 		void set(uchar r, uchar g, uchar b, uchar a = 255);
+
+		operator const QBrush &() const;
+		operator const QPen &() const;
 
 		ColorData *operator->() const {
 			return ptr;
@@ -217,6 +226,12 @@ inline bool operator!=(const Font &a, const Font &b) {
 		return a->c != b->c;
 	}
 
+	inline Color::operator const QBrush &() const {
+		return ptr->b;
+	}
+	inline Color::operator const QPen &() const {
+		return ptr->p;
+	}
 
 	typedef QVector<QString> FontFamilies;
 	extern FontFamilies _fontFamilies;

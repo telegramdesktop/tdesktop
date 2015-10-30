@@ -1412,6 +1412,14 @@ contactsNewItemIcon: sprite(307px, 248px, 22px, 16px);
 contactsNewItemIconPosition: point(29px, 19px);
 contactsNewItemTop: 18px;
 contactsNewItemFg: #4b82af;
+contactsAboutBg: #f7f7f7;
+contactsAdminCheckbox: Checkbox(defaultCheckbox) {
+	font: semiboldFont;
+	textBg: #f7f7f7;
+	textPosition: point(34px, 1px);
+}
+contactsAboutHeight: 80px;
+contactsAboutTop: 9px;
 contactsScroll: flatScroll(boxScroll) {
 	deltab: 0px;
 }

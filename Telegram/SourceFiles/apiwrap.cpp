@@ -218,7 +218,15 @@ void ApiWrap::requestFullPeer(PeerData *peer) {
 	if (req) _fullPeerRequests.insert(peer, req);
 }
 
-void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result) {
+void ApiWrap::processFullPeer(PeerData *peer, const MTPmessages_ChatFull &result) {
+	gotChatFull(peer, result, 0);
+}
+
+void ApiWrap::processFullPeer(PeerData *peer, const MTPUserFull &result) {
+	gotUserFull(peer, result, 0);
+}
+
+void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mtpRequestId req) {
 	const MTPDmessages_chatFull &d(result.c_messages_chatFull());
 	const QVector<MTPChat> &vc(d.vchats.c_vector().v);
 	bool badVersion = false;
@@ -294,7 +302,12 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result) {
 		App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
 	}
 
-	_fullPeerRequests.remove(peer);
+	if (req) {
+		QMap<PeerData*, mtpRequestId>::iterator i = _fullPeerRequests.find(peer);
+		if (i != _fullPeerRequests.cend() && i.value() == req) {
+			_fullPeerRequests.erase(i);
+		}
+	}
 	if (badVersion) {
 		if (peer->isChat()) {
 			peer->asChat()->version = vc.at(0).c_chat().vversion.v;
@@ -308,7 +321,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result) {
 	App::emitPeerUpdated();
 }
 
-void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result) {
+void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestId req) {
 	const MTPDuserFull &d(result.c_userFull());
 	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser), false);
 	App::feedPhoto(d.vprofile_photo);
@@ -318,7 +331,12 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result) {
 	peer->asUser()->setBotInfo(d.vbot_info);
 	peer->asUser()->blocked = mtpIsTrue(d.vblocked) ? UserIsBlocked : UserIsNotBlocked;
 
-	_fullPeerRequests.remove(peer);
+	if (req) {
+		QMap<PeerData*, mtpRequestId>::iterator i = _fullPeerRequests.find(peer);
+		if (i != _fullPeerRequests.cend() && i.value() == req) {
+			_fullPeerRequests.erase(i);
+		}
+	}
 	App::clearPeerUpdated(peer);
 	emit fullPeerUpdated(peer);
 	App::emitPeerUpdated();

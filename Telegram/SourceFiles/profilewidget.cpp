@@ -52,7 +52,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	_botHelp(this, lang(lng_profile_bot_help)),
 	_username(this, (_peerChannel && _peerChannel->isPublic()) ? (qsl("telegram.me/") + _peerChannel->username) : lang(lng_profile_create_public_link)),
 	_members(this, lng_channel_members_link(lt_count, (_peerChannel && _peerChannel->count > 0) ? _peerChannel->count : 1)),
-	_admins(this, lng_channel_admins_link(lt_count, (_peerChannel ? (_peerChannel->adminsCount > 0 ? _peerChannel->adminsCount : 1) : ((_peerChat && _peerChat->adminsEnabled() && !_peerChat->admins.isEmpty()) ? _peerChat->admins.size() : 0)))),
+	_admins(this, lng_channel_admins_link(lt_count, (_peerChannel ? (_peerChannel->adminsCount > 0 ? _peerChannel->adminsCount : 1) : ((_peerChat && _peerChat->adminsEnabled()) ? (_peerChat->admins.size() + 1) : 0)))),
 
 	// about
 	_about(st::wndMinWidth - st::profilePadding.left() - st::profilePadding.right()),
@@ -351,7 +351,7 @@ bool ProfileInner::blockFail(const RPCError &error) {
 void ProfileInner::onAddParticipant() {
 	if (!_peerChat) return;
 
-	App::wnd()->showLayer(new ContactsBox(_peerChat));
+	App::wnd()->showLayer(new ContactsBox(_peerChat, MembersFilterRecent));
 }
 
 void ProfileInner::onUpdatePhotoCancel() {
@@ -430,6 +430,7 @@ void ProfileInner::onAdmins() {
 	if (_peerChannel) {
 		App::wnd()->showLayer(new MembersBox(_peerChannel, MembersFilterAdmins));
 	} else if (_peerChat) {
+		App::wnd()->showLayer(new ContactsBox(_peerChat, MembersFilterAdmins));
 	}
 }
 
@@ -486,10 +487,11 @@ void ProfileInner::onFullPeerUpdated(PeerData *peer) {
 		updateInvitationLink();
 		showAll();
 		resizeEvent(0);
+		_admins.setText(lng_channel_admins_link(lt_count, _peerChat->adminsEnabled() ? (_peerChat->admins.size() + 1) : 0));
 	} else if (_peerChannel) {
 		updateInvitationLink();
 		_members.setText(lng_channel_members_link(lt_count, (_peerChannel->count > 0) ? _peerChannel->count : 1));
-		_admins.setText(lng_channel_admins_link(lt_count, (_peerChannel ? (_peerChannel->adminsCount > 0 ? _peerChannel->adminsCount : 1) : ((_peerChat && _peerChat->adminsEnabled() && !_peerChat->admins.isEmpty()) ? _peerChat->admins.size() : 0))));
+		_admins.setText(lng_channel_admins_link(lt_count, (_peerChannel->adminsCount > 0) ? _peerChannel->adminsCount : 1));
 		_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(lng_channel_status);
 		if (_peerChannel->about.isEmpty()) {
 			_about = Text(st::wndMinWidth - st::profilePadding.left() - st::profilePadding.right());
@@ -541,13 +543,14 @@ void ProfileInner::peerUpdated(PeerData *data) {
 			}
 		} else if (_peerChat) {
 			if (_peerChat->photoId && _peerChat->photoId != UnknownPeerPhotoId) photo = App::photo(_peerChat->photoId);
+			_admins.setText(lng_channel_admins_link(lt_count, _peerChat->adminsEnabled() ? (_peerChat->admins.size() + 1) : 0));
 		} else if (_peerChannel) {
 			if (_peerChannel->photoId && _peerChannel->photoId != UnknownPeerPhotoId) photo = App::photo(_peerChannel->photoId);
 			if (_peerChannel->isPublic() != _invitationLink.isHidden()) {
 				peerUsernameChanged();
 			}
 			_members.setText(lng_channel_members_link(lt_count, (_peerChannel->count > 0) ? _peerChannel->count : 1));
-			_admins.setText(lng_channel_admins_link(lt_count, (_peerChannel ? (_peerChannel->adminsCount > 0 ? _peerChannel->adminsCount : 1) : ((_peerChat && _peerChat->adminsEnabled() && !_peerChat->admins.isEmpty()) ? _peerChat->admins.size() : 0))));
+			_admins.setText(lng_channel_admins_link(lt_count, (_peerChannel->adminsCount > 0) ? _peerChannel->adminsCount : 1));
 			_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(lng_channel_status);
 		}
 		_photoLink = (photo && photo->date) ? TextLinkPtr(new PhotoLink(photo, _peer)) : TextLinkPtr();

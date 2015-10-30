@@ -512,8 +512,7 @@ namespace App {
 				cdata->isForbidden = false;
 				if (cdata->version < d.vversion.v) {
 					cdata->version = d.vversion.v;
-					cdata->participants = ChatData::Participants();
-					cdata->botStatus = 0;
+					cdata->invalidateParticipants(false);
 				}
 			} break;
 			case mtpc_chatForbidden: {
@@ -528,6 +527,7 @@ namespace App {
 				cdata->setPhoto(MTP_chatPhotoEmpty());
 				cdata->date = 0;
 				cdata->count = -1;
+				cdata->invalidateParticipants(false);
 				cdata->flags = 0;
 				cdata->isForbidden = true;
 			} break;
@@ -594,9 +594,7 @@ namespace App {
 			const MTPDchatParticipantsForbidden &d(p.c_chatParticipantsForbidden());
 			chat = App::chat(d.vchat_id.v);
 			chat->count = -1;
-			chat->participants = ChatData::Participants();
-			chat->invitedByMe = ChatData::InvitedByMe();
-			chat->admins = ChatData::Admins();
+			chat->invalidateParticipants(false);
 		} break;
 
 		case mtpc_chatParticipants: {
@@ -640,10 +638,7 @@ namespace App {
 							chat->admins[user] = true;
 						}
 					} else {
-						chat->participants = ChatData::Participants();
-						chat->invitedByMe = ChatData::InvitedByMe();
-						chat->admins = ChatData::Admins();
-						chat->botStatus = 0;
+						chat->invalidateParticipants(false);
 						break;
 					}
 				}

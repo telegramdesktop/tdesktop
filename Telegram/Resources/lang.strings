@@ -432,6 +432,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_channel_admin_sure" = "Add {user} to administrators?";
 "lng_channel_admins_too_much" = "Sorry, you have reached the limit of channel administrators. Please remove one administrator first.";
 
+"lng_chat_all_members_admins" = "All Members Are Admins";
+"lng_chat_about_all_admins" = "Group members can add new members, edit name and photo of the group.";
+"lng_chat_about_admins" = "Group admins can add and remove members, edit name and photo of the group.";
+
 "lng_participant_filter" = "Search";
 "lng_participant_invite" = "Invite";
 "lng_participant_invite_sorry" = "Sorry, you can only add the first {count:_not_used|# member|# members} to a channel personally.\n\nFrom now on, people will need to join via your invite link.";
