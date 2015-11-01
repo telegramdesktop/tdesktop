@@ -205,6 +205,17 @@ void FlatInput::resizeEvent(QResizeEvent *e) {
 	}
 }
 
+//#include "../../../QtStatic/qtbase/src/widgets/widgets/qwidgettextcontrol_p.h"
+
+void FlatInput::contextMenuEvent(QContextMenuEvent *e) {
+	if (QMenu *menu = createStandardContextMenu()) {
+		//menu->addSeparator(); // testing two level menu
+		//QUnicodeControlCharacterMenu *ctrlCharacterMenu = new QUnicodeControlCharacterMenu(this, menu);
+		//menu->addMenu(ctrlCharacterMenu);
+		(new PopupMenu(menu))->popup(e->globalPos());
+	}
+}
+
 QSize FlatInput::sizeHint() const {
 	return geometry().size();
 }
@@ -1226,6 +1237,12 @@ void InputArea::InputAreaInner::paintEvent(QPaintEvent *e) {
 	return QTextEdit::paintEvent(e);
 }
 
+void InputArea::InputAreaInner::contextMenuEvent(QContextMenuEvent *e) {
+	if (QMenu *menu = createStandardContextMenu()) {
+		(new PopupMenu(menu))->popup(e->globalPos());
+	}
+}
+
 void InputArea::resizeEvent(QResizeEvent *e) {
 	_placeholder = _st.font->elided(_placeholderFull, width() - _st.textMargins.left() - _st.textMargins.right() - _st.placeholderMargins.left() - _st.placeholderMargins.right() - 1);
 	_inner.setGeometry(rect().marginsRemoved(_st.textMargins));
@@ -1935,6 +1952,12 @@ void InputField::InputFieldInner::paintEvent(QPaintEvent *e) {
 	return QTextEdit::paintEvent(e);
 }
 
+void InputField::InputFieldInner::contextMenuEvent(QContextMenuEvent *e) {
+	if (QMenu *menu = createStandardContextMenu()) {
+		(new PopupMenu(menu))->popup(e->globalPos());
+	}
+}
+
 void InputField::resizeEvent(QResizeEvent *e) {
 	_placeholder = _st.font->elided(_placeholderFull, width() - _st.textMargins.left() - _st.textMargins.right() - _st.placeholderMargins.left() - _st.placeholderMargins.right() - 1);
 	_inner.setGeometry(rect().marginsRemoved(_st.textMargins));
@@ -2132,6 +2155,12 @@ void MaskedInputField::focusOutEvent(QFocusEvent *e) {
 void MaskedInputField::resizeEvent(QResizeEvent *e) {
 	_placeholder = _st.font->elided(_placeholderFull, width() - _textMargins.left() - _textMargins.right() - _st.placeholderMargins.left() - _st.placeholderMargins.right() - 1);
 	QLineEdit::resizeEvent(e);
+}
+
+void MaskedInputField::contextMenuEvent(QContextMenuEvent *e) {
+	if (QMenu *menu = createStandardContextMenu()) {
+		(new PopupMenu(menu))->popup(e->globalPos());
+	}
 }
 
 void MaskedInputField::showError() {

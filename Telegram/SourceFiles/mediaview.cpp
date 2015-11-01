@@ -424,6 +424,7 @@ void MediaView::showSaveMsgFile() {
 }
 
 void MediaView::close() {
+	if (_menu) _menu->hideMenu(true);
 	if (App::wnd()) {
 		App::wnd()->hideLayer(true);
 	}
@@ -460,7 +461,6 @@ void MediaView::onDropdownHiding() {
 }
 
 void MediaView::onToMessage() {
-	if (_menu) _menu->fastHide();
 	if (HistoryItem *item = _msgid ? App::histItemById(_channel, _msgid) : 0) {
 		if (App::wnd()) {
 			close();
@@ -629,7 +629,7 @@ void MediaView::onDelete() {
 }
 
 void MediaView::onOverview() {
-	if (_menu) _menu->fastHide();
+	if (_menu) _menu->hideMenu(true);
 	if (!_history || _overview == OverviewCount) {
 		update();
 		return;
@@ -1730,12 +1730,11 @@ void MediaView::contextMenuEvent(QContextMenuEvent *e) {
 			_menu->deleteLater();
 			_menu = 0;
 		}
-		_menu = new ContextMenu(this, st::mvDropdown, st::mvContextButton);
+		_menu = new PopupMenu(st::mvPopupMenu);
 		updateDropdown();
 		for (int32 i = 0, l = _btns.size(); i < l; ++i) {
 			if (!_btns.at(i)->isHidden()) _menu->addAction(_btns.at(i)->getText(), _btns.at(i), SIGNAL(clicked()))->setEnabled(true);
 		}
-		_menu->deleteOnHide();
 		connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
 		_menu->popup(e->globalPos());
 		e->accept();

@@ -1858,7 +1858,6 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (_selectedMsgId > 0) updateMsg(App::histItemById(_channel, _selectedMsgId));
 	}
 	if (_menu) {
-		_menu->deleteOnHide();
 		connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
 		_menu->popup(e->globalPos());
 		e->accept();
