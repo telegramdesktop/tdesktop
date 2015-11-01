@@ -929,3 +929,9 @@ void FlatTextarea::dropEvent(QDropEvent *e) {
 	_inDrop = false;
 	emit spacedReturnedPasted();
 }
+
+void FlatTextarea::contextMenuEvent(QContextMenuEvent *e) {
+	if (QMenu *menu = createStandardContextMenu()) {
+		(new PopupMenu(menu))->popup(e->globalPos());
+	}
+}

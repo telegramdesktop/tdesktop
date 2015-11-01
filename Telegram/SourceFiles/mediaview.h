@@ -194,7 +194,7 @@ private:
 	QTimer _controlsHideTimer;
 	anim::fvalue a_cOpacity;
 
-	ContextMenu *_menu;
+	PopupMenu *_menu;
 	Dropdown _dropdown;
 	IconedButton *_btnSaveCancel, *_btnToMessage, *_btnShowInFolder, *_btnSaveAs, *_btnCopy, *_btnForward, *_btnDelete, *_btnViewAll;
 	QList<IconedButton*> _btns;

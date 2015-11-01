@@ -48,8 +48,8 @@
 		074968D01A44D14C00394F46 /* languagebox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074968CE1A44D14C00394F46 /* languagebox.cpp */; };
 		074968D21A44D1DF00394F46 /* moc_languagebox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074968D11A44D1DF00394F46 /* moc_languagebox.cpp */; };
 		0749CE69194D723400345D61 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 07C3AF24194335ED0016CFF1 /* Images.xcassets */; };
-		074FCB8E19D36851004C6EB2 /* contextmenu.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074FCB8C19D36851004C6EB2 /* contextmenu.cpp */; };
-		074FCB9119D36E60004C6EB2 /* moc_contextmenu.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074FCB9019D36E60004C6EB2 /* moc_contextmenu.cpp */; };
+		074FCB8E19D36851004C6EB2 /* popupmenu.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074FCB8C19D36851004C6EB2 /* popupmenu.cpp */; };
+		074FCB9119D36E60004C6EB2 /* moc_popupmenu.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074FCB9019D36E60004C6EB2 /* moc_popupmenu.cpp */; };
 		07539B1D1A1416AF00083EFC /* moc_history.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07539B1C1A1416AF00083EFC /* moc_history.cpp */; };
 		0755AEDD1AD12A80004D738A /* moc_abstractbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0755AEDA1AD12A80004D738A /* moc_abstractbox.cpp */; };
 		0755AEDE1AD12A80004D738A /* moc_intropwdcheck.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0755AEDB1AD12A80004D738A /* moc_intropwdcheck.cpp */; };
@@ -279,9 +279,9 @@
 		074968CE1A44D14C00394F46 /* languagebox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = languagebox.cpp; path = SourceFiles/boxes/languagebox.cpp; sourceTree = SOURCE_ROOT; };
 		074968CF1A44D14C00394F46 /* languagebox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = languagebox.h; path = SourceFiles/boxes/languagebox.h; sourceTree = SOURCE_ROOT; };
 		074968D11A44D1DF00394F46 /* moc_languagebox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_languagebox.cpp; path = GeneratedFiles/Debug/moc_languagebox.cpp; sourceTree = SOURCE_ROOT; };
-		074FCB8C19D36851004C6EB2 /* contextmenu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = contextmenu.cpp; path = SourceFiles/gui/contextmenu.cpp; sourceTree = SOURCE_ROOT; };
-		074FCB8D19D36851004C6EB2 /* contextmenu.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = contextmenu.h; path = SourceFiles/gui/contextmenu.h; sourceTree = SOURCE_ROOT; };
-		074FCB9019D36E60004C6EB2 /* moc_contextmenu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_contextmenu.cpp; path = GeneratedFiles/Debug/moc_contextmenu.cpp; sourceTree = SOURCE_ROOT; };
+		074FCB8C19D36851004C6EB2 /* popupmenu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = popupmenu.cpp; path = SourceFiles/gui/popupmenu.cpp; sourceTree = SOURCE_ROOT; };
+		074FCB8D19D36851004C6EB2 /* popupmenu.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = popupmenu.h; path = SourceFiles/gui/popupmenu.h; sourceTree = SOURCE_ROOT; };
+		074FCB9019D36E60004C6EB2 /* moc_popupmenu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_popupmenu.cpp; path = GeneratedFiles/Debug/moc_popupmenu.cpp; sourceTree = SOURCE_ROOT; };
 		07539B1C1A1416AF00083EFC /* moc_history.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_history.cpp; path = GeneratedFiles/Debug/moc_history.cpp; sourceTree = SOURCE_ROOT; };
 		0755AEDA1AD12A80004D738A /* moc_abstractbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_abstractbox.cpp; path = GeneratedFiles/Debug/moc_abstractbox.cpp; sourceTree = SOURCE_ROOT; };
 		0755AEDB1AD12A80004D738A /* moc_intropwdcheck.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_intropwdcheck.cpp; path = GeneratedFiles/Debug/moc_intropwdcheck.cpp; sourceTree = SOURCE_ROOT; };
@@ -828,7 +828,7 @@
 				D3FE9C29B6A61D7C3C4B731B /* animation.cpp */,
 				08A7682548FB7E671FF03822 /* boxshadow.cpp */,
 				4D55B83DFDFE3D492CDBD27A /* button.cpp */,
-				074FCB8C19D36851004C6EB2 /* contextmenu.cpp */,
+				074FCB8C19D36851004C6EB2 /* popupmenu.cpp */,
 				3E329D4547CC23585307FA32 /* countryinput.cpp */,
 				B3062303CE8F4EB9325CB3DC /* emoji_config.cpp */,
 				DE4C0E3685DDAE58F9397B13 /* filedialog.cpp */,
@@ -846,7 +846,7 @@
 				85FABD67716E36CD8B3CA4FA /* animation.h */,
 				BDAB6725B830DEE896DC0F55 /* boxshadow.h */,
 				4604687EBA85611C9E8A9CDF /* button.h */,
-				074FCB8D19D36851004C6EB2 /* contextmenu.h */,
+				074FCB8D19D36851004C6EB2 /* popupmenu.h */,
 				6868ADA9E9A9801B2BA92B97 /* countryinput.h */,
 				19618554524B8D928F13940D /* emoji_config.h */,
 				9BD0BE66E93ACE27D00D6D75 /* filedialog.h */,
@@ -1116,7 +1116,7 @@
 				07539B1C1A1416AF00083EFC /* moc_history.cpp */,
 				074756181A1372C600CA07F7 /* moc_types.cpp */,
 				07D8510719F8340A00623D75 /* moc_usernamebox.cpp */,
-				074FCB9019D36E60004C6EB2 /* moc_contextmenu.cpp */,
+				074FCB9019D36E60004C6EB2 /* moc_popupmenu.cpp */,
 				07D703BA19B88FB900C4EED2 /* moc_audio.cpp */,
 				0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */,
 				07C4753E1967E37300CAAFE9 /* moc_switcher.cpp */,
@@ -1523,7 +1523,7 @@
 				68FFEB7CA30BF0149161B809 /* window.cpp in Compile Sources */,
 				0CB7DE9A54CC9BF86FB7B5CA /* mtp.cpp in Compile Sources */,
 				DF259E9677CC63AF8754032B /* mtpConnection.cpp in Compile Sources */,
-				074FCB9119D36E60004C6EB2 /* moc_contextmenu.cpp in Compile Sources */,
+				074FCB9119D36E60004C6EB2 /* moc_popupmenu.cpp in Compile Sources */,
 				B6346B66B0A2228A91D8A5D9 /* mtpDC.cpp in Compile Sources */,
 				0755AEDF1AD12A80004D738A /* moc_sessionsbox.cpp in Compile Sources */,
 				B8CA3E1E11A7E0E7DF9E1CDE /* mtpFileLoader.cpp in Compile Sources */,
@@ -1547,7 +1547,7 @@
 				E3D7A5CA24541D5DB69D6606 /* images.cpp in Compile Sources */,
 				ADE99904299B99EB6135E8D9 /* scrollarea.cpp in Compile Sources */,
 				90085DF442550A0845D5AF37 /* style_core.cpp in Compile Sources */,
-				074FCB8E19D36851004C6EB2 /* contextmenu.cpp in Compile Sources */,
+				074FCB8E19D36851004C6EB2 /* popupmenu.cpp in Compile Sources */,
 				3AA6E7264581F82856FB37F7 /* text.cpp in Compile Sources */,
 				FCE6518C548DF7BC82228A4A /* twidget.cpp in Compile Sources */,
 				E9F1CE7F9B18C7C85A50E62D /* style_auto.cpp in Compile Sources */,

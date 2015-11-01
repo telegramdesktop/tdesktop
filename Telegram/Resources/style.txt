@@ -250,12 +250,23 @@ defaultPopupMenu: PopupMenu {
 	itemBgOver: overBg;
 	itemFg: black;
 	itemFgOver: black;
+	itemFgDisabled: #ccc;
+	itemFgShortcut: #999;
+	itemFgShortcutOver: #7c99b2;
+	itemFgShortcutDisabled: #ccc;
+
 	itemPadding: margins(17px, 8px, 17px, 7px);
 	itemFont: normalFont;
 
+	separatorPadding: margins(0px, 5px, 0px, 5px);
+	separatorWidth: 1px;
+	separatorFg: #f1f1f1;
+
+	arrow: sprite(0px, 126px, 4px, 7px);
+
 	duration: 120;
 
-	widthMin: 160px;
+	widthMin: 180px;
 	widthMax: 300px;
 }
 almostTransparent: #ffffff0d;
@@ -2003,6 +2014,20 @@ mvButton: iconedButton(btnDefIconed) {
 	downTextPos: point(16px, 10px);
 
 	duration: 0;
+}
+mvPopupMenu: PopupMenu(defaultPopupMenu) {
+	shadow: sprite(0px, 0px, 0px, 0px);
+
+	itemBg: #383838;
+	itemBgOver: #505050;
+	itemFg: white;
+	itemFgOver: white;
+	itemFgDisabled: #999;
+	itemFgShortcut: #eee;
+	itemFgShortcutOver: #fff;
+	itemFgShortcutDisabled: #999;
+
+	separatorFg: #484848;
 }
 mvContextButton: iconedButton(mvButton) {
 	bgColor: #383838E6;

@@ -657,18 +657,6 @@
     <ClCompile Include="GeneratedFiles\Release\moc_audio.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\gui\contextmenu.cpp">
-      <Filter>gui</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_contextmenu.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_contextmenu.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_contextmenu.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\mtproto\mtpCoreTypes.cpp">
       <Filter>mtproto</Filter>
     </ClCompile>
@@ -899,6 +887,18 @@
     </ClCompile>
     <ClCompile Include="GeneratedFiles\numbers.cpp">
       <Filter>Generated Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_popupmenu.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_popupmenu.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_popupmenu.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\gui\popupmenu.cpp">
+      <Filter>gui</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1132,9 +1132,6 @@
     <CustomBuild Include="SourceFiles\audio.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
-    <CustomBuild Include="SourceFiles\gui\contextmenu.h">
-      <Filter>gui</Filter>
-    </CustomBuild>
     <CustomBuild Include="SourceFiles\boxes\usernamebox.h">
       <Filter>boxes</Filter>
     </CustomBuild>
@@ -1210,6 +1207,9 @@
     <CustomBuild Include="SourceFiles\telegram_wnd.qrc">
       <Filter>Resources</Filter>
     </CustomBuild>
+    <CustomBuild Include="SourceFiles\gui\popupmenu.h">
+      <Filter>gui</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <None Include="SourceFiles\langs\lang_it.strings">
@@ -1240,6 +1240,12 @@
       <Filter>Version</Filter>
     </None>
     <None Include="Version">
+      <Filter>Version</Filter>
+    </None>
+    <None Include="Telegram.xcodeproj\qt_preprocess.mak">
+      <Filter>Version</Filter>
+    </None>
+    <None Include="Telegram.pro">
       <Filter>Version</Filter>
     </None>
   </ItemGroup>

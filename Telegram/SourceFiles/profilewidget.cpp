@@ -1234,7 +1234,6 @@ void ProfileInner::contextMenuEvent(QContextMenuEvent *e) {
 			if (_peerUser && !_peerUser->username.isEmpty()) {
 				_menu->addAction(lang(lng_context_copy_mention), this, SLOT(onCopyUsername()))->setEnabled(true);
 			}
-			_menu->deleteOnHide();
 			connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
 			_menu->popup(e->globalPos());
 			e->accept();
