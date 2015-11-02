@@ -216,6 +216,10 @@ void FileLoadTask::process() {
 
 	if (!_filepath.isEmpty()) {
 		QFileInfo info(_filepath);
+		if (info.isDir()) {
+			_result->filesize = -1;
+			return;
+		}
 		filesize = info.size();
 		filemime = mimeTypeForFile(info).name();
 		filename = info.fileName();
@@ -397,6 +401,11 @@ void FileLoadTask::finish() {
 	if (!_result || !_result->filesize) {
 		if (_result) App::main()->onSendFileCancel(_result);
 		App::wnd()->replaceLayer(new InformBox(lang(lng_send_image_empty)));
+		return;
+	}
+	if (_result->filesize == -1) { // dir
+		App::main()->onSendFileCancel(_result);
+		App::wnd()->replaceLayer(new InformBox(lng_send_folder(lt_name, QFileInfo(_filepath).fileName())));
 		return;
 	}
 	if (_result->filesize > MaxUploadDocumentSize) {
