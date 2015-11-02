@@ -500,7 +500,9 @@ void GroupInfoBox::onNext() {
 	if (_creating == CreatingGroupGroup) {
 		App::wnd()->replaceLayer(new ContactsBox(title, _photoBig));
 	} else {
-		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_int(MTPchannels_CreateChannel::flag_broadcast), MTP_string(title), MTP_string(description), MTP_vector<MTPInputUser>(0)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
+		bool mega = true;
+		int32 flags = mega ? MTPchannels_CreateChannel::flag_megagroup : MTPchannels_CreateChannel::flag_broadcast;
+		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_int(flags), MTP_string(title), MTP_string(description)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
 	}
 }
 
@@ -539,9 +541,6 @@ bool GroupInfoBox::creationFail(const RPCError &error) {
 	if (error.type() == "NO_CHAT_TITLE") {
 		_title.setFocus();
 		_title.showError();
-		return true;
-	} else if (error.type() == "PEER_FLOOD") {
-		App::wnd()->replaceLayer(new InformBox(lng_cant_invite_not_contact_channel(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)))));
 		return true;
 	}
 	return false;
@@ -1217,7 +1216,7 @@ void EditChannelBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
 
-	paintTitle(p, lang(lng_edit_channel_title));
+	paintTitle(p, lang(_channel->isMegagroup() ? lng_edit_group : lng_edit_channel_title));
 }
 
 void EditChannelBox::peerUpdated(PeerData *peer) {

@@ -211,6 +211,7 @@ public:
 		return (input.type() == mtpc_inputPeerSelf);
 	}
 	bool isVerified() const;
+	bool isMegagroup() const;
 	UserData *asUser();
 	const UserData *asUser() const;
 	ChatData *asChat();
@@ -515,6 +516,9 @@ public:
 	int32 date;
 	int32 version;
 	int32 flags, flagsFull;
+	bool isMegagroup() const {
+		return flags & MTPDchannel::flag_megagroup;
+	}
 	bool isBroadcast() const {
 		return flags & MTPDchannel::flag_broadcast;
 	}
@@ -625,6 +629,9 @@ inline const QString &PeerData::userName() const {
 }
 inline bool PeerData::isVerified() const {
 	return isUser() ? asUser()->isVerified() : (isChannel() ? asChannel()->isVerified() : false);
+}
+inline bool PeerData::isMegagroup() const {
+	return isChannel() ? asChannel()->isMegagroup() : false;
 }
 
 inline int32 newMessageFlags(PeerData *p) {

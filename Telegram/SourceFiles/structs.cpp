@@ -995,7 +995,7 @@ void PeerLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton && App::main()) {
 		if (peer() && peer()->isChannel() && App::main()->historyPeer() != peer()) {
 			if (!peer()->asChannel()->isPublic() && !peer()->asChannel()->amIn()) {
-				App::wnd()->showLayer(new InformBox(lang(lng_channel_not_accessible)));
+				App::wnd()->showLayer(new InformBox(lang((peer()->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
 			} else {
 				App::main()->showPeerHistory(peer()->id, ShowAtUnreadMsgId);
 			}

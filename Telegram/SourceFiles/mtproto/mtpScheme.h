@@ -566,7 +566,7 @@ enum {
 	mtpc_channels_getParticipant = 0x546dd7a6,
 	mtpc_channels_getChannels = 0xa7f6bbb,
 	mtpc_channels_getFullChannel = 0x8736a09,
-	mtpc_channels_createChannel = 0x5521d844,
+	mtpc_channels_createChannel = 0xf4893d7f,
 	mtpc_channels_editAbout = 0x13e27f1e,
 	mtpc_channels_editAdmin = 0x52b16962,
 	mtpc_channels_editTitle = 0x566decd0,
@@ -9684,6 +9684,7 @@ public:
 		flag_moderator = (1 << 4),
 		flag_broadcast = (1 << 5),
 		flag_verified = (1 << 7),
+		flag_megagroup = (1 << 8),
 		flag_username = (1 << 6),
 	};
 
@@ -9694,6 +9695,7 @@ public:
 	bool is_moderator() const { return vflags.v & flag_moderator; }
 	bool is_broadcast() const { return vflags.v & flag_broadcast; }
 	bool is_verified() const { return vflags.v & flag_verified; }
+	bool is_megagroup() const { return vflags.v & flag_megagroup; }
 	bool has_username() const { return vflags.v & flag_username; }
 };
 
@@ -18582,24 +18584,25 @@ public:
 	MTPint vflags;
 	MTPstring vtitle;
 	MTPstring vabout;
-	MTPVector<MTPInputUser> vusers;
 
 	MTPchannels_createChannel() {
 	}
 	MTPchannels_createChannel(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_channels_createChannel) {
 		read(from, end, cons);
 	}
-	MTPchannels_createChannel(MTPint _flags, const MTPstring &_title, const MTPstring &_about, const MTPVector<MTPInputUser> &_users) : vflags(_flags), vtitle(_title), vabout(_about), vusers(_users) {
+	MTPchannels_createChannel(MTPint _flags, const MTPstring &_title, const MTPstring &_about) : vflags(_flags), vtitle(_title), vabout(_about) {
 	}
 
 	enum {
 		flag_broadcast = (1 << 0),
+		flag_megagroup = (1 << 1),
 	};
 
 	bool is_broadcast() const { return vflags.v & flag_broadcast; }
+	bool is_megagroup() const { return vflags.v & flag_megagroup; }
 
 	uint32 innerLength() const {
-		return vflags.innerLength() + vtitle.innerLength() + vabout.innerLength() + vusers.innerLength();
+		return vflags.innerLength() + vtitle.innerLength() + vabout.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_channels_createChannel;
@@ -18608,13 +18611,11 @@ public:
 		vflags.read(from, end);
 		vtitle.read(from, end);
 		vabout.read(from, end);
-		vusers.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
 		vflags.write(to);
 		vtitle.write(to);
 		vabout.write(to);
-		vusers.write(to);
 	}
 
 	typedef MTPUpdates ResponseType;
@@ -18627,7 +18628,7 @@ public:
 	}
 	MTPchannels_CreateChannel(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPchannels_createChannel>(from, end, cons) {
 	}
-	MTPchannels_CreateChannel(MTPint _flags, const MTPstring &_title, const MTPstring &_about, const MTPVector<MTPInputUser> &_users) : MTPBoxed<MTPchannels_createChannel>(MTPchannels_createChannel(_flags, _title, _about, _users)) {
+	MTPchannels_CreateChannel(MTPint _flags, const MTPstring &_title, const MTPstring &_about) : MTPBoxed<MTPchannels_createChannel>(MTPchannels_createChannel(_flags, _title, _about)) {
 	}
 };
 

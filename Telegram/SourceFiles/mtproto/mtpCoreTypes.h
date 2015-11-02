@@ -368,7 +368,7 @@ static const mtpTypeId mtpLayers[] = {
 	mtpTypeId(mtpc_invokeWithLayer18),
 };
 static const uint32 mtpLayerMaxSingle = sizeof(mtpLayers) / sizeof(mtpLayers[0]);
-static const mtpPrime mtpCurrentLayer = 40;
+static const mtpPrime mtpCurrentLayer = 41;
 
 template <typename bareT>
 class MTPBoxed : public bareT {
@@ -982,7 +982,6 @@ inline bool mtpIsFalse(const MTPBool &v) {
 
 enum { // client side flags
 	MTPDmessage_flag_HAS_TEXT_LINKS = (1 << 31), // message has links for "shared links" indexing
-	MTPmessages_SendMessage_flag_broadcast = (1 << 4),
 	MTPDreplyKeyboardMarkup_flag_FORCE_REPLY = (1 << 30), // markup just wants a text reply
 	MTPDreplyKeyboardMarkup_flag_ZERO = (1 << 31), // none (zero) markup
 	MTPDstickerSet_flag_NOT_LOADED = (1 << 31), // sticker set is not yet loaded

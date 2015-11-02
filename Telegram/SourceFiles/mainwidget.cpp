@@ -601,7 +601,7 @@ void MainWidget::cancelForwarding() {
 void MainWidget::finishForwarding(History *hist, bool broadcast) {
 	if (!hist) return;
 	
-	bool fromChannelName = hist->peer->isChannel() && hist->peer->asChannel()->canPublish() && (hist->peer->asChannel()->isBroadcast() || broadcast);
+	bool fromChannelName = hist->peer->isChannel() && !hist->peer->isMegagroup() && hist->peer->asChannel()->canPublish() && (hist->peer->asChannel()->isBroadcast() || broadcast);
 	if (!_toForward.isEmpty()) {
 		bool genClientSideMessage = (_toForward.size() < 2);
 		PeerData *forwardFrom = _toForward.cbegin().value()->history()->peer;
@@ -942,7 +942,7 @@ void MainWidget::addParticipants(PeerData *chatOrChannel, const QVector<UserData
 		for (QVector<UserData*>::const_iterator i = users.cbegin(), e = users.cend(); i != e; ++i) {
 			inputUsers.push_back((*i)->inputUser);
 		}
-		MTP::send(MTPchannels_InviteToChannel(chatOrChannel->asChannel()->inputChannel, MTP_vector<MTPInputUser>(inputUsers)), rpcDone(&MainWidget::inviteToChannelDone, chatOrChannel->asChannel()), rpcFail(&MainWidget::addParticipantsFail), 0, 5);
+		MTP::send(MTPchannels_InviteToChannel(chatOrChannel->asChannel()->inputChannel, MTP_vector<MTPInputUser>(inputUsers)), rpcDone(&MainWidget::inviteToChannelDone, chatOrChannel->asChannel()), rpcFail(&MainWidget::addParticipantsFail, chatOrChannel->asChannel()), 0, 5);
 	}
 }
 
@@ -962,13 +962,13 @@ bool MainWidget::addParticipantFail(UserData *user, const RPCError &error) {
 	return false;
 }
 
-bool MainWidget::addParticipantsFail(const RPCError &error) {
+bool MainWidget::addParticipantsFail(ChannelData *channel, const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
 
 	QString text = lang(lng_failed_add_participant);
 	if (error.type() == "USER_LEFT_CHAT") { // trying to return banned user to his group
 	} else if (error.type() == "USER_NOT_MUTUAL_CONTACT") { // trying to return user who does not have me in contacts
-		text = lang(lng_failed_add_not_mutual_channel);
+		text = lang(channel->isMegagroup() ? lng_failed_add_not_mutual : lng_failed_add_not_mutual_channel);
 	} else if (error.type() == "PEER_FLOOD") {
 		text = lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)));
 	}
@@ -990,7 +990,7 @@ bool MainWidget::kickParticipantFail(ChatData *chat, const RPCError &error) {
 }
 
 void MainWidget::checkPeerHistory(PeerData *peer) {
-	if (peer->isChannel()) {
+	if (peer->isChannel() && !peer->isMegagroup()) {
 		MTP::send(MTPchannels_GetImportantHistory(peer->asChannel()->inputChannel, MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::checkedHistory, peer));
 	} else {
 		MTP::send(MTPmessages_GetHistory(peer->input, MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::checkedHistory, peer));
@@ -1183,9 +1183,9 @@ void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, 
 			media = MTP_messageMediaWebPage(MTP_webPagePending(MTP_long(page->id), MTP_int(page->pendingTill)));
 			flags |= MTPDmessage::flag_media;
 		}
-		bool fromChannelName = hist->peer->isChannel() && hist->peer->asChannel()->canPublish() && (hist->peer->asChannel()->isBroadcast() || broadcast);
+		bool fromChannelName = hist->peer->isChannel() && !hist->peer->isMegagroup() && hist->peer->asChannel()->canPublish() && (hist->peer->asChannel()->isBroadcast() || broadcast);
 		if (fromChannelName) {
-			sendFlags |= MTPmessages_SendMessage_flag_broadcast;
+			sendFlags |= MTPmessages_SendMessage::flag_broadcast;
 			flags |= MTPDmessage::flag_views;
 		} else {
 			flags |= MTPDmessage::flag_from_id;
@@ -1296,7 +1296,7 @@ void MainWidget::preloadOverviews(PeerData *peer) {
 			MTPMessagesFilter filter = typeToMediaFilter(type);
 			if (type == OverviewCount) break;
 
-			int32 flags = peer->isChannel() ? MTPmessages_Search::flag_important_only : 0;
+			int32 flags = (peer->isChannel() && !peer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
 			_overviewPreload[i].insert(peer, MTP::send(MTPmessages_Search(MTP_int(flags), peer->input, MTP_string(""), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::overviewPreloaded, peer), rpcFail(&MainWidget::overviewFailed, peer), 0, (i == last) ? 0 : 10));
 		}
 	}
@@ -1483,7 +1483,7 @@ void MainWidget::loadMediaBack(PeerData *peer, MediaOverviewType type, bool many
 	MTPMessagesFilter filter = typeToMediaFilter(type);
 	if (type == OverviewCount) return;
 
-	int32 flags = peer->isChannel() ? MTPmessages_Search::flag_important_only : 0;
+	int32 flags = (peer->isChannel() && !peer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
 	_overviewLoad[type].insert(peer, MTP::send(MTPmessages_Search(MTP_int(flags), peer->input, MTPstring(), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(minId), MTP_int(limit)), rpcDone(&MainWidget::overviewLoaded, hist)));
 }
 
@@ -3029,11 +3029,13 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 		}
 		App::feedMsgs(d.vmessages, NewMessageLast);
 		if (h) {
-			if (HistoryItem *item = App::histItemById(peerToChannel(channel->id), d.vtop_important_message.v)) {
+			MsgId topMsg = h->isMegagroup() ? d.vtop_message.v : d.vtop_important_message.v;
+			if (HistoryItem *item = App::histItemById(peerToChannel(channel->id), topMsg)) {
 				h->setLastMessage(item);
 			}
-			if (d.vunread_important_count.v >= h->unreadCount) {
-				h->setUnreadCount(d.vunread_important_count.v, false);
+			int32 unreadCount = h->isMegagroup() ? d.vunread_count.v : d.vunread_important_count.v;
+			if (unreadCount >= h->unreadCount) {
+				h->setUnreadCount(unreadCount, false);
 				h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
 			}
 			if (d.vunread_count.v >= h->asChannelHistory()->unreadCountAll) {
@@ -3437,7 +3439,7 @@ void MainWidget::getChannelDifference(ChannelData *channel, GetChannelDifference
 	} else {
 		filter = MTP_channelMessagesFilterEmpty(); //MTP_channelMessagesFilterCollapsed(); - not supported
 		if (History *history = App::historyLoaded(channel->id)) {
-			if (!history->asChannelHistory()->onlyImportant()) {
+			if (!history->isMegagroup() && !history->asChannelHistory()->onlyImportant()) {
 				MsgId fixInScrollMsgId = 0;
 				int32 fixInScrollMsgTop = 0;
 				history->asChannelHistory()->getSwitchReadyFor(SwitchAtTopMsgId, fixInScrollMsgId, fixInScrollMsgTop);
@@ -4148,7 +4150,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 							item->setText(text, d.has_entities() ? entitiesFromMTP(d.ventities.c_vector().v) : EntitiesInText());
 							item->initDimensions();
 							itemResized(item);
-							if (item->hasTextLinks() && (!item->history()->isChannel() || item->fromChannel())) {
+							if (item->hasTextLinks() && item->indexInOverview()) {
 								item->history()->addToOverview(item, OverviewLinks);
 							}
 						}

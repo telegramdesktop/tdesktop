@@ -183,6 +183,9 @@ public:
 	bool isChannel() const {
 		return peerIsChannel(peer->id);
 	}
+	bool isMegagroup() const {
+		return peer->isMegagroup();
+	}
 	ChannelHistory *asChannelHistory();
 	const ChannelHistory *asChannelHistory() const;
 
@@ -857,6 +860,10 @@ public:
 	bool isImportant() const {
 		return _history->isChannel() && isImportantChannelMessage(id, _flags);
 	}
+	bool indexInOverview() const {
+		return (!history()->isChannel() || history()->isMegagroup() || fromChannel());
+	}
+
 	virtual bool needCheck() const {
 		return out() || (id < 0 && history()->peer->isSelf());
 	}

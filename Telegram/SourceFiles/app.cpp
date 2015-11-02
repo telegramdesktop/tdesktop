@@ -549,7 +549,15 @@ namespace App {
 				cdata->date = d.vdate.v;
 				cdata->flags = d.vflags.v;
 				cdata->isForbidden = false;
-
+				if (cdata->isMegagroup()) {
+					if (History *h = App::historyLoaded(cdata->id)) {
+						if (h->asChannelHistory()->onlyImportant()) {
+							MsgId fixInScrollMsgId = 0;
+							int32 fixInScrollMsgTop = 0;
+							h->asChannelHistory()->getSwitchReadyFor(SwitchAtTopMsgId, fixInScrollMsgId, fixInScrollMsgTop);
+						}
+					}
+				}
 				if (cdata->version < d.vversion.v) {
 					cdata->version = d.vversion.v;
 				}
@@ -879,7 +887,7 @@ namespace App {
 				existing->setText(qs(m.vmessage), m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText());
 				existing->initDimensions();
 				if (App::main()) App::main()->itemResized(existing);
-				if (existing->hasTextLinks() && (!existing->history()->isChannel() || existing->fromChannel())) {
+				if (existing->hasTextLinks() && existing->indexInOverview()) {
 					existing->history()->addToOverview(existing, OverviewLinks);
 				}
 			}

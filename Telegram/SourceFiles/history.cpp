@@ -186,7 +186,7 @@ void DialogRow::paint(Painter &p, int32 w, bool act, bool sel, bool onlyBackgrou
 	QRect rectForName(nameleft, st::dlgPaddingVer + st::dlgNameTop, namewidth, st::msgNameFont->height);
 
 	// draw chat icon
-	if (history->peer->isChat()) {
+	if (history->peer->isChat() || history->peer->isMegagroup()) {
 		p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), App::sprite(), (act ? st::dlgActiveChatImg : st::dlgChatImg));
 		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
 	} else if (history->peer->isChannel()) {
@@ -280,7 +280,7 @@ void FakeDialogRow::paint(Painter &p, int32 w, bool act, bool sel, bool onlyBack
 	QRect rectForName(nameleft, st::dlgPaddingVer + st::dlgNameTop, namewidth, st::msgNameFont->height);
 
 	// draw chat icon
-	if (history->peer->isChat()) {
+	if (history->peer->isChat() || history->peer->isMegagroup()) {
 		p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), App::sprite(), (act ? st::dlgActiveChatImg : st::dlgChatImg));
 		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
 	} else if (history->peer->isChannel()) {
@@ -453,14 +453,17 @@ void History::eraseFromOverview(MediaOverviewType type, MsgId msgId) {
 
 ChannelHistory::ChannelHistory(const PeerId &peer) : History(peer),
 unreadCountAll(0),
-_onlyImportant(true),
+_onlyImportant(!isMegagroup()),
 _otherOldLoaded(false), _otherNewLoaded(true),
 _collapseMessage(0), _joinedMessage(0) {
 }
 
 bool ChannelHistory::isSwitchReadyFor(MsgId switchId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop) {
 	if (switchId == SwitchAtTopMsgId) {
-		if (_onlyImportant) return true;
+		if (_onlyImportant) {
+			if (isMegagroup()) switchMode();
+			return true;
+		}
 
 		int32 bottomUnderScrollTop = 0;
 		HistoryItem *atTopItem = App::main()->atTopImportantMsg(bottomUnderScrollTop);
@@ -482,6 +485,7 @@ bool ChannelHistory::isSwitchReadyFor(MsgId switchId, MsgId &fixInScrollMsgId, i
 	if (HistoryItem *item = App::histItemById(channelId(), switchId)) {
 		HistoryItemType itemType = item->type();
 		if (itemType == HistoryItemGroup || itemType == HistoryItemCollapse) {
+			if (isMegagroup()) return true;
 			if (itemType == HistoryItemGroup && !_onlyImportant) return true;
 			if (itemType == HistoryItemCollapse && _onlyImportant) return true;
 			bool willNeedCollapse = (itemType == HistoryItemGroup);
@@ -563,7 +567,7 @@ void ChannelHistory::getSwitchReadyFor(MsgId switchId, MsgId &fixInScrollMsgId, 
 }
 
 void ChannelHistory::insertCollapseItem(MsgId wasMinId) {
-	if (_onlyImportant) return;
+	if (_onlyImportant || isMegagroup()) return;
 
 	bool insertAfter = false;
 	for (int32 blockIndex = 1, blocksCount = blocks.size(); blockIndex < blocksCount; ++blockIndex) { // skip first date block
@@ -860,7 +864,7 @@ void ChannelHistory::checkMaxReadMessageDate() {
 		HistoryBlock *block = blocks.at(--blockIndex);
 		for (int32 itemIndex = block->items.size(); itemIndex > 0;) {
 			HistoryItem *item = block->items.at(--itemIndex);
-			if (item->isImportant() && !item->unread()) {
+			if ((item->isImportant() || isMegagroup()) && !item->unread()) {
 				_maxReadMessageDate = item->date;
 				return;
 			}
@@ -884,7 +888,8 @@ HistoryItem *ChannelHistory::addNewChannelMessage(const MTPMessage &msg, NewMess
 }
 
 HistoryItem *ChannelHistory::addNewToBlocks(const MTPMessage &msg, NewMessageType type) {
-	bool isImportant = isChannel() ? isImportantChannelMessage(idFromMessage(msg), flagsFromMessage(msg)) : true;
+	bool isImportantFlags = isImportantChannelMessage(idFromMessage(msg), flagsFromMessage(msg));
+	bool isImportant = (isChannel() && !isMegagroup()) ? isImportantFlags : true;
 
 	if (!loadedAtBottom()) {
 		HistoryItem *item = addToHistory(msg);
@@ -906,7 +911,7 @@ HistoryItem *ChannelHistory::addNewToBlocks(const MTPMessage &msg, NewMessageTyp
 		return item;
 	}
 
-	if (!isImportant && !onlyImportant() && !isEmpty() && type == NewMessageLast) {
+	if (!isImportantFlags && !onlyImportant() && !isEmpty() && type == NewMessageLast) {
 		clear(true);
 	}
 
@@ -921,7 +926,7 @@ HistoryItem *ChannelHistory::addNewToBlocks(const MTPMessage &msg, NewMessageTyp
 }
 
 void ChannelHistory::addNewToOther(HistoryItem *item, NewMessageType type) {
-	if (!_otherNewLoaded) return;
+	if (!_otherNewLoaded || isMegagroup()) return;
 
 	if (!item->isImportant()) {
 		if (onlyImportant()) {
@@ -942,6 +947,8 @@ void ChannelHistory::addNewToOther(HistoryItem *item, NewMessageType type) {
 }
 
 void ChannelHistory::switchMode() {
+	if (isMegagroup() && !_onlyImportant) return;
+
 	OtherList savedList;
 	if (!blocks.isEmpty()) {
 		savedList.reserve(((blocks.size() - 2) * MessagesPerPage + blocks.back()->items.size()) * (onlyImportant() ? 2 : 1));
@@ -1668,7 +1675,7 @@ HistoryItem *History::addNewItem(HistoryBlock *to, bool newBlock, HistoryItem *a
 		newItemAdded(adding);
 	}
 
-	if (!isChannel() || adding->fromChannel()) {
+	if (adding->indexInOverview()) {
 		HistoryMedia *media = adding->getMedia(true);
 		if (media) {
 			HistoryMediaType mt = media->type();
@@ -1883,7 +1890,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 			QList<UserData*> *lastAuthors = peer->isChat() ? &(peer->asChat()->lastAuthors) : 0;
 			for (int32 i = block->items.size(); i > 0; --i) {
 				HistoryItem *item = block->items[i - 1];
-				if (channel && !item->fromChannel()) continue;
+				if (!item->indexInOverview()) continue;
 
 				HistoryMedia *media = item->getMedia(true);
 				if (media) {
@@ -2043,7 +2050,7 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 			HistoryBlock *b = blocks[i];
 			for (int32 j = 0; j < b->items.size(); ++j) {
 				HistoryItem *item = b->items[j];
-				if (channel && !item->fromChannel()) continue;
+				if (!item->indexInOverview()) continue;
 
 				HistoryMedia *media = item->getMedia(true);
 				if (media) {
@@ -2172,7 +2179,7 @@ HistoryItem *History::lastImportantMessage() const {
 		HistoryBlock *block = blocks.at(--blockIndex);
 		for (int32 itemIndex = block->items.size(); itemIndex > 0;) {
 			HistoryItem *item = block->items.at(--itemIndex);
-			if (channel ? item->isImportant() : (item->type() == HistoryItemMsg)) {
+			if ((channel && !isMegagroup()) ? item->isImportant() : (item->type() == HistoryItemMsg)) {
 				return item;
 			}
 		}
@@ -7367,7 +7374,11 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 
 	case mtpc_messageActionChannelCreate: {
 		const MTPDmessageActionChannelCreate &d(action.c_messageActionChannelCreate());
-		text = lng_action_created_channel(lt_title, textClean(qs(d.vtitle)));
+		if (fromChannel()) {
+			text = lng_action_created_channel(lt_title, textClean(qs(d.vtitle)));
+		} else {
+			text = lng_action_created_chat(lt_from, from, lt_title, textClean(qs(d.vtitle)));
+		}
 	} break;
 
 	case mtpc_messageActionChatDeletePhoto: {
@@ -7682,9 +7693,9 @@ void HistoryCollapse::getState(TextLinkPtr &lnk, HistoryCursorState &state, int3
 HistoryJoined::HistoryJoined(History *history, HistoryBlock *block, const QDateTime &inviteDate, UserData *inviter, int32 flags) :
 HistoryServiceMsg(history, block, clientMsgId(), inviteDate, QString(), flags) {
 	if (peerToUser(inviter->id) == MTP::authedId()) {
-		_text.setText(st::msgServiceFont, lang(lng_action_you_joined), _historySrvOptions);
+		_text.setText(st::msgServiceFont, lang(history->isMegagroup() ? lng_action_you_joined_group : lng_action_you_joined), _historySrvOptions);
 	} else {
-		_text.setText(st::msgServiceFont, lng_action_add_you(lt_from, textcmdLink(1, inviter->name)), _historySrvOptions);
+		_text.setText(st::msgServiceFont, history->isMegagroup() ? lng_action_add_you_group(lt_from, textcmdLink(1, inviter->name)) : lng_action_add_you(lt_from, textcmdLink(1, inviter->name)), _historySrvOptions);
 		_text.setLink(1, TextLinkPtr(new PeerLink(inviter)));
 	}
 }

@@ -70,11 +70,11 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	// actions
 	_searchInPeer(this, lang(lng_profile_search_messages)),
 	_clearHistory(this, lang(lng_profile_clear_history)),
-	_deleteConversation(this, lang(_peer->isUser() ? lng_profile_delete_conversation : (_peer->isChat() ? lng_profile_clear_and_exit : lng_profile_leave_channel))),
+	_deleteConversation(this, lang(_peer->isUser() ? lng_profile_delete_conversation : (_peer->isChat() ? lng_profile_clear_and_exit : (_peer->isMegagroup() ? lng_profile_leave_group : lng_profile_leave_channel)))),
 	_wasBlocked(_peerUser ? _peerUser->blocked : UserBlockUnknown),
 	_blockRequest(0),
 	_blockUser(this, lang((_peerUser && _peerUser->botInfo) ? lng_profile_block_bot : lng_profile_block_user), st::btnRedLink),
-	_deleteChannel(this, lang(lng_profile_delete_channel), st::btnRedLink),
+	_deleteChannel(this, lang(_peer->isMegagroup() ? lng_profile_delete_group : lng_profile_delete_channel), st::btnRedLink),
 
 	// participants
 	_pHeight(st::profileListPhotoSize + st::profileListPadding.height() * 2),
@@ -292,7 +292,7 @@ void ProfileInner::onClearHistorySure() {
 }
 
 void ProfileInner::onDeleteConversation() {
-	ConfirmBox *box = new ConfirmBox(_peer->isUser() ? lng_sure_delete_history(lt_contact, _peer->name) : (_peer->isChat() ? lng_sure_delete_and_exit(lt_group, _peer->name) : lang(lng_sure_leave_channel)), lang(_peer->isUser() ? lng_box_delete : lng_box_leave), _peer->isChannel() ? st::defaultBoxButton : st::attentionBoxButton);
+	ConfirmBox *box = new ConfirmBox(_peer->isUser() ? lng_sure_delete_history(lt_contact, _peer->name) : (_peer->isChat() ? lng_sure_delete_and_exit(lt_group, _peer->name) : lang(_peer->isMegagroup() ? lng_sure_leave_group : lng_sure_leave_channel)), lang(_peer->isUser() ? lng_box_delete : lng_box_leave), _peer->isChannel() ? st::defaultBoxButton : st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteConversationSure()));
 	App::wnd()->showLayer(box);
 }
@@ -313,7 +313,7 @@ void ProfileInner::onDeleteConversationSure() {
 
 void ProfileInner::onDeleteChannel() {
 	if (!_peerChannel) return;
-	ConfirmBox *box = new ConfirmBox(lang(lng_sure_delete_channel), lang(lng_box_delete), st::attentionBoxButton);
+	ConfirmBox *box = new ConfirmBox(lang(_peer->isMegagroup() ? lng_sure_delete_group : lng_sure_delete_channel), lang(lng_box_delete), st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteChannelSure()));
 	App::wnd()->showLayer(box);
 }
@@ -492,7 +492,7 @@ void ProfileInner::onFullPeerUpdated(PeerData *peer) {
 		updateInvitationLink();
 		_members.setText(lng_channel_members_link(lt_count, (_peerChannel->count > 0) ? _peerChannel->count : 1));
 		_admins.setText(lng_channel_admins_link(lt_count, (_peerChannel->adminsCount > 0) ? _peerChannel->adminsCount : 1));
-		_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(lng_channel_status);
+		_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
 		if (_peerChannel->about.isEmpty()) {
 			_about = Text(st::wndMinWidth - st::profilePadding.left() - st::profilePadding.right());
 		} else {
@@ -552,7 +552,7 @@ void ProfileInner::peerUpdated(PeerData *data) {
 			}
 			_members.setText(lng_channel_members_link(lt_count, (_peerChannel->count > 0) ? _peerChannel->count : 1));
 			_admins.setText(lng_channel_admins_link(lt_count, (_peerChannel->adminsCount > 0) ? _peerChannel->adminsCount : 1));
-			_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(lng_channel_status);
+			_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
 		}
 		_photoLink = (photo && photo->date) ? TextLinkPtr(new PhotoLink(photo, _peer)) : TextLinkPtr();
 		if (_peer->name != _nameCache) {
@@ -638,7 +638,7 @@ void ProfileInner::reorderParticipants() {
 		if (_peerUser) {
 			_onlineText = App::onlineText(_peerUser, t, true);
 		} else if (_peerChannel) {
-			_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(lng_channel_status);
+			_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
 		} else {
 			_onlineText = lang(lng_chat_status_unaccessible);
 		}
@@ -1120,7 +1120,7 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	// profile
 	top += st::profilePadding.top();
 	int32 addbyname = 0;
-	if (_peerChannel && (_amCreator || _peerChannel->isPublic())) {
+	if (_peerChannel && !_peerChannel->isMegagroup() && (_amCreator || _peerChannel->isPublic())) {
 		_username.move(_left + st::profilePhotoSize + st::profileStatusLeft, top + st::profileStatusTop);
 		addbyname = st::profileStatusTop + st::linkFont->ascent - (st::profileNameTop + st::profileNameFont->ascent);
 	}
@@ -1445,7 +1445,7 @@ void ProfileInner::showAll() {
 				_uploadPhoto.hide();
 				_cancelPhoto.show();
 			} else {
-				if (_amCreator) {
+				if (_amCreator || (_peerChannel->amEditor() && _peerChannel->isMegagroup())) {
 					_uploadPhoto.show();
 				} else {
 					_uploadPhoto.hide();
@@ -1471,7 +1471,7 @@ void ProfileInner::showAll() {
 		} else {
 			_deleteChannel.hide();
 		}
-		if (_peerChannel->isPublic() || _amCreator) {
+		if (!_peerChannel->isMegagroup() && (_peerChannel->isPublic() || _amCreator)) {
 			_username.show();
 		} else {
 			_username.hide();
@@ -1626,7 +1626,7 @@ void ProfileWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) 
 	p.drawPixmap(QPoint(st::topBarBackPadding.left(), (st::topBarHeight - st::topBarBackImg.pxHeight()) / 2), App::sprite(), st::topBarBackImg);
 	p.setFont(st::topBarBackFont->f);
 	p.setPen(st::topBarBackColor->p);
-	p.drawText(st::topBarBackPadding.left() + st::topBarBackImg.pxWidth() + st::topBarBackPadding.right(), (st::topBarHeight - st::topBarBackFont->height) / 2 + st::topBarBackFont->ascent, lang(peer()->isUser() ? lng_profile_info : (peer()->isChat() ? lng_profile_group_info : lng_profile_channel_info)));
+	p.drawText(st::topBarBackPadding.left() + st::topBarBackImg.pxWidth() + st::topBarBackPadding.right(), (st::topBarHeight - st::topBarBackFont->height) / 2 + st::topBarBackFont->ascent, lang(peer()->isUser() ? lng_profile_info : ((peer()->isChat() || peer()->isMegagroup()) ? lng_profile_group_info : lng_profile_channel_info)));
 }
 
 void ProfileWidget::topBarClick() {

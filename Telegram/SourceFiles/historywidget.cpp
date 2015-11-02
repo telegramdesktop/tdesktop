@@ -1741,7 +1741,7 @@ void ReportSpamPanel::paintEvent(QPaintEvent *e) {
 void ReportSpamPanel::setReported(bool reported, PeerData *onPeer) {
 	if (reported) {
 		_report.hide();
-		_clear.setText(lang(onPeer->isChannel() ? lng_profile_leave_channel : lng_profile_delete_conversation));
+		_clear.setText(lang(onPeer->isChannel() ? (onPeer->isMegagroup() ? lng_profile_leave_group : lng_profile_leave_channel) : lng_profile_delete_conversation));
 		_clear.show();
 	} else {
 		_report.show();
@@ -3012,7 +3012,10 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 	_peer = peerId ? App::peer(peerId) : 0;
 	_channel = _peer ? peerToChannel(_peer->id) : NoChannel;
 	_canSendMessages = canSendMessages(_peer);
-	if (_peer && _peer->isChannel()) _peer->asChannel()->updateFull();
+	if (_peer && _peer->isChannel()) {
+		_peer->asChannel()->updateFull();
+		_joinChannel.setText(lang(_peer->isMegagroup() ? lng_group_join : lng_channel_join));
+	}
 
 	_unblockRequest = _reportSpamRequest = 0;
 
@@ -3400,7 +3403,7 @@ void HistoryWidget::updateControlsVisibility() {
 					_field.setPlaceholder(lang(_broadcast.checked() ? lng_broadcast_ph : lng_comment_ph));
 				} else {
 					_broadcast.hide();
-					_field.setPlaceholder(lang((_history && _history->peer->isChannel()) ? (_history->peer->asChannel()->canPublish() ? lng_broadcast_ph : lng_comment_ph) : lng_message_ph));
+					_field.setPlaceholder(lang((_history && _history->isChannel() && !_history->isMegagroup()) ? (_history->peer->asChannel()->canPublish() ? lng_broadcast_ph : lng_comment_ph) : lng_message_ph));
 				}
 			}
 			if (_replyToId || readyToForward() || (_previewData && _previewData->pendingTill >= 0) || _kbReplyTo) {
@@ -3485,8 +3488,9 @@ bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId
 	if (mtpIsFlood(error)) return false;
 
 	if (error.type() == qstr("CHANNEL_PRIVATE")) {
+		PeerData *was = _peer;
 		App::main()->showDialogs();
-		App::wnd()->showLayer(new InformBox(lang(lng_channel_not_accessible)));
+		App::wnd()->showLayer(new InformBox(lang((was && was->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
 		return true;
 	}
 
@@ -3640,7 +3644,8 @@ bool HistoryWidget::isActive() const {
 void HistoryWidget::firstLoadMessages() {
 	if (!_history || _firstLoadRequest) return;
 
-	bool loadImportant = _history->isChannel() ? _history->asChannelHistory()->onlyImportant() : false, wasOnlyImportant = loadImportant;
+	bool loadImportant = (_history->isChannel() && !_history->isMegagroup()) ? _history->asChannelHistory()->onlyImportant() : false;
+	bool wasOnlyImportant = loadImportant;
 	int32 from = 0, offset = 0, loadCount = MessagesPerPage;
 	if (_showAtMsgId == ShowAtUnreadMsgId) {
 		if (_history->unreadCount) {
@@ -3661,7 +3666,7 @@ void HistoryWidget::firstLoadMessages() {
 		if (_showAtMsgId == SwitchAtTopMsgId) {
 			_history->getReadyFor(_showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
 			loadImportant = true;
-		} else if (HistoryItem *item = App::histItemById(_channel, _delayedShowAtMsgId)) {
+		} else if (HistoryItem *item = App::histItemById(_channel, _showAtMsgId)) {
 			if (item->type() == HistoryItemGroup) {
 				_history->getReadyFor(_showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
 				offset = -loadCount / 2;
@@ -3676,6 +3681,9 @@ void HistoryWidget::firstLoadMessages() {
 		}
 		if (_fixedInScrollMsgId) {
 			_fixedInScrollMsgTop += _list->height() - _scroll.scrollTop() - st::historyPadding;
+		}
+		if (_history->isMegagroup()) {
+			loadImportant = false;
 		}
 		if (_history->isEmpty() || wasOnlyImportant != loadImportant) {
 			clearAllLoadRequests();
@@ -3692,7 +3700,7 @@ void HistoryWidget::firstLoadMessages() {
 void HistoryWidget::loadMessages() {
 	if (!_history || _history->loadedAtTop() || _preloadRequest) return;
 
-	bool loadImportant = _history->isChannel() ? _history->asChannelHistory()->onlyImportant() : false;
+	bool loadImportant = (_history->isChannel() && !_history->isMegagroup()) ? _history->asChannelHistory()->onlyImportant() : false;
 	MsgId min = _history->minMsgId();
 	int32 offset = 0, loadCount = min ? MessagesPerPage : MessagesFirstLoad;
 
@@ -3709,7 +3717,7 @@ void HistoryWidget::loadMessagesDown() {
 	MsgId max = _history->maxMsgId();
 	if (!max) return;
 
-	bool loadImportant = _history->isChannel() ? _history->asChannelHistory()->onlyImportant() : false;
+	bool loadImportant = (_history->isChannel() && !_history->isMegagroup()) ? _history->asChannelHistory()->onlyImportant() : false;
 	int32 loadCount = MessagesPerPage, offset = -loadCount;
 
 	if (loadImportant) {
@@ -3725,7 +3733,7 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 	clearDelayedShowAt();
 	_delayedShowAtMsgId = showAtMsgId;
 
-	bool loadImportant = _history->isChannel() ? _history->asChannelHistory()->onlyImportant() : false;
+	bool loadImportant = (_history->isChannel() && !_history->isMegagroup()) ? _history->asChannelHistory()->onlyImportant() : false;
 	int32 from = 0, offset = 0, loadCount = MessagesPerPage;
 	if (_delayedShowAtMsgId == ShowAtUnreadMsgId) {
 		if (_history->unreadCount) {
@@ -3757,6 +3765,9 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 				from = qMax(static_cast<HistoryCollapse*>(item)->wasMinId(), 1);
 				loadImportant = true;
 			}
+		}
+		if (_history->isMegagroup()) {
+			loadImportant = false;
 		}
 	}
 
@@ -3922,7 +3933,7 @@ bool HistoryWidget::joinFail(const RPCError &error, mtpRequestId req) {
 
 	if (_unblockRequest == req) _unblockRequest = 0;
 	if (error.type() == qstr("CHANNEL_PRIVATE")) {
-		App::wnd()->showLayer(new InformBox(lang(lng_channel_not_accessible)));
+		App::wnd()->showLayer(new InformBox(lang((_peer && _peer->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
 		return true;
 	}
 	return false;
@@ -3965,9 +3976,9 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 		sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 	}
 
-	bool fromChannelName = p->isChannel() && p->asChannel()->canPublish() && (p->asChannel()->isBroadcast() || _broadcast.checked());
+	bool fromChannelName = p->isChannel() && !p->isMegagroup() && p->asChannel()->canPublish() && (p->asChannel()->isBroadcast() || _broadcast.checked());
 	if (fromChannelName) {
-		sendFlags |= MTPmessages_SendMessage_flag_broadcast;
+		sendFlags |= MTPmessages_SendMedia::flag_broadcast;
 		flags |= MTPDmessage::flag_views;
 	} else {
 		flags |= MTPDmessage::flag_from_id;
@@ -4378,7 +4389,10 @@ DragState HistoryWidget::getDragState(const QMimeData *d) {
 		QString file(i->toLocalFile());
 		if (file.startsWith(qsl("/.file/id="))) file = psConvertFileUrl(file);
 
-		quint64 s = QFileInfo(file).size();
+		QFileInfo info(file);
+		if (info.isDir()) return DragStateNone;
+
+		quint64 s = info.size();
 		if (s >= MaxUploadDocumentSize) {
 			return DragStateNone;
 		}
@@ -4447,7 +4461,7 @@ bool HistoryWidget::readyToForward() const {
 }
 
 bool HistoryWidget::hasBroadcastToggle() const {
-	return _history && _history->peer->isChannel() && _history->peer->asChannel()->canPublish() && !_history->peer->asChannel()->isBroadcast();
+	return _history && _history->peer->isChannel() && !_history->peer->isMegagroup() && _history->peer->asChannel()->canPublish() && !_history->peer->asChannel()->isBroadcast();
 }
 
 bool HistoryWidget::isBotStart() const {
@@ -4527,7 +4541,7 @@ void HistoryWidget::onFilesDrop(const QMimeData *data) {
 		return;
 	}
 
-	if (files.size() == 1) {
+	if (files.size() == 1 && !QFileInfo(files.at(0)).isDir()) {
 		uploadFile(files.at(0), PrepareAuto);
 	}
 //	uploadFiles(files, PrepareAuto); // multiple confirm with "compressed" checkbox
@@ -4688,21 +4702,21 @@ void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
 			text = _titlePeerText.isEmpty() ? lng_chat_status_members(lt_count, chat->count < 0 ? 0 : chat->count) : _titlePeerText;
 		} else {
 			int32 onlineCount = 0;
-            bool onlyMe = true;
+			bool onlyMe = true;
 			for (ChatData::Participants::const_iterator i = chat->participants.cbegin(), e = chat->participants.cend(); i != e; ++i) {
 				if (i.key()->onlineTill > t) {
 					++onlineCount;
-                    if (onlyMe && i.key() != App::self()) onlyMe = false;
+					if (onlyMe && i.key() != App::self()) onlyMe = false;
 				}
 			}
-            if (onlineCount && !onlyMe) {
+			if (onlineCount && !onlyMe) {
 				text = lng_chat_status_members_online(lt_count, chat->participants.size(), lt_count_online, onlineCount);
 			} else {
 				text = lng_chat_status_members(lt_count, chat->participants.size());
 			}
 		}
 	} else if (_peer->isChannel()) {
-		text = _peer->asChannel()->count ? lng_chat_status_members(lt_count, _peer->asChannel()->count) : lang(lng_channel_status);
+		text = _peer->asChannel()->count ? lng_chat_status_members(lt_count, _peer->asChannel()->count) : lang(_peer->isMegagroup() ? lng_group_status : lng_channel_status);
 	}
 	if (_titlePeerText != text) {
 		_titlePeerText = text;
@@ -4816,7 +4830,7 @@ void HistoryWidget::uploadFile(const QString &file, PrepareMediaType type, FileL
 void HistoryWidget::uploadFiles(const QStringList &files, PrepareMediaType type) {
 	if (!_history || files.isEmpty()) return;
 
-	if (files.size() == 1) return uploadFile(files.at(0), type);
+	if (files.size() == 1 && !QFileInfo(files.at(0)).isDir()) return uploadFile(files.at(0), type);
 
 	App::wnd()->activateWindow();
 
@@ -4941,7 +4955,7 @@ void HistoryWidget::onPhotoUploaded(const FullMsgId &newId, const MTPInputFile &
 
 		bool fromChannelName = hist->peer->isChannel() && hist->peer->asChannel()->canPublish() && item->fromChannel();
 		if (fromChannelName) {
-			sendFlags |= MTPmessages_SendMessage_flag_broadcast;
+			sendFlags |= MTPmessages_SendMedia::flag_broadcast;
 		}
 		QString caption = item->getMedia() ? item->getMedia()->getCaption() : QString();
 		hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedPhoto(file, MTP_string(caption)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
@@ -4985,9 +4999,9 @@ void HistoryWidget::onDocumentUploaded(const FullMsgId &newId, const MTPInputFil
 				sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 			}
 
-			bool fromChannelName = hist->peer->isChannel() && hist->peer->asChannel()->canPublish() && item->fromChannel();
+			bool fromChannelName = hist->peer->isChannel() && !hist->peer->isMegagroup() && hist->peer->asChannel()->canPublish() && item->fromChannel();
 			if (fromChannelName) {
-				sendFlags |= MTPmessages_SendMessage_flag_broadcast;
+				sendFlags |= MTPmessages_SendMedia::flag_broadcast;
 			}
 			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedDocument(file, MTP_string(document->mime), _composeDocumentAttributes(document)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 		}
@@ -5014,9 +5028,9 @@ void HistoryWidget::onThumbDocumentUploaded(const FullMsgId &newId, const MTPInp
 				sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 			}
 
-			bool fromChannelName = hist->peer->isChannel() && hist->peer->asChannel()->canPublish() && item->fromChannel();
+			bool fromChannelName = hist->peer->isChannel() && !hist->peer->isMegagroup() && hist->peer->asChannel()->canPublish() && item->fromChannel();
 			if (fromChannelName) {
-				sendFlags |= MTPmessages_SendMessage_flag_broadcast;
+				sendFlags |= MTPmessages_SendMedia::flag_broadcast;
 			}
 			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedThumbDocument(file, thumb, MTP_string(document->mime), _composeDocumentAttributes(document)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 		}
@@ -5041,9 +5055,9 @@ void HistoryWidget::onAudioUploaded(const FullMsgId &newId, const MTPInputFile &
 				sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 			}
 
-			bool fromChannelName = hist->peer->isChannel() && hist->peer->asChannel()->canPublish() && item->fromChannel();
+			bool fromChannelName = hist->peer->isChannel() && !hist->peer->isMegagroup() && hist->peer->asChannel()->canPublish() && item->fromChannel();
 			if (fromChannelName) {
-				sendFlags |= MTPmessages_SendMessage_flag_broadcast;
+				sendFlags |= MTPmessages_SendMedia::flag_broadcast;
 			}
 			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedAudio(file, MTP_int(audio->duration), MTP_string(audio->mime)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 		}
@@ -5117,7 +5131,7 @@ void HistoryWidget::onAudioFailed(const FullMsgId &newId) {
 }
 
 void HistoryWidget::onReportSpamClicked() {
-	ConfirmBox *box = new ConfirmBox(lang(_peer->isUser() ? lng_report_spam_sure : (_peer->isChat() ? lng_report_spam_sure_group : lng_report_spam_sure_channel)), lang(lng_report_spam_ok), st::attentionBoxButton);
+	ConfirmBox *box = new ConfirmBox(lang(_peer->isUser() ? lng_report_spam_sure : ((_peer->isChat() || _peer->isMegagroup()) ? lng_report_spam_sure_group : lng_report_spam_sure_channel)), lang(lng_report_spam_ok), st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onReportSpamSure()));
 	App::wnd()->showLayer(box);
 	_clearPeer = _peer;
@@ -5532,7 +5546,7 @@ void HistoryWidget::updateToEndVisibility() {
 
 void HistoryWidget::updateCollapseCommentsVisibility() {
 	int32 collapseCommentsLeft = (width() - _collapseComments.width()) / 2, collapseCommentsTop = st::msgServiceMargin.top();
-	bool collapseCommentsVisible = !_a_show.animating() && _history && !_firstLoadRequest && _history->isChannel() && !_history->asChannelHistory()->onlyImportant();
+	bool collapseCommentsVisible = !_a_show.animating() && _history && !_firstLoadRequest && _history->isChannel() && !_history->isMegagroup() && !_history->asChannelHistory()->onlyImportant();
 	if (collapseCommentsVisible) {
 		if (HistoryItem *collapse = _history->asChannelHistory()->collapse()) {
 			if (!collapse->detached()) {
@@ -5661,9 +5675,9 @@ void HistoryWidget::onStickerSend(DocumentData *sticker) {
 		flags |= MTPDmessage::flag_reply_to_msg_id;
 		sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 	}
-	bool fromChannelName = _history->peer->isChannel() && _history->peer->asChannel()->canPublish() && (_history->peer->asChannel()->isBroadcast() || _broadcast.checked());
+	bool fromChannelName = _history->peer->isChannel() && !_history->peer->isMegagroup() && _history->peer->asChannel()->canPublish() && (_history->peer->asChannel()->isBroadcast() || _broadcast.checked());
 	if (fromChannelName) {
-		sendFlags |= MTPmessages_SendMessage_flag_broadcast;
+		sendFlags |= MTPmessages_SendMedia::flag_broadcast;
 	} else {
 		flags |= MTPDmessage::flag_from_id;
 	}

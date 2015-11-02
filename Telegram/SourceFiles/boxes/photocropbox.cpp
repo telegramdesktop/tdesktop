@@ -33,10 +33,10 @@ PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer, bool upload) :
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _img(img)
 , _peerId(peer) {
-	if (peerIsChannel(_peerId)) {
-		_title = lang(lng_create_channel_crop);
-	} else if (peerIsChat(_peerId)) {
+	if (peerIsChat(_peerId)) {
 		_title = lang(lng_create_group_crop);
+	} else if (peerIsChannel(_peerId)) {
+		_title = lang(lng_create_channel_crop);
 	} else {
 		_title = lang(lng_settings_crop_profile);
 	}

@@ -1946,10 +1946,10 @@ void MediaView::updateHeader() {
 			_headerText = _doc->name.isEmpty() ? lang(lng_mediaview_doc_image) : _doc->name;
 		} else if (_user) {
 			_headerText = lang(lng_mediaview_profile_photo);
-		} else if (_channel) {
-			_headerText = lang(lng_mediaview_group_photo);
-		} else if (_peer) {
+		} else if (_channel && !_history->isMegagroup()) {
 			_headerText = lang(lng_mediaview_channel_photo);
+		} else if (_peer) {
+			_headerText = lang(lng_mediaview_group_photo);
 		} else {
 			_headerText = lang(lng_mediaview_single_photo);
 		}
