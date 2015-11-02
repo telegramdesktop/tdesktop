@@ -287,7 +287,7 @@ void ContactsInner::peerUpdated(PeerData *peer) {
 		}
 		if (!_chat->amIn()) {
 			App::wnd()->hideLayer();
-		} else if (!_chat->participants.isEmpty() || _chat->count <= 0) {
+		} else if (!_chat->participants.isEmpty()) {
 			for (ContactsData::iterator i = _contactsData.begin(), e = _contactsData.end(); i != e; ++i) {
 				delete i.value();
 			}
@@ -1645,7 +1645,11 @@ void ContactsBox::getAdminsDone(const MTPmessages_ChatFull &result) {
 
 void ContactsBox::setAdminDone(UserData *user, const MTPBool &result) {
 	if (mtpIsTrue(result)) {
-		_inner.chat()->admins.insert(user, true);
+		if (_inner.chat()->noParticipantInfo()) {
+			App::api()->requestFullPeer(_inner.chat());
+		} else {
+			_inner.chat()->admins.insert(user, true);
+		}
 	}
 	--_saveRequestId;
 	if (!_saveRequestId) {
@@ -1678,7 +1682,7 @@ bool ContactsBox::saveAdminsFail(const RPCError &error) {
 bool ContactsBox::editAdminFail(const RPCError &error) {
 	if (mtpIsFlood(error)) return true;
 	--_saveRequestId;
-	_inner.chat()->invalidateParticipants(false);
+	_inner.chat()->invalidateParticipants();
 	if (!_saveRequestId) onClose();
 	return false;
 }

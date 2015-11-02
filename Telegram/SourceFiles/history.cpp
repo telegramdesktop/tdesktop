@@ -1706,7 +1706,7 @@ HistoryItem *History::addNewItem(HistoryBlock *to, bool newBlock, HistoryItem *a
 					if (lastKeyboardFrom == adding->from()->id || (!lastKeyboardInited && !peer->isChat() && !adding->out())) {
 						clearLastKeyboard();
 					}
-				} else if (peer->isChat() && adding->from()->isUser() && (peer->asChat()->count < 1 || !peer->asChat()->participants.isEmpty()) && !peer->asChat()->participants.contains(adding->from()->asUser())) {
+				} else if (peer->isChat() && adding->from()->isUser() && (!peer->asChat()->amIn() || !peer->asChat()->participants.isEmpty()) && !peer->asChat()->participants.contains(adding->from()->asUser())) {
 					clearLastKeyboard();
 				} else {
 					lastKeyboardInited = true;
@@ -1914,7 +1914,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 								}
 								if (!(markupFlags & MTPDreplyKeyboardMarkup_flag_ZERO)) {
 									if (!lastKeyboardInited) {
-										if (wasKeyboardHide || ((peer->asChat()->count < 1 || !peer->asChat()->participants.isEmpty()) && item->from()->isUser() && !peer->asChat()->participants.contains(item->from()->asUser()))) {
+										if (wasKeyboardHide || ((!peer->asChat()->amIn() || !peer->asChat()->participants.isEmpty()) && item->from()->isUser() && !peer->asChat()->participants.contains(item->from()->asUser()))) {
 											clearLastKeyboard();
 										} else {
 											lastKeyboardInited = true;

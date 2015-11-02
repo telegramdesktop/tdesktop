@@ -504,7 +504,7 @@ namespace App {
 				cdata->date = d.vdate.v;
 
 				if (!(cdata->flags & MTPDchat::flag_admins_enabled) && (d.vflags.v & MTPDchat::flag_admins_enabled)) {
-					cdata->invalidateParticipants(false);
+					cdata->invalidateParticipants();
 				}
 				cdata->flags = d.vflags.v;
 
@@ -512,7 +512,7 @@ namespace App {
 				cdata->isForbidden = false;
 				if (cdata->version < d.vversion.v) {
 					cdata->version = d.vversion.v;
-					cdata->invalidateParticipants(false);
+					cdata->invalidateParticipants();
 				}
 			} break;
 			case mtpc_chatForbidden: {
@@ -527,7 +527,7 @@ namespace App {
 				cdata->setPhoto(MTP_chatPhotoEmpty());
 				cdata->date = 0;
 				cdata->count = -1;
-				cdata->invalidateParticipants(false);
+				cdata->invalidateParticipants();
 				cdata->flags = 0;
 				cdata->isForbidden = true;
 			} break;
@@ -594,7 +594,7 @@ namespace App {
 			const MTPDchatParticipantsForbidden &d(p.c_chatParticipantsForbidden());
 			chat = App::chat(d.vchat_id.v);
 			chat->count = -1;
-			chat->invalidateParticipants(false);
+			chat->invalidateParticipants();
 		} break;
 
 		case mtpc_chatParticipants: {
@@ -638,7 +638,7 @@ namespace App {
 							chat->admins[user] = true;
 						}
 					} else {
-						chat->invalidateParticipants(false);
+						chat->invalidateParticipants();
 						break;
 					}
 				}
@@ -682,7 +682,9 @@ namespace App {
 	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d, bool emitPeerUpdated) {
 		ChatData *chat = App::chat(d.vchat_id.v);
 		if (chat->version + 1 < d.vversion.v) {
+			chat->version = d.vversion.v;
 			chat->invalidateParticipants();
+			App::api()->requestPeer(chat);
 			if (App::main()) {
 				if (emitPeerUpdated) {
 					App::main()->peerUpdated(chat);
@@ -711,7 +713,7 @@ namespace App {
 					}
 				}
 			} else {
-				chat->invalidateParticipants(false);
+				chat->invalidateParticipants();
 				chat->count++;
 			}
 			if (App::main()) {
@@ -727,7 +729,9 @@ namespace App {
 	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d, bool emitPeerUpdated) {
 		ChatData *chat = App::chat(d.vchat_id.v);
 		if (chat->version + 1 < d.vversion.v) {
+			chat->version = d.vversion.v;
 			chat->invalidateParticipants();
+			App::api()->requestPeer(chat);
 			if (App::main()) {
 				if (emitPeerUpdated) {
 					App::main()->peerUpdated(chat);
@@ -740,7 +744,9 @@ namespace App {
 			UserData *user = App::userLoaded(d.vuser_id.v);
 			if (user) {
 				if (chat->participants.isEmpty()) {
-					chat->count--;
+					if (chat->count > 0) {
+						chat->count--;
+					}
 				} else {
 					ChatData::Participants::iterator i = chat->participants.find(user);
 					if (i != chat->participants.end()) {
@@ -771,7 +777,7 @@ namespace App {
 					}
 				}
 			} else {
-				chat->invalidateParticipants(false);
+				chat->invalidateParticipants();
 				chat->count--;
 			}
 			if (App::main()) {
@@ -790,12 +796,13 @@ namespace App {
 			bool badVersion = (chat->version + 1 < d.vversion.v);
 			if (badVersion) {
 				chat->invalidateParticipants();
+				App::api()->requestPeer(chat);
 			}
 			chat->version = d.vversion.v;
 			if (mtpIsTrue(d.venabled)) {
 				chat->flags |= MTPDchat::flag_admins_enabled;
 				if (!badVersion) {
-					chat->invalidateParticipants(false);
+					chat->invalidateParticipants();
 				}
 			} else {
 				chat->flags &= ~MTPDchat::flag_admins_enabled;
@@ -811,7 +818,9 @@ namespace App {
 	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d, bool emitPeerUpdated) {
 		ChatData *chat = App::chat(d.vchat_id.v);
 		if (chat->version + 1 < d.vversion.v) {
+			chat->version = d.vversion.v;
 			chat->invalidateParticipants();
+			App::api()->requestPeer(chat);
 			if (App::main()) {
 				if (emitPeerUpdated) {
 					App::main()->peerUpdated(chat);
@@ -824,12 +833,16 @@ namespace App {
 			UserData *user = App::userLoaded(d.vuser_id.v);
 			if (user) {
 				if (mtpIsTrue(d.vis_admin)) {
-					chat->admins.insert(user, true);
+					if (chat->noParticipantInfo()) {
+						App::api()->requestFullPeer(chat);
+					} else {
+						chat->admins.insert(user, true);
+					}
 				} else {
 					chat->admins.remove(user);
 				}
 			} else {
-				chat->invalidateParticipants(false);
+				chat->invalidateParticipants();
 			}
 			if (App::main()) {
 				if (emitPeerUpdated) {

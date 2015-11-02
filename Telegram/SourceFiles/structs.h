@@ -375,12 +375,14 @@ public:
 	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_int(bareId())), count(0), date(0), version(0), creator(0), inviterForSpamReport(0), flags(0), isForbidden(false), botStatus(0) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
-	void invalidateParticipants(bool invalidateCount = true) {
+	void invalidateParticipants() {
 		participants = ChatData::Participants();
 		admins = ChatData::Admins();
 		invitedByMe = ChatData::InvitedByMe();
 		botStatus = 0;
-		if (invalidateCount) count = 0;
+	}
+	bool noParticipantInfo() const {
+		return (count > 0 || amIn()) && participants.isEmpty();
 	}
 
 	MTPint inputChat;

@@ -589,7 +589,7 @@ void ProfileInner::updateOnlineDisplayTimer() {
 void ProfileInner::reorderParticipants() {
 	int32 was = _participants.size(), t = unixtime(), onlineCount = 0;
 	if (_peerChat && _peerChat->amIn()) {
-		if (_peerChat->count <= 0 || !_peerChat->participants.isEmpty()) {
+		if (!_peerChat->participants.isEmpty()) {
 			_participants.clear();
 			for (ParticipantsData::iterator i = _participantsData.begin(), e = _participantsData.end(); i != e; ++i) {
 				if (*i) {
@@ -620,7 +620,7 @@ void ProfileInner::reorderParticipants() {
 				++onlineCount;
 			}
 		}
-		if (_peerChat->count > 0 && _participants.isEmpty()) {
+		if (_peerChat->noParticipantInfo()) {
 			if (App::api()) App::api()->requestFullPeer(_peer);
 			if (_onlineText.isEmpty()) _onlineText = lng_chat_status_members(lt_count, _peerChat->count);
         } else if (onlineCount && !onlyMe) {
@@ -811,7 +811,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	}
 
 	// participants
-	if (_peerChat && (_peerChat->count > 0 || !_participants.isEmpty())) {
+	if (_peerChat && _peerChat->amIn()) {
 		QString sectionHeader = lang(_participants.isEmpty() ? lng_profile_loading : lng_profile_participants_section);
 		p.setFont(st::profileHeaderFont->f);
 		p.setPen(st::profileHeaderColor->p);
@@ -1209,7 +1209,7 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	}
 
 	// participants
-	if (_peerChat && (_peerChat->count > 0 || !_participants.isEmpty())) {
+	if (_peerChat && _peerChat->amIn()) {
 		top += st::profileHeaderSkip;
 		if (!_participants.isEmpty()) {
 			int32 fullCnt = _participants.size();
@@ -1321,7 +1321,7 @@ int32 ProfileInner::countMinHeight() {
 		h = _deleteConversation.y() + _deleteConversation.height() + st::profileHeaderSkip;
 		if (!_participants.isEmpty()) {
 			h += st::profileHeaderSkip + _participants.size() * _pHeight;
-		} else if (_peerChat->count > 0) {
+		} else if (_peerChat->amIn()) {
 			h += st::profileHeaderSkip;
 		}
 	} else if (_peerChannel) {

@@ -5944,7 +5944,7 @@ void HistoryWidget::peerUpdated(PeerData *data) {
 		updateListSize();
 		if (_peer->isChannel()) updateReportSpamStatus();
 		if (App::api()) {
-			if (data->isChat() && data->asChat()->count > 0 && data->asChat()->participants.isEmpty()) {
+			if (data->isChat() && data->asChat()->noParticipantInfo()) {
 				App::api()->requestFullPeer(data);
 			} else if (data->isUser() && data->asUser()->blocked == UserBlockUnknown) {
 				App::api()->requestFullPeer(data);
