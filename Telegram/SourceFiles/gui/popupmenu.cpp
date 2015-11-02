@@ -50,6 +50,7 @@ PopupMenu::PopupMenu(QMenu *menu, const style::PopupMenu &st) : TWidget(0)
 , _mouseSelection(false)
 , _shadow(_st.shadow)
 , _selected(-1)
+, _childMenuIndex(-1)
 , a_opacity(1)
 , _a_hide(animFunc(this, &PopupMenu::animStep_hide))
 , _deleteOnHide(true) {
@@ -301,11 +302,7 @@ void PopupMenu::keyPressEvent(QKeyEvent *e) {
 
 void PopupMenu::enterEvent(QEvent *e) {
 	QPoint mouse = QCursor::pos();
-	if (_inner.marginsRemoved(QMargins(0, _st.skip, 0, _st.skip)).contains(mapFromGlobal(mouse))) {
-		_mouseSelection = true;
-		_mouse = mouse;
-		updateSelected();
-	} else {
+	if (!_inner.marginsRemoved(QMargins(0, _st.skip, 0, _st.skip)).contains(mapFromGlobal(mouse))) {
 		if (_mouseSelection && _childMenuIndex < 0) {
 			_mouseSelection = false;
 			setSelected(-1);
@@ -385,6 +382,12 @@ void PopupMenu::focusOutEvent(QFocusEvent *e) {
 	hideMenu();
 }
 
+void PopupMenu::hideEvent(QHideEvent *e) {
+	if (_deleteOnHide) {
+		deleteLater();
+	}
+}
+
 void PopupMenu::hideMenu(bool fast) {
 	if (isHidden()) return;
 	if (_parent && !_a_hide.animating()) {
@@ -419,9 +422,6 @@ void PopupMenu::childHiding(PopupMenu *child) {
 
 void PopupMenu::hideFinish() {
 	hide();
-	if (_deleteOnHide) {
-		deleteLater();
-	}
 }
 
 bool PopupMenu::animStep_hide(float64 ms) {
@@ -482,6 +482,7 @@ void PopupMenu::showMenu(const QPoint &p, PopupMenu *parent, PressSource source)
 	}
 	move(w);
 
+	_mouseSelection = (source == PressSourceMouse);
 	setSelected((source == PressSourceMouse || _actions.isEmpty()) ? -1 : 0);
 	psUpdateOverlayed(this);
 	show();
