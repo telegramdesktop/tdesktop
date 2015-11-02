@@ -38,6 +38,7 @@ public:
 	void focusOutEvent(QFocusEvent *e);
 	void keyPressEvent(QKeyEvent *e);
 	void resizeEvent(QResizeEvent *e);
+	void contextMenuEvent(QContextMenuEvent *e);
 
 	void notaBene();
 
@@ -276,6 +277,7 @@ private:
 		void focusOutEvent(QFocusEvent *e);
 		void keyPressEvent(QKeyEvent *e);
 		void paintEvent(QPaintEvent *e);
+		void contextMenuEvent(QContextMenuEvent *e);
 
 		QMimeData *createMimeDataFromSelection() const;
 
@@ -445,6 +447,7 @@ private:
 		void focusOutEvent(QFocusEvent *e);
 		void keyPressEvent(QKeyEvent *e);
 		void paintEvent(QPaintEvent *e);
+		void contextMenuEvent(QContextMenuEvent *e);
 
 		QMimeData *createMimeDataFromSelection() const;
 
@@ -510,6 +513,7 @@ public:
 	void focusOutEvent(QFocusEvent *e);
 	void keyPressEvent(QKeyEvent *e);
 	void resizeEvent(QResizeEvent *e);
+	void contextMenuEvent(QContextMenuEvent *e);
 
 	void showError();
 

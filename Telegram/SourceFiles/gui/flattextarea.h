@@ -41,6 +41,7 @@ public:
 	void resizeEvent(QResizeEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void dropEvent(QDropEvent *e);
+	void contextMenuEvent(QContextMenuEvent *e);
 
 	void setMaxLength(int32 maxLength);
 	void setMinHeight(int32 minHeight);

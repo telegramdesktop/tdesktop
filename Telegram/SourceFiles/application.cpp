@@ -696,8 +696,8 @@ void Application::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (cDevVersion() && Local::oldMapVersion() < 9007) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Tilde symbol fixed in message input field\n\xe2\x80\x94 Add a caption to any photo you send\n\xe2\x80\x94 Bad sound quality bug fixed\n\xe2\x80\x94 Some bugfixes and improvements");// .replace('@', qsl("@") + QChar(0x200D));
+			if (cDevVersion() && Local::oldMapVersion() < 9009) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 New popup menus in text input fields\n\xe2\x80\x94 Error is displayed when trying to paste or drop a folder instead of a file\n\xe2\x80\x94 Some bugfixes and improvements");// .replace('@', qsl("@") + QChar(0x200D));
 			} else if (Local::oldMapVersion() < 9005) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			} else {

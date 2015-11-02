@@ -33,13 +33,9 @@ Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu >
     git apply ./../../tdesktop/Telegram/_openssl_patch.diff
     perl Configure debug-VC-WIN32 --prefix=D:\TBuild\Libraries\openssl_debug\Debug
     ms\do_ms
-    git apply ./../../tdesktop/Telegram/_openssl_debug_patch.diff
     nmake -f ms\nt.mak
     nmake -f ms\nt.mak install
 
-http://slproweb.com/products/Win32OpenSSL.html > Download [**Win32 OpenSSL v1.0.1p** (19.8 Mb)](http://slproweb.com/download/Win32OpenSSL-1_0_1p.exe)
-
-Install to **D:\TBuild\Libraries\OpenSSL-Win32**, while installing **Copy OpenSSL DLLs to** choose **The OpenSSL binaries (/bin) directory**
 
 ####LZMA SDK 9.20
 
@@ -164,18 +160,19 @@ and run
 
     git clone git://code.qt.io/qt/qt5.git QtStatic
     cd QtStatic
-    git checkout v5.5.1
+    git checkout 5.5
     perl init-repository --module-subset=qtbase,qtimageformats
+    git checkout v5.5.1
+    cd qtimageformats && git checkout v5.5.1 && cd ..
+    cd qtbase && git checkout v5.5.1 && cd ..
 
 #####Apply the patch
 
-    cd qtbase
-    git apply ../../../tdesktop/Telegram/_qtbase_5_5_1_patch.diff
-    cd ..
+    cd qtbase && git apply ../../../tdesktop/Telegram/_qtbase_5_5_1_patch.diff && cd ..
 
 #####Building library
 
-    configure -debug-and-release -opensource -confirm-license -static -I "D:\TBuild\Libraries\OpenSSL-Win32\include" -L "C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib" -l Gdi32 -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="D:\TBuild\Libraries\OpenSSL-Win32\lib\VC\static\ssleay32MTd.lib D:\TBuild\Libraries\OpenSSL-Win32\lib\VC\static\libeay32MTd.lib" OPENSSL_LIBS_RELEASE="D:\TBuild\Libraries\OpenSSL-Win32\lib\VC\static\ssleay32MT.lib D:\TBuild\Libraries\OpenSSL-Win32\lib\VC\static\libeay32MT.lib" -mp -nomake examples -nomake tests -platform win32-msvc2015
+    configure -debug-and-release -opensource -confirm-license -static -I "D:\TBuild\Libraries\openssl\Release\include" -L "C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib" -l Gdi32 -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="D:\TBuild\Libraries\openssl_debug\Debug\lib\ssleay32.lib D:\TBuild\Libraries\openssl_debug\Debug\lib\libeay32.lib" OPENSSL_LIBS_RELEASE="D:\TBuild\Libraries\openssl\Release\lib\ssleay32.lib D:\TBuild\Libraries\openssl\Release\lib\libeay32.lib" -mp -nomake examples -nomake tests -platform win32-msvc2015
     nmake
     nmake install
 

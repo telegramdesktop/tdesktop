@@ -929,7 +929,6 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	}
 
 	if (_menu) {
-		_menu->deleteOnHide();
 		connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
 		_menu->popup(e->globalPos());
 		e->accept();
@@ -4379,7 +4378,10 @@ DragState HistoryWidget::getDragState(const QMimeData *d) {
 		QString file(i->toLocalFile());
 		if (file.startsWith(qsl("/.file/id="))) file = psConvertFileUrl(file);
 
-		quint64 s = QFileInfo(file).size();
+		QFileInfo info(file);
+		if (info.isDir()) return DragStateNone;
+
+		quint64 s = info.size();
 		if (s >= MaxUploadDocumentSize) {
 			return DragStateNone;
 		}
@@ -4528,10 +4530,10 @@ void HistoryWidget::onFilesDrop(const QMimeData *data) {
 		return;
 	}
 
-	if (files.size() == 1) {
+	if (files.size() == 1 && !QFileInfo(files.at(0)).isDir()) {
 		uploadFile(files.at(0), PrepareAuto);
 	}
-//	uploadFiles(files, PrepareAuto); // multiple confirm with "compressed" checkbox
+//  uploadFiles(files, PrepareAuto); // multiple confirm with "compressed" checkbox
 }
 
 void HistoryWidget::onKbToggle(bool manual) {
@@ -4817,7 +4819,7 @@ void HistoryWidget::uploadFile(const QString &file, PrepareMediaType type, FileL
 void HistoryWidget::uploadFiles(const QStringList &files, PrepareMediaType type) {
 	if (!_history || files.isEmpty()) return;
 
-	if (files.size() == 1) return uploadFile(files.at(0), type);
+	if (files.size() == 1 && !QFileInfo(files.at(0)).isDir()) return uploadFile(files.at(0), type);
 
 	App::wnd()->activateWindow();
 

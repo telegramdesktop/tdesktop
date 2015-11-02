@@ -253,8 +253,18 @@ PopupMenu {
 	itemBgOver: color;
 	itemFg: color;
 	itemFgOver: color;
+	itemFgDisabled: color;
+	itemFgShortcut: color;
+	itemFgShortcutOver: color;
+	itemFgShortcutDisabled: color;
 	itemPadding: margins;
 	itemFont: font;
+
+	separatorPadding: margins;
+	separatorWidth: number;
+	separatorFg: color;
+
+	arrow: sprite;
 
 	duration: number;
 
