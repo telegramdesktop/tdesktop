@@ -47,6 +47,7 @@ protected:
 	void leaveEvent(QEvent *e);
 	void enterEvent(QEvent *e);
 	void focusOutEvent(QFocusEvent *e);
+	void hideEvent(QHideEvent *e);
 
 public slots:
 

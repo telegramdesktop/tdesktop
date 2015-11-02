@@ -405,7 +405,7 @@ void FileLoadTask::finish() {
 	}
 	if (_result->filesize == -1) { // dir
 		App::main()->onSendFileCancel(_result);
-		App::wnd()->replaceLayer(new InformBox(lng_send_folder(lt_name, QFileInfo(_filepath).fileName())));
+		App::wnd()->replaceLayer(new InformBox(lng_send_folder(lt_name, QFileInfo(_filepath).dir().dirName())));
 		return;
 	}
 	if (_result->filesize > MaxUploadDocumentSize) {
