@@ -378,6 +378,7 @@ public:
 	void invalidateParticipants() {
 		participants = ChatData::Participants();
 		admins = ChatData::Admins();
+		flags &= ~MTPDchat::flag_admin;
 		invitedByMe = ChatData::InvitedByMe();
 		botStatus = 0;
 	}

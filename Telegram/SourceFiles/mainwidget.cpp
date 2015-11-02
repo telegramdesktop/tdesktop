@@ -293,7 +293,7 @@ void TopBarWidget::showAll() {
 	PeerData *p = App::main() ? App::main()->profilePeer() : 0, *h = App::main() ? App::main()->historyPeer() : 0, *o = App::main() ? App::main()->overviewPeer() : 0;
 	if (p && (p->isChat() || (p->isUser() && (p->asUser()->contact >= 0 || !App::phoneFromSharedContact(peerToUser(p->id)).isEmpty())))) {
 		if (p->isChat()) {
-			if (p->asChat()->amIn()) {
+			if (p->asChat()->canEdit()) {
 				_edit.show();
 			} else {
 				_edit.hide();

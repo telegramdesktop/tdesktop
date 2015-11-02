@@ -1108,14 +1108,14 @@ void _serialize_user(MTPStringLogger &to, int32 stage, int32 lev, Types &types, 
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  self: "); ++stages.back(); if (flag & MTPDuser::flag_self) { to.add("NO [ BY BIT 10 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 10 IN FIELD flags ]"); } break;
-	case 2: to.add("  contact: "); ++stages.back(); if (flag & MTPDuser::flag_contact) { to.add("NO [ BY BIT 11 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 11 IN FIELD flags ]"); } break;
-	case 3: to.add("  mutual_contact: "); ++stages.back(); if (flag & MTPDuser::flag_mutual_contact) { to.add("NO [ BY BIT 12 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 12 IN FIELD flags ]"); } break;
-	case 4: to.add("  deleted: "); ++stages.back(); if (flag & MTPDuser::flag_deleted) { to.add("NO [ BY BIT 13 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 13 IN FIELD flags ]"); } break;
-	case 5: to.add("  bot: "); ++stages.back(); if (flag & MTPDuser::flag_bot) { to.add("NO [ BY BIT 14 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 14 IN FIELD flags ]"); } break;
-	case 6: to.add("  bot_chat_history: "); ++stages.back(); if (flag & MTPDuser::flag_bot_chat_history) { to.add("NO [ BY BIT 15 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 15 IN FIELD flags ]"); } break;
-	case 7: to.add("  bot_nochats: "); ++stages.back(); if (flag & MTPDuser::flag_bot_nochats) { to.add("NO [ BY BIT 16 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 16 IN FIELD flags ]"); } break;
-	case 8: to.add("  verified: "); ++stages.back(); if (flag & MTPDuser::flag_verified) { to.add("NO [ BY BIT 17 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 17 IN FIELD flags ]"); } break;
+	case 1: to.add("  self: "); ++stages.back(); if (flag & MTPDuser::flag_self) { to.add("YES [ BY BIT 10 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 10 IN FIELD flags ]"); } break;
+	case 2: to.add("  contact: "); ++stages.back(); if (flag & MTPDuser::flag_contact) { to.add("YES [ BY BIT 11 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 11 IN FIELD flags ]"); } break;
+	case 3: to.add("  mutual_contact: "); ++stages.back(); if (flag & MTPDuser::flag_mutual_contact) { to.add("YES [ BY BIT 12 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 12 IN FIELD flags ]"); } break;
+	case 4: to.add("  deleted: "); ++stages.back(); if (flag & MTPDuser::flag_deleted) { to.add("YES [ BY BIT 13 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 13 IN FIELD flags ]"); } break;
+	case 5: to.add("  bot: "); ++stages.back(); if (flag & MTPDuser::flag_bot) { to.add("YES [ BY BIT 14 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 14 IN FIELD flags ]"); } break;
+	case 6: to.add("  bot_chat_history: "); ++stages.back(); if (flag & MTPDuser::flag_bot_chat_history) { to.add("YES [ BY BIT 15 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 15 IN FIELD flags ]"); } break;
+	case 7: to.add("  bot_nochats: "); ++stages.back(); if (flag & MTPDuser::flag_bot_nochats) { to.add("YES [ BY BIT 16 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 16 IN FIELD flags ]"); } break;
+	case 8: to.add("  verified: "); ++stages.back(); if (flag & MTPDuser::flag_verified) { to.add("YES [ BY BIT 17 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 17 IN FIELD flags ]"); } break;
 	case 9: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 10: to.add("  access_hash: "); ++stages.back(); if (flag & MTPDuser::flag_access_hash) { types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	case 11: to.add("  first_name: "); ++stages.back(); if (flag & MTPDuser::flag_first_name) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
@@ -1212,11 +1212,11 @@ void _serialize_chat(MTPStringLogger &to, int32 stage, int32 lev, Types &types, 
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  creator: "); ++stages.back(); if (flag & MTPDchat::flag_creator) { to.add("NO [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
-	case 2: to.add("  kicked: "); ++stages.back(); if (flag & MTPDchat::flag_kicked) { to.add("NO [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
-	case 3: to.add("  left: "); ++stages.back(); if (flag & MTPDchat::flag_left) { to.add("NO [ BY BIT 2 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
-	case 4: to.add("  admins_enabled: "); ++stages.back(); if (flag & MTPDchat::flag_admins_enabled) { to.add("NO [ BY BIT 3 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 3 IN FIELD flags ]"); } break;
-	case 5: to.add("  admin: "); ++stages.back(); if (flag & MTPDchat::flag_admin) { to.add("NO [ BY BIT 4 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
+	case 1: to.add("  creator: "); ++stages.back(); if (flag & MTPDchat::flag_creator) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  kicked: "); ++stages.back(); if (flag & MTPDchat::flag_kicked) { to.add("YES [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	case 3: to.add("  left: "); ++stages.back(); if (flag & MTPDchat::flag_left) { to.add("YES [ BY BIT 2 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
+	case 4: to.add("  admins_enabled: "); ++stages.back(); if (flag & MTPDchat::flag_admins_enabled) { to.add("YES [ BY BIT 3 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 3 IN FIELD flags ]"); } break;
+	case 5: to.add("  admin: "); ++stages.back(); if (flag & MTPDchat::flag_admin) { to.add("YES [ BY BIT 4 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
 	case 6: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 7: to.add("  title: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 8: to.add("  photo: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
@@ -1250,13 +1250,13 @@ void _serialize_channel(MTPStringLogger &to, int32 stage, int32 lev, Types &type
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  creator: "); ++stages.back(); if (flag & MTPDchannel::flag_creator) { to.add("NO [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
-	case 2: to.add("  kicked: "); ++stages.back(); if (flag & MTPDchannel::flag_kicked) { to.add("NO [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
-	case 3: to.add("  left: "); ++stages.back(); if (flag & MTPDchannel::flag_left) { to.add("NO [ BY BIT 2 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
-	case 4: to.add("  editor: "); ++stages.back(); if (flag & MTPDchannel::flag_editor) { to.add("NO [ BY BIT 3 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 3 IN FIELD flags ]"); } break;
-	case 5: to.add("  moderator: "); ++stages.back(); if (flag & MTPDchannel::flag_moderator) { to.add("NO [ BY BIT 4 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
-	case 6: to.add("  broadcast: "); ++stages.back(); if (flag & MTPDchannel::flag_broadcast) { to.add("NO [ BY BIT 5 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
-	case 7: to.add("  verified: "); ++stages.back(); if (flag & MTPDchannel::flag_verified) { to.add("NO [ BY BIT 7 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 7 IN FIELD flags ]"); } break;
+	case 1: to.add("  creator: "); ++stages.back(); if (flag & MTPDchannel::flag_creator) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  kicked: "); ++stages.back(); if (flag & MTPDchannel::flag_kicked) { to.add("YES [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	case 3: to.add("  left: "); ++stages.back(); if (flag & MTPDchannel::flag_left) { to.add("YES [ BY BIT 2 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
+	case 4: to.add("  editor: "); ++stages.back(); if (flag & MTPDchannel::flag_editor) { to.add("YES [ BY BIT 3 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 3 IN FIELD flags ]"); } break;
+	case 5: to.add("  moderator: "); ++stages.back(); if (flag & MTPDchannel::flag_moderator) { to.add("YES [ BY BIT 4 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
+	case 6: to.add("  broadcast: "); ++stages.back(); if (flag & MTPDchannel::flag_broadcast) { to.add("YES [ BY BIT 5 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
+	case 7: to.add("  verified: "); ++stages.back(); if (flag & MTPDchannel::flag_verified) { to.add("YES [ BY BIT 7 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 7 IN FIELD flags ]"); } break;
 	case 8: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 9: to.add("  access_hash: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 10: to.add("  title: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
@@ -1310,7 +1310,7 @@ void _serialize_channelFull(MTPStringLogger &to, int32 stage, int32 lev, Types &
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  can_view_participants: "); ++stages.back(); if (flag & MTPDchannelFull::flag_can_view_participants) { to.add("NO [ BY BIT 3 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 3 IN FIELD flags ]"); } break;
+	case 1: to.add("  can_view_participants: "); ++stages.back(); if (flag & MTPDchannelFull::flag_can_view_participants) { to.add("YES [ BY BIT 3 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 3 IN FIELD flags ]"); } break;
 	case 2: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 3: to.add("  about: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 4: to.add("  participants_count: "); ++stages.back(); if (flag & MTPDchannelFull::flag_participants_count) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
@@ -1439,10 +1439,10 @@ void _serialize_message(MTPStringLogger &to, int32 stage, int32 lev, Types &type
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  unread: "); ++stages.back(); if (flag & MTPDmessage::flag_unread) { to.add("NO [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
-	case 2: to.add("  out: "); ++stages.back(); if (flag & MTPDmessage::flag_out) { to.add("NO [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
-	case 3: to.add("  mentioned: "); ++stages.back(); if (flag & MTPDmessage::flag_mentioned) { to.add("NO [ BY BIT 4 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
-	case 4: to.add("  media_unread: "); ++stages.back(); if (flag & MTPDmessage::flag_media_unread) { to.add("NO [ BY BIT 5 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
+	case 1: to.add("  unread: "); ++stages.back(); if (flag & MTPDmessage::flag_unread) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  out: "); ++stages.back(); if (flag & MTPDmessage::flag_out) { to.add("YES [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	case 3: to.add("  mentioned: "); ++stages.back(); if (flag & MTPDmessage::flag_mentioned) { to.add("YES [ BY BIT 4 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
+	case 4: to.add("  media_unread: "); ++stages.back(); if (flag & MTPDmessage::flag_media_unread) { to.add("YES [ BY BIT 5 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
 	case 5: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 6: to.add("  from_id: "); ++stages.back(); if (flag & MTPDmessage::flag_from_id) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 8 IN FIELD flags ]"); } break;
 	case 7: to.add("  to_id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
@@ -1468,10 +1468,10 @@ void _serialize_messageService(MTPStringLogger &to, int32 stage, int32 lev, Type
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  unread: "); ++stages.back(); if (flag & MTPDmessageService::flag_unread) { to.add("NO [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
-	case 2: to.add("  out: "); ++stages.back(); if (flag & MTPDmessageService::flag_out) { to.add("NO [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
-	case 3: to.add("  mentioned: "); ++stages.back(); if (flag & MTPDmessageService::flag_mentioned) { to.add("NO [ BY BIT 4 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
-	case 4: to.add("  media_unread: "); ++stages.back(); if (flag & MTPDmessageService::flag_media_unread) { to.add("NO [ BY BIT 5 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
+	case 1: to.add("  unread: "); ++stages.back(); if (flag & MTPDmessageService::flag_unread) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  out: "); ++stages.back(); if (flag & MTPDmessageService::flag_out) { to.add("YES [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	case 3: to.add("  mentioned: "); ++stages.back(); if (flag & MTPDmessageService::flag_mentioned) { to.add("YES [ BY BIT 4 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
+	case 4: to.add("  media_unread: "); ++stages.back(); if (flag & MTPDmessageService::flag_media_unread) { to.add("YES [ BY BIT 5 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
 	case 5: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 6: to.add("  from_id: "); ++stages.back(); if (flag & MTPDmessageService::flag_from_id) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 8 IN FIELD flags ]"); } break;
 	case 7: to.add("  to_id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
@@ -3013,10 +3013,10 @@ void _serialize_updateShortMessage(MTPStringLogger &to, int32 stage, int32 lev, 
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  unread: "); ++stages.back(); if (flag & MTPDupdateShortMessage::flag_unread) { to.add("NO [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
-	case 2: to.add("  out: "); ++stages.back(); if (flag & MTPDupdateShortMessage::flag_out) { to.add("NO [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
-	case 3: to.add("  mentioned: "); ++stages.back(); if (flag & MTPDupdateShortMessage::flag_mentioned) { to.add("NO [ BY BIT 4 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
-	case 4: to.add("  media_unread: "); ++stages.back(); if (flag & MTPDupdateShortMessage::flag_media_unread) { to.add("NO [ BY BIT 5 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
+	case 1: to.add("  unread: "); ++stages.back(); if (flag & MTPDupdateShortMessage::flag_unread) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  out: "); ++stages.back(); if (flag & MTPDupdateShortMessage::flag_out) { to.add("YES [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	case 3: to.add("  mentioned: "); ++stages.back(); if (flag & MTPDupdateShortMessage::flag_mentioned) { to.add("YES [ BY BIT 4 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
+	case 4: to.add("  media_unread: "); ++stages.back(); if (flag & MTPDupdateShortMessage::flag_media_unread) { to.add("YES [ BY BIT 5 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
 	case 5: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 6: to.add("  user_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 7: to.add("  message: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
@@ -3040,10 +3040,10 @@ void _serialize_updateShortChatMessage(MTPStringLogger &to, int32 stage, int32 l
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  unread: "); ++stages.back(); if (flag & MTPDupdateShortChatMessage::flag_unread) { to.add("NO [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
-	case 2: to.add("  out: "); ++stages.back(); if (flag & MTPDupdateShortChatMessage::flag_out) { to.add("NO [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
-	case 3: to.add("  mentioned: "); ++stages.back(); if (flag & MTPDupdateShortChatMessage::flag_mentioned) { to.add("NO [ BY BIT 4 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
-	case 4: to.add("  media_unread: "); ++stages.back(); if (flag & MTPDupdateShortChatMessage::flag_media_unread) { to.add("NO [ BY BIT 5 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
+	case 1: to.add("  unread: "); ++stages.back(); if (flag & MTPDupdateShortChatMessage::flag_unread) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  out: "); ++stages.back(); if (flag & MTPDupdateShortChatMessage::flag_out) { to.add("YES [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	case 3: to.add("  mentioned: "); ++stages.back(); if (flag & MTPDupdateShortChatMessage::flag_mentioned) { to.add("YES [ BY BIT 4 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
+	case 4: to.add("  media_unread: "); ++stages.back(); if (flag & MTPDupdateShortChatMessage::flag_media_unread) { to.add("YES [ BY BIT 5 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
 	case 5: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 6: to.add("  from_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 7: to.add("  chat_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
@@ -3117,8 +3117,8 @@ void _serialize_updateShortSentMessage(MTPStringLogger &to, int32 stage, int32 l
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  unread: "); ++stages.back(); if (flag & MTPDupdateShortSentMessage::flag_unread) { to.add("NO [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
-	case 2: to.add("  out: "); ++stages.back(); if (flag & MTPDupdateShortSentMessage::flag_out) { to.add("NO [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	case 1: to.add("  unread: "); ++stages.back(); if (flag & MTPDupdateShortSentMessage::flag_unread) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  out: "); ++stages.back(); if (flag & MTPDupdateShortSentMessage::flag_out) { to.add("YES [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
 	case 3: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 4: to.add("  pts: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 5: to.add("  pts_count: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
@@ -3196,8 +3196,8 @@ void _serialize_dcOption(MTPStringLogger &to, int32 stage, int32 lev, Types &typ
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  ipv6: "); ++stages.back(); if (flag & MTPDdcOption::flag_ipv6) { to.add("NO [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
-	case 2: to.add("  media_only: "); ++stages.back(); if (flag & MTPDdcOption::flag_media_only) { to.add("NO [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	case 1: to.add("  ipv6: "); ++stages.back(); if (flag & MTPDdcOption::flag_ipv6) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  media_only: "); ++stages.back(); if (flag & MTPDdcOption::flag_media_only) { to.add("YES [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
 	case 3: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 4: to.add("  ip_address: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 5: to.add("  port: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
@@ -4289,9 +4289,9 @@ void _serialize_chatInvite(MTPStringLogger &to, int32 stage, int32 lev, Types &t
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  channel: "); ++stages.back(); if (flag & MTPDchatInvite::flag_channel) { to.add("NO [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
-	case 2: to.add("  broadcast: "); ++stages.back(); if (flag & MTPDchatInvite::flag_broadcast) { to.add("NO [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
-	case 3: to.add("  public: "); ++stages.back(); if (flag & MTPDchatInvite::flag_public) { to.add("NO [ BY BIT 2 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
+	case 1: to.add("  channel: "); ++stages.back(); if (flag & MTPDchatInvite::flag_channel) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  broadcast: "); ++stages.back(); if (flag & MTPDchatInvite::flag_broadcast) { to.add("YES [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	case 3: to.add("  public: "); ++stages.back(); if (flag & MTPDchatInvite::flag_public) { to.add("YES [ BY BIT 2 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
 	case 4: to.add("  title: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
@@ -4337,9 +4337,9 @@ void _serialize_stickerSet(MTPStringLogger &to, int32 stage, int32 lev, Types &t
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  installed: "); ++stages.back(); if (flag & MTPDstickerSet::flag_installed) { to.add("NO [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
-	case 2: to.add("  disabled: "); ++stages.back(); if (flag & MTPDstickerSet::flag_disabled) { to.add("NO [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
-	case 3: to.add("  official: "); ++stages.back(); if (flag & MTPDstickerSet::flag_official) { to.add("NO [ BY BIT 2 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
+	case 1: to.add("  installed: "); ++stages.back(); if (flag & MTPDstickerSet::flag_installed) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  disabled: "); ++stages.back(); if (flag & MTPDstickerSet::flag_disabled) { to.add("YES [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	case 3: to.add("  official: "); ++stages.back(); if (flag & MTPDstickerSet::flag_official) { to.add("YES [ BY BIT 2 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
 	case 4: to.add("  id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 5: to.add("  access_hash: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 6: to.add("  title: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
@@ -4435,7 +4435,7 @@ void _serialize_replyKeyboardHide(MTPStringLogger &to, int32 stage, int32 lev, T
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  selective: "); ++stages.back(); if (flag & MTPDreplyKeyboardHide::flag_selective) { to.add("NO [ BY BIT 2 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
+	case 1: to.add("  selective: "); ++stages.back(); if (flag & MTPDreplyKeyboardHide::flag_selective) { to.add("YES [ BY BIT 2 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -4449,8 +4449,8 @@ void _serialize_replyKeyboardForceReply(MTPStringLogger &to, int32 stage, int32 
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  single_use: "); ++stages.back(); if (flag & MTPDreplyKeyboardForceReply::flag_single_use) { to.add("NO [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
-	case 2: to.add("  selective: "); ++stages.back(); if (flag & MTPDreplyKeyboardForceReply::flag_selective) { to.add("NO [ BY BIT 2 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
+	case 1: to.add("  single_use: "); ++stages.back(); if (flag & MTPDreplyKeyboardForceReply::flag_single_use) { to.add("YES [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	case 2: to.add("  selective: "); ++stages.back(); if (flag & MTPDreplyKeyboardForceReply::flag_selective) { to.add("YES [ BY BIT 2 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -4464,9 +4464,9 @@ void _serialize_replyKeyboardMarkup(MTPStringLogger &to, int32 stage, int32 lev,
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  resize: "); ++stages.back(); if (flag & MTPDreplyKeyboardMarkup::flag_resize) { to.add("NO [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
-	case 2: to.add("  single_use: "); ++stages.back(); if (flag & MTPDreplyKeyboardMarkup::flag_single_use) { to.add("NO [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
-	case 3: to.add("  selective: "); ++stages.back(); if (flag & MTPDreplyKeyboardMarkup::flag_selective) { to.add("NO [ BY BIT 2 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
+	case 1: to.add("  resize: "); ++stages.back(); if (flag & MTPDreplyKeyboardMarkup::flag_resize) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  single_use: "); ++stages.back(); if (flag & MTPDreplyKeyboardMarkup::flag_single_use) { to.add("YES [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	case 3: to.add("  selective: "); ++stages.back(); if (flag & MTPDreplyKeyboardMarkup::flag_selective) { to.add("YES [ BY BIT 2 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
 	case 4: to.add("  rows: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
@@ -4717,7 +4717,7 @@ void _serialize_updates_channelDifferenceEmpty(MTPStringLogger &to, int32 stage,
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  final: "); ++stages.back(); if (flag & MTPDupdates_channelDifferenceEmpty::flag_final) { to.add("NO [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 1: to.add("  final: "); ++stages.back(); if (flag & MTPDupdates_channelDifferenceEmpty::flag_final) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	case 2: to.add("  pts: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 3: to.add("  timeout: "); ++stages.back(); if (flag & MTPDupdates_channelDifferenceEmpty::flag_timeout) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
@@ -4733,7 +4733,7 @@ void _serialize_updates_channelDifferenceTooLong(MTPStringLogger &to, int32 stag
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  final: "); ++stages.back(); if (flag & MTPDupdates_channelDifferenceTooLong::flag_final) { to.add("NO [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 1: to.add("  final: "); ++stages.back(); if (flag & MTPDupdates_channelDifferenceTooLong::flag_final) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	case 2: to.add("  pts: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 3: to.add("  timeout: "); ++stages.back(); if (flag & MTPDupdates_channelDifferenceTooLong::flag_timeout) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
 	case 4: to.add("  top_message: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
@@ -4757,7 +4757,7 @@ void _serialize_updates_channelDifference(MTPStringLogger &to, int32 stage, int3
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  final: "); ++stages.back(); if (flag & MTPDupdates_channelDifference::flag_final) { to.add("NO [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 1: to.add("  final: "); ++stages.back(); if (flag & MTPDupdates_channelDifference::flag_final) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	case 2: to.add("  pts: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 3: to.add("  timeout: "); ++stages.back(); if (flag & MTPDupdates_channelDifference::flag_timeout) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
 	case 4: to.add("  new_messages: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
@@ -4781,7 +4781,7 @@ void _serialize_channelMessagesFilter(MTPStringLogger &to, int32 stage, int32 le
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  important_only: "); ++stages.back(); if (flag & MTPDchannelMessagesFilter::flag_important_only) { to.add("NO [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 1: to.add("  important_only: "); ++stages.back(); if (flag & MTPDchannelMessagesFilter::flag_important_only) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	case 2: to.add("  ranges: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
@@ -6076,7 +6076,7 @@ void _serialize_messages_search(MTPStringLogger &to, int32 stage, int32 lev, Typ
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  important_only: "); ++stages.back(); if (flag & MTPmessages_search::flag_important_only) { to.add("NO [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 1: to.add("  important_only: "); ++stages.back(); if (flag & MTPmessages_search::flag_important_only) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	case 2: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 3: to.add("  q: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 4: to.add("  filter: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
@@ -6253,8 +6253,8 @@ void _serialize_messages_sendMessage(MTPStringLogger &to, int32 stage, int32 lev
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  no_webpage: "); ++stages.back(); if (flag & MTPmessages_sendMessage::flag_no_webpage) { to.add("NO [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
-	case 2: to.add("  broadcast: "); ++stages.back(); if (flag & MTPmessages_sendMessage::flag_broadcast) { to.add("NO [ BY BIT 4 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
+	case 1: to.add("  no_webpage: "); ++stages.back(); if (flag & MTPmessages_sendMessage::flag_no_webpage) { to.add("YES [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	case 2: to.add("  broadcast: "); ++stages.back(); if (flag & MTPmessages_sendMessage::flag_broadcast) { to.add("YES [ BY BIT 4 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
 	case 3: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 4: to.add("  reply_to_msg_id: "); ++stages.back(); if (flag & MTPmessages_sendMessage::flag_reply_to_msg_id) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	case 5: to.add("  message: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
@@ -6274,7 +6274,7 @@ void _serialize_messages_sendMedia(MTPStringLogger &to, int32 stage, int32 lev, 
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  broadcast: "); ++stages.back(); if (flag & MTPmessages_sendMedia::flag_broadcast) { to.add("NO [ BY BIT 4 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
+	case 1: to.add("  broadcast: "); ++stages.back(); if (flag & MTPmessages_sendMedia::flag_broadcast) { to.add("YES [ BY BIT 4 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
 	case 2: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 3: to.add("  reply_to_msg_id: "); ++stages.back(); if (flag & MTPmessages_sendMedia::flag_reply_to_msg_id) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	case 4: to.add("  media: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
@@ -6293,7 +6293,7 @@ void _serialize_messages_forwardMessages(MTPStringLogger &to, int32 stage, int32
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  broadcast: "); ++stages.back(); if (flag & MTPmessages_forwardMessages::flag_broadcast) { to.add("NO [ BY BIT 4 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
+	case 1: to.add("  broadcast: "); ++stages.back(); if (flag & MTPmessages_forwardMessages::flag_broadcast) { to.add("YES [ BY BIT 4 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
 	case 2: to.add("  from_peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 3: to.add("  id: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_int); stages.push_back(0); flags.push_back(0); break;
 	case 4: to.add("  random_id: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_long); stages.push_back(0); flags.push_back(0); break;
@@ -6456,7 +6456,7 @@ void _serialize_channels_createChannel(MTPStringLogger &to, int32 stage, int32 l
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  broadcast: "); ++stages.back(); if (flag & MTPchannels_createChannel::flag_broadcast) { to.add("NO [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 1: to.add("  broadcast: "); ++stages.back(); if (flag & MTPchannels_createChannel::flag_broadcast) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	case 2: to.add("  title: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 3: to.add("  about: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 4: to.add("  users: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;

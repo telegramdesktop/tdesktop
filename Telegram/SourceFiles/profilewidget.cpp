@@ -544,6 +544,7 @@ void ProfileInner::peerUpdated(PeerData *data) {
 		} else if (_peerChat) {
 			if (_peerChat->photoId && _peerChat->photoId != UnknownPeerPhotoId) photo = App::photo(_peerChat->photoId);
 			_admins.setText(lng_channel_admins_link(lt_count, _peerChat->adminsEnabled() ? (_peerChat->admins.size() + 1) : 0));
+			if (App::main()) App::main()->topBar()->showAll();
 		} else if (_peerChannel) {
 			if (_peerChannel->photoId && _peerChannel->photoId != UnknownPeerPhotoId) photo = App::photo(_peerChannel->photoId);
 			if (_peerChannel->isPublic() != _invitationLink.isHidden()) {
@@ -558,8 +559,11 @@ void ProfileInner::peerUpdated(PeerData *data) {
 			_nameCache = _peer->name;
 			_nameText.setText(st::profileNameFont, _nameCache, _textNameOptions);
 		}
+		showAll();
+		resizeEvent(0);
+	} else {
+		showAll();
 	}
-	showAll();
 	update();
 }
 
@@ -735,7 +739,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 		p.setPen(st::profileOfflineColor->p);
 		p.drawText(_left + (_width - w) / 2, top + st::btnShareContact.textTop + st::btnShareContact.font->ascent, lang(lng_profile_chat_unaccessible));
 	}
-	if (!_peerChannel || _amCreator) {
+	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator)) {
 		top += _shareContact.height();
 	}
 	
@@ -848,7 +852,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 					if (_amCreator) {
 						data->cankick = (user != App::self());
 					} else if (_peerChat->amAdmin()) {
-						data->cankick = (user != App::self()) && (_peerChat->admins.constFind(user) == _peerChat->admins.cend());
+						data->cankick = (user != App::self()) && (_peerChat->admins.constFind(user) == _peerChat->admins.cend()) && (peerFromUser(_peerChat->creator) != user->id);
 					} else {
 						data->cankick = (user != App::self()) && (_peerChat->invitedByMe.constFind(user) != _peerChat->invitedByMe.cend());
 					}
@@ -1141,7 +1145,7 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	_shareContact.setGeometry(_left + _width - btnWidth, top, btnWidth, _shareContact.height());
 	_inviteToGroup.setGeometry(_left + _width - btnWidth, top, btnWidth, _inviteToGroup.height());
 
-	if (!_peerChannel || _amCreator) {
+	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator)) {
 		top += _shareContact.height();
 	}
 

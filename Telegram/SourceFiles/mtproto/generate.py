@@ -342,7 +342,7 @@ def addTextSerialize(lst, dct, dataLetter):
             result += 'if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; ';
           if (k in trivialConditions):
             result += 'if (flag & MTP' + dataLetter + name + '::flag_' + k + ') { ';
-            result += 'to.add("NO [ BY BIT ' + conditions[k] + ' IN FIELD ' + hasFlags + ' ]"); ';
+            result += 'to.add("YES [ BY BIT ' + conditions[k] + ' IN FIELD ' + hasFlags + ' ]"); ';
             result += '} else { to.add("[ SKIPPED BY BIT ' + conditions[k] + ' IN FIELD ' + hasFlags + ' ]"); } ';
           else:
             if (k in conditions):

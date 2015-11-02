@@ -607,6 +607,7 @@ namespace App {
 				int32 pversion = chat->participants.isEmpty() ? 1 : (chat->participants.begin().value() + 1);
 				chat->invitedByMe = ChatData::InvitedByMe();
 				chat->admins = ChatData::Admins();
+				chat->flags &= ~MTPDchat::flag_admin;
 				for (QVector<MTPChatParticipant>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
 					int32 uid = 0, inviter = 0;
 					switch (i->type()) {
@@ -636,6 +637,9 @@ namespace App {
 						}
 						if (i->type() == mtpc_chatParticipantAdmin) {
 							chat->admins[user] = true;
+							if (user->isSelf()) {
+								chat->flags |= MTPDchat::flag_admin;
+							}
 						}
 					} else {
 						chat->invalidateParticipants();
@@ -754,6 +758,9 @@ namespace App {
 						chat->count--;
 						chat->invitedByMe.remove(user);
 						chat->admins.remove(user);
+						if (user->isSelf()) {
+							chat->flags &= ~MTPDchat::flag_admin;
+						}
 
 						History *h = App::historyLoaded(chat->id);
 						if (h && h->lastKeyboardFrom == user->id) {
@@ -806,6 +813,7 @@ namespace App {
 				}
 			} else {
 				chat->flags &= ~MTPDchat::flag_admins_enabled;
+				chat->flags &= ~MTPDchat::flag_admin;
 			}
 			if (emitPeerUpdated) {
 				App::main()->peerUpdated(chat);
@@ -833,12 +841,18 @@ namespace App {
 			UserData *user = App::userLoaded(d.vuser_id.v);
 			if (user) {
 				if (mtpIsTrue(d.vis_admin)) {
+					if (user->isSelf()) {
+						chat->flags |= MTPDchat::flag_admin;
+					}
 					if (chat->noParticipantInfo()) {
 						App::api()->requestFullPeer(chat);
 					} else {
 						chat->admins.insert(user, true);
 					}
 				} else {
+					if (user->isSelf()) {
+						chat->flags &= ~MTPDchat::flag_admin;
+					}
 					chat->admins.remove(user);
 				}
 			} else {
