@@ -20,8 +20,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 9008;
-static const wchar_t *AppVersionStr = L"0.9.8";
+static const int32 AppVersion = 9009;
+static const wchar_t *AppVersionStr = L"0.9.9";
 static const bool DevVersion = true;
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
@@ -351,7 +351,7 @@ enum {
 };
 
 inline const QRegularExpression &cWordSplit() {
-	static QRegularExpression regexp(qsl("[\\@\\s\\-\\+\\)\\(\\,\\.\\:\\!\\_\\;\\\"\\'\\x0]"));
+	static QRegularExpression regexp(qsl("[\\@\\s\\-\\+\\(\\)\\[\\]\\{\\}\\<\\>\\,\\.\\:\\!\\_\\;\\\"\\'\\x0]"));
 	return regexp;
 }
 

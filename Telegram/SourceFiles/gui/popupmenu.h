@@ -47,6 +47,7 @@ protected:
 	void leaveEvent(QEvent *e);
 	void enterEvent(QEvent *e);
 	void focusOutEvent(QFocusEvent *e);
+	void hideEvent(QHideEvent *e);
 
 public slots:
 
@@ -101,6 +102,6 @@ private:
 	anim::fvalue a_opacity;
 	Animation _a_hide;
 
-	bool _deleteOnHide;
+	bool _deleteOnHide, _triggering, _deleteLater;
 
 };

@@ -4544,7 +4544,7 @@ void HistoryWidget::onFilesDrop(const QMimeData *data) {
 	if (files.size() == 1 && !QFileInfo(files.at(0)).isDir()) {
 		uploadFile(files.at(0), PrepareAuto);
 	}
-//	uploadFiles(files, PrepareAuto); // multiple confirm with "compressed" checkbox
+//  uploadFiles(files, PrepareAuto); // multiple confirm with "compressed" checkbox
 }
 
 void HistoryWidget::onKbToggle(bool manual) {
