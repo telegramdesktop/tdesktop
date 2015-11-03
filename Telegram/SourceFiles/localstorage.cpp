@@ -734,6 +734,14 @@ namespace {
 			cSetMaxGroupCount(maxSize);
 		} break;
 
+		case dbiMaxMegaGroupCount: {
+			qint32 maxSize;
+			stream >> maxSize;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetMaxMegaGroupCount(maxSize);
+		} break;
+
 		case dbiUser: {
 			quint32 dcId;
 			qint32 uid;
@@ -1971,6 +1979,7 @@ namespace Local {
 
 		EncryptedDescriptor data(size);
 		data.stream << quint32(dbiMaxGroupCount) << qint32(cMaxGroupCount());
+		data.stream << quint32(dbiMaxMegaGroupCount) << qint32(cMaxMegaGroupCount());
 		data.stream << quint32(dbiAutoStart) << qint32(cAutoStart());
 		data.stream << quint32(dbiStartMinimized) << qint32(cStartMinimized());
 		data.stream << quint32(dbiSendToMenu) << qint32(cSendToMenu());

@@ -281,6 +281,7 @@ enum DataBlockId {
 	dbiSongVolume           = 0x29,
 	dbiWindowsNotifications = 0x30,
 	dbiIncludeMuted         = 0x31,
+	dbiMaxMegaGroupCount    = 0x32,
 
 	dbiEncryptedWithSalt    = 333,
 	dbiEncrypted            = 444,

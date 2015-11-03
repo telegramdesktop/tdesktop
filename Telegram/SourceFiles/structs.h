@@ -418,6 +418,9 @@ public:
 	bool amAdmin() const {
 		return flags & MTPDchat::flag_admin;
 	}
+	bool isDeactivated() const {
+		return flags & MTPDchat::flag_deactivated;
+	}
 	typedef QMap<UserData*, int32> Participants;
 	Participants participants;
 	typedef QMap<UserData*, bool> InvitedByMe;

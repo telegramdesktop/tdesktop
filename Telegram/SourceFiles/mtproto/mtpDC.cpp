@@ -153,6 +153,7 @@ namespace {
 
 		mtpUpdateDcOptions(data.vdc_options.c_vector().v);
 		cSetMaxGroupCount(data.vchat_size_max.v);
+		cSetMaxMegaGroupCount(data.vmegagroup_size_max.v);
 
 		configLoadedOnce = true;
 		Local::writeSettings();

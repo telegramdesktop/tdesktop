@@ -216,7 +216,7 @@ userStatusLastWeek#7bf09fc = UserStatus;
 userStatusLastMonth#77ebc742 = UserStatus;
 
 chatEmpty#9ba2d800 id:int = Chat;
-chat#7312bc48 flags:# creator:flags.0?true kicked:flags.1?true left:flags.2?true admins_enabled:flags.3?true admin:flags.4?true id:int title:string photo:ChatPhoto participants_count:int date:int version:int = Chat;
+chat#7312bc48 flags:# creator:flags.0?true kicked:flags.1?true left:flags.2?true admins_enabled:flags.3?true admin:flags.4?true deactivated:flags.5?true id:int title:string photo:ChatPhoto participants_count:int date:int version:int = Chat;
 chatForbidden#7328bdb id:int title:string = Chat;
 channel#678e9587 flags:# creator:flags.0?true kicked:flags.1?true left:flags.2?true editor:flags.3?true moderator:flags.4?true broadcast:flags.5?true verified:flags.7?true megagroup:flags.8?true id:int access_hash:long title:string username:flags.6?string photo:ChatPhoto date:int version:int = Chat;
 channelForbidden#2d85832c id:int access_hash:long title:string = Chat;
@@ -258,6 +258,10 @@ messageActionChatAddUser#5e3cfc4b user_id:int = MessageAction;
 messageActionChatDeleteUser#b2ae9b0c user_id:int = MessageAction;
 messageActionChatJoinedByLink#f89cf5e8 inviter_id:int = MessageAction;
 messageActionChannelCreate#95d2ac92 title:string = MessageAction;
+messageActionChatMigrateTo#51bdb021 channel_id:int = MessageAction;
+messageActionChatDeactivate#64ad20a8 = MessageAction;
+messageActionChatActivate#40ad8cb2 = MessageAction;
+messageActionChannelMigrateFrom#b055eaee title:string chat_id:int = MessageAction;
 
 dialog#c1dd804a peer:Peer top_message:int read_inbox_max_id:int unread_count:int notify_settings:PeerNotifySettings = Dialog;
 dialogChannel#5b8496b2 peer:Peer top_message:int top_important_message:int read_inbox_max_id:int unread_count:int unread_important_count:int notify_settings:PeerNotifySettings pts:int = Dialog;
@@ -411,7 +415,7 @@ upload.file#96a18d5 type:storage.FileType mtime:int bytes:bytes = upload.File;
 
 dcOption#5d8c6cc flags:# ipv6:flags.0?true media_only:flags.1?true id:int ip_address:string port:int = DcOption;
 
-config#4e32b894 date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int broadcast_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int push_chat_period_ms:int push_chat_limit:int disabled_features:Vector<DisabledFeature> = Config;
+config#6cb6e65e date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int push_chat_period_ms:int push_chat_limit:int disabled_features:Vector<DisabledFeature> = Config;
 
 nearestDc#8e1a1775 country:string this_dc:int nearest_dc:int = NearestDc;
 
@@ -548,7 +552,7 @@ chatInviteEmpty#69df3769 = ExportedChatInvite;
 chatInviteExported#fc2e05bc link:string = ExportedChatInvite;
 
 chatInviteAlready#5a686d7c chat:Chat = ChatInvite;
-chatInvite#93e99b60 flags:# channel:flags.0?true broadcast:flags.1?true public:flags.2?true title:string = ChatInvite;
+chatInvite#93e99b60 flags:# channel:flags.0?true broadcast:flags.1?true public:flags.2?true megagroup:flags.3?true title:string = ChatInvite;
 
 inputStickerSetEmpty#ffb62b95 = InputStickerSet;
 inputStickerSetID#9de7a269 id:long access_hash:long = InputStickerSet;
@@ -734,6 +738,8 @@ messages.startBot#1b3e0ffc bot:InputUser chat_id:int random_id:long start_param:
 messages.getMessagesViews#c4c8a55d peer:InputPeer id:Vector<int> increment:Bool = Vector<int>;
 messages.toggleChatAdmins#ec8bd9e1 chat_id:int enabled:Bool = Updates;
 messages.editChatAdmin#a9e69f2e chat_id:int user_id:InputUser is_admin:Bool = Bool;
+messages.deactivateChat#626f0b41 chat_id:int enabled:Bool = Updates;
+messages.migrateChat#15a3b8e3 chat_id:int = Updates;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#a041495 pts:int date:int qts:int = updates.Difference;
