@@ -619,7 +619,7 @@ void FlatTextarea::checkContentHeight() {
 }
 
 void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
-	int32 emojiPosition = 0, emojiLen = 0;
+	int32 emojiPosition = -1, emojiLen = 0;
 	const EmojiData *emoji = 0;
 
 	static QString regular = qsl("Open Sans"), semibold = qsl("Open Sans Semibold");
@@ -681,11 +681,11 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 						++fp;
 					}
 				}
-				if (emojiPosition) break;
+				if (emojiPosition >= 0) break;
 			}
-			if (emojiPosition) break;
+			if (emojiPosition >= 0) break;
 		}
-		if (emojiPosition) {
+		if (emojiPosition >= 0) {
 			if (emoji) {
 				if (!document()->pageSize().isNull()) {
 					document()->setPageSize(QSizeF(0, 0));
@@ -698,7 +698,7 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 			position = emojiPosition + 1;
 
 			emoji = 0;
-			emojiPosition = 0;
+			emojiPosition = -1;
 		} else {
 			break;
 		}
