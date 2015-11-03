@@ -102,6 +102,6 @@ private:
 	anim::fvalue a_opacity;
 	Animation _a_hide;
 
-	bool _deleteOnHide;
+	bool _deleteOnHide, _triggering, _deleteLater;
 
 };
