@@ -37,7 +37,9 @@ PopupMenu::PopupMenu(const style::PopupMenu &st) : TWidget(0)
 , _childMenuIndex(-1)
 , a_opacity(1)
 , _a_hide(animFunc(this, &PopupMenu::animStep_hide))
-, _deleteOnHide(true) {
+, _deleteOnHide(true)
+, _triggering(false)
+, _deleteLater(false) {
 	init();
 }
 
@@ -53,7 +55,9 @@ PopupMenu::PopupMenu(QMenu *menu, const style::PopupMenu &st) : TWidget(0)
 , _childMenuIndex(-1)
 , a_opacity(1)
 , _a_hide(animFunc(this, &PopupMenu::animStep_hide))
-, _deleteOnHide(true) {
+, _deleteOnHide(true)
+, _triggering(false)
+, _deleteLater(false) {
 	init();
 	QList<QAction*> actions(menu->actions());
 	for (int32 i = 0, l = actions.size(); i < l; ++i) {
@@ -238,7 +242,13 @@ void PopupMenu::itemPressed(PressSource source) {
 			}
 		} else {
 			hideMenu();
+			_triggering = true;
 			emit _actions[_selected]->trigger();
+			_triggering = false;
+			if (_deleteLater) {
+				_deleteLater = false;
+				deleteLater();
+			}
 		}
 	}
 }
@@ -262,6 +272,7 @@ void PopupMenu::keyPressEvent(QKeyEvent *e) {
 
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
 		itemPressed(PressSourceKeyboard);
+		return;
 	} else if (e->key() == Qt::Key_Escape) {
 		hideMenu(_parent ? true : false);
 		return;
@@ -269,6 +280,7 @@ void PopupMenu::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == (rtl() ? Qt::Key_Left : Qt::Key_Right)) {
 		if (_selected >= 0 && _menus.at(_selected)) {
 			itemPressed(PressSourceKeyboard);
+			return;
 		} else if (_selected < 0 && _parent && !_actions.isEmpty()) {
 			_mouseSelection = false;
 			setSelected(0);
@@ -368,13 +380,14 @@ void PopupMenu::mouseMoveEvent(QMouseEvent *e) {
 
 void PopupMenu::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
-	itemPressed(PressSourceMouse);
-	if (!_inner.contains(mapFromGlobal(e->globalPos()))) {
-		if (_parent) {
-			_parent->mousePressEvent(e);
-		} else {
-			hideMenu();
-		}
+	if (_inner.contains(mapFromGlobal(e->globalPos()))) {
+		itemPressed(PressSourceMouse);
+		return;
+	}
+	if (_parent) {
+		_parent->mousePressEvent(e);
+	} else {
+		hideMenu();
 	}
 }
 
@@ -384,7 +397,11 @@ void PopupMenu::focusOutEvent(QFocusEvent *e) {
 
 void PopupMenu::hideEvent(QHideEvent *e) {
 	if (_deleteOnHide) {
-		deleteLater();
+		if (_triggering) {
+			_deleteLater = true;
+		} else {
+			deleteLater();
+		}
 	}
 }
 

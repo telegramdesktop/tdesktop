@@ -917,7 +917,7 @@ QVariant InputArea::InputAreaInner::loadResource(int type, const QUrl &name) {
 }
 
 void InputArea::processDocumentContentsChange(int position, int charsAdded) {
-	int32 emojiPosition = 0, emojiLen = 0;
+	int32 emojiPosition = -1, emojiLen = 0;
 	const EmojiData *emoji = 0;
 
 	static QString regular = qsl("Open Sans"), semibold = qsl("Open Sans Semibold");
@@ -982,11 +982,11 @@ void InputArea::processDocumentContentsChange(int position, int charsAdded) {
 						++fp;
 					}
 				}
-				if (emojiPosition) break;
+				if (emojiPosition >= 0) break;
 			}
-			if (emojiPosition) break;
+			if (emojiPosition >= 0) break;
 		}
-		if (emojiPosition) {
+		if (emojiPosition >= 0) {
 			if (emoji) {
 				if (!_inner.document()->pageSize().isNull()) {
 					_inner.document()->setPageSize(QSizeF(0, 0));
@@ -999,7 +999,7 @@ void InputArea::processDocumentContentsChange(int position, int charsAdded) {
 			position = emojiPosition + 1;
 
 			emoji = 0;
-			emojiPosition = 0;
+			emojiPosition = -1;
 		} else {
 			break;
 		}
@@ -1611,7 +1611,7 @@ QVariant InputField::InputFieldInner::loadResource(int type, const QUrl &name) {
 }
 
 void InputField::processDocumentContentsChange(int position, int charsAdded) {
-	int32 emojiPosition = 0, emojiLen = 0;
+	int32 emojiPosition = -1, emojiLen = 0;
 	const EmojiData *emoji = 0;
 
 	static QString regular = qsl("Open Sans"), semibold = qsl("Open Sans Semibold"), space(' ');
@@ -1689,9 +1689,9 @@ void InputField::processDocumentContentsChange(int position, int charsAdded) {
 						++fp;
 					}
 				}
-				if (emojiPosition) break;
+				if (emojiPosition >= 0) break;
 			}
-			if (emojiPosition) break;
+			if (emojiPosition >= 0) break;
 
 			if (b.next() != doc->end()) {
 				emojiPosition = b.next().position() - 1;
@@ -1702,7 +1702,7 @@ void InputField::processDocumentContentsChange(int position, int charsAdded) {
 				break;
 			}
 		}
-		if (emojiPosition) {
+		if (emojiPosition >= 0) {
 			if (emoji) {
 				if (!_inner.document()->pageSize().isNull()) {
 					_inner.document()->setPageSize(QSizeF(0, 0));
@@ -1715,7 +1715,7 @@ void InputField::processDocumentContentsChange(int position, int charsAdded) {
 			position = emojiPosition + 1;
 
 			emoji = 0;
-			emojiPosition = 0;
+			emojiPosition = -1;
 		} else {
 			break;
 		}

@@ -144,8 +144,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_bad_name" = "성과 이름을 입력해주세요.";
 "lng_bad_photo" = "올바르지 않은 이미지를 선택하였습니다.";
 
-"lng_bad_image_for_photo" = "이미지를 전송할 수 없습니다.\n파일로 전송을 하겠습니까?";
-
 "lng_signin_title" = "클라우드 비밀번호 확인";
 "lng_signin_desc" = "클라우드 비밀번호 입력";
 "lng_signin_recover_desc" = "이메일에 기입된 코드를 입력해주세요";
@@ -302,6 +300,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_passcode_enter" = "잠금코드 입력";
 "lng_passcode_submit" = "입력";
 "lng_passcode_logout" = "로그아웃";
+"lng_passcode_need_unblock" = "잠금코드를 먼저 해제해주세요.";
 
 "lng_cloud_password_waiting" = "{email}로 확인 이메일을 전송하였습니다..";
 "lng_cloud_password_change" = "클라우드 비밀번호 변경";
@@ -415,13 +414,14 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_profile_photos_header" = "사진 내역";
 "lng_profile_videos" = "{count:_not_used_|#개의 비디오 파일|#개의 비디오 파일} »";
 "lng_profile_videos_header" = "비디오 파일 내역";
+"lng_profile_songs" = "{count:_not_used_|# 개의 음성파일|# 개의 음성파일} »";
+"lng_profile_songs_header" = "음성 파일 내역";
 "lng_profile_files" = "{count:_not_used_|#개의 파일|#개의 파일} »";
 "lng_profile_files_header" = "파일 내역";
 "lng_profile_audios" = "{count:_not_used_|#개의 음성 메시지|#개의 음성 메시지} »";
 "lng_profile_audios_header" = "음성 메시지 내역";
 "lng_profile_shared_links" = "{count:_not_used_|# 공유된 링크|# 공유된 링크} »";
 "lng_profile_shared_links_header" = "공유된 링크 현황";
-"lng_profile_audio_files_header" = "재생목록";
 "lng_profile_copy_phone" = "전화번호 복사";
 
 "lng_channel_add_admins" = "새로운 관리자";
@@ -522,6 +522,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_media_type" = "미디어 종류";
 "lng_media_type_photos" = "사진";
 "lng_media_type_videos" = "비디오 파일";
+"lng_media_type_songs" = "음성 파일";
 "lng_media_type_files" = "파일";
 "lng_media_type_audios" = "음성 메시지";
 "lng_media_type_links" = "공유된 링크";
@@ -673,6 +674,9 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_really_send_file" = "선택한 파일을 전송하시겠습니까?";
 "lng_really_share_contact" = "선택한 연락처를 공유하시겠습니까?";
 "lng_send_image_compressed" = "압축된 이미지를 전송";
+"lng_send_image_empty" = "빈 파일을 전송 할 수 없습니다 :(";
+"lng_send_image_too_large" = "파일이 1.5GB 보다 큼으로 전송 할 수 없습니다 :(";
+"lng_send_folder" = " «{name}»은 폴더이기 때문에 전송 할 수 없습니다 :(";
 
 "lng_forward_choose" = "수신자를 선택하세요..";
 "lng_forward_cant" = "이쪽으로 전달 할 수 없습니다 :(";
@@ -684,6 +688,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_forward_messages" = "{count:_not_used_|전달받은 메시지|# 개의 전달받은 메시지}";
 "lng_forwarding_from" = "{user} 님과 {count:_not_used_|# 명|# 명}";
 "lng_forwarding_from_two" = "{user} 님과 {second_user}";
+
+"lng_share_cant" = "이쪽으로 공유 할 수 없습니다 :(";
 
 "lng_contact_phone" = "전화번호";
 "lng_enter_contact_data" = "새로운 연락처";
@@ -753,7 +759,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 속도 향상\n— 새로운 디자인 적용";
+"lng_new_version_text" = "— 음성파일 공유 메뉴 추가\n— 팝업메뉴 디자인 수정\n— 사진 전송시 자막 추가\n— 텍스트를 ' 으로 표시할 경우 '코드 한줄'로, ''' 으로 '''코드 여러줄''' 을 표시 할 수 있는 기능 추가\n—  물결 표시 수정";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

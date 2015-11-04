@@ -144,8 +144,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_bad_name" = "Bitte trage Vor- und Nachnamen ein.";
 "lng_bad_photo" = "Fehler beim Upload.";
 
-"lng_bad_image_for_photo" = "Dieses Bild kannst du so nicht senden.\nMöchtest du es als Datei verschicken?";
-
 "lng_signin_title" = "Dein Kennwort";
 "lng_signin_desc" = "Bitte Kennwort eingeben.";
 "lng_signin_recover_desc" = "Bitte Code aus der E-Mail eingeben.";
@@ -302,6 +300,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_passcode_enter" = "Pincode eingeben";
 "lng_passcode_submit" = "Absenden";
 "lng_passcode_logout" = "Abmelden";
+"lng_passcode_need_unblock" = "Bitte erst entsperren.";
 
 "lng_cloud_password_waiting" = "Bestätigungslink gesendet an {email}..";
 "lng_cloud_password_change" = "Kennwort ändern";
@@ -415,13 +414,14 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_profile_photos_header" = "Bilder aus dem Chat";
 "lng_profile_videos" = "{count:_not_used_|# Video|# Videos} »";
 "lng_profile_videos_header" = "Videos aus dem Chat";
+"lng_profile_songs" = "{count:_not_used_|# Audio|# Audios} »";
+"lng_profile_songs_header" = "Audios aus dem Chat";
 "lng_profile_files" = "{count:_not_used_|# Datei|# Dateien} »";
-"lng_profile_files_header" = "Dateiübersicht";
+"lng_profile_files_header" = "Dateien aus dem Chat";
 "lng_profile_audios" = "{count:_not_used_|# Sprachnachricht|# Sprachnachrichten} »";
-"lng_profile_audios_header" = "Übersicht Sprachnachrichten";
+"lng_profile_audios_header" = "Sprachnachrichten aus dem Chat";
 "lng_profile_shared_links" = "{count:_not_used_|# Link|# Links} »";
-"lng_profile_shared_links_header" = "Linkübersicht";
-"lng_profile_audio_files_header" = "Wiedergabeliste";
+"lng_profile_shared_links_header" = "Links aus dem Chat";
 "lng_profile_copy_phone" = "Telefonnummer kopieren";
 
 "lng_channel_add_admins" = "Neuer Administrator";
@@ -522,6 +522,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_media_type" = "Dateityp";
 "lng_media_type_photos" = "Bilder";
 "lng_media_type_videos" = "Videos";
+"lng_media_type_songs" = "Audios";
 "lng_media_type_files" = "Dateien";
 "lng_media_type_audios" = "Sprachnachrichten";
 "lng_media_type_links" = "Links";
@@ -673,6 +674,9 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_really_send_file" = "Willst du diese Datei senden?";
 "lng_really_share_contact" = "Willst du diesen Kontakt senden?";
 "lng_send_image_compressed" = "Bild komprimieren";
+"lng_send_image_empty" = "Datei kann nicht gesendet werden :(";
+"lng_send_image_too_large" = "Nur Dateien bis maximal 1,5 GB können gesendet werden :(";
+"lng_send_folder" = "Verzeichnis «{name}» kann nicht gesendet werden :(";
 
 "lng_forward_choose" = "Empfänger wählen..";
 "lng_forward_cant" = "Weiterleiten nicht möglich :(";
@@ -684,6 +688,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_forward_messages" = "{count:_not_used_|Nachrichtenanhang|# Nachrichtenanhänge}";
 "lng_forwarding_from" = "{user} und {count:_not_used_|# anderer|# andere}";
 "lng_forwarding_from_two" = "{user} und {second_user}";
+
+"lng_share_cant" = "Weiterleitung nicht möglich :(";
 
 "lng_contact_phone" = "Telefonnummer";
 "lng_enter_contact_data" = "Neuer Kontakt";
@@ -753,7 +759,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Verbesserte Geschwindigkeit\n— Erste Schritte Richtung neuem Design";
+"lng_new_version_text" = "— Neuer Bereich: Geteilte Audios\n— Kontextmenü in neuer Optik\n— Bildbeschriftungen\n— Umgebe Codeschnipsel mit einem `einzelnen Gravis` oder ```drei Gravis``` (für komplette Codeblöcke) um sie optimiert darzustellen\n— Tilde-Symbol (~) wird nun richtig angezeigt\n\nAusführliche Infos über dieses Update im neuen deutschsprachigen Kanal unter https://telegram.me/TelegramDE";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 
