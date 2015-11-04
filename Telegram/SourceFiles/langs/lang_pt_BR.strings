@@ -79,8 +79,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_status_service_notifications" = "notificações de serviço";
 "lng_status_support" = "suporte";
 "lng_status_bot" = "bot";
-"lng_status_bot_reads_all" = "tem acesso as mensagens";
-"lng_status_bot_not_reads_all" = "não tem acesso as mensagens";
+"lng_status_bot_reads_all" = "tem acesso às mensagens";
+"lng_status_bot_not_reads_all" = "não tem acesso às mensagens";
 "lng_status_offline" = "visto há muito tempo";
 "lng_status_recently" = "visto recentemente";
 "lng_status_last_week" = "visto há uma semana";
@@ -132,7 +132,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_code_ph" = "Código";
 "lng_code_desc" = "Enviamos uma SMS com um código de ativação\npara o seu telefone. Insira-o abaixo.";
-"lng_code_telegram" = "Por favor insira código recebido\nem seu aplicativo prévio do [b]Telegram[/b]";
+"lng_code_telegram" = "Por favor, insira o código recebido\nem seu aplicativo prévio do [b]Telegram[/b]";
 "lng_code_no_telegram" = "Enviar código via SMS";
 "lng_code_call" = "Telegram irá te ligar em {minutes}{seconds}";
 "lng_code_calling" = "Aguardando a ligação do Telegram..";
@@ -146,7 +146,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_signin_title" = "Verificar senha";
 "lng_signin_desc" = "Por favor, insira sua senha.";
-"lng_signin_recover_desc" = "Por favor insira o código enviado por e-mail.";
+"lng_signin_recover_desc" = "Por favor, insira o código enviado por e-mail.";
 "lng_signin_password" = "Sua senha";
 "lng_signin_code" = "Código do e-mail";
 "lng_signin_recover" = "Esqueceu sua senha?";
@@ -160,7 +160,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_signin_no_email_forgot" = "Se você não providenciar um e-mail\nde recuperação ao configurar sua senha, suas opções restantes serão lembrar sua senha ou apagar sua conta.";
 "lng_signin_cant_email_forgot" = "Se você não pode restaurar o acesso ao e-mail, suas opções restantes serão lembrar sua senha ou apagar sua conta.";
 "lng_signin_reset_account" = "Apagar sua conta";
-"lng_signin_sure_reset" = "Atenção!\n\nVocê perderá todos seus chats e mensagens, juntamente com qualquer mídias e arquivos!\n\nVocê deseja apagar sua conta?";
+"lng_signin_sure_reset" = "Atenção!\n\nVocê perderá todos seus chats e mensagens, juntamente com quaisquer mídias e arquivos!\n\nVocê deseja apagar sua conta?";
 "lng_signin_reset" = "Apagar";
 
 "lng_signup_title" = "Informação e foto";
@@ -284,9 +284,9 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_passcode_create" = "Senha de bloqueio";
 "lng_passcode_remove" = "Remover senha de bloqueio";
 "lng_passcode_turn_off" = "Desativar";
-"lng_passcode_autolock" = "Auto-bloquear";
-"lng_passcode_autolock_away" = "Auto-bloquear se ausente por:";
-"lng_passcode_autolock_inactive" = "Auto-bloquear se inativo por:";
+"lng_passcode_autolock" = "Autobloquear";
+"lng_passcode_autolock_away" = "Autobloquear se ausente por:";
+"lng_passcode_autolock_inactive" = "Autobloquear se inativo por:";
 "lng_passcode_autolock_minutes" = "{count:_not_used_|# minuto|# minutos}";
 "lng_passcode_autolock_hours" = "{count:_not_used_|# hora|# horas}";
 "lng_passcode_enter_old" = "Insira sua senha atual";
@@ -552,7 +552,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_stickers_add_pack" = "Adicionar aos Stickers";
 "lng_stickers_share_pack" = "Compartilhar Stickers";
 "lng_stickers_not_found" = "Pacote de sticker não encontrado.";
-"lng_stickers_copied" = "Link copiado para a àrea de transferência.";
+"lng_stickers_copied" = "Link copiado para a área de transferência.";
 "lng_stickers_default_set" = "Grandes Mentes";
 
 "lng_in_dlg_photo" = "Foto";
@@ -758,7 +758,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_new_authorization" = "{name},\nDetectamos um acesso à sua conta de um novo dispositivo em {day}, {date} às {time}\n\nDispositivo: {device}\nLocalização: {location}\n\nCaso não tenha sido você, vá em Configurações – Mostrar todas as sessões e terminar essa sessão.\n\nSe você acha que alguém entrou em sua conta, você pode ativar a verificação em duas etapas nas Configurações.\n\nObrigado,\nEquipe Telegram";
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
-"lng_new_version_minor" = "— Resolução de bugs e outras menores melhorias";
+"lng_new_version_minor" = "— Resolução de bugs e outras melhorias menores";
 "lng_new_version_text" = "— Nova sessão de áudios compartilhados\n— Novo design para menus popup\n— Adicione legendas em qualquer foto que enviar\n— Alinhe o texto com `backticks` únicos para código monowidth e ```backticks``` triplo para blocos de código\n— O símbolo til agora aparece corretamente";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";

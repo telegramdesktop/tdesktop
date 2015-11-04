@@ -155,7 +155,7 @@ void MTProtoSession::kill() {
 void MTProtoSession::unpaused() {
 	if (_needToReceive) {
 		_needToReceive = false;
-		tryToReceive();
+		QTimer::singleShot(0, this, SLOT(tryToReceive()));
 	}
 }
 
