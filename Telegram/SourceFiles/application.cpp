@@ -698,7 +698,7 @@ void Application::checkMapVersion() {
 			QString versionFeatures;
 			if (cDevVersion() && Local::oldMapVersion() < 9009) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 New popup menus in text input fields\n\xe2\x80\x94 Error is displayed when trying to paste or drop a folder instead of a file\n\xe2\x80\x94 Some bugfixes and improvements");// .replace('@', qsl("@") + QChar(0x200D));
-			} else if (Local::oldMapVersion() < 9005) {
+			} else if (Local::oldMapVersion() < 9010) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
