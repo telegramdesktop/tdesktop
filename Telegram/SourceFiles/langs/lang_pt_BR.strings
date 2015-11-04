@@ -144,8 +144,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_bad_name" = "Por favor, insira seu nome e sobrenome.";
 "lng_bad_photo" = "Erro na imagem selecionada.";
 
-"lng_bad_image_for_photo" = "Essa imagem não pode ser enviada\nassim. Enviar como arquivo?";
-
 "lng_signin_title" = "Verificar senha";
 "lng_signin_desc" = "Por favor, insira sua senha.";
 "lng_signin_recover_desc" = "Por favor insira o código enviado por e-mail.";
@@ -302,6 +300,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_passcode_enter" = "Insira sua senha de bloqueio";
 "lng_passcode_submit" = "Entrar";
 "lng_passcode_logout" = "Sair";
+"lng_passcode_need_unblock" = "Você precisa me desbloquear primeiro.";
 
 "lng_cloud_password_waiting" = "Link de confirmação enviado para {email}..";
 "lng_cloud_password_change" = "Alterar senha da nuvem";
@@ -415,13 +414,14 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_profile_photos_header" = "Fotos";
 "lng_profile_videos" = "{count:_not_used_|# vídeo|# vídeos} »";
 "lng_profile_videos_header" = "Vídeos";
+"lng_profile_songs" = "{count:_not_used_|# áudio|# áudios} »";
+"lng_profile_songs_header" = "Áudios";
 "lng_profile_files" = "{count:_not_used_|# arquivo|# arquivos} »";
 "lng_profile_files_header" = "Arquivos";
 "lng_profile_audios" = "{count:_not_used_|# mensagem de voz|# mensagens de voz} »";
 "lng_profile_audios_header" = "Mensagens de voz";
 "lng_profile_shared_links" = "{count:_not_used_|# link|# links} »";
 "lng_profile_shared_links_header" = "Links";
-"lng_profile_audio_files_header" = "Reprodução";
 "lng_profile_copy_phone" = "Copiar número de telefone";
 
 "lng_channel_add_admins" = "Novo administrador";
@@ -522,6 +522,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_media_type" = "Tipo de mídia";
 "lng_media_type_photos" = "Fotos";
 "lng_media_type_videos" = "Vídeos";
+"lng_media_type_songs" = "Áudios";
 "lng_media_type_files" = "Arquivos";
 "lng_media_type_audios" = "Mensagens de voz";
 "lng_media_type_links" = "Links";
@@ -673,6 +674,9 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_really_send_file" = "Você deseja enviar esse arquivo?";
 "lng_really_share_contact" = "Você deseja compartilhar esse contato?";
 "lng_send_image_compressed" = "Enviar imagem comprimida";
+"lng_send_image_empty" = "Não posso enviar um arquivo inexistente :(";
+"lng_send_image_too_large" = "Não pude enviar, o arquivo é maior que 1.5GB :(";
+"lng_send_folder" = "Não pude enviar «{name}» porque é um diretório :(";
 
 "lng_forward_choose" = "Escolher recipiente..";
 "lng_forward_cant" = "Desculpe, não há como encaminhar aqui :(";
@@ -684,6 +688,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_forward_messages" = "{count:_not_used_|Mensagem encaminhada|# mensagens encaminhadas}";
 "lng_forwarding_from" = "{user} e {count:_not_used_|# outro|# outros}";
 "lng_forwarding_from_two" = "{user} e {second_user}";
+
+"lng_share_cant" = "Não há como compartilhar aqui :(";
 
 "lng_contact_phone" = "Número de telefone";
 "lng_enter_contact_data" = "Novo Contato";
@@ -753,7 +759,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras menores melhorias";
-"lng_new_version_text" = "— Maior velocidade\n— Primeiros passos para o novo design";
+"lng_new_version_text" = "— Nova sessão de áudios compartilhados\n— Novo design para menus popup\n— Adicione legendas em qualquer foto que enviar\n— Alinhe o texto com `backticks` únicos para código monowidth e ```backticks``` triplo para blocos de código\n— O símbolo til agora aparece corretamente";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 
