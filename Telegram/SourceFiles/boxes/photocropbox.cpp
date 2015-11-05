@@ -267,7 +267,11 @@ void PhotoCropBox::onSend() {
 		iw = from.height() - iy;
 	}
 	int32 offset = ix * from.depth() / 8 + iy * from.bytesPerLine();
-	QImage cropped(from.bits() + offset, iw, iw, from.bytesPerLine(), from.format()), tosend;
+	QImage cropped(from.constBits() + offset, iw, iw, from.bytesPerLine(), from.format()), tosend;
+	if (from.format() == QImage::Format_Indexed8) {
+		cropped.setColorCount(from.colorCount());
+		cropped.setColorTable(from.colorTable());
+	}
 	if (cropped.width() > 1280) {
 		tosend = cropped.scaled(1280, 1280, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 	} else if (cropped.width() < 320) {

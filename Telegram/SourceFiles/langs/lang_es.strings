@@ -759,7 +759,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Nueva sección para archivos de audio compartidos\n— Nuevo diseño en el menú\n— Añade comentarios a cualquier foto que envíes\n— Rodea el texto con el `acento grave` para una línea de código y ```acentos graves triples``` para un bloque de código\n— El acento gráfico, o tilde, ahora aparece correctamente";
+"lng_new_version_text" = "— Nueva sección para archivos de audio compartidos\n— Nuevo diseño en el menú\n— Añade comentarios a cualquier foto que envíes\n— Rodea el texto con el `acento grave` para una línea de código y ```acentos graves triples``` para bloques de código\n— El acento gráfico, o tilde, ahora aparece correctamente";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 
