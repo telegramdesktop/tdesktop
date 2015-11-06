@@ -550,6 +550,9 @@ namespace App {
 				cdata->flags = d.vflags.v;
 				cdata->isForbidden = false;
 				if (cdata->isMegagroup()) {
+					if (!cdata->mgInfo) {
+						cdata->mgInfo = new MegagroupInfo();
+					}
 					if (History *h = App::historyLoaded(cdata->id)) {
 						if (h->asChannelHistory()->onlyImportant()) {
 							MsgId fixInScrollMsgId = 0;
@@ -557,6 +560,9 @@ namespace App {
 							h->asChannelHistory()->getSwitchReadyFor(SwitchAtTopMsgId, fixInScrollMsgId, fixInScrollMsgTop);
 						}
 					}
+				} else if (cdata->mgInfo) {
+					delete cdata->mgInfo;
+					cdata->mgInfo = 0;
 				}
 				if (cdata->version < d.vversion.v) {
 					cdata->version = d.vversion.v;

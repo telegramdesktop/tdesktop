@@ -102,7 +102,7 @@ PeerData::PeerData(const PeerId &id) : id(id), lnk(new PeerLink(this))
 , loaded(false)
 , colorIndex(peerColorIndex(id))
 , color(peerColor(colorIndex))
-, photo(isChat() ? chatDefPhoto(colorIndex) : (isChannel() ? channelDefPhoto(colorIndex) : userDefPhoto(colorIndex)))
+, photo((isChat() || isMegagroup()) ? chatDefPhoto(colorIndex) : (isChannel() ? channelDefPhoto(colorIndex) : userDefPhoto(colorIndex)))
 , photoId(UnknownPeerPhotoId)
 , nameVersion(0)
 , notify(UnknownNotifySettings)
@@ -374,13 +374,13 @@ void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see 
 			newPhotoId = phId;
 		}
 		newPhotoLoc = App::imageLocation(160, 160, d.vphoto_small);
-		newPhoto = newPhotoLoc.isNull() ? channelDefPhoto(colorIndex) : ImagePtr(newPhotoLoc);
-//		photoFull = ImagePtr(640, 640, d.vphoto_big, channelDefPhoto(colorIndex));
+		newPhoto = newPhotoLoc.isNull() ? (isMegagroup() ? chatDefPhoto(colorIndex) : channelDefPhoto(colorIndex)) : ImagePtr(newPhotoLoc);
+//		photoFull = ImagePtr(640, 640, d.vphoto_big, (isMegagroup() ? chatDefPhoto(colorIndex) : channelDefPhoto(colorIndex)));
 	} break;
 	default: {
 		newPhotoId = 0;
 		newPhotoLoc = StorageImageLocation();
-		newPhoto = channelDefPhoto(colorIndex);
+		newPhoto = (isMegagroup() ? chatDefPhoto(colorIndex) : channelDefPhoto(colorIndex));
 //		photoFull = ImagePtr();
 	} break;
 	}
@@ -409,6 +409,10 @@ void ChannelData::updateFull(bool force) {
 
 void ChannelData::fullUpdated() {
 	_lastFullUpdate = getms(true);
+}
+
+ChannelData::~ChannelData() {
+	delete mgInfo;
 }
 
 uint64 PtsWaiter::ptsKey(PtsSkippedQueue queue) {

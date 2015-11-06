@@ -88,6 +88,8 @@ public slots:
 	void onDeleteChannelSure();
 	void onBlockUser();
 	void onAddParticipant();
+	void onMigrate();
+	void onMigrateSure();
 
 	void onUpdatePhoto();
 	void onUpdatePhotoCancel();
@@ -131,6 +133,9 @@ private:
 	void chatInviteDone(const MTPExportedChatInvite &result);
 	bool updateMediaLinks(int32 *addToScroll = 0); // returns if anything changed
 
+	void migrateDone(const MTPUpdates &updates);
+	bool migrateFail(const RPCError &error);
+
 	ProfileWidget *_profile;
 	ScrollArea *_scroll;
 
@@ -161,6 +166,12 @@ private:
 	bool _photoOver;
 
 	QString _errorText;
+
+	// migrate to megagroup
+	bool _showMigrate;
+	Text _aboutMigrate;
+	FlatButton _migrate;
+
 
 	// settings
 	FlatCheckbox _enableNotifications;

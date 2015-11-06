@@ -1224,6 +1224,7 @@ void _serialize_chat(MTPStringLogger &to, int32 stage, int32 lev, Types &types, 
 	case 10: to.add("  participants_count: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 11: to.add("  date: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 12: to.add("  version: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 13: to.add("  migrated_to: "); ++stages.back(); if (flag & MTPDchat::flag_migrated_to) { types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 6 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -1324,6 +1325,9 @@ void _serialize_channelFull(MTPStringLogger &to, int32 stage, int32 lev, Types &
 	case 10: to.add("  chat_photo: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 11: to.add("  notify_settings: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 12: to.add("  exported_invite: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 13: to.add("  bot_info: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 14: to.add("  migrated_from_chat_id: "); ++stages.back(); if (flag & MTPDchannelFull::flag_migrated_from_chat_id) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
+	case 15: to.add("  migrated_from_max_id: "); ++stages.back(); if (flag & MTPDchannelFull::flag_migrated_from_max_id) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -4928,6 +4932,10 @@ void _serialize_channelParticipantsKicked(MTPStringLogger &to, int32 stage, int3
 	to.add("{ channelParticipantsKicked }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
 }
 
+void _serialize_channelParticipantsBots(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	to.add("{ channelParticipantsBots }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+}
+
 void _serialize_channelRoleEmpty(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	to.add("{ channelRoleEmpty }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
 }
@@ -7526,6 +7534,7 @@ namespace {
 		_serializers.insert(mtpc_channelParticipantsRecent, _serialize_channelParticipantsRecent);
 		_serializers.insert(mtpc_channelParticipantsAdmins, _serialize_channelParticipantsAdmins);
 		_serializers.insert(mtpc_channelParticipantsKicked, _serialize_channelParticipantsKicked);
+		_serializers.insert(mtpc_channelParticipantsBots, _serialize_channelParticipantsBots);
 		_serializers.insert(mtpc_channelRoleEmpty, _serialize_channelRoleEmpty);
 		_serializers.insert(mtpc_channelRoleModerator, _serialize_channelRoleModerator);
 		_serializers.insert(mtpc_channelRoleEditor, _serialize_channelRoleEditor);

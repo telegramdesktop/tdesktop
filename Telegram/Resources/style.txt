@@ -1541,6 +1541,9 @@ btnShareContact: flatButton(btnDefNext, btnDefBig) {
 	font: font(17px);
 	overFont: font(17px);
 }
+btnMigrateToMega: flatButton(btnShareContact) {
+	width: -40px;
+}
 profileMinBtnPadding: 10px;
 
 membersPadding: margins(0px, 10px, 0px, 10px);

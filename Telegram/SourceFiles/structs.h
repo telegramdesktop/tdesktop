@@ -401,7 +401,10 @@ public:
 		return !isForbidden && !haveLeft() && !wasKicked();
 	}
 	bool canEdit() const {
-		return amCreator() || (adminsEnabled() ? amAdmin() : amIn());
+		return !isDeactivated() && (amCreator() || (adminsEnabled() ? amAdmin() : amIn()));
+	}
+	bool canWrite() const {
+		return !isDeactivated() && amIn();
 	}
 	bool haveLeft() const {
 		return flags & MTPDchat::flag_left;
@@ -420,6 +423,9 @@ public:
 	}
 	bool isDeactivated() const {
 		return flags & MTPDchat::flag_deactivated;
+	}
+	bool isMigrated() const {
+		return flags & MTPDchat::flag_migrated_to;
 	}
 	typedef QMap<UserData*, int32> Participants;
 	Participants participants;
@@ -497,10 +503,20 @@ private:
 	bool _requesting, _waitingForSkipped, _waitingForShortPoll;
 };
 
+struct MegagroupInfo {
+	MegagroupInfo() : botStatus(-1) {
+	}
+	typedef QList<UserData*> LastParticipants;
+	LastParticipants lastParticipants;
+	typedef QMap<PeerData*, bool> MarkupSenders;
+	MarkupSenders markupSenders;
+	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
+};
+
 class ChannelData : public PeerData {
 public:
 
-	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), count(1), adminsCount(1), date(0), version(0), flags(0), flagsFull(0), isForbidden(true), botStatus(-1), inviter(0), _lastFullUpdate(0) {
+	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), count(1), adminsCount(1), date(0), version(0), flags(0), flagsFull(0), mgInfo(0), isForbidden(true), botStatus(-1), inviter(0), _lastFullUpdate(0) {
 		setName(QString(), QString());
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
@@ -519,6 +535,7 @@ public:
 	int32 date;
 	int32 version;
 	int32 flags, flagsFull;
+	MegagroupInfo *mgInfo;
 	bool isMegagroup() const {
 		return flags & MTPDchannel::flag_megagroup;
 	}
@@ -596,6 +613,8 @@ public:
 	void ptsWaitingForShortPoll(int32 ms) { // < 0 - not waiting
 		return _ptsWaiter.setWaitingForShortPoll(this, ms);
 	}
+
+	~ChannelData();
 
 private:
 

@@ -500,7 +500,7 @@ void GroupInfoBox::onNext() {
 	if (_creating == CreatingGroupGroup) {
 		App::wnd()->replaceLayer(new ContactsBox(title, _photoBig));
 	} else {
-		bool mega = true;
+		bool mega = false;
 		int32 flags = mega ? MTPchannels_CreateChannel::flag_megagroup : MTPchannels_CreateChannel::flag_broadcast;
 		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_int(flags), MTP_string(title), MTP_string(description)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
 	}

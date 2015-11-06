@@ -150,7 +150,7 @@ ContactsInner::ContactsInner(UserData *bot) : TWidget()
 , _saving(false) {
 	DialogsIndexed &v(App::main()->dialogsList());
 	for (DialogRow *r = v.list.begin; r != v.list.end; r = r->next) {
-		if (r->history->peer->isChat() && r->history->peer->asChat()->amIn()) {
+		if (r->history->peer->isChat() && r->history->peer->asChat()->canEdit()) {
 			_contacts->addToEnd(r->history);
 		}
 	}
@@ -285,7 +285,7 @@ void ContactsInner::peerUpdated(PeerData *peer) {
 			initList();
 			inited = true;
 		}
-		if (!_chat->amIn()) {
+		if (!_chat->canEdit()) {
 			App::wnd()->hideLayer();
 		} else if (!_chat->participants.isEmpty()) {
 			for (ContactsData::iterator i = _contactsData.begin(), e = _contactsData.end(); i != e; ++i) {
@@ -759,7 +759,7 @@ void ContactsInner::changeCheckState(ContactData *data, PeerData *peer) {
 		data->check = false;
 		_checkedContacts.remove(peer);
 		--_selCount;
-	} else if (selectedCount() < (_chat->isMegagroup() ? cMaxMegaGroupCount() : cMaxGroupCount())) {
+	} else if (selectedCount() < ((_channel && _channel->isMegagroup()) ? cMaxMegaGroupCount() : cMaxGroupCount())) {
 		data->check = true;
 		_checkedContacts.insert(peer, true);
 		++_selCount;

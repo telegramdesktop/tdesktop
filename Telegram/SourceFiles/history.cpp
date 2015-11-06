@@ -1517,6 +1517,26 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 				ChatData *chat = peer->asChat();
 				if (chat) chat->updateName(qs(d.vtitle), QString(), QString());
 			} break;
+
+			case mtpc_messageActionChatDeactivate: {
+				peer->asChat()->flags |= MTPDchat::flag_deactivated;
+			} break;
+
+			case mtpc_messageActionChatActivate: {
+				peer->asChat()->flags &= ~MTPDchat::flag_deactivated;
+			} break;
+
+			case mtpc_messageActionChatMigrateTo: {
+				peer->asChat()->flags |= MTPDchat::flag_deactivated;
+
+				//const MTPDmessageActionChatMigrateTo &d(action.c_messageActionChatMigrateTo());
+				//PeerData *channel = App::peerLoaded(peerFromChannel(d.vchannel_id));
+			} break;
+
+			case mtpc_messageActionChannelMigrateFrom: {
+				//const MTPDmessageActionChannelMigrateFrom &d(action.c_messageActionChannelMigrateFrom());
+				//PeerData *chat = App::peerLoaded(peerFromChat(d.vchat_id));
+			} break;
 			}
 		}
 	} break;
@@ -1713,7 +1733,7 @@ HistoryItem *History::addNewItem(HistoryBlock *to, bool newBlock, HistoryItem *a
 					if (lastKeyboardFrom == adding->from()->id || (!lastKeyboardInited && !peer->isChat() && !adding->out())) {
 						clearLastKeyboard();
 					}
-				} else if (peer->isChat() && adding->from()->isUser() && (!peer->asChat()->amIn() || !peer->asChat()->participants.isEmpty()) && !peer->asChat()->participants.contains(adding->from()->asUser())) {
+				} else if (peer->isChat() && adding->from()->isUser() && (!peer->asChat()->canWrite() || !peer->asChat()->participants.isEmpty()) && !peer->asChat()->participants.contains(adding->from()->asUser())) {
 					clearLastKeyboard();
 				} else {
 					lastKeyboardInited = true;
@@ -1921,7 +1941,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 								}
 								if (!(markupFlags & MTPDreplyKeyboardMarkup_flag_ZERO)) {
 									if (!lastKeyboardInited) {
-										if (wasKeyboardHide || ((!peer->asChat()->amIn() || !peer->asChat()->participants.isEmpty()) && item->from()->isUser() && !peer->asChat()->participants.contains(item->from()->asUser()))) {
+										if (wasKeyboardHide || ((!peer->asChat()->canWrite() || !peer->asChat()->participants.isEmpty()) && item->from()->isUser() && !peer->asChat()->participants.contains(item->from()->asUser()))) {
 											clearLastKeyboard();
 										} else {
 											lastKeyboardInited = true;
@@ -7407,6 +7427,32 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 	case mtpc_messageActionChatEditTitle: {
 		const MTPDmessageActionChatEditTitle &d(action.c_messageActionChatEditTitle());
 		text = fromChannel() ? lng_action_changed_title_channel(lt_title, textClean(qs(d.vtitle))) : lng_action_changed_title(lt_from, from, lt_title, textClean(qs(d.vtitle)));
+	} break;
+
+	case mtpc_messageActionChatDeactivate: {
+		text = lang(lng_action_group_deactivate);
+	} break;
+
+	case mtpc_messageActionChatActivate: {
+		text = lang(lng_action_group_activate);
+	} break;
+
+	case mtpc_messageActionChatMigrateTo: {
+		const MTPDmessageActionChatMigrateTo &d(action.c_messageActionChatMigrateTo());
+		if (true/*PeerData *channel = App::peerLoaded(peerFromChannel(d.vchannel_id))*/) {
+			text = lang(lng_action_group_migrate);
+		} else {
+			text = lang(lng_contacts_loading);
+		}
+	} break;
+
+	case mtpc_messageActionChannelMigrateFrom: {
+		const MTPDmessageActionChannelMigrateFrom &d(action.c_messageActionChannelMigrateFrom());
+		if (true/*PeerData *chat = App::peerLoaded(peerFromChannel(d.vchat_id))*/) {
+			text = lang(lng_action_group_migrate);
+		} else {
+			text = lang(lng_contacts_loading);
+		}
 	} break;
 
 	default: from = QString(); break;

@@ -4448,7 +4448,7 @@ bool HistoryWidget::canSendMessages(PeerData *peer) const {
 		if (peer->isUser()) {
 			return peer->asUser()->access != UserNoAccess;
 		} else if (peer->isChat()) {
-			return peer->asChat()->amIn();
+			return peer->asChat()->canWrite();
 		} else if (peer->isChannel()) {
 			return peer->asChannel()->amIn() && (peer->asChannel()->canPublish() || !peer->asChannel()->isBroadcast());
 		}

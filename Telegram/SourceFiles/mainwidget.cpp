@@ -477,7 +477,7 @@ MainWidget::MainWidget(Window *window) : TWidget(window)
 
 bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
 	PeerData *p = App::peer(peer);
-	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->amIn()) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
+	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
 		App::wnd()->showLayer(new InformBox(lang(lng_forward_cant)));
 		return false;
 	}
@@ -511,7 +511,7 @@ bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
 
 bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QString &text) {
 	PeerData *p = App::peer(peer);
-	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->amIn()) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
+	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
 		App::wnd()->showLayer(new InformBox(lang(lng_share_cant)));
 		return false;
 	}
