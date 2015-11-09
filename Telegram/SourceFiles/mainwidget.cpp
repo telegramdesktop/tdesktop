@@ -2314,7 +2314,7 @@ void MainWidget::showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) 
 		history.show();
 	}
 	if (history.peer() && history.peer()->id != peerId) clearBotStartToken(history.peer());
-	history.showPeerHistory(peerId, showAtMsgId);
+	history.showHistory(peerId, showAtMsgId);
 
 	bool noPeer = (!history.peer() || !history.peer()->id), onlyDialogs = noPeer && !cWideMode();
 	if (profile || overview) {
@@ -2487,7 +2487,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 	}
 	history.animStop();
 	if (back) clearBotStartToken(history.peer());
-	history.showPeerHistory(0, 0);
+	history.showHistory(0, 0);
 	history.hide();
 	if (!cWideMode()) dialogs.hide();
 
@@ -2533,7 +2533,7 @@ void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop)
 	profile->animShow(animCache, animTopBarCache, back, lastScrollTop);
 	history.animStop();
 	if (back) clearBotStartToken(history.peer());
-	history.showPeerHistory(0, 0);
+	history.showHistory(0, 0);
 	history.hide();
 
 	orderWidgets();
@@ -3639,7 +3639,7 @@ void MainWidget::inviteCheckDone(QString hash, const MTPChatInvite &invite) {
 	switch (invite.type()) {
 	case mtpc_chatInvite: {
 		const MTPDchatInvite &d(invite.c_chatInvite());
-		ConfirmBox *box = new ConfirmBox((d.is_channel() ? lng_group_invite_want_join_channel : lng_group_invite_want_join)(lt_title, qs(d.vtitle)), lang(lng_group_invite_join));
+		ConfirmBox *box = new ConfirmBox(((d.is_channel() && !d.is_megagroup()) ? lng_group_invite_want_join_channel : lng_group_invite_want_join)(lt_title, qs(d.vtitle)), lang(lng_group_invite_join));
 		_inviteHash = hash;
 		connect(box, SIGNAL(confirmed()), this, SLOT(onInviteImport()));
 		App::wnd()->showLayer(box);
@@ -3954,7 +3954,7 @@ int32 MainWidget::dlgsWidth() const {
 }
 
 MainWidget::~MainWidget() {
-	if (App::main() == this) history.showPeerHistory(0, 0);
+	if (App::main() == this) history.showHistory(0, 0);
 
 	delete _background;
 

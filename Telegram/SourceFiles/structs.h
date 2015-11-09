@@ -142,8 +142,14 @@ inline bool operator<(const FullMsgId &a, const FullMsgId &b) {
 	return a.channel < b.channel;
 }
 
+static const MsgId StartClientMsgId = -0x7FFFFFFF;
+static const MsgId EndClientMsgId = -0x40000000;
+inline bool isClientMsgId(MsgId id) {
+	return id >= StartClientMsgId && id < EndClientMsgId;
+}
 static const MsgId ShowAtTheEndMsgId = -0x40000000;
 static const MsgId SwitchAtTopMsgId = -0x3FFFFFFF;
+static const MsgId ServerMaxMsgId = 0x3FFFFFFF;
 static const MsgId ShowAtUnreadMsgId = 0;
 
 struct NotifySettings {
@@ -212,6 +218,7 @@ public:
 	}
 	bool isVerified() const;
 	bool isMegagroup() const;
+	bool canWrite() const;
 	UserData *asUser();
 	const UserData *asUser() const;
 	ChatData *asChat();
@@ -350,6 +357,9 @@ public:
 	bool isVerified() const {
 		return flags & MTPDuser::flag_verified;
 	}
+	bool canWrite() const {
+		return access != UserNoAccess;
+	}
 
 	MTPInputUser inputUser;
 
@@ -373,7 +383,7 @@ public:
 class ChatData : public PeerData {
 public:
 
-	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_int(bareId())), count(0), date(0), version(0), creator(0), inviterForSpamReport(0), flags(0), isForbidden(false), botStatus(0) {
+	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_int(bareId())), migrateTo(0), count(0), date(0), version(0), creator(0), inviterForSpamReport(0), flags(0), isForbidden(false), botStatus(0) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
 	void invalidateParticipants() {
@@ -388,6 +398,8 @@ public:
 	}
 
 	MTPint inputChat;
+
+	ChannelData *migrateTo;
 
 	int32 count;
 	int32 date;
@@ -504,19 +516,24 @@ private:
 };
 
 struct MegagroupInfo {
-	MegagroupInfo() : botStatus(-1) {
+	MegagroupInfo() : botStatus(-1), migrateFrom(0) {
 	}
 	typedef QList<UserData*> LastParticipants;
 	LastParticipants lastParticipants;
+	typedef QMap<UserData*, bool> LastAdmins;
+	LastAdmins lastAdmins;
 	typedef QMap<PeerData*, bool> MarkupSenders;
 	MarkupSenders markupSenders;
+	typedef QMap<UserData*, bool> Bots;
+	Bots bots;
 	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
+	ChatData *migrateFrom;
 };
 
 class ChannelData : public PeerData {
 public:
 
-	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), count(1), adminsCount(1), date(0), version(0), flags(0), flagsFull(0), mgInfo(0), isForbidden(true), botStatus(-1), inviter(0), _lastFullUpdate(0) {
+	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), count(1), adminsCount(1), date(0), version(0), flags(0), flagsFull(0), mgInfo(0), isForbidden(true), inviter(0), _lastFullUpdate(0) {
 		setName(QString(), QString());
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
@@ -566,6 +583,9 @@ public:
 	bool canPublish() const {
 		return amCreator() || amEditor();
 	}
+	bool canWrite() const {
+		return amIn() && (canPublish() || !isBroadcast());
+	}
 	bool canViewParticipants() const {
 		return flagsFull & MTPDchannelFull::flag_can_view_participants;
 	}
@@ -574,7 +594,6 @@ public:
 		return flags & MTPDchannel::flag_verified;
 	}
 
-	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 //	ImagePtr photoFull;
 	QString invitationUrl;
 
@@ -654,6 +673,9 @@ inline bool PeerData::isVerified() const {
 }
 inline bool PeerData::isMegagroup() const {
 	return isChannel() ? asChannel()->isMegagroup() : false;
+}
+inline bool PeerData::canWrite() const {
+	return isChannel() ? asChannel()->canWrite() : (isChat() ? asChat()->canWrite() : (isUser() ? asUser()->canWrite() : false));
 }
 
 inline int32 newMessageFlags(PeerData *p) {

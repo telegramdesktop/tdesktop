@@ -2740,7 +2740,7 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 
 			const BotCommand *command = _crows->at(i).second;
 			QString toHighlight = command->command;
-			int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : -1;
+			int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : ((_parent->channel() && _parent->channel()->isMegagroup()) ? _parent->channel()->mgInfo->botStatus : -1);
 			if (hasUsername || botStatus == 0 || botStatus == 2) {
 				toHighlight += '@' + user->username;
 			}
@@ -2828,7 +2828,7 @@ QString MentionsInner::getSelected() const {
 		} else {
 			UserData *user = _crows->at(_sel).first;
 			const BotCommand *command(_crows->at(_sel).second);
-			int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : -1;
+			int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : ((_parent->channel() && _parent->channel()->isMegagroup()) ? _parent->channel()->mgInfo->botStatus : -1);
 			if (botStatus == 0 || botStatus == 2 || _parent->filter().indexOf('@') > 1) {
 				result = '/' + command->command + '@' + user->username;
 			} else {
@@ -3004,6 +3004,19 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 				rows.push_back(i.value());
 			}
 		}
+	} else if (_filter.at(0) == '@' && _channel && _channel->isMegagroup()) {
+		QMultiMap<int32, UserData*> ordered;
+		if (_channel->mgInfo->lastParticipants.isEmpty()) {
+			if (App::api()) App::api()->requestLastParticipants(_channel);
+		} else {
+			rows.reserve(_channel->mgInfo->lastParticipants.size());
+			for (MegagroupInfo::LastParticipants::const_iterator i = _channel->mgInfo->lastParticipants.cbegin(), e = _channel->mgInfo->lastParticipants.cend(); i != e; ++i) {
+				UserData *user = *i;
+				if (user->username.isEmpty()) continue;
+				if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
+				rows.push_back(user);
+			}
+		}
 	} else if (_filter.at(0) == '#') {
 		const RecentHashtagPack &recent(cRecentWriteHashtags());
 		hrows.reserve(recent.size());
@@ -3019,7 +3032,6 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 			if (_chat->noParticipantInfo()) {
 				if (App::api()) App::api()->requestFullPeer(_chat);
 			} else if (!_chat->participants.isEmpty()) {
-				int32 index = 0;
 				for (ChatData::Participants::const_iterator i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
 					UserData *user = i.key();
 					if (!user->botInfo) continue;
@@ -3033,10 +3045,23 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 			if (!_user->botInfo->inited && App::api()) App::api()->requestFullPeer(_user);
 			cnt = _user->botInfo->commands.size();
 			bots.insert(_user, true);
+		} else if (_channel && _channel->isMegagroup()) {
+			if (_channel->mgInfo->bots.isEmpty()) {
+				if (!_channel->mgInfo->botStatus && App::api()) App::api()->requestLastParticipants(_channel);
+			} else {
+				for (MegagroupInfo::Bots::const_iterator i = _channel->mgInfo->bots.cbegin(), e = _channel->mgInfo->bots.cend(); i != e; ++i) {
+					UserData *user = i.key();
+					if (!user->botInfo) continue;
+					if (!user->botInfo->inited && App::api()) App::api()->requestFullPeer(user);
+					if (user->botInfo->commands.isEmpty()) continue;
+					bots.insert(user, true);
+					cnt += user->botInfo->commands.size();
+				}
+			}
 		}
 		if (cnt) {
 			crows.reserve(cnt);
-			int32 botStatus = _chat ? _chat->botStatus : -1;
+			int32 botStatus = _chat ? _chat->botStatus : ((_channel && _channel->isMegagroup()) ? _channel->mgInfo->botStatus : -1);
 			if (_chat) {
 				for (MentionRows::const_iterator i = _chat->lastAuthors.cbegin(), e = _chat->lastAuthors.cend(); i != e; ++i) {
 					UserData *user = *i;
@@ -3194,6 +3219,14 @@ const QString &MentionsDropdown::filter() const {
 
 ChatData *MentionsDropdown::chat() const {
 	return _chat;
+}
+
+ChannelData *MentionsDropdown::channel() const {
+	return _channel;
+}
+
+UserData *MentionsDropdown::user() const {
+	return _user;
 }
 
 int32 MentionsDropdown::innerTop() {

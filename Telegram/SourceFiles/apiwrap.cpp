@@ -286,8 +286,20 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		} else {
 			channel->photoId = 0;
 		}
+		if (channel->mgInfo) {
+			if (f.has_migrated_from_chat_id()) {
+				channel->mgInfo->migrateFrom = App::chat(peerFromChat(f.vmigrated_from_chat_id));
+				channel->mgInfo->migrateFrom->migrateTo = channel;
+			}
+		}
 		channel->about = qs(f.vabout);
-		channel->count = f.has_participants_count() ? f.vparticipants_count.v : 0;
+		int32 newCount = f.has_participants_count() ? f.vparticipants_count.v : 0;
+		if (newCount != channel->count) {
+			channel->count = newCount;
+			if (channel->isMegagroup() && !channel->mgInfo->lastParticipants.isEmpty()) {
+				requestLastParticipants(channel);
+			}
+		}
 		channel->adminsCount = f.has_admins_count() ? f.vadmins_count.v : 0;
 		channel->invitationUrl = (f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString();
 		if (History *h = App::historyLoaded(channel->id)) {
@@ -295,6 +307,9 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 				h->setUnreadCount(channel->isMegagroup() ? f.vunread_count.v : f.vunread_important_count.v);
 				h->inboxReadBefore = f.vread_inbox_max_id.v + 1;
 				h->asChannelHistory()->unreadCountAll = f.vunread_count.v;
+			}
+			if (channel->mgInfo && channel->mgInfo->migrateFrom) {
+				h->asChannelHistory()->removeJoinedMessage();
 			}
 		}
 		channel->fullUpdated();
@@ -385,6 +400,13 @@ void ApiWrap::requestPeers(const QList<PeerData*> &peers) {
 	if (!users.isEmpty()) MTP::send(MTPusers_GetUsers(MTP_vector<MTPInputUser>(users)), rpcDone(&ApiWrap::gotUsers));
 }
 
+void ApiWrap::requestLastParticipants(ChannelData *peer) {
+	if (!peer || !peer->isMegagroup() || _participantsRequests.contains(peer)) return;
+	mtpRequestId req = MTP::send(MTPchannels_GetParticipants(peer->inputChannel, MTP_channelParticipantsRecent(), MTP_int(0), MTP_int(cMaxGroupCount())), rpcDone(&ApiWrap::lastParticipantsDone, peer), rpcFail(&ApiWrap::lastParticipantsFail, peer));
+	_participantsRequests.insert(peer, req);
+	MTP::send(MTPchannels_GetParticipants(peer->inputChannel, MTP_channelParticipantsBots(), MTP_int(0), MTP_int(cMaxGroupCount())), rpcDone(&ApiWrap::lastParticipantsDone, peer), rpcFail(&ApiWrap::lastParticipantsFail, peer));
+}
+
 void ApiWrap::gotChat(PeerData *peer, const MTPmessages_Chats &result) {
 	_peerRequests.remove(peer);
 	
@@ -430,6 +452,64 @@ bool ApiWrap::gotPeerFailed(PeerData *peer, const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
 
 	_peerRequests.remove(peer);
+	return true;
+}
+
+void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelParticipants &result, mtpRequestId req) {
+	bool bots = (_participantsRequests.value(peer) != req);
+
+	if (!bots) {
+		_participantsRequests.remove(peer);
+	}
+	if (!peer->mgInfo) return;
+
+	if (result.type() == mtpc_channels_channelParticipants) {
+		const MTPDchannels_channelParticipants &d(result.c_channels_channelParticipants());
+		const QVector<MTPChannelParticipant> &v(d.vparticipants.c_vector().v);
+		App::feedUsers(d.vusers);
+		int32 botStatus = peer->mgInfo->botStatus;
+		if (bots) {
+			peer->mgInfo->bots.clear();
+			botStatus = -1;
+		} else {
+			peer->mgInfo->lastParticipants.clear();
+			peer->mgInfo->lastAdmins.clear();
+		}
+		for (QVector<MTPChannelParticipant>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
+			int32 userId = 0;
+			bool admin = false;
+
+			switch (i->type()) {
+			case mtpc_channelParticipant: userId = i->c_channelParticipant().vuser_id.v; break;
+			case mtpc_channelParticipantSelf: userId = i->c_channelParticipantSelf().vuser_id.v; break;
+			case mtpc_channelParticipantModerator: userId = i->c_channelParticipantModerator().vuser_id.v; break;
+			case mtpc_channelParticipantEditor: userId = i->c_channelParticipantEditor().vuser_id.v; admin = true; break;
+			case mtpc_channelParticipantKicked: userId = i->c_channelParticipantKicked().vuser_id.v; break;
+			case mtpc_channelParticipantCreator: userId = i->c_channelParticipantCreator().vuser_id.v; admin = true; break;
+			}
+			UserData *u = App::user(userId);
+			if (bots) {
+				if (u->botInfo) {
+					peer->mgInfo->bots.insert(u, true);
+					botStatus = (botStatus > 0/* || i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
+				}
+			} else {
+				peer->mgInfo->lastParticipants.push_back(u);
+				if (admin) peer->mgInfo->lastAdmins.insert(u, true);
+			}
+		}
+		if (d.vcount.v > peer->count) {
+			peer->count = d.vcount.v;
+		} else if (v.count() > peer->count) {
+			peer->count = v.count();
+		}
+		if (App::main()) emit fullPeerUpdated(peer);
+	}
+}
+
+bool ApiWrap::lastParticipantsFail(ChannelData *peer, const RPCError &error) {
+	if (mtpIsFlood(error)) return false;
+	_participantsRequests.remove(peer);
 	return true;
 }
 
@@ -484,6 +564,36 @@ bool ApiWrap::gotSelfParticipantFail(ChannelData *channel, const RPCError &error
 		channel->inviter = -1;
 	}
 	_selfParticipantRequests.remove(channel);
+	return true;
+}
+
+void ApiWrap::kickParticipant(PeerData *peer, UserData *user) {
+	KickRequest req(peer, user);
+	if (_kickRequests.contains(req));
+	if (peer->isChannel()) {
+		_kickRequests.insert(req, MTP::send(MTPchannels_KickFromChannel(peer->asChannel()->inputChannel, user->inputUser, MTP_bool(true)), rpcDone(&ApiWrap::kickParticipantDone, req), rpcFail(&ApiWrap::kickParticipantFail, req)));
+	}
+}
+
+void ApiWrap::kickParticipantDone(KickRequest kick, const MTPUpdates &result, mtpRequestId req) {
+	_kickRequests.remove(kick);
+	if (kick.first->isMegagroup()) {
+		int32 i = kick.first->asChannel()->mgInfo->lastParticipants.indexOf(kick.second);
+		if (i >= 0) {
+			kick.first->asChannel()->mgInfo->lastParticipants.removeAt(i);
+			kick.first->asChannel()->mgInfo->lastAdmins.remove(kick.second);
+			kick.first->asChannel()->mgInfo->bots.remove(kick.second);
+		}
+		if (kick.first->asChannel()->count > 1) {
+			kick.first->asChannel()->count--;
+		}
+	}
+	emit fullPeerUpdated(kick.first);
+}
+
+bool ApiWrap::kickParticipantFail(KickRequest kick, const RPCError &error, mtpRequestId req) {
+	if (mtpIsFlood(error)) return false;
+	_kickRequests.remove(kick);
 	return true;
 }
 

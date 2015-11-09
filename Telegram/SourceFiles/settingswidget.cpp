@@ -1169,7 +1169,7 @@ void SettingsInner::onUpdatePhoto() {
 		saveError(lang(lng_bad_photo));
 		return;
 	}
-	PhotoCropBox *box = new PhotoCropBox(img, self()->id);
+	PhotoCropBox *box = new PhotoCropBox(img, self());
 	connect(box, SIGNAL(closed()), this, SLOT(onPhotoUpdateStart()));
 	App::wnd()->showLayer(box);
 }

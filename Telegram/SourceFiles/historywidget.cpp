@@ -2921,7 +2921,7 @@ void HistoryWidget::applyDraft(bool parseLinks) {
 	}
 }
 
-void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
+void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId) {
 	MsgId wasMsgId = _showAtMsgId;
 	History *wasHistory = _history;
 
@@ -3811,9 +3811,9 @@ void HistoryWidget::onVisibleChanged() {
 
 void HistoryWidget::onHistoryToEnd() {
 	if (_replyReturn) {
-		showPeerHistory(_peer->id, _replyReturn->id);
+		showHistory(_peer->id, _replyReturn->id);
 	} else if (_peer) {
-		showPeerHistory(_peer->id, ShowAtUnreadMsgId);
+		showHistory(_peer->id, ShowAtUnreadMsgId);
 	}
 }
 
@@ -3830,7 +3830,7 @@ void HistoryWidget::onCollapseComments() {
 			}
 		}
 	}
-	showPeerHistory(_peer->id, switchAt);
+	showHistory(_peer->id, switchAt);
 }
 
 void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
@@ -4318,7 +4318,7 @@ void HistoryWidget::sendBotCommand(const QString &cmd, MsgId replyTo) { // reply
 	PeerData *bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? (App::hoveredLinkItem()->toHistoryForwarded() ? App::hoveredLinkItem()->toHistoryForwarded()->fromForwarded() : App::hoveredLinkItem()->from()) : 0);
 	if (bot && (!bot->isUser() || !bot->asUser()->botInfo)) bot = 0;
 	QString username = bot ? bot->asUser()->username : QString();
-	int32 botStatus = _peer->isChat() ? _peer->asChat()->botStatus : (_peer->isChannel() ? _peer->asChannel()->botStatus : -1);
+	int32 botStatus = _peer->isChat() ? _peer->asChat()->botStatus : (_peer->isMegagroup() ? _peer->asChannel()->mgInfo->botStatus : -1);
 	if (!replyTo && toSend.indexOf('@') < 2 && !username.isEmpty() && (botStatus == 0 || botStatus == 2)) {
 		toSend += '@' + username;
 	}
@@ -4342,7 +4342,7 @@ void HistoryWidget::insertBotCommand(const QString &cmd) {
 	PeerData *bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? (App::hoveredLinkItem()->toHistoryForwarded() ? App::hoveredLinkItem()->toHistoryForwarded()->fromForwarded() : App::hoveredLinkItem()->from()) : 0);
 	if (!bot->isUser() || !bot->asUser()->botInfo) bot = 0;
 	QString username = bot ? bot->asUser()->username : QString();
-	int32 botStatus = _peer->isChat() ? _peer->asChat()->botStatus : (_peer->isChannel() ? _peer->asChannel()->botStatus : -1);
+	int32 botStatus = _peer->isChat() ? _peer->asChat()->botStatus : (_peer->isMegagroup() ? _peer->asChannel()->mgInfo->botStatus : -1);
 	if (toInsert.indexOf('@') < 2 && !username.isEmpty() && (botStatus == 0 || botStatus == 2)) {
 		toInsert += '@' + username;
 	}
@@ -4444,16 +4444,7 @@ void HistoryWidget::updateDragAreas() {
 }
 
 bool HistoryWidget::canSendMessages(PeerData *peer) const {
-	if (peer) {
-		if (peer->isUser()) {
-			return peer->asUser()->access != UserNoAccess;
-		} else if (peer->isChat()) {
-			return peer->asChat()->canWrite();
-		} else if (peer->isChannel()) {
-			return peer->asChannel()->amIn() && (peer->asChannel()->canPublish() || !peer->asChannel()->isBroadcast());
-		}
-	}
-	return false;
+	return peer && peer->canWrite();
 }
 
 bool HistoryWidget::readyToForward() const {
@@ -4483,7 +4474,7 @@ bool HistoryWidget::isMuteUnmute() const {
 
 bool HistoryWidget::updateCmdStartShown() {
 	bool cmdStartShown = false;
-	if (_history && _peer && ((_peer->isChat() && _peer->asChat()->botStatus > 0) || (_peer->isChannel() && _peer->asChannel()->botStatus > 0) || (_peer->isUser() && _peer->asUser()->botInfo))) {
+	if (_history && _peer && ((_peer->isChat() && _peer->asChat()->botStatus > 0) || (_peer->isMegagroup() && _peer->asChannel()->mgInfo->botStatus > 0) || (_peer->isUser() && _peer->asUser()->botInfo))) {
 		if (!isBotStart() && !isBlocked() && !_keyboard.hasMarkup() && !_keyboard.forceReply()) {
 			if (!_field.hasSendText()) {
 				cmdStartShown = true;
@@ -6347,7 +6338,7 @@ QRect HistoryWidget::historyRect() const {
 }
 
 void HistoryWidget::destroyData() {
-	showPeerHistory(0, 0);
+	showHistory(0, 0);
 }
 
 QStringList HistoryWidget::getMediasFromMime(const QMimeData *d) {

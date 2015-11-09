@@ -133,14 +133,14 @@ namespace {
 }
 
 const TextParseOptions &itemTextOptions(History *h, PeerData *f) {
-	if ((h->peer->isUser() && h->peer->asUser()->botInfo) || (f->isUser() && f->asUser()->botInfo) || (h->peer->isChat() && h->peer->asChat()->botStatus >= 0) || (h->peer->isChannel() && h->peer->asChannel()->botStatus >= 0)) {
+	if ((h->peer->isUser() && h->peer->asUser()->botInfo) || (f->isUser() && f->asUser()->botInfo) || (h->peer->isChat() && h->peer->asChat()->botStatus >= 0) || (h->peer->isMegagroup() && h->peer->asChannel()->mgInfo->botStatus >= 0)) {
 		return _historyBotOptions;
 	}
 	return _historyTextOptions;
 }
 
 const TextParseOptions &itemTextNoMonoOptions(History *h, PeerData *f) {
-	if ((h->peer->isUser() && h->peer->asUser()->botInfo) || (f->isUser() && f->asUser()->botInfo) || (h->peer->isChat() && h->peer->asChat()->botStatus >= 0) || (h->peer->isChannel() && h->peer->asChannel()->botStatus >= 0)) {
+	if ((h->peer->isUser() && h->peer->asUser()->botInfo) || (f->isUser() && f->asUser()->botInfo) || (h->peer->isChat() && h->peer->asChat()->botStatus >= 0) || (h->peer->isMegagroup() && h->peer->asChannel()->mgInfo->botStatus >= 0)) {
 		return _historyBotNoMonoOptions;
 	}
 	return _historyTextNoMonoOptions;
@@ -684,7 +684,9 @@ void ChannelHistory::addNewGroup(const MTPMessageGroup &group) {
 }
 
 HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
-	if (_joinedMessage || !peer->asChannel()->amIn()) return _joinedMessage;
+	if (_joinedMessage || !peer->asChannel()->amIn() || (peer->asChannel()->mgInfo && peer->asChannel()->mgInfo->migrateFrom)) {
+		return _joinedMessage;
+	}
 
 	UserData *inviter = (peer->asChannel()->inviter > 0) ? App::userLoaded(peer->asChannel()->inviter) : 0;
 	if (!inviter) return 0;
@@ -809,7 +811,9 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 }
 
 void ChannelHistory::checkJoinedMessage(bool createUnread) {
-	if (_joinedMessage || peer->asChannel()->inviter <= 0) return;
+	if (_joinedMessage || peer->asChannel()->inviter <= 0 || (peer->asChannel()->mgInfo && peer->asChannel()->mgInfo->migrateFrom)) {
+		return;
+	}
 	if (isEmpty()) {
 		if (loadedAtTop() && loadedAtBottom()) {
 			if (insertJoinedMessage(createUnread)) {
@@ -854,6 +858,13 @@ void ChannelHistory::checkJoinedMessage(bool createUnread) {
 		if (insertJoinedMessage(createUnread && willBeLastMsg) && willBeLastMsg) {
 			setLastMessage(_joinedMessage);
 		}
+	}
+}
+
+void ChannelHistory::removeJoinedMessage() {
+	if (_joinedMessage) {
+		_joinedMessage->destroy();
+		_joinedMessage = 0;
 	}
 }
 
@@ -1713,33 +1724,54 @@ HistoryItem *History::addNewItem(HistoryBlock *to, bool newBlock, HistoryItem *a
 		}
 	}
 	if (adding->from()->id) {
-		if (peer->isChat() && adding->from()->isUser()) {
-			QList<UserData*> *lastAuthors = &(peer->asChat()->lastAuthors);
-			int prev = lastAuthors->indexOf(adding->from()->asUser());
-			if (prev > 0) {
-				lastAuthors->removeAt(prev);
+		if (adding->from()->isUser()) {
+			QList<UserData*> *lastAuthors = 0;
+			if (peer->isChat()) {
+				lastAuthors = &peer->asChat()->lastAuthors;
+			} else if (peer->isMegagroup() && !peer->asChannel()->mgInfo->lastParticipants.isEmpty()) {
+				lastAuthors = &peer->asChannel()->mgInfo->lastParticipants;
 			}
-			if (prev) {
-				lastAuthors->push_front(adding->from()->asUser());
+			if (lastAuthors) {
+				int prev = lastAuthors->indexOf(adding->from()->asUser());
+				if (prev > 0) {
+					lastAuthors->removeAt(prev);
+				}
+				if (prev) {
+					lastAuthors->push_front(adding->from()->asUser());
+				}
 			}
 		}
 		if (adding->hasReplyMarkup()) {
 			int32 markupFlags = App::replyMarkup(channelId(), adding->id).flags;
 			if (!(markupFlags & MTPDreplyKeyboardMarkup::flag_selective) || adding->mentionsMe()) {
+				QMap<PeerData*, bool> *markupSenders = 0;
 				if (peer->isChat()) {
-					peer->asChat()->markupSenders.insert(adding->from(), true);
+					markupSenders = &peer->asChat()->markupSenders;
+				} else if (peer->isMegagroup()) {
+					markupSenders = &peer->asChannel()->mgInfo->markupSenders;
+				}
+				if (markupSenders) {
+					markupSenders->insert(adding->from(), true);
 				}
 				if (markupFlags & MTPDreplyKeyboardMarkup_flag_ZERO) { // zero markup means replyKeyboardHide
-					if (lastKeyboardFrom == adding->from()->id || (!lastKeyboardInited && !peer->isChat() && !adding->out())) {
+					if (lastKeyboardFrom == adding->from()->id || (!lastKeyboardInited && !peer->isChat() && !peer->isMegagroup() && !adding->out())) {
 						clearLastKeyboard();
 					}
-				} else if (peer->isChat() && adding->from()->isUser() && (!peer->asChat()->canWrite() || !peer->asChat()->participants.isEmpty()) && !peer->asChat()->participants.contains(adding->from()->asUser())) {
-					clearLastKeyboard();
 				} else {
-					lastKeyboardInited = true;
-					lastKeyboardId = adding->id;
-					lastKeyboardFrom = adding->from()->id;
-					lastKeyboardUsed = false;
+					bool botNotInChat = false;
+					if (peer->isChat()) {
+						botNotInChat = adding->from()->isUser() && (!peer->canWrite() || !peer->asChat()->participants.isEmpty()) && !peer->asChat()->participants.contains(adding->from()->asUser());
+					} else if (peer->isMegagroup()) {
+						botNotInChat = adding->from()->isUser() && (!peer->canWrite() || !peer->asChannel()->mgInfo->bots.isEmpty()) && !peer->asChannel()->mgInfo->bots.contains(adding->from()->asUser());
+					}
+					if (botNotInChat) {
+						clearLastKeyboard();
+					} else {
+						lastKeyboardInited = true;
+						lastKeyboardId = adding->id;
+						lastKeyboardFrom = adding->from()->id;
+						lastKeyboardUsed = false;
+					}
 				}
 			}
 		}
@@ -1904,10 +1936,20 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 			++skip;
 		}
 
-		if (loadedAtBottom()) { // add photos to overview and authors to lastAuthors
+		if (loadedAtBottom()) { // add photos to overview and authors to lastAuthors / lastParticipants
 			bool channel = isChannel();
 			int32 mask = 0;
-			QList<UserData*> *lastAuthors = peer->isChat() ? &(peer->asChat()->lastAuthors) : 0;
+			QList<UserData*> *lastAuthors = 0;
+			QMap<PeerData*, bool> *markupSenders = 0;
+			if (peer->isChat()) {
+				lastAuthors = &peer->asChat()->lastAuthors;
+				markupSenders = &peer->asChat()->markupSenders;
+			} else if (peer->isMegagroup()) {
+				if (!peer->asChannel()->mgInfo->lastParticipants.isEmpty()) {
+					lastAuthors = &peer->asChannel()->mgInfo->lastParticipants;
+				}
+				markupSenders = &peer->asChannel()->mgInfo->markupSenders;
+			}
 			for (int32 i = block->items.size(); i > 0; --i) {
 				HistoryItem *item = block->items[i - 1];
 				if (!item->indexInOverview()) continue;
@@ -1932,16 +1974,24 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 						if (item->from()->isUser() && !lastAuthors->contains(item->from()->asUser())) {
 							lastAuthors->push_back(item->from()->asUser());
 						}
-						if (!lastKeyboardInited && item->hasReplyMarkup() && !item->out()) { // chats with bots
+					}
+					if (markupSenders) { // chats with bots
+						if (!lastKeyboardInited && item->hasReplyMarkup() && !item->out()) {
 							int32 markupFlags = App::replyMarkup(channelId(), item->id).flags;
 							if (!(markupFlags & MTPDreplyKeyboardMarkup::flag_selective) || item->mentionsMe()) {
-								bool wasKeyboardHide = peer->asChat()->markupSenders.contains(item->from());
+								bool wasKeyboardHide = markupSenders->contains(item->from());
 								if (!wasKeyboardHide) {
-									peer->asChat()->markupSenders.insert(item->from(), true);
+									markupSenders->insert(item->from(), true);
 								}
 								if (!(markupFlags & MTPDreplyKeyboardMarkup_flag_ZERO)) {
 									if (!lastKeyboardInited) {
-										if (wasKeyboardHide || ((!peer->asChat()->canWrite() || !peer->asChat()->participants.isEmpty()) && item->from()->isUser() && !peer->asChat()->participants.contains(item->from()->asUser()))) {
+										bool botNotInChat = false;
+										if (peer->isChat()) {
+											botNotInChat = (!peer->canWrite() || !peer->asChat()->participants.isEmpty()) && item->from()->isUser() && !peer->asChat()->participants.contains(item->from()->asUser());
+										} else if (peer->isMegagroup()) {
+											botNotInChat = (!peer->canWrite() || !peer->asChannel()->mgInfo->bots.isEmpty()) && item->from()->isUser() && !peer->asChannel()->mgInfo->bots.contains(item->from()->asUser());
+										}
+										if (wasKeyboardHide || botNotInChat) {
 											clearLastKeyboard();
 										} else {
 											lastKeyboardInited = true;
@@ -2485,6 +2535,9 @@ void History::clear(bool leaveItems) {
 		peer->asChat()->markupSenders.clear();
 	} else if (isChannel()) {
 		asChannelHistory()->cleared();
+		if (isMegagroup()) {
+			peer->asChannel()->mgInfo->markupSenders.clear();
+		}
 	}
 	if (leaveItems && App::main()) App::main()->historyCleared(this);
 }
@@ -7450,6 +7503,10 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 		const MTPDmessageActionChannelMigrateFrom &d(action.c_messageActionChannelMigrateFrom());
 		if (true/*PeerData *chat = App::peerLoaded(peerFromChannel(d.vchat_id))*/) {
 			text = lang(lng_action_group_migrate);
+			if (history()->peer->asChannel()->mgInfo) {
+				history()->peer->asChannel()->mgInfo->migrateFrom = App::chat(peerFromChat(d.vchat_id));
+				history()->peer->asChannel()->mgInfo->migrateFrom->migrateTo = history()->peer->asChannel();
+			}
 		} else {
 			text = lang(lng_contacts_loading);
 		}

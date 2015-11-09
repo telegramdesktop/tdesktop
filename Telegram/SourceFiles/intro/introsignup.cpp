@@ -88,7 +88,7 @@ void IntroSignup::mousePressEvent(QMouseEvent *e) {
 			showError(lang(lng_bad_photo));
 			return;
 		}
-		PhotoCropBox *box = new PhotoCropBox(img, 0);
+		PhotoCropBox *box = new PhotoCropBox(img, PeerId(0));
 		connect(box, SIGNAL(ready(const QImage &)), this, SLOT(onPhotoReady(const QImage &)));
 		App::wnd()->showLayer(box);
 	}

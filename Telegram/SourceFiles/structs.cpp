@@ -1026,6 +1026,7 @@ void CommentsLink::onClick(Qt::MouseButton button) const {
 }
 
 MsgId clientMsgId() {
-	static MsgId current = -2000000000;
-	return ++current;
+	static MsgId currentClientMsgId = StartClientMsgId;
+	Q_ASSERT(currentClientMsgId < EndClientMsgId);
+	return currentClientMsgId++;
 }

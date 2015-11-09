@@ -593,7 +593,7 @@ void GroupInfoBox::onPhoto() {
 	if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
 		return;
 	}
-	PhotoCropBox *box = new PhotoCropBox(img, (_creating == CreatingGroupChannel) ? peerFromChannel(0) : peerFromChat(0), false);
+	PhotoCropBox *box = new PhotoCropBox(img, (_creating == CreatingGroupChannel) ? peerFromChannel(0) : peerFromChat(0));
 	connect(box, SIGNAL(ready(const QImage&)), this, SLOT(onPhotoReady(const QImage&)));
 	App::wnd()->replaceLayer(box);
 }

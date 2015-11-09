@@ -516,7 +516,7 @@ public:
 
 	void fastShowAtEnd(History *h);
 	void applyDraft(bool parseLinks = true);
-	void showPeerHistory(const PeerId &peer, MsgId showAtMsgId);
+	void showHistory(const PeerId &peer, MsgId showAtMsgId);
 	void clearDelayedShowAt();
 	void clearAllLoadRequests();
 

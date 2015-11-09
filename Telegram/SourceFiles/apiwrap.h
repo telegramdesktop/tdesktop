@@ -36,11 +36,13 @@ public:
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);
 	void requestPeers(const QList<PeerData*> &peers);
+	void requestLastParticipants(ChannelData *peer);
 
 	void processFullPeer(PeerData *peer, const MTPmessages_ChatFull &result);
 	void processFullPeer(PeerData *peer, const MTPUserFull &result);
 
 	void requestSelfParticipant(ChannelData *channel);
+	void kickParticipant(PeerData *peer, UserData *user);
 
 	void requestWebPageDelayed(WebPageData *page);
 	void clearWebPageRequest(WebPageData *page);
@@ -90,6 +92,16 @@ private:
 	void gotUsers(const MTPVector<MTPUser> &result);
 	bool gotPeerFailed(PeerData *peer, const RPCError &err);
 	PeerRequests _peerRequests;
+
+	void lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelParticipants &result, mtpRequestId req);
+	bool lastParticipantsFail(ChannelData *peer, const RPCError &error);
+	PeerRequests _participantsRequests;
+
+	typedef QPair<PeerData*, UserData*> KickRequest;
+	typedef QMap<KickRequest, mtpRequestId> KickRequests;
+	void kickParticipantDone(KickRequest kick, const MTPUpdates &updates, mtpRequestId req);
+	bool kickParticipantFail(KickRequest kick, const RPCError &error, mtpRequestId req);
+	KickRequests _kickRequests;
 
 	void gotSelfParticipant(ChannelData *channel, const MTPchannels_ChannelParticipant &result);
 	bool gotSelfParticipantFail(ChannelData *channel, const RPCError &error);
