@@ -226,6 +226,9 @@ public:
 	ChannelData *asChannel();
 	const ChannelData *asChannel() const;
 
+	ChatData *migrateFrom() const;
+	ChannelData *migrateTo() const;
+
 	void updateName(const QString &newName, const QString &newNameOrPhone, const QString &newUsername);
 
 	void fillNames();
@@ -383,7 +386,7 @@ public:
 class ChatData : public PeerData {
 public:
 
-	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_int(bareId())), migrateTo(0), count(0), date(0), version(0), creator(0), inviterForSpamReport(0), flags(0), isForbidden(false), botStatus(0) {
+	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_int(bareId())), migrateToPtr(0), count(0), date(0), version(0), creator(0), inviterForSpamReport(0), flags(0), isForbidden(false), botStatus(0) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
 	void invalidateParticipants() {
@@ -399,7 +402,7 @@ public:
 
 	MTPint inputChat;
 
-	ChannelData *migrateTo;
+	ChannelData *migrateToPtr;
 
 	int32 count;
 	int32 date;
@@ -516,7 +519,7 @@ private:
 };
 
 struct MegagroupInfo {
-	MegagroupInfo() : botStatus(-1), migrateFrom(0) {
+	MegagroupInfo() : botStatus(-1), migrateFromPtr(0) {
 	}
 	typedef QList<UserData*> LastParticipants;
 	LastParticipants lastParticipants;
@@ -527,7 +530,7 @@ struct MegagroupInfo {
 	typedef QMap<UserData*, bool> Bots;
 	Bots bots;
 	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
-	ChatData *migrateFrom;
+	ChatData *migrateFromPtr;
 };
 
 class ChannelData : public PeerData {
@@ -553,6 +556,7 @@ public:
 	int32 version;
 	int32 flags, flagsFull;
 	MegagroupInfo *mgInfo;
+	void flagsUpdated();
 	bool isMegagroup() const {
 		return flags & MTPDchannel::flag_megagroup;
 	}
@@ -658,6 +662,12 @@ inline ChannelData *PeerData::asChannel() {
 }
 inline const ChannelData *PeerData::asChannel() const {
 	return isChannel() ? static_cast<const ChannelData*>(this) : 0;
+}
+inline ChatData *PeerData::migrateFrom() const {
+	return (isMegagroup() && asChannel()->amIn()) ? asChannel()->mgInfo->migrateFromPtr : 0;
+}
+inline ChannelData *PeerData::migrateTo() const {
+	return (isChat() && asChat()->migrateToPtr && asChat()->migrateToPtr->amIn()) ? asChat()->migrateToPtr : 0;
 }
 inline const Text &PeerData::dialogName() const {
 	return (isUser() && !asUser()->phoneText.isEmpty()) ? asUser()->phoneText : nameText;
@@ -1193,7 +1203,7 @@ struct MessageCursor {
 		position = c.position();
 		anchor = c.anchor();
 		QScrollBar *s = edit.verticalScrollBar();
-		scroll = s ? s->value() : QFIXED_MAX;
+		scroll = (s && (s->value() != s->maximum())) ? s->value() : QFIXED_MAX;
 	}
 	void applyTo(QTextEdit &edit, bool *lock = 0) {
 		if (lock) *lock = true;

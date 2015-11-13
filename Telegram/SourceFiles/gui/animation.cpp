@@ -153,7 +153,7 @@ bool AnimatedGif::animStep(float64 ms) {
 	if (frame != f) {
 		frame = f;
 		if (msg && App::main()) {
-			App::main()->msgUpdated(msg->history()->peer->id, msg);
+			App::main()->msgUpdated(msg);
 		} else {
 			emit updated();
 		}

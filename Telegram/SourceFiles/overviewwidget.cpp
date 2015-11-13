@@ -143,7 +143,8 @@ OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, const
 , _resizeSkip(0)
 , _peer(App::peer(peer->id))
 , _type(type)
-, _hist(App::history(peer->id))
+, _migrated(0)
+, _history(App::history(peer->id))
 , _channel(peerToChannel(peer->id))
 , _photosInRow(1)
 , _photosToAdd(0)
@@ -275,11 +276,11 @@ void OverviewInner::fixItemIndex(int32 &current, MsgId msgId) const {
 	if (!msgId) {
 		current = -1;
 	} else if (_type == OverviewPhotos || _type == OverviewAudioDocuments) {
-		int32 l = _hist->overview[_type].size();
-		if (current < 0 || current >= l || _hist->overview[_type][current] != msgId) {
+		int32 l = _history->overview[_type].size();
+		if (current < 0 || current >= l || _history->overview[_type][current] != msgId) {
 			current = -1;
 			for (int32 i = 0; i < l; ++i) {
-				if (_hist->overview[_type][i] == msgId) {
+				if (_history->overview[_type][i] == msgId) {
 					current = i;
 					break;
 				}
@@ -461,11 +462,11 @@ void OverviewInner::moveToNextItem(MsgId &msgId, int32 &index, MsgId upTo, int32
 
 	index += delta;
 	if (_type == OverviewPhotos || _type == OverviewAudioDocuments) {
-		if (index < 0 || index >= _hist->overview[_type].size()) {
+		if (index < 0 || index >= _history->overview[_type].size()) {
 			msgId = 0;
 			index = -1;
 		} else {
-			msgId = _hist->overview[_type][index];
+			msgId = _history->overview[_type][index];
 		}
 	} else {
 		while (index >= 0 && index < _items.size() && !_items[index].msgid) {
@@ -482,7 +483,7 @@ void OverviewInner::moveToNextItem(MsgId &msgId, int32 &index, MsgId upTo, int32
 
 void OverviewInner::updateMsg(HistoryItem *item) {
 	if (App::main() && item) {
-		App::main()->msgUpdated(item->history()->peer->id, item);
+		App::main()->msgUpdated(item);
 	}
 }
 
@@ -796,7 +797,7 @@ void OverviewInner::onDragExec() {
 	QList<QUrl> urls;
 	bool forwardSelected = false;
 	if (uponSelected) {
-		forwardSelected = !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel && cWideMode() && !_hist->peer->isChannel();
+		forwardSelected = !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel && cWideMode() && !_history->peer->isChannel();
 	} else if (textlnkDown()) {
 		sel = textlnkDown()->encoded();
 		if (!sel.isEmpty() && sel.at(0) != '/' && sel.at(0) != '@' && sel.at(0) != '#') {
@@ -840,7 +841,7 @@ void OverviewInner::onDragExec() {
 			QDrag *drag = new QDrag(App::wnd());
 			QMimeData *mimeData = new QMimeData;
 
-			if (!_hist->peer->isChannel()) {
+			if (!_history->peer->isChannel()) {
 				mimeData->setData(qsl("application/x-td-forward-pressed-link"), "1");
 			}
 			if (lnkDocument) {
@@ -874,7 +875,7 @@ void OverviewInner::applyDragSelection() {
 	}
 	if (_dragSelecting) {
 		for (int32 i = _dragSelToIndex; i <= _dragSelFromIndex; ++i) {
-			MsgId msgid = (_type == OverviewPhotos || _type == OverviewAudioDocuments) ? _hist->overview[_type][i] : _items[i].msgid;
+			MsgId msgid = (_type == OverviewPhotos || _type == OverviewAudioDocuments) ? _history->overview[_type][i] : _items[i].msgid;
 			if (!msgid) continue;
 
 			SelectedItems::iterator j = _selected.find(msgid);
@@ -893,7 +894,7 @@ void OverviewInner::applyDragSelection() {
 		}
 	} else {
 		for (int32 i = _dragSelToIndex; i <= _dragSelFromIndex; ++i) {
-			MsgId msgid = (_type == OverviewPhotos || _type == OverviewAudioDocuments) ? _hist->overview[_type][i] : _items[i].msgid;
+			MsgId msgid = (_type == OverviewPhotos || _type == OverviewAudioDocuments) ? _history->overview[_type][i] : _items[i].msgid;
 			if (!msgid) continue;
 
 			SelectedItems::iterator j = _selected.find(msgid);
@@ -940,7 +941,7 @@ void OverviewInner::clear() {
 
 int32 OverviewInner::itemTop(const FullMsgId &msgId) const {
 	if (_type == OverviewAudioDocuments && msgId.channel == _channel) {
-		int32 index = _hist->overview[_type].indexOf(msgId.msg);
+		int32 index = _history->overview[_type].indexOf(msgId.msg);
 		if (index >= 0) {
 			return _addToY + int32(index * _audioHeight);
 		}
@@ -951,20 +952,20 @@ int32 OverviewInner::itemTop(const FullMsgId &msgId) const {
 void OverviewInner::preloadMore() {
 	if (_inSearch) {
 		if (!_searchRequest && !_searchFull) {
-			int32 flags = (_hist->peer->isChannel() && !_hist->peer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
-			_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _hist->peer->input, MTP_string(_searchQuery), MTP_inputMessagesFilterUrl(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, !_lastSearchId), rpcFail(&OverviewInner::searchFailed));
+			int32 flags = (_history->peer->isChannel() && !_history->peer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
+			_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _history->peer->input, MTP_string(_searchQuery), MTP_inputMessagesFilterUrl(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, !_lastSearchId), rpcFail(&OverviewInner::searchFailed));
 			if (!_lastSearchId) {
 				_searchQueries.insert(_searchRequest, _searchQuery);
 			}
 		}
 	} else if (App::main()) {
-		App::main()->loadMediaBack(_hist->peer, _type, _type != OverviewLinks);
+		App::main()->loadMediaBack(_history->peer, _type, _type != OverviewLinks);
 	}
 }
 
 bool OverviewInner::preloadLocal() {
 	if (_type != OverviewLinks) return false;
-	if (_itemsToBeLoaded >= _hist->overview[_type].size()) return false;
+	if (_itemsToBeLoaded >= _history->overview[_type].size()) return false;
 	_itemsToBeLoaded += LinksOverviewPerPage;
 	mediaOverviewUpdated();
 	return true;
@@ -999,7 +1000,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	p.setClipRect(r);
 
-	if (_hist->overview[_type].isEmpty()) {
+	if (_history->overview[_type].isEmpty()) {
 		QPoint dogPos((_width - st::msgDogImg.pxWidth()) / 2, ((height() - st::msgDogImg.pxHeight()) * 4) / 9);
 		p.drawPixmap(dogPos, *cChatDogImage());
 		return;
@@ -1020,7 +1021,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 	bool hasSel = !_selected.isEmpty();
 
 	if (_type == OverviewPhotos) {
-		History::MediaOverview &overview(_hist->overview[_type]);
+		History::MediaOverview &overview(_history->overview[_type]);
 		int32 count = overview.size();
 		int32 rowFrom = floorclamp(r.y() - _addToY - st::overviewPhotoSkip, _vsize + st::overviewPhotoSkip, 0, count);
 		int32 rowTo = ceilclamp(r.y() + r.height() - _addToY - st::overviewPhotoSkip, _vsize + st::overviewPhotoSkip, 0, count);
@@ -1103,7 +1104,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 			}
 		}
 	} else if (_type == OverviewAudioDocuments) {
-		History::MediaOverview &overview(_hist->overview[_type]);
+		History::MediaOverview &overview(_history->overview[_type]);
 		int32 count = overview.size();
 		int32 from = floorclamp(r.y() - _addToY, _audioHeight, 0, count);
 		int32 to = ceilclamp(r.y() + r.height() - _addToY, _audioHeight, 0, count);
@@ -1308,7 +1309,7 @@ void OverviewInner::onUpdateSelected() {
 		if (row < 0) row = 0;
 		bool upon = true;
 
-		int32 i = row * _photosInRow + inRow - _photosToAdd, count = _hist->overview[_type].size();
+		int32 i = row * _photosInRow + inRow - _photosToAdd, count = _history->overview[_type].size();
 		if (i < 0) {
 			i = 0;
 			upon = false;
@@ -1318,7 +1319,7 @@ void OverviewInner::onUpdateSelected() {
 			upon = false;
 		}
 		if (i >= 0) {
-			MsgId msgid = _hist->overview[_type][i];
+			MsgId msgid = _history->overview[_type][i];
 			HistoryItem *histItem = App::histItemById(_channel, msgid);
 			if (histItem) {
 				item = histItem;
@@ -1334,7 +1335,7 @@ void OverviewInner::onUpdateSelected() {
 			}
 		}
 	} else if (_type == OverviewAudioDocuments) {
-		int32 i = int32((m.y() - _addToY) / _audioHeight), count = _hist->overview[_type].size();
+		int32 i = int32((m.y() - _addToY) / _audioHeight), count = _history->overview[_type].size();
 
 		bool upon = true;
 		if (m.y() < _addToY) {
@@ -1346,7 +1347,7 @@ void OverviewInner::onUpdateSelected() {
 			upon = false;
 		}
 		if (i >= 0) {
-			MsgId msgid = _hist->overview[_type][i];
+			MsgId msgid = _history->overview[_type][i];
 			HistoryItem *histItem = App::histItemById(_channel, msgid);
 			if (histItem) {
 				item = histItem;
@@ -2033,8 +2034,8 @@ bool OverviewInner::onSearchMessages(bool searchCache) {
 	} else if (_searchQuery != q) {
 		_searchQuery = q;
 		_searchFull = false;
-		int32 flags = (_hist->peer->isChannel() && !_hist->peer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
-		_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _hist->peer->input, MTP_string(_searchQuery), MTP_inputMessagesFilterUrl(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, true), rpcFail(&OverviewInner::searchFailed));
+		int32 flags = (_history->peer->isChannel() && !_history->peer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
+		_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _history->peer->input, MTP_string(_searchQuery), MTP_inputMessagesFilterUrl(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, true), rpcFail(&OverviewInner::searchFailed));
 		_searchQueries.insert(_searchRequest, _searchQuery);
 	}
 	return false;
@@ -2132,7 +2133,11 @@ void OverviewInner::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
 	for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
 		HistoryItem *item = App::histItemById(_channel, i.key());
 		if (item && item->toHistoryMessage() && item->id > 0) {
-			sel.insert(item->id, item);
+			if (item->history() == _migrated) {
+				sel.insert(item->id - ServerMaxMsgId, item);
+			} else {
+				sel.insert(item->id, item);
+			}
 		}
 	}
 }
@@ -2166,7 +2171,7 @@ void OverviewInner::onTouchScrollTimer() {
 void OverviewInner::mediaOverviewUpdated(bool fromResize) {
 	int32 oldHeight = _height;
 	if (_type == OverviewLinks) {
-		History::MediaOverview &o(_inSearch ? _searchResults : _hist->overview[_type]);
+		History::MediaOverview &o(_inSearch ? _searchResults : _history->overview[_type]);
 		int32 l = o.size(), tocheck = qMin(l, _itemsToBeLoaded);
 		_items.reserve(2 * l); // day items
 
@@ -2244,7 +2249,7 @@ void OverviewInner::mediaOverviewUpdated(bool fromResize) {
 		dragActionUpdate(QCursor::pos());
 		update();
 	} else if (_type != OverviewPhotos && _type != OverviewAudioDocuments) {
-		History::MediaOverview &o(_hist->overview[_type]);
+		History::MediaOverview &o(_history->overview[_type]);
 		int32 l = o.size();
 		_items.reserve(2 * l); // day items
 
@@ -2455,11 +2460,11 @@ void OverviewInner::itemResized(HistoryItem *item, bool scrollToIt) {
 }
 
 void OverviewInner::msgUpdated(const HistoryItem *msg) {
-	if (!msg || _hist != msg->history()) return;
+	if (!msg || _history != msg->history()) return;
 	MsgId msgid = msg->id;
-	if (_hist->overviewIds[_type].constFind(msgid) != _hist->overviewIds[_type].cend()) {
+	if (_history->overviewIds[_type].constFind(msgid) != _history->overviewIds[_type].cend()) {
 		if (_type == OverviewPhotos) {
-			int32 index = _hist->overview[_type].indexOf(msgid);
+			int32 index = _history->overview[_type].indexOf(msgid);
 			if (index >= 0) {
 				float64 w = (float64(width() - st::overviewPhotoSkip) / _photosInRow);
 				int32 vsize = (_vsize + st::overviewPhotoSkip);
@@ -2467,7 +2472,7 @@ void OverviewInner::msgUpdated(const HistoryItem *msg) {
 				update(int32(col * w), _addToY + int32(row * vsize), qCeil(w), vsize);
 			}
 		} else if (_type == OverviewAudioDocuments) {
-			int32 index = _hist->overview[_type].indexOf(msgid);
+			int32 index = _history->overview[_type].indexOf(msgid);
 			if (index >= 0) {
 				update(_audioLeft, _addToY + int32(index * _audioHeight), _audioWidth, _audioHeight);
 			}
@@ -2494,7 +2499,7 @@ void OverviewInner::showAll(bool recountHeights) {
 	if (_type == OverviewPhotos) {
 		_photosInRow = int32(width() - st::overviewPhotoSkip) / int32(st::overviewPhotoMinSize + st::overviewPhotoSkip);
 		_vsize = (int32(width() - st::overviewPhotoSkip) / _photosInRow) - st::overviewPhotoSkip;
-		int32 count = _hist->overview[_type].size(), fullCount = _hist->overviewCount[_type];
+		int32 count = _history->overview[_type].size(), fullCount = _history->overviewCount[_type];
 		if (fullCount > 0) {
 			int32 cnt = count - (fullCount % _photosInRow);
 			if (cnt < 0) cnt += _photosInRow;
@@ -2506,7 +2511,7 @@ void OverviewInner::showAll(bool recountHeights) {
 		newHeight = _height = (_vsize + st::overviewPhotoSkip) * rows + st::overviewPhotoSkip;
 		_addToY = (_height < _minHeight) ? (_minHeight - _height) : 0;
 	} else if (_type == OverviewAudioDocuments) {
-		int32 count = _hist->overview[_type].size(), fullCount = _hist->overviewCount[_type];
+		int32 count = _history->overview[_type].size(), fullCount = _history->overviewCount[_type];
 		newHeight = _height = count * _audioHeight + 2 * st::playlistPadding;
 		_addToY = st::playlistPadding;
 	} else if (_type == OverviewLinks) {
@@ -2869,8 +2874,8 @@ void OverviewWidget::changingMsgId(HistoryItem *row, MsgId newId) {
 	}
 }
 
-void OverviewWidget::msgUpdated(PeerId p, const HistoryItem *msg) {
-	if (peer()->id == p) {
+void OverviewWidget::msgUpdated(const HistoryItem *msg) {
+	if (peer() == msg->history()->peer) {
 		_inner.msgUpdated(msg);
 	}
 }
@@ -2983,10 +2988,10 @@ void OverviewWidget::onDeleteSelectedSure() {
 	_inner.fillSelectedItems(sel);
 	if (sel.isEmpty()) return;
 
-	QVector<MTPint> ids;
+	QMap<PeerData*, QVector<MTPint> > ids;
 	for (SelectedItemSet::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
 		if (i.value()->id > 0) {
-			ids.push_back(MTP_int(i.value()->id));
+			ids[i.value()->history()->peer].push_back(MTP_int(i.value()->id));
 		}
 	}
 
@@ -2999,8 +3004,8 @@ void OverviewWidget::onDeleteSelectedSure() {
 	}
 	App::wnd()->hideLayer();
 
-	if (!ids.isEmpty()) {
-		App::main()->deleteMessages(peer(), ids);
+	for (QMap<PeerData*, QVector<MTPint> >::const_iterator i = ids.cbegin(), e = ids.cend(); i != e; ++i) {
+		App::main()->deleteMessages(i.key(), i.value());
 	}
 }
 
@@ -3018,7 +3023,7 @@ void OverviewWidget::onDeleteContextSure() {
 		App::main()->checkPeerHistory(h->peer);
 	}
 
-	if (App::main() && App::main()->peer() == peer()) {
+	if (App::main() && (App::main()->peer() == h->peer || (App::main()->peer() && App::main()->peer() == h->peer->migrateTo()))) {
 		App::main()->itemResized(0);
 	}
 	App::wnd()->hideLayer();

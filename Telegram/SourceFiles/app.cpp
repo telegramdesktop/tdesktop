@@ -185,11 +185,6 @@ namespace App {
 		return main() ? main()->api() : 0;
 	}
 
-	void showSettings() {
-		Window *w(wnd());
-		if (w) w->showSettings();
-	}
-
 	bool loggedOut() {
 		Window *w(wnd());
 		if (cHasPasscode()) {
@@ -503,6 +498,36 @@ namespace App {
 				cdata->setPhoto(d.vphoto);
 				cdata->date = d.vdate.v;
 
+				if (d.has_migrated_to() && d.vmigrated_to.type() == mtpc_inputChannel) {
+					const MTPDinputChannel &c(d.vmigrated_to.c_inputChannel());
+					ChannelData *channel = App::channel(peerFromChannel(c.vchannel_id));
+					if (!channel->mgInfo) {
+						channel->flags |= MTPDchannel::flag_megagroup;
+						channel->flagsUpdated();
+					}
+					if (!channel->access) {
+						channel->input = MTP_inputPeerChannel(c.vchannel_id, c.vaccess_hash);
+						channel->inputChannel = d.vmigrated_to;
+						channel->access = d.vmigrated_to.c_inputChannel().vaccess_hash.v;
+					}
+					if (cdata->migrateToPtr != channel) {
+						cdata->migrateToPtr = channel;
+					}
+					if (channel->mgInfo->migrateFromPtr != cdata) {
+						channel->mgInfo->migrateFromPtr = cdata;
+						if (History *h = App::historyLoaded(cdata->id)) {
+							if (History *hto = App::historyLoaded(channel->id)) {
+								if (!h->isEmpty()) {
+									h->clear(true);
+								}
+								if (!hto->dialogs.isEmpty() && !h->dialogs.isEmpty()) {
+									App::removeDialog(h);
+								}
+							}
+						}
+					}
+				}
+
 				if (!(cdata->flags & MTPDchat::flag_admins_enabled) && (d.vflags.v & MTPDchat::flag_admins_enabled)) {
 					cdata->invalidateParticipants();
 				}
@@ -549,21 +574,7 @@ namespace App {
 				cdata->date = d.vdate.v;
 				cdata->flags = d.vflags.v;
 				cdata->isForbidden = false;
-				if (cdata->isMegagroup()) {
-					if (!cdata->mgInfo) {
-						cdata->mgInfo = new MegagroupInfo();
-					}
-					if (History *h = App::historyLoaded(cdata->id)) {
-						if (h->asChannelHistory()->onlyImportant()) {
-							MsgId fixInScrollMsgId = 0;
-							int32 fixInScrollMsgTop = 0;
-							h->asChannelHistory()->getSwitchReadyFor(SwitchAtTopMsgId, fixInScrollMsgId, fixInScrollMsgTop);
-						}
-					}
-				} else if (cdata->mgInfo) {
-					delete cdata->mgInfo;
-					cdata->mgInfo = 0;
-				}
+				cdata->flagsUpdated();
 				if (cdata->version < d.vversion.v) {
 					cdata->version = d.vversion.v;
 				}
@@ -1025,7 +1036,7 @@ namespace App {
 			MsgsData::const_iterator j = data->constFind(i->v);
 			if (j != data->cend()) {
 				History *h = (*j)->history();
-				if (App::main() && h->peer == App::main()->peer() && !(*j)->detached()) {
+				if (App::main() && (h->peer == App::main()->peer() || (App::main()->peer() && h->peer->migrateTo() == App::main()->peer())) && !(*j)->detached()) {
 					resized = true;
 				}
 				(*j)->destroy();
@@ -2533,48 +2544,6 @@ namespace App {
 		}
 	}	
 
-	void sendBotCommand(const QString &cmd, MsgId replyTo) {
-		if (App::main()) {
-			App::main()->sendBotCommand(cmd, replyTo);
-		}
-	}
-
-	void insertBotCommand(const QString &cmd) {
-		if (App::main()) {
-			App::main()->insertBotCommand(cmd);
-		}
-	}
-
-	void searchByHashtag(const QString &tag, PeerData *inPeer) {
-		if (App::main()) {
-			App::main()->searchMessages(tag + ' ', (inPeer && inPeer->isChannel()) ? inPeer : 0);
-		}
-	}
-
-	void openPeerByName(const QString &username, bool toProfile, const QString &startToken) {
-		if (App::main()) {
-			App::main()->openPeerByName(username, toProfile, startToken);
-		}
-	}
-
-	void joinGroupByHash(const QString &hash) {
-		if (App::main()) {
-			App::main()->joinGroupByHash(hash);
-		}
-	}
-
-	void stickersBox(const QString &name) {
-		if (App::main()) {
-			App::main()->stickersBox(MTP_inputStickerSetShortName(MTP_string(name)));
-		}
-	}
-
-	void openLocalUrl(const QString &url) {
-		if (App::main()) {
-			App::main()->openLocalUrl(url);
-		}
-	}
-
 	QImage **cornersMask() {
 		return ::cornersMask;
 	}
@@ -2820,5 +2789,58 @@ namespace App {
 	}
 
 	WallPapers gServerBackgrounds;
+
+	void sendBotCommand(const QString &cmd, MsgId replyTo) {
+		if (MainWidget *m = main()) m->sendBotCommand(cmd, replyTo);
+	}
+
+	void insertBotCommand(const QString &cmd) {
+		if (MainWidget *m = main()) m->insertBotCommand(cmd);
+	}
+
+	void searchByHashtag(const QString &tag, PeerData *inPeer) {
+		if (MainWidget *m = main()) m->searchMessages(tag + ' ', (inPeer && inPeer->isChannel()) ? inPeer : 0);
+	}
+
+	void openPeerByName(const QString &username, bool toProfile, const QString &startToken) {
+		if (MainWidget *m = main()) m->openPeerByName(username, toProfile, startToken);
+	}
+
+	void joinGroupByHash(const QString &hash) {
+		if (MainWidget *m = main()) m->joinGroupByHash(hash);
+	}
+
+	void stickersBox(const QString &name) {
+		if (MainWidget *m = main()) m->stickersBox(MTP_inputStickerSetShortName(MTP_string(name)));
+	}
+
+	void openLocalUrl(const QString &url) {
+		if (MainWidget *m = main()) m->openLocalUrl(url);
+	}
+
+	bool forward(const PeerId &peer, ForwardWhatMessages what) {
+		if (MainWidget *m = main()) return m->onForward(peer, what);
+		return false;
+	}
+
+	void removeDialog(History *history) {
+		if (MainWidget *m = main()) m->removeDialog(history);
+	}
+
+	void showSettings() {
+		if (Window *win = wnd()) win->showSettings();
+	}
+
+	void showLayer(LayeredWidget *w, bool forceFast) {
+		if (Window *win = wnd()) win->showLayer(w, forceFast);
+	}
+
+	void replaceLayer(LayeredWidget *w) {
+		if (Window *win = wnd()) win->replaceLayer(w);
+	}
+
+	void showLayerLast(LayeredWidget *w) {
+		if (Window *win = wnd()) win->showLayerLast(w);
+	}
 
 }

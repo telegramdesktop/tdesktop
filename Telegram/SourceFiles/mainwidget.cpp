@@ -498,7 +498,7 @@ bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
 		} else if (what == ForwardPressedLinkMessage) {
 			item = App::pressedLinkItem();
 		}
-		if (dynamic_cast<HistoryMessage*>(item) && item->id > 0) {
+		if (item && item->toHistoryMessage() && item->id > 0) {
 			_toForward.insert(item->id, item);
 		}
 	}
@@ -604,8 +604,10 @@ void MainWidget::finishForwarding(History *hist, bool broadcast) {
 	bool fromChannelName = hist->peer->isChannel() && !hist->peer->isMegagroup() && hist->peer->asChannel()->canPublish() && (hist->peer->asChannel()->isBroadcast() || broadcast);
 	if (!_toForward.isEmpty()) {
 		bool genClientSideMessage = (_toForward.size() < 2);
-		PeerData *forwardFrom = _toForward.cbegin().value()->history()->peer;
+		PeerData *forwardFrom = 0;
 		App::main()->readServerHistory(hist, false);
+
+		int32 flags = fromChannelName ? MTPmessages_ForwardMessages::flag_broadcast : 0;
 
 		QVector<MTPint> ids;
 		QVector<MTPlong> randomIds;
@@ -622,13 +624,22 @@ void MainWidget::finishForwarding(History *hist, bool broadcast) {
 				}
 				App::historyRegRandom(randomId, newId);
 			}
-			ids.push_back(MTP_int(i.key()));
+			if (forwardFrom != i.value()->history()->peer) {
+				if (forwardFrom) {
+					hist->sendRequestId = MTP::send(MTPmessages_ForwardMessages(MTP_int(flags), forwardFrom->input, MTP_vector<MTPint>(ids), MTP_vector<MTPlong>(randomIds), hist->peer->input), rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+					ids.resize(0);
+					randomIds.resize(0);
+				}
+				forwardFrom = i.value()->history()->peer;
+			}
+			ids.push_back(MTP_int(i.value()->id));
 			randomIds.push_back(MTP_long(randomId));
 		}
-		int32 flags = fromChannelName ? MTPmessages_ForwardMessages::flag_broadcast : 0;
 		hist->sendRequestId = MTP::send(MTPmessages_ForwardMessages(MTP_int(flags), forwardFrom->input, MTP_vector<MTPint>(ids), MTP_vector<MTPlong>(randomIds), hist->peer->input), rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 
-		if (history.peer() == hist->peer) history.peerMessagesUpdated();
+		if (history.peer() == hist->peer) {
+			history.peerMessagesUpdated();
+		}
 
 		cancelForwarding();
 	}
@@ -894,12 +905,16 @@ void MainWidget::deletedContact(UserData *user, const MTPcontacts_Link &result) 
 	App::emitPeerUpdated();
 }
 
+void MainWidget::removeDialog(History *history) {
+	dialogs.removeDialog(history);
+}
+
 void MainWidget::deleteConversation(PeerData *peer, bool deleteHistory) {
 	if (activePeer() == peer) {
 		showDialogs();
 	}
-	dialogs.removePeer(peer);
 	if (History *h = App::historyLoaded(peer->id)) {
+		removeDialog(h);
 		h->clear();
 		h->newLoaded = true;
 		h->oldLoaded = deleteHistory;
@@ -1250,8 +1265,8 @@ void MainWidget::readServerHistory(History *hist, bool force) {
 	}
 }
 
-uint64 MainWidget::animActiveTime(MsgId id) const {
-	return history.animActiveTime(id);
+uint64 MainWidget::animActiveTime(const HistoryItem *msg) const {
+	return history.animActiveTime(msg);
 }
 
 void MainWidget::stopAnimActive() {
@@ -1406,18 +1421,24 @@ void MainWidget::changingMsgId(HistoryItem *row, MsgId newId) {
 void MainWidget::itemRemoved(HistoryItem *item) {
 	api()->itemRemoved(item);
 	dialogs.itemRemoved(item);
-	if (history.peer() == item->history()->peer) {
+	if (history.peer() == item->history()->peer || (history.peer() && history.peer() == item->history()->peer->migrateTo())) {
 		history.itemRemoved(item);
 	}
-	if (overview && overview->peer() == item->history()->peer) {
+	if (overview && (overview->peer() == item->history()->peer || (overview->peer() && overview->peer() == item->history()->peer->migrateTo()))) {
 		overview->itemRemoved(item);
 	}
 	itemRemovedGif(item);
 	if (!_toForward.isEmpty()) {
 		SelectedItemSet::iterator i = _toForward.find(item->id);
-		if (i != _toForward.end()) {
+		if (i != _toForward.cend() && i.value() == item) {
 			_toForward.erase(i);
 			updateForwardingTexts();
+		} else {
+			i = _toForward.find(item->id - ServerMaxMsgId);
+			if (i != _toForward.cend() && i.value() == item) {
+				_toForward.erase(i);
+				updateForwardingTexts();
+			}
 		}
 	}
 }
@@ -1425,31 +1446,36 @@ void MainWidget::itemRemoved(HistoryItem *item) {
 void MainWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
 	api()->itemReplaced(oldItem, newItem);
 	dialogs.itemReplaced(oldItem, newItem);
-	if (history.peer() == newItem->history()->peer) {
+	if (history.peer() == newItem->history()->peer || (history.peer() && history.peer() == newItem->history()->peer->migrateTo())) {
 		history.itemReplaced(oldItem, newItem);
 	}
 	itemReplacedGif(oldItem, newItem);
 	if (!_toForward.isEmpty()) {
 		SelectedItemSet::iterator i = _toForward.find(oldItem->id);
-		if (i != _toForward.end()) {
+		if (i != _toForward.cend() && i.value() == oldItem) {
 			i.value() = newItem;
+		} else {
+			i = _toForward.find(oldItem->id - ServerMaxMsgId);
+			if (i != _toForward.cend() && i.value() == oldItem) {
+				i.value() = newItem;
+			}
 		}
 	}
 }
 
 void MainWidget::itemResized(HistoryItem *row, bool scrollToIt) {
-	if (!row || (history.peer() == row->history()->peer && !row->detached())) {
+	if (!row || ((history.peer() == row->history()->peer || (history.peer() && history.peer() == row->history()->peer->migrateTo())) && !row->detached())) {
 		history.itemResized(row, scrollToIt);
 	} else if (row) {
 		row->history()->width = 0;
-		if (history.peer() == row->history()->peer) {
+		if (history.peer() == row->history()->peer || (history.peer() && history.peer() == row->history()->peer->migrateTo())) {
 			history.resizeEvent(0);
 		}
 	}
 	if (overview) {
 		overview->itemResized(row, scrollToIt);
 	}
-	if (row) msgUpdated(row->history()->peer->id, row);
+	if (row) msgUpdated(row);
 }
 
 bool MainWidget::overviewFailed(PeerData *peer, const RPCError &error, mtpRequestId req) {
@@ -1660,7 +1686,7 @@ void MainWidget::videoLoadProgress(mtpFileLoader *loader) {
 	VideoItems::const_iterator i = items.constFind(video);
 	if (i != items.cend()) {
 		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			msgUpdated(j.key()->history()->peer->id, j.key());
+			msgUpdated(j.key());
 		}
 	}
 }
@@ -1723,7 +1749,7 @@ void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 	AudioItems::const_iterator i = items.constFind(audio);
 	if (i != items.cend()) {
 		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			msgUpdated(j.key()->history()->peer->id, j.key());
+			msgUpdated(j.key());
 		}
 	}
 }
@@ -1758,7 +1784,7 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 	}
 
 	if (HistoryItem *item = App::histItemById(audioId.msgId)) {
-		msgUpdated(item->history()->peer->id, item);
+		msgUpdated(item);
 	}
 }
 
@@ -1819,7 +1845,7 @@ void MainWidget::documentPlayProgress(const SongMsgId &songId) {
 	}
 
 	if (HistoryItem *item = App::histItemById(songId.msgId)) {
-		msgUpdated(item->history()->peer->id, item);
+		msgUpdated(item);
 	}
 }
 
@@ -1899,7 +1925,7 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 	DocumentItems::const_iterator i = items.constFind(document);
 	if (i != items.cend()) {
 		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			msgUpdated(j.key()->history()->peer->id, j.key());
+			msgUpdated(j.key());
 		}
 	}
 	App::wnd()->documentUpdated(document);
@@ -2287,6 +2313,12 @@ void MainWidget::ctrlEnterSubmitUpdated() {
 }
 
 void MainWidget::showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) {
+	if (PeerData *peer = App::peerLoaded(peerId)) {
+		if (peer->migrateTo()) {
+			peerId = peer->migrateTo()->id;
+			if (showAtMsgId > 0) showAtMsgId = -showAtMsgId;
+		}
+	}
 	if (!back && (!peerId || (_stack.size() == 1 && _stack[0]->type() == HistoryStackItem && _stack[0]->peer->id == peerId))) {
 		back = true;
 	}
@@ -2432,6 +2464,10 @@ bool MainWidget::mediaTypeSwitch() {
 }
 
 void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool back, int32 lastScrollTop) {
+	if (peer->migrateTo()) {
+		peer = peer->migrateTo();
+	}
+
 	App::wnd()->hideSettings();
 	if (overview && overview->peer() == peer) {
 		if (overview->type() != type) {
@@ -2497,6 +2533,10 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 }
 
 void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop) {
+	if (peer->migrateTo()) {
+		peer = peer->migrateTo();
+	}
+
 	App::wnd()->hideSettings();
 	if (profile && profile->peer() == peer) return;
 
@@ -2601,7 +2641,11 @@ void MainWidget::dlgUpdated(DialogRow *row) {
 
 void MainWidget::dlgUpdated(History *row, MsgId msgId) {
 	if (!row) return;
-	dialogs.dlgUpdated(row, msgId);
+	if (msgId < 0 && -msgId < ServerMaxMsgId && row->peer->migrateFrom()) {
+		dialogs.dlgUpdated(App::history(row->peer->migrateFrom()->id), -msgId);
+	} else {
+		dialogs.dlgUpdated(row, msgId);
+	}
 }
 
 void MainWidget::windowShown() {
@@ -2624,11 +2668,13 @@ void MainWidget::onActiveChannelUpdateFull() {
 	}
 }
 
-void MainWidget::msgUpdated(PeerId peer, const HistoryItem *msg) {
+void MainWidget::msgUpdated(const HistoryItem *msg) {
 	if (!msg) return;
-	history.msgUpdated(peer, msg);
-	if (!msg->history()->dialogs.isEmpty() && msg->history()->lastMsg == msg) dialogs.dlgUpdated(msg->history()->dialogs[0]);
-	if (overview) overview->msgUpdated(peer, msg);
+	history.msgUpdated(msg);
+	if (!msg->history()->dialogs.isEmpty() && msg->history()->lastMsg == msg) {
+		dialogs.dlgUpdated(msg->history()->dialogs[0]);
+	}
+	if (overview) overview->msgUpdated(msg);
 }
 
 void MainWidget::historyToDown(History *hist) {
@@ -2929,6 +2975,7 @@ void MainWidget::onHistoryShown(History *history, MsgId atMsgId) {
 	if (_a_show.animating()) {
 		_topBar.hide();
 	}
+
 	dlgUpdated(history, atMsgId);
 }
 
@@ -4234,7 +4281,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					msgRow->history()->unregTyping(App::self());
 				}
 				if (!App::historyRegItem(msgRow)) {
-					msgUpdated(h->peer->id, msgRow);
+					msgUpdated(msgRow);
 				} else {
 					bool wasLast = (h->lastMsg == msgRow);
 					msgRow->destroy();
@@ -4262,7 +4309,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			if (HistoryItem *item = App::histItemById(NoChannel, v.at(i).v)) {
 				if (item->isMediaUnread()) {
 					item->markMediaRead();
-					msgUpdated(item->history()->peer->id, item);
+					msgUpdated(item);
 					if (item->out() && item->history()->peer->isUser()) {
 						item->history()->peer->asUser()->madeAction();
 					}
@@ -4525,7 +4572,6 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		const MTPDupdateServiceNotification &d(update.c_updateServiceNotification());
 		if (mtpIsTrue(d.vpopup)) {
 			App::wnd()->showLayer(new InformBox(qs(d.vmessage)));
-			App::wnd()->serviceNotification(qs(d.vmessage), d.vmedia);
 		} else {
 			App::wnd()->serviceNotification(qs(d.vmessage), d.vmedia);
 		}

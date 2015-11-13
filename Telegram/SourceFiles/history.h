@@ -193,6 +193,7 @@ public:
 		return blocks.isEmpty();
 	}
 	void clear(bool leaveItems = false);
+	void clearUpto(MsgId msgId);
 	void blockResized(HistoryBlock *block, int32 dh);
 	void removeBlock(HistoryBlock *block);
 
@@ -834,8 +835,14 @@ public:
 		return _flags & MTPDmessage::flag_out;
 	}
 	bool unread() const {
-		if ((out() && (id > 0 && id < _history->outboxReadBefore)) || (!out() && id > 0 && id < _history->inboxReadBefore)) return false;
-		return (id > 0 && !out() && channelId() != NoChannel) ? true : (history()->peer->isSelf() ? false : (_flags & MTPDmessage::flag_unread));
+		if (out() && id > 0 && id < _history->outboxReadBefore) return false;
+		if (!out() && id > 0) {
+			if (id < _history->inboxReadBefore) return false;
+			if (channelId() != NoChannel) return true; // no unread flag for incoming messages in channels
+		}
+		if (history()->peer->isSelf()) return false; // messages from myself are always read
+		if (out() && history()->peer->migrateTo()) return false; // outgoing messages in converted chats are always read
+		return (_flags & MTPDmessage::flag_unread);
 	}
 	bool mentionsMe() const {
 		return _flags & MTPDmessage::flag_mentioned;
@@ -851,6 +858,9 @@ public:
 	}
 	bool hasTextLinks() const {
 		return _flags & MTPDmessage_flag_HAS_TEXT_LINKS;
+	}
+	bool isGroupMigrate() const {
+		return _flags & MTPDmessage_flag_IS_GROUP_MIGRATE;
 	}
 	bool hasViews() const {
 		return _flags & MTPDmessage::flag_views;
@@ -917,7 +927,7 @@ public:
 
 	bool canDelete() const {
 		ChannelData *channel = _history->peer->asChannel();
-		if (!channel) return true;
+		if (!channel) return !(_flags & MTPDmessage_flag_IS_GROUP_MIGRATE);
 
 		if (id == 1) return false;
 		if (channel->amCreator()) return true;

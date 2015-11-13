@@ -61,7 +61,7 @@ public:
 	void moveDialogToTop(const History::DialogLinks &links);
 	void dlgUpdated(DialogRow *row);
 	void dlgUpdated(History *row, MsgId msgId);
-	void removePeer(PeerData *peer);
+	void removeDialog(History *history);
 	void removeContact(UserData *user);
 
 	void loadPeerPhotos(int32 yFrom);
@@ -216,7 +216,7 @@ public:
 	void peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const;
 	void scrollToPeer(const PeerId &peer, MsgId msgId);
 
-	void removePeer(PeerData *peer);
+	void removeDialog(History *history);
 	void removeContact(UserData *user);
 
 	DialogsIndexed &contactsList();

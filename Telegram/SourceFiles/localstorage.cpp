@@ -2126,7 +2126,7 @@ namespace Local {
 	void writeDraftPositions(const PeerId &peer, const MessageCursor &cur) {
 		if (!_working()) return;
 
-		if (cur.position == 0 && cur.anchor == 0 && cur.scroll == 0) {
+		if (cur.position == 0 && cur.anchor == 0 && cur.scroll == QFIXED_MAX) {
 			DraftsMap::iterator i = _draftsPositionsMap.find(peer);
 			if (i != _draftsPositionsMap.cend()) {
 				clearKey(i.value());

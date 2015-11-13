@@ -1664,7 +1664,7 @@ void _serialize_messageActionChatAddUser(MTPStringLogger &to, int32 stage, int32
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
-	case 0: to.add("  user_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 0: to.add("  users: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_int); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -1719,14 +1719,6 @@ void _serialize_messageActionChatMigrateTo(MTPStringLogger &to, int32 stage, int
 	case 0: to.add("  channel_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
-}
-
-void _serialize_messageActionChatDeactivate(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
-	to.add("{ messageActionChatDeactivate }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
-}
-
-void _serialize_messageActionChatActivate(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
-	to.add("{ messageActionChatActivate }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
 }
 
 void _serialize_messageActionChannelMigrateFrom(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
@@ -6135,6 +6127,23 @@ void _serialize_messages_search(MTPStringLogger &to, int32 stage, int32 lev, Typ
 	}
 }
 
+void _serialize_messages_searchGlobal(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ messages_searchGlobal");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  q: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  offset_date: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 2: to.add("  offset_peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 3: to.add("  offset_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 4: to.add("  limit: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
 void _serialize_channels_getImportantHistory(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
@@ -6472,7 +6481,7 @@ void _serialize_messages_startBot(MTPStringLogger &to, int32 stage, int32 lev, T
 	}
 	switch (stage) {
 	case 0: to.add("  bot: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  chat_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 2: to.add("  random_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 3: to.add("  start_param: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
@@ -6484,20 +6493,6 @@ void _serialize_messages_toggleChatAdmins(MTPStringLogger &to, int32 stage, int3
 		to.add(",\n").addSpaces(lev);
 	} else {
 		to.add("{ messages_toggleChatAdmins");
-		to.add("\n").addSpaces(lev);
-	}
-	switch (stage) {
-	case 0: to.add("  chat_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  enabled: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-	}
-}
-
-void _serialize_messages_deactivateChat(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
-	if (stage) {
-		to.add(",\n").addSpaces(lev);
-	} else {
-		to.add("{ messages_deactivateChat");
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
@@ -7277,8 +7272,6 @@ namespace {
 		_serializers.insert(mtpc_messageActionChatJoinedByLink, _serialize_messageActionChatJoinedByLink);
 		_serializers.insert(mtpc_messageActionChannelCreate, _serialize_messageActionChannelCreate);
 		_serializers.insert(mtpc_messageActionChatMigrateTo, _serialize_messageActionChatMigrateTo);
-		_serializers.insert(mtpc_messageActionChatDeactivate, _serialize_messageActionChatDeactivate);
-		_serializers.insert(mtpc_messageActionChatActivate, _serialize_messageActionChatActivate);
 		_serializers.insert(mtpc_messageActionChannelMigrateFrom, _serialize_messageActionChannelMigrateFrom);
 		_serializers.insert(mtpc_dialog, _serialize_dialog);
 		_serializers.insert(mtpc_dialogChannel, _serialize_dialogChannel);
@@ -7630,6 +7623,7 @@ namespace {
 		_serializers.insert(mtpc_messages_getMessages, _serialize_messages_getMessages);
 		_serializers.insert(mtpc_messages_getHistory, _serialize_messages_getHistory);
 		_serializers.insert(mtpc_messages_search, _serialize_messages_search);
+		_serializers.insert(mtpc_messages_searchGlobal, _serialize_messages_searchGlobal);
 		_serializers.insert(mtpc_channels_getImportantHistory, _serialize_channels_getImportantHistory);
 		_serializers.insert(mtpc_channels_getMessages, _serialize_channels_getMessages);
 		_serializers.insert(mtpc_messages_getDialogs, _serialize_messages_getDialogs);
@@ -7654,7 +7648,6 @@ namespace {
 		_serializers.insert(mtpc_messages_importChatInvite, _serialize_messages_importChatInvite);
 		_serializers.insert(mtpc_messages_startBot, _serialize_messages_startBot);
 		_serializers.insert(mtpc_messages_toggleChatAdmins, _serialize_messages_toggleChatAdmins);
-		_serializers.insert(mtpc_messages_deactivateChat, _serialize_messages_deactivateChat);
 		_serializers.insert(mtpc_messages_migrateChat, _serialize_messages_migrateChat);
 		_serializers.insert(mtpc_channels_createChannel, _serialize_channels_createChannel);
 		_serializers.insert(mtpc_channels_editTitle, _serialize_channels_editTitle);

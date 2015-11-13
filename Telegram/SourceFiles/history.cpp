@@ -239,6 +239,11 @@ void DialogRow::paint(Painter &p, int32 w, bool act, bool sel, bool onlyBackgrou
 
 		// draw unread
 		int32 lastWidth = namewidth, unread = history->unreadCount;
+		if (history->peer->migrateFrom()) {
+			if (History *h = App::historyLoaded(history->peer->migrateFrom()->id)) {
+				unread += h->unreadCount;
+			}
+		}
 		if (unread) {
 			QString unreadStr = QString::number(unread);
 			int32 unreadWidth = st::dlgUnreadFont->width(unreadStr);
@@ -322,7 +327,7 @@ void FakeDialogRow::paint(Painter &p, int32 w, bool act, bool sel, bool onlyBack
 	}
 
 	// draw unread
-	int32 lastWidth = namewidth, unread = history->unreadCount;
+	int32 lastWidth = namewidth;
 	_item->drawInDialog(p, QRect(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, lastWidth, st::dlgFont->height), act, _cacheFor, _cache);
 
 	p.setPen((act ? st::dlgActiveColor : st::dlgNameColor)->p);
@@ -684,7 +689,7 @@ void ChannelHistory::addNewGroup(const MTPMessageGroup &group) {
 }
 
 HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
-	if (_joinedMessage || !peer->asChannel()->amIn() || (peer->asChannel()->mgInfo && peer->asChannel()->mgInfo->migrateFrom)) {
+	if (_joinedMessage || !peer->asChannel()->amIn() || peer->asChannel()->migrateFrom()) {
 		return _joinedMessage;
 	}
 
@@ -811,7 +816,7 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 }
 
 void ChannelHistory::checkJoinedMessage(bool createUnread) {
-	if (_joinedMessage || peer->asChannel()->inviter <= 0 || (peer->asChannel()->mgInfo && peer->asChannel()->mgInfo->migrateFrom)) {
+	if (_joinedMessage || peer->asChannel()->inviter <= 0 || peer->asChannel()->migrateFrom()) {
 		return;
 	}
 	if (isEmpty()) {
@@ -1529,14 +1534,6 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 				if (chat) chat->updateName(qs(d.vtitle), QString(), QString());
 			} break;
 
-			case mtpc_messageActionChatDeactivate: {
-				peer->asChat()->flags |= MTPDchat::flag_deactivated;
-			} break;
-
-			case mtpc_messageActionChatActivate: {
-				peer->asChat()->flags &= ~MTPDchat::flag_deactivated;
-			} break;
-
 			case mtpc_messageActionChatMigrateTo: {
 				peer->asChat()->flags |= MTPDchat::flag_deactivated;
 
@@ -1592,7 +1589,7 @@ HistoryItem *History::addNewMessage(const MTPMessage &msg, NewMessageType type) 
 	if (isChannel()) return asChannelHistory()->addNewChannelMessage(msg, type);
 
 	if (type == NewMessageExisting) return addToHistory(msg);
-	if (!loadedAtBottom()) {
+	if (!loadedAtBottom() || peer->migrateTo()) {
 		HistoryItem *item = addToHistory(msg);
 		if (item) {
 			setLastMessage(item);
@@ -1814,7 +1811,7 @@ void History::newItemAdded(HistoryItem *item) {
 			notifies.push_back(item);
 			App::main()->newUnreadMsg(this, item);
 		}
-	} else {
+	} else if (!item->isGroupMigrate() || !peer->isMegagroup()) {
 		inboxRead(item);
 	}
 }
@@ -2217,7 +2214,18 @@ MsgId History::inboxRead(MsgId upTo) {
 	if (!upTo) upTo = msgIdForRead();
 	inboxReadBefore = qMax(inboxReadBefore, upTo + 1);
 
-	if (!dialogs.isEmpty() && App::main()) App::main()->dlgUpdated(dialogs[0]);
+	if (App::main()) {
+		if (!dialogs.isEmpty()) {
+			App::main()->dlgUpdated(dialogs[0]);
+		}
+		if (peer->migrateTo()) {
+			if (History *h = App::historyLoaded(peer->migrateTo()->id)) {
+				if (!h->dialogs.isEmpty()) {
+					App::main()->dlgUpdated(h->dialogs[0]);
+				}
+			}
+		}
+	}
 
 	showFrom = 0;
 	App::wnd()->notifyClear(this);
@@ -2270,7 +2278,15 @@ void History::setUnreadCount(int32 newUnreadCount, bool psUpdate) {
 		if (mute) App::histories().unreadMuted += newUnreadCount - unreadCount;
 		unreadCount = newUnreadCount;
 		if (psUpdate && (!mute || cIncludeMuted())) App::wnd()->updateCounter();
-		if (unreadBar) unreadBar->setCount(unreadCount);
+		if (unreadBar) {
+			int32 count = unreadCount;
+			if (peer->migrateTo()) {
+				if (History *h = App::historyLoaded(peer->migrateTo()->id)) {
+					count += h->unreadCount;
+				}
+			}
+			unreadBar->setCount(count);
+		}
 	}
 }
 
@@ -2312,8 +2328,14 @@ void History::getNextShowFrom(HistoryBlock *block, int32 i) {
 void History::addUnreadBar() {
 	if (unreadBar || !showFrom || showFrom->detached() || !unreadCount) return;
 	
+	int32 count = unreadCount;
+	if (peer->migrateTo()) {
+		if (History *h = App::historyLoaded(peer->migrateTo()->id)) {
+			count += h->unreadCount;
+		}
+	}
 	HistoryBlock *block = showFrom->block();
-	unreadBar = new HistoryUnreadBar(this, block, unreadCount, showFrom->date);
+	unreadBar = new HistoryUnreadBar(this, block, count, showFrom->date);
 	if (!addNewInTheMiddle(unreadBar, blocks.indexOf(block), block->items.indexOf(showFrom))) {
 		unreadBar = 0;
 	}
@@ -2359,6 +2381,10 @@ bool History::loadedAtTop() const {
 }
 
 bool History::isReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop) {
+	if (msgId < 0 && -msgId < ServerMaxMsgId && peer->migrateFrom()) { // old group history
+		return App::history(peer->migrateFrom()->id)->isReadyFor(-msgId, fixInScrollMsgId, fixInScrollMsgTop);
+	}
+
 	if (msgId != ShowAtTheEndMsgId && msgId != ShowAtUnreadMsgId && isChannel()) {
 		return asChannelHistory()->isSwitchReadyFor(msgId, fixInScrollMsgId, fixInScrollMsgTop);
 	}
@@ -2368,6 +2394,13 @@ bool History::isReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScrol
 		return loadedAtBottom();
 	}
 	if (msgId == ShowAtUnreadMsgId) {
+		if (peer->migrateFrom()) { // old group history
+			if (History *h = App::historyLoaded(peer->migrateFrom()->id)) {
+				if (h->unreadCount) {
+					return h->isReadyFor(msgId, fixInScrollMsgId, fixInScrollMsgTop);
+				}
+			}
+		}
 		if (unreadCount) {
 			if (!isEmpty()) {
 				return (loadedAtTop() || minMsgId() <= inboxReadBefore) && (loadedAtBottom() || maxMsgId() >= inboxReadBefore);
@@ -2381,8 +2414,29 @@ bool History::isReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScrol
 }
 
 void History::getReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop) {
+	if (msgId < 0 && -msgId < ServerMaxMsgId && peer->migrateFrom()) {
+		History *h = App::history(peer->migrateFrom()->id);
+		h->getReadyFor(-msgId, fixInScrollMsgId, fixInScrollMsgTop);
+		if (h->isEmpty()) {
+			clear(true);
+			newLoaded = oldLoaded = false;
+			lastWidth = 0;
+		}
+		return;
+	}
 	if (msgId != ShowAtTheEndMsgId && msgId != ShowAtUnreadMsgId && isChannel()) {
 		return asChannelHistory()->getSwitchReadyFor(msgId, fixInScrollMsgId, fixInScrollMsgTop);
+	}
+	if (msgId == ShowAtUnreadMsgId && peer->migrateFrom()) {
+		if (History *h = App::historyLoaded(peer->migrateFrom()->id)) {
+			if (h->unreadCount) {
+				clear(true);
+				newLoaded = oldLoaded = false;
+				lastWidth = 0;
+				h->getReadyFor(msgId, fixInScrollMsgId, fixInScrollMsgTop);
+				return;
+			}
+		}
 	}
 	if (!isReadyFor(msgId, fixInScrollMsgId, fixInScrollMsgTop)) {
 		clear(true);
@@ -2417,6 +2471,9 @@ void History::setLastMessage(HistoryItem *msg) {
 
 void History::setPosInDialogsDate(const QDateTime &date) {
 	bool updateDialog = (App::main() && (!peer->isChannel() || peer->asChannel()->amIn() || !dialogs.isEmpty()));
+	if (peer->migrateTo() && dialogs.isEmpty()) {
+		updateDialog = false;
+	}
 	if (!lastMsgDate.isNull() && lastMsgDate >= date) {
 		if (!updateDialog || !dialogs.isEmpty()) {
 			return;
@@ -2549,6 +2606,12 @@ void History::blockResized(HistoryBlock *block, int32 dh) {
 			blocks[i]->y -= dh;
 		}
 		height -= dh;
+	}
+}
+
+void History::clearUpto(MsgId msgId) {
+	for (HistoryItem *item = isEmpty() ? 0 : blocks.back()->items.back(); item && (item->id < 0 || item->id >= msgId); item = isEmpty() ? 0 : blocks.back()->items.back()) {
+		item->destroy();
 	}
 }
 
@@ -2747,7 +2810,7 @@ bool ItemAnimations::animStep(float64 ms) {
 	for (Animations::iterator i = _animations.begin(); i != _animations.end();) {
 		const HistoryItem *item = i.key();
 		if (item->animating()) {
-			App::main()->msgUpdated(item->history()->peer->id, item);
+			App::main()->msgUpdated(item);
 			++i;
 		} else {
 			i = _animations.erase(i);
@@ -6471,14 +6534,14 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, bool select
 }
 
 void HistoryMessage::setViewsCount(int32 count) {
-	if (_views == count || (_views >= 0 && count >= 0 && _views > count)) return;
+	if (_views == count || (count >= 0 && _views > count)) return;
 
 	int32 was = _viewsWidth;
 	_views = count;
 	_viewsText = (_views >= 0) ? formatViewsCount(_views) : QString();
 	_viewsWidth = _viewsText.isEmpty() ? 0 : st::msgDateFont->width(_viewsText);
 	if (was == _viewsWidth) {
-		if (App::main()) App::main()->msgUpdated(history()->peer->id, this);
+		if (App::main()) App::main()->msgUpdated(this);
 	} else {
 		if (_text.hasSkipBlock()) {
 			_text.setSkipBlock(HistoryMessage::skipBlockWidth(), HistoryMessage::skipBlockHeight());
@@ -6494,7 +6557,7 @@ void HistoryMessage::setId(MsgId newId) {
 	bool wasPositive = (id > 0), positive = (newId > 0);
 	id = newId;
 	if (wasPositive == positive) {
-		if (App::main()) App::main()->msgUpdated(history()->peer->id, this);
+		if (App::main()) App::main()->msgUpdated(this);
 	} else {
 		if (_text.hasSkipBlock()) {
 			_text.setSkipBlock(HistoryMessage::skipBlockWidth(), HistoryMessage::skipBlockHeight());
@@ -6511,7 +6574,7 @@ void HistoryMessage::draw(Painter &p, uint32 selection) const {
 
 	textstyleSet(&(outbg ? st::outTextStyle : st::inTextStyle));
 
-	uint64 ms = App::main() ? App::main()->animActiveTime(id) : 0;
+	uint64 ms = App::main() ? App::main()->animActiveTime(this) : 0;
 	if (ms) {
 		if (ms > st::activeFadeInDuration + st::activeFadeOutDuration) {
 			App::main()->stopAnimActive();
@@ -7403,23 +7466,42 @@ HistoryReply::~HistoryReply() {
 }
 
 void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
-	TextLinkPtr second;
+	TextLinkPtr second, third;
 	LangString text = lang(lng_message_empty);
 	QString from = textcmdLink(1, _from->name);
 
 	switch (action.type()) {
 	case mtpc_messageActionChatAddUser: {
 		const MTPDmessageActionChatAddUser &d(action.c_messageActionChatAddUser());
-		if (peerFromUser(d.vuser_id) == _from->id) {
-			text = lng_action_user_joined(lt_from, from);
+		const QVector<MTPint> &v(d.vusers.c_vector().v);
+		bool foundSelf = false;
+		for (int32 i = 0, l = v.size(); i < l; ++i) {
+			if (v.at(i).v == MTP::authedId()) {
+				foundSelf = true;
+				break;
+			}
+		}
+		if (v.size() == 1) {
+			UserData *u = App::user(peerFromUser(v.at(0)));
+			if (u == _from) {
+				text = lng_action_user_joined(lt_from, from);
+			} else {
+				second = TextLinkPtr(new PeerLink(u));
+				text = lng_action_add_user(lt_from, from, lt_user, textcmdLink(2, u->name));
+			}
+		} else if (v.size() == 2) {
+			UserData *u1 = App::user(peerFromUser(v.at(0))), *u2 = App::user(peerFromUser(v.at(1)));
+			second = TextLinkPtr(new PeerLink(u1));
+			third = TextLinkPtr(new PeerLink(u2));
+			text = lng_action_add_user_and_user(lt_from, from, lt_user, textcmdLink(2, u1->name), lt_second_user, textcmdLink(3, u2->name));
 		} else {
-			UserData *u = App::user(peerFromUser(d.vuser_id));
+			UserData *u = App::user(peerFromUser(foundSelf ? MTP::authedId() : v.at(0).v));
 			second = TextLinkPtr(new PeerLink(u));
-			text = lng_action_add_user(lt_from, from, lt_user, textcmdLink(2, u->name));
-			if (d.vuser_id.v == MTP::authedId() && unread()) {
-				if (history()->peer->isChat() && !history()->peer->asChat()->inviterForSpamReport && _from->isUser()) {
-					history()->peer->asChat()->inviterForSpamReport = peerToUser(_from->id);
-				}
+			text = lng_action_add_users(lt_from, from, lt_user, textcmdLink(2, u->name), lt_count, v.size() - 1);
+		}
+		if (unread() && foundSelf) {
+			if (history()->peer->isChat() && !history()->peer->asChat()->inviterForSpamReport && _from->isUser()) {
+				history()->peer->asChat()->inviterForSpamReport = peerToUser(_from->id);
 			}
 		}
 	} break;
@@ -7482,15 +7564,8 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 		text = fromChannel() ? lng_action_changed_title_channel(lt_title, textClean(qs(d.vtitle))) : lng_action_changed_title(lt_from, from, lt_title, textClean(qs(d.vtitle)));
 	} break;
 
-	case mtpc_messageActionChatDeactivate: {
-		text = lang(lng_action_group_deactivate);
-	} break;
-
-	case mtpc_messageActionChatActivate: {
-		text = lang(lng_action_group_activate);
-	} break;
-
 	case mtpc_messageActionChatMigrateTo: {
+		_flags |= MTPDmessage_flag_IS_GROUP_MIGRATE;
 		const MTPDmessageActionChatMigrateTo &d(action.c_messageActionChatMigrateTo());
 		if (true/*PeerData *channel = App::peerLoaded(peerFromChannel(d.vchannel_id))*/) {
 			text = lang(lng_action_group_migrate);
@@ -7500,13 +7575,10 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 	} break;
 
 	case mtpc_messageActionChannelMigrateFrom: {
+		_flags |= MTPDmessage_flag_IS_GROUP_MIGRATE;
 		const MTPDmessageActionChannelMigrateFrom &d(action.c_messageActionChannelMigrateFrom());
 		if (true/*PeerData *chat = App::peerLoaded(peerFromChannel(d.vchat_id))*/) {
 			text = lang(lng_action_group_migrate);
-			if (history()->peer->asChannel()->mgInfo) {
-				history()->peer->asChannel()->mgInfo->migrateFrom = App::chat(peerFromChat(d.vchat_id));
-				history()->peer->asChannel()->mgInfo->migrateFrom->migrateTo = history()->peer->asChannel();
-			}
 		} else {
 			text = lang(lng_contacts_loading);
 		}
@@ -7521,6 +7593,9 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 	}
 	if (second) {
 		_text.setLink(2, second);
+	}
+	if (third) {
+		_text.setLink(3, third);
 	}
 	return ;
 }
@@ -7567,7 +7642,7 @@ void HistoryServiceMsg::setServiceText(const QString &text) {
 }
 
 void HistoryServiceMsg::draw(Painter &p, uint32 selection) const {
-	uint64 ms = App::main() ? App::main()->animActiveTime(id) : 0;
+	uint64 ms = App::main() ? App::main()->animActiveTime(this) : 0;
 	if (ms) {
 		if (ms > st::activeFadeInDuration + st::activeFadeOutDuration) {
 			App::main()->stopAnimActive();

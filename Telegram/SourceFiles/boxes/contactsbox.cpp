@@ -43,7 +43,7 @@ ContactsInner::ContactsInner(CreatingGroupType creating) : TWidget()
 , _bot(0)
 , _creating(creating)
 , _allAdmins(this, lang(lng_chat_all_members_admins), false, st::contactsAdminCheckbox)
-, _addToChat(0)
+, _addToPeer(0)
 , _addAdmin(0)
 , _addAdminRequestId(0)
 , _addAdminBox(0)
@@ -70,7 +70,7 @@ ContactsInner::ContactsInner(ChannelData *channel, MembersFilter membersFilter, 
 , _creating(CreatingGroupChannel)
 , _already(already)
 , _allAdmins(this, lang(lng_chat_all_members_admins), false, st::contactsAdminCheckbox)
-, _addToChat(0)
+, _addToPeer(0)
 , _addAdmin(0)
 , _addAdminRequestId(0)
 , _addAdminBox(0)
@@ -105,7 +105,7 @@ ContactsInner::ContactsInner(ChatData *chat, MembersFilter membersFilter) : TWid
 , _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.right() - st::contactsCheckPosition.x() * 2 - st::contactsCheckIcon.pxWidth())
 , _aboutAllAdmins(st::boxTextFont, lang(lng_chat_about_all_admins), _defaultOptions, _aboutWidth)
 , _aboutAdmins(st::boxTextFont, lang(lng_chat_about_admins), _defaultOptions, _aboutWidth)
-, _addToChat(0)
+, _addToPeer(0)
 , _addAdmin(0)
 , _addAdminRequestId(0)
 , _addAdminBox(0)
@@ -135,7 +135,7 @@ ContactsInner::ContactsInner(UserData *bot) : TWidget()
 , _bot(bot)
 , _creating(CreatingGroupNone)
 , _allAdmins(this, lang(lng_chat_all_members_admins), false, st::contactsAdminCheckbox)
-, _addToChat(0)
+, _addToPeer(0)
 , _addAdmin(0)
 , _addAdminRequestId(0)
 , _addAdminBox(0)
@@ -151,6 +151,8 @@ ContactsInner::ContactsInner(UserData *bot) : TWidget()
 	DialogsIndexed &v(App::main()->dialogsList());
 	for (DialogRow *r = v.list.begin; r != v.list.end; r = r->next) {
 		if (r->history->peer->isChat() && r->history->peer->asChat()->canEdit()) {
+			_contacts->addToEnd(r->history);
+		} else if (r->history->peer->isMegagroup() && (r->history->peer->asChannel()->amCreator() || r->history->peer->asChannel()->amEditor())) {
 			_contacts->addToEnd(r->history);
 		}
 	}
@@ -219,12 +221,12 @@ void ContactsInner::onPeerNameChanged(PeerData *peer, const PeerData::Names &old
 
 void ContactsInner::onAddBot() {
 	if (_bot->botInfo && !_bot->botInfo->startGroupToken.isEmpty()) {
-		MTP::send(MTPmessages_StartBot(_bot->inputUser, _addToChat->inputChat, MTP_long(MTP::nonce<uint64>()), MTP_string(_bot->botInfo->startGroupToken)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _bot));
+		MTP::send(MTPmessages_StartBot(_bot->inputUser, _addToPeer->input, MTP_long(MTP::nonce<uint64>()), MTP_string(_bot->botInfo->startGroupToken)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _bot));
 	} else {
-		App::main()->addParticipants(_addToChat, QVector<UserData*>(1, _bot));
+		App::main()->addParticipants(_addToPeer, QVector<UserData*>(1, _bot));
 	}
 	App::wnd()->hideLayer();
-	App::main()->showPeerHistory(_addToChat->id, ShowAtUnreadMsgId);
+	App::main()->showPeerHistory(_addToPeer->id, ShowAtUnreadMsgId);
 }
 
 void ContactsInner::onAddAdmin() {
@@ -734,8 +736,8 @@ void ContactsInner::chooseParticipant() {
 				connect(_addAdminBox, SIGNAL(confirmed()), this, SLOT(onAddAdmin()));
 				connect(_addAdminBox, SIGNAL(destroyed(QObject*)), this, SLOT(onNoAddAdminBox(QObject*)));
 				App::wnd()->replaceLayer(_addAdminBox);
-			} else if (bot() && peer->isChat()) {
-				_addToChat = peer->asChat();
+			} else if (bot() && (peer->isChat() || peer->isMegagroup())) {
+				_addToPeer = peer;
 				ConfirmBox *box = new ConfirmBox(lng_bot_sure_invite(lt_group, peer->name));
 				connect(box, SIGNAL(confirmed()), this, SLOT(onAddBot()));
 				App::wnd()->replaceLayer(box);
@@ -982,9 +984,21 @@ void ContactsInner::peopleReceived(const QString &query, const QVector<MTPPeer> 
 			PeerData *p = App::peer(peerId);
 			if (!p) continue;
 
-			if ((!p->isUser() || (p->asUser()->botInfo && p->asUser()->botInfo->cantJoinGroups)) && (_chat || _creating == CreatingGroupGroup)) continue; // skip bot's that can't be invited to groups
-			if (_channel && !p->isUser()) continue;
-			if (p->isUser() && p->asUser()->botInfo && _channel && _membersFilter != MembersFilterAdmins) continue; // skip bots in channels
+			if (_channel || _chat || _creating != CreatingGroupNone) {
+				if (p->isUser()) {
+					if (p->asUser()->botInfo) {
+						if (_chat || _creating == CreatingGroupGroup) { // skip bot's that can't be invited to groups
+							if (p->asUser()->botInfo->cantJoinGroups) continue;
+						}
+						if (_channel) {
+							if (_channel->isMegagroup() && _membersFilter == MembersFilterAdmins) continue;
+							if (!_channel->isMegagroup() && _membersFilter != MembersFilterAdmins) continue;
+						}
+					}
+				} else {
+					continue; // skip
+				}
+			}
 
 			ContactData *d = new ContactData();
 			_byUsernameDatas.push_back(d);

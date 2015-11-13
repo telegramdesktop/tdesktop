@@ -1195,7 +1195,11 @@ void EditChannelBox::showAll() {
 	_description.show();
 	_save.show();
 	_cancel.show();
-	_publicLink.show();
+	if (_channel->isMegagroup()) {
+		_publicLink.hide();
+	} else {
+		_publicLink.show();
+	}
 }
 
 void EditChannelBox::showDone() {

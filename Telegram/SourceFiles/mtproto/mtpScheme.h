@@ -170,13 +170,11 @@ enum {
 	mtpc_messageActionChatEditTitle = 0xb5a1ce5a,
 	mtpc_messageActionChatEditPhoto = 0x7fcb13a8,
 	mtpc_messageActionChatDeletePhoto = 0x95e3fbef,
-	mtpc_messageActionChatAddUser = 0x5e3cfc4b,
+	mtpc_messageActionChatAddUser = 0x488a7337,
 	mtpc_messageActionChatDeleteUser = 0xb2ae9b0c,
 	mtpc_messageActionChatJoinedByLink = 0xf89cf5e8,
 	mtpc_messageActionChannelCreate = 0x95d2ac92,
 	mtpc_messageActionChatMigrateTo = 0x51bdb021,
-	mtpc_messageActionChatDeactivate = 0x64ad20a8,
-	mtpc_messageActionChatActivate = 0x40ad8cb2,
 	mtpc_messageActionChannelMigrateFrom = 0xb055eaee,
 	mtpc_dialog = 0xc1dd804a,
 	mtpc_dialogChannel = 0x5b8496b2,
@@ -539,12 +537,12 @@ enum {
 	mtpc_messages_getStickerSet = 0x2619a90e,
 	mtpc_messages_installStickerSet = 0x7b30c3a6,
 	mtpc_messages_uninstallStickerSet = 0xf96e55de,
-	mtpc_messages_startBot = 0x1b3e0ffc,
+	mtpc_messages_startBot = 0xe6df7378,
 	mtpc_messages_getMessagesViews = 0xc4c8a55d,
 	mtpc_messages_toggleChatAdmins = 0xec8bd9e1,
 	mtpc_messages_editChatAdmin = 0xa9e69f2e,
-	mtpc_messages_deactivateChat = 0x626f0b41,
 	mtpc_messages_migrateChat = 0x15a3b8e3,
+	mtpc_messages_searchGlobal = 0x9e3cacb0,
 	mtpc_updates_getState = 0xedd4882a,
 	mtpc_updates_getDifference = 0xa041495,
 	mtpc_updates_getChannelDifference = 0xbb32d7c0,
@@ -3884,13 +3882,11 @@ private:
 	friend MTPmessageAction MTP_messageActionChatEditTitle(const MTPstring &_title);
 	friend MTPmessageAction MTP_messageActionChatEditPhoto(const MTPPhoto &_photo);
 	friend MTPmessageAction MTP_messageActionChatDeletePhoto();
-	friend MTPmessageAction MTP_messageActionChatAddUser(MTPint _user_id);
+	friend MTPmessageAction MTP_messageActionChatAddUser(const MTPVector<MTPint> &_users);
 	friend MTPmessageAction MTP_messageActionChatDeleteUser(MTPint _user_id);
 	friend MTPmessageAction MTP_messageActionChatJoinedByLink(MTPint _inviter_id);
 	friend MTPmessageAction MTP_messageActionChannelCreate(const MTPstring &_title);
 	friend MTPmessageAction MTP_messageActionChatMigrateTo(MTPint _channel_id);
-	friend MTPmessageAction MTP_messageActionChatDeactivate();
-	friend MTPmessageAction MTP_messageActionChatActivate();
 	friend MTPmessageAction MTP_messageActionChannelMigrateFrom(const MTPstring &_title, MTPint _chat_id);
 
 	mtpTypeId _type;
@@ -10099,10 +10095,10 @@ class MTPDmessageActionChatAddUser : public mtpDataImpl<MTPDmessageActionChatAdd
 public:
 	MTPDmessageActionChatAddUser() {
 	}
-	MTPDmessageActionChatAddUser(MTPint _user_id) : vuser_id(_user_id) {
+	MTPDmessageActionChatAddUser(const MTPVector<MTPint> &_users) : vusers(_users) {
 	}
 
-	MTPint vuser_id;
+	MTPVector<MTPint> vusers;
 };
 
 class MTPDmessageActionChatDeleteUser : public mtpDataImpl<MTPDmessageActionChatDeleteUser> {
@@ -17294,7 +17290,7 @@ public:
 class MTPmessages_startBot { // RPC method 'messages.startBot'
 public:
 	MTPInputUser vbot;
-	MTPint vchat_id;
+	MTPInputPeer vpeer;
 	MTPlong vrandom_id;
 	MTPstring vstart_param;
 
@@ -17303,24 +17299,24 @@ public:
 	MTPmessages_startBot(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_startBot) {
 		read(from, end, cons);
 	}
-	MTPmessages_startBot(const MTPInputUser &_bot, MTPint _chat_id, const MTPlong &_random_id, const MTPstring &_start_param) : vbot(_bot), vchat_id(_chat_id), vrandom_id(_random_id), vstart_param(_start_param) {
+	MTPmessages_startBot(const MTPInputUser &_bot, const MTPInputPeer &_peer, const MTPlong &_random_id, const MTPstring &_start_param) : vbot(_bot), vpeer(_peer), vrandom_id(_random_id), vstart_param(_start_param) {
 	}
 
 	uint32 innerLength() const {
-		return vbot.innerLength() + vchat_id.innerLength() + vrandom_id.innerLength() + vstart_param.innerLength();
+		return vbot.innerLength() + vpeer.innerLength() + vrandom_id.innerLength() + vstart_param.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_messages_startBot;
 	}
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_startBot) {
 		vbot.read(from, end);
-		vchat_id.read(from, end);
+		vpeer.read(from, end);
 		vrandom_id.read(from, end);
 		vstart_param.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
 		vbot.write(to);
-		vchat_id.write(to);
+		vpeer.write(to);
 		vrandom_id.write(to);
 		vstart_param.write(to);
 	}
@@ -17335,7 +17331,7 @@ public:
 	}
 	MTPmessages_StartBot(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_startBot>(from, end, cons) {
 	}
-	MTPmessages_StartBot(const MTPInputUser &_bot, MTPint _chat_id, const MTPlong &_random_id, const MTPstring &_start_param) : MTPBoxed<MTPmessages_startBot>(MTPmessages_startBot(_bot, _chat_id, _random_id, _start_param)) {
+	MTPmessages_StartBot(const MTPInputUser &_bot, const MTPInputPeer &_peer, const MTPlong &_random_id, const MTPstring &_start_param) : MTPBoxed<MTPmessages_startBot>(MTPmessages_startBot(_bot, _peer, _random_id, _start_param)) {
 	}
 };
 
@@ -17471,48 +17467,6 @@ public:
 	}
 };
 
-class MTPmessages_deactivateChat { // RPC method 'messages.deactivateChat'
-public:
-	MTPint vchat_id;
-	MTPBool venabled;
-
-	MTPmessages_deactivateChat() {
-	}
-	MTPmessages_deactivateChat(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_deactivateChat) {
-		read(from, end, cons);
-	}
-	MTPmessages_deactivateChat(MTPint _chat_id, MTPBool _enabled) : vchat_id(_chat_id), venabled(_enabled) {
-	}
-
-	uint32 innerLength() const {
-		return vchat_id.innerLength() + venabled.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_messages_deactivateChat;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_deactivateChat) {
-		vchat_id.read(from, end);
-		venabled.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vchat_id.write(to);
-		venabled.write(to);
-	}
-
-	typedef MTPUpdates ResponseType;
-};
-class MTPmessages_DeactivateChat : public MTPBoxed<MTPmessages_deactivateChat> {
-public:
-	MTPmessages_DeactivateChat() {
-	}
-	MTPmessages_DeactivateChat(const MTPmessages_deactivateChat &v) : MTPBoxed<MTPmessages_deactivateChat>(v) {
-	}
-	MTPmessages_DeactivateChat(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_deactivateChat>(from, end, cons) {
-	}
-	MTPmessages_DeactivateChat(MTPint _chat_id, MTPBool _enabled) : MTPBoxed<MTPmessages_deactivateChat>(MTPmessages_deactivateChat(_chat_id, _enabled)) {
-	}
-};
-
 class MTPmessages_migrateChat { // RPC method 'messages.migrateChat'
 public:
 	MTPint vchat_id;
@@ -17549,6 +17503,57 @@ public:
 	MTPmessages_MigrateChat(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_migrateChat>(from, end, cons) {
 	}
 	MTPmessages_MigrateChat(MTPint _chat_id) : MTPBoxed<MTPmessages_migrateChat>(MTPmessages_migrateChat(_chat_id)) {
+	}
+};
+
+class MTPmessages_searchGlobal { // RPC method 'messages.searchGlobal'
+public:
+	MTPstring vq;
+	MTPint voffset_date;
+	MTPInputPeer voffset_peer;
+	MTPint voffset_id;
+	MTPint vlimit;
+
+	MTPmessages_searchGlobal() {
+	}
+	MTPmessages_searchGlobal(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_searchGlobal) {
+		read(from, end, cons);
+	}
+	MTPmessages_searchGlobal(const MTPstring &_q, MTPint _offset_date, const MTPInputPeer &_offset_peer, MTPint _offset_id, MTPint _limit) : vq(_q), voffset_date(_offset_date), voffset_peer(_offset_peer), voffset_id(_offset_id), vlimit(_limit) {
+	}
+
+	uint32 innerLength() const {
+		return vq.innerLength() + voffset_date.innerLength() + voffset_peer.innerLength() + voffset_id.innerLength() + vlimit.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_messages_searchGlobal;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_searchGlobal) {
+		vq.read(from, end);
+		voffset_date.read(from, end);
+		voffset_peer.read(from, end);
+		voffset_id.read(from, end);
+		vlimit.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vq.write(to);
+		voffset_date.write(to);
+		voffset_peer.write(to);
+		voffset_id.write(to);
+		vlimit.write(to);
+	}
+
+	typedef MTPmessages_Messages ResponseType;
+};
+class MTPmessages_SearchGlobal : public MTPBoxed<MTPmessages_searchGlobal> {
+public:
+	MTPmessages_SearchGlobal() {
+	}
+	MTPmessages_SearchGlobal(const MTPmessages_searchGlobal &v) : MTPBoxed<MTPmessages_searchGlobal>(v) {
+	}
+	MTPmessages_SearchGlobal(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_searchGlobal>(from, end, cons) {
+	}
+	MTPmessages_SearchGlobal(const MTPstring &_q, MTPint _offset_date, const MTPInputPeer &_offset_peer, MTPint _offset_id, MTPint _limit) : MTPBoxed<MTPmessages_searchGlobal>(MTPmessages_searchGlobal(_q, _offset_date, _offset_peer, _offset_id, _limit)) {
 	}
 };
 
@@ -22592,7 +22597,7 @@ inline uint32 MTPmessageAction::innerLength() const {
 		}
 		case mtpc_messageActionChatAddUser: {
 			const MTPDmessageActionChatAddUser &v(c_messageActionChatAddUser());
-			return v.vuser_id.innerLength();
+			return v.vusers.innerLength();
 		}
 		case mtpc_messageActionChatDeleteUser: {
 			const MTPDmessageActionChatDeleteUser &v(c_messageActionChatDeleteUser());
@@ -22645,7 +22650,7 @@ inline void MTPmessageAction::read(const mtpPrime *&from, const mtpPrime *end, m
 		case mtpc_messageActionChatAddUser: _type = cons; {
 			if (!data) setData(new MTPDmessageActionChatAddUser());
 			MTPDmessageActionChatAddUser &v(_messageActionChatAddUser());
-			v.vuser_id.read(from, end);
+			v.vusers.read(from, end);
 		} break;
 		case mtpc_messageActionChatDeleteUser: _type = cons; {
 			if (!data) setData(new MTPDmessageActionChatDeleteUser());
@@ -22667,8 +22672,6 @@ inline void MTPmessageAction::read(const mtpPrime *&from, const mtpPrime *end, m
 			MTPDmessageActionChatMigrateTo &v(_messageActionChatMigrateTo());
 			v.vchannel_id.read(from, end);
 		} break;
-		case mtpc_messageActionChatDeactivate: _type = cons; break;
-		case mtpc_messageActionChatActivate: _type = cons; break;
 		case mtpc_messageActionChannelMigrateFrom: _type = cons; {
 			if (!data) setData(new MTPDmessageActionChannelMigrateFrom());
 			MTPDmessageActionChannelMigrateFrom &v(_messageActionChannelMigrateFrom());
@@ -22695,7 +22698,7 @@ inline void MTPmessageAction::write(mtpBuffer &to) const {
 		} break;
 		case mtpc_messageActionChatAddUser: {
 			const MTPDmessageActionChatAddUser &v(c_messageActionChatAddUser());
-			v.vuser_id.write(to);
+			v.vusers.write(to);
 		} break;
 		case mtpc_messageActionChatDeleteUser: {
 			const MTPDmessageActionChatDeleteUser &v(c_messageActionChatDeleteUser());
@@ -22732,8 +22735,6 @@ inline MTPmessageAction::MTPmessageAction(mtpTypeId type) : mtpDataOwner(0), _ty
 		case mtpc_messageActionChatJoinedByLink: setData(new MTPDmessageActionChatJoinedByLink()); break;
 		case mtpc_messageActionChannelCreate: setData(new MTPDmessageActionChannelCreate()); break;
 		case mtpc_messageActionChatMigrateTo: setData(new MTPDmessageActionChatMigrateTo()); break;
-		case mtpc_messageActionChatDeactivate: break;
-		case mtpc_messageActionChatActivate: break;
 		case mtpc_messageActionChannelMigrateFrom: setData(new MTPDmessageActionChannelMigrateFrom()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessageAction");
 	}
@@ -22771,8 +22772,8 @@ inline MTPmessageAction MTP_messageActionChatEditPhoto(const MTPPhoto &_photo) {
 inline MTPmessageAction MTP_messageActionChatDeletePhoto() {
 	return MTPmessageAction(mtpc_messageActionChatDeletePhoto);
 }
-inline MTPmessageAction MTP_messageActionChatAddUser(MTPint _user_id) {
-	return MTPmessageAction(new MTPDmessageActionChatAddUser(_user_id));
+inline MTPmessageAction MTP_messageActionChatAddUser(const MTPVector<MTPint> &_users) {
+	return MTPmessageAction(new MTPDmessageActionChatAddUser(_users));
 }
 inline MTPmessageAction MTP_messageActionChatDeleteUser(MTPint _user_id) {
 	return MTPmessageAction(new MTPDmessageActionChatDeleteUser(_user_id));
@@ -22785,12 +22786,6 @@ inline MTPmessageAction MTP_messageActionChannelCreate(const MTPstring &_title) 
 }
 inline MTPmessageAction MTP_messageActionChatMigrateTo(MTPint _channel_id) {
 	return MTPmessageAction(new MTPDmessageActionChatMigrateTo(_channel_id));
-}
-inline MTPmessageAction MTP_messageActionChatDeactivate() {
-	return MTPmessageAction(mtpc_messageActionChatDeactivate);
-}
-inline MTPmessageAction MTP_messageActionChatActivate() {
-	return MTPmessageAction(mtpc_messageActionChatActivate);
 }
 inline MTPmessageAction MTP_messageActionChannelMigrateFrom(const MTPstring &_title, MTPint _chat_id) {
 	return MTPmessageAction(new MTPDmessageActionChannelMigrateFrom(_title, _chat_id));

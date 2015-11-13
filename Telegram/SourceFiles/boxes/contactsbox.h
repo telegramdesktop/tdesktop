@@ -132,7 +132,7 @@ private:
 	int32 _aboutWidth;
 	Text _aboutAllAdmins, _aboutAdmins;
 
-	ChatData *_addToChat;
+	PeerData *_addToPeer;
 	UserData *_addAdmin;
 	mtpRequestId _addAdminRequestId;
 	ConfirmBox *_addAdminBox;

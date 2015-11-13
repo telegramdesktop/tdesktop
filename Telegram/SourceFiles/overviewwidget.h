@@ -135,7 +135,7 @@ private:
 
 	PeerData *_peer;
 	MediaOverviewType _type;
-	History *_hist;
+	History *_migrated, *_history;
 	ChannelId _channel;
 	
 	// photos
@@ -300,7 +300,7 @@ public:
 
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);
-	void msgUpdated(PeerId peer, const HistoryItem *msg);
+	void msgUpdated(const HistoryItem *msg);
 	void itemRemoved(HistoryItem *item);
 	void itemResized(HistoryItem *row, bool scrollToIt);
 

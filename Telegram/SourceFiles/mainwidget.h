@@ -179,13 +179,6 @@ public:
 	}
 };
 
-enum ForwardWhatMessages {
-	ForwardSelectedMessages,
-	ForwardContextMessage,
-	ForwardPressedMessage,
-	ForwardPressedLinkMessage
-};
-
 class MainWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
@@ -231,6 +224,7 @@ public:
 	void activate();
 
 	void createDialog(History *history);
+	void removeDialog(History *history);
 	void dlgUpdated(DialogRow *row = 0);
 	void dlgUpdated(History *row, MsgId msgId);
 
@@ -241,7 +235,7 @@ public:
 		return sentUpdatesReceived(0, updates);
 	}
 	void inviteToChannelDone(ChannelData *channel, const MTPUpdates &updates);
-	void msgUpdated(PeerId peer, const HistoryItem *msg);
+	void msgUpdated(const HistoryItem *msg);
 	void historyToDown(History *hist);
 	void dialogsToUp();
 	void newUnreadMsg(History *history, HistoryItem *item);
@@ -332,7 +326,7 @@ public:
     
     void readServerHistory(History *history, bool force = true);
 
-	uint64 animActiveTime(MsgId id) const;
+	uint64 animActiveTime(const HistoryItem *msg) const;
 	void stopAnimActive();
 
 	void sendBotCommand(const QString &cmd, MsgId msgId);

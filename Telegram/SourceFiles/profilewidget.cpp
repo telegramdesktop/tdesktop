@@ -806,10 +806,10 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 		p.setPen(st::profileOfflineColor->p);
 		p.drawText(_left + (_width - w) / 2, top + st::btnShareContact.textTop + st::btnShareContact.font->ascent, lang(lng_profile_chat_unaccessible));
 	}
-	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator)) {
+	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->amEditor() && _peerChannel->isMegagroup()))) {
 		top += _shareContact.height();
 	}
-	
+
 	// about
 	if (!_about.isEmpty()) {
 		p.setFont(st::profileHeaderFont->f);
@@ -1215,6 +1215,7 @@ void ProfileInner::migrateDone(const MTPUpdates &updates) {
 			if (v->at(i).type() == mtpc_channel) {
 				peer = App::channel(v->at(i).c_channel().vid.v);
 				App::main()->showPeerHistory(peer->id, ShowAtUnreadMsgId);
+				QTimer::singleShot(ReloadChannelMembersTimeout, App::api(), SLOT(delayedRequestParticipantsCount()));
 			}
 		}
 	}
@@ -1263,7 +1264,7 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	_shareContact.setGeometry(_left + _width - btnWidth, top, btnWidth, _shareContact.height());
 	_inviteToGroup.setGeometry(_left + _width - btnWidth, top, btnWidth, _inviteToGroup.height());
 
-	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator)) {
+	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->amEditor() && _peerChannel->isMegagroup()))) {
 		top += _shareContact.height();
 	}
 

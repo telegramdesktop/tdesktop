@@ -982,6 +982,7 @@ inline bool mtpIsFalse(const MTPBool &v) {
 
 enum { // client side flags
 	MTPDmessage_flag_HAS_TEXT_LINKS = (1 << 31), // message has links for "shared links" indexing
+	MTPDmessage_flag_IS_GROUP_MIGRATE = (1 << 30), // message is a group migrate (group -> supergroup) service message
 	MTPDreplyKeyboardMarkup_flag_FORCE_REPLY = (1 << 30), // markup just wants a text reply
 	MTPDreplyKeyboardMarkup_flag_ZERO = (1 << 31), // none (zero) markup
 	MTPDstickerSet_flag_NOT_LOADED = (1 << 31), // sticker set is not yet loaded

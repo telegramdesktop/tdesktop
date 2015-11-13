@@ -62,6 +62,8 @@ public slots:
 	void resolveReplyTo();
 	void resolveWebPages();
 
+	void delayedRequestParticipantsCount();
+
 private:
 
 	void gotReplyTo(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);

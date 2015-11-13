@@ -484,6 +484,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_media_unsupported" = "Media Unsupported";
 
 "lng_action_add_user" = "{from} added {user}";
+"lng_action_add_user_and_user" = "{from} added {user} and {second_user}";
+"lng_action_add_users" = "{from} added {user} and {count:_not_used|# more member|# more members}";
 "lng_action_add_you" = "{from} added you to this channel";
 "lng_action_you_joined" = "You joined this channel";
 "lng_action_add_you_group" = "{from} added you to this group";
@@ -501,8 +503,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_action_changed_title_channel" = "Channel name was changed to «{title}»";
 "lng_action_created_chat" = "{from} created group «{title}»";
 "lng_action_created_channel" = "Channel «{title}» created";
-"lng_action_group_deactivate" = "The group was deactivated";
-"lng_action_group_activate" = "The group was activated";
 "lng_action_group_migrate" = "The group was converted to a supergroup";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# member|# members} limit reached";
@@ -716,6 +716,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_forwarding_from_two" = "{user} and {second_user}";
 
 "lng_share_cant" = "Sorry, no way to share here :(";
+"lng_reply_cant" = "Sorry, no way to reply to an old message in supergroup :(";
+"lng_reply_cant_forward" = "Sorry, no way to reply to an old message in supergroup :( Do you wish to forward it and add your comment?";
 
 "lng_contact_phone" = "Phone number";
 "lng_enter_contact_data" = "New Contact";

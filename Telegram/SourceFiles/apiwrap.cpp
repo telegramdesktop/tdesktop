@@ -286,10 +286,31 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		} else {
 			channel->photoId = 0;
 		}
-		if (channel->mgInfo) {
-			if (f.has_migrated_from_chat_id()) {
-				channel->mgInfo->migrateFrom = App::chat(peerFromChat(f.vmigrated_from_chat_id));
-				channel->mgInfo->migrateFrom->migrateTo = channel;
+		if (f.has_migrated_from_chat_id()) {
+			if (!channel->mgInfo) {
+				channel->flags |= MTPDchannel::flag_megagroup;
+				channel->flagsUpdated();
+			}
+			ChatData *cfrom = App::chat(peerFromChat(f.vmigrated_from_chat_id));
+			bool updated = (cfrom->migrateToPtr != channel);
+			if (updated) {
+				cfrom->migrateToPtr = channel;
+			}
+			if (channel->mgInfo->migrateFromPtr != cfrom) {
+				channel->mgInfo->migrateFromPtr = cfrom;
+				if (History *h = App::historyLoaded(cfrom->id)) {
+					if (History *hto = App::historyLoaded(channel->id)) {
+						if (!h->isEmpty()) {
+							h->clear(true);
+						}
+						if (!hto->dialogs.isEmpty() && !h->dialogs.isEmpty()) {
+							App::removeDialog(h);
+						}
+					}
+				}
+			}
+			if (updated) {
+				App::main()->peerUpdated(cfrom);
 			}
 		}
 		channel->about = qs(f.vabout);
@@ -308,7 +329,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 				h->inboxReadBefore = f.vread_inbox_max_id.v + 1;
 				h->asChannelHistory()->unreadCountAll = f.vunread_count.v;
 			}
-			if (channel->mgInfo && channel->mgInfo->migrateFrom) {
+			if (channel->migrateFrom()) {
 				h->asChannelHistory()->removeJoinedMessage();
 			}
 		}
@@ -795,6 +816,12 @@ void ApiWrap::resolveWebPages() {
 	}
 
 	if (m < INT_MAX) _webPagesTimer.start(m * 1000);
+}
+
+void ApiWrap::delayedRequestParticipantsCount() {
+	if (App::main() && App::main()->peer() && App::main()->peer()->isChannel()) {
+		requestFullPeer(App::main()->peer());
+	}
 }
 
 void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId req) {

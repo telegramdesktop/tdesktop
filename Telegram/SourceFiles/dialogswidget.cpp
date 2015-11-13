@@ -444,22 +444,22 @@ void DialogsInner::createDialog(History *history) {
 	}
 }
 
-void DialogsInner::removePeer(PeerData *peer) {
-	if (sel && sel->history->peer == peer) {
+void DialogsInner::removeDialog(History *history) {
+	if (!history) return;
+	if (sel && sel->history == history) {
 		sel = 0;
 	}
-	History *history = App::history(peer->id);
-	dialogs.del(peer);
+	dialogs.del(history->peer);
 	history->dialogs = History::DialogLinks();
 	history->clearNotifications();
 	if (App::wnd()) App::wnd()->notifyClear(history);
-	if (contacts.list.rowByPeer.constFind(peer->id) != contacts.list.rowByPeer.cend()) {
-		if (contactsNoDialogs.list.rowByPeer.constFind(peer->id) == contactsNoDialogs.list.rowByPeer.cend()) {
-			contactsNoDialogs.addByName(App::history(peer->id));
+	if (contacts.list.rowByPeer.constFind(history->peer->id) != contacts.list.rowByPeer.cend()) {
+		if (contactsNoDialogs.list.rowByPeer.constFind(history->peer->id) == contactsNoDialogs.list.rowByPeer.cend()) {
+			contactsNoDialogs.addByName(history);
 		}
 	}
 
-	Local::removeSavedPeer(peer);
+	Local::removeSavedPeer(history->peer);
 
 	emit App::main()->dialogsUpdated();
 
@@ -811,10 +811,15 @@ void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
 		}
 
 		if (history) {
-			if (!history->lastMsgDate.isNull()) addSavedPeersAfter(history->lastMsgDate);
-			History::DialogLinks links = dialogs.addToEnd(history);
-			history->dialogs = links;
+			if (!history->lastMsgDate.isNull()) {
+				addSavedPeersAfter(history->lastMsgDate);
+			}
 			contactsNoDialogs.del(history->peer);
+			if (history->peer->migrateFrom()) {
+				removeDialog(App::historyLoaded(history->peer->migrateFrom()->id));
+			} else if (history->peer->migrateTo() && history->peer->migrateTo()->amIn()) {
+				removeDialog(history);
+			}
 		}
 	}
 
@@ -1551,7 +1556,15 @@ void DialogsWidget::activate() {
 }
 
 void DialogsWidget::createDialog(History *history) {
+	bool creating = history->dialogs.isEmpty();
 	_inner.createDialog(history);
+	if (creating && history->peer->migrateFrom()) {
+		if (History *h = App::historyLoaded(history->peer->migrateFrom()->id)) {
+			if (!h->dialogs.isEmpty()) {
+				removeDialog(h);
+			}
+		}
+	}
 }
 
 void DialogsWidget::dlgUpdated(DialogRow *row) {
@@ -2072,7 +2085,7 @@ void DialogsWidget::onFilterUpdate(bool force) {
 	if (_a_show.animating() && !force) return;
 
 	QString filterText = _filter.getLastText();
-	_inner.onFilterUpdate(filterText);
+	_inner.onFilterUpdate(filterText, force);
 	if (filterText.isEmpty()) {
 		_searchCache.clear();
 		_searchQueries.clear();
@@ -2095,7 +2108,6 @@ void DialogsWidget::searchInPeer(PeerData *peer) {
 	_searchInPeer = peer;
 	_inner.searchInPeer(peer);
 	onFilterUpdate(true);
-	_inner.onFilterUpdate(_filter.getLastText(), true);
 }
 
 void DialogsWidget::onFilterCursorMoved(int from, int to) {
@@ -2234,11 +2246,9 @@ void DialogsWidget::scrollToPeer(const PeerId &peer, MsgId msgId) {
 	_inner.scrollToPeer(peer, msgId);
 }
 
-void DialogsWidget::removePeer(PeerData *peer) {
-	_filter.setText(QString());
-	_filter.updatePlaceholder();
+void DialogsWidget::removeDialog(History *history) {
+	_inner.removeDialog(history);
 	onFilterUpdate();
-	_inner.removePeer(peer);
 }
 
 void DialogsWidget::removeContact(UserData *user) {
