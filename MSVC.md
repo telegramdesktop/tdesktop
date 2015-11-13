@@ -169,6 +169,13 @@ and run
 #####Apply the patch
 
     cd qtbase && git apply ../../../tdesktop/Telegram/_qtbase_5_5_1_patch.diff && cd ..
+    
+
+#####Install Windows SDKs
+
+If you don't install Windows SDKs before, then open telegram project at "D:\TBuild\tdesktop\Telegram.sln". On sturtup Visual Studio 2015 will popup dialog box and ask to download and install extra components (including Windows 7 SDK).
+
+If you already have Windows SDKs then find library folder and correct it at configure's command below (like "C:\Program Files (x86)\Windows Kits\8.0\Lib\win8\um\x86").
 
 #####Building library
 
