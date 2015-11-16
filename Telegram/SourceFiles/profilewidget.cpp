@@ -31,14 +31,15 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "boxes/contactsbox.h"
 #include "gui/filedialog.h"
 
-ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const PeerData *peer) : TWidget(0)
+ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData *peer) : TWidget(0)
 , _profile(profile)
 , _scroll(scroll)
-, _peer(App::peer(peer->id))
+, _peer(peer->migrateTo() ? peer->migrateTo() : peer)
 , _peerUser(_peer->asUser())
 , _peerChat(_peer->asChat())
 , _peerChannel(_peer->asChannel())
-, _hist(App::history(peer->id))
+, _migrated(_peer->migrateFrom() ? App::history(_peer->migrateFrom()->id) : 0)
+, _history(App::history(_peer->id))
 , _amCreator(_peerChat ? _peerChat->amCreator() : (_peerChannel ? _peerChannel->amCreator() : false))
 
 , _width(0)
@@ -46,7 +47,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 , _addToHeight(0)
 
 // profile
-, _nameCache(peer->name)
+, _nameCache(_peer->name)
 , _uploadPhoto(this, lang(lng_profile_set_group_photo), st::btnShareContact)
 , _addParticipant(this, lang(lng_profile_add_participant), st::btnShareContact)
 , _sendMessage(this, lang(lng_profile_send_message), st::btnShareContact)
@@ -1133,6 +1134,7 @@ bool ProfileInner::updateMediaLinks(int32 *addToScroll) {
 	}
 
 	bool newNotAllMediaLoaded = false, changed = false, substracted = !_notAllMediaLoaded && oneWasShown;
+	bool notAllHistoryLoaded = false, notAllMigratedLoaded = false;
 
 	bool oneIsShown = false;
 	int32 y = _mediaButtons[OverviewPhotos]->y();
@@ -1140,9 +1142,10 @@ bool ProfileInner::updateMediaLinks(int32 *addToScroll) {
 	for (int i = 0; i < OverviewCount; ++i) {
 		int32 addToY = _mediaButtons[i]->height() + st::setLittleSkip;
 
-		int32 count = (_hist->overviewCount[i] > 0) ? _hist->overviewCount[i] : (_hist->overviewCount[i] == 0 ? _hist->overview[i].size() : -1);
-		if (count > 0) {
-			_mediaButtons[i]->setText(overviewLinkText(i, count));
+		int32 count = _history->overviewCountValue(i), additional = _migrated ? _migrated->overviewCountValue(i) : 0;
+		int32 sum = (count > 0 ? count : 0) + (additional > 0 ? additional : 0);
+		if (sum > 0) {
+			_mediaButtons[i]->setText(overviewLinkText(i, sum));
 			if (_mediaButtons[i]->isHidden()) {
 				_mediaButtons[i]->show();
 				changed = true;
@@ -1165,10 +1168,14 @@ bool ProfileInner::updateMediaLinks(int32 *addToScroll) {
 				}
 			}
 			if (count < 0) {
-				newNotAllMediaLoaded = true;
+				notAllHistoryLoaded = true;
+			}
+			if (additional < 0) {
+				notAllMigratedLoaded = true;
 			}
 		}
 	}
+	newNotAllMediaLoaded = notAllHistoryLoaded || notAllMigratedLoaded;
 	if (newNotAllMediaLoaded != _notAllMediaLoaded) {
 		_notAllMediaLoaded = newNotAllMediaLoaded;
 		changed = true;
@@ -1186,7 +1193,10 @@ bool ProfileInner::updateMediaLinks(int32 *addToScroll) {
 			}
 		}
 
-		if (App::main()) App::main()->preloadOverviews(_peer);
+		if (App::main()) {
+			if (notAllHistoryLoaded) App::main()->preloadOverviews(_peer);
+			if (notAllMigratedLoaded) App::main()->preloadOverviews(_migrated->peer);
+		}
 	}
 	bool newSubstracted = !_notAllMediaLoaded && oneIsShown;
 	if (newSubstracted && newSubstracted != substracted) {
@@ -1423,7 +1433,7 @@ void ProfileInner::updateNotifySettings() {
 
 int32 ProfileInner::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
 	int32 result = 0;
-	if (peer == _peer) {
+	if (peer == _peer || (_migrated && _migrated->peer == peer)) {
 		if (updateMediaLinks(&result)) {
 			showAll();
 			resizeEvent(0);
@@ -1683,7 +1693,7 @@ QString ProfileInner::overviewLinkText(int32 type, int32 count) {
 	return QString();
 }
 
-ProfileWidget::ProfileWidget(QWidget *parent, const PeerData *peer) : TWidget(parent)
+ProfileWidget::ProfileWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 , _scroll(this, st::setScroll)
 , _inner(this, &_scroll, peer)
 , _a_show(animFunc(this, &ProfileWidget::animStep_show))

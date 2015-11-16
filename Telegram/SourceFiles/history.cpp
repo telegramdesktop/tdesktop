@@ -7494,6 +7494,8 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 			second = TextLinkPtr(new PeerLink(u1));
 			third = TextLinkPtr(new PeerLink(u2));
 			text = lng_action_add_user_and_user(lt_from, from, lt_user, textcmdLink(2, u1->name), lt_second_user, textcmdLink(3, u2->name));
+		} else if (v.isEmpty()) {
+			text = lng_action_add_user(lt_from, from, lt_user, "somebody");
 		} else {
 			UserData *u = App::user(peerFromUser(foundSelf ? MTP::authedId() : v.at(0).v));
 			second = TextLinkPtr(new PeerLink(u));

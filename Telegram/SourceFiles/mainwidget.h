@@ -333,6 +333,7 @@ public:
 	void insertBotCommand(const QString &cmd);
 
 	void searchMessages(const QString &query, PeerData *inPeer);
+	bool preloadOverview(PeerData *peer, MediaOverviewType type);
 	void preloadOverviews(PeerData *peer);
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);

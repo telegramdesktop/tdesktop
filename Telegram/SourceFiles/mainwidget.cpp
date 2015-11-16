@@ -1291,29 +1291,30 @@ void MainWidget::searchMessages(const QString &query, PeerData *inPeer) {
 	}
 }
 
+bool MainWidget::preloadOverview(PeerData *peer, MediaOverviewType type) {
+	MTPMessagesFilter filter = typeToMediaFilter(type);
+	if (type == OverviewCount) return false;
+
+	History *h = App::history(peer->id);
+	if (h->overviewCount[type] >= 0 || _overviewPreload[type].constFind(peer) != _overviewPreload[type].cend()) {
+		return false;
+	}
+
+	int32 flags = (peer->isChannel() && !peer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
+	_overviewPreload[type].insert(peer, MTP::send(MTPmessages_Search(MTP_int(flags), peer->input, MTP_string(""), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::overviewPreloaded, peer), rpcFail(&MainWidget::overviewFailed, peer), 0, 10));
+	return true;
+}
+
 void MainWidget::preloadOverviews(PeerData *peer) {
 	History *h = App::history(peer->id);
-	bool sending[OverviewCount] = { false };
+	bool sending = false;
 	for (int32 i = 0; i < OverviewCount; ++i) {
-		if (h->overviewCount[i] < 0) {
-			if (_overviewPreload[i].constFind(peer) == _overviewPreload[i].cend()) {
-				sending[i] = true;
-			}
+		if (preloadOverview(peer, MediaOverviewType(i))) {
+			sending = true;
 		}
 	}
-	int32 last = OverviewCount;
-	while (last > 0) {
-		if (sending[--last]) break;
-	}
-	for (int32 i = 0; i < OverviewCount; ++i) {
-		if (sending[i]) {
-			MediaOverviewType type = MediaOverviewType(i);
-			MTPMessagesFilter filter = typeToMediaFilter(type);
-			if (type == OverviewCount) break;
-
-			int32 flags = (peer->isChannel() && !peer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
-			_overviewPreload[i].insert(peer, MTP::send(MTPmessages_Search(MTP_int(flags), peer->input, MTP_string(""), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::overviewPreloaded, peer), rpcFail(&MainWidget::overviewFailed, peer), 0, (i == last) ? 0 : 10));
-		}
+	if (sending) {
+		MTP::sendAnything();
 	}
 }
 
@@ -1381,14 +1382,17 @@ void MainWidget::overviewPreloaded(PeerData *peer, const MTPmessages_Messages &r
 void MainWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
 	if (profile) profile->mediaOverviewUpdated(peer, type);
 	if (!_player.isHidden()) _player.mediaOverviewUpdated(peer, type);
-	if (overview && overview->peer() == peer) {
+	if (overview && (overview->peer() == peer || overview->peer()->migrateFrom() == peer)) {
 		overview->mediaOverviewUpdated(peer, type);
 
 		int32 mask = 0;
-		History *h = peer ? App::historyLoaded(peer->id) : 0;
+		History *h = peer ? App::historyLoaded((peer->migrateTo() ? peer->migrateTo() : peer)->id) : 0;
+		History *m = (peer && peer->migrateFrom()) ? App::historyLoaded(peer->migrateFrom()->id) : 0;
 		if (h) {
 			for (int32 i = 0; i < OverviewCount; ++i) {
 				if (!h->overview[i].isEmpty() || h->overviewCount[i] > 0 || i == overview->type()) {
+					mask |= (1 << i);
+				} else if (m && (!m->overview[i].isEmpty() || m->overviewCount[i] > 0)) {
 					mask |= (1 << i);
 				}
 			}

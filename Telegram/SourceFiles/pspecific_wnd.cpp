@@ -2825,10 +2825,11 @@ bool CreateToast(PeerData *peer, int32 msgId, bool showpix, const QString &title
 	}
 	hr = toastNotifier->Show(toast.Get());
 	if (!SUCCEEDED(hr)) {
-		if (i->isEmpty()) toastNotifications.erase(i);
+		i = toastNotifications.find(peer->id);
+		if (i != toastNotifications.cend() && i->isEmpty()) toastNotifications.erase(i);
 		return false;
 	}
-	i->insert(msgId, toast);
+	toastNotifications[peer->id].insert(msgId, toast);
 
 	return true;
 }

@@ -1210,7 +1210,7 @@ int32 HistoryInner::recountHeight(HistoryItem *resizedItem) {
 		}
 	}
 	if (skip != _historySkipHeight) {
-		if (st1 >= 0) st1 -= (_historySkipHeight - skip);
+		if (st1 >= 0) st1 -= (skip - _historySkipHeight);
 		_historySkipHeight = skip;
 	}
 	updateBotInfo(false);

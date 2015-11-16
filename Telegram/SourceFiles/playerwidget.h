@@ -99,8 +99,9 @@ private:
 	Animation _stateAnim;
 
 	SongMsgId _song;
+	bool _msgmigrated;
 	int32 _index;
-	History *_history;
+	History *_migrated, *_history;
 	QRect _playRect, _prevRect, _nextRect, _playbackRect;
 	QRect _closeRect, _volumeRect, _fullRect, _repeatRect, _infoRect;
 	int32 _timeWidth;

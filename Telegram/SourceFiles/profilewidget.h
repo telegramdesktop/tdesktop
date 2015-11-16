@@ -26,7 +26,7 @@ class ProfileInner : public TWidget, public RPCSender, public Animated {
 
 public:
 
-	ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const PeerData *peer);
+	ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData *peer);
 
 	void start();
 
@@ -143,7 +143,7 @@ private:
 	UserData *_peerUser;
 	ChatData *_peerChat;
 	ChannelData *_peerChannel;
-	History *_hist;
+	History *_migrated, *_history;
 	bool _amCreator;
 
 	int32 _width, _left, _addToHeight;
@@ -218,7 +218,7 @@ class ProfileWidget : public TWidget, public RPCSender {
 
 public:
 
-	ProfileWidget(QWidget *parent, const PeerData *peer);
+	ProfileWidget(QWidget *parent, PeerData *peer);
 
 	void resizeEvent(QResizeEvent *e);
 	void mousePressEvent(QMouseEvent *e);

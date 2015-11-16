@@ -347,6 +347,13 @@ public:
 	MediaOverviewIds overviewIds[OverviewCount];
 	int32 overviewCount[OverviewCount]; // -1 - not loaded, 0 - all loaded, > 0 - count, but not all loaded
 
+	bool overviewCountKnown(int32 overviewIndex) const {
+		return overviewCount[overviewIndex] >= 0;
+	}
+	int32 overviewCountValue(int32 overviewIndex) const {
+		return (overviewCount[overviewIndex] == 0) ? overview[overviewIndex].size() : overviewCount[overviewIndex];
+	}
+
 private:
 
 	friend class HistoryBlock;

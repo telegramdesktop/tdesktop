@@ -42,7 +42,9 @@ PlayerWidget::PlayerWidget(QWidget *parent) : TWidget(parent)
 , _downFrequency(AudioVoiceMsgFrequency)
 , _downProgress(0.)
 , _stateAnim(animFunc(this, &PlayerWidget::stateStep))
+, _msgmigrated(false)
 , _index(-1)
+, _migrated(0)
 , _history(0)
 , _timeWidth(0)
 , _repeat(false)
@@ -265,14 +267,25 @@ void PlayerWidget::updateOverRect(OverState state) {
 
 void PlayerWidget::updateControls() {
 	_fullAvailable = (_index >= 0);
-	_prevAvailable = _fullAvailable && (_index > 0);
-	_nextAvailable = _fullAvailable && (_index < _history->overview[OverviewAudioDocuments].size() - 1);
+	_prevAvailable = _fullAvailable && ((_index > 0) || (_index == 0 && _migrated && !_msgmigrated && !_migrated->overview[OverviewAudioDocuments].isEmpty()));
+	_nextAvailable = _fullAvailable && ((_index < (_msgmigrated ? _migrated : _history)->overview[OverviewAudioDocuments].size() - 1) || (_msgmigrated && _index == _migrated->overview[OverviewAudioDocuments].size() - 1 && _history->overviewCount[OverviewAudioDocuments] >= 0 && _history->overviewCountValue(OverviewAudioDocuments) <= _history->overview[OverviewAudioDocuments].size()));
 	resizeEvent(0);
 	update();
-
 	if (_index >= 0 && _index < MediaOverviewStartPerPage) {
-		if (_history->overviewCount[OverviewAudioDocuments] < 0 || _history->overviewCount[OverviewAudioDocuments] > 0) {
-			if (App::main()) App::main()->loadMediaBack(_history->peer, OverviewAudioDocuments);
+		if (_history->overviewCount[OverviewAudioDocuments] != 0 || (_migrated && _migrated->overviewCount[OverviewAudioDocuments] != 0)) {
+			if (App::main()) {
+				if (_msgmigrated || (_migrated && _index == 0 && _history->overviewCount[OverviewAudioDocuments] >= 0 && _history->overviewCountValue(OverviewAudioDocuments) <= _history->overview[OverviewAudioDocuments].size())) {
+					App::main()->loadMediaBack(_migrated->peer, OverviewAudioDocuments);
+				} else {
+					App::main()->loadMediaBack(_history->peer, OverviewAudioDocuments);
+					if (_migrated && _index == 0 && _migrated->overviewCount[OverviewAudioDocuments] != 0 && _migrated->overview[OverviewAudioDocuments].isEmpty()) {
+						App::main()->loadMediaBack(_migrated->peer, OverviewAudioDocuments);
+					}
+				}
+				if (_msgmigrated && _history->overviewCount[OverviewAudioDocuments] < 0) {
+					App::main()->preloadOverview(_history->peer, OverviewAudioDocuments);
+				}
+			}
 		}
 	}
 }
@@ -281,8 +294,8 @@ void PlayerWidget::findCurrent() {
 	_index = -1;
 	if (!_history) return;
 
-	const History::MediaOverview *o = &_history->overview[OverviewAudioDocuments];
-	if (_history->channelId() == _song.msgId.channel) {
+	const History::MediaOverview *o = &(_msgmigrated ? _migrated : _history)->overview[OverviewAudioDocuments];
+	if ((_msgmigrated ? _migrated : _history)->channelId() == _song.msgId.channel) {
 		for (int i = 0, l = o->size(); i < l; ++i) {
 			if (o->at(i) == _song.msgId.msg) {
 				_index = i;
@@ -292,15 +305,19 @@ void PlayerWidget::findCurrent() {
 	}
 	if (_index < 0) return;
 
+	HistoryItem *next = 0;
 	if (_index < o->size() - 1) {
-		if (HistoryItem *next = App::histItemById(_history->channelId(), o->at(_index + 1))) {
-			if (HistoryDocument *document = static_cast<HistoryDocument*>(next->getMedia())) {
-				if (document->document()->already(true).isEmpty() && document->document()->data.isEmpty()) {
-					if (!document->document()->loader) {
-						DocumentOpenLink::doOpen(document->document());
-						document->document()->openOnSave = 0;
-						document->document()->openOnSaveMsgId = FullMsgId();
-					}
+		next = App::histItemById((_msgmigrated ? _migrated : _history)->channelId(), o->at(_index + 1));
+	} else if (_msgmigrated && _index == o->size() - 1 && _history->overviewCount[OverviewAudioDocuments] >= 0 && _history->overviewCountValue(OverviewAudioDocuments) <= _history->overview[OverviewAudioDocuments].size()) {
+		next = App::histItemById(_history->channelId(), _history->overview[OverviewAudioDocuments].at(0));
+	}
+	if (next) {
+		if (HistoryDocument *document = static_cast<HistoryDocument*>(next->getMedia())) {
+			if (document->document()->already(true).isEmpty() && document->document()->data.isEmpty()) {
+				if (!document->document()->loader) {
+					DocumentOpenLink::doOpen(document->document());
+					document->document()->openOnSave = 0;
+					document->document()->openOnSaveMsgId = FullMsgId();
 				}
 			}
 		}
@@ -324,11 +341,11 @@ void PlayerWidget::clearSelection() {
 }
 
 void PlayerWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
-	if (_history && _history->peer == peer && type == OverviewAudioDocuments) {
+	if (_history && (_history->peer == peer || (_migrated && _migrated->peer == peer)) && type == OverviewAudioDocuments) {
 		_index = -1;
-		if (_history->channelId() == _song.msgId.channel) {
-			for (int i = 0, l = _history->overview[OverviewAudioDocuments].size(); i < l; ++i) {
-				if (_history->overview[OverviewAudioDocuments].at(i) == _song.msgId.msg) {
+		if ((_msgmigrated ? _migrated : _history)->channelId() == _song.msgId.channel) {
+			for (int i = 0, l = (_msgmigrated ? _migrated : _history)->overview[OverviewAudioDocuments].size(); i < l; ++i) {
+				if ((_msgmigrated ? _migrated : _history)->overview[OverviewAudioDocuments].at(i) == _song.msgId.msg) {
 					_index = i;
 					break;
 				}
@@ -488,18 +505,26 @@ void PlayerWidget::playPausePressed() {
 void PlayerWidget::prevPressed() {
 	if (isHidden()) return;
 
-	const History::MediaOverview *o = _history ? &_history->overview[OverviewAudioDocuments] : 0;
+	const History::MediaOverview *o = _history ? &(_msgmigrated ? _migrated : _history)->overview[OverviewAudioDocuments] : 0;
 	if (audioPlayer() && o && _index > 0 && _index <= o->size() && !o->isEmpty()) {
-		startPlay(FullMsgId(_history->channelId(), o->at(_index - 1)));
+		startPlay(FullMsgId((_msgmigrated ? _migrated : _history)->channelId(), o->at(_index - 1)));
+	} else if (!_index && _history && _migrated && !_msgmigrated) {
+		o = &_migrated->overview[OverviewAudioDocuments];
+		if (!o->isEmpty()) {
+			startPlay(FullMsgId(_migrated->channelId(), o->at(o->size() - 1)));
+		}
 	}
 }
 
 void PlayerWidget::nextPressed() {
 	if (isHidden()) return;
 
-	const History::MediaOverview *o = _history ? &_history->overview[OverviewAudioDocuments] : 0;
+	const History::MediaOverview *o = _history ? &(_msgmigrated ? _migrated : _history)->overview[OverviewAudioDocuments] : 0;
 	if (audioPlayer() && o && _index >= 0 && _index < o->size() - 1) {
-		startPlay(FullMsgId(_history->channelId(), o->at(_index + 1)));
+		startPlay(FullMsgId((_msgmigrated ? _migrated : _history)->channelId(), o->at(_index + 1)));
+	} else if (o && (_index == o->size() - 1) && _msgmigrated && _history->overviewCount[OverviewAudioDocuments] >= 0 && _history->overviewCountValue(OverviewAudioDocuments) <= _history->overview[OverviewAudioDocuments].size()) {
+		o = &_history->overview[OverviewAudioDocuments];
+		if (!o->isEmpty()) startPlay(FullMsgId(_history->channelId(), o->at(0)));
 	}
 }
 
@@ -562,9 +587,18 @@ void PlayerWidget::updateState(SongMsgId playing, AudioPlayerState playingState,
 		_song = playing;
 		if (HistoryItem *item = App::histItemById(_song.msgId)) {
 			_history = item->history();
+			if (_history->peer->migrateFrom()) {
+				_migrated = App::history(_history->peer->migrateFrom()->id);
+				_msgmigrated = false;
+			} else if (_history->peer->migrateTo()) {
+				_migrated = _history;
+				_history = App::history(_migrated->peer->migrateTo()->id);
+				_msgmigrated = true;
+			}
 			findCurrent();
 		} else {
 			_history = 0;
+			_msgmigrated = false;
 			_index = -1;
 		}
 		SongData *song = _song.song->song();

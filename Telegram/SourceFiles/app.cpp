@@ -2505,9 +2505,9 @@ namespace App {
 			ChannelReplyMarkups::iterator i = channelReplyMarkups.find(channelId);
 			if (i != channelReplyMarkups.cend()) {
 				i->remove(msgId);
-			}
-			if (i->isEmpty()) {
-				channelReplyMarkups.erase(i);
+				if (i->isEmpty()) {
+					channelReplyMarkups.erase(i);
+				}
 			}
 		}
 	}
