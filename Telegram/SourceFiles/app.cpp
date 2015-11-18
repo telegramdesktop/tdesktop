@@ -918,11 +918,10 @@ namespace App {
 		return false;
 	}
 
-	void feedMsgs(const MTPVector<MTPMessage> &msgs, NewMessageType type) {
-		const QVector<MTPMessage> &v(msgs.c_vector().v);
+	void feedMsgs(const QVector<MTPMessage> &msgs, NewMessageType type) {
 		QMap<uint64, int32> msgsIds;
-		for (int32 i = 0, l = v.size(); i < l; ++i) {
-			const MTPMessage &msg(v.at(i));
+		for (int32 i = 0, l = msgs.size(); i < l; ++i) {
+			const MTPMessage &msg(msgs.at(i));
 			switch (msg.type()) {
 			case mtpc_message: {
 				const MTPDmessage &d(msg.c_message());
@@ -942,8 +941,12 @@ namespace App {
 			}
 		}
 		for (QMap<uint64, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
-			histories().addNewMessage(v.at(i.value()), type);
+			histories().addNewMessage(msgs.at(i.value()), type);
 		}
+	}
+
+	void feedMsgs(const MTPVector<MTPMessage> &msgs, NewMessageType type) {
+		return feedMsgs(msgs.c_vector().v, type);
 	}
 
 	ImagePtr image(const MTPPhotoSize &size) {

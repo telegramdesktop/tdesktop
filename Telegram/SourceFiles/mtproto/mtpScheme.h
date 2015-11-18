@@ -496,7 +496,7 @@ enum {
 	mtpc_contacts_search = 0x11f812d8,
 	mtpc_contacts_resolveUsername = 0xf93ccba3,
 	mtpc_messages_getMessages = 0x4222fa74,
-	mtpc_messages_getDialogs = 0x859b3d3c,
+	mtpc_messages_getDialogs = 0x6b47f94d,
 	mtpc_messages_getHistory = 0x8a8ec2da,
 	mtpc_messages_search = 0xd4569248,
 	mtpc_messages_readHistory = 0xe306d3a,
@@ -15477,7 +15477,9 @@ public:
 
 class MTPmessages_getDialogs { // RPC method 'messages.getDialogs'
 public:
-	MTPint voffset;
+	MTPint voffset_date;
+	MTPint voffset_id;
+	MTPInputPeer voffset_peer;
 	MTPint vlimit;
 
 	MTPmessages_getDialogs() {
@@ -15485,21 +15487,25 @@ public:
 	MTPmessages_getDialogs(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getDialogs) {
 		read(from, end, cons);
 	}
-	MTPmessages_getDialogs(MTPint _offset, MTPint _limit) : voffset(_offset), vlimit(_limit) {
+	MTPmessages_getDialogs(MTPint _offset_date, MTPint _offset_id, const MTPInputPeer &_offset_peer, MTPint _limit) : voffset_date(_offset_date), voffset_id(_offset_id), voffset_peer(_offset_peer), vlimit(_limit) {
 	}
 
 	uint32 innerLength() const {
-		return voffset.innerLength() + vlimit.innerLength();
+		return voffset_date.innerLength() + voffset_id.innerLength() + voffset_peer.innerLength() + vlimit.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_messages_getDialogs;
 	}
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getDialogs) {
-		voffset.read(from, end);
+		voffset_date.read(from, end);
+		voffset_id.read(from, end);
+		voffset_peer.read(from, end);
 		vlimit.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
-		voffset.write(to);
+		voffset_date.write(to);
+		voffset_id.write(to);
+		voffset_peer.write(to);
 		vlimit.write(to);
 	}
 
@@ -15513,7 +15519,7 @@ public:
 	}
 	MTPmessages_GetDialogs(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_getDialogs>(from, end, cons) {
 	}
-	MTPmessages_GetDialogs(MTPint _offset, MTPint _limit) : MTPBoxed<MTPmessages_getDialogs>(MTPmessages_getDialogs(_offset, _limit)) {
+	MTPmessages_GetDialogs(MTPint _offset_date, MTPint _offset_id, const MTPInputPeer &_offset_peer, MTPint _limit) : MTPBoxed<MTPmessages_getDialogs>(MTPmessages_getDialogs(_offset_date, _offset_id, _offset_peer, _limit)) {
 	}
 };
 
