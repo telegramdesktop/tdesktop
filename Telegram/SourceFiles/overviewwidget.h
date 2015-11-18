@@ -26,7 +26,7 @@ class OverviewInner : public QWidget, public RPCSender {
 
 public:
 
-	OverviewInner(OverviewWidget *overview, ScrollArea *scroll, const PeerData *peer, MediaOverviewType type);
+	OverviewInner(OverviewWidget *overview, ScrollArea *scroll, PeerData *peer, MediaOverviewType type);
 
 	void activate();
 
@@ -61,6 +61,7 @@ public:
 	void dropResizeIndex();
 
 	PeerData *peer() const;
+	PeerData *migratePeer() const;
 	MediaOverviewType type() const;
 	void switchType(MediaOverviewType type);
 
@@ -110,6 +111,11 @@ public slots:
 
 private:
 
+	bool itemMigrated(MsgId msgId) const;
+	ChannelId itemChannel(MsgId msgId) const;
+	MsgId itemMsgId(MsgId msgId) const;
+	int32 migratedIndexSkip() const;
+
 	void fixItemIndex(int32 &current, MsgId msgId) const;
 	bool itemHasPoint(MsgId msgId, int32 index, int32 x, int32 y) const;
 	int32 itemHeight(MsgId msgId, int32 index) const;
@@ -125,6 +131,7 @@ private:
 	void touchDeaccelerate(int32 elapsed);
 
 	void applyDragSelection();
+	void addSelectionRange(int32 selFrom, int32 selTo, History *history);
 
 	QPixmap genPix(PhotoData *photo, int32 size);
 	void showAll(bool recountHeights = false);
@@ -184,13 +191,19 @@ private:
 
 	QTimer _searchTimer;
 	QString _searchQuery;
-	bool _inSearch, _searchFull;
+	bool _inSearch, _searchFull, _searchFullMigrated;
 	mtpRequestId _searchRequest;
 	History::MediaOverview _searchResults;
-	MsgId _lastSearchId;
+	MsgId _lastSearchId, _lastSearchMigratedId;
 	int32 _searchedCount;
-	void searchReceived(bool fromStart, const MTPmessages_Messages &result, mtpRequestId req);
-	bool searchFailed(const RPCError &error, mtpRequestId req);
+	enum SearchRequestType {
+		SearchFromStart,
+		SearchFromOffset,
+		SearchMigratedFromStart,
+		SearchMigratedFromOffset
+	};
+	void searchReceived(SearchRequestType type, const MTPmessages_Messages &result, mtpRequestId req);
+	bool searchFailed(SearchRequestType type, const RPCError &error, mtpRequestId req);
 
 	typedef QMap<QString, MTPmessages_Messages> SearchCache;
 	SearchCache _searchCache;
@@ -268,7 +281,7 @@ class OverviewWidget : public TWidget, public RPCSender {
 
 public:
 
-	OverviewWidget(QWidget *parent, const PeerData *peer, MediaOverviewType type);
+	OverviewWidget(QWidget *parent, PeerData *peer, MediaOverviewType type);
 
 	void clear();
 
@@ -283,6 +296,7 @@ public:
 	void topBarClick();
 
 	PeerData *peer() const;
+	PeerData *migratePeer() const;
 	MediaOverviewType type() const;
 	void switchType(MediaOverviewType type);
 	void updateTopBarSelection();

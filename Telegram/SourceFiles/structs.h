@@ -118,6 +118,13 @@ inline int32 idFromMessage(const MTPmessage &msg) {
 	}
 	return 0;
 }
+inline int32 dateFromMessage(const MTPmessage &msg) {
+	switch (msg.type()) {
+	case mtpc_message: return msg.c_message().vdate.v;
+	case mtpc_messageService: return msg.c_messageService().vdate.v;
+	}
+	return 0;
+}
 
 typedef uint64 PhotoId;
 typedef uint64 VideoId;
@@ -670,7 +677,7 @@ inline ChannelData *PeerData::migrateTo() const {
 	return (isChat() && asChat()->migrateToPtr && asChat()->migrateToPtr->amIn()) ? asChat()->migrateToPtr : 0;
 }
 inline const Text &PeerData::dialogName() const {
-	return (isUser() && !asUser()->phoneText.isEmpty()) ? asUser()->phoneText : nameText;
+	return migrateTo() ? migrateTo()->dialogName() : ((isUser() && !asUser()->phoneText.isEmpty()) ? asUser()->phoneText : nameText);
 }
 inline const QString &PeerData::shortName() const {
 	return isUser() ? asUser()->firstName : name;

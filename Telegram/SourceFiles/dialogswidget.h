@@ -22,6 +22,15 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 class MainWidget;
 
+enum DialogsSearchRequestType {
+	DialogsSearchFromStart,
+	DialogsSearchFromOffset,
+	DialogsSearchPeerFromStart,
+	DialogsSearchPeerFromOffset,
+	DialogsSearchMigratedFromStart,
+	DialogsSearchMigratedFromOffset,
+};
+
 class DialogsInner : public SplittedWidget {
 	Q_OBJECT
 
@@ -32,7 +41,7 @@ public:
 	void dialogsReceived(const QVector<MTPDialog> &dialogs);
 	void addSavedPeersAfter(const QDateTime &date);
 	void addAllSavedPeers();
-	void searchReceived(const QVector<MTPMessage> &messages, bool fromStart, int32 fullCount);
+	bool searchReceived(const QVector<MTPMessage> &messages, DialogsSearchRequestType type, int32 fullCount);
 	void peopleReceived(const QString &query, const QVector<MTPPeer> &people);
 	void showMore(int32 pixels);
 
@@ -86,7 +95,10 @@ public:
 	FilteredDialogs &filteredList();
 	PeopleResults &peopleList();
 	SearchResults &searchList();
+	int32 lastSearchDate() const;
+	PeerData *lastSearchPeer() const;
 	MsgId lastSearchId() const;
+	MsgId lastSearchMigratedId() const;
 
 	void setMouseSel(bool msel, bool toTop = false);
 
@@ -144,22 +156,24 @@ private:
 	bool contactSel;
 	bool selByMouse;
 
-	QString filter, _hashtagFilter;
+	QString _filter, _hashtagFilter;
 
-	QStringList hashtagResults;
-	int32 hashtagSel;
+	QStringList _hashtagResults;
+	int32 _hashtagSel;
 
-	FilteredDialogs filterResults;
-	int32 filteredSel;
+	FilteredDialogs _filterResults;
+	int32 _filteredSel;
 
-	SearchResults searchResults;
-	int32 searchedCount, searchedSel;
+	SearchResults _searchResults;
+	int32 _searchedCount, _searchedMigratedCount, _searchedSel;
 
-	QString peopleQuery;
-	PeopleResults peopleResults;
-	int32 peopleSel;
+	QString _peopleQuery;
+	PeopleResults _peopleResults;
+	int32 _peopleSel;
 
-	MsgId _lastSearchId;
+	int32 _lastSearchDate;
+	PeerData *_lastSearchPeer;
+	MsgId _lastSearchId, _lastSearchMigratedId;
 
 	State _state;
 
@@ -172,7 +186,7 @@ private:
 
 	bool _overDelete;
 
-	PeerData *_searchInPeer;
+	PeerData *_searchInPeer, *_searchInMigrated;
 
 };
 
@@ -184,7 +198,7 @@ public:
 
 	void dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpRequestId req);
 	void contactsReceived(const MTPcontacts_Contacts &contacts);
-	void searchReceived(bool fromStart, const MTPmessages_Messages &result, mtpRequestId req);
+	void searchReceived(DialogsSearchRequestType type, const MTPmessages_Messages &result, mtpRequestId req);
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
 	bool addNewContact(int32 uid, bool show = true);
 	
@@ -223,7 +237,7 @@ public:
 	DialogsIndexed &dialogsList();
 
 	void searchMessages(const QString &query, PeerData *inPeer = 0);
-	void onSearchMore(MsgId minMsgId);
+	void onSearchMore();
 
 	void itemRemoved(HistoryItem *item);
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
@@ -260,7 +274,7 @@ private:
 	void unreadCountsReceived(const QVector<MTPDialog> &dialogs);
 	bool dialogsFailed(const RPCError &error, mtpRequestId req);
 	bool contactsFailed(const RPCError &error);
-	bool searchFailed(const RPCError &error, mtpRequestId req);
+	bool searchFailed(DialogsSearchRequestType type, const RPCError &error, mtpRequestId req);
 	bool peopleFailed(const RPCError &error, mtpRequestId req);
 
 	int32 _dialogsOffset, _dialogsCount;
@@ -276,11 +290,11 @@ private:
 	anim::ivalue a_coordUnder, a_coordOver;
 	anim::fvalue a_shadow;
 
-	PeerData *_searchInPeer;
+	PeerData *_searchInPeer, *_searchInMigrated;
 
 	QTimer _searchTimer;
 	QString _searchQuery, _peopleQuery;
-	bool _searchFull, _peopleFull;
+	bool _searchFull, _searchFullMigrated, _peopleFull;
 	mtpRequestId _searchRequest, _peopleRequest;
 
 	typedef QMap<QString, MTPmessages_Messages> SearchCache;

@@ -1296,7 +1296,7 @@ bool MainWidget::preloadOverview(PeerData *peer, MediaOverviewType type) {
 	if (type == OverviewCount) return false;
 
 	History *h = App::history(peer->id);
-	if (h->overviewCount[type] >= 0 || _overviewPreload[type].constFind(peer) != _overviewPreload[type].cend()) {
+	if (h->overviewCountLoaded(type) || _overviewPreload[type].constFind(peer) != _overviewPreload[type].cend()) {
 		return false;
 	}
 
@@ -1331,50 +1331,7 @@ void MainWidget::overviewPreloaded(PeerData *peer, const MTPmessages_Messages &r
 
 	if (type == OverviewCount) return;
 
-	History *h = App::history(peer->id);
-	switch (result.type()) {
-	case mtpc_messages_messages: {
-		const MTPDmessages_messages &d(result.c_messages_messages());
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-		h->overviewCount[type] = d.vmessages.c_vector().v.size();
-	} break;
-
-	case mtpc_messages_messagesSlice: {
-		const MTPDmessages_messagesSlice &d(result.c_messages_messagesSlice());
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-		h->overviewCount[type] = d.vcount.v;
-	} break;
-
-	case mtpc_messages_channelMessages: {
-		const MTPDmessages_channelMessages &d(result.c_messages_channelMessages());
-		if (peer && peer->isChannel()) {
-			peer->asChannel()->ptsReceived(d.vpts.v);
-		} else {
-			LOG(("API Error: received messages.channelMessages when no channel was passed! (MainWidget::overviewPreloaded)"));
-		}
-		if (d.has_collapsed()) { // should not be returned
-			LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (MainWidget::overviewPreloaded)"));
-		}
-
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-		h->overviewCount[type] = d.vcount.v;
-	} break;
-
-	default: return;
-	}
-
-	if (h->overviewCount[type] > 0) {
-		for (History::MediaOverviewIds::const_iterator i = h->overviewIds[type].cbegin(), e = h->overviewIds[type].cend(); i != e; ++i) {
-			if (i.key() < 0) {
-				++h->overviewCount[type];
-			} else {
-				break;
-			}
-		}
-	}
+	App::history(peer->id)->overviewSliceDone(type, result, true);
 
 	mediaOverviewUpdated(peer, type);
 }
@@ -1390,9 +1347,9 @@ void MainWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
 		History *m = (peer && peer->migrateFrom()) ? App::historyLoaded(peer->migrateFrom()->id) : 0;
 		if (h) {
 			for (int32 i = 0; i < OverviewCount; ++i) {
-				if (!h->overview[i].isEmpty() || h->overviewCount[i] > 0 || i == overview->type()) {
+				if (!h->overview[i].isEmpty() || h->overviewCount(i) > 0 || i == overview->type()) {
 					mask |= (1 << i);
-				} else if (m && (!m->overview[i].isEmpty() || m->overviewCount[i] > 0)) {
+				} else if (m && (!m->overview[i].isEmpty() || m->overviewCount(i) > 0)) {
 					mask |= (1 << i);
 				}
 			}
@@ -1499,22 +1456,16 @@ bool MainWidget::overviewFailed(PeerData *peer, const RPCError &error, mtpReques
 void MainWidget::loadMediaBack(PeerData *peer, MediaOverviewType type, bool many) {
 	if (_overviewLoad[type].constFind(peer) != _overviewLoad[type].cend()) return;
 
-	MsgId minId = 0;
-	History *hist = App::history(peer->id);
-	if (hist->overviewCount[type] == 0) return; // all loaded
+	History *history = App::history(peer->id);
+	if (history->overviewLoaded(type)) return;
 
-	for (History::MediaOverviewIds::const_iterator i = hist->overviewIds[type].cbegin(), e = hist->overviewIds[type].cend(); i != e; ++i) {
-		if (i.key() > 0) {
-			minId = i.key();
-			break;
-		}
-	}
-	int32 limit = many ? SearchManyPerPage : (hist->overview[type].size() > MediaOverviewStartPerPage) ? SearchPerPage : MediaOverviewStartPerPage;
+	MsgId minId = history->overviewMinId(type);
+	int32 limit = many ? SearchManyPerPage : (history->overview[type].size() > MediaOverviewStartPerPage) ? SearchPerPage : MediaOverviewStartPerPage;
 	MTPMessagesFilter filter = typeToMediaFilter(type);
 	if (type == OverviewCount) return;
 
 	int32 flags = (peer->isChannel() && !peer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
-	_overviewLoad[type].insert(peer, MTP::send(MTPmessages_Search(MTP_int(flags), peer->input, MTPstring(), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(minId), MTP_int(limit)), rpcDone(&MainWidget::overviewLoaded, hist)));
+	_overviewLoad[type].insert(peer, MTP::send(MTPmessages_Search(MTP_int(flags), peer->input, MTPstring(), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(minId), MTP_int(limit)), rpcDone(&MainWidget::overviewLoaded, history)));
 }
 
 void MainWidget::peerUsernameChanged(PeerData *peer) {
@@ -1542,11 +1493,11 @@ void MainWidget::showNewGroup() {
 	dialogs.onNewGroup();
 }
 
-void MainWidget::overviewLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req) {
+void MainWidget::overviewLoaded(History *history, const MTPmessages_Messages &result, mtpRequestId req) {
 	OverviewsPreload::iterator it;
 	MediaOverviewType type = OverviewCount;
 	for (int32 i = 0; i < OverviewCount; ++i) {
-		it = _overviewLoad[i].find(h->peer);
+		it = _overviewLoad[i].find(history->peer);
 		if (it != _overviewLoad[i].cend()) {
 			type = MediaOverviewType(i);
 			_overviewLoad[i].erase(it);
@@ -1555,65 +1506,9 @@ void MainWidget::overviewLoaded(History *h, const MTPmessages_Messages &msgs, mt
 	}
 	if (type == OverviewCount) return;
 
-	const QVector<MTPMessage> *v = 0;
-	switch (msgs.type()) {
-	case mtpc_messages_messages: {
-		const MTPDmessages_messages &d(msgs.c_messages_messages());
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-		v = &d.vmessages.c_vector().v;
-		h->overviewCount[type] = 0;
-	} break;
+	history->overviewSliceDone(type, result);
 
-	case mtpc_messages_messagesSlice: {
-		const MTPDmessages_messagesSlice &d(msgs.c_messages_messagesSlice());
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-		h->overviewCount[type] = d.vcount.v;
-		v = &d.vmessages.c_vector().v;
-	} break;
-
-	case mtpc_messages_channelMessages: {
-		const MTPDmessages_channelMessages &d(msgs.c_messages_channelMessages());
-		if (h && h->peer->isChannel()) {
-			h->peer->asChannel()->ptsReceived(d.vpts.v);
-		} else {
-			LOG(("API Error: received messages.channelMessages when no channel was passed! (MainWidget::overviewLoaded)"));
-		}
-		if (d.has_collapsed()) { // should not be returned
-			LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (MainWidget::overviewLoaded)"));
-		}
-
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-		h->overviewCount[type] = d.vcount.v;
-		v = &d.vmessages.c_vector().v;
-	} break;
-
-	default: return;
-	}
-
-	if (h->overviewCount[type] > 0) {
-		for (History::MediaOverviewIds::const_iterator i = h->overviewIds[type].cbegin(), e = h->overviewIds[type].cend(); i != e; ++i) {
-			if (i.key() < 0) {
-				++h->overviewCount[type];
-			} else {
-				break;
-			}
-		}
-	}
-	if (v->isEmpty()) {
-		h->overviewCount[type] = 0;
-	}
-
-	for (QVector<MTPMessage>::const_iterator i = v->cbegin(), e = v->cend(); i != e; ++i) {
-		HistoryItem *item = App::histories().addNewMessage(*i, NewMessageExisting);
-		if (item && h->overviewIds[type].constFind(item->id) == h->overviewIds[type].cend()) {
-			h->overviewIds[type].insert(item->id, NullType());
-			h->overview[type].push_front(item->id);
-		}
-	}
-	if (App::wnd()) App::wnd()->mediaOverviewUpdated(h->peer, type);
+	if (App::wnd()) App::wnd()->mediaOverviewUpdated(history->peer, type);
 }
 
 void MainWidget::sendReadRequest(PeerData *peer, MsgId upTo) {
@@ -4263,22 +4158,6 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			HistoryItem *msgRow = App::histItemById(msg);
 			if (msgRow) {
 				App::historyUnregItem(msgRow);
-				History *h = msgRow->history();
-				for (int32 i = 0; i < OverviewCount; ++i) {
-					History::MediaOverviewIds::iterator j = h->overviewIds[i].find(msgRow->id);
-					if (j != h->overviewIds[i].cend()) {
-						h->overviewIds[i].erase(j);
-						if (h->overviewIds[i].constFind(d.vid.v) == h->overviewIds[i].cend()) {
-							h->overviewIds[i].insert(d.vid.v, NullType());
-							for (int32 k = 0, l = h->overview[i].size(); k != l; ++k) {
-								if (h->overview[i].at(k) == msgRow->id) {
-									h->overview[i][k] = d.vid.v;
-									break;
-								}
-							}
-						}
-					}
-				}
 				if (App::wnd()) App::wnd()->changingMsgId(msgRow, d.vid.v);
 				msgRow->setId(d.vid.v);
 				if (msgRow->history()->peer->isSelf()) {
@@ -4287,6 +4166,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				if (!App::historyRegItem(msgRow)) {
 					msgUpdated(msgRow);
 				} else {
+					History *h = msgRow->history();
 					bool wasLast = (h->lastMsg == msgRow);
 					msgRow->destroy();
 					if (wasLast && !h->lastMsg) {

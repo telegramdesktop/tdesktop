@@ -345,7 +345,7 @@ void MediaView::updateControls() {
 		_dateText = lng_mediaview_date_time(lt_date, d.date().toString(qsl("dd.MM.yy")), lt_time, d.time().toString(cTimeFormat()));
 	}
 	if (_from) {
-		_fromName.setText(st::mvFont, _from->name);
+		_fromName.setText(st::mvFont, (_from->migrateTo() ? _from->migrateTo() : _from)->name);
 		_nameNav = myrtlrect(st::mvTextLeft, height() - st::mvTextTop, qMin(_fromName.maxWidth(), width() / 3), st::mvFont->height);
 		_dateNav = myrtlrect(st::mvTextLeft + _nameNav.width() + st::mvTextSkip, height() - st::mvTextTop, st::mvFont->width(_dateText), st::mvFont->height);
 	} else {
@@ -355,15 +355,15 @@ void MediaView::updateControls() {
 	updateHeader();
 	if (_photo || (_history && (_overview == OverviewPhotos || _overview == OverviewDocuments))) {
 		_leftNavVisible = (_index > 0) || (_index == 0 && (
-			(!_msgmigrated && _history && _history->overview[_overview].size() < _history->overviewCount[_overview]) ||
-			(_msgmigrated && _migrated && _migrated->overview[_overview].size() < _migrated->overviewCount[_overview]) ||
-			(!_msgmigrated && _history && _migrated && (!_migrated->overview[_overview].isEmpty() || _migrated->overviewCount[_overview] > 0))));
+			(!_msgmigrated && _history && _history->overview[_overview].size() < _history->overviewCount(_overview)) ||
+			(_msgmigrated && _migrated && _migrated->overview[_overview].size() < _migrated->overviewCount(_overview)) ||
+			(!_msgmigrated && _history && _migrated && (!_migrated->overview[_overview].isEmpty() || _migrated->overviewCount(_overview) > 0))));
 		_rightNavVisible = (_index >= 0) && (
 			(!_msgmigrated && _history && _index + 1 < _history->overview[_overview].size()) ||
 			(_msgmigrated && _migrated && _index + 1 < _migrated->overview[_overview].size()) ||
-			(_msgmigrated && _migrated && _history && (!_history->overview[_overview].isEmpty() || _history->overviewCount[_overview] > 0)) ||
+			(_msgmigrated && _migrated && _history && (!_history->overview[_overview].isEmpty() || _history->overviewCount(_overview) > 0)) ||
 			(!_history && _user && (_index + 1 < _user->photos.size() || _index + 1 < _user->photosCount)));
-		if (_msgmigrated && _history->overview[_overview].size() < _history->overviewCountValue(_overview)) {
+		if (_msgmigrated && !_history->overviewLoaded(_overview)) {
 			_leftNavVisible = _rightNavVisible = false;
 		}
 	} else {
@@ -1480,7 +1480,7 @@ void MediaView::moveToNext(int32 delta) {
 	if (_index < 0 || (_history && _overview != OverviewPhotos && _overview != OverviewDocuments) || (_overview == OverviewCount && !_user)) {
 		return;
 	}
-	if (_msgmigrated && _history->overview[_overview].size() < _history->overviewCountValue(_overview)) {
+	if (_msgmigrated && !_history->overviewLoaded(_overview)) {
 		return;
 	}
 
@@ -1491,7 +1491,7 @@ void MediaView::moveToNext(int32 delta) {
 			newIndex += _migrated->overview[_overview].size();
 			newMigrated = true;
 		} else if (newMigrated && newIndex >= _migrated->overview[_overview].size()) {
-			newIndex -= _migrated->overview[_overview].size() + (_history->overviewCountValue(_overview) - _history->overview[_overview].size());
+			newIndex -= _migrated->overview[_overview].size() + (_history->overviewCount(_overview) - _history->overview[_overview].size());
 			newMigrated = false;
 		}
 		if (newIndex >= 0 && newIndex < (newMigrated ? _migrated : _history)->overview[_overview].size()) {
@@ -1540,7 +1540,7 @@ void MediaView::preloadData(int32 delta) {
 			int32 previewIndex = i;
 			if (_msgmigrated && previewIndex >= _migrated->overview[_overview].size()) {
 				previewHistory = _history;
-				previewIndex -= _migrated->overview[_overview].size() + (_history->overviewCountValue(_overview) - _history->overview[_overview].size());
+				previewIndex -= _migrated->overview[_overview].size() + (_history->overviewCount(_overview) - _history->overview[_overview].size());
 			} else if (!_msgmigrated && previewIndex < 0) {
 				previewHistory = _migrated;
 				previewIndex += _migrated->overview[_overview].size();
@@ -1561,7 +1561,7 @@ void MediaView::preloadData(int32 delta) {
 		History *forgetHistory = _msgmigrated ? _migrated : _history;
 		if (_msgmigrated && forgetIndex >= _migrated->overview[_overview].size()) {
 			forgetHistory = _history;
-			forgetIndex -= _migrated->overview[_overview].size() + (_history->overviewCountValue(_overview) - _history->overview[_overview].size());
+			forgetIndex -= _migrated->overview[_overview].size() + (_history->overviewCount(_overview) - _history->overview[_overview].size());
 		} else if (!_msgmigrated && forgetIndex < 0) {
 			forgetHistory = _migrated;
 			forgetIndex += _migrated->overview[_overview].size();
@@ -1985,10 +1985,10 @@ void MediaView::findCurrent() {
 				break;
 			}
 		}
-		if (_history->overviewCount[_overview] < 0) {
+		if (!_history->overviewCountLoaded(_overview)) {
 			loadBack();
-		} else if (_history->overviewCountValue(_overview) <= _history->overview[_overview].size()) { // all loaded
-			if (_migrated->overviewCount[_overview] < 0 || (_index < 2 && _migrated->overviewCount[_overview] > 0)) {
+		} else if (_history->overviewLoaded(_overview) && !_migrated->overviewLoaded(_overview)) { // all loaded
+			if (!_migrated->overviewCountLoaded(_overview) || (_index < 2 && _migrated->overviewCount(_overview) > 0)) {
 				loadBack();
 			}
 		}
@@ -1999,10 +1999,14 @@ void MediaView::findCurrent() {
 				break;
 			}
 		}
-		if (_history->overviewCount[_overview] < 0 || (_index < 2 && _history->overviewCount[_overview] > 0) || (_index < 1 && _migrated && _migrated->overviewCount[_overview] != 0)) {
+		if (!_history->overviewLoaded(_overview)) {
+			if (!_history->overviewCountLoaded(_overview) || (_index < 2 && _history->overviewCount(_overview) > 0) || (_index < 1 && _migrated && !_migrated->overviewLoaded(_overview))) {
+				loadBack();
+			}
+		} else if (_index < 1 && _migrated && !_migrated->overviewLoaded(_overview)) {
 			loadBack();
 		}
-		if (_migrated && _migrated->overviewCount[_overview] < 0) {
+		if (_migrated && !_migrated->overviewCountLoaded(_overview)) {
 			App::main()->preloadOverview(_migrated->peer, _overview);
 		}
 	}
@@ -2011,17 +2015,17 @@ void MediaView::findCurrent() {
 void MediaView::loadBack() {
 	if (_loadRequest || _index < 0 || (_overview == OverviewCount && !_user)) return;
 
-	if (_history && _overview != OverviewCount && (_history->overviewCount[_overview] != 0 || (_migrated && _migrated->overviewCount[_overview] != 0))) {
+	if (_history && _overview != OverviewCount && (!_history->overviewLoaded(_overview) || (_migrated && !_migrated->overviewLoaded(_overview)))) {
 		if (App::main()) {
-			if (_msgmigrated || (_migrated && _index == 0 && _history->overviewCount[_overview] >= 0 && _history->overviewCountValue(_overview) <= _history->overview[_overview].size())) {
+			if (_msgmigrated || (_migrated && _index == 0 && _history->overviewLoaded(_overview))) {
 				App::main()->loadMediaBack(_migrated->peer, _overview);
 			} else {
 				App::main()->loadMediaBack(_history->peer, _overview);
-				if (_migrated && _index == 0 && _migrated->overviewCount[_overview] != 0 && _migrated->overview[_overview].isEmpty()) {
+				if (_migrated && _index == 0 && _migrated->overview[_overview].isEmpty() && !_migrated->overviewLoaded(_overview)) {
 					App::main()->loadMediaBack(_migrated->peer, _overview);
 				}
 			}
-			if (_msgmigrated && _history->overviewCount[_overview] < 0) {
+			if (_msgmigrated && !_history->overviewCountLoaded(_overview)) {
 				App::main()->preloadOverview(_history->peer, _overview);
 			}
 		}
@@ -2068,14 +2072,14 @@ void MediaView::userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mt
 }
 
 void MediaView::updateHeader() {
-	int32 index = _index, count = 0, addcount = (_migrated && _overview != OverviewCount) ? _migrated->overviewCountValue(_overview) : 0;
+	int32 index = _index, count = 0, addcount = (_migrated && _overview != OverviewCount) ? _migrated->overviewCount(_overview) : 0;
 	if (_history) {
 		if (_overview != OverviewCount) {
-			count = _history->overviewCountValue(_overview);
+			count = _history->overviewCount(_overview);
 			if (addcount >= 0 && count >= 0) {
 				count += addcount;
 			}
-			if (index >= 0 && (_msgmigrated ? (count >= 0 && addcount >= 0 && _history->overviewCountValue(_overview) <= _history->overview[_overview].size()) : (count >= 0))) {
+			if (index >= 0 && (_msgmigrated ? (count >= 0 && addcount >= 0 && _history->overviewLoaded(_overview)) : (count >= 0))) {
 				if (_msgmigrated) {
 					index += addcount - _migrated->overview[_overview].size();
 				} else {

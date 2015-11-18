@@ -490,7 +490,7 @@ private:
 	void readRequestDone(PeerData *peer);
 
 	void messagesAffected(PeerData *peer, const MTPmessages_AffectedMessages &result);
-	void overviewLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req);
+	void overviewLoaded(History *history, const MTPmessages_Messages &result, mtpRequestId req);
 
 	bool _started;
 

@@ -179,7 +179,11 @@ void DialogRow::paint(Painter &p, int32 w, bool act, bool sel, bool onlyBackgrou
 	p.fillRect(fullRect, (act ? st::dlgActiveBG : (sel ? st::dlgHoverBG : st::dlgBG))->b);
 	if (onlyBackground) return;
 
-	p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, history->peer->photo->pix(st::dlgPhotoSize));
+	if (history->peer->migrateTo()) {
+		p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, history->peer->migrateTo()->photo->pix(st::dlgPhotoSize));
+	} else {
+		p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, history->peer->photo->pix(st::dlgPhotoSize));
+	}
 
 	int32 nameleft = st::dlgPaddingHor + st::dlgPhotoSize + st::dlgPhotoPadding;
 	int32 namewidth = w - nameleft - st::dlgPaddingHor;
@@ -277,8 +281,11 @@ void FakeDialogRow::paint(Painter &p, int32 w, bool act, bool sel, bool onlyBack
 	if (onlyBackground) return;
 	
 	History *history = _item->history();
-
-	p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, history->peer->photo->pix(st::dlgPhotoSize));
+	if (history->peer->migrateTo()) {
+		p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, history->peer->migrateTo()->photo->pix(st::dlgPhotoSize));
+	} else {
+		p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, history->peer->photo->pix(st::dlgPhotoSize));
+	}
 
 	int32 nameleft = st::dlgPaddingHor + st::dlgPhotoSize + st::dlgPhotoPadding;
 	int32 namewidth = w - nameleft - st::dlgPaddingHor;
@@ -363,7 +370,7 @@ History::History(const PeerId &peerId) : width(0), height(0)
 		outboxReadBefore = INT_MAX;
 	}
 	for (int32 i = 0; i < OverviewCount; ++i) {
-		overviewCount[i] = -1; // not loaded yet
+		overviewCountData[i] = -1; // not loaded yet
 	}
 }
 
@@ -444,11 +451,8 @@ void History::eraseFromOverview(MediaOverviewType type, MsgId msgId) {
 	for (History::MediaOverview::iterator i = overview[type].begin(), e = overview[type].end(); i != e; ++i) {
 		if ((*i) == msgId) {
 			overview[type].erase(i);
-			if (overviewCount[type] > 0) {
-				--overviewCount[type];
-				if (!overviewCount[type]) {
-					overviewCount[type] = -1;
-				}
+			if (overviewCountData[type] > 0) {
+				--overviewCountData[type];
 			}
 			break;
 		}
@@ -1655,7 +1659,9 @@ void History::addToOverview(HistoryItem *item, MediaOverviewType type) {
 	if (overviewIds[type].constFind(item->id) == overviewIds[type].cend()) {
 		overview[type].push_back(item->id);
 		overviewIds[type].insert(item->id, NullType());
-		if (overviewCount[type] > 0) ++overviewCount[type];
+		if (overviewCountData[type] > 0) {
+			++overviewCountData[type];
+		}
 		if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer, type);
 	}
 }
@@ -2105,7 +2111,7 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 	if (!wasLoadedAtBottom && loadedAtBottom()) { // add all loaded photos to overview
 		int32 mask = 0;
 		for (int32 i = 0; i < OverviewCount; ++i) {
-			if (overviewCount[i] == 0) continue; // all loaded
+			if (overviewCountData[i] == 0) continue; // all loaded
 			if (!overview[i].isEmpty() || !overviewIds[i].isEmpty()) {
 				overview[i].clear();
 				overviewIds[i].clear();
@@ -2126,13 +2132,13 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 					if (t != OverviewCount) {
 						if (mt == MediaTypeDocument && static_cast<HistoryDocument*>(media)->document()->song()) {
 							t = OverviewAudioDocuments;
-							if (overviewCount[t] != 0) {
+							if (overviewCountData[t] != 0) {
 								overview[t].push_back(item->id);
 								overviewIds[t].insert(item->id, NullType());
 								mask |= (1 << t);
 							}
 						} else {
-							if (overviewCount[t] != 0) {
+							if (overviewCountData[t] != 0) {
 								overview[t].push_back(item->id);
 								overviewIds[t].insert(item->id, NullType());
 								mask |= (1 << t);
@@ -2142,7 +2148,7 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 				}
 				if (item->hasTextLinks()) {
 					MediaOverviewType t = OverviewLinks;
-					if (overviewCount[t] != 0) {
+					if (overviewCountData[t] != 0) {
 						overview[t].push_back(item->id);
 						overviewIds[t].insert(item->id, NullType());
 						mask |= (1 << t);
@@ -2564,9 +2570,11 @@ void History::clear(bool leaveItems) {
 	for (int32 i = 0; i < OverviewCount; ++i) {
 		if (!overview[i].isEmpty() || !overviewIds[i].isEmpty()) {
 			if (leaveItems) {
-				if (overviewCount[i] == 0) overviewCount[i] = overview[i].size();
+				if (overviewCountData[i] == 0) {
+					overviewCountData[i] = overview[i].size();
+				}
 			} else {
-				overviewCount[i] = -1; // not loaded yet
+				overviewCountData[i] = -1; // not loaded yet
 			}
 			overview[i].clear();
 			overviewIds[i].clear();
@@ -2597,6 +2605,86 @@ void History::clear(bool leaveItems) {
 		}
 	}
 	if (leaveItems && App::main()) App::main()->historyCleared(this);
+}
+
+void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages &result, bool onlyCounts) {
+	const QVector<MTPMessage> *v = 0;
+	switch (result.type()) {
+	case mtpc_messages_messages: {
+		const MTPDmessages_messages &d(result.c_messages_messages());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		v = &d.vmessages.c_vector().v;
+		overviewCountData[overviewIndex] = 0;
+	} break;
+
+	case mtpc_messages_messagesSlice: {
+		const MTPDmessages_messagesSlice &d(result.c_messages_messagesSlice());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		overviewCountData[overviewIndex] = d.vcount.v;
+		v = &d.vmessages.c_vector().v;
+	} break;
+
+	case mtpc_messages_channelMessages: {
+		const MTPDmessages_channelMessages &d(result.c_messages_channelMessages());
+		if (peer->isChannel()) {
+			peer->asChannel()->ptsReceived(d.vpts.v);
+		} else {
+			LOG(("API Error: received messages.channelMessages when no channel was passed! (History::overviewSliceDone, onlyCounts %1)").arg(logBool(onlyCounts)));
+		}
+		if (d.has_collapsed()) { // should not be returned
+			LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (History::overviewSliceDone, onlyCounts %1)").arg(logBool(onlyCounts)));
+		}
+
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		overviewCountData[overviewIndex] = d.vcount.v;
+		v = &d.vmessages.c_vector().v;
+	} break;
+
+	default: return;
+	}
+
+	if (!onlyCounts && v->isEmpty()) {
+		overviewCountData[overviewIndex] = 0;
+	} else if (overviewCountData[overviewIndex] > 0) {
+		for (History::MediaOverviewIds::const_iterator i = overviewIds[overviewIndex].cbegin(), e = overviewIds[overviewIndex].cend(); i != e; ++i) {
+			if (i.key() < 0) {
+				++overviewCountData[overviewIndex];
+			} else {
+				break;
+			}
+		}
+	}
+
+	for (QVector<MTPMessage>::const_iterator i = v->cbegin(), e = v->cend(); i != e; ++i) {
+		HistoryItem *item = App::histories().addNewMessage(*i, NewMessageExisting);
+		if (item && overviewIds[overviewIndex].constFind(item->id) == overviewIds[overviewIndex].cend()) {
+			overviewIds[overviewIndex].insert(item->id, NullType());
+			overview[overviewIndex].push_front(item->id);
+		}
+	}
+}
+
+void History::changeMsgId(MsgId oldId, MsgId newId) {
+	for (int32 i = 0; i < OverviewCount; ++i) {
+		History::MediaOverviewIds::iterator j = overviewIds[i].find(oldId);
+		if (j != overviewIds[i].cend()) {
+			overviewIds[i].erase(j);
+			int32 index = overview[i].indexOf(oldId);
+			if (overviewIds[i].constFind(newId) == overviewIds[i].cend()) {
+				overviewIds[i].insert(newId, NullType());
+				if (index >= 0) {
+					overview[i][index] = newId;
+				} else {
+					overview[i].push_back(newId);
+				}
+			} else if (index >= 0) {
+				overview[i].removeAt(index);
+			}
+		}
+	}
 }
 
 void History::blockResized(HistoryBlock *block, int32 dh) {
@@ -2908,6 +2996,11 @@ void HistoryItem::detach() {
 
 void HistoryItem::detachFast() {
 	_block = 0;
+}
+
+void HistoryItem::setId(MsgId newId) {
+	history()->changeMsgId(id, newId);
+	id = newId;
 }
 
 HistoryItem::~HistoryItem() {
@@ -6555,7 +6648,7 @@ void HistoryMessage::setViewsCount(int32 count) {
 
 void HistoryMessage::setId(MsgId newId) {
 	bool wasPositive = (id > 0), positive = (newId > 0);
-	id = newId;
+	HistoryItem::setId(newId);
 	if (wasPositive == positive) {
 		if (App::main()) App::main()->msgUpdated(this);
 	} else {

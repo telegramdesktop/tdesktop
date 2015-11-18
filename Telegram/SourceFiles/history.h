@@ -342,19 +342,45 @@ public:
 	QMap<SendActionType, uint64> mySendActions;
 
 	typedef QList<MsgId> MediaOverview;
-	typedef QMap<MsgId, NullType> MediaOverviewIds;
 	MediaOverview overview[OverviewCount];
-	MediaOverviewIds overviewIds[OverviewCount];
-	int32 overviewCount[OverviewCount]; // -1 - not loaded, 0 - all loaded, > 0 - count, but not all loaded
 
-	bool overviewCountKnown(int32 overviewIndex) const {
-		return overviewCount[overviewIndex] >= 0;
+	bool overviewCountLoaded(int32 overviewIndex) const {
+		return overviewCountData[overviewIndex] >= 0;
 	}
-	int32 overviewCountValue(int32 overviewIndex) const {
-		return (overviewCount[overviewIndex] == 0) ? overview[overviewIndex].size() : overviewCount[overviewIndex];
+	bool overviewLoaded(int32 overviewIndex) const {
+		return overviewCount(overviewIndex) == overview[overviewIndex].size();
 	}
+	int32 overviewCount(int32 overviewIndex, int32 defaultValue = -1) const {
+		int32 result = overviewCountData[overviewIndex], loaded = overview[overviewIndex].size();
+		if (result < 0) return defaultValue;
+		if (result < loaded) {
+			if (result > 0) {
+				const_cast<History*>(this)->overviewCountData[overviewIndex] = 0;
+			}
+			return loaded;
+		}
+		return result;
+	}
+	MsgId overviewMinId(int32 overviewIndex) const {
+		for (MediaOverviewIds::const_iterator i = overviewIds[overviewIndex].cbegin(), e = overviewIds[overviewIndex].cend(); i != e; ++i) {
+			if (i.key() > 0) {
+				return i.key();
+			}
+		}
+		return 0;
+	}
+	void overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages &result, bool onlyCounts = false);
+	bool overviewHasMsgId(int32 overviewIndex, MsgId msgId) const {
+		return overviewIds[overviewIndex].constFind(msgId) != overviewIds[overviewIndex].cend();
+	}
+
+	void changeMsgId(MsgId oldId, MsgId newId);
 
 private:
+
+	typedef QMap<MsgId, NullType> MediaOverviewIds;
+	MediaOverviewIds overviewIds[OverviewCount];
+	int32 overviewCountData[OverviewCount]; // -1 - not loaded, 0 - all loaded, > 0 - count, but not all loaded
 
 	friend class HistoryBlock;
 	friend class ChannelHistory;
@@ -469,7 +495,9 @@ struct DialogsList {
 		DialogRow *drawFrom = current;
 		p.translate(0, drawFrom->pos * st::dlgHeight);
 		while (drawFrom != end && drawFrom->pos * st::dlgHeight < hTo) {
-			drawFrom->paint(p, w, (drawFrom->history->peer == act), (drawFrom->history->peer == sel), onlyBackground);
+			bool active = (drawFrom->history->peer == act) || (drawFrom->history->peer->migrateTo() && drawFrom->history->peer->migrateTo() == act);
+			bool selected = (drawFrom->history->peer == sel);
+			drawFrom->paint(p, w, active, selected, onlyBackground);
 			drawFrom = drawFrom->next;
 			p.translate(0, st::dlgHeight);
 		}
@@ -923,9 +951,7 @@ public:
 	}
 	virtual void setViewsCount(int32 count) {
 	}
-	virtual void setId(MsgId newId) {
-		id = newId;
-	}
+	virtual void setId(MsgId newId);
 	virtual void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const = 0;
     virtual QString notificationHeader() const {
         return QString();
