@@ -573,7 +573,7 @@ enum {
 	mtpc_channels_getFullChannel = 0x8736a09,
 	mtpc_channels_createChannel = 0xf4893d7f,
 	mtpc_channels_editAbout = 0x13e27f1e,
-	mtpc_channels_editAdmin = 0x52b16962,
+	mtpc_channels_editAdmin = 0xeb7611d0,
 	mtpc_channels_editTitle = 0x566decd0,
 	mtpc_channels_editPhoto = 0xf12e57c9,
 	mtpc_channels_toggleComments = 0xaaa29e88,
@@ -12597,9 +12597,11 @@ public:
 
 	enum {
 		flag_important_only = (1 << 0),
+		flag_exclude_new_messages = (1 << 1),
 	};
 
 	bool is_important_only() const { return vflags.v & flag_important_only; }
+	bool is_exclude_new_messages() const { return vflags.v & flag_exclude_new_messages; }
 };
 
 class MTPDchannelParticipant : public mtpDataImpl<MTPDchannelParticipant> {
@@ -18872,7 +18874,7 @@ public:
 		vrole.write(to);
 	}
 
-	typedef MTPBool ResponseType;
+	typedef MTPUpdates ResponseType;
 };
 class MTPchannels_EditAdmin : public MTPBoxed<MTPchannels_editAdmin> {
 public:

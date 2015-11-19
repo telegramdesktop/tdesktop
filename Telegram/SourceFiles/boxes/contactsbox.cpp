@@ -249,7 +249,8 @@ void ContactsInner::onAllAdminsChanged() {
 	update();
 }
 
-void ContactsInner::addAdminDone(const MTPBool &result, mtpRequestId req) {
+void ContactsInner::addAdminDone(const MTPUpdates &result, mtpRequestId req) {
+	if (App::main()) App::main()->sentUpdatesReceived(result);
 	if (req != _addAdminRequestId) return;
 
 	_addAdminRequestId = 0;
@@ -2191,8 +2192,9 @@ void MembersInner::kickDone(const MTPUpdates &result, mtpRequestId req) {
 	if (_kickBox) _kickBox->onClose();
 }
 
-void MembersInner::kickAdminDone(const MTPBool &result, mtpRequestId req) {
+void MembersInner::kickAdminDone(const MTPUpdates &result, mtpRequestId req) {
 	if (_kickRequestId != req) return;
+	if (App::main()) App::main()->sentUpdatesReceived(result);
 	removeKicked();
 	if (_kickBox) _kickBox->onClose();
 }

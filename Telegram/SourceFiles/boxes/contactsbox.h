@@ -115,7 +115,7 @@ public slots:
 private:
 
 	void updateSelectedRow();
-	void addAdminDone(const MTPBool &result, mtpRequestId req);
+	void addAdminDone(const MTPUpdates &result, mtpRequestId req);
 	bool addAdminFail(const RPCError &error, mtpRequestId req);
 
 	int32 _rowHeight, _newItemHeight;
@@ -335,7 +335,7 @@ private:
 	bool membersFailed(const RPCError &error, mtpRequestId req);
 
 	void kickDone(const MTPUpdates &result, mtpRequestId req);
-	void kickAdminDone(const MTPBool &result, mtpRequestId req);
+	void kickAdminDone(const MTPUpdates &result, mtpRequestId req);
 	bool kickFail(const RPCError &error, mtpRequestId req);
 	void removeKicked();
 

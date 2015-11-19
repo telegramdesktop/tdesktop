@@ -602,7 +602,7 @@ updates.channelDifferenceTooLong#5e167646 flags:# final:flags.0?true pts:int tim
 updates.channelDifference#2064674e flags:# final:flags.0?true pts:int timeout:flags.1?int new_messages:Vector<Message> other_updates:Vector<Update> chats:Vector<Chat> users:Vector<User> = updates.ChannelDifference;
 
 channelMessagesFilterEmpty#94d42ee7 = ChannelMessagesFilter;
-channelMessagesFilter#cd77d957 flags:# important_only:flags.0?true ranges:Vector<MessageRange> = ChannelMessagesFilter;
+channelMessagesFilter#cd77d957 flags:# important_only:flags.0?true exclude_new_messages:flags.1?true ranges:Vector<MessageRange> = ChannelMessagesFilter;
 channelMessagesFilterCollapsed#fa01232e = ChannelMessagesFilter;
 
 channelParticipant#15ebac1d user_id:int date:int = ChannelParticipant;
@@ -774,7 +774,7 @@ channels.getChannels#a7f6bbb id:Vector<InputChannel> = messages.Chats;
 channels.getFullChannel#8736a09 channel:InputChannel = messages.ChatFull;
 channels.createChannel#f4893d7f flags:# broadcast:flags.0?true megagroup:flags.1?true title:string about:string = Updates;
 channels.editAbout#13e27f1e channel:InputChannel about:string = Bool;
-channels.editAdmin#52b16962 channel:InputChannel user_id:InputUser role:ChannelParticipantRole = Bool;
+channels.editAdmin#eb7611d0 channel:InputChannel user_id:InputUser role:ChannelParticipantRole = Updates;
 channels.editTitle#566decd0 channel:InputChannel title:string = Updates;
 channels.editPhoto#f12e57c9 channel:InputChannel photo:InputChatPhoto = Updates;
 channels.toggleComments#aaa29e88 channel:InputChannel enabled:Bool = Updates;

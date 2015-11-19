@@ -331,6 +331,9 @@ void ProfileInner::onDeleteConversationSure() {
 	} else if (_peerChannel) {
 		App::wnd()->hideLayer();
 		App::main()->showDialogs();
+		if (_peerChannel->migrateFrom()) {
+			App::main()->deleteConversation(_peerChannel->migrateFrom());
+		}
 		MTP::send(MTPchannels_LeaveChannel(_peerChannel->inputChannel), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
 	}
 }
@@ -346,6 +349,9 @@ void ProfileInner::onDeleteChannelSure() {
 	if (_peerChannel) {
 		App::wnd()->hideLayer();
 		App::main()->showDialogs();
+		if (_peerChannel->migrateFrom()) {
+			App::main()->deleteConversation(_peerChannel->migrateFrom());
+		}
 		MTP::send(MTPchannels_DeleteChannel(_peerChannel->inputChannel), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
 	}
 }
@@ -801,14 +807,10 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	top += st::profilePhotoSize;
 	top += st::profileButtonTop;
 
-	if (_peerChat && !_peerChat->amIn()) {
-		int32 w = st::btnShareContact.font->width(lang(lng_profile_chat_unaccessible));
-		p.setFont(st::btnShareContact.font->f);
-		p.setPen(st::profileOfflineColor->p);
-		p.drawText(_left + (_width - w) / 2, top + st::btnShareContact.textTop + st::btnShareContact.font->ascent, lang(lng_profile_chat_unaccessible));
-	}
 	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->amEditor() && _peerChannel->isMegagroup()))) {
 		top += _shareContact.height();
+	} else {
+		top -= st::profileButtonTop;
 	}
 
 	// about
@@ -1276,6 +1278,8 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 
 	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->amEditor() && _peerChannel->isMegagroup()))) {
 		top += _shareContact.height();
+	} else {
+		top -= st::profileButtonTop;
 	}
 
 	// about

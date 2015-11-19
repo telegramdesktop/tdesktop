@@ -570,11 +570,11 @@ namespace App {
 				cdata->setName(qs(d.vtitle), uname);
 
 				cdata->access = d.vaccess_hash.v;
-				cdata->setPhoto(d.vphoto);
 				cdata->date = d.vdate.v;
 				cdata->flags = d.vflags.v;
 				cdata->isForbidden = false;
 				cdata->flagsUpdated();
+				cdata->setPhoto(d.vphoto);
 				if (cdata->version < d.vversion.v) {
 					cdata->version = d.vversion.v;
 				}

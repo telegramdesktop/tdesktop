@@ -860,7 +860,7 @@ DragState MainWidget::getDragState(const QMimeData *mime) {
 bool MainWidget::leaveChatFailed(PeerData *peer, const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
 
-	if (error.type() == qstr("USER_NOT_PARTICIPANT") || error.type() == qstr("CHAT_ID_INVALID")) { // left this chat already
+	if (error.type() == qstr("USER_NOT_PARTICIPANT") || error.type() == qstr("CHAT_ID_INVALID") || error.type() == qstr("PEER_ID_INVALID")) { // left this chat already
 		deleteConversation(peer);
 		return true;
 	}
