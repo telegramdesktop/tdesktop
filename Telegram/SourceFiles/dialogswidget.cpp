@@ -1791,8 +1791,9 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 				peer = peerFromMTP(d.c_dialog().vpeer);
 			break;
 			case mtpc_dialogChannel:
-				msgId = d.c_dialogChannel().vtop_important_message.v;
-				if (!msgId) msgId = d.c_dialogChannel().vtop_message.v;
+				//msgId = d.c_dialogChannel().vtop_important_message.v;
+				//if (!msgId) msgId = d.c_dialogChannel().vtop_message.v;
+				msgId = d.c_dialogChannel().vtop_message.v;
 				peer = peerFromMTP(d.c_dialogChannel().vpeer);
 			break;
 			}
@@ -1802,7 +1803,7 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 					if (!lastMsgId) lastMsgId = msgId;
 					for (int32 j = m->size(); j > 0;) {
 						const MTPMessage &d(m->at(--j));
-						if (idFromMessage(d) == msgId) {
+						if (idFromMessage(d) == msgId && peerFromMessage(d) == peer) {
 							int32 date = dateFromMessage(d);
 							if (date) lastDate = date;
 							break;

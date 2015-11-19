@@ -130,7 +130,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 		if (chatPhoto && chatPhoto->date) {
 			_photoLink = TextLinkPtr(new PhotoLink(chatPhoto, _peer));
 		}
-		if (_peerChannel->isMegagroup() && _peerChannel->mgInfo->lastParticipants.isEmpty()) {
+		if (_peerChannel->isMegagroup() && (_peerChannel->mgInfo->lastParticipants.isEmpty() || (_peerChannel->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated) || _peerChannel->lastParticipantsCountOutdated())) {
 			if (App::api()) App::api()->requestLastParticipants(_peerChannel);
 		}
 		_peerChannel->updateFull();
@@ -487,7 +487,7 @@ void ProfileInner::onAdmins() {
 void ProfileInner::onCreateInvitationLink() {
 	if (!_peerChat && !_peerChannel) return;
 
-	ConfirmBox *box = new ConfirmBox(lang((_peerChat && _peerChat->invitationUrl.isEmpty()) ? lng_group_invite_about : lng_group_invite_about_new));
+	ConfirmBox *box = new ConfirmBox(lang(((_peerChat && _peerChat->invitationUrl.isEmpty()) || (_peerChannel && _peerChannel->invitationUrl.isEmpty())) ? lng_group_invite_about : lng_group_invite_about_new));
 	connect(box, SIGNAL(confirmed()), this, SLOT(onCreateInvitationLinkSure()));
 	App::wnd()->showLayer(box);
 }
@@ -686,24 +686,31 @@ void ProfileInner::reorderParticipants() {
 		}
 		loadProfilePhotos(_lastPreload);
 	} else if (_peerChannel && _peerChannel->isMegagroup() && _peerChannel->amIn() && !_peerChannel->mgInfo->lastParticipants.isEmpty()) {
-		if (!_peerChannel->mgInfo->lastParticipants.isEmpty()) {
-			_participants.clear();
-			for (ParticipantsData::iterator i = _participantsData.begin(), e = _participantsData.end(); i != e; ++i) {
-				if (*i) {
-					delete *i;
-					*i = 0;
+		if (_peerChannel->mgInfo->lastParticipants.isEmpty() || (_peerChannel->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated) || _peerChannel->lastParticipantsCountOutdated()) {
+			if (App::api()) App::api()->requestLastParticipants(_peerChannel);
+		} else if (!_peerChannel->mgInfo->lastParticipants.isEmpty()) {
+			const MegagroupInfo::LastParticipants &list(_peerChannel->mgInfo->lastParticipants);
+			int32 s = list.size();
+			for (int32 i = 0, l = _participants.size(); i < l; ++i) {
+				if (i >= s || _participants.at(i) != list.at(i)) {
+					if (_participantsData.at(i)) {
+						delete _participantsData.at(i);
+						_participantsData[i] = 0;
+					}
+					if (i < s) {
+						_participants[i] = list.at(i);
+					}
 				}
 			}
-			_participants.reserve(_peerChannel->mgInfo->lastParticipants.size());
-			_participantsData.resize(_peerChannel->mgInfo->lastParticipants.size());
-		}
-		UserData *self = App::self();
-		bool onlyMe = true;
-		for (MegagroupInfo::LastParticipants::const_iterator i = _peerChannel->mgInfo->lastParticipants.cbegin(), e = _peerChannel->mgInfo->lastParticipants.cend(); i != e; ++i) {
-			_participants.push_back(*i);
-		}
-		if (_peerChannel->mgInfo->lastParticipants.isEmpty()) {
-			if (App::api()) App::api()->requestLastParticipants(_peerChannel);
+			if (_participants.size() > s) {
+				_participants.resize(s);
+			} else {
+				_participants.reserve(s);
+				for (int32 i = _participants.size(); i < s; ++i) {
+					_participants.push_back(list.at(i));
+				}
+			}
+			_participantsData.resize(s);
 		}
 		_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
 		loadProfilePhotos(_lastPreload);
@@ -1719,6 +1726,11 @@ void ProfileWidget::onScroll() {
 	_inner.loadProfilePhotos(_scroll.scrollTop());
 	if (!_scroll.isHidden() && _scroll.scrollTop() < _scroll.scrollTopMax()) {
 		_inner.allowDecreaseHeight(_scroll.scrollTopMax() - _scroll.scrollTop());
+	}
+	if (peer()->isMegagroup() && !peer()->asChannel()->mgInfo->lastParticipants.isEmpty() && peer()->asChannel()->mgInfo->lastParticipants.size() < peer()->asChannel()->count) {
+		if (_scroll.scrollTop() + PreloadHeightsCount * _scroll.height() > _scroll.scrollTopMax()) {
+			App::api()->requestLastParticipants(peer()->asChannel(), false);
+		}
 	}
 }
 

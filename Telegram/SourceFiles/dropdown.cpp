@@ -3006,7 +3006,7 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 		}
 	} else if (_filter.at(0) == '@' && _channel && _channel->isMegagroup()) {
 		QMultiMap<int32, UserData*> ordered;
-		if (_channel->mgInfo->lastParticipants.isEmpty()) {
+		if (_channel->mgInfo->lastParticipants.isEmpty() || _channel->lastParticipantsCountOutdated()) {
 			if (App::api()) App::api()->requestLastParticipants(_channel);
 		} else {
 			rows.reserve(_channel->mgInfo->lastParticipants.size());

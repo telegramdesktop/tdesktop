@@ -526,7 +526,7 @@ private:
 };
 
 struct MegagroupInfo {
-	MegagroupInfo() : botStatus(-1), migrateFromPtr(0) {
+	MegagroupInfo() : botStatus(-1), migrateFromPtr(0), lastParticipantsStatus(LastParticipantsUpToDate), lastParticipantsCount(0) {
 	}
 	typedef QList<UserData*> LastParticipants;
 	LastParticipants lastParticipants;
@@ -537,6 +537,15 @@ struct MegagroupInfo {
 	typedef QMap<UserData*, bool> Bots;
 	Bots bots;
 	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
+
+	enum LastParticipantsStatus {
+		LastParticipantsUpToDate       = 0x00,
+		LastParticipantsAdminsOutdated = 0x01,
+		LastParticipantsCountOutdated  = 0x02,
+	};
+	mutable int32 lastParticipantsStatus;
+	int32 lastParticipantsCount;
+
 	ChatData *migrateFromPtr;
 };
 
@@ -563,6 +572,16 @@ public:
 	int32 version;
 	int32 flags, flagsFull;
 	MegagroupInfo *mgInfo;
+	bool lastParticipantsCountOutdated() const {
+		if (!mgInfo || !(mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsCountOutdated)) {
+			return false;
+		}
+		if (mgInfo->lastParticipantsCount == count) {
+			mgInfo->lastParticipantsStatus &= ~MegagroupInfo::LastParticipantsCountOutdated;
+			return false;
+		}
+		return true;
+	}
 	void flagsUpdated();
 	bool isMegagroup() const {
 		return flags & MTPDchannel::flag_megagroup;

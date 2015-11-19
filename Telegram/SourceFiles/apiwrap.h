@@ -36,7 +36,7 @@ public:
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);
 	void requestPeers(const QList<PeerData*> &peers);
-	void requestLastParticipants(ChannelData *peer);
+	void requestLastParticipants(ChannelData *peer, bool fromStart = true);
 
 	void processFullPeer(PeerData *peer, const MTPmessages_ChatFull &result);
 	void processFullPeer(PeerData *peer, const MTPUserFull &result);
@@ -96,8 +96,8 @@ private:
 	PeerRequests _peerRequests;
 
 	void lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelParticipants &result, mtpRequestId req);
-	bool lastParticipantsFail(ChannelData *peer, const RPCError &error);
-	PeerRequests _participantsRequests;
+	bool lastParticipantsFail(ChannelData *peer, const RPCError &error, mtpRequestId req);
+	PeerRequests _participantsRequests, _botsRequests;
 
 	typedef QPair<PeerData*, UserData*> KickRequest;
 	typedef QMap<KickRequest, mtpRequestId> KickRequests;

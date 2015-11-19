@@ -1482,12 +1482,26 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 			switch (d.vaction.type()) {
 			case mtpc_messageActionChatAddUser: {
 				const MTPDmessageActionChatAddUser &d(action.c_messageActionChatAddUser());
-				// App::user(App::peerFromUser(d.vuser_id)); added
+				if (peer->isMegagroup()) {
+					peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
+					const QVector<MTPint> &v(d.vusers.c_vector().v);
+					for (int32 i = 0, l = v.size(); i < l; ++i) {
+						if (UserData *user = App::userLoaded(peerFromUser(v.at(i)))) {
+							if (peer->asChannel()->mgInfo->lastParticipants.indexOf(user) < 0) {
+								peer->asChannel()->mgInfo->lastParticipants.push_front(user);
+							}
+						}
+					}
+				}
 			} break;
 
 			case mtpc_messageActionChatJoinedByLink: {
 				const MTPDmessageActionChatJoinedByLink &d(action.c_messageActionChatJoinedByLink());
-				// App::user(App::peerFromUser(d.vuser_id)); added
+				if (peer->isMegagroup()) {
+					if (result->from()->isUser() && peer->asChannel()->mgInfo->lastParticipants.indexOf(result->from()->asUser()) < 0) {
+						peer->asChannel()->mgInfo->lastParticipants.push_front(result->from()->asUser());
+					}
+				}
 			} break;
 
 			case mtpc_messageActionChatDeletePhoto: {
@@ -1731,8 +1745,9 @@ HistoryItem *History::addNewItem(HistoryBlock *to, bool newBlock, HistoryItem *a
 			QList<UserData*> *lastAuthors = 0;
 			if (peer->isChat()) {
 				lastAuthors = &peer->asChat()->lastAuthors;
-			} else if (peer->isMegagroup() && !peer->asChannel()->mgInfo->lastParticipants.isEmpty()) {
+			} else if (peer->isMegagroup()) {
 				lastAuthors = &peer->asChannel()->mgInfo->lastParticipants;
+				peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
 			}
 			if (lastAuthors) {
 				int prev = lastAuthors->indexOf(adding->from()->asUser());
@@ -1948,29 +1963,28 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 				lastAuthors = &peer->asChat()->lastAuthors;
 				markupSenders = &peer->asChat()->markupSenders;
 			} else if (peer->isMegagroup()) {
-				if (!peer->asChannel()->mgInfo->lastParticipants.isEmpty()) {
-					lastAuthors = &peer->asChannel()->mgInfo->lastParticipants;
-				}
+				lastAuthors = &peer->asChannel()->mgInfo->lastParticipants;
 				markupSenders = &peer->asChannel()->mgInfo->markupSenders;
+				peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
 			}
 			for (int32 i = block->items.size(); i > 0; --i) {
 				HistoryItem *item = block->items[i - 1];
-				if (!item->indexInOverview()) continue;
-
-				HistoryMedia *media = item->getMedia(true);
-				if (media) {
-					HistoryMediaType mt = media->type();
-					MediaOverviewType t = mediaToOverviewType(mt);
-					if (t != OverviewCount) {
-						if (mt == MediaTypeDocument && static_cast<HistoryDocument*>(media)->document()->song()) {
-							if (addToOverviewFront(item, OverviewAudioDocuments)) mask |= (1 << OverviewAudioDocuments);
-						} else {
-							if (addToOverviewFront(item, t)) mask |= (1 << t);
+				if (item->indexInOverview()) {
+					HistoryMedia *media = item->getMedia(true);
+					if (media) {
+						HistoryMediaType mt = media->type();
+						MediaOverviewType t = mediaToOverviewType(mt);
+						if (t != OverviewCount) {
+							if (mt == MediaTypeDocument && static_cast<HistoryDocument*>(media)->document()->song()) {
+								if (addToOverviewFront(item, OverviewAudioDocuments)) mask |= (1 << OverviewAudioDocuments);
+							} else {
+								if (addToOverviewFront(item, t)) mask |= (1 << t);
+							}
 						}
 					}
-				}
-				if (item->hasTextLinks()) {
-					if (addToOverviewFront(item, OverviewLinks)) mask |= (1 << OverviewLinks);
+					if (item->hasTextLinks()) {
+						if (addToOverviewFront(item, OverviewLinks)) mask |= (1 << OverviewLinks);
+					}
 				}
 				if (item->from()->id) {
 					if (lastAuthors) { // chats
