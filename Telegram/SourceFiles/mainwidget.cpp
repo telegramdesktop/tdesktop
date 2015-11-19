@@ -2445,7 +2445,7 @@ void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop)
 			_stack.push_back(new StackItemOverview(overview->peer(), overview->type(), overview->lastWidth(), overview->lastScrollTop()));
 		} else if (profile) {
 			_stack.push_back(new StackItemProfile(profile->peer(), profile->lastScrollTop()));
-		} else {
+		} else if (history.peer()) {
 			dlgUpdated();
 			_peerInStack = history.peer();
 			_msgIdInStack = history.msgId();
