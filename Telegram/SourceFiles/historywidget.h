@@ -96,6 +96,7 @@ public:
 	int32 itemTop(const HistoryItem *item) const; // -1 if should not be visible, -2 if bad history()
 
 	void notifyIsBotChanged();
+	void notifyMigrateUpdated();
 
 	~HistoryInner();
 	
@@ -528,7 +529,7 @@ public:
 
 	void fastShowAtEnd(History *h);
 	void applyDraft(bool parseLinks = true);
-	void showHistory(const PeerId &peer, MsgId showAtMsgId);
+	void showHistory(const PeerId &peer, MsgId showAtMsgId, bool reload = false);
 	void clearDelayedShowAt();
 	void clearAllLoadRequests();
 
@@ -559,6 +560,7 @@ public:
 
 	void notifyBotCommandsChanged(UserData *user);
 	void notifyUserIsBotChanged(UserData *user);
+	void notifyMigrateUpdated(PeerData *peer);
 
 	~HistoryWidget();
 
@@ -654,6 +656,7 @@ public slots:
 	void onDraftSave(bool delayed = false);
 
 	void updateStickers();
+	void updateField();
 
 	void onRecordError();
 	void onRecordDone(QByteArray result, qint32 samples);
@@ -671,7 +674,6 @@ private:
 	void drawField(Painter &p);
 	void drawRecordButton(Painter &p);
 	void drawRecording(Painter &p);
-	void updateField();
 
 	DBIPeerReportSpamStatus _reportSpamStatus;
 	void updateReportSpamStatus();

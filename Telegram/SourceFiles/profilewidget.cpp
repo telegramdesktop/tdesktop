@@ -535,7 +535,7 @@ void ProfileInner::onFullPeerUpdated(PeerData *peer) {
 		}
 	} else if (_peerChat) {
 		updateInvitationLink();
-		_showMigrate = (_peerChat && _amCreator && !_peerChat->isMigrated() && _peerChat->count >= 3);
+		_showMigrate = (_peerChat && _amCreator && !_peerChat->isMigrated() && _peerChat->count >= cMaxGroupCount());
 		showAll();
 		resizeEvent(0);
 		_admins.setText(lng_channel_admins_link(lt_count, _peerChat->adminsEnabled() ? (_peerChat->admins.size() + 1) : 0));
@@ -595,7 +595,7 @@ void ProfileInner::peerUpdated(PeerData *data) {
 		} else if (_peerChat) {
 			if (_peerChat->photoId && _peerChat->photoId != UnknownPeerPhotoId) photo = App::photo(_peerChat->photoId);
 			_admins.setText(lng_channel_admins_link(lt_count, _peerChat->adminsEnabled() ? (_peerChat->admins.size() + 1) : 0));
-			_showMigrate = (_peerChat && _amCreator && !_peerChat->isMigrated() && _peerChat->count >= 3);
+			_showMigrate = (_peerChat && _amCreator && !_peerChat->isMigrated() && _peerChat->count >= cMaxGroupCount());
 			if (App::main()) App::main()->topBar()->showAll();
 		} else if (_peerChannel) {
 			if (_peerChannel->photoId && _peerChannel->photoId != UnknownPeerPhotoId) photo = App::photo(_peerChannel->photoId);

@@ -317,6 +317,9 @@ namespace App {
 };
 
 namespace Notify {
+
 	void userIsBotChanged(UserData *user);
 	void botCommandsChanged(UserData *user);
+	void migrateUpdated(PeerData *peer);
+
 };

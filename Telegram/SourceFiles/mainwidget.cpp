@@ -682,12 +682,16 @@ void MainWidget::updateStickers() {
 	history.updateStickers();
 }
 
+void MainWidget::notifyBotCommandsChanged(UserData *bot) {
+	history.notifyBotCommandsChanged(bot);
+}
+
 void MainWidget::notifyUserIsBotChanged(UserData *bot) {
 	history.notifyUserIsBotChanged(bot);
 }
 
-void MainWidget::notifyBotCommandsChanged(UserData *bot) {
-	history.notifyBotCommandsChanged(bot);
+void MainWidget::notifyMigrateUpdated(PeerData *peer) {
+	history.notifyMigrateUpdated(peer);
 }
 
 void MainWidget::onUpdateMuted() {
@@ -919,6 +923,15 @@ void MainWidget::deleteConversation(PeerData *peer, bool deleteHistory) {
 	}
 	if (History *h = App::historyLoaded(peer->id)) {
 		removeDialog(h);
+		if (peer->isMegagroup() && peer->asChannel()->mgInfo->migrateFromPtr) {
+			if (History *migrated = App::historyLoaded(peer->asChannel()->mgInfo->migrateFromPtr->id)) {
+				if (migrated->lastMsg) { // return initial dialog
+					migrated->setLastMessage(migrated->lastMsg);
+				} else {
+					checkPeerHistory(migrated->peer);
+				}
+			}
+		}
 		h->clear();
 		h->newLoaded = true;
 		h->oldLoaded = deleteHistory;

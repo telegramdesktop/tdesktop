@@ -292,11 +292,11 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 				channel->flagsUpdated();
 			}
 			ChatData *cfrom = App::chat(peerFromChat(f.vmigrated_from_chat_id));
-			bool updated = (cfrom->migrateToPtr != channel);
-			if (updated) {
+			bool updatedTo = (cfrom->migrateToPtr != channel), updatedFrom = (channel->mgInfo->migrateFromPtr != cfrom);
+			if (updatedTo) {
 				cfrom->migrateToPtr = channel;
 			}
-			if (channel->mgInfo->migrateFromPtr != cfrom) {
+			if (updatedFrom) {
 				channel->mgInfo->migrateFromPtr = cfrom;
 				if (History *h = App::historyLoaded(cfrom->id)) {
 					if (History *hto = App::historyLoaded(channel->id)) {
@@ -308,8 +308,10 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 						}
 					}
 				}
+				Notify::migrateUpdated(channel);
 			}
-			if (updated) {
+			if (updatedTo) {
+				Notify::migrateUpdated(cfrom);
 				App::main()->peerUpdated(cfrom);
 			}
 		}
@@ -343,9 +345,6 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 				h->setUnreadCount(channel->isMegagroup() ? f.vunread_count.v : f.vunread_important_count.v);
 				h->inboxReadBefore = f.vread_inbox_max_id.v + 1;
 				h->asChannelHistory()->unreadCountAll = f.vunread_count.v;
-			}
-			if (channel->migrateFrom()) {
-				h->asChannelHistory()->removeJoinedMessage();
 			}
 		}
 		channel->fullUpdated();
@@ -449,7 +448,7 @@ void ApiWrap::requestLastParticipants(ChannelData *peer, bool fromStart) {
 			return;
 		}
 	}
-	mtpRequestId req = MTP::send(MTPchannels_GetParticipants(peer->inputChannel, MTP_channelParticipantsRecent(), MTP_int(fromStart ? 0 : peer->mgInfo->lastParticipants.size()), MTP_int(1)), rpcDone(&ApiWrap::lastParticipantsDone, peer), rpcFail(&ApiWrap::lastParticipantsFail, peer));
+	mtpRequestId req = MTP::send(MTPchannels_GetParticipants(peer->inputChannel, MTP_channelParticipantsRecent(), MTP_int(fromStart ? 0 : peer->mgInfo->lastParticipants.size()), MTP_int(cMaxGroupCount())), rpcDone(&ApiWrap::lastParticipantsDone, peer), rpcFail(&ApiWrap::lastParticipantsFail, peer));
 	_participantsRequests.insert(peer, fromStart ? req : -req);
 }
 

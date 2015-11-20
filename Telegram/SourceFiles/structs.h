@@ -526,7 +526,7 @@ private:
 };
 
 struct MegagroupInfo {
-	MegagroupInfo() : botStatus(0), migrateFromPtr(0), lastParticipantsStatus(LastParticipantsUpToDate), lastParticipantsCount(0) {
+	MegagroupInfo() : botStatus(0), joinedMessageFound(false), migrateFromPtr(0), lastParticipantsStatus(LastParticipantsUpToDate), lastParticipantsCount(0) {
 	}
 	typedef QList<UserData*> LastParticipants;
 	LastParticipants lastParticipants;
@@ -537,6 +537,8 @@ struct MegagroupInfo {
 	typedef QMap<UserData*, bool> Bots;
 	Bots bots;
 	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
+
+	bool joinedMessageFound;
 
 	enum LastParticipantsStatus {
 		LastParticipantsUpToDate       = 0x00,

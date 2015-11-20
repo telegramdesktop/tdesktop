@@ -1756,6 +1756,7 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 		App::feedChats(data.vchats);
 		m = &data.vmessages.c_vector().v;
 		v = &data.vdialogs.c_vector().v;
+		_dialogsFull = true;
 	} break;
 	case mtpc_messages_dialogsSlice: {
 		const MTPDmessages_dialogsSlice &data(dialogs.c_messages_dialogsSlice());
@@ -1954,8 +1955,7 @@ void DialogsWidget::loadDialogs() {
 		return;
 	}
 
-	int32 loadCount = (!cTestMode() || _dialogsOffsetDate) ? DialogsPerPage : DialogsFirstLoad;
-	if (!cTestMode() && _dialogsOffsetDate) return;
+	int32 loadCount = _dialogsOffsetDate ? DialogsPerPage : DialogsFirstLoad;
 	_dialogsRequest = MTP::send(MTPmessages_GetDialogs(MTP_int(_dialogsOffsetDate), MTP_int(_dialogsOffsetId), _dialogsOffsetPeer ? _dialogsOffsetPeer->input : MTP_inputPeerEmpty(), MTP_int(loadCount)), rpcDone(&DialogsWidget::dialogsReceived), rpcFail(&DialogsWidget::dialogsFailed));
 }
 

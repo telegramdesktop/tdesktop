@@ -703,7 +703,7 @@ void ChannelHistory::addNewGroup(const MTPMessageGroup &group) {
 }
 
 HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
-	if (_joinedMessage || !peer->asChannel()->amIn() || peer->asChannel()->migrateFrom()) {
+	if (_joinedMessage || !peer->asChannel()->amIn() || (peer->isMegagroup() && peer->asChannel()->mgInfo->joinedMessageFound)) {
 		return _joinedMessage;
 	}
 
@@ -731,6 +731,11 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 			HistoryItemType type = item->type();
 			if (type == HistoryItemMsg || type == HistoryItemGroup) {
 				if (item->date <= inviteDate) {
+					if (peer->isMegagroup() && peer->migrateFrom() && item->isGroupMigrate()) {
+						peer->asChannel()->mgInfo->joinedMessageFound = true;
+						return 0;
+					}
+
 					++itemIndex;
 					if (item->date.date() != inviteDate.date()) {
 						HistoryDateMsg *joinedDateItem = new HistoryDateMsg(this, block, inviteDate.date());
@@ -830,13 +835,15 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 }
 
 void ChannelHistory::checkJoinedMessage(bool createUnread) {
-	if (_joinedMessage || peer->asChannel()->inviter <= 0 || peer->asChannel()->migrateFrom()) {
+	if (_joinedMessage || peer->asChannel()->inviter <= 0) {
 		return;
 	}
 	if (isEmpty()) {
 		if (loadedAtTop() && loadedAtBottom()) {
 			if (insertJoinedMessage(createUnread)) {
-				setLastMessage(_joinedMessage);
+				if (!_joinedMessage->detached()) {
+					setLastMessage(_joinedMessage);
+				}
 			}
 			return;
 		}
@@ -875,15 +882,10 @@ void ChannelHistory::checkJoinedMessage(bool createUnread) {
 	if (!firstDate.isNull() && !lastDate.isNull() && (firstDate <= inviteDate || loadedAtTop()) && (lastDate > inviteDate || loadedAtBottom())) {
 		bool willBeLastMsg = (inviteDate >= lastDate);
 		if (insertJoinedMessage(createUnread && willBeLastMsg) && willBeLastMsg) {
-			setLastMessage(_joinedMessage);
+			if (!_joinedMessage->detached()) {
+				setLastMessage(_joinedMessage);
+			}
 		}
-	}
-}
-
-void ChannelHistory::removeJoinedMessage() {
-	if (_joinedMessage) {
-		_joinedMessage->destroy();
-		_joinedMessage = 0;
 	}
 }
 
@@ -896,11 +898,14 @@ void ChannelHistory::checkMaxReadMessageDate() {
 			HistoryItem *item = block->items.at(--itemIndex);
 			if ((item->isImportant() || isMegagroup()) && !item->unread()) {
 				_maxReadMessageDate = item->date;
+				if (item->isGroupMigrate() && isMegagroup() && peer->migrateFrom()) {
+					_maxReadMessageDate = date(MTP_int(peer->asChannel()->date + 1)); // no report spam panel
+				}
 				return;
 			}
 		}
 	}
-	if (loadedAtTop()) {
+	if (loadedAtTop() && (!isMegagroup() || !isEmpty())) {
 		_maxReadMessageDate = date(MTP_int(peer->asChannel()->date));
 	}
 }
@@ -942,8 +947,6 @@ HistoryItem *ChannelHistory::addNewToBlocks(const MTPMessage &msg, NewMessageTyp
 	}
 
 	if (!isImportantFlags && !onlyImportant() && !isEmpty() && type == NewMessageLast) {
-		clear(true);
-	} else if (isMegagroup() && !isEmpty() && type == NewMessageLast && idFromMessage(msg) > maxMsgId()) { // temp
 		clear(true);
 	}
 
@@ -7653,9 +7656,12 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 			second = TextLinkPtr(new PeerLink(u));
 			text = lng_action_add_users(lt_from, from, lt_user, textcmdLink(2, u->name), lt_count, v.size() - 1);
 		}
-		if (unread() && foundSelf) {
-			if (history()->peer->isChat() && !history()->peer->asChat()->inviterForSpamReport && _from->isUser()) {
+		if (foundSelf) {
+			if (unread() && history()->peer->isChat() && !history()->peer->asChat()->inviterForSpamReport && _from->isUser()) {
 				history()->peer->asChat()->inviterForSpamReport = peerToUser(_from->id);
+			}
+			if (history()->peer->isMegagroup()) {
+				history()->peer->asChannel()->mgInfo->joinedMessageFound = true;
 			}
 		}
 	} break;
@@ -7668,6 +7674,9 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 			//UserData *u = App::user(App::peerFromUser(d.vinviter_id));
 			//second = TextLinkPtr(new PeerLink(u));
 			//text = lng_action_user_joined_by_link_from(lt_from, from, lt_inviter, textcmdLink(2, u->name));
+		}
+		if (_from->isSelf() && history()->peer->isMegagroup()) {
+			history()->peer->asChannel()->mgInfo->joinedMessageFound = true;
 		}
 	} break;
 

@@ -510,10 +510,11 @@ namespace App {
 						channel->inputChannel = d.vmigrated_to;
 						channel->access = d.vmigrated_to.c_inputChannel().vaccess_hash.v;
 					}
-					if (cdata->migrateToPtr != channel) {
+					bool updatedTo = (cdata->migrateToPtr != channel), updatedFrom = (channel->mgInfo->migrateFromPtr != cdata);
+					if (updatedTo) {
 						cdata->migrateToPtr = channel;
 					}
-					if (channel->mgInfo->migrateFromPtr != cdata) {
+					if (updatedFrom) {
 						channel->mgInfo->migrateFromPtr = cdata;
 						if (History *h = App::historyLoaded(cdata->id)) {
 							if (History *hto = App::historyLoaded(channel->id)) {
@@ -525,6 +526,10 @@ namespace App {
 								}
 							}
 						}
+						Notify::migrateUpdated(channel);
+					}
+					if (updatedTo) {
+						Notify::migrateUpdated(cdata);
 					}
 				}
 
@@ -1044,8 +1049,13 @@ namespace App {
 				}
 				(*j)->destroy();
 				if (!h->lastMsg) historiesToCheck.insert(h, true);
-			} else if (channelHistory) {
-				channelHistory->messageWithIdDeleted(i->v);
+			} else {
+				if (channelHistory) {
+					channelHistory->messageWithIdDeleted(i->v);
+					if (channelHistory->unreadCount > 0 && i->v >= channelHistory->inboxReadBefore) {
+						channelHistory->setUnreadCount(channelHistory->unreadCount - 1);
+					}
+				}
 			}
 		}
 		if (resized) {
@@ -2859,6 +2869,12 @@ namespace Notify {
 	void botCommandsChanged(UserData *user) {
 		if (MainWidget *m = App::main()) {
 			m->notifyBotCommandsChanged(user);
+		}
+	}
+
+	void migrateUpdated(PeerData *peer) {
+		if (MainWidget *m = App::main()) {
+			m->notifyMigrateUpdated(peer);
 		}
 	}
 

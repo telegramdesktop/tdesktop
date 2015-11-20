@@ -432,7 +432,6 @@ public:
 
 	HistoryJoined *insertJoinedMessage(bool unread);
 	void checkJoinedMessage(bool createUnread = false);
-	void removeJoinedMessage();
 	const QDateTime &maxReadMessageDate();
 
 private:

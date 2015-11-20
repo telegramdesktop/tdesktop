@@ -1734,6 +1734,10 @@ void HistoryInner::notifyIsBotChanged() {
 	}
 }
 
+void HistoryInner::notifyMigrateUpdated() {
+	_migrated = _peer->migrateFrom() ? App::history(_peer->migrateFrom()->id) : 0;
+}
+
 void HistoryInner::applyDragSelection() {
 	applyDragSelection(&_selected);
 }
@@ -2616,6 +2620,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 
 	setAcceptDrops(true);
 
+	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(updateField()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onListScroll()));
 	connect(&_reportSpamPanel, SIGNAL(reportClicked()), this, SLOT(onReportSpamClicked()));
 	connect(&_reportSpamPanel, SIGNAL(hideClicked()), this, SLOT(onReportSpamHide()));
@@ -2959,6 +2964,27 @@ void HistoryWidget::notifyUserIsBotChanged(UserData *user) {
 	}
 }
 
+void HistoryWidget::notifyMigrateUpdated(PeerData *peer) {
+	if (_peer) {
+		if (_peer == peer) {
+			if (peer->migrateTo()) {
+				showHistory(peer->migrateTo()->id, (_showAtMsgId > 0) ? (-_showAtMsgId) : _showAtMsgId, true);
+			} else if ((_migrated ? _migrated->peer : 0) != peer->migrateFrom()) {
+				History *migrated = peer->migrateFrom() ? App::history(peer->migrateFrom()->id) : 0;
+				if (_migrated || (migrated && migrated->unreadCount > 0)) {
+					showHistory(peer->id, peer->migrateFrom() ? _showAtMsgId : ((_showAtMsgId < 0 && -_showAtMsgId < ServerMaxMsgId) ? ShowAtUnreadMsgId : _showAtMsgId), true);
+				} else {
+					_migrated = migrated;
+					_list->notifyMigrateUpdated();
+					updateListSize();
+				}
+			}
+		} else if (_migrated && _migrated->peer == peer && peer->migrateTo() != _peer) {
+			showHistory(_peer->id, _showAtMsgId, true);
+		}
+	}
+}
+
 void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 	cSetLastStickersUpdate(getms(true));
 	_stickersUpdateRequest = 0;
@@ -3163,12 +3189,12 @@ void HistoryWidget::applyDraft(bool parseLinks) {
 	}
 }
 
-void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId) {
+void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool reload) {
 	MsgId wasMsgId = _showAtMsgId;
 	History *wasHistory = _history;
 
 	if (_history) {
-		if (_peer->id == peerId) {
+		if (_peer->id == peerId && !reload) {
 			_history->lastWidth = 0;
 
 			bool wasOnlyImportant = _history->isChannel() ? _history->asChannelHistory()->onlyImportant() : true;
@@ -3423,9 +3449,20 @@ void HistoryWidget::updateReportSpamStatus() {
 			_reportSpamStatus = i.value();
 			_reportSpamPanel.setReported(_reportSpamStatus == dbiprsReportSent, _peer);
 			return;
+		} else if (_peer->migrateFrom()) { // migrate report status
+			i = cReportSpamStatuses().constFind(_peer->migrateFrom()->id);
+			if (i != cReportSpamStatuses().cend()) {
+				_reportSpamStatus = i.value();
+				_reportSpamPanel.setReported(_reportSpamStatus == dbiprsReportSent, _peer);
+				cRefReportSpamStatuses().insert(_peer->id, _reportSpamStatus);
+				Local::writeReportSpamStatuses();
+				return;
+			}
 		}
 	}
-	if ((!_history->loadedAtTop() && (_history->blocks.size() < 2 || (_history->blocks.size() == 2 && _history->blocks.at(1)->items.size() < 2))) || !cContactsReceived() || _firstLoadRequest) {
+	if (!cContactsReceived() || _firstLoadRequest) {
+		_reportSpamStatus = dbiprsUnknown;
+	} else if (!_history->loadedAtTop() && (_history->blocks.size() < 2 || (_history->blocks.size() == 2 && _history->blocks.at(1)->items.size() < 2))) {
 		_reportSpamStatus = dbiprsUnknown;
 	} else if (_peer->isUser()) {
 		if (_peer->asUser()->contact > 0) {
@@ -3463,7 +3500,18 @@ void HistoryWidget::updateReportSpamStatus() {
 			_reportSpamStatus = dbiprsNoButton;
 		}
 	} else if (_peer->isChannel()) {
-		if (!_peer->asChannel()->inviter || _history->asChannelHistory()->maxReadMessageDate().isNull()) {
+		if (_peer->migrateFrom() && _peer->migrateFrom()->isChat()) {
+			if (_peer->migrateFrom()->asChat()->inviterForSpamReport > 0) {
+				UserData *user = App::userLoaded(_peer->migrateFrom()->asChat()->inviterForSpamReport);
+				if (user && user->contact > 0) {
+					_reportSpamStatus = dbiprsNoButton;
+				} else {
+					_reportSpamStatus = dbiprsShowButton;
+				}
+			} else {
+				_reportSpamStatus = dbiprsNoButton;
+			}
+		} else if (!_peer->asChannel()->inviter || _history->asChannelHistory()->maxReadMessageDate().isNull()) {
 			_reportSpamStatus = dbiprsUnknown;
 		} else if (_peer->asChannel()->inviter > 0) {
 			UserData *user = App::userLoaded(_peer->asChannel()->inviter);
@@ -5518,6 +5566,9 @@ void HistoryWidget::onReportSpamClear() {
 		MTP::send(MTPmessages_DeleteChatUser(_clearPeer->asChat()->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, _clearPeer), App::main()->rpcFail(&MainWidget::leaveChatFailed, _clearPeer));
 	} else if (_clearPeer->isChannel()) {
 		App::main()->showDialogs();
+		if (_clearPeer->migrateFrom()) {
+			App::main()->deleteConversation(_clearPeer->migrateFrom());
+		}
 		MTP::send(MTPchannels_LeaveChannel(_clearPeer->asChannel()->inputChannel), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
 	}
 }

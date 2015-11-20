@@ -2007,6 +2007,11 @@ void OverviewInner::switchType(MediaOverviewType type) {
 		} else {
 			_search.hide();
 		}
+		if (!_search.getLastText().isEmpty()) {
+			_search.setText(QString());
+			_search.updatePlaceholder();
+			onSearchUpdate();
+		}
 		_cancelSearch.hide();
 	}
 	mediaOverviewUpdated();
@@ -2146,7 +2151,7 @@ void OverviewInner::onNeedSearchMessages() {
 }
 
 void OverviewInner::onSearchUpdate() {
-	QString filterText = _search.text().trimmed();
+	QString filterText = (_type == OverviewLinks) ? _search.text().trimmed() : QString();
 	bool inSearch = !filterText.isEmpty(), changed = (inSearch != _inSearch);
 	_inSearch = inSearch;
 

@@ -980,7 +980,7 @@ QRect Window::iconRect() const {
 
 bool Window::eventFilter(QObject *obj, QEvent *evt) {
 	QEvent::Type t = evt->type();
-	if (t == QEvent::MouseButtonPress || t == QEvent::KeyPress || t == QEvent::TouchBegin) {
+	if (t == QEvent::MouseButtonPress || t == QEvent::KeyPress || t == QEvent::TouchBegin || t == QEvent::Wheel) {
 		psUserActionDone();
 	} else if (t == QEvent::MouseMove) {
 		if (main && main->isIdle()) {

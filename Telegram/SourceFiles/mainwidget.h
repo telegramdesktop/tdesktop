@@ -386,6 +386,7 @@ public:
 	void updateStickers();
 	void notifyBotCommandsChanged(UserData *bot);
 	void notifyUserIsBotChanged(UserData *bot);
+	void notifyMigrateUpdated(PeerData *peer);
 
 	void choosePeer(PeerId peerId, MsgId showAtMsgId); // does offerPeer or showPeerHistory
 	void clearBotStartToken(PeerData *peer);
