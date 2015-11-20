@@ -544,7 +544,7 @@ public:
 		int skipBack = 0;
 		ch = ((ptr < end) ? *ptr : 0);
 		chInt = ch.unicode();
-		bool skip = false, isNewLine = multiline && chIsNewline(ch), isSpace = chIsSpace(ch), isDiac = chIsDiac(ch), isTilde = (ch == '~');
+		bool skip = false, isNewLine = multiline && chIsNewline(ch), isSpace = chIsSpace(ch), isDiac = chIsDiac(ch), isTilde = checkTilde && (ch == '~');
 		if (chIsBad(ch) || ch.isLowSurrogate()) {
 			skip = true;
 		} else if (isDiac) {
@@ -577,12 +577,12 @@ public:
 		} else {
 			if (isTilde) { // tilde fix in OpenSans
 				if (!(flags & TextBlockFTilde)) {
-					createBlock();
+					createBlock(skipBack);
 					flags |= TextBlockFTilde;
 				}
 			} else {
 				if (flags & TextBlockFTilde) {
-					createBlock();
+					createBlock(skipBack);
 					flags &= ~TextBlockFTilde;
 				}
 			}
@@ -688,6 +688,7 @@ public:
 
 		ch = chInt = 0;
 		lastSkipped = false;
+		checkTilde = !cRetina() && _t->_font->size() == 13 && _t->_font->flags() == 0; // tilde Open Sans fix
 		entitiesEnd = entities.cend();
 		waitingEntity = entities.cbegin();
 		while (waitingEntity != entitiesEnd && waitingEntity->length <= 0) ++waitingEntity;
@@ -784,6 +785,7 @@ private:
 	QChar ch; // current char (low surrogate, if current char is surrogate pair)
 	uint32 chInt; // full ch, could be surrogate pair
 	bool lastSkipped; // did we skip current char
+	bool checkTilde; // do we need a special text block for tilde symbol
 };
 
 namespace {
@@ -1785,7 +1787,7 @@ public:
 			}
 			if (flags & TextBlockFItalic) result = result->italic();
 			if (flags & TextBlockFUnderline) result = result->underline();
-			if ((flags & TextBlockFTilde) && !cRetina() && f->size() == 13 && f->flags() == 0) { // tilde fix in OpenSans
+			if (flags & TextBlockFTilde) { // tilde fix in OpenSans
 				result = st::semiboldFont;
 			}
 		}
@@ -3244,7 +3246,7 @@ TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResi
 			}
 			if (flags & TextBlockFItalic) blockFont = blockFont->italic();
 			if (flags & TextBlockFUnderline) blockFont = blockFont->underline();
-			if ((flags & TextBlockFTilde) && !cRetina() && font->size() == 13 && font->flags() == 0) { // tilde fix in OpenSans
+			if (flags & TextBlockFTilde) { // tilde fix in OpenSans
 				blockFont = st::semiboldFont;
 			}
 		}

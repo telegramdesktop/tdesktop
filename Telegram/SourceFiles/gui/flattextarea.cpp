@@ -619,11 +619,11 @@ void FlatTextarea::checkContentHeight() {
 }
 
 void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
-	int32 emojiPosition = -1, emojiLen = 0;
+	int32 replacePosition = -1, replaceLen = 0;
 	const EmojiData *emoji = 0;
 
 	static QString regular = qsl("Open Sans"), semibold = qsl("Open Sans Semibold");
-	bool checkTilde = !cRetina() && (font().pixelSize() == 13) && (font().family() == regular), prevTilde = false;
+	bool checkTilde = !cRetina() && (font().pixelSize() == 13) && (font().family() == regular), wasTildeFragment = false;
 
 	QTextDocument *doc(document());
 	while (true) {
@@ -640,66 +640,68 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 				if (fp >= end || fe <= start) {
 					continue;
 				}
+
+				if (checkTilde) {
+					wasTildeFragment = (fragment.charFormat().fontFamily() == semibold);
+				}
+
 				QString t(fragment.text());
 				const QChar *ch = t.constData(), *e = ch + t.size();
 				for (; ch != e; ++ch, ++fp) {
-					if (checkTilde && fp >= position) { // tilde fix in OpenSans
-						bool tilde = (ch->unicode() == '~');
-						QString fontfamily;
-						if (tilde) {
-							if (fragment.charFormat().fontFamily() != semibold) {
-								fontfamily = semibold;
-							}
-						} else if (prevTilde) {
-							if (fragment.charFormat().fontFamily() == semibold) {
-								fontfamily = regular;
-							}
-						}
-						if (!fontfamily.isEmpty()) {
-							if (!document()->pageSize().isNull()) {
-								document()->setPageSize(QSizeF(0, 0));
-							}
-							emojiPosition = fp;
-							emojiLen = 1;
-							QTextCursor c(doc->docHandle(), emojiPosition);
-							c.setPosition(emojiPosition + emojiLen, QTextCursor::KeepAnchor);
-							QTextCharFormat format;
-							format.setFontFamily(fontfamily);
-							c.mergeCharFormat(format);
-							break;
-						}
-						prevTilde = tilde;
-					}
-
+					int32 emojiLen = 0;
 					emoji = emojiFromText(ch, e, emojiLen);
 					if (emoji) {
-						emojiPosition = fp;
+						if (replacePosition >= 0) {
+							emoji = 0; // replace tilde char format first
+						} else {
+							replacePosition = fp;
+							replaceLen = emojiLen;
+						}
 						break;
 					}
+
+					if (checkTilde && fp >= position) { // tilde fix in OpenSans
+						bool tilde = (ch->unicode() == '~');
+						if ((tilde && !wasTildeFragment) || (!tilde && wasTildeFragment)) {
+							if (replacePosition < 0) {
+								replacePosition = fp;
+								replaceLen = 1;
+							} else {
+								++replaceLen;
+							}
+						} else if (replacePosition >= 0) {
+							break;
+						}
+					}
+
 					if (ch + 1 < e && ch->isHighSurrogate() && (ch + 1)->isLowSurrogate()) {
 						++ch;
 						++fp;
 					}
 				}
-				if (emojiPosition >= 0) break;
+				if (replacePosition >= 0) break;
 			}
-			if (emojiPosition >= 0) break;
+			if (replacePosition >= 0) break;
 		}
-		if (emojiPosition >= 0) {
-			if (emoji) {
-				if (!document()->pageSize().isNull()) {
-					document()->setPageSize(QSizeF(0, 0));
-				}
-				QTextCursor c(doc->docHandle(), emojiPosition);
-				c.setPosition(emojiPosition + emojiLen, QTextCursor::KeepAnchor);
-				insertEmoji(emoji, c);
+		if (replacePosition >= 0) {
+			if (!document()->pageSize().isNull()) {
+				document()->setPageSize(QSizeF(0, 0));
 			}
-			charsAdded -= emojiPosition + emojiLen - position;
-			position = emojiPosition + 1;
+			QTextCursor c(doc->docHandle(), replacePosition);
+			c.setPosition(replacePosition + replaceLen, QTextCursor::KeepAnchor);
+			if (emoji) {
+				insertEmoji(emoji, c);
+			} else {
+				QTextCharFormat format;
+				format.setFontFamily(wasTildeFragment ? regular : semibold);
+				c.mergeCharFormat(format);
+			}
+			charsAdded -= replacePosition + replaceLen - position;
+			position = replacePosition + (emoji ? 1 : replaceLen);
 
 			emoji = 0;
-			emojiPosition = -1;
-		} else {
+			replacePosition = -1;
+		} else {	
 			break;
 		}
 	}
