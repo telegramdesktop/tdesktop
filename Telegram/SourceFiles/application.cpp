@@ -696,8 +696,8 @@ void Application::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (cDevVersion() && Local::oldMapVersion() < 9009) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 New popup menus in text input fields\n\xe2\x80\x94 Error is displayed when trying to paste or drop a folder instead of a file\n\xe2\x80\x94 Some bugfixes and improvements");// .replace('@', qsl("@") + QChar(0x200D));
+			if (cDevVersion() && Local::oldMapVersion() < 9011) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Groups can now have multiple administrators with the ability to edit the name and logo, and add and remove members.\n\xe2\x80\x94 Groups that have reached their capacity of 200 users can be upgraded to supergroups of up to 1,000 members.\n\nWARNING: Only updated Telegram apps will be able to open supergroups. DO NOT upgrade your groups, before the stable version is out and updates for other apps are released.");// .replace('@', qsl("@") + QChar(0x200D));
 			} else if (Local::oldMapVersion() < 9010) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			} else {
