@@ -71,7 +71,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 , _photoOver(false)
 
 // migrate to megagroup
-, _showMigrate(_peerChat && _amCreator && !_peerChat->isMigrated() && _peerChat->count >= 3)
+, _showMigrate(_peerChat && _amCreator && !_peerChat->isMigrated() && _peerChat->count >= cMaxGroupCount())
 , _aboutMigrate(st::normalFont, lang(lng_profile_migrate_about), _defaultOptions, st::wndMinWidth - st::profilePadding.left() - st::profilePadding.right())
 , _migrate(this, lang(lng_profile_migrate_button), st::btnMigrateToMega)
 
