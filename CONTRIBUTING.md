@@ -6,6 +6,7 @@ This document describes how you can contribute to Telegram Desktop. Please read 
 
 * [What contributions are accepted](#what-contributions-are-accepted)
 * [Sign your work](#sign-your-work)
+  * [Change commit message of a pushed commit](#change-commit-message-of-a-pushed-commit)
 * [Build instructions](#build-instructions)
 * [Pull upstream changes into your fork regularly](#pull-upstream-changes-into-your-fork-regularly)
 * [How to get your pull request accepted](#how-to-get-your-pull-request-accepted)
@@ -49,11 +50,25 @@ By making a contribution to this project, I certify that:
 (e) I am granting this work into the public domain.
 ```
 
-Then you just add a line to every git commit message that states:
+Then you just add a line to every **git commit message** that states:
 
     Signed-off-by: Random J Developer <random@developer.example.org> (github: rndjdev_github)
 
 Replacing Random Developer’s details with your name, email address and GitHub username.
+
+### Change commit message of a pushed commit
+
+If you already pushed a commit and forgot to add the signature to the commit message, follow these steps to change the message of the commit:
+
+1. Open `Git Bash` (or `Git Shell`)
+2. Enter following command to change the commit message of the most recent commit: `git commit --amend`
+3. Press <kbd>i</kbd> to get into Insert-mode
+4. Change the commit message (and add the [signature](#sign-your-work) at the and)
+5. After editing the message, press <kbd>ESC</kbd> to get out of the Insert-mode
+6. Write `:wq` and press <kbd>Enter</kbd> to save the new message or write `:q!` to discard your changes
+7. Enter `git push --force` to push the commit with the new commit message to the remote repository
+
+For more info, see [GitHub Help][help_change_commit_message].
 
 ## Build instructions
 
@@ -122,5 +137,6 @@ Don't forget to [sign your patch](#sign-your-work) to put it in the public domai
 [xcode_old]: XCODEold.md
 [qtcreator]: QTCREATOR.md
 [help_fork_repo]: https://help.github.com/articles/fork-a-repo/
+[help_change_commit_message]: https://help.github.com/articles/changing-a-commit-message/
 [commit_message]: http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
 [pr]: ../../compare/
