@@ -295,7 +295,7 @@ void NotifyWindow::mousePressEvent(QMouseEvent *e) {
 			App::wnd()->notifyClear();
 		} else {
 			App::wnd()->hideSettings();
-			App::main()->showPeerHistory(peer, (!history->peer->isUser() && item && item->notifyByFrom() && item->id > 0) ? item->id : ShowAtUnreadMsgId);
+			App::main()->showPeerHistory(peer, (!history->peer->isUser() && item && item->mentionsMe() && item->id > 0) ? item->id : ShowAtUnreadMsgId);
 		}
 		e->ignore();
 	}
@@ -637,7 +637,7 @@ void Window::sendServiceHistoryRequest() {
 
 	UserData *user = App::userLoaded(ServiceUserId);
 	if (!user) {
-		int32 userFlags = MTPDuser::flag_first_name | MTPDuser::flag_phone | MTPDuser::flag_status;
+		int32 userFlags = MTPDuser::flag_first_name | MTPDuser::flag_phone | MTPDuser::flag_status | MTPDuser::flag_verified;
 		user = App::feedUsers(MTP_vector<MTPUser>(1, MTP_user(MTP_int(userFlags), MTP_int(ServiceUserId), MTPlong(), MTP_string("Telegram"), MTPstring(), MTPstring(), MTP_string("42777"), MTP_userProfilePhotoEmpty(), MTP_userStatusRecently(), MTPint())));
 	}
 	_serviceHistoryRequest = MTP::send(MTPmessages_GetHistory(user->input, MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), main->rpcDone(&MainWidget::serviceHistoryDone), main->rpcFail(&MainWidget::serviceHistoryFail));
@@ -980,7 +980,7 @@ QRect Window::iconRect() const {
 
 bool Window::eventFilter(QObject *obj, QEvent *evt) {
 	QEvent::Type t = evt->type();
-	if (t == QEvent::MouseButtonPress || t == QEvent::KeyPress || t == QEvent::TouchBegin) {
+	if (t == QEvent::MouseButtonPress || t == QEvent::KeyPress || t == QEvent::TouchBegin || t == QEvent::Wheel) {
 		psUserActionDone();
 	} else if (t == QEvent::MouseMove) {
 		if (main && main->isIdle()) {
@@ -1306,7 +1306,7 @@ void Window::quit() {
 void Window::notifySchedule(History *history, HistoryItem *item) {
 	if (App::quiting() || !history->currentNotification() || !main) return;
 
-	PeerData *notifyByFrom = (!history->peer->isUser() && item->notifyByFrom()) ? item->from() : 0;
+	PeerData *notifyByFrom = (!history->peer->isUser() && item->mentionsMe()) ? item->from() : 0;
 
 	bool haveSetting = (history->peer->notify != UnknownNotifySettings);
 	if (haveSetting) {

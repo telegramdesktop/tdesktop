@@ -88,7 +88,7 @@ void IntroSignup::mousePressEvent(QMouseEvent *e) {
 			showError(lang(lng_bad_photo));
 			return;
 		}
-		PhotoCropBox *box = new PhotoCropBox(img, 0);
+		PhotoCropBox *box = new PhotoCropBox(img, PeerId(0));
 		connect(box, SIGNAL(ready(const QImage &)), this, SLOT(onPhotoReady(const QImage &)));
 		App::wnd()->showLayer(box);
 	}
@@ -242,7 +242,7 @@ void IntroSignup::nameSubmitDone(const MTPauth_Authorization &result) {
 	first.setDisabled(false);
 	last.setDisabled(false);
 	const MTPDauth_authorization &d(result.c_auth_authorization());
-	if (d.vuser.type() != mtpc_user || !(d.vuser.c_user().vflags.v & MTPDuser_flag_self)) { // wtf?
+	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
 		showError(lang(lng_server_error));
 		return;
 	}

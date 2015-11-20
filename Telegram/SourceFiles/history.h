@@ -183,6 +183,9 @@ public:
 	bool isChannel() const {
 		return peerIsChannel(peer->id);
 	}
+	bool isMegagroup() const {
+		return peer->isMegagroup();
+	}
 	ChannelHistory *asChannelHistory();
 	const ChannelHistory *asChannelHistory() const;
 
@@ -190,6 +193,7 @@ public:
 		return blocks.isEmpty();
 	}
 	void clear(bool leaveItems = false);
+	void clearUpto(MsgId msgId);
 	void blockResized(HistoryBlock *block, int32 dh);
 	void removeBlock(HistoryBlock *block);
 
@@ -338,12 +342,45 @@ public:
 	QMap<SendActionType, uint64> mySendActions;
 
 	typedef QList<MsgId> MediaOverview;
-	typedef QMap<MsgId, NullType> MediaOverviewIds;
 	MediaOverview overview[OverviewCount];
-	MediaOverviewIds overviewIds[OverviewCount];
-	int32 overviewCount[OverviewCount]; // -1 - not loaded, 0 - all loaded, > 0 - count, but not all loaded
+
+	bool overviewCountLoaded(int32 overviewIndex) const {
+		return overviewCountData[overviewIndex] >= 0;
+	}
+	bool overviewLoaded(int32 overviewIndex) const {
+		return overviewCount(overviewIndex) == overview[overviewIndex].size();
+	}
+	int32 overviewCount(int32 overviewIndex, int32 defaultValue = -1) const {
+		int32 result = overviewCountData[overviewIndex], loaded = overview[overviewIndex].size();
+		if (result < 0) return defaultValue;
+		if (result < loaded) {
+			if (result > 0) {
+				const_cast<History*>(this)->overviewCountData[overviewIndex] = 0;
+			}
+			return loaded;
+		}
+		return result;
+	}
+	MsgId overviewMinId(int32 overviewIndex) const {
+		for (MediaOverviewIds::const_iterator i = overviewIds[overviewIndex].cbegin(), e = overviewIds[overviewIndex].cend(); i != e; ++i) {
+			if (i.key() > 0) {
+				return i.key();
+			}
+		}
+		return 0;
+	}
+	void overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages &result, bool onlyCounts = false);
+	bool overviewHasMsgId(int32 overviewIndex, MsgId msgId) const {
+		return overviewIds[overviewIndex].constFind(msgId) != overviewIds[overviewIndex].cend();
+	}
+
+	void changeMsgId(MsgId oldId, MsgId newId);
 
 private:
+
+	typedef QMap<MsgId, NullType> MediaOverviewIds;
+	MediaOverviewIds overviewIds[OverviewCount];
+	int32 overviewCountData[OverviewCount]; // -1 - not loaded, 0 - all loaded, > 0 - count, but not all loaded
 
 	friend class HistoryBlock;
 	friend class ChannelHistory;
@@ -457,7 +494,9 @@ struct DialogsList {
 		DialogRow *drawFrom = current;
 		p.translate(0, drawFrom->pos * st::dlgHeight);
 		while (drawFrom != end && drawFrom->pos * st::dlgHeight < hTo) {
-			drawFrom->paint(p, w, (drawFrom->history->peer == act), (drawFrom->history->peer == sel), onlyBackground);
+			bool active = (drawFrom->history->peer == act) || (drawFrom->history->peer->migrateTo() && drawFrom->history->peer->migrateTo() == act);
+			bool selected = (drawFrom->history->peer == sel);
+			drawFrom->paint(p, w, active, selected, onlyBackground);
 			drawFrom = drawFrom->next;
 			p.translate(0, st::dlgHeight);
 		}
@@ -780,7 +819,7 @@ enum InfoDisplayType {
 };
 
 inline bool isImportantChannelMessage(MsgId id, int32 flags) { // client-side important msgs always has_views or has_from_id
-	return (flags & MTPDmessage_flag_out) || (flags & MTPDmessage_flag_notify_by_from) || ((id > 0 || flags != 0) && !(flags & MTPDmessage::flag_from_id));
+	return (flags & MTPDmessage::flag_out) || (flags & MTPDmessage::flag_mentioned) || ((id > 0 || flags != 0) && !(flags & MTPDmessage::flag_from_id));
 }
 
 enum HistoryItemType {
@@ -827,26 +866,35 @@ public:
 		_block = block;
 	}
 	bool out() const {
-		return _flags & MTPDmessage_flag_out;
+		return _flags & MTPDmessage::flag_out;
 	}
 	bool unread() const {
-		if ((out() && (id > 0 && id < _history->outboxReadBefore)) || (!out() && id > 0 && id < _history->inboxReadBefore)) return false;
-		return (id > 0 && !out() && channelId() != NoChannel) ? true : (history()->peer->isSelf() ? false : (_flags & MTPDmessage_flag_unread));
+		if (out() && id > 0 && id < _history->outboxReadBefore) return false;
+		if (!out() && id > 0) {
+			if (id < _history->inboxReadBefore) return false;
+			if (channelId() != NoChannel) return true; // no unread flag for incoming messages in channels
+		}
+		if (history()->peer->isSelf()) return false; // messages from myself are always read
+		if (out() && history()->peer->migrateTo()) return false; // outgoing messages in converted chats are always read
+		return (_flags & MTPDmessage::flag_unread);
 	}
-	bool notifyByFrom() const {
-		return _flags & MTPDmessage_flag_notify_by_from;
+	bool mentionsMe() const {
+		return _flags & MTPDmessage::flag_mentioned;
 	}
 	bool isMediaUnread() const {
-		return (_flags & MTPDmessage_flag_media_unread) && (channelId() == NoChannel);
+		return (_flags & MTPDmessage::flag_media_unread) && (channelId() == NoChannel);
 	}
 	void markMediaRead() {
-		_flags &= ~MTPDmessage_flag_media_unread;
+		_flags &= ~MTPDmessage::flag_media_unread;
 	}
 	bool hasReplyMarkup() const {
 		return _flags & MTPDmessage::flag_reply_markup;
 	}
 	bool hasTextLinks() const {
 		return _flags & MTPDmessage_flag_HAS_TEXT_LINKS;
+	}
+	bool isGroupMigrate() const {
+		return _flags & MTPDmessage_flag_IS_GROUP_MIGRATE;
 	}
 	bool hasViews() const {
 		return _flags & MTPDmessage::flag_views;
@@ -857,6 +905,10 @@ public:
 	bool isImportant() const {
 		return _history->isChannel() && isImportantChannelMessage(id, _flags);
 	}
+	bool indexInOverview() const {
+		return (!history()->isChannel() || history()->isMegagroup() || fromChannel());
+	}
+
 	virtual bool needCheck() const {
 		return out() || (id < 0 && history()->peer->isSelf());
 	}
@@ -898,9 +950,7 @@ public:
 	}
 	virtual void setViewsCount(int32 count) {
 	}
-	virtual void setId(MsgId newId) {
-		id = newId;
-	}
+	virtual void setId(MsgId newId);
 	virtual void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const = 0;
     virtual QString notificationHeader() const {
         return QString();
@@ -909,7 +959,7 @@ public:
 
 	bool canDelete() const {
 		ChannelData *channel = _history->peer->asChannel();
-		if (!channel) return true;
+		if (!channel) return !(_flags & MTPDmessage_flag_IS_GROUP_MIGRATE);
 
 		if (id == 1) return false;
 		if (channel->amCreator()) return true;

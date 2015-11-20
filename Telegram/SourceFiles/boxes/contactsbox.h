@@ -39,10 +39,11 @@ private:
 public:
 
 	ContactsInner(CreatingGroupType creating = CreatingGroupNone);
-	ContactsInner(ChannelData *channel, MembersFilter channelFilter = MembersFilterRecent, const MembersAlreadyIn &already = MembersAlreadyIn());
-	ContactsInner(ChatData *chat);
+	ContactsInner(ChannelData *channel, MembersFilter membersFilter, const MembersAlreadyIn &already);
+	ContactsInner(ChatData *chat, MembersFilter membersFilter);
 	ContactsInner(UserData *bot);
 	void init();
+	void initList();
 
 	void paintEvent(QPaintEvent *e);
 	void enterEvent(QEvent *e);
@@ -60,6 +61,9 @@ public:
 	QVector<UserData*> selected();
 	QVector<MTPInputUser> selectedInputs();
 	PeerData *selectedUser();
+	bool allAdmins() const {
+		return _allAdmins.checked();
+	}
 
 	void loadProfilePhotos(int32 yFrom);
 	void chooseParticipant();
@@ -72,7 +76,7 @@ public:
 
 	ChatData *chat() const;
 	ChannelData *channel() const;
-	MembersFilter channelFilter() const;
+	MembersFilter membersFilter() const;
 	UserData *bot() const;
 	CreatingGroupType creating() const;
 
@@ -80,6 +84,8 @@ public:
 	bool hasAlreadyMembersInChannel() const {
 		return !_already.isEmpty();
 	}
+
+	void saving(bool flag);
 
 	~ContactsInner();
 
@@ -104,10 +110,12 @@ public slots:
 	void onAddAdmin();
 	void onNoAddAdminBox(QObject *obj);
 
+	void onAllAdminsChanged();
+
 private:
 
 	void updateSelectedRow();
-	void addAdminDone(const MTPBool &result, mtpRequestId req);
+	void addAdminDone(const MTPUpdates &result, mtpRequestId req);
 	bool addAdminFail(const RPCError &error, mtpRequestId req);
 
 	int32 _rowHeight, _newItemHeight;
@@ -115,12 +123,16 @@ private:
 
 	ChatData *_chat;
 	ChannelData *_channel;
-	MembersFilter _channelFilter;
+	MembersFilter _membersFilter;
 	UserData *_bot;
 	CreatingGroupType _creating;
 	MembersAlreadyIn _already;
 
-	ChatData *_addToChat;
+	Checkbox _allAdmins;
+	int32 _aboutWidth;
+	Text _aboutAllAdmins, _aboutAdmins;
+
+	PeerData *_addToPeer;
 	UserData *_addAdmin;
 	mtpRequestId _addAdminRequestId;
 	ConfirmBox *_addAdminBox;
@@ -162,6 +174,9 @@ private:
 	QPoint _lastMousePos;
 	LinkButton _addContactLnk;
 
+	bool _saving;
+	bool _allAdminsChecked;
+
 };
 
 class ContactsBox : public ItemListBox, public RPCSender {
@@ -173,7 +188,7 @@ public:
 	ContactsBox(const QString &name, const QImage &photo); // group creation
 	ContactsBox(ChannelData *channel); // channel setup
 	ContactsBox(ChannelData *channel, MembersFilter filter, const MembersAlreadyIn &already);
-	ContactsBox(ChatData *chat);
+	ContactsBox(ChatData *chat, MembersFilter filter);
 	ContactsBox(UserData *bot);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
@@ -198,6 +213,7 @@ public slots:
 
 	void onInvite();
 	void onCreate();
+	void onSaveAdmins();
 
 	bool onSearchByUsername(bool searchCache = false);
 	void onNeedSearchByUsername();
@@ -235,8 +251,18 @@ private:
 	typedef QMap<mtpRequestId, QString> PeopleQueries;
 	PeopleQueries _peopleQueries;
 
+	int32 _saveRequestId;
+
+	// saving admins
+	void saveAdminsDone(const MTPUpdates &result);
+	void saveSelectedAdmins();
+	void getAdminsDone(const MTPmessages_ChatFull &result);
+	void setAdminDone(UserData *user, const MTPBool &result);
+	void removeAdminDone(UserData *user, const MTPBool &result);
+	bool saveAdminsFail(const RPCError &error);
+	bool editAdminFail(const RPCError &error);
+
 	// group creation
-	int32 _creationRequestId;
 	QString _creationName;
 	QImage _creationPhoto;
 
@@ -309,7 +335,7 @@ private:
 	bool membersFailed(const RPCError &error, mtpRequestId req);
 
 	void kickDone(const MTPUpdates &result, mtpRequestId req);
-	void kickAdminDone(const MTPBool &result, mtpRequestId req);
+	void kickAdminDone(const MTPUpdates &result, mtpRequestId req);
 	bool kickFail(const RPCError &error, mtpRequestId req);
 	void removeKicked();
 

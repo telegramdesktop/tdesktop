@@ -1272,7 +1272,7 @@ void StickerPanInner::paintEvent(QPaintEvent *e) {
 		tilly = y + st::emojiPanHeader + (rows * st::stickerPanSize.height());
 		if (r.top() >= tilly) continue;
 
-		bool special = (_sets[c].flags & MTPDstickerSet_flag_official);
+		bool special = (_sets[c].flags & MTPDstickerSet::flag_official);
 		y += st::emojiPanHeader;
 
 		int32 fromrow = floorclamp(r.y() - y, st::stickerPanSize.height(), 0, rows);
@@ -1552,7 +1552,7 @@ void StickerPanInner::refreshRecent(bool performResize) {
 			}
 		}
 		if (_sets.isEmpty() || _sets.at(0).id != RecentStickerSetId) {
-			_sets.push_back(DisplayedSet(RecentStickerSetId, MTPDstickerSet_flag_official, lang(lng_emoji_category0), recent.size() * 2, recent));
+			_sets.push_back(DisplayedSet(RecentStickerSetId, MTPDstickerSet::flag_official, lang(lng_emoji_category0), recent.size() * 2, recent));
 		} else {
 			_sets[0].pack = recent;
 			_sets[0].hovers.resize(recent.size() * 2);
@@ -1606,7 +1606,7 @@ void StickerPanInner::fillPanels(QVector<EmojiPanel*> &panels) {
 	int y = 0;
 	panels.reserve(_sets.size());
 	for (int32 i = 0, l = _sets.size(); i < l; ++i) {
-		bool special = (_sets.at(i).flags & MTPDstickerSet_flag_official);
+		bool special = (_sets.at(i).flags & MTPDstickerSet::flag_official);
 		panels.push_back(new EmojiPanel(parentWidget(), _sets.at(i).title, _sets.at(i).id, special, y));
 		panels.back()->show();
 		connect(panels.back(), SIGNAL(deleteClicked(quint64)), this, SIGNAL(removing(quint64)));
@@ -1639,7 +1639,7 @@ void StickerPanInner::updateSelected() {
 	for (int c = 0, l = _sets.size(); c < l; ++c) {
 		const DisplayedSet &set(_sets.at(c));
 		int cnt = set.pack.size();
-		bool special = (set.flags & MTPDstickerSet_flag_official);
+		bool special = (set.flags & MTPDstickerSet::flag_official);
 
 		y = ytill;
 		ytill = y + st::emojiPanHeader + ((cnt / StickerPanPerRow) + ((cnt % StickerPanPerRow) ? 1 : 0)) * st::stickerPanSize.height();
@@ -2615,7 +2615,7 @@ void EmojiPan::onSwitch() {
 
 void EmojiPan::onRemoveSet(quint64 setId) {
 	StickerSets::const_iterator it = cStickerSets().constFind(setId);
-	if (it != cStickerSets().cend() && !(it->flags & MTPDstickerSet_flag_official)) {
+	if (it != cStickerSets().cend() && !(it->flags & MTPDstickerSet::flag_official)) {
 		_removingSetId = it->id;
 		ConfirmBox *box = new ConfirmBox(lng_stickers_remove_pack(lt_sticker_pack, it->title), lang(lng_box_remove));
 		connect(box, SIGNAL(confirmed()), this, SLOT(onRemoveSetSure()));
@@ -2627,7 +2627,7 @@ void EmojiPan::onRemoveSet(quint64 setId) {
 void EmojiPan::onRemoveSetSure() {
 	App::wnd()->hideLayer();
 	StickerSets::iterator it = cRefStickerSets().find(_removingSetId);
-	if (it != cRefStickerSets().cend() && !(it->flags & MTPDstickerSet_flag_official)) {
+	if (it != cRefStickerSets().cend() && !(it->flags & MTPDstickerSet::flag_official)) {
 		if (it->id && it->access) {
 			MTP::send(MTPmessages_UninstallStickerSet(MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access))));
 		} else if (!it->shortName.isEmpty()) {
@@ -2740,7 +2740,7 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 
 			const BotCommand *command = _crows->at(i).second;
 			QString toHighlight = command->command;
-			int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : -1;
+			int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : ((_parent->channel() && _parent->channel()->isMegagroup()) ? _parent->channel()->mgInfo->botStatus : -1);
 			if (hasUsername || botStatus == 0 || botStatus == 2) {
 				toHighlight += '@' + user->username;
 			}
@@ -2828,7 +2828,7 @@ QString MentionsInner::getSelected() const {
 		} else {
 			UserData *user = _crows->at(_sel).first;
 			const BotCommand *command(_crows->at(_sel).second);
-			int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : -1;
+			int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : ((_parent->channel() && _parent->channel()->isMegagroup()) ? _parent->channel()->mgInfo->botStatus : -1);
 			if (botStatus == 0 || botStatus == 2 || _parent->filter().indexOf('@') > 1) {
 				result = '/' + command->command + '@' + user->username;
 			} else {
@@ -2979,11 +2979,9 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 	if (_filter.at(0) == '@' && _chat) {
 		QMultiMap<int32, UserData*> ordered;
 		rows.reserve(_chat->participants.isEmpty() ? _chat->lastAuthors.size() : _chat->participants.size());
-		if (_chat->participants.isEmpty()) {
-			if (_chat->count > 0 && App::api()) {
-				App::api()->requestFullPeer(_chat);
-			}
-		} else {
+		if (_chat->noParticipantInfo()) {
+			if (App::api()) App::api()->requestFullPeer(_chat);
+		} else if (!_chat->participants.isEmpty()) {
 			for (ChatData::Participants::const_iterator i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
 				UserData *user = i.key();
 				if (user->username.isEmpty()) continue;
@@ -3006,6 +3004,19 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 				rows.push_back(i.value());
 			}
 		}
+	} else if (_filter.at(0) == '@' && _channel && _channel->isMegagroup()) {
+		QMultiMap<int32, UserData*> ordered;
+		if (_channel->mgInfo->lastParticipants.isEmpty() || _channel->lastParticipantsCountOutdated()) {
+			if (App::api()) App::api()->requestLastParticipants(_channel);
+		} else {
+			rows.reserve(_channel->mgInfo->lastParticipants.size());
+			for (MegagroupInfo::LastParticipants::const_iterator i = _channel->mgInfo->lastParticipants.cbegin(), e = _channel->mgInfo->lastParticipants.cend(); i != e; ++i) {
+				UserData *user = *i;
+				if (user->username.isEmpty()) continue;
+				if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
+				rows.push_back(user);
+			}
+		}
 	} else if (_filter.at(0) == '#') {
 		const RecentHashtagPack &recent(cRecentWriteHashtags());
 		hrows.reserve(recent.size());
@@ -3018,12 +3029,9 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 		QMap<UserData*, bool> bots;
 		int32 cnt = 0;
 		if (_chat) {
-			if (_chat->participants.isEmpty()) {
-				if (_chat->count > 0 && App::api()) {
-					App::api()->requestFullPeer(_chat);
-				}
-			} else {
-				int32 index = 0;
+			if (_chat->noParticipantInfo()) {
+				if (App::api()) App::api()->requestFullPeer(_chat);
+			} else if (!_chat->participants.isEmpty()) {
 				for (ChatData::Participants::const_iterator i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
 					UserData *user = i.key();
 					if (!user->botInfo) continue;
@@ -3037,10 +3045,23 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 			if (!_user->botInfo->inited && App::api()) App::api()->requestFullPeer(_user);
 			cnt = _user->botInfo->commands.size();
 			bots.insert(_user, true);
+		} else if (_channel && _channel->isMegagroup()) {
+			if (_channel->mgInfo->bots.isEmpty()) {
+				if (!_channel->mgInfo->botStatus && App::api()) App::api()->requestBots(_channel);
+			} else {
+				for (MegagroupInfo::Bots::const_iterator i = _channel->mgInfo->bots.cbegin(), e = _channel->mgInfo->bots.cend(); i != e; ++i) {
+					UserData *user = i.key();
+					if (!user->botInfo) continue;
+					if (!user->botInfo->inited && App::api()) App::api()->requestFullPeer(user);
+					if (user->botInfo->commands.isEmpty()) continue;
+					bots.insert(user, true);
+					cnt += user->botInfo->commands.size();
+				}
+			}
 		}
 		if (cnt) {
 			crows.reserve(cnt);
-			int32 botStatus = _chat ? _chat->botStatus : -1;
+			int32 botStatus = _chat ? _chat->botStatus : ((_channel && _channel->isMegagroup()) ? _channel->mgInfo->botStatus : -1);
 			if (_chat) {
 				for (MentionRows::const_iterator i = _chat->lastAuthors.cbegin(), e = _chat->lastAuthors.cend(); i != e; ++i) {
 					UserData *user = *i;
@@ -3198,6 +3219,14 @@ const QString &MentionsDropdown::filter() const {
 
 ChatData *MentionsDropdown::chat() const {
 	return _chat;
+}
+
+ChannelData *MentionsDropdown::channel() const {
+	return _channel;
+}
+
+UserData *MentionsDropdown::user() const {
+	return _user;
 }
 
 int32 MentionsDropdown::innerTop() {

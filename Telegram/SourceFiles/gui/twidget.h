@@ -29,37 +29,6 @@ public:
 	explicit Painter(QPaintDevice *device) : QPainter(device) {
 	}
 
-	void setFont(const style::font &font) {
-		QPainter::setFont(font->f);
-	}
-	void setFont(const QFont &font) {
-		QPainter::setFont(font);
-	}
-	void setBrush(const style::color &color) {
-		QPainter::setBrush(color->b);
-	}
-	void setBrush(const QColor &color) {
-		QPainter::setBrush(color);
-	}
-	void setBrush(const QBrush &brush) {
-		QPainter::setBrush(brush);
-	}
-	void setBrush(Qt::BrushStyle style) {
-		QPainter::setBrush(style);
-	}
-	void setPen(const style::color &color) {
-		QPainter::setPen(color->p);
-	}
-	void setPen(const QPen &pen) {
-		QPainter::setPen(pen);
-	}
-	void setPen(const QColor &color) {
-		QPainter::setPen(color);
-	}
-	void setPen(Qt::PenStyle style) {
-		QPainter::setPen(style);
-	}
-
 	void drawTextLeft(int x, int y, int outerw, const QString &text, int textWidth = -1) {
 		QFontMetrics m(fontMetrics());
 		if (rtl() && textWidth < 0) textWidth = m.width(text);

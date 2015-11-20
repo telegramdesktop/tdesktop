@@ -102,7 +102,7 @@ PeerData::PeerData(const PeerId &id) : id(id), lnk(new PeerLink(this))
 , loaded(false)
 , colorIndex(peerColorIndex(id))
 , color(peerColor(colorIndex))
-, photo(isChat() ? chatDefPhoto(colorIndex) : (isChannel() ? channelDefPhoto(colorIndex) : userDefPhoto(colorIndex)))
+, photo((isChat() || isMegagroup()) ? chatDefPhoto(colorIndex) : (isChannel() ? channelDefPhoto(colorIndex) : userDefPhoto(colorIndex)))
 , photoId(UnknownPeerPhotoId)
 , nameVersion(0)
 , notify(UnknownNotifySettings)
@@ -235,15 +235,23 @@ void UserData::setPhone(const QString &newPhone) {
 
 void UserData::setBotInfoVersion(int32 version) {
 	if (version < 0) {
-		delete botInfo;
-		botInfo = 0;
+		if (botInfo) {
+			if (!botInfo->commands.isEmpty()) {
+				botInfo->commands.clear();
+				Notify::botCommandsChanged(this);
+			}
+			delete botInfo;
+			botInfo = 0;
+			Notify::userIsBotChanged(this);
+		}
 	} else if (!botInfo) {
 		botInfo = new BotInfo();
 		botInfo->version = version;
+		Notify::userIsBotChanged(this);
 	} else if (botInfo->version < version) {
 		if (!botInfo->commands.isEmpty()) {
 			botInfo->commands.clear();
-			if (App::main()) App::main()->botCommandsChanged(this);
+			Notify::botCommandsChanged(this);
 		}
 		botInfo->description.clear();
 		botInfo->shareText.clear();
@@ -255,11 +263,15 @@ void UserData::setBotInfoVersion(int32 version) {
 void UserData::setBotInfo(const MTPBotInfo &info) {
 	switch (info.type()) {
 	case mtpc_botInfoEmpty:
-		if (botInfo && !botInfo->commands.isEmpty()) {
-			if (App::main()) App::main()->botCommandsChanged(this);
+		if (botInfo) {
+			if (!botInfo->commands.isEmpty()) {
+				botInfo->commands.clear();
+				Notify::botCommandsChanged(this);
+			}
+			delete botInfo;
+			botInfo = 0;
+			Notify::userIsBotChanged(this);
 		}
-		delete botInfo;
-		botInfo = 0;
 	break;
 	case mtpc_botInfo: {
 		const MTPDbotInfo &d(info.c_botInfo());
@@ -307,8 +319,8 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 
 		botInfo->inited = true;
 
-		if (changedCommands && App::main()) {
-			App::main()->botCommandsChanged(this);
+		if (changedCommands) {
+			Notify::botCommandsChanged(this);
 		}
 	} break;
 	}
@@ -374,13 +386,13 @@ void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see 
 			newPhotoId = phId;
 		}
 		newPhotoLoc = App::imageLocation(160, 160, d.vphoto_small);
-		newPhoto = newPhotoLoc.isNull() ? channelDefPhoto(colorIndex) : ImagePtr(newPhotoLoc);
-//		photoFull = ImagePtr(640, 640, d.vphoto_big, channelDefPhoto(colorIndex));
+		newPhoto = newPhotoLoc.isNull() ? (isMegagroup() ? chatDefPhoto(colorIndex) : channelDefPhoto(colorIndex)) : ImagePtr(newPhotoLoc);
+//		photoFull = ImagePtr(640, 640, d.vphoto_big, (isMegagroup() ? chatDefPhoto(colorIndex) : channelDefPhoto(colorIndex)));
 	} break;
 	default: {
 		newPhotoId = 0;
 		newPhotoLoc = StorageImageLocation();
-		newPhoto = channelDefPhoto(colorIndex);
+		newPhoto = (isMegagroup() ? chatDefPhoto(colorIndex) : channelDefPhoto(colorIndex));
 //		photoFull = ImagePtr();
 	} break;
 	}
@@ -409,6 +421,28 @@ void ChannelData::updateFull(bool force) {
 
 void ChannelData::fullUpdated() {
 	_lastFullUpdate = getms(true);
+}
+
+void ChannelData::flagsUpdated() {
+	if (isMegagroup()) {
+		if (!mgInfo) {
+			mgInfo = new MegagroupInfo();
+		}
+		if (History *h = App::historyLoaded(id)) {
+			if (h->asChannelHistory()->onlyImportant()) {
+				MsgId fixInScrollMsgId = 0;
+				int32 fixInScrollMsgTop = 0;
+				h->asChannelHistory()->getSwitchReadyFor(SwitchAtTopMsgId, fixInScrollMsgId, fixInScrollMsgTop);
+			}
+		}
+	} else if (mgInfo) {
+		delete mgInfo;
+		mgInfo = 0;
+	}
+}
+
+ChannelData::~ChannelData() {
+	delete mgInfo;
 }
 
 uint64 PtsWaiter::ptsKey(PtsSkippedQueue queue) {
@@ -1011,7 +1045,7 @@ void PeerLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton && App::main()) {
 		if (peer() && peer()->isChannel() && App::main()->historyPeer() != peer()) {
 			if (!peer()->asChannel()->isPublic() && !peer()->asChannel()->amIn()) {
-				App::wnd()->showLayer(new InformBox(lang(lng_channel_not_accessible)));
+				App::wnd()->showLayer(new InformBox(lang((peer()->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
 			} else {
 				App::main()->showPeerHistory(peer()->id, ShowAtUnreadMsgId);
 			}
@@ -1038,6 +1072,7 @@ void CommentsLink::onClick(Qt::MouseButton button) const {
 }
 
 MsgId clientMsgId() {
-	static MsgId current = -2000000000;
-	return ++current;
+	static MsgId currentClientMsgId = StartClientMsgId;
+	Q_ASSERT(currentClientMsgId < EndClientMsgId);
+	return currentClientMsgId++;
 }

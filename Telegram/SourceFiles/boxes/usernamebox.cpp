@@ -231,7 +231,7 @@ bool UsernameBox::onUpdateFail(const RPCError &error) {
 
 void UsernameBox::onCheckDone(const MTPBool &result) {
 	_checkRequestId = 0;
-	QString newError = (result.v || _checkUsername == App::self()->username) ? QString() : lang(lng_username_occupied);
+	QString newError = (mtpIsTrue(result) || _checkUsername == App::self()->username) ? QString() : lang(lng_username_occupied);
 	QString newGood = newError.isEmpty() ? lang(lng_username_available) : QString();
 	if (_errorText != newError || _goodText != newGood || !_copiedTextLink.isEmpty()) {
 		_errorText = newError;

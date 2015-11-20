@@ -153,7 +153,7 @@ private:
 	anim::fvalue a_docRadial, a_docRadialStart;
 	LinkButton _docDownload, _docSaveAs, _docCancel;
 
-	History *_history; // if conversation photos or files overview
+	History *_migrated, *_history; // if conversation photos or files overview
 	PeerData *_peer;
 	UserData *_user; // if user profile photos overview
 	
@@ -162,6 +162,7 @@ private:
 
 	int32 _index; // index in photos or files array, -1 if just photo
 	MsgId _msgid; // msgId of current photo or file
+	bool _msgmigrated; // msgId is from _migrated history
 	ChannelId _channel;
 	bool _canForward, _canDelete;
 

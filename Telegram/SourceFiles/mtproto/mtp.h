@@ -118,6 +118,11 @@ namespace MTP {
 	inline mtpRequestId send(const TRequest &request, RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail = RPCFailHandlerPtr(), int32 dc = 0, uint64 msCanWait = 0, mtpRequestId after = 0) {
 		return send(request, RPCResponseHandler(onDone, onFail), dc, msCanWait, after);
 	}
+	inline void sendAnything(int32 dc = 0, uint64 msCanWait = 0) {
+		if (MTProtoSessionPtr session = _mtp_internal::getSession(dc)) {
+			return session->sendAnything(msCanWait);
+		}
+	}
 	void ping();
 	void cancel(mtpRequestId req);
 	void killSession(int32 dc);

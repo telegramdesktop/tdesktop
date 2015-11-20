@@ -80,6 +80,15 @@ enum RoundCorners {
 	RoundCornersCount
 };
 
+enum ForwardWhatMessages {
+	ForwardSelectedMessages,
+	ForwardContextMessage,
+	ForwardPressedMessage,
+	ForwardPressedLinkMessage
+};
+
+class LayeredWidget;
+
 namespace App {
 	Application *app();
 	Window *wnd();
@@ -89,7 +98,6 @@ namespace App {
 	FileUploader *uploader();
 	ApiWrap *api();
 
-	void showSettings();
 	void logOut();
 	bool loggedOut();
 
@@ -105,7 +113,10 @@ namespace App {
 	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos, bool emitPeerUpdated = true);
 	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d, bool emitPeerUpdated = true);
 	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d, bool emitPeerUpdated = true);
+	void feedChatAdmins(const MTPDupdateChatAdmins &d, bool emitPeerUpdated = true);
+	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d, bool emitPeerUpdated = true);
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m); // returns true if item found and it is not detached
+	void feedMsgs(const QVector<MTPMessage> &msgs, NewMessageType type);
 	void feedMsgs(const MTPVector<MTPMessage> &msgs, NewMessageType type);
 	void feedInboxRead(const PeerId &peer, MsgId upTo);
 	void feedOutboxRead(const PeerId &peer, MsgId upTo);
@@ -255,14 +266,6 @@ namespace App {
 	void setProxySettings(QNetworkAccessManager &manager);
 	void setProxySettings(QTcpSocket &socket);
 
-	void sendBotCommand(const QString &cmd, MsgId replyTo = 0);
-	void insertBotCommand(const QString &cmd);
-	void searchByHashtag(const QString &tag, PeerData *inPeer);
-	void openPeerByName(const QString &username, bool toProfile = false, const QString &startToken = QString());
-	void joinGroupByHash(const QString &hash);
-	void stickersBox(const QString &name);
-	void openLocalUrl(const QString &url);
-
 	QImage **cornersMask();
 	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *sh = 0);
 	inline void roundRect(Painter &p, const QRect &rect, const style::color &bg, RoundCorners index, const style::color *sh = 0) {
@@ -296,5 +299,27 @@ namespace App {
 	};
 	typedef QList<WallPaper> WallPapers;
 	DeclareSetting(WallPapers, ServerBackgrounds);
+
+	void sendBotCommand(const QString &cmd, MsgId replyTo = 0);
+	void insertBotCommand(const QString &cmd);
+	void searchByHashtag(const QString &tag, PeerData *inPeer);
+	void openPeerByName(const QString &username, bool toProfile = false, const QString &startToken = QString());
+	void joinGroupByHash(const QString &hash);
+	void stickersBox(const QString &name);
+	void openLocalUrl(const QString &url);
+	bool forward(const PeerId &peer, ForwardWhatMessages what);
+	void removeDialog(History *history);
+	void showSettings();
+	void showLayer(LayeredWidget *w, bool forceFast = false);
+	void replaceLayer(LayeredWidget *w);
+	void showLayerLast(LayeredWidget *w);
+
+};
+
+namespace Notify {
+
+	void userIsBotChanged(UserData *user);
+	void botCommandsChanged(UserData *user);
+	void migrateUpdated(PeerData *peer);
 
 };

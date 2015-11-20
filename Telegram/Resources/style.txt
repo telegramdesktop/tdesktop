@@ -255,7 +255,7 @@ defaultPopupMenu: PopupMenu {
 	itemFgShortcutOver: #7c99b2;
 	itemFgShortcutDisabled: #ccc;
 
-	itemPadding: margins(20px, 8px, 20px, 7px);
+	itemPadding: margins(17px, 8px, 17px, 7px);
 	itemFont: normalFont;
 
 	separatorPadding: margins(0px, 5px, 0px, 5px);
@@ -1423,6 +1423,14 @@ contactsNewItemIcon: sprite(307px, 248px, 22px, 16px);
 contactsNewItemIconPosition: point(29px, 19px);
 contactsNewItemTop: 18px;
 contactsNewItemFg: #4b82af;
+contactsAboutBg: #f7f7f7;
+contactsAdminCheckbox: Checkbox(defaultCheckbox) {
+	font: semiboldFont;
+	textBg: #f7f7f7;
+	textPosition: point(34px, 1px);
+}
+contactsAboutHeight: 80px;
+contactsAboutTop: 9px;
 contactsScroll: flatScroll(boxScroll) {
 	deltab: 0px;
 }
@@ -1532,6 +1540,9 @@ btnShareContact: flatButton(btnDefNext, btnDefBig) {
 
 	font: font(17px);
 	overFont: font(17px);
+}
+btnMigrateToMega: flatButton(btnShareContact) {
+	width: -40px;
 }
 profileMinBtnPadding: 10px;
 
@@ -2008,10 +2019,7 @@ mvButton: iconedButton(btnDefIconed) {
 	duration: 0;
 }
 mvPopupMenu: PopupMenu(defaultPopupMenu) {
-	skip: 5px;
-
 	shadow: sprite(0px, 0px, 0px, 0px);
-	shadowShift: 1px;
 
 	itemBg: #383838;
 	itemBgOver: #505050;
@@ -2022,17 +2030,7 @@ mvPopupMenu: PopupMenu(defaultPopupMenu) {
 	itemFgShortcutOver: #fff;
 	itemFgShortcutDisabled: #999;
 
-	itemPadding: margins(16px, 9px, 16px, 8px);
-	itemFont: normalFont;
-
-	separatorPadding: margins(0px, 5px, 0px, 5px);
-	separatorWidth: 1px;
 	separatorFg: #484848;
-
-	duration: 120;
-
-	widthMin: 180px;
-	widthMax: 300px;
 }
 mvContextButton: iconedButton(mvButton) {
 	bgColor: #383838E6;

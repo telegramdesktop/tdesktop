@@ -331,10 +331,12 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 		pen.setWidth(_st.thickness);
 		p.setPen(pen);
 		if (checked > 0) {
-			color.setAlphaF(checked);
+			color.setRedF(color.redF() * checked + st::white->c.redF() * (1. - checked));
+			color.setGreenF(color.greenF() * checked + st::white->c.greenF() * (1. - checked));
+			color.setBlueF(color.blueF() * checked + st::white->c.blueF() * (1. - checked));
 			p.setBrush(color);
 		} else {
-			p.setBrush(Qt::NoBrush);
+			p.setBrush(st::white);
 		}
 		p.drawRoundedRect(QRectF(_checkRect).marginsRemoved(QMarginsF(_st.thickness / 2, _st.thickness / 2, _st.thickness / 2, _st.thickness / 2)), st::msgRadius, st::msgRadius);
 		p.setRenderHint(QPainter::HighQualityAntialiasing, false);

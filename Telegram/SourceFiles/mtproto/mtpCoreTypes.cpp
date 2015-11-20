@@ -67,12 +67,6 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 		}
 	} break;
 
-	case mtpc_boolTrue:
-	case mtpc_boolFalse: {
-		MTPbool value(from, end, cons);
-		to.add(value.v ? "[TRUE]" : "[FALSE]");
-	} break;
-
 	case mtpc_vector: {
 		if (from >= end) {
 			throw Exception("from >= end in vector");
@@ -90,20 +84,6 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 			to.add(" ");
 		}
 		to.add("]");
-	} break;
-
-	case mtpc_error: {
-		to.add("{ error");
-		to.add("\n").addSpaces(level);
-		to.add("  code: "); mtpTextSerializeType(to, from, end, mtpc_int, level + 1); to.add(",\n").addSpaces(level);
-		to.add("  text: "); mtpTextSerializeType(to, from, end, mtpc_string, level + 1); to.add(",\n").addSpaces(level);
-		to.add("}");
-	} break;
-
-	case mtpc_null: {
-		to.add("{ null");
-		to.add(" ");
-		to.add("}");
 	} break;
 
 	case mtpc_gzip_packed: {

@@ -80,7 +80,8 @@ with open('scheme.tl') as f:
 
     nametype = re.match(r'([a-zA-Z\.0-9_]+)#([0-9a-f]+)([^=]*)=\s*([a-zA-Z\.<>0-9_]+);', line);
     if (not nametype):
-      print('Bad line found: ' + line);
+      if (not re.match(r'vector#1cb5c415 \{t:Type\} # \[ t \] = Vector t;', line)):
+        print('Bad line found: ' + line);
       continue;
 
     name = nametype.group(1);
@@ -123,6 +124,7 @@ with open('scheme.tl') as f:
     paramsList = params.strip().split(' ');
     prms = {};
     conditions = {};
+    trivialConditions = {}; # true type
     prmsList = [];
     conditionsList = [];
     isTemplate = hasFlags = hasTemplate = '';
@@ -167,6 +169,8 @@ with open('scheme.tl') as f:
           if (not pname in conditions):
             conditionsList.append(pname);
             conditions[pname] = pmasktype.group(2);
+            if (ptype == 'true'):
+              trivialConditions[pname] = 1;
         elif (ptype.find('<') >= 0):
           templ = re.match(r'^([vV]ector<)([A-Za-z0-9\._]+)>$', ptype);
           if (templ):
@@ -191,8 +195,10 @@ with open('scheme.tl') as f:
       prmsStr = [];
       prmsInit = [];
       prmsNames = [];
-      if (len(prms)):
+      if (len(prms) > len(trivialConditions)):
         for paramName in prmsList:
+          if (paramName in trivialConditions):
+            continue;
           paramType = prms[paramName];
           prmsInit.append('v' + paramName + '(_' + paramName + ')');
           prmsNames.append('_' + paramName);
@@ -209,7 +215,7 @@ with open('scheme.tl') as f:
 
       funcsText += '\tMTP' + name + '() {\n\t}\n'; # constructor
       funcsText += '\tMTP' + name + '(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_' + name + ') {\n\t\tread(from, end, cons);\n\t}\n'; # stream constructor
-      if (len(prms)):
+      if (len(prms) > len(trivialConditions)):
         funcsText += '\tMTP' + name + '(' + ', '.join(prmsStr) + ') : ' + ', '.join(prmsInit) + ' {\n\t}\n';
 
       if (len(conditions)):
@@ -220,7 +226,10 @@ with open('scheme.tl') as f:
         funcsText += '\t};\n';
         funcsText += '\n';
         for paramName in conditionsList:
-          funcsText += '\tbool has_' + paramName + '() const { return v' + hasFlags + '.v & flag_' + paramName + '; }\n';
+          if (paramName in trivialConditions):
+            funcsText += '\tbool is_' + paramName + '() const { return v' + hasFlags + '.v & flag_' + paramName + '; }\n';
+          else:
+            funcsText += '\tbool has_' + paramName + '() const { return v' + hasFlags + '.v & flag_' + paramName + '; }\n';
 
       funcsText += '\n';
       funcsText += '\tuint32 innerLength() const {\n'; # count size
@@ -228,7 +237,8 @@ with open('scheme.tl') as f:
       for k in prmsList:
         v = prms[k];
         if (k in conditionsList):
-          size.append('(has_' + k + '() ? v' + k + '.innerLength() : 0)');
+          if (not k in trivialConditions):
+            size.append('(has_' + k + '() ? v' + k + '.innerLength() : 0)');
         else:
           size.append('v' + k + '.innerLength()');
       if (not len(size)):
@@ -242,7 +252,8 @@ with open('scheme.tl') as f:
       for k in prmsList:
         v = prms[k];
         if (k in conditionsList):
-          funcsText += '\t\tif (has_' + k + '()) { v' + k + '.read(from, end); } else { v' + k + ' = MTP' + v + '(); }\n';
+          if (not k in trivialConditions):
+            funcsText += '\t\tif (has_' + k + '()) { v' + k + '.read(from, end); } else { v' + k + ' = MTP' + v + '(); }\n';
         else:
           funcsText += '\t\tv' + k + '.read(from, end);\n';
       funcsText += '\t}\n';
@@ -251,7 +262,8 @@ with open('scheme.tl') as f:
       for k in prmsList:
         v = prms[k];
         if (k in conditionsList):
-          funcsText += '\t\tif (has_' + k + '()) v' + k + '.write(to);\n';
+          if (not k in trivialConditions):
+            funcsText += '\t\tif (has_' + k + '()) v' + k + '.write(to);\n';
         else:
           funcsText += '\t\tv' + k + '.write(to);\n';
       funcsText += '\t}\n';
@@ -268,7 +280,7 @@ with open('scheme.tl') as f:
         funcsText += 'public:\n';
         funcsText += '\tMTP' + Name + '() {\n\t}\n';
         funcsText += '\tMTP' + Name + '(const MTP' + name + '<TQueryType> &v) : MTPBoxed<MTP' + name + '<TQueryType> >(v) {\n\t}\n';
-        if (len(prms)):
+        if (len(prms) > len(trivialConditions)):
           funcsText += '\tMTP' + Name + '(' + ', '.join(prmsStr) + ') : MTPBoxed<MTP' + name + '<TQueryType> >(MTP' + name + '<TQueryType>(' + ', '.join(prmsNames) + ')) {\n\t}\n';
         funcsText += '};\n';
       else:
@@ -277,7 +289,7 @@ with open('scheme.tl') as f:
         funcsText += '\tMTP' + Name + '() {\n\t}\n';
         funcsText += '\tMTP' + Name + '(const MTP' + name + ' &v) : MTPBoxed<MTP' + name + '>(v) {\n\t}\n';
         funcsText += '\tMTP' + Name + '(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTP' + name + '>(from, end, cons) {\n\t}\n';
-        if (len(prms)):
+        if (len(prms) > len(trivialConditions)):
           funcsText += '\tMTP' + Name + '(' + ', '.join(prmsStr) + ') : MTPBoxed<MTP' + name + '>(MTP' + name + '(' + ', '.join(prmsNames) + ')) {\n\t}\n';
         funcsText += '};\n';
       funcs = funcs + 1;
@@ -286,7 +298,7 @@ with open('scheme.tl') as f:
         funcsList.append(restype);
         funcsDict[restype] = [];
 #        TypesDict[restype] = resType;
-      funcsDict[restype].append([name, typeid, prmsList, prms, hasFlags, conditionsList, conditions]);
+      funcsDict[restype].append([name, typeid, prmsList, prms, hasFlags, conditionsList, conditions, trivialConditions]);
     else:
       if (isTemplate != ''):
         print('Template types not allowed: "' + resType + '" in line: ' + line);
@@ -295,7 +307,7 @@ with open('scheme.tl') as f:
         typesList.append(restype);
         typesDict[restype] = [];
       TypesDict[restype] = resType;
-      typesDict[restype].append([name, typeid, prmsList, prms, hasFlags, conditionsList, conditions]);
+      typesDict[restype].append([name, typeid, prmsList, prms, hasFlags, conditionsList, conditions, trivialConditions]);
 
       consts = consts + 1;
 
@@ -311,6 +323,7 @@ def addTextSerialize(lst, dct, dataLetter):
       hasFlags = data[4];
       conditionsList = data[5];
       conditions = data[6];
+      trivialConditions = data[7];
 
       result += 'void _serialize_' + name + '(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {\n';
       if (len(prms)):
@@ -327,52 +340,57 @@ def addTextSerialize(lst, dct, dataLetter):
           result += '\tcase ' + str(stage) + ': to.add("  ' + k + ': "); ++stages.back(); ';
           if (k == hasFlags):
             result += 'if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; ';
-          if (k in conditionsList):
+          if (k in trivialConditions):
             result += 'if (flag & MTP' + dataLetter + name + '::flag_' + k + ') { ';
-          result += 'types.push_back(';
-          vtypeget = re.match(r'^[Vv]ector<MTP([A-Za-z0-9\._]+)>', v);
-          if (vtypeget):
-            if (not re.match(r'^[A-Z]', v)):
-              result += 'mtpc_vector';
-            else:
-              result += '0';
-            restype = vtypeget.group(1);
-            try:
-              if boxed[restype]:
-                restype = 0;
-            except KeyError:
-              if re.match(r'^[A-Z]', restype):
-                restype = 0;
-          else:
-            restype = v;
-            try:
-              if boxed[restype]:
-                restype = 0;
-            except KeyError:
-              if re.match(r'^[A-Z]', restype):
-                restype = 0;
-          if (restype):
-            try:
-              conses = typesDict[restype];
-              if (len(conses) > 1):
-                print('Complex bare type found: "' + restype + '" trying to serialize "' + k + '" of type "' + v + '"');
-                continue;
-              if (vtypeget):
-                result += '); vtypes.push_back(';
-              result += 'mtpc_' + conses[0][0];
-              if (not vtypeget):
-                result += '); vtypes.push_back(0';
-            except KeyError:
-              if (vtypeget):
-                result += '); vtypes.push_back(';
-              result += 'mtpc_' + restype;
-              if (not vtypeget):
-                result += '); vtypes.push_back(0';
-          else:
-            result += '0); vtypes.push_back(0';
-          result += '); stages.push_back(0); flags.push_back(0); ';
-          if (k in conditionsList):
+            result += 'to.add("YES [ BY BIT ' + conditions[k] + ' IN FIELD ' + hasFlags + ' ]"); ';
             result += '} else { to.add("[ SKIPPED BY BIT ' + conditions[k] + ' IN FIELD ' + hasFlags + ' ]"); } ';
+          else:
+            if (k in conditions):
+              result += 'if (flag & MTP' + dataLetter + name + '::flag_' + k + ') { ';
+            result += 'types.push_back(';
+            vtypeget = re.match(r'^[Vv]ector<MTP([A-Za-z0-9\._]+)>', v);
+            if (vtypeget):
+              if (not re.match(r'^[A-Z]', v)):
+                result += 'mtpc_vector';
+              else:
+                result += '0';
+              restype = vtypeget.group(1);
+              try:
+                if boxed[restype]:
+                  restype = 0;
+              except KeyError:
+                if re.match(r'^[A-Z]', restype):
+                  restype = 0;
+            else:
+              restype = v;
+              try:
+                if boxed[restype]:
+                  restype = 0;
+              except KeyError:
+                if re.match(r'^[A-Z]', restype):
+                  restype = 0;
+            if (restype):
+              try:
+                conses = typesDict[restype];
+                if (len(conses) > 1):
+                  print('Complex bare type found: "' + restype + '" trying to serialize "' + k + '" of type "' + v + '"');
+                  continue;
+                if (vtypeget):
+                  result += '); vtypes.push_back(';
+                result += 'mtpc_' + conses[0][0];
+                if (not vtypeget):
+                  result += '); vtypes.push_back(0';
+              except KeyError:
+                if (vtypeget):
+                  result += '); vtypes.push_back(';
+                result += 'mtpc_' + restype;
+                if (not vtypeget):
+                  result += '); vtypes.push_back(0';
+            else:
+              result += '0); vtypes.push_back(0';
+            result += '); stages.push_back(0); flags.push_back(0); ';
+            if (k in conditions):
+              result += '} else { to.add("[ SKIPPED BY BIT ' + conditions[k] + ' IN FIELD ' + hasFlags + ' ]"); } ';
           result += 'break;\n';
           stage = stage + 1;
         result += '\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n';
@@ -426,6 +444,7 @@ for restype in typesList:
     hasFlags = data[4];
     conditionsList = data[5];
     conditions = data[6];
+    trivialConditions = data[7];
 
     dataText = '';
     dataText += '\nclass MTPD' + name + ' : public mtpDataImpl<MTPD' + name + '> {\n'; # data class
@@ -438,7 +457,7 @@ for restype in typesList:
     writeText = '';
     dataText += '\tMTPD' + name + '() {\n\t}\n'; # default constructor
     switchLines += '\t\tcase mtpc_' + name + ': '; # for by-type-id type constructor
-    if (len(prms)):
+    if (len(prms) > len(trivialConditions)):
       switchLines += 'setData(new MTPD' + name + '()); ';
       withData = 1;
 
@@ -467,6 +486,8 @@ for restype in typesList:
       prmsStr = [];
       prmsInit = [];
       for paramName in prmsList:
+        if (paramName in trivialConditions):
+          continue;
         paramType = prms[paramName];
 
         if (paramType in ['int', 'Int', 'bool', 'Bool']):
@@ -480,7 +501,7 @@ for restype in typesList:
         if (withType):
           readText += '\t\t';
           writeText += '\t\t';
-        if (paramName in conditionsList):
+        if (paramName in conditions):
           readText += '\tif (v.has_' + paramName + '()) { v.v' + paramName + '.read(from, end); } else { v.v' + paramName + ' = MTP' + paramType + '(); }\n';
           writeText += '\tif (v.has_' + paramName + '()) v.v' + paramName + '.write(to);\n';
           sizeList.append('(v.has_' + paramName + '() ? v.v' + paramName + '.innerLength() : 0)');
@@ -495,6 +516,8 @@ for restype in typesList:
 
       dataText += '\n';
       for paramName in prmsList: # fields declaration
+        if (paramName in trivialConditions):
+          continue;
         paramType = prms[paramName];
         dataText += '\tMTP' + paramType + ' v' + paramName + ';\n';
       sizeCases += '\t\tcase mtpc_' + name + ': {\n';
@@ -516,15 +539,18 @@ for restype in typesList:
       dataText += '\t};\n';
       dataText += '\n';
       for paramName in conditionsList:
-        dataText += '\tbool has_' + paramName + '() const { return v' + hasFlags + '.v & flag_' + paramName + '; }\n';
+        if (paramName in trivialConditions):
+          dataText += '\tbool is_' + paramName + '() const { return v' + hasFlags + '.v & flag_' + paramName + '; }\n';
+        else:
+          dataText += '\tbool has_' + paramName + '() const { return v' + hasFlags + '.v & flag_' + paramName + '; }\n';
     dataText += '};\n'; # class ending
 
-    if (len(prms)):
+    if (len(prms) > len(trivialConditions)):
       dataTexts += dataText; # add data class
 
     friendDecl += '\tfriend MTP' + restype + ' MTP_' + name + '(' + ', '.join(creatorParams) + ');\n';
     creatorsText += 'inline MTP' + restype + ' MTP_' + name + '(' + ', '.join(creatorParams) + ') {\n';
-    if (len(prms)): # creator with params
+    if (len(prms) > len(trivialConditions)): # creator with params
       creatorsText += '\treturn MTP' + restype + '(new MTPD' + name + '(' + ', '.join(creatorParamsList) + '));\n';
     else:
       if (withType): # creator by type
@@ -535,7 +561,7 @@ for restype in typesList:
 
     if (withType):
       reader += '\t\tcase mtpc_' + name + ': _type = cons; '; # read switch line
-      if (len(prms)):
+      if (len(prms) > len(trivialConditions)):
         reader += '{\n';
         reader += '\t\t\tif (!data) setData(new MTPD' + name + '());\n';
         reader += '\t\t\tMTPD' + name + ' &v(_' + name + '());\n';
@@ -549,7 +575,7 @@ for restype in typesList:
       else:
         reader += 'break;\n';
     else:
-      if (len(prms)):
+      if (len(prms) > len(trivialConditions)):
         reader += '\n\tif (!data) setData(new MTPD' + name + '());\n';
         reader += '\tMTPD' + name + ' &v(_' + name + '());\n';
         reader += readText;

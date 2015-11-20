@@ -500,7 +500,9 @@ void GroupInfoBox::onNext() {
 	if (_creating == CreatingGroupGroup) {
 		App::wnd()->replaceLayer(new ContactsBox(title, _photoBig));
 	} else {
-		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_int(MTPmessages_CreateChannel_flag_broadcast), MTP_string(title), MTP_string(description), MTP_vector<MTPInputUser>(0)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
+		bool mega = false;
+		int32 flags = mega ? MTPchannels_CreateChannel::flag_megagroup : MTPchannels_CreateChannel::flag_broadcast;
+		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_int(flags), MTP_string(title), MTP_string(description)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
 	}
 }
 
@@ -539,9 +541,6 @@ bool GroupInfoBox::creationFail(const RPCError &error) {
 	if (error.type() == "NO_CHAT_TITLE") {
 		_title.setFocus();
 		_title.showError();
-		return true;
-	} else if (error.type() == "PEER_FLOOD") {
-		App::wnd()->replaceLayer(new InformBox(lng_cant_invite_not_contact_channel(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)))));
 		return true;
 	}
 	return false;
@@ -594,7 +593,7 @@ void GroupInfoBox::onPhoto() {
 	if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
 		return;
 	}
-	PhotoCropBox *box = new PhotoCropBox(img, (_creating == CreatingGroupChannel) ? peerFromChannel(0) : peerFromChat(0), false);
+	PhotoCropBox *box = new PhotoCropBox(img, (_creating == CreatingGroupChannel) ? peerFromChannel(0) : peerFromChat(0));
 	connect(box, SIGNAL(ready(const QImage&)), this, SLOT(onPhotoReady(const QImage&)));
 	App::wnd()->replaceLayer(box);
 }
@@ -918,7 +917,7 @@ bool SetupChannelBox::onUpdateFail(const RPCError &error) {
 
 void SetupChannelBox::onCheckDone(const MTPBool &result) {
 	_checkRequestId = 0;
-	QString newError = (result.v || _checkUsername == _channel->username) ? QString() : lang(lng_create_channel_link_occupied);
+	QString newError = (mtpIsTrue(result) || _checkUsername == _channel->username) ? QString() : lang(lng_create_channel_link_occupied);
 	QString newGood = newError.isEmpty() ? lang(lng_create_channel_link_available) : QString();
 	if (_errorText != newError || _goodText != newGood) {
 		_errorText = newError;
@@ -1196,7 +1195,11 @@ void EditChannelBox::showAll() {
 	_description.show();
 	_save.show();
 	_cancel.show();
-	_publicLink.show();
+	if (_channel->isMegagroup()) {
+		_publicLink.hide();
+	} else {
+		_publicLink.show();
+	}
 }
 
 void EditChannelBox::showDone() {
@@ -1217,7 +1220,7 @@ void EditChannelBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
 
-	paintTitle(p, lang(lng_edit_channel_title));
+	paintTitle(p, lang(_channel->isMegagroup() ? lng_edit_group : lng_edit_channel_title));
 }
 
 void EditChannelBox::peerUpdated(PeerData *peer) {

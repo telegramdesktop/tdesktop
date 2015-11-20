@@ -40,8 +40,8 @@ public:
 
 	HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, History *history);
 
-	void messagesReceived(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
-	void messagesReceivedDown(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
+	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
+	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 
 	bool event(QEvent *e); // calls touchEvent when necessary
 	void touchEvent(QTouchEvent *e);
@@ -89,6 +89,15 @@ public:
 
 	HistoryItem *atTopImportantMsg(int32 top, int32 height, int32 &bottomUnderScrollTop) const;
 
+	int32 historyHeight() const;
+	int32 migratedTop() const;
+	int32 historyTop() const;
+	int32 historyDrawTop() const;
+	int32 itemTop(const HistoryItem *item) const; // -1 if should not be visible, -2 if bad history()
+
+	void notifyIsBotChanged();
+	void notifyMigrateUpdated();
+
 	~HistoryInner();
 	
 public slots:
@@ -121,30 +130,34 @@ private:
 	void touchDeaccelerate(int32 elapsed);
 
 	void adjustCurrent(int32 y) const;
+	void adjustCurrent(int32 y, History *history) const;
 	HistoryItem *prevItem(HistoryItem *item);
 	HistoryItem *nextItem(HistoryItem *item);
 	void updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dragSelTo, bool dragSelecting, bool force = false);
 
-	History *hist;
+	PeerData *_peer;
+	History *_migrated, *_history;
+	int32 _historyOffset, _historySkipHeight; // height of first date and first sys msg
 
-	int32 ySkip;
-	BotInfo *botInfo;
-	int32 botDescWidth, botDescHeight;
-	QRect botDescRect;
+	BotInfo *_botInfo;
+	int32 _botDescWidth, _botDescHeight;
+	QRect _botDescRect;
 
-	HistoryWidget *historyWidget;
-	ScrollArea *scrollArea;
-	mutable int32 currentBlock, currentItem;
+	HistoryWidget *_widget;
+	ScrollArea *_scroll;
+	mutable History *_curHistory;
+	mutable int32 _curBlock, _curItem;
 
 	bool _firstLoading;
 
-	QTimer linkTipTimer;
+	QTimer _tooltipTimer;
 
 	Qt::CursorShape _cursor;
 	typedef QMap<HistoryItem*, uint32> SelectedItems;
 	SelectedItems _selected;
 	void applyDragSelection();
 	void applyDragSelection(SelectedItems *toItems) const;
+	void addSelectionRange(SelectedItems *toItems, int32 fromblock, int32 fromitem, int32 toblock, int32 toitem, History *h) const;
 
 	enum DragAction {
 		NoDrag        = 0x00,
@@ -414,7 +427,7 @@ public:
 	void peerMessagesUpdated(PeerId peer);
 	void peerMessagesUpdated();
 
-	void msgUpdated(PeerId peer, const HistoryItem *msg);
+	void msgUpdated(const HistoryItem *msg);
 	void newUnreadMsg(History *history, HistoryItem *item);
 	void historyToDown(History *history);
 	void historyWasRead(bool force = true);
@@ -471,7 +484,7 @@ public:
 
 	bool touchScroll(const QPoint &delta);
     
-	uint64 animActiveTime(MsgId id) const;
+	uint64 animActiveTime(const HistoryItem *msg) const;
 	void stopAnimActive();
 
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
@@ -516,7 +529,7 @@ public:
 
 	void fastShowAtEnd(History *h);
 	void applyDraft(bool parseLinks = true);
-	void showPeerHistory(const PeerId &peer, MsgId showAtMsgId);
+	void showHistory(const PeerId &peer, MsgId showAtMsgId, bool reload = false);
 	void clearDelayedShowAt();
 	void clearAllLoadRequests();
 
@@ -544,6 +557,10 @@ public:
 		_inGrab = false;
 		resizeEvent(0);
 	}
+
+	void notifyBotCommandsChanged(UserData *user);
+	void notifyUserIsBotChanged(UserData *user);
+	void notifyMigrateUpdated(PeerData *peer);
 
 	~HistoryWidget();
 
@@ -620,6 +637,8 @@ public slots:
 	void forwardMessage();
 	void selectMessage();
 
+	void onForwardHere(); // instead of a reply
+
 	void onFieldFocused();
 	void onFieldResize();
 	void onFieldCursorChanged();
@@ -637,7 +656,7 @@ public slots:
 	void onDraftSave(bool delayed = false);
 
 	void updateStickers();
-	void botCommandsChanged(UserData *user);
+	void updateField();
 
 	void onRecordError();
 	void onRecordDone(QByteArray result, qint32 samples);
@@ -655,7 +674,6 @@ private:
 	void drawField(Painter &p);
 	void drawRecordButton(Painter &p);
 	void drawRecording(Painter &p);
-	void updateField();
 
 	DBIPeerReportSpamStatus _reportSpamStatus;
 	void updateReportSpamStatus();
@@ -677,8 +695,8 @@ private:
 
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
 	void updateListSize(int32 addToY = 0, bool initial = false, bool loadedDown = false, HistoryItem *resizedItem = 0, bool scrollToIt = false);
-	void addMessagesToFront(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
-	void addMessagesToBack(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
+	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
+	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 
 	void reportSpamDone(PeerData *peer, const MTPBool &result, mtpRequestId request);
 	bool reportSpamFail(const RPCError &error, mtpRequestId request);
@@ -722,7 +740,7 @@ private:
 
 	ScrollArea _scroll;
 	HistoryInner *_list;
-	History *_history;
+	History *_migrated, *_history;
 	bool _histInited; // initial updateListSize() called
 
 	IconedButton _toHistoryEnd;

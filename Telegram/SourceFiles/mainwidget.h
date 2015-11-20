@@ -179,13 +179,6 @@ public:
 	}
 };
 
-enum ForwardWhatMessages {
-	ForwardSelectedMessages,
-	ForwardContextMessage,
-	ForwardPressedMessage,
-	ForwardPressedLinkMessage
-};
-
 class MainWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
@@ -231,6 +224,7 @@ public:
 	void activate();
 
 	void createDialog(History *history);
+	void removeDialog(History *history);
 	void dlgUpdated(DialogRow *row = 0);
 	void dlgUpdated(History *row, MsgId msgId);
 
@@ -241,7 +235,7 @@ public:
 		return sentUpdatesReceived(0, updates);
 	}
 	void inviteToChannelDone(ChannelData *channel, const MTPUpdates &updates);
-	void msgUpdated(PeerId peer, const HistoryItem *msg);
+	void msgUpdated(const HistoryItem *msg);
 	void historyToDown(History *hist);
 	void dialogsToUp();
 	void newUnreadMsg(History *history, HistoryItem *item);
@@ -310,7 +304,7 @@ public:
 
 	void addParticipants(PeerData *chatOrChannel, const QVector<UserData*> &users);
 	bool addParticipantFail(UserData *user, const RPCError &e);
-	bool addParticipantsFail(const RPCError &e); // for multi invite in channels
+	bool addParticipantsFail(ChannelData *channel, const RPCError &e); // for multi invite in channels
 
 	void kickParticipant(ChatData *chat, UserData *user);
 	bool kickParticipantFail(ChatData *chat, const RPCError &e);
@@ -332,13 +326,14 @@ public:
     
     void readServerHistory(History *history, bool force = true);
 
-	uint64 animActiveTime(MsgId id) const;
+	uint64 animActiveTime(const HistoryItem *msg) const;
 	void stopAnimActive();
 
 	void sendBotCommand(const QString &cmd, MsgId msgId);
 	void insertBotCommand(const QString &cmd);
 
 	void searchMessages(const QString &query, PeerData *inPeer);
+	bool preloadOverview(PeerData *peer, MediaOverviewType type);
 	void preloadOverviews(PeerData *peer);
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);
@@ -389,7 +384,9 @@ public:
 	void updateMutedIn(int32 seconds);
 
 	void updateStickers();
-	void botCommandsChanged(UserData *bot);
+	void notifyBotCommandsChanged(UserData *bot);
+	void notifyUserIsBotChanged(UserData *bot);
+	void notifyMigrateUpdated(PeerData *peer);
 
 	void choosePeer(PeerId peerId, MsgId showAtMsgId); // does offerPeer or showPeerHistory
 	void clearBotStartToken(PeerData *peer);
@@ -490,12 +487,12 @@ private:
 
 	void sendReadRequest(PeerData *peer, MsgId upTo);
 	void channelWasRead(PeerData *peer, const MTPBool &result);
-    void partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &result);
+    void historyWasRead(PeerData *peer, const MTPmessages_AffectedMessages &result);
 	bool readRequestFail(PeerData *peer, const RPCError &error);
 	void readRequestDone(PeerData *peer);
 
 	void messagesAffected(PeerData *peer, const MTPmessages_AffectedMessages &result);
-	void overviewLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req);
+	void overviewLoaded(History *history, const MTPmessages_Messages &result, mtpRequestId req);
 
 	bool _started;
 

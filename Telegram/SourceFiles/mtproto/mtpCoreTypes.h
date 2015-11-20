@@ -317,8 +317,6 @@ enum {
 	mtpc_double = 0x2210c154,
 	mtpc_string = 0xb5286e24,
 
-	mtpc_boolTrue = 0x997275b5,
-	mtpc_boolFalse = 0xbc799737,
 	mtpc_vector = 0x1cb5c415,
 
 	// layers
@@ -370,7 +368,7 @@ static const mtpTypeId mtpLayers[] = {
 	mtpTypeId(mtpc_invokeWithLayer18),
 };
 static const uint32 mtpLayerMaxSingle = sizeof(mtpLayers) / sizeof(mtpLayers[0]);
-static const mtpPrime mtpCurrentLayer = 38;
+static const mtpPrime mtpCurrentLayer = 42;
 
 template <typename bareT>
 class MTPBoxed : public bareT {
@@ -773,56 +771,6 @@ inline QByteArray qba(const MTPstring &v) {
 	return QByteArray(d.data(), d.length());
 }
 
-class MTPbool {
-public:
-	bool v;
-
-	MTPbool() {
-	}
-	MTPbool(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-		read(from, end, cons);
-	}
-
-	uint32 innerLength() const {
-		return 0;
-	}
-	mtpTypeId type() const {
-		return v ? mtpc_boolTrue : mtpc_boolFalse;
-	}
-	void read(const mtpPrime *& /*from*/, const mtpPrime * /*end*/, mtpTypeId cons) {
-		switch (cons) {
-			case mtpc_boolFalse: v = false; break;
-			case mtpc_boolTrue: v = true; break;
-			default: throw mtpErrorUnexpected(cons, "MTPbool");
-		}
-	}
-	void write(mtpBuffer & /*to*/) const {
-	}
-
-private:
-	explicit MTPbool(bool val) : v(val) {
-	}
-	
-	friend MTPbool MTP_bool(bool v);
-};
-inline MTPbool MTP_bool(bool v) {
-	return MTPbool(v);
-}
-inline MTPbool MTP_boolFalse() {
-	return MTP_bool(false);
-}
-inline MTPbool MTP_boolTrue() {
-	return MTP_bool(true);
-}
-typedef MTPBoxed<MTPbool> MTPBool;
-
-inline bool operator==(const MTPbool &a, const MTPbool &b) {
-	return a.v == b.v;
-}
-inline bool operator!=(const MTPbool &a, const MTPbool &b) {
-	return a.v != b.v;
-}
-
 template <typename T>
 class MTPDvector : public mtpDataImpl<MTPDvector<T> > {
 public:
@@ -1018,3 +966,27 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end) {
 }
 
 #endif
+
+#include "mtpScheme.h"
+
+inline MTPbool MTP_bool(bool v) {
+	return v ? MTP_boolTrue() : MTP_boolFalse();
+}
+
+inline bool mtpIsTrue(const MTPBool &v) {
+	return v.type() == mtpc_boolTrue;
+}
+inline bool mtpIsFalse(const MTPBool &v) {
+	return !mtpIsTrue(v);
+}
+
+enum { // client side flags
+	MTPDmessage_flag_HAS_TEXT_LINKS = (1 << 31), // message has links for "shared links" indexing
+	MTPDmessage_flag_IS_GROUP_MIGRATE = (1 << 30), // message is a group migrate (group -> supergroup) service message
+	MTPDreplyKeyboardMarkup_flag_FORCE_REPLY = (1 << 30), // markup just wants a text reply
+	MTPDreplyKeyboardMarkup_flag_ZERO = (1 << 31), // none (zero) markup
+	MTPDstickerSet_flag_NOT_LOADED = (1 << 31), // sticker set is not yet loaded
+};
+
+static const MTPReplyMarkup MTPnullMarkup = MTP_replyKeyboardMarkup(MTP_int(0), MTP_vector<MTPKeyboardButtonRow>(0));
+static const MTPVector<MTPMessageEntity> MTPnullEntities = MTP_vector<MTPMessageEntity>(0);

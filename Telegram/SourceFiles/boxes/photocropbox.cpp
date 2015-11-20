@@ -27,23 +27,36 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "photocropbox.h"
 #include "fileuploader.h"
 
-PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer, bool upload) : AbstractBox()
+PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer) : AbstractBox()
 , _downState(0)
 , _done(this, lang(lng_settings_save), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _img(img)
 , _peerId(peer) {
-	if (peerIsChannel(_peerId)) {
-		_title = lang(lng_create_channel_crop);
-	} else if (peerIsChat(_peerId)) {
+	init(img, 0);
+}
+
+PhotoCropBox::PhotoCropBox(const QImage &img, PeerData *peer) : AbstractBox()
+, _downState(0)
+, _done(this, lang(lng_settings_save), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
+, _img(img)
+, _peerId(peer->id) {
+	init(img, peer);
+}
+
+void PhotoCropBox::init(const QImage &img, PeerData *peer) {
+	if (peerIsChat(_peerId) || (peer && peer->isMegagroup())) {
 		_title = lang(lng_create_group_crop);
+	} else if (peerIsChannel(_peerId)) {
+		_title = lang(lng_create_channel_crop);
 	} else {
 		_title = lang(lng_settings_crop_profile);
 	}
 
 	connect(&_done, SIGNAL(clicked()), this, SLOT(onSend()));
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
-	if (_peerId && upload) {
+	if (peerToBareInt(_peerId)) {
 		connect(this, SIGNAL(ready(const QImage&)), this, SLOT(onReady(const QImage&)));
 	}
 

@@ -96,8 +96,7 @@ QAction *PopupMenu::addAction(QAction *a) {
 	}
 	_texts.push_back(QString());
 	_shortcutTexts.push_back(QString());
-	int32 w = width(), mw = _st.widthMax;
-	w = processAction(a, _actions.size() - 1, w);
+	int32 w = processAction(a, _actions.size() - 1, width());
 	resize(w, height() + (a->isSeparator() ? _separatorHeight : _itemHeight));
 	update();
 
@@ -116,7 +115,7 @@ int32 PopupMenu::processAction(QAction *a, int32 index, int32 w) {
 		} else if (texts.size() > 1) {
 			goodw += _st.itemPadding.left() + _st.itemFont->width(texts.at(1));
 		}
-		w = snap(goodw, w, int32(_st.widthMax));
+		w = snap(goodw, w, int32(_padding.left() + _st.widthMax + _padding.right()));
 		_texts[index] = (w < goodw) ? _st.itemFont->elided(texts.at(0), w - (goodw - textw)) : texts.at(0);
 		_shortcutTexts[index] = texts.size() > 1 ? texts.at(1) : QString();
 	}
@@ -128,7 +127,7 @@ PopupMenu::Actions &PopupMenu::actions() {
 }
 
 void PopupMenu::actionChanged() {
-	int32 w = _st.widthMin, mw = _st.widthMax;
+	int32 w = _padding.left() + _st.widthMin + _padding.right();
 	for (int32 i = 0, l = _actions.size(); i < l; ++i) {
 		w = processAction(_actions.at(i), i, w);
 	}
@@ -140,7 +139,7 @@ void PopupMenu::actionChanged() {
 
 void PopupMenu::resetActions() {
 	clearActions();
-	resize(_st.widthMin, _padding.top() + (_st.skip * 2) + _padding.bottom());
+	resize(_padding.left() + _st.widthMin + _padding.right(), _padding.top() + (_st.skip * 2) + _padding.bottom());
 }
 
 void PopupMenu::clearActions(bool force) {

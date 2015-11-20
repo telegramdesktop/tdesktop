@@ -734,6 +734,14 @@ namespace {
 			cSetMaxGroupCount(maxSize);
 		} break;
 
+		case dbiMaxMegaGroupCount: {
+			qint32 maxSize;
+			stream >> maxSize;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetMaxMegaGroupCount(maxSize);
+		} break;
+
 		case dbiUser: {
 			quint32 dcId;
 			qint32 uid;
@@ -1902,7 +1910,7 @@ namespace Local {
 
 			const BuiltInDc *bdcsipv6 = builtInDcsIPv6();
 			for (int i = 0, l = builtInDcsCountIPv6(); i < l; ++i) {
-				int32 flags = MTPDdcOption_flag_ipv6, idWithShift = bdcsipv6[i].id + (flags * _mtp_internal::dcShift);
+				int32 flags = MTPDdcOption::flag_ipv6, idWithShift = bdcsipv6[i].id + (flags * _mtp_internal::dcShift);
 				dcOpts.insert(idWithShift, mtpDcOption(bdcsipv6[i].id, flags, bdcsipv6[i].ip, bdcsipv6[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: %2:%3").arg(bdcsipv6[i].id).arg(bdcsipv6[i].ip).arg(bdcsipv6[i].port));
 			}
@@ -1946,7 +1954,7 @@ namespace Local {
 
 			const BuiltInDc *bdcsipv6 = builtInDcsIPv6();
 			for (int i = 0, l = builtInDcsCountIPv6(); i < l; ++i) {
-				dcOpts.insert(bdcsipv6[i].id + (MTPDdcOption_flag_ipv6 * _mtp_internal::dcShift), mtpDcOption(bdcsipv6[i].id, MTPDdcOption_flag_ipv6, bdcsipv6[i].ip, bdcsipv6[i].port));
+				dcOpts.insert(bdcsipv6[i].id + (MTPDdcOption::flag_ipv6 * _mtp_internal::dcShift), mtpDcOption(bdcsipv6[i].id, MTPDdcOption::flag_ipv6, bdcsipv6[i].ip, bdcsipv6[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: %2:%3").arg(bdcsipv6[i].id).arg(bdcsipv6[i].ip).arg(bdcsipv6[i].port));
 			}
 
@@ -1971,6 +1979,7 @@ namespace Local {
 
 		EncryptedDescriptor data(size);
 		data.stream << quint32(dbiMaxGroupCount) << qint32(cMaxGroupCount());
+		data.stream << quint32(dbiMaxMegaGroupCount) << qint32(cMaxMegaGroupCount());
 		data.stream << quint32(dbiAutoStart) << qint32(cAutoStart());
 		data.stream << quint32(dbiStartMinimized) << qint32(cStartMinimized());
 		data.stream << quint32(dbiSendToMenu) << qint32(cSendToMenu());
@@ -2117,7 +2126,7 @@ namespace Local {
 	void writeDraftPositions(const PeerId &peer, const MessageCursor &cur) {
 		if (!_working()) return;
 
-		if (cur.position == 0 && cur.anchor == 0 && cur.scroll == 0) {
+		if (cur.position == 0 && cur.anchor == 0 && cur.scroll == QFIXED_MAX) {
 			DraftsMap::iterator i = _draftsPositionsMap.find(peer);
 			if (i != _draftsPositionsMap.cend()) {
 				clearKey(i.value());
@@ -2571,7 +2580,7 @@ namespace Local {
 			for (StickerSets::const_iterator i = sets.cbegin(); i != sets.cend(); ++i) {
 				bool notLoaded = (i->flags & MTPDstickerSet_flag_NOT_LOADED);
 				if (notLoaded) {
-					if (!(i->flags & MTPDstickerSet_flag_disabled)) { // waiting to receive
+					if (!(i->flags & MTPDstickerSet::flag_disabled)) { // waiting to receive
 						return;
 					}
 				} else {
@@ -2630,7 +2639,7 @@ namespace Local {
 
 		cSetStickersHash(QByteArray());
 
-		StickerSet &def(sets.insert(DefaultStickerSetId, StickerSet(DefaultStickerSetId, 0, lang(lng_stickers_default_set), QString(), 0, 0, MTPDstickerSet_flag_official)).value());
+		StickerSet &def(sets.insert(DefaultStickerSetId, StickerSet(DefaultStickerSetId, 0, lang(lng_stickers_default_set), QString(), 0, 0, MTPDstickerSet::flag_official)).value());
 		StickerSet &custom(sets.insert(CustomStickerSetId, StickerSet(CustomStickerSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, 0)).value());
 
 		QMap<uint64, bool> read;
@@ -2723,7 +2732,7 @@ namespace Local {
 
 			if (setId == DefaultStickerSetId) {
 				setTitle = lang(lng_stickers_default_set);
-				setFlags |= MTPDstickerSet_flag_official;
+				setFlags |= MTPDstickerSet::flag_official;
 				order.push_front(setId);
 			} else if (setId == CustomStickerSetId) {
 				setTitle = lang(lng_custom_stickers);
@@ -2935,8 +2944,16 @@ namespace Local {
 		if (peer->isUser()) {
 			UserData *user = peer->asUser();
 
-			// first + last + phone + username + access + onlineTill + contact + botInfoVersion
-			result += _stringSize(user->firstName) + _stringSize(user->lastName) + _stringSize(user->phone) + _stringSize(user->username) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
+			// first + last + phone + username + access
+			result += _stringSize(user->firstName) + _stringSize(user->lastName) + _stringSize(user->phone) + _stringSize(user->username) + sizeof(quint64);
+
+			// flags
+			if (AppVersion >= 9009) {
+				result += sizeof(qint32);
+			}
+
+			// onlineTill + contact + botInfoVersion
+			result += sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
 		} else if (peer->isChat()) {
 			ChatData *chat = peer->asChat();
 
@@ -2945,8 +2962,8 @@ namespace Local {
 		} else if (peer->isChannel()) {
 			ChannelData *channel = peer->asChannel();
 
-			// name + access + date + version + adminned + forbidden + left + invitationUrl
-			result += _stringSize(channel->name) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(channel->invitationUrl);
+			// name + access + date + version + forbidden + flags + invitationUrl
+			result += _stringSize(channel->name) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(channel->invitationUrl);
 		}
 		return result;
 	}
@@ -2957,12 +2974,18 @@ namespace Local {
 		if (peer->isUser()) {
 			UserData *user = peer->asUser();
 
-			stream << user->firstName << user->lastName << user->phone << user->username << quint64(user->access) << qint32(user->onlineTill) << qint32(user->contact) << qint32(user->botInfo ? user->botInfo->version : -1);
+			stream << user->firstName << user->lastName << user->phone << user->username << quint64(user->access);
+			if (AppVersion >= 9009) {
+				stream << qint32(user->flags);
+			}
+			stream << qint32(user->onlineTill) << qint32(user->contact) << qint32(user->botInfo ? user->botInfo->version : -1);
 		} else if (peer->isChat()) {
 			ChatData *chat = peer->asChat();
 
+			qint32 flagsData = (AppVersion >= 9009) ? chat->flags : (chat->haveLeft() ? 1 : 0);
+
 			stream << chat->name << qint32(chat->count) << qint32(chat->date) << qint32(chat->version) << qint32(chat->creator);
-			stream << qint32(chat->isForbidden ? 1 : 0) << qint32(chat->haveLeft ? 1 : 0) << chat->invitationUrl;
+			stream << qint32(chat->isForbidden ? 1 : 0) << qint32(flagsData) << chat->invitationUrl;
 		} else if (peer->isChannel()) {
 			ChannelData *channel = peer->asChannel();
 
@@ -2985,8 +3008,12 @@ namespace Local {
 
 			QString first, last, phone, username;
 			quint64 access;
-			qint32 onlineTill, contact, botInfoVersion;
-			from.stream >> first >> last >> phone >> username >> access >> onlineTill >> contact >> botInfoVersion;
+			qint32 flags = 0, onlineTill, contact, botInfoVersion;
+			from.stream >> first >> last >> phone >> username >> access;
+			if (from.version >= 9009) {
+				from.stream >> flags;
+			}
+			from.stream >> onlineTill >> contact >> botInfoVersion;
 
 			bool showPhone = !isServiceUser(user->id) && (peerToUser(user->id) != MTP::authedId()) && (contact <= 0);
 			QString pname = (showPhone && !phone.isEmpty()) ? App::formatPhone(phone) : QString();
@@ -2994,6 +3021,7 @@ namespace Local {
 			user->setName(first, last, pname, username);
 
 			user->access = access;
+			user->flags = flags;
 			user->onlineTill = onlineTill;
 			user->contact = contact;
 			user->setBotInfoVersion(botInfoVersion);
@@ -3011,16 +3039,22 @@ namespace Local {
 			ChatData *chat = result->asChat();
 
 			QString name, invitationUrl;
-			qint32 count, date, version, creator, forbidden, left;
-			from.stream >> name >> count >> date >> version >> creator >> forbidden >> left >> invitationUrl;
+			qint32 count, date, version, creator, forbidden, flagsData, flags;
+			from.stream >> name >> count >> date >> version >> creator >> forbidden >> flagsData >> invitationUrl;
 
+			if (from.version >= 9009) {
+				flags = flagsData;
+			} else {
+				// flagsData was haveLeft
+				flags = (flagsData == 1 ? MTPDchat::flag_left : 0);
+			}
 			chat->updateName(name, QString(), QString());
 			chat->count = count;
 			chat->date = date;
 			chat->version = version;
 			chat->creator = creator;
 			chat->isForbidden = (forbidden == 1);
-			chat->haveLeft = (left == 1);
+			chat->flags = flags;
 			chat->invitationUrl = invitationUrl;
 
 			chat->input = MTP_inputPeerChat(MTP_int(peerToChat(chat->id)));
@@ -3046,7 +3080,7 @@ namespace Local {
 			channel->input = MTP_inputPeerChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 			channel->inputChannel = MTP_inputChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 
-			channel->photo = photoLoc.isNull() ? ImagePtr(channelDefPhoto(channel->colorIndex)) : ImagePtr(photoLoc);
+			channel->photo = photoLoc.isNull() ? ImagePtr((channel->isMegagroup() ? chatDefPhoto(channel->colorIndex) : channelDefPhoto(channel->colorIndex))) : ImagePtr(photoLoc);
 		}
 		App::markPeerUpdated(result);
 		emit App::main()->peerPhotoChanged(result);

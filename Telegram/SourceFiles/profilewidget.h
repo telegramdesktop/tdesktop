@@ -26,7 +26,7 @@ class ProfileInner : public TWidget, public RPCSender, public Animated {
 
 public:
 
-	ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const PeerData *peer);
+	ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData *peer);
 
 	void start();
 
@@ -88,6 +88,8 @@ public slots:
 	void onDeleteChannelSure();
 	void onBlockUser();
 	void onAddParticipant();
+	void onMigrate();
+	void onMigrateSure();
 
 	void onUpdatePhoto();
 	void onUpdatePhotoCancel();
@@ -131,6 +133,9 @@ private:
 	void chatInviteDone(const MTPExportedChatInvite &result);
 	bool updateMediaLinks(int32 *addToScroll = 0); // returns if anything changed
 
+	void migrateDone(const MTPUpdates &updates);
+	bool migrateFail(const RPCError &error);
+
 	ProfileWidget *_profile;
 	ScrollArea *_scroll;
 
@@ -138,7 +143,7 @@ private:
 	UserData *_peerUser;
 	ChatData *_peerChat;
 	ChannelData *_peerChannel;
-	History *_hist;
+	History *_migrated, *_history;
 	bool _amCreator;
 
 	int32 _width, _left, _addToHeight;
@@ -161,6 +166,12 @@ private:
 	bool _photoOver;
 
 	QString _errorText;
+
+	// migrate to megagroup
+	bool _showMigrate;
+	Text _aboutMigrate;
+	FlatButton _migrate;
+
 
 	// settings
 	FlatCheckbox _enableNotifications;
@@ -207,7 +218,7 @@ class ProfileWidget : public TWidget, public RPCSender {
 
 public:
 
-	ProfileWidget(QWidget *parent, const PeerData *peer);
+	ProfileWidget(QWidget *parent, PeerData *peer);
 
 	void resizeEvent(QResizeEvent *e);
 	void mousePressEvent(QMouseEvent *e);

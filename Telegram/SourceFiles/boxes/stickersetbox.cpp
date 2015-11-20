@@ -97,7 +97,7 @@ void StickerSetInner::installDone(const MTPBool &result) {
 	StickerSetsOrder &order(cRefStickerSetsOrder());
 	for (int32 s = order.size(); insertAtIndex < s; ++insertAtIndex) {
 		StickerSets::const_iterator i = sets.constFind(order.at(insertAtIndex));
-		if (i == sets.cend() || !(i->flags & MTPDstickerSet_flag_official)) {
+		if (i == sets.cend() || !(i->flags & MTPDstickerSet::flag_official)) {
 			break;
 		}
 	}

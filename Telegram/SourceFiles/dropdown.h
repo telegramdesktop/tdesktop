@@ -649,6 +649,8 @@ public:
 
 	const QString &filter() const;
 	ChatData *chat() const;
+	ChannelData *channel() const;
+	UserData *user() const;
 
 	int32 innerTop();
 	int32 innerBottom();
