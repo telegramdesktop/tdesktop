@@ -651,7 +651,8 @@ bool ApiWrap::gotSelfParticipantFail(ChannelData *channel, const RPCError &error
 
 void ApiWrap::kickParticipant(PeerData *peer, UserData *user) {
 	KickRequest req(peer, user);
-	if (_kickRequests.contains(req));
+	if (_kickRequests.contains(req)) return;
+
 	if (peer->isChannel()) {
 		_kickRequests.insert(req, MTP::send(MTPchannels_KickFromChannel(peer->asChannel()->inputChannel, user->inputUser, MTP_bool(true)), rpcDone(&ApiWrap::kickParticipantDone, req), rpcFail(&ApiWrap::kickParticipantFail, req)));
 	}
