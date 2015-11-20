@@ -680,7 +680,7 @@ namespace App {
 							i = chat->participants.erase(i);
 						} else {
 							if (i.key()->botInfo) {
-								botStatus = (botStatus > 0/* || i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
+								botStatus = 2;// (botStatus > 0/* || !i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
 								if (requestBotInfos && !i.key()->botInfo->inited && App::api()) App::api()->requestFullPeer(i.key());
 							}
 							if (!found && i.key()->id == h->lastKeyboardFrom) {
@@ -737,7 +737,7 @@ namespace App {
 					}
 					chat->count++;
 					if (user->botInfo) {
-						chat->botStatus = (chat->botStatus > 0/* || !user->botInfo->readsAllHistory*/) ? 2 : 1;
+						chat->botStatus = 2;// (chat->botStatus > 0/* || !user->botInfo->readsAllHistory*/) ? 2 : 1;
 						if (!user->botInfo->inited && App::api()) App::api()->requestFullPeer(user);
 					}
 				}
@@ -798,7 +798,7 @@ namespace App {
 						int32 botStatus = -1;
 						for (ChatData::Participants::const_iterator j = chat->participants.cbegin(), e = chat->participants.cend(); j != e; ++j) {
 							if (j.key()->botInfo) {
-								if (botStatus > 0/* || !j.key()->botInfo->readsAllHistory*/) {
+								if (true || botStatus > 0/* || !j.key()->botInfo->readsAllHistory*/) {
 									botStatus = 2;
 									break;
 								}
@@ -2516,8 +2516,8 @@ namespace App {
 	}
 
 	inline const ReplyMarkup &replyMarkup(const ReplyMarkups &markups, MsgId msgId) {
-		ReplyMarkups::const_iterator i = replyMarkups.constFind(msgId);
-		if (i == replyMarkups.cend()) return zeroMarkup;
+		ReplyMarkups::const_iterator i = markups.constFind(msgId);
+		if (i == markups.cend()) return zeroMarkup;
 		return i.value();
 	}
 	const ReplyMarkup &replyMarkup(ChannelId channelId, MsgId msgId) {
@@ -2844,6 +2844,22 @@ namespace App {
 
 	void showLayerLast(LayeredWidget *w) {
 		if (Window *win = wnd()) win->showLayerLast(w);
+	}
+
+}
+
+namespace Notify {
+
+	void userIsBotChanged(UserData *user) {
+		if (MainWidget *m = App::main()) {
+			m->notifyUserIsBotChanged(user);
+		}
+	}
+
+	void botCommandsChanged(UserData *user) {
+		if (MainWidget *m = App::main()) {
+			m->notifyBotCommandsChanged(user);
+		}
 	}
 
 }

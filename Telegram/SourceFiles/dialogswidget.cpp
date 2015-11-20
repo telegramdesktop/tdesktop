@@ -1954,7 +1954,8 @@ void DialogsWidget::loadDialogs() {
 		return;
 	}
 
-	int32 loadCount = _dialogsOffsetDate ? DialogsPerPage : DialogsFirstLoad;
+	int32 loadCount = (!cTestMode() || _dialogsOffsetDate) ? DialogsPerPage : DialogsFirstLoad;
+	if (!cTestMode() && _dialogsOffsetDate) return;
 	_dialogsRequest = MTP::send(MTPmessages_GetDialogs(MTP_int(_dialogsOffsetDate), MTP_int(_dialogsOffsetId), _dialogsOffsetPeer ? _dialogsOffsetPeer->input : MTP_inputPeerEmpty(), MTP_int(loadCount)), rpcDone(&DialogsWidget::dialogsReceived), rpcFail(&DialogsWidget::dialogsFailed));
 }
 

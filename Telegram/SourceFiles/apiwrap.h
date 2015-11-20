@@ -37,6 +37,7 @@ public:
 	void requestPeer(PeerData *peer);
 	void requestPeers(const QList<PeerData*> &peers);
 	void requestLastParticipants(ChannelData *peer, bool fromStart = true);
+	void requestBots(ChannelData *peer);
 
 	void processFullPeer(PeerData *peer, const MTPmessages_ChatFull &result);
 	void processFullPeer(PeerData *peer, const MTPUserFull &result);

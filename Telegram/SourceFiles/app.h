@@ -315,3 +315,8 @@ namespace App {
 	void showLayerLast(LayeredWidget *w);
 
 };
+
+namespace Notify {
+	void userIsBotChanged(UserData *user);
+	void botCommandsChanged(UserData *user);
+};

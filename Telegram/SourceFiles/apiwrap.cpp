@@ -313,6 +313,20 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 				App::main()->peerUpdated(cfrom);
 			}
 		}
+		const QVector<MTPBotInfo> &v(f.vbot_info.c_vector().v);
+		for (QVector<MTPBotInfo>::const_iterator i = v.cbegin(), e = v.cend(); i < e; ++i) {
+			switch (i->type()) {
+			case mtpc_botInfo: {
+				const MTPDbotInfo &b(i->c_botInfo());
+				UserData *user = App::userLoaded(b.vuser_id.v);
+				if (user) {
+					user->setBotInfo(*i);
+					App::clearPeerUpdated(user);
+					emit fullPeerUpdated(user);
+				}
+			} break;
+			}
+		}
 		channel->about = qs(f.vabout);
 		int32 newCount = f.has_participants_count() ? f.vparticipants_count.v : 0;
 		if (newCount != channel->count) {
@@ -437,9 +451,11 @@ void ApiWrap::requestLastParticipants(ChannelData *peer, bool fromStart) {
 	}
 	mtpRequestId req = MTP::send(MTPchannels_GetParticipants(peer->inputChannel, MTP_channelParticipantsRecent(), MTP_int(fromStart ? 0 : peer->mgInfo->lastParticipants.size()), MTP_int(1)), rpcDone(&ApiWrap::lastParticipantsDone, peer), rpcFail(&ApiWrap::lastParticipantsFail, peer));
 	_participantsRequests.insert(peer, fromStart ? req : -req);
-	if (fromStart) {
-		_botsRequests.insert(peer, MTP::send(MTPchannels_GetParticipants(peer->inputChannel, MTP_channelParticipantsBots(), MTP_int(0), MTP_int(cMaxGroupCount())), rpcDone(&ApiWrap::lastParticipantsDone, peer), rpcFail(&ApiWrap::lastParticipantsFail, peer)));
-	}
+}
+
+void ApiWrap::requestBots(ChannelData *peer) {
+	if (!peer || !peer->isMegagroup() || _botsRequests.contains(peer)) return;
+	_botsRequests.insert(peer, MTP::send(MTPchannels_GetParticipants(peer->inputChannel, MTP_channelParticipantsBots(), MTP_int(0), MTP_int(cMaxGroupCount())), rpcDone(&ApiWrap::lastParticipantsDone, peer), rpcFail(&ApiWrap::lastParticipantsFail, peer)));
 }
 
 void ApiWrap::gotChat(PeerData *peer, const MTPmessages_Chats &result) {
@@ -518,7 +534,7 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 	const MTPDchannels_channelParticipants &d(result.c_channels_channelParticipants());
 	const QVector<MTPChannelParticipant> &v(d.vparticipants.c_vector().v);
 	App::feedUsers(d.vusers);
-	bool added = false;
+	bool added = false, needBotsInfos = false;
 	int32 botStatus = peer->mgInfo->botStatus;
 	for (QVector<MTPChannelParticipant>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
 		int32 userId = 0;
@@ -536,15 +552,27 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 		if (bots) {
 			if (u->botInfo) {
 				peer->mgInfo->bots.insert(u, true);
-				botStatus = (botStatus > 0/* || i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
+				botStatus = 2;// (botStatus > 0/* || !i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
+				if (!u->botInfo->inited) {
+					needBotsInfos = true;
+				}
 			}
 		} else {
 			if (peer->mgInfo->lastParticipants.indexOf(u) < 0) {
 				peer->mgInfo->lastParticipants.push_back(u);
 				if (admin) peer->mgInfo->lastAdmins.insert(u, true);
+				if (u->botInfo) {
+					peer->mgInfo->bots.insert(u, true);
+					if (peer->mgInfo->botStatus != 0 && peer->mgInfo->botStatus < 2) {
+						peer->mgInfo->botStatus = 2;
+					}
+				}
 				added = true;
 			}
 		}
+	}
+	if (needBotsInfos) {
+		requestFullPeer(peer);
 	}
 	if (d.vcount.v > peer->count) {
 		peer->count = d.vcount.v;

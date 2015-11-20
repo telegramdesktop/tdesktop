@@ -235,15 +235,23 @@ void UserData::setPhone(const QString &newPhone) {
 
 void UserData::setBotInfoVersion(int32 version) {
 	if (version < 0) {
-		delete botInfo;
-		botInfo = 0;
+		if (botInfo) {
+			if (!botInfo->commands.isEmpty()) {
+				botInfo->commands.clear();
+				Notify::botCommandsChanged(this);
+			}
+			delete botInfo;
+			botInfo = 0;
+			Notify::userIsBotChanged(this);
+		}
 	} else if (!botInfo) {
 		botInfo = new BotInfo();
 		botInfo->version = version;
+		Notify::userIsBotChanged(this);
 	} else if (botInfo->version < version) {
 		if (!botInfo->commands.isEmpty()) {
 			botInfo->commands.clear();
-			if (App::main()) App::main()->botCommandsChanged(this);
+			Notify::botCommandsChanged(this);
 		}
 		botInfo->description.clear();
 		botInfo->shareText.clear();
@@ -255,11 +263,15 @@ void UserData::setBotInfoVersion(int32 version) {
 void UserData::setBotInfo(const MTPBotInfo &info) {
 	switch (info.type()) {
 	case mtpc_botInfoEmpty:
-		if (botInfo && !botInfo->commands.isEmpty()) {
-			if (App::main()) App::main()->botCommandsChanged(this);
+		if (botInfo) {
+			if (!botInfo->commands.isEmpty()) {
+				botInfo->commands.clear();
+				Notify::botCommandsChanged(this);
+			}
+			delete botInfo;
+			botInfo = 0;
+			Notify::userIsBotChanged(this);
 		}
-		delete botInfo;
-		botInfo = 0;
 	break;
 	case mtpc_botInfo: {
 		const MTPDbotInfo &d(info.c_botInfo());
@@ -307,8 +319,8 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 
 		botInfo->inited = true;
 
-		if (changedCommands && App::main()) {
-			App::main()->botCommandsChanged(this);
+		if (changedCommands) {
+			Notify::botCommandsChanged(this);
 		}
 	} break;
 	}

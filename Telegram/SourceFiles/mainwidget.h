@@ -384,7 +384,8 @@ public:
 	void updateMutedIn(int32 seconds);
 
 	void updateStickers();
-	void botCommandsChanged(UserData *bot);
+	void notifyBotCommandsChanged(UserData *bot);
+	void notifyUserIsBotChanged(UserData *bot);
 
 	void choosePeer(PeerId peerId, MsgId showAtMsgId); // does offerPeer or showPeerHistory
 	void clearBotStartToken(PeerData *peer);

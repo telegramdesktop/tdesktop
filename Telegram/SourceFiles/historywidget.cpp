@@ -1727,6 +1727,13 @@ int32 HistoryInner::itemTop(const HistoryItem *item) const { // -1 if should not
 	return (top < 0) ? top : (top + item->y + item->block()->y);
 }
 
+void HistoryInner::notifyIsBotChanged() {
+	_botInfo = (_history && _history->peer->isUser()) ? _history->peer->asUser()->botInfo : 0;
+	if (_botInfo && !_botInfo->inited && App::api()) {
+		App::api()->requestFullPeer(_peer);
+	}
+}
+
 void HistoryInner::applyDragSelection() {
 	applyDragSelection(&_selected);
 }
@@ -2935,11 +2942,20 @@ void HistoryWidget::updateStickers() {
 	_stickersUpdateRequest = MTP::send(MTPmessages_GetAllStickers(MTP_string(cStickersHash())), rpcDone(&HistoryWidget::stickersGot), rpcFail(&HistoryWidget::stickersFailed));
 }
 
-void HistoryWidget::botCommandsChanged(UserData *user) {
+void HistoryWidget::notifyBotCommandsChanged(UserData *user) {
 	if (_peer && (_peer == user || !_peer->isUser())) {
 		if (_attachMention.clearFilteredCommands()) {
 			checkMentionDropdown();
 		}
+	}
+}
+
+void HistoryWidget::notifyUserIsBotChanged(UserData *user) {
+	if (_peer && _peer == user) {
+		_list->notifyIsBotChanged();
+		_list->updateBotInfo();
+		updateControlsVisibility();
+		resizeEvent(0);
 	}
 }
 
@@ -6344,6 +6360,8 @@ void HistoryWidget::peerUpdated(PeerData *data) {
 				App::api()->requestFullPeer(data);
 			} else if (data->isUser() && data->asUser()->blocked == UserBlockUnknown) {
 				App::api()->requestFullPeer(data);
+			} else if (data->isMegagroup() && !data->asChannel()->mgInfo->botStatus) {
+				App::api()->requestBots(data->asChannel());
 			}
 		}
 		if (!_a_show.animating()) {

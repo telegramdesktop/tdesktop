@@ -95,6 +95,8 @@ public:
 	int32 historyDrawTop() const;
 	int32 itemTop(const HistoryItem *item) const; // -1 if should not be visible, -2 if bad history()
 
+	void notifyIsBotChanged();
+
 	~HistoryInner();
 	
 public slots:
@@ -555,6 +557,9 @@ public:
 		resizeEvent(0);
 	}
 
+	void notifyBotCommandsChanged(UserData *user);
+	void notifyUserIsBotChanged(UserData *user);
+
 	~HistoryWidget();
 
 signals:
@@ -649,7 +654,6 @@ public slots:
 	void onDraftSave(bool delayed = false);
 
 	void updateStickers();
-	void botCommandsChanged(UserData *user);
 
 	void onRecordError();
 	void onRecordDone(QByteArray result, qint32 samples);
