@@ -324,7 +324,7 @@ void OverviewInner::fixItemIndex(int32 &current, MsgId msgId) const {
 
 void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Messages &result, mtpRequestId req) {
 	if (!_search.text().isEmpty()) {
-		if (_type == SearchFromStart) {
+		if (type == SearchFromStart) {
 			SearchQueries::iterator i = _searchQueries.find(req);
 			if (i != _searchQueries.cend()) {
 				_searchCache[i.value()] = result;

@@ -526,7 +526,11 @@ private:
 };
 
 struct MegagroupInfo {
-	MegagroupInfo() : botStatus(0), joinedMessageFound(false), migrateFromPtr(0), lastParticipantsStatus(LastParticipantsUpToDate), lastParticipantsCount(0) {
+	MegagroupInfo() : botStatus(0)
+	, joinedMessageFound(false)
+	, lastParticipantsStatus(LastParticipantsUpToDate)
+	, lastParticipantsCount(0)
+	, migrateFromPtr(0) {
 	}
 	typedef QList<UserData*> LastParticipants;
 	LastParticipants lastParticipants;

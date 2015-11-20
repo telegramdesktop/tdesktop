@@ -72,7 +72,7 @@ void MacPrivate::notifyClicked(unsigned long long peer, int msgid) {
 		bool tomsg = !history->peer->isUser() && (msgid > 0);
 		if (tomsg) {
 			HistoryItem *item = App::histItemById(peerToChannel(PeerId(peer)), MsgId(msgid));
-			if (!item || !item->notifyByFrom()) {
+			if (!item || !item->mentionsMe()) {
 				tomsg = false;
 			}
 		}
