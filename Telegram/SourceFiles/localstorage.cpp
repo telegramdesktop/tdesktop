@@ -2948,7 +2948,7 @@ namespace Local {
 			result += _stringSize(user->firstName) + _stringSize(user->lastName) + _stringSize(user->phone) + _stringSize(user->username) + sizeof(quint64);
 
 			// flags
-			if (AppVersion >= 9009) {
+			if (AppVersion >= 9012) {
 				result += sizeof(qint32);
 			}
 
@@ -2975,14 +2975,14 @@ namespace Local {
 			UserData *user = peer->asUser();
 
 			stream << user->firstName << user->lastName << user->phone << user->username << quint64(user->access);
-			if (AppVersion >= 9009) {
+			if (AppVersion >= 9012) {
 				stream << qint32(user->flags);
 			}
 			stream << qint32(user->onlineTill) << qint32(user->contact) << qint32(user->botInfo ? user->botInfo->version : -1);
 		} else if (peer->isChat()) {
 			ChatData *chat = peer->asChat();
 
-			qint32 flagsData = (AppVersion >= 9009) ? chat->flags : (chat->haveLeft() ? 1 : 0);
+			qint32 flagsData = (AppVersion >= 9012) ? chat->flags : (chat->haveLeft() ? 1 : 0);
 
 			stream << chat->name << qint32(chat->count) << qint32(chat->date) << qint32(chat->version) << qint32(chat->creator);
 			stream << qint32(chat->isForbidden ? 1 : 0) << qint32(flagsData) << chat->invitationUrl;
@@ -3010,7 +3010,7 @@ namespace Local {
 			quint64 access;
 			qint32 flags = 0, onlineTill, contact, botInfoVersion;
 			from.stream >> first >> last >> phone >> username >> access;
-			if (from.version >= 9009) {
+			if (from.version >= 9012) {
 				from.stream >> flags;
 			}
 			from.stream >> onlineTill >> contact >> botInfoVersion;
@@ -3042,7 +3042,7 @@ namespace Local {
 			qint32 count, date, version, creator, forbidden, flagsData, flags;
 			from.stream >> name >> count >> date >> version >> creator >> forbidden >> flagsData >> invitationUrl;
 
-			if (from.version >= 9009) {
+			if (from.version >= 9012) {
 				flags = flagsData;
 			} else {
 				// flagsData was haveLeft
@@ -3126,6 +3126,12 @@ namespace Local {
 
 		FileReadDescriptor saved;
 		if (!readEncryptedFile(saved, _savedPeersKey)) {
+			clearKey(_savedPeersKey);
+			_savedPeersKey = 0;
+			_writeMap();
+			return;
+		}
+		if (saved.version == 9011) { // broken dev version
 			clearKey(_savedPeersKey);
 			_savedPeersKey = 0;
 			_writeMap();

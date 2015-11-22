@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 "lng_language_name" = "Español";
-"lng_switch_to_this" = "Cambiar al idioma español";
+"lng_switch_to_this" = "Cambiar a español";
 
 "lng_menu_contacts" = "Contactos";
 "lng_menu_settings" = "Ajustes";
@@ -181,7 +181,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_settings_save" = "Guardar";
 "lng_settings_upload" = "Poner foto de perfil";
-"lng_settings_crop_profile" = "Elige el área para tu foto de perfil";
+"lng_settings_crop_profile" = "Selecciona el área para tu foto de perfil";
 "lng_settings_uploading_photo" = "Cargando foto...";
 
 "lng_username_title" = "Alias";
@@ -438,7 +438,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_create_group_next" = "Siguiente";
 "lng_create_group_create" = "Crear";
 "lng_create_group_title" = "Nuevo grupo";
-"lng_create_group_about" = "Los grupos son ideales para comunidades más pequeñas, \npueden tener hasta {count:_not_used|# miembro|# miembros}";
+"lng_create_group_about" = "Los grupos son ideales para las comunidades más pequeñas,\nde hasta {count:_not_used|# miembro|# miembros}";
 "lng_create_channel_title" = "Nuevo canal";
 "lng_create_channel_about" = "Los canales permiten difundir tus mensajes a audiencias ilimitadas";
 "lng_create_public_channel_title" = "Canal público";
@@ -456,8 +456,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_create_channel_link_available" = "Este enlace está disponible";
 "lng_create_channel_link_copied" = "Enlace copiado al portapapeles";
 
-"lng_create_group_crop" = "Elige el área para la foto de grupo";
-"lng_create_channel_crop" = "Elige el área para la foto del canal";
+"lng_create_group_crop" = "Selecciona el área para la foto del grupo";
+"lng_create_channel_crop" = "Selecciona el área para la foto del canal";
 
 "lng_failed_add_participant" = "No se pudo añadir al usuario. Por favor, reinténtalo más tarde.";
 "lng_failed_add_not_mutual" = "Lo sentimos, si una persona deja un\ngrupo, sólo un contacto mutuo puede \ntraerlo de vuelta (ellos necesitan tener\ntu número, y tú el suyo).";
@@ -581,7 +581,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_broadcast_ph" = "Difunde un mensaje...";
 "lng_record_cancel" = "Suelta fuera de aquí para cancelar";
 "lng_empty_history" = "";
-"lng_willbe_history" = "Por favor, elige un chat para comenzar";
+"lng_willbe_history" = "Por favor, selecciona un chat para comenzar";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Tú";
 "lng_bot_description" = "¿Qué puede hacer este bot?";
@@ -664,11 +664,11 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_context_reply_msg" = "Responder";
 "lng_context_forward_msg" = "Reenviar mensaje";
 "lng_context_delete_msg" = "Eliminar mensaje";
-"lng_context_select_msg" = "Elegir mensaje";
+"lng_context_select_msg" = "Seleccionar mensaje";
 "lng_context_cancel_upload" = "Cancelar envío";
-"lng_context_copy_selected" = "Copiar el texto elegido";
-"lng_context_forward_selected" = "Reenviar lo elegido";
-"lng_context_delete_selected" = "Eliminar lo elegido";
+"lng_context_copy_selected" = "Copiar el texto seleccionado";
+"lng_context_forward_selected" = "Reenviar lo seleccionado";
+"lng_context_delete_selected" = "Eliminar lo seleccionado";
 "lng_context_clear_selection" = "Borrar selección";
 "lng_really_send_image" = "¿Quieres enviar esta imagen?";
 "lng_really_send_file" = "¿Quieres enviar este archivo?";
@@ -683,7 +683,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_forward_confirm" = "¿Reenviar a {recipient}?";
 "lng_forward_share_contact" = "¿Compartir contacto con {recipient}?";
 "lng_forward_send_file_confirm" = "¿Enviar «{name}» a {recipient}?";
-"lng_forward_send_files_confirm" = "¿Enviar los archivos elegidos a {recipient}?";
+"lng_forward_send_files_confirm" = "¿Enviar los archivos seleccionados a {recipient}?";
 "lng_forward_send" = "Enviar";
 "lng_forward_messages" = "{count:_not_used_|Mensaje adjunto|# mensajes adjuntos}";
 "lng_forwarding_from" = "{user} y {count:_not_used_|# otro|# otros}";
@@ -806,7 +806,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_mac_menu_copy" = "Copiar";
 "lng_mac_menu_paste" = "Pegar";
 "lng_mac_menu_delete" = "Eliminar";
-"lng_mac_menu_select_all" = "Elegir todo";
+"lng_mac_menu_select_all" = "Seleccionar todo";
 "lng_mac_menu_window" = "Ventana";
 "lng_mac_menu_contacts" = "Contactos";
 "lng_mac_menu_add_contact" = "Añadir contacto";
