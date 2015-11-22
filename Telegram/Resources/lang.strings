@@ -789,7 +789,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— New shared audio files section\n— New design for popup menus\n— Add captions to any photos you send\n— Surround text with `single backticks` for inline monowidth code and ```triple backticks``` for blocks of code\n— The Tilde symbol is now displayed correctly";
+"lng_new_version_text" = "— Groups can now have multiple administrators with the ability to edit the name and logo, and add and remove members\n— Groups that have reached their capacity of 200 users can be upgraded to supergroups of up to 1,000 members\n\nMore about admins and supergroups:\n{link}";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

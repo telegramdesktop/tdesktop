@@ -675,7 +675,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_really_share_contact" = "Wil je dit contact delen?";
 "lng_send_image_compressed" = "Gecomprimeerde afbeelding sturen";
 "lng_send_image_empty" = "Bestand bestaat niet of is leeg :(";
-"lng_send_image_too_large" = "Dit bestand is groter dan 1,5GB en kan niet worden verstuurd :(";
+"lng_send_image_too_large" = "Dit bestand is groter dan 1,5 GB en kan niet worden verstuurd :(";
 "lng_send_folder" = "Kan de map «{name}» niet versturen, kies een bestand. :(";
 
 "lng_forward_choose" = "Ontvanger kiezen";
@@ -759,7 +759,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Overzicht van gedeelde audiobestanden\n— Nieuw pop-up-menu ontwerp\n— Onderschrift toevoegen aan foto's\n— Omgeef tekst met een enkele `accents graves`‍ om een regel code te markeren, of omgeef een blok code met drie  ‍`‍`‍`accents graves`‍`‍`‍ \n— Aanpassing aan de weergave van het ~tilde~ symbool ";
+"lng_new_version_text" = "— Overzicht van gedeelde audiobestanden\n— Nieuw pop-up-menu ontwerp\n— Onderschrift toevoegen aan foto's\n— Omgeef tekst met een enkele `accents graves`‍ om een regel code te markeren, of omgeef een blok code met drie  ‍`‍`‍`accents graves`‍`‍`‍ \n— Aanpassing aan de weergave van het ~tilde~ symbool";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
