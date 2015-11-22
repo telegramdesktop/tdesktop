@@ -1538,12 +1538,14 @@ void MediaView::preloadData(int32 delta) {
 		for (int32 i = from; i <= to; ++i) {
 			History *previewHistory = _msgmigrated ? _migrated : _history;
 			int32 previewIndex = i;
-			if (_msgmigrated && previewIndex >= _migrated->overview[_overview].size()) {
-				previewHistory = _history;
-				previewIndex -= _migrated->overview[_overview].size() + (_history->overviewCount(_overview) - _history->overview[_overview].size());
-			} else if (!_msgmigrated && previewIndex < 0) {
-				previewHistory = _migrated;
-				previewIndex += _migrated->overview[_overview].size();
+			if (_migrated) {
+				if (_msgmigrated && previewIndex >= _migrated->overview[_overview].size()) {
+					previewHistory = _history;
+					previewIndex -= _migrated->overview[_overview].size() + (_history->overviewCount(_overview) - _history->overview[_overview].size());
+				} else if (!_msgmigrated && previewIndex < 0) {
+					previewHistory = _migrated;
+					previewIndex += _migrated->overview[_overview].size();
+				}
 			}
 			if (previewIndex >= 0 && previewIndex < previewHistory->overview[_overview].size() && (previewHistory != (_msgmigrated ? _migrated : _history) || previewIndex != _index)) {
 				if (HistoryItem *item = App::histItemById(previewHistory->channelId(), previewHistory->overview[_overview][previewIndex])) {
@@ -1559,12 +1561,14 @@ void MediaView::preloadData(int32 delta) {
 		}
 		int32 forgetIndex = _index - delta * 2;
 		History *forgetHistory = _msgmigrated ? _migrated : _history;
-		if (_msgmigrated && forgetIndex >= _migrated->overview[_overview].size()) {
-			forgetHistory = _history;
-			forgetIndex -= _migrated->overview[_overview].size() + (_history->overviewCount(_overview) - _history->overview[_overview].size());
-		} else if (!_msgmigrated && forgetIndex < 0) {
-			forgetHistory = _migrated;
-			forgetIndex += _migrated->overview[_overview].size();
+		if (_migrated) {
+			if (_msgmigrated && forgetIndex >= _migrated->overview[_overview].size()) {
+				forgetHistory = _history;
+				forgetIndex -= _migrated->overview[_overview].size() + (_history->overviewCount(_overview) - _history->overview[_overview].size());
+			} else if (!_msgmigrated && forgetIndex < 0) {
+				forgetHistory = _migrated;
+				forgetIndex += _migrated->overview[_overview].size();
+			}
 		}
 		if (forgetIndex >= 0 && forgetIndex < forgetHistory->overview[_overview].size() && (forgetHistory != (_msgmigrated ? _migrated : _history) || forgetIndex != _index)) {
 			if (HistoryItem *item = App::histItemById(forgetHistory->channelId(), forgetHistory->overview[_overview][forgetIndex])) {

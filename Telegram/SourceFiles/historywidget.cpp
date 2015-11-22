@@ -6516,7 +6516,7 @@ void HistoryWidget::onAnimActiveStep() {
 		return _animActiveTimer.stop();
 	}
 
-	HistoryItem *item = (_activeAnimMsgId > 0) ? App::histItemById(_channel, _activeAnimMsgId) : App::histItemById(_migrated->channelId(), -_activeAnimMsgId);
+	HistoryItem *item = (_activeAnimMsgId < 0 && -_activeAnimMsgId < ServerMaxMsgId && _migrated) ? App::histItemById(_migrated->channelId(), -_activeAnimMsgId) : App::histItemById(_channel, _activeAnimMsgId);
 	if (!item || item->detached()) return _animActiveTimer.stop();
 
 	if (getms() - _animActiveStart > st::activeFadeInDuration + st::activeFadeOutDuration) {
