@@ -320,7 +320,7 @@ public:
 	bool mute;
 
 	bool lastKeyboardInited, lastKeyboardUsed;
-	MsgId lastKeyboardId;
+	MsgId lastKeyboardId, lastKeyboardHiddenId;
 	PeerId lastKeyboardFrom;
 
 	mtpRequestId sendRequestId;

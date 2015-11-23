@@ -126,15 +126,14 @@ public:
 
 class StackItemHistory : public StackItem {
 public:
-	StackItemHistory(PeerData *peer, MsgId msgId, QList<MsgId> replyReturns, bool kbWasHidden) : StackItem(peer),
-msgId(msgId), replyReturns(replyReturns), kbWasHidden(kbWasHidden) {
+	StackItemHistory(PeerData *peer, MsgId msgId, QList<MsgId> replyReturns) : StackItem(peer),
+msgId(msgId), replyReturns(replyReturns) {
 	}
 	StackItemType type() const {
 		return HistoryStackItem;
 	}
 	MsgId msgId;
 	QList<MsgId> replyReturns;
-	bool kbWasHidden;
 };
 
 class StackItemProfile : public StackItem {

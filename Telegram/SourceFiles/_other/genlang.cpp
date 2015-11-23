@@ -276,11 +276,11 @@ QString escapeCpp(const QByteArray &key, QString value) {
 			}
 			res.append(' ').append('u').append('"').append('\\').append('x').append(QString("%1").arg(ch->unicode(), 4, 16, QChar('0'))).append('"');
 		} else {
-			if (!instr) {
-				res.append(' ').append('u').append('"');
-				instr = true;
-			}
 			if (ch->unicode() == '\\' || ch->unicode() == '\n' || ch->unicode() == '\r' || ch->unicode() == '"') {
+				if (!instr) {
+					res.append(' ').append('u').append('"');
+					instr = true;
+				}
 				res.append('\\');
 				if (ch->unicode() == '\\' || ch->unicode() == '"') {
 					res.append(*ch);
@@ -294,16 +294,26 @@ QString escapeCpp(const QByteArray &key, QString value) {
 					if (ch + 3 >= e || (ch + 1)->unicode() != TextCommandLangTag || (ch + 2)->unicode() > 0x007F || (ch + 2)->unicode() < 0x0020 || *(ch + 3) != TextCommand) {
 						throw Exception(QString("Bad value for key '%1'").arg(QLatin1String(key)));
 					} else {
+						if (instr) {
+							res.append('"');
+							instr = false;
+						}
+						res.append(' ').append('u').append('"');
 						res.append('\\').append('x').append(QString("%1").arg(ch->unicode(), 2, 16, QChar('0')));
 						res.append('\\').append('x').append(QString("%1").arg((ch + 1)->unicode(), 2, 16, QChar('0')));
 						res.append('\\').append('x').append(QString("%1").arg((ch + 2)->unicode(), 2, 16, QChar('0')));
 						res.append('\\').append('x').append(QString("%1").arg((ch + 3)->unicode(), 2, 16, QChar('0')));
+						res.append('"');
 						ch += 3;
 					}
 				} else {
 					throw Exception(QString("Bad value for key '%1'").arg(QLatin1String(key)));
 				}
 			} else {
+				if (!instr) {
+					res.append(' ').append('u').append('"');
+					instr = true;
+				}
 				res.append(*ch);
 			}
 		}

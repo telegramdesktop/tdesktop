@@ -507,9 +507,6 @@ public:
 	void setReplyReturns(PeerId peer, const QList<MsgId> &replyReturns);
 	void calcNextReplyReturn();
 
-	bool kbWasHidden();
-	void setKbWasHidden();
-
 	void updatePreview();
 	void previewCancel();
 
@@ -770,7 +767,9 @@ private:
 	anim::cvalue a_recordCancel;
 	int32 _recordCancelWidth;
 
-	bool _kbShown, _kbWasHidden;
+	bool kbWasHidden() const;
+
+	bool _kbShown;
 	HistoryItem *_kbReplyTo;
 	ScrollArea _kbScroll;
 	BotKeyboard _keyboard;
