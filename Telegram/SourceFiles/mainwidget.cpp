@@ -318,7 +318,7 @@ void TopBarWidget::showAll() {
 		_forward.hide();
 		_mediaType.hide();
 	} else {
-		if (p && p->isChannel() && p->asChannel()->amCreator()) {
+		if (p && p->isChannel() && (p->asChannel()->amCreator() || (p->isMegagroup() && p->asChannel()->amEditor()))) {
 			_edit.show();
 		} else {
 			_edit.hide();
