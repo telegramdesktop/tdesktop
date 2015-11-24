@@ -274,11 +274,16 @@ QString escapeCpp(const QByteArray &key, QString value) {
 				res.append('"');
 				instr = false;
 			}
-			res.append(' ').append('u').append('"').append('\\').append('x').append(QString("%1").arg(ch->unicode(), 4, 16, QChar('0'))).append('"');
+			res.append(' ').append('"');
+			QByteArray utf(QString(*ch).toUtf8());
+			for (const unsigned char *uch = (const unsigned char *)utf.constData(), *ue = (const unsigned char *)utf.constData() + utf.size(); uch != ue; ++uch) {
+				res.append('\\').append('x').append(QString("%1").arg(ushort(*uch), 2, 16, QChar('0')));
+			}
+			res.append('"');
 		} else {
 			if (ch->unicode() == '\\' || ch->unicode() == '\n' || ch->unicode() == '\r' || ch->unicode() == '"') {
 				if (!instr) {
-					res.append(' ').append('u').append('"');
+					res.append(' ').append('"');
 					instr = true;
 				}
 				res.append('\\');
@@ -298,7 +303,7 @@ QString escapeCpp(const QByteArray &key, QString value) {
 							res.append('"');
 							instr = false;
 						}
-						res.append(' ').append('u').append('"');
+						res.append(' ').append('"');
 						res.append('\\').append('x').append(QString("%1").arg(ch->unicode(), 2, 16, QChar('0')));
 						res.append('\\').append('x').append(QString("%1").arg((ch + 1)->unicode(), 2, 16, QChar('0')));
 						res.append('\\').append('x').append(QString("%1").arg((ch + 2)->unicode(), 2, 16, QChar('0')));
@@ -311,7 +316,7 @@ QString escapeCpp(const QByteArray &key, QString value) {
 				}
 			} else {
 				if (!instr) {
-					res.append(' ').append('u').append('"');
+					res.append(' ').append('"');
 					instr = true;
 				}
 				res.append(*ch);
