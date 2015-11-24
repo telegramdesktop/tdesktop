@@ -80,6 +80,7 @@ private:
 
 	void updateControls();
 	void findCurrent();
+	void preloadNext();
 
 	void startPlay(const FullMsgId &msgId);
 
