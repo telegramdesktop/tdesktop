@@ -79,6 +79,7 @@ void BlueTitleClose::paintEvent(QPaintEvent *e) {
 AbstractBox::AbstractBox(int32 w) : LayeredWidget()
 , _maxHeight(0)
 , _hiding(false)
+, _closed(false)
 , a_opacity(0, 1)
 , _blueTitle(false)
 , _blueClose(0)
@@ -190,7 +191,10 @@ int32 AbstractBox::countHeight() const {
 }
 
 void AbstractBox::onClose() {
-	closePressed();
+	if (!_closed) {
+		_closed = true;
+		closePressed();
+	}
 	emit closed();
 }
 

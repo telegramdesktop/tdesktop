@@ -94,7 +94,7 @@ private:
 	int32 _maxHeight;
 	int32 countHeight() const;
 
-	bool _hiding;
+	bool _hiding, _closed;
 	QPixmap _cache;
 
 	anim::fvalue a_opacity;

@@ -210,7 +210,7 @@ FileLoadTask::FileLoadTask(const QByteArray &audio, int32 duration, const FileLo
 void FileLoadTask::process() {
 	const QString stickerMime = qsl("image/webp");
 
-	_result = FileLoadResultPtr(new FileLoadResult(_id, _to));
+	_result = FileLoadResultPtr(new FileLoadResult(_id, _to, _originalText));
 
 	QString filename, filemime;
 	qint64 filesize = 0;
