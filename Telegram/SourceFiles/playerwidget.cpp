@@ -305,14 +305,21 @@ void PlayerWidget::findCurrent() {
 			}
 		}
 	}
+	preloadNext();
+}
+
+void PlayerWidget::preloadNext() {
 	if (_index < 0) return;
 
 	History *history = _msgmigrated ? _migrated : _history;
+	const History::MediaOverview *o = &history->overview[OverviewAudioDocuments];
 	HistoryItem *next = 0;
 	if (_index < o->size() - 1) {
 		next = App::histItemById(history->channelId(), o->at(_index + 1));
 	} else if (_msgmigrated && _index == o->size() - 1 && _history->overviewLoaded(OverviewAudioDocuments) && _history->overviewCount(OverviewAudioDocuments) > 0) {
 		next = App::histItemById(_history->channelId(), _history->overview[OverviewAudioDocuments].at(0));
+	} else if (_msgmigrated && _index == o->size() - 1 && !_history->overviewCountLoaded(OverviewAudioDocuments)) {
+		if (App::main()) App::main()->preloadOverview(_history->peer, OverviewAudioDocuments);
 	}
 	if (next) {
 		if (HistoryDocument *document = static_cast<HistoryDocument*>(next->getMedia())) {
@@ -351,6 +358,7 @@ void PlayerWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) 
 			for (int i = 0, l = history->overview[OverviewAudioDocuments].size(); i < l; ++i) {
 				if (history->overview[OverviewAudioDocuments].at(i) == _song.msgId.msg) {
 					_index = i;
+					preloadNext();
 					break;
 				}
 			}
