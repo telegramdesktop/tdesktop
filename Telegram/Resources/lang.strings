@@ -487,6 +487,9 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_action_add_user" = "{from} added {user}";
 "lng_action_add_user_and_user" = "{from} added {user} and {second_user}";
 "lng_action_add_users" = "{from} added {user} and {count:_not_used|# more member|# more members}";
+"lng_action_add_users_many" = "{from} added {users}";
+"lng_action_add_users_and_one" = "{accumulated}, {user}";
+"lng_action_add_users_and_last" = "{accumulated} and {user}";
 "lng_action_add_you" = "{from} added you to this channel";
 "lng_action_you_joined" = "You joined this channel";
 "lng_action_add_you_group" = "{from} added you to this group";
@@ -613,7 +616,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_bot_description" = "What can this bot do?";
 "lng_unblock_button" = "Unblock";
 "lng_channel_join" = "Join Channel";
-"lng_group_join" = "Join Group";
 "lng_channel_mute" = "Mute";
 "lng_channel_unmute" = "Unmute";
 
