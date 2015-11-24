@@ -698,7 +698,7 @@ void Application::checkMapVersion() {
 			QString versionFeatures;
 			if (cDevVersion() && Local::oldMapVersion() < 9011) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Groups can now have multiple administrators with the ability to edit the name and logo, and add and remove members.\n\xe2\x80\x94 Groups that have reached their capacity of 200 users can be upgraded to supergroups of up to 1,000 members.\n\nWARNING: Only updated Telegram apps will be able to open supergroups. DO NOT upgrade your groups before the stable version is out and updates for other apps are released.");// .replace('@', qsl("@") + QChar(0x200D));
-			} else if (false && Local::oldMapVersion() < 9013) {
+			} else if (Local::oldMapVersion() < 9013) {
 				versionFeatures = lng_new_version_text(lt_link, qsl("https://telegram.org/blog/supergroups")).trimmed();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
