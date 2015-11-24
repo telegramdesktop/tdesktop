@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -26,18 +29,19 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "gui/text.h"
 
-PasscodeWidget::PasscodeWidget(QWidget *parent) : QWidget(parent),
-_passcode(this, st::passcodeInput),
-_submit(this, lang(lng_passcode_submit), st::passcodeSubmit),
-_logout(this, lang(lng_passcode_logout)) {
+PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
+, _a_show(animFunc(this, &PasscodeWidget::animStep_show))
+, _passcode(this, st::passcodeInput)
+, _submit(this, lang(lng_passcode_submit), st::passcodeSubmit)
+, _logout(this, lang(lng_passcode_logout)) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
-	connect(App::wnd(), SIGNAL(resized(const QSize &)), this, SLOT(onParentResize(const QSize &)));
+	connect(App::wnd(), SIGNAL(resized(const QSize&)), this, SLOT(onParentResize(const QSize&)));
 
 	_passcode.setEchoMode(QLineEdit::Password);
 	connect(&_submit, SIGNAL(clicked()), this, SLOT(onSubmit()));
 
 	connect(&_passcode, SIGNAL(changed()), this, SLOT(onChanged()));
-	connect(&_passcode, SIGNAL(accepted()), this, SLOT(onSubmit()));
+	connect(&_passcode, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 
 	connect(&_logout, SIGNAL(clicked()), App::wnd(), SLOT(onLogout()));
 
@@ -51,13 +55,11 @@ void PasscodeWidget::onParentResize(const QSize &newSize) {
 
 void PasscodeWidget::onSubmit() {
 	if (_passcode.text().isEmpty()) {
-		_passcode.setFocus();
 		_passcode.notaBene();
 		return;
 	}
 	if (!passcodeCanTry()) {
 		_error = lang(lng_flood_error);
-		_passcode.setFocus();
 		_passcode.notaBene();
 		update();
 		return;
@@ -96,7 +98,6 @@ void PasscodeWidget::onSubmit() {
 void PasscodeWidget::onError() {
 	_error = lang(lng_passcode_wrong);
 	_passcode.selectAll();
-	_passcode.setFocus();
 	_passcode.notaBene();
 	update();
 }
@@ -109,45 +110,52 @@ void PasscodeWidget::onChanged() {
 }
 
 void PasscodeWidget::animShow(const QPixmap &bgAnimCache, bool back) {
-	_bgAnimCache = bgAnimCache;
+	if (App::app()) App::app()->mtpPause();
 
-	anim::stop(this);
+	(back ? _cacheOver : _cacheUnder) = bgAnimCache;
+
+	_a_show.stop();
+
 	showAll();
-	_animCache = myGrab(this, rect());
-
-	a_coord = back ? anim::ivalue(-st::introSlideShift, 0) : anim::ivalue(st::introSlideShift, 0);
-	a_alpha = anim::fvalue(0, 1);
-	a_bgCoord = back ? anim::ivalue(0, st::introSlideShift) : anim::ivalue(0, -st::introSlideShift);
-	a_bgAlpha = anim::fvalue(1, 0);
-
+	(back ? _cacheUnder : _cacheOver) = myGrab(this);
 	hideAll();
-	anim::start(this);
+
+	a_coordUnder = back ? anim::ivalue(-qFloor(st::slideShift * width()), 0) : anim::ivalue(0, -qFloor(st::slideShift * width()));
+	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
+	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
+	_a_show.start();
+
 	show();
 }
 
-bool PasscodeWidget::animStep(float64 ms) {
-	float64 fullDuration = st::introSlideDelta + st::introSlideDuration, dt = ms / fullDuration;
-	float64 dt1 = (ms > st::introSlideDuration) ? 1 : (ms / st::introSlideDuration), dt2 = (ms > st::introSlideDelta) ? (ms - st::introSlideDelta) / (st::introSlideDuration) : 0;
+bool PasscodeWidget::animStep_show(float64 ms) {
+	float64 dt = ms / st::slideDuration;
 	bool res = true;
-	if (dt2 >= 1) {
-		res = false;
-		a_bgCoord.finish();
-		a_bgAlpha.finish();
-		a_coord.finish();
-		a_alpha.finish();
+	if (dt >= 1) {
+		_a_show.stop();
 
-		_animCache = _bgAnimCache = QPixmap();
+		res = false;
+		a_coordUnder.finish();
+		a_coordOver.finish();
+		a_shadow.finish();
+
+		_cacheUnder = _cacheOver = QPixmap();
 
 		showAll();
 		if (App::wnd()) App::wnd()->setInnerFocus();
+
+		if (App::app()) App::app()->mtpUnpause();
 	} else {
-		a_bgCoord.update(dt1, st::introHideFunc);
-		a_bgAlpha.update(dt1, st::introAlphaHideFunc);
-		a_coord.update(dt2, st::introShowFunc);
-		a_alpha.update(dt2, st::introAlphaShowFunc);
+		a_coordUnder.update(dt, st::slideFunction);
+		a_coordOver.update(dt, st::slideFunction);
+		a_shadow.update(dt, st::slideFunction);
 	}
 	update();
 	return res;
+}
+
+void PasscodeWidget::animStop_show() {
+	_a_show.stop();
 }
 
 void PasscodeWidget::showAll() {
@@ -171,11 +179,16 @@ void PasscodeWidget::paintEvent(QPaintEvent *e) {
 		p.setClipRect(e->rect());
 	}
 
-	if (animating()) {
-		p.setOpacity(a_bgAlpha.current());
-		p.drawPixmap(a_bgCoord.current(), 0, _bgAnimCache);
-		p.setOpacity(a_alpha.current());
-		p.drawPixmap(a_coord.current(), 0, _animCache);
+	if (_a_show.animating()) {
+		if (a_coordOver.current() > 0) {
+			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * cRetinaFactor(), 0, a_coordOver.current() * cRetinaFactor(), height() * cRetinaFactor()));
+			p.setOpacity(a_shadow.current() * st::slideFadeOut);
+			p.fillRect(0, 0, a_coordOver.current(), height(), st::black->b);
+			p.setOpacity(1);
+		}
+		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
+		p.setOpacity(a_shadow.current());
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow);
 	} else {
 		p.fillRect(rect(), st::setBG->b);
 
@@ -183,16 +196,16 @@ void PasscodeWidget::paintEvent(QPaintEvent *e) {
 		p.drawText(QRect(0, _passcode.y() - st::passcodeHeaderHeight, width(), st::passcodeHeaderHeight), lang(lng_passcode_enter), style::al_center);
 
 		if (!_error.isEmpty()) {
-			p.setFont(st::boxFont->f);
+			p.setFont(st::boxTextFont->f);
 			p.setPen(st::setErrColor->p);
-			p.drawText(QRect(0, _passcode.y() + _passcode.height(), width(), st::usernameSkip), _error, style::al_center);
+			p.drawText(QRect(0, _passcode.y() + _passcode.height(), width(), st::passcodeSubmitSkip), _error, style::al_center);
 		}
 	}
 }
 
 void PasscodeWidget::resizeEvent(QResizeEvent *e) {
 	_passcode.move((width() - _passcode.width()) / 2, (height() / 3));
-	_submit.move(_passcode.x(), _passcode.y() + _passcode.height() + st::passcodeSkip);
+	_submit.move(_passcode.x(), _passcode.y() + _passcode.height() + st::passcodeSubmitSkip);
 	_logout.move(_passcode.x() + (_passcode.width() - _logout.width()) / 2, _submit.y() + _submit.height() + st::linkFont->ascent);
 }
 

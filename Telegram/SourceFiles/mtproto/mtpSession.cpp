@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include <QtCore/QSharedPointer>
@@ -63,7 +66,15 @@ void MTPSessionData::clear() {
 }
 
 
-MTProtoSession::MTProtoSession() : _killed(false), data(this), dcWithShift(0), dc(0), msSendCall(0), msWait(0), _ping(false) {
+MTProtoSession::MTProtoSession() : QObject()
+, _killed(false)
+, _needToReceive(false)
+, data(this)
+, dcWithShift(0)
+, dc(0)
+, msSendCall(0)
+, msWait(0)
+, _ping(false) {
 }
 
 void MTProtoSession::start(int32 dcenter) {
@@ -139,6 +150,13 @@ void MTProtoSession::kill() {
 	stop();
 	_killed = true;
 	DEBUG_LOG(("Session Info: marked session dcWithShift %1 as killed").arg(dcWithShift));
+}
+
+void MTProtoSession::unpaused() {
+	if (_needToReceive) {
+		_needToReceive = false;
+		QTimer::singleShot(0, this, SLOT(tryToReceive()));
+	}
 }
 
 void MTProtoSession::sendAnything(quint64 msCanWait) {
@@ -489,6 +507,10 @@ int32 MTProtoSession::getDcWithShift() const {
 }
 
 void MTProtoSession::tryToReceive() {
+	if (_mtp_internal::paused()) {
+		_needToReceive = true;
+		return;
+	}
 	int32 cnt = 0;
 	while (true) {
 		mtpRequestId requestId;

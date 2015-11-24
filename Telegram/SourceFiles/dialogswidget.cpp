@@ -12,13 +12,17 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
 #include "lang.h"
 
+#include "application.h"
 #include "window.h"
 #include "dialogswidget.h"
 #include "mainwidget.h"
@@ -27,25 +31,31 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "localstorage.h"
 
-DialogsListWidget::DialogsListWidget(QWidget *parent, MainWidget *main) : QWidget(parent),
-dialogs(DialogsSortByDate),
-contactsNoDialogs(DialogsSortByName),
-contacts(DialogsSortByName),
-sel(0),
-contactSel(false),
-selByMouse(false),
-hashtagSel(-1),
-filteredSel(-1),
-searchedCount(0),
-searchedSel(-1),
-peopleSel(-1),
-_lastSearchId(0),
-_state(DefaultState),
-_addContactLnk(this, lang(lng_add_contact_button)),
-_cancelSearchInPeer(this, st::btnCancelSearch),
-_overDelete(false),
-_searchInPeer(0) {
-	connect(main, SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)));
+DialogsInner::DialogsInner(QWidget *parent, MainWidget *main) : SplittedWidget(parent)
+, dialogs(DialogsSortByDate)
+, contactsNoDialogs(DialogsSortByName)
+, contacts(DialogsSortByName)
+, sel(0)
+, contactSel(false)
+, selByMouse(false)
+, _hashtagSel(-1)
+, _filteredSel(-1)
+, _searchedCount(0)
+, _searchedMigratedCount(0)
+, _searchedSel(-1)
+, _peopleSel(-1)
+, _lastSearchDate(0)
+, _lastSearchPeer(0)
+, _lastSearchId(0)
+, _lastSearchMigratedId(0)
+, _state(DefaultState)
+, _addContactLnk(this, lang(lng_add_contact_button))
+, _cancelSearchInPeer(this, st::btnCancelSearch)
+, _overDelete(false)
+, _searchInPeer(0)
+, _searchInMigrated(0) {
+	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
+	connect(main, SIGNAL(peerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)));
 	connect(main, SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(onPeerPhotoChanged(PeerData*)));
 	connect(main, SIGNAL(dialogRowReplaced(DialogRow*,DialogRow*)), this, SLOT(onDialogRowReplaced(DialogRow*,DialogRow*)));
 	connect(&_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
@@ -54,173 +64,171 @@ _searchInPeer(0) {
 	refresh(false);
 }
 
-int32 DialogsListWidget::filteredOffset() const {
-	return hashtagResults.size() * st::mentionHeight;
+int32 DialogsInner::filteredOffset() const {
+	return _hashtagResults.size() * st::mentionHeight;
 }
 
-int32 DialogsListWidget::peopleOffset() const {
-	return filteredOffset() + (filterResults.size() * st::dlgHeight) + st::searchedBarHeight;
+int32 DialogsInner::peopleOffset() const {
+	return filteredOffset() + (_filterResults.size() * st::dlgHeight) + st::searchedBarHeight;
 }
 
-int32 DialogsListWidget::searchedOffset() const {
-	int32 result = peopleOffset() + (peopleResults.isEmpty() ? 0 : ((peopleResults.size() * st::dlgHeight) + st::searchedBarHeight));
+int32 DialogsInner::searchedOffset() const {
+	int32 result = peopleOffset() + (_peopleResults.isEmpty() ? 0 : ((_peopleResults.size() * st::dlgHeight) + st::searchedBarHeight));
 	if (_searchInPeer) result += st::dlgHeight;
 	return result;
 }
 
-void DialogsListWidget::paintEvent(QPaintEvent *e) {
+void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingOther) {
+	QRegion original(rtl() ? region.translated(-otherWidth(), 0) : region);
+	if (App::wnd() && App::wnd()->contentOverlapped(this, original)) return;
+
 	if (!App::main()) return;
 
-	QRect r(e->rect());
-	bool trivial = (rect() == r);
-
-	Painter p(this); 
-	if (!trivial) {
+	QRect r(region.boundingRect());
+	if (!paintingOther) {
 		p.setClipRect(r);
 	}
-	
+
 	if (_state == DefaultState) {
 		int32 otherStart = dialogs.list.count * st::dlgHeight;
 		PeerData *active = App::main()->activePeer(), *selected = sel ? sel->history->peer : 0;
 		if (otherStart) {
-			dialogs.list.paint(p, width(), r.top(), r.bottom(), active, selected);
+			dialogs.list.paint(p, fullWidth(), r.top(), r.top() + r.height(), active, selected, paintingOther);
 		}
 		if (contactsNoDialogs.list.count && false) {
-			contactsNoDialogs.list.paint(p, width(), r.top() - otherStart, r.bottom() - otherStart, active, selected);
+			contactsNoDialogs.list.paint(p, fullWidth(), r.top() - otherStart, r.top() + r.height() - otherStart, active, selected, paintingOther);
 		} else if (!otherStart) {
-			p.setFont(st::noContactsFont->f);
-			p.setPen(st::noContactsColor->p);
-			p.drawText(QRect(0, 0, width(), st::noContactsHeight - (cContactsReceived() ? st::noContactsFont->height : 0)), lang(cContactsReceived() ? lng_no_chats : lng_contacts_loading), style::al_center);
+			p.fillRect(r, st::white->b);
+			if (!paintingOther) {
+				p.setFont(st::noContactsFont->f);
+				p.setPen(st::noContactsColor->p);
+				p.drawText(QRect(0, 0, fullWidth(), st::noContactsHeight - (cContactsReceived() ? st::noContactsFont->height : 0)), lang(cContactsReceived() ? lng_no_chats : lng_contacts_loading), style::al_center);
+			}
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
-		if (!hashtagResults.isEmpty()) {
-			int32 from = r.top() / int32(st::mentionHeight);
-			if (from < 0) {
-				from = 0;
-			} else if (from > hashtagResults.size()) {
-				from = hashtagResults.size();
-			}
+		if (!_hashtagResults.isEmpty()) {
+			int32 from = floorclamp(r.y(), st::mentionHeight, 0, _hashtagResults.size());
+			int32 to = ceilclamp(r.y() + r.height(), st::mentionHeight, 0, _hashtagResults.size());
 			p.translate(0, from * st::mentionHeight);
-			if (from < hashtagResults.size()) {
-				int32 to = (r.bottom() / int32(st::mentionHeight)) + 1, w = width(), htagwidth = w - st::dlgPaddingHor * 2;
-				if (to > hashtagResults.size()) to = hashtagResults.size();
+			if (from < _hashtagResults.size()) {
+				int32 w = fullWidth(), htagwidth = w - st::dlgPaddingHor * 2;
+
 				p.setFont(st::mentionFont->f);
 				p.setPen(st::black->p);
 				for (; from < to; ++from) {
-					bool selected = (from == hashtagSel);
-					if (selected) {
-						p.fillRect(0, 0, w, st::mentionHeight, st::mentionBgOver->b);
-						int skip = (st::mentionHeight - st::notifyClose.icon.pxHeight()) / 2;
-						p.drawPixmap(QPoint(w - st::notifyClose.icon.pxWidth() - skip, skip), App::sprite(), st::notifyClose.icon);
-					}
+					bool selected = (from == _hashtagSel);
+					p.fillRect(0, 0, w, st::mentionHeight, (selected ? st::mentionBgOver : st::white)->b);
+					if (!paintingOther) {
+						if (selected) {
+							int skip = (st::mentionHeight - st::notifyClose.icon.pxHeight()) / 2;
+							p.drawPixmap(QPoint(w - st::notifyClose.icon.pxWidth() - skip, skip), App::sprite(), st::notifyClose.icon);
 
-					QString first = (_hashtagFilter.size() < 2) ? QString() : ('#' + hashtagResults.at(from).mid(0, _hashtagFilter.size() - 1)), second = (_hashtagFilter.size() < 2) ? ('#' + hashtagResults.at(from)) : hashtagResults.at(from).mid(_hashtagFilter.size() - 1);
-					int32 firstwidth = st::mentionFont->m.width(first), secondwidth = st::mentionFont->m.width(second);
-					if (htagwidth < firstwidth + secondwidth) {
-						if (htagwidth < firstwidth + st::mentionFont->elidew) {
-							first = st::mentionFont->m.elidedText(first + second, Qt::ElideRight, htagwidth);
-							second = QString();
-						} else {
-							second = st::mentionFont->m.elidedText(second, Qt::ElideRight, htagwidth - firstwidth);
 						}
-					}
+						QString first = (_hashtagFilter.size() < 2) ? QString() : ('#' + _hashtagResults.at(from).mid(0, _hashtagFilter.size() - 1)), second = (_hashtagFilter.size() < 2) ? ('#' + _hashtagResults.at(from)) : _hashtagResults.at(from).mid(_hashtagFilter.size() - 1);
+						int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second);
+						if (htagwidth < firstwidth + secondwidth) {
+							if (htagwidth < firstwidth + st::mentionFont->elidew) {
+								first = st::mentionFont->elided(first + second, htagwidth);
+								second = QString();
+							} else {
+								second = st::mentionFont->elided(second, htagwidth - firstwidth);
+							}
+						}
 
-					p.setFont(st::mentionFont->f);
-					if (!first.isEmpty()) {
-						p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
-						p.drawText(st::dlgPaddingHor, st::mentionTop + st::mentionFont->ascent, first);
-					}
-					if (!second.isEmpty()) {
-						p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
-						p.drawText(st::dlgPaddingHor + firstwidth, st::mentionTop + st::mentionFont->ascent, second);
+						p.setFont(st::mentionFont->f);
+						if (!first.isEmpty()) {
+							p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
+							p.drawText(st::dlgPaddingHor, st::mentionTop + st::mentionFont->ascent, first);
+						}
+						if (!second.isEmpty()) {
+							p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
+							p.drawText(st::dlgPaddingHor + firstwidth, st::mentionTop + st::mentionFont->ascent, second);
+						}
 					}
 					p.translate(0, st::mentionHeight);
 				}
 			}
 		}
-		if (!filterResults.isEmpty()) {
+		if (!_filterResults.isEmpty()) {
 			int32 skip = filteredOffset();
-			int32 from = (r.top() - skip) / int32(st::dlgHeight);
-			if (from < 0) {
-				from = 0;
-			} else if (from > filterResults.size()) {
-				from = filterResults.size();
-			}
+			int32 from = floorclamp(r.y() - skip, st::dlgHeight, 0, _filterResults.size());
+			int32 to = ceilclamp(r.y() + r.height() - skip, st::dlgHeight, 0, _filterResults.size());
 			p.translate(0, from * st::dlgHeight);
-			if (from < filterResults.size()) {
-				int32 to = (r.bottom() / int32(st::dlgHeight)) + 1, w = width();
-				if (to > filterResults.size()) to = filterResults.size();
+			if (from < _filterResults.size()) {
+				int32 w = fullWidth();
+				PeerData *act = App::main()->activePeer();
+				MsgId actId = App::main()->activeMsgId();
 				for (; from < to; ++from) {
-					bool active = (filterResults[from]->history->peer == App::main()->activePeer() && !App::main()->activeMsgId());
-					bool selected = (from == filteredSel);
-					filterResults[from]->paint(p, w, active, selected);
+					bool active = ((_filterResults[from]->history->peer == act) || (_filterResults[from]->history->peer->migrateTo() && _filterResults[from]->history->peer->migrateTo() == act)) && !actId;					
+					bool selected = (from == _filteredSel);
+					_filterResults[from]->paint(p, w, active, selected, paintingOther);
 					p.translate(0, st::dlgHeight);
 				}
 			}
 		}
 
-		if (!peopleResults.isEmpty()) {
-			p.fillRect(0, 0, width(), st::searchedBarHeight, st::searchedBarBG->b);
-			p.setFont(st::searchedBarFont->f);
-			p.setPen(st::searchedBarColor->p);
-			p.drawText(QRect(0, 0, width(), st::searchedBarHeight), lang(lng_search_global_results), style::al_center);
-			p.translate(0, st::searchedBarHeight);
-		
-			int32 skip = peopleOffset();
-			int32 from = (r.top() - skip) / int32(st::dlgHeight);
-			if (from < 0) {
-				from = 0;
-			} else if (from > peopleResults.size()) {
-				from = peopleResults.size();
+		if (!_peopleResults.isEmpty()) {
+			p.fillRect(0, 0, fullWidth(), st::searchedBarHeight, st::searchedBarBG->b);
+			if (!paintingOther) {
+				p.setFont(st::searchedBarFont->f);
+				p.setPen(st::searchedBarColor->p);
+				p.drawText(QRect(0, 0, fullWidth(), st::searchedBarHeight), lang(lng_search_global_results), style::al_center);
 			}
+			p.translate(0, st::searchedBarHeight);
+
+			int32 skip = peopleOffset();
+			int32 from = floorclamp(r.y() - skip, st::dlgHeight, 0, _peopleResults.size());
+			int32 to = ceilclamp(r.y() + r.height() - skip, st::dlgHeight, 0, _peopleResults.size());
 			p.translate(0, from * st::dlgHeight);
-			if (from < peopleResults.size()) {
-				int32 to = ((r.bottom() - skip) / int32(st::dlgHeight)) + 1, w = width();
-				if (to > peopleResults.size()) to = peopleResults.size();
+			if (from < _peopleResults.size()) {
+				int32 w = fullWidth();
+				PeerData *act = App::main()->activePeer();
+				MsgId actId = App::main()->activeMsgId();
 				for (; from < to; ++from) {
-					bool active = (peopleResults[from] == App::main()->activePeer() && !App::main()->activeMsgId());
-					bool selected = (from == peopleSel);
-					peopleResultPaint(peopleResults[from], p, w, active, selected);
+					bool active = ((_peopleResults[from] == act) || (_peopleResults[from]->migrateTo() && _peopleResults[from]->migrateTo() == act)) && !actId;
+					bool selected = (from == _peopleSel);
+					peopleResultPaint(_peopleResults[from], p, w, active, selected, paintingOther);
 					p.translate(0, st::dlgHeight);
 				}
 			}
 		}
 
 		if (_searchInPeer) {
-			searchInPeerPaint(p, width());
+			searchInPeerPaint(p, fullWidth(), paintingOther);
 			p.translate(0, st::dlgHeight);
-			if (_state == FilteredState && searchResults.isEmpty()) {
-				p.fillRect(0, 0, width(), st::searchedBarHeight, st::searchedBarBG->b);
-				p.setFont(st::searchedBarFont->f);
-				p.setPen(st::searchedBarColor->p);
-				p.drawText(QRect(0, 0, width(), st::searchedBarHeight), lang(lng_dlg_search_for_messages), style::al_center);
+			if (_state == FilteredState && _searchResults.isEmpty()) {
+				p.fillRect(0, 0, fullWidth(), st::searchedBarHeight, st::searchedBarBG->b);
+				if (!paintingOther) {
+					p.setFont(st::searchedBarFont->f);
+					p.setPen(st::searchedBarColor->p);
+					p.drawText(QRect(0, 0, fullWidth(), st::searchedBarHeight), lang(lng_dlg_search_for_messages), style::al_center);
+				}
 				p.translate(0, st::searchedBarHeight);
 			}
 		}
 
-		if (_state == SearchedState || !searchResults.isEmpty()) {
-			QString text = lng_search_found_results(lt_count, searchResults.isEmpty() ? 0 : searchedCount);
-			p.fillRect(0, 0, width(), st::searchedBarHeight, st::searchedBarBG->b);
-			p.setFont(st::searchedBarFont->f);
-			p.setPen(st::searchedBarColor->p);
-			p.drawText(QRect(0, 0, width(), st::searchedBarHeight), text, style::al_center);
+		if (_state == SearchedState || !_searchResults.isEmpty()) {
+			QString text = lng_search_found_results(lt_count, _searchResults.isEmpty() ? 0 : (_searchedMigratedCount + _searchedCount));
+			p.fillRect(0, 0, fullWidth(), st::searchedBarHeight, st::searchedBarBG->b);
+			if (!paintingOther) {
+				p.setFont(st::searchedBarFont->f);
+				p.setPen(st::searchedBarColor->p);
+				p.drawText(QRect(0, 0, fullWidth(), st::searchedBarHeight), text, style::al_center);
+			}
 			p.translate(0, st::searchedBarHeight);
 
 			int32 skip = searchedOffset();
-			int32 from = (r.top() - skip) / int32(st::dlgHeight);
-			if (from < 0) {
-				from = 0;
-			} else if (from > searchResults.size()) {
-				from = searchResults.size();
-			}
+			int32 from = floorclamp(r.y() - skip, st::dlgHeight, 0, _searchResults.size());
+			int32 to = ceilclamp(r.y() + r.height() - skip, st::dlgHeight, 0, _searchResults.size());
 			p.translate(0, from * st::dlgHeight);
-			if (from < searchResults.size()) {
-				int32 to = ((r.bottom() - skip) / int32(st::dlgHeight)) + 1, w = width();
-				if (to > searchResults.size()) to = searchResults.size();
+			if (from < _searchResults.size()) {
+				int32 w = fullWidth();
+				PeerData *act = App::main()->activePeer();
+				MsgId actId = App::main()->activeMsgId();
 				for (; from < to; ++from) {
-					bool active = (searchResults[from]->_item->history()->peer == App::main()->activePeer() && searchResults[from]->_item->id == App::main()->activeMsgId());
-					bool selected = (from == searchedSel);
-					searchResults[from]->paint(p, w, active, selected);
+					bool active = (_searchResults[from]->_item->history()->peer == act && _searchResults[from]->_item->id == actId) || (_searchResults[from]->_item->history()->peer->migrateTo() && _searchResults[from]->_item->history()->peer->migrateTo() == act && _searchResults[from]->_item->id == -actId);
+					bool selected = (from == _searchedSel);
+					_searchResults[from]->paint(p, w, active, selected, paintingOther);
 					p.translate(0, st::dlgHeight);
 				}
 			}
@@ -228,13 +236,18 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void DialogsListWidget::peopleResultPaint(PeerData *peer, Painter &p, int32 w, bool act, bool sel) const {
+void DialogsInner::peopleResultPaint(PeerData *peer, Painter &p, int32 w, bool act, bool sel, bool onlyBackground) const {
 	QRect fullRect(0, 0, w, st::dlgHeight);
 	p.fillRect(fullRect, (act ? st::dlgActiveBG : (sel ? st::dlgHoverBG : st::dlgBG))->b);
+	if (onlyBackground) return;
 
 	History *history = App::history(peer->id);
 
-	p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, peer->photo->pix(st::dlgPhotoSize));
+	if (peer->migrateTo()) {
+		p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, peer->migrateTo()->photo->pix(st::dlgPhotoSize));
+	} else {
+		p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, peer->photo->pix(st::dlgPhotoSize));
+	}
 
 	int32 nameleft = st::dlgPaddingHor + st::dlgPhotoSize + st::dlgPhotoPadding;
 	int32 namewidth = w - nameleft - st::dlgPaddingHor;
@@ -247,39 +260,40 @@ void DialogsListWidget::peopleResultPaint(PeerData *peer, Painter &p, int32 w, b
 	} else if (peer->isChannel()) {
 		p.drawPixmap(QPoint(rectForName.left() + st::dlgChannelImgPos.x(), rectForName.top() + st::dlgChannelImgPos.y()), App::sprite(), (act ? st::dlgActiveChannelImg : st::dlgChannelImg));
 		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
-		if (peer->asChannel()->isVerified()) {
-			rectForName.setWidth(rectForName.width() - st::verifiedCheck.pxWidth() - st::verifiedCheckPos.x());
-			p.drawSprite(rectForName.topLeft() + QPoint(qMin(peer->dialogName().maxWidth(), rectForName.width()), 0) + st::verifiedCheckPos, (act ? st::verifiedCheckInv : st::verifiedCheck));
-		}
 	}
-	
+	if (peer->isVerified()) {
+		rectForName.setWidth(rectForName.width() - st::verifiedCheck.pxWidth() - st::verifiedCheckPos.x());
+		p.drawSprite(rectForName.topLeft() + QPoint(qMin(peer->dialogName().maxWidth(), rectForName.width()), 0) + st::verifiedCheckPos, (act ? st::verifiedCheckInv : st::verifiedCheck));
+	}
+
 	QRect tr(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, namewidth, st::dlgFont->height);
 	p.setFont(st::dlgHistFont->f);
 	QString username = peer->userName();
-	if (!act && username.toLower().startsWith(peopleQuery)) {
-		QString first = '@' + username.mid(0, peopleQuery.size()), second = username.mid(peopleQuery.size());
-		int32 w = st::dlgHistFont->m.width(first);
+	if (!act && username.toLower().startsWith(_peopleQuery)) {
+		QString first = '@' + username.mid(0, _peopleQuery.size()), second = username.mid(_peopleQuery.size());
+		int32 w = st::dlgHistFont->width(first);
 		if (w >= tr.width()) {
 			p.setPen(st::dlgSystemColor->p);
-			p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->m.elidedText(first, Qt::ElideRight, tr.width()));
+			p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->elided(first, tr.width()));
 		} else {
 			p.setPen(st::dlgSystemColor->p);
 			p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, first);
 			p.setPen(st::dlgTextColor->p);
-			p.drawText(tr.left() + w, tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->m.elidedText(second, Qt::ElideRight, tr.width() - w));
+			p.drawText(tr.left() + w, tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->elided(second, tr.width() - w));
 		}
 	} else {
 		p.setPen((act ? st::dlgActiveColor : st::dlgSystemColor)->p);
-		p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->m.elidedText('@' + username, Qt::ElideRight, tr.width()));
+		p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->elided('@' + username, tr.width()));
 	}
 
 	p.setPen((act ? st::dlgActiveColor : st::dlgNameColor)->p);
 	peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
-void DialogsListWidget::searchInPeerPaint(Painter &p, int32 w) const {
+void DialogsInner::searchInPeerPaint(Painter &p, int32 w, bool onlyBackground) const {
 	QRect fullRect(0, 0, w, st::dlgHeight);
 	p.fillRect(fullRect, st::dlgBG->b);
+	if (onlyBackground) return;
 
 	p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, _searchInPeer->photo->pix(st::dlgPhotoSize));
 
@@ -288,7 +302,7 @@ void DialogsListWidget::searchInPeerPaint(Painter &p, int32 w) const {
 	QRect rectForName(nameleft, st::dlgPaddingVer + st::dlgNameTop, namewidth, st::msgNameFont->height);
 
 	// draw chat icon
-	if (_searchInPeer->isChat()) {
+	if (_searchInPeer->isChat() || _searchInPeer->isMegagroup()) {
 		p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), App::sprite(), st::dlgChatImg);
 		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
 	} else if (_searchInPeer->isChannel()) {
@@ -299,23 +313,22 @@ void DialogsListWidget::searchInPeerPaint(Painter &p, int32 w) const {
 	QRect tr(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, namewidth, st::dlgFont->height);
 	p.setFont(st::dlgHistFont->f);
 	p.setPen(st::dlgTextColor->p);
-	p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->m.elidedText(lang(lng_dlg_search_chat), Qt::ElideRight, tr.width()));
+	p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->elided(lang((_searchInPeer->isChannel() && !_searchInPeer->isMegagroup()) ? lng_dlg_search_channel : lng_dlg_search_chat), tr.width()));
 
 	p.setPen(st::dlgNameColor->p);
 	_searchInPeer->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
-void DialogsListWidget::activate() {
+void DialogsInner::activate() {
 }
 
-void DialogsListWidget::mouseMoveEvent(QMouseEvent *e) {
+void DialogsInner::mouseMoveEvent(QMouseEvent *e) {
 	lastMousePos = mapToGlobal(e->pos());
 	selByMouse = true;
 	onUpdateSelected(true);
-    update();
 }
 
-void DialogsListWidget::onUpdateSelected(bool force) {
+void DialogsInner::onUpdateSelected(bool force) {
 	QPoint mouse(mapFromGlobal(lastMousePos));
 	if ((!force && !rect().contains(mouse)) || !selByMouse) return;
 
@@ -331,65 +344,67 @@ void DialogsListWidget::onUpdateSelected(bool force) {
 			contactSel = true;
 		}
 		if (newSel != sel) {
+			updateSelectedRow();
 			sel = newSel;
+			updateSelectedRow();
 			setCursor(sel ? style::cur_pointer : style::cur_default);
-			parentWidget()->update();
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
-		if (!hashtagResults.isEmpty()) {
-			int32 newHashtagSel = mouseY / int32(st::mentionHeight);
-			if (newHashtagSel < 0 || newHashtagSel >= hashtagResults.size()) {
+		if (!_hashtagResults.isEmpty()) {
+			int32 skip = 0, newHashtagSel = (mouseY >= skip) ? ((mouseY - skip) / int32(st::mentionHeight)) : -1;
+			if (newHashtagSel < 0 || newHashtagSel >= _hashtagResults.size()) {
 				newHashtagSel = -1;
 			}
-			if (newHashtagSel != hashtagSel) {
-				hashtagSel = newHashtagSel;
-				setCursor((hashtagSel >= 0) ? style::cur_pointer : style::cur_default);
-				parentWidget()->update();
+			if (newHashtagSel != _hashtagSel) {
+				updateSelectedRow();
+				_hashtagSel = newHashtagSel;
+				updateSelectedRow();
+				setCursor((_hashtagSel >= 0) ? style::cur_pointer : style::cur_default);
 			}
-			if (hashtagSel >= 0) {
+			if (_hashtagSel >= 0) {
 				_overDelete = (mouse.x() >= w - st::mentionHeight);
 			}
-			mouseY -= filteredOffset();
 		}
-		if (!filterResults.isEmpty()) {
-			int32 newFilteredSel = (mouseY >= 0) ? (mouseY / int32(st::dlgHeight)) : -1;
-			if (newFilteredSel < 0 || newFilteredSel >= filterResults.size()) {
+		if (!_filterResults.isEmpty()) {
+			int32 skip = filteredOffset(), newFilteredSel = (mouseY >= skip) ? ((mouseY - skip) / int32(st::dlgHeight)) : -1;
+			if (newFilteredSel < 0 || newFilteredSel >= _filterResults.size()) {
 				newFilteredSel = -1;
 			}
-			if (newFilteredSel != filteredSel) {
-				filteredSel = newFilteredSel;
-				setCursor((filteredSel >= 0) ? style::cur_pointer : style::cur_default);
-				parentWidget()->update();
+			if (newFilteredSel != _filteredSel) {
+				updateSelectedRow();
+				_filteredSel = newFilteredSel;
+				updateSelectedRow();
+				setCursor((_filteredSel >= 0) ? style::cur_pointer : style::cur_default);
 			}
 		}
-		mouseY -= peopleOffset() - filteredOffset();
-		if (!peopleResults.isEmpty()) {
-			int32 newPeopleSel = (mouseY >= 0) ? (mouseY / int32(st::dlgHeight)) : -1;
-			if (newPeopleSel < 0 || newPeopleSel >= peopleResults.size()) {
+		if (!_peopleResults.isEmpty()) {
+			int32 skip = peopleOffset(), newPeopleSel = (mouseY >= skip) ? ((mouseY - skip) / int32(st::dlgHeight)) : -1;
+			if (newPeopleSel < 0 || newPeopleSel >= _peopleResults.size()) {
 				newPeopleSel = -1;
 			}
-			if (newPeopleSel != peopleSel) {
-				peopleSel = newPeopleSel;
-				setCursor((peopleSel >= 0) ? style::cur_pointer : style::cur_default);
-				parentWidget()->update();
+			if (newPeopleSel != _peopleSel) {
+				updateSelectedRow();
+				_peopleSel = newPeopleSel;
+				updateSelectedRow();
+				setCursor((_peopleSel >= 0) ? style::cur_pointer : style::cur_default);
 			}
 		}
-		mouseY -= searchedOffset() - peopleOffset();
-		if (_state == SearchedState && !searchResults.isEmpty()) {
-			int32 newSearchedSel = (mouseY >= 0) ? (mouseY / int32(st::dlgHeight)) : -1;
-			if (newSearchedSel < 0 || newSearchedSel >= searchResults.size()) {
+		if (_state == SearchedState && !_searchResults.isEmpty()) {
+			int32 skip = searchedOffset(), newSearchedSel = (mouseY >= skip) ? ((mouseY - skip) / int32(st::dlgHeight)) : -1;
+			if (newSearchedSel < 0 || newSearchedSel >= _searchResults.size()) {
 				newSearchedSel = -1;
 			}
-			if (newSearchedSel != searchedSel) {
-				searchedSel = newSearchedSel;
-				setCursor((searchedSel >= 0) ? style::cur_pointer : style::cur_default);
-				parentWidget()->update();
+			if (newSearchedSel != _searchedSel) {
+				updateSelectedRow();
+				_searchedSel = newSearchedSel;
+				updateSelectedRow();
+				setCursor((_searchedSel >= 0) ? style::cur_pointer : style::cur_default);
 			}
 		}
 	}
 }
 
-void DialogsListWidget::mousePressEvent(QMouseEvent *e) {
+void DialogsInner::mousePressEvent(QMouseEvent *e) {
 	lastMousePos = mapToGlobal(e->pos());
 	selByMouse = true;
 	onUpdateSelected(true);
@@ -398,20 +413,20 @@ void DialogsListWidget::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
-void DialogsListWidget::resizeEvent(QResizeEvent *e) {
+void DialogsInner::resizeEvent(QResizeEvent *e) {
 	_addContactLnk.move((width() - _addContactLnk.width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);
 	_cancelSearchInPeer.move(width() - st::dlgPaddingHor - st::btnCancelSearch.width, (st::dlgHeight - st::btnCancelSearch.height) / 2);
 }
 
-void DialogsListWidget::onDialogRowReplaced(DialogRow *oldRow, DialogRow *newRow) {
+void DialogsInner::onDialogRowReplaced(DialogRow *oldRow, DialogRow *newRow) {
 	if (_state == FilteredState || _state == SearchedState) {
-		for (FilteredDialogs::iterator i = filterResults.begin(); i != filterResults.end();) {
+		for (FilteredDialogs::iterator i = _filterResults.begin(); i != _filterResults.end();) {
 			if (*i == oldRow) { // this row is shown in filtered and maybe is in contacts!
 				if (newRow) {
 					*i = newRow;
 					++i;
 				} else {
-					i = filterResults.erase(i);
+					i = _filterResults.erase(i);
 				}
 			} else {
 				++i;
@@ -423,7 +438,7 @@ void DialogsListWidget::onDialogRowReplaced(DialogRow *oldRow, DialogRow *newRow
 	}
 }
 
-void DialogsListWidget::createDialog(History *history) {
+void DialogsInner::createDialog(History *history) {
 	bool creating = history->dialogs.isEmpty();
 	if (creating) {
 		history->dialogs = dialogs.addToEnd(history);
@@ -439,34 +454,34 @@ void DialogsListWidget::createDialog(History *history) {
 
 	if (creating) {
 		refresh();
-	} else {
-		parentWidget()->update();
+	} else if (_state == DefaultState && movedFrom != movedTo) {
+		update(0, qMin(movedFrom, movedTo), fullWidth(), qAbs(movedFrom - movedTo) + st::dlgHeight);
 	}
 }
 
-void DialogsListWidget::removePeer(PeerData *peer) {
-	if (sel && sel->history->peer == peer) {
+void DialogsInner::removeDialog(History *history) {
+	if (!history) return;
+	if (sel && sel->history == history) {
 		sel = 0;
 	}
-	History *history = App::history(peer->id);
-	dialogs.del(peer);
+	dialogs.del(history->peer);
 	history->dialogs = History::DialogLinks();
 	history->clearNotifications();
 	if (App::wnd()) App::wnd()->notifyClear(history);
-	if (contacts.list.rowByPeer.constFind(peer->id) != contacts.list.rowByPeer.cend()) {
-		if (contactsNoDialogs.list.rowByPeer.constFind(peer->id) == contactsNoDialogs.list.rowByPeer.cend()) {
-			contactsNoDialogs.addByName(App::history(peer->id));
+	if (contacts.list.rowByPeer.constFind(history->peer->id) != contacts.list.rowByPeer.cend()) {
+		if (contactsNoDialogs.list.rowByPeer.constFind(history->peer->id) == contactsNoDialogs.list.rowByPeer.cend()) {
+			contactsNoDialogs.addByName(history);
 		}
 	}
 
-	Local::removeSavedPeer(peer);
+	Local::removeSavedPeer(history->peer);
 
 	emit App::main()->dialogsUpdated();
 
 	refresh();
 }
 
-void DialogsListWidget::removeContact(UserData *user) {
+void DialogsInner::removeContact(UserData *user) {
 	if (sel && sel->history->peer == user) {
 		sel = 0;
 	}
@@ -476,57 +491,50 @@ void DialogsListWidget::removeContact(UserData *user) {
 	refresh();
 }
 
-void DialogsListWidget::dlgUpdated(DialogRow *row) {
+void DialogsInner::dlgUpdated(DialogRow *row) {
 	if (_state == DefaultState) {
-		update(0, row->pos * st::dlgHeight, width(), st::dlgHeight);
+		update(0, row->pos * st::dlgHeight, fullWidth(), st::dlgHeight);
 	} else if (_state == FilteredState || _state == SearchedState) {
-		int32 cnt = 0;
-		for (FilteredDialogs::const_iterator i = filterResults.cbegin(), e = filterResults.cend(); i != e; ++i) {
-			if ((*i)->history == row->history) {
-				update(0, cnt * st::dlgHeight, width(), st::dlgHeight);
+		for (int32 i = 0, l = _filterResults.size(); i < l; ++i) {
+			if (_filterResults.at(i)->history == row->history) {
+				update(0, i * st::dlgHeight, fullWidth(), st::dlgHeight);
 				break;
 			}
-			++cnt;
 		}
 	}
 }
 
-void DialogsListWidget::dlgUpdated(History *history) {
+void DialogsInner::dlgUpdated(History *history, MsgId msgId) {
 	if (_state == DefaultState) {
 		DialogRow *row = 0;
 		DialogsList::RowByPeer::iterator i = dialogs.list.rowByPeer.find(history->peer->id);
 		if (i != dialogs.list.rowByPeer.cend()) {
-			update(0, i.value()->pos * st::dlgHeight, width(), st::dlgHeight);
-		} else {
-			i = contactsNoDialogs.list.rowByPeer.end();// find(history->peer->id);
-			if (i != contactsNoDialogs.list.rowByPeer.cend()) {
-				update(0, (dialogs.list.count + i.value()->pos) * st::dlgHeight, width(), st::dlgHeight);
-			}
+			update(0, i.value()->pos * st::dlgHeight, fullWidth(), st::dlgHeight);
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
 		int32 cnt = 0, add = filteredOffset();
-		for (FilteredDialogs::const_iterator i = filterResults.cbegin(), e = filterResults.cend(); i != e; ++i) {
+		for (FilteredDialogs::const_iterator i = _filterResults.cbegin(), e = _filterResults.cend(); i != e; ++i) {
 			if ((*i)->history == history) {
-				update(0, cnt * st::dlgHeight, width(), st::dlgHeight);
+				update(0, add + cnt * st::dlgHeight, fullWidth(), st::dlgHeight);
 				break;
 			}
 			++cnt;
 		}
-		if (!peopleResults.isEmpty()) {
+		if (!_peopleResults.isEmpty()) {
 			int32 cnt = 0, add = peopleOffset();
-			for (PeopleResults::const_iterator i = peopleResults.cbegin(), e = peopleResults.cend(); i != e; ++i) {
+			for (PeopleResults::const_iterator i = _peopleResults.cbegin(), e = _peopleResults.cend(); i != e; ++i) {
 				if ((*i) == history->peer) {
-					update(0, add + cnt * st::dlgHeight, width(), st::dlgHeight);
+					update(0, add + cnt * st::dlgHeight, fullWidth(), st::dlgHeight);
 					break;
 				}
 				++cnt;
 			}
 		}
-		if (!searchResults.isEmpty()) {
+		if (!_searchResults.isEmpty()) {
 			int32 cnt = 0, add = searchedOffset();
-			for (SearchResults::const_iterator i = searchResults.cbegin(), e = searchResults.cend(); i != e; ++i) {
-				if ((*i)->_item->history() == history) {
-					update(0, add + cnt * st::dlgHeight, width(), st::dlgHeight);
+			for (SearchResults::const_iterator i = _searchResults.cbegin(), e = _searchResults.cend(); i != e; ++i) {
+				if ((*i)->_item->history() == history && (*i)->_item->id == msgId) {
+					update(0, add + cnt * st::dlgHeight, fullWidth(), st::dlgHeight);
 					break;
 				}
 				++cnt;
@@ -535,24 +543,43 @@ void DialogsListWidget::dlgUpdated(History *history) {
 	}
 }
 
-void DialogsListWidget::enterEvent(QEvent *e) {
+void DialogsInner::enterEvent(QEvent *e) {
 	setMouseTracking(true);
 	lastMousePos = QCursor::pos();
 	onUpdateSelected(true);
 }
 
-void DialogsListWidget::leaveEvent(QEvent *e) {
+void DialogsInner::updateSelectedRow() {
+	if (_state == DefaultState) {
+		if (sel) {
+			update(0, sel->pos * st::dlgHeight, fullWidth(), st::dlgHeight);
+		}
+	} else if (_state == FilteredState || _state == SearchedState) {
+		if (_hashtagSel >= 0) {
+			update(0, _hashtagSel * st::mentionHeight, fullWidth(), st::mentionHeight);
+		} else if (_filteredSel >= 0) {
+			update(0, filteredOffset() + _filteredSel * st::dlgHeight, fullWidth(), st::dlgHeight);
+		} else if (_peopleSel >= 0) {
+			update(0, peopleOffset() + _peopleSel * st::dlgHeight, fullWidth(), st::dlgHeight);
+		} else if (_searchedSel >= 0) {
+			update(0, searchedOffset() + _searchedSel * st::dlgHeight, fullWidth(), st::dlgHeight);
+		}
+	}
+
+}
+
+void DialogsInner::leaveEvent(QEvent *e) {
 	setMouseTracking(false);
 	selByMouse = false;
-	if (sel || filteredSel >= 0 || hashtagSel >= 0 || searchedSel >= 0 || peopleSel >= 0) {
+	if (sel || _filteredSel >= 0 || _hashtagSel >= 0 || _searchedSel >= 0 || _peopleSel >= 0) {
+		updateSelectedRow();
 		sel = 0;
-		filteredSel = searchedSel = peopleSel = hashtagSel = -1;
+		_filteredSel = _searchedSel = _peopleSel = _hashtagSel = -1;
 		setCursor(style::cur_default);
-		parentWidget()->update();
 	}
 }
 
-void DialogsListWidget::onParentGeometryChanged() {
+void DialogsInner::onParentGeometryChanged() {
 	lastMousePos = QCursor::pos();
 	if (rect().contains(mapFromGlobal(lastMousePos))) {
 		setMouseTracking(true);
@@ -560,20 +587,20 @@ void DialogsListWidget::onParentGeometryChanged() {
 	}
 }
 
-void DialogsListWidget::onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
+void DialogsInner::onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
 	dialogs.peerNameChanged(peer, oldNames, oldChars);
 	contactsNoDialogs.peerNameChanged(peer, oldNames, oldChars);
 	contacts.peerNameChanged(peer, oldNames, oldChars);
-	parentWidget()->update();
+	update();
 }
 
-void DialogsListWidget::onPeerPhotoChanged(PeerData *peer) {
-	parentWidget()->update();
+void DialogsInner::onPeerPhotoChanged(PeerData *peer) {
+	update();
 }
 
-void DialogsListWidget::onFilterUpdate(QString newFilter, bool force) {
+void DialogsInner::onFilterUpdate(QString newFilter, bool force) {
 	newFilter = textSearchKey(newFilter);
-	if (newFilter != filter || force) {
+	if (newFilter != _filter || force) {
 		QStringList f;
 		if (!newFilter.isEmpty()) {
 			QStringList filterList = newFilter.split(cWordSplit(), QString::SkipEmptyParts);
@@ -587,20 +614,22 @@ void DialogsListWidget::onFilterUpdate(QString newFilter, bool force) {
 			}
 			newFilter = f.join(' ');
 		}
-		if (newFilter != filter || force) {
-			filter = newFilter;
-			if (!_searchInPeer && filter.isEmpty()) {
+		if (newFilter != _filter || force) {
+			_filter = newFilter;
+			if (!_searchInPeer && _filter.isEmpty()) {
 				_state = DefaultState;
-				hashtagResults.clear();
-				filterResults.clear();
-				peopleResults.clear();
-				searchResults.clear();
-				_lastSearchId = 0;
+				_hashtagResults.clear();
+				_filterResults.clear();
+				_peopleResults.clear();
+				_searchResults.clear();
+				_lastSearchDate = 0;
+				_lastSearchPeer = 0;
+				_lastSearchId = _lastSearchMigratedId = 0;
 			} else {
 				QStringList::const_iterator fb = f.cbegin(), fe = f.cend(), fi;
 
 				_state = FilteredState;
-				filterResults.clear();
+				_filterResults.clear();
 				if (!_searchInPeer && !f.isEmpty()) {
 					DialogsList *dialogsToFilter = 0, *contactsNoDialogsToFilter = 0;
 					if (dialogs.list.count) {
@@ -627,7 +656,7 @@ void DialogsListWidget::onFilterUpdate(QString newFilter, bool force) {
 							}
 						}
 					}
-					filterResults.reserve((dialogsToFilter ? dialogsToFilter->count : 0) + (contactsNoDialogsToFilter ? contactsNoDialogsToFilter->count : 0));
+					_filterResults.reserve((dialogsToFilter ? dialogsToFilter->count : 0) + (contactsNoDialogsToFilter ? contactsNoDialogsToFilter->count : 0));
 					if (dialogsToFilter && dialogsToFilter->count) {
 						for (DialogRow *i = dialogsToFilter->begin, *e = dialogsToFilter->end; i != e; i = i->next) {
 							const PeerData::Names &names(i->history->peer->names);
@@ -644,7 +673,7 @@ void DialogsListWidget::onFilterUpdate(QString newFilter, bool force) {
 								}
 							}
 							if (fi == fe) {
-								filterResults.push_back(i);
+								_filterResults.push_back(i);
 							}
 						}
 					}
@@ -664,7 +693,7 @@ void DialogsListWidget::onFilterUpdate(QString newFilter, bool force) {
 								}
 							}
 							if (fi == fe) {
-								filterResults.push_back(i);
+								_filterResults.push_back(i);
 							}
 						}
 					}
@@ -679,11 +708,11 @@ void DialogsListWidget::onFilterUpdate(QString newFilter, bool force) {
 	}
 }
 
-void DialogsListWidget::onHashtagFilterUpdate(QStringRef newFilter) {
+void DialogsInner::onHashtagFilterUpdate(QStringRef newFilter) {
 	if (newFilter.isEmpty() || newFilter.at(0) != '#' || _searchInPeer) {
 		_hashtagFilter = QString();
-		if (!hashtagResults.isEmpty()) {
-			hashtagResults.clear();
+		if (!_hashtagResults.isEmpty()) {
+			_hashtagResults.clear();
 			refresh(true);
 			setMouseSel(false, true);
 		}
@@ -694,13 +723,13 @@ void DialogsListWidget::onHashtagFilterUpdate(QStringRef newFilter) {
 		Local::readRecentHashtags();
 	}
 	const RecentHashtagPack &recent(cRecentSearchHashtags());
-	hashtagResults.clear();
+	_hashtagResults.clear();
 	if (!recent.isEmpty()) {
-		hashtagResults.reserve(qMin(recent.size(), 5));
+		_hashtagResults.reserve(qMin(recent.size(), 5));
 		for (RecentHashtagPack::const_iterator i = recent.cbegin(), e = recent.cend(); i != e; ++i) {
 			if (i->first.startsWith(_hashtagFilter.midRef(1), Qt::CaseInsensitive) && i->first.size() + 1 != newFilter.size()) {
-				hashtagResults.push_back(i->first);
-				if (hashtagResults.size() == 5) break;
+				_hashtagResults.push_back(i->first);
+				if (_hashtagResults.size() == 5) break;
 			}
 		}
 	}
@@ -708,65 +737,70 @@ void DialogsListWidget::onHashtagFilterUpdate(QStringRef newFilter) {
 	setMouseSel(false, true);
 }
 
-DialogsListWidget::~DialogsListWidget() {
+DialogsInner::~DialogsInner() {
 	clearSearchResults();
 }
 
-void DialogsListWidget::clearSearchResults(bool clearPeople) {	
-	if (clearPeople) peopleResults.clear();
-	if (!searchResults.isEmpty()) {
-		for (SearchResults::const_iterator i = searchResults.cbegin(), e = searchResults.cend(); i != e; ++i) {
+void DialogsInner::clearSearchResults(bool clearPeople) {
+	if (clearPeople) _peopleResults.clear();
+	if (!_searchResults.isEmpty()) {
+		for (SearchResults::const_iterator i = _searchResults.cbegin(), e = _searchResults.cend(); i != e; ++i) {
 			delete *i;
 		}
-		searchResults.clear();
+		_searchResults.clear();
 	}
-	_lastSearchId = 0;
+	_searchedCount = _searchedMigratedCount = 0;
+	_lastSearchDate = 0;
+	_lastSearchPeer = 0;
+	_lastSearchId = _lastSearchMigratedId = 0;
 }
 
-void DialogsListWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
-	for (int i = 0; i < searchResults.size(); ++i) {
-		if (searchResults[i]->_item == oldItem) {
-			searchResults[i]->_item = newItem;
+void DialogsInner::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
+	for (int i = 0; i < _searchResults.size(); ++i) {
+		if (_searchResults[i]->_item == oldItem) {
+			_searchResults[i]->_item = newItem;
 		}
 	}
 }
 
-PeerData *DialogsListWidget::updateFromParentDrag(QPoint globalPos) {
+PeerData *DialogsInner::updateFromParentDrag(QPoint globalPos) {
 	lastMousePos = globalPos;
 	selByMouse = true;
 	onUpdateSelected(true);
-	update();
-
 	if (_state == DefaultState) {
 		if (sel) return sel->history->peer;
 	} else if (_state == FilteredState || _state == SearchedState) {
-		if (filteredSel >= 0 && filteredSel < filterResults.size()) {
-			return filterResults[filteredSel]->history->peer;
-		} else if (peopleSel >= 0 && peopleSel < peopleResults.size()) {
-			return peopleResults[peopleSel];
-		} else if (searchedSel >= 0 && searchedSel < searchResults.size()) {
-			return searchResults[searchedSel]->_item->history()->peer;
+		if (_filteredSel >= 0 && _filteredSel < _filterResults.size()) {
+			return _filterResults[_filteredSel]->history->peer;
+		} else if (_peopleSel >= 0 && _peopleSel < _peopleResults.size()) {
+			return _peopleResults[_peopleSel];
+		} else if (_searchedSel >= 0 && _searchedSel < _searchResults.size()) {
+			return _searchResults[_searchedSel]->_item->history()->peer;
 		}
 	}
 	return 0;
 }
 
-void DialogsListWidget::itemRemoved(HistoryItem *item) {
-	int wasCount = searchResults.size();
-	for (int i = 0; i < searchResults.size();) {
-		if (searchResults[i]->_item == item) {
-			searchResults.remove(i);
-			if (searchedCount > 0) --searchedCount;
+void DialogsInner::itemRemoved(HistoryItem *item) {
+	int wasCount = _searchResults.size();
+	for (int i = 0; i < _searchResults.size();) {
+		if (_searchResults[i]->_item == item) {
+			_searchResults.remove(i);
+			if (item->history()->peer == _searchInMigrated) {
+				if (_searchedMigratedCount > 0) --_searchedMigratedCount;
+			} else {
+				if (_searchedCount > 0) --_searchedCount;
+			}
 		} else {
 			++i;
 		}
 	}
-	if (wasCount != searchResults.size()) {
+	if (wasCount != _searchResults.size()) {
 		refresh();
 	}
 }
 
-void DialogsListWidget::dialogsReceived(const QVector<MTPDialog> &added) {
+void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
 	for (QVector<MTPDialog>::const_iterator i = added.cbegin(), e = added.cend(); i != e; ++i) {
 		History *history = 0;
 		switch (i->type()) {
@@ -778,19 +812,22 @@ void DialogsListWidget::dialogsReceived(const QVector<MTPDialog> &added) {
 
 		case mtpc_dialogChannel: {
 			const MTPDdialogChannel &d(i->c_dialogChannel());
-			History *history = App::historyFromDialog(peerFromMTP(d.vpeer), d.vunread_important_count.v, d.vread_inbox_max_id.v);
+			PeerData *peer = App::peerLoaded(peerFromMTP(d.vpeer));
+			int32 unreadCount = (peer && peer->isMegagroup()) ? d.vunread_count.v : d.vunread_important_count.v;
+			History *history = App::historyFromDialog(peerFromMTP(d.vpeer), unreadCount, d.vread_inbox_max_id.v);
 			if (history->peer->isChannel()) {
 				history->asChannelHistory()->unreadCountAll = d.vunread_count.v;
 				history->peer->asChannel()->ptsReceived(d.vpts.v);
 				if (!history->peer->asChannel()->amCreator()) {
-					if (HistoryItem *top = App::histItemById(history->channelId(), d.vtop_important_message.v)) {
-						if (top->date <= date(history->peer->asChannel()->date)) {
+					MsgId topMsg = history->isMegagroup() ? d.vtop_message.v : d.vtop_important_message.v;
+					if (HistoryItem *top = App::histItemById(history->channelId(), topMsg)) {
+						if (top->date <= date(history->peer->asChannel()->date) && App::api()) {
 							App::api()->requestSelfParticipant(history->peer->asChannel());
 						}
 					}
 				}
 			}
-			if (d.vtop_message.v > d.vtop_important_message.v) {
+			if (!history->isMegagroup() && d.vtop_message.v > d.vtop_important_message.v) {
 				history->setNotLoadedAtBottom();
 			}
 			App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, history);
@@ -798,10 +835,15 @@ void DialogsListWidget::dialogsReceived(const QVector<MTPDialog> &added) {
 		}
 
 		if (history) {
-			if (!history->lastMsgDate.isNull()) addSavedPeersAfter(history->lastMsgDate);
-			History::DialogLinks links = dialogs.addToEnd(history);
-			history->dialogs = links;
+			if (!history->lastMsgDate.isNull()) {
+				addSavedPeersAfter(history->lastMsgDate);
+			}
 			contactsNoDialogs.del(history->peer);
+			if (history->peer->migrateFrom()) {
+				removeDialog(App::historyLoaded(history->peer->migrateFrom()->id));
+			} else if (history->peer->migrateTo() && history->peer->migrateTo()->amIn()) {
+				removeDialog(history);
+			}
 		}
 	}
 
@@ -813,7 +855,7 @@ void DialogsListWidget::dialogsReceived(const QVector<MTPDialog> &added) {
 	refresh();
 }
 
-void DialogsListWidget::addSavedPeersAfter(const QDateTime &date) {
+void DialogsInner::addSavedPeersAfter(const QDateTime &date) {
 	SavedPeersByTime &saved(cRefSavedPeersByTime());
 	while (!saved.isEmpty() && (date.isNull() || date < saved.lastKey())) {
 		History *history = App::history(saved.last()->id);
@@ -823,41 +865,61 @@ void DialogsListWidget::addSavedPeersAfter(const QDateTime &date) {
 	}
 }
 
-void DialogsListWidget::addAllSavedPeers() {
+void DialogsInner::addAllSavedPeers() {
 	addSavedPeersAfter(QDateTime());
 }
 
-void DialogsListWidget::searchReceived(const QVector<MTPMessage> &messages, bool fromStart, int32 fullCount) {
-	if (fromStart) {
+bool DialogsInner::searchReceived(const QVector<MTPMessage> &messages, DialogsSearchRequestType type, int32 fullCount) {
+	if (type == DialogsSearchFromStart || type == DialogsSearchPeerFromStart) {
 		clearSearchResults(false);
 	}
+	int32 lastDateFound = 0;
 	for (QVector<MTPMessage>::const_iterator i = messages.cbegin(), e = messages.cend(); i != e; ++i) {
 		HistoryItem *item = App::histories().addNewMessage(*i, NewMessageExisting);
-		searchResults.push_back(new FakeDialogRow(item));
-		_lastSearchId = item->id;
+		int32 lastDate = dateFromMessage(*i);
+		if (lastDate) {
+			_searchResults.push_back(new FakeDialogRow(item));
+			lastDateFound = lastDate;
+			if (type == DialogsSearchFromStart || type == DialogsSearchFromOffset) {
+				_lastSearchDate = lastDateFound;
+			}
+		}
+		if (type == DialogsSearchFromStart || type == DialogsSearchFromOffset) {
+			_lastSearchPeer = item->history()->peer;
+		}
+		if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
+			_lastSearchMigratedId = item->id;
+		} else {
+			_lastSearchId = item->id;
+		}
 	}
-	searchedCount = fullCount;
-	if (_state == FilteredState) {
+	if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
+		_searchedMigratedCount = fullCount;
+	} else {
+		_searchedCount = fullCount;
+	}
+	if (_state == FilteredState && (!_searchResults.isEmpty() || !_searchInMigrated || type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset)) {
 		_state = SearchedState;
 	}
 	refresh();
+	return lastDateFound != 0;
 }
 
-void DialogsListWidget::peopleReceived(const QString &query, const QVector<MTPPeer> &people) {
-	peopleQuery = query.toLower().trimmed();
-	peopleResults.clear();
-	peopleResults.reserve(people.size());
+void DialogsInner::peopleReceived(const QString &query, const QVector<MTPPeer> &people) {
+	_peopleQuery = query.toLower().trimmed();
+	_peopleResults.clear();
+	_peopleResults.reserve(people.size());
 	for (QVector<MTPPeer>::const_iterator i = people.cbegin(), e = people.cend(); i != e; ++i) {
 		PeerId peerId = peerFromMTP(*i);
 		History *h = App::historyLoaded(peerId);
 		if (h && !h->dialogs.isEmpty()) continue; // skip dialogs
 
-		peopleResults.push_back(App::peer(peerId));
+		_peopleResults.push_back(App::peer(peerId));
 	}
 	refresh();
 }
 
-void DialogsListWidget::contactsReceived(const QVector<MTPContact> &contacts) {
+void DialogsInner::contactsReceived(const QVector<MTPContact> &contacts) {
 	for (QVector<MTPContact>::const_iterator i = contacts.cbegin(), e = contacts.cend(); i != e; ++i) {
 		int32 uid = i->c_contact().vuser_id.v;
 		addNewContact(uid);
@@ -872,7 +934,7 @@ void DialogsListWidget::contactsReceived(const QVector<MTPContact> &contacts) {
 	refresh();
 }
 
-int32 DialogsListWidget::addNewContact(int32 uid, bool select) { // -2 - err, -1 - don't scroll, >= 0 - scroll
+int32 DialogsInner::addNewContact(int32 uid, bool select) { // -2 - err, -1 - don't scroll, >= 0 - scroll
 	PeerId peer = peerFromUser(uid);
 	if (!App::peerLoaded(peer)) return -2;
 
@@ -891,7 +953,7 @@ int32 DialogsListWidget::addNewContact(int32 uid, bool select) { // -2 - err, -1
 	return i.value()->pos * st::dlgHeight;
 }
 
-void DialogsListWidget::refresh(bool toTop) {
+void DialogsInner::refresh(bool toTop) {
 	int32 h = 0;
 	if (_state == DefaultState) {
 		h = (dialogs.list.count/* + contactsNoDialogs.list.count*/) * st::dlgHeight;
@@ -908,57 +970,58 @@ void DialogsListWidget::refresh(bool toTop) {
 	} else {
 		if (!_addContactLnk.isHidden()) _addContactLnk.hide();
 		if (_state == FilteredState) {
-			h = searchedOffset() + (searchResults.count() * st::dlgHeight) + ((searchResults.isEmpty() && !_searchInPeer) ? 0 : st::searchedBarHeight);
+			h = searchedOffset() + (_searchResults.count() * st::dlgHeight) + ((_searchResults.isEmpty() && !_searchInPeer) ? -st::searchedBarHeight : 0);
 		} else if (_state == SearchedState) {
-			h = searchedOffset() + (searchResults.count() * st::dlgHeight) + st::searchedBarHeight;
+			h = searchedOffset() + (_searchResults.count() * st::dlgHeight);
 		}
 	}
-	resize(width(), h);
+	setHeight(h);
 	if (toTop) {
 		emit mustScrollTo(0, 0);
 		loadPeerPhotos(0);
 	}
-	parentWidget()->update();
+	update();
 }
 
-void DialogsListWidget::setMouseSel(bool msel, bool toTop) {
+void DialogsInner::setMouseSel(bool msel, bool toTop) {
 	selByMouse = msel;
 	if (!selByMouse && toTop) {
 		if (_state == DefaultState) {
 			sel = (dialogs.list.count ? dialogs.list.begin : (contactsNoDialogs.list.count ? contactsNoDialogs.list.begin : 0));
 			contactSel = !dialogs.list.count && contactsNoDialogs.list.count;
 		} else if (_state == FilteredState || _state == SearchedState) { // don't select first elem in search
-			filteredSel = peopleSel = searchedSel = hashtagSel = -1;
+			_filteredSel = _peopleSel = _searchedSel = _hashtagSel = -1;
 			setCursor(style::cur_default);
 		}
 	}
 }
 
-void DialogsListWidget::setState(State newState) {
+void DialogsInner::setState(State newState) {
 	_state = newState;
 	if (_state == DefaultState) {
 		clearSearchResults();
-		searchedSel = peopleSel = filteredSel = hashtagSel = -1;
+		_searchedSel = _peopleSel = _filteredSel = _hashtagSel = -1;
 	} else if (_state == DefaultState || _state == SearchedState) {
-		hashtagResults.clear();
-		hashtagSel = -1;
-		filterResults.clear();
-		filteredSel = -1;
+		_hashtagResults.clear();
+		_hashtagSel = -1;
+		_filterResults.clear();
+		_filteredSel = -1;
 	}
-	onFilterUpdate(filter, true);
+	onFilterUpdate(_filter, true);
 	refresh(true);
 }
 
-DialogsListWidget::State DialogsListWidget::state() const {
+DialogsInner::State DialogsInner::state() const {
 	return _state;
 }
 
-bool DialogsListWidget::hasFilteredResults() const {
-	return !filterResults.isEmpty() && hashtagResults.isEmpty();
+bool DialogsInner::hasFilteredResults() const {
+	return !_filterResults.isEmpty() && _hashtagResults.isEmpty();
 }
 
-void DialogsListWidget::searchInPeer(PeerData *peer) {
-	_searchInPeer = peer;
+void DialogsInner::searchInPeer(PeerData *peer) {
+	_searchInPeer = peer ? (peer->migrateTo() ? peer->migrateTo() : peer) : 0;
+	_searchInMigrated = _searchInPeer ? _searchInPeer->migrateFrom() : 0;
 	if (_searchInPeer) {
 		onHashtagFilterUpdate(QStringRef());
 		_cancelSearchInPeer.show();
@@ -967,24 +1030,26 @@ void DialogsListWidget::searchInPeer(PeerData *peer) {
 	}
 }
 
-void DialogsListWidget::clearFilter() {
+void DialogsInner::clearFilter() {
 	if (_state == FilteredState || _state == SearchedState) {
 		if (_searchInPeer) {
 			_state = FilteredState;
 		} else {
 			_state = DefaultState;
 		}
-		hashtagResults.clear();
-		filterResults.clear();
-		peopleResults.clear();
-		searchResults.clear();
-		_lastSearchId = 0;
-		filter = QString();
+		_hashtagResults.clear();
+		_filterResults.clear();
+		_peopleResults.clear();
+		_searchResults.clear();
+		_lastSearchDate = 0;
+		_lastSearchPeer = 0;
+		_lastSearchId = _lastSearchMigratedId = 0;
+		_filter = QString();
 		refresh(true);
 	}
 }
 
-void DialogsListWidget::selectSkip(int32 direction) {
+void DialogsInner::selectSkip(int32 direction) {
 	if (_state == DefaultState) {
 		if (!sel) {
 			if (dialogs.list.count && direction > 0) {
@@ -1012,51 +1077,51 @@ void DialogsListWidget::selectSkip(int32 direction) {
 		int32 fromY = (sel->pos + (contactSel ? dialogs.list.count : 0)) * st::dlgHeight;
 		emit mustScrollTo(fromY, fromY + st::dlgHeight);
 	} else if (_state == FilteredState || _state == SearchedState) {
-		if (hashtagResults.isEmpty() && filterResults.isEmpty() && peopleResults.isEmpty() && searchResults.isEmpty()) return;
-		if ((hashtagSel < 0 || hashtagSel >= hashtagResults.size()) &&
-			(filteredSel < 0 || filteredSel >= filterResults.size()) &&
-			(peopleSel < 0 || peopleSel >= peopleResults.size()) &&
-			(searchedSel < 0 || searchedSel >= searchResults.size())) {
-			if (hashtagResults.isEmpty() && filterResults.isEmpty() && peopleResults.isEmpty()) {
-				searchedSel = 0;
-			} else if (hashtagResults.isEmpty() && filterResults.isEmpty()) {
-				peopleSel = 0;
-			} else if (hashtagResults.isEmpty()) {
-				filteredSel = 0;
+		if (_hashtagResults.isEmpty() && _filterResults.isEmpty() && _peopleResults.isEmpty() && _searchResults.isEmpty()) return;
+		if ((_hashtagSel < 0 || _hashtagSel >= _hashtagResults.size()) &&
+			(_filteredSel < 0 || _filteredSel >= _filterResults.size()) &&
+			(_peopleSel < 0 || _peopleSel >= _peopleResults.size()) &&
+			(_searchedSel < 0 || _searchedSel >= _searchResults.size())) {
+			if (_hashtagResults.isEmpty() && _filterResults.isEmpty() && _peopleResults.isEmpty()) {
+				_searchedSel = 0;
+			} else if (_hashtagResults.isEmpty() && _filterResults.isEmpty()) {
+				_peopleSel = 0;
+			} else if (_hashtagResults.isEmpty()) {
+				_filteredSel = 0;
 			} else {
-				hashtagSel = 0;
+				_hashtagSel = 0;
 			}
 		} else {
-			int32 cur = (hashtagSel >= 0 && hashtagSel < hashtagResults.size()) ? hashtagSel : ((filteredSel >= 0 && filteredSel < filterResults.size()) ? (hashtagResults.size() + filteredSel) : ((peopleSel >= 0 && peopleSel < peopleResults.size()) ? (peopleSel + filterResults.size() + hashtagResults.size()) : (searchedSel + peopleResults.size() + filterResults.size() + hashtagResults.size())));
-			cur = snap(cur + direction, 0, hashtagResults.size() + filterResults.size() + peopleResults.size() + searchResults.size() - 1);
-			if (cur < hashtagResults.size()) {
-				hashtagSel = cur;
-				filteredSel = peopleSel = searchedSel = -1;
-			} else if (cur < hashtagResults.size() + filterResults.size()) {
-				filteredSel = cur - hashtagResults.size();
-				hashtagSel = peopleSel = searchedSel = -1;
-			} else if (cur < hashtagResults.size() + filterResults.size() + peopleResults.size()) {
-				peopleSel = cur - hashtagResults.size() - filterResults.size();
-				hashtagSel = filteredSel = searchedSel = -1;
+			int32 cur = (_hashtagSel >= 0 && _hashtagSel < _hashtagResults.size()) ? _hashtagSel : ((_filteredSel >= 0 && _filteredSel < _filterResults.size()) ? (_hashtagResults.size() + _filteredSel) : ((_peopleSel >= 0 && _peopleSel < _peopleResults.size()) ? (_peopleSel + _filterResults.size() + _hashtagResults.size()) : (_searchedSel + _peopleResults.size() + _filterResults.size() + _hashtagResults.size())));
+			cur = snap(cur + direction, 0, _hashtagResults.size() + _filterResults.size() + _peopleResults.size() + _searchResults.size() - 1);
+			if (cur < _hashtagResults.size()) {
+				_hashtagSel = cur;
+				_filteredSel = _peopleSel = _searchedSel = -1;
+			} else if (cur < _hashtagResults.size() + _filterResults.size()) {
+				_filteredSel = cur - _hashtagResults.size();
+				_hashtagSel = _peopleSel = _searchedSel = -1;
+			} else if (cur < _hashtagResults.size() + _filterResults.size() + _peopleResults.size()) {
+				_peopleSel = cur - _hashtagResults.size() - _filterResults.size();
+				_hashtagSel = _filteredSel = _searchedSel = -1;
 			} else {
-				hashtagSel = filteredSel = peopleSel = -1;
-				searchedSel = cur - hashtagResults.size() - filterResults.size() - peopleResults.size();
+				_hashtagSel = _filteredSel = _peopleSel = -1;
+				_searchedSel = cur - _hashtagResults.size() - _filterResults.size() - _peopleResults.size();
 			}
 		}
-		if (hashtagSel >= 0 && hashtagSel < hashtagResults.size()) {
-			emit mustScrollTo(hashtagSel * st::mentionHeight, (hashtagSel + 1) * st::mentionHeight);
-		} else if (filteredSel >= 0 && filteredSel < filterResults.size()) {
-			emit mustScrollTo(filteredOffset() + filteredSel * st::dlgHeight, filteredOffset() + (filteredSel + 1) * st::dlgHeight);
-		} else if (peopleSel >= 0 && peopleSel < peopleResults.size()) {
-			emit mustScrollTo(peopleOffset() + peopleSel * st::dlgHeight + (peopleSel ? 0 : -st::searchedBarHeight), peopleOffset() + (peopleSel + 1) * st::dlgHeight);
+		if (_hashtagSel >= 0 && _hashtagSel < _hashtagResults.size()) {
+			emit mustScrollTo(_hashtagSel * st::mentionHeight, (_hashtagSel + 1) * st::mentionHeight);
+		} else if (_filteredSel >= 0 && _filteredSel < _filterResults.size()) {
+			emit mustScrollTo(filteredOffset() + _filteredSel * st::dlgHeight, filteredOffset() + (_filteredSel + 1) * st::dlgHeight);
+		} else if (_peopleSel >= 0 && _peopleSel < _peopleResults.size()) {
+			emit mustScrollTo(peopleOffset() + _peopleSel * st::dlgHeight + (_peopleSel ? 0 : -st::searchedBarHeight), peopleOffset() + (_peopleSel + 1) * st::dlgHeight);
 		} else {
-			emit mustScrollTo(searchedOffset() + searchedSel * st::dlgHeight + (searchedSel ? 0 : -st::searchedBarHeight), searchedOffset() + (searchedSel + 1) * st::dlgHeight);
+			emit mustScrollTo(searchedOffset() + _searchedSel * st::dlgHeight + (_searchedSel ? 0 : -st::searchedBarHeight), searchedOffset() + (_searchedSel + 1) * st::dlgHeight);
 		}
 	}
-	parentWidget()->update();
+	update();
 }
 
-void DialogsListWidget::scrollToPeer(const PeerId &peer, MsgId msgId) {
+void DialogsInner::scrollToPeer(const PeerId &peer, MsgId msgId) {
 	int32 fromY = -1;
 	if (_state == DefaultState) {
 		DialogsList::RowByPeer::const_iterator i = dialogs.list.rowByPeer.constFind(peer);
@@ -1070,16 +1135,16 @@ void DialogsListWidget::scrollToPeer(const PeerId &peer, MsgId msgId) {
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
 		if (msgId) {
-			for (int32 i = 0, c = searchResults.size(); i < c; ++i) {
-				if (searchResults[i]->_item->history()->peer->id == peer && searchResults[i]->_item->id == msgId) {
+			for (int32 i = 0, c = _searchResults.size(); i < c; ++i) {
+				if (_searchResults[i]->_item->history()->peer->id == peer && _searchResults[i]->_item->id == msgId) {
 					fromY = searchedOffset() + i * st::dlgHeight;
 					break;
 				}
 			}
 		}
 		if (fromY < 0) {
-			for (int32 i = 0, c = filterResults.size(); i < c; ++i) {
-				if (filterResults[i]->history->peer->id == peer) {
+			for (int32 i = 0, c = _filterResults.size(); i < c; ++i) {
+				if (_filterResults[i]->history->peer->id == peer) {
 					fromY = filteredOffset() + (i * st::dlgHeight);
 					break;
 				}
@@ -1091,7 +1156,7 @@ void DialogsListWidget::scrollToPeer(const PeerId &peer, MsgId msgId) {
 	}
 }
 
-void DialogsListWidget::selectSkipPage(int32 pixels, int32 direction) {
+void DialogsInner::selectSkipPage(int32 pixels, int32 direction) {
 	int32 toSkip = pixels / int32(st::dlgHeight);
 	if (_state == DefaultState) {
 		if (!sel) {
@@ -1131,10 +1196,10 @@ void DialogsListWidget::selectSkipPage(int32 pixels, int32 direction) {
 	} else {
 		return selectSkip(direction * toSkip);
 	}
-	parentWidget()->update();
+	update();
 }
 
-void DialogsListWidget::loadPeerPhotos(int32 yFrom) {
+void DialogsInner::loadPeerPhotos(int32 yFrom) {
 	int32 yTo = yFrom + parentWidget()->height() * 5;
 	MTP::clearLoaderPriorities();
 	if (_state == DefaultState) {
@@ -1158,46 +1223,46 @@ void DialogsListWidget::loadPeerPhotos(int32 yFrom) {
 	} else if (_state == FilteredState || _state == SearchedState) {
 		int32 from = (yFrom - filteredOffset()) / st::dlgHeight;
 		if (from < 0) from = 0;
-		if (from < filterResults.size()) {
+		if (from < _filterResults.size()) {
 			int32 to = (yTo / int32(st::dlgHeight)) + 1, w = width();
-			if (to > filterResults.size()) to = filterResults.size();
+			if (to > _filterResults.size()) to = _filterResults.size();
 			
 			for (; from < to; ++from) {
-				filterResults[from]->history->peer->photo->load();
+				_filterResults[from]->history->peer->photo->load();
 			}
 		}
 
-		from = (yFrom > filteredOffset() + st::searchedBarHeight ? ((yFrom - filteredOffset() - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - filterResults.size();
+		from = (yFrom > filteredOffset() + st::searchedBarHeight ? ((yFrom - filteredOffset() - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - _filterResults.size();
 		if (from < 0) from = 0;
-		if (from < peopleResults.size()) {
-			int32 to = (yTo > filteredOffset() + st::searchedBarHeight ? ((yTo - filteredOffset() - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - filterResults.size() + 1, w = width();
-			if (to > peopleResults.size()) to = peopleResults.size();
+		if (from < _peopleResults.size()) {
+			int32 to = (yTo > filteredOffset() + st::searchedBarHeight ? ((yTo - filteredOffset() - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - _filterResults.size() + 1, w = width();
+			if (to > _peopleResults.size()) to = _peopleResults.size();
 
 			for (; from < to; ++from) {
-				peopleResults[from]->photo->load();
+				_peopleResults[from]->photo->load();
 			}
 		}
-		from = (yFrom > filteredOffset() + ((peopleResults.isEmpty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight) ? ((yFrom - filteredOffset() - (peopleResults.isEmpty() ? 0 : st::searchedBarHeight) - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - filterResults.size() - peopleResults.size();
+		from = (yFrom > filteredOffset() + ((_peopleResults.isEmpty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight) ? ((yFrom - filteredOffset() - (_peopleResults.isEmpty() ? 0 : st::searchedBarHeight) - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - _filterResults.size() - _peopleResults.size();
 		if (from < 0) from = 0;
-		if (from < searchResults.size()) {
-			int32 to = (yTo > filteredOffset() + (peopleResults.isEmpty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight ? ((yTo - filteredOffset() - (peopleResults.isEmpty() ? 0 : st::searchedBarHeight) - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - filterResults.size() - peopleResults.size() + 1, w = width();
-			if (to > searchResults.size()) to = searchResults.size();
+		if (from < _searchResults.size()) {
+			int32 to = (yTo > filteredOffset() + (_peopleResults.isEmpty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight ? ((yTo - filteredOffset() - (_peopleResults.isEmpty() ? 0 : st::searchedBarHeight) - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - _filterResults.size() - _peopleResults.size() + 1, w = width();
+			if (to > _searchResults.size()) to = _searchResults.size();
 
 			for (; from < to; ++from) {
-				searchResults[from]->_item->history()->peer->photo->load();
+				_searchResults[from]->_item->history()->peer->photo->load();
 			}
 		}
 	}
 }
 
-bool DialogsListWidget::choosePeer() {
+bool DialogsInner::choosePeer() {
 	History *history = 0;
 	MsgId msgId = ShowAtUnreadMsgId;
 	if (_state == DefaultState) {
 		if (sel) history = sel->history;
 	} else if (_state == FilteredState || _state == SearchedState) {
-		if (hashtagSel >= 0 && hashtagSel < hashtagResults.size()) {
-			QString hashtag = hashtagResults.at(hashtagSel);
+		if (_hashtagSel >= 0 && _hashtagSel < _hashtagResults.size()) {
+			QString hashtag = _hashtagResults.at(_hashtagSel);
 			if (_overDelete) {
 				lastMousePos = QCursor::pos();
 
@@ -1221,33 +1286,33 @@ bool DialogsListWidget::choosePeer() {
 			}
 			return true;
 		}
-		if (filteredSel >= 0 && filteredSel < filterResults.size()) {
-			history = filterResults[filteredSel]->history;
-		} else if (peopleSel >= 0 && peopleSel < peopleResults.size()) {
-			history = App::history(peopleResults[peopleSel]->id);
-		} else if (searchedSel >= 0 && searchedSel < searchResults.size()) {
-			history = searchResults[searchedSel]->_item->history();
-			msgId = searchResults[searchedSel]->_item->id;
+		if (_filteredSel >= 0 && _filteredSel < _filterResults.size()) {
+			history = _filterResults[_filteredSel]->history;
+		} else if (_peopleSel >= 0 && _peopleSel < _peopleResults.size()) {
+			history = App::history(_peopleResults[_peopleSel]->id);
+		} else if (_searchedSel >= 0 && _searchedSel < _searchResults.size()) {
+			history = _searchResults[_searchedSel]->_item->history();
+			msgId = _searchResults[_searchedSel]->_item->id;
 		}
 	}
 	if (history) {
 		if (msgId > 0) {
-			saveRecentHashtags(filter);
+			saveRecentHashtags(_filter);
 		}
-		bool chosen = (!App::main()->selectingPeer(true) && (_state == FilteredState || _state == SearchedState) && filteredSel >= 0 && filteredSel < filterResults.size());
+		bool chosen = (!App::main()->selectingPeer(true) && (_state == FilteredState || _state == SearchedState) && _filteredSel >= 0 && _filteredSel < _filterResults.size());
 		App::main()->choosePeer(history->peer->id, msgId);
 		if (chosen) {
 			emit searchResultChosen();
 		}
+		updateSelectedRow();
 		sel = 0;
-		filteredSel = peopleSel = searchedSel = hashtagSel = -1;
-		parentWidget()->update();
+		_filteredSel = _peopleSel = _searchedSel = _hashtagSel = -1;
 		return true;
 	}
 	return false;
 }
 
-void DialogsListWidget::saveRecentHashtags(const QString &text) {
+void DialogsInner::saveRecentHashtags(const QString &text) {
 	bool found = false;
 	QRegularExpressionMatch m;
 	RecentHashtagPack recent(cRecentSearchHashtags());
@@ -1275,22 +1340,22 @@ void DialogsListWidget::saveRecentHashtags(const QString &text) {
 	}
 }
 
-void DialogsListWidget::destroyData() {
+void DialogsInner::destroyData() {
 	sel = 0;
 	contactSel = false;
-	hashtagSel = -1;
-	hashtagResults.clear();
-	filteredSel = -1;
-	filterResults.clear();
-	filter.clear();
-	searchedSel = peopleSel = -1;
+	_hashtagSel = -1;
+	_hashtagResults.clear();
+	_filteredSel = -1;
+	_filterResults.clear();
+	_filter.clear();
+	_searchedSel = _peopleSel = -1;
 	clearSearchResults();
 	contacts.clear();
 	contactsNoDialogs.clear();
 	dialogs.clear();
 }
 
-void DialogsListWidget::peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const {
+void DialogsInner::peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const {
 	if (_state == DefaultState) {
 		DialogsList::RowByPeer::const_iterator i = dialogs.list.rowByPeer.constFind(inPeer->id);
 		if (i == dialogs.list.rowByPeer.constEnd()) {
@@ -1319,8 +1384,8 @@ void DialogsListWidget::peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData
 			return;
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
-		if (inMsg && !searchResults.isEmpty()) {
-			for (SearchResults::const_iterator b = searchResults.cbegin(), i = b + 1, e = searchResults.cend(); i != e; ++i) {
+		if (inMsg && !_searchResults.isEmpty()) {
+			for (SearchResults::const_iterator b = _searchResults.cbegin(), i = b + 1, e = _searchResults.cend(); i != e; ++i) {
 				if ((*i)->_item->history()->peer == inPeer && (*i)->_item->id == inMsg) {
 					SearchResults::const_iterator j = i - 1;
 					outPeer = (*j)->_item->history()->peer;
@@ -1328,27 +1393,27 @@ void DialogsListWidget::peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData
 					return;
 				}
 			}
-			if (searchResults.at(0)->_item->history()->peer == inPeer && searchResults.at(0)->_item->id == inMsg) {
+			if (_searchResults.at(0)->_item->history()->peer == inPeer && _searchResults.at(0)->_item->id == inMsg) {
 				outMsg = ShowAtUnreadMsgId;
-				if (peopleResults.isEmpty()) {
-					if (filterResults.isEmpty()) {
+				if (_peopleResults.isEmpty()) {
+					if (_filterResults.isEmpty()) {
 						outPeer = 0;
 					} else {
-						outPeer = filterResults.back()->history->peer;
+						outPeer = _filterResults.back()->history->peer;
 					}
 				} else {
-					outPeer = peopleResults.back();
+					outPeer = _peopleResults.back();
 				}
 				return;
 			}
 		}
-		if (!peopleResults.isEmpty() && peopleResults.at(0) == inPeer) {
-			outPeer = filterResults.isEmpty() ? 0 : filterResults.back()->history->peer;
+		if (!_peopleResults.isEmpty() && _peopleResults.at(0) == inPeer) {
+			outPeer = _filterResults.isEmpty() ? 0 : _filterResults.back()->history->peer;
 			outMsg = ShowAtUnreadMsgId;
 			return;
 		}
-		if (!peopleResults.isEmpty()) {
-			for (PeopleResults::const_iterator b = peopleResults.cbegin(), i = b + 1, e = peopleResults.cend(); i != e; ++i) {
+		if (!_peopleResults.isEmpty()) {
+			for (PeopleResults::const_iterator b = _peopleResults.cbegin(), i = b + 1, e = _peopleResults.cend(); i != e; ++i) {
 				if ((*i) == inPeer) {
 					outPeer = (*(i - 1));
 					outMsg = ShowAtUnreadMsgId;
@@ -1356,13 +1421,13 @@ void DialogsListWidget::peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData
 				}
 			}
 		}
-		if (filterResults.isEmpty() || filterResults.at(0)->history->peer == inPeer) {
+		if (_filterResults.isEmpty() || _filterResults.at(0)->history->peer == inPeer) {
 			outPeer = 0;
 			outMsg = 0;
 			return;
 		}
 
-		for (FilteredDialogs::const_iterator b = filterResults.cbegin(), i = b + 1, e = filterResults.cend(); i != e; ++i) {
+		for (FilteredDialogs::const_iterator b = _filterResults.cbegin(), i = b + 1, e = _filterResults.cend(); i != e; ++i) {
 			if ((*i)->history->peer == inPeer) {
 				outPeer = (*(i - 1))->history->peer;
 				outMsg = ShowAtUnreadMsgId;
@@ -1374,7 +1439,7 @@ void DialogsListWidget::peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData
 	outMsg = 0;
 }
 
-void DialogsListWidget::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const {
+void DialogsInner::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const {
 	if (_state == DefaultState) {
 		DialogsList::RowByPeer::const_iterator i = dialogs.list.rowByPeer.constFind(inPeer->id);
 		if (i == dialogs.list.rowByPeer.constEnd()) {
@@ -1405,7 +1470,7 @@ void DialogsListWidget::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData 
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
 		if (inMsg) {
-			for (SearchResults::const_iterator i = searchResults.cbegin(), e = searchResults.cend(); i != e; ++i) {
+			for (SearchResults::const_iterator i = _searchResults.cbegin(), e = _searchResults.cend(); i != e; ++i) {
 				if ((*i)->_item->history()->peer == inPeer && (*i)->_item->id == inMsg) {
 					++i;
 					outPeer = (i == e) ? 0 : (*i)->_item->history()->peer;
@@ -1414,12 +1479,12 @@ void DialogsListWidget::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData 
 				}
 			}
 		}
-		for (PeopleResults::const_iterator i = peopleResults.cbegin(), e = peopleResults.cend(); i != e; ++i) {
+		for (PeopleResults::const_iterator i = _peopleResults.cbegin(), e = _peopleResults.cend(); i != e; ++i) {
 			if ((*i) == inPeer) {
 				++i;
-				if (i == e && !searchResults.isEmpty()) {
-					outPeer = searchResults.front()->_item->history()->peer;
-					outMsg = searchResults.front()->_item->id;
+				if (i == e && !_searchResults.isEmpty()) {
+					outPeer = _searchResults.front()->_item->history()->peer;
+					outMsg = _searchResults.front()->_item->id;
 				} else {
 					outPeer = (i == e) ? 0 : (*i);
 					outMsg = ShowAtUnreadMsgId;
@@ -1427,15 +1492,15 @@ void DialogsListWidget::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData 
 				return;
 			}
 		}
-		for (FilteredDialogs::const_iterator i = filterResults.cbegin(), e = filterResults.cend(); i != e; ++i) {
+		for (FilteredDialogs::const_iterator i = _filterResults.cbegin(), e = _filterResults.cend(); i != e; ++i) {
 			if ((*i)->history->peer == inPeer) {
 				++i;
-				if (i == e && !peopleResults.isEmpty()) {
-					outPeer = peopleResults.front();
+				if (i == e && !_peopleResults.isEmpty()) {
+					outPeer = _peopleResults.front();
 					outMsg = ShowAtUnreadMsgId;
-				} else if (i == e && !searchResults.isEmpty()) {
-					outPeer = searchResults.front()->_item->history()->peer;
-					outMsg = searchResults.front()->_item->id;
+				} else if (i == e && !_searchResults.isEmpty()) {
+					outPeer = _searchResults.front()->_item->history()->peer;
+					outMsg = _searchResults.front()->_item->id;
 				} else {
 					outPeer = (i == e) ? 0 : (*i)->history->peer;
 					outMsg = ShowAtUnreadMsgId;
@@ -1448,61 +1513,76 @@ void DialogsListWidget::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData 
 	outMsg = 0;
 }
 
-DialogsIndexed &DialogsListWidget::contactsList() {
+DialogsIndexed &DialogsInner::contactsList() {
 	return contacts;
 }
 
-DialogsIndexed &DialogsListWidget::dialogsList() {
+DialogsIndexed &DialogsInner::dialogsList() {
 	return dialogs;
 }
 
-DialogsListWidget::FilteredDialogs &DialogsListWidget::filteredList() {
-	return filterResults;
+DialogsInner::FilteredDialogs &DialogsInner::filteredList() {
+	return _filterResults;
 }
 
-DialogsListWidget::PeopleResults &DialogsListWidget::peopleList() {
-	return peopleResults;
+DialogsInner::PeopleResults &DialogsInner::peopleList() {
+	return _peopleResults;
 }
 
-DialogsListWidget::SearchResults &DialogsListWidget::searchList() {
-	return searchResults;
+DialogsInner::SearchResults &DialogsInner::searchList() {
+	return _searchResults;
 }
 
-MsgId DialogsListWidget::lastSearchId() const {
+int32 DialogsInner::lastSearchDate() const {
+	return _lastSearchDate;
+}
+
+PeerData *DialogsInner::lastSearchPeer() const {
+	return _lastSearchPeer;
+}
+
+MsgId DialogsInner::lastSearchId() const {
 	return _lastSearchId;
 }
 
-DialogsWidget::DialogsWidget(MainWidget *parent) : QWidget(parent)
-, _drawShadow(true)
+MsgId DialogsInner::lastSearchMigratedId() const {
+	return _lastSearchMigratedId;
+}
+
+DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
 , _dragInScroll(false)
 , _dragForward(false)
-, _dialogsOffset(0)
-, _dialogsCount(-1)
+, _dialogsFull(false)
+, _dialogsOffsetDate(0)
+, _dialogsOffsetId(0)
+, _dialogsOffsetPeer(0)
 , _dialogsRequest(0)
-, _channelDialogsRequest(0)
 , _contactsRequest(0)
 , _filter(this, st::dlgFilter, lang(lng_dlg_filter))
 , _newGroup(this, st::btnNewGroup)
 , _addContact(this, st::btnAddContact)
 , _cancelSearch(this, st::btnCancelSearch)
-, scroll(this, st::dlgScroll)
-, list(&scroll, parent)
+, _scroll(this, st::dlgScroll)
+, _inner(&_scroll, parent)
+, _a_show(animFunc(this, &DialogsWidget::animStep_show))
 , _searchInPeer(0)
+, _searchInMigrated(0)
 , _searchFull(false)
+, _searchFullMigrated(false)
 , _peopleFull(false)
 {
-	scroll.setWidget(&list);
-	scroll.setFocusPolicy(Qt::NoFocus);
-	connect(&list, SIGNAL(mustScrollTo(int,int)), &scroll, SLOT(scrollToY(int,int)));
-	connect(&list, SIGNAL(dialogMoved(int,int)), this, SLOT(onDialogMoved(int,int)));
-	connect(&list, SIGNAL(searchMessages()), this, SLOT(onNeedSearchMessages()));
-	connect(&list, SIGNAL(searchResultChosen()), this, SLOT(onCancel()));
-	connect(&list, SIGNAL(completeHashtag(QString)), this, SLOT(onCompleteHashtag(QString)));
-	connect(&list, SIGNAL(refreshHashtags()), this, SLOT(onFilterCursorMoved()));
-	connect(&list, SIGNAL(cancelSearchInPeer()), this, SLOT(onCancelSearchInPeer()));
-	connect(&scroll, SIGNAL(geometryChanged()), &list, SLOT(onParentGeometryChanged()));
-	connect(&scroll, SIGNAL(scrolled()), &list, SLOT(onUpdateSelected()));
-	connect(&scroll, SIGNAL(scrolled()), this, SLOT(onListScroll()));
+	_scroll.setWidget(&_inner);
+	_scroll.setFocusPolicy(Qt::NoFocus);
+	connect(&_inner, SIGNAL(mustScrollTo(int,int)), &_scroll, SLOT(scrollToY(int,int)));
+	connect(&_inner, SIGNAL(dialogMoved(int,int)), this, SLOT(onDialogMoved(int,int)));
+	connect(&_inner, SIGNAL(searchMessages()), this, SLOT(onNeedSearchMessages()));
+	connect(&_inner, SIGNAL(searchResultChosen()), this, SLOT(onCancel()));
+	connect(&_inner, SIGNAL(completeHashtag(QString)), this, SLOT(onCompleteHashtag(QString)));
+	connect(&_inner, SIGNAL(refreshHashtags()), this, SLOT(onFilterCursorMoved()));
+	connect(&_inner, SIGNAL(cancelSearchInPeer()), this, SLOT(onCancelSearchInPeer()));
+	connect(&_scroll, SIGNAL(geometryChanged()), &_inner, SLOT(onParentGeometryChanged()));
+	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(onUpdateSelected()));
+	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onListScroll()));
 	connect(&_filter, SIGNAL(cancelled()), this, SLOT(onCancel()));
 	connect(&_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
 	connect(&_filter, SIGNAL(cursorPositionChanged(int,int)), this, SLOT(onFilterCursorMoved(int,int)));
@@ -1519,7 +1599,7 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : QWidget(parent)
 	_searchTimer.setSingleShot(true);
 	connect(&_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchMessages()));
 
-	scroll.show();
+	_scroll.show();
 	_filter.show();
 	_filter.move(st::dlgPaddingHor, st::dlgFilterPadding);
 	_filter.setFocusPolicy(Qt::StrongFocus);
@@ -1534,61 +1614,81 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : QWidget(parent)
 
 void DialogsWidget::activate() {
 	_filter.setFocus();
-	list.activate();
+	_inner.activate();
 }
 
 void DialogsWidget::createDialog(History *history) {
-	list.createDialog(history);
+	bool creating = history->dialogs.isEmpty();
+	_inner.createDialog(history);
+	if (creating && history->peer->migrateFrom()) {
+		if (History *h = App::historyLoaded(history->peer->migrateFrom()->id)) {
+			if (!h->dialogs.isEmpty()) {
+				removeDialog(h);
+			}
+		}
+	}
 }
 
 void DialogsWidget::dlgUpdated(DialogRow *row) {
-	list.dlgUpdated(row);
+	_inner.dlgUpdated(row);
 }
 
-void DialogsWidget::dlgUpdated(History *row) {
-	list.dlgUpdated(row);
+void DialogsWidget::dlgUpdated(History *row, MsgId msgId) {
+	_inner.dlgUpdated(row, msgId);
 }
 
 void DialogsWidget::dialogsToUp() {
 	if (_filter.getLastText().trimmed().isEmpty()) {
-		scroll.scrollToY(0);
+		_scroll.scrollToY(0);
 	}
 }
 
 void DialogsWidget::animShow(const QPixmap &bgAnimCache) {
-	_bgAnimCache = bgAnimCache;
-	_animCache = myGrab(this, rect());
-	scroll.hide();
+	if (App::app()) App::app()->mtpPause();
+
+	bool back = true;
+	(back ? _cacheOver : _cacheUnder) = bgAnimCache;
+
+	_a_show.stop();
+
+	(back ? _cacheUnder : _cacheOver) = myGrab(this);
+
+	_scroll.hide();
 	_filter.hide();
 	_cancelSearch.hide();
 	_newGroup.hide();
-	a_coord = anim::ivalue(-st::introSlideShift, 0);
-	a_alpha = anim::fvalue(0, 1);
-	a_bgCoord = anim::ivalue(0, st::introSlideShift);
-	a_bgAlpha = anim::fvalue(1, 0);
-	anim::start(this);
+
+	a_coordUnder = back ? anim::ivalue(-qFloor(st::slideShift * width()), 0) : anim::ivalue(0, -qFloor(st::slideShift * width()));
+	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
+	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
+	_a_show.start();
+
+	show();
 }
 
-bool DialogsWidget::animStep(float64 ms) {
-	float64 fullDuration = st::introSlideDelta + st::introSlideDuration, dt = ms / fullDuration;
-	float64 dt1 = (ms > st::introSlideDuration) ? 1 : (ms / st::introSlideDuration), dt2 = (ms > st::introSlideDelta) ? (ms - st::introSlideDelta) / (st::introSlideDuration) : 0;
+bool DialogsWidget::animStep_show(float64 ms) {
+	float64 dt = ms / st::slideDuration;
 	bool res = true;
-	if (dt2 >= 1) {
+	if (dt >= 1) {
+		_a_show.stop();
+
 		res = false;
-		a_bgCoord.finish();
-		a_bgAlpha.finish();
-		a_coord.finish();
-		a_alpha.finish();
-		_bgAnimCache = _animCache = QPixmap();
-		scroll.show();
+		a_coordUnder.finish();
+		a_coordOver.finish();
+		a_shadow.finish();
+
+		_cacheUnder = _cacheOver = QPixmap();
+
+		_scroll.show();
 		_filter.show();
 		onFilterUpdate(true);
 		activate();
+
+		if (App::app()) App::app()->mtpUnpause();
 	} else {
-		a_bgCoord.update(dt1, st::introHideFunc);
-		a_bgAlpha.update(dt1, st::introAlphaHideFunc);
-		a_coord.update(dt2, st::introShowFunc);
-		a_alpha.update(dt2, st::introAlphaShowFunc);
+		a_coordUnder.update(dt, st::slideFunction);
+		a_coordOver.update(dt, st::slideFunction);
+		a_shadow.update(dt, st::slideFunction);
 	}
 	update();
 	return res;
@@ -1601,11 +1701,11 @@ void DialogsWidget::onCancel() {
 }
 
 void DialogsWidget::itemRemoved(HistoryItem *item) {
-	list.itemRemoved(item);
+	_inner.itemRemoved(item);
 }
 
 void DialogsWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
-	list.itemReplaced(oldItem, newItem);
+	_inner.itemReplaced(oldItem, newItem);
 }
 
 void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
@@ -1632,8 +1732,9 @@ void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
 					}
 				}
 				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, h);
-				if (d.vunread_important_count.v >= h->unreadCount) {
-					h->setUnreadCount(d.vunread_important_count.v, false);
+				int32 unreadCount = h->isMegagroup() ? d.vunread_count.v : d.vunread_important_count.v;
+				if (unreadCount >= h->unreadCount) {
+					h->setUnreadCount(unreadCount, false);
 					h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
 				}
 			}
@@ -1644,24 +1745,25 @@ void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
 }
 
 void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpRequestId req) {
-	const QVector<MTPDialog> *dlgList = 0;
-	int32 count = 0;
+	if (_dialogsRequest != req) return;
+
+	const QVector<MTPDialog> *v = 0;
+	const QVector<MTPMessage> *m = 0;
 	switch (dialogs.type()) {
 	case mtpc_messages_dialogs: {
 		const MTPDmessages_dialogs &data(dialogs.c_messages_dialogs());
 		App::feedUsers(data.vusers);
 		App::feedChats(data.vchats);
-		App::feedMsgs(data.vmessages, NewMessageLast);
-		dlgList = &data.vdialogs.c_vector().v;
-		count = dlgList->size();
+		m = &data.vmessages.c_vector().v;
+		v = &data.vdialogs.c_vector().v;
+		_dialogsFull = true;
 	} break;
 	case mtpc_messages_dialogsSlice: {
 		const MTPDmessages_dialogsSlice &data(dialogs.c_messages_dialogsSlice());
 		App::feedUsers(data.vusers);
 		App::feedChats(data.vchats);
-		App::feedMsgs(data.vmessages, NewMessageLast);
-		dlgList = &data.vdialogs.c_vector().v;
-		count = data.vcount.v;
+		m = &data.vmessages.c_vector().v;
+		v = &data.vdialogs.c_vector().v;
 	} break;
 	}
 
@@ -1669,54 +1771,70 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 		_contactsRequest = MTP::send(MTPcontacts_GetContacts(MTP_string("")), rpcDone(&DialogsWidget::contactsReceived), rpcFail(&DialogsWidget::contactsFailed));
 	}
 
-	if (_dialogsRequest == req) {
-		_dialogsCount = count;
-		if (dlgList) {
-			unreadCountsReceived(*dlgList);
-			list.dialogsReceived(*dlgList);
-			onListScroll();
-
-			if (dlgList->size()) {
-				_dialogsOffset += dlgList->size();
-			} else {
-				_dialogsCount = _dialogsOffset;
-			}
-		} else {
-			_dialogsCount = _dialogsOffset;
-		}
-
-		_dialogsRequest = 0;
-		if (dlgList) {
-			loadDialogs();
-		}
-	} else if (_channelDialogsRequest == req) {
-		//_channelDialogsCount = count;
-		if (dlgList) {
-			unreadCountsReceived(*dlgList);
-			list.dialogsReceived(*dlgList);
-			onListScroll();
-
-		//	if (dlgList->size()) {
-		//		_channelDialogsOffset += dlgList->size();
-		//	} else {
-		//		_channelDialogsCount = _channelDialogsOffset;
-		//	}
-		//} else {
-		//	_channelDialogsCount = _channelDialogsOffset;
-		}
-
-		//_channelDialogsRequest = 0;
+	if (m) {
+		App::feedMsgs(*m, NewMessageLast);
 	}
+	if (v) {
+		unreadCountsReceived(*v);
+		_inner.dialogsReceived(*v);
+		onListScroll();
+
+		int32 lastDate = 0;
+		PeerId lastPeer = 0;
+		MsgId lastMsgId = 0;
+		for (int32 i = v->size(); i > 0;) {
+			PeerId peer = 0;
+			MsgId msgId = 0;
+			const MTPDialog &d(v->at(--i));
+			switch (d.type()) {
+			case mtpc_dialog:
+				msgId = d.c_dialog().vtop_message.v;
+				peer = peerFromMTP(d.c_dialog().vpeer);
+			break;
+			case mtpc_dialogChannel:
+				//msgId = d.c_dialogChannel().vtop_important_message.v;
+				//if (!msgId) msgId = d.c_dialogChannel().vtop_message.v;
+				msgId = d.c_dialogChannel().vtop_message.v;
+				peer = peerFromMTP(d.c_dialogChannel().vpeer);
+			break;
+			}
+			if (peer) {
+				if (!lastPeer) lastPeer = peer;
+				if (msgId) {
+					if (!lastMsgId) lastMsgId = msgId;
+					for (int32 j = m->size(); j > 0;) {
+						const MTPMessage &d(m->at(--j));
+						if (idFromMessage(d) == msgId && peerFromMessage(d) == peer) {
+							int32 date = dateFromMessage(d);
+							if (date) lastDate = date;
+							break;
+						}
+					}
+					if (lastDate) break;
+				}
+			}
+		}
+		if (lastDate) {
+			_dialogsOffsetDate = lastDate;
+			_dialogsOffsetId = lastMsgId;
+			_dialogsOffsetPeer = App::peer(lastPeer);
+		} else {
+			_dialogsFull = true;
+		}
+	} else {
+		_dialogsFull = true;
+	}
+
+	_dialogsRequest = 0;
+	loadDialogs();
 }
 
 bool DialogsWidget::dialogsFailed(const RPCError &error, mtpRequestId req) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	LOG(("RPC Error: %1 %2: %3").arg(error.code()).arg(error.type()).arg(error.description()));
 	if (_dialogsRequest == req) {
 		_dialogsRequest = 0;
-	} else if (_channelDialogsRequest == req) {
-		_channelDialogsRequest = 0;
 	}
 	return true;
 }
@@ -1738,22 +1856,26 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 		SearchCache::const_iterator i = _searchCache.constFind(q);
 		if (i != _searchCache.cend()) {
 			_searchQuery = q;
-			_searchFull = false;
+			_searchFull = _searchFullMigrated = false;
 			if (_searchRequest) {
 				MTP::cancel(_searchRequest);
 				_searchRequest = 0;
 			}
-			searchReceived(true, i.value(), 0);
+			searchReceived(_searchInPeer ? DialogsSearchPeerFromStart : DialogsSearchFromStart, i.value(), 0);
 			return true;
 		}
 	} else if (_searchQuery != q) {
 		_searchQuery = q;
-		_searchFull = false;
-		int32 flags = (_searchInPeer && _searchInPeer->isChannel()) ? MTPmessages_Search_flag_only_important : 0;
+		_searchFull = _searchFullMigrated = false;
 		if (_searchRequest) {
 			MTP::cancel(_searchRequest);
 		}
-		_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _searchInPeer ? _searchInPeer->input : MTP_inputPeerEmpty(), MTP_string(_searchQuery), MTP_inputMessagesFilterEmpty(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, true), rpcFail(&DialogsWidget::searchFailed));
+		if (_searchInPeer) {
+			int32 flags = (_searchInPeer->isChannel() && !_searchInPeer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
+			_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _searchInPeer->input, MTP_string(_searchQuery), MTP_inputMessagesFilterEmpty(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, DialogsSearchPeerFromStart), rpcFail(&DialogsWidget::searchFailed, DialogsSearchPeerFromStart));
+		} else {
+			_searchRequest = MTP::send(MTPmessages_SearchGlobal(MTP_string(_searchQuery), MTP_int(0), MTP_inputPeerEmpty(), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, DialogsSearchFromStart), rpcFail(&DialogsWidget::searchFailed, DialogsSearchFromStart));
+		}
 		_searchQueries.insert(_searchRequest, _searchQuery);
 	}
 	if (!_searchInPeer && q.size() >= MinUsernameLength) {
@@ -1782,14 +1904,15 @@ void DialogsWidget::onNeedSearchMessages() {
 }
 
 void DialogsWidget::onChooseByDrag() {
-	list.choosePeer();
+	_inner.choosePeer();
 }
 
 void DialogsWidget::searchMessages(const QString &query, PeerData *inPeer) {
-	if ((_filter.getLastText() != query) || (inPeer && inPeer != _searchInPeer)) {
+	if ((_filter.getLastText() != query) || (inPeer && inPeer != _searchInPeer && inPeer->migrateTo() != _searchInPeer)) {
 		if (inPeer) {
-			_searchInPeer = inPeer;
-			list.searchInPeer(inPeer);
+			_searchInPeer = inPeer->migrateTo() ? inPeer->migrateTo() : inPeer;
+			_searchInMigrated = _searchInPeer ? _searchInPeer->migrateFrom() : 0;
+			_inner.searchInPeer(_searchInPeer);
 		}
 		_filter.setText(query);
 		_filter.updatePlaceholder();
@@ -1797,33 +1920,43 @@ void DialogsWidget::searchMessages(const QString &query, PeerData *inPeer) {
 		_searchTimer.stop();
 		onSearchMessages();
 
-		list.saveRecentHashtags(query);
+		_inner.saveRecentHashtags(query);
 	}
 }
 
-void DialogsWidget::onSearchMore(MsgId minMsgId) {
-	if (!_searchRequest && !_searchFull) {
-		int32 flags = (_searchInPeer && _searchInPeer->isChannel()) ? MTPmessages_Search_flag_only_important : 0;
-		_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _searchInPeer ? _searchInPeer->input : MTP_inputPeerEmpty(), MTP_string(_searchQuery), MTP_inputMessagesFilterEmpty(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(minMsgId), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, !minMsgId), rpcFail(&DialogsWidget::searchFailed));
-		if (!minMsgId) {
-			_searchQueries.insert(_searchRequest, _searchQuery);
+void DialogsWidget::onSearchMore() {
+	if (!_searchRequest) {
+		if (!_searchFull) {
+			int32 offsetDate = _inner.lastSearchDate();
+			PeerData *offsetPeer = _inner.lastSearchPeer();
+			MsgId offsetId = _inner.lastSearchId();
+			if (_searchInPeer) {
+				int32 flags = (_searchInPeer->isChannel() && !_searchInPeer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
+				_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _searchInPeer->input, MTP_string(_searchQuery), MTP_inputMessagesFilterEmpty(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(offsetId), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, offsetId ? DialogsSearchPeerFromOffset : DialogsSearchPeerFromStart), rpcFail(&DialogsWidget::searchFailed, offsetId ? DialogsSearchPeerFromOffset : DialogsSearchPeerFromStart));
+			} else {
+				_searchRequest = MTP::send(MTPmessages_SearchGlobal(MTP_string(_searchQuery), MTP_int(offsetDate), offsetPeer ? offsetPeer->input : MTP_inputPeerEmpty(), MTP_int(offsetId), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, offsetId ? DialogsSearchFromOffset : DialogsSearchFromStart), rpcFail(&DialogsWidget::searchFailed, offsetId ? DialogsSearchFromOffset : DialogsSearchFromStart));
+			}
+			if (!offsetId) {
+				_searchQueries.insert(_searchRequest, _searchQuery);
+			}
+		} else if (_searchInMigrated && !_searchFullMigrated) {
+			MsgId offsetMigratedId = _inner.lastSearchMigratedId();
+			int32 flags = (_searchInMigrated->isChannel() && !_searchInMigrated->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
+			_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _searchInMigrated->input, MTP_string(_searchQuery), MTP_inputMessagesFilterEmpty(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(offsetMigratedId), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, offsetMigratedId ? DialogsSearchMigratedFromOffset : DialogsSearchMigratedFromStart), rpcFail(&DialogsWidget::searchFailed, offsetMigratedId ? DialogsSearchMigratedFromOffset : DialogsSearchMigratedFromStart));
 		}
 	}
 }
 
 void DialogsWidget::loadDialogs() {
 	if (_dialogsRequest) return;
-	if (_dialogsCount >= 0 && _dialogsOffset >= _dialogsCount) {
-		list.addAllSavedPeers();
+	if (_dialogsFull) {
+		_inner.addAllSavedPeers();
 		cSetDialogsReceived(true);
 		return;
 	}
 
-	int32 loadCount = _dialogsOffset ? DialogsPerPage : DialogsFirstLoad;
-	_dialogsRequest = MTP::send(MTPmessages_GetDialogs(MTP_int(_dialogsOffset), MTP_int(loadCount)), rpcDone(&DialogsWidget::dialogsReceived), rpcFail(&DialogsWidget::dialogsFailed), 0, _channelDialogsRequest ? 0 : 5);
-	if (!_channelDialogsRequest) {
-		_channelDialogsRequest = MTP::send(MTPchannels_GetDialogs(MTP_int(0), MTP_int(DialogsPerPage)), rpcDone(&DialogsWidget::dialogsReceived), rpcFail(&DialogsWidget::dialogsFailed));
-	}
+	int32 loadCount = _dialogsOffsetDate ? DialogsPerPage : DialogsFirstLoad;
+	_dialogsRequest = MTP::send(MTPmessages_GetDialogs(MTP_int(_dialogsOffsetDate), MTP_int(_dialogsOffsetId), _dialogsOffsetPeer ? _dialogsOffsetPeer->input : MTP_inputPeerEmpty(), MTP_int(loadCount)), rpcDone(&DialogsWidget::dialogsReceived), rpcFail(&DialogsWidget::dialogsFailed));
 }
 
 void DialogsWidget::contactsReceived(const MTPcontacts_Contacts &contacts) {
@@ -1831,23 +1964,25 @@ void DialogsWidget::contactsReceived(const MTPcontacts_Contacts &contacts) {
 	if (contacts.type() == mtpc_contacts_contacts) {
 		const MTPDcontacts_contacts &d(contacts.c_contacts_contacts());
 		App::feedUsers(d.vusers);
-		list.contactsReceived(d.vcontacts.c_vector().v);
+		_inner.contactsReceived(d.vcontacts.c_vector().v);
 	}
 	if (App::main()) App::main()->contactsReceived();
 }
 
 bool DialogsWidget::contactsFailed(const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	return true;
 }
 
-void DialogsWidget::searchReceived(bool fromStart, const MTPmessages_Messages &result, mtpRequestId req) {
-	if (fromStart && (list.state() == DialogsListWidget::FilteredState || list.state() == DialogsListWidget::SearchedState)) {
-		SearchQueries::iterator i = _searchQueries.find(req);
-		if (i != _searchQueries.cend()) {
-			_searchCache[i.value()] = result;
-			_searchQueries.erase(i);
+void DialogsWidget::searchReceived(DialogsSearchRequestType type, const MTPmessages_Messages &result, mtpRequestId req) {
+	if (_inner.state() == DialogsInner::FilteredState || _inner.state() == DialogsInner::SearchedState) {
+		if (type == DialogsSearchFromStart || type == DialogsSearchPeerFromStart) {
+			SearchQueries::iterator i = _searchQueries.find(req);
+			if (i != _searchQueries.cend()) {
+				_searchCache[i.value()] = result;
+				_searchQueries.erase(i);
+			}
 		}
 	}
 
@@ -1858,9 +1993,12 @@ void DialogsWidget::searchReceived(bool fromStart, const MTPmessages_Messages &r
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
 			const QVector<MTPMessage> &msgs(d.vmessages.c_vector().v);
-			list.searchReceived(msgs, fromStart, msgs.size());
-			if (msgs.isEmpty()) {
-				_searchFull = true;
+			if (!_inner.searchReceived(msgs, type, msgs.size())) {
+				if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
+					_searchFullMigrated = true;
+				} else {
+					_searchFull = true;
+				}
 			}
 		} break;
 
@@ -1869,9 +2007,12 @@ void DialogsWidget::searchReceived(bool fromStart, const MTPmessages_Messages &r
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
 			const QVector<MTPMessage> &msgs(d.vmessages.c_vector().v);
-			list.searchReceived(msgs, fromStart, d.vcount.v);
-			if (msgs.isEmpty()) {
-				_searchFull = true;
+			if (!_inner.searchReceived(msgs, type, d.vcount.v)) {
+				if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
+					_searchFullMigrated = true;
+				} else {
+					_searchFull = true;
+				}
 			}
 		} break;
 
@@ -1889,9 +2030,12 @@ void DialogsWidget::searchReceived(bool fromStart, const MTPmessages_Messages &r
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
 			const QVector<MTPMessage> &msgs(d.vmessages.c_vector().v);
-			list.searchReceived(msgs, fromStart, d.vcount.v);
-			if (msgs.isEmpty()) {
-				_searchFull = true;
+			if (!_inner.searchReceived(msgs, type, d.vcount.v)) {
+				if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
+					_searchFullMigrated = true;
+				} else {
+					_searchFull = true;
+				}
 			}
 		} break;
 		}
@@ -1903,7 +2047,7 @@ void DialogsWidget::searchReceived(bool fromStart, const MTPmessages_Messages &r
 
 void DialogsWidget::peopleReceived(const MTPcontacts_Found &result, mtpRequestId req) {
 	QString q = _peopleQuery;
-	if (list.state() == DialogsListWidget::FilteredState || list.state() == DialogsListWidget::SearchedState) {
+	if (_inner.state() == DialogsInner::FilteredState || _inner.state() == DialogsInner::SearchedState) {
 		PeopleQueries::iterator i = _peopleQueries.find(req);
 		if (i != _peopleQueries.cend()) {
 			q = i.value();
@@ -1917,7 +2061,7 @@ void DialogsWidget::peopleReceived(const MTPcontacts_Found &result, mtpRequestId
 		case mtpc_contacts_found: {
 			App::feedUsers(result.c_contacts_found().vusers);
 			App::feedChats(result.c_contacts_found().vchats);
-			list.peopleReceived(q, result.c_contacts_found().vresults.c_vector().v);
+			_inner.peopleReceived(q, result.c_contacts_found().vresults.c_vector().v);
 		} break;
 		}
 
@@ -1926,18 +2070,22 @@ void DialogsWidget::peopleReceived(const MTPcontacts_Found &result, mtpRequestId
 	}
 }
 
-bool DialogsWidget::searchFailed(const RPCError &error, mtpRequestId req) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+bool DialogsWidget::searchFailed(DialogsSearchRequestType type, const RPCError &error, mtpRequestId req) {
+	if (mtpIsFlood(error)) return false;
 
 	if (_searchRequest == req) {
 		_searchRequest = 0;
-		_searchFull = true;
+		if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
+			_searchFullMigrated = true;
+		} else {
+			_searchFull = true;
+		}
 	}
 	return true;
 }
 
 bool DialogsWidget::peopleFailed(const RPCError &error, mtpRequestId req) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	if (_peopleRequest == req) {
 		_peopleRequest = 0;
@@ -1950,10 +2098,10 @@ bool DialogsWidget::addNewContact(int32 uid, bool show) {
 	_filter.setText(QString());
 	_filter.updatePlaceholder();
 	onFilterUpdate();
-	int32 to = list.addNewContact(uid, true);
+	int32 to = _inner.addNewContact(uid, true);
 	if (to < -1 || !show) return false;
-	list.refresh();
-	if (to >= 0) scroll.scrollToY(to);
+	_inner.refresh();
+	if (to >= 0) _scroll.scrollToY(to);
 	return true;
 }
 
@@ -1968,7 +2116,7 @@ void DialogsWidget::dragEnterEvent(QDragEnterEvent *e) {
 	if (_dragForward) {
 		e->setDropAction(Qt::CopyAction);
 		e->accept();
-		updateDragInScroll(scroll.geometry().contains(e->pos()));
+		updateDragInScroll(_scroll.geometry().contains(e->pos()));
 	} else if (App::main() && App::main()->getDragState(e->mimeData()) != DragStateNone) {
 		e->setDropAction(Qt::CopyAction);
 		e->accept();
@@ -1977,13 +2125,13 @@ void DialogsWidget::dragEnterEvent(QDragEnterEvent *e) {
 }
 
 void DialogsWidget::dragMoveEvent(QDragMoveEvent *e) {
-	if (scroll.geometry().contains(e->pos())) {
+	if (_scroll.geometry().contains(e->pos())) {
 		if (_dragForward) {
 			updateDragInScroll(true);
 		} else {
 			_chooseByDragTimer.start(ChoosePeerByDragTimeout);
 		}
-		PeerData *p = list.updateFromParentDrag(mapToGlobal(e->pos()));
+		PeerData *p = _inner.updateFromParentDrag(mapToGlobal(e->pos()));
 		if (p) {
 			e->setDropAction(Qt::CopyAction);
 		} else {
@@ -1991,7 +2139,7 @@ void DialogsWidget::dragMoveEvent(QDragMoveEvent *e) {
 		}
 	} else {
 		if (_dragForward) updateDragInScroll(false);
-		list.leaveEvent(0);
+		_inner.leaveEvent(0);
 		e->setDropAction(Qt::IgnoreAction);
 	}
 	e->accept();
@@ -2003,7 +2151,7 @@ void DialogsWidget::dragLeaveEvent(QDragLeaveEvent *e) {
 	} else {
 		_chooseByDragTimer.stop();
 	}
-	list.leaveEvent(0);
+	_inner.leaveEvent(0);
 	e->accept();
 }
 
@@ -2020,8 +2168,8 @@ void DialogsWidget::updateDragInScroll(bool inScroll) {
 
 void DialogsWidget::dropEvent(QDropEvent *e) {
 	_chooseByDragTimer.stop();
-	if (scroll.geometry().contains(e->pos())) {
-		PeerData *p = list.updateFromParentDrag(mapToGlobal(e->pos()));
+	if (_scroll.geometry().contains(e->pos())) {
+		PeerData *p = _inner.updateFromParentDrag(mapToGlobal(e->pos()));
 		if (p) {
 			e->acceptProposedAction();
 			App::main()->onFilesOrForwardDrop(p->id, e->mimeData());
@@ -2032,21 +2180,21 @@ void DialogsWidget::dropEvent(QDropEvent *e) {
 void DialogsWidget::onListScroll() {
 //	if (!App::self()) return;
 
-	list.loadPeerPhotos(scroll.scrollTop());
-	if (list.state() == DialogsListWidget::SearchedState) {
-		if (scroll.scrollTop() > (list.searchList().size() + list.filteredList().size() + list.peopleList().size()) * st::dlgHeight - PreloadHeightsCount * scroll.height()) {
-			onSearchMore(list.lastSearchId());
+	_inner.loadPeerPhotos(_scroll.scrollTop());
+	if (_inner.state() == DialogsInner::SearchedState || (_inner.state() == DialogsInner::FilteredState && _searchInMigrated && _searchFull && !_searchFullMigrated)) {
+		if (_scroll.scrollTop() > (_inner.searchList().size() + _inner.filteredList().size() + _inner.peopleList().size()) * st::dlgHeight - PreloadHeightsCount * _scroll.height()) {
+			onSearchMore();
 		}
-	} else if (scroll.scrollTop() > list.dialogsList().list.count * st::dlgHeight - PreloadHeightsCount * scroll.height()) {
+	} else if (_scroll.scrollTop() > _inner.dialogsList().list.count * st::dlgHeight - PreloadHeightsCount * _scroll.height()) {
 		loadDialogs();
 	}
 }
 
 void DialogsWidget::onFilterUpdate(bool force) {
-	if (animating() && !force) return;
+	if (_a_show.animating() && !force) return;
 
 	QString filterText = _filter.getLastText();
-	list.onFilterUpdate(filterText);
+	_inner.onFilterUpdate(filterText, force);
 	if (filterText.isEmpty()) {
 		_searchCache.clear();
 		_searchQueries.clear();
@@ -2066,10 +2214,10 @@ void DialogsWidget::onFilterUpdate(bool force) {
 
 void DialogsWidget::searchInPeer(PeerData *peer) {
 	onCancelSearch();
-	_searchInPeer = peer;
-	list.searchInPeer(peer);
+	_searchInPeer = peer ? (peer->migrateTo() ? peer->migrateTo() : peer) : 0;
+	_searchInMigrated = _searchInPeer ? _searchInPeer->migrateFrom() : 0;
+	_inner.searchInPeer(_searchInPeer);
 	onFilterUpdate(true);
-	list.onFilterUpdate(_filter.getLastText(), true);
 }
 
 void DialogsWidget::onFilterCursorMoved(int from, int to) {
@@ -2085,7 +2233,7 @@ void DialogsWidget::onFilterCursorMoved(int from, int to) {
 		}
 		if (!t.at(start).isLetterOrNumber() && t.at(start) != '_') break;
 	}
-	list.onHashtagFilterUpdate(r);
+	_inner.onHashtagFilterUpdate(r);
 }
 
 void DialogsWidget::onCompleteHashtag(QString tag) {
@@ -2116,19 +2264,18 @@ void DialogsWidget::onCompleteHashtag(QString tag) {
 }
 
 void DialogsWidget::resizeEvent(QResizeEvent *e) {
-	int32 w = width() - st::dlgShadow;
+	int32 w = width();
 	_filter.setGeometry(st::dlgPaddingHor, st::dlgFilterPadding, w - 2 * st::dlgPaddingHor, _filter.height());
 	_newGroup.move(w - _newGroup.width() - st::dlgPaddingHor, _filter.y());
 	_addContact.move(w - _addContact.width() - st::dlgPaddingHor, _filter.y());
 	_cancelSearch.move(w - _cancelSearch.width() - st::dlgPaddingHor, _filter.y());
-	scroll.move(0, _filter.height() + 2 * st::dlgFilterPadding);
+	_scroll.move(0, _filter.height() + 2 * st::dlgFilterPadding);
 
 	int32 addToY = App::main() ? App::main()->contentScrollAddToY() : 0;
-	int32 newScrollY = scroll.scrollTop() + addToY;
-	scroll.resize(w, height() - _filter.y() - _filter.height() - st::dlgFilterPadding - st::dlgPaddingVer);
-	list.resize(w, list.height());
+	int32 newScrollY = _scroll.scrollTop() + addToY;
+	_scroll.resize(w, height() - _filter.y() - _filter.height() - st::dlgFilterPadding - st::dlgPaddingVer);
 	if (addToY) {
-		scroll.scrollToY(newScrollY);
+		_scroll.scrollToY(newScrollY);
 	} else {
 		onListScroll();
 	}
@@ -2138,88 +2285,95 @@ void DialogsWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		e->ignore();
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
-		if (!list.choosePeer()) {
-			if (list.state() == DialogsListWidget::DefaultState || list.state() == DialogsListWidget::SearchedState || (list.state() == DialogsListWidget::FilteredState && list.hasFilteredResults())) {
-				list.selectSkip(1);
-				list.choosePeer();
+		if (!_inner.choosePeer()) {
+			if (_inner.state() == DialogsInner::DefaultState || _inner.state() == DialogsInner::SearchedState || (_inner.state() == DialogsInner::FilteredState && _inner.hasFilteredResults())) {
+				_inner.selectSkip(1);
+				_inner.choosePeer();
 			} else {
 				onSearchMessages();
 			}
 		}
 	} else if (e->key() == Qt::Key_Down) {
-		list.setMouseSel(false);
-		list.selectSkip(1);
+		_inner.setMouseSel(false);
+		_inner.selectSkip(1);
 	} else if (e->key() == Qt::Key_Up) {
-		list.setMouseSel(false);
-		list.selectSkip(-1);
+		_inner.setMouseSel(false);
+		_inner.selectSkip(-1);
 	} else if (e->key() == Qt::Key_PageDown) {
-		list.setMouseSel(false);
-		list.selectSkipPage(scroll.height(), 1);
+		_inner.setMouseSel(false);
+		_inner.selectSkipPage(_scroll.height(), 1);
 	} else if (e->key() == Qt::Key_PageUp) {
-		list.setMouseSel(false);
-		list.selectSkipPage(scroll.height(), -1);
+		_inner.setMouseSel(false);
+		_inner.selectSkipPage(_scroll.height(), -1);
 	} else {
 		e->ignore();
 	}
 }
 
 void DialogsWidget::paintEvent(QPaintEvent *e) {
+	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) return;
+
 	QPainter p(this);
 	QRect r(e->rect());
 	if (r != rect()) {
 		p.setClipRect(r);
 	}
-	if (animating()) {
-		p.setOpacity(a_bgAlpha.current());
-		p.drawPixmap(a_bgCoord.current(), 0, _bgAnimCache);
-		p.setOpacity(a_alpha.current());
-		p.drawPixmap(a_coord.current(), 0, _animCache);
+	if (_a_show.animating()) {
+		if (a_coordOver.current() > 0) {
+			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * cRetinaFactor(), 0, a_coordOver.current() * cRetinaFactor(), height() * cRetinaFactor()));
+			p.setOpacity(a_shadow.current() * st::slideFadeOut);
+			p.fillRect(0, 0, a_coordOver.current(), height(), st::black->b);
+			p.setOpacity(1);
+		}
+		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
+		p.setOpacity(a_shadow.current());
+		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow);
 		return;
 	}
-	if (cWideMode() && _drawShadow) {
-		QRect sh(width() - st::dlgShadow, 0, st::dlgShadow, height());
-		if (r.intersects(sh)) {
-			p.fillRect(sh, st::dlgShadowColor->b);
-		}
+	QRect above(0, 0, width(), _scroll.y());
+	if (above.intersects(r)) {
+		p.fillRect(above.intersected(r), st::white->b);
+	}
+	QRect below(0, _scroll.y() + qMin(_scroll.height(), _inner.height()), width(), height());
+	if (below.intersects(r)) {
+		p.fillRect(below.intersected(r), st::white->b);
 	}
 }
 
 void DialogsWidget::destroyData() {
-	list.destroyData();
+	_inner.destroyData();
 }
 
 void DialogsWidget::peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const {
-	return list.peerBefore(inPeer, inMsg, outPeer, outMsg);
+	return _inner.peerBefore(inPeer, inMsg, outPeer, outMsg);
 }
 
 void DialogsWidget::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const {
-	return list.peerAfter(inPeer, inMsg, outPeer, outMsg);
+	return _inner.peerAfter(inPeer, inMsg, outPeer, outMsg);
 }
 
 void DialogsWidget::scrollToPeer(const PeerId &peer, MsgId msgId) {
-	list.scrollToPeer(peer, msgId);
+	_inner.scrollToPeer(peer, msgId);
 }
 
-void DialogsWidget::removePeer(PeerData *peer) {
-	_filter.setText(QString());
-	_filter.updatePlaceholder();
+void DialogsWidget::removeDialog(History *history) {
+	_inner.removeDialog(history);
 	onFilterUpdate();
-	list.removePeer(peer);
 }
 
 void DialogsWidget::removeContact(UserData *user) {
 	_filter.setText(QString());
 	_filter.updatePlaceholder();
 	onFilterUpdate();
-	list.removeContact(user);
+	_inner.removeContact(user);
 }
 
 DialogsIndexed &DialogsWidget::contactsList() {
-	return list.contactsList();
+	return _inner.contactsList();
 }
 
 DialogsIndexed &DialogsWidget::dialogsList() {
-	return list.dialogsList();
+	return _inner.dialogsList();
 }
 
 void DialogsWidget::onAddContact() {
@@ -2240,11 +2394,11 @@ bool DialogsWidget::onCancelSearch() {
 		if (!cWideMode()) {
 			App::main()->showPeerHistory(_searchInPeer->id, ShowAtUnreadMsgId);
 		}
-		_searchInPeer = 0;
-		list.searchInPeer(0);
+		_searchInPeer = _searchInMigrated = 0;
+		_inner.searchInPeer(0);
 		clearing = true;
 	}
-	list.clearFilter();
+	_inner.clearFilter();
 	_filter.clear();
 	_filter.updatePlaceholder();
 	onFilterUpdate();
@@ -2257,28 +2411,24 @@ void DialogsWidget::onCancelSearchInPeer() {
 		_searchRequest = 0;
 	}
 	if (_searchInPeer) {
-		if (!cWideMode()) {
+		if (!cWideMode() && !App::main()->selectingPeer()) {
 			App::main()->showPeerHistory(_searchInPeer->id, ShowAtUnreadMsgId);
 		}
-		_searchInPeer = 0;
-		list.searchInPeer(0);
+		_searchInPeer = _searchInMigrated = 0;
+		_inner.searchInPeer(0);
 	}
-	list.clearFilter();
+	_inner.clearFilter();
 	_filter.clear();
 	_filter.updatePlaceholder();
 	onFilterUpdate();
-	if (cWideMode()) {
+	if (cWideMode() && !App::main()->selectingPeer()) {
 		emit cancelled();
 	}
 }
 
 void DialogsWidget::onDialogMoved(int movedFrom, int movedTo) {
-	int32 st = scroll.scrollTop();
+	int32 st = _scroll.scrollTop();
 	if (st > movedTo && st < movedFrom) {
-		scroll.scrollToY(st + st::dlgHeight);
+		_scroll.scrollToY(st + st::dlgHeight);
 	}
-}
-
-void DialogsWidget::enableShadow(bool enable) {
-	_drawShadow = enable;
 }

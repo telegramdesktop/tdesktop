@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #define __HUGE
 #define PSAPI_VERSION 1 // fix WinXP
@@ -44,6 +47,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #if defined Q_OS_WIN
 #define _NEED_WIN_GENERATE_DUMP
+#elif defined Q_OS_LINUX32 || defined Q_OS_LINUX64
+#define _NEED_LINUX_GENERATE_DUMP
 #endif
 
 #include "types.h"
@@ -57,7 +62,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "gui/flatinput.h"
 #include "gui/flattextarea.h"
 #include "gui/flatbutton.h"
-#include "gui/contextmenu.h"
+#include "gui/boxshadow.h"
+#include "gui/popupmenu.h"
 #include "gui/switcher.h"
 #include "gui/scrollarea.h"
 #include "gui/images.h"

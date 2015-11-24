@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -181,7 +184,7 @@ void IntroPwdCheck::pwdSubmitDone(bool recover, const MTPauth_Authorization &res
 	_pwdField.setDisabled(false);
 	_codeField.setDisabled(false);
 	const MTPDauth_authorization &d(result.c_auth_authorization());
-	if (d.vuser.type() != mtpc_user || !(d.vuser.c_user().vflags.v & MTPDuser_flag_self)) { // wtf?
+	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
 		showError(lang(lng_server_error));
 		return;
 	}
@@ -196,11 +199,12 @@ bool IntroPwdCheck::pwdSubmitFail(const RPCError &error) {
 	const QString &err = error.type();
 	if (err == "PASSWORD_HASH_INVALID") {
 		showError(lang(lng_signin_bad_password));
+		_pwdField.selectAll();
 		_pwdField.notaBene();
 		return true;
 	} else if (err == "PASSWORD_EMPTY") {
 		intro()->onIntroBack();
-	} else if (err.startsWith(qsl("FLOOD_WAIT_"))) {
+	} else if (mtpIsFlood(error)) {
 		showError(lang(lng_flood_error));
 		_pwdField.notaBene();
 		return true;
@@ -232,9 +236,10 @@ bool IntroPwdCheck::codeSubmitFail(const RPCError &error) {
 		return true;
 	} else if (err == "CODE_INVALID") {
 		showError(lang(lng_signin_wrong_code));
+		_codeField.selectAll();
 		_codeField.notaBene();
 		return true;
-	} else if (err.startsWith(qsl("FLOOD_WAIT_"))) {
+	} else if (mtpIsFlood(error)) {
 		showError(lang(lng_flood_error));
 		_codeField.notaBene();
 		return true;
@@ -249,7 +254,7 @@ bool IntroPwdCheck::codeSubmitFail(const RPCError &error) {
 }
 
 void IntroPwdCheck::recoverStarted(const MTPauth_PasswordRecovery &result) {
-	_emailPattern = st::introFont->m.elidedText(lng_signin_recover_hint(lt_recover_email, qs(result.c_auth_passwordRecovery().vemail_pattern)), Qt::ElideRight, textRect.width());
+	_emailPattern = st::introFont->elided(lng_signin_recover_hint(lt_recover_email, qs(result.c_auth_passwordRecovery().vemail_pattern)), textRect.width());
 	update();
 }
 
@@ -283,14 +288,14 @@ void IntroPwdCheck::onToRecover() {
 		}
 		update();
 	} else {
-		ConfirmBox *box = new ConfirmBox(lang(lng_signin_no_email_forgot), true);
+		ConfirmBox *box = new InformBox(lang(lng_signin_no_email_forgot));
 		App::wnd()->showLayer(box);
 		connect(box, SIGNAL(destroyed(QObject*)), this, SLOT(onToReset()));
 	}
 }
 
 void IntroPwdCheck::onToPassword() {
-	ConfirmBox *box = new ConfirmBox(lang(lng_signin_no_email_forgot), true);
+	ConfirmBox *box = new InformBox(lang(lng_signin_cant_email_forgot));
 	App::wnd()->showLayer(box);
 	connect(box, SIGNAL(destroyed(QObject*)), this, SLOT(onToReset()));
 }
@@ -312,7 +317,7 @@ void IntroPwdCheck::onToReset() {
 
 void IntroPwdCheck::onReset() {
 	if (sentRequest) return;
-	ConfirmBox *box = new ConfirmBox(lang(lng_sigin_sure_reset), lang(lng_sigin_reset), QString(), st::btnRedDone);
+	ConfirmBox *box = new ConfirmBox(lang(lng_signin_sure_reset), lang(lng_signin_reset), st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onResetSure()));
 	App::wnd()->showLayer(box);
 }

@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -144,12 +147,28 @@ inline bool emojiEdge(const QChar *ch) {
 	return false;
 }
 
-inline QString replaceEmojis(const QString &text) {
+inline void appendPartToResult(QString &result, const QChar *start, const QChar *from, const QChar *to, EntitiesInText &entities) {
+	if (to > from) {
+		for (EntitiesInText::iterator i = entities.begin(), e = entities.end(); i != e; ++i) {
+			if (i->offset >= to - start) break;
+			if (i->offset + i->length < from - start) continue;
+			if (i->offset >= from - start) {
+				i->offset -= (from - start - result.size());
+				i->length += (from - start - result.size());
+			}
+			if (i->offset + i->length < to - start) {
+				i->length -= (from - start - result.size());
+			}
+		}
+		result.append(from, to - from);
+	}
+}
+
+inline QString replaceEmojis(const QString &text, EntitiesInText &entities) {
 	QString result;
-	LinksInText links = textParseLinks(text, TextParseLinks | TextParseMentions | TextParseHashtags);
-	int32 currentLink = 0, lnkCount = links.size();
-	const QChar *emojiStart = text.unicode(), *emojiEnd = emojiStart, *e = text.cend();
-	bool canFindEmoji = true, consumePrevious = false;
+	int32 currentEntity = 0, entitiesCount = entities.size();
+	const QChar *emojiStart = text.constData(), *emojiEnd = emojiStart, *e = text.constData() + text.size();
+	bool canFindEmoji = true;
 	for (const QChar *ch = emojiEnd; ch != e;) {
 		uint32 emojiCode = 0;
 		const QChar *newEmojiEnd = 0;
@@ -157,20 +176,19 @@ inline QString replaceEmojis(const QString &text) {
 			emojiFind(ch, e, newEmojiEnd, emojiCode);
 		}
 		
-		while (currentLink < lnkCount && ch >= emojiStart + links[currentLink].offset + links[currentLink].length) {
-			++currentLink;
+		while (currentEntity < entitiesCount && ch >= emojiStart + entities[currentEntity].offset + entities[currentEntity].length) {
+			++currentEntity;
 		}
 		EmojiPtr emoji = emojiCode ? emojiGet(emojiCode) : 0;
 		if (emoji && emoji != TwoSymbolEmoji &&
 		    (ch == emojiStart || !ch->isLetterOrNumber() || !(ch - 1)->isLetterOrNumber()) &&
 		    (newEmojiEnd == e || !newEmojiEnd->isLetterOrNumber() || newEmojiEnd == emojiStart || !(newEmojiEnd - 1)->isLetterOrNumber()) &&
-			(currentLink >= lnkCount || (ch < emojiStart + links[currentLink].offset && newEmojiEnd <= emojiStart + links[currentLink].offset) || (ch >= emojiStart + links[currentLink].offset + links[currentLink].length && newEmojiEnd > emojiStart + links[currentLink].offset + links[currentLink].length))
+			(currentEntity >= entitiesCount || (ch < emojiStart + entities[currentEntity].offset && newEmojiEnd <= emojiStart + entities[currentEntity].offset) || (ch >= emojiStart + entities[currentEntity].offset + entities[currentEntity].length && newEmojiEnd > emojiStart + entities[currentEntity].offset + entities[currentEntity].length))
 		) {
-//			if (newEmojiEnd < e && newEmojiEnd->unicode() == ' ') ++newEmojiEnd;
 			if (result.isEmpty()) result.reserve(text.size());
-			if (ch > emojiEnd + (consumePrevious ? 1 : 0)) {
-				result.append(emojiEnd, ch - emojiEnd - (consumePrevious ? 1 : 0));
-			}
+
+			appendPartToResult(result, emojiStart, emojiEnd, ch, entities);
+
 			if (emoji->color) {
 				EmojiColorVariants::const_iterator it = cEmojiVariants().constFind(emoji->code);
 				if (it != cEmojiVariants().cend()) {
@@ -186,14 +204,9 @@ inline QString replaceEmojis(const QString &text) {
 
 			ch = emojiEnd = newEmojiEnd;
 			canFindEmoji = true;
-			consumePrevious = false;
 		} else {
-			if (false && (ch->unicode() == QChar::Space || ch->unicode() == QChar::Nbsp)) {
+			if (emojiEdge(ch)) {
 				canFindEmoji = true;
-				consumePrevious = true;
-			} else if (emojiEdge(ch)) {
-				canFindEmoji = true;
-				consumePrevious = false;
 			} else {
 				canFindEmoji = false;
 			}
@@ -202,7 +215,8 @@ inline QString replaceEmojis(const QString &text) {
 	}
 	if (result.isEmpty()) return text;
 
-	if (emojiEnd < e) result.append(emojiEnd, e - emojiEnd);
+	appendPartToResult(result, emojiStart, emojiEnd, e, entities);
+
 	return result;
 }
 

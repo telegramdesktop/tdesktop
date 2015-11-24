@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -27,6 +30,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 BackgroundWidget::BackgroundWidget(QWidget *parent, LayeredWidget *w) : QWidget(parent), w(w),
 aBackground(0), aBackgroundFunc(anim::easeOutCirc), hiding(false), shadow(st::boxShadow) {
 	w->setParent(this);
+	if (App::app()) App::app()->mtpPause();
 	setGeometry(0, 0, App::wnd()->width(), App::wnd()->height());
 	aBackground.start(1);
 	anim::start(this);
@@ -51,15 +55,15 @@ void BackgroundWidget::paintEvent(QPaintEvent *e) {
 		p.setClipRect(e->rect());
 	}
 	p.setOpacity(st::layerAlpha * aBackground.current());
-	p.fillRect(rect(), st::layerBG->b);
+	p.fillRect(rect(), st::layerBg->b);
 
 	p.setOpacity(aBackground.current());
-	shadow.paint(p, w->boxRect(), st::boxShadowShift);
+	shadow.paint(p, w->geometry(), st::boxShadowShift);
 }
 
 void BackgroundWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
-		startHide();
+		onClose();
 	}
 }
 
@@ -76,6 +80,7 @@ bool BackgroundWidget::onInnerClose() {
 		onClose();
 		return true;
 	}
+	w->hide();
 	w->deleteLater();
 	w = _hidden.back();
 	_hidden.pop_back();
@@ -88,6 +93,8 @@ bool BackgroundWidget::onInnerClose() {
 
 void BackgroundWidget::startHide() {
 	if (hiding) return;
+	if (App::app()) App::app()->mtpPause();
+
 	hiding = true;
 	if (App::wnd()) App::wnd()->setInnerFocus();
 	aBackground.start(0);
@@ -103,6 +110,11 @@ void BackgroundWidget::setInnerFocus() {
 	if (w) {
 		w->setInnerFocus();
 	}
+}
+
+bool BackgroundWidget::contentOverlapped(const QRect &globalRect) {
+	if (isHidden()) return false;
+	return w && w->overlaps(globalRect);
 }
 
 void BackgroundWidget::resizeEvent(QResizeEvent *e) {
@@ -127,6 +139,18 @@ void BackgroundWidget::replaceInner(LayeredWidget *n) {
 	update();
 }
 
+void BackgroundWidget::showLayerLast(LayeredWidget *n) {
+	_hidden.push_front(n);
+	n->setParent(this);
+	connect(n, SIGNAL(closed()), this, SLOT(onInnerClose()));
+	connect(n, SIGNAL(resized()), this, SLOT(update()));
+	connect(n, SIGNAL(destroyed(QObject*)), this, SLOT(boxDestroyed(QObject*)));
+	n->parentResized();
+	n->animStep(1);
+	n->hide();
+	update();
+}
+
 bool BackgroundWidget::animStep(float64 ms) {
 	float64 dt = ms / (hiding ? st::layerHideDuration : st::layerSlideDuration);
 	w->animStep(dt);
@@ -138,6 +162,7 @@ bool BackgroundWidget::animStep(float64 ms) {
 		}
 		anim::stop(this);
 		res = false;
+		if (App::app()) App::app()->mtpUnpause();
 	} else {
 		aBackground.update(dt, aBackgroundFunc);
 	}

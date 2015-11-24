@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
@@ -41,8 +44,8 @@ namespace style {
 		height = m.height();
 		ascent = m.ascent();
 		descent = m.descent();
-		spacew = m.width(QLatin1Char(' '));
-		elidew = m.width(QLatin1Char('.')) * 3;
+		spacew = width(QLatin1Char(' '));
+		elidew = width(QLatin1Char('.')) * 3;
 	}
 
 	Font FontData::bold(bool set) const {
@@ -55,6 +58,10 @@ namespace style {
 
 	Font FontData::underline(bool set) const {
 		return otherFlagsFont(FontUnderline, set);
+	}
+
+	uint32 FontData::size() const {
+		return _size;
 	}
 
 	uint32 FontData::flags() const {
@@ -85,7 +92,7 @@ namespace style {
 			style::_fontFamilies.push_back(family);
 			i = _fontFamilyMap.insert(family, style::_fontFamilies.size() - 1);
 		}
-		init(i.value(), size, flags, 0);
+		init(size, flags, i.value(), 0);
 	}
 
 	Font::Font(uint32 size, uint32 flags, uint32 family) {

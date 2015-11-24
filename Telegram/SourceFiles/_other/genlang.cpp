@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "genlang.h"
 
@@ -259,7 +262,7 @@ void readKeyValue(const char *&from, const char *end) {
 	}
 }
 
-QString escapeCpp(const QByteArray &key, QString value, bool wideChar) {
+QString escapeCpp(const QByteArray &key, QString value) {
 	if (value.isEmpty()) return "QString()";
 
 	QString res;
@@ -271,25 +274,13 @@ QString escapeCpp(const QByteArray &key, QString value, bool wideChar) {
 				res.append('"');
 				instr = false;
 			}
-			res.append(' ');
-			if (wideChar) {
-				res.append('L').append('"').append('\\').append('x').append(QString("%1").arg(ch->unicode(), 4, 16, QChar('0'))).append('"');
-			} else {
-				res.append('"');
-				QByteArray utf(QString(*ch).toUtf8());
-				for (const unsigned char *uch = (const unsigned char *)utf.constData(), *ue = (const unsigned char *)utf.constData() + utf.size(); uch != ue; ++uch) {
-					res.append('\\').append('x').append(QString("%1").arg(ushort(*uch), 2, 16, QChar('0')));
-				}
-				res.append('"');
-			}
+			res.append(' ').append('u').append('"').append('\\').append('x').append(QString("%1").arg(ch->unicode(), 4, 16, QChar('0'))).append('"');
 		} else {
-			if (!instr) {
-				res.append(' ');
-				if (wideChar) res.append('L');
-				res.append('"');
-				instr = true;
-			}
 			if (ch->unicode() == '\\' || ch->unicode() == '\n' || ch->unicode() == '\r' || ch->unicode() == '"') {
+				if (!instr) {
+					res.append(' ').append('u').append('"');
+					instr = true;
+				}
 				res.append('\\');
 				if (ch->unicode() == '\\' || ch->unicode() == '"') {
 					res.append(*ch);
@@ -303,35 +294,36 @@ QString escapeCpp(const QByteArray &key, QString value, bool wideChar) {
 					if (ch + 3 >= e || (ch + 1)->unicode() != TextCommandLangTag || (ch + 2)->unicode() > 0x007F || (ch + 2)->unicode() < 0x0020 || *(ch + 3) != TextCommand) {
 						throw Exception(QString("Bad value for key '%1'").arg(QLatin1String(key)));
 					} else {
+						if (instr) {
+							res.append('"');
+							instr = false;
+						}
+						res.append(' ').append('u').append('"');
 						res.append('\\').append('x').append(QString("%1").arg(ch->unicode(), 2, 16, QChar('0')));
 						res.append('\\').append('x').append(QString("%1").arg((ch + 1)->unicode(), 2, 16, QChar('0')));
 						res.append('\\').append('x').append(QString("%1").arg((ch + 2)->unicode(), 2, 16, QChar('0')));
 						res.append('\\').append('x').append(QString("%1").arg((ch + 3)->unicode(), 2, 16, QChar('0')));
+						res.append('"');
 						ch += 3;
 					}
 				} else {
 					throw Exception(QString("Bad value for key '%1'").arg(QLatin1String(key)));
 				}
 			} else {
+				if (!instr) {
+					res.append(' ').append('u').append('"');
+					instr = true;
+				}
 				res.append(*ch);
 			}
 		}
 	}
 	if (instr) res.append('"');
-	return (wideChar ? "qsl(" : "QString::fromUtf8(") + res.mid(wideChar ? 2 : 1) + ")";
+	return "qsl(" + res.mid(1) + ")";
 }
 
 void writeCppKey(QTextStream &tcpp, const QByteArray &key, const QString &val) {
-	QString wide = escapeCpp(key, val, true), utf = escapeCpp(key, val, false);
-	if (wide.indexOf(" L\"") < 0) {
-		tcpp << "\t\t\tset(" << key << ", " << wide << ");\n";
-	} else {
-		tcpp << "#ifdef Q_OS_WIN\n";
-		tcpp << "\t\t\tset(" << key << ", " << wide << ");\n";
-		tcpp << "#else\n";
-		tcpp << "\t\t\tset(" << key << ", " << utf << ");\n";
-		tcpp << "#endif\n";
-	}
+	tcpp << "\t\t\tset(" << key << ", " << escapeCpp(key, val) << ");\n";
 }
 
 bool genLang(const QString &lang_in, const QString &lang_out) {
@@ -416,8 +408,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of\n\
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n\
 GNU General Public License for more details.\n\
 \n\
+In addition, as a special exception, the copyright holders give permission\n\
+to link the code of portions of this program with the OpenSSL library.\n\
+\n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
-Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org\n\
 */\n";
 			th << "#pragma once\n\n";
 
@@ -497,8 +492,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of\n\
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n\
 GNU General Public License for more details.\n\
 \n\
+In addition, as a special exception, the copyright holders give permission\n\
+to link the code of portions of this program with the OpenSSL library.\n\
+\n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
-Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org\n\
 */\n";
 			tcpp << "#include \"stdafx.h\"\n#include \"lang.h\"\n\n";
 			tcpp << "namespace {\n";

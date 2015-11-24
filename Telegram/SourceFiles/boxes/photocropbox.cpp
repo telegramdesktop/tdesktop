@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -24,26 +27,40 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "photocropbox.h"
 #include "fileuploader.h"
 
-PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer, bool upload) : _downState(0),
-	_sendButton(this, lang(lng_settings_save), st::btnSelectDone),
-	_cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
-    _img(img), _peerId(peer) {
+PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer) : AbstractBox()
+, _downState(0)
+, _done(this, lang(lng_settings_save), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
+, _img(img)
+, _peerId(peer) {
+	init(img, 0);
+}
 
-	if (peerIsChannel(_peerId)) {
-		_title = lang(lng_create_channel_crop);
-	} else if (peerIsChat(_peerId)) {
+PhotoCropBox::PhotoCropBox(const QImage &img, PeerData *peer) : AbstractBox()
+, _downState(0)
+, _done(this, lang(lng_settings_save), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
+, _img(img)
+, _peerId(peer->id) {
+	init(img, peer);
+}
+
+void PhotoCropBox::init(const QImage &img, PeerData *peer) {
+	if (peerIsChat(_peerId) || (peer && peer->isMegagroup())) {
 		_title = lang(lng_create_group_crop);
+	} else if (peerIsChannel(_peerId)) {
+		_title = lang(lng_create_channel_crop);
 	} else {
 		_title = lang(lng_settings_crop_profile);
 	}
 
-	connect(&_sendButton, SIGNAL(clicked()), this, SLOT(onSend()));
-	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onClose()));
-	if (_peerId && upload) {
-		connect(this, SIGNAL(ready(const QImage &)), this, SLOT(onReady(const QImage &)));
+	connect(&_done, SIGNAL(clicked()), this, SLOT(onSend()));
+	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	if (peerToBareInt(_peerId)) {
+		connect(this, SIGNAL(ready(const QImage&)), this, SLOT(onReady(const QImage&)));
 	}
 
-	int32 s = st::cropBoxWidth - st::boxPadding.left() - st::boxPadding.right();
+	int32 s = st::boxWideWidth - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
 	_thumb = QPixmap::fromImage(img.scaled(s, s, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
 	_thumbw = _thumb.width();
 	_thumbh = _thumb.height();
@@ -55,11 +72,11 @@ PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer, bool upload) :
 	_cropx = (_thumbw - _cropw) / 2;
 	_cropy = (_thumbh - _cropw) / 2;
 
-	_thumbx = (st::cropBoxWidth - _thumbw) / 2;
-	_thumby = st::boxPadding.top() * 2 + st::boxFont->height;
+	_thumbx = (st::boxWideWidth - _thumbw) / 2;
+	_thumby = st::boxPhotoPadding.top();
 	setMouseTracking(true);
 
-	resizeMaxHeight(st::cropBoxWidth, _thumbh + st::boxPadding.top() + st::boxFont->height + st::boxPadding.top() + st::boxPadding.bottom() + _sendButton.height());
+	resizeMaxHeight(st::boxWideWidth, st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom() + st::boxTextFont->height + st::cropSkip + st::boxButtonPadding.top() + _done.height() + st::boxButtonPadding.bottom());
 }
 
 void PhotoCropBox::mousePressEvent(QMouseEvent *e) {
@@ -208,16 +225,12 @@ void PhotoCropBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void PhotoCropBox::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 	if (paint(p)) return;
 	
-	// paint shadow
-	p.fillRect(0, height() - st::btnSelectCancel.height - st::scrollDef.bottomsh, width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
-
-	// paint button sep
-	p.fillRect(st::btnSelectCancel.width, height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
-
-	paintGrayTitle(p, _title);
+	p.setFont(st::boxTextFont);
+	p.setPen(st::boxPhotoTextFg);
+	p.drawText(QRect(st::boxPhotoPadding.left(), st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom(), width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right(), st::boxTextFont->height), _title, style::al_top);
 
 	p.translate(_thumbx, _thumby);
 	p.drawPixmap(0, 0, _thumb);
@@ -243,8 +256,8 @@ void PhotoCropBox::paintEvent(QPaintEvent *e) {
 }
 
 void PhotoCropBox::resizeEvent(QResizeEvent *e) {
-	_sendButton.move(width() - _sendButton.width(), height() - _sendButton.height());
-	_cancelButton.move(0, height() - _cancelButton.height());
+	_done.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _done.height());
+	_cancel.moveToRight(st::boxButtonPadding.right() + _done.width() + st::boxButtonPadding.left(), _done.y());
 }
 
 void PhotoCropBox::onSend() {
@@ -267,7 +280,11 @@ void PhotoCropBox::onSend() {
 		iw = from.height() - iy;
 	}
 	int32 offset = ix * from.depth() / 8 + iy * from.bytesPerLine();
-	QImage cropped(from.bits() + offset, iw, iw, from.bytesPerLine(), from.format()), tosend;
+	QImage cropped(from.constBits() + offset, iw, iw, from.bytesPerLine(), from.format()), tosend;
+	if (from.format() == QImage::Format_Indexed8) {
+		cropped.setColorCount(from.colorCount());
+		cropped.setColorTable(from.colorTable());
+	}
 	if (cropped.width() > 1280) {
 		tosend = cropped.scaled(1280, 1280, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 	} else if (cropped.width() < 320) {
@@ -285,11 +302,11 @@ void PhotoCropBox::onReady(const QImage &tosend) {
 }
 
 void PhotoCropBox::hideAll() {
-	_sendButton.hide();
-	_cancelButton.hide();
+	_done.hide();
+	_cancel.hide();
 }
 
 void PhotoCropBox::showAll() {
-	_sendButton.show();
-	_cancelButton.show();
+	_done.show();
+	_cancel.show();
 }

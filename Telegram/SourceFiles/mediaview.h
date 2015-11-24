@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -150,7 +153,7 @@ private:
 	anim::fvalue a_docRadial, a_docRadialStart;
 	LinkButton _docDownload, _docSaveAs, _docCancel;
 
-	History *_history; // if conversation photos or files overview
+	History *_migrated, *_history; // if conversation photos or files overview
 	PeerData *_peer;
 	UserData *_user; // if user profile photos overview
 	
@@ -159,6 +162,7 @@ private:
 
 	int32 _index; // index in photos or files array, -1 if just photo
 	MsgId _msgid; // msgId of current photo or file
+	bool _msgmigrated; // msgId is from _migrated history
 	ChannelId _channel;
 	bool _canForward, _canDelete;
 
@@ -191,7 +195,7 @@ private:
 	QTimer _controlsHideTimer;
 	anim::fvalue a_cOpacity;
 
-	ContextMenu *_menu;
+	PopupMenu *_menu;
 	Dropdown _dropdown;
 	IconedButton *_btnSaveCancel, *_btnToMessage, *_btnShowInFolder, *_btnSaveAs, *_btnCopy, *_btnForward, *_btnDelete, *_btnViewAll;
 	QList<IconedButton*> _btns;

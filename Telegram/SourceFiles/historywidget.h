@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -30,15 +33,15 @@ enum DragState {
 };
 
 class HistoryWidget;
-class HistoryList : public QWidget {
+class HistoryInner : public QWidget {
 	Q_OBJECT
 
 public:
 
-	HistoryList(HistoryWidget *historyWidget, ScrollArea *scroll, History *history);
+	HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, History *history);
 
-	void messagesReceived(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
-	void messagesReceivedDown(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
+	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
+	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 
 	bool event(QEvent *e); // calls touchEvent when necessary
 	void touchEvent(QTouchEvent *e);
@@ -86,7 +89,16 @@ public:
 
 	HistoryItem *atTopImportantMsg(int32 top, int32 height, int32 &bottomUnderScrollTop) const;
 
-	~HistoryList();
+	int32 historyHeight() const;
+	int32 migratedTop() const;
+	int32 historyTop() const;
+	int32 historyDrawTop() const;
+	int32 itemTop(const HistoryItem *item) const; // -1 if should not be visible, -2 if bad history()
+
+	void notifyIsBotChanged();
+	void notifyMigrateUpdated();
+
+	~HistoryInner();
 	
 public slots:
 
@@ -118,30 +130,34 @@ private:
 	void touchDeaccelerate(int32 elapsed);
 
 	void adjustCurrent(int32 y) const;
+	void adjustCurrent(int32 y, History *history) const;
 	HistoryItem *prevItem(HistoryItem *item);
 	HistoryItem *nextItem(HistoryItem *item);
 	void updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dragSelTo, bool dragSelecting, bool force = false);
 
-	History *hist;
+	PeerData *_peer;
+	History *_migrated, *_history;
+	int32 _historyOffset, _historySkipHeight; // height of first date and first sys msg
 
-	int32 ySkip;
-	BotInfo *botInfo;
-	int32 botDescWidth, botDescHeight;
-	QRect botDescRect;
+	BotInfo *_botInfo;
+	int32 _botDescWidth, _botDescHeight;
+	QRect _botDescRect;
 
-	HistoryWidget *historyWidget;
-	ScrollArea *scrollArea;
-	mutable int32 currentBlock, currentItem;
+	HistoryWidget *_widget;
+	ScrollArea *_scroll;
+	mutable History *_curHistory;
+	mutable int32 _curBlock, _curItem;
 
 	bool _firstLoading;
 
-	QTimer linkTipTimer;
+	QTimer _tooltipTimer;
 
 	Qt::CursorShape _cursor;
 	typedef QMap<HistoryItem*, uint32> SelectedItems;
 	SelectedItems _selected;
 	void applyDragSelection();
 	void applyDragSelection(SelectedItems *toItems) const;
+	void addSelectionRange(SelectedItems *toItems, int32 fromblock, int32 fromitem, int32 toblock, int32 toitem, History *h) const;
 
 	enum DragAction {
 		NoDrag        = 0x00,
@@ -177,7 +193,7 @@ private:
 	uint64 _touchSpeedTime, _touchAccelerationTime, _touchTime;
 	QTimer _touchScrollTimer;
 
-	ContextMenu *_menu;
+	PopupMenu *_menu;
 
 };
 
@@ -193,16 +209,6 @@ public:
 	void focusInEvent(QFocusEvent *e);
 
 	bool hasSendText() const;
-
-	static bool replaceCharBySpace(ushort code) {
-		// \xe2\x80[\xa8 - \xac\xad] // 8232 - 8237
-		// QString from1 = QString::fromUtf8("\xe2\x80\xa8"), to1 = QString::fromUtf8("\xe2\x80\xad");
-		// \xcc[\xb3\xbf\x8a] // 819, 831, 778
-		// QString bad1 = QString::fromUtf8("\xcc\xb3"), bad2 = QString::fromUtf8("\xcc\xbf"), bad3 = QString::fromUtf8("\xcc\x8a");
-		// [\x00\x01\x02\x07\x08\x0b-\x1f] // '\t' = 0x09
-        return (/*code >= 0x00 && */code <= 0x02) || (code >= 0x07 && code <= 0x09) || (code >= 0x0b && code <= 0x1f) ||
-			(code == 819) || (code == 831) || (code == 778) || (code >= 8232 && code <= 8237);
-	}
 
 public slots:
 
@@ -308,7 +314,7 @@ private:
 
 };
 
-class HistoryHider : public QWidget, public Animated {
+class HistoryHider : public TWidget, public Animated {
 	Q_OBJECT
 
 public:
@@ -316,6 +322,7 @@ public:
 	HistoryHider(MainWidget *parent, bool forwardSelected); // forward messages
 	HistoryHider(MainWidget *parent, UserData *sharedContact); // share contact
 	HistoryHider(MainWidget *parent); // send path from command line argument
+	HistoryHider(MainWidget *parent, const QString &url, const QString &text); // share url
 
 	bool animStep(float64 ms);
 	bool withConfirm() const;
@@ -351,11 +358,11 @@ private:
 	UserData *_sharedContact;
 	bool _forwardSelected, _sendPath;
 
-	FlatButton forwardButton;
-	FlatButton cancelButton;
+	QString _shareUrl, _shareText;
+
+	BoxButton _send, _cancel;
 	PeerData *offered;
-	anim::fvalue aOpacity;
-	anim::transition aOpacityFunc;
+	anim::fvalue a_opacity;
 	QRect box;
 	bool hiding;
 
@@ -411,7 +418,6 @@ public:
 	void checkMentionDropdown();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
-	void topBarShadowParams(int32 &x, float64 &o);
 	void topBarClick();
 
 	void loadMessages();
@@ -421,7 +427,7 @@ public:
 	void peerMessagesUpdated(PeerId peer);
 	void peerMessagesUpdated();
 
-	void msgUpdated(PeerId peer, const HistoryItem *msg);
+	void msgUpdated(const HistoryItem *msg);
 	void newUnreadMsg(History *history, HistoryItem *item);
 	void historyToDown(History *history);
 	void historyWasRead(bool force = true);
@@ -437,15 +443,17 @@ public:
 	void sendActionDone(const MTPBool &result, mtpRequestId req);
 
 	void destroyData();
-	void uploadImage(const QImage &img, bool withText = false, const QString &source = QString());
-	void uploadFile(const QString &file, bool withText = false); // with confirmation
-	void shareContactConfirmation(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool withText = false);
-	void uploadConfirmImageUncompressed(bool ctrlShiftEnter, MsgId replyTo);
-	void uploadMedias(const QStringList &files, ToPrepareMediaType type);
-	void uploadMedia(const QByteArray &fileContent, ToPrepareMediaType type, PeerId peer = 0);
-	void confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo);
-	void confirmSendImage(const ReadyLocalMedia &img);
-	void cancelSendImage();
+
+	void uploadImage(const QImage &img, PrepareMediaType type, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, const QString &source = QString(), bool withText = false);
+	void uploadFile(const QString &file, PrepareMediaType type, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, bool withText = false); // with confirmation
+	void uploadFiles(const QStringList &files, PrepareMediaType type);
+	void uploadFileContent(const QByteArray &fileContent, PrepareMediaType type);
+	void shareContactWithConfirm(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool withText = false);
+
+	void confirmSendFile(const FileLoadResultPtr &file, bool ctrlShiftEnter);
+	void cancelSendFile(const FileLoadResultPtr &file);
+	void confirmShareContact(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool ctrlShiftEnter);
+	void cancelShareContact();
 
 	void updateControlsVisibility();
 	void updateOnlineDisplay(int32 x, int32 w);
@@ -456,13 +464,17 @@ public:
 
 	void shareContact(const PeerId &peer, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, int32 userId = 0);
 
+	History *history() const;
 	PeerData *peer() const;
+	void setMsgId(MsgId showAtMsgId);
 	MsgId msgId() const;
 	HistoryItem *atTopImportantMsg(int32 &bottomUnderScrollTop) const;
 
 	void animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false);
-	bool showStep(float64 ms);
+	bool animStep_show(float64 ms);
 	void animStop();
+
+	void updateWideMode();
 	void doneShow();
 
 	QPoint clampMousePosition(QPoint point);
@@ -472,9 +484,7 @@ public:
 
 	bool touchScroll(const QPoint &delta);
     
-	QString prepareMessage(QString text);
-
-	uint64 animActiveTime(MsgId id) const;
+	uint64 animActiveTime(const HistoryItem *msg) const;
 	void stopAnimActive();
 
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
@@ -497,9 +507,6 @@ public:
 	void setReplyReturns(PeerId peer, const QList<MsgId> &replyReturns);
 	void calcNextReplyReturn();
 
-	bool kbWasHidden();
-	void setKbWasHidden();
-
 	void updatePreview();
 	void previewCancel();
 
@@ -513,12 +520,13 @@ public:
 	void insertBotCommand(const QString &cmd);
 
 	bool eventFilter(QObject *obj, QEvent *e);
-	void updateBotKeyboard();
+	void updateBotKeyboard(History *h = 0);
 
 	DragState getDragState(const QMimeData *d);
 
 	void fastShowAtEnd(History *h);
-	void showPeerHistory(const PeerId &peer, MsgId showAtMsgId);
+	void applyDraft(bool parseLinks = true);
+	void showHistory(const PeerId &peer, MsgId showAtMsgId, bool reload = false);
 	void clearDelayedShowAt();
 	void clearAllLoadRequests();
 
@@ -534,12 +542,29 @@ public:
 
 	void updateNotifySettings();
 
+	bool contentOverlapped(const QRect &globalRect);
+
+	void grabStart() {
+		_sideShadow.hide();
+		_inGrab = true;
+		resizeEvent(0);
+	}
+	void grabFinish() {
+		_sideShadow.setVisible(cWideMode());
+		_inGrab = false;
+		resizeEvent(0);
+	}
+
+	void notifyBotCommandsChanged(UserData *user);
+	void notifyUserIsBotChanged(UserData *user);
+	void notifyMigrateUpdated(PeerData *peer);
+
 	~HistoryWidget();
 
 signals:
 
 	void cancelled();
-	void peerShown(PeerData *);
+	void historyShown(History *history, MsgId atMsgId);
 
 public slots:
 
@@ -596,11 +621,6 @@ public slots:
 	void onKbToggle(bool manual = true);
 	void onCmdStart();
 
-	void onPhotoReady();
-	void onSendConfirmed();
-	void onSendCancelled();
-	void onPhotoFailed(quint64 id);
-
 	void activate();
 	void onMentionHashtagOrBotCommandInsert(QString str);
 	void onTextChange();
@@ -613,6 +633,8 @@ public slots:
 	void deleteMessage();
 	void forwardMessage();
 	void selectMessage();
+
+	void onForwardHere(); // instead of a reply
 
 	void onFieldFocused();
 	void onFieldResize();
@@ -631,7 +653,7 @@ public slots:
 	void onDraftSave(bool delayed = false);
 
 	void updateStickers();
-	void botCommandsChanged(UserData *user);
+	void updateField();
 
 	void onRecordError();
 	void onRecordDone(QByteArray result, qint32 samples);
@@ -649,7 +671,6 @@ private:
 	void drawField(Painter &p);
 	void drawRecordButton(Painter &p);
 	void drawRecording(Painter &p);
-	void updateField();
 
 	DBIPeerReportSpamStatus _reportSpamStatus;
 	void updateReportSpamStatus();
@@ -671,8 +692,8 @@ private:
 
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
 	void updateListSize(int32 addToY = 0, bool initial = false, bool loadedDown = false, HistoryItem *resizedItem = 0, bool scrollToIt = false);
-	void addMessagesToFront(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
-	void addMessagesToBack(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
+	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
+	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 
 	void reportSpamDone(PeerData *peer, const MTPBool &result, mtpRequestId request);
 	bool reportSpamFail(const RPCError &error, mtpRequestId request);
@@ -715,8 +736,8 @@ private:
 	MsgId _activeAnimMsgId;
 
 	ScrollArea _scroll;
-	HistoryList *_list;
-	History *_history;
+	HistoryInner *_list;
+	History *_migrated, *_history;
 	bool _histInited; // initial updateListSize() called
 
 	IconedButton _toHistoryEnd;
@@ -746,7 +767,9 @@ private:
 	anim::cvalue a_recordCancel;
 	int32 _recordCancelWidth;
 
-	bool _kbShown, _kbWasHidden;
+	bool kbWasHidden() const;
+
+	bool _kbShown;
 	HistoryItem *_kbReplyTo;
 	ScrollArea _kbScroll;
 	BotKeyboard _keyboard;
@@ -758,22 +781,21 @@ private:
 
 	int32 _selCount; // < 0 - text selected, focus list, not _field
 
-	LocalImageLoader _imageLoader;
+	TaskQueue _fileLoader;
 	bool _synthedTextUpdate;
 
 	int64 _serviceImageCacheSize;
-	QImage _confirmImage;
-	PhotoId _confirmImageId;
-	bool _confirmWithText;
 	QString _confirmSource;
+
+	uint64 _confirmWithTextId;
 
 	QString _titlePeerText;
 	int32 _titlePeerTextWidth;
 
-	Animation _showAnim;
-	QPixmap _animCache, _bgAnimCache, _animTopBarCache, _bgAnimTopBarCache;
-	anim::ivalue a_coord, a_bgCoord;
-	anim::fvalue a_alpha, a_bgAlpha;
+	Animation _a_show;
+	QPixmap _cacheUnder, _cacheOver, _cacheTopBarUnder, _cacheTopBarOver;
+	anim::ivalue a_coordUnder, a_coordOver;
+	anim::fvalue a_shadow;
 
 	QTimer _scrollTimer;
 	int32 _scrollDelta;
@@ -787,6 +809,9 @@ private:
 	uint64 _saveDraftStart;
 	bool _saveDraftText;
 	QTimer _saveDraftTimer;
+
+	PlainShadow _sideShadow, _topShadow;
+	bool _inGrab;
 
 };
 

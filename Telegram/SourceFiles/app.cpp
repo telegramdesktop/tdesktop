@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -91,14 +94,23 @@ namespace {
 
 	HistoryItem *hoveredItem = 0, *pressedItem = 0, *hoveredLinkItem = 0, *pressedLinkItem = 0, *contextItem = 0, *mousedItem = 0;
 
-	QPixmap *sprite = 0, *emojis = 0, *emojisLarge = 0;
+	QPixmap *sprite = 0, *emoji = 0, *emojiLarge = 0;
+	style::font monofont;
 
-	QPixmap *corners[RoundCornersCount][4] = { { 0 } };
+	struct CornersPixmaps {
+		CornersPixmaps() {
+			memset(p, 0, sizeof(p));
+		}
+		QPixmap *p[4];
+	};
+	CornersPixmaps corners[RoundCornersCount];
+	typedef QMap<uint32, CornersPixmaps> CornersMap;
+	CornersMap cornersMap;
 	QImage *cornersMask[4] = { 0 };
 
-	typedef QMap<uint64, QPixmap> EmojisMap;
-	EmojisMap mainEmojisMap;
-	QMap<int32, EmojisMap> otherEmojisMap;
+	typedef QMap<uint64, QPixmap> EmojiMap;
+	EmojiMap mainEmojiMap;
+	QMap<int32, EmojiMap> otherEmojiMap;
 
 	int32 serviceImageCacheSize = 0;
 
@@ -173,15 +185,13 @@ namespace App {
 		return main() ? main()->api() : 0;
 	}
 
-	void showSettings() {
-		Window *w(wnd());
-		if (w) w->showSettings();
-	}
-
 	bool loggedOut() {
 		Window *w(wnd());
 		if (cHasPasscode()) {
 			cSetHasPasscode(false);
+		}
+		if (audioPlayer()) {
+			audioPlayer()->stopAndClear();
 		}
 		if (w) {
 			w->tempDirDelete(Local::ClearManagerAll);
@@ -229,17 +239,17 @@ namespace App {
 
 			case -2: {
 				QDate yesterday(date(now).date());
-				return int32(QDateTime(yesterday.addDays(-3)).toTime_t());
+				return int32(QDateTime(yesterday.addDays(-3)).toTime_t()) + (unixtime() - myunixtime());
 			} break;
 
 			case -3: {
 				QDate weekago(date(now).date());
-				return int32(QDateTime(weekago.addDays(-7)).toTime_t());
+				return int32(QDateTime(weekago.addDays(-7)).toTime_t()) + (unixtime() - myunixtime());
 			} break;
 
 			case -4: {
 				QDate monthago(date(now).date());
-				return int32(QDateTime(monthago.addDays(-30)).toTime_t());
+				return int32(QDateTime(monthago.addDays(-30)).toTime_t()) + (unixtime() - myunixtime());
 			} break;
 			}
 			return -online;
@@ -360,6 +370,7 @@ namespace App {
 				data->setName(lang(lng_deleted), QString(), QString(), QString());
 				data->setPhoto(MTP_userProfilePhotoEmpty());
 				data->access = UserNoAccess;
+				data->flags = 0;
 				data->setBotInfoVersion(-1);
 				wasContact = (data->contact > 0);
 				status = &emptyStatus;
@@ -370,8 +381,8 @@ namespace App {
 
 				PeerId peer(peerFromUser(d.vid.v));
 				data = App::user(peer);
-				int32 flags = d.vflags.v;
-				if (flags & MTPDuser_flag_self) {
+				data->flags = d.vflags.v;
+				if (d.is_self()) {
 					data->input = MTP_inputPeerSelf();
 					data->inputUser = MTP_inputUserSelf();
 				} else if (!d.has_access_hash()) {
@@ -381,7 +392,7 @@ namespace App {
 					data->input = MTP_inputPeerUser(d.vid, d.vaccess_hash);
 					data->inputUser = MTP_inputUser(d.vid, d.vaccess_hash);
 				}
-				if (flags & MTPDuser_flag_deleted) {
+				if (d.is_deleted()) {
 					data->setPhone(QString());
 					data->setName(lang(lng_deleted), QString(), QString(), QString());
 					data->setPhoto(MTP_userProfilePhotoEmpty());
@@ -398,8 +409,8 @@ namespace App {
 
 					bool nameChanged = (data->firstName != fname) || (data->lastName != lname);
 
-					bool showPhone = !isServiceUser(data->id) && !(flags & (MTPDuser_flag_self | MTPDuser_flag_contact | MTPDuser_flag_mutual_contact));
-					bool showPhoneChanged = !isServiceUser(data->id) && !(flags & (MTPDuser_flag_self)) && ((showPhone && data->contact) || (!showPhone && !data->contact));
+					bool showPhone = !isServiceUser(data->id) && !d.is_self() && !d.is_contact() && !d.is_mutual_contact();
+					bool showPhoneChanged = !isServiceUser(data->id) && !d.is_self() && ((showPhone && data->contact) || (!showPhone && !data->contact));
 
 					// see also Local::readPeer
 
@@ -417,17 +428,17 @@ namespace App {
 				wasContact = (data->contact > 0);
 				if (d.has_bot_info_version()) {
 					data->setBotInfoVersion(d.vbot_info_version.v);
-					data->botInfo->readsAllHistory = (d.vflags.v & MTPDuser_flag_bot_reads_all);
-					data->botInfo->cantJoinGroups = (d.vflags.v & MTPDuser_flag_bot_cant_join);
+					data->botInfo->readsAllHistory = d.is_bot_chat_history();
+					data->botInfo->cantJoinGroups = d.is_bot_nochats();
 				} else {
 					data->setBotInfoVersion(-1);
 				}
-				data->contact = (flags & (MTPDuser_flag_contact | MTPDuser_flag_mutual_contact)) ? 1 : (data->phone.isEmpty() ? -1 : 0);
+				data->contact = (d.is_contact() || d.is_mutual_contact()) ? 1 : (data->phone.isEmpty() ? -1 : 0);
 				if (data->contact == 1 && cReportSpamStatuses().value(data->id, dbiprsNoButton) != dbiprsNoButton) {
 					cRefReportSpamStatuses().insert(data->id, dbiprsNoButton);
 					Local::writeReportSpamStatuses();
 				}
-				if ((flags & MTPDuser_flag_self) && ::self != data) {
+				if (d.is_self() && ::self != data) {
 					::self = data;
 					if (App::wnd()) App::wnd()->updateGlobalMenu();
 				}
@@ -489,13 +500,52 @@ namespace App {
 				ChatData *cdata = data->asChat();
 				cdata->setPhoto(d.vphoto);
 				cdata->date = d.vdate.v;
+
+				if (d.has_migrated_to() && d.vmigrated_to.type() == mtpc_inputChannel) {
+					const MTPDinputChannel &c(d.vmigrated_to.c_inputChannel());
+					ChannelData *channel = App::channel(peerFromChannel(c.vchannel_id));
+					if (!channel->mgInfo) {
+						channel->flags |= MTPDchannel::flag_megagroup;
+						channel->flagsUpdated();
+					}
+					if (!channel->access) {
+						channel->input = MTP_inputPeerChannel(c.vchannel_id, c.vaccess_hash);
+						channel->inputChannel = d.vmigrated_to;
+						channel->access = d.vmigrated_to.c_inputChannel().vaccess_hash.v;
+					}
+					bool updatedTo = (cdata->migrateToPtr != channel), updatedFrom = (channel->mgInfo->migrateFromPtr != cdata);
+					if (updatedTo) {
+						cdata->migrateToPtr = channel;
+					}
+					if (updatedFrom) {
+						channel->mgInfo->migrateFromPtr = cdata;
+						if (History *h = App::historyLoaded(cdata->id)) {
+							if (History *hto = App::historyLoaded(channel->id)) {
+								if (!h->isEmpty()) {
+									h->clear(true);
+								}
+								if (!hto->dialogs.isEmpty() && !h->dialogs.isEmpty()) {
+									App::removeDialog(h);
+								}
+							}
+						}
+						Notify::migrateUpdated(channel);
+					}
+					if (updatedTo) {
+						Notify::migrateUpdated(cdata);
+					}
+				}
+
+				if (!(cdata->flags & MTPDchat::flag_admins_enabled) && (d.vflags.v & MTPDchat::flag_admins_enabled)) {
+					cdata->invalidateParticipants();
+				}
+				cdata->flags = d.vflags.v;
+
 				cdata->count = d.vparticipants_count.v;
-				cdata->isForbidden = (d.vflags.v & MTPDchat_flag_kicked);
-				cdata->haveLeft = (d.vflags.v & MTPDchat_flag_left);
+				cdata->isForbidden = false;
 				if (cdata->version < d.vversion.v) {
 					cdata->version = d.vversion.v;
-					cdata->participants = ChatData::Participants();
-					cdata->botStatus = 0;
+					cdata->invalidateParticipants();
 				}
 			} break;
 			case mtpc_chatForbidden: {
@@ -510,8 +560,9 @@ namespace App {
 				cdata->setPhoto(MTP_chatPhotoEmpty());
 				cdata->date = 0;
 				cdata->count = -1;
+				cdata->invalidateParticipants();
+				cdata->flags = 0;
 				cdata->isForbidden = true;
-				cdata->haveLeft = false;
 			} break;
 			case mtpc_channel: {
 				const MTPDchannel &d(chat.c_channel());
@@ -527,11 +578,11 @@ namespace App {
 				cdata->setName(qs(d.vtitle), uname);
 
 				cdata->access = d.vaccess_hash.v;
-				cdata->setPhoto(d.vphoto);
 				cdata->date = d.vdate.v;
 				cdata->flags = d.vflags.v;
 				cdata->isForbidden = false;
-
+				cdata->flagsUpdated();
+				cdata->setPhoto(d.vphoto);
 				if (cdata->version < d.vversion.v) {
 					cdata->version = d.vversion.v;
 				}
@@ -576,35 +627,55 @@ namespace App {
 			const MTPDchatParticipantsForbidden &d(p.c_chatParticipantsForbidden());
 			chat = App::chat(d.vchat_id.v);
 			chat->count = -1;
+			chat->invalidateParticipants();
 		} break;
 
 		case mtpc_chatParticipants: {
 			const MTPDchatParticipants &d(p.c_chatParticipants());
 			chat = App::chat(d.vchat_id.v);
-			chat->creator = d.vadmin_id.v;
 			if (!requestBotInfos || chat->version <= d.vversion.v) { // !requestBotInfos is true on getFullChat result
 				chat->version = d.vversion.v;
 				const QVector<MTPChatParticipant> &v(d.vparticipants.c_vector().v);
 				chat->count = v.size();
 				int32 pversion = chat->participants.isEmpty() ? 1 : (chat->participants.begin().value() + 1);
-				chat->cankick = ChatData::CanKick();
+				chat->invitedByMe = ChatData::InvitedByMe();
+				chat->admins = ChatData::Admins();
+				chat->flags &= ~MTPDchat::flag_admin;
 				for (QVector<MTPChatParticipant>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
-					if (i->type() != mtpc_chatParticipant) continue;
+					int32 uid = 0, inviter = 0;
+					switch (i->type()) {
+					case mtpc_chatParticipantCreator: {
+						const MTPDchatParticipantCreator &p(i->c_chatParticipantCreator());
+						uid = p.vuser_id.v;
+						chat->creator = uid;
+					} break;
+					case mtpc_chatParticipantAdmin: {
+						const MTPDchatParticipantAdmin &p(i->c_chatParticipantAdmin());
+						uid = p.vuser_id.v;
+						inviter = p.vinviter_id.v;
+					} break;
+					case mtpc_chatParticipant: {
+						const MTPDchatParticipant &p(i->c_chatParticipant());
+						uid = p.vuser_id.v;
+						inviter = p.vinviter_id.v;
+					} break;
+					}
+					if (!uid) continue;
 
-					const MTPDchatParticipant &p(i->c_chatParticipant());
-					//if (p.vuser_id.v == MTP::authedId()) {
-					//	chat->inviter = p.vinviter_id.v; // we use inviter only from service msgs
-					//	chat->inviteDate = p.vdate.v;
-					//}
-					UserData *user = App::userLoaded(p.vuser_id.v);
+					UserData *user = App::userLoaded(uid);
 					if (user) {
 						chat->participants[user] = pversion;
-						if (p.vinviter_id.v == MTP::authedId()) {
-							chat->cankick[user] = true;
+						if (inviter == MTP::authedId()) {
+							chat->invitedByMe[user] = true;
+						}
+						if (i->type() == mtpc_chatParticipantAdmin) {
+							chat->admins[user] = true;
+							if (user->isSelf()) {
+								chat->flags |= MTPDchat::flag_admin;
+							}
 						}
 					} else {
-						chat->participants = ChatData::Participants();
-						chat->botStatus = 0;
+						chat->invalidateParticipants();
 						break;
 					}
 				}
@@ -617,8 +688,8 @@ namespace App {
 							i = chat->participants.erase(i);
 						} else {
 							if (i.key()->botInfo) {
-								botStatus = (botStatus > 0/* || i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
-								if (requestBotInfos && !i.key()->botInfo->inited) App::api()->requestFullPeer(i.key());
+								botStatus = 2;// (botStatus > 0/* || !i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
+								if (requestBotInfos && !i.key()->botInfo->inited && App::api()) App::api()->requestFullPeer(i.key());
 							}
 							if (!found && i.key()->id == h->lastKeyboardFrom) {
 								found = true;
@@ -628,9 +699,8 @@ namespace App {
 					}
 					chat->botStatus = botStatus;
 					if (!found) {
-						h->lastKeyboardId = 0;
-						h->lastKeyboardFrom = 0;
-						if (App::main()) App::main()->updateBotKeyboard();
+						h->clearLastKeyboard();
+						if (App::main()) App::main()->updateBotKeyboard(h);
 					}
 				}
 			}
@@ -647,12 +717,19 @@ namespace App {
 
 	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d, bool emitPeerUpdated) {
 		ChatData *chat = App::chat(d.vchat_id.v);
-		if (chat->version <= d.vversion.v && chat->count >= 0) {
+		if (chat->version + 1 < d.vversion.v) {
 			chat->version = d.vversion.v;
-			//if (d.vuser_id.v == MTP::authedId()) {
-			//	chat->inviter = d.vinviter_id.v; // we use inviter only from service msgs
-			//	chat->inviteDate = unixtime(); // no event date here :(
-			//}
+			chat->invalidateParticipants();
+			App::api()->requestPeer(chat);
+			if (App::main()) {
+				if (emitPeerUpdated) {
+					App::main()->peerUpdated(chat);
+				} else {
+					markPeerUpdated(chat);
+				}
+			}
+		} else if (chat->version <= d.vversion.v && chat->count >= 0) {
+			chat->version = d.vversion.v;
 			UserData *user = App::userLoaded(d.vuser_id.v);
 			if (user) {
 				if (chat->participants.isEmpty() && chat->count) {
@@ -661,19 +738,18 @@ namespace App {
 				} else if (chat->participants.find(user) == chat->participants.end()) {
 					chat->participants[user] = (chat->participants.isEmpty() ? 1 : chat->participants.begin().value());
 					if (d.vinviter_id.v == MTP::authedId()) {
-						chat->cankick[user] = true;
+						chat->invitedByMe[user] = true;
 					} else {
-						chat->cankick.remove(user);
+						chat->invitedByMe.remove(user);
 					}
 					chat->count++;
 					if (user->botInfo) {
-						chat->botStatus = (chat->botStatus > 0/* || !user->botInfo->readsAllHistory*/) ? 2 : 1;
-						if (!user->botInfo->inited) App::api()->requestFullPeer(user);
+						chat->botStatus = 2;// (chat->botStatus > 0/* || !user->botInfo->readsAllHistory*/) ? 2 : 1;
+						if (!user->botInfo->inited && App::api()) App::api()->requestFullPeer(user);
 					}
 				}
 			} else {
-				chat->participants = ChatData::Participants();
-				chat->botStatus = 0;
+				chat->invalidateParticipants();
 				chat->count++;
 			}
 			if (App::main()) {
@@ -688,30 +764,47 @@ namespace App {
 
 	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d, bool emitPeerUpdated) {
 		ChatData *chat = App::chat(d.vchat_id.v);
-		if (chat->version <= d.vversion.v && chat->count > 0) {
+		if (chat->version + 1 < d.vversion.v) {
+			chat->version = d.vversion.v;
+			chat->invalidateParticipants();
+			App::api()->requestPeer(chat);
+			if (App::main()) {
+				if (emitPeerUpdated) {
+					App::main()->peerUpdated(chat);
+				} else {
+					markPeerUpdated(chat);
+				}
+			}
+		} else if (chat->version <= d.vversion.v && chat->count > 0) {
 			chat->version = d.vversion.v;
 			UserData *user = App::userLoaded(d.vuser_id.v);
 			if (user) {
 				if (chat->participants.isEmpty()) {
-					chat->count--;
+					if (chat->count > 0) {
+						chat->count--;
+					}
 				} else {
 					ChatData::Participants::iterator i = chat->participants.find(user);
 					if (i != chat->participants.end()) {
 						chat->participants.erase(i);
 						chat->count--;
+						chat->invitedByMe.remove(user);
+						chat->admins.remove(user);
+						if (user->isSelf()) {
+							chat->flags &= ~MTPDchat::flag_admin;
+						}
 
 						History *h = App::historyLoaded(chat->id);
 						if (h && h->lastKeyboardFrom == user->id) {
-							h->lastKeyboardId = 0;
-							h->lastKeyboardFrom = 0;
-							if (App::main()) App::main()->updateBotKeyboard();
+							h->clearLastKeyboard();
+							if (App::main()) App::main()->updateBotKeyboard(h);
 						}
 					}
 					if (chat->botStatus > 0 && user->botInfo) {
 						int32 botStatus = -1;
 						for (ChatData::Participants::const_iterator j = chat->participants.cbegin(), e = chat->participants.cend(); j != e; ++j) {
 							if (j.key()->botInfo) {
-								if (botStatus > 0/* || !j.key()->botInfo->readsAllHistory*/) {
+								if (true || botStatus > 0/* || !j.key()->botInfo->readsAllHistory*/) {
 									botStatus = 2;
 									break;
 								}
@@ -722,8 +815,7 @@ namespace App {
 					}
 				}
 			} else {
-				chat->participants = ChatData::Participants();
-				chat->botStatus = 0;
+				chat->invalidateParticipants();
 				chat->count--;
 			}
 			if (App::main()) {
@@ -736,7 +828,78 @@ namespace App {
 		}
 	}
 
-	void checkEntitiesAndViewsUpdate(const MTPDmessage &m) {
+	void feedChatAdmins(const MTPDupdateChatAdmins &d, bool emitPeerUpdated) {
+		ChatData *chat = App::chat(d.vchat_id.v);
+		if (chat->version <= d.vversion.v) {
+			bool badVersion = (chat->version + 1 < d.vversion.v);
+			if (badVersion) {
+				chat->invalidateParticipants();
+				App::api()->requestPeer(chat);
+			}
+			chat->version = d.vversion.v;
+			if (mtpIsTrue(d.venabled)) {
+				chat->flags |= MTPDchat::flag_admins_enabled;
+				if (!badVersion) {
+					chat->invalidateParticipants();
+				}
+			} else {
+				chat->flags &= ~MTPDchat::flag_admins_enabled;
+				chat->flags &= ~MTPDchat::flag_admin;
+			}
+			if (emitPeerUpdated) {
+				App::main()->peerUpdated(chat);
+			} else {
+				markPeerUpdated(chat);
+			}
+		}
+	}
+
+	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d, bool emitPeerUpdated) {
+		ChatData *chat = App::chat(d.vchat_id.v);
+		if (chat->version + 1 < d.vversion.v) {
+			chat->version = d.vversion.v;
+			chat->invalidateParticipants();
+			App::api()->requestPeer(chat);
+			if (App::main()) {
+				if (emitPeerUpdated) {
+					App::main()->peerUpdated(chat);
+				} else {
+					markPeerUpdated(chat);
+				}
+			}
+		} else if (chat->version <= d.vversion.v && chat->count > 0) {
+			chat->version = d.vversion.v;
+			UserData *user = App::userLoaded(d.vuser_id.v);
+			if (user) {
+				if (mtpIsTrue(d.vis_admin)) {
+					if (user->isSelf()) {
+						chat->flags |= MTPDchat::flag_admin;
+					}
+					if (chat->noParticipantInfo()) {
+						App::api()->requestFullPeer(chat);
+					} else {
+						chat->admins.insert(user, true);
+					}
+				} else {
+					if (user->isSelf()) {
+						chat->flags &= ~MTPDchat::flag_admin;
+					}
+					chat->admins.remove(user);
+				}
+			} else {
+				chat->invalidateParticipants();
+			}
+			if (App::main()) {
+				if (emitPeerUpdated) {
+					App::main()->peerUpdated(chat);
+				} else {
+					markPeerUpdated(chat);
+				}
+			}
+		}
+	}
+
+	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m) {
 		PeerId peerId = peerFromMTP(m.vto_id);
 		if (m.has_from_id() && peerToUser(peerId) == MTP::authedId()) {
 			peerId = peerFromUser(m.vfrom_id);
@@ -744,29 +907,39 @@ namespace App {
 		if (HistoryItem *existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
 			bool hasLinks = m.has_entities() && !m.ventities.c_vector().v.isEmpty();
 			if ((hasLinks && !existing->hasTextLinks()) || (!hasLinks && existing->textHasLinks())) {
-				existing->setText(qs(m.vmessage), m.has_entities() ? linksFromMTP(m.ventities.c_vector().v) : LinksInText());
+				existing->setText(qs(m.vmessage), m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText());
 				existing->initDimensions();
 				if (App::main()) App::main()->itemResized(existing);
-				if (existing->hasTextLinks() && (!existing->history()->isChannel() || existing->fromChannel())) {
+				if (existing->hasTextLinks() && existing->indexInOverview()) {
 					existing->history()->addToOverview(existing, OverviewLinks);
 				}
 			}
 
+			existing->updateMedia(m.has_media() ? (&m.vmedia) : 0, true);
+
 			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
+
+			return !existing->detached();
 		}
+		return false;
 	}
 
-	void feedMsgs(const MTPVector<MTPMessage> &msgs, NewMessageType type) {
-		const QVector<MTPMessage> &v(msgs.c_vector().v);
+	void feedMsgs(const QVector<MTPMessage> &msgs, NewMessageType type) {
 		QMap<uint64, int32> msgsIds;
-		for (int32 i = 0, l = v.size(); i < l; ++i) {
-			const MTPMessage &msg(v.at(i));
+		for (int32 i = 0, l = msgs.size(); i < l; ++i) {
+			const MTPMessage &msg(msgs.at(i));
 			switch (msg.type()) {
 			case mtpc_message: {
 				const MTPDmessage &d(msg.c_message());
-				msgsIds.insert((uint64(uint32(d.vid.v)) << 32) | uint64(i), i);
+				bool needToAdd = true;
 				if (type == NewMessageUnread) { // new message, index my forwarded messages to links overview
-					checkEntitiesAndViewsUpdate(d);
+					if (checkEntitiesAndViewsUpdate(d)) { // already in blocks
+						LOG(("Skipping message, because it is already in blocks!"));
+						needToAdd = false;
+					}
+				}
+				if (needToAdd) {
+					msgsIds.insert((uint64(uint32(d.vid.v)) << 32) | uint64(i), i);
 				}
 			} break;
 			case mtpc_messageEmpty: msgsIds.insert((uint64(uint32(msg.c_messageEmpty().vid.v)) << 32) | uint64(i), i); break;
@@ -774,8 +947,12 @@ namespace App {
 			}
 		}
 		for (QMap<uint64, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
-			histories().addNewMessage(v.at(i.value()), type);
+			histories().addNewMessage(msgs.at(i.value()), type);
 		}
+	}
+
+	void feedMsgs(const MTPVector<MTPMessage> &msgs, NewMessageType type) {
+		return feedMsgs(msgs.c_vector().v, type);
 	}
 
 	ImagePtr image(const MTPPhotoSize &size) {
@@ -868,13 +1045,18 @@ namespace App {
 			MsgsData::const_iterator j = data->constFind(i->v);
 			if (j != data->cend()) {
 				History *h = (*j)->history();
-				if (App::main() && h->peer == App::main()->peer() && !(*j)->detached()) {
+				if (App::main() && (h->peer == App::main()->peer() || (App::main()->peer() && h->peer->migrateTo() == App::main()->peer())) && !(*j)->detached()) {
 					resized = true;
 				}
 				(*j)->destroy();
 				if (!h->lastMsg) historiesToCheck.insert(h, true);
-			} else if (channelHistory) {
-				channelHistory->messageWithIdDeleted(i->v);
+			} else {
+				if (channelHistory) {
+					channelHistory->messageWithIdDeleted(i->v);
+					if (channelHistory->unreadCount > 0 && i->v >= channelHistory->inboxReadBefore) {
+						channelHistory->setUnreadCount(channelHistory->unreadCount - 1);
+					}
+				}
 			}
 		}
 		if (resized) {
@@ -944,8 +1126,8 @@ namespace App {
 				}
 			}
 
-			bool showPhone = !isServiceUser(user->id) && (user->input.type() != mtpc_inputPeerSelf) && !user->contact;
-			bool showPhoneChanged = !isServiceUser(user->id) && (user->input.type() != mtpc_inputPeerSelf) && ((showPhone && !wasShowPhone) || (!showPhone && wasShowPhone));
+			bool showPhone = !isServiceUser(user->id) && !user->isSelf() && !user->contact;
+			bool showPhoneChanged = !isServiceUser(user->id) && !user->isSelf() && ((showPhone && !wasShowPhone) || (!showPhone && wasShowPhone));
 			if (showPhoneChanged) {
 				user->setName(textOneLine(user->firstName), textOneLine(user->lastName), showPhone ? App::formatPhone(user->phone) : QString(), textOneLine(user->username));
 			}
@@ -1885,9 +2067,19 @@ namespace App {
 		cors[1] = rect.copy(r * 2, 0, r, r);
 		cors[2] = rect.copy(0, r * 2, r, r + (shadow ? s : 0));
 		cors[3] = rect.copy(r * 2, r * 2, r, r + (shadow ? s : 0));
-		for (int i = 0; i < 4; ++i) {
-			::corners[index][i] = new QPixmap(QPixmap::fromImage(cors[i], Qt::ColorOnly));
-			::corners[index][i]->setDevicePixelRatio(cRetinaFactor());
+		if (index != NoneCorners) {
+			for (int i = 0; i < 4; ++i) {
+				::corners[index].p[i] = new QPixmap(QPixmap::fromImage(cors[i], Qt::ColorOnly));
+				::corners[index].p[i]->setDevicePixelRatio(cRetinaFactor());
+			}
+		}
+	}
+
+	void tryFontFamily(QString &family, const QString &tryFamily) {
+		if (family.isEmpty()) {
+			if (!QFontInfo(QFont(tryFamily)).family().trimmed().compare(tryFamily, Qt::CaseInsensitive)) {
+				family = tryFamily;
+			}
 		}
 	}
 
@@ -1895,6 +2087,15 @@ namespace App {
 		deinitMedia(false);
 		audioInit();
 
+		if (!::monofont) {
+			QString family;
+			tryFontFamily(family, qsl("Consolas"));
+			tryFontFamily(family, qsl("Liberation Mono"));
+			tryFontFamily(family, qsl("Menlo"));
+			tryFontFamily(family, qsl("Courier"));
+			if (family.isEmpty()) family = QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
+			::monofont = style::font(st::normalFont->f.pixelSize(), 0, family);
+		}
 		if (!::sprite) {
 			if (rtl()) {
 				::sprite = new QPixmap(QPixmap::fromImage(QImage(st::spriteFile).mirrored(true, false)));
@@ -1904,17 +2105,17 @@ namespace App {
             if (cRetina()) ::sprite->setDevicePixelRatio(cRetinaFactor());
 		}
 		emojiInit();
-		if (!::emojis) {
-			::emojis = new QPixmap(QLatin1String(EName));
-            if (cRetina()) ::emojis->setDevicePixelRatio(cRetinaFactor());
+		if (!::emoji) {
+			::emoji = new QPixmap(QLatin1String(EName));
+            if (cRetina()) ::emoji->setDevicePixelRatio(cRetinaFactor());
 		}
-		if (!::emojisLarge) {
-			::emojisLarge = new QPixmap(QLatin1String(EmojiNames[EIndex + 1]));
-			if (cRetina()) ::emojisLarge->setDevicePixelRatio(cRetinaFactor());
+		if (!::emojiLarge) {
+			::emojiLarge = new QPixmap(QLatin1String(EmojiNames[EIndex + 1]));
+			if (cRetina()) ::emojiLarge->setDevicePixelRatio(cRetinaFactor());
 		}
 
 		QImage mask[4];
-		prepareCorners(MaskCorners, st::msgRadius, st::white, 0, mask);
+		prepareCorners(NoneCorners, st::msgRadius, st::white, 0, mask);
 		for (int i = 0; i < 4; ++i) {
 			::cornersMask[i] = new QImage(mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied));
 			::cornersMask[i]->setDevicePixelRatio(cRetinaFactor());
@@ -1928,7 +2129,7 @@ namespace App {
 		prepareCorners(InShadowCorners, st::msgRadius, st::msgInShadow);
 		prepareCorners(InSelectedShadowCorners, st::msgRadius, st::msgInSelectShadow);
 		prepareCorners(ForwardCorners, st::msgRadius, st::forwardBg);
-		prepareCorners(MediaviewSaveCorners, st::msgRadius, st::emojiPanHover);
+		prepareCorners(MediaviewSaveCorners, st::msgRadius, st::medviewSaveMsg);
 		prepareCorners(EmojiHoverCorners, st::msgRadius, st::emojiPanHover);
 		prepareCorners(StickerHoverCorners, st::msgRadius, st::emojiPanHover);
 		prepareCorners(BotKeyboardCorners, st::msgRadius, st::botKbBg);
@@ -1960,18 +2161,24 @@ namespace App {
 
 			delete ::sprite;
 			::sprite = 0;
-			delete ::emojis;
-			::emojis = 0;
-			delete ::emojisLarge;
-			::emojisLarge = 0;
+			delete ::emoji;
+			::emoji = 0;
+			delete ::emojiLarge;
+			::emojiLarge = 0;
 			for (int32 j = 0; j < 4; ++j) {
 				for (int32 i = 0; i < RoundCornersCount; ++i) {
-					delete ::corners[i][j]; ::corners[i][j] = 0;
+					delete ::corners[i].p[j]; ::corners[i].p[j] = 0;
 				}
 				delete ::cornersMask[j]; ::cornersMask[j] = 0;
 			}
-			mainEmojisMap.clear();
-			otherEmojisMap.clear();
+			for (CornersMap::const_iterator i = ::cornersMap.cbegin(), e = ::cornersMap.cend(); i != e; ++i) {
+				for (int32 j = 0; j < 4; ++j) {
+					delete i->p[j];
+				}
+			}
+			::cornersMap.clear();
+			mainEmojiMap.clear();
+			otherEmojiMap.clear();
 
 			clearAllImages();
 		} else {
@@ -2030,21 +2237,25 @@ namespace App {
 		return ::mousedItem;
 	}
 
+	const style::font &monofont() {
+		return ::monofont;
+	}
+
 	const QPixmap &sprite() {
 		return *::sprite;
 	}
 
-	const QPixmap &emojis() {
-		return *::emojis;
+	const QPixmap &emoji() {
+		return *::emoji;
 	}
 
-	const QPixmap &emojisLarge() {
-		return *::emojisLarge;
+	const QPixmap &emojiLarge() {
+		return *::emojiLarge;
 	}
 
 	const QPixmap &emojiSingle(EmojiPtr emoji, int32 fontHeight) {
-		EmojisMap *map = &(fontHeight == st::taDefFlat.font->height ? mainEmojisMap : otherEmojisMap[fontHeight]);
-		EmojisMap::const_iterator i = map->constFind(emojiKey(emoji));
+		EmojiMap *map = &(fontHeight == st::taDefFlat.font->height ? mainEmojiMap : otherEmojiMap[fontHeight]);
+		EmojiMap::const_iterator i = map->constFind(emojiKey(emoji));
 		if (i == map->cend()) {
 			QImage img(ESize + st::emojiPadding * cIntRetinaFactor() * 2, fontHeight * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
             if (cRetina()) img.setDevicePixelRatio(cRetinaFactor());
@@ -2308,16 +2519,16 @@ namespace App {
 			ChannelReplyMarkups::iterator i = channelReplyMarkups.find(channelId);
 			if (i != channelReplyMarkups.cend()) {
 				i->remove(msgId);
-			}
-			if (i->isEmpty()) {
-				channelReplyMarkups.erase(i);
+				if (i->isEmpty()) {
+					channelReplyMarkups.erase(i);
+				}
 			}
 		}
 	}
 
 	inline const ReplyMarkup &replyMarkup(const ReplyMarkups &markups, MsgId msgId) {
-		ReplyMarkups::const_iterator i = replyMarkups.constFind(msgId);
-		if (i == replyMarkups.cend()) return zeroMarkup;
+		ReplyMarkups::const_iterator i = markups.constFind(msgId);
+		if (i == markups.cend()) return zeroMarkup;
 		return i.value();
 	}
 	const ReplyMarkup &replyMarkup(ChannelId channelId, MsgId msgId) {
@@ -2347,58 +2558,11 @@ namespace App {
 		}
 	}	
 
-	void sendBotCommand(const QString &cmd, MsgId replyTo) {
-		if (App::main()) {
-			App::main()->sendBotCommand(cmd, replyTo);
-		}
-	}
-
-	void insertBotCommand(const QString &cmd) {
-		if (App::main()) {
-			App::main()->insertBotCommand(cmd);
-		}
-	}
-
-	void searchByHashtag(const QString &tag, PeerData *inPeer) {
-		if (App::main()) {
-			App::main()->searchMessages(tag + ' ', (inPeer && inPeer->isChannel()) ? inPeer : 0);
-		}
-	}
-
-	void openPeerByName(const QString &username, bool toProfile, const QString &startToken) {
-		if (App::main()) {
-			App::main()->openPeerByName(username, toProfile, startToken);
-		}
-	}
-
-	void joinGroupByHash(const QString &hash) {
-		if (App::main()) {
-			App::main()->joinGroupByHash(hash);
-		}
-	}
-
-	void stickersBox(const QString &name) {
-		if (App::main()) {
-			App::main()->stickersBox(MTP_inputStickerSetShortName(MTP_string(name)));
-		}
-	}
-
-	void openLocalUrl(const QString &url) {
-		if (App::main()) {
-			App::main()->openLocalUrl(url);
-		}
-	}
-
 	QImage **cornersMask() {
 		return ::cornersMask;
 	}
-	QPixmap **corners(RoundCorners index) {
-		return ::corners[index];
-	}
-
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *sh) {
-		QPixmap **c = ::corners[index];
-		int32 cw = c[0]->width() / cIntRetinaFactor(), ch = c[0]->height() / cIntRetinaFactor();
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, const CornersPixmaps &c, const style::color *sh) {
+		int32 cw = c.p[0]->width() / cIntRetinaFactor(), ch = c.p[0]->height() / cIntRetinaFactor();
 		if (w < 2 * cw || h < 2 * ch) return;
 		if (w > 2 * cw) {
 			p.fillRect(QRect(x + cw, y, w - 2 * cw, ch), bg->b);
@@ -2408,20 +2572,41 @@ namespace App {
 		if (h > 2 * ch) {
 			p.fillRect(QRect(x, y + ch, w, h - 2 * ch), bg->b);
 		}
-		p.drawPixmap(QPoint(x, y), *c[0]);
-		p.drawPixmap(QPoint(x + w - cw, y), *c[1]);
-		p.drawPixmap(QPoint(x, y + h - ch), *c[2]);
-		p.drawPixmap(QPoint(x + w - cw, y + h - ch), *c[3]);
+		p.drawPixmap(QPoint(x, y), *c.p[0]);
+		p.drawPixmap(QPoint(x + w - cw, y), *c.p[1]);
+		p.drawPixmap(QPoint(x, y + h - ch), *c.p[2]);
+		p.drawPixmap(QPoint(x + w - cw, y + h - ch), *c.p[3]);
+	}
+
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *sh) {
+		roundRect(p, x, y, w, h, bg, ::corners[index], sh);
 	}
 
 	void roundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &sh, RoundCorners index) {
-		QPixmap **c = App::corners(index);
-		int32 cw = c[0]->width() / cIntRetinaFactor(), ch = c[0]->height() / cIntRetinaFactor();
+		const CornersPixmaps &c = ::corners[index];
+		int32 cw = c.p[0]->width() / cIntRetinaFactor(), ch = c.p[0]->height() / cIntRetinaFactor();
 		p.fillRect(x + cw, y + h, w - 2 * cw, st::msgShadow, sh->b);
 		p.fillRect(x, y + h - ch, cw, st::msgShadow, sh->b);
 		p.fillRect(x + w - cw, y + h - ch, cw, st::msgShadow, sh->b);
-		p.drawPixmap(x, y + h - ch + st::msgShadow, *c[2]);
-		p.drawPixmap(x + w - cw, y + h - ch + st::msgShadow, *c[3]);
+		p.drawPixmap(x, y + h - ch + st::msgShadow, *c.p[2]);
+		p.drawPixmap(x + w - cw, y + h - ch + st::msgShadow, *c.p[3]);
+	}
+
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg) {
+		uint32 colorKey = ((uint32(bg->c.alpha()) & 0xFF) << 24) | ((uint32(bg->c.red()) & 0xFF) << 16) | ((uint32(bg->c.green()) & 0xFF) << 8) | ((uint32(bg->c.blue()) & 0xFF) << 24);
+		CornersMap::const_iterator i = cornersMap.find(colorKey);
+		if (i == cornersMap.cend()) {
+			QImage images[4];
+			prepareCorners(NoneCorners, st::msgRadius, bg, 0, images);
+
+			CornersPixmaps pixmaps;
+			for (int j = 0; j < 4; ++j) {
+				pixmaps.p[j] = new QPixmap(QPixmap::fromImage(images[j], Qt::ColorOnly));
+				pixmaps.p[j]->setDevicePixelRatio(cRetinaFactor());
+			}
+			i = cornersMap.insert(colorKey, pixmaps);
+		}
+		roundRect(p, x, y, w, h, bg, i.value(), 0);
 	}
 
 	void initBackground(int32 id, const QImage &p, bool nowrite) {
@@ -2618,5 +2803,80 @@ namespace App {
 	}
 
 	WallPapers gServerBackgrounds;
+
+	void sendBotCommand(const QString &cmd, MsgId replyTo) {
+		if (MainWidget *m = main()) m->sendBotCommand(cmd, replyTo);
+	}
+
+	void insertBotCommand(const QString &cmd) {
+		if (MainWidget *m = main()) m->insertBotCommand(cmd);
+	}
+
+	void searchByHashtag(const QString &tag, PeerData *inPeer) {
+		if (MainWidget *m = main()) m->searchMessages(tag + ' ', (inPeer && inPeer->isChannel()) ? inPeer : 0);
+	}
+
+	void openPeerByName(const QString &username, bool toProfile, const QString &startToken) {
+		if (MainWidget *m = main()) m->openPeerByName(username, toProfile, startToken);
+	}
+
+	void joinGroupByHash(const QString &hash) {
+		if (MainWidget *m = main()) m->joinGroupByHash(hash);
+	}
+
+	void stickersBox(const QString &name) {
+		if (MainWidget *m = main()) m->stickersBox(MTP_inputStickerSetShortName(MTP_string(name)));
+	}
+
+	void openLocalUrl(const QString &url) {
+		if (MainWidget *m = main()) m->openLocalUrl(url);
+	}
+
+	bool forward(const PeerId &peer, ForwardWhatMessages what) {
+		if (MainWidget *m = main()) return m->onForward(peer, what);
+		return false;
+	}
+
+	void removeDialog(History *history) {
+		if (MainWidget *m = main()) m->removeDialog(history);
+	}
+
+	void showSettings() {
+		if (Window *win = wnd()) win->showSettings();
+	}
+
+	void showLayer(LayeredWidget *w, bool forceFast) {
+		if (Window *win = wnd()) win->showLayer(w, forceFast);
+	}
+
+	void replaceLayer(LayeredWidget *w) {
+		if (Window *win = wnd()) win->replaceLayer(w);
+	}
+
+	void showLayerLast(LayeredWidget *w) {
+		if (Window *win = wnd()) win->showLayerLast(w);
+	}
+
+}
+
+namespace Notify {
+
+	void userIsBotChanged(UserData *user) {
+		if (MainWidget *m = App::main()) {
+			m->notifyUserIsBotChanged(user);
+		}
+	}
+
+	void botCommandsChanged(UserData *user) {
+		if (MainWidget *m = App::main()) {
+			m->notifyBotCommandsChanged(user);
+		}
+	}
+
+	void migrateUpdated(PeerData *peer) {
+		if (MainWidget *m = App::main()) {
+			m->notifyMigrateUpdated(peer);
+		}
+	}
 
 }

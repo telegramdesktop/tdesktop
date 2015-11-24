@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "genstyles.h"
 
@@ -374,8 +377,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of\n\
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n\
 GNU General Public License for more details.\n\
 \n\
+In addition, as a special exception, the copyright holders give permission\n\
+to link the code of portions of this program with the OpenSSL library.\n\
+\n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
-Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org\n\
 */\n";
 			tout << "#pragma once\n\n#include \"style.h\"\n\nnamespace style {\n";
 			for (int i = 0, l = byIndex.size(); i < l; ++i) {
@@ -447,7 +453,6 @@ static const int variants[] = { 0, 2, 3, 4 }, variantsCount = sizeof(variants) /
 static const char *variantNames[] = { "dbisOne", "dbisOneAndQuarter", "dbisOneAndHalf", "dbisTwo" };
 
 static const char *variantPostfixes[] = { "", "_125x", "_150x", "_200x" };
-QPixmap *spriteMax = 0;
 QImage *variantSprites = 0;
 int *spriteWidths = 0;
 QImage *variantGrids = 0;
@@ -847,8 +852,7 @@ ScalarValue prepareSprite(int variant, const char *&text, const char *end) {
 		QImage lastCopy = variantSprites[variantsCount - 1].copy(adjustPx(varLast, sprite.x(), true), adjustPx(varLast, sprite.y(), true), adjustPx(varLast, sprite.width(), true), adjustPx(varLast, sprite.height(), true));
 		for (int i = 1; i < variantsCount - 1; ++i) {
 			QPainter p(&variantSprites[i]);
-			QPixmap copy = QPixmap::fromImage(lastCopy.scaled(adjustPx(variants[i], sprite.width(), true), adjustPx(variants[i], sprite.height(), true), Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
-			p.drawPixmap(QPoint(adjustPx(variants[i], sprite.x(), true), adjustPx(variants[i], sprite.y(), true)), copy);
+			p.drawImage(QPoint(adjustPx(variants[i], sprite.x(), true), adjustPx(variants[i], sprite.y(), true)), lastCopy.scaled(adjustPx(variants[i], sprite.width(), true), adjustPx(variants[i], sprite.height(), true), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
 		}
 
 		for (int i = 0; i < variantsCount; ++i) {
@@ -1392,9 +1396,6 @@ bool genStyles(const QString &classes_in, const QString &classes_out, const QStr
 	variantSprites[variantsCount - 1] = QImage(spriteLast);
 	spriteWidths[variantsCount - 1] = variantSprites[variantsCount - 1].width();
 
-	QPixmap spriteMaxPix = QPixmap::fromImage(variantSprites[variantsCount - 1], Qt::ColorOnly);
-	spriteMax = &spriteMaxPix;
-
 	if (!variantSprites[0].width() || !variantSprites[0].height()) {
 		cout << "Could not open input sprite file '" << sprite0.toUtf8().constData() << "'!\n";
 		QCoreApplication::exit(1);
@@ -1537,8 +1538,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of\n\
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n\
 GNU General Public License for more details.\n\
 \n\
+In addition, as a special exception, the copyright holders give permission\n\
+to link the code of portions of this program with the OpenSSL library.\n\
+\n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
-Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org\n\
 */\n";
 			tout << "#pragma once\n\n#include \"style.h\"\n\nnamespace st {\n";
 			tcpp << "\
@@ -1560,8 +1564,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of\n\
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n\
 GNU General Public License for more details.\n\
 \n\
+In addition, as a special exception, the copyright holders give permission\n\
+to link the code of portions of this program with the OpenSSL library.\n\
+\n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
-Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org\n\
 */\n";
 			tcpp << "#include \"stdafx.h\"\n#include \"style_auto.h\"\n\nnamespace {\n";
 			for (int i = 0, l = scalars.size(); i < l; ++i) {
@@ -1934,8 +1941,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of\n\
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n\
 GNU General Public License for more details.\n\
 \n\
+In addition, as a special exception, the copyright holders give permission\n\
+to link the code of portions of this program with the OpenSSL library.\n\
+\n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
-Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org\n\
 */\n";
 			tnum << "#include \"stdafx.h\"\n#include \"numbers.h\"\n\n";
 			tnum << "QVector<int> phoneNumberParse(const QString &number) {\n";
@@ -1950,7 +1960,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 				while (!already.isEmpty() && (already.size() > k.size() || !already.endsWith(k.at(already.size() - 1)))) {
 					if (!onlyLastChanged) {
 						tnum << QString("\t").repeated(1 + already.size()) << "}\n";
-						tnum << QString("\t").repeated(1 + already.size()) << "return result;\n";
+						tnum << QString("\t").repeated(already.size()) << "break;\n";
 					}
 					already = already.mid(0, already.size() - 1);
 					onlyLastChanged = false;

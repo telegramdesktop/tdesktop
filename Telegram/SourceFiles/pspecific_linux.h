@@ -13,9 +13,12 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
  
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
+
+#include <execinfo.h>
+#include <signal.h>
 
 inline QString psServerPrefix() {
     return qsl("/tmp/");
@@ -110,6 +113,9 @@ private:
     uint64 _psLastIndicatorUpdate;
 };
 
+#ifdef _NEED_LINUX_GENERATE_DUMP
+void _sigsegvHandler(int sig);
+#endif
 
 class PsApplication : public QApplication {
 	Q_OBJECT

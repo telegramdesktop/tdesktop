@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "audio.h"
@@ -264,6 +267,27 @@ void audioFinish() {
 
 	cSetHasAudioCapture(false);
 	cSetHasAudioPlayer(false);
+}
+
+void AudioPlayer::Msg::clearData() {
+	fname = QString();
+	data = QByteArray();
+	position = duration = 0;
+	frequency = AudioVoiceMsgFrequency;
+	skipStart = skipEnd = 0;
+	loading = false;
+	started = 0;
+	state = AudioPlayerStopped;
+	if (alIsSource(source)) {
+		alSourceStop(source);
+	}
+	for (int32 i = 0; i < 3; ++i) {
+		if (samplesCount[i]) {
+			alSourceUnqueueBuffers(source, 1, buffers + i);
+			samplesCount[i] = 0;
+		}
+	}
+	nextBuffer = 0;
 }
 
 AudioPlayer::AudioPlayer() : _audioCurrent(0), _songCurrent(0),
@@ -639,10 +663,64 @@ void AudioPlayer::seek(int64 position) {
 }
 
 void AudioPlayer::stop(MediaOverviewType type) {
-	fadedStop(type);
 	switch (type) {
-	case OverviewAudios: if (_audioData[_audioCurrent].audio) emit updated(_audioData[_audioCurrent].audio); break;
-	case OverviewDocuments: if (_songData[_songCurrent].song) emit updated(_songData[_songCurrent].song); break;
+	case OverviewAudios: {
+		AudioMsgId current;
+		{
+			QMutexLocker lock(&playerMutex);
+			current = _audioData[_audioCurrent].audio;
+			fadedStop(type);
+		}
+		if (current) emit updated(current);
+	} break;
+
+	case OverviewDocuments: {
+		SongMsgId current;
+		{
+			QMutexLocker lock(&playerMutex);
+			current = _songData[_songCurrent].song;
+			fadedStop(type);
+		}
+		if (current) emit updated(current);
+	} break;
+	}
+}
+
+void AudioPlayer::stopAndClear() {
+	AudioMsg *current_audio = 0;
+	{
+		QMutexLocker lock(&playerMutex);
+		current_audio = &_audioData[_audioCurrent];
+		if (current_audio) {
+			setStoppedState(current_audio);
+		}
+	}
+	SongMsg *current_song = 0;
+	{
+		QMutexLocker lock(&playerMutex);
+		current_song = &_songData[_songCurrent];
+		if (current_song) {
+			setStoppedState(current_song);
+		}
+	}
+	if (current_song) {
+		emit updated(current_song->song);
+	}
+	if (current_audio) {
+		emit updated(current_audio->audio);
+	}
+	{
+		QMutexLocker lock(&playerMutex);
+		for (int32 index = 0; index < AudioVoiceMsgSimultaneously; ++index) {
+			if (_audioData[index].audio) {
+				emit loaderOnCancel(_audioData[index].audio);
+			}
+			_audioData[index].clear();
+			if (_songData[index].song) {
+				emit loaderOnCancel(_songData[index].song);
+			}
+			_songData[index].clear();
+		}
 	}
 }
 

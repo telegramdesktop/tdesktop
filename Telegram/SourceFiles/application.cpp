@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "application.h"
@@ -58,7 +61,7 @@ namespace {
 			if (e->type() == QEvent::KeyPress) {
 				QKeyEvent *ev = static_cast<QKeyEvent*>(e);
 				if (cPlatform() == dbipMac) {
-					if (ev->key() == Qt::Key_W && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
+					if (ev->key() == Qt::Key_W && (ev->modifiers() & Qt::ControlModifier)) {
 						if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
 							App::wnd()->minimizeToTray();
 							return true;
@@ -68,7 +71,7 @@ namespace {
 							App::wnd()->updateGlobalMenu();
 							return true;
 						}
-					} else if (ev->key() == Qt::Key_M && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
+					} else if (ev->key() == Qt::Key_M && (ev->modifiers() & Qt::ControlModifier)) {
 						App::wnd()->setWindowState(Qt::WindowMinimized);
 						return true;
 					}
@@ -188,8 +191,8 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	connect(this, SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
 	#endif
 	connect(this, SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
-	//connect(&writeUserConfigTimer, SIGNAL(timeout()), this, SLOT(onWriteUserConfig()));
-	//writeUserConfigTimer.setSingleShot(true);
+
+	connect(&_mtpUnpauseTimer, SIGNAL(timeout()), this, SLOT(doMtpUnpause()));
 
 	connect(&killDownloadSessionsTimer, SIGNAL(timeout()), this, SLOT(killDownloadSessions()));
 
@@ -294,6 +297,19 @@ void Application::cancelPhotoUpdate(const PeerId &peer) {
 	}
 }
 
+void Application::mtpPause() {
+	MTP::pause();
+	_mtpUnpauseTimer.start(st::slideDuration * 2);
+}
+
+void Application::mtpUnpause() {
+	_mtpUnpauseTimer.start(1);
+}
+
+void Application::doMtpUnpause() {
+	MTP::unpause();
+}
+
 void Application::selfPhotoCleared(const MTPUserProfilePhoto &result) {
 	if (!App::self()) return;
 	App::self()->setPhoto(result);
@@ -326,7 +342,7 @@ void Application::chatPhotoDone(PeerId peer, const MTPUpdates &updates) {
 }
 
 bool Application::peerPhotoFail(PeerId peer, const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	LOG(("Application Error: update photo failed %1: %2").arg(error.type()).arg(error.description()));
 	cancelPhotoUpdate(peer);
@@ -500,7 +516,7 @@ void Application::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId)
 	int32 filesize = 0;
 	QByteArray data;
 
-	ReadyLocalMedia ready(ToPreparePhoto, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, MTP_audioEmpty(MTP_long(0)), photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false, false, 0);
+	ReadyLocalMedia ready(PreparePhoto, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, MTP_audioEmpty(MTP_long(0)), photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false, false, 0);
 
 	connect(App::uploader(), SIGNAL(photoReady(const FullMsgId&, const MTPInputFile&)), App::app(), SLOT(photoUpdated(const FullMsgId&, const MTPInputFile&)), Qt::UniqueConnection);
 
@@ -681,10 +697,10 @@ void Application::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (cDevVersion() && Local::oldMapVersion() < 8059) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Channels members and admins management added\n\xe2\x80\x94 Bug fixes and other minor improvements\n\nMore info about channels here:\nhttps://telegram.org/blog/channels");// .replace('@', qsl("@") + QChar(0x200D));
-			} else if (Local::oldMapVersion() < 9000) {
-				versionFeatures = lng_new_version_text(lt_link, qsl("https://telegram.org/blog/channels"));//lang(lng_new_version_text).trimmed();
+			if (cDevVersion() && Local::oldMapVersion() < 9011) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Groups can now have multiple administrators with the ability to edit the name and logo, and add and remove members.\n\xe2\x80\x94 Groups that have reached their capacity of 200 users can be upgraded to supergroups of up to 1,000 members.\n\nWARNING: Only updated Telegram apps will be able to open supergroups. DO NOT upgrade your groups before the stable version is out and updates for other apps are released.");// .replace('@', qsl("@") + QChar(0x200D));
+			} else if (false && Local::oldMapVersion() < 9013) {
+				versionFeatures = lng_new_version_text(lt_link, qsl("https://telegram.org/blog/supergroups")).trimmed();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}

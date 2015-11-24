@@ -1,4 +1,4 @@
-##Build instructions for Visual Studio 2013
+##Build instructions for Visual Studio 2015
 
 ###Prepare folder
 
@@ -14,11 +14,28 @@ or download in ZIP and extract to **D:\TBuild\**, rename **tdesktop-master** to 
 
 ###Prepare libraries
 
-####OpenSSL 1.0.1h
+####OpenSSL
 
-https://www.openssl.org/related/binaries.html > **OpenSSL for Windows** > Download [**Win32 OpenSSL v1.0.1h** (16 Mb)](http://slproweb.com/download/Win32OpenSSL-1_0_1h.exe)
+Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder), go to **D:\\TBuild\\Libraries** and run
 
-Install to **D:\TBuild\Libraries\OpenSSL-Win32**, while installing **Copy OpenSSL DLLs to** choose **The OpenSSL binaries (/bin) directory**
+    git clone https://github.com/openssl/openssl.git
+    cd openssl
+    git checkout OpenSSL_1_0_1-stable
+    git apply ./../../tdesktop/Telegram/_openssl_patch.diff
+    perl Configure VC-WIN32 --prefix=D:\TBuild\Libraries\openssl\Release
+    ms\do_ms
+    nmake -f ms\nt.mak
+    nmake -f ms\nt.mak install
+    cd ..
+    git clone https://github.com/openssl/openssl.git openssl_debug
+    cd openssl_debug
+    git checkout OpenSSL_1_0_1-stable
+    git apply ./../../tdesktop/Telegram/_openssl_patch.diff
+    perl Configure debug-VC-WIN32 --prefix=D:\TBuild\Libraries\openssl_debug\Debug
+    ms\do_ms
+    nmake -f ms\nt.mak
+    nmake -f ms\nt.mak install
+
 
 ####LZMA SDK 9.20
 
@@ -28,7 +45,7 @@ Extract to **D:\TBuild\Libraries**
 
 #####Building library
 
-* Open in VS2013 **D:\TBuild\Libraries\lzma\C\Util\LzmaLib\LzmaLib.dsw** > One-way upgrade – **OK**
+* Open in VS2015 **D:\TBuild\Libraries\lzma\C\Util\LzmaLib\LzmaLib.dsw** > One-way upgrade – **OK**
 * For **Debug** and **Release** configurations
   * LzmaLib Properties > General > Configuration Type = **Static library (.lib)** – **OK**
   * LzmaLib Properties > Librarian > General > Target Machine = **MachineX86 (/MACHINE:X86)** – **OK**
@@ -43,7 +60,7 @@ Extract to **D:\\TBuild\\Libraries\\**
 
 #####Building library
 
-* Open in VS2013 **D:\TBuild\Libraries\zlib-1.2.8\contrib\vstudio\vc11\zlibvc.sln** > One-way upgrade – **OK**
+* Open in VS2015 **D:\TBuild\Libraries\zlib-1.2.8\contrib\vstudio\vc11\zlibvc.sln** > One-way upgrade – **OK**
 * We are interested only in **zlibstat** project, but it depends on some custom pre-build step, so build all
 * For **Debug** configuration
   * zlibstat Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded Debug (/MTd)** – **OK**
@@ -62,40 +79,26 @@ or download in ZIP and extract to **D:\TBuild\Libraries\**, rename **libexif-0.6
 
 #####Building library
 
-* Open in VS2013 **D:\TBuild\Libraries\libexif-0.6.20\win32\lib_exif.sln**
+* Open in VS2015 **D:\TBuild\Libraries\libexif-0.6.20\win32\lib_exif.sln**
 * Build Debug configuration
 * Build Release configuration
 
 ####OpenAL Soft, slightly patched
 
-Get sources by git – in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild/libraries** and run
+Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder), go to **D:\\TBuild\\Libraries** and run
 
     git clone git://repo.or.cz/openal-soft.git
-
-to have **D:\TBuild\Libraries\openal-soft\CMakeLists.txt**, then in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild/libraries/openal-soft** and run
-
-    git checkout 9479ea656b
-
-Apply patch
-
-* OR copy (with overwrite!) everything from **D:\\TBuild\\tdesktop\\\_openal\_patch\\** to **D:\\TBuild\\Libraries\\openal-soft\\**
-* OR in Git Bash go to **/d/tbuild/libraries/openal-soft/** and run
-
+    git checkout 90349b38
     git apply ./../../tdesktop/Telegram/_openal_patch.diff
-
 
 #####Building library
 
 * Install [CMake](http://www.cmake.org/)
-* Go in **cmd** to **D:\TBuild\Libraries\openal-soft\build\**
-* Run **cmake -G "Visual Studio 12 2013" -D LIBTYPE:STRING=STATIC ..**
-* Open in VS2013 **D:\TBuild\Libraries\openal-soft\build\OpenAL.sln**
-* For **Debug** configuration
-  * OpenAL32 Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded Debug (/MTd)** – **OK**
-  * common Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded Debug (/MTd)** – **OK**
-* For **Release** configuration
-  * OpenAL32 Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded (/MT)** – **OK**
-  * common Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded (/MT)** – **OK**
+* Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder), go to **D:\TBuild\Libraries\openal-soft\build\** and run
+
+    cmake -G "Visual Studio 14 2015" -D LIBTYPE:STRING=STATIC -D FORCE_STATIC_VCRT:STRING=ON ..
+
+* Open in VS2015 **D:\TBuild\Libraries\openal-soft\build\OpenAL.sln** and build Debug and Release configurations
 
 ####Opus codec
 
@@ -107,29 +110,33 @@ to have **D:\TBuild\Libraries\opus\win32**
 
 #####Building libraries
 
-* Open in VS2013 **D:\TBuild\Libraries\opus\win32\VS2010\opus.sln**
+* Open in VS2015 **D:\TBuild\Libraries\opus\win32\VS2010\opus.sln**
 * Build Debug configuration
 * Build Release configuration (it will be required in **FFmpeg** build!)
 
 ####FFmpeg
 
-https://www.ffmpeg.org/download.html > Download [ffmpeg-2.6.3.tar.bz2](http://ffmpeg.org/releases/ffmpeg-2.6.3.tar.bz2)
+Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder) and run
 
-Extract to **D:\\TBuild\\Libraries**
+    git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
+    cd ffmpeg
+    git checkout release/2.8
 
 http://msys2.github.io/ > Download [msys2-x86_64-20150512.exe](http://sourceforge.net/projects/msys2/files/Base/x86_64/msys2-x86_64-20150512.exe/download) and install to **D:\\msys64**
 
 #####Building libraries
 
-Download [yasm for Win64](http://www.tortall.net/projects/yasm/releases/yasm-1.3.0-win64.exe) from http://yasm.tortall.net/Download.html, rename **yasm-1.3.0-win64.exe** to **yasm.exe** and place it to your Visual C++ **bin** directory, like **\\Program Files (x86)\\Microsoft Visual Studio 12\\VC\\bin\\**
+Download [yasm for Win64](http://www.tortall.net/projects/yasm/releases/yasm-1.3.0-win64.exe) from http://yasm.tortall.net/Download.html, rename **yasm-1.3.0-win64.exe** to **yasm.exe** and place it to your Visual C++ **bin** directory, like **\\Program Files (x86)\\Microsoft Visual Studio 14\\VC\\bin\\**
 
-Open **VS2013 x86 Native Tools Command Prompt.bat** (should be in **\\Program Files (x86)\\Microsoft Visual Studio 12.0\\Common7\\Tools\\Shortcuts\\** folder), go to **D:\\msys64\\** and launch **msys2_shell.bat**, there run
+Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder), go to **D:\\msys64\\** and launch **msys2_shell.bat**, there run
 
-    PATH="/c/Program Files (x86)/Microsoft Visual Studio 12.0/VC/BIN:$PATH"
+    PATH="/c/Program Files (x86)/Microsoft Visual Studio 14.0/VC/BIN:$PATH"
 
-    cd /d/TBuild/Libraries/ffmpeg-2.6.3
+    cd /d/TBuild/Libraries/ffmpeg
+    pacman -Sy
     pacman -S msys/make
     pacman -S mingw64/mingw-w64-x86_64-opus
+    pacman -S diffutils
     pacman -S pkg-config
 
     PKG_CONFIG_PATH="/mingw64/lib/pkgconfig:$PKG_CONFIG_PATH"
@@ -139,52 +146,57 @@ Open **VS2013 x86 Native Tools Command Prompt.bat** (should be in **\\Program Fi
     make
     make install
 
-####Qt 5.5.0, slightly patched
+####Qt 5.5.1, slightly patched
 
-http://download.qt-project.org/official_releases/qt/5.5/5.5.0/single/qt-everywhere-opensource-src-5.5.0.zip
+* Install Python 3.3.2 from https://www.python.org/download/releases/3.3.2 > [**Windows x86 MSI Installer (3.3.2)**](https://www.python.org/ftp/python/3.3.2/python-3.3.2.msi)
+* Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder)
 
-Extract to **D:\TBuild\Libraries\**, rename **qt-everywhere-opensource-src-5.5.0** to **QtStatic** to have **D:\TBuild\Libraries\QtStatic\qtbase\** folder
+There go to Libraries directory
 
-Apply patch
+    D:
+    cd TBuild\Libraries
 
-* OR copy (with overwrite!) everything from **D:\TBuild\tdesktop\\\_qt\_5\_5\_0\_patch\** to **D:\TBuild\Libraries\QtStatic\**
-* OR in Git Bash go to **/d/TBuild/Libraries/QtStatic/** and run
+and run
 
-    git apply ./../../tdesktop/Telegram/_qt_5_5_0_patch.diff
+    git clone git://code.qt.io/qt/qt5.git QtStatic
+    cd QtStatic
+    git checkout 5.5
+    perl init-repository --module-subset=qtbase,qtimageformats
+    git checkout v5.5.1
+    cd qtimageformats && git checkout v5.5.1 && cd ..
+    cd qtbase && git checkout v5.5.1 && cd ..
+
+#####Apply the patch
+
+    cd qtbase && git apply ../../../tdesktop/Telegram/_qtbase_5_5_1_patch.diff && cd ..
+    
+
+#####Install Windows SDKs
+
+If you didn't install Windows SDKs before, you need to install them now. To install the SDKs just open Telegram solution at **D:\TBuild\tdesktop\Telegram.sln** and on startup Visual Studio 2015 will popup dialog box and ask to download and install extra components (including Windows 7 SDK).
+
+If you already have Windows SDKs then find the library folder and correct it at configure's command below (like **C:\Program Files (x86)\Windows Kits\8.0\Lib\win8\um\x86**).
 
 #####Building library
 
-* Install Python 3.3.2 from https://www.python.org/download/releases/3.3.2 > [**Windows x86 MSI Installer (3.3.2)**](https://www.python.org/ftp/python/3.3.2/python-3.3.2.msi)
-* Open **VS2013 x86 Native Tools Command Prompt.bat** (should be in **\Program Files (x86)\Microsoft Visual Studio 12.0\Common7\Tools\Shortcuts\** folder)
-
-There go to Qt directory
-
-    D:
-    cd TBuild\Libraries\QtStatic
-
-and after that run configure
-
-    configure -debug-and-release -opensource -confirm-license -static -I "D:\TBuild\Libraries\OpenSSL-Win32\include" -L "C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib" -l Gdi32 -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="D:\TBuild\Libraries\OpenSSL-Win32\lib\VC\static\ssleay32MTd.lib D:\TBuild\Libraries\OpenSSL-Win32\lib\VC\static\libeay32MTd.lib" OPENSSL_LIBS_RELEASE="D:\TBuild\Libraries\OpenSSL-Win32\lib\VC\static\ssleay32MT.lib D:\TBuild\Libraries\OpenSSL-Win32\lib\VC\static\libeay32MT.lib" -mp -nomake examples -nomake tests -platform win32-msvc2013
-
-to configure Qt build. After configuration is complete run
-
-    nmake module-qtbase module-qtimageformats
-    nmake module-qtbase-install_subtargets module-qtimageformats-install_subtargets
+    configure -debug-and-release -opensource -confirm-license -static -I "D:\TBuild\Libraries\openssl\Release\include" -L "C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib" -l Gdi32 -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="D:\TBuild\Libraries\openssl_debug\Debug\lib\ssleay32.lib D:\TBuild\Libraries\openssl_debug\Debug\lib\libeay32.lib" OPENSSL_LIBS_RELEASE="D:\TBuild\Libraries\openssl\Release\lib\ssleay32.lib D:\TBuild\Libraries\openssl\Release\lib\libeay32.lib" -mp -nomake examples -nomake tests -platform win32-msvc2015
+    nmake
+    nmake install
 
 building (**nmake** command) will take really long time.
 
-####Qt Visual Studio Addin 1.2.3
+####Qt5Package
 
-http://download.qt-project.org/official_releases/vsaddin/qt-vs-addin-1.2.3-opensource.exe
+https://visualstudiogallery.msdn.microsoft.com/c89ff880-8509-47a4-a262-e4fa07168408
 
-Close all VS2013 instances and install to default location
+Download, close all VS2015 instances and install for VS2015
 
 ###Building Telegram Desktop
 
-* Launch VS2013 for configuring Qt Addin
+* Launch VS2015 for configuring Qt5Package
 * QT5 > Qt Options > Add
-  * Version name: **QtStatic.5.5.0**
+  * Version name: **QtStatic.5.5.1**
   * Path: **D:\TBuild\Libraries\QtStatic\qtbase**
-* Default Qt/Win version: **QtStatic.5.5.0** – **OK**
+* Default Qt/Win version: **QtStatic.5.5.1** – **OK**
 * File > Open > Project/Solution > **D:\TBuild\tdesktop\Telegram.sln**
 * Build \ Build Solution (Debug and Release configurations)

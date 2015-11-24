@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "mtp.h"
@@ -117,7 +120,7 @@ namespace {
 	}
 
 	bool importFail(const RPCError &error, mtpRequestId req) {
-		if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+		if (mtpIsFlood(error)) return false;
 
 		if (globalHandler.onFail && MTP::authedId()) (*globalHandler.onFail)(req, error); // auth import failed
 		return true;
@@ -138,7 +141,7 @@ namespace {
 	}
 
 	bool exportFail(const RPCError &error, mtpRequestId req) {
-		if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+		if (mtpIsFlood(error)) return false;
 
 		AuthExportRequests::const_iterator i = authExportRequests.constFind(req);
 		if (i != authExportRequests.cend()) {
@@ -349,6 +352,8 @@ namespace {
 		return false;
 	}
 
+	bool _paused = false;
+
 }
 
 namespace _mtp_internal {
@@ -367,6 +372,10 @@ namespace _mtp_internal {
 		
 		sessions.insert(dcWithShift, result);
 		return result;
+	}
+
+	bool paused() {
+		return _paused;
 	}
 	
 	void registerRequest(mtpRequestId requestId, int32 dcWithShift) {
@@ -553,7 +562,7 @@ namespace _mtp_internal {
 	}
 
 	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err) { // return true if need to clean request data
-		if (err.type().startsWith(qsl("FLOOD_WAIT_"))) {
+		if (mtpIsFlood(err)) {
 			if (onFail && (*onFail)(requestId, err)) return true;
 		}
 
@@ -640,6 +649,7 @@ namespace MTP {
 			(*i)->restart();
 		}
 	}
+
 	void restart(int32 dcMask) {
 		if (!_started) return;
 
@@ -648,6 +658,19 @@ namespace MTP {
 			if (((*i)->getDcWithShift() % int(_mtp_internal::dcShift)) == dcMask) {
 				(*i)->restart();
 			}
+		}
+	}
+
+	void pause() {
+		if (!_started) return;
+		_paused = true;
+	}
+
+	void unpause() {
+		if (!_started) return;
+		_paused = false;
+		for (Sessions::const_iterator i = sessions.cbegin(), e = sessions.cend(); i != e; ++i) {
+			(*i)->unpaused();
 		}
 	}
 

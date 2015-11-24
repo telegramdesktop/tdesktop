@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -29,15 +32,34 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "audio.h"
 
-PlayerWidget::PlayerWidget(QWidget *parent) : TWidget(parent),
-_prevAvailable(false), _nextAvailable(false), _fullAvailable(false),
-_over(OverNone), _down(OverNone), _downCoord(0), _downFrequency(AudioVoiceMsgFrequency), _downProgress(0.),
-_stateAnim(animFunc(this, &PlayerWidget::stateStep)),
-_index(-1), _history(0), _timeWidth(0), _repeat(false), _showPause(false), _position(0), _duration(0), _loaded(0),
-a_progress(0., 0.), a_loadProgress(0., 0.), _progressAnim(animFunc(this, &PlayerWidget::progressStep)) {
+PlayerWidget::PlayerWidget(QWidget *parent) : TWidget(parent)
+, _prevAvailable(false)
+, _nextAvailable(false)
+, _fullAvailable(false)
+, _over(OverNone)
+, _down(OverNone)
+, _downCoord(0)
+, _downFrequency(AudioVoiceMsgFrequency)
+, _downProgress(0.)
+, _stateAnim(animFunc(this, &PlayerWidget::stateStep))
+, _msgmigrated(false)
+, _index(-1)
+, _migrated(0)
+, _history(0)
+, _timeWidth(0)
+, _repeat(false)
+, _showPause(false)
+, _position(0)
+, _duration(0)
+, _loaded(0)
+, a_progress(0., 0.)
+, a_loadProgress(0., 0.)
+, _progressAnim(animFunc(this, &PlayerWidget::progressStep))
+, _sideShadow(this, st::shadowColor) {
 	resize(st::wndMinWidth, st::playerHeight);
 	setMouseTracking(true);
 	memset(_stateHovers, 0, sizeof(_stateHovers));
+	_sideShadow.setVisible(cWideMode());
 }
 
 void PlayerWidget::paintEvent(QPaintEvent *e) {
@@ -201,7 +223,7 @@ void PlayerWidget::updateDownTime() {
 	QString time = formatDurationText(qRound(_downDuration * _downProgress) / _downFrequency);
 	if (time != _time) {
 		_time = time;
-		_timeWidth = st::linkFont->m.width(_time);
+		_timeWidth = st::linkFont->width(_time);
 		rtlupdate(_infoRect);
 	}
 }
@@ -245,14 +267,27 @@ void PlayerWidget::updateOverRect(OverState state) {
 
 void PlayerWidget::updateControls() {
 	_fullAvailable = (_index >= 0);
-	_prevAvailable = _fullAvailable && (_index > 0);
-	_nextAvailable = _fullAvailable && (_index < _history->overview[OverviewAudioDocuments].size() - 1);
+
+	History *history = _msgmigrated ? _migrated : _history;
+	_prevAvailable = _fullAvailable && ((_index > 0) || (_index == 0 && _migrated && !_msgmigrated && !_migrated->overview[OverviewAudioDocuments].isEmpty()));
+	_nextAvailable = _fullAvailable && ((_index < history->overview[OverviewAudioDocuments].size() - 1) || (_msgmigrated && _index == _migrated->overview[OverviewAudioDocuments].size() - 1 && _history->overviewLoaded(OverviewAudioDocuments) && _history->overviewCount(OverviewAudioDocuments) > 0));
 	resizeEvent(0);
 	update();
-
 	if (_index >= 0 && _index < MediaOverviewStartPerPage) {
-		if (_history->overviewCount[OverviewAudioDocuments] < 0 || _history->overviewCount[OverviewAudioDocuments] > 0) {
-			if (App::main()) App::main()->loadMediaBack(_history->peer, OverviewAudioDocuments);
+		if (!_history->overviewLoaded(OverviewAudioDocuments) || (_migrated && !_migrated->overviewLoaded(OverviewAudioDocuments))) {
+			if (App::main()) {
+				if (_msgmigrated || (_migrated && _index == 0 && _history->overviewLoaded(OverviewAudioDocuments))) {
+					App::main()->loadMediaBack(_migrated->peer, OverviewAudioDocuments);
+				} else {
+					App::main()->loadMediaBack(_history->peer, OverviewAudioDocuments);
+					if (_migrated && _index == 0 && _migrated->overview[OverviewAudioDocuments].isEmpty() && !_migrated->overviewLoaded(OverviewAudioDocuments)) {
+						App::main()->loadMediaBack(_migrated->peer, OverviewAudioDocuments);
+					}
+				}
+				if (_msgmigrated && !_history->overviewCountLoaded(OverviewAudioDocuments)) {
+					App::main()->preloadOverview(_history->peer, OverviewAudioDocuments);
+				}
+			}
 		}
 	}
 }
@@ -261,8 +296,8 @@ void PlayerWidget::findCurrent() {
 	_index = -1;
 	if (!_history) return;
 
-	const History::MediaOverview *o = &_history->overview[OverviewAudioDocuments];
-	if (_history->channelId() == _song.msgId.channel) {
+	const History::MediaOverview *o = &(_msgmigrated ? _migrated : _history)->overview[OverviewAudioDocuments];
+	if ((_msgmigrated ? _migrated : _history)->channelId() == _song.msgId.channel) {
 		for (int i = 0, l = o->size(); i < l; ++i) {
 			if (o->at(i) == _song.msgId.msg) {
 				_index = i;
@@ -272,15 +307,20 @@ void PlayerWidget::findCurrent() {
 	}
 	if (_index < 0) return;
 
+	History *history = _msgmigrated ? _migrated : _history;
+	HistoryItem *next = 0;
 	if (_index < o->size() - 1) {
-		if (HistoryItem *next = App::histItemById(_history->channelId(), o->at(_index + 1))) {
-			if (HistoryDocument *document = static_cast<HistoryDocument*>(next->getMedia())) {
-				if (document->document()->already(true).isEmpty() && document->document()->data.isEmpty()) {
-					if (!document->document()->loader) {
-						DocumentOpenLink::doOpen(document->document());
-						document->document()->openOnSave = 0;
-						document->document()->openOnSaveMsgId = FullMsgId();
-					}
+		next = App::histItemById(history->channelId(), o->at(_index + 1));
+	} else if (_msgmigrated && _index == o->size() - 1 && _history->overviewLoaded(OverviewAudioDocuments) && _history->overviewCount(OverviewAudioDocuments) > 0) {
+		next = App::histItemById(_history->channelId(), _history->overview[OverviewAudioDocuments].at(0));
+	}
+	if (next) {
+		if (HistoryDocument *document = static_cast<HistoryDocument*>(next->getMedia())) {
+			if (document->document()->already(true).isEmpty() && document->document()->data.isEmpty()) {
+				if (!document->document()->loader) {
+					DocumentOpenLink::doOpen(document->document());
+					document->document()->openOnSave = 0;
+					document->document()->openOnSaveMsgId = FullMsgId();
 				}
 			}
 		}
@@ -304,11 +344,12 @@ void PlayerWidget::clearSelection() {
 }
 
 void PlayerWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
-	if (_history && _history->peer == peer && type == OverviewAudioDocuments) {
+	if (_history && (_history->peer == peer || (_migrated && _migrated->peer == peer)) && type == OverviewAudioDocuments) {
 		_index = -1;
-		if (_history->channelId() == _song.msgId.channel) {
-			for (int i = 0, l = _history->overview[OverviewAudioDocuments].size(); i < l; ++i) {
-				if (_history->overview[OverviewAudioDocuments].at(i) == _song.msgId.msg) {
+		History *history = _msgmigrated ? _migrated : _history;
+		if (history->channelId() == _song.msgId.channel) {
+			for (int i = 0, l = history->overview[OverviewAudioDocuments].size(); i < l; ++i) {
+				if (history->overview[OverviewAudioDocuments].at(i) == _song.msgId.msg) {
 					_index = i;
 					break;
 				}
@@ -316,6 +357,10 @@ void PlayerWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) 
 		}
 		updateControls();
 	}
+}
+
+void PlayerWidget::updateWideMode() {
+	_sideShadow.setVisible(cWideMode());
 }
 
 bool PlayerWidget::seekingSong(const SongMsgId &song) const {
@@ -464,18 +509,30 @@ void PlayerWidget::playPausePressed() {
 void PlayerWidget::prevPressed() {
 	if (isHidden()) return;
 
-	const History::MediaOverview *o = _history ? &_history->overview[OverviewAudioDocuments] : 0;
+	History *history = _msgmigrated ? _migrated : _history;
+	const History::MediaOverview *o = history ? &history->overview[OverviewAudioDocuments] : 0;
 	if (audioPlayer() && o && _index > 0 && _index <= o->size() && !o->isEmpty()) {
-		startPlay(FullMsgId(_history->channelId(), o->at(_index - 1)));
+		startPlay(FullMsgId(history->channelId(), o->at(_index - 1)));
+	} else if (!_index && _history && _migrated && !_msgmigrated) {
+		o = &_migrated->overview[OverviewAudioDocuments];
+		if (!o->isEmpty()) {
+			startPlay(FullMsgId(_migrated->channelId(), o->at(o->size() - 1)));
+		}
 	}
 }
 
 void PlayerWidget::nextPressed() {
 	if (isHidden()) return;
 
-	const History::MediaOverview *o = _history ? &_history->overview[OverviewAudioDocuments] : 0;
+	History *history = _msgmigrated ? _migrated : _history;
+	const History::MediaOverview *o = history ? &history->overview[OverviewAudioDocuments] : 0;
 	if (audioPlayer() && o && _index >= 0 && _index < o->size() - 1) {
-		startPlay(FullMsgId(_history->channelId(), o->at(_index + 1)));
+		startPlay(FullMsgId(history->channelId(), o->at(_index + 1)));
+	} else if (o && (_index == o->size() - 1) && _msgmigrated && _history->overviewLoaded(OverviewAudioDocuments)) {
+		o = &_history->overview[OverviewAudioDocuments];
+		if (!o->isEmpty()) {
+			startPlay(FullMsgId(_history->channelId(), o->at(0)));
+		}
 	}
 }
 
@@ -489,7 +546,7 @@ void PlayerWidget::stopPressed() {
 void PlayerWidget::resizeEvent(QResizeEvent *e) {
 	int32 availh = (height() - st::playerLineHeight);
 	int32 ch = st::playerPlay.pxHeight() + st::playerSkip, ct = (availh - ch) / 2;
-	_playbackRect = QRect(cWideMode() ? st::dlgShadow : 0, height() - st::playerMoverSize.height(), width() - (cWideMode() ? st::dlgShadow : 0), st::playerMoverSize.height());
+	_playbackRect = QRect(cWideMode() ? st::lineWidth : 0, height() - st::playerMoverSize.height(), width() - (cWideMode() ? st::lineWidth : 0), st::playerMoverSize.height());
 	_prevRect = _fullAvailable ? QRect(st::playerSkip / 2, ct, st::playerPrev.pxWidth() + st::playerSkip, ch) : QRect();
 	_playRect = QRect(_fullAvailable ? (_prevRect.x() + _prevRect.width()) : (st::playerSkip / 2), ct, st::playerPlay.pxWidth() + st::playerSkip, ch);
 	_nextRect = _fullAvailable ? QRect(_playRect.x() + _playRect.width(), ct, st::playerNext.pxWidth() + st::playerSkip, ch) : QRect();
@@ -501,6 +558,10 @@ void PlayerWidget::resizeEvent(QResizeEvent *e) {
 
 	int32 infoLeft = (_fullAvailable ? (_nextRect.x() + _nextRect.width()) : (_playRect.x() + _playRect.width()));
 	_infoRect = QRect(infoLeft + st::playerSkip / 2, 0, (_fullAvailable ? _fullRect.x() : _repeatRect.x()) - infoLeft - st::playerSkip, availh);
+
+	_sideShadow.resize(st::lineWidth, height());
+	_sideShadow.moveToLeft(0, 0);
+
 	update();
 }
 
@@ -534,9 +595,18 @@ void PlayerWidget::updateState(SongMsgId playing, AudioPlayerState playingState,
 		_song = playing;
 		if (HistoryItem *item = App::histItemById(_song.msgId)) {
 			_history = item->history();
+			if (_history->peer->migrateFrom()) {
+				_migrated = App::history(_history->peer->migrateFrom()->id);
+				_msgmigrated = false;
+			} else if (_history->peer->migrateTo()) {
+				_migrated = _history;
+				_history = App::history(_migrated->peer->migrateTo()->id);
+				_msgmigrated = true;
+			}
 			findCurrent();
 		} else {
 			_history = 0;
+			_msgmigrated = false;
 			_index = -1;
 		}
 		SongData *song = _song.song->song();
@@ -571,7 +641,7 @@ void PlayerWidget::updateState(SongMsgId playing, AudioPlayerState playingState,
 	float64 progress = 0.;
 	int32 loaded;
 	float64 loadProgress = 1.;
-	if (duration || !_song.song->loader) {
+	if (duration || !_song || !_song.song || !_song.song->loader) {
 		time = (_down == OverPlayback) ? _time : formatDurationText(display);
 		progress = duration ? snap(float64(position) / duration, 0., 1.) : 0.;
 		loaded = duration ? _song.song->size : 0;
@@ -583,7 +653,7 @@ void PlayerWidget::updateState(SongMsgId playing, AudioPlayerState playingState,
 	if (time != _time || showPause != _showPause) {
 		if (_time != time) {
 			_time = time;
-			_timeWidth = st::linkFont->m.width(_time);
+			_timeWidth = st::linkFont->width(_time);
 		}
 		_showPause = showPause;
 		if (duration != _duration || position != _position || loaded != _loaded) {

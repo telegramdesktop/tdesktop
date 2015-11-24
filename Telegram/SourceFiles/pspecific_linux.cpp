@@ -13,7 +13,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
  
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "pspecific.h"
@@ -1165,6 +1165,7 @@ namespace {
 }
 
 void psRegisterCustomScheme() {
+    #ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
     QString home(_psHomeDir());
     if (home.isEmpty()) return;
 
@@ -1195,6 +1196,7 @@ void psRegisterCustomScheme() {
             s << "Exec=" << escapeShell(cExeDir() + cExeName()) << " -- %u\n";
             s << "Icon=" << icon << "\n";
             s << "Terminal=false\n";
+            s << "StartupWMClass=Telegram\n";
             s << "Type=Application\n";
             s << "Categories=Network;\n";
             s << "MimeType=application/x-xdg-protocol-tg;x-scheme-handler/tg;\n";
@@ -1249,6 +1251,7 @@ void psRegisterCustomScheme() {
             LOG(("App Error: Could not open '%1' for write").arg(file));
         }
     }
+    #endif
 }
 
 void psNewVersion() {
@@ -1365,3 +1368,18 @@ bool linuxMoveFile(const char *from, const char *to) {
 
 	return true;
 }
+
+#ifdef _NEED_LINUX_GENERATE_DUMP
+void _sigsegvHandler(int sig) {
+    void *array[50] = {0};
+    size_t size;
+
+    // get void*'s for all entries on the stack
+    size = backtrace(array, 50);
+
+    // print out all the frames to stderr
+    fprintf(stderr, "Error: signal %d:\n", sig);
+    backtrace_symbols_fd(array, size, STDERR_FILENO);
+    exit(1);
+}
+#endif

@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -24,37 +27,6 @@ namespace App {
 class Painter : public QPainter {
 public:
 	explicit Painter(QPaintDevice *device) : QPainter(device) {
-	}
-
-	void setFont(const style::font &font) {
-		QPainter::setFont(font->f);
-	}
-	void setFont(const QFont &font) {
-		QPainter::setFont(font);
-	}
-	void setBrush(const style::color &color) {
-		QPainter::setBrush(color->b);
-	}
-	void setBrush(const QColor &color) {
-		QPainter::setBrush(color);
-	}
-	void setBrush(const QBrush &brush) {
-		QPainter::setBrush(brush);
-	}
-	void setBrush(Qt::BrushStyle style) {
-		QPainter::setBrush(style);
-	}
-	void setPen(const style::color &color) {
-		QPainter::setPen(color->p);
-	}
-	void setPen(const QPen &pen) {
-		QPainter::setPen(pen);
-	}
-	void setPen(const QColor &color) {
-		QPainter::setPen(color);
-	}
-	void setPen(Qt::PenStyle style) {
-		QPainter::setPen(style);
 	}
 
 	void drawTextLeft(int x, int y, int outerw, const QString &text, int textWidth = -1) {
@@ -155,11 +127,11 @@ virtual void leaveToChildEvent(QEvent *e) { /* e -- from enterEvent() of child T
 } \
 virtual void enterFromChildEvent(QEvent *e) { /* e -- from leaveEvent() of child TWidget */ \
 } \
-void moveToLeft(int x, int y, int outerw) { \
-	move(rtl() ? (outerw - x - width()) : x, y); \
+void moveToLeft(int x, int y, int outerw = 0) { \
+	move(rtl() ? ((outerw > 0 ? outerw : parentWidget()->width()) - x - width()) : x, y); \
 } \
-void moveToRight(int x, int y, int outerw) { \
-	move(rtl() ? x : (outerw - x - width()), y); \
+void moveToRight(int x, int y, int outerw = 0) { \
+	move(rtl() ? x : ((outerw > 0 ? outerw : parentWidget()->width()) - x - width()), y); \
 } \
 QPoint myrtlpoint(int x, int y) const { \
 	return rtlpoint(x, y, width()); \
@@ -199,10 +171,27 @@ public:
 	bool event(QEvent *e) {
 		return QWidget::event(e);
 	}
+	virtual void grabStart() {
+	}
+	virtual void grabFinish() {
+	}
 
 private:
 
 };
 
 void myEnsureResized(QWidget *target);
-QPixmap myGrab(QWidget *target, const QRect &rect);
+QPixmap myGrab(TWidget *target, QRect rect = QRect());
+
+class PlainShadow : public TWidget {
+public:
+	PlainShadow(QWidget *parent, const style::color &color) : TWidget(parent), _color(color) {
+	}
+	void paintEvent(QPaintEvent *e) {
+		Painter(this).fillRect(e->rect(), _color->b);
+	}
+
+private:
+	const style::color &_color;
+
+};

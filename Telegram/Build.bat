@@ -15,7 +15,7 @@ set "AppVersionStrFull=%AppVersionStr%.dev"
 :devprepared
 
 echo.
-echo Building version %AppVersionStrFull%..
+echo Building version %AppVersionStrFull% for Windows..
 echo.
 
 if exist ..\Win32\Deploy\deploy\%AppVersionStrMajor%\%AppVersionStr%\ goto error_exist1

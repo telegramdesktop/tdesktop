@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -48,6 +51,7 @@ public:
 	void clearSelection();
 
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
+	void updateWideMode();
 
 	bool seekingSong(const SongMsgId &song) const;
 
@@ -95,8 +99,9 @@ private:
 	Animation _stateAnim;
 
 	SongMsgId _song;
+	bool _msgmigrated;
 	int32 _index;
-	History *_history;
+	History *_migrated, *_history;
 	QRect _playRect, _prevRect, _nextRect, _playbackRect;
 	QRect _closeRect, _volumeRect, _fullRect, _repeatRect, _infoRect;
 	int32 _timeWidth;
@@ -109,5 +114,7 @@ private:
 
 	anim::fvalue a_progress, a_loadProgress;
 	Animation _progressAnim;
+
+	PlainShadow _sideShadow;
 
 };

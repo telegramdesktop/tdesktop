@@ -13,8 +13,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -90,7 +93,7 @@ protected:
 
 	bool posInited;
 	QSystemTrayIcon *trayIcon;
-	ContextMenu *trayIconMenu;
+	PopupMenu *trayIconMenu;
 	QImage icon256, iconbig256;
 	QIcon wndIcon;
 
@@ -113,7 +116,7 @@ private:
 #ifdef _NEED_WIN_GENERATE_DUMP
 extern LPTOP_LEVEL_EXCEPTION_FILTER _oldWndExceptionFilter;
 LONG CALLBACK _exceptionFilter(EXCEPTION_POINTERS* pExceptionPointers);
-#endif _NEED_WIN_GENERATE_DUMP
+#endif
 
 class PsApplication : public QApplication {
 	Q_OBJECT

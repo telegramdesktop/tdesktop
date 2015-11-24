@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "localstorage.h"
@@ -70,6 +73,7 @@ namespace {
 
 	bool _started = false;
 	_local_inner::Manager *_manager = 0;
+	TaskQueue *_localLoader = 0;
 
 	bool _working() {
 		return _manager && !_basePath.isEmpty();
@@ -730,6 +734,14 @@ namespace {
 			cSetMaxGroupCount(maxSize);
 		} break;
 
+		case dbiMaxMegaGroupCount: {
+			qint32 maxSize;
+			stream >> maxSize;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetMaxMegaGroupCount(maxSize);
+		} break;
+
 		case dbiUser: {
 			quint32 dcId;
 			qint32 uid;
@@ -802,6 +814,7 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			cSetDesktopNotify(v == 1);
+			if (App::wnd()) App::wnd()->updateTrayMenu();
 		} break;
 
 		case dbiWindowsNotifications: {
@@ -1823,6 +1836,7 @@ namespace Local {
 		if (!_started) {
 			_started = true;
 			_manager = new _local_inner::Manager();
+			_localLoader = new TaskQueue(0, FileLoaderQueueStopTimeout);
 		}
 	}
 
@@ -1832,6 +1846,8 @@ namespace Local {
 			_manager->finish();
 			_manager->deleteLater();
 			_manager = 0;
+			delete _localLoader;
+			_localLoader = 0;
 		}
 	}
 
@@ -1894,7 +1910,7 @@ namespace Local {
 
 			const BuiltInDc *bdcsipv6 = builtInDcsIPv6();
 			for (int i = 0, l = builtInDcsCountIPv6(); i < l; ++i) {
-				int32 flags = MTPDdcOption_flag_ipv6, idWithShift = bdcsipv6[i].id + (flags * _mtp_internal::dcShift);
+				int32 flags = MTPDdcOption::flag_ipv6, idWithShift = bdcsipv6[i].id + (flags * _mtp_internal::dcShift);
 				dcOpts.insert(idWithShift, mtpDcOption(bdcsipv6[i].id, flags, bdcsipv6[i].ip, bdcsipv6[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: %2:%3").arg(bdcsipv6[i].id).arg(bdcsipv6[i].ip).arg(bdcsipv6[i].port));
 			}
@@ -1938,7 +1954,7 @@ namespace Local {
 
 			const BuiltInDc *bdcsipv6 = builtInDcsIPv6();
 			for (int i = 0, l = builtInDcsCountIPv6(); i < l; ++i) {
-				dcOpts.insert(bdcsipv6[i].id + (MTPDdcOption_flag_ipv6 * _mtp_internal::dcShift), mtpDcOption(bdcsipv6[i].id, MTPDdcOption_flag_ipv6, bdcsipv6[i].ip, bdcsipv6[i].port));
+				dcOpts.insert(bdcsipv6[i].id + (MTPDdcOption::flag_ipv6 * _mtp_internal::dcShift), mtpDcOption(bdcsipv6[i].id, MTPDdcOption::flag_ipv6, bdcsipv6[i].ip, bdcsipv6[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: %2:%3").arg(bdcsipv6[i].id).arg(bdcsipv6[i].ip).arg(bdcsipv6[i].port));
 			}
 
@@ -1963,6 +1979,7 @@ namespace Local {
 
 		EncryptedDescriptor data(size);
 		data.stream << quint32(dbiMaxGroupCount) << qint32(cMaxGroupCount());
+		data.stream << quint32(dbiMaxMegaGroupCount) << qint32(cMaxMegaGroupCount());
 		data.stream << quint32(dbiAutoStart) << qint32(cAutoStart());
 		data.stream << quint32(dbiStartMinimized) << qint32(cStartMinimized());
 		data.stream << quint32(dbiSendToMenu) << qint32(cSendToMenu());
@@ -2001,14 +2018,23 @@ namespace Local {
 	}
 
 	void reset() {
+		if (_localLoader) {
+			_localLoader->stop();
+		}
+
 		_passKeySalt.clear(); // reset passcode, local key
 		_draftsMap.clear();
 		_draftsPositionsMap.clear();
+		_fileLocations.clear();
+		_fileLocationPairs.clear();
+		_fileLocationAliases.clear();
 		_imagesMap.clear();
 		_draftsNotReadMap.clear();
 		_stickerImagesMap.clear();
 		_audiosMap.clear();
+		_storageImagesSize = _storageStickersSize = _storageAudiosSize = 0;
 		_locationsKey = _reportSpamStatusesKey = _recentStickersKeyOld = _stickersKey = _backgroundKey = _userSettingsKey = _recentHashtagsKey = _savedPeersKey = 0;
+		_oldMapVersion = _oldSettingsVersion = 0;
 		_mapChanged = true;
 		_writeMap(WriteMapNow);
 
@@ -2106,7 +2132,7 @@ namespace Local {
 	void writeDraftPositions(const PeerId &peer, const MessageCursor &cur) {
 		if (!_working()) return;
 
-		if (cur.position == 0 && cur.anchor == 0 && cur.scroll == 0) {
+		if (cur.position == 0 && cur.anchor == 0 && cur.scroll == QFIXED_MAX) {
 			DraftsMap::iterator i = _draftsPositionsMap.find(peer);
 			if (i != _draftsPositionsMap.cend()) {
 				clearKey(i.value());
@@ -2272,25 +2298,94 @@ namespace Local {
 		}
 	}
 
-	StorageImageSaved readImage(const StorageKey &location) {
+	class AbstractCachedLoadTask : public Task {
+	public:
+
+		AbstractCachedLoadTask(const FileKey &key, const StorageKey &location, bool readImageFlag, mtpFileLoader *loader) :
+			_key(key), _location(location), _readImageFlag(readImageFlag), _loader(loader), _result(0) {
+		}
+		void process() {
+			FileReadDescriptor image;
+			if (!readEncryptedFile(image, _key, UserPath)) {
+				return;
+			}
+
+			QByteArray imageData;
+			quint64 locFirst, locSecond;
+			quint32 imageType;
+			readFromStream(image.stream, locFirst, locSecond, imageType, imageData);
+
+			if (locFirst != _location.first || locSecond != _location.second) {
+				return;
+			}
+
+			_result = new Result(StorageFileType(imageType), imageData, _readImageFlag);
+		}
+		void finish() {
+			if (_result) {
+				_loader->localLoaded(_result->image, _result->format, _result->pixmap);
+			} else {
+				clearInMap();
+				_loader->localLoaded(StorageImageSaved());
+			}
+		}
+		virtual void readFromStream(QDataStream &stream, quint64 &first, quint64 &second, quint32 &type, QByteArray &data) = 0;
+		virtual void clearInMap() = 0;
+
+	protected:
+		FileKey _key;
+		StorageKey _location;
+		bool _readImageFlag;
+		struct Result {
+			Result(StorageFileType type, const QByteArray &data, bool readImageFlag) : image(type, data) {
+				if (readImageFlag) {
+					QByteArray guessFormat;
+					switch (type) {
+						case StorageFileGif: guessFormat = "GIF"; break;
+						case StorageFileJpeg: guessFormat = "JPG"; break;
+						case StorageFilePng: guessFormat = "PNG"; break;
+						case StorageFileWebp: guessFormat = "WEBP"; break;
+						default: guessFormat = QByteArray(); break;
+					}
+					pixmap = QPixmap::fromImage(App::readImage(data, &guessFormat, false), Qt::ColorOnly);
+					if (!pixmap.isNull()) {
+						format = guessFormat;
+					}
+				}
+			}
+			StorageImageSaved image;
+			QByteArray format;
+			QPixmap pixmap;
+		};
+		mtpFileLoader *_loader;
+		Result *_result;
+
+	};
+
+	class ImageLoadTask : public AbstractCachedLoadTask {
+	public:
+		ImageLoadTask(const FileKey &key, const StorageKey &location, mtpFileLoader *loader) :
+		AbstractCachedLoadTask(key, location, true, loader) {
+		}
+		void readFromStream(QDataStream &stream, quint64 &first, quint64 &second, quint32 &type, QByteArray &data) {
+			stream >> first >> second >> type >> data;
+		}
+		void clearInMap() {
+			StorageMap::iterator j = _imagesMap.find(_location);
+			if (j != _imagesMap.cend() && j->first == _key) {
+				clearKey(_key, UserPath);
+				_storageImagesSize -= j->second;
+				_imagesMap.erase(j);
+			}
+		}
+	};
+
+	TaskId startImageLoad(const StorageKey &location, mtpFileLoader *loader) {
 		StorageMap::iterator j = _imagesMap.find(location);
-		if (j == _imagesMap.cend()) {
-			return StorageImageSaved();
+		if (j == _imagesMap.cend() || !_localLoader) {
+			return 0;
 		}
-		FileReadDescriptor draft;
-		if (!readEncryptedFile(draft, j.value().first, UserPath)) {
-			clearKey(j.value().first, UserPath);
-			_storageImagesSize -= j.value().second;
-			_imagesMap.erase(j);
-			return StorageImageSaved();
-		}
-
-		QByteArray imageData;
-		quint64 locFirst, locSecond;
-		quint32 imageType;
-		draft.stream >> locFirst >> locSecond >> imageType >> imageData;
-
-		return (locFirst == location.first && locSecond == location.second) ? StorageImageSaved(StorageFileType(imageType), imageData) : StorageImageSaved();
+		return _localLoader->addTask(new ImageLoadTask(j->first, location, loader));
 	}
 
 	int32 hasImages() {
@@ -2325,24 +2420,31 @@ namespace Local {
 		}
 	}
 
-	QByteArray readStickerImage(const StorageKey &location) {
+	class StickerImageLoadTask : public AbstractCachedLoadTask {
+	public:
+		StickerImageLoadTask(const FileKey &key, const StorageKey &location, mtpFileLoader *loader) :
+		AbstractCachedLoadTask(key, location, true, loader) {
+		}
+		void readFromStream(QDataStream &stream, quint64 &first, quint64 &second, quint32 &type, QByteArray &data) {
+			stream >> first >> second >> data;
+			type = StorageFilePartial;
+		}
+		void clearInMap() {
+			StorageMap::iterator j = _stickerImagesMap.find(_location);
+			if (j != _stickerImagesMap.cend() && j->first == _key) {
+				clearKey(j.value().first, UserPath);
+				_storageStickersSize -= j.value().second;
+				_stickerImagesMap.erase(j);
+			}
+		}
+	};
+
+	TaskId startStickerImageLoad(const StorageKey &location, mtpFileLoader *loader) {
 		StorageMap::iterator j = _stickerImagesMap.find(location);
 		if (j == _stickerImagesMap.cend()) {
-			return QByteArray();
+			return 0;
 		}
-		FileReadDescriptor draft;
-		if (!readEncryptedFile(draft, j.value().first, UserPath)) {
-			clearKey(j.value().first, UserPath);
-			_storageStickersSize -= j.value().second;
-			_stickerImagesMap.erase(j);
-			return QByteArray();
-		}
-
-		QByteArray stickerData;
-		quint64 locFirst, locSecond;
-		draft.stream >> locFirst >> locSecond >> stickerData;
-
-		return (locFirst == location.first && locSecond == location.second) ? stickerData : QByteArray();
+		return _localLoader->addTask(new StickerImageLoadTask(j->first, location, loader));
 	}
 
 	int32 hasStickers() {
@@ -2377,24 +2479,31 @@ namespace Local {
 		}
 	}
 
-	QByteArray readAudio(const StorageKey &location) {
+	class AudioLoadTask : public AbstractCachedLoadTask {
+	public:
+		AudioLoadTask(const FileKey &key, const StorageKey &location, mtpFileLoader *loader) :
+		AbstractCachedLoadTask(key, location, false, loader) {
+		}
+		void readFromStream(QDataStream &stream, quint64 &first, quint64 &second, quint32 &type, QByteArray &data) {
+			stream >> first >> second >> data;
+			type = StorageFilePartial;
+		}
+		void clearInMap() {
+			StorageMap::iterator j = _audiosMap.find(_location);
+			if (j != _audiosMap.cend() && j->first == _key) {
+				clearKey(j.value().first, UserPath);
+				_storageAudiosSize -= j.value().second;
+				_audiosMap.erase(j);
+			}
+		}
+	};
+
+	TaskId startAudioLoad(const StorageKey &location, mtpFileLoader *loader) {
 		StorageMap::iterator j = _audiosMap.find(location);
 		if (j == _audiosMap.cend()) {
-			return QByteArray();
+			return 0;
 		}
-		FileReadDescriptor draft;
-		if (!readEncryptedFile(draft, j.value().first, UserPath)) {
-			clearKey(j.value().first, UserPath);
-			_storageAudiosSize -= j.value().second;
-			_audiosMap.erase(j);
-			return QByteArray();
-		}
-
-		QByteArray audioData;
-		quint64 locFirst, locSecond;
-		draft.stream >> locFirst >> locSecond >> audioData;
-
-		return (locFirst == location.first && locSecond == location.second) ? audioData : QByteArray();
+		return _localLoader->addTask(new AudioLoadTask(j->first, location, loader));
 	}
 
 	int32 hasAudios() {
@@ -2403,6 +2512,12 @@ namespace Local {
 
 	qint64 storageAudiosSize() {
 		return _storageAudiosSize;
+	}
+
+	void cancelTask(TaskId id) {
+		if (_localLoader) {
+			_localLoader->cancelTask(id);
+		}
 	}
 
 	void _writeStorageImageLocation(QDataStream &stream, const StorageImageLocation &loc) {
@@ -2471,7 +2586,7 @@ namespace Local {
 			for (StickerSets::const_iterator i = sets.cbegin(); i != sets.cend(); ++i) {
 				bool notLoaded = (i->flags & MTPDstickerSet_flag_NOT_LOADED);
 				if (notLoaded) {
-					if (!(i->flags & MTPDstickerSet_flag_disabled)) { // waiting to receive
+					if (!(i->flags & MTPDstickerSet::flag_disabled)) { // waiting to receive
 						return;
 					}
 				} else {
@@ -2530,7 +2645,7 @@ namespace Local {
 
 		cSetStickersHash(QByteArray());
 
-		StickerSet &def(sets.insert(DefaultStickerSetId, StickerSet(DefaultStickerSetId, 0, lang(lng_stickers_default_set), QString(), 0, 0, MTPDstickerSet_flag_official)).value());
+		StickerSet &def(sets.insert(DefaultStickerSetId, StickerSet(DefaultStickerSetId, 0, lang(lng_stickers_default_set), QString(), 0, 0, MTPDstickerSet::flag_official)).value());
 		StickerSet &custom(sets.insert(CustomStickerSetId, StickerSet(CustomStickerSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, 0)).value());
 
 		QMap<uint64, bool> read;
@@ -2623,7 +2738,7 @@ namespace Local {
 
 			if (setId == DefaultStickerSetId) {
 				setTitle = lang(lng_stickers_default_set);
-				setFlags |= MTPDstickerSet_flag_official;
+				setFlags |= MTPDstickerSet::flag_official;
 				order.push_front(setId);
 			} else if (setId == CustomStickerSetId) {
 				setTitle = lang(lng_custom_stickers);
@@ -2835,8 +2950,16 @@ namespace Local {
 		if (peer->isUser()) {
 			UserData *user = peer->asUser();
 
-			// first + last + phone + username + access + onlineTill + contact + botInfoVersion
-			result += _stringSize(user->firstName) + _stringSize(user->lastName) + _stringSize(user->phone) + _stringSize(user->username) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
+			// first + last + phone + username + access
+			result += _stringSize(user->firstName) + _stringSize(user->lastName) + _stringSize(user->phone) + _stringSize(user->username) + sizeof(quint64);
+
+			// flags
+			if (AppVersion >= 9012) {
+				result += sizeof(qint32);
+			}
+
+			// onlineTill + contact + botInfoVersion
+			result += sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
 		} else if (peer->isChat()) {
 			ChatData *chat = peer->asChat();
 
@@ -2845,8 +2968,8 @@ namespace Local {
 		} else if (peer->isChannel()) {
 			ChannelData *channel = peer->asChannel();
 
-			// name + access + date + version + adminned + forbidden + left + invitationUrl
-			result += _stringSize(channel->name) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(channel->invitationUrl);
+			// name + access + date + version + forbidden + flags + invitationUrl
+			result += _stringSize(channel->name) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(channel->invitationUrl);
 		}
 		return result;
 	}
@@ -2857,12 +2980,18 @@ namespace Local {
 		if (peer->isUser()) {
 			UserData *user = peer->asUser();
 
-			stream << user->firstName << user->lastName << user->phone << user->username << quint64(user->access) << qint32(user->onlineTill) << qint32(user->contact) << qint32(user->botInfo ? user->botInfo->version : -1);
+			stream << user->firstName << user->lastName << user->phone << user->username << quint64(user->access);
+			if (AppVersion >= 9012) {
+				stream << qint32(user->flags);
+			}
+			stream << qint32(user->onlineTill) << qint32(user->contact) << qint32(user->botInfo ? user->botInfo->version : -1);
 		} else if (peer->isChat()) {
 			ChatData *chat = peer->asChat();
 
+			qint32 flagsData = (AppVersion >= 9012) ? chat->flags : (chat->haveLeft() ? 1 : 0);
+
 			stream << chat->name << qint32(chat->count) << qint32(chat->date) << qint32(chat->version) << qint32(chat->creator);
-			stream << qint32(chat->isForbidden ? 1 : 0) << qint32(chat->haveLeft ? 1 : 0) << chat->invitationUrl;
+			stream << qint32(chat->isForbidden ? 1 : 0) << qint32(flagsData) << chat->invitationUrl;
 		} else if (peer->isChannel()) {
 			ChannelData *channel = peer->asChannel();
 
@@ -2885,8 +3014,12 @@ namespace Local {
 
 			QString first, last, phone, username;
 			quint64 access;
-			qint32 onlineTill, contact, botInfoVersion;
-			from.stream >> first >> last >> phone >> username >> access >> onlineTill >> contact >> botInfoVersion;
+			qint32 flags = 0, onlineTill, contact, botInfoVersion;
+			from.stream >> first >> last >> phone >> username >> access;
+			if (from.version >= 9012) {
+				from.stream >> flags;
+			}
+			from.stream >> onlineTill >> contact >> botInfoVersion;
 
 			bool showPhone = !isServiceUser(user->id) && (peerToUser(user->id) != MTP::authedId()) && (contact <= 0);
 			QString pname = (showPhone && !phone.isEmpty()) ? App::formatPhone(phone) : QString();
@@ -2894,6 +3027,7 @@ namespace Local {
 			user->setName(first, last, pname, username);
 
 			user->access = access;
+			user->flags = flags;
 			user->onlineTill = onlineTill;
 			user->contact = contact;
 			user->setBotInfoVersion(botInfoVersion);
@@ -2911,16 +3045,22 @@ namespace Local {
 			ChatData *chat = result->asChat();
 
 			QString name, invitationUrl;
-			qint32 count, date, version, creator, forbidden, left;
-			from.stream >> name >> count >> date >> version >> creator >> forbidden >> left >> invitationUrl;
+			qint32 count, date, version, creator, forbidden, flagsData, flags;
+			from.stream >> name >> count >> date >> version >> creator >> forbidden >> flagsData >> invitationUrl;
 
+			if (from.version >= 9012) {
+				flags = flagsData;
+			} else {
+				// flagsData was haveLeft
+				flags = (flagsData == 1 ? MTPDchat::flag_left : 0);
+			}
 			chat->updateName(name, QString(), QString());
 			chat->count = count;
 			chat->date = date;
 			chat->version = version;
 			chat->creator = creator;
 			chat->isForbidden = (forbidden == 1);
-			chat->haveLeft = (left == 1);
+			chat->flags = flags;
 			chat->invitationUrl = invitationUrl;
 
 			chat->input = MTP_inputPeerChat(MTP_int(peerToChat(chat->id)));
@@ -2946,7 +3086,7 @@ namespace Local {
 			channel->input = MTP_inputPeerChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 			channel->inputChannel = MTP_inputChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 
-			channel->photo = photoLoc.isNull() ? ImagePtr(channelDefPhoto(channel->colorIndex)) : ImagePtr(photoLoc);
+			channel->photo = photoLoc.isNull() ? ImagePtr((channel->isMegagroup() ? chatDefPhoto(channel->colorIndex) : channelDefPhoto(channel->colorIndex))) : ImagePtr(photoLoc);
 		}
 		App::markPeerUpdated(result);
 		emit App::main()->peerPhotoChanged(result);
@@ -2997,6 +3137,12 @@ namespace Local {
 			_writeMap();
 			return;
 		}
+		if (saved.version == 9011) { // broken dev version
+			clearKey(_savedPeersKey);
+			_savedPeersKey = 0;
+			_writeMap();
+			return;
+		}
 
 		quint32 count = 0;
 		saved.stream >> count;
@@ -3016,7 +3162,7 @@ namespace Local {
 			peers.push_back(peer);
 		}
 		App::emitPeerUpdated();
-		App::api()->requestPeers(peers);
+		if (App::api()) App::api()->requestPeers(peers);
 	}
 
 	void addSavedPeer(PeerData *peer, const QDateTime &position) {

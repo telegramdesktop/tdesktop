@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -52,7 +55,16 @@ public:
 	void showAll();
 	void showSelected(uint32 selCount, bool canDelete = false);
 
+	void updateWideMode();
+
 	FlatButton *mediaTypeButton();
+
+	void grabStart() {
+		_sideShadow.hide();
+	}
+	void grabFinish() {
+		_sideShadow.setVisible(cWideMode());
+	}
 
 public slots:
 
@@ -75,7 +87,6 @@ private:
 
 	MainWidget *main();
 	anim::fvalue a_over;
-	bool _drawShadow;
 
 	PeerData *_selPeer;
 	uint32 _selCount;
@@ -92,6 +103,8 @@ private:
 	FlatButton _info;
 	FlatButton _edit, _leaveGroup, _addContact, _deleteContact;
 	FlatButton _mediaType;
+
+	PlainShadow _sideShadow;
 
 };
 
@@ -113,15 +126,14 @@ public:
 
 class StackItemHistory : public StackItem {
 public:
-	StackItemHistory(PeerData *peer, MsgId msgId, QList<MsgId> replyReturns, bool kbWasHidden) : StackItem(peer),
-msgId(msgId), replyReturns(replyReturns), kbWasHidden(kbWasHidden) {
+	StackItemHistory(PeerData *peer, MsgId msgId, QList<MsgId> replyReturns) : StackItem(peer),
+msgId(msgId), replyReturns(replyReturns) {
 	}
 	StackItemType type() const {
 		return HistoryStackItem;
 	}
 	MsgId msgId;
 	QList<MsgId> replyReturns;
-	bool kbWasHidden;
 };
 
 class StackItemProfile : public StackItem {
@@ -166,14 +178,7 @@ public:
 	}
 };
 
-enum ForwardWhatMessages {
-	ForwardSelectedMessages,
-	ForwardContextMessage,
-	ForwardPressedMessage,
-	ForwardPressedLinkMessage
-};
-
-class MainWidget : public QWidget, public Animated, public RPCSender {
+class MainWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -189,14 +194,14 @@ public:
 	void showDialogs();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
-	void topBarShadowParams(int32 &x, float64 &o);
 	TopBarWidget *topBar();
 
 	PlayerWidget *player();
 	int32 contentScrollAddToY() const;
 
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
-	bool animStep(float64 ms);
+	bool animStep_show(float64 ms);
+	void animStop_show();
 
 	void start(const MTPUser &user);
 
@@ -218,8 +223,9 @@ public:
 	void activate();
 
 	void createDialog(History *history);
-	void dlgUpdated(DialogRow *row);
-	void dlgUpdated(History *row);
+	void removeDialog(History *history);
+	void dlgUpdated(DialogRow *row = 0);
+	void dlgUpdated(History *row, MsgId msgId);
 
 	void windowShown();
 
@@ -228,7 +234,7 @@ public:
 		return sentUpdatesReceived(0, updates);
 	}
 	void inviteToChannelDone(ChannelData *channel, const MTPUpdates &updates);
-	void msgUpdated(PeerId peer, const HistoryItem *msg);
+	void msgUpdated(const HistoryItem *msg);
 	void historyToDown(History *hist);
 	void dialogsToUp();
 	void newUnreadMsg(History *history, HistoryItem *item);
@@ -252,10 +258,10 @@ public:
 	void orderWidgets();
 	QRect historyRect() const;
 
-	void confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo);
-	void confirmSendImage(const ReadyLocalMedia &img);
-	void confirmSendImageUncompressed(bool ctrlShiftEnter, MsgId replyTo);
-	void cancelSendImage();
+	void onSendFileConfirm(const FileLoadResultPtr &file, bool ctrlShiftEnter);
+	void onSendFileCancel(const FileLoadResultPtr &file);
+	void onShareContactConfirm(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool ctrlShiftEnter);
+	void onShareContactCancel();
 
 	void destroyData();
 	void updateOnlineDisplayIn(int32 msecs);
@@ -272,9 +278,11 @@ public:
 	void forwardLayer(int32 forwardSelected = 0); // -1 - send paths
 	void deleteLayer(int32 selectedCount = -1); // -1 - context item, else selected, -2 - cancel upload
 	void shareContactLayer(UserData *contact);
+	void shareUrlLayer(const QString &url, const QString &text);
 	void hiderLayer(HistoryHider *h);
 	void noHider(HistoryHider *destroyed);
 	bool onForward(const PeerId &peer, ForwardWhatMessages what);
+	bool onShareUrl(const PeerId &peer, const QString &url, const QString &text);
 	void onShareContact(const PeerId &peer, UserData *contact);
 	void onSendPaths(const PeerId &peer);
 	void onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data);
@@ -295,7 +303,7 @@ public:
 
 	void addParticipants(PeerData *chatOrChannel, const QVector<UserData*> &users);
 	bool addParticipantFail(UserData *user, const RPCError &e);
-	bool addParticipantsFail(const RPCError &e); // for multi invite in channels
+	bool addParticipantsFail(ChannelData *channel, const RPCError &e); // for multi invite in channels
 
 	void kickParticipant(ChatData *chat, UserData *user);
 	bool kickParticipantFail(ChatData *chat, const RPCError &e);
@@ -303,7 +311,6 @@ public:
 	void checkPeerHistory(PeerData *peer);
 	void checkedHistory(PeerData *peer, const MTPmessages_Messages &result);
 
-	bool sendPhotoFail(uint64 randomId, const RPCError &e);
 	bool sendMessageFail(const RPCError &error);
 
 	void forwardSelectedItems();
@@ -313,19 +320,19 @@ public:
 	DialogsIndexed &contactsList();
 	DialogsIndexed &dialogsList();
     
-    void sendMessage(History *history, const QString &text, MsgId replyTo, bool broadcast);
-	void sendPreparedText(History *hist, const QString &text, MsgId replyTo, bool broadcast, WebPageId webPageId = 0);
+	void sendMessage(History *hist, const QString &text, MsgId replyTo, bool broadcast, WebPageId webPageId = 0);
 	void saveRecentHashtags(const QString &text);
     
     void readServerHistory(History *history, bool force = true);
 
-	uint64 animActiveTime(MsgId id) const;
+	uint64 animActiveTime(const HistoryItem *msg) const;
 	void stopAnimActive();
 
 	void sendBotCommand(const QString &cmd, MsgId msgId);
 	void insertBotCommand(const QString &cmd);
 
 	void searchMessages(const QString &query, PeerData *inPeer);
+	bool preloadOverview(PeerData *peer, MediaOverviewType type);
 	void preloadOverviews(PeerData *peer);
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);
@@ -358,7 +365,7 @@ public:
 
 	ApiWrap *api();
 	void updateReplyTo();
-	void updateBotKeyboard();
+	void updateBotKeyboard(History *h);
 
 	void pushReplyReturn(HistoryItem *item);
 	
@@ -376,7 +383,9 @@ public:
 	void updateMutedIn(int32 seconds);
 
 	void updateStickers();
-	void botCommandsChanged(UserData *bot);
+	void notifyBotCommandsChanged(UserData *bot);
+	void notifyUserIsBotChanged(UserData *bot);
+	void notifyMigrateUpdated(PeerData *peer);
 
 	void choosePeer(PeerId peerId, MsgId showAtMsgId); // does offerPeer or showPeerHistory
 	void clearBotStartToken(PeerData *peer);
@@ -397,6 +406,11 @@ public:
 
 	void gotRangeDifference(ChannelData *channel, const MTPupdates_ChannelDifference &diff);
 	void onSelfParticipantUpdated(ChannelData *channel);
+
+	bool contentOverlapped(const QRect &globalRect);
+
+	QPixmap grabTopBar();
+	QPixmap grabInner();
 
 	~MainWidget();
 
@@ -441,7 +455,7 @@ public slots:
 
 	void showPeerHistory(quint64 peer, qint32 msgId, bool back = false);
 	void onTopBarClick();
-	void onPeerShown(PeerData *peer);
+	void onHistoryShown(History *history, MsgId atMsgId);
 
 	void searchInPeer(PeerData *peer);
 
@@ -449,14 +463,12 @@ public slots:
 
 	void onPhotosSelect();
 	void onVideosSelect();
+	void onSongsSelect();
 	void onDocumentsSelect();
 	void onAudiosSelect();
 	void onLinksSelect();
 
 	void onForwardCancel(QObject *obj = 0);
-
-	void onResendAsDocument();
-	void onCancelResend();
 
 	void onCacheBackground();
 
@@ -474,20 +486,18 @@ private:
 
 	void sendReadRequest(PeerData *peer, MsgId upTo);
 	void channelWasRead(PeerData *peer, const MTPBool &result);
-    void partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &result);
+    void historyWasRead(PeerData *peer, const MTPmessages_AffectedMessages &result);
 	bool readRequestFail(PeerData *peer, const RPCError &error);
 	void readRequestDone(PeerData *peer);
 
 	void messagesAffected(PeerData *peer, const MTPmessages_AffectedMessages &result);
-	void overviewLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req);
+	void overviewLoaded(History *history, const MTPmessages_Messages &result, mtpRequestId req);
 
 	bool _started;
 
 	uint64 failedObjId;
 	QString failedFileName;
 	void loadFailed(mtpFileLoader *loader, bool started, const char *retrySlot);
-
-	QList<uint64> _resendImgRandomIds;
 
 	SelectedItemSet _toForward;
 	Text _toForwardFrom, _toForwardText;
@@ -534,9 +544,10 @@ private:
 	void overviewPreloaded(PeerData *data, const MTPmessages_Messages &result, mtpRequestId req);
 	bool overviewFailed(PeerData *data, const RPCError &error, mtpRequestId req);
 
-	QPixmap _animCache, _bgAnimCache;
-	anim::ivalue a_coord, a_bgCoord;
-	anim::fvalue a_alpha, a_bgAlpha;
+	Animation _a_show;
+	QPixmap _cacheUnder, _cacheOver;
+	anim::ivalue a_coordUnder, a_coordOver;
+	anim::fvalue a_shadow;
 
 	int32 _dialogsWidth;
 

@@ -12,24 +12,36 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
 class MainWidget;
 
-class DialogsListWidget : public QWidget {
+enum DialogsSearchRequestType {
+	DialogsSearchFromStart,
+	DialogsSearchFromOffset,
+	DialogsSearchPeerFromStart,
+	DialogsSearchPeerFromOffset,
+	DialogsSearchMigratedFromStart,
+	DialogsSearchMigratedFromOffset,
+};
+
+class DialogsInner : public SplittedWidget {
 	Q_OBJECT
 
 public:
 
-	DialogsListWidget(QWidget *parent, MainWidget *main);
+	DialogsInner(QWidget *parent, MainWidget *main);
 
 	void dialogsReceived(const QVector<MTPDialog> &dialogs);
 	void addSavedPeersAfter(const QDateTime &date);
 	void addAllSavedPeers();
-	void searchReceived(const QVector<MTPMessage> &messages, bool fromStart, int32 fullCount);
+	bool searchReceived(const QVector<MTPMessage> &messages, DialogsSearchRequestType type, int32 fullCount);
 	void peopleReceived(const QString &query, const QVector<MTPPeer> &people);
 	void showMore(int32 pixels);
 
@@ -42,15 +54,14 @@ public:
 	int32 peopleOffset() const;
 	int32 searchedOffset() const;
 
-	void paintEvent(QPaintEvent *e);
 	void mouseMoveEvent(QMouseEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void resizeEvent(QResizeEvent *e);
 	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
 
-	void peopleResultPaint(PeerData *peer, Painter &p, int32 w, bool act, bool sel) const;
-	void searchInPeerPaint(Painter &p, int32 w) const;
+	void peopleResultPaint(PeerData *peer, Painter &p, int32 w, bool act, bool sel, bool onlyBackground) const;
+	void searchInPeerPaint(Painter &p, int32 w, bool onlyBackground) const;
 
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
@@ -58,8 +69,8 @@ public:
 	void createDialog(History *history);
 	void moveDialogToTop(const History::DialogLinks &links);
 	void dlgUpdated(DialogRow *row);
-	void dlgUpdated(History *row);
-	void removePeer(PeerData *peer);
+	void dlgUpdated(History *row, MsgId msgId);
+	void removeDialog(History *history);
 	void removeContact(UserData *user);
 
 	void loadPeerPhotos(int32 yFrom);
@@ -84,7 +95,10 @@ public:
 	FilteredDialogs &filteredList();
 	PeopleResults &peopleList();
 	SearchResults &searchList();
+	int32 lastSearchDate() const;
+	PeerData *lastSearchPeer() const;
 	MsgId lastSearchId() const;
+	MsgId lastSearchMigratedId() const;
 
 	void setMouseSel(bool msel, bool toTop = false);
 
@@ -106,7 +120,7 @@ public:
 
 	PeerData *updateFromParentDrag(QPoint globalPos);
 
-	~DialogsListWidget();
+	~DialogsInner();
 
 public slots:
 
@@ -126,9 +140,14 @@ signals:
 	void completeHashtag(QString tag);
 	void refreshHashtags();
 
+protected:
+
+	void paintRegion(Painter &p, const QRegion &region, bool paintingOther);
+
 private:
 
 	void clearSearchResults(bool clearPeople = true);
+	void updateSelectedRow();
 
 	DialogsIndexed dialogs;
 	DialogsIndexed contactsNoDialogs;
@@ -137,22 +156,24 @@ private:
 	bool contactSel;
 	bool selByMouse;
 
-	QString filter, _hashtagFilter;
+	QString _filter, _hashtagFilter;
 
-	QStringList hashtagResults;
-	int32 hashtagSel;
+	QStringList _hashtagResults;
+	int32 _hashtagSel;
 
-	FilteredDialogs filterResults;
-	int32 filteredSel;
+	FilteredDialogs _filterResults;
+	int32 _filteredSel;
 
-	SearchResults searchResults;
-	int32 searchedCount, searchedSel;
+	SearchResults _searchResults;
+	int32 _searchedCount, _searchedMigratedCount, _searchedSel;
 
-	QString peopleQuery;
-	PeopleResults peopleResults;
-	int32 peopleSel;
+	QString _peopleQuery;
+	PeopleResults _peopleResults;
+	int32 _peopleSel;
 
-	MsgId _lastSearchId;
+	int32 _lastSearchDate;
+	PeerData *_lastSearchPeer;
+	MsgId _lastSearchId, _lastSearchMigratedId;
 
 	State _state;
 
@@ -165,11 +186,11 @@ private:
 
 	bool _overDelete;
 
-	PeerData *_searchInPeer;
+	PeerData *_searchInPeer, *_searchInMigrated;
 
 };
 
-class DialogsWidget : public QWidget, public Animated, public RPCSender {
+class DialogsWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -177,7 +198,7 @@ public:
 
 	void dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpRequestId req);
 	void contactsReceived(const MTPcontacts_Contacts &contacts);
-	void searchReceived(bool fromStart, const MTPmessages_Messages &result, mtpRequestId req);
+	void searchReceived(DialogsSearchRequestType type, const MTPmessages_Messages &result, mtpRequestId req);
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
 	bool addNewContact(int32 uid, bool show = true);
 	
@@ -196,12 +217,12 @@ public:
 	void loadDialogs();
 	void createDialog(History *history);
 	void dlgUpdated(DialogRow *row);
-	void dlgUpdated(History *row);
+	void dlgUpdated(History *row, MsgId msgId);
 
 	void dialogsToUp();
 
 	void animShow(const QPixmap &bgAnimCache);
-	bool animStep(float64 ms);
+	bool animStep_show(float64 ms);
 
 	void destroyData();
 
@@ -209,16 +230,14 @@ public:
 	void peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const;
 	void scrollToPeer(const PeerId &peer, MsgId msgId);
 
-	void removePeer(PeerData *peer);
+	void removeDialog(History *history);
 	void removeContact(UserData *user);
 
 	DialogsIndexed &contactsList();
 	DialogsIndexed &dialogsList();
 
-	void enableShadow(bool enable = true);
-	
 	void searchMessages(const QString &query, PeerData *inPeer = 0);
-	void onSearchMore(MsgId minMsgId);
+	void onSearchMore();
 
 	void itemRemoved(HistoryItem *item);
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
@@ -249,34 +268,36 @@ public slots:
 
 private:
 
-	bool _drawShadow;
-
 	bool _dragInScroll, _dragForward;
 	QTimer _chooseByDragTimer;
 
 	void unreadCountsReceived(const QVector<MTPDialog> &dialogs);
 	bool dialogsFailed(const RPCError &error, mtpRequestId req);
 	bool contactsFailed(const RPCError &error);
-	bool searchFailed(const RPCError &error, mtpRequestId req);
+	bool searchFailed(DialogsSearchRequestType type, const RPCError &error, mtpRequestId req);
 	bool peopleFailed(const RPCError &error, mtpRequestId req);
 
-	int32 _dialogsOffset, _dialogsCount;
-	mtpRequestId _dialogsRequest, _channelDialogsRequest, _contactsRequest;
+	bool _dialogsFull;
+	int32 _dialogsOffsetDate;
+	MsgId _dialogsOffsetId;
+	PeerData *_dialogsOffsetPeer;
+	mtpRequestId _dialogsRequest, _contactsRequest;
 
 	FlatInput _filter;
 	IconedButton _newGroup, _addContact, _cancelSearch;
-	ScrollArea scroll;
-	DialogsListWidget list;
+	ScrollArea _scroll;
+	DialogsInner _inner;
 
-	QPixmap _animCache, _bgAnimCache;
-	anim::ivalue a_coord, a_bgCoord;
-	anim::fvalue a_alpha, a_bgAlpha;
+	Animation _a_show;
+	QPixmap _cacheUnder, _cacheOver;
+	anim::ivalue a_coordUnder, a_coordOver;
+	anim::fvalue a_shadow;
 
-	PeerData *_searchInPeer;
+	PeerData *_searchInPeer, *_searchInMigrated;
 
 	QTimer _searchTimer;
 	QString _searchQuery, _peopleQuery;
-	bool _searchFull, _peopleFull;
+	bool _searchFull, _searchFullMigrated, _peopleFull;
 	mtpRequestId _searchRequest, _peopleRequest;
 
 	typedef QMap<QString, MTPmessages_Messages> SearchCache;

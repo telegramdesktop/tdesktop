@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -23,7 +26,7 @@ class OverviewInner : public QWidget, public RPCSender {
 
 public:
 
-	OverviewInner(OverviewWidget *overview, ScrollArea *scroll, const PeerData *peer, MediaOverviewType type);
+	OverviewInner(OverviewWidget *overview, ScrollArea *scroll, PeerData *peer, MediaOverviewType type);
 
 	void activate();
 
@@ -58,6 +61,7 @@ public:
 	void dropResizeIndex();
 
 	PeerData *peer() const;
+	PeerData *migratePeer() const;
 	MediaOverviewType type() const;
 	void switchType(MediaOverviewType type);
 
@@ -107,6 +111,11 @@ public slots:
 
 private:
 
+	bool itemMigrated(MsgId msgId) const;
+	ChannelId itemChannel(MsgId msgId) const;
+	MsgId itemMsgId(MsgId msgId) const;
+	int32 migratedIndexSkip() const;
+
 	void fixItemIndex(int32 &current, MsgId msgId) const;
 	bool itemHasPoint(MsgId msgId, int32 index, int32 x, int32 y) const;
 	int32 itemHeight(MsgId msgId, int32 index) const;
@@ -122,6 +131,7 @@ private:
 	void touchDeaccelerate(int32 elapsed);
 
 	void applyDragSelection();
+	void addSelectionRange(int32 selFrom, int32 selTo, History *history);
 
 	QPixmap genPix(PhotoData *photo, int32 size);
 	void showAll(bool recountHeights = false);
@@ -132,7 +142,7 @@ private:
 
 	PeerData *_peer;
 	MediaOverviewType _type;
-	History *_hist;
+	History *_migrated, *_history;
 	ChannelId _channel;
 	
 	// photos
@@ -154,7 +164,7 @@ private:
 	struct Link {
 		Link() : width(0) {
 		}
-		Link(const QString &url, const QString &text) : url(url), text(text), width(st::msgFont->m.width(text)) {
+		Link(const QString &url, const QString &text) : url(url), text(text), width(st::msgFont->width(text)) {
 		}
 		QString url, text;
 		int32 width;
@@ -181,13 +191,19 @@ private:
 
 	QTimer _searchTimer;
 	QString _searchQuery;
-	bool _inSearch, _searchFull;
+	bool _inSearch, _searchFull, _searchFullMigrated;
 	mtpRequestId _searchRequest;
 	History::MediaOverview _searchResults;
-	MsgId _lastSearchId;
+	MsgId _lastSearchId, _lastSearchMigratedId;
 	int32 _searchedCount;
-	void searchReceived(bool fromStart, const MTPmessages_Messages &result, mtpRequestId req);
-	bool searchFailed(const RPCError &error, mtpRequestId req);
+	enum SearchRequestType {
+		SearchFromStart,
+		SearchFromOffset,
+		SearchMigratedFromStart,
+		SearchMigratedFromOffset
+	};
+	void searchReceived(SearchRequestType type, const MTPmessages_Messages &result, mtpRequestId req);
+	bool searchFailed(SearchRequestType type, const RPCError &error, mtpRequestId req);
 
 	typedef QMap<QString, MTPmessages_Messages> SearchCache;
 	SearchCache _searchCache;
@@ -257,15 +273,15 @@ private:
 	uint64 _touchSpeedTime, _touchAccelerationTime, _touchTime;
 	QTimer _touchScrollTimer;
 
-	ContextMenu *_menu;
+	PopupMenu *_menu;
 };
 
-class OverviewWidget : public QWidget, public RPCSender, public Animated {
+class OverviewWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
 
-	OverviewWidget(QWidget *parent, const PeerData *peer, MediaOverviewType type);
+	OverviewWidget(QWidget *parent, PeerData *peer, MediaOverviewType type);
 
 	void clear();
 
@@ -277,10 +293,10 @@ public:
 	void scrollReset();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
-	void topBarShadowParams(int32 &x, float64 &o);
 	void topBarClick();
 
 	PeerData *peer() const;
+	PeerData *migratePeer() const;
 	MediaOverviewType type() const;
 	void switchType(MediaOverviewType type);
 	void updateTopBarSelection();
@@ -291,13 +307,14 @@ public:
 
 	void fastShow(bool back = false, int32 lastScrollTop = -1);
 	void animShow(const QPixmap &oldAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false, int32 lastScrollTop = -1);
-	bool animStep(float64 ms);
+	bool animStep_show(float64 ms);
 
+	void updateWideMode();
 	void doneShow();
 
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);
-	void msgUpdated(PeerId peer, const HistoryItem *msg);
+	void msgUpdated(const HistoryItem *msg);
 	void itemRemoved(HistoryItem *item);
 	void itemResized(HistoryItem *row, bool scrollToIt);
 
@@ -313,6 +330,17 @@ public:
 	void updateScrollColors();
 
 	void updateAfterDrag();
+
+	void grabStart() {
+		_sideShadow.hide();
+		_inGrab = true;
+		resizeEvent(0);
+	}
+	void grabFinish() {
+		_sideShadow.setVisible(cWideMode());
+		_inGrab = false;
+		resizeEvent(0);
+	}
 
 	~OverviewWidget();
 
@@ -338,10 +366,10 @@ private:
 
 	QString _header;
 
-	bool _showing;
-	QPixmap _animCache, _bgAnimCache, _animTopBarCache, _bgAnimTopBarCache;
-	anim::ivalue a_coord, a_bgCoord;
-	anim::fvalue a_alpha, a_bgAlpha;
+	Animation _a_show;
+	QPixmap _cacheUnder, _cacheOver, _cacheTopBarUnder, _cacheTopBarOver;
+	anim::ivalue a_coordUnder, a_coordOver;
+	anim::fvalue a_shadow;
 
 	int32 _scrollSetAfterShow;
 
@@ -349,6 +377,9 @@ private:
 	int32 _scrollDelta;
 
 	int32 _selCount;
+
+	PlainShadow _sideShadow, _topShadow;
+	bool _inGrab;
 
 };
 

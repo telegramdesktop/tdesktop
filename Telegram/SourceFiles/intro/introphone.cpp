@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -60,7 +63,6 @@ IntroPhone::IntroPhone(IntroWidget *parent) : IntroStage(parent),
 	connect(&code, SIGNAL(codeChanged(const QString &)), &phone, SLOT(onChooseCode(const QString &)));
 	connect(&country, SIGNAL(codeChanged(const QString &)), &phone, SLOT(onChooseCode(const QString &)));
 	connect(&code, SIGNAL(addedToNumber(const QString &)), &phone, SLOT(addedToNumber(const QString &)));
-	connect(&country, SIGNAL(selectClosed()), this, SLOT(onSelectClose()));
 	connect(&phone, SIGNAL(changed()), this, SLOT(onInputChange()));
 	connect(&code, SIGNAL(changed()), this, SLOT(onInputChange()));
 	connect(intro(), SIGNAL(countryChanged()), this, SLOT(countryChanged()));
@@ -69,7 +71,7 @@ IntroPhone::IntroPhone(IntroWidget *parent) : IntroStage(parent),
 	_signup.setLink(1, TextLinkPtr(new SignUpLink(this)));
 	_signup.hide();
 
-	_signupCache = myGrab(&_signup, _signup.rect());
+	_signupCache = myGrab(&_signup);
 
 	if (!country.onChooseCountry(intro()->currentCountry())) {
 		country.onChooseCountry(qsl("US"));
@@ -159,10 +161,6 @@ void IntroPhone::countryChanged() {
 	}
 }
 
-void IntroPhone::onSelectClose() {
-	phone.setFocus();
-}
-
 void IntroPhone::onInputChange() {
 	changed = true;
 	showError("");
@@ -225,7 +223,7 @@ void IntroPhone::phoneCheckDone(const MTPauth_CheckedPhone &result) {
 	stopCheck();
 
 	const MTPDauth_checkedPhone &d(result.c_auth_checkedPhone());
-	if (d.vphone_registered.v) {
+	if (mtpIsTrue(d.vphone_registered)) {
 		disableAll();
 		showError("");
 
@@ -244,11 +242,11 @@ void IntroPhone::phoneSubmitDone(const MTPauth_SentCode &result) {
 	
 	if (result.type() == mtpc_auth_sentCode) {
 		const MTPDauth_sentCode &d(result.c_auth_sentCode());
-		intro()->setPhone(sentPhone, d.vphone_code_hash.c_string().v.c_str(), d.vphone_registered.v);
+		intro()->setPhone(sentPhone, d.vphone_code_hash.c_string().v.c_str(), mtpIsTrue(d.vphone_registered));
 		intro()->setCallTimeout(d.vsend_call_timeout.v);
 	} else if (result.type() == mtpc_auth_sentAppCode) {
 		const MTPDauth_sentAppCode &d(result.c_auth_sentAppCode());
-		intro()->setPhone(sentPhone, d.vphone_code_hash.c_string().v.c_str(), d.vphone_registered.v);
+		intro()->setPhone(sentPhone, d.vphone_code_hash.c_string().v.c_str(), mtpIsTrue(d.vphone_registered));
 		intro()->setCallTimeout(d.vsend_call_timeout.v);
 		intro()->setCodeByTelegram(true);
 	}
@@ -271,7 +269,7 @@ bool IntroPhone::phoneSubmitFail(const RPCError &error) {
 		showError(lang(lng_bad_phone));
 		enableAll(true);
 		return true;
-	} else if (error.type().startsWith(qsl("FLOOD_WAIT_"))) {
+	} else if (mtpIsFlood(error)) {
 		showError(lang(lng_flood_error));
 		enableAll(true);
 		return true;

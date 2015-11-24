@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -23,7 +26,7 @@ class ProfileInner : public TWidget, public RPCSender, public Animated {
 
 public:
 
-	ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const PeerData *peer);
+	ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData *peer);
 
 	void start();
 
@@ -85,6 +88,8 @@ public slots:
 	void onDeleteChannelSure();
 	void onBlockUser();
 	void onAddParticipant();
+	void onMigrate();
+	void onMigrateSure();
 
 	void onUpdatePhoto();
 	void onUpdatePhotoCancel();
@@ -97,6 +102,7 @@ public slots:
 
 	void onMediaPhotos();
 	void onMediaVideos();
+	void onMediaSongs();
 	void onMediaDocuments();
 	void onMediaAudios();
 	void onMediaLinks();
@@ -127,6 +133,9 @@ private:
 	void chatInviteDone(const MTPExportedChatInvite &result);
 	bool updateMediaLinks(int32 *addToScroll = 0); // returns if anything changed
 
+	void migrateDone(const MTPUpdates &updates);
+	bool migrateFail(const RPCError &error);
+
 	ProfileWidget *_profile;
 	ScrollArea *_scroll;
 
@@ -134,7 +143,7 @@ private:
 	UserData *_peerUser;
 	ChatData *_peerChat;
 	ChannelData *_peerChannel;
-	History *_hist;
+	History *_migrated, *_history;
 	bool _amCreator;
 
 	int32 _width, _left, _addToHeight;
@@ -157,6 +166,11 @@ private:
 	bool _photoOver;
 
 	QString _errorText;
+
+	// migrate to megagroup
+	bool _showMigrate, _forceShowMigrate;
+	Text _aboutMigrate;
+	FlatButton _migrate;
 
 	// settings
 	FlatCheckbox _enableNotifications;
@@ -191,35 +205,37 @@ private:
 	QPoint _lastPos;
 
 	QString _onlineText;
-	ContextMenu *_menu;
+	PopupMenu *_menu;
+
+	QString _secretText;
 
 	void blockDone(bool blocked, const MTPBool &result);
 	bool blockFail(const RPCError &error);
 
 };
 
-class ProfileWidget : public QWidget, public RPCSender, public Animated {
+class ProfileWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
 
-	ProfileWidget(QWidget *parent, const PeerData *peer);
+	ProfileWidget(QWidget *parent, PeerData *peer);
 
 	void resizeEvent(QResizeEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void paintEvent(QPaintEvent *e);
     void dragEnterEvent(QDragEnterEvent *e);
     void dropEvent(QDropEvent *e);
+	void keyPressEvent(QKeyEvent *e);
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
-	void topBarShadowParams(int32 &x, float64 &o);
 	void topBarClick();
 
 	PeerData *peer() const;
 	int32 lastScrollTop() const;
 
 	void animShow(const QPixmap &oldAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false, int32 lastScrollTop = -1);
-	bool animStep(float64 ms);
+	bool animStep_show(float64 ms);
 
 	void updateOnlineDisplay();
 	void updateOnlineDisplayTimer();
@@ -228,6 +244,18 @@ public:
 
 	void updateNotifySettings();
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
+	void updateWideMode();
+
+	void grabStart() {
+		_sideShadow.hide();
+		_inGrab = true;
+		resizeEvent(0);
+	}
+	void grabFinish() {
+		_sideShadow.setVisible(cWideMode());
+		_inGrab = false;
+		resizeEvent(0);
+	}
 
 	void clear();
 	~ProfileWidget();
@@ -242,10 +270,13 @@ private:
 	ScrollArea _scroll;
 	ProfileInner _inner;
 
-	bool _showing;
-	QPixmap _animCache, _bgAnimCache, _animTopBarCache, _bgAnimTopBarCache;
-	anim::ivalue a_coord, a_bgCoord;
-	anim::fvalue a_alpha, a_bgAlpha;
+	Animation _a_show;
+	QPixmap _cacheUnder, _cacheOver, _cacheTopBarUnder, _cacheTopBarOver;
+	anim::ivalue a_coordUnder, a_coordOver;
+	anim::fvalue a_shadow;
+
+	PlainShadow _sideShadow, _topShadow;
+	bool _inGrab;
 
 };
 

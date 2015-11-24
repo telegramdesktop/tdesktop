@@ -12,14 +12,16 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
 #include <QtWidgets/QWidget>
 #include "gui/flatbutton.h"
-#include "gui/phoneinput.h"
 #include "gui/countryinput.h"
 #include "intro.h"
 
@@ -51,7 +53,6 @@ public:
 public slots:
 
 	void countryChanged();
-	void onSelectClose();
 	void onInputChange();
 	void onSubmitPhone(bool force = false);
 	void onCheckRequest();
@@ -74,7 +75,7 @@ private:
 	QRect textRect;
 
 	CountryInput country;
-	PhoneInput phone;
+	PhonePartInput phone;
 	CountryCodeInput code;
 
 	FlatLabel _signup;

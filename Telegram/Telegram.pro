@@ -1,6 +1,6 @@
 QT += core gui network widgets
 
-CONFIG += plugin static
+CONFIG += plugin static c++11
 
 CONFIG(debug, debug|release) {
     DEFINES += _DEBUG
@@ -73,10 +73,8 @@ unix {
     linux-g++-64:QMAKE_TARGET.arch = x86_64
 
     contains(QMAKE_TARGET.arch, x86_64) {
-        CONFIG(release,debug|release):QMAKE_PRE_LINK = ./../../Telegram/FixMake.sh
         DEFINES += Q_OS_LINUX64
     } else {
-        CONFIG(release,debug|release):QMAKE_PRE_LINK = ./../../Telegram/FixMake32.sh
         DEFINES += Q_OS_LINUX32
     }
 }
@@ -124,7 +122,7 @@ SOURCES += \
     ./SourceFiles/gui/animation.cpp \
     ./SourceFiles/gui/boxshadow.cpp \
     ./SourceFiles/gui/button.cpp \
-    ./SourceFiles/gui/contextmenu.cpp \
+    ./SourceFiles/gui/popupmenu.cpp \
     ./SourceFiles/gui/countryinput.cpp \
     ./SourceFiles/gui/emoji_config.cpp \
     ./SourceFiles/gui/filedialog.cpp \
@@ -134,7 +132,6 @@ SOURCES += \
     ./SourceFiles/gui/flatlabel.cpp \
     ./SourceFiles/gui/flattextarea.cpp \
     ./SourceFiles/gui/images.cpp \
-    ./SourceFiles/gui/phoneinput.cpp \
     ./SourceFiles/gui/scrollarea.cpp \
     ./SourceFiles/gui/style_core.cpp \
     ./SourceFiles/gui/text.cpp \
@@ -217,7 +214,7 @@ HEADERS += \
     ./SourceFiles/gui/animation.h \
     ./SourceFiles/gui/boxshadow.h \
     ./SourceFiles/gui/button.h \
-    ./SourceFiles/gui/contextmenu.h \
+    ./SourceFiles/gui/popupmenu.h \
     ./SourceFiles/gui/countryinput.h \
     ./SourceFiles/gui/emoji_config.h \
     ./SourceFiles/gui/filedialog.h \
@@ -227,7 +224,6 @@ HEADERS += \
     ./SourceFiles/gui/flatlabel.h \
     ./SourceFiles/gui/flattextarea.h \
     ./SourceFiles/gui/images.h \
-    ./SourceFiles/gui/phoneinput.h \
     ./SourceFiles/gui/scrollarea.h \
     ./SourceFiles/gui/style_core.h \
     ./SourceFiles/gui/text.h \
@@ -287,8 +283,8 @@ CONFIG(release, debug|release) {
     QMAKE_LFLAGS_RELEASE += -Ofast -flto
 }
 
-INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.5.0/QtGui\
-               ./../../Libraries/QtStatic/qtbase/include/QtCore/5.5.0/QtCore\
+INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.5.1/QtGui\
+               ./../../Libraries/QtStatic/qtbase/include/QtCore/5.5.1/QtCore\
                ./../../Libraries/QtStatic/qtbase/include\
                /usr/local/include/opus\
                ./SourceFiles\

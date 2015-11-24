@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -44,7 +47,7 @@ struct ReplyMarkup {
 };
 
 enum RoundCorners {
-	MaskCorners = 0x00, // for images
+	NoneCorners = 0x00, // for images
 	BlackCorners,
 	ServiceCorners,
 	ServiceSelectedCorners,
@@ -77,6 +80,15 @@ enum RoundCorners {
 	RoundCornersCount
 };
 
+enum ForwardWhatMessages {
+	ForwardSelectedMessages,
+	ForwardContextMessage,
+	ForwardPressedMessage,
+	ForwardPressedLinkMessage
+};
+
+class LayeredWidget;
+
 namespace App {
 	Application *app();
 	Window *wnd();
@@ -86,7 +98,6 @@ namespace App {
 	FileUploader *uploader();
 	ApiWrap *api();
 
-	void showSettings();
 	void logOut();
 	bool loggedOut();
 
@@ -102,7 +113,10 @@ namespace App {
 	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos, bool emitPeerUpdated = true);
 	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d, bool emitPeerUpdated = true);
 	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d, bool emitPeerUpdated = true);
-	void checkEntitiesAndViewsUpdate(const MTPDmessage &m);
+	void feedChatAdmins(const MTPDupdateChatAdmins &d, bool emitPeerUpdated = true);
+	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d, bool emitPeerUpdated = true);
+	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m); // returns true if item found and it is not detached
+	void feedMsgs(const QVector<MTPMessage> &msgs, NewMessageType type);
 	void feedMsgs(const MTPVector<MTPMessage> &msgs, NewMessageType type);
 	void feedInboxRead(const PeerId &peer, MsgId upTo);
 	void feedOutboxRead(const PeerId &peer, MsgId upTo);
@@ -201,9 +215,10 @@ namespace App {
 	void mousedItem(HistoryItem *item);
 	HistoryItem *mousedItem();
 
+	const style::font &monofont();
 	const QPixmap &sprite();
-	const QPixmap &emojis();
-	const QPixmap &emojisLarge();
+	const QPixmap &emoji();
+	const QPixmap &emojiLarge();
 	const QPixmap &emojiSingle(EmojiPtr emoji, int32 fontHeight);
 
 	void initMedia();
@@ -251,16 +266,7 @@ namespace App {
 	void setProxySettings(QNetworkAccessManager &manager);
 	void setProxySettings(QTcpSocket &socket);
 
-	void sendBotCommand(const QString &cmd, MsgId replyTo = 0);
-	void insertBotCommand(const QString &cmd);
-	void searchByHashtag(const QString &tag, PeerData *inPeer);
-	void openPeerByName(const QString &username, bool toProfile = false, const QString &startToken = QString());
-	void joinGroupByHash(const QString &hash);
-	void stickersBox(const QString &name);
-	void openLocalUrl(const QString &url);
-
 	QImage **cornersMask();
-	QPixmap **corners(RoundCorners index);
 	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *sh = 0);
 	inline void roundRect(Painter &p, const QRect &rect, const style::color &bg, RoundCorners index, const style::color *sh = 0) {
 		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, index, sh);
@@ -268,6 +274,10 @@ namespace App {
 	void roundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &sh, RoundCorners index);
 	inline void roundShadow(Painter &p, const QRect &rect, const style::color &sh, RoundCorners index) {
 		return roundShadow(p, rect.x(), rect.y(), rect.width(), rect.height(), sh, index);
+	}
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg);
+	inline void roundRect(Painter &p, const QRect &rect, const style::color &bg) {
+		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg);
 	}
 
 	void initBackground(int32 id = DefaultChatBackground, const QImage &p = QImage(), bool nowrite = false);
@@ -289,5 +299,27 @@ namespace App {
 	};
 	typedef QList<WallPaper> WallPapers;
 	DeclareSetting(WallPapers, ServerBackgrounds);
+
+	void sendBotCommand(const QString &cmd, MsgId replyTo = 0);
+	void insertBotCommand(const QString &cmd);
+	void searchByHashtag(const QString &tag, PeerData *inPeer);
+	void openPeerByName(const QString &username, bool toProfile = false, const QString &startToken = QString());
+	void joinGroupByHash(const QString &hash);
+	void stickersBox(const QString &name);
+	void openLocalUrl(const QString &url);
+	bool forward(const PeerId &peer, ForwardWhatMessages what);
+	void removeDialog(History *history);
+	void showSettings();
+	void showLayer(LayeredWidget *w, bool forceFast = false);
+	void replaceLayer(LayeredWidget *w);
+	void showLayerLast(LayeredWidget *w);
+
+};
+
+namespace Notify {
+
+	void userIsBotChanged(UserData *user);
+	void botCommandsChanged(UserData *user);
+	void migrateUpdated(PeerData *peer);
 
 };

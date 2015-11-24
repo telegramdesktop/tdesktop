@@ -12,14 +12,17 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
 #include "gui/boxshadow.h"
 
-class LayeredWidget : public QWidget {
+class LayeredWidget : public TWidget {
 	Q_OBJECT
 
 public:
@@ -38,14 +41,13 @@ public:
 		emit resized();
 	}
 
-	virtual QRect boxRect() const {
-		QRect res(rect());
-		res.moveTopLeft(geometry().topLeft());
-		return res;
-	}
-
 	void mousePressEvent(QMouseEvent *e) {
 		e->accept();
+	}
+
+	bool overlaps(const QRect &globalRect) {
+		if (isHidden() || !testAttribute(Qt::WA_OpaquePaintEvent)) return false;
+		return rect().contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
 
 signals:
@@ -72,11 +74,14 @@ public:
 	void updateWideMode();
 
 	void replaceInner(LayeredWidget *n);
+	void showLayerLast(LayeredWidget *n);
 
 	bool animStep(float64 ms);
 
 	bool canSetFocus() const;
 	void setInnerFocus();
+
+	bool contentOverlapped(const QRect &globalRect);
 
 	~BackgroundWidget();
 

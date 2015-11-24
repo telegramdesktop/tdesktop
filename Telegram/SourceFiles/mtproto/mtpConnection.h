@@ -12,78 +12,15 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
 #include "mtproto/mtpCoreTypes.h"
-#include "mtproto/mtpScheme.h"
-
-enum {
-	MTPDmessage_flag_unread = (1 << 0),
-	MTPDmessage_flag_out = (1 << 1),
-	MTPDmessage_flag_notify_by_from = (1 << 4),
-	MTPDmessage_flag_media_unread = (1 << 5),
-	MTPDmessage_flag_HAS_TEXT_LINKS = (1 << 31), // client side flag for having links
-
-	MTPmessages_SendMessage_flag_skipWebPage = (1 << 1),
-	MTPmessages_SendMessage_flag_broadcast = (1 << 4),
-
-	MTPmessages_ForwardMessages_flag_broadcast = (1 << 4),
-
-	MTPDdcOption_flag_ipv6 = (1 << 0),
-	MTPDdcOption_flag_files = (1 << 1),
-
-	MTPDuser_flag_self = (1 << 10),
-	MTPDuser_flag_contact = (1 << 11),
-	MTPDuser_flag_mutual_contact = (1 << 12),
-	MTPDuser_flag_deleted = (1 << 13),
-	MTPDuser_flag_bot = (1 << 14),
-	MTPDuser_flag_bot_reads_all = (1 << 15),
-	MTPDuser_flag_bot_cant_join = (1 << 16),
-
-	MTPDreplyKeyboardMarkup_flag_resize = (1 << 0),
-	MTPDreplyKeyboardMarkup_flag_single_use = (1 << 1),
-	MTPDreplyKeyboardMarkup_flag_personal = (1 << 2),
-	MTPDreplyKeyboardMarkup_flag_FORCE_REPLY = (1 << 30), // client side flag for forceReply
-	MTPDreplyKeyboardMarkup_flag_ZERO = (1 << 31), // client side flag for zeroMarkup
-
-	MTPDstickerSet_flag_installed = (1 << 0),
-	MTPDstickerSet_flag_disabled = (1 << 1),
-	MTPDstickerSet_flag_official = (1 << 2),
-	MTPDstickerSet_flag_NOT_LOADED = (1 << 31), // client side flag for not yet loaded set
-
-	MTPDchannel_flag_am_creator = (1 << 0),
-	MTPDchannel_flag_was_kicked = (1 << 1),
-	MTPDchannel_flag_have_left = (1 << 2),
-	MTPDchannel_flag_am_editor = (1 << 3),
-	MTPDchannel_flag_am_moderator = (1 << 4),
-	MTPDchannel_flag_is_broadcast = (1 << 5),
-	MTPDchannel_flag_is_verified = (1 << 7),
-
-	MTPDchannelFull_flag_can_view_participants = (1 << 3),
-
-	MTPDchat_flag_creator = (1 << 0),
-	MTPDchat_flag_kicked = (1 << 1),
-	MTPDchat_flag_left = (1 << 2),
-
-	MTPDchatInvite_flag_is_channel = (1 << 0),
-	MTPDchatInvite_flag_is_broadcast = (1 << 1),
-	MTPDchatInvite_flag_is_public = (1 << 2),
-
-	MTPupdates_ChannelDifference_flag_final = (1 << 0),
-
-	MTPDchannelMessagesFilter_flag_only_important = (1 << 0),
-
-	MTPmessages_CreateChannel_flag_broadcast = (1 << 0),
-
-	MTPmessages_Search_flag_only_important = (1 << 0),
-};
-
-static const MTPReplyMarkup MTPnullMarkup = MTP_replyKeyboardMarkup(MTP_int(0), MTP_vector<MTPKeyboardButtonRow>(0));
-static const MTPVector<MTPMessageEntity> MTPnullEntities = MTP_vector<MTPMessageEntity>(0);
-
 #include "mtproto/mtpPublicRSA.h"
 #include "mtproto/mtpAuthKey.h"
 

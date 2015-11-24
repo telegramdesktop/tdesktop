@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -22,6 +25,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 namespace _mtp_internal {
 	MTProtoSessionPtr getSession(int32 dc = 0); // 0 - current set dc
+
+	bool paused();
 
 	void registerRequest(mtpRequestId requestId, int32 dc);
 	void unregisterRequest(mtpRequestId requestId);
@@ -83,6 +88,9 @@ namespace MTP {
 	void restart();
 	void restart(int32 dcMask);
 
+	void pause();
+	void unpause();
+
 	void configure(int32 dc, int32 user);
 
 	void setdc(int32 dc, bool fromZeroOnly = false);
@@ -101,6 +109,11 @@ namespace MTP {
 	template <typename TRequest>
 	inline mtpRequestId send(const TRequest &request, RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail = RPCFailHandlerPtr(), int32 dc = 0, uint64 msCanWait = 0, mtpRequestId after = 0) {
 		return send(request, RPCResponseHandler(onDone, onFail), dc, msCanWait, after);
+	}
+	inline void sendAnything(int32 dc = 0, uint64 msCanWait = 0) {
+		if (MTProtoSessionPtr session = _mtp_internal::getSession(dc)) {
+			return session->sendAnything(msCanWait);
+		}
 	}
 	void ping();
 	void cancel(mtpRequestId req);

@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -99,7 +102,7 @@ PeerData::PeerData(const PeerId &id) : id(id), lnk(new PeerLink(this))
 , loaded(false)
 , colorIndex(peerColorIndex(id))
 , color(peerColor(colorIndex))
-, photo(isChat() ? chatDefPhoto(colorIndex) : (isChannel() ? channelDefPhoto(colorIndex) : userDefPhoto(colorIndex)))
+, photo((isChat() || isMegagroup()) ? chatDefPhoto(colorIndex) : (isChannel() ? channelDefPhoto(colorIndex) : userDefPhoto(colorIndex)))
 , photoId(UnknownPeerPhotoId)
 , nameVersion(0)
 , notify(UnknownNotifySettings)
@@ -232,15 +235,23 @@ void UserData::setPhone(const QString &newPhone) {
 
 void UserData::setBotInfoVersion(int32 version) {
 	if (version < 0) {
-		delete botInfo;
-		botInfo = 0;
+		if (botInfo) {
+			if (!botInfo->commands.isEmpty()) {
+				botInfo->commands.clear();
+				Notify::botCommandsChanged(this);
+			}
+			delete botInfo;
+			botInfo = 0;
+			Notify::userIsBotChanged(this);
+		}
 	} else if (!botInfo) {
 		botInfo = new BotInfo();
 		botInfo->version = version;
+		Notify::userIsBotChanged(this);
 	} else if (botInfo->version < version) {
 		if (!botInfo->commands.isEmpty()) {
 			botInfo->commands.clear();
-			if (App::main()) App::main()->botCommandsChanged(this);
+			Notify::botCommandsChanged(this);
 		}
 		botInfo->description.clear();
 		botInfo->shareText.clear();
@@ -252,11 +263,15 @@ void UserData::setBotInfoVersion(int32 version) {
 void UserData::setBotInfo(const MTPBotInfo &info) {
 	switch (info.type()) {
 	case mtpc_botInfoEmpty:
-		if (botInfo && !botInfo->commands.isEmpty()) {
-			if (App::main()) App::main()->botCommandsChanged(this);
+		if (botInfo) {
+			if (!botInfo->commands.isEmpty()) {
+				botInfo->commands.clear();
+				Notify::botCommandsChanged(this);
+			}
+			delete botInfo;
+			botInfo = 0;
+			Notify::userIsBotChanged(this);
 		}
-		delete botInfo;
-		botInfo = 0;
 	break;
 	case mtpc_botInfo: {
 		const MTPDbotInfo &d(info.c_botInfo());
@@ -304,8 +319,8 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 
 		botInfo->inited = true;
 
-		if (changedCommands && App::main()) {
-			App::main()->botCommandsChanged(this);
+		if (changedCommands) {
+			Notify::botCommandsChanged(this);
 		}
 	} break;
 	}
@@ -371,13 +386,13 @@ void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see 
 			newPhotoId = phId;
 		}
 		newPhotoLoc = App::imageLocation(160, 160, d.vphoto_small);
-		newPhoto = newPhotoLoc.isNull() ? channelDefPhoto(colorIndex) : ImagePtr(newPhotoLoc);
-//		photoFull = ImagePtr(640, 640, d.vphoto_big, channelDefPhoto(colorIndex));
+		newPhoto = newPhotoLoc.isNull() ? (isMegagroup() ? chatDefPhoto(colorIndex) : channelDefPhoto(colorIndex)) : ImagePtr(newPhotoLoc);
+//		photoFull = ImagePtr(640, 640, d.vphoto_big, (isMegagroup() ? chatDefPhoto(colorIndex) : channelDefPhoto(colorIndex)));
 	} break;
 	default: {
 		newPhotoId = 0;
 		newPhotoLoc = StorageImageLocation();
-		newPhoto = channelDefPhoto(colorIndex);
+		newPhoto = (isMegagroup() ? chatDefPhoto(colorIndex) : channelDefPhoto(colorIndex));
 //		photoFull = ImagePtr();
 	} break;
 	}
@@ -385,7 +400,7 @@ void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see 
 		photoId = newPhotoId;
 		photo = newPhoto;
 		photoLoc = newPhotoLoc;
-		emit App::main()->peerPhotoChanged(this);
+		if (App::main()) emit App::main()->peerPhotoChanged(this);
 	}
 }
 
@@ -397,13 +412,37 @@ void ChannelData::setName(const QString &newName, const QString &usern) {
 
 void ChannelData::updateFull(bool force) {
 	if (!_lastFullUpdate || force || getms(true) > _lastFullUpdate + UpdateFullChannelTimeout) {
-		App::api()->requestFullPeer(this);
-		if (!amCreator() && !inviter) App::api()->requestSelfParticipant(this);
+		if (App::api()) {
+			App::api()->requestFullPeer(this);
+			if (!amCreator() && !inviter) App::api()->requestSelfParticipant(this);
+		}
 	}
 }
 
 void ChannelData::fullUpdated() {
 	_lastFullUpdate = getms(true);
+}
+
+void ChannelData::flagsUpdated() {
+	if (isMegagroup()) {
+		if (!mgInfo) {
+			mgInfo = new MegagroupInfo();
+		}
+		if (History *h = App::historyLoaded(id)) {
+			if (h->asChannelHistory()->onlyImportant()) {
+				MsgId fixInScrollMsgId = 0;
+				int32 fixInScrollMsgTop = 0;
+				h->asChannelHistory()->getSwitchReadyFor(SwitchAtTopMsgId, fixInScrollMsgId, fixInScrollMsgTop);
+			}
+		}
+	} else if (mgInfo) {
+		delete mgInfo;
+		mgInfo = 0;
+	}
+}
+
+ChannelData::~ChannelData() {
+	delete mgInfo;
 }
 
 uint64 PtsWaiter::ptsKey(PtsSkippedQueue queue) {
@@ -468,30 +507,30 @@ void PtsWaiter::clearSkippedUpdates() {
 bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count) {
 	if (_requesting || _applySkippedLevel) {
 		return true;
-	} else if (pts <= _good) {
+	} else if (pts <= _good && count > 0) {
 		return false;
 	}
 	return check(channel, pts, count);
 }
 
-bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 ptsCount, const MTPUpdates &updates) {
+bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count, const MTPUpdates &updates) {
 	if (_requesting || _applySkippedLevel) {
 		return true;
-	} else if (pts <= _good) {
+	} else if (pts <= _good && count > 0) {
 		return false;
-	} else if (check(channel, pts, ptsCount)) {
+	} else if (check(channel, pts, count)) {
 		return true;
 	}
 	_updatesQueue.insert(ptsKey(SkippedUpdates), updates);
 	return false;
 }
 
-bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 ptsCount, const MTPUpdate &update) {
+bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count, const MTPUpdate &update) {
 	if (_requesting || _applySkippedLevel) {
 		return true;
-	} else if (pts <= _good) {
+	} else if (pts <= _good && count > 0) {
 		return false;
-	} else if (check(channel, pts, ptsCount)) {
+	} else if (check(channel, pts, count)) {
 		return true;
 	}
 	_updateQueue.insert(ptsKey(SkippedUpdate), update);
@@ -542,7 +581,37 @@ QString saveFileName(const QString &title, const QString &filter, const QString 
 			}
 		}
 
-		return filedialogGetSaveFile(name, title, filter, name) ? name : QString();
+		// check if extension of filename is present in filter
+		// it should be in first filter section on the first place
+		// place it there, if it is not
+		QString ext = QFileInfo(name).suffix(), fil = filter, sep = qsl(";;");
+		if (!ext.isEmpty()) {
+			if (QRegularExpression(qsl("^[a-zA-Z_0-9]+$")).match(ext).hasMatch()) {
+				QStringList filters = filter.split(sep);
+				if (filters.size() > 1) {
+					QString first = filters.at(0);
+					int32 start = first.indexOf(qsl("(*."));
+					if (start >= 0) {
+						if (!QRegularExpression(qsl("\\(\\*\\.") + ext + qsl("[\\)\\s]"), QRegularExpression::CaseInsensitiveOption).match(first).hasMatch()) {
+							QRegularExpressionMatch m = QRegularExpression(qsl(" \\*\\.") + ext + qsl("[\\)\\s]"), QRegularExpression::CaseInsensitiveOption).match(first);
+							if (m.hasMatch() && m.capturedStart() > start + 3) {
+								int32 oldpos = m.capturedStart(), oldend = m.capturedEnd();
+								fil = first.mid(0, start + 3) + ext + qsl(" *.") + first.mid(start + 3, oldpos - start - 3) + first.mid(oldend - 1) + sep + filters.mid(1).join(sep);
+							} else {
+								fil = first.mid(0, start + 3) + ext + qsl(" *.") + first.mid(start + 3) + sep + filters.mid(1).join(sep);
+							}
+						}
+					} else {
+						fil = QString();
+					}
+				} else {
+					fil = QString();
+				}
+			} else {
+				fil = QString();
+			}
+		}
+		return filedialogGetSaveFile(name, title, fil, name) ? name : QString();
 	}
 
 	QString path;
@@ -646,7 +715,7 @@ id(id), access(access), date(date), duration(duration), w(w), h(h), thumb(thumb)
 
 void VideoData::save(const QString &toFile) {
 	cancel(true);
-	loader = new mtpFileLoader(dc, id, access, mtpc_inputVideoFileLocation, toFile, size);
+	loader = new mtpFileLoader(dc, id, access, VideoFileLocation, toFile, size);
 	loader->connect(loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(videoLoadProgress(mtpFileLoader*)));
 	loader->connect(loader, SIGNAL(failed(mtpFileLoader*, bool)), App::main(), SLOT(videoLoadFailed(mtpFileLoader*, bool)));
 	loader->start();
@@ -754,7 +823,7 @@ id(id), access(access), date(date), mime(mime), duration(duration), dc(dc), size
 
 void AudioData::save(const QString &toFile) {
 	cancel(true);
-	loader = new mtpFileLoader(dc, id, access, mtpc_inputAudioFileLocation, toFile, size, (size < AudioVoiceMsgInMemory));
+	loader = new mtpFileLoader(dc, id, access, AudioFileLocation, toFile, size, (size < AudioVoiceMsgInMemory));
 	loader->connect(loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(audioLoadProgress(mtpFileLoader*)));
 	loader->connect(loader, SIGNAL(failed(mtpFileLoader*, bool)), App::main(), SLOT(audioLoadFailed(mtpFileLoader*, bool)));
 	loader->start();
@@ -813,7 +882,7 @@ void DocumentOpenLink::doOpen(DocumentData *data) {
 	}
 
 	if (pattern.isEmpty()) {
-		filter = qsl("All files (*.*)");
+		filter = QString();
 	} else {
 		filter = mimeType.filterString() + qsl(";;All files (*.*)");
 	}
@@ -852,7 +921,7 @@ void DocumentSaveLink::doSave(DocumentData *data, bool forceSavingAs) {
 		}
 
 		if (pattern.isEmpty()) {
-			filter = qsl("All files (*.*)");
+			filter = QString();
 		} else {
 			filter = mimeType.filterString() + qsl(";;All files (*.*)");
 		}
@@ -940,7 +1009,7 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 void DocumentData::save(const QString &toFile) {
 	cancel(true);
 	bool isSticker = (type == StickerDocument) && (dimensions.width() > 0) && (dimensions.height() > 0) && (size < StickerInMemory);
-	loader = new mtpFileLoader(dc, id, access, mtpc_inputDocumentFileLocation, toFile, size, isSticker);
+	loader = new mtpFileLoader(dc, id, access, DocumentFileLocation, toFile, size, isSticker);
 	loader->connect(loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(documentLoadProgress(mtpFileLoader*)));
 	loader->connect(loader, SIGNAL(failed(mtpFileLoader*, bool)), App::main(), SLOT(documentLoadFailed(mtpFileLoader*, bool)));
 	loader->start();
@@ -960,7 +1029,7 @@ void PeerLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton && App::main()) {
 		if (peer() && peer()->isChannel() && App::main()->historyPeer() != peer()) {
 			if (!peer()->asChannel()->isPublic() && !peer()->asChannel()->amIn()) {
-				App::wnd()->showLayer(new ConfirmBox(lang(lng_channel_not_accessible), true));
+				App::wnd()->showLayer(new InformBox(lang((peer()->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
 			} else {
 				App::main()->showPeerHistory(peer()->id, ShowAtUnreadMsgId);
 			}
@@ -987,6 +1056,7 @@ void CommentsLink::onClick(Qt::MouseButton button) const {
 }
 
 MsgId clientMsgId() {
-	static MsgId current = -2000000000;
-	return ++current;
+	static MsgId currentClientMsgId = StartClientMsgId;
+	Q_ASSERT(currentClientMsgId < EndClientMsgId);
+	return currentClientMsgId++;
 }

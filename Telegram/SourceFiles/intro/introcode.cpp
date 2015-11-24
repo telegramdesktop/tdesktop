@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -27,11 +30,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 CodeInput::CodeInput(QWidget *parent, const style::flatInput &st, const QString &ph) : FlatInput(parent, st, ph) {
 }
 
-void CodeInput::correctValue(QKeyEvent *e, const QString &was) {
-	QString oldText(text()), newText;
-	int oldPos(cursorPosition()), newPos(-1), oldLen(oldText.length()), digitCount = 0;
+void CodeInput::correctValue(const QString &was, QString &now) {
+	QString newText;
+	int oldPos(cursorPosition()), newPos(-1), oldLen(now.length()), digitCount = 0;
 	for (int i = 0; i < oldLen; ++i) {
-		if (oldText[i].isDigit()) {
+		if (now[i].isDigit()) {
 			++digitCount;
 		}
 	}
@@ -40,7 +43,7 @@ void CodeInput::correctValue(QKeyEvent *e, const QString &was) {
 
 	newText.reserve(oldLen);
 	for (int i = 0; i < oldLen; ++i) {
-		QChar ch(oldText[i]);
+		QChar ch(now[i]);
 		if (ch.isDigit()) {
 			if (!digitCount--) {
 				break;
@@ -57,8 +60,10 @@ void CodeInput::correctValue(QKeyEvent *e, const QString &was) {
 	if (newPos < 0) {
 		newPos = newText.length();
 	}
-	if (newText != oldText) {
-		setText(newText);
+	if (newText != now) {
+		now = newText;
+		setText(now);
+		updatePlaceholder();
 		if (newPos != oldPos) {
 			setCursorPosition(newPos);
 		}
@@ -230,7 +235,7 @@ void IntroCode::codeSubmitDone(const MTPauth_Authorization &result) {
 	stopCheck();
 	code.setDisabled(false);
 	const MTPDauth_authorization &d(result.c_auth_authorization());
-	if (d.vuser.type() != mtpc_user || !(d.vuser.c_user().vflags.v & MTPDuser_flag_self)) { // wtf?
+	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
 		showError(lang(lng_server_error));
 		return;
 	}
@@ -247,7 +252,7 @@ bool IntroCode::codeSubmitFail(const RPCError &error) {
 		return true;
 	} else if (err == "PHONE_CODE_EMPTY" || err == "PHONE_CODE_INVALID") {
 		showError(lang(lng_bad_code));
-		code.setFocus();
+		code.notaBene();
 		return true;
 	} else if (err == "PHONE_NUMBER_UNOCCUPIED") { // success, need to signUp
 		intro()->setCode(sentCode);
@@ -259,7 +264,7 @@ bool IntroCode::codeSubmitFail(const RPCError &error) {
 		checkRequest.start(1000);
 		sentRequest = MTP::send(MTPaccount_GetPassword(), rpcDone(&IntroCode::gotPassword), rpcFail(&IntroCode::codeSubmitFail));
 		return true;
-	} else if (error.type().startsWith(qsl("FLOOD_WAIT_"))) {
+	} else if (mtpIsFlood(error)) {
 		showError(lang(lng_flood_error));
 		code.setFocus();
 		return true;
@@ -304,7 +309,7 @@ void IntroCode::gotPassword(const MTPaccount_Password &result) {
 	case mtpc_account_password: {
 		const MTPDaccount_password &d(result.c_account_password());
 		intro()->setPwdSalt(qba(d.vcurrent_salt));
-		intro()->setHasRecovery(d.vhas_recovery.v);
+		intro()->setHasRecovery(mtpIsTrue(d.vhas_recovery));
 		intro()->setPwdHint(qs(d.vhint));
 		intro()->onIntroNext();
 	} break;
@@ -339,7 +344,7 @@ void IntroCode::noTelegramCodeDone(const MTPBool &result) {
 }
 
 bool IntroCode::noTelegramCodeFail(const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) {
+	if (mtpIsFlood(error)) {
 		showError(lang(lng_flood_error));
 		code.setFocus();
 		return true;

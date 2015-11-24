@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -120,19 +123,21 @@ namespace Local {
 
 	void writeImage(const StorageKey &location, const ImagePtr &img);
 	void writeImage(const StorageKey &location, const StorageImageSaved &jpeg, bool overwrite = true);
-	StorageImageSaved readImage(const StorageKey &location);
+	TaskId startImageLoad(const StorageKey &location, mtpFileLoader *loader);
 	int32 hasImages();
 	qint64 storageImagesSize();
 
 	void writeStickerImage(const StorageKey &location, const QByteArray &data, bool overwrite = true);
-	QByteArray readStickerImage(const StorageKey &location);
+	TaskId startStickerImageLoad(const StorageKey &location, mtpFileLoader *loader);
 	int32 hasStickers();
 	qint64 storageStickersSize();
 
 	void writeAudio(const StorageKey &location, const QByteArray &data, bool overwrite = true);
-	QByteArray readAudio(const StorageKey &location);
+	TaskId startAudioLoad(const StorageKey &location, mtpFileLoader *loader);
 	int32 hasAudios();
 	qint64 storageAudiosSize();
+
+	void cancelTask(TaskId id);
 
 	void writeStickers();
 	void readStickers();

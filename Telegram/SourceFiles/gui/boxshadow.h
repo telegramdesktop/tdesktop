@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -30,6 +33,7 @@ public:
 	BoxShadow(const style::sprite &topLeft);
 
 	void paint(QPainter &p, const QRect &box, int32 shifty, int32 flags = Left | Top | Right | Bottom);
+	style::margins getDimensions(int32 shifty) const;
 
 private:
 

@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -278,6 +281,7 @@ enum DataBlockId {
 	dbiSongVolume           = 0x29,
 	dbiWindowsNotifications = 0x30,
 	dbiIncludeMuted         = 0x31,
+	dbiMaxMegaGroupCount    = 0x32,
 
 	dbiEncryptedWithSalt    = 333,
 	dbiEncrypted            = 444,
@@ -417,3 +421,16 @@ private:
 MimeType mimeTypeForName(const QString &mime);
 MimeType mimeTypeForFile(const QFileInfo &file);
 MimeType mimeTypeForData(const QByteArray &data);
+
+inline int32 floorclamp(int32 value, int32 step, int32 lowest, int32 highest) {
+	return qMin(qMax(value / step, lowest), highest);
+}
+inline int32 floorclamp(float64 value, int32 step, int32 lowest, int32 highest) {
+	return qMin(qMax(qFloor(value / step), lowest), highest);
+}
+inline int32 ceilclamp(int32 value, int32 step, int32 lowest, int32 highest) {
+	return qMax(qMin((value / step) + ((value % step) ? 1 : 0), highest), lowest);
+}
+inline int32 ceilclamp(float64 value, int32 step, int32 lowest, int32 highest) {
+	return qMax(qMin(qCeil(value / step), highest), lowest);
+}

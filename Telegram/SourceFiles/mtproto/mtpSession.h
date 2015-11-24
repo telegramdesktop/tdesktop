@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -226,6 +229,8 @@ public:
 	void stop();
 	void kill();
 
+	void unpaused();
+
 	int32 getDcWithShift() const;
 	~MTProtoSession();
 
@@ -278,6 +283,7 @@ private:
 	MTProtoConnections connections;
 
 	bool _killed;
+	bool _needToReceive;
 	
 	MTPSessionData data;
 

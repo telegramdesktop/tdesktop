@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
@@ -103,4 +106,9 @@ void BoxShadow::paint(QPainter &p, const QRect &box, int32 shifty, int32 flags) 
 			if (bottom) p.fillRect(box.left() + (left ? minus : 0), box.top() + box.height() + count - i - 1, box.width() - (right ? minus : 0) - (left ? minus : 0), 1, _colors[i]->b);
 		}
 	}
+}
+
+style::margins BoxShadow::getDimensions(int32 shifty) const {
+	int32 d = _colors.size() / cIntRetinaFactor();
+	return style::margins(d - shifty, d - 2 * shifty, d - shifty, d);
 }

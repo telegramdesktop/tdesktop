@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -30,7 +33,8 @@ static const uint32 FullItemSel = 0xFFFFFFFF;
 
 typedef QMap<int32, HistoryItem*> SelectedItemSet;
 
-extern TextParseOptions _textNameOptions, _textDlgOptions, _historyTextOptions, _historyBotOptions;
+extern TextParseOptions _textNameOptions, _textDlgOptions;
+extern TextParseOptions _historyTextOptions, _historyBotOptions, _historyTextNoMonoOptions, _historyBotNoMonoOptions;
 
 #include "structs.h"
 
@@ -77,7 +81,7 @@ struct DialogRow {
 	DialogRow(History *history = 0, DialogRow *prev = 0, DialogRow *next = 0, int32 pos = 0) : prev(prev), next(next), history(history), pos(pos), attached(0) {
 	}
 
-	void paint(Painter &p, int32 w, bool act, bool sel) const;
+	void paint(Painter &p, int32 w, bool act, bool sel, bool onlyBackground) const;
 
 	DialogRow *prev, *next;
 	History *history;
@@ -89,7 +93,7 @@ struct FakeDialogRow {
 	FakeDialogRow(HistoryItem *item) : _item(item), _cacheFor(0), _cache(st::dlgRichMinWidth) {
 	}
 
-	void paint(Painter &p, int32 w, bool act, bool sel) const;
+	void paint(Painter &p, int32 w, bool act, bool sel, bool onlyBackground) const;
 
 	HistoryItem *_item;
 	mutable const HistoryItem *_cacheFor;
@@ -113,9 +117,9 @@ enum HistoryMediaType {
 enum MediaOverviewType {
 	OverviewPhotos,
 	OverviewVideos,
+	OverviewAudioDocuments,
 	OverviewDocuments,
 	OverviewAudios,
-	OverviewAudioDocuments,
 	OverviewLinks,
 
 	OverviewCount
@@ -136,9 +140,9 @@ inline MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
 	switch (type) {
 	case OverviewPhotos: return MTP_inputMessagesFilterPhotos();
 	case OverviewVideos: return MTP_inputMessagesFilterVideo();
+	case OverviewAudioDocuments: return MTP_inputMessagesFilterAudioDocuments();
 	case OverviewDocuments: return MTP_inputMessagesFilterDocument();
 	case OverviewAudios: return MTP_inputMessagesFilterAudio();
-	case OverviewAudioDocuments: return MTP_inputMessagesFilterAudioDocuments();
 	case OverviewLinks: return MTP_inputMessagesFilterUrl();
 	default: type = OverviewCount; break;
 	}
@@ -179,6 +183,9 @@ public:
 	bool isChannel() const {
 		return peerIsChannel(peer->id);
 	}
+	bool isMegagroup() const {
+		return peer->isMegagroup();
+	}
 	ChannelHistory *asChannelHistory();
 	const ChannelHistory *asChannelHistory() const;
 
@@ -186,6 +193,7 @@ public:
 		return blocks.isEmpty();
 	}
 	void clear(bool leaveItems = false);
+	void clearUpto(MsgId msgId);
 	void blockResized(HistoryBlock *block, int32 dh);
 	void removeBlock(HistoryBlock *block);
 
@@ -312,7 +320,7 @@ public:
 	bool mute;
 
 	bool lastKeyboardInited, lastKeyboardUsed;
-	MsgId lastKeyboardId;
+	MsgId lastKeyboardId, lastKeyboardHiddenId;
 	PeerId lastKeyboardFrom;
 
 	mtpRequestId sendRequestId;
@@ -334,12 +342,45 @@ public:
 	QMap<SendActionType, uint64> mySendActions;
 
 	typedef QList<MsgId> MediaOverview;
-	typedef QMap<MsgId, NullType> MediaOverviewIds;
 	MediaOverview overview[OverviewCount];
-	MediaOverviewIds overviewIds[OverviewCount];
-	int32 overviewCount[OverviewCount]; // -1 - not loaded, 0 - all loaded, > 0 - count, but not all loaded
+
+	bool overviewCountLoaded(int32 overviewIndex) const {
+		return overviewCountData[overviewIndex] >= 0;
+	}
+	bool overviewLoaded(int32 overviewIndex) const {
+		return overviewCount(overviewIndex) == overview[overviewIndex].size();
+	}
+	int32 overviewCount(int32 overviewIndex, int32 defaultValue = -1) const {
+		int32 result = overviewCountData[overviewIndex], loaded = overview[overviewIndex].size();
+		if (result < 0) return defaultValue;
+		if (result < loaded) {
+			if (result > 0) {
+				const_cast<History*>(this)->overviewCountData[overviewIndex] = 0;
+			}
+			return loaded;
+		}
+		return result;
+	}
+	MsgId overviewMinId(int32 overviewIndex) const {
+		for (MediaOverviewIds::const_iterator i = overviewIds[overviewIndex].cbegin(), e = overviewIds[overviewIndex].cend(); i != e; ++i) {
+			if (i.key() > 0) {
+				return i.key();
+			}
+		}
+		return 0;
+	}
+	void overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages &result, bool onlyCounts = false);
+	bool overviewHasMsgId(int32 overviewIndex, MsgId msgId) const {
+		return overviewIds[overviewIndex].constFind(msgId) != overviewIds[overviewIndex].cend();
+	}
+
+	void changeMsgId(MsgId oldId, MsgId newId);
 
 private:
+
+	typedef QMap<MsgId, NullType> MediaOverviewIds;
+	MediaOverviewIds overviewIds[OverviewCount];
+	int32 overviewCountData[OverviewCount]; // -1 - not loaded, 0 - all loaded, > 0 - count, but not all loaded
 
 	friend class HistoryBlock;
 	friend class ChannelHistory;
@@ -447,13 +488,15 @@ struct DialogsList {
 		}
 	}
 
-	void paint(Painter &p, int32 w, int32 hFrom, int32 hTo, PeerData *act, PeerData *sel) const {
+	void paint(Painter &p, int32 w, int32 hFrom, int32 hTo, PeerData *act, PeerData *sel, bool onlyBackground) const {
 		adjustCurrent(hFrom, st::dlgHeight);
 
 		DialogRow *drawFrom = current;
 		p.translate(0, drawFrom->pos * st::dlgHeight);
 		while (drawFrom != end && drawFrom->pos * st::dlgHeight < hTo) {
-			drawFrom->paint(p, w, (drawFrom->history->peer == act), (drawFrom->history->peer == sel));
+			bool active = (drawFrom->history->peer == act) || (drawFrom->history->peer->migrateTo() && drawFrom->history->peer->migrateTo() == act);
+			bool selected = (drawFrom->history->peer == sel);
+			drawFrom->paint(p, w, active, selected, onlyBackground);
 			drawFrom = drawFrom->next;
 			p.translate(0, st::dlgHeight);
 		}
@@ -776,7 +819,7 @@ enum InfoDisplayType {
 };
 
 inline bool isImportantChannelMessage(MsgId id, int32 flags) { // client-side important msgs always has_views or has_from_id
-	return (flags & MTPDmessage_flag_out) || (flags & MTPDmessage_flag_notify_by_from) || ((id > 0 || flags != 0) && !(flags & MTPDmessage::flag_from_id));
+	return (flags & MTPDmessage::flag_out) || (flags & MTPDmessage::flag_mentioned) || ((id > 0 || flags != 0) && !(flags & MTPDmessage::flag_from_id));
 }
 
 enum HistoryItemType {
@@ -823,26 +866,35 @@ public:
 		_block = block;
 	}
 	bool out() const {
-		return _flags & MTPDmessage_flag_out;
+		return _flags & MTPDmessage::flag_out;
 	}
 	bool unread() const {
-		if ((out() && (id > 0 && id < _history->outboxReadBefore)) || (!out() && id > 0 && id < _history->inboxReadBefore)) return false;
-		return (id > 0 && !out() && channelId() != NoChannel) ? true : (_flags & MTPDmessage_flag_unread);
+		if (out() && id > 0 && id < _history->outboxReadBefore) return false;
+		if (!out() && id > 0) {
+			if (id < _history->inboxReadBefore) return false;
+			if (channelId() != NoChannel) return true; // no unread flag for incoming messages in channels
+		}
+		if (history()->peer->isSelf()) return false; // messages from myself are always read
+		if (out() && history()->peer->migrateTo()) return false; // outgoing messages in converted chats are always read
+		return (_flags & MTPDmessage::flag_unread);
 	}
-	bool notifyByFrom() const {
-		return _flags & MTPDmessage_flag_notify_by_from;
+	bool mentionsMe() const {
+		return _flags & MTPDmessage::flag_mentioned;
 	}
 	bool isMediaUnread() const {
-		return (_flags & MTPDmessage_flag_media_unread) && (channelId() == NoChannel);
+		return (_flags & MTPDmessage::flag_media_unread) && (channelId() == NoChannel);
 	}
 	void markMediaRead() {
-		_flags &= ~MTPDmessage_flag_media_unread;
+		_flags &= ~MTPDmessage::flag_media_unread;
 	}
 	bool hasReplyMarkup() const {
 		return _flags & MTPDmessage::flag_reply_markup;
 	}
 	bool hasTextLinks() const {
 		return _flags & MTPDmessage_flag_HAS_TEXT_LINKS;
+	}
+	bool isGroupMigrate() const {
+		return _flags & MTPDmessage_flag_IS_GROUP_MIGRATE;
 	}
 	bool hasViews() const {
 		return _flags & MTPDmessage::flag_views;
@@ -853,8 +905,12 @@ public:
 	bool isImportant() const {
 		return _history->isChannel() && isImportantChannelMessage(id, _flags);
 	}
+	bool indexInOverview() const {
+		return (!history()->isChannel() || history()->isMegagroup() || fromChannel());
+	}
+
 	virtual bool needCheck() const {
-		return out();
+		return out() || (id < 0 && history()->peer->isSelf());
 	}
 	virtual bool hasPoint(int32 x, int32 y) const {
 		return false;
@@ -877,7 +933,7 @@ public:
 	virtual bool serviceMsg() const {
 		return false;
 	}
-	virtual void updateMedia(const MTPMessageMedia &media) {
+	virtual void updateMedia(const MTPMessageMedia *media, bool allowEmitResize) {
 	}
 
 	virtual QString selectedText(uint32 selection) const {
@@ -894,6 +950,7 @@ public:
 	}
 	virtual void setViewsCount(int32 count) {
 	}
+	virtual void setId(MsgId newId);
 	virtual void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const = 0;
     virtual QString notificationHeader() const {
         return QString();
@@ -902,7 +959,7 @@ public:
 
 	bool canDelete() const {
 		ChannelData *channel = _history->peer->asChannel();
-		if (!channel) return true;
+		if (!channel) return !(_flags & MTPDmessage_flag_IS_GROUP_MIGRATE);
 
 		if (id == 1) return false;
 		if (channel->amCreator()) return true;
@@ -927,11 +984,13 @@ public:
 	virtual HistoryMedia *getMedia(bool inOverview = false) const {
 		return 0;
 	}
-	virtual void setMedia(const MTPMessageMedia *media) {
+	virtual void setText(const QString &text, const EntitiesInText &links) {
 	}
-	virtual void setText(const QString &text, const LinksInText &links) {
+	virtual QString originalText() const {
+		return QString();
 	}
-	virtual void getTextWithLinks(QString &text, LinksInText &links) {
+	virtual EntitiesInText originalEntities() const {
+		return EntitiesInText();
 	}
 	virtual bool textHasLinks() {
 		return false;
@@ -1097,6 +1156,9 @@ public:
 	virtual ImagePtr replyPreview() {
 		return ImagePtr();
 	}
+	virtual QString getCaption() const {
+		return QString();
+	}
 
 	int32 currentWidth() const {
 		return qMin(w, _maxw);
@@ -1124,7 +1186,6 @@ public:
 	}
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
-	const Text &captionForClone() const;
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	HistoryMedia *clone() const;
@@ -1148,6 +1209,10 @@ public:
 		return !data->thumb->isNull();
 	}
 	ImagePtr replyPreview();
+
+	QString getCaption() const {
+		return _caption.original();
+	}
 
 private:
 	int16 pixw, pixh;
@@ -1494,7 +1559,7 @@ class HistoryMessage : public HistoryItem {
 public:
 
 	HistoryMessage(History *history, HistoryBlock *block, const MTPDmessage &msg);
-	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const LinksInText &links, HistoryMedia *media); // local forwarded
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const EntitiesInText &entities, HistoryMedia *media); // local forwarded
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, DocumentData *doc); // local sticker and reply sticker
 
 	void initTime();
@@ -1512,6 +1577,7 @@ public:
 
 	void drawInfo(Painter &p, int32 right, int32 bottom, bool selected, InfoDisplayType type) const;
 	void setViewsCount(int32 count);
+	void setId(MsgId newId);
 	void draw(Painter &p, uint32 selection) const;
 	virtual void drawMessageText(Painter &p, const QRect &trect, uint32 selection) const;
 
@@ -1531,25 +1597,29 @@ public:
     QString notificationHeader() const;
     QString notificationText() const;
     
-	void updateMedia(const MTPMessageMedia &media) {
-		if (_media) {
-			_media->updateFrom(media);
+	void updateMedia(const MTPMessageMedia *media, bool allowEmitResize) {
+		if (media && _media && _media->type() != MediaTypeWebPage) {
+			_media->updateFrom(*media);
+		} else {
+			setMedia(media, allowEmitResize);
 		}
 	}
 
 	QString selectedText(uint32 selection) const;
-	LinksInText textLinks() const;
 	QString inDialogsText() const;
 	HistoryMedia *getMedia(bool inOverview = false) const;
-	void setMedia(const MTPMessageMedia *media);
-	void setText(const QString &text, const LinksInText &links);
-	void getTextWithLinks(QString &text, LinksInText &links);
+	void setMedia(const MTPMessageMedia *media, bool allowEmitResize);
+	void setText(const QString &text, const EntitiesInText &entities);
+	QString originalText() const;
+	EntitiesInText originalEntities() const;
 	bool textHasLinks();
 
 	int32 infoWidth() const {
 		int32 result = _timeWidth;
 		if (!_viewsText.isEmpty()) {
 			result += st::msgDateViewsSpace + _viewsWidth + st::msgDateCheckSpace + st::msgViewsImg.pxWidth();
+		} else if (id < 0 && history()->peer->isSelf()) {
+			result += st::msgDateCheckSpace + st::msgCheckImg.pxWidth();
 		}
 		if (out() && !fromChannel()) {
 			result += st::msgDateCheckSpace + st::msgCheckImg.pxWidth();
@@ -1560,6 +1630,8 @@ public:
 		int32 result = 0;
 		if (!_viewsText.isEmpty()) {
 			result += st::msgDateViewsSpace + _viewsWidth + st::msgDateCheckSpace + st::msgViewsImg.pxWidth();
+		} else if (id < 0 && history()->peer->isSelf()) {
+			result += st::msgDateCheckSpace + st::msgCheckImg.pxWidth();
 		}
 		return result;
 	}
@@ -1887,4 +1959,5 @@ protected:
 	bool freezed;
 };
 
-const TextParseOptions &itemTextParseOptions(History *h, PeerData *f);
+const TextParseOptions &itemTextOptions(History *h, PeerData *f);
+const TextParseOptions &itemTextNoMonoOptions(History *h, PeerData *f);

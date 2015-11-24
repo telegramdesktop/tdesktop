@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
@@ -629,7 +632,7 @@ tcpNonce(MTP::nonce<MTPint128>()), httpNonce(MTP::nonce<MTPint128>()), _tcpTimeo
 
 void MTPautoConnection::onHttpStart() {
 	if (status == HttpReady) {
-		DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by timer").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
+		DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by timer").arg((_flags & MTPDdcOption::flag_ipv6) ? "IPv6" : "IPv4"));
 		status = UsingHttp;
 		sock.disconnectFromHost();
 		emit connected();
@@ -640,7 +643,7 @@ void MTPautoConnection::onSocketConnected() {
 	if (status == HttpReady || status == WaitingBoth || status == WaitingTcp) {
 		mtpBuffer buffer(_preparePQFake(tcpNonce));
 
-		DEBUG_LOG(("Connection Info: sending fake req_pq through TCP/%1 transport").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
+		DEBUG_LOG(("Connection Info: sending fake req_pq through TCP/%1 transport").arg((_flags & MTPDdcOption::flag_ipv6) ? "IPv6" : "IPv4"));
 
 		if (_tcpTimeout < 0) _tcpTimeout = -_tcpTimeout;
 		tcpTimeoutTimer.start(_tcpTimeout);
@@ -678,7 +681,7 @@ void MTPautoConnection::onSocketDisconnected() {
 	} else if (status == WaitingTcp || status == UsingTcp) {
 		emit disconnected();
 	} else if (status == HttpReady) {
-		DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by socket disconnect").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
+		DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by socket disconnect").arg((_flags & MTPDdcOption::flag_ipv6) ? "IPv6" : "IPv4"));
 		status = UsingHttp;
 		emit connected();
 	}
@@ -745,7 +748,7 @@ void MTPautoConnection::disconnectFromServer() {
 }
 
 void MTPautoConnection::connectToServer(const QString &addr, int32 port, int32 flags) {
-	address = QUrl(((flags & MTPDdcOption_flag_ipv6) ? qsl("http://[%1]:%2/api") : qsl("http://%1:%2/api")).arg(addr).arg(80));//not p - always 80 port for http transport
+	address = QUrl(((flags & MTPDdcOption::flag_ipv6) ? qsl("http://[%1]:%2/api") : qsl("http://%1:%2/api")).arg(addr).arg(80));//not p - always 80 port for http transport
 	TCP_LOG(("HTTP Info: address is %1").arg(address.toDisplayString()));
 	connect(&manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(requestFinished(QNetworkReply*)));
 
@@ -758,7 +761,7 @@ void MTPautoConnection::connectToServer(const QString &addr, int32 port, int32 f
 
 	mtpBuffer buffer(_preparePQFake(httpNonce));
 
-	DEBUG_LOG(("Connection Info: sending fake req_pq through HTTP/%1 transport").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
+	DEBUG_LOG(("Connection Info: sending fake req_pq through HTTP/%1 transport").arg((_flags & MTPDdcOption::flag_ipv6) ? "IPv6" : "IPv4"));
 
 	httpSend(buffer);
 }
@@ -794,7 +797,7 @@ void MTPautoConnection::requestFinished(QNetworkReply *reply) {
 							status = HttpReady;
 							httpStartTimer.start(MTPTcpConnectionWaitTimeout);
 						} else {
-							DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by pq-response, awaited").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
+							DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by pq-response, awaited").arg((_flags & MTPDdcOption::flag_ipv6) ? "IPv6" : "IPv4"));
 							status = UsingHttp;
 							sock.disconnectFromHost();
 							emit connected();
@@ -837,7 +840,7 @@ void MTPautoConnection::socketPacket(mtpPrime *packet, uint32 size) {
 			status = WaitingHttp;
 			sock.disconnectFromHost();
 		} else if (status == HttpReady) {
-			DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by bad tcp response, ready").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
+			DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by bad tcp response, ready").arg((_flags & MTPDdcOption::flag_ipv6) ? "IPv6" : "IPv4"));
 			status = UsingHttp;
 			sock.disconnectFromHost();
 			emit connected();
@@ -856,7 +859,7 @@ void MTPautoConnection::socketPacket(mtpPrime *packet, uint32 size) {
 			MTPResPQ res_pq = _readPQFakeReply(data);
 			const MTPDresPQ &res_pq_data(res_pq.c_resPQ());
 			if (res_pq_data.vnonce == tcpNonce) {
-				DEBUG_LOG(("Connection Info: TCP/%1-transport chosen by pq-response").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
+				DEBUG_LOG(("Connection Info: TCP/%1-transport chosen by pq-response").arg((_flags & MTPDdcOption::flag_ipv6) ? "IPv6" : "IPv4"));
 				status = UsingTcp;
 				emit connected();
 			}
@@ -866,7 +869,7 @@ void MTPautoConnection::socketPacket(mtpPrime *packet, uint32 size) {
 				status = WaitingHttp;
 				sock.disconnectFromHost();
 			} else if (status == HttpReady) {
-				DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by bad tcp response, awaited").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
+				DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by bad tcp response, awaited").arg((_flags & MTPDdcOption::flag_ipv6) ? "IPv6" : "IPv4"));
 				status = UsingHttp;
 				sock.disconnectFromHost();
 				emit connected();
@@ -906,7 +909,7 @@ void MTPautoConnection::socketError(QAbstractSocket::SocketError e) {
 	if (status == WaitingBoth) {
 		status = WaitingHttp;
 	} else if (status == HttpReady) {
-		DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by tcp error, ready").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
+		DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by tcp error, ready").arg((_flags & MTPDdcOption::flag_ipv6) ? "IPv6" : "IPv4"));
 		status = UsingHttp;
 		emit connected();
 	} else if (status == WaitingTcp || status == UsingTcp) {
@@ -935,7 +938,7 @@ void MTPtcpConnection::onSocketConnected() {
 	if (status == WaitingTcp) {
 		mtpBuffer buffer(_preparePQFake(tcpNonce));
 
-		DEBUG_LOG(("Connection Info: sending fake req_pq through TCP/%1 transport").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
+		DEBUG_LOG(("Connection Info: sending fake req_pq through TCP/%1 transport").arg((_flags & MTPDdcOption::flag_ipv6) ? "IPv6" : "IPv4"));
 
 		if (_tcpTimeout < 0) _tcpTimeout = -_tcpTimeout;
 		tcpTimeoutTimer.start(_tcpTimeout);
@@ -1024,7 +1027,7 @@ void MTPtcpConnection::socketPacket(mtpPrime *packet, uint32 size) {
 			MTPResPQ res_pq = _readPQFakeReply(data);
 			const MTPDresPQ &res_pq_data(res_pq.c_resPQ());
 			if (res_pq_data.vnonce == tcpNonce) {
-				DEBUG_LOG(("Connection Info: TCP/%1-transport chosen by pq-response").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
+				DEBUG_LOG(("Connection Info: TCP/%1-transport chosen by pq-response").arg((_flags & MTPDdcOption::flag_ipv6) ? "IPv6" : "IPv4"));
 				status = UsingTcp;
 				emit connected();
 			}
@@ -1097,7 +1100,7 @@ void MTPhttpConnection::disconnectFromServer() {
 }
 
 void MTPhttpConnection::connectToServer(const QString &addr, int32 p, int32 flags) {
-	address = QUrl(((flags & MTPDdcOption_flag_ipv6) ? qsl("http://[%1]:%2/api") : qsl("http://%1:%2/api")).arg(addr).arg(80));//not p - always 80 port for http transport
+	address = QUrl(((flags & MTPDdcOption::flag_ipv6) ? qsl("http://[%1]:%2/api") : qsl("http://%1:%2/api")).arg(addr).arg(80));//not p - always 80 port for http transport
 	TCP_LOG(("HTTP Info: address is %1").arg(address.toDisplayString()));
 	connect(&manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(requestFinished(QNetworkReply*)));
 
@@ -1105,7 +1108,7 @@ void MTPhttpConnection::connectToServer(const QString &addr, int32 p, int32 flag
 
 	mtpBuffer buffer(_preparePQFake(httpNonce));
 
-	DEBUG_LOG(("Connection Info: sending fake req_pq through HTTP/%1 transport").arg((flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
+	DEBUG_LOG(("Connection Info: sending fake req_pq through HTTP/%1 transport").arg((flags & MTPDdcOption::flag_ipv6) ? "IPv6" : "IPv4"));
 
 	sendData(buffer);
 }
@@ -1133,7 +1136,7 @@ void MTPhttpConnection::requestFinished(QNetworkReply *reply) {
 					MTPResPQ res_pq = _readPQFakeReply(data);
 					const MTPDresPQ &res_pq_data(res_pq.c_resPQ());
 					if (res_pq_data.vnonce == httpNonce) {
-						DEBUG_LOG(("Connection Info: HTTP/%1-transport connected by pq-response").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
+						DEBUG_LOG(("Connection Info: HTTP/%1-transport connected by pq-response").arg((_flags & MTPDdcOption::flag_ipv6) ? "IPv6" : "IPv4"));
 						status = UsingHttp;
 						emit connected();
 					}
@@ -1902,7 +1905,7 @@ void MTProtoConnectionPrivate::socketStart(bool afterConfig) {
 			flags4 = dcIndex4->flags;
 			port4 = dcIndex4->port;
 		}
-		mtpDcOptions::const_iterator dcIndex6 = options.constFind((dc % _mtp_internal::dcShift) + (_mtp_internal::dcShift * MTPDdcOption_flag_ipv6));
+		mtpDcOptions::const_iterator dcIndex6 = options.constFind((dc % _mtp_internal::dcShift) + (_mtp_internal::dcShift * MTPDdcOption::flag_ipv6));
 		if (dcIndex6 != options.cend()) {
 			ip6 = dcIndex6->ip;
 			flags6 = dcIndex6->flags;
@@ -2728,11 +2731,19 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 	} return 1;
 
 	case mtpc_new_session_created: {
-		if (badTime) return 0;
-
 		const mtpPrime *start = from;
 		MTPNewSession msg(from, end);
 		const MTPDnew_session_created &data(msg.c_new_session_created());
+
+		if (badTime) {
+			if (requestsFixTimeSalt(QVector<MTPlong>(1, data.vfirst_msg_id), serverTime, serverSalt)) {
+				badTime = false;
+			} else {
+				DEBUG_LOG(("Message Info: error, such message was not sent recently %1").arg(data.vfirst_msg_id.v));
+				return 0;
+			}
+		}
+
 		DEBUG_LOG(("Message Info: new server session created, unique_id %1, first_msg_id %2, server_salt %3").arg(data.vunique_id.v).arg(data.vfirst_msg_id.v).arg(data.vserver_salt.v));
 		sessionData->setSalt(data.vserver_salt.v);
 

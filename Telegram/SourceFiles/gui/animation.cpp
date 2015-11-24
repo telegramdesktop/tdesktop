@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
@@ -150,7 +153,7 @@ bool AnimatedGif::animStep(float64 ms) {
 	if (frame != f) {
 		frame = f;
 		if (msg && App::main()) {
-			App::main()->msgUpdated(msg->history()->peer->id, msg);
+			App::main()->msgUpdated(msg);
 		} else {
 			emit updated();
 		}

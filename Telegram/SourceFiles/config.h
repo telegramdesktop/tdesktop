@@ -12,14 +12,17 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 9002;
-static const wchar_t *AppVersionStr = L"0.9.2";
-static const bool DevVersion = false;
+static const int32 AppVersion = 9012;
+static const wchar_t *AppVersionStr = L"0.9.12";
+static const bool DevVersion = true;
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -63,6 +66,7 @@ enum {
 
 	MaxSelectedItems = 100,
 
+	MaxPhoneCodeLength = 4, // max length of country phone code
 	MaxPhoneTailLength = 18, // rest of the phone number, without country code (seen 12 at least)
 
 	MaxScrollSpeed = 37, // 37px per 15ms while select-by-drag
@@ -124,6 +128,8 @@ enum {
 	UsernameCheckTimeout = 200,
 
 	MaxChannelDescription = 120,
+	MaxGroupChannelTitle = 255,
+	MaxPhotoCaption = 140,
 
 	MaxMessageSize = 4096,
 	MaxHttpRedirects = 5, // when getting external data/images
@@ -306,9 +312,11 @@ enum {
 	MessagesFirstLoad = 30, // first history part size requested
 	MessagesPerPage = 50, // next history part size
 
+	FileLoaderQueueStopTimeout = 5000,
+
 	DownloadPartSize = 64 * 1024, // 64kb for photo
 	DocumentDownloadPartSize = 128 * 1024, // 128kb for document
-	MaxUploadPhotoSize = 32 * 1024 * 1024, // 32mb photos max
+	MaxUploadPhotoSize = 256 * 1024 * 1024, // 256mb photos max
     MaxUploadDocumentSize = 1500 * 1024 * 1024, // 1500mb documents max
     UseBigFilesFrom = 10 * 1024 * 1024, // mtp big files methods used for files greater than 10mb
 	MaxFileQueries = 16, // max 16 file parts downloaded at the same time
@@ -343,7 +351,7 @@ enum {
 };
 
 inline const QRegularExpression &cWordSplit() {
-	static QRegularExpression regexp(qsl("[\\@\\s\\-\\+\\)\\(\\,\\.\\:\\!\\_\\;\\\"\\'\\x0]"));
+	static QRegularExpression regexp(qsl("[\\@\\s\\-\\+\\(\\)\\[\\]\\{\\}\\<\\>\\,\\.\\:\\!\\_\\;\\\"\\'\\x0]"));
 	return regexp;
 }
 

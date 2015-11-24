@@ -12,18 +12,15 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
 #include "abstractbox.h"
-
-enum CreatingGroupType {
-	CreatingGroupNone,
-	CreatingGroupGroup,
-	CreatingGroupChannel,
-};
 
 enum MembersFilter {
 	MembersFilterRecent,
@@ -42,10 +39,11 @@ private:
 public:
 
 	ContactsInner(CreatingGroupType creating = CreatingGroupNone);
-	ContactsInner(ChannelData *channel, MembersFilter channelFilter = MembersFilterRecent, const MembersAlreadyIn &already = MembersAlreadyIn());
-	ContactsInner(ChatData *chat);
+	ContactsInner(ChannelData *channel, MembersFilter membersFilter, const MembersAlreadyIn &already);
+	ContactsInner(ChatData *chat, MembersFilter membersFilter);
 	ContactsInner(UserData *bot);
 	void init();
+	void initList();
 
 	void paintEvent(QPaintEvent *e);
 	void enterEvent(QEvent *e);
@@ -63,6 +61,9 @@ public:
 	QVector<UserData*> selected();
 	QVector<MTPInputUser> selectedInputs();
 	PeerData *selectedUser();
+	bool allAdmins() const {
+		return _allAdmins.checked();
+	}
 
 	void loadProfilePhotos(int32 yFrom);
 	void chooseParticipant();
@@ -75,7 +76,7 @@ public:
 
 	ChatData *chat() const;
 	ChannelData *channel() const;
-	MembersFilter channelFilter() const;
+	MembersFilter membersFilter() const;
 	UserData *bot() const;
 	CreatingGroupType creating() const;
 
@@ -83,6 +84,8 @@ public:
 	bool hasAlreadyMembersInChannel() const {
 		return !_already.isEmpty();
 	}
+
+	void saving(bool flag);
 
 	~ContactsInner();
 
@@ -93,6 +96,7 @@ signals:
 	void searchByUsername();
 	void chosenChanged();
 	void adminAdded();
+	void addRequested();
 
 public slots:
 
@@ -106,19 +110,29 @@ public slots:
 	void onAddAdmin();
 	void onNoAddAdminBox(QObject *obj);
 
+	void onAllAdminsChanged();
+
 private:
 
-	void addAdminDone(const MTPBool &result, mtpRequestId req);
+	void updateSelectedRow();
+	void addAdminDone(const MTPUpdates &result, mtpRequestId req);
 	bool addAdminFail(const RPCError &error, mtpRequestId req);
+
+	int32 _rowHeight, _newItemHeight;
+	bool _newItemSel;
 
 	ChatData *_chat;
 	ChannelData *_channel;
-	MembersFilter _channelFilter;
+	MembersFilter _membersFilter;
 	UserData *_bot;
 	CreatingGroupType _creating;
 	MembersAlreadyIn _already;
 
-	ChatData *_addToChat;
+	Checkbox _allAdmins;
+	int32 _aboutWidth;
+	Text _aboutAllAdmins, _aboutAdmins;
+
+	PeerData *_addToPeer;
 	UserData *_addAdmin;
 	mtpRequestId _addAdminRequestId;
 	ConfirmBox *_addAdminBox;
@@ -138,6 +152,7 @@ private:
 	struct ContactData {
 		Text name;
 		QString online;
+		bool onlineColor;
 		bool inchat;
 		bool check;
 	};
@@ -160,6 +175,9 @@ private:
 	QPoint _lastMousePos;
 	LinkButton _addContactLnk;
 
+	bool _saving;
+	bool _allAdminsChecked;
+
 };
 
 class ContactsBox : public ItemListBox, public RPCSender {
@@ -171,7 +189,7 @@ public:
 	ContactsBox(const QString &name, const QImage &photo); // group creation
 	ContactsBox(ChannelData *channel); // channel setup
 	ContactsBox(ChannelData *channel, MembersFilter filter, const MembersAlreadyIn &already);
-	ContactsBox(ChatData *chat);
+	ContactsBox(ChatData *chat, MembersFilter filter);
 	ContactsBox(UserData *bot);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
@@ -190,11 +208,13 @@ signals:
 public slots:
 
 	void onFilterUpdate();
+	void onFilterCancel();
+	void onChosenChanged();
 	void onScroll();
 
-	void onAdd();
 	void onInvite();
 	void onCreate();
+	void onSaveAdmins();
 
 	bool onSearchByUsername(bool searchCache = false);
 	void onNeedSearchByUsername();
@@ -210,11 +230,13 @@ private:
 	void init();
 
 	ContactsInner _inner;
-	FlatButton _addContact;
-	FlatInput _filter;
+	InputField _filter;
+	IconedButton _filterCancel;
 
-	FlatButton _next, _cancel;
+	BoxButton _next, _cancel;
 	MembersFilter _membersFilter;
+
+	ScrollableBoxShadow _topShadow, *_bottomShadow;
 
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
 	bool peopleFailed(const RPCError &error, mtpRequestId req);
@@ -230,8 +252,18 @@ private:
 	typedef QMap<mtpRequestId, QString> PeopleQueries;
 	PeopleQueries _peopleQueries;
 
+	int32 _saveRequestId;
+
+	// saving admins
+	void saveAdminsDone(const MTPUpdates &result);
+	void saveSelectedAdmins();
+	void getAdminsDone(const MTPmessages_ChatFull &result);
+	void setAdminDone(UserData *user, const MTPBool &result);
+	void removeAdminDone(UserData *user, const MTPBool &result);
+	bool saveAdminsFail(const RPCError &error);
+	bool editAdminFail(const RPCError &error);
+
 	// group creation
-	int32 _creationRequestId;
 	QString _creationName;
 	QImage _creationPhoto;
 
@@ -273,6 +305,7 @@ public:
 	bool isLoaded() const {
 		return !_loading;
 	}
+	void clearSel();
 
 	QMap<UserData*, bool> already() const;
 
@@ -281,7 +314,7 @@ public:
 signals:
 
 	void mustScrollTo(int ymin, int ymax);
-
+	void addRequested();
 	void loaded();
 
 public slots:
@@ -296,18 +329,21 @@ public slots:
 
 private:
 
-	void clearSel();
+	void updateSelectedRow();
 	MemberData *data(int32 index);
 
 	void membersReceived(const MTPchannels_ChannelParticipants &result, mtpRequestId req);
 	bool membersFailed(const RPCError &error, mtpRequestId req);
 
 	void kickDone(const MTPUpdates &result, mtpRequestId req);
-	void kickAdminDone(const MTPBool &result, mtpRequestId req);
+	void kickAdminDone(const MTPUpdates &result, mtpRequestId req);
 	bool kickFail(const RPCError &error, mtpRequestId req);
 	void removeKicked();
 
 	void clear();
+
+	int32 _rowHeight, _newItemHeight;
+	bool _newItemSel;
 
 	ChannelData *_channel;
 	MembersFilter _filter;
@@ -335,6 +371,7 @@ private:
 	struct MemberData {
 		Text name;
 		QString online;
+		bool onlineColor;
 		bool canKick;
 	};
 
@@ -369,7 +406,6 @@ public:
 
 public slots:
 
-	void onLoaded();
 	void onScroll();
 
 	void onAdd();
@@ -377,187 +413,13 @@ public slots:
 
 protected:
 
-	void hideAll();
-	void showAll();
 	void showDone();
 
 private:
 
 	MembersInner _inner;
-	FlatButton _add, _done;
 
 	ContactsBox *_addBox;
 
 	SingleTimer _loadTimer;
-};
-
-class NewGroupBox : public AbstractBox {
-	Q_OBJECT
-
-public:
-
-	NewGroupBox();
-	void keyPressEvent(QKeyEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-
-public slots:
-
-	void onNext();
-
-protected:
-
-	void hideAll();
-	void showAll();
-	void showDone();
-
-private:
-
-	FlatRadiobutton _group, _channel;
-	int32 _aboutGroupWidth, _aboutGroupHeight;
-	Text _aboutGroup, _aboutChannel;
-	FlatButton _next, _cancel;
-
-};
-
-class GroupInfoBox : public AbstractBox, public RPCSender {
-	Q_OBJECT
-
-public:
-
-	GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose);
-	void keyPressEvent(QKeyEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void leaveEvent(QEvent *e);
-
-	bool eventFilter(QObject *obj, QEvent *e);
-
-	bool descriptionAnimStep(float64 ms);
-	bool photoAnimStep(float64 ms);
-
-	void setInnerFocus() {
-		_name.setFocus();
-	}
-
-public slots:
-
-	void onPhoto();
-	void onPhotoReady(const QImage &img);
-
-	void onNext();
-	void onDescriptionResized();
-
-protected:
-
-	void hideAll();
-	void showAll();
-	void showDone();
-
-private:
-
-	QRect descriptionRect() const;
-	QRect photoRect() const;
-
-	void updateMaxHeight();
-	void updateSelected(const QPoint &cursorGlobalPosition);
-	CreatingGroupType _creating;
-
-	anim::fvalue a_photoOver;
-	Animation a_photo;
-	bool _photoOver, _descriptionOver;
-
-	anim::cvalue a_descriptionBg, a_descriptionBorder;
-	Animation a_description;
-
-	FlatInput _name;
-	FlatButton _photo;
-	FlatTextarea _description;
-	QImage _photoBig;
-	QPixmap _photoSmall;
-	FlatButton _next, _cancel;
-
-	// channel creation
-	int32 _creationRequestId;
-	ChannelData *_createdChannel;
-
-	void creationDone(const MTPUpdates &updates);
-	bool creationFail(const RPCError &e);
-	void exportDone(const MTPExportedChatInvite &result);
-};
-
-class SetupChannelBox : public AbstractBox, public RPCSender {
-	Q_OBJECT
-
-public:
-
-	SetupChannelBox(ChannelData *channel, bool existing = false);
-	void keyPressEvent(QKeyEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void leaveEvent(QEvent *e);
-
-	void closePressed();
-
-	void setInnerFocus() {
-		if (_link.isHidden()) {
-			setFocus();
-		} else {
-			_link.setFocus();
-		}
-	}
-
-public slots:
-
-	void onSave();
-	void onChange();
-	void onCheck();
-
-	void onPrivacyChange();
-
-protected:
-
-	void hideAll();
-	void showAll();
-	void showDone();
-
-private:
-
-	void updateSelected(const QPoint &cursorGlobalPosition);
-	bool goodAnimStep(float64 ms);
-
-	ChannelData *_channel;
-	bool _existing;
-
-	FlatRadiobutton _public, _private;
-	FlatCheckbox _comments;
-	int32 _aboutPublicWidth, _aboutPublicHeight;
-	Text _aboutPublic, _aboutPrivate, _aboutComments;
-	QString _linkPlaceholder;
-	UsernameInput _link;
-	QRect _invitationLink;
-	bool _linkOver;
-	FlatButton _save, _skip;
-
-	void onUpdateDone(const MTPBool &result);
-	bool onUpdateFail(const RPCError &error);
-
-	void onCheckDone(const MTPBool &result);
-	bool onCheckFail(const RPCError &error);
-	bool onFirstCheckFail(const RPCError &error);
-
-	bool _tooMuchUsernames;
-
-	mtpRequestId _saveRequestId, _checkRequestId;
-	QString _sentUsername, _checkUsername, _errorText, _goodText;
-
-	QString _goodTextLink;
-	anim::fvalue a_goodOpacity;
-	Animation a_good;
-
-	QTimer _checkTimer;
 };

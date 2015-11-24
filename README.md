@@ -2,7 +2,7 @@
 
 This is the complete source code and the build instructions for the alpha version of the official desktop client for the [Telegram][telegram] messenger, based on the [Telegram API][telegram_api] and the [MTProto][telegram_proto] secure protocol.
 
-The source code is published under GPLv3, the license is available [here][license].
+The source code is published under GPLv3 with OpenSSL exception, the license is available [here][license].
 
 ## Supported systems
 
@@ -14,7 +14,7 @@ The source code is published under GPLv3, the license is available [here][licens
 
 ## Third-party libraries
 
-* Qt 5.3.2 and 5.5.0, slightly patched ([LGPL](http://doc.qt.io/qt-5/lgpl.html))
+* Qt 5.3.2 and 5.5.1, slightly patched ([LGPL](http://doc.qt.io/qt-5/lgpl.html))
 * OpenSSL 1.0.1g ([OpenSSL License](https://www.openssl.org/source/license.html))
 * zlib 1.2.8 ([zlib License](http://www.zlib.net/zlib_license.html))
 * libexif 0.6.20 ([LGPL](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html))
@@ -23,14 +23,14 @@ The source code is published under GPLv3, the license is available [here][licens
 * OpenAL Soft ([LGPL](http://kcat.strangesoft.net/openal.html))
 * Opus codec ([BSD license](http://www.opus-codec.org/license/))
 * FFmpeg ([LGPL](https://www.ffmpeg.org/legal.html))
-* Open Sans font ([Apache License](http://www.apache.org/licenses/LICENSE-2.0.html))
+* Open Sans font ([Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0.html))
 
 ## Build instructions
 
-* [Visual Studio 2013][msvc]
-* [XCode 6.4][xcode]
-* [XCode 6.4 for OS X 10.6 and 10.7][xcode_old]
-* [Qt Creator 3.2.0 Ubuntu][qtcreator]
+* [Visual Studio 2015][msvc]
+* [XCode 7][xcode]
+* [XCode 7 for OS X 10.6 and 10.7][xcode_old]
+* [Qt Creator 3.5.1 Ubuntu][qtcreator]
 
 ## Projects in Telegram solution
 

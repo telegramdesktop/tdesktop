@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -32,7 +35,7 @@ TitleHider::TitleHider(QWidget *parent) : QWidget(parent), _level(0) {
 void TitleHider::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 	p.setOpacity(_level * st::layerAlpha);
-	p.fillRect(App::main()->dlgsWidth() - st::dlgShadow, 0, width() + st::dlgShadow - App::main()->dlgsWidth(), height(), st::layerBG->b);
+	p.fillRect(App::main()->dlgsWidth(), 0, width() - App::main()->dlgsWidth(), height(), st::layerBg->b);
 }
 
 void TitleHider::mousePressEvent(QMouseEvent *e) {
@@ -65,6 +68,7 @@ TitleWidget::TitleWidget(Window *window)
     , lastMaximized(!(window->windowState() & Qt::WindowMaximized))
 {
 	setGeometry(0, 0, wnd->width(), st::titleHeight);
+	setAttribute(Qt::WA_OpaquePaintEvent);
 	_lock.hide();
 	_update.hide();
     _cancel.hide();
@@ -94,7 +98,6 @@ TitleWidget::TitleWidget(Window *window)
 
 void TitleWidget::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
-
 	p.fillRect(QRect(0, 0, width(), st::titleHeight), st::titleBG->b);
 	if (!_cancel.isHidden()) {
 		p.setPen(st::titleTextButton.color->p);
@@ -364,7 +367,7 @@ void TitleWidget::maximizedChanged(bool maximized, bool force) {
 HitTestType TitleWidget::hitTest(const QPoint &p) {
 	if (App::wnd() && App::wnd()->layerShown()) return HitTestNone;
 
-	int x(p.x()), y(p.y()), w(width()), h(height() - st::titleShadow);
+	int x(p.x()), y(p.y()), w(width()), h(height());
 	if (cWideMode() && hider && x >= App::main()->dlgsWidth()) return HitTestNone;
 
 	if (x >= st::titleIconPos.x() && y >= st::titleIconPos.y() && x < st::titleIconPos.x() + st::titleIconImg.pxWidth() && y < st::titleIconPos.y() + st::titleIconImg.pxHeight()) {

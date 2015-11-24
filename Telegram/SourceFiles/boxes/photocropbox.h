@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -24,7 +27,8 @@ class PhotoCropBox : public AbstractBox {
 
 public:
 
-	PhotoCropBox(const QImage &img, const PeerId &peer, bool upload = true);
+	PhotoCropBox(const QImage &img, const PeerId &peer);
+	PhotoCropBox(const QImage &img, PeerData *peer);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
@@ -50,12 +54,14 @@ protected:
 
 private:
 
+	void init(const QImage &img, PeerData *peer);
+
 	QString _title;
 	int32 _downState;
 	int32 _thumbx, _thumby, _thumbw, _thumbh;
 	int32 _cropx, _cropy, _cropw;
 	int32 _fromposx, _fromposy, _fromcropx, _fromcropy, _fromcropw;
-	FlatButton _sendButton, _cancelButton;
+	BoxButton _done, _cancel;
 	QImage _img;
 	QPixmap _thumb;
 	PeerId _peerId;

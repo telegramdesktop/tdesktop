@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "msmain.h"
 #include <QtCore/QDir>
@@ -52,7 +55,7 @@ int main(int argc, char *argv[]) {
 #endif
 	QObject *taskImpl = new GenStyles(classes_in, classes_out, styles_in, styles_out, path_to_sprites);
 
-	QGuiApplication a(argc, argv);
+	QCoreApplication a(argc, argv);
 
 	QObject::connect(taskImpl, SIGNAL(finished()), &a, SLOT(quit()));
 	QTimer::singleShot(0, taskImpl, SLOT(run()));

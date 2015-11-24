@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "mtpDC.h"
@@ -146,10 +149,11 @@ namespace {
 
 		const MTPDconfig &data(result.c_config());
 
-		DEBUG_LOG(("MTP Info: got config, chat_size_max: %1, date: %2, test_mode: %3, this_dc: %4, dc_options.length: %5").arg(data.vchat_size_max.v).arg(data.vdate.v).arg(data.vtest_mode.v).arg(data.vthis_dc.v).arg(data.vdc_options.c_vector().v.size()));
+		DEBUG_LOG(("MTP Info: got config, chat_size_max: %1, date: %2, test_mode: %3, this_dc: %4, dc_options.length: %5").arg(data.vchat_size_max.v).arg(data.vdate.v).arg(mtpIsTrue(data.vtest_mode)).arg(data.vthis_dc.v).arg(data.vdc_options.c_vector().v.size()));
 
 		mtpUpdateDcOptions(data.vdc_options.c_vector().v);
 		cSetMaxGroupCount(data.vchat_size_max.v);
+		cSetMaxMegaGroupCount(data.vmegagroup_size_max.v);
 
 		configLoadedOnce = true;
 		Local::writeSettings();
@@ -157,7 +161,7 @@ namespace {
 		mtpConfigLoader()->done();
 	}
 	bool configFailed(const RPCError &error) {
-		if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+		if (mtpIsFlood(error)) return false;
 
 		loadingConfig = false;
 		LOG(("MTP Error: failed to get config!"));

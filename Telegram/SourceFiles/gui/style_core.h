@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -68,6 +71,8 @@ namespace style {
 			return !!ptr;
 		}
 
+		operator const QFont &() const;
+
 	private:
 		FontData *ptr;
 
@@ -104,14 +109,24 @@ namespace style {
 	class FontData {
 	public:
 
-		int32 width(const QString &str, int32 from, int32 to) {
-			return m.width(str.mid(from, to));
+		int32 width(const QString &str) const {
+			return m.width(str);
+		}
+		int32 width(const QString &str, int32 from, int32 to) const {
+			return width(str.mid(from, to));
+		}
+		int32 width(QChar ch) const {
+			return m.width(ch);
+		}
+		QString elided(const QString &str, int32 width, Qt::TextElideMode mode = Qt::ElideRight) const {
+			return m.elidedText(str, mode, width);
 		}
 
 		Font bold(bool set = true) const;
 		Font italic(bool set = true) const;
 		Font underline(bool set = true) const;
 
+		uint32 size() const;
 		uint32 flags() const;
 		uint32 family() const;
 
@@ -130,12 +145,16 @@ namespace style {
 
 	};
 
-inline bool operator==(const Font &a, const Font &b) {
-	return a.v() == b.v();
-}
-inline bool operator!=(const Font &a, const Font &b) {
-	return a.v() != b.v();
-}
+	inline bool operator==(const Font &a, const Font &b) {
+		return a.v() == b.v();
+	}
+	inline bool operator!=(const Font &a, const Font &b) {
+		return a.v() != b.v();
+	}
+
+	inline Font::operator const QFont &() const {
+		return ptr->f;
+	}
 
 	class ColorData;
 	class Color {
@@ -150,6 +169,9 @@ inline bool operator!=(const Font &a, const Font &b) {
 
 		void set(const QColor &newv);
 		void set(uchar r, uchar g, uchar b, uchar a = 255);
+
+		operator const QBrush &() const;
+		operator const QPen &() const;
 
 		ColorData *operator->() const {
 			return ptr;
@@ -204,6 +226,12 @@ inline bool operator!=(const Font &a, const Font &b) {
 		return a->c != b->c;
 	}
 
+	inline Color::operator const QBrush &() const {
+		return ptr->b;
+	}
+	inline Color::operator const QPen &() const {
+		return ptr->p;
+	}
 
 	typedef QVector<QString> FontFamilies;
 	extern FontFamilies _fontFamilies;

@@ -16,9 +16,9 @@ or download in ZIP and extract to **/Users/user/TBuild** rename **tdesktop-maste
 
 In your build Terminal run
 
-    MACOSX_DEPLOYMENT_TARGET=10.7
+    MACOSX_DEPLOYMENT_TARGET=10.8
 
-to set minimal supported OS version to 10.7 for future console builds.
+to set minimal supported OS version to 10.8 for future console builds.
 
 ####OpenSSL 1.0.1g
 
@@ -83,7 +83,7 @@ to have **/Users/user/TBuild/Libraries/openal-soft/CMakeLists.txt**
 
 In Terminal go to **/Users/user/TBuild/Libraries/openal-soft/build** and there run
 
-    cmake -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.7 ..
+    cmake -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.8 ..
     make
     sudo make install
 
@@ -131,31 +131,32 @@ Then in Terminal go to **/Users/user/TBuild/Libraries/ffmpeg-2.6.3** and run
     LDFLAGS=`freetype-config --libs`
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/usr/X11/lib/pkgconfig
 
-    ./configure --prefix=/usr/local --disable-programs --disable-everything --enable-libopus --enable-decoder=aac --enable-decoder=aac_latm --enable-decoder=aasc --enable-decoder=mp1 --enable-decoder=mp1float --enable-decoder=mp2 --enable-decoder=mp2float --enable-decoder=mp3 --enable-decoder=mp3adu --enable-decoder=mp3adufloat --enable-decoder=mp3float --enable-decoder=mp3on4 --enable-decoder=mp3on4float --enable-decoder=wavpack --enable-decoder=opus --enable-decoder=vorbis --enable-decoder=wmalossless --enable-decoder=wmapro --enable-decoder=wmav1 --enable-decoder=wmav2 --enable-decoder=wmavoice --enable-decoder=flac --enable-encoder=libopus --enable-parser=aac --enable-parser=aac_latm --enable-parser=mpegaudio --enable-parser=opus --enable-parser=vorbis --enable-parser=flac --enable-demuxer=aac --enable-demuxer=wav --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=mov --enable-demuxer=flac --enable-muxer=ogg --enable-muxer=opus --extra-cflags="-mmacosx-version-min=10.7" --extra-cxxflags="-mmacosx-version-min=10.7" --extra-ldflags="-mmacosx-version-min=10.7"
+    ./configure --prefix=/usr/local --disable-programs --disable-everything --enable-libopus --enable-decoder=aac --enable-decoder=aac_latm --enable-decoder=aasc --enable-decoder=mp1 --enable-decoder=mp1float --enable-decoder=mp2 --enable-decoder=mp2float --enable-decoder=mp3 --enable-decoder=mp3adu --enable-decoder=mp3adufloat --enable-decoder=mp3float --enable-decoder=mp3on4 --enable-decoder=mp3on4float --enable-decoder=wavpack --enable-decoder=opus --enable-decoder=vorbis --enable-decoder=wmalossless --enable-decoder=wmapro --enable-decoder=wmav1 --enable-decoder=wmav2 --enable-decoder=wmavoice --enable-decoder=flac --enable-encoder=libopus --enable-parser=aac --enable-parser=aac_latm --enable-parser=mpegaudio --enable-parser=opus --enable-parser=vorbis --enable-parser=flac --enable-demuxer=aac --enable-demuxer=wav --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=mov --enable-demuxer=flac --enable-muxer=ogg --enable-muxer=opus --extra-cflags="-mmacosx-version-min=10.8" --extra-cxxflags="-mmacosx-version-min=10.8" --extra-ldflags="-mmacosx-version-min=10.8"
 
     make
     sudo make install
 
-####Qt 5.5.0, slightly patched
+####Qt 5.5.1, slightly patched
 
-http://download.qt-project.org/official_releases/qt/5.5/5.5.0/single/qt-everywhere-opensource-src-5.5.0.tar.gz
+In Terminal go to **/Users/user/TBuild/Libraries** and run
 
-Extract to **/Users/user/TBuild/Libraries**, rename **qt-everywhere-opensource-src-5.5.0** to **QtStatic** to have **/Users/user/TBuild/Libraries/QtStatic/qtbase** folder
+    git clone git://code.qt.io/qt/qt5.git QtStatic
+    cd QtStatic
+    git checkout 5.5
+    perl init-repository --module-subset=qtbase,qtimageformats
+    git checkout v5.5.1
+    cd qtimageformats && git checkout v5.5.1 && cd ..
+    cd qtbase && git checkout v5.5.1 && cd ..
 
-Apply patch:
+#####Apply the patch
 
-* OR copy (with overwrite!) everything from **/Users/user/TBuild/tdesktop/\_qt\_5\_5\_0\_patch/** to **/Users/user/TBuild/Libraries/QtStatic/**
-* OR copy **/Users/user/TBuild/tdesktop/\_qt\_5\_5\_0\_patch.diff** to **/Users/user/TBuild/Libraries/QtStatic/**, go there in Terminal and run
-
-    git apply _qt_5_5_0_patch.diff
+    cd qtbase && git apply ../../../tdesktop/Telegram/_qtbase_5_5_1_patch.diff && cd ..
 
 #####Building library
 
-In Terminal go to **/Users/user/TBuild/Libraries/QtStatic** and there run
-
     ./configure -debug-and-release -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang
-    make -j4 module-qtbase module-qtimageformats
-    sudo make module-qtbase-install_subtargets module-qtimageformats-install_subtargets
+    make -j4
+    sudo make -j4 install
 
 building (**make** command) will take really long time.
 

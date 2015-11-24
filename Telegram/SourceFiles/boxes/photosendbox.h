@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -25,19 +28,29 @@ class PhotoSendBox : public AbstractBox {
 
 public:
 
-	PhotoSendBox(const ReadyLocalMedia &img);
+	PhotoSendBox(const FileLoadResultPtr &file);
 	PhotoSendBox(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
-	~PhotoSendBox();
+
+	void setInnerFocus() {
+		if (_caption.isHidden()) {
+			setFocus();
+		} else {
+			_caption.setFocus();
+		}
+	}
 
 signals:
 
 	void confirmed();
+	void cancelled();
 
 public slots:
 
+	void onCompressedChange();
+	void onCaptionResized();
 	void onSend(bool ctrlShiftEnter = false);
 
 protected:
@@ -45,19 +58,25 @@ protected:
 	void closePressed();
 	void hideAll();
 	void showAll();
+	void showDone();
 
 private:
 
-	ReadyLocalMedia *_img;
+	void updateBoxSize();
+
+	FileLoadResultPtr _file;
 	int32 _thumbx, _thumby, _thumbw, _thumbh;
 	QString _name, _size;
 	int32 _namew, _textw;
-	FlatCheckbox _compressed;
-	FlatButton _sendButton, _cancelButton;
+	InputArea _caption;
+	bool _compressedFromSettings;
+	Checkbox _compressed;
+	BoxButton _send, _cancel;
 	QPixmap _thumb;
 
 	QString _phone, _fname, _lname;
 	MsgId _replyTo;
 
+	bool _confirmed;
 
 };

@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -85,7 +88,7 @@ void IntroSignup::mousePressEvent(QMouseEvent *e) {
 			showError(lang(lng_bad_photo));
 			return;
 		}
-		PhotoCropBox *box = new PhotoCropBox(img, 0);
+		PhotoCropBox *box = new PhotoCropBox(img, PeerId(0));
 		connect(box, SIGNAL(ready(const QImage &)), this, SLOT(onPhotoReady(const QImage &)));
 		App::wnd()->showLayer(box);
 	}
@@ -239,7 +242,7 @@ void IntroSignup::nameSubmitDone(const MTPauth_Authorization &result) {
 	first.setDisabled(false);
 	last.setDisabled(false);
 	const MTPDauth_authorization &d(result.c_auth_authorization());
-	if (d.vuser.type() != mtpc_user || !(d.vuser.c_user().vflags.v & MTPDuser_flag_self)) { // wtf?
+	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
 		showError(lang(lng_server_error));
 		return;
 	}
@@ -262,7 +265,7 @@ bool IntroSignup::nameSubmitFail(const RPCError &error) {
 		showError(lang(lng_bad_name));
 		last.setFocus();
 		return true;
-	} else if (error.type().startsWith(qsl("FLOOD_WAIT_"))) {
+	} else if (mtpIsFlood(error)) {
 		showError(lang(lng_flood_error));
 		if (_invertOrder) {
 			first.setFocus();

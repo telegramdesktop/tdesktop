@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -40,7 +43,7 @@ struct StorageImageLocation {
 };
 
 inline bool operator==(const StorageImageLocation &a, const StorageImageLocation &b) {
-	return !memcmp(&a, &b, sizeof(StorageImageLocation));
+	return (a.width == b.width) && (a.height == b.height) && (a.dc == b.dc) && (a.volume == b.volume) && (a.local == b.local) && (a.secret == b.secret);
 }
 inline bool operator!=(const StorageImageLocation &a, const StorageImageLocation &b) {
 	return !(a == b);
@@ -117,7 +120,8 @@ public:
 	LocalImage(const QString &file, QByteArray format = QByteArray());
 	LocalImage(const QByteArray &filecontent, QByteArray format = QByteArray());
 	LocalImage(const QPixmap &pixmap, QByteArray format = QByteArray());
-	
+	LocalImage(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap);
+
 	int32 width() const;
 	int32 height() const;
 
@@ -143,6 +147,7 @@ private:
 LocalImage *getImage(const QString &file, QByteArray format);
 LocalImage *getImage(const QByteArray &filecontent, QByteArray format);
 LocalImage *getImage(const QPixmap &pixmap, QByteArray format);
+LocalImage *getImage(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap);
 
 typedef QPair<uint64, uint64> StorageKey;
 inline uint64 storageMix32To64(int32 a, int32 b) {
@@ -158,55 +163,6 @@ inline StorageKey storageKey(const StorageImageLocation &location) {
 	return storageKey(location.dc, location.volume, location.local);
 }
 
-enum StorageFileType {
-	StorageFileUnknown = 0xaa963b05, // mtpc_storage_fileUnknown
-	StorageFileJpeg    = 0x7efe0e,   // mtpc_storage_fileJpeg
-	StorageFileGif     = 0xcae1aadf, // mtpc_storage_fileGif
-	StorageFilePng     = 0xa4f63c0,  // mtpc_storage_filePng
-	StorageFilePdf     = 0xae1e508d, // mtpc_storage_filePdf
-	StorageFileMp3     = 0x528a0677, // mtpc_storage_fileMp3
-	StorageFileMov     = 0x4b09ebbc, // mtpc_storage_fileMov
-	StorageFilePartial = 0x40bc6f52, // mtpc_storage_filePartial
-	StorageFileMp4     = 0xb3cea0e4, // mtpc_storage_fileMp4
-	StorageFileWebp    = 0x1081464c, // mtpc_storage_fileWebp
-};
-inline StorageFileType mtpToStorageType(mtpTypeId type) {
-	switch (type) {
-	case mtpc_storage_fileJpeg: return StorageFileJpeg;
-	case mtpc_storage_fileGif: return StorageFileGif;
-	case mtpc_storage_filePng: return StorageFilePng;
-	case mtpc_storage_filePdf: return StorageFilePdf;
-	case mtpc_storage_fileMp3: return StorageFileMp3;
-	case mtpc_storage_fileMov: return StorageFileMov;
-	case mtpc_storage_filePartial: return StorageFilePartial;
-	case mtpc_storage_fileMp4: return StorageFileMp4;
-	case mtpc_storage_fileWebp: return StorageFileWebp;
-	case mtpc_storage_fileUnknown:
-	default: return StorageFileUnknown;
-	}
-}
-inline mtpTypeId mtpFromStorageType(StorageFileType type) {
-	switch (type) {
-	case StorageFileGif: return mtpc_storage_fileGif;
-	case StorageFilePng: return mtpc_storage_filePng;
-	case StorageFilePdf: return mtpc_storage_filePdf;
-	case StorageFileMp3: return mtpc_storage_fileMp3;
-	case StorageFileMov: return mtpc_storage_fileMov;
-	case StorageFilePartial: return mtpc_storage_filePartial;
-	case StorageFileMp4: return mtpc_storage_fileMp4;
-	case StorageFileWebp: return mtpc_storage_fileWebp;
-	case StorageFileUnknown:
-	default: return mtpc_storage_fileUnknown;
-	}
-}
-struct StorageImageSaved {
-	StorageImageSaved() : type(StorageFileUnknown) {
-	}
-	StorageImageSaved(StorageFileType type, const QByteArray &data) : type(type), data(data) {
-	}
-	StorageFileType type;
-	QByteArray data;
-};
 class StorageImage : public Image {
 public:
 
@@ -269,6 +225,8 @@ public:
 	}
 	ImagePtr(const QByteArray &filecontent, QByteArray format = QByteArray()) : Parent(getImage(filecontent, format)) {
 	}
+	ImagePtr(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap) : Parent(getImage(filecontent, format, pixmap)) {
+	}
 	ImagePtr(const QPixmap &pixmap, QByteArray format) : Parent(getImage(pixmap, format)) {
 	}
 	ImagePtr(const StorageImageLocation &location, int32 size = 0) : Parent(getImage(location, size)) {
@@ -327,29 +285,6 @@ inline bool operator!=(const FileLocation &a, const FileLocation &b) {
 	return !(a == b);
 }
 
-enum LocationType {
-	UnknownFileLocation  = 0,
-	DocumentFileLocation = 0x4e45abe9, // mtpc_inputDocumentFileLocation
-	AudioFileLocation    = 0x74dc404d, // mtpc_inputAudioFileLocation
-	VideoFileLocation    = 0x3d0364ec, // mtpc_inputVideoFileLocation
-};
-inline LocationType mtpToLocationType(mtpTypeId type) {
-	switch (type) {
-	case mtpc_inputDocumentFileLocation: return DocumentFileLocation;
-	case mtpc_inputAudioFileLocation: return AudioFileLocation;
-	case mtpc_inputVideoFileLocation: return VideoFileLocation;
-	default: return UnknownFileLocation;
-	}
-}
-inline mtpTypeId mtpFromLocationType(LocationType type) {
-	switch (type) {
-	case DocumentFileLocation: return mtpc_inputDocumentFileLocation;
-	case AudioFileLocation: return mtpc_inputAudioFileLocation;
-	case VideoFileLocation: return mtpc_inputVideoFileLocation;
-	case UnknownFileLocation:
-	default: return 0;
-	}
-}
 typedef QPair<uint64, uint64> MediaKey;
 inline uint64 mediaMix32To64(int32 a, int32 b) {
 	return (uint64(*reinterpret_cast<uint32*>(&a)) << 32) | uint64(*reinterpret_cast<uint32*>(&b));

@@ -40,6 +40,12 @@
     <Filter Include="langs">
       <UniqueIdentifier>{67311646-a8af-4626-976d-0a5733bf90e8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resources">
+      <UniqueIdentifier>{df139398-6d5d-4bd5-8abe-b509b102f5d8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Version">
+      <UniqueIdentifier>{9d7bbb7d-817b-4f19-a719-74e674bdc84b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SourceFiles\main.cpp">
@@ -82,9 +88,6 @@
       <Filter>Generated Files</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\gui\flatinput.cpp">
-      <Filter>gui</Filter>
-    </ClCompile>
-    <ClCompile Include="SourceFiles\gui\phoneinput.cpp">
       <Filter>gui</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\gui\countryinput.cpp">
@@ -316,15 +319,6 @@
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_photocropbox.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_phoneinput.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_phoneinput.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_phoneinput.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_mtpSession.cpp">
@@ -663,18 +657,6 @@
     <ClCompile Include="GeneratedFiles\Release\moc_audio.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\gui\contextmenu.cpp">
-      <Filter>gui</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_contextmenu.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_contextmenu.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_contextmenu.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\mtproto\mtpCoreTypes.cpp">
       <Filter>mtproto</Filter>
     </ClCompile>
@@ -906,6 +888,18 @@
     <ClCompile Include="GeneratedFiles\numbers.cpp">
       <Filter>Generated Files</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_popupmenu.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_popupmenu.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_popupmenu.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\gui\popupmenu.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -919,9 +913,6 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\mtproto\mtpAuthKey.h">
       <Filter>mtproto</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\config.h">
-      <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\logs.h">
       <Filter>Source Files</Filter>
@@ -995,6 +986,9 @@
     <ClInclude Include="SourceFiles\numbers.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\config.h">
+      <Filter>Version</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="SourceFiles\mtproto\mtpConnection.h">
@@ -1018,12 +1012,7 @@
     <CustomBuild Include="SourceFiles\gui\flatbutton.h">
       <Filter>gui</Filter>
     </CustomBuild>
-    <CustomBuild Include="Resources\style_classes.txt" />
-    <CustomBuild Include="Resources\style.txt" />
     <CustomBuild Include="SourceFiles\gui\flatinput.h">
-      <Filter>gui</Filter>
-    </CustomBuild>
-    <CustomBuild Include="SourceFiles\gui\phoneinput.h">
       <Filter>gui</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\gui\countryinput.h">
@@ -1143,9 +1132,6 @@
     <CustomBuild Include="SourceFiles\audio.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
-    <CustomBuild Include="SourceFiles\gui\contextmenu.h">
-      <Filter>gui</Filter>
-    </CustomBuild>
     <CustomBuild Include="SourceFiles\boxes\usernamebox.h">
       <Filter>boxes</Filter>
     </CustomBuild>
@@ -1158,10 +1144,6 @@
     <CustomBuild Include="SourceFiles\localstorage.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
-    <CustomBuild Include="Resources\lang.strings" />
-    <CustomBuild Include="SourceFiles\telegram.qrc" />
-    <CustomBuild Include="SourceFiles\telegram_emojis.qrc" />
-    <CustomBuild Include="SourceFiles\telegram_wnd.qrc" />
     <CustomBuild Include="SourceFiles\boxes\languagebox.h">
       <Filter>boxes</Filter>
     </CustomBuild>
@@ -1204,13 +1186,30 @@
     <CustomBuild Include="SourceFiles\playerwidget.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
-    <CustomBuild Include="Resources\numbers.txt" />
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="SourceFiles\art\icon256.ico" />
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="Telegram.rc" />
+    <CustomBuild Include="Resources\lang.strings">
+      <Filter>Resources</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Resources\numbers.txt">
+      <Filter>Resources</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Resources\style.txt">
+      <Filter>Resources</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Resources\style_classes.txt">
+      <Filter>Resources</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\telegram.qrc">
+      <Filter>Resources</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\telegram_emojis.qrc">
+      <Filter>Resources</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\telegram_wnd.qrc">
+      <Filter>Resources</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\gui\popupmenu.h">
+      <Filter>gui</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <None Include="SourceFiles\langs\lang_it.strings">
@@ -1234,5 +1233,30 @@
     <None Include="SourceFiles\pspecific_mac_p.mm">
       <Filter>Source Files</Filter>
     </None>
+    <None Include="Telegram.xcodeproj\project.pbxproj">
+      <Filter>Version</Filter>
+    </None>
+    <None Include="Telegram.plist">
+      <Filter>Version</Filter>
+    </None>
+    <None Include="Version">
+      <Filter>Version</Filter>
+    </None>
+    <None Include="Telegram.xcodeproj\qt_preprocess.mak">
+      <Filter>Version</Filter>
+    </None>
+    <None Include="Telegram.pro">
+      <Filter>Version</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="SourceFiles\art\icon256.ico">
+      <Filter>Resources</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Telegram.rc">
+      <Filter>Version</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

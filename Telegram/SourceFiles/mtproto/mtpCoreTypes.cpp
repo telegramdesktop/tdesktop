@@ -12,8 +12,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "mtpCoreTypes.h"
@@ -64,12 +67,6 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 		}
 	} break;
 
-	case mtpc_boolTrue:
-	case mtpc_boolFalse: {
-		MTPbool value(from, end, cons);
-		to.add(value.v ? "[TRUE]" : "[FALSE]");
-	} break;
-
 	case mtpc_vector: {
 		if (from >= end) {
 			throw Exception("from >= end in vector");
@@ -87,20 +84,6 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 			to.add(" ");
 		}
 		to.add("]");
-	} break;
-
-	case mtpc_error: {
-		to.add("{ error");
-		to.add("\n").addSpaces(level);
-		to.add("  code: "); mtpTextSerializeType(to, from, end, mtpc_int, level + 1); to.add(",\n").addSpaces(level);
-		to.add("  text: "); mtpTextSerializeType(to, from, end, mtpc_string, level + 1); to.add(",\n").addSpaces(level);
-		to.add("}");
-	} break;
-
-	case mtpc_null: {
-		to.add("{ null");
-		to.add(" ");
-		to.add("}");
 	} break;
 
 	case mtpc_gzip_packed: {
