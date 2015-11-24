@@ -168,10 +168,9 @@ private:
 	QString _errorText;
 
 	// migrate to megagroup
-	bool _showMigrate;
+	bool _showMigrate, _forceShowMigrate;
 	Text _aboutMigrate;
 	FlatButton _migrate;
-
 
 	// settings
 	FlatCheckbox _enableNotifications;
@@ -208,6 +207,8 @@ private:
 	QString _onlineText;
 	PopupMenu *_menu;
 
+	QString _secretText;
+
 	void blockDone(bool blocked, const MTPBool &result);
 	bool blockFail(const RPCError &error);
 
@@ -225,6 +226,7 @@ public:
 	void paintEvent(QPaintEvent *e);
     void dragEnterEvent(QDragEnterEvent *e);
     void dropEvent(QDropEvent *e);
+	void keyPressEvent(QKeyEvent *e);
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
 	void topBarClick();

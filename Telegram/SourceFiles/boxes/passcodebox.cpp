@@ -356,6 +356,7 @@ void PasscodeBox::onSave(bool force) {
 		return;
 	}
 	if (pwd != conf) {
+		_reenterPasscode.selectAll();
 		_reenterPasscode.setFocus();
 		_reenterPasscode.showError();
 		if (!conf.isEmpty()) {
@@ -603,6 +604,8 @@ bool RecoverBox::codeSubmitFail(const RPCError &error) {
 	} else if (err == "CODE_INVALID") {
 		_error = lang(lng_signin_wrong_code);
 		update();
+		_recoverCode.selectAll();
+		_recoverCode.setFocus();
 		_recoverCode.showError();
 		return true;
 	} else if (mtpIsFlood(error)) {

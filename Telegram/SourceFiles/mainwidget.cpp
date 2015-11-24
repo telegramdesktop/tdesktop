@@ -318,7 +318,7 @@ void TopBarWidget::showAll() {
 		_forward.hide();
 		_mediaType.hide();
 	} else {
-		if (p && p->isChannel() && p->asChannel()->amCreator()) {
+		if (p && p->isChannel() && (p->asChannel()->amCreator() || (p->isMegagroup() && p->asChannel()->amEditor()))) {
 			_edit.show();
 		} else {
 			_edit.hide();
@@ -2090,8 +2090,8 @@ void MainWidget::updateReplyTo() {
 	history.updateReplyTo(true);
 }
 
-void MainWidget::updateBotKeyboard() {
-	history.updateBotKeyboard();
+void MainWidget::updateBotKeyboard(History *h) {
+	history.updateBotKeyboard(h);
 }
 
 void MainWidget::pushReplyReturn(HistoryItem *item) {
@@ -2411,7 +2411,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 			_peerInStack = history.peer();
 			_msgIdInStack = history.msgId();
 			dlgUpdated();
-			_stack.push_back(new StackItemHistory(_peerInStack, _msgIdInStack, history.replyReturns(), history.kbWasHidden()));
+			_stack.push_back(new StackItemHistory(_peerInStack, _msgIdInStack, history.replyReturns()));
 		}
 	}
 	if (overview) {
@@ -2467,7 +2467,7 @@ void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop)
 			_peerInStack = history.peer();
 			_msgIdInStack = history.msgId();
 			dlgUpdated();
-			_stack.push_back(new StackItemHistory(_peerInStack, _msgIdInStack, history.replyReturns(), history.kbWasHidden()));
+			_stack.push_back(new StackItemHistory(_peerInStack, _msgIdInStack, history.replyReturns()));
 		}
 	}
 	if (overview) {
@@ -2521,7 +2521,6 @@ void MainWidget::showBackFromStack() {
 		StackItemHistory *histItem = static_cast<StackItemHistory*>(item);
 		showPeerHistory(histItem->peer->id, App::main()->activeMsgId(), true);
 		history.setReplyReturns(histItem->peer->id, histItem->replyReturns);
-		if (histItem->kbWasHidden) history.setKbWasHidden();
 	} else if (item->type() == ProfileStackItem) {
 		StackItemProfile *profItem = static_cast<StackItemProfile*>(item);
 		showPeerProfile(profItem->peer, true, profItem->lastScrollTop);

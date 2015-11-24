@@ -152,6 +152,7 @@ private:
 	struct ContactData {
 		Text name;
 		QString online;
+		bool onlineColor;
 		bool inchat;
 		bool check;
 	};
@@ -370,6 +371,7 @@ private:
 	struct MemberData {
 		Text name;
 		QString online;
+		bool onlineColor;
 		bool canKick;
 	};
 

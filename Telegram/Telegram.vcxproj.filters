@@ -914,9 +914,6 @@
     <ClInclude Include="SourceFiles\mtproto\mtpAuthKey.h">
       <Filter>mtproto</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\config.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="SourceFiles\logs.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -988,6 +985,9 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\numbers.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\config.h">
+      <Filter>Version</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

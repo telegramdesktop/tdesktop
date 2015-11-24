@@ -354,13 +354,15 @@ public:
 		}
 	}
 
-	void checkCommand() {
-		QChar c = ((ptr < end) ? *ptr : 0);
-		while (c == TextCommand) {
+	bool checkCommand() {
+		bool result = false;
+		for (QChar c = ((ptr < end) ? *ptr : 0); c == TextCommand; c = ((ptr < end) ? *ptr : 0)) {
 			if (!readCommand()) {
 				break;
 			}
+			result = true;
 		}
+		return result;
 	}
 
 	void checkEntities() {
@@ -694,7 +696,11 @@ public:
 		while (waitingEntity != entitiesEnd && waitingEntity->length <= 0) ++waitingEntity;
 		for (; ptr <= end; ++ptr) {
 			checkEntities();
-			if (rich) checkCommand();
+			if (rich) {
+				if (checkCommand()) {
+					checkEntities();
+				}
+			}
 			parseCurrentChar();
 			parseEmojiFromCurrent();
 
@@ -4476,6 +4482,47 @@ goodCanBreakEntity = canBreakEntity;\
 	return true;
 }
 
+bool textcmdStartsLink(const QChar *start, int32 len, int32 commandOffset) {
+	if (commandOffset + 2 < len) {
+		if (*(start + commandOffset + 1) == TextCommandLinkIndex) {
+			return (*(start + commandOffset + 2) != 0);
+		}
+		return (*(start + commandOffset + 1) != TextCommandLinkText);
+	}
+	return false;
+}
+
+bool checkTagStartInCommand(const QChar *start, int32 len, int32 tagStart, int32 &commandOffset, bool &commandIsLink, bool &inLink) {
+	bool inCommand = false;
+	const QChar *commandEnd = start + commandOffset;
+	while (commandOffset < len && tagStart > commandOffset) { // skip commands, evaluating are we in link or not
+		commandEnd = textSkipCommand(start + commandOffset, start + len);
+		if (commandEnd > start + commandOffset) {
+			if (tagStart < (commandEnd - start)) {
+				inCommand = true;
+				break;
+			}
+			for (commandOffset = commandEnd - start; commandOffset < len; ++commandOffset) {
+				if (*(start + commandOffset) == TextCommand) {
+					inLink = commandIsLink;
+					commandIsLink = textcmdStartsLink(start, len, commandOffset);
+					break;
+				}
+			}
+			if (commandOffset >= len) {
+				inLink = commandIsLink;
+				commandIsLink = false;
+			}
+		} else {
+			break;
+		}
+	}
+	if (inCommand) {
+		commandOffset = commandEnd - start;
+	}
+	return inCommand;
+}
+
 EntitiesInText textParseEntities(QString &text, int32 flags, bool rich) { // some code is duplicated in flattextarea.cpp!
 	EntitiesInText result, mono;
 
@@ -4487,14 +4534,21 @@ EntitiesInText textParseEntities(QString &text, int32 flags, bool rich) { // som
 	if (withMono) { // parse mono entities (code and pre)
 		QString newText;
 
-		int32 offset = 0, matchOffset = offset, len = text.size(), nextCmd = rich ? 0 : len;
+		int32 offset = 0, matchOffset = offset, len = text.size(), commandOffset = rich ? 0 : len;
+		bool inLink = false, commandIsLink = false;
 		const QChar *start = text.constData();
 		for (; matchOffset < len;) {
-			if (nextCmd <= matchOffset) {
-				for (nextCmd = matchOffset; nextCmd < len; ++nextCmd) {
-					if (*(start + nextCmd) == TextCommand) {
+			if (commandOffset <= matchOffset) {
+				for (commandOffset = matchOffset; commandOffset < len; ++commandOffset) {
+					if (*(start + commandOffset) == TextCommand) {
+						inLink = commandIsLink;
+						commandIsLink = textcmdStartsLink(start, len, commandOffset);
 						break;
 					}
+				}
+				if (commandOffset >= len) {
+					inLink = commandIsLink;
+					commandIsLink = false;
 				}
 			}
 			QRegularExpressionMatch mPre = _rePre.match(text, matchOffset);
@@ -4533,12 +4587,11 @@ EntitiesInText textParseEntities(QString &text, int32 flags, bool rich) { // som
 				tagEnd = codeEnd;
 				mTag = mCode;
 			}
-			if (tagStart > nextCmd) {
-				const QChar *after = textSkipCommand(start + nextCmd, start + len);
-				if (after > start + nextCmd && tagStart < (after - start)) {
-					nextCmd = matchOffset = after - start;
-					continue;
-				}
+
+			bool inCommand = checkTagStartInCommand(start, len, tagStart, commandOffset, commandIsLink, inLink);
+			if (inCommand || inLink) {
+				matchOffset = commandOffset;
+				continue;
 			}
 
 			if (newText.isEmpty()) newText.reserve(text.size());
@@ -4594,12 +4647,15 @@ EntitiesInText textParseEntities(QString &text, int32 flags, bool rich) { // som
 	int32 monoEntity = 0, monoCount = mono.size(), monoTill = 0;
 
 	initLinkSets();
-	int32 len = text.size(), nextCmd = rich ? 0 : len;
+	int32 len = text.size(), commandOffset = rich ? 0 : len;
+	bool inLink = false, commandIsLink = false;
 	const QChar *start = text.constData(), *end = start + text.size();
 	for (int32 offset = 0, matchOffset = offset, mentionSkip = 0; offset < len;) {
-		if (nextCmd <= offset) {
-			for (nextCmd = offset; nextCmd < len; ++nextCmd) {
-				if (*(start + nextCmd) == TextCommand) {
+		if (commandOffset <= offset) {
+			for (commandOffset = offset; commandOffset < len; ++commandOffset) {
+				if (*(start + commandOffset) == TextCommand) {
+					inLink = commandIsLink;
+					commandIsLink = textcmdStartsLink(start, len, commandOffset);
 					break;
 				}
 			}
@@ -4669,47 +4725,40 @@ EntitiesInText textParseEntities(QString &text, int32 flags, bool rich) { // som
 			mDomain = mExplicitDomain;
 		}
 		if (mentionStart < hashtagStart && mentionStart < domainStart && mentionStart < botCommandStart) {
-			if (mentionStart > nextCmd) {
-				const QChar *after = textSkipCommand(start + nextCmd, start + len);
-				if (after > start + nextCmd && mentionStart < (after - start)) {
-					nextCmd = offset = matchOffset = after - start;
-					continue;
-				}
+			bool inCommand = checkTagStartInCommand(start, len, mentionStart, commandOffset, commandIsLink, inLink);
+			if (inCommand || inLink) {
+				offset = matchOffset = commandOffset;
+				continue;
 			}
+
 			lnkType = EntityInTextMention;
 			lnkStart = mentionStart;
 			lnkLength = mentionEnd - mentionStart;
 		} else if (hashtagStart < domainStart && hashtagStart < botCommandStart) {
-			if (hashtagStart > nextCmd) {
-				const QChar *after = textSkipCommand(start + nextCmd, start + len);
-				if (after > start + nextCmd && hashtagStart < (after - start)) {
-					nextCmd = offset = matchOffset = after - start;
-					continue;
-				}
+			bool inCommand = checkTagStartInCommand(start, len, hashtagStart, commandOffset, commandIsLink, inLink);
+			if (inCommand || inLink) {
+				offset = matchOffset = commandOffset;
+				continue;
 			}
 
 			lnkType = EntityInTextHashtag;
 			lnkStart = hashtagStart;
 			lnkLength = hashtagEnd - hashtagStart;
 		} else if (botCommandStart < domainStart) {
-			if (botCommandStart > nextCmd) {
-				const QChar *after = textSkipCommand(start + nextCmd, start + len);
-				if (after > start + nextCmd && botCommandStart < (after - start)) {
-					nextCmd = offset = matchOffset = after - start;
-					continue;
-				}
+			bool inCommand = checkTagStartInCommand(start, len, botCommandStart, commandOffset, commandIsLink, inLink);
+			if (inCommand || inLink) {
+				offset = matchOffset = commandOffset;
+				continue;
 			}
 
 			lnkType = EntityInTextBotCommand;
 			lnkStart = botCommandStart;
 			lnkLength = botCommandEnd - botCommandStart;
 		} else {
-			if (domainStart > nextCmd) {
-				const QChar *after = textSkipCommand(start + nextCmd, start + len);
-				if (after > start + nextCmd && domainStart < (after - start)) {
-					nextCmd = offset = matchOffset = after - start;
-					continue;
-				}
+			bool inCommand = checkTagStartInCommand(start, len, domainStart, commandOffset, commandIsLink, inLink);
+			if (inCommand || inLink) {
+				offset = matchOffset = commandOffset;
+				continue;
 			}
 
 			QString protocol = mDomain.captured(1).toLower();

@@ -252,7 +252,7 @@ bool IntroCode::codeSubmitFail(const RPCError &error) {
 		return true;
 	} else if (err == "PHONE_CODE_EMPTY" || err == "PHONE_CODE_INVALID") {
 		showError(lang(lng_bad_code));
-		code.setFocus();
+		code.notaBene();
 		return true;
 	} else if (err == "PHONE_NUMBER_UNOCCUPIED") { // success, need to signUp
 		intro()->setCode(sentCode);

@@ -388,10 +388,12 @@ ContactsInner::ContactData *ContactsInner::contactData(DialogRow *row) {
 			} else {
 				data->inchat = false;
 			}
+			data->onlineColor = false;
 			data->check = _checkedContacts.contains(peer);
 			data->name.setText(st::contactsNameFont, peer->name, _textNameOptions);
 			if (peer->isUser()) {
 				data->online = App::onlineText(peer->asUser(), _time);
+				data->onlineColor = App::onlineColorUse(peer->asUser(), _time);
 			} else if (peer->isChat()) {
 				ChatData *chat = peer->asChat();
 				if (!chat->amIn()) {
@@ -471,7 +473,7 @@ void ContactsInner::paintDialog(Painter &p, PeerData *peer, ContactData *data, b
 	} else {
 		if (inverse) {
 			p.setPen(st::white);
-		} else if ((user && (uname || App::onlineColorUse(user, _time))) || (peer->isChannel() && uname)) {
+		} else if ((user && (uname || data->onlineColor)) || (peer->isChannel() && uname)) {
 			p.setPen(st::contactsStatusFgOnline);
 		} else {
 			p.setPen(sel ? st::contactsStatusFgOver : st::contactsStatusFg);
@@ -1907,7 +1909,7 @@ void MembersInner::paintDialog(Painter &p, PeerData *peer, MemberData *data, boo
 	}
 
 	p.setFont(st::contactsStatusFont->f);
-	p.setPen(sel ? st::contactsStatusFgOver : st::contactsStatusFg);
+	p.setPen(sel ? st::contactsStatusFgOver : (data->onlineColor ? st::contactsStatusFgOnline : st::contactsStatusFg));
 	p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), data->online);
 }
 
@@ -2028,7 +2030,9 @@ MembersInner::MemberData *MembersInner::data(int32 index) {
 	}
 	MemberData *result = _datas[index] = new MemberData();
 	result->name.setText(st::contactsNameFont, _rows[index]->name, _textNameOptions);
-	result->online = lng_mediaview_date_time(lt_date, _dates[index].date().toString(qsl("dd.MM.yy")), lt_time, _dates[index].time().toString(cTimeFormat()));
+	int32 t = unixtime();
+	result->online = App::onlineText(_rows[index], t);// lng_mediaview_date_time(lt_date, _dates[index].date().toString(qsl("dd.MM.yy")), lt_time, _dates[index].time().toString(cTimeFormat()));
+	result->onlineColor = App::onlineColorUse(_rows[index], t);
 	if (_filter == MembersFilterRecent) {
 		result->canKick = (_channel->amCreator() || _channel->amEditor() || _channel->amModerator()) ? (_roles[index] == MemberRoleNone) : false;
 	} else if (_filter == MembersFilterAdmins) {

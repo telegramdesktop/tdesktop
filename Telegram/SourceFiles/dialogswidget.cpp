@@ -302,7 +302,7 @@ void DialogsInner::searchInPeerPaint(Painter &p, int32 w, bool onlyBackground) c
 	QRect rectForName(nameleft, st::dlgPaddingVer + st::dlgNameTop, namewidth, st::msgNameFont->height);
 
 	// draw chat icon
-	if (_searchInPeer->isChat()) {
+	if (_searchInPeer->isChat() || _searchInPeer->isMegagroup()) {
 		p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), App::sprite(), st::dlgChatImg);
 		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
 	} else if (_searchInPeer->isChannel()) {
