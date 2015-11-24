@@ -520,7 +520,7 @@ public:
 	void insertBotCommand(const QString &cmd);
 
 	bool eventFilter(QObject *obj, QEvent *e);
-	void updateBotKeyboard();
+	void updateBotKeyboard(History *h = 0);
 
 	DragState getDragState(const QMimeData *d);
 

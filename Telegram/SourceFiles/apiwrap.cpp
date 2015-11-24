@@ -522,7 +522,9 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 
 	if (!peer->mgInfo || result.type() != mtpc_channels_channelParticipants) return;
 
+	History *h = 0;
 	if (bots) {
+		h = App::historyLoaded(peer->id);
 		peer->mgInfo->bots.clear();
 		peer->mgInfo->botStatus = -1;
 	} else if (fromStart) {
@@ -536,6 +538,7 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 	App::feedUsers(d.vusers);
 	bool added = false, needBotsInfos = false;
 	int32 botStatus = peer->mgInfo->botStatus;
+	bool keyboardBotFound = !h || !h->lastKeyboardFrom;
 	for (QVector<MTPChannelParticipant>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
 		int32 userId = 0;
 		bool admin = false;
@@ -557,6 +560,9 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 					needBotsInfos = true;
 				}
 			}
+			if (!keyboardBotFound && u->id == h->lastKeyboardFrom) {
+				keyboardBotFound = true;
+			}
 		} else {
 			if (peer->mgInfo->lastParticipants.indexOf(u) < 0) {
 				peer->mgInfo->lastParticipants.push_back(u);
@@ -573,6 +579,10 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 	}
 	if (needBotsInfos) {
 		requestFullPeer(peer);
+	}
+	if (!keyboardBotFound) {
+		h->clearLastKeyboard();
+		if (App::main()) App::main()->updateBotKeyboard(h);
 	}
 	if (d.vcount.v > peer->count) {
 		peer->count = d.vcount.v;

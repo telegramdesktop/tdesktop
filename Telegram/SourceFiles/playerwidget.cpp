@@ -641,7 +641,7 @@ void PlayerWidget::updateState(SongMsgId playing, AudioPlayerState playingState,
 	float64 progress = 0.;
 	int32 loaded;
 	float64 loadProgress = 1.;
-	if (duration || !_song.song->loader) {
+	if (duration || !_song || !_song.song || !_song.song->loader) {
 		time = (_down == OverPlayback) ? _time : formatDurationText(display);
 		progress = duration ? snap(float64(position) / duration, 0., 1.) : 0.;
 		loaded = duration ? _song.song->size : 0;

@@ -386,10 +386,14 @@ History::History(const PeerId &peerId) : width(0), height(0)
 }
 
 void History::clearLastKeyboard() {
+	if (lastKeyboardId) {
+		if (lastKeyboardId == lastKeyboardHiddenId) {
+			lastKeyboardHiddenId = 0;
+		}
+		lastKeyboardId = 0;
+	}
 	lastKeyboardInited = true;
-	lastKeyboardId = 0;
 	lastKeyboardFrom = 0;
-	lastKeyboardHiddenId = 0;
 }
 
 bool History::updateTyping(uint64 ms, uint32 dots, bool force) {
@@ -1545,6 +1549,7 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 				PeerId uid = peerFromUser(d.vuser_id);
 				if (lastKeyboardFrom == uid) {
 					clearLastKeyboard();
+					if (App::main()) App::main()->updateBotKeyboard(this);
 				}
 				if (peer->isMegagroup()) {
 					if (UserData *user = App::userLoaded(uid)) {
@@ -1831,7 +1836,7 @@ HistoryItem *History::addNewItem(HistoryBlock *to, bool newBlock, HistoryItem *a
 					if (peer->isChat()) {
 						botNotInChat = adding->from()->isUser() && (!peer->canWrite() || !peer->asChat()->participants.isEmpty()) && !peer->asChat()->participants.contains(adding->from()->asUser());
 					} else if (peer->isMegagroup()) {
-						botNotInChat = adding->from()->isUser() && (!peer->canWrite() || !peer->asChannel()->mgInfo->bots.isEmpty()) && !peer->asChannel()->mgInfo->bots.contains(adding->from()->asUser());
+						botNotInChat = adding->from()->isUser() && (!peer->canWrite() || peer->asChannel()->mgInfo->botStatus != 0) && !peer->asChannel()->mgInfo->bots.contains(adding->from()->asUser());
 					}
 					if (botNotInChat) {
 						clearLastKeyboard();
@@ -2061,7 +2066,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 										if (peer->isChat()) {
 											botNotInChat = (!peer->canWrite() || !peer->asChat()->participants.isEmpty()) && item->from()->isUser() && !peer->asChat()->participants.contains(item->from()->asUser());
 										} else if (peer->isMegagroup()) {
-											botNotInChat = (!peer->canWrite() || !peer->asChannel()->mgInfo->bots.isEmpty()) && item->from()->isUser() && !peer->asChannel()->mgInfo->bots.contains(item->from()->asUser());
+											botNotInChat = (!peer->canWrite() || peer->asChannel()->mgInfo->botStatus != 0) && item->from()->isUser() && !peer->asChannel()->mgInfo->bots.contains(item->from()->asUser());
 										}
 										if (wasKeyboardHide || botNotInChat) {
 											clearLastKeyboard();
@@ -3021,9 +3026,8 @@ void HistoryItem::destroy() {
 		history()->fixLastMessage(wasAtBottom);
 	}
 	if (history()->lastKeyboardId == id) {
-		history()->lastKeyboardId = 0;
-		history()->lastKeyboardFrom = 0;
-		if (App::main()) App::main()->updateBotKeyboard();
+		history()->clearLastKeyboard();
+		if (App::main()) App::main()->updateBotKeyboard(history());
 	}
 	HistoryMedia *m = getMedia(true);
 	MediaOverviewType t = m ? mediaToOverviewType(m->type()) : OverviewCount;

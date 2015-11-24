@@ -2021,14 +2021,20 @@ namespace Local {
 		if (_localLoader) {
 			_localLoader->stop();
 		}
+
 		_passKeySalt.clear(); // reset passcode, local key
 		_draftsMap.clear();
 		_draftsPositionsMap.clear();
+		_fileLocations.clear();
+		_fileLocationPairs.clear();
+		_fileLocationAliases.clear();
 		_imagesMap.clear();
 		_draftsNotReadMap.clear();
 		_stickerImagesMap.clear();
 		_audiosMap.clear();
+		_storageImagesSize = _storageStickersSize = _storageAudiosSize = 0;
 		_locationsKey = _reportSpamStatusesKey = _recentStickersKeyOld = _stickersKey = _backgroundKey = _userSettingsKey = _recentHashtagsKey = _savedPeersKey = 0;
+		_oldMapVersion = _oldSettingsVersion = 0;
 		_mapChanged = true;
 		_writeMap(WriteMapNow);
 

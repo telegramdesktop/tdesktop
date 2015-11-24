@@ -5871,7 +5871,11 @@ void HistoryWidget::countHistoryShowFrom() {
 	_history->updateShowFrom();
 }
 
-void HistoryWidget::updateBotKeyboard() {
+void HistoryWidget::updateBotKeyboard(History *h) {
+	if (h && h != _history && h != _migrated) {
+		return;
+	}
+
 	bool changed = false;
 	bool wasVisible = _kbShown || _kbReplyTo;
 	if ((_replyToId && !_replyTo) || !_history) {

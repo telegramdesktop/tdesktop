@@ -59,6 +59,8 @@ public:
 	void seek(int64 position); // type == OverviewDocuments
 	void stop(MediaOverviewType type);
 
+	void stopAndClear();
+
 	void currentState(AudioMsgId *audio, AudioPlayerState *state = 0, int64 *position = 0, int64 *duration = 0, int32 *frequency = 0);
 	void currentState(SongMsgId *song, AudioPlayerState *state = 0, int64 *position = 0, int64 *duration = 0, int32 *frequency = 0);
 
@@ -109,11 +111,21 @@ private:
 	bool checkCurrentALError(MediaOverviewType type);
 
 	struct Msg {
-		Msg() : position(0), duration(0), frequency(AudioVoiceMsgFrequency), skipStart(0), skipEnd(0), loading(0), started(0),
-			state(AudioPlayerStopped), source(0), nextBuffer(0) {
+		Msg() : position(0)
+			, duration(0)
+			, frequency(AudioVoiceMsgFrequency)
+			, skipStart(0)
+			, skipEnd(0)
+			, loading(false)
+			, started(0)
+			, state(AudioPlayerStopped)
+			, source(0)
+			, nextBuffer(0) {
 			memset(buffers, 0, sizeof(buffers));
 			memset(samplesCount, 0, sizeof(samplesCount));
 		}
+
+		void clearData();
 
 		QString fname;
 		QByteArray data;
@@ -132,10 +144,18 @@ private:
 	struct AudioMsg : public Msg {
 		AudioMsg() {
 		}
+		void clear() {
+			audio = AudioMsgId();
+			Msg::clearData();
+		}
 		AudioMsgId audio;
 	};
 	struct SongMsg : public Msg {
 		SongMsg() {
+		}
+		void clear() {
+			song = SongMsgId();
+			Msg::clearData();
 		}
 		SongMsgId song;
 	};

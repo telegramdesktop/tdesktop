@@ -2090,8 +2090,8 @@ void MainWidget::updateReplyTo() {
 	history.updateReplyTo(true);
 }
 
-void MainWidget::updateBotKeyboard() {
-	history.updateBotKeyboard();
+void MainWidget::updateBotKeyboard(History *h) {
+	history.updateBotKeyboard(h);
 }
 
 void MainWidget::pushReplyReturn(HistoryItem *item) {

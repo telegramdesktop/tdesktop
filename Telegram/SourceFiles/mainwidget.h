@@ -365,7 +365,7 @@ public:
 
 	ApiWrap *api();
 	void updateReplyTo();
-	void updateBotKeyboard();
+	void updateBotKeyboard(History *h);
 
 	void pushReplyReturn(HistoryItem *item);
 	
