@@ -3264,7 +3264,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	_canSendMessages = canSendMessages(_peer);
 	if (_peer && _peer->isChannel()) {
 		_peer->asChannel()->updateFull();
-		_joinChannel.setText(lang(_peer->isMegagroup() ? lng_group_join : lng_channel_join));
+		_joinChannel.setText(lang(lng_channel_join));
 	}
 
 	_unblockRequest = _reportSpamRequest = 0;

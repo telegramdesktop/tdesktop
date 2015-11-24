@@ -101,9 +101,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_chat_status_members_online" = "{count:_not_used_|# membro|# membri}, {count_online:_not_used_|# in linea|# in linea}";
 
 "lng_channel_status" = "canale";
+"lng_group_status" = "gruppo";
 
 "lng_channel_members_link" = "{count:_not_used_|# membro|# membri} »";
-"lng_channel_admins_link" = "{count:_not_used_|# amministratore|# amministratori} »";
+"lng_channel_admins_link" = "{count:Gestisci amministratori|# amministratore|# amministratori} »";
 
 "lng_server_error" = "Errore interno del server.";
 "lng_flood_error" = "Troppi tentativi. Per favore riprova più tardi.";
@@ -177,6 +178,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_contacts_loading" = "Caricamento..";
 "lng_contacts_not_found" = "Nessun contatto trovato";
 "lng_dlg_search_chat" = "Cerca in questa chat";
+"lng_dlg_search_channel" = "Cerca in questo canale";
 "lng_dlg_search_for_messages" = "Cerca messaggi";
 
 "lng_settings_save" = "Salva";
@@ -215,7 +217,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_settings_section_general" = "Generali";
 "lng_settings_change_lang" = "Cambia lingua";
 "lng_languages" = "Lingue";
-"lng_sure_save_language" = "Telegram si riavvierà\nper cambiare lingua";
+"lng_sure_save_language" = "Telegram si riavvierà per cambiare lingua";
 "lng_settings_auto_update" = "Aggiorna automaticamente";
 "lng_settings_current_version" = "Versione {version}";
 "lng_settings_check_now" = "Cerca aggiornamenti";
@@ -391,6 +393,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_profile_clear_and_exit" = "Elimina ed esci";
 "lng_profile_leave_channel" = "Lascia il canale";
 "lng_profile_delete_channel" = "Elimina canale";
+"lng_profile_leave_group" = "Lascia il gruppo";
+"lng_profile_delete_group" = "Elimina gruppo";
 "lng_profile_search_messages" = "Cerca messaggi";
 "lng_profile_block_user" = "Blocca utente";
 "lng_profile_unblock_user" = "Sblocca utente";
@@ -430,6 +434,11 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_channel_admins" = "Amministratori";
 "lng_channel_add_admin" = "Aggiungi amministratore";
 "lng_channel_admin_sure" = "Aggiungere {user} agli amministratori?";
+"lng_channel_admins_too_much" = "Spiacenti, hai raggiunto il limite di amministratori. Prima devi rimuoverne qualcuno.";
+
+"lng_chat_all_members_admins" = "Tutti sono amministratori";
+"lng_chat_about_all_admins" = "Tutti i membri possono aggiungere nuovi membri, modificare nome e foto del gruppo.";
+"lng_chat_about_admins" = "Solo gli amministratori possono aggiungere e rimuovere membri e modificare nome e foto del gruppo.";
 
 "lng_participant_filter" = "Cerca";
 "lng_participant_invite" = "Invita";
@@ -469,13 +478,20 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_sure_delete_and_exit" = "Sicuro di voler eliminare tutta la cronologia dei messaggi e abbandonare «{group}»?\n\nQuesta azione non può essere annullata.";
 "lng_sure_leave_channel" = "Sei sicuro di voler lasciare\nquesto canale?";
 "lng_sure_delete_channel" = "Sei sicuro di voler eliminare questo canale? Tutti i membri verranno rimossi e i messaggi verranno persi.";
+"lng_sure_leave_group" = "Sicuro di voler lasciare questo gruppo?\nQuesta azione non può essere annullata.";
+"lng_sure_delete_group" = "Sei sicuro di voler eliminare questo gruppo? Tutti i membri verranno rimossi e i messaggi verranno persi.";
 
 "lng_message_empty" = "Messaggio vuoto";
 "lng_media_unsupported" = "Media non supportato";
 
 "lng_action_add_user" = "{from} ha aggiunto {user}";
+"lng_action_add_users_many" = "{from} ha aggiunto {users}";
+"lng_action_add_users_and_one" = "{accumulated}, {user}";
+"lng_action_add_users_and_last" = "{accumulated} e {user}";
 "lng_action_add_you" = "{from} ti ha aggiunto a questo canale";
 "lng_action_you_joined" = "Ti sei unito a questo canale";
+"lng_action_add_you_group" = "{from} ti ha aggiunto a questo gruppo";
+"lng_action_you_joined_group" = "Ti sei unito a questo gruppo";
 "lng_action_kick_user" = "{from} ha rimosso {user}";
 "lng_action_user_left" = "{from} ha lasciato il gruppo";
 "lng_action_user_joined" = "{from} si è unito al gruppo";
@@ -489,10 +505,21 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_action_changed_title_channel" = "Nome del canale cambiato in «{title}»";
 "lng_action_created_chat" = "{from} ha creato il gruppo «{title}»";
 "lng_action_created_channel" = "Canale «{title}» creato";
+"lng_action_group_migrate" = "Il gruppo è stato aggiornato a supergruppo";
+
+"lng_profile_migrate_reached" = "Limite di {count:_not_used_|# membro|# membri} raggiunto";
+"lng_profile_migrate_about" = "Se vuoi superare questo limite, puoi aggiornare il gruppo a supergruppo. Nei supergruppi:";
+"lng_profile_migrate_feature1" = "— I supergruppi hanno massimo {count:_not_used_|# membro|# membri}";
+"lng_profile_migrate_feature2" = "— I nuovi membri vedono tutta la cronologia";
+"lng_profile_migrate_feature3" = "— Gli admin eliminano i messaggi per tutti";
+"lng_profile_migrate_feature4" = "— Le notifiche sono silenziate di default";
+"lng_profile_migrate_button" = "Aggiorna a supergruppo";
+"lng_profile_migrate_sure" = "Sicuro di voler aggiornare questo gruppo a supergruppo? Questa opzione non può essere annullata.";
 
 "lng_channel_comments_count" = "{count:_not_used_|# commento|# commenti}";
 "lng_channel_hide_comments" = "Nascondi commenti";
 "lng_channel_not_accessible" = "Spiacenti, questo canale non è accessibile.";
+"lng_group_not_accessible" = "Spiacenti, questo gruppo non è accessibile.";
 
 "lng_channels_too_much_public_existing" = "Spiacenti, hai già creato troppi canali pubblici. Prima devi eliminarne qualcuno.";
 "lng_channels_too_much_public" = "Spiacenti, hai creato troppi canali pubblici.\n\nPuoi creare un canale privato\no eliminare un tuo canale pubblico.";
@@ -690,12 +717,15 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_forwarding_from_two" = "{user} e {second_user}";
 
 "lng_share_cant" = "Spiacenti, impossibile condividere qui :(";
+"lng_reply_cant" = "Spiacenti, non si può rispondere a un vecchio messaggio nel supergruppo :(";
+"lng_reply_cant_forward" = "Spiacenti, non si può rispondere a un vecchio messaggio nel supergruppo :( Vuoi inoltrarlo e aggiungere un tuo commento?";
 
 "lng_contact_phone" = "Numero di telefono";
 "lng_enter_contact_data" = "Nuovo contatto";
 "lng_edit_group_title" = "Modifica nome gruppo";
 "lng_edit_contact_title" = "Modifica nome contatto";
 "lng_edit_channel_title" = "Modifica canale";
+"lng_edit_group" = "Modifica gruppo";
 "lng_edit_self_title" = "Modifica il tuo nome";
 "lng_confirm_contact_data" = "Nuovo contatto";
 "lng_add_contact" = "Crea";
@@ -759,7 +789,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";
-"lng_new_version_text" = "— Nuova sezione per i file audio\n— Nuovo design per i menu popup\n— Aggiungi una didascalia a ogni foto che invii\n— Circonda il testo con `singoli backtick` per scrivere codice monolinea e ```backtick tripli``` per blocchi di codice\n— Il simbolo Tilde è ora visualizzato correttamente";
+"lng_new_version_text" = "— I gruppi ora possono avere più amministratori con la possibilità di cambiare il nome e l'immagine, e di aggiungere e rimuovere membri\n— I gruppi che hanno raggiunto i 200 membri possono essere aggiornati a supergruppi e avere fino a 1000 membri\n\nPiù info su amministratori e supergruppi:\n{link}";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

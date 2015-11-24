@@ -7640,7 +7640,7 @@ HistoryReply::~HistoryReply() {
 }
 
 void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
-	TextLinkPtr second, third;
+	QList<TextLinkPtr> links;
 	LangString text = lang(lng_message_empty);
 	QString from = textcmdLink(1, _from->name);
 
@@ -7660,20 +7660,25 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 			if (u == _from) {
 				text = lng_action_user_joined(lt_from, from);
 			} else {
-				second = TextLinkPtr(new PeerLink(u));
+				links.push_back(TextLinkPtr(new PeerLink(u)));
 				text = lng_action_add_user(lt_from, from, lt_user, textcmdLink(2, u->name));
 			}
-		} else if (v.size() == 2) {
-			UserData *u1 = App::user(peerFromUser(v.at(0))), *u2 = App::user(peerFromUser(v.at(1)));
-			second = TextLinkPtr(new PeerLink(u1));
-			third = TextLinkPtr(new PeerLink(u2));
-			text = lng_action_add_user_and_user(lt_from, from, lt_user, textcmdLink(2, u1->name), lt_second_user, textcmdLink(3, u2->name));
 		} else if (v.isEmpty()) {
 			text = lng_action_add_user(lt_from, from, lt_user, "somebody");
 		} else {
-			UserData *u = App::user(peerFromUser(foundSelf ? MTP::authedId() : v.at(0).v));
-			second = TextLinkPtr(new PeerLink(u));
-			text = lng_action_add_users(lt_from, from, lt_user, textcmdLink(2, u->name), lt_count, v.size() - 1);
+			for (int32 i = 0, l = v.size(); i < l; ++i) {
+				UserData *u = App::user(peerFromUser(v.at(i)));
+				QString linkText = textcmdLink(i + 2, u->name);
+				if (i == 0) {
+					text = linkText;
+				} else if (i + 1 < l) {
+					text = lng_action_add_users_and_one(lt_accumulated, text, lt_user, linkText);
+				} else {
+					text = lng_action_add_users_and_last(lt_accumulated, text, lt_user, linkText);
+				}
+				links.push_back(TextLinkPtr(new PeerLink(u)));
+			}
+			text = lng_action_add_users_many(lt_from, from, lt_users, text);
 		}
 		if (foundSelf) {
 			if (unread() && history()->peer->isChat() && !history()->peer->asChat()->inviterForSpamReport && _from->isUser()) {
@@ -7728,7 +7733,7 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 			text = lng_action_user_left(lt_from, from);
 		} else {
 			UserData *u = App::user(peerFromUser(d.vuser_id));
-			second = TextLinkPtr(new PeerLink(u));
+			links.push_back(TextLinkPtr(new PeerLink(u)));
 			text = lng_action_kick_user(lt_from, from, lt_user, textcmdLink(2, u->name));
 		}
 	} break;
@@ -7775,13 +7780,9 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 	if (!from.isEmpty()) {
 		_text.setLink(1, TextLinkPtr(new PeerLink(_from)));
 	}
-	if (second) {
-		_text.setLink(2, second);
+	for (int32 i = 0, l = links.size(); i < l; ++i) {
+		_text.setLink(i + 2, links.at(i));
 	}
-	if (third) {
-		_text.setLink(3, third);
-	}
-	return ;
 }
 
 HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, const MTPDmessageService &msg) :
