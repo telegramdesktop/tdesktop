@@ -101,9 +101,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_chat_status_members_online" = "{count:_not_used_|# deelnemer|# deelnemers}, {count_online:_not_used_|# online|# online}";
 
 "lng_channel_status" = "kanaal";
+"lng_group_status" = "groep";
 
 "lng_channel_members_link" = "{count:_not_used_|# deelnemer|# deelnemers} »";
-"lng_channel_admins_link" = "{count:_not_used_|# beheerder|# beheerders} »";
+"lng_channel_admins_link" = "{count:Beheerders wijzigen|# beheerders|# beheerders} »";
 
 "lng_server_error" = "Interne serverfout.";
 "lng_flood_error" = "Teveel pogingen. Probeer het later opnieuw.";
@@ -177,6 +178,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_contacts_loading" = "Bezig met laden";
 "lng_contacts_not_found" = "Geen contacten gevonden";
 "lng_dlg_search_chat" = "Zoek in deze chat";
+"lng_dlg_search_channel" = "Zoek in dit kanaal";
 "lng_dlg_search_for_messages" = "Zoek berichten";
 
 "lng_settings_save" = "Opslaan";
@@ -215,7 +217,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_settings_section_general" = "Algemeen";
 "lng_settings_change_lang" = "Taal wijzigen";
 "lng_languages" = "Talen";
-"lng_sure_save_language" = "Telegram moet herstarten\nom de taal te wijzigen";
+"lng_sure_save_language" = "Telegram moet herstarten om de taal te wijzigen";
 "lng_settings_auto_update" = "Automatisch bijwerken";
 "lng_settings_current_version" = "Versie {version}";
 "lng_settings_check_now" = "Controleer op updates";
@@ -391,6 +393,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_profile_clear_and_exit" = "Verwijder en verlaat";
 "lng_profile_leave_channel" = "Kanaal verlaten";
 "lng_profile_delete_channel" = "Kanaal verwijderen";
+"lng_profile_leave_group" = "Groep verlaten";
+"lng_profile_delete_group" = "Groep verwijderen";
 "lng_profile_search_messages" = "Zoek berichten";
 "lng_profile_block_user" = "Blokkeer gebruiker";
 "lng_profile_unblock_user" = "Deblokkeer gebruiker";
@@ -430,6 +434,11 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_channel_admins" = "Beheerders";
 "lng_channel_add_admin" = "Beheerder toevoegen";
 "lng_channel_admin_sure" = "{user} aan beheerders toevoegen?";
+"lng_channel_admins_too_much" = "Je hebt het maximum aantal beheerders voor deze groep bereikt, Verwijder er eerst één.";
+
+"lng_chat_all_members_admins" = "Iedereen is beheerder";
+"lng_chat_about_all_admins" = "Iedereen mag deelnemers toevoegen en de groepsfoto of naam wijzigen.";
+"lng_chat_about_admins" = "Beheerders mogen deelnemers beheren en de groepsfoto of naam wijzigen.";
 
 "lng_participant_filter" = "Zoeken";
 "lng_participant_invite" = "Uitnodigen";
@@ -469,13 +478,20 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_sure_delete_and_exit" = "Wil je de groep \"{group}\" verlaten en de geschiedenis wissen?\n\nDeze actie kan niet ongedaan worden gemaakt.";
 "lng_sure_leave_channel" = "Kanaal echt verlaten?";
 "lng_sure_delete_channel" = "Kanaal echt verwijderen? Berichten worden gewist en alle deelnemers verwijderd.";
+"lng_sure_leave_group" = "Groep echt verlaten?\nDit kan niet ongedaan worden gemaakt.";
+"lng_sure_delete_group" = "Groep echt verwijderen? Berichten worden gewist en alle deelnemers verwijderd.";
 
 "lng_message_empty" = "Leeg bericht";
 "lng_media_unsupported" = "Niet-ondersteunde media";
 
 "lng_action_add_user" = "{from} heeft {user} toegevoegd";
+"lng_action_add_users_many" = "{from} heeft {users} toegevoegd";
+"lng_action_add_users_and_one" = "{accumulated}, {user}";
+"lng_action_add_users_and_last" = "{accumulated} en {user}";
 "lng_action_add_you" = "{from} heeft je toegevoegd aan dit kanaal";
 "lng_action_you_joined" = "Je neemt deel aan het kanaal";
+"lng_action_add_you_group" = "{from} heeft je toegevoegd aan deze groep";
+"lng_action_you_joined_group" = "Je neemt deel aan de groep";
 "lng_action_kick_user" = "{from} heeft {user} verwijderd";
 "lng_action_user_left" = "{from} heeft de groep verlaten";
 "lng_action_user_joined" = "{from} neemt deel aan de groep";
@@ -489,10 +505,21 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_action_changed_title_channel" = "Kanaalnaam gewijzigd naar \"{title}\"";
 "lng_action_created_chat" = "{from} heeft de groep \"{title}\" gemaakt";
 "lng_action_created_channel" = "Het kanaal \"{title}\" is gemaakt";
+"lng_action_group_migrate" = "De groep is opgewaardeerd naar een supergroep";
+
+"lng_profile_migrate_reached" = "{count:_not_used_|# deelnemer |# deelnemers} limiet bereikt";
+"lng_profile_migrate_about" = "Wil je extra functies en een hogere limiet? Waardeer op naar een supergroep:";
+"lng_profile_migrate_feature1" = "— Supergroepen hebben tot {count:_not_used_|# lid|# leden}";
+"lng_profile_migrate_feature2" = "— Nieuwe leden zien de hele geschiedenis";
+"lng_profile_migrate_feature3" = "— Beheerder wist berichten voor iedereen";
+"lng_profile_migrate_feature4" = "— Meldingen staan standaard uit";
+"lng_profile_migrate_button" = "Opwaarderen naar supergroep.";
+"lng_profile_migrate_sure" = "Groep echt omzetten naar supergroep? Dit kan niet ongedaan worden gemaakt.";
 
 "lng_channel_comments_count" = "{count:_not_used_|# reactie|# reacties}";
 "lng_channel_hide_comments" = "Reacties verbergen";
 "lng_channel_not_accessible" = "Sorry, dit kanaal is privé.";
+"lng_group_not_accessible" = "Sorry, deze groep is niet beschikbaar.";
 
 "lng_channels_too_much_public_existing" = "Je hebt teveel publieke kanalen gemaakt. Verwijder er eerst één.";
 "lng_channels_too_much_public" = "Het maximale aantal publieke kanalen is bereikt.\n\nMaak een privé-kanaal \nof verwijder eerst een publiek kanaal.";
@@ -690,12 +717,15 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_forwarding_from_two" = "{user} en {second_user}";
 
 "lng_share_cant" = "Sorry, delen hierheen kan niet :(";
+"lng_reply_cant" = "Sorry, je kunt geen oude berichten beantwoorden in een supergroep :(";
+"lng_reply_cant_forward" = "Je kunt geen oude berichten beantwoorden in een supergroep :( Doorsturen en commentaar toevoegen?";
 
 "lng_contact_phone" = "Telefoonnummer";
 "lng_enter_contact_data" = "Nieuw contact";
 "lng_edit_group_title" = "Groepsnaam bewerken";
 "lng_edit_contact_title" = "Naam bewerken";
 "lng_edit_channel_title" = "Kanaal wijzigen";
+"lng_edit_group" = "Groep bewerken";
 "lng_edit_self_title" = "Je naam bewerken";
 "lng_confirm_contact_data" = "Nieuw contact";
 "lng_add_contact" = "Opslaan";
@@ -759,7 +789,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Overzicht van gedeelde audiobestanden\n— Nieuw pop-up-menu ontwerp\n— Onderschrift toevoegen aan foto's\n— Omgeef tekst met een enkele `accents graves`‍ om een regel code te markeren, of omgeef een blok code met drie  ‍`‍`‍`accents graves`‍`‍`‍ \n— Aanpassing aan de weergave van het ~tilde~ symbool";
+"lng_new_version_text" = "— Meerdere beheerders in groepen, naast het wijzigen van de groepsnaam en afbeelding kunnen beheerders ook leden toevoegen en verwijderen.\n— Groepen die de limiet van 200 deelnemers hebben bereikt kunnen worden opgewaardeerd naar supergroepen met maximaal 1000 deelnemers.\n\nMeer informatie over supergroepen en de andere nieuwe functies is hier te vinden: \n{link}";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
