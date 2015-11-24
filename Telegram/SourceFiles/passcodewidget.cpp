@@ -55,13 +55,11 @@ void PasscodeWidget::onParentResize(const QSize &newSize) {
 
 void PasscodeWidget::onSubmit() {
 	if (_passcode.text().isEmpty()) {
-		_passcode.setFocus();
 		_passcode.notaBene();
 		return;
 	}
 	if (!passcodeCanTry()) {
 		_error = lang(lng_flood_error);
-		_passcode.setFocus();
 		_passcode.notaBene();
 		update();
 		return;
@@ -100,7 +98,6 @@ void PasscodeWidget::onSubmit() {
 void PasscodeWidget::onError() {
 	_error = lang(lng_passcode_wrong);
 	_passcode.selectAll();
-	_passcode.setFocus();
 	_passcode.notaBene();
 	update();
 }

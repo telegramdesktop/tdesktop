@@ -199,6 +199,7 @@ bool IntroPwdCheck::pwdSubmitFail(const RPCError &error) {
 	const QString &err = error.type();
 	if (err == "PASSWORD_HASH_INVALID") {
 		showError(lang(lng_signin_bad_password));
+		_pwdField.selectAll();
 		_pwdField.notaBene();
 		return true;
 	} else if (err == "PASSWORD_EMPTY") {
@@ -235,6 +236,7 @@ bool IntroPwdCheck::codeSubmitFail(const RPCError &error) {
 		return true;
 	} else if (err == "CODE_INVALID") {
 		showError(lang(lng_signin_wrong_code));
+		_codeField.selectAll();
 		_codeField.notaBene();
 		return true;
 	} else if (mtpIsFlood(error)) {
