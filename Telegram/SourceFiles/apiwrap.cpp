@@ -437,7 +437,8 @@ void ApiWrap::requestPeers(const QList<PeerData*> &peers) {
 
 void ApiWrap::requestLastParticipants(ChannelData *peer, bool fromStart) {
 	if (!peer || !peer->isMegagroup()) return;
-	if ((peer->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated) || peer->lastParticipantsCountOutdated()) {
+	bool needAdmins = peer->amEditor(), adminsOutdated = (peer->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated);
+	if ((needAdmins && adminsOutdated) || peer->lastParticipantsCountOutdated()) {
 		fromStart = true;
 	}
 	QMap<PeerData*, mtpRequestId>::iterator i = _participantsRequests.find(peer);

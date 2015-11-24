@@ -130,7 +130,8 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 		if (chatPhoto && chatPhoto->date) {
 			_photoLink = TextLinkPtr(new PhotoLink(chatPhoto, _peer));
 		}
-		if (_peerChannel->isMegagroup() && (_peerChannel->mgInfo->lastParticipants.isEmpty() || (_peerChannel->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated) || _peerChannel->lastParticipantsCountOutdated())) {
+		bool needAdmins = _peerChannel->amEditor(), adminsOutdated = (_peerChannel->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated);
+		if (_peerChannel->isMegagroup() && (_peerChannel->mgInfo->lastParticipants.isEmpty() || (needAdmins && adminsOutdated) || _peerChannel->lastParticipantsCountOutdated())) {
 			if (App::api()) App::api()->requestLastParticipants(_peerChannel);
 		}
 		_peerChannel->updateFull();
@@ -686,7 +687,8 @@ void ProfileInner::reorderParticipants() {
 		}
 		loadProfilePhotos(_lastPreload);
 	} else if (_peerChannel && _peerChannel->isMegagroup() && _peerChannel->amIn() && !_peerChannel->mgInfo->lastParticipants.isEmpty()) {
-		if (_peerChannel->mgInfo->lastParticipants.isEmpty() || (_peerChannel->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated) || _peerChannel->lastParticipantsCountOutdated()) {
+		bool needAdmins = _peerChannel->amEditor(), adminsOutdated = (_peerChannel->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated);
+		if (_peerChannel->mgInfo->lastParticipants.isEmpty() || (needAdmins && adminsOutdated) || _peerChannel->lastParticipantsCountOutdated()) {
 			if (App::api()) App::api()->requestLastParticipants(_peerChannel);
 		} else if (!_peerChannel->mgInfo->lastParticipants.isEmpty()) {
 			const MegagroupInfo::LastParticipants &list(_peerChannel->mgInfo->lastParticipants);

@@ -1500,12 +1500,12 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 			case mtpc_messageActionChatAddUser: {
 				const MTPDmessageActionChatAddUser &d(action.c_messageActionChatAddUser());
 				if (peer->isMegagroup()) {
-					peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
 					const QVector<MTPint> &v(d.vusers.c_vector().v);
 					for (int32 i = 0, l = v.size(); i < l; ++i) {
 						if (UserData *user = App::userLoaded(peerFromUser(v.at(i)))) {
 							if (peer->asChannel()->mgInfo->lastParticipants.indexOf(user) < 0) {
 								peer->asChannel()->mgInfo->lastParticipants.push_front(user);
+								peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
 							}
 							if (user->botInfo) {
 								peer->asChannel()->mgInfo->bots.insert(user, true);
@@ -1791,7 +1791,6 @@ HistoryItem *History::addNewItem(HistoryBlock *to, bool newBlock, HistoryItem *a
 				lastAuthors = &peer->asChat()->lastAuthors;
 			} else if (peer->isMegagroup()) {
 				lastAuthors = &peer->asChannel()->mgInfo->lastParticipants;
-				peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
 				if (adding->from()->asUser()->botInfo) {
 					peer->asChannel()->mgInfo->bots.insert(adding->from()->asUser(), true);
 					if (peer->asChannel()->mgInfo->botStatus != 0 && peer->asChannel()->mgInfo->botStatus < 2) {
@@ -1803,6 +1802,8 @@ HistoryItem *History::addNewItem(HistoryBlock *to, bool newBlock, HistoryItem *a
 				int prev = lastAuthors->indexOf(adding->from()->asUser());
 				if (prev > 0) {
 					lastAuthors->removeAt(prev);
+				} else if (prev < 0 && peer->isMegagroup()) { // nothing is outdated if just reordering
+					peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
 				}
 				if (prev) {
 					lastAuthors->push_front(adding->from()->asUser());
@@ -2015,7 +2016,6 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 			} else if (peer->isMegagroup()) {
 				lastAuthors = &peer->asChannel()->mgInfo->lastParticipants;
 				markupSenders = &peer->asChannel()->mgInfo->markupSenders;
-				peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
 			}
 			for (int32 i = block->items.size(); i > 0; --i) {
 				HistoryItem *item = block->items[i - 1];
@@ -2038,8 +2038,13 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 				}
 				if (item->from()->id) {
 					if (lastAuthors) { // chats
-						if (item->from()->isUser() && !lastAuthors->contains(item->from()->asUser())) {
-							lastAuthors->push_back(item->from()->asUser());
+						if (item->from()->isUser()) {
+							if (!lastAuthors->contains(item->from()->asUser())) {
+								lastAuthors->push_back(item->from()->asUser());
+								if (peer->isMegagroup()) {
+									peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
+								}
+							}
 						}
 					}
 					if (markupSenders) { // chats with bots
