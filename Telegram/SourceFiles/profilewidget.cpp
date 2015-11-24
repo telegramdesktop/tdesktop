@@ -72,6 +72,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 
 // migrate to megagroup
 , _showMigrate(_peerChat && _amCreator && !_peerChat->isMigrated() && _peerChat->count >= cMaxGroupCount())
+, _forceShowMigrate(false)
 , _aboutMigrate(st::normalFont, lang(lng_profile_migrate_about), _defaultOptions, st::wndMinWidth - st::profilePadding.left() - st::profilePadding.right())
 , _migrate(this, lang(lng_profile_migrate_button), st::btnMigrateToMega)
 
@@ -130,7 +131,8 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 		if (chatPhoto && chatPhoto->date) {
 			_photoLink = TextLinkPtr(new PhotoLink(chatPhoto, _peer));
 		}
-		if (_peerChannel->isMegagroup() && (_peerChannel->mgInfo->lastParticipants.isEmpty() || (_peerChannel->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated) || _peerChannel->lastParticipantsCountOutdated())) {
+		bool needAdmins = (_peerChannel->isMegagroup() && _peerChannel->amEditor()), adminsOutdated = (_peerChannel->isMegagroup() && (_peerChannel->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated));
+		if (_peerChannel->isMegagroup() && (_peerChannel->mgInfo->lastParticipants.isEmpty() || (needAdmins && adminsOutdated) || _peerChannel->lastParticipantsCountOutdated())) {
 			if (App::api()) App::api()->requestLastParticipants(_peerChannel);
 		}
 		_peerChannel->updateFull();
@@ -535,7 +537,7 @@ void ProfileInner::onFullPeerUpdated(PeerData *peer) {
 		}
 	} else if (_peerChat) {
 		updateInvitationLink();
-		_showMigrate = (_peerChat && _amCreator && !_peerChat->isMigrated() && _peerChat->count >= cMaxGroupCount());
+		_showMigrate = (_peerChat && _amCreator && !_peerChat->isMigrated() && (_forceShowMigrate || _peerChat->count >= cMaxGroupCount()));
 		showAll();
 		resizeEvent(0);
 		_admins.setText(lng_channel_admins_link(lt_count, _peerChat->adminsEnabled() ? (_peerChat->admins.size() + 1) : 0));
@@ -595,7 +597,7 @@ void ProfileInner::peerUpdated(PeerData *data) {
 		} else if (_peerChat) {
 			if (_peerChat->photoId && _peerChat->photoId != UnknownPeerPhotoId) photo = App::photo(_peerChat->photoId);
 			_admins.setText(lng_channel_admins_link(lt_count, _peerChat->adminsEnabled() ? (_peerChat->admins.size() + 1) : 0));
-			_showMigrate = (_peerChat && _amCreator && !_peerChat->isMigrated() && _peerChat->count >= cMaxGroupCount());
+			_showMigrate = (_peerChat && _amCreator && !_peerChat->isMigrated() && (_forceShowMigrate || _peerChat->count >= cMaxGroupCount()));
 			if (App::main()) App::main()->topBar()->showAll();
 		} else if (_peerChannel) {
 			if (_peerChannel->photoId && _peerChannel->photoId != UnknownPeerPhotoId) photo = App::photo(_peerChannel->photoId);
@@ -686,7 +688,8 @@ void ProfileInner::reorderParticipants() {
 		}
 		loadProfilePhotos(_lastPreload);
 	} else if (_peerChannel && _peerChannel->isMegagroup() && _peerChannel->amIn() && !_peerChannel->mgInfo->lastParticipants.isEmpty()) {
-		if (_peerChannel->mgInfo->lastParticipants.isEmpty() || (_peerChannel->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated) || _peerChannel->lastParticipantsCountOutdated()) {
+		bool needAdmins = _peerChannel->amEditor(), adminsOutdated = (_peerChannel->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated);
+		if (_peerChannel->mgInfo->lastParticipants.isEmpty() || (needAdmins && adminsOutdated) || _peerChannel->lastParticipantsCountOutdated()) {
 			if (App::api()) App::api()->requestLastParticipants(_peerChannel);
 		} else if (!_peerChannel->mgInfo->lastParticipants.isEmpty()) {
 			const MegagroupInfo::LastParticipants &list(_peerChannel->mgInfo->lastParticipants);
@@ -1110,6 +1113,20 @@ void ProfileInner::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
 		App::main()->showBackFromStack();
 	}
+	_secretText += e->text().toLower();
+	int32 size = _secretText.size(), from = 0;
+	while (size > from) {
+		QStringRef str(_secretText.midRef(from));
+		if (str == qstr("tosupergroup")) {
+			_forceShowMigrate = true;
+			peerUpdated(_peer);
+		} else if (qsl("tosupergroup").startsWith(str)) {
+			break;
+		}
+		++from;
+	}
+	_secretText = (size > from) ? _secretText.mid(from) : QString();
+
 }
 
 void ProfileInner::enterEvent(QEvent *e) {
@@ -1265,7 +1282,7 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	_members.move(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop);
 	addbyname += st::profileStatusTop + st::linkFont->ascent - (st::profileNameTop + st::profileNameFont->ascent);
 	_admins.move(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop);
-	if (_amCreator) {
+	if ((_peerChat && _amCreator && _peerChat->canEdit()) || (_peerChannel && (_amCreator || _peerChannel->amEditor() || _peerChannel->amModerator()))) {
 		_cancelPhoto.move(_left + _width - _cancelPhoto.width(), top + st::profilePhotoSize - st::linkFont->height);
 	} else {
 		_cancelPhoto.move(_left + _width - _cancelPhoto.width(), top + st::profilePhoneTop);
@@ -1780,6 +1797,10 @@ void ProfileWidget::dragEnterEvent(QDragEnterEvent *e) {
 }
 
 void ProfileWidget::dropEvent(QDropEvent *e) {
+}
+
+void ProfileWidget::keyPressEvent(QKeyEvent *e) {
+	return _inner.keyPressEvent(e);
 }
 
 void ProfileWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) {

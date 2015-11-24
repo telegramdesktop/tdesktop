@@ -507,9 +507,6 @@ public:
 	void setReplyReturns(PeerId peer, const QList<MsgId> &replyReturns);
 	void calcNextReplyReturn();
 
-	bool kbWasHidden();
-	void setKbWasHidden();
-
 	void updatePreview();
 	void previewCancel();
 
@@ -523,7 +520,7 @@ public:
 	void insertBotCommand(const QString &cmd);
 
 	bool eventFilter(QObject *obj, QEvent *e);
-	void updateBotKeyboard();
+	void updateBotKeyboard(History *h = 0);
 
 	DragState getDragState(const QMimeData *d);
 
@@ -770,7 +767,9 @@ private:
 	anim::cvalue a_recordCancel;
 	int32 _recordCancelWidth;
 
-	bool _kbShown, _kbWasHidden;
+	bool kbWasHidden() const;
+
+	bool _kbShown;
 	HistoryItem *_kbReplyTo;
 	ScrollArea _kbScroll;
 	BotKeyboard _keyboard;

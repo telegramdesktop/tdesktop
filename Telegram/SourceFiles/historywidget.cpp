@@ -2595,7 +2595,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , a_recordOver(0, 0), a_recordDown(0, 0), a_recordCancel(st::recordCancel->c, st::recordCancel->c)
 , _recordCancelWidth(st::recordFont->width(lang(lng_record_cancel)))
 , _kbShown(false)
-, _kbWasHidden(false)
 , _kbReplyTo(0)
 , _kbScroll(this, st::botKbScroll)
 , _keyboard()
@@ -3131,31 +3130,6 @@ void HistoryWidget::calcNextReplyReturn() {
 	if (!_replyReturn) updateControlsVisibility();
 }
 
-bool HistoryWidget::kbWasHidden() {
-	return _kbWasHidden;
-}
-
-void HistoryWidget::setKbWasHidden() {
-	if (_kbWasHidden || (!_keyboard.hasMarkup() && !_keyboard.forceReply())) return;
-
-	_kbWasHidden = true;
-	if (!_a_show.animating()) {
-		_kbScroll.hide();
-		_attachEmoji.show();
-		_kbHide.hide();
-		_cmdStart.hide();
-		_kbShow.show();
-	}
-	_field.setMaxHeight(st::maxFieldHeight);
-	_kbShown = false;
-	_kbReplyTo = 0;
-	if (!readyToForward() && (!_previewData || _previewData->pendingTill < 0) && !_replyToId) {
-		_replyForwardPreviewCancel.hide();
-	}
-	resizeEvent(0);
-	update();
-}
-
 void HistoryWidget::fastShowAtEnd(History *h) {
 	if (h == _history) {
 		h->getReadyFor(ShowAtTheEndMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop);
@@ -3264,6 +3238,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 			_migrated->unreadBar->destroy();
 		}
 		_history = _migrated = 0;
+		updateBotKeyboard();
 	}
 
 	if (_replyToId) {
@@ -3289,7 +3264,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	_canSendMessages = canSendMessages(_peer);
 	if (_peer && _peer->isChannel()) {
 		_peer->asChannel()->updateFull();
-		_joinChannel.setText(lang(_peer->isMegagroup() ? lng_group_join : lng_channel_join));
+		_joinChannel.setText(lang(lng_channel_join));
 	}
 
 	_unblockRequest = _reportSpamRequest = 0;
@@ -3307,8 +3282,6 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	App::pressedLinkItem(0);
 	App::contextItem(0);
 	App::mousedItem(0);
-
-	_kbWasHidden = false;
 
 	if (_peer) {
 		App::forgetMedia();
@@ -4288,9 +4261,9 @@ void HistoryWidget::onBotStart() {
 		_peer->asUser()->botInfo->startToken = QString();
 		if (_keyboard.hasMarkup()) {
 			if (_keyboard.singleUse() && _keyboard.forMsgId() == FullMsgId(_channel, _history->lastKeyboardId) && _history->lastKeyboardUsed) {
-				_kbWasHidden = true;
+				_history->lastKeyboardHiddenId = _history->lastKeyboardId;
 			}
-			if (!_kbWasHidden) _kbShown = _keyboard.hasMarkup();
+			if (!kbWasHidden()) _kbShown = _keyboard.hasMarkup();
 		}
 	}
 	updateControlsVisibility();
@@ -4872,6 +4845,10 @@ bool HistoryWidget::updateCmdStartShown() {
 	return false;
 }
 
+bool HistoryWidget::kbWasHidden() const {
+	return _history && (_keyboard.forMsgId() == FullMsgId(_history->channelId(), _history->lastKeyboardHiddenId));
+}
+
 void HistoryWidget::dropEvent(QDropEvent *e) {
 	_attachDrag = DragStateNone;
 	updateDragAreas();
@@ -4927,7 +4904,9 @@ void HistoryWidget::onKbToggle(bool manual) {
 		_kbHide.hide();
 		if (_kbShown) {
 			_kbShow.show();
-			if (manual) _kbWasHidden = true;
+			if (manual && _history) {
+				_history->lastKeyboardHiddenId = _keyboard.forMsgId().msg;
+			}
 
 			_kbScroll.hide();
 			_kbShown = false;
@@ -4959,7 +4938,9 @@ void HistoryWidget::onKbToggle(bool manual) {
 			_replyToText.setText(st::msgFont, _kbReplyTo->inDialogsText(), _textDlgOptions);
 			_replyForwardPreviewCancel.show();
 		}
-		if (manual) _kbWasHidden = false;
+		if (manual && _history) {
+			_history->lastKeyboardHiddenId = 0;
+		}
 	} else {
 		_kbHide.show();
 		_kbShow.hide();
@@ -4975,7 +4956,9 @@ void HistoryWidget::onKbToggle(bool manual) {
 			_replyToText.setText(st::msgFont, _kbReplyTo->inDialogsText(), _textDlgOptions);
 			_replyForwardPreviewCancel.show();
 		}
-		if (manual) _kbWasHidden = false;
+		if (manual && _history) {
+			_history->lastKeyboardHiddenId = 0;
+		}
 	}
 	resizeEvent(0);
 	if (_kbHide.isHidden()) {
@@ -5888,7 +5871,11 @@ void HistoryWidget::countHistoryShowFrom() {
 	_history->updateShowFrom();
 }
 
-void HistoryWidget::updateBotKeyboard() {
+void HistoryWidget::updateBotKeyboard(History *h) {
+	if (h && h != _history && h != _migrated) {
+		return;
+	}
+
 	bool changed = false;
 	bool wasVisible = _kbShown || _kbReplyTo;
 	if ((_replyToId && !_replyTo) || !_history) {
@@ -5903,8 +5890,10 @@ void HistoryWidget::updateBotKeyboard() {
 
 	bool hasMarkup = _keyboard.hasMarkup(), forceReply = _keyboard.forceReply() && !_replyTo;
 	if (hasMarkup || forceReply) {
-		if (_keyboard.singleUse() && _keyboard.hasMarkup() && _keyboard.forMsgId() == FullMsgId(_channel, _history->lastKeyboardId) && _history->lastKeyboardUsed) _kbWasHidden = true;
-		if (!isBotStart() && !isBlocked() && (wasVisible || _replyTo || (!_field.hasSendText() && !_kbWasHidden))) {
+		if (_keyboard.singleUse() && _keyboard.hasMarkup() && _keyboard.forMsgId() == FullMsgId(_channel, _history->lastKeyboardId) && _history->lastKeyboardUsed) {
+			_history->lastKeyboardHiddenId = _history->lastKeyboardId;
+		}
+		if (!isBotStart() && !isBlocked() && (wasVisible || _replyTo || (!_field.hasSendText() && !kbWasHidden()))) {
 			if (!_a_show.animating()) {
 				if (hasMarkup) {
 					_kbScroll.show();

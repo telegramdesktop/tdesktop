@@ -175,7 +175,12 @@ struct FileLoadTo {
 };
 
 struct FileLoadResult {
-	FileLoadResult(const uint64 &id, const FileLoadTo &to) : id(id), to(to), type(PrepareAuto), filesize(0), thumbId(0) {
+	FileLoadResult(const uint64 &id, const FileLoadTo &to, const QString &originalText) : id(id)
+		, to(to)
+		, type(PrepareAuto)
+		, filesize(0)
+		, thumbId(0)
+		, originalText(originalText) {
 	}
 
 	uint64 id;

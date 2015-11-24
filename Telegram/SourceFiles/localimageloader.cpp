@@ -75,11 +75,20 @@ void TaskQueue::wakeThread() {
 }
 
 void TaskQueue::cancelTask(TaskId id) {
-	QMutexLocker lock(&_tasksToProcessMutex);
-	for (int32 i = 0, l = _tasksToProcess.size(); i < l; ++i) {
-		if (_tasksToProcess.at(i)->id() == id) {
-			_tasksToProcess.removeAt(i);
-			break;
+	{
+		QMutexLocker lock(&_tasksToProcessMutex);
+		for (int32 i = 0, l = _tasksToProcess.size(); i != l; ++i) {
+			if (_tasksToProcess.at(i)->id() == id) {
+				_tasksToProcess.removeAt(i);
+				return;
+			}
+		}
+	}
+	QMutexLocker lock(&_tasksToFinishMutex);
+	for (int32 i = 0, l = _tasksToFinish.size(); i != l; ++i) {
+		if (_tasksToFinish.at(i)->id() == id) {
+			_tasksToFinish.removeAt(i);
+			return;
 		}
 	}
 }
@@ -201,7 +210,7 @@ FileLoadTask::FileLoadTask(const QByteArray &audio, int32 duration, const FileLo
 void FileLoadTask::process() {
 	const QString stickerMime = qsl("image/webp");
 
-	_result = FileLoadResultPtr(new FileLoadResult(_id, _to));
+	_result = FileLoadResultPtr(new FileLoadResult(_id, _to, _originalText));
 
 	QString filename, filemime;
 	qint64 filesize = 0;

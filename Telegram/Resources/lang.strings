@@ -485,8 +485,9 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_media_unsupported" = "Media Unsupported";
 
 "lng_action_add_user" = "{from} added {user}";
-"lng_action_add_user_and_user" = "{from} added {user} and {second_user}";
-"lng_action_add_users" = "{from} added {user} and {count:_not_used|# more member|# more members}";
+"lng_action_add_users_many" = "{from} added {users}";
+"lng_action_add_users_and_one" = "{accumulated}, {user}";
+"lng_action_add_users_and_last" = "{accumulated} and {user}";
 "lng_action_add_you" = "{from} added you to this channel";
 "lng_action_you_joined" = "You joined this channel";
 "lng_action_add_you_group" = "{from} added you to this group";
@@ -504,16 +505,16 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_action_changed_title_channel" = "Channel name was changed to «{title}»";
 "lng_action_created_chat" = "{from} created group «{title}»";
 "lng_action_created_channel" = "Channel «{title}» created";
-"lng_action_group_migrate" = "The group was converted to a supergroup";
+"lng_action_group_migrate" = "The group was upgraded to a supergroup";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# member|# members} limit reached";
-"lng_profile_migrate_about" = "If you'd like to go over this limit, you can convert your group to a supergroup. In supergroups:";
+"lng_profile_migrate_about" = "If you'd like to go over this limit, you can upgrade your group to a supergroup. In supergroups:";
 "lng_profile_migrate_feature1" = "— The members limit is {count:_not_used_|# user|# users}";
 "lng_profile_migrate_feature2" = "— New members see the entire chat history";
 "lng_profile_migrate_feature3" = "— Admins delete messages for everyone";
 "lng_profile_migrate_feature4" = "— Notifications are muted by default";
 "lng_profile_migrate_button" = "Upgrade to supergroup";
-"lng_profile_migrate_sure" = "Are you sure you want to convert this group to supergroup? This action cannot be undone.";
+"lng_profile_migrate_sure" = "Are you sure you want to upgrade this group to supergroup? This action cannot be undone.";
 
 "lng_channel_comments_count" = "{count:_not_used_|# comment|# comments}";
 "lng_channel_hide_comments" = "Hide comments";
@@ -613,7 +614,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_bot_description" = "What can this bot do?";
 "lng_unblock_button" = "Unblock";
 "lng_channel_join" = "Join Channel";
-"lng_group_join" = "Join Group";
 "lng_channel_mute" = "Mute";
 "lng_channel_unmute" = "Unmute";
 

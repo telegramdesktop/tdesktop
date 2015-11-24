@@ -80,6 +80,7 @@ bool BackgroundWidget::onInnerClose() {
 		onClose();
 		return true;
 	}
+	w->hide();
 	w->deleteLater();
 	w = _hidden.back();
 	_hidden.pop_back();

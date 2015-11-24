@@ -190,6 +190,9 @@ namespace App {
 		if (cHasPasscode()) {
 			cSetHasPasscode(false);
 		}
+		if (audioPlayer()) {
+			audioPlayer()->stopAndClear();
+		}
 		if (w) {
 			w->tempDirDelete(Local::ClearManagerAll);
 			w->notifyClearFast();
@@ -696,9 +699,8 @@ namespace App {
 					}
 					chat->botStatus = botStatus;
 					if (!found) {
-						h->lastKeyboardId = 0;
-						h->lastKeyboardFrom = 0;
-						if (App::main()) App::main()->updateBotKeyboard();
+						h->clearLastKeyboard();
+						if (App::main()) App::main()->updateBotKeyboard(h);
 					}
 				}
 			}
@@ -794,9 +796,8 @@ namespace App {
 
 						History *h = App::historyLoaded(chat->id);
 						if (h && h->lastKeyboardFrom == user->id) {
-							h->lastKeyboardId = 0;
-							h->lastKeyboardFrom = 0;
-							if (App::main()) App::main()->updateBotKeyboard();
+							h->clearLastKeyboard();
+							if (App::main()) App::main()->updateBotKeyboard(h);
 						}
 					}
 					if (chat->botStatus > 0 && user->botInfo) {
