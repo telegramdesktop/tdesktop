@@ -24,7 +24,7 @@ void historyInit();
 
 class HistoryItem;
 
-void startGif(HistoryItem *row, const QString &file);
+void startGif(HistoryItem *row, const FileLocation &file);
 void itemRemovedGif(HistoryItem *item);
 void itemReplacedGif(HistoryItem *oldItem, HistoryItem *newItem);
 void stopGif();

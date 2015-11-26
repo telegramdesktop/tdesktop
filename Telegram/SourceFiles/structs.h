@@ -807,7 +807,7 @@ struct VideoData {
 			l->deleteLater();
 			l->rpcInvalidate();
 		}
-		location = FileLocation();
+		_location = FileLocation();
 		if (!beforeDownload) {
 			openOnSave = 0;
 			openOnSaveMsgId = FullMsgId();
@@ -816,7 +816,7 @@ struct VideoData {
 
 	void finish() {
 		if (loader->done()) {
-			location = FileLocation(mtpToStorageType(loader->fileType()), loader->fileName());
+			_location = FileLocation(mtpToStorageType(loader->fileType()), loader->fileName());
 		}
 		loader->deleteLater();
 		loader->rpcInvalidate();
@@ -824,6 +824,7 @@ struct VideoData {
 	}
 
 	QString already(bool check = false);
+	const FileLocation &location(bool check = false);
 
 	VideoId id;
 	uint64 access;
@@ -841,7 +842,10 @@ struct VideoData {
 	int32 openOnSave;
 	FullMsgId openOnSaveMsgId;
 	mtpFileLoader *loader;
-	FileLocation location;
+
+private:
+	FileLocation _location;
+
 };
 
 class VideoLink : public ITextLink {
@@ -902,7 +906,7 @@ struct AudioData {
 			l->deleteLater();
 			l->rpcInvalidate();
 		}
-		location = FileLocation();
+		_location = FileLocation();
 		if (!beforeDownload) {
 			openOnSave = 0;
 			openOnSaveMsgId = FullMsgId();
@@ -911,7 +915,7 @@ struct AudioData {
 
 	void finish() {
 		if (loader->done()) {
-			location = FileLocation(mtpToStorageType(loader->fileType()), loader->fileName());
+			_location = FileLocation(mtpToStorageType(loader->fileType()), loader->fileName());
 			data = loader->bytes();
 		}
 		loader->deleteLater();
@@ -920,6 +924,12 @@ struct AudioData {
 	}
 
 	QString already(bool check = false);
+	const FileLocation &location(bool check = false);
+	void setLocation(const FileLocation &loc) {
+		if (loc.check()) {
+			_location = loc;
+		}
+	}
 
 	AudioId id;
 	uint64 access;
@@ -935,9 +945,12 @@ struct AudioData {
 	int32 openOnSave;
 	FullMsgId openOnSaveMsgId;
 	mtpFileLoader *loader;
-	FileLocation location;
 	QByteArray data;
 	int32 md5[8];
+
+private:
+	FileLocation _location;
+
 };
 
 struct AudioMsgId {
@@ -1068,7 +1081,7 @@ struct DocumentData {
 			l->deleteLater();
 			l->rpcInvalidate();
 		}
-		location = FileLocation();
+		_location = FileLocation();
 		if (!beforeDownload) {
 			openOnSave = 0;
 			openOnSaveMsgId = FullMsgId();
@@ -1077,7 +1090,7 @@ struct DocumentData {
 
 	void finish() {
 		if (loader->done()) {
-			location = FileLocation(mtpToStorageType(loader->fileType()), loader->fileName());
+			_location = FileLocation(mtpToStorageType(loader->fileType()), loader->fileName());
 			data = loader->bytes();
 			if (sticker() && !loader->imagePixmap().isNull()) {
 				sticker()->img = ImagePtr(data, loader->imageFormat(), loader->imagePixmap());
@@ -1092,6 +1105,12 @@ struct DocumentData {
 	}
 
 	QString already(bool check = false);
+	const FileLocation &location(bool check = false);
+	void setLocation(const FileLocation &loc) {
+		if (loc.check()) {
+			_location = loc;
+		}
+	}
 	StickerData *sticker() {
 		return (type == StickerDocument) ? static_cast<StickerData*>(_additional) : 0;
 	}
@@ -1115,12 +1134,15 @@ struct DocumentData {
 	int32 openOnSave;
 	FullMsgId openOnSaveMsgId;
 	mtpFileLoader *loader;
-	FileLocation location;
 
 	QByteArray data;
 	DocumentAdditionalData *_additional;
 
 	int32 md5[8];
+
+private:
+
+	FileLocation _location;
 };
 
 struct SongMsgId {
