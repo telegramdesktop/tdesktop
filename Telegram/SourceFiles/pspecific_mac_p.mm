@@ -931,8 +931,16 @@ void objc_start() {
 															   name: NSWorkspaceDidWakeNotification object: NULL];
 }
 
+namespace {
+	NSURL *_downloadPathUrl = nil;
+}
+
 void objc_finish() {
 	[_sharedDelegate release];
+	if (_downloadPathUrl) {
+		[_downloadPathUrl stopAccessingSecurityScopedResource];
+		_downloadPathUrl = nil;
+	}
 }
 
 void objc_registerCustomScheme() {
@@ -1054,3 +1062,38 @@ QString objc_convertFileUrl(const QString &url) {
 	return objcString(nsurl);
 }
 
+QByteArray objc_downloadPathBookmark(const QString &path) {
+	return QByteArray();
+}
+
+QByteArray objc_pathBookmark(const QString &path) {
+	return QByteArray();
+}
+
+void objc_downloadPathEnableAccess(const QByteArray &bookmark) {
+}
+
+objc_FileBookmark::objc_FileBookmark(const QByteArray &bookmark) {
+}
+
+bool objc_FileBookmark::valid() const {
+	return true;
+}
+
+bool objc_FileBookmark::enable() const {
+	return true;
+}
+
+void objc_FileBookmark::disable() const {
+}
+
+const QString &objc_FileBookmark::name(const QString &original) const {
+	return original;
+}
+
+QByteArray objc_FileBookmark::bookmark() const {
+	return QByteArray();
+}
+
+objc_FileBookmark::~objc_FileBookmark() {
+}

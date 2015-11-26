@@ -258,7 +258,7 @@ enum DataBlockId {
 	dbiCatsAndDogs          = 0x12,
 	dbiReplaceEmojis        = 0x13,
 	dbiAskDownloadPath      = 0x14,
-	dbiDownloadPath         = 0x15,
+	dbiDownloadPathOld      = 0x15,
 	dbiScale                = 0x16,
 	dbiEmojiTab             = 0x17,
 	dbiRecentEmojisOld      = 0x18,
@@ -282,6 +282,7 @@ enum DataBlockId {
 	dbiWindowsNotifications = 0x30,
 	dbiIncludeMuted         = 0x31,
 	dbiMaxMegaGroupCount    = 0x32,
+	dbiDownloadPath         = 0x33,
 
 	dbiEncryptedWithSalt    = 333,
 	dbiEncrypted            = 444,

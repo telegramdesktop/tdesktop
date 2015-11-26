@@ -74,6 +74,7 @@ DBIDefaultAttach gDefaultAttach = dbidaDocument;
 bool gReplaceEmojis = true;
 bool gAskDownloadPath = false;
 QString gDownloadPath;
+QByteArray gDownloadPathBookmark;
 
 bool gNeedConfigResave = false;
 

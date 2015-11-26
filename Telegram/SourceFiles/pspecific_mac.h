@@ -198,6 +198,35 @@ void psNewVersion();
 void psUpdateOverlayed(QWidget *widget);
 QString psConvertFileUrl(const QString &url);
 
+void psDownloadPathEnableAccess();
+QByteArray psDownloadPathBookmark(const QString &path);
+QByteArray psPathBookmark(const QString &path);
+
+class PsFileBookmark {
+public:
+	PsFileBookmark(const QByteArray &bookmark) : _inner(bookmark) {
+	}
+	bool check() const {
+		return _inner.valid();
+	}
+	bool enable() const {
+		return _inner.enable();
+	}
+	void disable() const {
+		return _inner.disable();
+	}
+	const QString &name(const QString &original) const {
+		return _inner.name(original);
+	}
+	QByteArray bookmark() const {
+		return _inner.bookmark();
+	}
+
+private:
+	objc_FileBookmark _inner;
+
+};
+
 QString strNotificationAboutThemeChange();
 QString strStyleOfInterface();
 QString strNeedToReload();

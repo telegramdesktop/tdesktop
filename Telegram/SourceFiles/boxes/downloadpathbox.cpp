@@ -25,15 +25,17 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 #include "downloadpathbox.h"
 #include "gui/filedialog.h"
+#include "pspecific.h"
 
-DownloadPathBox::DownloadPathBox() :
-	_path(cDownloadPath()),
-	_default(this, qsl("dir_type"), 0, lang(lng_download_path_default_radio), _path.isEmpty()),
-	_temp(this, qsl("dir_type"), 1, lang(lng_download_path_temp_radio), _path == qsl("tmp")),
-	_dir(this, qsl("dir_type"), 2, lang(lng_download_path_dir_radio), !_path.isEmpty() && _path != qsl("tmp")),
-	_pathLink(this, QString(), st::defaultBoxLinkButton),
-	_save(this, lang(lng_connection_save), st::defaultBoxButton),
-	_cancel(this, lang(lng_cancel), st::cancelBoxButton) {
+DownloadPathBox::DownloadPathBox() : AbstractBox()
+, _path(cDownloadPath())
+, _pathBookmark(cDownloadPathBookmark())
+, _default(this, qsl("dir_type"), 0, lang(lng_download_path_default_radio), _path.isEmpty())
+, _temp(this, qsl("dir_type"), 1, lang(lng_download_path_temp_radio), _path == qsl("tmp"))
+, _dir(this, qsl("dir_type"), 2, lang(lng_download_path_dir_radio), !_path.isEmpty() && _path != qsl("tmp"))
+, _pathLink(this, QString(), st::defaultBoxLinkButton)
+, _save(this, lang(lng_connection_save), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 
 	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -124,12 +126,13 @@ void DownloadPathBox::onChange() {
 void DownloadPathBox::onEditPath() {
 	filedialogInit();
 	QString path, lastPath = cDialogLastPath();
-	if (!cDownloadPath().isEmpty()) {
-		cSetDialogLastPath(cDownloadPath());
+	if (!cDownloadPath().isEmpty() && cDownloadPath() != qstr("tmp")) {
+		cSetDialogLastPath(cDownloadPath().left(cDownloadPath().size() - (cDownloadPath().endsWith('/') ? 1 : 0)));
 	}
 	if (filedialogGetDir(path, lang(lng_download_path_choose))) {
 		if (!path.isEmpty()) {
 			_path = path + '/';
+			_pathBookmark = psDownloadPathBookmark(_path);
 			setPathText(QDir::toNativeSeparators(_path));
 		}
 	}
@@ -138,6 +141,7 @@ void DownloadPathBox::onEditPath() {
 
 void DownloadPathBox::onSave() {
 	cSetDownloadPath(_default.checked() ? QString() : (_temp.checked() ? qsl("tmp") : _path));
+	cSetDownloadPathBookmark((_default.checked() || _temp.checked()) ? QByteArray() : _pathBookmark);
 	Local::writeUserSettings();
 	emit closed();
 }

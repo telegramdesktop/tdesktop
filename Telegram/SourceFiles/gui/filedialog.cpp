@@ -89,7 +89,7 @@ bool _filedialogGetFiles(QStringList &files, QByteArray &remoteContent, const QS
 		}
         return !files.isEmpty();
     } else if (multipleFiles < -1) {
-		file = QFileDialog::getExistingDirectory(App::wnd() ? App::wnd()->filedialogParent() : 0, caption);
+		file = QFileDialog::getExistingDirectory(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, startFile);
     } else if (multipleFiles < 0) {
 		file = QFileDialog::getSaveFileName(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, startFile, filter);
     } else {

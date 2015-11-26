@@ -150,7 +150,7 @@ void historyInit() {
 	_initTextOptions();
 }
 
-void startGif(HistoryItem *row, const QString &file) {
+void startGif(HistoryItem *row, const FileLocation &file) {
 	if (row == animated.msg) {
 		stopGif();
 	} else {
