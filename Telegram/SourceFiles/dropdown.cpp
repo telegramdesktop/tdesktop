@@ -2920,6 +2920,8 @@ _scroll(this, st::mentionScroll), _inner(this, &_rows, &_hrows, &_crows), _chat(
 	connect(&_inner, SIGNAL(chosen(QString)), this, SIGNAL(chosen(QString)));
 	connect(&_inner, SIGNAL(mustScrollTo(int,int)), &_scroll, SLOT(scrollToY(int,int)));
 
+	connect(App::wnd(), SIGNAL(imageLoaded()), &_inner, SLOT(update()));
+
 	setFocusPolicy(Qt::NoFocus);
 	_scroll.setFocusPolicy(Qt::NoFocus);
 	_scroll.viewport()->setFocusPolicy(Qt::NoFocus);
