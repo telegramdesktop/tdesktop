@@ -709,6 +709,9 @@ void Application::checkMapVersion() {
 			}
 		}
 	}
+	if (cNeedConfigResave()) {
+		Local::writeUserSettings();
+	}
 }
 
 void Application::startApp() {

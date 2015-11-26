@@ -134,6 +134,7 @@ DeclareSetting(bool, ReplaceEmojis);
 DeclareReadSetting(bool, ManyInstance);
 DeclareSetting(bool, AskDownloadPath);
 DeclareSetting(QString, DownloadPath);
+DeclareSetting(QByteArray, DownloadPathBookmark);
 DeclareSetting(QByteArray, LocalSalt);
 DeclareSetting(DBIScale, RealScale);
 DeclareSetting(DBIScale, ScreenScale);

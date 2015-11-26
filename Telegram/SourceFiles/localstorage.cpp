@@ -579,11 +579,23 @@ namespace {
 			}
 			quint32 size = 0;
 			for (FileLocations::const_iterator i = _fileLocations.cbegin(), e = _fileLocations.cend(); i != e; ++i) {
-				// location + type + namelen + name + date + size
-				size += sizeof(quint64) * 2 + sizeof(quint32) + _stringSize(i.value().name) + _dateTimeSize() + sizeof(quint32);
+				// location + type + namelen + name
+				size += sizeof(quint64) * 2 + sizeof(quint32) + _stringSize(i.value().name());
+				if (AppVersion > 9013) {
+					// bookmark
+					size += _bytearraySize(i.value().bookmark());
+				}
+				// date + size
+				size += _dateTimeSize() + sizeof(quint32);
 			}
+
 			//end mark
-			size += sizeof(quint64) * 2 + sizeof(quint32) + _stringSize(QString()) + _dateTimeSize() + sizeof(quint32);
+			size += sizeof(quint64) * 2 + sizeof(quint32) + _stringSize(QString());
+			if (AppVersion > 9013) {
+				size += _bytearraySize(QByteArray());
+			}
+			size += _dateTimeSize() + sizeof(quint32);
+
 			size += sizeof(quint32); // aliases count
 			for (FileLocationAliases::const_iterator i = _fileLocationAliases.cbegin(), e = _fileLocationAliases.cend(); i != e; ++i) {
 				// alias + location
@@ -592,9 +604,19 @@ namespace {
 
 			EncryptedDescriptor data(size);
 			for (FileLocations::const_iterator i = _fileLocations.cbegin(); i != _fileLocations.cend(); ++i) {
-				data.stream << quint64(i.key().first) << quint64(i.key().second) << quint32(i.value().type) << i.value().name << i.value().modified << quint32(i.value().size);
+				data.stream << quint64(i.key().first) << quint64(i.key().second) << quint32(i.value().type) << i.value().name();
+				if (AppVersion > 9013) {
+					data.stream << i.value().bookmark();
+				}
+				data.stream << i.value().modified << quint32(i.value().size);
 			}
-			data.stream << quint64(0) << quint64(0) << quint32(0) << QString() << QDateTime::currentDateTime() << quint32(0);
+
+			data.stream << quint64(0) << quint64(0) << quint32(0) << QString();
+			if (AppVersion > 9013) {
+				data.stream << QByteArray();
+			}
+			data.stream << QDateTime::currentDateTime() << quint32(0);
+
 			data.stream << quint32(_fileLocationAliases.size());
 			for (FileLocationAliases::const_iterator i = _fileLocationAliases.cbegin(), e = _fileLocationAliases.cend(); i != e; ++i) {
 				data.stream << quint64(i.key().first) << quint64(i.key().second) << quint64(i.value().first) << quint64(i.value().second);
@@ -617,11 +639,17 @@ namespace {
 		bool endMarkFound = false;
 		while (!locations.stream.atEnd()) {
 			quint64 first, second;
+			QByteArray bookmark;
 			FileLocation loc;
 			quint32 type;
-			locations.stream >> first >> second >> type >> loc.name >> loc.modified >> loc.size;
+			locations.stream >> first >> second >> type >> loc.fname;
+			if (locations.version > 9013) {
+				locations.stream >> bookmark;
+			}
+			locations.stream >> loc.modified >> loc.size;
+			loc.setBookmark(bookmark);
 
-			if (!first && !second && !type && loc.name.isEmpty() && !loc.size) { // end mark
+			if (!first && !second && !type && loc.fname.isEmpty() && !loc.size) { // end mark
 				endMarkFound = true;
 				break;
 			}
@@ -629,12 +657,8 @@ namespace {
 			MediaKey key(first, second);
 			loc.type = StorageFileType(type);
 
-			if (loc.check()) {
-				_fileLocations.insert(key, loc);
-				_fileLocationPairs.insert(loc.name, FileLocationPair(key, loc));
-			} else {
-				_writeLocations();
-			}
+			_fileLocations.insert(key, loc);
+			_fileLocationPairs.insert(loc.fname, FileLocationPair(key, loc));
 		}
 
 		if (endMarkFound) {
@@ -1038,12 +1062,26 @@ namespace {
 			cSetAskDownloadPath(v == 1);
 		} break;
 
-		case dbiDownloadPath: {
+		case dbiDownloadPathOld: {
 			QString v;
 			stream >> v;
 			if (!_checkStreamStatus(stream)) return false;
 
+			if (!v.isEmpty() && v != qstr("tmp") && !v.endsWith('/')) v += '/';
 			cSetDownloadPath(v);
+			cSetDownloadPathBookmark(QByteArray());
+		} break;
+
+		case dbiDownloadPath: {
+			QString v;
+			QByteArray bookmark;
+			stream >> v >> bookmark;
+			if (!_checkStreamStatus(stream)) return false;
+
+			if (!v.isEmpty() && v != qstr("tmp") && !v.endsWith('/')) v += '/';
+			cSetDownloadPath(v);
+			cSetDownloadPathBookmark(bookmark);
+			psDownloadPathEnableAccess();
 		} break;
 
 		case dbiCompressPastedImage: {
@@ -1362,7 +1400,7 @@ namespace {
 		}
 
 		uint32 size = 14 * (sizeof(quint32) + sizeof(qint32));
-		size += sizeof(quint32) + _stringSize(cAskDownloadPath() ? QString() : cDownloadPath());
+		size += sizeof(quint32) + _stringSize(cAskDownloadPath() ? QString() : cDownloadPath()) + _bytearraySize(cAskDownloadPath() ? QByteArray() : cDownloadPathBookmark());
 		size += sizeof(quint32) + sizeof(qint32) + (cRecentEmojisPreload().isEmpty() ? cGetRecentEmojis().size() : cRecentEmojisPreload().size()) * (sizeof(uint64) + sizeof(ushort));
 		size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
 		size += sizeof(quint32) + sizeof(qint32) + (cRecentStickersPreload().isEmpty() ? cGetRecentStickers().size() : cRecentStickersPreload().size()) * (sizeof(uint64) + sizeof(ushort));
@@ -1380,7 +1418,7 @@ namespace {
 		data.stream << quint32(dbiNotifyView) << qint32(cNotifyView());
 		data.stream << quint32(dbiWindowsNotifications) << qint32(cWindowsNotifications());
 		data.stream << quint32(dbiAskDownloadPath) << qint32(cAskDownloadPath());
-		data.stream << quint32(dbiDownloadPath) << (cAskDownloadPath() ? QString() : cDownloadPath());
+		data.stream << quint32(dbiDownloadPath) << (cAskDownloadPath() ? QString() : cDownloadPath()) << (cAskDownloadPath() ? QByteArray() : cDownloadPathBookmark());
 		data.stream << quint32(dbiCompressPastedImage) << qint32(cCompressPastedImage());
 		data.stream << quint32(dbiEmojiTab) << qint32(cEmojiTab());
 		data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
@@ -2178,14 +2216,14 @@ namespace Local {
 	}
 
 	void writeFileLocation(MediaKey location, const FileLocation &local) {
-		if (local.name.isEmpty()) return;
+		if (local.fname.isEmpty()) return;
 
 		FileLocationAliases::const_iterator aliasIt = _fileLocationAliases.constFind(location);
 		if (aliasIt != _fileLocationAliases.cend()) {
 			location = aliasIt.value();
 		}
 
-		FileLocationPairs::iterator i = _fileLocationPairs.find(local.name);
+		FileLocationPairs::iterator i = _fileLocationPairs.find(local.fname);
 		if (i != _fileLocationPairs.cend()) {
 			if (i.value().second == local) {
 				if (i.value().first != location) {
@@ -2205,7 +2243,7 @@ namespace Local {
 			}
 		}
 		_fileLocations.insert(location, local);
-		_fileLocationPairs.insert(local.name, FileLocationPair(location, local));
+		_fileLocationPairs.insert(local.fname, FileLocationPair(location, local));
 		_writeLocations(WriteMapFast);
 	}
 
@@ -2218,9 +2256,8 @@ namespace Local {
 		FileLocations::iterator i = _fileLocations.find(location);
 		for (FileLocations::iterator i = _fileLocations.find(location); (i != _fileLocations.end()) && (i.key() == location);) {
 			if (check) {
-				QFileInfo info(i.value().name);
-				if (!info.exists() || info.lastModified() != i.value().modified || info.size() != i.value().size) {
-					_fileLocationPairs.remove(i.value().name);
+				if (!i.value().check()) {
+					_fileLocationPairs.remove(i.value().fname);
 					i = _fileLocations.erase(i);
 					_writeLocations();
 					continue;

@@ -1632,8 +1632,9 @@ namespace App {
 				convert->sticker()->loc = thumbLocation;
 			}
 
-			if (convert->location.check()) {
-				Local::writeFileLocation(mediaKey(DocumentFileLocation, convert->dc, convert->id), convert->location);
+			const FileLocation &loc(convert->location(true));
+			if (!loc.isEmpty()) {
+				Local::writeFileLocation(mediaKey(DocumentFileLocation, convert->dc, convert->id), loc);
 			}
 		}
 		DocumentsData::const_iterator i = documentsData.constFind(document);

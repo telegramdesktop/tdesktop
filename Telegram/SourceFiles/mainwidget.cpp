@@ -30,6 +30,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "boxes/stickersetbox.h"
 #include "boxes/contactsbox.h"
+#include "boxes/downloadpathbox.h"
 
 #include "localstorage.h"
 
@@ -1585,6 +1586,7 @@ void MainWidget::messagesAffected(PeerData *peer, const MTPmessages_AffectedMess
 void MainWidget::videoLoadProgress(mtpFileLoader *loader) {
 	VideoData *video = App::video(loader->objId());
 	if (video->loader) {
+		video->status = FileReady;
 		if (video->loader->done()) {
 			video->finish();
 			QString already = video->already();
@@ -1614,7 +1616,17 @@ void MainWidget::loadFailed(mtpFileLoader *loader, bool started, const char *ret
 	if (started) {
 		connect(box, SIGNAL(confirmed()), this, retrySlot);
 	} else {
-		connect(box, SIGNAL(confirmed()), App::wnd(), SLOT(showSettings()));
+		connect(box, SIGNAL(confirmed()), this, SLOT(onDownloadPathSettings()));
+	}
+	App::wnd()->showLayer(box);
+}
+
+void MainWidget::onDownloadPathSettings() {
+	cSetDownloadPath(QString());
+	cSetDownloadPathBookmark(QByteArray());
+	DownloadPathBox *box = new DownloadPathBox();
+	if (App::wnd() && App::wnd()->settingsWidget()) {
+		connect(box, SIGNAL(closed()), App::wnd()->settingsWidget(), SLOT(onDownloadPathEdited()));
 	}
 	App::wnd()->showLayer(box);
 }
@@ -1634,6 +1646,7 @@ void MainWidget::videoLoadRetry() {
 void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 	AudioData *audio = App::audio(loader->objId());
 	if (audio->loader) {
+		audio->status = FileReady;
 		if (audio->loader->done()) {
 			audio->finish();
 			QString already = audio->already();
@@ -1688,7 +1701,7 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 					if (f.write(audio->data) == audio->data.size()) {
 						f.close();
 						already = filename;
-						audio->location = FileLocation(mtpToStorageType(mtpc_storage_filePartial), filename);
+						audio->setLocation(FileLocation(StorageFilePartial, filename));
 						Local::writeFileLocation(mediaKey(mtpToLocationType(mtpc_inputAudioFileLocation), audio->dc, audio->id), FileLocation(mtpToStorageType(mtpc_storage_filePartial), filename));
 					}
 				}
@@ -1736,7 +1749,7 @@ void MainWidget::documentPlayProgress(const SongMsgId &songId) {
 					if (f.write(document->data) == document->data.size()) {
 						f.close();
 						already = filename;
-						document->location = FileLocation(mtpToStorageType(mtpc_storage_filePartial), filename);
+						document->setLocation(FileLocation(StorageFilePartial, filename));
 						Local::writeFileLocation(mediaKey(mtpToLocationType(mtpc_inputDocumentFileLocation), document->dc, document->id), FileLocation(mtpToStorageType(mtpc_storage_filePartial), filename));
 					}
 				}
@@ -1793,6 +1806,7 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 	bool songPlayActivated = false;
 	DocumentData *document = App::document(loader->objId());
 	if (document->loader) {
+		document->status = FileReady;
 		if (document->loader->done()) {
 			document->finish();
 			QString already = document->already();
@@ -1813,16 +1827,22 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 					}
 
 					songPlayActivated = true;
-				} else if(document->openOnSave > 0 && document->size < MediaViewImageSizeLimit) {
-					QImageReader reader(already);
-					if (reader.canRead()) {
-						if (reader.supportsAnimation() && reader.imageCount() > 1 && item) {
-							startGif(item, already);
-						} else if (item) {
-							App::wnd()->showDocument(document, item);
+				} else if (document->openOnSave > 0 && document->size < MediaViewImageSizeLimit) {
+					const FileLocation &location(document->location(true));
+					if (location.accessEnable()) {
+						QImageReader reader(location.name());
+						if (reader.canRead()) {
+							if (reader.supportsAnimation() && reader.imageCount() > 1 && item) {
+								startGif(item, location);
+							} else if (item) {
+								App::wnd()->showDocument(document, item);
+							} else {
+								psOpenFile(already);
+							}
 						} else {
 							psOpenFile(already);
 						}
+						location.accessDisable();
 					} else {
 						psOpenFile(already);
 					}
