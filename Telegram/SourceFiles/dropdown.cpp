@@ -1831,14 +1831,14 @@ void EmojiSwitchButton::paintEvent(QPaintEvent *e) {
 
 EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent), _maxHeight(st::emojiPanMaxHeight),
 _horizontal(false), _noTabUpdate(false), _hiding(false), a_opacity(0), _shadow(st::dropdownDef.shadow),
-_recent(this     , qsl("emoji_group"), dbietRecent     , QString(), true , st::rbEmojiRecent),
-_people(this     , qsl("emoji_group"), dbietPeople     , QString(), false, st::rbEmojiPeople),
-_nature(this     , qsl("emoji_group"), dbietNature     , QString(), false, st::rbEmojiNature),
-_food(this       , qsl("emoji_group"), dbietFood       , QString(), false, st::rbEmojiFood),
-_celebration(this, qsl("emoji_group"), dbietCelebration, QString(), false, st::rbEmojiCelebration),
-_activity(this   , qsl("emoji_group"), dbietActivity   , QString(), false, st::rbEmojiActivity),
-_travel(this     , qsl("emoji_group"), dbietTravel     , QString(), false, st::rbEmojiTravel),
-_objects(this    , qsl("emoji_group"), dbietObjects    , QString(), false, st::rbEmojiObjects),
+_recent(this  , qsl("emoji_group"), dbietRecent  , QString(), true , st::rbEmojiRecent),
+_people(this  , qsl("emoji_group"), dbietPeople  , QString(), false, st::rbEmojiPeople),
+_nature(this  , qsl("emoji_group"), dbietNature  , QString(), false, st::rbEmojiNature),
+_food(this    , qsl("emoji_group"), dbietFood    , QString(), false, st::rbEmojiFood),
+_activity(this, qsl("emoji_group"), dbietActivity, QString(), false, st::rbEmojiActivity),
+_travel(this  , qsl("emoji_group"), dbietTravel  , QString(), false, st::rbEmojiTravel),
+_objects(this , qsl("emoji_group"), dbietObjects , QString(), false, st::rbEmojiObjects),
+_symbols(this , qsl("emoji_group"), dbietSymbols , QString(), false, st::rbEmojiSymbols),
 _iconOver(-1), _iconSel(0), _iconDown(-1), _iconsDragging(false),
 _iconAnim(animFunc(this, &EmojiPan::iconAnim)),
 _iconsLeft(0), _iconsTop(0), _iconsStartX(0), _iconsMax(0), _iconsX(0, 0), _iconSelX(0, 0), _iconsStartAnim(0),
@@ -1872,10 +1872,10 @@ s_scroll(this, st::emojiScroll), s_inner(), s_switch(&s_scroll, false), _removin
 	prepareTab(left, top, _width, _people);
 	prepareTab(left, top, _width, _nature);
 	prepareTab(left, top, _width, _food);
-	prepareTab(left, top, _width, _celebration);
 	prepareTab(left, top, _width, _activity);
 	prepareTab(left, top, _width, _travel);
 	prepareTab(left, top, _width, _objects);
+	prepareTab(left, top, _width, _symbols);
 	e_inner.fillPanels(e_panels);
 	updatePanelsPositions(e_panels, 0);
 
@@ -1938,10 +1938,10 @@ void EmojiPan::setMaxHeight(int32 h) {
 	_people.move(_people.x(), _iconsTop);
 	_nature.move(_nature.x(), _iconsTop);
 	_food.move(_food.x(), _iconsTop);
-	_celebration.move(_celebration.x(), _iconsTop);
 	_activity.move(_activity.x(), _iconsTop);
 	_travel.move(_travel.x(), _iconsTop);
 	_objects.move(_objects.x(), _iconsTop);
+	_symbols.move(_symbols.x(), _iconsTop);
 
 	update();
 }
@@ -2474,10 +2474,10 @@ void EmojiPan::showAll() {
 		_people.hide();
 		_nature.hide();
 		_food.hide();
-		_celebration.hide();
 		_activity.hide();
 		_travel.hide();
 		_objects.hide();
+		_symbols.hide();
 		e_scroll.hide();
 	} else {
 		s_scroll.hide();
@@ -2485,10 +2485,10 @@ void EmojiPan::showAll() {
 		_people.show();
 		_nature.show();
 		_food.show();
-		_celebration.show();
 		_activity.show();
 		_travel.show();
 		_objects.show();
+		_symbols.show();
 		e_scroll.show();
 	}
 }
@@ -2498,10 +2498,10 @@ void EmojiPan::hideAll() {
 	_people.hide();
 	_nature.hide();
 	_food.hide();
-	_celebration.hide();
 	_activity.hide();
 	_travel.hide();
 	_objects.hide();
+	_symbols.hide();
 	e_scroll.hide();
 	s_scroll.hide();
 	e_inner.clearSelection(true);
@@ -2514,10 +2514,10 @@ void EmojiPan::onTabChange() {
 	if (_people.checked()) newTab = dbietPeople;
 	else if (_nature.checked()) newTab = dbietNature;
 	else if (_food.checked()) newTab = dbietFood;
-	else if (_celebration.checked()) newTab = dbietCelebration;
 	else if (_activity.checked()) newTab = dbietActivity;
 	else if (_travel.checked()) newTab = dbietTravel;
 	else if (_objects.checked()) newTab = dbietObjects;
+	else if (_symbols.checked()) newTab = dbietSymbols;
 	e_inner.showEmojiPack(newTab);
 }
 
@@ -2540,14 +2540,14 @@ void EmojiPan::onScroll() {
 		DBIEmojiTab tab = e_inner.currentTab(st);
 		FlatRadiobutton *check = 0;
 		switch (tab) {
-			case dbietRecent     : check = &_recent     ; break;
-			case dbietPeople     : check = &_people     ; break;
-			case dbietNature     : check = &_nature     ; break;
-			case dbietFood       : check = &_food       ; break;
-			case dbietCelebration: check = &_celebration; break;
-			case dbietActivity   : check = &_activity   ; break;
-			case dbietTravel     : check = &_travel     ; break;
-			case dbietObjects    : check = &_objects    ; break;
+			case dbietRecent  : check = &_recent  ; break;
+			case dbietPeople  : check = &_people  ; break;
+			case dbietNature  : check = &_nature  ; break;
+			case dbietFood    : check = &_food    ; break;
+			case dbietActivity: check = &_activity; break;
+			case dbietTravel  : check = &_travel  ; break;
+			case dbietObjects : check = &_objects ; break;
+			case dbietSymbols : check = &_symbols ; break;
 		}
 		if (check && !check->checked()) {
 			_noTabUpdate = true;

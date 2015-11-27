@@ -545,7 +545,7 @@ public:
 	void parseCurrentChar() {
 		int skipBack = 0;
 		ch = ((ptr < end) ? *ptr : 0);
-		chInt = ch.unicode();
+		emojiLookback = 0;
 		bool skip = false, isNewLine = multiline && chIsNewline(ch), isSpace = chIsSpace(ch), isDiac = chIsDiac(ch), isTilde = checkTilde && (ch == '~');
 		if (chIsBad(ch) || ch.isLowSurrogate()) {
 			skip = true;
@@ -561,15 +561,7 @@ public:
 				skipBack = -1;
 				++ptr;
 				ch = *ptr;
-				chInt = (chInt << 16) | ch.unicode();
-			}
-		} else if ((ch >= 48 && ch < 58) || ch == 35) { // check for digit emoji
-			if (ptr + 1 < end && (ptr + 1)->unicode() == 0x20E3) {
-				_t->_text.push_back(ch);
-				skipBack = -1;
-				++ptr;
-				ch = *ptr;
-				chInt = (chInt << 16) | 0x20E3;
+				emojiLookback = 1;
 			}
 		}
 
@@ -601,11 +593,11 @@ public:
 	}
 
 	void parseEmojiFromCurrent() {
-		int len = 0, skipped = (chInt > 0xFFFFU) ? 1 : 0;
-		EmojiPtr e = emojiFromText(ptr - skipped, end, len);
+		int len = 0;
+		EmojiPtr e = emojiFromText(ptr - emojiLookback, end, len);
 		if (!e) return;
 
-		for (int l = len - skipped - 1; l > 0; --l) {
+		for (int l = len - emojiLookback - 1; l > 0; --l) {
 			_t->_text.push_back(*++ptr);
 		}
 		if (e->postfix && _t->_text.at(_t->_text.size() - 1).unicode() != e->postfix) {
@@ -688,7 +680,7 @@ public:
 		blockStart = 0;
 		emoji = 0;
 
-		ch = chInt = 0;
+		ch = emojiLookback = 0;
 		lastSkipped = false;
 		checkTilde = !cRetina() && _t->_font->size() == 13 && _t->_font->flags() == 0; // tilde Open Sans fix
 		entitiesEnd = entities.cend();
@@ -789,7 +781,7 @@ private:
 
 	// current char data
 	QChar ch; // current char (low surrogate, if current char is surrogate pair)
-	uint32 chInt; // full ch, could be surrogate pair
+	int32 emojiLookback; // how far behind the current ptr to look for current emoji
 	bool lastSkipped; // did we skip current char
 	bool checkTilde; // do we need a special text block for tilde symbol
 };
@@ -2553,7 +2545,7 @@ void Text::setMarkedText(style::font font, const QString &text, const EntitiesIn
 	_font = font;
 	clean();
 	{
-//		QByteArray ba = text.toUtf8();
+//		QByteArray ba = text.toUtf8(); // chars for OS X crash investigation
 //		const char *ch = ba.constData();
 //		LOG(("STR: %1").arg(text));
 //		LOG(("BYTES: %1").arg(mb(ba.constData(), ba.size()).str()));
@@ -2561,6 +2553,36 @@ void Text::setMarkedText(style::font font, const QString &text, const EntitiesIn
 //			LOG(("LETTER %1: '%2' - %3").arg(i).arg(text.at(i)).arg(text.at(i).unicode()));
 //		}
 //		int32 w = _font->width(text);
+
+//		QString newText; // utf16 of the text for emoji
+//		newText.reserve(8 * text.size());
+//		for (const QChar *ch = text.constData(), *e = ch + text.size(); ch != e; ++ch) {
+//			if (chIsNewline(*ch)) {
+//				newText.append(*ch);
+//			} else {
+//				if (ch->isHighSurrogate() || ch->isLowSurrogate()) {
+//					if (ch->isHighSurrogate() && (ch + 1 != e) && ((ch + 1)->isLowSurrogate())) {
+//						newText.append("0x").append(QString::number((uint32(ch->unicode()) << 16) | uint32((ch + 1)->unicode()), 16).toUpper()).append("LLU,");
+//						++ch;
+//					} else {
+//						newText.append("BADx").append(QString::number(ch->unicode(), 16).toUpper()).append("LLU,");
+//					}
+//				} else {
+//					newText.append("0x").append(QString::number(ch->unicode(), 16).toUpper()).append("LLU,");
+//				}
+//			}
+//		}
+//		newText.append("\n\n").append(text);
+//		TextParser parser(this, newText, EntitiesInText(), options);
+
+//		QString newText; // utf8 of the text for emoji sequences
+//		newText.reserve(8 * text.size());
+//		QByteArray ba = text.toUtf8();
+//		for (int32 i = 0, l = ba.size(); i < l; ++i) {
+//			newText.append("\\x").append(QString::number(uchar(ba.at(i)), 16).toLower());
+//		}
+//		newText.append("\n\n").append(text);
+//		TextParser parser(this, newText, EntitiesInText(), options);
 
 		TextParser parser(this, text, entities, options);
 	}

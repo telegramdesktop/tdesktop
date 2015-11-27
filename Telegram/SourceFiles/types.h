@@ -260,7 +260,7 @@ enum DataBlockId {
 	dbiAskDownloadPath      = 0x14,
 	dbiDownloadPathOld      = 0x15,
 	dbiScale                = 0x16,
-	dbiEmojiTab             = 0x17,
+	dbiEmojiTabOld          = 0x17,
 	dbiRecentEmojisOld      = 0x18,
 	dbiLoggedPhoneNumber    = 0x19,
 	dbiMutedPeers           = 0x1a,
@@ -342,15 +342,15 @@ enum DBIScale {
 static const int MatrixRowShift = 40000;
 
 enum DBIEmojiTab {
-	dbietRecent      = -1,
-	dbietPeople      =  0,
-	dbietNature      =  1,
-	dbietFood        =  2,
-	dbietCelebration =  3,
-	dbietActivity    =  4,
-	dbietTravel      =  5,
-	dbietObjects     =  6,
-	dbietStickers    =  666,
+	dbietRecent   = -1,
+	dbietPeople   =  0,
+	dbietNature   =  1,
+	dbietFood     =  2,
+	dbietActivity =  3,
+	dbietTravel   =  4,
+	dbietObjects  =  5,
+	dbietSymbols  =  6,
+	dbietStickers =  666,
 };
 static const int emojiTabCount = 8;
 inline DBIEmojiTab emojiTabAtIndex(int index) {

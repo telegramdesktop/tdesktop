@@ -1092,22 +1092,12 @@ namespace {
 			cSetCompressPastedImage(v == 1);
 		} break;
 
-		case dbiEmojiTab: {
+		case dbiEmojiTabOld: {
 			qint32 v;
 			stream >> v;
 			if (!_checkStreamStatus(stream)) return false;
 
-			switch (v) {
-			case dbietRecent     : cSetEmojiTab(dbietRecent     ); break;
-			case dbietPeople     : cSetEmojiTab(dbietPeople     ); break;
-			case dbietNature     : cSetEmojiTab(dbietNature     ); break;
-			case dbietFood       : cSetEmojiTab(dbietFood       ); break;
-			case dbietCelebration: cSetEmojiTab(dbietCelebration); break;
-			case dbietActivity   : cSetEmojiTab(dbietActivity   ); break;
-			case dbietTravel     : cSetEmojiTab(dbietTravel     ); break;
-			case dbietObjects    : cSetEmojiTab(dbietObjects    ); break;
-			case dbietStickers   : cSetEmojiTab(dbietStickers   ); break;
-			}
+			// deprecated
 		} break;
 
 		case dbiRecentEmojisOld: {
@@ -1420,7 +1410,6 @@ namespace {
 		data.stream << quint32(dbiAskDownloadPath) << qint32(cAskDownloadPath());
 		data.stream << quint32(dbiDownloadPath) << (cAskDownloadPath() ? QString() : cDownloadPath()) << (cAskDownloadPath() ? QByteArray() : cDownloadPathBookmark());
 		data.stream << quint32(dbiCompressPastedImage) << qint32(cCompressPastedImage());
-		data.stream << quint32(dbiEmojiTab) << qint32(cEmojiTab());
 		data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
 		data.stream << quint32(dbiSongVolume) << qint32(qRound(cSongVolume() * 1e6));
 
