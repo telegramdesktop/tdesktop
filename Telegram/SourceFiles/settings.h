@@ -169,8 +169,6 @@ T convertScale(T v) {
 	return v;
 }
 
-DeclareSetting(DBIEmojiTab, EmojiTab);
-
 struct EmojiData {
 	EmojiData(uint16 x, uint16 y, uint32 code, uint32 code2, uint16 len, uint16 postfix, uint32 color) : x(x), y(y), code(code), code2(code2), len(len), postfix(postfix), color(color) {
 	}

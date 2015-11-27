@@ -564,10 +564,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_emoji_category1" = "People";
 "lng_emoji_category2" = "Nature";
 "lng_emoji_category3" = "Food & Drink";
-"lng_emoji_category4" = "Celebration";
-"lng_emoji_category5" = "Activity";
-"lng_emoji_category6" = "Travel & Places";
-"lng_emoji_category7" = "Objects & Symbols";
+"lng_emoji_category4" = "Activity";
+"lng_emoji_category5" = "Travel & Places";
+"lng_emoji_category6" = "Objects";
+"lng_emoji_category7" = "Symbols & Flags";
 
 "lng_switch_stickers" = "Stickers";
 "lng_switch_emoji" = "Emoji";

@@ -100,7 +100,6 @@ bool gHasPasscode = false;
 bool gHasAudioPlayer = true;
 bool gHasAudioCapture = true;
 
-DBIEmojiTab gEmojiTab = dbietRecent;
 RecentEmojiPack gRecentEmojis;
 RecentEmojisPreload gRecentEmojisPreload;
 EmojiColorVariants gEmojiVariants;
