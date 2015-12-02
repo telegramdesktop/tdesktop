@@ -104,7 +104,7 @@ RecentEmojiPack gRecentEmojis;
 RecentEmojisPreload gRecentEmojisPreload;
 EmojiColorVariants gEmojiVariants;
 
-QByteArray gStickersHash;
+int32 gStickersHash = 0;
 
 RecentStickerPreload gRecentStickersPreload;
 RecentStickerPack gRecentStickers;

@@ -1985,7 +1985,7 @@ namespace App {
 		webPagesData.clear();
 		if (api()) api()->clearWebPageRequests();
 		cSetRecentStickers(RecentStickerPack());
-		cSetStickersHash(QByteArray());
+		cSetStickersHash(0);
 		cSetStickerSets(StickerSets());
 		cSetStickerSetsOrder(StickerSetsOrder());
 		cSetLastStickersUpdate(0);

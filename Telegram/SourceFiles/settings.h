@@ -195,7 +195,7 @@ RecentEmojiPack &cGetRecentEmojis();
 
 struct DocumentData;
 typedef QVector<DocumentData*> StickerPack;
-DeclareSetting(QByteArray, StickersHash);
+DeclareSetting(int32, StickersHash);
 
 typedef QList<QPair<DocumentData*, int16> > RecentStickerPackOld;
 typedef QVector<QPair<uint64, ushort> > RecentStickerPreload;

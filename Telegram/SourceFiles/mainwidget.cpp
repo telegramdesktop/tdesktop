@@ -3688,6 +3688,7 @@ void MainWidget::startFull(const MTPVector<MTPUser> &users) {
 }
 
 void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNotifySettings &settings, History *h) {
+	PeerData *updatePeer = 0;
 	switch (settings.type()) {
 	case mtpc_peerNotifySettingsEmpty:
 		switch (peer.type()) {
@@ -3695,18 +3696,15 @@ void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNoti
 		case mtpc_notifyUsers: globalNotifyUsersPtr = EmptyNotifySettings; break;
 		case mtpc_notifyChats: globalNotifyChatsPtr = EmptyNotifySettings; break;
 		case mtpc_notifyPeer: {
-			PeerData *data = App::peerLoaded(peerFromMTP(peer.c_notifyPeer().vpeer));
-			if (data && data->notify != EmptyNotifySettings) {
-				if (data->notify != UnknownNotifySettings) {
-					delete data->notify;
+			updatePeer = App::peerLoaded(peerFromMTP(peer.c_notifyPeer().vpeer));
+			if (updatePeer && updatePeer->notify != EmptyNotifySettings) {
+				if (updatePeer->notify != UnknownNotifySettings) {
+					delete updatePeer->notify;
 				}
-				data->notify = EmptyNotifySettings;
-				App::unregMuted(data);
-				if (!h) h = App::history(data->id);
+				updatePeer->notify = EmptyNotifySettings;
+				App::unregMuted(updatePeer);
+				if (!h) h = App::history(updatePeer->id);
 				h->setMute(false);
-				if (history.peer() == data) {
-					history.updateNotifySettings();
-				}
 			}
 		} break;
 		}
@@ -3714,19 +3712,18 @@ void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNoti
 	case mtpc_peerNotifySettings: {
 		const MTPDpeerNotifySettings &d(settings.c_peerNotifySettings());
 		NotifySettingsPtr setTo = UnknownNotifySettings;
-		PeerData *data = 0;
 		switch (peer.type()) {
 		case mtpc_notifyAll: setTo = globalNotifyAllPtr = &globalNotifyAll; break;
 		case mtpc_notifyUsers: setTo = globalNotifyUsersPtr = &globalNotifyUsers; break;
 		case mtpc_notifyChats: setTo = globalNotifyChatsPtr = &globalNotifyChats; break;
 		case mtpc_notifyPeer: {
-			data = App::peerLoaded(peerFromMTP(peer.c_notifyPeer().vpeer));
-			if (!data) break;
+			updatePeer = App::peerLoaded(peerFromMTP(peer.c_notifyPeer().vpeer));
+			if (!updatePeer) break;
 
-			if (data->notify == UnknownNotifySettings || data->notify == EmptyNotifySettings) {
-				data->notify = new NotifySettings();
+			if (updatePeer->notify == UnknownNotifySettings || updatePeer->notify == EmptyNotifySettings) {
+				updatePeer->notify = new NotifySettings();
 			}
-			setTo = data->notify;
+			setTo = updatePeer->notify;
 		} break;
 		}
 		if (setTo == UnknownNotifySettings) break;
@@ -3735,25 +3732,28 @@ void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNoti
 		setTo->sound = d.vsound.c_string().v;
 		setTo->previews = mtpIsTrue(d.vshow_previews);
 		setTo->events = d.vevents_mask.v;
-		if (data) {
-			if (!h) h = App::history(data->id);
+		if (updatePeer) {
+			if (!h) h = App::history(updatePeer->id);
 			int32 changeIn = 0;
 			if (isNotifyMuted(setTo, &changeIn)) {
 				App::wnd()->notifyClear(h);
 				h->setMute(true);
-				App::regMuted(data, changeIn);
+				App::regMuted(updatePeer, changeIn);
 			} else {
 				h->setMute(false);
-			}
-			if (history.peer() == data) {
-				history.updateNotifySettings();
 			}
 		}
 	} break;
 	}
 
-	if (profile) {
-		profile->updateNotifySettings();
+	if (updatePeer) {
+		if (history.peer() == updatePeer) {
+			history.updateNotifySettings();
+		}
+		dialogs.updateNotifySettings(updatePeer);
+		if (profile && profile->peer() == updatePeer) {
+			profile->updateNotifySettings();
+		}
 	}
 }
 
@@ -4591,6 +4591,81 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		if (HistoryItem *item = App::histItemById(d.vchannel_id.v, d.vid.v)) {
 			item->setViewsCount(d.vviews.v);
 		}
+	} break;
+
+	case mtpc_updateNewStickerSet: {
+		const MTPDupdateNewStickerSet &d(update.c_updateNewStickerSet());
+		if (d.vstickerset.type() == mtpc_messages_stickerSet) {
+			const MTPDmessages_stickerSet &set(d.vstickerset.c_messages_stickerSet());
+			if (set.vset.type() == mtpc_stickerSet) {
+				const QVector<MTPDocument> &v(set.vdocuments.c_vector().v);
+				StickerPack pack;
+				pack.reserve(v.size());
+				for (int32 i = 0, l = v.size(); i < l; ++i) {
+					DocumentData *doc = App::feedDocument(v.at(i));
+					if (!doc || !doc->sticker()) continue;
+
+					pack.push_back(doc);
+				}
+
+				const MTPDstickerSet &s(set.vset.c_stickerSet());
+
+				StickerSets &sets(cRefStickerSets());
+
+				sets.insert(s.vid.v, StickerSet(s.vid.v, s.vaccess_hash.v, stickerSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v)).value().stickers = pack;
+
+				StickerSetsOrder &order(cRefStickerSetsOrder());
+				int32 insertAtIndex = 0, currentIndex = order.indexOf(s.vid.v);
+				if (currentIndex != insertAtIndex) {
+					if (currentIndex > 0) {
+						order.removeAt(currentIndex);
+					}
+					order.insert(insertAtIndex, s.vid.v);
+				}
+
+				StickerSets::iterator custom = sets.find(CustomStickerSetId);
+				if (custom != sets.cend()) {
+					for (int32 i = 0, l = pack.size(); i < l; ++i) {
+						custom->stickers.removeOne(pack.at(i));
+					}
+					if (custom->stickers.isEmpty()) {
+						sets.erase(custom);
+					}
+				}
+				cSetStickersHash(stickersCountHash());
+				Local::writeStickers();
+				emit stickersUpdated();
+			}
+		}
+	} break;
+
+	case mtpc_updateStickerSetsOrder: {
+		const MTPDupdateStickerSetsOrder &d(update.c_updateStickerSetsOrder());
+		const QVector<MTPlong> &order(d.vorder.c_vector().v);
+		const StickerSets &sets(cStickerSets());
+		StickerSetsOrder result;
+		for (int32 i = 0, l = order.size(); i < l; ++i) {
+			if (sets.constFind(order.at(i).v) == sets.cend()) {
+				break;
+			}
+			result.push_back(order.at(i).v);
+		}
+		if (result.size() != cStickerSetsOrder().size() || result.size() != order.size()) {
+			cSetLastStickersUpdate(0);
+			cSetStickersHash(0);
+			App::main()->updateStickers();
+		} else {
+			cSetStickerSetsOrder(result);
+			cSetStickersHash(stickersCountHash());
+			Local::writeStickers();
+			emit stickersUpdated();
+		}
+	} break;
+
+	case mtpc_updateStickerSets: {
+		cSetLastStickersUpdate(0);
+		cSetStickersHash(0);
+		App::main()->updateStickers();
 	} break;
 
 	}

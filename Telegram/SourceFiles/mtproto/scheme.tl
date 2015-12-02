@@ -305,6 +305,11 @@ peerNotifySettings#8d5e11ee mute_until:int sound:string show_previews:Bool event
 wallPaper#ccb03657 id:int title:string sizes:Vector<PhotoSize> color:int = WallPaper;
 wallPaperSolid#63117f24 id:int title:string bg_color:int color:int = WallPaper;
 
+inputReportReasonSpam#58dbcab8 = ReportReason;
+inputReportReasonViolence#1e22c78d = ReportReason;
+inputReportReasonPornography#2e59d922 = ReportReason;
+inputReportReasonOther#e1746d0a text:string = ReportReason;
+
 userFull#5a89ac5b user:User link:contacts.Link profile_photo:Photo notify_settings:PeerNotifySettings blocked:Bool bot_info:BotInfo = UserFull;
 
 contact#f911c994 user_id:int mutual:Bool = Contact;
@@ -389,6 +394,9 @@ updateDeleteChannelMessages#c37521c9 channel_id:int messages:Vector<int> pts:int
 updateChannelMessageViews#98a12b4b channel_id:int id:int views:int = Update;
 updateChatAdmins#6e947941 chat_id:int enabled:Bool version:int = Update;
 updateChatParticipantAdmin#b6901959 chat_id:int user_id:int is_admin:Bool version:int = Update;
+updateNewStickerSet#688a30aa stickerset:messages.StickerSet = Update;
+updateStickerSetsOrder#f0dfb451 order:Vector<long> = Update;
+updateStickerSets#43ae3dec = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -516,7 +524,7 @@ messages.stickers#8a8ecd32 hash:string stickers:Vector<Document> = messages.Stic
 stickerPack#12b299d4 emoticon:string documents:Vector<long> = StickerPack;
 
 messages.allStickersNotModified#e86602c3 = messages.AllStickers;
-messages.allStickers#d51dafdb hash:string sets:Vector<StickerSet> = messages.AllStickers;
+messages.allStickers#edfd405f hash:int sets:Vector<StickerSet> = messages.AllStickers;
 
 disabledFeature#ae636f24 feature:string description:string = DisabledFeature;
 
@@ -625,6 +633,8 @@ channels.channelParticipants#f56ee2a8 count:int participants:Vector<ChannelParti
 
 channels.channelParticipant#d0d9b163 participant:ChannelParticipant users:Vector<User> = channels.ChannelParticipant;
 
+help.termsOfService#f1ee3e90 text:string = help.TermsOfService;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -658,6 +668,7 @@ account.resetNotifySettings#db7e1747 = Bool;
 account.updateProfile#f0888d68 first_name:string last_name:string = User;
 account.updateStatus#6628562c offline:Bool = Bool;
 account.getWallPapers#c04cfac2 = Vector<WallPaper>;
+account.reportPeer#ae189d5f peer:InputPeer reason:ReportReason = Bool;
 account.checkUsername#2714d86c username:string = Bool;
 account.updateUsername#3e0bdd7c username:string = User;
 account.getPrivacy#dadbc950 key:InputPrivacyKey = account.PrivacyRules;
@@ -725,7 +736,7 @@ messages.sendEncryptedService#32d439a4 peer:InputEncryptedChat random_id:long da
 messages.receivedQueue#55a5bb66 max_qts:int = Vector<long>;
 messages.readMessageContents#36a73f77 id:Vector<int> = messages.AffectedMessages;
 messages.getStickers#ae22e045 emoticon:string hash:string = messages.Stickers;
-messages.getAllStickers#aa3bc868 hash:string = messages.AllStickers;
+messages.getAllStickers#1c9618b1 hash:int = messages.AllStickers;
 messages.getWebPagePreview#25223e24 message:string = MessageMedia;
 messages.exportChatInvite#7d885289 chat_id:int = ExportedChatInvite;
 messages.checkChatInvite#3eadb1bb hash:string = ChatInvite;
@@ -739,6 +750,7 @@ messages.toggleChatAdmins#ec8bd9e1 chat_id:int enabled:Bool = Updates;
 messages.editChatAdmin#a9e69f2e chat_id:int user_id:InputUser is_admin:Bool = Bool;
 messages.migrateChat#15a3b8e3 chat_id:int = Updates;
 messages.searchGlobal#9e3cacb0 q:string offset_date:int offset_peer:InputPeer offset_id:int limit:int = messages.Messages;
+messages.reorderStickerSets#9fcfbc30 order:Vector<long> = Bool;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#a041495 pts:int date:int qts:int = updates.Difference;
@@ -760,6 +772,7 @@ help.saveAppLog#6f02f748 events:Vector<InputAppEvent> = Bool;
 help.getInviteText#a4a95186 lang_code:string = help.InviteText;
 help.getSupport#9cdf08cd = help.Support;
 help.getAppChangelog#5bab7fb2 device_model:string system_version:string app_version:string lang_code:string = help.AppChangelog;
+help.getTermsOfService#37d78f83 lang_code:string = help.TermsOfService;
 
 channels.getDialogs#a9d3d249 offset:int limit:int = messages.Dialogs;
 channels.getImportantHistory#ddb929cb channel:InputChannel offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;

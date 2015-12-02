@@ -368,7 +368,7 @@ static const mtpTypeId mtpLayers[] = {
 	mtpTypeId(mtpc_invokeWithLayer18),
 };
 static const uint32 mtpLayerMaxSingle = sizeof(mtpLayers) / sizeof(mtpLayers[0]);
-static const mtpPrime mtpCurrentLayer = 42;
+static const mtpPrime mtpCurrentLayer = 43;
 
 template <typename bareT>
 class MTPBoxed : public bareT {
@@ -990,3 +990,5 @@ enum { // client side flags
 
 static const MTPReplyMarkup MTPnullMarkup = MTP_replyKeyboardMarkup(MTP_int(0), MTP_vector<MTPKeyboardButtonRow>(0));
 static const MTPVector<MTPMessageEntity> MTPnullEntities = MTP_vector<MTPMessageEntity>(0);
+
+QString stickerSetTitle(const MTPDstickerSet &s);

@@ -2608,11 +2608,12 @@ namespace Local {
 			_writeMap();
 		} else {
 			int32 setsCount = 0;
-			quint32 size = sizeof(quint32) + _bytearraySize(cStickersHash());
+			QByteArray hashToWrite = (qsl("%d:") + QString::number(cStickersHash())).toUtf8();
+			quint32 size = sizeof(quint32) + _bytearraySize(hashToWrite);
 			for (StickerSets::const_iterator i = sets.cbegin(); i != sets.cend(); ++i) {
 				bool notLoaded = (i->flags & MTPDstickerSet_flag_NOT_LOADED);
 				if (notLoaded) {
-					if (!(i->flags & MTPDstickerSet::flag_disabled)) { // waiting to receive
+					if (!(i->flags & MTPDstickerSet::flag_disabled) || (i->flags & MTPDstickerSet::flag_official)) { // waiting to receive
 						return;
 					}
 				} else {
@@ -2639,7 +2640,7 @@ namespace Local {
 				_writeMap(WriteMapFast);
 			}
 			EncryptedDescriptor data(size);
-			data.stream << quint32(setsCount) << cStickersHash();
+			data.stream << quint32(setsCount) << hashToWrite;
 			_writeStickerSet(data.stream, CustomStickerSetId);
 			for (StickerSetsOrder::const_iterator i = cStickerSetsOrder().cbegin(), e = cStickerSetsOrder().cend(); i != e; ++i) {
 				_writeStickerSet(data.stream, *i);
@@ -2669,7 +2670,7 @@ namespace Local {
 		RecentStickerPack &recent(cRefRecentStickers());
 		recent.clear();
 
-		cSetStickersHash(QByteArray());
+		cSetStickersHash(0);
 
 		StickerSet &def(sets.insert(DefaultStickerSetId, StickerSet(DefaultStickerSetId, 0, lang(lng_stickers_default_set), QString(), 0, 0, MTPDstickerSet::flag_official)).value());
 		StickerSet &custom(sets.insert(CustomStickerSetId, StickerSet(CustomStickerSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, 0)).value());
@@ -2827,7 +2828,11 @@ namespace Local {
 			}
 		}
 
-		cSetStickersHash(hash);
+		if (hash.startsWith(qsl("%d:").toUtf8())) {
+			cSetStickersHash(QString::fromUtf8(hash.mid(3)).toInt());
+		} else {
+			cSetStickersHash(0);
+		}
 	}
 
 	void writeBackground(int32 id, const QImage &img) {

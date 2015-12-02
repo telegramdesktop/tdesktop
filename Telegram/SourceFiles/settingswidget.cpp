@@ -38,6 +38,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "boxes/passcodebox.h"
 #include "boxes/autolockbox.h"
 #include "boxes/sessionsbox.h"
+#include "boxes/stickersetbox.h"
 #include "langloaderplain.h"
 #include "gui/filedialog.h"
 
@@ -156,6 +157,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	// chat options
 	_replaceEmojis(this, lang(lng_settings_replace_emojis), cReplaceEmojis()),
 	_viewEmojis(this, lang(lng_settings_view_emojis)),
+	_stickers(this, lang(lng_stickers_you_have)),
 
 	_enterSend(this, qsl("send_key"), 0, lang(lng_settings_send_enter), !cCtrlEnter()),
     _ctrlEnterSend(this, qsl("send_key"), 1, lang((cPlatform() == dbipMac) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), cCtrlEnter()),
@@ -269,6 +271,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	// chat options
 	connect(&_replaceEmojis, SIGNAL(changed()), this, SLOT(onReplaceEmojis()));
 	connect(&_viewEmojis, SIGNAL(clicked()), this, SLOT(onViewEmojis()));
+	connect(&_stickers, SIGNAL(clicked()), this, SLOT(onStickers()));
 
 	connect(&_enterSend, SIGNAL(changed()), this, SLOT(onEnterSend()));
 	connect(&_ctrlEnterSend, SIGNAL(changed()), this, SLOT(onCtrlEnterSend()));
@@ -515,7 +518,8 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_chat));
 		top += st::setHeaderSkip;
 
-		top += _replaceEmojis.height() + st::setSectionSkip;
+		top += _replaceEmojis.height() + st::setLittleSkip;
+		top += _stickers.height() + st::setSectionSkip;
 		top += _enterSend.height() + st::setLittleSkip;
 		top += _ctrlEnterSend.height() + st::setSectionSkip;
 
@@ -706,7 +710,8 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 	if (self()) {
 		top += st::setHeaderSkip;
 		_viewEmojis.move(_left + st::setWidth - _viewEmojis.width(), top + st::cbDefFlat.textTop);
-		_replaceEmojis.move(_left, top); top += _replaceEmojis.height() + st::setSectionSkip;
+		_replaceEmojis.move(_left, top); top += _replaceEmojis.height() + st::setLittleSkip;
+		_stickers.move(_left + st::cbDefFlat.textLeft, top); top += _stickers.height() + st::setSectionSkip;
 		_enterSend.move(_left, top); top += _enterSend.height() + st::setLittleSkip;
 		_ctrlEnterSend.move(_left, top); top += _ctrlEnterSend.height() + st::setSectionSkip;
 		_dontAskDownloadPath.move(_left, top); top += _dontAskDownloadPath.height();
@@ -1040,6 +1045,7 @@ void SettingsInner::showAll() {
 		} else {
 			_viewEmojis.hide();
 		}
+		_stickers.show();
 		_enterSend.show();
 		_ctrlEnterSend.show();
 		_dontAskDownloadPath.show();
@@ -1058,6 +1064,7 @@ void SettingsInner::showAll() {
 	} else {
 		_replaceEmojis.hide();
 		_viewEmojis.hide();
+		_stickers.hide();
 		_enterSend.hide();
 		_ctrlEnterSend.hide();
 		_dontAskDownloadPath.hide();
@@ -1521,7 +1528,11 @@ void SettingsInner::onReplaceEmojis() {
 }
 
 void SettingsInner::onViewEmojis() {
-	App::wnd()->showLayer(new EmojiBox());
+	App::showLayer(new EmojiBox());
+}
+
+void SettingsInner::onStickers() {
+	App::showLayer(new StickersBox());
 }
 
 void SettingsInner::onEnterSend() {

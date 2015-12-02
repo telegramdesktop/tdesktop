@@ -581,6 +581,11 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_stickers_not_found" = "Sticker pack not found.";
 "lng_stickers_copied" = "Sticker pack link copied to clipboard.";
 "lng_stickers_default_set" = "Great Minds";
+"lng_stickers_you_have" = "Manage and reorder sticker packs";
+"lng_stickers_packs" = "Sticker Packs";
+"lng_stickers_remove" = "Remove";
+"lng_stickers_return" = "Return";
+"lng_stickers_count" = "{count:Loading..|# sticker|# stickers}";
 
 "lng_in_dlg_photo" = "Photo";
 "lng_in_dlg_video" = "Video";
@@ -657,6 +662,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_save_downloaded" = "{ready} / {total} {mb}";
 "lng_duration_and_size" = "{duration}, {size}";
 "lng_choose_images" = "Choose images";
+
+"lng_context_view_profile" = "View profile";
+"lng_context_view_group" = "View group info";
+"lng_context_view_channel" = "View channel info";
 
 "lng_context_open_link" = "Open Link";
 "lng_context_copy_link" = "Copy Link";

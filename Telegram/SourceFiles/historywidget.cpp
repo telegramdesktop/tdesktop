@@ -2943,7 +2943,8 @@ void HistoryWidget::updateStickers() {
 	if (cLastStickersUpdate() && getms(true) < cLastStickersUpdate() + StickersUpdateTimeout) return;
 	if (_stickersUpdateRequest) return;
 
-	_stickersUpdateRequest = MTP::send(MTPmessages_GetAllStickers(MTP_string(cStickersHash())), rpcDone(&HistoryWidget::stickersGot), rpcFail(&HistoryWidget::stickersFailed));
+	cSetStickersHash(stickersCountHash(true));
+	_stickersUpdateRequest = MTP::send(MTPmessages_GetAllStickers(MTP_int(cStickersHash())), rpcDone(&HistoryWidget::stickersGot), rpcFail(&HistoryWidget::stickersFailed));
 }
 
 void HistoryWidget::notifyBotCommandsChanged(UserData *user) {
@@ -2993,9 +2994,6 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 
 	const QVector<MTPStickerSet> &d_sets(d.vsets.c_vector().v);
 
-	QByteArray wasHash = cStickersHash();
-	cSetStickersHash(qba(d.vhash));
-
 	StickerSetsOrder &setsOrder(cRefStickerSetsOrder());
 	setsOrder.clear();
 
@@ -3008,21 +3006,9 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 		if (d_sets.at(i).type() == mtpc_stickerSet) {
 			const MTPDstickerSet &set(d_sets.at(i).c_stickerSet());
 			StickerSets::iterator i = sets.find(set.vid.v);
-			QString title = qs(set.vtitle);
-			if (set.vflags.v & MTPDstickerSet::flag_official) {
-				if (!title.compare(qstr("Great Minds"), Qt::CaseInsensitive)) {
-					title = lang(lng_stickers_default_set);
-				}
-				setsOrder.push_front(set.vid.v);
-			} else {
-				setsOrder.push_back(set.vid.v);
-			}
-
+			QString title = stickerSetTitle(set);
 			if (i == sets.cend()) {
 				i = sets.insert(set.vid.v, StickerSet(set.vid.v, set.vaccess_hash.v, title, qs(set.vshort_name), set.vcount.v, set.vhash.v, set.vflags.v | MTPDstickerSet_flag_NOT_LOADED));
-				if (!(i->flags & MTPDstickerSet::flag_disabled)) {
-					setsToRequest.insert(set.vid.v, set.vaccess_hash.v);
-				}
 			} else {
 				i->access = set.vaccess_hash.v;
 				i->title = title;
@@ -3032,19 +3018,38 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 					i->count = set.vcount.v;
 					i->hash = set.vhash.v;
 					i->flags |= MTPDstickerSet_flag_NOT_LOADED; // need to request this set
-					if (!(i->flags & MTPDstickerSet::flag_disabled)) {
-						setsToRequest.insert(set.vid.v, set.vaccess_hash.v);
-					}
+				}
+			}
+			if (!(i->flags & MTPDstickerSet::flag_disabled) || (i->flags & MTPDstickerSet::flag_official)) {
+				setsOrder.push_back(set.vid.v);
+				if (i->stickers.isEmpty() || (i->flags & MTPDstickerSet_flag_NOT_LOADED)) {
+					setsToRequest.insert(set.vid.v, set.vaccess_hash.v);
 				}
 			}
 		}
 	}
-	for (StickerSets::iterator i = sets.begin(), e = sets.end(); i != e;) {
-		if (i->id == CustomStickerSetId || i->access != 0) {
-			++i;
+	bool writeRecent = false;
+	RecentStickerPack &recent(cGetRecentStickers());
+	for (StickerSets::iterator it = sets.begin(), e = sets.end(); it != e;) {
+		if (it->id == CustomStickerSetId || it->access != 0) {
+			++it;
 		} else {
-			i = sets.erase(i);
+			for (RecentStickerPack::iterator i = recent.begin(); i != recent.cend();) {
+				if (it->stickers.indexOf(i->first) >= 0) {
+					i = recent.erase(i);
+					writeRecent = true;
+				} else {
+					++i;
+				}
+			}
+			it = sets.erase(it);
 		}
+	}
+
+	int32 countedHash = stickersCountHash();
+	cSetStickersHash(countedHash);
+	if (countedHash != d.vhash.v) {
+		LOG(("API Error: received stickers hash %1 while counted hash is %2").arg(d.vhash.v).arg(countedHash));
 	}
 
 	if (!setsToRequest.isEmpty() && App::api()) {
@@ -3055,6 +3060,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 	}
 
 	Local::writeStickers();
+	if (writeRecent) Local::writeUserSettings();
 
 	if (App::main()) emit App::main()->stickersUpdated();
 }

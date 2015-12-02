@@ -348,6 +348,7 @@ public:
 public slots:
 
 	void updateSelected();
+	void onSettings();
 
 signals:
 
@@ -391,6 +392,8 @@ private:
 
 	int32 _selected, _pressedSel;
 	QPoint _lastMousePos;
+
+	LinkButton _settings;
 };
 
 class EmojiPanel : public TWidget {
