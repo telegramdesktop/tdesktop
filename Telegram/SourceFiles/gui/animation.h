@@ -387,17 +387,18 @@ private:
 };
 
 class HistoryItem;
+class FileLocation;
 class AnimatedGif : public QObject, public Animated {
 	Q_OBJECT
 
 public:
 
-	AnimatedGif() : msg(0), reader(0), w(0), h(0), frame(0), framesCount(0), duration(0) {
+	AnimatedGif() : msg(0), file(0), access(false), reader(0), w(0), h(0), frame(0), framesCount(0), duration(0) {
 	}
 
 	bool animStep(float64 ms);
 
-	void start(HistoryItem *row, const QString &file);
+	void start(HistoryItem *row, const FileLocation &file);
 	void stop(bool onItemRemoved = false);
 
 	bool isNull() const {
@@ -418,6 +419,8 @@ public:
 
 	HistoryItem *msg;
 	QImage img;
+	FileLocation *file;
+	bool access;
 	QImageReader *reader;
 	int32 w, h, frame;
 

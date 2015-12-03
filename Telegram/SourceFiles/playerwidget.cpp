@@ -323,7 +323,7 @@ void PlayerWidget::preloadNext() {
 	}
 	if (next) {
 		if (HistoryDocument *document = static_cast<HistoryDocument*>(next->getMedia())) {
-			if (document->document()->already(true).isEmpty() && document->document()->data.isEmpty()) {
+			if (document->document()->location(true).isEmpty() && document->document()->data.isEmpty()) {
 				if (!document->document()->loader) {
 					DocumentOpenLink::doOpen(document->document());
 					document->document()->openOnSave = 0;

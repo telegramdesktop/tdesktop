@@ -47,6 +47,7 @@ private:
 	void setPathText(const QString &text);
 
 	QString _path;
+	QByteArray _pathBookmark;
 
 	Radiobutton _default, _temp, _dir;
 	LinkButton _pathLink;

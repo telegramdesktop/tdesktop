@@ -155,7 +155,7 @@ MediaView::MediaView() : TWidget(App::wnd())
 	connect(_btnSaveCancel, SIGNAL(clicked()), this, SLOT(onSaveCancel()));
 	_btns.push_back(_btnToMessage = _dropdown.addButton(new IconedButton(this, st::mvButton, lang(lng_context_to_msg))));
 	connect(_btnToMessage, SIGNAL(clicked()), this, SLOT(onToMessage()));
-	_btns.push_back(_btnShowInFolder = _dropdown.addButton(new IconedButton(this, st::mvButton, lang(cPlatform() == dbipMac ? lng_context_show_in_finder : lng_context_show_in_folder))));
+	_btns.push_back(_btnShowInFolder = _dropdown.addButton(new IconedButton(this, st::mvButton, lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder))));
 	connect(_btnShowInFolder, SIGNAL(clicked()), this, SLOT(onShowInFolder()));
 	_btns.push_back(_btnCopy = _dropdown.addButton(new IconedButton(this, st::mvButton, lang(lng_mediaview_copy))));
 	connect(_btnCopy, SIGNAL(clicked()), this, SLOT(onCopy()));
@@ -453,10 +453,13 @@ bool MediaView::animStep(float64 msp) {
 			_docRadialFirst = _docRadialLast = _docRadialStart = 0;
 			a_docRadial = anim::fvalue(0, 0);
 			if (!_doc->already().isEmpty() && _doc->size < MediaViewImageSizeLimit) {
-				QString fname(_doc->already(true));
-				QImageReader reader(fname);
-				if (reader.canRead()) {
-					displayDocument(_doc, App::histItemById(_msgmigrated ? 0 : _channel, _msgid));
+				const FileLocation &location(_doc->location(true));
+				if (location.accessEnable()) {
+					QImageReader reader(location.name());
+					if (reader.canRead()) {
+						displayDocument(_doc, App::histItemById(_msgmigrated ? 0 : _channel, _msgid));
+					}
+					location.accessDisable();
 				}
 			}
 		} else {
@@ -529,8 +532,33 @@ void MediaView::onToMessage() {
 void MediaView::onSaveAs() {
 	QString file;
 	if (_doc) {
-		QString cur = _doc->already(true);
-		if (cur.isEmpty()) {
+		const FileLocation &location(_doc->location(true));
+		if (location.accessEnable()) {
+			QFileInfo alreadyInfo(location.name());
+			QDir alreadyDir(alreadyInfo.dir());
+			QString name = alreadyInfo.fileName(), filter;
+			MimeType mimeType = mimeTypeForName(_doc->mime);
+			QStringList p = mimeType.globPatterns();
+			QString pattern = p.isEmpty() ? QString() : p.front();
+			if (name.isEmpty()) {
+				name = pattern.isEmpty() ? qsl(".unknown") : pattern.replace('*', QString());
+			}
+
+			if (pattern.isEmpty()) {
+				filter = QString();
+			} else {
+				filter = mimeType.filterString() + qsl(";;All files (*.*)");
+			}
+
+			psBringToBack(this);
+			file = saveFileName(lang(lng_save_file), filter, qsl("doc"), name, true, alreadyDir);
+			psShowOverAll(this);
+			if (!file.isEmpty() && file != location.name()) {
+				QFile(location.name()).copy(file);
+			}
+
+			location.accessDisable();
+		} else {
 			if (_current.isNull() && _currentGif.isNull()) {
 				DocumentSaveLink::doSave(_doc, true);
 				updateControls();
@@ -539,30 +567,6 @@ void MediaView::onSaveAs() {
 				update(_saveNav);
 			}
 			updateOver(_lastMouseMovePos);
-			return;
-		}
-
-		QFileInfo alreadyInfo(cur);
-		QDir alreadyDir(alreadyInfo.dir());
-		QString name = alreadyInfo.fileName(), filter;
-		MimeType mimeType = mimeTypeForName(_doc->mime);
-		QStringList p = mimeType.globPatterns();
-		QString pattern = p.isEmpty() ? QString() : p.front();
-		if (name.isEmpty()) {
-			name = pattern.isEmpty() ? qsl(".unknown") : pattern.replace('*', QString());
-		}
-
-		if (pattern.isEmpty()) {
-			filter = QString();
-		} else {
-			filter = mimeType.filterString() + qsl(";;All files (*.*)");
-		}
-
-		psBringToBack(this);
-		file = saveFileName(lang(lng_save_file), filter, qsl("doc"), name, true, alreadyDir);
-		psShowOverAll(this);
-		if (!file.isEmpty() && file != cur) {
-			QFile(cur).copy(file);
 		}
 	} else {
 		if (!_photo || !_photo->full->loaded()) return;
@@ -609,8 +613,15 @@ void MediaView::onDownload() {
 	}
 	QString toName;
 	if (_doc) {
-		QString cur = _doc->already(true);
-		if (cur.isEmpty()) {
+		const FileLocation &location(_doc->location(true));
+		if (location.accessEnable()) {
+			if (!QDir().exists(path)) QDir().mkpath(path);
+			toName = filedialogNextFilename(_doc->name, location.name(), path);
+			if (toName != location.name() && !QFile(location.name()).copy(toName)) {
+				toName = QString();
+			}
+			location.accessDisable();
+		} else {
 			if (_current.isNull() && _currentGif.isNull()) {
 				DocumentSaveLink::doSave(_doc);
 				updateControls();
@@ -619,12 +630,6 @@ void MediaView::onDownload() {
 				update(_saveNav);
 			}
 			updateOver(_lastMouseMovePos);
-		} else {
-			if (!QDir().exists(path)) QDir().mkpath(path);
-			toName = filedialogNextFilename(_doc->name, cur, path);
-			if (toName != cur && !QFile(cur).copy(toName)) {
-				toName = QString();
-			}
 		}
 	} else {
 		if (!_photo || !_photo->full->loaded()) {
@@ -902,25 +907,26 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 
 	_caption = Text();
 	if (_doc) {
-		QString already = _doc->already(true);
+		const FileLocation &location(_doc->location(true));
 		if (_doc->sticker() && !_doc->sticker()->img->isNull() && _doc->sticker()->img->loaded()) {
 			_currentGif.stop();
 			_current = _doc->sticker()->img->pix();
-		} else if (!already.isEmpty()) {
-			QImageReader reader(already);
+		} else if (location.accessEnable()) {
+			QImageReader reader(location.name());
 			if (reader.canRead()) {
 				if (reader.supportsAnimation() && reader.imageCount() > 1) {
-					_currentGif.start(0, already);
+					_currentGif.start(0, location);
 					_current = QPixmap();
 				} else {
 					_currentGif.stop();
-					QPixmap pix = QPixmap::fromImage(App::readImage(already, 0, false), Qt::ColorOnly);
+					QPixmap pix = QPixmap::fromImage(App::readImage(location.name(), 0, false), Qt::ColorOnly);
 					_current = pix;
 				}
 			} else {
 				_currentGif.stop();
 				_current = QPixmap();
 			}
+			location.accessDisable();
 		} else {
 			_currentGif.stop();
 			_current = QPixmap();

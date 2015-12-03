@@ -41,7 +41,7 @@ void FileUploader::uploadMedia(const FullMsgId &msgId, const ReadyLocalMedia &me
 		}
 		document->status = FileUploading;
 		if (!media.file.isEmpty()) {
-			document->location = FileLocation(StorageFilePartial, media.file);
+			document->setLocation(FileLocation(StorageFilePartial, media.file));
 		}
 	} else if (media.type == PrepareAudio) {
 		AudioData *audio = App::feedAudio(media.audio);
@@ -64,7 +64,7 @@ void FileUploader::upload(const FullMsgId &msgId, const FileLoadResultPtr &file)
 		}
 		document->status = FileUploading;
 		if (!file->filepath.isEmpty()) {
-			document->location = FileLocation(StorageFilePartial, file->filepath);
+			document->setLocation(FileLocation(StorageFilePartial, file->filepath));
 		}
 	} else if (file->type == PrepareAudio) {
 		AudioData *audio = App::feedAudio(file->audio);

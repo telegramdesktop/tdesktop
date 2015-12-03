@@ -5,9 +5,15 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
   eval $1="$2"
 done < Version
 
-AppVersionStrFull="$AppVersionStr"
-DevParam=''
-if [ "$DevChannel" != "0" ]; then
+if [ "$BetaVersion" != "0"]; then
+  AppVersion="$BetaVersion"
+  AppVersionStrFull="$AppVersionStr_$BetaVersion"
+  DevParam="-beta $BetaVersion"
+  BetaKeyFile="tbeta_$AppVersion_key"
+elif [ "$DevChannel" == "0" ]; then
+  AppVersionStrFull="$AppVersionStr"
+  DevParam=''
+else
   AppVersionStrFull="$AppVersionStr.dev"
   DevParam='-dev'
 fi
@@ -61,6 +67,23 @@ fi
 
 DeployPath="$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStrFull"
 
+if [ "$BetaVersion" != "0" ]; then
+  while IFS='' read -r line || [[ -n "$line" ]]; do
+    BetaSignature="$line"
+  done < "$DeployPath/$BetaKeyFile"
+
+  UpdateFile="$UpdateFile_$BetaSignature"
+  if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
+    SetupFile="tbeta$BetaVersion_$BetaSignature.tar.xz"
+  elif [ "$BuildTarget" == "mac" ]; then
+    SetupFile="tbeta$BetaVersion_$BetaSignature.zip"
+    Mac32UpdateFile="$Mac32UpdateFile_$BetaSignature"
+    Mac32SetupFile="tbeta$BetaVersion_$BetaSignature.zip"
+    WinUpdateFile="$WinUpdateFile_$BetaSignature"
+    WinPortableFile="tbeta$BetaVersion_$BetaSignature.zip"
+  fi
+fi
+
 #if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ] || [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" == "macstore" ]; then
 
   if [ ! -f "$DeployPath/$UpdateFile" ]; then
@@ -89,9 +112,11 @@ DeployPath="$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStrFull"
       exit 1
     fi
 
-    if [ ! -f "$WinDeployPath/$WinSetupFile" ]; then
-      echo "$WinSetupFile not found!"
-      exit 1
+    if [ "$BetaVersion" == "0"]; then
+      if [ ! -f "$WinDeployPath/$WinSetupFile" ]; then
+        echo "$WinSetupFile not found!"
+        exit 1
+      fi
     fi
 
     if [ ! -f "$WinDeployPath/$WinPortableFile" ]; then
@@ -113,7 +138,9 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ] || [ "$Build
     scp "$Mac32DeployPath/$Mac32UpdateFile" "tmaster:tdesktop/www/$Mac32RemoteFolder/"
     scp "$Mac32DeployPath/$Mac32SetupFile" "tmaster:tdesktop/www/$Mac32RemoteFolder/"
     scp "$WinDeployPath/$WinUpdateFile" "tmaster:tdesktop/www/$WinRemoteFolder/"
-    scp "$WinDeployPath/$WinSetupFile" "tmaster:tdesktop/www/$WinRemoteFolder/"
+    if [ "$BetaVersion" == "0"]; then
+      scp "$WinDeployPath/$WinSetupFile" "tmaster:tdesktop/www/$WinRemoteFolder/"
+    fi
     scp "$WinDeployPath/$WinPortableFile" "tmaster:tdesktop/www/$WinRemoteFolder/"
 
     mv -v "$WinDeployPath" "$DropboxPath/"

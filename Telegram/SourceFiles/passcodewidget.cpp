@@ -78,7 +78,6 @@ void PasscodeWidget::onSubmit() {
 	} else {
 		if (Local::readMap(_passcode.text().toUtf8()) != Local::ReadMapPassNeeded) {
 			cSetPasscodeBadTries(0);
-			App::app()->checkMapVersion();
 
 			MTP::start();
 			if (MTP::authedId()) {
@@ -86,6 +85,8 @@ void PasscodeWidget::onSubmit() {
 			} else {
 				App::wnd()->setupIntro(true);
 			}
+
+			App::app()->checkMapVersion();
 		} else {
 			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
 			cSetPasscodeLastTry(getms(true));

@@ -29,6 +29,10 @@ Qt::LayoutDirection gLangDir = gRtl ? Qt::RightToLeft : Qt::LeftToRight;
 mtpDcOptions gDcOptions;
 
 bool gDevVersion = DevVersion;
+uint64 gBetaVersion = BETA_VERSION;
+uint64 gRealBetaVersion = BETA_VERSION;
+QByteArray gBetaPrivateKey;
+
 bool gTestMode = false;
 bool gDebug = false;
 bool gManyInstance = false;
@@ -74,6 +78,7 @@ DBIDefaultAttach gDefaultAttach = dbidaDocument;
 bool gReplaceEmojis = true;
 bool gAskDownloadPath = false;
 QString gDownloadPath;
+QByteArray gDownloadPathBookmark;
 
 bool gNeedConfigResave = false;
 
@@ -99,12 +104,11 @@ bool gHasPasscode = false;
 bool gHasAudioPlayer = true;
 bool gHasAudioCapture = true;
 
-DBIEmojiTab gEmojiTab = dbietRecent;
 RecentEmojiPack gRecentEmojis;
 RecentEmojisPreload gRecentEmojisPreload;
 EmojiColorVariants gEmojiVariants;
 
-QByteArray gStickersHash;
+int32 gStickersHash = 0;
 
 RecentStickerPreload gRecentStickersPreload;
 RecentStickerPack gRecentStickers;
@@ -143,6 +147,7 @@ QUrl gUpdateURL = QUrl(qsl("http://tdesktop.com/linux/tupdates/current"));
 #else
 #error Unknown platform
 #endif
+bool gIsElCapitan = false;
 
 bool gContactsReceived = false;
 bool gDialogsReceived = false;
@@ -168,8 +173,10 @@ ReportSpamStatuses gReportSpamStatuses;
 
 void settingsParseArgs(int argc, char *argv[]) {
 #ifdef Q_OS_MAC
+	gIsElCapitan = (QSysInfo::macVersion() >= QSysInfo::MV_10_11);
 	if (QSysInfo::macVersion() < QSysInfo::MV_10_8) {
 		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac32/tupdates/current"));
+		gPlatform = dbipMacOld;
 	} else {
 		gCustomNotifies = false;
 	}

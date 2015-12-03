@@ -323,3 +323,24 @@ namespace Notify {
 	void migrateUpdated(PeerData *peer);
 
 };
+
+inline int32 stickersCountHash(bool checkOfficial = false) {
+	uint32 acc = 0;
+	bool foundOfficial = false, foundBad = false;;
+	const StickerSets &sets(cStickerSets());
+	const StickerSetsOrder &order(cStickerSetsOrder());
+	for (StickerSetsOrder::const_iterator i = order.cbegin(), e = order.cend(); i != e; ++i) {
+		StickerSets::const_iterator j = sets.constFind(*i);
+		if (j != sets.cend()) {
+			if (j->id == 0) {
+				foundBad = true;
+			} else if (j->flags & MTPDstickerSet::flag_official) {
+				foundOfficial = true;
+			}
+			if (!(j->flags & MTPDstickerSet::flag_disabled)) {
+				acc = (acc * 20261) + j->hash;
+			}
+		}
+	}
+	return (!checkOfficial || (!foundBad && foundOfficial)) ? int32(acc & 0x7FFFFFFF) : 0;
+}

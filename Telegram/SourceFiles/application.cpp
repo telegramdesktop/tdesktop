@@ -60,7 +60,7 @@ namespace {
 		bool eventFilter(QObject *o, QEvent *e) {
 			if (e->type() == QEvent::KeyPress) {
 				QKeyEvent *ev = static_cast<QKeyEvent*>(e);
-				if (cPlatform() == dbipMac) {
+				if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 					if (ev->key() == Qt::Key_W && (ev->modifiers() & Qt::ControlModifier)) {
 						if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
 							App::wnd()->minimizeToTray();
@@ -211,10 +211,16 @@ void Application::updateGotCurrent() {
 	QRegularExpressionMatch m = QRegularExpression(qsl("^\\s*(\\d+)\\s*:\\s*([\\x21-\\x7f]+)\\s*$")).match(QString::fromUtf8(updateReply->readAll()));
 	if (m.hasMatch()) {
 		int32 currentVersion = m.captured(1).toInt();
-		if (currentVersion > AppVersion) {
+		QString url = m.captured(2);
+		bool betaVersion = false;
+		if (url.startsWith(qstr("beta_"))) {
+			betaVersion = true;
+			url = url.mid(5) + '_' + countBetaVersionSignature(currentVersion);
+		}
+		if ((!betaVersion || cBetaVersion()) && currentVersion > (betaVersion ? cBetaVersion() : AppVersion)) {
 			updateThread = new QThread();
 			connect(updateThread, SIGNAL(finished()), updateThread, SLOT(deleteLater()));
-			updateDownloader = new UpdateDownloader(updateThread, m.captured(2));
+			updateDownloader = new UpdateDownloader(updateThread, url);
 			updateThread->start();
 		}
 	}
@@ -225,7 +231,7 @@ void Application::updateGotCurrent() {
 		if (updates.exists()) {
 			QFileInfoList list = updates.entryInfoList(QDir::Files);
 			for (QFileInfoList::iterator i = list.begin(), e = list.end(); i != e; ++i) {
-                if (QRegularExpression("^(tupdate|tmacupd|tmac32upd|tlinuxupd|tlinux32upd)\\d+$", QRegularExpression::CaseInsensitiveOption).match(i->fileName()).hasMatch()) {
+                if (QRegularExpression("^(tupdate|tmacupd|tmac32upd|tlinuxupd|tlinux32upd)\\d+(_[a-z\\d]+)?$", QRegularExpression::CaseInsensitiveOption).match(i->fileName()).hasMatch()) {
 					QFile(i->absoluteFilePath()).remove();
 				}
 			}
@@ -550,7 +556,7 @@ void Application::startUpdateCheck(bool forceWait) {
 		if (updates.exists()) {
 			QFileInfoList list = updates.entryInfoList(QDir::Files);
 			for (QFileInfoList::iterator i = list.begin(), e = list.end(); i != e; ++i) {
-                if (QRegularExpression("^(tupdate|tmacupd|tmac32upd|tlinuxupd|tlinux32upd)\\d+$", QRegularExpression::CaseInsensitiveOption).match(i->fileName()).hasMatch()) {
+                if (QRegularExpression("^(tupdate|tmacupd|tmac32upd|tlinuxupd|tlinux32upd)\\d+(_[a-z\\d]+)?$", QRegularExpression::CaseInsensitiveOption).match(i->fileName()).hasMatch()) {
 					sendRequest = true;
 				}
 			}
@@ -560,7 +566,9 @@ void Application::startUpdateCheck(bool forceWait) {
 
 	if (sendRequest) {
 		QUrl url(cUpdateURL());
-		if (cDevVersion()) {
+		if (cBetaVersion()) {
+			url.setQuery(qsl("version=%1&beta=%2").arg(AppVersion).arg(cBetaVersion()));
+		} else if (cDevVersion()) {
 			url.setQuery(qsl("version=%1&dev=1").arg(AppVersion));
 		} else {
 			url.setQuery(qsl("version=%1").arg(AppVersion));
@@ -696,10 +704,10 @@ void Application::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (cDevVersion() && Local::oldMapVersion() < 9011) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Groups can now have multiple administrators with the ability to edit the name and logo, and add and remove members.\n\xe2\x80\x94 Groups that have reached their capacity of 200 users can be upgraded to supergroups of up to 1,000 members.\n\nWARNING: Only updated Telegram apps will be able to open supergroups. DO NOT upgrade your groups before the stable version is out and updates for other apps are released.");// .replace('@', qsl("@") + QChar(0x200D));
+			if (cDevVersion() && Local::oldMapVersion() < 9014) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Sticker management: manually rearrange your sticker packs, pack order is now synced across all your devices\n\xe2\x80\x94 New context menu for chats in chats list\n\xe2\x80\x94 Support for all existing emoji");// .replace('@', qsl("@") + QChar(0x200D));
 			} else if (Local::oldMapVersion() < 9013) {
-				versionFeatures = lng_new_version_text(lt_link, qsl("https://telegram.org/blog/supergroups")).trimmed();
+				versionFeatures = lang(lng_new_version_text).trimmed();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}
@@ -708,6 +716,9 @@ void Application::checkMapVersion() {
 				window->serviceNotification(versionFeatures);
 			}
 		}
+	}
+	if (cNeedConfigResave()) {
+		Local::writeUserSettings();
 	}
 }
 

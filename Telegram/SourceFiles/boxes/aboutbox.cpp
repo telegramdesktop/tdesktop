@@ -25,8 +25,13 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "window.h"
 
+#include "autoupdater.h"
+#include "boxes/confirmbox.h"
+
+#include "application.h"
+
 AboutBox::AboutBox() : AbstractBox(st::aboutWidth)
-, _version(this, lng_about_version(lt_version, QString::fromWCharArray(AppVersionStr) + (cDevVersion() ? " dev" : "")), st::aboutVersionLink)
+, _version(this, lng_about_version(lt_version, QString::fromWCharArray(AppVersionStr) + (cDevVersion() ? " dev" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())), st::aboutVersionLink)
 , _text1(this, lang(lng_about_text_1), st::aboutLabel, st::aboutTextStyle)
 , _text2(this, lang(lng_about_text_2), st::aboutLabel, st::aboutTextStyle)
 , _text3(this, QString(), st::aboutLabel, st::aboutTextStyle)
@@ -66,7 +71,23 @@ void AboutBox::resizeEvent(QResizeEvent *e) {
 }
 
 void AboutBox::onVersion() {
-	QDesktopServices::openUrl(qsl("https://desktop.telegram.org/?_hash=changelog"));
+	if (cRealBetaVersion()) {
+		QString url = qsl("https://tdesktop.com/");
+		switch (cPlatform()) {
+		case dbipWindows: url += qsl("win/%1.zip"); break;
+		case dbipMac: url += qsl("mac/%1.zip"); break;
+		case dbipMacOld: url += qsl("mac32/%1.zip"); break;
+		case dbipLinux32: url += qsl("linux32/%1.tar.xz"); break;
+		case dbipLinux64: url += qsl("linux/%1.tar.xz"); break;
+		}
+		url = url.arg(qsl("tbeta%1_%2").arg(cRealBetaVersion()).arg(countBetaVersionSignature(cRealBetaVersion())));
+
+		App::app()->clipboard()->setText(url);
+
+		App::showLayer(new InformBox("The link to the current private beta version of Telegram Desktop was copied to the clipboard."));
+	} else {
+		QDesktopServices::openUrl(qsl("https://desktop.telegram.org/?_hash=changelog"));
+	}
 }
 
 void AboutBox::keyPressEvent(QKeyEvent *e) {

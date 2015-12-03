@@ -21,6 +21,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "mtpCoreTypes.h"
 
+#include "lang.h"
+
 #if defined _DEBUG || defined _WITH_DEBUG
 
 QString mtpWrapNumber(float64 number) {
@@ -150,3 +152,11 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 }
 
 #endif
+
+QString stickerSetTitle(const MTPDstickerSet &s) {
+	QString title = qs(s.vtitle);
+	if ((s.vflags.v & MTPDstickerSet::flag_official) && !title.compare(qstr("Great Minds"), Qt::CaseInsensitive)) {
+		return lang(lng_stickers_default_set);
+	}
+	return title;
+}

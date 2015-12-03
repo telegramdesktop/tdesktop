@@ -482,6 +482,8 @@ public slots:
 	void onViewsIncrement();
 	void onActiveChannelUpdateFull();
 
+	void onDownloadPathSettings();
+
 private:
 
 	void sendReadRequest(PeerData *peer, MsgId upTo);
