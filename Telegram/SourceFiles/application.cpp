@@ -707,7 +707,7 @@ void Application::checkMapVersion() {
 			if (cDevVersion() && Local::oldMapVersion() < 9014) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Sticker management: manually rearrange your sticker packs, pack order is now synced across all your devices\n\xe2\x80\x94 New context menu for chats in chats list\n\xe2\x80\x94 Support for all existing emoji");// .replace('@', qsl("@") + QChar(0x200D));
 			} else if (Local::oldMapVersion() < 9013) {
-				versionFeatures = lng_new_version_text(lt_link, qsl("https://telegram.org/blog/supergroups")).trimmed();
+				versionFeatures = lang(lng_new_version_text).trimmed();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}
