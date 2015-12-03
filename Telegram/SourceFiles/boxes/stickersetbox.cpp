@@ -105,10 +105,8 @@ void StickerSetInner::installDone(const MTPBool &result) {
 	StickerSets::iterator custom = sets.find(CustomStickerSetId);
 	if (custom != sets.cend()) {
 		for (int32 i = 0, l = _pack.size(); i < l; ++i) {
-			int index = custom->stickers.indexOf(_pack.at(i));
-			if (index >= 0) {
-				custom->stickers.remove(index);
-			}
+			int32 removeIndex = custom->stickers.indexOf(_pack.at(i));
+			if (removeIndex >= 0) custom->stickers.removeAt(removeIndex);
 		}
 		if (custom->stickers.isEmpty()) {
 			sets.erase(custom);
@@ -849,7 +847,8 @@ void StickersBox::onSave() {
 					it->flags |= MTPDstickerSet::flag_disabled;
 				} else {
 					_disenableRequests.insert(MTP::send(MTPmessages_UninstallStickerSet(setId), rpcDone(&StickersBox::disenableDone), rpcFail(&StickersBox::disenableFail), 0, 5), NullType());
-					cRefStickerSetsOrder().removeOne(it->id);
+					int32 removeIndex = cStickerSetsOrder().indexOf(it->id);
+					if (removeIndex >= 0) cRefStickerSetsOrder().removeAt(removeIndex);
 					sets.erase(it);
 				}
 			}

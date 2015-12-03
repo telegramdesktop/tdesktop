@@ -4626,7 +4626,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				StickerSets::iterator custom = sets.find(CustomStickerSetId);
 				if (custom != sets.cend()) {
 					for (int32 i = 0, l = pack.size(); i < l; ++i) {
-						custom->stickers.removeOne(pack.at(i));
+						int32 removeIndex = custom->stickers.indexOf(pack.at(i));
+						if (removeIndex >= 0) custom->stickers.removeAt(removeIndex);
 					}
 					if (custom->stickers.isEmpty()) {
 						sets.erase(custom);
