@@ -5,11 +5,12 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
   eval $1="$2"
 done < Version
 
-if [ "$BetaVersion" != "0"]; then
+VersionForPacker="$AppVersion"
+if [ "$BetaVersion" != "0" ]; then
   AppVersion="$BetaVersion"
-  AppVersionStrFull="$AppVersionStr_$BetaVersion"
+  AppVersionStrFull="${AppVersionStr}_${BetaVersion}"
   DevParam="-beta $BetaVersion"
-  BetaKeyFile="tbeta_$AppVersion_key"
+  BetaKeyFile="tbeta_${AppVersion}_key"
 elif [ "$DevChannel" == "0" ]; then
   AppVersionStrFull="$AppVersionStr"
   DevParam=''
@@ -56,7 +57,7 @@ elif [ "$BuildTarget" == "mac32" ]; then
   ReleasePath="./../Mac/Release"
   BinaryName="Telegram"
 elif [ "$BuildTarget" == "macstore" ]; then
-  if [ "$BetaVersion" != "0"]; then
+  if [ "$BetaVersion" != "0" ]; then
     echo "Can't build macstore beta version!"
     exit 1
   fi
@@ -72,9 +73,14 @@ else
 fi
 
 #if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ] || [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" == "macstore" ]; then
-  if [ "$BetaVersion" != "0"]; then
+  if [ "$BetaVersion" != "0" ]; then
     if [ -f "$ReleasePath/$BetaKeyFile" ]; then
       echo "Beta version key file for version $AppVersion already exists!"
+      exit 1
+    fi
+
+    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStrFull" ]; then
+      echo "Deploy folder for version $AppVersionStrFull already exists!"
       exit 1
     fi
   else
@@ -87,11 +93,11 @@ fi
       echo "Update file for version $AppVersion already exists!"
       exit 1
     fi
-  fi
 
-  if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStr" ]; then
-    echo "Deploy folder for version $AppVersionStr already exists!"
-    exit 1
+    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStr" ]; then
+      echo "Deploy folder for version $AppVersionStr already exists!"
+      exit 1
+    fi
   fi
 
   DeployPath="$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStrFull"
@@ -123,7 +129,7 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
   fi
 
   echo "Preparing version $AppVersionStrFull, executing Packer.."
-  cd "$ReleasePath" && "./Packer" -path Telegram -path Updater -version $AppVersion $DevParam && cd "$HomePath"
+  cd "$ReleasePath" && "./Packer" -path Telegram -path Updater -version $VersionForPacker $DevParam && cd "$HomePath"
   echo "Packer done!"
 
   if [ "$BetaVersion" != "0" ]; then
@@ -136,8 +142,8 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
       BetaSignature="$line"
     done < "$ReleasePath/$BetaKeyFile"
 
-    UpdateFile="$UpdateFile_$BetaSignature"
-    SetupFile="tbeta$BetaVersion_$BetaSignature.tar.xz"
+    UpdateFile="${UpdateFile}_${BetaSignature}"
+    SetupFile="tbeta${BetaVersion}_${BetaSignature}.tar.xz"
   fi
 
   if [ ! -d "$ReleasePath/deploy" ]; then
@@ -219,7 +225,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
       hdiutil convert tsetup.dmg -format UDZO -imagekey zlib-level=9 -ov -o "$SetupFile"
       cd "./../../Telegram"
     fi
-    cd "$ReleasePath" && "./Packer.app/Contents/MacOS/Packer" -path "$BinaryName.app" -version $AppVersion $DevParam && cd "$HomePath"
+    cd "$ReleasePath" && "./Packer.app/Contents/MacOS/Packer" -path "$BinaryName.app" -version $VersionForPacker $DevParam && cd "$HomePath"
     echo "Packer done!"
 
     if [ "$BetaVersion" != "0" ]; then
@@ -232,8 +238,8 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
         BetaSignature="$line"
       done < "$ReleasePath/$BetaKeyFile"
 
-      UpdateFile="$UpdateFile_$BetaSignature"
-      SetupFile="tbeta$BetaVersion_$BetaSignature.zip"
+      UpdateFile="${UpdateFile}_${BetaSignature}"
+      SetupFile="tbeta${BetaVersion}_${BetaSignature}.zip"
     fi
   fi
 

@@ -175,14 +175,14 @@ int main(int argc, char *argv[])
 			DevChannel = true;
 		} else if (string("-beta") == argv[i] && i + 1 < argc) {
 			BetaVersion = QString(argv[i + 1]).toLongLong();
-			if (BetaVersion > version * 1000 && BetaVersion < (version + 1) * 1000) {
+			if (BetaVersion > version * 1000ULL && BetaVersion < (version + 1) * 1000ULL) {
 				DevChannel = false;
 				BetaSignature = countBetaVersionSignature(BetaVersion);
 				if (BetaSignature.isEmpty()) {
 					return -1;
 				}
 			} else {
-				cout << "Bad -beta param value passed, should be for the same version: " << BetaVersion << "\n";
+				cout << "Bad -beta param value passed, should be for the same version: " << version << ", beta: " << BetaVersion << "\n";
 				return -1;
 			}
 		}
