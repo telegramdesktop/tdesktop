@@ -762,7 +762,8 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 		}
 	}
 	if (pack.isEmpty()) {
-		cRefStickerSetsOrder().removeOne(setId);
+		int32 removeIndex = cStickerSetsOrder().indexOf(setId);
+		if (removeIndex >= 0) cRefStickerSetsOrder().removeAt(removeIndex);
 		sets.erase(it);
 	} else {
 		it->stickers = pack;

@@ -2668,7 +2668,8 @@ void EmojiPan::onRemoveSetSure() {
 			}
 		}
 		cRefStickerSets().erase(it);
-		cRefStickerSetsOrder().removeOne(_removingSetId);
+		int32 removeIndex = cStickerSetsOrder().indexOf(_removingSetId);
+		if (removeIndex >= 0) cRefStickerSetsOrder().removeAt(removeIndex);
 		cSetStickersHash(stickersCountHash());
 		refreshStickers();
 		Local::writeStickers();
