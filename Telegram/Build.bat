@@ -2,11 +2,12 @@
 
 FOR /F "tokens=1,2* delims= " %%i in (Version) do set "%%i=%%j"
 
+set "VersionForPacker=%AppVersion%"
 if %BetaVersion% neq 0 (
   set "AppVersion=%BetaVersion%"
   set "AppVersionStrFull=%AppVersionStr%_%BetaVersion%"
   set "DevParam=-beta %BetaVersion%"
-  set "BetaKeyFile=tbeta_%AppVersion%_key"
+  set "BetaKeyFile=tbeta_%BetaVersion%_key"
 ) else (
   if %DevChannel% neq 0 (
     set "DevParam=-dev"
@@ -51,7 +52,7 @@ if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%\ (
 )
 
 cd SourceFiles\
-copy telegram.qrc /B+,,/Y
+rem copy telegram.qrc /B+,,/Y
 cd ..\
 if %errorlevel% neq 0 goto error
 
@@ -61,7 +62,7 @@ cd Telegram\
 if %errorlevel% neq 0 goto error
 
 echo .
-echo Version %AppVersionStrFull% build successfull! Preparing..
+echo Version %AppVersionStrFull% build successfull. Preparing..
 echo .
 
 set "PATH=%PATH%;C:\Program Files\7-Zip;C:\Program Files (x86)\Inno Setup 5"
@@ -72,7 +73,7 @@ if %errorlevel% neq 0 goto error
 call %SignPath% %ReleasePath%\Updater.exe
 if %errorlevel% neq 0 goto error
 
-if %BetaVersion% eq 0 (
+if %BetaVersion% equ 0 (
   cd %ReleasePath%
   iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppVersionFull=%AppVersionStrFull% %HomePath%\Setup.iss
   cd %HomePath%
@@ -83,8 +84,8 @@ if %BetaVersion% eq 0 (
 )
 
 cd %ReleasePath%
-call Packer.exe -version %AppVersion% -path Telegram.exe -path Updater.exe %DevParam%
-cd %HomePath
+call Packer.exe -version %VersionForPacker% -path Telegram.exe -path Updater.exe %DevParam%
+cd %HomePath%
 if %errorlevel% neq 0 goto error
 
 if %BetaVersion% neq 0 (
@@ -105,11 +106,15 @@ mkdir %DeployPath%
 mkdir %DeployPath%\Telegram
 if %errorlevel% neq 0 goto error
 
-move %ReleasePath%\Telegram.exe %DeployPath%\
+move %ReleasePath%\Telegram.exe %DeployPath%\Telegram\
 move %ReleasePath%\Updater.exe %DeployPath%\
 move %ReleasePath%\Telegram.pdb %DeployPath%\
 move %ReleasePath%\Updater.pdb %DeployPath%\
-if %BetaVersion% eq 0 move %ReleasePath%\%SetupFile% %DeployPath%\
+if %BetaVersion% equ 0 (
+  move %ReleasePath%\%SetupFile% %DeployPath%\
+) else (
+  move %ReleasePath%\%BetaKeyFile% %DeployPath%\
+)
 move %ReleasePath%\%UpdateFile% %DeployPath%\
 if %errorlevel% neq 0 goto error
 
@@ -125,12 +130,14 @@ echo .
 set "FinalReleasePath=Z:\TBuild\tother\tsetup"
 set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%"
 
-if not exist %DeployPath%\%UpdateFile% goto error2
-if not exist %DeployPath%\%PortableFile% goto error2
-if not exist %DeployPath%\%SetupFile% goto error2
-if not exist %DeployPath%\Telegram.pdb goto error2
-if not exist %DeployPath%\Updater.exe goto error2
-if not exist %DeployPath%\Updater.pdb goto error2
+if not exist %DeployPath%\%UpdateFile% goto error
+if not exist %DeployPath%\%PortableFile% goto error
+if %BetaVersion% equ 0 (
+  if not exist %DeployPath%\%SetupFile% goto error
+)
+if not exist %DeployPath%\Telegram.pdb goto error
+if not exist %DeployPath%\Updater.exe goto error
+if not exist %DeployPath%\Updater.pdb goto error
 if not exist %FinalReleasePath%\%AppVersionStrMajor% mkdir %FinalReleasePath%\%AppVersionStrMajor%
 if not exist %FinalDeployPath% mkdir %FinalDeployPath%
 
