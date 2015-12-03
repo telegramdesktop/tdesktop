@@ -1104,8 +1104,8 @@ public:
 
 			if (_btype == TextBlockTText) {
 				TextBlock *t = static_cast<TextBlock*>(b);
-				QFixed f_wLeft = _wLeft;
-				int32 f_lineHeight = _lineHeight;
+				QFixed f_wLeft = _wLeft; // vars for saving state of the last word start
+				int32 f_lineHeight = _lineHeight; // f points to the last word-start element of t->_words
 				for (TextBlock::TextWords::const_iterator j = t->_words.cbegin(), en = t->_words.cend(), f = j; j != en; ++j) {
 					bool wordEndsHere = (j->width >= 0);
 					QFixed j_width = wordEndsHere ? j->width : -j->width;
@@ -1123,9 +1123,9 @@ public:
 							longWordLine = false;
 						}
 						if (wordEndsHere || longWordLine) {
+							f = j + 1;
 							f_wLeft = _wLeft;
 							f_lineHeight = _lineHeight;
-							f = j + 1;
 						}
 						continue;
 					}
@@ -1135,6 +1135,7 @@ public:
 					if (elidedLine) {
 						_lineHeight = elidedLineHeight;
 					} else if (f != j) {
+						// word did not fit completely, so we roll back the state to the beginning of this long word
 						j = f;
 						_wLeft = f_wLeft;
 						_lineHeight = f_lineHeight;
@@ -1157,6 +1158,28 @@ public:
 					f = j + 1;
 					f_wLeft = _wLeft;
 					f_lineHeight = _lineHeight;
+				}
+				if (lpadding > 0) { // no words in this block, spaces only
+					int32 elidedLineHeight = qMax(_lineHeight, blockHeight);
+					bool elidedLine = _elideLast && (_y + elidedLineHeight >= _yTo);
+					if (elidedLine) {
+						_lineHeight = elidedLineHeight;
+					}
+					ushort nextStart = _blockEnd(_t, i, e);
+					if (!drawLine(nextStart, i + 1, e)) return;
+					_y += _lineHeight;
+					_lineHeight = qMax(0, blockHeight);
+					_lineStart = nextStart;
+					_lineStartBlock = blockIndex + 1;
+
+					last_rBearing = _rb;
+					last_rPadding = b->rpadding();
+					_wLeft = _w;
+					if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yTo)) {
+						_wLeft -= _elideRemoveFromEnd;
+					}
+
+					longWordLine = true;
 				}
 				continue;
 			}
