@@ -5,11 +5,11 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
   eval $1="$2"
 done < Version
 
-if [ "$BetaVersion" != "0"]; then
+if [ "$BetaVersion" != "0" ]; then
   AppVersion="$BetaVersion"
-  AppVersionStrFull="$AppVersionStr_$BetaVersion"
+  AppVersionStrFull="${AppVersionStr}_${BetaVersion}"
   DevParam="-beta $BetaVersion"
-  BetaKeyFile="tbeta_$AppVersion_key"
+  BetaKeyFile="tbeta_${AppVersion}_key"
 elif [ "$DevChannel" == "0" ]; then
   AppVersionStrFull="$AppVersionStr"
   DevParam=''
@@ -72,15 +72,15 @@ if [ "$BetaVersion" != "0" ]; then
     BetaSignature="$line"
   done < "$DeployPath/$BetaKeyFile"
 
-  UpdateFile="$UpdateFile_$BetaSignature"
+  UpdateFile="${UpdateFile}_${BetaSignature}"
   if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
-    SetupFile="tbeta$BetaVersion_$BetaSignature.tar.xz"
+    SetupFile="tbeta${BetaVersion}_${BetaSignature}.tar.xz"
   elif [ "$BuildTarget" == "mac" ]; then
-    SetupFile="tbeta$BetaVersion_$BetaSignature.zip"
-    Mac32UpdateFile="$Mac32UpdateFile_$BetaSignature"
-    Mac32SetupFile="tbeta$BetaVersion_$BetaSignature.zip"
-    WinUpdateFile="$WinUpdateFile_$BetaSignature"
-    WinPortableFile="tbeta$BetaVersion_$BetaSignature.zip"
+    SetupFile="tbeta${BetaVersion}_${BetaSignature}.zip"
+    Mac32UpdateFile="${Mac32UpdateFile}_${BetaSignature}"
+    Mac32SetupFile="tbeta${BetaVersion}_${BetaSignature}.zip"
+    WinUpdateFile="${WinUpdateFile}_${BetaSignature}"
+    WinPortableFile="tbeta${BetaVersion}_${BetaSignature}.zip"
   fi
 fi
 
@@ -112,7 +112,7 @@ fi
       exit 1
     fi
 
-    if [ "$BetaVersion" == "0"]; then
+    if [ "$BetaVersion" == "0" ]; then
       if [ ! -f "$WinDeployPath/$WinSetupFile" ]; then
         echo "$WinSetupFile not found!"
         exit 1
@@ -138,7 +138,7 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ] || [ "$Build
     scp "$Mac32DeployPath/$Mac32UpdateFile" "tmaster:tdesktop/www/$Mac32RemoteFolder/"
     scp "$Mac32DeployPath/$Mac32SetupFile" "tmaster:tdesktop/www/$Mac32RemoteFolder/"
     scp "$WinDeployPath/$WinUpdateFile" "tmaster:tdesktop/www/$WinRemoteFolder/"
-    if [ "$BetaVersion" == "0"]; then
+    if [ "$BetaVersion" == "0" ]; then
       scp "$WinDeployPath/$WinSetupFile" "tmaster:tdesktop/www/$WinRemoteFolder/"
     fi
     scp "$WinDeployPath/$WinPortableFile" "tmaster:tdesktop/www/$WinRemoteFolder/"
