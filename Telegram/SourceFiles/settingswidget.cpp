@@ -160,7 +160,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_stickers(this, lang(lng_stickers_you_have)),
 
 	_enterSend(this, qsl("send_key"), 0, lang(lng_settings_send_enter), !cCtrlEnter()),
-    _ctrlEnterSend(this, qsl("send_key"), 1, lang((cPlatform() == dbipMac) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), cCtrlEnter()),
+    _ctrlEnterSend(this, qsl("send_key"), 1, lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), cCtrlEnter()),
 
 	_dontAskDownloadPath(this, lang(lng_download_path_dont_ask), !cAskDownloadPath()),
     _downloadPathWidth(st::linkFont->width(lang(lng_download_path_label)) + st::linkFont->spacew),
@@ -255,7 +255,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	connect(&_dpiAutoScale, SIGNAL(changed()), this, SLOT(onScaleAuto()));
 	connect(&_dpiSlider, SIGNAL(changed(int32)), this, SLOT(onScaleChange()));
 
-	_curVersionText = lng_settings_current_version(lt_version, QString::fromWCharArray(AppVersionStr) + (cDevVersion() ? " dev" : "")) + ' ';
+	_curVersionText = lng_settings_current_version(lt_version, QString::fromWCharArray(AppVersionStr) + (cDevVersion() ? " dev" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())) + ' ';
 	_curVersionWidth = st::linkFont->width(_curVersionText);
 	_newVersionText = lang(lng_settings_update_ready) + ' ';
 	_newVersionWidth = st::linkFont->width(_newVersionText);

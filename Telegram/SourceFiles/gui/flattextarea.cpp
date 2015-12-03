@@ -860,7 +860,7 @@ void FlatTextarea::setCtrlEnterSubmit(bool ctrlEnterSubmit) {
 
 void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 	bool shift = e->modifiers().testFlag(Qt::ShiftModifier);
-	bool macmeta = (cPlatform() == dbipMac) && e->modifiers().testFlag(Qt::ControlModifier) && !e->modifiers().testFlag(Qt::MetaModifier) && !e->modifiers().testFlag(Qt::AltModifier);
+	bool macmeta = (cPlatform() == dbipMac || cPlatform() == dbipMacOld) && e->modifiers().testFlag(Qt::ControlModifier) && !e->modifiers().testFlag(Qt::MetaModifier) && !e->modifiers().testFlag(Qt::AltModifier);
 	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier), ctrlGood = (ctrl && _ctrlEnterSubmit) || (!ctrl && !shift && !_ctrlEnterSubmit) || (ctrl && shift);
 	bool enter = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return);
 

@@ -68,6 +68,9 @@ typedef QMap<int, mtpDcOption> mtpDcOptions;
 DeclareSetting(mtpDcOptions, DcOptions);
 
 DeclareSetting(bool, DevVersion);
+DeclareSetting(uint64, BetaVersion);
+DeclareSetting(uint64, RealBetaVersion);
+DeclareSetting(QByteArray, BetaPrivateKey);
 
 DeclareSetting(bool, TestMode);
 DeclareSetting(QString, LoggedPhoneNumber);
@@ -80,8 +83,7 @@ DeclareReadSetting(bool, FromAutoStart);
 DeclareSetting(QString, WorkingDir);
 inline void cForceWorkingDir(const QString &newDir) {
 	cSetWorkingDir(newDir);
-	QDir dir;
-	if (!gWorkingDir.isEmpty()) dir.mkpath(gWorkingDir);
+	if (!gWorkingDir.isEmpty()) QDir().mkpath(gWorkingDir);
 }
 DeclareReadSetting(QString, ExeName);
 DeclareReadSetting(QString, ExeDir);
@@ -296,6 +298,7 @@ DeclareSetting(bool, CustomNotifies);
 DeclareReadSetting(uint64, Instance);
 
 DeclareReadSetting(DBIPlatform, Platform);
+DeclareReadSetting(bool, IsElCapitan);
 DeclareReadSetting(QUrl, UpdateURL);
 
 DeclareSetting(bool, ContactsReceived);

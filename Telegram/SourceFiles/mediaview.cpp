@@ -155,7 +155,7 @@ MediaView::MediaView() : TWidget(App::wnd())
 	connect(_btnSaveCancel, SIGNAL(clicked()), this, SLOT(onSaveCancel()));
 	_btns.push_back(_btnToMessage = _dropdown.addButton(new IconedButton(this, st::mvButton, lang(lng_context_to_msg))));
 	connect(_btnToMessage, SIGNAL(clicked()), this, SLOT(onToMessage()));
-	_btns.push_back(_btnShowInFolder = _dropdown.addButton(new IconedButton(this, st::mvButton, lang(cPlatform() == dbipMac ? lng_context_show_in_finder : lng_context_show_in_folder))));
+	_btns.push_back(_btnShowInFolder = _dropdown.addButton(new IconedButton(this, st::mvButton, lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder))));
 	connect(_btnShowInFolder, SIGNAL(clicked()), this, SLOT(onShowInFolder()));
 	_btns.push_back(_btnCopy = _dropdown.addButton(new IconedButton(this, st::mvButton, lang(lng_mediaview_copy))));
 	connect(_btnCopy, SIGNAL(clicked()), this, SLOT(onCopy()));

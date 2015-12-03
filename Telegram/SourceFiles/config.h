@@ -23,6 +23,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 static const int32 AppVersion = 9014;
 static const wchar_t *AppVersionStr = L"0.9.14";
 static const bool DevVersion = true;
+#define BETA_VERSION (9014001ULL) // just comment this line to build public version
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -67,7 +68,7 @@ enum {
 	MaxSelectedItems = 100,
 
 	MaxPhoneCodeLength = 4, // max length of country phone code
-	MaxPhoneTailLength = 18, // rest of the phone number, without country code (seen 12 at least)
+	MaxPhoneTailLength = 32, // rest of the phone number, without country code (seen 12 at least), need more for service numbers
 
 	MaxScrollSpeed = 37, // 37px per 15ms while select-by-drag
 	FingerAccuracyThreshold = 3, // touch flick ignore 3px
@@ -263,6 +264,18 @@ w/CVnbwQOw0g5GBwwFV3r0uTTvy44xx8XXxk+Qknu4eBCsmrAFNnAgMBAAE=\n\
 #else
 static const int32 ApiId = 17349;
 static const char *ApiHash = "344583e45741c457fe1862106095a5eb";
+#endif
+
+#ifndef BETA_VERSION
+#define BETA_VERSION (0)
+#endif
+
+#if (defined CUSTOM_API_ID) && (BETA_VERSION > 0)
+#include "../../../TelegramPrivate/beta_private.h" // private key for downloading closed betas
+#else
+static const char *BetaPrivateKey = "";
+#undef BETA_VERSION
+#define BETA_VERSION 0
 #endif
 
 inline const char *cApiDeviceModel() {

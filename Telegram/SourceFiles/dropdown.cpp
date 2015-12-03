@@ -39,7 +39,7 @@ _ignore(false), _selected(-1), _st(st), _width(_st.width), _hiding(false), a_opa
 	_hideTimer.setSingleShot(true);
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideStart()));
 
-	if (cPlatform() == dbipMac) {
+	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
 	}
 }
@@ -1915,7 +1915,7 @@ s_scroll(this, st::emojiScroll), s_inner(), s_switch(&s_scroll, false), _removin
 	connect(&e_inner, SIGNAL(needRefreshPanels()), this, SLOT(onRefreshPanels()));
 	connect(&s_inner, SIGNAL(needRefreshPanels()), this, SLOT(onRefreshPanels()));
 
-	if (cPlatform() == dbipMac) {
+	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
 	}
 
@@ -2960,7 +2960,7 @@ _scroll(this, st::mentionScroll), _inner(this, &_rows, &_hrows, &_crows), _chat(
 	connect(&_scroll, SIGNAL(geometryChanged()), &_inner, SLOT(onParentGeometryChanged()));
 	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(onUpdateSelected()));
 
-	if (cPlatform() == dbipMac) {
+	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
 	}
 }

@@ -66,4 +66,6 @@ private:
 
 bool checkReadyUpdate();
 
+QString countBetaVersionSignature(uint64 version);
+
 #endif
