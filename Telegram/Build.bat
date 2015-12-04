@@ -95,7 +95,10 @@ if %BetaVersion% neq 0 (
   )
 
   FOR /F "tokens=1* delims= " %%i in (%ReleasePath%\%BetaKeyFile%) do set "BetaSignature=%%i"
+)
+if %errorlevel% neq 0 goto error
 
+if %BetaVersion% neq 0 (
   set "UpdateFile=%UpdateFile%_%BetaSignature%"
   set "PortableFile=tbeta%BetaVersion%_%BetaSignature%.zip"
 )
