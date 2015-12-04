@@ -173,7 +173,7 @@ ReportSpamStatuses gReportSpamStatuses;
 
 void settingsParseArgs(int argc, char *argv[]) {
 #ifdef Q_OS_MAC
-	gIsElCapitan = (QSysInfo::macVersion() >= QSysInfo::MV_10_11);
+	gIsElCapitan = false;//(QSysInfo::macVersion() >= QSysInfo::MV_10_11);
 	if (QSysInfo::macVersion() < QSysInfo::MV_10_8) {
 		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac32/tupdates/current"));
 		gPlatform = dbipMacOld;
