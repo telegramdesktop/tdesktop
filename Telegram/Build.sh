@@ -257,7 +257,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     mkdir "$DeployPath/Telegram"
     cp -r "$ReleasePath/$BinaryName.app" "$DeployPath/Telegram/"
     if [ "$BetaVersion" != "0" ]; then
-      zip -r "$ReleasePath/$SetupFile" "$DeployPath/Telegram"
+      cd "$DeployPath" && zip -r "$SetupFile" "Telegram" && mv "$SetupFile" "./../../../" && cd "./../../../$HomePath"
       mv "$ReleasePath/$BetaKeyFile" "$DeployPath/"
     fi
     mv "$ReleasePath/$BinaryName.app.dSYM" "$DeployPath/"
