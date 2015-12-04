@@ -191,7 +191,7 @@ void logsInit() {
 		}
 		if (beta.open(QIODevice::WriteOnly)) {
 			QDataStream dataStream(&beta);
-			dataStream.setVersion(QDataStream::Qt_5_5);
+			dataStream.setVersion(QDataStream::Qt_5_3);
 			dataStream << quint64(cRealBetaVersion()) << cBetaPrivateKey();
 		} else {
 			LOG(("Error: could not open \"beta\" file for writing private key!"));
@@ -199,7 +199,7 @@ void logsInit() {
 	} else if (beta.exists()) {
 		if (beta.open(QIODevice::ReadOnly)) {
 			QDataStream dataStream(&beta);
-			dataStream.setVersion(QDataStream::Qt_5_5);
+			dataStream.setVersion(QDataStream::Qt_5_3);
 
 			quint64 v;
 			QByteArray k;
