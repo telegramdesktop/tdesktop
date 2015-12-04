@@ -210,14 +210,14 @@ void Application::updateGotCurrent() {
 	cSetLastUpdateCheck(unixtime());
 	QRegularExpressionMatch m = QRegularExpression(qsl("^\\s*(\\d+)\\s*:\\s*([\\x21-\\x7f]+)\\s*$")).match(QString::fromUtf8(updateReply->readAll()));
 	if (m.hasMatch()) {
-		int32 currentVersion = m.captured(1).toInt();
+		uint64 currentVersion = m.captured(1).toULongLong();
 		QString url = m.captured(2);
 		bool betaVersion = false;
 		if (url.startsWith(qstr("beta_"))) {
 			betaVersion = true;
 			url = url.mid(5) + '_' + countBetaVersionSignature(currentVersion);
 		}
-		if ((!betaVersion || cBetaVersion()) && currentVersion > (betaVersion ? cBetaVersion() : AppVersion)) {
+		if ((!betaVersion || cBetaVersion()) && currentVersion > (betaVersion ? cBetaVersion() : uint64(AppVersion))) {
 			updateThread = new QThread();
 			connect(updateThread, SIGNAL(finished()), updateThread, SLOT(deleteLater()));
 			updateDownloader = new UpdateDownloader(updateThread, url);
@@ -549,8 +549,9 @@ void Application::startUpdateCheck(bool forceWait) {
 	updateCheckTimer.stop();
 	if (updateRequestId || updateThread || updateReply || !cAutoUpdate()) return;
 	
-	int32 updateInSecs = cLastUpdateCheck() + UpdateDelayConstPart + (rand() % UpdateDelayRandPart) - unixtime();
-	bool sendRequest = (updateInSecs <= 0 || updateInSecs > (UpdateDelayConstPart + UpdateDelayRandPart));
+	int32 constDelay = cBetaVersion() ? 600 : UpdateDelayConstPart, randDelay = cBetaVersion() ? 300 : UpdateDelayRandPart;
+	int32 updateInSecs = cLastUpdateCheck() + constDelay + (rand() % randDelay) - unixtime();
+	bool sendRequest = (updateInSecs <= 0 || updateInSecs > (constDelay + randDelay));
 	if (!sendRequest && !forceWait) {
 		QDir updates(cWorkingDir() + "tupdates");
 		if (updates.exists()) {
