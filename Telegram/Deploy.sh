@@ -89,14 +89,21 @@ fi
 DeployPath="$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStrFull"
 
 if [ "$BetaVersion" != "0" ]; then
-  if [ ! -f "$DeployPath/$BetaKeyFile" ]; then
+  if [ "$DeployTarget" == "win" ]; then
+    BetaFilePath="$WinDeployPath/$BetaKeyFile"
+  elif [ "$DeployTarget" == "mac32" ]; then
+    BetaFilePath="$Mac32DeployPath/$BetaKeyFile"
+  else
+    BetaFilePath="$DeployPath/$BetaKeyFile"
+  fi
+  if [ ! -f "$BetaFilePath" ]; then
     echo "Beta key file for $AppVersionStrFull not found :("
     exit 1
   fi
 
   while IFS='' read -r line || [[ -n "$line" ]]; do
     BetaSignature="$line"
-  done < "$DeployPath/$BetaKeyFile"
+  done < "$BetaFilePath"
 
   UpdateFile="${UpdateFile}_${BetaSignature}"
   if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
@@ -205,7 +212,7 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ] || [ "$Build
     if [ "$DeployWin" == "1" ]; then
       mv -v "$WinDeployPath/Telegram.pdb" "$DropboxDeployPath/"
       mv -v "$WinDeployPath/Updater.exe" "$DropboxDeployPath/"
-      mv -v "$WinDeployPath/Telegram.exe" "$DropboxDeployPath/"
+      mv -v "$WinDeployPath/Updater.pdb" "$DropboxDeployPath/"
       mv -v "$WinDeployPath/$WinUpdateFile" "$DropboxDeployPath/"
       if [ "$BetaVersion" == "0" ]; then
         mv -v "$WinDeployPath/$WinSetupFile" "$DropboxDeployPath/"
