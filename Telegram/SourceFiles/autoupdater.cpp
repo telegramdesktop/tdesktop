@@ -497,7 +497,6 @@ bool checkReadyUpdate() {
 			UpdateDownloader::clearAll();
 			return false;
 		}
-		fVersion.close();
 		if (versionNum == 0x7FFFFFFF) { // beta version
 			quint64 betaVersion = 0;
 			if (fVersion.read((char*)&betaVersion, sizeof(quint64)) != sizeof(quint64)) {
@@ -515,6 +514,7 @@ bool checkReadyUpdate() {
 			UpdateDownloader::clearAll();
 			return false;
 		}
+		fVersion.close();
 	}
 
 #ifdef Q_OS_WIN
