@@ -174,7 +174,7 @@ int main(int argc, char *argv[])
 		} else if (string("-dev") == argv[i]) {
 			DevChannel = true;
 		} else if (string("-beta") == argv[i] && i + 1 < argc) {
-			BetaVersion = QString(argv[i + 1]).toLongLong();
+			BetaVersion = QString(argv[i + 1]).toULongLong();
 			if (BetaVersion > version * 1000ULL && BetaVersion < (version + 1) * 1000ULL) {
 				DevChannel = false;
 				BetaSignature = countBetaVersionSignature(BetaVersion);

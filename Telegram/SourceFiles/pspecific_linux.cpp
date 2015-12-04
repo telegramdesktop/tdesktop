@@ -1167,7 +1167,7 @@ namespace {
 void psRegisterCustomScheme() {
     #ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
     QString home(_psHomeDir());
-    if (home.isEmpty()) return;
+    if (home.isEmpty() || cBetaVersion()) return; // don't update desktop file for beta version
 
     DEBUG_LOG(("App Info: placing .desktop file"));
     if (QDir(home + qsl(".local/")).exists()) {
