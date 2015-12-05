@@ -149,6 +149,8 @@ private:
 	void clear();
 	void setRemoveSel(int32 removeSel);
 	float64 aboveShadowOpacity() const;
+	void updateAnimatedRegions();
+	bool updateAnimatedValues();
 
 	int32 _rowHeight;
 	struct StickerSetRow {
@@ -159,7 +161,6 @@ private:
 			, disabled(disabled)
 			, pixw(pixw)
 			, pixh(pixh)
-			, xadd(0, 0)
 			, yadd(0, 0) {
 		}
 		uint64 id;
@@ -168,7 +169,7 @@ private:
 		QString title;
 		bool disabled;
 		int32 pixw, pixh;
-		anim::ivalue xadd, yadd;
+		anim::ivalue yadd;
 	};
 	typedef QList<StickerSetRow*> StickerSetRows;
 	StickerSetRows _rows;

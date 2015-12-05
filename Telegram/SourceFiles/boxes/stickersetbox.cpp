@@ -353,6 +353,8 @@ void StickersInner::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	Painter p(this);
 
+	updateAnimatedValues();
+
 	p.fillRect(r, st::white);
 	p.setClipRect(r);
 
@@ -382,7 +384,7 @@ void StickersInner::paintEvent(QPaintEvent *e) {
 void StickersInner::paintRow(Painter &p, int32 index) {
 	const StickerSetRow *s(_rows.at(index));
 
-	int32 xadd = s->xadd.current(), yadd = s->yadd.current();
+	int32 xadd = 0, yadd = s->yadd.current();
 	if (xadd || yadd) p.translate(xadd, yadd);
 
 	bool removeSel = (index == _removeSel && (_removeDown < 0 || index == _removeDown));
@@ -481,10 +483,9 @@ void StickersInner::onUpdateSelected() {
 				_a_shifting.start();
 			}
 		}
-//		_rows.at(_dragging)->xadd = anim::ivalue(local.x() - _dragStart.x(), local.x() - _dragStart.x());
 		_rows.at(_dragging)->yadd = anim::ivalue(local.y() - _dragStart.y(), local.y() - _dragStart.y());
 		_animStartTimes[_dragging] = 0;
-		update(0, st::membersPadding.top() + _rowHeight * (_dragging + qMin(shift, 0) - 1), width(), _rowHeight * (qMax(shift, 0) - qMin(shift, 0) + 3));
+		updateAnimatedRegions();
 
 		emit checkDraggingScroll(local.y());
 	} else {
@@ -505,8 +506,8 @@ void StickersInner::onUpdateSelected() {
 float64 StickersInner::aboveShadowOpacity() const {
 	if (_above < 0) return 0;
 	
-	int32 dx = qAbs(_above * _rowHeight + _rows.at(_above)->yadd.current() - _started * _rowHeight);
-	int32 dy = qAbs(_rows.at(_above)->xadd.current());
+	int32 dx = 0;
+	int32 dy = qAbs(_above * _rowHeight + _rows.at(_above)->yadd.current() - _started * _rowHeight);
 	return qMin((dx + dy)  * 2. / _rowHeight, 1.);
 }
 
@@ -518,7 +519,6 @@ void StickersInner::mouseReleaseEvent(QMouseEvent *e) {
 		_rows[_removeDown]->disabled = !_rows[_removeDown]->disabled;
 	} else if (_dragging >= 0) {
 		QPoint local(mapFromGlobal(_mouse));
-		_rows[_dragging]->xadd.start(0);
 		_rows[_dragging]->yadd.start(0);
 		_aboveShadowFadeStart = _animStartTimes[_dragging] = getms();
 		_aboveShadowFadeOpacity = anim::fvalue(aboveShadowOpacity(), 0);
@@ -534,29 +534,43 @@ void StickersInner::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
-bool StickersInner::animStep_shifting(float64) {
-	uint64 ms = getms();
-	bool animating = false;
+void StickersInner::updateAnimatedRegions() {
 	int32 updateMin = -1, updateMax = 0;
+	for (int32 i = 0, l = _animStartTimes.size(); i < l; ++i) {
+		if (_animStartTimes.at(i)) {
+			if (updateMin < 0) updateMin = i;
+			updateMax = i;
+		}
+	}
+	if (_aboveShadowFadeStart) {
+		if (updateMin < 0 || updateMin > _above) updateMin = _above;
+		if (updateMax < _above) updateMin = _above;
+	}
+	if (_dragging >= 0) {
+		if (updateMin < 0 || updateMin > _dragging) updateMin = _dragging;
+		if (updateMax < _dragging) updateMax = _dragging;
+	}
+	if (updateMin >= 0) {
+		update(0, st::membersPadding.top() + _rowHeight * (updateMin - 1), width(), _rowHeight * (updateMax - updateMin + 3));
+	}
+}
+
+bool StickersInner::updateAnimatedValues() {
+	bool animating = false;
+	uint64 ms = getms();
 	for (int32 i = 0, l = _animStartTimes.size(); i < l; ++i) {
 		uint64 start = _animStartTimes.at(i);
 		if (start) {
-			if (updateMin < 0) updateMin = i;
-			updateMax = i;
-			if (start + st::stickersRowDuration > ms && ms > start) {
-				_rows.at(i)->xadd.update((ms - start) / st::stickersRowDuration, anim::sineInOut);
+			if (start + st::stickersRowDuration > ms && ms >= start) {
 				_rows.at(i)->yadd.update((ms - start) / st::stickersRowDuration, anim::sineInOut);
 				animating = true;
 			} else {
-				_rows.at(i)->xadd.finish();
 				_rows.at(i)->yadd.finish();
 				_animStartTimes[i] = 0;
 			}
 		}
 	}
 	if (_aboveShadowFadeStart) {
-		if (updateMin < 0 || updateMin > _above) updateMin = _above;
-		if (updateMax < _above) updateMin = _above;
 		if (_aboveShadowFadeStart + st::stickersRowDuration > ms && ms > _aboveShadowFadeStart) {
 			_aboveShadowFadeOpacity.update((ms - _aboveShadowFadeStart) / st::stickersRowDuration, anim::sineInOut);
 			animating = true;
@@ -565,9 +579,13 @@ bool StickersInner::animStep_shifting(float64) {
 			_aboveShadowFadeStart = 0;
 		}
 	}
-	if (updateMin >= 0) {
-		update(0, st::membersPadding.top() + _rowHeight * (updateMin - 1), width(), _rowHeight * (updateMax - updateMin + 3));
-	}
+	return animating;
+}
+
+bool StickersInner::animStep_shifting(float64) {
+	updateAnimatedRegions();
+
+	bool animating = updateAnimatedValues();
 	if (!animating) {
 		_above = _dragging;
 	}
