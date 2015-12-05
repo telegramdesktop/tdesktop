@@ -146,7 +146,11 @@ if not exist %FinalDeployPath% mkdir %FinalDeployPath%
 
 xcopy %DeployPath%\%UpdateFile% %FinalDeployPath%\
 xcopy %DeployPath%\%PortableFile% %FinalDeployPath%\
-xcopy %DeployPath%\%SetupFile% %FinalDeployPath%\
+if %BetaVersion% equ 0 (
+  xcopy %DeployPath%\%SetupFile% %FinalDeployPath%\
+) else (
+  xcopy %DeployPath%\%BetaKeyFile% %FinalDeployPath%\
+)
 xcopy %DeployPath%\Telegram.pdb %FinalDeployPath%\
 xcopy %DeployPath%\Updater.exe %FinalDeployPath%\
 xcopy %DeployPath%\Updater.pdb %FinalDeployPath%\
