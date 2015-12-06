@@ -1773,7 +1773,7 @@ MembersInner::MembersInner(ChannelData *channel, MembersFilter filter) : TWidget
 , _kickBox(0)
 , _loading(true)
 , _loadingRequestId(0)
-, _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPhotoSize - st::contactsPadding.left() - st::contactsPadding.right())
+, _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.right())
 , _about(_aboutWidth)
 , _aboutHeight(0) {
 	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
@@ -1828,7 +1828,7 @@ void MembersInner::paintEvent(QPaintEvent *e) {
 		}
 		if (to == _rows.size() && (_rows.size() < _channel->count || _rows.size() >= cMaxGroupCount())) {
 			p.setPen(st::stickersReorderFg);
-			_about.drawLeft(p, st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left(), st::stickersReorderPadding.top(), _aboutWidth, width());
+			_about.draw(p, st::contactsPadding.left(), st::stickersReorderPadding.top(), _aboutWidth, style::al_center);
 		}
 	}
 }

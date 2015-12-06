@@ -431,7 +431,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_channel_add_admins" = "New administrator";
 "lng_channel_add_members" = "Add members";
 "lng_channel_members" = "Members";
-"lng_channel_only_last_shown" = "Only last {count:_not_used_|# member|# members} are shown here";
+"lng_channel_only_last_shown" = "Only the last {count:_not_used_|# member|# members} are shown here";
 "lng_channel_admins" = "Administrators";
 "lng_channel_add_admin" = "Add Administrator";
 "lng_channel_admin_sure" = "Add {user} to administrators?";

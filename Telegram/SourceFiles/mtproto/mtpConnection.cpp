@@ -1964,12 +1964,12 @@ void MTProtoConnectionPrivate::restart(bool maybeBadKey) {
 	mtpAuthKeyPtr key(sessionData->getKey());
 	if (key) {
 		if (!sessionData->isCheckedKey()) {
-			if (maybeBadKey) {
-				clearMessages();
-				keyId = mtpAuthKey::RecreateKeyId;
-//				retryTimeout = 1; // no ddos please
-				LOG(("MTP Info: key may be bad and was not checked - will be destroyed"));
-			}
+//			if (maybeBadKey) {
+//				clearMessages();
+//				keyId = mtpAuthKey::RecreateKeyId;
+////				retryTimeout = 1; // no ddos please
+				LOG(("MTP Info: key may be bad and was not checked - but won't be destroyed, no log outs because of bad server right now.."));
+//			}
 		} else {
 			sessionData->setCheckedKey(false);
 		}
