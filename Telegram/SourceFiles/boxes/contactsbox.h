@@ -216,6 +216,8 @@ public slots:
 	void onCreate();
 	void onSaveAdmins();
 
+	void onSubmit();
+
 	bool onSearchByUsername(bool searchCache = false);
 	void onNeedSearchByUsername();
 

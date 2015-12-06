@@ -5297,11 +5297,12 @@ void HistoryWidget::cancelSendFile(const FileLoadResultPtr &file) {
 void HistoryWidget::confirmShareContact(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool ctrlShiftEnter) {
 	if (!_peer) return;
 
+	PeerId shareToId = _peer->id;
 	if (_confirmWithTextId == 0xFFFFFFFFFFFFFFFFL) {
 		onSend(ctrlShiftEnter, replyTo);
 		_confirmWithTextId = 0;
 	}
-	shareContact(_peer->id, phone, fname, lname, replyTo);
+	shareContact(shareToId, phone, fname, lname, replyTo);
 }
 
 void HistoryWidget::cancelShareContact() {

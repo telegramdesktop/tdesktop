@@ -1382,6 +1382,7 @@ void ContactsBox::init() {
 	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(updateSel()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(&_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
+	connect(&_filter, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(&_filterCancel, SIGNAL(clicked()), this, SLOT(onFilterCancel()));
 	connect(&_inner, SIGNAL(mustScrollTo(int, int)), &_scroll, SLOT(scrollToY(int, int)));
 	connect(&_inner, SIGNAL(selectAllQuery()), &_filter, SLOT(selectAll()));
@@ -1503,14 +1504,12 @@ void ContactsBox::showDone() {
 	_filter.setFocus();
 }
 
+void ContactsBox::onSubmit() {
+	_inner.chooseParticipant();
+}
+
 void ContactsBox::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
-		if (_filter.hasFocus()) {
-			_inner.chooseParticipant();
-		} else {
-			ItemListBox::keyPressEvent(e);
-		}
-	} else if (_filter.hasFocus()) {
+	if (_filter.hasFocus()) {
 		if (e->key() == Qt::Key_Down) {
 			_inner.selectSkip(1);
 		} else if (e->key() == Qt::Key_Up) {
@@ -1919,7 +1918,7 @@ void MembersInner::paintDialog(Painter &p, PeerData *peer, MemberData *data, boo
 	}
 
 	p.setFont(st::contactsStatusFont->f);
-	p.setPen(sel ? st::contactsStatusFgOver : (data->onlineColor ? st::contactsStatusFgOnline : st::contactsStatusFg));
+	p.setPen(data->onlineColor ? st::contactsStatusFgOnline : (sel ? st::contactsStatusFgOver : st::contactsStatusFg));
 	p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), data->online);
 }
 
