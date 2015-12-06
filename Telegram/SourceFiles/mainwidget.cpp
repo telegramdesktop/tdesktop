@@ -2716,6 +2716,7 @@ void MainWidget::hideAll() {
 	_topBar.hide();
 	_mediaType.hide();
 	_player.hide();
+	_playerHeight = 0;
 }
 
 void MainWidget::showAll() {
@@ -2790,6 +2791,7 @@ void MainWidget::showAll() {
 			}
 		}
 	}
+	resizeEvent(0);
 
 	App::wnd()->checkHistoryActivation();
 }

@@ -386,6 +386,10 @@ private:
 	MemberRoles _roles;
 	MemberDatas _datas;
 
+	int32 _aboutWidth;
+	Text _about;
+	int32 _aboutHeight;
+
 	QPoint _lastMousePos;
 
 };

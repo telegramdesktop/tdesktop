@@ -1773,7 +1773,10 @@ MembersInner::MembersInner(ChannelData *channel, MembersFilter filter) : TWidget
 , _kickRequestId(0)
 , _kickBox(0)
 , _loading(true)
-, _loadingRequestId(0) {
+, _loadingRequestId(0)
+, _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPhotoSize - st::contactsPadding.left() - st::contactsPadding.right())
+, _about(_aboutWidth)
+, _aboutHeight(0) {
 	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 	connect(App::main(), SIGNAL(peerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)));
 	connect(App::main(), SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
@@ -1823,6 +1826,10 @@ void MembersInner::paintEvent(QPaintEvent *e) {
 			bool kickDown = kickSel && (from == _kickDown);
 			paintDialog(p, _rows[from], data(from), sel, kickSel, kickDown);
 			p.translate(0, _rowHeight);
+		}
+		if (to == _rows.size() && (_rows.size() < _channel->count || _rows.size() >= cMaxGroupCount())) {
+			p.setPen(st::stickersReorderFg);
+			_about.drawLeft(p, st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left(), st::stickersReorderPadding.top(), _aboutWidth, width());
 		}
 	}
 }
@@ -1995,8 +2002,14 @@ void MembersInner::chooseParticipant() {
 void MembersInner::refresh() {
 	if (_rows.isEmpty()) {
 		resize(width(), st::membersPadding.top() + st::noContactsHeight + st::membersPadding.bottom());
+		_aboutHeight = 0;
 	} else {
-		resize(width(), st::membersPadding.top() + _newItemHeight + _rows.size() * _rowHeight + st::membersPadding.bottom());
+		_about.setText(st::boxTextFont, lng_channel_only_last_shown(lt_count, _rows.size()));
+		_aboutHeight = st::stickersReorderPadding.top() + _about.countHeight(_aboutWidth) + st::stickersReorderPadding.bottom();
+		if (_rows.size() >= _channel->count && _rows.size() < cMaxGroupCount()) {
+			_aboutHeight = 0;
+		}
+		resize(width(), st::membersPadding.top() + _newItemHeight + _rows.size() * _rowHeight + st::membersPadding.bottom() + _aboutHeight);
 	}
 	update();
 }
