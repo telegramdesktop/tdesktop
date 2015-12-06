@@ -1636,7 +1636,7 @@ void ProfileInner::showAll() {
 				_invitationLink.hide();
 			}
 		}
-		if (_peerChannel->count < cMaxMegaGroupCount() && _peerChannel->isMegagroup() && (true || _amCreator || _peerChannel->amEditor())) {
+		if (_peerChannel->count < cMaxMegaGroupCount() && _peerChannel->isMegagroup() && (_amCreator || _peerChannel->amEditor())) {
 			_addParticipant.show();
 		} else {
 			_addParticipant.hide();
