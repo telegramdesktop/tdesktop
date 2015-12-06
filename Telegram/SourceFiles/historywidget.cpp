@@ -4252,7 +4252,7 @@ void HistoryWidget::blockDone(PeerData *peer, const MTPBool &result) {
 }
 
 void HistoryWidget::onBotStart() {
-	if (!_peer || !_peer->isUser() || !_peer->asUser()->botInfo) {
+	if (!_peer || !_peer->isUser() || !_peer->asUser()->botInfo || !_canSendMessages) {
 		updateControlsVisibility();
 		return;
 	}
@@ -4819,7 +4819,7 @@ bool HistoryWidget::hasBroadcastToggle() const {
 }
 
 bool HistoryWidget::isBotStart() const {
-	if (!_peer || !_peer->isUser() || !_peer->asUser()->botInfo) return false;
+	if (!_peer || !_peer->isUser() || !_peer->asUser()->botInfo || !_canSendMessages) return false;
 	return !_peer->asUser()->botInfo->startToken.isEmpty() || (_history->isEmpty() && !_history->lastMsg);
 }
 
@@ -5297,11 +5297,12 @@ void HistoryWidget::cancelSendFile(const FileLoadResultPtr &file) {
 void HistoryWidget::confirmShareContact(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool ctrlShiftEnter) {
 	if (!_peer) return;
 
+	PeerId shareToId = _peer->id;
 	if (_confirmWithTextId == 0xFFFFFFFFFFFFFFFFL) {
 		onSend(ctrlShiftEnter, replyTo);
 		_confirmWithTextId = 0;
 	}
-	shareContact(_peer->id, phone, fname, lname, replyTo);
+	shareContact(shareToId, phone, fname, lname, replyTo);
 }
 
 void HistoryWidget::cancelShareContact() {
@@ -5899,7 +5900,7 @@ void HistoryWidget::updateBotKeyboard(History *h) {
 		if (_keyboard.singleUse() && _keyboard.hasMarkup() && _keyboard.forMsgId() == FullMsgId(_channel, _history->lastKeyboardId) && _history->lastKeyboardUsed) {
 			_history->lastKeyboardHiddenId = _history->lastKeyboardId;
 		}
-		if (!isBotStart() && !isBlocked() && (wasVisible || _replyTo || (!_field.hasSendText() && !kbWasHidden()))) {
+		if (!isBotStart() && !isBlocked() && _canSendMessages && (wasVisible || _replyTo || (!_field.hasSendText() && !kbWasHidden()))) {
 			if (!_a_show.animating()) {
 				if (hasMarkup) {
 					_kbScroll.show();

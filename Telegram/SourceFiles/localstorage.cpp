@@ -2467,7 +2467,7 @@ namespace Local {
 
 	TaskId startStickerImageLoad(const StorageKey &location, mtpFileLoader *loader) {
 		StorageMap::iterator j = _stickerImagesMap.find(location);
-		if (j == _stickerImagesMap.cend()) {
+		if (j == _stickerImagesMap.cend() || !_localLoader) {
 			return 0;
 		}
 		return _localLoader->addTask(new StickerImageLoadTask(j->first, location, loader));
@@ -2526,7 +2526,7 @@ namespace Local {
 
 	TaskId startAudioLoad(const StorageKey &location, mtpFileLoader *loader) {
 		StorageMap::iterator j = _audiosMap.find(location);
-		if (j == _audiosMap.cend()) {
+		if (j == _audiosMap.cend() || !_localLoader) {
 			return 0;
 		}
 		return _localLoader->addTask(new AudioLoadTask(j->first, location, loader));

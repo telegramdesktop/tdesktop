@@ -334,11 +334,13 @@ StickersInner::StickersInner() : TWidget()
 , _aboveShadowFadeStart(0)
 , _aboveShadowFadeOpacity(0, 0)
 , _a_shifting(animFunc(this, &StickersInner::animStep_shifting))
+, _itemsTop(st::membersPadding.top())
 , _saving(false)
 , _removeSel(-1)
 , _removeDown(-1)
 , _removeWidth(st::normalFont->width(lang(lng_stickers_remove)))
 , _returnWidth(st::normalFont->width(lang(lng_stickers_return)))
+, _restoreWidth(st::normalFont->width(lang(lng_stickers_restore)))
 , _selected(-1)
 , _started(-1)
 , _dragging(-1)
@@ -353,16 +355,18 @@ void StickersInner::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	Painter p(this);
 
+	updateAnimatedValues();
+
 	p.fillRect(r, st::white);
 	p.setClipRect(r);
-
-	int32 yFrom = r.y() - st::membersPadding.top(), yTo = r.y() + r.height() - st::membersPadding.top();
-	p.translate(0, st::membersPadding.top());
 	if (_rows.isEmpty()) {
 		p.setFont(st::noContactsFont->f);
 		p.setPen(st::noContactsColor->p);
 		p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_contacts_loading), style::al_center);
 	} else {
+		p.translate(0, _itemsTop);
+
+		int32 yFrom = r.y() - _itemsTop, yTo = r.y() + r.height() - _itemsTop;
 		int32 from = floorclamp(yFrom - _rowHeight, _rowHeight, 0, _rows.size());
 		int32 to = ceilclamp(yTo + _rowHeight, _rowHeight, 0, _rows.size());
 		p.translate(0, from * _rowHeight);
@@ -382,7 +386,7 @@ void StickersInner::paintEvent(QPaintEvent *e) {
 void StickersInner::paintRow(Painter &p, int32 index) {
 	const StickerSetRow *s(_rows.at(index));
 
-	int32 xadd = s->xadd.current(), yadd = s->yadd.current();
+	int32 xadd = 0, yadd = s->yadd.current();
 	if (xadd || yadd) p.translate(xadd, yadd);
 
 	bool removeSel = (index == _removeSel && (_removeDown < 0 || index == _removeDown));
@@ -394,7 +398,9 @@ void StickersInner::paintRow(Painter &p, int32 index) {
 	} else {
 		p.setPen(st::btnDefLink.color->p);
 	}
-	p.drawTextRight(st::contactsPadding.right() + st::contactsCheckPosition.x(), st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, width(), lang(s->disabled ? lng_stickers_return : lng_stickers_remove), s->disabled ? _returnWidth : _removeWidth);
+	int32 remWidth = s->disabled ? (s->official ? _restoreWidth : _returnWidth) : _removeWidth;
+	QString remText = lang(s->disabled ? (s->official ? lng_stickers_restore : lng_stickers_return) : lng_stickers_remove);
+	p.drawTextRight(st::contactsPadding.right() + st::contactsCheckPosition.x(), st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, width(), remText, remWidth);
 
 	if (index == _above) {
 		float64 current = _aboveShadowFadeOpacity.current();
@@ -439,7 +445,7 @@ void StickersInner::mousePressEvent(QMouseEvent *e) {
 	onUpdateSelected();
 	if (_removeSel >= 0) {
 		_removeDown = _removeSel;
-		update(0, st::membersPadding.top() + _removeSel * _rowHeight, width(), _rowHeight);
+		update(0, _itemsTop + _removeSel * _rowHeight, width(), _rowHeight);
 	} else if (_selected >= 0) {
 		_above = _dragging = _started = _selected;
 		_dragStart = mapFromGlobal(_mouse);
@@ -481,21 +487,20 @@ void StickersInner::onUpdateSelected() {
 				_a_shifting.start();
 			}
 		}
-//		_rows.at(_dragging)->xadd = anim::ivalue(local.x() - _dragStart.x(), local.x() - _dragStart.x());
 		_rows.at(_dragging)->yadd = anim::ivalue(local.y() - _dragStart.y(), local.y() - _dragStart.y());
 		_animStartTimes[_dragging] = 0;
-		update(0, st::membersPadding.top() + _rowHeight * (_dragging + qMin(shift, 0) - 1), width(), _rowHeight * (qMax(shift, 0) - qMin(shift, 0) + 3));
+		updateAnimatedRegions();
 
 		emit checkDraggingScroll(local.y());
 	} else {
-		bool in = rect().marginsRemoved(QMargins(0, st::membersPadding.top(), 0, st::membersPadding.bottom())).contains(local);
-		_selected = in ? floorclamp(local.y() - st::membersPadding.top(), _rowHeight, 0, _rows.size() - 1) : -1;
+		bool in = rect().marginsRemoved(QMargins(0, _itemsTop, 0, st::membersPadding.bottom())).contains(local);
+		_selected = in ? floorclamp(local.y() - _itemsTop, _rowHeight, 0, _rows.size() - 1) : -1;
 		int32 removeSel = -1;
 
 		if (_selected >= 0) {
-			int32 remw = _rows.at(_selected)->disabled ? _returnWidth : _removeWidth;
+			int32 remw = _rows.at(_selected)->disabled ? (_rows.at(_selected)->official ? _restoreWidth : _returnWidth) : _removeWidth;
 			QRect rem(myrtlrect(width() - st::contactsPadding.right() - st::contactsCheckPosition.x() - remw, st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, remw, st::normalFont->height));
-			removeSel = rem.contains(local.x(), local.y() - st::membersPadding.top() - _selected * _rowHeight) ? _selected : -1;
+			removeSel = rem.contains(local.x(), local.y() - _itemsTop - _selected * _rowHeight) ? _selected : -1;
 		}
 		setRemoveSel(removeSel);
 		emit noDraggingScroll();
@@ -505,8 +510,8 @@ void StickersInner::onUpdateSelected() {
 float64 StickersInner::aboveShadowOpacity() const {
 	if (_above < 0) return 0;
 	
-	int32 dx = qAbs(_above * _rowHeight + _rows.at(_above)->yadd.current() - _started * _rowHeight);
-	int32 dy = qAbs(_rows.at(_above)->xadd.current());
+	int32 dx = 0;
+	int32 dy = qAbs(_above * _rowHeight + _rows.at(_above)->yadd.current() - _started * _rowHeight);
 	return qMin((dx + dy)  * 2. / _rowHeight, 1.);
 }
 
@@ -518,7 +523,6 @@ void StickersInner::mouseReleaseEvent(QMouseEvent *e) {
 		_rows[_removeDown]->disabled = !_rows[_removeDown]->disabled;
 	} else if (_dragging >= 0) {
 		QPoint local(mapFromGlobal(_mouse));
-		_rows[_dragging]->xadd.start(0);
 		_rows[_dragging]->yadd.start(0);
 		_aboveShadowFadeStart = _animStartTimes[_dragging] = getms();
 		_aboveShadowFadeOpacity = anim::fvalue(aboveShadowOpacity(), 0);
@@ -529,34 +533,48 @@ void StickersInner::mouseReleaseEvent(QMouseEvent *e) {
 		_dragging = _started = -1;
 	}
 	if (_removeDown >= 0) {
-		update(0, st::membersPadding.top() + _removeDown * _rowHeight, width(), _rowHeight);
+		update(0, _itemsTop + _removeDown * _rowHeight, width(), _rowHeight);
 		_removeDown = -1;
 	}
 }
 
-bool StickersInner::animStep_shifting(float64) {
-	uint64 ms = getms();
-	bool animating = false;
+void StickersInner::updateAnimatedRegions() {
 	int32 updateMin = -1, updateMax = 0;
+	for (int32 i = 0, l = _animStartTimes.size(); i < l; ++i) {
+		if (_animStartTimes.at(i)) {
+			if (updateMin < 0) updateMin = i;
+			updateMax = i;
+		}
+	}
+	if (_aboveShadowFadeStart) {
+		if (updateMin < 0 || updateMin > _above) updateMin = _above;
+		if (updateMax < _above) updateMin = _above;
+	}
+	if (_dragging >= 0) {
+		if (updateMin < 0 || updateMin > _dragging) updateMin = _dragging;
+		if (updateMax < _dragging) updateMax = _dragging;
+	}
+	if (updateMin >= 0) {
+		update(0, _itemsTop + _rowHeight * (updateMin - 1), width(), _rowHeight * (updateMax - updateMin + 3));
+	}
+}
+
+bool StickersInner::updateAnimatedValues() {
+	bool animating = false;
+	uint64 ms = getms();
 	for (int32 i = 0, l = _animStartTimes.size(); i < l; ++i) {
 		uint64 start = _animStartTimes.at(i);
 		if (start) {
-			if (updateMin < 0) updateMin = i;
-			updateMax = i;
-			if (start + st::stickersRowDuration > ms && ms > start) {
-				_rows.at(i)->xadd.update((ms - start) / st::stickersRowDuration, anim::sineInOut);
+			if (start + st::stickersRowDuration > ms && ms >= start) {
 				_rows.at(i)->yadd.update((ms - start) / st::stickersRowDuration, anim::sineInOut);
 				animating = true;
 			} else {
-				_rows.at(i)->xadd.finish();
 				_rows.at(i)->yadd.finish();
 				_animStartTimes[i] = 0;
 			}
 		}
 	}
 	if (_aboveShadowFadeStart) {
-		if (updateMin < 0 || updateMin > _above) updateMin = _above;
-		if (updateMax < _above) updateMin = _above;
 		if (_aboveShadowFadeStart + st::stickersRowDuration > ms && ms > _aboveShadowFadeStart) {
 			_aboveShadowFadeOpacity.update((ms - _aboveShadowFadeStart) / st::stickersRowDuration, anim::sineInOut);
 			animating = true;
@@ -565,9 +583,13 @@ bool StickersInner::animStep_shifting(float64) {
 			_aboveShadowFadeStart = 0;
 		}
 	}
-	if (updateMin >= 0) {
-		update(0, st::membersPadding.top() + _rowHeight * (updateMin - 1), width(), _rowHeight * (updateMax - updateMin + 3));
-	}
+	return animating;
+}
+
+bool StickersInner::animStep_shifting(float64) {
+	updateAnimatedRegions();
+
+	bool animating = updateAnimatedValues();
 	if (!animating) {
 		_above = _dragging;
 	}
@@ -592,9 +614,9 @@ void StickersInner::clear() {
 
 void StickersInner::setRemoveSel(int32 removeSel) {
 	if (removeSel != _removeSel) {
-		if (_removeSel >= 0) update(0, st::membersPadding.top() + _removeSel * _rowHeight, width(), _rowHeight);
+		if (_removeSel >= 0) update(0, _itemsTop + _removeSel * _rowHeight, width(), _rowHeight);
 		_removeSel = removeSel;
-		if (_removeSel >= 0) update(0, st::membersPadding.top() + _removeSel * _rowHeight, width(), _rowHeight);
+		if (_removeSel >= 0) update(0, _itemsTop + _removeSel * _rowHeight, width(), _rowHeight);
 		setCursor((_removeSel >= 0 && (_removeDown < 0 || _removeDown == _removeSel)) ? style::cur_pointer : style::cur_default);
 	}
 }
@@ -603,7 +625,7 @@ void StickersInner::rebuild() {
 	QList<StickerSetRow*> rows, rowsDisabled;
 
 	int32 namex = st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left();
-	int32 namew = st::boxWideWidth - namex - st::contactsPadding.right() - st::contactsCheckPosition.x() - qMax(_returnWidth, _removeWidth);
+	int32 namew = st::boxWideWidth - namex - st::contactsPadding.right() - st::contactsCheckPosition.x() - qMax(qMax(_returnWidth, _removeWidth), _restoreWidth);
 
 	clear();
 	const StickerSetsOrder &order(cStickerSetsOrder());
@@ -638,7 +660,8 @@ void StickersInner::rebuild() {
 			if (titleWidth > namew) {
 				title = st::contactsNameFont->elided(title, namew);
 			}
-			(disabled ? rowsDisabled : rows).push_back(new StickerSetRow(it->id, sticker, it->stickers.size(), title, disabled, pixw, pixh));
+			bool official = (it->flags & MTPDstickerSet::flag_official);
+			(disabled ? rowsDisabled : rows).push_back(new StickerSetRow(it->id, sticker, it->stickers.size(), title, official, disabled, pixw, pixh));
 			_animStartTimes.push_back(0);
 			if (it->stickers.isEmpty() || (it->flags & MTPDstickerSet_flag_NOT_LOADED)) {
 				App::api()->scheduleStickerSetRequest(it->id, it->access);
@@ -647,7 +670,7 @@ void StickersInner::rebuild() {
 	}
 	App::api()->requestStickerSets();
 	_rows = rows + rowsDisabled;
-	resize(width(), st::membersPadding.top() + _rows.size() * _rowHeight + st::membersPadding.bottom());
+	resize(width(), _itemsTop + _rows.size() * _rowHeight + st::membersPadding.bottom());
 }
 
 QVector<uint64> StickersInner::getOrder() const {
@@ -688,8 +711,13 @@ StickersBox::StickersBox() : ItemListBox(st::boxScroll)
 , _save(this, lang(lng_settings_save), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _reorderRequest(0)
-, _bottomShadow(this) {
-	ItemListBox::init(&_inner, st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+, _topShadow(this, st::contactsAboutShadow)
+, _bottomShadow(this)
+, _scrollDelta(0)
+, _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPhotoSize - st::contactsPadding.left() - st::contactsPadding.right())
+, _about(st::boxTextFont, lang(lng_stickers_reorder), _defaultOptions, _aboutWidth)
+, _aboutHeight(st::stickersReorderPadding.top() + _about.countHeight(_aboutWidth) + st::stickersReorderPadding.bottom()) {
+	ItemListBox::init(&_inner, st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom(), st::boxTitleHeight + _aboutHeight);
 	setMaxHeight(snap(countHeight(), int32(st::sessionsHeight), int32(st::boxMaxListHeight)));
 
 	connect(App::main(), SIGNAL(stickersUpdated()), this, SLOT(onStickersUpdated()));
@@ -709,7 +737,7 @@ StickersBox::StickersBox() : ItemListBox(st::boxScroll)
 }
 
 int32 StickersBox::countHeight() const {
-	return st::boxTitleHeight + _inner.height() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom();
+	return st::boxTitleHeight + _aboutHeight + _inner.height() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom();
 }
 
 void StickersBox::disenableDone(const MTPBool & result, mtpRequestId req) {
@@ -762,6 +790,10 @@ void StickersBox::paintEvent(QPaintEvent *e) {
 
 	paintTitle(p, lang(lng_stickers_packs));
 	p.translate(0, st::boxTitleHeight);
+
+	p.fillRect(0, 0, width(), _aboutHeight, st::contactsAboutBg);
+	p.setPen(st::stickersReorderFg);
+	_about.drawLeft(p, st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left(), st::stickersReorderPadding.top(), _aboutWidth, width());
 }
 
 void StickersBox::closePressed() {
@@ -785,6 +817,7 @@ void StickersBox::resizeEvent(QResizeEvent *e) {
 	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
 	_inner.resize(width(), _inner.height());
+	_topShadow.setGeometry(0, st::boxTitleHeight + _aboutHeight, width(), st::lineWidth);
 	_bottomShadow.setGeometry(0, height() - st::boxButtonPadding.bottom() - _save.height() - st::boxButtonPadding.top() - st::lineWidth, width(), st::lineWidth);
 	_inner.setVisibleScrollbar((_scroll.scrollTopMax() > 0) ? (st::boxScroll.width - st::boxScroll.deltax) : 0);
 }
@@ -890,6 +923,7 @@ void StickersBox::onSave() {
 void StickersBox::hideAll() {
 	_save.hide();
 	_cancel.hide();
+	_topShadow.hide();
 	_bottomShadow.hide();
 	ItemListBox::hideAll();
 }
@@ -897,6 +931,7 @@ void StickersBox::hideAll() {
 void StickersBox::showAll() {
 	_save.show();
 	_cancel.show();
+	_topShadow.show();
 	_bottomShadow.show();
 	ItemListBox::showAll();
 }

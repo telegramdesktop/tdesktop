@@ -281,6 +281,9 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
       cp -v "$DeployPath/$UpdateFile" "$DeployToPath/"
       cp -v "$DeployPath/$SetupFile" "$DeployToPath/"
       cp -rv "$DeployPath/$BinaryName.app.dSYM" "$DeployToPath/"
+      if [ "$BetaVersion" != "0" ]; then
+        cp -v "$DeployPath/$BetaKeyFile" "$DeployToPath/"
+      fi
     fi
   elif [ "$BuildTarget" == "macstore" ]; then
     echo "Copying $BinaryName.app to deploy/$AppVersionStrMajor/$AppVersionStr..";

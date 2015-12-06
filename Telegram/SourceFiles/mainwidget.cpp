@@ -971,11 +971,17 @@ void MainWidget::addParticipants(PeerData *chatOrChannel, const QVector<UserData
 		}
 	} else if (chatOrChannel->isChannel()) {
 		QVector<MTPInputUser> inputUsers;
-		inputUsers.reserve(users.size());
+		inputUsers.reserve(qMin(users.size(), int(MaxUsersPerInvite)));
 		for (QVector<UserData*>::const_iterator i = users.cbegin(), e = users.cend(); i != e; ++i) {
 			inputUsers.push_back((*i)->inputUser);
+			if (inputUsers.size() == MaxUsersPerInvite) {
+				MTP::send(MTPchannels_InviteToChannel(chatOrChannel->asChannel()->inputChannel, MTP_vector<MTPInputUser>(inputUsers)), rpcDone(&MainWidget::inviteToChannelDone, chatOrChannel->asChannel()), rpcFail(&MainWidget::addParticipantsFail, chatOrChannel->asChannel()), 0, 5);
+				inputUsers.clear();
+			}
 		}
-		MTP::send(MTPchannels_InviteToChannel(chatOrChannel->asChannel()->inputChannel, MTP_vector<MTPInputUser>(inputUsers)), rpcDone(&MainWidget::inviteToChannelDone, chatOrChannel->asChannel()), rpcFail(&MainWidget::addParticipantsFail, chatOrChannel->asChannel()), 0, 5);
+		if (!inputUsers.isEmpty()) {
+			MTP::send(MTPchannels_InviteToChannel(chatOrChannel->asChannel()->inputChannel, MTP_vector<MTPInputUser>(inputUsers)), rpcDone(&MainWidget::inviteToChannelDone, chatOrChannel->asChannel()), rpcFail(&MainWidget::addParticipantsFail, chatOrChannel->asChannel()), 0, 5);
+		}
 	}
 }
 
@@ -2710,6 +2716,7 @@ void MainWidget::hideAll() {
 	_topBar.hide();
 	_mediaType.hide();
 	_player.hide();
+	_playerHeight = 0;
 }
 
 void MainWidget::showAll() {
@@ -2784,6 +2791,7 @@ void MainWidget::showAll() {
 			}
 		}
 	}
+	resizeEvent(0);
 
 	App::wnd()->checkHistoryActivation();
 }

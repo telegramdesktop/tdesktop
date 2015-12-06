@@ -431,6 +431,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_channel_add_admins" = "New administrator";
 "lng_channel_add_members" = "Add members";
 "lng_channel_members" = "Members";
+"lng_channel_only_last_shown" = "Only the last {count:_not_used_|# member|# members} are shown here";
 "lng_channel_admins" = "Administrators";
 "lng_channel_add_admin" = "Add Administrator";
 "lng_channel_admin_sure" = "Add {user} to administrators?";
@@ -583,8 +584,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_stickers_default_set" = "Great Minds";
 "lng_stickers_you_have" = "Manage and reorder sticker packs";
 "lng_stickers_packs" = "Sticker Packs";
-"lng_stickers_remove" = "Remove";
-"lng_stickers_return" = "Return";
+"lng_stickers_reorder" = "Click and drag to reorder sticker packs";
+"lng_stickers_remove" = "Delete";
+"lng_stickers_return" = "Undo";
+"lng_stickers_restore" = "Restore";
 "lng_stickers_count" = "{count:Loading..|# sticker|# stickers}";
 
 "lng_in_dlg_photo" = "Photo";

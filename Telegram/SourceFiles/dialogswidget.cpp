@@ -56,6 +56,7 @@ DialogsInner::DialogsInner(QWidget *parent, MainWidget *main) : SplittedWidget(p
 , _searchInPeer(0)
 , _searchInMigrated(0)
 , _menuPeer(0)
+, _menuActionPeer(0)
 , _menu(0) {
 	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 	connect(main, SIGNAL(peerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)));
@@ -64,7 +65,7 @@ DialogsInner::DialogsInner(QWidget *parent, MainWidget *main) : SplittedWidget(p
 	connect(&_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
 	connect(&_cancelSearchInPeer, SIGNAL(clicked()), this, SIGNAL(cancelSearchInPeer()));
 	_cancelSearchInPeer.hide();
-	refresh(false);
+	refresh();
 }
 
 int32 DialogsInner::filteredOffset() const {
@@ -608,6 +609,7 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 		_menuPeer = 0;
 		disconnect(App::main(), SIGNAL(peerUpdated(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
 	}
+
 	if (e->reason() == QContextMenuEvent::Mouse) {
 		lastMousePos = e->globalPos();
 		selByMouse = true;
@@ -632,8 +634,10 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 	if (_menuPeer->isUser()) {
 		_menu->addAction(lang(lng_profile_clear_history), this, SLOT(onContextClearHistory()))->setEnabled(true);
 		_menu->addAction(lang(lng_profile_delete_conversation), this, SLOT(onContextDeleteAndLeave()))->setEnabled(true);
-		_menu->addAction(lang((_menuPeer->asUser()->blocked == UserIsBlocked) ? (_menuPeer->asUser()->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (_menuPeer->asUser()->botInfo ? lng_profile_block_bot : lng_profile_block_user)), this, SLOT(onContextToggleBlock()))->setEnabled(true);
-		connect(App::main(), SIGNAL(peerUpdated(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
+		if (_menuPeer->asUser()->access != UserNoAccess) {
+			_menu->addAction(lang((_menuPeer->asUser()->blocked == UserIsBlocked) ? (_menuPeer->asUser()->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (_menuPeer->asUser()->botInfo ? lng_profile_block_bot : lng_profile_block_user)), this, SLOT(onContextToggleBlock()))->setEnabled(true);
+			connect(App::main(), SIGNAL(peerUpdated(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
+		}
 	} else if (_menuPeer->isChat()) {
 		_menu->addAction(lang(lng_profile_clear_history), this, SLOT(onContextClearHistory()))->setEnabled(true);
 		_menu->addAction(lang(lng_profile_clear_and_exit), this, SLOT(onContextDeleteAndLeave()))->setEnabled(true);
@@ -667,39 +671,42 @@ void DialogsInner::onContextSearch() {
 
 void DialogsInner::onContextClearHistory() {
 	if (!_menuPeer || _menuPeer->isChannel()) return;
+
+	_menuActionPeer = _menuPeer;
 	ConfirmBox *box = new ConfirmBox(_menuPeer->isUser() ? lng_sure_delete_history(lt_contact, _menuPeer->name) : lng_sure_delete_group_history(lt_group, _menuPeer->name), lang(lng_box_delete), st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onContextClearHistorySure()));
 	App::showLayer(box);
 }
 
 void DialogsInner::onContextClearHistorySure() {
-	if (!_menuPeer || _menuPeer->isChannel()) return;
+	if (!_menuActionPeer || _menuActionPeer->isChannel()) return;
 	App::wnd()->hideLayer();
-	App::main()->clearHistory(_menuPeer);
+	App::main()->clearHistory(_menuActionPeer);
 }
 
 void DialogsInner::onContextDeleteAndLeave() {
 	if (!_menuPeer) return;
+
+	_menuActionPeer = _menuPeer;
 	ConfirmBox *box = new ConfirmBox(_menuPeer->isUser() ? lng_sure_delete_history(lt_contact, _menuPeer->name) : (_menuPeer->isChat() ? lng_sure_delete_and_exit(lt_group, _menuPeer->name) : lang(_menuPeer->isMegagroup() ? lng_sure_leave_group : lng_sure_leave_channel)), lang(_menuPeer->isUser() ? lng_box_delete : lng_box_leave), _menuPeer->isChannel() ? st::defaultBoxButton : st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onContextDeleteAndLeaveSure()));
 	App::wnd()->showLayer(box);
 }
 
 void DialogsInner::onContextDeleteAndLeaveSure() {
-	if (!_menuPeer) return;
-	if (_menuPeer->isUser()) {
-		App::main()->deleteConversation(_menuPeer);
-	} else if (_menuPeer->isChat()) {
-		App::wnd()->hideLayer();
-		App::main()->showDialogs();
-		MTP::send(MTPmessages_DeleteChatUser(_menuPeer->asChat()->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, _menuPeer), App::main()->rpcFail(&MainWidget::leaveChatFailed, _menuPeer));
-	} else if (_menuPeer->isChannel()) {
-		App::wnd()->hideLayer();
-		App::main()->showDialogs();
-		if (_menuPeer->migrateFrom()) {
-			App::main()->deleteConversation(_menuPeer->migrateFrom());
+	if (!_menuActionPeer) return;
+
+	App::wnd()->hideLayer();
+	App::main()->showDialogs();
+	if (_menuActionPeer->isUser()) {
+		App::main()->deleteConversation(_menuActionPeer);
+	} else if (_menuActionPeer->isChat()) {
+		MTP::send(MTPmessages_DeleteChatUser(_menuActionPeer->asChat()->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, _menuActionPeer), App::main()->rpcFail(&MainWidget::leaveChatFailed, _menuActionPeer));
+	} else if (_menuActionPeer->isChannel()) {
+		if (_menuActionPeer->migrateFrom()) {
+			App::main()->deleteConversation(_menuActionPeer->migrateFrom());
 		}
-		MTP::send(MTPchannels_LeaveChannel(_menuPeer->asChannel()->inputChannel), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
+		MTP::send(MTPchannels_LeaveChannel(_menuActionPeer->asChannel()->inputChannel), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
 	}
 }
 
@@ -919,13 +926,13 @@ void DialogsInner::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
 }
 
 void DialogsInner::updateNotifySettings(PeerData *peer) {
-	if (_menu && _menuPeer == peer) {
+	if (_menu && _menuPeer == peer && _menu->actions().size() > 1) {
 		_menu->actions().at(1)->setText(lang(menuPeerMuted() ? lng_enable_notifications_from_tray : lng_disable_notifications_from_tray));
 	}
 }
 
 void DialogsInner::peerUpdated(PeerData *peer) {
-	if (_menu && _menuPeer == peer && _menuPeer->isUser()) {
+	if (_menu && _menuPeer == peer && _menuPeer->isUser() && _menu->actions().size() > 5) {
 		_menu->actions().at(5)->setText(lang((_menuPeer->asUser()->blocked == UserIsBlocked) ? (_menuPeer->asUser()->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (_menuPeer->asUser()->botInfo ? lng_profile_block_bot : lng_profile_block_user)));
 	}
 }
@@ -1175,7 +1182,6 @@ void DialogsInner::setState(State newState) {
 		_filteredSel = -1;
 	}
 	onFilterUpdate(_filter, true);
-	refresh(true);
 }
 
 DialogsInner::State DialogsInner::state() const {
@@ -1848,7 +1854,9 @@ bool DialogsWidget::animStep_show(float64 ms) {
 
 		_scroll.show();
 		_filter.show();
-		onFilterUpdate(true);
+		_a_show.stop();
+
+		onFilterUpdate();
 		activate();
 
 		if (App::app()) App::app()->mtpUnpause();
