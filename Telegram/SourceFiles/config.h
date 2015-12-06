@@ -59,6 +59,8 @@ enum {
 
 	MTPDebugBufferSize = 1024 * 1024, // 1 mb start size
 
+	MaxUsersPerInvite = 100, // max users in one super group invite request
+
 	MTPPingDelayDisconnect = 60, // 1 min
 	MTPPingSendAfterAuto = 30, // send new ping starting from 30 seconds (add to existing container)
 	MTPPingSendAfter = 45, // send new ping after 45 seconds without ping

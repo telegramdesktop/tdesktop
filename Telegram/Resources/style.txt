@@ -1424,12 +1424,13 @@ contactsNewItemIconPosition: point(29px, 19px);
 contactsNewItemTop: 18px;
 contactsNewItemFg: #4b82af;
 contactsAboutBg: #f7f7f7;
+contactsAboutShadow: #0000001F;
 contactsAdminCheckbox: Checkbox(defaultCheckbox) {
 	font: semiboldFont;
 	textBg: #f7f7f7;
 	textPosition: point(34px, 1px);
 }
-contactsAboutHeight: 80px;
+contactsAboutHeight: 42px;
 contactsAboutTop: 9px;
 contactsScroll: flatScroll(boxScroll) {
 	deltab: 0px;
@@ -1794,6 +1795,8 @@ stickersScroll: flatScroll(boxScroll) {
 	deltat: 23px;
 	deltab: 9px;
 }
+stickersReorderPadding: margins(0px, 12px, 0px, 12px);
+stickersReorderFg: #777;
 stickersRowDisabledOpacity: 0.4;
 stickersRowDuration: 200;
 
@@ -1938,11 +1941,11 @@ stickerIconLeft: sprite(342px, 72px, 40px, 1px);
 stickerIconRight: sprite(342px, 73px, 40px, 1px);
 stickerIconMove: 400;
 
-verifiedCheckProfile: sprite(285px, 240px, 22px, 22px);
-verifiedCheckProfilePos: point(9px, 4px);
-verifiedCheck: sprite(285px, 221px, 19px, 19px);
-verifiedCheckInv: sprite(304px, 221px, 19px, 19px);
-verifiedCheckPos: point(5px, 0px);
+verifiedCheckProfile: sprite(285px, 235px, 18px, 18px);
+verifiedCheckProfilePos: point(7px, 6px);
+verifiedCheck: sprite(285px, 221px, 14px, 14px);
+verifiedCheckInv: sprite(299px, 221px, 14px, 14px);
+verifiedCheckPos: point(4px, 2px);
 
 botKbDuration: 200;
 botKbBg: #f7f7f7;

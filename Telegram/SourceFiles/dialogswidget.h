@@ -204,7 +204,7 @@ private:
 
 	bool _overDelete;
 
-	PeerData *_searchInPeer, *_searchInMigrated, *_menuPeer;
+	PeerData *_searchInPeer, *_searchInMigrated, *_menuPeer, *_menuActionPeer;
 
 	PopupMenu *_menu;
 

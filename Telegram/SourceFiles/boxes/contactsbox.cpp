@@ -94,7 +94,7 @@ namespace {
 
 ContactsInner::ContactsInner(ChatData *chat, MembersFilter membersFilter) : TWidget()
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
-, _newItemHeight((membersFilter == MembersFilterAdmins) ? (st::contactsNewItemHeight + st::contactsAboutHeight) : 0)
+, _newItemHeight(0)
 , _newItemSel(false)
 , _chat(chat)
 , _channel(0)
@@ -119,8 +119,11 @@ ContactsInner::ContactsInner(ChatData *chat, MembersFilter membersFilter) : TWid
 , _addContactLnk(this, lang(lng_add_contact_button))
 , _saving(false) {
 	initList();
-	if (membersFilter == MembersFilterAdmins && !_contacts->list.count) {
-		App::api()->requestFullPeer(_chat);
+	if (membersFilter == MembersFilterAdmins) {
+		_newItemHeight = st::contactsNewItemHeight + qMax(_aboutAllAdmins.countHeight(_aboutWidth), _aboutAdmins.countHeight(_aboutWidth)) + st::contactsAboutHeight;
+		if (!_contacts->list.count) {
+			App::api()->requestFullPeer(_chat);
+		}
 	}
 	init();
 }
@@ -775,9 +778,9 @@ void ContactsInner::changeCheckState(ContactData *data, PeerData *peer) {
 int32 ContactsInner::selectedCount() const {
 	int32 result = _selCount;
 	if (_chat) {
-		result += (_chat->count > 0) ? _chat->count : 1;
+		result += qMax(_chat->count, 1);
 	} else if (_channel) {
-		result += _already.size();
+		result += qMax(_channel->count, _already.size());
 	} else if (_creating == CreatingGroupGroup) {
 		result += 1;
 	}

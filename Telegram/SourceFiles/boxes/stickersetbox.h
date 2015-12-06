@@ -154,10 +154,11 @@ private:
 
 	int32 _rowHeight;
 	struct StickerSetRow {
-		StickerSetRow(uint64 id, DocumentData *sticker, int32 count, const QString &title, bool disabled, int32 pixw, int32 pixh) : id(id)
+		StickerSetRow(uint64 id, DocumentData *sticker, int32 count, const QString &title, bool official, bool disabled, int32 pixw, int32 pixh) : id(id)
 			, sticker(sticker)
 			, count(count)
 			, title(title)
+			, official(official)
 			, disabled(disabled)
 			, pixw(pixw)
 			, pixh(pixh)
@@ -167,7 +168,7 @@ private:
 		DocumentData *sticker;
 		int32 count;
 		QString title;
-		bool disabled;
+		bool official, disabled;
 		int32 pixw, pixh;
 		anim::ivalue yadd;
 	};
@@ -178,9 +179,11 @@ private:
 	anim::fvalue _aboveShadowFadeOpacity;
 	Animation _a_shifting;
 
+	int32 _itemsTop;
+
 	bool _saving;
 
-	int32 _removeSel, _removeDown, _removeWidth, _returnWidth;
+	int32 _removeSel, _removeDown, _removeWidth, _returnWidth, _restoreWidth;
 
 	QPoint _mouse;
 	int32 _selected;
@@ -232,10 +235,15 @@ private:
 	BoxButton _save, _cancel;
 	QMap<mtpRequestId, NullType> _disenableRequests;
 	mtpRequestId _reorderRequest;
+	PlainShadow _topShadow;
 	ScrollableBoxShadow _bottomShadow;
 
 	QTimer _scrollTimer;
 	int32 _scrollDelta;
+
+	int32 _aboutWidth;
+	Text _about;
+	int32 _aboutHeight;
 
 };
 
