@@ -125,7 +125,11 @@ PhotoSendBox::PhotoSendBox(const QString &phone, const QString &fname, const QSt
 , _compressed(this, lang(lng_send_image_compressed), true)
 , _send(this, lang(lng_send_button), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _phone(phone), _fname(fname), _lname(lname), _replyTo(replyTo) {
+, _phone(phone)
+, _fname(fname)
+, _lname(lname)
+, _replyTo(replyTo)
+, _confirmed(false) {
 	connect(&_send, SIGNAL(clicked()), this, SLOT(onSend()));
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
