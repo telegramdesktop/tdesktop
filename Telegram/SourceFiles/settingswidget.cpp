@@ -203,11 +203,12 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 {
 	if (self()) {
 		connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
+		connect(App::api(), SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
 
 		_nameText.setText(st::setNameFont, _nameCache, _textNameOptions);
 		PhotoData *selfPhoto = (self()->photoId && self()->photoId != UnknownPeerPhotoId) ? App::photo(self()->photoId) : 0;
 		if (selfPhoto && selfPhoto->date) _photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
-		MTP::send(MTPusers_GetFullUser(self()->inputUser), rpcDone(&SettingsInner::gotFullSelf), RPCFailHandlerPtr(), 0, 10);
+		App::api()->requestFullPeer(self());
 		onReloadPassword();
 
 		connect(App::main(), SIGNAL(peerPhotoChanged(PeerData *)), this, SLOT(peerUpdated(PeerData *)));
@@ -346,7 +347,7 @@ void SettingsInner::peerUpdated(PeerData *data) {
 				_photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
 			} else {
 				_photoLink = TextLinkPtr();
-				MTP::send(MTPusers_GetFullUser(self()->inputUser), rpcDone(&SettingsInner::gotFullSelf));
+				App::api()->requestFullPeer(self());
 			}
 		} else {
 			_photoLink = TextLinkPtr();
@@ -897,10 +898,9 @@ void SettingsInner::updateBackgroundRect() {
 	update(_left, _tileBackground.y() - st::setLittleSkip - st::setBackgroundSize, st::setBackgroundSize, st::setBackgroundSize);
 }
 
-void SettingsInner::gotFullSelf(const MTPUserFull &selfFull) {
-	if (!self()) return;
-	App::feedPhoto(selfFull.c_userFull().vprofile_photo);
-	App::feedUsers(MTP_vector<MTPUser>(1, selfFull.c_userFull().vuser));
+void SettingsInner::onFullPeerUpdated(PeerData *peer) {
+	if (!self() || self() != peer) return;
+
 	PhotoData *selfPhoto = (self()->photoId && self()->photoId != UnknownPeerPhotoId) ? App::photo(self()->photoId) : 0;
 	if (selfPhoto && selfPhoto->date) {
 		_photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));

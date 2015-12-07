@@ -564,7 +564,7 @@ private:
 	StackItems _stack;
 	PeerData *_peerInStack;
 	MsgId _msgIdInStack;
-	
+
 	int32 _playerHeight;
 	int32 _contentScrollAddToY;
 

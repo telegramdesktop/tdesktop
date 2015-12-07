@@ -2346,7 +2346,9 @@ void MainWidget::showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) 
 	//}
 
 	if (!dialogs.isHidden()) {
-		dialogs.scrollToPeer(peerId, showAtMsgId);
+		if (!back) {
+			dialogs.scrollToPeer(peerId, showAtMsgId);
+		}
 		dialogs.update();
 	}
 	App::wnd()->getTitle()->updateBackButton();
@@ -2517,6 +2519,7 @@ void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop)
 	if (back) clearBotStartToken(history.peer());
 	history.showHistory(0, 0);
 	history.hide();
+	if (!cWideMode()) dialogs.hide();
 
 	orderWidgets();
 
