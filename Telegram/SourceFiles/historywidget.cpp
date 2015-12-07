@@ -3216,6 +3216,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 	if (_history) {
 		_history->draft = _field.getLastText();
+		if (_migrated) _migrated->draft = QString(); // use migrated draft only once
 		_history->draftCursor.fillFrom(_field);
 		_history->draftToId = _replyToId;
 		_history->draftPreviewCancelled = _previewCancelled;
@@ -3325,6 +3326,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 			_history->draftCursor = _migrated->draftCursor;
 			_history->draftPreviewCancelled = _migrated->draftPreviewCancelled;
 			_history->draftToId = 0;
+			_migrated->draft = QString(); // use migrated draft only once
 			applyDraft(false);
 			_replyToId = 0;
 		} else {
