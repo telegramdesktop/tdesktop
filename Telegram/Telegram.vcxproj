@@ -992,6 +992,7 @@
     <ClCompile Include="SourceFiles\boxes\usernamebox.cpp" />
     <ClCompile Include="SourceFiles\dialogswidget.cpp" />
     <ClCompile Include="SourceFiles\dropdown.cpp" />
+    <ClCompile Include="SourceFiles\facades.cpp" />
     <ClCompile Include="SourceFiles\fileuploader.cpp" />
     <ClCompile Include="SourceFiles\gui\animation.cpp" />
     <ClCompile Include="SourceFiles\gui\boxshadow.cpp" />
@@ -1029,6 +1030,7 @@
     <ClCompile Include="SourceFiles\mainwidget.cpp" />
     <ClCompile Include="SourceFiles\mediaview.cpp" />
     <ClCompile Include="SourceFiles\mtproto\mtp.cpp" />
+    <ClCompile Include="SourceFiles\mtproto\mtpAuthKey.cpp" />
     <ClCompile Include="SourceFiles\mtproto\mtpConnection.cpp" />
     <ClCompile Include="SourceFiles\mtproto\mtpCoreTypes.cpp" />
     <ClCompile Include="SourceFiles\mtproto\mtpDC.cpp" />
@@ -1552,6 +1554,7 @@
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
     </CustomBuild>
+    <ClInclude Include="SourceFiles\facades.h" />
     <ClInclude Include="SourceFiles\gui\boxshadow.h" />
     <CustomBuild Include="SourceFiles\gui\popupmenu.h">
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath);$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>

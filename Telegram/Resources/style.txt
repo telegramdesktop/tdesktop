@@ -1940,6 +1940,9 @@ stickerIconSelColor: #58b2ed;
 stickerIconLeft: sprite(342px, 72px, 40px, 1px);
 stickerIconRight: sprite(342px, 73px, 40px, 1px);
 stickerIconMove: 400;
+stickerPreviewDuration: 150;
+stickerPreviewBg: #FFFFFFB0;
+stickerPreviewMin: 0.1;
 
 verifiedCheckProfile: sprite(285px, 235px, 18px, 18px);
 verifiedCheckProfilePos: point(7px, 6px);

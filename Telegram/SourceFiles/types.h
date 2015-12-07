@@ -436,3 +436,10 @@ inline int32 ceilclamp(int32 value, int32 step, int32 lowest, int32 highest) {
 inline int32 ceilclamp(float64 value, int32 step, int32 lowest, int32 highest) {
 	return qMax(qMin(qCeil(value / step), highest), lowest);
 }
+
+enum ForwardWhatMessages {
+	ForwardSelectedMessages,
+	ForwardContextMessage,
+	ForwardPressedMessage,
+	ForwardPressedLinkMessage
+};

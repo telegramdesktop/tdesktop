@@ -80,13 +80,6 @@ enum RoundCorners {
 	RoundCornersCount
 };
 
-enum ForwardWhatMessages {
-	ForwardSelectedMessages,
-	ForwardContextMessage,
-	ForwardPressedMessage,
-	ForwardPressedLinkMessage
-};
-
 class LayeredWidget;
 
 namespace App {
@@ -233,7 +226,7 @@ namespace App {
 	bool quiting();
 	void setQuiting();
 
-    QImage readImage(QByteArray data, QByteArray *format = 0, bool opaque = true, bool *animated = 0);
+	QImage readImage(QByteArray data, QByteArray *format = 0, bool opaque = true, bool *animated = 0);
 	QImage readImage(const QString &file, QByteArray *format = 0, bool opaque = true, bool *animated = 0, QByteArray *content = 0);
 
 	void regVideoItem(VideoData *data, HistoryItem *item);
@@ -300,28 +293,6 @@ namespace App {
 	typedef QList<WallPaper> WallPapers;
 	DeclareSetting(WallPapers, ServerBackgrounds);
 
-	void sendBotCommand(const QString &cmd, MsgId replyTo = 0);
-	void insertBotCommand(const QString &cmd);
-	void searchByHashtag(const QString &tag, PeerData *inPeer);
-	void openPeerByName(const QString &username, bool toProfile = false, const QString &startToken = QString());
-	void joinGroupByHash(const QString &hash);
-	void stickersBox(const QString &name);
-	void openLocalUrl(const QString &url);
-	bool forward(const PeerId &peer, ForwardWhatMessages what);
-	void removeDialog(History *history);
-	void showSettings();
-	void showLayer(LayeredWidget *w, bool forceFast = false);
-	void replaceLayer(LayeredWidget *w);
-	void showLayerLast(LayeredWidget *w);
-
-};
-
-namespace Notify {
-
-	void userIsBotChanged(UserData *user);
-	void botCommandsChanged(UserData *user);
-	void migrateUpdated(PeerData *peer);
-
 };
 
 inline int32 stickersCountHash(bool checkOfficial = false) {
@@ -344,3 +315,5 @@ inline int32 stickersCountHash(bool checkOfficial = false) {
 	}
 	return (!checkOfficial || (!foundBad && foundOfficial)) ? int32(acc & 0x7FFFFFFF) : 0;
 }
+
+#include "facades.h"

@@ -1200,7 +1200,8 @@ StickerPanInner::StickerPanInner() : TWidget()
 , _top(0)
 , _selected(-1)
 , _pressedSel(-1)
-, _settings(this, lang(lng_stickers_you_have)) {
+, _settings(this, lang(lng_stickers_you_have))
+, _previewShown(false) {
 	setMaxHeight(st::emojiPanMaxHeight);
 
 	setMouseTracking(true);
@@ -1210,6 +1211,9 @@ StickerPanInner::StickerPanInner() : TWidget()
 	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 	connect(&_settings, SIGNAL(clicked()), this, SLOT(onSettings()));
 	
+	_previewTimer.setSingleShot(true);
+	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreview()));
+
 	refreshStickers();
 }
 
@@ -1349,14 +1353,22 @@ void StickerPanInner::mousePressEvent(QMouseEvent *e) {
 	updateSelected();
 
 	_pressedSel = _selected;
+	_previewTimer.start(QApplication::startDragTime());
 }
 
 void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
+	_previewTimer.stop();
+
 	int32 pressed = _pressedSel;
 	_pressedSel = -1;
 
 	_lastMousePos = e->globalPos();
 	updateSelected();
+
+	if (_previewShown) {
+		_previewShown = false;
+		return;
+	}
 
 	if (_selected < 0 || _selected != pressed) return;
 	if (_selected >= MatrixRowShift * _sets.size()) {
@@ -1638,7 +1650,7 @@ void StickerPanInner::refreshPanels(QVector<EmojiPanel*> &panels) {
 }
 
 void StickerPanInner::updateSelected() {
-	if (_pressedSel >= 0) return;
+	if (_pressedSel >= 0 && !_previewShown) return;
 
 	int32 selIndex = -1;
 	QPoint p(mapFromGlobal(_lastMousePos));
@@ -1715,11 +1727,27 @@ void StickerPanInner::updateSelected() {
 		}
 	}
 	_selected = selIndex;
+	if (_pressedSel >= 0 && _selected >= 0 && _pressedSel != _selected) {
+		_pressedSel = _selected;
+		if (newSel >= 0 && xNewSel < 0) {
+			Ui::showStickerPreview(_sets.at(newSelTab).pack.at(newSel % MatrixRowShift));
+		}
+	}
 	if (startanim) anim::start(this);
 }
 
 void StickerPanInner::onSettings() {
 	App::showLayer(new StickersBox());
+}
+
+void StickerPanInner::onPreview() {
+	if (_pressedSel >= 0 && _pressedSel < MatrixRowShift * _sets.size()) {
+		int tab = (_pressedSel / MatrixRowShift), sel = _pressedSel % MatrixRowShift;
+		if (sel < _sets.at(tab).pack.size()) {
+			Ui::showStickerPreview(_sets.at(tab).pack.at(sel));
+			_previewShown = true;
+		}
+	}
 }
 
 bool StickerPanInner::animStep(float64 ms) {
