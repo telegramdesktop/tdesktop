@@ -783,14 +783,14 @@ void SettingsInner::keyPressEvent(QKeyEvent *e) {
 			QString text = cDebug() ? qsl("Do you want to disable DEBUG logs?") : qsl("Do you want to enable DEBUG logs?\n\nAll network events will be logged.");
 			ConfirmBox *box = new ConfirmBox(text);
 			connect(box, SIGNAL(confirmed()), App::app(), SLOT(onSwitchDebugMode()));
-			App::wnd()->showLayer(box);
+			Ui::showLayer(box);
 			from = size;
 			break;
 		} else if (str == qstr("testmode")) {
 			QString text = cTestMode() ? qsl("Do you want to disable TEST mode?") : qsl("Do you want to enable TEST mode?\n\nYou will be switched to test cloud.");
 			ConfirmBox *box = new ConfirmBox(text);
 			connect(box, SIGNAL(confirmed()), App::app(), SLOT(onSwitchTestMode()));
-			App::wnd()->showLayer(box);
+			Ui::showLayer(box);
 			from = size;
 			break;
         } else if (str == qstr("loadlang")) {
@@ -831,7 +831,7 @@ void SettingsInner::mousePressEvent(QMouseEvent *e) {
 		return;
 	}
 	if (QRect(_uploadPhoto.x() + st::setNameLeft, st::setTop + st::setNameTop, qMin(_uploadPhoto.width() - int(st::setNameLeft), _nameText.maxWidth()), st::setNameFont->height).contains(e->pos())) {
-		App::wnd()->showLayer(new EditNameTitleBox(self()));
+		Ui::showLayer(new EditNameTitleBox(self()));
 	} else if (QRect(_left, st::setTop, st::setPhotoSize, st::setPhotoSize).contains(e->pos())) {
 		if (_photoLink) {
 			App::photo(self()->photoId)->full->load();
@@ -1178,12 +1178,12 @@ void SettingsInner::onUpdatePhoto() {
 	}
 	PhotoCropBox *box = new PhotoCropBox(img, self());
 	connect(box, SIGNAL(closed()), this, SLOT(onPhotoUpdateStart()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onShowSessions() {
 	SessionsBox *box = new SessionsBox();
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onAskQuestion() {
@@ -1192,7 +1192,7 @@ void SettingsInner::onAskQuestion() {
 	ConfirmBox *box = new ConfirmBox(lang(lng_settings_ask_sure), lang(lng_settings_ask_ok), st::defaultBoxButton, lang(lng_settings_faq_button));
 	connect(box, SIGNAL(confirmed()), this, SLOT(onAskQuestionSure()));
 	connect(box, SIGNAL(cancelPressed()), this, SLOT(onTelegramFAQ()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onAskQuestionSure() {
@@ -1217,9 +1217,9 @@ void SettingsInner::chooseCustomLang() {
 				cancel = result.value(lng_cancel, langOriginal(lng_cancel));
             ConfirmBox *box = new ConfirmBox(text, save, st::defaultBoxButton, cancel);
             connect(box, SIGNAL(confirmed()), this, SLOT(onSaveTestLang()));
-            App::wnd()->showLayer(box);
+			Ui::showLayer(box);
         } else {
-			App::wnd()->showLayer(new InformBox("Custom lang failed :(\n\nError: " + loader.errors()));
+			Ui::showLayer(new InformBox("Custom lang failed :(\n\nError: " + loader.errors()));
         }
     }
 }
@@ -1228,7 +1228,7 @@ void SettingsInner::onChangeLanguage() {
 	if ((_changeLanguage.clickModifiers() & Qt::ShiftModifier) && (_changeLanguage.clickModifiers() & Qt::AltModifier)) {
         chooseCustomLang();
 	} else {
-		App::wnd()->showLayer(new LanguageBox());
+		Ui::showLayer(new LanguageBox());
 	}
 }
 
@@ -1293,19 +1293,19 @@ void SettingsInner::onRestartNow() {
 void SettingsInner::onPasscode() {
 	PasscodeBox *box = new PasscodeBox();
 	connect(box, SIGNAL(closed()), this, SLOT(passcodeChanged()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onPasscodeOff() {
 	PasscodeBox *box = new PasscodeBox(true);
 	connect(box, SIGNAL(closed()), this, SLOT(passcodeChanged()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onPassword() {
 	PasscodeBox *box = new PasscodeBox(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint);
 	connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onPasswordOff() {
@@ -1319,7 +1319,7 @@ void SettingsInner::onPasswordOff() {
 	} else {
 		PasscodeBox *box = new PasscodeBox(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint, true);
 		connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
-		App::wnd()->showLayer(box);
+		Ui::showLayer(box);
 	}
 }
 
@@ -1332,19 +1332,19 @@ void SettingsInner::onReloadPassword(Qt::ApplicationState state) {
 void SettingsInner::onAutoLock() {
 	AutoLockBox *box = new AutoLockBox();
 	connect(box, SIGNAL(closed()), this, SLOT(passcodeChanged()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onConnectionType() {
 	ConnectionBox *box = new ConnectionBox();
 	connect(box, SIGNAL(closed()), this, SLOT(updateConnectionType()), Qt::QueuedConnection);
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onUsername() {
 	UsernameBox *box = new UsernameBox();
 	connect(box, SIGNAL(closed()), this, SLOT(usernameChanged()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onWorkmodeTray() {
@@ -1445,7 +1445,7 @@ void SettingsInner::setScale(DBIScale newScale) {
 	if (cEvalScale(cConfigScale()) != cEvalScale(cRealScale())) {
 		ConfirmBox *box = new ConfirmBox(lang(lng_settings_need_restart), lang(lng_settings_restart_now), st::defaultBoxButton, lang(lng_settings_restart_later));
 		connect(box, SIGNAL(confirmed()), this, SLOT(onRestartNow()));
-		App::wnd()->showLayer(box);
+		Ui::showLayer(box);
 	}
 }
 
@@ -1528,11 +1528,11 @@ void SettingsInner::onReplaceEmojis() {
 }
 
 void SettingsInner::onViewEmojis() {
-	App::showLayer(new EmojiBox());
+	Ui::showLayer(new EmojiBox());
 }
 
 void SettingsInner::onStickers() {
-	App::showLayer(new StickersBox());
+	Ui::showLayer(new StickersBox());
 }
 
 void SettingsInner::onEnterSend() {
@@ -1553,7 +1553,7 @@ void SettingsInner::onCtrlEnterSend() {
 
 void SettingsInner::onBackFromGallery() {
 	BackgroundBox *box = new BackgroundBox();
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onBackFromFile() {
@@ -1631,7 +1631,7 @@ void SettingsInner::onDontAskDownloadPath() {
 void SettingsInner::onDownloadPathEdit() {
 	DownloadPathBox *box = new DownloadPathBox();
 	connect(box, SIGNAL(closed()), this, SLOT(onDownloadPathEdited()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onDownloadPathEdited() {
@@ -1650,11 +1650,11 @@ void SettingsInner::onDownloadPathEdited() {
 void SettingsInner::onDownloadPathClear() {
 	ConfirmBox *box = new ConfirmBox(lang(lng_sure_clear_downloads));
 	connect(box, SIGNAL(confirmed()), this, SLOT(onDownloadPathClearSure()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onDownloadPathClearSure() {
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	App::wnd()->tempDirDelete(Local::ClearManagerDownloads);
 	_tempDirClearState = TempDirClearing;
 	showAll();

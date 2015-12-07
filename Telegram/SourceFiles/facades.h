@@ -34,9 +34,6 @@ namespace App {
 	bool forward(const PeerId &peer, ForwardWhatMessages what);
 	void removeDialog(History *history);
 	void showSettings();
-	void showLayer(LayeredWidget *w, bool forceFast = false);
-	void replaceLayer(LayeredWidget *w);
-	void showLayerLast(LayeredWidget *w);
 
 };
 
@@ -44,6 +41,10 @@ namespace Ui { // it doesn't allow me to use UI :(
 
 	void showStickerPreview(DocumentData *sticker);
 	void hideStickerPreview();
+
+	void showLayer(LayeredWidget *box, ShowLayerOptions options = CloseOtherLayers);
+	void hideLayer(bool fast = false);
+	bool isLayerShown();
 
 };
 

@@ -90,7 +90,7 @@ void IntroSignup::mousePressEvent(QMouseEvent *e) {
 		}
 		PhotoCropBox *box = new PhotoCropBox(img, PeerId(0));
 		connect(box, SIGNAL(ready(const QImage &)), this, SLOT(onPhotoReady(const QImage &)));
-		App::wnd()->showLayer(box);
+		Ui::showLayer(box);
 	}
 }
 

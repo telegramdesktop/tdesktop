@@ -236,7 +236,7 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 	}
 	if (uid) {
 		App::main()->addNewContact(uid);
-		App::wnd()->hideLayer();
+		Ui::hideLayer();
 	} else {
 		_save.hide();
 		_first.hide();
@@ -336,7 +336,7 @@ void NewGroupBox::resizeEvent(QResizeEvent *e) {
 }
 
 void NewGroupBox::onNext() {
-	App::wnd()->replaceLayer(new GroupInfoBox(_group.checked() ? CreatingGroupGroup : CreatingGroupChannel, true));
+	Ui::showLayer(new GroupInfoBox(_group.checked() ? CreatingGroupGroup : CreatingGroupChannel, true), KeepOtherLayers);
 }
 
 GroupInfoBox::GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose) : AbstractBox(),
@@ -498,7 +498,7 @@ void GroupInfoBox::onNext() {
 		return;
 	}
 	if (_creating == CreatingGroupGroup) {
-		App::wnd()->replaceLayer(new ContactsBox(title, _photoBig));
+		Ui::showLayer(new ContactsBox(title, _photoBig), KeepOtherLayers);
 	} else {
 		bool mega = false;
 		int32 flags = mega ? MTPchannels_CreateChannel::flag_megagroup : MTPchannels_CreateChannel::flag_broadcast;
@@ -551,7 +551,7 @@ void GroupInfoBox::exportDone(const MTPExportedChatInvite &result) {
 	if (result.type() == mtpc_chatInviteExported) {
 		_createdChannel->invitationUrl = qs(result.c_chatInviteExported().vlink);
 	}
-	App::wnd()->showLayer(new SetupChannelBox(_createdChannel));
+	Ui::showLayer(new SetupChannelBox(_createdChannel));
 }
 
 void GroupInfoBox::onDescriptionResized() {
@@ -595,7 +595,7 @@ void GroupInfoBox::onPhoto() {
 	}
 	PhotoCropBox *box = new PhotoCropBox(img, (_creating == CreatingGroupChannel) ? peerFromChannel(0) : peerFromChat(0));
 	connect(box, SIGNAL(ready(const QImage&)), this, SLOT(onPhotoReady(const QImage&)));
-	App::wnd()->replaceLayer(box);
+	Ui::showLayer(box, KeepOtherLayers);
 }
 
 void GroupInfoBox::onPhotoReady(const QImage &img) {
@@ -787,7 +787,7 @@ bool SetupChannelBox::animStep_goodFade(float64 ms) {
 
 void SetupChannelBox::closePressed() {
 	if (!_existing) {
-		App::wnd()->showLayer(new ContactsBox(_channel));
+		Ui::showLayer(new ContactsBox(_channel));
 	}
 }
 
@@ -872,7 +872,7 @@ void SetupChannelBox::onPrivacyChange() {
 	if (_public.checked()) {
 		if (_tooMuchUsernames) {
 			_private.setChecked(true);
-			App::wnd()->replaceLayer(new InformBox(lang(lng_channels_too_much_public)));
+			Ui::showLayer(new InformBox(lang(lng_channels_too_much_public)), KeepOtherLayers);
 			return;
 		}
 		_link.show();
@@ -933,7 +933,7 @@ bool SetupChannelBox::onCheckFail(const RPCError &error) {
 	QString err(error.type());
 	if (err == "CHANNELS_ADMIN_PUBLIC_TOO_MUCH") {
 		if (_existing) {
-			App::wnd()->showLayer(new InformBox(lang(lng_channels_too_much_public_existing)));
+			Ui::showLayer(new InformBox(lang(lng_channels_too_much_public_existing)));
 		} else {
 			_tooMuchUsernames = true;
 			_private.setChecked(true);
@@ -961,7 +961,7 @@ bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
 	QString err(error.type());
 	if (err == "CHANNELS_ADMIN_PUBLIC_TOO_MUCH") {
 		if (_existing) {
-			App::wnd()->showLayer(new InformBox(lang(lng_channels_too_much_public_existing)));
+			Ui::showLayer(new InformBox(lang(lng_channels_too_much_public_existing)));
 		} else {
 			_tooMuchUsernames = true;
 			_private.setChecked(true);
@@ -1269,7 +1269,7 @@ void EditChannelBox::onSave() {
 }
 
 void EditChannelBox::onPublicLink() {
-	App::wnd()->replaceLayer(new SetupChannelBox(_channel, true));
+	Ui::showLayer(new SetupChannelBox(_channel, true), KeepOtherLayers);
 }
 
 void EditChannelBox::saveDescription() {

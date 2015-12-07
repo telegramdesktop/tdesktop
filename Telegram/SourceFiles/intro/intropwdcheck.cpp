@@ -289,14 +289,14 @@ void IntroPwdCheck::onToRecover() {
 		update();
 	} else {
 		ConfirmBox *box = new InformBox(lang(lng_signin_no_email_forgot));
-		App::wnd()->showLayer(box);
+		Ui::showLayer(box);
 		connect(box, SIGNAL(destroyed(QObject*)), this, SLOT(onToReset()));
 	}
 }
 
 void IntroPwdCheck::onToPassword() {
 	ConfirmBox *box = new InformBox(lang(lng_signin_cant_email_forgot));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 	connect(box, SIGNAL(destroyed(QObject*)), this, SLOT(onToReset()));
 }
 
@@ -319,7 +319,7 @@ void IntroPwdCheck::onReset() {
 	if (sentRequest) return;
 	ConfirmBox *box = new ConfirmBox(lang(lng_signin_sure_reset), lang(lng_signin_reset), st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onResetSure()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void IntroPwdCheck::onResetSure() {
@@ -335,7 +335,7 @@ bool IntroPwdCheck::deleteFail(const RPCError &error) {
 }
 
 void IntroPwdCheck::deleteDone(const MTPBool &v) {
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	intro()->onIntroNext();
 }
 

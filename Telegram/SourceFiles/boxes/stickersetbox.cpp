@@ -67,7 +67,7 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 	}
 
 	if (_pack.isEmpty()) {
-		App::wnd()->showLayer(new InformBox(lang(lng_stickers_not_found)));
+		Ui::showLayer(new InformBox(lang(lng_stickers_not_found)));
 	} else {
 		int32 rows = _pack.size() / StickerPanPerRow + ((_pack.size() % StickerPanPerRow) ? 1 : 0);
 		resize(st::stickersPadding.left() + StickerPanPerRow * st::stickersSize.width(), st::stickersPadding.top() + rows * st::stickersSize.height() + st::stickersPadding.bottom());
@@ -82,7 +82,7 @@ bool StickerSetInner::failedSet(const RPCError &error) {
 
 	_loaded = true;
 
-	App::wnd()->showLayer(new InformBox(lang(lng_stickers_not_found)));
+	Ui::showLayer(new InformBox(lang(lng_stickers_not_found)));
 
 	return true;
 }
@@ -115,13 +115,13 @@ void StickerSetInner::installDone(const MTPBool &result) {
 	cSetStickersHash(stickersCountHash());
 	Local::writeStickers();
 	emit installed(_setId);
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 }
 
 bool StickerSetInner::installFailed(const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
 
-	App::wnd()->showLayer(new InformBox(lang(lng_stickers_not_found)));
+	Ui::showLayer(new InformBox(lang(lng_stickers_not_found)));
 
 	return true;
 }
@@ -252,7 +252,7 @@ void StickerSetBox::onAddStickers() {
 void StickerSetBox::onShareStickers() {
 	QString url = qsl("https://telegram.me/addstickers/") + _inner.shortName();
 	QApplication::clipboard()->setText(url);
-	App::wnd()->showLayer(new InformBox(lang(lng_stickers_copied)));
+	Ui::showLayer(new InformBox(lang(lng_stickers_copied)));
 }
 
 void StickerSetBox::onUpdateButtons() {

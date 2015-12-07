@@ -232,7 +232,7 @@ void ProfileInner::onShareContact() {
 }
 
 void ProfileInner::onInviteToGroup() {
-	App::wnd()->showLayer(new ContactsBox(_peerUser));
+	Ui::showLayer(new ContactsBox(_peerUser));
 }
 
 void ProfileInner::onSendMessage() {
@@ -302,36 +302,35 @@ void ProfileInner::onUpdatePhoto() {
 	}
 	PhotoCropBox *box = new PhotoCropBox(img, _peer);
 	connect(box, SIGNAL(closed()), this, SLOT(onPhotoUpdateStart()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void ProfileInner::onClearHistory() {
 	if (_peerChannel) return;
 	ConfirmBox *box = new ConfirmBox(_peer->isUser() ? lng_sure_delete_history(lt_contact, _peer->name) : lng_sure_delete_group_history(lt_group, _peer->name), lang(lng_box_delete), st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onClearHistorySure()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void ProfileInner::onClearHistorySure() {
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	App::main()->clearHistory(_peer);
 }
 
 void ProfileInner::onDeleteConversation() {
 	ConfirmBox *box = new ConfirmBox(_peer->isUser() ? lng_sure_delete_history(lt_contact, _peer->name) : (_peer->isChat() ? lng_sure_delete_and_exit(lt_group, _peer->name) : lang(_peer->isMegagroup() ? lng_sure_leave_group : lng_sure_leave_channel)), lang(_peer->isUser() ? lng_box_delete : lng_box_leave), _peer->isChannel() ? st::defaultBoxButton : st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteConversationSure()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void ProfileInner::onDeleteConversationSure() {
+	Ui::hideLayer();
 	if (_peerUser) {
 		App::main()->deleteConversation(_peer);
 	} else if (_peerChat) {
-		App::wnd()->hideLayer();
 		App::main()->showDialogs();
 		MTP::send(MTPmessages_DeleteChatUser(_peerChat->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, _peer), App::main()->rpcFail(&MainWidget::leaveChatFailed, _peer));
 	} else if (_peerChannel) {
-		App::wnd()->hideLayer();
 		App::main()->showDialogs();
 		if (_peerChannel->migrateFrom()) {
 			App::main()->deleteConversation(_peerChannel->migrateFrom());
@@ -344,12 +343,12 @@ void ProfileInner::onDeleteChannel() {
 	if (!_peerChannel) return;
 	ConfirmBox *box = new ConfirmBox(lang(_peer->isMegagroup() ? lng_sure_delete_group : lng_sure_delete_channel), lang(lng_box_delete), st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteChannelSure()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void ProfileInner::onDeleteChannelSure() {
 	if (_peerChannel) {
-		App::wnd()->hideLayer();
+		Ui::hideLayer();
 		App::main()->showDialogs();
 		if (_peerChannel->migrateFrom()) {
 			App::main()->deleteConversation(_peerChannel->migrateFrom());
@@ -382,13 +381,13 @@ bool ProfileInner::blockFail(const RPCError &error) {
 
 void ProfileInner::onAddParticipant() {
 	if (_peerChat) {
-		App::wnd()->showLayer(new ContactsBox(_peerChat, MembersFilterRecent));
+		Ui::showLayer(new ContactsBox(_peerChat, MembersFilterRecent));
 	} else if (_peerChannel && _peerChannel->mgInfo) {
 		MembersAlreadyIn already;
 		for (MegagroupInfo::LastParticipants::const_iterator i = _peerChannel->mgInfo->lastParticipants.cbegin(), e = _peerChannel->mgInfo->lastParticipants.cend(); i != e; ++i) {
 			already.insert(*i, true);
 		}
-		App::wnd()->showLayer(new ContactsBox(_peerChannel, MembersFilterRecent, already));
+		Ui::showLayer(new ContactsBox(_peerChannel, MembersFilterRecent, already));
 	}
 }
 
@@ -397,7 +396,7 @@ void ProfileInner::onMigrate() {
 
 	ConfirmBox *box = new ConfirmBox(lang(lng_profile_migrate_sure));
 	connect(box, SIGNAL(confirmed()), this, SLOT(onMigrateSure()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void ProfileInner::onMigrateSure() {
@@ -459,7 +458,7 @@ void ProfileInner::onInvitationLink() {
 	if (!_peerChat && !_peerChannel) return;
 
 	QApplication::clipboard()->setText(_peerChat ? _peerChat->invitationUrl : (_peerChannel ? _peerChannel->invitationUrl : QString()));
-	App::wnd()->showLayer(new InformBox(lang(lng_group_invite_copied)));
+	Ui::showLayer(new InformBox(lang(lng_group_invite_copied)));
 }
 
 void ProfileInner::onPublicLink() {
@@ -467,22 +466,22 @@ void ProfileInner::onPublicLink() {
 	
 	if (_peerChannel->isPublic()) {
 		QApplication::clipboard()->setText(qsl("https://telegram.me/") + _peerChannel->username);
-		App::wnd()->showLayer(new InformBox(lang(lng_channel_public_link_copied)));
+		Ui::showLayer(new InformBox(lang(lng_channel_public_link_copied)));
 	} else {
-		App::wnd()->showLayer(new SetupChannelBox(_peerChannel, true));
+		Ui::showLayer(new SetupChannelBox(_peerChannel, true));
 	}
 }
 
 void ProfileInner::onMembers() {
 	if (!_peerChannel) return;
-	App::wnd()->showLayer(new MembersBox(_peerChannel, MembersFilterRecent));
+	Ui::showLayer(new MembersBox(_peerChannel, MembersFilterRecent));
 }
 
 void ProfileInner::onAdmins() {
 	if (_peerChannel) {
-		App::wnd()->showLayer(new MembersBox(_peerChannel, MembersFilterAdmins));
+		Ui::showLayer(new MembersBox(_peerChannel, MembersFilterAdmins));
 	} else if (_peerChat) {
-		App::wnd()->showLayer(new ContactsBox(_peerChat, MembersFilterAdmins));
+		Ui::showLayer(new ContactsBox(_peerChat, MembersFilterAdmins));
 	}
 }
 
@@ -491,7 +490,7 @@ void ProfileInner::onCreateInvitationLink() {
 
 	ConfirmBox *box = new ConfirmBox(lang(((_peerChat && _peerChat->invitationUrl.isEmpty()) || (_peerChannel && _peerChannel->invitationUrl.isEmpty())) ? lng_group_invite_about : lng_group_invite_about_new));
 	connect(box, SIGNAL(confirmed()), this, SLOT(onCreateInvitationLinkSure()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void ProfileInner::onCreateInvitationLinkSure() {
@@ -514,7 +513,7 @@ void ProfileInner::chatInviteDone(const MTPExportedChatInvite &result) {
 	updateInvitationLink();
 	showAll();
 	resizeEvent(0);
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 }
 
 void ProfileInner::onFullPeerUpdated(PeerData *peer) {
@@ -1075,7 +1074,7 @@ void ProfileInner::mouseReleaseEvent(QMouseEvent *e) {
 		_kickConfirm = _kickOver;
 		ConfirmBox *box = new ConfirmBox(lng_profile_sure_kick(lt_user, _kickOver->firstName), lang(lng_box_remove));
 		connect(box, SIGNAL(confirmed()), this, SLOT(onKickConfirm()));
-		App::wnd()->showLayer(box);
+		Ui::showLayer(box);
 	}
 	if (textlnkDown()) {
 		TextLinkPtr lnk = textlnkDown();
@@ -1104,7 +1103,7 @@ void ProfileInner::onKickConfirm() {
 	if (_peerChat) {
 		App::main()->kickParticipant(_peerChat, _kickConfirm);
 	} else if (_peerChannel) {
-		App::wnd()->hideLayer();
+		Ui::hideLayer();
 		App::api()->kickParticipant(_peerChannel, _kickConfirm);
 	}
 }
@@ -1236,7 +1235,7 @@ bool ProfileInner::updateMediaLinks(int32 *addToScroll) {
 }
 
 void ProfileInner::migrateDone(const MTPUpdates &updates) {
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	App::main()->sentUpdatesReceived(updates);
 	const QVector<MTPChat> *v = 0;
 	switch (updates.type()) {
@@ -1262,7 +1261,7 @@ void ProfileInner::migrateDone(const MTPUpdates &updates) {
 
 bool ProfileInner::migrateFail(const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	return true;
 }
 

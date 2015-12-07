@@ -89,18 +89,18 @@ void TopBarWidget::onInfoClicked() {
 void TopBarWidget::onAddContact() {
 	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
 	UserData *u = p ? p->asUser() : 0;
-	if (u) App::wnd()->showLayer(new AddContactBox(u->firstName, u->lastName, u->phone.isEmpty() ? App::phoneFromSharedContact(peerToUser(u->id)) : u->phone));
+	if (u) Ui::showLayer(new AddContactBox(u->firstName, u->lastName, u->phone.isEmpty() ? App::phoneFromSharedContact(peerToUser(u->id)) : u->phone));
 }
 
 void TopBarWidget::onEdit() {
 	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
 	if (p) {
 		if (p->isChannel()) {
-			App::wnd()->showLayer(new EditChannelBox(p->asChannel()));
+			Ui::showLayer(new EditChannelBox(p->asChannel()));
 		} else if (p->isChat()) {
-			App::wnd()->showLayer(new EditNameTitleBox(p));
+			Ui::showLayer(new EditNameTitleBox(p));
 		} else if (p->isUser()) {
-			App::wnd()->showLayer(new AddContactBox(p->asUser()));
+			Ui::showLayer(new AddContactBox(p->asUser()));
 		}
 	}
 }
@@ -111,7 +111,7 @@ void TopBarWidget::onDeleteContact() {
 	if (u) {
 		ConfirmBox *box = new ConfirmBox(lng_sure_delete_contact(lt_contact, p->name), lang(lng_box_delete));
 		connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteContactSure()));
-		App::wnd()->showLayer(box);
+		Ui::showLayer(box);
 	}
 }
 
@@ -120,7 +120,7 @@ void TopBarWidget::onDeleteContactSure() {
 	UserData *u = p ? p->asUser() : 0;
 	if (u) {
 		App::main()->showDialogs();
-		App::wnd()->hideLayer();
+		Ui::hideLayer();
 		MTP::send(MTPcontacts_DeleteContact(u->inputUser), App::main()->rpcDone(&MainWidget::deletedContact, u));
 	}
 }
@@ -131,7 +131,7 @@ void TopBarWidget::onDeleteAndExit() {
 	if (c) {
 		ConfirmBox *box = new ConfirmBox(lng_sure_delete_and_exit(lt_group, p->name), lang(lng_box_leave), st::attentionBoxButton);
 		connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteAndExitSure()));
-		App::wnd()->showLayer(box);
+		Ui::showLayer(box);
 	}
 }
 
@@ -140,7 +140,7 @@ void TopBarWidget::onDeleteAndExitSure() {
 	ChatData *c = p ? p->asChat() : 0;
 	if (c) {
 		App::main()->showDialogs();
-		App::wnd()->hideLayer();
+		Ui::hideLayer();
 		MTP::send(MTPmessages_DeleteChatUser(c->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, p), App::main()->rpcFail(&MainWidget::leaveChatFailed, p));
 	}
 }
@@ -480,7 +480,7 @@ MainWidget::MainWidget(Window *window) : TWidget(window)
 bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
 	PeerData *p = App::peer(peer);
 	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
-		App::wnd()->showLayer(new InformBox(lang(lng_forward_cant)));
+		Ui::showLayer(new InformBox(lang(lng_forward_cant)));
 		return false;
 	}
 	history.cancelReply();
@@ -514,7 +514,7 @@ bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
 bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QString &text) {
 	PeerData *p = App::peer(peer);
 	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
-		App::wnd()->showLayer(new InformBox(lang(lng_share_cant)));
+		Ui::showLayer(new InformBox(lang(lng_share_cant)));
 		return false;
 	}
 	History *h = App::history(peer);
@@ -837,7 +837,7 @@ void MainWidget::deleteLayer(int32 selectedCount) {
 	} else {
 		connect(box, SIGNAL(confirmed()), overview ? overview : static_cast<QWidget*>(&history), SLOT(onDeleteSelectedSure()));
 	}
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void MainWidget::shareContactLayer(UserData *contact) {
@@ -853,13 +853,13 @@ bool MainWidget::selectingPeer(bool withConfirm) {
 }
 
 void MainWidget::offerPeer(PeerId peer) {
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	if (_hider->offerPeer(peer) && !cWideMode()) {
 		_forwardConfirm = new ConfirmBox(_hider->offeredText(), lang(lng_forward_send));
 		connect(_forwardConfirm, SIGNAL(confirmed()), _hider, SLOT(forward()));
 		connect(_forwardConfirm, SIGNAL(cancelled()), this, SLOT(onForwardCancel()));
 		connect(_forwardConfirm, SIGNAL(destroyed(QObject*)), this, SLOT(onForwardCancel(QObject*)));
-		App::wnd()->showLayer(_forwardConfirm);
+		Ui::showLayer(_forwardConfirm);
 	}
 }
 
@@ -1012,7 +1012,7 @@ bool MainWidget::addParticipantFail(UserData *user, const RPCError &error) {
 	} else if (error.type() == "PEER_FLOOD") {
 		text = lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)));
 	}
-	App::wnd()->showLayer(new InformBox(text));
+	Ui::showLayer(new InformBox(text));
 	return false;
 }
 
@@ -1026,13 +1026,13 @@ bool MainWidget::addParticipantsFail(ChannelData *channel, const RPCError &error
 	} else if (error.type() == "PEER_FLOOD") {
 		text = lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)));
 	}
-	App::wnd()->showLayer(new InformBox(text));
+	Ui::showLayer(new InformBox(text));
 	return false;
 }
 
 void MainWidget::kickParticipant(ChatData *chat, UserData *user) {
 	MTP::send(MTPmessages_DeleteChatUser(chat->inputChat, user->inputUser), rpcDone(&MainWidget::sentUpdatesReceived), rpcFail(&MainWidget::kickParticipantFail, chat));
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	showPeerHistory(chat->id, ShowAtTheEndMsgId);
 }
 
@@ -1131,7 +1131,7 @@ bool MainWidget::sendMessageFail(const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
 
 	if (error.type() == qsl("PEER_FLOOD")) {
-		App::wnd()->showLayer(new InformBox(lng_cant_send_to_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)))));
+		Ui::showLayer(new InformBox(lng_cant_send_to_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)))));
 		return true;
 	}
 	return false;
@@ -1639,7 +1639,7 @@ void MainWidget::loadFailed(mtpFileLoader *loader, bool started, const char *ret
 	} else {
 		connect(box, SIGNAL(confirmed()), this, SLOT(onDownloadPathSettings()));
 	}
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void MainWidget::onDownloadPathSettings() {
@@ -1649,7 +1649,7 @@ void MainWidget::onDownloadPathSettings() {
 	if (App::wnd() && App::wnd()->settingsWidget()) {
 		connect(box, SIGNAL(closed()), App::wnd()->settingsWidget(), SLOT(onDownloadPathEdited()));
 	}
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void MainWidget::videoLoadFailed(mtpFileLoader *loader, bool started) {
@@ -1659,7 +1659,7 @@ void MainWidget::videoLoadFailed(mtpFileLoader *loader, bool started) {
 }
 
 void MainWidget::videoLoadRetry() {
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	VideoData *video = App::video(failedObjId);
 	if (video) video->save(failedFileName);
 }
@@ -1818,7 +1818,7 @@ void MainWidget::audioLoadFailed(mtpFileLoader *loader, bool started) {
 }
 
 void MainWidget::audioLoadRetry() {
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	AudioData *audio = App::audio(failedObjId);
 	if (audio) audio->save(failedFileName);
 }
@@ -1913,7 +1913,7 @@ void MainWidget::documentLoadFailed(mtpFileLoader *loader, bool started) {
 }
 
 void MainWidget::documentLoadRetry() {
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	DocumentData *document = App::document(failedObjId);
 	if (document) document->save(failedFileName);
 }
@@ -2282,7 +2282,7 @@ void MainWidget::showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) 
 
 	PeerData *wasActivePeer = activePeer();
 
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	if (_hider) {
 		_hider->startHide();
 		_hider = 0;
@@ -2741,13 +2741,13 @@ void MainWidget::hideAll() {
 void MainWidget::showAll() {
 	if (cPasswordRecovered()) {
 		cSetPasswordRecovered(false);
-		App::wnd()->showLayer(new InformBox(lang(lng_signin_password_removed)));
+		Ui::showLayer(new InformBox(lang(lng_signin_password_removed)));
 	}
 	if (cWideMode()) {
 		if (_hider) {
 			_hider->show();
 			if (_forwardConfirm) {
-				App::wnd()->hideLayer(true);
+				Ui::hideLayer(true);
 				_forwardConfirm = 0;
 			}
 		}
@@ -2770,7 +2770,7 @@ void MainWidget::showAll() {
 				_forwardConfirm = new ConfirmBox(_hider->offeredText(), lang(lng_forward_send));
 				connect(_forwardConfirm, SIGNAL(confirmed()), _hider, SLOT(forward()));
 				connect(_forwardConfirm, SIGNAL(cancelled()), this, SLOT(onForwardCancel()));
-				App::wnd()->showLayer(_forwardConfirm, true);
+				Ui::showLayer(_forwardConfirm, ForceFastShowLayer);
 			}
 		}
 		if (selectingPeer()) {
@@ -3541,7 +3541,7 @@ void MainWidget::openPeerByName(const QString &username, bool toProfile, const Q
 		if (toProfile) {
 			if (peer->isUser() && peer->asUser()->botInfo && !peer->asUser()->botInfo->cantJoinGroups && !startToken.isEmpty()) {
 				peer->asUser()->botInfo->startGroupToken = startToken;
-				App::wnd()->showLayer(new ContactsBox(peer->asUser()));
+				Ui::showLayer(new ContactsBox(peer->asUser()));
 			} else if (peer->isChannel()) {
 				showPeerHistory(peer->id, ShowAtUnreadMsgId);
 			} else {
@@ -3571,7 +3571,7 @@ void MainWidget::stickersBox(const MTPInputStickerSet &set) {
 	App::wnd()->hideMediaview();
 	StickerSetBox *box = new StickerSetBox(set);
 	connect(box, SIGNAL(installed(uint64)), this, SLOT(onStickersInstalled(uint64)));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void MainWidget::onStickersInstalled(uint64 setId) {
@@ -3605,7 +3605,7 @@ bool MainWidget::contentOverlapped(const QRect &globalRect) {
 }
 
 void MainWidget::usernameResolveDone(QPair<bool, QString> toProfileStartToken, const MTPcontacts_ResolvedPeer &result) {
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	if (result.type() != mtpc_contacts_resolvedPeer) return;
 
 	const MTPDcontacts_resolvedPeer &d(result.c_contacts_resolvedPeer());
@@ -3618,7 +3618,7 @@ void MainWidget::usernameResolveDone(QPair<bool, QString> toProfileStartToken, c
 	if (toProfileStartToken.first) {
 		if (peer->isUser() && peer->asUser()->botInfo && !peer->asUser()->botInfo->cantJoinGroups && !toProfileStartToken.second.isEmpty()) {
 			peer->asUser()->botInfo->startGroupToken = toProfileStartToken.second;
-			App::wnd()->showLayer(new ContactsBox(peer->asUser()));
+			Ui::showLayer(new ContactsBox(peer->asUser()));
 		} else if (peer->isChannel()) {
 			showPeerHistory(peer->id, ShowAtUnreadMsgId);
 		} else {
@@ -3640,7 +3640,7 @@ bool MainWidget::usernameResolveFail(QString name, const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
 
 	if (error.code() == 400) {
-		App::wnd()->showLayer(new InformBox(lng_username_not_found(lt_user, name)));
+		Ui::showLayer(new InformBox(lng_username_not_found(lt_user, name)));
 	}
 	return true;
 }
@@ -3652,7 +3652,7 @@ void MainWidget::inviteCheckDone(QString hash, const MTPChatInvite &invite) {
 		ConfirmBox *box = new ConfirmBox(((d.is_channel() && !d.is_megagroup()) ? lng_group_invite_want_join_channel : lng_group_invite_want_join)(lt_title, qs(d.vtitle)), lang(lng_group_invite_join));
 		_inviteHash = hash;
 		connect(box, SIGNAL(confirmed()), this, SLOT(onInviteImport()));
-		App::wnd()->showLayer(box);
+		Ui::showLayer(box);
 	} break;
 
 	case mtpc_chatInviteAlready: {
@@ -3669,7 +3669,7 @@ bool MainWidget::inviteCheckFail(const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
 
 	if (error.code() == 400) {
-		App::wnd()->showLayer(new InformBox(lang(lng_group_invite_bad_link)));
+		Ui::showLayer(new InformBox(lang(lng_group_invite_bad_link)));
 	}
 	return true;
 }
@@ -3682,7 +3682,7 @@ void MainWidget::onInviteImport() {
 void MainWidget::inviteImportDone(const MTPUpdates &updates) {
 	App::main()->sentUpdatesReceived(updates);
 
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	const QVector<MTPChat> *v = 0;
 	switch (updates.type()) {
 	case mtpc_updates: v = &updates.c_updates().vchats.c_vector().v; break;
@@ -3702,7 +3702,7 @@ bool MainWidget::inviteImportFail(const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
 
 	if (error.code() == 400) {
-		App::wnd()->showLayer(new InformBox(lang(error.type() == qsl("USERS_TOO_MUCH") ? lng_group_invite_no_room : lng_group_invite_bad_link)));
+		Ui::showLayer(new InformBox(lang(error.type() == qsl("USERS_TOO_MUCH") ? lng_group_invite_no_room : lng_group_invite_bad_link)));
 	}
 	return true;
 }
@@ -3915,7 +3915,7 @@ void MainWidget::activate() {
 			} else {
 				dialogs.activate();
 			}
-        } else if (App::wnd() && !App::wnd()->layerShown()) {
+        } else if (App::wnd() && !Ui::isLayerShown()) {
 			if (!cSendPaths().isEmpty()) {
 				forwardLayer(-1);
 			} else if (history.peer()) {
@@ -4519,7 +4519,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateServiceNotification: {
 		const MTPDupdateServiceNotification &d(update.c_updateServiceNotification());
 		if (mtpIsTrue(d.vpopup)) {
-			App::wnd()->showLayer(new InformBox(qs(d.vmessage)));
+			Ui::showLayer(new InformBox(qs(d.vmessage)));
 		} else {
 			App::wnd()->serviceNotification(qs(d.vmessage), d.vmedia);
 		}

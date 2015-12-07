@@ -143,12 +143,12 @@ void TitleWidget::onContacts() {
 	if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
 
 	if (!App::self()) return;
-	App::wnd()->showLayer(new ContactsBox());
+	Ui::showLayer(new ContactsBox());
 }
 
 void TitleWidget::onAbout() {
 	if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
-	App::wnd()->showLayer(new AboutBox());
+	Ui::showLayer(new AboutBox());
 }
 
 TitleWidget::~TitleWidget() {
@@ -365,7 +365,7 @@ void TitleWidget::maximizedChanged(bool maximized, bool force) {
 }
 
 HitTestType TitleWidget::hitTest(const QPoint &p) {
-	if (App::wnd() && App::wnd()->layerShown()) return HitTestNone;
+	if (App::wnd() && Ui::isLayerShown()) return HitTestNone;
 
 	int x(p.x()), y(p.y()), w(width()), h(height());
 	if (cWideMode() && hider && x >= App::main()->dlgsWidth()) return HitTestNone;

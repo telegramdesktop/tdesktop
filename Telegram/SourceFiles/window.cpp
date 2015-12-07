@@ -474,7 +474,7 @@ QWidget *Window::filedialogParent() {
 }
 
 void Window::clearWidgets() {
-	hideLayer(true);
+	Ui::hideLayer(true);
 	if (_passcode) {
 		_passcode->hide();
 		_passcode->deleteLater();
@@ -679,7 +679,7 @@ void Window::showSettings() {
 
 	if (isHidden()) showFromTray();
 
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	if (settings) {
 		return hideSettings();
 	}
@@ -774,49 +774,65 @@ void Window::showPhoto(const PhotoLink *lnk, HistoryItem *item) {
 }
 
 void Window::showPhoto(PhotoData *photo, HistoryItem *item) {
-	hideLayer(true);
+	Ui::hideLayer(true);
 	_mediaView->showPhoto(photo, item);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
 }
 
 void Window::showPhoto(PhotoData *photo, PeerData *peer) {
-	hideLayer(true);
+	Ui::hideLayer(true);
 	_mediaView->showPhoto(photo, peer);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
 }
 
 void Window::showDocument(DocumentData *doc, HistoryItem *item) {
-	hideLayer(true);
+	Ui::hideLayer(true);
 	_mediaView->showDocument(doc, item);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
 }
 
-void Window::showLayer(LayeredWidget *w, bool forceFast) {
-	bool fast = forceFast || layerShown();
-	hideLayer(true);
-	layerBg = new BackgroundWidget(this, w);
-	if (fast) {
-		layerBg->showFast();
+void Window::ui_showLayer(LayeredWidget *box, ShowLayerOptions options) {
+	if (box) {
+		bool fast = (options.testFlag(ForceFastShowLayer)) || Ui::isLayerShown();
+		if (layerBg) {
+			if (options.testFlag(KeepOtherLayers)) {
+				if (options.testFlag(ShowAfterOtherLayers)) {
+					layerBg->showLayerLast(box);
+					return;
+				} else {
+					layerBg->replaceInner(box);
+					return;
+				}
+			} else {
+				layerBg->onClose();
+				layerBg->hide();
+				layerBg->deleteLater();
+				layerBg = 0;
+			}
+		}
+
+		layerBg = new BackgroundWidget(this, box);
+		if (fast) {
+			layerBg->showFast();
+		}
+	} else {
+		if (layerBg) {
+			layerBg->onClose();
+			if (options.testFlag(ForceFastShowLayer)) {
+				layerBg->hide();
+				layerBg->deleteLater();
+				layerBg = 0;
+			}
+		}
+		hideMediaview();
 	}
 }
 
-void Window::replaceLayer(LayeredWidget *w) {
-	if (layerBg) {
-		layerBg->replaceInner(w);
-	} else {
-		layerBg = new BackgroundWidget(this, w);
-	}
-}
-
-void Window::showLayerLast(LayeredWidget *w) {
-	if (layerBg) {
-		layerBg->showLayerLast(w);
-	} else {
-		layerBg = new BackgroundWidget(this, w);
-	}
+bool Window::ui_isLayerShown() {
+	return !!layerBg;
 }
 
 void Window::showConnecting(const QString &text, const QString &reconnect) {
@@ -841,29 +857,6 @@ void Window::hideConnecting() {
 		_connecting = 0;
 	}
 	if (settings) settings->update();
-}
-
-void Window::hideLayer(bool fast) {
-	if (layerBg) {
-		layerBg->onClose();
-		if (fast) {
-			layerBg->hide();
-			layerBg->deleteLater();
-			layerBg = 0;
-		}
-	}
-	hideMediaview();
-}
-
-bool Window::hideInnerLayer() {
-	if (layerBg) {
-		return layerBg->onInnerClose();
-	}
-	return true;
-}
-
-bool Window::layerShown() {
-	return !!layerBg;
 }
 
 bool Window::historyIsActive() const {
@@ -1090,13 +1083,13 @@ void Window::onShowAddContact() {
 void Window::onShowNewGroup() {
 	if (isHidden()) showFromTray();
 
-	if (main) replaceLayer(new GroupInfoBox(CreatingGroupGroup, false));
+	if (main) Ui::showLayer(new GroupInfoBox(CreatingGroupGroup, false), KeepOtherLayers);
 }
 
 void Window::onShowNewChannel() {
 	if (isHidden()) showFromTray();
 
-	if (main) replaceLayer(new GroupInfoBox(CreatingGroupChannel, false));
+	if (main) Ui::showLayer(new GroupInfoBox(CreatingGroupChannel, false), KeepOtherLayers);
 }
 
 void Window::onLogout() {
@@ -1104,7 +1097,7 @@ void Window::onLogout() {
 
 	ConfirmBox *box = new ConfirmBox(lang(lng_sure_logout), lang(lng_settings_logout), st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onLogoutSure()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void Window::onLogoutSure() {
@@ -1198,7 +1191,7 @@ void Window::toggleTray(QSystemTrayIcon::ActivationReason reason) {
 void Window::toggleDisplayNotifyFromTray() {
 	if (App::passcoded()) {
 		if (!isActive()) showFromTray();
-		showLayer(new InformBox(lang(lng_passcode_need_unblock)));
+		Ui::showLayer(new InformBox(lang(lng_passcode_need_unblock)));
 		return;
 	}
 	cSetDesktopNotify(!cDesktopNotify());
@@ -1781,9 +1774,7 @@ void Window::sendPaths() {
 	if (settings) {
 		hideSettings();
 	} else {
-		if (layerShown()) {
-			hideLayer();
-		}
+		Ui::hideLayer();
 		if (main) {
 			main->activate();
 		}

@@ -916,7 +916,7 @@ void EmailLink::onClick(Qt::MouseButton button) const {
 }
 
 void CustomTextLink::onClick(Qt::MouseButton button) const {
-	App::wnd()->showLayer(new ConfirmLinkBox(text()));
+	Ui::showLayer(new ConfirmLinkBox(text()));
 }
 
 void MentionLink::onClick(Qt::MouseButton button) const {

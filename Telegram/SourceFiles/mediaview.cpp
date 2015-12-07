@@ -486,7 +486,7 @@ void MediaView::showSaveMsgFile() {
 void MediaView::close() {
 	if (_menu) _menu->hideMenu(true);
 	if (App::wnd()) {
-		App::wnd()->hideLayer(true);
+		Ui::hideLayer(true);
 	}
 }
 

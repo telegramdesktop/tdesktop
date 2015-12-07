@@ -675,12 +675,12 @@ void DialogsInner::onContextClearHistory() {
 	_menuActionPeer = _menuPeer;
 	ConfirmBox *box = new ConfirmBox(_menuPeer->isUser() ? lng_sure_delete_history(lt_contact, _menuPeer->name) : lng_sure_delete_group_history(lt_group, _menuPeer->name), lang(lng_box_delete), st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onContextClearHistorySure()));
-	App::showLayer(box);
+	Ui::showLayer(box);
 }
 
 void DialogsInner::onContextClearHistorySure() {
 	if (!_menuActionPeer || _menuActionPeer->isChannel()) return;
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	App::main()->clearHistory(_menuActionPeer);
 }
 
@@ -690,13 +690,13 @@ void DialogsInner::onContextDeleteAndLeave() {
 	_menuActionPeer = _menuPeer;
 	ConfirmBox *box = new ConfirmBox(_menuPeer->isUser() ? lng_sure_delete_history(lt_contact, _menuPeer->name) : (_menuPeer->isChat() ? lng_sure_delete_and_exit(lt_group, _menuPeer->name) : lang(_menuPeer->isMegagroup() ? lng_sure_leave_group : lng_sure_leave_channel)), lang(_menuPeer->isUser() ? lng_box_delete : lng_box_leave), _menuPeer->isChannel() ? st::defaultBoxButton : st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onContextDeleteAndLeaveSure()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void DialogsInner::onContextDeleteAndLeaveSure() {
 	if (!_menuActionPeer) return;
 
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	App::main()->showDialogs();
 	if (_menuActionPeer->isUser()) {
 		App::main()->deleteConversation(_menuActionPeer);
@@ -2556,11 +2556,11 @@ DialogsIndexed &DialogsWidget::dialogsList() {
 }
 
 void DialogsWidget::onAddContact() {
-	App::wnd()->replaceLayer(new AddContactBox());
+	Ui::showLayer(new AddContactBox(), KeepOtherLayers);
 }
 
 void DialogsWidget::onNewGroup() {
-	App::wnd()->showLayer(new NewGroupBox());
+	Ui::showLayer(new NewGroupBox());
 }
 
 bool DialogsWidget::onCancelSearch() {

@@ -66,18 +66,6 @@ namespace App {
 		if (Window *win = wnd()) win->showSettings();
 	}
 
-	void showLayer(LayeredWidget *widget, bool forceFast) {
-		if (Window *w = wnd()) w->showLayer(widget, forceFast);
-	}
-
-	void replaceLayer(LayeredWidget *widget) {
-		if (Window *w = wnd()) w->replaceLayer(widget);
-	}
-
-	void showLayerLast(LayeredWidget *widget) {
-		if (Window *w = wnd()) w->showLayerLast(widget);
-	}
-
 }
 
 namespace Ui {
@@ -88,6 +76,19 @@ namespace Ui {
 
 	void hideStickerPreview() {
 		if (MainWidget *m = App::main()) m->ui_hideStickerPreview();
+	}
+
+	void showLayer(LayeredWidget *box, ShowLayerOptions options) {
+		if (Window *w = App::wnd()) w->ui_showLayer(box, options);
+	}
+
+	void hideLayer(bool fast) {
+		if (Window *w = App::wnd()) w->ui_showLayer(0, ShowLayerOptions(CloseOtherLayers) | (fast ? ForceFastShowLayer : AnimatedShowLayer));
+	}
+
+	bool isLayerShown() {
+		if (Window *w = App::wnd()) return w->ui_isLayerShown();
+		return false;
 	}
 
 }

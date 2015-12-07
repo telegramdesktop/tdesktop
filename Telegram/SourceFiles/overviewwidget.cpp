@@ -2875,7 +2875,7 @@ void OverviewWidget::updateTopBarSelection() {
 		App::main()->topBar()->showSelected(_selCount > 0 ? _selCount : 0, (selectedForDelete == selectedForForward));
 		App::main()->topBar()->update();
 	}
-	if (App::wnd() && !App::wnd()->layerShown()) {
+	if (App::wnd() && !Ui::isLayerShown()) {
 		_inner.activate();
 	}
 	update();
@@ -3127,7 +3127,7 @@ void OverviewWidget::onDeleteSelectedSure() {
 	if (App::main() && App::main()->peer() == peer()) {
 		App::main()->itemResized(0);
 	}
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 
 	for (QMap<PeerData*, QVector<MTPint> >::const_iterator i = ids.cbegin(), e = ids.cend(); i != e; ++i) {
 		App::main()->deleteMessages(i.key(), i.value());
@@ -3151,7 +3151,7 @@ void OverviewWidget::onDeleteContextSure() {
 	if (App::main() && (App::main()->peer() == h->peer || (App::main()->peer() && App::main()->peer() == h->peer->migrateTo()))) {
 		App::main()->itemResized(0);
 	}
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 
 	if (wasOnServer) {
 		App::main()->deleteMessages(h->peer, toDelete);

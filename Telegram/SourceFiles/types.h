@@ -443,3 +443,13 @@ enum ForwardWhatMessages {
 	ForwardPressedMessage,
 	ForwardPressedLinkMessage
 };
+
+enum ShowLayerOption {
+	CloseOtherLayers          = 0x00,
+	KeepOtherLayers           = 0x01,
+	ShowAfterOtherLayers      = 0x03,
+
+	AnimatedShowLayer         = 0x00,
+	ForceFastShowLayer        = 0x04,
+};
+typedef QFlags<ShowLayerOption> ShowLayerOptions;

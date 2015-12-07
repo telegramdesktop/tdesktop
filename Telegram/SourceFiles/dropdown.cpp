@@ -1737,7 +1737,7 @@ void StickerPanInner::updateSelected() {
 }
 
 void StickerPanInner::onSettings() {
-	App::showLayer(new StickersBox());
+	Ui::showLayer(new StickersBox());
 }
 
 void StickerPanInner::onPreview() {
@@ -2147,7 +2147,7 @@ void EmojiPan::mousePressEvent(QMouseEvent *e) {
 	updateSelected();
 
 	if (_iconOver == _icons.size()) {
-		App::showLayer(new StickersBox());
+		Ui::showLayer(new StickersBox());
 	} else {
 		_iconDown = _iconOver;
 		_iconsMouseDown = _iconsMousePos;
@@ -2672,12 +2672,12 @@ void EmojiPan::onRemoveSet(quint64 setId) {
 		ConfirmBox *box = new ConfirmBox(lng_stickers_remove_pack(lt_sticker_pack, it->title), lang(lng_box_remove));
 		connect(box, SIGNAL(confirmed()), this, SLOT(onRemoveSetSure()));
 		connect(box, SIGNAL(destroyed(QObject*)), this, SLOT(onDelayedHide()));
-		App::wnd()->showLayer(box);
+		Ui::showLayer(box);
 	}
 }
 
 void EmojiPan::onRemoveSetSure() {
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	StickerSets::iterator it = cRefStickerSets().find(_removingSetId);
 	if (it != cRefStickerSets().cend() && !(it->flags & MTPDstickerSet::flag_official)) {
 		if (it->id && it->access) {

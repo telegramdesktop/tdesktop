@@ -3772,7 +3772,7 @@ bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId
 	if (error.type() == qstr("CHANNEL_PRIVATE")) {
 		PeerData *was = _peer;
 		App::main()->showDialogs();
-		App::wnd()->showLayer(new InformBox(lang((was && was->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
+		Ui::showLayer(new InformBox(lang((was && was->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
 		return true;
 	}
 
@@ -4289,7 +4289,7 @@ bool HistoryWidget::joinFail(const RPCError &error, mtpRequestId req) {
 
 	if (_unblockRequest == req) _unblockRequest = 0;
 	if (error.type() == qstr("CHANNEL_PRIVATE")) {
-		App::wnd()->showLayer(new InformBox(lang((_peer && _peer->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
+		Ui::showLayer(new InformBox(lang((_peer && _peer->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
 		return true;
 	}
 	return false;
@@ -5223,7 +5223,7 @@ void HistoryWidget::shareContactWithConfirm(const QString &phone, const QString 
 
 	App::wnd()->activateWindow();
 	_confirmWithTextId = 0xFFFFFFFFFFFFFFFFL;
-	App::wnd()->showLayer(new PhotoSendBox(phone, fname, lname, replyTo));
+	Ui::showLayer(new PhotoSendBox(phone, fname, lname, replyTo));
 }
 
 void HistoryWidget::confirmSendFile(const FileLoadResultPtr &file, bool ctrlShiftEnter) {
@@ -5498,14 +5498,14 @@ void HistoryWidget::onAudioFailed(const FullMsgId &newId) {
 void HistoryWidget::onReportSpamClicked() {
 	ConfirmBox *box = new ConfirmBox(lang(_peer->isUser() ? lng_report_spam_sure : ((_peer->isChat() || _peer->isMegagroup()) ? lng_report_spam_sure_group : lng_report_spam_sure_channel)), lang(lng_report_spam_ok), st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onReportSpamSure()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 	_clearPeer = _peer;
 }
 
 void HistoryWidget::onReportSpamSure() {
 	if (_reportSpamRequest) return;
 
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	if (_clearPeer->isUser()) MTP::send(MTPcontacts_Block(_clearPeer->asUser()->inputUser), rpcDone(&HistoryWidget::blockDone, _clearPeer), RPCFailHandlerPtr(), 0, 5);
 	_reportSpamRequest = MTP::send(MTPmessages_ReportSpam(_clearPeer->input), rpcDone(&HistoryWidget::reportSpamDone, _clearPeer), rpcFail(&HistoryWidget::reportSpamFail));
 }
@@ -6144,7 +6144,7 @@ void HistoryWidget::onReplyToMessage() {
 				box = new ConfirmBox(lang(lng_reply_cant_forward), lang(lng_selected_forward));
 				connect(box, SIGNAL(confirmed()), this, SLOT(onForwardHere()));
 			}
-			App::showLayer(box);
+			Ui::showLayer(box);
 		}
 		return;
 	}
@@ -6457,7 +6457,7 @@ void HistoryWidget::onDeleteSelectedSure() {
 	if (App::main() && App::main()->peer() == peer()) {
 		App::main()->itemResized(0);
 	}
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 
 	for (QMap<PeerData*, QVector<MTPint> >::const_iterator i = ids.cbegin(), e = ids.cend(); i != e; ++i) {
 		App::main()->deleteMessages(i.key(), i.value());
@@ -6481,7 +6481,7 @@ void HistoryWidget::onDeleteContextSure() {
 	if (App::main() && (App::main()->peer() == h->peer || (App::main()->peer() && h->peer->migrateTo() == App::main()->peer()))) {
 		App::main()->itemResized(0);
 	}
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 
 	if (wasOnServer) {
 		App::main()->deleteMessages(h->peer, toDelete);
@@ -6544,7 +6544,7 @@ void HistoryWidget::updateTopBarSelection() {
 	App::main()->topBar()->showSelected(_selCount > 0 ? _selCount : 0, (selectedForDelete == selectedForForward));
 	updateControlsVisibility();
 	updateListSize();
-	if (!App::wnd()->layerShown() && !App::passcoded()) {
+	if (!Ui::isLayerShown() && !App::passcoded()) {
 		if (_selCount || (_list && _list->wasSelectedText()) || _recording || isBotStart() || isBlocked() || !_canSendMessages) {
 			_list->setFocus();
 		} else {

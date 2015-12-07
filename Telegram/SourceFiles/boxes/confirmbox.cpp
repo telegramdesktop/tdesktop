@@ -94,7 +94,7 @@ void ConfirmBox::mouseReleaseEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateHover();
 	if (textlnkOver() && textlnkOver() == textlnkDown()) {
-		App::wnd()->hideLayer();
+		Ui::hideLayer();
 		textlnkOver()->onClick(e->button());
 	}
 	textlnkDown(TextLinkPtr());
@@ -184,7 +184,7 @@ void ConfirmLinkBox::onOpenLink() {
 	} else {
 		TextLink(_url).onClick(Qt::LeftButton);
 	}
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 }
 
 MaxInviteBox::MaxInviteBox(const QString &link) : AbstractBox(st::boxWidth),

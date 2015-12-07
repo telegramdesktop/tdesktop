@@ -445,7 +445,7 @@ void Application::onSwitchDebugMode() {
 			f.write("1");
 			f.close();
 		}
-		App::wnd()->hideLayer();
+		Ui::hideLayer();
 	}
 }
 
