@@ -77,8 +77,6 @@ public:
 
 	void updateOnlineDisplay();
 
-	void gotFullSelf(const MTPUserFull &self);
-
 	void showAll();
 
     void chooseCustomLang();
@@ -106,6 +104,8 @@ public slots:
 	void onCheckNow();
 	#endif
 	void onRestartNow();
+
+	void onFullPeerUpdated(PeerData *peer);
 
 	void onPasscode();
 	void onPasscodeOff();

@@ -431,6 +431,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_channel_add_admins" = "Neuer Administrator";
 "lng_channel_add_members" = "Mitglieder hinzufügen";
 "lng_channel_members" = "Mitglieder";
+"lng_channel_only_last_shown" = "Nur {count:_not_used_|# letztes Mitglied wird angezeigt|letzte # Mitglieder werden angezeigt}";
 "lng_channel_admins" = "Administratoren";
 "lng_channel_add_admin" = "Administrator hinzufügen";
 "lng_channel_admin_sure" = "Soll {user} Administrator werden?";
@@ -564,10 +565,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_emoji_category1" = "Personen";
 "lng_emoji_category2" = "Natur";
 "lng_emoji_category3" = "Essen & Trinken";
-"lng_emoji_category4" = "Feiern";
-"lng_emoji_category5" = "Aktivität";
-"lng_emoji_category6" = "Reisen & Orte";
-"lng_emoji_category7" = "Objekte & Symbole";
+"lng_emoji_category4" = "Aktivitäten";
+"lng_emoji_category5" = "Reisen & Orte";
+"lng_emoji_category6" = "Objekte";
+"lng_emoji_category7" = "Symbole & Flaggen";
 
 "lng_switch_stickers" = "Sticker";
 "lng_switch_emoji" = "Emoji";
@@ -581,6 +582,13 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_stickers_not_found" = "Sticker-Paket nicht gefunden.";
 "lng_stickers_copied" = "Sticker-Paket Link in die Zwischenablage kopiert.";
 "lng_stickers_default_set" = "Große Denker";
+"lng_stickers_you_have" = "Sticker-Pakete verwalten";
+"lng_stickers_packs" = "Sticker-Pakete";
+"lng_stickers_reorder" = "Paket gedrückt halten und verschieben um die Anordnung zu ändern";
+"lng_stickers_remove" = "Löschen";
+"lng_stickers_return" = "Rückgängig";
+"lng_stickers_restore" = "Zeigen";
+"lng_stickers_count" = "{count:Lade..|# Sticker|# Sticker}";
 
 "lng_in_dlg_photo" = "Bild";
 "lng_in_dlg_video" = "Video";
@@ -657,6 +665,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_save_downloaded" = "{ready} / {total} {mb}";
 "lng_duration_and_size" = "{duration}, {size}";
 "lng_choose_images" = "Bilder auswählen";
+
+"lng_context_view_profile" = "Profil öffnen";
+"lng_context_view_group" = "Gruppeninfo zeigen";
+"lng_context_view_channel" = "Kanalinfo anzeigen";
 
 "lng_context_open_link" = "Link öffnen";
 "lng_context_copy_link" = "Link kopieren";
@@ -789,7 +801,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Gruppen erlauben ab sofort Administratoren: Diese können den Gruppennamen und das Bild ändern sowie Mitglieder hinzufügen und auch wieder entfernen\n— Gruppen, die das Limit von 200 Mitgliedern erreicht haben, können in eine Supergruppe (1000 Mitglieder) geändert werden\n\nAusführliche Informationen zu den neuen Supergruppen:\n{link}\n\nUnseren deutschsprachigen Infokanal findest du hier: https://telegram.me/TelegramDE";
+"lng_new_version_text" = "— Sticker-Verwaltung: Ändere die Sortierung deiner Sticker-Pakete, Sortierung wird auf all deinen Geräten synchronisiert \n— Sticker gedrückt halten vor dem Versand für eine Vorschau\n— Neues Kontextmenü für Chats in der Chatliste \n— Neue Emoji werden unterstützt\n\nUnseren deutschsprachigen Infokanal findest du hier: https://telegram.me/TelegramDE";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

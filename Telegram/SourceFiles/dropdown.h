@@ -349,6 +349,7 @@ public slots:
 
 	void updateSelected();
 	void onSettings();
+	void onPreview();
 
 signals:
 
@@ -394,6 +395,9 @@ private:
 	QPoint _lastMousePos;
 
 	LinkButton _settings;
+
+	QTimer _previewTimer;
+	bool _previewShown;
 };
 
 class EmojiPanel : public TWidget {

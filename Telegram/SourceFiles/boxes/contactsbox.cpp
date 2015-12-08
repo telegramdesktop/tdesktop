@@ -1826,7 +1826,7 @@ void MembersInner::paintEvent(QPaintEvent *e) {
 			paintDialog(p, _rows[from], data(from), sel, kickSel, kickDown);
 			p.translate(0, _rowHeight);
 		}
-		if (to == _rows.size() && (_rows.size() < _channel->count || _rows.size() >= cMaxGroupCount())) {
+		if (to == _rows.size() && _filter == MembersFilterRecent && (_rows.size() < _channel->count || _rows.size() >= cMaxGroupCount())) {
 			p.setPen(st::stickersReorderFg);
 			_about.draw(p, st::contactsPadding.left(), st::stickersReorderPadding.top(), _aboutWidth, style::al_center);
 		}
@@ -2005,7 +2005,7 @@ void MembersInner::refresh() {
 	} else {
 		_about.setText(st::boxTextFont, lng_channel_only_last_shown(lt_count, _rows.size()));
 		_aboutHeight = st::stickersReorderPadding.top() + _about.countHeight(_aboutWidth) + st::stickersReorderPadding.bottom();
-		if (_rows.size() >= _channel->count && _rows.size() < cMaxGroupCount()) {
+		if (_filter != MembersFilterRecent || (_rows.size() >= _channel->count && _rows.size() < cMaxGroupCount())) {
 			_aboutHeight = 0;
 		}
 		resize(width(), st::membersPadding.top() + _newItemHeight + _rows.size() * _rowHeight + st::membersPadding.bottom() + _aboutHeight);
@@ -2243,6 +2243,7 @@ void MembersInner::removeKicked() {
 			--_channel->adminsCount;
 			if (App::main()) emit App::main()->peerUpdated(_channel);
 		}
+		refresh();
 	}
 	_kickConfirm = 0;
 }

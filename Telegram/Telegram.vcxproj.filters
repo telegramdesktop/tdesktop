@@ -900,6 +900,12 @@
     <ClCompile Include="SourceFiles\gui\popupmenu.cpp">
       <Filter>gui</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\facades.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\mtpAuthKey.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -988,6 +994,9 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\config.h">
       <Filter>Version</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\facades.h">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

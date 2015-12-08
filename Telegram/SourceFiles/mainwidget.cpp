@@ -395,6 +395,7 @@ MainWidget::MainWidget(Window *window) : TWidget(window)
 , _hider(0)
 , _peerInStack(0)
 , _msgIdInStack(0)
+, _stickerPreview(0)
 , _playerHeight(0)
 , _contentScrollAddToY(0)
 , _mediaType(this)
@@ -742,6 +743,20 @@ QPixmap MainWidget::grabTopBar() {
 	} else {
 		return myGrab(&history, QRect(0, 0, history.width(), st::topBarHeight));
 	}
+}
+
+void MainWidget::ui_showStickerPreview(DocumentData *sticker) {
+	if (!sticker || !sticker->sticker()) return;
+	if (!_stickerPreview) {
+		_stickerPreview = new StickerPreviewWidget(this);
+		resizeEvent(0);
+	}
+	_stickerPreview->showPreview(sticker);
+}
+
+void MainWidget::ui_hideStickerPreview() {
+	if (!_stickerPreview) return;
+	_stickerPreview->hidePreview();
 }
 
 void MainWidget::noHider(HistoryHider *destroyed) {
@@ -2346,7 +2361,9 @@ void MainWidget::showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) 
 	//}
 
 	if (!dialogs.isHidden()) {
-		dialogs.scrollToPeer(peerId, showAtMsgId);
+		if (!back) {
+			dialogs.scrollToPeer(peerId, showAtMsgId);
+		}
 		dialogs.update();
 	}
 	App::wnd()->getTitle()->updateBackButton();
@@ -2517,6 +2534,7 @@ void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop)
 	if (back) clearBotStartToken(history.peer());
 	history.showHistory(0, 0);
 	history.hide();
+	if (!cWideMode()) dialogs.hide();
 
 	orderWidgets();
 
@@ -2563,6 +2581,7 @@ void MainWidget::orderWidgets() {
 	dialogs.raise();
 	_mediaType.raise();
 	if (_hider) _hider->raise();
+	if (_stickerPreview) _stickerPreview->raise();
 }
 
 QRect MainWidget::historyRect() const {
@@ -2823,6 +2842,7 @@ void MainWidget::resizeEvent(QResizeEvent *e) {
 	_mediaType.moveToLeft(width() - _mediaType.width(), _playerHeight + st::topBarHeight);
 	if (profile) profile->setGeometry(history.geometry());
 	if (overview) overview->setGeometry(history.geometry());
+	if (_stickerPreview) _stickerPreview->setGeometry(rect());
 	_contentScrollAddToY = 0;
 }
 

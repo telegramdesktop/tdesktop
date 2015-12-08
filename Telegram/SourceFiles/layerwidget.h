@@ -57,7 +57,7 @@ signals:
 
 };
 
-class BackgroundWidget : public QWidget, public Animated {
+class BackgroundWidget : public TWidget, public Animated {
 	Q_OBJECT
 
 public:
@@ -103,4 +103,40 @@ private:
 	bool hiding;
 
 	BoxShadow shadow;
+};
+
+class StickerPreviewWidget : public TWidget {
+	Q_OBJECT
+
+public:
+
+	StickerPreviewWidget(QWidget *parent);
+
+	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
+
+	bool animStep_shown(float64 ms);
+
+	void showPreview(DocumentData *sticker);
+	void hidePreview();
+
+	~StickerPreviewWidget();
+
+private:
+
+	QSize currentDimensions() const;
+	QPixmap currentImage() const;
+
+	anim::fvalue a_shown;
+	Animation _a_shown;
+	DocumentData *_doc;
+
+	enum CacheStatus {
+		CacheNotLoaded,
+		CacheThumbLoaded,
+		CacheLoaded,
+	};
+	mutable CacheStatus _cacheStatus;
+	mutable QPixmap _cache;
+
 };

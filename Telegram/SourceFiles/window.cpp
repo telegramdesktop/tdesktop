@@ -987,6 +987,8 @@ bool Window::eventFilter(QObject *obj, QEvent *evt) {
 			psUserActionDone();
 			main->checkIdleFinish();
 		}
+	} else if (t == QEvent::MouseButtonRelease) {
+		Ui::hideStickerPreview();
 	}
 	if (obj == App::app()) {
 		if (t == QEvent::ApplicationActivate) {
