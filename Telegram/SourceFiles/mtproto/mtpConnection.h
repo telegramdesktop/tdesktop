@@ -135,7 +135,7 @@ signals:
 	void receivedData();
 	void receivedSome(); // to stop restart timer
 
-	void error(bool maybeBadKey = false);
+	void error(bool mayBeBadKey = false);
 
 	void connected();
 	void disconnected();
@@ -355,7 +355,7 @@ public slots:
 
 	void retryByTimer();
 	void restartNow();
-	void restart(bool maybeBadKey = false);
+	void restart(bool mayBeBadKey = false);
 
 	void onPingSender();
 	void onPingSendForce();
@@ -375,8 +375,8 @@ public slots:
 	void onConnected6();
 	void onDisconnected4();
 	void onDisconnected6();
-	void onError4(bool maybeBadKey = false);
-	void onError6(bool maybeBadKey = false);
+	void onError4(bool mayBeBadKey = false);
+	void onError6(bool mayBeBadKey = false);
 
 	void doFinish();
 
