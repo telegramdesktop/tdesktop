@@ -1737,7 +1737,7 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
 , _cancelSearch(this, st::btnCancelSearch)
 , _scroll(this, st::dlgScroll)
 , _inner(&_scroll, parent)
-, _a_show(animFunc(this, &DialogsWidget::animStep_show))
+, _a_show(animation(this, &DialogsWidget::step_show))
 , _searchInPeer(0)
 , _searchInMigrated(0)
 , _searchFull(false)
@@ -1839,13 +1839,11 @@ void DialogsWidget::animShow(const QPixmap &bgAnimCache) {
 	show();
 }
 
-bool DialogsWidget::animStep_show(float64 ms) {
+void DialogsWidget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
-	bool res = true;
 	if (dt >= 1) {
 		_a_show.stop();
 
-		res = false;
 		a_coordUnder.finish();
 		a_coordOver.finish();
 		a_shadow.finish();
@@ -1865,8 +1863,7 @@ bool DialogsWidget::animStep_show(float64 ms) {
 		a_coordOver.update(dt, st::slideFunction);
 		a_shadow.update(dt, st::slideFunction);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 void DialogsWidget::onCancel() {

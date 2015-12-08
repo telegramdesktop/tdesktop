@@ -333,7 +333,7 @@ StickersInner::StickersInner() : TWidget()
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _aboveShadowFadeStart(0)
 , _aboveShadowFadeOpacity(0, 0)
-, _a_shifting(animFunc(this, &StickersInner::animStep_shifting))
+, _a_shifting(animation(this, &StickersInner::step_shifting))
 , _itemsTop(st::membersPadding.top())
 , _saving(false)
 , _removeSel(-1)
@@ -355,7 +355,7 @@ void StickersInner::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	Painter p(this);
 
-	updateAnimatedValues();
+	_a_shifting.step();
 
 	p.fillRect(r, st::white);
 	p.setClipRect(r);
@@ -489,7 +489,7 @@ void StickersInner::onUpdateSelected() {
 		}
 		_rows.at(_dragging)->yadd = anim::ivalue(local.y() - _dragStart.y(), local.y() - _dragStart.y());
 		_animStartTimes[_dragging] = 0;
-		updateAnimatedRegions();
+		_a_shifting.step(getms(), true);
 
 		emit checkDraggingScroll(local.y());
 	} else {
@@ -538,33 +538,14 @@ void StickersInner::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
-void StickersInner::updateAnimatedRegions() {
-	int32 updateMin = -1, updateMax = 0;
-	for (int32 i = 0, l = _animStartTimes.size(); i < l; ++i) {
-		if (_animStartTimes.at(i)) {
-			if (updateMin < 0) updateMin = i;
-			updateMax = i;
-		}
-	}
-	if (_aboveShadowFadeStart) {
-		if (updateMin < 0 || updateMin > _above) updateMin = _above;
-		if (updateMax < _above) updateMin = _above;
-	}
-	if (_dragging >= 0) {
-		if (updateMin < 0 || updateMin > _dragging) updateMin = _dragging;
-		if (updateMax < _dragging) updateMax = _dragging;
-	}
-	if (updateMin >= 0) {
-		update(0, _itemsTop + _rowHeight * (updateMin - 1), width(), _rowHeight * (updateMax - updateMin + 3));
-	}
-}
-
-bool StickersInner::updateAnimatedValues() {
+void StickersInner::step_shifting(uint64 ms, bool timer) {
 	bool animating = false;
-	uint64 ms = getms();
+	int32 updateMin = -1, updateMax = 0;
 	for (int32 i = 0, l = _animStartTimes.size(); i < l; ++i) {
 		uint64 start = _animStartTimes.at(i);
 		if (start) {
+			if (updateMin < 0) updateMin = i;
+			updateMax = i;
 			if (start + st::stickersRowDuration > ms && ms >= start) {
 				_rows.at(i)->yadd.update((ms - start) / st::stickersRowDuration, anim::sineInOut);
 				animating = true;
@@ -575,6 +556,8 @@ bool StickersInner::updateAnimatedValues() {
 		}
 	}
 	if (_aboveShadowFadeStart) {
+		if (updateMin < 0 || updateMin > _above) updateMin = _above;
+		if (updateMax < _above) updateMin = _above;
 		if (_aboveShadowFadeStart + st::stickersRowDuration > ms && ms > _aboveShadowFadeStart) {
 			_aboveShadowFadeOpacity.update((ms - _aboveShadowFadeStart) / st::stickersRowDuration, anim::sineInOut);
 			animating = true;
@@ -583,17 +566,19 @@ bool StickersInner::updateAnimatedValues() {
 			_aboveShadowFadeStart = 0;
 		}
 	}
-	return animating;
-}
-
-bool StickersInner::animStep_shifting(float64) {
-	updateAnimatedRegions();
-
-	bool animating = updateAnimatedValues();
+	if (timer) {
+		if (_dragging >= 0) {
+			if (updateMin < 0 || updateMin > _dragging) updateMin = _dragging;
+			if (updateMax < _dragging) updateMax = _dragging;
+		}
+		if (updateMin >= 0) {
+			update(0, _itemsTop + _rowHeight * (updateMin - 1), width(), _rowHeight * (updateMax - updateMin + 3));
+		}
+	}
 	if (!animating) {
 		_above = _dragging;
+		_a_shifting.stop();
 	}
-	return animating;
 }
 
 void StickersInner::clear() {

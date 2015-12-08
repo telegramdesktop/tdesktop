@@ -307,7 +307,7 @@ public:
 
 	void fastShow(bool back = false, int32 lastScrollTop = -1);
 	void animShow(const QPixmap &oldAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false, int32 lastScrollTop = -1);
-	bool animStep_show(float64 ms);
+	void step_show(float64 ms, bool timer);
 
 	void updateWideMode();
 	void doneShow();

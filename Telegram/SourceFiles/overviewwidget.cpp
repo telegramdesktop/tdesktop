@@ -2669,7 +2669,7 @@ OverviewWidget::OverviewWidget(QWidget *parent, PeerData *peer, MediaOverviewTyp
 , _scroll(this, st::historyScroll, false)
 , _inner(this, &_scroll, peer, type)
 , _noDropResizeIndex(false)
-, _a_show(animFunc(this, &OverviewWidget::animStep_show))
+, _a_show(animation(this, &OverviewWidget::step_show))
 , _scrollSetAfterShow(0)
 , _scrollDelta(0)
 , _selCount(0)
@@ -2946,15 +2946,13 @@ void OverviewWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimT
 	_inner.activate();
 }
 
-bool OverviewWidget::animStep_show(float64 ms) {
+void OverviewWidget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
-	bool res = true;
 	if (dt >= 1) {
 		_a_show.stop();
 		_sideShadow.setVisible(cWideMode());
 		_topShadow.show();
 
-		res = false;
 		a_coordUnder.finish();
 		a_coordOver.finish();
 		a_shadow.finish();
@@ -2969,9 +2967,10 @@ bool OverviewWidget::animStep_show(float64 ms) {
 		a_coordOver.update(dt, st::slideFunction);
 		a_shadow.update(dt, st::slideFunction);
 	}
-	update();
-	App::main()->topBar()->update();
-	return res;
+	if (timer) {
+		update();
+		App::main()->topBar()->update();
+	}
 }
 
 void OverviewWidget::updateWideMode() {

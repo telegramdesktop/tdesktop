@@ -41,7 +41,7 @@ PlayerWidget::PlayerWidget(QWidget *parent) : TWidget(parent)
 , _downCoord(0)
 , _downFrequency(AudioVoiceMsgFrequency)
 , _downProgress(0.)
-, _stateAnim(animFunc(this, &PlayerWidget::stateStep))
+, _a_state(animation(this, &PlayerWidget::step_state))
 , _msgmigrated(false)
 , _index(-1)
 , _migrated(0)
@@ -54,7 +54,7 @@ PlayerWidget::PlayerWidget(QWidget *parent) : TWidget(parent)
 , _loaded(0)
 , a_progress(0., 0.)
 , a_loadProgress(0., 0.)
-, _progressAnim(animFunc(this, &PlayerWidget::progressStep))
+, _a_progress(animation(this, &PlayerWidget::step_progress))
 , _sideShadow(this, st::shadowColor) {
 	resize(st::wndMinWidth, st::playerHeight);
 	setMouseTracking(true);
@@ -236,7 +236,7 @@ void PlayerWidget::updateOverState(OverState newState) {
 		if (_over != OverNone) {
 			_stateAnimations.remove(_over);
 			_stateAnimations[-_over] = getms() - ((1. - _stateHovers[_over]) * st::playerDuration);
-			if (!_stateAnim.animating()) _stateAnim.start();
+			if (!_a_state.animating()) _a_state.start();
 		} else {
 			result = false;
 		}
@@ -244,7 +244,7 @@ void PlayerWidget::updateOverState(OverState newState) {
 		if (newState != OverNone) {
 			_stateAnimations.remove(-_over);
 			_stateAnimations[_over] = getms() - (_stateHovers[_over] * st::playerDuration);
-			if (!_stateAnim.animating()) _stateAnim.start();
+			if (!_a_state.animating()) _a_state.start();
 			setCursor(style::cur_pointer);
 		} else {
 			setCursor(style::cur_default);
@@ -375,9 +375,7 @@ bool PlayerWidget::seekingSong(const SongMsgId &song) const {
 	return (_down == OverPlayback) && (song == _song);
 }
 
-bool PlayerWidget::stateStep(float64 msc) {
-	bool result = false;
-	uint64 ms = getms();
+void PlayerWidget::step_state(uint64 ms, bool timer) {
 	for (StateAnimations::iterator i = _stateAnimations.begin(); i != _stateAnimations.cend();) {
 		int32 over = qAbs(i.key());
 		updateOverRect(OverState(over));
@@ -391,7 +389,9 @@ bool PlayerWidget::stateStep(float64 msc) {
 			++i;
 		}
 	}
-	return !_stateAnimations.isEmpty();
+	if (_stateAnimations.isEmpty()) {
+		_a_state.stop();
+	}
 }
 
 void PlayerWidget::mouseMoveEvent(QMouseEvent *e) {
@@ -462,7 +462,7 @@ void PlayerWidget::mouseReleaseEvent(QMouseEvent *e) {
 			_showPause = true;
 
 			a_progress = anim::fvalue(_downProgress, _downProgress);
-			_progressAnim.stop();
+			_a_progress.stop();
 		}
 		update();
 	} else if (_down == OverClose && _over == OverClose) {
@@ -573,19 +573,17 @@ void PlayerWidget::resizeEvent(QResizeEvent *e) {
 	update();
 }
 
-bool PlayerWidget::progressStep(float64 ms) {
+void PlayerWidget::step_progress(float64 ms, bool timer) {
 	float64 dt = ms / (2 * AudioVoiceMsgUpdateView);
-	bool res = true;
 	if (_duration && dt >= 1) {
+		_a_progress.stop();
 		a_progress.finish();
 		a_loadProgress.finish();
-		res = false;
 	} else {
 		a_progress.update(qMin(dt, 1.), anim::linear);
 		a_loadProgress.update(1. - (st::radialDuration / (st::radialDuration + ms)), anim::linear);
 	}
-	rtlupdate(_playbackRect);
-	return res;
+	if (timer) rtlupdate(_playbackRect);
 }
 
 void PlayerWidget::updateState() {
@@ -668,11 +666,11 @@ void PlayerWidget::updateState(SongMsgId playing, AudioPlayerState playingState,
 			if (!songChanged && ((!stopped && duration && _duration) || (!duration && _loaded != loaded))) {
 				a_progress.start(progress);
 				a_loadProgress.start(loadProgress);
-				_progressAnim.start();
+				_a_progress.start();
 			} else {
 				a_progress = anim::fvalue(progress, progress);
 				a_loadProgress = anim::fvalue(loadProgress, loadProgress);
-				_progressAnim.stop();
+				_a_progress.stop();
 			}
 			_position = position;
 			_duration = duration;
@@ -683,11 +681,11 @@ void PlayerWidget::updateState(SongMsgId playing, AudioPlayerState playingState,
 		if (!songChanged && ((!stopped && duration && _duration) || (!duration && _loaded != loaded))) {
 			a_progress.start(progress);
 			a_loadProgress.start(loadProgress);
-			_progressAnim.start();
+			_a_progress.start();
 		} else {
 			a_progress = anim::fvalue(progress, progress);
 			a_loadProgress = anim::fvalue(loadProgress, loadProgress);
-			_progressAnim.stop();
+			_a_progress.stop();
 		}
 		_position = position;
 		_duration = duration;

@@ -138,7 +138,6 @@ SOURCES += \
     ./SourceFiles/gui/style_core.cpp \
     ./SourceFiles/gui/text.cpp \
     ./SourceFiles/gui/twidget.cpp \
-    ./SourceFiles/gui/switcher.cpp \
     ./GeneratedFiles/lang_auto.cpp \
     ./GeneratedFiles/style_auto.cpp \
     ./GeneratedFiles/numbers.cpp \
@@ -231,7 +230,6 @@ HEADERS += \
     ./SourceFiles/gui/style_core.h \
     ./SourceFiles/gui/text.h \
     ./SourceFiles/gui/twidget.h \
-    ./SourceFiles/gui/switcher.h \
     ./GeneratedFiles/lang_auto.h \
     ./GeneratedFiles/style_auto.h \
     ./GeneratedFiles/style_classes.h \

@@ -111,96 +111,99 @@ bool scaleIs(DBIScale scale) {
 	return cRealScale() == scale || (cRealScale() == dbisAuto && cScreenScale() == scale);
 }
 
-SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
-	_self(App::self()),
+SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
+, _self(App::self())
 
-	// profile
-	_nameCache(self() ? self()->name : QString()),
-    _uploadPhoto(this, lang(lng_settings_upload), st::btnSetUpload),
-    _cancelPhoto(this, lang(lng_cancel)), _nameOver(false), _photoOver(false), a_photo(0),
+// profile
+, _nameCache(self() ? self()->name : QString())
+, _uploadPhoto(this, lang(lng_settings_upload), st::btnSetUpload)
+, _cancelPhoto(this, lang(lng_cancel))
+, _nameOver(false)
+, _photoOver(false)
+, a_photoOver(0)
+, _a_photo(animation(this, &SettingsInner::step_photo))
 
-	// contact info
-	_phoneText(self() ? App::formatPhone(self()->phone) : QString()),
-	_chooseUsername(this, (self() && !self()->username.isEmpty()) ? ('@' + self()->username) : lang(lng_settings_choose_username)),
+// contact info
+, _phoneText(self() ? App::formatPhone(self()->phone) : QString())
+, _chooseUsername(this, (self() && !self()->username.isEmpty()) ? ('@' + self()->username) : lang(lng_settings_choose_username))
 
-	// notifications
-	_desktopNotify(this, lang(lng_settings_desktop_notify), cDesktopNotify()),
-	_senderName(this, lang(lng_settings_show_name), cNotifyView() <= dbinvShowName),
-	_messagePreview(this, lang(lng_settings_show_preview), cNotifyView() <= dbinvShowPreview),
-	_windowsNotifications(this, lang(lng_settings_use_windows), cWindowsNotifications()),
-	_soundNotify(this, lang(lng_settings_sound_notify), cSoundNotify()),
-	_includeMuted(this, lang(lng_settings_include_muted), cIncludeMuted()),
+// notifications
+, _desktopNotify(this, lang(lng_settings_desktop_notify), cDesktopNotify())
+, _senderName(this, lang(lng_settings_show_name), cNotifyView() <= dbinvShowName)
+, _messagePreview(this, lang(lng_settings_show_preview), cNotifyView() <= dbinvShowPreview)
+, _windowsNotifications(this, lang(lng_settings_use_windows), cWindowsNotifications())
+, _soundNotify(this, lang(lng_settings_sound_notify), cSoundNotify())
+, _includeMuted(this, lang(lng_settings_include_muted), cIncludeMuted())
 
-	// general
-	_changeLanguage(this, lang(lng_settings_change_lang)),
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	_autoUpdate(this, lang(lng_settings_auto_update), cAutoUpdate()),
-	_checkNow(this, lang(lng_settings_check_now)),
-	_restartNow(this, lang(lng_settings_update_now)),
-	#endif
+// general
+, _changeLanguage(this, lang(lng_settings_change_lang))
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+, _autoUpdate(this, lang(lng_settings_auto_update), cAutoUpdate())
+, _checkNow(this, lang(lng_settings_check_now))
+, _restartNow(this, lang(lng_settings_update_now))
+#endif
 
-    _supportTray(cSupportTray()),
-	_workmodeTray(this, lang(lng_settings_workmode_tray), (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray)),
-	_workmodeWindow(this, lang(lng_settings_workmode_window), (cWorkMode() == dbiwmWindowOnly || cWorkMode() == dbiwmWindowAndTray)),
+, _supportTray(cSupportTray())
+, _workmodeTray(this, lang(lng_settings_workmode_tray), (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray))
+, _workmodeWindow(this, lang(lng_settings_workmode_window), (cWorkMode() == dbiwmWindowOnly || cWorkMode() == dbiwmWindowAndTray))
 
-	_autoStart(this, lang(lng_settings_auto_start), cAutoStart()),
-	_startMinimized(this, lang(lng_settings_start_min), cStartMinimized()),
-	_sendToMenu(this, lang(lng_settings_add_sendto), cSendToMenu()),
+, _autoStart(this, lang(lng_settings_auto_start), cAutoStart())
+, _startMinimized(this, lang(lng_settings_start_min), cStartMinimized())
+, _sendToMenu(this, lang(lng_settings_add_sendto), cSendToMenu())
 
-	_dpiAutoScale(this, lng_settings_scale_auto(lt_cur, scaleLabel(cScreenScale())), (cConfigScale() == dbisAuto)),
-	_dpiSlider(this, st::dpiSlider, dbisScaleCount - 1, cEvalScale(cConfigScale()) - 1),
-	_dpiWidth1(st::dpiFont1->width(scaleLabel(dbisOne))),
-	_dpiWidth2(st::dpiFont2->width(scaleLabel(dbisOneAndQuarter))),
-	_dpiWidth3(st::dpiFont3->width(scaleLabel(dbisOneAndHalf))),
-	_dpiWidth4(st::dpiFont4->width(scaleLabel(dbisTwo))),
+, _dpiAutoScale(this, lng_settings_scale_auto(lt_cur, scaleLabel(cScreenScale())), (cConfigScale() == dbisAuto))
+, _dpiSlider(this, st::dpiSlider, dbisScaleCount - 1, cEvalScale(cConfigScale()) - 1)
+, _dpiWidth1(st::dpiFont1->width(scaleLabel(dbisOne)))
+, _dpiWidth2(st::dpiFont2->width(scaleLabel(dbisOneAndQuarter)))
+, _dpiWidth3(st::dpiFont3->width(scaleLabel(dbisOneAndHalf)))
+, _dpiWidth4(st::dpiFont4->width(scaleLabel(dbisTwo)))
 
-	// chat options
-	_replaceEmojis(this, lang(lng_settings_replace_emojis), cReplaceEmojis()),
-	_viewEmojis(this, lang(lng_settings_view_emojis)),
-	_stickers(this, lang(lng_stickers_you_have)),
+// chat options
+, _replaceEmojis(this, lang(lng_settings_replace_emojis), cReplaceEmojis())
+, _viewEmojis(this, lang(lng_settings_view_emojis))
+, _stickers(this, lang(lng_stickers_you_have))
 
-	_enterSend(this, qsl("send_key"), 0, lang(lng_settings_send_enter), !cCtrlEnter()),
-    _ctrlEnterSend(this, qsl("send_key"), 1, lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), cCtrlEnter()),
+, _enterSend(this, qsl("send_key"), 0, lang(lng_settings_send_enter), !cCtrlEnter())
+, _ctrlEnterSend(this, qsl("send_key"), 1, lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), cCtrlEnter())
 
-	_dontAskDownloadPath(this, lang(lng_download_path_dont_ask), !cAskDownloadPath()),
-    _downloadPathWidth(st::linkFont->width(lang(lng_download_path_label)) + st::linkFont->spacew),
-	_downloadPathEdit(this, cDownloadPath().isEmpty() ? lang(lng_download_path_default) : ((cDownloadPath() == qsl("tmp")) ? lang(lng_download_path_temp) : st::linkFont->elided(QDir::toNativeSeparators(cDownloadPath()), st::setWidth - st::setVersionLeft - _downloadPathWidth))),
-	_downloadPathClear(this, lang(lng_download_path_clear)),
-	_tempDirClearingWidth(st::linkFont->width(lang(lng_download_path_clearing))),
-	_tempDirClearedWidth(st::linkFont->width(lang(lng_download_path_cleared))),
-	_tempDirClearFailedWidth(st::linkFont->width(lang(lng_download_path_clear_failed))),
+, _dontAskDownloadPath(this, lang(lng_download_path_dont_ask), !cAskDownloadPath())
+, _downloadPathWidth(st::linkFont->width(lang(lng_download_path_label)) + st::linkFont->spacew)
+, _downloadPathEdit(this, cDownloadPath().isEmpty() ? lang(lng_download_path_default) : ((cDownloadPath() == qsl("tmp")) ? lang(lng_download_path_temp) : st::linkFont->elided(QDir::toNativeSeparators(cDownloadPath()), st::setWidth - st::setVersionLeft - _downloadPathWidth)))
+, _downloadPathClear(this, lang(lng_download_path_clear))
+, _tempDirClearingWidth(st::linkFont->width(lang(lng_download_path_clearing)))
+, _tempDirClearedWidth(st::linkFont->width(lang(lng_download_path_cleared)))
+, _tempDirClearFailedWidth(st::linkFont->width(lang(lng_download_path_clear_failed)))
 
-	// chat background
-	_backFromGallery(this, lang(lng_settings_bg_from_gallery)),
-	_backFromFile(this, lang(lng_settings_bg_from_file)),
-	_tileBackground(this, lang(lng_settings_bg_tile), cTileBackground()),
-	_needBackgroundUpdate(false),
+// chat background
+, _backFromGallery(this, lang(lng_settings_bg_from_gallery))
+, _backFromFile(this, lang(lng_settings_bg_from_file))
+, _tileBackground(this, lang(lng_settings_bg_tile), cTileBackground())
+, _needBackgroundUpdate(false)
 
-	// local storage
-	_localStorageClear(this, lang(lng_local_storage_clear)),
-	_localStorageHeight(1),
-	_storageClearingWidth(st::linkFont->width(lang(lng_local_storage_clearing))),
-	_storageClearedWidth(st::linkFont->width(lang(lng_local_storage_cleared))),
-	_storageClearFailedWidth(st::linkFont->width(lang(lng_local_storage_clear_failed))),
+// local storage
+, _localStorageClear(this, lang(lng_local_storage_clear))
+, _localStorageHeight(1)
+, _storageClearingWidth(st::linkFont->width(lang(lng_local_storage_clearing)))
+, _storageClearedWidth(st::linkFont->width(lang(lng_local_storage_cleared)))
+, _storageClearFailedWidth(st::linkFont->width(lang(lng_local_storage_clear_failed)))
 
-	// advanced
-	_passcodeEdit(this, lang(cHasPasscode() ? lng_passcode_change : lng_passcode_turn_on)),
-	_passcodeTurnOff(this, lang(lng_passcode_turn_off)),
-	_autoLock(this, (cAutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, cAutoLock() / 60) : lng_passcode_autolock_hours(lt_count, cAutoLock() / 3600)),
-	_autoLockText(lang(psIdleSupported() ? lng_passcode_autolock_away : lng_passcode_autolock_inactive) + ' '),
-	_autoLockWidth(st::linkFont->width(_autoLockText)),
-	_passwordEdit(this, lang(lng_cloud_password_set)),
-	_passwordTurnOff(this, lang(lng_passcode_turn_off)),
-	_hasPasswordRecovery(false),
-	_connectionType(this, lang(lng_connection_auto_connecting)),
-	_connectionTypeText(lang(lng_connection_type) + ' '),
-	_connectionTypeWidth(st::linkFont->width(_connectionTypeText)),
-	_showSessions(this, lang(lng_settings_show_sessions)),
-	_askQuestion(this, lang(lng_settings_ask_question)),
-	_telegramFAQ(this, lang(lng_settings_faq)),
-	_logOut(this, lang(lng_settings_logout), st::btnLogout),
-	_supportGetRequest(0)
-{
+// advanced
+, _passcodeEdit(this, lang(cHasPasscode() ? lng_passcode_change : lng_passcode_turn_on))
+, _passcodeTurnOff(this, lang(lng_passcode_turn_off))
+, _autoLock(this, (cAutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, cAutoLock() / 60) : lng_passcode_autolock_hours(lt_count, cAutoLock() / 3600))
+, _autoLockText(lang(psIdleSupported() ? lng_passcode_autolock_away : lng_passcode_autolock_inactive) + ' ')
+, _autoLockWidth(st::linkFont->width(_autoLockText))
+, _passwordEdit(this, lang(lng_cloud_password_set))
+, _passwordTurnOff(this, lang(lng_passcode_turn_off))
+, _hasPasswordRecovery(false)
+, _connectionType(this, lang(lng_connection_auto_connecting))
+, _connectionTypeText(lang(lng_connection_type) + ' ')
+, _connectionTypeWidth(st::linkFont->width(_connectionTypeText))
+, _showSessions(this, lang(lng_settings_show_sessions))
+, _askQuestion(this, lang(lng_settings_ask_question))
+, _telegramFAQ(this, lang(lng_settings_faq))
+, _logOut(this, lang(lng_settings_logout), st::btnLogout)
+, _supportGetRequest(0) {
 	if (self()) {
 		connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 		connect(App::api(), SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
@@ -393,11 +396,11 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		if (_photoLink) {
 			p.drawPixmap(_left, top, self()->photo->pix(st::setPhotoSize));
 		} else {
-			if (a_photo.current() < 1) {
+			if (a_photoOver.current() < 1) {
 				p.drawPixmap(QPoint(_left, top), App::sprite(), st::setPhotoImg);
 			}
-			if (a_photo.current() > 0) {
-				p.setOpacity(a_photo.current());
+			if (a_photoOver.current() > 0) {
+				p.setOpacity(a_photoOver.current());
 				p.drawPixmap(QPoint(_left, top), App::sprite(), st::setOverPhotoImg);
 				p.setOpacity(1);
 			}
@@ -816,8 +819,8 @@ void SettingsInner::mouseMoveEvent(QMouseEvent *e) {
 		if (photoOver != _photoOver) {
 			_photoOver = photoOver;
 			if (!_photoLink) {
-				a_photo.start(_photoOver ? 1 : 0);
-				anim::start(this);
+				a_photoOver.start(_photoOver ? 1 : 0);
+				_a_photo.start();
 			}
 		}
 
@@ -845,17 +848,15 @@ void SettingsInner::mousePressEvent(QMouseEvent *e) {
 void SettingsInner::contextMenuEvent(QContextMenuEvent *e) {
 }
 
-bool SettingsInner::animStep(float64 ms) {
+void SettingsInner::step_photo(float64 ms, bool timer) {
 	float64 dt = ms / st::setPhotoDuration;
-	bool res = true;
 	if (dt >= 1) {
-		res = false;
-		a_photo.finish();
+		_a_photo.stop();
+		a_photoOver.finish();
 	} else {
-		a_photo.update(dt, anim::linear);
+		a_photoOver.update(dt, anim::linear);
 	}
-	update(_left, st::setTop, st::setPhotoSize, st::setPhotoSize);
-	return res;
+	if (timer) update(_left, st::setTop, st::setPhotoSize, st::setPhotoSize);
 }
 
 void SettingsInner::updateSize(int32 newWidth) {
@@ -1763,7 +1764,7 @@ void SettingsInner::onPhotoUpdateDone(PeerId peer) {
 }
 
 SettingsWidget::SettingsWidget(Window *parent) : TWidget(parent)
-, _a_show(animFunc(this, &SettingsWidget::animStep_show))
+, _a_show(animation(this, &SettingsWidget::step_show))
 , _scroll(this, st::setScroll)
 , _inner(this)
 , _close(this, st::setClose) {
@@ -1800,13 +1801,11 @@ void SettingsWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 	show();
 }
 
-bool SettingsWidget::animStep_show(float64 ms) {
+void SettingsWidget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
-	bool res = true;
 	if (dt >= 1) {
 		_a_show.stop();
 
-		res = false;
 		a_coordUnder.finish();
 		a_coordOver.finish();
 		a_shadow.finish();
@@ -1822,11 +1821,10 @@ bool SettingsWidget::animStep_show(float64 ms) {
 		a_coordOver.update(dt, st::slideFunction);
 		a_shadow.update(dt, st::slideFunction);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
-void SettingsWidget::animStop_show() {
+void SettingsWidget::stop_show() {
 	_a_show.stop();
 }
 

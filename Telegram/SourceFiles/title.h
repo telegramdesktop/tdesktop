@@ -39,7 +39,7 @@ private:
 
 };
 
-class TitleWidget : public QWidget, public Animated {
+class TitleWidget : public TWidget {
 	Q_OBJECT
 
 public:
@@ -61,7 +61,7 @@ public:
 
 	void setHideLevel(float64 level);
 
-	bool animStep(float64 ms);
+	void step_update(float64 ms, bool timer);
 
 	~TitleWidget();
 
@@ -96,6 +96,8 @@ private:
 	MaximizeBtn _maximize;
 	RestoreBtn _restore;
 	CloseBtn _close;
+
+	Animation _a_update;
 
 	bool lastMaximized;
 

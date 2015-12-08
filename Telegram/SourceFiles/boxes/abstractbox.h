@@ -41,7 +41,7 @@ public slots:
 	void onStateChange(int oldState, ButtonStateChangeSource source);
 
 private:
-	bool animStep_over(float64 ms);
+	void step_over(float64 ms, bool timer);
 	anim::cvalue a_iconFg;
 	Animation _a_over;
 
@@ -54,7 +54,7 @@ public:
 
 	AbstractBox(int32 w = st::boxWideWidth);
 	void parentResized();
-	void animStep(float64 ms);
+	void showStep(float64 ms);
 	void keyPressEvent(QKeyEvent *e);
 	void resizeEvent(QResizeEvent *e);
 	void paintEvent(QPaintEvent *e);

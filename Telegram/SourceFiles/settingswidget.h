@@ -57,7 +57,7 @@ private:
 
 };
 
-class SettingsInner : public QWidget, public RPCSender, public Animated {
+class SettingsInner : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -71,7 +71,7 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void contextMenuEvent(QContextMenuEvent *e);
 
-	bool animStep(float64 ms);
+	void step_photo(float64 ms, bool timer);
 
 	void updateSize(int32 newWidth);
 
@@ -203,7 +203,8 @@ private:
 	FlatButton _uploadPhoto;
 	LinkButton _cancelPhoto;
 	bool _nameOver, _photoOver;
-	anim::fvalue a_photo;
+	anim::fvalue a_photoOver;
+	Animation _a_photo;
 
 	QString _errorText;
 
@@ -315,8 +316,8 @@ public:
 	void updateWideMode();
 
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
-	bool animStep_show(float64 ms);
-	void animStop_show();
+	void step_show(float64 ms, bool timer);
+	void stop_show();
 
 	void updateOnlineDisplay();
 	void updateConnectionType();

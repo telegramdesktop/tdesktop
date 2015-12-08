@@ -23,7 +23,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "style.h"
 #include "animation.h"
 
-class FlatInput : public QLineEdit, public Animated {
+class FlatInput : public QLineEdit {
 	Q_OBJECT
 	T_WIDGET
 
@@ -50,7 +50,7 @@ public:
 
 	QRect getTextRect() const;
 
-	bool animStep(float64 ms);
+	void step_appearance(float64 ms, bool timer);
 
 	QSize sizeHint() const;
 	QSize minimumSizeHint() const;
@@ -98,6 +98,7 @@ private:
 	anim::ivalue a_phLeft;
 	anim::fvalue a_phAlpha;
 	anim::cvalue a_phColor, a_borderColor, a_bgColor;
+	Animation _a_appearance;
 
 	int _notingBene;
 	style::flatInput _st;
@@ -196,9 +197,9 @@ public:
 	}
 	void updatePlaceholder();
 
-	bool animStep_placeholderFg(float64 ms);
-	bool animStep_placeholderShift(float64 ms);
-	bool animStep_border(float64 ms);
+	void step_placeholderFg(float64 ms, bool timer);
+	void step_placeholderShift(float64 ms, bool timer);
+	void step_border(float64 ms, bool timer);
 
 	QSize sizeHint() const;
 	QSize minimumSizeHint() const;
@@ -354,9 +355,9 @@ public:
 	}
 	void updatePlaceholder();
 
-	bool animStep_placeholderFg(float64 ms);
-	bool animStep_placeholderShift(float64 ms);
-	bool animStep_border(float64 ms);
+	void step_placeholderFg(float64 ms, bool timer);
+	void step_placeholderShift(float64 ms, bool timer);
+	void step_border(float64 ms, bool timer);
 
 	QSize sizeHint() const;
 	QSize minimumSizeHint() const;
@@ -523,9 +524,9 @@ public:
 
 	QRect getTextRect() const;
 
-	bool animStep_placeholderFg(float64 ms);
-	bool animStep_placeholderShift(float64 ms);
-	bool animStep_border(float64 ms);
+	void step_placeholderFg(float64 ms, bool timer);
+	void step_placeholderShift(float64 ms, bool timer);
+	void step_border(float64 ms, bool timer);
 
 	QSize sizeHint() const;
 	QSize minimumSizeHint() const;

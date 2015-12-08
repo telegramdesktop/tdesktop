@@ -25,7 +25,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "gui/countryinput.h"
 #include "intro.h"
 
-class IntroPhone : public IntroStage, public Animated, public RPCSender {
+class IntroPhone : public IntroStage, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -35,7 +35,7 @@ public:
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
-	bool animStep(float64 ms);
+	void step_error(float64 ms, bool timer);
 
 	void selectCountry(const QString &country);
 
@@ -67,7 +67,8 @@ private:
 	void showError(const QString &err, bool signUp = false);
 
 	QString error;
-	anim::fvalue errorAlpha;
+	anim::fvalue a_errorAlpha;
+	Animation _a_error;
 
 	bool changed;
 	FlatButton next;

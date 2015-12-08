@@ -1480,7 +1480,6 @@ notifySlowHideFunc: transition(easeInCirc);
 notifyWaitShortHide: 0;
 notifyWaitLongHide: 20000;
 notifyFastAnim: 150;
-notifyFastAnimFunc: transition(linear);
 notifyWidth: 316px;
 notifyHeight: 80px;
 notifyDeltaX: 6px;

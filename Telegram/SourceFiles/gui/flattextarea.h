@@ -24,7 +24,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "style.h"
 #include "animation.h"
 
-class FlatTextarea : public QTextEdit, public Animated {
+class FlatTextarea : public QTextEdit {
 	Q_OBJECT
 	T_WIDGET
 
@@ -56,7 +56,7 @@ public:
 	QRect getTextRect() const;
 	int32 fakeMargin() const;
 
-	bool animStep(float64 ms);
+	void step_appearance(float64 ms, bool timer);
 
 	QSize sizeHint() const;
 	QSize minimumSizeHint() const;
@@ -127,6 +127,8 @@ private:
 	anim::ivalue a_phLeft;
 	anim::fvalue a_phAlpha;
 	anim::cvalue a_phColor;
+	Animation _a_appearance;
+
 	style::flatTextarea _st;
 
 	bool _undoAvailable, _redoAvailable, _inDrop, _inHeightCheck;

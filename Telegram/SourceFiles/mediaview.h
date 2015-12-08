@@ -22,7 +22,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 #include "dropdown.h"
 
-class MediaView : public TWidget, public RPCSender, public Animated {
+class MediaView : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -65,7 +65,7 @@ public:
 	void updateControls();
 	void updateDropdown();
 
-	bool animStep(float64 dt);
+	void step_state(uint64 ms, bool timer);
 
 	void showSaveMsgFile();
 	void close();
@@ -183,6 +183,8 @@ private:
 	OverState _over, _down;
 	QPoint _lastAction, _lastMouseMovePos;
 	bool _ignoringDropdown;
+
+	Animation _a_state;
 
 	enum ControlsState {
 		ControlsShowing,

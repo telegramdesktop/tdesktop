@@ -249,7 +249,7 @@ private:
 
 };
 
-class BotKeyboard : public QWidget {
+class BotKeyboard : public TWidget {
 	Q_OBJECT
 
 public:
@@ -267,7 +267,7 @@ public:
 	bool hasMarkup() const;
 	bool forceReply() const;
 
-	bool hoverStep(float64 ms);
+	void step_selected(uint64 ms, bool timer);
 	void resizeToWidth(int32 width, int32 maxOuterHeight);
 
 	bool maximizeSize() const;
@@ -308,13 +308,13 @@ private:
 
 	typedef QMap<int32, uint64> Animations;
 	Animations _animations;
-	Animation _hoverAnim;
+	Animation _a_selected;
 
 	const style::botKeyboardButton *_st;
 
 };
 
-class HistoryHider : public TWidget, public Animated {
+class HistoryHider : public TWidget {
 	Q_OBJECT
 
 public:
@@ -324,7 +324,7 @@ public:
 	HistoryHider(MainWidget *parent); // send path from command line argument
 	HistoryHider(MainWidget *parent, const QString &url, const QString &text); // share url
 
-	bool animStep(float64 ms);
+	void step_appearance(float64 ms, bool timer);
 	bool withConfirm() const;
 
 	void paintEvent(QPaintEvent *e);
@@ -362,7 +362,10 @@ private:
 
 	BoxButton _send, _cancel;
 	PeerData *offered;
+
 	anim::fvalue a_opacity;
+	Animation _a_appearance;
+
 	QRect box;
 	bool hiding;
 
@@ -471,7 +474,7 @@ public:
 	HistoryItem *atTopImportantMsg(int32 &bottomUnderScrollTop) const;
 
 	void animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false);
-	bool animStep_show(float64 ms);
+	void step_show(float64 ms, bool timer);
 	void animStop();
 
 	void updateWideMode();
@@ -510,8 +513,8 @@ public:
 	void updatePreview();
 	void previewCancel();
 
-	bool recordStep(float64 ms);
-	bool recordingStep(float64 ms);
+	void step_record(float64 ms, bool timer);
+	void step_recording(float64 ms, bool timer);
 	void stopRecording(bool send);
 
 	void onListEscapePressed();
@@ -759,7 +762,7 @@ private:
 	FlatCheckbox _broadcast;
 	bool _cmdStartShown;
 	MessageField _field;
-	Animation _recordAnim, _recordingAnim;
+	Animation _a_record, _a_recording;
 	bool _recording, _inRecord, _inField, _inReply;
 	anim::ivalue a_recordingLevel;
 	int32 _recordingSamples;

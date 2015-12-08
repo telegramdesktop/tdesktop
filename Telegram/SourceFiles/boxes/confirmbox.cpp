@@ -187,11 +187,13 @@ void ConfirmLinkBox::onOpenLink() {
 	Ui::hideLayer();
 }
 
-MaxInviteBox::MaxInviteBox(const QString &link) : AbstractBox(st::boxWidth),
-_close(this, lang(lng_box_ok), st::defaultBoxButton),
-_text(st::boxTextFont, lng_participant_invite_sorry(lt_count, cMaxGroupCount()), _confirmBoxTextOptions, st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right()),
-_link(link), _linkOver(false),
-a_goodOpacity(0, 0), a_good(animFunc(this, &MaxInviteBox::goodAnimStep)) {
+MaxInviteBox::MaxInviteBox(const QString &link) : AbstractBox(st::boxWidth)
+, _close(this, lang(lng_box_ok), st::defaultBoxButton)
+, _text(st::boxTextFont, lng_participant_invite_sorry(lt_count, cMaxGroupCount()), _confirmBoxTextOptions, st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
+, _link(link)
+, _linkOver(false)
+, a_goodOpacity(0, 0)
+, _a_good(animation(this, &MaxInviteBox::step_good)) {
 	setMouseTracking(true);
 
 	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right();
@@ -213,7 +215,7 @@ void MaxInviteBox::mousePressEvent(QMouseEvent *e) {
 		App::app()->clipboard()->setText(_link);
 		_goodTextLink = lang(lng_create_channel_link_copied);
 		a_goodOpacity = anim::fvalue(1, 0);
-		a_good.start();
+		_a_good.start();
 	}
 }
 
@@ -232,17 +234,15 @@ void MaxInviteBox::updateSelected(const QPoint &cursorGlobalPosition) {
 	}
 }
 
-bool MaxInviteBox::goodAnimStep(float64 ms) {
+void MaxInviteBox::step_good(float64 ms, bool timer) {
 	float dt = ms / st::newGroupLinkFadeDuration;
-	bool res = true;
 	if (dt >= 1) {
-		res = false;
+		_a_good.stop();
 		a_goodOpacity.finish();
 	} else {
 		a_goodOpacity.update(dt, anim::linear);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 void MaxInviteBox::hideAll() {

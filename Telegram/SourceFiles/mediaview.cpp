@@ -111,6 +111,7 @@ MediaView::MediaView() : TWidget(App::wnd())
 , _down(OverNone)
 , _lastAction(-st::mvDeltaFromLastAction, -st::mvDeltaFromLastAction)
 , _ignoringDropdown(false)
+, _a_state(animation(this, &MediaView::step_state))
 , _controlsState(ControlsShown)
 , _controlsAnimStarted(0)
 , _menu(0)
@@ -300,8 +301,8 @@ void MediaView::updateControls() {
 			_docCancel.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
 			_docCancel.show();
 			if (!_docRadialFirst) _docRadialFirst = _docRadialLast = _docRadialStart = getms();
-			if (!animating()) anim::start(this);
-			anim::step(this);
+			if (!_a_state.animating()) _a_state.start();
+			_a_state.step();
 		} else {
 			if (_doc->already(true).isEmpty()) {
 				_docDownload.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
@@ -395,9 +396,8 @@ void MediaView::updateDropdown() {
 	_dropdown.moveToRight(0, height() - _dropdown.height());
 }
 
-bool MediaView::animStep(float64 msp) {
+void MediaView::step_state(uint64 ms, bool timer) {
 	bool result = false;
-	uint64 ms = getms();
 	for (Showing::iterator i = _animations.begin(); i != _animations.end();) {
 		int64 start = i.value();
 		switch (i.key()) {
@@ -472,7 +472,9 @@ bool MediaView::animStep(float64 msp) {
 		a_docRadialStart.update(fromstart - qFloor(fromstart), anim::linear);
 		update(_docIconRect);
 	}
-	return result || !_animations.isEmpty();
+	if (!result && _animations.isEmpty()) {
+		_a_state.stop();
+	}
 }
 
 MediaView::~MediaView() {
@@ -496,7 +498,7 @@ void MediaView::activateControls() {
 		_controlsState = ControlsShowing;
 		_controlsAnimStarted = getms();
 		a_cOpacity.start(1);
-		if (!animating()) anim::start(this);
+		if (!_a_state.animating()) _a_state.start();
 	}
 }
 
@@ -506,7 +508,7 @@ void MediaView::onHideControls(bool force) {
 	_controlsState = ControlsHiding;
 	_controlsAnimStarted = getms();
 	a_cOpacity.start(0);
-	if (!animating()) anim::start(this);
+	if (!_a_state.animating()) _a_state.start();
 }
 
 void MediaView::onDropdownHiding() {
@@ -743,7 +745,7 @@ void MediaView::showPhoto(PhotoData *photo, HistoryItem *context) {
 	setCursor(style::cur_default);
 	if (!_animations.isEmpty()) {
 		_animations.clear();
-		anim::stop(this);
+		_a_state.stop();
 	}
 	if (!_animOpacities.isEmpty()) _animOpacities.clear();
 
@@ -774,7 +776,7 @@ void MediaView::showPhoto(PhotoData *photo, PeerData *context) {
 	setCursor(style::cur_default);
 	if (!_animations.isEmpty()) {
 		_animations.clear();
-		anim::stop(this);
+		_a_state.stop();
 	}
 	if (!_animOpacities.isEmpty()) _animOpacities.clear();
 
@@ -828,7 +830,7 @@ void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
 	setCursor(style::cur_default);
 	if (!_animations.isEmpty()) {
 		_animations.clear();
-		anim::stop(this);
+		_a_state.stop();
 	}
 	if (!_animOpacities.isEmpty()) _animOpacities.clear();
 
@@ -1721,7 +1723,7 @@ bool MediaView::updateOverState(OverState newState) {
 			} else {
 				_animOpacities.insert(_over, anim::fvalue(1, 0));
 			}
-			if (!animating()) anim::start(this);
+			if (!_a_state.animating()) _a_state.start();
 		} else {
 			result = false;
 		}
@@ -1734,7 +1736,7 @@ bool MediaView::updateOverState(OverState newState) {
 			} else {
 				_animOpacities.insert(_over, anim::fvalue(0, 1));
 			}
-			if (!animating()) anim::start(this);
+			if (!_a_state.animating()) _a_state.start();
 			setCursor(style::cur_pointer);
 		} else {
 			setCursor(style::cur_default);

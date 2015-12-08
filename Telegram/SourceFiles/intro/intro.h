@@ -44,10 +44,10 @@ public:
 	void updateWideMode();
 
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
-	bool animStep_show(float64 ms);
-	void animStop_show();
+	void step_show(float64 ms, bool timer);
+	void stop_show();
 		
-	bool animStep_stage(float64 ms);
+	void step_stage(float64 ms, bool timer);
 
 	QRect innerRect() const;
 	QString currentCountry() const;
@@ -108,7 +108,6 @@ private:
 	anim::ivalue a_coordUnder, a_coordOver;
 	anim::fvalue a_shadow;
 
-	Window *wnd;
 	IntroSteps *steps;
 	IntroPhone *phone;
 	IntroCode *code;

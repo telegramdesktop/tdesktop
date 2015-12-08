@@ -38,6 +38,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
 , a_over(0)
+, _a_appearance(animation(this, &TopBarWidget::step_appearance))
 , _selPeer(0)
 , _selCount(0)
 , _canDelete(false)
@@ -147,35 +148,33 @@ void TopBarWidget::onDeleteAndExitSure() {
 
 void TopBarWidget::enterEvent(QEvent *e) {
 	a_over.start(1);
-	anim::start(this);
+	_a_appearance.start();
 }
 
 void TopBarWidget::enterFromChildEvent(QEvent *e) {
 	a_over.start(1);
-	anim::start(this);
+	_a_appearance.start();
 }
 
 void TopBarWidget::leaveEvent(QEvent *e) {
 	a_over.start(0);
-	anim::start(this);
+	_a_appearance.start();
 }
 
 void TopBarWidget::leaveToChildEvent(QEvent *e) {
 	a_over.start(0);
-	anim::start(this);
+	_a_appearance.start();
 }
 
-bool TopBarWidget::animStep(float64 ms) {
+void TopBarWidget::step_appearance(float64 ms, bool timer) {
 	float64 dt = ms / st::topBarDuration;
-	bool res = true;
 	if (dt >= 1) {
+		_a_appearance.stop();
 		a_over.finish();
-		res = false;
 	} else {
 		a_over.update(dt, anim::linear);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 void TopBarWidget::paintEvent(QPaintEvent *e) {
@@ -383,7 +382,7 @@ MainWidget::MainWidget(Window *window) : TWidget(window)
 , _started(0)
 , failedObjId(0)
 , _toForwardNameVersion(0)
-, _a_show(animFunc(this, &MainWidget::animStep_show))
+, _a_show(animation(this, &MainWidget::step_show))
 , _dialogsWidth(st::dlgMinWidth)
 , dialogs(this)
 , history(this)
@@ -422,7 +421,7 @@ MainWidget::MainWidget(Window *window) : TWidget(window)
 	_ptsWaiter.setRequesting(true);
 	updateScrollColors();
 
-	connect(window, SIGNAL(resized(const QSize&)), this, SLOT(onParentResize(const QSize&)));
+	connect(App::wnd(), SIGNAL(resized(const QSize&)), this, SLOT(onParentResize(const QSize&)));
 	connect(&dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
 	connect(&history, SIGNAL(cancelled()), &dialogs, SLOT(activate()));
 	connect(this, SIGNAL(peerPhotoChanged(PeerData*)), this, SIGNAL(dialogsUpdated()));
@@ -2676,13 +2675,11 @@ void MainWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 	show();
 }
 
-bool MainWidget::animStep_show(float64 ms) {
+void MainWidget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
-	bool res = true;
 	if (dt >= 1) {
 		_a_show.stop();
 
-		res = false;
 		a_coordUnder.finish();
 		a_coordOver.finish();
 		a_shadow.finish();
@@ -2698,8 +2695,7 @@ bool MainWidget::animStep_show(float64 ms) {
 		a_coordOver.update(dt, st::slideFunction);
 		a_shadow.update(dt, st::slideFunction);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 void MainWidget::animStop_show() {

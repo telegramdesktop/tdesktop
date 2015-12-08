@@ -59,7 +59,7 @@ private:
 
 };
 
-class NotifyWindow : public QWidget, public Animated {
+class NotifyWindow : public TWidget {
 	Q_OBJECT
 
 public:
@@ -71,7 +71,7 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void paintEvent(QPaintEvent *e);
 
-	bool animStep(float64 ms);
+	void step_appearance(float64 ms, bool timer);
 	void animHide(float64 duration, anim::transition func);
 	void startHiding();
 	void stopHiding();
@@ -111,9 +111,11 @@ private:
 	QTimer hideTimer, inputTimer;
 	bool hiding;
 	int32 _index;
-	anim::fvalue aOpacity;
-	anim::transition aOpacityFunc;
-	anim::ivalue aY;
+	anim::fvalue a_opacity;
+	anim::transition a_func;
+	anim::ivalue a_y;
+	Animation _a_appearance;
+
 	ImagePtr peerPhoto;
 
 };

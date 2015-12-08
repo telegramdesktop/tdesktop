@@ -24,8 +24,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include <QtCore/QTimer>
 #include <QtGui/QColor>
 
-class Animated;
-
 namespace anim {
 
 	typedef float64 (*transition)(const float64 &delta, const float64 &dt);
@@ -187,216 +185,203 @@ namespace anim {
 		float64 _from_r, _from_g, _from_b, _from_a, _delta_r, _delta_g, _delta_b, _delta_a;
 	};
 
-	void start(Animated *obj);
-	void step(Animated *obj);
-	void stop(Animated *obj);
-
 	void startManager();
 	void stopManager();
 
 };
 
-class Animated {
+class Animation;
+
+class AnimationCallbacks {
+public:
+	virtual void start() {
+	}
+
+	virtual void step(Animation *a, uint64 ms, bool timer) = 0;
+
+	virtual ~AnimationCallbacks() {
+	}
+};
+
+class Animation {
 public:
 
-	Animated() : animStarted(0), animInProcess(false) {
+	Animation(AnimationCallbacks *cb) : _cb(cb), _animating(false) {
 	}
 
-	virtual bool animStep(float64 ms) = 0;
+	void start();
+	void stop();
 
-	void animReset() {
-		animStarted = float64(getms());
+	void step(uint64 ms, bool timer = false) {
+		_cb->step(this, ms, timer);
 	}
 
-	virtual ~Animated() {
-		if (animating()) {
-			anim::stop(this);
-		}
+	void step() {
+		step(getms(), false);
 	}
 
 	bool animating() const {
-		return animInProcess;
-	}
-
-private:
-
-	float64 animStarted;
-	bool animInProcess;
-	friend class AnimationManager;
-
-};
-
-class AnimationFunc {
-public:
-	virtual bool animStep(float64 ms) = 0;
-	virtual ~AnimationFunc() {
-	}
-};
-
-template <typename Type>
-class AnimationFuncOwned : public AnimationFunc {
-public:
-	typedef bool (Type::*Method)(float64);
-
-	AnimationFuncOwned(Type *obj, Method method) : _obj(obj), _method(method) {
-	}
-
-	bool animStep(float64 ms) {
-		return (_obj->*_method)(ms);
-	}
-	
-private:
-	Type *_obj;
-	Method _method;
-	
-};
-
-template <typename Type>
-AnimationFunc *animFunc(Type *obj, typename AnimationFuncOwned<Type>::Method method) {
-	return new AnimationFuncOwned<Type>(obj, method);
-}
-
-class Animation : public Animated {
-public:
-
-	Animation(AnimationFunc *func) : _func(func) {
-	}
-
-	void start() {
-		anim::start(this);
-	}
-	void stop() {
-		anim::stop(this);
-	}
-
-	//Animation
-	bool animStep(float64 ms) {
-		return _func->animStep(ms);
+		return _animating;
 	}
 
 	~Animation() {
-		delete _func;
+		if (_animating) stop();
+		delete _cb;
 	}
 
 private:
-	AnimationFunc *_func;
+	AnimationCallbacks *_cb;
+	bool _animating;
 
 };
+
+template <typename Type>
+class AnimationCallbacksRelative : public AnimationCallbacks {
+public:
+	typedef void (Type::*Method)(float64, bool);
+
+	AnimationCallbacksRelative(Type *obj, Method method) : _started(0), _obj(obj), _method(method) {
+	}
+
+	void start() {
+		_started = float64(getms());
+	}
+
+	void step(Animation *a, uint64 ms, bool timer) {
+		(_obj->*_method)(ms - _started, timer);
+	}
+
+private:
+	float64 _started;
+	Type *_obj;
+	Method _method;
+
+};
+template <typename Type>
+AnimationCallbacks *animation(Type *obj, typename AnimationCallbacksRelative<Type>::Method method) {
+	return new AnimationCallbacksRelative<Type>(obj, method);
+}
+
+template <typename Type>
+class AnimationCallbacksAbsolute : public AnimationCallbacks {
+public:
+	typedef void (Type::*Method)(uint64, bool);
+
+	AnimationCallbacksAbsolute(Type *obj, Method method) : _obj(obj), _method(method) {
+	}
+
+	void step(Animation *a, uint64 ms, bool timer) {
+		(_obj->*_method)(ms, timer);
+	}
+
+private:
+	Type *_obj;
+	Method _method;
+
+};
+template <typename Type>
+AnimationCallbacks *animation(Type *obj, typename AnimationCallbacksAbsolute<Type>::Method method) {
+	return new AnimationCallbacksAbsolute<Type>(obj, method);
+}
 
 class AnimationManager : public QObject {
 Q_OBJECT
 
 public:
 
-	AnimationManager() : timer(this), iterating(false) {
-		timer.setSingleShot(false);
-		connect(&timer, SIGNAL(timeout()), this, SLOT(timeout()));
+	AnimationManager() : _timer(this), _iterating(false) {
+		_timer.setSingleShot(false);
+		connect(&_timer, SIGNAL(timeout()), this, SLOT(timeout()));
 	}
 
-	void start(Animated *obj) {
-		obj->animReset();
-		if (iterating) {
-			toStart.insert(obj);
-			if (!toStop.isEmpty()) {
-				toStop.remove(obj);
+	void start(Animation *obj) {
+		if (_iterating) {
+			_starting.insert(obj, NullType());
+			if (!_stopping.isEmpty()) {
+				_stopping.remove(obj);
 			}
 		} else {
-			if (!objs.size()) {
-				timer.start(AnimationTimerDelta);
+			if (_objects.isEmpty()) {
+				_timer.start(AnimationTimerDelta);
 			}
-			objs.insert(obj);
-		}
-		obj->animInProcess = true;
-	}
-
-	void step(Animated *obj) {
-		if (iterating) return;
-
-		float64 ms = float64(getms());
-		AnimObjs::iterator i = objs.find(obj);
-		if (i != objs.cend()) {
-			Animated *obj = *i;
-			if (!obj->animStep(ms - obj->animStarted)) {
-				objs.erase(i);
-				if (!objs.size()) {
-					timer.stop();
-				}
-				obj->animInProcess = false;
-			}
+			_objects.insert(obj, NullType());
 		}
 	}
 
-	void stop(Animated *obj) {
-		if (iterating) {
-			toStop.insert(obj);
-			if (!toStart.isEmpty()) {
-				toStart.insert(obj);
+	void stop(Animation *obj) {
+		if (_iterating) {
+			_stopping.insert(obj, NullType());
+			if (!_starting.isEmpty()) {
+				_starting.insert(obj, NullType());
 			}
 		} else {
-			AnimObjs::iterator i = objs.find(obj);
-			if (i != objs.cend()) {
-				objs.erase(i);
-				if (!objs.size()) {
-					timer.stop();
+			AnimatingObjects::iterator i = _objects.find(obj);
+			if (i != _objects.cend()) {
+				_objects.erase(i);
+				if (_objects.isEmpty()) {
+					_timer.stop();
 				}
 			}
 		}
-		obj->animInProcess = false;
 	}
 
 public slots:
+
 	void timeout() {
-		iterating = true;
-		float64 ms = float64(getms());
-		for (AnimObjs::iterator i = objs.begin(), e = objs.end(); i != e; ) {
-			Animated *obj = *i;
-			if (!obj->animStep(ms - obj->animStarted)) {
-				i = objs.erase(i);
-				obj->animInProcess = false;
-			} else {
-				++i;
-			}
+		_iterating = true;
+		uint64 ms = getms();
+		for (AnimatingObjects::const_iterator i = _objects.begin(), e = _objects.end(); i != e; ++i) {
+			i.key()->step(ms, true);
 		}
-		iterating = false;
-		if (!toStart.isEmpty()) {
-			for (AnimObjs::iterator i = toStart.begin(), e = toStart.end(); i != e; ++i) {
-				objs.insert(*i);
+		_iterating = false;
+
+		if (!_starting.isEmpty()) {
+			for (AnimatingObjects::iterator i = _starting.begin(), e = _starting.end(); i != e; ++i) {
+				_objects.insert(i.key(), NullType());
 			}
-			toStart.clear();
+			_starting.clear();
 		}
-		if (!toStop.isEmpty()) {
-			for (AnimObjs::iterator i = toStop.begin(), e = toStop.end(); i != e; ++i) {
-				objs.remove(*i);
+		if (!_stopping.isEmpty()) {
+			for (AnimatingObjects::iterator i = _stopping.begin(), e = _stopping.end(); i != e; ++i) {
+				_objects.remove(i.key());
 			}
-			toStop.clear();
+			_stopping.clear();
 		}
-		if (!objs.size()) {
-			timer.stop();
+		if (!_objects.size()) {
+			_timer.stop();
 		}
 	}
 
 private:
 
-	typedef QSet<Animated*> AnimObjs;
-	AnimObjs objs;
-	AnimObjs toStart;
-	AnimObjs toStop;
-	QTimer timer;
-	bool iterating;
+	typedef QMap<Animation*, NullType> AnimatingObjects;
+	AnimatingObjects _objects, _starting, _stopping;
+	QTimer _timer;
+	bool _iterating;
 
 };
 
 class HistoryItem;
 class FileLocation;
-class AnimatedGif : public QObject, public Animated {
+class AnimatedGif : public QObject {
 	Q_OBJECT
 
 public:
 
-	AnimatedGif() : msg(0), file(0), access(false), reader(0), w(0), h(0), frame(0), framesCount(0), duration(0) {
+	AnimatedGif() : QObject()
+		, msg(0)
+		, file(0)
+		, access(false)
+		, reader(0)
+		, w(0)
+		, h(0)
+		, frame(0)
+		, framesCount(0)
+		, duration(0)
+		, _a_frames(animation(this, &AnimatedGif::step_frame)) {
 	}
 
-	bool animStep(float64 ms);
+	void step_frame(float64 ms, bool timer);
 
 	void start(HistoryItem *row, const FileLocation &file);
 	void stop(bool onItemRemoved = false);
@@ -430,4 +415,7 @@ private:
 	QVector<QImage> images;
 	QVector<int64> delays;
 	int32 framesCount, duration;
+
+	Animation _a_frames;
+
 };

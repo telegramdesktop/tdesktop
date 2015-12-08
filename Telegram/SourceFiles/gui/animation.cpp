@@ -26,7 +26,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "window.h"
 
 namespace {
-	AnimationManager *manager = 0;
+	AnimationManager *_manager = 0;
 };
 
 namespace anim {
@@ -78,34 +78,34 @@ namespace anim {
 		return delta * (t2 * t2 * t + 1);
 	}
 
-	void start(Animated *obj) {
-		if (!manager) return;
-		manager->start(obj);
-	}
-
-	void step(Animated *obj) {
-		if (!manager) return;
-		manager->step(obj);
-	}
-
-	void stop(Animated *obj) {
-		if (!manager) return;
-		manager->stop(obj);
-	}
-
 	void startManager() {
-		delete manager;
-		manager = new AnimationManager();
+		delete _manager;
+		_manager = new AnimationManager();
 	}
 
 	void stopManager() {
-		delete manager;
-		manager = 0;
+		delete _manager;
+		_manager = 0;
 	}
 
 }
 
-bool AnimatedGif::animStep(float64 ms) {
+void Animation::start() {
+	if (!_manager) return;
+
+	_cb->start();
+	_manager->start(this);
+	_animating = true;
+}
+
+void Animation::stop() {
+	if (!_manager) return;
+
+	_animating = false;
+	_manager->stop(this);
+}
+
+void AnimatedGif::step_frame(float64 ms, bool timer) {
 	int32 f = frame;
 	while (f < images.size() && ms > delays[f]) {
 		++f;
@@ -152,13 +152,14 @@ bool AnimatedGif::animStep(float64 ms) {
 	}
 	if (frame != f) {
 		frame = f;
-		if (msg && App::main()) {
-			App::main()->msgUpdated(msg);
-		} else {
-			emit updated();
+		if (timer) {
+			if (msg && App::main()) {
+				App::main()->msgUpdated(msg);
+			} else {
+				emit updated();
+			}
 		}
 	}
-	return true;
 }
 
 void AnimatedGif::start(HistoryItem *row, const FileLocation &f) {
@@ -205,7 +206,7 @@ void AnimatedGif::start(HistoryItem *row, const FileLocation &f) {
 
 	msg = row;
 
-	anim::start(this);
+	_a_frames.start();
 	if (msg) {
 		msg->initDimensions();
 		if (App::main()) App::main()->itemResized(msg, true);
@@ -233,7 +234,7 @@ void AnimatedGif::stop(bool onItemRemoved) {
 	delays.clear();
 	w = h = frame = framesCount = duration = 0;
 
-	anim::stop(this);
+	_a_frames.stop();
 	if (row && !onItemRemoved) {
 		row->initDimensions();
 		if (App::main()) App::main()->itemResized(row, true);

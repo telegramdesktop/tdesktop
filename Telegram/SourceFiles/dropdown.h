@@ -23,7 +23,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "gui/twidget.h"
 #include "gui/boxshadow.h"
 
-class Dropdown : public TWidget, public Animated {
+class Dropdown : public TWidget {
 	Q_OBJECT
 
 public:
@@ -46,12 +46,12 @@ public:
 	void fastHide();
 	void ignoreShow(bool ignore = true);
 
-	bool animStep(float64 ms);
+	void step_appearance(float64 ms, bool timer);
 
 	bool eventFilter(QObject *obj, QEvent *e);
 
 	bool overlaps(const QRect &globalRect) {
-		if (isHidden() || animating()) return false;
+		if (isHidden() || _a_appearance.animating()) return false;
 
 		return QRect(_st.padding.left(),
 					 _st.padding.top(),
@@ -91,6 +91,7 @@ private:
 	bool _hiding;
 
 	anim::fvalue a_opacity;
+	Animation _a_appearance;
 
 	QTimer _hideTimer;
 
@@ -98,7 +99,7 @@ private:
 
 };
 
-class DragArea : public TWidget, public Animated {
+class DragArea : public TWidget {
 	Q_OBJECT
 
 public:
@@ -119,10 +120,10 @@ public:
 
 	void fastHide();
 
-	bool animStep(float64 ms);
+	void step_appearance(float64 ms, bool timer);
 
 	bool overlaps(const QRect &globalRect) {
-		if (isHidden() || animating()) return false;
+		if (isHidden() || _a_appearance.animating()) return false;
 
 		return QRect(st::dragPadding.left(),
 					 st::dragPadding.top(),
@@ -148,6 +149,7 @@ private:
 
 	anim::fvalue a_opacity;
 	anim::cvalue a_color;
+	Animation _a_appearance;
 
 	BoxShadow _shadow;
 
@@ -158,7 +160,7 @@ private:
 class EmojiPanel;
 static const int EmojiColorsCount = 5;
 
-class EmojiColorPicker : public TWidget, public Animated {
+class EmojiColorPicker : public TWidget {
 	Q_OBJECT
 
 public:
@@ -174,7 +176,8 @@ public:
 	void mouseReleaseEvent(QMouseEvent *e);
 	void mouseMoveEvent(QMouseEvent *e);
 
-	bool animStep(float64 ms);
+	void step_appearance(float64 ms, bool timer);
+	void step_selected(uint64 ms, bool timer);
 	void showStart();
 
 	void clearSelection(bool fast = false);
@@ -200,6 +203,7 @@ private:
 
 	typedef QMap<int32, uint64> EmojiAnimations; // index - showing, -index - hiding
 	EmojiAnimations _emojiAnimations;
+	Animation _a_selected;
 
 	float64 _hovers[EmojiColorsCount + 1];
 
@@ -210,6 +214,7 @@ private:
 	QPixmap _cache;
 
 	anim::fvalue a_opacity;
+	Animation _a_appearance;
 
 	QTimer _hideTimer;
 
@@ -217,7 +222,7 @@ private:
 
 };
 
-class EmojiPanInner : public TWidget, public Animated {
+class EmojiPanInner : public TWidget {
 	Q_OBJECT
 
 public:
@@ -234,7 +239,7 @@ public:
 	void leaveToChildEvent(QEvent *e);
 	void enterFromChildEvent(QEvent *e);
 
-	bool animStep(float64 ms);
+	void step_selected(uint64 ms, bool timer);
 	void hideFinish();
 
 	void showEmojiPack(DBIEmojiTab packIndex);
@@ -283,6 +288,7 @@ private:
 
 	typedef QMap<int32, uint64> Animations; // index - showing, -index - hiding
 	Animations _animations;
+	Animation _a_selected;
 
 	int32 _top, _counts[emojiTabCount];
 
@@ -310,7 +316,7 @@ struct StickerIcon {
 	int32 pixw, pixh;
 };
 
-class StickerPanInner : public TWidget, public Animated {
+class StickerPanInner : public TWidget {
 	Q_OBJECT
 
 public:
@@ -327,7 +333,7 @@ public:
 	void leaveToChildEvent(QEvent *e);
 	void enterFromChildEvent(QEvent *e);
 
-	bool animStep(float64 ms);
+	void step_selected(uint64 ms, bool timer);
 
 	void showStickerSet(uint64 setId);
 
@@ -376,6 +382,7 @@ private:
 
 	typedef QMap<int32, uint64> Animations; // index - showing, -index - hiding
 	Animations _animations;
+	Animation _a_selected;
 
 	int32 _top;
 
@@ -454,7 +461,7 @@ protected:
 
 };
 
-class EmojiPan : public TWidget, public Animated {
+class EmojiPan : public TWidget {
 	Q_OBJECT
 
 public:
@@ -480,9 +487,9 @@ public:
 		return _hiding || _hideTimer.isActive();
 	}
 
-	bool animStep(float64 ms);
-
-	bool iconAnim(float64 ms);
+	void step_appearance(float64 ms, bool timer);
+	void step_slide(float64 ms, bool timer);
+	void step_icons(uint64 ms, bool timer);
 
 	bool eventFilter(QObject *obj, QEvent *e);
 	void stickersInstalled(uint64 setId);
@@ -547,6 +554,7 @@ private:
 	QPixmap _cache;
 
 	anim::fvalue a_opacity;
+	Animation _a_appearance;
 
 	QTimer _hideTimer;
 
@@ -559,7 +567,7 @@ private:
 	bool _iconsDragging;
 	typedef QMap<int32, uint64> Animations; // index - showing, -index - hiding
 	Animations _iconAnimations;
-	Animation _iconAnim;
+	Animation _a_icons;
 	QPoint _iconsMousePos, _iconsMouseDown;
 	int32 _iconsLeft, _iconsTop;
 	int32 _iconsStartX, _iconsMax;
@@ -570,7 +578,7 @@ private:
 	QPixmap _fromCache, _toCache;
 	anim::ivalue a_fromCoord, a_toCoord;
 	anim::fvalue a_fromAlpha, a_toAlpha;
-	uint64 _moveStart;
+	Animation _a_slide;
 
 	ScrollArea e_scroll;
 	EmojiPanInner e_inner;
@@ -590,7 +598,7 @@ typedef QList<QString> HashtagRows;
 typedef QList<QPair<UserData*, const BotCommand*> > BotCommandRows;
 
 class MentionsDropdown;
-class MentionsInner : public QWidget {
+class MentionsInner : public TWidget {
 	Q_OBJECT
 
 public:
@@ -636,7 +644,7 @@ private:
 	bool _overDelete;
 };
 
-class MentionsDropdown : public TWidget, public Animated {
+class MentionsDropdown : public TWidget {
 	Q_OBJECT
 
 public:
@@ -652,7 +660,7 @@ public:
 	void updateFiltered(bool toDown = false);
 	void setBoundings(QRect boundings);
 
-	bool animStep(float64 ms);
+	void step_appearance(float64 ms, bool timer);
 
 	const QString &filter() const;
 	ChatData *chat() const;
@@ -706,6 +714,7 @@ private:
 	bool _hiding;
 
 	anim::fvalue a_opacity;
+	Animation _a_appearance;
 
 	QTimer _hideTimer;
 

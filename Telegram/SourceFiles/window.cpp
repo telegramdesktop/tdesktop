@@ -82,9 +82,10 @@ NotifyWindow::NotifyWindow(HistoryItem *msg, int32 x, int32 y, int32 fwdCount) :
 , posDuration(st::notifyFastAnim)
 , hiding(false)
 , _index(0)
-, aOpacity(0)
-, aOpacityFunc(st::notifyFastAnimFunc)
-, aY(y + st::notifyHeight + st::notifyDeltaY) {
+, a_opacity(0)
+, a_y(y + st::notifyHeight + st::notifyDeltaY)
+, a_func(anim::linear)
+, _a_appearance(animation(this, &NotifyWindow::step_appearance)) {
 
 	updateNotifyDisplay();
 
@@ -99,19 +100,19 @@ NotifyWindow::NotifyWindow(HistoryItem *msg, int32 x, int32 y, int32 fwdCount) :
 	close.move(st::notifyWidth - st::notifyClose.width - st::notifyClosePos.x(), st::notifyClosePos.y());
 	close.show();
 
-	aY.start(y);
-	setGeometry(x, aY.current(), st::notifyWidth, st::notifyHeight);
+	a_y.start(y);
+	setGeometry(x, a_y.current(), st::notifyWidth, st::notifyHeight);
 
-	aOpacity.start(1);
+	a_opacity.start(1);
     setWindowFlags(Qt::Tool | Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint | Qt::X11BypassWindowManagerHint);
     setAttribute(Qt::WA_MacAlwaysShowToolWindow);
 
 	show();
 
-	setWindowOpacity(aOpacity.current());
+	setWindowOpacity(a_opacity.current());
 
 	alphaDuration = posDuration = st::notifyFastAnim;
-	anim::start(this);
+	_a_appearance.start();
 
 	checkLastInput();
 }
@@ -140,11 +141,11 @@ void NotifyWindow::moveTo(int32 x, int32 y, int32 index) {
 	if (index >= 0) {
 		_index = index;
 	}
-	move(x, aY.current());
-	aY.start(y);
-	aOpacity.restart();
+	move(x, a_y.current());
+	a_y.start(y);
+	a_opacity.restart();
 	posDuration = st::notifyFastAnim;
-	anim::start(this);
+	_a_appearance.start();
 }
 
 void NotifyWindow::updateNotifyDisplay() {
@@ -262,7 +263,7 @@ void NotifyWindow::unlinkHistoryAndNotify() {
 
 void NotifyWindow::unlinkHistory(History *hist) {
 	if (!hist || hist == history) {
-		animHide(st::notifyFastAnim, st::notifyFastAnimFunc);
+		animHide(st::notifyFastAnim, anim::linear);
 		history = 0;
 		item = 0;
 	}
@@ -309,22 +310,22 @@ void NotifyWindow::paintEvent(QPaintEvent *e) {
 void NotifyWindow::animHide(float64 duration, anim::transition func) {
 	if (!history) return;
 	alphaDuration = duration;
-	aOpacityFunc = func;
-	aOpacity.start(0);
-	aY.restart();
+	a_func = func;
+	a_opacity.start(0);
+	a_y.restart();
 	hiding = true;
-	anim::start(this);
+	_a_appearance.start();
 }
 
 void NotifyWindow::stopHiding() {
 	if (!history) return;
 	alphaDuration = st::notifyFastAnim;
-	aOpacityFunc = st::notifyFastAnimFunc;
-	aOpacity.start(1);
-	aY.restart();
+	a_func = anim::linear;
+	a_opacity.start(1);
+	a_y.restart();
 	hiding = false;
 	hideTimer.stop();
-	anim::start(this);
+	_a_appearance.start();
 }
 
 void NotifyWindow::hideByTimer() {
@@ -332,25 +333,27 @@ void NotifyWindow::hideByTimer() {
 	animHide(st::notifySlowHide, st::notifySlowHideFunc);
 }
 
-bool NotifyWindow::animStep(float64 ms) {
+void NotifyWindow::step_appearance(float64 ms, bool timer) {
 	float64 dtAlpha = ms / alphaDuration, dtPos = ms / posDuration;
 	if (dtAlpha >= 1) {
-		aOpacity.finish();
+		a_opacity.finish();
 		if (hiding) {
+			_a_appearance.stop();
 			deleteLater();
+		} else if (dtPos >= 1) {
+			_a_appearance.stop();
 		}
 	} else {
-		aOpacity.update(dtAlpha, aOpacityFunc);
+		a_opacity.update(dtAlpha, a_func);
 	}
-	setWindowOpacity(aOpacity.current());
+	setWindowOpacity(a_opacity.current());
 	if (dtPos >= 1) {
-		aY.finish();
+		a_y.finish();
 	} else {
-		aY.update(dtPos, anim::linear);
+		a_y.update(dtPos, anim::linear);
 	}
-	move(x(), aY.current());
+	move(x(), a_y.current());
 	update();
-	return (dtAlpha < 1 || (!hiding && dtPos < 1));
 }
 
 NotifyWindow::~NotifyWindow() {
@@ -481,7 +484,7 @@ void Window::clearWidgets() {
 		_passcode = 0;
 	}
 	if (settings) {
-		settings->animStop_show();
+		settings->stop_show();
 		settings->hide();
 		settings->deleteLater();
 		settings->rpcInvalidate();
@@ -495,7 +498,7 @@ void Window::clearWidgets() {
 		main = 0;
 	}
 	if (intro) {
-		intro->animStop_show();
+		intro->stop_show();
 		intro->hide();
 		intro->deleteLater();
 		intro->rpcInvalidate();
@@ -524,7 +527,7 @@ void Window::clearPasscode() {
 
 	QPixmap bg = grabInner();
 
-	_passcode->animStop_show();
+	_passcode->stop_show();
 	_passcode->hide();
 	_passcode->deleteLater();
 	_passcode = 0;
@@ -544,7 +547,7 @@ void Window::setupPasscode(bool anim) {
 	QPixmap bg = grabInner();
 
 	if (_passcode) {
-		_passcode->animStop_show();
+		_passcode->stop_show();
 		_passcode->hide();
 		_passcode->deleteLater();
 	}
@@ -686,7 +689,7 @@ void Window::showSettings() {
 	QPixmap bg = grabInner();
 
 	if (intro) {
-		intro->animStop_show();
+		intro->stop_show();
 		intro->hide();
 	} else if (main) {
 		main->animStop_show();
@@ -703,7 +706,7 @@ void Window::hideSettings(bool fast) {
 	if (!settings || _passcode) return;
 
 	if (fast) {
-		settings->animStop_show();
+		settings->stop_show();
 		settings->hide();
 		settings->deleteLater();
 		settings->rpcInvalidate();
@@ -716,7 +719,7 @@ void Window::hideSettings(bool fast) {
 	} else {
 		QPixmap bg = grabInner();
 
-		settings->animStop_show();
+		settings->stop_show();
 		settings->hide();
 		settings->deleteLater();
 		settings->rpcInvalidate();

@@ -32,7 +32,7 @@ struct DialogRow;
 class MainWidget;
 class ConfirmBox;
 
-class TopBarWidget : public TWidget, public Animated {
+class TopBarWidget : public TWidget {
 	Q_OBJECT
 
 public:
@@ -47,7 +47,7 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
-	bool animStep(float64 ms);
+	void step_appearance(float64 ms, bool timer);
 	void enableShadow(bool enable = true);
 
 	void startAnim();
@@ -87,6 +87,7 @@ private:
 
 	MainWidget *main();
 	anim::fvalue a_over;
+	Animation _a_appearance;
 
 	PeerData *_selPeer;
 	uint32 _selCount;
@@ -202,7 +203,7 @@ public:
 	int32 contentScrollAddToY() const;
 
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
-	bool animStep_show(float64 ms);
+	void step_show(float64 ms, bool timer);
 	void animStop_show();
 
 	void start(const MTPUser &user);

@@ -64,7 +64,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "gui/flatbutton.h"
 #include "gui/boxshadow.h"
 #include "gui/popupmenu.h"
-#include "gui/switcher.h"
 #include "gui/scrollarea.h"
 #include "gui/images.h"
 #include "gui/text.h"

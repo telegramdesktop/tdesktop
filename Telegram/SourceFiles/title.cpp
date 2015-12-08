@@ -49,23 +49,23 @@ void TitleHider::setLevel(float64 level) {
 	update();
 }
 
-TitleWidget::TitleWidget(Window *window)
-	: QWidget(window)
-	, wnd(window)
-    , hideLevel(0)
-    , hider(0)
-	, _back(this, st::titleBackButton, lang(lng_menu_back))
-	, _cancel(this, lang(lng_cancel), st::titleTextButton)
-	, _settings(this, lang(lng_menu_settings), st::titleTextButton)
-	, _contacts(this, lang(lng_menu_contacts), st::titleTextButton)
-	, _about(this, lang(lng_menu_about), st::titleTextButton)
-	, _lock(this, window)
-	, _update(this, window, lang(lng_menu_update))
-	, _minimize(this, window)
-	, _maximize(this, window)
-	, _restore(this, window)
-	, _close(this, window)
-    , lastMaximized(!(window->windowState() & Qt::WindowMaximized))
+TitleWidget::TitleWidget(Window *window) : TWidget(window)
+, wnd(window)
+, hideLevel(0)
+, hider(0)
+, _back(this, st::titleBackButton, lang(lng_menu_back))
+, _cancel(this, lang(lng_cancel), st::titleTextButton)
+, _settings(this, lang(lng_menu_settings), st::titleTextButton)
+, _contacts(this, lang(lng_menu_contacts), st::titleTextButton)
+, _about(this, lang(lng_menu_about), st::titleTextButton)
+, _lock(this, window)
+, _update(this, window, lang(lng_menu_update))
+, _minimize(this, window)
+, _maximize(this, window)
+, _restore(this, window)
+, _close(this, window)
+, _a_update(animation(this, &TitleWidget::step_update))
+, lastMaximized(!(window->windowState() & Qt::WindowMaximized))
 {
 	setGeometry(0, 0, wnd->width(), st::titleHeight);
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -110,11 +110,10 @@ void TitleWidget::paintEvent(QPaintEvent *e) {
 	}
 }
 
-bool TitleWidget::animStep(float64 ms) {
+void TitleWidget::step_update(float64 ms, bool timer) {
 	float64 phase = sin(M_PI_2 * (ms / st::updateBlinkDuration));
 	if (phase < 0) phase = -phase;
 	_update.setOverLevel(phase);
-	return true;
 }
 
 void TitleWidget::setHideLevel(float64 level) {
@@ -332,7 +331,7 @@ void TitleWidget::showUpdateBtn() {
 		_restore.hide();
 		_maximize.hide();
 		_close.hide();
-		anim::start(this);
+		_a_update.start();
 	} else {
 		_update.hide();
 		if (cPlatform() == dbipWindows) {
@@ -340,7 +339,7 @@ void TitleWidget::showUpdateBtn() {
 			maximizedChanged(lastMaximized, true);
 			_close.show();
 		}
-		anim::stop(this);
+		_a_update.stop();
 	}
 	resizeEvent(0);
 	update();

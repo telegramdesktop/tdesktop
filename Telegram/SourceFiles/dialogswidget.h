@@ -242,7 +242,7 @@ public:
 	void dialogsToUp();
 
 	void animShow(const QPixmap &bgAnimCache);
-	bool animStep_show(float64 ms);
+	void step_show(float64 ms, bool timer);
 
 	void destroyData();
 

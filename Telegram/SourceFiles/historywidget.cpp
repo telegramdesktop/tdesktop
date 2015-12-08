@@ -1945,8 +1945,16 @@ void ReportSpamPanel::setReported(bool reported, PeerData *onPeer) {
 	update();
 }
 
-BotKeyboard::BotKeyboard() : _height(0), _maxOuterHeight(0), _maximizeSize(false), _singleUse(false), _forceReply(false),
-_sel(-1), _down(-1), _hoverAnim(animFunc(this, &BotKeyboard::hoverStep)), _st(&st::botKbButton) {
+BotKeyboard::BotKeyboard() : TWidget()
+, _height(0)
+, _maxOuterHeight(0)
+, _maximizeSize(false)
+, _singleUse(false)
+, _forceReply(false)
+, _sel(-1)
+, _down(-1)
+, _a_selected(animation(this, &BotKeyboard::step_selected))
+, _st(&st::botKbButton) {
 	setGeometry(0, 0, _st->margin, _st->margin);
 	_height = _st->margin;
 	setMouseTracking(true);
@@ -2124,11 +2132,10 @@ bool BotKeyboard::forceReply() const {
 	return _forceReply;
 }
 
-bool BotKeyboard::hoverStep(float64 ms) {
-	uint64 now = getms();
+void  BotKeyboard::step_selected(uint64 ms, bool timer) {
 	for (Animations::iterator i = _animations.begin(); i != _animations.end();) {
 		int index = qAbs(i.key()) - 1, row = (index / MatrixRowShift), col = index % MatrixRowShift;
-		float64 dt = float64(now - i.value()) / st::botKbDuration;
+		float64 dt = float64(ms - i.value()) / st::botKbDuration;
 		if (dt >= 1) {
 			_btns[row][col].hover = (i.key() > 0) ? 1 : 0;
 			i = _animations.erase(i);
@@ -2137,8 +2144,10 @@ bool BotKeyboard::hoverStep(float64 ms) {
 			++i;
 		}
 	}
-	update();
-	return !_animations.isEmpty();
+	if (timer) update();
+	if (_animations.isEmpty()) {
+		_a_selected.stop();
+	}
 }
 
 void BotKeyboard::resizeToWidth(int32 width, int32 maxOuterHeight) {
@@ -2183,7 +2192,7 @@ void BotKeyboard::clearSelection() {
 		_btns[row][col].hover = 0;
 	}
 	_animations.clear();
-	_hoverAnim.stop();
+	_a_selected.stop();
 	if (_sel >= 0) {
 		int row = (_sel / MatrixRowShift), col = _sel % MatrixRowShift;
 		_btns[row][col].hover = 0;
@@ -2246,7 +2255,7 @@ void BotKeyboard::updateSelected() {
 				_animations.insert(_sel + 1, getms());
 			}
 		}
-		if (startanim) _hoverAnim.start();
+		if (startanim && !_a_selected.animating()) _a_selected.start();
 	}
 }
 
@@ -2258,11 +2267,11 @@ HistoryHider::HistoryHider(MainWidget *parent, bool forwardSelected) : TWidget(p
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , offered(0)
 , a_opacity(0, 1)
+, _a_appearance(animation(this, &HistoryHider::step_appearance))
 , hiding(false)
 , _forwardRequest(0)
 , toTextWidth(0)
-, shadow(st::boxShadow)
-{
+, shadow(st::boxShadow) {
 	init();
 }
 
@@ -2274,11 +2283,11 @@ HistoryHider::HistoryHider(MainWidget *parent, UserData *sharedContact) : TWidge
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , offered(0)
 , a_opacity(0, 1)
+, _a_appearance(animation(this, &HistoryHider::step_appearance))
 , hiding(false)
 , _forwardRequest(0)
 , toTextWidth(0)
-, shadow(st::boxShadow)
-{
+, shadow(st::boxShadow) {
 	init();
 }
 
@@ -2290,11 +2299,11 @@ HistoryHider::HistoryHider(MainWidget *parent) : TWidget(parent)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , offered(0)
 , a_opacity(0, 1)
+, _a_appearance(animation(this, &HistoryHider::step_appearance))
 , hiding(false)
 , _forwardRequest(0)
 , toTextWidth(0)
-, shadow(st::boxShadow)
-{
+, shadow(st::boxShadow) {
 	init();
 }
 
@@ -2308,11 +2317,11 @@ HistoryHider::HistoryHider(MainWidget *parent, const QString &url, const QString
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , offered(0)
 , a_opacity(0, 1)
+, _a_appearance(animation(this, &HistoryHider::step_appearance))
 , hiding(false)
 , _forwardRequest(0)
 , toTextWidth(0)
-, shadow(st::boxShadow)
-{
+, shadow(st::boxShadow) {
 	init();
 }
 
@@ -2324,24 +2333,22 @@ void HistoryHider::init() {
 	_chooseWidth = st::forwardFont->width(lang(lng_forward_choose));
 
 	resizeEvent(0);
-	anim::start(this);
+	_a_appearance.start();
 }
 
-bool HistoryHider::animStep(float64 ms) {
+void HistoryHider::step_appearance(float64 ms, bool timer) {
 	float64 dt = ms / 200;
-	bool res = true;
 	if (dt >= 1) {
+		_a_appearance.stop();
 		a_opacity.finish();
 		if (hiding)	{
 			QTimer::singleShot(0, this, SLOT(deleteLater()));
 		}
-		res = false;
 	} else {
 		a_opacity.update(dt, anim::linear);
 	}
 	App::wnd()->getTitle()->setHideLevel(a_opacity.current());
-	update();
-	return res;
+	if (timer) update();
 }
 
 bool HistoryHider::withConfirm() const {
@@ -2411,7 +2418,7 @@ void HistoryHider::startHide() {
 		a_opacity.start(0);
 		_send.hide();
 		_cancel.hide();
-		anim::start(this);
+		_a_appearance.start();
 	} else {
 		QTimer::singleShot(0, this, SLOT(deleteLater()));
 	}
@@ -2581,8 +2588,8 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _broadcast(this, QString(), true, st::broadcastToggle)
 , _cmdStartShown(false)
 , _field(this, st::taMsgField, lang(lng_message_ph))
-, _recordAnim(animFunc(this, &HistoryWidget::recordStep))
-, _recordingAnim(animFunc(this, &HistoryWidget::recordingStep))
+, _a_record(animation(this, &HistoryWidget::step_record))
+, _a_recording(animation(this, &HistoryWidget::step_recording))
 , _recording(false), _inRecord(false), _inField(false), _inReply(false)
 , a_recordingLevel(0, 0), _recordingSamples(0)
 , a_recordOver(0, 0), a_recordDown(0, 0), a_recordCancel(st::recordCancel->c, st::recordCancel->c)
@@ -2601,7 +2608,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _serviceImageCacheSize(0)
 , _confirmWithTextId(0)
 , _titlePeerTextWidth(0)
-, _a_show(animFunc(this, &HistoryWidget::animStep_show))
+, _a_show(animation(this, &HistoryWidget::step_show))
 , _scrollDelta(0)
 , _saveDraftStart(0)
 , _saveDraftText(false)
@@ -2756,7 +2763,7 @@ void HistoryWidget::onTextChange() {
 		} else if (!_field.isHidden() && _send.isHidden()) {
 			_send.show();
 			setMouseTracking(false);
-			_recordAnim.stop();
+			_a_record.stop();
 			_inRecord = _inField = false;
 			a_recordOver = a_recordDown = anim::fvalue(0, 0);
 			a_recordCancel = anim::cvalue(st::recordCancel->c, st::recordCancel->c);
@@ -2921,7 +2928,7 @@ void HistoryWidget::onRecordUpdate(qint16 level, qint32 samples) {
 	}
 
 	a_recordingLevel.start(level);
-	_recordingAnim.start();
+	_a_recording.start();
 	_recordingSamples = samples;
 	if (samples < 0 || samples >= AudioVoiceMsgFrequency * AudioVoiceMsgMaxLength) {
 		stopRecording(_peer && samples > 0 && _inField);
@@ -3625,7 +3632,7 @@ void HistoryWidget::updateControlsVisibility() {
 			} else {
 				_send.show();
 				setMouseTracking(false);
-				_recordAnim.stop();
+				_a_record.stop();
 				_inRecord = _inField = false;
 				a_recordOver = anim::fvalue(0, 0);
 			}
@@ -4431,15 +4438,13 @@ void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTo
 	activate();
 }
 
-bool HistoryWidget::animStep_show(float64 ms) {
+void HistoryWidget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
-	bool res = true;
 	if (dt >= 1) {
 		_a_show.stop();
 		_sideShadow.setVisible(cWideMode());
 		_topShadow.setVisible(_peer ? true : false);
 
-		res = false;
 		a_coordUnder.finish();
 		a_coordOver.finish();
 		a_shadow.finish();
@@ -4453,9 +4458,10 @@ bool HistoryWidget::animStep_show(float64 ms) {
 		a_coordOver.update(dt, st::slideFunction);
 		a_shadow.update(dt, st::slideFunction);
 	}
-	update();
-	App::main()->topBar()->update();
-	return res;
+	if (timer) {
+		update();
+		App::main()->topBar()->update();
+	}
 }
 
 void HistoryWidget::doneShow() {
@@ -4481,11 +4487,10 @@ void HistoryWidget::animStop() {
 	_topShadow.setVisible(_peer ? true : false);
 }
 
-bool HistoryWidget::recordStep(float64 ms) {
+void HistoryWidget::step_record(float64 ms, bool timer) {
 	float64 dt = ms / st::btnSend.duration;
-	bool res = true;
 	if (dt >= 1 || !_send.isHidden() || isBotStart() || isBlocked()) {
-		res = false;
+		_a_record.stop();
 		a_recordOver.finish();
 		a_recordDown.finish();
 		a_recordCancel.finish();
@@ -4494,25 +4499,24 @@ bool HistoryWidget::recordStep(float64 ms) {
 		a_recordDown.update(dt, anim::linear);
 		a_recordCancel.update(dt, anim::linear);
 	}
-	if (_recording) {
-		updateField();
-	} else {
-		update(_send.geometry());
+	if (timer) {
+		if (_recording) {
+			updateField();
+		} else {
+			update(_send.geometry());
+		}
 	}
-	return res;
 }
 
-bool HistoryWidget::recordingStep(float64 ms) {
+void HistoryWidget::step_recording(float64 ms, bool timer) {
 	float64 dt = ms / AudioVoiceMsgUpdateView;
-	bool res = true;
 	if (dt >= 1) {
-		res = false;
+		_a_recording.stop();
 		a_recordingLevel.finish();
 	} else {
 		a_recordingLevel.update(dt, anim::linear);
 	}
-	update(_attachDocument.geometry());
-	return res;
+	if (timer) update(_attachDocument.geometry());
 }
 
 void HistoryWidget::onPhotoSelect() {
@@ -4623,7 +4627,7 @@ void HistoryWidget::mouseMoveEvent(QMouseEvent *e) {
 		_inReply = inReply;
 		setCursor(inReply ? style::cur_pointer : style::cur_default);
 	}
-	if (startAnim) _recordAnim.start();
+	if (startAnim) _a_record.start();
 }
 
 void HistoryWidget::leaveToChildEvent(QEvent *e) { // e -- from enterEvent() of child TWidget
@@ -4648,7 +4652,7 @@ void HistoryWidget::stopRecording(bool send) {
 	audioCapture()->stop(send);
 
 	a_recordingLevel = anim::ivalue(0, 0);
-	_recordingAnim.stop();
+	_a_recording.stop();
 
 	_recording = false;
 	_recordingSamples = 0;
@@ -4664,7 +4668,7 @@ void HistoryWidget::stopRecording(bool send) {
 	a_recordDown.start(0);
 	a_recordOver.restart();
 	a_recordCancel = anim::cvalue(st::recordCancel->c, st::recordCancel->c);
-	_recordAnim.start();
+	_a_record.start();
 }
 
 void HistoryWidget::sendBotCommand(const QString &cmd, MsgId replyTo) { // replyTo != 0 from ReplyKeyboardMarkup, == 0 from cmd links
@@ -6001,7 +6005,7 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 
 		a_recordDown.start(1);
 		a_recordOver.restart();
-		_recordAnim.start();
+		_a_record.start();
 	} else if (_inReply) {
 		App::main()->showPeerHistory(_peer->id, replyToId());
 	}

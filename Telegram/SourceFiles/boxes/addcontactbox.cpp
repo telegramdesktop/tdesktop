@@ -342,7 +342,7 @@ void NewGroupBox::onNext() {
 GroupInfoBox::GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose) : AbstractBox(),
 _creating(creating),
 a_photoOver(0, 0),
-_a_photoOver(animFunc(this, &GroupInfoBox::animStep_photoOver)),
+_a_photoOver(animation(this, &GroupInfoBox::step_photoOver)),
 _photoOver(false),
 _title(this, st::defaultInputField, lang(_creating == CreatingGroupChannel ? lng_dlg_new_channel_name : lng_dlg_new_group_name)),
 _description(this, st::newGroupDescription, lang(lng_create_group_description)),
@@ -464,17 +464,15 @@ void GroupInfoBox::leaveEvent(QEvent *e) {
 	updateSelected(QCursor::pos());
 }
 
-bool GroupInfoBox::animStep_photoOver(float64 ms) {
+void GroupInfoBox::step_photoOver(float64 ms, bool timer) {
 	float64 dt = ms / st::setPhotoDuration;
-	bool res = true;
 	if (dt >= 1) {
-		res = false;
+		_a_photoOver.stop();
 		a_photoOver.finish();
 	} else {
 		a_photoOver.update(dt, anim::linear);
 	}
-	update(photoRect());
-	return res;
+	if (timer) update(photoRect());
 }
 
 void GroupInfoBox::onNameSubmit() {
@@ -604,23 +602,25 @@ void GroupInfoBox::onPhotoReady(const QImage &img) {
 	_photoSmall.setDevicePixelRatio(cRetinaFactor());
 }
 
-SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : AbstractBox(),
-_channel(channel),
-_existing(existing),
-_public(this, qsl("channel_privacy"), 0, lang(lng_create_public_channel_title), true),
-_private(this, qsl("channel_privacy"), 1, lang(lng_create_private_channel_title)),
-_comments(this, lang(lng_create_channel_comments), false),
-_aboutPublicWidth(width() - st::boxPadding.left() - st::boxButtonPadding.right() - st::newGroupPadding.left() - st::defaultRadiobutton.textPosition.x()),
-_aboutPublic(st::normalFont, lang(lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth),
-_aboutPrivate(st::normalFont, lang(lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth),
-_aboutComments(st::normalFont, lang(lng_create_channel_comments_about), _defaultOptions, _aboutPublicWidth),
-_link(this, st::defaultInputField, QString(), channel->username, true),
-_linkOver(false),
-_save(this, lang(lng_settings_save), st::defaultBoxButton),
-_skip(this, lang(existing ? lng_cancel : lng_create_group_skip), st::cancelBoxButton),
-_tooMuchUsernames(false),
-_saveRequestId(0), _checkRequestId(0),
-a_goodOpacity(0, 0), _a_goodFade(animFunc(this, &SetupChannelBox::animStep_goodFade)) {
+SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : AbstractBox()
+, _channel(channel)
+, _existing(existing)
+, _public(this, qsl("channel_privacy"), 0, lang(lng_create_public_channel_title), true)
+, _private(this, qsl("channel_privacy"), 1, lang(lng_create_private_channel_title))
+, _comments(this, lang(lng_create_channel_comments), false)
+, _aboutPublicWidth(width() - st::boxPadding.left() - st::boxButtonPadding.right() - st::newGroupPadding.left() - st::defaultRadiobutton.textPosition.x())
+, _aboutPublic(st::normalFont, lang(lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth)
+, _aboutPrivate(st::normalFont, lang(lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth)
+, _aboutComments(st::normalFont, lang(lng_create_channel_comments_about), _defaultOptions, _aboutPublicWidth)
+, _link(this, st::defaultInputField, QString(), channel->username, true)
+, _linkOver(false)
+, _save(this, lang(lng_settings_save), st::defaultBoxButton)
+, _skip(this, lang(existing ? lng_cancel : lng_create_group_skip), st::cancelBoxButton)
+, _tooMuchUsernames(false)
+, _saveRequestId(0)
+, _checkRequestId(0)
+, a_goodOpacity(0, 0)
+, _a_goodFade(animation(this, &SetupChannelBox::step_goodFade)) {
 	setMouseTracking(true);
 
 	_checkRequestId = MTP::send(MTPchannels_CheckUsername(_channel->inputChannel, MTP_string("preston")), RPCDoneHandlerPtr(), rpcFail(&SetupChannelBox::onFirstCheckFail));
@@ -772,17 +772,15 @@ void SetupChannelBox::updateSelected(const QPoint &cursorGlobalPosition) {
 	}
 }
 
-bool SetupChannelBox::animStep_goodFade(float64 ms) {
+void SetupChannelBox::step_goodFade(float64 ms, bool timer) {
 	float dt = ms / st::newGroupLinkFadeDuration;
-	bool res = true;
 	if (dt >= 1) {
-		res = false;
+		_a_goodFade.stop();
 		a_goodOpacity.finish();
 	} else {
 		a_goodOpacity.update(dt, anim::linear);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 void SetupChannelBox::closePressed() {

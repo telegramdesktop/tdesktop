@@ -45,16 +45,16 @@ enum NewMessageType {
 };
 
 class History;
-class Histories : public Animated {
+class Histories {
 public:
 	typedef QHash<PeerId, History*> Map;
 	Map map;
 
-	Histories() : unreadFull(0), unreadMuted(0) {
+	Histories() : unreadFull(0), unreadMuted(0), _a_typings(animation(this, &Histories::step_typings)) {
 	}
 
 	void regSendAction(History *history, UserData *user, const MTPSendMessageAction &action);
-	bool animStep(float64 ms);
+	void step_typings(uint64 ms, bool timer);
 
 	History *find(const PeerId &peerId);
 	History *findOrInsert(const PeerId &peerId, int32 unreadCount, int32 maxInboxRead);
@@ -71,6 +71,7 @@ public:
 
 	typedef QMap<History*, uint64> TypingHistories; // when typing in this history started
 	TypingHistories typing;
+	Animation _a_typings;
 
 	int32 unreadFull, unreadMuted;
 };
@@ -789,16 +790,19 @@ protected:
 
 };
 
-class ItemAnimations : public Animated {
+class ItemAnimations {
 public:
 
-	bool animStep(float64 ms);
+	ItemAnimations() : _a_animate(animation(this, &ItemAnimations::step_animate)) {
+	}
+	void step_animate(float64 ms, bool timer);
 	uint64 animate(const HistoryItem *item, uint64 ms);
 	void remove(const HistoryItem *item);
 
 private:
 	typedef QMap<const HistoryItem*, uint64> Animations;
 	Animations _animations;
+	Animation _a_animate;
 };
 
 ItemAnimations &itemAnimations();

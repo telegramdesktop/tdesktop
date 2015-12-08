@@ -25,7 +25,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "gui/animation.h"
 #include "style.h"
 
-class FlatButton : public Button, public Animated {
+class FlatButton : public Button {
 	Q_OBJECT
 
 public:
@@ -34,7 +34,7 @@ public:
 
 	void resizeEvent(QResizeEvent *e);
 
-	bool animStep(float64 ms);
+	void step_appearance(float64 ms, bool timer);
 	void paintEvent(QPaintEvent *e);
 	void setOpacity(float64 o);
 	float64 opacity() const;
@@ -63,7 +63,10 @@ private:
 	style::font _autoFont;
 
 	anim::cvalue a_bg, a_text;
+	Animation _a_appearance;
+
 	float64 _opacity;
+
 };
 
 class LinkButton : public Button {
@@ -89,14 +92,14 @@ private:
 	style::linkButton _st;
 };
 
-class IconedButton : public Button, public Animated {
+class IconedButton : public Button {
 	Q_OBJECT
 
 public:
 
 	IconedButton(QWidget *parent, const style::iconedButton &st, const QString &text = QString());
 
-	bool animStep(float64 ms);
+	void step_appearance(float64 ms, bool timer);
 	void paintEvent(QPaintEvent *e);
 
 	void setOpacity(float64 o);
@@ -117,6 +120,7 @@ protected:
 
 	anim::fvalue a_opacity;
 	anim::cvalue a_bg;
+	Animation _a_appearance;
 
 	float64 _opacity;
 };
@@ -141,7 +145,7 @@ public:
 
 	void paintEvent(QPaintEvent *e);
 
-	bool animStep_over(float64 ms);
+	void step_over(float64 ms, bool timer);
 
 public slots:
 

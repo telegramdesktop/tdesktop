@@ -609,18 +609,6 @@
     <ClCompile Include="GeneratedFiles\Release\moc_aboutbox.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\gui\switcher.cpp">
-      <Filter>gui</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_switcher.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_switcher.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_switcher.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\mediaview.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -1127,9 +1115,6 @@
       <Filter>boxes</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\gui\flatlabel.h">
-      <Filter>gui</Filter>
-    </CustomBuild>
-    <CustomBuild Include="SourceFiles\gui\switcher.h">
       <Filter>gui</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\mediaview.h">

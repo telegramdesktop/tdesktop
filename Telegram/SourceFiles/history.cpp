@@ -1357,11 +1357,10 @@ void Histories::regSendAction(History *history, UserData *user, const MTPSendMes
 	}
 
 	history->updateTyping(ms, history->typingFrame, true);
-	anim::start(this);
+	_a_typings.start();
 }
 
-bool Histories::animStep(float64) {
-	uint64 ms = getms(true);
+void Histories::step_typings(uint64 ms, bool timer) {
 	for (TypingHistories::iterator i = typing.begin(), e = typing.end(); i != e;) {
 		uint32 typingFrame = (ms - i.value()) / 150;
 		i.key()->updateTyping(ms, typingFrame);
@@ -1371,7 +1370,9 @@ bool Histories::animStep(float64) {
 			++i;
 		}
 	}
-	return !typing.isEmpty();
+	if (typing.isEmpty()) {
+		_a_typings.stop();
+	}
 }
 
 void Histories::remove(const PeerId &peer) {
@@ -2968,23 +2969,25 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 	}
 }
 
-bool ItemAnimations::animStep(float64 ms) {
+void ItemAnimations::step_animate(float64 ms, bool timer) {
 	for (Animations::iterator i = _animations.begin(); i != _animations.end();) {
 		const HistoryItem *item = i.key();
 		if (item->animating()) {
-			App::main()->msgUpdated(item);
+			if (timer) App::main()->msgUpdated(item);
 			++i;
 		} else {
 			i = _animations.erase(i);
 		}
 	}
-	return !_animations.isEmpty();
+	if (_animations.isEmpty()) {
+		_a_animate.stop();
+	}
 }
 
 uint64 ItemAnimations::animate(const HistoryItem *item, uint64 ms) {
 	if (_animations.isEmpty()) {
 		_animations.insert(item, ms);
-		anim::start(this);
+		_a_animate.start();
 		return 0;
 	}
 	Animations::const_iterator i = _animations.constFind(item);

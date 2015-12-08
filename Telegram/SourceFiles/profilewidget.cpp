@@ -67,7 +67,8 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 , _aboutTop(0)
 , _aboutHeight(0)
 
-, a_photo(0)
+, a_photoOver(0)
+, _a_photo(animation(this, &ProfileInner::step_photo))
 , _photoOver(false)
 
 // migrate to megagroup
@@ -766,11 +767,11 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	if (_photoLink || _peerUser || (_peerChat && !_peerChat->canEdit()) || (_peerChannel && !_amCreator)) {
 		p.drawPixmap(_left, top, _peer->photo->pix(st::profilePhotoSize));
 	} else {
-		if (a_photo.current() < 1) {
+		if (a_photoOver.current() < 1) {
 			p.drawPixmap(QPoint(_left, top), App::sprite(), st::setPhotoImg);
 		}
-		if (a_photo.current() > 0) {
-			p.setOpacity(a_photo.current());
+		if (a_photoOver.current() > 0) {
+			p.setOpacity(a_photoOver.current());
 			p.drawPixmap(QPoint(_left, top), App::sprite(), st::setOverPhotoImg);
 			p.setOpacity(1);
 		}
@@ -990,8 +991,8 @@ void ProfileInner::mouseMoveEvent(QMouseEvent *e) {
 	if (photoOver != _photoOver) {
 		_photoOver = photoOver;
 		if (!_photoLink && ((_peerChat && _peerChat->canEdit()) || (_peerChannel && _amCreator))) {
-			a_photo.start(_photoOver ? 1 : 0);
-			anim::start(this);
+			a_photoOver.start(_photoOver ? 1 : 0);
+			_a_photo.start();
 		}
 	}
 	if (!_photoLink && (_peerUser || (_peerChat && !_peerChat->canEdit()) || (_peerChannel && !_amCreator))) {
@@ -1424,17 +1425,15 @@ void ProfileInner::onCopyUsername() {
 	QApplication::clipboard()->setText('@' + _peerUser->username);
 }
 
-bool ProfileInner::animStep(float64 ms) {
+void ProfileInner::step_photo(float64 ms, bool timer) {
 	float64 dt = ms / st::setPhotoDuration;
-	bool res = true;
 	if (dt >= 1) {
-		res = false;
-		a_photo.finish();
+		_a_photo.stop();
+		a_photoOver.finish();
 	} else {
-		a_photo.update(dt, anim::linear);
+		a_photoOver.update(dt, anim::linear);
 	}
-	update(_left, st::profilePadding.top(), st::setPhotoSize, st::setPhotoSize);
-	return res;
+	if (timer) update(_left, st::profilePadding.top(), st::setPhotoSize, st::setPhotoSize);
 }
 
 PeerData *ProfileInner::peer() const {
@@ -1723,7 +1722,7 @@ QString ProfileInner::overviewLinkText(int32 type, int32 count) {
 ProfileWidget::ProfileWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 , _scroll(this, st::setScroll)
 , _inner(this, &_scroll, peer)
-, _a_show(animFunc(this, &ProfileWidget::animStep_show))
+, _a_show(animation(this, &ProfileWidget::step_show))
 , _sideShadow(this, st::shadowColor)
 , _topShadow(this, st::shadowColor)
 , _inGrab(false) {
@@ -1857,15 +1856,13 @@ void ProfileWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTo
 	_inner.setFocus();
 }
 
-bool ProfileWidget::animStep_show(float64 ms) {
+void ProfileWidget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
-	bool res = true;
 	if (dt >= 1) {
 		_a_show.stop();
 		_sideShadow.setVisible(cWideMode());
 		_topShadow.show();
 
-		res = false;
 		a_coordUnder.finish();
 		a_coordOver.finish();
 		a_shadow.finish();
@@ -1882,9 +1879,10 @@ bool ProfileWidget::animStep_show(float64 ms) {
 		a_coordOver.update(dt, st::slideFunction);
 		a_shadow.update(dt, st::slideFunction);
 	}
-	update();
-	App::main()->topBar()->update();
-	return res;
+	if (timer) {
+		update();
+		App::main()->topBar()->update();
+	}
 }
 
 void ProfileWidget::updateOnlineDisplay() {

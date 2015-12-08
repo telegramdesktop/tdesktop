@@ -26,7 +26,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 class Window;
 
-class SysBtn : public Button, public Animated {
+class SysBtn : public Button {
 	Q_OBJECT
 
 public:
@@ -41,7 +41,7 @@ public:
 
 	void setOverLevel(float64 level);
 
-	bool animStep(float64 ms);
+	void step_color(float64 ms, bool timer);
 
 public slots:
 
@@ -51,6 +51,8 @@ protected:
 
 	style::sysButton _st;
 	anim::cvalue a_color;
+	Animation _a_color;
+
 	float64 _overLevel;
 	QString _text;
 
