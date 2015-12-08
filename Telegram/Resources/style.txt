@@ -1165,8 +1165,6 @@ introErrLabelTextStyle: textStyle(defaultTextStyle) {
 	lineHeight: 27px;
 }
 
-mediaMaxWidth: 250px;
-mediaFont: font(fsize);
 mediaPadding: margins(7px, 6px, 7px, 6px);
 mediaThumbSize: 48px;
 mediaNameTop: 3px;
@@ -1191,26 +1189,13 @@ mediaInUnreadColor: #999;
 mediaInUnreadSelectColor: #7b95aa;
 mediaUnreadSize: 4px;
 mediaUnreadSkip: 5px;
-mediaSaveDelta: 14px; // between bubble and download
-mediaSaveButton: flatButton(btnDefFlat) {
-	color: #507da2;
-	overColor: #507da2;
-	downColor: #507da2;
 
-	bgColor: white;
-	overBgColor: overBg;
-	downBgColor: overBg;
-
-	width: -28px;
-	height: 34px;
-
-	textTop: 7px;
-	overTextTop: 7px;
-	downTextTop: 8px;
-
-	font: font(fsize);
-	overFont: font(fsize);
-}
+msgFileMenuSize: size(36px, 36px);
+msgFileSize: 44px;
+msgFilePadding: margins(14px, 12px, 10px, 12px);
+msgFileThumbSize: 72px;
+msgFileThumbPadding: margins(10px, 10px, 14px, 10px);
+msgFileMinWidth: 294px;
 
 sendPadding: 9px;
 btnSend: flatButton(btnDefFlat) {

@@ -108,6 +108,7 @@ enum HistoryMediaType {
 	MediaTypeContact,
 	MediaTypeAudio,
 	MediaTypeDocument,
+	MediaTypeGif,
 	MediaTypeSticker,
 	MediaTypeImageLink,
 	MediaTypeWebPage,
@@ -131,6 +132,7 @@ inline MediaOverviewType mediaToOverviewType(HistoryMediaType t) {
 	case MediaTypePhoto: return OverviewPhotos;
 	case MediaTypeVideo: return OverviewVideos;
 	case MediaTypeDocument: return OverviewDocuments;
+	case MediaTypeGif: return OverviewDocuments;
 //	case MediaTypeSticker: return OverviewDocuments;
 	case MediaTypeAudio: return OverviewAudios;
 	}
@@ -1163,6 +1165,8 @@ public:
 	virtual QString getCaption() const {
 		return QString();
 	}
+	virtual bool needsBubble(const HistoryItem *parent) const = 0;
+	virtual bool customTime() const = 0;
 
 	int32 currentWidth() const {
 		return qMin(w, _maxw);
@@ -1217,6 +1221,12 @@ public:
 	QString getCaption() const {
 		return _caption.original();
 	}
+	bool needsBubble(const HistoryItem *parent) const {
+		return !_caption.isEmpty() || parent->toHistoryReply();
+	}
+	bool customTime() const {
+		return _caption.isEmpty();
+	}
 
 private:
 	int16 pixw, pixh;
@@ -1259,6 +1269,13 @@ public:
 	}
 	ImagePtr replyPreview();
 
+	bool needsBubble(const HistoryItem *parent) const {
+		return !_caption.isEmpty() || parent->toHistoryReply();
+	}
+	bool customTime() const {
+		return _caption.isEmpty();
+	}
+
 private:
 	VideoData *data;
 	TextLinkPtr _openl, _savel, _cancell;
@@ -1300,6 +1317,13 @@ public:
 
 	void updateFrom(const MTPMessageMedia &media);
 
+	bool needsBubble(const HistoryItem *parent) const {
+		return true;
+	}
+	bool customTime() const {
+		return false;
+	}
+
 private:
 	AudioData *data;
 	TextLinkPtr _openl, _savel, _cancell;
@@ -1316,6 +1340,10 @@ public:
 	HistoryDocument(DocumentData *document);
 	void initDimensions(const HistoryItem *parent);
 
+	bool withThumb() const {
+		return !_data->song() && !_data->thumb->isNull() && _data->thumb->width() && _data->thumb->height();
+	}
+
 	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
 	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
@@ -1326,13 +1354,13 @@ public:
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	int32 countHeight(const HistoryItem *parent, int32 width = -1) const;
 	bool uploading() const {
-		return (data->status == FileUploading);
+		return (_data->status == FileUploading);
 	}
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	HistoryMedia *clone() const;
 
 	DocumentData *document() {
-		return data;
+		return _data;
 	}
 
 	void regItem(HistoryItem *item);
@@ -1341,24 +1369,95 @@ public:
 	void updateFrom(const MTPMessageMedia &media);
 
 	bool hasReplyPreview() const {
-		return !data->thumb->isNull();
+		return !_data->thumb->isNull();
 	}
 	ImagePtr replyPreview();
 
 	void drawInPlaylist(Painter &p, const HistoryItem *parent, bool selected, bool over, int32 width) const;
 	TextLinkPtr linkInPlaylist();
 
+	bool needsBubble(const HistoryItem *parent) const {
+		return true;
+	}
+	bool customTime() const {
+		return false;
+	}
+
 private:
 
-	DocumentData *data;
+	DocumentData *_data;
+	TextLinkPtr _openl, _savel, _cancell;
+
+	int32 _namew;
+	QString _name;
+	int32 _thumbw, _thumbx, _thumby;
+
+	// >= 0 will contain download / upload string, _statusSize = loaded bytes
+	// < 0 will contain played string, _statusSize = seconds played
+	// 0x7FFFFF0 will contain status for not yet downloaded file
+	// 0x7FFFFF1 will contain status for already downloaded file
+	// 0x7FFFFF2 will contain status for failed to download / upload file
+	mutable int32 _statusSize;
+	mutable QString _statusText;
+};
+
+class HistoryGif : public HistoryMedia {
+public:
+
+	HistoryGif(DocumentData *document);
+	void initDimensions(const HistoryItem *parent);
+
+	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	int32 resize(int32 width, const HistoryItem *parent);
+	HistoryMediaType type() const {
+		return MediaTypeGif;
+	}
+	const QString inDialogsText() const;
+	const QString inHistoryText() const;
+	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	int32 countHeight(const HistoryItem *parent, int32 width = -1) const;
+	bool uploading() const {
+		return (_data->status == FileUploading);
+	}
+	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	HistoryMedia *clone() const;
+
+	DocumentData *document() {
+		return _data;
+	}
+
+	void regItem(HistoryItem *item);
+	void unregItem(HistoryItem *item);
+
+	void updateFrom(const MTPMessageMedia &media);
+
+	bool hasReplyPreview() const {
+		return !_data->thumb->isNull();
+	}
+	ImagePtr replyPreview();
+
+	void drawInPlaylist(Painter &p, const HistoryItem *parent, bool selected, bool over, int32 width) const;
+	TextLinkPtr linkInPlaylist();
+
+	bool needsBubble(const HistoryItem *parent) const {
+		return parent->toHistoryReply();
+	}
+	bool customTime() const {
+		return true;
+	}
+
+private:
+
+	DocumentData *_data;
 	TextLinkPtr _openl, _savel, _cancell;
 
 	int32 _namew;
 	QString _name, _size;
 	int32 _thumbw, _thumbx, _thumby;
 
-	mutable QString _dldTextCache, _uplTextCache;
-	mutable int32 _dldDone, _uplDone;
+	mutable QString _statusText;
+	mutable int32 _statusSize; // -1 will contain just size string, -2 will contain "failed" language key
+
 };
 
 class HistorySticker : public HistoryMedia {
@@ -1388,6 +1487,13 @@ public:
 
 	void updateFrom(const MTPMessageMedia &media);
 
+	bool needsBubble(const HistoryItem *parent) const {
+		return false;
+	}
+	bool customTime() const {
+		return true;
+	}
+
 private:
 
 	int16 pixw, pixh;
@@ -1415,6 +1521,13 @@ public:
 	HistoryMedia *clone() const;
 
 	void updateFrom(const MTPMessageMedia &media);
+
+	bool needsBubble(const HistoryItem *parent) const {
+		return true;
+	}
+	bool customTime() const {
+		return false;
+	}
 
 private:
 	int32 userId;
@@ -1459,6 +1572,13 @@ public:
 
 	WebPageData *webpage() {
 		return data;
+	}
+
+	bool needsBubble(const HistoryItem *parent) const {
+		return true;
+	}
+	bool customTime() const {
+		return false;
 	}
 
 private:
@@ -1552,6 +1672,13 @@ public:
 		return true;
 	}
 
+	bool needsBubble(const HistoryItem *parent) const {
+		return !_title.isEmpty() || !_description.isEmpty() || parent->toHistoryReply();
+	}
+	bool customTime() const {
+		return true;
+	}
+
 private:
 	ImageLinkData *data;
 	Text _title, _description;
@@ -1574,9 +1701,11 @@ public:
 	void fromNameUpdated() const;
 
 	bool justMedia() const {
-		return _media && _text.isEmpty();
+		return _text.isEmpty();
 	}
-
+	bool drawBubble() const {
+		return _media ? (!justMedia() || _media->needsBubble(this)) : true;
+	}
 	bool uploading() const;
 
 	void drawInfo(Painter &p, int32 right, int32 bottom, bool selected, InfoDisplayType type) const;

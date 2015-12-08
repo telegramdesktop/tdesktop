@@ -1332,7 +1332,7 @@ void StickerPanInner::paintEvent(QPaintEvent *e) {
 					sticker->thumb->load();
 				} else {
 					bool already = !sticker->already().isEmpty(), hasdata = !sticker->data.isEmpty();
-					if (!sticker->loader && sticker->status != FileFailed && !already && !hasdata) {
+					if (!already && !hasdata && !sticker->loader && sticker->status == FileReady) {
 						sticker->save(QString());
 					}
 					if (sticker->sticker()->img->isNull() && (already || hasdata)) {
@@ -1521,7 +1521,7 @@ void StickerPanInner::preloadImages() {
 				sticker->thumb->load();
 			} else {
 				bool already = !sticker->already().isEmpty(), hasdata = !sticker->data.isEmpty();
-				if (!sticker->loader && sticker->status != FileFailed && !already && !hasdata) {
+				if (!already && !hasdata && !sticker->loader && sticker->status == FileReady) {
 					sticker->save(QString());
 				}
 				//if (sticker->sticker->img->isNull() && (already || hasdata)) {

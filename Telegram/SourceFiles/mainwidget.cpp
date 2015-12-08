@@ -1654,7 +1654,10 @@ void MainWidget::onDownloadPathSettings() {
 void MainWidget::videoLoadFailed(mtpFileLoader *loader, bool started) {
 	loadFailed(loader, started, SLOT(videoLoadRetry()));
 	VideoData *video = App::video(loader->objId());
-	if (video && video->loader) video->finish();
+	if (video) {
+		if (video->loader) video->finish();
+		video->status = FileDownloadFailed;
+	}
 }
 
 void MainWidget::videoLoadRetry() {
@@ -1811,7 +1814,7 @@ void MainWidget::audioLoadFailed(mtpFileLoader *loader, bool started) {
 	loadFailed(loader, started, SLOT(audioLoadRetry()));
 	AudioData *audio = App::audio(loader->objId());
 	if (audio) {
-		audio->status = FileFailed;
+		audio->status = FileDownloadFailed;
 		if (audio->loader) audio->finish();
 	}
 }
@@ -1907,7 +1910,7 @@ void MainWidget::documentLoadFailed(mtpFileLoader *loader, bool started) {
 	DocumentData *document = App::document(loader->objId());
 	if (document) {
 		if (document->loader) document->finish();
-		document->status = FileFailed;
+		document->status = FileDownloadFailed;
 	}
 }
 

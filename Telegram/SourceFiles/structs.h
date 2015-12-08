@@ -784,7 +784,8 @@ private:
 };
 
 enum FileStatus {
-	FileFailed = -1,
+	FileDownloadFailed = -2,
+	FileUploadFailed = -1,
 	FileUploading = 0,
 	FileReady = 1,
 };

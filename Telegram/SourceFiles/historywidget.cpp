@@ -5449,7 +5449,18 @@ void HistoryWidget::onPhotoProgress(const FullMsgId &newId) {
 void HistoryWidget::onDocumentProgress(const FullMsgId &newId) {
 	if (!MTP::authedId()) return;
 	if (HistoryItem *item = App::histItemById(newId)) {
-		DocumentData *doc = (item->getMedia() && item->getMedia()->type() == MediaTypeDocument) ? static_cast<HistoryDocument*>(item->getMedia())->document() : 0;
+		HistoryMedia *media = item->getMedia();
+		DocumentData *doc = 0;
+		if (media) {
+			HistoryMediaType type = media->type();
+			if (type == MediaTypeDocument) {
+				doc = static_cast<HistoryDocument*>(item->getMedia())->document();
+			} else if (type == MediaTypeGif) {
+				doc = static_cast<HistoryGif*>(item->getMedia())->document();
+			} else if (type == MediaTypeSticker) {
+				doc = static_cast<HistorySticker*>(item->getMedia())->document();
+			}
+		}
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadFile, doc ? doc->uploadOffset : 0);
 		}

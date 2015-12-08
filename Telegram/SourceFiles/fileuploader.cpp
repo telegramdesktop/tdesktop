@@ -83,13 +83,13 @@ void FileUploader::currentFailed() {
 		} else if (j->type() == PrepareDocument) {
 			DocumentData *doc = App::document(j->id());
 			if (doc->status == FileUploading) {
-				doc->status = FileFailed;
+				doc->status = FileUploadFailed;
 			}
 			emit documentFailed(j.key());
 		} else if (j->type() == PrepareAudio) {
 			AudioData *audio = App::audio(j->id());
 			if (audio->status == FileUploading) {
-				audio->status = FileFailed;
+				audio->status = FileUploadFailed;
 			}
 			emit audioFailed(j.key());
 		}

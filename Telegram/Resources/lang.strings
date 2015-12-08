@@ -664,6 +664,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_save_file" = "Save file";
 "lng_save_downloaded" = "{ready} / {total} {mb}";
 "lng_duration_and_size" = "{duration}, {size}";
+"lng_duration_played" = "{played} / {duration}";
 "lng_choose_images" = "Choose images";
 
 "lng_context_view_profile" = "View profile";
