@@ -85,7 +85,7 @@ inline EmojiPtr emojiFromUrl(const QString &url) {
 
 inline EmojiPtr emojiFromText(const QChar *ch, const QChar *e, int &len) {
 	EmojiPtr emoji = 0;
-	if (ch + 1 < e && ((ch->isHighSurrogate() && (ch + 1)->isLowSurrogate()) || (((ch->unicode() >= 48 && ch->unicode() < 58) || ch->unicode() == 35) && (ch + 1)->unicode() == 0x20E3))) {
+	if (ch + 1 < e && ((ch->isHighSurrogate() && (ch + 1)->isLowSurrogate()) || (((ch->unicode() >= 0x30 && ch->unicode() < 0x3A) || ch->unicode() == 0x23 || ch->unicode() == 0x2A) && (ch + 1)->unicode() == 0x20E3))) {
 		uint32 code = (ch->unicode() << 16) | (ch + 1)->unicode();
 		emoji = emojiGet(code);
 		if (emoji) {
@@ -105,6 +105,11 @@ inline EmojiPtr emojiFromText(const QChar *ch, const QChar *e, int &len) {
 				}
 			}
 		}
+	} else if (ch + 2 < e && ((ch->unicode() >= 0x30 && ch->unicode() < 0x3A) || ch->unicode() == 0x23 || ch->unicode() == 0x2A) && (ch + 1)->unicode() == 0xFE0F && (ch + 2)->unicode() == 0x20E3) {
+		uint32 code = (ch->unicode() << 16) | (ch + 2)->unicode();
+		emoji = emojiGet(code);
+		len = emoji->len + 1;
+		return emoji;
 	} else if (ch < e) {
 		emoji = emojiGet(ch->unicode());
 		Q_ASSERT(emoji != TwoSymbolEmoji);

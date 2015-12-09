@@ -762,7 +762,7 @@ bool FileLocation::check() const {
 	}
 
 	QFileInfo f(name());
-	if (!f.exists() || !f.isReadable()) return false;
+	if (!f.isReadable()) return false;
 
 	quint64 s = f.size();
 	if (s > INT_MAX) return false;

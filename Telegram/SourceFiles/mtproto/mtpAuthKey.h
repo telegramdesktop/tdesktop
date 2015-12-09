@@ -112,15 +112,8 @@ inline bool operator==(const mtpAuthKey &a, const mtpAuthKey &b) {
 typedef QSharedPointer<mtpAuthKey> mtpAuthKeyPtr;
 typedef QVector<mtpAuthKeyPtr> mtpKeysMap;
 
-inline void aesEncrypt(const void *src, void *dst, uint32 len, void *key, void *iv) {
-	uchar aes_key[32], aes_iv[32];
-	memcpy(aes_key, key, 32);
-	memcpy(aes_iv, iv, 32);
-	
-	AES_KEY aes;
-	AES_set_encrypt_key(aes_key, 256, &aes);
-	AES_ige_encrypt((const uchar*)src, (uchar*)dst, len, &aes, aes_iv, AES_ENCRYPT);
-}
+void aesEncrypt(const void *src, void *dst, uint32 len, void *key, void *iv);
+void aesDecrypt(const void *src, void *dst, uint32 len, void *key, void *iv);
 
 inline void aesEncrypt(const void *src, void *dst, uint32 len, const mtpAuthKeyPtr &authKey, const MTPint128 &msgKey) {
 	MTPint256 aesKey, aesIV;
@@ -134,16 +127,6 @@ inline void aesEncryptLocal(const void *src, void *dst, uint32 len, const mtpAut
 	authKey->prepareAES(*(const MTPint128*)key128, aesKey, aesIV, false);
 
 	return aesEncrypt(src, dst, len, &aesKey, &aesIV);
-}
-
-inline void aesDecrypt(const void *src, void *dst, uint32 len, void *key, void *iv) {
-	uchar aes_key[32], aes_iv[32];
-	memcpy(aes_key, key, 32);
-	memcpy(aes_iv, iv, 32);
-	
-	AES_KEY aes;
-	AES_set_decrypt_key(aes_key, 256, &aes);
-	AES_ige_encrypt((const uchar*)src, (uchar*)dst, len, &aes, aes_iv, AES_DECRYPT);
 }
 
 inline void aesDecrypt(const void *src, void *dst, uint32 len, const mtpAuthKeyPtr &authKey, const MTPint128 &msgKey) {

@@ -28,6 +28,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "boxes/addcontactbox.h"
 #include "boxes/contactsbox.h"
+#include "boxes/confirmbox.h"
 
 #include "localstorage.h"
 
@@ -53,7 +54,10 @@ DialogsInner::DialogsInner(QWidget *parent, MainWidget *main) : SplittedWidget(p
 , _cancelSearchInPeer(this, st::btnCancelSearch)
 , _overDelete(false)
 , _searchInPeer(0)
-, _searchInMigrated(0) {
+, _searchInMigrated(0)
+, _menuPeer(0)
+, _menuActionPeer(0)
+, _menu(0) {
 	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 	connect(main, SIGNAL(peerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)));
 	connect(main, SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(onPeerPhotoChanged(PeerData*)));
@@ -61,7 +65,7 @@ DialogsInner::DialogsInner(QWidget *parent, MainWidget *main) : SplittedWidget(p
 	connect(&_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
 	connect(&_cancelSearchInPeer, SIGNAL(clicked()), this, SIGNAL(cancelSearchInPeer()));
 	_cancelSearchInPeer.hide();
-	refresh(false);
+	refresh();
 }
 
 int32 DialogsInner::filteredOffset() const {
@@ -91,7 +95,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 
 	if (_state == DefaultState) {
 		int32 otherStart = dialogs.list.count * st::dlgHeight;
-		PeerData *active = App::main()->activePeer(), *selected = sel ? sel->history->peer : 0;
+		PeerData *active = App::main()->activePeer(), *selected = _menuPeer ? _menuPeer : (sel ? sel->history->peer : 0);
 		if (otherStart) {
 			dialogs.list.paint(p, fullWidth(), r.top(), r.top() + r.height(), active, selected, paintingOther);
 		}
@@ -160,7 +164,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 				MsgId actId = App::main()->activeMsgId();
 				for (; from < to; ++from) {
 					bool active = ((_filterResults[from]->history->peer == act) || (_filterResults[from]->history->peer->migrateTo() && _filterResults[from]->history->peer->migrateTo() == act)) && !actId;					
-					bool selected = (from == _filteredSel);
+					bool selected = (from == _filteredSel) || (_filterResults[from]->history->peer == _menuPeer);
 					_filterResults[from]->paint(p, w, active, selected, paintingOther);
 					p.translate(0, st::dlgHeight);
 				}
@@ -461,6 +465,9 @@ void DialogsInner::createDialog(History *history) {
 
 void DialogsInner::removeDialog(History *history) {
 	if (!history) return;
+	if (history->peer == _menuPeer && _menu) {
+		_menu->deleteLater();
+	}
 	if (sel && sel->history == history) {
 		sel = 0;
 	}
@@ -549,13 +556,26 @@ void DialogsInner::enterEvent(QEvent *e) {
 	onUpdateSelected(true);
 }
 
-void DialogsInner::updateSelectedRow() {
+void DialogsInner::updateSelectedRow(PeerData *peer) {
 	if (_state == DefaultState) {
-		if (sel) {
+		if (peer) {
+			if (History *h = App::historyLoaded(peer->id)) {
+				if (h->dialogs.contains(0)) {
+					update(0, h->dialogs.value(0)->pos * st::dlgHeight, fullWidth(), st::dlgHeight);
+				}
+			}
+		} else if (sel) {
 			update(0, sel->pos * st::dlgHeight, fullWidth(), st::dlgHeight);
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
-		if (_hashtagSel >= 0) {
+		if (peer) {
+			for (int32 i = 0, l = _filterResults.size(); i != l; ++i) {
+				if (_filterResults.at(i)->history->peer == peer) {
+					update(0, filteredOffset() + i * st::dlgHeight, fullWidth(), st::dlgHeight);
+					break;
+				}
+			}
+		} else if (_hashtagSel >= 0) {
 			update(0, _hashtagSel * st::mentionHeight, fullWidth(), st::mentionHeight);
 		} else if (_filteredSel >= 0) {
 			update(0, filteredOffset() + _filteredSel * st::dlgHeight, fullWidth(), st::dlgHeight);
@@ -576,6 +596,148 @@ void DialogsInner::leaveEvent(QEvent *e) {
 		sel = 0;
 		_filteredSel = _searchedSel = _peopleSel = _hashtagSel = -1;
 		setCursor(style::cur_default);
+	}
+}
+
+void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
+	if (_menu) {
+		_menu->deleteLater();
+		_menu = 0;
+	}
+	if (_menuPeer) {
+		updateSelectedRow(_menuPeer);
+		_menuPeer = 0;
+		disconnect(App::main(), SIGNAL(peerUpdated(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
+	}
+
+	if (e->reason() == QContextMenuEvent::Mouse) {
+		lastMousePos = e->globalPos();
+		selByMouse = true;
+		onUpdateSelected(true);
+	}
+
+	History *history = 0;
+	if (_state == DefaultState) {
+		if (sel) history = sel->history;
+	} else if (_state == FilteredState || _state == SearchedState) {
+		if (_filteredSel >= 0 && _filteredSel < _filterResults.size()) {
+			history = _filterResults[_filteredSel]->history;
+		}
+	}
+	if (!history) return;
+	_menuPeer = history->peer;
+
+	_menu = new PopupMenu();
+	_menu->addAction(lang((_menuPeer->isChat() || _menuPeer->isMegagroup()) ? lng_context_view_group : (_menuPeer->isUser() ? lng_context_view_profile : lng_context_view_channel)), this, SLOT(onContextProfile()))->setEnabled(true);
+	_menu->addAction(lang(menuPeerMuted() ? lng_enable_notifications_from_tray : lng_disable_notifications_from_tray), this, SLOT(onContextToggleNotifications()))->setEnabled(true);
+	_menu->addAction(lang(lng_profile_search_messages), this, SLOT(onContextSearch()))->setEnabled(true);
+	if (_menuPeer->isUser()) {
+		_menu->addAction(lang(lng_profile_clear_history), this, SLOT(onContextClearHistory()))->setEnabled(true);
+		_menu->addAction(lang(lng_profile_delete_conversation), this, SLOT(onContextDeleteAndLeave()))->setEnabled(true);
+		if (_menuPeer->asUser()->access != UserNoAccess) {
+			_menu->addAction(lang((_menuPeer->asUser()->blocked == UserIsBlocked) ? (_menuPeer->asUser()->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (_menuPeer->asUser()->botInfo ? lng_profile_block_bot : lng_profile_block_user)), this, SLOT(onContextToggleBlock()))->setEnabled(true);
+			connect(App::main(), SIGNAL(peerUpdated(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
+		}
+	} else if (_menuPeer->isChat()) {
+		_menu->addAction(lang(lng_profile_clear_history), this, SLOT(onContextClearHistory()))->setEnabled(true);
+		_menu->addAction(lang(lng_profile_clear_and_exit), this, SLOT(onContextDeleteAndLeave()))->setEnabled(true);
+	} else if (_menuPeer->isChannel() && _menuPeer->asChannel()->amIn() && !_menuPeer->asChannel()->amCreator()) {
+		_menu->addAction(lang(_menuPeer->isMegagroup() ? lng_profile_leave_group : lng_profile_leave_channel), this, SLOT(onContextDeleteAndLeave()))->setEnabled(true);
+	}
+
+	connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroyed(QObject*)));
+	_menu->popup(e->globalPos());
+	e->accept();
+}
+
+bool DialogsInner::menuPeerMuted() {
+	return _menuPeer && _menuPeer->notify != EmptyNotifySettings && _menuPeer->notify != UnknownNotifySettings && _menuPeer->notify->mute >= unixtime();
+}
+
+void DialogsInner::onContextProfile() {
+	if (!_menuPeer) return;
+	App::main()->showPeerProfile(_menuPeer);
+}
+
+void DialogsInner::onContextToggleNotifications() {
+	if (!_menuPeer) return;
+	App::main()->updateNotifySetting(_menuPeer, menuPeerMuted());
+}
+
+void DialogsInner::onContextSearch() {
+	if (!_menuPeer) return;
+	App::main()->searchInPeer(_menuPeer);
+}
+
+void DialogsInner::onContextClearHistory() {
+	if (!_menuPeer || _menuPeer->isChannel()) return;
+
+	_menuActionPeer = _menuPeer;
+	ConfirmBox *box = new ConfirmBox(_menuPeer->isUser() ? lng_sure_delete_history(lt_contact, _menuPeer->name) : lng_sure_delete_group_history(lt_group, _menuPeer->name), lang(lng_box_delete), st::attentionBoxButton);
+	connect(box, SIGNAL(confirmed()), this, SLOT(onContextClearHistorySure()));
+	App::showLayer(box);
+}
+
+void DialogsInner::onContextClearHistorySure() {
+	if (!_menuActionPeer || _menuActionPeer->isChannel()) return;
+	App::wnd()->hideLayer();
+	App::main()->clearHistory(_menuActionPeer);
+}
+
+void DialogsInner::onContextDeleteAndLeave() {
+	if (!_menuPeer) return;
+
+	_menuActionPeer = _menuPeer;
+	ConfirmBox *box = new ConfirmBox(_menuPeer->isUser() ? lng_sure_delete_history(lt_contact, _menuPeer->name) : (_menuPeer->isChat() ? lng_sure_delete_and_exit(lt_group, _menuPeer->name) : lang(_menuPeer->isMegagroup() ? lng_sure_leave_group : lng_sure_leave_channel)), lang(_menuPeer->isUser() ? lng_box_delete : lng_box_leave), _menuPeer->isChannel() ? st::defaultBoxButton : st::attentionBoxButton);
+	connect(box, SIGNAL(confirmed()), this, SLOT(onContextDeleteAndLeaveSure()));
+	App::wnd()->showLayer(box);
+}
+
+void DialogsInner::onContextDeleteAndLeaveSure() {
+	if (!_menuActionPeer) return;
+
+	App::wnd()->hideLayer();
+	App::main()->showDialogs();
+	if (_menuActionPeer->isUser()) {
+		App::main()->deleteConversation(_menuActionPeer);
+	} else if (_menuActionPeer->isChat()) {
+		MTP::send(MTPmessages_DeleteChatUser(_menuActionPeer->asChat()->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, _menuActionPeer), App::main()->rpcFail(&MainWidget::leaveChatFailed, _menuActionPeer));
+	} else if (_menuActionPeer->isChannel()) {
+		if (_menuActionPeer->migrateFrom()) {
+			App::main()->deleteConversation(_menuActionPeer->migrateFrom());
+		}
+		MTP::send(MTPchannels_LeaveChannel(_menuActionPeer->asChannel()->inputChannel), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
+	}
+}
+
+void DialogsInner::onContextToggleBlock() {
+	if (!_menuPeer || !_menuPeer->isUser()) return;
+	if (_menuPeer->asUser()->blocked == UserIsBlocked) {
+		MTP::send(MTPcontacts_Unblock(_menuPeer->asUser()->inputUser), rpcDone(&DialogsInner::contextBlockDone, qMakePair(_menuPeer->asUser(), false)));
+	} else {
+		MTP::send(MTPcontacts_Block(_menuPeer->asUser()->inputUser), rpcDone(&DialogsInner::contextBlockDone, qMakePair(_menuPeer->asUser(), true)));
+	}
+}
+
+void DialogsInner::contextBlockDone(QPair<UserData*, bool> data, const MTPBool &result) {
+	data.first->blocked = data.second ? UserIsBlocked : UserIsNotBlocked;
+	emit App::main()->peerUpdated(data.first);
+}
+
+void DialogsInner::onMenuDestroyed(QObject *obj) {
+	if (_menu == obj) {
+		_menu = 0;
+		if (_menuPeer) {
+			updateSelectedRow(_menuPeer);
+			_menuPeer = 0;
+			disconnect(App::main(), SIGNAL(peerUpdated(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
+		}
+		lastMousePos = QCursor::pos();
+		if (rect().contains(mapFromGlobal(lastMousePos))) {
+			selByMouse = true;
+			setMouseTracking(true);
+			onUpdateSelected(true);
+		}
 	}
 }
 
@@ -760,6 +922,18 @@ void DialogsInner::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
 		if (_searchResults[i]->_item == oldItem) {
 			_searchResults[i]->_item = newItem;
 		}
+	}
+}
+
+void DialogsInner::updateNotifySettings(PeerData *peer) {
+	if (_menu && _menuPeer == peer && _menu->actions().size() > 1) {
+		_menu->actions().at(1)->setText(lang(menuPeerMuted() ? lng_enable_notifications_from_tray : lng_disable_notifications_from_tray));
+	}
+}
+
+void DialogsInner::peerUpdated(PeerData *peer) {
+	if (_menu && _menuPeer == peer && _menuPeer->isUser() && _menu->actions().size() > 5) {
+		_menu->actions().at(5)->setText(lang((_menuPeer->asUser()->blocked == UserIsBlocked) ? (_menuPeer->asUser()->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (_menuPeer->asUser()->botInfo ? lng_profile_block_bot : lng_profile_block_user)));
 	}
 }
 
@@ -1008,7 +1182,6 @@ void DialogsInner::setState(State newState) {
 		_filteredSel = -1;
 	}
 	onFilterUpdate(_filter, true);
-	refresh(true);
 }
 
 DialogsInner::State DialogsInner::state() const {
@@ -1681,7 +1854,9 @@ bool DialogsWidget::animStep_show(float64 ms) {
 
 		_scroll.show();
 		_filter.show();
-		onFilterUpdate(true);
+		_a_show.stop();
+
+		onFilterUpdate();
 		activate();
 
 		if (App::app()) App::app()->mtpUnpause();
@@ -1706,6 +1881,10 @@ void DialogsWidget::itemRemoved(HistoryItem *item) {
 
 void DialogsWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
 	_inner.itemReplaced(oldItem, newItem);
+}
+
+void DialogsWidget::updateNotifySettings(PeerData *peer) {
+	_inner.updateNotifySettings(peer);
 }
 
 void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {

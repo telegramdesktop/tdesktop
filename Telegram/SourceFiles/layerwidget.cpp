@@ -27,8 +27,12 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "gui/filedialog.h"
 
-BackgroundWidget::BackgroundWidget(QWidget *parent, LayeredWidget *w) : QWidget(parent), w(w),
-aBackground(0), aBackgroundFunc(anim::easeOutCirc), hiding(false), shadow(st::boxShadow) {
+BackgroundWidget::BackgroundWidget(QWidget *parent, LayeredWidget *w) : TWidget(parent)
+, w(w)
+, aBackground(0)
+, aBackgroundFunc(anim::easeOutCirc)
+, hiding(false)
+, shadow(st::boxShadow) {
 	w->setParent(this);
 	if (App::app()) App::app()->mtpPause();
 	setGeometry(0, 0, App::wnd()->width(), App::wnd()->height());
@@ -188,4 +192,116 @@ BackgroundWidget::~BackgroundWidget() {
 	for (HiddenLayers::const_iterator i = _hidden.cbegin(), e = _hidden.cend(); i != e; ++i) {
 		(*i)->deleteLater();
 	}
+}
+
+StickerPreviewWidget::StickerPreviewWidget(QWidget *parent) : TWidget(parent)
+, a_shown(0, 0)
+, _a_shown(animFunc(this, &StickerPreviewWidget::animStep_shown))
+, _doc(0)
+, _cacheStatus(CacheNotLoaded) {
+	setAttribute(Qt::WA_TransparentForMouseEvents);
+}
+
+void StickerPreviewWidget::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	QRect r(e->rect());
+
+	const QPixmap &draw(currentImage());
+	uint32 w = draw.width() / cIntRetinaFactor(), h = draw.height() / cIntRetinaFactor();
+	if (_a_shown.animating()) {
+		float64 shown = a_shown.current();
+		p.setOpacity(shown);
+//		w = qMax(qRound(w * (st::stickerPreviewMin + ((1. - st::stickerPreviewMin) * shown)) / 2.) * 2 + int(w % 2), 1);
+//		h = qMax(qRound(h * (st::stickerPreviewMin + ((1. - st::stickerPreviewMin) * shown)) / 2.) * 2 + int(h % 2), 1);
+	}
+	p.fillRect(r, st::stickerPreviewBg);
+	p.drawPixmap((width() - w) / 2, (height() - h) / 2, draw);
+}
+
+void StickerPreviewWidget::resizeEvent(QResizeEvent *e) {
+	update();
+}
+
+bool StickerPreviewWidget::animStep_shown(float64 ms) {
+	float64 dt = ms / st::stickerPreviewDuration;
+	if (dt >= 1) {
+		a_shown.finish();
+		_a_shown.stop();
+		if (a_shown.current() < 0.5) hide();
+	} else {
+		a_shown.update(dt, anim::linear);
+	}
+	update();
+	return true;
+}
+
+void StickerPreviewWidget::showPreview(DocumentData *sticker) {
+	if (sticker && !sticker->sticker()) sticker = 0;
+	if (sticker) {
+		_cache = QPixmap();
+		if (isHidden() || _a_shown.animating()) {
+			if (isHidden()) show();
+			a_shown.start(1);
+			_a_shown.start();
+		} else {
+			update();
+		}
+	} else if (isHidden()) {
+		return;
+	} else {
+		a_shown.start(0);
+		_a_shown.start();
+	}
+	_doc = sticker;
+	_cacheStatus = CacheNotLoaded;
+}
+
+void StickerPreviewWidget::hidePreview() {
+	showPreview(0);
+}
+
+QSize StickerPreviewWidget::currentDimensions() const {
+	if (!_doc) return QSize(_cache.width() / cIntRetinaFactor(), _cache.height() / cIntRetinaFactor());
+
+	QSize result(qMax(_doc->dimensions.width(), 1), qMax(_doc->dimensions.height(), 1));
+	if (result.width() > st::maxStickerSize) {
+		result.setHeight(qMax(qRound((st::maxStickerSize * result.height()) / result.width()), 1));
+		result.setWidth(st::maxStickerSize);
+	}
+	if (result.height() > st::maxStickerSize) {
+		result.setWidth(qMax(qRound((st::maxStickerSize * result.width()) / result.height()), 1));
+		result.setHeight(st::maxStickerSize);
+	}
+	return result;
+}
+
+QPixmap StickerPreviewWidget::currentImage() const {
+	if (_doc && _cacheStatus != CacheLoaded) {
+		bool already = !_doc->already().isEmpty(), hasdata = !_doc->data.isEmpty();
+		if (!_doc->loader && _doc->status != FileFailed && !already && !hasdata) {
+			_doc->save(QString());
+		}
+		if (_doc->sticker()->img->isNull() && (already || hasdata)) {
+			if (already) {
+				_doc->sticker()->img = ImagePtr(_doc->already());
+			} else {
+				_doc->sticker()->img = ImagePtr(_doc->data);
+			}
+		}
+		if (_doc->sticker()->img->isNull()) {
+			if (_cacheStatus != CacheThumbLoaded) {
+				QSize s = currentDimensions();
+				_cache = _doc->thumb->pixBlurred(s.width(), s.height());
+				_cacheStatus = CacheThumbLoaded;
+			}
+		} else {
+			QSize s = currentDimensions();
+			_cache = _doc->sticker()->img->pix(s.width(), s.height());
+			_cacheStatus = CacheLoaded;
+		}
+	}
+	return _cache;
+}
+
+StickerPreviewWidget::~StickerPreviewWidget() {
 }

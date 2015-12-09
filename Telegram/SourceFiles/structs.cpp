@@ -807,12 +807,15 @@ void AudioCancelLink::onClick(Qt::MouseButton button) const {
 bool StickerData::setInstalled() const {
 	switch (set.type()) {
 	case mtpc_inputStickerSetID: {
-		return (cStickerSets().constFind(set.c_inputStickerSetID().vid.v) != cStickerSets().cend());
+		StickerSets::const_iterator it = cStickerSets().constFind(set.c_inputStickerSetID().vid.v);
+		return (it != cStickerSets().cend()) && !(it->flags & MTPDstickerSet::flag_disabled);
 	} break;
 	case mtpc_inputStickerSetShortName: {
 		QString name = qs(set.c_inputStickerSetShortName().vshort_name).toLower();
-		for (StickerSets::const_iterator i = cStickerSets().cbegin(), e = cStickerSets().cend(); i != e; ++i) {
-			if (i->shortName.toLower() == name) return true;
+		for (StickerSets::const_iterator it = cStickerSets().cbegin(), e = cStickerSets().cend(); it != e; ++it) {
+			if (it->shortName.toLower() == name) {
+				return !(it->flags & MTPDstickerSet::flag_disabled);
+			}
 		}
 	} break;
 	}

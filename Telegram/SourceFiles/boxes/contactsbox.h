@@ -216,6 +216,8 @@ public slots:
 	void onCreate();
 	void onSaveAdmins();
 
+	void onSubmit();
+
 	bool onSearchByUsername(bool searchCache = false);
 	void onNeedSearchByUsername();
 
@@ -385,6 +387,10 @@ private:
 	MemberDates _dates;
 	MemberRoles _roles;
 	MemberDatas _datas;
+
+	int32 _aboutWidth;
+	Text _about;
+	int32 _aboutHeight;
 
 	QPoint _lastMousePos;
 

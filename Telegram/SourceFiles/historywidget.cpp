@@ -874,6 +874,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		isUponSelected = hasSelected;
 	}
 
+	_menu = new PopupMenu();
+
 	_contextMenuLnk = textlnkOver();
 	HistoryItem *item = App::hoveredItem() ? App::hoveredItem() : App::hoveredLinkItem();
 	PhotoLink *lnkPhoto = dynamic_cast<PhotoLink*>(_contextMenuLnk.data());
@@ -881,7 +883,6 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
     AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
     DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
 	if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument) {
-		_menu = new PopupMenu();
 		if (isUponSelected > 0) {
 			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
 		}
@@ -897,7 +898,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
 			} else {
 				if ((lnkVideo && !lnkVideo->video()->already(true).isEmpty()) || (lnkAudio && !lnkAudio->audio()->already(true).isEmpty()) || (lnkDocument && !lnkDocument->document()->already(true).isEmpty())) {
-					_menu->addAction(lang(cPlatform() == dbipMac ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
+					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 				}
 				_menu->addAction(lang(lnkVideo ? lng_context_open_video : (lnkAudio ? lng_context_open_audio : lng_context_open_file)), this, SLOT(openContextFile()))->setEnabled(true);
 				_menu->addAction(lang(lnkVideo ? lng_context_save_video : (lnkAudio ? lng_context_save_audio : lng_context_save_file)), this, SLOT(saveContextFile()))->setEnabled(true);
@@ -931,59 +932,49 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		HistoryServiceMsg *srv = dynamic_cast<HistoryServiceMsg*>(item);
 
 		if (isUponSelected > 0) {
-			if (!_menu) _menu = new PopupMenu();
 			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
 			if (item && item->id > 0 && isUponSelected != 2 && canSendMessages) {
 				_menu->addAction(lang(lng_context_reply_msg), _widget, SLOT(onReplyToMessage()));
 			}
 		} else {
 			if (item && item->id > 0 && isUponSelected != -2 && canSendMessages) {
-				if (!_menu) _menu = new PopupMenu();
 				_menu->addAction(lang(lng_context_reply_msg), _widget, SLOT(onReplyToMessage()));
 			}
 			if (item && !isUponSelected && !_contextMenuLnk) {
 				if (HistorySticker *sticker = dynamic_cast<HistorySticker*>(msg ? msg->getMedia() : 0)) {
 					DocumentData *doc = sticker->document();
 					if (doc && doc->sticker() && doc->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
-						if (!_menu) _menu = new PopupMenu();
 						_menu->addAction(lang(doc->sticker()->setInstalled() ? lng_context_pack_info : lng_context_pack_add), _widget, SLOT(onStickerPackInfo()));
 					}
 				}
 				QString contextMenuText = item->selectedText(FullItemSel);
 				if (!contextMenuText.isEmpty() && (!msg || !msg->getMedia() || msg->getMedia()->type() != MediaTypeSticker)) {
-					if (!_menu) _menu = new PopupMenu();
 					_menu->addAction(lang(lng_context_copy_text), this, SLOT(copyContextText()))->setEnabled(true);
 				}
 			}
 		}
 
 		if (_contextMenuLnk && dynamic_cast<TextLink*>(_contextMenuLnk.data())) {
-			if (!_menu) _menu = new PopupMenu();
 			_menu->addAction(lang(lng_context_open_link), this, SLOT(openContextUrl()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_link), this, SLOT(copyContextUrl()))->setEnabled(true);
 		} else if (_contextMenuLnk && dynamic_cast<EmailLink*>(_contextMenuLnk.data())) {
-			if (!_menu) _menu = new PopupMenu();
 			_menu->addAction(lang(lng_context_open_email), this, SLOT(openContextUrl()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_email), this, SLOT(copyContextUrl()))->setEnabled(true);
 		} else if (_contextMenuLnk && dynamic_cast<MentionLink*>(_contextMenuLnk.data())) {
-			if (!_menu) _menu = new PopupMenu();
 			_menu->addAction(lang(lng_context_open_mention), this, SLOT(openContextUrl()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_mention), this, SLOT(copyContextUrl()))->setEnabled(true);
 		} else if (_contextMenuLnk && dynamic_cast<HashtagLink*>(_contextMenuLnk.data())) {
-			if (!_menu) _menu = new PopupMenu();
 			_menu->addAction(lang(lng_context_open_hashtag), this, SLOT(openContextUrl()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_hashtag), this, SLOT(copyContextUrl()))->setEnabled(true);
 		} else {
 		}
 		if (isUponSelected > 1) {
-			if (!_menu) _menu = new PopupMenu();
 			_menu->addAction(lang(lng_context_forward_selected), _widget, SLOT(onForwardSelected()));
 			if (selectedForDelete == selectedForForward) {
 				_menu->addAction(lang(lng_context_delete_selected), _widget, SLOT(onDeleteSelected()));
 			}
 			_menu->addAction(lang(lng_context_clear_selection), _widget, SLOT(onClearSelected()));
 		} else if (item && ((isUponSelected != -2 && (canForward || canDelete)) || item->id > 0)) {
-			if (!_menu) _menu = new PopupMenu();
 			if (isUponSelected != -2) {
 				if (canForward) {
 					_menu->addAction(lang(lng_context_forward_msg), _widget, SLOT(forwardMessage()))->setEnabled(true);
@@ -998,7 +989,6 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 		} else {
 			if (App::mousedItem() && !App::mousedItem()->serviceMsg() && App::mousedItem()->id > 0) {
-				if (!_menu) _menu = new PopupMenu();
 				_menu->addAction(lang(lng_context_select_msg), _widget, SLOT(selectMessage()))->setEnabled(true);
 				item = App::mousedItem();
 			}
@@ -1006,7 +996,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		App::contextItem(item);
 	}
 
-	if (_menu) {
+	if (_menu->actions().isEmpty()) {
+		delete _menu;
+		_menu = 0;
+	} else {
 		connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
 		_menu->popup(e->globalPos());
 		e->accept();
@@ -2943,7 +2936,8 @@ void HistoryWidget::updateStickers() {
 	if (cLastStickersUpdate() && getms(true) < cLastStickersUpdate() + StickersUpdateTimeout) return;
 	if (_stickersUpdateRequest) return;
 
-	_stickersUpdateRequest = MTP::send(MTPmessages_GetAllStickers(MTP_string(cStickersHash())), rpcDone(&HistoryWidget::stickersGot), rpcFail(&HistoryWidget::stickersFailed));
+	cSetStickersHash(stickersCountHash(true));
+	_stickersUpdateRequest = MTP::send(MTPmessages_GetAllStickers(MTP_int(cStickersHash())), rpcDone(&HistoryWidget::stickersGot), rpcFail(&HistoryWidget::stickersFailed));
 }
 
 void HistoryWidget::notifyBotCommandsChanged(UserData *user) {
@@ -2993,9 +2987,6 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 
 	const QVector<MTPStickerSet> &d_sets(d.vsets.c_vector().v);
 
-	QByteArray wasHash = cStickersHash();
-	cSetStickersHash(qba(d.vhash));
-
 	StickerSetsOrder &setsOrder(cRefStickerSetsOrder());
 	setsOrder.clear();
 
@@ -3008,21 +2999,9 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 		if (d_sets.at(i).type() == mtpc_stickerSet) {
 			const MTPDstickerSet &set(d_sets.at(i).c_stickerSet());
 			StickerSets::iterator i = sets.find(set.vid.v);
-			QString title = qs(set.vtitle);
-			if (set.vflags.v & MTPDstickerSet::flag_official) {
-				if (!title.compare(qstr("Great Minds"), Qt::CaseInsensitive)) {
-					title = lang(lng_stickers_default_set);
-				}
-				setsOrder.push_front(set.vid.v);
-			} else {
-				setsOrder.push_back(set.vid.v);
-			}
-
+			QString title = stickerSetTitle(set);
 			if (i == sets.cend()) {
 				i = sets.insert(set.vid.v, StickerSet(set.vid.v, set.vaccess_hash.v, title, qs(set.vshort_name), set.vcount.v, set.vhash.v, set.vflags.v | MTPDstickerSet_flag_NOT_LOADED));
-				if (!(i->flags & MTPDstickerSet::flag_disabled)) {
-					setsToRequest.insert(set.vid.v, set.vaccess_hash.v);
-				}
 			} else {
 				i->access = set.vaccess_hash.v;
 				i->title = title;
@@ -3032,19 +3011,38 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 					i->count = set.vcount.v;
 					i->hash = set.vhash.v;
 					i->flags |= MTPDstickerSet_flag_NOT_LOADED; // need to request this set
-					if (!(i->flags & MTPDstickerSet::flag_disabled)) {
-						setsToRequest.insert(set.vid.v, set.vaccess_hash.v);
-					}
+				}
+			}
+			if (!(i->flags & MTPDstickerSet::flag_disabled) || (i->flags & MTPDstickerSet::flag_official)) {
+				setsOrder.push_back(set.vid.v);
+				if (i->stickers.isEmpty() || (i->flags & MTPDstickerSet_flag_NOT_LOADED)) {
+					setsToRequest.insert(set.vid.v, set.vaccess_hash.v);
 				}
 			}
 		}
 	}
-	for (StickerSets::iterator i = sets.begin(), e = sets.end(); i != e;) {
-		if (i->id == CustomStickerSetId || i->access != 0) {
-			++i;
+	bool writeRecent = false;
+	RecentStickerPack &recent(cGetRecentStickers());
+	for (StickerSets::iterator it = sets.begin(), e = sets.end(); it != e;) {
+		if (it->id == CustomStickerSetId || it->access != 0) {
+			++it;
 		} else {
-			i = sets.erase(i);
+			for (RecentStickerPack::iterator i = recent.begin(); i != recent.cend();) {
+				if (it->stickers.indexOf(i->first) >= 0) {
+					i = recent.erase(i);
+					writeRecent = true;
+				} else {
+					++i;
+				}
+			}
+			it = sets.erase(it);
 		}
+	}
+
+	int32 countedHash = stickersCountHash();
+	cSetStickersHash(countedHash);
+	if (countedHash != d.vhash.v) {
+		LOG(("API Error: received stickers hash %1 while counted hash is %2").arg(d.vhash.v).arg(countedHash));
 	}
 
 	if (!setsToRequest.isEmpty() && App::api()) {
@@ -3055,6 +3053,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 	}
 
 	Local::writeStickers();
+	if (writeRecent) Local::writeUserSettings();
 
 	if (App::main()) emit App::main()->stickersUpdated();
 }
@@ -3217,6 +3216,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 	if (_history) {
 		_history->draft = _field.getLastText();
+		if (_migrated) _migrated->draft = QString(); // use migrated draft only once
 		_history->draftCursor.fillFrom(_field);
 		_history->draftToId = _replyToId;
 		_history->draftPreviewCancelled = _previewCancelled;
@@ -3326,6 +3326,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 			_history->draftCursor = _migrated->draftCursor;
 			_history->draftPreviewCancelled = _migrated->draftPreviewCancelled;
 			_history->draftToId = 0;
+			_migrated->draft = QString(); // use migrated draft only once
 			applyDraft(false);
 			_replyToId = 0;
 		} else {
@@ -4246,7 +4247,7 @@ void HistoryWidget::blockDone(PeerData *peer, const MTPBool &result) {
 }
 
 void HistoryWidget::onBotStart() {
-	if (!_peer || !_peer->isUser() || !_peer->asUser()->botInfo) {
+	if (!_peer || !_peer->isUser() || !_peer->asUser()->botInfo || !_canSendMessages) {
 		updateControlsVisibility();
 		return;
 	}
@@ -4813,7 +4814,7 @@ bool HistoryWidget::hasBroadcastToggle() const {
 }
 
 bool HistoryWidget::isBotStart() const {
-	if (!_peer || !_peer->isUser() || !_peer->asUser()->botInfo) return false;
+	if (!_peer || !_peer->isUser() || !_peer->asUser()->botInfo || !_canSendMessages) return false;
 	return !_peer->asUser()->botInfo->startToken.isEmpty() || (_history->isEmpty() && !_history->lastMsg);
 }
 
@@ -5291,11 +5292,12 @@ void HistoryWidget::cancelSendFile(const FileLoadResultPtr &file) {
 void HistoryWidget::confirmShareContact(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool ctrlShiftEnter) {
 	if (!_peer) return;
 
+	PeerId shareToId = _peer->id;
 	if (_confirmWithTextId == 0xFFFFFFFFFFFFFFFFL) {
 		onSend(ctrlShiftEnter, replyTo);
 		_confirmWithTextId = 0;
 	}
-	shareContact(_peer->id, phone, fname, lname, replyTo);
+	shareContact(shareToId, phone, fname, lname, replyTo);
 }
 
 void HistoryWidget::cancelShareContact() {
@@ -5893,7 +5895,7 @@ void HistoryWidget::updateBotKeyboard(History *h) {
 		if (_keyboard.singleUse() && _keyboard.hasMarkup() && _keyboard.forMsgId() == FullMsgId(_channel, _history->lastKeyboardId) && _history->lastKeyboardUsed) {
 			_history->lastKeyboardHiddenId = _history->lastKeyboardId;
 		}
-		if (!isBotStart() && !isBlocked() && (wasVisible || _replyTo || (!_field.hasSendText() && !kbWasHidden()))) {
+		if (!isBotStart() && !isBlocked() && _canSendMessages && (wasVisible || _replyTo || (!_field.hasSendText() && !kbWasHidden()))) {
 			if (!_a_show.animating()) {
 				if (hasMarkup) {
 					_kbScroll.show();

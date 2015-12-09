@@ -94,7 +94,7 @@ namespace {
 
 ContactsInner::ContactsInner(ChatData *chat, MembersFilter membersFilter) : TWidget()
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
-, _newItemHeight((membersFilter == MembersFilterAdmins) ? (st::contactsNewItemHeight + st::contactsAboutHeight) : 0)
+, _newItemHeight(0)
 , _newItemSel(false)
 , _chat(chat)
 , _channel(0)
@@ -119,8 +119,11 @@ ContactsInner::ContactsInner(ChatData *chat, MembersFilter membersFilter) : TWid
 , _addContactLnk(this, lang(lng_add_contact_button))
 , _saving(false) {
 	initList();
-	if (membersFilter == MembersFilterAdmins && !_contacts->list.count) {
-		App::api()->requestFullPeer(_chat);
+	if (membersFilter == MembersFilterAdmins) {
+		_newItemHeight = st::contactsNewItemHeight + qMax(_aboutAllAdmins.countHeight(_aboutWidth), _aboutAdmins.countHeight(_aboutWidth)) + st::contactsAboutHeight;
+		if (!_contacts->list.count) {
+			App::api()->requestFullPeer(_chat);
+		}
 	}
 	init();
 }
@@ -775,9 +778,9 @@ void ContactsInner::changeCheckState(ContactData *data, PeerData *peer) {
 int32 ContactsInner::selectedCount() const {
 	int32 result = _selCount;
 	if (_chat) {
-		result += (_chat->count > 0) ? _chat->count : 1;
+		result += qMax(_chat->count, 1);
 	} else if (_channel) {
-		result += _already.size();
+		result += qMax(_channel->count, _already.size());
 	} else if (_creating == CreatingGroupGroup) {
 		result += 1;
 	}
@@ -1379,6 +1382,7 @@ void ContactsBox::init() {
 	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(updateSel()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(&_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
+	connect(&_filter, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(&_filterCancel, SIGNAL(clicked()), this, SLOT(onFilterCancel()));
 	connect(&_inner, SIGNAL(mustScrollTo(int, int)), &_scroll, SLOT(scrollToY(int, int)));
 	connect(&_inner, SIGNAL(selectAllQuery()), &_filter, SLOT(selectAll()));
@@ -1500,14 +1504,12 @@ void ContactsBox::showDone() {
 	_filter.setFocus();
 }
 
+void ContactsBox::onSubmit() {
+	_inner.chooseParticipant();
+}
+
 void ContactsBox::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
-		if (_filter.hasFocus()) {
-			_inner.chooseParticipant();
-		} else {
-			ItemListBox::keyPressEvent(e);
-		}
-	} else if (_filter.hasFocus()) {
+	if (_filter.hasFocus()) {
 		if (e->key() == Qt::Key_Down) {
 			_inner.selectSkip(1);
 		} else if (e->key() == Qt::Key_Up) {
@@ -1770,7 +1772,10 @@ MembersInner::MembersInner(ChannelData *channel, MembersFilter filter) : TWidget
 , _kickRequestId(0)
 , _kickBox(0)
 , _loading(true)
-, _loadingRequestId(0) {
+, _loadingRequestId(0)
+, _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.right())
+, _about(_aboutWidth)
+, _aboutHeight(0) {
 	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 	connect(App::main(), SIGNAL(peerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)));
 	connect(App::main(), SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
@@ -1820,6 +1825,10 @@ void MembersInner::paintEvent(QPaintEvent *e) {
 			bool kickDown = kickSel && (from == _kickDown);
 			paintDialog(p, _rows[from], data(from), sel, kickSel, kickDown);
 			p.translate(0, _rowHeight);
+		}
+		if (to == _rows.size() && _filter == MembersFilterRecent && (_rows.size() < _channel->count || _rows.size() >= cMaxGroupCount())) {
+			p.setPen(st::stickersReorderFg);
+			_about.draw(p, st::contactsPadding.left(), st::stickersReorderPadding.top(), _aboutWidth, style::al_center);
 		}
 	}
 }
@@ -1909,7 +1918,7 @@ void MembersInner::paintDialog(Painter &p, PeerData *peer, MemberData *data, boo
 	}
 
 	p.setFont(st::contactsStatusFont->f);
-	p.setPen(sel ? st::contactsStatusFgOver : (data->onlineColor ? st::contactsStatusFgOnline : st::contactsStatusFg));
+	p.setPen(data->onlineColor ? st::contactsStatusFgOnline : (sel ? st::contactsStatusFgOver : st::contactsStatusFg));
 	p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), data->online);
 }
 
@@ -1992,8 +2001,14 @@ void MembersInner::chooseParticipant() {
 void MembersInner::refresh() {
 	if (_rows.isEmpty()) {
 		resize(width(), st::membersPadding.top() + st::noContactsHeight + st::membersPadding.bottom());
+		_aboutHeight = 0;
 	} else {
-		resize(width(), st::membersPadding.top() + _newItemHeight + _rows.size() * _rowHeight + st::membersPadding.bottom());
+		_about.setText(st::boxTextFont, lng_channel_only_last_shown(lt_count, _rows.size()));
+		_aboutHeight = st::stickersReorderPadding.top() + _about.countHeight(_aboutWidth) + st::stickersReorderPadding.bottom();
+		if (_filter != MembersFilterRecent || (_rows.size() >= _channel->count && _rows.size() < cMaxGroupCount())) {
+			_aboutHeight = 0;
+		}
+		resize(width(), st::membersPadding.top() + _newItemHeight + _rows.size() * _rowHeight + st::membersPadding.bottom() + _aboutHeight);
 	}
 	update();
 }
@@ -2228,6 +2243,7 @@ void MembersInner::removeKicked() {
 			--_channel->adminsCount;
 			if (App::main()) emit App::main()->peerUpdated(_channel);
 		}
+		refresh();
 	}
 	_kickConfirm = 0;
 }

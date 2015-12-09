@@ -148,10 +148,14 @@ bool update() {
 	if (versionFile != INVALID_HANDLE_VALUE) {
 		if (!ReadFile(versionFile, &versionNum, sizeof(DWORD), &readLen, NULL) || readLen != sizeof(DWORD)) {
 			versionNum = 0;
-		} else if (!ReadFile(versionFile, &versionLen, sizeof(DWORD), &readLen, NULL) || readLen != sizeof(DWORD) || versionLen > 63) {
-			versionNum = 0;
-		} else if (!ReadFile(versionFile, versionStr, versionLen, &readLen, NULL) || readLen != versionLen) {
-			versionNum = 0;
+		} else {
+			if (versionNum == 0x7FFFFFFF) { // beta version
+
+			} else if (!ReadFile(versionFile, &versionLen, sizeof(DWORD), &readLen, NULL) || readLen != sizeof(DWORD) || versionLen > 63) {
+				versionNum = 0;
+			} else if (!ReadFile(versionFile, versionStr, versionLen, &readLen, NULL) || readLen != versionLen) {
+				versionNum = 0;
+			}
 		}
 		CloseHandle(versionFile);
 		writeLog(L"Version file read.");
@@ -270,7 +274,7 @@ bool update() {
 }
 
 void updateRegistry() {
-	if (versionNum) {
+	if (versionNum && versionNum != 0x7FFFFFFF) {
 		writeLog(L"Updating registry..");
 		versionStr[versionLen / 2] = 0;
 		HKEY rkey;

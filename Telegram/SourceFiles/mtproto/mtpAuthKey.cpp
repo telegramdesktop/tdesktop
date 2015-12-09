@@ -18,54 +18,24 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
-#pragma once
+#include "stdafx.h"
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+void aesEncrypt(const void *src, void *dst, uint32 len, void *key, void *iv) {
+	uchar aes_key[32], aes_iv[32];
+	memcpy(aes_key, key, 32);
+	memcpy(aes_iv, iv, 32);
 
-#include <QtNetwork/QLocalSocket>
-#include <QtNetwork/QLocalServer>
-#include <QtNetwork/QNetworkReply>
+	AES_KEY aes;
+	AES_set_encrypt_key(aes_key, 256, &aes);
+	AES_ige_encrypt((const uchar*)src, (uchar*)dst, len, &aes, aes_iv, AES_ENCRYPT);
+}
 
-class UpdateDownloader : public QObject {
-	Q_OBJECT
+void aesDecrypt(const void *src, void *dst, uint32 len, void *key, void *iv) {
+	uchar aes_key[32], aes_iv[32];
+	memcpy(aes_key, key, 32);
+	memcpy(aes_iv, iv, 32);
 
-public:
-	UpdateDownloader(QThread *thread, const QString &url);
-
-	void unpackUpdate();
-
-	int32 ready();
-	int32 size();
-
-	static void clearAll();
-
-	~UpdateDownloader();
-
-public slots:
-
-	void start();
-	void partMetaGot();
-	void partFinished(qint64 got, qint64 total);
-	void partFailed(QNetworkReply::NetworkError e);
-	void sendRequest();
-
-private:
-	void initOutput();
-
-	void fatalFail();
-
-	QString updateUrl;
-	QNetworkAccessManager manager;
-	QNetworkReply *reply;
-	int32 already, full;
-	QFile outputFile;
-
-	QMutex mutex;
-
-};
-
-bool checkReadyUpdate();
-
-QString countBetaVersionSignature(uint64 version);
-
-#endif
+	AES_KEY aes;
+	AES_set_decrypt_key(aes_key, 256, &aes);
+	AES_ige_encrypt((const uchar*)src, (uchar*)dst, len, &aes, aes_iv, AES_DECRYPT);
+}

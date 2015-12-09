@@ -407,10 +407,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_profile_set_group_photo" = "Poner foto";
 "lng_profile_add_participant" = "Añadir miembros";
 "lng_profile_delete_and_exit" = "Dejar grupo";
-"lng_profile_kick" = "Expulsar";
-"lng_profile_sure_kick" = "¿Expulsar a {user} del grupo?";
-"lng_profile_sure_kick_channel" = "¿Expulsar a {user} del canal?";
-"lng_profile_sure_kick_admin" = "¿Expulsar a {user} de los administradores?";
+"lng_profile_kick" = "Eliminar";
+"lng_profile_sure_kick" = "¿Eliminar a {user} del grupo?";
+"lng_profile_sure_kick_channel" = "¿Eliminar a {user} del canal?";
+"lng_profile_sure_kick_admin" = "¿Eliminar a {user} de los administradores?";
 "lng_profile_loading" = "Cargando...";
 "lng_profile_shared_media" = "Multimedia";
 "lng_profile_no_media" = "No hay multimedia en este chat.";
@@ -431,6 +431,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_channel_add_admins" = "Nuevo administrador";
 "lng_channel_add_members" = "Añadir miembros";
 "lng_channel_members" = "Miembros";
+"lng_channel_only_last_shown" = "Sólo {count:_not_used_|aparece el último miembro|aparecen los últimos # miembros}";
 "lng_channel_admins" = "Administradores";
 "lng_channel_add_admin" = "Añadir administrador";
 "lng_channel_admin_sure" = "¿Añadir a {user} como administrador?";
@@ -438,7 +439,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_chat_all_members_admins" = "Todos son administradores";
 "lng_chat_about_all_admins" = "Todos pueden añadir nuevos miembros, editar el nombre y la foto del grupo.";
-"lng_chat_about_admins" = "Sólo los administradores pueden añadir y quitar miembros, editar el nombre y la foto del grupo.";
+"lng_chat_about_admins" = "Sólo los administradores pueden añadir y eliminar miembros, editar el nombre y la foto del grupo.";
 
 "lng_participant_filter" = "Buscar";
 "lng_participant_invite" = "Invitar";
@@ -447,7 +448,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_create_group_next" = "Siguiente";
 "lng_create_group_create" = "Crear";
 "lng_create_group_title" = "Nuevo grupo";
-"lng_create_group_about" = "Los grupos son ideales para las comunidades más pequeñas,\nde hasta {count:_not_used|# miembro|# miembros}";
+"lng_create_group_about" = "Los grupos son ideales para las comunidades\nmás pequeñas, de hasta {count:_not_used|# miembro|# miembros}";
 "lng_create_channel_title" = "Nuevo canal";
 "lng_create_channel_about" = "Los canales permiten difundir tus mensajes a audiencias ilimitadas";
 "lng_create_public_channel_title" = "Canal público";
@@ -477,9 +478,9 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_sure_delete_group_history" = "¿Quieres borrar todo el historial en «{group}»?\n\nEsta acción no se puede deshacer.";
 "lng_sure_delete_and_exit" = "¿Quieres eliminar todo el historial de mensajes y dejar el grupo «{group}»?\n\nEsta acción no se puede deshacer.";
 "lng_sure_leave_channel" = "¿Quieres dejar este canal?";
-"lng_sure_delete_channel" = "¿Quieres eliminar este canal? Todos los miembros y mensajes serán eliminados.";
+"lng_sure_delete_channel" = "¿Quieres eliminar este canal? Todos los miembros y mensajes se perderán.";
 "lng_sure_leave_group" = "¿Quieres salir del grupo?\nNo puedes deshacer esta acción.";
-"lng_sure_delete_group" = "¿Quieres eliminar este grupo? Todos los miembros y mensajes serán eliminados.";
+"lng_sure_delete_group" = "¿Quieres eliminar este grupo? Todos los miembros y mensajes se perderán.";
 
 "lng_message_empty" = "Mensaje vacío";
 "lng_media_unsupported" = "Multimedia no soportada";
@@ -492,12 +493,12 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_action_you_joined" = "Te uniste a este canal";
 "lng_action_add_you_group" = "{from} te añadió al grupo";
 "lng_action_you_joined_group" = "Te uniste a este grupo";
-"lng_action_kick_user" = "{from} expulsó a {user}";
+"lng_action_kick_user" = "{from} eliminó a {user}";
 "lng_action_user_left" = "{from} dejó el grupo";
 "lng_action_user_joined" = "{from} se unió al grupo";
 "lng_action_user_joined_by_link" = "{from} se unió al grupo con un enlace de invitación";
 "lng_action_user_registered" = "{from} se acaba de unir a Telegram";
-"lng_action_removed_photo" = "{from} quitó la foto del grupo";
+"lng_action_removed_photo" = "{from} eliminó la foto del grupo";
 "lng_action_removed_photo_channel" = "Foto del canal eliminada";
 "lng_action_changed_photo" = "{from} actualizó la foto del grupo";
 "lng_action_changed_photo_channel" = "Foto del canal actualizada";
@@ -564,10 +565,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_emoji_category1" = "Personas";
 "lng_emoji_category2" = "Naturaleza";
 "lng_emoji_category3" = "Comida y bebida";
-"lng_emoji_category4" = "Celebración";
-"lng_emoji_category5" = "Actividad";
-"lng_emoji_category6" = "Viajes y destinos";
-"lng_emoji_category7" = "Objetos y símbolos";
+"lng_emoji_category4" = "Actividad";
+"lng_emoji_category5" = "Viajes y destinos";
+"lng_emoji_category6" = "Objetos";
+"lng_emoji_category7" = "Símbolos y banderas";
 
 "lng_switch_stickers" = "Stickers";
 "lng_switch_emoji" = "Emoji";
@@ -581,6 +582,13 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_stickers_not_found" = "Pack de stickers no encontrado.";
 "lng_stickers_copied" = "Enlace del pack de stickers copiado al portapapeles.";
 "lng_stickers_default_set" = "Grandes personajes";
+"lng_stickers_you_have" = "Administrar y ordenar los packs de stickers";
+"lng_stickers_packs" = "Packs de stickers";
+"lng_stickers_reorder" = "Haz clic y arrastra para ordenar los packs";
+"lng_stickers_remove" = "Eliminar";
+"lng_stickers_return" = "Deshacer";
+"lng_stickers_restore" = "Restaurar";
+"lng_stickers_count" = "{count:Cargando...|# sticker|# stickers}";
 
 "lng_in_dlg_photo" = "Foto";
 "lng_in_dlg_video" = "Vídeo";
@@ -657,6 +665,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_save_downloaded" = "{ready} / {total} {mb}";
 "lng_duration_and_size" = "{duration}, {size}";
 "lng_choose_images" = "Elegir imágenes";
+
+"lng_context_view_profile" = "Ver información";
+"lng_context_view_group" = "Ver información";
+"lng_context_view_channel" = "Ver información";
 
 "lng_context_open_link" = "Abrir enlace";
 "lng_context_copy_link" = "Copiar enlace";
@@ -789,7 +801,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "– Los grupos ahora pueden tener múltiples administradores, con la habilidad de editar el nombre y foto de perfil, además de añadir y quitar miembros\n– Los grupos que alcanzan la capacidad de 200 usuarios pueden convertirse en supergrupos, que permiten hasta 1000 miembros\n\nMás sobre los administradores y supergrupos:\n{link}";
+"lng_new_version_text" = "— Administra los stickers: ordena manualmente tus packs de stickers. El orden de los packs se sincronizará en todos tus dispositivos \n— Haz clic y mantén en un sticker para ver una vista previa antes de enviar\n— Nuevo menú contextual para los chats en la lista de chats \n— Soporte de todos los emojis existentes";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

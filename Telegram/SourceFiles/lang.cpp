@@ -85,8 +85,8 @@ QString Translator::translate(const char *context, const char *sourceText, const
 		return QString();
 	}
 	if (qstr("QWidgetTextControl") == context || qstr("QLineEdit") == context) {
-		if (qstr("&Undo") == sourceText) return lang((cPlatform() == dbipWindows) ? lng_wnd_menu_undo : ((cPlatform() == dbipMac) ? lng_mac_menu_undo : lng_linux_menu_undo));
-		if (qstr("&Redo") == sourceText) return lang((cPlatform() == dbipWindows) ? lng_wnd_menu_redo : ((cPlatform() == dbipMac) ? lng_mac_menu_redo : lng_linux_menu_redo));
+		if (qstr("&Undo") == sourceText) return lang((cPlatform() == dbipWindows) ? lng_wnd_menu_undo : ((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_mac_menu_undo : lng_linux_menu_undo));
+		if (qstr("&Redo") == sourceText) return lang((cPlatform() == dbipWindows) ? lng_wnd_menu_redo : ((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_mac_menu_redo : lng_linux_menu_redo));
 		if (qstr("Cu&t") == sourceText) return lang(lng_mac_menu_cut);
 		if (qstr("&Copy") == sourceText) return lang(lng_mac_menu_copy);
 		if (qstr("&Paste") == sourceText) return lang(lng_mac_menu_paste);

@@ -323,7 +323,7 @@ titleBG: #6389a8;
 titleColor: #0f8dcc;//rgb(20, 136, 210);
 titleHeight: 39px;
 titleIconPos: point(7px, 7px);
-titleIconImg: sprite(160px, 100px, 26px, 26px);
+titleIconImg: sprite(161px, 100px, 26px, 26px);
 titleFont: font(17px);
 titlePos: point(44px, 29px);
 titleMenuOffset: 36px;
@@ -1424,12 +1424,13 @@ contactsNewItemIconPosition: point(29px, 19px);
 contactsNewItemTop: 18px;
 contactsNewItemFg: #4b82af;
 contactsAboutBg: #f7f7f7;
+contactsAboutShadow: #0000001F;
 contactsAdminCheckbox: Checkbox(defaultCheckbox) {
 	font: semiboldFont;
 	textBg: #f7f7f7;
 	textPosition: point(34px, 1px);
 }
-contactsAboutHeight: 80px;
+contactsAboutHeight: 42px;
 contactsAboutTop: 9px;
 contactsScroll: flatScroll(boxScroll) {
 	deltab: 0px;
@@ -1794,6 +1795,10 @@ stickersScroll: flatScroll(boxScroll) {
 	deltat: 23px;
 	deltab: 9px;
 }
+stickersReorderPadding: margins(0px, 12px, 0px, 12px);
+stickersReorderFg: #777;
+stickersRowDisabledOpacity: 0.4;
+stickersRowDuration: 200;
 
 emojiScroll: flatScroll(solidScroll) {
 	deltat: 48px;
@@ -1806,14 +1811,15 @@ emojiNatureOver: sprite(42px, 196px, 21px, 22px);
 emojiNatureActive: sprite(245px, 286px, 21px, 22px);
 emojiFoodOver: sprite(63px, 196px, 21px, 22px);
 emojiFoodActive: sprite(266px, 286px, 21px, 22px);
-emojiCelebrationOver: sprite(84px, 196px, 21px, 22px);
-emojiCelebrationActive: sprite(287px, 286px, 21px, 22px);
 emojiActivityOver: sprite(126px, 196px, 21px, 22px);
 emojiActivityActive: sprite(287px, 264px, 21px, 22px);
 emojiTravelOver: sprite(105px, 196px, 21px, 22px);
 emojiTravelActive: sprite(308px, 286px, 21px, 22px);
 emojiObjectsOver: sprite(147px, 196px, 21px, 22px);
 emojiObjectsActive: sprite(308px, 264px, 21px, 22px);
+emojiSymbolsOver: sprite(84px, 196px, 21px, 22px);
+emojiSymbolsActive: sprite(287px, 286px, 21px, 22px);
+stickersSettings: sprite(140px, 124px, 21px, 22px);
 
 emojiPanCategories: #f7f7f7;
 
@@ -1867,14 +1873,6 @@ rbEmojiFood: flatCheckbox(rbEmoji) {
 	disImageRect: emojiFoodOver;
 	chkDisImageRect: emojiFoodActive;
 }
-rbEmojiCelebration: flatCheckbox(rbEmoji) {
-	imageRect: emojiCelebrationOver;
-	chkImageRect: emojiCelebrationActive;
-	overImageRect: emojiCelebrationOver;
-	chkOverImageRect: emojiCelebrationActive;
-	disImageRect: emojiCelebrationOver;
-	chkDisImageRect: emojiCelebrationActive;
-}
 rbEmojiActivity: flatCheckbox(rbEmoji) {
 	imageRect: emojiActivityOver;
 	chkImageRect: emojiActivityActive;
@@ -1898,6 +1896,14 @@ rbEmojiObjects: flatCheckbox(rbEmoji) {
 	chkOverImageRect: emojiObjectsActive;
 	disImageRect: emojiObjectsOver;
 	chkDisImageRect: emojiObjectsActive;
+}
+rbEmojiSymbols: flatCheckbox(rbEmoji) {
+	imageRect: emojiSymbolsOver;
+	chkImageRect: emojiSymbolsActive;
+	overImageRect: emojiSymbolsOver;
+	chkOverImageRect: emojiSymbolsActive;
+	disImageRect: emojiSymbolsOver;
+	chkDisImageRect: emojiSymbolsActive;
 }
 emojiPanPadding: 12px;
 emojiPanSize: size(45px, 41px);
@@ -1934,12 +1940,15 @@ stickerIconSelColor: #58b2ed;
 stickerIconLeft: sprite(342px, 72px, 40px, 1px);
 stickerIconRight: sprite(342px, 73px, 40px, 1px);
 stickerIconMove: 400;
+stickerPreviewDuration: 150;
+stickerPreviewBg: #FFFFFFB0;
+stickerPreviewMin: 0.1;
 
-verifiedCheckProfile: sprite(285px, 240px, 22px, 22px);
-verifiedCheckProfilePos: point(9px, 4px);
-verifiedCheck: sprite(285px, 221px, 19px, 19px);
-verifiedCheckInv: sprite(304px, 221px, 19px, 19px);
-verifiedCheckPos: point(5px, 0px);
+verifiedCheckProfile: sprite(285px, 235px, 18px, 18px);
+verifiedCheckProfilePos: point(7px, 6px);
+verifiedCheck: sprite(285px, 221px, 14px, 14px);
+verifiedCheckInv: sprite(299px, 221px, 14px, 14px);
+verifiedCheckPos: point(4px, 2px);
 
 botKbDuration: 200;
 botKbBg: #f7f7f7;
