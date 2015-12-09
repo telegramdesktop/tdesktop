@@ -78,7 +78,7 @@ In Terminal go to **/Users/user/TBuild/Libraries/xz-5.0.5** and there run:
 
 ####zlib 1.2.8
 
-Using se system lib
+Using the system lib
 
 ####libexif 0.6.20
 #####Get the source code
@@ -154,7 +154,7 @@ then go to **/Users/user/TBuild/Libraries/opus** and run:
 * Extract to **/Users/user/TBuild/Libraries** to have **/Users/user/TBuild/Libraries/ffmpeg-2.6.3**
 
 * Download [libiconv-1.14](http://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.14.tar.gz) from http://www.gnu.org/software/libiconv/#downloading
-* Extract to **/Users/user/TBuild/Libraries** to have **/Users/user/TBuild/Libraries/ibiconv-1.14 **
+* Extract to **/Users/user/TBuild/Libraries** to have **/Users/user/TBuild/Libraries/ibiconv-1.14**
 
 #####Building library
 In Terminal go to **/Users/user/TBuild/Libraries/libiconv-1.14** and run:
