@@ -431,7 +431,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_channel_add_admins" = "New administrator";
 "lng_channel_add_members" = "Add members";
 "lng_channel_members" = "Members";
-"lng_channel_only_last_shown" = "Only the last {count:_not_used_|# member|# members} are shown here";
+"lng_channel_only_last_shown" = "Only the last {count:_not_used_|# member is|# members are} shown here";
 "lng_channel_admins" = "Administrators";
 "lng_channel_add_admin" = "Add Administrator";
 "lng_channel_admin_sure" = "Add {user} to administrators?";
@@ -802,7 +802,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— Sticker management: manually rearrange your sticker packs, pack order is now synced across all your devices\n— New context menu for chats in chats list\n— Support for all existing emoji";
+"lng_new_version_text" = "— Sticker management: manually rearrange your sticker packs, pack order is now synced across all your devices\n— Click and hold on a sticker to preview it before sending\n— New context menu for chats in chats list\n— Support for all existing emoji";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

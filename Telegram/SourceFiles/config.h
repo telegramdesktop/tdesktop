@@ -20,10 +20,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 9014;
-static const wchar_t *AppVersionStr = L"0.9.14";
-static const bool DevVersion = true;
-#define BETA_VERSION (9014003ULL) // just comment this line to build public version
+static const int32 AppVersion = 9015;
+static const wchar_t *AppVersionStr = L"0.9.15";
+static const bool DevVersion = false;
+//#define BETA_VERSION (9014003ULL) // just comment this line to build public version
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
