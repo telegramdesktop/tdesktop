@@ -223,7 +223,9 @@ void logsInit() {
 #ifdef _DEBUG
 		cForceWorkingDir(cExeDir());
 #else
-		cForceWorkingDir(psAppDataPath());
+		if(cWorkingDir().isEmpty()){
+			cForceWorkingDir(psAppDataPath());
+		}
 #endif
 
 #if (defined Q_OS_LINUX && !defined _DEBUG) // fix first version
