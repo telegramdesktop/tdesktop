@@ -3438,17 +3438,6 @@ void HistoryVideo::initDimensions(const HistoryItem *parent) {
 	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
 
 	_minh = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
-	if (parent->displayFromName()) {
-		_minh += st::msgPadding.top() + st::msgNameFont->height;
-	}
-	if (const HistoryReply *reply = toHistoryReply(parent)) {
-		_minh += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-	} else if (const HistoryForwarded *fwd = toHistoryForwarded(parent)) {
-		if (!parent->displayFromName()) {
-			_minh += st::msgPadding.top();
-		}
-		_minh += st::msgServiceNameFont->height;
-	}
 	if (_caption.isEmpty()) {
 		_height = _minh;
 	} else {
@@ -3494,17 +3483,6 @@ int32 HistoryVideo::countHeight(const HistoryItem *parent, int32 width) const {
 	}
 
 	int32 h = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
-	if (parent->displayFromName()) {
-		h += st::msgPadding.top() + st::msgNameFont->height;
-	}
-	if (const HistoryReply *reply = toHistoryReply(parent)) {
-		h += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-	} else if (const HistoryForwarded *fwd = toHistoryForwarded(parent)) {
-		if (!parent->displayFromName()) {
-			h += st::msgPadding.top();
-		}
-		h += st::msgServiceNameFont->height;
-	}
 	if (!_caption.isEmpty()) {
 		int32 textw = width - st::mediaPadding.left() - st::mediaPadding.right();
 		h += st::webPagePhotoSkip + _caption.countHeight(textw);
@@ -3521,43 +3499,11 @@ void HistoryVideo::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 	}
 	if (width < 1) return;
 
-	const HistoryReply *reply = toHistoryReply(parent);
-	const HistoryForwarded *fwd = reply ? 0 : toHistoryForwarded(parent);
 	int skipy = 0, replyFrom = 0, fwdFrom = 0;
-	if (reply) {
-		skipy = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-	} else if (fwd) {
-		skipy = st::msgServiceNameFont->height;
-	}
-	if (parent->displayFromName()) {
-		replyFrom = st::msgPadding.top() + st::msgNameFont->height;
-		fwdFrom = st::msgPadding.top() + st::msgNameFont->height;
-		skipy += replyFrom;
-	} else if (fwd) {
-		fwdFrom = st::msgPadding.top();
-		skipy += fwdFrom;
-	}
 
 	bool out = parent->out(), fromChannel = parent->fromChannel(), outbg = out && !fromChannel, hovered, pressed;
 	if (width >= _maxw) {
 		width = _maxw;
-	}
-
-	if (parent->displayFromName()) {
-		if (x >= st::mediaPadding.left() && y >= st::msgPadding.top() && x < width - st::mediaPadding.left() - st::mediaPadding.right() && x < st::mediaPadding.left() + parent->from()->nameText.maxWidth() && y < replyFrom) {
-			lnk = parent->from()->lnk;
-			return;
-		}
-	}
-	if (reply) {
-		if (x >= 0 && y >= replyFrom + st::msgReplyPadding.top() && x < width && y < skipy - st::msgReplyPadding.bottom()) {
-			lnk = reply->replyToLink();
-			return;
-		}
-	} else if (fwd) {
-		if (y >= fwdFrom && y < skipy) {
-			return fwd->getForwardedState(lnk, state, x - st::mediaPadding.left(), width - st::mediaPadding.left() - st::mediaPadding.right());
-		}
 	}
 
 	bool inDate = parent->pointInTime(width, height, x, y, InfoDisplayDefault);
@@ -3590,22 +3536,7 @@ void HistoryVideo::draw(Painter &p, const HistoryItem *parent, bool selected, in
 	}
 	if (width < 1) return;
 
-	const HistoryReply *reply = toHistoryReply(parent);
-	const HistoryForwarded *fwd = reply ? 0 : toHistoryForwarded(parent);
 	int skipy = 0, replyFrom = 0, fwdFrom = 0;
-	if (reply) {
-		skipy = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-	} else if (fwd) {
-		skipy = st::msgServiceNameFont->height;
-	}
-	if (parent->displayFromName()) {
-		replyFrom = st::msgPadding.top() + st::msgNameFont->height;
-		fwdFrom = st::msgPadding.top() + st::msgNameFont->height;
-		skipy += replyFrom;
-	} else if (fwd) {
-		fwdFrom = st::msgPadding.top();
-		skipy += fwdFrom;
-	}
 
 	data->thumb->checkload();
 
@@ -3618,21 +3549,6 @@ void HistoryVideo::draw(Painter &p, const HistoryItem *parent, bool selected, in
 	style::color sh(selected ? (outbg ? st::msgOutSelectShadow : st::msgInSelectShadow) : (outbg ? st::msgOutShadow : st::msgInShadow));
 	RoundCorners cors(selected ? (outbg ? MessageOutSelectedCorners : MessageInSelectedCorners) : (outbg ? MessageOutCorners : MessageInCorners));
 	App::roundRect(p, 0, 0, width, height, bg, cors, &sh);
-
-	if (parent->displayFromName()) {
-		p.setFont(st::msgNameFont->f);
-		if (fromChannel) {
-			p.setPen(selected ? st::msgInServiceSelColor : st::msgInServiceColor);
-		} else {
-			p.setPen(parent->from()->color);
-		}
-		parent->from()->nameText.drawElided(p, st::mediaPadding.left(), st::msgPadding.top(), width - st::mediaPadding.left() - st::mediaPadding.right());
-	}
-	if (reply) {
-		reply->drawReplyTo(p, st::msgReplyPadding.left(), replyFrom, width - st::msgReplyPadding.left() - st::msgReplyPadding.right(), selected);
-	} else if (fwd) {
-		fwd->drawForwardedFrom(p, st::mediaPadding.left(), fwdFrom, width - st::mediaPadding.left() - st::mediaPadding.right(), selected);
-	}
 
 	if (_thumbw) {
 		p.drawPixmap(QPoint(st::mediaPadding.left(), skipy + st::mediaPadding.top()), data->thumb->pixSingle(_thumbw, 0, st::mediaThumbSize, st::mediaThumbSize));
@@ -3704,17 +3620,6 @@ int32 HistoryVideo::resize(int32 width, const HistoryItem *parent) {
 	if (_caption.isEmpty()) return _height;
 
 	_height = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
-	if (parent->displayFromName()) {
-		_height += st::msgPadding.top() + st::msgNameFont->height;
-	}
-	if (const HistoryReply *reply = toHistoryReply(parent)) {
-		_height += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-	} else if (const HistoryForwarded *fwd = toHistoryForwarded(parent)) {
-		if (!parent->displayFromName()) {
-			_height += st::msgPadding.top();
-		}
-		_height += st::msgServiceNameFont->height;
-	}
 	if (!_caption.isEmpty()) {
 		int32 textw = w - st::mediaPadding.left() - st::mediaPadding.right();
 		_height += st::webPagePhotoSkip + _caption.countHeight(textw);
@@ -3751,17 +3656,6 @@ void HistoryAudio::initDimensions(const HistoryItem *parent) {
 	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
 
 	_minh = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
-	if (parent->displayFromName()) {
-		_minh += st::msgPadding.top() + st::msgNameFont->height;
-	}
-	if (const HistoryReply *reply = toHistoryReply(parent)) {
-		_minh += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-	} else if (const HistoryForwarded *fwd = toHistoryForwarded(parent)) {
-		if (!parent->displayFromName()) {
-			_minh += st::msgPadding.top();
-		}
-		_minh += st::msgServiceNameFont->height;
-	}
 	_height = _minh;
 }
 
@@ -3769,22 +3663,7 @@ void HistoryAudio::draw(Painter &p, const HistoryItem *parent, bool selected, in
 	if (width < 0) width = w;
 	if (width < 1) return;
 
-	const HistoryReply *reply = toHistoryReply(parent);
-	const HistoryForwarded *fwd = reply ? 0 : toHistoryForwarded(parent);
 	int skipy = 0, replyFrom = 0, fwdFrom = 0;
-	if (reply) {
-		skipy = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-	} else if (fwd) {
-		skipy = st::msgServiceNameFont->height;
-	}
-	if (parent->displayFromName()) {
-		replyFrom = st::msgPadding.top() + st::msgNameFont->height;
-		fwdFrom = st::msgPadding.top() + st::msgNameFont->height;
-		skipy += replyFrom;
-	} else if (fwd) {
-		fwdFrom = st::msgPadding.top();
-		skipy += fwdFrom;
-	}
 
 	bool out = parent->out(), fromChannel = parent->fromChannel(), outbg = out && !fromChannel, hovered, pressed;
 	bool already = !data->already().isEmpty(), hasdata = !data->data.isEmpty();
@@ -3800,21 +3679,6 @@ void HistoryAudio::draw(Painter &p, const HistoryItem *parent, bool selected, in
 	style::color sh(selected ? (outbg ? st::msgOutSelectShadow : st::msgInSelectShadow) : (outbg ? st::msgOutShadow : st::msgInShadow));
 	RoundCorners cors(selected ? (outbg ? MessageOutSelectedCorners : MessageInSelectedCorners) : (outbg ? MessageOutCorners : MessageInCorners));
 	App::roundRect(p, 0, 0, width, _height, bg, cors, &sh);
-
-	if (parent->displayFromName()) {
-		p.setFont(st::msgNameFont->f);
-		if (fromChannel) {
-			p.setPen(selected ? st::msgInServiceSelColor : st::msgInServiceColor);
-		} else {
-			p.setPen(parent->from()->color);
-		}
-		parent->from()->nameText.drawElided(p, st::mediaPadding.left(), st::msgPadding.top(), width - st::mediaPadding.left() - st::mediaPadding.right());
-	}
-	if (reply) {
-		reply->drawReplyTo(p, st::msgReplyPadding.left(), replyFrom, width - st::msgReplyPadding.left() - st::msgReplyPadding.right(), selected);
-	} else if (fwd) {
-		fwd->drawForwardedFrom(p, st::mediaPadding.left(), fwdFrom, width - st::mediaPadding.left() - st::mediaPadding.right(), selected);
-	}
 
 	AudioMsgId playing;
 	AudioPlayerState playingState = AudioPlayerStopped;
@@ -3932,43 +3796,11 @@ void HistoryAudio::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 	if (width < 0) width = w;
 	if (width < 1) return;
 
-	const HistoryReply *reply = toHistoryReply(parent);
-	const HistoryForwarded *fwd = reply ? 0 : toHistoryForwarded(parent);
 	int skipy = 0, replyFrom = 0, fwdFrom = 0;
-	if (reply) {
-		skipy = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-	} else if (fwd) {
-		skipy = st::msgServiceNameFont->height;
-	}
-	if (parent->displayFromName()) {
-		replyFrom = st::msgPadding.top() + st::msgNameFont->height;
-		fwdFrom = st::msgPadding.top() + st::msgNameFont->height;
-		skipy += replyFrom;
-	} else if (fwd) {
-		fwdFrom = st::msgPadding.top();
-		skipy += fwdFrom;
-	}
 
 	bool out = parent->out(), fromChannel = parent->fromChannel(), outbg = out && !fromChannel, hovered, pressed;
 	if (width >= _maxw) {
 		width = _maxw;
-	}
-
-	if (parent->displayFromName()) {
-		if (x >= st::mediaPadding.left() && y >= st::msgPadding.top() && x < width - st::mediaPadding.left() - st::mediaPadding.right() && x < st::mediaPadding.left() + parent->from()->nameText.maxWidth() && y < replyFrom) {
-			lnk = parent->from()->lnk;
-			return;
-		}
-	}
-	if (reply) {
-		if (x >= 0 && y >= replyFrom + st::msgReplyPadding.top() && x < width && y < skipy - st::msgReplyPadding.bottom()) {
-			lnk = reply->replyToLink();
-			return;
-		}
-	} else if (fwd) {
-		if (y >= fwdFrom && y < skipy) {
-			return fwd->getForwardedState(lnk, state, x - st::mediaPadding.left(), width - st::mediaPadding.left() - st::mediaPadding.right());
-		}
 	}
 
 	if (x >= 0 && y >= skipy && x < width && y < _height && !data->loader && data->access) {
@@ -4296,39 +4128,7 @@ void HistoryDocument::getState(TextLinkPtr &lnk, HistoryCursorState &state, int3
 		return;
 	}
 
-	const HistoryReply *reply = toHistoryReply(parent);
-	const HistoryForwarded *fwd = (reply || _data->song()) ? 0 : toHistoryForwarded(parent);
 	int skipy = 0, replyFrom = 0, fwdFrom = 0;
-	if (reply) {
-		skipy = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-	} else if (fwd) {
-		skipy = st::msgServiceNameFont->height;
-	}
-	if (parent->displayFromName()) {
-		replyFrom = st::msgPadding.top() + st::msgNameFont->height;
-		fwdFrom = st::msgPadding.top() + st::msgNameFont->height;
-		skipy += replyFrom;
-	} else if (fwd) {
-		fwdFrom = st::msgPadding.top();
-		skipy += fwdFrom;
-	}
-
-	if (parent->displayFromName()) {
-		if (x >= st::mediaPadding.left() && y >= st::msgPadding.top() && x < width - st::mediaPadding.left() - st::mediaPadding.right() && x < st::mediaPadding.left() + parent->from()->nameText.maxWidth() && y < replyFrom) {
-			lnk = parent->from()->lnk;
-			return;
-		}
-	}
-	if (reply) {
-		if (x >= 0 && y >= replyFrom + st::msgReplyPadding.top() && x < width && y < skipy - st::msgReplyPadding.bottom()) {
-			lnk = reply->replyToLink();
-			return;
-		}
-	} else if (fwd) {
-		if (y >= fwdFrom && y < skipy) {
-			return fwd->getForwardedState(lnk, state, x - st::mediaPadding.left(), width - st::mediaPadding.left() - st::mediaPadding.right());
-		}
-	}
 
 	if (x >= 0 && y >= skipy && x < width && y < _height && !_data->loader && _data->access) {
 		lnk = _openl;
@@ -4689,17 +4489,6 @@ void HistoryContact::initDimensions(const HistoryItem *parent) {
 		_maxw = phonew + tleft + st::mediaPadding.right();
 	}
 	_minh = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
-	if (parent->displayFromName()) {
-		_minh += st::msgPadding.top() + st::msgNameFont->height;
-	}
-	if (const HistoryReply *reply = toHistoryReply(parent)) {
-		_minh += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-	} else if (const HistoryForwarded *fwd = toHistoryForwarded(parent)) {
-		if (!parent->displayFromName()) {
-			_minh += st::msgPadding.top();
-		}
-		_minh += st::msgServiceNameFont->height;
-	}
 	_height = _minh;
 }
 
@@ -4719,39 +4508,7 @@ bool HistoryContact::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32
 void HistoryContact::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
 
-	const HistoryReply *reply = toHistoryReply(parent);
-	const HistoryForwarded *fwd = reply ? 0 : toHistoryForwarded(parent);
 	int skipy = 0, replyFrom = 0, fwdFrom = 0;
-	if (reply) {
-		skipy = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-	} else if (fwd) {
-		skipy = st::msgServiceNameFont->height;
-	}
-	if (parent->displayFromName()) {
-		replyFrom = st::msgPadding.top() + st::msgNameFont->height;
-		fwdFrom = st::msgPadding.top() + st::msgNameFont->height;
-		skipy += replyFrom;
-	} else if (fwd) {
-		fwdFrom = st::msgPadding.top();
-		skipy += fwdFrom;
-	}
-
-	if (parent->displayFromName()) {
-		if (x >= st::mediaPadding.left() && y >= st::msgPadding.top() && x < width - st::mediaPadding.left() - st::mediaPadding.right() && x < st::mediaPadding.left() + parent->from()->nameText.maxWidth() && y < replyFrom) {
-			lnk = parent->from()->lnk;
-			return;
-		}
-	}
-	if (reply) {
-		if (x >= 0 && y >= replyFrom + st::msgReplyPadding.top() && x < width && y < skipy - st::msgReplyPadding.bottom()) {
-			lnk = reply->replyToLink();
-			return;
-		}
-	} else if (fwd) {
-		if (y >= fwdFrom && y < skipy) {
-			return fwd->getForwardedState(lnk, state, x - st::mediaPadding.left(), width - st::mediaPadding.left() - st::mediaPadding.right());
-		}
-	}
 
 	if (x >= 0 && y >= skipy && x < width && y < _height && contact) {
 		lnk = contact->lnk;
@@ -4773,22 +4530,7 @@ void HistoryContact::draw(Painter &p, const HistoryItem *parent, bool selected, 
 	if (width < 0) width = w;
 	if (width < 1) return;
 
-	const HistoryReply *reply = toHistoryReply(parent);
-	const HistoryForwarded *fwd = reply ? 0 : toHistoryForwarded(parent);
 	int skipy = 0, replyFrom = 0, fwdFrom = 0;
-	if (reply) {
-		skipy = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-	} else if (fwd) {
-		skipy = st::msgServiceNameFont->height;
-	}
-	if (parent->displayFromName()) {
-		replyFrom = st::msgPadding.top() + st::msgNameFont->height;
-		fwdFrom = st::msgPadding.top() + st::msgNameFont->height;
-		skipy += replyFrom;
-	} else if (fwd) {
-		fwdFrom = st::msgPadding.top();
-		skipy += fwdFrom;
-	}
 
 	bool out = parent->out(), fromChannel = parent->fromChannel(), outbg = out && !fromChannel;
 	if (width >= _maxw) {
@@ -4799,21 +4541,6 @@ void HistoryContact::draw(Painter &p, const HistoryItem *parent, bool selected, 
 	style::color sh(selected ? (outbg ? st::msgOutSelectShadow : st::msgInSelectShadow) : (outbg ? st::msgOutShadow : st::msgInShadow));
 	RoundCorners cors(selected ? (outbg ? MessageOutSelectedCorners : MessageInSelectedCorners) : (outbg ? MessageOutCorners : MessageInCorners));
 	App::roundRect(p, 0, 0, width, _height, bg, cors, &sh);
-
-	if (parent->displayFromName()) {
-		p.setFont(st::msgNameFont->f);
-		if (fromChannel) {
-			p.setPen(selected ? st::msgInServiceSelColor : st::msgInServiceColor);
-		} else {
-			p.setPen(parent->from()->color);
-		}
-		parent->from()->nameText.drawElided(p, st::mediaPadding.left(), st::msgPadding.top(), width - st::mediaPadding.left() - st::mediaPadding.right());
-	}
-	if (reply) {
-		reply->drawReplyTo(p, st::msgReplyPadding.left(), replyFrom, width - st::msgReplyPadding.left() - st::msgReplyPadding.right(), selected);
-	} else if (fwd) {
-		fwd->drawForwardedFrom(p, st::mediaPadding.left(), fwdFrom, width - st::mediaPadding.left() - st::mediaPadding.right(), selected);
-	}
 
 	p.drawPixmap(st::mediaPadding.left(), skipy + st::mediaPadding.top(), (contact ? contact->photo : userDefPhoto(1))->pixRounded(st::mediaThumbSize));
 	if (selected) {
@@ -5897,23 +5624,8 @@ void HistoryImageLink::initDimensions(const HistoryItem *parent) {
 	}
 	_maxw = w;
 	_minh = thumbh;
-	const HistoryReply *reply = toHistoryReply(parent);
-	const HistoryForwarded *fwd = toHistoryForwarded(parent);
-	if (reply || !_title.isEmpty() || !_description.isEmpty()) {
+	if (!_title.isEmpty() || !_description.isEmpty()) {
 		_maxw += st::mediaPadding.left() + st::mediaPadding.right();
-		if (reply) {
-			_minh += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-		} else {
-			if (!parent->displayFromName() || !fwd) {
-				_minh += st::msgPadding.top();
-			}
-			if (fwd) {
-				_minh += st::msgServiceNameFont->height + st::msgPadding.top();
-			}
-		}
-		if (parent->displayFromName()) {
-			_minh += st::msgPadding.top() + st::msgNameFont->height;
-		}
 		if (!_title.isEmpty()) {
 			_maxw = qMax(_maxw, int32(st::webPageLeft + _title.maxWidth()));
 			_minh += qMin(_title.minHeight(), 2 * st::webPageTitleFont->height);
@@ -5933,11 +5645,9 @@ void HistoryImageLink::initDimensions(const HistoryItem *parent) {
 void HistoryImageLink::draw(Painter &p, const HistoryItem *parent, bool selected, int32 width) const {
 	if (width < 0) width = w;
 	int skipx = 0, skipy = 0, height = _height;
-	const HistoryReply *reply = toHistoryReply(parent);
-	const HistoryForwarded *fwd = toHistoryForwarded(parent);
 	bool out = parent->out(), fromChannel = parent->fromChannel(), outbg = out && !fromChannel;
 
-	if (reply || !_title.isEmpty() || !_description.isEmpty()) {
+	if (!_title.isEmpty() || !_description.isEmpty()) {
 		skipx = st::mediaPadding.left();
 
 		style::color bg(selected ? (outbg ? st::msgOutSelectBg : st::msgInSelectBg) : (outbg ? st::msgOutBg : st::msgInBg));
@@ -5946,29 +5656,9 @@ void HistoryImageLink::draw(Painter &p, const HistoryItem *parent, bool selected
 		App::roundRect(p, 0, 0, width, _height, bg, cors, &sh);
 
 		int replyFrom = 0, fwdFrom = 0;
-		if (parent->displayFromName()) {
-			replyFrom = st::msgPadding.top() + st::msgNameFont->height;
-			fwdFrom = st::msgPadding.top() + st::msgNameFont->height;
-			skipy += replyFrom;
-			p.setFont(st::msgNameFont->f);
-			if (fromChannel) {
-				p.setPen(selected ? st::msgInServiceSelColor : st::msgInServiceColor);
-			} else {
-				p.setPen(parent->from()->color);
-			}
-			parent->from()->nameText.drawElided(p, st::mediaPadding.left(), st::msgPadding.top(), width - st::mediaPadding.left() - st::mediaPadding.right());
-			if (!fwd && !reply) skipy += st::msgPadding.top();
-		} else if (!reply) {
-			fwdFrom = st::msgPadding.top();
-			skipy += fwdFrom;
-		}
-		if (reply) {
-			skipy += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-			reply->drawReplyTo(p, st::msgReplyPadding.left(), replyFrom, width - st::msgReplyPadding.left() - st::msgReplyPadding.right(), selected);
-		} else if (fwd) {
-			skipy += st::msgServiceNameFont->height + st::msgPadding.top();
-			fwd->drawForwardedFrom(p, st::mediaPadding.left(), fwdFrom, width - st::mediaPadding.left() - st::mediaPadding.right(), selected);
-		}
+		fwdFrom = st::msgPadding.top();
+		skipy += fwdFrom;
+
 		width -= st::mediaPadding.left() + st::mediaPadding.right();
 
 		if (!_title.isEmpty()) {
@@ -6036,11 +5726,8 @@ void HistoryImageLink::draw(Painter &p, const HistoryItem *parent, bool selected
 }
 
 int32 HistoryImageLink::resize(int32 width, const HistoryItem *parent) {
-	const HistoryReply *reply = toHistoryReply(parent);
-	const HistoryForwarded *fwd = toHistoryForwarded(parent);
-
 	w = qMin(width, _maxw);
-	if (reply || !_title.isEmpty() || !_description.isEmpty()) {
+	if (!_title.isEmpty() || !_description.isEmpty()) {
 		w -= st::mediaPadding.left() + st::mediaPadding.right();
 	}
 
@@ -6065,20 +5752,7 @@ int32 HistoryImageLink::resize(int32 width, const HistoryItem *parent) {
 	if (_height < st::minPhotoSize) {
 		_height = st::minPhotoSize;
 	}
-	if (reply || !_title.isEmpty() || !_description.isEmpty()) {
-		if (parent->displayFromName()) {
-			_height += st::msgPadding.top() + st::msgNameFont->height;
-		}
-		if (reply) {
-			_height += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-		} else {
-			if (!parent->displayFromName() || !fwd) {
-				_height += st::msgPadding.top();
-			}
-			if (fwd) {
-				_height += st::msgServiceNameFont->height + st::msgPadding.top();
-			}
-		}
+	if (!_title.isEmpty() || !_description.isEmpty()) {
 		if (!_title.isEmpty()) {
 			_height += qMin(_title.countHeight(w), st::webPageTitleFont->height * 2);
 		}
@@ -6129,39 +5803,11 @@ void HistoryImageLink::getState(TextLinkPtr &lnk, HistoryCursorState &state, int
 	bool out = parent->out(), fromChannel = parent->fromChannel(), outbg = out && !fromChannel;
 
 	int skipx = 0, skipy = 0, height = _height;
-	const HistoryReply *reply = toHistoryReply(parent);
-	const HistoryForwarded *fwd = reply ? 0 : toHistoryForwarded(parent);
 	int replyFrom = 0, fwdFrom = 0;
-	if (reply || !_title.isEmpty() || !_description.isEmpty()) {
+	if (!_title.isEmpty() || !_description.isEmpty()) {
 		skipx = st::mediaPadding.left();
-		if (reply) {
-			skipy = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-		} else if (fwd) {
-			skipy = st::msgServiceNameFont->height + st::msgPadding.top();
-		}
-		if (parent->displayFromName()) {
-			replyFrom = st::msgPadding.top() + st::msgNameFont->height;
-			fwdFrom = st::msgPadding.top() + st::msgNameFont->height;
-			skipy += replyFrom;
-			if (x >= st::mediaPadding.left() && y >= st::msgPadding.top() && x < width - st::mediaPadding.left() - st::mediaPadding.right() && x < st::mediaPadding.left() + parent->from()->nameText.maxWidth() && y < replyFrom) {
-				lnk = parent->from()->lnk;
-				return;
-			}
-			if (!fwd && !reply) skipy += st::msgPadding.top();
-		} else if (!reply) {
-			fwdFrom = st::msgPadding.top();
-			skipy += fwdFrom;
-		}
-		if (reply) {
-			if (x >= 0 && y >= replyFrom + st::msgReplyPadding.top() && x < width && y < skipy - st::msgReplyPadding.bottom()) {
-				lnk = reply->replyToLink();
-				return;
-			}
-		} else if (fwd) {
-			if (y >= fwdFrom && y < fwdFrom + st::msgServiceNameFont->height) {
-				return fwd->getForwardedState(lnk, state, x - st::mediaPadding.left(), width - st::mediaPadding.left() - st::mediaPadding.right());
-			}
-		}
+		fwdFrom = st::msgPadding.top();
+		skipy += fwdFrom;
 		height -= skipy + st::mediaPadding.bottom();
 		width -= st::mediaPadding.left() + st::mediaPadding.right();
 	}
@@ -6411,7 +6057,7 @@ QString HistoryMessage::selectedText(uint32 selection) const {
 }
 
 QString HistoryMessage::inDialogsText() const {
-	return justMedia() ? (_media ? _media->inDialogsText() : QString()) : _text.original(0, 0xFFFF, Text::ExpandLinksNone);
+	return emptyText() ? (_media ? _media->inDialogsText() : QString()) : _text.original(0, 0xFFFF, Text::ExpandLinksNone);
 }
 
 HistoryMedia *HistoryMessage::getMedia(bool inOverview) const {
@@ -6464,15 +6110,15 @@ void HistoryMessage::setText(const QString &text, const EntitiesInText &entities
 }
 
 QString HistoryMessage::originalText() const {
-	return justMedia() ? QString() : _text.original();
+	return emptyText() ? QString() : _text.original();
 }
 
 EntitiesInText HistoryMessage::originalEntities() const {
-	return justMedia() ? EntitiesInText() : _text.originalEntities();
+	return emptyText() ? EntitiesInText() : _text.originalEntities();
 }
 
 bool HistoryMessage::textHasLinks() {
-	return justMedia() ? false : _text.hasLinks();
+	return emptyText() ? false : _text.hasLinks();
 }
 
 void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, bool selected, InfoDisplayType type) const {
@@ -6691,7 +6337,7 @@ int32 HistoryMessage::resize(int32 width) {
 			if (media) _height += _media->resize(width, this);
 		}
 		if (displayFromName()) {
-			if (justMedia()) {
+			if (emptyText()) {
 				_height += st::msgPadding.top() + st::msgNameFont->height + st::mediaHeaderSkip;
 			} else {
 				_height += st::msgNameFont->height;
@@ -6837,7 +6483,7 @@ void HistoryMessage::drawInDialog(Painter &p, const QRect &r, bool act, const Hi
 	if (r.width()) {
 		textstyleSet(&(act ? st::dlgActiveTextStyle : st::dlgTextStyle));
 		p.setFont(st::dlgHistFont->f);
-		p.setPen((act ? st::dlgActiveColor : (justMedia() ? st::dlgSystemColor : st::dlgTextColor))->p);
+		p.setPen((act ? st::dlgActiveColor : (emptyText() ? st::dlgSystemColor : st::dlgTextColor))->p);
 		cache.drawElided(p, r.left(), r.top(), r.width(), r.height() / st::dlgHistFont->height);
 		textstyleRestore();
 	}
@@ -6928,17 +6574,18 @@ void HistoryForwarded::drawForwardedFrom(Painter &p, int32 x, int32 y, int32 w, 
 }
 
 void HistoryForwarded::drawMessageText(Painter &p, const QRect &trect, uint32 selection) const {
-	drawForwardedFrom(p, trect.x(), trect.y(), trect.width(), (selection == FullItemSel));
-
 	QRect realtrect(trect);
-	realtrect.setY(trect.y() + st::msgServiceNameFont->height);
+	if (displayForwardedFrom()) {
+		drawForwardedFrom(p, realtrect.x(), realtrect.y(), realtrect.width(), (selection == FullItemSel));
+		realtrect.setY(trect.y() + st::msgServiceNameFont->height);
+	}
 	HistoryMessage::drawMessageText(p, realtrect, selection);
 }
 
 int32 HistoryForwarded::resize(int32 width) {
 	HistoryMessage::resize(width);
-	if (drawBubble()) {
-		if (justMedia() && !displayFromName()) {
+	if (drawBubble() && displayForwardedFrom()) {
+		if (emptyText() && !displayFromName()) {
 			_height += st::msgPadding.top() + st::msgServiceNameFont->height + st::mediaHeaderSkip;
 		} else {
 			_height += st::msgServiceNameFont->height;
@@ -6948,7 +6595,7 @@ int32 HistoryForwarded::resize(int32 width) {
 }
 
 bool HistoryForwarded::hasPoint(int32 x, int32 y) const {
-	if (drawBubble()) {
+	if (drawBubble() && displayForwardedFrom()) {
 		int32 left = 0, width = 0;
 		countPositionAndSize(left, width);
 		if (width < 1) return false;
@@ -6963,7 +6610,7 @@ void HistoryForwarded::getState(TextLinkPtr &lnk, HistoryCursorState &state, int
 	lnk = TextLinkPtr();
 	state = HistoryDefaultCursorState;
 
-	if (drawBubble()) {
+	if (drawBubble() && displayForwardedFrom()) {
 		int32 left = 0, width = 0;
 		countPositionAndSize(left, width);
 		if (displayFromPhoto()) {
@@ -6993,7 +6640,9 @@ void HistoryForwarded::getState(TextLinkPtr &lnk, HistoryCursorState &state, int
 
 void HistoryForwarded::getStateFromMessageText(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const QRect &r) const {
 	QRect realr(r);
-	realr.setHeight(r.height() - st::msgServiceNameFont->height);
+	if (drawBubble() && displayForwardedFrom()) {
+		realr.setHeight(r.height() - st::msgServiceNameFont->height);
+	}
 	HistoryMessage::getStateFromMessageText(lnk, state, x, y, realr);
 }
 
@@ -7011,7 +6660,7 @@ void HistoryForwarded::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 
 	after = false;
 	upon = false;
 
-	if (drawBubble()) {
+	if (drawBubble() && displayForwardedFrom()) {
 		int32 left = 0, width = 0;
 		countPositionAndSize(left, width);
 		if (width < 1) return;
@@ -7035,8 +6684,7 @@ HistoryReply::HistoryReply(History *history, HistoryBlock *block, const MTPDmess
 , replyToMsgId(msg.vreply_to_msg_id.v)
 , replyToMsg(0)
 , replyToVersion(0)
-, _maxReplyWidth(0)
-{
+, _maxReplyWidth(0) {
 	if (!updateReplyTo() && App::api()) {
 		App::api()->requestReplyTo(this, history->peer->asChannel(), replyToMsgId);
 	}
@@ -7046,8 +6694,7 @@ HistoryReply::HistoryReply(History *history, HistoryBlock *block, MsgId msgId, i
 , replyToMsgId(replyTo)
 , replyToMsg(0)
 , replyToVersion(0)
-, _maxReplyWidth(0)
-{
+, _maxReplyWidth(0) {
 	if (!updateReplyTo() && App::api()) {
 		App::api()->requestReplyTo(this, history->peer->asChannel(), replyToMsgId);
 	}
@@ -7173,7 +6820,7 @@ void HistoryReply::drawReplyTo(Painter &p, int32 x, int32 y, int32 w, bool selec
 
 				HistoryMessage *replyToAsMsg = replyToMsg->toHistoryMessage();
 				if (likeService) {
-				} else if ((replyToAsMsg && replyToAsMsg->justMedia()) || replyToMsg->serviceMsg()) {
+				} else if ((replyToAsMsg && replyToAsMsg->emptyText()) || replyToMsg->serviceMsg()) {
 					style::color date(selected ? (outbg ? st::msgOutSelectDateColor : st::msgInSelectDateColor) : (outbg ? st::msgOutDateColor : st::msgInDateColor));
 					p.setPen(date->p);
 				} else {
@@ -7208,12 +6855,8 @@ int32 HistoryReply::resize(int32 width) {
 	HistoryMessage::resize(width);
 
 	if (drawBubble()) {
-		if (justMedia()) {
-			if (!displayFromName()) {
-				_height += st::msgPadding.top() + st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom() + st::mediaHeaderSkip;
-			} else {
-				_height += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom() - st::mediaHeaderSkip + st::mediaHeaderSkip;
-			}
+		if (emptyText() && !displayFromName()) {
+			_height += st::msgPadding.top() + st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom() + st::mediaHeaderSkip;
 		} else {
 			_height += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		}

@@ -1060,7 +1060,7 @@ public:
 		return 0;
 	}
 
-	bool displayFromName() const {
+	bool hasFromName() const {
 		return (!out() || fromChannel()) && !history()->peer->isUser();
 	}
 	bool displayFromPhoto() const {
@@ -1170,6 +1170,12 @@ public:
 	}
 	virtual bool needsBubble(const HistoryItem *parent) const = 0;
 	virtual bool customInfoLayout() const = 0;
+	virtual bool hideFromName() const {
+		return false;
+	}
+	virtual bool hideForwardedFrom() const {
+		return false;
+	}
 
 	int32 currentWidth() const {
 		return qMin(w, _maxw);
@@ -1230,6 +1236,12 @@ public:
 	bool customInfoLayout() const {
 		return _caption.isEmpty();
 	}
+	bool hideFromName() const {
+		return true;
+	}
+	bool hideForwardedFrom() const {
+		return true;
+	}
 
 private:
 	PhotoData *_data;
@@ -1278,6 +1290,12 @@ public:
 	}
 	bool customInfoLayout() const {
 		return _caption.isEmpty();
+	}
+	bool hideFromName() const {
+		return true;
+	}
+	bool hideForwardedFrom() const {
+		return true;
 	}
 
 private:
@@ -1385,6 +1403,9 @@ public:
 	}
 	bool customInfoLayout() const {
 		return false;
+	}
+	bool hideForwardedFrom() const {
+		return _data->song();
 	}
 
 private:
@@ -1683,7 +1704,7 @@ public:
 	}
 
 	bool needsBubble(const HistoryItem *parent) const {
-		return !_title.isEmpty() || !_description.isEmpty() || parent->toHistoryReply();
+		return !_title.isEmpty() || !_description.isEmpty() || parent->toHistoryForwarded() || parent->toHistoryReply();
 	}
 	bool customInfoLayout() const {
 		return true;
@@ -1713,14 +1734,17 @@ public:
 	int32 plainMaxWidth() const;
 	void countPositionAndSize(int32 &left, int32 &width) const;
 
-	bool justMedia() const {
+	bool emptyText() const {
 		return _text.isEmpty();
 	}
 	bool drawBubble() const {
-		return _media ? (!justMedia() || _media->needsBubble(this)) : true;
+		return _media ? (!emptyText() || _media->needsBubble(this)) : true;
 	}
 	bool hasBubble() const {
 		return drawBubble();
+	}
+	bool displayFromName() const {
+		return hasFromName() && (!emptyText() || !_media || !_media->isDisplayed() || toHistoryReply() || !_media->hideFromName());
 	}
 	bool uploading() const;
 
@@ -1857,6 +1881,9 @@ public:
 		return fwdFrom;
 	}
 	QString selectedText(uint32 selection) const;
+	bool displayForwardedFrom() const {
+		return (!_media || !_media->isDisplayed() || !_media->hideForwardedFrom());
+	}
 
 	HistoryForwarded *toHistoryForwarded() {
 		return this;

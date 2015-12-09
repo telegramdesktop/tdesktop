@@ -207,7 +207,7 @@ void NotifyWindow::updateNotifyDisplay() {
 				item->drawInDialog(p, r, active, textCachedFor, itemTextCache);
 			} else {
 				p.setFont(st::dlgHistFont->f);
-				if (item->displayFromName() && !item->fromChannel()) {
+				if (item->hasFromName() && !item->fromChannel()) {
 					itemTextCache.setText(st::dlgHistFont, item->from()->name);
 					p.setPen(st::dlgSystemColor->p);
 					itemTextCache.drawElided(p, r.left(), r.top(), r.width(), st::dlgHistFont->height);
