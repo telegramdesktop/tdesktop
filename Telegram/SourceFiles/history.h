@@ -941,6 +941,9 @@ public:
 	}
 	virtual void updateMedia(const MTPMessageMedia *media, bool allowEmitResize) {
 	}
+	virtual bool hasBubble() const {
+		return false;
+	}
 
 	virtual QString selectedText(uint32 selection) const {
 		return qsl("[-]");
@@ -1166,7 +1169,7 @@ public:
 		return QString();
 	}
 	virtual bool needsBubble(const HistoryItem *parent) const = 0;
-	virtual bool customTime() const = 0;
+	virtual bool customInfoLayout() const = 0;
 
 	int32 currentWidth() const {
 		return qMin(w, _maxw);
@@ -1199,22 +1202,22 @@ public:
 	HistoryMedia *clone() const;
 
 	PhotoData *photo() const {
-		return data;
+		return _data;
 	}
 
 	void updateFrom(const MTPMessageMedia &media);
 
 	TextLinkPtr lnk() const {
-		return openl;
+		return _openl;
 	}
 
 	virtual bool animating() const {
-		if (data->full->loaded()) return false;
-		return data->full->loading() ? true : !data->medium->loaded();
+		if (_data->full->loaded()) return false;
+		return _data->full->loading() ? true : !_data->medium->loaded();
 	}
 
 	bool hasReplyPreview() const {
-		return !data->thumb->isNull();
+		return !_data->thumb->isNull();
 	}
 	ImagePtr replyPreview();
 
@@ -1224,15 +1227,16 @@ public:
 	bool needsBubble(const HistoryItem *parent) const {
 		return !_caption.isEmpty() || parent->toHistoryReply();
 	}
-	bool customTime() const {
+	bool customInfoLayout() const {
 		return _caption.isEmpty();
 	}
 
 private:
-	int16 pixw, pixh;
-	PhotoData *data;
+	PhotoData *_data;
+	TextLinkPtr _openl;
+
+	int16 _pixw, _pixh;
 	Text _caption;
-	TextLinkPtr openl;
 
 };
 
@@ -1272,7 +1276,7 @@ public:
 	bool needsBubble(const HistoryItem *parent) const {
 		return !_caption.isEmpty() || parent->toHistoryReply();
 	}
-	bool customTime() const {
+	bool customInfoLayout() const {
 		return _caption.isEmpty();
 	}
 
@@ -1320,7 +1324,7 @@ public:
 	bool needsBubble(const HistoryItem *parent) const {
 		return true;
 	}
-	bool customTime() const {
+	bool customInfoLayout() const {
 		return false;
 	}
 
@@ -1379,7 +1383,7 @@ public:
 	bool needsBubble(const HistoryItem *parent) const {
 		return true;
 	}
-	bool customTime() const {
+	bool customInfoLayout() const {
 		return false;
 	}
 
@@ -1390,16 +1394,22 @@ private:
 
 	int32 _namew;
 	QString _name;
-	int32 _thumbw, _thumbx, _thumby;
+	int32 _thumbw;
 
 	// >= 0 will contain download / upload string, _statusSize = loaded bytes
-	// < 0 will contain played string, _statusSize = seconds played
-	// 0x7FFFFF0 will contain status for not yet downloaded file
-	// 0x7FFFFF1 will contain status for already downloaded file
-	// 0x7FFFFF2 will contain status for failed to download / upload file
+	// < 0 will contain played string, _statusSize = -(seconds + 1) played
+	// 0x7FFFFFF0 will contain status for not yet downloaded file
+	// 0x7FFFFFF1 will contain status for already downloaded file
+	// 0x7FFFFFF2 will contain status for failed to download / upload file
 	mutable int32 _statusSize;
 	mutable QString _statusText;
+
+	void setStatusSize(int32 newSize, qint64 realDuration = 0) const;
+	bool updateStatusText(const HistoryItem *parent) const; // returns showPause
 };
+static const int32 DocumentStatusSizeReady  = 0x7FFFFFF0;
+static const int32 DocumentStatusSizeLoaded = 0x7FFFFFF1;
+static const int32 DocumentStatusSizeFailed = 0x7FFFFFF2;
 
 class HistoryGif : public HistoryMedia {
 public:
@@ -1442,7 +1452,7 @@ public:
 	bool needsBubble(const HistoryItem *parent) const {
 		return parent->toHistoryReply();
 	}
-	bool customTime() const {
+	bool customInfoLayout() const {
 		return true;
 	}
 
@@ -1490,7 +1500,7 @@ public:
 	bool needsBubble(const HistoryItem *parent) const {
 		return false;
 	}
-	bool customTime() const {
+	bool customInfoLayout() const {
 		return true;
 	}
 
@@ -1525,7 +1535,7 @@ public:
 	bool needsBubble(const HistoryItem *parent) const {
 		return true;
 	}
-	bool customTime() const {
+	bool customInfoLayout() const {
 		return false;
 	}
 
@@ -1577,7 +1587,7 @@ public:
 	bool needsBubble(const HistoryItem *parent) const {
 		return true;
 	}
-	bool customTime() const {
+	bool customInfoLayout() const {
 		return false;
 	}
 
@@ -1675,7 +1685,7 @@ public:
 	bool needsBubble(const HistoryItem *parent) const {
 		return !_title.isEmpty() || !_description.isEmpty() || parent->toHistoryReply();
 	}
-	bool customTime() const {
+	bool customInfoLayout() const {
 		return true;
 	}
 
@@ -1700,11 +1710,17 @@ public:
 	void initDimensions();
 	void fromNameUpdated() const;
 
+	int32 plainMaxWidth() const;
+	void countPositionAndSize(int32 &left, int32 &width) const;
+
 	bool justMedia() const {
 		return _text.isEmpty();
 	}
 	bool drawBubble() const {
 		return _media ? (!justMedia() || _media->needsBubble(this)) : true;
+	}
+	bool hasBubble() const {
+		return drawBubble();
 	}
 	bool uploading() const;
 

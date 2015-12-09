@@ -1165,7 +1165,9 @@ introErrLabelTextStyle: textStyle(defaultTextStyle) {
 	lineHeight: 27px;
 }
 
-mediaPadding: margins(7px, 6px, 7px, 6px);
+mediaPadding: margins(0px, 0px, 0px, 0px);//2px, 2px, 2px, 2px);
+mediaCaptionSkip: 5px;
+mediaHeaderSkip: 5px;
 mediaThumbSize: 48px;
 mediaNameTop: 3px;
 mediaDetailsShift: 3px;

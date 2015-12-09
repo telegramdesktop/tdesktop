@@ -100,9 +100,9 @@ PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxW
 		}
 
 		_name = _file->filename;
-		_namew = st::mediaFont->width(_name);
+		_namew = st::normalFont->width(_name);
 		_size = formatSizeText(_file->filesize);
-		_textw = qMax(_namew, st::mediaFont->width(_size));
+		_textw = qMax(_namew, st::normalFont->width(_size));
 	}
 	updateBoxSize();
 	_caption.setMaxLength(MaxPhotoCaption);
@@ -136,9 +136,9 @@ PhotoSendBox::PhotoSendBox(const QString &phone, const QString &fname, const QSt
 	_compressed.hide();
 
 	_name = lng_full_name(lt_first_name, _fname, lt_last_name, _lname);
-	_namew = st::mediaFont->width(_name);
+	_namew = st::normalFont->width(_name);
 	_size = _phone;
-	_textw = qMax(_namew, st::mediaFont->width(_size));
+	_textw = qMax(_namew, st::normalFont->width(_size));
 
 	updateBoxSize();
 	prepare();
@@ -210,16 +210,16 @@ void PhotoSendBox::paintEvent(QPaintEvent *e) {
 			p.drawPixmap(x + st::mediaPadding.left(), y + st::mediaPadding.top(), userDefPhoto(1)->pix(st::mediaThumbSize));
 		}
 
-		p.setFont(st::mediaFont->f);
+		p.setFont(st::normalFont->f);
 		p.setPen(st::black->c);
 		if (twidth < _namew) {
-			p.drawText(x + tleft, y + st::mediaPadding.top() + st::mediaNameTop + st::mediaFont->ascent, st::mediaFont->elided(_name, twidth));
+			p.drawText(x + tleft, y + st::mediaPadding.top() + st::mediaNameTop + st::normalFont->ascent, st::normalFont->elided(_name, twidth));
 		} else {
-			p.drawText(x + tleft, y + st::mediaPadding.top() + st::mediaNameTop + st::mediaFont->ascent, _name);
+			p.drawText(x + tleft, y + st::mediaPadding.top() + st::mediaNameTop + st::normalFont->ascent, _name);
 		}
 
 		p.setPen(st::mediaOutColor->p);
-		p.drawText(x + tleft, y + st::mediaPadding.top() + st::mediaThumbSize - st::mediaDetailsShift - st::mediaFont->descent, _size);
+		p.drawText(x + tleft, y + st::mediaPadding.top() + st::mediaThumbSize - st::mediaDetailsShift - st::normalFont->descent, _size);
 	}
 }
 

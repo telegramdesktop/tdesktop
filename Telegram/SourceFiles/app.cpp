@@ -2147,7 +2147,6 @@ namespace App {
 		prepareCorners(MessageInSelectedCorners, st::msgRadius, st::msgInSelectBg, &st::msgInSelectShadow);
 		prepareCorners(MessageOutCorners, st::msgRadius, st::msgOutBg, &st::msgOutShadow);
 		prepareCorners(MessageOutSelectedCorners, st::msgRadius, st::msgOutSelectBg, &st::msgOutSelectShadow);
-		prepareCorners(ButtonHoverCorners, st::msgRadius, st::mediaSaveButton.overBgColor, &st::msgInShadow);
 
 	}
 	

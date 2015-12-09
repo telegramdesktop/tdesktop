@@ -75,7 +75,6 @@ enum RoundCorners {
 	MessageInSelectedCorners,
 	MessageOutCorners,
 	MessageOutSelectedCorners,
-	ButtonHoverCorners,
 
 	RoundCornersCount
 };
