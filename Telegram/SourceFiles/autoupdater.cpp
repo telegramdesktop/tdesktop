@@ -569,6 +569,8 @@ bool checkReadyUpdate() {
 	return true;
 }
 
+#endif
+
 QString countBetaVersionSignature(uint64 version) { // duplicated in packer.cpp
 	if (cBetaPrivateKey().isEmpty()) {
 		LOG(("Error: Trying to count beta version signature without beta private key!"));
@@ -612,5 +614,3 @@ QString countBetaVersionSignature(uint64 version) { // duplicated in packer.cpp
 	signature = signature.replace('-', '8').replace('_', 'B');
 	return QString::fromUtf8(signature.mid(19, 32));
 }
-
-#endif

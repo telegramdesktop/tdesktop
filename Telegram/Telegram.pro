@@ -89,7 +89,7 @@ SOURCES += \
     ./SourceFiles/autoupdater.cpp \
     ./SourceFiles/dialogswidget.cpp \
     ./SourceFiles/dropdown.cpp \
-	./SourceFiles/facades.cpp \
+    ./SourceFiles/facades.cpp \
     ./SourceFiles/fileuploader.cpp \
     ./SourceFiles/history.cpp \
     ./SourceFiles/historywidget.cpp \
@@ -176,7 +176,7 @@ HEADERS += \
     ./SourceFiles/countries.h \
     ./SourceFiles/dialogswidget.h \
     ./SourceFiles/dropdown.h \
-	./SourceFiles/facades.h \
+    ./SourceFiles/facades.h \
     ./SourceFiles/fileuploader.h \
     ./SourceFiles/history.h \
     ./SourceFiles/historywidget.h \
