@@ -89,7 +89,7 @@ int main(int argc, char *argv[]) {
 
 	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if (cRestartingUpdate()) {
-		if (DevVersion) {
+		if (!cBetaVersion() && DevVersion) {
 			LOG(("Writing 'devversion' file before launching the Updater!"));
 			QFile f(cWorkingDir() + qsl("tdata/devversion"));
 			if (!f.exists() && f.open(QIODevice::WriteOnly)) {

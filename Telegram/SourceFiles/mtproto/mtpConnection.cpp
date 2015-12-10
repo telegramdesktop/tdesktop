@@ -361,7 +361,7 @@ namespace {
 		QVariant statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
 		if (statusCode.isValid()) {
 			int status = statusCode.toInt();
-			mayBeBadKey = (status == 404);
+			mayBeBadKey = (status == 410);
 			if (status == 429) {
 				LOG(("Protocol Error: 429 flood code returned!"));
 			}
@@ -845,7 +845,7 @@ void MTPautoConnection::socketPacket(mtpPrime *packet, uint32 size) {
 			sock.disconnectFromHost();
 			emit connected();
 		} else if (status == WaitingTcp || status == UsingTcp) {
-			bool mayBeBadKey = (data[0] == -404) && _sentEncrypted;
+			bool mayBeBadKey = (data[0] == -410) && _sentEncrypted;
 			emit error(mayBeBadKey);
 		} else {
 			LOG(("Strange Tcp Error; status %1").arg(status));
@@ -1016,7 +1016,7 @@ void MTPtcpConnection::socketPacket(mtpPrime *packet, uint32 size) {
 
 	mtpBuffer data = _handleTcpResponse(packet, size);
 	if (data.size() == 1) {
-		bool mayBeBadKey = (data[0] == -404) && _sentEncrypted;
+		bool mayBeBadKey = (data[0] == -410) && _sentEncrypted;
 		emit error(mayBeBadKey);
 	} else if (status == UsingTcp) {
 		receivedQueue.push_back(data);
@@ -1952,11 +1952,11 @@ void MTProtoConnectionPrivate::socketStart(bool afterConfig) {
 	}
 }
 
-void MTProtoConnectionPrivate::restart(bool maybeBadKey) {
+void MTProtoConnectionPrivate::restart(bool mayBeBadKey) {
 	QReadLocker lockFinished(&sessionDataMutex);
 	if (!sessionData) return;
 
-	DEBUG_LOG(("MTP Info: restarting MTProtoConnection, maybe bad key = %1").arg(logBool(maybeBadKey)));
+	DEBUG_LOG(("MTP Info: restarting MTProtoConnection, maybe bad key = %1").arg(logBool(mayBeBadKey)));
 
 	_waitForReceivedTimer.stop();
 	_waitForConnectedTimer.stop();
@@ -1964,11 +1964,11 @@ void MTProtoConnectionPrivate::restart(bool maybeBadKey) {
 	mtpAuthKeyPtr key(sessionData->getKey());
 	if (key) {
 		if (!sessionData->isCheckedKey()) {
-			if (maybeBadKey) {
+			if (mayBeBadKey) {
 				clearMessages();
 				keyId = mtpAuthKey::RecreateKeyId;
 //				retryTimeout = 1; // no ddos please
-				LOG(("MTP Info: key may be bad and was not checked - will be destroyed"));
+				LOG(("MTP Info: key may be bad and was not checked - but won't be destroyed, no log outs because of bad server right now.."));
 			}
 		} else {
 			sessionData->setCheckedKey(false);

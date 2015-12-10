@@ -431,6 +431,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_channel_add_admins" = "Nuovo amministratore";
 "lng_channel_add_members" = "Aggiungi membri";
 "lng_channel_members" = "Membri";
+"lng_channel_only_last_shown" = "Solo {count:_not_used_|l'ultimo membro è mostrato|gli ultimi # membri sono mostrati} qui";
 "lng_channel_admins" = "Amministratori";
 "lng_channel_add_admin" = "Aggiungi amministratore";
 "lng_channel_admin_sure" = "Aggiungere {user} agli amministratori?";
@@ -564,10 +565,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_emoji_category1" = "Persone";
 "lng_emoji_category2" = "Natura";
 "lng_emoji_category3" = "Cibo e bevande";
-"lng_emoji_category4" = "Festeggiamenti";
-"lng_emoji_category5" = "Attività";
-"lng_emoji_category6" = "Viaggi e luoghi";
-"lng_emoji_category7" = "Oggetti e simboli";
+"lng_emoji_category4" = "Attività";
+"lng_emoji_category5" = "Viaggi e luoghi";
+"lng_emoji_category6" = "Oggetti";
+"lng_emoji_category7" = "Simboli e bandiere";
 
 "lng_switch_stickers" = "Sticker";
 "lng_switch_emoji" = "Emoji";
@@ -578,9 +579,16 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_stickers_remove_pack" = "Rimuovere «{sticker_pack}»?";
 "lng_stickers_add_pack" = "Aggiungi sticker";
 "lng_stickers_share_pack" = "Condividi sticker";
-"lng_stickers_not_found" = "Pacchetto di sticker non trovato.";
+"lng_stickers_not_found" = "Set di sticker non trovato.";
 "lng_stickers_copied" = "Link degli sticker copiato negli appunti.";
 "lng_stickers_default_set" = "Grandi menti";
+"lng_stickers_you_have" = "Organizza e riordina i set di sticker";
+"lng_stickers_packs" = "Set di sticker";
+"lng_stickers_reorder" = "Clicca e tieni premuto per riordinare i set di sticker";
+"lng_stickers_remove" = "Elimina";
+"lng_stickers_return" = "Annulla";
+"lng_stickers_restore" = "Ripristina";
+"lng_stickers_count" = "{count:Caricamento..|# sticker|# sticker}";
 
 "lng_in_dlg_photo" = "Foto";
 "lng_in_dlg_video" = "Video";
@@ -657,6 +665,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_save_downloaded" = "{ready} / {total} {mb}";
 "lng_duration_and_size" = "{duration}, {size}";
 "lng_choose_images" = "Scegli immagini";
+
+"lng_context_view_profile" = "Visualizza profilo";
+"lng_context_view_group" = "Visualizza info gruppo";
+"lng_context_view_channel" = "Visualizza info canale";
 
 "lng_context_open_link" = "Apri link";
 "lng_context_copy_link" = "Copia link";
@@ -789,7 +801,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";
-"lng_new_version_text" = "— I gruppi ora possono avere più amministratori con la possibilità di cambiare il nome e l'immagine, e di aggiungere e rimuovere membri\n— I gruppi che hanno raggiunto i 200 membri possono essere aggiornati a supergruppi e avere fino a 1000 membri\n\nPiù info su amministratori e supergruppi:\n{link}";
+"lng_new_version_text" = "— Gestione degli sticker: Riordina manualmente i tuoi set di sticker, ora sono sincronizzati tra i tuoi dispositivi\n— Clicca e tieni premuto su uno sticker per visualizzare l'anteprima prima di inviarlo\n— Nuovo menu contestuale per le chat nella lista chat\n— Tutte le nuove emoji ora sono supportate";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

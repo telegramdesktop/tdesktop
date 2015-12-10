@@ -269,7 +269,7 @@ void UpdateDownloader::unpackUpdate() {
 	}
 	if (RSA_verify(NID_sha1, (const uchar*)(compressed.constData() + hSigLen), hShaLen, (const uchar*)(compressed.constData()), hSigLen, pbKey) != 1) { // verify signature
 		RSA_free(pbKey);
-		if (cDevVersion()) { // try other public key, if we are in dev version
+		if (cDevVersion() || cBetaVersion()) { // try other public key, if we are in dev or beta version
 			pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(DevVersion ? UpdatesPublicKey : UpdatesPublicDevKey), -1), 0, 0, 0);
 			if (!pbKey) {
 				LOG(("Update Error: cant read public rsa key!"));
@@ -360,7 +360,19 @@ void UpdateDownloader::unpackUpdate() {
 			LOG(("Update Error: cant read version from downloaded stream, status: %1").arg(stream.status()));
 			return fatalFail();
 		}
-		if (int32(version) <= AppVersion) {
+
+		quint64 betaVersion = 0;
+		if (version == 0x7FFFFFFF) { // beta version
+			stream >> betaVersion;
+			if (stream.status() != QDataStream::Ok) {
+				LOG(("Update Error: cant read beta version from downloaded stream, status: %1").arg(stream.status()));
+				return fatalFail();
+			}
+			if (!cBetaVersion() || betaVersion <= cBetaVersion()) {
+				LOG(("Update Error: downloaded beta version %1 is not greater, than mine %2").arg(betaVersion).arg(cBetaVersion()));
+				return fatalFail();
+			}
+		} else if (int32(version) <= AppVersion) {
 			LOG(("Update Error: downloaded version %1 is not greater, than mine %2").arg(version).arg(AppVersion));
 			return fatalFail();
 		}
@@ -430,8 +442,12 @@ void UpdateDownloader::unpackUpdate() {
 			return fatalFail();
 		}
 		fVersion.write((const char*)&versionNum, sizeof(VerInt));
-		fVersion.write((const char*)&versionLen, sizeof(VerInt));
-		fVersion.write((const char*)&versionStr[0], versionLen);
+		if (versionNum == 0x7FFFFFFF) { // beta version
+			fVersion.write((const char*)&betaVersion, sizeof(quint64));
+		} else {
+			fVersion.write((const char*)&versionLen, sizeof(VerInt));
+			fVersion.write((const char*)&versionStr[0], versionLen);
+		}
 		fVersion.close();
 	}
 
@@ -481,12 +497,24 @@ bool checkReadyUpdate() {
 			UpdateDownloader::clearAll();
 			return false;
 		}
-		fVersion.close();
-		if (versionNum <= AppVersion) {
+		if (versionNum == 0x7FFFFFFF) { // beta version
+			quint64 betaVersion = 0;
+			if (fVersion.read((char*)&betaVersion, sizeof(quint64)) != sizeof(quint64)) {
+				LOG(("Update Error: cant read beta version from file '%1'").arg(versionPath));
+				UpdateDownloader::clearAll();
+				return false;
+			}
+			if (!cBetaVersion() || betaVersion <= cBetaVersion()) {
+				LOG(("Update Error: cant install beta version %1 having beta version %2").arg(betaVersion).arg(cBetaVersion()));
+				UpdateDownloader::clearAll();
+				return false;
+			}
+		} else if (versionNum <= AppVersion) {
 			LOG(("Update Error: cant install version %1 having version %2").arg(versionNum).arg(AppVersion));
 			UpdateDownloader::clearAll();
 			return false;
 		}
+		fVersion.close();
 	}
 
 #ifdef Q_OS_WIN
@@ -542,3 +570,47 @@ bool checkReadyUpdate() {
 }
 
 #endif
+
+QString countBetaVersionSignature(uint64 version) { // duplicated in packer.cpp
+	if (cBetaPrivateKey().isEmpty()) {
+		LOG(("Error: Trying to count beta version signature without beta private key!"));
+		return QString();
+	}
+
+	QByteArray signedData = (qstr("TelegramBeta_") + QString::number(version, 16).toLower()).toUtf8();
+	
+	static const int32 shaSize = 20, keySize = 128;
+
+	uchar sha1Buffer[shaSize];
+	hashSha1(signedData.constData(), signedData.size(), sha1Buffer); // count sha1
+
+	uint32 siglen = 0;
+
+	RSA *prKey = PEM_read_bio_RSAPrivateKey(BIO_new_mem_buf(const_cast<char*>(cBetaPrivateKey().constData()), -1), 0, 0, 0);
+	if (!prKey) {
+		LOG(("Error: Could not read beta private key!"));
+		return QString();
+	}
+	if (RSA_size(prKey) != keySize) {
+		LOG(("Error: Bad beta private key size: %1").arg(RSA_size(prKey)));
+		RSA_free(prKey);
+		return QString();
+	}
+	QByteArray signature;
+	signature.resize(keySize);
+	if (RSA_sign(NID_sha1, (const uchar*)(sha1Buffer), shaSize, (uchar*)(signature.data()), &siglen, prKey) != 1) { // count signature
+		LOG(("Error: Counting beta version signature failed!"));
+		RSA_free(prKey);
+		return QString();
+	}
+	RSA_free(prKey);
+
+	if (siglen != keySize) {
+		LOG(("Error: Bad beta version signature length: %1").arg(siglen));
+		return QString();
+	}
+
+	signature = signature.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
+	signature = signature.replace('-', '8').replace('_', 'B');
+	return QString::fromUtf8(signature.mid(19, 32));
+}

@@ -178,6 +178,8 @@ public:
 	}
 };
 
+class StickerPreviewWidget;
+
 class MainWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
@@ -412,6 +414,9 @@ public:
 	QPixmap grabTopBar();
 	QPixmap grabInner();
 
+	void ui_showStickerPreview(DocumentData *sticker);
+	void ui_hideStickerPreview();
+
 	~MainWidget();
 
 signals:
@@ -481,6 +486,8 @@ public slots:
 
 	void onViewsIncrement();
 	void onActiveChannelUpdateFull();
+
+	void onDownloadPathSettings();
 
 private:
 
@@ -562,7 +569,9 @@ private:
 	StackItems _stack;
 	PeerData *_peerInStack;
 	MsgId _msgIdInStack;
-	
+
+	StickerPreviewWidget *_stickerPreview;
+
 	int32 _playerHeight;
 	int32 _contentScrollAddToY;
 

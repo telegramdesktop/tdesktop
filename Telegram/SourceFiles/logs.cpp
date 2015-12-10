@@ -183,25 +183,63 @@ void logsInit() {
 	static _StreamCreator streamCreator;
 	if (mainLogStream) return;
 
-    QString wasDir = cWorkingDir();
+	QFile beta(cExeDir() + qsl("TelegramBeta_data/tdata/beta"));
+	if (cBetaVersion()) {
+		cForceWorkingDir(cExeDir() + qsl("TelegramBeta_data/"));
+		if (*BetaPrivateKey) {
+			cSetBetaPrivateKey(QByteArray(BetaPrivateKey));
+		}
+		if (beta.open(QIODevice::WriteOnly)) {
+			QDataStream dataStream(&beta);
+			dataStream.setVersion(QDataStream::Qt_5_3);
+			dataStream << quint64(cRealBetaVersion()) << cBetaPrivateKey();
+		} else {
+			LOG(("Error: could not open \"beta\" file for writing private key!"));
+		}
+	} else if (beta.exists()) {
+		if (beta.open(QIODevice::ReadOnly)) {
+			QDataStream dataStream(&beta);
+			dataStream.setVersion(QDataStream::Qt_5_3);
+
+			quint64 v;
+			QByteArray k;
+			dataStream >> v >> k;
+			if (dataStream.status() == QDataStream::Ok) {
+				cSetBetaVersion(qMax(v, AppVersion * 1000ULL));
+				cSetBetaPrivateKey(k);
+				cSetRealBetaVersion(v);
+
+				cForceWorkingDir(cExeDir() + qsl("TelegramBeta_data/"));
+			}
+		}
+	}
+
+	if (cBetaVersion()) {
+		cSetDebug(true);
+	} else {
+		QString wasDir = cWorkingDir();
 #if (defined Q_OS_MAC || defined Q_OS_LINUX)
 
 #ifdef _DEBUG
-    cForceWorkingDir(cExeDir());
+		cForceWorkingDir(cExeDir());
 #else
-    cForceWorkingDir(psAppDataPath());
+		if(cWorkingDir().isEmpty()){
+			cForceWorkingDir(psAppDataPath());
+		}
 #endif
 
 #if (defined Q_OS_LINUX && !defined _DEBUG) // fix first version
-	moveOldDataFiles(wasDir);
+		moveOldDataFiles(wasDir);
 #endif
+
 #endif
+	}
 
     QString rightDir = cWorkingDir();
     cForceWorkingDir(rightDir);
 	mainLog.setFileName(cWorkingDir() + "log.txt");
 	mainLog.open(QIODevice::WriteOnly | QIODevice::Text);
-	if (!mainLog.isOpen()) {
+	if (!cBetaVersion() && !mainLog.isOpen()) {
 		cForceWorkingDir(cExeDir());
 		mainLog.setFileName(cWorkingDir() + "log.txt");
 		mainLog.open(QIODevice::WriteOnly | QIODevice::Text);
@@ -224,18 +262,23 @@ void logsInit() {
 		cSetTestMode(true);
 		LOG(("Switched to test mode!"));
 	}
+
 #ifdef Q_OS_WIN
 	if (cWorkingDir() == psAppDataPath()) { // fix old "Telegram Win (Unofficial)" version
 		moveOldDataFiles(psAppDataPathOld());
 	}
 #endif
+
 	if (cDebug()) {
 		logsInitDebug();
 	} else if (QFile(cWorkingDir() + qsl("tdata/withdebug")).exists()) {
 		logsInitDebug();
 		cSetDebug(true);
 	}
-	if (!cDevVersion() && QFile(cWorkingDir() + qsl("tdata/devversion")).exists()) {
+
+	if (cBetaVersion()) {
+		cSetDevVersion(false);
+	} else if (!cDevVersion() && QFile(cWorkingDir() + qsl("tdata/devversion")).exists()) {
 		cSetDevVersion(true);
 	}
 

@@ -127,7 +127,7 @@ private:
 
 		void clearData();
 
-		QString fname;
+		FileLocation file;
 		QByteArray data;
 		int64 position, duration;
 		int32 frequency;

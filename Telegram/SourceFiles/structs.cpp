@@ -710,7 +710,7 @@ void VideoCancelLink::onClick(Qt::MouseButton button) const {
 
 VideoData::VideoData(const VideoId &id, const uint64 &access, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size) :
 id(id), access(access), date(date), duration(duration), w(w), h(h), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), fileType(0), openOnSave(0), loader(0) {
-	location = Local::readFileLocation(mediaKey(VideoFileLocation, dc, id));
+	_location = Local::readFileLocation(mediaKey(VideoFileLocation, dc, id));
 }
 
 void VideoData::save(const QString &toFile) {
@@ -722,9 +722,12 @@ void VideoData::save(const QString &toFile) {
 }
 
 QString VideoData::already(bool check) {
-	if (!check) return location.name;
-	if (!location.check()) location = Local::readFileLocation(mediaKey(VideoFileLocation, dc, id));
-	return location.name;
+	return location(check).name();
+}
+
+const FileLocation &VideoData::location(bool check) {
+	if (check && !_location.check()) _location = Local::readFileLocation(mediaKey(VideoFileLocation, dc, id));
+	return _location;
 }
 
 void AudioOpenLink::onClick(Qt::MouseButton button) const {
@@ -804,12 +807,15 @@ void AudioCancelLink::onClick(Qt::MouseButton button) const {
 bool StickerData::setInstalled() const {
 	switch (set.type()) {
 	case mtpc_inputStickerSetID: {
-		return (cStickerSets().constFind(set.c_inputStickerSetID().vid.v) != cStickerSets().cend());
+		StickerSets::const_iterator it = cStickerSets().constFind(set.c_inputStickerSetID().vid.v);
+		return (it != cStickerSets().cend()) && !(it->flags & MTPDstickerSet::flag_disabled);
 	} break;
 	case mtpc_inputStickerSetShortName: {
 		QString name = qs(set.c_inputStickerSetShortName().vshort_name).toLower();
-		for (StickerSets::const_iterator i = cStickerSets().cbegin(), e = cStickerSets().cend(); i != e; ++i) {
-			if (i->shortName.toLower() == name) return true;
+		for (StickerSets::const_iterator it = cStickerSets().cbegin(), e = cStickerSets().cend(); it != e; ++it) {
+			if (it->shortName.toLower() == name) {
+				return !(it->flags & MTPDstickerSet::flag_disabled);
+			}
 		}
 	} break;
 	}
@@ -818,7 +824,7 @@ bool StickerData::setInstalled() const {
 
 AudioData::AudioData(const AudioId &id, const uint64 &access, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) :
 id(id), access(access), date(date), mime(mime), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), loader(0) {
-	location = Local::readFileLocation(mediaKey(AudioFileLocation, dc, id));
+	_location = Local::readFileLocation(mediaKey(AudioFileLocation, dc, id));
 }
 
 void AudioData::save(const QString &toFile) {
@@ -830,17 +836,20 @@ void AudioData::save(const QString &toFile) {
 }
 
 QString AudioData::already(bool check) {
-	if (!check) return location.name;
-	if (!location.check()) location = Local::readFileLocation(mediaKey(AudioFileLocation, dc, id));
-	return location.name;
+	return location(check).name();
+}
+
+const FileLocation &AudioData::location(bool check) {
+	if (check && !_location.check()) _location = Local::readFileLocation(mediaKey(AudioFileLocation, dc, id));
+	return _location;
 }
 
 void DocumentOpenLink::doOpen(DocumentData *data) {
 	if (!data->date) return;
 
 	bool play = data->song() && App::hoveredLinkItem() && audioPlayer();
-	QString already = data->already(true);
-	if (!already.isEmpty() || (!data->data.isEmpty() && play)) {
+	const FileLocation &location(data->location(true));
+	if (!location.isEmpty() || (!data->data.isEmpty() && play)) {
 		if (play) {
 			SongMsgId playing;
 			AudioPlayerState playingState = AudioPlayerStopped;
@@ -852,21 +861,22 @@ void DocumentOpenLink::doOpen(DocumentData *data) {
 				audioPlayer()->play(song);
 				if (App::main()) App::main()->documentPlayProgress(song);
 			}
-		} else if (data->size < MediaViewImageSizeLimit) {
-			QImageReader reader(already);
+		} else if (data->size < MediaViewImageSizeLimit && location.accessEnable()) {
+			QImageReader reader(location.name());
 			if (reader.canRead()) {
 				if (reader.supportsAnimation() && reader.imageCount() > 1 && App::hoveredLinkItem()) {
-					startGif(App::hoveredLinkItem(), already);
+					startGif(App::hoveredLinkItem(), location);
 				} else if (App::hoveredLinkItem() || App::contextItem()) {
 					App::wnd()->showDocument(data, App::hoveredLinkItem() ? App::hoveredLinkItem() : App::contextItem());
 				} else {
-					psOpenFile(already);
+					psOpenFile(location.name());
 				}
 			} else {
-				psOpenFile(already);
+				psOpenFile(location.name());
 			}
+			location.accessDisable();
 		} else {
-			psOpenFile(already);
+			psOpenFile(location.name());
 		}
 		return;
 	}
@@ -954,7 +964,7 @@ void DocumentCancelLink::onClick(Qt::MouseButton button) const {
 DocumentData::DocumentData(const DocumentId &id, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size) :
 id(id), type(FileDocument), access(access), date(date), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), loader(0), _additional(0) {
 	setattributes(attributes);
-	location = Local::readFileLocation(mediaKey(DocumentFileLocation, dc, id));
+	_location = Local::readFileLocation(mediaKey(DocumentFileLocation, dc, id));
 }
 
 void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes) {
@@ -1016,9 +1026,12 @@ void DocumentData::save(const QString &toFile) {
 }
 
 QString DocumentData::already(bool check) {
-	if (!check) return location.name;
-	if (!location.check()) location = Local::readFileLocation(mediaKey(DocumentFileLocation, dc, id));
-	return location.name;
+	return location(check).name();
+}
+
+const FileLocation &DocumentData::location(bool check) {
+	if (check && !_location.check()) _location = Local::readFileLocation(mediaKey(DocumentFileLocation, dc, id));
+	return _location;
 }
 
 WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill) :

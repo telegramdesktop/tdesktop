@@ -24,6 +24,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "localstorage.h"
 
+#include "pspecific.h"
+
 namespace {
 	typedef QMap<QString, LocalImage*> LocalImages;
 	LocalImages localImages;
@@ -711,4 +713,83 @@ StorageImage *getImage(const StorageImageLocation &location, const QByteArray &b
 		}
 	}
 	return i.value();
+}
+
+ReadAccessEnabler::ReadAccessEnabler(const PsFileBookmark *bookmark) : _bookmark(bookmark), _failed(_bookmark ? !_bookmark->enable() : false) {
+}
+
+ReadAccessEnabler::ReadAccessEnabler(const QSharedPointer<PsFileBookmark> &bookmark) : _bookmark(bookmark.data()), _failed(_bookmark ? !_bookmark->enable() : false) {
+}
+
+ReadAccessEnabler::~ReadAccessEnabler() {
+	if (_bookmark && !_failed) _bookmark->disable();
+}
+
+FileLocation::FileLocation(StorageFileType type, const QString &name) : type(type), fname(name) {
+	if (fname.isEmpty()) {
+		size = 0;
+		type = StorageFileUnknown;
+	} else {
+		setBookmark(psPathBookmark(name));
+
+		QFileInfo f(name);
+		if (f.exists()) {
+			qint64 s = f.size();
+			if (s > INT_MAX) {
+				fname = QString();
+				_bookmark.reset(0);
+				size = 0;
+				type = StorageFileUnknown;
+			} else {
+				modified = f.lastModified();
+				size = qint32(s);
+			}
+		} else {
+			fname = QString();
+			_bookmark.reset(0);
+			size = 0;
+			type = StorageFileUnknown;
+		}
+	}
+}
+
+bool FileLocation::check() const {
+	if (fname.isEmpty()) return false;
+
+	ReadAccessEnabler enabler(_bookmark);
+	if (enabler.failed()) {
+		const_cast<FileLocation*>(this)->_bookmark.reset(0);
+	}
+
+	QFileInfo f(name());
+	if (!f.isReadable()) return false;
+
+	quint64 s = f.size();
+	if (s > INT_MAX) return false;
+
+	return (f.lastModified() == modified) && (qint32(s) == size);
+}
+
+const QString &FileLocation::name() const {
+	return _bookmark ? _bookmark->name(fname) : fname;
+}
+
+QByteArray FileLocation::bookmark() const {
+	return _bookmark ? _bookmark->bookmark() : QByteArray();
+}
+
+void FileLocation::setBookmark(const QByteArray &bm) {
+	if (bm.isEmpty()) {
+		_bookmark.reset(0);
+	} else {
+		_bookmark.reset(new PsFileBookmark(bm));
+	}
+}
+
+bool FileLocation::accessEnable() const {
+	return isEmpty() ? false : (_bookmark ? _bookmark->enable() : true);
+}
+
+void FileLocation::accessDisable() const {
+	return _bookmark ? _bookmark->disable() : (void)0;
 }

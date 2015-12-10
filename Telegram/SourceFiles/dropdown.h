@@ -348,6 +348,8 @@ public:
 public slots:
 
 	void updateSelected();
+	void onSettings();
+	void onPreview();
 
 signals:
 
@@ -391,6 +393,11 @@ private:
 
 	int32 _selected, _pressedSel;
 	QPoint _lastMousePos;
+
+	LinkButton _settings;
+
+	QTimer _previewTimer;
+	bool _previewShown;
 };
 
 class EmojiPanel : public TWidget {
@@ -545,7 +552,7 @@ private:
 
 	BoxShadow _shadow;
 
-	FlatRadiobutton _recent, _people, _nature, _food, _celebration, _activity, _travel, _objects;
+	FlatRadiobutton _recent, _people, _nature, _food, _activity, _travel, _objects, _symbols;
 	QVector<StickerIcon> _icons;
 	QVector<float64> _iconHovers;
 	int32 _iconOver, _iconSel, _iconDown;

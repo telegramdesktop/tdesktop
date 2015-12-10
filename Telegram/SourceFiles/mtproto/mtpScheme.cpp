@@ -2082,6 +2082,31 @@ void _serialize_wallPaperSolid(MTPStringLogger &to, int32 stage, int32 lev, Type
 	}
 }
 
+void _serialize_inputReportReasonSpam(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	to.add("{ inputReportReasonSpam }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+}
+
+void _serialize_inputReportReasonViolence(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	to.add("{ inputReportReasonViolence }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+}
+
+void _serialize_inputReportReasonPornography(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	to.add("{ inputReportReasonPornography }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+}
+
+void _serialize_inputReportReasonOther(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ inputReportReasonOther");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  text: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
 void _serialize_userFull(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
@@ -2964,6 +2989,36 @@ void _serialize_updateChatParticipantAdmin(MTPStringLogger &to, int32 stage, int
 	case 3: to.add("  version: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
+}
+
+void _serialize_updateNewStickerSet(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ updateNewStickerSet");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  stickerset: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
+void _serialize_updateStickerSetsOrder(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ updateStickerSetsOrder");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  order: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_long); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
+void _serialize_updateStickerSets(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	to.add("{ updateStickerSets }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
 }
 
 void _serialize_updates_state(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
@@ -4052,7 +4107,7 @@ void _serialize_messages_allStickers(MTPStringLogger &to, int32 stage, int32 lev
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
-	case 0: to.add("  hash: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 0: to.add("  hash: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 1: to.add("  sets: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
@@ -4970,6 +5025,19 @@ void _serialize_channels_channelParticipant(MTPStringLogger &to, int32 stage, in
 	}
 }
 
+void _serialize_help_termsOfService(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ help_termsOfService");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  text: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
 void _serialize_req_pq(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
@@ -5229,6 +5297,20 @@ void _serialize_account_updateStatus(MTPStringLogger &to, int32 stage, int32 lev
 	}
 }
 
+void _serialize_account_reportPeer(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ account_reportPeer");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  reason: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
 void _serialize_account_checkUsername(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
@@ -5453,6 +5535,19 @@ void _serialize_messages_editChatAdmin(MTPStringLogger &to, int32 stage, int32 l
 	case 0: to.add("  chat_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 1: to.add("  user_id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 2: to.add("  is_admin: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
+void _serialize_messages_reorderStickerSets(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ messages_reorderStickerSets");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  order: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_long); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -6835,7 +6930,7 @@ void _serialize_messages_getAllStickers(MTPStringLogger &to, int32 stage, int32 
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
-	case 0: to.add("  hash: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 0: to.add("  hash: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -7054,6 +7149,19 @@ void _serialize_help_getAppChangelog(MTPStringLogger &to, int32 stage, int32 lev
 	case 1: to.add("  system_version: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 2: to.add("  app_version: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 3: to.add("  lang_code: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
+void _serialize_help_getTermsOfService(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ help_getTermsOfService");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  lang_code: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -7305,6 +7413,10 @@ namespace {
 		_serializers.insert(mtpc_peerNotifySettings, _serialize_peerNotifySettings);
 		_serializers.insert(mtpc_wallPaper, _serialize_wallPaper);
 		_serializers.insert(mtpc_wallPaperSolid, _serialize_wallPaperSolid);
+		_serializers.insert(mtpc_inputReportReasonSpam, _serialize_inputReportReasonSpam);
+		_serializers.insert(mtpc_inputReportReasonViolence, _serialize_inputReportReasonViolence);
+		_serializers.insert(mtpc_inputReportReasonPornography, _serialize_inputReportReasonPornography);
+		_serializers.insert(mtpc_inputReportReasonOther, _serialize_inputReportReasonOther);
 		_serializers.insert(mtpc_userFull, _serialize_userFull);
 		_serializers.insert(mtpc_contact, _serialize_contact);
 		_serializers.insert(mtpc_importedContact, _serialize_importedContact);
@@ -7372,6 +7484,9 @@ namespace {
 		_serializers.insert(mtpc_updateChannelMessageViews, _serialize_updateChannelMessageViews);
 		_serializers.insert(mtpc_updateChatAdmins, _serialize_updateChatAdmins);
 		_serializers.insert(mtpc_updateChatParticipantAdmin, _serialize_updateChatParticipantAdmin);
+		_serializers.insert(mtpc_updateNewStickerSet, _serialize_updateNewStickerSet);
+		_serializers.insert(mtpc_updateStickerSetsOrder, _serialize_updateStickerSetsOrder);
+		_serializers.insert(mtpc_updateStickerSets, _serialize_updateStickerSets);
 		_serializers.insert(mtpc_updates_state, _serialize_updates_state);
 		_serializers.insert(mtpc_updates_differenceEmpty, _serialize_updates_differenceEmpty);
 		_serializers.insert(mtpc_updates_difference, _serialize_updates_difference);
@@ -7536,6 +7651,7 @@ namespace {
 		_serializers.insert(mtpc_channelRoleEditor, _serialize_channelRoleEditor);
 		_serializers.insert(mtpc_channels_channelParticipants, _serialize_channels_channelParticipants);
 		_serializers.insert(mtpc_channels_channelParticipant, _serialize_channels_channelParticipant);
+		_serializers.insert(mtpc_help_termsOfService, _serialize_help_termsOfService);
 
 		_serializers.insert(mtpc_req_pq, _serialize_req_pq);
 		_serializers.insert(mtpc_req_DH_params, _serialize_req_DH_params);
@@ -7557,6 +7673,7 @@ namespace {
 		_serializers.insert(mtpc_account_updateNotifySettings, _serialize_account_updateNotifySettings);
 		_serializers.insert(mtpc_account_resetNotifySettings, _serialize_account_resetNotifySettings);
 		_serializers.insert(mtpc_account_updateStatus, _serialize_account_updateStatus);
+		_serializers.insert(mtpc_account_reportPeer, _serialize_account_reportPeer);
 		_serializers.insert(mtpc_account_checkUsername, _serialize_account_checkUsername);
 		_serializers.insert(mtpc_account_deleteAccount, _serialize_account_deleteAccount);
 		_serializers.insert(mtpc_account_setAccountTTL, _serialize_account_setAccountTTL);
@@ -7574,6 +7691,7 @@ namespace {
 		_serializers.insert(mtpc_messages_installStickerSet, _serialize_messages_installStickerSet);
 		_serializers.insert(mtpc_messages_uninstallStickerSet, _serialize_messages_uninstallStickerSet);
 		_serializers.insert(mtpc_messages_editChatAdmin, _serialize_messages_editChatAdmin);
+		_serializers.insert(mtpc_messages_reorderStickerSets, _serialize_messages_reorderStickerSets);
 		_serializers.insert(mtpc_upload_saveFilePart, _serialize_upload_saveFilePart);
 		_serializers.insert(mtpc_upload_saveBigFilePart, _serialize_upload_saveBigFilePart);
 		_serializers.insert(mtpc_help_saveAppLog, _serialize_help_saveAppLog);
@@ -7693,6 +7811,7 @@ namespace {
 		_serializers.insert(mtpc_help_getInviteText, _serialize_help_getInviteText);
 		_serializers.insert(mtpc_help_getSupport, _serialize_help_getSupport);
 		_serializers.insert(mtpc_help_getAppChangelog, _serialize_help_getAppChangelog);
+		_serializers.insert(mtpc_help_getTermsOfService, _serialize_help_getTermsOfService);
 		_serializers.insert(mtpc_channels_getParticipants, _serialize_channels_getParticipants);
 		_serializers.insert(mtpc_channels_getParticipant, _serialize_channels_getParticipant);
 

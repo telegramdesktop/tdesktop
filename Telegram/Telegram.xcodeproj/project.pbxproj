@@ -42,6 +42,8 @@
 		07080BD21A436A5000741A51 /* lang.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07080BD01A436A5000741A51 /* lang.cpp */; };
 		0710C9FE1B0B9376001B4272 /* stickersetbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0710C9FC1B0B9376001B4272 /* stickersetbox.cpp */; };
 		0710CA051B0B9404001B4272 /* moc_stickersetbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0710CA041B0B9404001B4272 /* moc_stickersetbox.cpp */; };
+		07129D6A1C16D230002DC495 /* mtpAuthKey.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07129D691C16D230002DC495 /* mtpAuthKey.cpp */; };
+		07129D6E1C16D245002DC495 /* facades.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07129D6C1C16D245002DC495 /* facades.cpp */; };
 		0732E4A9199E262300D50FE7 /* overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4A7199E262300D50FE7 /* overviewwidget.cpp */; };
 		0732E4AC199E268A00D50FE7 /* moc_overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */; };
 		074756191A1372C600CA07F7 /* moc_types.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074756181A1372C600CA07F7 /* moc_types.cpp */; };
@@ -270,6 +272,9 @@
 		0710C9FC1B0B9376001B4272 /* stickersetbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = stickersetbox.cpp; path = SourceFiles/boxes/stickersetbox.cpp; sourceTree = SOURCE_ROOT; };
 		0710C9FD1B0B9376001B4272 /* stickersetbox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = stickersetbox.h; path = SourceFiles/boxes/stickersetbox.h; sourceTree = SOURCE_ROOT; };
 		0710CA041B0B9404001B4272 /* moc_stickersetbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_stickersetbox.cpp; path = GeneratedFiles/Debug/moc_stickersetbox.cpp; sourceTree = SOURCE_ROOT; };
+		07129D691C16D230002DC495 /* mtpAuthKey.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mtpAuthKey.cpp; path = SourceFiles/mtproto/mtpAuthKey.cpp; sourceTree = SOURCE_ROOT; };
+		07129D6C1C16D245002DC495 /* facades.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = facades.cpp; path = SourceFiles/facades.cpp; sourceTree = SOURCE_ROOT; };
+		07129D6D1C16D245002DC495 /* facades.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = facades.h; path = SourceFiles/facades.h; sourceTree = SOURCE_ROOT; };
 		072E117A1A56EB9400A87ACC /* lang_pt_BR.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_pt_BR.strings; path = SourceFiles/langs/lang_pt_BR.strings; sourceTree = SOURCE_ROOT; };
 		0732E4A7199E262300D50FE7 /* overviewwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = overviewwidget.cpp; path = SourceFiles/overviewwidget.cpp; sourceTree = SOURCE_ROOT; };
 		0732E4A8199E262300D50FE7 /* overviewwidget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = overviewwidget.h; path = SourceFiles/overviewwidget.h; sourceTree = SOURCE_ROOT; };
@@ -776,6 +781,7 @@
 			isa = PBXGroup;
 			children = (
 				6D50D70712776D7ED3B00E5C /* mtp.cpp */,
+				07129D691C16D230002DC495 /* mtpAuthKey.cpp */,
 				B8D9AFA42E8633154A9817A2 /* mtpConnection.cpp */,
 				07D8509219F5C97E00623D75 /* mtpCoreTypes.cpp */,
 				315C7FACB4A9E18AA95486CA /* mtpDC.cpp */,
@@ -896,6 +902,7 @@
 				07C7596D1B1F7E0000662169 /* autoupdater.cpp */,
 				E466873F01ABA1E55E914489 /* dialogswidget.cpp */,
 				710C982FC773400941B3AFBC /* dropdown.cpp */,
+				07129D6C1C16D245002DC495 /* facades.cpp */,
 				9B36BB8C5B8CA7B07F3F35F0 /* fileuploader.cpp */,
 				26B83A58EE268598E703875D /* history.cpp */,
 				A83D2C19F756D3371E5999A8 /* historywidget.cpp */,
@@ -935,6 +942,7 @@
 				206B4F5CBD5354BCE19FF32F /* countries.h */,
 				55B4A93DD455EED91C899A8E /* dialogswidget.h */,
 				1A4C47331E186344291B8178 /* dropdown.h */,
+				07129D6D1C16D245002DC495 /* facades.h */,
 				8A9D926C08392F7A9BC83B0C /* fileuploader.h */,
 				CF1690B68F3B278E78823DB9 /* history.h */,
 				C63C6D083EBEB13A60256DF3 /* historywidget.h */,
@@ -1526,6 +1534,7 @@
 				074FCB9119D36E60004C6EB2 /* moc_popupmenu.cpp in Compile Sources */,
 				B6346B66B0A2228A91D8A5D9 /* mtpDC.cpp in Compile Sources */,
 				0755AEDF1AD12A80004D738A /* moc_sessionsbox.cpp in Compile Sources */,
+				07129D6E1C16D245002DC495 /* facades.cpp in Compile Sources */,
 				B8CA3E1E11A7E0E7DF9E1CDE /* mtpFileLoader.cpp in Compile Sources */,
 				0755AEDD1AD12A80004D738A /* moc_abstractbox.cpp in Compile Sources */,
 				99F0A9B2AFE5ABDCBFC04510 /* mtpRPC.cpp in Compile Sources */,
@@ -1546,6 +1555,7 @@
 				03270F718426CFE84729079E /* flattextarea.cpp in Compile Sources */,
 				E3D7A5CA24541D5DB69D6606 /* images.cpp in Compile Sources */,
 				ADE99904299B99EB6135E8D9 /* scrollarea.cpp in Compile Sources */,
+				07129D6A1C16D230002DC495 /* mtpAuthKey.cpp in Compile Sources */,
 				90085DF442550A0845D5AF37 /* style_core.cpp in Compile Sources */,
 				074FCB8E19D36851004C6EB2 /* popupmenu.cpp in Compile Sources */,
 				3AA6E7264581F82856FB37F7 /* text.cpp in Compile Sources */,
@@ -1687,7 +1697,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.9.13;
+				CURRENT_PROJECT_VERSION = 0.9.15;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -1706,7 +1716,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 0.9.13;
+				CURRENT_PROJECT_VERSION = 0.9.15;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				GCC_OPTIMIZATION_LEVEL = fast;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
@@ -1733,10 +1743,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.9.13;
+				CURRENT_PROJECT_VERSION = 0.9.15;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DYLIB_COMPATIBILITY_VERSION = 0.9;
-				DYLIB_CURRENT_VERSION = 0.9.13;
+				DYLIB_CURRENT_VERSION = 0.9.15;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
@@ -1867,10 +1877,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.9.13;
+				CURRENT_PROJECT_VERSION = 0.9.15;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DYLIB_COMPATIBILITY_VERSION = 0.9;
-				DYLIB_CURRENT_VERSION = 0.9.13;
+				DYLIB_CURRENT_VERSION = 0.9.15;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				FRAMEWORK_SEARCH_PATHS = "";

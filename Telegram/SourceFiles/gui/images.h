@@ -240,46 +240,50 @@ void clearStorageImages();
 void clearAllImages();
 int64 imageCacheSize();
 
-struct FileLocation {
-	FileLocation(StorageFileType type, const QString &name, const QDateTime &modified, qint32 size) : type(type), name(name), modified(modified), size(size) {
+class PsFileBookmark;
+class ReadAccessEnabler {
+public:
+	ReadAccessEnabler(const PsFileBookmark *bookmark);
+	ReadAccessEnabler(const QSharedPointer<PsFileBookmark> &bookmark);
+	bool failed() const {
+		return _failed;
 	}
-	FileLocation(StorageFileType type, const QString &name) : type(type), name(name) {
-		QFileInfo f(name);
-		if (f.exists()) {
-			qint64 s = f.size();
-			if (s > INT_MAX) {
-				this->name = QString();
-				size = 0;
-				type = StorageFileUnknown;
-			} else {
-				modified = f.lastModified();
-				size = qint32(s);
-			}
-		} else {
-			this->name = QString();
-			size = 0;
-			type = StorageFileUnknown;
-		}
-	}
+	~ReadAccessEnabler();
+
+private:
+	const PsFileBookmark *_bookmark;
+	bool _failed;
+
+};
+
+class FileLocation {
+public:
+	FileLocation(StorageFileType type, const QString &name);
 	FileLocation() : size(0) {
 	}
-	bool check() const {
-		if (name.isEmpty()) return false;
-		QFileInfo f(name);
-		if (!f.exists()) return false;
 
-		quint64 s = f.size();
-		if (s > INT_MAX) return false;
-
-		return (f.lastModified() == modified) && (qint32(s) == size);
+	bool check() const;
+	const QString &name() const;
+	void setBookmark(const QByteArray &bookmark);
+	QByteArray bookmark() const;
+	bool isEmpty() const {
+		return name().isEmpty();
 	}
+
+	bool accessEnable() const;
+	void accessDisable() const;
+
 	StorageFileType type;
-	QString name;
+	QString fname;
 	QDateTime modified;
 	qint32 size;
+
+private:
+	QSharedPointer<PsFileBookmark> _bookmark;
+
 };
 inline bool operator==(const FileLocation &a, const FileLocation &b) {
-	return a.type == b.type && a.name == b.name && a.modified == b.modified && a.size == b.size;
+	return a.type == b.type && a.name() == b.name() && a.modified == b.modified && a.size == b.size;
 }
 inline bool operator!=(const FileLocation &a, const FileLocation &b) {
 	return !(a == b);

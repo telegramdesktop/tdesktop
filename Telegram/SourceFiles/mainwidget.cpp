@@ -30,6 +30,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "boxes/stickersetbox.h"
 #include "boxes/contactsbox.h"
+#include "boxes/downloadpathbox.h"
 
 #include "localstorage.h"
 
@@ -394,6 +395,7 @@ MainWidget::MainWidget(Window *window) : TWidget(window)
 , _hider(0)
 , _peerInStack(0)
 , _msgIdInStack(0)
+, _stickerPreview(0)
 , _playerHeight(0)
 , _contentScrollAddToY(0)
 , _mediaType(this)
@@ -743,6 +745,20 @@ QPixmap MainWidget::grabTopBar() {
 	}
 }
 
+void MainWidget::ui_showStickerPreview(DocumentData *sticker) {
+	if (!sticker || !sticker->sticker()) return;
+	if (!_stickerPreview) {
+		_stickerPreview = new StickerPreviewWidget(this);
+		resizeEvent(0);
+	}
+	_stickerPreview->showPreview(sticker);
+}
+
+void MainWidget::ui_hideStickerPreview() {
+	if (!_stickerPreview) return;
+	_stickerPreview->hidePreview();
+}
+
 void MainWidget::noHider(HistoryHider *destroyed) {
 	if (_hider == destroyed) {
 		_hider = 0;
@@ -970,11 +986,17 @@ void MainWidget::addParticipants(PeerData *chatOrChannel, const QVector<UserData
 		}
 	} else if (chatOrChannel->isChannel()) {
 		QVector<MTPInputUser> inputUsers;
-		inputUsers.reserve(users.size());
+		inputUsers.reserve(qMin(users.size(), int(MaxUsersPerInvite)));
 		for (QVector<UserData*>::const_iterator i = users.cbegin(), e = users.cend(); i != e; ++i) {
 			inputUsers.push_back((*i)->inputUser);
+			if (inputUsers.size() == MaxUsersPerInvite) {
+				MTP::send(MTPchannels_InviteToChannel(chatOrChannel->asChannel()->inputChannel, MTP_vector<MTPInputUser>(inputUsers)), rpcDone(&MainWidget::inviteToChannelDone, chatOrChannel->asChannel()), rpcFail(&MainWidget::addParticipantsFail, chatOrChannel->asChannel()), 0, 5);
+				inputUsers.clear();
+			}
 		}
-		MTP::send(MTPchannels_InviteToChannel(chatOrChannel->asChannel()->inputChannel, MTP_vector<MTPInputUser>(inputUsers)), rpcDone(&MainWidget::inviteToChannelDone, chatOrChannel->asChannel()), rpcFail(&MainWidget::addParticipantsFail, chatOrChannel->asChannel()), 0, 5);
+		if (!inputUsers.isEmpty()) {
+			MTP::send(MTPchannels_InviteToChannel(chatOrChannel->asChannel()->inputChannel, MTP_vector<MTPInputUser>(inputUsers)), rpcDone(&MainWidget::inviteToChannelDone, chatOrChannel->asChannel()), rpcFail(&MainWidget::addParticipantsFail, chatOrChannel->asChannel()), 0, 5);
+		}
 	}
 }
 
@@ -1585,6 +1607,7 @@ void MainWidget::messagesAffected(PeerData *peer, const MTPmessages_AffectedMess
 void MainWidget::videoLoadProgress(mtpFileLoader *loader) {
 	VideoData *video = App::video(loader->objId());
 	if (video->loader) {
+		video->status = FileReady;
 		if (video->loader->done()) {
 			video->finish();
 			QString already = video->already();
@@ -1614,7 +1637,17 @@ void MainWidget::loadFailed(mtpFileLoader *loader, bool started, const char *ret
 	if (started) {
 		connect(box, SIGNAL(confirmed()), this, retrySlot);
 	} else {
-		connect(box, SIGNAL(confirmed()), App::wnd(), SLOT(showSettings()));
+		connect(box, SIGNAL(confirmed()), this, SLOT(onDownloadPathSettings()));
+	}
+	App::wnd()->showLayer(box);
+}
+
+void MainWidget::onDownloadPathSettings() {
+	cSetDownloadPath(QString());
+	cSetDownloadPathBookmark(QByteArray());
+	DownloadPathBox *box = new DownloadPathBox();
+	if (App::wnd() && App::wnd()->settingsWidget()) {
+		connect(box, SIGNAL(closed()), App::wnd()->settingsWidget(), SLOT(onDownloadPathEdited()));
 	}
 	App::wnd()->showLayer(box);
 }
@@ -1634,6 +1667,7 @@ void MainWidget::videoLoadRetry() {
 void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 	AudioData *audio = App::audio(loader->objId());
 	if (audio->loader) {
+		audio->status = FileReady;
 		if (audio->loader->done()) {
 			audio->finish();
 			QString already = audio->already();
@@ -1688,7 +1722,7 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 					if (f.write(audio->data) == audio->data.size()) {
 						f.close();
 						already = filename;
-						audio->location = FileLocation(mtpToStorageType(mtpc_storage_filePartial), filename);
+						audio->setLocation(FileLocation(StorageFilePartial, filename));
 						Local::writeFileLocation(mediaKey(mtpToLocationType(mtpc_inputAudioFileLocation), audio->dc, audio->id), FileLocation(mtpToStorageType(mtpc_storage_filePartial), filename));
 					}
 				}
@@ -1736,7 +1770,7 @@ void MainWidget::documentPlayProgress(const SongMsgId &songId) {
 					if (f.write(document->data) == document->data.size()) {
 						f.close();
 						already = filename;
-						document->location = FileLocation(mtpToStorageType(mtpc_storage_filePartial), filename);
+						document->setLocation(FileLocation(StorageFilePartial, filename));
 						Local::writeFileLocation(mediaKey(mtpToLocationType(mtpc_inputDocumentFileLocation), document->dc, document->id), FileLocation(mtpToStorageType(mtpc_storage_filePartial), filename));
 					}
 				}
@@ -1793,6 +1827,7 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 	bool songPlayActivated = false;
 	DocumentData *document = App::document(loader->objId());
 	if (document->loader) {
+		document->status = FileReady;
 		if (document->loader->done()) {
 			document->finish();
 			QString already = document->already();
@@ -1813,16 +1848,22 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 					}
 
 					songPlayActivated = true;
-				} else if(document->openOnSave > 0 && document->size < MediaViewImageSizeLimit) {
-					QImageReader reader(already);
-					if (reader.canRead()) {
-						if (reader.supportsAnimation() && reader.imageCount() > 1 && item) {
-							startGif(item, already);
-						} else if (item) {
-							App::wnd()->showDocument(document, item);
+				} else if (document->openOnSave > 0 && document->size < MediaViewImageSizeLimit) {
+					const FileLocation &location(document->location(true));
+					if (location.accessEnable()) {
+						QImageReader reader(location.name());
+						if (reader.canRead()) {
+							if (reader.supportsAnimation() && reader.imageCount() > 1 && item) {
+								startGif(item, location);
+							} else if (item) {
+								App::wnd()->showDocument(document, item);
+							} else {
+								psOpenFile(already);
+							}
 						} else {
 							psOpenFile(already);
 						}
+						location.accessDisable();
 					} else {
 						psOpenFile(already);
 					}
@@ -2320,7 +2361,9 @@ void MainWidget::showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) 
 	//}
 
 	if (!dialogs.isHidden()) {
-		dialogs.scrollToPeer(peerId, showAtMsgId);
+		if (!back) {
+			dialogs.scrollToPeer(peerId, showAtMsgId);
+		}
 		dialogs.update();
 	}
 	App::wnd()->getTitle()->updateBackButton();
@@ -2491,6 +2534,7 @@ void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop)
 	if (back) clearBotStartToken(history.peer());
 	history.showHistory(0, 0);
 	history.hide();
+	if (!cWideMode()) dialogs.hide();
 
 	orderWidgets();
 
@@ -2537,6 +2581,7 @@ void MainWidget::orderWidgets() {
 	dialogs.raise();
 	_mediaType.raise();
 	if (_hider) _hider->raise();
+	if (_stickerPreview) _stickerPreview->raise();
 }
 
 QRect MainWidget::historyRect() const {
@@ -2690,6 +2735,7 @@ void MainWidget::hideAll() {
 	_topBar.hide();
 	_mediaType.hide();
 	_player.hide();
+	_playerHeight = 0;
 }
 
 void MainWidget::showAll() {
@@ -2764,6 +2810,7 @@ void MainWidget::showAll() {
 			}
 		}
 	}
+	resizeEvent(0);
 
 	App::wnd()->checkHistoryActivation();
 }
@@ -2795,6 +2842,7 @@ void MainWidget::resizeEvent(QResizeEvent *e) {
 	_mediaType.moveToLeft(width() - _mediaType.width(), _playerHeight + st::topBarHeight);
 	if (profile) profile->setGeometry(history.geometry());
 	if (overview) overview->setGeometry(history.geometry());
+	if (_stickerPreview) _stickerPreview->setGeometry(rect());
 	_contentScrollAddToY = 0;
 }
 
@@ -3668,6 +3716,7 @@ void MainWidget::startFull(const MTPVector<MTPUser> &users) {
 }
 
 void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNotifySettings &settings, History *h) {
+	PeerData *updatePeer = 0;
 	switch (settings.type()) {
 	case mtpc_peerNotifySettingsEmpty:
 		switch (peer.type()) {
@@ -3675,18 +3724,15 @@ void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNoti
 		case mtpc_notifyUsers: globalNotifyUsersPtr = EmptyNotifySettings; break;
 		case mtpc_notifyChats: globalNotifyChatsPtr = EmptyNotifySettings; break;
 		case mtpc_notifyPeer: {
-			PeerData *data = App::peerLoaded(peerFromMTP(peer.c_notifyPeer().vpeer));
-			if (data && data->notify != EmptyNotifySettings) {
-				if (data->notify != UnknownNotifySettings) {
-					delete data->notify;
+			updatePeer = App::peerLoaded(peerFromMTP(peer.c_notifyPeer().vpeer));
+			if (updatePeer && updatePeer->notify != EmptyNotifySettings) {
+				if (updatePeer->notify != UnknownNotifySettings) {
+					delete updatePeer->notify;
 				}
-				data->notify = EmptyNotifySettings;
-				App::unregMuted(data);
-				if (!h) h = App::history(data->id);
+				updatePeer->notify = EmptyNotifySettings;
+				App::unregMuted(updatePeer);
+				if (!h) h = App::history(updatePeer->id);
 				h->setMute(false);
-				if (history.peer() == data) {
-					history.updateNotifySettings();
-				}
 			}
 		} break;
 		}
@@ -3694,19 +3740,18 @@ void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNoti
 	case mtpc_peerNotifySettings: {
 		const MTPDpeerNotifySettings &d(settings.c_peerNotifySettings());
 		NotifySettingsPtr setTo = UnknownNotifySettings;
-		PeerData *data = 0;
 		switch (peer.type()) {
 		case mtpc_notifyAll: setTo = globalNotifyAllPtr = &globalNotifyAll; break;
 		case mtpc_notifyUsers: setTo = globalNotifyUsersPtr = &globalNotifyUsers; break;
 		case mtpc_notifyChats: setTo = globalNotifyChatsPtr = &globalNotifyChats; break;
 		case mtpc_notifyPeer: {
-			data = App::peerLoaded(peerFromMTP(peer.c_notifyPeer().vpeer));
-			if (!data) break;
+			updatePeer = App::peerLoaded(peerFromMTP(peer.c_notifyPeer().vpeer));
+			if (!updatePeer) break;
 
-			if (data->notify == UnknownNotifySettings || data->notify == EmptyNotifySettings) {
-				data->notify = new NotifySettings();
+			if (updatePeer->notify == UnknownNotifySettings || updatePeer->notify == EmptyNotifySettings) {
+				updatePeer->notify = new NotifySettings();
 			}
-			setTo = data->notify;
+			setTo = updatePeer->notify;
 		} break;
 		}
 		if (setTo == UnknownNotifySettings) break;
@@ -3715,25 +3760,28 @@ void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNoti
 		setTo->sound = d.vsound.c_string().v;
 		setTo->previews = mtpIsTrue(d.vshow_previews);
 		setTo->events = d.vevents_mask.v;
-		if (data) {
-			if (!h) h = App::history(data->id);
+		if (updatePeer) {
+			if (!h) h = App::history(updatePeer->id);
 			int32 changeIn = 0;
 			if (isNotifyMuted(setTo, &changeIn)) {
 				App::wnd()->notifyClear(h);
 				h->setMute(true);
-				App::regMuted(data, changeIn);
+				App::regMuted(updatePeer, changeIn);
 			} else {
 				h->setMute(false);
-			}
-			if (history.peer() == data) {
-				history.updateNotifySettings();
 			}
 		}
 	} break;
 	}
 
-	if (profile) {
-		profile->updateNotifySettings();
+	if (updatePeer) {
+		if (history.peer() == updatePeer) {
+			history.updateNotifySettings();
+		}
+		dialogs.updateNotifySettings(updatePeer);
+		if (profile && profile->peer() == updatePeer) {
+			profile->updateNotifySettings();
+		}
 	}
 }
 
@@ -4571,6 +4619,82 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		if (HistoryItem *item = App::histItemById(d.vchannel_id.v, d.vid.v)) {
 			item->setViewsCount(d.vviews.v);
 		}
+	} break;
+
+	case mtpc_updateNewStickerSet: {
+		const MTPDupdateNewStickerSet &d(update.c_updateNewStickerSet());
+		if (d.vstickerset.type() == mtpc_messages_stickerSet) {
+			const MTPDmessages_stickerSet &set(d.vstickerset.c_messages_stickerSet());
+			if (set.vset.type() == mtpc_stickerSet) {
+				const QVector<MTPDocument> &v(set.vdocuments.c_vector().v);
+				StickerPack pack;
+				pack.reserve(v.size());
+				for (int32 i = 0, l = v.size(); i < l; ++i) {
+					DocumentData *doc = App::feedDocument(v.at(i));
+					if (!doc || !doc->sticker()) continue;
+
+					pack.push_back(doc);
+				}
+
+				const MTPDstickerSet &s(set.vset.c_stickerSet());
+
+				StickerSets &sets(cRefStickerSets());
+
+				sets.insert(s.vid.v, StickerSet(s.vid.v, s.vaccess_hash.v, stickerSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v)).value().stickers = pack;
+
+				StickerSetsOrder &order(cRefStickerSetsOrder());
+				int32 insertAtIndex = 0, currentIndex = order.indexOf(s.vid.v);
+				if (currentIndex != insertAtIndex) {
+					if (currentIndex > 0) {
+						order.removeAt(currentIndex);
+					}
+					order.insert(insertAtIndex, s.vid.v);
+				}
+
+				StickerSets::iterator custom = sets.find(CustomStickerSetId);
+				if (custom != sets.cend()) {
+					for (int32 i = 0, l = pack.size(); i < l; ++i) {
+						int32 removeIndex = custom->stickers.indexOf(pack.at(i));
+						if (removeIndex >= 0) custom->stickers.removeAt(removeIndex);
+					}
+					if (custom->stickers.isEmpty()) {
+						sets.erase(custom);
+					}
+				}
+				cSetStickersHash(stickersCountHash());
+				Local::writeStickers();
+				emit stickersUpdated();
+			}
+		}
+	} break;
+
+	case mtpc_updateStickerSetsOrder: {
+		const MTPDupdateStickerSetsOrder &d(update.c_updateStickerSetsOrder());
+		const QVector<MTPlong> &order(d.vorder.c_vector().v);
+		const StickerSets &sets(cStickerSets());
+		StickerSetsOrder result;
+		for (int32 i = 0, l = order.size(); i < l; ++i) {
+			if (sets.constFind(order.at(i).v) == sets.cend()) {
+				break;
+			}
+			result.push_back(order.at(i).v);
+		}
+		if (result.size() != cStickerSetsOrder().size() || result.size() != order.size()) {
+			cSetLastStickersUpdate(0);
+			cSetStickersHash(0);
+			App::main()->updateStickers();
+		} else {
+			cSetStickerSetsOrder(result);
+			cSetStickersHash(stickersCountHash());
+			Local::writeStickers();
+			emit stickersUpdated();
+		}
+	} break;
+
+	case mtpc_updateStickerSets: {
+		cSetLastStickersUpdate(0);
+		cSetStickersHash(0);
+		App::main()->updateStickers();
 	} break;
 
 	}

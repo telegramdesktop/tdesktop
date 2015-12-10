@@ -1,123 +1,167 @@
 @echo OFF
+
 FOR /F "tokens=1,2* delims= " %%i in (Version) do set "%%i=%%j"
 
-if %DevChannel% neq 0 goto preparedev
-
-set "DevParam="
-set "AppVersionStrFull=%AppVersionStr%"
-goto devprepared
-
-:preparedev
-
-set "DevParam=-dev"
-set "AppVersionStrFull=%AppVersionStr%.dev"
-
-:devprepared
+set "VersionForPacker=%AppVersion%"
+if %BetaVersion% neq 0 (
+  set "AppVersion=%BetaVersion%"
+  set "AppVersionStrFull=%AppVersionStr%_%BetaVersion%"
+  set "DevParam=-beta %BetaVersion%"
+  set "BetaKeyFile=tbeta_%BetaVersion%_key"
+) else (
+  if %DevChannel% neq 0 (
+    set "DevParam=-dev"
+    set "AppVersionStrFull=%AppVersionStr%.dev"
+  ) else (
+    set "DevParam="
+    set "AppVersionStrFull=%AppVersionStr%"
+  )
+)
 
 echo.
 echo Building version %AppVersionStrFull% for Windows..
 echo.
 
-if exist ..\Win32\Deploy\deploy\%AppVersionStrMajor%\%AppVersionStr%\ goto error_exist1
-if exist ..\Win32\Deploy\deploy\%AppVersionStrMajor%\%AppVersionStr%.dev\ goto error_exist2
-if exist ..\Win32\Deploy\tupdate%AppVersion% goto error_exist3
+set "UpdateFile=tupdate%AppVersion%"
+set "SetupFile=tsetup.%AppVersionStrFull%.exe"
+set "PortableFile=tportable.%AppVersionStrFull%.zip"
+set "HomePath=..\..\Telegram"
+set "ReleasePath=..\Win32\Deploy"
+set "DeployPath=%ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStrFull%"
+set "SignPath=..\..\TelegramPrivate\Sign.bat"
+
+if %BetaVersion% neq 0 (
+  if exist %ReleasePath%\%BetaKeyFile% (
+    echo Beta version key file for version %AppVersion% already exists!
+    exit /b 1
+  )
+) else (
+  if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%.dev\ (
+    echo Deploy folder for version %AppVersionStr%.dev already exists!
+    exit /b 1
+  )
+  if exist %ReleasePath%\tupdate%AppVersion% (
+    echo Update file for version %AppVersion% already exists!
+    exit /b 1
+  )
+)
+
+if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%\ (
+  echo Deploy folder for version %AppVersionStr% already exists!
+  exit /b 1
+)
 
 cd SourceFiles\
-copy telegram.qrc /B+,,/Y
+rem copy telegram.qrc /B+,,/Y
 cd ..\
 if %errorlevel% neq 0 goto error
 
 cd ..\
 MSBuild Telegram.sln /property:Configuration=Deploy
-if %errorlevel% neq 0 goto error0
+cd Telegram\
+if %errorlevel% neq 0 goto error
 
 echo .
-echo Version %AppVersionStrFull% build successfull! Preparing..
+echo Version %AppVersionStrFull% build successfull. Preparing..
 echo .
 
 set "PATH=%PATH%;C:\Program Files\7-Zip;C:\Program Files (x86)\Inno Setup 5"
-cd Win32\Deploy\
 
-call ..\..\..\TelegramPrivate\Sign.bat Telegram.exe
-if %errorlevel% neq 0 goto error1
+call %SignPath% %ReleasePath%\Telegram.exe
+if %errorlevel% neq 0 goto error
 
-call ..\..\..\TelegramPrivate\Sign.bat Updater.exe
-if %errorlevel% neq 0 goto error1
+call %SignPath% %ReleasePath%\Updater.exe
+if %errorlevel% neq 0 goto error
 
-iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppVersionFull=%AppVersionStrFull% ..\..\Telegram\Setup.iss
-if %errorlevel% neq 0 goto error1
+if %BetaVersion% equ 0 (
+  cd %ReleasePath%
+  iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppVersionFull=%AppVersionStrFull% %HomePath%\Setup.iss
+  cd %HomePath%
+  if %errorlevel% neq 0 goto error
 
-call ..\..\..\TelegramPrivate\Sign.bat tsetup.%AppVersionStrFull%.exe
-if %errorlevel% neq 0 goto error1
+  call %SignPath% %ReleasePath%\tsetup.%AppVersionStrFull%.exe
+  if %errorlevel% neq 0 goto error
+)
 
-call Packer.exe -version %AppVersion% -path Telegram.exe -path Updater.exe %DevParam%
-if %errorlevel% neq 0 goto error1
+cd %ReleasePath%
+call Packer.exe -version %VersionForPacker% -path Telegram.exe -path Updater.exe %DevParam%
+cd %HomePath%
+if %errorlevel% neq 0 goto error
 
-if not exist deploy mkdir deploy
-if not exist deploy\%AppVersionStrMajor% mkdir deploy\%AppVersionStrMajor%
-mkdir deploy\%AppVersionStrMajor%\%AppVersionStrFull%
-mkdir deploy\%AppVersionStrMajor%\%AppVersionStrFull%\Telegram
-if %errorlevel% neq 0 goto error1
+if %BetaVersion% neq 0 (
+  if not exist %ReleasePath%\%BetaKeyFile% (
+    echo Beta version key file not found!
+    exit /b 1
+  )
 
-move Telegram.exe deploy\%AppVersionStrMajor%\%AppVersionStrFull%\Telegram\
-move Updater.exe deploy\%AppVersionStrMajor%\%AppVersionStrFull%\
-move Telegram.pdb deploy\%AppVersionStrMajor%\%AppVersionStrFull%\
-move Updater.pdb deploy\%AppVersionStrMajor%\%AppVersionStrFull%\
-move tsetup.%AppVersionStrFull%.exe deploy\%AppVersionStrMajor%\%AppVersionStrFull%\
-move tupdate%AppVersion% deploy\%AppVersionStrMajor%\%AppVersionStrFull%\
-if %errorlevel% neq 0 goto error1
+  FOR /F "tokens=1* delims= " %%i in (%ReleasePath%\%BetaKeyFile%) do set "BetaSignature=%%i"
+)
+if %errorlevel% neq 0 goto error
 
-cd deploy\%AppVersionStrMajor%\%AppVersionStrFull%\
-7z a -mx9 tportable.%AppVersionStrFull%.zip Telegram\
-if %errorlevel% neq 0 goto error2
+if %BetaVersion% neq 0 (
+  set "UpdateFile=%UpdateFile%_%BetaSignature%"
+  set "PortableFile=tbeta%BetaVersion%_%BetaSignature%.zip"
+)
+
+if not exist %ReleasePath%\deploy mkdir %ReleasePath%\deploy
+if not exist %ReleasePath%\deploy\%AppVersionStrMajor% mkdir %ReleasePath%\deploy\%AppVersionStrMajor%
+mkdir %DeployPath%
+mkdir %DeployPath%\Telegram
+if %errorlevel% neq 0 goto error
+
+move %ReleasePath%\Telegram.exe %DeployPath%\Telegram\
+move %ReleasePath%\Updater.exe %DeployPath%\
+move %ReleasePath%\Telegram.pdb %DeployPath%\
+move %ReleasePath%\Updater.pdb %DeployPath%\
+if %BetaVersion% equ 0 (
+  move %ReleasePath%\%SetupFile% %DeployPath%\
+) else (
+  move %ReleasePath%\%BetaKeyFile% %DeployPath%\
+)
+move %ReleasePath%\%UpdateFile% %DeployPath%\
+if %errorlevel% neq 0 goto error
+
+cd %DeployPath%\
+7z a -mx9 %PortableFile% Telegram\
+cd ..\..\..\%HomePath%\
+if %errorlevel% neq 0 goto error
 
 echo .
 echo Version %AppVersionStrFull% is ready for deploy!
 echo .
 
-if not exist tupdate%AppVersion% goto error2
-if not exist tportable.%AppVersionStrFull%.zip goto error2
-if not exist tsetup.%AppVersionStrFull%.exe goto error2
-if not exist Telegram.pdb goto error2
-if not exist Updater.exe goto error2
-if not exist Updater.pdb goto error2
-if not exist Z:\TBuild\tother\tsetup\%AppVersionStrMajor% mkdir Z:\TBuild\tother\tsetup\%AppVersionStrMajor%
-if not exist Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStrFull% mkdir Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStrFull%
+set "FinalReleasePath=Z:\TBuild\tother\tsetup"
+set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%"
 
-xcopy tupdate%AppVersion% Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStrFull%\
-xcopy tportable.%AppVersionStrFull%.zip Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStrFull%\
-xcopy tsetup.%AppVersionStrFull%.exe Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStrFull%\
-xcopy Telegram.pdb Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStrFull%\
-xcopy Updater.exe Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStrFull%\
-xcopy Updater.pdb Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStrFull%\
+if not exist %DeployPath%\%UpdateFile% goto error
+if not exist %DeployPath%\%PortableFile% goto error
+if %BetaVersion% equ 0 (
+  if not exist %DeployPath%\%SetupFile% goto error
+)
+if not exist %DeployPath%\Telegram.pdb goto error
+if not exist %DeployPath%\Updater.exe goto error
+if not exist %DeployPath%\Updater.pdb goto error
+if not exist %FinalReleasePath%\%AppVersionStrMajor% mkdir %FinalReleasePath%\%AppVersionStrMajor%
+if not exist %FinalDeployPath% mkdir %FinalDeployPath%
+
+xcopy %DeployPath%\%UpdateFile% %FinalDeployPath%\
+xcopy %DeployPath%\%PortableFile% %FinalDeployPath%\
+if %BetaVersion% equ 0 (
+  xcopy %DeployPath%\%SetupFile% %FinalDeployPath%\
+) else (
+  xcopy %DeployPath%\%BetaKeyFile% %FinalDeployPath%\
+)
+xcopy %DeployPath%\Telegram.pdb %FinalDeployPath%\
+xcopy %DeployPath%\Updater.exe %FinalDeployPath%\
+xcopy %DeployPath%\Updater.pdb %FinalDeployPath%\
 
 echo Version %AppVersionStrFull% is ready!
 
-cd ..\..\..\..\..\Telegram\
 goto eof
-
-:error2
-cd ..\..\..\
-:error1
-cd ..\..\
-:error0
-cd Telegram\
-goto error
-
-:error_exist1
-echo Deploy folder for version %AppVersionStr% already exists!
-exit /b 1
-
-:error_exist2
-echo Deploy folder for version %AppVersionStr%.dev already exists!
-exit /b 1
-
-:error_exist3
-echo Update file for version %AppVersion% already exists!
-exit /b 1
 
 :error
 echo ERROR occured!
-exit /b %errorlevel%
+if %errorlevel% neq 0 exit /b %errorlevel%
+exit /b 1
 
 :eof

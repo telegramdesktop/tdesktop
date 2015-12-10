@@ -68,6 +68,9 @@ typedef QMap<int, mtpDcOption> mtpDcOptions;
 DeclareSetting(mtpDcOptions, DcOptions);
 
 DeclareSetting(bool, DevVersion);
+DeclareSetting(uint64, BetaVersion);
+DeclareSetting(uint64, RealBetaVersion);
+DeclareSetting(QByteArray, BetaPrivateKey);
 
 DeclareSetting(bool, TestMode);
 DeclareSetting(QString, LoggedPhoneNumber);
@@ -80,8 +83,7 @@ DeclareReadSetting(bool, FromAutoStart);
 DeclareSetting(QString, WorkingDir);
 inline void cForceWorkingDir(const QString &newDir) {
 	cSetWorkingDir(newDir);
-	QDir dir;
-	if (!gWorkingDir.isEmpty()) dir.mkpath(gWorkingDir);
+	if (!gWorkingDir.isEmpty()) QDir().mkpath(gWorkingDir);
 }
 DeclareReadSetting(QString, ExeName);
 DeclareReadSetting(QString, ExeDir);
@@ -134,6 +136,7 @@ DeclareSetting(bool, ReplaceEmojis);
 DeclareReadSetting(bool, ManyInstance);
 DeclareSetting(bool, AskDownloadPath);
 DeclareSetting(QString, DownloadPath);
+DeclareSetting(QByteArray, DownloadPathBookmark);
 DeclareSetting(QByteArray, LocalSalt);
 DeclareSetting(DBIScale, RealScale);
 DeclareSetting(DBIScale, ScreenScale);
@@ -168,8 +171,6 @@ T convertScale(T v) {
 	return v;
 }
 
-DeclareSetting(DBIEmojiTab, EmojiTab);
-
 struct EmojiData {
 	EmojiData(uint16 x, uint16 y, uint32 code, uint32 code2, uint16 len, uint16 postfix, uint32 color) : x(x), y(y), code(code), code2(code2), len(len), postfix(postfix), color(color) {
 	}
@@ -196,7 +197,7 @@ RecentEmojiPack &cGetRecentEmojis();
 
 struct DocumentData;
 typedef QVector<DocumentData*> StickerPack;
-DeclareSetting(QByteArray, StickersHash);
+DeclareSetting(int32, StickersHash);
 
 typedef QList<QPair<DocumentData*, int16> > RecentStickerPackOld;
 typedef QVector<QPair<uint64, ushort> > RecentStickerPreload;
@@ -297,6 +298,7 @@ DeclareSetting(bool, CustomNotifies);
 DeclareReadSetting(uint64, Instance);
 
 DeclareReadSetting(DBIPlatform, Platform);
+DeclareReadSetting(bool, IsElCapitan);
 DeclareReadSetting(QUrl, UpdateURL);
 
 DeclareSetting(bool, ContactsReceived);

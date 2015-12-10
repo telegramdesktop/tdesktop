@@ -431,6 +431,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_channel_add_admins" = "Beheerder toevoegen";
 "lng_channel_add_members" = "Deelnemers toevoegen";
 "lng_channel_members" = "Deelnemers";
+"lng_channel_only_last_shown" = "De laatste {count:_not_used_|# deelnemer|# deelnemers} worden hier weergegeven";
 "lng_channel_admins" = "Beheerders";
 "lng_channel_add_admin" = "Beheerder toevoegen";
 "lng_channel_admin_sure" = "{user} aan beheerders toevoegen?";
@@ -564,10 +565,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_emoji_category1" = "Mensen";
 "lng_emoji_category2" = "Natuur";
 "lng_emoji_category3" = "Eten & drinken";
-"lng_emoji_category4" = "Feestelijkheid";
-"lng_emoji_category5" = "Activiteit";
-"lng_emoji_category6" = "Reizen & plekken";
-"lng_emoji_category7" = "Objecten & symbolen";
+"lng_emoji_category4" = "Activiteit";
+"lng_emoji_category5" = "Reizen & plekken";
+"lng_emoji_category6" = "Objecten";
+"lng_emoji_category7" = "Symbolen en vlaggen";
 
 "lng_switch_stickers" = "Stickers";
 "lng_switch_emoji" = "Emoji";
@@ -581,6 +582,13 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_stickers_not_found" = "Stickerbundel niet gevonden.";
 "lng_stickers_copied" = "Stickerbundel-link gekopieerd naar klembord";
 "lng_stickers_default_set" = "Grote geesten";
+"lng_stickers_you_have" = "Beheer en sorteer stickerbundels";
+"lng_stickers_packs" = "Stickerbundels";
+"lng_stickers_reorder" = "Klik en sleep om stickerbundels te herschikken";
+"lng_stickers_remove" = "Verwijder";
+"lng_stickers_return" = "Ongedaan maken";
+"lng_stickers_restore" = "Herstellen";
+"lng_stickers_count" = "{count:Laden..|# sticker|# stickers}";
 
 "lng_in_dlg_photo" = "Foto";
 "lng_in_dlg_video" = "Video";
@@ -657,6 +665,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_save_downloaded" = "{ready} / {total} {mb}";
 "lng_duration_and_size" = "{duration}, {size}";
 "lng_choose_images" = "Afbeeldingen kiezen";
+
+"lng_context_view_profile" = "Profiel weergeven";
+"lng_context_view_group" = "Groepsinformatie weergeven";
+"lng_context_view_channel" = "Kanaalinformatie weergeven";
 
 "lng_context_open_link" = "Link openen";
 "lng_context_copy_link" = "Link kopiëren";
@@ -789,7 +801,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Meerdere beheerders in groepen, naast het wijzigen van de groepsnaam en afbeelding kunnen beheerders ook leden toevoegen en verwijderen.\n— Groepen die de limiet van 200 deelnemers hebben bereikt kunnen worden opgewaardeerd naar supergroepen met maximaal 1000 deelnemers.\n\nMeer informatie over supergroepen en de andere nieuwe functies is hier te vinden: \n{link}";
+"lng_new_version_text" = "— Stickerbeheer: Je kunt nu handmatig je stickerbundels sorteren, de volgorde synchroniseren we voor je, over al je apparaten.\n— Klik en hou een sticker vast om een voorbeeld weer te geven voor het versturen.\n— Nieuw contextmenu voor chats in het chats-overzicht\n— Ondersteuning voor alle bestaande emoji";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

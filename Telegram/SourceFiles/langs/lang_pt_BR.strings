@@ -431,6 +431,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_channel_add_admins" = "Novo administrador";
 "lng_channel_add_members" = "Adicionar membros";
 "lng_channel_members" = "Membros";
+"lng_channel_only_last_shown" = "Somente os últimos {count:_not_used_|# membro é|# membros são} exibidos";
 "lng_channel_admins" = "Administradores";
 "lng_channel_add_admin" = "Adicionar Administrador";
 "lng_channel_admin_sure" = "Adicionar {user} aos administradores?";
@@ -510,7 +511,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_profile_migrate_reached" = "{count:_not_used_|# membro|# membros} limite alcançado";
 "lng_profile_migrate_about" = "Se você deseja ir além do limite, pode converter seu grupo em um supergrupo. Nos supergrupos:";
 "lng_profile_migrate_feature1" = "— O limite de membros são {count:_not_used_|# usuário|# usuários}";
-"lng_profile_migrate_feature2" = "— Novos membros podem ver o histórico completo do chat";
+"lng_profile_migrate_feature2" = "— Novos membros podem ver todo o histórico";
 "lng_profile_migrate_feature3" = "— Administradores podem apagar mensagens para todos";
 "lng_profile_migrate_feature4" = "— Notificações silenciadas por padrão";
 "lng_profile_migrate_button" = "Atualizar para supergrupo";
@@ -564,10 +565,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_emoji_category1" = "Pessoas";
 "lng_emoji_category2" = "Natureza";
 "lng_emoji_category3" = "Comidas e Bebidas";
-"lng_emoji_category4" = "Celebração";
-"lng_emoji_category5" = "Atividade";
-"lng_emoji_category6" = "Viagens e Lugares";
-"lng_emoji_category7" = "Objetos e Símbolos";
+"lng_emoji_category4" = "Atividade";
+"lng_emoji_category5" = "Viagens e Lugares";
+"lng_emoji_category6" = "Objetos";
+"lng_emoji_category7" = "Símbolos e Bandeiras";
 
 "lng_switch_stickers" = "Stickers";
 "lng_switch_emoji" = "Emoji";
@@ -581,6 +582,13 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_stickers_not_found" = "Pacote de sticker não encontrado.";
 "lng_stickers_copied" = "Link copiado para a área de transferência.";
 "lng_stickers_default_set" = "Grandes Mentes";
+"lng_stickers_you_have" = "Gerenciar e reordenar os pacotes de sticker";
+"lng_stickers_packs" = "Pacotes de Sticker";
+"lng_stickers_reorder" = "Clique e arraste para reordenar os pacotes";
+"lng_stickers_remove" = "Remover";
+"lng_stickers_return" = "Desfazer";
+"lng_stickers_restore" = "Restaurar";
+"lng_stickers_count" = "{count:Carregando..|# sticker|# stickers}";
 
 "lng_in_dlg_photo" = "Foto";
 "lng_in_dlg_video" = "Vídeo";
@@ -657,6 +665,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_save_downloaded" = "{ready} / {total} {mb}";
 "lng_duration_and_size" = "{duration}, {size}";
 "lng_choose_images" = "Escolher imagens";
+
+"lng_context_view_profile" = "Ver perfil";
+"lng_context_view_group" = "Ver info do grupo";
+"lng_context_view_channel" = "Ver info do canal";
 
 "lng_context_open_link" = "Abrir Link";
 "lng_context_copy_link" = "Copiar Link";
@@ -789,7 +801,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras melhorias menores";
-"lng_new_version_text" = "— Grupos agora podem ter múltiplos administradores com a habilidade de editar o nome e o logo, além de adicionar e remover membros\n— Grupos que ultrapassarem o limite dos 200 usuários poderão atualizar para supergrupos e ter até 1.000 membros\n\nMais sobre administradores e supergrupos:\n{link}";
+"lng_new_version_text" = "— Gerenciamento de stickers: rearranje manualmente seus pacotes de sticker, a ordem dos pacotes agora é sincronizada entre todos os dispositivos\n— Clique e segure sobre um sticker para pré-visualizar antes de enviar\n— Novo menu de contexto para os chats na lista de chats \n— Suporte para todos os emojis existentes";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 

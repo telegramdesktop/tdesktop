@@ -1632,8 +1632,9 @@ namespace App {
 				convert->sticker()->loc = thumbLocation;
 			}
 
-			if (convert->location.check()) {
-				Local::writeFileLocation(mediaKey(DocumentFileLocation, convert->dc, convert->id), convert->location);
+			const FileLocation &loc(convert->location(true));
+			if (!loc.isEmpty()) {
+				Local::writeFileLocation(mediaKey(DocumentFileLocation, convert->dc, convert->id), loc);
 			}
 		}
 		DocumentsData::const_iterator i = documentsData.constFind(document);
@@ -1984,7 +1985,7 @@ namespace App {
 		webPagesData.clear();
 		if (api()) api()->clearWebPageRequests();
 		cSetRecentStickers(RecentStickerPack());
-		cSetStickersHash(QByteArray());
+		cSetStickersHash(0);
 		cSetStickerSets(StickerSets());
 		cSetStickerSetsOrder(StickerSetsOrder());
 		cSetLastStickersUpdate(0);
@@ -2803,80 +2804,5 @@ namespace App {
 	}
 
 	WallPapers gServerBackgrounds;
-
-	void sendBotCommand(const QString &cmd, MsgId replyTo) {
-		if (MainWidget *m = main()) m->sendBotCommand(cmd, replyTo);
-	}
-
-	void insertBotCommand(const QString &cmd) {
-		if (MainWidget *m = main()) m->insertBotCommand(cmd);
-	}
-
-	void searchByHashtag(const QString &tag, PeerData *inPeer) {
-		if (MainWidget *m = main()) m->searchMessages(tag + ' ', (inPeer && inPeer->isChannel()) ? inPeer : 0);
-	}
-
-	void openPeerByName(const QString &username, bool toProfile, const QString &startToken) {
-		if (MainWidget *m = main()) m->openPeerByName(username, toProfile, startToken);
-	}
-
-	void joinGroupByHash(const QString &hash) {
-		if (MainWidget *m = main()) m->joinGroupByHash(hash);
-	}
-
-	void stickersBox(const QString &name) {
-		if (MainWidget *m = main()) m->stickersBox(MTP_inputStickerSetShortName(MTP_string(name)));
-	}
-
-	void openLocalUrl(const QString &url) {
-		if (MainWidget *m = main()) m->openLocalUrl(url);
-	}
-
-	bool forward(const PeerId &peer, ForwardWhatMessages what) {
-		if (MainWidget *m = main()) return m->onForward(peer, what);
-		return false;
-	}
-
-	void removeDialog(History *history) {
-		if (MainWidget *m = main()) m->removeDialog(history);
-	}
-
-	void showSettings() {
-		if (Window *win = wnd()) win->showSettings();
-	}
-
-	void showLayer(LayeredWidget *w, bool forceFast) {
-		if (Window *win = wnd()) win->showLayer(w, forceFast);
-	}
-
-	void replaceLayer(LayeredWidget *w) {
-		if (Window *win = wnd()) win->replaceLayer(w);
-	}
-
-	void showLayerLast(LayeredWidget *w) {
-		if (Window *win = wnd()) win->showLayerLast(w);
-	}
-
-}
-
-namespace Notify {
-
-	void userIsBotChanged(UserData *user) {
-		if (MainWidget *m = App::main()) {
-			m->notifyUserIsBotChanged(user);
-		}
-	}
-
-	void botCommandsChanged(UserData *user) {
-		if (MainWidget *m = App::main()) {
-			m->notifyBotCommandsChanged(user);
-		}
-	}
-
-	void migrateUpdated(PeerData *peer) {
-		if (MainWidget *m = App::main()) {
-			m->notifyMigrateUpdated(peer);
-		}
-	}
 
 }

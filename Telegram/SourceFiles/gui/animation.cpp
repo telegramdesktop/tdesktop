@@ -161,10 +161,17 @@ bool AnimatedGif::animStep(float64 ms) {
 	return true;
 }
 
-void AnimatedGif::start(HistoryItem *row, const QString &file) {
+void AnimatedGif::start(HistoryItem *row, const FileLocation &f) {
 	stop();
 
-	reader = new QImageReader(file);
+	file = new FileLocation(f);
+	if (!file->accessEnable()) {
+		stop();
+		return;
+	}
+	access = true;
+
+	reader = new QImageReader(file->name());
 	if (!reader->canRead() || !reader->supportsAnimation()) {
 		stop();
 		return;
@@ -206,6 +213,15 @@ void AnimatedGif::start(HistoryItem *row, const QString &file) {
 }
 
 void AnimatedGif::stop(bool onItemRemoved) {
+	if (file) {
+		if (access) {
+			file->accessDisable();
+		}
+		delete file;
+		file = 0;
+	}
+	access = false;
+
 	if (isNull()) return;
 
 	delete reader;

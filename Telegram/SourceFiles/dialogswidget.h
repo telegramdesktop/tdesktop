@@ -31,7 +31,7 @@ enum DialogsSearchRequestType {
 	DialogsSearchMigratedFromOffset,
 };
 
-class DialogsInner : public SplittedWidget {
+class DialogsInner : public SplittedWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -59,6 +59,7 @@ public:
 	void resizeEvent(QResizeEvent *e);
 	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
+	void contextMenuEvent(QContextMenuEvent *e);
 
 	void peopleResultPaint(PeerData *peer, Painter &p, int32 w, bool act, bool sel, bool onlyBackground) const;
 	void searchInPeerPaint(Painter &p, int32 w, bool onlyBackground) const;
@@ -120,6 +121,8 @@ public:
 
 	PeerData *updateFromParentDrag(QPoint globalPos);
 
+	void updateNotifySettings(PeerData *peer);
+
 	~DialogsInner();
 
 public slots:
@@ -129,6 +132,19 @@ public slots:
 	void onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
 	void onPeerPhotoChanged(PeerData *peer);
 	void onDialogRowReplaced(DialogRow *oldRow, DialogRow *newRow);
+
+	void onContextProfile();
+	void onContextToggleNotifications();
+	void onContextSearch();
+	void onContextClearHistory();
+	void onContextClearHistorySure();
+	void onContextDeleteAndLeave();
+	void onContextDeleteAndLeaveSure();
+	void onContextToggleBlock();
+
+	void onMenuDestroyed(QObject*);
+
+	void peerUpdated(PeerData *peer);
 
 signals:
 
@@ -147,7 +163,9 @@ protected:
 private:
 
 	void clearSearchResults(bool clearPeople = true);
-	void updateSelectedRow();
+	void updateSelectedRow(PeerData *peer = 0);
+	bool menuPeerMuted();
+	void contextBlockDone(QPair<UserData*, bool> data, const MTPBool &result);
 
 	DialogsIndexed dialogs;
 	DialogsIndexed contactsNoDialogs;
@@ -186,7 +204,9 @@ private:
 
 	bool _overDelete;
 
-	PeerData *_searchInPeer, *_searchInMigrated;
+	PeerData *_searchInPeer, *_searchInMigrated, *_menuPeer, *_menuActionPeer;
+
+	PopupMenu *_menu;
 
 };
 
@@ -241,6 +261,8 @@ public:
 
 	void itemRemoved(HistoryItem *item);
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
+
+	void updateNotifySettings(PeerData *peer);
 
 signals:
 

@@ -18,38 +18,24 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
-#pragma once
+#include "stdafx.h"
 
-#include "abstractbox.h"
+void aesEncrypt(const void *src, void *dst, uint32 len, void *key, void *iv) {
+	uchar aes_key[32], aes_iv[32];
+	memcpy(aes_key, key, 32);
+	memcpy(aes_iv, iv, 32);
 
-class DownloadPathBox : public AbstractBox {
-	Q_OBJECT
+	AES_KEY aes;
+	AES_set_encrypt_key(aes_key, 256, &aes);
+	AES_ige_encrypt((const uchar*)src, (uchar*)dst, len, &aes, aes_iv, AES_ENCRYPT);
+}
 
-public:
+void aesDecrypt(const void *src, void *dst, uint32 len, void *key, void *iv) {
+	uchar aes_key[32], aes_iv[32];
+	memcpy(aes_key, key, 32);
+	memcpy(aes_iv, iv, 32);
 
-	DownloadPathBox();
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-
-public slots:
-
-	void onChange();
-	void onEditPath();
-	void onSave();
-
-protected:
-
-	void hideAll();
-	void showAll();
-
-private:
-
-	void setPathText(const QString &text);
-
-	QString _path;
-	QByteArray _pathBookmark;
-
-	Radiobutton _default, _temp, _dir;
-	LinkButton _pathLink;
-	BoxButton _save, _cancel;
-};
+	AES_KEY aes;
+	AES_set_decrypt_key(aes_key, 256, &aes);
+	AES_ige_encrypt((const uchar*)src, (uchar*)dst, len, &aes, aes_iv, AES_DECRYPT);
+}

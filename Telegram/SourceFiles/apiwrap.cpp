@@ -726,29 +726,19 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 	it->access = s.vaccess_hash.v;
 	it->hash = s.vhash.v;
 	it->shortName = qs(s.vshort_name);
-	QString title = qs(s.vtitle);
-	if ((it->flags & MTPDstickerSet::flag_official) && !title.compare(qstr("Great Minds"), Qt::CaseInsensitive)) {
-		title = lang(lng_stickers_default_set);
-	}
-	it->title = title;
+	it->title = stickerSetTitle(s);
 	it->flags = s.vflags.v;
 
 	const QVector<MTPDocument> &d_docs(d.vdocuments.c_vector().v);
 	StickerSets::iterator custom = sets.find(CustomStickerSetId);
 
-	QSet<DocumentData*> found;
-	int32 wasCount = -1;
+	StickerPack pack;
+	pack.reserve(d_docs.size());
 	for (int32 i = 0, l = d_docs.size(); i != l; ++i) {
 		DocumentData *doc = App::feedDocument(d_docs.at(i));
 		if (!doc || !doc->sticker()) continue;
 
-		if (wasCount < 0) wasCount = it->stickers.size();
-		if (it->stickers.indexOf(doc) < 0) {
-			it->stickers.push_back(doc);
-		} else {
-			found.insert(doc);
-		}
-
+		pack.push_back(doc);
 		if (custom != sets.cend()) {
 			int32 index = custom->stickers.indexOf(doc);
 			if (index >= 0) {
@@ -763,39 +753,20 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 
 	bool writeRecent = false;
 	RecentStickerPack &recent(cGetRecentStickers());
-
-	if (wasCount < 0) { // no stickers received
-		for (RecentStickerPack::iterator i = recent.begin(); i != recent.cend();) {
-			if (it->stickers.indexOf(i->first) >= 0) {
-				i = recent.erase(i);
-				writeRecent = true;
-			} else {
-				++i;
-			}
+	for (RecentStickerPack::iterator i = recent.begin(); i != recent.cend();) {
+		if (it->stickers.indexOf(i->first) >= 0 && pack.indexOf(i->first) < 0) {
+			i = recent.erase(i);
+			writeRecent = true;
+		} else {
+			++i;
 		}
-		cRefStickerSetsOrder().removeOne(setId);
+	}
+	if (pack.isEmpty()) {
+		int32 removeIndex = cStickerSetsOrder().indexOf(setId);
+		if (removeIndex >= 0) cRefStickerSetsOrder().removeAt(removeIndex);
 		sets.erase(it);
 	} else {
-		for (int32 j = 0, l = wasCount; j < l;) {
-			if (found.contains(it->stickers.at(j))) {
-				++j;
-			} else {
-				for (RecentStickerPack::iterator i = recent.begin(); i != recent.cend();) {
-					if (it->stickers.at(j) == i->first) {
-						i = recent.erase(i);
-						writeRecent = true;
-					} else {
-						++i;
-					}
-				}
-				it->stickers.removeAt(j);
-				--l;
-			}
-		}
-		if (it->stickers.isEmpty()) {
-			cRefStickerSetsOrder().removeOne(setId);
-			sets.erase(it);
-		}
+		it->stickers = pack;
 	}
 
 	if (writeRecent) {

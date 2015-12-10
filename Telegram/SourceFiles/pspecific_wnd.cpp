@@ -72,7 +72,12 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #define WM_NCPOINTERUP                  0x0243
 #endif
 
-const WCHAR AppUserModelId[] = L"Telegram.TelegramDesktop";
+const WCHAR AppUserModelIdRelease[] = L"Telegram.TelegramDesktop";
+const WCHAR AppUserModelIdBeta[] = L"Telegram.TelegramDesktop.Beta";
+
+const WCHAR *AppUserModelId() {
+	return cBetaVersion() ? AppUserModelIdBeta : AppUserModelIdRelease;
+}
 
 static const PROPERTYKEY pkey_AppUserModel_ID = { { 0x9F4C2855, 0x9F79, 0x4B39, { 0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3 } }, 5 };
 static const PROPERTYKEY pkey_AppUserModel_StartPinOption = { { 0x9F4C2855, 0x9F79, 0x4B39, { 0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3 } }, 12 };
@@ -2301,7 +2306,7 @@ void _manageAppLnk(bool create, bool silent, int path_csidl, const wchar_t *args
 				hr = shellLink.As(&propertyStore);
 				if (SUCCEEDED(hr)) {
 					PROPVARIANT appIdPropVar;
-					hr = InitPropVariantFromString(AppUserModelId, &appIdPropVar);
+					hr = InitPropVariantFromString(AppUserModelId(), &appIdPropVar);
 					if (SUCCEEDED(hr)) {
 						hr = propertyStore->SetValue(pkey_AppUserModel_ID, appIdPropVar);
 						PropVariantClear(&appIdPropVar);
@@ -2390,11 +2395,19 @@ HANDLE _generateDumpFileAtPath(const WCHAR *path) {
 
     GetLocalTime(&stLocalTime);
 
-    wsprintf(szFileName, L"%s%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp", 
-             szPath, szExeName, AppVersionStr, 
-             stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay, 
-             stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond, 
-             GetCurrentProcessId(), GetCurrentThreadId());
+	if (cBetaVersion()) {
+		wsprintf(szFileName, L"%s%s-%ld-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp", 
+				 szPath, szExeName, cBetaVersion(), 
+				 stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay, 
+				 stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond, 
+				 GetCurrentProcessId(), GetCurrentThreadId());
+	} else {
+		wsprintf(szFileName, L"%s%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp", 
+				 szPath, szExeName, AppVersionStr, 
+				 stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay, 
+				 stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond, 
+				 GetCurrentProcessId(), GetCurrentThreadId());
+	}
     return CreateFile(szFileName, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
 }
 
@@ -2913,7 +2926,7 @@ void CheckPinnedAppUserModelId() {
 				WCHAR already[MAX_PATH];
 				hr = propVariantToString(appIdPropVar, already, MAX_PATH);
 				if (SUCCEEDED(hr)) {
-					if (std::wstring(AppUserModelId) == already) {
+					if (std::wstring(AppUserModelId()) == already) {
 						LOG(("Already!"));
 						PropVariantClear(&appIdPropVar);
 						return;
@@ -2925,7 +2938,7 @@ void CheckPinnedAppUserModelId() {
 				}
 				PropVariantClear(&appIdPropVar);
 
-				hr = InitPropVariantFromString(AppUserModelId, &appIdPropVar);
+				hr = InitPropVariantFromString(AppUserModelId(), &appIdPropVar);
 				if (!SUCCEEDED(hr)) return;
 
 				hr = propertyStore->SetValue(pkey_AppUserModel_ID, appIdPropVar);
@@ -3020,7 +3033,7 @@ bool ValidateAppUserModelIdShortcutAt(const QString &path) {
 	WCHAR already[MAX_PATH];
 	hr = propVariantToString(appIdPropVar, already, MAX_PATH);
 	if (SUCCEEDED(hr)) {
-		if (std::wstring(AppUserModelId) == already) {
+		if (std::wstring(AppUserModelId()) == already) {
 			PropVariantClear(&appIdPropVar);
 			return true;
 		}
@@ -3031,7 +3044,7 @@ bool ValidateAppUserModelIdShortcutAt(const QString &path) {
 	}
 	PropVariantClear(&appIdPropVar);
 
-	hr = InitPropVariantFromString(AppUserModelId, &appIdPropVar);
+	hr = InitPropVariantFromString(AppUserModelId(), &appIdPropVar);
 	if (!SUCCEEDED(hr)) return false;
 
 	hr = propertyStore->SetValue(pkey_AppUserModel_ID, appIdPropVar);
@@ -3054,11 +3067,16 @@ bool ValidateAppUserModelIdShortcut() {
 	QString path = systemShortcutPath();
 	if (path.isEmpty()) return false;
 
-	if (ValidateAppUserModelIdShortcutAt(path + qsl("Telegram Desktop/Telegram.lnk"))) return true;
-	if (ValidateAppUserModelIdShortcutAt(path + qsl("Telegram Win (Unofficial)/Telegram.lnk"))) return true;
-	
-	path += qsl("Telegram.lnk");
-	if (ValidateAppUserModelIdShortcutAt(path)) return true;
+	if (cBetaVersion()) {
+		path += qsl("TelegramBeta.lnk");
+		if (ValidateAppUserModelIdShortcutAt(path)) return true;
+	} else {
+		if (ValidateAppUserModelIdShortcutAt(path + qsl("Telegram Desktop/Telegram.lnk"))) return true;
+		if (ValidateAppUserModelIdShortcutAt(path + qsl("Telegram Win (Unofficial)/Telegram.lnk"))) return true;
+
+		path += qsl("Telegram.lnk");
+		if (ValidateAppUserModelIdShortcutAt(path)) return true;
+	}
 
 	ComPtr<IShellLink> shellLink;
 	HRESULT hr = CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&shellLink));
@@ -3078,7 +3096,7 @@ bool ValidateAppUserModelIdShortcut() {
 	if (!SUCCEEDED(hr)) return false;
 
 	PROPVARIANT appIdPropVar;
-	hr = InitPropVariantFromString(AppUserModelId, &appIdPropVar);
+	hr = InitPropVariantFromString(AppUserModelId(), &appIdPropVar);
 	if (!SUCCEEDED(hr)) return false;
 
 	hr = propertyStore->SetValue(pkey_AppUserModel_ID, appIdPropVar);
@@ -3108,13 +3126,13 @@ bool ValidateAppUserModelIdShortcut() {
 
 bool InitToastManager() {
 	if (!useToast || !ValidateAppUserModelIdShortcut()) return false;
-	if (!SUCCEEDED(setCurrentProcessExplicitAppUserModelID(AppUserModelId))) {
+	if (!SUCCEEDED(setCurrentProcessExplicitAppUserModelID(AppUserModelId()))) {
 		return false;
 	}
 	if (!SUCCEEDED(wrap_GetActivationFactory(StringReferenceWrapper(RuntimeClass_Windows_UI_Notifications_ToastNotificationManager).Get(), &toastNotificationManager))) {
 		return false;
 	}
-	if (!SUCCEEDED(toastNotificationManager->CreateToastNotifierWithId(StringReferenceWrapper(AppUserModelId).Get(), &toastNotifier))) {
+	if (!SUCCEEDED(toastNotificationManager->CreateToastNotifierWithId(StringReferenceWrapper(AppUserModelId(), wcslen(AppUserModelId())).Get(), &toastNotifier))) {
 		return false;
 	}
 	if (!SUCCEEDED(wrap_GetActivationFactory(StringReferenceWrapper(RuntimeClass_Windows_UI_Notifications_ToastNotification).Get(), &toastNotificationFactory))) {
