@@ -1987,12 +1987,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 
 	while (till && prev && till->type() == HistoryItemGroup && prev->type() == HistoryItemGroup) {
 		static_cast<HistoryGroup*>(prev)->uniteWith(static_cast<HistoryGroup*>(till));
-		till->detach();
-		delete till;
-		if (blocks.front()->items.isEmpty()) {
-			delete blocks.front();
-			blocks.pop_front();
-		}
+		till->destroy();
 		till = blocks.isEmpty() ? 0 : blocks.front()->items.front();
 	}
 	if (till && prev && prev->date.date() != till->date.date()) {
