@@ -1252,9 +1252,15 @@ private:
 
 };
 
+static const int32 FileStatusSizeReady = 0x7FFFFFF0;
+static const int32 FileStatusSizeLoaded = 0x7FFFFFF1;
+static const int32 FileStatusSizeFailed = 0x7FFFFFF2;
+
 QString formatSizeText(qint64 size);
 QString formatDownloadText(qint64 ready, qint64 total);
 QString formatDurationText(qint64 duration);
+QString formatDurationAndSizeText(qint64 duration, qint64 size);
+QString formatPlayedText(qint64 played, qint64 duration);
 
 class HistoryVideo : public HistoryMedia {
 public:
@@ -1428,9 +1434,6 @@ private:
 	void setStatusSize(int32 newSize, qint64 realDuration = 0) const;
 	bool updateStatusText(const HistoryItem *parent) const; // returns showPause
 };
-static const int32 DocumentStatusSizeReady  = 0x7FFFFFF0;
-static const int32 DocumentStatusSizeLoaded = 0x7FFFFFF1;
-static const int32 DocumentStatusSizeFailed = 0x7FFFFFF2;
 
 class HistoryGif : public HistoryMedia {
 public:

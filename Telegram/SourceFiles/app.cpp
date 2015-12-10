@@ -1612,6 +1612,7 @@ namespace App {
 				convert->thumb = thumb;
 				convert->dc = dc;
 				convert->size = size;
+				convert->recountIsImage();
 			} else {
 				if (!thumb->isNull() && (convert->thumb->isNull() || convert->thumb->width() < thumb->width() || convert->thumb->height() < thumb->height())) {
 					convert->thumb = thumb;
@@ -1644,6 +1645,7 @@ namespace App {
 				result = convert;
 			} else {
 				result = new DocumentData(document, access, date, attributes, mime, thumb, dc, size);
+				result->recountIsImage();
 				if (result->sticker()) result->sticker()->loc = thumbLocation;
 			}
 			documentsData.insert(document, result);
@@ -1658,6 +1660,7 @@ namespace App {
 					result->thumb = thumb;
 					result->dc = dc;
 					result->size = size;
+					result->recountIsImage();
 				} else {
 					if (!thumb->isNull() && (result->thumb->isNull() || result->thumb->width() < thumb->width() || result->thumb->height() < thumb->height())) {
 						result->thumb = thumb;

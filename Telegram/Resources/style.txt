@@ -1090,7 +1090,7 @@ msgDateImgSelectBg: #1c4a7187;
 msgDateImgPadding: point(8px, 2px);
 msgDateImgCheckSpace: 4px;
 
-msgDogImg: sprite(213px, 93px, 126px, 126px);
+msgDogImg: sprite(216px, 93px, 126px, 126px);
 historyPadding: 10px;
 
 collapseButton: flatButton(btnDefFlat) {
@@ -1171,10 +1171,6 @@ mediaHeaderSkip: 5px;
 mediaThumbSize: 48px;
 mediaNameTop: 3px;
 mediaDetailsShift: 3px;
-mediaDocOutImg: sprite(6px, 146px, 48px, 48px);
-mediaDocInImg: sprite(56px, 146px, 48px, 48px);
-mediaAudioOutImg: sprite(106px, 146px, 48px, 48px);
-mediaAudioInImg: sprite(156px, 146px, 48px, 48px);
 mediaMusicOutImg: sprite(322px, 345px, 48px, 48px);
 mediaMusicInImg: sprite(322px, 395px, 48px, 48px);
 mediaPlayOutImg: sprite(122px, 341px, 48px, 48px);
@@ -1197,7 +1193,47 @@ msgFileSize: 44px;
 msgFilePadding: margins(14px, 12px, 10px, 12px);
 msgFileThumbSize: 72px;
 msgFileThumbPadding: margins(10px, 10px, 14px, 10px);
+msgFileThumbNameTop: 12px;
+msgFileThumbStatusTop: 32px;
+msgFileThumbLinkTop: 60px;
+msgFileThumbLinkInFg: #3da5e0;
+msgFileThumbLinkInFgSelected: #3da5e0;
+msgFileThumbLinkOutFg: #5eba5b;
+msgFileThumbLinkOutFgSelected: #31a298;
+msgFileNameTop: 16px;
+msgFileStatusTop: 37px;
 msgFileMinWidth: 294px;
+msgFileInBg: #59b6eb;
+msgFileInBgOver: #4eade3;
+msgFileInBgSelected: #51a3d3;
+msgFileOutBg: #78c67f;
+msgFileOutBgOver: #6bc272;
+msgFileOutBgSelected: #5fb389;
+
+msgFileOutImage: sprite(0px, 146px, 18px, 18px);
+msgFileOutImageSelected: sprite(18px, 146px, 18px, 18px);
+msgFileInImage: sprite(0px, 164px, 18px, 18px);
+msgFileInImageSelected: sprite(18px, 164px, 18px, 18px);
+msgFileOutFile: sprite(36px, 146px, 18px, 18px);
+msgFileOutFileSelected: sprite(54px, 146px, 18px, 18px);
+msgFileInFile: sprite(36px, 164px, 18px, 18px);
+msgFileInFileSelected: sprite(54px, 164px, 18px, 18px);
+msgFileOutDownload: sprite(72px, 142px, 14px, 20px);
+msgFileOutDownloadSelected: sprite(86px, 142px, 14px, 20px);
+msgFileInDownload: sprite(72px, 162px, 14px, 20px);
+msgFileInDownloadSelected: sprite(86px, 162px, 14px, 20px);
+msgFileOutCancel: sprite(100px, 147px, 16px, 16px);
+msgFileOutCancelSelected: sprite(116px, 147px, 16px, 16px);
+msgFileInCancel: sprite(100px, 165px, 16px, 16px);
+msgFileInCancelSelected: sprite(116px, 165px, 16px, 16px);
+msgFileOutPause: sprite(132px, 147px, 14px, 16px);
+msgFileOutPauseSelected: sprite(146px, 147px, 14px, 16px);
+msgFileInPause: sprite(132px, 165px, 14px, 16px);
+msgFileInPauseSelected: sprite(146px, 165px, 14px, 16px);
+msgFileOutPlay: sprite(160px, 146px, 20px, 18px);
+msgFileOutPlaySelected: sprite(180px, 146px, 20px, 18px);
+msgFileInPlay: sprite(160px, 164px, 18px, 20px);
+msgFileInPlaySelected: sprite(180px, 164px, 20px, 18px);
 
 sendPadding: 9px;
 btnSend: flatButton(btnDefFlat) {

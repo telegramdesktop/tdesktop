@@ -1118,6 +1118,10 @@ struct DocumentData {
 	SongData *song() {
 		return (type == SongDocument) ? static_cast<SongData*>(_additional) : 0;
 	}
+	bool isImage() const {
+		return _isImage;
+	}
+	void recountIsImage();
 
 	DocumentId id;
 	DocumentType type;
@@ -1144,6 +1148,8 @@ struct DocumentData {
 private:
 
 	FileLocation _location;
+	bool _isImage;
+
 };
 
 struct SongMsgId {

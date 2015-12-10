@@ -961,8 +961,20 @@ void DocumentCancelLink::onClick(Qt::MouseButton button) const {
 	data->cancel();
 }
 
-DocumentData::DocumentData(const DocumentId &id, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size) :
-id(id), type(FileDocument), access(access), date(date), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), loader(0), _additional(0) {
+DocumentData::DocumentData(const DocumentId &id, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size) : id(id)
+, type(FileDocument)
+, access(access)
+, date(date)
+, mime(mime)
+, thumb(thumb)
+, dc(dc)
+, size(size)
+, status(FileReady)
+, uploadOffset(0)
+, openOnSave(0)
+, loader(0)
+, _additional(0)
+, _isImage(false) {
 	setattributes(attributes);
 	_location = Local::readFileLocation(mediaKey(DocumentFileLocation, dc, id));
 }
@@ -1034,8 +1046,38 @@ const FileLocation &DocumentData::location(bool check) {
 	return _location;
 }
 
-WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill) :
-id(id), type(type), url(url), displayUrl(displayUrl), siteName(siteName), title(title), description(description), duration(duration), author(author), photo(photo), doc(doc), pendingTill(pendingTill) {
+void DocumentData::recountIsImage() {
+	_isImage = false;
+
+	QString lowermime = mime.toLower(), namelower = name.toLower();
+	if (lowermime.startsWith(qstr("image/"))) {
+		_isImage = true;
+	} else if (namelower.endsWith(qstr(".bmp"))
+		|| namelower.endsWith(qstr(".jpg"))
+		|| namelower.endsWith(qstr(".jpeg"))
+		|| namelower.endsWith(qstr(".gif"))
+		|| namelower.endsWith(qstr(".webp"))
+		|| namelower.endsWith(qstr(".tga"))
+		|| namelower.endsWith(qstr(".tiff"))
+		|| namelower.endsWith(qstr(".tif"))
+		|| namelower.endsWith(qstr(".psd"))
+		|| namelower.endsWith(qstr(".png"))) {
+		_isImage = true;
+	}
+}
+
+WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill) : id(id)
+, type(type)
+, url(url)
+, displayUrl(displayUrl)
+, siteName(siteName)
+, title(title)
+, description(description)
+, duration(duration)
+, author(author)
+, photo(photo)
+, doc(doc)
+, pendingTill(pendingTill) {
 }
 
 void PeerLink::onClick(Qt::MouseButton button) const {

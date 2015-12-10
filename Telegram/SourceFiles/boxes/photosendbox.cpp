@@ -205,7 +205,7 @@ void PhotoSendBox::paintEvent(QPaintEvent *e) {
 			int32 rf(cIntRetinaFactor());
 			p.drawPixmap(QPoint(x + st::mediaPadding.left(), y + st::mediaPadding.top()), _thumb, QRect(_thumbx * rf, _thumby * rf, st::mediaThumbSize * rf, st::mediaThumbSize * rf));
 		} else if (_file) {
-			p.drawPixmap(QPoint(x + st::mediaPadding.left(), y + st::mediaPadding.top()), App::sprite(), st::mediaDocOutImg);
+			p.drawPixmap(QPoint(x + st::mediaPadding.left(), y + st::mediaPadding.top()), App::sprite(), st::mediaMusicOutImg);
 		} else {
 			p.drawPixmap(x + st::mediaPadding.left(), y + st::mediaPadding.top(), userDefPhoto(1)->pix(st::mediaThumbSize));
 		}
