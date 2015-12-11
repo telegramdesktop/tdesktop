@@ -2129,9 +2129,9 @@ namespace App {
 		prepareCorners(ServiceSelectedCorners, st::msgRadius, st::msgServiceSelectBg);
 		prepareCorners(SelectedOverlayCorners, st::msgRadius, st::msgSelectOverlay);
 		prepareCorners(DateCorners, st::msgRadius, st::msgDateImgBg);
-		prepareCorners(DateSelectedCorners, st::msgRadius, st::msgDateImgSelectBg);
+		prepareCorners(DateSelectedCorners, st::msgRadius, st::msgDateImgBgSelected);
 		prepareCorners(InShadowCorners, st::msgRadius, st::msgInShadow);
-		prepareCorners(InSelectedShadowCorners, st::msgRadius, st::msgInSelectShadow);
+		prepareCorners(InSelectedShadowCorners, st::msgRadius, st::msgInShadowSelected);
 		prepareCorners(ForwardCorners, st::msgRadius, st::forwardBg);
 		prepareCorners(MediaviewSaveCorners, st::msgRadius, st::medviewSaveMsg);
 		prepareCorners(EmojiHoverCorners, st::msgRadius, st::emojiPanHover);
@@ -2147,9 +2147,9 @@ namespace App {
 		prepareCorners(DocBlueCorners, st::msgRadius, st::mvDocBlueColor);
 
 		prepareCorners(MessageInCorners, st::msgRadius, st::msgInBg, &st::msgInShadow);
-		prepareCorners(MessageInSelectedCorners, st::msgRadius, st::msgInSelectBg, &st::msgInSelectShadow);
+		prepareCorners(MessageInSelectedCorners, st::msgRadius, st::msgInBgSelected, &st::msgInShadowSelected);
 		prepareCorners(MessageOutCorners, st::msgRadius, st::msgOutBg, &st::msgOutShadow);
-		prepareCorners(MessageOutSelectedCorners, st::msgRadius, st::msgOutSelectBg, &st::msgOutSelectShadow);
+		prepareCorners(MessageOutSelectedCorners, st::msgRadius, st::msgOutBgSelected, &st::msgOutShadowSelected);
 
 	}
 	

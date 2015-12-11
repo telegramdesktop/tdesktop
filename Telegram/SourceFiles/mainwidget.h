@@ -237,7 +237,6 @@ public:
 		return sentUpdatesReceived(0, updates);
 	}
 	void inviteToChannelDone(ChannelData *channel, const MTPUpdates &updates);
-	void msgUpdated(const HistoryItem *msg);
 	void historyToDown(History *hist);
 	void dialogsToUp();
 	void newUnreadMsg(History *history, HistoryItem *item);
@@ -328,7 +327,7 @@ public:
     
     void readServerHistory(History *history, bool force = true);
 
-	uint64 animActiveTime(const HistoryItem *msg) const;
+	uint64 animActiveTimeStart(const HistoryItem *msg) const;
 	void stopAnimActive();
 
 	void sendBotCommand(const QString &cmd, MsgId msgId);
@@ -386,9 +385,11 @@ public:
 	void updateMutedIn(int32 seconds);
 
 	void updateStickers();
-	void notifyBotCommandsChanged(UserData *bot);
-	void notifyUserIsBotChanged(UserData *bot);
-	void notifyMigrateUpdated(PeerData *peer);
+
+	void notify_botCommandsChanged(UserData *bot);
+	void notify_userIsBotChanged(UserData *bot);
+	void notify_migrateUpdated(PeerData *peer);
+	void notify_redrawHistoryItem(const HistoryItem *msg);
 
 	void choosePeer(PeerId peerId, MsgId showAtMsgId); // does offerPeer or showPeerHistory
 	void clearBotStartToken(PeerData *peer);

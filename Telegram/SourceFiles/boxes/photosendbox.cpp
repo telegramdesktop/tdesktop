@@ -210,15 +210,15 @@ void PhotoSendBox::paintEvent(QPaintEvent *e) {
 			p.drawPixmap(x + st::mediaPadding.left(), y + st::mediaPadding.top(), userDefPhoto(1)->pix(st::mediaThumbSize));
 		}
 
-		p.setFont(st::normalFont->f);
-		p.setPen(st::black->c);
+		p.setFont(st::normalFont);
+		p.setPen(st::black);
 		if (twidth < _namew) {
 			p.drawText(x + tleft, y + st::mediaPadding.top() + st::mediaNameTop + st::normalFont->ascent, st::normalFont->elided(_name, twidth));
 		} else {
 			p.drawText(x + tleft, y + st::mediaPadding.top() + st::mediaNameTop + st::normalFont->ascent, _name);
 		}
 
-		p.setPen(st::mediaOutColor->p);
+		p.setPen(st::mediaOutFg);
 		p.drawText(x + tleft, y + st::mediaPadding.top() + st::mediaThumbSize - st::mediaDetailsShift - st::normalFont->descent, _size);
 	}
 }

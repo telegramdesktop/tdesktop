@@ -38,8 +38,8 @@ namespace {
 	const QRegularExpression _reHashtag(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])#[\\w]{2,64}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
 	const QRegularExpression _reMention(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])@[A-Za-z_0-9]{5,32}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
 	const QRegularExpression _reBotCommand(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])/[A-Za-z_0-9]{1,64}(@[A-Za-z_0-9]{5,32})?([\\W]|$)"));
-	const QRegularExpression _rePre(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])(````?)[\\s\\S]+?(````?)([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)"), QRegularExpression::UseUnicodePropertiesOption);
-	const QRegularExpression _reCode(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])(`)[^\\n]+?(`)([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)"), QRegularExpression::UseUnicodePropertiesOption);
+	const QRegularExpression _rePre(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\?\\%\\^\\*\\(\\)\\-\\+=\\x10])(````?)[\\s\\S]+?(````?)([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\?\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)"), QRegularExpression::UseUnicodePropertiesOption);
+	const QRegularExpression _reCode(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\?\\%\\^\\*\\(\\)\\-\\+=\\x10])(`)[^\\n]+?(`)([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\?\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)"), QRegularExpression::UseUnicodePropertiesOption);
 	QSet<int32> _validProtocols, _validTopDomains;
 
 	const style::textStyle *_textStyle = 0;
@@ -101,6 +101,10 @@ void textlnkDown(const TextLinkPtr &lnk) {
 
 const TextLinkPtr &textlnkDown() {
 	return _downLnk;
+}
+
+bool textlnkDrawOver(const TextLinkPtr &lnk) {
+	return (_overLnk == lnk) && (!_downLnk || _downLnk == lnk);
 }
 
 QString textOneLine(const QString &text, bool trim, bool rich) {
@@ -1385,6 +1389,7 @@ public:
 			return true;
 		}
 
+		int skipIndex = -1;
 		QVarLengthArray<int> visualOrder(nItems);
 		QVarLengthArray<uchar> levels(nItems);
 		for (int i = 0; i < nItems; ++i) {
@@ -1396,6 +1401,7 @@ public:
 			TextBlockType _type = currentBlock->type();
 			if (_type == TextBlockTSkip) {
 				levels[i] = si.analysis.bidiLevel = 0;
+				skipIndex = i;
 			} else {
 				levels[i] = si.analysis.bidiLevel;
 			}
@@ -1406,6 +1412,13 @@ public:
 			}
 		}
 	    QTextEngine::bidiReorder(nItems, levels.data(), visualOrder.data());
+		if (rtl() && skipIndex == nItems - 1) {
+			for (int32 i = nItems; i > 1;) {
+				--i;
+				visualOrder[i] = visualOrder[i - 1];
+			}
+			visualOrder[0] = skipIndex;
+		}
 
 		blockIndex = _lineStartBlock;
 		currentBlock = _t->_blocks[blockIndex];

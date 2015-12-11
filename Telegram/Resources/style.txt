@@ -1015,25 +1015,25 @@ msgPadding: margins(13px, 7px, 13px, 8px);
 msgMargin: margins(13px, 4px, 53px, 4px);
 msgLnkPadding: 2px; // for media open / save links
 msgBorder: #f0f0f0;
-msgOutBg: #effdde;
 msgInBg: #fff;
-msgOutSelectBg: #b7dbdb;
-msgInSelectBg: #c2dcf2; // #358cd4 with 30% opacity
+msgInBgSelected: #c2dcf2; // #358cd4 with 30% opacity
+msgOutBg: #effdde;
+msgOutBgSelected: #b7dbdb;
 msgSelectOverlay: #358cd44c;
 msgStickerOverlay: #358cd47f;
-msgOutServiceColor: #3a8e26;
-msgInServiceColor: #0e7acd;
-msgOutServiceSelColor: #367570;
-msgInServiceSelColor: #0e7acd;
+msgInServiceFg: #0e7acd;
+msgInServiceFgSelected: #0e7acd;
+msgOutServiceFg: #3a8e26;
+msgOutServiceFgSelected: #367570;
 msgShadow: 2px;
 msgInShadow: #748ea229;
+msgInShadowSelected: #548dbb29;
 msgOutShadow: #3ac34740;
-msgInSelectShadow: #548dbb29;
-msgOutSelectShadow: #37a78e40;
-msgInDateColor: #a0acb6;
-msgOutDateColor: #6cc264;
-msgInSelectDateColor: #6a9cc5;
-msgOutSelectDateColor: #50a79c;
+msgOutShadowSelected: #37a78e40;
+msgInDateFg: #a0acb6;
+msgInDateFgSelected: #6a9cc5;
+msgOutDateFg: #6cc264;
+msgOutDateFgSelected: #50a79c;
 
 msgReplyPadding: margins(6px, 6px, 11px, 6px);
 msgReplyBarPos: point(1px, 0px);
@@ -1086,7 +1086,8 @@ msgDateDelta: point(2px, 5px);
 msgDateImgDelta: 4px;
 msgDateImgColor: #fff;
 msgDateImgBg: #00000054;
-msgDateImgSelectBg: #1c4a7187;
+msgDateImgBgOver: #00000074;
+msgDateImgBgSelected: #1c4a7187;
 msgDateImgPadding: point(8px, 2px);
 msgDateImgCheckSpace: 4px;
 
@@ -1117,7 +1118,7 @@ defaultTextStyle: textStyle {
 	linkFg: btnYesColor;
 	linkFgDown: btnYesHover;
 	monoFg: #777;
-	selectBg: msgInSelectBg;
+	selectBg: msgInBgSelected;
 	selectOverlay: msgSelectOverlay;
 	lineHeight: 0px;
 }
@@ -1135,12 +1136,12 @@ serviceTextStyle: textStyle(defaultTextStyle) {
 }
 inTextStyle: textStyle(defaultTextStyle) {
 	monoFg: #4e7391;
-	selectBg: msgInSelectBg;
+	selectBg: msgInBgSelected;
 	selectOverlay: msgSelectOverlay;
 }
 outTextStyle: textStyle(defaultTextStyle) {
 	monoFg: #469165;
-	selectBg: msgOutSelectBg;
+	selectBg: msgOutBgSelected;
 	selectOverlay: msgSelectOverlay;
 }
 medviewSaveAsTextStyle: textStyle(defaultTextStyle) {
@@ -1177,14 +1178,14 @@ mediaPlayOutImg: sprite(122px, 341px, 48px, 48px);
 mediaPlayInImg: sprite(172px, 341px, 48px, 48px);
 mediaPauseOutImg: sprite(222px, 341px, 48px, 48px);
 mediaPauseInImg: sprite(272px, 341px, 48px, 48px);
-mediaInColor: msgInDateColor;
-mediaOutColor: msgOutDateColor;
-mediaInSelectColor: msgInSelectDateColor;
-mediaOutSelectColor: msgOutSelectDateColor;
-mediaOutUnreadColor: #6aad60;
-mediaOutUnreadSelectColor: #5aa382;
-mediaInUnreadColor: #999;
-mediaInUnreadSelectColor: #7b95aa;
+mediaInFg: msgInDateFg;
+mediaInFgSelected: msgInDateFgSelected;
+mediaOutFg: msgOutDateFg;
+mediaOutFgSelected: msgOutDateFgSelected;
+mediaInUnreadFg: #999;
+mediaInUnreadFgSelected: #7b95aa;
+mediaOutUnreadFg: #6aad60;
+mediaOutUnreadFgSelected: #5aa382;
 mediaUnreadSize: 4px;
 mediaUnreadSkip: 5px;
 
@@ -1234,6 +1235,9 @@ msgFileOutPlay: sprite(160px, 146px, 20px, 18px);
 msgFileOutPlaySelected: sprite(180px, 146px, 20px, 18px);
 msgFileInPlay: sprite(160px, 164px, 20px, 18px);
 msgFileInPlaySelected: sprite(180px, 164px, 20px, 18px);
+
+msgFileOverDuration: 200;
+msgFileRadialLine: 4px;
 
 sendPadding: 9px;
 btnSend: flatButton(btnDefFlat) {

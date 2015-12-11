@@ -845,7 +845,7 @@ public:
 
 	virtual void initDimensions() = 0;
 	virtual int32 resize(int32 width) = 0; // return new height
-	virtual void draw(Painter &p, uint32 selection) const = 0;
+	virtual void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const = 0;
 
 	History *history() {
 		return _history;
@@ -933,6 +933,10 @@ public:
 	virtual uint32 adjustSelection(uint16 from, uint16 to, TextSelectType type) const {
 		return (from << 16) | to;
 	}
+	virtual void linkOver(const TextLinkPtr &lnk) {
+	}
+	virtual void linkOut(const TextLinkPtr &lnk) {
+	}
 	virtual HistoryItemType type() const {
 		return HistoryItemMsg;
 	}
@@ -955,7 +959,7 @@ public:
 		return inDialogsText();
 	}
 
-	virtual void drawInfo(Painter &p, int32 right, int32 bottom, bool selected, InfoDisplayType type) const {
+	virtual void drawInfo(Painter &p, int32 right, int32 bottom, int32 width, bool selected, InfoDisplayType type) const {
 	}
 	virtual void setViewsCount(int32 count) {
 	}
@@ -1112,6 +1116,34 @@ private:
 
 HistoryItem *regItem(HistoryItem *item, bool returnExisting = false);
 
+class RadialAnimation {
+public:
+
+	RadialAnimation(int32 thickness, AnimationCallbacks *callbacks);
+
+	float64 opacity() const {
+		return _opacity;
+	}
+	bool animating() const {
+		return _animation.animating();
+	}
+
+	void start(float64 prg);
+	void update(float64 prg, bool finished, uint64 ms);
+	void stop();
+
+	void draw(Painter &p, const QRect &inner, const style::color &color);
+
+private:
+
+	int32 _thickness;
+	uint64 _firstStart, _lastStart, _lastTime;
+	float64 _opacity;
+	anim::fvalue a_arcEnd, a_arcStart;
+	Animation _animation;
+
+};
+
 class HistoryMedia : public HistoryElem {
 public:
 
@@ -1136,7 +1168,11 @@ public:
 		return _height;
 	}
 	virtual void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const = 0;
-	virtual void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const = 0;
+	virtual void linkOver(HistoryItem *parent, const TextLinkPtr &lnk) {
+	}
+	virtual void linkOut(HistoryItem *parent, const TextLinkPtr &lnk) {
+	}
+	virtual void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const = 0;
 	virtual bool uploading() const {
 		return false;
 	}
@@ -1196,7 +1232,7 @@ public:
 	void init();
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
 	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypePhoto;
@@ -1268,7 +1304,7 @@ public:
 	HistoryVideo(const MTPDvideo &video, const QString &caption, HistoryItem *parent);
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
 	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeVideo;
@@ -1323,7 +1359,7 @@ public:
 	HistoryAudio(const MTPDaudio &audio);
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
 	HistoryMediaType type() const {
 		return MediaTypeAudio;
 	}
@@ -1372,7 +1408,7 @@ public:
 		return !_data->song() && !_data->thumb->isNull() && _data->thumb->width() && _data->thumb->height();
 	}
 
-	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
 	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeDocument;
@@ -1385,6 +1421,8 @@ public:
 		return (_data->status == FileUploading);
 	}
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	void linkOver(HistoryItem *parent, const TextLinkPtr &lnk);
+	void linkOut(HistoryItem *parent, const TextLinkPtr &lnk);
 	HistoryMedia *clone() const;
 
 	DocumentData *document() {
@@ -1414,6 +1452,8 @@ public:
 		return _data->song();
 	}
 
+	~HistoryDocument();
+
 private:
 
 	DocumentData *_data;
@@ -1433,6 +1473,25 @@ private:
 
 	void setStatusSize(int32 newSize, qint64 realDuration = 0) const;
 	bool updateStatusText(const HistoryItem *parent) const; // returns showPause
+
+	void step_thumbOver(const HistoryItem *parent, float64 ms, bool timer);
+	void step_radial(const HistoryItem *parent, uint64 ms, bool timer);
+
+	void ensureAnimation(const HistoryItem *parent) const;
+	void checkAnimationFinished();
+
+	struct AnimationData {
+		AnimationData(AnimationCallbacks *thumbOverCallbacks, AnimationCallbacks *radialCallbacks) : a_thumbOver(0, 0)
+			, _a_thumbOver(thumbOverCallbacks)
+			, radial(st::msgFileRadialLine, radialCallbacks) {
+		}
+		anim::fvalue a_thumbOver;
+		Animation _a_thumbOver;
+
+		RadialAnimation radial;
+	};
+	mutable AnimationData *_animation;
+
 };
 
 class HistoryGif : public HistoryMedia {
@@ -1441,7 +1500,7 @@ public:
 	HistoryGif(DocumentData *document);
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
 	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeGif;
@@ -1500,7 +1559,7 @@ public:
 	HistorySticker(DocumentData *document);
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
 	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeSticker;
@@ -1544,7 +1603,7 @@ public:
 	HistoryContact(int32 userId, const QString &fullname, const QString &phone);
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width) const;
+	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
 	HistoryMediaType type() const {
 		return MediaTypeContact;
 	}
@@ -1577,7 +1636,7 @@ public:
 	HistoryWebPage(WebPageData *data);
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
 	bool isDisplayed() const {
 		return !data->pendingTill;
 	}
@@ -1691,7 +1750,7 @@ public:
 	int32 fullHeight() const;
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
 	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeImageLink;
@@ -1751,10 +1810,11 @@ public:
 	}
 	bool uploading() const;
 
-	void drawInfo(Painter &p, int32 right, int32 bottom, bool selected, InfoDisplayType type) const;
+	void drawInfo(Painter &p, int32 right, int32 bottom, int32 width, bool selected, InfoDisplayType type) const;
 	void setViewsCount(int32 count);
 	void setId(MsgId newId);
-	void draw(Painter &p, uint32 selection) const;
+	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const;
+
 	virtual void drawMessageText(Painter &p, const QRect &trect, uint32 selection) const;
 
 	int32 resize(int32 width);
@@ -1767,6 +1827,12 @@ public:
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
 	uint32 adjustSelection(uint16 from, uint16 to, TextSelectType type) const {
 		return _text.adjustSelection(from, to, type);
+	}
+	void linkOver(const TextLinkPtr &lnk) {
+		if (_media) _media->linkOver(this, lnk);
+	}
+	void linkOut(const TextLinkPtr &lnk) {
+		if (_media) _media->linkOut(this, lnk);
 	}
 
 	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
@@ -1867,7 +1933,7 @@ public:
 	void initDimensions();
 	void fwdNameUpdated() const;
 
-	void draw(Painter &p, uint32 selection) const;
+	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const;
 	void drawForwardedFrom(Painter &p, int32 x, int32 y, int32 w, bool selected) const;
 	void drawMessageText(Painter &p, const QRect &trect, uint32 selection) const;
 	int32 resize(int32 width);
@@ -1923,7 +1989,7 @@ public:
 	HistoryItem *replyToMessage() const;
 	void replyToReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 
-	void draw(Painter &p, uint32 selection) const;
+	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const;
 	void drawReplyTo(Painter &p, int32 x, int32 y, int32 w, bool selected, bool likeService = false) const;
 	void drawMessageText(Painter &p, const QRect &trect, uint32 selection) const;
 	int32 resize(int32 width);
@@ -1966,7 +2032,7 @@ public:
 
 	void initDimensions();
 
-	void draw(Painter &p, uint32 selection) const;
+	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const;
 	int32 resize(int32 width);
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
@@ -2077,7 +2143,7 @@ class HistoryCollapse : public HistoryServiceMsg {
 public:
 
 	HistoryCollapse(History *history, HistoryBlock *block, MsgId wasMinId, const QDateTime &date);
-	void draw(Painter &p, uint32 selection) const;
+	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const {
 		symbol = 0xFFFF;
@@ -2119,7 +2185,7 @@ public:
 
 	void setCount(int32 count);
 
-	void draw(Painter &p, uint32 selection) const;
+	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const;
 	int32 resize(int32 width);
 
 	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;

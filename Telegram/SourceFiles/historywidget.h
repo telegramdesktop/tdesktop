@@ -69,7 +69,7 @@ public:
 	int32 recountHeight(HistoryItem *resizedItem);
 	void updateSize();
 
-	void updateMsg(const HistoryItem *msg);
+	void redrawItem(const HistoryItem *item);
 
 	bool canCopySelected() const;
 	bool canDeleteSelected() const;
@@ -430,7 +430,7 @@ public:
 	void peerMessagesUpdated(PeerId peer);
 	void peerMessagesUpdated();
 
-	void msgUpdated(const HistoryItem *msg);
+	void notify_redrawHistoryItem(const HistoryItem *item);
 	void newUnreadMsg(History *history, HistoryItem *item);
 	void historyToDown(History *history);
 	void historyWasRead(bool force = true);
@@ -487,7 +487,7 @@ public:
 
 	bool touchScroll(const QPoint &delta);
     
-	uint64 animActiveTime(const HistoryItem *msg) const;
+	uint64 animActiveTimeStart(const HistoryItem *msg) const;
 	void stopAnimActive();
 
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
@@ -558,9 +558,9 @@ public:
 		resizeEvent(0);
 	}
 
-	void notifyBotCommandsChanged(UserData *user);
-	void notifyUserIsBotChanged(UserData *user);
-	void notifyMigrateUpdated(PeerData *peer);
+	void notify_botCommandsChanged(UserData *user);
+	void notify_userIsBotChanged(UserData *user);
+	void notify_migrateUpdated(PeerData *peer);
 
 	~HistoryWidget();
 

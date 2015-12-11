@@ -284,6 +284,57 @@ AnimationCallbacks *animation(Type *obj, typename AnimationCallbacksAbsolute<Typ
 	return new AnimationCallbacksAbsolute<Type>(obj, method);
 }
 
+template <typename Type, typename Param>
+class AnimationCallbacksRelativeWithParam : public AnimationCallbacks {
+public:
+	typedef void (Type::*Method)(Param, float64, bool);
+
+	AnimationCallbacksRelativeWithParam(Param param, Type *obj, Method method) : _started(0), _param(param), _obj(obj), _method(method) {
+	}
+
+	void start() {
+		_started = float64(getms());
+	}
+
+	void step(Animation *a, uint64 ms, bool timer) {
+		(_obj->*_method)(_param, ms - _started, timer);
+	}
+
+private:
+	float64 _started;
+	Param _param;
+	Type *_obj;
+	Method _method;
+
+};
+template <typename Type, typename Param>
+AnimationCallbacks *animation(Param param, Type *obj, typename AnimationCallbacksRelativeWithParam<Type, Param>::Method method) {
+	return new AnimationCallbacksRelativeWithParam<Type, Param>(param, obj, method);
+}
+
+template <typename Type, typename Param>
+class AnimationCallbacksAbsoluteWithParam : public AnimationCallbacks {
+public:
+	typedef void (Type::*Method)(Param, uint64, bool);
+
+	AnimationCallbacksAbsoluteWithParam(Param param, Type *obj, Method method) : _param(param), _obj(obj), _method(method) {
+	}
+
+	void step(Animation *a, uint64 ms, bool timer) {
+		(_obj->*_method)(_param, ms, timer);
+	}
+
+private:
+	Param _param;
+	Type *_obj;
+	Method _method;
+
+};
+template <typename Type, typename Param>
+AnimationCallbacks *animation(Param param, Type *obj, typename AnimationCallbacksAbsoluteWithParam<Type, Param>::Method method) {
+	return new AnimationCallbacksAbsoluteWithParam<Type, Param>(param, obj, method);
+}
+
 class AnimationManager : public QObject {
 Q_OBJECT
 

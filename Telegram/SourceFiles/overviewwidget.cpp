@@ -527,13 +527,7 @@ void OverviewInner::moveToNextItem(MsgId &msgId, int32 &index, MsgId upTo, int32
 	}
 }
 
-void OverviewInner::updateMsg(HistoryItem *item) {
-	if (App::main() && item) {
-		App::main()->msgUpdated(item);
-	}
-}
-
-void OverviewInner::updateMsg(MsgId itemId, int32 itemIndex) {
+void OverviewInner::redrawItem(MsgId itemId, int32 itemIndex) {
 	fixItemIndex(itemIndex, itemId);
 	if (itemIndex >= 0) {
 		if (_type == OverviewPhotos) {
@@ -665,15 +659,15 @@ void OverviewInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton but
 	if (button != Qt::LeftButton) return;
 
 	if (textlnkDown() != textlnkOver()) {
-		updateMsg(App::pressedLinkItem());
+		redrawItem(App::pressedLinkItem());
 		textlnkDown(textlnkOver());
 		App::pressedLinkItem(App::hoveredLinkItem());
-		updateMsg(App::pressedLinkItem());
+		redrawItem(App::pressedLinkItem());
 	}
 	if (_lnkDownIndex != _lnkOverIndex) {
-		if (_dragItem) updateMsg(_dragItem, _dragItemIndex);
+		if (_dragItem) redrawItem(_dragItem, _dragItemIndex);
 		_lnkDownIndex = _lnkOverIndex;
-		if (_mousedItem) updateMsg(_mousedItem, _mousedItemIndex);
+		if (_mousedItem) redrawItem(_mousedItem, _mousedItemIndex);
 	}
 
 	_dragAction = NoDrag;
@@ -702,12 +696,12 @@ void OverviewInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton but
 				uint32 selStatus = (_dragSymbol << 16) | _dragSymbol;
 				if (selStatus != FullItemSel && (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel)) {
 					if (!_selected.isEmpty()) {
-						updateMsg(_selected.cbegin().key(), -1);
+						redrawItem(_selected.cbegin().key(), -1);
 						_selected.clear();
 					}
 					_selected.insert(_dragItem, selStatus);
 					_dragAction = Selecting;
-					updateMsg(_dragItem, _dragItemIndex);
+					redrawItem(_dragItem, _dragItemIndex);
 					_overview->updateTopBarSelection();
 				} else {
 					_dragAction = PrepareSelect;
@@ -752,7 +746,7 @@ void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 		}
 	}
 	if (textlnkDown()) {
-		updateMsg(App::pressedLinkItem());
+		redrawItem(App::pressedLinkItem());
 		textlnkDown(TextLinkPtr());
 		App::pressedLinkItem(0);
 		if (!textlnkOver() && _cursor != style::cur_default) {
@@ -761,7 +755,7 @@ void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 		}
 	}
 	if (_lnkDownIndex) {
-		updateMsg(_dragItem, _dragItemIndex);
+		redrawItem(_dragItem, _dragItemIndex);
 		_lnkDownIndex = 0;
 		if (!_lnkOverIndex && _cursor != style::cur_default) {
 			_cursor = style::cur_default;
@@ -795,16 +789,16 @@ void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 		} else {
 			_selected.erase(i);
 		}
-		updateMsg(_dragItem, _dragItemIndex);
+		redrawItem(_dragItem, _dragItemIndex);
 	} else if (_dragAction == PrepareDrag && !needClick && !_dragWasInactive && button != Qt::RightButton) {
 		SelectedItems::iterator i = _selected.find(_dragItem);
 		if (i != _selected.cend() && i.value() == FullItemSel) {
 			_selected.erase(i);
-			updateMsg(_dragItem, _dragItemIndex);
+			redrawItem(_dragItem, _dragItemIndex);
 		} else if (i == _selected.cend() && itemMsgId(_dragItem) > 0 && !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel) {
 			if (_selected.size() < MaxSelectedItems) {
 				_selected.insert(_dragItem, FullItemSel);
-				updateMsg(_dragItem, _dragItemIndex);
+				redrawItem(_dragItem, _dragItemIndex);
 			}
 		} else {
 			_selected.clear();
@@ -1074,7 +1068,11 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	QRect r(e->rect());
-	p.setClipRect(r);
+	bool trivial = (r == rect());
+	if (!trivial) {
+		p.setClipRect(r);
+	}
+	uint64 ms = getms();
 
 	if (_history->overview[_type].isEmpty() && (!_migrated || !_history->overviewLoaded(_type) || _migrated->overview[_type].isEmpty())) {
 		QPoint dogPos((_width - st::msgDogImg.pxWidth()) / 2, ((height() - st::msgDogImg.pxHeight()) * 4) / 9);
@@ -1144,7 +1142,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 					QPoint pos(int32(i * w + st::overviewPhotoSkip), _addToY + row * (_vsize + st::overviewPhotoSkip) + st::overviewPhotoSkip);
 					p.drawPixmap(pos, it->pix);
 					if (!quality) {
-						uint64 dt = itemAnimations().animate(item, getms());
+						uint64 dt = itemAnimations().animate(item, ms);
 						int32 cnt = int32(st::photoLoaderCnt), period = int32(st::photoLoaderPeriod), t = dt % period, delta = int32(st::photoLoaderDelta);
 
 						int32 x = pos.x() + (_vsize - st::overviewLoader.width()) / 2, y = pos.y() + (_vsize - st::overviewLoader.height()) / 2;
@@ -1338,7 +1336,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 
 						p.save();
 						p.translate(left, 0);
-						media->draw(p, item, (sel == FullItemSel), w);
+						media->draw(p, item, r.translated(-left, -curY - (st::msgMargin.top() + _addToY)), (sel == FullItemSel), ms);
 						p.restore();
 					}
 				} else {
@@ -1451,9 +1449,9 @@ void OverviewInner::onUpdateSelected() {
 			}
 		}
 		if (newsel != _selectedMsgId) {
-			if (_selectedMsgId) updateMsg(_selectedMsgId, -1);
+			if (_selectedMsgId) redrawItem(_selectedMsgId, -1);
 			_selectedMsgId = newsel;
-			updateMsg(item);
+			redrawItem(item);
 		}
 	} else if (_type == OverviewLinks) {
 		int32 w = _width - st::msgMargin.left() - st::msgMargin.right();
@@ -1558,19 +1556,19 @@ void OverviewInner::onUpdateSelected() {
 	bool lnkChanged = false;
 	if (lnk != textlnkOver()) {
 		lnkChanged = true;
-		updateMsg(App::hoveredLinkItem());
+		redrawItem(App::hoveredLinkItem());
 		textlnkOver(lnk);
 		App::hoveredLinkItem(lnk ? item : 0);
-		updateMsg(App::hoveredLinkItem());
+		redrawItem(App::hoveredLinkItem());
 		QToolTip::hideText();
 	} else {
 		App::mousedItem(item);
 	}
 	if (lnkIndex != _lnkOverIndex || _mousedItem != oldMousedItem) {
 		lnkChanged = true;
-		if (oldMousedItem) updateMsg(oldMousedItem, oldMousedItemIndex);
+		if (oldMousedItem) redrawItem(oldMousedItem, oldMousedItemIndex);
 		_lnkOverIndex = lnkIndex;
-		if (item) updateMsg(item);
+		if (item) redrawItem(item);
 		QToolTip::hideText();
 	}
 	if (_cursorState == HistoryInDateCursorState && cursorState != HistoryInDateCursorState) {
@@ -1794,11 +1792,11 @@ void OverviewInner::enterEvent(QEvent *e) {
 
 void OverviewInner::leaveEvent(QEvent *e) {
 	if (_selectedMsgId) {
-		updateMsg(_selectedMsgId, -1);
+		redrawItem(_selectedMsgId, -1);
 		_selectedMsgId = 0;
 	}
 	if (textlnkOver()) {
-		updateMsg(App::hoveredLinkItem());
+		redrawItem(App::hoveredLinkItem());
 		textlnkOver(TextLinkPtr());
 		App::hoveredLinkItem(0);
 		if (!textlnkDown() && _cursor != style::cur_default) {
@@ -1826,8 +1824,8 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	if (_menu) {
 		_menu->deleteLater();
 		_menu = 0;
-		updateMsg(App::contextItem());
-		if (_selectedMsgId) updateMsg(_selectedMsgId, -1);
+		redrawItem(App::contextItem());
+		if (_selectedMsgId) redrawItem(_selectedMsgId, -1);
 	}
 	if (e->reason() == QContextMenuEvent::Mouse) {
 		dragActionUpdate(e->globalPos());
@@ -1904,8 +1902,8 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 		}
 		App::contextItem(App::hoveredLinkItem());
-		updateMsg(App::contextItem());
-		if (_selectedMsgId) updateMsg(_selectedMsgId, -1);
+		redrawItem(App::contextItem());
+		if (_selectedMsgId) redrawItem(_selectedMsgId, -1);
 	} else if (!ignoreMousedItem && App::mousedItem() && App::mousedItem()->channelId() == itemChannel(_mousedItem) && App::mousedItem()->id == itemMsgId(_mousedItem)) {
 		_contextMenuUrl = _lnkOverIndex ? urlByIndex(_mousedItem, _mousedItemIndex, _lnkOverIndex) : QString();
 		_menu = new PopupMenu();
@@ -1944,8 +1942,8 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 		}
 		App::contextItem(App::mousedItem());
-		updateMsg(App::contextItem());
-		if (_selectedMsgId) updateMsg(_selectedMsgId, -1);
+		redrawItem(App::contextItem());
+		if (_selectedMsgId) redrawItem(_selectedMsgId, -1);
 	}
 	if (_menu) {
 		connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
@@ -2197,8 +2195,8 @@ void OverviewInner::onMenuDestroy(QObject *obj) {
 	if (_menu == obj) {
 		_menu = 0;
 		dragActionUpdate(QCursor::pos());
-		updateMsg(App::contextItem());
-		if (_selectedMsgId) updateMsg(_selectedMsgId, -1);
+		redrawItem(App::contextItem());
+		if (_selectedMsgId) redrawItem(_selectedMsgId, -1);
 	}
 }
 
@@ -2570,8 +2568,9 @@ void OverviewInner::itemResized(HistoryItem *item, bool scrollToIt) {
 	}
 }
 
-void OverviewInner::msgUpdated(const HistoryItem *msg) {
+void OverviewInner::redrawItem(const HistoryItem *msg) {
 	if (!msg) return;
+
 	History *history = (msg->history() == _history) ? _history : (msg->history() == _migrated ? _migrated : 0);
 	if (!history) return;
 
@@ -2998,9 +2997,9 @@ void OverviewWidget::changingMsgId(HistoryItem *row, MsgId newId) {
 	}
 }
 
-void OverviewWidget::msgUpdated(const HistoryItem *msg) {
+void OverviewWidget::notify_redrawHistoryItem(const HistoryItem *msg) {
 	if (peer() == msg->history()->peer || migratePeer() == msg->history()->peer) {
-		_inner.msgUpdated(msg);
+		_inner.redrawItem(msg);
 	}
 }
 

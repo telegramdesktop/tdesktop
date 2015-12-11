@@ -683,18 +683,6 @@ void MainWidget::updateStickers() {
 	history.updateStickers();
 }
 
-void MainWidget::notifyBotCommandsChanged(UserData *bot) {
-	history.notifyBotCommandsChanged(bot);
-}
-
-void MainWidget::notifyUserIsBotChanged(UserData *bot) {
-	history.notifyUserIsBotChanged(bot);
-}
-
-void MainWidget::notifyMigrateUpdated(PeerData *peer) {
-	history.notifyMigrateUpdated(peer);
-}
-
 void MainWidget::onUpdateMuted() {
 	App::updateMuted();
 }
@@ -756,6 +744,27 @@ void MainWidget::ui_showStickerPreview(DocumentData *sticker) {
 void MainWidget::ui_hideStickerPreview() {
 	if (!_stickerPreview) return;
 	_stickerPreview->hidePreview();
+}
+
+void MainWidget::notify_botCommandsChanged(UserData *bot) {
+	history.notify_botCommandsChanged(bot);
+}
+
+void MainWidget::notify_userIsBotChanged(UserData *bot) {
+	history.notify_userIsBotChanged(bot);
+}
+
+void MainWidget::notify_migrateUpdated(PeerData *peer) {
+	history.notify_migrateUpdated(peer);
+}
+
+void MainWidget::notify_redrawHistoryItem(const HistoryItem *msg) {
+	if (!msg) return;
+	history.notify_redrawHistoryItem(msg);
+	if (!msg->history()->dialogs.isEmpty() && msg->history()->lastMsg == msg) {
+		dialogs.dlgUpdated(msg->history()->dialogs[0]);
+	}
+	if (overview) overview->notify_redrawHistoryItem(msg);
 }
 
 void MainWidget::noHider(HistoryHider *destroyed) {
@@ -1303,8 +1312,8 @@ void MainWidget::readServerHistory(History *hist, bool force) {
 	}
 }
 
-uint64 MainWidget::animActiveTime(const HistoryItem *msg) const {
-	return history.animActiveTime(msg);
+uint64 MainWidget::animActiveTimeStart(const HistoryItem *msg) const {
+	return history.animActiveTimeStart(msg);
 }
 
 void MainWidget::stopAnimActive() {
@@ -1474,7 +1483,7 @@ void MainWidget::itemResized(HistoryItem *row, bool scrollToIt) {
 	if (overview) {
 		overview->itemResized(row, scrollToIt);
 	}
-	if (row) msgUpdated(row);
+	if (row) Notify::redrawHistoryItem(row);
 }
 
 bool MainWidget::overviewFailed(PeerData *peer, const RPCError &error, mtpRequestId req) {
@@ -1624,7 +1633,7 @@ void MainWidget::videoLoadProgress(mtpFileLoader *loader) {
 	VideoItems::const_iterator i = items.constFind(video);
 	if (i != items.cend()) {
 		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			msgUpdated(j.key());
+			Notify::redrawHistoryItem(j.key());
 		}
 	}
 }
@@ -1701,7 +1710,7 @@ void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 	AudioItems::const_iterator i = items.constFind(audio);
 	if (i != items.cend()) {
 		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			msgUpdated(j.key());
+			Notify::redrawHistoryItem(j.key());
 		}
 	}
 }
@@ -1736,7 +1745,7 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 	}
 
 	if (HistoryItem *item = App::histItemById(audioId.msgId)) {
-		msgUpdated(item);
+		Notify::redrawHistoryItem(item);
 	}
 }
 
@@ -1797,7 +1806,7 @@ void MainWidget::documentPlayProgress(const SongMsgId &songId) {
 	}
 
 	if (HistoryItem *item = App::histItemById(songId.msgId)) {
-		msgUpdated(item);
+		Notify::redrawHistoryItem(item);
 	}
 }
 
@@ -1884,7 +1893,7 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 	DocumentItems::const_iterator i = items.constFind(document);
 	if (i != items.cend()) {
 		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			msgUpdated(j.key());
+			Notify::redrawHistoryItem(j.key());
 		}
 	}
 	App::wnd()->documentUpdated(document);
@@ -2628,15 +2637,6 @@ void MainWidget::onActiveChannelUpdateFull() {
 	if (activePeer() && activePeer()->isChannel()) {
 		activePeer()->asChannel()->updateFull(true);
 	}
-}
-
-void MainWidget::msgUpdated(const HistoryItem *msg) {
-	if (!msg) return;
-	history.msgUpdated(msg);
-	if (!msg->history()->dialogs.isEmpty() && msg->history()->lastMsg == msg) {
-		dialogs.dlgUpdated(msg->history()->dialogs[0]);
-	}
-	if (overview) overview->msgUpdated(msg);
 }
 
 void MainWidget::historyToDown(History *hist) {
@@ -4227,7 +4227,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					msgRow->history()->unregTyping(App::self());
 				}
 				if (!App::historyRegItem(msgRow)) {
-					msgUpdated(msgRow);
+					Notify::redrawHistoryItem(msgRow);
 				} else {
 					History *h = msgRow->history();
 					bool wasLast = (h->lastMsg == msgRow);
@@ -4256,7 +4256,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			if (HistoryItem *item = App::histItemById(NoChannel, v.at(i).v)) {
 				if (item->isMediaUnread()) {
 					item->markMediaRead();
-					msgUpdated(item);
+					Notify::redrawHistoryItem(item);
 					if (item->out() && item->history()->peer->isUser()) {
 						item->history()->peer->asUser()->madeAction();
 					}

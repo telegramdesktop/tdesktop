@@ -116,11 +116,11 @@ void HistoryInner::messagesReceivedDown(PeerData *peer, const QVector<MTPMessage
 	}
 }
 
-void HistoryInner::updateMsg(const HistoryItem *msg) {
-	if (!msg || msg->detached() || !_history) return;
-	int32 msgy = itemTop(msg);
+void HistoryInner::redrawItem(const HistoryItem *item) {
+	if (!item || item->detached() || !_history) return;
+	int32 msgy = itemTop(item);
 	if (msgy >= 0) {
-		update(0, msgy, width(), msg->height());
+		update(0, msgy, width(), item->height());
 	}
 }
 
@@ -129,13 +129,13 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 	if (!App::main()) return;
 
+	Painter p(this);
 	QRect r(e->rect());
 	bool trivial = (rect() == r);
-
-	Painter p(this);
 	if (!trivial) {
 		p.setClipRect(r);
 	}
+	uint64 ms = getms();
 
 	if (!_firstLoading && _botInfo && !_botInfo->text.isEmpty() && _botDescHeight > 0) {
 		if (r.y() < _botDescRect.y() + _botDescRect.height() && r.y() + r.height() > _botDescRect.y()) {
@@ -189,7 +189,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 						sel = i.value();
 					}
 				}
-				item->draw(p, sel);
+				item->draw(p, r.translated(0, -y), sel, ms);
 
 				if (item->hasViews()) {
 					App::main()->scheduleViewIncrement(item);
@@ -233,7 +233,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 							sel = i.value();
 						}
 					}
-					item->draw(p, sel);
+					item->draw(p, r.translated(0, -y), sel, ms);
 
 					if (item->hasViews()) {
 						App::main()->scheduleViewIncrement(item);
@@ -475,16 +475,16 @@ void HistoryInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton butt
 	if (button != Qt::LeftButton) return;
 
 	if (App::pressedItem() != App::hoveredItem()) {
-		updateMsg(App::pressedItem());
+		redrawItem(App::pressedItem());
 		App::pressedItem(App::hoveredItem());
-		updateMsg(App::pressedItem());
+		redrawItem(App::pressedItem());
 	}
 	if (textlnkDown() != textlnkOver()) {
-		updateMsg(App::pressedLinkItem());
+		redrawItem(App::pressedLinkItem());
 		textlnkDown(textlnkOver());
 		App::pressedLinkItem(App::hoveredLinkItem());
-		updateMsg(App::pressedLinkItem());
-		updateMsg(App::pressedItem());
+		redrawItem(App::pressedLinkItem());
+		redrawItem(App::pressedItem());
 	}
 
 	_dragAction = NoDrag;
@@ -512,7 +512,7 @@ void HistoryInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton butt
 				uint32 selStatus = (symbol << 16) | symbol;
 				if (selStatus != FullItemSel && (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel)) {
 					if (!_selected.isEmpty()) {
-						updateMsg(_selected.cbegin().key());
+						redrawItem(_selected.cbegin().key());
 						_selected.clear();
 					}
 					_selected.insert(_dragItem, selStatus);
@@ -553,12 +553,12 @@ void HistoryInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton butt
 						uint32 selStatus = (_dragSymbol << 16) | _dragSymbol;
 						if (selStatus != FullItemSel && (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel)) {
 							if (!_selected.isEmpty()) {
-								updateMsg(_selected.cbegin().key());
+								redrawItem(_selected.cbegin().key());
 								_selected.clear();
 							}
 							_selected.insert(_dragItem, selStatus);
 							_dragAction = Selecting;
-							updateMsg(_dragItem);
+							redrawItem(_dragItem);
 						} else {
 							_dragAction = PrepareSelect;
 						}
@@ -731,7 +731,7 @@ void HistoryInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton but
 		}
 	}
 	if (textlnkDown()) {
-		updateMsg(App::pressedLinkItem());
+		redrawItem(App::pressedLinkItem());
 		textlnkDown(TextLinkPtr());
 		App::pressedLinkItem(0);
 		if (!textlnkOver() && _cursor != style::cur_default) {
@@ -740,7 +740,7 @@ void HistoryInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton but
 		}
 	}
 	if (App::pressedItem()) {
-		updateMsg(App::pressedItem());
+		redrawItem(App::pressedItem());
 		App::pressedItem(0);
 	}
 
@@ -764,16 +764,16 @@ void HistoryInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton but
 		} else {
 			_selected.erase(i);
 		}
-		updateMsg(_dragItem);
+		redrawItem(_dragItem);
 	} else if (_dragAction == PrepareDrag && !_dragWasInactive && button != Qt::RightButton) {
 		SelectedItems::iterator i = _selected.find(_dragItem);
 		if (i != _selected.cend() && i.value() == FullItemSel) {
 			_selected.erase(i);
-			updateMsg(_dragItem);
+			redrawItem(_dragItem);
 		} else if (i == _selected.cend() && !_dragItem->serviceMsg() && _dragItem->id > 0 && !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel) {
 			if (_selected.size() < MaxSelectedItems) {
 				_selected.insert(_dragItem, FullItemSel);
-				updateMsg(_dragItem);
+				redrawItem(_dragItem);
 			}
 		} else {
 			_selected.clear();
@@ -818,7 +818,7 @@ void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 				_dragAction = Selecting;
 				uint32 selStatus = (symbol << 16) | symbol;
 				if (!_selected.isEmpty()) {
-					updateMsg(_selected.cbegin().key());
+					redrawItem(_selected.cbegin().key());
 					_selected.clear();
 				}
 				_selected.insert(_dragItem, selStatus);
@@ -1348,12 +1348,17 @@ void HistoryInner::enterEvent(QEvent *e) {
 }
 
 void HistoryInner::leaveEvent(QEvent *e) {
-	if (textlnkOver()) {
-		updateMsg(App::hoveredItem());
-		updateMsg(App::hoveredLinkItem());
-		textlnkOver(TextLinkPtr());
-		App::hoveredLinkItem(0);
+	if (HistoryItem *item = App::hoveredItem()) {
+		redrawItem(item);
 		App::hoveredItem(0);
+	}
+	if (textlnkOver()) {
+		if (HistoryItem *item = App::hoveredLinkItem()) {
+			item->linkOut(textlnkOver());
+			redrawItem(item);
+			App::hoveredLinkItem(0);
+		}
+		textlnkOver(TextLinkPtr());
 		if (!textlnkDown() && _cursor != style::cur_default) {
 			_cursor = style::cur_default;
 			setCursor(_cursor);
@@ -1522,11 +1527,11 @@ void HistoryInner::onUpdateSelected() {
 		App::mousedItem(item);
 		m = mapMouseToItem(point, item);
 		if (item->hasPoint(m.x(), m.y())) {
-			updateMsg(App::hoveredItem());
+			redrawItem(App::hoveredItem());
 			App::hoveredItem(item);
-			updateMsg(App::hoveredItem());
+			redrawItem(App::hoveredItem());
 		} else if (App::hoveredItem()) {
-			updateMsg(App::hoveredItem());
+			redrawItem(App::hoveredItem());
 			App::hoveredItem(0);
 		}
 	}
@@ -1552,8 +1557,9 @@ void HistoryInner::onUpdateSelected() {
 	if (lnk != textlnkOver()) {
 		lnkChanged = true;
 		if (textlnkOver()) {
-			if (App::hoveredLinkItem()) {
-				updateMsg(App::hoveredLinkItem());
+			if (HistoryItem *item = App::hoveredLinkItem()) {
+				item->linkOut(textlnkOver());
+				redrawItem(item);
 			} else {
 				update(_botDescRect);
 			}
@@ -1562,8 +1568,9 @@ void HistoryInner::onUpdateSelected() {
 		QToolTip::hideText();
 		App::hoveredLinkItem((lnk && !lnkInDesc) ? item : 0);
 		if (textlnkOver()) {
-			if (App::hoveredLinkItem()) {
-				updateMsg(App::hoveredLinkItem());
+			if (HistoryItem *item = App::hoveredLinkItem()) {
+				item->linkOver(textlnkOver());
+				redrawItem(item);
 			} else {
 				update(_botDescRect);
 			}
@@ -2947,7 +2954,7 @@ void HistoryWidget::updateStickers() {
 	_stickersUpdateRequest = MTP::send(MTPmessages_GetAllStickers(MTP_int(cStickersHash())), rpcDone(&HistoryWidget::stickersGot), rpcFail(&HistoryWidget::stickersFailed));
 }
 
-void HistoryWidget::notifyBotCommandsChanged(UserData *user) {
+void HistoryWidget::notify_botCommandsChanged(UserData *user) {
 	if (_peer && (_peer == user || !_peer->isUser())) {
 		if (_attachMention.clearFilteredCommands()) {
 			checkMentionDropdown();
@@ -2955,7 +2962,7 @@ void HistoryWidget::notifyBotCommandsChanged(UserData *user) {
 	}
 }
 
-void HistoryWidget::notifyUserIsBotChanged(UserData *user) {
+void HistoryWidget::notify_userIsBotChanged(UserData *user) {
 	if (_peer && _peer == user) {
 		_list->notifyIsBotChanged();
 		_list->updateBotInfo();
@@ -2964,7 +2971,7 @@ void HistoryWidget::notifyUserIsBotChanged(UserData *user) {
 	}
 }
 
-void HistoryWidget::notifyMigrateUpdated(PeerData *peer) {
+void HistoryWidget::notify_migrateUpdated(PeerData *peer) {
 	if (_peer) {
 		if (_peer == peer) {
 			if (peer->migrateTo()) {
@@ -5442,7 +5449,7 @@ void HistoryWidget::onPhotoProgress(const FullMsgId &newId) {
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadPhoto, 0);
 		}
-//		msgUpdated(item);
+//		Notify::redrawHistoryItem(item);
 	}
 }
 
@@ -5464,7 +5471,7 @@ void HistoryWidget::onDocumentProgress(const FullMsgId &newId) {
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadFile, doc ? doc->uploadOffset : 0);
 		}
-		msgUpdated(item);
+		Notify::redrawHistoryItem(item);
 	}
 }
 
@@ -5475,7 +5482,7 @@ void HistoryWidget::onAudioProgress(const FullMsgId &newId) {
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadAudio, audio ? audio->uploadOffset : 0);
 		}
-		msgUpdated(item);
+		Notify::redrawHistoryItem(item);
 	}
 }
 
@@ -5486,7 +5493,7 @@ void HistoryWidget::onPhotoFailed(const FullMsgId &newId) {
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadPhoto, -1);
 		}
-//		msgUpdated(item);
+//		Notify::redrawHistoryItem(item);
 	}
 }
 
@@ -5497,7 +5504,7 @@ void HistoryWidget::onDocumentFailed(const FullMsgId &newId) {
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadFile, -1);
 		}
-		msgUpdated(item);
+		Notify::redrawHistoryItem(item);
 	}
 }
 
@@ -5508,7 +5515,7 @@ void HistoryWidget::onAudioFailed(const FullMsgId &newId) {
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadAudio, -1);
 		}
-		msgUpdated(item);
+		Notify::redrawHistoryItem(item);
 	}
 }
 
@@ -5595,9 +5602,9 @@ void HistoryWidget::peerMessagesUpdated() {
 	if (_list) peerMessagesUpdated(_peer->id);
 }
 
-void HistoryWidget::msgUpdated(const HistoryItem *msg) {
-	if (_peer && _list && (msg->history() == _history || (_migrated && msg->history() == _migrated))) {
-		_list->updateMsg(msg);
+void HistoryWidget::notify_redrawHistoryItem(const HistoryItem *item) {
+	if (_peer && _list && (item->history() == _history || (_migrated && item->history() == _migrated))) {
+		_list->redrawItem(item);
 	}
 }
 
@@ -6528,14 +6535,14 @@ void HistoryWidget::onAnimActiveStep() {
 	if (getms() - _animActiveStart > st::activeFadeInDuration + st::activeFadeOutDuration) {
 		stopAnimActive();
 	} else {
-		App::main()->msgUpdated(item);
+		Notify::redrawHistoryItem(item);
 	}
 }
 
-uint64 HistoryWidget::animActiveTime(const HistoryItem *msg) const {
+uint64 HistoryWidget::animActiveTimeStart(const HistoryItem *msg) const {
 	if (!msg) return 0;
 	if ((msg->history() == _history && msg->id == _activeAnimMsgId) || (_migrated && msg->history() == _migrated && msg->id == -_activeAnimMsgId)) {
-		return _animActiveTimer.isActive() ? (getms() - _animActiveStart) : 0;
+		return _animActiveTimer.isActive() ? _animActiveStart : 0;
 	}
 	return 0;
 }
@@ -6645,11 +6652,11 @@ void HistoryWidget::drawField(Painter &p) {
 				}
 				p.setPen(st::replyColor->p);
 				_replyToName.drawElided(p, replyLeft, backy + st::msgReplyPadding.top(), width() - replyLeft - _replyForwardPreviewCancel.width() - st::msgReplyPadding.right());
-				p.setPen((((drawReplyTo->toHistoryMessage() && drawReplyTo->toHistoryMessage()->emptyText()) || drawReplyTo->serviceMsg()) ? st::msgInDateColor : st::msgColor)->p);
+				p.setPen((((drawReplyTo->toHistoryMessage() && drawReplyTo->toHistoryMessage()->emptyText()) || drawReplyTo->serviceMsg()) ? st::msgInDateFg : st::msgColor)->p);
 				_replyToText.drawElided(p, replyLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - replyLeft - _replyForwardPreviewCancel.width() - st::msgReplyPadding.right());
 			} else {
 				p.setFont(st::msgDateFont->f);
-				p.setPen(st::msgInDateColor->p);
+				p.setPen(st::msgInDateFg->p);
 				p.drawText(replyLeft, backy + st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(lang(lng_profile_loading), width() - replyLeft - _replyForwardPreviewCancel.width() - st::msgReplyPadding.right()));
 			}
 		}
@@ -6669,7 +6676,7 @@ void HistoryWidget::drawField(Painter &p) {
 			}
 			p.setPen(st::replyColor->p);
 			from->drawElided(p, forwardLeft, backy + st::msgReplyPadding.top(), width() - forwardLeft - _replyForwardPreviewCancel.width() - st::msgReplyPadding.right());
-			p.setPen((serviceColor ? st::msgInDateColor : st::msgColor)->p);
+			p.setPen((serviceColor ? st::msgInDateFg : st::msgColor)->p);
 			text->drawElided(p, forwardLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - forwardLeft - _replyForwardPreviewCancel.width() - st::msgReplyPadding.right());
 		}
 	}

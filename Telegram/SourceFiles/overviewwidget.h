@@ -69,7 +69,7 @@ public:
 
 	void mediaOverviewUpdated(bool fromResize = false);
 	void changingMsgId(HistoryItem *row, MsgId newId);
-	void msgUpdated(const HistoryItem *msg);
+	void redrawItem(const HistoryItem *msg);
 	void itemRemoved(HistoryItem *item);
 	void itemResized(HistoryItem *item, bool scrollToIt);
 
@@ -123,8 +123,7 @@ private:
 
 	void updateDragSelection(MsgId dragSelFrom, int32 dragSelFromIndex, MsgId dragSelTo, int32 dragSelToIndex, bool dragSelecting);
 
-	void updateMsg(HistoryItem *item);
-	void updateMsg(MsgId itemId, int32 itemIndex);
+	void redrawItem(MsgId itemId, int32 itemIndex);
 
 	void touchResetSpeed();
 	void touchUpdateSpeed();
@@ -314,7 +313,7 @@ public:
 
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);
-	void msgUpdated(const HistoryItem *msg);
+	void notify_redrawHistoryItem(const HistoryItem *msg);
 	void itemRemoved(HistoryItem *item);
 	void itemResized(HistoryItem *row, bool scrollToIt);
 

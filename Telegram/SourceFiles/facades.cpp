@@ -96,15 +96,19 @@ namespace Ui {
 namespace Notify {
 
 	void userIsBotChanged(UserData *user) {
-		if (MainWidget *m = App::main()) m->notifyUserIsBotChanged(user);
+		if (MainWidget *m = App::main()) m->notify_userIsBotChanged(user);
 	}
 
 	void botCommandsChanged(UserData *user) {
-		if (MainWidget *m = App::main()) m->notifyBotCommandsChanged(user);
+		if (MainWidget *m = App::main()) m->notify_botCommandsChanged(user);
 	}
 
 	void migrateUpdated(PeerData *peer) {
-		if (MainWidget *m = App::main()) m->notifyMigrateUpdated(peer);
+		if (MainWidget *m = App::main()) m->notify_migrateUpdated(peer);
+	}
+
+	void redrawHistoryItem(const HistoryItem *item) {
+		if (MainWidget *m = App::main()) m->notify_redrawHistoryItem(item);
 	}
 
 }

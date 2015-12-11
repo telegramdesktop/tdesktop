@@ -53,5 +53,6 @@ namespace Notify {
 	void userIsBotChanged(UserData *user);
 	void botCommandsChanged(UserData *user);
 	void migrateUpdated(PeerData *peer);
+	void redrawHistoryItem(const HistoryItem *item);
 
 };

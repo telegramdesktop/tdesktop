@@ -680,6 +680,8 @@ const TextLinkPtr &textlnkOver();
 void textlnkDown(const TextLinkPtr &lnk);
 const TextLinkPtr &textlnkDown();
 
+bool textlnkDrawOver(const TextLinkPtr &lnk);
+
 // textcmd
 QString textcmdSkipBlock(ushort w, ushort h);
 QString textcmdStartLink(ushort lnkIndex);

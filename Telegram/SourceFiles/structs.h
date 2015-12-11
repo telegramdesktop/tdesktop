@@ -1123,6 +1123,10 @@ struct DocumentData {
 	}
 	void recountIsImage();
 
+	float64 progress() const {
+		return loader ? loader->currentProgress() : ((status == FileDownloadFailed || (_location.name().isEmpty() && data.isEmpty())) ? 0 : 1);
+	}
+
 	DocumentId id;
 	DocumentType type;
 	QSize dimensions;
