@@ -1417,7 +1417,7 @@ public:
 private:
 
 	DocumentData *_data;
-	TextLinkPtr _openl, _savel, _cancell;
+	TextLinkPtr _openl, _savel, _thumbsavel, _cancell;
 
 	int32 _namew;
 	QString _name;
@@ -1428,8 +1428,8 @@ private:
 	// 0x7FFFFFF0 will contain status for not yet downloaded file
 	// 0x7FFFFFF1 will contain status for already downloaded file
 	// 0x7FFFFFF2 will contain status for failed to download / upload file
-	mutable int32 _statusSize;
-	mutable QString _statusText;
+	mutable int32 _statusSize, _linkw;
+	mutable QString _statusText, _link;
 
 	void setStatusSize(int32 newSize, qint64 realDuration = 0) const;
 	bool updateStatusText(const HistoryItem *parent) const; // returns showPause

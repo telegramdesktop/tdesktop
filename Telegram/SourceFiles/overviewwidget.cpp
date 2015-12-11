@@ -151,7 +151,7 @@ OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, PeerD
 , _selMode(false)
 , _audioLeft(st::msgMargin.left())
 , _audioWidth(st::msgMinWidth)
-, _audioHeight(st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom())
+, _audioHeight(st::msgPadding.top() + st::mediaThumbSize + st::msgPadding.bottom())
 , _linksLeft(st::linksSearchMargin.left())
 , _linksWidth(st::msgMinWidth)
 , _search(this, st::dlgFilter, lang(lng_dlg_filter))
@@ -2897,7 +2897,7 @@ int32 OverviewWidget::countBestScroll() const {
 		if (playing) {
 			int32 top = _inner.itemTop(playing.msgId);
 			if (top >= 0) {
-				return snap(top - int(_scroll.height() - (st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom())) / 2, 0, _scroll.scrollTopMax());
+				return snap(top - int(_scroll.height() - (st::msgPadding.top() + st::mediaThumbSize + st::msgPadding.bottom())) / 2, 0, _scroll.scrollTopMax());
 			}
 		}
 	} else if (type() == OverviewLinks) {
@@ -3063,7 +3063,7 @@ void OverviewWidget::onPlayerSongChanged(const FullMsgId &msgId) {
 	if (type() == OverviewAudioDocuments) {
 //		int32 top = _inner.itemTop(msgId);
 //		if (top > 0) {
-//			_scroll.scrollToY(snap(top - int(_scroll.height() - (st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom())) / 2, 0, _scroll.scrollTopMax()));
+//			_scroll.scrollToY(snap(top - int(_scroll.height() - (st::msgPadding.top() + st::mediaThumbSize + st::msgPadding.bottom())) / 2, 0, _scroll.scrollTopMax()));
 //		}
 	}
 }

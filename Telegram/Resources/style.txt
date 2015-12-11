@@ -1232,7 +1232,7 @@ msgFileInPause: sprite(132px, 165px, 14px, 16px);
 msgFileInPauseSelected: sprite(146px, 165px, 14px, 16px);
 msgFileOutPlay: sprite(160px, 146px, 20px, 18px);
 msgFileOutPlaySelected: sprite(180px, 146px, 20px, 18px);
-msgFileInPlay: sprite(160px, 164px, 18px, 20px);
+msgFileInPlay: sprite(160px, 164px, 20px, 18px);
 msgFileInPlaySelected: sprite(180px, 164px, 20px, 18px);
 
 sendPadding: 9px;
