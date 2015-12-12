@@ -186,6 +186,8 @@ inline bool isNotifyMuted(NotifySettingsPtr settings, int32 *changeIn = 0) {
 	return false;
 }
 
+static const int32 UserColorsCount = 8;
+
 style::color peerColor(int32 index);
 ImagePtr userDefPhoto(int32 index);
 ImagePtr chatDefPhoto(int32 index);
@@ -906,6 +908,8 @@ struct AudioData {
 			l->cancel();
 			l->deleteLater();
 			l->rpcInvalidate();
+
+			notifyLayoutChanged();
 		}
 		_location = FileLocation();
 		if (!beforeDownload) {
@@ -922,7 +926,10 @@ struct AudioData {
 		loader->deleteLater();
 		loader->rpcInvalidate();
 		loader = 0;
+
+		notifyLayoutChanged();
 	}
+	void notifyLayoutChanged() const;
 
 	QString already(bool check = false);
 	const FileLocation &location(bool check = false);
@@ -930,6 +937,10 @@ struct AudioData {
 		if (loc.check()) {
 			_location = loc;
 		}
+	}
+
+	float64 progress() const {
+		return loader ? loader->currentProgress() : ((status == FileDownloadFailed || (_location.name().isEmpty() && data.isEmpty())) ? 0 : 1);
 	}
 
 	AudioId id;
@@ -1081,6 +1092,8 @@ struct DocumentData {
 			l->cancel();
 			l->deleteLater();
 			l->rpcInvalidate();
+
+			notifyLayoutChanged();
 		}
 		_location = FileLocation();
 		if (!beforeDownload) {
@@ -1100,7 +1113,11 @@ struct DocumentData {
 		loader->deleteLater();
 		loader->rpcInvalidate();
 		loader = 0;
+
+		notifyLayoutChanged();
 	}
+	void notifyLayoutChanged() const;
+
 	~DocumentData() {
 		delete _additional;
 	}

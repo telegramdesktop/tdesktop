@@ -389,7 +389,8 @@ public:
 	void notify_botCommandsChanged(UserData *bot);
 	void notify_userIsBotChanged(UserData *bot);
 	void notify_migrateUpdated(PeerData *peer);
-	void notify_redrawHistoryItem(const HistoryItem *msg);
+	void notify_redrawHistoryItem(const HistoryItem *item);
+	void notify_historyItemLayoutChanged(const HistoryItem *item);
 
 	void choosePeer(PeerId peerId, MsgId showAtMsgId); // does offerPeer or showPeerHistory
 	void clearBotStartToken(PeerData *peer);

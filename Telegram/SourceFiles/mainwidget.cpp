@@ -758,13 +758,18 @@ void MainWidget::notify_migrateUpdated(PeerData *peer) {
 	history.notify_migrateUpdated(peer);
 }
 
-void MainWidget::notify_redrawHistoryItem(const HistoryItem *msg) {
-	if (!msg) return;
-	history.notify_redrawHistoryItem(msg);
-	if (!msg->history()->dialogs.isEmpty() && msg->history()->lastMsg == msg) {
-		dialogs.dlgUpdated(msg->history()->dialogs[0]);
+void MainWidget::notify_redrawHistoryItem(const HistoryItem *item) {
+	if (!item) return;
+
+	history.notify_redrawHistoryItem(item);
+	if (!item->history()->dialogs.isEmpty() && item->history()->lastMsg == item) {
+		dialogs.dlgUpdated(item->history()->dialogs[0]);
 	}
-	if (overview) overview->notify_redrawHistoryItem(msg);
+	if (overview) overview->notify_redrawHistoryItem(item);
+}
+
+void MainWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
+	history.notify_historyItemLayoutChanged(item);
 }
 
 void MainWidget::noHider(HistoryHider *destroyed) {

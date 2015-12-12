@@ -62,7 +62,7 @@ style::color peerColor(int32 index) {
 }
 
 ImagePtr userDefPhoto(int32 index) {
-	static const ImagePtr userDefPhotos[8] = {
+	static const ImagePtr userDefPhotos[UserColorsCount] = {
 		ImagePtr(qsl(":/ava/art/usercolor1.png"), "PNG"),
 		ImagePtr(qsl(":/ava/art/usercolor2.png"), "PNG"),
 		ImagePtr(qsl(":/ava/art/usercolor3.png"), "PNG"),
@@ -833,6 +833,18 @@ void AudioData::save(const QString &toFile) {
 	loader->connect(loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(audioLoadProgress(mtpFileLoader*)));
 	loader->connect(loader, SIGNAL(failed(mtpFileLoader*, bool)), App::main(), SLOT(audioLoadFailed(mtpFileLoader*, bool)));
 	loader->start();
+
+	notifyLayoutChanged();
+}
+
+void AudioData::notifyLayoutChanged() const {
+	const AudioItems &items(App::audioItems());
+	AudioItems::const_iterator i = items.constFind(const_cast<AudioData*>(this));
+	if (i != items.cend()) {
+		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
+			Notify::historyItemLayoutChanged(j.key());
+		}
+	}
 }
 
 QString AudioData::already(bool check) {
@@ -1035,6 +1047,18 @@ void DocumentData::save(const QString &toFile) {
 	loader->connect(loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(documentLoadProgress(mtpFileLoader*)));
 	loader->connect(loader, SIGNAL(failed(mtpFileLoader*, bool)), App::main(), SLOT(documentLoadFailed(mtpFileLoader*, bool)));
 	loader->start();
+
+	notifyLayoutChanged();
+}
+
+void DocumentData::notifyLayoutChanged() const {
+	const DocumentItems &items(App::documentItems());
+	DocumentItems::const_iterator i = items.constFind(const_cast<DocumentData*>(this));
+	if (i != items.cend()) {
+		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
+			Notify::historyItemLayoutChanged(j.key());
+		}
+	}
 }
 
 QString DocumentData::already(bool check) {

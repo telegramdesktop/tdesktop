@@ -46,6 +46,8 @@ namespace Ui { // it doesn't allow me to use UI :(
 	void hideLayer(bool fast = false);
 	bool isLayerShown();
 
+	void showPeerHistory(const PeerId &peer, MsgId msgId, bool back = false);
+
 };
 
 namespace Notify {
@@ -54,5 +56,6 @@ namespace Notify {
 	void botCommandsChanged(UserData *user);
 	void migrateUpdated(PeerData *peer);
 	void redrawHistoryItem(const HistoryItem *item);
+	void historyItemLayoutChanged(const HistoryItem *item);
 
 };

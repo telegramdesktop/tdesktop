@@ -1527,9 +1527,11 @@ void HistoryInner::onUpdateSelected() {
 		App::mousedItem(item);
 		m = mapMouseToItem(point, item);
 		if (item->hasPoint(m.x(), m.y())) {
-			redrawItem(App::hoveredItem());
-			App::hoveredItem(item);
-			redrawItem(App::hoveredItem());
+			if (App::hoveredItem() != item) {
+				redrawItem(App::hoveredItem());
+				App::hoveredItem(item);
+				redrawItem(App::hoveredItem());
+			}
 		} else if (App::hoveredItem()) {
 			redrawItem(App::hoveredItem());
 			App::hoveredItem(0);
@@ -1670,7 +1672,7 @@ void HistoryInner::onUpdateSelected() {
 		_widget->noSelectingScroll();
 	}
 
-	if (lnkChanged || cur != _cursor) {
+	if (_dragAction == NoDrag && (lnkChanged || cur != _cursor)) {
 		setCursor(_cursor = cur);
 	}
 }
@@ -5605,6 +5607,12 @@ void HistoryWidget::peerMessagesUpdated() {
 void HistoryWidget::notify_redrawHistoryItem(const HistoryItem *item) {
 	if (_peer && _list && (item->history() == _history || (_migrated && item->history() == _migrated))) {
 		_list->redrawItem(item);
+	}
+}
+
+void HistoryWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
+	if (_peer && _list && (item == App::mousedItem() || item == App::hoveredItem() || item == App::hoveredLinkItem())) {
+		_list->onUpdateSelected();
 	}
 }
 

@@ -91,6 +91,10 @@ namespace Ui {
 		return false;
 	}
 
+	void showPeerHistory(const PeerId &peer, MsgId msgId, bool back) {
+		if (MainWidget *m = App::main()) m->showPeerHistory(peer, msgId, back);
+	}
+
 }
 
 namespace Notify {
@@ -109,6 +113,10 @@ namespace Notify {
 
 	void redrawHistoryItem(const HistoryItem *item) {
 		if (MainWidget *m = App::main()) m->notify_redrawHistoryItem(item);
+	}
+
+	void historyItemLayoutChanged(const HistoryItem *item) {
+		if (MainWidget *m = App::main()) m->notify_historyItemLayoutChanged(item);
 	}
 
 }

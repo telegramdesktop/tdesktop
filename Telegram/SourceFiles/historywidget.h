@@ -431,6 +431,7 @@ public:
 	void peerMessagesUpdated();
 
 	void notify_redrawHistoryItem(const HistoryItem *item);
+	void notify_historyItemLayoutChanged(const HistoryItem *item);
 	void newUnreadMsg(History *history, HistoryItem *item);
 	void historyToDown(History *history);
 	void historyWasRead(bool force = true);

@@ -20,6 +20,11 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+template <typename Type>
+void setBadLink(Type *&link) {
+	link = reinterpret_cast<Type*>(0x00000bad);
+}
+
 struct NullType {
 };
 
@@ -453,3 +458,8 @@ enum ShowLayerOption {
 	ForceFastShowLayer        = 0x04,
 };
 typedef QFlags<ShowLayerOption> ShowLayerOptions;
+
+static int32 FullArcLength = 360 * 16;
+static int32 QuarterArcLength = (FullArcLength / 4);
+static int32 MinArcLength = (FullArcLength / 360);
+static int32 AlmostFullArcLength = (FullArcLength - MinArcLength);

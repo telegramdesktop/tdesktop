@@ -73,11 +73,10 @@ namespace {
 	AudioItems audioItems;
 	DocumentItems documentItems;
 	WebPageItems webPageItems;
+	SharedContactItems sharedContactItems;
+
 	typedef QMap<HistoryItem*, QMap<HistoryReply*, bool> > RepliesTo;
 	RepliesTo repliesTo;
-
-	typedef QMap<int32, QString> SharedContactPhones;
-	SharedContactPhones sharedContactPhones;
 
 	Histories histories;
 
@@ -1997,7 +1996,7 @@ namespace App {
 		::audioItems.clear();
 		::documentItems.clear();
 		::webPageItems.clear();
-		::sharedContactPhones.clear();
+		::sharedContactItems.clear();
 		::repliesTo.clear();
 		lastPhotos.clear();
 		lastPhotosMap.clear();
@@ -2373,7 +2372,7 @@ namespace App {
 	}
 
 	void regVideoItem(VideoData *data, HistoryItem *item) {
-		::videoItems[data][item] = true;
+		::videoItems[data].insert(item, NullType());
 	}
 
 	void unregVideoItem(VideoData *data, HistoryItem *item) {
@@ -2385,7 +2384,7 @@ namespace App {
 	}
 
 	void regAudioItem(AudioData *data, HistoryItem *item) {
-		::audioItems[data][item] = true;
+		::audioItems[data].insert(item, NullType());
 	}
 
 	void unregAudioItem(AudioData*data, HistoryItem *item) {
@@ -2397,7 +2396,7 @@ namespace App {
 	}
 
 	void regDocumentItem(DocumentData *data, HistoryItem *item) {
-		::documentItems[data][item] = true;
+		::documentItems[data].insert(item, NullType());
 	}
 
 	void unregDocumentItem(DocumentData *data, HistoryItem *item) {
@@ -2409,7 +2408,7 @@ namespace App {
 	}
 
 	void regWebPageItem(WebPageData *data, HistoryItem *item) {
-		::webPageItems[data][item] = true;
+		::webPageItems[data].insert(item, NullType());
 	}
 
 	void unregWebPageItem(WebPageData *data, HistoryItem *item) {
@@ -2420,12 +2419,27 @@ namespace App {
 		return ::webPageItems;
 	}
 
-	void regSharedContactPhone(int32 userId, const QString &phone) {
-		::sharedContactPhones[userId] = phone;
+	void regSharedContactItem(int32 userId, HistoryItem *item) {
+		::sharedContactItems[userId].insert(item, NullType());
+	}
+
+	void unregSharedContactItem(int32 userId, HistoryItem *item) {
+		::sharedContactItems[userId].remove(item);
+	}
+
+	const SharedContactItems &sharedContactItems() {
+		return ::sharedContactItems;
 	}
 
 	QString phoneFromSharedContact(int32 userId) {
-		return ::sharedContactPhones.value(userId);
+		SharedContactItems::const_iterator i = ::sharedContactItems.constFind(userId);
+		if (i != ::sharedContactItems.cend()) {
+			HistoryMedia *media = i->cbegin().key()->getMedia();
+			if (media && media->type() == MediaTypeContact) {
+				return static_cast<HistoryContact*>(media)->phone();
+			}
+		}
+		return QString();
 	}
 
 	void regMuted(PeerData *peer, int32 changeIn) {

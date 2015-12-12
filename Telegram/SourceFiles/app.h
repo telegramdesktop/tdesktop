@@ -33,11 +33,12 @@ class FileUploader;
 
 #include "history.h"
 
-typedef QMap<HistoryItem*, bool> HistoryItemsMap;
-typedef QHash<VideoData*, HistoryItemsMap> VideoItems;
-typedef QHash<AudioData*, HistoryItemsMap> AudioItems;
-typedef QHash<DocumentData*, HistoryItemsMap> DocumentItems;
-typedef QHash<WebPageData*, HistoryItemsMap> WebPageItems;
+typedef QMap<HistoryItem*, NullType> HistoryItemsMap;
+typedef QMap<VideoData*, HistoryItemsMap> VideoItems;
+typedef QMap<AudioData*, HistoryItemsMap> AudioItems;
+typedef QMap<DocumentData*, HistoryItemsMap> DocumentItems;
+typedef QMap<WebPageData*, HistoryItemsMap> WebPageItems;
+typedef QMap<int32, HistoryItemsMap> SharedContactItems;
 struct ReplyMarkup {
 	ReplyMarkup(int32 flags = 0) : flags(flags) {
 	}
@@ -244,7 +245,9 @@ namespace App {
 	void unregWebPageItem(WebPageData *data, HistoryItem *item);
 	const WebPageItems &webPageItems();
 
-	void regSharedContactPhone(int32 userId, const QString &phone);
+	void regSharedContactItem(int32 userId, HistoryItem *item);
+	void unregSharedContactItem(int32 userId, HistoryItem *item);
+	const SharedContactItems &sharedContactItems();
 	QString phoneFromSharedContact(int32 userId);
 
 	void regMuted(PeerData *peer, int32 changeIn);

@@ -1186,12 +1186,13 @@ mediaInUnreadFg: #999;
 mediaInUnreadFgSelected: #7b95aa;
 mediaOutUnreadFg: #6aad60;
 mediaOutUnreadFgSelected: #5aa382;
-mediaUnreadSize: 4px;
+mediaUnreadSize: 7px;
 mediaUnreadSkip: 5px;
+mediaUnreadTop: 6px;
 
 msgFileMenuSize: size(36px, 36px);
 msgFileSize: 44px;
-msgFilePadding: margins(14px, 12px, 10px, 12px);
+msgFilePadding: margins(14px, 12px, 11px, 12px);
 msgFileThumbSize: 72px;
 msgFileThumbPadding: margins(10px, 10px, 14px, 10px);
 msgFileThumbNameTop: 12px;

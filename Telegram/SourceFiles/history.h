@@ -1132,6 +1132,11 @@ public:
 	void update(float64 prg, bool finished, uint64 ms);
 	void stop();
 
+	void step(uint64 ms);
+	void step() {
+		step(getms());
+	}
+
 	void draw(Painter &p, const QRect &inner, const style::color &color);
 
 private:
@@ -1139,7 +1144,7 @@ private:
 	int32 _thickness;
 	uint64 _firstStart, _lastStart, _lastTime;
 	float64 _opacity;
-	anim::fvalue a_arcEnd, a_arcStart;
+	anim::ivalue a_arcEnd, a_arcStart;
 	Animation _animation;
 
 };
@@ -1147,7 +1152,7 @@ private:
 class HistoryMedia : public HistoryElem {
 public:
 
-	HistoryMedia(int32 width = 0) : w(width) {
+	HistoryMedia() : w(0) {
 	}
 	HistoryMedia(const HistoryMedia &other) : w(0) {
 	}
@@ -1184,7 +1189,7 @@ public:
 	virtual void unregItem(HistoryItem *item) {
 	}
 
-	virtual void updateFrom(const MTPMessageMedia &media) {
+	virtual void updateFrom(const MTPMessageMedia &media, HistoryItem *parent, bool allowEmitResize) {
 	}
 
 	virtual bool isImageLink() const {
@@ -1247,7 +1252,7 @@ public:
 		return _data;
 	}
 
-	void updateFrom(const MTPMessageMedia &media);
+	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent, bool allowEmitResize);
 
 	TextLinkPtr lnk() const {
 		return _openl;
@@ -1353,7 +1358,63 @@ private:
 	mutable int32 _dldDone, _uplDone;
 };
 
-class HistoryAudio : public HistoryMedia {
+class HistoryFileMedia : public HistoryMedia {
+public:
+
+	HistoryFileMedia();
+
+	void linkOver(HistoryItem *parent, const TextLinkPtr &lnk);
+	void linkOut(HistoryItem *parent, const TextLinkPtr &lnk);
+
+	~HistoryFileMedia();
+
+protected:
+
+	TextLinkPtr _openl, _savel, _cancell;
+	void setLinks(ITextLink *openl, ITextLink *savel, ITextLink *cancell);
+
+	// >= 0 will contain download / upload string, _statusSize = loaded bytes
+	// < 0 will contain played string, _statusSize = -(seconds + 1) played
+	// 0x7FFFFFF0 will contain status for not yet downloaded file
+	// 0x7FFFFFF1 will contain status for already downloaded file
+	// 0x7FFFFFF2 will contain status for failed to download / upload file
+	mutable int32 _statusSize;
+	mutable QString _statusText;
+
+	void setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const;
+
+	void step_thumbOver(const HistoryItem *parent, float64 ms, bool timer);
+	void step_radial(const HistoryItem *parent, uint64 ms, bool timer);
+
+	void ensureAnimation(const HistoryItem *parent) const;
+	void checkAnimationFinished();
+
+	bool isRadialAnimation(uint64 ms) const {
+		if (!_animation || !_animation->radial.animating()) return false;
+
+		_animation->radial.step(ms);
+		return _animation && _animation->radial.animating();
+	}
+
+	virtual float64 dataProgress() const = 0;
+	virtual bool dataFinished() const = 0;
+	virtual bool dataLoaded() const = 0;
+
+	struct AnimationData {
+		AnimationData(AnimationCallbacks *thumbOverCallbacks, AnimationCallbacks *radialCallbacks) : a_thumbOver(0, 0)
+			, _a_thumbOver(thumbOverCallbacks)
+			, radial(st::msgFileRadialLine, radialCallbacks) {
+		}
+		anim::fvalue a_thumbOver;
+		Animation _a_thumbOver;
+
+		RadialAnimation radial;
+	};
+	mutable AnimationData *_animation;
+
+};
+
+class HistoryAudio : public HistoryFileMedia {
 public:
 
 	HistoryAudio(const MTPDaudio &audio);
@@ -1368,18 +1429,18 @@ public:
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	bool uploading() const {
-		return (data->status == FileUploading);
+		return (_data->status == FileUploading);
 	}
 	HistoryMedia *clone() const;
 
 	AudioData *audio() {
-		return data;
+		return _data;
 	}
 
 	void regItem(HistoryItem *item);
 	void unregItem(HistoryItem *item);
 
-	void updateFrom(const MTPMessageMedia &media);
+	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent, bool allowEmitResize);
 
 	bool needsBubble(const HistoryItem *parent) const {
 		return true;
@@ -1388,17 +1449,26 @@ public:
 		return false;
 	}
 
+protected:
+
+	float64 dataProgress() const {
+		return _data->progress();
+	}
+	bool dataFinished() const {
+		return !_data->loader;
+	}
+	bool dataLoaded() const {
+		return !_data->already().isEmpty() || !_data->data.isEmpty();
+	}
+
 private:
-	AudioData *data;
-	TextLinkPtr _openl, _savel, _cancell;
+	AudioData *_data;
+	void setStatusSize(int32 newSize, qint64 realDuration = 0) const;
+	bool updateStatusText(const HistoryItem *parent) const; // returns showPause
 
-	QString _size;
-
-	mutable QString _dldTextCache, _uplTextCache;
-	mutable int32 _dldDone, _uplDone;
 };
 
-class HistoryDocument : public HistoryMedia {
+class HistoryDocument : public HistoryFileMedia {
 public:
 
 	HistoryDocument(DocumentData *document);
@@ -1421,8 +1491,6 @@ public:
 		return (_data->status == FileUploading);
 	}
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	void linkOver(HistoryItem *parent, const TextLinkPtr &lnk);
-	void linkOut(HistoryItem *parent, const TextLinkPtr &lnk);
 	HistoryMedia *clone() const;
 
 	DocumentData *document() {
@@ -1432,7 +1500,7 @@ public:
 	void regItem(HistoryItem *item);
 	void unregItem(HistoryItem *item);
 
-	void updateFrom(const MTPMessageMedia &media);
+	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent, bool allowEmitResize);
 
 	bool hasReplyPreview() const {
 		return !_data->thumb->isNull();
@@ -1452,45 +1520,32 @@ public:
 		return _data->song();
 	}
 
-	~HistoryDocument();
+protected:
+
+	float64 dataProgress() const {
+		return _data->progress();
+	}
+	bool dataFinished() const {
+		return !_data->loader;
+	}
+	bool dataLoaded() const {
+		return !_data->already().isEmpty() || !_data->data.isEmpty();
+	}
 
 private:
 
 	DocumentData *_data;
-	TextLinkPtr _openl, _savel, _thumbsavel, _cancell;
+	TextLinkPtr _linksavel, _linkcancell;
 
 	int32 _namew;
 	QString _name;
 	int32 _thumbw;
 
-	// >= 0 will contain download / upload string, _statusSize = loaded bytes
-	// < 0 will contain played string, _statusSize = -(seconds + 1) played
-	// 0x7FFFFFF0 will contain status for not yet downloaded file
-	// 0x7FFFFFF1 will contain status for already downloaded file
-	// 0x7FFFFFF2 will contain status for failed to download / upload file
-	mutable int32 _statusSize, _linkw;
-	mutable QString _statusText, _link;
+	mutable int32 _linkw;
+	mutable QString _link;
 
 	void setStatusSize(int32 newSize, qint64 realDuration = 0) const;
 	bool updateStatusText(const HistoryItem *parent) const; // returns showPause
-
-	void step_thumbOver(const HistoryItem *parent, float64 ms, bool timer);
-	void step_radial(const HistoryItem *parent, uint64 ms, bool timer);
-
-	void ensureAnimation(const HistoryItem *parent) const;
-	void checkAnimationFinished();
-
-	struct AnimationData {
-		AnimationData(AnimationCallbacks *thumbOverCallbacks, AnimationCallbacks *radialCallbacks) : a_thumbOver(0, 0)
-			, _a_thumbOver(thumbOverCallbacks)
-			, radial(st::msgFileRadialLine, radialCallbacks) {
-		}
-		anim::fvalue a_thumbOver;
-		Animation _a_thumbOver;
-
-		RadialAnimation radial;
-	};
-	mutable AnimationData *_animation;
 
 };
 
@@ -1522,7 +1577,7 @@ public:
 	void regItem(HistoryItem *item);
 	void unregItem(HistoryItem *item);
 
-	void updateFrom(const MTPMessageMedia &media);
+	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent, bool allowEmitResize);
 
 	bool hasReplyPreview() const {
 		return !_data->thumb->isNull();
@@ -1578,7 +1633,7 @@ public:
 	void regItem(HistoryItem *item);
 	void unregItem(HistoryItem *item);
 
-	void updateFrom(const MTPMessageMedia &media);
+	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent, bool allowEmitResize);
 
 	bool needsBubble(const HistoryItem *parent) const {
 		return false;
@@ -1596,11 +1651,30 @@ private:
 
 };
 
+class SendMessageLink : public PeerLink {
+	TEXT_LINK_CLASS(SendMessageLink)
+
+public:
+	SendMessageLink(PeerData *peer) : PeerLink(peer) {
+	}
+	void onClick(Qt::MouseButton button) const;
+
+};
+
+class AddContactLink : public MessageLink {
+	TEXT_LINK_CLASS(AddContactLink)
+
+public:
+	AddContactLink(PeerId peer, MsgId msgid) : MessageLink(peer, msgid) {
+	}
+	void onClick(Qt::MouseButton button) const;
+
+};
+
 class HistoryContact : public HistoryMedia {
 public:
 
 	HistoryContact(int32 userId, const QString &first, const QString &last, const QString &phone);
-	HistoryContact(int32 userId, const QString &fullname, const QString &phone);
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
@@ -1613,7 +1687,10 @@ public:
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width) const;
 	HistoryMedia *clone() const;
 
-	void updateFrom(const MTPMessageMedia &media);
+	void regItem(HistoryItem *item);
+	void unregItem(HistoryItem *item);
+
+	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent, bool allowEmitResize);
 
 	bool needsBubble(const HistoryItem *parent) const {
 		return true;
@@ -1622,12 +1699,28 @@ public:
 		return false;
 	}
 
+	const QString &fname() const {
+		return _fname;
+	}
+	const QString &lname() const {
+		return _lname;
+	}
+	const QString &phone() const {
+		return _phone;
+	}
+
 private:
-	int32 userId;
-	int32 phonew;
-	Text name;
-	QString phone;
-	UserData *contact;
+
+	int32 _userId;
+	UserData *_contact;
+
+	int32 _phonew;
+	QString _fname, _lname, _phone;
+	Text _name;
+
+	TextLinkPtr _linkl;
+	int32 _linkw;
+	QString _link;
 };
 
 class HistoryWebPage : public HistoryMedia {
@@ -1841,7 +1934,7 @@ public:
     
 	void updateMedia(const MTPMessageMedia *media, bool allowEmitResize) {
 		if (media && _media && _media->type() != MediaTypeWebPage) {
-			_media->updateFrom(*media);
+			_media->updateFrom(*media, this, allowEmitResize);
 		} else {
 			setMedia(media, allowEmitResize);
 		}
