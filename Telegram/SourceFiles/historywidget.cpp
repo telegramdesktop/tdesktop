@@ -5366,6 +5366,8 @@ void HistoryWidget::onDocumentUploaded(const FullMsgId &newId, const MTPInputFil
 		DocumentData *document = 0;
 		if (HistoryDocument *media = dynamic_cast<HistoryDocument*>(item->getMedia())) {
 			document = media->document();
+		} else if (HistoryGif *media = dynamic_cast<HistoryGif*>(item->getMedia())) {
+			document = media->document();
 		} else if (HistorySticker *media = dynamic_cast<HistorySticker*>(item->getMedia())) {
 			document = media->document();
 		}
@@ -5394,6 +5396,8 @@ void HistoryWidget::onThumbDocumentUploaded(const FullMsgId &newId, const MTPInp
 	if (item) {
 		DocumentData *document = 0;
 		if (HistoryDocument *media = dynamic_cast<HistoryDocument*>(item->getMedia())) {
+			document = media->document();
+		} else if (HistoryGif *media = dynamic_cast<HistoryGif*>(item->getMedia())) {
 			document = media->document();
 		} else if (HistorySticker *media = dynamic_cast<HistorySticker*>(item->getMedia())) {
 			document = media->document();

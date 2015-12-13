@@ -1888,7 +1888,7 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 					if (location.accessEnable()) {
 						QImageReader reader(location.name());
 						if (reader.canRead()) {
-							if (reader.supportsAnimation() && reader.imageCount() > 1 && item) {
+							if (reader.supportsAnimation() && reader.imageCount() > 1 && item && item->getMedia() && item->getMedia()->type() == MediaTypeGif) {
 								startGif(item, location);
 							} else if (item) {
 								App::wnd()->showDocument(document, item);

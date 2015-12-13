@@ -21,7 +21,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #pragma once
 
 template <typename Type>
-void setBadLink(Type *&link) {
+void setBadPointer(Type *&link) {
 	link = reinterpret_cast<Type*>(0x00000bad);
 }
 

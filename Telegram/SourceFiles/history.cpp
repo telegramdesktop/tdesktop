@@ -3430,7 +3430,6 @@ void HistoryPhoto::draw(Painter &p, const HistoryItem *parent, const QRect &r, b
 	}
 
 	// date
-	QString time(parent->timeText());
 	if (_caption.isEmpty()) {
 		int32 fullRight = skipx + width, fullBottom = skipy + height;
 		parent->drawInfo(p, fullRight, fullBottom, 2 * skipx + width, selected, InfoDisplayOverImage);
@@ -3562,9 +3561,9 @@ void HistoryFileMedia::setLinks(ITextLink *openl, ITextLink *savel, ITextLink *c
 void HistoryFileMedia::setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const {
 	_statusSize = newSize;
 	if (_statusSize == FileStatusSizeReady) {
-		_statusText = (duration >= 0) ? formatDurationAndSizeText(duration, fullSize) : formatSizeText(fullSize);
+		_statusText = (duration >= 0) ? formatDurationAndSizeText(duration, fullSize) : (duration < -1 ? formatGifAndSizeText(fullSize) : formatSizeText(fullSize));
 	} else if (_statusSize == FileStatusSizeLoaded) {
-		_statusText = (duration >= 0) ? formatDurationText(duration) : formatSizeText(fullSize);
+		_statusText = (duration >= 0) ? formatDurationText(duration) : (duration < -1 ? qsl("GIF") : formatSizeText(fullSize));
 	} else if (_statusSize == FileStatusSizeFailed) {
 		_statusText = lang(lng_attach_failed);
 	} else if (_statusSize >= 0) {
@@ -3618,7 +3617,7 @@ void HistoryFileMedia::checkAnimationFinished() {
 HistoryFileMedia::~HistoryFileMedia() {
 	if (_animation) {
 		delete _animation;
-		setBadLink(_animation);
+		setBadPointer(_animation);
 	}
 }
 
@@ -3876,7 +3875,6 @@ void HistoryVideo::draw(Painter &p, const HistoryItem *parent, const QRect &r, b
 	p.drawTextLeft(statusX, statusY, w, _statusText, statusW - 2 * st::msgDateImgPadding.x());
 
 	// date
-	QString time(parent->timeText());
 	if (_caption.isEmpty()) {
 		int32 fullRight = skipx + width, fullBottom = skipy + height;
 		parent->drawInfo(p, fullRight, fullBottom, 2 * skipx + width, selected, InfoDisplayOverImage);
@@ -4568,22 +4566,56 @@ ImagePtr HistoryDocument::replyPreview() {
 	return _data->makeReplyPreview();
 }
 
-HistoryGif::HistoryGif(DocumentData *document) : HistoryMedia()
+HistoryGif::HistoryGif(DocumentData *document) : HistoryFileMedia()
 , _data(document)
-, _openl(new DocumentOpenLink(_data))
-, _savel(new DocumentSaveLink(_data))
-, _cancell(new DocumentCancelLink(_data))
-, _name(documentName(_data))
-, _statusSize(-1) {
+, _thumbw(1)
+, _thumbh(1) {
+	setLinks(new DocumentOpenLink(_data), new DocumentSaveLink(_data), new DocumentCancelLink(_data));
+
+	setStatusSize(FileStatusSizeReady);
+
 	_data->thumb->load();
 }
 
 void HistoryGif::initDimensions(const HistoryItem *parent) {
+	bool bubble = parent->hasBubble();
+	int32 tw = 0, th = 0;
 	if (parent == animated.msg) {
-		_maxw = animated.w / cIntRetinaFactor();
-		_minh = animated.h / cIntRetinaFactor();
+		tw = convertScale(animated.w / cIntRetinaFactor());
+		th = convertScale(animated.h / cIntRetinaFactor());
 	} else {
-
+		tw = convertScale(_data->dimensions.width()), th = convertScale(_data->dimensions.height());
+		if (!tw || !th) {
+			tw = convertScale(_data->thumb->width());
+			th = convertScale(_data->thumb->height());
+		}
+	}
+	if (tw > st::maxMediaSize) {
+		th = (st::maxMediaSize * th) / tw;
+		tw = st::maxMediaSize;
+	}
+	if (th > st::maxMediaSize) {
+		tw = (st::maxMediaSize * tw) / th;
+		th = st::maxMediaSize;
+	}
+	if (!tw || !th) {
+		tw = th = 1;
+	}
+	_thumbw = tw;
+	_thumbh = th;
+	if (parent == animated.msg) {
+		_maxw = qMax(tw, int32(st::minPhotoSize));
+		_minh = qMax(th, int32(st::minPhotoSize));
+	} else {
+		int32 minWidth = qMax(st::minPhotoSize, parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
+		minWidth = qMax(minWidth, gifMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
+		_maxw = qMax(tw, minWidth);
+		_minh = qMax(th, int32(st::minPhotoSize));
+	}
+	w = _maxw;
+	if (bubble) {
+		_maxw += st::mediaPadding.left() + st::mediaPadding.right();
+		_minh += st::mediaPadding.top() + st::mediaPadding.bottom();
 	}
 	_height = _minh;
 }
@@ -4592,25 +4624,115 @@ void HistoryGif::draw(Painter &p, const HistoryItem *parent, const QRect &r, boo
 	if (w < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	int32 width = w, height = _height, skipx = 0, skipy = 0;
 
-	bool out = parent->out(), fromChannel = parent->fromChannel(), outbg = out && !fromChannel, hovered, pressed;
-	bool already = !_data->already().isEmpty(), hasdata = !_data->data.isEmpty();
-	if (parent == animated.msg) {
-		int32 pw = animated.w / cIntRetinaFactor(), ph = animated.h / cIntRetinaFactor();
-		if (width < pw) {
-			pw = width;
-			ph = (pw == w) ? _height : (pw * animated.h / animated.w);
-			if (ph < 1) ph = 1;
-		}
+	bool animating = (parent == animated.msg);
+	bool bubble = parent->hasBubble();
+	bool fromChannel = parent->fromChannel(), out = parent->out(), outbg = out && !fromChannel;
 
-		App::roundShadow(p, 0, 0, pw, ph, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);
-
-		p.drawPixmap(0, 0, animated.current(pw * cIntRetinaFactor(), ph * cIntRetinaFactor(), true));
-		if (selected) {
-			App::roundRect(p, 0, 0, pw, ph, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
+	if (!animating) {
+		if (_data->loader) {
+			ensureAnimation(parent);
+			if (!_animation->radial.animating()) {
+				_animation->radial.start(_data->progress());
+			}
 		}
-		return;
+		updateStatusText(parent);
+	}
+	bool radial = !animating && isRadialAnimation(ms);
+
+	if (bubble) {
+		skipx = st::mediaPadding.left();
+		skipy = st::mediaPadding.top();
+
+		width -= st::mediaPadding.left() + st::mediaPadding.right();
+		height -= skipy + st::mediaPadding.bottom();
+	} else {
+		App::roundShadow(p, 0, 0, width, _height, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);
+	}
+	_data->thumb->checkload();
+
+	QRect rthumb(rtlrect(skipx, skipy, width, height, w));
+
+	if (animating) {
+		p.drawPixmap(rthumb.topLeft(), animated.current(width, height, true));
+	} else {
+		p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(_thumbw, _thumbh, width, height));
+	}
+	if (selected) {
+		App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
 	}
 
+	if (!animating) {
+		QRect inner(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
+		p.setPen(Qt::NoPen);
+		if (selected) {
+			p.setBrush(st::msgDateImgBgSelected);
+		} else if (_animation && _animation->_a_thumbOver.animating()) {
+			_animation->_a_thumbOver.step(ms);
+			float64 over = _animation->a_thumbOver.current();
+			p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
+			p.setBrush(st::black);
+		} else {
+			bool over = textlnkDrawOver(_data->loader ? _cancell : _savel);
+			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
+		}
+
+		p.setRenderHint(QPainter::HighQualityAntialiasing);
+		p.drawEllipse(inner);
+		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+
+		if (!selected && _animation) {
+			p.setOpacity(1);
+		}
+
+		style::sprite icon;
+		if (!_data->already().isEmpty()) {
+			icon = (selected ? st::msgFileInPlaySelected : st::msgFileInPlay);
+		} else if (_data->loader) {
+			icon = (selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+		} else {
+			icon = (selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
+		}
+		p.drawSpriteCenter(inner, icon);
+		if (radial) {
+			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
+			_animation->radial.draw(p, rinner, selected ? st::msgInBgSelected : st::msgInBg);
+		}
+
+		int32 statusX = skipx + st::msgDateImgDelta + st::msgDateImgPadding.x(), statusY = skipy + st::msgDateImgDelta + st::msgDateImgPadding.y();
+		int32 statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
+		int32 statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
+		App::roundRect(p, rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, w), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
+		p.setFont(st::normalFont);
+		p.setPen(st::white);
+		p.drawTextLeft(statusX, statusY, w, _statusText, statusW - 2 * st::msgDateImgPadding.x());
+
+		// date
+		int32 fullRight = skipx + width, fullBottom = skipy + height;
+		parent->drawInfo(p, fullRight, fullBottom, 2 * skipx + width, selected, InfoDisplayOverImage);
+	}
+}
+
+void HistoryGif::setStatusSize(int32 newSize) const {
+	HistoryFileMedia::setStatusSize(newSize, _data->size, -2, 0);
+}
+
+void HistoryGif::updateStatusText(const HistoryItem *parent) const {
+	bool showPause = false;
+	int32 statusSize = 0, realDuration = 0;
+	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
+		statusSize = FileStatusSizeFailed;
+	} else if (_data->status == FileUploading) {
+		statusSize = _data->uploadOffset;
+	} else if (_data->loader) {
+		statusSize = _data->loader->currentOffset();
+	} else if (!_data->already().isEmpty()) {
+		statusSize = FileStatusSizeLoaded;
+	} else {
+		statusSize = FileStatusSizeReady;
+	}
+	if (statusSize != _statusSize) {
+		setStatusSize(statusSize);
+	}
 }
 
 void HistoryGif::regItem(HistoryItem *item) {
@@ -4628,40 +4750,65 @@ void HistoryGif::updateFrom(const MTPMessageMedia &media, HistoryItem *parent, b
 }
 
 int32 HistoryGif::resize(int32 width, const HistoryItem *parent) {
-	w = qMin(width, _maxw);
+	bool bubble = parent->hasBubble();
+
+	int32 tw = 0, th = 0;
 	if (parent == animated.msg) {
-		if (w > st::maxMediaSize) {
-			w = st::maxMediaSize;
-		}
-		_height = animated.h / cIntRetinaFactor();
-		if (animated.w / cIntRetinaFactor() > w) {
-			_height = (w * _height / (animated.w / cIntRetinaFactor()));
-			if (_height <= 0) _height = 1;
-		}
+		tw = convertScale(animated.w / cIntRetinaFactor());
+		th = convertScale(animated.h / cIntRetinaFactor());
 	} else {
-		_height = _minh;
+		tw = convertScale(_data->dimensions.width()), th = convertScale(_data->dimensions.height());
+		if (!tw || !th) {
+			tw = convertScale(_data->thumb->width());
+			th = convertScale(_data->thumb->height());
+		}
+	}
+	if (tw > st::maxMediaSize) {
+		th = (st::maxMediaSize * th) / tw;
+		tw = st::maxMediaSize;
+	}
+	if (th > st::maxMediaSize) {
+		tw = (st::maxMediaSize * tw) / th;
+		th = st::maxMediaSize;
+	}
+	if (!tw || !th) {
+		tw = th = 1;
+	}
+
+	if (bubble) {
+		width -= st::mediaPadding.left() + st::mediaPadding.right();
+	}
+	if (width < tw) {
+		th = qRound((width / float64(tw)) * th);
+		tw = width;
+	}
+	w = _thumbw = tw;
+	_thumbh = th;
+
+	if (parent != animated.msg) {
+		int32 minWidth = qMax(st::minPhotoSize, parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
+		minWidth = qMax(minWidth, gifMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
+		w = qMax(w, minWidth);
+	}
+
+	_height = qMax(th, int32(st::minPhotoSize));
+	if (bubble) {
+		w += st::mediaPadding.left() + st::mediaPadding.right();
+		_height += st::mediaPadding.top() + st::mediaPadding.bottom();
 	}
 	return _height;
 }
 
 const QString HistoryGif::inDialogsText() const {
-	return _name.isEmpty() ? lang(lng_in_dlg_file) : _name;
+	return _data->name.isEmpty() ? lang(lng_in_dlg_file) : _data->name;
 }
 
 const QString HistoryGif::inHistoryText() const {
-	return qsl("[ ") + lang(lng_in_dlg_file) + (_name.isEmpty() ? QString() : (qsl(" : ") + _name)) + qsl(" ]");
+	return qsl("[ ") + lang(lng_in_dlg_file) + (_data->name.isEmpty() ? QString() : (qsl(" : ") + _data->name)) + qsl(" ]");
 }
 
 bool HistoryGif::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
-	if (width >= _maxw) {
-		width = _maxw;
-	}
-	if (parent == animated.msg) {
-		int32 h = (width == w) ? _height : (width * animated.h / animated.w);
-		if (h < 1) h = 1;
-		return (x >= 0 && y >= 0 && x < width && y < h);
-	}
 	return (x >= 0 && y >= 0 && x < width && y < _height);
 }
 
@@ -4670,29 +4817,75 @@ int32 HistoryGif::countHeight(const HistoryItem *parent, int32 width) const {
 	if (width >= _maxw) {
 		width = _maxw;
 	}
+
+	bool bubble = parent->hasBubble();
+
+	int32 tw = 0, th = 0;
 	if (parent == animated.msg) {
-		int32 h = (width == w) ? _height : (width * animated.h / animated.w);
-		if (h < 1) h = 1;
-		return h;
+		tw = convertScale(animated.w / cIntRetinaFactor());
+		th = convertScale(animated.h / cIntRetinaFactor());
+	} else {
+		tw = convertScale(_data->dimensions.width()), th = convertScale(_data->dimensions.height());
+		if (!tw || !th) {
+			tw = convertScale(_data->thumb->width());
+			th = convertScale(_data->thumb->height());
+		}
 	}
-	return _height;
+	if (tw > st::maxMediaSize) {
+		th = (st::maxMediaSize * th) / tw;
+		tw = st::maxMediaSize;
+	}
+	if (th > st::maxMediaSize) {
+		tw = (st::maxMediaSize * tw) / th;
+		th = st::maxMediaSize;
+	}
+	if (!tw || !th) {
+		tw = th = 1;
+	}
+
+	if (bubble) {
+		width -= st::mediaPadding.left() + st::mediaPadding.right();
+	}
+	if (width < tw) {
+		th = qRound((width / float64(tw)) * th);
+		tw = width;
+	}
+
+	int32 h = qMax(th, int32(st::minPhotoSize));
+	if (bubble) {
+		tw += st::mediaPadding.left() + st::mediaPadding.right();
+		h += st::mediaPadding.top() + st::mediaPadding.bottom();
+	}
+	return h;
 }
 
 void HistoryGif::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+	bool bubble = parent->hasBubble();
+
 	if (width < 0) width = w;
 	if (width < 1) return;
 
-	bool out = parent->out(), fromChannel = parent->fromChannel(), outbg = out && !fromChannel, hovered, pressed;
-	if (width >= _maxw) {
-		width = _maxw;
+	int skipx = 0, skipy = 0, height = _height;
+	if (bubble) {
+		skipx = st::mediaPadding.left();
+		skipy = st::mediaPadding.top();
+		width -= st::mediaPadding.left() + st::mediaPadding.right();
+		height -= skipy + st::mediaPadding.bottom();
 	}
-	if (parent == animated.msg) {
-		int32 h = (width == w) ? _height : (width * animated.h / animated.w);
-		if (h < 1) h = 1;
-		lnk = (x >= 0 && y >= 0 && x < width && y < h) ? _openl : TextLinkPtr();
+	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height) {
+		if (parent == animated.msg) {
+			lnk = _openl;
+		} else {
+			lnk = _data->already().isEmpty() ? (_data->loader ? _cancell : _savel) : _openl;
+		}
+
+		int32 fullRight = skipx + width, fullBottom = skipy + height;
+		bool inDate = parent->pointInTime(fullRight, fullBottom, x, y, InfoDisplayOverImage);
+		if (inDate) {
+			state = HistoryInDateCursorState;
+		}
 		return;
 	}
-
 }
 
 HistoryMedia *HistoryGif::clone() const {
@@ -6452,6 +6645,8 @@ void HistoryMessage::initMediaFromText(QString &currentText)  {
 void HistoryMessage::initMediaFromDocument(DocumentData *doc) {
 	if (doc->sticker()) {
 		_media = new HistorySticker(doc);
+	} else if (doc->type == AnimatedDocument) {
+		_media = new HistoryGif(doc);
 	} else {
 		_media = new HistoryDocument(doc);
 	}

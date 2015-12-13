@@ -470,3 +470,34 @@ private:
 	Animation _a_frames;
 
 };
+
+enum ClipState {
+	ClipPlaying,
+	ClipStopped,
+};
+
+class ClipReader {
+public:
+
+	ClipReader(const FileLocation &location, const QByteArray &data);
+
+	void start(int32 framew, int32 frameh, bool rounded);
+	const QPixmap &current(int32 framew, int32 frameh);
+
+	ClipState state() const;
+
+	~ClipReader();
+
+private:
+
+	ClipState _state;
+
+	FileLocation *_location;
+	QByteArray _data;
+	int32 _width, _height;
+	bool _rounded;
+
+	QPixmap _current;
+	bool _currentDisplayed;
+
+};

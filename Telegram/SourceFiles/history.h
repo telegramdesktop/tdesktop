@@ -1015,9 +1015,6 @@ public:
 	virtual int32 timeLeft() const {
 		return 0;
 	}
-	virtual QString timeText() const {
-		return QString();
-	}
 	virtual int32 timeWidth() const {
 		return 0;
 	}
@@ -1326,6 +1323,7 @@ protected:
 	mutable int32 _statusSize;
 	mutable QString _statusText;
 
+	// duration = -1 - no duration, duration = -2 - "GIF" duration
 	void setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const;
 
 	void step_thumbOver(const HistoryItem *parent, float64 ms, bool timer);
@@ -1559,7 +1557,7 @@ private:
 
 };
 
-class HistoryGif : public HistoryMedia {
+class HistoryGif : public HistoryFileMedia {
 public:
 
 	HistoryGif(DocumentData *document);
@@ -1603,18 +1601,32 @@ public:
 	bool customInfoLayout() const {
 		return true;
 	}
+	bool hideFromName() const {
+		return true;
+	}
+	bool hideForwardedFrom() const {
+		return true;
+	}
+
+protected:
+
+	float64 dataProgress() const {
+		return _data->progress();
+	}
+	bool dataFinished() const {
+		return !_data->loader;
+	}
+	bool dataLoaded() const {
+		return !_data->already().isEmpty() && !_data->data.isEmpty();
+	}
 
 private:
 
 	DocumentData *_data;
-	TextLinkPtr _openl, _savel, _cancell;
+	int32 _thumbw, _thumbh;
 
-	int32 _namew;
-	QString _name, _size;
-	int32 _thumbw, _thumbx, _thumby;
-
-	mutable QString _statusText;
-	mutable int32 _statusSize; // -1 will contain just size string, -2 will contain "failed" language key
+	void setStatusSize(int32 newSize) const;
+	void updateStatusText(const HistoryItem *parent) const;
 
 };
 
@@ -1979,9 +1991,6 @@ public:
 			result += st::msgDateCheckSpace + st::msgCheckImg.pxWidth();
 		}
 		return result;
-	}
-	QString timeText() const {
-		return _timeText;
 	}
 	int32 timeWidth() const {
 		return _timeWidth;

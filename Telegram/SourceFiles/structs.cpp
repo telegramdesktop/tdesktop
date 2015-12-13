@@ -888,7 +888,7 @@ void DocumentOpenLink::doOpen(DocumentData *data) {
 		} else if (data->size < MediaViewImageSizeLimit && location.accessEnable()) {
 			QImageReader reader(location.name());
 			if (reader.canRead()) {
-				if (reader.supportsAnimation() && reader.imageCount() > 1 && App::hoveredLinkItem()) {
+				if (reader.supportsAnimation() && reader.imageCount() > 1 && App::hoveredLinkItem() && App::hoveredLinkItem()->getMedia() && App::hoveredLinkItem()->getMedia()->type() == MediaTypeGif) {
 					startGif(App::hoveredLinkItem(), location);
 				} else if (App::hoveredLinkItem() || App::contextItem()) {
 					App::wnd()->showDocument(data, App::hoveredLinkItem() ? App::hoveredLinkItem() : App::contextItem());

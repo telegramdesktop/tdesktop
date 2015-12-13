@@ -148,6 +148,13 @@ void AnimatedGif::step_frame(float64 ms, bool timer) {
 			if (img.size() != QSize(w, h)) img = img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 			images[f] = img;
 			frames[f] = QPixmap();
+			for (int32 i = 0; i < f; ++i) {
+				if (!images[i].isNull() || !frames[i].isNull()) {
+					images[i] = QImage();
+					frames[i] = QPixmap();
+					break;
+				}
+			}
 		}
 	}
 	if (frame != f) {
@@ -252,4 +259,31 @@ const QPixmap &AnimatedGif::current(int32 width, int32 height, bool rounded) {
 		frames[frame].setDevicePixelRatio(cRetinaFactor());
 	}
 	return frames[frame];
+}
+
+ClipReader::ClipReader(const FileLocation &location, const QByteArray &data) : _state(ClipStopped)
+, _location(location.isEmpty() ? 0 : new FileLocation(location))
+, _data(data)
+, _width(0)
+, _height(0)
+, _rounded(false)
+, _currentDisplayed(true) {
+}
+
+void ClipReader::start(int32 framew, int32 frameh, bool rounded) {
+	_rounded = rounded;
+}
+
+const QPixmap &ClipReader::current(int32 framew, int32 frameh) {
+	_currentDisplayed = true;
+	return _current;
+}
+
+ClipState ClipReader::state() const {
+	return _state;
+}
+
+ClipReader::~ClipReader() {
+	delete _location;
+	setBadPointer(_location);
 }
