@@ -1303,61 +1303,6 @@ QString formatDurationText(qint64 duration);
 QString formatDurationAndSizeText(qint64 duration, qint64 size);
 QString formatPlayedText(qint64 played, qint64 duration);
 
-class HistoryVideo : public HistoryMedia {
-public:
-
-	HistoryVideo(const MTPDvideo &video, const QString &caption, HistoryItem *parent);
-	void initDimensions(const HistoryItem *parent);
-
-	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
-	int32 resize(int32 width, const HistoryItem *parent);
-	HistoryMediaType type() const {
-		return MediaTypeVideo;
-	}
-	const QString inDialogsText() const;
-	const QString inHistoryText() const;
-	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	int32 countHeight(const HistoryItem *parent, int32 width = -1) const;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	bool uploading() const {
-		return (data->status == FileUploading);
-	}
-	HistoryMedia *clone() const;
-
-	void regItem(HistoryItem *item);
-	void unregItem(HistoryItem *item);
-
-	bool hasReplyPreview() const {
-		return !data->thumb->isNull();
-	}
-	ImagePtr replyPreview();
-
-	bool needsBubble(const HistoryItem *parent) const {
-		return !_caption.isEmpty() || parent->toHistoryReply();
-	}
-	bool customInfoLayout() const {
-		return _caption.isEmpty();
-	}
-	bool hideFromName() const {
-		return true;
-	}
-	bool hideForwardedFrom() const {
-		return true;
-	}
-
-private:
-	VideoData *data;
-	TextLinkPtr _openl, _savel, _cancell;
-	
-	Text _caption;
-
-	QString _size;
-	int32 _thumbw;
-
-	mutable QString _dldTextCache, _uplTextCache;
-	mutable int32 _dldDone, _uplDone;
-};
-
 class HistoryFileMedia : public HistoryMedia {
 public:
 
@@ -1414,6 +1359,70 @@ protected:
 
 };
 
+class HistoryVideo : public HistoryFileMedia {
+public:
+
+	HistoryVideo(const MTPDvideo &video, const QString &caption, HistoryItem *parent);
+	void initDimensions(const HistoryItem *parent);
+
+	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
+	int32 resize(int32 width, const HistoryItem *parent);
+	HistoryMediaType type() const {
+		return MediaTypeVideo;
+	}
+	const QString inDialogsText() const;
+	const QString inHistoryText() const;
+	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	int32 countHeight(const HistoryItem *parent, int32 width = -1) const;
+	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	bool uploading() const {
+		return (_data->status == FileUploading);
+	}
+	HistoryMedia *clone() const;
+
+	void regItem(HistoryItem *item);
+	void unregItem(HistoryItem *item);
+
+	bool hasReplyPreview() const {
+		return !_data->thumb->isNull();
+	}
+	ImagePtr replyPreview();
+
+	bool needsBubble(const HistoryItem *parent) const {
+		return !_caption.isEmpty() || parent->toHistoryReply();
+	}
+	bool customInfoLayout() const {
+		return _caption.isEmpty();
+	}
+	bool hideFromName() const {
+		return true;
+	}
+	bool hideForwardedFrom() const {
+		return true;
+	}
+
+protected:
+
+	float64 dataProgress() const {
+		return _data->progress();
+	}
+	bool dataFinished() const {
+		return !_data->loader;
+	}
+	bool dataLoaded() const {
+		return !_data->already().isEmpty();
+	}
+
+private:
+	VideoData *_data;
+	Text _caption;
+	int32 _thumbw;
+
+	void setStatusSize(int32 newSize) const;
+	void updateStatusText(const HistoryItem *parent) const;
+
+};
+
 class HistoryAudio : public HistoryFileMedia {
 public:
 
@@ -1463,6 +1472,7 @@ protected:
 
 private:
 	AudioData *_data;
+
 	void setStatusSize(int32 newSize, qint64 realDuration = 0) const;
 	bool updateStatusText(const HistoryItem *parent) const; // returns showPause
 

@@ -809,6 +809,8 @@ struct VideoData {
 			l->cancel();
 			l->deleteLater();
 			l->rpcInvalidate();
+
+			notifyLayoutChanged();
 		}
 		_location = FileLocation();
 		if (!beforeDownload) {
@@ -824,10 +826,18 @@ struct VideoData {
 		loader->deleteLater();
 		loader->rpcInvalidate();
 		loader = 0;
+
+		notifyLayoutChanged();
 	}
+
+	void notifyLayoutChanged() const;
 
 	QString already(bool check = false);
 	const FileLocation &location(bool check = false);
+
+	float64 progress() const {
+		return loader ? loader->currentProgress() : ((status == FileDownloadFailed || _location.name().isEmpty()) ? 0 : 1);
+	}
 
 	VideoId id;
 	uint64 access;

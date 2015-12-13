@@ -719,6 +719,18 @@ void VideoData::save(const QString &toFile) {
 	loader->connect(loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(videoLoadProgress(mtpFileLoader*)));
 	loader->connect(loader, SIGNAL(failed(mtpFileLoader*, bool)), App::main(), SLOT(videoLoadFailed(mtpFileLoader*, bool)));
 	loader->start();
+
+	notifyLayoutChanged();
+}
+
+void VideoData::notifyLayoutChanged() const {
+	const VideoItems &items(App::videoItems());
+	VideoItems::const_iterator i = items.constFind(const_cast<VideoData*>(this));
+	if (i != items.cend()) {
+		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
+			Notify::historyItemLayoutChanged(j.key());
+		}
+	}
 }
 
 QString VideoData::already(bool check) {

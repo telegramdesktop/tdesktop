@@ -1240,6 +1240,8 @@ msgFileInPlaySelected: sprite(180px, 164px, 20px, 18px);
 msgFileOverDuration: 200;
 msgFileRadialLine: 4px;
 
+msgVideoSize: size(320px, 240px);
+
 sendPadding: 9px;
 btnSend: flatButton(btnDefFlat) {
 	color: btnYesColor;
@@ -2186,7 +2188,7 @@ mediaviewLoader: size(78px, 33px);
 mediaviewLoaderPoint: size(9px, 9px);
 mediaviewLoaderSkip: 9px;
 
-minPhotoSize: 100px;
+minPhotoSize: 104px;
 maxMediaSize: 420px;
 maxStickerSize: 256px;
 
