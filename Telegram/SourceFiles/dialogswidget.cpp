@@ -488,16 +488,6 @@ void DialogsInner::removeDialog(History *history) {
 	refresh();
 }
 
-void DialogsInner::removeContact(UserData *user) {
-	if (sel && sel->history->peer == user) {
-		sel = 0;
-	}
-	contactsNoDialogs.del(user);
-	contacts.del(user);
-
-	refresh();
-}
-
 void DialogsInner::dlgUpdated(DialogRow *row) {
 	if (_state == DefaultState) {
 		update(0, row->pos * st::dlgHeight, fullWidth(), st::dlgHeight);
@@ -1096,9 +1086,11 @@ void DialogsInner::peopleReceived(const QString &query, const QVector<MTPPeer> &
 void DialogsInner::contactsReceived(const QVector<MTPContact> &contacts) {
 	for (QVector<MTPContact>::const_iterator i = contacts.cbegin(), e = contacts.cend(); i != e; ++i) {
 		int32 uid = i->c_contact().vuser_id.v;
-		addNewContact(uid);
 		if (uid == MTP::authedId() && App::self()) {
-			App::self()->contact = 1;
+			if (App::self()->contact < 1) {
+				App::self()->contact = 1;
+				Notify::userIsContactChanged(App::self());
+			}
 		}
 	}
 	if (!sel && contactsNoDialogs.list.count && false) {
@@ -1108,23 +1100,25 @@ void DialogsInner::contactsReceived(const QVector<MTPContact> &contacts) {
 	refresh();
 }
 
-int32 DialogsInner::addNewContact(int32 uid, bool select) { // -2 - err, -1 - don't scroll, >= 0 - scroll
-	PeerId peer = peerFromUser(uid);
-	if (!App::peerLoaded(peer)) return -2;
-
-	History *history = App::history(peer);
-	contacts.addByName(history);
-	DialogsList::RowByPeer::const_iterator i = dialogs.list.rowByPeer.constFind(peer);
-	if (i == dialogs.list.rowByPeer.cend()) {
-		DialogRow *added = contactsNoDialogs.addByName(history);
-		if (!added) return -2;
-		return -1;
+void DialogsInner::notify_userIsContactChanged(UserData *user, bool fromThisApp) {
+	if (user->contact > 0) {
+		History *history = App::history(user->id);
+		contacts.addByName(history);
+		DialogsList::RowByPeer::const_iterator i = dialogs.list.rowByPeer.constFind(user->id);
+		if (i == dialogs.list.rowByPeer.cend()) {
+			contactsNoDialogs.addByName(history);
+		} else if (fromThisApp) {
+			sel = i.value();
+			contactSel = false;
+		}
+	} else {
+		if (sel && sel->history->peer == user) {
+			sel = 0;
+		}
+		contactsNoDialogs.del(user);
+		contacts.del(user);
 	}
-	if (select) {
-		sel = i.value();
-		contactSel = false;
-	}
-	return i.value()->pos * st::dlgHeight;
+	refresh();
 }
 
 void DialogsInner::refresh(bool toTop) {
@@ -1884,6 +1878,15 @@ void DialogsWidget::updateNotifySettings(PeerData *peer) {
 	_inner.updateNotifySettings(peer);
 }
 
+void DialogsWidget::notify_userIsContactChanged(UserData *user, bool fromThisApp) {
+	if (fromThisApp) {
+		_filter.setText(QString());
+		_filter.updatePlaceholder();
+		onFilterUpdate();
+	}
+	_inner.notify_userIsContactChanged(user, fromThisApp);
+}
+
 void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
 	for (QVector<MTPDialog>::const_iterator i = dialogs.cbegin(), e = dialogs.cend(); i != e; ++i) {
 		switch (i->type()) {
@@ -2270,17 +2273,6 @@ bool DialogsWidget::peopleFailed(const RPCError &error, mtpRequestId req) {
 	return true;
 }
 
-bool DialogsWidget::addNewContact(int32 uid, bool show) {
-	_filter.setText(QString());
-	_filter.updatePlaceholder();
-	onFilterUpdate();
-	int32 to = _inner.addNewContact(uid, true);
-	if (to < -1 || !show) return false;
-	_inner.refresh();
-	if (to >= 0) _scroll.scrollToY(to);
-	return true;
-}
-
 void DialogsWidget::dragEnterEvent(QDragEnterEvent *e) {
 	if (App::main()->selectingPeer()) return;
 
@@ -2535,13 +2527,6 @@ void DialogsWidget::scrollToPeer(const PeerId &peer, MsgId msgId) {
 void DialogsWidget::removeDialog(History *history) {
 	_inner.removeDialog(history);
 	onFilterUpdate();
-}
-
-void DialogsWidget::removeContact(UserData *user) {
-	_filter.setText(QString());
-	_filter.updatePlaceholder();
-	onFilterUpdate();
-	_inner.removeContact(user);
 }
 
 DialogsIndexed &DialogsWidget::contactsList() {

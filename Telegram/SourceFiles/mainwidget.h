@@ -268,8 +268,6 @@ public:
 	void destroyData();
 	void updateOnlineDisplayIn(int32 msecs);
 
-	void addNewContact(int32 uid, bool show = true);
-
 	bool isActive() const;
 	bool historyIsActive() const;
 	bool lastWasOnline() const;
@@ -301,7 +299,6 @@ public:
 	void deletedContact(UserData *user, const MTPcontacts_Link &result);
 	void deleteConversation(PeerData *peer, bool deleteHistory = true);
 	void clearHistory(PeerData *peer);
-	void removeContact(UserData *user);
 
 	void addParticipants(PeerData *chatOrChannel, const QVector<UserData*> &users);
 	bool addParticipantFail(UserData *user, const RPCError &e);
@@ -386,12 +383,6 @@ public:
 
 	void updateStickers();
 
-	void notify_botCommandsChanged(UserData *bot);
-	void notify_userIsBotChanged(UserData *bot);
-	void notify_migrateUpdated(PeerData *peer);
-	void notify_redrawHistoryItem(const HistoryItem *item);
-	void notify_historyItemLayoutChanged(const HistoryItem *item);
-
 	void choosePeer(PeerId peerId, MsgId showAtMsgId); // does offerPeer or showPeerHistory
 	void clearBotStartToken(PeerData *peer);
 
@@ -419,6 +410,13 @@ public:
 
 	void ui_showStickerPreview(DocumentData *sticker);
 	void ui_hideStickerPreview();
+	void ui_redrawHistoryItem(const HistoryItem *item);
+
+	void notify_botCommandsChanged(UserData *bot);
+	void notify_userIsBotChanged(UserData *bot);
+	void notify_userIsContactChanged(UserData *user, bool fromThisApp);
+	void notify_migrateUpdated(PeerData *peer);
+	void notify_historyItemLayoutChanged(const HistoryItem *item);
 
 	~MainWidget();
 
@@ -491,6 +489,8 @@ public slots:
 	void onActiveChannelUpdateFull();
 
 	void onDownloadPathSettings();
+
+	void ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId);
 
 private:
 

@@ -5451,7 +5451,7 @@ void HistoryWidget::onPhotoProgress(const FullMsgId &newId) {
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadPhoto, 0);
 		}
-//		Notify::redrawHistoryItem(item);
+//		Ui::redrawHistoryItem(item);
 	}
 }
 
@@ -5473,7 +5473,7 @@ void HistoryWidget::onDocumentProgress(const FullMsgId &newId) {
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadFile, doc ? doc->uploadOffset : 0);
 		}
-		Notify::redrawHistoryItem(item);
+		Ui::redrawHistoryItem(item);
 	}
 }
 
@@ -5484,7 +5484,7 @@ void HistoryWidget::onAudioProgress(const FullMsgId &newId) {
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadAudio, audio ? audio->uploadOffset : 0);
 		}
-		Notify::redrawHistoryItem(item);
+		Ui::redrawHistoryItem(item);
 	}
 }
 
@@ -5495,7 +5495,7 @@ void HistoryWidget::onPhotoFailed(const FullMsgId &newId) {
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadPhoto, -1);
 		}
-//		Notify::redrawHistoryItem(item);
+//		Ui::redrawHistoryItem(item);
 	}
 }
 
@@ -5506,7 +5506,7 @@ void HistoryWidget::onDocumentFailed(const FullMsgId &newId) {
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadFile, -1);
 		}
-		Notify::redrawHistoryItem(item);
+		Ui::redrawHistoryItem(item);
 	}
 }
 
@@ -5517,7 +5517,7 @@ void HistoryWidget::onAudioFailed(const FullMsgId &newId) {
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadAudio, -1);
 		}
-		Notify::redrawHistoryItem(item);
+		Ui::redrawHistoryItem(item);
 	}
 }
 
@@ -5604,7 +5604,7 @@ void HistoryWidget::peerMessagesUpdated() {
 	if (_list) peerMessagesUpdated(_peer->id);
 }
 
-void HistoryWidget::notify_redrawHistoryItem(const HistoryItem *item) {
+void HistoryWidget::ui_redrawHistoryItem(const HistoryItem *item) {
 	if (_peer && _list && (item->history() == _history || (_migrated && item->history() == _migrated))) {
 		_list->redrawItem(item);
 	}
@@ -6543,7 +6543,7 @@ void HistoryWidget::onAnimActiveStep() {
 	if (getms() - _animActiveStart > st::activeFadeInDuration + st::activeFadeOutDuration) {
 		stopAnimActive();
 	} else {
-		Notify::redrawHistoryItem(item);
+		Ui::redrawHistoryItem(item);
 	}
 }
 

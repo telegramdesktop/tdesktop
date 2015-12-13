@@ -91,8 +91,18 @@ namespace Ui {
 		return false;
 	}
 
+	void redrawHistoryItem(const HistoryItem *item) {
+		if (MainWidget *m = App::main()) m->ui_redrawHistoryItem(item);
+	}
+
 	void showPeerHistory(const PeerId &peer, MsgId msgId, bool back) {
 		if (MainWidget *m = App::main()) m->showPeerHistory(peer, msgId, back);
+	}
+
+	void showPeerHistoryAsync(const PeerId &peer, MsgId msgId) {
+		if (MainWidget *m = App::main()) {
+			QMetaObject::invokeMethod(m, SLOT(ui_showPeerHistoryAsync(quint64,qint32)), Qt::QueuedConnection, Q_ARG(quint64, peer), Q_ARG(qint32, msgId));
+		}
 	}
 
 }
@@ -103,16 +113,16 @@ namespace Notify {
 		if (MainWidget *m = App::main()) m->notify_userIsBotChanged(user);
 	}
 
+	void userIsContactChanged(UserData *user, bool fromThisApp) {
+		if (MainWidget *m = App::main()) m->notify_userIsContactChanged(user, fromThisApp);
+	}
+
 	void botCommandsChanged(UserData *user) {
 		if (MainWidget *m = App::main()) m->notify_botCommandsChanged(user);
 	}
 
 	void migrateUpdated(PeerData *peer) {
 		if (MainWidget *m = App::main()) m->notify_migrateUpdated(peer);
-	}
-
-	void redrawHistoryItem(const HistoryItem *item) {
-		if (MainWidget *m = App::main()) m->notify_redrawHistoryItem(item);
 	}
 
 	void historyItemLayoutChanged(const HistoryItem *item) {

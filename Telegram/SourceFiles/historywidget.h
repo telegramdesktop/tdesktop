@@ -430,8 +430,6 @@ public:
 	void peerMessagesUpdated(PeerId peer);
 	void peerMessagesUpdated();
 
-	void notify_redrawHistoryItem(const HistoryItem *item);
-	void notify_historyItemLayoutChanged(const HistoryItem *item);
 	void newUnreadMsg(History *history, HistoryItem *item);
 	void historyToDown(History *history);
 	void historyWasRead(bool force = true);
@@ -559,6 +557,9 @@ public:
 		resizeEvent(0);
 	}
 
+	void ui_redrawHistoryItem(const HistoryItem *item);
+
+	void notify_historyItemLayoutChanged(const HistoryItem *item);
 	void notify_botCommandsChanged(UserData *user);
 	void notify_userIsBotChanged(UserData *user);
 	void notify_migrateUpdated(PeerData *peer);

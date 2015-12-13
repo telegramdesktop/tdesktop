@@ -2997,7 +2997,7 @@ void OverviewWidget::changingMsgId(HistoryItem *row, MsgId newId) {
 	}
 }
 
-void OverviewWidget::notify_redrawHistoryItem(const HistoryItem *msg) {
+void OverviewWidget::ui_redrawHistoryItem(const HistoryItem *msg) {
 	if (peer() == msg->history()->peer || migratePeer() == msg->history()->peer) {
 		_inner.redrawItem(msg);
 	}

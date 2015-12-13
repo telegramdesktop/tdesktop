@@ -48,7 +48,6 @@ public:
 	void activate();
 
 	void contactsReceived(const QVector<MTPContact> &contacts);
-	int32 addNewContact(int32 uid, bool sel = false); // -2 - err, -1 - don't scroll, >= 0 - scroll
 
 	int32 filteredOffset() const;
 	int32 peopleOffset() const;
@@ -72,7 +71,6 @@ public:
 	void dlgUpdated(DialogRow *row);
 	void dlgUpdated(History *row, MsgId msgId);
 	void removeDialog(History *history);
-	void removeContact(UserData *user);
 
 	void loadPeerPhotos(int32 yFrom);
 	void clearFilter();
@@ -122,6 +120,8 @@ public:
 	PeerData *updateFromParentDrag(QPoint globalPos);
 
 	void updateNotifySettings(PeerData *peer);
+
+	void notify_userIsContactChanged(UserData *user, bool fromThisApp);
 
 	~DialogsInner();
 
@@ -220,7 +220,6 @@ public:
 	void contactsReceived(const MTPcontacts_Contacts &contacts);
 	void searchReceived(DialogsSearchRequestType type, const MTPmessages_Messages &result, mtpRequestId req);
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
-	bool addNewContact(int32 uid, bool show = true);
 	
 	void dragEnterEvent(QDragEnterEvent *e);
 	void dragMoveEvent(QDragMoveEvent *e);
@@ -251,7 +250,6 @@ public:
 	void scrollToPeer(const PeerId &peer, MsgId msgId);
 
 	void removeDialog(History *history);
-	void removeContact(UserData *user);
 
 	DialogsIndexed &contactsList();
 	DialogsIndexed &dialogsList();
@@ -263,6 +261,8 @@ public:
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 
 	void updateNotifySettings(PeerData *peer);
+
+	void notify_userIsContactChanged(UserData *user, bool fromThisApp);
 
 signals:
 

@@ -754,18 +754,37 @@ void MainWidget::notify_userIsBotChanged(UserData *bot) {
 	history.notify_userIsBotChanged(bot);
 }
 
+void MainWidget::notify_userIsContactChanged(UserData *user, bool fromThisApp) {
+	if (!user) return;
+
+	dialogs.notify_userIsContactChanged(user, fromThisApp);
+
+	const SharedContactItems &items(App::sharedContactItems());
+	SharedContactItems::const_iterator i = items.constFind(peerToUser(user->id));
+	if (i != items.cend()) {
+		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
+			j.key()->initDimensions();
+			Ui::redrawHistoryItem(j.key());
+		}
+	}
+
+	if (user->contact > 0 && fromThisApp) {
+		Ui::showPeerHistory(user->id, ShowAtTheEndMsgId);
+	}
+}
+
 void MainWidget::notify_migrateUpdated(PeerData *peer) {
 	history.notify_migrateUpdated(peer);
 }
 
-void MainWidget::notify_redrawHistoryItem(const HistoryItem *item) {
+void MainWidget::ui_redrawHistoryItem(const HistoryItem *item) {
 	if (!item) return;
 
-	history.notify_redrawHistoryItem(item);
+	history.ui_redrawHistoryItem(item);
 	if (!item->history()->dialogs.isEmpty() && item->history()->lastMsg == item) {
 		dialogs.dlgUpdated(item->history()->dialogs[0]);
 	}
-	if (overview) overview->notify_redrawHistoryItem(item);
+	if (overview) overview->ui_redrawHistoryItem(item);
 }
 
 void MainWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
@@ -986,10 +1005,6 @@ void MainWidget::clearHistory(PeerData *peer) {
 	}
 	showPeerHistory(peer->id, ShowAtUnreadMsgId);
 	MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
-}
-
-void MainWidget::removeContact(UserData *user) {
-	dialogs.removeContact(user);
 }
 
 void MainWidget::addParticipants(PeerData *chatOrChannel, const QVector<UserData*> &users) {
@@ -1488,7 +1503,7 @@ void MainWidget::itemResized(HistoryItem *row, bool scrollToIt) {
 	if (overview) {
 		overview->itemResized(row, scrollToIt);
 	}
-	if (row) Notify::redrawHistoryItem(row);
+	if (row) Ui::redrawHistoryItem(row);
 }
 
 bool MainWidget::overviewFailed(PeerData *peer, const RPCError &error, mtpRequestId req) {
@@ -1638,7 +1653,7 @@ void MainWidget::videoLoadProgress(mtpFileLoader *loader) {
 	VideoItems::const_iterator i = items.constFind(video);
 	if (i != items.cend()) {
 		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			Notify::redrawHistoryItem(j.key());
+			Ui::redrawHistoryItem(j.key());
 		}
 	}
 }
@@ -1663,6 +1678,10 @@ void MainWidget::onDownloadPathSettings() {
 		connect(box, SIGNAL(closed()), App::wnd()->settingsWidget(), SLOT(onDownloadPathEdited()));
 	}
 	Ui::showLayer(box);
+}
+
+void MainWidget::ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId) {
+	Ui::showPeerHistory(peerId, showAtMsgId);
 }
 
 void MainWidget::videoLoadFailed(mtpFileLoader *loader, bool started) {
@@ -1715,7 +1734,7 @@ void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 	AudioItems::const_iterator i = items.constFind(audio);
 	if (i != items.cend()) {
 		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			Notify::redrawHistoryItem(j.key());
+			Ui::redrawHistoryItem(j.key());
 		}
 	}
 }
@@ -1750,7 +1769,7 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 	}
 
 	if (HistoryItem *item = App::histItemById(audioId.msgId)) {
-		Notify::redrawHistoryItem(item);
+		Ui::redrawHistoryItem(item);
 	}
 }
 
@@ -1811,7 +1830,7 @@ void MainWidget::documentPlayProgress(const SongMsgId &songId) {
 	}
 
 	if (HistoryItem *item = App::histItemById(songId.msgId)) {
-		Notify::redrawHistoryItem(item);
+		Ui::redrawHistoryItem(item);
 	}
 }
 
@@ -1898,7 +1917,7 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 	DocumentItems::const_iterator i = items.constFind(document);
 	if (i != items.cend()) {
 		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			Notify::redrawHistoryItem(j.key());
+			Ui::redrawHistoryItem(j.key());
 		}
 	}
 	App::wnd()->documentUpdated(document);
@@ -3941,12 +3960,6 @@ void MainWidget::updateOnlineDisplayIn(int32 msecs) {
 	_onlineUpdater.start(msecs);
 }
 
-void MainWidget::addNewContact(int32 uid, bool show) {
-	if (dialogs.addNewContact(uid, show)) {
-		showPeerHistory(peerFromUser(uid), ShowAtTheEndMsgId);
-	}
-}
-
 bool MainWidget::isActive() const {
 	return !_isIdle && isVisible() && !_a_show.animating();
 }
@@ -4232,7 +4245,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					msgRow->history()->unregTyping(App::self());
 				}
 				if (!App::historyRegItem(msgRow)) {
-					Notify::redrawHistoryItem(msgRow);
+					Ui::redrawHistoryItem(msgRow);
 				} else {
 					History *h = msgRow->history();
 					bool wasLast = (h->lastMsg == msgRow);
@@ -4261,7 +4274,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			if (HistoryItem *item = App::histItemById(NoChannel, v.at(i).v)) {
 				if (item->isMediaUnread()) {
 					item->markMediaRead();
-					Notify::redrawHistoryItem(item);
+					Ui::redrawHistoryItem(item);
 					if (item->out() && item->history()->peer->isUser()) {
 						item->history()->peer->asUser()->madeAction();
 					}

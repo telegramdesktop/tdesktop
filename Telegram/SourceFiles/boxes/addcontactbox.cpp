@@ -235,7 +235,7 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 		}
 	}
 	if (uid) {
-		App::main()->addNewContact(uid);
+		Notify::userIsContactChanged(App::userLoaded(peerFromUser(uid)), true);
 		Ui::hideLayer();
 	} else {
 		_save.hide();

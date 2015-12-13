@@ -464,10 +464,8 @@ namespace App {
 				data->contact = 0;
 			}
 			if (App::main()) {
-				if (data->contact > 0 && !wasContact) {
-					App::main()->addNewContact(peerToUser(data->id), false);
-				} else if (wasContact && data->contact <= 0) {
-					App::main()->removeContact(data);
+				if ((data->contact > 0 && !wasContact) || (wasContact && data->contact < 1)) {
+					Notify::userIsContactChanged(data);
 				}
 
 				if (emitPeerUpdated) {
@@ -1112,17 +1110,13 @@ namespace App {
 				user->contact = -1;
 			break;
 			}
-			if (user->contact > 0) {
-				if (!wasContact) {
-					App::main()->addNewContact(peerToUser(user->id), false);
-				}
-			} else {
+			if (user->contact < 1) {
 				if (user->contact < 0 && !user->phone.isEmpty() && peerToUser(user->id) != MTP::authedId()) {
 					user->contact = 0;
 				}
-				if (wasContact) {
-					App::main()->removeContact(user);
-				}
+			}
+			if ((user->contact > 0 && !wasContact) || (wasContact && user->contact < 1)) {
+				Notify::userIsContactChanged(user);
 			}
 
 			bool showPhone = !isServiceUser(user->id) && !user->isSelf() && !user->contact;

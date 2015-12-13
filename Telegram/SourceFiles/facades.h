@@ -37,7 +37,7 @@ namespace App {
 
 };
 
-namespace Ui { // it doesn't allow me to use UI :(
+namespace Ui { // openssl doesn't allow me to use UI :(
 
 	void showStickerPreview(DocumentData *sticker);
 	void hideStickerPreview();
@@ -46,16 +46,19 @@ namespace Ui { // it doesn't allow me to use UI :(
 	void hideLayer(bool fast = false);
 	bool isLayerShown();
 
+	void redrawHistoryItem(const HistoryItem *item);
+
 	void showPeerHistory(const PeerId &peer, MsgId msgId, bool back = false);
+	void showPeerHistoryAsync(const PeerId &peer, MsgId msgId);
 
 };
 
 namespace Notify {
 
 	void userIsBotChanged(UserData *user);
+	void userIsContactChanged(UserData *user, bool fromThisApp = false);
 	void botCommandsChanged(UserData *user);
 	void migrateUpdated(PeerData *peer);
-	void redrawHistoryItem(const HistoryItem *item);
 	void historyItemLayoutChanged(const HistoryItem *item);
 
 };

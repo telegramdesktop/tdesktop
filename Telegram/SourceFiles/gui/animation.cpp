@@ -154,7 +154,7 @@ void AnimatedGif::step_frame(float64 ms, bool timer) {
 		frame = f;
 		if (timer) {
 			if (msg) {
-				Notify::redrawHistoryItem(msg);
+				Ui::redrawHistoryItem(msg);
 			} else {
 				emit updated();
 			}

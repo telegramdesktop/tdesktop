@@ -313,7 +313,6 @@ public:
 
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);
-	void notify_redrawHistoryItem(const HistoryItem *msg);
 	void itemRemoved(HistoryItem *item);
 	void itemResized(HistoryItem *row, bool scrollToIt);
 
@@ -340,6 +339,8 @@ public:
 		_inGrab = false;
 		resizeEvent(0);
 	}
+
+	void ui_redrawHistoryItem(const HistoryItem *msg);
 
 	~OverviewWidget();
 

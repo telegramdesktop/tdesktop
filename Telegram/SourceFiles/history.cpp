@@ -2975,7 +2975,7 @@ void ItemAnimations::step_animate(float64 ms, bool timer) {
 	for (Animations::iterator i = _animations.begin(); i != _animations.end();) {
 		const HistoryItem *item = i.key();
 		if (item->animating()) {
-			if (timer) Notify::redrawHistoryItem(item);
+			if (timer) Ui::redrawHistoryItem(item);
 			++i;
 		} else {
 			i = _animations.erase(i);
@@ -3759,7 +3759,7 @@ void HistoryFileMedia::step_thumbOver(const HistoryItem *parent, float64 ms, boo
 		_animation->a_thumbOver.update(dt, anim::linear);
 	}
 	if (timer) {
-		Notify::redrawHistoryItem(parent);
+		Ui::redrawHistoryItem(parent);
 	}
 }
 
@@ -3769,7 +3769,7 @@ void HistoryFileMedia::step_radial(const HistoryItem *parent, uint64 ms, bool ti
 		checkAnimationFinished();
 	}
 	if (timer) {
-		Notify::redrawHistoryItem(parent);
+		Ui::redrawHistoryItem(parent);
 	}
 }
 
@@ -4906,7 +4906,7 @@ void HistoryContact::draw(Painter &p, const HistoryItem *parent, const QRect &r,
 			QPixmap thumb = _contact->photo->pixRounded(st::msgFileThumbSize, st::msgFileThumbSize);
 			p.drawPixmap(rthumb.topLeft(), thumb);
 		} else {
-			p.drawPixmap(rthumb.topLeft(), userDefPhoto(_contact ? _contact->colorIndex : (_userId % UserColorsCount))->pixRounded(st::msgFileThumbSize, st::msgFileThumbSize));
+			p.drawPixmap(rthumb.topLeft(), userDefPhoto(_contact ? _contact->colorIndex : (qAbs(_userId) % UserColorsCount))->pixRounded(st::msgFileThumbSize, st::msgFileThumbSize));
 		}
 		if (selected) {
 			App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
@@ -4923,7 +4923,7 @@ void HistoryContact::draw(Painter &p, const HistoryItem *parent, const QRect &r,
 		statustop = st::msgFileStatusTop;
 
 		QRect inner(rtlrect(st::msgFilePadding.left(), st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, width));
-		p.drawPixmap(inner.topLeft(), userDefPhoto(0)->pix(st::msgFileSize, st::msgFileSize));
+		p.drawPixmap(inner.topLeft(), userDefPhoto(qAbs(parent->id) % UserColorsCount)->pixRounded(st::msgFileSize, st::msgFileSize));
 	}
 	int32 namewidth = width - nameleft - nameright;
 
@@ -6566,7 +6566,7 @@ void HistoryMessage::setViewsCount(int32 count) {
 	_viewsText = (_views >= 0) ? formatViewsCount(_views) : QString();
 	_viewsWidth = _viewsText.isEmpty() ? 0 : st::msgDateFont->width(_viewsText);
 	if (was == _viewsWidth) {
-		Notify::redrawHistoryItem(this);
+		Ui::redrawHistoryItem(this);
 	} else {
 		if (_text.hasSkipBlock()) {
 			_text.setSkipBlock(HistoryMessage::skipBlockWidth(), HistoryMessage::skipBlockHeight());
@@ -6582,7 +6582,7 @@ void HistoryMessage::setId(MsgId newId) {
 	bool wasPositive = (id > 0), positive = (newId > 0);
 	HistoryItem::setId(newId);
 	if (wasPositive == positive) {
-		Notify::redrawHistoryItem(this);
+		Ui::redrawHistoryItem(this);
 	} else {
 		if (_text.hasSkipBlock()) {
 			_text.setSkipBlock(HistoryMessage::skipBlockWidth(), HistoryMessage::skipBlockHeight());
