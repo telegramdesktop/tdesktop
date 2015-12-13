@@ -194,7 +194,6 @@ public:
 
 	void updateWideMode();
 	bool needBackButton();
-	void showDialogs();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
 	TopBarWidget *topBar();
@@ -411,6 +410,7 @@ public:
 	void ui_showStickerPreview(DocumentData *sticker);
 	void ui_hideStickerPreview();
 	void ui_redrawHistoryItem(const HistoryItem *item);
+	void ui_showPeerHistory(quint64 peer, qint32 msgId, bool back);
 
 	void notify_botCommandsChanged(UserData *bot);
 	void notify_userIsBotChanged(UserData *bot);
@@ -427,7 +427,6 @@ signals:
 	void peerPhotoChanged(PeerData *peer);
 	void dialogRowReplaced(DialogRow *oldRow, DialogRow *newRow);
 	void dialogsUpdated();
-	void showPeerAsync(quint64 peerId, qint32 showAtMsgId);
 	void stickersUpdated();
 
 public slots:
@@ -459,7 +458,6 @@ public slots:
 	void checkIdleFinish();
 	void updateOnlineDisplay();
 
-	void showPeerHistory(quint64 peer, qint32 msgId, bool back = false);
 	void onTopBarClick();
 	void onHistoryShown(History *history, MsgId atMsgId);
 

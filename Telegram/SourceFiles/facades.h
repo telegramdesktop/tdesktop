@@ -49,7 +49,19 @@ namespace Ui { // openssl doesn't allow me to use UI :(
 	void redrawHistoryItem(const HistoryItem *item);
 
 	void showPeerHistory(const PeerId &peer, MsgId msgId, bool back = false);
+	inline void showPeerHistory(const PeerData *peer, MsgId msgId, bool back = false) {
+		showPeerHistory(peer->id, msgId, back);
+	}
+	inline void showPeerHistory(const History *history, MsgId msgId, bool back = false) {
+		showPeerHistory(history->peer->id, msgId, back);
+	}
+	inline void showPeerHistoryAtItem(const HistoryItem *item) {
+		showPeerHistory(item->history()->peer->id, item->id);
+	}
 	void showPeerHistoryAsync(const PeerId &peer, MsgId msgId);
+	inline void showChatsList() {
+		showPeerHistory(PeerId(0), 0);
+	}
 
 };
 

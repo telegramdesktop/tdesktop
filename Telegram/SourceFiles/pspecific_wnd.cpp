@@ -2620,7 +2620,7 @@ public:
 						tomsg = false;
 					}
 				}
-				App::main()->showPeerHistory(history->peer->id, tomsg ? _msgId : ShowAtUnreadMsgId);
+				Ui::showPeerHistory(history, tomsg ? _msgId : ShowAtUnreadMsgId);
 				App::wnd()->notifyClear(history);
 			}
 			SetForegroundWindow(App::wnd()->psHwnd());

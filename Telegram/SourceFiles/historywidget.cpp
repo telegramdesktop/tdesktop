@@ -3789,7 +3789,7 @@ bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId
 
 	if (error.type() == qstr("CHANNEL_PRIVATE")) {
 		PeerData *was = _peer;
-		App::main()->showDialogs();
+		Ui::showChatsList();
 		Ui::showLayer(new InformBox(lang((was && was->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
 		return true;
 	}
@@ -3801,7 +3801,7 @@ bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId
 		_preloadDownRequest = 0;
 	} else if (_firstLoadRequest == requestId) {
 		_firstLoadRequest = 0;
-		App::main()->showDialogs();
+		Ui::showChatsList();
 	} else if (_delayedShowAtRequest == requestId) {
 		_delayedShowAtRequest = 0;
 	}
@@ -4324,7 +4324,7 @@ void HistoryWidget::onBroadcastChange() {
 void HistoryWidget::onShareContact(const PeerId &peer, UserData *contact) {
 	if (!contact || contact->phone.isEmpty()) return;
 
-	App::main()->showPeerHistory(peer, ShowAtTheEndMsgId);
+	Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
 	if (!_history) return;
 
 	shareContact(peer, contact->phone, contact->firstName, contact->lastName, replyToId(), peerToUser(contact->id));
@@ -4367,7 +4367,7 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 }
 
 void HistoryWidget::onSendPaths(const PeerId &peer) {
-	App::main()->showPeerHistory(peer, ShowAtTheEndMsgId);
+	Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
 	if (!_history) return;
 
 	if (cSendPaths().size() == 1) {
@@ -5062,7 +5062,7 @@ void HistoryWidget::topBarClick() {
 	if (cWideMode()) {
 		if (_history) App::main()->showPeerProfile(_peer);
 	} else {
-		App::main()->showDialogs();
+		Ui::showChatsList();
 	}
 }
 
@@ -5571,10 +5571,10 @@ void HistoryWidget::onReportSpamClear() {
 	if (_clearPeer->isUser()) {
 		App::main()->deleteConversation(_clearPeer);
 	} else if (_clearPeer->isChat()) {
-		App::main()->showDialogs();
+		Ui::showChatsList();
 		MTP::send(MTPmessages_DeleteChatUser(_clearPeer->asChat()->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, _clearPeer), App::main()->rpcFail(&MainWidget::leaveChatFailed, _clearPeer));
 	} else if (_clearPeer->isChannel()) {
-		App::main()->showDialogs();
+		Ui::showChatsList();
 		if (_clearPeer->migrateFrom()) {
 			App::main()->deleteConversation(_clearPeer->migrateFrom());
 		}
@@ -6033,7 +6033,7 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		a_recordOver.restart();
 		_a_record.start();
 	} else if (_inReply) {
-		App::main()->showPeerHistory(_peer->id, replyToId());
+		Ui::showPeerHistory(_peer, replyToId());
 	}
 }
 
@@ -6050,7 +6050,7 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 			PeerData *after = 0;
 			MsgId afterMsgId = 0;
 			App::main()->peerAfter(_peer, msgid, after, afterMsgId);
-			if (after) App::main()->showPeerHistory(after->id, afterMsgId);
+			if (after) Ui::showPeerHistory(after, afterMsgId);
 		} else {
 			_scroll.keyPressEvent(e);
 		}
@@ -6059,7 +6059,7 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 			PeerData *before = 0;
 			MsgId beforeMsgId = 0;
 			App::main()->peerBefore(_peer, msgid, before, beforeMsgId);
-			if (before) App::main()->showPeerHistory(before->id, beforeMsgId);
+			if (before) Ui::showPeerHistory(before, beforeMsgId);
 		} else {
 			_scroll.keyPressEvent(e);
 		}
@@ -6068,7 +6068,7 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 			PeerData *after = 0;
 			MsgId afterMsgId = 0;
 			App::main()->peerAfter(_peer, msgid, after, afterMsgId);
-			if (after) App::main()->showPeerHistory(after->id, afterMsgId);
+			if (after) Ui::showPeerHistory(after, afterMsgId);
 		} else if (!(e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier))) {
 			_scroll.keyPressEvent(e);
 		}
@@ -6077,7 +6077,7 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 			PeerData *before = 0;
 			MsgId beforeMsgId = 0;
 			App::main()->peerBefore(_peer, msgid, before, beforeMsgId);
-			if (before) App::main()->showPeerHistory(before->id, beforeMsgId);
+			if (before) Ui::showPeerHistory(before, beforeMsgId);
 		} else if (!(e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier))) {
 			_scroll.keyPressEvent(e);
 		}
@@ -6089,7 +6089,7 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		} else {
 			App::main()->peerAfter(_peer, msgid, p, m);
 		}
-		if (p) App::main()->showPeerHistory(p->id, m);
+		if (p) Ui::showPeerHistory(p, m);
 	} else if (_history && (e->key() == Qt::Key_Search || e == QKeySequence::Find)) {
 		App::main()->searchInPeer(_peer);
 	} else {
@@ -6380,7 +6380,7 @@ void HistoryWidget::updatePreview() {
 }
 
 void HistoryWidget::onCancel() {
-	if (App::main()) App::main()->showDialogs();
+	Ui::showChatsList();
 	emit cancelled();
 }
 
@@ -6421,7 +6421,7 @@ void HistoryWidget::onFullPeerUpdated(PeerData *data) {
 void HistoryWidget::peerUpdated(PeerData *data) {
 	if (data && data == _peer) {
 		if (data->migrateTo()) {
-			App::main()->showPeerHistory(data->migrateTo()->id, ShowAtUnreadMsgId);
+			Ui::showPeerHistory(data->migrateTo(), ShowAtUnreadMsgId);
 			QTimer::singleShot(ReloadChannelMembersTimeout, App::api(), SLOT(delayedRequestParticipantsCount()));
 			return;
 		}

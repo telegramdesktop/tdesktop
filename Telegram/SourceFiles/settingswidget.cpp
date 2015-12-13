@@ -1139,7 +1139,7 @@ void SettingsInner::supportGot(const MTPhelp_Support &support) {
 	if (support.type() == mtpc_help_support) {
 		const MTPDhelp_support &d(support.c_help_support());
 		UserData *u = App::feedUsers(MTP_vector<MTPUser>(1, d.vuser));
-		App::main()->showPeerHistory(u->id, ShowAtUnreadMsgId);
+		Ui::showPeerHistory(u, ShowAtUnreadMsgId);
 		App::wnd()->hideSettings();
 	}
 }

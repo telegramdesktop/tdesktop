@@ -296,7 +296,7 @@ void NotifyWindow::mousePressEvent(QMouseEvent *e) {
 			App::wnd()->notifyClear();
 		} else {
 			App::wnd()->hideSettings();
-			App::main()->showPeerHistory(peer, (!history->peer->isUser() && item && item->mentionsMe() && item->id > 0) ? item->id : ShowAtUnreadMsgId);
+			Ui::showPeerHistory(peer, (!history->peer->isUser() && item && item->mentionsMe() && item->id > 0) ? item->id : ShowAtUnreadMsgId);
 		}
 		e->ignore();
 	}

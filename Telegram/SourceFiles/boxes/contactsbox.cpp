@@ -229,7 +229,7 @@ void ContactsInner::onAddBot() {
 		App::main()->addParticipants(_addToPeer, QVector<UserData*>(1, _bot));
 	}
 	Ui::hideLayer();
-	App::main()->showPeerHistory(_addToPeer->id, ShowAtUnreadMsgId);
+	Ui::showPeerHistory(_addToPeer, ShowAtUnreadMsgId);
 }
 
 void ContactsInner::onAddAdmin() {
@@ -1558,7 +1558,7 @@ void ContactsBox::resizeEvent(QResizeEvent *e) {
 
 void ContactsBox::closePressed() {
 	if (_inner.channel() && !_inner.hasAlreadyMembersInChannel()) {
-		App::main()->showPeerHistory(_inner.channel()->id, ShowAtTheEndMsgId);
+		Ui::showPeerHistory(_inner.channel(), ShowAtTheEndMsgId);
 	}
 }
 
@@ -1591,7 +1591,7 @@ void ContactsBox::onInvite() {
 	App::main()->addParticipants(_inner.chat() ? (PeerData*)_inner.chat() : _inner.channel(), users);
 	if (_inner.chat()) {
 		Ui::hideLayer();
-		App::main()->showPeerHistory(_inner.chat()->id, ShowAtTheEndMsgId);
+		Ui::showPeerHistory(_inner.chat(), ShowAtTheEndMsgId);
 	} else {
 		onClose();
 	}
@@ -1730,7 +1730,7 @@ void ContactsBox::creationDone(const MTPUpdates &updates) {
 			if (!_creationPhoto.isNull()) {
 				App::app()->uploadProfilePhoto(_creationPhoto, peer->id);
 			}
-			App::main()->showPeerHistory(peer->id, ShowAtUnreadMsgId);
+			Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 		}
 	} else {
 		LOG(("API Error: chat not found in updates (ContactsBox::creationDone)"));

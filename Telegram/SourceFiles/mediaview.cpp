@@ -526,7 +526,7 @@ void MediaView::onToMessage() {
 	if (HistoryItem *item = _msgid ? App::histItemById(_msgmigrated ? 0 : _channel, _msgid) : 0) {
 		if (App::wnd()) {
 			close();
-			if (App::main()) App::main()->showPeerHistory(item->history()->peer->id, _msgid);
+			Ui::showPeerHistoryAtItem(item);
 		}
 	}
 }
@@ -1808,7 +1808,7 @@ void MediaView::mouseReleaseEvent(QMouseEvent *e) {
 		} else {
 			if (reBotCommand().match(lnk->encoded()).hasMatch() && _history) {
 				App::wnd()->hideMediaview();
-				App::main()->showPeerHistory(_history->peer->id, ShowAtTheEndMsgId);
+				Ui::showPeerHistory(_history, ShowAtTheEndMsgId);
 			}
 			lnk->onClick(e->button());
 		}

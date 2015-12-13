@@ -1110,7 +1110,7 @@ void PeerLink::onClick(Qt::MouseButton button) const {
 			if (!peer()->asChannel()->isPublic() && !peer()->asChannel()->amIn()) {
 				Ui::showLayer(new InformBox(lang((peer()->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
 			} else {
-				App::main()->showPeerHistory(peer()->id, ShowAtUnreadMsgId);
+				Ui::showPeerHistory(peer(), ShowAtUnreadMsgId);
 			}
 		} else {
 			App::main()->showPeerProfile(peer());
@@ -1124,13 +1124,13 @@ void MessageLink::onClick(Qt::MouseButton button) const {
 		if (current && current->history()->peer->id == peer()) {
 			App::main()->pushReplyReturn(current);
 		}
-		App::main()->showPeerHistory(peer(), msgid());
+		Ui::showPeerHistory(peer(), msgid());
 	}
 }
 
 void CommentsLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton && App::main() && _item->history()->isChannel()) {
-		App::main()->showPeerHistory(_item->history()->peer->id, _item->id);
+		Ui::showPeerHistoryAtItem(_item);
 	}
 }
 

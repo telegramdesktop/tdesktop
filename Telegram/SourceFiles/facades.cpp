@@ -96,7 +96,7 @@ namespace Ui {
 	}
 
 	void showPeerHistory(const PeerId &peer, MsgId msgId, bool back) {
-		if (MainWidget *m = App::main()) m->showPeerHistory(peer, msgId, back);
+		if (MainWidget *m = App::main()) m->ui_showPeerHistory(peer, msgId, back);
 	}
 
 	void showPeerHistoryAsync(const PeerId &peer, MsgId msgId) {

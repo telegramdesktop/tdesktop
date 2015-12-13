@@ -120,7 +120,7 @@ void TopBarWidget::onDeleteContactSure() {
 	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
 	UserData *u = p ? p->asUser() : 0;
 	if (u) {
-		App::main()->showDialogs();
+		Ui::showChatsList();
 		Ui::hideLayer();
 		MTP::send(MTPcontacts_DeleteContact(u->inputUser), App::main()->rpcDone(&MainWidget::deletedContact, u));
 	}
@@ -140,7 +140,7 @@ void TopBarWidget::onDeleteAndExitSure() {
 	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
 	ChatData *c = p ? p->asChat() : 0;
 	if (c) {
-		App::main()->showDialogs();
+		Ui::showChatsList();
 		Ui::hideLayer();
 		MTP::send(MTPmessages_DeleteChatUser(c->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, p), App::main()->rpcFail(&MainWidget::leaveChatFailed, p));
 	}
@@ -504,7 +504,7 @@ bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
 		}
 	}
 	updateForwardingTexts();
-	showPeerHistory(peer, ShowAtUnreadMsgId);
+	Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 	history.onClearSelected();
 	history.updateForwarding();
 	return true;
@@ -525,7 +525,7 @@ bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QStrin
 	if (opened) {
 		history.applyDraft();
 	} else {
-		showPeerHistory(peer, ShowAtUnreadMsgId);
+		Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 	}
 	return true;
 }
@@ -703,7 +703,7 @@ void MainWidget::onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data)
 	} else if (data->hasFormat(qsl("application/x-td-forward-pressed"))) {
 		onForward(peer, ForwardPressedMessage);
 	} else {
-		showPeerHistory(peer, ShowAtTheEndMsgId);
+		Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
 		history.onFilesDrop(data);
 	}
 }
@@ -967,7 +967,7 @@ void MainWidget::removeDialog(History *history) {
 
 void MainWidget::deleteConversation(PeerData *peer, bool deleteHistory) {
 	if (activePeer() == peer) {
-		showDialogs();
+		Ui::showChatsList();
 	}
 	if (History *h = App::historyLoaded(peer->id)) {
 		removeDialog(h);
@@ -1003,7 +1003,7 @@ void MainWidget::clearHistory(PeerData *peer) {
 		h->clear();
 		h->newLoaded = h->oldLoaded = true;
 	}
-	showPeerHistory(peer->id, ShowAtUnreadMsgId);
+	Ui::showPeerHistory(peer->id, ShowAtUnreadMsgId);
 	MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
 }
 
@@ -1061,7 +1061,7 @@ bool MainWidget::addParticipantsFail(ChannelData *channel, const RPCError &error
 void MainWidget::kickParticipant(ChatData *chat, UserData *user) {
 	MTP::send(MTPmessages_DeleteChatUser(chat->inputChat, user->inputUser), rpcDone(&MainWidget::sentUpdatesReceived), rpcFail(&MainWidget::kickParticipantFail, chat));
 	Ui::hideLayer();
-	showPeerHistory(chat->id, ShowAtTheEndMsgId);
+	Ui::showPeerHistory(chat->id, ShowAtTheEndMsgId);
 }
 
 bool MainWidget::kickParticipantFail(ChatData *chat, const RPCError &error) {
@@ -1352,7 +1352,7 @@ void MainWidget::searchMessages(const QString &query, PeerData *inPeer) {
 	App::wnd()->hideMediaview();
 	dialogs.searchMessages(query, inPeer);
 	if (!cWideMode()) {
-		showDialogs();
+		Ui::showChatsList();
 	} else {
 		dialogs.activate();
 	}
@@ -2278,7 +2278,7 @@ void MainWidget::choosePeer(PeerId peerId, MsgId showAtMsgId) {
 	if (selectingPeer()) {
 		offerPeer(peerId);
 	} else {
-		showPeerHistory(peerId, showAtMsgId);
+		Ui::showPeerHistory(peerId, showAtMsgId);
 	}
 }
 
@@ -2304,7 +2304,7 @@ void MainWidget::ctrlEnterSubmitUpdated() {
 	history.ctrlEnterSubmitUpdated();
 }
 
-void MainWidget::showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) {
+void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) {
 	if (PeerData *peer = App::peerLoaded(peerId)) {
 		if (peer->migrateTo()) {
 			peerId = peer->migrateTo()->id;
@@ -2579,7 +2579,7 @@ void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop)
 void MainWidget::showBackFromStack() {
 	if (selectingPeer()) return;
 	if (_stack.isEmpty()) {
-		showDialogs();
+		Ui::showChatsList();
 		if (App::wnd()) QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
 		return;
 	}
@@ -2598,7 +2598,7 @@ void MainWidget::showBackFromStack() {
 			}
 		}
 		StackItemHistory *histItem = static_cast<StackItemHistory*>(item);
-		showPeerHistory(histItem->peer->id, App::main()->activeMsgId(), true);
+		Ui::showPeerHistory(histItem->peer->id, App::main()->activeMsgId(), true);
 		history.setReplyReturns(histItem->peer->id, histItem->replyReturns);
 	} else if (item->type() == ProfileStackItem) {
 		StackItemProfile *profItem = static_cast<StackItemProfile*>(item);
@@ -2889,10 +2889,6 @@ bool MainWidget::needBackButton() {
 	return overview || profile || (history.peer() && history.peer()->id);
 }
 
-void MainWidget::showDialogs() {
-	showPeerHistory(0, 0);
-}
-
 void MainWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) {
 	if (profile) {
 		profile->paintTopBar(p, over, decreaseWidth);
@@ -2971,7 +2967,7 @@ void MainWidget::searchInPeer(PeerData *peer) {
 		dialogs.activate();
 	} else {
 		dialogsToUp();
-		showDialogs();
+		Ui::showChatsList();
 	}
 }
 
@@ -3561,12 +3557,10 @@ void MainWidget::openPeerByName(const QString &username, bool toProfile, const Q
 
 	PeerData *peer = App::peerByName(username);
 	if (peer) {
-		if (toProfile) {
+		if (toProfile && !peer->isChannel()) {
 			if (peer->isUser() && peer->asUser()->botInfo && !peer->asUser()->botInfo->cantJoinGroups && !startToken.isEmpty()) {
 				peer->asUser()->botInfo->startGroupToken = startToken;
 				Ui::showLayer(new ContactsBox(peer->asUser()));
-			} else if (peer->isChannel()) {
-				showPeerHistory(peer->id, ShowAtUnreadMsgId);
 			} else {
 				showPeerProfile(peer);
 			}
@@ -3578,7 +3572,7 @@ void MainWidget::openPeerByName(const QString &username, bool toProfile, const Q
 					history.resizeEvent(0);
 				}
 			}
-			emit showPeerAsync(peer->id, 0);
+			Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId);
 		}
 	} else {
 		MTP::send(MTPcontacts_ResolveUsername(MTP_string(username)), rpcDone(&MainWidget::usernameResolveDone, qMakePair(toProfile, startToken)), rpcFail(&MainWidget::usernameResolveFail, username));
@@ -3643,7 +3637,7 @@ void MainWidget::usernameResolveDone(QPair<bool, QString> toProfileStartToken, c
 			peer->asUser()->botInfo->startGroupToken = toProfileStartToken.second;
 			Ui::showLayer(new ContactsBox(peer->asUser()));
 		} else if (peer->isChannel()) {
-			showPeerHistory(peer->id, ShowAtUnreadMsgId);
+			Ui::showPeerHistory(peer->id, ShowAtUnreadMsgId);
 		} else {
 			showPeerProfile(peer);
 		}
@@ -3655,7 +3649,7 @@ void MainWidget::usernameResolveDone(QPair<bool, QString> toProfileStartToken, c
 				history.resizeEvent(0);
 			}
 		}
-		showPeerHistory(peer->id, ShowAtUnreadMsgId);
+		Ui::showPeerHistory(peer->id, ShowAtUnreadMsgId);
 	}
 }
 
@@ -3682,7 +3676,7 @@ void MainWidget::inviteCheckDone(QString hash, const MTPChatInvite &invite) {
 		const MTPDchatInviteAlready &d(invite.c_chatInviteAlready());
 		PeerData *chat = App::feedChats(MTP_vector<MTPChat>(1, d.vchat));
 		if (chat) {
-			showPeerHistory(chat->id, ShowAtUnreadMsgId);
+			Ui::showPeerHistory(chat->id, ShowAtUnreadMsgId);
 		}
 	} break;
 	}
@@ -3714,9 +3708,9 @@ void MainWidget::inviteImportDone(const MTPUpdates &updates) {
 	}
 	if (v && !v->isEmpty()) {
 		if (v->front().type() == mtpc_chat) {
-			App::main()->showPeerHistory(peerFromChat(v->front().c_chat().vid.v), ShowAtTheEndMsgId);
+			Ui::showPeerHistory(peerFromChat(v->front().c_chat().vid.v), ShowAtTheEndMsgId);
 		} else if (v->front().type() == mtpc_channel) {
-			App::main()->showPeerHistory(peerFromChannel(v->front().c_channel().vid.v), ShowAtTheEndMsgId);
+			Ui::showPeerHistory(peerFromChannel(v->front().c_channel().vid.v), ShowAtTheEndMsgId);
 		}
 	}
 }

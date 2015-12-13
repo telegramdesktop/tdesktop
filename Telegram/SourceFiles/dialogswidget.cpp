@@ -687,7 +687,7 @@ void DialogsInner::onContextDeleteAndLeaveSure() {
 	if (!_menuActionPeer) return;
 
 	Ui::hideLayer();
-	App::main()->showDialogs();
+	Ui::showChatsList();
 	if (_menuActionPeer->isUser()) {
 		App::main()->deleteConversation(_menuActionPeer);
 	} else if (_menuActionPeer->isChat()) {
@@ -2553,7 +2553,7 @@ bool DialogsWidget::onCancelSearch() {
 	}
 	if (_searchInPeer && !clearing) {
 		if (!cWideMode()) {
-			App::main()->showPeerHistory(_searchInPeer->id, ShowAtUnreadMsgId);
+			Ui::showPeerHistory(_searchInPeer, ShowAtUnreadMsgId);
 		}
 		_searchInPeer = _searchInMigrated = 0;
 		_inner.searchInPeer(0);
@@ -2573,7 +2573,7 @@ void DialogsWidget::onCancelSearchInPeer() {
 	}
 	if (_searchInPeer) {
 		if (!cWideMode() && !App::main()->selectingPeer()) {
-			App::main()->showPeerHistory(_searchInPeer->id, ShowAtUnreadMsgId);
+			Ui::showPeerHistory(_searchInPeer, ShowAtUnreadMsgId);
 		}
 		_searchInPeer = _searchInMigrated = 0;
 		_inner.searchInPeer(0);

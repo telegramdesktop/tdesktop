@@ -2044,7 +2044,7 @@ void OverviewInner::goToMessage() {
 	HistoryItem *item = App::contextItem();
 	if (!item) return;
 
-	App::main()->showPeerHistory(item->history()->peer->id, item->id);
+	Ui::showPeerHistoryAtItem(item);
 }
 
 void OverviewInner::forwardMessage() {

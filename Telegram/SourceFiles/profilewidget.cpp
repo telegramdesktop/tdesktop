@@ -237,7 +237,7 @@ void ProfileInner::onInviteToGroup() {
 }
 
 void ProfileInner::onSendMessage() {
-	App::main()->showPeerHistory(_peer->id, ShowAtUnreadMsgId);
+	Ui::showPeerHistory(_peer, ShowAtUnreadMsgId);
 }
 
 void ProfileInner::onSearchInPeer() {
@@ -329,10 +329,10 @@ void ProfileInner::onDeleteConversationSure() {
 	if (_peerUser) {
 		App::main()->deleteConversation(_peer);
 	} else if (_peerChat) {
-		App::main()->showDialogs();
+		Ui::showChatsList();
 		MTP::send(MTPmessages_DeleteChatUser(_peerChat->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, _peer), App::main()->rpcFail(&MainWidget::leaveChatFailed, _peer));
 	} else if (_peerChannel) {
-		App::main()->showDialogs();
+		Ui::showChatsList();
 		if (_peerChannel->migrateFrom()) {
 			App::main()->deleteConversation(_peerChannel->migrateFrom());
 		}
@@ -350,7 +350,7 @@ void ProfileInner::onDeleteChannel() {
 void ProfileInner::onDeleteChannelSure() {
 	if (_peerChannel) {
 		Ui::hideLayer();
-		App::main()->showDialogs();
+		Ui::showChatsList();
 		if (_peerChannel->migrateFrom()) {
 			App::main()->deleteConversation(_peerChannel->migrateFrom());
 		}
@@ -562,7 +562,7 @@ void ProfileInner::onBotSettings() {
 	for (int32 i = 0, l = _peerUser->botInfo->commands.size(); i != l; ++i) {
 		QString cmd = _peerUser->botInfo->commands.at(i).command;
 		if (!cmd.compare(qsl("settings"), Qt::CaseInsensitive)) {
-			App::main()->showPeerHistory(_peer->id, ShowAtTheEndMsgId);
+			Ui::showPeerHistory(_peer, ShowAtTheEndMsgId);
 			App::main()->sendBotCommand('/' + cmd, 0);
 			return;
 		}
@@ -576,7 +576,7 @@ void ProfileInner::onBotHelp() {
 	for (int32 i = 0, l = _peerUser->botInfo->commands.size(); i != l; ++i) {
 		QString cmd = _peerUser->botInfo->commands.at(i).command;
 		if (!cmd.compare(qsl("help"), Qt::CaseInsensitive)) {
-			App::main()->showPeerHistory(_peer->id, ShowAtTheEndMsgId);
+			Ui::showPeerHistory(_peer, ShowAtTheEndMsgId);
 			App::main()->sendBotCommand('/' + cmd, 0);
 			return;
 		}
@@ -1085,7 +1085,7 @@ void ProfileInner::mouseReleaseEvent(QMouseEvent *e) {
 				App::searchByHashtag(lnk->encoded(), _peerChannel);
 			} else {
 				if (reBotCommand().match(lnk->encoded()).hasMatch()) {
-					App::main()->showPeerHistory(_peer->id, ShowAtTheEndMsgId);
+					Ui::showPeerHistory(_peer, ShowAtTheEndMsgId);
 				}
 				lnk->onClick(e->button());
 			}
@@ -1250,7 +1250,7 @@ void ProfileInner::migrateDone(const MTPUpdates &updates) {
 		for (int32 i = 0, l = v->size(); i < l; ++i) {
 			if (v->at(i).type() == mtpc_channel) {
 				peer = App::channel(v->at(i).c_channel().vid.v);
-				App::main()->showPeerHistory(peer->id, ShowAtUnreadMsgId);
+				Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 				QTimer::singleShot(ReloadChannelMembersTimeout, App::api(), SLOT(delayedRequestParticipantsCount()));
 			}
 		}
