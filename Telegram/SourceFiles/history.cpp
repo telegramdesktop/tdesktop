@@ -4569,7 +4569,8 @@ ImagePtr HistoryDocument::replyPreview() {
 HistoryGif::HistoryGif(DocumentData *document) : HistoryFileMedia()
 , _data(document)
 , _thumbw(1)
-, _thumbh(1) {
+, _thumbh(1)
+, _gif(0) {
 	setLinks(new DocumentOpenLink(_data), new DocumentSaveLink(_data), new DocumentCancelLink(_data));
 
 	setStatusSize(FileStatusSizeReady);
@@ -4580,9 +4581,9 @@ HistoryGif::HistoryGif(DocumentData *document) : HistoryFileMedia()
 void HistoryGif::initDimensions(const HistoryItem *parent) {
 	bool bubble = parent->hasBubble();
 	int32 tw = 0, th = 0;
-	if (parent == animated.msg) {
-		tw = convertScale(animated.w / cIntRetinaFactor());
-		th = convertScale(animated.h / cIntRetinaFactor());
+	if (_gif && _gif->ready()) {
+		tw = convertScale(_gif->width());
+		th = convertScale(_gif->height());
 	} else {
 		tw = convertScale(_data->dimensions.width()), th = convertScale(_data->dimensions.height());
 		if (!tw || !th) {
@@ -4603,20 +4604,17 @@ void HistoryGif::initDimensions(const HistoryItem *parent) {
 	}
 	_thumbw = tw;
 	_thumbh = th;
-	if (parent == animated.msg) {
-		_maxw = qMax(tw, int32(st::minPhotoSize));
-		_minh = qMax(th, int32(st::minPhotoSize));
-	} else {
-		int32 minWidth = qMax(st::minPhotoSize, parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
-		minWidth = qMax(minWidth, gifMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
-		_maxw = qMax(tw, minWidth);
-		_minh = qMax(th, int32(st::minPhotoSize));
+	_maxw = qMax(tw, int32(st::minPhotoSize));
+	_minh = qMax(th, int32(st::minPhotoSize));
+	if (!_gif || !_gif->ready()) {
+		_maxw = qMax(_maxw, parent->infoWidth() + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
+		_maxw = qMax(_maxw, gifMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	}
-	w = _maxw;
 	if (bubble) {
 		_maxw += st::mediaPadding.left() + st::mediaPadding.right();
 		_minh += st::mediaPadding.top() + st::mediaPadding.bottom();
 	}
+	w = _maxw;
 	_height = _minh;
 }
 
@@ -4624,7 +4622,7 @@ void HistoryGif::draw(Painter &p, const HistoryItem *parent, const QRect &r, boo
 	if (w < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	int32 width = w, height = _height, skipx = 0, skipy = 0;
 
-	bool animating = (parent == animated.msg);
+	bool animating = (_gif && _gif->started());
 	bool bubble = parent->hasBubble();
 	bool fromChannel = parent->fromChannel(), out = parent->out(), outbg = out && !fromChannel;
 
@@ -4653,7 +4651,7 @@ void HistoryGif::draw(Painter &p, const HistoryItem *parent, const QRect &r, boo
 	QRect rthumb(rtlrect(skipx, skipy, width, height, w));
 
 	if (animating) {
-		p.drawPixmap(rthumb.topLeft(), animated.current(width, height, true));
+		p.drawPixmap(rthumb.topLeft(), _gif->current(_thumbw, _thumbh, width, height));
 	} else {
 		p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(_thumbw, _thumbh, width, height));
 	}
@@ -4753,9 +4751,9 @@ int32 HistoryGif::resize(int32 width, const HistoryItem *parent) {
 	bool bubble = parent->hasBubble();
 
 	int32 tw = 0, th = 0;
-	if (parent == animated.msg) {
-		tw = convertScale(animated.w / cIntRetinaFactor());
-		th = convertScale(animated.h / cIntRetinaFactor());
+	if (_gif && _gif->ready()) {
+		tw = convertScale(_gif->width());
+		th = convertScale(_gif->height());
 	} else {
 		tw = convertScale(_data->dimensions.width()), th = convertScale(_data->dimensions.height());
 		if (!tw || !th) {
@@ -4782,20 +4780,24 @@ int32 HistoryGif::resize(int32 width, const HistoryItem *parent) {
 		th = qRound((width / float64(tw)) * th);
 		tw = width;
 	}
-	w = _thumbw = tw;
+	_thumbw = tw;
 	_thumbh = th;
 
-	if (parent != animated.msg) {
-		int32 minWidth = qMax(st::minPhotoSize, parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
-		minWidth = qMax(minWidth, gifMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
-		w = qMax(w, minWidth);
-	}
-
+	w = qMax(tw, int32(st::minPhotoSize));
 	_height = qMax(th, int32(st::minPhotoSize));
+	if (_gif && _gif->ready()) {
+		if (!_gif->started()) {
+			_gif->start(_thumbw, _thumbh, w, _height, true);
+		}
+	} else {
+		w = qMax(w, parent->infoWidth() + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
+		w = qMax(w, gifMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
+	}
 	if (bubble) {
 		w += st::mediaPadding.left() + st::mediaPadding.right();
 		_height += st::mediaPadding.top() + st::mediaPadding.bottom();
 	}
+
 	return _height;
 }
 
@@ -4821,9 +4823,9 @@ int32 HistoryGif::countHeight(const HistoryItem *parent, int32 width) const {
 	bool bubble = parent->hasBubble();
 
 	int32 tw = 0, th = 0;
-	if (parent == animated.msg) {
-		tw = convertScale(animated.w / cIntRetinaFactor());
-		th = convertScale(animated.h / cIntRetinaFactor());
+	if (_gif && _gif->started()) {
+		tw = convertScale(_gif->width());
+		th = convertScale(_gif->height());
 	} else {
 		tw = convertScale(_data->dimensions.width()), th = convertScale(_data->dimensions.height());
 		if (!tw || !th) {
@@ -4873,7 +4875,7 @@ void HistoryGif::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, 
 		height -= skipy + st::mediaPadding.bottom();
 	}
 	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height) {
-		if (parent == animated.msg) {
+		if (_gif && _gif->started()) {
 			lnk = _openl;
 		} else {
 			lnk = _data->already().isEmpty() ? (_data->loader ? _cancell : _savel) : _openl;
@@ -4894,6 +4896,25 @@ HistoryMedia *HistoryGif::clone() const {
 
 ImagePtr HistoryGif::replyPreview() {
 	return _data->makeReplyPreview();
+}
+
+void HistoryGif::play(HistoryItem *parent) {
+	if (_gif) {
+		App::unregGifItem(_gif);
+		delete _gif;
+		_gif = 0;
+	} else {
+		_gif = new ClipReader(_data->location(), _data->data);
+		App::regGifItem(_gif, parent);
+	}
+}
+
+HistoryGif::~HistoryGif() {
+	if (_gif) {
+		App::unregGifItem(_gif);
+		delete _gif;
+		setBadPointer(_gif);
+	}
 }
 
 HistorySticker::HistorySticker(DocumentData *document) : HistoryMedia()

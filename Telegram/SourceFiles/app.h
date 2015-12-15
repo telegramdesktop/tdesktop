@@ -39,6 +39,7 @@ typedef QMap<AudioData*, HistoryItemsMap> AudioItems;
 typedef QMap<DocumentData*, HistoryItemsMap> DocumentItems;
 typedef QMap<WebPageData*, HistoryItemsMap> WebPageItems;
 typedef QMap<int32, HistoryItemsMap> SharedContactItems;
+typedef QMap<ClipReader*, HistoryItem*> GifItems;
 struct ReplyMarkup {
 	ReplyMarkup(int32 flags = 0) : flags(flags) {
 	}
@@ -249,6 +250,10 @@ namespace App {
 	void unregSharedContactItem(int32 userId, HistoryItem *item);
 	const SharedContactItems &sharedContactItems();
 	QString phoneFromSharedContact(int32 userId);
+
+	void regGifItem(ClipReader *reader, HistoryItem *item);
+	void unregGifItem(ClipReader *reader);
+	const GifItems &gifItems();
 
 	void regMuted(PeerData *peer, int32 changeIn);
 	void unregMuted(PeerData *peer);

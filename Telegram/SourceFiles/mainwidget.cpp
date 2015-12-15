@@ -437,7 +437,6 @@ MainWidget::MainWidget(Window *window) : TWidget(window)
 	connect(&_topBar, SIGNAL(clicked()), this, SLOT(onTopBarClick()));
 	connect(&history, SIGNAL(historyShown(History*,MsgId)), this, SLOT(onHistoryShown(History*,MsgId)));
 	connect(&updateNotifySettingTimer, SIGNAL(timeout()), this, SLOT(onUpdateNotifySettings()));
-	connect(this, SIGNAL(showPeerAsync(quint64,qint32)), this, SLOT(showPeerHistory(quint64,qint32)), Qt::QueuedConnection);
 	if (audioPlayer()) {
 		connect(audioPlayer(), SIGNAL(updated(const AudioMsgId&)), this, SLOT(audioPlayProgress(const AudioMsgId&)));
 		connect(audioPlayer(), SIGNAL(stopped(const AudioMsgId&)), this, SLOT(audioPlayProgress(const AudioMsgId&)));
@@ -1886,17 +1885,15 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 				} else if (document->openOnSave > 0 && document->size < MediaViewImageSizeLimit) {
 					const FileLocation &location(document->location(true));
 					if (location.accessEnable()) {
-						QImageReader reader(location.name());
-						if (reader.canRead()) {
-							if (reader.supportsAnimation() && reader.imageCount() > 1 && item && item->getMedia() && item->getMedia()->type() == MediaTypeGif) {
-								startGif(item, location);
-							} else if (item) {
+						if (item && item->getMedia() && item->getMedia()->type() == MediaTypeGif) {
+							static_cast<HistoryGif*>(item->getMedia())->play(item);
+						} else {
+							QImageReader reader(location.name());
+							if (reader.canRead() && item) {
 								App::wnd()->showDocument(document, item);
 							} else {
 								psOpenFile(already);
 							}
-						} else {
-							psOpenFile(already);
 						}
 						location.accessDisable();
 					} else {

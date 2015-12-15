@@ -74,6 +74,7 @@ namespace {
 	DocumentItems documentItems;
 	WebPageItems webPageItems;
 	SharedContactItems sharedContactItems;
+	GifItems gifItems;
 
 	typedef QMap<HistoryItem*, QMap<HistoryReply*, bool> > RepliesTo;
 	RepliesTo repliesTo;
@@ -1991,6 +1992,7 @@ namespace App {
 		::documentItems.clear();
 		::webPageItems.clear();
 		::sharedContactItems.clear();
+		::gifItems.clear();
 		::repliesTo.clear();
 		lastPhotos.clear();
 		lastPhotosMap.clear();
@@ -2423,6 +2425,18 @@ namespace App {
 
 	const SharedContactItems &sharedContactItems() {
 		return ::sharedContactItems;
+	}
+
+	void regGifItem(ClipReader *reader, HistoryItem *item) {
+		::gifItems.insert(reader, item);
+	}
+
+	void unregGifItem(ClipReader *reader) {
+		::gifItems.remove(reader);
+	}
+
+	const GifItems &gifItems() {
+		return ::gifItems;
 	}
 
 	QString phoneFromSharedContact(int32 userId) {

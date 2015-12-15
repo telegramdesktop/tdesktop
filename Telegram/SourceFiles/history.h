@@ -1592,9 +1592,6 @@ public:
 	}
 	ImagePtr replyPreview();
 
-	void drawInPlaylist(Painter &p, const HistoryItem *parent, bool selected, bool over, int32 width) const;
-	TextLinkPtr linkInPlaylist();
-
 	bool needsBubble(const HistoryItem *parent) const {
 		return parent->toHistoryReply();
 	}
@@ -1607,6 +1604,9 @@ public:
 	bool hideForwardedFrom() const {
 		return true;
 	}
+
+	void play(HistoryItem *parent);
+	~HistoryGif();
 
 protected:
 
@@ -1624,6 +1624,7 @@ private:
 
 	DocumentData *_data;
 	int32 _thumbw, _thumbh;
+	ClipReader *_gif;
 
 	void setStatusSize(int32 newSize) const;
 	void updateStatusText(const HistoryItem *parent) const;
