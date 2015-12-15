@@ -1300,7 +1300,6 @@ InputField::InputField(QWidget *parent, const style::InputField &st, const QStri
 	resize(_st.width, _st.height);
 
 	_inner.setWordWrapMode(QTextOption::NoWrap);
-	_inner.setLineWrapMode(QTextEdit::NoWrap);
 
 	setAttribute(Qt::WA_OpaquePaintEvent);
 

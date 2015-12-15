@@ -83,6 +83,7 @@ enum {
 	LocalEncryptKeySize = 256, // 2048 bit
 
 	AnimationTimerDelta = 7,
+	ClipThreadsCount = 8,
 
 	SaveRecentEmojisTimeout = 3000, // 3 secs
 	SaveWindowPositionTimeout = 1000, // 1 sec
@@ -108,11 +109,13 @@ enum {
 	AudioVoiceMsgUpdateView = 100, // 100ms
 	AudioVoiceMsgChannels = 2, // stereo
 	AudioVoiceMsgBufferSize = 1024 * 1024, // 1 Mb buffers
-	AudioVoiceMsgInMemory = 1024 * 1024, // 1 Mb audio is hold in memory and auto loaded
+	AudioVoiceMsgInMemory = 2 * 1024 * 1024, // 2 Mb audio is hold in memory and auto loaded
 	AudioPauseDeviceTimeout = 3000, // pause in 3 secs after playing is over
 
-	StickerInMemory = 1024 * 1024, // 1024 Kb stickers hold in memory, auto loaded and displayed inline
+	StickerInMemory = 2 * 1024 * 1024, // 1 Mb stickers hold in memory, auto loaded and displayed inline
 	StickerMaxSize = 2048, // 2048x2048 is a max image size for sticker
+
+	AnimationInMemory = 2 * 1024 * 1024, // 2 Mb gif and mp4 animations held in memory while playing
 
 	MediaViewImageSizeLimit = 100 * 1024 * 1024, // show up to 100mb jpg/png/gif docs in app
 	MaxZoomLevel = 7, // x8

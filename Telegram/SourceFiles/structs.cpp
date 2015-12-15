@@ -719,6 +719,18 @@ void VideoData::save(const QString &toFile) {
 	loader->connect(loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(videoLoadProgress(mtpFileLoader*)));
 	loader->connect(loader, SIGNAL(failed(mtpFileLoader*, bool)), App::main(), SLOT(videoLoadFailed(mtpFileLoader*, bool)));
 	loader->start();
+
+	notifyLayoutChanged();
+}
+
+void VideoData::notifyLayoutChanged() const {
+	const VideoItems &items(App::videoItems());
+	VideoItems::const_iterator i = items.constFind(const_cast<VideoData*>(this));
+	if (i != items.cend()) {
+		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
+			Notify::historyItemLayoutChanged(j.key());
+		}
+	}
 }
 
 QString VideoData::already(bool check) {
@@ -874,17 +886,15 @@ void DocumentOpenLink::doOpen(DocumentData *data) {
 				if (App::main()) App::main()->documentPlayProgress(song);
 			}
 		} else if (data->size < MediaViewImageSizeLimit && location.accessEnable()) {
-			QImageReader reader(location.name());
-			if (reader.canRead()) {
-				if (reader.supportsAnimation() && reader.imageCount() > 1 && App::hoveredLinkItem()) {
-					startGif(App::hoveredLinkItem(), location);
-				} else if (App::hoveredLinkItem() || App::contextItem()) {
+			if (App::hoveredLinkItem() && App::hoveredLinkItem()->getMedia() && App::hoveredLinkItem()->getMedia()->type() == MediaTypeGif) {
+				static_cast<HistoryGif*>(App::hoveredLinkItem()->getMedia())->play(App::hoveredLinkItem());
+			} else {
+				QImageReader reader(location.name());
+				if (reader.canRead() && (App::hoveredLinkItem() || App::contextItem())) {
 					App::wnd()->showDocument(data, App::hoveredLinkItem() ? App::hoveredLinkItem() : App::contextItem());
 				} else {
 					psOpenFile(location.name());
 				}
-			} else {
-				psOpenFile(location.name());
 			}
 			location.accessDisable();
 		} else {

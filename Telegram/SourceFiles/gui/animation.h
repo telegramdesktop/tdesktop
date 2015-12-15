@@ -335,6 +335,8 @@ AnimationCallbacks *animation(Param param, Type *obj, typename AnimationCallback
 	return new AnimationCallbacksAbsoluteWithParam<Type, Param>(param, obj, method);
 }
 
+class ClipReader;
+
 class AnimationManager : public QObject {
 Q_OBJECT
 
@@ -403,6 +405,9 @@ public slots:
 		}
 	}
 
+	void clipReinit(ClipReader *reader);
+	void clipRedraw(ClipReader *reader);
+
 private:
 
 	typedef QMap<Animation*, NullType> AnimatingObjects;
@@ -468,5 +473,124 @@ private:
 	int32 framesCount, duration;
 
 	Animation _a_frames;
+
+};
+
+enum ClipState {
+	ClipReading,
+	ClipError,
+};
+
+struct ClipFrameRequest {
+	ClipFrameRequest() : factor(0), framew(0), frameh(0), outerw(0), outerh(0), rounded(false) {
+	}
+	bool valid() const {
+		return factor > 0;
+	}
+	int32 factor;
+	int32 framew, frameh;
+	int32 outerw, outerh;
+	bool rounded;
+};
+
+class ClipReaderPrivate;
+class ClipReader {
+public:
+
+	ClipReader(const FileLocation &location, const QByteArray &data);
+
+	void start(int32 framew, int32 frameh, int32 outerw, int32 outerh, bool rounded);
+	QPixmap current(int32 framew, int32 frameh, int32 outerw, int32 outerh);
+	bool currentDisplayed() const {
+		return _currentDisplayed.loadAcquire() > 0;
+	}
+
+	int32 width() const;
+	int32 height() const;
+
+	ClipState state() const;
+	bool started() const {
+		return _request.valid();
+	}
+	bool ready() const;
+
+	void stop();
+	void error();
+
+	~ClipReader();
+
+private:
+
+	ClipState _state;
+
+	ClipFrameRequest _request;
+
+	mutable int32 _width, _height;
+
+	QPixmap _current;
+	QImage _currentOriginal, _cacheForResize;
+	QAtomicInt _currentDisplayed;
+	int32 _threadIndex;
+
+	friend class ClipReadManager;
+
+	ClipReaderPrivate *_private;
+
+};
+
+enum ClipProcessResult {
+	ClipProcessError,
+	ClipProcessStarted,
+	ClipProcessReinit,
+	ClipProcessRedraw,
+	ClipProcessWait,
+};
+
+class ClipReadManager : public QObject {
+	Q_OBJECT
+
+public:
+
+	ClipReadManager(QThread *thread);
+	int32 loadLevel() const {
+		return _loadLevel.loadAcquire();
+	}
+	void append(ClipReader *reader, const FileLocation &location, const QByteArray &data);
+	void start(ClipReader *reader);
+	void update(ClipReader *reader);
+	void stop(ClipReader *reader);
+
+signals:
+
+	void processDelayed();
+
+	void reinit(ClipReader *reader);
+	void redraw(ClipReader *reader);
+
+public slots:
+
+	void process();
+
+private:
+
+	QAtomicInt _loadLevel;
+	typedef QMap<ClipReader*, ClipReaderPrivate*> ReaderPointers;
+	ReaderPointers _readerPointers;
+	QMutex _readerPointersMutex;
+
+	bool handleProcessResult(ClipReaderPrivate *reader, ClipProcessResult result);
+
+	enum ResultHandleState {
+		ResultHandleRemove,
+		ResultHandleStop,
+		ResultHandleContinue,
+	};
+	ResultHandleState handleResult(ClipReaderPrivate *reader, ClipProcessResult result, uint64 ms);
+
+	typedef QMap<ClipReaderPrivate*, uint64> Readers;
+	Readers _readers;
+
+	QTimer _timer;
+	QThread *_processingInThread;
 
 };
