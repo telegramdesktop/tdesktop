@@ -51,7 +51,7 @@ void UpdateDownloader::initOutput() {
 		fileName = m.captured(1).replace(QRegularExpression(qsl("[^a-zA-Z0-9_\\-]")), QString());
 	}
 	if (fileName.isEmpty()) {
-		fileName = qsl("tupdate-%1").arg(rand());
+		fileName = qsl("tupdate-%1").arg(MTP::nonce<uint32>() % 1000000);
 	}
 	QString dirStr = cWorkingDir() + qsl("tupdates/");
 	fileName = dirStr + fileName;

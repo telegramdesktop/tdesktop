@@ -30,6 +30,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "gui/filedialog.h"
 
 #include "boxes/addcontactbox.h"
+#include "boxes/confirmbox.h"
 
 #include "audio.h"
 #include "localstorage.h"
@@ -4557,6 +4558,13 @@ HistoryGif::HistoryGif(DocumentData *document) : HistoryFileMedia()
 void HistoryGif::initDimensions(const HistoryItem *parent) {
 	bool bubble = parent->hasBubble();
 	int32 tw = 0, th = 0;
+	if (_gif && _gif->state() == ClipError) {
+		Ui::showLayer(new InformBox(lang(lng_gif_error)));
+		App::unregGifItem(_gif);
+		delete _gif;
+		_gif = 0;
+	}
+
 	if (_gif && _gif->ready()) {
 		tw = convertScale(_gif->width());
 		th = convertScale(_gif->height());
@@ -4567,13 +4575,13 @@ void HistoryGif::initDimensions(const HistoryItem *parent) {
 			th = convertScale(_data->thumb->height());
 		}
 	}
-	if (tw > st::maxMediaSize) {
-		th = (st::maxMediaSize * th) / tw;
-		tw = st::maxMediaSize;
+	if (tw > st::maxGifSize) {
+		th = (st::maxGifSize * th) / tw;
+		tw = st::maxGifSize;
 	}
-	if (th > st::maxMediaSize) {
-		tw = (st::maxMediaSize * tw) / th;
-		th = st::maxMediaSize;
+	if (th > st::maxGifSize) {
+		tw = (st::maxGifSize * tw) / th;
+		th = st::maxGifSize;
 	}
 	if (!tw || !th) {
 		tw = th = 1;
@@ -4737,13 +4745,13 @@ int32 HistoryGif::resize(int32 width, const HistoryItem *parent) {
 			th = convertScale(_data->thumb->height());
 		}
 	}
-	if (tw > st::maxMediaSize) {
-		th = (st::maxMediaSize * th) / tw;
-		tw = st::maxMediaSize;
+	if (tw > st::maxGifSize) {
+		th = (st::maxGifSize * th) / tw;
+		tw = st::maxGifSize;
 	}
-	if (th > st::maxMediaSize) {
-		tw = (st::maxMediaSize * tw) / th;
-		th = st::maxMediaSize;
+	if (th > st::maxGifSize) {
+		tw = (st::maxGifSize * tw) / th;
+		th = st::maxGifSize;
 	}
 	if (!tw || !th) {
 		tw = th = 1;
@@ -4809,13 +4817,13 @@ int32 HistoryGif::countHeight(const HistoryItem *parent, int32 width) const {
 			th = convertScale(_data->thumb->height());
 		}
 	}
-	if (tw > st::maxMediaSize) {
-		th = (st::maxMediaSize * th) / tw;
-		tw = st::maxMediaSize;
+	if (tw > st::maxGifSize) {
+		th = (st::maxGifSize * th) / tw;
+		tw = st::maxGifSize;
 	}
-	if (th > st::maxMediaSize) {
-		tw = (st::maxMediaSize * tw) / th;
-		th = st::maxMediaSize;
+	if (th > st::maxGifSize) {
+		tw = (st::maxGifSize * tw) / th;
+		th = st::maxGifSize;
 	}
 	if (!tw || !th) {
 		tw = th = 1;

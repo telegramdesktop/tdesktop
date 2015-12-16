@@ -79,7 +79,11 @@ namespace Ui {
 	}
 
 	void showLayer(LayeredWidget *box, ShowLayerOptions options) {
-		if (Window *w = App::wnd()) w->ui_showLayer(box, options);
+		if (Window *w = App::wnd()) {
+			w->ui_showLayer(box, options);
+		} else {
+			delete box;
+		}
 	}
 
 	void hideLayer(bool fast) {

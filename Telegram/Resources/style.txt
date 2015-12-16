@@ -2191,6 +2191,7 @@ mediaviewLoaderSkip: 9px;
 minPhotoSize: 104px;
 maxMediaSize: 420px;
 maxStickerSize: 256px;
+maxGifSize: 256px;
 
 downloadPathSkip: 10px;
 

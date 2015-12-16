@@ -108,6 +108,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_server_error" = "Internal server error.";
 "lng_flood_error" = "Too many tries. Please try again later.";
+"lng_gif_error" = "An error has occured while reading GIF animation :(";
 "lng_deleted" = "Unknown";
 "lng_deleted_message" = "Deleted message";
 

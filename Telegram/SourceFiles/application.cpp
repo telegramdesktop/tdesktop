@@ -550,7 +550,7 @@ void Application::startUpdateCheck(bool forceWait) {
 	if (updateRequestId || updateThread || updateReply || !cAutoUpdate()) return;
 	
 	int32 constDelay = cBetaVersion() ? 600 : UpdateDelayConstPart, randDelay = cBetaVersion() ? 300 : UpdateDelayRandPart;
-	int32 updateInSecs = cLastUpdateCheck() + constDelay + (rand() % randDelay) - unixtime();
+	int32 updateInSecs = cLastUpdateCheck() + constDelay + int32(MTP::nonce<uint32>() % randDelay) - unixtime();
 	bool sendRequest = (updateInSecs <= 0 || updateInSecs > (constDelay + randDelay));
 	if (!sendRequest && !forceWait) {
 		QDir updates(cWorkingDir() + "tupdates");

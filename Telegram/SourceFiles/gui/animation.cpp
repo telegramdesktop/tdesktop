@@ -122,10 +122,12 @@ void AnimationManager::clipReinit(ClipReader *reader) {
 	const GifItems &items(App::gifItems());
 	GifItems::const_iterator it = items.constFind(reader);
 	if (it != items.cend()) {
-		it.value()->initDimensions();
-		if (App::main()) emit App::main()->itemResized(it.value(), true);
+		HistoryItem *item = it.value();
 
-		Notify::historyItemLayoutChanged(it.value());
+		item->initDimensions(); // can delete reader and items entry it
+		if (App::main()) emit App::main()->itemResized(item, true);
+
+		Notify::historyItemLayoutChanged(item);
 	}
 }
 
@@ -339,7 +341,7 @@ ClipReader::ClipReader(const FileLocation &location, const QByteArray &data) : _
 		_clipManagers.push_back(new ClipReadManager(_clipThreads.back()));
 		_clipThreads.back()->start();
 	} else {
-		_threadIndex = rand() % _clipThreads.size();
+		_threadIndex = int32(MTP::nonce<uint32>() % _clipThreads.size());
 		int32 loadLevel = 0x7FFFFFFF;
 		for (int32 i = 0, l = _clipThreads.size(); i < l; ++i) {
 			int32 level = _clipManagers.at(i)->loadLevel();
@@ -690,6 +692,8 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 	if (result == ClipProcessError) {
 		if (it != _readerPointers.cend()) {
 			it.key()->error();
+			emit reinit(it.key());
+
 			_readerPointers.erase(it);
 			it = _readerPointers.end();
 		}
