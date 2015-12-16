@@ -84,6 +84,7 @@ enum {
 
 	AnimationTimerDelta = 7,
 	ClipThreadsCount = 8,
+	AverageGifSize = 320 * 240,
 
 	SaveRecentEmojisTimeout = 3000, // 3 secs
 	SaveWindowPositionTimeout = 1000, // 1 sec

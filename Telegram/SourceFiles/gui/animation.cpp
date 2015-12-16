@@ -124,6 +124,8 @@ void AnimationManager::clipReinit(ClipReader *reader) {
 	if (it != items.cend()) {
 		it.value()->initDimensions();
 		if (App::main()) emit App::main()->itemResized(it.value(), true);
+
+		Notify::historyItemLayoutChanged(it.value());
 	}
 }
 
@@ -359,8 +361,9 @@ void ClipReader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, b
 	_clipManagers.at(_threadIndex)->start(this);
 }
 
-QPixmap ClipReader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh) {
+QPixmap ClipReader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, uint64 ms) {
 	_currentDisplayed.storeRelease(1);
+	_lastDisplayMs = ms;
 
 	int32 factor(cIntRetinaFactor());
 	QPixmap result(_current);
@@ -491,7 +494,8 @@ public:
 	}
 
 	uint64 nextFrameDelay() {
-		return qMax(_reader->nextImageDelay(), 5);
+		int delay = _reader->nextImageDelay();
+		return qMax(delay, 5);
 	}
 
 	void swapBuffers(uint64 ms = 0) {
@@ -636,6 +640,7 @@ ClipReadManager::ClipReadManager(QThread *thread) : _processingInThread(0) {
 
 void ClipReadManager::append(ClipReader *reader, const FileLocation &location, const QByteArray &data) {
 	reader->_private = new ClipReaderPrivate(reader, location, data);
+	_loadLevel.fetchAndAddRelease(AverageGifSize);
 	update(reader);
 }
 
@@ -669,6 +674,9 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 		return false;
 	}
 
+	if (result == ClipProcessStarted) {
+		_loadLevel.fetchAndAddRelease(reader->_currentOriginal.width() * reader->_currentOriginal.height() - AverageGifSize);
+	}
 	if (result == ClipProcessReinit || result == ClipProcessRedraw || result == ClipProcessStarted) {
 		it.key()->_current = reader->_current;
 		it.key()->_currentOriginal = reader->_currentOriginal;
@@ -684,6 +692,7 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 
 ClipReadManager::ResultHandleState ClipReadManager::handleResult(ClipReaderPrivate *reader, ClipProcessResult result, uint64 ms) {
 	if (!handleProcessResult(reader, result)) {
+		_loadLevel.fetchAndAddRelease(-1 * (reader->_currentOriginal.isNull() ? AverageGifSize : reader->_currentOriginal.width() * reader->_currentOriginal.height()));
 		delete reader;
 		return ResultHandleRemove;
 	}

@@ -24,11 +24,6 @@ void historyInit();
 
 class HistoryItem;
 
-void startGif(HistoryItem *row, const FileLocation &file);
-void itemRemovedGif(HistoryItem *item);
-void itemReplacedGif(HistoryItem *oldItem, HistoryItem *newItem);
-void stopGif();
-
 static const uint32 FullItemSel = 0xFFFFFFFF;
 
 typedef QMap<int32, HistoryItem*> SelectedItemSet;
@@ -1606,6 +1601,8 @@ public:
 	}
 
 	void play(HistoryItem *parent);
+	void stop(HistoryItem *parent);
+
 	~HistoryGif();
 
 protected:

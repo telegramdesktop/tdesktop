@@ -2428,6 +2428,7 @@ namespace App {
 	}
 
 	void regGifItem(ClipReader *reader, HistoryItem *item) {
+		stopGifItems();
 		::gifItems.insert(reader, item);
 	}
 
@@ -2437,6 +2438,16 @@ namespace App {
 
 	const GifItems &gifItems() {
 		return ::gifItems;
+	}
+
+	void stopGifItems() {
+		while (!::gifItems.isEmpty()) {
+			if (HistoryItem *playing = ::gifItems.begin().value()) {
+				if (playing->getMedia() && playing->getMedia()->type() == MediaTypeGif) {
+					static_cast<HistoryGif*>(playing->getMedia())->stop(playing);
+				}
+			}
+		}
 	}
 
 	QString phoneFromSharedContact(int32 userId) {

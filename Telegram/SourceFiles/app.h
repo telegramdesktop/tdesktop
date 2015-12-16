@@ -254,6 +254,7 @@ namespace App {
 	void regGifItem(ClipReader *reader, HistoryItem *item);
 	void unregGifItem(ClipReader *reader);
 	const GifItems &gifItems();
+	void stopGifItems();
 
 	void regMuted(PeerData *peer, int32 changeIn);
 	void unregMuted(PeerData *peer);

@@ -500,7 +500,7 @@ public:
 	ClipReader(const FileLocation &location, const QByteArray &data);
 
 	void start(int32 framew, int32 frameh, int32 outerw, int32 outerh, bool rounded);
-	QPixmap current(int32 framew, int32 frameh, int32 outerw, int32 outerh);
+	QPixmap current(int32 framew, int32 frameh, int32 outerw, int32 outerh, uint64 ms);
 	bool currentDisplayed() const {
 		return _currentDisplayed.loadAcquire() > 0;
 	}
@@ -530,6 +530,7 @@ private:
 	QPixmap _current;
 	QImage _currentOriginal, _cacheForResize;
 	QAtomicInt _currentDisplayed;
+	uint64 _lastDisplayMs;
 	int32 _threadIndex;
 
 	friend class ClipReadManager;

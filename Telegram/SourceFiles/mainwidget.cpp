@@ -1454,7 +1454,6 @@ void MainWidget::itemRemoved(HistoryItem *item) {
 	if (overview && (overview->peer() == item->history()->peer || (overview->peer() && overview->peer() == item->history()->peer->migrateTo()))) {
 		overview->itemRemoved(item);
 	}
-	itemRemovedGif(item);
 	if (!_toForward.isEmpty()) {
 		SelectedItemSet::iterator i = _toForward.find(item->id);
 		if (i != _toForward.cend() && i.value() == item) {
@@ -1476,7 +1475,6 @@ void MainWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
 	if (history.peer() == newItem->history()->peer || (history.peer() && history.peer() == newItem->history()->peer->migrateTo())) {
 		history.itemReplaced(oldItem, newItem);
 	}
-	itemReplacedGif(oldItem, newItem);
 	if (!_toForward.isEmpty()) {
 		SelectedItemSet::iterator i = _toForward.find(oldItem->id);
 		if (i != _toForward.cend() && i.value() == oldItem) {

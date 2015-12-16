@@ -152,30 +152,6 @@ void historyInit() {
 	_initTextOptions();
 }
 
-void startGif(HistoryItem *row, const FileLocation &file) {
-	if (row == animated.msg) {
-		stopGif();
-	} else {
-		animated.start(row, file);
-	}
-}
-
-void itemReplacedGif(HistoryItem *oldItem, HistoryItem *newItem) {
-	if (oldItem == animated.msg) {
-		animated.msg = newItem;
-	}
-}
-
-void itemRemovedGif(HistoryItem *item) {
-	if (item == animated.msg) {
-		animated.stop(true);
-	}
-}
-
-void stopGif() {
-	animated.stop();
-}
-
 void DialogRow::paint(Painter &p, int32 w, bool act, bool sel, bool onlyBackground) const {
 	QRect fullRect(0, 0, w, st::dlgHeight);
 	p.fillRect(fullRect, (act ? st::dlgActiveBG : (sel ? st::dlgHoverBG : st::dlgBG))->b);
@@ -4571,7 +4547,7 @@ HistoryGif::HistoryGif(DocumentData *document) : HistoryFileMedia()
 , _thumbw(1)
 , _thumbh(1)
 , _gif(0) {
-	setLinks(new DocumentOpenLink(_data), new DocumentSaveLink(_data), new DocumentCancelLink(_data));
+	setLinks(new DocumentOpenLink(_data), new DocumentOpenLink(_data), new DocumentCancelLink(_data));
 
 	setStatusSize(FileStatusSizeReady);
 
@@ -4651,7 +4627,7 @@ void HistoryGif::draw(Painter &p, const HistoryItem *parent, const QRect &r, boo
 	QRect rthumb(rtlrect(skipx, skipy, width, height, w));
 
 	if (animating) {
-		p.drawPixmap(rthumb.topLeft(), _gif->current(_thumbw, _thumbh, width, height));
+		p.drawPixmap(rthumb.topLeft(), _gif->current(_thumbw, _thumbh, width, height, ms));
 	} else {
 		p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(_thumbw, _thumbh, width, height));
 	}
@@ -4876,9 +4852,9 @@ void HistoryGif::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, 
 	}
 	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height) {
 		if (_gif && _gif->started()) {
-			lnk = _openl;
+			lnk = _savel;
 		} else {
-			lnk = _data->already().isEmpty() ? (_data->loader ? _cancell : _savel) : _openl;
+			lnk = _data->already().isEmpty() ? (_data->loader ? _cancell : _savel) : _savel;
 		}
 
 		int32 fullRight = skipx + width, fullBottom = skipy + height;
@@ -4900,13 +4876,21 @@ ImagePtr HistoryGif::replyPreview() {
 
 void HistoryGif::play(HistoryItem *parent) {
 	if (_gif) {
-		App::unregGifItem(_gif);
-		delete _gif;
-		_gif = 0;
+		stop(parent);
 	} else {
 		_gif = new ClipReader(_data->location(), _data->data);
 		App::regGifItem(_gif, parent);
 	}
+}
+
+void HistoryGif::stop(HistoryItem *parent) {
+	App::unregGifItem(_gif);
+	delete _gif;
+	_gif = 0;
+
+	parent->initDimensions();
+	if (App::main()) emit App::main()->itemResized(parent);
+	Notify::historyItemLayoutChanged(parent);
 }
 
 HistoryGif::~HistoryGif() {
@@ -6666,7 +6650,7 @@ void HistoryMessage::initMediaFromText(QString &currentText)  {
 void HistoryMessage::initMediaFromDocument(DocumentData *doc) {
 	if (doc->sticker()) {
 		_media = new HistorySticker(doc);
-	} else if (doc->type == AnimatedDocument) {
+	} else if (doc->type == AnimatedDocument || doc->mime.toLower() == qstr("image/gif")) {
 		_media = new HistoryGif(doc);
 	} else {
 		_media = new HistoryDocument(doc);
