@@ -3225,7 +3225,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		}
 	}
 
-	App::stopGifItems();
+//	App::stopGifItems();
 	clearReplyReturns();
 
 	clearAllLoadRequests();

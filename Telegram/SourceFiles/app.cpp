@@ -1328,6 +1328,7 @@ namespace App {
 			return page;
 		} break;
 		case mtpc_webPagePending: return App::feedWebPage(webpage.c_webPagePending());
+		case mtpc_webPageExternal: LOG(("API Error: should not get webPageExternal in App::feedWebPage")); break;
 		}
 		return 0;
 	}
@@ -2444,7 +2445,7 @@ namespace App {
 		if (!::gifItems.isEmpty()) {
 			if (HistoryItem *playing = ::gifItems.begin().value()) {
 				if (playing->getMedia() && playing->getMedia()->type() == MediaTypeGif) {
-//					static_cast<HistoryGif*>(playing->getMedia())->stop(playing);
+					static_cast<HistoryGif*>(playing->getMedia())->stop(playing);
 				}
 			}
 		}

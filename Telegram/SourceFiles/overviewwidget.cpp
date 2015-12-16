@@ -2906,7 +2906,7 @@ int32 OverviewWidget::countBestScroll() const {
 }
 
 void OverviewWidget::fastShow(bool back, int32 lastScrollTop) {
-	App::stopGifItems();
+//	App::stopGifItems();
 	resizeEvent(0);
 	_scrollSetAfterShow = (lastScrollTop < 0 ? countBestScroll() : lastScrollTop);
 	show();
@@ -2919,7 +2919,7 @@ void OverviewWidget::fastShow(bool back, int32 lastScrollTop) {
 void OverviewWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back, int32 lastScrollTop) {
 	if (App::app()) App::app()->mtpPause();
 
-	App::stopGifItems();
+//	App::stopGifItems();
 
 	(back ? _cacheOver : _cacheUnder) = bgAnimCache;
 	(back ? _cacheTopBarOver : _cacheTopBarUnder) = bgAnimTopBarCache;
