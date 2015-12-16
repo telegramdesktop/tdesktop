@@ -560,6 +560,7 @@ public:
 	void start(ClipReader *reader);
 	void update(ClipReader *reader);
 	void stop(ClipReader *reader);
+	~ClipReadManager();
 
 signals:
 

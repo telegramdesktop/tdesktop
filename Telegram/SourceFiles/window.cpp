@@ -83,8 +83,8 @@ NotifyWindow::NotifyWindow(HistoryItem *msg, int32 x, int32 y, int32 fwdCount) :
 , hiding(false)
 , _index(0)
 , a_opacity(0)
-, a_y(y + st::notifyHeight + st::notifyDeltaY)
 , a_func(anim::linear)
+, a_y(y + st::notifyHeight + st::notifyDeltaY)
 , _a_appearance(animation(this, &NotifyWindow::step_appearance)) {
 
 	updateNotifyDisplay();

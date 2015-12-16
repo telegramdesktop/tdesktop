@@ -45,7 +45,7 @@ public:
 	typedef QHash<PeerId, History*> Map;
 	Map map;
 
-	Histories() : unreadFull(0), unreadMuted(0), _a_typings(animation(this, &Histories::step_typings)) {
+	Histories() : _a_typings(animation(this, &Histories::step_typings)), unreadFull(0), unreadMuted(0) {
 	}
 
 	void regSendAction(History *history, UserData *user, const MTPSendMessageAction &action);

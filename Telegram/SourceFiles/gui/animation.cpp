@@ -315,7 +315,7 @@ QPixmap _prepareFrame(const ClipFrameRequest &request, const QImage &original, Q
 			if (fill) p.fillRect(0, 0, cache.width() / factor, cache.height() / factor, st::black);
 			if (smooth && badSize) p.setRenderHint(QPainter::SmoothPixmapTransform);
 			QRect to((request.outerw - request.framew) / (2 * factor), (request.outerh - request.frameh) / (2 * factor), request.framew / factor, request.frameh / factor);
-			QRect from(0, 0, original.width() / factor, original.height() / factor);
+			QRect from(0, 0, original.width(), original.height());
 			p.drawImage(to, original, from, Qt::ColorOnly);
 		}
 		if (request.rounded) {
@@ -351,6 +351,9 @@ ClipReader::ClipReader(const FileLocation &location, const QByteArray &data) : _
 }
 
 void ClipReader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, bool rounded) {
+	if (_clipManagers.size() <= _threadIndex) error();
+	if (_state == ClipError) return;
+
 	int32 factor(cIntRetinaFactor());
 	_request.factor = factor;
 	_request.framew = framew * factor;
@@ -380,7 +383,10 @@ QPixmap ClipReader::current(int32 framew, int32 frameh, int32 outerw, int32 oute
 	result = _current = QPixmap();
 	result = _current = _prepareFrame(_request, current, _cacheForResize, true);
 
-	_clipManagers.at(_threadIndex)->update(this);
+	if (_clipManagers.size() <= _threadIndex) error();
+	if (_state != ClipError) {
+		_clipManagers.at(_threadIndex)->update(this);
+	}
 
 	return result;
 }
@@ -409,8 +415,11 @@ ClipState ClipReader::state() const {
 }
 
 void ClipReader::stop() {
-	_clipManagers.at(_threadIndex)->stop(this);
-	_width = _height = 0;
+	if (_clipManagers.size() <= _threadIndex) error();
+	if (_state != ClipError) {
+		_clipManagers.at(_threadIndex)->stop(this);
+		_width = _height = 0;
+	}
 }
 
 void ClipReader::error() {
@@ -760,4 +769,21 @@ void ClipReadManager::process() {
 	}
 
 	_processingInThread = 0;
+}
+
+ClipReadManager::~ClipReadManager() {
+	{
+		QMutexLocker lock(&_readerPointersMutex);
+		for (ReaderPointers::iterator i = _readerPointers.begin(), e = _readerPointers.end(); i != e; ++i) {
+			if (i.value()) {
+				i.key()->_private = 0;
+			}
+		}
+		_readerPointers.clear();
+
+		for (Readers::iterator i = _readers.begin(), e = _readers.end(); i != e; ++i) {
+			delete i.key();
+		}
+		_readers.clear();
+	}
 }
