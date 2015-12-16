@@ -330,6 +330,8 @@ ClipReader::ClipReader(const FileLocation &location, const QByteArray &data) : _
 , _width(0)
 , _height(0)
 , _currentDisplayed(1)
+, _paused(0)
+, _lastDisplayMs(getms())
 , _private(0) {
 	if (_clipThreads.size() < ClipThreadsCount) {
 		_threadIndex = _clipThreads.size();
@@ -365,8 +367,15 @@ void ClipReader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, b
 }
 
 QPixmap ClipReader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, uint64 ms) {
-	_currentDisplayed.storeRelease(1);
-	_lastDisplayMs = ms;
+	_lastDisplayMs.set(ms);
+	_currentDisplayed.set(true);
+	if (_paused.get()) {
+		_paused.set(false);
+		if (_clipManagers.size() <= _threadIndex) error();
+		if (_state != ClipError) {
+			_clipManagers.at(_threadIndex)->update(this);
+		}
+	}
 
 	int32 factor(cIntRetinaFactor());
 	QPixmap result(_current);
@@ -441,8 +450,10 @@ public:
 	, _accessed(false)
 	, _buffer(_data.isEmpty() ? 0 : &_data)
 	, _reader(0)
+	, _previousMs(0)
 	, _currentMs(0)
-	, _nextUpdateMs(0) {
+	, _nextUpdateMs(0)
+	, _paused(false) {
 
 		if (_data.isEmpty() && !_location->accessEnable()) {
 			error();
@@ -476,6 +487,7 @@ public:
 		if (_current.isNull()) { // first frame read, but not yet prepared
 			_currentOriginal.setDevicePixelRatio(_request.factor);
 
+			_previousMs = _currentMs;
 			_currentMs = ms;
 			_current = _prepareFrame(_request, _currentOriginal, _currentCache, true);
 
@@ -483,7 +495,7 @@ public:
 				return error();
 			}
 			return ClipProcessStarted;
-		} else if (ms >= _nextUpdateMs) {
+		} else if (!_paused && ms >= _nextUpdateMs) {
 			swapBuffers();
 			return ClipProcessRedraw;
 		}
@@ -508,6 +520,7 @@ public:
 	}
 
 	void swapBuffers(uint64 ms = 0) {
+		_previousMs = _currentMs;
 		_currentMs = qMax(ms, _nextUpdateMs);
 		qSwap(_currentOriginal, _nextOriginal);
 		qSwap(_current, _next);
@@ -628,13 +641,15 @@ private:
 	QImage _currentOriginal, _nextOriginal, _currentCache, _nextCache;
 
 	int32 _framesLeft;
-	uint64 _currentMs, _nextUpdateMs;
+	uint64 _previousMs, _currentMs, _nextUpdateMs;
+
+	bool _paused;
 
 	friend class ClipReadManager;
 
 };
 
-ClipReadManager::ClipReadManager(QThread *thread) : _processingInThread(0) {
+ClipReadManager::ClipReadManager(QThread *thread) : _processingInThread(0), _needReProcess(false) {
 	moveToThread(thread);
 	connect(thread, SIGNAL(started()), this, SLOT(process()));
 	connect(this, SIGNAL(processDelayed()), this, SLOT(process()), Qt::QueuedConnection);
@@ -669,7 +684,7 @@ void ClipReadManager::stop(ClipReader *reader) {
 	emit processDelayed();
 }
 
-bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcessResult result) {
+bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcessResult result, uint64 ms) {
 	QMutexLocker lock(&_readerPointersMutex);
 	ReaderPointers::iterator it = _readerPointers.find(reader->_interface);
 	if (result == ClipProcessError) {
@@ -686,10 +701,20 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 	if (result == ClipProcessStarted) {
 		_loadLevel.fetchAndAddRelease(reader->_currentOriginal.width() * reader->_currentOriginal.height() - AverageGifSize);
 	}
+	if (!reader->_paused && (result == ClipProcessRedraw || result == ClipProcessWait)) {
+		if (it.key()->_lastDisplayMs.get() + WaitBeforeGifPause < qMax(reader->_previousMs, ms)) {
+			reader->_paused = true;
+			it.key()->_paused.set(true);
+			if (it.key()->_lastDisplayMs.get() + WaitBeforeGifPause >= qMax(reader->_previousMs, ms)) {
+				it.key()->_paused.set(false);
+				reader->_paused = false;
+			}
+		}
+	}
 	if (result == ClipProcessReinit || result == ClipProcessRedraw || result == ClipProcessStarted) {
 		it.key()->_current = reader->_current;
 		it.key()->_currentOriginal = reader->_currentOriginal;
-		it.key()->_currentDisplayed.storeRelease(0);
+		it.key()->_currentDisplayed.set(false);
 		if (result == ClipProcessReinit) {
 			emit reinit(it.key());
 		} else if (result == ClipProcessRedraw) {
@@ -700,7 +725,7 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 }
 
 ClipReadManager::ResultHandleState ClipReadManager::handleResult(ClipReaderPrivate *reader, ClipProcessResult result, uint64 ms) {
-	if (!handleProcessResult(reader, result)) {
+	if (!handleProcessResult(reader, result, ms)) {
 		_loadLevel.fetchAndAddRelease(-1 * (reader->_currentOriginal.isNull() ? AverageGifSize : reader->_currentOriginal.width() * reader->_currentOriginal.height()));
 		delete reader;
 		return ResultHandleRemove;
@@ -719,7 +744,10 @@ ClipReadManager::ResultHandleState ClipReadManager::handleResult(ClipReaderPriva
 }
 
 void ClipReadManager::process() {
-	if (_processingInThread) return;
+	if (_processingInThread) {
+		_needReProcess = true;
+		return;
+	}
 
 	_timer.stop();
 	_processingInThread = thread();
@@ -734,6 +762,9 @@ void ClipReadManager::process() {
 					_readers.insert(i.value(), 0);
 				} else {
 					it.value() = ms;
+					if (it.key()->_paused && !i.key()->_paused.get()) {
+						it.key()->_paused = false;
+					}
 				}
 				i.value()->_request = i.key()->_request;
 				i.value() = 0;
@@ -754,15 +785,17 @@ void ClipReadManager::process() {
 				return;
 			}
 			i.value() = i.key()->_nextUpdateMs;
+			ms = getms();
 		}
-		if (i.value() < minms) {
+		if (!i.key()->_paused && i.value() < minms) {
 			minms = i.value();
 		}
 		++i;
 	}
 
 	ms = getms();
-	if (minms <= ms) {
+	if (_needReProcess || minms <= ms) {
+		_needReProcess = false;
 		_timer.start(1);
 	} else {
 		_timer.start(minms - ms);

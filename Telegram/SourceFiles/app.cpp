@@ -2441,7 +2441,7 @@ namespace App {
 	}
 
 	void stopGifItems() {
-		while (!::gifItems.isEmpty()) {
+		if (!::gifItems.isEmpty()) {
 			if (HistoryItem *playing = ::gifItems.begin().value()) {
 				if (playing->getMedia() && playing->getMedia()->type() == MediaTypeGif) {
 					static_cast<HistoryGif*>(playing->getMedia())->stop(playing);

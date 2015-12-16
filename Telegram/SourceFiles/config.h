@@ -83,8 +83,9 @@ enum {
 	LocalEncryptKeySize = 256, // 2048 bit
 
 	AnimationTimerDelta = 7,
-	ClipThreadsCount = 8,
+	ClipThreadsCount = 4,
 	AverageGifSize = 320 * 240,
+	WaitBeforeGifPause = 200, // wait 200ms for gif draw before pausing it
 
 	SaveRecentEmojisTimeout = 3000, // 3 secs
 	SaveWindowPositionTimeout = 1000, // 1 sec

@@ -493,6 +493,28 @@ struct ClipFrameRequest {
 	bool rounded;
 };
 
+template <typename Type>
+class Atomic {
+public:
+
+	Atomic(const Type &value = Type()) : _v(1, value) {
+	}
+
+	Type get() const {
+		QVector<Type> v(_v);
+		return v.at(0);
+	}
+
+	void set(const Type &value) {
+		QVector<Type> v(1, value);
+		_v = v;
+	}
+
+private:
+	QVector<Type> _v;
+
+};
+
 class ClipReaderPrivate;
 class ClipReader {
 public:
@@ -502,7 +524,7 @@ public:
 	void start(int32 framew, int32 frameh, int32 outerw, int32 outerh, bool rounded);
 	QPixmap current(int32 framew, int32 frameh, int32 outerw, int32 outerh, uint64 ms);
 	bool currentDisplayed() const {
-		return _currentDisplayed.loadAcquire() > 0;
+		return _currentDisplayed.get();
 	}
 
 	int32 width() const;
@@ -529,8 +551,8 @@ private:
 
 	QPixmap _current;
 	QImage _currentOriginal, _cacheForResize;
-	QAtomicInt _currentDisplayed;
-	uint64 _lastDisplayMs;
+	Atomic<bool> _currentDisplayed, _paused;
+	Atomic<uint64> _lastDisplayMs;
 	int32 _threadIndex;
 
 	friend class ClipReadManager;
@@ -580,7 +602,7 @@ private:
 	ReaderPointers _readerPointers;
 	QMutex _readerPointersMutex;
 
-	bool handleProcessResult(ClipReaderPrivate *reader, ClipProcessResult result);
+	bool handleProcessResult(ClipReaderPrivate *reader, ClipProcessResult result, uint64 ms);
 
 	enum ResultHandleState {
 		ResultHandleRemove,
@@ -594,5 +616,6 @@ private:
 
 	QTimer _timer;
 	QThread *_processingInThread;
+	bool _needReProcess;
 
 };
