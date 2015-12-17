@@ -403,27 +403,35 @@ QPixmap Image::pixNoCache(int32 w, int32 h, bool smooth, bool blurred, bool roun
 	const QPixmap &p(pixData());
 	if (p.isNull()) return blank()->pix();
 
+	bool n = isNull();
 	QImage img = p.toImage();
-	if (blurred) img = imageBlur(img);
-	if (w <= 0 || !width() || !height() || (w == width() && (h <= 0 || h == height()))) {
-	} else if (h <= 0) {
-		img = img.scaledToWidth(w, smooth ? Qt::SmoothTransformation : Qt::FastTransformation);
-	} else {
-		img = img.scaled(w, h, Qt::IgnoreAspectRatio, smooth ? Qt::SmoothTransformation : Qt::FastTransformation);
+	if (!n || !(outerw > 0 && outerh > 0)) {
+		if (blurred) img = imageBlur(img);
+		if (w <= 0 || !width() || !height() || (w == width() && (h <= 0 || h == height()))) {
+		} else if (h <= 0) {
+			img = img.scaledToWidth(w, smooth ? Qt::SmoothTransformation : Qt::FastTransformation);
+		} else {
+			img = img.scaled(w, h, Qt::IgnoreAspectRatio, smooth ? Qt::SmoothTransformation : Qt::FastTransformation);
+		}
 	}
 	if (outerw > 0 && outerh > 0) {
 		outerw *= cIntRetinaFactor();
 		outerh *= cIntRetinaFactor();
-		if (outerw != w || outerh != h) {
+		if (outerw != w || outerh != h || n) {
 			img.setDevicePixelRatio(cRetinaFactor());
 			QImage result(outerw, outerh, QImage::Format_ARGB32_Premultiplied);
 			result.setDevicePixelRatio(cRetinaFactor());
-			{
+			if (n) {
 				QPainter p(&result);
-				if (w < outerw || h < outerh) {
+				p.fillRect(0, 0, result.width(), result.height(), st::black->b);
+			} else {
+				QPainter p(&result);
+				if (w < outerw || h < outerh || n) {
 					p.fillRect(0, 0, result.width(), result.height(), st::black->b);
 				}
-				p.drawImage((result.width() - img.width()) / (2 * cIntRetinaFactor()), (result.height() - img.height()) / (2 * cIntRetinaFactor()), img);
+				if (!n) {
+					p.drawImage((result.width() - img.width()) / (2 * cIntRetinaFactor()), (result.height() - img.height()) / (2 * cIntRetinaFactor()), img);
+				}
 			}
 			img = result;
 		}

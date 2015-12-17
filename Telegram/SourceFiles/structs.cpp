@@ -1008,7 +1008,7 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			const MTPDdocumentAttributeImageSize &d(attributes[i].c_documentAttributeImageSize());
 			dimensions = QSize(d.vw.v, d.vh.v);
 		} break;
-		case mtpc_documentAttributeAnimated: if (type == FileDocument || type == StickerDocument) {
+		case mtpc_documentAttributeAnimated: if (type == FileDocument || type == StickerDocument || type == VideoDocument) {
 			type = AnimatedDocument;
 			delete _additional;
 			_additional = 0;
@@ -1025,7 +1025,9 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 		} break;
 		case mtpc_documentAttributeVideo: {
 			const MTPDdocumentAttributeVideo &d(attributes[i].c_documentAttributeVideo());
-			type = VideoDocument;
+			if (type == FileDocument) {
+				type = VideoDocument;
+			}
 //			duration = d.vduration.v;
 			dimensions = QSize(d.vw.v, d.vh.v);
 		} break;

@@ -87,6 +87,8 @@ enum {
 	AverageGifSize = 320 * 240,
 	WaitBeforeGifPause = 200, // wait 200ms for gif draw before pausing it
 
+	AVBlockSize = 4096, // 4Kb for ffmpeg blocksize
+
 	SaveRecentEmojisTimeout = 3000, // 3 secs
 	SaveWindowPositionTimeout = 1000, // 1 sec
 

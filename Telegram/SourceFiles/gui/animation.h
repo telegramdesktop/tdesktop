@@ -230,6 +230,9 @@ public:
 	}
 
 private:
+	Animation(const Animation &);
+	Animation &operator=(const Animation &);
+
 	AnimationCallbacks *_cb;
 	bool _animating;
 

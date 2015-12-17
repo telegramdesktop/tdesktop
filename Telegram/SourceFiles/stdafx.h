@@ -51,6 +51,16 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #define _NEED_LINUX_GENERATE_DUMP
 #endif
 
+extern "C" {
+
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/opt.h>
+#include <libswresample/swresample.h>
+#include <libswscale/swscale.h>
+
+}
+
 #include "types.h"
 #include "config.h"
 

@@ -27,15 +27,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #define AL_ALEXT_PROTOTYPES
 #include <AL/alext.h>
 
-extern "C" {
-
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/opt.h>
-#include <libswresample/swresample.h>
-
-}
-
 #ifdef Q_OS_MAC
 
 extern "C" {
@@ -106,15 +97,16 @@ bool _checkALError() {
 Q_DECLARE_METATYPE(AudioMsgId);
 Q_DECLARE_METATYPE(SongMsgId);
 void audioInit() {
-	av_register_all();
-	avcodec_register_all();
+	if (!audioDevice) {
+		av_register_all();
+		avcodec_register_all();
+	}
 
 	if (!capture) {
 		capture = new AudioCapture();
 		cSetHasAudioCapture(capture->check());
 	}
 
-	uint64 ms = getms();
 	if (audioDevice) return;
 
 	audioDevice = alcOpenDevice(0);
@@ -223,7 +215,6 @@ void audioInit() {
 	player = new AudioPlayer();
 	alcDevicePauseSOFT(audioDevice);
 
-	LOG(("Audio init time: %1").arg(getms() - ms));
 	cSetHasAudioPlayer(true);
 }
 
@@ -1126,7 +1117,6 @@ protected:
 
 };
 
-static const uint32 AVBlockSize = 4096; // 4Kb
 static const AVSampleFormat _toFormat = AV_SAMPLE_FMT_S16;
 static const int64_t _toChannelLayout = AV_CH_LAYOUT_STEREO;
 static const int32 _toChannels = 2;
@@ -1189,14 +1179,14 @@ public:
 			return false;
 		}
 
-		freq = fmtContext->streams[streamId]->codec->sample_rate;
+		freq = codecContext->sample_rate;
 		if (fmtContext->streams[streamId]->duration == AV_NOPTS_VALUE) {
 			len = (fmtContext->duration * freq) / AV_TIME_BASE;
 		} else {
 			len = (fmtContext->streams[streamId]->duration * freq * fmtContext->streams[streamId]->time_base.num) / fmtContext->streams[streamId]->time_base.den;
 		}
-		uint64_t layout = fmtContext->streams[streamId]->codec->channel_layout;
-		inputFormat = fmtContext->streams[streamId]->codec->sample_fmt;
+		uint64_t layout = codecContext->channel_layout;
+		inputFormat = codecContext->sample_fmt;
 		switch (layout) {
 		case AV_CH_LAYOUT_MONO:
 			switch (inputFormat) {

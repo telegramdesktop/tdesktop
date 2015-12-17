@@ -132,13 +132,12 @@ void AnimationManager::clipReinit(ClipReader *reader) {
 }
 
 void AnimationManager::clipRedraw(ClipReader *reader) {
-	if (reader->currentDisplayed()) {
-		return;
-	}
-
 	const GifItems &items(App::gifItems());
 	GifItems::const_iterator it = items.constFind(reader);
 	if (it != items.cend()) {
+		if (reader->currentDisplayed()) {
+			return;
+		}
 		Ui::redrawHistoryItem(it.value());
 	}
 }
@@ -442,6 +441,386 @@ ClipReader::~ClipReader() {
 	stop();
 }
 
+class ClipReaderImplementation {
+public:
+
+	ClipReaderImplementation(FileLocation *location, QByteArray *data) : _location(location), _data(data), _device(0) {
+	}
+	virtual bool readNextFrame(QImage &to) = 0;
+	virtual int32 nextFrameDelay() = 0;
+	virtual bool start() = 0;
+	virtual ~ClipReaderImplementation() {
+	}
+
+protected:
+	FileLocation *_location;
+	QByteArray *_data;
+	QFile _file;
+	QBuffer _buffer;
+	QIODevice *_device;
+
+	void initDevice() {
+		if (_data->isEmpty()) {
+			if (_file.isOpen()) _file.close();
+			_file.setFileName(_location->name());
+		} else {
+			if (_buffer.isOpen()) _buffer.close();
+			_buffer.setBuffer(_data);
+		}
+		_device = _data->isEmpty() ? static_cast<QIODevice*>(&_file) : static_cast<QIODevice*>(&_buffer);
+	}
+
+};
+
+class QtGifReaderImplementation : public ClipReaderImplementation{
+public:
+
+	QtGifReaderImplementation(FileLocation *location, QByteArray *data) : ClipReaderImplementation(location, data)
+	, _reader(0)
+	, _framesLeft(0)
+	, _frameDelay(0) {
+	}
+
+	bool readNextFrame(QImage &to) {
+		if (_framesLeft < 1 && !jumpToStart()) {
+			return false;
+		}
+
+		_frameDelay = _reader->nextImageDelay();
+
+		QImage frame; // QGifHandler always reads first to internal QImage and returns it
+		if (!_reader->read(&frame)) {
+			return false;
+		}
+		--_framesLeft;
+
+		int32 w = frame.width(), h = frame.height();
+		if (to.width() == w && to.height() == h && to.format() == frame.format()) {
+			if (to.byteCount() != frame.byteCount()) {
+				int bpl = qMin(to.bytesPerLine(), frame.bytesPerLine());
+				for (int i = 0; i < h; ++i) {
+					memcpy(to.scanLine(i), frame.constScanLine(i), bpl);
+				}
+			} else {
+				memcpy(to.bits(), frame.constBits(), frame.byteCount());
+			}
+		} else {
+			to = frame.copy();
+		}
+		return true;
+	}
+
+	int32 nextFrameDelay() {
+		return _frameDelay;
+	}
+
+	bool start() {
+		return jumpToStart();
+	}
+
+	~QtGifReaderImplementation() {
+		delete _reader;
+		setBadPointer(_reader);
+	}
+
+private:
+	QImageReader *_reader;
+	int32 _framesLeft, _frameDelay;
+
+	bool jumpToStart() {
+		if (_reader && _reader->jumpToImage(0)) {
+			_framesLeft = _reader->imageCount();
+			return true;
+		}
+
+		delete _reader;
+		initDevice();
+		_reader = new QImageReader(_device);
+		if (!_reader->canRead() || !_reader->supportsAnimation()) {
+			return false;
+		}
+		_framesLeft = _reader->imageCount();
+		if (_framesLeft < 1) {
+			return false;
+		}
+		return true;
+	}
+
+};
+
+class FFMpegReaderImplementation : public ClipReaderImplementation {
+public:
+
+	FFMpegReaderImplementation(FileLocation *location, QByteArray *data) : ClipReaderImplementation(location, data)
+		, _ioBuffer(0)
+		, _ioContext(0)
+		, _fmtContext(0)
+		, _codec(0)
+		, _codecContext(0)
+		, _streamId(0)
+		, _frame(0)
+		, _opened(false)
+		, _hadFrame(false)
+		, _packetSize(0)
+		, _packetData(0)
+		, _packetWas(false)
+		, _width(0)
+		, _height(0)
+		, _swsContext(0)
+		, _nextFrameDelay(0)
+		, _currentFrameDelay(0)
+		, _frameMs(0) {
+		_frame = av_frame_alloc();
+		av_init_packet(&_avpkt);
+		_avpkt.data = NULL;
+		_avpkt.size = 0;
+	}
+
+	bool readNextFrame(QImage &to) {
+		int res;
+		while (true) {
+			if (_avpkt.size > 0) { // previous packet not finished
+				res = 0;
+			} else if ((res = av_read_frame(_fmtContext, &_avpkt)) < 0) {
+				if (res != AVERROR_EOF || !_hadFrame) {
+					char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+					LOG(("Gif Error: Unable to av_read_frame() %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+					return false;
+				}
+			}
+
+			bool finished = (res < 0);
+			if (finished) {
+				_avpkt.data = NULL;
+				_avpkt.size = 0;
+			} else {
+				rememberPacket();
+			}
+
+			int32 got_frame = 0;
+			int32 decoded = _avpkt.size;
+			if (_avpkt.stream_index == _streamId) {
+				if ((res = avcodec_decode_video2(_codecContext, _frame, &got_frame, &_avpkt)) < 0) {
+					char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+					LOG(("Gif Error: Unable to avcodec_decode_video2() %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+
+					if (res == AVERROR_INVALIDDATA) { // try to skip bad packet
+						freePacket();
+						_avpkt.data = NULL;
+						_avpkt.size = 0;
+						continue;
+					}
+
+					return false;
+				}
+				if (res > 0) decoded = res;
+			}
+			if (!finished) {
+				_avpkt.data += decoded;
+				_avpkt.size -= decoded;
+				if (_avpkt.size <= 0) freePacket();
+			}
+
+			if (got_frame) {
+				_hadFrame = true;
+
+				if (!_width || !_height) {
+					_width = _frame->width;
+					_height = _frame->height;
+					if (!_width || !_height) {
+						LOG(("Gif Error: Bad frame size %1").arg(logData()));
+						return false;
+					}
+				}
+
+				if (to.isNull() || to.width() != _width || to.height() != _height) {
+					to = QImage(_width, _height, QImage::Format_ARGB32);
+				}
+				if (_frame->width == _width && _frame->height == _height && (_frame->format == AV_PIX_FMT_BGRA || (_frame->format == -1 && _codecContext->pix_fmt == AV_PIX_FMT_BGRA))) {
+					int32 sbpl = _frame->linesize[0], dbpl = to.bytesPerLine(), bpl = qMin(sbpl, dbpl);
+					uchar *s = _frame->data[0], *d = to.bits();
+					for (int32 i = 0, l = _frame->height; i < l; ++i) {
+						memcpy(d + i * dbpl, s + i * sbpl, bpl);
+					}
+				} else {
+					if (_frame->width != _width || _frame->height != _height || (_frame->format != -1 && _frame->format != _codecContext->pix_fmt) || !_swsContext) {
+						_swsContext = sws_getCachedContext(_swsContext, _frame->width, _frame->height, AVPixelFormat(_frame->format), _width, _height, AV_PIX_FMT_BGRA, 0, 0, 0, 0);
+					}
+					uint8_t * toData[1] = { to.bits() };
+					int	toLinesize[1] = { to.bytesPerLine() };
+					if ((res = sws_scale(_swsContext, _frame->data, _frame->linesize, 0, _frame->height, toData, toLinesize)) != _height) {
+						LOG(("Gif Error: Unable to sws_scale to good size %1, hieght %2, should be %3").arg(logData()).arg(res).arg(_height));
+						return false;
+					}
+				}
+
+				int64 duration = av_frame_get_pkt_duration(_frame);
+				if (duration == AV_NOPTS_VALUE) {
+					int64 framePts = (_frame->pkt_pts == AV_NOPTS_VALUE) ? _frame->pkt_dts : _frame->pkt_pts;
+					int64 frameMs = (framePts * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
+					if (frameMs > _frameMs) {
+						_currentFrameDelay = int32(frameMs - _frameMs);
+						_frameMs = frameMs;
+					} else {
+						_currentFrameDelay = 0;
+					}
+					_nextFrameDelay = _currentFrameDelay;
+				} else {
+					_currentFrameDelay = _nextFrameDelay;
+					_nextFrameDelay = (duration * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
+					_frameMs += _nextFrameDelay;
+				}
+
+				av_frame_unref(_frame);
+				return true;
+			}
+
+			if (finished) {
+				if ((res = avformat_seek_file(_fmtContext, _streamId, std::numeric_limits<int64_t>::min(), 0, std::numeric_limits<int64_t>::max(), 0)) < 0) {
+					if ((res = av_seek_frame(_fmtContext, _streamId, 0, AVSEEK_FLAG_BYTE)) < 0) {
+						if ((res = av_seek_frame(_fmtContext, _streamId, 0, AVSEEK_FLAG_FRAME)) < 0) {
+							if ((res = av_seek_frame(_fmtContext, _streamId, 0, 0)) < 0) {
+								char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+								LOG(("Gif Error: Unable to av_seek_frame() to the start %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+								return false;
+							}
+						}
+					}
+				}
+				avcodec_flush_buffers(_codecContext);
+				_hadFrame = false;
+				_frameMs = 0;
+			}
+		}
+
+		return false;
+	}
+
+	int32 nextFrameDelay() {
+		return _currentFrameDelay;
+	}
+
+	QString logData() const {
+		return qsl("for file '%1', data size '%2'").arg(_location ? _location->name() : QString()).arg(_data->size());
+	}
+
+	bool start() {
+		initDevice();
+		if (!_device->open(QIODevice::ReadOnly)) {
+			LOG(("Gif Error: Unable to open device %1").arg(logData()));
+			return false;
+		}
+		_ioBuffer = (uchar*)av_malloc(AVBlockSize);
+		_ioContext = avio_alloc_context(_ioBuffer, AVBlockSize, 0, static_cast<void*>(this), &FFMpegReaderImplementation::_read, 0, &FFMpegReaderImplementation::_seek);
+		_fmtContext = avformat_alloc_context();
+		if (!_fmtContext) {
+			LOG(("Gif Error: Unable to avformat_alloc_context %1").arg(logData()));
+			return false;
+		}
+		_fmtContext->pb = _ioContext;
+
+		int res = 0;
+		char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+		if ((res = avformat_open_input(&_fmtContext, 0, 0, 0)) < 0) {
+			_ioBuffer = 0;
+
+			LOG(("Gif Error: Unable to avformat_open_input %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+			return false;
+		}
+		_opened = true;
+
+		if ((res = avformat_find_stream_info(_fmtContext, 0)) < 0) {
+			LOG(("Gif Error: Unable to avformat_find_stream_info %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+			return false;
+		}
+
+		_streamId = av_find_best_stream(_fmtContext, AVMEDIA_TYPE_VIDEO, -1, -1, 0, 0);
+		if (_streamId < 0) {
+			LOG(("Gif Error: Unable to av_find_best_stream %1, error %2, %3").arg(logData()).arg(_streamId).arg(av_make_error_string(err, sizeof(err), _streamId)));
+			return false;
+		}
+
+		// Get a pointer to the codec context for the audio stream
+		_codecContext = _fmtContext->streams[_streamId]->codec;
+		_codec = avcodec_find_decoder(_codecContext->codec_id);
+		av_opt_set_int(_codecContext, "refcounted_frames", 1, 0);
+		if ((res = avcodec_open2(_codecContext, _codec, 0)) < 0) {
+			LOG(("Gif Error: Unable to avcodec_open2 %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+			return false;
+		}
+
+		return true;
+	}
+
+	~FFMpegReaderImplementation() {
+		if (_ioContext) av_free(_ioContext);
+		if (_codecContext) avcodec_close(_codecContext);
+		if (_swsContext) sws_freeContext(_swsContext);
+		if (_opened) {
+			avformat_close_input(&_fmtContext);
+		} else if (_ioBuffer) {
+			av_free(_ioBuffer);
+		}
+		if (_fmtContext) avformat_free_context(_fmtContext);
+		av_frame_free(&_frame);
+		freePacket();
+	}
+
+private:
+	uchar *_ioBuffer;
+	AVIOContext *_ioContext;
+	AVFormatContext *_fmtContext;
+	AVCodec *_codec;
+	AVCodecContext *_codecContext;
+	int32 _streamId;
+	AVSampleFormat _inputFormat;
+	AVFrame *_frame;
+	bool _opened, _hadFrame;
+
+	AVPacket _avpkt;
+	int _packetSize;
+	uint8_t *_packetData;
+	bool _packetWas;
+	void rememberPacket() {
+		if (!_packetWas) {
+			_packetSize = _avpkt.size;
+			_packetData = _avpkt.data;
+			_packetWas = true;
+		}
+	}
+	void freePacket() {
+		if (_packetWas) {
+			_avpkt.size = _packetSize;
+			_avpkt.data = _packetData;
+			_packetWas = false;
+			av_free_packet(&_avpkt);
+		}
+	}
+
+	int32 _width, _height;
+	SwsContext *_swsContext;
+
+	int64 _frameMs;
+	int32 _nextFrameDelay, _currentFrameDelay;
+
+	static int _read(void *opaque, uint8_t *buf, int buf_size) {
+		FFMpegReaderImplementation *l = reinterpret_cast<FFMpegReaderImplementation*>(opaque);
+		return int(l->_device->read((char*)(buf), buf_size));
+	}
+
+	static int64_t _seek(void *opaque, int64_t offset, int whence) {
+		FFMpegReaderImplementation *l = reinterpret_cast<FFMpegReaderImplementation*>(opaque);
+
+		switch (whence) {
+		case SEEK_SET: return l->_device->seek(offset) ? l->_device->pos() : -1;
+		case SEEK_CUR: return l->_device->seek(l->_device->pos() + offset) ? l->_device->pos() : -1;
+		case SEEK_END: return l->_device->seek(l->_device->size() + offset) ? l->_device->pos() : -1;
+		}
+		return -1;
+	}
+
+};
+
 class ClipReaderPrivate {
 public:
 
@@ -450,13 +829,11 @@ public:
 	, _data(data)
 	, _location(_data.isEmpty() ? new FileLocation(location) : 0)
 	, _accessed(false)
-	, _buffer(_data.isEmpty() ? 0 : &_data)
-	, _reader(0)
+	, _implementation(0)
 	, _previousMs(0)
 	, _currentMs(0)
 	, _nextUpdateMs(0)
 	, _paused(false) {
-
 		if (_data.isEmpty() && !_location->accessEnable()) {
 			error();
 			return;
@@ -466,14 +843,13 @@ public:
 
 	ClipProcessResult start(uint64 ms) {
 		_nextUpdateMs = ms + 86400 * 1000ULL;
-		if (!_reader && !restartReader(true)) {
+		if (!_implementation && !init()) {
 			return error();
 		}
 		if (_currentOriginal.isNull()) {
-			if (!readNextFrame(_currentOriginal)) {
+			if (!_implementation->readNextFrame(_currentOriginal)) {
 				return error();
 			}
-			--_framesLeft;
 			return ClipProcessReinit;
 		}
 		return ClipProcessWait;
@@ -517,7 +893,7 @@ public:
 	}
 
 	uint64 nextFrameDelay() {
-		int delay = _reader->nextImageDelay();
+		int32 delay = _implementation->nextFrameDelay();
 		return qMax(delay, 5);
 	}
 
@@ -529,75 +905,31 @@ public:
 		qSwap(_currentCache, _nextCache);
 	}
 
-	bool readNextFrame(QImage &to) {
-		QImage frame; // QGifHandler always reads first to internal QImage and returns it
-		if (!_reader->read(&frame)) {
-			return false;
-		}
-		int32 w = frame.width(), h = frame.height();
-		if (to.width() == w && to.height() == h && to.format() == frame.format()) {
-			if (to.byteCount() != frame.byteCount()) {
-				int bpl = qMin(to.bytesPerLine(), frame.bytesPerLine());
-				for (int i = 0; i < h; ++i) {
-					memcpy(to.scanLine(i), frame.constScanLine(i), bpl);
-				}
-			} else {
-				memcpy(to.bits(), frame.constBits(), frame.byteCount());
-			}
-		} else {
-			to = frame.copy();
-		}
-		return true;
-	}
-
 	bool prepareNextFrame() {
-		_nextUpdateMs = _currentMs + nextFrameDelay();
-		if (!_framesLeft) {
-			if (_reader->jumpToImage(0)) {
-				_framesLeft = _reader->imageCount();
-			} else if (!restartReader()) {
-				return false;
-			}
-		}
-		if (!readNextFrame(_nextOriginal)) {
+		if (!_implementation->readNextFrame(_nextOriginal)) {
 			return false;
 		}
+		_nextUpdateMs = _currentMs + nextFrameDelay();
 		_nextOriginal.setDevicePixelRatio(_request.factor);
-		--_framesLeft;
 		_next = QPixmap();
 		_next = _prepareFrame(_request, _nextOriginal, _nextCache, true);
 		return true;
 	}
 
-	bool restartReader(bool first = false) {
-		if (first && _data.isEmpty() && QFileInfo(_location->name()).size() <= AnimationInMemory) {
+	bool init() {
+		if (_data.isEmpty() && QFileInfo(_location->name()).size() <= AnimationInMemory) {
 			QFile f(_location->name());
 			if (f.open(QIODevice::ReadOnly)) {
 				_data = f.readAll();
-				if (f.error() == QFile::NoError) {
-					_buffer.setBuffer(&_data);
-				} else {
+				if (f.error() != QFile::NoError) {
 					_data = QByteArray();
 				}
 			}
-		} else if (!_data.isEmpty()) {
-			_buffer.close();
 		}
-		delete _reader;
 
-		if (_data.isEmpty()) {
-			_reader = new QImageReader(_location->name());
-		} else {
-			_reader = new QImageReader(&_buffer);
-		}
-		if (!_reader->canRead() || !_reader->supportsAnimation()) {
-			return false;
-		}
-		_framesLeft = _reader->imageCount();
-		if (_framesLeft < 1) {
-			return false;
-		}
-		return true;
+		_implementation = new FFMpegReaderImplementation(_location, &_data);
+//		_implementation = new QtGifReaderImplementation(_location, &_data);
+		return _implementation->start();
 	}
 
 	ClipProcessResult error() {
@@ -607,8 +939,8 @@ public:
 	}
 
 	void stop() {
-		delete _reader;
-		_reader = 0;
+		delete _implementation;
+		_implementation = 0;
 
 		if (_location) {
 			if (_accessed) {
@@ -623,7 +955,7 @@ public:
 	~ClipReaderPrivate() {
 		stop();
 		setBadPointer(_location);
-		setBadPointer(_reader);
+		setBadPointer(_implementation);
 	}
 
 private:
@@ -636,13 +968,12 @@ private:
 	bool _accessed;
 
 	QBuffer _buffer;
-	QImageReader *_reader;
+	ClipReaderImplementation *_implementation;
 
 	ClipFrameRequest _request;
 	QPixmap _current, _next;
 	QImage _currentOriginal, _nextOriginal, _currentCache, _nextCache;
 
-	int32 _framesLeft;
 	uint64 _previousMs, _currentMs, _nextUpdateMs;
 
 	bool _paused;

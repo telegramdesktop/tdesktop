@@ -3614,6 +3614,15 @@ HistoryVideo::HistoryVideo(const MTPDvideo &video, const QString &caption, Histo
 	_data->thumb->load();
 }
 
+HistoryVideo::HistoryVideo(const HistoryVideo &other) : HistoryFileMedia()
+, _data(other._data)
+, _caption(other._caption)
+, _thumbw(other._thumbw) {
+	setLinks(new VideoOpenLink(_data), new VideoSaveLink(_data), new VideoCancelLink(_data));
+
+	setStatusSize(other._statusSize);
+}
+
 void HistoryVideo::initDimensions(const HistoryItem *parent) {
 	bool bubble = parent->hasBubble();
 
@@ -3923,6 +3932,13 @@ HistoryAudio::HistoryAudio(const MTPDaudio &audio) : HistoryFileMedia()
 	setStatusSize(FileStatusSizeReady);
 }
 
+HistoryAudio::HistoryAudio(const HistoryAudio &other) : HistoryFileMedia()
+, _data(other._data) {
+	setLinks(new AudioOpenLink(_data), new AudioSaveLink(_data), new AudioCancelLink(_data));
+
+	setStatusSize(other._statusSize);
+}
+
 void HistoryAudio::setStatusSize(int32 newSize, qint64 realDuration) const {
 	HistoryFileMedia::setStatusSize(newSize, _data->size, _data->duration, realDuration);
 }
@@ -4153,6 +4169,18 @@ HistoryDocument::HistoryDocument(DocumentData *document) : HistoryFileMedia()
 	} else {
 		_thumbw = 0;
 	}
+}
+
+HistoryDocument::HistoryDocument(const HistoryDocument &other) : HistoryFileMedia()
+, _data(other._data)
+, _linksavel(new DocumentSaveLink(_data))
+, _linkcancell(new DocumentCancelLink(_data))
+, _namew(other._namew)
+, _name(other._name)
+, _thumbw(other._thumbw) {
+	setLinks(new DocumentOpenLink(_data), new DocumentSaveLink(_data), new DocumentCancelLink(_data));
+
+	setStatusSize(other._statusSize);
 }
 
 void HistoryDocument::setStatusSize(int32 newSize, qint64 realDuration) const {
@@ -4554,6 +4582,16 @@ HistoryGif::HistoryGif(DocumentData *document) : HistoryFileMedia()
 	setStatusSize(FileStatusSizeReady);
 
 	_data->thumb->load();
+}
+
+HistoryGif::HistoryGif(const HistoryGif &other) : HistoryFileMedia()
+, _data(other._data)
+, _thumbw(other._thumbw)
+, _thumbh(other._thumbh)
+, _gif(0) {
+	setLinks(new DocumentOpenLink(_data), new DocumentOpenLink(_data), new DocumentCancelLink(_data));
+
+	setStatusSize(other._statusSize);
 }
 
 void HistoryGif::initDimensions(const HistoryItem *parent) {

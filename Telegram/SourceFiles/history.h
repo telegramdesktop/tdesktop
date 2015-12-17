@@ -784,6 +784,7 @@ public:
 protected:
 
 	mutable int32 _height, _maxw, _minh;
+	HistoryElem &operator=(const HistoryElem &);
 
 };
 
@@ -1350,12 +1351,18 @@ protected:
 	};
 	mutable AnimationData *_animation;
 
+private:
+
+	HistoryFileMedia(const HistoryFileMedia &other);
+
 };
 
 class HistoryVideo : public HistoryFileMedia {
 public:
 
 	HistoryVideo(const MTPDvideo &video, const QString &caption, HistoryItem *parent);
+	HistoryVideo(const HistoryVideo &other);
+
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
@@ -1420,6 +1427,8 @@ class HistoryAudio : public HistoryFileMedia {
 public:
 
 	HistoryAudio(const MTPDaudio &audio);
+	HistoryAudio(const HistoryAudio &other);
+
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
@@ -1475,6 +1484,8 @@ class HistoryDocument : public HistoryFileMedia {
 public:
 
 	HistoryDocument(DocumentData *document);
+	HistoryDocument(const HistoryDocument &other);
+
 	void initDimensions(const HistoryItem *parent);
 
 	bool withThumb() const {
@@ -1556,6 +1567,8 @@ class HistoryGif : public HistoryFileMedia {
 public:
 
 	HistoryGif(DocumentData *document);
+	HistoryGif(const HistoryGif &other);
+
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
