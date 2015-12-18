@@ -5363,14 +5363,7 @@ void HistoryWidget::onDocumentUploaded(const FullMsgId &newId, const MTPInputFil
 	if (!MTP::authedId()) return;
 	HistoryMessage *item = dynamic_cast<HistoryMessage*>(App::histItemById(newId));
 	if (item) {
-		DocumentData *document = 0;
-		if (HistoryDocument *media = dynamic_cast<HistoryDocument*>(item->getMedia())) {
-			document = media->document();
-		} else if (HistoryGif *media = dynamic_cast<HistoryGif*>(item->getMedia())) {
-			document = media->document();
-		} else if (HistorySticker *media = dynamic_cast<HistorySticker*>(item->getMedia())) {
-			document = media->document();
-		}
+		DocumentData *document = item->getMedia() ? item->getMedia()->getDocument() : 0;
 		if (document) {
 			uint64 randomId = MTP::nonce<uint64>();
 			App::historyRegRandom(randomId, newId);
@@ -5394,14 +5387,7 @@ void HistoryWidget::onThumbDocumentUploaded(const FullMsgId &newId, const MTPInp
 	if (!MTP::authedId()) return;
 	HistoryMessage *item = dynamic_cast<HistoryMessage*>(App::histItemById(newId));
 	if (item) {
-		DocumentData *document = 0;
-		if (HistoryDocument *media = dynamic_cast<HistoryDocument*>(item->getMedia())) {
-			document = media->document();
-		} else if (HistoryGif *media = dynamic_cast<HistoryGif*>(item->getMedia())) {
-			document = media->document();
-		} else if (HistorySticker *media = dynamic_cast<HistorySticker*>(item->getMedia())) {
-			document = media->document();
-		}
+		DocumentData *document = item->getMedia() ? item->getMedia()->getDocument() : 0;
 		if (document) {
 			uint64 randomId = MTP::nonce<uint64>();
 			App::historyRegRandom(randomId, newId);
@@ -5463,17 +5449,7 @@ void HistoryWidget::onDocumentProgress(const FullMsgId &newId) {
 	if (!MTP::authedId()) return;
 	if (HistoryItem *item = App::histItemById(newId)) {
 		HistoryMedia *media = item->getMedia();
-		DocumentData *doc = 0;
-		if (media) {
-			HistoryMediaType type = media->type();
-			if (type == MediaTypeDocument) {
-				doc = static_cast<HistoryDocument*>(item->getMedia())->document();
-			} else if (type == MediaTypeGif) {
-				doc = static_cast<HistoryGif*>(item->getMedia())->document();
-			} else if (type == MediaTypeSticker) {
-				doc = static_cast<HistorySticker*>(item->getMedia())->document();
-			}
-		}
+		DocumentData *doc = media ? media->getDocument() : 0;
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadFile, doc ? doc->uploadOffset : 0);
 		}

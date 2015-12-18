@@ -482,11 +482,10 @@ public:
 	}
 
 	bool readNextFrame(QImage &to) {
+		if (_reader) _frameDelay = _reader->nextImageDelay();
 		if (_framesLeft < 1 && !jumpToStart()) {
 			return false;
 		}
-
-		_frameDelay = _reader->nextImageDelay();
 
 		QImage frame; // QGifHandler always reads first to internal QImage and returns it
 		if (!_reader->read(&frame)) {
@@ -655,20 +654,17 @@ public:
 				}
 
 				int64 duration = av_frame_get_pkt_duration(_frame);
+				int64 framePts = (_frame->pkt_pts == AV_NOPTS_VALUE) ? _frame->pkt_dts : _frame->pkt_pts;
+				int64 frameMs = (framePts * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
+				_currentFrameDelay = _nextFrameDelay;
+				if (_frameMs + _currentFrameDelay < frameMs) {
+					_currentFrameDelay = int32(frameMs - _frameMs);
+				}
+				_frameMs = frameMs;
 				if (duration == AV_NOPTS_VALUE) {
-					int64 framePts = (_frame->pkt_pts == AV_NOPTS_VALUE) ? _frame->pkt_dts : _frame->pkt_pts;
-					int64 frameMs = (framePts * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
-					if (frameMs > _frameMs) {
-						_currentFrameDelay = int32(frameMs - _frameMs);
-						_frameMs = frameMs;
-					} else {
-						_currentFrameDelay = 0;
-					}
-					_nextFrameDelay = _currentFrameDelay;
+					_nextFrameDelay = 0;
 				} else {
-					_currentFrameDelay = _nextFrameDelay;
 					_nextFrameDelay = (duration * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
-					_frameMs += _nextFrameDelay;
 				}
 
 				av_frame_unref(_frame);

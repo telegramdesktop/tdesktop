@@ -323,11 +323,12 @@ void PlayerWidget::preloadNext() {
 	}
 	if (next) {
 		if (HistoryDocument *document = static_cast<HistoryDocument*>(next->getMedia())) {
-			if (document->document()->location(true).isEmpty() && document->document()->data.isEmpty()) {
-				if (!document->document()->loader) {
-					DocumentOpenLink::doOpen(document->document());
-					document->document()->openOnSave = 0;
-					document->document()->openOnSaveMsgId = FullMsgId();
+			DocumentData *d = document->getDocument();
+			if (d->location(true).isEmpty() && d->data.isEmpty()) {
+				if (!d->loader) {
+					DocumentOpenLink::doOpen(d);
+					d->openOnSave = 0;
+					d->openOnSaveMsgId = FullMsgId();
 				}
 			}
 		}
@@ -337,7 +338,7 @@ void PlayerWidget::preloadNext() {
 void PlayerWidget::startPlay(const FullMsgId &msgId) {
 	if (HistoryItem *item = App::histItemById(msgId)) {
 		if (HistoryDocument *doc = static_cast<HistoryDocument*>(item->getMedia())) {
-			audioPlayer()->play(SongMsgId(doc->document(), item->fullId()));
+			audioPlayer()->play(SongMsgId(doc->getDocument(), item->fullId()));
 			updateState();
 		}
 	}

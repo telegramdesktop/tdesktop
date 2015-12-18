@@ -346,7 +346,7 @@ void MediaView::updateControls() {
 		_dateText = lng_mediaview_date_time(lt_date, d.date().toString(qsl("dd.MM.yy")), lt_time, d.time().toString(cTimeFormat()));
 	}
 	if (_from) {
-		_fromName.setText(st::mvFont, (_from->migrateTo() ? _from->migrateTo() : _from)->name);
+		_fromName.setText(st::mvFont, (_from->migrateTo() ? _from->migrateTo() : _from)->name, _textNameOptions);
 		_nameNav = myrtlrect(st::mvTextLeft, height() - st::mvTextTop, qMin(_fromName.maxWidth(), width() / 3), st::mvFont->height);
 		_dateNav = myrtlrect(st::mvTextLeft + _nameNav.width() + st::mvTextSkip, height() - st::mvTextTop, st::mvFont->width(_dateText), st::mvFont->height);
 	} else {
@@ -1513,8 +1513,8 @@ void MediaView::moveToNext(int32 delta) {
 				if (item->getMedia()) {
 					switch (item->getMedia()->type()) {
 					case MediaTypePhoto: displayPhoto(static_cast<HistoryPhoto*>(item->getMedia())->photo(), item); preloadData(delta); break;
-					case MediaTypeDocument: displayDocument(static_cast<HistoryDocument*>(item->getMedia())->document(), item); preloadData(delta); break;
-					case MediaTypeGif: displayDocument(static_cast<HistoryGif*>(item->getMedia())->document(), item); preloadData(delta); break;
+					case MediaTypeDocument: displayDocument(static_cast<HistoryDocument*>(item->getMedia())->getDocument(), item); preloadData(delta); break;
+					case MediaTypeGif: displayDocument(static_cast<HistoryGif*>(item->getMedia())->getDocument(), item); preloadData(delta); break;
 					case MediaTypeSticker: displayDocument(static_cast<HistorySticker*>(item->getMedia())->document(), item); preloadData(delta); break;
 					}
 				} else {
@@ -1561,8 +1561,8 @@ void MediaView::preloadData(int32 delta) {
 					if (HistoryMedia *media = item->getMedia()) {
 						switch (media->type()) {
 						case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->full->load(); break;
-						case MediaTypeDocument: static_cast<HistoryDocument*>(media)->document()->thumb->load(); break;
-						case MediaTypeGif: static_cast<HistoryGif*>(media)->document()->thumb->load(); break;
+						case MediaTypeDocument: static_cast<HistoryDocument*>(media)->getDocument()->thumb->load(); break;
+						case MediaTypeGif: static_cast<HistoryGif*>(media)->getDocument()->thumb->load(); break;
 						case MediaTypeSticker: static_cast<HistorySticker*>(media)->document()->sticker()->img->load(); break;
 						}
 					}
@@ -1585,8 +1585,8 @@ void MediaView::preloadData(int32 delta) {
 				if (HistoryMedia *media = item->getMedia()) {
 					switch (media->type()) {
 					case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->forget(); break;
-					case MediaTypeDocument: static_cast<HistoryDocument*>(media)->document()->forget(); break;
-					case MediaTypeGif: static_cast<HistoryGif*>(media)->document()->forget(); break;
+					case MediaTypeDocument: static_cast<HistoryDocument*>(media)->getDocument()->forget(); break;
+					case MediaTypeGif: static_cast<HistoryGif*>(media)->getDocument()->forget(); break;
 					case MediaTypeSticker: static_cast<HistorySticker*>(media)->document()->forget(); break;
 					}
 				}

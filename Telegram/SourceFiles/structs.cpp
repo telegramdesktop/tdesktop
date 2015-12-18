@@ -886,9 +886,7 @@ void DocumentOpenLink::doOpen(DocumentData *data) {
 				if (App::main()) App::main()->documentPlayProgress(song);
 			}
 		} else if (data->size < MediaViewImageSizeLimit && location.accessEnable()) {
-			if (App::hoveredLinkItem() && App::hoveredLinkItem()->getMedia() && App::hoveredLinkItem()->getMedia()->type() == MediaTypeGif) {
-				static_cast<HistoryGif*>(App::hoveredLinkItem()->getMedia())->play(App::hoveredLinkItem());
-			} else {
+			if (!App::hoveredLinkItem() || !App::hoveredLinkItem()->getMedia() || !App::hoveredLinkItem()->getMedia()->playInline(App::hoveredLinkItem())) {
 				QImageReader reader(location.name());
 				if (reader.canRead() && (App::hoveredLinkItem() || App::contextItem())) {
 					App::wnd()->showDocument(data, App::hoveredLinkItem() ? App::hoveredLinkItem() : App::contextItem());

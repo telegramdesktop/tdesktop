@@ -1176,6 +1176,16 @@ public:
 	}
 	virtual HistoryMedia *clone() const = 0;
 
+	virtual DocumentData *getDocument() {
+		return 0;
+	}
+
+	virtual bool playInline(HistoryItem *item) {
+		return false;
+	}
+	virtual void stopInline(HistoryItem *item) {
+	}
+
 	virtual void regItem(HistoryItem *item) {
 	}
 
@@ -1204,6 +1214,9 @@ public:
 	}
 	virtual bool needsBubble(const HistoryItem *parent) const = 0;
 	virtual bool customInfoLayout() const = 0;
+	virtual QMargins bubbleMargins() const {
+		return QMargins();
+	}
 	virtual bool hideFromName() const {
 		return false;
 	}
@@ -1225,6 +1238,7 @@ class HistoryPhoto : public HistoryMedia {
 public:
 
 	HistoryPhoto(const MTPDphoto &photo, const QString &caption, HistoryItem *parent);
+	HistoryPhoto(PhotoData *photo);
 	HistoryPhoto(PeerData *chat, const MTPDphoto &photo, int32 width = 0);
 
 	void init();
@@ -1459,6 +1473,9 @@ public:
 	bool customInfoLayout() const {
 		return false;
 	}
+	QMargins bubbleMargins() const {
+		return st::msgPadding;
+	}
 
 protected:
 
@@ -1507,7 +1524,7 @@ public:
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	HistoryMedia *clone() const;
 
-	DocumentData *document() {
+	DocumentData *getDocument() {
 		return _data;
 	}
 
@@ -1529,6 +1546,9 @@ public:
 	}
 	bool customInfoLayout() const {
 		return false;
+	}
+	QMargins bubbleMargins() const {
+		return withThumb() ? QMargins(st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top(), st::msgFileThumbPadding.left(), st::msgFileThumbPadding.bottom()) : st::msgPadding;
 	}
 	bool hideForwardedFrom() const {
 		return _data->song();
@@ -1586,9 +1606,11 @@ public:
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	HistoryMedia *clone() const;
 
-	DocumentData *document() {
+	DocumentData *getDocument() {
 		return _data;
 	}
+	bool playInline(HistoryItem *item);
+	void stopInline(HistoryItem *item);
 
 	void regItem(HistoryItem *item);
 	void unregItem(HistoryItem *item);
@@ -1612,9 +1634,6 @@ public:
 	bool hideForwardedFrom() const {
 		return true;
 	}
-
-	void play(HistoryItem *parent);
-	void stop(HistoryItem *parent);
 
 	~HistoryGif();
 
@@ -1760,11 +1779,15 @@ class HistoryWebPage : public HistoryMedia {
 public:
 
 	HistoryWebPage(WebPageData *data);
+	HistoryWebPage(const HistoryWebPage &other);
 	void initDimensions(const HistoryItem *parent);
+
+	void linkOver(HistoryItem *parent, const TextLinkPtr &lnk);
+	void linkOut(HistoryItem *parent, const TextLinkPtr &lnk);
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
 	bool isDisplayed() const {
-		return !data->pendingTill;
+		return !_data->pendingTill;
 	}
 	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
@@ -1776,21 +1799,32 @@ public:
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	HistoryMedia *clone() const;
 
+	DocumentData *getDocument() {
+		return _attach ? _attach->getDocument() : 0;
+	}
+
+	bool playInline(HistoryItem *item) {
+		return _attach ? _attach->playInline(item) : false;
+	}
+
+	void stopInline(HistoryItem *item) {
+		if (_attach) _attach->stopInline(item);
+	}
+
 	void regItem(HistoryItem *item);
 	void unregItem(HistoryItem *item);
 
 	bool hasReplyPreview() const {
-		return (data->photo && !data->photo->thumb->isNull()) || (data->doc && !data->doc->thumb->isNull());
+		return (_data->photo && !_data->photo->thumb->isNull()) || (_data->doc && !_data->doc->thumb->isNull());
 	}
 	ImagePtr replyPreview();
 
 	virtual bool animating() const {
-		if (_asArticle || !data->photo || data->photo->full->loaded()) return false;
-		return data->photo->full->loading();
+		return _attach ? _attach->animating() : false;
 	}
 
 	WebPageData *webpage() {
-		return data;
+		return _data;
 	}
 
 	bool needsBubble(const HistoryItem *parent) const {
@@ -1801,17 +1835,18 @@ public:
 	}
 
 private:
-	WebPageData *data;
-	TextLinkPtr _openl, _attachl;
+	WebPageData *_data;
+	TextLinkPtr _openl;
+	HistoryMedia *_attach;
+
 	bool _asArticle;
+	int32 _titleLines, _descriptionLines;
 
 	Text _title, _description;
 	int32 _siteNameWidth;
 
-	QString _duration, _docName, _docSize;
-	int32 _durationWidth, _docNameWidth, _docThumbWidth;
-	mutable QString _docDownloadTextCache;
-	mutable int32 _docDownloadDone;
+	QString _duration;
+	int32 _durationWidth;
 
 	int16 _pixw, _pixh;
 };

@@ -1145,6 +1145,9 @@ struct DocumentData {
 	SongData *song() {
 		return (type == SongDocument) ? static_cast<SongData*>(_additional) : 0;
 	}
+	bool isAnimation() {
+		return (type == AnimatedDocument) || !mime.compare(qstr("image/gif"), Qt::CaseInsensitive);
+	}
 	bool isImage() const {
 		return _isImage;
 	}

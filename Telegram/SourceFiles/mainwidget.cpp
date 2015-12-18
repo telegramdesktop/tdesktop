@@ -1883,9 +1883,7 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 				} else if (document->openOnSave > 0 && document->size < MediaViewImageSizeLimit) {
 					const FileLocation &location(document->location(true));
 					if (location.accessEnable()) {
-						if (item && item->getMedia() && item->getMedia()->type() == MediaTypeGif) {
-							static_cast<HistoryGif*>(item->getMedia())->play(item);
-						} else {
+						if (!item || !item->getMedia() || !item->getMedia()->playInline(item)) {
 							QImageReader reader(location.name());
 							if (reader.canRead() && item) {
 								App::wnd()->showDocument(document, item);
