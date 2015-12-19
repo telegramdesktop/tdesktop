@@ -393,6 +393,7 @@ void FileLoadTask::process() {
 	_result->content = _content;
 
 	_result->filename = filename;
+	_result->filemime = filemime;
 	_result->setFileData(filedata);
 
 	_result->thumbId = thumbId;

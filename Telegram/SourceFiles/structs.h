@@ -1070,6 +1070,8 @@ struct SongData : public DocumentAdditionalData {
 	QString title, performer;
 };
 
+bool fileIsImage(const QString &name, const QString &mime);
+
 struct DocumentData {
 	DocumentData(const DocumentId &id, const uint64 &access = 0, int32 date = 0, const QVector<MTPDocumentAttribute> &attributes = QVector<MTPDocumentAttribute>(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
 	void setattributes(const QVector<MTPDocumentAttribute> &attributes);

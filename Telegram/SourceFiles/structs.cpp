@@ -1080,12 +1080,10 @@ const FileLocation &DocumentData::location(bool check) {
 	return _location;
 }
 
-void DocumentData::recountIsImage() {
-	_isImage = false;
-
+bool fileIsImage(const QString &name, const QString &mime) {
 	QString lowermime = mime.toLower(), namelower = name.toLower();
 	if (lowermime.startsWith(qstr("image/"))) {
-		_isImage = true;
+		return true;
 	} else if (namelower.endsWith(qstr(".bmp"))
 		|| namelower.endsWith(qstr(".jpg"))
 		|| namelower.endsWith(qstr(".jpeg"))
@@ -1096,8 +1094,13 @@ void DocumentData::recountIsImage() {
 		|| namelower.endsWith(qstr(".tif"))
 		|| namelower.endsWith(qstr(".psd"))
 		|| namelower.endsWith(qstr(".png"))) {
-		_isImage = true;
+		return true;
 	}
+	return false;
+}
+
+void DocumentData::recountIsImage() {
+	_isImage = fileIsImage(name, mime);
 }
 
 WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill) : id(id)

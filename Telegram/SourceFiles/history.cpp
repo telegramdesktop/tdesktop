@@ -4412,7 +4412,7 @@ void HistoryDocument::draw(Painter &p, const HistoryItem *parent, const QRect &r
 	p.setFont(st::semiboldFont);
 	p.setPen(st::black);
 	if (namewidth < _namew) {
-		p.drawTextLeft(nameleft, nametop, width, st::normalFont->elided(_name, namewidth));
+		p.drawTextLeft(nameleft, nametop, width, st::semiboldFont->elided(_name, namewidth));
 	} else {
 		p.drawTextLeft(nameleft, nametop, width, _name, _namew);
 	}

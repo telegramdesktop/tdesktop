@@ -190,6 +190,7 @@ struct FileLoadResult {
 	QByteArray content;
 
 	QString filename;
+	QString filemime;
 	int32 filesize;
 	UploadFileParts fileparts;
 	QByteArray filemd5;
