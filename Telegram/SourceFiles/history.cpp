@@ -3189,8 +3189,6 @@ void HistoryPhoto::init() {
 }
 
 void HistoryPhoto::initDimensions(const HistoryItem *parent) {
-	bool bubble = parent->hasBubble();
-
 	if (_caption.hasSkipBlock()) {
 		_caption.setSkipBlock(parent->skipBlockWidth(), parent->skipBlockHeight());
 	}
@@ -3209,6 +3207,7 @@ void HistoryPhoto::initDimensions(const HistoryItem *parent) {
 	}
 
 	if (parent->toHistoryMessage()) {
+		bool bubble = parent->hasBubble();
 		w = tw;
 		int32 minWidth = qMax(st::minPhotoSize, parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
 		int32 maxActualWidth = qMax(w, minWidth);
@@ -5020,6 +5019,7 @@ void HistorySticker::draw(Painter &p, const HistoryItem *parent, const QRect &r,
 			usex = width - usew;
 		}
 	}
+	if (rtl()) usex = width - usex - usew;
 
 	if (!already && !hasdata && !data->loader && data->status == FileReady) {
 		data->save(QString());
@@ -5051,6 +5051,7 @@ void HistorySticker::draw(Painter &p, const HistoryItem *parent, const QRect &r,
 		if (reply) {
 			int32 rw = width - usew - st::msgReplyPadding.left(), rh = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 			int32 rx = fromChannel ? (usew + st::msgReplyPadding.left()) : (out ? 0 : (usew + st::msgReplyPadding.left())), ry = _height - rh;
+			if (rtl()) rx = width - rx - rw;
 
 			App::roundRect(p, rx, ry, rw, rh, selected ? App::msgServiceSelectBg() : App::msgServiceBg(), selected ? ServiceSelectedCorners : ServiceCorners);
 
@@ -5595,10 +5596,13 @@ void HistoryWebPage::draw(Painter &p, const HistoryItem *parent, const QRect &r,
 	if (_attach) {
 		if (tshift) tshift += st::webPagePhotoSkip;
 
-		p.save();
-		p.translate(lshift - bubble.left(), tshift - bubble.top());
+		int32 attachLeft = lshift - bubble.left(), attachTop = tshift - bubble.top();
+		if (rtl()) attachLeft = w - attachLeft - _attach->currentWidth();
 
-		_attach->draw(p, parent, r.translated(bubble.left() - lshift, bubble.top() - tshift), selected, ms);
+		p.save();
+		p.translate(attachLeft, attachTop);
+
+		_attach->draw(p, parent, r.translated(-attachLeft, -attachTop), selected, ms);
 		int32 pixwidth = _attach->currentWidth(), pixheight = _attach->height();
 		
 		if (_data->type == WebPageVideo) {
@@ -5779,7 +5783,9 @@ void HistoryWebPage::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32
 		if (tshift) tshift += st::webPagePhotoSkip;
 
 		if (x >= lshift && x < lshift + width && y >= tshift && y < _height - st::msgPadding.bottom()) {
-			_attach->getState(lnk, state, x - lshift + bubble.left(), y - tshift + bubble.top(), parent);
+			int32 attachLeft = lshift - bubble.left(), attachTop = tshift - bubble.top();
+			if (rtl()) attachLeft = w - attachLeft - _attach->currentWidth();
+			_attach->getState(lnk, state, x - attachLeft, y - attachTop, parent);
 		}
 	}
 }
@@ -5793,11 +5799,6 @@ ImagePtr HistoryWebPage::replyPreview() {
 }
 
 namespace {
-	QRegularExpression reYouTube1(qsl("^(https?://)?(www\\.|m\\.)?youtube\\.com/watch\\?([^#]+&)?v=([a-z0-9_-]+)(&[^\\s]*)?$"), QRegularExpression::CaseInsensitiveOption);
-    QRegularExpression reYouTube2(qsl("^(https?://)?(www\\.)?youtu\\.be/([a-z0-9_-]+)([/\\?#][^\\s]*)?$"), QRegularExpression::CaseInsensitiveOption);
-	QRegularExpression reInstagram(qsl("^(https?://)?(www\\.)?instagram\\.com/p/([a-z0-9_-]+)([/\\?][^\\s]*)?$"), QRegularExpression::CaseInsensitiveOption);
-	QRegularExpression reVimeo(qsl("^(https?://)?(www\\.)?vimeo\\.com/([0-9]+)([/\\?][^\\s]*)?$"), QRegularExpression::CaseInsensitiveOption);
-
 	ImageLinkManager manager;
 }
 
@@ -5857,22 +5858,6 @@ void ImageLinkManager::getData(ImageLinkData *data) {
 	}
 	QString url;
 	switch (data->type) {
-	case YouTubeLink: {
-		url = qsl("https://gdata.youtube.com/feeds/api/videos/") + data->id.mid(8) + qsl("?v=2&alt=json");
-		QNetworkReply *reply = manager->get(QNetworkRequest(QUrl(url)));
-		dataLoadings[reply] = data;
-	} break;
-	case VimeoLink: {
-		url = qsl("https://vimeo.com/api/v2/video/") + data->id.mid(6) + qsl(".json");
-		QNetworkReply *reply = manager->get(QNetworkRequest(QUrl(url)));
-		dataLoadings[reply] = data;
-	} break;
-	case InstagramLink: {
-		//url = qsl("https://api.instagram.com/oembed?url=http://instagr.am/p/") + data->id.mid(10) + '/';
-		url = qsl("https://instagram.com/p/") + data->id.mid(10) + qsl("/media/?size=l");
-		QNetworkReply *reply = manager->get(QNetworkRequest(QUrl(url)));
-		imageLoadings[reply] = data;
-	} break;
 	case GoogleMapsLink: {
 		int32 w = st::locationSize.width(), h = st::locationSize.height();
 		int32 zoom = 13, scale = 1;
@@ -5947,138 +5932,6 @@ void ImageLinkManager::onFinished(QNetworkReply *reply) {
 			return onFailed(reply);
 		}
 		switch (d->type) {
-		case YouTubeLink: {
-			QJsonObject obj = doc.object();
-			QString thumb;
-			int32 seconds = 0;
-			QJsonObject::const_iterator entryIt = obj.constFind(qsl("entry"));
-			if (entryIt != obj.constEnd() && entryIt.value().isObject()) {
-				QJsonObject entry = entryIt.value().toObject();
-				QJsonObject::const_iterator mediaIt = entry.constFind(qsl("media$group"));
-				if (mediaIt != entry.constEnd() && mediaIt.value().isObject()) {
-					QJsonObject media = mediaIt.value().toObject();
-
-					// title from media
-					QJsonObject::const_iterator titleIt = media.constFind(qsl("media$title"));
-					if (titleIt != media.constEnd() && titleIt.value().isObject()) {
-						QJsonObject title = titleIt.value().toObject();
-						QJsonObject::const_iterator tIt = title.constFind(qsl("$t"));
-						if (tIt != title.constEnd() && tIt.value().isString()) {
-							d->title = tIt.value().toString();
-						}
-					}
-
-					// thumb
-					QJsonObject::const_iterator thumbnailsIt = media.constFind(qsl("media$thumbnail"));
-					int32 bestLevel = 0;
-					if (thumbnailsIt != media.constEnd() && thumbnailsIt.value().isArray()) {
-						QJsonArray thumbnails = thumbnailsIt.value().toArray();
-						for (int32 i = 0, l = thumbnails.size(); i < l; ++i) {
-							QJsonValue thumbnailVal = thumbnails.at(i);
-							if (!thumbnailVal.isObject()) continue;
-							
-							QJsonObject thumbnail = thumbnailVal.toObject();
-							QJsonObject::const_iterator urlIt = thumbnail.constFind(qsl("url"));
-							if (urlIt == thumbnail.constEnd() || !urlIt.value().isString()) continue;
-
-							int32 level = 0;
-							if (thumbnail.constFind(qsl("time")) == thumbnail.constEnd()) {
-								level += 10;
-							}
-							QJsonObject::const_iterator wIt = thumbnail.constFind(qsl("width"));
-							if (wIt != thumbnail.constEnd()) {
-								int32 w = 0;
-								if (wIt.value().isDouble()) {
-									w = qMax(qRound(wIt.value().toDouble()), 0);
-								} else if (wIt.value().isString()) {
-									w = qMax(qRound(wIt.value().toString().toDouble()), 0);
-								}
-								switch (w) {
-								case 640: level += 4; break;
-								case 480: level += 3; break;
-								case 320: level += 2; break;
-								case 120: level += 1; break;
-								}
-							}
-							if (level > bestLevel) {
-								thumb = urlIt.value().toString();
-								bestLevel = level;
-							}
-						}
-					}
-
-					// duration
-					QJsonObject::const_iterator durationIt = media.constFind(qsl("yt$duration"));
-					if (durationIt != media.constEnd() && durationIt.value().isObject()) {
-						QJsonObject duration = durationIt.value().toObject();
-						QJsonObject::const_iterator secondsIt = duration.constFind(qsl("seconds"));
-						if (secondsIt != duration.constEnd()) {
-							if (secondsIt.value().isDouble()) {
-								seconds = qRound(secondsIt.value().toDouble());
-							} else if (secondsIt.value().isString()) {
-								seconds = qRound(secondsIt.value().toString().toDouble());
-							}
-						}
-					}
-				}
-
-				// title field
-				if (d->title.isEmpty()) {
-					QJsonObject::const_iterator titleIt = entry.constFind(qsl("title"));
-					if (titleIt != entry.constEnd() && titleIt.value().isObject()) {
-						QJsonObject title = titleIt.value().toObject();
-						QJsonObject::const_iterator tIt = title.constFind(qsl("$t"));
-						if (tIt != title.constEnd() && tIt.value().isString()) {
-							d->title = tIt.value().toString();
-						}
-					}
-				}
-			}
-
-			if (seconds > 0) {
-				d->duration = formatDurationText(seconds);
-			}
-			if (thumb.isEmpty()) {
-				failed(d);
-			} else {
-				imageLoadings.insert(manager->get(QNetworkRequest(thumb)), d);
-			}
-		} break;
-		
-		case VimeoLink: {
-			QString thumb;
-			int32 seconds = 0;
-			QJsonArray arr = doc.array();
-			if (!arr.isEmpty()) {
-				QJsonObject obj = arr.at(0).toObject();
-				QJsonObject::const_iterator titleIt = obj.constFind(qsl("title"));
-				if (titleIt != obj.constEnd() && titleIt.value().isString()) {
-					d->title = titleIt.value().toString();
-				}
-				QJsonObject::const_iterator thumbnailsIt = obj.constFind(qsl("thumbnail_large"));
-				if (thumbnailsIt != obj.constEnd() && thumbnailsIt.value().isString()) {
-					thumb = thumbnailsIt.value().toString();
-				}
-				QJsonObject::const_iterator secondsIt = obj.constFind(qsl("duration"));
-				if (secondsIt != obj.constEnd()) {
-					if (secondsIt.value().isDouble()) {
-						seconds = qRound(secondsIt.value().toDouble());
-					} else if (secondsIt.value().isString()) {
-						seconds = qRound(secondsIt.value().toString().toDouble());
-					}
-				}
-			}
-			if (seconds > 0) {
-				d->duration = formatDurationText(seconds);
-			}
-			if (thumb.isEmpty()) {
-				failed(d);
-			} else {
-				imageLoadings.insert(manager->get(QNetworkRequest(thumb)), d);
-			}
-		} break;
-
-		case InstagramLink: failed(d); break;
 		case GoogleMapsLink: failed(d); break;
 		}
 
@@ -6155,43 +6008,17 @@ _description(st::msgMinWidth) {
 
 	if (url.startsWith(qsl("location:"))) {
 		QString lnk = qsl("https://maps.google.com/maps?q=") + url.mid(9) + qsl("&ll=") + url.mid(9) + qsl("&z=17");
-		link.reset(new TextLink(lnk));
+		_link.reset(new TextLink(lnk));
 
-		data = App::imageLinkSet(url, GoogleMapsLink, lnk);
+		_data = App::imageLinkSet(url, GoogleMapsLink, lnk);
 	} else {
-		link.reset(new TextLink(url));
-
-		int matchIndex = 4;
-		QRegularExpressionMatch m = reYouTube1.match(url);
-		if (!m.hasMatch()) {
-			m = reYouTube2.match(url);
-			matchIndex = 3;
-		}
-		if (m.hasMatch()) {
-			data = App::imageLinkSet(qsl("youtube:") + m.captured(matchIndex), YouTubeLink, url);
-		} else {
-			m = reVimeo.match(url);
-			if (m.hasMatch()) {
-				data = App::imageLinkSet(qsl("vimeo:") + m.captured(3), VimeoLink, url);
-			} else {
-				m = reInstagram.match(url);
-				if (m.hasMatch()) {
-					data = App::imageLinkSet(qsl("instagram:") + m.captured(3), InstagramLink, url);
-					data->title = qsl("instagram.com/p/") + m.captured(3);
-				} else {
-					data = 0;
-				}
-			}
-		}
+		_link.reset(new TextLink(url));
 	}
 }
 
 int32 HistoryImageLink::fullWidth() const {
-	if (data) {
-		switch (data->type) {
-		case YouTubeLink: return 640;
-		case VimeoLink: return 640;
-		case InstagramLink: return 640;
+	if (_data) {
+		switch (_data->type) {
 		case GoogleMapsLink: return st::locationSize.width();
 		}
 	}
@@ -6199,11 +6026,8 @@ int32 HistoryImageLink::fullWidth() const {
 }
 
 int32 HistoryImageLink::fullHeight() const {
-	if (data) {
-		switch (data->type) {
-		case YouTubeLink: return 480;
-		case VimeoLink: return 480;
-		case InstagramLink: return 640;
+	if (_data) {
+		switch (_data->type) {
 		case GoogleMapsLink: return st::locationSize.height();
 		}
 	}
@@ -6211,71 +6035,66 @@ int32 HistoryImageLink::fullHeight() const {
 }
 
 void HistoryImageLink::initDimensions(const HistoryItem *parent) {
-	int32 tw = convertScale(fullWidth()), th = convertScale(fullHeight());
-	int32 thumbw = qMax(tw, int32(st::minPhotoSize)), maxthumbh = thumbw;
-	int32 thumbh = qRound(th * float64(thumbw) / tw);
-	if (thumbh > maxthumbh) {
-		thumbw = qRound(thumbw * float64(maxthumbh) / thumbh);
-		thumbh = maxthumbh;
-		if (thumbw < st::minPhotoSize) {
-			thumbw = st::minPhotoSize;
-		}
+	bool bubble = parent->hasBubble();
+
+	int32 tw = fullWidth(), th = fullHeight();
+	if (tw > st::maxMediaSize) {
+		th = (st::maxMediaSize * th) / tw;
+		tw = st::maxMediaSize;
 	}
-	if (thumbh < st::minPhotoSize) {
-		thumbh = st::minPhotoSize;
-	}
-	if (!w) {
-		w = thumbw;
-	}
-	_maxw = w;
-	_minh = thumbh;
-	if (!_title.isEmpty() || !_description.isEmpty()) {
+	int32 minWidth = qMax(st::minPhotoSize, parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
+	_maxw = w = qMax(tw, int32(minWidth));
+	_minh = qMax(th, int32(st::minPhotoSize));
+
+	if (bubble) {
 		_maxw += st::mediaPadding.left() + st::mediaPadding.right();
 		if (!_title.isEmpty()) {
-			_maxw = qMax(_maxw, int32(st::webPageLeft + _title.maxWidth()));
-			_minh += qMin(_title.minHeight(), 2 * st::webPageTitleFont->height);
+			_minh += qMin(_title.countHeight(_maxw - st::msgPadding.left() - st::msgPadding.right()), 2 * st::webPageTitleFont->height);
 		}
 		if (!_description.isEmpty()) {
-			_maxw = qMax(_maxw, int32(st::webPageLeft + _description.maxWidth()));
-			_minh += qMin(_description.minHeight(), 3 * st::webPageTitleFont->height);
+			_maxw = qMax(_maxw, int32(st::msgPadding.left() + _description.maxWidth() + st::msgPadding.right()));
+			_minh += qMin(_description.countHeight(_maxw - st::msgPadding.left() - st::msgPadding.right()), 3 * st::webPageDescriptionFont->height);
 		}
+		_minh += st::mediaPadding.top() + st::mediaPadding.bottom();
 		if (!_title.isEmpty() || !_description.isEmpty()) {
 			_minh += st::webPagePhotoSkip;
+			if (!parent->toHistoryForwarded() && !parent->toHistoryReply()) {
+				_minh += st::msgPadding.top();
+			}
 		}
-		_minh += st::mediaPadding.bottom();
 	}
 	_height = _minh;
 }
 
 void HistoryImageLink::draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const {
+	bool bubble = parent->hasBubble();
+
 	if (w < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	int32 width = w, height = _height, skipx = 0, skipy = 0;
 
 	bool out = parent->out(), fromChannel = parent->fromChannel(), outbg = out && !fromChannel;
 
-	if (!_title.isEmpty() || !_description.isEmpty()) {
+	if (bubble) {
 		skipx = st::mediaPadding.left();
+		skipy = st::mediaPadding.top();
 
-		style::color bg(selected ? (outbg ? st::msgOutBgSelected : st::msgInBgSelected) : (outbg ? st::msgOutBg : st::msgInBg));
-		style::color sh(selected ? (outbg ? st::msgOutShadowSelected : st::msgInShadowSelected) : (outbg ? st::msgOutShadow : st::msgInShadow));
-		RoundCorners cors(selected ? (outbg ? MessageOutSelectedCorners : MessageInSelectedCorners) : (outbg ? MessageOutCorners : MessageInCorners));
-		App::roundRect(p, 0, 0, width, _height, bg, cors, &sh);
-
-		int replyFrom = 0, fwdFrom = 0;
-		fwdFrom = st::msgPadding.top();
-		skipy += fwdFrom;
+		if (!_title.isEmpty() || !_description.isEmpty()) {
+			if (!parent->toHistoryForwarded() && !parent->toHistoryReply()) {
+				skipy += st::msgPadding.top();
+			}
+		}
 
 		width -= st::mediaPadding.left() + st::mediaPadding.right();
+		int32 textw = w - st::msgPadding.left() - st::msgPadding.right();
 
+		p.setPen(st::black);
 		if (!_title.isEmpty()) {
-			p.setPen(st::black->p);
-			_title.drawElided(p, st::mediaPadding.left(), skipy, width, 2);
-			skipy += qMin(_title.countHeight(width), 2 * st::webPageTitleFont->height);
+			_title.drawLeftElided(p, skipx + st::msgPadding.left(), skipy, textw, w, 2);
+			skipy += qMin(_title.countHeight(textw), 2 * st::webPageTitleFont->height);
 		}
 		if (!_description.isEmpty()) {
-			p.setPen(st::black->p);
-			_description.drawElided(p, st::mediaPadding.left(), skipy, width, 3);
-			skipy += qMin(_description.countHeight(width), 3 * st::webPageDescriptionFont->height);
+			_description.drawLeftElided(p, skipx + st::msgPadding.left(), skipy, textw, w, 3);
+			skipy += qMin(_description.countHeight(textw), 3 * st::webPageDescriptionFont->height);
 		}
 		if (!_title.isEmpty() || !_description.isEmpty()) {
 			skipy += st::webPagePhotoSkip;
@@ -6285,43 +6104,23 @@ void HistoryImageLink::draw(Painter &p, const HistoryItem *parent, const QRect &
 		App::roundShadow(p, 0, 0, width, _height, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);
 	}
 
-	data->load();
+	_data->load();
 	QPixmap toDraw;
-	if (data && !data->thumb->isNull()) {
-		int32 w = data->thumb->width(), h = data->thumb->height();
+	if (_data && !_data->thumb->isNull()) {
+		int32 w = _data->thumb->width(), h = _data->thumb->height();
 		QPixmap pix;
-		if (width * h == height * w || (w == convertScale(fullWidth()) && h == convertScale(fullHeight()))) {
-			pix = data->thumb->pixSingle(width, height, width, height);
+		if (width * h == height * w || (w == fullWidth() && h == fullHeight())) {
+			pix = _data->thumb->pixSingle(width, height, width, height);
 		} else if (width * h > height * w) {
 			int32 nw = height * w / h;
-			pix = data->thumb->pixSingle(nw, height, width, height);
+			pix = _data->thumb->pixSingle(nw, height, width, height);
 		} else {
 			int32 nh = width * h / w;
-			pix = data->thumb->pixSingle(width, nh, width, height);
+			pix = _data->thumb->pixSingle(width, nh, width, height);
 		}
 		p.drawPixmap(QPoint(skipx, skipy), pix);
 	} else {
 		App::roundRect(p, skipx, skipy, width, height, st::black, BlackCorners);
-	}
-	if (data) {
-		switch (data->type) {
-		case YouTubeLink: p.drawPixmap(QPoint(skipx + (width - st::youtubeIcon.pxWidth()) / 2, skipy + (height - st::youtubeIcon.pxHeight()) / 2), App::sprite(), st::youtubeIcon); break;
-		case VimeoLink: p.drawPixmap(QPoint(skipx + (width - st::vimeoIcon.pxWidth()) / 2, skipy + (height - st::vimeoIcon.pxHeight()) / 2), App::sprite(), st::vimeoIcon); break;
-		}
-		if (!data->title.isEmpty() || !data->duration.isEmpty()) {
-			p.fillRect(skipx, skipy, width, st::msgDateFont->height + 2 * st::msgDateImgPadding.y(), st::msgDateImgBg->b);
-			p.setFont(st::msgDateFont->f);
-			p.setPen(st::msgDateImgColor->p);
-			int32 titleWidth = width - 2 * st::msgDateImgPadding.x();
-			if (!data->duration.isEmpty()) {
-				int32 durationWidth = st::msgDateFont->width(data->duration);
-				p.drawText(skipx + width - st::msgDateImgPadding.x() - durationWidth, skipy + st::msgDateImgPadding.y() + st::msgDateFont->ascent, data->duration);
-				titleWidth -= durationWidth + st::msgDateImgPadding.x();
-			}
-			if (!data->title.isEmpty()) {
-				p.drawText(skipx + st::msgDateImgPadding.x(), skipy + st::msgDateImgPadding.y() + st::msgDateFont->ascent, st::msgDateFont->elided(data->title, titleWidth));
-			}
-		}
 	}
 	if (selected) {
 		App::roundRect(p, skipx, skipy, width, height, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
@@ -6334,12 +6133,14 @@ void HistoryImageLink::draw(Painter &p, const HistoryItem *parent, const QRect &
 }
 
 int32 HistoryImageLink::resize(int32 width, const HistoryItem *parent) {
+	bool bubble = parent->hasBubble();
+
 	w = qMin(width, _maxw);
-	if (!_title.isEmpty() || !_description.isEmpty()) {
+	if (bubble) {
 		w -= st::mediaPadding.left() + st::mediaPadding.right();
 	}
 
-	int32 tw = convertScale(fullWidth()), th = convertScale(fullHeight());
+	int32 tw = fullWidth(), th = fullHeight();
 	if (tw > st::maxMediaSize) {
 		th = (st::maxMediaSize * th) / tw;
 		tw = st::maxMediaSize;
@@ -6350,38 +6151,31 @@ int32 HistoryImageLink::resize(int32 width, const HistoryItem *parent) {
 	} else {
 		w = tw;
 	}
-	if (_height > width) {
-		w = (w * width) / _height;
-		_height = width;
-	}
-	if (w < st::minPhotoSize) {
-		w = st::minPhotoSize;
-	}
-	if (_height < st::minPhotoSize) {
-		_height = st::minPhotoSize;
-	}
-	if (!_title.isEmpty() || !_description.isEmpty()) {
+	int32 minWidth = qMax(st::minPhotoSize, parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
+	w = qMax(w, int32(minWidth));
+	_height = qMax(_height, int32(st::minPhotoSize));
+	if (bubble) {
+		w += st::mediaPadding.left() + st::mediaPadding.right();
 		if (!_title.isEmpty()) {
-			_height += qMin(_title.countHeight(w), st::webPageTitleFont->height * 2);
+			_height += qMin(_title.countHeight(w - st::msgPadding.left() - st::msgPadding.right()), st::webPageTitleFont->height * 2);
 		}
 		if (!_description.isEmpty()) {
-			_height += qMin(_description.countHeight(w), st::webPageDescriptionFont->height * 3);
+			_height += qMin(_description.countHeight(w - st::msgPadding.left() - st::msgPadding.right()), st::webPageDescriptionFont->height * 3);
 		}
+		_height += st::mediaPadding.top() + st::mediaPadding.bottom();
 		if (!_title.isEmpty() || !_description.isEmpty()) {
 			_height += st::webPagePhotoSkip;
+			if (!parent->toHistoryForwarded() && !parent->toHistoryReply()) {
+				_height += st::msgPadding.top();
+			}
 		}
-		_height += st::mediaPadding.bottom();
-		w += st::mediaPadding.left() + st::mediaPadding.right();
 	}
 	return _height;
 }
 
 const QString HistoryImageLink::inDialogsText() const {
-	if (data) {
-		switch (data->type) {
-		case YouTubeLink: return qsl("YouTube Video");
-		case VimeoLink: return qsl("Vimeo Video");
-		case InstagramLink: return qsl("Instagram Link");
+	if (_data) {
+		switch (_data->type) {
 		case GoogleMapsLink: return lang(lng_maps_point);
 		}
 	}
@@ -6389,15 +6183,12 @@ const QString HistoryImageLink::inDialogsText() const {
 }
 
 const QString HistoryImageLink::inHistoryText() const {
-	if (data) {
-		switch (data->type) {
-		case YouTubeLink: return qsl("[ YouTube Video : ") + link->text() + qsl(" ]");
-		case VimeoLink: return qsl("[ Vimeo Video : ") + link->text() + qsl(" ]");
-		case InstagramLink: return qsl("[ Instagram Link : ") + link->text() + qsl(" ]");
-		case GoogleMapsLink: return qsl("[ ") + lang(lng_maps_point) + qsl(" : ") + link->text() + qsl(" ]");
+	if (_data) {
+		switch (_data->type) {
+		case GoogleMapsLink: return qsl("[ ") + lang(lng_maps_point) + qsl(" : ") + _link->text() + qsl(" ]");
 		}
 	}
-	return qsl("[ Link : ") + link->text() + qsl(" ]");
+	return qsl("[ Link : ") + _link->text() + qsl(" ]");
 }
 
 bool HistoryImageLink::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
@@ -6406,21 +6197,38 @@ bool HistoryImageLink::hasPoint(int32 x, int32 y, const HistoryItem *parent, int
 }
 
 void HistoryImageLink::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+	bool bubble = parent->hasBubble();
 	if (width < 0) width = w;
 
 	bool out = parent->out(), fromChannel = parent->fromChannel(), outbg = out && !fromChannel;
 
 	int skipx = 0, skipy = 0, height = _height;
-	int replyFrom = 0, fwdFrom = 0;
-	if (!_title.isEmpty() || !_description.isEmpty()) {
+	if (bubble) {
 		skipx = st::mediaPadding.left();
-		fwdFrom = st::msgPadding.top();
-		skipy += fwdFrom;
-		height -= skipy + st::mediaPadding.bottom();
+		skipy = st::mediaPadding.top();
+
+		if (!_title.isEmpty() || !_description.isEmpty()) {
+			if (!parent->toHistoryForwarded() && !parent->toHistoryReply()) {
+				skipy += st::msgPadding.top();
+			}
+		}
+
 		width -= st::mediaPadding.left() + st::mediaPadding.right();
+		int32 textw = w - st::msgPadding.left() - st::msgPadding.right();
+
+		if (!_title.isEmpty()) {
+			skipy += qMin(_title.countHeight(textw), 2 * st::webPageTitleFont->height);
+		}
+		if (!_description.isEmpty()) {
+			skipy += qMin(_description.countHeight(textw), 3 * st::webPageDescriptionFont->height);
+		}
+		if (!_title.isEmpty() || !_description.isEmpty()) {
+			skipy += st::webPagePhotoSkip;
+		}
+		height -= skipy + st::mediaPadding.bottom();
 	}
-	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height && data) {
-		lnk = link;
+	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height && _data) {
+		lnk = _link;
 
 		int32 fullRight = skipx + width, fullBottom = _height - (skipx ? st::mediaPadding.bottom() : 0);
 		bool inDate = parent->pointInTime(fullRight, fullBottom, x, y, InfoDisplayOverImage);
@@ -6554,7 +6362,7 @@ void HistoryMessage::initMedia(const MTPMessageMedia *media, QString &currentTex
 	case mtpc_messageMediaWebPage: {
 		const MTPWebPage &d(media->c_messageMediaWebPage().vwebpage);
 		switch (d.type()) {
-		case mtpc_webPageEmpty: initMediaFromText(currentText); break;
+		case mtpc_webPageEmpty: break;
 		case mtpc_webPagePending: {
 			WebPageData *webPage = App::feedWebPage(d.c_webPagePending());
 			_media = new HistoryWebPage(webPage);
@@ -6565,17 +6373,8 @@ void HistoryMessage::initMedia(const MTPMessageMedia *media, QString &currentTex
 		case mtpc_webPageExternal: LOG(("API Error: should not get webPageExternal in HistoryMessage::initMedia")); break;
 		}
 	} break;
-	default: initMediaFromText(currentText); break;
 	};
 	if (_media) _media->regItem(this);
-}
-
-void HistoryMessage::initMediaFromText(QString &currentText)  {
-	QString lnk = currentText.trimmed();
-	if (/*reYouTube1.match(currentText).hasMatch() || reYouTube2.match(currentText).hasMatch() || reInstagram.match(currentText).hasMatch() || */reVimeo.match(currentText).hasMatch()) {
-		_media = new HistoryImageLink(lnk);
-		currentText = QString();
-	}
 }
 
 void HistoryMessage::initMediaFromDocument(DocumentData *doc) {
@@ -7406,7 +7205,8 @@ void HistoryReply::drawReplyTo(Painter &p, int32 x, int32 y, int32 w, bool selec
 	} else {
 		bar = (selected ? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (outbg ? st::msgOutReplyBarColor : st::msgInReplyBarColor));
 	}
-	p.fillRect(x + st::msgReplyBarPos.x(), y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height(), bar->b);
+	QRect rbar(rtlrect(x + st::msgReplyBarPos.x(), y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height(), w + 2 * x));
+	p.fillRect(rbar, bar);
 
 	if (w > st::msgReplyBarSkip) {
 		if (replyToMsg) {
@@ -7416,7 +7216,7 @@ void HistoryReply::drawReplyTo(Painter &p, int32 x, int32 y, int32 w, bool selec
 			if (hasPreview) {
 				ImagePtr replyPreview = replyToMsg->getMedia()->replyPreview();
 				if (!replyPreview->isNull()) {
-					QRect to(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
+					QRect to(rtlrect(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height(), w + 2 * x));
 					p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height()));
 					if (selected) {
 						App::roundRect(p, to, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
@@ -7425,31 +7225,27 @@ void HistoryReply::drawReplyTo(Painter &p, int32 x, int32 y, int32 w, bool selec
 			}
 			if (w > st::msgReplyBarSkip + previewSkip) {
 				if (likeService) {
-					p.setPen(st::white->p);
+					p.setPen(st::white);
 				} else {
-					p.setPen((selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg))->p);
+					p.setPen(selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg));
 				}
-				replyToName.drawElided(p, x + st::msgReplyBarSkip + previewSkip, y + st::msgReplyPadding.top(), w - st::msgReplyBarSkip - previewSkip);
+				replyToName.drawLeftElided(p, x + st::msgReplyBarSkip + previewSkip, y + st::msgReplyPadding.top(), w - st::msgReplyBarSkip - previewSkip, w + 2 * x);
 
 				HistoryMessage *replyToAsMsg = replyToMsg->toHistoryMessage();
 				if (likeService) {
 				} else if ((replyToAsMsg && replyToAsMsg->emptyText()) || replyToMsg->serviceMsg()) {
 					style::color date(outbg ? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg) : (selected ? st::msgInDateFgSelected : st::msgInDateFg));
-					p.setPen(date->p);
+					p.setPen(date);
 				} else {
-					p.setPen(st::msgColor->p);
+					p.setPen(st::msgColor);
 				}
-				replyToText.drawElided(p, x + st::msgReplyBarSkip + previewSkip, y + st::msgReplyPadding.top() + st::msgServiceNameFont->height, w - st::msgReplyBarSkip - previewSkip);
+				replyToText.drawLeftElided(p, x + st::msgReplyBarSkip + previewSkip, y + st::msgReplyPadding.top() + st::msgServiceNameFont->height, w - st::msgReplyBarSkip - previewSkip, w + 2 * x);
 			}
 		} else {
-			p.setFont(st::msgDateFont->f);
+			p.setFont(st::msgDateFont);
 			style::color date(outbg ? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg) : (selected ? st::msgInDateFgSelected : st::msgInDateFg));
-			if (likeService) {
-				p.setPen(st::white->p);
-			} else {
-				p.setPen(date->p);
-			}
-			p.drawText(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(lang(replyToMsgId ? lng_profile_loading : lng_deleted_message), w - st::msgReplyBarSkip));
+			p.setPen(likeService ? st::white : date);
+			p.drawTextLeft(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2, w + 2 * x, st::msgDateFont->elided(lang(replyToMsgId ? lng_profile_loading : lng_deleted_message), w - st::msgReplyBarSkip));
 		}
 	}
 }

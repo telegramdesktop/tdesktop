@@ -2205,7 +2205,7 @@ usernameDefaultFg: #777;
 youtubeIcon: sprite(336px, 221px, 60px, 60px);
 vimeoIcon: sprite(336px, 283px, 60px, 60px);
 videoIcon: sprite(0px, 340px, 60px, 60px);
-locationSize: size(320, 240);
+locationSize: size(320px, 240px);
 
 boxOptionListPadding: margins(2px, 20px, 2px, 2px);
 

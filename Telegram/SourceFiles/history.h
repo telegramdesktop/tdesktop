@@ -1857,9 +1857,6 @@ void deinitImageLinkManager();
 
 enum ImageLinkType {
 	InvalidImageLink = 0,
-	YouTubeLink,
-	VimeoLink,
-	InstagramLink,
 	GoogleMapsLink
 };
 struct ImageLinkData {
@@ -1867,7 +1864,6 @@ struct ImageLinkData {
 	}
 
 	QString id;
-	QString title, duration;
 	ImagePtr thumb;
 	ImageLinkType type;
 	bool loading;
@@ -1934,9 +1930,9 @@ public:
 	}
 
 private:
-	ImageLinkData *data;
+	ImageLinkData *_data;
 	Text _title, _description;
-	TextLinkPtr link;
+	TextLinkPtr _link;
 
 };
 
@@ -1949,7 +1945,6 @@ public:
 
 	void initTime();
 	void initMedia(const MTPMessageMedia *media, QString &currentText);
-	void initMediaFromText(QString &currentText);
 	void initMediaFromDocument(DocumentData *doc);
 	void initDimensions();
 	void fromNameUpdated() const;
