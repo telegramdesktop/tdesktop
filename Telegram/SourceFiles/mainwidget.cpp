@@ -1497,9 +1497,6 @@ void MainWidget::itemResized(HistoryItem *row, bool scrollToIt) {
 			history.resizeEvent(0);
 		}
 	}
-	if (overview) {
-		overview->itemResized(row, scrollToIt);
-	}
 	if (row) Ui::redrawHistoryItem(row);
 }
 

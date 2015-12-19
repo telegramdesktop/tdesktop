@@ -71,8 +71,7 @@ public:
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void redrawItem(const HistoryItem *msg);
 	void itemRemoved(HistoryItem *item);
-	void itemResized(HistoryItem *item, bool scrollToIt);
-
+	
 	void getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const;
 	void clearSelectedItems(bool onlyTextSelection = false);
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
@@ -133,6 +132,7 @@ private:
 	void addSelectionRange(int32 selFrom, int32 selTo, History *history);
 
 	QPixmap genPix(PhotoData *photo, int32 size);
+	QPixmap genPix(VideoData *video, int32 size);
 	void showAll(bool recountHeights = false);
 
 	OverviewWidget *_overview;
@@ -144,6 +144,9 @@ private:
 	History *_migrated, *_history;
 	ChannelId _channel;
 	
+	// for audio files, files, voice messages and links
+	int32 _rowsLeft, _rowWidth, _rowHeight;
+
 	// photos
 	int32 _photosInRow, _photosToAdd, _vsize;
 	struct CachedSize {
@@ -151,15 +154,11 @@ private:
 		bool medium;
 		QPixmap pix;
 	};
-	typedef QMap<PhotoData*, CachedSize> CachedSizes;
+	typedef QMap<void*, CachedSize> CachedSizes;
 	CachedSizes _cached;
 	bool _selMode;
 
-	// audio documents
-	int32 _audioLeft, _audioWidth, _audioHeight;
-
 	// shared links
-	int32 _linksLeft, _linksWidth;
 	struct Link {
 		Link() : width(0) {
 		}
@@ -214,9 +213,9 @@ private:
 
 	// other
 	struct CachedItem {
-		CachedItem() : msgid(0), y(0) {
+		CachedItem() : msgid(0), y(0), link(0) {
 		}
-		CachedItem(MsgId msgid, const QDate &date, int32 y) : msgid(msgid), date(date), y(y) {
+		CachedItem(MsgId msgid, const QDate &date, int32 y) : msgid(msgid), date(date), y(y), link(0) {
 		}
 		MsgId msgid;
 		QDate date;
@@ -314,8 +313,7 @@ public:
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void itemRemoved(HistoryItem *item);
-	void itemResized(HistoryItem *row, bool scrollToIt);
-
+	
 	QPoint clampMousePosition(QPoint point);
 
 	void checkSelectingScroll(QPoint point);

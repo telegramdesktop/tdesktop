@@ -1145,32 +1145,40 @@ private:
 class HistoryMedia : public HistoryElem {
 public:
 
-	HistoryMedia() : w(0) {
+	HistoryMedia() : _width(0) {
 	}
-	HistoryMedia(const HistoryMedia &other) : w(0) {
+	HistoryMedia(const HistoryMedia &other) : _width(0) {
 	}
 
 	virtual HistoryMediaType type() const = 0;
 	virtual const QString inDialogsText() const = 0;
 	virtual const QString inHistoryText() const = 0;
-	virtual bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const = 0;
+
+	bool hasPoint(int32 x, int32 y, const HistoryItem *parent) const {
+		return (x >= 0 && y >= 0 && x < _width && y < _height);
+	}
+
 	virtual bool isDisplayed() const {
 		return true;
 	}
-	virtual int32 countHeight(const HistoryItem *parent, int32 width = -1) const {
-		return height();
-	}
 	virtual void initDimensions(const HistoryItem *parent) = 0;
 	virtual int32 resize(int32 width, const HistoryItem *parent) { // return new height
-		w = qMin(width, _maxw);
+		_width = qMin(width, _maxw);
 		return _height;
 	}
-	virtual void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const = 0;
+	virtual void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const = 0;
+	virtual void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const = 0;
+
+	virtual void drawOverview(Painter &p, int32 width, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const {
+	}
+	virtual void getStateOverview(TextLinkPtr &lnk, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+	}
+
 	virtual void linkOver(HistoryItem *parent, const TextLinkPtr &lnk) {
 	}
 	virtual void linkOut(HistoryItem *parent, const TextLinkPtr &lnk) {
 	}
-	virtual void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const = 0;
+
 	virtual bool uploading() const {
 		return false;
 	}
@@ -1225,12 +1233,12 @@ public:
 	}
 
 	int32 currentWidth() const {
-		return qMin(w, _maxw);
+		return _width;
 	}
 
 protected:
 
-	int32 w;
+	int32 _width;
 
 };
 
@@ -1240,30 +1248,30 @@ public:
 	HistoryPhoto(const MTPDphoto &photo, const QString &caption, HistoryItem *parent);
 	HistoryPhoto(PhotoData *photo);
 	HistoryPhoto(PeerData *chat, const MTPDphoto &photo, int32 width = 0);
-
 	void init();
-	void initDimensions(const HistoryItem *parent);
-
-	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
-	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypePhoto;
 	}
+	HistoryMedia *clone() const {
+		return new HistoryPhoto(*this);
+	}
+
+	void initDimensions(const HistoryItem *parent);
+	int32 resize(int32 width, const HistoryItem *parent);
+
+	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
+	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
+
+	void getStateOverview(TextLinkPtr &lnk, int32 x, int32 y, const HistoryItem *parent, int32 width) const;
+
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
-	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	HistoryMedia *clone() const;
 
 	PhotoData *photo() const {
 		return _data;
 	}
 
 	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent, bool allowEmitResize);
-
-	TextLinkPtr lnk() const {
-		return _openl;
-	}
 
 	virtual bool animating() const {
 		if (_data->full->loaded()) return false;
@@ -1376,23 +1384,32 @@ public:
 
 	HistoryVideo(const MTPDvideo &video, const QString &caption, HistoryItem *parent);
 	HistoryVideo(const HistoryVideo &other);
-
-	void initDimensions(const HistoryItem *parent);
-
-	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
-	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeVideo;
 	}
+	HistoryMedia *clone() const {
+		return new HistoryVideo(*this);
+	}
+
+	void initDimensions(const HistoryItem *parent);
+	int32 resize(int32 width, const HistoryItem *parent);
+
+	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
+	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
+
+	void drawOverview(Painter &p, int32 width, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
+	void getStateOverview(TextLinkPtr &lnk, int32 x, int32 y, const HistoryItem *parent, int32 width) const;
+
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
-	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	int32 countHeight(const HistoryItem *parent, int32 width = -1) const;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+
+	VideoData *video() const {
+		return _data;
+	}
+
 	bool uploading() const {
 		return (_data->status == FileUploading);
 	}
-	HistoryMedia *clone() const;
 
 	void regItem(HistoryItem *item);
 	void unregItem(HistoryItem *item);
@@ -1442,21 +1459,27 @@ public:
 
 	HistoryAudio(const MTPDaudio &audio);
 	HistoryAudio(const HistoryAudio &other);
+	HistoryMediaType type() const {
+		return MediaTypeAudio;
+	}
+	HistoryMedia *clone() const {
+		return new HistoryAudio(*this);
+	}
 
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
-	HistoryMediaType type() const {
-		return MediaTypeAudio;
-	}
+	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
+
+	void drawOverview(Painter &p, int32 width, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
+	void getStateOverview(TextLinkPtr &lnk, int32 x, int32 y, const HistoryItem *parent, int32 width) const;
+
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
-	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+
 	bool uploading() const {
 		return (_data->status == FileUploading);
 	}
-	HistoryMedia *clone() const;
 
 	AudioData *audio() {
 		return _data;
@@ -1502,27 +1525,31 @@ public:
 
 	HistoryDocument(DocumentData *document);
 	HistoryDocument(const HistoryDocument &other);
+	HistoryMediaType type() const {
+		return MediaTypeDocument;
+	}
+	HistoryMedia *clone() const {
+		return new HistoryDocument(*this);
+	}
 
 	void initDimensions(const HistoryItem *parent);
+
+	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
+	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
+
+	void drawOverview(Painter &p, int32 width, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
+	void getStateOverview(TextLinkPtr &lnk, int32 x, int32 y, const HistoryItem *parent, int32 width) const;
+
+	const QString inDialogsText() const;
+	const QString inHistoryText() const;
+
+	bool uploading() const {
+		return (_data->status == FileUploading);
+	}
 
 	bool withThumb() const {
 		return !_data->song() && !_data->thumb->isNull() && _data->thumb->width() && _data->thumb->height();
 	}
-
-	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
-	int32 resize(int32 width, const HistoryItem *parent);
-	HistoryMediaType type() const {
-		return MediaTypeDocument;
-	}
-	const QString inDialogsText() const;
-	const QString inHistoryText() const;
-	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	int32 countHeight(const HistoryItem *parent, int32 width = -1) const;
-	bool uploading() const {
-		return (_data->status == FileUploading);
-	}
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	HistoryMedia *clone() const;
 
 	DocumentData *getDocument() {
 		return _data;
@@ -1537,9 +1564,6 @@ public:
 		return !_data->thumb->isNull();
 	}
 	ImagePtr replyPreview();
-
-	void drawInPlaylist(Painter &p, const HistoryItem *parent, bool selected, bool over, int32 width) const;
-	TextLinkPtr linkInPlaylist();
 
 	bool needsBubble(const HistoryItem *parent) const {
 		return true;
@@ -1588,27 +1612,30 @@ public:
 
 	HistoryGif(DocumentData *document);
 	HistoryGif(const HistoryGif &other);
-
-	void initDimensions(const HistoryItem *parent);
-
-	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
-	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeGif;
 	}
+	HistoryMedia *clone() const {
+		return new HistoryGif(*this);
+	}
+
+	void initDimensions(const HistoryItem *parent);
+	int32 resize(int32 width, const HistoryItem *parent);
+
+	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
+	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
+
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
-	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	int32 countHeight(const HistoryItem *parent, int32 width = -1) const;
+
 	bool uploading() const {
 		return (_data->status == FileUploading);
 	}
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	HistoryMedia *clone() const;
 
 	DocumentData *getDocument() {
 		return _data;
 	}
+
 	bool playInline(HistoryItem *item);
 	void stopInline(HistoryItem *item);
 
@@ -1664,19 +1691,20 @@ class HistorySticker : public HistoryMedia {
 public:
 
 	HistorySticker(DocumentData *document);
-	void initDimensions(const HistoryItem *parent);
-
-	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
-	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeSticker;
 	}
+	HistoryMedia *clone() const {
+		return new HistorySticker(*this);
+	}
+
+	void initDimensions(const HistoryItem *parent);
+
+	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
+	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
+
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
-	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	int32 countHeight(const HistoryItem *parent, int32 width = -1) const;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	HistoryMedia *clone() const;
 
 	DocumentData *document() {
 		return data;
@@ -1699,7 +1727,6 @@ private:
 	int16 pixw, pixh;
 	DocumentData *data;
 	QString _emoji;
-	int32 lastw;
 
 };
 
@@ -1727,17 +1754,20 @@ class HistoryContact : public HistoryMedia {
 public:
 
 	HistoryContact(int32 userId, const QString &first, const QString &last, const QString &phone);
-	void initDimensions(const HistoryItem *parent);
-
-	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
 	HistoryMediaType type() const {
 		return MediaTypeContact;
 	}
+	HistoryMedia *clone() const {
+		return new HistoryContact(_userId, _fname, _lname, _phone);
+	}
+
+	void initDimensions(const HistoryItem *parent);
+
+	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
+	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
+
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
-	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width) const;
-	HistoryMedia *clone() const;
 
 	void regItem(HistoryItem *item);
 	void unregItem(HistoryItem *item);
@@ -1780,25 +1810,28 @@ public:
 
 	HistoryWebPage(WebPageData *data);
 	HistoryWebPage(const HistoryWebPage &other);
+	HistoryMediaType type() const {
+		return MediaTypeWebPage;
+	}
+	HistoryMedia *clone() const {
+		return new HistoryWebPage(*this);
+	}
+
 	void initDimensions(const HistoryItem *parent);
+	int32 resize(int32 width, const HistoryItem *parent);
+
+	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
+	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
+
+	const QString inDialogsText() const;
+	const QString inHistoryText() const;
 
 	void linkOver(HistoryItem *parent, const TextLinkPtr &lnk);
 	void linkOut(HistoryItem *parent, const TextLinkPtr &lnk);
 
-	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
 	bool isDisplayed() const {
 		return !_data->pendingTill;
 	}
-	int32 resize(int32 width, const HistoryItem *parent);
-	HistoryMediaType type() const {
-		return MediaTypeWebPage;
-	}
-	const QString inDialogsText() const;
-	const QString inHistoryText() const;
-	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	HistoryMedia *clone() const;
-
 	DocumentData *getDocument() {
 		return _attach ? _attach->getDocument() : 0;
 	}
@@ -1903,20 +1936,21 @@ class HistoryImageLink : public HistoryMedia {
 public:
 
 	HistoryImageLink(const QString &url, const QString &title = QString(), const QString &description = QString());
-	int32 fullWidth() const;
-	int32 fullHeight() const;
-	void initDimensions(const HistoryItem *parent);
-
-	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
-	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeImageLink;
 	}
+	HistoryMedia *clone() const {
+		return new HistoryImageLink(*this);
+	}
+
+	void initDimensions(const HistoryItem *parent);
+	int32 resize(int32 width, const HistoryItem *parent);
+
+	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
+	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
+
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
-	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	HistoryMedia *clone() const;
 
 	bool isImageLink() const {
 		return true;
@@ -1933,6 +1967,9 @@ private:
 	ImageLinkData *_data;
 	Text _title, _description;
 	TextLinkPtr _link;
+
+	int32 fullWidth() const;
+	int32 fullHeight() const;
 
 };
 
