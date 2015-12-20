@@ -4248,7 +4248,9 @@ void _serialize_webPageExternal(MTPStringLogger &to, int32 stage, int32 lev, Typ
 	case 7: to.add("  content_url: "); ++stages.back(); if (flag & MTPDwebPageExternal::flag_content_url) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
 	case 8: to.add("  w: "); ++stages.back(); if (flag & MTPDwebPageExternal::flag_w) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
 	case 9: to.add("  h: "); ++stages.back(); if (flag & MTPDwebPageExternal::flag_h) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
-	case 10: to.add("  duration: "); ++stages.back(); if (flag & MTPDwebPageExternal::flag_duration) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 6 IN FIELD flags ]"); } break;
+	case 10: to.add("  embed_url: "); ++stages.back(); if (flag & MTPDwebPageExternal::flag_embed_url) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 6 IN FIELD flags ]"); } break;
+	case 11: to.add("  embed_type: "); ++stages.back(); if (flag & MTPDwebPageExternal::flag_embed_type) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 6 IN FIELD flags ]"); } break;
+	case 12: to.add("  duration: "); ++stages.back(); if (flag & MTPDwebPageExternal::flag_duration) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 7 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }

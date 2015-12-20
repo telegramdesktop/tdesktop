@@ -380,7 +380,7 @@ enum {
 	mtpc_webPageEmpty = 0xeb1477e8,
 	mtpc_webPagePending = 0xc586da1c,
 	mtpc_webPage = 0xca820ed7,
-	mtpc_webPageExternal = 0xcf73f207,
+	mtpc_webPageExternal = 0xbb54b77,
 	mtpc_authorization = 0x7bf2e6f6,
 	mtpc_account_authorizations = 0x1250abde,
 	mtpc_account_noPassword = 0x96dabc18,
@@ -7606,7 +7606,7 @@ private:
 	friend MTPwebPage MTP_webPageEmpty(const MTPlong &_id);
 	friend MTPwebPage MTP_webPagePending(const MTPlong &_id, MTPint _date);
 	friend MTPwebPage MTP_webPage(MTPint _flags, const MTPlong &_id, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_site_name, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo, const MTPstring &_embed_url, const MTPstring &_embed_type, MTPint _embed_width, MTPint _embed_height, MTPint _duration, const MTPstring &_author, const MTPDocument &_document);
-	friend MTPwebPage MTP_webPageExternal(MTPint _flags, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPstring &_thumb_url, const MTPstring &_content_url, MTPint _w, MTPint _h, MTPint _duration);
+	friend MTPwebPage MTP_webPageExternal(MTPint _flags, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPstring &_thumb_url, const MTPstring &_content_url, MTPint _w, MTPint _h, const MTPstring &_embed_url, const MTPstring &_embed_type, MTPint _duration);
 
 	mtpTypeId _type;
 };
@@ -12299,7 +12299,7 @@ class MTPDwebPageExternal : public mtpDataImpl<MTPDwebPageExternal> {
 public:
 	MTPDwebPageExternal() {
 	}
-	MTPDwebPageExternal(MTPint _flags, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPstring &_thumb_url, const MTPstring &_content_url, MTPint _w, MTPint _h, MTPint _duration) : vflags(_flags), vurl(_url), vdisplay_url(_display_url), vtype(_type), vtitle(_title), vdescription(_description), vthumb_url(_thumb_url), vcontent_url(_content_url), vw(_w), vh(_h), vduration(_duration) {
+	MTPDwebPageExternal(MTPint _flags, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPstring &_thumb_url, const MTPstring &_content_url, MTPint _w, MTPint _h, const MTPstring &_embed_url, const MTPstring &_embed_type, MTPint _duration) : vflags(_flags), vurl(_url), vdisplay_url(_display_url), vtype(_type), vtitle(_title), vdescription(_description), vthumb_url(_thumb_url), vcontent_url(_content_url), vw(_w), vh(_h), vembed_url(_embed_url), vembed_type(_embed_type), vduration(_duration) {
 	}
 
 	MTPint vflags;
@@ -12312,6 +12312,8 @@ public:
 	MTPstring vcontent_url;
 	MTPint vw;
 	MTPint vh;
+	MTPstring vembed_url;
+	MTPstring vembed_type;
 	MTPint vduration;
 
 	enum {
@@ -12322,7 +12324,9 @@ public:
 		flag_content_url = (1 << 4),
 		flag_w = (1 << 5),
 		flag_h = (1 << 5),
-		flag_duration = (1 << 6),
+		flag_embed_url = (1 << 6),
+		flag_embed_type = (1 << 6),
+		flag_duration = (1 << 7),
 	};
 
 	bool has_type() const { return vflags.v & flag_type; }
@@ -12332,6 +12336,8 @@ public:
 	bool has_content_url() const { return vflags.v & flag_content_url; }
 	bool has_w() const { return vflags.v & flag_w; }
 	bool has_h() const { return vflags.v & flag_h; }
+	bool has_embed_url() const { return vflags.v & flag_embed_url; }
+	bool has_embed_type() const { return vflags.v & flag_embed_type; }
 	bool has_duration() const { return vflags.v & flag_duration; }
 };
 
@@ -28298,7 +28304,7 @@ inline uint32 MTPwebPage::innerLength() const {
 		}
 		case mtpc_webPageExternal: {
 			const MTPDwebPageExternal &v(c_webPageExternal());
-			return v.vflags.innerLength() + v.vurl.innerLength() + v.vdisplay_url.innerLength() + (v.has_type() ? v.vtype.innerLength() : 0) + (v.has_title() ? v.vtitle.innerLength() : 0) + (v.has_description() ? v.vdescription.innerLength() : 0) + (v.has_thumb_url() ? v.vthumb_url.innerLength() : 0) + (v.has_content_url() ? v.vcontent_url.innerLength() : 0) + (v.has_w() ? v.vw.innerLength() : 0) + (v.has_h() ? v.vh.innerLength() : 0) + (v.has_duration() ? v.vduration.innerLength() : 0);
+			return v.vflags.innerLength() + v.vurl.innerLength() + v.vdisplay_url.innerLength() + (v.has_type() ? v.vtype.innerLength() : 0) + (v.has_title() ? v.vtitle.innerLength() : 0) + (v.has_description() ? v.vdescription.innerLength() : 0) + (v.has_thumb_url() ? v.vthumb_url.innerLength() : 0) + (v.has_content_url() ? v.vcontent_url.innerLength() : 0) + (v.has_w() ? v.vw.innerLength() : 0) + (v.has_h() ? v.vh.innerLength() : 0) + (v.has_embed_url() ? v.vembed_url.innerLength() : 0) + (v.has_embed_type() ? v.vembed_type.innerLength() : 0) + (v.has_duration() ? v.vduration.innerLength() : 0);
 		}
 	}
 	return 0;
@@ -28354,6 +28360,8 @@ inline void MTPwebPage::read(const mtpPrime *&from, const mtpPrime *end, mtpType
 			if (v.has_content_url()) { v.vcontent_url.read(from, end); } else { v.vcontent_url = MTPstring(); }
 			if (v.has_w()) { v.vw.read(from, end); } else { v.vw = MTPint(); }
 			if (v.has_h()) { v.vh.read(from, end); } else { v.vh = MTPint(); }
+			if (v.has_embed_url()) { v.vembed_url.read(from, end); } else { v.vembed_url = MTPstring(); }
+			if (v.has_embed_type()) { v.vembed_type.read(from, end); } else { v.vembed_type = MTPstring(); }
 			if (v.has_duration()) { v.vduration.read(from, end); } else { v.vduration = MTPint(); }
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPwebPage");
@@ -28401,6 +28409,8 @@ inline void MTPwebPage::write(mtpBuffer &to) const {
 			if (v.has_content_url()) v.vcontent_url.write(to);
 			if (v.has_w()) v.vw.write(to);
 			if (v.has_h()) v.vh.write(to);
+			if (v.has_embed_url()) v.vembed_url.write(to);
+			if (v.has_embed_type()) v.vembed_type.write(to);
 			if (v.has_duration()) v.vduration.write(to);
 		} break;
 	}
@@ -28431,8 +28441,8 @@ inline MTPwebPage MTP_webPagePending(const MTPlong &_id, MTPint _date) {
 inline MTPwebPage MTP_webPage(MTPint _flags, const MTPlong &_id, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_site_name, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo, const MTPstring &_embed_url, const MTPstring &_embed_type, MTPint _embed_width, MTPint _embed_height, MTPint _duration, const MTPstring &_author, const MTPDocument &_document) {
 	return MTPwebPage(new MTPDwebPage(_flags, _id, _url, _display_url, _type, _site_name, _title, _description, _photo, _embed_url, _embed_type, _embed_width, _embed_height, _duration, _author, _document));
 }
-inline MTPwebPage MTP_webPageExternal(MTPint _flags, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPstring &_thumb_url, const MTPstring &_content_url, MTPint _w, MTPint _h, MTPint _duration) {
-	return MTPwebPage(new MTPDwebPageExternal(_flags, _url, _display_url, _type, _title, _description, _thumb_url, _content_url, _w, _h, _duration));
+inline MTPwebPage MTP_webPageExternal(MTPint _flags, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPstring &_thumb_url, const MTPstring &_content_url, MTPint _w, MTPint _h, const MTPstring &_embed_url, const MTPstring &_embed_type, MTPint _duration) {
+	return MTPwebPage(new MTPDwebPageExternal(_flags, _url, _display_url, _type, _title, _description, _thumb_url, _content_url, _w, _h, _embed_url, _embed_type, _duration));
 }
 
 inline MTPauthorization::MTPauthorization() : mtpDataOwner(new MTPDauthorization()) {

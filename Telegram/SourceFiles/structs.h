@@ -301,7 +301,6 @@ private:
 class BotCommand {
 public:
 	BotCommand(const QString &command, const QString &description) : command(command), _description(description) {
-		
 	}
 	QString command;
 
@@ -314,12 +313,7 @@ public:
 		return false;
 	}
 
-	const Text &descriptionText() const {
-		if (_descriptionText.isEmpty() && !_description.isEmpty()) {
-			_descriptionText.setText(st::mentionFont, _description, _textNameOptions);
-		}
-		return _descriptionText;
-	}
+	const Text &descriptionText() const;
 
 private:
 	QString _description;

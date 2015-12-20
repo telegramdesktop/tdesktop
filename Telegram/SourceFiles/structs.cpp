@@ -154,6 +154,13 @@ void PeerData::updateName(const QString &newName, const QString &newNameOrPhone,
 	}
 }
 
+const Text &BotCommand::descriptionText() const {
+	if (_descriptionText.isEmpty() && !_description.isEmpty()) {
+		_descriptionText.setText(st::mentionFont, _description, _textNameOptions);
+	}
+	return _descriptionText;
+}
+
 void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer as well
 	PhotoId newPhotoId = photoId;
 	ImagePtr newPhoto = photo;

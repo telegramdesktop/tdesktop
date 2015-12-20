@@ -894,6 +894,9 @@
     <ClCompile Include="SourceFiles\mtproto\mtpAuthKey.cpp">
       <Filter>mtproto</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\layout.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1203,6 +1206,9 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\gui\popupmenu.h">
       <Filter>gui</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\layout.h">
+      <Filter>Source Files</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

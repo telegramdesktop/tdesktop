@@ -24,12 +24,7 @@ void historyInit();
 
 class HistoryItem;
 
-static const uint32 FullItemSel = 0xFFFFFFFF;
-
 typedef QMap<int32, HistoryItem*> SelectedItemSet;
-
-extern TextParseOptions _textNameOptions, _textDlgOptions;
-extern TextParseOptions _historyTextOptions, _historyBotOptions, _historyTextNoMonoOptions, _historyBotNoMonoOptions;
 
 #include "structs.h"
 
@@ -765,17 +760,17 @@ public:
 class HistoryElem {
 public:
 
-	HistoryElem() : _height(0), _maxw(0) {
+	HistoryElem() : _maxw(0), _minh(0), _height(0) {
 	}
 
-	int32 height() const {
-		return _height;
-	}
 	int32 maxWidth() const {
 		return _maxw;
 	}
 	int32 minHeight() const {
 		return _minh;
+	}
+	int32 height() const {
+		return _height;
 	}
 
 	virtual ~HistoryElem() {
@@ -783,7 +778,7 @@ public:
 
 protected:
 
-	mutable int32 _height, _maxw, _minh;
+	mutable int32 _maxw, _minh, _height;
 	HistoryElem &operator=(const HistoryElem &);
 
 };
@@ -1316,6 +1311,7 @@ QString formatSizeText(qint64 size);
 QString formatDownloadText(qint64 ready, qint64 total);
 QString formatDurationText(qint64 duration);
 QString formatDurationAndSizeText(qint64 duration, qint64 size);
+QString formatGifAndSizeText(qint64 size);
 QString formatPlayedText(qint64 played, qint64 duration);
 
 class HistoryFileMedia : public HistoryMedia {
@@ -2393,6 +2389,3 @@ protected:
 	QString text;
 	bool freezed;
 };
-
-const TextParseOptions &itemTextOptions(History *h, PeerData *f);
-const TextParseOptions &itemTextNoMonoOptions(History *h, PeerData *f);

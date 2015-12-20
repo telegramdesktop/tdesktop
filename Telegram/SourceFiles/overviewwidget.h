@@ -110,6 +110,8 @@ public slots:
 
 private:
 
+	MsgId complexMsgId(const HistoryItem *item) const;
+
 	bool itemMigrated(MsgId msgId) const;
 	ChannelId itemChannel(MsgId msgId) const;
 	MsgId itemMsgId(MsgId msgId) const;
@@ -185,7 +187,7 @@ private:
 	FlatInput _search;
 	IconedButton _cancelSearch;
 	QVector<MsgId> _results;
-	int32 _itemsToBeLoaded;
+	int32 _cachedItemsToBeLoaded;
 
 	QTimer _searchTimer;
 	QString _searchQuery;
@@ -211,6 +213,9 @@ private:
 
 	CachedLink *cachedLink(HistoryItem *item);
 
+	typedef QVector<LayoutItem*> Items;
+	Items _items;
+
 	// other
 	struct CachedItem {
 		CachedItem() : msgid(0), y(0), link(0) {
@@ -223,7 +228,7 @@ private:
 		CachedLink *link;
 	};
 	typedef QVector<CachedItem> CachedItems;
-	CachedItems _items;
+	CachedItems _cachedItems;
 
 	int32 _width, _height, _minHeight, _addToY;
 

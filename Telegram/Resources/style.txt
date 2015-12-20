@@ -2185,7 +2185,7 @@ mediaviewLoaderSkip: 9px;
 minPhotoSize: 104px;
 maxMediaSize: 420px;
 maxStickerSize: 256px;
-maxGifSize: 256px;
+maxGifSize: 320px;
 
 downloadPathSkip: 10px;
 
@@ -2196,7 +2196,7 @@ usernameTextStyle: textStyle(defaultTextStyle) {
 }
 usernameDefaultFg: #777;
 
-youtubeIcon: sprite(116px, 338px, 90px, 62px);
+youtubeIcon: sprite(116px, 338px, 72px, 50px);
 videoIcon: sprite(0px, 340px, 60px, 60px);
 locationSize: size(320px, 240px);
 

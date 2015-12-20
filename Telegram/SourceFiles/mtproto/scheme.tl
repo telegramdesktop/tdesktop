@@ -539,7 +539,7 @@ contactLinkContact#d502c2d0 = ContactLink;
 webPageEmpty#eb1477e8 id:long = WebPage;
 webPagePending#c586da1c id:long date:int = WebPage;
 webPage#ca820ed7 flags:# id:long url:string display_url:string type:flags.0?string site_name:flags.1?string title:flags.2?string description:flags.3?string photo:flags.4?Photo embed_url:flags.5?string embed_type:flags.5?string embed_width:flags.6?int embed_height:flags.6?int duration:flags.7?int author:flags.8?string document:flags.9?Document = WebPage;
-webPageExternal#cf73f207 flags:# url:string display_url:string type:flags.0?string title:flags.1?string description:flags.2?string thumb_url:flags.3?string content_url:flags.4?string w:flags.5?int h:flags.5?int duration:flags.6?int = WebPage;
+webPageExternal#bb54b77 flags:# url:string display_url:string type:flags.0?string title:flags.1?string description:flags.2?string thumb_url:flags.3?string content_url:flags.4?string w:flags.5?int h:flags.5?int embed_url:flags.6?string embed_type:flags.6?string duration:flags.7?int = WebPage;
 
 authorization#7bf2e6f6 hash:long flags:int device_model:string platform:string system_version:string api_id:int app_name:string app_version:string date_created:int date_active:int ip:string country:string region:string = Authorization;
 

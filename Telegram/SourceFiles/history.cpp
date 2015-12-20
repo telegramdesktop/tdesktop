@@ -22,7 +22,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "style.h"
 #include "lang.h"
 
-#include "history.h"
 #include "mainwidget.h"
 #include "application.h"
 #include "fileuploader.h"
@@ -34,43 +33,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 #include "audio.h"
 #include "localstorage.h"
-
-TextParseOptions _textNameOptions = {
-	0, // flags
-	4096, // maxw
-	1, // maxh
-	Qt::LayoutDirectionAuto, // lang-dependent
-};
-TextParseOptions _textDlgOptions = {
-	0, // flags
-	0, // maxw is style-dependent
-	1, // maxh
-	Qt::LayoutDirectionAuto, // lang-dependent
-};
-TextParseOptions _historyTextOptions = {
-	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText | TextParseMono, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-TextParseOptions _historyBotOptions = {
-	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands | TextParseMultiline | TextParseRichText | TextParseMono, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-TextParseOptions _historyTextNoMonoOptions = {
-	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-TextParseOptions _historyBotNoMonoOptions = {
-	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands | TextParseMultiline | TextParseRichText, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
 
 namespace {
 	TextParseOptions _historySrvOptions = {
@@ -133,20 +95,6 @@ namespace {
 	inline const TextParseOptions &itemTextNoMonoOptions(HistoryItem *item) {
 		return itemTextNoMonoOptions(item->history(), item->from());
 	}
-}
-
-const TextParseOptions &itemTextOptions(History *h, PeerData *f) {
-	if ((h->peer->isUser() && h->peer->asUser()->botInfo) || (f->isUser() && f->asUser()->botInfo) || (h->peer->isChat() && h->peer->asChat()->botStatus >= 0) || (h->peer->isMegagroup() && h->peer->asChannel()->mgInfo->botStatus >= 0)) {
-		return _historyBotOptions;
-	}
-	return _historyTextOptions;
-}
-
-const TextParseOptions &itemTextNoMonoOptions(History *h, PeerData *f) {
-	if ((h->peer->isUser() && h->peer->asUser()->botInfo) || (f->isUser() && f->asUser()->botInfo) || (h->peer->isChat() && h->peer->asChat()->botStatus >= 0) || (h->peer->isMegagroup() && h->peer->asChannel()->mgInfo->botStatus >= 0)) {
-		return _historyBotNoMonoOptions;
-	}
-	return _historyTextNoMonoOptions;
 }
 
 void historyInit() {
@@ -4343,6 +4291,97 @@ void HistoryDocument::getState(TextLinkPtr &lnk, HistoryCursorState &state, int3
 }
 
 void HistoryDocument::drawOverview(Painter &p, int32 width, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const {
+	if (width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
+
+	bool already = !_data->already().isEmpty(), hasdata = !_data->data.isEmpty();
+	if (_data->loader) {
+		ensureAnimation(parent);
+		if (!_animation->radial.animating()) {
+			_animation->radial.start(_data->progress());
+		}
+	}
+	bool showPause = updateStatusText(parent);
+	bool radial = isRadialAnimation(ms);
+
+	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, linktop = 0;
+	bool wthumb = withThumb();
+
+	nameleft = st::msgFileThumbPadding.left() + st::msgFileThumbSize + st::msgFileThumbPadding.right();
+	nametop = st::msgFileThumbNameTop;
+	nameright = st::msgFileThumbPadding.left();
+	statustop = st::msgFileThumbStatusTop;
+	linktop = st::msgFileThumbLinkTop;
+
+	QRect rthumb(rtlrect(st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, width));
+	if (wthumb) {
+		if (_data->thumb->loaded()) {
+			QPixmap thumb = (already || hasdata) ? _data->thumb->pixSingle(_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize) : _data->thumb->pixBlurredSingle(_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize);
+			p.drawPixmap(rthumb.topLeft(), thumb);
+		} else {
+			App::roundRect(p, rthumb, st::black, BlackCorners);
+		}
+	} else {
+	}
+	if (selected) {
+		App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
+	}
+
+	if (!radial && (already || hasdata)) {
+	} else {
+		QRect inner(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
+		p.setPen(Qt::NoPen);
+		if (selected) {
+			p.setBrush(st::msgDateImgBgSelected);
+		} else if (radial && (already || hasdata)) {
+			p.setOpacity(st::msgDateImgBg->c.alphaF() * _animation->radial.opacity());
+			p.setBrush(st::black);
+		} else if (_animation && _animation->_a_thumbOver.animating()) {
+			_animation->_a_thumbOver.step(ms);
+			float64 over = _animation->a_thumbOver.current();
+			p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
+			p.setBrush(st::black);
+		} else {
+			bool over = textlnkDrawOver(_data->loader ? _cancell : _savel);
+			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
+		}
+
+		p.setRenderHint(QPainter::HighQualityAntialiasing);
+		p.drawEllipse(inner);
+		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+
+		style::sprite icon;
+		if (already || hasdata || _data->loader) {
+			icon = (selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+		} else {
+			icon = (selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
+		}
+		p.setOpacity(radial ? _animation->radial.opacity() : 1);
+		p.drawSpriteCenter(inner, icon);
+		if (radial) {
+			p.setOpacity(1);
+
+			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
+			_animation->radial.draw(p, rinner, selected ? st::msgInBgSelected : st::msgInBg);
+		}
+	}
+
+	int32 namewidth = width - nameleft - nameright;
+
+	p.setFont(st::semiboldFont);
+	p.setPen(st::black);
+	if (namewidth < _namew) {
+		p.drawTextLeft(nameleft, nametop, width, st::semiboldFont->elided(_name, namewidth));
+	} else {
+		p.drawTextLeft(nameleft, nametop, width, _name, _namew);
+	}
+
+	style::color status(selected ? st::mediaInFgSelected : st::mediaInFg);
+	p.setFont(st::normalFont);
+	p.setPen(status);
+
+	p.drawTextLeft(nameleft, statustop, width, _statusText);
+
+	p.drawTextLeft(nameleft, linktop, width, _link);
 }
 
 void HistoryDocument::getStateOverview(TextLinkPtr &lnk, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
@@ -6174,12 +6213,12 @@ bool HistoryMessage::uploading() const {
 }
 
 QString HistoryMessage::selectedText(uint32 selection) const {
-	if (_media && selection == FullItemSel) {
+	if (_media && selection == FullSelection) {
 		QString text = _text.original(0, 0xFFFF, Text::ExpandLinksAll), mediaText = _media->inHistoryText();
 		return text.isEmpty() ? mediaText : (mediaText.isEmpty() ? text : (text + ' ' + mediaText));
 	}
-	uint16 selectedFrom = (selection == FullItemSel) ? 0 : ((selection >> 16) & 0xFFFF);
-	uint16 selectedTo = (selection == FullItemSel) ? 0xFFFF : (selection & 0xFFFF);
+	uint16 selectedFrom = (selection == FullSelection) ? 0 : ((selection >> 16) & 0xFFFF);
+	uint16 selectedTo = (selection == FullSelection) ? 0xFFFF : (selection & 0xFFFF);
 	return _text.original(selectedFrom, selectedTo, Text::ExpandLinksAll);
 }
 
@@ -6356,7 +6395,7 @@ void HistoryMessage::setId(MsgId newId) {
 }
 
 void HistoryMessage::draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const {
-	bool outbg = out() && !fromChannel(), bubble = drawBubble(), selected = (selection == FullItemSel);
+	bool outbg = out() && !fromChannel(), bubble = drawBubble(), selected = (selection == FullSelection);
 
 	textstyleSet(&(outbg ? st::outTextStyle : st::inTextStyle));
 
@@ -6433,8 +6472,8 @@ void HistoryMessage::draw(Painter &p, const QRect &r, uint32 selection, uint64 m
 void HistoryMessage::drawMessageText(Painter &p, const QRect &trect, uint32 selection) const {
 	p.setPen(st::msgColor->p);
 	p.setFont(st::msgFont->f);
-	uint16 selectedFrom = (selection == FullItemSel) ? 0 : (selection >> 16) & 0xFFFF;
-	uint16 selectedTo = (selection == FullItemSel) ? 0 : selection & 0xFFFF;
+	uint16 selectedFrom = (selection == FullSelection) ? 0 : (selection >> 16) & 0xFFFF;
+	uint16 selectedTo = (selection == FullSelection) ? 0 : selection & 0xFFFF;
 	_text.draw(p, trect.x(), trect.y(), trect.width(), Qt::AlignLeft, 0, -1, selectedFrom, selectedTo);
 }
 
@@ -6657,7 +6696,7 @@ HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId 
 }
 
 QString HistoryForwarded::selectedText(uint32 selection) const {
-	if (selection != FullItemSel) return HistoryMessage::selectedText(selection);
+	if (selection != FullSelection) return HistoryMessage::selectedText(selection);
 	QString result, original = HistoryMessage::selectedText(selection);
 	result.reserve(lang(lng_forwarded_from).size() + fwdFrom->name.size() + 4 + original.size());
 	result.append('[').append(lang(lng_forwarded_from)).append(' ').append(fwdFrom->name).append(qsl("]\n")).append(original);
@@ -6705,7 +6744,7 @@ void HistoryForwarded::drawForwardedFrom(Painter &p, int32 x, int32 y, int32 w, 
 void HistoryForwarded::drawMessageText(Painter &p, const QRect &trect, uint32 selection) const {
 	QRect realtrect(trect);
 	if (displayForwardedFrom()) {
-		drawForwardedFrom(p, realtrect.x(), realtrect.y(), realtrect.width(), (selection == FullItemSel));
+		drawForwardedFrom(p, realtrect.x(), realtrect.y(), realtrect.width(), (selection == FullSelection));
 		realtrect.setY(trect.y() + st::msgServiceNameFont->height);
 	}
 	HistoryMessage::drawMessageText(p, realtrect, selection);
@@ -6830,7 +6869,7 @@ HistoryReply::HistoryReply(History *history, HistoryBlock *block, MsgId msgId, i
 }
 
 QString HistoryReply::selectedText(uint32 selection) const {
-	if (selection != FullItemSel || !replyToMsg) return HistoryMessage::selectedText(selection);
+	if (selection != FullSelection || !replyToMsg) return HistoryMessage::selectedText(selection);
 	QString result, original = HistoryMessage::selectedText(selection);
 	result.reserve(lang(lng_in_reply_to).size() + replyToMsg->from()->name.size() + 4 + original.size());
 	result.append('[').append(lang(lng_in_reply_to)).append(' ').append(replyToMsg->from()->name).append(qsl("]\n")).append(original);
@@ -6970,7 +7009,7 @@ void HistoryReply::drawReplyTo(Painter &p, int32 x, int32 y, int32 w, bool selec
 void HistoryReply::drawMessageText(Painter &p, const QRect &trect, uint32 selection) const {
 	int32 h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 
-	drawReplyTo(p, trect.x(), trect.y(), trect.width(), (selection == FullItemSel));
+	drawReplyTo(p, trect.x(), trect.y(), trect.width(), (selection == FullSelection));
 
 	QRect realtrect(trect);
 	realtrect.setY(trect.y() + h);
@@ -7248,8 +7287,8 @@ void HistoryServiceMsg::initDimensions() {
 }
 
 QString HistoryServiceMsg::selectedText(uint32 selection) const {
-	uint16 selectedFrom = (selection == FullItemSel) ? 0 : (selection >> 16) & 0xFFFF;
-	uint16 selectedTo = (selection == FullItemSel) ? 0xFFFF : (selection & 0xFFFF);
+	uint16 selectedFrom = (selection == FullSelection) ? 0 : (selection >> 16) & 0xFFFF;
+	uint16 selectedTo = (selection == FullSelection) ? 0xFFFF : (selection & 0xFFFF);
 	return _text.original(selectedFrom, selectedTo);
 }
 
@@ -7295,7 +7334,7 @@ void HistoryServiceMsg::draw(Painter &p, const QRect &r, uint32 selection, uint6
 		p.save();
 		int32 left = st::msgServiceMargin.left() + (width - _media->maxWidth()) / 2, top = st::msgServiceMargin.top() + height + st::msgServiceMargin.top();
 		p.translate(left, top);
-		_media->draw(p, this, r.translated(-left, -top), selection == FullItemSel, ms);
+		_media->draw(p, this, r.translated(-left, -top), selection == FullSelection, ms);
 		p.restore();
 	}
 
@@ -7305,13 +7344,13 @@ void HistoryServiceMsg::draw(Painter &p, const QRect &r, uint32 selection, uint6
 		left += (width - _maxw) / 2;
 		width = _maxw;
 	}
-	App::roundRect(p, left, st::msgServiceMargin.top(), width, height, App::msgServiceBg(), (selection == FullItemSel) ? ServiceSelectedCorners : ServiceCorners);
+	App::roundRect(p, left, st::msgServiceMargin.top(), width, height, App::msgServiceBg(), (selection == FullSelection) ? ServiceSelectedCorners : ServiceCorners);
 
 	p.setBrush(Qt::NoBrush);
 	p.setPen(st::msgServiceColor->p);
 	p.setFont(st::msgServiceFont->f);
-	uint16 selectedFrom = (selection == FullItemSel) ? 0 : (selection >> 16) & 0xFFFF;
-	uint16 selectedTo = (selection == FullItemSel) ? 0 : selection & 0xFFFF;
+	uint16 selectedFrom = (selection == FullSelection) ? 0 : (selection >> 16) & 0xFFFF;
+	uint16 selectedTo = (selection == FullSelection) ? 0 : selection & 0xFFFF;
 	_text.draw(p, trect.x(), trect.y(), trect.width(), Qt::AlignCenter, 0, -1, selectedFrom, selectedTo);
 	textstyleRestore();
 }

@@ -32,6 +32,7 @@ class Color;
 class FileUploader;
 
 #include "history.h"
+#include "layout.h"
 
 typedef QMap<HistoryItem*, NullType> HistoryItemsMap;
 typedef QMap<VideoData*, HistoryItemsMap> VideoItems;
