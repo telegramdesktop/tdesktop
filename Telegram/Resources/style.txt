@@ -776,8 +776,8 @@ setClose: iconedButton(btnDefIconed) {
 	height: 43px;
 }
 setClosePos: point(32px, 32px);
-setPhotoImg: sprite(0px, 220px, 120px, 120px);
-setOverPhotoImg: sprite(122px, 220px, 120px, 120px);
+setPhotoImg: sprite(0px, 218px, 120px, 120px);
+setOverPhotoImg: sprite(122px, 218px, 120px, 120px);
 setPhotoDuration: 150;
 
 setPadding: 26px;
@@ -1091,7 +1091,7 @@ msgDateImgBgSelected: #1c4a7187;
 msgDateImgPadding: point(8px, 2px);
 msgDateImgCheckSpace: 4px;
 
-msgDogImg: sprite(216px, 93px, 126px, 126px);
+msgDogImg: sprite(216px, 92px, 126px, 126px);
 historyPadding: 10px;
 
 collapseButton: flatButton(btnDefFlat) {
@@ -2196,8 +2196,7 @@ usernameTextStyle: textStyle(defaultTextStyle) {
 }
 usernameDefaultFg: #777;
 
-youtubeIcon: sprite(336px, 221px, 60px, 60px);
-vimeoIcon: sprite(336px, 283px, 60px, 60px);
+youtubeIcon: sprite(116px, 338px, 90px, 62px);
 videoIcon: sprite(0px, 340px, 60px, 60px);
 locationSize: size(320px, 240px);
 
