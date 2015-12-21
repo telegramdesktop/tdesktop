@@ -699,7 +699,7 @@ StickersBox::StickersBox() : ItemListBox(st::boxScroll)
 , _topShadow(this, st::contactsAboutShadow)
 , _bottomShadow(this)
 , _scrollDelta(0)
-, _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPhotoSize - st::contactsPadding.left() - st::contactsPadding.right())
+, _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.left())
 , _about(st::boxTextFont, lang(lng_stickers_reorder), _defaultOptions, _aboutWidth)
 , _aboutHeight(st::stickersReorderPadding.top() + _about.countHeight(_aboutWidth) + st::stickersReorderPadding.bottom()) {
 	ItemListBox::init(&_inner, st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom(), st::boxTitleHeight + _aboutHeight);
@@ -778,7 +778,7 @@ void StickersBox::paintEvent(QPaintEvent *e) {
 
 	p.fillRect(0, 0, width(), _aboutHeight, st::contactsAboutBg);
 	p.setPen(st::stickersReorderFg);
-	_about.drawLeft(p, st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left(), st::stickersReorderPadding.top(), _aboutWidth, width());
+	_about.draw(p, st::contactsPadding.left(), st::stickersReorderPadding.top(), _aboutWidth, style::al_center);
 }
 
 void StickersBox::closePressed() {

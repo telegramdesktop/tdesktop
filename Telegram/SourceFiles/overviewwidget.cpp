@@ -306,7 +306,18 @@ void OverviewInner::fixItemIndex(int32 &current, MsgId msgId) const {
 				}
 			}
 		}
-	} else {
+	} else if (_type == OverviewDocuments) {
+		int32 l = _items.size();
+		if (current < 0 || current >= l || complexMsgId(_items.at(current)->getItem()) != msgId) {
+			current = -1;
+			for (int32 i = 0; i < l; ++i) {
+				if (complexMsgId(_items.at(i)->getItem()) == msgId) {
+					current = i;
+					break;
+				}
+			}
+		}
+	} else if (_type == OverviewLinks) {
 		int32 l = _cachedItems.size();
 		if (current < 0 || current >= l || _cachedItems[current].msgid != msgId) {
 			current = -1;
@@ -498,7 +509,17 @@ void OverviewInner::moveToNextItem(MsgId &msgId, int32 &index, MsgId upTo, int32
 		} else {
 			msgId = (index >= indexskip) ? _history->overview[_type][index - indexskip] : (-_migrated->overview[_type][index]);
 		}
-	} else {
+	} else if (_type == OverviewDocuments) {
+		while (index >= 0 && index < _items.size() && !_items.at(index)->toLayoutMediaItem()) {
+			index += (delta > 0) ? 1 : -1;
+		}
+		if (index < 0 || index >= _items.size()) {
+			msgId = 0;
+			index = -1;
+		} else {
+			msgId = complexMsgId(_items.at(index)->getItem());
+		}
+	} else if (_type == OverviewLinks) {
 		while (index >= 0 && index < _cachedItems.size() && !_cachedItems[index].msgid) {
 			index += (delta > 0) ? 1 : -1;
 		}
@@ -897,7 +918,9 @@ void OverviewInner::addSelectionRange(int32 selFrom, int32 selTo, History *histo
 		MsgId msgid = 0;
 		if (_type == OverviewPhotos || _type == OverviewVideos || _type == OverviewAudioDocuments) {
 			msgid = ((history == _history) ? 1 : -1) * history->overview[_type][i];
-		} else {
+		} else if (_type == OverviewDocuments) {
+			msgid = complexMsgId(_items.at(i)->getItem());
+		} else if (_type == OverviewLinks) {
 			msgid = _cachedItems[i].msgid;
 		}
 		if (!msgid) continue;
@@ -1001,28 +1024,29 @@ int32 OverviewInner::itemTop(const FullMsgId &msgId) const {
 void OverviewInner::preloadMore() {
 	if (_inSearch) {
 		if (!_searchRequest) {
+			MTPmessagesFilter filter = (_type == OverviewLinks) ? MTP_inputMessagesFilterUrl() : MTP_inputMessagesFilterDocument();
 			if (!_searchFull) {
 				int32 flags = (_history->peer->isChannel() && !_history->peer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
-				_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _history->peer->input, MTP_string(_searchQuery), MTP_inputMessagesFilterUrl(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, _lastSearchId ? SearchFromOffset : SearchFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchId ? SearchFromOffset : SearchFromStart));
+				_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _history->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, _lastSearchId ? SearchFromOffset : SearchFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchId ? SearchFromOffset : SearchFromStart));
 				if (!_lastSearchId) {
 					_searchQueries.insert(_searchRequest, _searchQuery);
 				}
 			} else if (_migrated && !_searchFullMigrated) {
 				int32 flags = (_migrated->peer->isChannel() && !_migrated->peer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
-				_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _migrated->peer->input, MTP_string(_searchQuery), MTP_inputMessagesFilterUrl(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchMigratedId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, _lastSearchMigratedId ? SearchMigratedFromOffset : SearchMigratedFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchMigratedId ? SearchMigratedFromOffset : SearchMigratedFromStart));
+				_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _migrated->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchMigratedId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, _lastSearchMigratedId ? SearchMigratedFromOffset : SearchMigratedFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchMigratedId ? SearchMigratedFromOffset : SearchMigratedFromStart));
 			}
 		}
 	} else if (App::main()) {
 		if (_migrated && _history->overviewLoaded(_type)) {
-			App::main()->loadMediaBack(_migrated->peer, _type, _type != OverviewLinks);
+			App::main()->loadMediaBack(_migrated->peer, _type, false);
 		} else {
-			App::main()->loadMediaBack(_history->peer, _type, _type != OverviewLinks);
+			App::main()->loadMediaBack(_history->peer, _type, false);
 		}
 	}
 }
 
 bool OverviewInner::preloadLocal() {
-	if (_type != OverviewLinks) return false;
+	if (_type != OverviewLinks && _type != OverviewDocuments) return false;
 	if (_cachedItemsToBeLoaded >= migratedIndexSkip() + _history->overview[_type].size()) return false;
 	_cachedItemsToBeLoaded += LinksOverviewPerPage;
 	mediaOverviewUpdated();
@@ -1198,7 +1222,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 
 				if (m) {
 					p.translate(pos.x(), pos.y());
-					m->drawOverview(p, _vsize, item, r.translated(-pos.x(), -pos.y()), sel == FullSelection, ms);
+//					m->drawOverview(p, _vsize, item, r.translated(-pos.x(), -pos.y()), sel == FullSelection, ms);
 					p.translate(-pos.x(), -pos.y());
 				}
 			}
@@ -1229,7 +1253,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 					}
 				}
 
-				m->drawOverview(p, _rowWidth, item, r.translated(-_rowsLeft, -_addToY - index * _rowHeight), (sel == FullSelection), ms);
+//				m->drawOverview(p, _rowWidth, item, r.translated(-_rowsLeft, -_addToY - index * _rowHeight), (sel == FullSelection), ms);
 			}
 			p.translate(0, _rowHeight);
 		}
@@ -1260,10 +1284,10 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 					} else {
 						int32 index = lnk->letter.isEmpty() ? 0 : (lnk->letter.at(0).unicode() % 4);
 						switch (index) {
-						case 0: App::roundRect(p, QRect(0, top, st::dlgPhotoSize, st::dlgPhotoSize), st::mvDocRedColor, DocRedCorners); break;
-						case 1: App::roundRect(p, QRect(0, top, st::dlgPhotoSize, st::dlgPhotoSize), st::mvDocYellowColor, DocYellowCorners); break;
-						case 2: App::roundRect(p, QRect(0, top, st::dlgPhotoSize, st::dlgPhotoSize), st::mvDocGreenColor, DocGreenCorners); break;
-						case 3: App::roundRect(p, QRect(0, top, st::dlgPhotoSize, st::dlgPhotoSize), st::mvDocBlueColor, DocBlueCorners); break;
+						case 0: App::roundRect(p, QRect(0, top, st::dlgPhotoSize, st::dlgPhotoSize), st::msgFileRedColor, DocRedCorners); break;
+						case 1: App::roundRect(p, QRect(0, top, st::dlgPhotoSize, st::dlgPhotoSize), st::msgFileYellowColor, DocYellowCorners); break;
+						case 2: App::roundRect(p, QRect(0, top, st::dlgPhotoSize, st::dlgPhotoSize), st::msgFileGreenColor, DocGreenCorners); break;
+						case 3: App::roundRect(p, QRect(0, top, st::dlgPhotoSize, st::dlgPhotoSize), st::msgFileBlueColor, DocBlueCorners); break;
 						}
 						
 						if (!lnk->letter.isEmpty()) {
@@ -1315,7 +1339,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 					}
 					p.fillRect(left, _cachedItems[i].y - curY, _rowWidth - left, st::linksBorder, st::linksBorderColor->b);
 				} else {
-					QString str = langDayOfMonth(_cachedItems[i].date);
+					QString str = langDayOfMonthFull(_cachedItems[i].date);
 
 					p.setPen(st::linksDateColor->p);
 					p.setFont(st::msgFont->f);
@@ -1373,10 +1397,10 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 							}
 						}
 
-						m->drawOverview(p, _rowWidth, item, r.translated(-_rowsLeft, -_addToY - curY), (sel == FullSelection), ms);
+//						m->drawOverview(p, _rowWidth, item, r.translated(-_rowsLeft, -_addToY - curY), (sel == FullSelection), ms);
 					}
 				} else {
-					QString str = langDayOfMonth(_cachedItems[i].date);
+					QString str = langDayOfMonthFull(_cachedItems[i].date);
 
 					p.setPen(st::linksDateColor->p);
 					p.setFont(st::msgFont->f);
@@ -1436,7 +1460,7 @@ void OverviewInner::onUpdateSelected() {
 					if (m.y() >= _addToY + row * vsize + st::overviewPhotoSkip && m.y() < _addToY + (row + 1) * vsize + st::overviewPhotoSkip) {
 						HistoryMedia *media = item->getMedia(true);
 						if (media) {
-							media->getStateOverview(lnk, m.x() - inRow * w - st::overviewPhotoSkip, m.y() - _addToY - row * vsize - st::overviewPhotoSkip, item, _vsize);
+//							media->getStateOverview(lnk, m.x() - inRow * w - st::overviewPhotoSkip, m.y() - _addToY - row * vsize - st::overviewPhotoSkip, item, _vsize);
 						}
 					}
 				}
@@ -1465,7 +1489,7 @@ void OverviewInner::onUpdateSelected() {
 				if (upon && m.x() >= _rowsLeft && m.x() < _rowsLeft + _rowWidth) {
 					HistoryMedia *media = item->getMedia(true);
 					if (media) {
-						media->getStateOverview(lnk, m.x() - _rowsLeft, m.y() - _addToY - i * _rowHeight, item, _rowWidth);
+//						media->getStateOverview(lnk, m.x() - _rowsLeft, m.y() - _addToY - i * _rowHeight, item, _rowWidth);
 						newsel = (item->history() == _migrated) ? (-item->id) : item->id;
 					}
 				}
@@ -1482,7 +1506,7 @@ void OverviewInner::onUpdateSelected() {
 				int32 top = _addToY + _items.at(i)->getOverviewItemInfo()->top();
 				if (!_items.at(i)->toLayoutMediaItem()) { // day item
 					int32 h = _items.at(i)->height();
-					if (i > 0 && ((top + h / 2) >= m.y() || i == _cachedItems.size() - 1)) {
+					if (i > 0 && ((top + h / 2) >= m.y() || i == _items.size() - 1)) {
 						--i;
 						if (!_items.at(i)->toLayoutMediaItem()) break; // wtf
 						top = _addToY + _items.at(i)->getOverviewItemInfo()->top();
@@ -1576,7 +1600,7 @@ void OverviewInner::onUpdateSelected() {
 					index = i;
 					HistoryMedia *media = item->getMedia(true);
 					if (media) {
-						media->getStateOverview(lnk, m.x() - _rowsLeft, m.y() - y, item, _rowWidth);
+//						media->getStateOverview(lnk, m.x() - _rowsLeft, m.y() - y, item, _rowWidth);
 					}
 				}
 				break;
@@ -2039,6 +2063,10 @@ void OverviewInner::switchType(MediaOverviewType type) {
 		_dragItemIndex = _mousedItemIndex = _dragSelFromIndex = _dragSelToIndex = -1;
 		_dragItem = _mousedItem = _dragSelFrom = _dragSelTo = 0;
 		_lnkOverIndex = _lnkDownIndex = 0;
+		for (int32 i = 0, l = _items.size(); i != l; ++i) {
+			delete _items.at(i);
+		}
+		_items.clear();
 		_cachedItems.clear();
 		_cached.clear();
 		_type = type;
@@ -2178,7 +2206,8 @@ bool OverviewInner::onSearchMessages(bool searchCache) {
 		_searchQuery = q;
 		_searchFull = _searchFullMigrated = false;
 		int32 flags = (_history->peer->isChannel() && !_history->peer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
-		_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _history->peer->input, MTP_string(_searchQuery), MTP_inputMessagesFilterUrl(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, SearchFromStart), rpcFail(&OverviewInner::searchFailed, SearchFromStart));
+		MTPmessagesFilter filter = (_type == OverviewLinks) ? MTP_inputMessagesFilterUrl() : MTP_inputMessagesFilterDocument();
+		_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _history->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, SearchFromStart), rpcFail(&OverviewInner::searchFailed, SearchFromStart));
 		_searchQueries.insert(_searchRequest, _searchQuery);
 	}
 	return false;
@@ -2416,7 +2445,7 @@ void OverviewInner::mediaOverviewUpdated(bool fromResize) {
 			if (allGood) {
 				if (_cachedItems.size() > in && _cachedItems.at(in).msgid == msgid) {
 					prevDate = _cachedItems.at(in).date;
-					if (fromResize && _type == OverviewLinks) {
+					if (fromResize) {
 						_cachedItems[in].y = y;
 						y += _cachedItems[in].link->countHeight(_rowWidth);
 					} else {
@@ -2426,13 +2455,13 @@ void OverviewInner::mediaOverviewUpdated(bool fromResize) {
 					continue;
 				}
 				if (_cachedItems.size() > in + 1 && !_cachedItems.at(in).msgid && _cachedItems.at(in + 1).msgid == msgid) { // day item
-					if (fromResize && _type == OverviewLinks) {
+					if (fromResize) {
 						_cachedItems[in].y = y;
 						y += st::msgFont->height + st::linksDateMargin * 2 + st::linksBorder;
 					}
 					++in;
 					prevDate = _cachedItems.at(in).date;
-					if (fromResize && _type == OverviewLinks) {
+					if (fromResize) {
 						_cachedItems[in].y = y;
 						y += _cachedItems[in].link->countHeight(_rowWidth);
 					} else {
@@ -2465,20 +2494,12 @@ void OverviewInner::mediaOverviewUpdated(bool fromResize) {
 
 			if (_cachedItems.size() > in) {
 				_cachedItems[in] = CachedItem(msgid, item->date.date(), y);
-				if (_type == OverviewLinks) {
-					_cachedItems[in].link = cachedLink(item);
-					y += _cachedItems[in].link->countHeight(_rowWidth);
-				} else {
-					y += _rowHeight;
-				}
+				_cachedItems[in].link = cachedLink(item);
+				y += _cachedItems[in].link->countHeight(_rowWidth);
 			} else {
 				_cachedItems.push_back(CachedItem(msgid, item->date.date(), y));
-				if (_type == OverviewLinks) {
-					_cachedItems.back().link = cachedLink(item);
-					y += _cachedItems.back().link->countHeight(_rowWidth);
-				} else {
-					y += _rowHeight;
-				}
+				_cachedItems.back().link = cachedLink(item);
+				y += _cachedItems.back().link->countHeight(_rowWidth);
 			}
 			++in;
 		}

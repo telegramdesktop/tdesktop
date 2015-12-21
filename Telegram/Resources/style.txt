@@ -1184,6 +1184,11 @@ mediaUnreadSize: 7px;
 mediaUnreadSkip: 5px;
 mediaUnreadTop: 6px;
 
+msgFileRedColor: #e47272;
+msgFileYellowColor: #efc274;
+msgFileGreenColor: #61b96e;
+msgFileBlueColor: #72b1df;
+
 msgFileMenuSize: size(36px, 36px);
 msgFileSize: 44px;
 msgFilePadding: margins(14px, 12px, 11px, 12px);
@@ -1231,8 +1236,16 @@ msgFileOutPlaySelected: sprite(180px, 146px, 20px, 18px);
 msgFileInPlay: sprite(160px, 164px, 20px, 18px);
 msgFileInPlaySelected: sprite(180px, 164px, 20px, 18px);
 
+msgFileRed: sprite(0px, 425px, 20px, 20px);
+msgFileYellow: sprite(20px, 425px, 20px, 20px);
+msgFileGreen: sprite(40px, 425px, 20px, 20px);
+msgFileBlue: sprite(60px, 425px, 20px, 20px);
+
 msgFileOverDuration: 200;
-msgFileRadialLine: 4px;
+msgFileRadialLine: 3px;
+
+msgFileExtPadding: 8px;
+msgFileExtTop: 30px;
 
 msgVideoSize: size(320px, 240px);
 
@@ -2086,14 +2099,12 @@ mvDocExtFont: font(semibold 18px);
 mvDocExtColor: white;
 mvDocExtPadding: 10px;
 mvDocLinksTop: 57px;
-mvDocRed: sprite(0px, 400px, 80px, 80px);
-mvDocRedColor: #e47272;
-mvDocYellow: sprite(80px, 400px, 80px, 80px);
-mvDocYellowColor: #efc274;
-mvDocGreen: sprite(160px, 400px, 80px, 80px);
-mvDocGreenColor: #61b96e;
-mvDocBlue: sprite(240px, 400px, 80px, 80px);
-mvDocBlueColor: #72b1df;
+mvDocRed: sprite(0px, 400px, 25px, 25px);
+mvDocYellow: sprite(25px, 400px, 25px, 25px);
+mvDocGreen: sprite(50px, 400px, 25px, 25px);
+mvDocBlue: sprite(75px, 400px, 25px, 25px);
+mvDocIconSize: 80px;
+
 mvDocLink: linkButton(btnDefLink) {
 	color: #4595d3;
 	overColor: #4595d3;

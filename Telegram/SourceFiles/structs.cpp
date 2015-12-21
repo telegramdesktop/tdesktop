@@ -875,7 +875,7 @@ const FileLocation &AudioData::location(bool check) {
 	return _location;
 }
 
-void DocumentOpenLink::doOpen(DocumentData *data) {
+void DocumentOpenLink::doOpen(DocumentData *data, int32 openOnSave) {
 	if (!data->date) return;
 
 	bool play = data->song() && App::hoveredLinkItem() && audioPlayer();
@@ -893,13 +893,10 @@ void DocumentOpenLink::doOpen(DocumentData *data) {
 				if (App::main()) App::main()->documentPlayProgress(song);
 			}
 		} else if (data->size < MediaViewImageSizeLimit && location.accessEnable()) {
-			if (!App::hoveredLinkItem() || !App::hoveredLinkItem()->getMedia() || !App::hoveredLinkItem()->getMedia()->playInline(App::hoveredLinkItem())) {
-				QImageReader reader(location.name());
-				if (reader.canRead() && (App::hoveredLinkItem() || App::contextItem())) {
-					App::wnd()->showDocument(data, App::hoveredLinkItem() ? App::hoveredLinkItem() : App::contextItem());
-				} else {
-					psOpenFile(location.name());
-				}
+			if ((App::hoveredLinkItem() || App::contextItem()) && (data->isAnimation() || QImageReader(location.name()).canRead())) {
+				App::wnd()->showDocument(data, App::hoveredLinkItem() ? App::hoveredLinkItem() : App::contextItem());
+			} else {
+				psOpenFile(location.name());
 			}
 			location.accessDisable();
 		} else {
@@ -926,13 +923,39 @@ void DocumentOpenLink::doOpen(DocumentData *data) {
 
 	QString filename = saveFileName(lang(lng_save_file), filter, qsl("doc"), name, false);
 	if (!filename.isEmpty()) {
-		data->openOnSave = 1;
+		data->openOnSave = openOnSave;
 		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->fullId() : (App::contextItem() ? App::contextItem()->fullId() : FullMsgId());
 		data->save(filename);
 	}
 }
 
 void DocumentOpenLink::onClick(Qt::MouseButton button) const {
+	if (button != Qt::LeftButton) return;
+	doOpen(document());
+}
+
+void GifOpenLink::doOpen(DocumentData *data) {
+	if (!data->date) return;
+
+	const FileLocation &location(data->location(true));
+	if (!location.isEmpty()) {
+		if (data->size < MediaViewImageSizeLimit && location.accessEnable()) {
+			if (!App::hoveredLinkItem() || !App::hoveredLinkItem()->getMedia() || !App::hoveredLinkItem()->getMedia()->playInline(App::hoveredLinkItem())) {
+				psOpenFile(location.name());
+			}
+			location.accessDisable();
+		} else {
+			psOpenFile(location.name());
+		}
+		return;
+	}
+
+	if (data->status != FileReady) return;
+
+	return DocumentOpenLink::doOpen(data, 2);
+}
+
+void GifOpenLink::onClick(Qt::MouseButton button) const {
 	if (button != Qt::LeftButton) return;
 	doOpen(document());
 }

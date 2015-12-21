@@ -1880,9 +1880,12 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 				} else if (document->openOnSave > 0 && document->size < MediaViewImageSizeLimit) {
 					const FileLocation &location(document->location(true));
 					if (location.accessEnable()) {
-						if (!item || !item->getMedia() || !item->getMedia()->playInline(item)) {
-							QImageReader reader(location.name());
-							if (reader.canRead() && item) {
+						if (document->openOnSave > 1) {
+							if (!item || !item->getMedia() || !item->getMedia()->playInline(item)) {
+								psOpenFile(already);
+							}
+						} else {
+							if (item && (document->isAnimation() || QImageReader(location.name()).canRead())) {
 								App::wnd()->showDocument(document, item);
 							} else {
 								psOpenFile(already);
@@ -4509,7 +4512,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		QDateTime datetime = date(d.vdate);
 
 		QString name = App::self()->firstName;
-		QString day = langDayOfWeekFull(datetime.date()), date = langDayOfMonth(datetime.date()), time = datetime.time().toString(cTimeFormat());
+		QString day = langDayOfWeekFull(datetime.date()), date = langDayOfMonthFull(datetime.date()), time = datetime.time().toString(cTimeFormat());
 		QString device = qs(d.vdevice), location = qs(d.vlocation);
 		LangString text = lng_new_authorization(lt_name, App::self()->firstName, lt_day, day, lt_date, date, lt_time, time, lt_device, device, lt_location, location);
 		App::wnd()->serviceNotification(text);

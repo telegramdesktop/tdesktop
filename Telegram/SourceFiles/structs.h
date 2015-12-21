@@ -1235,6 +1235,16 @@ class DocumentOpenLink : public DocumentLink {
 public:
 	DocumentOpenLink(DocumentData *document) : DocumentLink(document) {
 	}
+	static void doOpen(DocumentData *document, int32 openOnSave = 1);
+	void onClick(Qt::MouseButton button) const;
+};
+
+class GifOpenLink : public DocumentOpenLink {
+	TEXT_LINK_CLASS(GifOpenLink)
+
+public:
+	GifOpenLink(DocumentData *document) : DocumentOpenLink(document) {
+	}
 	static void doOpen(DocumentData *document);
 	void onClick(Qt::MouseButton button) const;
 };

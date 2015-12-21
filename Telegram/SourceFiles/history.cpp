@@ -3320,12 +3320,6 @@ void HistoryPhoto::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 	}
 }
 
-void HistoryPhoto::getStateOverview(TextLinkPtr &lnk, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
-	if (x >= 0 && y >= 0 && x < width && y < width) {
-		lnk = _openl;
-	}
-}
-
 void HistoryPhoto::updateFrom(const MTPMessageMedia &media, HistoryItem *parent, bool allowEmitResize) {
 	if (media.type() == mtpc_messageMediaPhoto) {
 		const MTPPhoto &photo(media.c_messageMediaPhoto().vphoto);
@@ -3372,65 +3366,7 @@ ImagePtr HistoryPhoto::replyPreview() {
 	return _data->makeReplyPreview();
 }
 
-QString formatSizeText(qint64 size) {
-	if (size >= 1024 * 1024) { // more than 1 mb
-		qint64 sizeTenthMb = (size * 10 / (1024 * 1024));
-		return QString::number(sizeTenthMb / 10) + '.' + QString::number(sizeTenthMb % 10) + qsl(" MB");
-	}
-	if (size >= 1024) {
-		qint64 sizeTenthKb = (size * 10 / 1024);
-		return QString::number(sizeTenthKb / 10) + '.' + QString::number(sizeTenthKb % 10) + qsl(" KB");
-	}
-	return QString::number(size) + qsl(" B");
-}
-
-QString formatDownloadText(qint64 ready, qint64 total) {
-	QString readyStr, totalStr, mb;
-	if (total >= 1024 * 1024) { // more than 1 mb
-		qint64 readyTenthMb = (ready * 10 / (1024 * 1024)), totalTenthMb = (total * 10 / (1024 * 1024));
-		readyStr = QString::number(readyTenthMb / 10) + '.' + QString::number(readyTenthMb % 10);
-		totalStr = QString::number(totalTenthMb / 10) + '.' + QString::number(totalTenthMb % 10);
-		mb = qsl("MB");
-	} else if (total >= 1024) {
-		qint64 readyKb = (ready / 1024), totalKb = (total / 1024);
-		readyStr = QString::number(readyKb);
-		totalStr = QString::number(totalKb);
-		mb = qsl("KB");
-	} else {
-		readyStr = QString::number(ready);
-		totalStr = QString::number(total);
-		mb = qsl("B");
-	}
-	return lng_save_downloaded(lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
-}
-
-QString formatDurationText(qint64 duration) {
-	qint64 hours = (duration / 3600), minutes = (duration % 3600) / 60, seconds = duration % 60;
-	return (hours ? QString::number(hours) + ':' : QString()) + (minutes >= 10 ? QString() : QString('0')) + QString::number(minutes) + ':' + (seconds >= 10 ? QString() : QString('0')) + QString::number(seconds);
-}
-
-QString formatDurationAndSizeText(qint64 duration, qint64 size) {
-	return lng_duration_and_size(lt_duration, formatDurationText(duration), lt_size, formatSizeText(size));
-}
-
-QString formatGifAndSizeText(qint64 size) {
-	return lng_duration_and_size(lt_duration, qsl("GIF"), lt_size, formatSizeText(size));
-}
-
-QString formatPlayedText(qint64 played, qint64 duration) {
-	return lng_duration_played(lt_played, formatDurationText(played), lt_duration, formatDurationText(duration));
-}
-
 namespace {
-	QString documentName(DocumentData *document) {
-		SongData *song = document->song();
-		if (!song || (song->title.isEmpty() && song->performer.isEmpty())) return document->name;
-
-		if (song->performer.isEmpty()) return song->title;
-
-		return song->performer + QString::fromUtf8(" \xe2\x80\x93 ") + (song->title.isEmpty() ? qsl("Unknown Track") : song->title);
-	}
-
 	int32 videoMaxStatusWidth(VideoData *video) {
 		int32 result = st::normalFont->width(formatDownloadText(video->size, video->size));
 		result = qMax(result, st::normalFont->width(formatDurationAndSizeText(video->duration, video->size)));
@@ -3774,15 +3710,6 @@ void HistoryVideo::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 	}
 }
 
-void HistoryVideo::drawOverview(Painter &p, int32 width, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const {
-}
-
-void HistoryVideo::getStateOverview(TextLinkPtr &lnk, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
-	if (x >= 0 && y >= 0 && x < width && y < width) {
-		lnk = _data->already().isEmpty() ? (_data->loader ? _cancell : _savel) : _openl;
-	}
-}
-
 void HistoryVideo::setStatusSize(int32 newSize) const {
 	HistoryFileMedia::setStatusSize(newSize, _data->size, _data->duration, 0);
 }
@@ -3972,12 +3899,6 @@ void HistoryAudio::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 	}
 }
 
-void HistoryAudio::drawOverview(Painter &p, int32 width, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const {
-}
-
-void HistoryAudio::getStateOverview(TextLinkPtr &lnk, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
-}
-
 const QString HistoryAudio::inDialogsText() const {
 	return lang(lng_in_dlg_audio);
 }
@@ -4045,11 +3966,9 @@ HistoryDocument::HistoryDocument(DocumentData *document) : HistoryFileMedia()
 , _data(document)
 , _linksavel(new DocumentSaveLink(_data))
 , _linkcancell(new DocumentCancelLink(_data))
-, _name(documentName(_data)) {
+, _name(documentName(_data))
+, _namew(st::semiboldFont->width(_name)) {
 	setLinks(new DocumentOpenLink(_data), new DocumentSaveLink(_data), new DocumentCancelLink(_data));
-
-	if (_name.isEmpty()) _name = qsl("Unknown File");
-	_namew = st::semiboldFont->width(_name);
 	
 	setStatusSize(FileStatusSizeReady);
 
@@ -4290,103 +4209,6 @@ void HistoryDocument::getState(TextLinkPtr &lnk, HistoryCursorState &state, int3
 	}
 }
 
-void HistoryDocument::drawOverview(Painter &p, int32 width, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const {
-	if (width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
-
-	bool already = !_data->already().isEmpty(), hasdata = !_data->data.isEmpty();
-	if (_data->loader) {
-		ensureAnimation(parent);
-		if (!_animation->radial.animating()) {
-			_animation->radial.start(_data->progress());
-		}
-	}
-	bool showPause = updateStatusText(parent);
-	bool radial = isRadialAnimation(ms);
-
-	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, linktop = 0;
-	bool wthumb = withThumb();
-
-	nameleft = st::msgFileThumbPadding.left() + st::msgFileThumbSize + st::msgFileThumbPadding.right();
-	nametop = st::msgFileThumbNameTop;
-	nameright = st::msgFileThumbPadding.left();
-	statustop = st::msgFileThumbStatusTop;
-	linktop = st::msgFileThumbLinkTop;
-
-	QRect rthumb(rtlrect(st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, width));
-	if (wthumb) {
-		if (_data->thumb->loaded()) {
-			QPixmap thumb = (already || hasdata) ? _data->thumb->pixSingle(_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize) : _data->thumb->pixBlurredSingle(_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize);
-			p.drawPixmap(rthumb.topLeft(), thumb);
-		} else {
-			App::roundRect(p, rthumb, st::black, BlackCorners);
-		}
-	} else {
-	}
-	if (selected) {
-		App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
-	}
-
-	if (!radial && (already || hasdata)) {
-	} else {
-		QRect inner(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
-		p.setPen(Qt::NoPen);
-		if (selected) {
-			p.setBrush(st::msgDateImgBgSelected);
-		} else if (radial && (already || hasdata)) {
-			p.setOpacity(st::msgDateImgBg->c.alphaF() * _animation->radial.opacity());
-			p.setBrush(st::black);
-		} else if (_animation && _animation->_a_thumbOver.animating()) {
-			_animation->_a_thumbOver.step(ms);
-			float64 over = _animation->a_thumbOver.current();
-			p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
-			p.setBrush(st::black);
-		} else {
-			bool over = textlnkDrawOver(_data->loader ? _cancell : _savel);
-			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
-		}
-
-		p.setRenderHint(QPainter::HighQualityAntialiasing);
-		p.drawEllipse(inner);
-		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
-
-		style::sprite icon;
-		if (already || hasdata || _data->loader) {
-			icon = (selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
-		} else {
-			icon = (selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
-		}
-		p.setOpacity(radial ? _animation->radial.opacity() : 1);
-		p.drawSpriteCenter(inner, icon);
-		if (radial) {
-			p.setOpacity(1);
-
-			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-			_animation->radial.draw(p, rinner, selected ? st::msgInBgSelected : st::msgInBg);
-		}
-	}
-
-	int32 namewidth = width - nameleft - nameright;
-
-	p.setFont(st::semiboldFont);
-	p.setPen(st::black);
-	if (namewidth < _namew) {
-		p.drawTextLeft(nameleft, nametop, width, st::semiboldFont->elided(_name, namewidth));
-	} else {
-		p.drawTextLeft(nameleft, nametop, width, _name, _namew);
-	}
-
-	style::color status(selected ? st::mediaInFgSelected : st::mediaInFg);
-	p.setFont(st::normalFont);
-	p.setPen(status);
-
-	p.drawTextLeft(nameleft, statustop, width, _statusText);
-
-	p.drawTextLeft(nameleft, linktop, width, _link);
-}
-
-void HistoryDocument::getStateOverview(TextLinkPtr &lnk, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
-}
-
 const QString HistoryDocument::inDialogsText() const {
 	return _name.isEmpty() ? lang(lng_in_dlg_file) : _name;
 }
@@ -4474,7 +4296,7 @@ HistoryGif::HistoryGif(DocumentData *document) : HistoryFileMedia()
 , _thumbw(1)
 , _thumbh(1)
 , _gif(0) {
-	setLinks(new DocumentOpenLink(_data), new DocumentOpenLink(_data), new DocumentCancelLink(_data));
+	setLinks(new GifOpenLink(_data), new GifOpenLink(_data), new DocumentCancelLink(_data));
 
 	setStatusSize(FileStatusSizeReady);
 
@@ -4486,7 +4308,7 @@ HistoryGif::HistoryGif(const HistoryGif &other) : HistoryFileMedia()
 , _thumbw(other._thumbw)
 , _thumbh(other._thumbh)
 , _gif(0) {
-	setLinks(new DocumentOpenLink(_data), new DocumentOpenLink(_data), new DocumentCancelLink(_data));
+	setLinks(new GifOpenLink(_data), new GifOpenLink(_data), new DocumentCancelLink(_data));
 
 	setStatusSize(other._statusSize);
 }
@@ -6136,7 +5958,7 @@ void HistoryMessage::initMedia(const MTPMessageMedia *media, QString &currentTex
 void HistoryMessage::initMediaFromDocument(DocumentData *doc) {
 	if (doc->sticker()) {
 		_media = new HistorySticker(doc);
-	} else if (doc->type == AnimatedDocument || doc->mime.toLower() == qstr("image/gif")) {
+	} else if (doc->isAnimation()) {
 		_media = new HistoryGif(doc);
 	} else {
 		_media = new HistoryDocument(doc);
@@ -7452,7 +7274,7 @@ HistoryServiceMsg::~HistoryServiceMsg() {
 }
 
 HistoryDateMsg::HistoryDateMsg(History *history, HistoryBlock *block, const QDate &date) :
-HistoryServiceMsg(history, block, clientMsgId(), QDateTime(date), langDayOfMonth(date)) {
+HistoryServiceMsg(history, block, clientMsgId(), QDateTime(date), langDayOfMonthFull(date)) {
 }
 
 HistoryItem *createDayServiceMsg(History *history, HistoryBlock *block, QDateTime date) {

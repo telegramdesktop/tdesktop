@@ -48,6 +48,19 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_month11" = "November";
 "lng_month12" = "December";
 
+"lng_month1_small" = "Jan";
+"lng_month2_small" = "Feb";
+"lng_month3_small" = "Mar";
+"lng_month4_small" = "Apr";
+"lng_month5_small" = "May";
+"lng_month6_small" = "Jun";
+"lng_month7_small" = "Jul";
+"lng_month8_small" = "Aug";
+"lng_month9_small" = "Sep";
+"lng_month10_small" = "Oct";
+"lng_month11_small" = "Nov";
+"lng_month12_small" = "Dec";
+
 "lng_weekday1" = "Mon";
 "lng_weekday2" = "Tue";
 "lng_weekday3" = "Wed";

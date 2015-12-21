@@ -286,7 +286,7 @@ void MediaView::updateDocSize() {
 		_docSize = formatSizeText(_doc->size);
 	}
 	_docSizeWidth = st::mvFont->width(_docSize);
-	int32 maxw = st::mvDocSize.width() - st::mvDocBlue.pxWidth() - st::mvDocPadding * 3;
+	int32 maxw = st::mvDocSize.width() - st::mvDocIconSize - st::mvDocPadding * 3;
 	if (_docSizeWidth > maxw) {
 		_docSize = st::mvFont->elided(_docSize, maxw);
 		_docSizeWidth = st::mvFont->width(_docSize);
@@ -298,21 +298,21 @@ void MediaView::updateControls() {
 		if (_doc->loader) {
 			_docDownload.hide();
 			_docSaveAs.hide();
-			_docCancel.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
+			_docCancel.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocIconSize, _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
 			_docCancel.show();
 			if (!_docRadialFirst) _docRadialFirst = _docRadialLast = _docRadialStart = getms();
 			if (!_a_state.animating()) _a_state.start();
 			_a_state.step();
 		} else {
 			if (_doc->already(true).isEmpty()) {
-				_docDownload.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
+				_docDownload.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocIconSize, _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
 				_docDownload.show();
-				_docSaveAs.moveToLeft(_docRect.x() + 2.5 * st::mvDocPadding + st::mvDocBlue.pxWidth() + _docDownload.width(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
+				_docSaveAs.moveToLeft(_docRect.x() + 2.5 * st::mvDocPadding + st::mvDocIconSize + _docDownload.width(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
 				_docSaveAs.show();
 				_docCancel.hide();
 			} else {
 				_docDownload.hide();
-				_docSaveAs.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
+				_docSaveAs.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocIconSize, _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
 				_docSaveAs.show();
 				_docCancel.hide();
 			}
@@ -940,44 +940,16 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 
 	if (_current.isNull() && _currentGif.isNull()) {
 		if (!_doc || _doc->thumb->isNull()) {
+			int32 colorIndex = documentColorIndex(_doc, _docExt);
+			_docIconColor = documentColor(colorIndex);
 			style::sprite thumbs[] = { st::mvDocBlue, st::mvDocGreen, st::mvDocRed, st::mvDocYellow };
-			style::color colors[] = { st::mvDocBlueColor, st::mvDocGreenColor, st::mvDocRedColor, st::mvDocYellowColor };
-			QString name = _doc ? _doc->name.toLower() : QString(), mime = _doc ? _doc->mime.toLower() : QString();
-			if (name.endsWith(qstr(".doc")) ||
-				name.endsWith(qstr(".txt")) ||
-				name.endsWith(qstr(".psd")) ||
-				mime.startsWith(qstr("text/"))
-			) {
-				_docIcon = thumbs[0];
-				_docIconColor = colors[0];
-			} else if (
-				name.endsWith(qstr(".xls")) ||
-				name.endsWith(qstr(".csv"))
-			) {
-				_docIcon = thumbs[1];
-				_docIconColor = colors[1];
-			} else if (
-				name.endsWith(qstr(".pdf")) ||
-				name.endsWith(qstr(".ppt")) ||
-				name.endsWith(qstr(".key"))
-			) {
-				_docIcon = thumbs[2];
-				_docIconColor = colors[2];
-			} else if (
-				name.endsWith(qstr(".zip")) ||
-				name.endsWith(qstr(".rar")) ||
-				name.endsWith(qstr(".ai")) ||
-				name.endsWith(qstr(".mp3")) ||
-				name.endsWith(qstr(".mov")) ||
-				name.endsWith(qstr(".avi"))
-			) {
-				_docIcon = thumbs[3];
-				_docIconColor = colors[3];
-			} else {
-				int ext = name.lastIndexOf('.');
-				QChar ch = (ext >= 0 && ext + 1 < name.size()) ? name.at(ext + 1) : (name.isEmpty() ? (mime.isEmpty() ? '0' : mime.at(0)) : name.at(0));
-				_docIcon = thumbs[ch.unicode() % 4];
-				_docIconColor = colors[ch.unicode() % 4];
+			_docIcon = thumbs[colorIndex];
+
+			int32 extmaxw = (st::mvDocIconSize - st::mvDocExtPadding * 2);
+			_docExtWidth = st::mvDocExtFont->width(_docExt);
+			if (_docExtWidth > extmaxw) {
+				_docExt = st::mvDocNameFont->elided(_docExt, extmaxw, Qt::ElideMiddle);
+				_docExtWidth = st::mvDocNameFont->width(_docExt);
 			}
 		} else {
 			_doc->thumb->load();
@@ -985,33 +957,23 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 			if (!tw || !th) {
 				_docThumbx = _docThumby = _docThumbw = 0;
 			} else if (tw > th) {
-				_docThumbw = (tw * st::mvDocBlue.pxHeight()) / th;
-				_docThumbx = (_docThumbw - st::mvDocBlue.pxWidth()) / 2;
+				_docThumbw = (tw * st::mvDocIconSize) / th;
+				_docThumbx = (_docThumbw - st::mvDocIconSize) / 2;
 				_docThumby = 0;
 			} else {
-				_docThumbw = st::mvDocBlue.pxWidth();
+				_docThumbw = st::mvDocIconSize;
 				_docThumbx = 0;
-				_docThumby = ((th * _docThumbw) / tw - st::mvDocBlue.pxHeight()) / 2;
+				_docThumby = ((th * _docThumbw) / tw - st::mvDocIconSize) / 2;
 			}
 		}
 
-		int32 maxw = st::mvDocSize.width() - st::mvDocBlue.pxWidth() - st::mvDocPadding * 3;
+		int32 maxw = st::mvDocSize.width() - st::mvDocIconSize - st::mvDocPadding * 3;
 
 		_docName = (!_doc || _doc->name.isEmpty()) ? lang(_doc ? (_doc->type == StickerDocument ? lng_in_dlg_sticker : lng_mediaview_doc_image) : lng_message_empty) : _doc->name;
-		int32 lastDot = _docName.lastIndexOf('.');
-		_docExt = _doc ? ((lastDot < 0 || lastDot + 2 > _docName.size()) ? _docName : _docName.mid(lastDot + 1)) : QString();
 		_docNameWidth = st::mvDocNameFont->width(_docName);
 		if (_docNameWidth > maxw) {
 			_docName = st::mvDocNameFont->elided(_docName, maxw, Qt::ElideMiddle);
 			_docNameWidth = st::mvDocNameFont->width(_docName);
-		}
-
-		int32 extmaxw = (st::mvDocBlue.pxWidth() - st::mvDocExtPadding * 2);
-
-		_docExtWidth = st::mvDocExtFont->width(_docExt);
-		if (_docExtWidth > extmaxw) {
-			_docExt = st::mvDocNameFont->elided(_docExt, extmaxw, Qt::ElideMiddle);
-			_docExtWidth = st::mvDocNameFont->width(_docExt);
 		}
 
 		_docRadialFirst = _docRadialLast = _docRadialStart = 0;
@@ -1021,7 +983,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 		// _docSize is updated in updateControls()
 
 		_docRect = QRect((width() - st::mvDocSize.width()) / 2, (height() - st::mvDocSize.height()) / 2, st::mvDocSize.width(), st::mvDocSize.height());
-		_docIconRect = myrtlrect(_docRect.x() + st::mvDocPadding, _docRect.y() + st::mvDocPadding, st::mvDocBlue.pxWidth(), st::mvDocBlue.pxHeight());
+		_docIconRect = myrtlrect(_docRect.x() + st::mvDocPadding, _docRect.y() + st::mvDocPadding, st::mvDocIconSize, st::mvDocIconSize);
 	} else if (!_current.isNull()) {
 		_current.setDevicePixelRatio(cRetinaFactor());
 		_w = _current.width() / cIntRetinaFactor();
@@ -1198,19 +1160,18 @@ void MediaView::paintEvent(QPaintEvent *e) {
 			if (_docIconRect.intersects(r)) {
 				icon = true;
 				if (!_doc || _doc->thumb->isNull()) {
+					p.fillRect(_docIconRect, _docIconColor->b);
 					if ((!_doc || !_doc->already().isEmpty()) && (!_docRadialStart || _docRadialOpacity < 1)) {
-						p.drawPixmap(_docIconRect.topLeft(), App::sprite(), _docIcon);
+						p.drawSprite(_docIconRect.topLeft() + QPoint(rtl() ? 0 : (_docIconRect.width() - _docIcon.pxWidth()), 0), _docIcon);
 						p.setPen(st::mvDocExtColor->p);
 						p.setFont(st::mvDocExtFont->f);
 						if (!_docExt.isEmpty()) {
 							p.drawText(_docIconRect.x() + (_docIconRect.width() - _docExtWidth) / 2, _docIconRect.y() + st::mvDocExtTop + st::mvDocExtFont->ascent, _docExt);
 						}
-					} else {
-						p.fillRect(_docIconRect, _docIconColor->b);
 					}
 				} else {
 					int32 rf(cIntRetinaFactor());
-					p.drawPixmap(_docIconRect.topLeft(), _doc->thumb->pix(_docThumbw), QRect(_docThumbx * rf, _docThumby * rf, st::mvDocBlue.pxWidth() * rf, st::mvDocBlue.pxHeight() * rf));
+					p.drawPixmap(_docIconRect.topLeft(), _doc->thumb->pix(_docThumbw), QRect(_docThumbx * rf, _docThumby * rf, st::mvDocIconSize * rf, st::mvDocIconSize * rf));
 				}
 
 				float64 o = overLevel(OverIcon);
@@ -1251,11 +1212,11 @@ void MediaView::paintEvent(QPaintEvent *e) {
 				name = true;
 				p.setPen(st::mvDocNameColor->p);
 				p.setFont(st::mvDocNameFont->f);
-				p.drawTextLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocNameTop, width(), _docName, _docNameWidth);
+				p.drawTextLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocIconSize, _docRect.y() + st::mvDocPadding + st::mvDocNameTop, width(), _docName, _docNameWidth);
 
 				p.setPen(st::mvDocSizeColor->p);
 				p.setFont(st::mvFont->f);
-				p.drawTextLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocSizeTop, width(), _docSize, _docSizeWidth);
+				p.drawTextLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocIconSize, _docRect.y() + st::mvDocPadding + st::mvDocSizeTop, width(), _docSize, _docSizeWidth);
 			}
 		}
 	}

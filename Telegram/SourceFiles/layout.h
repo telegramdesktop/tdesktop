@@ -28,6 +28,56 @@ extern TextParseOptions _historyTextOptions, _historyBotOptions, _historyTextNoM
 const TextParseOptions &itemTextOptions(History *h, PeerData *f);
 const TextParseOptions &itemTextNoMonoOptions(History *h, PeerData *f);
 
+enum RoundCorners {
+	NoneCorners = 0x00, // for images
+	BlackCorners,
+	ServiceCorners,
+	ServiceSelectedCorners,
+	SelectedOverlayCorners,
+	DateCorners,
+	DateSelectedCorners,
+	ForwardCorners,
+	MediaviewSaveCorners,
+	EmojiHoverCorners,
+	StickerHoverCorners,
+	BotKeyboardCorners,
+	BotKeyboardOverCorners,
+	BotKeyboardDownCorners,
+	PhotoSelectOverlayCorners,
+
+	DocBlueCorners,
+	DocGreenCorners,
+	DocRedCorners,
+	DocYellowCorners,
+
+	InShadowCorners, // for photos without bg
+	InSelectedShadowCorners,
+
+	MessageInCorners, // with shadow
+	MessageInSelectedCorners,
+	MessageOutCorners,
+	MessageOutSelectedCorners,
+
+	RoundCornersCount
+};
+
+static const int32 FileStatusSizeReady = 0x7FFFFFF0;
+static const int32 FileStatusSizeLoaded = 0x7FFFFFF1;
+static const int32 FileStatusSizeFailed = 0x7FFFFFF2;
+
+QString formatSizeText(qint64 size);
+QString formatDownloadText(qint64 ready, qint64 total);
+QString formatDurationText(qint64 duration);
+QString formatDurationAndSizeText(qint64 duration, qint64 size);
+QString formatGifAndSizeText(qint64 size);
+QString formatPlayedText(qint64 played, qint64 duration);
+
+QString documentName(DocumentData *document);
+int32 documentColorIndex(DocumentData *document, QString &ext);
+style::color documentColor(int32 colorIndex);
+style::sprite documentCorner(int32 colorIndex);
+RoundCorners documentCorners(int32 colorIndex);
+
 class LayoutMediaItem;
 class OverviewItemInfo;
 
@@ -167,7 +217,7 @@ protected:
 
 	mutable RadialAnimation *_radial;
 	anim::fvalue a_iconOver;
-	Animation _a_iconOver;
+	mutable Animation _a_iconOver;
 
 private:
 	LayoutRadialProgressItem(const LayoutRadialProgressItem &other);
@@ -237,6 +287,7 @@ public:
 
 	virtual void initDimensions();
 	virtual void paint(Painter &p, const QRect &clip, uint32 selection, uint64 ms) const;
+	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
 
 	virtual DocumentData *getDocument() const {
 		return _data;
@@ -265,13 +316,15 @@ protected:
 private:
 	OverviewItemInfo _info;
 	DocumentData *_data;
+	TextLinkPtr _msgl;
 
-	QString _name, _date;
-	int32 _namew, _datew;
-	int32 _thumbw;
+	QString _name, _date, _ext;
+	int32 _namew, _datew, _extw;
+	int32 _thumbw, _colorIndex;
 
 	bool withThumb() const {
-		return !_data->song() && !_data->thumb->isNull() && _data->thumb->width() && _data->thumb->height();
+		return !_data->thumb->isNull() && _data->thumb->width() && _data->thumb->height();
 	}
+	void updateStatusText() const;
 
 };

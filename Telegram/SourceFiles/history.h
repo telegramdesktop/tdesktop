@@ -1077,6 +1077,8 @@ class MessageLink : public ITextLink {
 public:
 	MessageLink(PeerId peer, MsgId msgid) : _peer(peer), _msgid(msgid) {
 	}
+	MessageLink(HistoryItem *item) : _peer(item->history()->peer->id), _msgid(item->id) {
+	}
 	void onClick(Qt::MouseButton button) const;
 	PeerId peer() const {
 		return _peer;
@@ -1163,11 +1165,6 @@ public:
 	}
 	virtual void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const = 0;
 	virtual void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const = 0;
-
-	virtual void drawOverview(Painter &p, int32 width, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const {
-	}
-	virtual void getStateOverview(TextLinkPtr &lnk, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
-	}
 
 	virtual void linkOver(HistoryItem *parent, const TextLinkPtr &lnk) {
 	}
@@ -1257,8 +1254,6 @@ public:
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
 
-	void getStateOverview(TextLinkPtr &lnk, int32 x, int32 y, const HistoryItem *parent, int32 width) const;
-
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
 
@@ -1302,17 +1297,6 @@ private:
 	Text _caption;
 
 };
-
-static const int32 FileStatusSizeReady = 0x7FFFFFF0;
-static const int32 FileStatusSizeLoaded = 0x7FFFFFF1;
-static const int32 FileStatusSizeFailed = 0x7FFFFFF2;
-
-QString formatSizeText(qint64 size);
-QString formatDownloadText(qint64 ready, qint64 total);
-QString formatDurationText(qint64 duration);
-QString formatDurationAndSizeText(qint64 duration, qint64 size);
-QString formatGifAndSizeText(qint64 size);
-QString formatPlayedText(qint64 played, qint64 duration);
 
 class HistoryFileMedia : public HistoryMedia {
 public:
@@ -1393,9 +1377,6 @@ public:
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
 
-	void drawOverview(Painter &p, int32 width, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
-	void getStateOverview(TextLinkPtr &lnk, int32 x, int32 y, const HistoryItem *parent, int32 width) const;
-
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
 
@@ -1467,9 +1448,6 @@ public:
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
 
-	void drawOverview(Painter &p, int32 width, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
-	void getStateOverview(TextLinkPtr &lnk, int32 x, int32 y, const HistoryItem *parent, int32 width) const;
-
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
 
@@ -1533,9 +1511,6 @@ public:
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
 
-	void drawOverview(Painter &p, int32 width, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
-	void getStateOverview(TextLinkPtr &lnk, int32 x, int32 y, const HistoryItem *parent, int32 width) const;
-
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
 
@@ -1591,8 +1566,8 @@ private:
 	DocumentData *_data;
 	TextLinkPtr _linksavel, _linkcancell;
 
-	int32 _namew;
 	QString _name;
+	int32 _namew;
 	int32 _thumbw;
 
 	mutable int32 _linkw;

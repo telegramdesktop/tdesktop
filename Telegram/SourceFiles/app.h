@@ -49,39 +49,6 @@ struct ReplyMarkup {
 	int32 flags;
 };
 
-enum RoundCorners {
-	NoneCorners = 0x00, // for images
-	BlackCorners,
-	ServiceCorners,
-	ServiceSelectedCorners,
-	SelectedOverlayCorners,
-	DateCorners,
-	DateSelectedCorners,
-	ForwardCorners,
-	MediaviewSaveCorners,
-	EmojiHoverCorners,
-	StickerHoverCorners,
-	BotKeyboardCorners,
-	BotKeyboardOverCorners,
-	BotKeyboardDownCorners,
-	PhotoSelectOverlayCorners,
-	
-	DocRedCorners,
-	DocYellowCorners,
-	DocGreenCorners,
-	DocBlueCorners,
-
-	InShadowCorners, // for photos without bg
-	InSelectedShadowCorners,
-
-	MessageInCorners, // with shadow
-	MessageInSelectedCorners,
-	MessageOutCorners,
-	MessageOutSelectedCorners,
-
-	RoundCornersCount
-};
-
 class LayeredWidget;
 
 namespace App {
