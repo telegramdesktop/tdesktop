@@ -66,6 +66,11 @@ private:
 
 bool checkReadyUpdate();
 
-QString countBetaVersionSignature(uint64 version);
+#else
+class UpdateDownloader : public QObject {
+	Q_OBJECT
+};
 
 #endif
+
+QString countBetaVersionSignature(uint64 version);
