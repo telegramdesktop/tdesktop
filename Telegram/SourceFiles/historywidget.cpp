@@ -644,7 +644,7 @@ void HistoryInner::onDragExec() {
 		bool lnkPhoto = (lnkType == qstr("PhotoLink")),
 			lnkVideo = (lnkType == qstr("VideoOpenLink")),
 			lnkAudio = (lnkType == qstr("AudioOpenLink")),
-			lnkDocument = (lnkType == qstr("DocumentOpenLink")),
+			lnkDocument = (lnkType == qstr("DocumentOpenLink") || lnkType == qstr("GifOpenLink")),
 			lnkContact = (lnkType == qstr("PeerLink") && dynamic_cast<HistoryContact*>(pressedLnkItem->getMedia())),
 			dragSticker = dynamic_cast<HistorySticker*>(pressedItem ? pressedItem->getMedia() : 0),
 			dragByDate = (_dragCursorState == HistoryInDateCursorState);
@@ -721,7 +721,7 @@ void HistoryInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton but
 			bool lnkPhoto = (lnkType == qstr("PhotoLink")),
 				lnkVideo = (lnkType == qstr("VideoOpenLink")),
 				lnkAudio = (lnkType == qstr("AudioOpenLink")),
-				lnkDocument = (lnkType == qstr("DocumentOpenLink")),
+				lnkDocument = (lnkType == qstr("DocumentOpenLink") || lnkType == qstr("GifOpenLink")),
 				lnkContact = (lnkType == qstr("PeerLink") && dynamic_cast<HistoryContact*>(App::pressedLinkItem() ? App::pressedLinkItem()->getMedia() : 0));
 			if (_dragAction == PrepareDrag && !_dragWasInactive && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection && button != Qt::RightButton) {
 				if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument || lnkContact) {

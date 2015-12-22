@@ -255,7 +255,7 @@ protected:
 
 class OverviewItemInfo {
 public:
-	OverviewItemInfo(int32 top) : _top(top) {
+	OverviewItemInfo() : _top(0) {
 	}
 	int32 top() const {
 		return _top;
@@ -271,7 +271,7 @@ private:
 
 class LayoutOverviewDate : public LayoutItem {
 public:
-	LayoutOverviewDate(const QDate &date, int32 top);
+	LayoutOverviewDate(const QDate &date, bool month);
 	
 	virtual void initDimensions();
 	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
@@ -295,18 +295,8 @@ class LayoutOverviewPhoto : public LayoutMediaItem {
 public:
 	LayoutOverviewPhoto(PhotoData *photo, HistoryItem *parent);
 
-	virtual void initDimensions() {
-		_maxw = 2 * st::overviewPhotoMinSize;
-		_minh = _maxw;
-	}
-	virtual int32 resizeGetHeight(int32 width) {
-		width = qMin(width, _maxw);
-		if (width != _width || width != _height) {
-			_width = qMin(width, _maxw);
-			_height = _width;
-		}
-		return _height;
-	}
+	virtual void initDimensions();
+	virtual int32 resizeGetHeight(int32 width);
 	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
 	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
 
@@ -323,15 +313,8 @@ class LayoutOverviewVideo : public LayoutAbstractFileItem {
 public:
 	LayoutOverviewVideo(VideoData *photo, HistoryItem *parent);
 
-	virtual void initDimensions() {
-		_maxw = 2 * st::minPhotoSize;
-		_minh = _maxw;
-	}
-	virtual int32 resizeGetHeight(int32 width) {
-		_width = qMin(width, _maxw);
-		_height = _width;
-		return _height;
-	}
+	virtual void initDimensions();
+	virtual int32 resizeGetHeight(int32 width);
 	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
 	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
 
@@ -362,7 +345,7 @@ private:
 
 class LayoutOverviewAudio : public LayoutAbstractFileItem {
 public:
-	LayoutOverviewAudio(AudioData *audio, HistoryItem *parent, int32 top);
+	LayoutOverviewAudio(AudioData *audio, HistoryItem *parent);
 
 	virtual void initDimensions();
 	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
@@ -393,15 +376,17 @@ private:
 	OverviewItemInfo _info;
 	AudioData *_data;
 
-	Text _name, _details;
+	mutable Text _name, _details;
+	mutable int32 _nameVersion;
 
-	void updateStatusText() const;
+	void updateName() const;
+	bool updateStatusText() const;
 
 };
 
 class LayoutOverviewDocument : public LayoutAbstractFileItem {
 public:
-	LayoutOverviewDocument(DocumentData *document, HistoryItem *parent, int32 top);
+	LayoutOverviewDocument(DocumentData *document, HistoryItem *parent);
 
 	virtual void initDimensions();
 	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
@@ -428,7 +413,7 @@ protected:
 		return !_data->already().isEmpty() || !_data->data.isEmpty();
 	}
 	virtual bool iconAnimated() const {
-		return !dataLoaded() || (_radial && _radial->animating());
+		return _data->song() || !dataLoaded() || (_radial && _radial->animating());
 	}
 
 private:
@@ -443,13 +428,13 @@ private:
 	bool withThumb() const {
 		return !_data->thumb->isNull() && _data->thumb->width() && _data->thumb->height();
 	}
-	void updateStatusText() const;
+	bool updateStatusText() const;
 
 };
 
 class LayoutOverviewLink : public LayoutMediaItem {
 public:
-	LayoutOverviewLink(HistoryItem *parent, int32 top);
+	LayoutOverviewLink(HistoryItem *parent);
 
 	virtual void initDimensions();
 	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;

@@ -133,8 +133,6 @@ private:
 	void applyDragSelection();
 	void addSelectionRange(int32 selFrom, int32 selTo, History *history);
 
-	QPixmap genPix(PhotoData *photo, int32 size);
-	QPixmap genPix(VideoData *video, int32 size);
 	void showAll(bool recountHeights = false);
 	int32 recountHeight();
 
@@ -152,10 +150,10 @@ private:
 	uint32 itemSelectedValue(int32 index) const;
 
 	// for audio files, files, voice messages and links
-	int32 _rowsLeft, _rowWidth, _rowHeight;
+	int32 _rowsLeft, _rowWidth;
 
 	// photos
-	int32 _photosInRow, _photosToAdd, _vsize;
+	int32 _photosInRow, _photosToAdd;
 
 	// shared links
 	struct Link {
@@ -212,6 +210,11 @@ private:
 
 	typedef QVector<LayoutItem*> Items;
 	Items _items;
+	typedef QMap<HistoryItem*, LayoutMediaItem*> LayoutItems;
+	LayoutItems _layoutItems;
+	LayoutMediaItem *getItemLayout(HistoryItem *item);
+	LayoutItem *getDateLayout(const QDate &date, bool month);
+	int32 setLayoutItem(int32 index, LayoutItem *item, int32 top);
 
 	// other
 	struct CachedItem {

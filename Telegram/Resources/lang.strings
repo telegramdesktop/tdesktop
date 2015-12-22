@@ -79,6 +79,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_month_day" = "{month} {day}";
 "lng_month_day_year" = "{month} {day}, {year}";
+"lng_month_year" = "{month}, {year}";
 
 "lng_box_ok" = "OK";
 
@@ -679,6 +680,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_save_downloaded" = "{ready} / {total} {mb}";
 "lng_duration_and_size" = "{duration}, {size}";
 "lng_duration_played" = "{played} / {duration}";
+"lng_date_and_duration" = "{date}, {duration}";
 "lng_choose_images" = "Choose images";
 
 "lng_context_view_profile" = "View profile";
