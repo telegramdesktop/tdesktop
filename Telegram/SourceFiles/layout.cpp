@@ -203,14 +203,14 @@ RoundCorners documentCorners(int32 colorIndex) {
 }
 
 void LayoutRadialProgressItem::linkOver(const TextLinkPtr &lnk) {
-	if (lnk == _savel || lnk == _cancell) {
+	if (lnk == _openl || lnk == _savel || lnk == _cancell) {
 		a_iconOver.start(1);
 		_a_iconOver.start();
 	}
 }
 
 void LayoutRadialProgressItem::linkOut(const TextLinkPtr &lnk) {
-	if (lnk == _savel || lnk == _cancell) {
+	if (lnk == _openl || lnk == _savel || lnk == _cancell) {
 		a_iconOver.start(0);
 		_a_iconOver.start();
 	}
@@ -247,9 +247,7 @@ void LayoutRadialProgressItem::step_radial(uint64 ms, bool timer) {
 
 void LayoutRadialProgressItem::ensureRadial() const {
 	if (!_radial) {
-		_radial = new RadialAnimation(
-			st::msgFileRadialLine,
-			animation(const_cast<LayoutRadialProgressItem*>(this), &LayoutRadialProgressItem::step_radial));
+		_radial = new RadialAnimation(animation(const_cast<LayoutRadialProgressItem*>(this), &LayoutRadialProgressItem::step_radial));
 	}
 }
 
@@ -293,11 +291,220 @@ void LayoutOverviewDate::initDimensions() {
 	_minh = st::linksDateMargin + st::normalFont->height + st::linksDateMargin + st::linksBorder;
 }
 
-void LayoutOverviewDate::paint(Painter &p, const QRect &clip, uint32 selection, uint64 ms) const {
+void LayoutOverviewDate::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
 	if (clip.intersects(QRect(0, st::linksDateMargin, _width, st::normalFont->height))) {
 		p.setPen(st::linksDateColor);
 		p.setFont(st::normalFont);
 		p.drawTextLeft(0, st::linksDateMargin, _width, _text);
+	}
+}
+
+LayoutOverviewPhoto::LayoutOverviewPhoto(PhotoData *photo, HistoryItem *parent) : LayoutMediaItem(parent)
+, _data(photo)
+, _link(new PhotoLink(photo))
+, _goodLoaded(false) {
+
+}
+
+void LayoutOverviewPhoto::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+	bool good = _data->full->loaded();
+	if (!good) {
+		_data->medium->load(false, false);
+		good = _data->medium->loaded();
+	}
+	if ((good && !_goodLoaded) || _pix.width() != _width * cIntRetinaFactor()) {
+		_goodLoaded = good;
+
+		int32 size = _width * cIntRetinaFactor();
+		if (_goodLoaded || _data->thumb->loaded()) {
+			QImage img = (_data->full->loaded() ? _data->full : (_data->medium->loaded() ? _data->medium : _data->thumb))->pix().toImage();
+			if (!_goodLoaded) {
+				img = imageBlur(img);
+			}
+			if (img.width() == img.height()) {
+				if (img.width() != _width) {
+					img = img.scaled(_width, _width, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+				}
+			} else if (img.width() > img.height()) {
+				img = img.copy((img.width() - img.height()) / 2, 0, img.height(), img.height()).scaled(_width, _width, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+			} else {
+				img = img.copy(0, (img.height() - img.width()) / 2, img.width(), img.width()).scaled(_width, _width, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+			}
+			img.setDevicePixelRatio(cRetinaFactor());
+			_data->forget();
+
+			_pix = QPixmap::fromImage(img, Qt::ColorOnly);
+		} else if (!_pix.isNull()) {
+			_pix = QPixmap();
+		}
+	}
+
+	if (_pix.isNull()) {
+		p.fillRect(0, 0, _width, _height, st::overviewPhotoBg);
+	} else {
+		p.drawPixmap(0, 0, _pix);
+	}
+
+	if (selection == FullSelection) {
+		p.fillRect(QRect(0, 0, _width, _height), st::overviewPhotoSelectOverlay);
+		p.drawSprite(QPoint(rtl() ? 0 : (_width - st::overviewPhotoChecked.pxWidth()), _height - st::overviewPhotoChecked.pxHeight()), st::overviewPhotoChecked);
+	} else if (context->selecting) {
+		p.drawSprite(QPoint(rtl() ? 0 : (_width - st::overviewPhotoCheck.pxWidth()), _height - st::overviewPhotoCheck.pxHeight()), st::overviewPhotoCheck);
+	}
+}
+
+void LayoutOverviewPhoto::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+	if (hasPoint(x, y)) {
+		link = _link;
+	}
+}
+
+LayoutOverviewVideo::LayoutOverviewVideo(VideoData *video, HistoryItem *parent) : LayoutAbstractFileItem(parent)
+, _data(video)
+, _duration(formatDurationText(_data->duration))
+, _thumbLoaded(false) {
+	setLinks(new VideoOpenLink(_data), new VideoSaveLink(_data), new VideoCancelLink(_data));
+}
+
+void LayoutOverviewVideo::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+	bool selected = (selection == FullSelection), thumbLoaded = _data->thumb->loaded();
+	bool already = !_data->already().isEmpty();
+	if (_data->loader) {
+		ensureRadial();
+		if (!_radial->animating()) {
+			_radial->start(_data->progress());
+		}
+	}
+	updateStatusText();
+	bool radial = isRadialAnimation(context->ms);
+
+	if ((thumbLoaded && !_thumbLoaded) || (_pix.width() != _width * cIntRetinaFactor())) {
+		_thumbLoaded = thumbLoaded;
+
+		if (_thumbLoaded && !_data->thumb->isNull()) {
+			int32 size = _width * cIntRetinaFactor();
+			QImage img = _data->thumb->pix().toImage();
+			img = imageBlur(img);
+			if (img.width() == img.height()) {
+				if (img.width() != _width) {
+					img = img.scaled(_width, _width, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+				}
+			} else if (img.width() > img.height()) {
+				img = img.copy((img.width() - img.height()) / 2, 0, img.height(), img.height()).scaled(_width, _width, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+			} else {
+				img = img.copy(0, (img.height() - img.width()) / 2, img.width(), img.width()).scaled(_width, _width, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+			}
+			img.setDevicePixelRatio(cRetinaFactor());
+			_data->forget();
+
+			_pix = QPixmap::fromImage(img, Qt::ColorOnly);
+		} else if (!_pix.isNull()) {
+			_pix = QPixmap();
+		}
+	}
+
+	if (_pix.isNull()) {
+		p.fillRect(0, 0, _width, _height, st::overviewPhotoBg);
+	} else {
+		p.drawPixmap(0, 0, _pix);
+	}
+
+	if (selected) {
+		p.fillRect(QRect(0, 0, _width, _height), st::overviewPhotoSelectOverlay);
+	}
+
+	if (clip.intersects(QRect(0, _height - st::normalFont->height, _width, st::normalFont->height))) {
+		int32 statusX = st::msgDateImgPadding.x(), statusY = _height - st::normalFont->height - st::msgDateImgPadding.y();
+		int32 statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
+		int32 statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
+		statusX = _width - statusW + statusX;
+		p.fillRect(rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, _width), selected ? st::msgDateImgBgSelected : st::msgDateImgBg);
+		p.setFont(st::normalFont);
+		p.setPen(st::white);
+		p.drawTextLeft(statusX, statusY, _width, _statusText, statusW - 2 * st::msgDateImgPadding.x());
+	}
+	if (clip.intersects(QRect(0, 0, _width, st::normalFont->height))) {
+		int32 statusX = st::msgDateImgPadding.x(), statusY = st::msgDateImgPadding.y();
+		int32 statusW = st::normalFont->width(_duration) + 2 * st::msgDateImgPadding.x();
+		int32 statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
+		p.fillRect(rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, _width), selected ? st::msgDateImgBgSelected : st::msgDateImgBg);
+		p.setFont(st::normalFont);
+		p.setPen(st::white);
+		p.drawTextLeft(statusX, statusY, _width, _duration, statusW - 2 * st::msgDateImgPadding.x());
+	}
+
+	QRect inner((_width - st::msgFileSize) / 2, (_height - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
+	if (clip.intersects(inner)) {
+		p.setPen(Qt::NoPen);
+		if (selected) {
+			p.setBrush(st::msgDateImgBgSelected);
+		} else if (_a_iconOver.animating()) {
+			_a_iconOver.step(context->ms);
+			float64 over = a_iconOver.current();
+			p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
+			p.setBrush(st::black);
+		} else {
+			bool over = textlnkDrawOver(already ? _openl : (_data->loader ? _cancell : _savel));
+			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
+		}
+
+		p.setRenderHint(QPainter::HighQualityAntialiasing);
+		p.drawEllipse(inner);
+		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+
+		style::sprite icon;
+		if (radial) {
+			icon = (selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+		} else if (already) {
+			icon = (selected ? st::msgFileInPlaySelected : st::msgFileInPlay);
+		} else {
+			icon = (selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
+		}
+		p.setOpacity(radial ? _radial->opacity() : 1);
+		p.drawSpriteCenter(inner, icon);
+		if (radial) {
+			p.setOpacity(1);
+
+			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
+			_radial->draw(p, rinner, st::msgFileRadialLine, selected ? st::msgInBgSelected : st::msgInBg);
+		}
+	}
+
+	if (selected) {
+		p.drawSprite(QPoint(rtl() ? 0 : (_width - st::overviewPhotoChecked.pxWidth()), _height - st::overviewPhotoChecked.pxHeight()), st::overviewPhotoChecked);
+	} else if (context->selecting) {
+		p.drawSprite(QPoint(rtl() ? 0 : (_width - st::overviewPhotoCheck.pxWidth()), _height - st::overviewPhotoCheck.pxHeight()), st::overviewPhotoCheck);
+	}
+}
+
+void LayoutOverviewVideo::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+	if (hasPoint(x, y)) {
+		link = _data->already().isEmpty() ? (_data->loader ? _cancell : _savel) : _openl;
+	}
+}
+
+void LayoutOverviewVideo::updateStatusText() const {
+	bool showPause = false;
+	int32 statusSize = 0;
+	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
+		statusSize = FileStatusSizeFailed;
+	} else if (_data->status == FileUploading) {
+		statusSize = _data->uploadOffset;
+	} else if (_data->loader) {
+		statusSize = _data->loader->currentOffset();
+	} else if (!_data->already().isEmpty()) {
+		statusSize = FileStatusSizeLoaded;
+	} else {
+		statusSize = FileStatusSizeReady;
+	}
+	if (statusSize != _statusSize) {
+		int32 status = statusSize, size = _data->size;
+		if (statusSize >= 0 && statusSize < 0x7F000000) {
+			size = status;
+			status = FileStatusSizeReady;
+		}
+		setStatusSize(status, size, -1, 0);
+		_statusSize = statusSize;
 	}
 }
 
@@ -338,7 +545,7 @@ void LayoutOverviewDocument::initDimensions() {
 	_minh = st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom() + st::lineWidth;
 }
 
-void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selection, uint64 ms) const {
+void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
 	bool selected = (selection == FullSelection);
 	bool already = !_data->already().isEmpty(), hasdata = !_data->data.isEmpty();
 	if (_data->loader) {
@@ -348,7 +555,7 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 		}
 	}
 	updateStatusText();
-	bool radial = isRadialAnimation(ms);
+	bool radial = isRadialAnimation(context->ms);
 
 	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, linktop = 0;
 	bool wthumb = withThumb();
@@ -386,7 +593,6 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 		}
 		if (selected) {
 			App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
-			p.drawSprite(rthumb.topLeft() + QPoint(rtl() ? 0 : (rthumb.width() - st::linksPhotoCheck.pxWidth()), rthumb.height() - st::linksPhotoCheck.pxHeight()), st::linksPhotoChecked);
 		}
 
 		if (!radial && (already || hasdata)) {
@@ -400,7 +606,7 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 					p.setOpacity(st::msgDateImgBg->c.alphaF() * _radial->opacity());
 					p.setBrush(st::black);
 				} else if (_a_iconOver.animating()) {
-					_a_iconOver.step(ms);
+					_a_iconOver.step(context->ms);
 					float64 over = a_iconOver.current();
 					p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
 					p.setBrush(st::black);
@@ -425,9 +631,14 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 					p.setOpacity(1);
 
 					QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-					_radial->draw(p, rinner, selected ? st::msgInBgSelected : st::msgInBg);
+					_radial->draw(p, rinner, st::msgFileRadialLine, selected ? st::msgInBgSelected : st::msgInBg);
 				}
 			}
+		}
+		if (selected) {
+			p.drawSprite(rthumb.topLeft() + QPoint(rtl() ? 0 : (rthumb.width() - st::linksPhotoChecked.pxWidth()), rthumb.height() - st::linksPhotoChecked.pxHeight()), st::linksPhotoChecked);
+		} else if (context->selecting) {
+			p.drawSprite(rthumb.topLeft() + QPoint(rtl() ? 0 : (rthumb.width() - st::linksPhotoCheck.pxWidth()), rthumb.height() - st::linksPhotoCheck.pxHeight()), st::linksPhotoCheck);
 		}
 	}
 

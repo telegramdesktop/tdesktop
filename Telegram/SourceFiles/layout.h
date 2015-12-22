@@ -81,6 +81,16 @@ RoundCorners documentCorners(int32 colorIndex);
 class LayoutMediaItem;
 class OverviewItemInfo;
 
+class PaintContext {
+public:
+
+	PaintContext(uint64 ms, bool selecting) : ms(ms), selecting(selecting) {
+	}
+	uint64 ms;
+	bool selecting;
+
+};
+
 class LayoutItem {
 public:
 	LayoutItem() : _maxw(0), _minh(0) {
@@ -99,7 +109,7 @@ public:
 		return _height;
 	}
 
-	virtual void paint(Painter &p, const QRect &clip, uint32 selection, uint64 ms) const = 0;
+	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const = 0;
 	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
 		link = TextLinkPtr();
 		cursor = HistoryDefaultCursorState;
@@ -264,7 +274,7 @@ public:
 	LayoutOverviewDate(const QDate &date, int32 top);
 	
 	virtual void initDimensions();
-	virtual void paint(Painter &p, const QRect &clip, uint32 selection, uint64 ms) const;
+	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
 
 	virtual OverviewItemInfo *getOverviewItemInfo() {
 		return &_info;
@@ -281,12 +291,120 @@ private:
 
 };
 
+class LayoutOverviewPhoto : public LayoutMediaItem {
+public:
+	LayoutOverviewPhoto(PhotoData *photo, HistoryItem *parent);
+
+	virtual void initDimensions() {
+		_maxw = 2 * st::overviewPhotoMinSize;
+		_minh = _maxw;
+	}
+	virtual int32 resizeGetHeight(int32 width) {
+		width = qMin(width, _maxw);
+		if (width != _width || width != _height) {
+			_width = qMin(width, _maxw);
+			_height = _width;
+		}
+		return _height;
+	}
+	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
+	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
+
+private:
+	PhotoData *_data;
+	TextLinkPtr _link;
+
+	mutable QPixmap _pix;
+	mutable bool _goodLoaded;
+
+};
+
+class LayoutOverviewVideo : public LayoutAbstractFileItem {
+public:
+	LayoutOverviewVideo(VideoData *photo, HistoryItem *parent);
+
+	virtual void initDimensions() {
+		_maxw = 2 * st::minPhotoSize;
+		_minh = _maxw;
+	}
+	virtual int32 resizeGetHeight(int32 width) {
+		_width = qMin(width, _maxw);
+		_height = _width;
+		return _height;
+	}
+	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
+	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
+
+protected:
+	virtual float64 dataProgress() const {
+		return _data->progress();
+	}
+	virtual bool dataFinished() const {
+		return !_data->loader;
+	}
+	virtual bool dataLoaded() const {
+		return !_data->already().isEmpty();
+	}
+	virtual bool iconAnimated() const {
+		return true;
+	}
+
+private:
+	VideoData *_data;
+
+	QString _duration;
+	mutable QPixmap _pix;
+	mutable bool _thumbLoaded;
+
+	void updateStatusText() const;
+
+};
+
+class LayoutOverviewAudio : public LayoutAbstractFileItem {
+public:
+	LayoutOverviewAudio(AudioData *audio, HistoryItem *parent, int32 top);
+
+	virtual void initDimensions();
+	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
+	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
+
+	virtual OverviewItemInfo *getOverviewItemInfo() {
+		return &_info;
+	}
+	virtual const OverviewItemInfo *getOverviewItemInfo() const {
+		return &_info;
+	}
+
+protected:
+	virtual float64 dataProgress() const {
+		return _data->progress();
+	}
+	virtual bool dataFinished() const {
+		return !_data->loader;
+	}
+	virtual bool dataLoaded() const {
+		return !_data->already().isEmpty() || !_data->data.isEmpty();
+	}
+	virtual bool iconAnimated() const {
+		return !dataLoaded() || (_radial && _radial->animating());
+	}
+
+private:
+	OverviewItemInfo _info;
+	AudioData *_data;
+
+	Text _name, _details;
+
+	void updateStatusText() const;
+
+};
+
 class LayoutOverviewDocument : public LayoutAbstractFileItem {
 public:
 	LayoutOverviewDocument(DocumentData *document, HistoryItem *parent, int32 top);
 
 	virtual void initDimensions();
-	virtual void paint(Painter &p, const QRect &clip, uint32 selection, uint64 ms) const;
+	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
 	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
 
 	virtual DocumentData *getDocument() const {
@@ -326,5 +444,46 @@ private:
 		return !_data->thumb->isNull() && _data->thumb->width() && _data->thumb->height();
 	}
 	void updateStatusText() const;
+
+};
+
+class LayoutOverviewLink : public LayoutMediaItem {
+public:
+	LayoutOverviewLink(HistoryItem *parent, int32 top);
+
+	virtual void initDimensions();
+	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
+	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
+
+	virtual OverviewItemInfo *getOverviewItemInfo() {
+		return &_info;
+	}
+	virtual const OverviewItemInfo *getOverviewItemInfo() const {
+		return &_info;
+	}
+
+private:
+	OverviewItemInfo _info;
+	TextLinkPtr _msgl;
+
+	QString title, letter;
+	int32 titleWidth;
+	WebPageData *page;
+	int32 pixw, pixh;
+	Text text;
+
+	struct Link {
+		Link() : width(0) {
+		}
+		Link(const QString &url, const QString &text)
+			: text(text)
+			, width(st::normalFont->width(text))
+			, lnk(new TextLink(url)) {
+		}
+		QString text;
+		int32 width;
+		TextLinkPtr lnk;
+	};
+	QVector<Link> urls;
 
 };

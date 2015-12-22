@@ -788,6 +788,7 @@ void MainWidget::ui_redrawHistoryItem(const HistoryItem *item) {
 
 void MainWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 	history.notify_historyItemLayoutChanged(item);
+	if (overview) overview->notify_historyItemLayoutChanged(item);
 }
 
 void MainWidget::notify_historyItemResized(const HistoryItem *item, bool scrollToIt) {

@@ -2011,6 +2011,11 @@ botKbScroll: flatScroll(solidScroll) {
 	width: 10px;
 }
 
+minPhotoSize: 104px;
+maxMediaSize: 420px;
+maxStickerSize: 256px;
+maxGifSize: 320px;
+
 mvBgColor: #222;
 mvBgOpacity: 0.92;
 mvThickFont: semiboldFont;
@@ -2132,7 +2137,8 @@ medviewSaveMsg: #000000b2;
 mvTransparentBrush: sprite(9px, 124px, 8px, 8px);
 
 overviewPhotoSkip: 10px;
-overviewPhotoMinSize: 100px;
+overviewPhotoBg: #F1F1F1;
+overviewPhotoMinSize: minPhotoSize;
 overviewPhotoCheck: sprite(245px, 308px, 32px, 32px);
 overviewPhotoChecked: sprite(278px, 308px, 32px, 32px);
 overviewPhotoSelectOverlay: #0a7bb03f;
@@ -2192,11 +2198,6 @@ overviewLoaderSkip: 4px;
 mediaviewLoader: size(78px, 33px);
 mediaviewLoaderPoint: size(9px, 9px);
 mediaviewLoaderSkip: 9px;
-
-minPhotoSize: 104px;
-maxMediaSize: 420px;
-maxStickerSize: 256px;
-maxGifSize: 320px;
 
 downloadPathSkip: 10px;
 

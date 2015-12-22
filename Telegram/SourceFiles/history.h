@@ -1106,7 +1106,7 @@ HistoryItem *regItem(HistoryItem *item, bool returnExisting = false);
 class RadialAnimation {
 public:
 
-	RadialAnimation(int32 thickness, AnimationCallbacks *callbacks);
+	RadialAnimation(AnimationCallbacks *callbacks);
 
 	float64 opacity() const {
 		return _opacity;
@@ -1124,11 +1124,10 @@ public:
 		step(getms());
 	}
 
-	void draw(Painter &p, const QRect &inner, const style::color &color);
+	void draw(Painter &p, const QRect &inner, int32 thickness, const style::color &color);
 
 private:
 
-	int32 _thickness;
 	uint64 _firstStart, _lastStart, _lastTime;
 	float64 _opacity;
 	anim::ivalue a_arcEnd, a_arcStart;
@@ -1341,7 +1340,7 @@ protected:
 	struct AnimationData {
 		AnimationData(AnimationCallbacks *thumbOverCallbacks, AnimationCallbacks *radialCallbacks) : a_thumbOver(0, 0)
 			, _a_thumbOver(thumbOverCallbacks)
-			, radial(st::msgFileRadialLine, radialCallbacks) {
+			, radial(radialCallbacks) {
 		}
 		anim::fvalue a_thumbOver;
 		Animation _a_thumbOver;

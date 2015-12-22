@@ -3026,8 +3026,8 @@ HistoryItem *regItem(HistoryItem *item, bool returnExisting) {
 	return item;
 }
 
-RadialAnimation::RadialAnimation(int32 thickness, AnimationCallbacks *callbacks) : _thickness(thickness)
-, _firstStart(0)
+RadialAnimation::RadialAnimation(AnimationCallbacks *callbacks)
+: _firstStart(0)
 , _lastStart(0)
 , _lastTime(0)
 , _opacity(0)
@@ -3078,12 +3078,12 @@ void RadialAnimation::step(uint64 ms) {
 	_animation.step(ms);
 }
 
-void RadialAnimation::draw(Painter &p, const QRect &inner, const style::color &color) {
+void RadialAnimation::draw(Painter &p, const QRect &inner, int32 thickness, const style::color &color) {
 	float64 o = p.opacity();
 	p.setOpacity(o * _opacity);
 
 	QPen pen(color->p), was(p.pen());
-	pen.setWidth(_thickness);
+	pen.setWidth(thickness);
 	p.setPen(pen);
 
 	int32 len = MinArcLength + a_arcEnd.current();
@@ -3651,7 +3651,7 @@ void HistoryVideo::draw(Painter &p, const HistoryItem *parent, const QRect &r, b
 	p.drawSpriteCenter(inner, icon);
 	if (radial) {
 		QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-		_animation->radial.draw(p, rinner, selected ? st::msgInBgSelected : st::msgInBg);
+		_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::msgInBgSelected : st::msgInBg);
 	}
 
 	int32 statusX = skipx + st::msgDateImgDelta + st::msgDateImgPadding.x(), statusY = skipy + st::msgDateImgDelta + st::msgDateImgPadding.y();
@@ -3836,7 +3836,7 @@ void HistoryAudio::draw(Painter &p, const HistoryItem *parent, const QRect &r, b
 	if (radial) {
 		QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
 		style::color bg(outbg ? (selected ? st::msgOutBgSelected : st::msgOutBg) : (selected ? st::msgInBgSelected : st::msgInBg));
-		_animation->radial.draw(p, rinner, bg);
+		_animation->radial.draw(p, rinner, st::msgFileRadialLine, bg);
 	}
 
 	style::sprite icon;
@@ -4091,7 +4091,7 @@ void HistoryDocument::draw(Painter &p, const HistoryItem *parent, const QRect &r
 				p.setOpacity(1);
 
 				QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-				_animation->radial.draw(p, rinner, selected ? st::msgInBgSelected : st::msgInBg);
+				_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::msgInBgSelected : st::msgInBg);
 			}
 		}
 
@@ -4127,7 +4127,7 @@ void HistoryDocument::draw(Painter &p, const HistoryItem *parent, const QRect &r
 		if (radial) {
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
 			style::color bg(outbg ? (selected ? st::msgOutBgSelected : st::msgOutBg) : (selected ? st::msgInBgSelected : st::msgInBg));
-			_animation->radial.draw(p, rinner, bg);
+			_animation->radial.draw(p, rinner, st::msgFileRadialLine, bg);
 		}
 
 		style::sprite icon;
@@ -4485,7 +4485,7 @@ void HistoryGif::draw(Painter &p, const HistoryItem *parent, const QRect &r, boo
 		p.drawSpriteCenter(inner, icon);
 		if (radial) {
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-			_animation->radial.draw(p, rinner, selected ? st::msgInBgSelected : st::msgInBg);
+			_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::msgInBgSelected : st::msgInBg);
 		}
 
 		if (!animating) {

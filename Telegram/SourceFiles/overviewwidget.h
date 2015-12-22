@@ -136,6 +136,7 @@ private:
 	QPixmap genPix(PhotoData *photo, int32 size);
 	QPixmap genPix(VideoData *video, int32 size);
 	void showAll(bool recountHeights = false);
+	int32 recountHeight();
 
 	OverviewWidget *_overview;
 	ScrollArea *_scroll;
@@ -143,22 +144,18 @@ private:
 
 	PeerData *_peer;
 	MediaOverviewType _type;
+	bool _reversed;
 	History *_migrated, *_history;
 	ChannelId _channel;
 	
+	bool _selMode;
+	uint32 itemSelectedValue(int32 index) const;
+
 	// for audio files, files, voice messages and links
 	int32 _rowsLeft, _rowWidth, _rowHeight;
 
 	// photos
 	int32 _photosInRow, _photosToAdd, _vsize;
-	struct CachedSize {
-		int32 vsize;
-		bool medium;
-		QPixmap pix;
-	};
-	typedef QMap<void*, CachedSize> CachedSizes;
-	CachedSizes _cached;
-	bool _selMode;
 
 	// shared links
 	struct Link {
@@ -343,7 +340,9 @@ public:
 		resizeEvent(0);
 	}
 
-	void ui_redrawHistoryItem(const HistoryItem *msg);
+	void ui_redrawHistoryItem(const HistoryItem *item);
+
+	void notify_historyItemLayoutChanged(const HistoryItem *item);
 
 	~OverviewWidget();
 
