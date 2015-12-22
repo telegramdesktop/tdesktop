@@ -46,6 +46,8 @@ namespace Ui { // openssl doesn't allow me to use UI :(
 	void hideLayer(bool fast = false);
 	bool isLayerShown();
 
+	void clipRedraw(ClipReader *reader);
+
 	void redrawHistoryItem(const HistoryItem *item);
 
 	void showPeerHistory(const PeerId &peer, MsgId msgId, bool back = false);
@@ -70,7 +72,15 @@ namespace Notify {
 	void userIsBotChanged(UserData *user);
 	void userIsContactChanged(UserData *user, bool fromThisApp = false);
 	void botCommandsChanged(UserData *user);
+
 	void migrateUpdated(PeerData *peer);
+
+	void clipReinit(ClipReader *reader);
+
+	void historyItemResized(const HistoryItem *item, bool scrollToIt = false);
+	inline void historyItemsResized() {
+		historyItemResized(0);
+	}
 	void historyItemLayoutChanged(const HistoryItem *item);
 
 };

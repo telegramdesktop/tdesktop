@@ -3198,9 +3198,7 @@ void OverviewWidget::onDeleteSelectedSure() {
 	for (SelectedItemSet::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
 		i.value()->destroy();
 	}
-	if (App::main() && App::main()->peer() == peer()) {
-		App::main()->itemResized(0);
-	}
+	Notify::historyItemsResized();
 	Ui::hideLayer();
 
 	for (QMap<PeerData*, QVector<MTPint> >::const_iterator i = ids.cbegin(), e = ids.cend(); i != e; ++i) {
@@ -3222,9 +3220,7 @@ void OverviewWidget::onDeleteContextSure() {
 		App::main()->checkPeerHistory(h->peer);
 	}
 
-	if (App::main() && (App::main()->peer() == h->peer || (App::main()->peer() && App::main()->peer() == h->peer->migrateTo()))) {
-		App::main()->itemResized(0);
-	}
+	Notify::historyItemsResized();
 	Ui::hideLayer();
 
 	if (wasOnServer) {

@@ -95,6 +95,18 @@ namespace Ui {
 		return false;
 	}
 
+	void clipRedraw(ClipReader *reader) {
+		const GifItems &items(App::gifItems());
+		GifItems::const_iterator it = items.constFind(reader);
+		if (it != items.cend()) {
+			if (reader->currentDisplayed()) {
+				return;
+			}
+			Ui::redrawHistoryItem(it.value());
+		}
+		if (Window *w = App::wnd()) w->ui_clipRedraw(reader);
+	}
+
 	void redrawHistoryItem(const HistoryItem *item) {
 		if (MainWidget *m = App::main()) m->ui_redrawHistoryItem(item);
 	}
@@ -127,6 +139,23 @@ namespace Notify {
 
 	void migrateUpdated(PeerData *peer) {
 		if (MainWidget *m = App::main()) m->notify_migrateUpdated(peer);
+	}
+
+	void clipReinit(ClipReader *reader) {
+		const GifItems &items(App::gifItems());
+		GifItems::const_iterator it = items.constFind(reader);
+		if (it != items.cend()) {
+			HistoryItem *item = it.value();
+
+			item->initDimensions(); // can delete reader and items entry it
+			Notify::historyItemResized(item, true);
+			Notify::historyItemLayoutChanged(item);
+		}
+		if (Window *w = App::wnd()) w->notify_clipReinit(reader);
+	}
+
+	void historyItemResized(const HistoryItem *item, bool scrollToIt) {
+		if (MainWidget *m = App::main()) m->notify_historyItemResized(item, scrollToIt);
 	}
 
 	void historyItemLayoutChanged(const HistoryItem *item) {

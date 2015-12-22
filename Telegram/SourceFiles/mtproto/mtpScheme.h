@@ -130,7 +130,7 @@ enum {
 	mtpc_fileLocationUnavailable = 0x7c596b46,
 	mtpc_fileLocation = 0x53d69076,
 	mtpc_userEmpty = 0x200250ba,
-	mtpc_user = 0x3289b590,
+	mtpc_user = 0x603539b4,
 	mtpc_userProfilePhotoEmpty = 0x4f11bae1,
 	mtpc_userProfilePhoto = 0xd559d8c8,
 	mtpc_userStatusEmpty = 0x9d05049,
@@ -142,7 +142,7 @@ enum {
 	mtpc_chatEmpty = 0x9ba2d800,
 	mtpc_chat = 0xd91cdd54,
 	mtpc_chatForbidden = 0x7328bdb,
-	mtpc_channel = 0xe834ce68,
+	mtpc_channel = 0x4b1b7506,
 	mtpc_channelForbidden = 0x2d85832c,
 	mtpc_chatFull = 0x2e02a614,
 	mtpc_channelFull = 0x9e341ddf,
@@ -380,7 +380,7 @@ enum {
 	mtpc_webPageEmpty = 0xeb1477e8,
 	mtpc_webPagePending = 0xc586da1c,
 	mtpc_webPage = 0xca820ed7,
-	mtpc_webPageExternal = 0xbb54b77,
+	mtpc_webPageExternal = 0xb08fbb93,
 	mtpc_authorization = 0x7bf2e6f6,
 	mtpc_account_authorizations = 0x1250abde,
 	mtpc_account_noPassword = 0x96dabc18,
@@ -3194,7 +3194,7 @@ private:
 	explicit MTPuser(MTPDuser *_data);
 
 	friend MTPuser MTP_userEmpty(MTPint _id);
-	friend MTPuser MTP_user(MTPint _flags, MTPint _id, const MTPlong &_access_hash, const MTPstring &_first_name, const MTPstring &_last_name, const MTPstring &_username, const MTPstring &_phone, const MTPUserProfilePhoto &_photo, const MTPUserStatus &_status, MTPint _bot_info_version, const MTPstring &_restiction_reason);
+	friend MTPuser MTP_user(MTPint _flags, MTPint _id, const MTPlong &_access_hash, const MTPstring &_first_name, const MTPstring &_last_name, const MTPstring &_username, const MTPstring &_phone, const MTPUserProfilePhoto &_photo, const MTPUserStatus &_status, MTPint _bot_info_version, const MTPstring &_restriction_reason);
 
 	mtpTypeId _type;
 };
@@ -3379,7 +3379,7 @@ private:
 	friend MTPchat MTP_chatEmpty(MTPint _id);
 	friend MTPchat MTP_chat(MTPint _flags, MTPint _id, const MTPstring &_title, const MTPChatPhoto &_photo, MTPint _participants_count, MTPint _date, MTPint _version, const MTPInputChannel &_migrated_to);
 	friend MTPchat MTP_chatForbidden(MTPint _id, const MTPstring &_title);
-	friend MTPchat MTP_channel(MTPint _flags, MTPint _id, const MTPlong &_access_hash, const MTPstring &_title, const MTPstring &_username, const MTPChatPhoto &_photo, MTPint _date, MTPint _version, const MTPstring &_restiction_reason);
+	friend MTPchat MTP_channel(MTPint _flags, MTPint _id, const MTPlong &_access_hash, const MTPstring &_title, const MTPstring &_username, const MTPChatPhoto &_photo, MTPint _date, MTPint _version, const MTPstring &_restriction_reason);
 	friend MTPchat MTP_channelForbidden(MTPint _id, const MTPlong &_access_hash, const MTPstring &_title);
 
 	mtpTypeId _type;
@@ -7606,7 +7606,7 @@ private:
 	friend MTPwebPage MTP_webPageEmpty(const MTPlong &_id);
 	friend MTPwebPage MTP_webPagePending(const MTPlong &_id, MTPint _date);
 	friend MTPwebPage MTP_webPage(MTPint _flags, const MTPlong &_id, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_site_name, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo, const MTPstring &_embed_url, const MTPstring &_embed_type, MTPint _embed_width, MTPint _embed_height, MTPint _duration, const MTPstring &_author, const MTPDocument &_document);
-	friend MTPwebPage MTP_webPageExternal(MTPint _flags, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPstring &_thumb_url, const MTPstring &_content_url, MTPint _w, MTPint _h, const MTPstring &_embed_url, const MTPstring &_embed_type, MTPint _duration);
+	friend MTPwebPage MTP_webPageExternal(MTPint _flags, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPstring &_thumb_url, const MTPstring &_content_url, const MTPstring &_content_type, MTPint _w, MTPint _h, MTPint _duration);
 
 	mtpTypeId _type;
 };
@@ -9800,7 +9800,7 @@ class MTPDuser : public mtpDataImpl<MTPDuser> {
 public:
 	MTPDuser() {
 	}
-	MTPDuser(MTPint _flags, MTPint _id, const MTPlong &_access_hash, const MTPstring &_first_name, const MTPstring &_last_name, const MTPstring &_username, const MTPstring &_phone, const MTPUserProfilePhoto &_photo, const MTPUserStatus &_status, MTPint _bot_info_version, const MTPstring &_restiction_reason) : vflags(_flags), vid(_id), vaccess_hash(_access_hash), vfirst_name(_first_name), vlast_name(_last_name), vusername(_username), vphone(_phone), vphoto(_photo), vstatus(_status), vbot_info_version(_bot_info_version), vrestiction_reason(_restiction_reason) {
+	MTPDuser(MTPint _flags, MTPint _id, const MTPlong &_access_hash, const MTPstring &_first_name, const MTPstring &_last_name, const MTPstring &_username, const MTPstring &_phone, const MTPUserProfilePhoto &_photo, const MTPUserStatus &_status, MTPint _bot_info_version, const MTPstring &_restriction_reason) : vflags(_flags), vid(_id), vaccess_hash(_access_hash), vfirst_name(_first_name), vlast_name(_last_name), vusername(_username), vphone(_phone), vphoto(_photo), vstatus(_status), vbot_info_version(_bot_info_version), vrestriction_reason(_restriction_reason) {
 	}
 
 	MTPint vflags;
@@ -9813,7 +9813,7 @@ public:
 	MTPUserProfilePhoto vphoto;
 	MTPUserStatus vstatus;
 	MTPint vbot_info_version;
-	MTPstring vrestiction_reason;
+	MTPstring vrestriction_reason;
 
 	enum {
 		flag_self = (1 << 10),
@@ -9833,7 +9833,7 @@ public:
 		flag_photo = (1 << 5),
 		flag_status = (1 << 6),
 		flag_bot_info_version = (1 << 14),
-		flag_restiction_reason = (1 << 18),
+		flag_restriction_reason = (1 << 18),
 	};
 
 	bool is_self() const { return vflags.v & flag_self; }
@@ -9853,7 +9853,7 @@ public:
 	bool has_photo() const { return vflags.v & flag_photo; }
 	bool has_status() const { return vflags.v & flag_status; }
 	bool has_bot_info_version() const { return vflags.v & flag_bot_info_version; }
-	bool has_restiction_reason() const { return vflags.v & flag_restiction_reason; }
+	bool has_restriction_reason() const { return vflags.v & flag_restriction_reason; }
 };
 
 class MTPDuserProfilePhoto : public mtpDataImpl<MTPDuserProfilePhoto> {
@@ -9948,7 +9948,7 @@ class MTPDchannel : public mtpDataImpl<MTPDchannel> {
 public:
 	MTPDchannel() {
 	}
-	MTPDchannel(MTPint _flags, MTPint _id, const MTPlong &_access_hash, const MTPstring &_title, const MTPstring &_username, const MTPChatPhoto &_photo, MTPint _date, MTPint _version, const MTPstring &_restiction_reason) : vflags(_flags), vid(_id), vaccess_hash(_access_hash), vtitle(_title), vusername(_username), vphoto(_photo), vdate(_date), vversion(_version), vrestiction_reason(_restiction_reason) {
+	MTPDchannel(MTPint _flags, MTPint _id, const MTPlong &_access_hash, const MTPstring &_title, const MTPstring &_username, const MTPChatPhoto &_photo, MTPint _date, MTPint _version, const MTPstring &_restriction_reason) : vflags(_flags), vid(_id), vaccess_hash(_access_hash), vtitle(_title), vusername(_username), vphoto(_photo), vdate(_date), vversion(_version), vrestriction_reason(_restriction_reason) {
 	}
 
 	MTPint vflags;
@@ -9959,7 +9959,7 @@ public:
 	MTPChatPhoto vphoto;
 	MTPint vdate;
 	MTPint vversion;
-	MTPstring vrestiction_reason;
+	MTPstring vrestriction_reason;
 
 	enum {
 		flag_creator = (1 << 0),
@@ -9972,7 +9972,7 @@ public:
 		flag_megagroup = (1 << 8),
 		flag_restricted = (1 << 9),
 		flag_username = (1 << 6),
-		flag_restiction_reason = (1 << 9),
+		flag_restriction_reason = (1 << 9),
 	};
 
 	bool is_creator() const { return vflags.v & flag_creator; }
@@ -9985,7 +9985,7 @@ public:
 	bool is_megagroup() const { return vflags.v & flag_megagroup; }
 	bool is_restricted() const { return vflags.v & flag_restricted; }
 	bool has_username() const { return vflags.v & flag_username; }
-	bool has_restiction_reason() const { return vflags.v & flag_restiction_reason; }
+	bool has_restriction_reason() const { return vflags.v & flag_restriction_reason; }
 };
 
 class MTPDchannelForbidden : public mtpDataImpl<MTPDchannelForbidden> {
@@ -12299,7 +12299,7 @@ class MTPDwebPageExternal : public mtpDataImpl<MTPDwebPageExternal> {
 public:
 	MTPDwebPageExternal() {
 	}
-	MTPDwebPageExternal(MTPint _flags, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPstring &_thumb_url, const MTPstring &_content_url, MTPint _w, MTPint _h, const MTPstring &_embed_url, const MTPstring &_embed_type, MTPint _duration) : vflags(_flags), vurl(_url), vdisplay_url(_display_url), vtype(_type), vtitle(_title), vdescription(_description), vthumb_url(_thumb_url), vcontent_url(_content_url), vw(_w), vh(_h), vembed_url(_embed_url), vembed_type(_embed_type), vduration(_duration) {
+	MTPDwebPageExternal(MTPint _flags, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPstring &_thumb_url, const MTPstring &_content_url, const MTPstring &_content_type, MTPint _w, MTPint _h, MTPint _duration) : vflags(_flags), vurl(_url), vdisplay_url(_display_url), vtype(_type), vtitle(_title), vdescription(_description), vthumb_url(_thumb_url), vcontent_url(_content_url), vcontent_type(_content_type), vw(_w), vh(_h), vduration(_duration) {
 	}
 
 	MTPint vflags;
@@ -12310,10 +12310,9 @@ public:
 	MTPstring vdescription;
 	MTPstring vthumb_url;
 	MTPstring vcontent_url;
+	MTPstring vcontent_type;
 	MTPint vw;
 	MTPint vh;
-	MTPstring vembed_url;
-	MTPstring vembed_type;
 	MTPint vduration;
 
 	enum {
@@ -12322,11 +12321,10 @@ public:
 		flag_description = (1 << 2),
 		flag_thumb_url = (1 << 3),
 		flag_content_url = (1 << 4),
+		flag_content_type = (1 << 4),
 		flag_w = (1 << 5),
 		flag_h = (1 << 5),
-		flag_embed_url = (1 << 6),
-		flag_embed_type = (1 << 6),
-		flag_duration = (1 << 7),
+		flag_duration = (1 << 6),
 	};
 
 	bool has_type() const { return vflags.v & flag_type; }
@@ -12334,10 +12332,9 @@ public:
 	bool has_description() const { return vflags.v & flag_description; }
 	bool has_thumb_url() const { return vflags.v & flag_thumb_url; }
 	bool has_content_url() const { return vflags.v & flag_content_url; }
+	bool has_content_type() const { return vflags.v & flag_content_type; }
 	bool has_w() const { return vflags.v & flag_w; }
 	bool has_h() const { return vflags.v & flag_h; }
-	bool has_embed_url() const { return vflags.v & flag_embed_url; }
-	bool has_embed_type() const { return vflags.v & flag_embed_type; }
 	bool has_duration() const { return vflags.v & flag_duration; }
 };
 
@@ -22175,7 +22172,7 @@ inline uint32 MTPuser::innerLength() const {
 		}
 		case mtpc_user: {
 			const MTPDuser &v(c_user());
-			return v.vflags.innerLength() + v.vid.innerLength() + (v.has_access_hash() ? v.vaccess_hash.innerLength() : 0) + (v.has_first_name() ? v.vfirst_name.innerLength() : 0) + (v.has_last_name() ? v.vlast_name.innerLength() : 0) + (v.has_username() ? v.vusername.innerLength() : 0) + (v.has_phone() ? v.vphone.innerLength() : 0) + (v.has_photo() ? v.vphoto.innerLength() : 0) + (v.has_status() ? v.vstatus.innerLength() : 0) + (v.has_bot_info_version() ? v.vbot_info_version.innerLength() : 0) + (v.has_restiction_reason() ? v.vrestiction_reason.innerLength() : 0);
+			return v.vflags.innerLength() + v.vid.innerLength() + (v.has_access_hash() ? v.vaccess_hash.innerLength() : 0) + (v.has_first_name() ? v.vfirst_name.innerLength() : 0) + (v.has_last_name() ? v.vlast_name.innerLength() : 0) + (v.has_username() ? v.vusername.innerLength() : 0) + (v.has_phone() ? v.vphone.innerLength() : 0) + (v.has_photo() ? v.vphoto.innerLength() : 0) + (v.has_status() ? v.vstatus.innerLength() : 0) + (v.has_bot_info_version() ? v.vbot_info_version.innerLength() : 0) + (v.has_restriction_reason() ? v.vrestriction_reason.innerLength() : 0);
 		}
 	}
 	return 0;
@@ -22205,7 +22202,7 @@ inline void MTPuser::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId 
 			if (v.has_photo()) { v.vphoto.read(from, end); } else { v.vphoto = MTPUserProfilePhoto(); }
 			if (v.has_status()) { v.vstatus.read(from, end); } else { v.vstatus = MTPUserStatus(); }
 			if (v.has_bot_info_version()) { v.vbot_info_version.read(from, end); } else { v.vbot_info_version = MTPint(); }
-			if (v.has_restiction_reason()) { v.vrestiction_reason.read(from, end); } else { v.vrestiction_reason = MTPstring(); }
+			if (v.has_restriction_reason()) { v.vrestriction_reason.read(from, end); } else { v.vrestriction_reason = MTPstring(); }
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPuser");
 	}
@@ -22228,7 +22225,7 @@ inline void MTPuser::write(mtpBuffer &to) const {
 			if (v.has_photo()) v.vphoto.write(to);
 			if (v.has_status()) v.vstatus.write(to);
 			if (v.has_bot_info_version()) v.vbot_info_version.write(to);
-			if (v.has_restiction_reason()) v.vrestiction_reason.write(to);
+			if (v.has_restriction_reason()) v.vrestriction_reason.write(to);
 		} break;
 	}
 }
@@ -22246,8 +22243,8 @@ inline MTPuser::MTPuser(MTPDuser *_data) : mtpDataOwner(_data), _type(mtpc_user)
 inline MTPuser MTP_userEmpty(MTPint _id) {
 	return MTPuser(new MTPDuserEmpty(_id));
 }
-inline MTPuser MTP_user(MTPint _flags, MTPint _id, const MTPlong &_access_hash, const MTPstring &_first_name, const MTPstring &_last_name, const MTPstring &_username, const MTPstring &_phone, const MTPUserProfilePhoto &_photo, const MTPUserStatus &_status, MTPint _bot_info_version, const MTPstring &_restiction_reason) {
-	return MTPuser(new MTPDuser(_flags, _id, _access_hash, _first_name, _last_name, _username, _phone, _photo, _status, _bot_info_version, _restiction_reason));
+inline MTPuser MTP_user(MTPint _flags, MTPint _id, const MTPlong &_access_hash, const MTPstring &_first_name, const MTPstring &_last_name, const MTPstring &_username, const MTPstring &_phone, const MTPUserProfilePhoto &_photo, const MTPUserStatus &_status, MTPint _bot_info_version, const MTPstring &_restriction_reason) {
+	return MTPuser(new MTPDuser(_flags, _id, _access_hash, _first_name, _last_name, _username, _phone, _photo, _status, _bot_info_version, _restriction_reason));
 }
 
 inline uint32 MTPuserProfilePhoto::innerLength() const {
@@ -22402,7 +22399,7 @@ inline uint32 MTPchat::innerLength() const {
 		}
 		case mtpc_channel: {
 			const MTPDchannel &v(c_channel());
-			return v.vflags.innerLength() + v.vid.innerLength() + v.vaccess_hash.innerLength() + v.vtitle.innerLength() + (v.has_username() ? v.vusername.innerLength() : 0) + v.vphoto.innerLength() + v.vdate.innerLength() + v.vversion.innerLength() + (v.has_restiction_reason() ? v.vrestiction_reason.innerLength() : 0);
+			return v.vflags.innerLength() + v.vid.innerLength() + v.vaccess_hash.innerLength() + v.vtitle.innerLength() + (v.has_username() ? v.vusername.innerLength() : 0) + v.vphoto.innerLength() + v.vdate.innerLength() + v.vversion.innerLength() + (v.has_restriction_reason() ? v.vrestriction_reason.innerLength() : 0);
 		}
 		case mtpc_channelForbidden: {
 			const MTPDchannelForbidden &v(c_channelForbidden());
@@ -22452,7 +22449,7 @@ inline void MTPchat::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId 
 			v.vphoto.read(from, end);
 			v.vdate.read(from, end);
 			v.vversion.read(from, end);
-			if (v.has_restiction_reason()) { v.vrestiction_reason.read(from, end); } else { v.vrestiction_reason = MTPstring(); }
+			if (v.has_restriction_reason()) { v.vrestriction_reason.read(from, end); } else { v.vrestriction_reason = MTPstring(); }
 		} break;
 		case mtpc_channelForbidden: _type = cons; {
 			if (!data) setData(new MTPDchannelForbidden());
@@ -22496,7 +22493,7 @@ inline void MTPchat::write(mtpBuffer &to) const {
 			v.vphoto.write(to);
 			v.vdate.write(to);
 			v.vversion.write(to);
-			if (v.has_restiction_reason()) v.vrestiction_reason.write(to);
+			if (v.has_restriction_reason()) v.vrestriction_reason.write(to);
 		} break;
 		case mtpc_channelForbidden: {
 			const MTPDchannelForbidden &v(c_channelForbidden());
@@ -22535,8 +22532,8 @@ inline MTPchat MTP_chat(MTPint _flags, MTPint _id, const MTPstring &_title, cons
 inline MTPchat MTP_chatForbidden(MTPint _id, const MTPstring &_title) {
 	return MTPchat(new MTPDchatForbidden(_id, _title));
 }
-inline MTPchat MTP_channel(MTPint _flags, MTPint _id, const MTPlong &_access_hash, const MTPstring &_title, const MTPstring &_username, const MTPChatPhoto &_photo, MTPint _date, MTPint _version, const MTPstring &_restiction_reason) {
-	return MTPchat(new MTPDchannel(_flags, _id, _access_hash, _title, _username, _photo, _date, _version, _restiction_reason));
+inline MTPchat MTP_channel(MTPint _flags, MTPint _id, const MTPlong &_access_hash, const MTPstring &_title, const MTPstring &_username, const MTPChatPhoto &_photo, MTPint _date, MTPint _version, const MTPstring &_restriction_reason) {
+	return MTPchat(new MTPDchannel(_flags, _id, _access_hash, _title, _username, _photo, _date, _version, _restriction_reason));
 }
 inline MTPchat MTP_channelForbidden(MTPint _id, const MTPlong &_access_hash, const MTPstring &_title) {
 	return MTPchat(new MTPDchannelForbidden(_id, _access_hash, _title));
@@ -28304,7 +28301,7 @@ inline uint32 MTPwebPage::innerLength() const {
 		}
 		case mtpc_webPageExternal: {
 			const MTPDwebPageExternal &v(c_webPageExternal());
-			return v.vflags.innerLength() + v.vurl.innerLength() + v.vdisplay_url.innerLength() + (v.has_type() ? v.vtype.innerLength() : 0) + (v.has_title() ? v.vtitle.innerLength() : 0) + (v.has_description() ? v.vdescription.innerLength() : 0) + (v.has_thumb_url() ? v.vthumb_url.innerLength() : 0) + (v.has_content_url() ? v.vcontent_url.innerLength() : 0) + (v.has_w() ? v.vw.innerLength() : 0) + (v.has_h() ? v.vh.innerLength() : 0) + (v.has_embed_url() ? v.vembed_url.innerLength() : 0) + (v.has_embed_type() ? v.vembed_type.innerLength() : 0) + (v.has_duration() ? v.vduration.innerLength() : 0);
+			return v.vflags.innerLength() + v.vurl.innerLength() + v.vdisplay_url.innerLength() + (v.has_type() ? v.vtype.innerLength() : 0) + (v.has_title() ? v.vtitle.innerLength() : 0) + (v.has_description() ? v.vdescription.innerLength() : 0) + (v.has_thumb_url() ? v.vthumb_url.innerLength() : 0) + (v.has_content_url() ? v.vcontent_url.innerLength() : 0) + (v.has_content_type() ? v.vcontent_type.innerLength() : 0) + (v.has_w() ? v.vw.innerLength() : 0) + (v.has_h() ? v.vh.innerLength() : 0) + (v.has_duration() ? v.vduration.innerLength() : 0);
 		}
 	}
 	return 0;
@@ -28358,10 +28355,9 @@ inline void MTPwebPage::read(const mtpPrime *&from, const mtpPrime *end, mtpType
 			if (v.has_description()) { v.vdescription.read(from, end); } else { v.vdescription = MTPstring(); }
 			if (v.has_thumb_url()) { v.vthumb_url.read(from, end); } else { v.vthumb_url = MTPstring(); }
 			if (v.has_content_url()) { v.vcontent_url.read(from, end); } else { v.vcontent_url = MTPstring(); }
+			if (v.has_content_type()) { v.vcontent_type.read(from, end); } else { v.vcontent_type = MTPstring(); }
 			if (v.has_w()) { v.vw.read(from, end); } else { v.vw = MTPint(); }
 			if (v.has_h()) { v.vh.read(from, end); } else { v.vh = MTPint(); }
-			if (v.has_embed_url()) { v.vembed_url.read(from, end); } else { v.vembed_url = MTPstring(); }
-			if (v.has_embed_type()) { v.vembed_type.read(from, end); } else { v.vembed_type = MTPstring(); }
 			if (v.has_duration()) { v.vduration.read(from, end); } else { v.vduration = MTPint(); }
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPwebPage");
@@ -28407,10 +28403,9 @@ inline void MTPwebPage::write(mtpBuffer &to) const {
 			if (v.has_description()) v.vdescription.write(to);
 			if (v.has_thumb_url()) v.vthumb_url.write(to);
 			if (v.has_content_url()) v.vcontent_url.write(to);
+			if (v.has_content_type()) v.vcontent_type.write(to);
 			if (v.has_w()) v.vw.write(to);
 			if (v.has_h()) v.vh.write(to);
-			if (v.has_embed_url()) v.vembed_url.write(to);
-			if (v.has_embed_type()) v.vembed_type.write(to);
 			if (v.has_duration()) v.vduration.write(to);
 		} break;
 	}
@@ -28441,8 +28436,8 @@ inline MTPwebPage MTP_webPagePending(const MTPlong &_id, MTPint _date) {
 inline MTPwebPage MTP_webPage(MTPint _flags, const MTPlong &_id, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_site_name, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo, const MTPstring &_embed_url, const MTPstring &_embed_type, MTPint _embed_width, MTPint _embed_height, MTPint _duration, const MTPstring &_author, const MTPDocument &_document) {
 	return MTPwebPage(new MTPDwebPage(_flags, _id, _url, _display_url, _type, _site_name, _title, _description, _photo, _embed_url, _embed_type, _embed_width, _embed_height, _duration, _author, _document));
 }
-inline MTPwebPage MTP_webPageExternal(MTPint _flags, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPstring &_thumb_url, const MTPstring &_content_url, MTPint _w, MTPint _h, const MTPstring &_embed_url, const MTPstring &_embed_type, MTPint _duration) {
-	return MTPwebPage(new MTPDwebPageExternal(_flags, _url, _display_url, _type, _title, _description, _thumb_url, _content_url, _w, _h, _embed_url, _embed_type, _duration));
+inline MTPwebPage MTP_webPageExternal(MTPint _flags, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPstring &_thumb_url, const MTPstring &_content_url, const MTPstring &_content_type, MTPint _w, MTPint _h, MTPint _duration) {
+	return MTPwebPage(new MTPDwebPageExternal(_flags, _url, _display_url, _type, _title, _description, _thumb_url, _content_url, _content_type, _w, _h, _duration));
 }
 
 inline MTPauthorization::MTPauthorization() : mtpDataOwner(new MTPDauthorization()) {

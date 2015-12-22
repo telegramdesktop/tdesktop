@@ -75,8 +75,6 @@ namespace {
 		_webpageDescriptionOptions.maxh = st::webPageDescriptionFont->height * 3;
 	}
 
-	AnimatedGif animated;
-
 	inline HistoryReply *toHistoryReply(HistoryItem *item) {
 		return item ? item->toHistoryReply() : 0;
 	}
@@ -2529,7 +2527,7 @@ MsgId History::msgIdForRead() const {
 	return result;
 }
 
-int32 History::geomResize(int32 newWidth, int32 *ytransform, HistoryItem *resizedItem) {
+int32 History::geomResize(int32 newWidth, int32 *ytransform, const HistoryItem *resizedItem) {
 	if (width != newWidth) resizedItem = 0; // recount all items
 	if (width != newWidth || resizedItem) {
 		int32 y = 0;
@@ -2724,7 +2722,7 @@ void History::removeBlock(HistoryBlock *block) {
 	delete block;
 }
 
-int32 HistoryBlock::geomResize(int32 newWidth, int32 *ytransform, HistoryItem *resizedItem) {
+int32 HistoryBlock::geomResize(int32 newWidth, int32 *ytransform, const HistoryItem *resizedItem) {
 	int32 y = 0;
 	for (Items::iterator i = items.begin(), e = items.end(); i != e; ++i) {
 		HistoryItem *item = *i;
@@ -4602,7 +4600,7 @@ void HistoryGif::stopInline(HistoryItem *parent) {
 	_gif = 0;
 
 	parent->initDimensions();
-	if (App::main()) emit App::main()->itemResized(parent);
+	Notify::historyItemResized(parent);
 	Notify::historyItemLayoutChanged(parent);
 }
 
@@ -4933,7 +4931,7 @@ void HistoryContact::updateFrom(const MTPMessageMedia &media, HistoryItem *paren
 			_userId = media.c_messageMediaContact().vuser_id.v;
 			regItem(parent);
 			parent->initDimensions();
-			if (allowEmitResize && App::main()) App::main()->itemResized(parent);
+			if (allowEmitResize) Notify::historyItemResized(parent);
 		}
 	}
 }
@@ -6073,7 +6071,7 @@ void HistoryMessage::setMedia(const MTPMessageMedia *media, bool allowEmitResize
 		_textHeight = 0;
 	}
 	initDimensions();
-	if (allowEmitResize && App::main()) App::main()->itemResized(this);
+	if (allowEmitResize) Notify::historyItemResized(this);
 }
 
 void HistoryMessage::setText(const QString &text, const EntitiesInText &entities) {
@@ -6196,7 +6194,7 @@ void HistoryMessage::setViewsCount(int32 count) {
 			_textHeight = 0;
 		}
 		initDimensions();
-		if (App::main()) App::main()->itemResized(this);
+		Notify::historyItemResized(this);
 	}
 }
 
@@ -6212,7 +6210,7 @@ void HistoryMessage::setId(MsgId newId) {
 			_textHeight = 0;
 		}
 		initDimensions();
-		if (App::main()) App::main()->itemResized(this);
+		Notify::historyItemResized(this);
 	}
 }
 
@@ -6718,7 +6716,7 @@ bool HistoryReply::updateReplyTo(bool force) {
 	}
 	if (force) {
 		initDimensions();
-		if (App::main()) App::main()->itemResized(this);
+		Notify::historyItemResized(this);
 	}
 	return (replyToMsg || !replyToMsgId);
 }

@@ -66,7 +66,7 @@ public:
 	void touchScrollUpdated(const QPoint &screenPos);
 	QPoint mapMouseToItem(QPoint p, HistoryItem *item);
 
-	int32 recountHeight(HistoryItem *resizedItem);
+	int32 recountHeight(const HistoryItem *resizedItem);
 	void updateSize();
 
 	void redrawItem(const HistoryItem *item);
@@ -492,7 +492,6 @@ public:
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
 	void itemRemoved(HistoryItem *item);
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
-	void itemResized(HistoryItem *item, bool scrollToIt);
 
 	void updateScrollColors();
 
@@ -563,6 +562,7 @@ public:
 	void notify_botCommandsChanged(UserData *user);
 	void notify_userIsBotChanged(UserData *user);
 	void notify_migrateUpdated(PeerData *peer);
+	void notify_historyItemResized(const HistoryItem *item, bool scrollToIt);
 
 	~HistoryWidget();
 
@@ -696,7 +696,7 @@ private:
 	QList<MsgId> _replyReturns;
 
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
-	void updateListSize(int32 addToY = 0, bool initial = false, bool loadedDown = false, HistoryItem *resizedItem = 0, bool scrollToIt = false);
+	void updateListSize(int32 addToY = 0, bool initial = false, bool loadedDown = false, const HistoryItem *resizedItem = 0, bool scrollToIt = false);
 	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 

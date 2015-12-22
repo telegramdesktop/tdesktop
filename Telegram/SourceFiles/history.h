@@ -241,7 +241,7 @@ public:
 	MsgId maxMsgId() const;
 	MsgId msgIdForRead() const;
 
-	int32 geomResize(int32 newWidth, int32 *ytransform = 0, HistoryItem *resizedItem = 0); // return new size
+	int32 geomResize(int32 newWidth, int32 *ytransform = 0, const HistoryItem *resizedItem = 0); // return new size
 
 	void removeNotification(HistoryItem *item) {
 		if (!notifies.isEmpty()) {
@@ -752,7 +752,7 @@ public:
 	}
 	void removeItem(HistoryItem *item);
 
-	int32 geomResize(int32 newWidth, int32 *ytransform, HistoryItem *resizedItem); // return new size
+	int32 geomResize(int32 newWidth, int32 *ytransform, const HistoryItem *resizedItem); // return new size
 	int32 y, height;
 	History *history;
 };
@@ -838,10 +838,7 @@ public:
 	virtual int32 resize(int32 width) = 0; // return new height
 	virtual void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const = 0;
 
-	History *history() {
-		return _history;
-	}
-	const History *history() const {
+	History *history() const {
 		return _history;
 	}
 	PeerData *from() const {

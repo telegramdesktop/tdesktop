@@ -73,6 +73,10 @@ public:
 	void activateControls();
 	void onDocClick();
 
+	void ui_clipRedraw(ClipReader *reader);
+
+	void notify_clipReinit(ClipReader *reader);
+
 	~MediaView();
 
 public slots:
@@ -98,7 +102,6 @@ public slots:
 	void onTouchTimer();
 
 	void updateImage();
-	void onGifUpdated();
 
 private:
 
@@ -138,8 +141,11 @@ private:
 	bool _pressed;
 	int32 _dragging;
 	QPixmap _current;
-	AnimatedGif _currentGif;
+	ClipReader *_gif;
 	int32 _full; // -1 - thumb, 0 - medium, 1 - full
+
+	bool fileShown() const;
+	bool gifShown() const;
 
 	style::sprite _docIcon;
 	style::color _docIconColor;

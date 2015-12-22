@@ -1165,7 +1165,7 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-int32 HistoryInner::recountHeight(HistoryItem *resizedItem) {
+int32 HistoryInner::recountHeight(const HistoryItem *resizedItem) {
 	int32 htop = historyTop(), mtop = migratedTop();
 	int32 st1 = (htop >= 0) ? (_history->lastScrollTop - htop) : -1, st2 = (_migrated && mtop >= 0) ? (_history->lastScrollTop - mtop) : -1;
 
@@ -2992,6 +2992,10 @@ void HistoryWidget::notify_migrateUpdated(PeerData *peer) {
 			showHistory(_peer->id, _showAtMsgId, true);
 		}
 	}
+}
+
+void HistoryWidget::notify_historyItemResized(const HistoryItem *row, bool scrollToIt) {
+	updateListSize(0, false, false, row, scrollToIt);
 }
 
 void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
@@ -5680,10 +5684,6 @@ void HistoryWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
 	if (_replyReturn == oldItem) _replyReturn = newItem;
 }
 
-void HistoryWidget::itemResized(HistoryItem *row, bool scrollToIt) {
-	updateListSize(0, false, false, row, scrollToIt);
-}
-
 void HistoryWidget::updateScrollColors() {
 	if (!App::historyScrollBarColor()) return;
 	_scroll.updateColors(App::historyScrollBarColor(), App::historyScrollBgColor(), App::historyScrollBarOverColor(), App::historyScrollBgOverColor());
@@ -5693,7 +5693,7 @@ MsgId HistoryWidget::replyToId() const {
 	return _replyToId ? _replyToId : (_kbReplyTo ? _kbReplyTo->id : 0);
 }
 
-void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, HistoryItem *resizedItem, bool scrollToIt) {
+void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, const HistoryItem *resizedItem, bool scrollToIt) {
 	if (!_history || (initial && _histInited) || (!initial && !_histInited)) return;
 	if (_firstLoadRequest) {
 		if (resizedItem) _list->recountHeight(resizedItem);
@@ -6466,9 +6466,7 @@ void HistoryWidget::onDeleteSelectedSure() {
 	for (SelectedItemSet::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
 		i.value()->destroy();
 	}
-	if (App::main() && App::main()->peer() == peer()) {
-		App::main()->itemResized(0);
-	}
+	Notify::historyItemsResized();
 	Ui::hideLayer();
 
 	for (QMap<PeerData*, QVector<MTPint> >::const_iterator i = ids.cbegin(), e = ids.cend(); i != e; ++i) {
@@ -6490,9 +6488,7 @@ void HistoryWidget::onDeleteContextSure() {
 		App::main()->checkPeerHistory(h->peer);
 	}
 
-	if (App::main() && (App::main()->peer() == h->peer || (App::main()->peer() && h->peer->migrateTo() == App::main()->peer()))) {
-		App::main()->itemResized(0);
-	}
+	Notify::historyItemsResized();
 	Ui::hideLayer();
 
 	if (wasOnServer) {

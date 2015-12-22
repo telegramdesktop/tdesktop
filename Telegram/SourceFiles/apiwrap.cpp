@@ -916,12 +916,11 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 		}
 	}
 
-	MainWidget *m = App::main();
 	for (QMap<uint64, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
 		HistoryItem *item = App::histories().addNewMessage(v->at(i.value()), NewMessageExisting);
 		if (item) {
 			item->initDimensions();
-			if (m) m->itemResized(item);
+			Notify::historyItemResized(item);
 		}
 	}
 
@@ -934,7 +933,7 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 				if (j != items.cend()) {
 					for (HistoryItemsMap::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
 						k.key()->initDimensions();
-						if (m) m->itemResized(k.key());
+						Notify::historyItemResized(k.key());
 					}
 				}
 			}

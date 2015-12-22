@@ -664,7 +664,7 @@ void MainWidget::webPagesUpdate() {
 		if (j != items.cend()) {
 			for (HistoryItemsMap::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
 				k.key()->initDimensions();
-				itemResized(k.key());
+				Notify::historyItemResized(k.key());
 			}
 		}
 	}
@@ -788,6 +788,18 @@ void MainWidget::ui_redrawHistoryItem(const HistoryItem *item) {
 
 void MainWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 	history.notify_historyItemLayoutChanged(item);
+}
+
+void MainWidget::notify_historyItemResized(const HistoryItem *item, bool scrollToIt) {
+	if (!item || ((history.peer() == item->history()->peer || (history.peer() && history.peer() == item->history()->peer->migrateTo())) && !item->detached())) {
+		history.notify_historyItemResized(item, scrollToIt);
+	} else if (item) {
+		item->history()->width = 0;
+		if (history.peer() == item->history()->peer || (history.peer() && history.peer() == item->history()->peer->migrateTo())) {
+			history.resizeEvent(0);
+		}
+	}
+	if (item) Ui::redrawHistoryItem(item);
 }
 
 void MainWidget::noHider(HistoryHider *destroyed) {
@@ -1486,18 +1498,6 @@ void MainWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
 			}
 		}
 	}
-}
-
-void MainWidget::itemResized(HistoryItem *row, bool scrollToIt) {
-	if (!row || ((history.peer() == row->history()->peer || (history.peer() && history.peer() == row->history()->peer->migrateTo())) && !row->detached())) {
-		history.itemResized(row, scrollToIt);
-	} else if (row) {
-		row->history()->width = 0;
-		if (history.peer() == row->history()->peer || (history.peer() && history.peer() == row->history()->peer->migrateTo())) {
-			history.resizeEvent(0);
-		}
-	}
-	if (row) Ui::redrawHistoryItem(row);
 }
 
 bool MainWidget::overviewFailed(PeerData *peer, const RPCError &error, mtpRequestId req) {
@@ -4163,7 +4163,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 						if ((hasLinks && !item->hasTextLinks()) || (!hasLinks && item->textHasLinks())) {
 							item->setText(text, d.has_entities() ? entitiesFromMTP(d.ventities.c_vector().v) : EntitiesInText());
 							item->initDimensions();
-							itemResized(item);
+							Notify::historyItemResized(item);
 							if (item->hasTextLinks() && item->indexInOverview()) {
 								item->history()->addToOverview(item, OverviewLinks);
 							}

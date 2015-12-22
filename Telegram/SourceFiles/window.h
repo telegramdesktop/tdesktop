@@ -184,9 +184,6 @@ public:
 	void showPhoto(PhotoData *photo, PeerData *item);
 	void showDocument(DocumentData *doc, HistoryItem *item);
 
-	void ui_showLayer(LayeredWidget *box, ShowLayerOptions options);
-	bool ui_isLayerShown();
-
 	bool historyIsActive() const;
 
 	void activate();
@@ -239,6 +236,12 @@ public:
 	bool contentOverlapped(QWidget *w, const QRegion &r) {
 		return contentOverlapped(QRect(w->mapToGlobal(r.boundingRect().topLeft()), r.boundingRect().size()));
 	}
+
+	void ui_clipRedraw(ClipReader *reader);
+	void ui_showLayer(LayeredWidget *box, ShowLayerOptions options);
+	bool ui_isLayerShown();
+
+	void notify_clipReinit(ClipReader *reader);
 
 public slots:
 

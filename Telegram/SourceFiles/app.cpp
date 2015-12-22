@@ -907,7 +907,7 @@ namespace App {
 			if ((hasLinks && !existing->hasTextLinks()) || (!hasLinks && existing->textHasLinks())) {
 				existing->setText(qs(m.vmessage), m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText());
 				existing->initDimensions();
-				if (App::main()) App::main()->itemResized(existing);
+				Notify::historyItemResized(existing);
 				if (existing->hasTextLinks() && existing->indexInOverview()) {
 					existing->history()->addToOverview(existing, OverviewLinks);
 				}
@@ -1058,7 +1058,7 @@ namespace App {
 			}
 		}
 		if (resized) {
-			App::main()->itemResized(0);
+			Notify::historyItemsResized();
 		}
 		if (main()) {
 			for (QMap<History*, bool>::const_iterator i = historiesToCheck.cbegin(), e = historiesToCheck.cend(); i != e; ++i) {
@@ -2325,26 +2325,26 @@ namespace App {
         *format = reader.format();
         QString fmt = QString::fromUtf8(*format).toLower() ;
 		if (fmt == "jpg" || fmt == "jpeg") {
-			ExifData *exifData = exif_data_new_from_data((const uchar*)(data.constData()), data.size());
-			if (exifData) {
-				ExifByteOrder byteOrder = exif_data_get_byte_order(exifData);
-				ExifEntry *exifEntry = exif_data_get_entry(exifData, EXIF_TAG_ORIENTATION);
-				if (exifEntry) {
-					QTransform orientationFix;
-					int orientation = exif_get_short(exifEntry->data, byteOrder);
-					switch (orientation) {
-					case 2: orientationFix = QTransform(-1, 0, 0, 1, 0, 0); break;
-					case 3: orientationFix = QTransform(-1, 0, 0, -1, 0, 0); break;
-					case 4: orientationFix = QTransform(1, 0, 0, -1, 0, 0); break;
-					case 5: orientationFix = QTransform(0, -1, -1, 0, 0, 0); break;
-					case 6: orientationFix = QTransform(0, 1, -1, 0, 0, 0); break;
-					case 7: orientationFix = QTransform(0, 1, 1, 0, 0, 0); break;
-					case 8: orientationFix = QTransform(0, -1, 1, 0, 0, 0); break;
-					}
-					result = result.transformed(orientationFix);
-				}
-				exif_data_free(exifData);
-			}
+			//ExifData *exifData = exif_data_new_from_data((const uchar*)(data.constData()), data.size());
+			//if (exifData) {
+			//	ExifByteOrder byteOrder = exif_data_get_byte_order(exifData);
+			//	ExifEntry *exifEntry = exif_data_get_entry(exifData, EXIF_TAG_ORIENTATION);
+			//	if (exifEntry) {
+			//		QTransform orientationFix;
+			//		int orientation = exif_get_short(exifEntry->data, byteOrder);
+			//		switch (orientation) {
+			//		case 2: orientationFix = QTransform(-1, 0, 0, 1, 0, 0); break;
+			//		case 3: orientationFix = QTransform(-1, 0, 0, -1, 0, 0); break;
+			//		case 4: orientationFix = QTransform(1, 0, 0, -1, 0, 0); break;
+			//		case 5: orientationFix = QTransform(0, -1, -1, 0, 0, 0); break;
+			//		case 6: orientationFix = QTransform(0, 1, -1, 0, 0, 0); break;
+			//		case 7: orientationFix = QTransform(0, 1, 1, 0, 0, 0); break;
+			//		case 8: orientationFix = QTransform(0, -1, 1, 0, 0, 0); break;
+			//		}
+			//		result = result.transformed(orientationFix);
+			//	}
+			//	exif_data_free(exifData);
+			//}
 		} else if (opaque && result.hasAlphaChannel()) {
 			QImage solid(result.width(), result.height(), QImage::Format_ARGB32_Premultiplied);
 			solid.fill(st::white->c);

@@ -419,65 +419,7 @@ private:
 	bool _iterating;
 
 };
-
-class HistoryItem;
 class FileLocation;
-class AnimatedGif : public QObject {
-	Q_OBJECT
-
-public:
-
-	AnimatedGif() : QObject()
-		, msg(0)
-		, file(0)
-		, access(false)
-		, reader(0)
-		, w(0)
-		, h(0)
-		, frame(0)
-		, framesCount(0)
-		, duration(0)
-		, _a_frames(animation(this, &AnimatedGif::step_frame)) {
-	}
-
-	void step_frame(float64 ms, bool timer);
-
-	void start(HistoryItem *row, const FileLocation &file);
-	void stop(bool onItemRemoved = false);
-
-	bool isNull() const {
-		return !reader;
-	}
-
-	~AnimatedGif() {
-		stop(true);
-	}
-
-	const QPixmap &current(int32 width = 0, int32 height = 0, bool rounded = false);
-
-signals:
-
-	void updated();
-
-public:
-
-	HistoryItem *msg;
-	QImage img;
-	FileLocation *file;
-	bool access;
-	QImageReader *reader;
-	int32 w, h, frame;
-
-private:
-
-	QVector<QPixmap> frames;
-	QVector<QImage> images;
-	QVector<int64> delays;
-	int32 framesCount, duration;
-
-	Animation _a_frames;
-
-};
 
 enum ClipState {
 	ClipReading,
@@ -526,6 +468,9 @@ public:
 
 	void start(int32 framew, int32 frameh, int32 outerw, int32 outerh, bool rounded);
 	QPixmap current(int32 framew, int32 frameh, int32 outerw, int32 outerh, uint64 ms);
+	QImage frameOriginal() const {
+		return _currentOriginal;
+	}
 	bool currentDisplayed() const {
 		return _currentDisplayed.get();
 	}
