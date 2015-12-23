@@ -942,6 +942,9 @@ struct AudioData {
 			_location = loc;
 		}
 	}
+	bool loaded(bool check = false) {
+		return !data.isEmpty() || !already(check).isEmpty();
+	}
 
 	float64 progress() const {
 		return loader ? loader->currentProgress() : ((status == FileDownloadFailed || (_location.name().isEmpty() && data.isEmpty())) ? 0 : 1);
@@ -1135,6 +1138,10 @@ struct DocumentData {
 			_location = loc;
 		}
 	}
+	bool loaded(bool check = false) {
+		return !data.isEmpty() || !already(check).isEmpty();
+	}
+	void prepareAutoLoader();
 	StickerData *sticker() {
 		return (type == StickerDocument) ? static_cast<StickerData*>(_additional) : 0;
 	}

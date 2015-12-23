@@ -3772,13 +3772,12 @@ void HistoryAudio::draw(Painter &p, const HistoryItem *parent, const QRect &r, b
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
 	bool out = parent->out(), fromChannel = parent->fromChannel(), outbg = out && !fromChannel;
-	bool already = !_data->already().isEmpty(), hasdata = !_data->data.isEmpty();
-
-	if (!_data->loader && _data->status == FileReady && !already && !hasdata && _data->size < AudioVoiceMsgInMemory) {
+	bool loaded = _data->loaded();
+	if (!loaded && _data->status == FileReady && _data->loader && !_data->loader->loading() && !_data->loader->paused()) {
 		_data->save(QString());
 	}
 
-	if (_data->loader) {
+	if (_data->loader && (_data->loader->loading() || _data->loader->paused())) {
 		ensureAnimation(parent);
 		if (!_animation->radial.animating()) {
 			_animation->radial.start(_data->progress());
@@ -4394,10 +4393,18 @@ void HistoryGif::draw(Painter &p, const HistoryItem *parent, const QRect &r, boo
 	bool bubble = parent->hasBubble();
 	bool out = parent->out(), fromChannel = parent->fromChannel(), outbg = out && !fromChannel;
 
+	bool loaded = _data->loaded(_gif ? false : true);
+	if (!loaded && _data->status == FileReady && _data->loader && !_data->loader->loading() && !_data->loader->paused()) {
+		_data->save(QString());
+	}
+	if (loaded && !_gif) {
+		const_cast<HistoryGif*>(this)->playInline(const_cast<HistoryItem*>(parent));
+	}
+
 	bool animating = (_gif && _gif->started());
 
 	if (!animating) {
-		if (_data->loader) {
+		if (_data->loader && !_data->loader->tryingLocal()) {
 			ensureAnimation(parent);
 			if (!_animation->radial.animating()) {
 				_animation->radial.start(_data->progress());
@@ -4429,7 +4436,7 @@ void HistoryGif::draw(Painter &p, const HistoryItem *parent, const QRect &r, boo
 		App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
 	}
 
-	if (!animating || radial) {
+	if (radial || (!animating && !_gif && (!_data->loader || !_data->loader->tryingLocal() || _data->size > AnimationInMemory))) {
 		QRect inner(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
 		p.setPen(Qt::NoPen);
 		if (selected) {
@@ -4453,7 +4460,7 @@ void HistoryGif::draw(Painter &p, const HistoryItem *parent, const QRect &r, boo
 		}
 
 		style::sprite icon;
-		if (!_data->already().isEmpty() && !radial) {
+		if (_data->loaded() && !radial) {
 			icon = (selected ? st::msgFileInPlaySelected : st::msgFileInPlay);
 		} else if (_data->loader || radial) {
 			icon = (selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
@@ -4497,9 +4504,8 @@ void HistoryGif::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, 
 	}
 	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height) {
 		if (_gif && _gif->started()) {
-			lnk = _savel;
 		} else {
-			lnk = _data->already().isEmpty() ? (_data->loader ? _cancell : _savel) : _savel;
+			lnk = _data->loaded() ? _savel : (_data->loader ? _cancell : _savel);
 		}
 
 		if (parent->getMedia() == this) {
@@ -4514,11 +4520,11 @@ void HistoryGif::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, 
 }
 
 const QString HistoryGif::inDialogsText() const {
-	return _data->name.isEmpty() ? lang(lng_in_dlg_file) : _data->name;
+	return qsl("GIF");
 }
 
 const QString HistoryGif::inHistoryText() const {
-	return qsl("[ ") + lang(lng_in_dlg_file) + (_data->name.isEmpty() ? QString() : (qsl(" : ") + _data->name)) + qsl(" ]");
+	return qsl("[ GIF ]");
 }
 
 void HistoryGif::setStatusSize(int32 newSize) const {
@@ -4534,7 +4540,7 @@ void HistoryGif::updateStatusText(const HistoryItem *parent) const {
 		statusSize = _data->uploadOffset;
 	} else if (_data->loader) {
 		statusSize = _data->loader->currentOffset();
-	} else if (!_data->already().isEmpty()) {
+	} else if (_data->loaded()) {
 		statusSize = FileStatusSizeLoaded;
 	} else {
 		statusSize = FileStatusSizeReady;
@@ -4629,7 +4635,10 @@ void HistorySticker::draw(Painter &p, const HistoryItem *parent, const QRect &r,
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
 	bool out = parent->out(), fromChannel = parent->fromChannel(), outbg = out && !fromChannel, hovered, pressed;
-	bool already = !_data->already().isEmpty(), hasdata = !_data->data.isEmpty();
+	bool loaded = _data->loaded();
+	if (!loaded && _data->status == FileReady && _data->loader && !_data->loader->loading() && !_data->loader->paused()) {
+		_data->save(QString());
+	}
 
 	int32 usew = _maxw, usex = 0;
 	const HistoryReply *reply = toHistoryReply(parent);
@@ -4642,11 +4651,8 @@ void HistorySticker::draw(Painter &p, const HistoryItem *parent, const QRect &r,
 	}
 	if (rtl()) usex = _width - usex - usew;
 
-	if (!already && !hasdata && !_data->loader && _data->status == FileReady) {
-		_data->save(QString());
-	}
-	if (_data->sticker()->img->isNull() && (already || hasdata)) {
-		if (already) {
+	if (_data->sticker()->img->isNull() && loaded) {
+		if (_data->data.isEmpty()) {
 			_data->sticker()->img = ImagePtr(_data->already());
 		} else {
 			_data->sticker()->img = ImagePtr(_data->data);

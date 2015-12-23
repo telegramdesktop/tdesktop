@@ -1467,7 +1467,7 @@ protected:
 		return !_data->loader;
 	}
 	bool dataLoaded() const {
-		return !_data->already().isEmpty() || !_data->data.isEmpty();
+		return _data->loaded();
 	}
 
 private:
@@ -1542,7 +1542,7 @@ protected:
 		return !_data->loader;
 	}
 	bool dataLoaded() const {
-		return !_data->already().isEmpty() || !_data->data.isEmpty();
+		return _data->loaded();
 	}
 
 private:
@@ -1628,7 +1628,7 @@ protected:
 		return !_data->loader;
 	}
 	bool dataLoaded() const {
-		return !_data->already().isEmpty() && !_data->data.isEmpty();
+		return _data->loaded();
 	}
 
 private:

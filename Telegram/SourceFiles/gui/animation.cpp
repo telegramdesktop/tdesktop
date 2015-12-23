@@ -783,6 +783,7 @@ public:
 		stop();
 		setBadPointer(_location);
 		setBadPointer(_implementation);
+		_data.clear();
 	}
 
 private:
@@ -870,6 +871,8 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 			if (it.key()->_lastDisplayMs.get() + WaitBeforeGifPause >= qMax(reader->_previousMs, ms)) {
 				it.key()->_paused.set(false);
 				reader->_paused = false;
+			} else {
+				result = ClipProcessReinit;
 			}
 		}
 	}

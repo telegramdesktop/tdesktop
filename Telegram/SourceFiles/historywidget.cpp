@@ -5576,6 +5576,17 @@ void HistoryWidget::peerMessagesUpdated() {
 	if (_list) peerMessagesUpdated(_peer->id);
 }
 
+bool HistoryWidget::isItemVisible(HistoryItem *item) {
+	if (isHidden() || _a_show.animating() || !_list) {
+		return false;
+	}
+	int32 top = _list->itemTop(item), st = _scroll.scrollTop();
+	if (top < 0 || top + item->height() <= st || top >= st + _scroll.height()) {
+		return false;
+	}
+	return true;
+}
+
 void HistoryWidget::ui_redrawHistoryItem(const HistoryItem *item) {
 	if (_peer && _list && (item->history() == _history || (_migrated && item->history() == _migrated))) {
 		_list->redrawItem(item);

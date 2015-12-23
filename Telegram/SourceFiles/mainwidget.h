@@ -405,6 +405,8 @@ public:
 	QPixmap grabTopBar();
 	QPixmap grabInner();
 
+	bool isItemVisible(HistoryItem *item);
+
 	void ui_showStickerPreview(DocumentData *sticker);
 	void ui_hideStickerPreview();
 	void ui_redrawHistoryItem(const HistoryItem *item);

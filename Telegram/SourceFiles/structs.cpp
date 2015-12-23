@@ -844,11 +844,18 @@ bool StickerData::setInstalled() const {
 AudioData::AudioData(const AudioId &id, const uint64 &access, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) :
 id(id), access(access), date(date), mime(mime), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), loader(0) {
 	_location = Local::readFileLocation(mediaKey(AudioFileLocation, dc, id));
+	if (!loaded() && size < AudioVoiceMsgInMemory) {
+		loader = new mtpFileLoader(dc, id, access, AudioFileLocation, QString(), size, true);
+	}
 }
 
 void AudioData::save(const QString &toFile) {
-	cancel(true);
-	loader = new mtpFileLoader(dc, id, access, AudioFileLocation, toFile, size, (size < AudioVoiceMsgInMemory));
+	if (loader && loader->fileName().isEmpty()) {
+		loader->setFileName(toFile);
+	} else {
+		cancel(true);
+		loader = new mtpFileLoader(dc, id, access, AudioFileLocation, toFile, size, (size < AudioVoiceMsgInMemory));
+	}
 	loader->connect(loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(audioLoadProgress(mtpFileLoader*)));
 	loader->connect(loader, SIGNAL(failed(mtpFileLoader*, bool)), App::main(), SLOT(audioLoadFailed(mtpFileLoader*, bool)));
 	loader->start();
@@ -1025,8 +1032,8 @@ DocumentData::DocumentData(const DocumentId &id, const uint64 &access, int32 dat
 , loader(0)
 , _additional(0)
 , _isImage(false) {
-	setattributes(attributes);
 	_location = Local::readFileLocation(mediaKey(DocumentFileLocation, dc, id));
+	setattributes(attributes);
 }
 
 void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes) {
@@ -1071,19 +1078,32 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 		case mtpc_documentAttributeFilename: name = qs(attributes[i].c_documentAttributeFilename().vfile_name); break;
 		}
 	}
+	prepareAutoLoader();
+}
+
+void DocumentData::prepareAutoLoader() {
 	if (type == StickerDocument) {
 		if (dimensions.width() <= 0 || dimensions.height() <= 0 || dimensions.width() > StickerMaxSize || dimensions.height() > StickerMaxSize || size > StickerInMemory) {
 			type = FileDocument;
 			delete _additional;
 			_additional = 0;
+		} else if (!loader && !loaded(true)) {
+			loader = new mtpFileLoader(dc, id, access, DocumentFileLocation, QString(), size, true);
+		}
+	} else if (isAnimation()) {
+		if (size <= AnimationInMemory && !loader && !loaded(true)) {
+			loader = new mtpFileLoader(dc, id, access, DocumentFileLocation, QString(), size, true);
 		}
 	}
 }
 
 void DocumentData::save(const QString &toFile) {
-	cancel(true);
-	bool isSticker = (type == StickerDocument) && (dimensions.width() > 0) && (dimensions.height() > 0) && (size < StickerInMemory);
-	loader = new mtpFileLoader(dc, id, access, DocumentFileLocation, toFile, size, isSticker);
+	if (loader && loader->fileName().isEmpty()) {
+		loader->setFileName(toFile);
+	} else {
+		cancel(true);
+		loader = new mtpFileLoader(dc, id, access, DocumentFileLocation, toFile, size, (type == StickerDocument));
+	}
 	loader->connect(loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(documentLoadProgress(mtpFileLoader*)));
 	loader->connect(loader, SIGNAL(failed(mtpFileLoader*, bool)), App::main(), SLOT(documentLoadFailed(mtpFileLoader*, bool)));
 	loader->start();

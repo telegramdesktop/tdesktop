@@ -48,7 +48,7 @@ namespace {
 }
 
 mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &volume, int32 local, const uint64 &secret, int32 size) : prev(0), next(0),
-priority(0), inQueue(false), complete(false),
+priority(0), _paused(false), inQueue(false), complete(false),
 _localStatus(LocalNotTried), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
 dc(dc), _locationType(UnknownFileLocation), volume(volume), local(local), secret(secret),
 id(0), access(0), fileIsOpen(false), size(size), type(mtpc_storage_fileUnknown), _localTaskId(0) {
@@ -60,7 +60,7 @@ id(0), access(0), fileIsOpen(false), size(size), type(mtpc_storage_fileUnknown),
 }
 
 mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, LocationType type, const QString &to, int32 size, bool todata) : prev(0), next(0),
-priority(0), inQueue(false), complete(false),
+priority(0), _paused(false), inQueue(false), complete(false),
 _localStatus(LocalNotTried), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
 dc(dc), _locationType(type), volume(0), local(0), secret(0),
 id(id), access(access), file(to), fname(to), fileIsOpen(false), duplicateInData(todata), size(size), type(mtpc_storage_fileUnknown), _localTaskId(0) {
@@ -114,7 +114,7 @@ int32 mtpFileLoader::fullSize() const {
 }
 
 void mtpFileLoader::setFileName(const QString &fileName) {
-	if (duplicateInData && fname.isEmpty()) {
+	if (duplicateInData && fname.isEmpty() && !fileName.isEmpty()) {
 		file.setFileName(fname = fileName);
 	}
 }
@@ -318,6 +318,7 @@ void mtpFileLoader::removeFromQueue() {
 
 void mtpFileLoader::pause() {
 	removeFromQueue();
+	_paused = true;
 }
 
 bool mtpFileLoader::tryLoadLocal() {
@@ -330,10 +331,6 @@ bool mtpFileLoader::tryLoadLocal() {
 
 	if (_locationType == UnknownFileLocation) {
 		_localTaskId = Local::startImageLoad(storageKey(dc, volume, local), this);
-		if (_localTaskId) {
-			_localStatus = LocalLoading;
-			return true;
-		}
 	} else {
 		if (duplicateInData) {
 			MediaKey mkey = mediaKey(_locationType, dc, id);
@@ -346,6 +343,10 @@ bool mtpFileLoader::tryLoadLocal() {
 	}
 
 	if (data.isEmpty()) {
+		if (_localTaskId) {
+			_localStatus = LocalLoading;
+			return true;
+		}
 		_localStatus = LocalNotFound;
 		return false;
 	}
@@ -410,7 +411,14 @@ void mtpFileLoader::localLoaded(const StorageImageSaved &result, const QByteArra
 	loadNext();
 }
 
+bool mtpFileLoader::tryingLocal() const {
+	return (_localStatus == LocalLoading);
+}
+
 void mtpFileLoader::start(bool loadFirst, bool prior) {
+	if (_paused) {
+		_paused = false;
+	}
 	if (complete || tryLoadLocal()) return;
 
 	if (!fname.isEmpty() && !duplicateInData && !fileIsOpen) {
@@ -543,6 +551,10 @@ void mtpFileLoader::cancelRequests() {
 
 bool mtpFileLoader::loading() const {
 	return inQueue;
+}
+
+bool mtpFileLoader::paused() const {
+	return _paused;
 }
 
 void mtpFileLoader::started(bool loadFirst, bool prior) {

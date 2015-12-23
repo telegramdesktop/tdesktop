@@ -1000,7 +1000,11 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 
 		int32 maxw = st::mvDocSize.width() - st::mvDocIconSize - st::mvDocPadding * 3;
 
-		_docName = (!_doc || _doc->name.isEmpty()) ? lang(_doc ? (_doc->type == StickerDocument ? lng_in_dlg_sticker : lng_mediaview_doc_image) : lng_message_empty) : _doc->name;
+		if (_doc) {
+			_docName = (_doc->type == StickerDocument) ? lang(lng_in_dlg_sticker) : (_doc->type == AnimatedDocument ? qsl("GIF") : (_doc->name.isEmpty() ? lang(lng_mediaview_doc_image) : _doc->name));
+		} else {
+			_docName = lang(lng_message_empty);
+		}
 		_docNameWidth = st::mvDocNameFont->width(_docName);
 		if (_docNameWidth > maxw) {
 			_docName = st::mvDocNameFont->elided(_docName, maxw, Qt::ElideMiddle);

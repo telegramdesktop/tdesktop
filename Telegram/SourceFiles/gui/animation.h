@@ -474,6 +474,9 @@ public:
 	bool currentDisplayed() const {
 		return _currentDisplayed.get();
 	}
+	bool paused() const {
+		return _paused.get();
+	}
 
 	int32 width() const;
 	int32 height() const;

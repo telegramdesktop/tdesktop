@@ -147,9 +147,28 @@ namespace Notify {
 		if (it != items.cend()) {
 			HistoryItem *item = it.value();
 
-			item->initDimensions(); // can delete reader and items entry it
-			Notify::historyItemResized(item, true);
-			Notify::historyItemLayoutChanged(item);
+			bool stopped = false;
+			if (reader->paused()) {
+				if (MainWidget *m = App::main()) {
+					if (!m->isItemVisible(item)) { // stop animation if it is not visible
+						if (HistoryMedia *media = item->getMedia()) {
+							media->stopInline(item);
+							if (DocumentData *document = media->getDocument()) { // forget data from memory
+								if (!document->data.isEmpty()) {
+									document->data.clear();
+									document->prepareAutoLoader();
+								}
+							}
+							stopped = true;
+						}
+					}
+				}
+			}
+			if (!stopped) {
+				item->initDimensions(); // can delete reader and items entry it
+				Notify::historyItemResized(item);
+				Notify::historyItemLayoutChanged(item);
+			}
 		}
 		if (Window *w = App::wnd()) w->notify_clipReinit(reader);
 	}

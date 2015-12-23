@@ -2407,7 +2407,6 @@ namespace App {
 	}
 
 	void regGifItem(ClipReader *reader, HistoryItem *item) {
-		stopGifItems();
 		::gifItems.insert(reader, item);
 	}
 

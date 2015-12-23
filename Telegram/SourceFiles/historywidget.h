@@ -554,6 +554,8 @@ public:
 		resizeEvent(0);
 	}
 
+	bool isItemVisible(HistoryItem *item);
+
 	void ui_redrawHistoryItem(const HistoryItem *item);
 
 	void notify_historyItemLayoutChanged(const HistoryItem *item);

@@ -723,6 +723,13 @@ QPixmap MainWidget::grabInner() {
 	}
 }
 
+bool MainWidget::isItemVisible(HistoryItem *item) {
+	if (isHidden() || _a_show.animating()) {
+		return false;
+	}
+	return history.isItemVisible(item);
+}
+
 QPixmap MainWidget::grabTopBar() {
 	if (!_topBar.isHidden()) {
 		return myGrab(&_topBar);

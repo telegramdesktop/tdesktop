@@ -140,6 +140,8 @@ public:
 	void start(bool loadFirst = false, bool prior = true);
 	void cancel();
 	bool loading() const;
+	bool paused() const;
+	bool tryingLocal() const;
 
 	uint64 objId() const;
 
@@ -158,7 +160,7 @@ signals:
 private:
 
 	mtpFileLoaderQueue *queue;
-	bool inQueue, complete;
+	bool _paused, inQueue, complete;
 	LocalLoadStatus _localStatus;
 
 	bool tryLoadLocal();
