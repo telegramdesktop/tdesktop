@@ -880,7 +880,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_save_image), this, SLOT(saveContextImage()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_image), this, SLOT(copyContextImage()))->setEnabled(true);
 		} else {
-			if ((lnkVideo && lnkVideo->video()->loader) || (lnkAudio && lnkAudio->audio()->loader) || (lnkDocument && lnkDocument->document()->loader)) {
+			if ((lnkVideo && lnkVideo->video()->loader) || (lnkAudio && lnkAudio->audio()->loadingStarted()) || (lnkDocument && lnkDocument->document()->loadingStarted())) {
 				_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
 			} else {
 				if ((lnkVideo && !lnkVideo->video()->already(true).isEmpty()) || (lnkAudio && !lnkAudio->audio()->already(true).isEmpty()) || (lnkDocument && !lnkDocument->document()->already(true).isEmpty())) {
@@ -1063,12 +1063,15 @@ void HistoryInner::showContextInFolder() {
 }
 
 void HistoryInner::openContextFile() {
-    VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
+	HistoryItem *was = App::hoveredLinkItem();
+	App::hoveredLinkItem(App::contextItem());
+	VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
     AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
     DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
 	if (lnkVideo) VideoOpenLink(lnkVideo->video()).onClick(Qt::LeftButton);
 	if (lnkAudio) AudioOpenLink(lnkAudio->audio()).onClick(Qt::LeftButton);
 	if (lnkDocument) DocumentOpenLink(lnkDocument->document()).onClick(Qt::LeftButton);
+	App::hoveredLinkItem(was);
 }
 
 void HistoryInner::saveContextFile() {

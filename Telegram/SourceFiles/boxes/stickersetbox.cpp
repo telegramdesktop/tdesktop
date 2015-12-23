@@ -149,6 +149,7 @@ void StickerSetInner::paintEvent(QPaintEvent *e) {
 			} else {
 				bool already = !doc->already().isEmpty(), hasdata = !doc->data.isEmpty();
 				if (!already && !hasdata && !doc->loader && doc->status == FileReady) {
+					doc->openOnSave = 0;
 					doc->save(QString());
 				}
 				if (doc->sticker()->img->isNull() && (already || hasdata)) {

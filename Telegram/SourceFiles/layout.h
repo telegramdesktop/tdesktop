@@ -410,7 +410,7 @@ protected:
 		return !_data->loader;
 	}
 	virtual bool dataLoaded() const {
-		return !_data->already().isEmpty() || !_data->data.isEmpty();
+		return _data->loaded();
 	}
 	virtual bool iconAnimated() const {
 		return _data->song() || !dataLoaded() || (_radial && _radial->animating());
@@ -419,7 +419,7 @@ protected:
 private:
 	OverviewItemInfo _info;
 	DocumentData *_data;
-	TextLinkPtr _msgl;
+	TextLinkPtr _msgl, _namel;
 
 	QString _name, _date, _ext;
 	int32 _namew, _datew, _extw;

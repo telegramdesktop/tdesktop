@@ -146,6 +146,7 @@ private:
 
 	bool fileShown() const;
 	bool gifShown() const;
+	void stopGif();
 
 	style::sprite _docIcon;
 	style::color _docIconColor;

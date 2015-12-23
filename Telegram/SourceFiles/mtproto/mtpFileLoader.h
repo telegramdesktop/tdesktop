@@ -100,6 +100,7 @@ struct StorageImageSaved {
 
 enum LocalLoadStatus {
 	LocalNotTried,
+	LocalNeedsTry,
 	LocalNotFound,
 	LocalLoading,
 	LocalLoaded,
@@ -139,9 +140,24 @@ public:
 	void pause();
 	void start(bool loadFirst = false, bool prior = true);
 	void cancel();
-	bool loading() const;
-	bool paused() const;
-	bool tryingLocal() const;
+
+	bool loading() const {
+		return inQueue;
+	}
+
+	bool paused() const {
+		return _paused;
+	}
+
+	bool started() const {
+		return inQueue || _paused;
+	}
+
+	bool loadingLocal() const {
+		return (_localStatus == LocalLoading);
+	}
+
+	bool localAvailable() const;
 
 	uint64 objId() const;
 
@@ -161,7 +177,7 @@ private:
 
 	mtpFileLoaderQueue *queue;
 	bool _paused, inQueue, complete;
-	LocalLoadStatus _localStatus;
+	mutable LocalLoadStatus _localStatus;
 
 	bool tryLoadLocal();
 	void cancelRequests();
@@ -172,7 +188,7 @@ private:
 	int32 nextRequestOffset;
 	bool lastComplete;
 
-	void started(bool loadFirst, bool prior);
+	void startLoading(bool loadFirst, bool prior);
 	void removeFromQueue();
 
 	void loadNext();

@@ -1853,9 +1853,10 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 			QString already = document->already();
 
 			HistoryItem *item = (document->openOnSave && document->openOnSaveMsgId.msg) ? App::histItemById(document->openOnSaveMsgId) : 0;
-			bool play = document->song() && audioPlayer() && document->openOnSave && item;
-			if ((!already.isEmpty() || (!document->data.isEmpty() && play)) && document->openOnSave) {
-				if (play) {
+			bool playMusic = document->song() && audioPlayer() && document->openOnSave && item;
+			bool playAnimation = document->isAnimation() && document->openOnSave > 0 && item && item->getMedia();
+			if (document->openOnSave && (!already.isEmpty() || (!document->data.isEmpty() && (playMusic || playAnimation)))) {
+				if (playMusic) {
 					SongMsgId playing;
 					AudioPlayerState playingState = AudioPlayerStopped;
 					audioPlayer()->currentState(&playing, &playingState);
@@ -1869,22 +1870,32 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 
 					songPlayActivated = true;
 				} else if (document->openOnSave > 0 && document->size < MediaViewImageSizeLimit) {
-					const FileLocation &location(document->location(true));
-					if (location.accessEnable()) {
+					if (!document->data.isEmpty() && playAnimation) {
 						if (document->openOnSave > 1) {
-							if (!item || !item->getMedia() || !item->getMedia()->playInline(item)) {
-								psOpenFile(already);
-							}
+							item->getMedia()->playInline(item);
 						} else {
-							if (item && (document->isAnimation() || QImageReader(location.name()).canRead())) {
-								App::wnd()->showDocument(document, item);
-							} else {
-								psOpenFile(already);
-							}
+							App::wnd()->showDocument(document, item);
 						}
-						location.accessDisable();
 					} else {
-						psOpenFile(already);
+						const FileLocation &location(document->location(true));
+						if (location.accessEnable()) {
+							if (document->openOnSave > 1) {
+								if (playAnimation) {
+									item->getMedia()->playInline(item);
+								} else {
+									psOpenFile(already);
+								}
+							} else {
+								if (playAnimation || (item && QImageReader(location.name()).canRead())) {
+									App::wnd()->showDocument(document, item);
+								} else {
+									psOpenFile(already);
+								}
+							}
+							location.accessDisable();
+						} else {
+							psOpenFile(already);
+						}
 					}
 				} else {
 					QPoint pos(QCursor::pos());

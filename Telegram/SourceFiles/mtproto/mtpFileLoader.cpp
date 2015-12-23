@@ -47,11 +47,28 @@ namespace {
 	LoaderQueues queues;
 }
 
-mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &volume, int32 local, const uint64 &secret, int32 size) : prev(0), next(0),
-priority(0), _paused(false), inQueue(false), complete(false),
-_localStatus(LocalNotTried), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
-dc(dc), _locationType(UnknownFileLocation), volume(volume), local(local), secret(secret),
-id(0), access(0), fileIsOpen(false), size(size), type(mtpc_storage_fileUnknown), _localTaskId(0) {
+mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &volume, int32 local, const uint64 &secret, int32 size)
+: prev(0)
+, next(0)
+, priority(0)
+, _paused(false)
+, inQueue(false)
+, complete(false)
+, _localStatus(LocalNotTried)
+, skippedBytes(0)
+, nextRequestOffset(0)
+, lastComplete(false)
+, dc(dc)
+, _locationType(UnknownFileLocation)
+, volume(volume)
+, local(local)
+, secret(secret)
+, id(0)
+, access(0)
+, fileIsOpen(false)
+, size(size)
+, type(mtpc_storage_fileUnknown)
+, _localTaskId(0) {
 	LoaderQueues::iterator i = queues.find(dc);
 	if (i == queues.cend()) {
 		i = queues.insert(dc, mtpFileLoaderQueue());
@@ -59,11 +76,31 @@ id(0), access(0), fileIsOpen(false), size(size), type(mtpc_storage_fileUnknown),
 	queue = &i.value();
 }
 
-mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, LocationType type, const QString &to, int32 size, bool todata) : prev(0), next(0),
-priority(0), _paused(false), inQueue(false), complete(false),
-_localStatus(LocalNotTried), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
-dc(dc), _locationType(type), volume(0), local(0), secret(0),
-id(id), access(access), file(to), fname(to), fileIsOpen(false), duplicateInData(todata), size(size), type(mtpc_storage_fileUnknown), _localTaskId(0) {
+mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, LocationType type, const QString &to, int32 size, bool todata)
+: prev(0)
+, next(0)
+, priority(0)
+, _paused(false)
+, inQueue(false)
+, complete(false)
+, _localStatus(LocalNotTried)
+, skippedBytes(0)
+, nextRequestOffset(0)
+, lastComplete(false)
+, dc(dc)
+, _locationType(type)
+, volume(0)
+, local(0)
+, secret(0)
+, id(id)
+, access(access)
+, file(to)
+, fname(to)
+, fileIsOpen(false)
+, duplicateInData(todata)
+, size(size)
+, type(mtpc_storage_fileUnknown)
+, _localTaskId(0) {
 	LoaderQueues::iterator i = queues.find(MTP::dld[0] + dc);
 	if (i == queues.cend()) {
 		i = queues.insert(MTP::dld[0] + dc, mtpFileLoaderQueue());
@@ -411,8 +448,30 @@ void mtpFileLoader::localLoaded(const StorageImageSaved &result, const QByteArra
 	loadNext();
 }
 
-bool mtpFileLoader::tryingLocal() const {
-	return (_localStatus == LocalLoading);
+bool mtpFileLoader::localAvailable() const {
+	if (_localStatus == LocalLoading || _localStatus == LocalLoaded || _localStatus == LocalNeedsTry) {
+		return true;
+	}
+	if (_localStatus == LocalNotFound || _localStatus == LocalFailed) {
+		return false;
+	}
+
+	bool result = false;
+	if (_locationType == UnknownFileLocation) {
+		result = Local::willImageLoad(storageKey(dc, volume, local));
+	} else {
+		if (duplicateInData) {
+			MediaKey mkey = mediaKey(_locationType, dc, id);
+			if (_locationType == DocumentFileLocation) {
+				result = Local::willStickerImageLoad(mkey);
+			} else if (_locationType == AudioFileLocation) {
+				result = Local::willAudioLoad(mkey);
+			}
+		}
+	}
+
+	_localStatus = result ? LocalNeedsTry : LocalNotFound;
+	return result;
 }
 
 void mtpFileLoader::start(bool loadFirst, bool prior) {
@@ -432,10 +491,10 @@ void mtpFileLoader::start(bool loadFirst, bool prior) {
 	if (prior) {
 		if (inQueue && priority == _priority) {
 			if (loadFirst) {
-				if (!prev) return started(loadFirst, prior);
+				if (!prev) return startLoading(loadFirst, prior);
 				before = queue->start;
 			} else {
-				if (!next || next->priority < _priority) return started(loadFirst, prior);
+				if (!next || next->priority < _priority) return startLoading(loadFirst, prior);
 				after = next;
 				while (after->next && after->next->priority == _priority) {
 					after = after->next;
@@ -444,7 +503,7 @@ void mtpFileLoader::start(bool loadFirst, bool prior) {
 		} else {
 			priority = _priority;
 			if (loadFirst) {
-				if (inQueue && !prev) return started(loadFirst, prior);
+				if (inQueue && !prev) return startLoading(loadFirst, prior);
 				before = queue->start;
 			} else {
 				if (inQueue) {
@@ -456,7 +515,7 @@ void mtpFileLoader::start(bool loadFirst, bool prior) {
 							before = before->prev;
 						}
 					} else {
-						return started(loadFirst, prior);
+						return startLoading(loadFirst, prior);
 					}
 				} else {
 					if (queue->start && queue->start->priority == _priority) {
@@ -474,13 +533,13 @@ void mtpFileLoader::start(bool loadFirst, bool prior) {
 		}
 	} else {
 		if (loadFirst) {
-			if (inQueue && (!prev || prev->priority == _priority)) return started(loadFirst, prior);
+			if (inQueue && (!prev || prev->priority == _priority)) return startLoading(loadFirst, prior);
 			before = prev;
 			while (before->prev && before->prev->priority != _priority) {
 				before = before->prev;
 			}
 		} else {
-			if (inQueue && !next) return started(loadFirst, prior);
+			if (inQueue && !next) return startLoading(loadFirst, prior);
 			after = queue->end;
 		}
 	}
@@ -513,7 +572,7 @@ void mtpFileLoader::start(bool loadFirst, bool prior) {
 	} else {
 		LOG(("Queue Error: _start && !before && !after"));
 	}
-	return started(loadFirst, prior);
+	return startLoading(loadFirst, prior);
 }
 
 void mtpFileLoader::cancel() {
@@ -549,15 +608,7 @@ void mtpFileLoader::cancelRequests() {
 	}
 }
 
-bool mtpFileLoader::loading() const {
-	return inQueue;
-}
-
-bool mtpFileLoader::paused() const {
-	return _paused;
-}
-
-void mtpFileLoader::started(bool loadFirst, bool prior) {
+void mtpFileLoader::startLoading(bool loadFirst, bool prior) {
 	if ((queue->queries >= MaxFileQueries && (!loadFirst || !prior)) || complete) return;
 	loadPart();
 }

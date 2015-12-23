@@ -775,6 +775,13 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 
 	if (data->status != FileReady) return;
 
+	if (data->loader && !data->loader->started()) {
+		data->openOnSave = 1;
+		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->fullId() : (App::contextItem() ? App::contextItem()->fullId() : FullMsgId());
+		data->save(QString());
+		return;
+	}
+
 	bool mp3 = (data->mime == qstr("audio/mp3"));
 	QString filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), mp3 ? qsl(".mp3") : qsl(".ogg"), false);
 	if (!filename.isEmpty()) {
@@ -885,10 +892,11 @@ const FileLocation &AudioData::location(bool check) {
 void DocumentOpenLink::doOpen(DocumentData *data, int32 openOnSave) {
 	if (!data->date) return;
 
-	bool play = data->song() && App::hoveredLinkItem() && audioPlayer();
+	bool playMusic = data->song() && audioPlayer() && App::hoveredLinkItem();
+	bool playAnimation = data->isAnimation() && App::hoveredLinkItem() && App::hoveredLinkItem()->getMedia();
 	const FileLocation &location(data->location(true));
-	if (!location.isEmpty() || (!data->data.isEmpty() && play)) {
-		if (play) {
+	if (!location.isEmpty() || (!data->data.isEmpty() && (playMusic || playAnimation))) {
+		if (playMusic) {
 			SongMsgId playing;
 			AudioPlayerState playingState = AudioPlayerStopped;
 			audioPlayer()->currentState(&playing, &playingState);
@@ -899,13 +907,23 @@ void DocumentOpenLink::doOpen(DocumentData *data, int32 openOnSave) {
 				audioPlayer()->play(song);
 				if (App::main()) App::main()->documentPlayProgress(song);
 			}
-		} else if (data->size < MediaViewImageSizeLimit && location.accessEnable()) {
-			if ((App::hoveredLinkItem() || App::contextItem()) && (data->isAnimation() || QImageReader(location.name()).canRead())) {
-				App::wnd()->showDocument(data, App::hoveredLinkItem() ? App::hoveredLinkItem() : App::contextItem());
+		} else if (data->size < MediaViewImageSizeLimit) {
+			if (!data->data.isEmpty() && playAnimation) {
+				if (openOnSave > 1) {
+					App::hoveredLinkItem()->getMedia()->playInline(App::hoveredLinkItem());
+				} else {
+					App::wnd()->showDocument(data, App::hoveredLinkItem());
+				}
+			} else if (location.accessEnable()) {
+				if ((App::hoveredLinkItem() || App::contextItem()) && (data->isAnimation() || QImageReader(location.name()).canRead())) {
+					App::wnd()->showDocument(data, App::hoveredLinkItem() ? App::hoveredLinkItem() : App::contextItem());
+				} else {
+					psOpenFile(location.name());
+				}
+				location.accessDisable();
 			} else {
 				psOpenFile(location.name());
 			}
-			location.accessDisable();
 		} else {
 			psOpenFile(location.name());
 		}
@@ -913,6 +931,13 @@ void DocumentOpenLink::doOpen(DocumentData *data, int32 openOnSave) {
 	}
 
 	if (data->status != FileReady) return;
+
+	if (data->loader && !data->loader->started()) {
+		data->openOnSave = openOnSave;
+		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->fullId() : (App::contextItem() ? App::contextItem()->fullId() : FullMsgId());
+		data->save(QString());
+		return;
+	}
 
 	QString name = data->name, filter;
 	MimeType mimeType = mimeTypeForName(data->mime);

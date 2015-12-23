@@ -945,6 +945,9 @@ struct AudioData {
 	bool loaded(bool check = false) {
 		return !data.isEmpty() || !already(check).isEmpty();
 	}
+	bool loadingStarted() {
+		return loader && loader->started();
+	}
 
 	float64 progress() const {
 		return loader ? loader->currentProgress() : ((status == FileDownloadFailed || (_location.name().isEmpty() && data.isEmpty())) ? 0 : 1);
@@ -1140,6 +1143,9 @@ struct DocumentData {
 	}
 	bool loaded(bool check = false) {
 		return !data.isEmpty() || !already(check).isEmpty();
+	}
+	bool loadingStarted() {
+		return loader && loader->started();
 	}
 	void prepareAutoLoader();
 	StickerData *sticker() {

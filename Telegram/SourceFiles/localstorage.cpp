@@ -2411,11 +2411,15 @@ namespace Local {
 	};
 
 	TaskId startImageLoad(const StorageKey &location, mtpFileLoader *loader) {
-		StorageMap::iterator j = _imagesMap.find(location);
+		StorageMap::const_iterator j = _imagesMap.constFind(location);
 		if (j == _imagesMap.cend() || !_localLoader) {
 			return 0;
 		}
 		return _localLoader->addTask(new ImageLoadTask(j->first, location, loader));
+	}
+
+	bool willImageLoad(const StorageKey &location) {
+		return (_imagesMap.constFind(location) != _imagesMap.cend());
 	}
 
 	int32 hasImages() {
@@ -2470,11 +2474,15 @@ namespace Local {
 	};
 
 	TaskId startStickerImageLoad(const StorageKey &location, mtpFileLoader *loader) {
-		StorageMap::iterator j = _stickerImagesMap.find(location);
+		StorageMap::const_iterator j = _stickerImagesMap.constFind(location);
 		if (j == _stickerImagesMap.cend() || !_localLoader) {
 			return 0;
 		}
 		return _localLoader->addTask(new StickerImageLoadTask(j->first, location, loader));
+	}
+
+	bool willStickerImageLoad(const StorageKey &location) {
+		return (_stickerImagesMap.constFind(location) != _stickerImagesMap.cend());
 	}
 
 	int32 hasStickers() {
@@ -2529,11 +2537,15 @@ namespace Local {
 	};
 
 	TaskId startAudioLoad(const StorageKey &location, mtpFileLoader *loader) {
-		StorageMap::iterator j = _audiosMap.find(location);
+		StorageMap::const_iterator j = _audiosMap.constFind(location);
 		if (j == _audiosMap.cend() || !_localLoader) {
 			return 0;
 		}
 		return _localLoader->addTask(new AudioLoadTask(j->first, location, loader));
+	}
+
+	bool willAudioLoad(const StorageKey &location) {
+		return (_audiosMap.constFind(location) != _audiosMap.cend());
 	}
 
 	int32 hasAudios() {

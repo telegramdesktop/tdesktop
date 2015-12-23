@@ -777,21 +777,21 @@ void Window::showPhoto(const PhotoLink *lnk, HistoryItem *item) {
 }
 
 void Window::showPhoto(PhotoData *photo, HistoryItem *item) {
-	Ui::hideLayer(true);
+	if (_mediaView->isHidden()) Ui::hideLayer(true);
 	_mediaView->showPhoto(photo, item);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
 }
 
 void Window::showPhoto(PhotoData *photo, PeerData *peer) {
-	Ui::hideLayer(true);
+	if (_mediaView->isHidden()) Ui::hideLayer(true);
 	_mediaView->showPhoto(photo, peer);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
 }
 
 void Window::showDocument(DocumentData *doc, HistoryItem *item) {
-	Ui::hideLayer(true);
+	if (_mediaView->isHidden()) Ui::hideLayer(true);
 	_mediaView->showDocument(doc, item);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();

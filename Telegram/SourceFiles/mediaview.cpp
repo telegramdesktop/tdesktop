@@ -252,6 +252,11 @@ bool MediaView::gifShown() const {
 	return false;
 }
 
+void MediaView::stopGif() {
+	delete _gif;
+	_gif = 0;
+}
+
 void MediaView::documentUpdated(DocumentData *doc) {
 	if (_doc && _doc == doc && !fileShown()) {
 		if ((_doc->loader && _docCancel.isHidden()) || (!_doc->loader && !_docCancel.isHidden())) {
@@ -314,15 +319,15 @@ void MediaView::updateControls() {
 			if (!_a_state.animating()) _a_state.start();
 			_a_state.step();
 		} else {
-			if (_doc->already(true).isEmpty()) {
-				_docDownload.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocIconSize, _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
-				_docDownload.show();
-				_docSaveAs.moveToLeft(_docRect.x() + 2.5 * st::mvDocPadding + st::mvDocIconSize + _docDownload.width(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
+			if (_doc->loaded(true)) {
+				_docDownload.hide();
+				_docSaveAs.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocIconSize, _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
 				_docSaveAs.show();
 				_docCancel.hide();
 			} else {
-				_docDownload.hide();
-				_docSaveAs.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocIconSize, _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
+				_docDownload.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocIconSize, _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
+				_docDownload.show();
+				_docSaveAs.moveToLeft(_docRect.x() + 2.5 * st::mvDocPadding + st::mvDocIconSize + _docDownload.width(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
 				_docSaveAs.show();
 				_docCancel.hide();
 			}
@@ -334,7 +339,7 @@ void MediaView::updateControls() {
 		_docCancel.hide();
 	}
 
-	_saveVisible = ((_photo && _photo->full->loaded()) || (_doc && (!_doc->already(true).isEmpty() || (!fileShown() && (_photo || _doc)))));
+	_saveVisible = ((_photo && _photo->full->loaded()) || (_doc && (_doc->loaded(true) || (!fileShown() && (_photo || _doc)))));
 	_saveNav = myrtlrect(width() - st::mvIconSize.width() * 2, height() - st::mvIconSize.height(), st::mvIconSize.width(), st::mvIconSize.height());
 	_saveNavIcon = centersprite(_saveNav, st::mvSave);
 	_moreNav = myrtlrect(width() - st::mvIconSize.width(), height() - st::mvIconSize.height(), st::mvIconSize.width(), st::mvIconSize.height());
@@ -445,7 +450,7 @@ void MediaView::step_state(uint64 ms, bool timer) {
 		if (dt < 1) result = true;
 	}
 	if (_doc && _docRadialStart > 0) {
-		float64 prg = _doc->loader ? qMax(_doc->loader->currentProgress(), 0.0001) : (_doc->status == FileDownloadFailed ? 0 : (_doc->already().isEmpty() ? 0 : 1));
+		float64 prg = _doc->loader ? qMax(_doc->loader->currentProgress(), 0.0001) : (_doc->status == FileDownloadFailed ? 0 : (_doc->loaded() ? 1 : 0));
 		if (prg != a_docRadial.to()) {
 			a_docRadial.start(prg);
 			_docRadialStart = _docRadialLast;
@@ -457,18 +462,22 @@ void MediaView::step_state(uint64 ms, bool timer) {
 		if (_doc->loader) {
 			a_docRadial.update(1. - (st::radialDuration / (st::radialDuration + dt)), anim::linear);
 			result = true;
-		} else if (dt >= st::radialDuration) {
+		} else if (dt >= st::radialDuration || (_doc->loaded() && _doc->size < MediaViewImageSizeLimit && _doc->isAnimation())) {
 			a_docRadial.update(1, anim::linear);
 			result = true;
 			_docRadialFirst = _docRadialLast = _docRadialStart = 0;
 			a_docRadial = anim::fvalue(0, 0);
-			if (!_doc->already().isEmpty() && _doc->size < MediaViewImageSizeLimit) {
-				const FileLocation &location(_doc->location(true));
-				if (location.accessEnable()) {
-					if (QImageReader(location.name()).canRead()) {
-						displayDocument(_doc, App::histItemById(_msgmigrated ? 0 : _channel, _msgid));
+			if (_doc->loaded() && _doc->size < MediaViewImageSizeLimit) {
+				if (!_doc->data.isEmpty() && _doc->isAnimation()) {
+					displayDocument(_doc, App::histItemById(_msgmigrated ? 0 : _channel, _msgid));
+				} else {
+					const FileLocation &location(_doc->location(true));
+					if (location.accessEnable()) {
+						if (QImageReader(location.name()).canRead()) {
+							displayDocument(_doc, App::histItemById(_msgmigrated ? 0 : _channel, _msgid));
+						}
+						location.accessDisable();
 					}
-					location.accessDisable();
 				}
 			}
 		} else {
@@ -547,7 +556,7 @@ void MediaView::onSaveAs() {
 	QString file;
 	if (_doc) {
 		const FileLocation &location(_doc->location(true));
-		if (location.accessEnable()) {
+		if (!_doc->data.isEmpty() || location.accessEnable()) {
 			QFileInfo alreadyInfo(location.name());
 			QDir alreadyDir(alreadyInfo.dir());
 			QString name = alreadyInfo.fileName(), filter;
@@ -568,10 +577,16 @@ void MediaView::onSaveAs() {
 			file = saveFileName(lang(lng_save_file), filter, qsl("doc"), name, true, alreadyDir);
 			psShowOverAll(this);
 			if (!file.isEmpty() && file != location.name()) {
-				QFile(location.name()).copy(file);
+				if (_doc->data.isEmpty()) {
+					QFile(location.name()).copy(file);
+				} else {
+					QFile f(file);
+					f.open(QIODevice::WriteOnly);
+					f.write(_doc->data);
+				}
 			}
 
-			location.accessDisable();
+			if (_doc->data.isEmpty()) location.accessDisable();
 		} else {
 			if (!fileShown()) {
 				DocumentSaveLink::doSave(_doc, true);
@@ -626,8 +641,7 @@ void MediaView::notify_clipReinit(ClipReader *reader) {
 			}
 			displayDocument(_doc, item);
 		} else {
-			delete _gif;
-			_gif = 0;
+			stopGif();
 		}
 	}
 }
@@ -882,10 +896,9 @@ void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
 }
 
 void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
+	stopGif();
 	_doc = 0;
 	_photo = photo;
-	delete _gif;
-	_gif = 0;
 
 	_zoom = 0;
 
@@ -939,8 +952,7 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 
 void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty messages shown as docs: doc can be NULL
 	if (!doc || !doc->isAnimation() || doc != _doc || (item && (item->id != _msgid || (item->history() != (_msgmigrated ? _migrated : _history))))) {
-		delete _gif;
-		_gif = 0;
+		stopGif();
 	}
 	_doc = doc;
 	_photo = 0;
@@ -949,9 +961,21 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 
 	_caption = Text();
 	if (_doc) {
+		if (_doc->isAnimation() && !_doc->loaded() && _doc->status == FileReady && _doc->loader && !_doc->loadingStarted()) {
+			_doc->openOnSave = 0;
+			_doc->save(QString());
+		}
+
 		const FileLocation &location(_doc->location(true));
 		if (_doc->sticker() && !_doc->sticker()->img->isNull() && _doc->sticker()->img->loaded()) {
 			_current = _doc->sticker()->img->pix();
+		} else if (!_doc->data.isEmpty() && _doc->isAnimation()) {
+			if (!_gif) {
+				if (_doc->dimensions.width() && _doc->dimensions.height()) {
+					_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), true, true, false, _doc->dimensions.width(), _doc->dimensions.height());
+				}
+				_gif = new ClipReader(location, _doc->data);
+			}
 		} else if (location.accessEnable()) {
 			if (_doc->isAnimation()) {
 				if (!_gif) {
@@ -1195,7 +1219,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 				icon = true;
 				if (!_doc || _doc->thumb->isNull()) {
 					p.fillRect(_docIconRect, _docIconColor->b);
-					if ((!_doc || !_doc->already().isEmpty()) && (!_docRadialStart || _docRadialOpacity < 1)) {
+					if ((!_doc || _doc->loaded()) && (!_docRadialStart || _docRadialOpacity < 1)) {
 						p.drawSprite(_docIconRect.topLeft() + QPoint(rtl() ? 0 : (_docIconRect.width() - _docIcon.pxWidth()), 0), _docIcon);
 						p.setPen(st::mvDocExtColor->p);
 						p.setFont(st::mvDocExtFont->f);
@@ -1210,7 +1234,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 
 				float64 o = overLevel(OverIcon);
 				if (_doc && _docRadialStart > 0) {
-					if (_doc->already().isEmpty() && _docRadialOpacity < 1) {
+					if (!_doc->loaded() && _docRadialOpacity < 1) {
 						p.setOpacity((o * 1. + (1 - o) * st::radialDownloadOpacity) * (1 - _docRadialOpacity));
 						p.drawSpriteCenter(_docIconRect, st::radialDownload);
 					}
@@ -1236,7 +1260,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 
 					p.setOpacity(1);
 					p.setRenderHint(QPainter::HighQualityAntialiasing, false);
-				} else if (_doc && _doc->already().isEmpty()) {
+				} else if (_doc && !_doc->loaded()) {
 					p.setOpacity((o * 1. + (1 - o) * st::radialDownloadOpacity));
 					p.drawSpriteCenter(_docIconRect, st::radialDownload);
 				}
@@ -1505,8 +1529,7 @@ void MediaView::moveToNext(int32 delta) {
 				_channel = _history ? _history->channelId() : NoChannel;
 				_canForward = _msgid > 0;
 				_canDelete = item->canDelete();
-				delete _gif;
-				_gif = 0;
+				stopGif();
 				if (HistoryMedia *media = item->getMedia()) {
 					switch (media->type()) {
 					case MediaTypePhoto: displayPhoto(static_cast<HistoryPhoto*>(item->getMedia())->photo(), item); preloadData(delta); break;
@@ -1541,31 +1564,6 @@ void MediaView::preloadData(int32 delta) {
 	int32 from = _index + (delta ? delta : -1), to = _index + (delta ? delta * MediaOverviewPreloadCount : 1);
 	if (from > to) qSwap(from, to);
 	if (_history && _overview != OverviewCount) {
-		for (int32 i = from; i <= to; ++i) {
-			History *previewHistory = _msgmigrated ? _migrated : _history;
-			int32 previewIndex = i;
-			if (_migrated) {
-				if (_msgmigrated && previewIndex >= _migrated->overview[_overview].size()) {
-					previewHistory = _history;
-					previewIndex -= _migrated->overview[_overview].size() + (_history->overviewCount(_overview) - _history->overview[_overview].size());
-				} else if (!_msgmigrated && previewIndex < 0) {
-					previewHistory = _migrated;
-					previewIndex += _migrated->overview[_overview].size();
-				}
-			}
-			if (previewIndex >= 0 && previewIndex < previewHistory->overview[_overview].size() && (previewHistory != (_msgmigrated ? _migrated : _history) || previewIndex != _index)) {
-				if (HistoryItem *item = App::histItemById(previewHistory->channelId(), previewHistory->overview[_overview][previewIndex])) {
-					if (HistoryMedia *media = item->getMedia()) {
-						switch (media->type()) {
-						case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->full->load(); break;
-						case MediaTypeDocument: 
-						case MediaTypeGif: static_cast<HistoryGif*>(media)->getDocument()->thumb->load(); break;
-						case MediaTypeSticker: static_cast<HistorySticker*>(media)->getDocument()->sticker()->img->load(); break;
-						}
-					}
-				}
-			}
-		}
 		int32 forgetIndex = _index - delta * 2;
 		History *forgetHistory = _msgmigrated ? _migrated : _history;
 		if (_migrated) {
@@ -1584,7 +1582,47 @@ void MediaView::preloadData(int32 delta) {
 					case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->forget(); break;
 					case MediaTypeDocument: 
 					case MediaTypeGif: 
-					case MediaTypeSticker: media->getDocument()->forget(); break;
+					case MediaTypeSticker:
+						DocumentData *doc = media->getDocument();
+						doc->forget();
+						if (!doc->data.isEmpty()) {
+							doc->data.clear();
+							doc->prepareAutoLoader();
+						}
+					break;
+					}
+				}
+			}
+		}
+
+		for (int32 i = from; i <= to; ++i) {
+			History *previewHistory = _msgmigrated ? _migrated : _history;
+			int32 previewIndex = i;
+			if (_migrated) {
+				if (_msgmigrated && previewIndex >= _migrated->overview[_overview].size()) {
+					previewHistory = _history;
+					previewIndex -= _migrated->overview[_overview].size() + (_history->overviewCount(_overview) - _history->overview[_overview].size());
+				} else if (!_msgmigrated && previewIndex < 0) {
+					previewHistory = _migrated;
+					previewIndex += _migrated->overview[_overview].size();
+				}
+			}
+			if (previewIndex >= 0 && previewIndex < previewHistory->overview[_overview].size() && (previewHistory != (_msgmigrated ? _migrated : _history) || previewIndex != _index)) {
+				if (HistoryItem *item = App::histItemById(previewHistory->channelId(), previewHistory->overview[_overview][previewIndex])) {
+					if (HistoryMedia *media = item->getMedia()) {
+						switch (media->type()) {
+						case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->full->load(); break;
+						case MediaTypeDocument:
+						case MediaTypeGif: {
+							DocumentData *doc = media->getDocument();
+							doc->thumb->load();
+							if (doc->isAnimation() && !doc->loaded() && doc->status == FileReady && doc->loader && !doc->loadingStarted()) {
+								doc->openOnSave = 0;
+								doc->save(QString());
+							}
+						} break;
+						case MediaTypeSticker: media->getDocument()->sticker()->img->load(); break;
+						}
 					}
 				}
 			}
@@ -1950,8 +1988,7 @@ void MediaView::hide() {
 	_controlsState = ControlsShown;
 	a_cOpacity = anim::fvalue(1, 1);
 	QWidget::hide();
-	delete _gif;
-	_gif = 0;
+	stopGif();
 }
 
 void MediaView::onMenuDestroy(QObject *obj) {

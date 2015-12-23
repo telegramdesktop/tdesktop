@@ -275,6 +275,7 @@ QPixmap StickerPreviewWidget::currentImage() const {
 	if (_doc && _cacheStatus != CacheLoaded) {
 		bool already = !_doc->already().isEmpty(), hasdata = !_doc->data.isEmpty();
 		if (!already && !hasdata && !_doc->loader && _doc->status == FileReady) {
+			_doc->openOnSave = 0;
 			_doc->save(QString());
 		}
 		if (_doc->sticker()->img->isNull() && (already || hasdata)) {

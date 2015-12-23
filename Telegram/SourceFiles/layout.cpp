@@ -551,13 +551,13 @@ void LayoutOverviewAudio::initDimensions() {
 
 void LayoutOverviewAudio::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
 	bool selected = (selection == FullSelection);
-	bool already = !_data->already().isEmpty(), hasdata = !_data->data.isEmpty();
-
-	if (!_data->loader && _data->status == FileReady && !already && !hasdata && _data->size < AudioVoiceMsgInMemory) {
+	bool loaded = _data->loaded();
+	if (!loaded && _data->status == FileReady && _data->loader && !_data->loadingStarted()) {
+		_data->openOnSave = 0;
 		_data->save(QString());
 	}
 
-	if (_data->loader) {
+	if (_data->loadingStarted() && !_data->loader->loadingLocal()) {
 		ensureRadial();
 		if (!_radial->animating()) {
 			_radial->start(_data->progress());
@@ -591,7 +591,7 @@ void LayoutOverviewAudio::paint(Painter &p, const QRect &clip, uint32 selection,
 			float64 over = a_iconOver.current();
 			p.setBrush(style::interpolate(st::msgFileInBg, st::msgFileInBgOver, over));
 		} else {
-			bool over = textlnkDrawOver((already || hasdata) ? _openl : (_data->loader ? _cancell : _savel));
+			bool over = textlnkDrawOver(loaded ? _openl : (_data->loadingStarted() ? _cancell : _savel));
 			p.setBrush(over ? st::msgFileInBgOver : st::msgFileInBg);
 		}
 
@@ -610,7 +610,7 @@ void LayoutOverviewAudio::paint(Painter &p, const QRect &clip, uint32 selection,
 			icon = selected ? st::msgFileInPauseSelected : st::msgFileInPause;
 		} else if (_statusSize < 0 || _statusSize == FileStatusSizeLoaded) {
 			icon = selected ? st::msgFileInPlaySelected : st::msgFileInPlay;
-		} else if (_data->loader) {
+		} else if (_data->loadingStarted()) {
 			icon = selected ? st::msgFileInCancelSelected : st::msgFileInCancel;
 		} else {
 			icon = selected ? st::msgFileInDownloadSelected : st::msgFileInDownload;
@@ -639,7 +639,7 @@ void LayoutOverviewAudio::paint(Painter &p, const QRect &clip, uint32 selection,
 }
 
 void LayoutOverviewAudio::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
-	bool already = !_data->already().isEmpty(), hasdata = !_data->data.isEmpty();
+	bool loaded = _data->loaded();
 
 	bool showPause = updateStatusText();
 
@@ -652,7 +652,7 @@ void LayoutOverviewAudio::getState(TextLinkPtr &link, HistoryCursorState &cursor
 
 	QRect inner(rtlrect(st::msgFilePadding.left(), st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, _width));
 	if (inner.contains(x, y)) {
-		link = (already || hasdata) ? _openl : ((_data->loader || _data->status == FileUploading) ? _cancell : _savel);
+		link = loaded ? _openl : ((_data->loadingStarted() || _data->status == FileUploading) ? _cancell : _savel);
 		return;
 	}
 	if (rtlrect(nameleft, statustop, _width - nameleft - nameright, st::normalFont->height, _width).contains(x, y)) {
@@ -709,6 +709,7 @@ bool LayoutOverviewAudio::updateStatusText() const {
 LayoutOverviewDocument::LayoutOverviewDocument(DocumentData *document, HistoryItem *parent) : LayoutAbstractFileItem(parent)
 , _data(document)
 , _msgl(new MessageLink(parent))
+, _namel(new DocumentOpenLink(_data))
 , _name(documentName(_data))
 , _date(langDateTime(date(_data->date)))
 , _namew(st::semiboldFont->width(_name))
@@ -748,8 +749,8 @@ void LayoutOverviewDocument::initDimensions() {
 
 void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
 	bool selected = (selection == FullSelection);
-	bool already = !_data->already().isEmpty(), hasdata = !_data->data.isEmpty();
-	if (_data->loader) {
+	bool loaded = _data->loaded() || (_data->loader && _data->loader->localAvailable());
+	if (_data->loadingStarted() && !_data->loader->loadingLocal()) {
 		ensureRadial();
 		if (!_radial->animating()) {
 			_radial->start(_data->progress());
@@ -780,7 +781,7 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 				float64 over = a_iconOver.current();
 				p.setBrush(style::interpolate(st::msgFileInBg, st::msgFileInBgOver, over));
 			} else {
-				bool over = textlnkDrawOver(already ? _openl : (_data->loader ? _cancell : _savel));
+				bool over = textlnkDrawOver(loaded ? _openl : (_data->loadingStarted() ? _cancell : _savel));
 				p.setBrush(over ? st::msgFileInBgOver : st::msgFileInBg);
 			}
 
@@ -799,7 +800,7 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 				icon = selected ? st::msgFileInPauseSelected : st::msgFileInPause;
 			} else if (_statusSize < 0 || _statusSize == FileStatusSizeLoaded) {
 				icon = selected ? st::msgFileInPlaySelected : st::msgFileInPlay;
-			} else if (_data->loader) {
+			} else if (_data->loadingStarted() && !_data->loader->loadingLocal()) {
 				icon = selected ? st::msgFileInCancelSelected : st::msgFileInCancel;
 			} else {
 				icon = selected ? st::msgFileInDownloadSelected : st::msgFileInDownload;
@@ -821,14 +822,14 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 		if (clip.intersects(rthumb)) {
 			if (wthumb) {
 				if (_data->thumb->loaded()) {
-					QPixmap thumb = (already || hasdata) ? _data->thumb->pixSingle(_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize) : _data->thumb->pixBlurredSingle(_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize);
+					QPixmap thumb = loaded ? _data->thumb->pixSingle(_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize) : _data->thumb->pixBlurredSingle(_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize);
 					p.drawPixmap(rthumb.topLeft(), thumb);
 				} else {
 					App::roundRect(p, rthumb, st::black, BlackCorners);
 				}
 			} else {
 				App::roundRect(p, rthumb, documentColor(_colorIndex), documentCorners(_colorIndex));
-				if (!radial && (already || hasdata)) {
+				if (!radial && loaded) {
 					style::sprite icon = documentCorner(_colorIndex);
 					p.drawSprite(rthumb.topLeft() + QPoint(rtl() ? 0 : (rthumb.width() - icon.pxWidth()), 0), icon);
 					if (!_ext.isEmpty()) {
@@ -842,14 +843,13 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 				App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
 			}
 
-			if (!radial && (already || hasdata)) {
-			} else {
+			if (radial || (!loaded && !_data->loadingStarted())) {
 				QRect inner(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
 				if (clip.intersects(inner)) {
 					p.setPen(Qt::NoPen);
 					if (selected) {
 						p.setBrush(st::msgDateImgBgSelected);
-					} else if (radial && (already || hasdata)) {
+					} else if (radial && loaded) {
 						p.setOpacity(st::msgDateImgBg->c.alphaF() * _radial->opacity());
 						p.setBrush(st::black);
 					} else if (_a_iconOver.animating()) {
@@ -858,7 +858,7 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 						p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
 						p.setBrush(st::black);
 					} else {
-						bool over = textlnkDrawOver(_data->loader ? _cancell : _savel);
+						bool over = textlnkDrawOver(_data->loadingStarted() ? _cancell : _savel);
 						p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
 					}
 
@@ -867,7 +867,7 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 					p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
 					style::sprite icon;
-					if (already || hasdata || _data->loader) {
+					if (loaded || (_data->loadingStarted() && !_data->loader->loadingLocal())) {
 						icon = (selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
 					} else {
 						icon = (selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
@@ -915,7 +915,7 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 }
 
 void LayoutOverviewDocument::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
-	bool already = !_data->already().isEmpty(), hasdata = !_data->data.isEmpty();
+	bool loaded = _data->loaded() || (_data->loader && _data->loader->localAvailable());
 
 	bool showPause = updateStatusText();
 
@@ -930,7 +930,7 @@ void LayoutOverviewDocument::getState(TextLinkPtr &link, HistoryCursorState &cur
 
 		QRect inner(rtlrect(st::msgFilePadding.left(), st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, _width));
 		if (inner.contains(x, y)) {
-			link = (already || hasdata) ? _openl : ((_data->loader || _data->status == FileUploading) ? _cancell : _savel);
+			link = loaded ? _openl : ((_data->loadingStarted() || _data->status == FileUploading) ? _cancell : _savel);
 			return;
 		}
 	} else {
@@ -941,12 +941,9 @@ void LayoutOverviewDocument::getState(TextLinkPtr &link, HistoryCursorState &cur
 
 		QRect rthumb(rtlrect(0, st::linksBorder + st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, _width));
 
-		if (already || hasdata) {
-		} else {
-			if (rthumb.contains(x, y)) {
-				link = (_data->loader || _data->status == FileUploading) ? _cancell : _savel;
-				return;
-			}
+		if (rthumb.contains(x, y)) {
+			link = loaded ? _openl : ((_data->loadingStarted() || _data->status == FileUploading) ? _cancell : _savel);
+			return;
 		}
 
 		if (_data->status != FileUploadFailed) {
@@ -955,13 +952,13 @@ void LayoutOverviewDocument::getState(TextLinkPtr &link, HistoryCursorState &cur
 				return;
 			}
 		}
-		if (!_data->loader && _data->access) {
-			if (rtlrect(0, st::linksBorder, nameleft, _height - st::linksBorder, _width).contains(x, y)) {
-				link = _openl;
+		if (!_data->loadingStarted() && _data->access) {
+			if (loaded && rtlrect(0, st::linksBorder, nameleft, _height - st::linksBorder, _width).contains(x, y)) {
+				link = _namel;
 				return;
 			}
 			if (rtlrect(nameleft, nametop, qMin(_width - nameleft - nameright, _namew), st::semiboldFont->height, _width).contains(x, y)) {
-				link = _openl;
+				link = _namel;
 				return;
 			}
 		}
@@ -975,29 +972,31 @@ bool LayoutOverviewDocument::updateStatusText() const {
 		statusSize = FileStatusSizeFailed;
 	} else if (_data->status == FileUploading) {
 		statusSize = _data->uploadOffset;
-	} else if (_data->loader) {
+	} else if (_data->loadingStarted()) {
 		statusSize = _data->loader->currentOffset();
-	} else if (_data->song() && (!_data->already().isEmpty() || !_data->data.isEmpty())) {
-		SongMsgId playing;
-		AudioPlayerState playingState = AudioPlayerStopped;
-		int64 playingPosition = 0, playingDuration = 0;
-		int32 playingFrequency = 0;
-		if (audioPlayer()) {
-			audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
-		}
+	} else if (_data->loaded()) {
+		if (_data->song()) {
+			SongMsgId playing;
+			AudioPlayerState playingState = AudioPlayerStopped;
+			int64 playingPosition = 0, playingDuration = 0;
+			int32 playingFrequency = 0;
+			if (audioPlayer()) {
+				audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
+			}
 
-		if (playing.msgId == _parent->fullId() && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-			statusSize = -1 - (playingPosition / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency));
-			realDuration = playingDuration / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency);
-			showPause = (playingState == AudioPlayerPlaying || playingState == AudioPlayerResuming || playingState == AudioPlayerStarting);
+			if (playing.msgId == _parent->fullId() && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+				statusSize = -1 - (playingPosition / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency));
+				realDuration = playingDuration / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency);
+				showPause = (playingState == AudioPlayerPlaying || playingState == AudioPlayerResuming || playingState == AudioPlayerStarting);
+			} else {
+				statusSize = FileStatusSizeLoaded;
+			}
+			if (!showPause && playing.msgId == _parent->fullId() && App::main() && App::main()->player()->seekingSong(playing)) {
+				showPause = true;
+			}
 		} else {
 			statusSize = FileStatusSizeLoaded;
 		}
-		if (!showPause && playing.msgId == _parent->fullId() && App::main() && App::main()->player()->seekingSong(playing)) {
-			showPause = true;
-		}
-	} else if (!_data->already().isEmpty() || !_data->data.isEmpty()) {
-		statusSize = FileStatusSizeLoaded;
 	} else {
 		statusSize = FileStatusSizeReady;
 	}
