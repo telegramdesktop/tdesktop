@@ -124,19 +124,19 @@ namespace Local {
 	void writeImage(const StorageKey &location, const ImagePtr &img);
 	void writeImage(const StorageKey &location, const StorageImageSaved &jpeg, bool overwrite = true);
 	TaskId startImageLoad(const StorageKey &location, mtpFileLoader *loader);
-	bool willImageLoad(const StorageKey &location);
+	bool willImageLoad(const StorageKey &location, bool check = false);
 	int32 hasImages();
 	qint64 storageImagesSize();
 
 	void writeStickerImage(const StorageKey &location, const QByteArray &data, bool overwrite = true);
 	TaskId startStickerImageLoad(const StorageKey &location, mtpFileLoader *loader);
-	bool willStickerImageLoad(const StorageKey &location);
+	bool willStickerImageLoad(const StorageKey &location, bool check = false);
 	int32 hasStickers();
 	qint64 storageStickersSize();
 
 	void writeAudio(const StorageKey &location, const QByteArray &data, bool overwrite = true);
 	TaskId startAudioLoad(const StorageKey &location, mtpFileLoader *loader);
-	bool willAudioLoad(const StorageKey &location);
+	bool willAudioLoad(const StorageKey &location, bool check = false);
 	int32 hasAudios();
 	qint64 storageAudiosSize();
 

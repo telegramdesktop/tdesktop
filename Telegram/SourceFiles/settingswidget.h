@@ -151,6 +151,8 @@ public slots:
 	void onTempDirCleared(int task);
 	void onTempDirClearFailed(int task);
 
+	void onAutoDownload();
+
 	void onBackFromGallery();
 	void onBackFromFile();
 	void onTileBackground();
@@ -258,6 +260,7 @@ private:
 		TempDirCleared     = 4,
 	};
 	TempDirClearState _tempDirClearState;
+	LinkButton _autoDownload;
 
 	// chat background
 	QPixmap _background;

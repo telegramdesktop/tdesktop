@@ -288,6 +288,7 @@ enum DataBlockId {
 	dbiIncludeMuted         = 0x31,
 	dbiMaxMegaGroupCount    = 0x32,
 	dbiDownloadPath         = 0x33,
+	dbiAutoDownload         = 0x34,
 
 	dbiEncryptedWithSalt    = 333,
 	dbiEncrypted            = 444,

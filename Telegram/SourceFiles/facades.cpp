@@ -154,9 +154,8 @@ namespace Notify {
 						if (HistoryMedia *media = item->getMedia()) {
 							media->stopInline(item);
 							if (DocumentData *document = media->getDocument()) { // forget data from memory
-								if (!document->data.isEmpty()) {
+								if (!document->data.isEmpty() && document->prepareAutoLoader(item)) {
 									document->data.clear();
-									document->prepareAutoLoader();
 								}
 							}
 							stopped = true;

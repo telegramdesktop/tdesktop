@@ -903,6 +903,7 @@ struct AudioData {
 	void forget() {
 	}
 
+	bool prepareAutoLoader(const HistoryItem *item, bool force = false);
 	void save(const QString &toFile);
 
 	void cancel(bool beforeDownload = false) {
@@ -1147,7 +1148,7 @@ struct DocumentData {
 	bool loadingStarted() {
 		return loader && loader->started();
 	}
-	void prepareAutoLoader();
+	bool prepareAutoLoader(const HistoryItem *item, bool force = false);
 	StickerData *sticker() {
 		return (type == StickerDocument) ? static_cast<StickerData*>(_additional) : 0;
 	}

@@ -3741,19 +3741,21 @@ ImagePtr HistoryVideo::replyPreview() {
 
 HistoryAudio::HistoryAudio(const MTPDaudio &audio) : HistoryFileMedia()
 , _data(App::feedAudio(audio)) {
-	setLinks(new AudioOpenLink(_data), new AudioSaveLink(_data), new AudioCancelLink(_data));
+	setLinks(new AudioOpenLink(_data), new AudioOpenLink(_data), new AudioCancelLink(_data));
 
 	setStatusSize(FileStatusSizeReady);
 }
 
 HistoryAudio::HistoryAudio(const HistoryAudio &other) : HistoryFileMedia()
 , _data(other._data) {
-	setLinks(new AudioOpenLink(_data), new AudioSaveLink(_data), new AudioCancelLink(_data));
+	setLinks(new AudioOpenLink(_data), new AudioOpenLink(_data), new AudioCancelLink(_data));
 
 	setStatusSize(other._statusSize);
 }
 
 void HistoryAudio::initDimensions(const HistoryItem *parent) {
+	_data->prepareAutoLoader(parent);
+
 	_maxw = st::msgFileMinWidth;
 
 	int32 tleft = 0, tright = 0;
@@ -3974,6 +3976,8 @@ HistoryDocument::HistoryDocument(const HistoryDocument &other) : HistoryFileMedi
 }
 
 void HistoryDocument::initDimensions(const HistoryItem *parent) {
+	_data->prepareAutoLoader(parent);
+		
 	_maxw = st::msgFileMinWidth;
 
 	int32 tleft = 0, tright = 0;
@@ -4291,6 +4295,8 @@ HistoryGif::HistoryGif(const HistoryGif &other) : HistoryFileMedia()
 }
 
 void HistoryGif::initDimensions(const HistoryItem *parent) {
+	_data->prepareAutoLoader(parent);
+
 	bool bubble = parent->hasBubble();
 	int32 tw = 0, th = 0;
 	if (_gif && _gif->state() == ClipError) {
@@ -4614,6 +4620,8 @@ HistorySticker::HistorySticker(DocumentData *document) : HistoryMedia()
 }
 
 void HistorySticker::initDimensions(const HistoryItem *parent) {
+	_data->prepareAutoLoader(parent);
+
 	_pixw = _data->dimensions.width();
 	_pixh = _data->dimensions.height();
 	if (_pixw > st::maxStickerSize) {

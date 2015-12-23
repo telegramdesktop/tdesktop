@@ -329,6 +329,45 @@ namespace {
 		}
 	};
 
+	bool fileExists(const QString &name, int options = UserPath | SafePath) {
+		if (options & UserPath) {
+			if (!_userWorking()) return false;
+		} else {
+			if (!_working()) return false;
+		}
+
+		// detect order of read attempts
+		QString toTry[2];
+		toTry[0] = ((options & UserPath) ? _userBasePath : _basePath) + name + '0';
+		if (options & SafePath) {
+			QFileInfo toTry0(toTry[0]);
+			if (toTry0.exists()) {
+				toTry[1] = ((options & UserPath) ? _userBasePath : _basePath) + name + '1';
+				QFileInfo toTry1(toTry[1]);
+				if (toTry1.exists()) {
+					QDateTime mod0 = toTry0.lastModified(), mod1 = toTry1.lastModified();
+					if (mod0 < mod1) {
+						qSwap(toTry[0], toTry[1]);
+					}
+				} else {
+					toTry[1] = QString();
+				}
+			} else {
+				toTry[0][toTry[0].size() - 1] = '1';
+			}
+		}
+		for (int32 i = 0; i < 2; ++i) {
+			QString fname(toTry[i]);
+			if (fname.isEmpty()) break;
+			if (QFileInfo(fname).exists()) return true;
+		}
+		return false;
+	}
+
+	bool fileExists(const FileKey &fkey, int options = UserPath | SafePath) {
+		return fileExists(toFilePart(fkey), options);
+	}
+		
 	bool readFile(FileReadDescriptor &result, const QString &name, int options = UserPath | SafePath) {
 		if (options & UserPath) {
 			if (!_userWorking()) return false;
@@ -822,6 +861,16 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			cSetSoundNotify(v == 1);
+		} break;
+
+		case dbiAutoDownload: {
+			qint32 photo, audio, gif;
+			stream >> photo >> audio >> gif;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetAutoDownloadPhoto(photo);
+			cSetAutoDownloadAudio(audio);
+			cSetAutoDownloadGif(gif);
 		} break;
 
 		case dbiIncludeMuted: {
@@ -1395,6 +1444,7 @@ namespace {
 		size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
 		size += sizeof(quint32) + sizeof(qint32) + (cRecentStickersPreload().isEmpty() ? cGetRecentStickers().size() : cRecentStickersPreload().size()) * (sizeof(uint64) + sizeof(ushort));
 		size += sizeof(quint32) + _stringSize(cDialogLastPath());
+		size += sizeof(quint32) + 3 * sizeof(qint32);
 
 		EncryptedDescriptor data(size);
 		data.stream << quint32(dbiSendKey) << qint32(cCtrlEnter() ? dbiskCtrlEnter : dbiskEnter);
@@ -1412,6 +1462,7 @@ namespace {
 		data.stream << quint32(dbiCompressPastedImage) << qint32(cCompressPastedImage());
 		data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
 		data.stream << quint32(dbiSongVolume) << qint32(qRound(cSongVolume() * 1e6));
+		data.stream << quint32(dbiAutoDownload) << qint32(cAutoDownloadPhoto()) << qint32(cAutoDownloadAudio()) << qint32(cAutoDownloadGif());
 
 		{
 			RecentEmojisPreload v(cRecentEmojisPreload());
@@ -2418,8 +2469,11 @@ namespace Local {
 		return _localLoader->addTask(new ImageLoadTask(j->first, location, loader));
 	}
 
-	bool willImageLoad(const StorageKey &location) {
-		return (_imagesMap.constFind(location) != _imagesMap.cend());
+	bool willImageLoad(const StorageKey &location, bool check) {
+		StorageMap::const_iterator j = _imagesMap.constFind(location);
+		if (j == _imagesMap.cend()) return false;
+		if (check && !fileExists(j->first, UserPath)) return false;
+		return true;
 	}
 
 	int32 hasImages() {
@@ -2481,8 +2535,11 @@ namespace Local {
 		return _localLoader->addTask(new StickerImageLoadTask(j->first, location, loader));
 	}
 
-	bool willStickerImageLoad(const StorageKey &location) {
-		return (_stickerImagesMap.constFind(location) != _stickerImagesMap.cend());
+	bool willStickerImageLoad(const StorageKey &location, bool check) {
+		StorageMap::const_iterator j = _stickerImagesMap.constFind(location);
+		if (j == _stickerImagesMap.cend()) return false;
+		if (check && !fileExists(j->first, UserPath)) return false;
+		return true;
 	}
 
 	int32 hasStickers() {
@@ -2544,8 +2601,11 @@ namespace Local {
 		return _localLoader->addTask(new AudioLoadTask(j->first, location, loader));
 	}
 
-	bool willAudioLoad(const StorageKey &location) {
-		return (_audiosMap.constFind(location) != _audiosMap.cend());
+	bool willAudioLoad(const StorageKey &location, bool check) {
+		StorageMap::const_iterator j = _audiosMap.constFind(location);
+		if (j == _audiosMap.cend()) return false;
+		if (check && !fileExists(j->first, UserPath)) return false;
+		return true;
 	}
 
 	int32 hasAudios() {

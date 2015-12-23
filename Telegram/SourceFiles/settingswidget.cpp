@@ -168,11 +168,13 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 
 , _dontAskDownloadPath(this, lang(lng_download_path_dont_ask), !cAskDownloadPath())
 , _downloadPathWidth(st::linkFont->width(lang(lng_download_path_label)) + st::linkFont->spacew)
-, _downloadPathEdit(this, cDownloadPath().isEmpty() ? lang(lng_download_path_default) : ((cDownloadPath() == qsl("tmp")) ? lang(lng_download_path_temp) : st::linkFont->elided(QDir::toNativeSeparators(cDownloadPath()), st::setWidth - st::setVersionLeft - _downloadPathWidth)))
+, _downloadPathEdit(this, cDownloadPath().isEmpty() ? lang(lng_download_path_default) : ((cDownloadPath() == qsl("tmp")) ? lang(lng_download_path_temp) : st::linkFont->elided(QDir::toNativeSeparators(cDownloadPath()), st::setWidth - st::cbDefFlat.textLeft - _downloadPathWidth)))
 , _downloadPathClear(this, lang(lng_download_path_clear))
 , _tempDirClearingWidth(st::linkFont->width(lang(lng_download_path_clearing)))
 , _tempDirClearedWidth(st::linkFont->width(lang(lng_download_path_cleared)))
 , _tempDirClearFailedWidth(st::linkFont->width(lang(lng_download_path_clear_failed)))
+
+, _autoDownload(this, lang(lng_media_auto_settings))
 
 // chat background
 , _backFromGallery(this, lang(lng_settings_bg_from_gallery))
@@ -290,6 +292,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	}
 	connect(App::wnd(), SIGNAL(tempDirCleared(int)), this, SLOT(onTempDirCleared(int)));
 	connect(App::wnd(), SIGNAL(tempDirClearFailed(int)), this, SLOT(onTempDirClearFailed(int)));
+	connect(&_autoDownload, SIGNAL(clicked()), this, SLOT(onAutoDownload()));
 
 	// chat background
 	if (!cChatBackground()) App::initBackground();
@@ -471,8 +474,8 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 	} else {
 		textToDraw = _curVersionText;
 	}
-	p.setFont(st::linkFont->f);
-	p.setPen(st::setVersionColor->p);
+	p.setFont(st::linkFont);
+	p.setPen(st::setVersionColor);
 	p.drawText(_left + st::setVersionLeft, top + st::setVersionTop + st::linkFont->ascent, textToDraw);
 	top += st::setVersionHeight;
 	#endif
@@ -532,7 +535,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 			top += st::setLittleSkip;
 			p.setFont(st::linkFont->f);
 			p.setPen(st::black->p);
-			p.drawText(_left + st::setVersionLeft, top + st::linkFont->ascent, lang(lng_download_path_label));
+			p.drawText(_left + st::cbDefFlat.textLeft, top + st::linkFont->ascent, lang(lng_download_path_label));
 			if (cDownloadPath() == qsl("tmp")) {
 				QString clearText;
 				int32 clearWidth = 0;
@@ -547,7 +550,8 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 			}
 			top += _downloadPathEdit.height();
 		}
-		top += st::setSectionSkip;
+		top += st::setLittleSkip;
+		top += _autoDownload.height();
 
 		// chat background
 		p.setFont(st::setHeaderFont->f);
@@ -721,13 +725,14 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 		_dontAskDownloadPath.move(_left, top); top += _dontAskDownloadPath.height();
 		if (!cAskDownloadPath()) {
 			top += st::setLittleSkip;
-			_downloadPathEdit.move(_left + st::setVersionLeft + _downloadPathWidth, top);
+			_downloadPathEdit.move(_left + st::cbDefFlat.textLeft + _downloadPathWidth, top);
 			if (cDownloadPath() == qsl("tmp")) {
 				_downloadPathClear.move(_left + st::setWidth - _downloadPathClear.width(), top);
 			}
 			top += _downloadPathEdit.height();
 		}
-		top += st::setSectionSkip;
+		top += st::setLittleSkip;
+		_autoDownload.move(_left + st::cbDefFlat.textLeft, top); top += _autoDownload.height();
 
 		// chat background
 		top += st::setHeaderSkip;
@@ -1061,7 +1066,7 @@ void SettingsInner::showAll() {
 				_downloadPathClear.hide();
 			}
 		}
-
+		_autoDownload.show();
 	} else {
 		_replaceEmojis.hide();
 		_viewEmojis.hide();
@@ -1071,6 +1076,7 @@ void SettingsInner::showAll() {
 		_dontAskDownloadPath.hide();
 		_downloadPathEdit.hide();
 		_downloadPathClear.hide();
+		_autoDownload.hide();
 	}
 
 	// chat background
@@ -1687,6 +1693,10 @@ void SettingsInner::onTempDirClearFailed(int task) {
 	}
 	showAll();
 	update();
+}
+
+void SettingsInner::onAutoDownload() {
+	Ui::showLayer(new AutoDownloadBox());
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE

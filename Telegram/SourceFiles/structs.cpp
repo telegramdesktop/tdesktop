@@ -775,10 +775,14 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 
 	if (data->status != FileReady) return;
 
-	if (data->loader && !data->loader->started()) {
+	if (data->prepareAutoLoader(App::hoveredLinkItem(), true)) {
 		data->openOnSave = 1;
 		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->fullId() : (App::contextItem() ? App::contextItem()->fullId() : FullMsgId());
-		data->save(QString());
+		if (!data->loader->started()) {
+			data->save(QString());
+		} else {
+			data->loader->start();
+		}
 		return;
 	}
 
@@ -851,9 +855,23 @@ bool StickerData::setInstalled() const {
 AudioData::AudioData(const AudioId &id, const uint64 &access, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) :
 id(id), access(access), date(date), mime(mime), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), loader(0) {
 	_location = Local::readFileLocation(mediaKey(AudioFileLocation, dc, id));
-	if (!loaded() && size < AudioVoiceMsgInMemory) {
-		loader = new mtpFileLoader(dc, id, access, AudioFileLocation, QString(), size, true);
+}
+
+bool AudioData::prepareAutoLoader(const HistoryItem *item, bool force) {
+	if (!loader && !loaded(true) && size < AudioVoiceMsgInMemory) {
+		bool load = force;
+		if (!force) {
+			if (item->history()->peer->isUser()) {
+				load = !(cAutoDownloadAudio() & dbiadNoPrivate);
+			} else {
+				load = !(cAutoDownloadAudio() & dbiadNoGroups);
+			}
+		}
+		if (load || Local::willAudioLoad(mediaKey(AudioFileLocation, dc, id), true)) {
+			loader = new mtpFileLoader(dc, id, access, AudioFileLocation, QString(), size, true);
+		}
 	}
+	return loader;
 }
 
 void AudioData::save(const QString &toFile) {
@@ -932,10 +950,14 @@ void DocumentOpenLink::doOpen(DocumentData *data, int32 openOnSave) {
 
 	if (data->status != FileReady) return;
 
-	if (data->loader && !data->loader->started()) {
+	if (data->prepareAutoLoader(App::hoveredLinkItem(), true)) {
 		data->openOnSave = openOnSave;
 		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->fullId() : (App::contextItem() ? App::contextItem()->fullId() : FullMsgId());
-		data->save(QString());
+		if (!data->loader->started()) {
+			data->save(QString());
+		} else {
+			data->loader->start();
+		}
 		return;
 	}
 
@@ -1103,29 +1125,40 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 		case mtpc_documentAttributeFilename: name = qs(attributes[i].c_documentAttributeFilename().vfile_name); break;
 		}
 	}
-	prepareAutoLoader();
-}
-
-void DocumentData::prepareAutoLoader() {
 	if (type == StickerDocument) {
 		if (dimensions.width() <= 0 || dimensions.height() <= 0 || dimensions.width() > StickerMaxSize || dimensions.height() > StickerMaxSize || size > StickerInMemory) {
 			type = FileDocument;
 			delete _additional;
 			_additional = 0;
-		} else if (!loader && !loaded(true)) {
-			loader = new mtpFileLoader(dc, id, access, DocumentFileLocation, QString(), size, true);
-		}
-	} else if (isAnimation()) {
-		if (size <= AnimationInMemory && !loader && !loaded(true)) {
-			loader = new mtpFileLoader(dc, id, access, DocumentFileLocation, QString(), size, true);
 		}
 	}
+}
+
+bool DocumentData::prepareAutoLoader(const HistoryItem *item, bool force) {
+	if (!loader && !loaded(true)) {
+		if (type == StickerDocument) {
+			loader = new mtpFileLoader(dc, id, access, DocumentFileLocation, QString(), size, true);
+		} else if (isAnimation() && item && size <= AnimationInMemory) {
+			bool load = force;
+			if (!load) {
+				if (item->history()->peer->isUser()) {
+					load = !(cAutoDownloadGif() & dbiadNoPrivate);
+				} else {
+					load = !(cAutoDownloadGif() & dbiadNoGroups);
+				}
+			}
+			if (load || Local::willStickerImageLoad(mediaKey(DocumentFileLocation, dc, id), true)) {
+				loader = new mtpFileLoader(dc, id, access, DocumentFileLocation, QString(), size, true);
+			}
+		}
+	}
+	return loader;
 }
 
 void DocumentData::save(const QString &toFile) {
 	if (loader && loader->fileName().isEmpty()) {
 		loader->setFileName(toFile);
-	} else {
+	} else if (!loader || !toFile.isEmpty()) {
 		cancel(true);
 		loader = new mtpFileLoader(dc, id, access, DocumentFileLocation, toFile, size, (type == StickerDocument));
 	}

@@ -615,15 +615,10 @@ void MediaView::onSaveAs() {
 }
 
 void MediaView::onDocClick() {
-	QString fname = _doc->already(true);
-	if (fname.isEmpty()) {
-		if (_doc->loader) {
-			onSaveCancel();
-		} else {
-			onDownload();
-		}
+	if (_doc->loader && _doc->loader->started()) {
+		onSaveCancel();
 	} else {
-		psOpenFile(fname);
+		DocumentOpenLink::doOpen(_doc);
 	}
 }
 
@@ -1585,9 +1580,8 @@ void MediaView::preloadData(int32 delta) {
 					case MediaTypeSticker:
 						DocumentData *doc = media->getDocument();
 						doc->forget();
-						if (!doc->data.isEmpty()) {
+						if (!doc->data.isEmpty() && doc->prepareAutoLoader(item)) {
 							doc->data.clear();
-							doc->prepareAutoLoader();
 						}
 					break;
 					}
