@@ -1503,12 +1503,12 @@ void MediaView::moveToNext(int32 delta) {
 				_canDelete = item->canDelete();
 				delete _gif;
 				_gif = 0;
-				if (item->getMedia()) {
-					switch (item->getMedia()->type()) {
+				if (HistoryMedia *media = item->getMedia()) {
+					switch (media->type()) {
 					case MediaTypePhoto: displayPhoto(static_cast<HistoryPhoto*>(item->getMedia())->photo(), item); preloadData(delta); break;
-					case MediaTypeDocument: displayDocument(static_cast<HistoryDocument*>(item->getMedia())->getDocument(), item); preloadData(delta); break;
-					case MediaTypeGif: displayDocument(static_cast<HistoryGif*>(item->getMedia())->getDocument(), item); preloadData(delta); break;
-					case MediaTypeSticker: displayDocument(static_cast<HistorySticker*>(item->getMedia())->document(), item); preloadData(delta); break;
+					case MediaTypeDocument: 
+					case MediaTypeGif: 
+					case MediaTypeSticker: displayDocument(media->getDocument(), item); preloadData(delta); break;
 					}
 				} else {
 					displayDocument(0, item);
@@ -1554,9 +1554,9 @@ void MediaView::preloadData(int32 delta) {
 					if (HistoryMedia *media = item->getMedia()) {
 						switch (media->type()) {
 						case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->full->load(); break;
-						case MediaTypeDocument: static_cast<HistoryDocument*>(media)->getDocument()->thumb->load(); break;
+						case MediaTypeDocument: 
 						case MediaTypeGif: static_cast<HistoryGif*>(media)->getDocument()->thumb->load(); break;
-						case MediaTypeSticker: static_cast<HistorySticker*>(media)->document()->sticker()->img->load(); break;
+						case MediaTypeSticker: static_cast<HistorySticker*>(media)->getDocument()->sticker()->img->load(); break;
 						}
 					}
 				}
@@ -1578,9 +1578,9 @@ void MediaView::preloadData(int32 delta) {
 				if (HistoryMedia *media = item->getMedia()) {
 					switch (media->type()) {
 					case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->forget(); break;
-					case MediaTypeDocument: static_cast<HistoryDocument*>(media)->getDocument()->forget(); break;
-					case MediaTypeGif: static_cast<HistoryGif*>(media)->getDocument()->forget(); break;
-					case MediaTypeSticker: static_cast<HistorySticker*>(media)->document()->forget(); break;
+					case MediaTypeDocument: 
+					case MediaTypeGif: 
+					case MediaTypeSticker: media->getDocument()->forget(); break;
 					}
 				}
 			}

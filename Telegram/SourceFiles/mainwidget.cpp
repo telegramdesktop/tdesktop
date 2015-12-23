@@ -619,8 +619,10 @@ void MainWidget::finishForwarding(History *hist, bool broadcast) {
 				FullMsgId newId(peerToChannel(hist->peer->id), clientMsgId());
 				HistoryMessage *msg = static_cast<HistoryMessage*>(_toForward.cbegin().value());
 				hist->addNewForwarded(newId.msg, date(MTP_int(unixtime())), fromChannelName ? 0 : MTP::authedId(), msg);
-				if (HistorySticker *sticker = dynamic_cast<HistorySticker*>(msg->getMedia())) {
-					App::main()->incrementSticker(sticker->document());
+				if (HistoryMedia *media = msg->getMedia()) {
+					if (media->type() == MediaTypeSticker) {
+						App::main()->incrementSticker(media->getDocument());
+					}
 				}
 				App::historyRegRandom(randomId, newId);
 			}

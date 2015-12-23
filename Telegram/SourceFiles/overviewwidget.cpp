@@ -1939,9 +1939,9 @@ LayoutMediaItem *OverviewInner::getItemLayout(HistoryItem *item) {
 			}
 		}
 	} else if (_type == OverviewDocuments || _type == OverviewAudioDocuments) {
-		if (media && media->type() == MediaTypeDocument) {
+		if (media && (media->type() == MediaTypeDocument || media->type() == MediaTypeGif)) {
 			if ((i = _layoutItems.constFind(item)) == _layoutItems.cend()) {
-				i = _layoutItems.insert(item, new LayoutOverviewDocument(static_cast<HistoryDocument*>(media)->getDocument(), item));
+				i = _layoutItems.insert(item, new LayoutOverviewDocument(media->getDocument(), item));
 				i.value()->initDimensions();
 			}
 		}

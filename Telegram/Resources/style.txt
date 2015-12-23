@@ -1184,6 +1184,15 @@ mediaUnreadSize: 7px;
 mediaUnreadSkip: 5px;
 mediaUnreadTop: 6px;
 
+mediaInStyle: textStyle(defaultTextStyle) {
+	linkFg: mediaInFg;
+	linkFgDown: mediaInFg;
+}
+mediaInStyleSelected: textStyle(defaultTextStyle) {
+	linkFg: mediaInFgSelected;
+	linkFgDown: mediaInFgSelected;
+}
+
 msgFileRedColor: #e47272;
 msgFileYellowColor: #efc274;
 msgFileGreenColor: #61b96e;

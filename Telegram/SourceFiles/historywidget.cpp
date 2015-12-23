@@ -941,10 +941,12 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				_menu->addAction(lang(lng_context_reply_msg), _widget, SLOT(onReplyToMessage()));
 			}
 			if (item && !isUponSelected && !_contextMenuLnk) {
-				if (HistorySticker *sticker = dynamic_cast<HistorySticker*>(msg ? msg->getMedia() : 0)) {
-					DocumentData *doc = sticker->document();
-					if (doc && doc->sticker() && doc->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
-						_menu->addAction(lang(doc->sticker()->setInstalled() ? lng_context_pack_info : lng_context_pack_add), _widget, SLOT(onStickerPackInfo()));
+				if (HistoryMedia *media = (msg ? msg->getMedia() : 0)) {
+					if (media->type() == MediaTypeSticker) {
+						DocumentData *doc = media->getDocument();
+						if (doc && doc->sticker() && doc->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
+							_menu->addAction(lang(doc->sticker()->setInstalled() ? lng_context_pack_info : lng_context_pack_add), _widget, SLOT(onStickerPackInfo()));
+						}
 					}
 				}
 				QString contextMenuText = item->selectedText(FullSelection);
@@ -6236,10 +6238,11 @@ void HistoryWidget::onReplyForwardPreviewCancel() {
 }
 
 void HistoryWidget::onStickerPackInfo() {
-	if (HistoryMessage *item = dynamic_cast<HistoryMessage*>(App::contextItem())) {
-		if (HistorySticker *sticker = dynamic_cast<HistorySticker*>(item->getMedia())) {
-			if (sticker->document() && sticker->document()->sticker() && sticker->document()->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
-				App::main()->stickersBox(sticker->document()->sticker()->set);
+	if (HistoryMedia *media = (App::contextItem() ? App::contextItem()->getMedia() : 0)) {
+		if (media->type() == MediaTypeSticker) {
+			DocumentData *doc = media->getDocument();
+			if (doc && doc->sticker() && doc->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
+				App::main()->stickersBox(doc->sticker()->set);
 			}
 		}
 	}

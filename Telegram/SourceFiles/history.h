@@ -1673,8 +1673,8 @@ public:
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
 
-	DocumentData *document() {
-		return data;
+	DocumentData *getDocument() {
+		return _data;
 	}
 
 	void regItem(HistoryItem *item);
@@ -1691,8 +1691,8 @@ public:
 
 private:
 
-	int16 pixw, pixh;
-	DocumentData *data;
+	int16 _pixw, _pixh;
+	DocumentData *_data;
 	QString _emoji;
 
 };

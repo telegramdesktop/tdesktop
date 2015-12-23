@@ -437,15 +437,17 @@ void LayoutOverviewVideo::paint(Painter &p, const QRect &clip, uint32 selection,
 		p.fillRect(QRect(0, 0, _width, _height), st::overviewPhotoSelectOverlay);
 	}
 
-	if (clip.intersects(QRect(0, _height - st::normalFont->height, _width, st::normalFont->height))) {
-		int32 statusX = st::msgDateImgPadding.x(), statusY = _height - st::normalFont->height - st::msgDateImgPadding.y();
-		int32 statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
-		int32 statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
-		statusX = _width - statusW + statusX;
-		p.fillRect(rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, _width), selected ? st::msgDateImgBgSelected : st::msgDateImgBg);
-		p.setFont(st::normalFont);
-		p.setPen(st::white);
-		p.drawTextLeft(statusX, statusY, _width, _statusText, statusW - 2 * st::msgDateImgPadding.x());
+	if (!selected && !context->selecting && !already) {
+		if (clip.intersects(QRect(0, _height - st::normalFont->height, _width, st::normalFont->height))) {
+			int32 statusX = st::msgDateImgPadding.x(), statusY = _height - st::normalFont->height - st::msgDateImgPadding.y();
+			int32 statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
+			int32 statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
+			statusX = _width - statusW + statusX;
+			p.fillRect(rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, _width), selected ? st::msgDateImgBgSelected : st::msgDateImgBg);
+			p.setFont(st::normalFont);
+			p.setPen(st::white);
+			p.drawTextLeft(statusX, statusY, _width, _statusText, statusW - 2 * st::msgDateImgPadding.x());
+		}
 	}
 	if (clip.intersects(QRect(0, 0, _width, st::normalFont->height))) {
 		int32 statusX = st::msgDateImgPadding.x(), statusY = st::msgDateImgPadding.y();
@@ -536,7 +538,9 @@ LayoutOverviewAudio::LayoutOverviewAudio(AudioData *audio, HistoryItem *parent) 
 , _data(audio) {
 	setLinks(new AudioOpenLink(_data), new AudioSaveLink(_data), new AudioCancelLink(_data));
 	updateName();
-	_details.setText(st::normalFont, lng_date_and_duration(lt_date, textcmdLink(1, langDateTime(date(_data->date))), lt_duration, formatDurationText(_data->duration)), _defaultOptions);
+	QString d = textcmdLink(1, textRichPrepare(langDateTime(date(_data->date))));
+	TextParseOptions opts = { TextParseRichText, 0, 0, Qt::LayoutDirectionAuto };
+	_details.setText(st::normalFont, lng_date_and_duration(lt_date, d, lt_duration, formatDurationText(_data->duration)), opts);
 	_details.setLink(1, TextLinkPtr(new MessageLink(parent)));
 }
 
@@ -622,8 +626,15 @@ void LayoutOverviewAudio::paint(Painter &p, const QRect &clip, uint32 selection,
 	}
 
 	if (clip.intersects(rtlrect(nameleft, statustop, namewidth, st::normalFont->height, _width))) {
-		p.setPen(selected ? st::msgInDateFgSelected : st::mediaInFg);
-		_details.drawLeftElided(p, nameleft, statustop, namewidth, _width);
+		p.setFont(st::normalFont);
+		p.setPen(selected ? st::mediaInFgSelected : st::mediaInFg);
+		if (_statusSize == FileStatusSizeLoaded || _statusSize == FileStatusSizeReady) {
+			textstyleSet(&(selected ? st::mediaInStyleSelected : st::mediaInStyle));
+			_details.drawLeftElided(p, nameleft, statustop, namewidth, _width);
+			textstyleRestore();
+		} else {
+			p.drawTextLeft(nameleft, statustop, _width, _statusText);
+		}
 	}
 }
 
@@ -645,9 +656,11 @@ void LayoutOverviewAudio::getState(TextLinkPtr &link, HistoryCursorState &cursor
 		return;
 	}
 	if (rtlrect(nameleft, statustop, _width - nameleft - nameright, st::normalFont->height, _width).contains(x, y)) {
-		bool inText = false;
-		_details.getStateLeft(link, inText, x - nameleft, y - statustop, _width, _width);
-		cursor = inText ? HistoryInTextCursorState : HistoryDefaultCursorState;
+		if (_statusSize == FileStatusSizeLoaded || _statusSize == FileStatusSizeReady) {
+			bool inText = false;
+			_details.getStateLeft(link, inText, x - nameleft, y - statustop, _width, _width);
+			cursor = inText ? HistoryInTextCursorState : HistoryDefaultCursorState;
+		}
 	}
 }
 
