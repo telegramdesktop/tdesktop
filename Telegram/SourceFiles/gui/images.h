@@ -138,6 +138,9 @@ protected:
 	void doRestore() const { 
 		QBuffer buffer(&saved);
 		QImageReader reader(&buffer, format);
+#if QT_VERSION >= QT_VERSION_CHECK(5, 5, 0)
+		reader.setAutoTransform(true);
+#endif
 		data = QPixmap::fromImageReader(&reader, Qt::ColorOnly);
 	}
 
@@ -206,6 +209,9 @@ protected:
 	void doRestore() const { 
 		QBuffer buffer(&saved);
 		QImageReader reader(&buffer, format);
+#if QT_VERSION >= QT_VERSION_CHECK(5, 5, 0)
+		reader.setAutoTransform(true);
+#endif
 		data = QPixmap::fromImageReader(&reader, Qt::ColorOnly);
 	}
 

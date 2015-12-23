@@ -5350,6 +5350,15 @@ void HistoryWebPage::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32
 			int32 attachLeft = lshift - bubble.left(), attachTop = tshift - bubble.top();
 			if (rtl()) attachLeft = _width - attachLeft - _attach->currentWidth();
 			_attach->getState(lnk, state, x - attachLeft, y - attachTop, parent);
+			if (lnk && _data->photo) {
+				if (_data->type == WebPageProfile || _data->type == WebPageVideo) {
+					lnk = _openl;
+				} else if (_data->type == WebPagePhoto || _data->siteName == qstr("Twitter") || _data->siteName == qstr("Facebook")) {
+					// leave photo link
+				} else {
+					lnk = _openl;
+				}
+			}
 		}
 	}
 }
@@ -5538,6 +5547,9 @@ void ImageLinkManager::onFinished(QNetworkReply *reply) {
 			{
 				QBuffer buffer(&data);
 				QImageReader reader(&buffer);
+#if QT_VERSION >= QT_VERSION_CHECK(5, 5, 0)
+				reader.setAutoTransform(true);
+#endif
 				thumb = QPixmap::fromImageReader(&reader, Qt::ColorOnly);
 				format = reader.format();
 				thumb.setDevicePixelRatio(cRetinaFactor());

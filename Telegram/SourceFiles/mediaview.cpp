@@ -465,8 +465,7 @@ void MediaView::step_state(uint64 ms, bool timer) {
 			if (!_doc->already().isEmpty() && _doc->size < MediaViewImageSizeLimit) {
 				const FileLocation &location(_doc->location(true));
 				if (location.accessEnable()) {
-					QImageReader reader(location.name());
-					if (reader.canRead()) {
+					if (QImageReader(location.name()).canRead()) {
 						displayDocument(_doc, App::histItemById(_msgmigrated ? 0 : _channel, _msgid));
 					}
 					location.accessDisable();
@@ -962,8 +961,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 					_gif = new ClipReader(location, _doc->data);
 				}
 			} else {
-				QImageReader reader(location.name());
-				if (reader.canRead()) {
+				if (QImageReader(location.name()).canRead()) {
 					_current = QPixmap::fromImage(App::readImage(location.name(), 0, false), Qt::ColorOnly);
 				}
 			}

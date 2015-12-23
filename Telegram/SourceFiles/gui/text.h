@@ -323,6 +323,8 @@ public:
 	virtual bool fullDisplayed() const {
 		return true;
 	}
+	virtual void setFullDisplayed(bool full) {
+	}
 	virtual QString encoded() const {
 		return QString();
 	}
@@ -362,6 +364,10 @@ public:
 
 	bool fullDisplayed() const {
 		return _fullDisplayed;
+	}
+
+	void setFullDisplayed(bool full) {
+		_fullDisplayed = full;
 	}
 
 	QString encoded() const {

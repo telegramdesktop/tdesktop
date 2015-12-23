@@ -369,7 +369,7 @@ protected:
 		return !_data->already().isEmpty() || !_data->data.isEmpty();
 	}
 	virtual bool iconAnimated() const {
-		return !dataLoaded() || (_radial && _radial->animating());
+		return true;
 	}
 
 private:
@@ -434,9 +434,10 @@ private:
 
 class LayoutOverviewLink : public LayoutMediaItem {
 public:
-	LayoutOverviewLink(HistoryItem *parent);
+	LayoutOverviewLink(HistoryMedia *media, HistoryItem *parent);
 
 	virtual void initDimensions();
+	virtual int32 resizeGetHeight(int32 width);
 	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
 	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
 
@@ -449,26 +450,22 @@ public:
 
 private:
 	OverviewItemInfo _info;
-	TextLinkPtr _msgl;
+	TextLinkPtr _photol;
 
-	QString title, letter;
-	int32 titleWidth;
-	WebPageData *page;
-	int32 pixw, pixh;
-	Text text;
+	QString _title, _letter;
+	int32 _titlew;
+	WebPageData *_page;
+	int32 _pixw, _pixh;
+	Text _text;
 
 	struct Link {
 		Link() : width(0) {
 		}
-		Link(const QString &url, const QString &text)
-			: text(text)
-			, width(st::normalFont->width(text))
-			, lnk(new TextLink(url)) {
-		}
+		Link(const QString &url, const QString &text);
 		QString text;
 		int32 width;
 		TextLinkPtr lnk;
 	};
-	QVector<Link> urls;
+	QVector<Link> _links;
 
 };

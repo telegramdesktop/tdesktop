@@ -2315,36 +2315,45 @@ namespace App {
         if (!format) {
             format = &tmpFormat;
         }
-        QImageReader reader(&buffer, *format);
-		if (animated) *animated = reader.supportsAnimation() && reader.imageCount() > 1;
-		if (!reader.read(&result)) {
-			return QImage();
+		{
+			QImageReader reader(&buffer, *format);
+#if QT_VERSION >= QT_VERSION_CHECK(5, 5, 0)
+			reader.setAutoTransform(true);
+#endif
+			if (animated) *animated = reader.supportsAnimation() && reader.imageCount() > 1;
+			QByteArray fmt = reader.format();
+			if (!fmt.isEmpty()) *format = fmt;
+			if (!reader.read(&result)) {
+				return QImage();
+			}
+			fmt = reader.format();
+			if (!fmt.isEmpty()) *format = fmt;
 		}
-
 		buffer.seek(0);
-        *format = reader.format();
-        QString fmt = QString::fromUtf8(*format).toLower() ;
+        QString fmt = QString::fromUtf8(*format).toLower();
 		if (fmt == "jpg" || fmt == "jpeg") {
-			//ExifData *exifData = exif_data_new_from_data((const uchar*)(data.constData()), data.size());
-			//if (exifData) {
-			//	ExifByteOrder byteOrder = exif_data_get_byte_order(exifData);
-			//	ExifEntry *exifEntry = exif_data_get_entry(exifData, EXIF_TAG_ORIENTATION);
-			//	if (exifEntry) {
-			//		QTransform orientationFix;
-			//		int orientation = exif_get_short(exifEntry->data, byteOrder);
-			//		switch (orientation) {
-			//		case 2: orientationFix = QTransform(-1, 0, 0, 1, 0, 0); break;
-			//		case 3: orientationFix = QTransform(-1, 0, 0, -1, 0, 0); break;
-			//		case 4: orientationFix = QTransform(1, 0, 0, -1, 0, 0); break;
-			//		case 5: orientationFix = QTransform(0, -1, -1, 0, 0, 0); break;
-			//		case 6: orientationFix = QTransform(0, 1, -1, 0, 0, 0); break;
-			//		case 7: orientationFix = QTransform(0, 1, 1, 0, 0, 0); break;
-			//		case 8: orientationFix = QTransform(0, -1, 1, 0, 0, 0); break;
-			//		}
-			//		result = result.transformed(orientationFix);
-			//	}
-			//	exif_data_free(exifData);
-			//}
+#if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
+			ExifData *exifData = exif_data_new_from_data((const uchar*)(data.constData()), data.size());
+			if (exifData) {
+				ExifByteOrder byteOrder = exif_data_get_byte_order(exifData);
+				ExifEntry *exifEntry = exif_data_get_entry(exifData, EXIF_TAG_ORIENTATION);
+				if (exifEntry) {
+					QTransform orientationFix;
+					int orientation = exif_get_short(exifEntry->data, byteOrder);
+					switch (orientation) {
+					case 2: orientationFix = QTransform(-1, 0, 0, 1, 0, 0); break;
+					case 3: orientationFix = QTransform(-1, 0, 0, -1, 0, 0); break;
+					case 4: orientationFix = QTransform(1, 0, 0, -1, 0, 0); break;
+					case 5: orientationFix = QTransform(0, -1, -1, 0, 0, 0); break;
+					case 6: orientationFix = QTransform(0, 1, -1, 0, 0, 0); break;
+					case 7: orientationFix = QTransform(0, 1, 1, 0, 0, 0); break;
+					case 8: orientationFix = QTransform(0, -1, 1, 0, 0, 0); break;
+					}
+					result = result.transformed(orientationFix);
+				}
+				exif_data_free(exifData);
+			}
+#endif
 		} else if (opaque && result.hasAlphaChannel()) {
 			QImage solid(result.width(), result.height(), QImage::Format_ARGB32_Premultiplied);
 			solid.fill(st::white->c);

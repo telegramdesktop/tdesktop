@@ -534,8 +534,9 @@ void LayoutOverviewVideo::updateStatusText() const {
 
 LayoutOverviewAudio::LayoutOverviewAudio(AudioData *audio, HistoryItem *parent) : LayoutAbstractFileItem(parent)
 , _data(audio) {
+	setLinks(new AudioOpenLink(_data), new AudioSaveLink(_data), new AudioCancelLink(_data));
 	updateName();
-	_details.setText(st::normalFont, lng_date_and_duration(lt_date, textcmdLink(1, langDateTime(date(_data->date))), lt_duration, formatDurationText(_data->duration)), _textNameOptions);
+	_details.setText(st::normalFont, lng_date_and_duration(lt_date, textcmdLink(1, langDateTime(date(_data->date))), lt_duration, formatDurationText(_data->duration)), _defaultOptions);
 	_details.setLink(1, TextLinkPtr(new MessageLink(parent)));
 }
 
@@ -547,6 +548,11 @@ void LayoutOverviewAudio::initDimensions() {
 void LayoutOverviewAudio::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
 	bool selected = (selection == FullSelection);
 	bool already = !_data->already().isEmpty(), hasdata = !_data->data.isEmpty();
+
+	if (!_data->loader && _data->status == FileReady && !already && !hasdata && _data->size < AudioVoiceMsgInMemory) {
+		_data->save(QString());
+	}
+
 	if (_data->loader) {
 		ensureRadial();
 		if (!_radial->animating()) {
@@ -563,11 +569,16 @@ void LayoutOverviewAudio::paint(Painter &p, const QRect &clip, uint32 selection,
 
 	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, datetop = -1;
 
-	nameleft = st::msgFileSize + st::msgFilePadding.right();
+	nameleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
+	nameright = st::msgFilePadding.left();
 	nametop = st::msgFileNameTop;
 	statustop = st::msgFileStatusTop;
 
-	QRect inner(rtlrect(0, st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, _width));
+	if (selected) {
+		p.fillRect(clip.intersected(QRect(0, 0, _width, _height)), st::msgInBgSelected);
+	}
+
+	QRect inner(rtlrect(st::msgFilePadding.left(), st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, _width));
 	if (clip.intersects(inner)) {
 		p.setPen(Qt::NoPen);
 		if (selected) {
@@ -576,7 +587,7 @@ void LayoutOverviewAudio::paint(Painter &p, const QRect &clip, uint32 selection,
 			float64 over = a_iconOver.current();
 			p.setBrush(style::interpolate(st::msgFileInBg, st::msgFileInBgOver, over));
 		} else {
-			bool over = textlnkDrawOver(already ? _openl : (_data->loader ? _cancell : _savel));
+			bool over = textlnkDrawOver((already || hasdata) ? _openl : (_data->loader ? _cancell : _savel));
 			p.setBrush(over ? st::msgFileInBgOver : st::msgFileInBg);
 		}
 
@@ -611,7 +622,7 @@ void LayoutOverviewAudio::paint(Painter &p, const QRect &clip, uint32 selection,
 	}
 
 	if (clip.intersects(rtlrect(nameleft, statustop, namewidth, st::normalFont->height, _width))) {
-		p.setPen(st::mediaInFg);
+		p.setPen(selected ? st::msgInDateFgSelected : st::mediaInFg);
 		_details.drawLeftElided(p, nameleft, statustop, namewidth, _width);
 	}
 }
@@ -623,14 +634,20 @@ void LayoutOverviewAudio::getState(TextLinkPtr &link, HistoryCursorState &cursor
 
 	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, datetop = 0;
 
-	nameleft = st::msgFileSize + st::msgFilePadding.right();
+	nameleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
+	nameright = st::msgFilePadding.left();
 	nametop = st::msgFileNameTop;
 	statustop = st::msgFileStatusTop;
 
-	QRect inner(rtlrect(0, st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, _width));
+	QRect inner(rtlrect(st::msgFilePadding.left(), st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, _width));
 	if (inner.contains(x, y)) {
 		link = (already || hasdata) ? _openl : ((_data->loader || _data->status == FileUploading) ? _cancell : _savel);
 		return;
+	}
+	if (rtlrect(nameleft, statustop, _width - nameleft - nameright, st::normalFont->height, _width).contains(x, y)) {
+		bool inText = false;
+		_details.getStateLeft(link, inText, x - nameleft, y - statustop, _width, _width);
+		cursor = inText ? HistoryInTextCursorState : HistoryDefaultCursorState;
 	}
 }
 
@@ -672,8 +689,6 @@ bool LayoutOverviewAudio::updateStatusText() const {
 	}
 	if (statusSize != _statusSize) {
 		setStatusSize(statusSize, _data->size, _data->duration, realDuration);
-		_details.setText(st::normalFont, lng_date_and_duration(lt_date, textcmdLink(1, langDateTime(date(_data->date))), lt_duration, formatDurationText(_data->duration)), _textNameOptions);
-		_details.setLink(1, TextLinkPtr(new MessageLink(_parent)));
 	}
 	return showPause;
 }
@@ -734,11 +749,16 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 	bool wthumb = withThumb();
 
 	if (_data->song()) {
-		nameleft = st::msgFileSize + st::msgFilePadding.right();
+		nameleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
+		nameright = st::msgFilePadding.left();
 		nametop = st::msgFileNameTop;
 		statustop = st::msgFileStatusTop;
 
-		QRect inner(rtlrect(0, st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, _width));
+		if (selected) {
+			p.fillRect(QRect(0, 0, _width, _height), st::msgInBgSelected);
+		}
+
+		QRect inner(rtlrect(st::msgFilePadding.left(), st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, _width));
 		if (clip.intersects(inner)) {
 			p.setPen(Qt::NoPen);
 			if (selected) {
@@ -890,11 +910,12 @@ void LayoutOverviewDocument::getState(TextLinkPtr &link, HistoryCursorState &cur
 	bool wthumb = withThumb();
 
 	if (_data->song()) {
-		nameleft = st::msgFileSize + st::msgFilePadding.right();
+		nameleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
+		nameright = st::msgFilePadding.left();
 		nametop = st::msgFileNameTop;
 		statustop = st::msgFileStatusTop;
 
-		QRect inner(rtlrect(0, st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, _width));
+		QRect inner(rtlrect(st::msgFilePadding.left(), st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, _width));
 		if (inner.contains(x, y)) {
 			link = (already || hasdata) ? _openl : ((_data->loader || _data->status == FileUploading) ? _cancell : _savel);
 			return;
@@ -971,4 +992,266 @@ bool LayoutOverviewDocument::updateStatusText() const {
 		setStatusSize(statusSize, _data->size, _data->song() ? _data->song()->duration : -1, realDuration);
 	}
 	return showPause;
+}
+
+namespace {
+	ITextLink *linkFromUrl(const QString &url) {
+		int32 at = url.indexOf('@'), slash = url.indexOf('/');
+		if ((at > 0) && (slash < 0 || slash > at)) {
+			return new EmailLink(url);
+		}
+		return new TextLink(url);
+	}
+}
+
+LayoutOverviewLink::LayoutOverviewLink(HistoryMedia *media, HistoryItem *parent) : LayoutMediaItem(parent)
+, _titlew(0)
+, _page(0)
+, _pixw(0)
+, _pixh(0)
+, _text(st::msgMinWidth) {
+	QString text = _parent->originalText();
+	EntitiesInText entities = _parent->originalEntities();
+
+	int32 from = 0, till = text.size(), lnk = entities.size();
+	for (int32 i = 0; i < lnk; ++i) {
+		if (entities[i].type != EntityInTextUrl && entities[i].type != EntityInTextCustomUrl && entities[i].type != EntityInTextEmail) {
+			continue;
+		}
+		QString u = entities[i].text, t = text.mid(entities[i].offset, entities[i].length);
+		_links.push_back(Link(u.isEmpty() ? t : u, t));
+	}
+	while (lnk > 0 && till > from) {
+		--lnk;
+		if (entities[lnk].type != EntityInTextUrl && entities[lnk].type != EntityInTextCustomUrl && entities[lnk].type != EntityInTextEmail) {
+			++lnk;
+			break;
+		}
+		int32 afterLinkStart = entities[lnk].offset + entities[lnk].length;
+		if (till > afterLinkStart) {
+			if (!QRegularExpression(qsl("^[,.\\s_=+\\-;:`'\"\\(\\)\\[\\]\\{\\}<>*&^%\\$#@!\\\\/]+$")).match(text.mid(afterLinkStart, till - afterLinkStart)).hasMatch()) {
+				++lnk;
+				break;
+			}
+		}
+		till = entities[lnk].offset;
+	}
+	if (!lnk) {
+		if (QRegularExpression(qsl("^[,.\\s\\-;:`'\"\\(\\)\\[\\]\\{\\}<>*&^%\\$#@!\\\\/]+$")).match(text.mid(from, till - from)).hasMatch()) {
+			till = from;
+		}
+	}
+
+	_page = (media && media->type() == MediaTypeWebPage) ? static_cast<HistoryWebPage*>(media)->webpage() : 0;
+	if (_page) {
+		if (_page->doc) {
+			_photol = TextLinkPtr(new DocumentOpenLink(_page->doc));
+		} else if (_page->photo) {
+			if (_page->type == WebPageProfile || _page->type == WebPageVideo) {
+				_photol = TextLinkPtr(linkFromUrl(_page->url));
+			} else if (_page->type == WebPagePhoto || _page->siteName == qstr("Twitter") || _page->siteName == qstr("Facebook")) {
+				_photol = TextLinkPtr(new PhotoLink(_page->photo));
+			} else {
+				_photol = TextLinkPtr(linkFromUrl(_page->url));
+			}
+		} else {
+			_photol = TextLinkPtr(linkFromUrl(_page->url));
+		}
+	} else if (!_links.isEmpty()) {
+		_photol = TextLinkPtr(linkFromUrl(_links.at(0).lnk->text()));
+	}
+	if (from >= till && _page) {
+		text = _page->description;
+		from = 0;
+		till = text.size();
+	}
+	if (till > from) {
+		TextParseOptions opts = { TextParseMultiline, int32(st::linksMaxWidth), 3 * st::normalFont->height, Qt::LayoutDirectionAuto };
+		_text.setText(st::normalFont, text.mid(from, till - from), opts);
+	}
+	int32 tw = 0, th = 0;
+	if (_page && _page->photo) {
+		if (!_page->photo->full->loaded()) _page->photo->thumb->load(false, false);
+
+		tw = convertScale(_page->photo->thumb->width());
+		th = convertScale(_page->photo->thumb->height());
+	} else if (_page && _page->doc) {
+		if (!_page->doc->thumb->loaded()) _page->doc->thumb->load(false, false);
+
+		tw = convertScale(_page->doc->thumb->width());
+		th = convertScale(_page->doc->thumb->height());
+	}
+	if (tw > st::dlgPhotoSize) {
+		if (th > tw) {
+			th = th * st::dlgPhotoSize / tw;
+			tw = st::dlgPhotoSize;
+		} else if (th > st::dlgPhotoSize) {
+			tw = tw * st::dlgPhotoSize / th;
+			th = st::dlgPhotoSize;
+		}
+	}
+	_pixw = qMax(tw, 1);
+	_pixh = qMax(th, 1);
+
+	if (_page) {
+		_title = _page->title;
+	}
+	QVector<QStringRef> parts = (_page ? _page->url : (_links.isEmpty() ? QString() : _links.at(0).lnk->text())).splitRef('/');
+	if (!parts.isEmpty()) {
+		QStringRef domain = parts.at(0);
+		if (parts.size() > 2 && domain.endsWith(':') && parts.at(1).isEmpty()) { // http:// and others
+			domain = parts.at(2);
+		}
+
+		parts = domain.split('@').back().split('.');
+		if (parts.size() > 1) {
+			_letter = parts.at(parts.size() - 2).at(0).toUpper();
+			if (_title.isEmpty()) {
+				_title.reserve(parts.at(parts.size() - 2).size());
+				_title.append(_letter).append(parts.at(parts.size() - 2).mid(1));
+			}
+		}
+	}
+	_titlew = st::semiboldFont->width(_title);
+}
+
+void LayoutOverviewLink::initDimensions() {
+	_maxw = st::linksMaxWidth;
+	_minh = 0;
+	if (!_title.isEmpty()) {
+		_minh += st::semiboldFont->height;
+	}
+	if (!_text.isEmpty()) {
+		_minh += qMin(3 * st::normalFont->height, _text.countHeight(_maxw - st::dlgPhotoSize - st::dlgPhotoPadding));
+	}
+	_minh += _links.size() * st::normalFont->height;
+	_minh = qMax(_minh, int32(st::dlgPhotoSize)) + st::linksMargin * 2 + st::linksBorder;
+}
+
+int32 LayoutOverviewLink::resizeGetHeight(int32 width) {
+	_width = qMin(width, _maxw);
+	int32 w = _width - st::dlgPhotoSize - st::dlgPhotoPadding;
+	for (int32 i = 0, l = _links.size(); i < l; ++i) {
+		_links.at(i).lnk->setFullDisplayed(w >= _links.at(i).width);
+	}
+
+	_height = 0;
+	if (!_title.isEmpty()) {
+		_height += st::semiboldFont->height;
+	}
+	if (!_text.isEmpty()) {
+		_height += qMin(3 * st::normalFont->height, _text.countHeight(_width - st::dlgPhotoSize - st::dlgPhotoPadding));
+	}
+	_height += _links.size() * st::normalFont->height;
+	_height = qMax(_height, int32(st::dlgPhotoSize)) + st::linksMargin * 2 + st::linksBorder;
+	return _height;
+}
+
+void LayoutOverviewLink::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+	int32 left = st::dlgPhotoSize + st::dlgPhotoPadding, top = st::linksMargin + st::linksBorder, w = _width - left;
+	if (clip.intersects(rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width))) {
+		if (_page && _page->photo) {
+			QPixmap pix;
+			if (_page->photo->full->loaded()) {
+				pix = _page->photo->full->pixSingle(_pixw, _pixh, st::dlgPhotoSize, st::dlgPhotoSize);
+			} else if (_page->photo->medium->loaded()) {
+				pix = _page->photo->medium->pixSingle(_pixw, _pixh, st::dlgPhotoSize, st::dlgPhotoSize);
+			} else {
+				pix = _page->photo->thumb->pixSingle(_pixw, _pixh, st::dlgPhotoSize, st::dlgPhotoSize);
+			}
+			p.drawPixmapLeft(0, top, _width, pix);
+		} else if (_page && _page->doc && !_page->doc->thumb->isNull()) {
+			p.drawPixmapLeft(0, top, _width, _page->doc->thumb->pixSingle(_pixw, _pixh, st::dlgPhotoSize, st::dlgPhotoSize));
+		} else {
+			int32 index = _letter.isEmpty() ? 0 : (_letter.at(0).unicode() % 4);
+			switch (index) {
+			case 0: App::roundRect(p, rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width), st::msgFileRedColor, DocRedCorners); break;
+			case 1: App::roundRect(p, rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width), st::msgFileYellowColor, DocYellowCorners); break;
+			case 2: App::roundRect(p, rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width), st::msgFileGreenColor, DocGreenCorners); break;
+			case 3: App::roundRect(p, rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width), st::msgFileBlueColor, DocBlueCorners); break;
+			}
+
+			if (!_letter.isEmpty()) {
+				p.setFont(st::linksLetterFont->f);
+				p.setPen(st::white->p);
+				p.drawText(rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width), _letter, style::al_center);
+			}
+		}
+
+		if (selection == FullSelection) {
+			App::roundRect(p, rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width), st::overviewPhotoSelectOverlay, PhotoSelectOverlayCorners);
+			p.drawSpriteLeft(QPoint(st::dlgPhotoSize - st::linksPhotoCheck.pxWidth(), top + st::dlgPhotoSize - st::linksPhotoCheck.pxHeight()), _width, st::linksPhotoChecked);
+		} else if (context->selecting) {
+			p.drawSpriteLeft(QPoint(st::dlgPhotoSize - st::linksPhotoCheck.pxWidth(), top + st::dlgPhotoSize - st::linksPhotoCheck.pxHeight()), _width, st::linksPhotoCheck);
+		}
+	}
+
+	if (!_title.isEmpty() && _text.isEmpty() && _links.size() == 1) {
+		top += (st::dlgPhotoSize - st::semiboldFont->height - st::normalFont->height) / 2;
+	}
+
+	p.setPen(st::black);
+	p.setFont(st::semiboldFont);
+	if (!_title.isEmpty()) {
+		if (clip.intersects(rtlrect(left, top, qMin(w, _titlew), st::semiboldFont->height, _width))) {
+			p.drawTextLeft(left, top, _width, (w < _titlew) ? st::semiboldFont->elided(_title, w) : _title);
+		}
+		top += st::semiboldFont->height;
+	}
+	p.setFont(st::msgFont->f);
+	if (!_text.isEmpty()) {
+		int32 h = qMin(st::normalFont->height * 3, _text.countHeight(w));
+		if (clip.intersects(rtlrect(left, top, w, h, _width))) {
+			_text.drawLeftElided(p, left, top, w, _width, 3);
+		}
+		top += h;
+	}
+
+	p.setPen(st::btnYesColor);
+	for (int32 i = 0, l = _links.size(); i < l; ++i) {
+		if (clip.intersects(rtlrect(left, top, qMin(w, _links.at(i).width), st::normalFont->height, _width))) {
+			p.setFont(textlnkDrawOver(_links.at(i).lnk) ? st::normalFont->underline() : st::normalFont);
+			p.drawTextLeft(left, top, _width, (w < _links.at(i).width) ? st::normalFont->elided(_links.at(i).text, w) : _links.at(i).text);
+		}
+		top += st::normalFont->height;
+	}
+
+	if (clip.intersects(rtlrect(left, 0, w, st::linksBorder, _width))) {
+		p.fillRect(clip.intersected(rtlrect(left, 0, w, st::linksBorder, _width)), st::linksBorderColor);
+	}
+}
+
+void LayoutOverviewLink::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+	int32 left = st::dlgPhotoSize + st::dlgPhotoPadding, top = st::linksMargin + st::linksBorder, w = _width - left;
+	if (rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width).contains(x, y)) {
+		link = _photol;
+		return;
+	}
+
+	if (!_title.isEmpty() && _text.isEmpty() && _links.size() == 1) {
+		top += (st::dlgPhotoSize - st::semiboldFont->height - st::normalFont->height) / 2;
+	}
+	if (!_title.isEmpty()) {
+		if (rtlrect(left, top, qMin(w, _titlew), st::semiboldFont->height, _width).contains(x, y)) {
+			link = _photol;
+			return;
+		}
+		top += st::webPageTitleFont->height;
+	}
+	if (!_text.isEmpty()) {
+		top += qMin(st::normalFont->height * 3, _text.countHeight(w));
+	}
+	for (int32 i = 0, l = _links.size(); i < l; ++i) {
+		if (rtlrect(left, top, qMin(w, _links.at(i).width), st::normalFont->height, _width).contains(x, y)) {
+			link = _links.at(i).lnk;
+			return;
+		}
+		top += st::normalFont->height;
+	}
+}
+
+LayoutOverviewLink::Link::Link(const QString &url, const QString &text) 
+: text(text)
+, width(st::normalFont->width(text))
+, lnk(linkFromUrl(url)) {
 }

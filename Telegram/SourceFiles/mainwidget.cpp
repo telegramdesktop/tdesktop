@@ -1522,7 +1522,7 @@ void MainWidget::loadMediaBack(PeerData *peer, MediaOverviewType type, bool many
 	if (history->overviewLoaded(type)) return;
 
 	MsgId minId = history->overviewMinId(type);
-	int32 limit = many ? SearchManyPerPage : (history->overview[type].size() > MediaOverviewStartPerPage) ? SearchPerPage : MediaOverviewStartPerPage;
+	int32 limit = (many || history->overview[type].size() > MediaOverviewStartPerPage) ? SearchPerPage : MediaOverviewStartPerPage;
 	MTPMessagesFilter filter = typeToMediaFilter(type);
 	if (type == OverviewCount) return;
 
