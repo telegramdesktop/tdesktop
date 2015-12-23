@@ -937,6 +937,9 @@ public:
 	virtual void setViewsCount(int32 count) {
 	}
 	virtual void setId(MsgId newId);
+	virtual void setDate(const QDateTime &date) { // for date items
+		this->date = date;
+	}
 	virtual void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const = 0;
     virtual QString notificationHeader() const {
         return QString();
@@ -2229,6 +2232,7 @@ public:
 		after = false;
 		upon = false;
 	}
+	void setDate(const QDateTime &date);
 	QString selectedText(uint32 selection) const {
 		return QString();
 	}

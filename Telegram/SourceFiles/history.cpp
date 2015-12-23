@@ -945,9 +945,11 @@ void ChannelHistory::switchMode() {
 				item->attach(block);
 				prev = addItemAfterPrevToBlock(item, prev, block);
 			}
-			block->y = height;
 			blocks.push_back(block);
-			height += block->height;
+			if (width) {
+				block->y = height;
+				height += block->height;
+			}
 		}
 	}
 
@@ -1632,14 +1634,16 @@ void History::createInitialDateBlock(const QDateTime &date) {
 	HistoryItem *dayItem = createDayServiceMsg(this, dateBlock, date);
 	dateBlock->items.push_back(dayItem);
 	if (width) {
-		int32 dh = dayItem->resize(width);
-		dateBlock->height = dh;
-		height += dh;
-		for (int32 i = 0, l = blocks.size(); i < l; ++i) {
-			blocks[i]->y += dh;
+		dateBlock->height += dayItem->resize(width);
+	}
+
+	blocks.push_front(dateBlock);
+	if (width) {
+		height += dateBlock->height;
+		for (int32 i = 1, l = blocks.size(); i < l; ++i) {
+			blocks.at(i)->y += dateBlock->height;
 		}
 	}
-	blocks.push_front(dateBlock);
 }
 
 void History::addToOverview(HistoryItem *item, MediaOverviewType type) {
@@ -1676,8 +1680,9 @@ HistoryItem *History::addNewItem(HistoryBlock *to, bool newBlock, HistoryItem *a
 	} else if (to->items.back()->date.date() != adding->date.date()) {
 		HistoryItem *dayItem = createDayServiceMsg(this, to, adding->date);
 		to->items.push_back(dayItem);
-		dayItem->y = to->height;
 		if (width) {
+			dayItem->y = to->height;
+
 			int32 dh = dayItem->resize(width);
 			to->height += dh;
 			height += dh;
@@ -1857,8 +1862,10 @@ HistoryItem *History::addMessageGroupAfterPrev(HistoryItem *newItem, HistoryItem
 		createInitialDateBlock(date);
 
 		block = new HistoryBlock(this);
-		block->y = height;
 		blocks.push_back(block);
+		if (width) {
+			block->y = height;
+		}
 	}
 	return addItemAfterPrevToBlock(regItem(new HistoryGroup(this, block, newItem, date)), prev, block);
 }
@@ -1877,13 +1884,11 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 
 	const MTPMessageGroup *groupsBegin = (isChannel() && collapsed) ? collapsed->constData() : 0, *groupsIt = groupsBegin, *groupsEnd = (isChannel() && collapsed) ? (groupsBegin + collapsed->size()) : 0;
 
-	int32 addToH = 0, skip = 0;
-	if (!blocks.isEmpty()) { // remove date block
-		if (width) addToH = -blocks.front()->height;
-		delete blocks.front();
-		blocks.pop_front();
+	HistoryItem *oldFirst = 0, *last = 0;
+	if (!blocks.isEmpty()) {
+		t_assert(blocks.size() > 1);
+		oldFirst = blocks.at(1)->items.front();
 	}
-	HistoryItem *till = blocks.isEmpty() ? 0 : blocks.front()->items.front(), *prev = 0;
 
 	HistoryBlock *block = new HistoryBlock(this);
 	block->items.reserve(slice.size() + (collapsed ? collapsed->size() : 0));
@@ -1897,36 +1902,58 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 			const MTPDmessageGroup &group(groupsIt->c_messageGroup());
 			if (group.vmin_id.v >= adding->id) break;
 
-			prev = addMessageGroupAfterPrevToBlock(group, prev, block);
+			last = addMessageGroupAfterPrevToBlock(group, last, block);
 		}
 
-		prev = addItemAfterPrevToBlock(adding, prev, block);
+		last = addItemAfterPrevToBlock(adding, last, block);
 	}
 	for (; groupsIt != groupsEnd; ++groupsIt) {
 		if (groupsIt->type() != mtpc_messageGroup) continue;
 		const MTPDmessageGroup &group(groupsIt->c_messageGroup());
 
-		prev = addMessageGroupAfterPrevToBlock(group, prev, block);
+		last = addMessageGroupAfterPrevToBlock(group, last, block);
 	}
 
-	while (till && prev && till->type() == HistoryItemGroup && prev->type() == HistoryItemGroup) {
-		static_cast<HistoryGroup*>(prev)->uniteWith(static_cast<HistoryGroup*>(till));
-		till->destroy();
-		till = blocks.isEmpty() ? 0 : blocks.front()->items.front();
+	while (oldFirst && last && oldFirst->type() == HistoryItemGroup && last->type() == HistoryItemGroup) {
+		static_cast<HistoryGroup*>(last)->uniteWith(static_cast<HistoryGroup*>(oldFirst));
+		oldFirst->destroy();
+		if (blocks.isEmpty()) {
+			oldFirst = 0;
+		} else {
+			t_assert(blocks.size() > 1);
+			oldFirst = blocks.at(1)->items.front();
+		}
 	}
-	if (till && prev && prev->date.date() != till->date.date()) {
-		HistoryItem *dayItem = createDayServiceMsg(this, block, till->date);
+	if (oldFirst && last && last->date.date() != oldFirst->date.date()) {
+		HistoryItem *dayItem = createDayServiceMsg(this, block, oldFirst->date);
 		block->items.push_back(dayItem);
 		if (width) {
 			dayItem->y = block->height;
 			block->height += dayItem->resize(width);
 		}
 	}
-	if (!block->items.isEmpty()) {
-		blocks.push_front(block);
-		if (width) {
-			addToH += block->height;
-			++skip;
+	if (block->items.isEmpty()) {
+		oldLoaded = true;
+		delete block;
+	} else {
+		if (oldFirst) {
+			HistoryBlock *initial = blocks.at(0);
+			blocks[0] = block;
+			blocks.push_front(initial);
+			if (width) {
+				block->y = initial->height;
+				for (int32 i = 2, l = blocks.size(); i < l; ++i) {
+					blocks.at(i)->y += block->height;
+				}
+				height += block->height;
+			}
+			initial->items.at(0)->setDate(block->items.at(0)->date);
+		} else {
+			blocks.push_front(block);
+			if (width) {
+				height = block->height;
+			}
+			createInitialDateBlock(block->items.at(0)->date);
 		}
 
 		if (loadedAtBottom()) { // add photos to overview and authors to lastAuthors / lastParticipants
@@ -2018,33 +2045,6 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 				if ((mask & (1 << t)) && App::wnd()) App::wnd()->mediaOverviewUpdated(peer, MediaOverviewType(t));
 			}
 		}
-	} else {
-		delete block;
-	}
-	if (!blocks.isEmpty()) {
-		HistoryBlock *dateBlock = new HistoryBlock(this);
-		HistoryItem *dayItem = createDayServiceMsg(this, dateBlock, blocks.front()->items.front()->date);
-		dateBlock->items.push_back(dayItem);
-		if (width) {
-			int32 dh = dayItem->resize(width);
-			dateBlock->height = dh;
-			if (skip) {
-				blocks.front()->y += dh;
-			}
-			addToH += dh;
-			++skip;
-		}
-		blocks.push_front(dateBlock); // date block
-	}
-	if (width && addToH) {
-		for (Blocks::iterator i = blocks.begin(), e = blocks.end(); i != e; ++i) {
-			if (skip) {
-				--skip;
-			} else {
-				(*i)->y += addToH;
-			}
-		}
-		height += addToH;
 	}
 
 	if (isChannel()) {
@@ -2091,16 +2091,22 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 			prev = addMessageGroupAfterPrevToBlock(group, prev, block);
 		}
 
-		if (block->items.size()) {
-			block->y = height;
-			blocks.push_back(block);
-			height += block->height;
-		} else {
+		if (block->items.isEmpty()) {
 			newLoaded = true;
 			setLastMessage(lastImportantMessage());
 			delete block;
+		} else {
+			blocks.push_back(block);
+			if (width) {
+				block->y = height;
+				height += block->height;
+			}
+			if (blocks.size() == 1) {
+				createInitialDateBlock(block->items.at(0)->date);
+			}
 		}
 	}
+
 	if (!wasLoadedAtBottom && loadedAtBottom()) { // add all loaded photos to overview
 		int32 mask = 0;
 		for (int32 i = 0; i < OverviewCount; ++i) {
@@ -2152,18 +2158,6 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 		for (int32 t = 0; t < OverviewCount; ++t) {
 			if ((mask & (1 << t)) && App::wnd()) App::wnd()->mediaOverviewUpdated(peer, MediaOverviewType(t));
 		}
-	}
-	if (wasEmpty && !isEmpty()) {
-		HistoryBlock *dateBlock = new HistoryBlock(this);
-		HistoryItem *dayItem = createDayServiceMsg(this, dateBlock, blocks.front()->items.front()->date);
-		dateBlock->items.push_back(dayItem);
-		int32 dh = dayItem->resize(width);
-		dateBlock->height = dh;
-		for (Blocks::iterator i = blocks.begin(), e = blocks.end(); i != e; ++i) {
-			(*i)->y += dh;
-		}
-		blocks.push_front(dateBlock); // date block
-		height += dh;
 	}
 
 	if (isChannel()) asChannelHistory()->checkJoinedMessage();
@@ -7269,6 +7263,13 @@ HistoryServiceMsg::~HistoryServiceMsg() {
 
 HistoryDateMsg::HistoryDateMsg(History *history, HistoryBlock *block, const QDate &date) :
 HistoryServiceMsg(history, block, clientMsgId(), QDateTime(date), langDayOfMonthFull(date)) {
+}
+
+void HistoryDateMsg::setDate(const QDateTime &date) {
+	if (this->date.date() != date.date()) {
+		setServiceText(langDayOfMonthFull(date.date()));
+	}
+	HistoryServiceMsg::setDate(date);
 }
 
 HistoryItem *createDayServiceMsg(History *history, HistoryBlock *block, QDateTime date) {

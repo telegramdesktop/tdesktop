@@ -1215,9 +1215,6 @@ void OverviewInner::leaveEvent(QEvent *e) {
 }
 
 void OverviewInner::resizeEvent(QResizeEvent *e) {
-	_search.setGeometry(_rowsLeft, st::linksSearchMargin.top(), _rowWidth, _search.height());
-	_cancelSearch.moveToLeft(_rowsLeft + _rowWidth - _cancelSearch.width(), _search.y());
-
 	onUpdateSelected();
 	update();
 }
@@ -1372,6 +1369,10 @@ int32 OverviewInner::resizeToWidth(int32 nwidth, int32 scrollTop, int32 minHeigh
 		_rowWidth = qMin(_width - st::profilePadding.left() - st::profilePadding.right(), int32(st::profileMaxWidth));
 	}
 	_rowsLeft = (_width - _rowWidth) / 2;
+
+	_search.setGeometry(_rowsLeft, st::linksSearchMargin.top(), _rowWidth, _search.height());
+	_cancelSearch.moveToLeft(_rowsLeft + _rowWidth - _cancelSearch.width(), _search.y());
+
 	if (_type == OverviewPhotos || _type == OverviewVideos) {
 		for (int32 i = 0, l = _items.size(); i < l; ++i) {
 			_items.at(i)->resizeGetHeight(_rowWidth);

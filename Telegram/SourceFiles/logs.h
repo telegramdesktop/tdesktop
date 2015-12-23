@@ -77,10 +77,17 @@ class MTPlong;
 QString logVectorLong(const QVector<MTPlong> &ids);
 QString logVectorLong(const QVector<uint64> &ids);
 
+void logWrite(const QString &v);
+
 #define LOG(msg) (logWrite(QString msg))
 //usage LOG(("log: %1 %2").arg(1).arg(2))
 
-void logWrite(const QString &v);
+inline void t_noop() {}
+inline void t_assert_fail(const char *condition, const char *file, int32 line) {
+	LOG(("Assertion Failed! \"%1\" %2:%3").arg(condition).arg(file).arg(line));
+	abort();
+}
+#define t_assert(cond) ((!(cond)) ? t_assert_fail(#cond, __FILE__, __LINE__) : t_noop())
 
 void logsInit();
 void logsInitDebug();
