@@ -194,7 +194,7 @@ public:
 		clear();
 	}
 
-	HistoryItem *createItem(HistoryBlock *block, const MTPMessage &msg, bool applyServiceAction, bool returnExisting = false);
+	HistoryItem *createItem(HistoryBlock *block, const MTPMessage &msg, bool applyServiceAction);
 	HistoryItem *createItemForwarded(HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg);
 	HistoryItem *createItemDocument(HistoryBlock *block, MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc);
 
@@ -266,21 +266,6 @@ public:
 	}
 	void popNotification(HistoryItem *item) {
 		if (!notifies.isEmpty() && notifies.back() == item) notifies.pop_back();
-	}
-
-	void itemReplaced(HistoryItem *old, HistoryItem *item) {
-		if (!notifies.isEmpty()) {
-			for (NotifyQueue::iterator i = notifies.begin(), e = notifies.end(); i != e; ++i) {
-				if ((*i) == old) {
-					*i = item;
-					break;
-				}
-			}
-		}
-		if (lastMsg == old) {
-			lastMsg = item;
-		}
-		// showFrom can't be detached
 	}
 
 	void paintDialog(Painter &p, int32 w, bool sel) const;
@@ -1101,7 +1086,7 @@ private:
 	HistoryItem *_item;
 };
 
-HistoryItem *regItem(HistoryItem *item, bool returnExisting = false);
+HistoryItem *regItem(HistoryItem *item);
 
 class RadialAnimation {
 public:

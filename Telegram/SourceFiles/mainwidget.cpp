@@ -1484,25 +1484,6 @@ void MainWidget::itemRemoved(HistoryItem *item) {
 	}
 }
 
-void MainWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
-	api()->itemReplaced(oldItem, newItem);
-	dialogs.itemReplaced(oldItem, newItem);
-	if (history.peer() == newItem->history()->peer || (history.peer() && history.peer() == newItem->history()->peer->migrateTo())) {
-		history.itemReplaced(oldItem, newItem);
-	}
-	if (!_toForward.isEmpty()) {
-		SelectedItemSet::iterator i = _toForward.find(oldItem->id);
-		if (i != _toForward.cend() && i.value() == oldItem) {
-			i.value() = newItem;
-		} else {
-			i = _toForward.find(oldItem->id - ServerMaxMsgId);
-			if (i != _toForward.cend() && i.value() == oldItem) {
-				i.value() = newItem;
-			}
-		}
-	}
-}
-
 bool MainWidget::overviewFailed(PeerData *peer, const RPCError &error, mtpRequestId req) {
 	if (mtpIsFlood(error)) return false;
 
@@ -4228,15 +4209,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		if (msg.msg) {
 			HistoryItem *msgRow = App::histItemById(msg);
 			if (msgRow) {
-				App::historyUnregItem(msgRow);
-				if (App::wnd()) App::wnd()->changingMsgId(msgRow, d.vid.v);
-				msgRow->setId(d.vid.v);
-				if (msgRow->history()->peer->isSelf()) {
-					msgRow->history()->unregTyping(App::self());
-				}
-				if (!App::historyRegItem(msgRow)) {
-					Ui::redrawHistoryItem(msgRow);
-				} else {
+				if (App::histItemById(msg.channel, d.vid.v)) {
 					History *h = msgRow->history();
 					bool wasLast = (h->lastMsg == msgRow);
 					msgRow->destroy();
@@ -4244,6 +4217,15 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 						checkPeerHistory(h->peer);
 					}
 					history.peerMessagesUpdated();
+				} else {
+					App::historyUnregItem(msgRow);
+					if (App::wnd()) App::wnd()->changingMsgId(msgRow, d.vid.v);
+					msgRow->setId(d.vid.v);
+					if (msgRow->history()->peer->isSelf()) {
+						msgRow->history()->unregTyping(App::self());
+					}
+					App::historyRegItem(msgRow);
+					Ui::redrawHistoryItem(msgRow);
 				}
 			}
 			App::historyUnregRandom(d.vrandom_id.v);

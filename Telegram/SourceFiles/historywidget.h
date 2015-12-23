@@ -80,7 +80,6 @@ public:
 	void selectItem(HistoryItem *item);
 
 	void itemRemoved(HistoryItem *item);
-	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 
 	void updateBotInfo(bool recount = true);
 
@@ -491,7 +490,6 @@ public:
 
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
 	void itemRemoved(HistoryItem *item);
-	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 
 	void updateScrollColors();
 

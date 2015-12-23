@@ -694,20 +694,6 @@ void HistoryInner::itemRemoved(HistoryItem *item) {
 	updateDragSelection(_dragSelFrom, _dragSelTo, _dragSelecting, true);
 }
 
-void HistoryInner::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
-	if (_dragItem == oldItem) _dragItem = newItem;
-
-	SelectedItems::iterator i = _selected.find(oldItem);
-	if (i != _selected.cend()) {
-		uint32 v = i.value();
-		_selected.erase(i);
-		_selected.insert(newItem, v);
-	}
-
-	if (_dragSelFrom == oldItem) _dragSelFrom = newItem;
-	if (_dragSelTo == oldItem) _dragSelTo = newItem;
-}
-
 void HistoryInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton button) {
 	TextLinkPtr needClick;
 
@@ -5677,13 +5663,6 @@ void HistoryWidget::itemRemoved(HistoryItem *item) {
 		onKbToggle();
 		_kbReplyTo = 0;
 	}
-}
-
-void HistoryWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
-	if (_list) _list->itemReplaced(oldItem, newItem);
-	if (_replyTo == oldItem) _replyTo = newItem;
-	if (_kbReplyTo == oldItem) _kbReplyTo = newItem;
-	if (_replyReturn == oldItem) _replyReturn = newItem;
 }
 
 void HistoryWidget::updateScrollColors() {

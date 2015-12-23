@@ -115,7 +115,6 @@ public:
 	void onFilterUpdate(QString newFilter, bool force = false);
 	void onHashtagFilterUpdate(QStringRef newFilter);
 	void itemRemoved(HistoryItem *item);
-	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 
 	PeerData *updateFromParentDrag(QPoint globalPos);
 
@@ -258,7 +257,6 @@ public:
 	void onSearchMore();
 
 	void itemRemoved(HistoryItem *item);
-	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 
 	void updateNotifySettings(PeerData *peer);
 

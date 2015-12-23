@@ -526,7 +526,7 @@ void ChannelHistory::insertCollapseItem(MsgId wasMinId) {
 			HistoryItem *item = block->items.at(itemIndex);
 			if (insertAfter || item->id > wasMinId || (item->id == wasMinId && !item->isImportant())) {
 				_collapseMessage = new HistoryCollapse(this, block, wasMinId, item->date);
-				if (!addNewInTheMiddle(_collapseMessage, blockIndex, itemIndex)) {
+				if (!addNewInTheMiddle(regItem(_collapseMessage), blockIndex, itemIndex)) {
 					_collapseMessage = 0;
 				}
 				return;
@@ -670,12 +670,12 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 					++itemIndex;
 					if (item->date.date() != inviteDate.date()) {
 						HistoryDateMsg *joinedDateItem = new HistoryDateMsg(this, block, inviteDate.date());
-						if (addNewInTheMiddle(joinedDateItem, blockIndex, itemIndex)) {
+						if (addNewInTheMiddle(regItem(joinedDateItem), blockIndex, itemIndex)) {
 							++itemIndex;
 						}
 					}
 					_joinedMessage = new HistoryJoined(this, block, inviteDate, inviter, flags);
-					if (!addNewInTheMiddle(_joinedMessage, blockIndex, itemIndex)) {
+					if (!addNewInTheMiddle(regItem(_joinedMessage), blockIndex, itemIndex)) {
 						_joinedMessage = 0;
 					}
 					if (lastSeenDateItem && lastSeenDateItem->date.date() == inviteDate.date()) {
@@ -709,11 +709,7 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 	HistoryBlock *block = new HistoryBlock(this);
 
 	_joinedMessage = new HistoryJoined(this, block, inviteDate, inviter, flags);
-	if (regItem(_joinedMessage)) {
-		addItemAfterPrevToBlock(_joinedMessage, 0, block);
-	} else {
-		_joinedMessage = 0;
-	}
+	addItemAfterPrevToBlock(regItem(_joinedMessage), 0, block);
 	if (till && _joinedMessage && inviteDate.date() != till->date.date()) {
 		HistoryItem *dayItem = createDayServiceMsg(this, block, till->date);
 		block->items.push_back(dayItem);
@@ -1316,9 +1312,7 @@ HistoryItem *Histories::addNewMessage(const MTPMessage &msg, NewMessageType type
 	return findOrInsert(peer, 0, 0)->addNewMessage(msg, type);
 }
 
-HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, bool applyServiceAction, bool returnExisting) {
-	HistoryItem *result = 0;
-
+HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, bool applyServiceAction) {
 	MsgId msgId = 0;
 	switch (msg.type()) {
 	case mtpc_messageEmpty: msgId = msg.c_messageEmpty().vid.v; break;
@@ -1327,18 +1321,23 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 	}
 	if (!msgId) return 0;
 
-	HistoryItem *existing = App::histItemById(channelId(), msgId);
-	if (existing) {
-		bool regged = false;
-		if (existing->detached() && block) {
-			existing->attach(block);
-			regged = true;
+	HistoryItem *result = App::histItemById(channelId(), msgId);
+	if (result) {
+		if (block) {
+			if (result->detached()) {
+				result->attach(block);
+			} else if (result->block() != block) {
+				LOG(("App Error: createItem() called for existing item in other block!"));
+				result->destroy();
+				result = 0;
+			}
 		}
-
-		if (msg.type() == mtpc_message) {
-			existing->updateMedia(msg.c_message().has_media() ? (&msg.c_message().vmedia) : 0, (block ? false : true));
+		if (result) {
+			if (msg.type() == mtpc_message) {
+				result->updateMedia(msg.c_message().has_media() ? (&msg.c_message().vmedia) : 0, (block ? false : true));
+			}
+			return result;
 		}
-		return (returnExisting || regged) ? existing : 0;
 	}
 
 	switch (msg.type()) {
@@ -1545,15 +1544,11 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 	} break;
 	}
 
-	return regItem(result, returnExisting);
+	return regItem(result);
 }
 
 HistoryItem *History::createItemForwarded(HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg) {
-	HistoryItem *result = 0;
-
-	result = new HistoryForwarded(this, block, id, date, from, msg);
-
-	return regItem(result);
+	return regItem(new HistoryForwarded(this, block, id, date, from, msg));
 }
 
 HistoryItem *History::createItemDocument(HistoryBlock *block, MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc) {
@@ -1577,7 +1572,8 @@ HistoryItem *History::addNewService(MsgId msgId, QDateTime date, const QString &
 		to = blocks.back();
 	}
 
-	return addNewItem(to, newBlock, regItem(new HistoryServiceMsg(this, to, msgId, date, text, flags, media)), newMsg);
+	HistoryItem *result = new HistoryServiceMsg(this, to, msgId, date, text, flags, media);
+	return addNewItem(to, newBlock, regItem(result), newMsg);
 }
 
 HistoryItem *History::addNewMessage(const MTPMessage &msg, NewMessageType type) {
@@ -1606,7 +1602,7 @@ HistoryItem *History::addNewMessage(const MTPMessage &msg, NewMessageType type) 
 }
 
 HistoryItem *History::addToHistory(const MTPMessage &msg) {
-	return createItem(0, msg, false, true);
+	return createItem(0, msg, false);
 }
 
 HistoryItem *History::addNewForwarded(MsgId id, QDateTime date, int32 from, HistoryMessage *item) {
@@ -2344,15 +2340,12 @@ void History::addUnreadBar() {
 	}
 	HistoryBlock *block = showFrom->block();
 	unreadBar = new HistoryUnreadBar(this, block, count, showFrom->date);
-	if (!addNewInTheMiddle(unreadBar, blocks.indexOf(block), block->items.indexOf(showFrom))) {
+	if (!addNewInTheMiddle(regItem(unreadBar), blocks.indexOf(block), block->items.indexOf(showFrom))) {
 		unreadBar = 0;
 	}
 }
 
 HistoryItem *History::addNewInTheMiddle(HistoryItem *newItem, int32 blockIndex, int32 itemIndex) {
-	if (!regItem(newItem)) {
-		return 0;
-	}
 	if (blockIndex < 0 || itemIndex < 0 || blockIndex >= blocks.size() || itemIndex > blocks.at(blockIndex)->items.size()) {
 		delete newItem;
 		return 0;
@@ -3014,16 +3007,11 @@ HistoryItem::~HistoryItem() {
 	}
 }
 
-HistoryItem *regItem(HistoryItem *item, bool returnExisting) {
-	if (!item) return 0;
-
-	HistoryItem *existing = App::historyRegItem(item);
-	if (existing) {
-		delete item;
-		return returnExisting ? existing : 0;
+HistoryItem *regItem(HistoryItem *item) {
+	if (item) {
+		App::historyRegItem(item);
+		item->initDimensions();
 	}
-
-	item->initDimensions();
 	return item;
 }
 

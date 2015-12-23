@@ -907,14 +907,6 @@ void DialogsInner::clearSearchResults(bool clearPeople) {
 	_lastSearchId = _lastSearchMigratedId = 0;
 }
 
-void DialogsInner::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
-	for (int i = 0; i < _searchResults.size(); ++i) {
-		if (_searchResults[i]->_item == oldItem) {
-			_searchResults[i]->_item = newItem;
-		}
-	}
-}
-
 void DialogsInner::updateNotifySettings(PeerData *peer) {
 	if (_menu && _menuPeer == peer && _menu->actions().size() > 1) {
 		_menu->actions().at(1)->setText(lang(menuPeerMuted() ? lng_enable_notifications_from_tray : lng_disable_notifications_from_tray));
@@ -1868,10 +1860,6 @@ void DialogsWidget::onCancel() {
 
 void DialogsWidget::itemRemoved(HistoryItem *item) {
 	_inner.itemRemoved(item);
-}
-
-void DialogsWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
-	_inner.itemReplaced(oldItem, newItem);
 }
 
 void DialogsWidget::updateNotifySettings(PeerData *peer) {

@@ -64,36 +64,6 @@ void ApiWrap::itemRemoved(HistoryItem *item) {
 	}
 }
 
-void ApiWrap::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
-	if (HistoryReply *reply = oldItem->toHistoryReply()) {
-		ChannelData *channel = reply->history()->peer->asChannel();
-		ReplyToRequests *requests(replyToRequests(channel, true));
-		if (requests) {
-			ReplyToRequests::iterator i = requests->find(reply->replyToId());
-			if (i != requests->cend()) {
-				for (QList<HistoryReply*>::iterator j = i->replies.begin(); j != i->replies.end();) {
-					if ((*j) == reply) {
-						if (HistoryReply *newReply = newItem->toHistoryReply()) {
-							*j = newReply;
-							++j;
-						} else {
-							j = i->replies.erase(j);
-						}
-					} else {
-						++j;
-					}
-				}
-				if (i->replies.isEmpty()) {
-					requests->erase(i);
-				}
-			}
-			if (channel && requests->isEmpty()) {
-				_channelReplyToRequests.remove(channel);
-			}
-		}
-	}
-}
-
 void ApiWrap::requestReplyTo(HistoryReply *reply, ChannelData *channel, MsgId id) {
 	ReplyToRequest &req(channel ? _channelReplyToRequests[channel][id] : _replyToRequests[id]);
 	req.replies.append(reply);

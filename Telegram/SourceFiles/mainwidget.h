@@ -335,7 +335,6 @@ public:
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void itemRemoved(HistoryItem *item);
-	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 
 	void loadMediaBack(PeerData *peer, MediaOverviewType type, bool many = false);
 	void peerUsernameChanged(PeerData *peer);

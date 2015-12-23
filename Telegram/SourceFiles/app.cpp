@@ -1834,47 +1834,16 @@ namespace App {
 		return 0;
 	}
 
-	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
-		if (HistoryReply *r = oldItem->toHistoryReply()) {
-			QMap<HistoryReply*, bool> &replies(::repliesTo[r->replyToMessage()]);
-			replies.remove(r);
-			if (HistoryReply *n = newItem->toHistoryReply()) {
-				replies.insert(n, true);
-			}
-		}
-		RepliesTo::iterator i = ::repliesTo.find(oldItem);
-		if (i != ::repliesTo.cend() && oldItem != newItem) {
-			QMap<HistoryReply*, bool> replies = i.value();
-			::repliesTo.erase(i);
-			::repliesTo[newItem] = replies;
-			for (QMap<HistoryReply*, bool>::iterator i = replies.begin(), e = replies.end(); i != e; ++i) {
-				i.key()->replyToReplaced(oldItem, newItem);
-			}
-		}
-		newItem->history()->itemReplaced(oldItem, newItem);
-		if (App::main()) App::main()->itemReplaced(oldItem, newItem);
-		if (App::hoveredItem() == oldItem) App::hoveredItem(newItem);
-		if (App::pressedItem() == oldItem) App::pressedItem(newItem);
-		if (App::hoveredLinkItem() == oldItem) App::hoveredLinkItem(newItem);
-		if (App::pressedLinkItem() == oldItem) App::pressedLinkItem(newItem);
-		if (App::contextItem() == oldItem) App::contextItem(newItem);
-		if (App::mousedItem() == oldItem) App::mousedItem(newItem);
-	}
-
-	HistoryItem *historyRegItem(HistoryItem *item) {
+	void historyRegItem(HistoryItem *item) {
 		MsgsData *data = fetchMsgsData(item->channelId());
 		MsgsData::const_iterator i = data->constFind(item->id);
 		if (i == data->cend()) {
 			data->insert(item->id, item);
-			return 0;
-		}
-		if (i.value() != item && !i.value()->block() && item->block()) { // replace search item
-			itemReplaced(i.value(), item);
-			delete i.value();
+		} else if (i.value() != item) {
+			LOG(("App Error: trying to historyRegItem() an already registered item"));
+			i.value()->destroy();
 			data->insert(item->id, item);
-			return 0;
 		}
-		return (i.value() == item) ? 0 : i.value();
 	}
 
 	void historyItemDetached(HistoryItem *item) {

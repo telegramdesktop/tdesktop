@@ -149,7 +149,7 @@ namespace App {
 	inline HistoryItem *histItemById(const FullMsgId &msgId) {
 		return histItemById(msgId.channel, msgId.msg);
 	}
-	HistoryItem *historyRegItem(HistoryItem *item);
+	void historyRegItem(HistoryItem *item);
 	void historyItemDetached(HistoryItem *item);
 	void historyUnregItem(HistoryItem *item);
 	void historyClearMsgs();
