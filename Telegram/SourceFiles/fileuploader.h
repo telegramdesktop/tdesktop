@@ -35,12 +35,14 @@ public:
 	int32 fullSize(const FullMsgId &msgId) const;
 
 	void cancel(const FullMsgId &msgId);
+	void pause(const FullMsgId &msgId);
 	void confirm(const FullMsgId &msgId);
 
 	void clear();
 
 public slots:
 
+	void unpause();
 	void sendNext();
 	void killSessions();
 
@@ -101,6 +103,7 @@ private:
 		FileLoadResultPtr file;
 		ReadyLocalMedia media;
 		int32 partsCount;
+		mutable int32 fileSentSize;
 
 		uint64 id() const {
 			return file ? file->id : media.id;
@@ -136,7 +139,7 @@ private:
 	uint32 sentSize;
 	uint32 sentSizes[MTPUploadSessionsCount];
 	
-	FullMsgId uploading;
+	FullMsgId uploading, _paused;
 	Queue queue;
 	Queue uploaded;
 	QTimer nextTimer, killSessionsTimer;

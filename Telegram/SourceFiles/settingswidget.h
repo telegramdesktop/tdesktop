@@ -57,7 +57,7 @@ private:
 
 };
 
-class SettingsInner : public QWidget, public RPCSender, public Animated {
+class SettingsInner : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -71,7 +71,7 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void contextMenuEvent(QContextMenuEvent *e);
 
-	bool animStep(float64 ms);
+	void step_photo(float64 ms, bool timer);
 
 	void updateSize(int32 newWidth);
 
@@ -151,6 +151,8 @@ public slots:
 	void onTempDirCleared(int task);
 	void onTempDirClearFailed(int task);
 
+	void onAutoDownload();
+
 	void onBackFromGallery();
 	void onBackFromFile();
 	void onTileBackground();
@@ -203,7 +205,8 @@ private:
 	FlatButton _uploadPhoto;
 	LinkButton _cancelPhoto;
 	bool _nameOver, _photoOver;
-	anim::fvalue a_photo;
+	anim::fvalue a_photoOver;
+	Animation _a_photo;
 
 	QString _errorText;
 
@@ -257,18 +260,19 @@ private:
 		TempDirCleared     = 4,
 	};
 	TempDirClearState _tempDirClearState;
-
-	// chat background
-	QPixmap _background;
-	LinkButton _backFromGallery, _backFromFile;
-	FlatCheckbox _tileBackground;
-	bool _needBackgroundUpdate;
+	LinkButton _autoDownload;
 
 	// local storage
 	LinkButton _localStorageClear;
 	int32 _localStorageHeight;
 	int32 _storageClearingWidth, _storageClearedWidth, _storageClearFailedWidth;
 	TempDirClearState _storageClearState;
+
+	// chat background
+	QPixmap _background;
+	LinkButton _backFromGallery, _backFromFile;
+	FlatCheckbox _tileBackground;
+	bool _needBackgroundUpdate;
 
 	// advanced
 	LinkButton _passcodeEdit, _passcodeTurnOff, _autoLock;
@@ -315,8 +319,8 @@ public:
 	void updateWideMode();
 
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
-	bool animStep_show(float64 ms);
-	void animStop_show();
+	void step_show(float64 ms, bool timer);
+	void stop_show();
 
 	void updateOnlineDisplay();
 	void updateConnectionType();

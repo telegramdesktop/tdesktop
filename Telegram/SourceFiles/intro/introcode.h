@@ -42,7 +42,7 @@ protected:
 
 };
 
-class IntroCode : public IntroStage, public Animated, public RPCSender {
+class IntroCode : public IntroStage, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -52,7 +52,7 @@ public:
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
-	bool animStep(float64 ms);
+	void step_error(float64 ms, bool timer);
 
 	void activate();
 	void prepareShow();
@@ -86,7 +86,8 @@ private:
 	void stopCheck();
 
 	QString error;
-	anim::fvalue errorAlpha;
+	anim::fvalue a_errorAlpha;
+	Animation _a_error;
 
 	FlatButton next;
 

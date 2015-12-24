@@ -23,6 +23,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "window.h"
 #include "mainwidget.h"
 
+#include "layerwidget.h"
+
 namespace App {
 
 	void sendBotCommand(const QString &cmd, MsgId replyTo) {
@@ -66,18 +68,6 @@ namespace App {
 		if (Window *win = wnd()) win->showSettings();
 	}
 
-	void showLayer(LayeredWidget *widget, bool forceFast) {
-		if (Window *w = wnd()) w->showLayer(widget, forceFast);
-	}
-
-	void replaceLayer(LayeredWidget *widget) {
-		if (Window *w = wnd()) w->replaceLayer(widget);
-	}
-
-	void showLayerLast(LayeredWidget *widget) {
-		if (Window *w = wnd()) w->showLayerLast(widget);
-	}
-
 }
 
 namespace Ui {
@@ -90,20 +80,104 @@ namespace Ui {
 		if (MainWidget *m = App::main()) m->ui_hideStickerPreview();
 	}
 
+	void showLayer(LayeredWidget *box, ShowLayerOptions options) {
+		if (Window *w = App::wnd()) {
+			w->ui_showLayer(box, options);
+		} else {
+			delete box;
+		}
+	}
+
+	void hideLayer(bool fast) {
+		if (Window *w = App::wnd()) w->ui_showLayer(0, ShowLayerOptions(CloseOtherLayers) | (fast ? ForceFastShowLayer : AnimatedShowLayer));
+	}
+
+	bool isLayerShown() {
+		if (Window *w = App::wnd()) return w->ui_isLayerShown();
+		return false;
+	}
+
+	void clipRedraw(ClipReader *reader) {
+		const GifItems &items(App::gifItems());
+		GifItems::const_iterator it = items.constFind(reader);
+		if (it != items.cend()) {
+			if (reader->currentDisplayed()) {
+				return;
+			}
+			Ui::redrawHistoryItem(it.value());
+		}
+		if (Window *w = App::wnd()) w->ui_clipRedraw(reader);
+	}
+
+	void redrawHistoryItem(const HistoryItem *item) {
+		if (MainWidget *m = App::main()) m->ui_redrawHistoryItem(item);
+	}
+
+	void showPeerHistory(const PeerId &peer, MsgId msgId, bool back) {
+		if (MainWidget *m = App::main()) m->ui_showPeerHistory(peer, msgId, back);
+	}
+
+	void showPeerHistoryAsync(const PeerId &peer, MsgId msgId) {
+		if (MainWidget *m = App::main()) {
+			QMetaObject::invokeMethod(m, SLOT(ui_showPeerHistoryAsync(quint64,qint32)), Qt::QueuedConnection, Q_ARG(quint64, peer), Q_ARG(qint32, msgId));
+		}
+	}
+
 }
 
 namespace Notify {
 
 	void userIsBotChanged(UserData *user) {
-		if (MainWidget *m = App::main()) m->notifyUserIsBotChanged(user);
+		if (MainWidget *m = App::main()) m->notify_userIsBotChanged(user);
+	}
+
+	void userIsContactChanged(UserData *user, bool fromThisApp) {
+		if (MainWidget *m = App::main()) m->notify_userIsContactChanged(user, fromThisApp);
 	}
 
 	void botCommandsChanged(UserData *user) {
-		if (MainWidget *m = App::main()) m->notifyBotCommandsChanged(user);
+		if (MainWidget *m = App::main()) m->notify_botCommandsChanged(user);
 	}
 
 	void migrateUpdated(PeerData *peer) {
-		if (MainWidget *m = App::main()) m->notifyMigrateUpdated(peer);
+		if (MainWidget *m = App::main()) m->notify_migrateUpdated(peer);
+	}
+
+	void clipReinit(ClipReader *reader) {
+		const GifItems &items(App::gifItems());
+		GifItems::const_iterator it = items.constFind(reader);
+		if (it != items.cend()) {
+			HistoryItem *item = it.value();
+
+			bool stopped = false;
+			if (reader->paused()) {
+				if (MainWidget *m = App::main()) {
+					if (!m->isItemVisible(item)) { // stop animation if it is not visible
+						if (HistoryMedia *media = item->getMedia()) {
+							media->stopInline(item);
+							if (DocumentData *document = media->getDocument()) { // forget data from memory
+								document->forget();
+							}
+							stopped = true;
+						}
+					}
+				}
+			}
+			if (!stopped) {
+				item->initDimensions(); // can delete reader and items entry it
+				Notify::historyItemResized(item);
+				Notify::historyItemLayoutChanged(item);
+			}
+		}
+		if (Window *w = App::wnd()) w->notify_clipReinit(reader);
+	}
+
+	void historyItemResized(const HistoryItem *item, bool scrollToIt) {
+		if (MainWidget *m = App::main()) m->notify_historyItemResized(item, scrollToIt);
+	}
+
+	void historyItemLayoutChanged(const HistoryItem *item) {
+		if (MainWidget *m = App::main()) m->notify_historyItemLayoutChanged(item);
 	}
 
 }

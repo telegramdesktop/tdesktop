@@ -84,16 +84,16 @@ void LanguageBox::mousePressEvent(QMouseEvent *e) {
 		for (int32 i = 1; i < languageCount; ++i) {
 			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i] + qsl(".strings"), LangLoaderRequest(lngkeys_cnt));
 			if (!loader.errors().isEmpty()) {
-				App::wnd()->showLayer(new InformBox(qsl("Lang \"") + LanguageCodes[i] + qsl("\" error :(\n\nError: ") + loader.errors()));
+				Ui::showLayer(new InformBox(qsl("Lang \"") + LanguageCodes[i] + qsl("\" error :(\n\nError: ") + loader.errors()));
 				return;
 			} else if (!loader.warnings().isEmpty()) {
 				QString warn = loader.warnings();
 				if (warn.size() > 256) warn = warn.mid(0, 254) + qsl("..");
-				App::wnd()->showLayer(new InformBox(qsl("Lang \"") + LanguageCodes[i] + qsl("\" warnings :(\n\nWarnings: ") + warn));
+				Ui::showLayer(new InformBox(qsl("Lang \"") + LanguageCodes[i] + qsl("\" warnings :(\n\nWarnings: ") + warn));
 				return;
 			}
 		}
-		App::wnd()->showLayer(new InformBox(qsl("Everything seems great in all %1 languages!").arg(languageCount - 1)));
+		Ui::showLayer(new InformBox(qsl("Everything seems great in all %1 languages!").arg(languageCount - 1)));
 	}
 }
 
@@ -124,7 +124,7 @@ void LanguageBox::onChange() {
 			ConfirmBox *box = new ConfirmBox(text, save, st::defaultBoxButton, cancel);
 			connect(box, SIGNAL(confirmed()), this, SLOT(onSave()));
 			connect(box, SIGNAL(closed()), this, SLOT(onRestore()));
-			App::wnd()->replaceLayer(box);
+			Ui::showLayer(box, KeepOtherLayers);
 		}
 	}
 }

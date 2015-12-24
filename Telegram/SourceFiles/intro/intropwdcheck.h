@@ -25,7 +25,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "gui/flatinput.h"
 #include "intro.h"
 
-class IntroPwdCheck : public IntroStage, public Animated, public RPCSender {
+class IntroPwdCheck : public IntroStage, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -35,7 +35,7 @@ public:
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
-	bool animStep(float64 ms);
+	void step_error(float64 ms, bool timer);
 
 	void activate();
 	void deactivate();
@@ -69,7 +69,8 @@ private:
 	bool deleteFail(const RPCError &error);
 
 	QString error;
-	anim::fvalue errorAlpha;
+	anim::fvalue a_errorAlpha;
+	Animation _a_error;
 
 	FlatButton _next;
 

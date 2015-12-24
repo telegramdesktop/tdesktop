@@ -24,12 +24,27 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "flattextarea.h"
 #include "window.h"
 
-FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v) : QTextEdit(parent),
-_minHeight(-1), _maxHeight(-1), _maxLength(-1), _ctrlEnterSubmit(true),
-_oldtext(v), _phVisible(!v.length()),
-a_phLeft(_phVisible ? 0 : st.phShift), a_phAlpha(_phVisible ? 1 : 0), a_phColor(st.phColor->c),
-_st(st), _undoAvailable(false), _redoAvailable(false), _inDrop(false), _inHeightCheck(false), _fakeMargin(0),
-_touchPress(false), _touchRightButton(false), _touchMove(false), _correcting(false) {
+FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v) : QTextEdit(parent)
+, _minHeight(-1)
+, _maxHeight(-1)
+, _maxLength(-1)
+, _ctrlEnterSubmit(true)
+, _oldtext(v)
+, _phVisible(!v.length())
+, a_phLeft(_phVisible ? 0 : st.phShift)
+, a_phAlpha(_phVisible ? 1 : 0)
+, a_phColor(st.phColor->c)
+, _a_appearance(animation(this, &FlatTextarea::step_appearance))
+, _st(st)
+, _undoAvailable(false)
+, _redoAvailable(false)
+, _inDrop(false)
+, _inHeightCheck(false)
+, _fakeMargin(0)
+, _touchPress(false)
+, _touchRightButton(false)
+, _touchMove(false)
+, _correcting(false) {
 	setAcceptRichText(false);
 	resize(_st.width, _st.font->height);
 	
@@ -74,10 +89,10 @@ _touchPress(false), _touchRightButton(false), _touchMove(false), _correcting(fal
 
 void FlatTextarea::setTextFast(const QString &text) {
 	setPlainText(text);
-	if (animating()) {
+	if (_a_appearance.animating()) {
 		a_phLeft.finish();
 		a_phAlpha.finish();
-		anim::stop(this);
+		_a_appearance.stop();
 		update();
 	}
 }
@@ -184,7 +199,7 @@ void FlatTextarea::paintEvent(QPaintEvent *e) {
 	QRect r(rect().intersected(e->rect()));
 	p.fillRect(r, _st.bgColor->b);
 	bool phDraw = _phVisible;
-	if (animating()) {
+	if (_a_appearance.animating()) {
 		p.setOpacity(a_phAlpha.current());
 		phDraw = true;
 	}
@@ -203,13 +218,13 @@ void FlatTextarea::paintEvent(QPaintEvent *e) {
 
 void FlatTextarea::focusInEvent(QFocusEvent *e) {
 	a_phColor.start(_st.phFocusColor->c);
-	anim::start(this);
+	_a_appearance.start();
 	QTextEdit::focusInEvent(e);
 }
 
 void FlatTextarea::focusOutEvent(QFocusEvent *e) {
 	a_phColor.start(_st.phColor->c);
-	anim::start(this);
+	_a_appearance.start();
 	QTextEdit::focusOutEvent(e);
 }
 
@@ -807,11 +822,10 @@ void FlatTextarea::onRedoAvailable(bool avail) {
 	if (App::wnd()) App::wnd()->updateGlobalMenu();
 }
 
-bool FlatTextarea::animStep(float64 ms) {
+void FlatTextarea::step_appearance(float64 ms, bool timer) {
 	float dt = ms / _st.phDuration;
-	bool res = true;
 	if (dt >= 1) {
-		res = false;
+		_a_appearance.stop();
 		a_phLeft.finish();
 		a_phAlpha.finish();
 		a_phColor.finish();
@@ -823,8 +837,7 @@ bool FlatTextarea::animStep(float64 ms) {
 		a_phAlpha.update(dt, _st.phAlphaFunc);
 		a_phColor.update(dt, _st.phColorFunc);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 void FlatTextarea::setPlaceholder(const QString &ph) {
@@ -839,7 +852,7 @@ void FlatTextarea::updatePlaceholder() {
 
 	a_phLeft.start(vis ? 0 : _st.phShift);
 	a_phAlpha.start(vis ? 1 : 0);
-	anim::start(this);
+	_a_appearance.start();
 
 	_phVisible = vis;
 }

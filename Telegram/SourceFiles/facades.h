@@ -34,23 +34,53 @@ namespace App {
 	bool forward(const PeerId &peer, ForwardWhatMessages what);
 	void removeDialog(History *history);
 	void showSettings();
-	void showLayer(LayeredWidget *w, bool forceFast = false);
-	void replaceLayer(LayeredWidget *w);
-	void showLayerLast(LayeredWidget *w);
 
 };
 
-namespace Ui { // it doesn't allow me to use UI :(
+namespace Ui { // openssl doesn't allow me to use UI :(
 
 	void showStickerPreview(DocumentData *sticker);
 	void hideStickerPreview();
+
+	void showLayer(LayeredWidget *box, ShowLayerOptions options = CloseOtherLayers);
+	void hideLayer(bool fast = false);
+	bool isLayerShown();
+
+	void clipRedraw(ClipReader *reader);
+
+	void redrawHistoryItem(const HistoryItem *item);
+
+	void showPeerHistory(const PeerId &peer, MsgId msgId, bool back = false);
+	inline void showPeerHistory(const PeerData *peer, MsgId msgId, bool back = false) {
+		showPeerHistory(peer->id, msgId, back);
+	}
+	inline void showPeerHistory(const History *history, MsgId msgId, bool back = false) {
+		showPeerHistory(history->peer->id, msgId, back);
+	}
+	inline void showPeerHistoryAtItem(const HistoryItem *item) {
+		showPeerHistory(item->history()->peer->id, item->id);
+	}
+	void showPeerHistoryAsync(const PeerId &peer, MsgId msgId);
+	inline void showChatsList() {
+		showPeerHistory(PeerId(0), 0);
+	}
 
 };
 
 namespace Notify {
 
 	void userIsBotChanged(UserData *user);
+	void userIsContactChanged(UserData *user, bool fromThisApp = false);
 	void botCommandsChanged(UserData *user);
+
 	void migrateUpdated(PeerData *peer);
+
+	void clipReinit(ClipReader *reader);
+
+	void historyItemResized(const HistoryItem *item, bool scrollToIt = false);
+	inline void historyItemsResized() {
+		historyItemResized(0);
+	}
+	void historyItemLayoutChanged(const HistoryItem *item);
 
 };

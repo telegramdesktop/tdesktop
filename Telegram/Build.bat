@@ -52,7 +52,7 @@ if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%\ (
 )
 
 cd SourceFiles\
-rem copy telegram.qrc /B+,,/Y
+copy telegram.qrc /B+,,/Y
 cd ..\
 if %errorlevel% neq 0 goto error
 

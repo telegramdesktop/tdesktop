@@ -46,7 +46,7 @@ void FileUploader::uploadMedia(const FullMsgId &msgId, const ReadyLocalMedia &me
 	} else if (media.type == PrepareAudio) {
 		AudioData *audio = App::feedAudio(media.audio);
 		audio->status = FileUploading;
-		audio->data = media.data;
+		audio->setData(media.data);
 	}
 	queue.insert(msgId, File(media));
 	sendNext();
@@ -54,7 +54,8 @@ void FileUploader::uploadMedia(const FullMsgId &msgId, const ReadyLocalMedia &me
 
 void FileUploader::upload(const FullMsgId &msgId, const FileLoadResultPtr &file) {
 	if (file->type == PreparePhoto) {
-		App::feedPhoto(file->photo, file->photoThumbs);
+		PhotoData *photo = App::feedPhoto(file->photo, file->photoThumbs);
+		photo->uploadingData = new PhotoData::UploadingData(file->partssize);
 	} else if (file->type == PrepareDocument) {
 		DocumentData *document;
 		if (file->thumb.isNull()) {
@@ -69,7 +70,7 @@ void FileUploader::upload(const FullMsgId &msgId, const FileLoadResultPtr &file)
 	} else if (file->type == PrepareAudio) {
 		AudioData *audio = App::feedAudio(file->audio);
 		audio->status = FileUploading;
-		audio->data = file->content;
+		audio->setData(file->content);
 	}
 	queue.insert(msgId, File(file));
 	sendNext();
@@ -83,13 +84,13 @@ void FileUploader::currentFailed() {
 		} else if (j->type() == PrepareDocument) {
 			DocumentData *doc = App::document(j->id());
 			if (doc->status == FileUploading) {
-				doc->status = FileFailed;
+				doc->status = FileUploadFailed;
 			}
 			emit documentFailed(j.key());
 		} else if (j->type() == PrepareAudio) {
 			AudioData *audio = App::audio(j->id());
 			if (audio->status == FileUploading) {
-				audio->status = FileFailed;
+				audio->status = FileUploadFailed;
 			}
 			emit audioFailed(j.key());
 		}
@@ -115,7 +116,7 @@ void FileUploader::killSessions() {
 }
 
 void FileUploader::sendNext() {
-	if (sentSize >= MaxUploadFileParallelSize) return;
+	if (sentSize >= MaxUploadFileParallelSize || _paused.msg) return;
 
 	bool killing = killSessionsTimer.isActive();
 	if (queue.isEmpty()) {
@@ -232,6 +233,15 @@ void FileUploader::cancel(const FullMsgId &msgId) {
 	}
 }
 
+void FileUploader::pause(const FullMsgId &msgId) {
+	_paused = msgId;
+}
+
+void FileUploader::unpause() {
+	_paused = FullMsgId();
+	sendNext();
+}
+
 void FileUploader::confirm(const FullMsgId &msgId) {
 }
 
@@ -274,21 +284,28 @@ void FileUploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 			int32 dc = dcIt.value();
 			dcMap.erase(dcIt);
 
+			int32 sentPartSize = 0;
 			Queue::const_iterator k = queue.constFind(uploading);
 			if (i != requestsSent.cend()) {
-				sentSize -= i.value().size();
-				sentSizes[dc] -= i.value().size();
+				sentPartSize = i.value().size();
 				requestsSent.erase(i);
 			} else {
-				sentSize -= k->docPartSize;
-				sentSizes[dc] -= k->docPartSize;
+				sentPartSize = k->docPartSize;
 				docRequestsSent.erase(j);
 			}
+			sentSize -= sentPartSize;
+			sentSizes[dc] -= sentPartSize;
 			if (k->type() == PreparePhoto) {
+				k->fileSentSize += sentPartSize;
+				PhotoData *photo = App::photo(k->id());
+				if (photo->uploading() && k->file) {
+					photo->uploadingData->size = k->file->partssize;
+					photo->uploadingData->offset = k->fileSentSize;
+				}
 				emit photoProgress(k.key());
 			} else if (k->type() == PrepareDocument) {
 				DocumentData *doc = App::document(k->id());
-				if (doc->status == FileUploading) {
+				if (doc->uploading()) {
 					doc->uploadOffset = (k->docSentParts - docRequestsSent.size()) * k->docPartSize;
 					if (doc->uploadOffset > doc->size) {
 						doc->uploadOffset = doc->size;
@@ -297,7 +314,7 @@ void FileUploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 				emit documentProgress(k.key());
 			} else if (k->type() == PrepareAudio) {
 				AudioData *audio = App::audio(k->id());
-				if (audio->status == FileUploading) {
+				if (audio->uploading()) {
 					audio->uploadOffset = (k->docSentParts - docRequestsSent.size()) * k->docPartSize;
 					if (audio->uploadOffset > audio->size) {
 						audio->uploadOffset = audio->size;

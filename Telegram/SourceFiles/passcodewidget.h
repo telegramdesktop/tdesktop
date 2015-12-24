@@ -34,8 +34,8 @@ public:
 	void setInnerFocus();
 
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
-	bool animStep_show(float64 ms);
-	void animStop_show();
+	void step_show(float64 ms, bool timer);
+	void stop_show();
 
 	~PasscodeWidget();
 

@@ -38,12 +38,20 @@ void ScrollShadow::changeVisibility(bool shown) {
 	setVisible(shown);
 }
 
-ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::flatScroll *st) : QWidget(parent), _st(st), _vertical(vert),
-	_over(false), _overbar(false), _moving(false), _topSh(false), _bottomSh(false),
-	_connected(vert ? parent->verticalScrollBar() : parent->horizontalScrollBar()),
-    _scrollMax(_connected->maximum()), _hideIn(-1),
-    a_bg((_st->hiding ? st::transparent : _st->bgColor)->c),
-    a_bar((_st->hiding ? st::transparent : _st->barColor)->c) {
+ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::flatScroll *st) : QWidget(parent)
+, _st(st)
+, _vertical(vert)
+, _over(false)
+, _overbar(false)
+, _moving(false)
+, _topSh(false)
+, _bottomSh(false)
+, _connected(vert ? parent->verticalScrollBar() : parent->horizontalScrollBar())
+, _scrollMax(_connected->maximum())
+, _hideIn(-1)
+, a_bg((_st->hiding ? st::transparent : _st->bgColor)->c)
+, a_bar((_st->hiding ? st::transparent : _st->barColor)->c)
+, _a_appearance(animation(this, &ScrollBar::step_appearance)) {
 	recountSize();
 
 	_hideTimer.setSingleShot(true);
@@ -115,7 +123,7 @@ void ScrollBar::onHideTimer() {
 	_hideIn = -1;
 	a_bg.start(QColor(a_bg.current().red(), a_bg.current().green(), a_bg.current().blue(), 0));
 	a_bar.start(QColor(a_bar.current().red(), a_bar.current().green(), a_bar.current().blue(), 0));
-	anim::start(this);
+	_a_appearance.start();
 }
 
 ScrollArea *ScrollBar::area() {
@@ -144,26 +152,24 @@ void ScrollBar::paintEvent(QPaintEvent *e) {
 	}
 }
 
-bool ScrollBar::animStep(float64 ms) {
+void ScrollBar::step_appearance(float64 ms, bool timer) {
 	float64 dt = ms / _st->duration;
-	bool res = true;
 	if (dt >= 1) {
+		_a_appearance.stop();
 		a_bg.finish();
 		a_bar.finish();
-		res = false;
 	} else {
 		a_bg.update(dt, anim::linear);
 		a_bar.update(dt, anim::linear);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 void ScrollBar::hideTimeout(int64 dt) {
 	if (_hideIn < 0) {
 		a_bg.start((_over ? _st->bgOverColor : _st->bgColor)->c);
 		a_bar.start((_overbar ? _st->barOverColor : _st->barColor)->c);
-		anim::start(this);
+		_a_appearance.start();
 	}
 	_hideIn = dt;
 	if (!_moving && _hideIn >= 0) {
@@ -177,7 +183,7 @@ void ScrollBar::enterEvent(QEvent *e) {
 	_over = true;
 	a_bg.start(_st->bgOverColor->c);
 	a_bar.start(_st->barColor->c);
-	anim::start(this);
+	_a_appearance.start();
 }
 
 void ScrollBar::leaveEvent(QEvent *e) {
@@ -185,7 +191,7 @@ void ScrollBar::leaveEvent(QEvent *e) {
 		setMouseTracking(false);
 		a_bg.start(_st->bgColor->c);
 		a_bar.start(_st->barColor->c);
-		anim::start(this);
+		_a_appearance.start();
 		if (_hideIn >= 0) {
 			_hideTimer.start(_hideIn);
 		} else if (_st->hiding) {
@@ -202,7 +208,7 @@ void ScrollBar::mouseMoveEvent(QMouseEvent *e) {
 		if (!_moving) {
 			a_bar.start((newOverBar ? _st->barOverColor : _st->barColor)->c);
 			a_bg.start(_st->bgOverColor->c);
-			anim::start(this);
+			_a_appearance.start();
 		}
 	}
 	if (_moving) {
@@ -232,7 +238,7 @@ void ScrollBar::mousePressEvent(QMouseEvent *e) {
 			_overbar = true;
 			a_bar.start(_st->barOverColor->c);
 			a_bg.start(_st->bgOverColor->c);
-			anim::start(this);
+			_a_appearance.start();
 		}
 	}
 	emit area()->scrollStarted();
@@ -257,7 +263,7 @@ void ScrollBar::mouseReleaseEvent(QMouseEvent *e) {
 				_hideTimer.start(_hideIn);
 			}
 		}
-		if (a) anim::start(this);
+		if (a) _a_appearance.start();
 		emit area()->scrollFinished();
 	}
 	if (!_over) {

@@ -52,27 +52,27 @@ namespace {
 	}
 }
 
-IntroWidget::IntroWidget(Window *window) : TWidget(window),
-_langChangeTo(0),
-_a_stage(animFunc(this, &IntroWidget::animStep_stage)),
-_cacheHideIndex(0),
-_cacheShowIndex(0),
-_a_show(animFunc(this, &IntroWidget::animStep_show)),
-wnd(window),
-steps(new IntroSteps(this)),
-phone(0),
-code(0),
-signup(0),
-pwdcheck(0),
-current(0),
-moving(0),
-_callTimeout(60),
-_registered(false),
-_hasRecovery(false),
-_codeByTelegram(false),
-_back(this, st::setClose),
-_backFrom(0), _backTo(0) {
-	setGeometry(QRect(0, st::titleHeight, wnd->width(), wnd->height() - st::titleHeight));
+IntroWidget::IntroWidget(Window *window) : TWidget(window)
+, _langChangeTo(0)
+, _a_stage(animation(this, &IntroWidget::step_stage))
+, _cacheHideIndex(0)
+, _cacheShowIndex(0)
+, _a_show(animation(this, &IntroWidget::step_show))
+, steps(new IntroSteps(this))
+, phone(0)
+, code(0)
+, signup(0)
+, pwdcheck(0)
+, current(0)
+, moving(0)
+, _callTimeout(60)
+, _registered(false)
+, _hasRecovery(false)
+, _codeByTelegram(false)
+, _back(this, st::setClose)
+, _backFrom(0)
+, _backTo(0) {
+	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 
 	connect(&_back, SIGNAL(clicked()), this, SLOT(onIntroBack()));
 	_back.hide();
@@ -162,7 +162,7 @@ void IntroWidget::prepareMove() {
 
 	_backTo = stages[current + moving]->hasBack() ? 1 : 0;
 	_backFrom = stages[current]->hasBack() ? 1 : 0;
-	animStep_stage(0);
+	_a_stage.step();
 	if (_backFrom > 0 || _backTo > 0) {
 		_back.show();
 	} else {
@@ -227,13 +227,11 @@ void IntroWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 	show();
 }
 
-bool IntroWidget::animStep_show(float64 ms) {
+void IntroWidget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
-	bool res = true;
 	if (dt >= 1) {
 		_a_show.stop();
 
-		res = false;
 		a_coordUnder.finish();
 		a_coordOver.finish();
 		a_shadow.finish();
@@ -253,21 +251,19 @@ bool IntroWidget::animStep_show(float64 ms) {
 		a_coordOver.update(dt, st::slideFunction);
 		a_shadow.update(dt, st::slideFunction);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
-void IntroWidget::animStop_show() {
+void IntroWidget::stop_show() {
 	_a_show.stop();
 }
 
-bool IntroWidget::animStep_stage(float64 ms) {
-	bool res = true;
-
+void IntroWidget::step_stage(float64 ms, bool timer) {
 	float64 fullDuration = st::introSlideDelta + st::introSlideDuration, dt = ms / fullDuration;
 	float64 dt1 = (ms > st::introSlideDuration) ? 1 : (ms / st::introSlideDuration), dt2 = (ms > st::introSlideDelta) ? (ms - st::introSlideDelta) / (st::introSlideDuration) : 0;
 	if (dt >= 1) {
-		res = false;
+		_a_stage.stop();
+
 		a_coordShow.finish();
 		a_opacityShow.finish();
 
@@ -292,8 +288,7 @@ bool IntroWidget::animStep_stage(float64 ms) {
 			_back.setOpacity(1);
 		}
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 void IntroWidget::paintEvent(QPaintEvent *e) {
@@ -414,7 +409,7 @@ void IntroWidget::mousePressEvent(QMouseEvent *e) {
 }
 
 void IntroWidget::finish(const MTPUser &user, const QImage &photo) {
-	wnd->setupMain(true, &user);
+	App::wnd()->setupMain(true, &user);
 	if (!photo.isNull()) {
 		App::app()->uploadProfilePhoto(photo, MTP::authedId());
 	}

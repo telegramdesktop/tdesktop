@@ -129,6 +129,7 @@ namespace Local {
 
 	void writeStickerImage(const StorageKey &location, const QByteArray &data, bool overwrite = true);
 	TaskId startStickerImageLoad(const StorageKey &location, mtpFileLoader *loader);
+	bool willStickerImageLoad(const StorageKey &location);
 	int32 hasStickers();
 	qint64 storageStickersSize();
 

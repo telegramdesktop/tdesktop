@@ -111,97 +111,104 @@ bool scaleIs(DBIScale scale) {
 	return cRealScale() == scale || (cRealScale() == dbisAuto && cScreenScale() == scale);
 }
 
-SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
-	_self(App::self()),
+SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
+, _self(App::self())
 
-	// profile
-	_nameCache(self() ? self()->name : QString()),
-    _uploadPhoto(this, lang(lng_settings_upload), st::btnSetUpload),
-    _cancelPhoto(this, lang(lng_cancel)), _nameOver(false), _photoOver(false), a_photo(0),
+// profile
+, _nameCache(self() ? self()->name : QString())
+, _uploadPhoto(this, lang(lng_settings_upload), st::btnSetUpload)
+, _cancelPhoto(this, lang(lng_cancel))
+, _nameOver(false)
+, _photoOver(false)
+, a_photoOver(0)
+, _a_photo(animation(this, &SettingsInner::step_photo))
 
-	// contact info
-	_phoneText(self() ? App::formatPhone(self()->phone) : QString()),
-	_chooseUsername(this, (self() && !self()->username.isEmpty()) ? ('@' + self()->username) : lang(lng_settings_choose_username)),
+// contact info
+, _phoneText(self() ? App::formatPhone(self()->phone) : QString())
+, _chooseUsername(this, (self() && !self()->username.isEmpty()) ? ('@' + self()->username) : lang(lng_settings_choose_username))
 
-	// notifications
-	_desktopNotify(this, lang(lng_settings_desktop_notify), cDesktopNotify()),
-	_senderName(this, lang(lng_settings_show_name), cNotifyView() <= dbinvShowName),
-	_messagePreview(this, lang(lng_settings_show_preview), cNotifyView() <= dbinvShowPreview),
-	_windowsNotifications(this, lang(lng_settings_use_windows), cWindowsNotifications()),
-	_soundNotify(this, lang(lng_settings_sound_notify), cSoundNotify()),
-	_includeMuted(this, lang(lng_settings_include_muted), cIncludeMuted()),
+// notifications
+, _desktopNotify(this, lang(lng_settings_desktop_notify), cDesktopNotify())
+, _senderName(this, lang(lng_settings_show_name), cNotifyView() <= dbinvShowName)
+, _messagePreview(this, lang(lng_settings_show_preview), cNotifyView() <= dbinvShowPreview)
+, _windowsNotifications(this, lang(lng_settings_use_windows), cWindowsNotifications())
+, _soundNotify(this, lang(lng_settings_sound_notify), cSoundNotify())
+, _includeMuted(this, lang(lng_settings_include_muted), cIncludeMuted())
 
-	// general
-	_changeLanguage(this, lang(lng_settings_change_lang)),
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	_autoUpdate(this, lang(lng_settings_auto_update), cAutoUpdate()),
-	_checkNow(this, lang(lng_settings_check_now)),
-	_restartNow(this, lang(lng_settings_update_now)),
-	#endif
+// general
+, _changeLanguage(this, lang(lng_settings_change_lang))
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+, _autoUpdate(this, lang(lng_settings_auto_update), cAutoUpdate())
+, _checkNow(this, lang(lng_settings_check_now))
+, _restartNow(this, lang(lng_settings_update_now))
+#endif
 
-    _supportTray(cSupportTray()),
-	_workmodeTray(this, lang(lng_settings_workmode_tray), (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray)),
-	_workmodeWindow(this, lang(lng_settings_workmode_window), (cWorkMode() == dbiwmWindowOnly || cWorkMode() == dbiwmWindowAndTray)),
+, _supportTray(cSupportTray())
+, _workmodeTray(this, lang(lng_settings_workmode_tray), (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray))
+, _workmodeWindow(this, lang(lng_settings_workmode_window), (cWorkMode() == dbiwmWindowOnly || cWorkMode() == dbiwmWindowAndTray))
 
-	_autoStart(this, lang(lng_settings_auto_start), cAutoStart()),
-	_startMinimized(this, lang(lng_settings_start_min), cStartMinimized()),
-	_sendToMenu(this, lang(lng_settings_add_sendto), cSendToMenu()),
+, _autoStart(this, lang(lng_settings_auto_start), cAutoStart())
+, _startMinimized(this, lang(lng_settings_start_min), cStartMinimized())
+, _sendToMenu(this, lang(lng_settings_add_sendto), cSendToMenu())
 
-	_dpiAutoScale(this, lng_settings_scale_auto(lt_cur, scaleLabel(cScreenScale())), (cConfigScale() == dbisAuto)),
-	_dpiSlider(this, st::dpiSlider, dbisScaleCount - 1, cEvalScale(cConfigScale()) - 1),
-	_dpiWidth1(st::dpiFont1->width(scaleLabel(dbisOne))),
-	_dpiWidth2(st::dpiFont2->width(scaleLabel(dbisOneAndQuarter))),
-	_dpiWidth3(st::dpiFont3->width(scaleLabel(dbisOneAndHalf))),
-	_dpiWidth4(st::dpiFont4->width(scaleLabel(dbisTwo))),
+, _dpiAutoScale(this, lng_settings_scale_auto(lt_cur, scaleLabel(cScreenScale())), (cConfigScale() == dbisAuto))
+, _dpiSlider(this, st::dpiSlider, dbisScaleCount - 1, cEvalScale(cConfigScale()) - 1)
+, _dpiWidth1(st::dpiFont1->width(scaleLabel(dbisOne)))
+, _dpiWidth2(st::dpiFont2->width(scaleLabel(dbisOneAndQuarter)))
+, _dpiWidth3(st::dpiFont3->width(scaleLabel(dbisOneAndHalf)))
+, _dpiWidth4(st::dpiFont4->width(scaleLabel(dbisTwo)))
 
-	// chat options
-	_replaceEmojis(this, lang(lng_settings_replace_emojis), cReplaceEmojis()),
-	_viewEmojis(this, lang(lng_settings_view_emojis)),
-	_stickers(this, lang(lng_stickers_you_have)),
+// chat options
+, _replaceEmojis(this, lang(lng_settings_replace_emojis), cReplaceEmojis())
+, _viewEmojis(this, lang(lng_settings_view_emojis))
+, _stickers(this, lang(lng_stickers_you_have))
 
-	_enterSend(this, qsl("send_key"), 0, lang(lng_settings_send_enter), !cCtrlEnter()),
-    _ctrlEnterSend(this, qsl("send_key"), 1, lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), cCtrlEnter()),
+, _enterSend(this, qsl("send_key"), 0, lang(lng_settings_send_enter), !cCtrlEnter())
+, _ctrlEnterSend(this, qsl("send_key"), 1, lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), cCtrlEnter())
 
-	_dontAskDownloadPath(this, lang(lng_download_path_dont_ask), !cAskDownloadPath()),
-    _downloadPathWidth(st::linkFont->width(lang(lng_download_path_label)) + st::linkFont->spacew),
-	_downloadPathEdit(this, cDownloadPath().isEmpty() ? lang(lng_download_path_default) : ((cDownloadPath() == qsl("tmp")) ? lang(lng_download_path_temp) : st::linkFont->elided(QDir::toNativeSeparators(cDownloadPath()), st::setWidth - st::setVersionLeft - _downloadPathWidth))),
-	_downloadPathClear(this, lang(lng_download_path_clear)),
-	_tempDirClearingWidth(st::linkFont->width(lang(lng_download_path_clearing))),
-	_tempDirClearedWidth(st::linkFont->width(lang(lng_download_path_cleared))),
-	_tempDirClearFailedWidth(st::linkFont->width(lang(lng_download_path_clear_failed))),
+, _dontAskDownloadPath(this, lang(lng_download_path_dont_ask), !cAskDownloadPath())
+, _downloadPathWidth(st::linkFont->width(lang(lng_download_path_label)) + st::linkFont->spacew)
+, _downloadPathEdit(this, cDownloadPath().isEmpty() ? lang(lng_download_path_default) : ((cDownloadPath() == qsl("tmp")) ? lang(lng_download_path_temp) : st::linkFont->elided(QDir::toNativeSeparators(cDownloadPath()), st::setWidth - st::cbDefFlat.textLeft - _downloadPathWidth)))
+, _downloadPathClear(this, lang(lng_download_path_clear))
+, _tempDirClearingWidth(st::linkFont->width(lang(lng_download_path_clearing)))
+, _tempDirClearedWidth(st::linkFont->width(lang(lng_download_path_cleared)))
+, _tempDirClearFailedWidth(st::linkFont->width(lang(lng_download_path_clear_failed)))
 
-	// chat background
-	_backFromGallery(this, lang(lng_settings_bg_from_gallery)),
-	_backFromFile(this, lang(lng_settings_bg_from_file)),
-	_tileBackground(this, lang(lng_settings_bg_tile), cTileBackground()),
-	_needBackgroundUpdate(false),
+, _autoDownload(this, lang(lng_media_auto_settings))
 
-	// local storage
-	_localStorageClear(this, lang(lng_local_storage_clear)),
-	_localStorageHeight(1),
-	_storageClearingWidth(st::linkFont->width(lang(lng_local_storage_clearing))),
-	_storageClearedWidth(st::linkFont->width(lang(lng_local_storage_cleared))),
-	_storageClearFailedWidth(st::linkFont->width(lang(lng_local_storage_clear_failed))),
+// local storage
+, _localStorageClear(this, lang(lng_local_storage_clear))
+, _localStorageHeight(1)
+, _storageClearingWidth(st::linkFont->width(lang(lng_local_storage_clearing)))
+, _storageClearedWidth(st::linkFont->width(lang(lng_local_storage_cleared)))
+, _storageClearFailedWidth(st::linkFont->width(lang(lng_local_storage_clear_failed)))
 
-	// advanced
-	_passcodeEdit(this, lang(cHasPasscode() ? lng_passcode_change : lng_passcode_turn_on)),
-	_passcodeTurnOff(this, lang(lng_passcode_turn_off)),
-	_autoLock(this, (cAutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, cAutoLock() / 60) : lng_passcode_autolock_hours(lt_count, cAutoLock() / 3600)),
-	_autoLockText(lang(psIdleSupported() ? lng_passcode_autolock_away : lng_passcode_autolock_inactive) + ' '),
-	_autoLockWidth(st::linkFont->width(_autoLockText)),
-	_passwordEdit(this, lang(lng_cloud_password_set)),
-	_passwordTurnOff(this, lang(lng_passcode_turn_off)),
-	_hasPasswordRecovery(false),
-	_connectionType(this, lang(lng_connection_auto_connecting)),
-	_connectionTypeText(lang(lng_connection_type) + ' '),
-	_connectionTypeWidth(st::linkFont->width(_connectionTypeText)),
-	_showSessions(this, lang(lng_settings_show_sessions)),
-	_askQuestion(this, lang(lng_settings_ask_question)),
-	_telegramFAQ(this, lang(lng_settings_faq)),
-	_logOut(this, lang(lng_settings_logout), st::btnLogout),
-	_supportGetRequest(0)
-{
+// chat background
+, _backFromGallery(this, lang(lng_settings_bg_from_gallery))
+, _backFromFile(this, lang(lng_settings_bg_from_file))
+, _tileBackground(this, lang(lng_settings_bg_tile), cTileBackground())
+, _needBackgroundUpdate(false)
+
+// advanced
+, _passcodeEdit(this, lang(cHasPasscode() ? lng_passcode_change : lng_passcode_turn_on))
+, _passcodeTurnOff(this, lang(lng_passcode_turn_off))
+, _autoLock(this, (cAutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, cAutoLock() / 60) : lng_passcode_autolock_hours(lt_count, cAutoLock() / 3600))
+, _autoLockText(lang(psIdleSupported() ? lng_passcode_autolock_away : lng_passcode_autolock_inactive) + ' ')
+, _autoLockWidth(st::linkFont->width(_autoLockText))
+, _passwordEdit(this, lang(lng_cloud_password_set))
+, _passwordTurnOff(this, lang(lng_passcode_turn_off))
+, _hasPasswordRecovery(false)
+, _connectionType(this, lang(lng_connection_auto_connecting))
+, _connectionTypeText(lang(lng_connection_type) + ' ')
+, _connectionTypeWidth(st::linkFont->width(_connectionTypeText))
+, _showSessions(this, lang(lng_settings_show_sessions))
+, _askQuestion(this, lang(lng_settings_ask_question))
+, _telegramFAQ(this, lang(lng_settings_faq))
+, _logOut(this, lang(lng_settings_logout), st::btnLogout)
+, _supportGetRequest(0) {
 	if (self()) {
+		self()->photo->load();
+
 		connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 		connect(App::api(), SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
 
@@ -287,13 +294,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	}
 	connect(App::wnd(), SIGNAL(tempDirCleared(int)), this, SLOT(onTempDirCleared(int)));
 	connect(App::wnd(), SIGNAL(tempDirClearFailed(int)), this, SLOT(onTempDirClearFailed(int)));
-
-	// chat background
-	if (!cChatBackground()) App::initBackground();
-	updateChatBackground();
-	connect(&_backFromGallery, SIGNAL(clicked()), this, SLOT(onBackFromGallery()));
-	connect(&_backFromFile, SIGNAL(clicked()), this, SLOT(onBackFromFile()));
-	connect(&_tileBackground, SIGNAL(changed()), this, SLOT(onTileBackground()));
+	connect(&_autoDownload, SIGNAL(clicked()), this, SLOT(onAutoDownload()));
 
 	// local storage
 	connect(&_localStorageClear, SIGNAL(clicked()), this, SLOT(onLocalStorageClear()));
@@ -302,6 +303,13 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	case Window::TempDirExists: _storageClearState = TempDirExists; break;
 	case Window::TempDirRemoving: _storageClearState = TempDirClearing; break;
 	}
+
+	// chat background
+	if (!cChatBackground()) App::initBackground();
+	updateChatBackground();
+	connect(&_backFromGallery, SIGNAL(clicked()), this, SLOT(onBackFromGallery()));
+	connect(&_backFromFile, SIGNAL(clicked()), this, SLOT(onBackFromFile()));
+	connect(&_tileBackground, SIGNAL(changed()), this, SLOT(onTileBackground()));
 
 	// advanced
 	connect(&_passcodeEdit, SIGNAL(clicked()), this, SLOT(onPasscode()));
@@ -393,11 +401,11 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		if (_photoLink) {
 			p.drawPixmap(_left, top, self()->photo->pix(st::setPhotoSize));
 		} else {
-			if (a_photo.current() < 1) {
+			if (a_photoOver.current() < 1) {
 				p.drawPixmap(QPoint(_left, top), App::sprite(), st::setPhotoImg);
 			}
-			if (a_photo.current() > 0) {
-				p.setOpacity(a_photo.current());
+			if (a_photoOver.current() > 0) {
+				p.setOpacity(a_photoOver.current());
 				p.drawPixmap(QPoint(_left, top), App::sprite(), st::setOverPhotoImg);
 				p.setOpacity(1);
 			}
@@ -468,8 +476,8 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 	} else {
 		textToDraw = _curVersionText;
 	}
-	p.setFont(st::linkFont->f);
-	p.setPen(st::setVersionColor->p);
+	p.setFont(st::linkFont);
+	p.setPen(st::setVersionColor);
 	p.drawText(_left + st::setVersionLeft, top + st::setVersionTop + st::linkFont->ascent, textToDraw);
 	top += st::setVersionHeight;
 	#endif
@@ -529,7 +537,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 			top += st::setLittleSkip;
 			p.setFont(st::linkFont->f);
 			p.setPen(st::black->p);
-			p.drawText(_left + st::setVersionLeft, top + st::linkFont->ascent, lang(lng_download_path_label));
+			p.drawText(_left + st::cbDefFlat.textLeft, top + st::linkFont->ascent, lang(lng_download_path_label));
 			if (cDownloadPath() == qsl("tmp")) {
 				QString clearText;
 				int32 clearWidth = 0;
@@ -544,46 +552,8 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 			}
 			top += _downloadPathEdit.height();
 		}
-		top += st::setSectionSkip;
-
-		// chat background
-		p.setFont(st::setHeaderFont->f);
-		p.setPen(st::setHeaderColor->p);
-		p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_background));
-		top += st::setHeaderSkip;
-
-		if (animateBackground) {
-			const QPixmap &pix = App::main()->newBackgroundThumb()->pixBlurred(st::setBackgroundSize);
-
-			p.drawPixmap(_left, top, st::setBackgroundSize, st::setBackgroundSize, pix, 0, (pix.height() - st::setBackgroundSize) / 2, st::setBackgroundSize, st::setBackgroundSize);
-
-			uint64 dt = getms();
-			int32 cnt = int32(st::photoLoaderCnt), period = int32(st::photoLoaderPeriod), t = dt % period, delta = int32(st::photoLoaderDelta);
-
-			int32 x = _left + (st::setBackgroundSize - st::mediaviewLoader.width()) / 2;
-			int32 y = top + (st::setBackgroundSize - st::mediaviewLoader.height()) / 2;
-			p.fillRect(x, y, st::mediaviewLoader.width(), st::mediaviewLoader.height(), st::photoLoaderBg->b);
-
-			x += (st::mediaviewLoader.width() - cnt * st::mediaviewLoaderPoint.width() - (cnt - 1) * st::mediaviewLoaderSkip) / 2;
-			y += (st::mediaviewLoader.height() - st::mediaviewLoaderPoint.height()) / 2;
-			QColor c(st::white->c);
-			QBrush b(c);
-			for (int32 i = 0; i < cnt; ++i) {
-				t -= delta;
-				while (t < 0) t += period;
-
-				float64 alpha = (t >= st::photoLoaderDuration1 + st::photoLoaderDuration2) ? 0 : ((t > st::photoLoaderDuration1 ? ((st::photoLoaderDuration1 + st::photoLoaderDuration2 - t) / st::photoLoaderDuration2) : (t / st::photoLoaderDuration1)));
-				c.setAlphaF(st::photoLoaderAlphaMin + alpha * (1 - st::photoLoaderAlphaMin));
-				b.setColor(c);
-				p.fillRect(x + i * (st::mediaviewLoaderPoint.width() + st::mediaviewLoaderSkip), y, st::mediaviewLoaderPoint.width(), st::mediaviewLoaderPoint.height(), b);
-			}
-			QTimer::singleShot(AnimationTimerDelta, this, SLOT(updateBackgroundRect()));
-		} else {
-			p.drawPixmap(_left, top, _background);
-		}
-		top += st::setBackgroundSize;
 		top += st::setLittleSkip;
-		top += _tileBackground.height();
+		top += _autoDownload.height();
 
 		// local storage
 		p.setFont(st::setHeaderFont->f);
@@ -628,6 +598,45 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 			p.drawText(_left + st::setHeaderLeft, top + st::linkFont->ascent, lang(lng_settings_no_data_cached));
 		}
 		top += _localStorageClear.height();
+
+		// chat background
+		p.setFont(st::setHeaderFont->f);
+		p.setPen(st::setHeaderColor->p);
+		p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_background));
+		top += st::setHeaderSkip;
+
+		if (animateBackground) {
+			const QPixmap &pix = App::main()->newBackgroundThumb()->pixBlurred(st::setBackgroundSize);
+
+			p.drawPixmap(_left, top, st::setBackgroundSize, st::setBackgroundSize, pix, 0, (pix.height() - st::setBackgroundSize) / 2, st::setBackgroundSize, st::setBackgroundSize);
+
+			uint64 dt = getms();
+			int32 cnt = int32(st::photoLoaderCnt), period = int32(st::photoLoaderPeriod), t = dt % period, delta = int32(st::photoLoaderDelta);
+
+			int32 x = _left + (st::setBackgroundSize - st::mediaviewLoader.width()) / 2;
+			int32 y = top + (st::setBackgroundSize - st::mediaviewLoader.height()) / 2;
+			p.fillRect(x, y, st::mediaviewLoader.width(), st::mediaviewLoader.height(), st::photoLoaderBg->b);
+
+			x += (st::mediaviewLoader.width() - cnt * st::mediaviewLoaderPoint.width() - (cnt - 1) * st::mediaviewLoaderSkip) / 2;
+			y += (st::mediaviewLoader.height() - st::mediaviewLoaderPoint.height()) / 2;
+			QColor c(st::white->c);
+			QBrush b(c);
+			for (int32 i = 0; i < cnt; ++i) {
+				t -= delta;
+				while (t < 0) t += period;
+
+				float64 alpha = (t >= st::photoLoaderDuration1 + st::photoLoaderDuration2) ? 0 : ((t > st::photoLoaderDuration1 ? ((st::photoLoaderDuration1 + st::photoLoaderDuration2 - t) / st::photoLoaderDuration2) : (t / st::photoLoaderDuration1)));
+				c.setAlphaF(st::photoLoaderAlphaMin + alpha * (1 - st::photoLoaderAlphaMin));
+				b.setColor(c);
+				p.fillRect(x + i * (st::mediaviewLoaderPoint.width() + st::mediaviewLoaderSkip), y, st::mediaviewLoaderPoint.width(), st::mediaviewLoaderPoint.height(), b);
+			}
+			QTimer::singleShot(AnimationTimerDelta, this, SLOT(updateBackgroundRect()));
+		} else {
+			p.drawPixmap(_left, top, _background);
+		}
+		top += st::setBackgroundSize;
+		top += st::setLittleSkip;
+		top += _tileBackground.height();
 	}
 
 	// advanced
@@ -718,22 +727,14 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 		_dontAskDownloadPath.move(_left, top); top += _dontAskDownloadPath.height();
 		if (!cAskDownloadPath()) {
 			top += st::setLittleSkip;
-			_downloadPathEdit.move(_left + st::setVersionLeft + _downloadPathWidth, top);
+			_downloadPathEdit.move(_left + st::cbDefFlat.textLeft + _downloadPathWidth, top);
 			if (cDownloadPath() == qsl("tmp")) {
 				_downloadPathClear.move(_left + st::setWidth - _downloadPathClear.width(), top);
 			}
 			top += _downloadPathEdit.height();
 		}
-		top += st::setSectionSkip;
-
-		// chat background
-		top += st::setHeaderSkip;
-		_backFromGallery.move(_left + st::setBackgroundSize + st::setLittleSkip, top);
-		_backFromFile.move(_left + st::setBackgroundSize + st::setLittleSkip, top + _backFromGallery.height() + st::setLittleSkip);
-		top += st::setBackgroundSize;
-
 		top += st::setLittleSkip;
-		_tileBackground.move(_left, top); top += _tileBackground.height();
+		_autoDownload.move(_left + st::cbDefFlat.textLeft, top); top += _autoDownload.height();
 
 		// local storage
 		_localStorageClear.move(_left + st::setWidth - _localStorageClear.width(), top + st::setHeaderTop + st::setHeaderFont->ascent - st::linkFont->ascent);
@@ -745,6 +746,15 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 			_localStorageHeight = 1;
 		}
 		top += _localStorageClear.height();
+
+		// chat background
+		top += st::setHeaderSkip;
+		_backFromGallery.move(_left + st::setBackgroundSize + st::setLittleSkip, top);
+		_backFromFile.move(_left + st::setBackgroundSize + st::setLittleSkip, top + _backFromGallery.height() + st::setLittleSkip);
+		top += st::setBackgroundSize;
+
+		top += st::setLittleSkip;
+		_tileBackground.move(_left, top); top += _tileBackground.height();
 	}
 
 	// advanced
@@ -783,14 +793,14 @@ void SettingsInner::keyPressEvent(QKeyEvent *e) {
 			QString text = cDebug() ? qsl("Do you want to disable DEBUG logs?") : qsl("Do you want to enable DEBUG logs?\n\nAll network events will be logged.");
 			ConfirmBox *box = new ConfirmBox(text);
 			connect(box, SIGNAL(confirmed()), App::app(), SLOT(onSwitchDebugMode()));
-			App::wnd()->showLayer(box);
+			Ui::showLayer(box);
 			from = size;
 			break;
 		} else if (str == qstr("testmode")) {
 			QString text = cTestMode() ? qsl("Do you want to disable TEST mode?") : qsl("Do you want to enable TEST mode?\n\nYou will be switched to test cloud.");
 			ConfirmBox *box = new ConfirmBox(text);
 			connect(box, SIGNAL(confirmed()), App::app(), SLOT(onSwitchTestMode()));
-			App::wnd()->showLayer(box);
+			Ui::showLayer(box);
 			from = size;
 			break;
         } else if (str == qstr("loadlang")) {
@@ -816,8 +826,8 @@ void SettingsInner::mouseMoveEvent(QMouseEvent *e) {
 		if (photoOver != _photoOver) {
 			_photoOver = photoOver;
 			if (!_photoLink) {
-				a_photo.start(_photoOver ? 1 : 0);
-				anim::start(this);
+				a_photoOver.start(_photoOver ? 1 : 0);
+				_a_photo.start();
 			}
 		}
 
@@ -831,7 +841,7 @@ void SettingsInner::mousePressEvent(QMouseEvent *e) {
 		return;
 	}
 	if (QRect(_uploadPhoto.x() + st::setNameLeft, st::setTop + st::setNameTop, qMin(_uploadPhoto.width() - int(st::setNameLeft), _nameText.maxWidth()), st::setNameFont->height).contains(e->pos())) {
-		App::wnd()->showLayer(new EditNameTitleBox(self()));
+		Ui::showLayer(new EditNameTitleBox(self()));
 	} else if (QRect(_left, st::setTop, st::setPhotoSize, st::setPhotoSize).contains(e->pos())) {
 		if (_photoLink) {
 			App::photo(self()->photoId)->full->load();
@@ -845,17 +855,15 @@ void SettingsInner::mousePressEvent(QMouseEvent *e) {
 void SettingsInner::contextMenuEvent(QContextMenuEvent *e) {
 }
 
-bool SettingsInner::animStep(float64 ms) {
+void SettingsInner::step_photo(float64 ms, bool timer) {
 	float64 dt = ms / st::setPhotoDuration;
-	bool res = true;
 	if (dt >= 1) {
-		res = false;
-		a_photo.finish();
+		_a_photo.stop();
+		a_photoOver.finish();
 	} else {
-		a_photo.update(dt, anim::linear);
+		a_photoOver.update(dt, anim::linear);
 	}
-	update(_left, st::setTop, st::setPhotoSize, st::setPhotoSize);
-	return res;
+	if (timer) update(_left, st::setTop, st::setPhotoSize, st::setPhotoSize);
 }
 
 void SettingsInner::updateSize(int32 newWidth) {
@@ -1060,7 +1068,7 @@ void SettingsInner::showAll() {
 				_downloadPathClear.hide();
 			}
 		}
-
+		_autoDownload.show();
 	} else {
 		_replaceEmojis.hide();
 		_viewEmojis.hide();
@@ -1070,6 +1078,14 @@ void SettingsInner::showAll() {
 		_dontAskDownloadPath.hide();
 		_downloadPathEdit.hide();
 		_downloadPathClear.hide();
+		_autoDownload.hide();
+	}
+
+	// local storage
+	if (self() && _storageClearState == TempDirExists) {
+		_localStorageClear.show();
+	} else {
+		_localStorageClear.hide();
 	}
 
 	// chat background
@@ -1081,13 +1097,6 @@ void SettingsInner::showAll() {
 		_backFromGallery.hide();
 		_backFromFile.hide();
 		_tileBackground.hide();
-	}
-
-	// local storage
-	if (self() && _storageClearState == TempDirExists) {
-		_localStorageClear.show();
-	} else {
-		_localStorageClear.hide();
 	}
 
 	// advanced
@@ -1138,7 +1147,7 @@ void SettingsInner::supportGot(const MTPhelp_Support &support) {
 	if (support.type() == mtpc_help_support) {
 		const MTPDhelp_support &d(support.c_help_support());
 		UserData *u = App::feedUsers(MTP_vector<MTPUser>(1, d.vuser));
-		App::main()->showPeerHistory(u->id, ShowAtUnreadMsgId);
+		Ui::showPeerHistory(u, ShowAtUnreadMsgId);
 		App::wnd()->hideSettings();
 	}
 }
@@ -1178,12 +1187,12 @@ void SettingsInner::onUpdatePhoto() {
 	}
 	PhotoCropBox *box = new PhotoCropBox(img, self());
 	connect(box, SIGNAL(closed()), this, SLOT(onPhotoUpdateStart()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onShowSessions() {
 	SessionsBox *box = new SessionsBox();
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onAskQuestion() {
@@ -1192,7 +1201,7 @@ void SettingsInner::onAskQuestion() {
 	ConfirmBox *box = new ConfirmBox(lang(lng_settings_ask_sure), lang(lng_settings_ask_ok), st::defaultBoxButton, lang(lng_settings_faq_button));
 	connect(box, SIGNAL(confirmed()), this, SLOT(onAskQuestionSure()));
 	connect(box, SIGNAL(cancelPressed()), this, SLOT(onTelegramFAQ()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onAskQuestionSure() {
@@ -1217,9 +1226,9 @@ void SettingsInner::chooseCustomLang() {
 				cancel = result.value(lng_cancel, langOriginal(lng_cancel));
             ConfirmBox *box = new ConfirmBox(text, save, st::defaultBoxButton, cancel);
             connect(box, SIGNAL(confirmed()), this, SLOT(onSaveTestLang()));
-            App::wnd()->showLayer(box);
+			Ui::showLayer(box);
         } else {
-			App::wnd()->showLayer(new InformBox("Custom lang failed :(\n\nError: " + loader.errors()));
+			Ui::showLayer(new InformBox("Custom lang failed :(\n\nError: " + loader.errors()));
         }
     }
 }
@@ -1228,7 +1237,7 @@ void SettingsInner::onChangeLanguage() {
 	if ((_changeLanguage.clickModifiers() & Qt::ShiftModifier) && (_changeLanguage.clickModifiers() & Qt::AltModifier)) {
         chooseCustomLang();
 	} else {
-		App::wnd()->showLayer(new LanguageBox());
+		Ui::showLayer(new LanguageBox());
 	}
 }
 
@@ -1293,19 +1302,19 @@ void SettingsInner::onRestartNow() {
 void SettingsInner::onPasscode() {
 	PasscodeBox *box = new PasscodeBox();
 	connect(box, SIGNAL(closed()), this, SLOT(passcodeChanged()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onPasscodeOff() {
 	PasscodeBox *box = new PasscodeBox(true);
 	connect(box, SIGNAL(closed()), this, SLOT(passcodeChanged()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onPassword() {
 	PasscodeBox *box = new PasscodeBox(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint);
 	connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onPasswordOff() {
@@ -1319,7 +1328,7 @@ void SettingsInner::onPasswordOff() {
 	} else {
 		PasscodeBox *box = new PasscodeBox(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint, true);
 		connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
-		App::wnd()->showLayer(box);
+		Ui::showLayer(box);
 	}
 }
 
@@ -1332,19 +1341,19 @@ void SettingsInner::onReloadPassword(Qt::ApplicationState state) {
 void SettingsInner::onAutoLock() {
 	AutoLockBox *box = new AutoLockBox();
 	connect(box, SIGNAL(closed()), this, SLOT(passcodeChanged()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onConnectionType() {
 	ConnectionBox *box = new ConnectionBox();
 	connect(box, SIGNAL(closed()), this, SLOT(updateConnectionType()), Qt::QueuedConnection);
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onUsername() {
 	UsernameBox *box = new UsernameBox();
 	connect(box, SIGNAL(closed()), this, SLOT(usernameChanged()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onWorkmodeTray() {
@@ -1445,7 +1454,7 @@ void SettingsInner::setScale(DBIScale newScale) {
 	if (cEvalScale(cConfigScale()) != cEvalScale(cRealScale())) {
 		ConfirmBox *box = new ConfirmBox(lang(lng_settings_need_restart), lang(lng_settings_restart_now), st::defaultBoxButton, lang(lng_settings_restart_later));
 		connect(box, SIGNAL(confirmed()), this, SLOT(onRestartNow()));
-		App::wnd()->showLayer(box);
+		Ui::showLayer(box);
 	}
 }
 
@@ -1528,11 +1537,11 @@ void SettingsInner::onReplaceEmojis() {
 }
 
 void SettingsInner::onViewEmojis() {
-	App::showLayer(new EmojiBox());
+	Ui::showLayer(new EmojiBox());
 }
 
 void SettingsInner::onStickers() {
-	App::showLayer(new StickersBox());
+	Ui::showLayer(new StickersBox());
 }
 
 void SettingsInner::onEnterSend() {
@@ -1553,7 +1562,7 @@ void SettingsInner::onCtrlEnterSend() {
 
 void SettingsInner::onBackFromGallery() {
 	BackgroundBox *box = new BackgroundBox();
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onBackFromFile() {
@@ -1631,7 +1640,7 @@ void SettingsInner::onDontAskDownloadPath() {
 void SettingsInner::onDownloadPathEdit() {
 	DownloadPathBox *box = new DownloadPathBox();
 	connect(box, SIGNAL(closed()), this, SLOT(onDownloadPathEdited()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onDownloadPathEdited() {
@@ -1650,11 +1659,11 @@ void SettingsInner::onDownloadPathEdited() {
 void SettingsInner::onDownloadPathClear() {
 	ConfirmBox *box = new ConfirmBox(lang(lng_sure_clear_downloads));
 	connect(box, SIGNAL(confirmed()), this, SLOT(onDownloadPathClearSure()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void SettingsInner::onDownloadPathClearSure() {
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	App::wnd()->tempDirDelete(Local::ClearManagerDownloads);
 	_tempDirClearState = TempDirClearing;
 	showAll();
@@ -1686,6 +1695,10 @@ void SettingsInner::onTempDirClearFailed(int task) {
 	}
 	showAll();
 	update();
+}
+
+void SettingsInner::onAutoDownload() {
+	Ui::showLayer(new AutoDownloadBox());
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -1763,7 +1776,7 @@ void SettingsInner::onPhotoUpdateDone(PeerId peer) {
 }
 
 SettingsWidget::SettingsWidget(Window *parent) : TWidget(parent)
-, _a_show(animFunc(this, &SettingsWidget::animStep_show))
+, _a_show(animation(this, &SettingsWidget::step_show))
 , _scroll(this, st::setScroll)
 , _inner(this)
 , _close(this, st::setClose) {
@@ -1800,13 +1813,11 @@ void SettingsWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 	show();
 }
 
-bool SettingsWidget::animStep_show(float64 ms) {
+void SettingsWidget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
-	bool res = true;
 	if (dt >= 1) {
 		_a_show.stop();
 
-		res = false;
 		a_coordUnder.finish();
 		a_coordOver.finish();
 		a_shadow.finish();
@@ -1822,11 +1833,10 @@ bool SettingsWidget::animStep_show(float64 ms) {
 		a_coordOver.update(dt, st::slideFunction);
 		a_shadow.update(dt, st::slideFunction);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
-void SettingsWidget::animStop_show() {
+void SettingsWidget::stop_show() {
 	_a_show.stop();
 }
 

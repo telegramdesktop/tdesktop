@@ -304,6 +304,14 @@ namespace style {
 	typedef Font font;
 	typedef Color color;
 
+	inline QColor interpolate(const style::color &a, const style::color &b, float64 opacity_b) {
+		QColor result;
+		result.setRedF((a->c.redF() * (1. - opacity_b)) + (b->c.redF() * opacity_b));
+		result.setGreenF((a->c.greenF() * (1. - opacity_b)) + (b->c.greenF() * opacity_b));
+		result.setBlueF((a->c.blueF() * (1. - opacity_b)) + (b->c.blueF() * opacity_b));
+		return result;
+	}
+
 	void startManager();
 	void stopManager();
 

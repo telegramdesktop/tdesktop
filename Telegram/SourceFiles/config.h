@@ -23,7 +23,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 static const int32 AppVersion = 9015;
 static const wchar_t *AppVersionStr = L"0.9.15";
 static const bool DevVersion = false;
-//#define BETA_VERSION (9014003ULL) // just comment this line to build public version
+#define BETA_VERSION (9015001ULL) // just comment this line to build public version
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -83,6 +83,11 @@ enum {
 	LocalEncryptKeySize = 256, // 2048 bit
 
 	AnimationTimerDelta = 7,
+	ClipThreadsCount = 4,
+	AverageGifSize = 320 * 240,
+	WaitBeforeGifPause = 200, // wait 200ms for gif draw before pausing it
+
+	AVBlockSize = 4096, // 4Kb for ffmpeg blocksize
 
 	SaveRecentEmojisTimeout = 3000, // 3 secs
 	SaveWindowPositionTimeout = 1000, // 1 sec
@@ -108,11 +113,13 @@ enum {
 	AudioVoiceMsgUpdateView = 100, // 100ms
 	AudioVoiceMsgChannels = 2, // stereo
 	AudioVoiceMsgBufferSize = 1024 * 1024, // 1 Mb buffers
-	AudioVoiceMsgInMemory = 1024 * 1024, // 1 Mb audio is hold in memory and auto loaded
+	AudioVoiceMsgInMemory = 2 * 1024 * 1024, // 2 Mb audio is hold in memory and auto loaded
 	AudioPauseDeviceTimeout = 3000, // pause in 3 secs after playing is over
 
-	StickerInMemory = 1024 * 1024, // 1024 Kb stickers hold in memory, auto loaded and displayed inline
+	StickerInMemory = 2 * 1024 * 1024, // 2 Mb stickers hold in memory, auto loaded and displayed inline
 	StickerMaxSize = 2048, // 2048x2048 is a max image size for sticker
+
+	AnimationInMemory = 10 * 1024 * 1024, // 10 Mb gif and mp4 animations held in memory while playing
 
 	MediaViewImageSizeLimit = 100 * 1024 * 1024, // show up to 100mb jpg/png/gif docs in app
 	MaxZoomLevel = 7, // x8

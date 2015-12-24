@@ -66,10 +66,10 @@ public:
 	void touchScrollUpdated(const QPoint &screenPos);
 	QPoint mapMouseToItem(QPoint p, HistoryItem *item);
 
-	int32 recountHeight(HistoryItem *resizedItem);
+	int32 recountHeight(const HistoryItem *resizedItem);
 	void updateSize();
 
-	void updateMsg(const HistoryItem *msg);
+	void redrawItem(const HistoryItem *item);
 
 	bool canCopySelected() const;
 	bool canDeleteSelected() const;
@@ -80,7 +80,6 @@ public:
 	void selectItem(HistoryItem *item);
 
 	void itemRemoved(HistoryItem *item);
-	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 
 	void updateBotInfo(bool recount = true);
 
@@ -249,7 +248,7 @@ private:
 
 };
 
-class BotKeyboard : public QWidget {
+class BotKeyboard : public TWidget {
 	Q_OBJECT
 
 public:
@@ -267,7 +266,7 @@ public:
 	bool hasMarkup() const;
 	bool forceReply() const;
 
-	bool hoverStep(float64 ms);
+	void step_selected(uint64 ms, bool timer);
 	void resizeToWidth(int32 width, int32 maxOuterHeight);
 
 	bool maximizeSize() const;
@@ -308,13 +307,13 @@ private:
 
 	typedef QMap<int32, uint64> Animations;
 	Animations _animations;
-	Animation _hoverAnim;
+	Animation _a_selected;
 
 	const style::botKeyboardButton *_st;
 
 };
 
-class HistoryHider : public TWidget, public Animated {
+class HistoryHider : public TWidget {
 	Q_OBJECT
 
 public:
@@ -324,7 +323,7 @@ public:
 	HistoryHider(MainWidget *parent); // send path from command line argument
 	HistoryHider(MainWidget *parent, const QString &url, const QString &text); // share url
 
-	bool animStep(float64 ms);
+	void step_appearance(float64 ms, bool timer);
 	bool withConfirm() const;
 
 	void paintEvent(QPaintEvent *e);
@@ -362,7 +361,10 @@ private:
 
 	BoxButton _send, _cancel;
 	PeerData *offered;
+
 	anim::fvalue a_opacity;
+	Animation _a_appearance;
+
 	QRect box;
 	bool hiding;
 
@@ -427,7 +429,6 @@ public:
 	void peerMessagesUpdated(PeerId peer);
 	void peerMessagesUpdated();
 
-	void msgUpdated(const HistoryItem *msg);
 	void newUnreadMsg(History *history, HistoryItem *item);
 	void historyToDown(History *history);
 	void historyWasRead(bool force = true);
@@ -471,7 +472,7 @@ public:
 	HistoryItem *atTopImportantMsg(int32 &bottomUnderScrollTop) const;
 
 	void animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false);
-	bool animStep_show(float64 ms);
+	void step_show(float64 ms, bool timer);
 	void animStop();
 
 	void updateWideMode();
@@ -484,13 +485,11 @@ public:
 
 	bool touchScroll(const QPoint &delta);
     
-	uint64 animActiveTime(const HistoryItem *msg) const;
+	uint64 animActiveTimeStart(const HistoryItem *msg) const;
 	void stopAnimActive();
 
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
 	void itemRemoved(HistoryItem *item);
-	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
-	void itemResized(HistoryItem *item, bool scrollToIt);
 
 	void updateScrollColors();
 
@@ -510,8 +509,8 @@ public:
 	void updatePreview();
 	void previewCancel();
 
-	bool recordStep(float64 ms);
-	bool recordingStep(float64 ms);
+	void step_record(float64 ms, bool timer);
+	void step_recording(float64 ms, bool timer);
 	void stopRecording(bool send);
 
 	void onListEscapePressed();
@@ -555,9 +554,15 @@ public:
 		resizeEvent(0);
 	}
 
-	void notifyBotCommandsChanged(UserData *user);
-	void notifyUserIsBotChanged(UserData *user);
-	void notifyMigrateUpdated(PeerData *peer);
+	bool isItemVisible(HistoryItem *item);
+
+	void ui_redrawHistoryItem(const HistoryItem *item);
+
+	void notify_historyItemLayoutChanged(const HistoryItem *item);
+	void notify_botCommandsChanged(UserData *user);
+	void notify_userIsBotChanged(UserData *user);
+	void notify_migrateUpdated(PeerData *peer);
+	void notify_historyItemResized(const HistoryItem *item, bool scrollToIt);
 
 	~HistoryWidget();
 
@@ -691,7 +696,7 @@ private:
 	QList<MsgId> _replyReturns;
 
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
-	void updateListSize(int32 addToY = 0, bool initial = false, bool loadedDown = false, HistoryItem *resizedItem = 0, bool scrollToIt = false);
+	void updateListSize(int32 addToY = 0, bool initial = false, bool loadedDown = false, const HistoryItem *resizedItem = 0, bool scrollToIt = false);
 	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 
@@ -759,7 +764,7 @@ private:
 	FlatCheckbox _broadcast;
 	bool _cmdStartShown;
 	MessageField _field;
-	Animation _recordAnim, _recordingAnim;
+	Animation _a_record, _a_recording;
 	bool _recording, _inRecord, _inField, _inReply;
 	anim::ivalue a_recordingLevel;
 	int32 _recordingSamples;

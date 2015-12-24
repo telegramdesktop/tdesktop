@@ -32,52 +32,21 @@ class Color;
 class FileUploader;
 
 #include "history.h"
+#include "layout.h"
 
-typedef QMap<HistoryItem*, bool> HistoryItemsMap;
-typedef QHash<VideoData*, HistoryItemsMap> VideoItems;
-typedef QHash<AudioData*, HistoryItemsMap> AudioItems;
-typedef QHash<DocumentData*, HistoryItemsMap> DocumentItems;
-typedef QHash<WebPageData*, HistoryItemsMap> WebPageItems;
+typedef QMap<HistoryItem*, NullType> HistoryItemsMap;
+typedef QMap<VideoData*, HistoryItemsMap> VideoItems;
+typedef QMap<AudioData*, HistoryItemsMap> AudioItems;
+typedef QMap<DocumentData*, HistoryItemsMap> DocumentItems;
+typedef QMap<WebPageData*, HistoryItemsMap> WebPageItems;
+typedef QMap<int32, HistoryItemsMap> SharedContactItems;
+typedef QMap<ClipReader*, HistoryItem*> GifItems;
 struct ReplyMarkup {
 	ReplyMarkup(int32 flags = 0) : flags(flags) {
 	}
 	typedef QList<QList<QString> > Commands;
 	Commands commands;
 	int32 flags;
-};
-
-enum RoundCorners {
-	NoneCorners = 0x00, // for images
-	BlackCorners,
-	ServiceCorners,
-	ServiceSelectedCorners,
-	SelectedOverlayCorners,
-	DateCorners,
-	DateSelectedCorners,
-	ForwardCorners,
-	MediaviewSaveCorners,
-	EmojiHoverCorners,
-	StickerHoverCorners,
-	BotKeyboardCorners,
-	BotKeyboardOverCorners,
-	BotKeyboardDownCorners,
-	PhotoSelectOverlayCorners,
-	
-	DocRedCorners,
-	DocYellowCorners,
-	DocGreenCorners,
-	DocBlueCorners,
-
-	InShadowCorners, // for photos without bg
-	InSelectedShadowCorners,
-
-	MessageInCorners, // with shadow
-	MessageInSelectedCorners,
-	MessageOutCorners,
-	MessageOutSelectedCorners,
-	ButtonHoverCorners,
-
-	RoundCornersCount
 };
 
 class LayeredWidget;
@@ -180,7 +149,7 @@ namespace App {
 	inline HistoryItem *histItemById(const FullMsgId &msgId) {
 		return histItemById(msgId.channel, msgId.msg);
 	}
-	HistoryItem *historyRegItem(HistoryItem *item);
+	void historyRegItem(HistoryItem *item);
 	void historyItemDetached(HistoryItem *item);
 	void historyUnregItem(HistoryItem *item);
 	void historyClearMsgs();
@@ -245,8 +214,15 @@ namespace App {
 	void unregWebPageItem(WebPageData *data, HistoryItem *item);
 	const WebPageItems &webPageItems();
 
-	void regSharedContactPhone(int32 userId, const QString &phone);
+	void regSharedContactItem(int32 userId, HistoryItem *item);
+	void unregSharedContactItem(int32 userId, HistoryItem *item);
+	const SharedContactItems &sharedContactItems();
 	QString phoneFromSharedContact(int32 userId);
+
+	void regGifItem(ClipReader *reader, HistoryItem *item);
+	void unregGifItem(ClipReader *reader);
+	const GifItems &gifItems();
+	void stopGifItems();
 
 	void regMuted(PeerData *peer, int32 changeIn);
 	void unregMuted(PeerData *peer);

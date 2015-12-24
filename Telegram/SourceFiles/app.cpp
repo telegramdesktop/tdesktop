@@ -73,11 +73,11 @@ namespace {
 	AudioItems audioItems;
 	DocumentItems documentItems;
 	WebPageItems webPageItems;
+	SharedContactItems sharedContactItems;
+	GifItems gifItems;
+
 	typedef QMap<HistoryItem*, QMap<HistoryReply*, bool> > RepliesTo;
 	RepliesTo repliesTo;
-
-	typedef QMap<int32, QString> SharedContactPhones;
-	SharedContactPhones sharedContactPhones;
 
 	Histories histories;
 
@@ -465,10 +465,8 @@ namespace App {
 				data->contact = 0;
 			}
 			if (App::main()) {
-				if (data->contact > 0 && !wasContact) {
-					App::main()->addNewContact(peerToUser(data->id), false);
-				} else if (wasContact && data->contact <= 0) {
-					App::main()->removeContact(data);
+				if ((data->contact > 0 && !wasContact) || (wasContact && data->contact < 1)) {
+					Notify::userIsContactChanged(data);
 				}
 
 				if (emitPeerUpdated) {
@@ -909,7 +907,7 @@ namespace App {
 			if ((hasLinks && !existing->hasTextLinks()) || (!hasLinks && existing->textHasLinks())) {
 				existing->setText(qs(m.vmessage), m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText());
 				existing->initDimensions();
-				if (App::main()) App::main()->itemResized(existing);
+				Notify::historyItemResized(existing);
 				if (existing->hasTextLinks() && existing->indexInOverview()) {
 					existing->history()->addToOverview(existing, OverviewLinks);
 				}
@@ -1060,7 +1058,7 @@ namespace App {
 			}
 		}
 		if (resized) {
-			App::main()->itemResized(0);
+			Notify::historyItemsResized();
 		}
 		if (main()) {
 			for (QMap<History*, bool>::const_iterator i = historiesToCheck.cbegin(), e = historiesToCheck.cend(); i != e; ++i) {
@@ -1113,17 +1111,13 @@ namespace App {
 				user->contact = -1;
 			break;
 			}
-			if (user->contact > 0) {
-				if (!wasContact) {
-					App::main()->addNewContact(peerToUser(user->id), false);
-				}
-			} else {
+			if (user->contact < 1) {
 				if (user->contact < 0 && !user->phone.isEmpty() && peerToUser(user->id) != MTP::authedId()) {
 					user->contact = 0;
 				}
-				if (wasContact) {
-					App::main()->removeContact(user);
-				}
+			}
+			if ((user->contact > 0 && !wasContact) || (wasContact && user->contact < 1)) {
+				Notify::userIsContactChanged(user);
 			}
 
 			bool showPhone = !isServiceUser(user->id) && !user->isSelf() && !user->contact;
@@ -1182,7 +1176,7 @@ namespace App {
 			case 'm': newThumbLevel = 2; newMediumLevel = 0; newFullLevel = 3; break; // box 320x320
 			case 'x': newThumbLevel = 5; newMediumLevel = 3; newFullLevel = 1; break; // box 800x800
 			case 'y': newThumbLevel = 6; newMediumLevel = 6; newFullLevel = 0; break; // box 1280x1280
-			case 'w': newThumbLevel = 8; newMediumLevel = 8; newFullLevel = 2; break; // box 2560x2560
+			case 'w': newThumbLevel = 8; newMediumLevel = 8; newFullLevel = 2; break; // box 2560x2560 // if loading this fix HistoryPhoto::updateFrom
 			case 'a': newThumbLevel = 1; newMediumLevel = 4; newFullLevel = 8; break; // crop 160x160
 			case 'b': newThumbLevel = 3; newMediumLevel = 1; newFullLevel = 7; break; // crop 320x320
 			case 'c': newThumbLevel = 4; newMediumLevel = 2; newFullLevel = 6; break; // crop 640x640
@@ -1334,6 +1328,7 @@ namespace App {
 			return page;
 		} break;
 		case mtpc_webPagePending: return App::feedWebPage(webpage.c_webPagePending());
+		case mtpc_webPageExternal: LOG(("API Error: should not get webPageExternal in App::feedWebPage")); break;
 		}
 		return 0;
 	}
@@ -1436,6 +1431,8 @@ namespace App {
 					photosData.erase(i);
 				}
 				convert->id = photo;
+				delete convert->uploadingData;
+				convert->uploadingData = 0;
 			}
 			convert->access = access;
 			if (!convert->date && date) {
@@ -1612,6 +1609,7 @@ namespace App {
 				convert->thumb = thumb;
 				convert->dc = dc;
 				convert->size = size;
+				convert->recountIsImage();
 			} else {
 				if (!thumb->isNull() && (convert->thumb->isNull() || convert->thumb->width() < thumb->width() || convert->thumb->height() < thumb->height())) {
 					convert->thumb = thumb;
@@ -1628,7 +1626,7 @@ namespace App {
 					}
 				}
 			}
-			if (convert->sticker() && !convert->sticker()->loc.dc && thumbLocation.dc) {
+			if (convert->sticker() && convert->sticker()->loc.isNull() && !thumbLocation.isNull()) {
 				convert->sticker()->loc = thumbLocation;
 			}
 
@@ -1644,6 +1642,7 @@ namespace App {
 				result = convert;
 			} else {
 				result = new DocumentData(document, access, date, attributes, mime, thumb, dc, size);
+				result->recountIsImage();
 				if (result->sticker()) result->sticker()->loc = thumbLocation;
 			}
 			documentsData.insert(document, result);
@@ -1658,6 +1657,7 @@ namespace App {
 					result->thumb = thumb;
 					result->dc = dc;
 					result->size = size;
+					result->recountIsImage();
 				} else {
 					if (!thumb->isNull() && (result->thumb->isNull() || result->thumb->width() < thumb->width() || result->thumb->height() < thumb->height())) {
 						result->thumb = thumb;
@@ -1673,7 +1673,7 @@ namespace App {
 							}
 						}
 					}
-					if (result->sticker() && !result->sticker()->loc.dc && thumbLocation.dc) {
+					if (result->sticker() && result->sticker()->loc.isNull() && !thumbLocation.isNull()) {
 						result->sticker()->loc = thumbLocation;
 					}
 				}
@@ -1836,47 +1836,16 @@ namespace App {
 		return 0;
 	}
 
-	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
-		if (HistoryReply *r = oldItem->toHistoryReply()) {
-			QMap<HistoryReply*, bool> &replies(::repliesTo[r->replyToMessage()]);
-			replies.remove(r);
-			if (HistoryReply *n = newItem->toHistoryReply()) {
-				replies.insert(n, true);
-			}
-		}
-		RepliesTo::iterator i = ::repliesTo.find(oldItem);
-		if (i != ::repliesTo.cend() && oldItem != newItem) {
-			QMap<HistoryReply*, bool> replies = i.value();
-			::repliesTo.erase(i);
-			::repliesTo[newItem] = replies;
-			for (QMap<HistoryReply*, bool>::iterator i = replies.begin(), e = replies.end(); i != e; ++i) {
-				i.key()->replyToReplaced(oldItem, newItem);
-			}
-		}
-		newItem->history()->itemReplaced(oldItem, newItem);
-		if (App::main()) App::main()->itemReplaced(oldItem, newItem);
-		if (App::hoveredItem() == oldItem) App::hoveredItem(newItem);
-		if (App::pressedItem() == oldItem) App::pressedItem(newItem);
-		if (App::hoveredLinkItem() == oldItem) App::hoveredLinkItem(newItem);
-		if (App::pressedLinkItem() == oldItem) App::pressedLinkItem(newItem);
-		if (App::contextItem() == oldItem) App::contextItem(newItem);
-		if (App::mousedItem() == oldItem) App::mousedItem(newItem);
-	}
-
-	HistoryItem *historyRegItem(HistoryItem *item) {
+	void historyRegItem(HistoryItem *item) {
 		MsgsData *data = fetchMsgsData(item->channelId());
 		MsgsData::const_iterator i = data->constFind(item->id);
 		if (i == data->cend()) {
 			data->insert(item->id, item);
-			return 0;
-		}
-		if (i.value() != item && !i.value()->block() && item->block()) { // replace search item
-			itemReplaced(i.value(), item);
-			delete i.value();
+		} else if (i.value() != item) {
+			LOG(("App Error: trying to historyRegItem() an already registered item"));
+			i.value()->destroy();
 			data->insert(item->id, item);
-			return 0;
 		}
-		return (i.value() == item) ? 0 : i.value();
 	}
 
 	void historyItemDetached(HistoryItem *item) {
@@ -1994,7 +1963,8 @@ namespace App {
 		::audioItems.clear();
 		::documentItems.clear();
 		::webPageItems.clear();
-		::sharedContactPhones.clear();
+		::sharedContactItems.clear();
+		::gifItems.clear();
 		::repliesTo.clear();
 		lastPhotos.clear();
 		lastPhotosMap.clear();
@@ -2126,9 +2096,9 @@ namespace App {
 		prepareCorners(ServiceSelectedCorners, st::msgRadius, st::msgServiceSelectBg);
 		prepareCorners(SelectedOverlayCorners, st::msgRadius, st::msgSelectOverlay);
 		prepareCorners(DateCorners, st::msgRadius, st::msgDateImgBg);
-		prepareCorners(DateSelectedCorners, st::msgRadius, st::msgDateImgSelectBg);
+		prepareCorners(DateSelectedCorners, st::msgRadius, st::msgDateImgBgSelected);
 		prepareCorners(InShadowCorners, st::msgRadius, st::msgInShadow);
-		prepareCorners(InSelectedShadowCorners, st::msgRadius, st::msgInSelectShadow);
+		prepareCorners(InSelectedShadowCorners, st::msgRadius, st::msgInShadowSelected);
 		prepareCorners(ForwardCorners, st::msgRadius, st::forwardBg);
 		prepareCorners(MediaviewSaveCorners, st::msgRadius, st::medviewSaveMsg);
 		prepareCorners(EmojiHoverCorners, st::msgRadius, st::emojiPanHover);
@@ -2138,16 +2108,15 @@ namespace App {
 		prepareCorners(BotKeyboardDownCorners, st::msgRadius, st::botKbDownBg);
 		prepareCorners(PhotoSelectOverlayCorners, st::msgRadius, st::overviewPhotoSelectOverlay);
 
-		prepareCorners(DocRedCorners, st::msgRadius, st::mvDocRedColor);
-		prepareCorners(DocYellowCorners, st::msgRadius, st::mvDocYellowColor);
-		prepareCorners(DocGreenCorners, st::msgRadius, st::mvDocGreenColor);
-		prepareCorners(DocBlueCorners, st::msgRadius, st::mvDocBlueColor);
+		prepareCorners(DocBlueCorners, st::msgRadius, st::msgFileBlueColor);
+		prepareCorners(DocGreenCorners, st::msgRadius, st::msgFileGreenColor);
+		prepareCorners(DocRedCorners, st::msgRadius, st::msgFileRedColor);
+		prepareCorners(DocYellowCorners, st::msgRadius, st::msgFileYellowColor);
 
 		prepareCorners(MessageInCorners, st::msgRadius, st::msgInBg, &st::msgInShadow);
-		prepareCorners(MessageInSelectedCorners, st::msgRadius, st::msgInSelectBg, &st::msgInSelectShadow);
+		prepareCorners(MessageInSelectedCorners, st::msgRadius, st::msgInBgSelected, &st::msgInShadowSelected);
 		prepareCorners(MessageOutCorners, st::msgRadius, st::msgOutBg, &st::msgOutShadow);
-		prepareCorners(MessageOutSelectedCorners, st::msgRadius, st::msgOutSelectBg, &st::msgOutSelectShadow);
-		prepareCorners(ButtonHoverCorners, st::msgRadius, st::mediaSaveButton.overBgColor, &st::msgInShadow);
+		prepareCorners(MessageOutSelectedCorners, st::msgRadius, st::msgOutBgSelected, &st::msgOutShadowSelected);
 
 	}
 	
@@ -2317,16 +2286,24 @@ namespace App {
         if (!format) {
             format = &tmpFormat;
         }
-        QImageReader reader(&buffer, *format);
-		if (animated) *animated = reader.supportsAnimation() && reader.imageCount() > 1;
-		if (!reader.read(&result)) {
-			return QImage();
+		{
+			QImageReader reader(&buffer, *format);
+#if QT_VERSION >= QT_VERSION_CHECK(5, 5, 0)
+			reader.setAutoTransform(true);
+#endif
+			if (animated) *animated = reader.supportsAnimation() && reader.imageCount() > 1;
+			QByteArray fmt = reader.format();
+			if (!fmt.isEmpty()) *format = fmt;
+			if (!reader.read(&result)) {
+				return QImage();
+			}
+			fmt = reader.format();
+			if (!fmt.isEmpty()) *format = fmt;
 		}
-
 		buffer.seek(0);
-        *format = reader.format();
-        QString fmt = QString::fromUtf8(*format).toLower() ;
+        QString fmt = QString::fromUtf8(*format).toLower();
 		if (fmt == "jpg" || fmt == "jpeg") {
+#if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
 			ExifData *exifData = exif_data_new_from_data((const uchar*)(data.constData()), data.size());
 			if (exifData) {
 				ExifByteOrder byteOrder = exif_data_get_byte_order(exifData);
@@ -2347,6 +2324,7 @@ namespace App {
 				}
 				exif_data_free(exifData);
 			}
+#endif
 		} else if (opaque && result.hasAlphaChannel()) {
 			QImage solid(result.width(), result.height(), QImage::Format_ARGB32_Premultiplied);
 			solid.fill(st::white->c);
@@ -2371,7 +2349,7 @@ namespace App {
 	}
 
 	void regVideoItem(VideoData *data, HistoryItem *item) {
-		::videoItems[data][item] = true;
+		::videoItems[data].insert(item, NullType());
 	}
 
 	void unregVideoItem(VideoData *data, HistoryItem *item) {
@@ -2383,7 +2361,7 @@ namespace App {
 	}
 
 	void regAudioItem(AudioData *data, HistoryItem *item) {
-		::audioItems[data][item] = true;
+		::audioItems[data].insert(item, NullType());
 	}
 
 	void unregAudioItem(AudioData*data, HistoryItem *item) {
@@ -2395,7 +2373,7 @@ namespace App {
 	}
 
 	void regDocumentItem(DocumentData *data, HistoryItem *item) {
-		::documentItems[data][item] = true;
+		::documentItems[data].insert(item, NullType());
 	}
 
 	void unregDocumentItem(DocumentData *data, HistoryItem *item) {
@@ -2407,7 +2385,7 @@ namespace App {
 	}
 
 	void regWebPageItem(WebPageData *data, HistoryItem *item) {
-		::webPageItems[data][item] = true;
+		::webPageItems[data].insert(item, NullType());
 	}
 
 	void unregWebPageItem(WebPageData *data, HistoryItem *item) {
@@ -2418,12 +2396,49 @@ namespace App {
 		return ::webPageItems;
 	}
 
-	void regSharedContactPhone(int32 userId, const QString &phone) {
-		::sharedContactPhones[userId] = phone;
+	void regSharedContactItem(int32 userId, HistoryItem *item) {
+		::sharedContactItems[userId].insert(item, NullType());
+	}
+
+	void unregSharedContactItem(int32 userId, HistoryItem *item) {
+		::sharedContactItems[userId].remove(item);
+	}
+
+	const SharedContactItems &sharedContactItems() {
+		return ::sharedContactItems;
+	}
+
+	void regGifItem(ClipReader *reader, HistoryItem *item) {
+		::gifItems.insert(reader, item);
+	}
+
+	void unregGifItem(ClipReader *reader) {
+		::gifItems.remove(reader);
+	}
+
+	const GifItems &gifItems() {
+		return ::gifItems;
+	}
+
+	void stopGifItems() {
+		if (!::gifItems.isEmpty()) {
+			if (HistoryItem *playing = ::gifItems.begin().value()) {
+				if (playing->getMedia()) {
+					playing->getMedia()->stopInline(playing);
+				}
+			}
+		}
 	}
 
 	QString phoneFromSharedContact(int32 userId) {
-		return ::sharedContactPhones.value(userId);
+		SharedContactItems::const_iterator i = ::sharedContactItems.constFind(userId);
+		if (i != ::sharedContactItems.cend()) {
+			HistoryMedia *media = i->cbegin().key()->getMedia();
+			if (media && media->type() == MediaTypeContact) {
+				return static_cast<HistoryContact*>(media)->phone();
+			}
+		}
+		return QString();
 	}
 
 	void regMuted(PeerData *peer, int32 changeIn) {

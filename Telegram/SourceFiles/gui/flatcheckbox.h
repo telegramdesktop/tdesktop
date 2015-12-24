@@ -22,7 +22,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 #include "gui/button.h"
 
-class FlatCheckbox : public Button, public Animated {
+class FlatCheckbox : public Button {
 	Q_OBJECT
 
 public:
@@ -32,7 +32,7 @@ public:
 	bool checked() const;
 	void setChecked(bool checked);
 
-	bool animStep(float64 ms);
+	void step_appearance(float64 ms, bool timer);
 	void paintEvent(QPaintEvent *e);
 
 	void setOpacity(float64 o);
@@ -50,6 +50,8 @@ private:
 
 	style::flatCheckbox _st;
 	anim::fvalue a_over;
+	Animation _a_appearance;
+
 	QString _text;
 	style::font _font;
 
@@ -91,8 +93,8 @@ public:
 	bool checked() const;
 	void setChecked(bool checked);
 
-	bool animStep_over(float64 ms);
-	bool animStep_checked(float64 ms);
+	void step_over(float64 ms, bool timer);
+	void step_checked(float64 ms, bool timer);
 
 	void paintEvent(QPaintEvent *e);
 
@@ -133,8 +135,8 @@ public:
 		return _value;
 	}
 
-	bool animStep_over(float64 ms);
-	bool animStep_checked(float64 ms);
+	void step_over(float64 ms, bool timer);
+	void step_checked(float64 ms, bool timer);
 
 	void paintEvent(QPaintEvent *e);
 

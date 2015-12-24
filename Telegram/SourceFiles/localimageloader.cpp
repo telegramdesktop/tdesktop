@@ -393,6 +393,7 @@ void FileLoadTask::process() {
 	_result->content = _content;
 
 	_result->filename = filename;
+	_result->filemime = filemime;
 	_result->setFileData(filedata);
 
 	_result->thumbId = thumbId;
@@ -409,23 +410,23 @@ void FileLoadTask::process() {
 void FileLoadTask::finish() {
 	if (!_result || !_result->filesize) {
 		if (_result) App::main()->onSendFileCancel(_result);
-		App::wnd()->replaceLayer(new InformBox(lang(lng_send_image_empty)));
+		Ui::showLayer(new InformBox(lang(lng_send_image_empty)), KeepOtherLayers);
 		return;
 	}
 	if (_result->filesize == -1) { // dir
 		App::main()->onSendFileCancel(_result);
-		App::wnd()->replaceLayer(new InformBox(lng_send_folder(lt_name, QFileInfo(_filepath).dir().dirName())));
+		Ui::showLayer(new InformBox(lng_send_folder(lt_name, QFileInfo(_filepath).dir().dirName())), KeepOtherLayers);
 		return;
 	}
 	if (_result->filesize > MaxUploadDocumentSize) {
 		App::main()->onSendFileCancel(_result);
-		App::wnd()->replaceLayer(new InformBox(lang(lng_send_image_too_large)));
+		Ui::showLayer(new InformBox(lang(lng_send_image_too_large)), KeepOtherLayers);
 		return;
 	}
 	if (App::main()) {
 		bool confirm = (_confirm == FileLoadAlwaysConfirm) || (_result->photo.type() != mtpc_photoEmpty && _confirm != FileLoadNeverConfirm);
 		if (confirm) {
-			App::wnd()->showLayerLast(new PhotoSendBox(_result));
+			Ui::showLayer(new PhotoSendBox(_result), ShowAfterOtherLayers);
 		} else {
 			if (_result->type == PrepareAuto) {
 				_result->type = (_result->photo.type() != mtpc_photoEmpty) ? PreparePhoto : PrepareDocument;

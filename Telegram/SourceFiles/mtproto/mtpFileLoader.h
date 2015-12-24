@@ -108,38 +108,64 @@ enum LocalLoadStatus {
 
 typedef void *TaskId; // no interface, just id
 
+enum LoadFromCloudSetting {
+	LoadFromCloudOrLocal,
+	LoadFromLocalOnly,
+};
+enum LoadToCacheSetting {
+	LoadToFileOnly,
+	LoadToCacheAsWell,
+};
+
 struct mtpFileLoaderQueue;
+class StorageImageLocation;
 class mtpFileLoader : public QObject, public RPCSender {
 	Q_OBJECT
 
 public:
 
-	mtpFileLoader(int32 dc, const uint64 &volume, int32 local, const uint64 &secret, int32 size = 0);
-	mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, LocationType type, const QString &to, int32 size, bool todata = false);
+	mtpFileLoader(const StorageImageLocation *location, int32 size, LoadFromCloudSetting fromCloud, bool autoLoading);
+	mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, LocationType type, const QString &toFile, int32 size, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading);
 	bool done() const {
-		return complete;
+		return _complete;
 	}
 	mtpTypeId fileType() const {
-		return type;
+		return _type;
 	}
 	const QByteArray &bytes() const {
-		return data;
+		return _data;
 	}
 	QByteArray imageFormat() const;
 	QPixmap imagePixmap() const;
 	QString fileName() const {
-		return fname;
+		return _fname;
 	}
 	float64 currentProgress() const;
 	int32 currentOffset(bool includeSkipped = false) const;
 	int32 fullSize() const;
 
-	void setFileName(const QString &filename); // set filename for duplicateInData loader
+	bool setFileName(const QString &filename); // set filename for loaders to cache
+	void permitLoadFromCloud();
 
 	void pause();
 	void start(bool loadFirst = false, bool prior = true);
 	void cancel();
-	bool loading() const;
+
+	bool loading() const {
+		return _inQueue;
+	}
+	bool paused() const {
+		return _paused;
+	}
+	bool started() const {
+		return _inQueue || _paused;
+	}
+	bool loadingLocal() const {
+		return (_localStatus == LocalLoading);
+	}
+	bool autoLoading() const {
+		return _autoLoading;
+	}
 
 	uint64 objId() const;
 
@@ -158,45 +184,44 @@ signals:
 private:
 
 	mtpFileLoaderQueue *queue;
-	bool inQueue, complete;
-	LocalLoadStatus _localStatus;
+	bool _paused, _autoLoading, _inQueue, _complete;
+	mutable LocalLoadStatus _localStatus;
 
 	bool tryLoadLocal();
 	void cancelRequests();
 
 	typedef QMap<mtpRequestId, int32> Requests;
-	Requests requests;
-	int32 skippedBytes;
-	int32 nextRequestOffset;
-	bool lastComplete;
+	Requests _requests;
+	int32 _skippedBytes;
+	int32 _nextRequestOffset;
+	bool _lastComplete;
 
-	void started(bool loadFirst, bool prior);
+	void startLoading(bool loadFirst, bool prior);
 	void removeFromQueue();
 
 	void loadNext();
-	void finishFail();
+	void cancel(bool failed);
 	bool loadPart();
 	void partLoaded(int32 offset, const MTPupload_File &result, mtpRequestId req);
 	bool partFailed(const RPCError &error);
 
-	int32 dc;
+	int32 _dc;
 	LocationType _locationType;
+	const StorageImageLocation *_location;
 
-	uint64 volume; // for photo locations
-	int32 local;
-	uint64 secret;
+	uint64 _id; // for other locations
+	uint64 _access;
+	QFile _file;
+	QString _fname;
+	bool _fileIsOpen;
 
-	uint64 id; // for other locations
-	uint64 access;
-	QFile file;
-	QString fname;
-	bool fileIsOpen;
-	bool duplicateInData;
+	LoadToCacheSetting _toCache;
+	LoadFromCloudSetting _fromCloud;
 
-	QByteArray data;
+	QByteArray _data;
 
-	int32 size;
-	mtpTypeId type;
+	int32 _size;
+	mtpTypeId _type;
 
 	TaskId _localTaskId;
 	mutable QByteArray _imageFormat;
@@ -204,3 +229,5 @@ private:
 	void readImage() const;
 
 };
+
+static mtpFileLoader * const CancelledFileLoader = reinterpret_cast<mtpFileLoader * const>(&SharedMemoryLocation0);

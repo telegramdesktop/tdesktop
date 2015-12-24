@@ -195,7 +195,7 @@ DeclareRefSetting(EmojiColorVariants, EmojiVariants);
 
 RecentEmojiPack &cGetRecentEmojis();
 
-struct DocumentData;
+class DocumentData;
 typedef QVector<DocumentData*> StickerPack;
 DeclareSetting(int32, StickersHash);
 
@@ -326,5 +326,14 @@ DeclareRefSetting(SavedPeersByTime, SavedPeersByTime);
 
 typedef QMap<uint64, DBIPeerReportSpamStatus> ReportSpamStatuses;
 DeclareRefSetting(ReportSpamStatuses, ReportSpamStatuses);
+
+enum DBIAutoDownloadFlags {
+	dbiadNoPrivate = 0x01,
+	dbiadNoGroups  = 0x02,
+};
+
+DeclareSetting(int32, AutoDownloadPhoto);
+DeclareSetting(int32, AutoDownloadAudio);
+DeclareSetting(int32, AutoDownloadGif);
 
 void settingsParseArgs(int argc, char *argv[]);

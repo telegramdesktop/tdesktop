@@ -20,6 +20,11 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+template <typename Type>
+void setBadPointer(Type *&link) {
+	link = reinterpret_cast<Type*>(0x00000bad);
+}
+
 struct NullType {
 };
 
@@ -32,6 +37,11 @@ typedef qint64 int64;
 typedef quint64 uint64;
 
 static const int32 ScrollMax = INT_MAX;
+
+static uint64 SharedMemoryLocation0 = 0x00;
+static uint64 SharedMemoryLocation1 = 0x01;
+static uint64 SharedMemoryLocation2 = 0x02;
+static uint64 SharedMemoryLocation3 = 0x03;
 
 #ifdef Q_OS_WIN
 typedef float float32;
@@ -283,6 +293,7 @@ enum DataBlockId {
 	dbiIncludeMuted         = 0x31,
 	dbiMaxMegaGroupCount    = 0x32,
 	dbiDownloadPath         = 0x33,
+	dbiAutoDownload         = 0x34,
 
 	dbiEncryptedWithSalt    = 333,
 	dbiEncrypted            = 444,
@@ -443,3 +454,18 @@ enum ForwardWhatMessages {
 	ForwardPressedMessage,
 	ForwardPressedLinkMessage
 };
+
+enum ShowLayerOption {
+	CloseOtherLayers          = 0x00,
+	KeepOtherLayers           = 0x01,
+	ShowAfterOtherLayers      = 0x03,
+
+	AnimatedShowLayer         = 0x00,
+	ForceFastShowLayer        = 0x04,
+};
+typedef QFlags<ShowLayerOption> ShowLayerOptions;
+
+static int32 FullArcLength = 360 * 16;
+static int32 QuarterArcLength = (FullArcLength / 4);
+static int32 MinArcLength = (FullArcLength / 360);
+static int32 AlmostFullArcLength = (FullArcLength - MinArcLength);
