@@ -1142,7 +1142,7 @@ void psOpenFile(const QString &name, bool openWith) {
 }
 
 void psShowInFolder(const QString &name) {
-    App::wnd()->hideLayer(true);
+    Ui::hideLayer(true);
     system((qsl("xdg-open ") + escapeShell(QFileInfo(name).absoluteDir().absolutePath())).toUtf8().constData());
 }
 

@@ -46,6 +46,13 @@ Download [opus-1.1 sources](http://downloads.xiph.org/releases/opus/opus-1.1.tar
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
+    git clone git://anongit.freedesktop.org/git/libva
+    cd libva
+    ./autogen.sh --enable-static
+    make
+    sudo make install
+    cd ..
+
     git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
     git checkout release/2.8
