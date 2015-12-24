@@ -335,13 +335,13 @@ void LayoutOverviewPhoto::paint(Painter &p, const QRect &clip, uint32 selection,
 				img = imageBlur(img);
 			}
 			if (img.width() == img.height()) {
-				if (img.width() != _width) {
-					img = img.scaled(_width, _width, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+				if (img.width() != size) {
+					img = img.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 				}
 			} else if (img.width() > img.height()) {
-				img = img.copy((img.width() - img.height()) / 2, 0, img.height(), img.height()).scaled(_width, _width, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+				img = img.copy((img.width() - img.height()) / 2, 0, img.height(), img.height()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 			} else {
-				img = img.copy(0, (img.height() - img.width()) / 2, img.width(), img.width()).scaled(_width, _width, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+				img = img.copy(0, (img.height() - img.width()) / 2, img.width(), img.width()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 			}
 			img.setDevicePixelRatio(cRetinaFactor());
 			_data->forget();
@@ -412,13 +412,13 @@ void LayoutOverviewVideo::paint(Painter &p, const QRect &clip, uint32 selection,
 			QImage img = _data->thumb->pix().toImage();
 			img = imageBlur(img);
 			if (img.width() == img.height()) {
-				if (img.width() != _width) {
-					img = img.scaled(_width, _width, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+				if (img.width() != size) {
+					img = img.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 				}
 			} else if (img.width() > img.height()) {
-				img = img.copy((img.width() - img.height()) / 2, 0, img.height(), img.height()).scaled(_width, _width, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+				img = img.copy((img.width() - img.height()) / 2, 0, img.height(), img.height()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 			} else {
-				img = img.copy(0, (img.height() - img.width()) / 2, img.width(), img.width()).scaled(_width, _width, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+				img = img.copy(0, (img.height() - img.width()) / 2, img.width(), img.width()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 			}
 			img.setDevicePixelRatio(cRetinaFactor());
 			_data->forget();
