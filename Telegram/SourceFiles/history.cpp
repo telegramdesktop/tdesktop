@@ -624,7 +624,7 @@ void ChannelHistory::addNewGroup(const MTPMessageGroup &group) {
 				for (Blocks::iterator i = blocks.begin(), e = blocks.end(); i != e; ++i) {
 					(*i)->y += dh;
 				}
-				blocks.push_front(dateBlock); // date block
+				blocks.push_front(dateBlock); // date block CHECK
 				height += dh;
 			}
 		}
@@ -719,7 +719,7 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 		}
 	}
 	if (!block->items.isEmpty()) {
-		blocks.push_front(block);
+		blocks.push_front(block); // CHECK
 		if (width) {
 			addToH += block->height;
 			++skip;
@@ -740,7 +740,7 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 			addToH += dh;
 			++skip;
 		}
-		blocks.push_front(dateBlock); // date block
+		blocks.push_front(dateBlock); // date block CHECK
 	}
 	if (width && addToH) {
 		for (Blocks::iterator i = blocks.begin(), e = blocks.end(); i != e; ++i) {
@@ -945,7 +945,7 @@ void ChannelHistory::switchMode() {
 				item->attach(block);
 				prev = addItemAfterPrevToBlock(item, prev, block);
 			}
-			blocks.push_back(block);
+			blocks.push_back(block); // CHECK
 			if (width) {
 				block->y = height;
 				height += block->height;
@@ -1326,13 +1326,10 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 	HistoryItem *result = App::histItemById(channelId(), msgId);
 	if (result) {
 		if (block) {
-			if (result->detached()) {
-				result->attach(block);
-			} else if (result->block() != block) {
-				LOG(("App Error: createItem() called for existing item in other block!"));
-				result->destroy();
-				result = 0;
+			if (!result->detached()) {
+				result->detach();
 			}
+			result->attach(block);
 		}
 		if (result) {
 			if (msg.type() == mtpc_message) {
@@ -1600,7 +1597,14 @@ HistoryItem *History::addNewMessage(const MTPMessage &msg, NewMessageType type) 
 	} else {
 		to = blocks.back();
 	}
-	return addNewItem(to, newBlock, createItem(to, msg, (type == NewMessageUnread)), (type == NewMessageUnread));
+	HistoryItem *item = createItem((type == NewMessageLast) ? 0 : to, msg, (type == NewMessageUnread));
+	if (type == NewMessageLast) {
+		if (!item->detached()) {
+			return item;
+		}
+		item->attach(to);
+	}
+	return addNewItem(to, newBlock, item, (type == NewMessageUnread));
 }
 
 HistoryItem *History::addToHistory(const MTPMessage &msg) {
@@ -1862,7 +1866,7 @@ HistoryItem *History::addMessageGroupAfterPrev(HistoryItem *newItem, HistoryItem
 		createInitialDateBlock(date);
 
 		block = new HistoryBlock(this);
-		blocks.push_back(block);
+		blocks.push_back(block); // CHECK
 		if (width) {
 			block->y = height;
 		}
