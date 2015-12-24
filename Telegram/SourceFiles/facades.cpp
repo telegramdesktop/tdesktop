@@ -23,6 +23,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "window.h"
 #include "mainwidget.h"
 
+#include "layerwidget.h"
+
 namespace App {
 
 	void sendBotCommand(const QString &cmd, MsgId replyTo) {

@@ -52,6 +52,9 @@
 		0749CE69194D723400345D61 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 07C3AF24194335ED0016CFF1 /* Images.xcassets */; };
 		074FCB8E19D36851004C6EB2 /* popupmenu.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074FCB8C19D36851004C6EB2 /* popupmenu.cpp */; };
 		074FCB9119D36E60004C6EB2 /* moc_popupmenu.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074FCB9019D36E60004C6EB2 /* moc_popupmenu.cpp */; };
+		0752F8701C2C84470026D0BC /* layout.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0752F86E1C2C84470026D0BC /* layout.cpp */; };
+		0752F8731C2C89220026D0BC /* VideoDecodeAcceleration.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 0752F8721C2C89220026D0BC /* VideoDecodeAcceleration.framework */; };
+		0752F8751C2C89F40026D0BC /* VideoToolbox.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 0752F8741C2C89F40026D0BC /* VideoToolbox.framework */; };
 		07539B1D1A1416AF00083EFC /* moc_history.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07539B1C1A1416AF00083EFC /* moc_history.cpp */; };
 		0755AEDD1AD12A80004D738A /* moc_abstractbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0755AEDA1AD12A80004D738A /* moc_abstractbox.cpp */; };
 		0755AEDE1AD12A80004D738A /* moc_intropwdcheck.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0755AEDB1AD12A80004D738A /* moc_intropwdcheck.cpp */; };
@@ -285,6 +288,10 @@
 		074FCB8C19D36851004C6EB2 /* popupmenu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = popupmenu.cpp; path = SourceFiles/gui/popupmenu.cpp; sourceTree = SOURCE_ROOT; };
 		074FCB8D19D36851004C6EB2 /* popupmenu.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = popupmenu.h; path = SourceFiles/gui/popupmenu.h; sourceTree = SOURCE_ROOT; };
 		074FCB9019D36E60004C6EB2 /* moc_popupmenu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_popupmenu.cpp; path = GeneratedFiles/Debug/moc_popupmenu.cpp; sourceTree = SOURCE_ROOT; };
+		0752F86E1C2C84470026D0BC /* layout.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = layout.cpp; path = SourceFiles/layout.cpp; sourceTree = SOURCE_ROOT; };
+		0752F86F1C2C84470026D0BC /* layout.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = layout.h; path = SourceFiles/layout.h; sourceTree = SOURCE_ROOT; };
+		0752F8721C2C89220026D0BC /* VideoDecodeAcceleration.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = VideoDecodeAcceleration.framework; path = System/Library/Frameworks/VideoDecodeAcceleration.framework; sourceTree = SDKROOT; };
+		0752F8741C2C89F40026D0BC /* VideoToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = VideoToolbox.framework; path = System/Library/Frameworks/VideoToolbox.framework; sourceTree = SDKROOT; };
 		07539B1C1A1416AF00083EFC /* moc_history.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_history.cpp; path = GeneratedFiles/Debug/moc_history.cpp; sourceTree = SOURCE_ROOT; };
 		0755AEDA1AD12A80004D738A /* moc_abstractbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_abstractbox.cpp; path = GeneratedFiles/Debug/moc_abstractbox.cpp; sourceTree = SOURCE_ROOT; };
 		0755AEDB1AD12A80004D738A /* moc_intropwdcheck.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_intropwdcheck.cpp; path = GeneratedFiles/Debug/moc_intropwdcheck.cpp; sourceTree = SOURCE_ROOT; };
@@ -693,6 +700,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0752F8751C2C89F40026D0BC /* VideoToolbox.framework in Link Binary With Libraries */,
+				0752F8731C2C89220026D0BC /* VideoDecodeAcceleration.framework in Link Binary With Libraries */,
 				07CAACD81AEA64F00058E508 /* AudioUnit.framework in Link Binary With Libraries */,
 				1BB705CDB741E2B7450201A5 /* Cocoa.framework in Link Binary With Libraries */,
 				328FD74542F6E2C873EE4D4B /* ApplicationServices.framework in Link Binary With Libraries */,
@@ -902,6 +911,7 @@
 				07080BD01A436A5000741A51 /* lang.cpp */,
 				AF5776B0652744978B7DF6D3 /* langloaderplain.cpp */,
 				5A9B4C6C59856143F3D0DE53 /* layerwidget.cpp */,
+				0752F86E1C2C84470026D0BC /* layout.cpp */,
 				07A69330199277BA0099CB9F /* mediaview.cpp */,
 				0732E4A7199E262300D50FE7 /* overviewwidget.cpp */,
 				07DE929F1AA4923200A18F6F /* passcodewidget.cpp */,
@@ -942,6 +952,7 @@
 				07080BD11A436A5000741A51 /* lang.h */,
 				25CA12A22B83B0B038C5B5DE /* langloaderplain.h */,
 				6C86B6E6AB1857B735B720D6 /* layerwidget.h */,
+				0752F86F1C2C84470026D0BC /* layout.h */,
 				07A69331199277BA0099CB9F /* mediaview.h */,
 				07DC429D1B5EA0E600B6B888 /* numbers.h */,
 				0732E4A8199E262300D50FE7 /* overviewwidget.h */,
@@ -1211,6 +1222,8 @@
 		AF39DD055C3EF8226FBE929D /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				0752F8741C2C89F40026D0BC /* VideoToolbox.framework */,
+				0752F8721C2C89220026D0BC /* VideoDecodeAcceleration.framework */,
 				07CAACD71AEA64F00058E508 /* AudioUnit.framework */,
 				07055CC3194EE85B0008DEF6 /* libcrypto.a */,
 				07D795491B5544B200DE9598 /* qtpcre */,
@@ -1616,6 +1629,7 @@
 				8B71D1C7BB9DCEE6511219C2 /* moc_flatlabel.cpp in Compile Sources */,
 				0710C9FE1B0B9376001B4272 /* stickersetbox.cpp in Compile Sources */,
 				0764D55D1ABAD71B00FBFEED /* moc_apiwrap.cpp in Compile Sources */,
+				0752F8701C2C84470026D0BC /* layout.cpp in Compile Sources */,
 				07DE92AD1AA4928B00A18F6F /* moc_passcodebox.cpp in Compile Sources */,
 				FCC949FEA178F9F5D7478027 /* moc_flattextarea.cpp in Compile Sources */,
 				07DB674D1AD07C9200A51329 /* abstractbox.cpp in Compile Sources */,
@@ -1842,6 +1856,7 @@
 					/usr/local/lib/libexif.a,
 					/usr/local/lib/libavcodec.a,
 					/usr/local/lib/libavformat.a,
+					/usr/local/lib/libswscale.a,
 					/usr/local/lib/libswresample.a,
 					/usr/local/lib/libavutil.a,
 					/usr/local/lib/libiconv.a,
@@ -1976,6 +1991,7 @@
 					/usr/local/lib/libexif.a,
 					/usr/local/lib/libavcodec.a,
 					/usr/local/lib/libavformat.a,
+					/usr/local/lib/libswscale.a,
 					/usr/local/lib/libswresample.a,
 					/usr/local/lib/libavutil.a,
 					/usr/local/lib/libiconv.a,

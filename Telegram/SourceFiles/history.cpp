@@ -3074,9 +3074,9 @@ HistoryPhoto::HistoryPhoto(PeerData *chat, const MTPDphoto &photo, int32 width) 
 
 HistoryPhoto::HistoryPhoto(const HistoryPhoto &other) : HistoryFileMedia()
 , _data(other._data)
-, _caption(other._caption)
 , _pixw(other._pixw)
-, _pixh(other._pixh) {
+, _pixh(other._pixh)
+, _caption(other._caption) {
 	setLinks(new PhotoLink(_data), new PhotoLink(_data), new PhotoCancelLink(_data));
 
 	init();
@@ -3486,8 +3486,8 @@ HistoryFileMedia::~HistoryFileMedia() {
 
 HistoryVideo::HistoryVideo(const MTPDvideo &video, const QString &caption, HistoryItem *parent) : HistoryFileMedia()
 , _data(App::feedVideo(video))
-, _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right())
-, _thumbw(1) {
+, _thumbw(1)
+, _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
 	if (!caption.isEmpty()) {
 		_caption.setText(st::msgFont, caption + parent->skipBlock(), itemTextNoMonoOptions(parent));
 	}
@@ -3501,8 +3501,8 @@ HistoryVideo::HistoryVideo(const MTPDvideo &video, const QString &caption, Histo
 
 HistoryVideo::HistoryVideo(const HistoryVideo &other) : HistoryFileMedia()
 , _data(other._data)
-, _caption(other._caption)
-, _thumbw(other._thumbw) {
+, _thumbw(other._thumbw)
+, _caption(other._caption) {
 	setLinks(new VideoOpenLink(_data), new VideoSaveLink(_data), new VideoCancelLink(_data));
 
 	setStatusSize(other._statusSize);
@@ -3991,8 +3991,8 @@ HistoryDocument::HistoryDocument(const HistoryDocument &other) : HistoryFileMedi
 , _data(other._data)
 , _linksavel(new DocumentSaveLink(_data))
 , _linkcancell(new DocumentCancelLink(_data))
-, _namew(other._namew)
 , _name(other._name)
+, _namew(other._namew)
 , _thumbw(other._thumbw) {
 	setLinks(new DocumentOpenLink(_data), new DocumentSaveLink(_data), new DocumentCancelLink(_data));
 

@@ -1099,10 +1099,10 @@ public:
 		automaticLoad(0);
 		if (s->img->isNull() && loaded()) {
 			if (_data.isEmpty()) {
-				const FileLocation &location(location(true));
-				if (location.accessEnable()) {
-					s->img = ImagePtr(location.name());
-					location.accessDisable();
+				const FileLocation &loc(location(true));
+				if (loc.accessEnable()) {
+					s->img = ImagePtr(loc.name());
+					loc.accessDisable();
 				}
 			} else {
 				s->img = ImagePtr(_data);

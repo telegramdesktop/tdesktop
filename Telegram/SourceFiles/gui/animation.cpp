@@ -397,9 +397,9 @@ public:
 		, _width(0)
 		, _height(0)
 		, _swsContext(0)
+		, _frameMs(0)
 		, _nextFrameDelay(0)
-		, _currentFrameDelay(0)
-		, _frameMs(0) {
+		, _currentFrameDelay(0) {
 		_frame = av_frame_alloc();
 		av_init_packet(&_avpkt);
 		_avpkt.data = NULL;
@@ -600,7 +600,6 @@ private:
 	AVCodec *_codec;
 	AVCodecContext *_codecContext;
 	int32 _streamId;
-	AVSampleFormat _inputFormat;
 	AVFrame *_frame;
 	bool _opened, _hadFrame;
 
