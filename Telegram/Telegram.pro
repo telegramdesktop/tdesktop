@@ -96,6 +96,7 @@ SOURCES += \
     ./SourceFiles/lang.cpp \
     ./SourceFiles/langloaderplain.cpp \
     ./SourceFiles/layerwidget.cpp \
+    ./SourceFiles/layout.cpp \
     ./SourceFiles/mediaview.cpp \
     ./SourceFiles/overviewwidget.cpp \
     ./SourceFiles/passcodewidget.cpp \
@@ -183,6 +184,7 @@ HEADERS += \
     ./SourceFiles/lang.h \
     ./SourceFiles/langloaderplain.h \
     ./SourceFiles/layerwidget.h \
+    ./SourceFiles/layout.h \
     ./SourceFiles/mediaview.h \
     ./SourceFiles/numbers.h \
     ./SourceFiles/overviewwidget.h \
@@ -306,7 +308,7 @@ INCLUDEPATH += "/usr/include/atk-1.0"
 INCLUDEPATH += "/usr/include/dee-1.0"
 INCLUDEPATH += "/usr/include/libdbusmenu-glib-0.4"
 
-LIBS += -lcrypto -lssl -lz -ldl -llzma -lexif -lopenal -lavformat -lavcodec -lswresample -lavutil -lopus
+LIBS += -lcrypto -lssl -lz -ldl -llzma -lexif -lopenal -lavformat -lavcodec -lswresample -lswscale -lavutil -lopus
 LIBS += ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libcomposeplatforminputcontextplugin.a \
         ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libibusplatforminputcontextplugin.a \
         ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.a
