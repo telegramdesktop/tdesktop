@@ -619,97 +619,165 @@ int64 imageCacheSize() {
 	return globalAquiredSize;
 }
 
-StorageImage::StorageImage(const StorageImageLocation &location, int32 size) : w(location.width), h(location.height), loader(new mtpFileLoader(location.dc, location.volume, location.local, location.secret, size)) {
+StorageImage::StorageImage(const StorageImageLocation &location, int32 size) : _location(location), _size(size), _loader(0) {
 }
 
-StorageImage::StorageImage(const StorageImageLocation &location, QByteArray &bytes) : w(location.width), h(location.height), loader(0) {
+StorageImage::StorageImage(const StorageImageLocation &location, QByteArray &bytes) : _location(location), _size(bytes.size()), _loader(0) {
 	setData(bytes);
-	if (location.dc) {
-		Local::writeImage(storageKey(location.dc, location.volume, location.local), StorageImageSaved(mtpToStorageType(mtpc_storage_filePartial), bytes));
+	if (!_location.isNull()) {
+		Local::writeImage(storageKey(_location), StorageImageSaved(mtpToStorageType(mtpc_storage_filePartial), bytes));
 	}
 }
 
 const QPixmap &StorageImage::pixData() const {
-	return data;
+	return _data;
 }
 
 int32 StorageImage::width() const {
-	return w;
+	return _location.width();
 }
 
 int32 StorageImage::height() const {
-	return h;
+	return _location.height();
 }
 
-bool StorageImage::check() const {
-	if (loader->done()) {
-		if (!data.isNull()) {
-			globalAquiredSize -= int64(data.width()) * data.height() * 4;
-		}
-		format = loader->imageFormat();
-		data = loader->imagePixmap();
-		QByteArray bytes = loader->bytes();
-		if (!data.isNull()) {
-			globalAquiredSize += int64(data.width()) * data.height() * 4;
-		}
+void StorageImage::checkload() const {
+	if (!amLoading() || !_loader->done()) return;
 
-		w = data.width();
-		h = data.height();
-		invalidateSizeCache();
-		loader->deleteLater();
-		loader->rpcInvalidate();
-		loader = 0;
-
-		saved = bytes;
-		forgot = false;
-		return true;
-	}
-	return false;
-}
-
-void StorageImage::setData(QByteArray &bytes, const QByteArray &format) {
-	QBuffer buffer(&bytes);
-
-	if (!data.isNull()) {
-		globalAquiredSize -= int64(data.width()) * data.height() * 4;
-	}
-	QByteArray fmt(format);
-	data = QPixmap::fromImage(App::readImage(bytes, &fmt, false), Qt::ColorOnly);
-	if (!data.isNull()) {
-		globalAquiredSize += int64(data.width()) * data.height() * 4;
+	QPixmap data = _loader->imagePixmap();
+	if (data.isNull()) {
+		_loader->deleteLater();
+		_loader->rpcInvalidate();
+		_loader = CancelledFileLoader;
+		return;
 	}
 
-	w = data.width();
-	h = data.height();
+	if (!_data.isNull()) {
+		globalAquiredSize -= int64(_data.width()) * _data.height() * 4;
+	}
+
+	format = _loader->imageFormat();
+	_data = data;
+	saved = _loader->bytes();
+	const_cast<StorageImage*>(this)->_size = saved.size();
+	const_cast<StorageImage*>(this)->_location.setSize(_data.width(), _data.height());
+	globalAquiredSize += int64(_data.width()) * _data.height() * 4;
+
 	invalidateSizeCache();
-	if (loader) {
-		loader->deleteLater();
-		loader->rpcInvalidate();
-		loader = 0;
-	}
-	this->saved = bytes;
-	this->format = fmt;
+
+	_loader->deleteLater();
+	_loader->rpcInvalidate();
+	_loader = 0;
+
 	forgot = false;
 }
 
-StorageImage::~StorageImage() {
-	if (!data.isNull()) {
-		globalAquiredSize -= int64(data.width()) * data.height() * 4;
+void StorageImage::setData(QByteArray &bytes, const QByteArray &bytesFormat) {
+	QBuffer buffer(&bytes);
+
+	if (!_data.isNull()) {
+		globalAquiredSize -= int64(_data.width()) * _data.height() * 4;
 	}
-	if (loader) {
-		loader->deleteLater();
-		loader->rpcInvalidate();
-		loader = 0;
+	QByteArray fmt(bytesFormat);
+	_data = QPixmap::fromImage(App::readImage(bytes, &fmt, false), Qt::ColorOnly);
+	if (!_data.isNull()) {
+		globalAquiredSize += int64(_data.width()) * _data.height() * 4;
+		_location.setSize(_data.width(), _data.height());
+	}
+
+	invalidateSizeCache();
+	if (amLoading()) {
+		_loader->deleteLater();
+		_loader->rpcInvalidate();
+		_loader = 0;
+	}
+	saved = bytes;
+	format = fmt;
+	forgot = false;
+}
+
+void StorageImage::automaticLoad(const HistoryItem *item) {
+	if (loaded()) return;
+
+	if (_loader != CancelledFileLoader && item) {
+		bool loadFromCloud = false;
+		if (item->history()->peer->isUser()) {
+			loadFromCloud = !(cAutoDownloadPhoto() & dbiadNoPrivate);
+		} else {
+			loadFromCloud = !(cAutoDownloadPhoto() & dbiadNoGroups);
+		}
+
+		if (_loader) {
+			if (loadFromCloud) _loader->permitLoadFromCloud();
+		} else if (!_location.isNull()) {
+			_loader = new mtpFileLoader(&_location, _size, loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly, true);
+			_loader->start();
+		}
+	}
+}
+
+void StorageImage::load(bool loadFirst, bool prior) {
+	if (loaded()) return;
+
+	if (!_loader && !_location.isNull()) {
+		_loader = new mtpFileLoader(&_location, _size, LoadFromCloudOrLocal, false);
+	}
+	if (amLoading()) {
+		_loader->start(loadFirst, prior);
+	}
+}
+
+void StorageImage::loadEvenCancelled(bool loadFirst, bool prior) {
+	if (_loader == CancelledFileLoader) _loader = 0;
+	return load(loadFirst, prior);
+}
+
+StorageImage::~StorageImage() {
+	if (!_data.isNull()) {
+		globalAquiredSize -= int64(_data.width()) * _data.height() * 4;
+	}
+	if (amLoading()) {
+		_loader->deleteLater();
+		_loader->rpcInvalidate();
+		_loader = 0;
 	}
 }
 
 bool StorageImage::loaded() const {
-	if (!loader) return true;
-	return check();
+	checkload();
+	return (!_data.isNull() || !saved.isNull());
+}
+
+bool StorageImage::loading() const {
+	return amLoading();
+}
+
+bool StorageImage::displayLoading() const {
+	return amLoading() && (!_loader->loadingLocal() || !_loader->autoLoading());
+}
+
+void StorageImage::cancel() {
+	if (!amLoading()) return;
+
+	mtpFileLoader *l = _loader;
+	_loader = CancelledFileLoader;
+	if (l) {
+		l->cancel();
+		l->deleteLater();
+		l->rpcInvalidate();
+	}
+}
+
+float64 StorageImage::progress() const {
+	return amLoading() ? _loader->currentProgress() : (loaded() ? 1 : 0);
+}
+
+int32 StorageImage::loadOffset() const {
+	return amLoading() ? _loader->currentOffset() : 0;
 }
 
 StorageImage *getImage(const StorageImageLocation &location, int32 size) {
-	StorageKey key(storageKey(location.dc, location.volume, location.local));
+	StorageKey key(storageKey(location));
 	StorageImages::const_iterator i = storageImages.constFind(key);
 	if (i == storageImages.cend()) {
 		i = storageImages.insert(key, new StorageImage(location, size));
@@ -718,7 +786,7 @@ StorageImage *getImage(const StorageImageLocation &location, int32 size) {
 }
 
 StorageImage *getImage(const StorageImageLocation &location, const QByteArray &bytes) {
-	StorageKey key(storageKey(location.dc, location.volume, location.local));
+	StorageKey key(storageKey(location));
 	StorageImages::const_iterator i = storageImages.constFind(key);
     if (i == storageImages.cend()) {
         QByteArray bytesArr(bytes);
@@ -726,8 +794,8 @@ StorageImage *getImage(const StorageImageLocation &location, const QByteArray &b
 	} else if (!i.value()->loaded()) {
         QByteArray bytesArr(bytes);
         i.value()->setData(bytesArr);
-		if (location.dc) {
-			Local::writeImage(storageKey(location.dc, location.volume, location.local), StorageImageSaved(mtpToStorageType(mtpc_storage_filePartial), bytes));
+		if (!location.isNull()) {
+			Local::writeImage(key, StorageImageSaved(mtpToStorageType(mtpc_storage_filePartial), bytes));
 		}
 	}
 	return i.value();

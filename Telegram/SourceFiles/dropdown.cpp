@@ -1331,18 +1331,7 @@ void StickerPanInner::paintEvent(QPaintEvent *e) {
 				if (goodThumb) {
 					sticker->thumb->load();
 				} else {
-					bool already = !sticker->already().isEmpty(), hasdata = !sticker->data.isEmpty();
-					if (!already && !hasdata && !sticker->loader && sticker->status == FileReady) {
-						sticker->openOnSave = 0;
-						sticker->save(QString());
-					}
-					if (sticker->sticker()->img->isNull() && (already || hasdata)) {
-						if (already) {
-							sticker->sticker()->img = ImagePtr(sticker->already());
-						} else {
-							sticker->sticker()->img = ImagePtr(sticker->data);
-						}
-					}
+					sticker->checkSticker();
 				}
 
 				float64 coef = qMin((st::stickerPanSize.width() - st::msgRadius * 2) / float64(sticker->dimensions.width()), (st::stickerPanSize.height() - st::msgRadius * 2) / float64(sticker->dimensions.height()));
@@ -1521,18 +1510,7 @@ void StickerPanInner::preloadImages() {
 			if (goodThumb) {
 				sticker->thumb->load();
 			} else {
-				bool already = !sticker->already().isEmpty(), hasdata = !sticker->data.isEmpty();
-				if (!already && !hasdata && !sticker->loader && sticker->status == FileReady) {
-					sticker->openOnSave = 0;
-					sticker->save(QString());
-				}
-				//if (sticker->sticker->img->isNull() && (already || hasdata)) {
-				//	if (already) {
-				//		sticker->sticker->img = ImagePtr(sticker->already());
-				//	} else {
-				//		sticker->sticker->img = ImagePtr(sticker->data);
-				//	}
-				//}
+				sticker->automaticLoad(0);
 			}
 		}
 		if (k > StickerPanPerRow * (StickerPanPerRow + 1)) break;

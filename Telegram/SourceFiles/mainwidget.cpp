@@ -23,6 +23,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "lang.h"
 
 #include "boxes/addcontactbox.h"
+#include "fileuploader.h"
 #include "application.h"
 #include "window.h"
 #include "settingswidget.h"
@@ -886,6 +887,12 @@ void MainWidget::deleteLayer(int32 selectedCount) {
 	QString str((selectedCount < 0) ? lang(selectedCount < -1 ? lng_selected_cancel_sure_this : lng_selected_delete_sure_this) : lng_selected_delete_sure(lt_count, selectedCount));
 	ConfirmBox *box = new ConfirmBox((selectedCount < 0) ? str : str.arg(selectedCount), lang(lng_box_delete));
 	if (selectedCount < 0) {
+		if (selectedCount < -1) {
+			if (HistoryItem *item = App::contextItem()) {
+				App::uploader()->pause(item->fullId());
+				connect(box, SIGNAL(destroyed(QObject*)), App::uploader(), SLOT(unpause()));
+			}
+		}
 		connect(box, SIGNAL(confirmed()), overview ? overview : static_cast<QWidget*>(&history), SLOT(onDeleteContextSure()));
 	} else {
 		connect(box, SIGNAL(confirmed()), overview ? overview : static_cast<QWidget*>(&history), SLOT(onDeleteSelectedSure()));
@@ -1619,21 +1626,10 @@ void MainWidget::messagesAffected(PeerData *peer, const MTPmessages_AffectedMess
 
 void MainWidget::videoLoadProgress(mtpFileLoader *loader) {
 	VideoData *video = App::video(loader->objId());
-	if (video->loader) {
-		video->status = FileReady;
-		if (video->loader->done()) {
-			video->finish();
-			QString already = video->already();
-			if (!already.isEmpty() && video->openOnSave) {
-				QPoint pos(QCursor::pos());
-				if (video->openOnSave < 0 && !psShowOpenWithMenu(pos.x(), pos.y(), already)) {
-					psOpenFile(already, true);
-				} else {
-					psOpenFile(already, video->openOnSave < 0);
-				}
-			}
-		}
+	if (video->loaded()) {
+		video->performActionOnLoad();
 	}
+
 	const VideoItems &items(App::videoItems());
 	VideoItems::const_iterator i = items.constFind(video);
 	if (i != items.cend()) {
@@ -1673,7 +1669,7 @@ void MainWidget::videoLoadFailed(mtpFileLoader *loader, bool started) {
 	loadFailed(loader, started, SLOT(videoLoadRetry()));
 	VideoData *video = App::video(loader->objId());
 	if (video) {
-		if (video->loader) video->finish();
+		if (video->loading()) video->cancel();
 		video->status = FileDownloadFailed;
 	}
 }
@@ -1686,35 +1682,10 @@ void MainWidget::videoLoadRetry() {
 
 void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 	AudioData *audio = App::audio(loader->objId());
-	if (audio->loader) {
-		audio->status = FileReady;
-		if (audio->loader->done()) {
-			audio->finish();
-			QString already = audio->already();
-			bool play = audio->openOnSave > 0 && audio->openOnSaveMsgId.msg && audioPlayer();
-			if ((!already.isEmpty() && audio->openOnSave) || (!audio->data.isEmpty() && play)) {
-				if (play) {
-					AudioMsgId playing;
-					AudioPlayerState state = AudioPlayerStopped;
-					audioPlayer()->currentState(&playing, &state);
-					if (playing.msgId == audio->openOnSaveMsgId && !(state & AudioPlayerStoppedMask) && state != AudioPlayerFinishing) {
-						audioPlayer()->pauseresume(OverviewAudios);
-					} else {
-						audioPlayer()->play(AudioMsgId(audio, audio->openOnSaveMsgId));
-						if (App::main()) App::main()->audioMarkRead(audio);
-					}
-				} else {
-					QPoint pos(QCursor::pos());
-					if (audio->openOnSave < 0 && !psShowOpenWithMenu(pos.x(), pos.y(), already)) {
-						psOpenFile(already, true);
-					} else {
-						psOpenFile(already, audio->openOnSave < 0);
-					}
-					if (App::main()) App::main()->audioMarkRead(audio);
-				}
-			}
-		}
+	if (audio->loaded()) {
+		audio->performActionOnLoad();
 	}
+
 	const AudioItems &items(App::audioItems());
 	AudioItems::const_iterator i = items.constFind(audio);
 	if (i != items.cend()) {
@@ -1733,13 +1704,13 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 
 		AudioData *audio = audioId.audio;
 		QString already = audio->already(true);
-		if (already.isEmpty() && !audio->data.isEmpty()) {
+		if (already.isEmpty() && !audio->data().isEmpty()) {
 			bool mp3 = (audio->mime == qstr("audio/mp3"));
 			QString filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), mp3 ? qsl(".mp3") : qsl(".ogg"), false);
 			if (!filename.isEmpty()) {
 				QFile f(filename);
 				if (f.open(QIODevice::WriteOnly)) {
-					if (f.write(audio->data) == audio->data.size()) {
+					if (f.write(audio->data()) == audio->data().size()) {
 						f.close();
 						already = filename;
 						audio->setLocation(FileLocation(StorageFilePartial, filename));
@@ -1770,7 +1741,7 @@ void MainWidget::documentPlayProgress(const SongMsgId &songId) {
 
 		DocumentData *document = songId.song;
 		QString already = document->already(true);
-		if (already.isEmpty() && !document->data.isEmpty()) {
+		if (already.isEmpty() && !document->data().isEmpty()) {
 			QString name = document->name, filter;
 			MimeType mimeType = mimeTypeForName(document->mime);
 			QStringList p = mimeType.globPatterns();
@@ -1787,7 +1758,7 @@ void MainWidget::documentPlayProgress(const SongMsgId &songId) {
 			if (!filename.isEmpty()) {
 				QFile f(filename);
 				if (f.open(QIODevice::WriteOnly)) {
-					if (f.write(document->data) == document->data.size()) {
+					if (f.write(document->data()) == document->data().size()) {
 						f.close();
 						already = filename;
 						document->setLocation(FileLocation(StorageFilePartial, filename));
@@ -1832,8 +1803,8 @@ void MainWidget::audioLoadFailed(mtpFileLoader *loader, bool started) {
 	loadFailed(loader, started, SLOT(audioLoadRetry()));
 	AudioData *audio = App::audio(loader->objId());
 	if (audio) {
+		if (audio->loading()) audio->cancel();
 		audio->status = FileDownloadFailed;
-		if (audio->loader) audio->finish();
 	}
 }
 
@@ -1844,70 +1815,11 @@ void MainWidget::audioLoadRetry() {
 }
 
 void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
-	bool songPlayActivated = false;
 	DocumentData *document = App::document(loader->objId());
-	if (document->loader) {
-		document->status = FileReady;
-		if (document->loader->done()) {
-			document->finish();
-			QString already = document->already();
-
-			HistoryItem *item = (document->openOnSave && document->openOnSaveMsgId.msg) ? App::histItemById(document->openOnSaveMsgId) : 0;
-			bool playMusic = document->song() && audioPlayer() && document->openOnSave && item;
-			bool playAnimation = document->isAnimation() && document->openOnSave > 0 && item && item->getMedia();
-			if (document->openOnSave && (!already.isEmpty() || (!document->data.isEmpty() && (playMusic || playAnimation)))) {
-				if (playMusic) {
-					SongMsgId playing;
-					AudioPlayerState playingState = AudioPlayerStopped;
-					audioPlayer()->currentState(&playing, &playingState);
-					if (playing.msgId == item->fullId() && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-						audioPlayer()->pauseresume(OverviewDocuments);
-					} else {
-						SongMsgId song(document, item->fullId());
-						audioPlayer()->play(song);
-						if (App::main()) App::main()->documentPlayProgress(song);
-					}
-
-					songPlayActivated = true;
-				} else if (document->openOnSave > 0 && document->size < MediaViewImageSizeLimit) {
-					if (!document->data.isEmpty() && playAnimation) {
-						if (document->openOnSave > 1) {
-							item->getMedia()->playInline(item);
-						} else {
-							App::wnd()->showDocument(document, item);
-						}
-					} else {
-						const FileLocation &location(document->location(true));
-						if (location.accessEnable()) {
-							if (document->openOnSave > 1) {
-								if (playAnimation) {
-									item->getMedia()->playInline(item);
-								} else {
-									psOpenFile(already);
-								}
-							} else {
-								if (playAnimation || (item && QImageReader(location.name()).canRead())) {
-									App::wnd()->showDocument(document, item);
-								} else {
-									psOpenFile(already);
-								}
-							}
-							location.accessDisable();
-						} else {
-							psOpenFile(already);
-						}
-					}
-				} else {
-					QPoint pos(QCursor::pos());
-					if (document->openOnSave < 0 && !psShowOpenWithMenu(pos.x(), pos.y(), already)) {
-						psOpenFile(already, true);
-					} else {
-						psOpenFile(already, document->openOnSave < 0);
-					}
-				}
-			}
-		}
+	if (document->loaded()) {
+		document->performActionOnLoad();
 	}
+
 	const DocumentItems &items(App::documentItems());
 	DocumentItems::const_iterator i = items.constFind(document);
 	if (i != items.cend()) {
@@ -1917,18 +1829,14 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 	}
 	App::wnd()->documentUpdated(document);
 
-	if (!songPlayActivated && audioPlayer()) {
+	if (!document->loaded() && document->loading() && document->song() && audioPlayer()) {
 		SongMsgId playing;
 		AudioPlayerState playingState = AudioPlayerStopped;
 		int64 playingPosition = 0, playingDuration = 0;
 		int32 playingFrequency = 0;
 		audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
 		if (playing.song == document && !_player.isHidden()) {
-			if (document->loader) {
-				_player.updateState(playing, playingState, playingPosition, playingDuration, playingFrequency);
-			} else {
-				audioPlayer()->play(playing);
-			}
+			_player.updateState(playing, playingState, playingPosition, playingDuration, playingFrequency);
 		}
 	}
 }
@@ -1937,7 +1845,7 @@ void MainWidget::documentLoadFailed(mtpFileLoader *loader, bool started) {
 	loadFailed(loader, started, SLOT(documentLoadRetry()));
 	DocumentData *document = App::document(loader->objId());
 	if (document) {
-		if (document->loader) document->finish();
+		if (document->loading()) document->cancel();
 		document->status = FileDownloadFailed;
 	}
 }
@@ -2124,7 +2032,7 @@ void MainWidget::updateScrollColors() {
 
 void MainWidget::setChatBackground(const App::WallPaper &wp) {
 	_background = new App::WallPaper(wp);
-	_background->full->load();
+	_background->full->loadEvenCancelled();
 	checkChatBackground();
 }
 

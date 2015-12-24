@@ -455,7 +455,7 @@ void AudioPlayer::play(const AudioMsgId &audio, int64 position) {
 		}
 		current->audio = audio;
 		current->file = audio.audio->location(true);
-		current->data = audio.audio->data;
+		current->data = audio.audio->data();
 		if (current->file.isEmpty() && current->data.isEmpty()) {
 			setStoppedState(current, AudioPlayerStoppedAtError);
 			onError(audio);
@@ -499,14 +499,11 @@ void AudioPlayer::play(const SongMsgId &song, int64 position) {
 		}
 		current->song = song;
 		current->file = song.song->location(true);
-		current->data = song.song->data;
+		current->data = song.song->data();
 		if (current->file.isEmpty() && current->data.isEmpty()) {
 			setStoppedState(current);
-			if (!song.song->loader) {
+			if (!song.song->loading()) {
 				DocumentOpenLink::doOpen(song.song);
-				song.song->openOnSave = 0;
-				song.song->openOnSaveMsgId = FullMsgId();
-				if (song.song->loader) song.song->loader->start(true, true);
 			}
 		} else {
 			current->state = fadedStart ? AudioPlayerStarting : AudioPlayerPlaying;

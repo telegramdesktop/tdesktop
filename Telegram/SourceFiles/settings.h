@@ -195,7 +195,7 @@ DeclareRefSetting(EmojiColorVariants, EmojiVariants);
 
 RecentEmojiPack &cGetRecentEmojis();
 
-struct DocumentData;
+class DocumentData;
 typedef QVector<DocumentData*> StickerPack;
 DeclareSetting(int32, StickersHash);
 

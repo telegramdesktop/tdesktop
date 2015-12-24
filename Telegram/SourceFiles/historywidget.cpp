@@ -880,7 +880,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_save_image), this, SLOT(saveContextImage()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_image), this, SLOT(copyContextImage()))->setEnabled(true);
 		} else {
-			if ((lnkVideo && lnkVideo->video()->loader) || (lnkAudio && lnkAudio->audio()->loadingStarted()) || (lnkDocument && lnkDocument->document()->loadingStarted())) {
+			if ((lnkVideo && lnkVideo->video()->loading()) || (lnkAudio && lnkAudio->audio()->loading()) || (lnkDocument && lnkDocument->document()->loading())) {
 				_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
 			} else {
 				if ((lnkVideo && !lnkVideo->video()->already(true).isEmpty()) || (lnkAudio && !lnkAudio->audio()->already(true).isEmpty()) || (lnkDocument && !lnkDocument->document()->already(true).isEmpty())) {
@@ -1050,8 +1050,13 @@ void HistoryInner::cancelContextDownload() {
     VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
     AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
     DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	mtpFileLoader *loader = lnkVideo ? lnkVideo->video()->loader : (lnkAudio ? lnkAudio->audio()->loader : (lnkDocument ? lnkDocument->document()->loader : 0));
-	if (loader) loader->cancel();
+	if (lnkVideo) {
+		lnkVideo->video()->cancel();
+	} else if (lnkAudio) {
+		lnkAudio->audio()->cancel();
+	} else if (lnkDocument) {
+		lnkDocument->document()->cancel();
+	}
 }
 
 void HistoryInner::showContextInFolder() {
@@ -5436,7 +5441,7 @@ void HistoryWidget::onPhotoProgress(const FullMsgId &newId) {
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadPhoto, 0);
 		}
-//		Ui::redrawHistoryItem(item);
+		Ui::redrawHistoryItem(item);
 	}
 }
 

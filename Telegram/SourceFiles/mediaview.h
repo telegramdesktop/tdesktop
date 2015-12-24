@@ -65,8 +65,6 @@ public:
 	void updateControls();
 	void updateDropdown();
 
-	void step_state(uint64 ms, bool timer);
-
 	void showSaveMsgFile();
 	void close();
 
@@ -116,6 +114,9 @@ private:
 	void updateHeader();
 	void snapXY();
 
+	void step_state(uint64 ms, bool timer);
+	void step_radial(uint64 ms, bool timer);
+
 	QBrush _transparentBrush;
 
 	PhotoData *_photo;
@@ -154,10 +155,7 @@ private:
 	int32 _docNameWidth, _docSizeWidth, _docExtWidth;
 	QRect _docRect, _docIconRect;
 	int32 _docThumbx, _docThumby, _docThumbw;
-	uint64 _docRadialFirst, _docRadialStart, _docRadialLast;
-	float64 _docRadialOpacity;
-	QPen _docRadialPen;
-	anim::fvalue a_docRadial, a_docRadialStart;
+	RadialAnimation _docRadial;
 	LinkButton _docDownload, _docSaveAs, _docCancel;
 
 	History *_migrated, *_history; // if conversation photos or files overview

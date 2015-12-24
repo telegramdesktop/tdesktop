@@ -593,6 +593,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_emoji_category7" = "Symbols & Flags";
 
 "lng_switch_stickers" = "Stickers";
+"lng_switch_stickers_gifs" = "GIFs & Stickers";
 "lng_switch_emoji" = "Emoji";
 
 "lng_box_remove" = "Remove";

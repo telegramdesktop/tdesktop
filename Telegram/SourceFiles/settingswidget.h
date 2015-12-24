@@ -262,17 +262,17 @@ private:
 	TempDirClearState _tempDirClearState;
 	LinkButton _autoDownload;
 
-	// chat background
-	QPixmap _background;
-	LinkButton _backFromGallery, _backFromFile;
-	FlatCheckbox _tileBackground;
-	bool _needBackgroundUpdate;
-
 	// local storage
 	LinkButton _localStorageClear;
 	int32 _localStorageHeight;
 	int32 _storageClearingWidth, _storageClearedWidth, _storageClearFailedWidth;
 	TempDirClearState _storageClearState;
+
+	// chat background
+	QPixmap _background;
+	LinkButton _backFromGallery, _backFromFile;
+	FlatCheckbox _tileBackground;
+	bool _needBackgroundUpdate;
 
 	// advanced
 	LinkButton _passcodeEdit, _passcodeTurnOff, _autoLock;

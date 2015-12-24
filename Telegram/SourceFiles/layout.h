@@ -323,10 +323,10 @@ protected:
 		return _data->progress();
 	}
 	virtual bool dataFinished() const {
-		return !_data->loader;
+		return !_data->loading();
 	}
 	virtual bool dataLoaded() const {
-		return !_data->already().isEmpty();
+		return _data->loaded();
 	}
 	virtual bool iconAnimated() const {
 		return true;
@@ -363,10 +363,10 @@ protected:
 		return _data->progress();
 	}
 	virtual bool dataFinished() const {
-		return !_data->loader;
+		return !_data->loading();
 	}
 	virtual bool dataLoaded() const {
-		return !_data->already().isEmpty() || !_data->data.isEmpty();
+		return _data->loaded();
 	}
 	virtual bool iconAnimated() const {
 		return true;
@@ -375,6 +375,7 @@ protected:
 private:
 	OverviewItemInfo _info;
 	AudioData *_data;
+	TextLinkPtr _namel;
 
 	mutable Text _name, _details;
 	mutable int32 _nameVersion;
@@ -407,13 +408,13 @@ protected:
 		return _data->progress();
 	}
 	virtual bool dataFinished() const {
-		return !_data->loader;
+		return !_data->loading();
 	}
 	virtual bool dataLoaded() const {
 		return _data->loaded();
 	}
 	virtual bool iconAnimated() const {
-		return _data->song() || !dataLoaded() || (_radial && _radial->animating());
+		return _data->song() || !_data->loaded() || (_radial && _radial->animating());
 	}
 
 private:

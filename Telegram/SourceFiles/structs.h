@@ -340,7 +340,7 @@ enum UserBlockedStatus {
 	UserIsNotBlocked,
 };
 
-struct PhotoData;
+class PhotoData;
 class UserData : public PeerData {
 public:
 
@@ -720,30 +720,33 @@ inline int32 newMessageFlags(PeerData *p) {
 	return p->isSelf() ? 0 : (((p->isChat() || (p->isUser() && !p->asUser()->botInfo)) ? MTPDmessage::flag_unread : 0) | MTPDmessage::flag_out);
 }
 
+enum ActionOnLoad {
+	ActionOnLoadNone,
+	ActionOnLoadOpen,
+	ActionOnLoadOpenWith,
+	ActionOnLoadPlayInline
+};
+
 typedef QMap<char, QPixmap> PreparedPhotoThumbs;
-struct PhotoData {
-	PhotoData(const PhotoId &id, const uint64 &access = 0, int32 date = 0, const ImagePtr &thumb = ImagePtr(), const ImagePtr &medium = ImagePtr(), const ImagePtr &full = ImagePtr()) :
-		id(id), access(access), date(date), thumb(thumb), medium(medium), full(full), peer(0) {
-	}
-	void forget() {
-		thumb->forget();
-		replyPreview->forget();
-		medium->forget();
-		full->forget();
-	}
-	ImagePtr makeReplyPreview() {
-		if (replyPreview->isNull() && !thumb->isNull()) {
-			if (thumb->loaded()) {
-				int w = thumb->width(), h = thumb->height();
-				if (w <= 0) w = 1;
-				if (h <= 0) h = 1;
-				replyPreview = ImagePtr(w > h ? thumb->pix(w * st::msgReplyBarSize.height() / h, st::msgReplyBarSize.height()) : thumb->pix(st::msgReplyBarSize.height()), "PNG");
-			} else {
-				thumb->load();
-			}
-		}
-		return replyPreview;
-	}
+class PhotoData {
+public:
+	PhotoData(const PhotoId &id, const uint64 &access = 0, int32 date = 0, const ImagePtr &thumb = ImagePtr(), const ImagePtr &medium = ImagePtr(), const ImagePtr &full = ImagePtr());
+
+	void automaticLoad(const HistoryItem *item);
+
+	bool loaded() const;
+	bool loading() const;
+	bool displayLoading() const;
+	void cancel();
+	float64 progress() const;
+	int32 loadOffset() const;
+	bool uploading() const;
+
+	void forget();
+	ImagePtr makeReplyPreview();
+
+	~PhotoData();
+
 	PhotoId id;
 	uint64 access;
 	int32 date;
@@ -754,17 +757,22 @@ struct PhotoData {
 	PeerData *peer; // for chat and channel photos connection
 	// geo, caption
 
-	int32 cachew;
-	QPixmap cache;
+	struct UploadingData {
+		UploadingData(int32 size) : offset(0), size(size) {
+		}
+		int32 offset, size;
+	};
+	UploadingData *uploadingData;
+
+//	int32 cachew;
+//	QPixmap cache;
 };
 
 class PhotoLink : public ITextLink {
 	TEXT_LINK_CLASS(PhotoLink)
 
 public:
-	PhotoLink(PhotoData *photo) : _photo(photo), _peer(0) {
-	}
-	PhotoLink(PhotoData *photo, PeerData *peer) : _photo(photo), _peer(peer) {
+	PhotoLink(PhotoData *photo, PeerData *peer = 0) : _photo(photo), _peer(peer) {
 	}
 	void onClick(Qt::MouseButton button) const;
 	PhotoData *photo() const {
@@ -777,6 +785,17 @@ public:
 private:
 	PhotoData *_photo;
 	PeerData *_peer;
+
+};
+
+class PhotoCancelLink : public PhotoLink {
+	TEXT_LINK_CLASS(PhotoCancelLink)
+
+public:
+	PhotoCancelLink(PhotoData *photo, PeerData *peer = 0) : PhotoLink(photo, peer) {
+	}
+	void onClick(Qt::MouseButton button) const;
+
 };
 
 enum FileStatus {
@@ -786,52 +805,34 @@ enum FileStatus {
 	FileReady = 1,
 };
 
-struct VideoData {
+class VideoData {
+public:
 	VideoData(const VideoId &id, const uint64 &access = 0, int32 date = 0, int32 duration = 0, int32 w = 0, int32 h = 0, const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
 
-	void forget() {
-		thumb->forget();
-		replyPreview->forget();
+	void automaticLoad(const HistoryItem *item) {
 	}
 
-	void save(const QString &toFile);
+	bool loaded(bool check = false) const;
+	bool loading() const;
+	bool displayLoading() const;
+	void save(const QString &toFile, ActionOnLoad action = ActionOnLoadNone, const FullMsgId &actionMsgId = FullMsgId(), LoadFromCloudSetting fromCloud = LoadFromCloudOrLocal, bool autoLoading = false);
+	void cancel();
+	float64 progress() const;
+	int32 loadOffset() const;
+	bool uploading() const;
 
-	void cancel(bool beforeDownload = false) {
-		mtpFileLoader *l = loader;
-		loader = 0;
-		if (l) {
-			l->cancel();
-			l->deleteLater();
-			l->rpcInvalidate();
+	QString already(bool check = false) const;
+	QByteArray data() const;
+	const FileLocation &location(bool check = false) const;
+	void setLocation(const FileLocation &loc);
 
-			notifyLayoutChanged();
-		}
-		_location = FileLocation();
-		if (!beforeDownload) {
-			openOnSave = 0;
-			openOnSaveMsgId = FullMsgId();
-		}
+	bool saveToCache() const {
+		return false;
 	}
 
-	void finish() {
-		if (loader->done()) {
-			_location = FileLocation(mtpToStorageType(loader->fileType()), loader->fileName());
-		}
-		loader->deleteLater();
-		loader->rpcInvalidate();
-		loader = 0;
+	void performActionOnLoad();
 
-		notifyLayoutChanged();
-	}
-
-	void notifyLayoutChanged() const;
-
-	QString already(bool check = false);
-	const FileLocation &location(bool check = false);
-
-	float64 progress() const {
-		return loader ? loader->currentProgress() : ((status == FileDownloadFailed || _location.name().isEmpty()) ? 0 : 1);
-	}
+	void forget();
 
 	VideoId id;
 	uint64 access;
@@ -845,13 +846,14 @@ struct VideoData {
 	FileStatus status;
 	int32 uploadOffset;
 
-	mtpTypeId fileType;
-	int32 openOnSave;
-	FullMsgId openOnSaveMsgId;
-	mtpFileLoader *loader;
-
 private:
 	FileLocation _location;
+
+	ActionOnLoad _actionOnLoad;
+	FullMsgId _actionOnLoadMsgId;
+	mutable mtpFileLoader *_loader;
+
+	void notifyLayoutChanged() const;
 
 };
 
@@ -867,6 +869,7 @@ public:
 
 private:
 	VideoData *_video;
+
 };
 
 class VideoSaveLink : public VideoLink {
@@ -886,6 +889,7 @@ public:
 	VideoOpenLink(VideoData *video) : VideoLink(video) {
 	}
 	void onClick(Qt::MouseButton button) const;
+
 };
 
 class VideoCancelLink : public VideoLink {
@@ -895,63 +899,36 @@ public:
 	VideoCancelLink(VideoData *video) : VideoLink(video) {
 	}
 	void onClick(Qt::MouseButton button) const;
+
 };
 
-struct AudioData {
+class AudioData {
+public:
 	AudioData(const AudioId &id, const uint64 &access = 0, int32 date = 0, const QString &mime = QString(), int32 duration = 0, int32 dc = 0, int32 size = 0);
 
-	void forget() {
-	}
+	void automaticLoad(const HistoryItem *item); // auto load voice message
 
-	bool prepareAutoLoader(const HistoryItem *item, bool force = false);
-	void save(const QString &toFile);
+	bool loaded(bool check = false) const;
+	bool loading() const;
+	bool displayLoading() const;
+	void save(const QString &toFile, ActionOnLoad action = ActionOnLoadNone, const FullMsgId &actionMsgId = FullMsgId(), LoadFromCloudSetting fromCloud = LoadFromCloudOrLocal, bool autoLoading = false);
+	void cancel();
+	float64 progress() const;
+	int32 loadOffset() const;
+	bool uploading() const;
 
-	void cancel(bool beforeDownload = false) {
-		mtpFileLoader *l = loader;
-		loader = 0;
-		if (l) {
-			l->cancel();
-			l->deleteLater();
-			l->rpcInvalidate();
+	QString already(bool check = false) const;
+	QByteArray data() const;
+	const FileLocation &location(bool check = false) const;
+	void setLocation(const FileLocation &loc);
 
-			notifyLayoutChanged();
-		}
-		_location = FileLocation();
-		if (!beforeDownload) {
-			openOnSave = 0;
-			openOnSaveMsgId = FullMsgId();
-		}
-	}
+	bool saveToCache() const;
 
-	void finish() {
-		if (loader->done()) {
-			_location = FileLocation(mtpToStorageType(loader->fileType()), loader->fileName());
-			data = loader->bytes();
-		}
-		loader->deleteLater();
-		loader->rpcInvalidate();
-		loader = 0;
+	void performActionOnLoad();
 
-		notifyLayoutChanged();
-	}
-	void notifyLayoutChanged() const;
-
-	QString already(bool check = false);
-	const FileLocation &location(bool check = false);
-	void setLocation(const FileLocation &loc) {
-		if (loc.check()) {
-			_location = loc;
-		}
-	}
-	bool loaded(bool check = false) {
-		return !data.isEmpty() || !already(check).isEmpty();
-	}
-	bool loadingStarted() {
-		return loader && loader->started();
-	}
-
-	float64 progress() const {
-		return loader ? loader->currentProgress() : ((status == FileDownloadFailed || (_location.name().isEmpty() && data.isEmpty())) ? 0 : 1);
+	void forget();
+	void setData(const QByteArray &data) {
+		_data = data;
 	}
 
 	AudioId id;
@@ -965,14 +942,17 @@ struct AudioData {
 	FileStatus status;
 	int32 uploadOffset;
 
-	int32 openOnSave;
-	FullMsgId openOnSaveMsgId;
-	mtpFileLoader *loader;
-	QByteArray data;
 	int32 md5[8];
 
 private:
 	FileLocation _location;
+	QByteArray _data;
+
+	ActionOnLoad _actionOnLoad;
+	FullMsgId _actionOnLoadMsgId;
+	mutable mtpFileLoader *_loader;
+
+	void notifyLayoutChanged() const;
 
 };
 
@@ -988,7 +968,9 @@ struct AudioMsgId {
 	}
 	AudioData *audio;
 	FullMsgId msgId;
+
 };
+
 inline bool operator<(const AudioMsgId &a, const AudioMsgId &b) {
 	return quintptr(a.audio) < quintptr(b.audio) || (quintptr(a.audio) == quintptr(b.audio) && a.msgId < b.msgId);
 }
@@ -1011,6 +993,7 @@ public:
 
 private:
 	AudioData *_audio;
+
 };
 
 class AudioSaveLink : public AudioLink {
@@ -1021,6 +1004,7 @@ public:
 	}
 	static void doSave(AudioData *audio, bool forceSavingAs = false);
 	void onClick(Qt::MouseButton button) const;
+
 };
 
 class AudioOpenLink : public AudioLink {
@@ -1030,6 +1014,7 @@ public:
 	AudioOpenLink(AudioData *audio) : AudioLink(audio) {
 	}
 	void onClick(Qt::MouseButton button) const;
+
 };
 
 class AudioCancelLink : public AudioLink {
@@ -1039,6 +1024,7 @@ public:
 	AudioCancelLink(AudioData *audio) : AudioLink(audio) {
 	}
 	void onClick(Qt::MouseButton button) const;
+
 };
 
 enum DocumentType {
@@ -1062,6 +1048,7 @@ struct StickerData : public DocumentAdditionalData {
 	bool setInstalled() const;
 
 	StorageImageLocation loc; // doc thumb location
+
 };
 
 struct SongData : public DocumentAdditionalData {
@@ -1069,93 +1056,63 @@ struct SongData : public DocumentAdditionalData {
 	}
 	int32 duration;
 	QString title, performer;
+
 };
 
 bool fileIsImage(const QString &name, const QString &mime);
 
-struct DocumentData {
+class DocumentData {
+public:
 	DocumentData(const DocumentId &id, const uint64 &access = 0, int32 date = 0, const QVector<MTPDocumentAttribute> &attributes = QVector<MTPDocumentAttribute>(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
 	void setattributes(const QVector<MTPDocumentAttribute> &attributes);
 
-	void forget() {
-		thumb->forget();
-		if (sticker()) sticker()->img->forget();
-		replyPreview->forget();
-	}
-	ImagePtr makeReplyPreview() {
-		if (replyPreview->isNull() && !thumb->isNull()) {
-			if (thumb->loaded()) {
-				int w = thumb->width(), h = thumb->height();
-				if (w <= 0) w = 1;
-				if (h <= 0) h = 1;
-				replyPreview = ImagePtr(w > h ? thumb->pix(w * st::msgReplyBarSize.height() / h, st::msgReplyBarSize.height()) : thumb->pix(st::msgReplyBarSize.height()), "PNG");
-			} else {
-				thumb->load();
-			}
-		}
-		return replyPreview;
-	}
+	void automaticLoad(const HistoryItem *item); // auto load sticker or video
 
-	void save(const QString &toFile);
+	bool loaded(bool check = false) const;
+	bool loading() const;
+	bool displayLoading() const;
+	void save(const QString &toFile, ActionOnLoad action = ActionOnLoadNone, const FullMsgId &actionMsgId = FullMsgId(), LoadFromCloudSetting fromCloud = LoadFromCloudOrLocal, bool autoLoading = false);
+	void cancel();
+	float64 progress() const;
+	int32 loadOffset() const;
+	bool uploading() const;
 
-	void cancel(bool beforeDownload = false) {
-		mtpFileLoader *l = loader;
-		loader = 0;
-		if (l) {
-			l->cancel();
-			l->deleteLater();
-			l->rpcInvalidate();
+	QString already(bool check = false) const;
+	QByteArray data() const;
+	const FileLocation &location(bool check = false) const;
+	void setLocation(const FileLocation &loc);
 
-			notifyLayoutChanged();
-		}
-		_location = FileLocation();
-		if (!beforeDownload) {
-			openOnSave = 0;
-			openOnSaveMsgId = FullMsgId();
-		}
-	}
+	bool saveToCache() const;
 
-	void finish() {
-		if (loader->done()) {
-			_location = FileLocation(mtpToStorageType(loader->fileType()), loader->fileName());
-			data = loader->bytes();
-			if (sticker() && !loader->imagePixmap().isNull()) {
-				sticker()->img = ImagePtr(data, loader->imageFormat(), loader->imagePixmap());
-			}
-		}
-		loader->deleteLater();
-		loader->rpcInvalidate();
-		loader = 0;
+	void performActionOnLoad();
 
-		notifyLayoutChanged();
-	}
-	void notifyLayoutChanged() const;
+	void forget();
+	ImagePtr makeReplyPreview();
 
-	~DocumentData() {
-		delete _additional;
-	}
-
-	QString already(bool check = false);
-	const FileLocation &location(bool check = false);
-	void setLocation(const FileLocation &loc) {
-		if (loc.check()) {
-			_location = loc;
-		}
-	}
-	bool loaded(bool check = false) {
-		return !data.isEmpty() || !already(check).isEmpty();
-	}
-	bool loadingStarted() {
-		return loader && loader->started();
-	}
-	bool prepareAutoLoader(const HistoryItem *item, bool force = false);
 	StickerData *sticker() {
 		return (type == StickerDocument) ? static_cast<StickerData*>(_additional) : 0;
+	}
+	void checkSticker() {
+		StickerData *s = sticker();
+		if (!s) return;
+
+		automaticLoad(0);
+		if (s->img->isNull() && loaded()) {
+			if (_data.isEmpty()) {
+				const FileLocation &location(location(true));
+				if (location.accessEnable()) {
+					s->img = ImagePtr(location.name());
+					location.accessDisable();
+				}
+			} else {
+				s->img = ImagePtr(_data);
+			}
+		}
 	}
 	SongData *song() {
 		return (type == SongDocument) ? static_cast<SongData*>(_additional) : 0;
 	}
-	bool isAnimation() {
+	bool isAnimation() const {
 		return (type == AnimatedDocument) || !mime.compare(qstr("image/gif"), Qt::CaseInsensitive);
 	}
 	bool isImage() const {
@@ -1163,9 +1120,7 @@ struct DocumentData {
 	}
 	void recountIsImage();
 
-	float64 progress() const {
-		return loader ? loader->currentProgress() : ((status == FileDownloadFailed || (_location.name().isEmpty() && data.isEmpty())) ? 0 : 1);
-	}
+	~DocumentData();
 
 	DocumentId id;
 	DocumentType type;
@@ -1180,19 +1135,20 @@ struct DocumentData {
 	FileStatus status;
 	int32 uploadOffset;
 
-	int32 openOnSave;
-	FullMsgId openOnSaveMsgId;
-	mtpFileLoader *loader;
-
-	QByteArray data;
-	DocumentAdditionalData *_additional;
-
 	int32 md5[8];
 
 private:
 
 	FileLocation _location;
+	QByteArray _data;
+	DocumentAdditionalData *_additional;
 	bool _isImage;
+
+	ActionOnLoad _actionOnLoad;
+	FullMsgId _actionOnLoadMsgId;
+	mutable mtpFileLoader *_loader;
+
+	void notifyLayoutChanged() const;
 
 };
 
@@ -1208,6 +1164,7 @@ struct SongMsgId {
 	}
 	DocumentData *song;
 	FullMsgId msgId;
+
 };
 inline bool operator<(const SongMsgId &a, const SongMsgId &b) {
 	return quintptr(a.song) < quintptr(b.song) || (quintptr(a.song) == quintptr(b.song) && a.msgId < b.msgId);
@@ -1231,6 +1188,7 @@ public:
 
 private:
 	DocumentData *_document;
+
 };
 
 class DocumentSaveLink : public DocumentLink {
@@ -1241,6 +1199,7 @@ public:
 	}
 	static void doSave(DocumentData *document, bool forceSavingAs = false);
 	void onClick(Qt::MouseButton button) const;
+
 };
 
 class DocumentOpenLink : public DocumentLink {
@@ -1249,8 +1208,9 @@ class DocumentOpenLink : public DocumentLink {
 public:
 	DocumentOpenLink(DocumentData *document) : DocumentLink(document) {
 	}
-	static void doOpen(DocumentData *document, int32 openOnSave = 1);
+	static void doOpen(DocumentData *document, ActionOnLoad action = ActionOnLoadOpen);
 	void onClick(Qt::MouseButton button) const;
+
 };
 
 class GifOpenLink : public DocumentOpenLink {
@@ -1261,6 +1221,7 @@ public:
 	}
 	static void doOpen(DocumentData *document);
 	void onClick(Qt::MouseButton button) const;
+
 };
 
 class DocumentCancelLink : public DocumentLink {
@@ -1270,6 +1231,7 @@ public:
 	DocumentCancelLink(DocumentData *document) : DocumentLink(document) {
 	}
 	void onClick(Qt::MouseButton button) const;
+
 };
 
 enum WebPageType {
@@ -1300,6 +1262,7 @@ struct WebPageData {
 	PhotoData *photo;
 	DocumentData *doc;
 	int32 pendingTill;
+
 };
 
 QString saveFileName(const QString &title, const QString &filter, const QString &prefix, QString name, bool savingAs, const QDir &dir = QDir());

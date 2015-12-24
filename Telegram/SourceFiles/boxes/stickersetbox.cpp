@@ -147,16 +147,14 @@ void StickerSetInner::paintEvent(QPaintEvent *e) {
 			if (goodThumb) {
 				doc->thumb->load();
 			} else {
-				bool already = !doc->already().isEmpty(), hasdata = !doc->data.isEmpty();
-				if (!already && !hasdata && !doc->loader && doc->status == FileReady) {
-					doc->openOnSave = 0;
-					doc->save(QString());
+				if (doc->status == FileReady) {
+					doc->automaticLoad(0);
 				}
-				if (doc->sticker()->img->isNull() && (already || hasdata)) {
-					if (already) {
+				if (doc->sticker()->img->isNull() && doc->loaded() && doc->loaded(true)) {
+					if (doc->data().isEmpty()) {
 						doc->sticker()->img = ImagePtr(doc->already());
 					} else {
-						doc->sticker()->img = ImagePtr(doc->data);
+						doc->sticker()->img = ImagePtr(doc->data());
 					}
 				}
 			}

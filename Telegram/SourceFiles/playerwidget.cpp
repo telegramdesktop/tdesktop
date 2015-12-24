@@ -324,12 +324,8 @@ void PlayerWidget::preloadNext() {
 	if (next) {
 		if (HistoryDocument *document = static_cast<HistoryDocument*>(next->getMedia())) {
 			DocumentData *d = document->getDocument();
-			if (d->location(true).isEmpty() && d->data.isEmpty()) {
-				if (!d->loader) {
-					DocumentOpenLink::doOpen(d);
-					d->openOnSave = 0;
-					d->openOnSaveMsgId = FullMsgId();
-				}
+			if (!d->loaded(true)) {
+				DocumentOpenLink::doOpen(d, ActionOnLoadNone);
 			}
 		}
 	}
@@ -648,12 +644,12 @@ void PlayerWidget::updateState(SongMsgId playing, AudioPlayerState playingState,
 	float64 progress = 0.;
 	int32 loaded;
 	float64 loadProgress = 1.;
-	if (duration || !_song || !_song.song || !_song.song->loader) {
+	if (duration || !_song || !_song.song || !_song.song->loading()) {
 		time = (_down == OverPlayback) ? _time : formatDurationText(display);
 		progress = duration ? snap(float64(position) / duration, 0., 1.) : 0.;
 		loaded = duration ? _song.song->size : 0;
 	} else {
-		loaded = _song.song->loader ? _song.song->loader->currentOffset() : 0;
+		loaded = _song.song->loading() ? _song.song->loadOffset() : 0;
 		time = formatDownloadText(loaded, _song.song->size);
 		loadProgress = snap(float64(loaded) / qMax(_song.song->size, 1), 0., 1.);
 	}

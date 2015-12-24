@@ -38,6 +38,11 @@ typedef quint64 uint64;
 
 static const int32 ScrollMax = INT_MAX;
 
+static uint64 SharedMemoryLocation0 = 0x00;
+static uint64 SharedMemoryLocation1 = 0x01;
+static uint64 SharedMemoryLocation2 = 0x02;
+static uint64 SharedMemoryLocation3 = 0x03;
+
 #ifdef Q_OS_WIN
 typedef float float32;
 typedef double float64;

@@ -768,23 +768,6 @@ protected:
 
 };
 
-class ItemAnimations {
-public:
-
-	ItemAnimations() : _a_animate(animation(this, &ItemAnimations::step_animate)) {
-	}
-	void step_animate(float64 ms, bool timer);
-	uint64 animate(const HistoryItem *item, uint64 ms);
-	void remove(const HistoryItem *item);
-
-private:
-	typedef QMap<const HistoryItem*, uint64> Animations;
-	Animations _animations;
-	Animation _a_animate;
-};
-
-ItemAnimations &itemAnimations();
-
 class HistoryReply; // dynamic_cast optimize
 class HistoryMessage; // dynamic_cast optimize
 class HistoryForwarded; // dynamic_cast optimize
@@ -1014,10 +997,6 @@ public:
 		return textcmdSkipBlock(skipBlockWidth(), skipBlockHeight());
 	}
 
-	virtual bool animating() const {
-		return false;
-	}
-
 	virtual HistoryMessage *toHistoryMessage() { // dynamic_cast optimize
 		return 0;
 	}
@@ -1218,70 +1197,6 @@ protected:
 
 };
 
-class HistoryPhoto : public HistoryMedia {
-public:
-
-	HistoryPhoto(const MTPDphoto &photo, const QString &caption, HistoryItem *parent);
-	HistoryPhoto(PhotoData *photo);
-	HistoryPhoto(PeerData *chat, const MTPDphoto &photo, int32 width = 0);
-	void init();
-	HistoryMediaType type() const {
-		return MediaTypePhoto;
-	}
-	HistoryMedia *clone() const {
-		return new HistoryPhoto(*this);
-	}
-
-	void initDimensions(const HistoryItem *parent);
-	int32 resize(int32 width, const HistoryItem *parent);
-
-	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
-
-	const QString inDialogsText() const;
-	const QString inHistoryText() const;
-
-	PhotoData *photo() const {
-		return _data;
-	}
-
-	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent, bool allowEmitResize);
-
-	virtual bool animating() const {
-		if (_data->full->loaded()) return false;
-		return _data->full->loading() ? true : !_data->medium->loaded();
-	}
-
-	bool hasReplyPreview() const {
-		return !_data->thumb->isNull();
-	}
-	ImagePtr replyPreview();
-
-	QString getCaption() const {
-		return _caption.original();
-	}
-	bool needsBubble(const HistoryItem *parent) const {
-		return !_caption.isEmpty() || parent->toHistoryReply();
-	}
-	bool customInfoLayout() const {
-		return _caption.isEmpty();
-	}
-	bool hideFromName() const {
-		return true;
-	}
-	bool hideForwardedFrom() const {
-		return true;
-	}
-
-private:
-	PhotoData *_data;
-	TextLinkPtr _openl;
-
-	int16 _pixw, _pixh;
-	Text _caption;
-
-};
-
 class HistoryFileMedia : public HistoryMedia {
 public:
 
@@ -1343,6 +1258,76 @@ private:
 
 };
 
+class HistoryPhoto : public HistoryFileMedia {
+public:
+
+	HistoryPhoto(const MTPDphoto &photo, const QString &caption, HistoryItem *parent);
+	HistoryPhoto(PhotoData *photo);
+	HistoryPhoto(PeerData *chat, const MTPDphoto &photo, int32 width = 0);
+	HistoryPhoto(const HistoryPhoto &other);
+	void init();
+	HistoryMediaType type() const {
+		return MediaTypePhoto;
+	}
+	HistoryMedia *clone() const {
+		return new HistoryPhoto(*this);
+	}
+
+	void initDimensions(const HistoryItem *parent);
+	int32 resize(int32 width, const HistoryItem *parent);
+
+	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
+	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
+
+	const QString inDialogsText() const;
+	const QString inHistoryText() const;
+
+	PhotoData *photo() const {
+		return _data;
+	}
+
+	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent, bool allowEmitResize);
+
+	bool hasReplyPreview() const {
+		return !_data->thumb->isNull();
+	}
+	ImagePtr replyPreview();
+
+	QString getCaption() const {
+		return _caption.original();
+	}
+	bool needsBubble(const HistoryItem *parent) const {
+		return !_caption.isEmpty() || parent->toHistoryReply();
+	}
+	bool customInfoLayout() const {
+		return _caption.isEmpty();
+	}
+	bool hideFromName() const {
+		return true;
+	}
+	bool hideForwardedFrom() const {
+		return true;
+	}
+
+protected:
+
+	float64 dataProgress() const {
+		return _data->progress();
+	}
+	bool dataFinished() const {
+		return !_data->loading() && !_data->uploading();
+	}
+	bool dataLoaded() const {
+		return _data->loaded();
+	}
+
+private:
+	PhotoData *_data;
+	int16 _pixw, _pixh;
+	Text _caption;
+
+};
+
 class HistoryVideo : public HistoryFileMedia {
 public:
 
@@ -1369,7 +1354,7 @@ public:
 	}
 
 	bool uploading() const {
-		return (_data->status == FileUploading);
+		return _data->uploading();
 	}
 
 	void regItem(HistoryItem *item);
@@ -1399,16 +1384,16 @@ protected:
 		return _data->progress();
 	}
 	bool dataFinished() const {
-		return !_data->loader;
+		return !_data->loading() && !_data->uploading();
 	}
 	bool dataLoaded() const {
-		return !_data->already().isEmpty();
+		return _data->loaded();
 	}
 
 private:
 	VideoData *_data;
+	int16 _thumbw;
 	Text _caption;
-	int32 _thumbw;
 
 	void setStatusSize(int32 newSize) const;
 	void updateStatusText(const HistoryItem *parent) const;
@@ -1436,7 +1421,7 @@ public:
 	const QString inHistoryText() const;
 
 	bool uploading() const {
-		return (_data->status == FileUploading);
+		return _data->uploading();
 	}
 
 	AudioData *audio() {
@@ -1464,7 +1449,7 @@ protected:
 		return _data->progress();
 	}
 	bool dataFinished() const {
-		return !_data->loader;
+		return !_data->loading() && !_data->uploading();
 	}
 	bool dataLoaded() const {
 		return _data->loaded();
@@ -1499,7 +1484,7 @@ public:
 	const QString inHistoryText() const;
 
 	bool uploading() const {
-		return (_data->status == FileUploading);
+		return _data->uploading();
 	}
 
 	bool withThumb() const {
@@ -1539,7 +1524,7 @@ protected:
 		return _data->progress();
 	}
 	bool dataFinished() const {
-		return !_data->loader;
+		return !_data->loading() && !_data->uploading();
 	}
 	bool dataLoaded() const {
 		return _data->loaded();
@@ -1584,7 +1569,7 @@ public:
 	const QString inHistoryText() const;
 
 	bool uploading() const {
-		return (_data->status == FileUploading);
+		return _data->uploading();
 	}
 
 	DocumentData *getDocument() {
@@ -1625,7 +1610,7 @@ protected:
 		return _data->progress();
 	}
 	bool dataFinished() const {
-		return !_data->loader;
+		return !_data->loading() && !_data->uploading();
 	}
 	bool dataLoaded() const {
 		return _data->loaded();
@@ -1807,10 +1792,6 @@ public:
 	}
 	ImagePtr replyPreview();
 
-	virtual bool animating() const {
-		return _attach ? _attach->animating() : false;
-	}
-
 	WebPageData *webpage() {
 		return _data;
 	}
@@ -1956,7 +1937,9 @@ public:
 	bool displayFromName() const {
 		return hasFromName() && (!emptyText() || !_media || !_media->isDisplayed() || toHistoryReply() || !_media->hideFromName());
 	}
-	bool uploading() const;
+	bool uploading() const {
+		return _media && _media->uploading();
+	}
 
 	void drawInfo(Painter &p, int32 right, int32 bottom, int32 width, bool selected, InfoDisplayType type) const;
 	void setViewsCount(int32 count);
@@ -2033,9 +2016,6 @@ public:
 	}
 	int32 viewsWidth() const {
 		return _viewsWidth;
-	}
-	virtual bool animating() const {
-		return _media ? _media->animating() : false;
 	}
 
 	virtual QDateTime dateForwarded() const { // dynamic_cast optimize
@@ -2200,10 +2180,6 @@ public:
 	QString inReplyText() const;
 
 	HistoryMedia *getMedia(bool inOverview = false) const;
-
-	virtual bool animating() const {
-		return _media ? _media->animating() : false;
-	}
 
 	void setServiceText(const QString &text);
 

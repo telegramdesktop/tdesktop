@@ -176,18 +176,18 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 
 , _autoDownload(this, lang(lng_media_auto_settings))
 
-// chat background
-, _backFromGallery(this, lang(lng_settings_bg_from_gallery))
-, _backFromFile(this, lang(lng_settings_bg_from_file))
-, _tileBackground(this, lang(lng_settings_bg_tile), cTileBackground())
-, _needBackgroundUpdate(false)
-
 // local storage
 , _localStorageClear(this, lang(lng_local_storage_clear))
 , _localStorageHeight(1)
 , _storageClearingWidth(st::linkFont->width(lang(lng_local_storage_clearing)))
 , _storageClearedWidth(st::linkFont->width(lang(lng_local_storage_cleared)))
 , _storageClearFailedWidth(st::linkFont->width(lang(lng_local_storage_clear_failed)))
+
+// chat background
+, _backFromGallery(this, lang(lng_settings_bg_from_gallery))
+, _backFromFile(this, lang(lng_settings_bg_from_file))
+, _tileBackground(this, lang(lng_settings_bg_tile), cTileBackground())
+, _needBackgroundUpdate(false)
 
 // advanced
 , _passcodeEdit(this, lang(cHasPasscode() ? lng_passcode_change : lng_passcode_turn_on))
@@ -207,6 +207,8 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _logOut(this, lang(lng_settings_logout), st::btnLogout)
 , _supportGetRequest(0) {
 	if (self()) {
+		self()->photo->load();
+
 		connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 		connect(App::api(), SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
 
@@ -294,13 +296,6 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	connect(App::wnd(), SIGNAL(tempDirClearFailed(int)), this, SLOT(onTempDirClearFailed(int)));
 	connect(&_autoDownload, SIGNAL(clicked()), this, SLOT(onAutoDownload()));
 
-	// chat background
-	if (!cChatBackground()) App::initBackground();
-	updateChatBackground();
-	connect(&_backFromGallery, SIGNAL(clicked()), this, SLOT(onBackFromGallery()));
-	connect(&_backFromFile, SIGNAL(clicked()), this, SLOT(onBackFromFile()));
-	connect(&_tileBackground, SIGNAL(changed()), this, SLOT(onTileBackground()));
-
 	// local storage
 	connect(&_localStorageClear, SIGNAL(clicked()), this, SLOT(onLocalStorageClear()));
 	switch (App::wnd()->localStorageState()) {
@@ -308,6 +303,13 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	case Window::TempDirExists: _storageClearState = TempDirExists; break;
 	case Window::TempDirRemoving: _storageClearState = TempDirClearing; break;
 	}
+
+	// chat background
+	if (!cChatBackground()) App::initBackground();
+	updateChatBackground();
+	connect(&_backFromGallery, SIGNAL(clicked()), this, SLOT(onBackFromGallery()));
+	connect(&_backFromFile, SIGNAL(clicked()), this, SLOT(onBackFromFile()));
+	connect(&_tileBackground, SIGNAL(changed()), this, SLOT(onTileBackground()));
 
 	// advanced
 	connect(&_passcodeEdit, SIGNAL(clicked()), this, SLOT(onPasscode()));
@@ -553,45 +555,6 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		top += st::setLittleSkip;
 		top += _autoDownload.height();
 
-		// chat background
-		p.setFont(st::setHeaderFont->f);
-		p.setPen(st::setHeaderColor->p);
-		p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_background));
-		top += st::setHeaderSkip;
-
-		if (animateBackground) {
-			const QPixmap &pix = App::main()->newBackgroundThumb()->pixBlurred(st::setBackgroundSize);
-
-			p.drawPixmap(_left, top, st::setBackgroundSize, st::setBackgroundSize, pix, 0, (pix.height() - st::setBackgroundSize) / 2, st::setBackgroundSize, st::setBackgroundSize);
-
-			uint64 dt = getms();
-			int32 cnt = int32(st::photoLoaderCnt), period = int32(st::photoLoaderPeriod), t = dt % period, delta = int32(st::photoLoaderDelta);
-
-			int32 x = _left + (st::setBackgroundSize - st::mediaviewLoader.width()) / 2;
-			int32 y = top + (st::setBackgroundSize - st::mediaviewLoader.height()) / 2;
-			p.fillRect(x, y, st::mediaviewLoader.width(), st::mediaviewLoader.height(), st::photoLoaderBg->b);
-
-			x += (st::mediaviewLoader.width() - cnt * st::mediaviewLoaderPoint.width() - (cnt - 1) * st::mediaviewLoaderSkip) / 2;
-			y += (st::mediaviewLoader.height() - st::mediaviewLoaderPoint.height()) / 2;
-			QColor c(st::white->c);
-			QBrush b(c);
-			for (int32 i = 0; i < cnt; ++i) {
-				t -= delta;
-				while (t < 0) t += period;
-
-				float64 alpha = (t >= st::photoLoaderDuration1 + st::photoLoaderDuration2) ? 0 : ((t > st::photoLoaderDuration1 ? ((st::photoLoaderDuration1 + st::photoLoaderDuration2 - t) / st::photoLoaderDuration2) : (t / st::photoLoaderDuration1)));
-				c.setAlphaF(st::photoLoaderAlphaMin + alpha * (1 - st::photoLoaderAlphaMin));
-				b.setColor(c);
-				p.fillRect(x + i * (st::mediaviewLoaderPoint.width() + st::mediaviewLoaderSkip), y, st::mediaviewLoaderPoint.width(), st::mediaviewLoaderPoint.height(), b);
-			}
-			QTimer::singleShot(AnimationTimerDelta, this, SLOT(updateBackgroundRect()));
-		} else {
-			p.drawPixmap(_left, top, _background);
-		}
-		top += st::setBackgroundSize;
-		top += st::setLittleSkip;
-		top += _tileBackground.height();
-
 		// local storage
 		p.setFont(st::setHeaderFont->f);
 		p.setPen(st::setHeaderColor->p);
@@ -635,6 +598,45 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 			p.drawText(_left + st::setHeaderLeft, top + st::linkFont->ascent, lang(lng_settings_no_data_cached));
 		}
 		top += _localStorageClear.height();
+
+		// chat background
+		p.setFont(st::setHeaderFont->f);
+		p.setPen(st::setHeaderColor->p);
+		p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_background));
+		top += st::setHeaderSkip;
+
+		if (animateBackground) {
+			const QPixmap &pix = App::main()->newBackgroundThumb()->pixBlurred(st::setBackgroundSize);
+
+			p.drawPixmap(_left, top, st::setBackgroundSize, st::setBackgroundSize, pix, 0, (pix.height() - st::setBackgroundSize) / 2, st::setBackgroundSize, st::setBackgroundSize);
+
+			uint64 dt = getms();
+			int32 cnt = int32(st::photoLoaderCnt), period = int32(st::photoLoaderPeriod), t = dt % period, delta = int32(st::photoLoaderDelta);
+
+			int32 x = _left + (st::setBackgroundSize - st::mediaviewLoader.width()) / 2;
+			int32 y = top + (st::setBackgroundSize - st::mediaviewLoader.height()) / 2;
+			p.fillRect(x, y, st::mediaviewLoader.width(), st::mediaviewLoader.height(), st::photoLoaderBg->b);
+
+			x += (st::mediaviewLoader.width() - cnt * st::mediaviewLoaderPoint.width() - (cnt - 1) * st::mediaviewLoaderSkip) / 2;
+			y += (st::mediaviewLoader.height() - st::mediaviewLoaderPoint.height()) / 2;
+			QColor c(st::white->c);
+			QBrush b(c);
+			for (int32 i = 0; i < cnt; ++i) {
+				t -= delta;
+				while (t < 0) t += period;
+
+				float64 alpha = (t >= st::photoLoaderDuration1 + st::photoLoaderDuration2) ? 0 : ((t > st::photoLoaderDuration1 ? ((st::photoLoaderDuration1 + st::photoLoaderDuration2 - t) / st::photoLoaderDuration2) : (t / st::photoLoaderDuration1)));
+				c.setAlphaF(st::photoLoaderAlphaMin + alpha * (1 - st::photoLoaderAlphaMin));
+				b.setColor(c);
+				p.fillRect(x + i * (st::mediaviewLoaderPoint.width() + st::mediaviewLoaderSkip), y, st::mediaviewLoaderPoint.width(), st::mediaviewLoaderPoint.height(), b);
+			}
+			QTimer::singleShot(AnimationTimerDelta, this, SLOT(updateBackgroundRect()));
+		} else {
+			p.drawPixmap(_left, top, _background);
+		}
+		top += st::setBackgroundSize;
+		top += st::setLittleSkip;
+		top += _tileBackground.height();
 	}
 
 	// advanced
@@ -734,15 +736,6 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 		top += st::setLittleSkip;
 		_autoDownload.move(_left + st::cbDefFlat.textLeft, top); top += _autoDownload.height();
 
-		// chat background
-		top += st::setHeaderSkip;
-		_backFromGallery.move(_left + st::setBackgroundSize + st::setLittleSkip, top);
-		_backFromFile.move(_left + st::setBackgroundSize + st::setLittleSkip, top + _backFromGallery.height() + st::setLittleSkip);
-		top += st::setBackgroundSize;
-
-		top += st::setLittleSkip;
-		_tileBackground.move(_left, top); top += _tileBackground.height();
-
 		// local storage
 		_localStorageClear.move(_left + st::setWidth - _localStorageClear.width(), top + st::setHeaderTop + st::setHeaderFont->ascent - st::linkFont->ascent);
 		top += st::setHeaderSkip;
@@ -753,6 +746,15 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 			_localStorageHeight = 1;
 		}
 		top += _localStorageClear.height();
+
+		// chat background
+		top += st::setHeaderSkip;
+		_backFromGallery.move(_left + st::setBackgroundSize + st::setLittleSkip, top);
+		_backFromFile.move(_left + st::setBackgroundSize + st::setLittleSkip, top + _backFromGallery.height() + st::setLittleSkip);
+		top += st::setBackgroundSize;
+
+		top += st::setLittleSkip;
+		_tileBackground.move(_left, top); top += _tileBackground.height();
 	}
 
 	// advanced
@@ -1079,6 +1081,13 @@ void SettingsInner::showAll() {
 		_autoDownload.hide();
 	}
 
+	// local storage
+	if (self() && _storageClearState == TempDirExists) {
+		_localStorageClear.show();
+	} else {
+		_localStorageClear.hide();
+	}
+
 	// chat background
 	if (self()) {
 		_backFromGallery.show();
@@ -1088,13 +1097,6 @@ void SettingsInner::showAll() {
 		_backFromGallery.hide();
 		_backFromFile.hide();
 		_tileBackground.hide();
-	}
-
-	// local storage
-	if (self() && _storageClearState == TempDirExists) {
-		_localStorageClear.show();
-	} else {
-		_localStorageClear.hide();
 	}
 
 	// advanced

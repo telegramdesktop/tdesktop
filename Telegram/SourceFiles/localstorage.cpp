@@ -2469,13 +2469,6 @@ namespace Local {
 		return _localLoader->addTask(new ImageLoadTask(j->first, location, loader));
 	}
 
-	bool willImageLoad(const StorageKey &location, bool check) {
-		StorageMap::const_iterator j = _imagesMap.constFind(location);
-		if (j == _imagesMap.cend()) return false;
-		if (check && !fileExists(j->first, UserPath)) return false;
-		return true;
-	}
-
 	int32 hasImages() {
 		return _imagesMap.size();
 	}
@@ -2535,11 +2528,8 @@ namespace Local {
 		return _localLoader->addTask(new StickerImageLoadTask(j->first, location, loader));
 	}
 
-	bool willStickerImageLoad(const StorageKey &location, bool check) {
-		StorageMap::const_iterator j = _stickerImagesMap.constFind(location);
-		if (j == _stickerImagesMap.cend()) return false;
-		if (check && !fileExists(j->first, UserPath)) return false;
-		return true;
+	bool willStickerImageLoad(const StorageKey &location) {
+		return _stickerImagesMap.constFind(location) != _stickerImagesMap.cend();
 	}
 
 	int32 hasStickers() {
@@ -2601,13 +2591,6 @@ namespace Local {
 		return _localLoader->addTask(new AudioLoadTask(j->first, location, loader));
 	}
 
-	bool willAudioLoad(const StorageKey &location, bool check) {
-		StorageMap::const_iterator j = _audiosMap.constFind(location);
-		if (j == _audiosMap.cend()) return false;
-		if (check && !fileExists(j->first, UserPath)) return false;
-		return true;
-	}
-
 	int32 hasAudios() {
 		return _audiosMap.size();
 	}
@@ -2623,8 +2606,8 @@ namespace Local {
 	}
 
 	void _writeStorageImageLocation(QDataStream &stream, const StorageImageLocation &loc) {
-		stream << qint32(loc.width) << qint32(loc.height);
-		stream << qint32(loc.dc) << quint64(loc.volume) << qint32(loc.local) << quint64(loc.secret);
+		stream << qint32(loc.width()) << qint32(loc.height());
+		stream << qint32(loc.dc()) << quint64(loc.volume()) << qint32(loc.local()) << quint64(loc.secret());
 	}
 
 	uint32 _storageImageLocationSize() {
@@ -2896,7 +2879,7 @@ namespace Local {
 					attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));
 				}
 
-				DocumentData *doc = App::documentSet(id, 0, access, date, attributes, mime, thumb.dc ? ImagePtr(thumb) : ImagePtr(), dc, size, thumb);
+				DocumentData *doc = App::documentSet(id, 0, access, date, attributes, mime, thumb.isNull() ? ImagePtr() : ImagePtr(thumb), dc, size, thumb);
 				if (!doc->sticker()) continue;
 
 				set.stickers.push_back(doc);
