@@ -1120,7 +1120,8 @@ LayoutOverviewLink::LayoutOverviewLink(HistoryMedia *media, HistoryItem *parent)
 	if (_page) {
 		_title = _page->title;
 	}
-	QVector<QStringRef> parts = (_page ? _page->url : (_links.isEmpty() ? QString() : _links.at(0).lnk->text())).splitRef('/');
+    QString url(_page ? _page->url : (_links.isEmpty() ? QString() : _links.at(0).lnk->text()));
+    QVector<QStringRef> parts = url.splitRef('/');
 	if (!parts.isEmpty()) {
 		QStringRef domain = parts.at(0);
 		if (parts.size() > 2 && domain.endsWith(':') && parts.at(1).isEmpty()) { // http:// and others
