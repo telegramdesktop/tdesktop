@@ -1289,7 +1289,7 @@ public:
 				char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 				LOG(("Audio Error: Unable to avcodec_decode_audio4() file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 
-				av_free_packet(&avpkt);
+				av_packet_unref(&avpkt);
 				if (res == AVERROR_INVALIDDATA) return 0; // try to skip bad packet
 				return -1;
 			}
@@ -1306,7 +1306,7 @@ public:
 							char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 							LOG(("Audio Error: Unable to av_samples_alloc for file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 
-							av_free_packet(&avpkt);
+							av_packet_unref(&avpkt);
 							return -1;
 						}
 					}
@@ -1314,7 +1314,7 @@ public:
 						char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 						LOG(("Audio Error: Unable to swr_convert for file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 
-						av_free_packet(&avpkt);
+						av_packet_unref(&avpkt);
 						return -1;
 					}
 					int32 resultLen = av_samples_get_buffer_size(0, _toChannels, res, _toFormat, 1);
@@ -1326,7 +1326,7 @@ public:
 				}
 			}
 		}
-		av_free_packet(&avpkt);
+		av_packet_unref(&avpkt);
 		return 1;
 	}
 

@@ -466,6 +466,13 @@ public:
 
 	ClipReader(const FileLocation &location, const QByteArray &data);
 
+	void setAutoplay() {
+		_autoplay = true;
+	}
+	bool autoplay() const {
+		return _autoplay;
+	}
+
 	void start(int32 framew, int32 frameh, int32 outerw, int32 outerh, bool rounded);
 	QPixmap current(int32 framew, int32 frameh, int32 outerw, int32 outerh, uint64 ms);
 	QImage frameOriginal() const {
@@ -506,11 +513,15 @@ private:
 	Atomic<uint64> _lastDisplayMs;
 	int32 _threadIndex;
 
+	bool _autoplay;
+
 	friend class ClipReadManager;
 
 	ClipReaderPrivate *_private;
 
 };
+
+static ClipReader * const BadClipReader = reinterpret_cast<ClipReader * const>(&SharedMemoryLocation0);
 
 enum ClipProcessResult {
 	ClipProcessError,

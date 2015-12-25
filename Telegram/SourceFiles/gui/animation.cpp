@@ -161,6 +161,7 @@ ClipReader::ClipReader(const FileLocation &location, const QByteArray &data) : _
 , _currentDisplayed(1)
 , _paused(0)
 , _lastDisplayMs(getms())
+, _autoplay(false)
 , _private(0) {
 	if (_clipThreads.size() < ClipThreadsCount) {
 		_threadIndex = _clipThreads.size();
@@ -619,7 +620,7 @@ private:
 			_avpkt.size = _packetSize;
 			_avpkt.data = _packetData;
 			_packetWas = false;
-			av_free_packet(&_avpkt);
+			av_packet_unref(&_avpkt);
 		}
 	}
 

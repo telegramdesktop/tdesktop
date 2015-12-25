@@ -4302,7 +4302,7 @@ HistoryGif::HistoryGif(DocumentData *document) : HistoryFileMedia()
 , _thumbw(1)
 , _thumbh(1)
 , _gif(0) {
-	setLinks(new DocumentOpenLink(_data), new GifOpenLink(_data), new DocumentCancelLink(_data));
+	setLinks(new GifOpenLink(_data), new GifOpenLink(_data), new DocumentCancelLink(_data));
 
 	setStatusSize(FileStatusSizeReady);
 
@@ -4314,7 +4314,7 @@ HistoryGif::HistoryGif(const HistoryGif &other) : HistoryFileMedia()
 , _thumbw(other._thumbw)
 , _thumbh(other._thumbh)
 , _gif(0) {
-	setLinks(new DocumentOpenLink(_data), new GifOpenLink(_data), new DocumentCancelLink(_data));
+	setLinks(new GifOpenLink(_data), new GifOpenLink(_data), new DocumentCancelLink(_data));
 
 	setStatusSize(other._statusSize);
 }
@@ -4322,14 +4322,16 @@ HistoryGif::HistoryGif(const HistoryGif &other) : HistoryFileMedia()
 void HistoryGif::initDimensions(const HistoryItem *parent) {
 	bool bubble = parent->hasBubble();
 	int32 tw = 0, th = 0;
-	if (_gif && _gif->state() == ClipError) {
-		Ui::showLayer(new InformBox(lang(lng_gif_error)));
+	if (gif() && _gif->state() == ClipError) {
+		if (!_gif->autoplay()) {
+			Ui::showLayer(new InformBox(lang(lng_gif_error)));
+		}
 		App::unregGifItem(_gif);
 		delete _gif;
-		_gif = 0;
+		_gif = BadClipReader;
 	}
 
-	if (_gif && _gif->ready()) {
+	if (gif() && _gif->ready()) {
 		tw = convertScale(_gif->width());
 		th = convertScale(_gif->height());
 	} else {
@@ -4354,7 +4356,7 @@ void HistoryGif::initDimensions(const HistoryItem *parent) {
 	_thumbh = th;
 	_maxw = qMax(tw, int32(st::minPhotoSize));
 	_minh = qMax(th, int32(st::minPhotoSize));
-	if (!_gif || !_gif->ready()) {
+	if (!gif() || !_gif->ready()) {
 		_maxw = qMax(_maxw, parent->infoWidth() + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
 		_maxw = qMax(_maxw, gifMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	}
@@ -4368,7 +4370,7 @@ int32 HistoryGif::resize(int32 width, const HistoryItem *parent) {
 	bool bubble = parent->hasBubble();
 
 	int32 tw = 0, th = 0;
-	if (_gif && _gif->ready()) {
+	if (gif() && _gif->ready()) {
 		tw = convertScale(_gif->width());
 		th = convertScale(_gif->height());
 	} else {
@@ -4402,7 +4404,7 @@ int32 HistoryGif::resize(int32 width, const HistoryItem *parent) {
 
 	_width = qMax(tw, int32(st::minPhotoSize));
 	_height = qMax(th, int32(st::minPhotoSize));
-	if (_gif && _gif->ready()) {
+	if (gif() && _gif->ready()) {
 		if (!_gif->started()) {
 			_gif->start(_thumbw, _thumbh, _width, _height, true);
 		}
@@ -4423,15 +4425,16 @@ void HistoryGif::draw(Painter &p, const HistoryItem *parent, const QRect &r, boo
 
 	_data->automaticLoad(parent);
 	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
-	if (loaded && !_gif) {
+	if (loaded && !gif() && _gif != BadClipReader) {
 		const_cast<HistoryGif*>(this)->playInline(const_cast<HistoryItem*>(parent));
+		if (gif()) _gif->setAutoplay();
 	}
 
 	int32 skipx = 0, skipy = 0, width = _width, height = _height;
 	bool bubble = parent->hasBubble();
 	bool out = parent->out(), fromChannel = parent->fromChannel(), outbg = out && !fromChannel;
 
-	bool animating = (_gif && _gif->started());
+	bool animating = (gif() && _gif->started());
 
 	if (!animating || _data->uploading()) {
 		if (displayLoading) {
@@ -4465,7 +4468,7 @@ void HistoryGif::draw(Painter &p, const HistoryItem *parent, const QRect &r, boo
 		App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
 	}
 
-	if (radial || (!_gif && !loaded && !_data->loading())) {
+	if (radial || (!_gif && !loaded && !_data->loading()) || (_gif == BadClipReader)) {
 		float64 radialOpacity = radial ? _animation->radial.opacity() : 1;
 		QRect inner(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
 		p.setPen(Qt::NoPen);
@@ -4534,7 +4537,7 @@ void HistoryGif::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, 
 	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height) {
 		if (_data->uploading()) {
 			lnk = _cancell;
-		} else if (!_gif) {
+		} else if (!gif()) {
 			lnk = _data->loaded() ? _openl : (_data->loading() ? _cancell : _savel);
 		}
 		if (parent->getMedia() == this) {
@@ -4598,7 +4601,7 @@ ImagePtr HistoryGif::replyPreview() {
 }
 
 bool HistoryGif::playInline(HistoryItem *parent) {
-	if (_gif) {
+	if (gif()) {
 		stopInline(parent);
 	} else {
 		_gif = new ClipReader(_data->location(), _data->data());
@@ -4608,9 +4611,11 @@ bool HistoryGif::playInline(HistoryItem *parent) {
 }
 
 void HistoryGif::stopInline(HistoryItem *parent) {
-	App::unregGifItem(_gif);
-	delete _gif;
-	_gif = 0;
+	if (gif()) {
+		App::unregGifItem(_gif);
+		delete _gif;
+		_gif = 0;
+	}
 
 	parent->initDimensions();
 	Notify::historyItemResized(parent);
@@ -4618,7 +4623,7 @@ void HistoryGif::stopInline(HistoryItem *parent) {
 }
 
 HistoryGif::~HistoryGif() {
-	if (_gif) {
+	if (gif()) {
 		App::unregGifItem(_gif);
 		delete _gif;
 		setBadPointer(_gif);

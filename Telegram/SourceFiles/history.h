@@ -1621,6 +1621,12 @@ private:
 	DocumentData *_data;
 	int32 _thumbw, _thumbh;
 	ClipReader *_gif;
+	ClipReader *gif() {
+		return (_gif == BadClipReader) ? 0 : _gif;
+	}
+	const ClipReader *gif() const {
+		return (_gif == BadClipReader) ? 0 : _gif;
+	}
 
 	void setStatusSize(int32 newSize) const;
 	void updateStatusText(const HistoryItem *parent) const;
