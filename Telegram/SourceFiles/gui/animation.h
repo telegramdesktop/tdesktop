@@ -556,8 +556,11 @@ signals:
 public slots:
 
 	void process();
+    void finish();
 
 private:
+
+    void clear();
 
 	QAtomicInt _loadLevel;
 	typedef QMap<ClipReader*, ClipReaderPrivate*> ReaderPointers;

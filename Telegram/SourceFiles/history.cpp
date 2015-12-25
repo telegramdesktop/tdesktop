@@ -4074,7 +4074,7 @@ void HistoryDocument::draw(Painter &p, const HistoryItem *parent, const QRect &r
 		}
 
 		if (radial || (!loaded && !_data->loading())) {
-			float64 radialOpacity = (radial && loaded) ? _animation->radial.opacity() : 1;
+            float64 radialOpacity = (radial && loaded && !_data->uploading()) ? _animation->radial.opacity() : 1;
 			QRect inner(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
 			p.setPen(Qt::NoPen);
 			if (selected) {
@@ -4476,7 +4476,7 @@ void HistoryGif::draw(Painter &p, const HistoryItem *parent, const QRect &r, boo
 	}
 
 	if (radial || (!_gif && !loaded && !_data->loading()) || (_gif == BadClipReader)) {
-		float64 radialOpacity = radial ? _animation->radial.opacity() : 1;
+        float64 radialOpacity = (radial && loaded && !_data->uploading()) ? _animation->radial.opacity() : 1;
 		QRect inner(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
 		p.setPen(Qt::NoPen);
 		if (selected) {

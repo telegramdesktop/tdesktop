@@ -855,7 +855,7 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 			if (radial || (!loaded && !_data->loading())) {
 				QRect inner(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
 				if (clip.intersects(inner)) {
-					float64 radialOpacity = (radial && loaded) ? _radial->opacity() : 1;
+                    float64 radialOpacity = (radial && loaded && !_data->uploading()) ? _radial->opacity() : 1;
 					p.setPen(Qt::NoPen);
 					if (selected) {
 						p.setBrush(st::msgDateImgBgSelected);

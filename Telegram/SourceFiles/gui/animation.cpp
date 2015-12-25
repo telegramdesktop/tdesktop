@@ -500,14 +500,14 @@ public:
 				if (_frameMs + _currentFrameDelay < frameMs) {
 					_currentFrameDelay = int32(frameMs - _frameMs);
 				}
-				_frameMs = frameMs;
 				if (duration == AV_NOPTS_VALUE) {
 					_nextFrameDelay = 0;
 				} else {
 					_nextFrameDelay = (duration * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
 				}
+                _frameMs = frameMs;
 
-				av_frame_unref(_frame);
+                av_frame_unref(_frame);
 				return true;
 			}
 
@@ -821,6 +821,7 @@ private:
 ClipReadManager::ClipReadManager(QThread *thread) : _processingInThread(0), _needReProcess(false) {
 	moveToThread(thread);
 	connect(thread, SIGNAL(started()), this, SLOT(process()));
+    connect(thread, SIGNAL(finished()), this, SLOT(finish()));
 	connect(this, SIGNAL(processDelayed()), this, SLOT(process()), Qt::QueuedConnection);
 
 	_timer.setSingleShot(true);
@@ -922,7 +923,7 @@ void ClipReadManager::process() {
 		return;
 	}
 
-	_timer.stop();
+    _timer.stop();
 	_processingInThread = thread();
 
 	uint64 ms = getms(), minms = ms + 86400 * 1000ULL;
@@ -977,19 +978,26 @@ void ClipReadManager::process() {
 	_processingInThread = 0;
 }
 
-ClipReadManager::~ClipReadManager() {
-	{
-		QMutexLocker lock(&_readerPointersMutex);
-		for (ReaderPointers::iterator i = _readerPointers.begin(), e = _readerPointers.end(); i != e; ++i) {
-			if (i.value()) {
-				i.key()->_private = 0;
-			}
-		}
-		_readerPointers.clear();
+void ClipReadManager::finish() 	{
+    _timer.stop();
+    clear();
+}
 
-		for (Readers::iterator i = _readers.begin(), e = _readers.end(); i != e; ++i) {
-			delete i.key();
-		}
-		_readers.clear();
-	}
+void ClipReadManager::clear() {
+    QMutexLocker lock(&_readerPointersMutex);
+    for (ReaderPointers::iterator i = _readerPointers.begin(), e = _readerPointers.end(); i != e; ++i) {
+        if (i.value()) {
+            i.key()->_private = 0;
+        }
+    }
+    _readerPointers.clear();
+
+    for (Readers::iterator i = _readers.begin(), e = _readers.end(); i != e; ++i) {
+        delete i.key();
+    }
+    _readers.clear();
+}
+
+ClipReadManager::~ClipReadManager() {
+    clear();
 }
