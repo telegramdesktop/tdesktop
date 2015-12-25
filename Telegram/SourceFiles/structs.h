@@ -734,6 +734,7 @@ public:
 
 	void automaticLoad(const HistoryItem *item);
 
+	void download();
 	bool loaded() const;
 	bool loading() const;
 	bool displayLoading() const;
@@ -764,8 +765,9 @@ public:
 	};
 	UploadingData *uploadingData;
 
-//	int32 cachew;
-//	QPixmap cache;
+private:
+	void notifyLayoutChanged() const;
+
 };
 
 class PhotoLink : public ITextLink {
@@ -785,6 +787,16 @@ public:
 private:
 	PhotoData *_photo;
 	PeerData *_peer;
+
+};
+
+class PhotoSaveLink : public PhotoLink {
+	TEXT_LINK_CLASS(PhotoSaveLink)
+
+public:
+	PhotoSaveLink(PhotoData *photo, PeerData *peer = 0) : PhotoLink(photo, peer) {
+	}
+	void onClick(Qt::MouseButton button) const;
 
 };
 

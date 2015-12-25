@@ -333,7 +333,7 @@ void MediaView::updateControls() {
 		_docCancel.hide();
 	}
 
-	_saveVisible = ((_photo && _photo->full->loaded()) || (_doc && (_doc->loaded(true) || (!fileShown() && (_photo || _doc)))));
+	_saveVisible = ((_photo && _photo->loaded()) || (_doc && (_doc->loaded(true) || (!fileShown() && (_photo || _doc)))));
 	_saveNav = myrtlrect(width() - st::mvIconSize.width() * 2, height() - st::mvIconSize.height(), st::mvIconSize.width(), st::mvIconSize.height());
 	_saveNavIcon = centersprite(_saveNav, st::mvSave);
 	_moreNav = myrtlrect(width() - st::mvIconSize.width(), height() - st::mvIconSize.height(), st::mvIconSize.width(), st::mvIconSize.height());
@@ -396,7 +396,7 @@ void MediaView::updateDropdown() {
 	_btnToMessage->setVisible(_msgid > 0);
 	_btnShowInFolder->setVisible(_doc && !_doc->already(true).isEmpty());
 	_btnSaveAs->setVisible(true);
-	_btnCopy->setVisible((_doc && fileShown()) || (_photo && _photo->full->loaded()));
+	_btnCopy->setVisible((_doc && fileShown()) || (_photo && _photo->loaded()));
 	_btnForward->setVisible(_canForward);
 	_btnDelete->setVisible(_canDelete || (_photo && App::self() && App::self()->photoId == _photo->id) || (_photo && _photo->peer && _photo->peer->photoId == _photo->id && (_photo->peer->isChat() || (_photo->peer->isChannel() && _photo->peer->asChannel()->amCreator()))));
 	_btnViewAll->setVisible((_overview != OverviewCount) && _history);
@@ -576,7 +576,7 @@ void MediaView::onSaveAs() {
 			updateOver(_lastMouseMovePos);
 		}
 	} else {
-		if (!_photo || !_photo->full->loaded()) return;
+		if (!_photo || !_photo->loaded()) return;
 
 		psBringToBack(this);
 		bool gotName = filedialogGetSaveFile(file, lang(lng_save_photo), qsl("JPEG Image (*.jpg);;All files (*.*)"), filedialogDefaultName(qsl("photo"), qsl(".jpg")));
@@ -656,7 +656,7 @@ void MediaView::onDownload() {
 			updateOver(_lastMouseMovePos);
 		}
 	} else {
-		if (!_photo || !_photo->full->loaded()) {
+		if (!_photo || !_photo->loaded()) {
 			_saveVisible = false;
 			update(_saveNav);
 		} else {
@@ -739,7 +739,7 @@ void MediaView::onCopy() {
 			QApplication::clipboard()->setPixmap(QPixmap::fromImage(_gif->frameOriginal()));
 		}
 	} else {
-		if (!_photo || !_photo->full->loaded()) return;
+		if (!_photo || !_photo->loaded()) return;
 
 		QApplication::clipboard()->setPixmap(_photo->full->pix());
 	}
@@ -916,7 +916,7 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 		_from = _user;
 	}
 	updateControls();
-	_photo->full->loadEvenCancelled();
+	_photo->download();
 	if (isHidden()) {
 		psUpdateOverlayed(this);
 		show();
@@ -1102,7 +1102,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 	// photo
 	if (_photo) {
 		int32 w = _width * cIntRetinaFactor();
-		if (_full <= 0 && _photo->full->loaded()) {
+		if (_full <= 0 && _photo->loaded()) {
 			int32 h = int((_photo->full->height() * (qreal(w) / qreal(_photo->full->width()))) + 0.9999);
 			_current = _photo->full->pixNoCache(w, h, true);
 			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
@@ -1584,7 +1584,7 @@ void MediaView::preloadData(int32 delta) {
 				if (HistoryItem *item = App::histItemById(previewHistory->channelId(), previewHistory->overview[_overview][previewIndex])) {
 					if (HistoryMedia *media = item->getMedia()) {
 						switch (media->type()) {
-						case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->full->loadEvenCancelled(); break;
+						case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->download(); break;
 						case MediaTypeDocument:
 						case MediaTypeGif: {
 							DocumentData *doc = media->getDocument();
@@ -1605,7 +1605,7 @@ void MediaView::preloadData(int32 delta) {
 		}
 		for (int32 i = from; i <= to; ++i) {
 			if (i >= 0 && i < _user->photos.size() && i != _index) {
-				_user->photos[i]->full->loadEvenCancelled();
+				_user->photos[i]->download();
 			}
 		}
 		int32 forgetIndex = _index - delta * 2;
@@ -1959,6 +1959,8 @@ void MediaView::hide() {
 	a_cOpacity = anim::fvalue(1, 1);
 	QWidget::hide();
 	stopGif();
+
+	Notify::mediaViewHidden();
 }
 
 void MediaView::onMenuDestroy(QObject *obj) {

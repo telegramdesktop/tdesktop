@@ -240,6 +240,7 @@ public:
 	void ui_clipRedraw(ClipReader *reader);
 	void ui_showLayer(LayeredWidget *box, ShowLayerOptions options);
 	bool ui_isLayerShown();
+	bool ui_isMediaViewShown();
 
 	void notify_clipReinit(ClipReader *reader);
 

@@ -97,6 +97,11 @@ namespace Ui {
 		return false;
 	}
 
+	bool isMediaViewShown() {
+		if (Window *w = App::wnd()) return w->ui_isMediaViewShown();
+		return false;
+	}
+
 	void clipRedraw(ClipReader *reader) {
 		const GifItems &items(App::gifItems());
 		GifItems::const_iterator it = items.constFind(reader);
@@ -141,6 +146,10 @@ namespace Notify {
 
 	void migrateUpdated(PeerData *peer) {
 		if (MainWidget *m = App::main()) m->notify_migrateUpdated(peer);
+	}
+
+	void mediaViewHidden() {
+		if (MainWidget *m = App::main()) m->notify_mediaViewHidden();
 	}
 
 	void clipReinit(ClipReader *reader) {

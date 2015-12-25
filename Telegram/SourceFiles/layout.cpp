@@ -320,9 +320,9 @@ int32 LayoutOverviewPhoto::resizeGetHeight(int32 width) {
 }
 
 void LayoutOverviewPhoto::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
-	bool good = _data->full->loaded();
+	bool good = _data->loaded();
 	if (!good) {
-		_data->medium->load(false, false);
+		_data->medium->automaticLoad(_parent);
 		good = _data->medium->loaded();
 	}
 	if ((good && !_goodLoaded) || _pix.width() != _width * cIntRetinaFactor()) {
@@ -330,7 +330,7 @@ void LayoutOverviewPhoto::paint(Painter &p, const QRect &clip, uint32 selection,
 
 		int32 size = _width * cIntRetinaFactor();
 		if (_goodLoaded || _data->thumb->loaded()) {
-			QImage img = (_data->full->loaded() ? _data->full : (_data->medium->loaded() ? _data->medium : _data->thumb))->pix().toImage();
+			QImage img = (_data->loaded() ? _data->full : (_data->medium->loaded() ? _data->medium : _data->thumb))->pix().toImage();
 			if (!_goodLoaded) {
 				img = imageBlur(img);
 			}
@@ -1095,7 +1095,7 @@ LayoutOverviewLink::LayoutOverviewLink(HistoryMedia *media, HistoryItem *parent)
 	}
 	int32 tw = 0, th = 0;
 	if (_page && _page->photo) {
-		if (!_page->photo->full->loaded()) _page->photo->thumb->load(false, false);
+		if (!_page->photo->loaded()) _page->photo->thumb->load(false, false);
 
 		tw = convertScale(_page->photo->thumb->width());
 		th = convertScale(_page->photo->thumb->height());
@@ -1120,7 +1120,8 @@ LayoutOverviewLink::LayoutOverviewLink(HistoryMedia *media, HistoryItem *parent)
 	if (_page) {
 		_title = _page->title;
 	}
-	QVector<QStringRef> parts = (_page ? _page->url : (_links.isEmpty() ? QString() : _links.at(0).lnk->text())).splitRef('/');
+    QString url(_page ? _page->url : (_links.isEmpty() ? QString() : _links.at(0).lnk->text()));
+    QVector<QStringRef> parts = url.splitRef('/');
 	if (!parts.isEmpty()) {
 		QStringRef domain = parts.at(0);
 		if (parts.size() > 2 && domain.endsWith(':') && parts.at(1).isEmpty()) { // http:// and others
@@ -1176,7 +1177,7 @@ void LayoutOverviewLink::paint(Painter &p, const QRect &clip, uint32 selection, 
 	if (clip.intersects(rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width))) {
 		if (_page && _page->photo) {
 			QPixmap pix;
-			if (_page->photo->full->loaded()) {
+			if (_page->photo->loaded()) {
 				pix = _page->photo->full->pixSingle(_pixw, _pixh, st::dlgPhotoSize, st::dlgPhotoSize);
 			} else if (_page->photo->medium->loaded()) {
 				pix = _page->photo->medium->pixSingle(_pixw, _pixh, st::dlgPhotoSize, st::dlgPhotoSize);

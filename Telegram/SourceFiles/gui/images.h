@@ -111,8 +111,10 @@ class HistoryItem;
 class Image {
 public:
 
-	Image(QByteArray format = "PNG") : format(format), forgot(false) {
-	}
+	Image(const QString &file, QByteArray format = QByteArray());
+	Image(const QByteArray &filecontent, QByteArray format = QByteArray());
+	Image(const QPixmap &pixmap, QByteArray format = QByteArray());
+	Image(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap);
 
 	virtual void automaticLoad(const HistoryItem *item) { // auto load photo
 	}
@@ -146,43 +148,47 @@ public:
 	QPixmap pixColoredNoCache(const style::color &add, int32 w = 0, int32 h = 0, bool smooth = false) const;
 	QPixmap pixBlurredColoredNoCache(const style::color &add, int32 w, int32 h = 0) const;
 
-	virtual int32 width() const = 0;
-	virtual int32 height() const = 0;
+	virtual int32 width() const {
+		restore();
+		return _data.width();
+	}
+
+	virtual int32 height() const {
+		restore();
+		return _data.height();
+	}
 
 	virtual void load(bool loadFirst = false, bool prior = true) {
 	}
+
 	virtual void loadEvenCancelled(bool loadFirst = false, bool prior = true) {
 	}
 
 	bool isNull() const;
 	
 	void forget() const;
-	void restore() const;
 
 	QByteArray savedFormat() const {
-		return format;
+		return _format;
 	}
 	QByteArray savedData() const {
-		return saved;
+		return _saved;
 	}
 
-	virtual ~Image() {
-		invalidateSizeCache();
-	}
+	virtual ~Image();
 
 protected:
-
-	virtual void checkload() const {
+	Image(QByteArray format = "PNG") : _format(format), _forgot(false) {
 	}
 
-	virtual const QPixmap &pixData() const = 0;
-	virtual void doForget() const = 0;
-	virtual void doRestore() const = 0;
-
+	void restore() const;
+	virtual void checkload() const {
+	}
 	void invalidateSizeCache() const;
 
-	mutable QByteArray saved, format;
-	mutable bool forgot;
+	mutable QByteArray _saved, _format;
+	mutable bool _forgot;
+	mutable QPixmap _data;
 
 private:
 
@@ -191,43 +197,10 @@ private:
 
 };
 
-class LocalImage : public Image {
-public:
-
-	LocalImage(const QString &file, QByteArray format = QByteArray());
-	LocalImage(const QByteArray &filecontent, QByteArray format = QByteArray());
-	LocalImage(const QPixmap &pixmap, QByteArray format = QByteArray());
-	LocalImage(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap);
-
-	int32 width() const;
-	int32 height() const;
-
-	~LocalImage();
-
-protected:
-
-	const QPixmap &pixData() const;
-	void doForget() const {
-		data = QPixmap();
-	}
-	void doRestore() const { 
-		QBuffer buffer(&saved);
-		QImageReader reader(&buffer, format);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 5, 0)
-		reader.setAutoTransform(true);
-#endif
-		data = QPixmap::fromImageReader(&reader, Qt::ColorOnly);
-	}
-
-private:
-
-	mutable QPixmap data;
-};
-
-LocalImage *getImage(const QString &file, QByteArray format);
-LocalImage *getImage(const QByteArray &filecontent, QByteArray format);
-LocalImage *getImage(const QPixmap &pixmap, QByteArray format);
-LocalImage *getImage(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap);
+Image *getImage(const QString &file, QByteArray format);
+Image *getImage(const QByteArray &filecontent, QByteArray format);
+Image *getImage(const QPixmap &pixmap, QByteArray format);
+Image *getImage(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap);
 
 typedef QPair<uint64, uint64> StorageKey;
 inline uint64 storageMix32To64(int32 a, int32 b) {
@@ -255,7 +228,9 @@ public:
 	void automaticLoad(const HistoryItem *item); // auto load photo
 
 	bool loaded() const;
-	bool loading() const;
+	bool loading() const {
+		return amLoading();
+	}
 	bool displayLoading() const;
 	void cancel();
 	float64 progress() const;
@@ -269,23 +244,11 @@ public:
 	~StorageImage();
 
 protected:
-
-	const QPixmap &pixData() const;
-	void checkload() const;
-	void doForget() const {
-		_data = QPixmap();
-	}
-	void doRestore() const { 
-		QBuffer buffer(&saved);
-		QImageReader reader(&buffer, format);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 5, 0)
-		reader.setAutoTransform(true);
-#endif
-		_data = QPixmap::fromImageReader(&reader, Qt::ColorOnly);
+	void checkload() const {
+		doCheckload();
 	}
 
 private:
-	mutable QPixmap _data;
 	StorageImageLocation _location;
 	int32 _size;
 	mutable mtpFileLoader *_loader;
@@ -293,6 +256,7 @@ private:
 	bool amLoading() const {
 		return _loader && _loader != CancelledFileLoader;
 	}
+	void doCheckload() const;
 
 };
 

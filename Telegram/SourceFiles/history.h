@@ -1288,6 +1288,9 @@ public:
 
 	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent, bool allowEmitResize);
 
+	void regItem(HistoryItem *item);
+	void unregItem(HistoryItem *item);
+
 	bool hasReplyPreview() const {
 		return !_data->thumb->isNull();
 	}

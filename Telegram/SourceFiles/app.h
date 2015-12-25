@@ -35,6 +35,7 @@ class FileUploader;
 #include "layout.h"
 
 typedef QMap<HistoryItem*, NullType> HistoryItemsMap;
+typedef QMap<PhotoData*, HistoryItemsMap> PhotoItems;
 typedef QMap<VideoData*, HistoryItemsMap> VideoItems;
 typedef QMap<AudioData*, HistoryItemsMap> AudioItems;
 typedef QMap<DocumentData*, HistoryItemsMap> DocumentItems;
@@ -197,6 +198,10 @@ namespace App {
 
 	QImage readImage(QByteArray data, QByteArray *format = 0, bool opaque = true, bool *animated = 0);
 	QImage readImage(const QString &file, QByteArray *format = 0, bool opaque = true, bool *animated = 0, QByteArray *content = 0);
+
+	void regPhotoItem(PhotoData *data, HistoryItem *item);
+	void unregPhotoItem(PhotoData *data, HistoryItem *item);
+	const PhotoItems &photoItems();
 
 	void regVideoItem(VideoData *data, HistoryItem *item);
 	void unregVideoItem(VideoData *data, HistoryItem *item);

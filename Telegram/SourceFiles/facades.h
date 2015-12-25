@@ -45,6 +45,7 @@ namespace Ui { // openssl doesn't allow me to use UI :(
 	void showLayer(LayeredWidget *box, ShowLayerOptions options = CloseOtherLayers);
 	void hideLayer(bool fast = false);
 	bool isLayerShown();
+	bool isMediaViewShown();
 
 	void clipRedraw(ClipReader *reader);
 
@@ -74,6 +75,8 @@ namespace Notify {
 	void botCommandsChanged(UserData *user);
 
 	void migrateUpdated(PeerData *peer);
+
+	void mediaViewHidden();
 
 	void clipReinit(ClipReader *reader);
 
