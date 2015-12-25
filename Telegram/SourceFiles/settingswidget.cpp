@@ -844,7 +844,7 @@ void SettingsInner::mousePressEvent(QMouseEvent *e) {
 		Ui::showLayer(new EditNameTitleBox(self()));
 	} else if (QRect(_left, st::setTop, st::setPhotoSize, st::setPhotoSize).contains(e->pos())) {
 		if (_photoLink) {
-			App::photo(self()->photoId)->full->load();
+			App::photo(self()->photoId)->download();
 			_photoLink->onClick(e->button());
 		} else {
 			onUpdatePhoto();

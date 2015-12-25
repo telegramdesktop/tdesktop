@@ -3044,12 +3044,132 @@ void RadialAnimation::draw(Painter &p, const QRect &inner, int32 thickness, cons
 	p.setOpacity(o);
 }
 
+namespace {
+	int32 videoMaxStatusWidth(VideoData *video) {
+		int32 result = st::normalFont->width(formatDownloadText(video->size, video->size));
+		result = qMax(result, st::normalFont->width(formatDurationAndSizeText(video->duration, video->size)));
+		return result;
+	}
+
+	int32 audioMaxStatusWidth(AudioData *audio) {
+		int32 result = st::normalFont->width(formatDownloadText(audio->size, audio->size));
+		result = qMax(result, st::normalFont->width(formatPlayedText(audio->duration, audio->duration)));
+		result = qMax(result, st::normalFont->width(formatDurationAndSizeText(audio->duration, audio->size)));
+		return result;
+	}
+
+	int32 documentMaxStatusWidth(DocumentData *document) {
+		int32 result = st::normalFont->width(formatDownloadText(document->size, document->size));
+		if (SongData *song = document->song()) {
+			result = qMax(result, st::normalFont->width(formatPlayedText(song->duration, song->duration)));
+			result = qMax(result, st::normalFont->width(formatDurationAndSizeText(song->duration, document->size)));
+		} else {
+			result = qMax(result, st::normalFont->width(formatSizeText(document->size)));
+		}
+		return result;
+	}
+
+	int32 gifMaxStatusWidth(DocumentData *document) {
+		int32 result = st::normalFont->width(formatDownloadText(document->size, document->size));
+		result = qMax(result, st::normalFont->width(formatGifAndSizeText(document->size)));
+		return result;
+	}
+}
+
+HistoryFileMedia::HistoryFileMedia() : HistoryMedia()
+, _animation(0) {
+}
+
+void HistoryFileMedia::linkOver(HistoryItem *parent, const TextLinkPtr &lnk) {
+	if ((lnk == _savel || lnk == _cancell) && !dataLoaded()) {
+		ensureAnimation(parent);
+		_animation->a_thumbOver.start(1);
+		_animation->_a_thumbOver.start();
+	}
+}
+
+void HistoryFileMedia::linkOut(HistoryItem *parent, const TextLinkPtr &lnk) {
+	if (_animation && (lnk == _savel || lnk == _cancell)) {
+		_animation->a_thumbOver.start(0);
+		_animation->_a_thumbOver.start();
+	}
+}
+
+void HistoryFileMedia::setLinks(ITextLink *openl, ITextLink *savel, ITextLink *cancell) {
+	_openl.reset(openl);
+	_savel.reset(savel);
+	_cancell.reset(cancell);
+}
+
+void HistoryFileMedia::setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const {
+	_statusSize = newSize;
+	if (_statusSize == FileStatusSizeReady) {
+		_statusText = (duration >= 0) ? formatDurationAndSizeText(duration, fullSize) : (duration < -1 ? formatGifAndSizeText(fullSize) : formatSizeText(fullSize));
+	} else if (_statusSize == FileStatusSizeLoaded) {
+		_statusText = (duration >= 0) ? formatDurationText(duration) : (duration < -1 ? qsl("GIF") : formatSizeText(fullSize));
+	} else if (_statusSize == FileStatusSizeFailed) {
+		_statusText = lang(lng_attach_failed);
+	} else if (_statusSize >= 0) {
+		_statusText = formatDownloadText(_statusSize, fullSize);
+	} else {
+		_statusText = formatPlayedText(-_statusSize - 1, realDuration);
+	}
+}
+
+void HistoryFileMedia::step_thumbOver(const HistoryItem *parent, float64 ms, bool timer) {
+	float64 dt = ms / st::msgFileOverDuration;
+	if (dt >= 1) {
+		_animation->a_thumbOver.finish();
+		_animation->_a_thumbOver.stop();
+		checkAnimationFinished();
+	} else {
+		_animation->a_thumbOver.update(dt, anim::linear);
+	}
+	if (timer) {
+		Ui::redrawHistoryItem(parent);
+	}
+}
+
+void HistoryFileMedia::step_radial(const HistoryItem *parent, uint64 ms, bool timer) {
+	_animation->radial.update(dataProgress(), dataFinished(), ms);
+	if (!_animation->radial.animating()) {
+		checkAnimationFinished();
+	}
+	if (timer) {
+		Ui::redrawHistoryItem(parent);
+	}
+}
+
+void HistoryFileMedia::ensureAnimation(const HistoryItem *parent) const {
+	if (!_animation) {
+		_animation = new AnimationData(
+			animation(parent, const_cast<HistoryFileMedia*>(this), &HistoryFileMedia::step_thumbOver),
+			animation(parent, const_cast<HistoryFileMedia*>(this), &HistoryFileMedia::step_radial));
+	}
+}
+
+void HistoryFileMedia::checkAnimationFinished() {
+	if (_animation && !_animation->_a_thumbOver.animating() && !_animation->radial.animating()) {
+		if (dataLoaded()) {
+			delete _animation;
+			_animation = 0;
+		}
+	}
+}
+
+HistoryFileMedia::~HistoryFileMedia() {
+	if (_animation) {
+		delete _animation;
+		setBadPointer(_animation);
+	}
+}
+
 HistoryPhoto::HistoryPhoto(const MTPDphoto &photo, const QString &caption, HistoryItem *parent) : HistoryFileMedia()
 , _data(App::feedPhoto(photo))
 , _pixw(1)
 , _pixh(1)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
-	setLinks(new PhotoLink(_data), new PhotoLink(_data), new PhotoCancelLink(_data));
+	setLinks(new PhotoLink(_data), new PhotoSaveLink(_data), new PhotoCancelLink(_data));
 
 	if (!caption.isEmpty()) {
 		_caption.setText(st::msgFont, caption + parent->skipBlock(), itemTextNoMonoOptions(parent));
@@ -3061,7 +3181,7 @@ HistoryPhoto::HistoryPhoto(PhotoData *photo) : HistoryFileMedia()
 , _data(photo)
 , _pixw(1)
 , _pixh(1) {
-	setLinks(new PhotoLink(_data), new PhotoLink(_data), new PhotoCancelLink(_data));
+	setLinks(new PhotoLink(_data), new PhotoSaveLink(_data), new PhotoCancelLink(_data));
 
 	init();
 }
@@ -3070,7 +3190,7 @@ HistoryPhoto::HistoryPhoto(PeerData *chat, const MTPDphoto &photo, int32 width) 
 , _data(App::feedPhoto(photo))
 , _pixw(1)
 , _pixh(1) {
-	setLinks(new PhotoLink(_data, chat), new PhotoLink(_data, chat), new PhotoCancelLink(_data));
+	setLinks(new PhotoLink(_data, chat), new PhotoSaveLink(_data, chat), new PhotoCancelLink(_data));
 
 	_width = width;
 	init();
@@ -3081,11 +3201,10 @@ HistoryPhoto::HistoryPhoto(const HistoryPhoto &other) : HistoryFileMedia()
 , _pixw(other._pixw)
 , _pixh(other._pixh)
 , _caption(other._caption) {
-	setLinks(new PhotoLink(_data), new PhotoLink(_data), new PhotoCancelLink(_data));
+	setLinks(new PhotoLink(_data), new PhotoSaveLink(_data), new PhotoCancelLink(_data));
 
 	init();
 }
-
 
 void HistoryPhoto::init() {
 	_data->thumb->load();
@@ -3356,6 +3475,14 @@ void HistoryPhoto::updateFrom(const MTPMessageMedia &media, HistoryItem *parent,
 	}
 }
 
+void HistoryPhoto::regItem(HistoryItem *item) {
+	App::regPhotoItem(_data, item);
+}
+
+void HistoryPhoto::unregItem(HistoryItem *item) {
+	App::unregPhotoItem(_data, item);
+}
+
 const QString HistoryPhoto::inDialogsText() const {
 	return _caption.isEmpty() ? lang(lng_in_dlg_photo) : _caption.original(0, 0xFFFF, Text::ExpandLinksNone);
 }
@@ -3366,126 +3493,6 @@ const QString HistoryPhoto::inHistoryText() const {
 
 ImagePtr HistoryPhoto::replyPreview() {
 	return _data->makeReplyPreview();
-}
-
-namespace {
-	int32 videoMaxStatusWidth(VideoData *video) {
-		int32 result = st::normalFont->width(formatDownloadText(video->size, video->size));
-		result = qMax(result, st::normalFont->width(formatDurationAndSizeText(video->duration, video->size)));
-		return result;
-	}
-
-	int32 audioMaxStatusWidth(AudioData *audio) {
-		int32 result = st::normalFont->width(formatDownloadText(audio->size, audio->size));
-		result = qMax(result, st::normalFont->width(formatPlayedText(audio->duration, audio->duration)));
-		result = qMax(result, st::normalFont->width(formatDurationAndSizeText(audio->duration, audio->size)));
-		return result;
-	}
-
-	int32 documentMaxStatusWidth(DocumentData *document) {
-		int32 result = st::normalFont->width(formatDownloadText(document->size, document->size));
-		if (SongData *song = document->song()) {
-			result = qMax(result, st::normalFont->width(formatPlayedText(song->duration, song->duration)));
-			result = qMax(result, st::normalFont->width(formatDurationAndSizeText(song->duration, document->size)));
-		} else {
-			result = qMax(result, st::normalFont->width(formatSizeText(document->size)));
-		}
-		return result;
-	}
-
-	int32 gifMaxStatusWidth(DocumentData *document) {
-		int32 result = st::normalFont->width(formatDownloadText(document->size, document->size));
-		result = qMax(result, st::normalFont->width(formatGifAndSizeText(document->size)));
-		return result;
-	}
-}
-
-HistoryFileMedia::HistoryFileMedia() : HistoryMedia()
-, _animation(0) {
-}
-
-void HistoryFileMedia::linkOver(HistoryItem *parent, const TextLinkPtr &lnk) {
-	if ((lnk == _savel || lnk == _cancell) && !dataLoaded()) {
-		ensureAnimation(parent);
-		_animation->a_thumbOver.start(1);
-		_animation->_a_thumbOver.start();
-	}
-}
-
-void HistoryFileMedia::linkOut(HistoryItem *parent, const TextLinkPtr &lnk) {
-	if (_animation && (lnk == _savel || lnk == _cancell)) {
-		_animation->a_thumbOver.start(0);
-		_animation->_a_thumbOver.start();
-	}
-}
-
-void HistoryFileMedia::setLinks(ITextLink *openl, ITextLink *savel, ITextLink *cancell) {
-	_openl.reset(openl);
-	_savel.reset(savel);
-	_cancell.reset(cancell);
-}
-
-void HistoryFileMedia::setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const {
-	_statusSize = newSize;
-	if (_statusSize == FileStatusSizeReady) {
-		_statusText = (duration >= 0) ? formatDurationAndSizeText(duration, fullSize) : (duration < -1 ? formatGifAndSizeText(fullSize) : formatSizeText(fullSize));
-	} else if (_statusSize == FileStatusSizeLoaded) {
-		_statusText = (duration >= 0) ? formatDurationText(duration) : (duration < -1 ? qsl("GIF") : formatSizeText(fullSize));
-	} else if (_statusSize == FileStatusSizeFailed) {
-		_statusText = lang(lng_attach_failed);
-	} else if (_statusSize >= 0) {
-		_statusText = formatDownloadText(_statusSize, fullSize);
-	} else {
-		_statusText = formatPlayedText(-_statusSize - 1, realDuration);
-	}
-}
-
-void HistoryFileMedia::step_thumbOver(const HistoryItem *parent, float64 ms, bool timer) {
-	float64 dt = ms / st::msgFileOverDuration;
-	if (dt >= 1) {
-		_animation->a_thumbOver.finish();
-		_animation->_a_thumbOver.stop();
-		checkAnimationFinished();
-	} else {
-		_animation->a_thumbOver.update(dt, anim::linear);
-	}
-	if (timer) {
-		Ui::redrawHistoryItem(parent);
-	}
-}
-
-void HistoryFileMedia::step_radial(const HistoryItem *parent, uint64 ms, bool timer) {
-	_animation->radial.update(dataProgress(), dataFinished(), ms);
-	if (!_animation->radial.animating()) {
-		checkAnimationFinished();
-	}
-	if (timer) {
-		Ui::redrawHistoryItem(parent);
-	}
-}
-
-void HistoryFileMedia::ensureAnimation(const HistoryItem *parent) const {
-	if (!_animation) {
-		_animation = new AnimationData(
-			animation(parent, const_cast<HistoryFileMedia*>(this), &HistoryFileMedia::step_thumbOver),
-			animation(parent, const_cast<HistoryFileMedia*>(this), &HistoryFileMedia::step_radial));
-	}
-}
-
-void HistoryFileMedia::checkAnimationFinished() {
-	if (_animation && !_animation->_a_thumbOver.animating() && !_animation->radial.animating()) {
-		if (dataLoaded()) {
-			delete _animation;
-			_animation = 0;
-		}
-	}
-}
-
-HistoryFileMedia::~HistoryFileMedia() {
-	if (_animation) {
-		delete _animation;
-		setBadPointer(_animation);
-	}
 }
 
 HistoryVideo::HistoryVideo(const MTPDvideo &video, const QString &caption, HistoryItem *parent) : HistoryFileMedia()
@@ -4457,7 +4464,7 @@ void HistoryGif::draw(Painter &p, const HistoryItem *parent, const QRect &r, boo
 	QRect rthumb(rtlrect(skipx, skipy, width, height, _width));
 
 	if (animating) {
-		p.drawPixmap(rthumb.topLeft(), _gif->current(_thumbw, _thumbh, width, height, ms));
+		p.drawPixmap(rthumb.topLeft(), _gif->current(_thumbw, _thumbh, width, height, Ui::isMediaViewShown() ? 0 : ms));
 	} else {
 		p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(_thumbw, _thumbh, width, height));
 	}

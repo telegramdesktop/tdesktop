@@ -844,6 +844,10 @@ bool Window::ui_isLayerShown() {
 	return !!layerBg;
 }
 
+bool Window::ui_isMediaViewShown() {
+	return _mediaView && !_mediaView->isHidden();
+}
+
 void Window::notify_clipReinit(ClipReader *reader) {
 	if (_mediaView && !_mediaView->isHidden()) {
 		_mediaView->notify_clipReinit(reader);

@@ -69,6 +69,7 @@ namespace {
 	typedef QMap<ChannelId, ReplyMarkups> ChannelReplyMarkups;
 	ChannelReplyMarkups channelReplyMarkups;
 
+	PhotoItems photoItems;
 	VideoItems videoItems;
 	AudioItems audioItems;
 	DocumentItems documentItems;
@@ -1959,6 +1960,7 @@ namespace App {
 		cSetStickerSetsOrder(StickerSetsOrder());
 		cSetLastStickersUpdate(0);
 		cSetReportSpamStatuses(ReportSpamStatuses());
+		::photoItems.clear();
 		::videoItems.clear();
 		::audioItems.clear();
 		::documentItems.clear();
@@ -2346,6 +2348,18 @@ namespace App {
 		QImage result = readImage(img, format, opaque, animated);
 		if (content && !result.isNull()) *content = img;
 		return result;
+	}
+
+	void regPhotoItem(PhotoData *data, HistoryItem *item) {
+		::photoItems[data].insert(item, NullType());
+	}
+
+	void unregPhotoItem(PhotoData *data, HistoryItem *item) {
+		::photoItems[data].remove(item);
+	}
+
+	const PhotoItems &photoItems() {
+		return ::photoItems;
 	}
 
 	void regVideoItem(VideoData *data, HistoryItem *item) {

@@ -1026,7 +1026,7 @@ void HistoryInner::saveContextImage() {
 	if (!lnk) return;
 	
 	PhotoData *photo = lnk->photo();
-	if (!photo || !photo->date || !photo->full->loaded()) return;
+	if (!photo || !photo->date || !photo->loaded()) return;
 
 	QString file;
 	if (filedialogGetSaveFile(file, lang(lng_save_photo), qsl("JPEG Image (*.jpg);;All files (*.*)"), filedialogDefaultName(qsl("photo"), qsl(".jpg")))) {
@@ -1041,7 +1041,7 @@ void HistoryInner::copyContextImage() {
 	if (!lnk) return;
 	
 	PhotoData *photo = lnk->photo();
-	if (!photo || !photo->date || !photo->full->loaded()) return;
+	if (!photo || !photo->date || !photo->loaded()) return;
 
 	QApplication::clipboard()->setPixmap(photo->full->pix());
 }
@@ -1608,7 +1608,10 @@ void HistoryInner::onUpdateSelected() {
 				_dragItem->getSymbol(second, afterSymbol, uponSymbol, m.x(), m.y());
 				if (afterSymbol && _dragSelType == TextSelectLetters) ++second;
 				uint32 selState = _dragItem->adjustSelection(qMin(second, _dragSymbol), qMax(second, _dragSymbol), _dragSelType);
-				_selected[_dragItem] = selState;
+				if (_selected[_dragItem] != selState) {
+					_selected[_dragItem] = selState;
+					Ui::redrawHistoryItem(_dragItem);
+				}
 				if (!_wasSelectedText && (selState == FullSelection || (selState & 0xFFFF) != ((selState >> 16) & 0xFFFF))) {
 					_wasSelectedText = true;
 					setFocus();
@@ -2988,6 +2991,10 @@ void HistoryWidget::notify_migrateUpdated(PeerData *peer) {
 			showHistory(_peer->id, _showAtMsgId, true);
 		}
 	}
+}
+
+void HistoryWidget::notify_mediaViewHidden() {
+	if (_list) _list->update();
 }
 
 void HistoryWidget::notify_historyItemResized(const HistoryItem *row, bool scrollToIt) {

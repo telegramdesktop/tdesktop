@@ -562,6 +562,7 @@ public:
 	void notify_botCommandsChanged(UserData *user);
 	void notify_userIsBotChanged(UserData *user);
 	void notify_migrateUpdated(PeerData *peer);
+	void notify_mediaViewHidden();
 	void notify_historyItemResized(const HistoryItem *item, bool scrollToIt);
 
 	~HistoryWidget();

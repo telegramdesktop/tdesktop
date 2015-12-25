@@ -196,13 +196,15 @@ void ClipReader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, b
 }
 
 QPixmap ClipReader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, uint64 ms) {
-	_lastDisplayMs.set(ms);
 	_currentDisplayed.set(true);
-	if (_paused.get()) {
-		_paused.set(false);
-		if (_clipManagers.size() <= _threadIndex) error();
-		if (_state != ClipError) {
-			_clipManagers.at(_threadIndex)->update(this);
+	if (ms) {
+		_lastDisplayMs.set(ms);
+		if (_paused.get()) {
+			_paused.set(false);
+			if (_clipManagers.size() <= _threadIndex) error();
+			if (_state != ClipError) {
+				_clipManagers.at(_threadIndex)->update(this);
+			}
 		}
 	}
 
@@ -441,7 +443,13 @@ public:
 						continue;
 					}
 
-					return false;
+					if (res != AVERROR_EOF || !_hadFrame) { // try to skip end of file
+						return false;
+					}
+					freePacket();
+					_avpkt.data = NULL;
+					_avpkt.size = 0;
+					continue;
 				}
 				if (res > 0) decoded = res;
 			}

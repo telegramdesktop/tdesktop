@@ -786,6 +786,10 @@ void MainWidget::notify_migrateUpdated(PeerData *peer) {
 	history.notify_migrateUpdated(peer);
 }
 
+void MainWidget::notify_mediaViewHidden() {
+	history.notify_mediaViewHidden();
+}
+
 void MainWidget::ui_redrawHistoryItem(const HistoryItem *item) {
 	if (!item) return;
 
