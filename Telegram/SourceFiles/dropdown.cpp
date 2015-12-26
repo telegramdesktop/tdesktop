@@ -3019,10 +3019,6 @@ MentionsDropdown::MentionsDropdown(QWidget *parent) : TWidget(parent)
 
 	connect(&_scroll, SIGNAL(geometryChanged()), &_inner, SLOT(onParentGeometryChanged()));
 	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(onUpdateSelected()));
-
-	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
-		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
-	}
 }
 
 void MentionsDropdown::paintEvent(QPaintEvent *e) {
