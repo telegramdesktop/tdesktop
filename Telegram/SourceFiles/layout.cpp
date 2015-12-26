@@ -480,7 +480,7 @@ void LayoutOverviewVideo::paint(Painter &p, const QRect &clip, uint32 selection,
 		p.drawEllipse(inner);
 		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
-		p.setOpacity(1);
+        p.setOpacity((radial && loaded) ? _radial->opacity() : 1);
 		style::sprite icon;
 		if (radial) {
 			icon = (selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
@@ -489,9 +489,9 @@ void LayoutOverviewVideo::paint(Painter &p, const QRect &clip, uint32 selection,
 		} else {
 			icon = (selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
 		}
-		p.setOpacity((radial && loaded) ? _radial->opacity() : 1);
 		p.drawSpriteCenter(inner, icon);
 		if (radial) {
+            p.setOpacity(1);
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
 			_radial->draw(p, rinner, st::msgFileRadialLine, selected ? st::msgInBgSelected : st::msgInBg);
 		}
