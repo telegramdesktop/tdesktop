@@ -237,9 +237,10 @@ public:
 		return contentOverlapped(QRect(w->mapToGlobal(r.boundingRect().topLeft()), r.boundingRect().size()));
 	}
 
-	void ui_clipRedraw(ClipReader *reader);
+	void ui_clipRepaint(ClipReader *reader);
 	void ui_showLayer(LayeredWidget *box, ShowLayerOptions options);
 	bool ui_isLayerShown();
+	bool ui_isMediaViewShown();
 
 	void notify_clipReinit(ClipReader *reader);
 

@@ -578,8 +578,24 @@ void PhotoData::automaticLoad(const HistoryItem *item) {
 	full->automaticLoad(item);
 }
 
+void PhotoData::automaticLoadSettingsChanged() {
+	full->automaticLoadSettingsChanged();
+}
+
+void PhotoData::download() {
+	full->loadEvenCancelled();
+	notifyLayoutChanged();
+}
+
 bool PhotoData::loaded() const {
-	return full->loaded();
+	bool wasLoading = loading();
+	if (full->loaded()) {
+		if (wasLoading) {
+			notifyLayoutChanged();
+		}
+		return true;
+	}
+	return false;
 }
 
 bool PhotoData::loading() const {
@@ -592,10 +608,27 @@ bool PhotoData::displayLoading() const {
 
 void PhotoData::cancel() {
 	full->cancel();
+	notifyLayoutChanged();
+}
+
+void PhotoData::notifyLayoutChanged() const {
+	const PhotoItems &items(App::photoItems());
+	PhotoItems::const_iterator i = items.constFind(const_cast<PhotoData*>(this));
+	if (i != items.cend()) {
+		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
+			Notify::historyItemLayoutChanged(j.key());
+		}
+	}
 }
 
 float64 PhotoData::progress() const {
-	return loading() ? full->progress() : (uploading() ? (float64(uploadingData->offset) / uploadingData->size) : (loaded() ? 1 : 0));
+	if (uploading()) {
+		if (uploadingData->size > 0) {
+			return float64(uploadingData->offset) / uploadingData->size;
+		}
+		return 0;
+	}
+	return full->progress();
 }
 
 int32 PhotoData::loadOffset() const {
@@ -636,6 +669,15 @@ void PhotoLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton) {
 		App::wnd()->showPhoto(this, App::hoveredLinkItem() ? App::hoveredLinkItem() : App::contextItem());
 	}
+}
+
+void PhotoSaveLink::onClick(Qt::MouseButton button) const {
+	if (button != Qt::LeftButton) return;
+
+	PhotoData *data = photo();
+	if (!data->date) return;
+
+	data->download();
 }
 
 void PhotoCancelLink::onClick(Qt::MouseButton button) const {
@@ -889,7 +931,13 @@ bool VideoData::displayLoading() const {
 }
 
 float64 VideoData::progress() const {
-	return loading() ? _loader->currentProgress() : (uploading() ? (float64(uploadOffset) / size) : (loaded() ? 1 : 0));
+	if (uploading()) {
+		if (size > 0) {
+			return float64(uploadOffset) / size;
+		}
+		return 0;
+	}
+	return loading() ? _loader->currentProgress() : (loaded() ? 1 : 0);
 }
 
 int32 VideoData::loadOffset() const {
@@ -1130,6 +1178,11 @@ void AudioData::automaticLoad(const HistoryItem *item) {
 	}
 }
 
+void AudioData::automaticLoadSettingsChanged() {
+	if (loaded() || status != FileReady || !saveToCache() || _loader != CancelledFileLoader) return;
+	_loader = 0;
+}
+
 void AudioData::performActionOnLoad() {
 	if (_actionOnLoad == ActionOnLoadNone) return;
 
@@ -1196,7 +1249,13 @@ bool AudioData::displayLoading() const {
 }
 
 float64 AudioData::progress() const {
-	return loading() ? _loader->currentProgress() : (uploading() ? (float64(uploadOffset) / size) : (loaded() ? 1 : 0));
+	if (uploading()) {
+		if (size > 0) {
+			return float64(uploadOffset) / size;
+		}
+		return 0;
+	}
+	return loading() ? _loader->currentProgress() : (loaded() ? 1 : 0);
 }
 
 int32 AudioData::loadOffset() const {
@@ -1522,16 +1581,25 @@ void DocumentData::automaticLoad(const HistoryItem *item) {
 	if (saveToCache() && _loader != CancelledFileLoader) {
 		if (type == StickerDocument) {
 			save(QString(), _actionOnLoad, _actionOnLoadMsgId);
-		} else if (isAnimation() && item) {
+		} else if (isAnimation()) {
 			bool loadFromCloud = false;
-			if (item->history()->peer->isUser()) {
-				loadFromCloud = !(cAutoDownloadGif() & dbiadNoPrivate);
-			} else {
-				loadFromCloud = !(cAutoDownloadGif() & dbiadNoGroups);
+			if (item) {
+				if (item->history()->peer->isUser()) {
+					loadFromCloud = !(cAutoDownloadGif() & dbiadNoPrivate);
+				} else {
+					loadFromCloud = !(cAutoDownloadGif() & dbiadNoGroups);
+				}
+			} else { // if load at least anywhere
+				loadFromCloud = !(cAutoDownloadGif() & dbiadNoPrivate) || !(cAutoDownloadGif() & dbiadNoGroups);
 			}
 			save(QString(), _actionOnLoad, _actionOnLoadMsgId, loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly, true);
 		}
 	}
+}
+
+void DocumentData::automaticLoadSettingsChanged() {
+	if (loaded() || status != FileReady || !isAnimation() || !saveToCache() || _loader != CancelledFileLoader) return;
+	_loader = 0;
 }
 
 void DocumentData::performActionOnLoad() {
@@ -1622,7 +1690,13 @@ bool DocumentData::displayLoading() const {
 }
 
 float64 DocumentData::progress() const {
-	return loading() ? _loader->currentProgress() : (uploading() ? (float64(uploadOffset) / size) : (loaded() ? 1 : 0));
+	if (uploading()) {
+		if (size > 0) {
+			return float64(uploadOffset) / size;
+		}
+		return 0;
+	}
+	return loading() ? _loader->currentProgress() : (loaded() ? 1 : 0);
 }
 
 int32 DocumentData::loadOffset() const {

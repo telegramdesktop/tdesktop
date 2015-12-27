@@ -45,10 +45,14 @@ namespace Ui { // openssl doesn't allow me to use UI :(
 	void showLayer(LayeredWidget *box, ShowLayerOptions options = CloseOtherLayers);
 	void hideLayer(bool fast = false);
 	bool isLayerShown();
+	bool isMediaViewShown();
+	bool isGifBeingChosen();
 
-	void clipRedraw(ClipReader *reader);
+	void clipRepaint(ClipReader *reader);
 
-	void redrawHistoryItem(const HistoryItem *item);
+	void repaintHistoryItem(const HistoryItem *item);
+	void repaintSavedGif(const LayoutSavedGif *layout);
+	bool isSavedGifVisible(const LayoutSavedGif *reader);
 
 	void showPeerHistory(const PeerId &peer, MsgId msgId, bool back = false);
 	inline void showPeerHistory(const PeerData *peer, MsgId msgId, bool back = false) {
@@ -67,6 +71,11 @@ namespace Ui { // openssl doesn't allow me to use UI :(
 
 };
 
+enum ClipStopperType {
+	ClipStopperMediaview,
+	ClipStopperSavedGifsPanel,
+};
+
 namespace Notify {
 
 	void userIsBotChanged(UserData *user);
@@ -74,6 +83,8 @@ namespace Notify {
 	void botCommandsChanged(UserData *user);
 
 	void migrateUpdated(PeerData *peer);
+
+	void clipStopperHidden(ClipStopperType type);
 
 	void clipReinit(ClipReader *reader);
 

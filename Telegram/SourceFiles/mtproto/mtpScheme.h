@@ -240,6 +240,7 @@ enum {
 	mtpc_inputMessagesFilterAudio = 0xcfc87522,
 	mtpc_inputMessagesFilterAudioDocuments = 0x5afbf764,
 	mtpc_inputMessagesFilterUrl = 0x7ef0dd87,
+	mtpc_inputMessagesFilterGif = 0xffc86587,
 	mtpc_updateNewMessage = 0x1f2b0afd,
 	mtpc_updateMessageID = 0x4e90bfd6,
 	mtpc_updateDeleteMessages = 0xa20db0e5,
@@ -280,6 +281,7 @@ enum {
 	mtpc_updateNewStickerSet = 0x688a30aa,
 	mtpc_updateStickerSetsOrder = 0xf0dfb451,
 	mtpc_updateStickerSets = 0x43ae3dec,
+	mtpc_updateSavedGifs = 0x9375341e,
 	mtpc_updates_state = 0xa56c2a3e,
 	mtpc_updates_differenceEmpty = 0x5d75a138,
 	mtpc_updates_difference = 0xf49ca0,
@@ -296,7 +298,7 @@ enum {
 	mtpc_photos_photo = 0x20212ca8,
 	mtpc_upload_file = 0x96a18d5,
 	mtpc_dcOption = 0x5d8c6cc,
-	mtpc_config = 0x6cb6e65e,
+	mtpc_config = 0x6bbc5f8,
 	mtpc_nearestDc = 0x8e1a1775,
 	mtpc_help_appUpdate = 0x8987f311,
 	mtpc_help_noAppUpdate = 0xc45a6536,
@@ -448,6 +450,8 @@ enum {
 	mtpc_help_termsOfService = 0xf1ee3e90,
 	mtpc_foundGif = 0xd579cccb,
 	mtpc_messages_foundGifs = 0x450a1c0a,
+	mtpc_messages_savedGifsNotModified = 0xe8025ca2,
+	mtpc_messages_savedGifs = 0x2e0709a5,
 	mtpc_invokeAfterMsg = 0xcb9f372d,
 	mtpc_invokeAfterMsgs = 0x3dc4b4f0,
 	mtpc_initConnection = 0x69796de9,
@@ -559,6 +563,8 @@ enum {
 	mtpc_messages_reorderStickerSets = 0x9fcfbc30,
 	mtpc_messages_getDocumentByHash = 0x338e2464,
 	mtpc_messages_searchGifs = 0xbf9a776b,
+	mtpc_messages_getSavedGifs = 0x83bf3d52,
+	mtpc_messages_saveGif = 0x327a30cb,
 	mtpc_updates_getState = 0xedd4882a,
 	mtpc_updates_getDifference = 0xa041495,
 	mtpc_updates_getChannelDifference = 0xbb32d7c0,
@@ -1229,6 +1235,9 @@ class MTPDfoundGif;
 class MTPmessages_foundGifs;
 class MTPDmessages_foundGifs;
 
+class MTPmessages_savedGifs;
+class MTPDmessages_savedGifs;
+
 
 // Boxed types definitions
 typedef MTPBoxed<MTPresPQ> MTPResPQ;
@@ -1390,6 +1399,7 @@ typedef MTPBoxed<MTPchannels_channelParticipant> MTPchannels_ChannelParticipant;
 typedef MTPBoxed<MTPhelp_termsOfService> MTPhelp_TermsOfService;
 typedef MTPBoxed<MTPfoundGif> MTPFoundGif;
 typedef MTPBoxed<MTPmessages_foundGifs> MTPmessages_FoundGifs;
+typedef MTPBoxed<MTPmessages_savedGifs> MTPmessages_SavedGifs;
 
 // Type classes definitions
 
@@ -5198,6 +5208,7 @@ private:
 	friend MTPmessagesFilter MTP_inputMessagesFilterAudio();
 	friend MTPmessagesFilter MTP_inputMessagesFilterAudioDocuments();
 	friend MTPmessagesFilter MTP_inputMessagesFilterUrl();
+	friend MTPmessagesFilter MTP_inputMessagesFilterGif();
 
 	mtpTypeId _type;
 };
@@ -5768,6 +5779,7 @@ private:
 	friend MTPupdate MTP_updateNewStickerSet(const MTPmessages_StickerSet &_stickerset);
 	friend MTPupdate MTP_updateStickerSetsOrder(const MTPVector<MTPlong> &_order);
 	friend MTPupdate MTP_updateStickerSets();
+	friend MTPupdate MTP_updateSavedGifs();
 
 	mtpTypeId _type;
 };
@@ -6148,7 +6160,7 @@ public:
 private:
 	explicit MTPconfig(MTPDconfig *_data);
 
-	friend MTPconfig MTP_config(MTPint _date, MTPint _expires, MTPBool _test_mode, MTPint _this_dc, const MTPVector<MTPDcOption> &_dc_options, MTPint _chat_size_max, MTPint _megagroup_size_max, MTPint _forwarded_count_max, MTPint _online_update_period_ms, MTPint _offline_blur_timeout_ms, MTPint _offline_idle_timeout_ms, MTPint _online_cloud_timeout_ms, MTPint _notify_cloud_delay_ms, MTPint _notify_default_delay_ms, MTPint _chat_big_size, MTPint _push_chat_period_ms, MTPint _push_chat_limit, const MTPVector<MTPDisabledFeature> &_disabled_features);
+	friend MTPconfig MTP_config(MTPint _date, MTPint _expires, MTPBool _test_mode, MTPint _this_dc, const MTPVector<MTPDcOption> &_dc_options, MTPint _chat_size_max, MTPint _megagroup_size_max, MTPint _forwarded_count_max, MTPint _online_update_period_ms, MTPint _offline_blur_timeout_ms, MTPint _offline_idle_timeout_ms, MTPint _online_cloud_timeout_ms, MTPint _notify_cloud_delay_ms, MTPint _notify_default_delay_ms, MTPint _chat_big_size, MTPint _push_chat_period_ms, MTPint _push_chat_limit, MTPint _saved_gifs_limit, const MTPVector<MTPDisabledFeature> &_disabled_features);
 };
 typedef MTPBoxed<MTPconfig> MTPConfig;
 
@@ -9013,6 +9025,44 @@ private:
 };
 typedef MTPBoxed<MTPmessages_foundGifs> MTPmessages_FoundGifs;
 
+class MTPmessages_savedGifs : private mtpDataOwner {
+public:
+	MTPmessages_savedGifs() : mtpDataOwner(0), _type(0) {
+	}
+	MTPmessages_savedGifs(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : mtpDataOwner(0), _type(0) {
+		read(from, end, cons);
+	}
+
+	MTPDmessages_savedGifs &_messages_savedGifs() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_messages_savedGifs) throw mtpErrorWrongTypeId(_type, mtpc_messages_savedGifs);
+		split();
+		return *(MTPDmessages_savedGifs*)data;
+	}
+	const MTPDmessages_savedGifs &c_messages_savedGifs() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_messages_savedGifs) throw mtpErrorWrongTypeId(_type, mtpc_messages_savedGifs);
+		return *(const MTPDmessages_savedGifs*)data;
+	}
+
+	uint32 innerLength() const;
+	mtpTypeId type() const;
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
+	void write(mtpBuffer &to) const;
+
+	typedef void ResponseType;
+
+private:
+	explicit MTPmessages_savedGifs(mtpTypeId type);
+	explicit MTPmessages_savedGifs(MTPDmessages_savedGifs *_data);
+
+	friend MTPmessages_savedGifs MTP_messages_savedGifsNotModified();
+	friend MTPmessages_savedGifs MTP_messages_savedGifs(MTPint _hash, const MTPVector<MTPDocument> &_gifs);
+
+	mtpTypeId _type;
+};
+typedef MTPBoxed<MTPmessages_savedGifs> MTPmessages_SavedGifs;
+
 // Type constructors with data
 
 class MTPDresPQ : public mtpDataImpl<MTPDresPQ> {
@@ -11635,7 +11685,7 @@ class MTPDconfig : public mtpDataImpl<MTPDconfig> {
 public:
 	MTPDconfig() {
 	}
-	MTPDconfig(MTPint _date, MTPint _expires, MTPBool _test_mode, MTPint _this_dc, const MTPVector<MTPDcOption> &_dc_options, MTPint _chat_size_max, MTPint _megagroup_size_max, MTPint _forwarded_count_max, MTPint _online_update_period_ms, MTPint _offline_blur_timeout_ms, MTPint _offline_idle_timeout_ms, MTPint _online_cloud_timeout_ms, MTPint _notify_cloud_delay_ms, MTPint _notify_default_delay_ms, MTPint _chat_big_size, MTPint _push_chat_period_ms, MTPint _push_chat_limit, const MTPVector<MTPDisabledFeature> &_disabled_features) : vdate(_date), vexpires(_expires), vtest_mode(_test_mode), vthis_dc(_this_dc), vdc_options(_dc_options), vchat_size_max(_chat_size_max), vmegagroup_size_max(_megagroup_size_max), vforwarded_count_max(_forwarded_count_max), vonline_update_period_ms(_online_update_period_ms), voffline_blur_timeout_ms(_offline_blur_timeout_ms), voffline_idle_timeout_ms(_offline_idle_timeout_ms), vonline_cloud_timeout_ms(_online_cloud_timeout_ms), vnotify_cloud_delay_ms(_notify_cloud_delay_ms), vnotify_default_delay_ms(_notify_default_delay_ms), vchat_big_size(_chat_big_size), vpush_chat_period_ms(_push_chat_period_ms), vpush_chat_limit(_push_chat_limit), vdisabled_features(_disabled_features) {
+	MTPDconfig(MTPint _date, MTPint _expires, MTPBool _test_mode, MTPint _this_dc, const MTPVector<MTPDcOption> &_dc_options, MTPint _chat_size_max, MTPint _megagroup_size_max, MTPint _forwarded_count_max, MTPint _online_update_period_ms, MTPint _offline_blur_timeout_ms, MTPint _offline_idle_timeout_ms, MTPint _online_cloud_timeout_ms, MTPint _notify_cloud_delay_ms, MTPint _notify_default_delay_ms, MTPint _chat_big_size, MTPint _push_chat_period_ms, MTPint _push_chat_limit, MTPint _saved_gifs_limit, const MTPVector<MTPDisabledFeature> &_disabled_features) : vdate(_date), vexpires(_expires), vtest_mode(_test_mode), vthis_dc(_this_dc), vdc_options(_dc_options), vchat_size_max(_chat_size_max), vmegagroup_size_max(_megagroup_size_max), vforwarded_count_max(_forwarded_count_max), vonline_update_period_ms(_online_update_period_ms), voffline_blur_timeout_ms(_offline_blur_timeout_ms), voffline_idle_timeout_ms(_offline_idle_timeout_ms), vonline_cloud_timeout_ms(_online_cloud_timeout_ms), vnotify_cloud_delay_ms(_notify_cloud_delay_ms), vnotify_default_delay_ms(_notify_default_delay_ms), vchat_big_size(_chat_big_size), vpush_chat_period_ms(_push_chat_period_ms), vpush_chat_limit(_push_chat_limit), vsaved_gifs_limit(_saved_gifs_limit), vdisabled_features(_disabled_features) {
 	}
 
 	MTPint vdate;
@@ -11655,6 +11705,7 @@ public:
 	MTPint vchat_big_size;
 	MTPint vpush_chat_period_ms;
 	MTPint vpush_chat_limit;
+	MTPint vsaved_gifs_limit;
 	MTPVector<MTPDisabledFeature> vdisabled_features;
 };
 
@@ -13046,6 +13097,17 @@ public:
 
 	MTPint vnext_offset;
 	MTPVector<MTPFoundGif> vresults;
+};
+
+class MTPDmessages_savedGifs : public mtpDataImpl<MTPDmessages_savedGifs> {
+public:
+	MTPDmessages_savedGifs() {
+	}
+	MTPDmessages_savedGifs(MTPint _hash, const MTPVector<MTPDocument> &_gifs) : vhash(_hash), vgifs(_gifs) {
+	}
+
+	MTPint vhash;
+	MTPVector<MTPDocument> vgifs;
 };
 
 // RPC methods
@@ -18082,6 +18144,87 @@ public:
 	MTPmessages_SearchGifs(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_searchGifs>(from, end, cons) {
 	}
 	MTPmessages_SearchGifs(const MTPstring &_q, MTPint _offset) : MTPBoxed<MTPmessages_searchGifs>(MTPmessages_searchGifs(_q, _offset)) {
+	}
+};
+
+class MTPmessages_getSavedGifs { // RPC method 'messages.getSavedGifs'
+public:
+	MTPint vhash;
+
+	MTPmessages_getSavedGifs() {
+	}
+	MTPmessages_getSavedGifs(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getSavedGifs) {
+		read(from, end, cons);
+	}
+	MTPmessages_getSavedGifs(MTPint _hash) : vhash(_hash) {
+	}
+
+	uint32 innerLength() const {
+		return vhash.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_messages_getSavedGifs;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getSavedGifs) {
+		vhash.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vhash.write(to);
+	}
+
+	typedef MTPmessages_SavedGifs ResponseType;
+};
+class MTPmessages_GetSavedGifs : public MTPBoxed<MTPmessages_getSavedGifs> {
+public:
+	MTPmessages_GetSavedGifs() {
+	}
+	MTPmessages_GetSavedGifs(const MTPmessages_getSavedGifs &v) : MTPBoxed<MTPmessages_getSavedGifs>(v) {
+	}
+	MTPmessages_GetSavedGifs(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_getSavedGifs>(from, end, cons) {
+	}
+	MTPmessages_GetSavedGifs(MTPint _hash) : MTPBoxed<MTPmessages_getSavedGifs>(MTPmessages_getSavedGifs(_hash)) {
+	}
+};
+
+class MTPmessages_saveGif { // RPC method 'messages.saveGif'
+public:
+	MTPInputDocument vid;
+	MTPBool vunsave;
+
+	MTPmessages_saveGif() {
+	}
+	MTPmessages_saveGif(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_saveGif) {
+		read(from, end, cons);
+	}
+	MTPmessages_saveGif(const MTPInputDocument &_id, MTPBool _unsave) : vid(_id), vunsave(_unsave) {
+	}
+
+	uint32 innerLength() const {
+		return vid.innerLength() + vunsave.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_messages_saveGif;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_saveGif) {
+		vid.read(from, end);
+		vunsave.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vid.write(to);
+		vunsave.write(to);
+	}
+
+	typedef MTPBool ResponseType;
+};
+class MTPmessages_SaveGif : public MTPBoxed<MTPmessages_saveGif> {
+public:
+	MTPmessages_SaveGif() {
+	}
+	MTPmessages_SaveGif(const MTPmessages_saveGif &v) : MTPBoxed<MTPmessages_saveGif>(v) {
+	}
+	MTPmessages_SaveGif(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_saveGif>(from, end, cons) {
+	}
+	MTPmessages_SaveGif(const MTPInputDocument &_id, MTPBool _unsave) : MTPBoxed<MTPmessages_saveGif>(MTPmessages_saveGif(_id, _unsave)) {
 	}
 };
 
@@ -24951,6 +25094,7 @@ inline void MTPmessagesFilter::read(const mtpPrime *&from, const mtpPrime *end, 
 		case mtpc_inputMessagesFilterAudio: _type = cons; break;
 		case mtpc_inputMessagesFilterAudioDocuments: _type = cons; break;
 		case mtpc_inputMessagesFilterUrl: _type = cons; break;
+		case mtpc_inputMessagesFilterGif: _type = cons; break;
 		default: throw mtpErrorUnexpected(cons, "MTPmessagesFilter");
 	}
 }
@@ -24969,6 +25113,7 @@ inline MTPmessagesFilter::MTPmessagesFilter(mtpTypeId type) : _type(type) {
 		case mtpc_inputMessagesFilterAudio: break;
 		case mtpc_inputMessagesFilterAudioDocuments: break;
 		case mtpc_inputMessagesFilterUrl: break;
+		case mtpc_inputMessagesFilterGif: break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessagesFilter");
 	}
 }
@@ -24998,6 +25143,9 @@ inline MTPmessagesFilter MTP_inputMessagesFilterAudioDocuments() {
 }
 inline MTPmessagesFilter MTP_inputMessagesFilterUrl() {
 	return MTPmessagesFilter(mtpc_inputMessagesFilterUrl);
+}
+inline MTPmessagesFilter MTP_inputMessagesFilterGif() {
+	return MTPmessagesFilter(mtpc_inputMessagesFilterGif);
 }
 
 inline uint32 MTPupdate::innerLength() const {
@@ -25426,6 +25574,7 @@ inline void MTPupdate::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeI
 			v.vorder.read(from, end);
 		} break;
 		case mtpc_updateStickerSets: _type = cons; break;
+		case mtpc_updateSavedGifs: _type = cons; break;
 		default: throw mtpErrorUnexpected(cons, "MTPupdate");
 	}
 }
@@ -25693,6 +25842,7 @@ inline MTPupdate::MTPupdate(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 		case mtpc_updateNewStickerSet: setData(new MTPDupdateNewStickerSet()); break;
 		case mtpc_updateStickerSetsOrder: setData(new MTPDupdateStickerSetsOrder()); break;
 		case mtpc_updateStickerSets: break;
+		case mtpc_updateSavedGifs: break;
 		default: throw mtpErrorBadTypeId(type, "MTPupdate");
 	}
 }
@@ -25893,6 +26043,9 @@ inline MTPupdate MTP_updateStickerSetsOrder(const MTPVector<MTPlong> &_order) {
 }
 inline MTPupdate MTP_updateStickerSets() {
 	return MTPupdate(mtpc_updateStickerSets);
+}
+inline MTPupdate MTP_updateSavedGifs() {
+	return MTPupdate(mtpc_updateSavedGifs);
 }
 
 inline MTPupdates_state::MTPupdates_state() : mtpDataOwner(new MTPDupdates_state()) {
@@ -26419,7 +26572,7 @@ inline MTPconfig::MTPconfig() : mtpDataOwner(new MTPDconfig()) {
 
 inline uint32 MTPconfig::innerLength() const {
 	const MTPDconfig &v(c_config());
-	return v.vdate.innerLength() + v.vexpires.innerLength() + v.vtest_mode.innerLength() + v.vthis_dc.innerLength() + v.vdc_options.innerLength() + v.vchat_size_max.innerLength() + v.vmegagroup_size_max.innerLength() + v.vforwarded_count_max.innerLength() + v.vonline_update_period_ms.innerLength() + v.voffline_blur_timeout_ms.innerLength() + v.voffline_idle_timeout_ms.innerLength() + v.vonline_cloud_timeout_ms.innerLength() + v.vnotify_cloud_delay_ms.innerLength() + v.vnotify_default_delay_ms.innerLength() + v.vchat_big_size.innerLength() + v.vpush_chat_period_ms.innerLength() + v.vpush_chat_limit.innerLength() + v.vdisabled_features.innerLength();
+	return v.vdate.innerLength() + v.vexpires.innerLength() + v.vtest_mode.innerLength() + v.vthis_dc.innerLength() + v.vdc_options.innerLength() + v.vchat_size_max.innerLength() + v.vmegagroup_size_max.innerLength() + v.vforwarded_count_max.innerLength() + v.vonline_update_period_ms.innerLength() + v.voffline_blur_timeout_ms.innerLength() + v.voffline_idle_timeout_ms.innerLength() + v.vonline_cloud_timeout_ms.innerLength() + v.vnotify_cloud_delay_ms.innerLength() + v.vnotify_default_delay_ms.innerLength() + v.vchat_big_size.innerLength() + v.vpush_chat_period_ms.innerLength() + v.vpush_chat_limit.innerLength() + v.vsaved_gifs_limit.innerLength() + v.vdisabled_features.innerLength();
 }
 inline mtpTypeId MTPconfig::type() const {
 	return mtpc_config;
@@ -26446,6 +26599,7 @@ inline void MTPconfig::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeI
 	v.vchat_big_size.read(from, end);
 	v.vpush_chat_period_ms.read(from, end);
 	v.vpush_chat_limit.read(from, end);
+	v.vsaved_gifs_limit.read(from, end);
 	v.vdisabled_features.read(from, end);
 }
 inline void MTPconfig::write(mtpBuffer &to) const {
@@ -26467,12 +26621,13 @@ inline void MTPconfig::write(mtpBuffer &to) const {
 	v.vchat_big_size.write(to);
 	v.vpush_chat_period_ms.write(to);
 	v.vpush_chat_limit.write(to);
+	v.vsaved_gifs_limit.write(to);
 	v.vdisabled_features.write(to);
 }
 inline MTPconfig::MTPconfig(MTPDconfig *_data) : mtpDataOwner(_data) {
 }
-inline MTPconfig MTP_config(MTPint _date, MTPint _expires, MTPBool _test_mode, MTPint _this_dc, const MTPVector<MTPDcOption> &_dc_options, MTPint _chat_size_max, MTPint _megagroup_size_max, MTPint _forwarded_count_max, MTPint _online_update_period_ms, MTPint _offline_blur_timeout_ms, MTPint _offline_idle_timeout_ms, MTPint _online_cloud_timeout_ms, MTPint _notify_cloud_delay_ms, MTPint _notify_default_delay_ms, MTPint _chat_big_size, MTPint _push_chat_period_ms, MTPint _push_chat_limit, const MTPVector<MTPDisabledFeature> &_disabled_features) {
-	return MTPconfig(new MTPDconfig(_date, _expires, _test_mode, _this_dc, _dc_options, _chat_size_max, _megagroup_size_max, _forwarded_count_max, _online_update_period_ms, _offline_blur_timeout_ms, _offline_idle_timeout_ms, _online_cloud_timeout_ms, _notify_cloud_delay_ms, _notify_default_delay_ms, _chat_big_size, _push_chat_period_ms, _push_chat_limit, _disabled_features));
+inline MTPconfig MTP_config(MTPint _date, MTPint _expires, MTPBool _test_mode, MTPint _this_dc, const MTPVector<MTPDcOption> &_dc_options, MTPint _chat_size_max, MTPint _megagroup_size_max, MTPint _forwarded_count_max, MTPint _online_update_period_ms, MTPint _offline_blur_timeout_ms, MTPint _offline_idle_timeout_ms, MTPint _online_cloud_timeout_ms, MTPint _notify_cloud_delay_ms, MTPint _notify_default_delay_ms, MTPint _chat_big_size, MTPint _push_chat_period_ms, MTPint _push_chat_limit, MTPint _saved_gifs_limit, const MTPVector<MTPDisabledFeature> &_disabled_features) {
+	return MTPconfig(new MTPDconfig(_date, _expires, _test_mode, _this_dc, _dc_options, _chat_size_max, _megagroup_size_max, _forwarded_count_max, _online_update_period_ms, _offline_blur_timeout_ms, _offline_idle_timeout_ms, _online_cloud_timeout_ms, _notify_cloud_delay_ms, _notify_default_delay_ms, _chat_big_size, _push_chat_period_ms, _push_chat_limit, _saved_gifs_limit, _disabled_features));
 }
 
 inline MTPnearestDc::MTPnearestDc() : mtpDataOwner(new MTPDnearestDc()) {
@@ -30191,6 +30346,57 @@ inline MTPmessages_foundGifs::MTPmessages_foundGifs(MTPDmessages_foundGifs *_dat
 }
 inline MTPmessages_foundGifs MTP_messages_foundGifs(MTPint _next_offset, const MTPVector<MTPFoundGif> &_results) {
 	return MTPmessages_foundGifs(new MTPDmessages_foundGifs(_next_offset, _results));
+}
+
+inline uint32 MTPmessages_savedGifs::innerLength() const {
+	switch (_type) {
+		case mtpc_messages_savedGifs: {
+			const MTPDmessages_savedGifs &v(c_messages_savedGifs());
+			return v.vhash.innerLength() + v.vgifs.innerLength();
+		}
+	}
+	return 0;
+}
+inline mtpTypeId MTPmessages_savedGifs::type() const {
+	if (!_type) throw mtpErrorUninitialized();
+	return _type;
+}
+inline void MTPmessages_savedGifs::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
+	if (cons != _type) setData(0);
+	switch (cons) {
+		case mtpc_messages_savedGifsNotModified: _type = cons; break;
+		case mtpc_messages_savedGifs: _type = cons; {
+			if (!data) setData(new MTPDmessages_savedGifs());
+			MTPDmessages_savedGifs &v(_messages_savedGifs());
+			v.vhash.read(from, end);
+			v.vgifs.read(from, end);
+		} break;
+		default: throw mtpErrorUnexpected(cons, "MTPmessages_savedGifs");
+	}
+}
+inline void MTPmessages_savedGifs::write(mtpBuffer &to) const {
+	switch (_type) {
+		case mtpc_messages_savedGifs: {
+			const MTPDmessages_savedGifs &v(c_messages_savedGifs());
+			v.vhash.write(to);
+			v.vgifs.write(to);
+		} break;
+	}
+}
+inline MTPmessages_savedGifs::MTPmessages_savedGifs(mtpTypeId type) : mtpDataOwner(0), _type(type) {
+	switch (type) {
+		case mtpc_messages_savedGifsNotModified: break;
+		case mtpc_messages_savedGifs: setData(new MTPDmessages_savedGifs()); break;
+		default: throw mtpErrorBadTypeId(type, "MTPmessages_savedGifs");
+	}
+}
+inline MTPmessages_savedGifs::MTPmessages_savedGifs(MTPDmessages_savedGifs *_data) : mtpDataOwner(_data), _type(mtpc_messages_savedGifs) {
+}
+inline MTPmessages_savedGifs MTP_messages_savedGifsNotModified() {
+	return MTPmessages_savedGifs(mtpc_messages_savedGifsNotModified);
+}
+inline MTPmessages_savedGifs MTP_messages_savedGifs(MTPint _hash, const MTPVector<MTPDocument> &_gifs) {
+	return MTPmessages_savedGifs(new MTPDmessages_savedGifs(_hash, _gifs));
 }
 
 // Human-readable text serialization

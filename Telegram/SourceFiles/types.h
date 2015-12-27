@@ -294,6 +294,9 @@ enum DataBlockId {
 	dbiMaxMegaGroupCount    = 0x32,
 	dbiDownloadPath         = 0x33,
 	dbiAutoDownload         = 0x34,
+	dbiSavedGifsLimit       = 0x35,
+	dbiShowingSavedGifs     = 0x36,
+	dbiAutoPlay             = 0x37,
 
 	dbiEncryptedWithSalt    = 333,
 	dbiEncrypted            = 444,
@@ -469,3 +472,69 @@ static int32 FullArcLength = 360 * 16;
 static int32 QuarterArcLength = (FullArcLength / 4);
 static int32 MinArcLength = (FullArcLength / 360);
 static int32 AlmostFullArcLength = (FullArcLength - MinArcLength);
+
+template <typename ReturnType>
+class Function {
+public:
+
+	virtual ReturnType call() = 0;
+	virtual ~Function() {
+	}
+
+};
+
+template <typename Object, typename ReturnType>
+class ObjectFunction : public Function<ReturnType> {
+public:
+	typedef ReturnType (Object::*Method)();
+
+	ObjectFunction(Object *obj, Method method) : _obj(obj), _method(method) {
+	}
+
+	virtual ReturnType call() {
+		return (_obj->*_method)();
+	}
+
+private:
+	Object *_obj;
+	Method _method;
+
+};
+
+template <typename Object, typename ReturnType>
+Function<ReturnType> *func(Object *obj, ReturnType (Object::*method)()) {
+	return new ObjectFunction<Object, ReturnType>(obj, method);
+}
+
+template <typename ReturnType, typename ArgumentType1>
+class Function1 {
+public:
+
+	virtual ReturnType call(ArgumentType1 arg1) = 0;
+	virtual ~Function1() {
+	}
+
+};
+
+template <typename Object, typename ReturnType, typename ArgumentType1>
+class ObjectFunction1 : public Function1<ReturnType, ArgumentType1> {
+public:
+	typedef ReturnType (Object::*Method)(ArgumentType1);
+
+	ObjectFunction1(Object *obj, Method method) : _obj(obj), _method(method) {
+	}
+
+	virtual ReturnType call(ArgumentType1 arg1) {
+		return (_obj->*_method)(arg1);
+	}
+
+private:
+	Object *_obj;
+	Method _method;
+
+};
+
+template <typename Object, typename ReturnType, typename ArgumentType1>
+Function1<ReturnType, ArgumentType1> *func(Object *obj, ReturnType (Object::*method)(ArgumentType1)) {
+	return new ObjectFunction1<Object, ReturnType, ArgumentType1>(obj, method);
+}

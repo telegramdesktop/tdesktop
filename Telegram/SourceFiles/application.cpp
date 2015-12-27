@@ -897,7 +897,9 @@ Application::~Application() {
 	updateThread = 0;
 	#endif
 
-	delete window;
+	Window *w = window;
+	window = 0;
+	delete w;
 
 	delete cChatBackground();
 	cSetChatBackground(0);

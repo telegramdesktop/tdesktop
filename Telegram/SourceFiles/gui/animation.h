@@ -72,6 +72,8 @@ namespace anim {
 			_delta = 0;
 		}
 
+		typedef float64 Type;
+
 	private:
 
 		float64 _cur, _from, _delta;
@@ -109,6 +111,8 @@ namespace anim {
 			_from = _cur;
 			_delta = 0;
 		}
+
+		typedef int32 Type;
 
 	private:
 
@@ -178,6 +182,8 @@ namespace anim {
 			_from_a = _cur.alphaF();
 			_delta_r = _delta_g = _delta_b = _delta_a = 0;
 		}
+
+		typedef QColor Type;
 
 	private:
 
@@ -338,87 +344,129 @@ AnimationCallbacks *animation(Param param, Type *obj, typename AnimationCallback
 	return new AnimationCallbacksAbsoluteWithParam<Type, Param>(param, obj, method);
 }
 
+template <typename AnimType>
+class SimpleAnimation {
+public:
+
+	typedef Function<void> Callbacks;
+
+	SimpleAnimation() : _data(0) {
+	}
+
+	bool animating(uint64 ms) {
+		if (_data && _data->_a.animating()) {
+			_data->_a.step(ms);
+			return _data && _data->_a.animating();
+		}
+		return false;
+	}
+
+	bool isNull() {
+		return !_data;
+	}
+
+	typename AnimType::Type current() {
+		return _data ? _data->a.current() : typename AnimType::Type();
+	}
+
+	typename AnimType::Type current(uint64 ms, const typename AnimType::Type &def) {
+		return animating(ms) ? current() : def;
+	}
+
+	void setup(const typename AnimType::Type &from, Callbacks *update) {
+		if (!_data) {
+			_data = new Data(from, update, animation(this, &SimpleAnimation<AnimType>::step));
+		} else {
+			delete update;
+			_data->a = AnimType(from, from);
+		}
+	}
+
+	void start(const typename AnimType::Type &to, float64 duration, anim::transition transition = anim::linear) {
+		if (_data) {
+			_data->a.start(to);
+			_data->_a.start();
+			_data->duration = duration;
+			_data->transition = transition;
+		}
+	}
+
+	~SimpleAnimation() {
+		delete _data;
+		setBadPointer(_data);
+	}
+
+private:
+	typedef struct _Data {
+		_Data(const typename AnimType::Type &from, Callbacks *update, AnimationCallbacks *acb)
+			: a(from, from)
+			, _a(acb)
+			, update(update)
+			, duration(0)
+			, transition(anim::linear) {
+		}
+		~_Data() {
+			delete update;
+			setBadPointer(update);
+		}
+		AnimType a;
+		Animation _a;
+		Callbacks *update;
+		float64 duration;
+		anim::transition transition;
+	} Data;
+	Data *_data;
+
+	void step(float64 ms, bool timer) {
+		float64 dt = (ms >= _data->duration) ? 1 : (ms / _data->duration);
+		if (dt >= 1) {
+			_data->a.finish();
+			_data->_a.stop();
+		} else {
+			_data->a.update(dt, _data->transition);
+		}
+		if (timer) {
+			_data->update->call();
+		}
+		if (!_data->_a.animating()) {
+			delete _data;
+			_data = 0;
+		}
+	}
+
+};
+
+typedef SimpleAnimation<anim::fvalue> FloatAnimation;
+typedef SimpleAnimation<anim::ivalue> IntAnimation;
+typedef SimpleAnimation<anim::cvalue> ColorAnimation;
+
+#define EnsureAnimation(animation, from, callback) if ((animation).isNull()) { (animation).setup((from), (callback)); }
+
 class ClipReader;
 
 class AnimationManager : public QObject {
 Q_OBJECT
 
 public:
+	AnimationManager();
 
-	AnimationManager() : _timer(this), _iterating(false) {
-		_timer.setSingleShot(false);
-		connect(&_timer, SIGNAL(timeout()), this, SLOT(timeout()));
-	}
-
-	void start(Animation *obj) {
-		if (_iterating) {
-			_starting.insert(obj, NullType());
-			if (!_stopping.isEmpty()) {
-				_stopping.remove(obj);
-			}
-		} else {
-			if (_objects.isEmpty()) {
-				_timer.start(AnimationTimerDelta);
-			}
-			_objects.insert(obj, NullType());
-		}
-	}
-
-	void stop(Animation *obj) {
-		if (_iterating) {
-			_stopping.insert(obj, NullType());
-			if (!_starting.isEmpty()) {
-				_starting.insert(obj, NullType());
-			}
-		} else {
-			AnimatingObjects::iterator i = _objects.find(obj);
-			if (i != _objects.cend()) {
-				_objects.erase(i);
-				if (_objects.isEmpty()) {
-					_timer.stop();
-				}
-			}
-		}
-	}
+	void start(Animation *obj);
+	void stop(Animation *obj);
 
 public slots:
+	void timeout();
 
-	void timeout() {
-		_iterating = true;
-		uint64 ms = getms();
-		for (AnimatingObjects::const_iterator i = _objects.begin(), e = _objects.end(); i != e; ++i) {
-			i.key()->step(ms, true);
-		}
-		_iterating = false;
-
-		if (!_starting.isEmpty()) {
-			for (AnimatingObjects::iterator i = _starting.begin(), e = _starting.end(); i != e; ++i) {
-				_objects.insert(i.key(), NullType());
-			}
-			_starting.clear();
-		}
-		if (!_stopping.isEmpty()) {
-			for (AnimatingObjects::iterator i = _stopping.begin(), e = _stopping.end(); i != e; ++i) {
-				_objects.remove(i.key());
-			}
-			_stopping.clear();
-		}
-		if (!_objects.size()) {
-			_timer.stop();
-		}
-	}
-
-	void clipReinit(ClipReader *reader);
-	void clipRedraw(ClipReader *reader);
+	void clipReinit(ClipReader *reader, qint32 threadIndex);
+	void clipRepaint(ClipReader *reader, qint32 threadIndex);
 
 private:
-
 	typedef QMap<Animation*, NullType> AnimatingObjects;
 	AnimatingObjects _objects, _starting, _stopping;
 	QTimer _timer;
 	bool _iterating;
 
 };
+
 class FileLocation;
 
 enum ClipState {
@@ -460,11 +508,26 @@ private:
 
 };
 
+enum ClipReaderNotification {
+	ClipReaderReinit,
+	ClipReaderRepaint,
+};
+
 class ClipReaderPrivate;
 class ClipReader {
 public:
 
-	ClipReader(const FileLocation &location, const QByteArray &data);
+	typedef Function1<void, ClipReaderNotification> Callback;
+
+	ClipReader(const FileLocation &location, const QByteArray &data, Callback *cb = 0);
+	static void callback(ClipReader *reader, int32 threadIndex, ClipReaderNotification notification); // reader can be deleted
+
+	void setAutoplay() {
+		_autoplay = true;
+	}
+	bool autoplay() const {
+		return _autoplay;
+	}
 
 	void start(int32 framew, int32 frameh, int32 outerw, int32 outerh, bool rounded);
 	QPixmap current(int32 framew, int32 frameh, int32 outerw, int32 outerh, uint64 ms);
@@ -476,6 +539,9 @@ public:
 	}
 	bool paused() const {
 		return _paused.get();
+	}
+	int32 threadIndex() const {
+		return _threadIndex;
 	}
 
 	int32 width() const;
@@ -494,6 +560,8 @@ public:
 
 private:
 
+	Callback *_cb;
+
 	ClipState _state;
 
 	ClipFrameRequest _request;
@@ -506,17 +574,21 @@ private:
 	Atomic<uint64> _lastDisplayMs;
 	int32 _threadIndex;
 
+	bool _autoplay;
+
 	friend class ClipReadManager;
 
 	ClipReaderPrivate *_private;
 
 };
 
+static ClipReader * const BadClipReader = reinterpret_cast<ClipReader * const>(&SharedMemoryLocation0);
+
 enum ClipProcessResult {
 	ClipProcessError,
 	ClipProcessStarted,
 	ClipProcessReinit,
-	ClipProcessRedraw,
+	ClipProcessRepaint,
 	ClipProcessWait,
 };
 
@@ -533,25 +605,29 @@ public:
 	void start(ClipReader *reader);
 	void update(ClipReader *reader);
 	void stop(ClipReader *reader);
+	bool carries(ClipReader *reader) const;
 	~ClipReadManager();
 
 signals:
 
 	void processDelayed();
 
-	void reinit(ClipReader *reader);
-	void redraw(ClipReader *reader);
+	void reinit(ClipReader *reader, qint32 threadIndex);
+	void repaint(ClipReader *reader, qint32 threadIndex);
 
 public slots:
 
 	void process();
+    void finish();
 
 private:
+
+    void clear();
 
 	QAtomicInt _loadLevel;
 	typedef QMap<ClipReader*, ClipReaderPrivate*> ReaderPointers;
 	ReaderPointers _readerPointers;
-	QMutex _readerPointersMutex;
+	mutable QMutex _readerPointersMutex;
 
 	bool handleProcessResult(ClipReaderPrivate *reader, ClipProcessResult result, uint64 ms);
 

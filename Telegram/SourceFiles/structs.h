@@ -733,7 +733,9 @@ public:
 	PhotoData(const PhotoId &id, const uint64 &access = 0, int32 date = 0, const ImagePtr &thumb = ImagePtr(), const ImagePtr &medium = ImagePtr(), const ImagePtr &full = ImagePtr());
 
 	void automaticLoad(const HistoryItem *item);
+	void automaticLoadSettingsChanged();
 
+	void download();
 	bool loaded() const;
 	bool loading() const;
 	bool displayLoading() const;
@@ -764,8 +766,9 @@ public:
 	};
 	UploadingData *uploadingData;
 
-//	int32 cachew;
-//	QPixmap cache;
+private:
+	void notifyLayoutChanged() const;
+
 };
 
 class PhotoLink : public ITextLink {
@@ -785,6 +788,16 @@ public:
 private:
 	PhotoData *_photo;
 	PeerData *_peer;
+
+};
+
+class PhotoSaveLink : public PhotoLink {
+	TEXT_LINK_CLASS(PhotoSaveLink)
+
+public:
+	PhotoSaveLink(PhotoData *photo, PeerData *peer = 0) : PhotoLink(photo, peer) {
+	}
+	void onClick(Qt::MouseButton button) const;
 
 };
 
@@ -810,6 +823,8 @@ public:
 	VideoData(const VideoId &id, const uint64 &access = 0, int32 date = 0, int32 duration = 0, int32 w = 0, int32 h = 0, const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
 
 	void automaticLoad(const HistoryItem *item) {
+	}
+	void automaticLoadSettingsChanged() {
 	}
 
 	bool loaded(bool check = false) const;
@@ -907,6 +922,7 @@ public:
 	AudioData(const AudioId &id, const uint64 &access = 0, int32 date = 0, const QString &mime = QString(), int32 duration = 0, int32 dc = 0, int32 size = 0);
 
 	void automaticLoad(const HistoryItem *item); // auto load voice message
+	void automaticLoadSettingsChanged();
 
 	bool loaded(bool check = false) const;
 	bool loading() const;
@@ -1067,6 +1083,7 @@ public:
 	void setattributes(const QVector<MTPDocumentAttribute> &attributes);
 
 	void automaticLoad(const HistoryItem *item); // auto load sticker or video
+	void automaticLoadSettingsChanged();
 
 	bool loaded(bool check = false) const;
 	bool loading() const;

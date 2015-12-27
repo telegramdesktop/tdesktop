@@ -69,7 +69,7 @@ public:
 
 	void mediaOverviewUpdated();
 	void changingMsgId(HistoryItem *row, MsgId newId);
-	void redrawItem(const HistoryItem *msg);
+	void repaintItem(const HistoryItem *msg);
 	void itemRemoved(HistoryItem *item);
 	
 	void getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const;
@@ -124,7 +124,7 @@ private:
 
 	void updateDragSelection(MsgId dragSelFrom, int32 dragSelFromIndex, MsgId dragSelTo, int32 dragSelToIndex, bool dragSelecting);
 
-	void redrawItem(MsgId itemId, int32 itemIndex);
+	void repaintItem(MsgId itemId, int32 itemIndex);
 
 	void touchResetSpeed();
 	void touchUpdateSpeed();
@@ -157,8 +157,8 @@ private:
 	LayoutItems _layoutItems;
 	typedef QMap<int32, LayoutOverviewDate*> LayoutDates;
 	LayoutDates _layoutDates;
-	LayoutMediaItem *getItemLayout(HistoryItem *item);
-	LayoutItem *getDateLayout(const QDate &date, bool month);
+	LayoutMediaItem *layoutPrepare(HistoryItem *item);
+	LayoutItem *layoutPrepare(const QDate &date, bool month);
 	int32 setLayoutItem(int32 index, LayoutItem *item, int32 top);
 
 	FlatInput _search;
@@ -299,7 +299,7 @@ public:
 		resizeEvent(0);
 	}
 
-	void ui_redrawHistoryItem(const HistoryItem *item);
+	void ui_repaintHistoryItem(const HistoryItem *item);
 
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
 

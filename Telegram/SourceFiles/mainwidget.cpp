@@ -742,7 +742,7 @@ QPixmap MainWidget::grabTopBar() {
 }
 
 void MainWidget::ui_showStickerPreview(DocumentData *sticker) {
-	if (!sticker || !sticker->sticker()) return;
+	if (!sticker || ((!sticker->isAnimation() || !sticker->loaded()) && !sticker->sticker())) return;
 	if (!_stickerPreview) {
 		_stickerPreview = new StickerPreviewWidget(this);
 		resizeEvent(0);
@@ -773,7 +773,7 @@ void MainWidget::notify_userIsContactChanged(UserData *user, bool fromThisApp) {
 	if (i != items.cend()) {
 		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
 			j.key()->initDimensions();
-			Ui::redrawHistoryItem(j.key());
+			Ui::repaintHistoryItem(j.key());
 		}
 	}
 
@@ -786,14 +786,28 @@ void MainWidget::notify_migrateUpdated(PeerData *peer) {
 	history.notify_migrateUpdated(peer);
 }
 
-void MainWidget::ui_redrawHistoryItem(const HistoryItem *item) {
-	if (!item) return;
+void MainWidget::notify_clipStopperHidden(ClipStopperType type) {
+	history.notify_clipStopperHidden(type);
+}
 
-	history.ui_redrawHistoryItem(item);
+void MainWidget::ui_repaintHistoryItem(const HistoryItem *item) {
+	history.ui_repaintHistoryItem(item);
 	if (!item->history()->dialogs.isEmpty() && item->history()->lastMsg == item) {
 		dialogs.dlgUpdated(item->history()->dialogs[0]);
 	}
-	if (overview) overview->ui_redrawHistoryItem(item);
+	if (overview) overview->ui_repaintHistoryItem(item);
+}
+
+void MainWidget::ui_repaintSavedGif(const LayoutSavedGif *layout) {
+	history.ui_repaintSavedGif(layout);
+}
+
+bool MainWidget::ui_isSavedGifVisible(const LayoutSavedGif *layout) {
+	return history.ui_isSavedGifVisible(layout);
+}
+
+bool MainWidget::ui_isGifBeingChosen() {
+	return history.ui_isGifBeingChosen();
 }
 
 void MainWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
@@ -810,7 +824,7 @@ void MainWidget::notify_historyItemResized(const HistoryItem *item, bool scrollT
 			history.resizeEvent(0);
 		}
 	}
-	if (item) Ui::redrawHistoryItem(item);
+	if (item) Ui::repaintHistoryItem(item);
 }
 
 void MainWidget::noHider(HistoryHider *destroyed) {
@@ -1634,7 +1648,7 @@ void MainWidget::videoLoadProgress(mtpFileLoader *loader) {
 	VideoItems::const_iterator i = items.constFind(video);
 	if (i != items.cend()) {
 		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			Ui::redrawHistoryItem(j.key());
+			Ui::repaintHistoryItem(j.key());
 		}
 	}
 }
@@ -1690,7 +1704,7 @@ void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 	AudioItems::const_iterator i = items.constFind(audio);
 	if (i != items.cend()) {
 		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			Ui::redrawHistoryItem(j.key());
+			Ui::repaintHistoryItem(j.key());
 		}
 	}
 }
@@ -1725,7 +1739,7 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 	}
 
 	if (HistoryItem *item = App::histItemById(audioId.msgId)) {
-		Ui::redrawHistoryItem(item);
+		Ui::repaintHistoryItem(item);
 	}
 }
 
@@ -1786,7 +1800,7 @@ void MainWidget::documentPlayProgress(const SongMsgId &songId) {
 	}
 
 	if (HistoryItem *item = App::histItemById(songId.msgId)) {
-		Ui::redrawHistoryItem(item);
+		Ui::repaintHistoryItem(item);
 	}
 }
 
@@ -1824,7 +1838,7 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 	DocumentItems::const_iterator i = items.constFind(document);
 	if (i != items.cend()) {
 		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			Ui::redrawHistoryItem(j.key());
+			Ui::repaintHistoryItem(j.key());
 		}
 	}
 	App::wnd()->documentUpdated(document);
@@ -3411,6 +3425,7 @@ void MainWidget::start(const MTPUser &user) {
 	_started = true;
 	App::wnd()->sendServiceHistoryRequest();
 	Local::readStickers();
+	Local::readSavedGifs();
 	history.start();
 }
 
@@ -4151,7 +4166,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 						msgRow->history()->unregTyping(App::self());
 					}
 					App::historyRegItem(msgRow);
-					Ui::redrawHistoryItem(msgRow);
+					Ui::repaintHistoryItem(msgRow);
 				}
 			}
 			App::historyUnregRandom(d.vrandom_id.v);
@@ -4172,7 +4187,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			if (HistoryItem *item = App::histItemById(NoChannel, v.at(i).v)) {
 				if (item->isMediaUnread()) {
 					item->markMediaRead();
-					Ui::redrawHistoryItem(item);
+					Ui::repaintHistoryItem(item);
 					if (item->out() && item->history()->peer->isUser()) {
 						item->history()->peer->asUser()->madeAction();
 					}
@@ -4576,7 +4591,6 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 						sets.erase(custom);
 					}
 				}
-				cSetStickersHash(stickersCountHash());
 				Local::writeStickers();
 				emit stickersUpdated();
 			}
@@ -4596,11 +4610,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 		if (result.size() != cStickerSetsOrder().size() || result.size() != order.size()) {
 			cSetLastStickersUpdate(0);
-			cSetStickersHash(0);
 			App::main()->updateStickers();
 		} else {
 			cSetStickerSetsOrder(result);
-			cSetStickersHash(stickersCountHash());
 			Local::writeStickers();
 			emit stickersUpdated();
 		}
@@ -4608,7 +4620,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateStickerSets: {
 		cSetLastStickersUpdate(0);
-		cSetStickersHash(0);
+		App::main()->updateStickers();
+	} break;
+
+	case mtpc_updateSavedGifs: {
+		cSetLastSavedGifsUpdate(0);
 		App::main()->updateStickers();
 	} break;
 

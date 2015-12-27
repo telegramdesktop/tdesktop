@@ -82,10 +82,11 @@ void logWrite(const QString &v);
 #define LOG(msg) (logWrite(QString msg))
 //usage LOG(("log: %1 %2").arg(1).arg(2))
 
+static volatile int *t_assert_nullptr = 0;
 inline void t_noop() {}
 inline void t_assert_fail(const char *condition, const char *file, int32 line) {
 	LOG(("Assertion Failed! \"%1\" %2:%3").arg(condition).arg(file).arg(line));
-	abort();
+	*t_assert_nullptr = 0;
 }
 #define t_assert(cond) ((!(cond)) ? t_assert_fail(#cond, __FILE__, __LINE__) : t_noop())
 

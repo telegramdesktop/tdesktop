@@ -118,34 +118,104 @@ void Animation::stop() {
 	_manager->stop(this);
 }
 
-void AnimationManager::clipReinit(ClipReader *reader) {
+AnimationManager::AnimationManager() : _timer(this), _iterating(false) {
+	_timer.setSingleShot(false);
+	connect(&_timer, SIGNAL(timeout()), this, SLOT(timeout()));
+}
+
+void AnimationManager::start(Animation *obj) {
+	if (_iterating) {
+		_starting.insert(obj, NullType());
+		if (!_stopping.isEmpty()) {
+			_stopping.remove(obj);
+		}
+	} else {
+		if (_objects.isEmpty()) {
+			_timer.start(AnimationTimerDelta);
+		}
+		_objects.insert(obj, NullType());
+	}
+}
+
+void AnimationManager::stop(Animation *obj) {
+	if (_iterating) {
+		_stopping.insert(obj, NullType());
+		if (!_starting.isEmpty()) {
+			_starting.insert(obj, NullType());
+		}
+	} else {
+		AnimatingObjects::iterator i = _objects.find(obj);
+		if (i != _objects.cend()) {
+			_objects.erase(i);
+			if (_objects.isEmpty()) {
+				_timer.stop();
+			}
+		}
+	}
+}
+
+void AnimationManager::timeout() {
+	_iterating = true;
+	uint64 ms = getms();
+	for (AnimatingObjects::const_iterator i = _objects.begin(), e = _objects.end(); i != e; ++i) {
+		i.key()->step(ms, true);
+	}
+	_iterating = false;
+
+	if (!_starting.isEmpty()) {
+		for (AnimatingObjects::iterator i = _starting.begin(), e = _starting.end(); i != e; ++i) {
+			_objects.insert(i.key(), NullType());
+		}
+		_starting.clear();
+	}
+	if (!_stopping.isEmpty()) {
+		for (AnimatingObjects::iterator i = _stopping.begin(), e = _stopping.end(); i != e; ++i) {
+			_objects.remove(i.key());
+		}
+		_stopping.clear();
+	}
+	if (!_objects.size()) {
+		_timer.stop();
+	}
+}
+
+void AnimationManager::clipReinit(ClipReader *reader, qint32 threadIndex) {
+	ClipReader::callback(reader, threadIndex, ClipReaderReinit);
 	Notify::clipReinit(reader);
 }
 
-void AnimationManager::clipRedraw(ClipReader *reader) {
-	Ui::clipRedraw(reader);
+void AnimationManager::clipRepaint(ClipReader *reader, qint32 threadIndex) {
+	ClipReader::callback(reader, threadIndex, ClipReaderRepaint);
+	Ui::clipRepaint(reader);
 }
 
-QPixmap _prepareFrame(const ClipFrameRequest &request, const QImage &original, QImage &cache, bool smooth) {
+QPixmap _prepareFrame(const ClipFrameRequest &request, const QImage &original, QImage &cache, bool hasAlpha) {
 	bool badSize = (original.width() != request.framew) || (original.height() != request.frameh);
 	bool needOuter = (request.outerw != request.framew) || (request.outerh != request.frameh);
-	if (badSize || needOuter || request.rounded) {
+	if (badSize || needOuter || hasAlpha || request.rounded) {
 		int32 factor(request.factor);
 		bool fill = false;
 		if (cache.width() != request.outerw || cache.height() != request.outerh) {
 			cache = QImage(request.outerw, request.outerh, QImage::Format_ARGB32_Premultiplied);
-			if (request.framew < request.outerw || request.frameh < request.outerh || original.hasAlphaChannel()) {
+			if (request.framew < request.outerw || request.frameh < request.outerh || hasAlpha) {
 				fill = true;
 			}
 			cache.setDevicePixelRatio(factor);
 		}
 		{
 			Painter p(&cache);
-			if (fill) p.fillRect(0, 0, cache.width() / factor, cache.height() / factor, st::black);
-			if (smooth && badSize) p.setRenderHint(QPainter::SmoothPixmapTransform);
-			QRect to((request.outerw - request.framew) / (2 * factor), (request.outerh - request.frameh) / (2 * factor), request.framew / factor, request.frameh / factor);
-			QRect from(0, 0, original.width(), original.height());
-			p.drawImage(to, original, from, Qt::ColorOnly);
+			if (fill) {
+				p.fillRect(0, 0, cache.width() / factor, cache.height() / factor, st::black);
+			}
+			QPoint position((request.outerw - request.framew) / (2 * factor), (request.outerh - request.frameh) / (2 * factor));
+			if (badSize) {
+				p.setRenderHint(QPainter::SmoothPixmapTransform);
+				QRect to(position, QSize(request.framew / factor, request.frameh / factor));
+				QRect from(0, 0, original.width(), original.height());
+				p.drawImage(to, original, from, Qt::ColorOnly);
+			} else {
+				p.drawImage(position, original);
+			}
 		}
 		if (request.rounded) {
 			imageRound(cache);
@@ -155,12 +225,15 @@ QPixmap _prepareFrame(const ClipFrameRequest &request, const QImage &original, Q
 	return QPixmap::fromImage(original, Qt::ColorOnly);
 }
 
-ClipReader::ClipReader(const FileLocation &location, const QByteArray &data) : _state(ClipReading)
+ClipReader::ClipReader(const FileLocation &location, const QByteArray &data, Callback *cb)
+: _cb(cb)
+, _state(ClipReading)
 , _width(0)
 , _height(0)
 , _currentDisplayed(1)
 , _paused(0)
 , _lastDisplayMs(getms())
+, _autoplay(false)
 , _private(0) {
 	if (_clipThreads.size() < ClipThreadsCount) {
 		_threadIndex = _clipThreads.size();
@@ -181,6 +254,13 @@ ClipReader::ClipReader(const FileLocation &location, const QByteArray &data) : _
 	_clipManagers.at(_threadIndex)->append(this, location, data);
 }
 
+void ClipReader::callback(ClipReader *reader, int32 threadIndex, ClipReaderNotification notification) {
+	// check if reader is not deleted already
+	if (_clipManagers.size() > threadIndex && _clipManagers.at(threadIndex)->carries(reader)) {
+		if (reader->_cb) reader->_cb->call(notification);
+	}
+}
+
 void ClipReader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, bool rounded) {
 	if (_clipManagers.size() <= _threadIndex) error();
 	if (_state == ClipError) return;
@@ -196,13 +276,15 @@ void ClipReader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, b
 }
 
 QPixmap ClipReader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, uint64 ms) {
-	_lastDisplayMs.set(ms);
 	_currentDisplayed.set(true);
-	if (_paused.get()) {
-		_paused.set(false);
-		if (_clipManagers.size() <= _threadIndex) error();
-		if (_state != ClipError) {
-			_clipManagers.at(_threadIndex)->update(this);
+	if (ms) {
+		_lastDisplayMs.set(ms);
+		if (_paused.get()) {
+			_paused.set(false);
+			if (_clipManagers.size() <= _threadIndex) error();
+			if (_state != ClipError) {
+				_clipManagers.at(_threadIndex)->update(this);
+			}
 		}
 	}
 
@@ -218,6 +300,8 @@ QPixmap ClipReader::current(int32 framew, int32 frameh, int32 outerw, int32 oute
 	_request.outerh = outerh * factor;
 
 	QImage current(_currentOriginal);
+	current.setDevicePixelRatio(cRetinaFactor());
+
 	result = _current = QPixmap();
 	result = _current = _prepareFrame(_request, current, _cacheForResize, true);
 
@@ -267,6 +351,8 @@ void ClipReader::error() {
 
 ClipReader::~ClipReader() {
 	stop();
+	delete _cb;
+	setBadPointer(_cb);
 }
 
 class ClipReaderImplementation {
@@ -274,7 +360,7 @@ public:
 
 	ClipReaderImplementation(FileLocation *location, QByteArray *data) : _location(location), _data(data), _device(0) {
 	}
-	virtual bool readNextFrame(QImage &to) = 0;
+	virtual bool readNextFrame(QImage &to, bool &hasAlpha, const QSize &size) = 0;
 	virtual int32 nextFrameDelay() = 0;
 	virtual bool start() = 0;
 	virtual ~ClipReaderImplementation() {
@@ -309,7 +395,7 @@ public:
 	, _frameDelay(0) {
 	}
 
-	bool readNextFrame(QImage &to) {
+	bool readNextFrame(QImage &to, bool &hasAlpha, const QSize &size) {
 		if (_reader) _frameDelay = _reader->nextImageDelay();
 		if (_framesLeft < 1 && !jumpToStart()) {
 			return false;
@@ -321,19 +407,24 @@ public:
 		}
 		--_framesLeft;
 
-		int32 w = frame.width(), h = frame.height();
-		if (to.width() == w && to.height() == h && to.format() == frame.format()) {
-			if (to.byteCount() != frame.byteCount()) {
-				int bpl = qMin(to.bytesPerLine(), frame.bytesPerLine());
-				for (int i = 0; i < h; ++i) {
-					memcpy(to.scanLine(i), frame.constScanLine(i), bpl);
+		if (size.isEmpty() || size == frame.size()) {
+			int32 w = frame.width(), h = frame.height();
+			if (to.width() == w && to.height() == h && to.format() == frame.format()) {
+				if (to.byteCount() != frame.byteCount()) {
+					int bpl = qMin(to.bytesPerLine(), frame.bytesPerLine());
+					for (int i = 0; i < h; ++i) {
+						memcpy(to.scanLine(i), frame.constScanLine(i), bpl);
+					}
+				} else {
+					memcpy(to.bits(), frame.constBits(), frame.byteCount());
 				}
 			} else {
-				memcpy(to.bits(), frame.constBits(), frame.byteCount());
+				to = frame.copy();
 			}
 		} else {
-			to = frame.copy();
+			to = frame.scaled(size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 		}
+		hasAlpha = frame.hasAlphaChannel();
 		return true;
 	}
 
@@ -406,7 +497,7 @@ public:
 		_avpkt.size = 0;
 	}
 
-	bool readNextFrame(QImage &to) {
+	bool readNextFrame(QImage &to, bool &hasAlpha, const QSize &size) {
 		int res;
 		while (true) {
 			if (_avpkt.size > 0) { // previous packet not finished
@@ -441,7 +532,13 @@ public:
 						continue;
 					}
 
-					return false;
+					if (res != AVERROR_EOF || !_hadFrame) { // try to skip end of file
+						return false;
+					}
+					freePacket();
+					_avpkt.data = NULL;
+					_avpkt.size = 0;
+					continue;
 				}
 				if (res > 0) decoded = res;
 			}
@@ -463,25 +560,31 @@ public:
 					}
 				}
 
-				if (to.isNull() || to.width() != _width || to.height() != _height) {
-					to = QImage(_width, _height, QImage::Format_ARGB32);
+				QSize toSize(size.isEmpty() ? QSize(_width, _height) : size);
+				if (to.isNull() || to.size() != toSize) {
+					to = QImage(toSize, QImage::Format_ARGB32);
 				}
-				if (_frame->width == _width && _frame->height == _height && (_frame->format == AV_PIX_FMT_BGRA || (_frame->format == -1 && _codecContext->pix_fmt == AV_PIX_FMT_BGRA))) {
+				if (_frame->width == toSize.width() && _frame->height == toSize.height() && (_frame->format == AV_PIX_FMT_BGRA || (_frame->format == -1 && _codecContext->pix_fmt == AV_PIX_FMT_BGRA))) {
 					int32 sbpl = _frame->linesize[0], dbpl = to.bytesPerLine(), bpl = qMin(sbpl, dbpl);
 					uchar *s = _frame->data[0], *d = to.bits();
 					for (int32 i = 0, l = _frame->height; i < l; ++i) {
 						memcpy(d + i * dbpl, s + i * sbpl, bpl);
 					}
+
+					hasAlpha = true;
 				} else {
-					if (_frame->width != _width || _frame->height != _height || (_frame->format != -1 && _frame->format != _codecContext->pix_fmt) || !_swsContext) {
-						_swsContext = sws_getCachedContext(_swsContext, _frame->width, _frame->height, AVPixelFormat(_frame->format), _width, _height, AV_PIX_FMT_BGRA, 0, 0, 0, 0);
+					if ((_swsSize != toSize) || (_frame->format != -1 && _frame->format != _codecContext->pix_fmt) || !_swsContext) {
+						_swsSize = toSize;
+						_swsContext = sws_getCachedContext(_swsContext, _frame->width, _frame->height, AVPixelFormat(_frame->format), toSize.width(), toSize.height(), AV_PIX_FMT_BGRA, 0, 0, 0, 0);
 					}
 					uint8_t * toData[1] = { to.bits() };
 					int	toLinesize[1] = { to.bytesPerLine() };
-					if ((res = sws_scale(_swsContext, _frame->data, _frame->linesize, 0, _frame->height, toData, toLinesize)) != _height) {
-						LOG(("Gif Error: Unable to sws_scale to good size %1, hieght %2, should be %3").arg(logData()).arg(res).arg(_height));
+					if ((res = sws_scale(_swsContext, _frame->data, _frame->linesize, 0, _frame->height, toData, toLinesize)) != _swsSize.height()) {
+						LOG(("Gif Error: Unable to sws_scale to good size %1, height %2, should be %3").arg(logData()).arg(res).arg(_swsSize.height()));
 						return false;
 					}
+
+					hasAlpha = false;
 				}
 
 				int64 duration = av_frame_get_pkt_duration(_frame);
@@ -491,14 +594,14 @@ public:
 				if (_frameMs + _currentFrameDelay < frameMs) {
 					_currentFrameDelay = int32(frameMs - _frameMs);
 				}
-				_frameMs = frameMs;
 				if (duration == AV_NOPTS_VALUE) {
 					_nextFrameDelay = 0;
 				} else {
 					_nextFrameDelay = (duration * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
 				}
+                _frameMs = frameMs;
 
-				av_frame_unref(_frame);
+                av_frame_unref(_frame);
 				return true;
 			}
 
@@ -619,12 +722,13 @@ private:
 			_avpkt.size = _packetSize;
 			_avpkt.data = _packetData;
 			_packetWas = false;
-			av_free_packet(&_avpkt);
+			av_packet_unref(&_avpkt);
 		}
 	}
 
 	int32 _width, _height;
 	SwsContext *_swsContext;
+	QSize _swsSize;
 
 	int64 _frameMs;
 	int32 _nextFrameDelay, _currentFrameDelay;
@@ -656,6 +760,10 @@ public:
 	, _location(_data.isEmpty() ? new FileLocation(location) : 0)
 	, _accessed(false)
 	, _implementation(0)
+	, _currentHasAlpha(true)
+	, _nextHasAlpha(true)
+	, _width(0)
+	, _height(0)
 	, _previousMs(0)
 	, _currentMs(0)
 	, _nextUpdateMs(0)
@@ -673,9 +781,11 @@ public:
 			return error();
 		}
 		if (_currentOriginal.isNull()) {
-			if (!_implementation->readNextFrame(_currentOriginal)) {
+			if (!_implementation->readNextFrame(_currentOriginal, _currentHasAlpha, QSize())) {
 				return error();
 			}
+			_width = _currentOriginal.width();
+			_height = _currentOriginal.height();
 			return ClipProcessReinit;
 		}
 		return ClipProcessWait;
@@ -693,7 +803,7 @@ public:
 
 			_previousMs = _currentMs;
 			_currentMs = ms;
-			_current = _prepareFrame(_request, _currentOriginal, _currentCache, true);
+			_current = _prepareFrame(_request, _currentOriginal, _currentCache, _currentHasAlpha);
 
 			if (!prepareNextFrame()) {
 				return error();
@@ -701,7 +811,7 @@ public:
 			return ClipProcessStarted;
 		} else if (!_paused && ms >= _nextUpdateMs) {
 			swapBuffers();
-			return ClipProcessRedraw;
+			return ClipProcessRepaint;
 		}
 		return ClipProcessWait;
 	}
@@ -713,7 +823,7 @@ public:
 
 		if (ms >= _nextUpdateMs) { // we are late
 			swapBuffers(ms); // keep up
-			return ClipProcessRedraw;
+			return ClipProcessRepaint;
 		}
 		return ClipProcessWait;
 	}
@@ -729,16 +839,17 @@ public:
 		qSwap(_currentOriginal, _nextOriginal);
 		qSwap(_current, _next);
 		qSwap(_currentCache, _nextCache);
+		qSwap(_currentHasAlpha, _nextHasAlpha);
 	}
 
 	bool prepareNextFrame() {
-		if (!_implementation->readNextFrame(_nextOriginal)) {
+		if (!_implementation->readNextFrame(_nextOriginal, _nextHasAlpha, QSize(_request.framew, _request.frameh))) {
 			return false;
 		}
 		_nextUpdateMs = _currentMs + nextFrameDelay();
 		_nextOriginal.setDevicePixelRatio(_request.factor);
 		_next = QPixmap();
-		_next = _prepareFrame(_request, _nextOriginal, _nextCache, true);
+		_next = _prepareFrame(_request, _nextOriginal, _nextCache, _nextHasAlpha);
 		return true;
 	}
 
@@ -800,6 +911,8 @@ private:
 	ClipFrameRequest _request;
 	QPixmap _current, _next;
 	QImage _currentOriginal, _nextOriginal, _currentCache, _nextCache;
+	bool _currentHasAlpha, _nextHasAlpha;
+	int32 _width, _height;
 
 	uint64 _previousMs, _currentMs, _nextUpdateMs;
 
@@ -812,14 +925,15 @@ private:
 ClipReadManager::ClipReadManager(QThread *thread) : _processingInThread(0), _needReProcess(false) {
 	moveToThread(thread);
 	connect(thread, SIGNAL(started()), this, SLOT(process()));
+    connect(thread, SIGNAL(finished()), this, SLOT(finish()));
 	connect(this, SIGNAL(processDelayed()), this, SLOT(process()), Qt::QueuedConnection);
 
 	_timer.setSingleShot(true);
 	_timer.moveToThread(thread);
 	connect(&_timer, SIGNAL(timeout()), this, SLOT(process()));
 
-	connect(this, SIGNAL(reinit(ClipReader*)), _manager, SLOT(clipReinit(ClipReader*)));
-	connect(this, SIGNAL(redraw(ClipReader*)), _manager, SLOT(clipRedraw(ClipReader*)));
+	connect(this, SIGNAL(reinit(ClipReader*,qint32)), _manager, SLOT(clipReinit(ClipReader*,qint32)));
+	connect(this, SIGNAL(repaint(ClipReader*,qint32)), _manager, SLOT(clipRepaint(ClipReader*,qint32)));
 }
 
 void ClipReadManager::append(ClipReader *reader, const FileLocation &location, const QByteArray &data) {
@@ -844,13 +958,18 @@ void ClipReadManager::stop(ClipReader *reader) {
 	emit processDelayed();
 }
 
+bool ClipReadManager::carries(ClipReader *reader) const {
+	QMutexLocker lock(&_readerPointersMutex);
+	return _readerPointers.contains(reader);
+}
+
 bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcessResult result, uint64 ms) {
 	QMutexLocker lock(&_readerPointersMutex);
 	ReaderPointers::iterator it = _readerPointers.find(reader->_interface);
 	if (result == ClipProcessError) {
 		if (it != _readerPointers.cend()) {
 			it.key()->error();
-			emit reinit(it.key());
+			emit reinit(it.key(), it.key()->threadIndex());
 
 			_readerPointers.erase(it);
 			it = _readerPointers.end();
@@ -861,9 +980,9 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 	}
 
 	if (result == ClipProcessStarted) {
-		_loadLevel.fetchAndAddRelease(reader->_currentOriginal.width() * reader->_currentOriginal.height() - AverageGifSize);
+		_loadLevel.fetchAndAddRelease(reader->_width * reader->_height - AverageGifSize);
 	}
-	if (!reader->_paused && (result == ClipProcessRedraw || result == ClipProcessWait)) {
+	if (!reader->_paused && (result == ClipProcessRepaint || result == ClipProcessWait)) {
 		if (it.key()->_lastDisplayMs.get() + WaitBeforeGifPause < qMax(reader->_previousMs, ms)) {
 			reader->_paused = true;
 			it.key()->_paused.set(true);
@@ -875,14 +994,14 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 			}
 		}
 	}
-	if (result == ClipProcessReinit || result == ClipProcessRedraw || result == ClipProcessStarted) {
+	if (result == ClipProcessReinit || result == ClipProcessRepaint || result == ClipProcessStarted) {
 		it.key()->_current = reader->_current;
 		it.key()->_currentOriginal = reader->_currentOriginal;
 		it.key()->_currentDisplayed.set(false);
 		if (result == ClipProcessReinit) {
-			emit reinit(it.key());
-		} else if (result == ClipProcessRedraw) {
-			emit redraw(it.key());
+			emit reinit(it.key(), it.key()->threadIndex());
+		} else if (result == ClipProcessRepaint) {
+			emit repaint(it.key(), it.key()->threadIndex());
 		}
 	}
 	return true;
@@ -890,7 +1009,7 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 
 ClipReadManager::ResultHandleState ClipReadManager::handleResult(ClipReaderPrivate *reader, ClipProcessResult result, uint64 ms) {
 	if (!handleProcessResult(reader, result, ms)) {
-		_loadLevel.fetchAndAddRelease(-1 * (reader->_currentOriginal.isNull() ? AverageGifSize : reader->_currentOriginal.width() * reader->_currentOriginal.height()));
+		_loadLevel.fetchAndAddRelease(-1 * (reader->_currentOriginal.isNull() ? AverageGifSize : reader->_width * reader->_height));
 		delete reader;
 		return ResultHandleRemove;
 	}
@@ -900,7 +1019,7 @@ ClipReadManager::ResultHandleState ClipReadManager::handleResult(ClipReaderPriva
 		return ResultHandleStop;
 	}
 
-	if (result == ClipProcessRedraw) {
+	if (result == ClipProcessRepaint) {
 		return handleResult(reader, reader->finishProcess(ms), ms);
 	}
 
@@ -913,7 +1032,7 @@ void ClipReadManager::process() {
 		return;
 	}
 
-	_timer.stop();
+    _timer.stop();
 	_processingInThread = thread();
 
 	uint64 ms = getms(), minms = ms + 86400 * 1000ULL;
@@ -968,19 +1087,26 @@ void ClipReadManager::process() {
 	_processingInThread = 0;
 }
 
-ClipReadManager::~ClipReadManager() {
-	{
-		QMutexLocker lock(&_readerPointersMutex);
-		for (ReaderPointers::iterator i = _readerPointers.begin(), e = _readerPointers.end(); i != e; ++i) {
-			if (i.value()) {
-				i.key()->_private = 0;
-			}
-		}
-		_readerPointers.clear();
+void ClipReadManager::finish() 	{
+    _timer.stop();
+    clear();
+}
 
-		for (Readers::iterator i = _readers.begin(), e = _readers.end(); i != e; ++i) {
-			delete i.key();
-		}
-		_readers.clear();
-	}
+void ClipReadManager::clear() {
+    QMutexLocker lock(&_readerPointersMutex);
+    for (ReaderPointers::iterator i = _readerPointers.begin(), e = _readerPointers.end(); i != e; ++i) {
+        if (i.value()) {
+            i.key()->_private = 0;
+        }
+    }
+    _readerPointers.clear();
+
+    for (Readers::iterator i = _readers.begin(), e = _readers.end(); i != e; ++i) {
+        delete i.key();
+    }
+    _readers.clear();
+}
+
+ClipReadManager::~ClipReadManager() {
+    clear();
 }

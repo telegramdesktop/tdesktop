@@ -97,20 +97,41 @@ namespace Ui {
 		return false;
 	}
 
-	void clipRedraw(ClipReader *reader) {
+	bool isMediaViewShown() {
+		if (Window *w = App::wnd()) return w->ui_isMediaViewShown();
+		return false;
+	}
+
+	bool isGifBeingChosen() {
+		if (MainWidget *m = App::main()) return m->ui_isGifBeingChosen();
+		return false;
+	}
+
+	void clipRepaint(ClipReader *reader) {
 		const GifItems &items(App::gifItems());
 		GifItems::const_iterator it = items.constFind(reader);
 		if (it != items.cend()) {
 			if (reader->currentDisplayed()) {
 				return;
 			}
-			Ui::redrawHistoryItem(it.value());
+			Ui::repaintHistoryItem(it.value());
 		}
-		if (Window *w = App::wnd()) w->ui_clipRedraw(reader);
+		if (Window *w = App::wnd()) w->ui_clipRepaint(reader);
 	}
 
-	void redrawHistoryItem(const HistoryItem *item) {
-		if (MainWidget *m = App::main()) m->ui_redrawHistoryItem(item);
+	void repaintHistoryItem(const HistoryItem *item) {
+		if (!item) return;
+		if (MainWidget *m = App::main()) m->ui_repaintHistoryItem(item);
+	}
+
+	void repaintSavedGif(const LayoutSavedGif *layout) {
+		if (!layout) return;
+		if (MainWidget *m = App::main()) m->ui_repaintSavedGif(layout);
+	}
+
+	bool isSavedGifVisible(const LayoutSavedGif *layout) {
+		if (MainWidget *m = App::main()) return m->ui_isSavedGifVisible(layout);
+		return false;
 	}
 
 	void showPeerHistory(const PeerId &peer, MsgId msgId, bool back) {
@@ -141,6 +162,10 @@ namespace Notify {
 
 	void migrateUpdated(PeerData *peer) {
 		if (MainWidget *m = App::main()) m->notify_migrateUpdated(peer);
+	}
+
+	void clipStopperHidden(ClipStopperType type) {
+		if (MainWidget *m = App::main()) m->notify_clipStopperHidden(type);
 	}
 
 	void clipReinit(ClipReader *reader) {

@@ -71,7 +71,7 @@ public:
 	void activateControls();
 	void onDocClick();
 
-	void ui_clipRedraw(ClipReader *reader);
+	void ui_clipRepaint(ClipReader *reader);
 
 	void notify_clipReinit(ClipReader *reader);
 

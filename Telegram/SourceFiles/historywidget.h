@@ -33,7 +33,7 @@ enum DragState {
 };
 
 class HistoryWidget;
-class HistoryInner : public QWidget {
+class HistoryInner : public TWidget {
 	Q_OBJECT
 
 public:
@@ -69,7 +69,7 @@ public:
 	int32 recountHeight(const HistoryItem *resizedItem);
 	void updateSize();
 
-	void redrawItem(const HistoryItem *item);
+	void repaintItem(const HistoryItem *item);
 
 	bool canCopySelected() const;
 	bool canDeleteSelected() const;
@@ -114,6 +114,7 @@ public slots:
 	void showContextInFolder();
 	void openContextFile();
 	void saveContextFile();
+	void saveContextGif();
 	void copyContextText();
 	void copySelectedText();
 
@@ -541,6 +542,8 @@ public:
 
 	void updateNotifySettings();
 
+	void saveGif(DocumentData *doc);
+
 	bool contentOverlapped(const QRect &globalRect);
 
 	void grabStart() {
@@ -556,12 +559,16 @@ public:
 
 	bool isItemVisible(HistoryItem *item);
 
-	void ui_redrawHistoryItem(const HistoryItem *item);
+	void ui_repaintHistoryItem(const HistoryItem *item);
+	void ui_repaintSavedGif(const LayoutSavedGif *gif);
+	bool ui_isSavedGifVisible(const LayoutSavedGif *layout);
+	bool ui_isGifBeingChosen();
 
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
 	void notify_botCommandsChanged(UserData *user);
 	void notify_userIsBotChanged(UserData *user);
 	void notify_migrateUpdated(PeerData *peer);
+	void notify_clipStopperHidden(ClipStopperType type);
 	void notify_historyItemResized(const HistoryItem *item, bool scrollToIt);
 
 	~HistoryWidget();
@@ -700,6 +707,8 @@ private:
 	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 
+	void saveGifDone(DocumentData *doc, const MTPBool &result);
+
 	void reportSpamDone(PeerData *peer, const MTPBool &result, mtpRequestId request);
 	bool reportSpamFail(const RPCError &error, mtpRequestId request);
 
@@ -712,10 +721,13 @@ private:
 
 	void countHistoryShowFrom();
 
+	mtpRequestId _stickersUpdateRequest;
 	void stickersGot(const MTPmessages_AllStickers &stickers);
 	bool stickersFailed(const RPCError &error);
 
-	mtpRequestId _stickersUpdateRequest;
+	mtpRequestId _savedGifsUpdateRequest;
+	void savedGifsGot(const MTPmessages_SavedGifs &gifs);
+	bool savedGifsFailed(const RPCError &error);
 
 	void writeDraft(MsgId *replyTo = 0, const QString *text = 0, const MessageCursor *cursor = 0, bool *previewCancelled = 0);
 	void setFieldText(const QString &text);

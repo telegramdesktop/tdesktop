@@ -77,7 +77,7 @@ private:
 
 	Checkbox _photoPrivate, _photoGroups;
 	Checkbox _audioPrivate, _audioGroups;
-	Checkbox _gifPrivate, _gifGroups;
+	Checkbox _gifPrivate, _gifGroups, _gifPlay;
 
 	int32 _sectionHeight;
 

@@ -27,7 +27,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "pspecific.h"
 
 namespace {
-	typedef QMap<QString, LocalImage*> LocalImages;
+	typedef QMap<QString, Image*> LocalImages;
 	LocalImages localImages;
 
 	Image *blank() {
@@ -46,6 +46,8 @@ namespace {
 	static const uint64 RoundedCacheSkip = 0x4000000000000000LLU;
 }
 
+StorageImageLocation StorageImageLocation::Null;
+
 bool Image::isNull() const {
 	return (this == blank());
 }
@@ -57,8 +59,39 @@ ImagePtr::ImagePtr(int32 width, int32 height, const MTPFileLocation &location, I
 	Parent((location.type() == mtpc_fileLocation) ? (Image*)(getImage(StorageImageLocation(width, height, location.c_fileLocation()))) : def.v()) {
 }
 
+Image::Image(const QString &file, QByteArray fmt) : _forgot(false) {
+	_data = QPixmap::fromImage(App::readImage(file, &fmt, false, 0, &_saved), Qt::ColorOnly);
+	_format = fmt;
+	if (!_data.isNull()) {
+		globalAquiredSize += int64(_data.width()) * _data.height() * 4;
+	}
+}
+
+Image::Image(const QByteArray &filecontent, QByteArray fmt) : _forgot(false) {
+	_data = QPixmap::fromImage(App::readImage(filecontent, &fmt, false), Qt::ColorOnly);
+	_format = fmt;
+	_saved = filecontent;
+	if (!_data.isNull()) {
+		globalAquiredSize += int64(_data.width()) * _data.height() * 4;
+	}
+}
+
+Image::Image(const QPixmap &pixmap, QByteArray format) : _format(format), _forgot(false), _data(pixmap) {
+	if (!_data.isNull()) {
+		globalAquiredSize += int64(_data.width()) * _data.height() * 4;
+	}
+}
+
+Image::Image(const QByteArray &filecontent, QByteArray fmt, const QPixmap &pixmap) : _saved(filecontent), _format(fmt), _forgot(false), _data(pixmap) {
+	_data = pixmap;
+	_format = fmt;
+	_saved = filecontent;
+	if (!_data.isNull()) {
+		globalAquiredSize += int64(_data.width()) * _data.height() * 4;
+	}
+}
+
 const QPixmap &Image::pix(int32 w, int32 h) const {
-	restore();
 	checkload();
 
 	if (w <= 0 || !width() || !height()) {
@@ -81,7 +114,6 @@ const QPixmap &Image::pix(int32 w, int32 h) const {
 }
 
 const QPixmap &Image::pixRounded(int32 w, int32 h) const {
-	restore();
 	checkload();
 
 	if (w <= 0 || !width() || !height()) {
@@ -104,7 +136,6 @@ const QPixmap &Image::pixRounded(int32 w, int32 h) const {
 }
 
 const QPixmap &Image::pixBlurred(int32 w, int32 h) const {
-	restore();
 	checkload();
 
 	if (w <= 0 || !width() || !height()) {
@@ -127,7 +158,6 @@ const QPixmap &Image::pixBlurred(int32 w, int32 h) const {
 }
 
 const QPixmap &Image::pixColored(const style::color &add, int32 w, int32 h) const {
-	restore();
 	checkload();
 
 	if (w <= 0 || !width() || !height()) {
@@ -150,7 +180,6 @@ const QPixmap &Image::pixColored(const style::color &add, int32 w, int32 h) cons
 }
 
 const QPixmap &Image::pixBlurredColored(const style::color &add, int32 w, int32 h) const {
-	restore();
 	checkload();
 
 	if (w <= 0 || !width() || !height()) {
@@ -173,7 +202,6 @@ const QPixmap &Image::pixBlurredColored(const style::color &add, int32 w, int32 
 }
 
 const QPixmap &Image::pixSingle(int32 w, int32 h, int32 outerw, int32 outerh) const {
-	restore();
 	checkload();
 
 	if (w <= 0 || !width() || !height()) {
@@ -199,7 +227,6 @@ const QPixmap &Image::pixSingle(int32 w, int32 h, int32 outerw, int32 outerh) co
 }
 
 const QPixmap &Image::pixBlurredSingle(int32 w, int32 h, int32 outerw, int32 outerh) const {
-	restore();
 	checkload();
 
 	if (w <= 0 || !width() || !height()) {
@@ -426,11 +453,9 @@ QPixmap imagePix(QImage img, int32 w, int32 h, bool smooth, bool blurred, bool r
 }
 
 QPixmap Image::pixNoCache(int32 w, int32 h, bool smooth, bool blurred, bool rounded, int32 outerw, int32 outerh) const {
+	if (!loading()) const_cast<Image*>(this)->load();
 	restore();
-	loaded();
-
-	const QPixmap &p(pixData());
-	if (p.isNull()) return blank()->pix();
+	if (_data.isNull()) return blank()->pix();
 
 	if (isNull() && outerw > 0 && outerh > 0) {
 		outerw *= cIntRetinaFactor();
@@ -447,32 +472,28 @@ QPixmap Image::pixNoCache(int32 w, int32 h, bool smooth, bool blurred, bool roun
 		if (rounded) imageRound(result);
 		return QPixmap::fromImage(result, Qt::ColorOnly);
 	}
-	return imagePix(p.toImage(), w, h, smooth, blurred, rounded, outerw, outerh);
+	return imagePix(_data.toImage(), w, h, smooth, blurred, rounded, outerw, outerh);
 }
 
 QPixmap Image::pixColoredNoCache(const style::color &add, int32 w, int32 h, bool smooth) const {
+	const_cast<Image*>(this)->load();
 	restore();
-	loaded();
+	if (_data.isNull()) return blank()->pix();
 
-	const QPixmap &p(pixData());
-	if (p.isNull()) {
-		return blank()->pix();
-	}
-	if (w <= 0 || !width() || !height() || (w == width() && (h <= 0 || h == height()))) return QPixmap::fromImage(imageColored(add, p.toImage()));
+	QImage img = _data.toImage();
+	if (w <= 0 || !width() || !height() || (w == width() && (h <= 0 || h == height()))) return QPixmap::fromImage(imageColored(add, img));
 	if (h <= 0) {
-		return QPixmap::fromImage(imageColored(add, p.toImage().scaledToWidth(w, smooth ? Qt::SmoothTransformation : Qt::FastTransformation)), Qt::ColorOnly);
+		return QPixmap::fromImage(imageColored(add, img.scaledToWidth(w, smooth ? Qt::SmoothTransformation : Qt::FastTransformation)), Qt::ColorOnly);
 	}
-	return QPixmap::fromImage(imageColored(add, p.toImage().scaled(w, h, Qt::IgnoreAspectRatio, smooth ? Qt::SmoothTransformation : Qt::FastTransformation)), Qt::ColorOnly);
+	return QPixmap::fromImage(imageColored(add, img.scaled(w, h, Qt::IgnoreAspectRatio, smooth ? Qt::SmoothTransformation : Qt::FastTransformation)), Qt::ColorOnly);
 }
 
 QPixmap Image::pixBlurredColoredNoCache(const style::color &add, int32 w, int32 h) const {
+	const_cast<Image*>(this)->load();
 	restore();
-	loaded();
+	if (_data.isNull()) return blank()->pix();
 
-	const QPixmap &p(pixData());
-	if (p.isNull()) return blank()->pix();
-
-	QImage img = imageBlur(p.toImage());
+	QImage img = imageBlur(_data.toImage());
 	if (h <= 0) {
 		img = img.scaledToWidth(w, Qt::SmoothTransformation);
 	} else {
@@ -483,38 +504,40 @@ QPixmap Image::pixBlurredColoredNoCache(const style::color &add, int32 w, int32 
 }
 
 void Image::forget() const {
-	if (forgot) return;
+	if (_forgot) return;
 
-	const QPixmap &p(pixData());
-	if (p.isNull()) return;
+	if (_data.isNull()) return;
 
 	invalidateSizeCache();
-	if (saved.isEmpty()) {
-		QBuffer buffer(&saved);
-		if (format.toLower() == "webp") {
-			int a = 0;
-		}
-		if (!p.save(&buffer, format)) {
-			if (p.save(&buffer, "PNG")) {
-				format = "PNG";
+	if (_saved.isEmpty()) {
+		QBuffer buffer(&_saved);
+		if (!_data.save(&buffer, _format)) {
+			if (_data.save(&buffer, "PNG")) {
+				_format = "PNG";
 			} else {
 				return;
 			}
 		}
 	}
-	globalAquiredSize -= int64(p.width()) * p.height() * 4;
-	doForget();
-	forgot = true;
+	globalAquiredSize -= int64(_data.width()) * _data.height() * 4;
+	_data = QPixmap();
+	_forgot = true;
 }
 
 void Image::restore() const {
-	if (!forgot) return;
-	doRestore();
-	const QPixmap &p(pixData());
-	if (!p.isNull()) {
-		globalAquiredSize += int64(p.width()) * p.height() * 4;
+	if (!_forgot) return;
+
+	QBuffer buffer(&_saved);
+	QImageReader reader(&buffer, _format);
+#if QT_VERSION >= QT_VERSION_CHECK(5, 5, 0)
+	reader.setAutoTransform(true);
+#endif
+	_data = QPixmap::fromImageReader(&reader, Qt::ColorOnly);
+
+	if (!_data.isNull()) {
+		globalAquiredSize += int64(_data.width()) * _data.height() * 4;
 	}
-	forgot = false;
+	_forgot = false;
 }
 
 void Image::invalidateSizeCache() const {
@@ -526,78 +549,33 @@ void Image::invalidateSizeCache() const {
 	_sizesCache.clear();
 }
 
-LocalImage::LocalImage(const QString &file, QByteArray fmt) {
-	data = QPixmap::fromImage(App::readImage(file, &fmt, false, 0, &saved), Qt::ColorOnly);
-	format = fmt;
-	if (!data.isNull()) {
-		globalAquiredSize += int64(data.width()) * data.height() * 4;
+Image::~Image() {
+	invalidateSizeCache();
+	if (!_data.isNull()) {
+		globalAquiredSize -= int64(_data.width()) * _data.height() * 4;
 	}
 }
 
-LocalImage::LocalImage(const QByteArray &filecontent, QByteArray fmt) {
-	data = QPixmap::fromImage(App::readImage(filecontent, &fmt, false), Qt::ColorOnly);
-	format = fmt;
-	saved = filecontent;
-	if (!data.isNull()) {
-		globalAquiredSize += int64(data.width()) * data.height() * 4;
-	}
-}
-
-LocalImage::LocalImage(const QPixmap &pixmap, QByteArray format) : Image(format), data(pixmap) {
-	if (!data.isNull()) {
-		globalAquiredSize += int64(data.width()) * data.height() * 4;
-	}
-}
-
-LocalImage::LocalImage(const QByteArray &filecontent, QByteArray fmt, const QPixmap &pixmap) {
-	data = pixmap;
-	format = fmt;
-	saved = filecontent;
-	if (!data.isNull()) {
-		globalAquiredSize += int64(data.width()) * data.height() * 4;
-	}
-}
-
-const QPixmap &LocalImage::pixData() const {
-	return data;
-}
-
-int32 LocalImage::width() const {
-	restore();
-	return data.width();
-}
-
-int32 LocalImage::height() const {
-	restore();
-	return data.height();
-}
-
-LocalImage::~LocalImage() {
-	if (!data.isNull()) {
-		globalAquiredSize -= int64(data.width()) * data.height() * 4;
-	}
-}
-
-LocalImage *getImage(const QString &file, QByteArray format) {
+Image *getImage(const QString &file, QByteArray format) {
 	QFileInfo f(file);
 	QString key = qsl("//:%1//:%2//:").arg(f.size()).arg(f.lastModified().toTime_t()) + file;
 	LocalImages::const_iterator i = localImages.constFind(key);
 	if (i == localImages.cend()) {
-		i = localImages.insert(key, new LocalImage(file, format));
+		i = localImages.insert(key, new Image(file, format));
 	}
 	return i.value();
 }
 
-LocalImage *getImage(const QByteArray &filecontent, QByteArray format) {
-	return new LocalImage(filecontent, format);
+Image *getImage(const QByteArray &filecontent, QByteArray format) {
+	return new Image(filecontent, format);
 }
 
-LocalImage *getImage(const QPixmap &pixmap, QByteArray format) {
-	return new LocalImage(pixmap, format);
+Image *getImage(const QPixmap &pixmap, QByteArray format) {
+	return new Image(pixmap, format);
 }
 
-LocalImage *getImage(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap) {
-	return new LocalImage(filecontent, format, pixmap);
+Image *getImage(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap) {
+	return new Image(filecontent, format, pixmap);
 }
 
 void clearStorageImages() {
@@ -629,10 +607,6 @@ StorageImage::StorageImage(const StorageImageLocation &location, QByteArray &byt
 	}
 }
 
-const QPixmap &StorageImage::pixData() const {
-	return _data;
-}
-
 int32 StorageImage::width() const {
 	return _location.width();
 }
@@ -641,7 +615,7 @@ int32 StorageImage::height() const {
 	return _location.height();
 }
 
-void StorageImage::checkload() const {
+void StorageImage::doCheckload() const {
 	if (!amLoading() || !_loader->done()) return;
 
 	QPixmap data = _loader->imagePixmap();
@@ -656,10 +630,10 @@ void StorageImage::checkload() const {
 		globalAquiredSize -= int64(_data.width()) * _data.height() * 4;
 	}
 
-	format = _loader->imageFormat();
+	_format = _loader->imageFormat();
 	_data = data;
-	saved = _loader->bytes();
-	const_cast<StorageImage*>(this)->_size = saved.size();
+	_saved = _loader->bytes();
+	const_cast<StorageImage*>(this)->_size = _saved.size();
 	const_cast<StorageImage*>(this)->_location.setSize(_data.width(), _data.height());
 	globalAquiredSize += int64(_data.width()) * _data.height() * 4;
 
@@ -669,7 +643,7 @@ void StorageImage::checkload() const {
 	_loader->rpcInvalidate();
 	_loader = 0;
 
-	forgot = false;
+	_forgot = false;
 }
 
 void StorageImage::setData(QByteArray &bytes, const QByteArray &bytesFormat) {
@@ -691,9 +665,9 @@ void StorageImage::setData(QByteArray &bytes, const QByteArray &bytesFormat) {
 		_loader->rpcInvalidate();
 		_loader = 0;
 	}
-	saved = bytes;
-	format = fmt;
-	forgot = false;
+	_saved = bytes;
+	_format = fmt;
+	_forgot = false;
 }
 
 void StorageImage::automaticLoad(const HistoryItem *item) {
@@ -714,6 +688,11 @@ void StorageImage::automaticLoad(const HistoryItem *item) {
 			_loader->start();
 		}
 	}
+}
+
+void StorageImage::automaticLoadSettingsChanged() {
+	if (loaded() || _loader != CancelledFileLoader) return;
+	_loader = 0;
 }
 
 void StorageImage::load(bool loadFirst, bool prior) {
@@ -744,12 +723,8 @@ StorageImage::~StorageImage() {
 }
 
 bool StorageImage::loaded() const {
-	checkload();
-	return (!_data.isNull() || !saved.isNull());
-}
-
-bool StorageImage::loading() const {
-	return amLoading();
+	doCheckload();
+	return (!_data.isNull() || !_saved.isNull());
 }
 
 bool StorageImage::displayLoading() const {

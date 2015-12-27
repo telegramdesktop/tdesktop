@@ -148,6 +148,9 @@ QRect myrtlrect(const QRect &r) { \
 void rtlupdate(const QRect &r) { \
 	update(myrtlrect(r)); \
 } \
+void rtlupdate(int x, int y, int w, int h) { \
+	update(myrtlrect(x, y, w, h)); \
+} \
 protected: \
 void enterEvent(QEvent *e) { \
 	TWidget *p(tparent()); \

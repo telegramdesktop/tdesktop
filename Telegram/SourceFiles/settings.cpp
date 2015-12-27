@@ -108,14 +108,16 @@ RecentEmojiPack gRecentEmojis;
 RecentEmojisPreload gRecentEmojisPreload;
 EmojiColorVariants gEmojiVariants;
 
-int32 gStickersHash = 0;
-
 RecentStickerPreload gRecentStickersPreload;
 RecentStickerPack gRecentStickers;
 StickerSets gStickerSets;
 StickerSetsOrder gStickerSetsOrder;
-
 uint64 gLastStickersUpdate = 0;
+
+SavedGifs gSavedGifs;
+uint64 gLastSavedGifsUpdate = 0;
+bool gShowingSavedGifs = false;
+int32 gSavedGifsLimit = 100;
 
 RecentHashtagPack gRecentWriteHashtags, gRecentSearchHashtags;
 
@@ -174,6 +176,7 @@ ReportSpamStatuses gReportSpamStatuses;
 int32 gAutoDownloadPhoto = 0; // all auto download
 int32 gAutoDownloadAudio = 0;
 int32 gAutoDownloadGif = 0;
+bool gAutoPlayGif = true;
 
 void settingsParseArgs(int argc, char *argv[]) {
 #ifdef Q_OS_MAC

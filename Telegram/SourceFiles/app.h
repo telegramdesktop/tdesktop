@@ -35,12 +35,19 @@ class FileUploader;
 #include "layout.h"
 
 typedef QMap<HistoryItem*, NullType> HistoryItemsMap;
-typedef QMap<VideoData*, HistoryItemsMap> VideoItems;
-typedef QMap<AudioData*, HistoryItemsMap> AudioItems;
-typedef QMap<DocumentData*, HistoryItemsMap> DocumentItems;
-typedef QMap<WebPageData*, HistoryItemsMap> WebPageItems;
-typedef QMap<int32, HistoryItemsMap> SharedContactItems;
-typedef QMap<ClipReader*, HistoryItem*> GifItems;
+typedef QHash<PhotoData*, HistoryItemsMap> PhotoItems;
+typedef QHash<VideoData*, HistoryItemsMap> VideoItems;
+typedef QHash<AudioData*, HistoryItemsMap> AudioItems;
+typedef QHash<DocumentData*, HistoryItemsMap> DocumentItems;
+typedef QHash<WebPageData*, HistoryItemsMap> WebPageItems;
+typedef QHash<int32, HistoryItemsMap> SharedContactItems;
+typedef QHash<ClipReader*, HistoryItem*> GifItems;
+
+typedef QHash<PhotoId, PhotoData*> PhotosData;
+typedef QHash<VideoId, VideoData*> VideosData;
+typedef QHash<AudioId, AudioData*> AudiosData;
+typedef QHash<DocumentId, DocumentData*> DocumentsData;
+
 struct ReplyMarkup {
 	ReplyMarkup(int32 flags = 0) : flags(flags) {
 	}
@@ -78,6 +85,8 @@ namespace App {
 	void feedChatAdmins(const MTPDupdateChatAdmins &d, bool emitPeerUpdated = true);
 	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d, bool emitPeerUpdated = true);
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m); // returns true if item found and it is not detached
+	void addSavedGif(DocumentData *doc);
+	void checkSavedGif(HistoryItem *item);
 	void feedMsgs(const QVector<MTPMessage> &msgs, NewMessageType type);
 	void feedMsgs(const MTPVector<MTPMessage> &msgs, NewMessageType type);
 	void feedInboxRead(const PeerId &peer, MsgId upTo);
@@ -183,8 +192,10 @@ namespace App {
 	const QPixmap &emojiLarge();
 	const QPixmap &emojiSingle(EmojiPtr emoji, int32 fontHeight);
 
+	void clearHistories();
+
 	void initMedia();
-	void deinitMedia(bool completely = true);
+	void deinitMedia();
 	void playSound();
 
 	void checkImageCacheSize();
@@ -198,17 +209,25 @@ namespace App {
 	QImage readImage(QByteArray data, QByteArray *format = 0, bool opaque = true, bool *animated = 0);
 	QImage readImage(const QString &file, QByteArray *format = 0, bool opaque = true, bool *animated = 0, QByteArray *content = 0);
 
+	void regPhotoItem(PhotoData *data, HistoryItem *item);
+	void unregPhotoItem(PhotoData *data, HistoryItem *item);
+	const PhotoItems &photoItems();
+	const PhotosData &photosData();
+
 	void regVideoItem(VideoData *data, HistoryItem *item);
 	void unregVideoItem(VideoData *data, HistoryItem *item);
 	const VideoItems &videoItems();
+	const VideosData &videosData();
 
 	void regAudioItem(AudioData *data, HistoryItem *item);
 	void unregAudioItem(AudioData*data, HistoryItem *item);
 	const AudioItems &audioItems();
+	const AudiosData &audiosData();
 
 	void regDocumentItem(DocumentData *data, HistoryItem *item);
 	void unregDocumentItem(DocumentData *data, HistoryItem *item);
 	const DocumentItems &documentItems();
+	const DocumentsData &documentsData();
 
 	void regWebPageItem(WebPageData *data, HistoryItem *item);
 	void unregWebPageItem(WebPageData *data, HistoryItem *item);
@@ -270,26 +289,5 @@ namespace App {
 	DeclareSetting(WallPapers, ServerBackgrounds);
 
 };
-
-inline int32 stickersCountHash(bool checkOfficial = false) {
-	uint32 acc = 0;
-	bool foundOfficial = false, foundBad = false;;
-	const StickerSets &sets(cStickerSets());
-	const StickerSetsOrder &order(cStickerSetsOrder());
-	for (StickerSetsOrder::const_iterator i = order.cbegin(), e = order.cend(); i != e; ++i) {
-		StickerSets::const_iterator j = sets.constFind(*i);
-		if (j != sets.cend()) {
-			if (j->id == 0) {
-				foundBad = true;
-			} else if (j->flags & MTPDstickerSet::flag_official) {
-				foundOfficial = true;
-			}
-			if (!(j->flags & MTPDstickerSet::flag_disabled)) {
-				acc = (acc * 20261) + j->hash;
-			}
-		}
-	}
-	return (!checkOfficial || (!foundBad && foundOfficial)) ? int32(acc & 0x7FFFFFFF) : 0;
-}
 
 #include "facades.h"

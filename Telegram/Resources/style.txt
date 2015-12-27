@@ -1865,6 +1865,8 @@ emojiObjectsActive: sprite(308px, 264px, 21px, 22px);
 emojiSymbolsOver: sprite(84px, 196px, 21px, 22px);
 emojiSymbolsActive: sprite(287px, 286px, 21px, 22px);
 stickersSettings: sprite(140px, 124px, 21px, 22px);
+savedGifsOver: sprite(329px, 286px, 21px, 22px);
+savedGifsActive: sprite(350px, 286px, 21px, 22px);
 
 emojiPanCategories: #f7f7f7;
 
@@ -1989,6 +1991,11 @@ stickerPreviewDuration: 150;
 stickerPreviewBg: #FFFFFFB0;
 stickerPreviewMin: 0.1;
 
+savedGifsLeft: 15px;
+savedGifsSkip: 3px;
+savedGifHeight: 96px;
+savedGifMinWidth: 64px;
+
 verifiedCheckProfile: sprite(285px, 235px, 18px, 18px);
 verifiedCheckProfilePos: point(7px, 6px);
 verifiedCheck: sprite(285px, 221px, 14px, 14px);
@@ -2020,7 +2027,7 @@ botKbScroll: flatScroll(solidScroll) {
 	width: 10px;
 }
 
-minPhotoSize: 104px;
+minPhotoSize: 100px;
 maxMediaSize: 420px;
 maxStickerSize: 256px;
 maxGifSize: 320px;

@@ -409,13 +409,17 @@ public:
 
 	void ui_showStickerPreview(DocumentData *sticker);
 	void ui_hideStickerPreview();
-	void ui_redrawHistoryItem(const HistoryItem *item);
+	void ui_repaintHistoryItem(const HistoryItem *item);
+	void ui_repaintSavedGif(const LayoutSavedGif *layout);
+	bool ui_isSavedGifVisible(const LayoutSavedGif *layout);
+	bool ui_isGifBeingChosen();
 	void ui_showPeerHistory(quint64 peer, qint32 msgId, bool back);
 
 	void notify_botCommandsChanged(UserData *bot);
 	void notify_userIsBotChanged(UserData *bot);
 	void notify_userIsContactChanged(UserData *user, bool fromThisApp);
 	void notify_migrateUpdated(PeerData *peer);
+	void notify_clipStopperHidden(ClipStopperType type);
 	void notify_historyItemResized(const HistoryItem *row, bool scrollToIt);
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
 
@@ -429,6 +433,7 @@ signals:
 	void dialogRowReplaced(DialogRow *oldRow, DialogRow *newRow);
 	void dialogsUpdated();
 	void stickersUpdated();
+	void savedGifsUpdated();
 
 public slots:
 

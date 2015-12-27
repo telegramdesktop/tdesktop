@@ -38,7 +38,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
-HistoryInner::HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, History *history) : QWidget(0)
+HistoryInner::HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, History *history) : TWidget(0)
 , _peer(history->peer)
 , _migrated(history->peer->migrateFrom() ? App::history(history->peer->migrateFrom()->id) : 0)
 , _history(history)
@@ -116,7 +116,7 @@ void HistoryInner::messagesReceivedDown(PeerData *peer, const QVector<MTPMessage
 	}
 }
 
-void HistoryInner::redrawItem(const HistoryItem *item) {
+void HistoryInner::repaintItem(const HistoryItem *item) {
 	if (!item || item->detached() || !_history) return;
 	int32 msgy = itemTop(item);
 	if (msgy >= 0) {
@@ -475,16 +475,16 @@ void HistoryInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton butt
 	if (button != Qt::LeftButton) return;
 
 	if (App::pressedItem() != App::hoveredItem()) {
-		redrawItem(App::pressedItem());
+		repaintItem(App::pressedItem());
 		App::pressedItem(App::hoveredItem());
-		redrawItem(App::pressedItem());
+		repaintItem(App::pressedItem());
 	}
 	if (textlnkDown() != textlnkOver()) {
-		redrawItem(App::pressedLinkItem());
+		repaintItem(App::pressedLinkItem());
 		textlnkDown(textlnkOver());
 		App::pressedLinkItem(App::hoveredLinkItem());
-		redrawItem(App::pressedLinkItem());
-		redrawItem(App::pressedItem());
+		repaintItem(App::pressedLinkItem());
+		repaintItem(App::pressedItem());
 	}
 
 	_dragAction = NoDrag;
@@ -512,7 +512,7 @@ void HistoryInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton butt
 				uint32 selStatus = (symbol << 16) | symbol;
 				if (selStatus != FullSelection && (_selected.isEmpty() || _selected.cbegin().value() != FullSelection)) {
 					if (!_selected.isEmpty()) {
-						redrawItem(_selected.cbegin().key());
+						repaintItem(_selected.cbegin().key());
 						_selected.clear();
 					}
 					_selected.insert(_dragItem, selStatus);
@@ -553,12 +553,12 @@ void HistoryInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton butt
 						uint32 selStatus = (_dragSymbol << 16) | _dragSymbol;
 						if (selStatus != FullSelection && (_selected.isEmpty() || _selected.cbegin().value() != FullSelection)) {
 							if (!_selected.isEmpty()) {
-								redrawItem(_selected.cbegin().key());
+								repaintItem(_selected.cbegin().key());
 								_selected.clear();
 							}
 							_selected.insert(_dragItem, selStatus);
 							_dragAction = Selecting;
-							redrawItem(_dragItem);
+							repaintItem(_dragItem);
 						} else {
 							_dragAction = PrepareSelect;
 						}
@@ -717,7 +717,7 @@ void HistoryInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton but
 		}
 	}
 	if (textlnkDown()) {
-		redrawItem(App::pressedLinkItem());
+		repaintItem(App::pressedLinkItem());
 		textlnkDown(TextLinkPtr());
 		App::pressedLinkItem(0);
 		if (!textlnkOver() && _cursor != style::cur_default) {
@@ -726,7 +726,7 @@ void HistoryInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton but
 		}
 	}
 	if (App::pressedItem()) {
-		redrawItem(App::pressedItem());
+		repaintItem(App::pressedItem());
 		App::pressedItem(0);
 	}
 
@@ -750,16 +750,16 @@ void HistoryInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton but
 		} else {
 			_selected.erase(i);
 		}
-		redrawItem(_dragItem);
+		repaintItem(_dragItem);
 	} else if (_dragAction == PrepareDrag && !_dragWasInactive && button != Qt::RightButton) {
 		SelectedItems::iterator i = _selected.find(_dragItem);
 		if (i != _selected.cend() && i.value() == FullSelection) {
 			_selected.erase(i);
-			redrawItem(_dragItem);
+			repaintItem(_dragItem);
 		} else if (i == _selected.cend() && !_dragItem->serviceMsg() && _dragItem->id > 0 && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection) {
 			if (_selected.size() < MaxSelectedItems) {
 				_selected.insert(_dragItem, FullSelection);
-				redrawItem(_dragItem);
+				repaintItem(_dragItem);
 			}
 		} else {
 			_selected.clear();
@@ -804,7 +804,7 @@ void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 				_dragAction = Selecting;
 				uint32 selStatus = (symbol << 16) | symbol;
 				if (!_selected.isEmpty()) {
-					redrawItem(_selected.cbegin().key());
+					repaintItem(_selected.cbegin().key());
 					_selected.clear();
 				}
 				_selected.insert(_dragItem, selStatus);
@@ -928,15 +928,35 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 			if (item && !isUponSelected && !_contextMenuLnk) {
 				if (HistoryMedia *media = (msg ? msg->getMedia() : 0)) {
+					if (media->type() == MediaTypeWebPage && static_cast<HistoryWebPage*>(media)->attach()) {
+						media = static_cast<HistoryWebPage*>(media)->attach();
+					}
 					if (media->type() == MediaTypeSticker) {
 						DocumentData *doc = media->getDocument();
 						if (doc && doc->sticker() && doc->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
 							_menu->addAction(lang(doc->sticker()->setInstalled() ? lng_context_pack_info : lng_context_pack_add), _widget, SLOT(onStickerPackInfo()));
 						}
+
+						_menu->addAction(lang(lng_context_save_image), this, SLOT(saveContextFile()))->setEnabled(true);
+					} else if (media->type() == MediaTypeGif) {
+						DocumentData *doc = media->getDocument();
+						if (doc) {
+							if (doc->loading()) {
+								_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
+							} else {
+								if (doc->mime.toLower() == qstr("video/mp4") && doc->type == AnimatedDocument) {
+									_menu->addAction(lang(lng_context_save_gif), this, SLOT(saveContextGif()))->setEnabled(true);
+								}
+								if (!doc->already(true).isEmpty()) {
+									_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
+								}
+								_menu->addAction(lang(lng_context_save_file), this, SLOT(saveContextFile()))->setEnabled(true);
+							}
+						}
 					}
 				}
 				QString contextMenuText = item->selectedText(FullSelection);
-				if (!contextMenuText.isEmpty() && (!msg || !msg->getMedia() || msg->getMedia()->type() != MediaTypeSticker)) {
+				if (!contextMenuText.isEmpty() && (!msg || !msg->getMedia() || _dragCursorState == HistoryInTextCursorState)) {
 					_menu->addAction(lang(lng_context_copy_text), this, SLOT(copyContextText()))->setEnabled(true);
 				}
 			}
@@ -1026,7 +1046,7 @@ void HistoryInner::saveContextImage() {
 	if (!lnk) return;
 	
 	PhotoData *photo = lnk->photo();
-	if (!photo || !photo->date || !photo->full->loaded()) return;
+	if (!photo || !photo->date || !photo->loaded()) return;
 
 	QString file;
 	if (filedialogGetSaveFile(file, lang(lng_save_photo), qsl("JPEG Image (*.jpg);;All files (*.*)"), filedialogDefaultName(qsl("photo"), qsl(".jpg")))) {
@@ -1041,29 +1061,42 @@ void HistoryInner::copyContextImage() {
 	if (!lnk) return;
 	
 	PhotoData *photo = lnk->photo();
-	if (!photo || !photo->date || !photo->full->loaded()) return;
+	if (!photo || !photo->date || !photo->loaded()) return;
 
 	QApplication::clipboard()->setPixmap(photo->full->pix());
 }
 
 void HistoryInner::cancelContextDownload() {
-    VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
-    AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
-    DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	if (lnkVideo) {
+	if (VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data())) {
 		lnkVideo->video()->cancel();
-	} else if (lnkAudio) {
+	} else if (AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data())) {
 		lnkAudio->audio()->cancel();
-	} else if (lnkDocument) {
+	} else if (DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data())) {
 		lnkDocument->document()->cancel();
+	} else if (HistoryItem *item = App::contextItem()) {
+		if (HistoryMedia *media = item->getMedia()) {
+			if (DocumentData *doc = media->getDocument()) {
+				doc->cancel();
+			}
+		}
 	}
 }
 
 void HistoryInner::showContextInFolder() {
-    VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
-    AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
-    DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	QString already = lnkVideo ? lnkVideo->video()->already(true) : (lnkAudio ? lnkAudio->audio()->already(true) : (lnkDocument ? lnkDocument->document()->already(true) : QString()));
+	QString already;
+	if (VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data())) {
+		already = lnkVideo->video()->already(true);
+	} else if (AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data())) {
+		already = lnkAudio->audio()->already(true);
+	} else if (DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data())) {
+		already = lnkDocument->document()->already(true);
+	} else if (HistoryItem *item = App::contextItem()) {
+		if (HistoryMedia *media = item->getMedia()) {
+			if (DocumentData *doc = media->getDocument()) {
+				already = doc->already(true);
+			}
+		}
+	}
 	if (!already.isEmpty()) psShowInFolder(already);
 }
 
@@ -1080,12 +1113,29 @@ void HistoryInner::openContextFile() {
 }
 
 void HistoryInner::saveContextFile() {
-    VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
-    AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
-    DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	if (lnkVideo) VideoSaveLink::doSave(lnkVideo->video(), true);
-	if (lnkAudio) AudioSaveLink::doSave(lnkAudio->audio(), true);
-	if (lnkDocument) DocumentSaveLink::doSave(lnkDocument->document(), true);
+	if (VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data())) {
+		VideoSaveLink::doSave(lnkVideo->video(), true);
+	} else if (AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data())) {
+		AudioSaveLink::doSave(lnkAudio->audio(), true);
+	} else if (DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data())) {
+		DocumentSaveLink::doSave(lnkDocument->document(), true);
+	} else if (HistoryItem *item = App::contextItem()) {
+		if (HistoryMedia *media = item->getMedia()) {
+			if (DocumentData *doc = media->getDocument()) {
+				DocumentSaveLink::doSave(doc, true);
+			}
+		}
+	}
+}
+
+void HistoryInner::saveContextGif() {
+	if (HistoryItem *item = App::contextItem()) {
+		if (HistoryMedia *media = item->getMedia()) {
+			if (DocumentData *doc = media->getDocument()) {
+				_widget->saveGif(doc);
+			}
+		}
+	}
 }
 
 void HistoryInner::copyContextText() {
@@ -1345,13 +1395,13 @@ void HistoryInner::enterEvent(QEvent *e) {
 
 void HistoryInner::leaveEvent(QEvent *e) {
 	if (HistoryItem *item = App::hoveredItem()) {
-		redrawItem(item);
+		repaintItem(item);
 		App::hoveredItem(0);
 	}
 	if (textlnkOver()) {
 		if (HistoryItem *item = App::hoveredLinkItem()) {
 			item->linkOut(textlnkOver());
-			redrawItem(item);
+			repaintItem(item);
 			App::hoveredLinkItem(0);
 		}
 		textlnkOver(TextLinkPtr());
@@ -1524,12 +1574,12 @@ void HistoryInner::onUpdateSelected() {
 		m = mapMouseToItem(point, item);
 		if (item->hasPoint(m.x(), m.y())) {
 			if (App::hoveredItem() != item) {
-				redrawItem(App::hoveredItem());
+				repaintItem(App::hoveredItem());
 				App::hoveredItem(item);
-				redrawItem(App::hoveredItem());
+				repaintItem(App::hoveredItem());
 			}
 		} else if (App::hoveredItem()) {
-			redrawItem(App::hoveredItem());
+			repaintItem(App::hoveredItem());
 			App::hoveredItem(0);
 		}
 	}
@@ -1557,7 +1607,7 @@ void HistoryInner::onUpdateSelected() {
 		if (textlnkOver()) {
 			if (HistoryItem *item = App::hoveredLinkItem()) {
 				item->linkOut(textlnkOver());
-				redrawItem(item);
+				repaintItem(item);
 			} else {
 				update(_botDescRect);
 			}
@@ -1568,7 +1618,7 @@ void HistoryInner::onUpdateSelected() {
 		if (textlnkOver()) {
 			if (HistoryItem *item = App::hoveredLinkItem()) {
 				item->linkOver(textlnkOver());
-				redrawItem(item);
+				repaintItem(item);
 			} else {
 				update(_botDescRect);
 			}
@@ -1608,7 +1658,10 @@ void HistoryInner::onUpdateSelected() {
 				_dragItem->getSymbol(second, afterSymbol, uponSymbol, m.x(), m.y());
 				if (afterSymbol && _dragSelType == TextSelectLetters) ++second;
 				uint32 selState = _dragItem->adjustSelection(qMin(second, _dragSymbol), qMax(second, _dragSymbol), _dragSelType);
-				_selected[_dragItem] = selState;
+				if (_selected[_dragItem] != selState) {
+					_selected[_dragItem] = selState;
+					repaintItem(_dragItem);
+				}
 				if (!_wasSelectedText && (selState == FullSelection || (selState & 0xFFFF) != ((selState >> 16) & 0xFFFF))) {
 					_wasSelectedText = true;
 					setFocus();
@@ -2558,6 +2611,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _replyForwardPressed(false)
 , _replyReturn(0)
 , _stickersUpdateRequest(0)
+, _savedGifsUpdateRequest(0)
 , _peer(0)
 , _clearPeer(0)
 , _channel(NoChannel)
@@ -2741,7 +2795,11 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 
 void HistoryWidget::start() {
 	connect(App::main(), SIGNAL(stickersUpdated()), &_emojiPan, SLOT(refreshStickers()));
+	connect(App::main(), SIGNAL(savedGifsUpdated()), &_emojiPan, SLOT(refreshSavedGifs()));
+
 	updateRecentStickers();
+	if (App::main()) emit App::main()->savedGifsUpdated();
+
 	connect(App::api(), SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
 }
 
@@ -2945,11 +3003,16 @@ void HistoryWidget::onRecordUpdate(qint16 level, qint32 samples) {
 }
 
 void HistoryWidget::updateStickers() {
-	if (cLastStickersUpdate() && getms(true) < cLastStickersUpdate() + StickersUpdateTimeout) return;
-	if (_stickersUpdateRequest) return;
-
-	cSetStickersHash(stickersCountHash(true));
-	_stickersUpdateRequest = MTP::send(MTPmessages_GetAllStickers(MTP_int(cStickersHash())), rpcDone(&HistoryWidget::stickersGot), rpcFail(&HistoryWidget::stickersFailed));
+	if (!cLastStickersUpdate() || getms(true) >= cLastStickersUpdate() + StickersUpdateTimeout) {
+		if (!_stickersUpdateRequest) {
+			_stickersUpdateRequest = MTP::send(MTPmessages_GetAllStickers(MTP_int(Local::countStickersHash(true))), rpcDone(&HistoryWidget::stickersGot), rpcFail(&HistoryWidget::stickersFailed));
+		}
+	}
+	if (!cLastSavedGifsUpdate() || getms(true) >= cLastSavedGifsUpdate() + StickersUpdateTimeout) {
+		if (!_savedGifsUpdateRequest) {
+			_savedGifsUpdateRequest = MTP::send(MTPmessages_GetSavedGifs(MTP_int(Local::countSavedGifsHash())), rpcDone(&HistoryWidget::savedGifsGot), rpcFail(&HistoryWidget::savedGifsFailed));
+		}
+	}
 }
 
 void HistoryWidget::notify_botCommandsChanged(UserData *user) {
@@ -2988,6 +3051,10 @@ void HistoryWidget::notify_migrateUpdated(PeerData *peer) {
 			showHistory(_peer->id, _showAtMsgId, true);
 		}
 	}
+}
+
+void HistoryWidget::notify_clipStopperHidden(ClipStopperType type) {
+	if (_list) _list->update();
 }
 
 void HistoryWidget::notify_historyItemResized(const HistoryItem *row, bool scrollToIt) {
@@ -3055,10 +3122,8 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 		}
 	}
 
-	int32 countedHash = stickersCountHash();
-	cSetStickersHash(countedHash);
-	if (countedHash != d.vhash.v) {
-		LOG(("API Error: received stickers hash %1 while counted hash is %2").arg(d.vhash.v).arg(countedHash));
+	if (Local::countStickersHash() != d.vhash.v) {
+		LOG(("API Error: received stickers hash %1 while counted hash is %2").arg(d.vhash.v).arg(Local::countStickersHash()));
 	}
 
 	if (!setsToRequest.isEmpty() && App::api()) {
@@ -3081,6 +3146,61 @@ bool HistoryWidget::stickersFailed(const RPCError &error) {
 
 	cSetLastStickersUpdate(getms(true));
 	_stickersUpdateRequest = 0;
+	return true;
+}
+
+void HistoryWidget::savedGifsGot(const MTPmessages_SavedGifs &gifs) {
+	cSetLastSavedGifsUpdate(getms(true));
+	_savedGifsUpdateRequest = 0;
+
+	if (gifs.type() != mtpc_messages_savedGifs) return;
+	const MTPDmessages_savedGifs &d(gifs.c_messages_savedGifs());
+
+	const QVector<MTPDocument> &d_gifs(d.vgifs.c_vector().v);
+
+	SavedGifs &saved(cRefSavedGifs());
+	saved.clear();
+
+	saved.reserve(d_gifs.size());
+	for (int32 i = 0, l = d_gifs.size(); i != l; ++i) {
+		DocumentData *doc = App::feedDocument(d_gifs.at(i));
+		if (!doc || !doc->isAnimation()) {
+			LOG(("API Error: bad document returned in HistoryWidget::savedGifsGot!"));
+			continue;
+		}
+
+		saved.push_back(doc);
+	}
+	if (Local::countSavedGifsHash() != d.vhash.v) {
+		LOG(("API Error: received saved gifs hash %1 while counted hash is %2").arg(d.vhash.v).arg(Local::countSavedGifsHash()));
+	}
+
+	Local::writeSavedGifs();
+
+	if (App::main()) emit App::main()->savedGifsUpdated();
+}
+
+void HistoryWidget::saveGif(DocumentData *doc) {
+	if (doc->mime.toLower() == qstr("video/mp4") && doc->type == AnimatedDocument) {
+		if (cSavedGifs().indexOf(doc) != 0) {
+			MTP::send(MTPmessages_SaveGif(MTP_inputDocument(MTP_long(doc->id), MTP_long(doc->access)), MTP_bool(false)), rpcDone(&HistoryWidget::saveGifDone, doc));
+		}
+	}
+}
+
+void HistoryWidget::saveGifDone(DocumentData *doc, const MTPBool &result) {
+	if (mtpIsTrue(result)) {
+		App::addSavedGif(doc);
+	}
+}
+
+bool HistoryWidget::savedGifsFailed(const RPCError &error) {
+	if (mtpIsFlood(error)) return false;
+
+	LOG(("App Fail: Failed to get saved gifs!"));
+
+	cSetLastSavedGifsUpdate(getms(true));
+	_savedGifsUpdateRequest = 0;
 	return true;
 }
 
@@ -3225,7 +3345,9 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		}
 	}
 
-//	App::stopGifItems();
+	if (!cAutoPlayGif()) {
+		App::stopGifItems();
+	}
 	clearReplyReturns();
 
 	clearAllLoadRequests();
@@ -5441,7 +5563,7 @@ void HistoryWidget::onPhotoProgress(const FullMsgId &newId) {
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadPhoto, 0);
 		}
-		Ui::redrawHistoryItem(item);
+		Ui::repaintHistoryItem(item);
 	}
 }
 
@@ -5453,7 +5575,7 @@ void HistoryWidget::onDocumentProgress(const FullMsgId &newId) {
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadFile, doc ? doc->uploadOffset : 0);
 		}
-		Ui::redrawHistoryItem(item);
+		Ui::repaintHistoryItem(item);
 	}
 }
 
@@ -5464,7 +5586,7 @@ void HistoryWidget::onAudioProgress(const FullMsgId &newId) {
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadAudio, audio ? audio->uploadOffset : 0);
 		}
-		Ui::redrawHistoryItem(item);
+		Ui::repaintHistoryItem(item);
 	}
 }
 
@@ -5475,7 +5597,7 @@ void HistoryWidget::onPhotoFailed(const FullMsgId &newId) {
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadPhoto, -1);
 		}
-//		Ui::redrawHistoryItem(item);
+//		Ui::repaintHistoryItem(item);
 	}
 }
 
@@ -5486,7 +5608,7 @@ void HistoryWidget::onDocumentFailed(const FullMsgId &newId) {
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadFile, -1);
 		}
-		Ui::redrawHistoryItem(item);
+		Ui::repaintHistoryItem(item);
 	}
 }
 
@@ -5497,7 +5619,7 @@ void HistoryWidget::onAudioFailed(const FullMsgId &newId) {
 		if (!item->fromChannel()) {
 			updateSendAction(item->history(), SendActionUploadAudio, -1);
 		}
-		Ui::redrawHistoryItem(item);
+		Ui::repaintHistoryItem(item);
 	}
 }
 
@@ -5595,10 +5717,22 @@ bool HistoryWidget::isItemVisible(HistoryItem *item) {
 	return true;
 }
 
-void HistoryWidget::ui_redrawHistoryItem(const HistoryItem *item) {
+void HistoryWidget::ui_repaintHistoryItem(const HistoryItem *item) {
 	if (_peer && _list && (item->history() == _history || (_migrated && item->history() == _migrated))) {
-		_list->redrawItem(item);
+		_list->repaintItem(item);
 	}
+}
+
+void HistoryWidget::ui_repaintSavedGif(const LayoutSavedGif *layout) {
+	_emojiPan.ui_repaintSavedGif(layout);
+}
+
+bool HistoryWidget::ui_isSavedGifVisible(const LayoutSavedGif *layout) {
+	return _emojiPan.ui_isSavedGifVisible(layout) || _attachMention.ui_isSavedGifVisible(layout);
+}
+
+bool HistoryWidget::ui_isGifBeingChosen() {
+	return _emojiPan.ui_isGifBeingChosen() || _attachMention.ui_isGifBeingChosen();
 }
 
 void HistoryWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
@@ -6520,7 +6654,7 @@ void HistoryWidget::onAnimActiveStep() {
 	if (getms() - _animActiveStart > st::activeFadeInDuration + st::activeFadeOutDuration) {
 		stopAnimActive();
 	} else {
-		Ui::redrawHistoryItem(item);
+		Ui::repaintHistoryItem(item);
 	}
 }
 

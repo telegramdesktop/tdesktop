@@ -647,8 +647,6 @@ void Window::sendServiceHistoryRequest() {
 }
 
 void Window::setupMain(bool anim, const MTPUser *self) {
-	Local::readStickers();
-
 	QPixmap bg = anim ? grabInner() : QPixmap();
 	clearWidgets();
 	main = new MainWidget(this);
@@ -797,9 +795,9 @@ void Window::showDocument(DocumentData *doc, HistoryItem *item) {
 	_mediaView->setFocus();
 }
 
-void Window::ui_clipRedraw(ClipReader *reader) {
+void Window::ui_clipRepaint(ClipReader *reader) {
 	if (_mediaView && !_mediaView->isHidden()) {
-		_mediaView->ui_clipRedraw(reader);
+		_mediaView->ui_clipRepaint(reader);
 	}
 }
 
@@ -842,6 +840,10 @@ void Window::ui_showLayer(LayeredWidget *box, ShowLayerOptions options) {
 
 bool Window::ui_isLayerShown() {
 	return !!layerBg;
+}
+
+bool Window::ui_isMediaViewShown() {
+	return _mediaView && !_mediaView->isHidden();
 }
 
 void Window::notify_clipReinit(ClipReader *reader) {

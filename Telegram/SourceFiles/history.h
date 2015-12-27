@@ -1235,6 +1235,12 @@ protected:
 		_animation->radial.step(ms);
 		return _animation && _animation->radial.animating();
 	}
+	bool isThumbAnimation(uint64 ms) const {
+		if (!_animation || !_animation->_a_thumbOver.animating()) return false;
+		
+		_animation->_a_thumbOver.step(ms);
+		return _animation && _animation->_a_thumbOver.animating();
+	}
 
 	virtual float64 dataProgress() const = 0;
 	virtual bool dataFinished() const = 0;
@@ -1287,6 +1293,9 @@ public:
 	}
 
 	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent, bool allowEmitResize);
+
+	void regItem(HistoryItem *item);
+	void unregItem(HistoryItem *item);
 
 	bool hasReplyPreview() const {
 		return !_data->thumb->isNull();
@@ -1621,6 +1630,12 @@ private:
 	DocumentData *_data;
 	int32 _thumbw, _thumbh;
 	ClipReader *_gif;
+	ClipReader *gif() {
+		return (_gif == BadClipReader) ? 0 : _gif;
+	}
+	const ClipReader *gif() const {
+		return (_gif == BadClipReader) ? 0 : _gif;
+	}
 
 	void setStatusSize(int32 newSize) const;
 	void updateStatusText(const HistoryItem *parent) const;
@@ -1802,6 +1817,12 @@ public:
 	bool customInfoLayout() const {
 		return false;
 	}
+
+	HistoryMedia *attach() const {
+		return _attach;
+	}
+	
+	~HistoryWebPage();
 
 private:
 	WebPageData *_data;
@@ -2164,6 +2185,13 @@ public:
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
 	uint32 adjustSelection(uint16 from, uint16 to, TextSelectType type) const {
 		return _text.adjustSelection(from, to, type);
+	}
+
+	void linkOver(const TextLinkPtr &lnk) {
+		if (_media) _media->linkOver(this, lnk);
+	}
+	void linkOut(const TextLinkPtr &lnk) {
+		if (_media) _media->linkOut(this, lnk);
 	}
 
 	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
