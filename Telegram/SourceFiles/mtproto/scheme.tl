@@ -155,11 +155,12 @@ inputMediaUploadedThumbVideo#7780ddf9 file:InputFile thumb:InputFile duration:in
 inputMediaVideo#936a4ebd id:InputVideo caption:string = InputMedia;
 inputMediaUploadedAudio#4e498cab file:InputFile duration:int mime_type:string = InputMedia;
 inputMediaAudio#89938781 id:InputAudio = InputMedia;
-inputMediaUploadedDocument#ffe76b78 file:InputFile mime_type:string attributes:Vector<DocumentAttribute> = InputMedia;
-inputMediaUploadedThumbDocument#41481486 file:InputFile thumb:InputFile mime_type:string attributes:Vector<DocumentAttribute> = InputMedia;
-inputMediaDocument#d184e841 id:InputDocument = InputMedia;
+inputMediaUploadedDocument#1d89306d file:InputFile mime_type:string attributes:Vector<DocumentAttribute> caption:string = InputMedia;
+inputMediaUploadedThumbDocument#ad613491 file:InputFile thumb:InputFile mime_type:string attributes:Vector<DocumentAttribute> caption:string = InputMedia;
+inputMediaDocument#1a77f29c id:InputDocument caption:string = InputMedia;
 inputMediaVenue#2827a81a geo_point:InputGeoPoint title:string address:string provider:string venue_id:string = InputMedia;
 inputMediaGifExternal#4843b0fd url:string q:string = InputMedia;
+inputMediaContextBotResult#48720fe8 flags:# media:flags.0?true bot:InputUser url:string query_id:long = InputMedia;
 
 inputChatPhotoEmpty#1ca48f57 = InputChatPhoto;
 inputChatUploadedPhoto#94254732 file:InputFile crop:InputPhotoCrop = InputChatPhoto;
@@ -204,7 +205,7 @@ fileLocationUnavailable#7c596b46 volume_id:long local_id:int secret:long = FileL
 fileLocation#53d69076 dc_id:int volume_id:long local_id:int secret:long = FileLocation;
 
 userEmpty#200250ba id:int = User;
-user#603539b4 flags:# self:flags.10?true contact:flags.11?true mutual_contact:flags.12?true deleted:flags.13?true bot:flags.14?true bot_chat_history:flags.15?true bot_nochats:flags.16?true verified:flags.17?true restricted:flags.18?true id:int access_hash:flags.0?long first_name:flags.1?string last_name:flags.2?string username:flags.3?string phone:flags.4?string photo:flags.5?UserProfilePhoto status:flags.6?UserStatus bot_info_version:flags.14?int restriction_reason:flags.18?string = User;
+user#cb574c74 flags:# self:flags.10?true contact:flags.11?true mutual_contact:flags.12?true deleted:flags.13?true bot:flags.14?true bot_chat_history:flags.15?true bot_nochats:flags.16?true verified:flags.17?true restricted:flags.18?true id:int access_hash:flags.0?long first_name:flags.1?string last_name:flags.2?string username:flags.3?string phone:flags.4?string photo:flags.5?UserProfilePhoto status:flags.6?UserStatus bot_info_version:flags.14?int restriction_reason:flags.18?string bot_context_placeholder:flags.19?string = User;
 
 userProfilePhotoEmpty#4f11bae1 = UserProfilePhoto;
 userProfilePhoto#d559d8c8 photo_id:long photo_small:FileLocation photo_big:FileLocation = UserProfilePhoto;
@@ -245,7 +246,7 @@ messageMediaVideo#5bcf1675 video:Video caption:string = MessageMedia;
 messageMediaGeo#56e0d474 geo:GeoPoint = MessageMedia;
 messageMediaContact#5e7d2f39 phone_number:string first_name:string last_name:string user_id:int = MessageMedia;
 messageMediaUnsupported#9f84f49e = MessageMedia;
-messageMediaDocument#2fda2204 document:Document = MessageMedia;
+messageMediaDocument#f3e02ea8 document:Document caption:string = MessageMedia;
 messageMediaAudio#c6b68300 audio:Audio = MessageMedia;
 messageMediaWebPage#a32dd600 webpage:WebPage = MessageMedia;
 messageMediaVenue#7912b71f geo:GeoPoint title:string address:string provider:string venue_id:string = MessageMedia;
@@ -400,6 +401,7 @@ updateNewStickerSet#688a30aa stickerset:messages.StickerSet = Update;
 updateStickerSetsOrder#f0dfb451 order:Vector<long> = Update;
 updateStickerSets#43ae3dec = Update;
 updateSavedGifs#9375341e = Update;
+updateBotContextQuery#934bca16 query_id:long user_id:int query:string offset:string = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -646,6 +648,12 @@ messages.foundGifs#450a1c0a next_offset:int results:Vector<FoundGif> = messages.
 messages.savedGifsNotModified#e8025ca2 = messages.SavedGifs;
 messages.savedGifs#2e0709a5 hash:int gifs:Vector<Document> = messages.SavedGifs;
 
+inputBotContextResult#a47850c5 flags:# hide_url:flags.20?true url:string type:flags.0?string title:flags.1?string description:flags.2?string thumb_url:flags.3?string content_url:flags.4?string content_type:flags.4?string w:flags.5?int h:flags.5?int duration:flags.6?int = InputBotContextResult;
+
+botContextResult#ea0b7eec flags:# hide_url:flags.0?true webpage:WebPage = BotContextResult;
+
+messages.botResults#772740b1 flags:# media:flags.0?true query_id:long next_offset:flags.1?string results:Vector<BotContextResult> = messages.BotResults;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -766,6 +774,8 @@ messages.getDocumentByHash#338e2464 sha256:bytes size:int mime_type:string = Doc
 messages.searchGifs#bf9a776b q:string offset:int = messages.FoundGifs;
 messages.getSavedGifs#83bf3d52 hash:int = messages.SavedGifs;
 messages.saveGif#327a30cb id:InputDocument unsave:Bool = Bool;
+messages.getContextBotResults#36e7d06c bot:InputUser query:string offset:string = messages.BotResults;
+messages.setContextBotResults#d7f2de0f flags:# media:flags.0?true private:flags.1?true query_id:long results:Vector<InputBotContextResult> cache_time:int next_offset:flags.2?string = Bool;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#a041495 pts:int date:int qts:int = updates.Difference;
