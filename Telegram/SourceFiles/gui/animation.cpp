@@ -300,6 +300,8 @@ QPixmap ClipReader::current(int32 framew, int32 frameh, int32 outerw, int32 oute
 	_request.outerh = outerh * factor;
 
 	QImage current(_currentOriginal);
+	current.setDevicePixelRatio(cRetinaFactor());
+
 	result = _current = QPixmap();
 	result = _current = _prepareFrame(_request, current, _cacheForResize, true);
 

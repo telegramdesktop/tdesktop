@@ -502,7 +502,7 @@ private:
 };
 
 template <typename Object, typename ReturnType>
-Function<ReturnType> *func(Object *obj, typename ReturnType (Object::*method)()) {
+Function<ReturnType> *func(Object *obj, ReturnType (Object::*method)()) {
 	return new ObjectFunction<Object, ReturnType>(obj, method);
 }
 

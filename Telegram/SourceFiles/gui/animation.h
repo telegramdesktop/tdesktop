@@ -366,7 +366,7 @@ public:
 	}
 
 	typename AnimType::Type current() {
-		return _data ? _data->a.current() : AnimType::Type();
+		return _data ? _data->a.current() : typename AnimType::Type();
 	}
 
 	typename AnimType::Type current(uint64 ms, const typename AnimType::Type &def) {
