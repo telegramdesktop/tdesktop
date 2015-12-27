@@ -1,40 +1,16 @@
 // Microsoft Visual C++ generated resource script.
 //
 #include "resource.h"
-/////////////////////////////////////////////////////////////////////////////
-// Russian (Russia) resources
 
-#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_RUS)
-LANGUAGE LANG_RUSSIAN, SUBLANG_DEFAULT
-#pragma code_page(1251)
-
-#ifdef APSTUDIO_INVOKED
+#define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
 //
-// TEXTINCLUDE
+// Generated from the TEXTINCLUDE 2 resource.
 //
+#include "winres.h"
 
-1 TEXTINCLUDE 
-BEGIN
-    "resource.h\0"
-END
-
-2 TEXTINCLUDE 
-BEGIN
-    "\0"
-END
-
-3 TEXTINCLUDE 
-BEGIN
-    "\r\n"
-    "\0"
-END
-
-#endif    // APSTUDIO_INVOKED
-
-#endif    // Russian (Russia) resources
 /////////////////////////////////////////////////////////////////////////////
-
+#undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
 // English (United States) resources
