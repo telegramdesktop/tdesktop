@@ -85,7 +85,7 @@ void logWrite(const QString &v);
 inline void t_noop() {}
 inline void t_assert_fail(const char *condition, const char *file, int32 line) {
 	LOG(("Assertion Failed! \"%1\" %2:%3").arg(condition).arg(file).arg(line));
-	abort();
+	*(int*)0 = 0;
 }
 #define t_assert(cond) ((!(cond)) ? t_assert_fail(#cond, __FILE__, __LINE__) : t_noop())
 

@@ -1341,8 +1341,6 @@ void DocumentOpenLink::doOpen(DocumentData *data, ActionOnLoad action) {
 
 	HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0);
 
-	MTP::send(MTPmessages_SendMedia(MTP_int(0), item->history()->peer->input, MTP_int(0), MTP_inputMediaDocument(MTP_inputDocument(MTP_long(data->id), MTP_long(data->access))), MTP_long(MTP::nonce<uint64>()), MTPnullMarkup));
-		
 	bool playMusic = data->song() && audioPlayer() && item;
 	bool playAnimation = data->isAnimation() && item && item->getMedia();
 	const FileLocation &location(data->location(true));
