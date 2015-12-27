@@ -1235,6 +1235,12 @@ protected:
 		_animation->radial.step(ms);
 		return _animation && _animation->radial.animating();
 	}
+	bool isThumbAnimation(uint64 ms) const {
+		if (!_animation || !_animation->_a_thumbOver.animating()) return false;
+		
+		_animation->_a_thumbOver.step(ms);
+		return _animation && _animation->_a_thumbOver.animating();
+	}
 
 	virtual float64 dataProgress() const = 0;
 	virtual bool dataFinished() const = 0;
@@ -1812,6 +1818,12 @@ public:
 		return false;
 	}
 
+	HistoryMedia *attach() const {
+		return _attach;
+	}
+	
+	~HistoryWebPage();
+
 private:
 	WebPageData *_data;
 	TextLinkPtr _openl;
@@ -2173,6 +2185,13 @@ public:
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
 	uint32 adjustSelection(uint16 from, uint16 to, TextSelectType type) const {
 		return _text.adjustSelection(from, to, type);
+	}
+
+	void linkOver(const TextLinkPtr &lnk) {
+		if (_media) _media->linkOver(this, lnk);
+	}
+	void linkOut(const TextLinkPtr &lnk) {
+		if (_media) _media->linkOut(this, lnk);
 	}
 
 	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;

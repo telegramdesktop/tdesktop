@@ -154,6 +154,7 @@ namespace {
 		mtpUpdateDcOptions(data.vdc_options.c_vector().v);
 		cSetMaxGroupCount(data.vchat_size_max.v);
 		cSetMaxMegaGroupCount(data.vmegagroup_size_max.v);
+		cSetSavedGifsLimit(data.vsaved_gifs_limit.v);
 
 		configLoadedOnce = true;
 		Local::writeSettings();

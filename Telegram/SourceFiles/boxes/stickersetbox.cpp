@@ -112,7 +112,6 @@ void StickerSetInner::installDone(const MTPBool &result) {
 			sets.erase(custom);
 		}
 	}
-	cSetStickersHash(stickersCountHash());
 	Local::writeStickers();
 	emit installed(_setId);
 	Ui::hideLayer();
@@ -892,7 +891,6 @@ void StickersBox::onSave() {
 		}
 	}
 
-	cSetStickersHash(stickersCountHash());
 	Local::writeStickers();
 	if (writeRecent) Local::writeUserSettings();
 	emit App::main()->stickersUpdated();

@@ -582,6 +582,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_media_auto_gif" = "Automatic GIF download";
 "lng_media_auto_private_chats" = "Private chats";
 "lng_media_auto_groups" = "Groups and channels";
+"lng_media_auto_play" = "Autoplay";
 
 "lng_emoji_category0" = "Frequently used";
 "lng_emoji_category1" = "People";
@@ -595,6 +596,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_switch_stickers" = "Stickers";
 "lng_switch_stickers_gifs" = "GIFs & Stickers";
 "lng_switch_emoji" = "Emoji";
+
+"lng_saved_gifs" = "Saved GIFs";
 
 "lng_box_remove" = "Remove";
 
@@ -724,6 +727,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_context_delete_file" = "Delete File";
 "lng_context_close_file" = "Close File";
 "lng_context_copy_text" = "Copy Text";
+"lng_context_save_gif" = "Save GIF";
 "lng_context_to_msg" = "Go To Message";
 "lng_context_reply_msg" = "Reply";
 "lng_context_forward_msg" = "Forward Message";

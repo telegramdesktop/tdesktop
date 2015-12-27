@@ -258,7 +258,6 @@ public:
 public slots:
 
 	void updateSelected();
-	void onSaveConfig();
 
 	void onShowPicker();
 	void onPickerHidden();
@@ -276,6 +275,7 @@ signals:
 	void disableScroll(bool dis);
 
 	void needRefreshPanels();
+	void saveConfigDelayed(int32 delay);
 
 private:
 
@@ -300,14 +300,12 @@ private:
 	int32 _selected, _pressedSel, _pickerSel;
 	QPoint _lastMousePos;
 
-	QTimer _saveConfigTimer;
-
 	EmojiColorPicker _picker;
 	QTimer _showPickerTimer;
 };
 
 struct StickerIcon {
-	StickerIcon() : setId(RecentStickerSetId), sticker(0), pixw(0), pixh(0) {
+	StickerIcon(uint64 setId) : setId(setId), sticker(0), pixw(0), pixh(0) {
 	}
 	StickerIcon(uint64 setId, DocumentData *sticker, int32 pixw, int32 pixh) : setId(setId), sticker(sticker), pixw(pixw), pixh(pixh) {
 	}
@@ -335,14 +333,17 @@ public:
 
 	void step_selected(uint64 ms, bool timer);
 
+	void hideFinish();
 	void showStickerSet(uint64 setId);
 
 	void clearSelection(bool fast = false);
 
 	void refreshStickers();
-	void refreshRecent(bool resize = true);
+	void refreshRecentStickers(bool resize = true);
+	void refreshSavedGifs();
+	void refreshRecent();
 
-	void fillIcons(QVector<StickerIcon> &icons);
+	void fillIcons(QList<StickerIcon> &icons);
 	void fillPanels(QVector<EmojiPanel*> &panels);
 	void refreshPanels(QVector<EmojiPanel*> &panels);
 
@@ -350,6 +351,15 @@ public:
 	void preloadImages();
 
 	uint64 currentSet(int yOffset) const;
+
+	void ui_repaintSavedGif(const LayoutSavedGif *layout);
+	bool ui_isSavedGifVisible(const LayoutSavedGif *layout);
+	bool ui_isGifBeingChosen();
+
+	~StickerPanInner() {
+		clearSavedGifs();
+		deleteUnusedLayouts();
+	}
 
 public slots:
 
@@ -367,11 +377,17 @@ signals:
 	void switchToEmoji();
 
 	void scrollToY(int y);
+	void scrollUpdated();
 	void disableScroll(bool dis);
 	void needRefreshPanels();
 
+	void saveConfigDelayed(int32 delay);
+
 private:
 
+	void paintSavedGifs(Painter &p, const QRect &r);
+	void paintStickers(Painter &p, const QRect &r);
+		
 	int32 _maxHeight;
 
 	void appendSet(uint64 setId);
@@ -397,6 +413,19 @@ private:
 	};
 	QList<DisplayedSet> _sets;
 	QList<bool> _custom;
+
+	bool _showingGifs;
+
+	typedef QList<LayoutSavedGif*> GifRow;
+	typedef QList<GifRow> GifRows;
+	GifRows _gifRows;
+	void clearSavedGifs();
+	void deleteUnusedLayouts();
+
+	typedef QMap<DocumentData*, LayoutSavedGif*> GifLayouts;
+	GifLayouts _gifLayouts;
+	LayoutSavedGif *layoutPrepare(DocumentData *doc, int32 position, int32 width);
+	const GifRow &layoutGifRow(const GifRow &row, int32 *widths, int32 sumWidth);
 
 	int32 _selected, _pressedSel;
 	QPoint _lastMousePos;
@@ -452,6 +481,7 @@ public:
 
 	EmojiSwitchButton(QWidget *parent, bool toStickers); // otherwise toEmoji
 	void paintEvent(QPaintEvent *e);
+	void updateText();
 
 protected:
 
@@ -504,9 +534,14 @@ public:
 					 ).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
 
+	void ui_repaintSavedGif(const LayoutSavedGif *layout);
+	bool ui_isSavedGifVisible(const LayoutSavedGif *layout);
+	bool ui_isGifBeingChosen();
+
 public slots:
 
 	void refreshStickers();
+	void refreshSavedGifs();
 
 	void hideStart();
 	void hideFinish();
@@ -525,6 +560,9 @@ public slots:
 	void onRefreshIcons();
 	void onRefreshPanels();
 
+	void onSaveConfig();
+	void onSaveConfigDelayed(int32 delay);
+
 signals:
 
 	void emojiSelected(EmojiPtr emoji);
@@ -532,6 +570,8 @@ signals:
 	void updateStickers();
 
 private:
+
+	void validateSelectedIcon(bool animated = false);
 
 	int32 _maxHeight;
 	bool _horizontal;
@@ -561,7 +601,7 @@ private:
 	BoxShadow _shadow;
 
 	FlatRadiobutton _recent, _people, _nature, _food, _activity, _travel, _objects, _symbols;
-	QVector<StickerIcon> _icons;
+	QList<StickerIcon> _icons;
 	QVector<float64> _iconHovers;
 	int32 _iconOver, _iconSel, _iconDown;
 	bool _iconsDragging;
@@ -590,6 +630,8 @@ private:
 	EmojiSwitchButton s_switch;
 
 	uint64 _removingSetId;
+
+	QTimer _saveConfigTimer;
 
 };
 
@@ -678,6 +720,10 @@ public:
 
 		return rect().contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
+
+	void ui_repaintSavedGif(const LayoutSavedGif *layout);
+	bool ui_isSavedGifVisible(const LayoutSavedGif *layout);
+	bool ui_isGifBeingChosen();
 
 	~MentionsDropdown();
 

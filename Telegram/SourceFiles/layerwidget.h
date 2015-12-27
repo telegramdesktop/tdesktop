@@ -131,6 +131,12 @@ private:
 	anim::fvalue a_shown;
 	Animation _a_shown;
 	DocumentData *_doc;
+	ClipReader *_gif;
+	bool gif() const {
+		return (!_gif || _gif == BadClipReader) ? false : true;
+	}
+
+	void clipCallback(ClipReaderNotification notification);
 
 	enum CacheStatus {
 		CacheNotLoaded,

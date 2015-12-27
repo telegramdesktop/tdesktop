@@ -915,5 +915,5 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 }
 
 ApiWrap::~ApiWrap() {
-	App::deinitMedia(false);
+	App::clearHistories();
 }

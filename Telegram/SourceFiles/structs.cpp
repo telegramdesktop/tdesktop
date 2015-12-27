@@ -578,6 +578,10 @@ void PhotoData::automaticLoad(const HistoryItem *item) {
 	full->automaticLoad(item);
 }
 
+void PhotoData::automaticLoadSettingsChanged() {
+	full->automaticLoadSettingsChanged();
+}
+
 void PhotoData::download() {
 	full->loadEvenCancelled();
 	notifyLayoutChanged();
@@ -1158,6 +1162,11 @@ void AudioData::automaticLoad(const HistoryItem *item) {
 	}
 }
 
+void AudioData::automaticLoadSettingsChanged() {
+	if (loaded() || status != FileReady || !saveToCache() || _loader != CancelledFileLoader) return;
+	_loader = 0;
+}
+
 void AudioData::performActionOnLoad() {
 	if (_actionOnLoad == ActionOnLoadNone) return;
 
@@ -1332,6 +1341,8 @@ void DocumentOpenLink::doOpen(DocumentData *data, ActionOnLoad action) {
 
 	HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0);
 
+	MTP::send(MTPmessages_SendMedia(MTP_int(0), item->history()->peer->input, MTP_int(0), MTP_inputMediaDocument(MTP_inputDocument(MTP_long(data->id), MTP_long(data->access))), MTP_long(MTP::nonce<uint64>()), MTPnullMarkup));
+		
 	bool playMusic = data->song() && audioPlayer() && item;
 	bool playAnimation = data->isAnimation() && item && item->getMedia();
 	const FileLocation &location(data->location(true));
@@ -1556,16 +1567,25 @@ void DocumentData::automaticLoad(const HistoryItem *item) {
 	if (saveToCache() && _loader != CancelledFileLoader) {
 		if (type == StickerDocument) {
 			save(QString(), _actionOnLoad, _actionOnLoadMsgId);
-		} else if (isAnimation() && item) {
+		} else if (isAnimation()) {
 			bool loadFromCloud = false;
-			if (item->history()->peer->isUser()) {
-				loadFromCloud = !(cAutoDownloadGif() & dbiadNoPrivate);
-			} else {
-				loadFromCloud = !(cAutoDownloadGif() & dbiadNoGroups);
+			if (item) {
+				if (item->history()->peer->isUser()) {
+					loadFromCloud = !(cAutoDownloadGif() & dbiadNoPrivate);
+				} else {
+					loadFromCloud = !(cAutoDownloadGif() & dbiadNoGroups);
+				}
+			} else { // if load at least anywhere
+				loadFromCloud = !(cAutoDownloadGif() & dbiadNoPrivate) || !(cAutoDownloadGif() & dbiadNoGroups);
 			}
 			save(QString(), _actionOnLoad, _actionOnLoadMsgId, loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly, true);
 		}
 	}
+}
+
+void DocumentData::automaticLoadSettingsChanged() {
+	if (loaded() || status != FileReady || !isAnimation() || !saveToCache() || _loader != CancelledFileLoader) return;
+	_loader = 0;
 }
 
 void DocumentData::performActionOnLoad() {

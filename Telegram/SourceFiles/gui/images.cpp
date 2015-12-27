@@ -46,6 +46,8 @@ namespace {
 	static const uint64 RoundedCacheSkip = 0x4000000000000000LLU;
 }
 
+StorageImageLocation StorageImageLocation::Null;
+
 bool Image::isNull() const {
 	return (this == blank());
 }
@@ -686,6 +688,11 @@ void StorageImage::automaticLoad(const HistoryItem *item) {
 			_loader->start();
 		}
 	}
+}
+
+void StorageImage::automaticLoadSettingsChanged() {
+	if (loaded() || _loader != CancelledFileLoader) return;
+	_loader = 0;
 }
 
 void StorageImage::load(bool loadFirst, bool prior) {

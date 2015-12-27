@@ -226,11 +226,12 @@ AutoDownloadBox::AutoDownloadBox() : AbstractBox(st::boxWidth)
 , _audioGroups(this, lang(lng_media_auto_groups), !(cAutoDownloadAudio() & dbiadNoGroups))
 , _gifPrivate(this, lang(lng_media_auto_private_chats), !(cAutoDownloadGif() & dbiadNoPrivate))
 , _gifGroups(this, lang(lng_media_auto_groups), !(cAutoDownloadGif() & dbiadNoGroups))
+, _gifPlay(this, lang(lng_media_auto_play), cAutoPlayGif())
 , _sectionHeight(st::boxTitleHeight + 2 * (st::defaultCheckbox.height + st::setLittleSkip))
 , _save(this, lang(lng_connection_save), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 
-	setMaxHeight(3 * _sectionHeight + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+	setMaxHeight(3 * _sectionHeight + st::setLittleSkip + _gifPlay.height() + st::setLittleSkip + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
 
 	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -245,6 +246,7 @@ void AutoDownloadBox::hideAll() {
 	_audioGroups.hide();
 	_gifPrivate.hide();
 	_gifGroups.hide();
+	_gifPlay.hide();
 
 	_save.hide();
 	_cancel.hide();
@@ -257,6 +259,7 @@ void AutoDownloadBox::showAll() {
 	_audioGroups.show();
 	_gifPrivate.show();
 	_gifGroups.show();
+	_gifPlay.show();
 
 	_save.show();
 	_cancel.show();
@@ -282,15 +285,60 @@ void AutoDownloadBox::resizeEvent(QResizeEvent *e) {
 
 	_gifPrivate.moveToLeft(st::boxTitlePosition.x(), 2 * _sectionHeight + st::boxTitleHeight + st::setLittleSkip);
 	_gifGroups.moveToLeft(st::boxTitlePosition.x(), _gifPrivate.y() + _gifPrivate.height() + st::setLittleSkip);
+	_gifPlay.moveToLeft(st::boxTitlePosition.x(), _gifGroups.y() + _gifGroups.height() + st::setLittleSkip);
 
 	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
 }
 
 void AutoDownloadBox::onSave() {
-	cSetAutoDownloadPhoto((_photoPrivate.checked() ? 0 : dbiadNoPrivate) | (_photoGroups.checked() ? 0 : dbiadNoGroups));
-	cSetAutoDownloadAudio((_audioPrivate.checked() ? 0 : dbiadNoPrivate) | (_audioGroups.checked() ? 0 : dbiadNoGroups));
-	cSetAutoDownloadGif((_gifPrivate.checked() ? 0 : dbiadNoPrivate) | (_gifGroups.checked() ? 0 : dbiadNoGroups));
-	Local::writeUserSettings();
+	bool changed = false;
+	int32 autoDownloadPhoto = (_photoPrivate.checked() ? 0 : dbiadNoPrivate) | (_photoGroups.checked() ? 0 : dbiadNoGroups);
+	if (cAutoDownloadPhoto() != autoDownloadPhoto) {
+		bool enabledPrivate = ((cAutoDownloadPhoto() & dbiadNoPrivate) && !(autoDownloadPhoto & dbiadNoPrivate));
+		bool enabledGroups = ((cAutoDownloadPhoto() & dbiadNoGroups) && !(autoDownloadPhoto & dbiadNoGroups));
+		cSetAutoDownloadPhoto(autoDownloadPhoto);
+		if (enabledPrivate || enabledGroups) {
+			const PhotosData &data(App::photosData());
+			for (PhotosData::const_iterator i = data.cbegin(), e = data.cend(); i != e; ++i) {
+				i.value()->automaticLoadSettingsChanged();
+			}
+		}
+		changed = true;
+	}
+	int32 autoDownloadAudio = (_audioPrivate.checked() ? 0 : dbiadNoPrivate) | (_audioGroups.checked() ? 0 : dbiadNoGroups);
+	if (cAutoDownloadAudio() != autoDownloadAudio) {
+		bool enabledPrivate = ((cAutoDownloadAudio() & dbiadNoPrivate) && !(autoDownloadAudio & dbiadNoPrivate));
+		bool enabledGroups = ((cAutoDownloadAudio() & dbiadNoGroups) && !(autoDownloadAudio & dbiadNoGroups));
+		cSetAutoDownloadAudio(autoDownloadAudio);
+		if (enabledPrivate || enabledGroups) {
+			const AudiosData &data(App::audiosData());
+			for (AudiosData::const_iterator i = data.cbegin(), e = data.cend(); i != e; ++i) {
+				i.value()->automaticLoadSettingsChanged();
+			}
+		}
+		changed = true;
+	}
+	int32 autoDownloadGif = (_gifPrivate.checked() ? 0 : dbiadNoPrivate) | (_gifGroups.checked() ? 0 : dbiadNoGroups);
+	if (cAutoDownloadGif() != autoDownloadGif) {
+		bool enabledPrivate = ((cAutoDownloadGif() & dbiadNoPrivate) && !(autoDownloadGif & dbiadNoPrivate));
+		bool enabledGroups = ((cAutoDownloadGif() & dbiadNoGroups) && !(autoDownloadGif & dbiadNoGroups));
+		cSetAutoDownloadGif(autoDownloadGif);
+		if (enabledPrivate || enabledGroups) {
+			const DocumentsData &data(App::documentsData());
+			for (DocumentsData::const_iterator i = data.cbegin(), e = data.cend(); i != e; ++i) {
+				i.value()->automaticLoadSettingsChanged();
+			}
+		}
+		changed = true;
+	}
+	if (cAutoPlayGif() != _gifPlay.checked()) {
+		cSetAutoPlayGif(_gifPlay.checked());
+		if (!cAutoPlayGif()) {
+			App::stopGifItems();
+		}
+		changed = true;
+	}
+	if (changed) Local::writeUserSettings();
 	onClose();
 }

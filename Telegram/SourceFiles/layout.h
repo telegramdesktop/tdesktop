@@ -470,3 +470,62 @@ private:
 	QVector<Link> _links;
 
 };
+
+class LayoutSavedGif {
+public:
+	LayoutSavedGif(DocumentData *data);
+
+	void paint(Painter &p, bool paused, uint64 ms) const;
+	void preload();
+	DocumentData *document() const {
+		return _data;
+	}
+
+	void setPosition(int32 position, int32 width);
+	void setWidth(int32 width);
+	int32 position() const;
+	int32 width() const;
+
+	void notify_over(bool over);
+	void notify_deleteOver(bool over);
+
+	~LayoutSavedGif();
+
+private:
+	DocumentData *_data;
+	int32 _position; // < 0 means removed from layout
+	int32 _width;
+	QSize countFrameSize() const;
+
+	enum StateFlags {
+		StateOver       = 0x01,
+		StateDeleteOver = 0x02,
+	};
+	int32 _state;
+
+	ClipReader *_gif;
+	bool gif() const {
+		return (!_gif || _gif == BadClipReader) ? false : true;
+	}
+	QPixmap _thumb;
+
+	void ensureAnimation() const;
+	bool isRadialAnimation(uint64 ms) const;
+	void step_radial(uint64 ms, bool timer);
+
+	void clipCallback(ClipReaderNotification notification);
+	void update();
+
+	struct AnimationData {
+		AnimationData(AnimationCallbacks *radialCallbacks)
+			: over(false)
+			, radial(radialCallbacks) {
+		}
+		bool over;
+		FloatAnimation _a_over;
+		RadialAnimation radial;
+	};
+	mutable AnimationData *_animation;
+	mutable FloatAnimation _a_deleteOver;
+
+};

@@ -603,7 +603,7 @@ void MediaView::onDocClick() {
 	}
 }
 
-void MediaView::ui_clipRedraw(ClipReader *reader) {
+void MediaView::ui_clipRepaint(ClipReader *reader) {
 	if (reader == _gif) {
 		update(_x, _y, _w, _h);
 	}
@@ -1960,7 +1960,7 @@ void MediaView::hide() {
 	QWidget::hide();
 	stopGif();
 
-	Notify::mediaViewHidden();
+	Notify::clipStopperHidden(ClipStopperMediaview);
 }
 
 void MediaView::onMenuDestroy(QObject *obj) {

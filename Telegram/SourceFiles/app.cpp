@@ -45,20 +45,13 @@ namespace {
 	typedef QMap<PeerData*, bool> UpdatedPeers;
 	UpdatedPeers updatedPeers;
 
-	typedef QHash<PhotoId, PhotoData*> PhotosData;
 	PhotosData photosData;
-
-	typedef QHash<VideoId, VideoData*> VideosData;
 	VideosData videosData;
-
-	typedef QHash<AudioId, AudioData*> AudiosData;
 	AudiosData audiosData;
+	DocumentsData documentsData;
 
 	typedef QHash<QString, ImageLinkData*> ImageLinksData;
 	ImageLinksData imageLinksData;
-
-	typedef QHash<DocumentId, DocumentData*> DocumentsData;
-	DocumentsData documentsData;
 
 	typedef QHash<WebPageId, WebPageData*> WebPagesData;
 	WebPagesData webPagesData;
@@ -918,9 +911,39 @@ namespace App {
 
 			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
 
-			return !existing->detached();
+			if (!existing->detached()) {
+				App::checkSavedGif(existing);
+				return true;
+			}
+
+			return false;
 		}
 		return false;
+	}
+
+	void addSavedGif(DocumentData *doc) {
+		SavedGifs &saved(cRefSavedGifs());
+		int32 index = saved.indexOf(doc);
+		if (index) {
+			if (index > 0) saved.remove(index);
+			saved.push_front(doc);
+			if (saved.size() > cSavedGifsLimit()) saved.pop_back();
+			Local::writeSavedGifs();
+
+			if (App::main()) emit App::main()->savedGifsUpdated();
+		}
+	}
+
+	void checkSavedGif(HistoryItem *item) {
+		if (!item->toHistoryForwarded() && item->out()) {
+			if (HistoryMedia *media = item->getMedia()) {
+				if (DocumentData *doc = media->getDocument()) {
+					if (doc->type == AnimatedDocument && doc->mime.toLower() == qstr("video/mp4")) {
+						addSavedGif(doc);
+					}
+				}
+			}
+		}
 	}
 
 	void feedMsgs(const QVector<MTPMessage> &msgs, NewMessageType type) {
@@ -1417,9 +1440,9 @@ namespace App {
 	}
 
 	PhotoData *photo(const PhotoId &photo) {
-		PhotosData::const_iterator i = photosData.constFind(photo);
-		if (i == photosData.cend()) {
-			i = photosData.insert(photo, new PhotoData(photo));
+		PhotosData::const_iterator i = ::photosData.constFind(photo);
+		if (i == ::photosData.cend()) {
+			i = ::photosData.insert(photo, new PhotoData(photo));
 		}
 		return i.value();
 	}
@@ -1427,9 +1450,9 @@ namespace App {
 	PhotoData *photoSet(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full) {
 		if (convert) {
 			if (convert->id != photo) {
-				PhotosData::iterator i = photosData.find(convert->id);
-				if (i != photosData.cend() && i.value() == convert) {
-					photosData.erase(i);
+				PhotosData::iterator i = ::photosData.find(convert->id);
+				if (i != ::photosData.cend() && i.value() == convert) {
+					::photosData.erase(i);
 				}
 				convert->id = photo;
 				delete convert->uploadingData;
@@ -1443,16 +1466,16 @@ namespace App {
 				convert->full = full;
 			}
 		}
-		PhotosData::const_iterator i = photosData.constFind(photo);
+		PhotosData::const_iterator i = ::photosData.constFind(photo);
 		PhotoData *result;
 		LastPhotosMap::iterator inLastIter = lastPhotosMap.end();
-		if (i == photosData.cend()) {
+		if (i == ::photosData.cend()) {
 			if (convert) {
 				result = convert;
 			} else {
 				result = new PhotoData(photo, access, date, thumb, medium, full);
 			}
-			photosData.insert(photo, result);
+			::photosData.insert(photo, result);
 		} else {
 			result = i.value();
 			if (result != convert && !result->date && date) {
@@ -1479,9 +1502,9 @@ namespace App {
 	}
 
 	VideoData *video(const VideoId &video) {
-		VideosData::const_iterator i = videosData.constFind(video);
-		if (i == videosData.cend()) {
-			i = videosData.insert(video, new VideoData(video));
+		VideosData::const_iterator i = ::videosData.constFind(video);
+		if (i == ::videosData.cend()) {
+			i = ::videosData.insert(video, new VideoData(video));
 		}
 		return i.value();
 	}
@@ -1489,9 +1512,9 @@ namespace App {
 	VideoData *videoSet(const VideoId &video, VideoData *convert, const uint64 &access, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size) {
 		if (convert) {
 			if (convert->id != video) {
-				VideosData::iterator i = videosData.find(convert->id);
-				if (i != videosData.cend() && i.value() == convert) {
-					videosData.erase(i);
+				VideosData::iterator i = ::videosData.find(convert->id);
+				if (i != ::videosData.cend() && i.value() == convert) {
+					::videosData.erase(i);
 				}
 				convert->id = video;
 				convert->status = FileReady;
@@ -1507,15 +1530,15 @@ namespace App {
 				convert->size = size;
 			}
 		}
-		VideosData::const_iterator i = videosData.constFind(video);
+		VideosData::const_iterator i = ::videosData.constFind(video);
 		VideoData *result;
-		if (i == videosData.cend()) {
+		if (i == ::videosData.cend()) {
 			if (convert) {
 				result = convert;
 			} else {
 				result = new VideoData(video, access, date, duration, w, h, thumb, dc, size);
 			}
-			videosData.insert(video, result);
+			::videosData.insert(video, result);
 		} else {
 			result = i.value();
 			if (result != convert && !result->date && date) {
@@ -1533,9 +1556,9 @@ namespace App {
 	}
 
 	AudioData *audio(const AudioId &audio) {
-		AudiosData::const_iterator i = audiosData.constFind(audio);
-		if (i == audiosData.cend()) {
-			i = audiosData.insert(audio, new AudioData(audio));
+		AudiosData::const_iterator i = ::audiosData.constFind(audio);
+		if (i == ::audiosData.cend()) {
+			i = ::audiosData.insert(audio, new AudioData(audio));
 		}
 		return i.value();
 	}
@@ -1543,9 +1566,9 @@ namespace App {
 	AudioData *audioSet(const AudioId &audio, AudioData *convert, const uint64 &access, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) {
 		if (convert) {
 			if (convert->id != audio) {
-				AudiosData::iterator i = audiosData.find(convert->id);
-				if (i != audiosData.cend() && i.value() == convert) {
-					audiosData.erase(i);
+				AudiosData::iterator i = ::audiosData.find(convert->id);
+				if (i != ::audiosData.cend() && i.value() == convert) {
+					::audiosData.erase(i);
 				}
 				convert->id = audio;
 				convert->status = FileReady;
@@ -1559,15 +1582,15 @@ namespace App {
 				convert->size = size;
 			}
 		}
-		AudiosData::const_iterator i = audiosData.constFind(audio);
+		AudiosData::const_iterator i = ::audiosData.constFind(audio);
 		AudioData *result;
-		if (i == audiosData.cend()) {
+		if (i == ::audiosData.cend()) {
 			if (convert) {
 				result = convert;
 			} else {
 				result = new AudioData(audio, access, date, mime, duration, dc, size);
 			}
-			audiosData.insert(audio, result);
+			::audiosData.insert(audio, result);
 		} else {
 			result = i.value();
 			if (result != convert && !result->date && date) {
@@ -1583,9 +1606,9 @@ namespace App {
 	}
 
 	DocumentData *document(const DocumentId &document) {
-		DocumentsData::const_iterator i = documentsData.constFind(document);
-		if (i == documentsData.cend()) {
-			i = documentsData.insert(document, new DocumentData(document));
+		DocumentsData::const_iterator i = ::documentsData.constFind(document);
+		if (i == ::documentsData.cend()) {
+			i = ::documentsData.insert(document, new DocumentData(document));
 		}
 		return i.value();
 	}
@@ -1594,9 +1617,9 @@ namespace App {
 		bool sentSticker = false;
 		if (convert) {
 			if (convert->id != document) {
-				DocumentsData::iterator i = documentsData.find(convert->id);
-				if (i != documentsData.cend() && i.value() == convert) {
-					documentsData.erase(i);
+				DocumentsData::iterator i = ::documentsData.find(convert->id);
+				if (i != ::documentsData.cend() && i.value() == convert) {
+					::documentsData.erase(i);
 				}
 				convert->id = document;
 				convert->status = FileReady;
@@ -1636,9 +1659,9 @@ namespace App {
 				Local::writeFileLocation(mediaKey(DocumentFileLocation, convert->dc, convert->id), loc);
 			}
 		}
-		DocumentsData::const_iterator i = documentsData.constFind(document);
+		DocumentsData::const_iterator i = ::documentsData.constFind(document);
 		DocumentData *result;
-		if (i == documentsData.cend()) {
+		if (i == ::documentsData.cend()) {
 			if (convert) {
 				result = convert;
 			} else {
@@ -1646,7 +1669,7 @@ namespace App {
 				result->recountIsImage();
 				if (result->sticker()) result->sticker()->loc = thumbLocation;
 			}
-			documentsData.insert(document, result);
+			::documentsData.insert(document, result);
 		} else {
 			result = i.value();
 			if (result != convert) {
@@ -1776,16 +1799,16 @@ namespace App {
 	void forgetMedia() {
 		lastPhotos.clear();
 		lastPhotosMap.clear();
-		for (PhotosData::const_iterator i = photosData.cbegin(), e = photosData.cend(); i != e; ++i) {
+		for (PhotosData::const_iterator i = ::photosData.cbegin(), e = ::photosData.cend(); i != e; ++i) {
 			i.value()->forget();
 		}
-		for (VideosData::const_iterator i = videosData.cbegin(), e = videosData.cend(); i != e; ++i) {
+		for (VideosData::const_iterator i = ::videosData.cbegin(), e = ::videosData.cend(); i != e; ++i) {
 			i.value()->forget();
 		}
-		for (AudiosData::const_iterator i = audiosData.cbegin(), e = audiosData.cend(); i != e; ++i) {
+		for (AudiosData::const_iterator i = ::audiosData.cbegin(), e = ::audiosData.cend(); i != e; ++i) {
 			i.value()->forget();
 		}
-		for (DocumentsData::const_iterator i = documentsData.cbegin(), e = documentsData.cend(); i != e; ++i) {
+		for (DocumentsData::const_iterator i = ::documentsData.cbegin(), e = ::documentsData.cend(); i != e; ++i) {
 			i.value()->forget();
 		}
 		for (ImageLinksData::const_iterator i = imageLinksData.cbegin(), e = imageLinksData.cend(); i != e; ++i) {
@@ -1933,32 +1956,33 @@ namespace App {
 			delete *i;
 		}
 		peersData.clear();
-		for (PhotosData::const_iterator i = photosData.cbegin(), e = photosData.cend(); i != e; ++i) {
+		for (PhotosData::const_iterator i = ::photosData.cbegin(), e = ::photosData.cend(); i != e; ++i) {
 			delete *i;
 		}
-		photosData.clear();
-		for (VideosData::const_iterator i = videosData.cbegin(), e = videosData.cend(); i != e; ++i) {
+		::photosData.clear();
+		for (VideosData::const_iterator i = ::videosData.cbegin(), e = ::videosData.cend(); i != e; ++i) {
 			delete *i;
 		}
-		videosData.clear();
-		for (AudiosData::const_iterator i = audiosData.cbegin(), e = audiosData.cend(); i != e; ++i) {
+		::videosData.clear();
+		for (AudiosData::const_iterator i = ::audiosData.cbegin(), e = ::audiosData.cend(); i != e; ++i) {
 			delete *i;
 		}
-		audiosData.clear();
-		for (DocumentsData::const_iterator i = documentsData.cbegin(), e = documentsData.cend(); i != e; ++i) {
+		::audiosData.clear();
+		for (DocumentsData::const_iterator i = ::documentsData.cbegin(), e = ::documentsData.cend(); i != e; ++i) {
 			delete *i;
 		}
-		documentsData.clear();
+		::documentsData.clear();
 		for (WebPagesData::const_iterator i = webPagesData.cbegin(), e = webPagesData.cend(); i != e; ++i) {
 			delete *i;
 		}
 		webPagesData.clear();
 		if (api()) api()->clearWebPageRequests();
 		cSetRecentStickers(RecentStickerPack());
-		cSetStickersHash(0);
 		cSetStickerSets(StickerSets());
 		cSetStickerSetsOrder(StickerSetsOrder());
 		cSetLastStickersUpdate(0);
+		cSetSavedGifs(SavedGifs());
+		cSetLastSavedGifsUpdate(0);
 		cSetReportSpamStatuses(ReportSpamStatuses());
 		::photoItems.clear();
 		::videoItems.clear();
@@ -2057,7 +2081,6 @@ namespace App {
 	}
 
 	void initMedia() {
-		deinitMedia(false);
 		audioInit();
 
 		if (!::monofont) {
@@ -2119,46 +2142,45 @@ namespace App {
 		prepareCorners(MessageInSelectedCorners, st::msgRadius, st::msgInBgSelected, &st::msgInShadowSelected);
 		prepareCorners(MessageOutCorners, st::msgRadius, st::msgOutBg, &st::msgOutShadow);
 		prepareCorners(MessageOutSelectedCorners, st::msgRadius, st::msgOutBgSelected, &st::msgOutShadowSelected);
-
 	}
 	
-	void deinitMedia(bool completely) {
+	void clearHistories() {
 		textlnkOver(TextLinkPtr());
 		textlnkDown(TextLinkPtr());
 
 		histories().clear();
-
-		if (completely) {
-			audioFinish();
-
-			delete ::sprite;
-			::sprite = 0;
-			delete ::emoji;
-			::emoji = 0;
-			delete ::emojiLarge;
-			::emojiLarge = 0;
-			for (int32 j = 0; j < 4; ++j) {
-				for (int32 i = 0; i < RoundCornersCount; ++i) {
-					delete ::corners[i].p[j]; ::corners[i].p[j] = 0;
-				}
-				delete ::cornersMask[j]; ::cornersMask[j] = 0;
-			}
-			for (CornersMap::const_iterator i = ::cornersMap.cbegin(), e = ::cornersMap.cend(); i != e; ++i) {
-				for (int32 j = 0; j < 4; ++j) {
-					delete i->p[j];
-				}
-			}
-			::cornersMap.clear();
-			mainEmojiMap.clear();
-			otherEmojiMap.clear();
-
-			clearAllImages();
-		} else {
-			clearStorageImages();
-			cSetServerBackgrounds(WallPapers());
-		}
+	
+		clearStorageImages();
+		cSetServerBackgrounds(WallPapers());
 
 		serviceImageCacheSize = imageCacheSize();
+	}
+
+	void deinitMedia() {
+		audioFinish();
+
+		delete ::sprite;
+		::sprite = 0;
+		delete ::emoji;
+		::emoji = 0;
+		delete ::emojiLarge;
+		::emojiLarge = 0;
+		for (int32 j = 0; j < 4; ++j) {
+			for (int32 i = 0; i < RoundCornersCount; ++i) {
+				delete ::corners[i].p[j]; ::corners[i].p[j] = 0;
+			}
+			delete ::cornersMask[j]; ::cornersMask[j] = 0;
+		}
+		for (CornersMap::const_iterator i = ::cornersMap.cbegin(), e = ::cornersMap.cend(); i != e; ++i) {
+			for (int32 j = 0; j < 4; ++j) {
+				delete i->p[j];
+			}
+		}
+		::cornersMap.clear();
+		mainEmojiMap.clear();
+		otherEmojiMap.clear();
+
+		clearAllImages();
 	}
 
 	void hoveredItem(HistoryItem *item) {
@@ -2362,6 +2384,10 @@ namespace App {
 		return ::photoItems;
 	}
 
+	const PhotosData &photosData() {
+		return ::photosData;
+	}
+
 	void regVideoItem(VideoData *data, HistoryItem *item) {
 		::videoItems[data].insert(item, NullType());
 	}
@@ -2372,6 +2398,10 @@ namespace App {
 
 	const VideoItems &videoItems() {
 		return ::videoItems;
+	}
+
+	const VideosData &videosData() {
+		return ::videosData;
 	}
 
 	void regAudioItem(AudioData *data, HistoryItem *item) {
@@ -2386,6 +2416,10 @@ namespace App {
 		return ::audioItems;
 	}
 
+	const AudiosData &audiosData() {
+		return ::audiosData;
+	}
+
 	void regDocumentItem(DocumentData *data, HistoryItem *item) {
 		::documentItems[data].insert(item, NullType());
 	}
@@ -2396,6 +2430,10 @@ namespace App {
 
 	const DocumentItems &documentItems() {
 		return ::documentItems;
+	}
+
+	const DocumentsData &documentsData() {
+		return ::documentsData;
 	}
 
 	void regWebPageItem(WebPageData *data, HistoryItem *item) {
@@ -2436,9 +2474,10 @@ namespace App {
 
 	void stopGifItems() {
 		if (!::gifItems.isEmpty()) {
-			if (HistoryItem *playing = ::gifItems.begin().value()) {
-				if (playing->getMedia()) {
-					playing->getMedia()->stopInline(playing);
+			GifItems gifs = ::gifItems;
+			for (GifItems::const_iterator i = gifs.cbegin(), e = gifs.cend(); i != e; ++i) {
+				if (HistoryMedia *media = i.value()->getMedia()) {
+					media->stopInline(i.value());
 				}
 			}
 		}

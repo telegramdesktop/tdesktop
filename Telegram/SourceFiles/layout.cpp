@@ -227,21 +227,22 @@ void LayoutRadialProgressItem::step_iconOver(float64 ms, bool timer) {
 	if (dt >= 1) {
 		a_iconOver.finish();
 		_a_iconOver.stop();
-	} else {
+	} else if (!timer) {
 		a_iconOver.update(dt, anim::linear);
 	}
 	if (timer && iconAnimated()) {
-		Ui::redrawHistoryItem(_parent);
+		Ui::repaintHistoryItem(_parent);
 	}
 }
 
 void LayoutRadialProgressItem::step_radial(uint64 ms, bool timer) {
-	_radial->update(dataProgress(), dataFinished(), ms);
-	if (!_radial->animating()) {
-		checkRadialFinished();
-	}
 	if (timer) {
-		Ui::redrawHistoryItem(_parent);
+		Ui::repaintHistoryItem(_parent);
+	} else {
+		_radial->update(dataProgress(), dataFinished(), ms);
+		if (!_radial->animating()) {
+			checkRadialFinished();
+		}
 	}
 }
 
@@ -590,6 +591,7 @@ void LayoutOverviewAudio::paint(Painter &p, const QRect &clip, uint32 selection,
 		if (selected) {
 			p.setBrush(st::msgFileInBgSelected);
 		} else if (_a_iconOver.animating()) {
+			_a_iconOver.step(context->ms);
 			float64 over = a_iconOver.current();
 			p.setBrush(style::interpolate(st::msgFileInBg, st::msgFileInBgOver, over));
 		} else {
@@ -787,6 +789,7 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 			if (selected) {
 				p.setBrush(st::msgFileInBgSelected);
 			} else if (_a_iconOver.animating()) {
+				_a_iconOver.step(context->ms);
 				float64 over = a_iconOver.current();
 				p.setBrush(style::interpolate(st::msgFileInBg, st::msgFileInBgOver, over));
 			} else {
@@ -1279,4 +1282,231 @@ LayoutOverviewLink::Link::Link(const QString &url, const QString &text)
 : text(text)
 , width(st::normalFont->width(text))
 , lnk(linkFromUrl(url)) {
+}
+
+LayoutSavedGif::LayoutSavedGif(DocumentData *data)
+: _data(data)
+, _position(0)
+, _width(st::savedGifMinWidth)
+, _state(0)
+, _gif(0)
+, _animation(0) {
+}
+
+void LayoutSavedGif::setPosition(int32 position, int32 width) {
+	_position = position;
+	_width = width;
+	if (_position < 0) {
+		if (gif()) delete _gif;
+		_gif = 0;
+	}
+}
+
+void LayoutSavedGif::setWidth(int32 width) {
+	_width = width;
+}
+
+int32 LayoutSavedGif::position() const {
+	return _position;
+}
+
+int32 LayoutSavedGif::width() const {
+	return _width;
+}
+
+void LayoutSavedGif::notify_over(bool over) {
+	if (!_data->loaded()) {
+		ensureAnimation();
+		if (over == !(_state & StateOver)) {
+			EnsureAnimation(_animation->_a_over, (_state & StateOver) ? 1 : 0, (func(this, &LayoutSavedGif::update)));
+			_animation->_a_over.start(over ? 1 : 0, st::stickersRowDuration);
+		}
+	}
+	if (over) {
+		_state |= StateOver;
+	} else {
+		_state &= ~StateOver;
+	}
+}
+
+void LayoutSavedGif::notify_deleteOver(bool over) {
+	if (over == !(_state & StateDeleteOver)) {
+		EnsureAnimation(_a_deleteOver, (_state & StateDeleteOver) ? 1 : 0, func(this, &LayoutSavedGif::update));
+		if (over) {
+			_state |= StateDeleteOver;
+		} else {
+			_state &= ~StateDeleteOver;
+		}
+		_a_deleteOver.start((_state & StateDeleteOver) ? 1 : 0, st::stickersRowDuration);
+	}
+}
+
+void LayoutSavedGif::paint(Painter &p, bool paused, uint64 ms) const {
+	_data->automaticLoad(0);
+
+	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
+	if (loaded && !gif() && _gif != BadClipReader) {
+		LayoutSavedGif *that = const_cast<LayoutSavedGif*>(this);
+		that->_gif = new ClipReader(_data->location(), _data->data(), func(that, &LayoutSavedGif::clipCallback));
+		if (gif()) _gif->setAutoplay();
+	}
+
+	bool animating = (gif() && _gif->started());
+	if (displayLoading) {
+		ensureAnimation();
+		if (!_animation->radial.animating()) {
+			_animation->radial.start(_data->progress());
+		}
+	}
+	bool radial = isRadialAnimation(ms);
+
+	int32 height = st::savedGifHeight;
+	QSize frame = countFrameSize();
+
+	QRect r(0, 0, _width, height);
+	if (animating) {
+		if (!_thumb.isNull()) const_cast<LayoutSavedGif*>(this)->_thumb = QPixmap();
+		p.drawPixmap(r.topLeft(), _gif->current(frame.width(), frame.height(), _width, height, paused ? 0 : ms));
+	} else {
+		if (!_data->thumb->isNull()) {
+			if (_data->thumb->loaded()) {
+				if (_thumb.width() != _width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+					const_cast<LayoutSavedGif*>(this)->_thumb = _data->thumb->pixNoCache(frame.width(), frame.height(), true, false, false, _width, height);
+				}
+			} else {
+				_data->thumb->load();
+			}
+		}
+		p.drawPixmap(r.topLeft(), _thumb);
+	}
+
+	if (radial || (!_gif && !loaded && !_data->loading()) || (_gif == BadClipReader)) {
+		float64 radialOpacity = (radial && loaded && !_data->uploading()) ? _animation->radial.opacity() : 1;
+		if (_animation && _animation->_a_over.animating(ms)) {
+			float64 over = _animation->_a_over.current();
+			p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
+			p.fillRect(r, st::black);
+		} else {
+			p.fillRect(r, (_state & StateOver) ? st::msgDateImgBgOver : st::msgDateImgBg);
+		}
+		p.setOpacity(radialOpacity * p.opacity());
+
+		p.setOpacity(radialOpacity);
+		style::sprite icon;
+		if (_data->loaded() && !radial) {
+			icon = st::msgFileInPlay;
+		} else if (radial || _data->loading()) {
+			icon = st::msgFileInCancel;
+		} else {
+			icon = st::msgFileInDownload;
+		}
+		QRect inner((_width - st::msgFileSize) / 2, (height - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
+		p.drawSpriteCenter(inner, icon);
+		if (radial) {
+			p.setOpacity(1);
+			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
+			_animation->radial.draw(p, rinner, st::msgFileRadialLine, st::msgInBg);
+		}
+	}
+
+	if (_state & StateOver) {
+		float64 deleteOver = _a_deleteOver.current(ms, (_state & StateDeleteOver) ? 1 : 0);
+		QPoint deletePos = QPoint(_width - st::stickerPanDelete.pxWidth(), 0);
+		p.setOpacity(deleteOver + (1 - deleteOver) * st::stickerPanDeleteOpacity);
+		p.drawSpriteLeft(deletePos, _width, st::stickerPanDelete);
+		p.setOpacity(1);
+	}
+}
+
+QSize LayoutSavedGif::countFrameSize() const {
+	bool animating = (gif() && _gif->ready());
+	int32 framew = animating ? _gif->width() : _data->thumb->width(), frameh = animating ? _gif->height() : _data->thumb->height(), height = st::savedGifHeight;
+	if (framew * height > frameh * _width) {
+		if (framew < st::maxStickerSize || frameh > height) {
+			if (frameh > height || (framew * height / frameh) <= st::maxStickerSize) {
+				framew = framew * height / frameh;
+				frameh = height;
+			} else {
+				frameh = int32(frameh * st::maxStickerSize) / framew;
+				framew = st::maxStickerSize;
+			}
+		}
+	} else {
+		if (frameh < st::maxStickerSize || framew > _width) {
+			if (framew > _width || (frameh * _width / framew) <= st::maxStickerSize) {
+				frameh = frameh * _width / framew;
+				framew = _width;
+			} else {
+				framew = int32(framew * st::maxStickerSize) / frameh;
+				frameh = st::maxStickerSize;
+			}
+		}
+	}
+	return QSize(framew, frameh);
+}
+
+void LayoutSavedGif::preload() {
+	_data->thumb->load();
+}
+
+LayoutSavedGif::~LayoutSavedGif() {
+	delete _animation;
+	setBadPointer(_animation);
+}
+
+void LayoutSavedGif::ensureAnimation() const {
+	if (!_animation) {
+		_animation = new AnimationData(animation(const_cast<LayoutSavedGif*>(this), &LayoutSavedGif::step_radial));
+	}
+}
+
+bool LayoutSavedGif::isRadialAnimation(uint64 ms) const {
+	if (!_animation || !_animation->radial.animating()) return false;
+
+	_animation->radial.step(ms);
+	return _animation && _animation->radial.animating();
+}
+
+void LayoutSavedGif::step_radial(uint64 ms, bool timer) {
+	if (timer) {
+		update();
+	} else {
+		_animation->radial.update(_data->progress(), !_data->loading() || _data->loaded(), ms);
+		if (!_animation->radial.animating() && _data->loaded()) {
+			delete _animation;
+			_animation = 0;
+		}
+	}
+}
+
+void LayoutSavedGif::clipCallback(ClipReaderNotification notification) {
+	switch (notification) {
+	case ClipReaderReinit: {
+		if (gif()) {
+			if (_gif->state() == ClipError) {
+				delete _gif;
+				_gif = BadClipReader;
+				_data->forget();
+			} else if (_gif->ready() && !_gif->started()) {
+				int32 height = st::savedGifHeight;
+				QSize frame = countFrameSize();
+				_gif->start(frame.width(), frame.height(), _width, height, false);
+			} else if (_gif->paused() && !Ui::isSavedGifVisible(this)) {
+				delete _gif;
+				_gif = 0;
+				_data->forget();
+			}
+		}
+
+		update();
+	} break;
+
+	case ClipReaderRepaint: update(); break;
+	}
+}
+
+void LayoutSavedGif::update() {
+	if (_position >= 0) {
+		Ui::repaintSavedGif(this);
+	}
 }

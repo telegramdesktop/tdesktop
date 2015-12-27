@@ -89,6 +89,8 @@ public:
 		return _secret;
 	}
 
+	static StorageImageLocation Null;
+
 private:
 	uint64 _widthheight;
 	uint64 _dclocal;
@@ -117,6 +119,8 @@ public:
 	Image(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap);
 
 	virtual void automaticLoad(const HistoryItem *item) { // auto load photo
+	}
+	virtual void automaticLoadSettingsChanged() {
 	}
 
 	virtual bool loaded() const {
@@ -162,6 +166,10 @@ public:
 	}
 
 	virtual void loadEvenCancelled(bool loadFirst = false, bool prior = true) {
+	}
+
+	virtual const StorageImageLocation &location() const {
+		return StorageImageLocation::Null;
 	}
 
 	bool isNull() const;
@@ -226,6 +234,7 @@ public:
 	int32 height() const;
 
 	void automaticLoad(const HistoryItem *item); // auto load photo
+	void automaticLoadSettingsChanged();
 
 	bool loaded() const;
 	bool loading() const {
@@ -240,6 +249,10 @@ public:
 
 	void load(bool loadFirst = false, bool prior = true);
 	void loadEvenCancelled(bool loadFirst = false, bool prior = true);
+
+	virtual const StorageImageLocation &location() const {
+		return _location;
+	}
 
 	~StorageImage();
 

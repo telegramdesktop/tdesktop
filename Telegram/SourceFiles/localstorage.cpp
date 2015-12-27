@@ -552,6 +552,7 @@ namespace {
 		lskStickers           = 0x0b, // no data
 		lskSavedPeers         = 0x0c, // no data
 		lskReportSpamStatuses = 0x0d, // no data
+		lskSavedGifs          = 0x0e,
 	};
 
 	typedef QMap<PeerId, FileKey> DraftsMap;
@@ -568,7 +569,7 @@ namespace {
 	FileLocationAliases _fileLocationAliases;
 	FileKey _locationsKey = 0, _reportSpamStatusesKey = 0;
 	
-	FileKey _recentStickersKeyOld = 0, _stickersKey = 0;
+	FileKey _recentStickersKeyOld = 0, _stickersKey = 0, _savedGifsKey;
 	
 	FileKey _backgroundKey = 0;
 	bool _backgroundWasRead = false;
@@ -797,6 +798,14 @@ namespace {
 			cSetMaxGroupCount(maxSize);
 		} break;
 
+		case dbiSavedGifsLimit: {
+			qint32 limit;
+			stream >> limit;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetSavedGifsLimit(limit);
+		} break;
+
 		case dbiMaxMegaGroupCount: {
 			qint32 maxSize;
 			stream >> maxSize;
@@ -873,12 +882,28 @@ namespace {
 			cSetAutoDownloadGif(gif);
 		} break;
 
+		case dbiAutoPlay: {
+			qint32 gif;
+			stream >> gif;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetAutoPlayGif(gif == 1);
+		} break;
+
 		case dbiIncludeMuted: {
 			qint32 v;
 			stream >> v;
 			if (!_checkStreamStatus(stream)) return false;
 
 			cSetIncludeMuted(v == 1);
+		} break;
+
+		case dbiShowingSavedGifs: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetShowingSavedGifs(v == 1);
 		} break;
 
 		case dbiDesktopNotify: {
@@ -1438,7 +1463,7 @@ namespace {
 			_writeMap(WriteMapFast);
 		}
 
-		uint32 size = 14 * (sizeof(quint32) + sizeof(qint32));
+		uint32 size = 16 * (sizeof(quint32) + sizeof(qint32));
 		size += sizeof(quint32) + _stringSize(cAskDownloadPath() ? QString() : cDownloadPath()) + _bytearraySize(cAskDownloadPath() ? QByteArray() : cDownloadPathBookmark());
 		size += sizeof(quint32) + sizeof(qint32) + (cRecentEmojisPreload().isEmpty() ? cGetRecentEmojis().size() : cRecentEmojisPreload().size()) * (sizeof(uint64) + sizeof(ushort));
 		size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
@@ -1454,6 +1479,7 @@ namespace {
 		data.stream << quint32(dbiDefaultAttach) << qint32(cDefaultAttach());
 		data.stream << quint32(dbiSoundNotify) << qint32(cSoundNotify());
 		data.stream << quint32(dbiIncludeMuted) << qint32(cIncludeMuted());
+		data.stream << quint32(dbiShowingSavedGifs) << qint32(cShowingSavedGifs());
 		data.stream << quint32(dbiDesktopNotify) << qint32(cDesktopNotify());
 		data.stream << quint32(dbiNotifyView) << qint32(cNotifyView());
 		data.stream << quint32(dbiWindowsNotifications) << qint32(cWindowsNotifications());
@@ -1463,6 +1489,7 @@ namespace {
 		data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
 		data.stream << quint32(dbiSongVolume) << qint32(qRound(cSongVolume() * 1e6));
 		data.stream << quint32(dbiAutoDownload) << qint32(cAutoDownloadPhoto()) << qint32(cAutoDownloadAudio()) << qint32(cAutoDownloadGif());
+		data.stream << quint32(dbiAutoPlay) << qint32(cAutoPlayGif() ? 1 : 0);
 
 		{
 			RecentEmojisPreload v(cRecentEmojisPreload());
@@ -1608,7 +1635,9 @@ namespace {
 		DraftsNotReadMap draftsNotReadMap;
 		StorageMap imagesMap, stickerImagesMap, audiosMap;
 		qint64 storageImagesSize = 0, storageStickersSize = 0, storageAudiosSize = 0;
-		quint64 locationsKey = 0, reportSpamStatusesKey = 0, recentStickersKeyOld = 0, stickersKey = 0, backgroundKey = 0, userSettingsKey = 0, recentHashtagsKey = 0, savedPeersKey = 0;
+		quint64 locationsKey = 0, reportSpamStatusesKey = 0;
+		quint64 recentStickersKeyOld = 0, stickersKey = 0, savedGifsKey = 0;
+		quint64 backgroundKey = 0, userSettingsKey = 0, recentHashtagsKey = 0, savedPeersKey = 0;
 		while (!map.stream.atEnd()) {
 			quint32 keyType;
 			map.stream >> keyType;
@@ -1691,6 +1720,9 @@ namespace {
 			case lskStickers: {
 				map.stream >> stickersKey;
 			} break;
+			case lskSavedGifs: {
+				map.stream >> savedGifsKey;
+			} break;
 			case lskSavedPeers: {
 				map.stream >> savedPeersKey;
 			} break;
@@ -1718,6 +1750,7 @@ namespace {
 		_reportSpamStatusesKey = reportSpamStatusesKey;
 		_recentStickersKeyOld = recentStickersKeyOld;
 		_stickersKey = stickersKey;
+		_savedGifsKey = savedGifsKey;
 		_savedPeersKey = savedPeersKey;
 		_backgroundKey = backgroundKey;
 		_userSettingsKey = userSettingsKey;
@@ -1790,6 +1823,7 @@ namespace {
 		if (_reportSpamStatusesKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_recentStickersKeyOld) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_stickersKey) mapSize += sizeof(quint32) + sizeof(quint64);
+		if (_savedGifsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_savedPeersKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_backgroundKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_userSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
@@ -1836,6 +1870,9 @@ namespace {
 		}
 		if (_stickersKey) {
 			mapData.stream << quint32(lskStickers) << quint64(_stickersKey);
+		}
+		if (_savedGifsKey) {
+			mapData.stream << quint32(lskSavedGifs) << quint64(_savedGifsKey);
 		}
 		if (_savedPeersKey) {
 			mapData.stream << quint32(lskSavedPeers) << quint64(_savedPeersKey);
@@ -2040,7 +2077,7 @@ namespace Local {
 			cSetDcOptions(dcOpts);
 		}
 
-		quint32 size = 11 * (sizeof(quint32) + sizeof(qint32));
+		quint32 size = 12 * (sizeof(quint32) + sizeof(qint32));
 		for (mtpDcOptions::const_iterator i = dcOpts.cbegin(), e = dcOpts.cend(); i != e; ++i) {
 			size += sizeof(quint32) + sizeof(quint32) + sizeof(quint32);
 			size += sizeof(quint32) + _stringSize(QString::fromUtf8(i->ip.data(), i->ip.size()));
@@ -2058,6 +2095,7 @@ namespace Local {
 		EncryptedDescriptor data(size);
 		data.stream << quint32(dbiMaxGroupCount) << qint32(cMaxGroupCount());
 		data.stream << quint32(dbiMaxMegaGroupCount) << qint32(cMaxMegaGroupCount());
+		data.stream << quint32(dbiSavedGifsLimit) << qint32(cSavedGifsLimit());
 		data.stream << quint32(dbiAutoStart) << qint32(cAutoStart());
 		data.stream << quint32(dbiStartMinimized) << qint32(cStartMinimized());
 		data.stream << quint32(dbiSendToMenu) << qint32(cSendToMenu());
@@ -2111,7 +2149,9 @@ namespace Local {
 		_stickerImagesMap.clear();
 		_audiosMap.clear();
 		_storageImagesSize = _storageStickersSize = _storageAudiosSize = 0;
-		_locationsKey = _reportSpamStatusesKey = _recentStickersKeyOld = _stickersKey = _backgroundKey = _userSettingsKey = _recentHashtagsKey = _savedPeersKey = 0;
+		_locationsKey = _reportSpamStatusesKey = 0;
+		_recentStickersKeyOld = _stickersKey = _savedGifsKey = 0;
+		_backgroundKey = _userSettingsKey = _recentHashtagsKey = _savedPeersKey = 0;
 		_oldMapVersion = _oldSettingsVersion = 0;
 		_mapChanged = true;
 		_writeMap(WriteMapNow);
@@ -2667,7 +2707,7 @@ namespace Local {
 			_writeMap();
 		} else {
 			int32 setsCount = 0;
-			QByteArray hashToWrite = (qsl("%d:") + QString::number(cStickersHash())).toUtf8();
+			QByteArray hashToWrite;
 			quint32 size = sizeof(quint32) + _bytearraySize(hashToWrite);
 			for (StickerSets::const_iterator i = sets.cbegin(); i != sets.cend(); ++i) {
 				bool notLoaded = (i->flags & MTPDstickerSet_flag_NOT_LOADED);
@@ -2728,8 +2768,6 @@ namespace Local {
 
 		RecentStickerPack &recent(cRefRecentStickers());
 		recent.clear();
-
-		cSetStickersHash(0);
 
 		StickerSet &def(sets.insert(DefaultStickerSetId, StickerSet(DefaultStickerSetId, 0, lang(lng_stickers_default_set), QString(), 0, 0, MTPDstickerSet::flag_official)).value());
 		StickerSet &custom(sets.insert(CustomStickerSetId, StickerSet(CustomStickerSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, 0)).value());
@@ -2806,9 +2844,8 @@ namespace Local {
 
 		quint32 cnt;
 		QByteArray hash;
-		stickers.stream >> cnt >> hash;
-		if (stickers.version < 8019) {
-			hash.clear(); // bad data in old caches
+		stickers.stream >> cnt >> hash; // ignore hash, it is counted
+		if (stickers.version < 8019) { // bad data in old caches
 			cnt += 2; // try to read at least something
 		}
 		for (uint32 i = 0; i < cnt; ++i) {
@@ -2886,11 +2923,124 @@ namespace Local {
 				++set.count;
 			}
 		}
+	}
 
-		if (hash.startsWith(qsl("%d:").toUtf8())) {
-			cSetStickersHash(QString::fromUtf8(hash.mid(3)).toInt());
+	int32 countStickersHash(bool checkOfficial) {
+		uint32 acc = 0;
+		bool foundOfficial = false, foundBad = false;;
+		const StickerSets &sets(cStickerSets());
+		const StickerSetsOrder &order(cStickerSetsOrder());
+		for (StickerSetsOrder::const_iterator i = order.cbegin(), e = order.cend(); i != e; ++i) {
+			StickerSets::const_iterator j = sets.constFind(*i);
+			if (j != sets.cend()) {
+				if (j->id == 0) {
+					foundBad = true;
+				} else if (j->flags & MTPDstickerSet::flag_official) {
+					foundOfficial = true;
+				}
+				if (!(j->flags & MTPDstickerSet::flag_disabled)) {
+					acc = (acc * 20261) + j->hash;
+				}
+			}
+		}
+		return (!checkOfficial || (!foundBad && foundOfficial)) ? int32(acc & 0x7FFFFFFF) : 0;
+	}
+
+	int32 countSavedGifsHash() {
+		uint32 acc = 0;
+		const SavedGifs &saved(cSavedGifs());
+		for (SavedGifs::const_iterator i = saved.cbegin(), e = saved.cend(); i != e; ++i) {
+			uint64 docId = (*i)->id;
+
+			acc = (acc * 20261) + uint32(docId >> 32);
+			acc = (acc * 20261) + uint32(docId & 0xFFFFFFFF);
+		}
+		return int32(acc & 0x7FFFFFFF);
+	}
+
+	void writeSavedGifs() {
+		if (!_working()) return;
+
+		const SavedGifs &saved(cSavedGifs());
+		if (saved.isEmpty()) {
+			if (_savedGifsKey) {
+				clearKey(_savedGifsKey);
+				_savedGifsKey = 0;
+				_mapChanged = true;
+			}
+			_writeMap();
 		} else {
-			cSetStickersHash(0);
+			quint32 size = sizeof(quint32); // count
+			for (SavedGifs::const_iterator i = saved.cbegin(), e = saved.cend(); i != e; ++i) {
+				DocumentData *doc = *i;
+
+				// id + access + date + namelen + name + mimelen + mime + dc + size + width + height + type
+				size += sizeof(quint64) + sizeof(quint64) + sizeof(qint32) + _stringSize(doc->name) + _stringSize(doc->mime) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
+
+				// thumb
+				size += _storageImageLocationSize();
+			}
+
+			if (!_savedGifsKey) {
+				_savedGifsKey = genKey();
+				_mapChanged = true;
+				_writeMap(WriteMapFast);
+			}
+			EncryptedDescriptor data(size);
+			data.stream << quint32(saved.size());
+			for (SavedGifs::const_iterator i = saved.cbegin(), e = saved.cend(); i != e; ++i) {
+				DocumentData *doc = *i;
+				
+				data.stream << quint64(doc->id) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type);
+				_writeStorageImageLocation(data.stream, doc->thumb->location());
+			}
+			FileWriteDescriptor file(_savedGifsKey);
+			file.writeEncrypted(data);
+		}
+	}
+
+	void readSavedGifs() {
+		if (!_savedGifsKey) return;
+
+		FileReadDescriptor gifs;
+		if (!readEncryptedFile(gifs, _savedGifsKey)) {
+			clearKey(_savedGifsKey);
+			_savedGifsKey = 0;
+			_writeMap();
+			return;
+		}
+
+		SavedGifs &saved(cRefSavedGifs());
+		saved.clear();
+
+		quint32 cnt;
+		gifs.stream >> cnt;
+		saved.reserve(cnt);
+		QMap<uint64, NullType> read;
+		for (uint32 i = 0; i < cnt; ++i) {
+			quint64 id, access;
+			QString name, mime;
+			qint32 date, dc, size, width, height, type;
+			gifs.stream >> id >> access >> date >> name >> mime >> dc >> size >> width >> height >> type;
+
+			StorageImageLocation thumb(_readStorageImageLocation(gifs));
+
+			if (read.contains(id)) continue;
+			read.insert(id, NullType());
+
+			QVector<MTPDocumentAttribute> attributes;
+			if (!name.isEmpty()) attributes.push_back(MTP_documentAttributeFilename(MTP_string(name)));
+			if (type == AnimatedDocument) {
+				attributes.push_back(MTP_documentAttributeAnimated());
+			}
+			if (width > 0 && height > 0) {
+				attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));
+			}
+
+			DocumentData *doc = App::documentSet(id, 0, access, date, attributes, mime, thumb.isNull() ? ImagePtr() : ImagePtr(thumb), dc, size, thumb);
+			if (!doc->isAnimation()) continue;
+			
+			saved.push_back(doc);
 		}
 	}
 

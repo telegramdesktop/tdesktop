@@ -130,6 +130,7 @@ enum {
 	EmojiPanRowsPerPage = 6,
 	StickerPanPerRow = 5,
 	StickerPanRowsPerPage = 4,
+	SavedGifsMaxPerRow = 4,
 	StickersUpdateTimeout = 3600000, // update not more than once in an hour
 
 	SearchPeopleLimit = 5,

@@ -142,6 +142,11 @@ namespace Local {
 
 	void writeStickers();
 	void readStickers();
+	int32 countStickersHash(bool checkOfficial = false);
+
+	void writeSavedGifs();
+	void readSavedGifs();
+	int32 countSavedGifsHash();
 
 	void writeBackground(int32 id, const QImage &img);
 	bool readBackground();

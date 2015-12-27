@@ -357,6 +357,7 @@ inputMessagesFilterDocument#9eddf188 = MessagesFilter;
 inputMessagesFilterAudio#cfc87522 = MessagesFilter;
 inputMessagesFilterAudioDocuments#5afbf764 = MessagesFilter;
 inputMessagesFilterUrl#7ef0dd87 = MessagesFilter;
+inputMessagesFilterGif#ffc86587 = MessagesFilter;
 
 updateNewMessage#1f2b0afd message:Message pts:int pts_count:int = Update;
 updateMessageID#4e90bfd6 id:int random_id:long = Update;
@@ -398,6 +399,7 @@ updateChatParticipantAdmin#b6901959 chat_id:int user_id:int is_admin:Bool versio
 updateNewStickerSet#688a30aa stickerset:messages.StickerSet = Update;
 updateStickerSetsOrder#f0dfb451 order:Vector<long> = Update;
 updateStickerSets#43ae3dec = Update;
+updateSavedGifs#9375341e = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -422,7 +424,7 @@ upload.file#96a18d5 type:storage.FileType mtime:int bytes:bytes = upload.File;
 
 dcOption#5d8c6cc flags:# ipv6:flags.0?true media_only:flags.1?true id:int ip_address:string port:int = DcOption;
 
-config#6cb6e65e date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int push_chat_period_ms:int push_chat_limit:int disabled_features:Vector<DisabledFeature> = Config;
+config#6bbc5f8 date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int push_chat_period_ms:int push_chat_limit:int saved_gifs_limit:int disabled_features:Vector<DisabledFeature> = Config;
 
 nearestDc#8e1a1775 country:string this_dc:int nearest_dc:int = NearestDc;
 
@@ -641,6 +643,9 @@ foundGif#d579cccb webpage:WebPage = FoundGif;
 
 messages.foundGifs#450a1c0a next_offset:int results:Vector<FoundGif> = messages.FoundGifs;
 
+messages.savedGifsNotModified#e8025ca2 = messages.SavedGifs;
+messages.savedGifs#2e0709a5 hash:int gifs:Vector<Document> = messages.SavedGifs;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -759,6 +764,8 @@ messages.searchGlobal#9e3cacb0 q:string offset_date:int offset_peer:InputPeer of
 messages.reorderStickerSets#9fcfbc30 order:Vector<long> = Bool;
 messages.getDocumentByHash#338e2464 sha256:bytes size:int mime_type:string = Document;
 messages.searchGifs#bf9a776b q:string offset:int = messages.FoundGifs;
+messages.getSavedGifs#83bf3d52 hash:int = messages.SavedGifs;
+messages.saveGif#327a30cb id:InputDocument unsave:Bool = Bool;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#a041495 pts:int date:int qts:int = updates.Difference;

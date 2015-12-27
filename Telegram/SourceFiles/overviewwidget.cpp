@@ -345,7 +345,7 @@ void OverviewInner::moveToNextItem(MsgId &msgId, int32 &index, MsgId upTo, int32
 	}
 }
 
-void OverviewInner::redrawItem(MsgId itemId, int32 itemIndex) {
+void OverviewInner::repaintItem(MsgId itemId, int32 itemIndex) {
 	fixItemIndex(itemIndex, itemId);
 	if (itemIndex >= 0) {
 		if (_type == OverviewPhotos || _type == OverviewVideos) {
@@ -476,10 +476,10 @@ void OverviewInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton but
 	if (button != Qt::LeftButton) return;
 
 	if (textlnkDown() != textlnkOver()) {
-		redrawItem(App::pressedLinkItem());
+		repaintItem(App::pressedLinkItem());
 		textlnkDown(textlnkOver());
 		App::pressedLinkItem(App::hoveredLinkItem());
-		redrawItem(App::pressedLinkItem());
+		repaintItem(App::pressedLinkItem());
 	}
 
 	_dragAction = NoDrag;
@@ -508,12 +508,12 @@ void OverviewInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton but
 				uint32 selStatus = (_dragSymbol << 16) | _dragSymbol;
 				if (selStatus != FullSelection && (_selected.isEmpty() || _selected.cbegin().value() != FullSelection)) {
 					if (!_selected.isEmpty()) {
-						redrawItem(_selected.cbegin().key(), -1);
+						repaintItem(_selected.cbegin().key(), -1);
 						_selected.clear();
 					}
 					_selected.insert(_dragItem, selStatus);
 					_dragAction = Selecting;
-					redrawItem(_dragItem, _dragItemIndex);
+					repaintItem(_dragItem, _dragItemIndex);
 					_overview->updateTopBarSelection();
 				} else {
 					_dragAction = PrepareSelect;
@@ -552,7 +552,7 @@ void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 		}
 	}
 	if (textlnkDown()) {
-		redrawItem(App::pressedLinkItem());
+		repaintItem(App::pressedLinkItem());
 		textlnkDown(TextLinkPtr());
 		App::pressedLinkItem(0);
 		if (!textlnkOver() && _cursor != style::cur_default) {
@@ -577,16 +577,16 @@ void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 		} else {
 			_selected.erase(i);
 		}
-		redrawItem(_dragItem, _dragItemIndex);
+		repaintItem(_dragItem, _dragItemIndex);
 	} else if (_dragAction == PrepareDrag && !needClick && !_dragWasInactive && button != Qt::RightButton) {
 		SelectedItems::iterator i = _selected.find(_dragItem);
 		if (i != _selected.cend() && i.value() == FullSelection) {
 			_selected.erase(i);
-			redrawItem(_dragItem, _dragItemIndex);
+			repaintItem(_dragItem, _dragItemIndex);
 		} else if (i == _selected.cend() && itemMsgId(_dragItem) > 0 && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection) {
 			if (_selected.size() < MaxSelectedItems) {
 				_selected.insert(_dragItem, FullSelection);
-				redrawItem(_dragItem, _dragItemIndex);
+				repaintItem(_dragItem, _dragItemIndex);
 			}
 		} else {
 			_selected.clear();
@@ -994,7 +994,7 @@ void OverviewInner::onUpdateSelected() {
 				fixItemIndex(itemIndex, itemId);
 				if (itemIndex >= 0) {
 					_items.at(itemIndex)->linkOut(textlnkOver());
-					redrawItem(itemId, itemIndex);
+					repaintItem(itemId, itemIndex);
 				}
 			}
 		}
@@ -1004,7 +1004,7 @@ void OverviewInner::onUpdateSelected() {
 		if (textlnkOver()) {
 			if (item && index >= 0) {
 				_items.at(index)->linkOver(textlnkOver());
-				redrawItem(complexMsgId(item), index);
+				repaintItem(complexMsgId(item), index);
 			}
 		}
 	} else {
@@ -1012,8 +1012,8 @@ void OverviewInner::onUpdateSelected() {
 	}
 	if (_mousedItem != oldMousedItem) {
 		lnkChanged = true;
-		if (oldMousedItem) redrawItem(oldMousedItem, oldMousedItemIndex);
-		if (item) redrawItem(item);
+		if (oldMousedItem) repaintItem(oldMousedItem, oldMousedItemIndex);
+		if (item) repaintItem(item);
 		QToolTip::hideText();
 	}
 	if (_cursorState == HistoryInDateCursorState && cursorState != HistoryInDateCursorState) {
@@ -1199,11 +1199,11 @@ void OverviewInner::enterEvent(QEvent *e) {
 
 void OverviewInner::leaveEvent(QEvent *e) {
 	if (_selectedMsgId) {
-		redrawItem(_selectedMsgId, -1);
+		repaintItem(_selectedMsgId, -1);
 		_selectedMsgId = 0;
 	}
 	if (textlnkOver()) {
-		redrawItem(App::hoveredLinkItem());
+		repaintItem(App::hoveredLinkItem());
 		textlnkOver(TextLinkPtr());
 		App::hoveredLinkItem(0);
 		if (!textlnkDown() && _cursor != style::cur_default) {
@@ -1223,8 +1223,8 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	if (_menu) {
 		_menu->deleteLater();
 		_menu = 0;
-		redrawItem(App::contextItem());
-		if (_selectedMsgId) redrawItem(_selectedMsgId, -1);
+		repaintItem(App::contextItem());
+		if (_selectedMsgId) repaintItem(_selectedMsgId, -1);
 	}
 	if (e->reason() == QContextMenuEvent::Mouse) {
 		dragActionUpdate(e->globalPos());
@@ -1301,8 +1301,8 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 		}
 		App::contextItem(App::hoveredLinkItem());
-		redrawItem(App::contextItem());
-		if (_selectedMsgId) redrawItem(_selectedMsgId, -1);
+		repaintItem(App::contextItem());
+		if (_selectedMsgId) repaintItem(_selectedMsgId, -1);
 	} else if (!ignoreMousedItem && App::mousedItem() && App::mousedItem()->channelId() == itemChannel(_mousedItem) && App::mousedItem()->id == itemMsgId(_mousedItem)) {
 		_menu = new PopupMenu();
 		if ((_contextMenuLnk && dynamic_cast<TextLink*>(_contextMenuLnk.data()))) {
@@ -1340,8 +1340,8 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 		}
 		App::contextItem(App::mousedItem());
-		redrawItem(App::contextItem());
-		if (_selectedMsgId) redrawItem(_selectedMsgId, -1);
+		repaintItem(App::contextItem());
+		if (_selectedMsgId) repaintItem(_selectedMsgId, -1);
 	}
 	if (_menu) {
 		connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
@@ -1627,8 +1627,8 @@ void OverviewInner::onMenuDestroy(QObject *obj) {
 	if (_menu == obj) {
 		_menu = 0;
 		dragActionUpdate(QCursor::pos());
-		redrawItem(App::contextItem());
-		if (_selectedMsgId) redrawItem(_selectedMsgId, -1);
+		repaintItem(App::contextItem());
+		if (_selectedMsgId) repaintItem(_selectedMsgId, -1);
 	}
 }
 
@@ -1719,7 +1719,7 @@ void OverviewInner::mediaOverviewUpdated() {
 				allGood = false;
 			}
 			HistoryItem *item = App::histItemById(itemChannel(msgid), itemMsgId(msgid));
-			LayoutMediaItem *layout = getItemLayout(item);
+			LayoutMediaItem *layout = layoutPrepare(item);
 			if (!layout) continue;
 
 			setLayoutItem(index, layout, 0);
@@ -1765,13 +1765,13 @@ void OverviewInner::mediaOverviewUpdated() {
 				allGood = false;
 			}
 			HistoryItem *item = App::histItemById(itemChannel(msgid), itemMsgId(msgid));
-			LayoutMediaItem *layout = getItemLayout(item);
+			LayoutMediaItem *layout = layoutPrepare(item);
 			if (!layout) continue;
 
 			if (withDates) {
 				QDate date = item->date.date();
 				if (!index || (index > 0 && (dateEveryMonth ? (date.month() != prevDate.month() || date.year() != prevDate.year()) : (date != prevDate)))) {
-					top += setLayoutItem(index, getDateLayout(date, dateEveryMonth), top);
+					top += setLayoutItem(index, layoutPrepare(date, dateEveryMonth), top);
 					++index;
 					prevDate = date;
 				}
@@ -1851,7 +1851,7 @@ void OverviewInner::itemRemoved(HistoryItem *item) {
 	update();
 }
 
-void OverviewInner::redrawItem(const HistoryItem *msg) {
+void OverviewInner::repaintItem(const HistoryItem *msg) {
 	if (!msg) return;
 
 	History *history = (msg->history() == _history) ? _history : (msg->history() == _migrated ? _migrated : 0);
@@ -1921,7 +1921,7 @@ void OverviewInner::recountMargins() {
 	}
 }
 
-LayoutMediaItem *OverviewInner::getItemLayout(HistoryItem *item) {
+LayoutMediaItem *OverviewInner::layoutPrepare(HistoryItem *item) {
 	if (!item) return 0;
 
 	LayoutItems::const_iterator i = _layoutItems.cend();
@@ -1963,7 +1963,7 @@ LayoutMediaItem *OverviewInner::getItemLayout(HistoryItem *item) {
 	return (i == _layoutItems.cend()) ? 0 : i.value();
 }
 
-LayoutItem *OverviewInner::getDateLayout(const QDate &date, bool month) {
+LayoutItem *OverviewInner::layoutPrepare(const QDate &date, bool month) {
 	int32 key = date.year() * 100 + date.month();
 	if (!month) key = key * 100 + date.day();
 	LayoutDates::const_iterator i = _layoutDates.constFind(key);
@@ -2288,9 +2288,9 @@ void OverviewWidget::changingMsgId(HistoryItem *row, MsgId newId) {
 	}
 }
 
-void OverviewWidget::ui_redrawHistoryItem(const HistoryItem *item) {
+void OverviewWidget::ui_repaintHistoryItem(const HistoryItem *item) {
 	if (peer() == item->history()->peer || migratePeer() == item->history()->peer) {
-		_inner.redrawItem(item);
+		_inner.repaintItem(item);
 	}
 }
 
