@@ -294,13 +294,12 @@ void FileLoadTask::process() {
 	MTPDocument document(MTP_documentEmpty(MTP_long(0)));
 	MTPAudio audio(MTP_audioEmpty(MTP_long(0)));
 
-	bool song = false;
+	bool song = false, gif = false;
 	if (_type != PrepareAudio) {
 		if (filemime == qstr("audio/mp3") || filemime == qstr("audio/m4a") || filemime == qstr("audio/aac") || filemime == qstr("audio/ogg") || filemime == qstr("audio/flac") ||
 			filename.endsWith(qstr(".mp3"), Qt::CaseInsensitive) || filename.endsWith(qstr(".m4a"), Qt::CaseInsensitive) ||
 			filename.endsWith(qstr(".aac"), Qt::CaseInsensitive) || filename.endsWith(qstr(".ogg"), Qt::CaseInsensitive) ||
 			filename.endsWith(qstr(".flac"), Qt::CaseInsensitive)) {
-
 			QImage cover;
 			QByteArray coverBytes, coverFormat;
 			MTPDocumentAttribute audioAttribute = audioReadSongAttributes(_filepath, _content, cover, coverBytes, coverFormat);
@@ -327,9 +326,37 @@ void FileLoadTask::process() {
 				}
 			}
 		}
+		if (filemime == qstr("video/mp4") || filename.endsWith(qstr(".mp4"), Qt::CaseInsensitive)) {
+			QImage cover;
+			MTPDocumentAttribute animatedAttribute = clipReadAnimatedAttributes(_filepath, _content, cover);
+			if (animatedAttribute.type() == mtpc_documentAttributeVideo) {
+				int32 cw = cover.width(), ch = cover.height();
+				if (cw < 20 * ch && ch < 20 * cw) {
+					attributes.push_back(MTP_documentAttributeAnimated());
+					attributes.push_back(animatedAttribute);
+					gif = true;
+
+					QPixmap full = (cw > 90 || ch > 90) ? QPixmap::fromImage(cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(cover, Qt::ColorOnly);
+					{
+						QByteArray thumbFormat = "JPG";
+						int32 thumbQuality = 87;
+
+						QBuffer buffer(&thumbdata);
+						full.save(&buffer, thumbFormat, thumbQuality);
+					}
+
+					thumb = full;
+					thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0));
+
+					thumbId = MTP::nonce<uint64>();
+
+					filemime = qstr("video/mp4");
+				}
+			}
+		}
 	}
 
-	if (!fullimage.isNull() && fullimage.width() > 0 && !song) {
+	if (!fullimage.isNull() && fullimage.width() > 0 && !song && !gif) {
 		int32 w = fullimage.width(), h = fullimage.height();
 		attributes.push_back(MTP_documentAttributeImageSize(MTP_int(w), MTP_int(h)));
 

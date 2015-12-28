@@ -1132,8 +1132,14 @@ public:
 	bool isAnimation() const {
 		return (type == AnimatedDocument) || !mime.compare(qstr("image/gif"), Qt::CaseInsensitive);
 	}
+	bool isGifv() const {
+		return (type == AnimatedDocument) && !mime.compare(qstr("video/mp4"), Qt::CaseInsensitive);
+	}
+	int32 duration() const {
+		return (isAnimation() || type == VideoDocument) ? _duration : -1;
+	}
 	bool isImage() const {
-		return _isImage;
+		return !isAnimation() && (type != VideoDocument) && (_duration > 0);
 	}
 	void recountIsImage();
 
@@ -1159,7 +1165,7 @@ private:
 	FileLocation _location;
 	QByteArray _data;
 	DocumentAdditionalData *_additional;
-	bool _isImage;
+	int32 _duration;
 
 	ActionOnLoad _actionOnLoad;
 	FullMsgId _actionOnLoadMsgId;

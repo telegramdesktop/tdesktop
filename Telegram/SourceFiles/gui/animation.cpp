@@ -358,12 +358,19 @@ ClipReader::~ClipReader() {
 class ClipReaderImplementation {
 public:
 
-	ClipReaderImplementation(FileLocation *location, QByteArray *data) : _location(location), _data(data), _device(0) {
+	ClipReaderImplementation(FileLocation *location, QByteArray *data)
+		: _location(location)
+		, _data(data)
+		, _device(0)
+		, _dataSize(0) {
 	}
 	virtual bool readNextFrame(QImage &to, bool &hasAlpha, const QSize &size) = 0;
 	virtual int32 nextFrameDelay() = 0;
-	virtual bool start() = 0;
+	virtual bool start(bool onlyGifv) = 0;
 	virtual ~ClipReaderImplementation() {
+	}
+	int64 dataSize() const {
+		return _dataSize;
 	}
 
 protected:
@@ -372,14 +379,17 @@ protected:
 	QFile _file;
 	QBuffer _buffer;
 	QIODevice *_device;
+	int64 _dataSize;
 
 	void initDevice() {
 		if (_data->isEmpty()) {
 			if (_file.isOpen()) _file.close();
 			_file.setFileName(_location->name());
+			_dataSize = _file.size();
 		} else {
 			if (_buffer.isOpen()) _buffer.close();
 			_buffer.setBuffer(_data);
+			_dataSize = _data->size();
 		}
 		_device = _data->isEmpty() ? static_cast<QIODevice*>(&_file) : static_cast<QIODevice*>(&_buffer);
 	}
@@ -432,7 +442,8 @@ public:
 		return _frameDelay;
 	}
 
-	bool start() {
+	bool start(bool onlyGifv) {
+		if (onlyGifv) return false;
 		return jumpToStart();
 	}
 
@@ -632,7 +643,7 @@ public:
 		return qsl("for file '%1', data size '%2'").arg(_location ? _location->name() : QString()).arg(_data->size());
 	}
 
-	bool start() {
+	bool start(bool onlyGifv) {
 		initDevice();
 		if (!_device->open(QIODevice::ReadOnly)) {
 			LOG(("Gif Error: Unable to open device %1").arg(logData()));
@@ -671,6 +682,18 @@ public:
 		// Get a pointer to the codec context for the audio stream
 		_codecContext = _fmtContext->streams[_streamId]->codec;
 		_codec = avcodec_find_decoder(_codecContext->codec_id);
+
+		if (onlyGifv) {
+			if (av_find_best_stream(_fmtContext, AVMEDIA_TYPE_AUDIO, -1, -1, 0, 0) >= 0) { // should be no audio stream
+				return false;
+			}
+			if (dataSize() > AnimationInMemory) {
+				return false;
+			}
+			if (_codecContext->codec_id != AV_CODEC_ID_H264) {
+				return false;
+			}
+		}
 		av_opt_set_int(_codecContext, "refcounted_frames", 1, 0);
 		if ((res = avcodec_open2(_codecContext, _codec, 0)) < 0) {
 			LOG(("Gif Error: Unable to avcodec_open2 %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
@@ -678,6 +701,11 @@ public:
 		}
 
 		return true;
+	}
+
+	int32 duration() const {
+		if (_fmtContext->streams[_streamId]->duration == AV_NOPTS_VALUE) return 0;
+		return (_fmtContext->streams[_streamId]->duration * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
 	}
 
 	~FFMpegReaderImplementation() {
@@ -864,7 +892,7 @@ public:
 
 		_implementation = new FFMpegReaderImplementation(_location, &_data);
 //		_implementation = new QtGifReaderImplementation(_location, &_data);
-		return _implementation->start();
+		return _implementation->start(false);
 	}
 
 	ClipProcessResult error() {
@@ -1107,4 +1135,31 @@ void ClipReadManager::clear() {
 
 ClipReadManager::~ClipReadManager() {
     clear();
+}
+
+MTPDocumentAttribute clipReadAnimatedAttributes(const QString &fname, const QByteArray &data, QImage &cover) {
+	FileLocation localloc(StorageFilePartial, fname);
+	QByteArray localdata(data);
+
+	FFMpegReaderImplementation *reader = new FFMpegReaderImplementation(&localloc, &localdata);
+	if (reader->start(true)) {
+		bool hasAlpha = false;
+		if (reader->readNextFrame(cover, hasAlpha, QSize())) {
+			if (cover.width() > 0 && cover.height() > 0 && cover.width() < cover.height() * 10 && cover.height() < cover.width() * 10) {
+				if (hasAlpha) {
+					QImage cache;
+					ClipFrameRequest request;
+					request.framew = request.outerw = cover.width();
+					request.frameh = request.outerh = cover.height();
+					request.factor = 1;
+					cover = _prepareFrame(request, cover, cache, hasAlpha).toImage();
+				}
+				int32 duration = reader->duration();
+				delete reader;
+				return MTP_documentAttributeVideo(MTP_int(duration), MTP_int(cover.width()), MTP_int(cover.height()));
+			}
+		}
+	}
+	delete reader;
+	return MTP_documentAttributeFilename(MTP_string(fname));
 }

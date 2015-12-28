@@ -646,3 +646,5 @@ private:
 	bool _needReProcess;
 
 };
+
+MTPDocumentAttribute clipReadAnimatedAttributes(const QString &fname, const QByteArray &data, QImage &cover);

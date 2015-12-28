@@ -938,7 +938,7 @@ namespace App {
 		if (!item->toHistoryForwarded() && item->out()) {
 			if (HistoryMedia *media = item->getMedia()) {
 				if (DocumentData *doc = media->getDocument()) {
-					if (doc->type == AnimatedDocument && doc->mime.toLower() == qstr("video/mp4")) {
+					if (doc->isGifv()) {
 						addSavedGif(doc);
 					}
 				}
@@ -1623,6 +1623,9 @@ namespace App {
 				}
 				convert->id = document;
 				convert->status = FileReady;
+				if (cSavedGifs().indexOf(convert) >= 0) { // id changed
+					Local::writeSavedGifs();
+				}
 				sentSticker = !!convert->sticker();
 			}
 			convert->access = access;

@@ -944,7 +944,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 							if (doc->loading()) {
 								_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
 							} else {
-								if (doc->mime.toLower() == qstr("video/mp4") && doc->type == AnimatedDocument) {
+								if (doc->isGifv()) {
 									_menu->addAction(lang(lng_context_save_gif), this, SLOT(saveContextGif()))->setEnabled(true);
 								}
 								if (!doc->already(true).isEmpty()) {
@@ -3181,10 +3181,8 @@ void HistoryWidget::savedGifsGot(const MTPmessages_SavedGifs &gifs) {
 }
 
 void HistoryWidget::saveGif(DocumentData *doc) {
-	if (doc->mime.toLower() == qstr("video/mp4") && doc->type == AnimatedDocument) {
-		if (cSavedGifs().indexOf(doc) != 0) {
-			MTP::send(MTPmessages_SaveGif(MTP_inputDocument(MTP_long(doc->id), MTP_long(doc->access)), MTP_bool(false)), rpcDone(&HistoryWidget::saveGifDone, doc));
-		}
+	if (doc->isGifv() && cSavedGifs().indexOf(doc) != 0) {
+		MTP::send(MTPmessages_SaveGif(MTP_inputDocument(MTP_long(doc->id), MTP_long(doc->access)), MTP_bool(false)), rpcDone(&HistoryWidget::saveGifDone, doc));
 	}
 }
 
@@ -5468,7 +5466,12 @@ namespace {
 	MTPVector<MTPDocumentAttribute> _composeDocumentAttributes(DocumentData *document) {
 		QVector<MTPDocumentAttribute> attributes(1, MTP_documentAttributeFilename(MTP_string(document->name)));
 		if (document->dimensions.width() > 0 && document->dimensions.height() > 0) {
-			attributes.push_back(MTP_documentAttributeImageSize(MTP_int(document->dimensions.width()), MTP_int(document->dimensions.height())));
+			int32 duration = document->duration();
+			if (duration >= 0) {
+				attributes.push_back(MTP_documentAttributeVideo(MTP_int(duration), MTP_int(document->dimensions.width()), MTP_int(document->dimensions.height())));
+			} else {
+				attributes.push_back(MTP_documentAttributeImageSize(MTP_int(document->dimensions.width()), MTP_int(document->dimensions.height())));
+			}
 		}
 		if (document->type == AnimatedDocument) {
 			attributes.push_back(MTP_documentAttributeAnimated());

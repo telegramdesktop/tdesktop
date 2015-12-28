@@ -552,7 +552,8 @@ namespace {
 		lskStickers           = 0x0b, // no data
 		lskSavedPeers         = 0x0c, // no data
 		lskReportSpamStatuses = 0x0d, // no data
-		lskSavedGifs          = 0x0e,
+		lskSavedGifsOld       = 0x0e,
+		lskSavedGifs          = 0x0f,
 	};
 
 	typedef QMap<PeerId, FileKey> DraftsMap;
@@ -569,7 +570,7 @@ namespace {
 	FileLocationAliases _fileLocationAliases;
 	FileKey _locationsKey = 0, _reportSpamStatusesKey = 0;
 	
-	FileKey _recentStickersKeyOld = 0, _stickersKey = 0, _savedGifsKey;
+	FileKey _recentStickersKeyOld = 0, _stickersKey = 0, _savedGifsKey = 0;
 	
 	FileKey _backgroundKey = 0;
 	bool _backgroundWasRead = false;
@@ -1719,6 +1720,10 @@ namespace {
 			} break;
 			case lskStickers: {
 				map.stream >> stickersKey;
+			} break;
+			case lskSavedGifsOld: {
+				quint64 key;
+				map.stream >> key;
 			} break;
 			case lskSavedGifs: {
 				map.stream >> savedGifsKey;
@@ -2974,8 +2979,8 @@ namespace Local {
 			for (SavedGifs::const_iterator i = saved.cbegin(), e = saved.cend(); i != e; ++i) {
 				DocumentData *doc = *i;
 
-				// id + access + date + namelen + name + mimelen + mime + dc + size + width + height + type
-				size += sizeof(quint64) + sizeof(quint64) + sizeof(qint32) + _stringSize(doc->name) + _stringSize(doc->mime) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
+				// id + access + date + namelen + name + mimelen + mime + dc + size + width + height + type + duration
+				size += sizeof(quint64) + sizeof(quint64) + sizeof(qint32) + _stringSize(doc->name) + _stringSize(doc->mime) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
 
 				// thumb
 				size += _storageImageLocationSize();
@@ -2991,7 +2996,7 @@ namespace Local {
 			for (SavedGifs::const_iterator i = saved.cbegin(), e = saved.cend(); i != e; ++i) {
 				DocumentData *doc = *i;
 				
-				data.stream << quint64(doc->id) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type);
+				data.stream << quint64(doc->id) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type) << qint32(doc->duration());
 				_writeStorageImageLocation(data.stream, doc->thumb->location());
 			}
 			FileWriteDescriptor file(_savedGifsKey);
@@ -3020,8 +3025,8 @@ namespace Local {
 		for (uint32 i = 0; i < cnt; ++i) {
 			quint64 id, access;
 			QString name, mime;
-			qint32 date, dc, size, width, height, type;
-			gifs.stream >> id >> access >> date >> name >> mime >> dc >> size >> width >> height >> type;
+			qint32 date, dc, size, width, height, type, duration;
+			gifs.stream >> id >> access >> date >> name >> mime >> dc >> size >> width >> height >> type >> duration;
 
 			StorageImageLocation thumb(_readStorageImageLocation(gifs));
 
@@ -3034,7 +3039,11 @@ namespace Local {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			}
 			if (width > 0 && height > 0) {
-				attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));
+				if (duration >= 0) {
+					attributes.push_back(MTP_documentAttributeVideo(MTP_int(duration), MTP_int(width), MTP_int(height)));
+				} else {
+					attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));
+				}
 			}
 
 			DocumentData *doc = App::documentSet(id, 0, access, date, attributes, mime, thumb.isNull() ? ImagePtr() : ImagePtr(thumb), dc, size, thumb);

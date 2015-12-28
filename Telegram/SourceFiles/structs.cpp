@@ -1490,7 +1490,7 @@ DocumentData::DocumentData(const DocumentId &id, const uint64 &access, int32 dat
 , status(FileReady)
 , uploadOffset(0)
 , _additional(0)
-, _isImage(false)
+, _duration(-1)
 , _actionOnLoad(ActionOnLoadNone)
 , _loader(0) {
 	_location = Local::readFileLocation(mediaKey(DocumentFileLocation, dc, id));
@@ -1524,7 +1524,7 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			if (type == FileDocument) {
 				type = VideoDocument;
 			}
-//			duration = d.vduration.v;
+			_duration = d.vduration.v;
 			dimensions = QSize(d.vw.v, d.vh.v);
 		} break;
 		case mtpc_documentAttributeAudio: {
@@ -1812,7 +1812,8 @@ bool fileIsImage(const QString &name, const QString &mime) {
 }
 
 void DocumentData::recountIsImage() {
-	_isImage = fileIsImage(name, mime);
+	if (isAnimation() || type == VideoDocument) return;
+	_duration = fileIsImage(name, mime) ? 1 : -1; // hack
 }
 
 DocumentData::~DocumentData() {
