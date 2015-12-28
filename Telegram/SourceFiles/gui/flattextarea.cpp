@@ -252,10 +252,43 @@ EmojiPtr FlatTextarea::getSingleEmoji() const {
 	return 0;
 }
 
-void FlatTextarea::getMentionHashtagBotCommandStart(QString &start) const {
+void FlatTextarea::getMentionHashtagBotCommandStart(QString &start, UserData *&contextBot, QString &lookedUpUsername) const {
 	int32 pos = textCursor().position();
 	if (textCursor().anchor() != pos) return;
 
+	// check context bot query
+	const QString &text(getLastText());
+	int32 size = text.size();
+	if (size > 2 && text.at(0) == '@' && text.at(1).isLetter()) {
+		int32 usernameStart = 1, usernameLength = 1;
+		for (int32 i = usernameStart + 1, l = text.size(); i < l; ++i) {
+			if (text.at(i).isLetterOrNumber() || text.at(i).unicode() == '_') {
+				++usernameLength;
+				continue;
+			}
+			if (!text.at(i).isSpace()) {
+				usernameLength = 0;
+			}
+			break;
+		}
+		if (usernameLength) {
+			UserData *bot = 0;
+			if (contextBot && !contextBot->username.compare(text.midRef(1, usernameLength))) {
+				bot = contextBot;
+			} else {
+				PeerData *peer = App::peerByName(text.midRef(1, usernameLength));
+				if (peer) {
+					if (peer->isUser()) {
+						bot = peer->asUser();
+					} else {
+
+					}
+				}
+			}
+		}
+	}
+
+	// check mention / hashtag / bot command
 	QTextDocument *doc(document());
 	QTextBlock block = doc->findBlock(pos);
 	for (QTextBlock::Iterator iter = block.begin(); !iter.atEnd(); ++iter) {

@@ -107,18 +107,6 @@ namespace Ui {
 		return false;
 	}
 
-	void clipRepaint(ClipReader *reader) {
-		const GifItems &items(App::gifItems());
-		GifItems::const_iterator it = items.constFind(reader);
-		if (it != items.cend()) {
-			if (reader->currentDisplayed()) {
-				return;
-			}
-			Ui::repaintHistoryItem(it.value());
-		}
-		if (Window *w = App::wnd()) w->ui_clipRepaint(reader);
-	}
-
 	void repaintHistoryItem(const HistoryItem *item) {
 		if (!item) return;
 		if (MainWidget *m = App::main()) m->ui_repaintHistoryItem(item);
@@ -166,35 +154,6 @@ namespace Notify {
 
 	void clipStopperHidden(ClipStopperType type) {
 		if (MainWidget *m = App::main()) m->notify_clipStopperHidden(type);
-	}
-
-	void clipReinit(ClipReader *reader) {
-		const GifItems &items(App::gifItems());
-		GifItems::const_iterator it = items.constFind(reader);
-		if (it != items.cend()) {
-			HistoryItem *item = it.value();
-
-			bool stopped = false;
-			if (reader->paused()) {
-				if (MainWidget *m = App::main()) {
-					if (!m->isItemVisible(item)) { // stop animation if it is not visible
-						if (HistoryMedia *media = item->getMedia()) {
-							media->stopInline(item);
-							if (DocumentData *document = media->getDocument()) { // forget data from memory
-								document->forget();
-							}
-							stopped = true;
-						}
-					}
-				}
-			}
-			if (!stopped) {
-				item->initDimensions(); // can delete reader and items entry it
-				Notify::historyItemResized(item);
-				Notify::historyItemLayoutChanged(item);
-			}
-		}
-		if (Window *w = App::wnd()) w->notify_clipReinit(reader);
 	}
 
 	void historyItemResized(const HistoryItem *item, bool scrollToIt) {

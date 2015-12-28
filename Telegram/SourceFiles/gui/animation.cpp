@@ -106,7 +106,7 @@ namespace anim {
 void Animation::start() {
 	if (!_manager) return;
 
-	_cb->start();
+	_cb.start();
 	_manager->start(this);
 	_animating = true;
 }
@@ -179,14 +179,8 @@ void AnimationManager::timeout() {
 	}
 }
 
-void AnimationManager::clipReinit(ClipReader *reader, qint32 threadIndex) {
-	ClipReader::callback(reader, threadIndex, ClipReaderReinit);
-	Notify::clipReinit(reader);
-}
-
-void AnimationManager::clipRepaint(ClipReader *reader, qint32 threadIndex) {
-	ClipReader::callback(reader, threadIndex, ClipReaderRepaint);
-	Ui::clipRepaint(reader);
+void AnimationManager::clipCallback(ClipReader *reader, qint32 threadIndex, qint32 notification) {
+	ClipReader::callback(reader, threadIndex, ClipReaderNotification(notification));
 }
 
 QPixmap _prepareFrame(const ClipFrameRequest &request, const QImage &original, QImage &cache, bool hasAlpha) {
@@ -225,7 +219,7 @@ QPixmap _prepareFrame(const ClipFrameRequest &request, const QImage &original, Q
 	return QPixmap::fromImage(original, Qt::ColorOnly);
 }
 
-ClipReader::ClipReader(const FileLocation &location, const QByteArray &data, Callback *cb)
+ClipReader::ClipReader(const FileLocation &location, const QByteArray &data, Callback::Creator cb)
 : _cb(cb)
 , _state(ClipReading)
 , _width(0)
@@ -257,7 +251,7 @@ ClipReader::ClipReader(const FileLocation &location, const QByteArray &data, Cal
 void ClipReader::callback(ClipReader *reader, int32 threadIndex, ClipReaderNotification notification) {
 	// check if reader is not deleted already
 	if (_clipManagers.size() > threadIndex && _clipManagers.at(threadIndex)->carries(reader)) {
-		if (reader->_cb) reader->_cb->call(notification);
+		reader->_cb.call(notification);
 	}
 }
 
@@ -351,8 +345,6 @@ void ClipReader::error() {
 
 ClipReader::~ClipReader() {
 	stop();
-	delete _cb;
-	setBadPointer(_cb);
 }
 
 class ClipReaderImplementation {
@@ -448,8 +440,7 @@ public:
 	}
 
 	~QtGifReaderImplementation() {
-		delete _reader;
-		setBadPointer(_reader);
+		deleteAndMark(_reader);
 	}
 
 private:
@@ -917,8 +908,8 @@ public:
 
 	~ClipReaderPrivate() {
 		stop();
-		setBadPointer(_location);
-		setBadPointer(_implementation);
+		deleteAndMark(_location);
+		deleteAndMark(_implementation);
 		_data.clear();
 	}
 
@@ -958,8 +949,7 @@ ClipReadManager::ClipReadManager(QThread *thread) : _processingInThread(0), _nee
 	_timer.moveToThread(thread);
 	connect(&_timer, SIGNAL(timeout()), this, SLOT(process()));
 
-	connect(this, SIGNAL(reinit(ClipReader*,qint32)), _manager, SLOT(clipReinit(ClipReader*,qint32)));
-	connect(this, SIGNAL(repaint(ClipReader*,qint32)), _manager, SLOT(clipRepaint(ClipReader*,qint32)));
+	connect(this, SIGNAL(callback(ClipReader*,qint32,qint32)), _manager, SLOT(clipCallback(ClipReader*,qint32,qint32)));
 }
 
 void ClipReadManager::append(ClipReader *reader, const FileLocation &location, const QByteArray &data) {
@@ -995,7 +985,7 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 	if (result == ClipProcessError) {
 		if (it != _readerPointers.cend()) {
 			it.key()->error();
-			emit reinit(it.key(), it.key()->threadIndex());
+			emit callback(it.key(), it.key()->threadIndex(), ClipReaderReinit);
 
 			_readerPointers.erase(it);
 			it = _readerPointers.end();
@@ -1025,9 +1015,9 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 		it.key()->_currentOriginal = reader->_currentOriginal;
 		it.key()->_currentDisplayed.set(false);
 		if (result == ClipProcessReinit) {
-			emit reinit(it.key(), it.key()->threadIndex());
+			emit callback(it.key(), it.key()->threadIndex(), ClipReaderReinit);
 		} else if (result == ClipProcessRepaint) {
-			emit repaint(it.key(), it.key()->threadIndex());
+			emit callback(it.key(), it.key()->threadIndex(), ClipReaderRepaint);
 		}
 	}
 	return true;

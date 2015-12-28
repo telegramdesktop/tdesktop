@@ -2966,6 +2966,42 @@ void HistoryItem::setId(MsgId newId) {
 	id = newId;
 }
 
+void HistoryItem::clipCallback(ClipReaderNotification notification) {
+	HistoryMedia *media = getMedia();
+	if (!media) return;
+	
+	ClipReader *reader = media ? media->getClipReader() : 0;
+	if (!reader) return;
+
+	switch (notification) {
+	case ClipReaderReinit: {
+		bool stopped = false;
+		if (reader->paused()) {
+			if (MainWidget *m = App::main()) {
+				if (!m->isItemVisible(this)) { // stop animation if it is not visible
+					media->stopInline(this);
+					if (DocumentData *document = media->getDocument()) { // forget data from memory
+						document->forget();
+					}
+					stopped = true;
+				}
+			}
+		}
+		if (!stopped) {
+			initDimensions();
+			Notify::historyItemResized(this);
+			Notify::historyItemLayoutChanged(this);
+		}
+	} break;
+
+	case ClipReaderRepaint: {
+		if (!reader->currentDisplayed()) {
+			Ui::repaintHistoryItem(this);
+		}
+	} break;
+	}
+}
+
 HistoryItem::~HistoryItem() {
 	App::historyUnregItem(this);
 	if (id < 0 && App::uploader()) {
@@ -2981,14 +3017,14 @@ HistoryItem *regItem(HistoryItem *item) {
 	return item;
 }
 
-RadialAnimation::RadialAnimation(AnimationCallbacks *callbacks)
+RadialAnimation::RadialAnimation(AnimationCreator creator)
 : _firstStart(0)
 , _lastStart(0)
 , _lastTime(0)
 , _opacity(0)
 , a_arcEnd(0, 0)
 , a_arcStart(0, FullArcLength)
-, _animation(callbacks) {
+, _animation(creator) {
 
 }
 
@@ -3171,10 +3207,7 @@ void HistoryFileMedia::checkAnimationFinished() {
 }
 
 HistoryFileMedia::~HistoryFileMedia() {
-	if (_animation) {
-		delete _animation;
-		setBadPointer(_animation);
-	}
+	deleteAndMark(_animation);
 }
 
 HistoryPhoto::HistoryPhoto(const MTPDphoto &photo, const QString &caption, HistoryItem *parent) : HistoryFileMedia()
@@ -4713,7 +4746,7 @@ bool HistoryGif::playInline(HistoryItem *parent) {
 		if (!cAutoPlayGif()) {
 			App::stopGifItems();
 		}
-		_gif = new ClipReader(_data->location(), _data->data());
+		_gif = new ClipReader(_data->location(), _data->data(), func(parent, &HistoryItem::clipCallback));
 		App::regGifItem(_gif, parent);
 	}
 	return true;
@@ -4734,8 +4767,7 @@ void HistoryGif::stopInline(HistoryItem *parent) {
 HistoryGif::~HistoryGif() {
 	if (gif()) {
 		App::unregGifItem(_gif);
-		delete _gif;
-		setBadPointer(_gif);
+		deleteAndMark(_gif);
 	}
 }
 
@@ -5518,8 +5550,7 @@ ImagePtr HistoryWebPage::replyPreview() {
 }
 
 HistoryWebPage::~HistoryWebPage() {
-	delete _attach;
-	setBadPointer(_attach);
+	deleteAndMark(_attach);
 }
 
 namespace {

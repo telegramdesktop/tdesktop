@@ -761,6 +761,8 @@ private:
 	CollapseButton _collapseComments;
 
 	MentionsDropdown _attachMention;
+	UserData *_contextBot;
+	QString _contextBotUsername;
 
 	bool isBotStart() const;
 	bool isBlocked() const;

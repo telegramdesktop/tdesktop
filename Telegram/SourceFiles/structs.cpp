@@ -661,8 +661,7 @@ ImagePtr PhotoData::makeReplyPreview() {
 }
 
 PhotoData::~PhotoData() {
-	delete uploadingData;
-	setBadPointer(uploadingData);
+	deleteAndMark(uploadingData);
 }
 
 void PhotoLink::onClick(Qt::MouseButton button) const {

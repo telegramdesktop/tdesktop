@@ -132,7 +132,10 @@ namespace App {
 	ChatData *chat(int32 chat_id);
 	ChannelData *channel(int32 channel_id);
 	UserData *self();
-	PeerData *peerByName(const QString &username);
+	PeerData *peerByName(const QStringRef &username);
+	inline PeerData *peerByName(const QString &username) {
+		return peerByName(username.midRef(0));
+	}
 	QString peerName(const PeerData *peer, bool forDialogs = false);
 	PhotoData *photo(const PhotoId &photo);
 	PhotoData *photoSet(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full);
@@ -240,7 +243,6 @@ namespace App {
 
 	void regGifItem(ClipReader *reader, HistoryItem *item);
 	void unregGifItem(ClipReader *reader);
-	const GifItems &gifItems();
 	void stopGifItems();
 
 	void regMuted(PeerData *peer, int32 changeIn);

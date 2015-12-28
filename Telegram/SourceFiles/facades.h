@@ -48,8 +48,6 @@ namespace Ui { // openssl doesn't allow me to use UI :(
 	bool isMediaViewShown();
 	bool isGifBeingChosen();
 
-	void clipRepaint(ClipReader *reader);
-
 	void repaintHistoryItem(const HistoryItem *item);
 	void repaintSavedGif(const LayoutSavedGif *layout);
 	bool isSavedGifVisible(const LayoutSavedGif *reader);
@@ -85,8 +83,6 @@ namespace Notify {
 	void migrateUpdated(PeerData *peer);
 
 	void clipStopperHidden(ClipStopperType type);
-
-	void clipReinit(ClipReader *reader);
 
 	void historyItemResized(const HistoryItem *item, bool scrollToIt = false);
 	inline void historyItemsResized() {

@@ -338,7 +338,11 @@ void StickerPreviewWidget::clipCallback(ClipReaderNotification notification) {
 		update();
 	} break;
 
-	case ClipReaderRepaint: update(); break;
+	case ClipReaderRepaint: {
+		if (gif() && !_gif->currentDisplayed()) {
+			update();
+		}
+	} break;
 	}
 }
 

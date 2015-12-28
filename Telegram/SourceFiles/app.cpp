@@ -1430,9 +1430,10 @@ namespace App {
 		return ::self;
 	}
 
-	PeerData *peerByName(const QString &username) {
+	PeerData *peerByName(const QStringRef &username) {
+		QStringRef uname(username.trimmed());
 		for (PeersData::const_iterator i = peersData.cbegin(), e = peersData.cend(); i != e; ++i) {
-			if (!i.value()->userName().compare(username.trimmed(), Qt::CaseInsensitive)) {
+			if (!i.value()->userName().compare(uname, Qt::CaseInsensitive)) {
 				return i.value()->asUser();
 			}
 		}
@@ -2469,10 +2470,6 @@ namespace App {
 
 	void unregGifItem(ClipReader *reader) {
 		::gifItems.remove(reader);
-	}
-
-	const GifItems &gifItems() {
-		return ::gifItems;
 	}
 
 	void stopGifItems() {

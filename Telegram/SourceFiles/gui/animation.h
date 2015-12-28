@@ -198,28 +198,44 @@ namespace anim {
 
 class Animation;
 
+class AnimationImplementation {
+public:
+	virtual void start() {}
+	virtual void step(Animation *a, uint64 ms, bool timer) = 0;
+	virtual ~AnimationImplementation() {}
+};
+class AnimationCreator {
+public:
+	AnimationCreator(AnimationImplementation *ptr) : _ptr(ptr) {}
+	AnimationCreator(const AnimationCreator &other) : _ptr(other.create()) {}
+	AnimationImplementation *create() const { return exchange(_ptr); }
+	~AnimationCreator() { deleteAndMark(_ptr); }
+private:
+	AnimationCreator &operator=(const AnimationCreator &other);
+	mutable AnimationImplementation *_ptr;
+};
 class AnimationCallbacks {
 public:
-	virtual void start() {
-	}
-
-	virtual void step(Animation *a, uint64 ms, bool timer) = 0;
-
-	virtual ~AnimationCallbacks() {
-	}
+	AnimationCallbacks(const AnimationCreator &creator) : _implementation(creator.create()) {}
+	void start() { _implementation->start();  }
+	void step(Animation *a, uint64 ms, bool timer) { _implementation->step(a, ms, timer); }
+	~AnimationCallbacks() { deleteAndMark(_implementation); }
+private:
+	AnimationCallbacks(const AnimationCallbacks &other);
+	AnimationCallbacks &operator=(const AnimationCallbacks &other);
+	AnimationImplementation *_implementation;
 };
 
 class Animation {
 public:
-
-	Animation(AnimationCallbacks *cb) : _cb(cb), _animating(false) {
+	Animation(AnimationCreator cb) : _cb(cb), _animating(false) {
 	}
 
 	void start();
 	void stop();
 
 	void step(uint64 ms, bool timer = false) {
-		_cb->step(this, ms, timer);
+		_cb.step(this, ms, timer);
 	}
 
 	void step() {
@@ -232,20 +248,16 @@ public:
 
 	~Animation() {
 		if (_animating) stop();
-		delete _cb;
 	}
 
 private:
-	Animation(const Animation &);
-	Animation &operator=(const Animation &);
-
-	AnimationCallbacks *_cb;
+	AnimationCallbacks _cb;
 	bool _animating;
 
 };
 
 template <typename Type>
-class AnimationCallbacksRelative : public AnimationCallbacks {
+class AnimationCallbacksRelative : public AnimationImplementation {
 public:
 	typedef void (Type::*Method)(float64, bool);
 
@@ -267,12 +279,12 @@ private:
 
 };
 template <typename Type>
-AnimationCallbacks *animation(Type *obj, typename AnimationCallbacksRelative<Type>::Method method) {
-	return new AnimationCallbacksRelative<Type>(obj, method);
+AnimationCreator animation(Type *obj, typename AnimationCallbacksRelative<Type>::Method method) {
+	return AnimationCreator(new AnimationCallbacksRelative<Type>(obj, method));
 }
 
 template <typename Type>
-class AnimationCallbacksAbsolute : public AnimationCallbacks {
+class AnimationCallbacksAbsolute : public AnimationImplementation {
 public:
 	typedef void (Type::*Method)(uint64, bool);
 
@@ -289,12 +301,12 @@ private:
 
 };
 template <typename Type>
-AnimationCallbacks *animation(Type *obj, typename AnimationCallbacksAbsolute<Type>::Method method) {
-	return new AnimationCallbacksAbsolute<Type>(obj, method);
+AnimationCreator animation(Type *obj, typename AnimationCallbacksAbsolute<Type>::Method method) {
+	return AnimationCreator(new AnimationCallbacksAbsolute<Type>(obj, method));
 }
 
 template <typename Type, typename Param>
-class AnimationCallbacksRelativeWithParam : public AnimationCallbacks {
+class AnimationCallbacksRelativeWithParam : public AnimationImplementation {
 public:
 	typedef void (Type::*Method)(Param, float64, bool);
 
@@ -317,12 +329,12 @@ private:
 
 };
 template <typename Type, typename Param>
-AnimationCallbacks *animation(Param param, Type *obj, typename AnimationCallbacksRelativeWithParam<Type, Param>::Method method) {
-	return new AnimationCallbacksRelativeWithParam<Type, Param>(param, obj, method);
+AnimationCreator animation(Param param, Type *obj, typename AnimationCallbacksRelativeWithParam<Type, Param>::Method method) {
+	return AnimationCreator(new AnimationCallbacksRelativeWithParam<Type, Param>(param, obj, method));
 }
 
 template <typename Type, typename Param>
-class AnimationCallbacksAbsoluteWithParam : public AnimationCallbacks {
+class AnimationCallbacksAbsoluteWithParam : public AnimationImplementation {
 public:
 	typedef void (Type::*Method)(Param, uint64, bool);
 
@@ -340,15 +352,15 @@ private:
 
 };
 template <typename Type, typename Param>
-AnimationCallbacks *animation(Param param, Type *obj, typename AnimationCallbacksAbsoluteWithParam<Type, Param>::Method method) {
-	return new AnimationCallbacksAbsoluteWithParam<Type, Param>(param, obj, method);
+AnimationCreator animation(Param param, Type *obj, typename AnimationCallbacksAbsoluteWithParam<Type, Param>::Method method) {
+	return AnimationCreator(new AnimationCallbacksAbsoluteWithParam<Type, Param>(param, obj, method));
 }
 
 template <typename AnimType>
 class SimpleAnimation {
 public:
 
-	typedef Function<void> Callbacks;
+	typedef Function<void> Callback;
 
 	SimpleAnimation() : _data(0) {
 	}
@@ -373,11 +385,10 @@ public:
 		return animating(ms) ? current() : def;
 	}
 
-	void setup(const typename AnimType::Type &from, Callbacks *update) {
+	void setup(const typename AnimType::Type &from, Callback::Creator update) {
 		if (!_data) {
 			_data = new Data(from, update, animation(this, &SimpleAnimation<AnimType>::step));
 		} else {
-			delete update;
 			_data->a = AnimType(from, from);
 		}
 	}
@@ -392,26 +403,21 @@ public:
 	}
 
 	~SimpleAnimation() {
-		delete _data;
-		setBadPointer(_data);
+		deleteAndMark(_data);
 	}
 
 private:
 	typedef struct _Data {
-		_Data(const typename AnimType::Type &from, Callbacks *update, AnimationCallbacks *acb)
+		_Data(const typename AnimType::Type &from, Callback::Creator update, AnimationCreator acb)
 			: a(from, from)
 			, _a(acb)
 			, update(update)
 			, duration(0)
 			, transition(anim::linear) {
 		}
-		~_Data() {
-			delete update;
-			setBadPointer(update);
-		}
 		AnimType a;
 		Animation _a;
-		Callbacks *update;
+		Callback update;
 		float64 duration;
 		anim::transition transition;
 	} Data;
@@ -426,7 +432,7 @@ private:
 			_data->a.update(dt, _data->transition);
 		}
 		if (timer) {
-			_data->update->call();
+			_data->update.call();
 		}
 		if (!_data->_a.animating()) {
 			delete _data;
@@ -456,8 +462,7 @@ public:
 public slots:
 	void timeout();
 
-	void clipReinit(ClipReader *reader, qint32 threadIndex);
-	void clipRepaint(ClipReader *reader, qint32 threadIndex);
+	void clipCallback(ClipReader *reader, qint32 threadIndex, qint32 notification);
 
 private:
 	typedef QMap<Animation*, NullType> AnimatingObjects;
@@ -519,7 +524,7 @@ public:
 
 	typedef Function1<void, ClipReaderNotification> Callback;
 
-	ClipReader(const FileLocation &location, const QByteArray &data, Callback *cb = 0);
+	ClipReader(const FileLocation &location, const QByteArray &data, Callback::Creator cb);
 	static void callback(ClipReader *reader, int32 threadIndex, ClipReaderNotification notification); // reader can be deleted
 
 	void setAutoplay() {
@@ -560,7 +565,7 @@ public:
 
 private:
 
-	Callback *_cb;
+	Callback _cb;
 
 	ClipState _state;
 
@@ -612,8 +617,7 @@ signals:
 
 	void processDelayed();
 
-	void reinit(ClipReader *reader, qint32 threadIndex);
-	void repaint(ClipReader *reader, qint32 threadIndex);
+	void callback(ClipReader *reader, qint32 threadIndex, qint32 notification);
 
 public slots:
 

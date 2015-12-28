@@ -1022,6 +1022,8 @@ public:
 		return !out() && !history()->peer->isUser() && !fromChannel();
 	}
 
+	void clipCallback(ClipReaderNotification notification);
+
 	virtual ~HistoryItem();
 
 protected:
@@ -1072,7 +1074,7 @@ HistoryItem *regItem(HistoryItem *item);
 class RadialAnimation {
 public:
 
-	RadialAnimation(AnimationCallbacks *callbacks);
+	RadialAnimation(AnimationCreator creator);
 
 	float64 opacity() const {
 		return _opacity;
@@ -1139,6 +1141,9 @@ public:
 	virtual HistoryMedia *clone() const = 0;
 
 	virtual DocumentData *getDocument() {
+		return 0;
+	}
+	virtual ClipReader *getClipReader() {
 		return 0;
 	}
 
@@ -1246,7 +1251,7 @@ protected:
 	virtual bool dataLoaded() const = 0;
 
 	struct AnimationData {
-		AnimationData(AnimationCallbacks *thumbOverCallbacks, AnimationCallbacks *radialCallbacks) : a_thumbOver(0, 0)
+		AnimationData(AnimationCreator thumbOverCallbacks, AnimationCreator radialCallbacks) : a_thumbOver(0, 0)
 			, _a_thumbOver(thumbOverCallbacks)
 			, radial(radialCallbacks) {
 		}
@@ -1588,6 +1593,9 @@ public:
 
 	DocumentData *getDocument() {
 		return _data;
+	}
+	ClipReader *getClipReader() {
+		return gif();
 	}
 
 	bool playInline(HistoryItem *item);

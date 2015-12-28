@@ -517,9 +517,9 @@ private:
 	void update();
 
 	struct AnimationData {
-		AnimationData(AnimationCallbacks *radialCallbacks)
+		AnimationData(AnimationCreator creator)
 			: over(false)
-			, radial(radialCallbacks) {
+			, radial(creator) {
 		}
 		bool over;
 		FloatAnimation _a_over;

@@ -24,6 +24,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "style.h"
 #include "animation.h"
 
+class UserData;
 class FlatTextarea : public QTextEdit {
 	Q_OBJECT
 	T_WIDGET
@@ -62,7 +63,7 @@ public:
 	QSize minimumSizeHint() const;
 
 	EmojiPtr getSingleEmoji() const;
-	void getMentionHashtagBotCommandStart(QString &start) const;
+	void getMentionHashtagBotCommandStart(QString &start, UserData *&contextBot, QString &lookedUpUsername) const;
 	void removeSingleEmoji();
 	bool hasText() const;
 

@@ -5288,7 +5288,7 @@ void HistoryWidget::checkMentionDropdown() {
 	if (!_history || _a_show.animating()) return;
 
 	QString start;
-	_field.getMentionHashtagBotCommandStart(start);
+	_field.getMentionHashtagBotCommandStart(start, _contextBot, _contextBotUsername);
 	if (!start.isEmpty()) {
 		if (start.at(0) == '#' && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) Local::readRecentHashtags();
 		if (start.at(0) == '@' && _peer->isUser()) return;

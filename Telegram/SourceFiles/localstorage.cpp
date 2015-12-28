@@ -2454,8 +2454,7 @@ namespace Local {
 		virtual void readFromStream(QDataStream &stream, quint64 &first, quint64 &second, quint32 &type, QByteArray &data) = 0;
 		virtual void clearInMap() = 0;
 		virtual ~AbstractCachedLoadTask() {
-			delete _result;
-			setBadPointer(_result);
+			deleteAndMark(_result);
 		}
 
 	protected:

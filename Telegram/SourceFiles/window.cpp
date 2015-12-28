@@ -795,12 +795,6 @@ void Window::showDocument(DocumentData *doc, HistoryItem *item) {
 	_mediaView->setFocus();
 }
 
-void Window::ui_clipRepaint(ClipReader *reader) {
-	if (_mediaView && !_mediaView->isHidden()) {
-		_mediaView->ui_clipRepaint(reader);
-	}
-}
-
 void Window::ui_showLayer(LayeredWidget *box, ShowLayerOptions options) {
 	if (box) {
 		bool fast = (options.testFlag(ForceFastShowLayer)) || Ui::isLayerShown();
@@ -844,12 +838,6 @@ bool Window::ui_isLayerShown() {
 
 bool Window::ui_isMediaViewShown() {
 	return _mediaView && !_mediaView->isHidden();
-}
-
-void Window::notify_clipReinit(ClipReader *reader) {
-	if (_mediaView && !_mediaView->isHidden()) {
-		_mediaView->notify_clipReinit(reader);
-	}
 }
 
 void Window::showConnecting(const QString &text, const QString &reconnect) {

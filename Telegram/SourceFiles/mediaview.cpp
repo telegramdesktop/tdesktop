@@ -474,10 +474,8 @@ void MediaView::step_radial(uint64 ms, bool timer) {
 }
 
 MediaView::~MediaView() {
-	delete _gif;
-	setBadPointer(_gif);
-	delete _menu;
-	setBadPointer(_menu);
+	deleteAndMark(_gif);
+	deleteAndMark(_menu);
 }
 
 void MediaView::showSaveMsgFile() {
@@ -603,14 +601,11 @@ void MediaView::onDocClick() {
 	}
 }
 
-void MediaView::ui_clipRepaint(ClipReader *reader) {
-	if (reader == _gif) {
-		update(_x, _y, _w, _h);
-	}
-}
+void MediaView::clipCallback(ClipReaderNotification notification) {
+	if (!_gif) return;
 
-void MediaView::notify_clipReinit(ClipReader *reader) {
-	if (reader == _gif) {
+	switch (notification) {
+	case ClipReaderReinit: {
 		if (HistoryItem *item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid)) {
 			if (_gif->state() == ClipError) {
 				_current = QPixmap();
@@ -619,6 +614,13 @@ void MediaView::notify_clipReinit(ClipReader *reader) {
 		} else {
 			stopGif();
 		}
+	} break;
+
+	case ClipReaderRepaint: {
+		if (!_gif->currentDisplayed()) {
+			update(_x, _y, _w, _h);
+		}
+	} break;
 	}
 }
 
@@ -953,7 +955,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 					if (_doc->dimensions.width() && _doc->dimensions.height()) {
 						_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), true, true, false, _doc->dimensions.width(), _doc->dimensions.height());
 					}
-					_gif = new ClipReader(location, _doc->data());
+					_gif = new ClipReader(location, _doc->data(), func(this, &MediaView::clipCallback));
 				}
 			} else if (location.accessEnable()) {
 				if (_doc->isAnimation()) {
@@ -961,7 +963,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 						if (_doc->dimensions.width() && _doc->dimensions.height()) {
 							_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), true, true, false, _doc->dimensions.width(), _doc->dimensions.height());
 						}
-						_gif = new ClipReader(location, _doc->data());
+						_gif = new ClipReader(location, _doc->data(), func(this, &MediaView::clipCallback));
 					}
 				} else {
 					if (QImageReader(location.name()).canRead()) {

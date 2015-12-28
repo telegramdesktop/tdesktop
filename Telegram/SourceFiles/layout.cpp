@@ -260,10 +260,7 @@ void LayoutRadialProgressItem::checkRadialFinished() {
 }
 
 LayoutRadialProgressItem::~LayoutRadialProgressItem() {
-	if (_radial) {
-		delete _radial;
-		setBadPointer(_radial);
-	}
+	deleteAndMark(_radial);
 }
 
 void LayoutAbstractFileItem::setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const {
@@ -1318,7 +1315,7 @@ void LayoutSavedGif::notify_over(bool over) {
 	if (!_data->loaded()) {
 		ensureAnimation();
 		if (over == !(_state & StateOver)) {
-			EnsureAnimation(_animation->_a_over, (_state & StateOver) ? 1 : 0, (func(this, &LayoutSavedGif::update)));
+			EnsureAnimation(_animation->_a_over, (_state & StateOver) ? 1 : 0, func(this, &LayoutSavedGif::update));
 			_animation->_a_over.start(over ? 1 : 0, st::stickersRowDuration);
 		}
 	}
@@ -1450,8 +1447,7 @@ void LayoutSavedGif::preload() {
 }
 
 LayoutSavedGif::~LayoutSavedGif() {
-	delete _animation;
-	setBadPointer(_animation);
+	deleteAndMark(_animation);
 }
 
 void LayoutSavedGif::ensureAnimation() const {
@@ -1501,7 +1497,11 @@ void LayoutSavedGif::clipCallback(ClipReaderNotification notification) {
 		update();
 	} break;
 
-	case ClipReaderRepaint: update(); break;
+	case ClipReaderRepaint: {
+		if (gif() && !_gif->currentDisplayed()) {
+			update();
+		}
+	} break;
 	}
 }
 
