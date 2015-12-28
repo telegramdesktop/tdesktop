@@ -156,11 +156,11 @@ void PhotoSendBox::onCaptionResized() {
 
 void PhotoSendBox::updateBoxSize() {
 	if (_file && _file->type == PreparePhoto) {
-		setMaxHeight(st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom() + st::boxPhotoCompressedPadding.top() + _compressed.height() + (_compressed.checked() ? (st::boxPhotoCompressedPadding.bottom() + _caption.height()) : 0) + st::boxButtonPadding.top() + _send.height() + st::boxButtonPadding.bottom());
+		setMaxHeight(st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom() + st::boxPhotoCompressedPadding.top() + _compressed.height() + st::boxPhotoCompressedPadding.bottom() + _caption.height() + st::boxButtonPadding.top() + _send.height() + st::boxButtonPadding.bottom());
 	} else if (_thumbw) {
-		setMaxHeight(st::boxPhotoPadding.top() + st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom() + st::boxPhotoPadding.bottom() + st::boxButtonPadding.top() + _send.height() + st::boxButtonPadding.bottom());
+		setMaxHeight(st::boxPhotoPadding.top() + st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom() + (_file ? (st::boxPhotoCompressedPadding.bottom() + _caption.height()) : 0) + st::boxPhotoPadding.bottom() + st::boxButtonPadding.top() + _send.height() + st::boxButtonPadding.bottom());
 	} else {
-		setMaxHeight(st::boxPhotoPadding.top() + st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom() + st::boxPhotoPadding.bottom() + st::boxButtonPadding.top() + _send.height() + st::boxButtonPadding.bottom());
+		setMaxHeight(st::boxPhotoPadding.top() + st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom() + (_file ? (st::boxPhotoCompressedPadding.bottom() + _caption.height()) : 0) + st::boxPhotoPadding.bottom() + st::boxButtonPadding.top() + _send.height() + st::boxButtonPadding.bottom());
 	}
 }
 
@@ -264,8 +264,10 @@ void PhotoSendBox::hideAll() {
 void PhotoSendBox::showAll() {
 	_send.show();
 	_cancel.show();
-	if (_file && _file->type == PreparePhoto) {
-		_compressed.show();
+	if (_file) {
+		if (_file->type == PreparePhoto) {
+			_compressed.show();
+		}
 		_caption.show();
 	} else {
 		_caption.hide();

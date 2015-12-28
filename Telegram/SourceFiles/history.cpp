@@ -4272,7 +4272,7 @@ void HistoryDocument::getState(TextLinkPtr &lnk, HistoryCursorState &state, int3
 	if (!_caption.isEmpty()) {
 		if (y >= bottom) {
 			bool inText = false;
-			_caption.getState(lnk, inText, st::msgPadding.left(), y - bottom, _width - st::msgPadding.left() - st::msgPadding.right());
+			_caption.getState(lnk, inText, x - st::msgPadding.left(), y - bottom, _width - st::msgPadding.left() - st::msgPadding.right());
 			state = inText ? HistoryInTextCursorState : HistoryDefaultCursorState;
 			return;
 		}
@@ -4285,11 +4285,11 @@ void HistoryDocument::getState(TextLinkPtr &lnk, HistoryCursorState &state, int3
 }
 
 const QString HistoryDocument::inDialogsText() const {
-	return _name.isEmpty() ? lang(lng_in_dlg_file) : _name;
+	return (_name.isEmpty() ? lang(lng_in_dlg_file) : _name) + (_caption.isEmpty() ? QString() : (' ' + _caption.original(0, 0xFFFF, Text::ExpandLinksNone)));
 }
 
 const QString HistoryDocument::inHistoryText() const {
-	return qsl("[ ") + lang(lng_in_dlg_file) + (_name.isEmpty() ? QString() : (qsl(" : ") + _name)) + qsl(" ]");
+	return qsl("[ ") + lang(lng_in_dlg_file) + (_name.isEmpty() ? QString() : (qsl(" : ") + _name)) + (_caption.isEmpty() ? QString() : (qsl(", ") + _caption.original(0, 0xFFFF, Text::ExpandLinksAll))) + qsl(" ]");
 }
 
 void HistoryDocument::setStatusSize(int32 newSize, qint64 realDuration) const {
@@ -4658,11 +4658,11 @@ void HistoryGif::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, 
 }
 
 const QString HistoryGif::inDialogsText() const {
-	return qsl("GIF");
+	return qsl("GIF") + (_caption.isEmpty() ? QString() : (' ' + _caption.original(0, 0xFFFF, Text::ExpandLinksNone)));
 }
 
 const QString HistoryGif::inHistoryText() const {
-	return qsl("[ GIF ]");
+	return qsl("[ GIF ") + (_caption.isEmpty() ? QString() : (_caption.original(0, 0xFFFF, Text::ExpandLinksAll) + ' ')) + qsl(" ]");
 }
 
 void HistoryGif::setStatusSize(int32 newSize) const {
