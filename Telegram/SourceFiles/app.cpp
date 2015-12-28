@@ -1920,6 +1920,8 @@ namespace App {
 	}
 
 	void historyClearMsgs() {
+		::repliesTo.clear();
+
 		QVector<HistoryItem*> toDelete;
 		for (MsgsData::const_iterator i = msgsData.cbegin(), e = msgsData.cend(); i != e; ++i) {
 			if ((*i)->detached()) {
@@ -1945,7 +1947,6 @@ namespace App {
 	}
 
 	void historyClearItems() {
-		historyClearMsgs();
 		randomData.clear();
 		sentData.clear();
 		mutedPeers.clear();
@@ -1991,7 +1992,6 @@ namespace App {
 		::webPageItems.clear();
 		::sharedContactItems.clear();
 		::gifItems.clear();
-		::repliesTo.clear();
 		lastPhotos.clear();
 		lastPhotosMap.clear();
 		::self = 0;

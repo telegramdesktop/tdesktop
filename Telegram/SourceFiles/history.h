@@ -52,7 +52,6 @@ public:
 	void clear();
 	void remove(const PeerId &peer);
 	~Histories() {
-		clear();
 		unreadFull = unreadMuted = 0;
 	}
 
