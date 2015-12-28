@@ -207,7 +207,7 @@ struct FileLoadResult {
 	MTPDocument document;
 
 	PreparedPhotoThumbs photoThumbs;
-	QString photoCaption;
+	QString caption;
 
 	QString originalText; // when pasted had an image mime save text mime here to insert if image send was cancelled
 

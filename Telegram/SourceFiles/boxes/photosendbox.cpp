@@ -266,11 +266,7 @@ void PhotoSendBox::showAll() {
 	_cancel.show();
 	if (_file && _file->type == PreparePhoto) {
 		_compressed.show();
-		if (_compressed.checked()) {
-			_caption.show();
-		} else {
-			_caption.hide();
-		}
+		_caption.show();
 	} else {
 		_caption.hide();
 		_compressed.hide();
@@ -300,7 +296,7 @@ void PhotoSendBox::onSend(bool ctrlShiftEnter) {
 				}
 			}
 			if (!_caption.isHidden()) {
-				_file->photoCaption = prepareText(_caption.getLastText(), true);
+				_file->caption = prepareText(_caption.getLastText(), true);
 			}
 			App::main()->onSendFileConfirm(_file, ctrlShiftEnter);
 		} else {

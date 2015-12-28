@@ -196,13 +196,13 @@ public:
 
 	HistoryItem *createItem(HistoryBlock *block, const MTPMessage &msg, bool applyServiceAction);
 	HistoryItem *createItemForwarded(HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg);
-	HistoryItem *createItemDocument(HistoryBlock *block, MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc);
+	HistoryItem *createItemDocument(HistoryBlock *block, MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption);
 
 	HistoryItem *addNewService(MsgId msgId, QDateTime date, const QString &text, int32 flags = 0, HistoryMedia *media = 0, bool newMsg = true);
 	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
 	HistoryItem *addToHistory(const MTPMessage &msg);
 	HistoryItem *addNewForwarded(MsgId id, QDateTime date, int32 from, HistoryMessage *item);
-	HistoryItem *addNewDocument(MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc);
+	HistoryItem *addNewDocument(MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption);
 
 	void addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPMessageGroup> *collapsed);
 	void addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPMessageGroup> *collapsed);
@@ -1475,7 +1475,7 @@ private:
 class HistoryDocument : public HistoryFileMedia {
 public:
 
-	HistoryDocument(DocumentData *document);
+	HistoryDocument(DocumentData *document, const QString &caption, const HistoryItem *parent);
 	HistoryDocument(const HistoryDocument &other);
 	HistoryMediaType type() const {
 		return MediaTypeDocument;
@@ -1485,6 +1485,7 @@ public:
 	}
 
 	void initDimensions(const HistoryItem *parent);
+	int32 resize(int32 width, const HistoryItem *parent);
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
@@ -1514,6 +1515,9 @@ public:
 	}
 	ImagePtr replyPreview();
 
+	QString getCaption() const {
+		return _caption.original();
+	}
 	bool needsBubble(const HistoryItem *parent) const {
 		return true;
 	}
@@ -1551,6 +1555,8 @@ private:
 	mutable int32 _linkw;
 	mutable QString _link;
 
+	Text _caption;
+
 	void setStatusSize(int32 newSize, qint64 realDuration = 0) const;
 	bool updateStatusText(const HistoryItem *parent) const; // returns showPause
 
@@ -1559,7 +1565,7 @@ private:
 class HistoryGif : public HistoryFileMedia {
 public:
 
-	HistoryGif(DocumentData *document);
+	HistoryGif(DocumentData *document, const QString &caption, const HistoryItem *parent);
 	HistoryGif(const HistoryGif &other);
 	HistoryMediaType type() const {
 		return MediaTypeGif;
@@ -1598,11 +1604,14 @@ public:
 	}
 	ImagePtr replyPreview();
 
+	QString getCaption() const {
+		return _caption.original();
+	}
 	bool needsBubble(const HistoryItem *parent) const {
-		return parent->toHistoryReply();
+		return !_caption.isEmpty() || parent->toHistoryReply();
 	}
 	bool customInfoLayout() const {
-		return true;
+		return _caption.isEmpty();
 	}
 	bool hideFromName() const {
 		return true;
@@ -1629,6 +1638,8 @@ private:
 
 	DocumentData *_data;
 	int32 _thumbw, _thumbh;
+	Text _caption;
+
 	ClipReader *_gif;
 	ClipReader *gif() {
 		return (_gif == BadClipReader) ? 0 : _gif;
@@ -1935,11 +1946,11 @@ public:
 
 	HistoryMessage(History *history, HistoryBlock *block, const MTPDmessage &msg);
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const EntitiesInText &entities, HistoryMedia *media); // local forwarded
-	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, DocumentData *doc); // local sticker and reply sticker
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, DocumentData *doc, const QString &caption); // local sticker and reply sticker
 
 	void initTime();
 	void initMedia(const MTPMessageMedia *media, QString &currentText);
-	void initMediaFromDocument(DocumentData *doc);
+	void initMediaFromDocument(DocumentData *doc, const QString &caption);
 	void initDimensions();
 	void fromNameUpdated() const;
 
@@ -2121,7 +2132,7 @@ class HistoryReply : public HistoryMessage {
 public:
 
 	HistoryReply(History *history, HistoryBlock *block, const MTPDmessage &msg);
-	HistoryReply(History *history, HistoryBlock *block, MsgId msgId, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc);
+	HistoryReply(History *history, HistoryBlock *block, MsgId msgId, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption);
 
 	void initDimensions();
 
