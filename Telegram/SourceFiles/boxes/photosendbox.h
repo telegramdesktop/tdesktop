@@ -65,6 +65,7 @@ private:
 	void updateBoxSize();
 
 	FileLoadResultPtr _file;
+	bool _animated;
 
 	QPixmap _thumb;
 

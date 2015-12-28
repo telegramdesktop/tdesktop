@@ -29,6 +29,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxWideWidth)
 , _file(file)
+, _animated(false)
 , _caption(this, st::confirmCaptionArea, lang(lng_photo_caption))
 , _compressedFromSettings(_file->type == PrepareAuto)
 , _compressed(this, lang(lng_send_image_compressed), _compressedFromSettings ? cCompressPastedImage() : true)
@@ -44,16 +45,51 @@ PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxW
 , _confirmed(false) {
 	connect(&_send, SIGNAL(clicked()), this, SLOT(onSend()));
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+
+	_animated = false;
+	QSize dimensions;
 	if (_file->photo.type() != mtpc_photoEmpty) {
 		_file->type = PreparePhoto;
+	} else if (_file->document.type() == mtpc_document) {
+		const MTPDdocument &document(_file->document.c_document());
+		const QVector<MTPDocumentAttribute> &attributes(document.vattributes.c_vector().v);
+		for (int32 i = 0, l = attributes.size(); i < l; ++i) {
+			if (attributes.at(i).type() == mtpc_documentAttributeAnimated) {
+				_animated = true;
+			} else if (attributes.at(i).type() == mtpc_documentAttributeImageSize) {
+				dimensions = QSize(attributes.at(i).c_documentAttributeImageSize().vw.v, attributes.at(i).c_documentAttributeImageSize().vh.v);
+			} else if (attributes.at(i).type() == mtpc_documentAttributeVideo) {
+				dimensions = QSize(attributes.at(i).c_documentAttributeVideo().vw.v, attributes.at(i).c_documentAttributeVideo().vh.v);
+			}
+		}
+		if (dimensions.isEmpty()) _animated = false;
 	}
-	if (_file->type == PreparePhoto) {
+	if (_file->type == PreparePhoto || _animated) {
 		int32 maxW = 0, maxH = 0;
-		for (PreparedPhotoThumbs::const_iterator i = _file->photoThumbs.cbegin(), e = _file->photoThumbs.cend(); i != e; ++i) {
-			if (i->width() >= maxW && i->height() >= maxH) {
-				_thumb = *i;
-				maxW = _thumb.width();
-				maxH = _thumb.height();
+		if (_animated) {
+			int32 limitW = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
+			int32 limitH = st::confirmMaxHeight;
+			maxW = dimensions.width();
+			maxH = dimensions.height();
+			if (maxW * limitH > maxH * limitW) {
+				if (maxW < limitW) {
+					maxH = maxH * limitW / maxW;
+					maxW = limitW;
+				}
+			} else {
+				if (maxH < limitH) {
+					maxW = maxW * limitH / maxH;
+					maxH = limitH;
+				}
+			}
+			_thumb = imagePix(_file->thumb.toImage(), maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), true, true, false, maxW, maxH);
+		} else {
+			for (PreparedPhotoThumbs::const_iterator i = _file->photoThumbs.cbegin(), e = _file->photoThumbs.cend(); i != e; ++i) {
+				if (i->width() >= maxW && i->height() >= maxH) {
+					_thumb = *i;
+					maxW = _thumb.width();
+					maxH = _thumb.height();
+				}
 			}
 		}
 		int32 tw = _thumb.width(), th = _thumb.height();
@@ -78,7 +114,6 @@ PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxW
 		_thumb = QPixmap::fromImage(_thumb.toImage().scaled(_thumbw * cIntRetinaFactor(), _thumbh * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
 		_thumb.setDevicePixelRatio(cRetinaFactor());
 	} else {
-		_compressed.hide();
 		if (_file->thumb.isNull()) {
 			_thumbw = 0;
 		} else {
@@ -89,7 +124,7 @@ PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxW
 			} else {
 				_thumbw = st::msgFileThumbSize;
 			}
-			_thumb = imagePix(_thumb.toImage(), _thumbw, 0, true, false, true, st::msgFileThumbSize, st::msgFileThumbSize);
+			_thumb = imagePix(_thumb.toImage(), _thumbw * cIntRetinaFactor(), 0, true, false, true, st::msgFileThumbSize, st::msgFileThumbSize);
 		}
 
 		_name.setText(st::semiboldFont, _file->filename, _textNameOptions);
@@ -97,6 +132,10 @@ PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxW
 		_statusw = qMax(_name.maxWidth(), st::normalFont->width(_status));
 		_isImage = fileIsImage(_file->filename, _file->filemime);
 	}
+	if (_file->type != PreparePhoto) {
+		_compressed.hide();
+	}
+
 	updateBoxSize();
 	_caption.setMaxLength(MaxPhotoCaption);
 	_caption.setCtrlEnterSubmit(CtrlEnterSubmitBoth);
@@ -104,6 +143,7 @@ PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxW
 	connect(&_caption, SIGNAL(resized()), this, SLOT(onCaptionResized()));
 	connect(&_caption, SIGNAL(submitted(bool)), this, SLOT(onSend(bool)));
 	connect(&_caption, SIGNAL(cancelled()), this, SLOT(onClose()));
+
 	prepare();
 }
 
@@ -155,8 +195,8 @@ void PhotoSendBox::onCaptionResized() {
 }
 
 void PhotoSendBox::updateBoxSize() {
-	if (_file && _file->type == PreparePhoto) {
-		setMaxHeight(st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom() + st::boxPhotoCompressedPadding.top() + _compressed.height() + st::boxPhotoCompressedPadding.bottom() + _caption.height() + st::boxButtonPadding.top() + _send.height() + st::boxButtonPadding.bottom());
+	if (_file && (_file->type == PreparePhoto || _animated)) {
+		setMaxHeight(st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom() + (_animated ? 0 : (st::boxPhotoCompressedPadding.top() + _compressed.height())) + st::boxPhotoCompressedPadding.bottom() + _caption.height() + st::boxButtonPadding.top() + _send.height() + st::boxButtonPadding.bottom());
 	} else if (_thumbw) {
 		setMaxHeight(st::boxPhotoPadding.top() + st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom() + (_file ? (st::boxPhotoCompressedPadding.bottom() + _caption.height()) : 0) + st::boxPhotoPadding.bottom() + st::boxButtonPadding.top() + _send.height() + st::boxButtonPadding.bottom());
 	} else {
@@ -176,7 +216,7 @@ void PhotoSendBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
 
-	if (_file && _file->type == PreparePhoto) {
+	if (_file && (_file->type == PreparePhoto || _animated)) {
 		if (_thumbx > st::boxPhotoPadding.left()) {
 			p.fillRect(st::boxPhotoPadding.left(), st::boxPhotoPadding.top(), _thumbx - st::boxPhotoPadding.left(), _thumbh, st::confirmBg->b);
 		}
@@ -184,6 +224,17 @@ void PhotoSendBox::paintEvent(QPaintEvent *e) {
 			p.fillRect(_thumbx + _thumbw, st::boxPhotoPadding.top(), width() - st::boxPhotoPadding.right() - _thumbx - _thumbw, _thumbh, st::confirmBg->b);
 		}
 		p.drawPixmap(_thumbx, st::boxPhotoPadding.top(), _thumb);
+		if (_animated) {
+			QRect inner(_thumbx + (_thumbw - st::msgFileSize) / 2, st::boxPhotoPadding.top() + (_thumbh - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::msgDateImgBg);
+
+			p.setRenderHint(QPainter::HighQualityAntialiasing);
+			p.drawEllipse(inner);
+			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+
+			p.drawSpriteCenter(inner, st::msgFileInPlay);
+		}
 	} else {
 		int32 w = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
 		int32 h = _thumbw ? (st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom()) : (st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom());
