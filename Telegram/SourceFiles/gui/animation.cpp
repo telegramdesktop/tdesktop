@@ -564,14 +564,14 @@ public:
 				if (to.isNull() || to.size() != toSize) {
 					to = QImage(toSize, QImage::Format_ARGB32);
 				}
-				if (_frame->width == toSize.width() && _frame->height == toSize.height() && (_frame->format == AV_PIX_FMT_BGRA || (_frame->format == -1 && _codecContext->pix_fmt == AV_PIX_FMT_BGRA))) {
+				hasAlpha = (_frame->format == AV_PIX_FMT_BGRA || (_frame->format == -1 && _codecContext->pix_fmt == AV_PIX_FMT_BGRA));
+				if (_frame->width == toSize.width() && _frame->height == toSize.height() && hasAlpha) {
 					int32 sbpl = _frame->linesize[0], dbpl = to.bytesPerLine(), bpl = qMin(sbpl, dbpl);
 					uchar *s = _frame->data[0], *d = to.bits();
 					for (int32 i = 0, l = _frame->height; i < l; ++i) {
 						memcpy(d + i * dbpl, s + i * sbpl, bpl);
 					}
 
-					hasAlpha = true;
 				} else {
 					if ((_swsSize != toSize) || (_frame->format != -1 && _frame->format != _codecContext->pix_fmt) || !_swsContext) {
 						_swsSize = toSize;
@@ -583,8 +583,6 @@ public:
 						LOG(("Gif Error: Unable to sws_scale to good size %1, height %2, should be %3").arg(logData()).arg(res).arg(_swsSize.height()));
 						return false;
 					}
-
-					hasAlpha = false;
 				}
 
 				int64 duration = av_frame_get_pkt_duration(_frame);
