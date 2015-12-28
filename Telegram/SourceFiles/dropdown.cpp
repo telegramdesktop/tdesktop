@@ -2694,6 +2694,7 @@ void EmojiPan::updateSelected() {
 		if (y >= _iconsTop && y < _iconsTop + st::rbEmoji.height && x >= 0 && x < 7 * st::rbEmoji.width && x < _icons.size() * st::rbEmoji.width) {
 			int32 skip = 0;
 			for (int32 i = 0, l = _icons.size(); i < l; ++i) {
+				if (_icons.at(i).sticker) break;
 				if (x < st::rbEmoji.width) {
 					newOver = i;
 					break;

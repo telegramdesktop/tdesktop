@@ -2290,7 +2290,7 @@ void History::setUnreadCount(int32 newUnreadCount, bool psUpdate) {
 		App::histories().unreadFull += newUnreadCount - unreadCount;
 		if (mute) App::histories().unreadMuted += newUnreadCount - unreadCount;
 		unreadCount = newUnreadCount;
-		if (psUpdate && (!mute || cIncludeMuted())) App::wnd()->updateCounter();
+		if (psUpdate && (!mute || cIncludeMuted()) && App::wnd()) App::wnd()->updateCounter();
 		if (unreadBar) {
 			int32 count = unreadCount;
 			if (peer->migrateTo()) {
