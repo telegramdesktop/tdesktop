@@ -1,40 +1,16 @@
 // Microsoft Visual C++ generated resource script.
 //
 #include "resource.h"
-/////////////////////////////////////////////////////////////////////////////
-// Russian (Russia) resources
 
-#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_RUS)
-LANGUAGE LANG_RUSSIAN, SUBLANG_DEFAULT
-#pragma code_page(1251)
-
-#ifdef APSTUDIO_INVOKED
+#define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
 //
-// TEXTINCLUDE
+// Generated from the TEXTINCLUDE 2 resource.
 //
+#include "winres.h"
 
-1 TEXTINCLUDE 
-BEGIN
-    "resource.h\0"
-END
-
-2 TEXTINCLUDE 
-BEGIN
-    "\0"
-END
-
-3 TEXTINCLUDE 
-BEGIN
-    "\r\n"
-    "\0"
-END
-
-#endif    // APSTUDIO_INVOKED
-
-#endif    // Russian (Russia) resources
 /////////////////////////////////////////////////////////////////////////////
-
+#undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
 // English (United States) resources
@@ -58,8 +34,8 @@ IDI_ICON1               ICON                    "SourceFiles\\art\\icon256.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,9,15,3
- PRODUCTVERSION 0,9,15,3
+ FILEVERSION 0,9,15,4
+ PRODUCTVERSION 0,9,15,4
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -75,10 +51,10 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName", "Telegram Messenger LLP"
-            VALUE "FileVersion", "0.9.15.3"
+            VALUE "FileVersion", "0.9.15.4"
             VALUE "LegalCopyright", "Copyright (C) 2013"
             VALUE "ProductName", "Telegram Desktop"
-            VALUE "ProductVersion", "0.9.15.3"
+            VALUE "ProductVersion", "0.9.15.4"
         END
     END
     BLOCK "VarFileInfo"
