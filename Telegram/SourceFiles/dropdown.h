@@ -698,6 +698,7 @@ public:
 	void fastHide();
 
 	bool clearFilteredCommands();
+	void showContextResults(UserData *bot, QString query);
 	void showFiltered(PeerData *peer, QString start);
 	void updateFiltered(bool toDown = false);
 	void setBoundings(QRect boundings);

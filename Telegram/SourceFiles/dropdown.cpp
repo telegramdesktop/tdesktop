@@ -3457,6 +3457,10 @@ void MentionsDropdown::paintEvent(QPaintEvent *e) {
 
 }
 
+void MentionsDropdown::showContextResults(UserData *bot, QString query) {
+	
+}
+
 void MentionsDropdown::showFiltered(PeerData *peer, QString start) {
 	_chat = peer->asChat();
 	_user = peer->asUser();

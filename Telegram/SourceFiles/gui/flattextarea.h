@@ -63,7 +63,7 @@ public:
 	QSize minimumSizeHint() const;
 
 	EmojiPtr getSingleEmoji() const;
-	void getMentionHashtagBotCommandStart(QString &start, UserData *&contextBot, QString &lookedUpUsername) const;
+	void getMentionHashtagBotCommandStart(QString &start, UserData *&contextBot, QString &contextBotUsername) const;
 	void removeSingleEmoji();
 	bool hasText() const;
 

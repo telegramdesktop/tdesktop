@@ -327,7 +327,7 @@ struct BotInfo {
 	bool inited;
 	bool readsAllHistory, cantJoinGroups;
 	int32 version;
-	QString shareText, description;
+	QString shareText, description, contextPlaceholder;
 	QList<BotCommand> commands;
 	Text text; // description
 
@@ -385,6 +385,7 @@ public:
 
 	BotInfo *botInfo;
 };
+static UserData * const ContextBotLookingUpData = reinterpret_cast<UserData*>(&SharedMemoryLocation0);
 
 class ChatData : public PeerData {
 public:

@@ -252,7 +252,7 @@ EmojiPtr FlatTextarea::getSingleEmoji() const {
 	return 0;
 }
 
-void FlatTextarea::getMentionHashtagBotCommandStart(QString &start, UserData *&contextBot, QString &lookedUpUsername) const {
+void FlatTextarea::getMentionHashtagBotCommandStart(QString &start, UserData *&contextBot, QString &contextBotUsername) const {
 	int32 pos = textCursor().position();
 	if (textCursor().anchor() != pos) return;
 
@@ -272,19 +272,30 @@ void FlatTextarea::getMentionHashtagBotCommandStart(QString &start, UserData *&c
 			break;
 		}
 		if (usernameLength) {
-			UserData *bot = 0;
-			if (contextBot && !contextBot->username.compare(text.midRef(1, usernameLength))) {
-				bot = contextBot;
-			} else {
-				PeerData *peer = App::peerByName(text.midRef(1, usernameLength));
+			QStringRef username = text.midRef(1, usernameLength);
+			if (username != contextBotUsername) {
+				contextBotUsername = username.toString();
+				PeerData *peer = App::peerByName(contextBotUsername);
 				if (peer) {
 					if (peer->isUser()) {
-						bot = peer->asUser();
+						contextBot = peer->asUser();
 					} else {
-
+						contextBot = 0;
 					}
+				} else {
+					contextBot = ContextBotLookingUpData;
 				}
 			}
+			if (contextBot == ContextBotLookingUpData) return;
+
+			if (contextBot && (!contextBot->botInfo || contextBot->botInfo->contextPlaceholder.isEmpty())) {
+				contextBot = 0;
+			} else {
+				start = text.mid(usernameStart + usernameLength + 1);
+			}
+		} else {
+			contextBot = 0;
+			contextBotUsername = QString();
 		}
 	}
 

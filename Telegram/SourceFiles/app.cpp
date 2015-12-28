@@ -424,6 +424,7 @@ namespace App {
 					data->setBotInfoVersion(d.vbot_info_version.v);
 					data->botInfo->readsAllHistory = d.is_bot_chat_history();
 					data->botInfo->cantJoinGroups = d.is_bot_nochats();
+					data->botInfo->contextPlaceholder = d.has_bot_context_placeholder() ? qs(d.vbot_context_placeholder) : QString();
 				} else {
 					data->setBotInfoVersion(-1);
 				}
@@ -1430,8 +1431,8 @@ namespace App {
 		return ::self;
 	}
 
-	PeerData *peerByName(const QStringRef &username) {
-		QStringRef uname(username.trimmed());
+	PeerData *peerByName(const QString &username) {
+		QString uname(username.trimmed());
 		for (PeersData::const_iterator i = peersData.cbegin(), e = peersData.cend(); i != e; ++i) {
 			if (!i.value()->userName().compare(uname, Qt::CaseInsensitive)) {
 				return i.value()->asUser();

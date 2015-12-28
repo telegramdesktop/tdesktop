@@ -763,6 +763,9 @@ private:
 	MentionsDropdown _attachMention;
 	UserData *_contextBot;
 	QString _contextBotUsername;
+	mtpRequestId _contextBotResolveRequestId;
+	void contextBotResolveDone(const MTPcontacts_ResolvedPeer &result);
+	bool contextBotResolveFail(const RPCError &error);
 
 	bool isBotStart() const;
 	bool isBlocked() const;

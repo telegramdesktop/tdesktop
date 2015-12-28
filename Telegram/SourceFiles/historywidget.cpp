@@ -2630,6 +2630,8 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _toHistoryEnd(this, st::historyToEnd)
 , _collapseComments(this)
 , _attachMention(this)
+, _contextBot(0)
+, _contextBotResolveRequestId(0)
 , _reportSpamPanel(this)
 , _send(this, lang(lng_send_button), st::btnSend)
 , _unblock(this, lang(lng_unblock_button), st::btnUnblock)
@@ -4946,6 +4948,27 @@ bool HistoryWidget::hasBroadcastToggle() const {
 	return _peer && _peer->isChannel() && !_peer->isMegagroup() && _peer->asChannel()->canPublish() && !_peer->asChannel()->isBroadcast();
 }
 
+void HistoryWidget::contextBotResolveDone(const MTPcontacts_ResolvedPeer &result) {
+	_contextBot = 0;
+	if (result.type() == mtpc_contacts_resolvedPeer) {
+		const MTPDcontacts_resolvedPeer &d(result.c_contacts_resolvedPeer());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		PeerId peerId = peerFromMTP(d.vpeer);
+		if (peerId && peerIsUser(peerId)) {
+			_contextBot = App::user(peerId);
+		}
+	}
+	checkMentionDropdown();
+}
+
+bool HistoryWidget::contextBotResolveFail(const RPCError &error) {
+	if (mtpIsFlood(error)) return false;
+	_contextBot = 0;
+	checkMentionDropdown();
+	return true;
+}
+
 bool HistoryWidget::isBotStart() const {
 	if (!_peer || !_peer->isUser() || !_peer->asUser()->botInfo || !_canSendMessages) return false;
 	return !_peer->asUser()->botInfo->startToken.isEmpty() || (_history->isEmpty() && !_history->lastMsg);
@@ -5287,9 +5310,24 @@ void HistoryWidget::onFieldFocused() {
 void HistoryWidget::checkMentionDropdown() {
 	if (!_history || _a_show.animating()) return;
 
-	QString start;
+	QString start, contextBotUsername(_contextBotUsername);
 	_field.getMentionHashtagBotCommandStart(start, _contextBot, _contextBotUsername);
-	if (!start.isEmpty()) {
+	if (contextBotUsername != _contextBotUsername) {
+		if (_contextBotResolveRequestId) {
+			MTP::cancel(_contextBotResolveRequestId);
+			_contextBotResolveRequestId = 0;
+		}
+		if (_contextBot == ContextBotLookingUpData) {
+			_contextBotResolveRequestId = MTP::send(MTPcontacts_ResolveUsername(MTP_string(_contextBotUsername)), rpcDone(&HistoryWidget::contextBotResolveDone), rpcFail(&HistoryWidget::contextBotResolveFail));
+			return;
+		}
+	} else if (_contextBot == ContextBotLookingUpData) {
+		return;
+	}
+
+	if (_contextBot) {
+		_attachMention.showContextResults(_contextBot, start);
+	} else if (!start.isEmpty()) {
 		if (start.at(0) == '#' && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) Local::readRecentHashtags();
 		if (start.at(0) == '@' && _peer->isUser()) return;
 		if (start.at(0) == '/' && _peer->isUser() && !_peer->asUser()->botInfo) return;
