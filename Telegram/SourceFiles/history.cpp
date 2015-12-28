@@ -2968,8 +2968,8 @@ void HistoryItem::setId(MsgId newId) {
 
 HistoryItem::~HistoryItem() {
 	App::historyUnregItem(this);
-	if (id < 0) {
-		App::app()->uploader()->cancel(fullId());
+	if (id < 0 && App::uploader()) {
+		App::uploader()->cancel(fullId());
 	}
 }
 

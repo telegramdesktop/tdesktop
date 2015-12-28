@@ -202,7 +202,7 @@ namespace App {
 		globalNotifyAllPtr = UnknownNotifySettings;
 		globalNotifyUsersPtr = UnknownNotifySettings;
 		globalNotifyChatsPtr = UnknownNotifySettings;
-		App::uploader()->clear();
+		if (App::uploader()) App::uploader()->clear();
 		clearStorageImages();
 		if (w) {
 			w->getTitle()->updateBackButton();

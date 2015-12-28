@@ -489,7 +489,7 @@ int32 Application::updatingReady() {
 #endif
 
 FileUploader *Application::uploader() {
-	if (!::uploader) ::uploader = new FileUploader();
+	if (!::uploader && !App::quiting()) ::uploader = new FileUploader();
 	return ::uploader;
 }
 
@@ -878,6 +878,7 @@ void Application::closeApplication() {
 
 Application::~Application() {
 	App::setQuiting();
+
 	window->setParent(0);
 
 	anim::stopManager();
@@ -886,8 +887,10 @@ Application::~Application() {
 	closeApplication();
 	App::deinitMedia();
 	deinitImageLinkManager();
+
 	mainApp = 0;
 	delete ::uploader;
+
 	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	delete updateReply;
 	updateReply = 0;
