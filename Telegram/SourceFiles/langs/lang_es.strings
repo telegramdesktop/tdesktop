@@ -474,9 +474,9 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_failed_add_not_mutual_channel" = "Lo sentimos, si una persona deja el canal, \nsólo un contacto mutuo puede volver \na invitarlo (necesitan tener tu \nnúmero y tú el de ellos).";
 
 "lng_sure_delete_contact" = "¿Quieres eliminar a {contact} de tu lista de contactos?";
-"lng_sure_delete_history" = "¿Quieres eliminar todo el historial de mensajes con {contact}?\n\nEsta acción no se puede deshacer.";
+"lng_sure_delete_history" = "¿Quieres borrar todo el historial de mensajes con {contact}?\n\nEsta acción no se puede deshacer.";
 "lng_sure_delete_group_history" = "¿Quieres borrar todo el historial en «{group}»?\n\nEsta acción no se puede deshacer.";
-"lng_sure_delete_and_exit" = "¿Quieres eliminar todo el historial de mensajes y dejar el grupo «{group}»?\n\nEsta acción no se puede deshacer.";
+"lng_sure_delete_and_exit" = "¿Quieres borrar todo el historial de mensajes y dejar el grupo «{group}»?\n\nEsta acción no se puede deshacer.";
 "lng_sure_leave_channel" = "¿Quieres dejar este canal?";
 "lng_sure_delete_channel" = "¿Quieres eliminar este canal? Todos los miembros y mensajes se perderán.";
 "lng_sure_leave_group" = "¿Quieres salir del grupo?\nNo puedes deshacer esta acción.";
@@ -616,7 +616,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_broadcast_ph" = "Difunde un mensaje...";
 "lng_record_cancel" = "Suelta fuera de aquí para cancelar";
 "lng_empty_history" = "";
-"lng_willbe_history" = "Por favor, selecciona un chat para comenzar";
+"lng_willbe_history" = "Selecciona un chat para comenzar";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Tú";
 "lng_bot_description" = "¿Qué puede hacer este bot?";
@@ -717,7 +717,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_send_image_too_large" = "No se pudo enviar el archivo, porque es más grande que 1.5 GB :(";
 "lng_send_folder" = "No se pudo enviar «{name}», porque es un directorio :(";
 
-"lng_forward_choose" = "Elegir destinatario...";
+"lng_forward_choose" = "Elige un destinatario...";
 "lng_forward_cant" = "Lo sentimos, no puedes reenviar aquí :(";
 "lng_forward_confirm" = "¿Reenviar a {recipient}?";
 "lng_forward_share_contact" = "¿Compartir contacto con {recipient}?";

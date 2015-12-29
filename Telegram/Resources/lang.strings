@@ -598,6 +598,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_switch_emoji" = "Emoji";
 
 "lng_saved_gifs" = "Saved GIFs";
+"lng_context_results" = "Results from {context_bot}";
+"lng_context_no_results" = "No results";
 
 "lng_box_remove" = "Remove";
 

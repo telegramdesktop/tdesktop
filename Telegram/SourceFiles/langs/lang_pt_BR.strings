@@ -342,7 +342,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_connection_try_ipv6" = "Tentando conexão via IPv6";
 "lng_connection_host_ph" = "Nome do host";
 "lng_connection_port_ph" = "Porta";
-"lng_connection_user_ph" = "Nome de usuário";
+"lng_connection_user_ph" = "Usuário";
 "lng_connection_password_ph" = "Senha";
 "lng_connection_save" = "Salvar";
 "lng_settings_show_sessions" = "Exibir todas as sessões";
@@ -448,7 +448,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_create_group_next" = "Próximo";
 "lng_create_group_create" = "Criar";
 "lng_create_group_title" = "Novo Grupo";
-"lng_create_group_about" = "Grupos são ideais para comunidades menores, \neles podem ter até {count:_not_used|# membro|# membros}";
+"lng_create_group_about" = "Grupos são ideais para comunidades menores,\ncom até {count:_not_used|# membro|# membros}";
 "lng_create_channel_title" = "Novo Canal";
 "lng_create_channel_about" = "Canais são uma ferramenta para transmitir suas mensagens para audiências ilimitadas";
 "lng_create_public_channel_title" = "Canal Público";
