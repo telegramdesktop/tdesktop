@@ -3020,7 +3020,7 @@ void HistoryWidget::updateStickers() {
 
 void HistoryWidget::notify_botCommandsChanged(UserData *user) {
 	if (_peer && (_peer == user || !_peer->isUser())) {
-		if (_attachMention.clearFilteredCommands()) {
+		if (_attachMention.clearFilteredBotCommands()) {
 			onCheckMentionDropdown();
 		}
 	}
@@ -5333,8 +5333,11 @@ void HistoryWidget::onCheckMentionDropdown() {
 		if (start.at(0) == '@' && _peer->isUser()) return;
 		if (start.at(0) == '/' && _peer->isUser() && !_peer->asUser()->botInfo) return;
 		_attachMention.showFiltered(_peer, start);
-	} else if (!_attachMention.isHidden()) {
-		_attachMention.hideStart();
+	} else {
+		if (!_attachMention.isHidden()) {
+			_attachMention.hideStart();
+		}
+		_attachMention.clearContextResults();
 	}
 }
 

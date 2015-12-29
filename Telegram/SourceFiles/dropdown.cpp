@@ -3159,7 +3159,15 @@ void EmojiPan::onDelayedHide() {
 	_removingSetId = 0;
 }
 
-MentionsInner::MentionsInner(MentionsDropdown *parent, MentionRows *rows, HashtagRows *hrows, BotCommandRows *crows) : _parent(parent), _rows(rows), _hrows(hrows), _crows(crows), _sel(-1), _mouseSel(false), _overDelete(false) {
+MentionsInner::MentionsInner(MentionsDropdown *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, ContextRows *crows)
+: _parent(parent)
+, _mrows(mrows)
+, _hrows(hrows)
+, _brows(brows)
+, _crows(crows)
+, _sel(-1)
+, _mouseSel(false)
+, _overDelete(false) {
 }
 
 void MentionsInner::paintEvent(QPaintEvent *e) {
@@ -3171,7 +3179,7 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 	int32 htagleft = st::btnAttachPhoto.width + st::taMsgField.textMrg.left() - st::lineWidth, htagwidth = width() - st::mentionPadding.right() - htagleft - st::mentionScroll.width;
 
 	int32 from = qFloor(e->rect().top() / st::mentionHeight), to = qFloor(e->rect().bottom() / st::mentionHeight) + 1;
-	int32 last = _rows->isEmpty() ? (_hrows->isEmpty() ? _crows->size() : _hrows->size()) : _rows->size();
+	int32 last = _mrows->isEmpty() ? (_hrows->isEmpty() ? _brows->size() : _hrows->size()) : _mrows->size();
 	bool hasUsername = _parent->filter().indexOf('@') > 1;
 	for (int32 i = from; i < to; ++i) {
 		if (i >= last) break;
@@ -3183,8 +3191,8 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 			if (!_hrows->isEmpty()) p.drawPixmap(QPoint(width() - st::notifyClose.icon.pxWidth() - skip, i * st::mentionHeight + skip), App::sprite(), st::notifyClose.icon);
 		}
 		p.setPen(st::black->p);
-		if (!_rows->isEmpty()) {
-			UserData *user = _rows->at(i);
+		if (!_mrows->isEmpty()) {
+			UserData *user = _mrows->at(i);
 			QString first = (_parent->filter().size() < 2) ? QString() : ('@' + user->username.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('@' + user->username) : user->username.mid(_parent->filter().size() - 1);
 			int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second), unamewidth = firstwidth + secondwidth, namewidth = user->nameText.maxWidth();
 			if (mentionwidth < unamewidth + namewidth) {
@@ -3235,9 +3243,9 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 				p.drawText(htagleft + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
 			}
 		} else {
-			UserData *user = _crows->at(i).first;
+			UserData *user = _brows->at(i).first;
 
-			const BotCommand *command = _crows->at(i).second;
+			const BotCommand *command = _brows->at(i).second;
 			QString toHighlight = command->command;
 			int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : ((_parent->channel() && _parent->channel()->isMegagroup()) ? _parent->channel()->mgInfo->botStatus : -1);
 			if (hasUsername || botStatus == 0 || botStatus == 2) {
@@ -3289,12 +3297,12 @@ void MentionsInner::mouseMoveEvent(QMouseEvent *e) {
 
 void MentionsInner::clearSel() {
 	_mouseSel = _overDelete = false;
-	setSel((_rows->isEmpty() && _crows->isEmpty() && _hrows->isEmpty()) ? -1 : 0);
+	setSel((_mrows->isEmpty() && _brows->isEmpty() && _hrows->isEmpty()) ? -1 : 0);
 }
 
 bool MentionsInner::moveSel(int direction) {
 	_mouseSel = false;
-	int32 maxSel = (_rows->isEmpty() ? (_hrows->isEmpty() ? _crows->size() : _hrows->size()) : _rows->size());
+	int32 maxSel = (_mrows->isEmpty() ? (_hrows->isEmpty() ? _brows->size() : _hrows->size()) : _mrows->size());
 	if (_sel >= maxSel || _sel < 0) {
 		if (direction < 0) {
 			setSel(maxSel - 1, true);
@@ -3317,16 +3325,16 @@ bool MentionsInner::select() {
 }
 
 QString MentionsInner::getSelected() const {
-	int32 maxSel = (_rows->isEmpty() ? (_hrows->isEmpty() ? _crows->size() : _hrows->size()) : _rows->size());
+	int32 maxSel = (_mrows->isEmpty() ? (_hrows->isEmpty() ? _brows->size() : _hrows->size()) : _mrows->size());
 	if (_sel >= 0 && _sel < maxSel) {
 		QString result;
-		if (!_rows->isEmpty()) {
-			result = '@' + _rows->at(_sel)->username;
+		if (!_mrows->isEmpty()) {
+			result = '@' + _mrows->at(_sel)->username;
 		} else if (!_hrows->isEmpty()) {
 			result = '#' + _hrows->at(_sel);
 		} else {
-			UserData *user = _crows->at(_sel).first;
-			const BotCommand *command(_crows->at(_sel).second);
+			UserData *user = _brows->at(_sel).first;
+			const BotCommand *command(_brows->at(_sel).second);
 			int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : ((_parent->channel() && _parent->channel()->isMegagroup()) ? _parent->channel()->mgInfo->botStatus : -1);
 			if (botStatus == 0 || botStatus == 2 || _parent->filter().indexOf('@') > 1) {
 				result = '/' + command->command + '@' + user->username;
@@ -3385,7 +3393,7 @@ void MentionsInner::setSel(int sel, bool scroll) {
 	if (_sel >= 0) update(0, _sel * st::mentionHeight, width(), st::mentionHeight);
 	_sel = sel;
 	if (_sel >= 0) update(0, _sel * st::mentionHeight, width(), st::mentionHeight);
-	int32 maxSel = _rows->isEmpty() ? (_hrows->isEmpty() ? _crows->size() : _hrows->size()) : _rows->size();
+	int32 maxSel = _mrows->isEmpty() ? (_hrows->isEmpty() ? _brows->size() : _hrows->size()) : _mrows->size();
 	if (scroll && _sel >= 0 && _sel < maxSel) emit mustScrollTo(_sel * st::mentionHeight, (_sel + 1) * st::mentionHeight);
 }
 
@@ -3394,8 +3402,8 @@ void MentionsInner::onUpdateSelected(bool force) {
 	if ((!force && !rect().contains(mouse)) || !_mouseSel) return;
 
 	int w = width(), mouseY = mouse.y();
-	_overDelete = _rows->isEmpty() && (mouse.x() >= w - st::mentionHeight);
-	int32 sel = mouseY / int32(st::mentionHeight), maxSel = _rows->isEmpty() ? (_hrows->isEmpty() ? _crows->size() : _hrows->size()) : _rows->size();
+	_overDelete = _mrows->isEmpty() && (mouse.x() >= w - st::mentionHeight);
+	int32 sel = mouseY / int32(st::mentionHeight), maxSel = _mrows->isEmpty() ? (_hrows->isEmpty() ? _brows->size() : _hrows->size()) : _mrows->size();
 	if (sel < 0 || sel >= maxSel) {
 		sel = -1;
 	}
@@ -3414,7 +3422,9 @@ void MentionsInner::onParentGeometryChanged() {
 
 MentionsDropdown::MentionsDropdown(QWidget *parent) : TWidget(parent)
 , _scroll(this, st::mentionScroll)
-, _inner(this, &_rows, &_hrows, &_crows)
+, _inner(this, &_mrows, &_hrows, &_brows, &_crows)
+, _contextBot(0)
+, _contextRequestId(0)
 , _chat(0)
 , _user(0)
 , _channel(0)
@@ -3426,6 +3436,9 @@ MentionsDropdown::MentionsDropdown(QWidget *parent) : TWidget(parent)
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideStart()));
 	connect(&_inner, SIGNAL(chosen(QString)), this, SIGNAL(chosen(QString)));
 	connect(&_inner, SIGNAL(mustScrollTo(int,int)), &_scroll, SLOT(scrollToY(int,int)));
+
+	_contextRequestTimer.setSingleShot(true);
+	connect(&_contextRequestTimer, SIGNAL(timeout()), this, SLOT(onContextRequest()));
 
 	connect(App::wnd(), SIGNAL(imageLoaded()), &_inner, SLOT(update()));
 
@@ -3457,11 +3470,137 @@ void MentionsDropdown::paintEvent(QPaintEvent *e) {
 
 }
 
+void MentionsDropdown::clearContextResults() {
+	if (_contextRequestId) MTP::cancel(_contextRequestId);
+	_contextRequestId = 0;
+	_contextQuery = _contextNextQuery = _contextNextOffset = QString();
+	_contextBot = 0;
+	_contextCache.clear();
+
+	_crows.clear();
+}
+
+void MentionsDropdown::contextResultsDone(const MTPmessages_BotResults &result) {
+	_contextRequestId = 0;
+
+	ContextCache::iterator it = _contextCache.find(_contextQuery);
+
+	bool adding = (it != _contextCache.cend());
+	if (result.type() == mtpc_messages_botResults) {
+		const MTPDmessages_botResults &d(result.c_messages_botResults());
+		const QVector<MTPBotContextResult> &v(d.vresults.c_vector().v);
+		uint64 queryId(d.vquery_id.v);
+
+		if (!adding) {
+			it = _contextCache.insert(_contextQuery, ContextCacheEntry());
+		}
+		it->nextOffset = v.isEmpty() ? QString() : qs(d.vnext_offset);
+
+		int32 count = v.size();
+		if (count) {
+			it->results.reserve(it->results.size() + count);
+		}
+		for (int32 i = 0; i < count; ++i) {
+			ContextResult result(queryId);
+			const MTPBotContextMessage *message = 0;
+			switch (v.at(i).type()) {
+			case mtpc_botContextMediaResultPhoto: {
+				const MTPDbotContextMediaResultPhoto &r(v.at(i).c_botContextMediaResultPhoto());
+				result.id = qs(r.vid);
+				result.type = qs(r.vtype);
+				result.photo = App::feedPhoto(r.vphoto);
+				message = &r.vsend_message;
+			} break;
+			case mtpc_botContextMediaResultDocument: {
+				const MTPDbotContextMediaResultDocument &r(v.at(i).c_botContextMediaResultDocument());
+				result.id = qs(r.vid);
+				result.type = qs(r.vtype);
+				result.doc = App::feedDocument(r.vdocument);
+				message = &r.vsend_message;
+			} break;
+			case mtpc_botContextResult: {
+				const MTPDbotContextResult &r(v.at(i).c_botContextResult());
+				result.id = qs(r.vid);
+				result.type = qs(r.vtype);
+				result.title = qs(r.vtitle);
+				result.description = qs(r.vdescription);
+				result.url = qs(r.vurl);
+				result.thumb_url = qs(r.vthumb_url);
+				result.content_type = qs(r.vcontent_type);
+				result.content_url = qs(r.vcontent_url);
+				message = &r.vsend_message;
+			} break;
+			}
+			bool badAttachment = (!result.photo || result.photo->access) && (!result.doc || result.doc->access);
+			bool canSend = (result.photo || result.doc || !result.message.isEmpty());
+			if (!result.type.isEmpty() && !badAttachment && !canSend) {
+				it->results.push_back(result);
+			}
+		}
+	} else if (adding) {
+		it->results.clear();
+		it->nextOffset = QString();
+	}
+	refreshContextRows(!adding);
+}
+
+bool MentionsDropdown::contextResultsFail(const RPCError &error) {
+	if (mtpIsFlood(error)) return false;
+	_contextRequestId = 0;
+	return true;
+}
+
 void MentionsDropdown::showContextResults(UserData *bot, QString query) {
-	
+	bool force = false;
+	if (bot != _contextBot) {
+		if (!isHidden()) hideStart();
+
+		clearContextResults();
+		_contextBot = bot;
+		force = true;
+	}
+	if (_contextRequestId) {
+		MTP::cancel(_contextRequestId);
+		_contextRequestId = 0;
+	}
+	if (_contextQuery != query || force) {
+		if (_contextCache.contains(_contextQuery)) {
+			refreshContextRows(true);
+		} else {
+			_contextNextQuery = _contextQuery;
+			_contextRequestTimer.start(ContextBotRequestDelay);
+		}
+	}
+}
+
+void MentionsDropdown::onContextRequest() {
+	if (_contextRequestId) return;
+	_contextQuery = _contextNextQuery;
+
+	QString nextOffset;
+	ContextCache::const_iterator i = _contextCache.constFind(_contextQuery);
+	if (i != _contextCache.cend()) {
+		nextOffset = i->nextOffset;
+		if (nextOffset.isEmpty()) return;
+	}
+	_contextRequestId = MTP::send(MTPmessages_GetContextBotResults(_contextBot->inputUser, MTP_string(_contextQuery), MTP_string(nextOffset)), rpcDone(&MentionsDropdown::contextResultsDone), rpcFail(&MentionsDropdown::contextResultsFail));
+}
+
+void MentionsDropdown::refreshContextRows(bool toDown) {
+	bool clear = true;
+	ContextCache::const_iterator i = _contextCache.constFind(_contextQuery);
+	if (i == _contextCache.cend()) {
+		clear = !i->results.isEmpty();
+		_contextNextOffset = i->nextOffset;
+	}
+	rowsUpdated(MentionRows(), HashtagRows(), BotCommandRows(), clear ? ContextRows() : _crows, toDown);
 }
 
 void MentionsDropdown::showFiltered(PeerData *peer, QString start) {
+	if (_contextBot) {
+		clearContextResults();
+	}
+
 	_chat = peer->asChat();
 	_user = peer->asUser();
 	_channel = peer->asChannel();
@@ -3474,17 +3613,19 @@ void MentionsDropdown::showFiltered(PeerData *peer, QString start) {
 	updateFiltered(toDown);
 }
 
-bool MentionsDropdown::clearFilteredCommands() {
-	if (_crows.isEmpty()) return false;
-	_crows.clear();
+bool MentionsDropdown::clearFilteredBotCommands() {
+	if (_brows.isEmpty()) return false;
+	_brows.clear();
 	return true;
 }
 
 void MentionsDropdown::updateFiltered(bool toDown) {
+	clearContextResults();
+
 	int32 now = unixtime();
 	MentionRows rows;
 	HashtagRows hrows;
-	BotCommandRows crows;
+	BotCommandRows brows;
 	if (_filter.at(0) == '@' && _chat) {
 		QMultiMap<int32, UserData*> ordered;
 		rows.reserve(_chat->participants.isEmpty() ? _chat->lastAuthors.size() : _chat->participants.size());
@@ -3569,7 +3710,7 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 			}
 		}
 		if (cnt) {
-			crows.reserve(cnt);
+			brows.reserve(cnt);
 			int32 botStatus = _chat ? _chat->botStatus : ((_channel && _channel->isMegagroup()) ? _channel->mgInfo->botStatus : -1);
 			if (_chat) {
 				for (MentionRows::const_iterator i = _chat->lastAuthors.cbegin(), e = _chat->lastAuthors.cend(); i != e; ++i) {
@@ -3584,7 +3725,7 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 							QString toFilter = (hasUsername || botStatus == 0 || botStatus == 2) ? user->botInfo->commands.at(j).command + '@' + user->username : user->botInfo->commands.at(j).command;
 							if (!toFilter.startsWith(_filter.midRef(1), Qt::CaseInsensitive)/* || toFilter.size() + 1 == _filter.size()*/) continue;
 						}
-						crows.push_back(qMakePair(user, &user->botInfo->commands.at(j)));
+						brows.push_back(qMakePair(user, &user->botInfo->commands.at(j)));
 					}
 				}
 			}
@@ -3596,22 +3737,28 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 							QString toFilter = (hasUsername || botStatus == 0 || botStatus == 2) ? user->botInfo->commands.at(j).command + '@' + user->username : user->botInfo->commands.at(j).command;
 							if (!toFilter.startsWith(_filter.midRef(1), Qt::CaseInsensitive)/* || toFilter.size() + 1 == _filter.size()*/) continue;
 						}
-						crows.push_back(qMakePair(user, &user->botInfo->commands.at(j)));
+						brows.push_back(qMakePair(user, &user->botInfo->commands.at(j)));
 					}
 				}
 			}
 		}
 	}
-	if (rows.isEmpty() && hrows.isEmpty() && crows.isEmpty()) {
+	rowsUpdated(rows, hrows, brows, ContextRows(), toDown);
+}
+
+void MentionsDropdown::rowsUpdated(const MentionRows &mrows, const HashtagRows &hrows, const BotCommandRows &brows, const ContextRows &crows, bool toDown) {
+	if (mrows.isEmpty() && hrows.isEmpty() && brows.isEmpty() && crows.isEmpty()) {
 		if (!isHidden()) {
 			hideStart();
 		}
-		_rows.clear();
+		_mrows.clear();
 		_hrows.clear();
+		_brows.clear();
 		_crows.clear();
 	} else {
-		_rows = rows;
+		_mrows = mrows;
 		_hrows = hrows;
+		_brows = brows;
 		_crows = crows;
 		bool hidden = _hiding || isHidden();
 		if (hidden) {
@@ -3635,7 +3782,7 @@ void MentionsDropdown::setBoundings(QRect boundings) {
 }
 
 void MentionsDropdown::recount(bool toDown) {
-	int32 h = (_rows.isEmpty() ? (_hrows.isEmpty() ? _crows.size() : _hrows.size()) : _rows.size()) * st::mentionHeight, oldst = _scroll.scrollTop(), st = oldst;
+	int32 h = (_mrows.isEmpty() ? (_hrows.isEmpty() ? _brows.size() : _hrows.size()) : _mrows.size()) * st::mentionHeight, oldst = _scroll.scrollTop(), st = oldst;
 	
 	if (_inner.height() != h) {
 //		st += h - _inner.height();

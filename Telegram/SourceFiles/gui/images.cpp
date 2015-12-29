@@ -212,7 +212,7 @@ const QPixmap &Image::pixSingle(int32 w, int32 h, int32 outerw, int32 outerh) co
 	}
 	uint64 k = 0LL;
 	Sizes::const_iterator i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend() || i->width() != w || (h && i->height() != h)) {
+	if (i == _sizesCache.cend() || i->width() != (outerw * cIntRetinaFactor()) || i->height() != (outerh * cIntRetinaFactor())) {
 		if (i != _sizesCache.cend()) {
 			globalAquiredSize -= int64(i->width()) * i->height() * 4;
 		}
@@ -237,7 +237,7 @@ const QPixmap &Image::pixBlurredSingle(int32 w, int32 h, int32 outerw, int32 out
 	}
 	uint64 k = BlurredCacheSkip | 0LL;
 	Sizes::const_iterator i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend() || i->width() != w || (h && i->height() != h)) {
+	if (i == _sizesCache.cend() || i->width() != (outerw * cIntRetinaFactor()) || i->height() != (outerh * cIntRetinaFactor())) {
 		if (i != _sizesCache.cend()) {
 			globalAquiredSize -= int64(i->width()) * i->height() * 4;
 		}

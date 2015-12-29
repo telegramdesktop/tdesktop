@@ -573,7 +573,6 @@ public:
 					for (int32 i = 0, l = _frame->height; i < l; ++i) {
 						memcpy(d + i * dbpl, s + i * sbpl, bpl);
 					}
-
 				} else {
 					if ((_swsSize != toSize) || (_frame->format != -1 && _frame->format != _codecContext->pix_fmt) || !_swsContext) {
 						_swsSize = toSize;

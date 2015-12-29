@@ -638,6 +638,7 @@ private:
 typedef QList<UserData*> MentionRows;
 typedef QList<QString> HashtagRows;
 typedef QList<QPair<UserData*, const BotCommand*> > BotCommandRows;
+typedef QList<QString> ContextRows;
 
 class MentionsDropdown;
 class MentionsInner : public TWidget {
@@ -645,7 +646,7 @@ class MentionsInner : public TWidget {
 
 public:
 
-	MentionsInner(MentionsDropdown *parent, MentionRows *rows, HashtagRows *hrows, BotCommandRows *crows);
+	MentionsInner(MentionsDropdown *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, ContextRows *crows);
 
 	void paintEvent(QPaintEvent *e);
 
@@ -676,9 +677,10 @@ private:
 	void setSel(int sel, bool scroll = false);
 
 	MentionsDropdown *_parent;
-	MentionRows *_rows;
+	MentionRows *_mrows;
 	HashtagRows *_hrows;
-	BotCommandRows *_crows;
+	BotCommandRows *_brows;
+	ContextRows *_crows;
 	int32 _sel;
 	bool _mouseSel;
 	QPoint _mousePos;
@@ -686,7 +688,7 @@ private:
 	bool _overDelete;
 };
 
-class MentionsDropdown : public TWidget {
+class MentionsDropdown : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -697,7 +699,7 @@ public:
 
 	void fastHide();
 
-	bool clearFilteredCommands();
+	bool clearFilteredBotCommands();
 	void showContextResults(UserData *bot, QString query);
 	void showFiltered(PeerData *peer, QString start);
 	void updateFiltered(bool toDown = false);
@@ -721,6 +723,7 @@ public:
 
 		return rect().contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
+	void clearContextResults();
 
 	void ui_repaintSavedGif(const LayoutSavedGif *layout);
 	bool ui_isSavedGifVisible(const LayoutSavedGif *layout);
@@ -738,18 +741,60 @@ public slots:
 	void hideFinish();
 
 	void showStart();
+	void onContextRequest();
 
 private:
 
 	void recount(bool toDown = false);
 
 	QPixmap _cache;
-	MentionRows _rows;
+	MentionRows _mrows;
 	HashtagRows _hrows;
-	BotCommandRows _crows;
+	BotCommandRows _brows;
+	ContextRows _crows;
+
+	struct ContextResult {
+		ContextResult(uint64 queryId)
+			: queryId(queryId)
+			, doc(0)
+			, photo(0)
+			, width(0)
+			, height(0)
+			, duration(0)
+			, noWebPage(false) {
+		}
+		uint64 queryId;
+		QString id, type;
+		DocumentData *doc;
+		PhotoData *photo;
+		QString title, description, url, thumb_url;
+		QString content_type, content_url;
+		int32 width, height, duration;
+
+		QString message; // botContextMessageText
+		bool noWebPage;
+		EntitiesInText entities;
+		QString caption; // if message.isEmpty() use botContextMessageMediaAuto
+	};
+	struct ContextCacheEntry {
+		QString nextOffset;
+		QList<ContextResult> results;
+	};
+	typedef QMap<QString, ContextCacheEntry> ContextCache;
+	ContextCache _contextCache;
+	QTimer _contextRequestTimer;
+
+	void refreshContextRows(bool toDown);
+	void rowsUpdated(const MentionRows &rows, const HashtagRows &hrows, const BotCommandRows &brows, const ContextRows &crows, bool toDown);
 
 	ScrollArea _scroll;
 	MentionsInner _inner;
+
+	UserData *_contextBot;
+	QString _contextQuery, _contextNextQuery, _contextNextOffset;
+	mtpRequestId _contextRequestId;
+	void contextResultsDone(const MTPmessages_BotResults &result);
+	bool contextResultsFail(const RPCError &error);
 
 	ChatData *_chat;
 	UserData *_user;
