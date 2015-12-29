@@ -1405,7 +1405,6 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 			case mtpc_webPage:
 			case mtpc_webPageEmpty:
 			case mtpc_webPagePending: break;
-			case mtpc_webPageExternal: LOG(("API Error: should not get webPageExternal in History::createItem"));
 			default: badMedia = 1; break;
 			}
 			break;
@@ -6112,7 +6111,6 @@ void HistoryMessage::initMedia(const MTPMessageMedia *media, QString &currentTex
 		case mtpc_webPage: {
 			_media = new HistoryWebPage(App::feedWebPage(d.c_webPage()));
 		} break;
-		case mtpc_webPageExternal: LOG(("API Error: should not get webPageExternal in HistoryMessage::initMedia")); break;
 		}
 	} break;
 	};

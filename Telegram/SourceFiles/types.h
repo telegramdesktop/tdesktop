@@ -56,10 +56,12 @@ typedef quint64 uint64;
 
 static const int32 ScrollMax = INT_MAX;
 
-static uint64 SharedMemoryLocation0 = 0x00;
-static uint64 SharedMemoryLocation1 = 0x01;
-static uint64 SharedMemoryLocation2 = 0x02;
-static uint64 SharedMemoryLocation3 = 0x03;
+extern uint64 _SharedMemoryLocation[];
+template <typename T, unsigned int N>
+T *SharedMemoryLocation() {
+	static_assert(N < 4, "Only 4 shared memory locations!");
+	return reinterpret_cast<T*>(_SharedMemoryLocation + N);
+}
 
 #ifdef Q_OS_WIN
 typedef float float32;

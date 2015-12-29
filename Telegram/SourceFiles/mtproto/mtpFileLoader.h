@@ -230,4 +230,4 @@ private:
 
 };
 
-static mtpFileLoader * const CancelledFileLoader = reinterpret_cast<mtpFileLoader * const>(&SharedMemoryLocation0);
+static mtpFileLoader * const CancelledFileLoader = SharedMemoryLocation<mtpFileLoader, 0>();

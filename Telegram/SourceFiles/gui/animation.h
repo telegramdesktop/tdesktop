@@ -587,7 +587,7 @@ private:
 
 };
 
-static ClipReader * const BadClipReader = reinterpret_cast<ClipReader * const>(&SharedMemoryLocation0);
+static ClipReader * const BadClipReader = SharedMemoryLocation<ClipReader, 0>();
 
 enum ClipProcessResult {
 	ClipProcessError,

@@ -22,6 +22,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 #include "application.h"
 
+uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
+
 #ifdef Q_OS_WIN
 #elif defined Q_OS_MAC
 #include <mach/mach_time.h>

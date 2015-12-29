@@ -485,8 +485,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_create_channel_crop" = "Select a square area for channel photo";
 
 "lng_failed_add_participant" = "Could not add user. Please try again later.";
-"lng_failed_add_not_mutual" = "Sorry, if a person leaves a group, only a\nmutual contact can bring them back\n(they need to have your phone\nnumber, and you need theirs).";
-"lng_failed_add_not_mutual_channel" = "Sorry, if a person leaves a channel, only a\nmutual contact can bring them back\n(they need to have your phone\nnumber, and you need theirs).";
+"lng_failed_add_not_mutual" = "Sorry, if a person leaves a group, only a mutual contact can bring them back (they need to have your phone number, and you need theirs).";
+"lng_failed_add_not_mutual_channel" = "Sorry, if a person leaves a channel, only a mutual contact can bring them back (they need to have your phone number, and you need theirs).";
 
 "lng_sure_delete_contact" = "Are you sure, you want to delete {contact} from your contact list?";
 "lng_sure_delete_history" = "Are you sure, you want to delete all message history with {contact}?\n\nThis action cannot be undone.";

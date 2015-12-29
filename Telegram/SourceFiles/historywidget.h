@@ -418,7 +418,6 @@ public:
 	void contextMenuEvent(QContextMenuEvent *e);
 
 	void updateTopBarSelection();
-	void checkMentionDropdown();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
 	void topBarClick();
@@ -650,7 +649,7 @@ public slots:
 
 	void onFieldFocused();
 	void onFieldResize();
-	void onFieldCursorChanged();
+	void onCheckMentionDropdown();
 	void onScrollTimer();
 
 	void onForwardSelected();

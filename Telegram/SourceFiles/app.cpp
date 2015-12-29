@@ -1353,7 +1353,6 @@ namespace App {
 			return page;
 		} break;
 		case mtpc_webPagePending: return App::feedWebPage(webpage.c_webPagePending());
-		case mtpc_webPageExternal: LOG(("API Error: should not get webPageExternal in App::feedWebPage")); break;
 		}
 		return 0;
 	}

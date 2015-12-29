@@ -385,7 +385,7 @@ public:
 
 	BotInfo *botInfo;
 };
-static UserData * const ContextBotLookingUpData = reinterpret_cast<UserData*>(&SharedMemoryLocation0);
+static UserData * const ContextBotLookingUpData = SharedMemoryLocation<UserData, 0>();
 
 class ChatData : public PeerData {
 public:

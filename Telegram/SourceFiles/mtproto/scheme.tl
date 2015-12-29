@@ -160,7 +160,6 @@ inputMediaUploadedThumbDocument#ad613491 file:InputFile thumb:InputFile mime_typ
 inputMediaDocument#1a77f29c id:InputDocument caption:string = InputMedia;
 inputMediaVenue#2827a81a geo_point:InputGeoPoint title:string address:string provider:string venue_id:string = InputMedia;
 inputMediaGifExternal#4843b0fd url:string q:string = InputMedia;
-inputMediaContextBotResult#48720fe8 flags:# media:flags.0?true bot:InputUser url:string query_id:long = InputMedia;
 
 inputChatPhotoEmpty#1ca48f57 = InputChatPhoto;
 inputChatUploadedPhoto#94254732 file:InputFile crop:InputPhotoCrop = InputChatPhoto;
@@ -237,7 +236,7 @@ chatPhotoEmpty#37c1011c = ChatPhoto;
 chatPhoto#6153276a photo_small:FileLocation photo_big:FileLocation = ChatPhoto;
 
 messageEmpty#83e5de54 id:int = Message;
-message#5ba66c13 flags:# unread:flags.0?true out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true id:int from_id:flags.8?int to_id:Peer fwd_from_id:flags.2?Peer fwd_date:flags.2?int reply_to_msg_id:flags.3?int date:int message:string media:flags.9?MessageMedia reply_markup:flags.6?ReplyMarkup entities:flags.7?Vector<MessageEntity> views:flags.10?int = Message;
+message#c992e15c flags:# unread:flags.0?true out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true id:int from_id:flags.8?int to_id:Peer fwd_from_id:flags.2?Peer fwd_date:flags.2?int via_bot_id:flags.11?int reply_to_msg_id:flags.3?int date:int message:string media:flags.9?MessageMedia reply_markup:flags.6?ReplyMarkup entities:flags.7?Vector<MessageEntity> views:flags.10?int = Message;
 messageService#c06b9607 flags:# unread:flags.0?true out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true id:int from_id:flags.8?int to_id:Peer date:int action:MessageAction = Message;
 
 messageMediaEmpty#3ded6320 = MessageMedia;
@@ -410,8 +409,8 @@ updates.difference#f49ca0 new_messages:Vector<Message> new_encrypted_messages:Ve
 updates.differenceSlice#a8fb1981 new_messages:Vector<Message> new_encrypted_messages:Vector<EncryptedMessage> other_updates:Vector<Update> chats:Vector<Chat> users:Vector<User> intermediate_state:updates.State = updates.Difference;
 
 updatesTooLong#e317af7e = Updates;
-updateShortMessage#f7d91a46 flags:# unread:flags.0?true out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true id:int user_id:int message:string pts:int pts_count:int date:int fwd_from_id:flags.2?Peer fwd_date:flags.2?int reply_to_msg_id:flags.3?int entities:flags.7?Vector<MessageEntity> = Updates;
-updateShortChatMessage#cac7fdd2 flags:# unread:flags.0?true out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true id:int from_id:int chat_id:int message:string pts:int pts_count:int date:int fwd_from_id:flags.2?Peer fwd_date:flags.2?int reply_to_msg_id:flags.3?int entities:flags.7?Vector<MessageEntity> = Updates;
+updateShortMessage#63bd23d flags:# unread:flags.0?true out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true id:int user_id:int message:string pts:int pts_count:int date:int fwd_from_id:flags.2?Peer fwd_date:flags.2?int via_bot_id:flags.8?int reply_to_msg_id:flags.3?int entities:flags.7?Vector<MessageEntity> = Updates;
+updateShortChatMessage#b024ead6 flags:# unread:flags.0?true out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true id:int from_id:int chat_id:int message:string pts:int pts_count:int date:int fwd_from_id:flags.2?Peer fwd_date:flags.2?int via_bot_id:flags.8?int reply_to_msg_id:flags.3?int entities:flags.7?Vector<MessageEntity> = Updates;
 updateShort#78d4dec1 update:Update date:int = Updates;
 updatesCombined#725b04c3 updates:Vector<Update> users:Vector<User> chats:Vector<Chat> date:int seq_start:int seq:int = Updates;
 updates#74ae4240 updates:Vector<Update> users:Vector<User> chats:Vector<Chat> date:int seq:int = Updates;
@@ -543,7 +542,6 @@ contactLinkContact#d502c2d0 = ContactLink;
 webPageEmpty#eb1477e8 id:long = WebPage;
 webPagePending#c586da1c id:long date:int = WebPage;
 webPage#ca820ed7 flags:# id:long url:string display_url:string type:flags.0?string site_name:flags.1?string title:flags.2?string description:flags.3?string photo:flags.4?Photo embed_url:flags.5?string embed_type:flags.5?string embed_width:flags.6?int embed_height:flags.6?int duration:flags.7?int author:flags.8?string document:flags.9?Document = WebPage;
-webPageExternal#b08fbb93 flags:# url:string display_url:string type:flags.0?string title:flags.1?string description:flags.2?string thumb_url:flags.3?string content_url:flags.4?string content_type:flags.4?string w:flags.5?int h:flags.5?int duration:flags.6?int = WebPage;
 
 authorization#7bf2e6f6 hash:long flags:int device_model:string platform:string system_version:string api_id:int app_name:string app_version:string date_created:int date_active:int ip:string country:string region:string = Authorization;
 
@@ -641,16 +639,25 @@ channels.channelParticipant#d0d9b163 participant:ChannelParticipant users:Vector
 
 help.termsOfService#f1ee3e90 text:string = help.TermsOfService;
 
-foundGif#d579cccb webpage:WebPage = FoundGif;
+foundGif#162ecc1f url:string thumb_url:string content_url:string content_type:string w:int h:int = FoundGif;
+foundGifCached#fdfe5e4d url:string document:Document = FoundGif;
 
 messages.foundGifs#450a1c0a next_offset:int results:Vector<FoundGif> = messages.FoundGifs;
 
 messages.savedGifsNotModified#e8025ca2 = messages.SavedGifs;
 messages.savedGifs#2e0709a5 hash:int gifs:Vector<Document> = messages.SavedGifs;
 
-inputBotContextResult#a47850c5 flags:# hide_url:flags.20?true url:string type:flags.0?string title:flags.1?string description:flags.2?string thumb_url:flags.3?string content_url:flags.4?string content_type:flags.4?string w:flags.5?int h:flags.5?int duration:flags.6?int = InputBotContextResult;
+inputBotContextMessageMediaAuto#113c6793 caption:string = InputBotContextMessage;
+inputBotContextMessageText#52832c56 flags:# no_webpage:flags.0?true message:string entities:flags.1?Vector<MessageEntity> = InputBotContextMessage;
 
-botContextResult#ea0b7eec flags:# hide_url:flags.0?true webpage:WebPage = BotContextResult;
+inputBotContextResult#72d8b33b flags:# id:string type:string title:flags.1?string description:flags.2?string url:flags.3?string thumb_url:flags.4?string content_url:flags.5?string content_type:flags.5?string w:flags.6?int h:flags.6?int duration:flags.7?int send_message:InputBotContextMessage = InputBotContextResult;
+
+botContextMessageMediaAuto#a9ec3903 caption:string = BotContextMessage;
+botContextMessageText#2eb67d88 flags:# no_webpage:flags.0?true message:string entities:flags.1?Vector<MessageEntity> = BotContextMessage;
+
+botContextMediaResultDocument#392ebe49 id:string type:string document:Document send_message:BotContextMessage = BotContextResult;
+botContextMediaResultPhoto#139ce337 id:string type:string photo:Photo send_message:BotContextMessage = BotContextResult;
+botContextResult#50a2cecf flags:# id:string type:string title:flags.1?string description:flags.2?string url:flags.3?string thumb_url:flags.4?string content_url:flags.5?string content_type:flags.5?string w:flags.6?int h:flags.6?int duration:flags.7?int send_message:BotContextMessage = BotContextResult;
 
 messages.botResults#772740b1 flags:# media:flags.0?true query_id:long next_offset:flags.1?string results:Vector<BotContextResult> = messages.BotResults;
 
@@ -776,6 +783,7 @@ messages.getSavedGifs#83bf3d52 hash:int = messages.SavedGifs;
 messages.saveGif#327a30cb id:InputDocument unsave:Bool = Bool;
 messages.getContextBotResults#36e7d06c bot:InputUser query:string offset:string = messages.BotResults;
 messages.setContextBotResults#d7f2de0f flags:# media:flags.0?true private:flags.1?true query_id:long results:Vector<InputBotContextResult> cache_time:int next_offset:flags.2?string = Bool;
+messages.sendContextBotResult#bdb3c4d0 flags:# broadcast:flags.4?true peer:InputPeer reply_to_msg_id:flags.0?int random_id:long query_id:long id:string = Updates;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#a041495 pts:int date:int qts:int = updates.Difference;

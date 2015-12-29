@@ -271,8 +271,8 @@ void FlatTextarea::getMentionHashtagBotCommandStart(QString &start, UserData *&c
 			}
 			break;
 		}
-		if (usernameLength) {
-			QStringRef username = text.midRef(1, usernameLength);
+		if (usernameLength && usernameStart + usernameLength < text.size() && text.at(usernameStart + usernameLength).isSpace()) {
+			QStringRef username = text.midRef(usernameStart, usernameLength);
 			if (username != contextBotUsername) {
 				contextBotUsername = username.toString();
 				PeerData *peer = App::peerByName(contextBotUsername);
@@ -292,6 +292,7 @@ void FlatTextarea::getMentionHashtagBotCommandStart(QString &start, UserData *&c
 				contextBot = 0;
 			} else {
 				start = text.mid(usernameStart + usernameLength + 1);
+				return;
 			}
 		} else {
 			contextBot = 0;
