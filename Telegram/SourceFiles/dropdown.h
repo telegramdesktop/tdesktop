@@ -366,6 +366,7 @@ public slots:
 	void updateSelected();
 	void onSettings();
 	void onPreview();
+	void onUpdateGifs();
 
 signals:
 
@@ -415,6 +416,8 @@ private:
 	QList<bool> _custom;
 
 	bool _showingGifs;
+	uint64 _lastScrolled;
+	QTimer _updateGifs;
 
 	typedef QList<LayoutSavedGif*> GifRow;
 	typedef QList<GifRow> GifRows;

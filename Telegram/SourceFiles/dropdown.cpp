@@ -1214,6 +1214,7 @@ StickerPanInner::StickerPanInner() : TWidget()
 , _a_selected(animation(this, &StickerPanInner::step_selected))
 , _top(0)
 , _showingGifs(cShowingSavedGifs())
+, _lastScrolled(0)
 , _selected(-1)
 , _pressedSel(-1)
 , _settings(this, lang(lng_stickers_you_have))
@@ -1229,6 +1230,9 @@ StickerPanInner::StickerPanInner() : TWidget()
 	
 	_previewTimer.setSingleShot(true);
 	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreview()));
+
+	_updateGifs.setSingleShot(true);
+	connect(&_updateGifs, SIGNAL(timeout()), this, SLOT(onUpdateGifs()));
 }
 
 void StickerPanInner::setMaxHeight(int32 h) {
@@ -1240,6 +1244,7 @@ void StickerPanInner::setMaxHeight(int32 h) {
 void StickerPanInner::setScrollTop(int top) {
 	if (top == _top) return;
 
+	_lastScrolled = getms();
 	_top = top;
 	updateSelected();
 }
@@ -1734,15 +1739,12 @@ uint64 StickerPanInner::currentSet(int yOffset) const {
 void StickerPanInner::ui_repaintSavedGif(const LayoutSavedGif *layout) {
 	if (!_showingGifs) return;
 
-	int32 position = layout->position();
-	int32 row = position / MatrixRowShift, col = position % MatrixRowShift;
-	t_assert((row < _gifRows.size()) && (col < _gifRows.at(row).size()));
-		
-	const GifRow &gifRow(_gifRows.at(row));
-	int32 left = st::savedGifsLeft, top = st::emojiPanHeader + row * (st::savedGifHeight + st::savedGifsSkip);
-	for (int32 i = 0; i < col; ++i) left += gifRow.at(i)->width() + st::savedGifsSkip;
-
-	rtlupdate(left, top, gifRow.at(col)->width(), st::savedGifHeight);
+	uint64 ms = getms();
+	if (_lastScrolled + 100 <= ms) {
+		update();
+	} else {
+		_updateGifs.start(_lastScrolled + 100 - ms);
+	}
 }
 
 bool StickerPanInner::ui_isSavedGifVisible(const LayoutSavedGif *layout) {
@@ -2059,6 +2061,17 @@ void StickerPanInner::onPreview() {
 			Ui::showStickerPreview(_sets.at(tab).pack.at(sel));
 			_previewShown = true;
 		}
+	}
+}
+
+void StickerPanInner::onUpdateGifs() {
+	if (!_showingGifs) return;
+
+	uint64 ms = getms();
+	if (_lastScrolled + 100 <= ms) {
+		update();
+	} else {
+		_updateGifs.start(_lastScrolled + 100 - ms);
 	}
 }
 

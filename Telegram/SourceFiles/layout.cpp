@@ -1368,7 +1368,7 @@ void LayoutSavedGif::paint(Painter &p, bool paused, uint64 ms) const {
 		if (!_data->thumb->isNull()) {
 			if (_data->thumb->loaded()) {
 				if (_thumb.width() != _width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-					const_cast<LayoutSavedGif*>(this)->_thumb = _data->thumb->pixNoCache(frame.width(), frame.height(), true, false, false, _width, height);
+					const_cast<LayoutSavedGif*>(this)->_thumb = _data->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, _width, height);
 				}
 			} else {
 				_data->thumb->load();
