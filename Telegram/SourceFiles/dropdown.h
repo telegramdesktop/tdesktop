@@ -470,6 +470,7 @@ private:
 
 	int32 _selected, _pressedSel;
 	QPoint _lastMousePos;
+	TextLinkPtr _linkOver, _linkDown;
 
 	LinkButton _settings;
 

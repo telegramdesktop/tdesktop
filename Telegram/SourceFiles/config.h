@@ -83,7 +83,7 @@ enum {
 	LocalEncryptKeySize = 256, // 2048 bit
 
 	AnimationTimerDelta = 7,
-	ClipThreadsCount = 4,
+	ClipThreadsCount = 8,
 	AverageGifSize = 320 * 240,
 	WaitBeforeGifPause = 200, // wait 200ms for gif draw before pausing it
 	ContextBotRequestDelay = 400, // wait 400ms before context bot realtime request

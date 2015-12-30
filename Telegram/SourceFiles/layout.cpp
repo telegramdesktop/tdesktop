@@ -1452,7 +1452,8 @@ void LayoutContextGif::linkOver(const TextLinkPtr &link) {
 			_state |= StateDeleteOver;
 			_a_deleteOver.start(1, st::stickersRowDuration);
 		}
-	} else if (link == _send) {
+	}
+	if (link == _delete || link == _send) {
 		if (!_doc->loaded()) {
 			ensureAnimation();
 			if (!(_state & StateOver)) {
@@ -1471,7 +1472,8 @@ void LayoutContextGif::linkOut(const TextLinkPtr &link) {
 			_state &= ~StateDeleteOver;
 			_a_deleteOver.start(0, st::stickersRowDuration);
 		}
-	} else if (link == _send) {
+	}
+	if (link == _delete || link == _send) {
 		if (!_doc->loaded()) {
 			ensureAnimation();
 			if (_state & StateOver) {

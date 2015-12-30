@@ -982,14 +982,17 @@ bool ClipReadManager::carries(ClipReader *reader) const {
 bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcessResult result, uint64 ms) {
 	QMutexLocker lock(&_readerPointersMutex);
 	ReaderPointers::iterator it = _readerPointers.find(reader->_interface);
+	if (it != _readerPointers.cend() && it.key()->_private != reader) {
+		it = _readerPointers.end(); // it is a new reader which was realloced in the same address
+	}
 	if (result == ClipProcessError) {
 		if (it != _readerPointers.cend()) {
 			it.key()->error();
 			emit callback(it.key(), it.key()->threadIndex(), ClipReaderReinit);
 
 			_readerPointers.erase(it);
-			it = _readerPointers.end();
 		}
+		return false;
 	}
 	if (it == _readerPointers.cend()) {
 		return false;

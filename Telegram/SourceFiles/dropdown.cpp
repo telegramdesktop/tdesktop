@@ -1400,6 +1400,7 @@ void StickerPanInner::mousePressEvent(QMouseEvent *e) {
 
 	_pressedSel = _selected;
 	textlnkDown(textlnkOver());
+	_linkDown = _linkOver;
 	_previewTimer.start(QApplication::startDragTime());
 }
 
@@ -1407,8 +1408,9 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 	_previewTimer.stop();
 
 	int32 pressed = _pressedSel;
-	TextLinkPtr down(textlnkDown());
+	TextLinkPtr down(_linkDown);
 	_pressedSel = -1;
+	_linkDown.reset();
 	textlnkDown(TextLinkPtr());
 
 	_lastMousePos = e->globalPos();
@@ -1419,7 +1421,7 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 		return;
 	}
 
-	if (_selected < 0 || _selected != pressed || textlnkOver() != down) return;
+	if (_selected < 0 || _selected != pressed || _linkOver != down) return;
 	if (_showingContextItems) {
 		int32 row = _selected / MatrixRowShift, col = _selected % MatrixRowShift;
 		if (row < _contextRows.size() && col < _contextRows.at(row).items.size()) {
@@ -1512,9 +1514,10 @@ void StickerPanInner::clearSelection(bool fast) {
 			if (_selected >= 0) {
 				int32 srow = _selected / MatrixRowShift, scol = _selected % MatrixRowShift;
 				t_assert(srow >= 0 && srow < _contextRows.size() && scol >= 0 && scol < _contextRows.at(srow).items.size());
-				if (textlnkOver()) {
-					_contextRows.at(srow).items.at(scol)->linkOut(textlnkOver());
-					textlnkOver(TextLinkPtr());
+				if (_linkOver) {
+					_contextRows.at(srow).items.at(scol)->linkOut(_linkOver);
+					_linkOver = TextLinkPtr();
+					textlnkOver(_linkOver);
 				}
 				setCursor(style::cur_default);
 			}
@@ -1591,8 +1594,6 @@ void StickerPanInner::refreshStickers() {
 }
 
 void StickerPanInner::refreshSavedGifs() {
-	clearSelection(true);
-
 	if (_showingSavedGifs) {
 		clearContextRows();
 		if (_showingContextItems) {
@@ -1655,6 +1656,7 @@ void StickerPanInner::contextBotChanged() {
 }
 
 void StickerPanInner::clearContextRows() {
+	clearSelection(true);
 	for (ContextRows::const_iterator i = _contextRows.cbegin(), e = _contextRows.cend(); i != e; ++i) {
 		for (ContextItems::const_iterator j = i->items.cbegin(), end = i->items.cend(); j != end; ++j) {
 			(*j)->setPosition(-1, 0);
@@ -1984,23 +1986,23 @@ void StickerPanInner::updateSelected() {
 			if (col < contextItems.size()) {
 				sel = row * MatrixRowShift + col;
 				contextItems.at(col)->getState(lnk, cursor, sx, sy);
+			} else {
+				row = col = -1;
 			}
+		} else {
+			row = col = -1;
 		}
-		if (_selected != sel || textlnkOver() != lnk) {
-			int32 srow = (_selected >= 0) ? (_selected / MatrixRowShift) : -1;
-			int32 scol = (_selected >= 0) ? (_selected % MatrixRowShift) : -1;
-			if (srow >= 0 && scol >= 0 && textlnkOver()) {
+		int32 srow = (_selected >= 0) ? (_selected / MatrixRowShift) : -1;
+		int32 scol = (_selected >= 0) ? (_selected % MatrixRowShift) : -1;
+		if (_selected != sel) {
+			if (srow >= 0 && scol >= 0) {
 				t_assert(srow >= 0 && srow < _contextRows.size() && scol >= 0 && scol < _contextRows.at(srow).items.size());
-				_contextRows.at(srow).items.at(scol)->linkOut(textlnkOver());
-			}
-			if ((textlnkOver() && !lnk) || (!textlnkOver() && lnk)) {
-				setCursor(lnk ? style::cur_pointer : style::cur_default);
+				Ui::repaintContextItem(_contextRows.at(srow).items.at(scol));
 			}
 			_selected = sel;
-			textlnkOver(lnk);
-			if (row >= 0 && col >= 0 && textlnkOver()) {
+			if (row >= 0 && col >= 0) {
 				t_assert(row >= 0 && row < _contextRows.size() && col >= 0 && col < _contextRows.at(row).items.size());
-				_contextRows.at(row).items.at(col)->linkOver(textlnkOver());
+				Ui::repaintContextItem(_contextRows.at(row).items.at(col));
 			}
 			if (_pressedSel >= 0 && _selected >= 0 && _pressedSel != _selected) {
 				_pressedSel = _selected;
@@ -2008,6 +2010,24 @@ void StickerPanInner::updateSelected() {
 					Ui::showStickerPreview(_contextRows.at(row).items.at(col)->document());
 				}
 			}
+		}
+		if (_linkOver != lnk) {
+			if (_linkOver && srow >= 0 && scol >= 0) {
+				t_assert(srow >= 0 && srow < _contextRows.size() && scol >= 0 && scol < _contextRows.at(srow).items.size());
+				_contextRows.at(srow).items.at(scol)->linkOut(_linkOver);
+				Ui::repaintContextItem(_contextRows.at(srow).items.at(scol));
+			}
+			if ((_linkOver && !lnk) || (!_linkOver && lnk)) {
+				setCursor(lnk ? style::cur_pointer : style::cur_default);
+			}
+			_linkOver = lnk;
+			textlnkOver(lnk);
+			if (_linkOver && row >= 0 && col >= 0) {
+				t_assert(row >= 0 && row < _contextRows.size() && col >= 0 && col < _contextRows.at(row).items.size());
+				_contextRows.at(row).items.at(col)->linkOver(_linkOver);
+				Ui::repaintContextItem(_contextRows.at(row).items.at(col));
+			}
+
 		}
 		return;
 	}
@@ -3307,8 +3327,6 @@ bool EmojiPan::contextResultsFail(const RPCError &error) {
 void EmojiPan::showContextResults(UserData *bot, QString query) {
 	bool force = false;
 	if (bot != _contextBot) {
-		if (!isHidden()) hideStart();
-
 		contextBotChanged();
 		_contextBot = bot;
 		force = true;
