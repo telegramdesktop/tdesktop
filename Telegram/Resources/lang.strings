@@ -578,7 +578,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_media_auto_settings" = "Automatic media download settings";
 "lng_media_auto_photo" = "Automatic photo download";
-"lng_media_auto_audio" = "Automatic audio download";
+"lng_media_auto_audio" = "Automatic voice message download";
 "lng_media_auto_gif" = "Automatic GIF download";
 "lng_media_auto_private_chats" = "Private chats";
 "lng_media_auto_groups" = "Groups and channels";
@@ -598,8 +598,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_switch_emoji" = "Emoji";
 
 "lng_saved_gifs" = "Saved GIFs";
-"lng_context_results" = "Results from {context_bot}";
-"lng_context_no_results" = "No results";
+"lng_inline_bot_results" = "Results from {inline_bot}";
+"lng_inline_bot_no_results" = "No results";
 
 "lng_box_remove" = "Remove";
 
@@ -832,7 +832,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— Sticker management: manually rearrange your sticker packs, pack order is now synced across all your devices\n— Click and hold on a sticker to preview it before sending\n— New context menu for chats in chats list\n— Support for all existing emoji";
+"lng_new_version_text" = "GIF revolution: 10x faster sending and downloading, autoplay, save your favorite GIFs to a dedicated tab on the sticker panel.\n\nMore about GIFs:\n{gifs_link}\n\nInline bots: A new way to add bot content to any chat. Type a bot's username and your query in the text field to get instant results and send them to your chat partner. Try typing “@gif dog” in your next chat. Sample bots: @gif, @wiki, @bingpic, @vid.\n\nMore about inline bots:\n{bots_link}\n\nAlso in this release: New cute design for media, automatic download settings for photos, voice messages and GIFs.";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 
