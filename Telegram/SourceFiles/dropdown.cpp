@@ -1213,7 +1213,8 @@ void EmojiPanInner::showEmojiPack(DBIEmojiTab packIndex) {
 StickerPanInner::StickerPanInner() : TWidget()
 , _a_selected(animation(this, &StickerPanInner::step_selected))
 , _top(0)
-, _showingGifs(cShowingSavedGifs())
+, _showingSavedGifs(cShowingSavedGifs())
+, _showingContextItems(_showingSavedGifs)
 , _selected(-1)
 , _pressedSel(-1)
 , _settings(this, lang(lng_stickers_you_have))
@@ -1246,8 +1247,11 @@ void StickerPanInner::setScrollTop(int top) {
 
 int StickerPanInner::countHeight() {
 	int result = 0, minLastH = _maxHeight - st::rbEmoji.height - st::stickerPanPadding;
-	if (_showingGifs) {
-		result = st::emojiPanHeader + _gifRows.count() * (st::savedGifHeight + st::savedGifsSkip) - st::savedGifsSkip;
+	if (_showingContextItems) {
+		result = st::emojiPanHeader;
+		for (int i = 0, l = _contextRows.count(); i < l; ++i) {
+			result += _contextRows.at(i).height;
+		}
 	} else {
 		for (int i = 0; i < _sets.size(); ++i) {
 			int cnt = _sets.at(i).pack.size(), rows = (cnt / StickerPanPerRow) + ((cnt % StickerPanPerRow) ? 1 : 0);
@@ -1284,33 +1288,36 @@ void StickerPanInner::paintEvent(QPaintEvent *e) {
 	}
 	p.fillRect(r, st::white);
 
-	if (_showingGifs) {
-		paintSavedGifs(p, r);
+	if (_showingContextItems) {
+		paintContextItems(p, r);
 	} else {
 		paintStickers(p, r);
 	}
 }
 
-void StickerPanInner::paintSavedGifs(Painter &p, const QRect &r) {
-	uint64 ms = getms();
+void StickerPanInner::paintContextItems(Painter &p, const QRect &r) {
+	ContextPaintContext context(getms(), false, _previewShown);
 
-	int32 fromrow = floorclamp(r.y() - st::emojiPanHeader, st::savedGifHeight + st::savedGifsSkip, 0, _gifRows.size());
-	int32 torow = ceilclamp(r.y() + r.height() - st::emojiPanHeader - st::savedGifsSkip, st::savedGifHeight + st::savedGifsSkip, 0, _gifRows.size());
+	int32 top = st::emojiPanHeader;
 	int32 fromx = rtl() ? (width() - r.x() - r.width()) : r.x(), tox = rtl() ? (width() - r.x()) : (r.x() + r.width());
-	for (int32 row = fromrow; row < torow; ++row) {
-		const GifRow &gifRow(_gifRows.at(row));
-		int32 left = st::savedGifsLeft, top = st::emojiPanHeader + row * (st::savedGifHeight + st::savedGifsSkip);
-		for (int32 col = 0, cols = gifRow.size(); col < cols; ++col) {
-			if (left >= tox) break;
+	for (int32 row = 0, rows = _contextRows.size(); row < rows; ++row) {
+		const ContextRow &contextRow(_contextRows.at(row));
+		if (top >= r.top() + r.height()) break;
+		if (top + contextRow.height > r.top()) {
+			int32 left = st::savedGifsLeft;
+			for (int32 col = 0, cols = contextRow.items.size(); col < cols; ++col) {
+				if (left >= tox) break;
 
-			int32 w = gifRow.at(col)->width();
-			if (left + w > fromx) {
-				p.translate(left, top);
-				gifRow.at(col)->paint(p, _previewShown, ms);
-				p.translate(-left, -top);
+				int32 w = contextRow.items.at(col)->width();
+				if (left + w > fromx) {
+					p.translate(left, top);
+					contextRow.items.at(col)->paint(p, r.translated(-left, -top), 0, &context);
+					p.translate(-left, -top);
+				}
+				left += w + st::savedGifsSkip;
 			}
-			left += w + st::savedGifsSkip;
 		}
+		top += contextRow.height;
 	}
 }
 
@@ -1392,6 +1399,7 @@ void StickerPanInner::mousePressEvent(QMouseEvent *e) {
 	updateSelected();
 
 	_pressedSel = _selected;
+	textlnkDown(textlnkOver());
 	_previewTimer.start(QApplication::startDragTime());
 }
 
@@ -1399,7 +1407,9 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 	_previewTimer.stop();
 
 	int32 pressed = _pressedSel;
+	TextLinkPtr down(textlnkDown());
 	_pressedSel = -1;
+	textlnkDown(TextLinkPtr());
 
 	_lastMousePos = e->globalPos();
 	updateSelected();
@@ -1409,31 +1419,24 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 		return;
 	}
 
-	if (_selected < 0 || _selected != pressed) return;
-	if (_showingGifs) {
+	if (_selected < 0 || _selected != pressed || textlnkOver() != down) return;
+	if (_showingContextItems) {
 		int32 row = _selected / MatrixRowShift, col = _selected % MatrixRowShift;
-		bool del = (col >= SavedGifsMaxPerRow);
-		if (del) col -= SavedGifsMaxPerRow;
-		if (row < _gifRows.size() && col < _gifRows.at(row).size()) {
-			DocumentData *doc = _gifRows.at(row).at(col)->document();
-			if (del) {
-				int32 index = cSavedGifs().indexOf(doc);
-				if (index >= 0) {
-					cRefSavedGifs().remove(index);
-					Local::writeSavedGifs();
-					if (App::main()) emit App::main()->savedGifsUpdated();
+		if (row < _contextRows.size() && col < _contextRows.at(row).items.size()) {
+			if (down) {
+				if (down->type() == qstr("SendContextItemLink") && e->button() == Qt::LeftButton) {
+					DocumentData *doc = _contextRows.at(row).items.at(col)->document();
+					if (!doc) return;
 
-					MTP::send(MTPmessages_SaveGif(MTP_inputDocument(MTP_long(doc->id), MTP_long(doc->access)), MTP_bool(true)));
+					if (doc->loaded()) {
+						emit selected(doc);
+					} else if (doc->loading()) {
+						doc->cancel();
+					} else {
+						DocumentOpenLink::doOpen(doc, ActionOnLoadNone);
+					}
 				} else {
-					refreshSavedGifs();
-				}
-			} else {
-				if (doc->loaded()) {
-					emit selected(doc);
-				} else if (doc->loading()) {
-					doc->cancel();
-				} else {
-					DocumentOpenLink::doOpen(doc, ActionOnLoadNone);
+					down->onClick(e->button());
 				}
 			}
 		}
@@ -1505,14 +1508,13 @@ void StickerPanInner::enterFromChildEvent(QEvent *e) {
 void StickerPanInner::clearSelection(bool fast) {
 	_lastMousePos = mapToGlobal(QPoint(-10, -10));
 	if (fast) {
-		if (_showingGifs) {
+		if (_showingContextItems) {
 			if (_selected >= 0) {
 				int32 srow = _selected / MatrixRowShift, scol = _selected % MatrixRowShift;
-				bool sdel = (scol >= SavedGifsMaxPerRow);
-				if (sdel) scol -= SavedGifsMaxPerRow;
-				if (srow < _gifRows.size() && scol < _gifRows.at(srow).size()) {
-					_gifRows.at(srow).at(scol)->notify_over(false);
-					if (sdel) _gifRows.at(srow).at(scol)->notify_deleteOver(false);
+				t_assert(srow >= 0 && srow < _contextRows.size() && scol >= 0 && scol < _contextRows.at(srow).items.size());
+				if (textlnkOver()) {
+					_contextRows.at(srow).items.at(scol)->linkOut(textlnkOver());
+					textlnkOver(TextLinkPtr());
 				}
 				setCursor(style::cur_default);
 			}
@@ -1548,9 +1550,17 @@ void StickerPanInner::clearSelection(bool fast) {
 }
 
 void StickerPanInner::hideFinish() {
-	clearSavedGifs();
+	clearContextRows();
 	for (GifLayouts::const_iterator i = _gifLayouts.cbegin(), e = _gifLayouts.cend(); i != e; ++i) {
 		i.value()->document()->forget();
+	}
+	for (ContextLayouts::const_iterator i = _contextLayouts.cbegin(), e = _contextLayouts.cend(); i != e; ++i) {
+		if (i.value()->result()->doc) {
+			i.value()->result()->doc->forget();
+		}
+		if (i.value()->result()->photo) {
+			i.value()->result()->photo->forget();
+		}
 	}
 }
 
@@ -1565,13 +1575,13 @@ void StickerPanInner::refreshStickers() {
 		appendSet(*i);
 	}
 
-	if (!_showingGifs) {
+	if (_showingContextItems) {
+		_settings.hide();
+	} else {
 		int32 h = countHeight();
 		if (h != height()) resize(width(), h);
 
 		_settings.setVisible(_sets.isEmpty());
-	} else {
-		_settings.hide();
 	}
 
 
@@ -1583,69 +1593,88 @@ void StickerPanInner::refreshStickers() {
 void StickerPanInner::refreshSavedGifs() {
 	clearSelection(true);
 
-	clearSavedGifs();
-	if (_showingGifs) {
-		const SavedGifs &saved(cSavedGifs());
-		if (saved.isEmpty()) {
-			showStickerSet(RecentStickerSetId);
-			return;
-		} else {
-			_gifRows.reserve(saved.size());
-			GifRow row;
-			row.reserve(SavedGifsMaxPerRow);
-			int32 maxWidth = width() - st::savedGifsLeft, sumWidth = 0, widths[SavedGifsMaxPerRow] = { 0 };
-			for (SavedGifs::const_iterator i = saved.cbegin(), e = saved.cend(); i != e; ++i) {
-				DocumentData *doc = *i;
-				int32 w = doc->dimensions.width(), h = doc->dimensions.height();
-				if ((w <= 0 || h <= 0) && !doc->thumb->isNull()) {
-					w = doc->thumb->width();
-					h = doc->thumb->height();
+	if (_showingSavedGifs) {
+		clearContextRows();
+		if (_showingContextItems) {
+			const SavedGifs &saved(cSavedGifs());
+			if (saved.isEmpty()) {
+				showStickerSet(RecentStickerSetId);
+				return;
+			} else {
+				_contextRows.reserve(saved.size());
+				ContextRow row;
+				row.items.reserve(SavedGifsMaxPerRow);
+				int32 maxWidth = width() - st::savedGifsLeft, sumWidth = 0, widths[SavedGifsMaxPerRow] = { 0 };
+				for (SavedGifs::const_iterator i = saved.cbegin(), e = saved.cend(); i != e; ++i) {
+					DocumentData *doc = *i;
+					int32 w = doc->dimensions.width(), h = doc->dimensions.height();
+					if ((w <= 0 || h <= 0) && !doc->thumb->isNull()) {
+						w = doc->thumb->width();
+						h = doc->thumb->height();
+					}
+					if (w <= 0 || h <= 0) continue;
+
+					w = w * st::savedGifHeight / h;
+					widths[row.items.size()] = w;
+
+					w = qMax(w, int32(st::savedGifMinWidth));
+					sumWidth += w;
+					row.items.push_back(layoutPrepare(doc, (_contextRows.size() * MatrixRowShift) + row.items.size(), w));
+
+					if (row.items.size() >= SavedGifsMaxPerRow || sumWidth >= maxWidth - (row.items.size() - 1) * st::savedGifsSkip) {
+						_contextRows.push_back(layoutContextRow(row, widths, sumWidth));
+						row = ContextRow();
+						sumWidth = 0;
+						memset(widths, 0, sizeof(widths));
+					}
 				}
-				if (w <= 0 || h <= 0) continue;
-
-				w = w * st::savedGifHeight / h;
-				widths[row.size()] = w;
-
-				w = qMax(w, int32(st::savedGifMinWidth));
-				sumWidth += w;
-				row.push_back(layoutPrepare(doc, (_gifRows.size() * MatrixRowShift) + row.size(), w));
-
-				if (row.size() >= SavedGifsMaxPerRow || sumWidth >= maxWidth - (row.size() - 1) * st::savedGifsSkip) {
-					_gifRows.push_back(layoutGifRow(row, widths, sumWidth));
-					row.clear();
-					row.reserve(SavedGifsMaxPerRow);
-					sumWidth = 0;
-					memset(widths, 0, sizeof(widths));
+				if (!row.items.isEmpty()) {
+					_contextRows.push_back(layoutContextRow(row, 0, 0));
 				}
 			}
-			if (!row.isEmpty()) {
-				_gifRows.push_back(row);
-			}
+			deleteUnusedGifLayouts();
+
+			int32 h = countHeight();
+			if (h != height()) resize(width(), h);
+
+			update();
 		}
-		deleteUnusedLayouts();
-
-		int32 h = countHeight();
-		if (h != height()) resize(width(), h);
-
-		update();
 	}
-
 	emit refreshIcons();
 
 	updateSelected();
 }
 
-void StickerPanInner::clearSavedGifs() {
-	for (GifRows::const_iterator i = _gifRows.cbegin(), e = _gifRows.cend(); i != e; ++i) {
-		for (GifRow::const_iterator j = i->cbegin(), end = i->cend(); j != end; ++j) {
+void StickerPanInner::refreshContextResults(const ContextResults &results) {
+
+}
+
+void StickerPanInner::contextBotChanged() {
+	refreshContextResults(ContextResults());
+	deleteUnusedContextLayouts();
+}
+
+void StickerPanInner::clearContextRows() {
+	for (ContextRows::const_iterator i = _contextRows.cbegin(), e = _contextRows.cend(); i != e; ++i) {
+		for (ContextItems::const_iterator j = i->items.cbegin(), end = i->items.cend(); j != end; ++j) {
 			(*j)->setPosition(-1, 0);
 		}
 	}
-	_gifRows.clear();
+	_contextRows.clear();
 }
 
-void StickerPanInner::deleteUnusedLayouts() {
-	if (_gifRows.isEmpty()) { // delete all
+LayoutContextGif *StickerPanInner::layoutPrepare(DocumentData *doc, int32 position, int32 width) {
+	GifLayouts::const_iterator i = _gifLayouts.constFind(doc);
+	if (i == _gifLayouts.cend()) {
+		i = _gifLayouts.insert(doc, new LayoutContextGif(doc, true));
+		i.value()->initDimensions();
+	}
+	i.value()->setPosition(position, width);
+	return i.value();
+}
+
+void StickerPanInner::deleteUnusedGifLayouts() {
+	if (_contextRows.isEmpty()) { // delete all
 		for (GifLayouts::const_iterator i = _gifLayouts.cbegin(), e = _gifLayouts.cend(); i != e; ++i) {
 			delete i.value();
 		}
@@ -1662,26 +1691,36 @@ void StickerPanInner::deleteUnusedLayouts() {
 	}
 }
 
-LayoutSavedGif *StickerPanInner::layoutPrepare(DocumentData *doc, int32 position, int32 width) {
-	GifLayouts::const_iterator i = _gifLayouts.constFind(doc);
-	if (i == _gifLayouts.cend()) {
-		i = _gifLayouts.insert(doc, new LayoutSavedGif(doc));
+void StickerPanInner::deleteUnusedContextLayouts() {
+	if (_contextRows.isEmpty()) { // delete all
+		for (ContextLayouts::const_iterator i = _contextLayouts.cbegin(), e = _contextLayouts.cend(); i != e; ++i) {
+			delete i.value();
+		}
+		_contextLayouts.clear();
+	} else {
+		for (ContextLayouts::iterator i = _contextLayouts.begin(); i != _contextLayouts.cend();) {
+			if (i.value()->position() < 0) {
+				delete i.value();
+				i = _contextLayouts.erase(i);
+			} else {
+				++i;
+			}
+		}
 	}
-	i.value()->setPosition(position, width);
-	return i.value();
 }
 
-const StickerPanInner::GifRow &StickerPanInner::layoutGifRow(const GifRow &row, int32 *widths, int32 sumWidth) {
-	int32 count = row.size();
+StickerPanInner::ContextRow &StickerPanInner::layoutContextRow(ContextRow &row, int32 *widths, int32 sumWidth) {
+	int32 count = row.items.size();
 	t_assert(count <= SavedGifsMaxPerRow);
 
+	row.height = 0;
 	int32 availw = width() - st::savedGifsLeft - st::savedGifsSkip * (count - 1);
-	if (sumWidth != availw) {
-		for (int32 i = 0; i < count; ++i) {
-			int32 w = widths[i] * availw / sumWidth;
-			int32 actualw = qMax(w, int32(st::savedGifMinWidth));
-			row.at(i)->setWidth(actualw);
+	for (int32 i = 0; i < count; ++i) {
+		int32 w = widths ? (widths[i] * availw / sumWidth) : row.items.at(i)->width();
+		int32 actualw = qMax(w, int32(st::savedGifMinWidth));
+		row.height = qMax(row.height, row.items.at(i)->resizeGetHeight(actualw));
 
+		if (widths) {
 			availw -= actualw;
 			sumWidth -= qMax(widths[i], int32(st::savedGifMinWidth));
 		}
@@ -1690,14 +1729,15 @@ const StickerPanInner::GifRow &StickerPanInner::layoutGifRow(const GifRow &row, 
 }
 
 void StickerPanInner::preloadImages() {
-	if (_showingGifs) {
-		for (int32 row = 0, rows = _gifRows.size(); row < rows; ++row) {
-			for (int32 col = 0, cols = _gifRows.at(row).size(); col < cols; ++col) {
-				_gifRows.at(row).at(col)->preload();
+	if (_showingContextItems) {
+		for (int32 row = 0, rows = _contextRows.size(); row < rows; ++row) {
+			for (int32 col = 0, cols = _contextRows.at(row).items.size(); col < cols; ++col) {
+				_contextRows.at(row).items.at(col)->preload();
 			}
 		}
+		return;
 	}
-	uint64 ms = getms();
+
 	for (int32 i = 0, l = _sets.size(), k = 0; i < l; ++i) {
 		for (int32 j = 0, n = _sets.at(i).pack.size(); j < n; ++j) {
 			if (++k > StickerPanPerRow * (StickerPanPerRow + 1)) break;
@@ -1717,7 +1757,7 @@ void StickerPanInner::preloadImages() {
 }
 
 uint64 StickerPanInner::currentSet(int yOffset) const {
-	if (_showingGifs) return NoneStickerSetId;
+	if (_showingContextItems) return NoneStickerSetId;
 
 	int y, ytill = 0;
 	for (int i = 0, l = _sets.size(); i < l; ++i) {
@@ -1731,31 +1771,45 @@ uint64 StickerPanInner::currentSet(int yOffset) const {
 	return _sets.isEmpty() ? RecentStickerSetId : _sets.back().id;
 }
 
-void StickerPanInner::ui_repaintSavedGif(const LayoutSavedGif *layout) {
-	if (!_showingGifs) return;
+void StickerPanInner::refreshContextRows(const ContextResults &results) {
 
-	int32 position = layout->position();
-	int32 row = position / MatrixRowShift, col = position % MatrixRowShift;
-	t_assert((row < _gifRows.size()) && (col < _gifRows.at(row).size()));
-		
-	const GifRow &gifRow(_gifRows.at(row));
-	int32 left = st::savedGifsLeft, top = st::emojiPanHeader + row * (st::savedGifHeight + st::savedGifsSkip);
-	for (int32 i = 0; i < col; ++i) left += gifRow.at(i)->width() + st::savedGifsSkip;
-
-	rtlupdate(left, top, gifRow.at(col)->width(), st::savedGifHeight);
 }
 
-bool StickerPanInner::ui_isSavedGifVisible(const LayoutSavedGif *layout) {
+void StickerPanInner::ui_repaintContextItem(const LayoutContextItem *layout) {
 	int32 position = layout->position();
-	int32 row = position / MatrixRowShift, col = position % MatrixRowShift;
-	t_assert((row < _gifRows.size()) && (col < _gifRows.at(row).size()));
+	if (!_showingContextItems || position < 0) return;
 
-	int32 top = st::emojiPanHeader + row * (st::savedGifHeight + st::savedGifsSkip);
-	return (top < _top + _maxHeight) && (top + st::savedGifHeight > _top);
+	int32 row = position / MatrixRowShift, col = position % MatrixRowShift;
+	t_assert((row < _contextRows.size()) && (col < _contextRows.at(row).items.size()));
+	
+	const ContextItems &contextItems(_contextRows.at(row).items);
+	int32 left = st::savedGifsLeft, top = st::emojiPanHeader;
+	for (int32 i = 0; i < row; ++i) {
+		top += _contextRows.at(i).height;
+	}
+	for (int32 i = 0; i < col; ++i) left += contextItems.at(i)->width() + st::savedGifsSkip;
+
+	rtlupdate(left, top, contextItems.at(col)->width(), contextItems.at(col)->height());
 }
 
-bool StickerPanInner::ui_isGifBeingChosen() {
-	return _showingGifs;
+bool StickerPanInner::ui_isContextItemVisible(const LayoutContextItem *layout) {
+	int32 position = layout->position();
+	if (!_showingContextItems || position < 0) return false;
+
+	int32 row = position / MatrixRowShift, col = position % MatrixRowShift;
+	t_assert((row < _contextRows.size()) && (col < _contextRows.at(row).items.size()));
+
+	const ContextItems &contextItems(_contextRows.at(row).items);
+	int32 top = st::emojiPanHeader;
+	for (int32 i = 0; i < row; ++i) {
+		top += _contextRows.at(i).height;
+	}
+
+	return (top < _top + _maxHeight) && (top + _contextRows.at(row).items.at(col)->height() > _top);
+}
+
+bool StickerPanInner::ui_isContextItemBeingChosen() {
+	return _showingContextItems;
 }
 
 void StickerPanInner::appendSet(uint64 setId) {
@@ -1772,8 +1826,10 @@ void StickerPanInner::appendSet(uint64 setId) {
 }
 
 void StickerPanInner::refreshRecent() {
-	if (_showingGifs) {
-		refreshSavedGifs();
+	if (_showingContextItems) {
+		if (_showingSavedGifs) {
+			refreshSavedGifs();
+		}
 	} else {
 		refreshRecentStickers();
 	}
@@ -1816,7 +1872,7 @@ void StickerPanInner::refreshRecentStickers(bool performResize) {
 		}
 	}
 
-	if (performResize && !_showingGifs) {
+	if (performResize && !_showingContextItems) {
 		int32 h = countHeight();
 		if (h != height()) {
 			resize(width(), h);
@@ -1860,7 +1916,7 @@ void StickerPanInner::fillPanels(QVector<EmojiPanel*> &panels) {
 	}
 	panels.clear();
 
-	if (_showingGifs) {
+	if (_showingContextItems) {
 		panels.push_back(new EmojiPanel(parentWidget(), lang(lng_saved_gifs), NoneStickerSetId, true, 0));
 		panels.back()->show();
 		return;
@@ -1882,7 +1938,7 @@ void StickerPanInner::fillPanels(QVector<EmojiPanel*> &panels) {
 }
 
 void StickerPanInner::refreshPanels(QVector<EmojiPanel*> &panels) {
-	if (_showingGifs) return;
+	if (_showingContextItems) return;
 
 	if (panels.size() != _sets.size()) return fillPanels(panels);
 
@@ -1901,58 +1957,55 @@ void StickerPanInner::updateSelected() {
 	int32 selIndex = -1;
 	QPoint p(mapFromGlobal(_lastMousePos));
 
-	if (_showingGifs) {
+	if (_showingContextItems) {
 		int sx = (rtl() ? width() - p.x() : p.x()) - st::savedGifsLeft, sy = p.y() - st::emojiPanHeader;
-		int32 row = sy / int32(st::savedGifHeight + st::savedGifsSkip), col = 0, sel = -1;
-		bool del = false;
-		if (sx >= 0 && row >= 0 && row < _gifRows.size() && sy < (row + 1) * st::savedGifHeight) {
-			const GifRow &gifRow(_gifRows.at(row));
-			for (int32 left = 0, cols = gifRow.size(); col < cols; ++col) {
-				int32 width = gifRow.at(col)->width();
-				if (sx >= left && sx < left + width) {
-					del = (sx >= left + width - st::stickerPanDelete.pxWidth()) && (sy < row * st::savedGifHeight + st::stickerPanDelete.pxHeight());
+		int32 row = -1, col = -1, sel = -1;
+		TextLinkPtr lnk;
+		HistoryCursorState cursor = HistoryDefaultCursorState;
+		if (sy >= 0) {
+			row = 0;
+			for (int32 rows = _contextRows.size(); row < rows; ++row) {
+				if (sy < _contextRows.at(row).height) {
 					break;
 				}
-				left += width + st::savedGifsSkip;
+				sy -= _contextRows.at(row).height;
 			}
-			if (col < gifRow.size()) {
-				sel = row * MatrixRowShift + col + (del ? SavedGifsMaxPerRow : 0);
-			} else {
-				row = col = -1;
-			}
-		} else {
-			row = col = -1;
 		}
-		if (_selected != sel) {
+		if (sx >= 0 && row >= 0 && row < _contextRows.size()) {
+			const ContextItems &contextItems(_contextRows.at(row).items);
+			col = 0;
+			for (int32 cols = contextItems.size(); col < cols; ++col) {
+				int32 width = contextItems.at(col)->width();
+				if (sx < width) {
+					break;
+				}
+				sx -= width + st::savedGifsSkip;
+			}
+			if (col < contextItems.size()) {
+				sel = row * MatrixRowShift + col;
+				contextItems.at(col)->getState(lnk, cursor, sx, sy);
+			}
+		}
+		if (_selected != sel || textlnkOver() != lnk) {
 			int32 srow = (_selected >= 0) ? (_selected / MatrixRowShift) : -1;
 			int32 scol = (_selected >= 0) ? (_selected % MatrixRowShift) : -1;
-			bool sdel = (scol >= SavedGifsMaxPerRow);
-			if (sdel) scol -= SavedGifsMaxPerRow;
-			if (srow != row || scol != col) {
-				if (srow >= 0 && srow < _gifRows.size()) {
-					if (scol >= 0 && scol < _gifRows.at(srow).size()) {
-						_gifRows.at(srow).at(scol)->notify_over(false);
-						if (sdel) _gifRows.at(srow).at(scol)->notify_deleteOver(false);
-					}
-				}
-				if (row >= 0 && row < _gifRows.size()) {
-					if (col >= 0 && col < _gifRows.at(row).size()) {
-						_gifRows.at(row).at(col)->notify_over(true);
-						if (del) _gifRows.at(row).at(col)->notify_deleteOver(true);
-					}
-				}
-			} else if (sdel != del) {
-				if (sdel) _gifRows.at(srow).at(scol)->notify_deleteOver(false);
-				if (del) _gifRows.at(row).at(col)->notify_deleteOver(true);
+			if (srow >= 0 && scol >= 0 && textlnkOver()) {
+				t_assert(srow >= 0 && srow < _contextRows.size() && scol >= 0 && scol < _contextRows.at(srow).items.size());
+				_contextRows.at(srow).items.at(scol)->linkOut(textlnkOver());
 			}
-			if ((_selected >= 0 && sel < 0) || (_selected < 0 && sel >= 0)) {
-				setCursor(sel >= 0 ? style::cur_pointer : style::cur_default);
+			if ((textlnkOver() && !lnk) || (!textlnkOver() && lnk)) {
+				setCursor(lnk ? style::cur_pointer : style::cur_default);
 			}
 			_selected = sel;
+			textlnkOver(lnk);
+			if (row >= 0 && col >= 0 && textlnkOver()) {
+				t_assert(row >= 0 && row < _contextRows.size() && col >= 0 && col < _contextRows.at(row).items.size());
+				_contextRows.at(row).items.at(col)->linkOver(textlnkOver());
+			}
 			if (_pressedSel >= 0 && _selected >= 0 && _pressedSel != _selected) {
 				_pressedSel = _selected;
-				if (row >= 0 && col >= 0) {
-					Ui::showStickerPreview(_gifRows.at(row).at(col)->document());
+				if (row >= 0 && col >= 0 && _contextRows.at(row).items.at(col)->document()) {
+					Ui::showStickerPreview(_contextRows.at(row).items.at(col)->document());
 				}
 			}
 		}
@@ -2046,11 +2099,11 @@ void StickerPanInner::onSettings() {
 
 void StickerPanInner::onPreview() {
 	if (_pressedSel < 0) return;
-	if (_showingGifs) {
+	if (_showingContextItems) {
 		int32 row = _pressedSel / MatrixRowShift, col = _pressedSel % MatrixRowShift;
 		if (col >= SavedGifsMaxPerRow) col -= SavedGifsMaxPerRow;
-		if (row < _gifRows.size() && col < _gifRows.at(row).size() && _gifRows.at(row).at(col)->document()->loaded()) {
-			Ui::showStickerPreview(_gifRows.at(row).at(col)->document());
+		if (row < _contextRows.size() && col < _contextRows.at(row).items.size() && _contextRows.at(row).items.at(col)->document() && _contextRows.at(row).items.at(col)->document()->loaded()) {
+			Ui::showStickerPreview(_contextRows.at(row).items.at(col)->document());
 			_previewShown = true;
 		}
 	} else if (_pressedSel < MatrixRowShift * _sets.size()) {
@@ -2084,12 +2137,12 @@ void StickerPanInner::showStickerSet(uint64 setId) {
 	clearSelection(true);
 
 	if (setId == NoneStickerSetId) {
-		if (_gifRows.isEmpty() && !cSavedGifs().isEmpty()) {
+		if (_contextRows.isEmpty() && !cSavedGifs().isEmpty()) {
 			refreshSavedGifs();
 		}
-		bool wasNotShowingGifs = !_showingGifs;
+		bool wasNotShowingGifs = !_showingContextItems;
 		if (wasNotShowingGifs) {
-			_showingGifs = true;
+			_showingContextItems = true;
 			cSetShowingSavedGifs(true);
 			emit saveConfigDelayed(SaveRecentEmojisTimeout);
 		}
@@ -2099,8 +2152,8 @@ void StickerPanInner::showStickerSet(uint64 setId) {
 		return;
 	}
 
-	if (_showingGifs) {
-		_showingGifs = false;
+	if (_showingContextItems) {
+		_showingContextItems = false;
 		cSetShowingSavedGifs(false);
 		emit saveConfigDelayed(SaveRecentEmojisTimeout);
 
@@ -2931,22 +2984,22 @@ void EmojiPan::stickersInstalled(uint64 setId) {
 	showStart();
 }
 
-void EmojiPan::ui_repaintSavedGif(const LayoutSavedGif *layout) {
+void EmojiPan::ui_repaintContextItem(const LayoutContextItem *layout) {
 	if (_stickersShown && !isHidden()) {
-		s_inner.ui_repaintSavedGif(layout);
+		s_inner.ui_repaintContextItem(layout);
 	}
 }
 
-bool EmojiPan::ui_isSavedGifVisible(const LayoutSavedGif *layout) {
+bool EmojiPan::ui_isContextItemVisible(const LayoutContextItem *layout) {
 	if (_stickersShown && !isHidden()) {
-		return s_inner.ui_isSavedGifVisible(layout);
+		return s_inner.ui_isContextItemVisible(layout);
 	}
 	return false;
 }
 
-bool EmojiPan::ui_isGifBeingChosen() {
+bool EmojiPan::ui_isContextItemBeingChosen() {
 	if (_stickersShown && !isHidden()) {
-		return s_inner.ui_isGifBeingChosen();
+		return s_inner.ui_isContextItemBeingChosen();
 	}
 	return false;
 }
@@ -3165,12 +3218,18 @@ void EmojiPan::onDelayedHide() {
 	_removingSetId = 0;
 }
 
-void EmojiPan::clearContextResults() {
+void EmojiPan::contextBotChanged() {
+	if (!_contextBot) return;
+
 	if (_contextRequestId) MTP::cancel(_contextRequestId);
 	_contextRequestId = 0;
 	_contextQuery = _contextNextQuery = _contextNextOffset = QString();
 	_contextBot = 0;
+	for (ContextCache::const_iterator i = _contextCache.cbegin(), e = _contextCache.cend(); i != e; ++i) {
+		delete i.value();
+	}
 	_contextCache.clear();
+	s_inner.contextBotChanged();
 }
 
 void EmojiPan::contextResultsDone(const MTPmessages_BotResults &result) {
@@ -3185,54 +3244,56 @@ void EmojiPan::contextResultsDone(const MTPmessages_BotResults &result) {
 		uint64 queryId(d.vquery_id.v);
 
 		if (!adding) {
-			it = _contextCache.insert(_contextQuery, ContextCacheEntry());
+			it = _contextCache.insert(_contextQuery, new ContextCacheEntry());
 		}
-		it->nextOffset = v.isEmpty() ? QString() : qs(d.vnext_offset);
+		it.value()->nextOffset = v.isEmpty() ? QString() : qs(d.vnext_offset);
 
 		int32 count = v.size();
 		if (count) {
-			it->results.reserve(it->results.size() + count);
+			it.value()->results.reserve(it.value()->results.size() + count);
 		}
 		for (int32 i = 0; i < count; ++i) {
-			ContextResult result(queryId);
+			ContextResult *result = new ContextResult(queryId);
 			const MTPBotContextMessage *message = 0;
 			switch (v.at(i).type()) {
 			case mtpc_botContextMediaResultPhoto: {
 				const MTPDbotContextMediaResultPhoto &r(v.at(i).c_botContextMediaResultPhoto());
-				result.id = qs(r.vid);
-				result.type = qs(r.vtype);
-				result.photo = App::feedPhoto(r.vphoto);
+				result->id = qs(r.vid);
+				result->type = qs(r.vtype);
+				result->photo = App::feedPhoto(r.vphoto);
 				message = &r.vsend_message;
 			} break;
 			case mtpc_botContextMediaResultDocument: {
 				const MTPDbotContextMediaResultDocument &r(v.at(i).c_botContextMediaResultDocument());
-				result.id = qs(r.vid);
-				result.type = qs(r.vtype);
-				result.doc = App::feedDocument(r.vdocument);
+				result->id = qs(r.vid);
+				result->type = qs(r.vtype);
+				result->doc = App::feedDocument(r.vdocument);
 				message = &r.vsend_message;
 			} break;
 			case mtpc_botContextResult: {
 				const MTPDbotContextResult &r(v.at(i).c_botContextResult());
-				result.id = qs(r.vid);
-				result.type = qs(r.vtype);
-				result.title = qs(r.vtitle);
-				result.description = qs(r.vdescription);
-				result.url = qs(r.vurl);
-				result.thumb_url = qs(r.vthumb_url);
-				result.content_type = qs(r.vcontent_type);
-				result.content_url = qs(r.vcontent_url);
+				result->id = qs(r.vid);
+				result->type = qs(r.vtype);
+				result->title = qs(r.vtitle);
+				result->description = qs(r.vdescription);
+				result->url = qs(r.vurl);
+				result->thumb_url = qs(r.vthumb_url);
+				result->content_type = qs(r.vcontent_type);
+				result->content_url = qs(r.vcontent_url);
 				message = &r.vsend_message;
 			} break;
 			}
-			bool badAttachment = (!result.photo || result.photo->access) && (!result.doc || result.doc->access);
-			bool canSend = (result.photo || result.doc || !result.message.isEmpty());
-			if (!result.type.isEmpty() && !badAttachment && !canSend) {
-				it->results.push_back(result);
+			bool badAttachment = (!result->photo || result->photo->access) && (!result->doc || result->doc->access);
+			bool canSend = (result->photo || result->doc || !result->message.isEmpty());
+			if (result->type.isEmpty() || badAttachment || !canSend) {
+				delete result;
+			} else {
+				it.value()->results.push_back(result);
 			}
 		}
 	} else if (adding) {
-		it->results.clear();
-		it->nextOffset = QString();
+		it.value()->clearResults();
+		it.value()->nextOffset = QString();
 	}
 	refreshContextRows(!adding);
 }
@@ -3248,7 +3309,7 @@ void EmojiPan::showContextResults(UserData *bot, QString query) {
 	if (bot != _contextBot) {
 		if (!isHidden()) hideStart();
 
-		clearContextResults();
+		contextBotChanged();
 		_contextBot = bot;
 		force = true;
 	}
@@ -3273,19 +3334,22 @@ void EmojiPan::onContextRequest() {
 	QString nextOffset;
 	ContextCache::const_iterator i = _contextCache.constFind(_contextQuery);
 	if (i != _contextCache.cend()) {
-		nextOffset = i->nextOffset;
+		nextOffset = i.value()->nextOffset;
 		if (nextOffset.isEmpty()) return;
 	}
 	_contextRequestId = MTP::send(MTPmessages_GetContextBotResults(_contextBot->inputUser, MTP_string(_contextQuery), MTP_string(nextOffset)), rpcDone(&EmojiPan::contextResultsDone), rpcFail(&EmojiPan::contextResultsFail));
 }
 
-void EmojiPan::refreshContextRows(bool toDown) {
+void EmojiPan::refreshContextRows(bool newResults) {
 	bool clear = true;
 	ContextCache::const_iterator i = _contextCache.constFind(_contextQuery);
-	if (i == _contextCache.cend()) {
-		clear = !i->results.isEmpty();
-		_contextNextOffset = i->nextOffset;
+	if (i != _contextCache.cend()) {
+		clear = !i.value()->results.isEmpty();
+		_contextNextOffset = i.value()->nextOffset;
 	}
+
+	s_inner.refreshContextRows(clear ? ContextResults() : i.value()->results);
+	if (newResults) s_scroll.scrollToY(0);
 }
 
 MentionsInner::MentionsInner(MentionsDropdown *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows)

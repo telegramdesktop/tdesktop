@@ -410,9 +410,9 @@ public:
 	void ui_showStickerPreview(DocumentData *sticker);
 	void ui_hideStickerPreview();
 	void ui_repaintHistoryItem(const HistoryItem *item);
-	void ui_repaintSavedGif(const LayoutSavedGif *layout);
-	bool ui_isSavedGifVisible(const LayoutSavedGif *layout);
-	bool ui_isGifBeingChosen();
+	void ui_repaintContextItem(const LayoutContextItem *layout);
+	bool ui_isContextItemVisible(const LayoutContextItem *layout);
+	bool ui_isContextItemBeingChosen();
 	void ui_showPeerHistory(quint64 peer, qint32 msgId, bool back);
 
 	void notify_botCommandsChanged(UserData *bot);

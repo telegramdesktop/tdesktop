@@ -102,8 +102,8 @@ namespace Ui {
 		return false;
 	}
 
-	bool isGifBeingChosen() {
-		if (MainWidget *m = App::main()) return m->ui_isGifBeingChosen();
+	bool isContextItemBeingChosen() {
+		if (MainWidget *m = App::main()) return m->ui_isContextItemBeingChosen();
 		return false;
 	}
 
@@ -112,13 +112,13 @@ namespace Ui {
 		if (MainWidget *m = App::main()) m->ui_repaintHistoryItem(item);
 	}
 
-	void repaintSavedGif(const LayoutSavedGif *layout) {
+	void repaintContextItem(const LayoutContextItem *layout) {
 		if (!layout) return;
-		if (MainWidget *m = App::main()) m->ui_repaintSavedGif(layout);
+		if (MainWidget *m = App::main()) m->ui_repaintContextItem(layout);
 	}
 
-	bool isSavedGifVisible(const LayoutSavedGif *layout) {
-		if (MainWidget *m = App::main()) return m->ui_isSavedGifVisible(layout);
+	bool isContextItemVisible(const LayoutContextItem *layout) {
+		if (MainWidget *m = App::main()) return m->ui_isContextItemVisible(layout);
 		return false;
 	}
 

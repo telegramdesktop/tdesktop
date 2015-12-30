@@ -578,7 +578,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_media_auto_settings" = "Automatic media download settings";
 "lng_media_auto_photo" = "Automatic photo download";
-"lng_media_auto_audio" = "Automatic audio download";
+"lng_media_auto_audio" = "Automatic voice message download";
 "lng_media_auto_gif" = "Automatic GIF download";
 "lng_media_auto_private_chats" = "Private chats";
 "lng_media_auto_groups" = "Groups and channels";

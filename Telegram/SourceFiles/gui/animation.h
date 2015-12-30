@@ -495,21 +495,23 @@ template <typename Type>
 class Atomic {
 public:
 
-	Atomic(const Type &value = Type()) : _v(1, value) {
+	Atomic(const Type &value = Type()) : _value(value) {
 	}
 
 	Type get() const {
-		QVector<Type> v(_v);
-		return v.at(0);
+		QReadLocker lock(&_lock);
+		Type result = _value;
+		return result;
 	}
 
 	void set(const Type &value) {
-		QVector<Type> v(1, value);
-		_v = v;
+		QWriteLocker lock(&_lock);
+		_value = value;
 	}
 
 private:
-	QVector<Type> _v;
+	Type _value;
+	mutable QReadWriteLock _lock;
 
 };
 
@@ -540,10 +542,10 @@ public:
 		return _currentOriginal;
 	}
 	bool currentDisplayed() const {
-		return _currentDisplayed.get();
+		return _currentDisplayed.load();
 	}
 	bool paused() const {
-		return _paused.get();
+		return _paused.loadAcquire();
 	}
 	int32 threadIndex() const {
 		return _threadIndex;
@@ -575,8 +577,8 @@ private:
 
 	QPixmap _current;
 	QImage _currentOriginal, _cacheForResize;
-	Atomic<bool> _currentDisplayed, _paused;
-	Atomic<uint64> _lastDisplayMs;
+	QAtomicInt _currentDisplayed, _paused, _lastDisplayMs;
+	Atomic<uint64> _startDisplayMs;
 	int32 _threadIndex;
 
 	bool _autoplay;
@@ -604,7 +606,7 @@ public:
 
 	ClipReadManager(QThread *thread);
 	int32 loadLevel() const {
-		return _loadLevel.loadAcquire();
+		return _loadLevel.load();
 	}
 	void append(ClipReader *reader, const FileLocation &location, const QByteArray &data);
 	void start(ClipReader *reader);

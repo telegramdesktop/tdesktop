@@ -314,6 +314,31 @@ struct StickerIcon {
 	int32 pixw, pixh;
 };
 
+struct ContextResult {
+	ContextResult(uint64 queryId)
+		: queryId(queryId)
+		, doc(0)
+		, photo(0)
+		, width(0)
+		, height(0)
+		, duration(0)
+		, noWebPage(false) {
+	}
+	uint64 queryId;
+	QString id, type;
+	DocumentData *doc;
+	PhotoData *photo;
+	QString title, description, url, thumb_url;
+	QString content_type, content_url;
+	int32 width, height, duration;
+
+	QString message; // botContextMessageText
+	bool noWebPage;
+	EntitiesInText entities;
+	QString caption; // if message.isEmpty() use botContextMessageMediaAuto
+};
+typedef QList<ContextResult*> ContextResults;
+
 class StickerPanInner : public TWidget {
 	Q_OBJECT
 
@@ -341,6 +366,7 @@ public:
 	void refreshStickers();
 	void refreshRecentStickers(bool resize = true);
 	void refreshSavedGifs();
+	void refreshContextRows(const ContextResults &results);
 	void refreshRecent();
 
 	void fillIcons(QList<StickerIcon> &icons);
@@ -351,14 +377,17 @@ public:
 	void preloadImages();
 
 	uint64 currentSet(int yOffset) const;
+	void refreshContextResults(const ContextResults &results);
+	void contextBotChanged();
 
-	void ui_repaintSavedGif(const LayoutSavedGif *layout);
-	bool ui_isSavedGifVisible(const LayoutSavedGif *layout);
-	bool ui_isGifBeingChosen();
+	void ui_repaintContextItem(const LayoutContextItem *layout);
+	bool ui_isContextItemVisible(const LayoutContextItem *layout);
+	bool ui_isContextItemBeingChosen();
 
 	~StickerPanInner() {
-		clearSavedGifs();
-		deleteUnusedLayouts();
+		clearContextRows();
+		deleteUnusedGifLayouts();
+		deleteUnusedContextLayouts();
 	}
 
 public slots:
@@ -385,7 +414,7 @@ signals:
 
 private:
 
-	void paintSavedGifs(Painter &p, const QRect &r);
+	void paintContextItems(Painter &p, const QRect &r);
 	void paintStickers(Painter &p, const QRect &r);
 		
 	int32 _maxHeight;
@@ -414,18 +443,30 @@ private:
 	QList<DisplayedSet> _sets;
 	QList<bool> _custom;
 
-	bool _showingGifs;
+	bool _showingSavedGifs, _showingContextItems;
 
-	typedef QList<LayoutSavedGif*> GifRow;
-	typedef QList<GifRow> GifRows;
-	GifRows _gifRows;
-	void clearSavedGifs();
-	void deleteUnusedLayouts();
+	typedef QList<LayoutContextItem*> ContextItems;
+	struct ContextRow {
+		ContextRow() : height(0) {
+		}
+		int32 height;
+		ContextItems items;
+	};
+	typedef QList<ContextRow> ContextRows;
+	ContextRows _contextRows;
+	void clearContextRows();
 
-	typedef QMap<DocumentData*, LayoutSavedGif*> GifLayouts;
+	typedef QMap<DocumentData*, LayoutContextGif*> GifLayouts;
 	GifLayouts _gifLayouts;
-	LayoutSavedGif *layoutPrepare(DocumentData *doc, int32 position, int32 width);
-	const GifRow &layoutGifRow(const GifRow &row, int32 *widths, int32 sumWidth);
+	LayoutContextGif *layoutPrepare(DocumentData *doc, int32 position, int32 width);
+
+	typedef QMap<ContextResult*, LayoutContextItem*> ContextLayouts;
+	ContextLayouts _contextLayouts;
+
+	ContextRow &layoutContextRow(ContextRow &row, int32 *widths, int32 sumWidth);
+	void deleteUnusedGifLayouts();
+
+	void deleteUnusedContextLayouts();
 
 	int32 _selected, _pressedSel;
 	QPoint _lastMousePos;
@@ -525,7 +566,7 @@ public:
 	void stickersInstalled(uint64 setId);
 
 	void showContextResults(UserData *bot, QString query);
-	void clearContextResults();
+	void contextBotChanged();
 
 	bool overlaps(const QRect &globalRect) {
 		if (isHidden() || !_cache.isNull()) return false;
@@ -537,9 +578,9 @@ public:
 					 ).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
 
-	void ui_repaintSavedGif(const LayoutSavedGif *layout);
-	bool ui_isSavedGifVisible(const LayoutSavedGif *layout);
-	bool ui_isGifBeingChosen();
+	void ui_repaintContextItem(const LayoutContextItem *layout);
+	bool ui_isContextItemVisible(const LayoutContextItem *layout);
+	bool ui_isContextItemBeingChosen();
 
 public slots:
 
@@ -639,38 +680,24 @@ private:
 	QTimer _saveConfigTimer;
 
 	// context bots
-	struct ContextResult {
-		ContextResult(uint64 queryId)
-			: queryId(queryId)
-			, doc(0)
-			, photo(0)
-			, width(0)
-			, height(0)
-			, duration(0)
-			, noWebPage(false) {
-		}
-		uint64 queryId;
-		QString id, type;
-		DocumentData *doc;
-		PhotoData *photo;
-		QString title, description, url, thumb_url;
-		QString content_type, content_url;
-		int32 width, height, duration;
-
-		QString message; // botContextMessageText
-		bool noWebPage;
-		EntitiesInText entities;
-		QString caption; // if message.isEmpty() use botContextMessageMediaAuto
-	};
 	struct ContextCacheEntry {
+		~ContextCacheEntry() {
+			clearResults();
+		}
 		QString nextOffset;
-		QList<ContextResult> results;
+		ContextResults results;
+		void clearResults() {
+			for (int32 i = 0, l = results.size(); i < l; ++i) {
+				delete results.at(i);
+			}
+			results.clear();
+		}
 	};
-	typedef QMap<QString, ContextCacheEntry> ContextCache;
+	typedef QMap<QString, ContextCacheEntry*> ContextCache;
 	ContextCache _contextCache;
 	QTimer _contextRequestTimer;
 
-	void refreshContextRows(bool toDown);
+	void refreshContextRows(bool newResults);
 	UserData *_contextBot;
 	QString _contextQuery, _contextNextQuery, _contextNextOffset;
 	mtpRequestId _contextRequestId;

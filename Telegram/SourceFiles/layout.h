@@ -78,9 +78,7 @@ style::color documentColor(int32 colorIndex);
 style::sprite documentCorner(int32 colorIndex);
 RoundCorners documentCorners(int32 colorIndex);
 
-class LayoutMediaItem;
-class OverviewItemInfo;
-
+class ContextPaintContext;
 class PaintContext {
 public:
 
@@ -88,8 +86,14 @@ public:
 	}
 	uint64 ms;
 	bool selecting;
+	virtual const ContextPaintContext *toContextPaintContext() const {
+		return 0;
+	}
 
 };
+
+class LayoutMediaItem;
+class OverviewItemInfo;
 
 class LayoutItem {
 public:
@@ -471,30 +475,76 @@ private:
 
 };
 
-class LayoutSavedGif {
+class ContextPaintContext : public PaintContext {
 public:
-	LayoutSavedGif(DocumentData *data);
+	ContextPaintContext(uint64 ms, bool selecting, bool paused) : PaintContext(ms, selecting), paused(paused) {
+	}
+	virtual const ContextPaintContext *toContextPaintContext() const {
+		return this;
+	}
+	bool paused;
+};
 
-	void paint(Painter &p, bool paused, uint64 ms) const;
+struct ContextResult;
+
+class LayoutContextItem : public LayoutItem {
+public:
+
+	LayoutContextItem(ContextResult *result);
+	LayoutContextItem(DocumentData *doc);
+	
+	virtual void setPosition(int32 position, int32 width);
+	int32 position() const;
+
+	DocumentData *document() const;
+	ContextResult *result() const;
 	void preload();
-	DocumentData *document() const {
-		return _data;
+
+protected:
+	ContextResult *_result;
+	DocumentData *_doc;
+
+	int32 _position; // < 0 means removed from layout
+
+};
+
+class SendContextItemLink : public ITextLink {
+	TEXT_LINK_CLASS(SendContextItemLink)
+
+public:
+	virtual void onClick(Qt::MouseButton) const {
 	}
 
-	void setPosition(int32 position, int32 width);
-	void setWidth(int32 width);
-	int32 position() const;
-	int32 width() const;
+};
 
-	void notify_over(bool over);
-	void notify_deleteOver(bool over);
+class DeleteSavedGifLink : public ITextLink {
+	TEXT_LINK_CLASS(DeleteSavedGifLink)
 
-	~LayoutSavedGif();
+public:
+	DeleteSavedGifLink(DocumentData *data) : _data(data) {
+	}
+	virtual void onClick(Qt::MouseButton) const;
 
 private:
-	DocumentData *_data;
-	int32 _position; // < 0 means removed from layout
-	int32 _width;
+	DocumentData  *_data;
+
+};
+
+class LayoutContextGif : public LayoutContextItem {
+public:
+	LayoutContextGif(DocumentData *data, bool saved);
+
+	virtual void setPosition(int32 position, int32 width);
+	virtual void initDimensions();
+
+	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
+	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
+	virtual void linkOver(const TextLinkPtr &lnk);
+	virtual void linkOut(const TextLinkPtr &lnk);
+
+	~LayoutContextGif();
+
+private:
 	QSize countFrameSize() const;
 
 	enum StateFlags {
@@ -504,6 +554,7 @@ private:
 	int32 _state;
 
 	ClipReader *_gif;
+	TextLinkPtr _send, _delete;
 	bool gif() const {
 		return (!_gif || _gif == BadClipReader) ? false : true;
 	}

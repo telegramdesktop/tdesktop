@@ -798,16 +798,16 @@ void MainWidget::ui_repaintHistoryItem(const HistoryItem *item) {
 	if (overview) overview->ui_repaintHistoryItem(item);
 }
 
-void MainWidget::ui_repaintSavedGif(const LayoutSavedGif *layout) {
-	history.ui_repaintSavedGif(layout);
+void MainWidget::ui_repaintContextItem(const LayoutContextItem *layout) {
+	history.ui_repaintContextItem(layout);
 }
 
-bool MainWidget::ui_isSavedGifVisible(const LayoutSavedGif *layout) {
-	return history.ui_isSavedGifVisible(layout);
+bool MainWidget::ui_isContextItemVisible(const LayoutContextItem *layout) {
+	return history.ui_isContextItemVisible(layout);
 }
 
-bool MainWidget::ui_isGifBeingChosen() {
-	return history.ui_isGifBeingChosen();
+bool MainWidget::ui_isContextItemBeingChosen() {
+	return history.ui_isContextItemBeingChosen();
 }
 
 void MainWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {

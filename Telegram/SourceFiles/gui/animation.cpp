@@ -226,7 +226,8 @@ ClipReader::ClipReader(const FileLocation &location, const QByteArray &data, Cal
 , _height(0)
 , _currentDisplayed(1)
 , _paused(0)
-, _lastDisplayMs(getms())
+, _lastDisplayMs(0)
+, _startDisplayMs(getms())
 , _autoplay(false)
 , _private(0) {
 	if (_clipThreads.size() < ClipThreadsCount) {
@@ -270,11 +271,11 @@ void ClipReader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, b
 }
 
 QPixmap ClipReader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, uint64 ms) {
-	_currentDisplayed.set(true);
+	_currentDisplayed.store(1);
 	if (ms) {
-		_lastDisplayMs.set(ms);
-		if (_paused.get()) {
-			_paused.set(false);
+		_lastDisplayMs.storeRelease(int32(ms - _startDisplayMs.get()));
+		if (_paused.loadAcquire()) {
+			_paused.storeRelease(0);
 			if (_clipManagers.size() <= _threadIndex) error();
 			if (_state != ClipError) {
 				_clipManagers.at(_threadIndex)->update(this);
@@ -953,7 +954,7 @@ ClipReadManager::ClipReadManager(QThread *thread) : _processingInThread(0), _nee
 
 void ClipReadManager::append(ClipReader *reader, const FileLocation &location, const QByteArray &data) {
 	reader->_private = new ClipReaderPrivate(reader, location, data);
-	_loadLevel.fetchAndAddRelease(AverageGifSize);
+	_loadLevel.fetchAndAddRelaxed(AverageGifSize);
 	update(reader);
 }
 
@@ -995,14 +996,18 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 	}
 
 	if (result == ClipProcessStarted) {
-		_loadLevel.fetchAndAddRelease(reader->_width * reader->_height - AverageGifSize);
+		_loadLevel.fetchAndAddRelaxed(reader->_width * reader->_height - AverageGifSize);
 	}
 	if (!reader->_paused && (result == ClipProcessRepaint || result == ClipProcessWait)) {
-		if (it.key()->_lastDisplayMs.get() + WaitBeforeGifPause < qMax(reader->_previousMs, ms)) {
+		int32 lastDisplay = it.key()->_lastDisplayMs.loadAcquire();
+		if (lastDisplay > 3000 || lastDisplay < 0) { // playing more then a day
+			it.key()->_startDisplayMs.set(ms);
+			it.key()->_lastDisplayMs.storeRelease(getms() - ms);
+		} else if (it.key()->_startDisplayMs.get() + lastDisplay + WaitBeforeGifPause < qMax(reader->_previousMs, ms)) {
 			reader->_paused = true;
-			it.key()->_paused.set(true);
-			if (it.key()->_lastDisplayMs.get() + WaitBeforeGifPause >= qMax(reader->_previousMs, ms)) {
-				it.key()->_paused.set(false);
+			it.key()->_paused.storeRelease(true);
+			if (it.key()->_startDisplayMs.get() + it.key()->_lastDisplayMs.loadAcquire() + WaitBeforeGifPause >= qMax(reader->_previousMs, ms)) {
+				it.key()->_paused.storeRelease(false);
 				reader->_paused = false;
 			} else {
 				result = ClipProcessReinit;
@@ -1012,7 +1017,7 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 	if (result == ClipProcessReinit || result == ClipProcessRepaint || result == ClipProcessStarted) {
 		it.key()->_current = reader->_current;
 		it.key()->_currentOriginal = reader->_currentOriginal;
-		it.key()->_currentDisplayed.set(false);
+		it.key()->_currentDisplayed.store(false);
 		if (result == ClipProcessReinit) {
 			emit callback(it.key(), it.key()->threadIndex(), ClipReaderReinit);
 		} else if (result == ClipProcessRepaint) {
@@ -1024,7 +1029,7 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 
 ClipReadManager::ResultHandleState ClipReadManager::handleResult(ClipReaderPrivate *reader, ClipProcessResult result, uint64 ms) {
 	if (!handleProcessResult(reader, result, ms)) {
-		_loadLevel.fetchAndAddRelease(-1 * (reader->_currentOriginal.isNull() ? AverageGifSize : reader->_width * reader->_height));
+		_loadLevel.fetchAndAddRelaxed(-1 * (reader->_currentOriginal.isNull() ? AverageGifSize : reader->_width * reader->_height));
 		delete reader;
 		return ResultHandleRemove;
 	}
@@ -1060,7 +1065,7 @@ void ClipReadManager::process() {
 					_readers.insert(i.value(), 0);
 				} else {
 					it.value() = ms;
-					if (it.key()->_paused && !i.key()->_paused.get()) {
+					if (it.key()->_paused && !i.key()->_paused.loadAcquire()) {
 						it.key()->_paused = false;
 					}
 				}

@@ -46,11 +46,11 @@ namespace Ui { // openssl doesn't allow me to use UI :(
 	void hideLayer(bool fast = false);
 	bool isLayerShown();
 	bool isMediaViewShown();
-	bool isGifBeingChosen();
+	bool isContextItemBeingChosen();
 
 	void repaintHistoryItem(const HistoryItem *item);
-	void repaintSavedGif(const LayoutSavedGif *layout);
-	bool isSavedGifVisible(const LayoutSavedGif *reader);
+	void repaintContextItem(const LayoutContextItem *layout);
+	bool isContextItemVisible(const LayoutContextItem *reader);
 
 	void showPeerHistory(const PeerId &peer, MsgId msgId, bool back = false);
 	inline void showPeerHistory(const PeerData *peer, MsgId msgId, bool back = false) {

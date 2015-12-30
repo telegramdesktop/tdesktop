@@ -5332,7 +5332,7 @@ void HistoryWidget::onCheckMentionDropdown() {
 			_attachMention.hideStart();
 		}
 	} else {
-		_emojiPan.clearContextResults();
+		_emojiPan.contextBotChanged();
 		if (!start.isEmpty()) {
 			if (start.at(0) == '#' && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) Local::readRecentHashtags();
 			if (start.at(0) == '@' && _peer->isUser()) return;
@@ -5770,16 +5770,16 @@ void HistoryWidget::ui_repaintHistoryItem(const HistoryItem *item) {
 	}
 }
 
-void HistoryWidget::ui_repaintSavedGif(const LayoutSavedGif *layout) {
-	_emojiPan.ui_repaintSavedGif(layout);
+void HistoryWidget::ui_repaintContextItem(const LayoutContextItem *layout) {
+	_emojiPan.ui_repaintContextItem(layout);
 }
 
-bool HistoryWidget::ui_isSavedGifVisible(const LayoutSavedGif *layout) {
-	return _emojiPan.ui_isSavedGifVisible(layout);
+bool HistoryWidget::ui_isContextItemVisible(const LayoutContextItem *layout) {
+	return _emojiPan.ui_isContextItemVisible(layout);
 }
 
-bool HistoryWidget::ui_isGifBeingChosen() {
-	return _emojiPan.ui_isGifBeingChosen();
+bool HistoryWidget::ui_isContextItemBeingChosen() {
+	return _emojiPan.ui_isContextItemBeingChosen();
 }
 
 void HistoryWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {

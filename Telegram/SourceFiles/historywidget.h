@@ -559,9 +559,9 @@ public:
 	bool isItemVisible(HistoryItem *item);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
-	void ui_repaintSavedGif(const LayoutSavedGif *gif);
-	bool ui_isSavedGifVisible(const LayoutSavedGif *layout);
-	bool ui_isGifBeingChosen();
+	void ui_repaintContextItem(const LayoutContextItem *gif);
+	bool ui_isContextItemVisible(const LayoutContextItem *layout);
+	bool ui_isContextItemBeingChosen();
 
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
 	void notify_botCommandsChanged(UserData *user);
