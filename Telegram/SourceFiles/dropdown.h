@@ -341,9 +341,9 @@ public:
 	void refreshStickers();
 	void refreshRecentStickers(bool resize = true);
 	void refreshSavedGifs();
-	void refreshContextRows(UserData *bot, const ContextResults &results);
+	void refreshInlineRows(UserData *bot, const InlineResults &results);
 	void refreshRecent();
-	void contextBotChanged();
+	void inlineBotChanged();
 
 	void fillIcons(QList<StickerIcon> &icons);
 	void fillPanels(QVector<EmojiPanel*> &panels);
@@ -354,18 +354,18 @@ public:
 
 	uint64 currentSet(int yOffset) const;
 
-	void ui_repaintContextItem(const LayoutContextItem *layout);
-	bool ui_isContextItemVisible(const LayoutContextItem *layout);
-	bool ui_isContextItemBeingChosen();
+	void ui_repaintInlineItem(const LayoutInlineItem *layout);
+	bool ui_isInlineItemVisible(const LayoutInlineItem *layout);
+	bool ui_isInlineItemBeingChosen();
 
-	bool contextResultsShown() const {
-		return _showingContextItems && !_showingSavedGifs;
+	bool inlineResultsShown() const {
+		return _showingInlineItems && !_showingSavedGifs;
 	}
 
 	~StickerPanInner() {
-		clearContextRows();
+		clearInlineRows();
 		deleteUnusedGifLayouts();
-		deleteUnusedContextLayouts();
+		deleteUnusedInlineLayouts();
 	}
 
 public slots:
@@ -373,7 +373,7 @@ public slots:
 	void updateSelected();
 	void onSettings();
 	void onPreview();
-	void onUpdateContextItems();
+	void onUpdateInlineItems();
 
 signals:
 
@@ -393,7 +393,7 @@ signals:
 
 private:
 
-	void paintContextItems(Painter &p, const QRect &r);
+	void paintInlineItems(Painter &p, const QRect &r);
 	void paintStickers(Painter &p, const QRect &r);
 		
 	int32 _maxHeight;
@@ -422,37 +422,37 @@ private:
 	QList<DisplayedSet> _sets;
 	QList<bool> _custom;
 
-	bool _showingSavedGifs, _showingContextItems;
+	bool _showingSavedGifs, _showingInlineItems;
 	QString _inlineBotTitle;
 	uint64 _lastScrolled;
-	QTimer _updateContextItems;
+	QTimer _updateInlineItems;
 
-	typedef QVector<LayoutContextItem*> ContextItems;
-	struct ContextRow {
-		ContextRow() : height(0) {
+	typedef QVector<LayoutInlineItem*> InlineItems;
+	struct InlineRow {
+		InlineRow() : height(0) {
 		}
 		int32 height;
-		ContextItems items;
+		InlineItems items;
 	};
-	typedef QVector<ContextRow> ContextRows;
-	ContextRows _contextRows;
-	void clearContextRows();
+	typedef QVector<InlineRow> InlineRows;
+	InlineRows _inlineRows;
+	void clearInlineRows();
 
-	typedef QMap<DocumentData*, LayoutContextGif*> GifLayouts;
+	typedef QMap<DocumentData*, LayoutInlineGif*> GifLayouts;
 	GifLayouts _gifLayouts;
-	LayoutContextGif *layoutPrepareSavedGif(DocumentData *doc, int32 position);
+	LayoutInlineGif *layoutPrepareSavedGif(DocumentData *doc, int32 position);
 
-	typedef QMap<ContextResult*, LayoutContextItem*> ContextLayouts;
-	ContextLayouts _contextLayouts;
-	LayoutContextItem *layoutPrepareContextResult(ContextResult *result, int32 position);
+	typedef QMap<InlineResult*, LayoutInlineItem*> InlineLayouts;
+	InlineLayouts _inlineLayouts;
+	LayoutInlineItem *layoutPrepareInlineResult(InlineResult *result, int32 position);
 
-	void contextRowsAddItem(DocumentData *savedGif, ContextResult *result, ContextRow &row, int32 &sumWidth);
-	void contextRowFinalize(ContextRow &row, int32 &sumWidth, bool force = false);
+	void inlineRowsAddItem(DocumentData *savedGif, InlineResult *result, InlineRow &row, int32 &sumWidth);
+	void inlineRowFinalize(InlineRow &row, int32 &sumWidth, bool force = false);
 
-	ContextRow &layoutContextRow(ContextRow &row, int32 sumWidth = 0);
+	InlineRow &layoutInlineRow(InlineRow &row, int32 sumWidth = 0);
 	void deleteUnusedGifLayouts();
 
-	void deleteUnusedContextLayouts();
+	void deleteUnusedInlineLayouts();
 
 	int32 _selected, _pressedSel;
 	QPoint _lastMousePos;
@@ -552,8 +552,8 @@ public:
 	bool eventFilter(QObject *obj, QEvent *e);
 	void stickersInstalled(uint64 setId);
 
-	void queryContextBot(UserData *bot, QString query);
-	void contextBotChanged();
+	void queryInlineBot(UserData *bot, QString query);
+	void inlineBotChanged();
 
 	bool overlaps(const QRect &globalRect) {
 		if (isHidden() || !_cache.isNull()) return false;
@@ -565,9 +565,9 @@ public:
 					 ).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
 
-	void ui_repaintContextItem(const LayoutContextItem *layout);
-	bool ui_isContextItemVisible(const LayoutContextItem *layout);
-	bool ui_isContextItemBeingChosen();
+	void ui_repaintInlineItem(const LayoutInlineItem *layout);
+	bool ui_isInlineItemVisible(const LayoutInlineItem *layout);
+	bool ui_isInlineItemBeingChosen();
 
 public slots:
 
@@ -594,7 +594,7 @@ public slots:
 	void onSaveConfig();
 	void onSaveConfigDelayed(int32 delay);
 
-	void onContextRequest();
+	void onInlineRequest();
 
 signals:
 
@@ -666,13 +666,13 @@ private:
 
 	QTimer _saveConfigTimer;
 
-	// context bots
-	struct ContextCacheEntry {
-		~ContextCacheEntry() {
+	// inline bots
+	struct InlineCacheEntry {
+		~InlineCacheEntry() {
 			clearResults();
 		}
 		QString nextOffset;
-		ContextResults results;
+		InlineResults results;
 		void clearResults() {
 			for (int32 i = 0, l = results.size(); i < l; ++i) {
 				delete results.at(i);
@@ -680,16 +680,16 @@ private:
 			results.clear();
 		}
 	};
-	typedef QMap<QString, ContextCacheEntry*> ContextCache;
-	ContextCache _contextCache;
-	QTimer _contextRequestTimer;
+	typedef QMap<QString, InlineCacheEntry*> InlineCache;
+	InlineCache _inlineCache;
+	QTimer _inlineRequestTimer;
 
-	void showContextRows(bool newResults);
-	UserData *_contextBot;
-	QString _contextQuery, _contextNextQuery, _contextNextOffset;
-	mtpRequestId _contextRequestId;
-	void contextResultsDone(const MTPmessages_BotResults &result);
-	bool contextResultsFail(const RPCError &error);
+	void showInlineRows(bool newResults);
+	UserData *_inlineBot;
+	QString _inlineQuery, _inlineNextQuery, _inlineNextOffset;
+	mtpRequestId _inlineRequestId;
+	void inlineResultsDone(const MTPmessages_BotResults &result);
+	bool inlineResultsFail(const RPCError &error);
 
 };
 

@@ -78,7 +78,7 @@ style::color documentColor(int32 colorIndex);
 style::sprite documentCorner(int32 colorIndex);
 RoundCorners documentCorners(int32 colorIndex);
 
-class ContextPaintContext;
+class InlinePaintContext;
 class PaintContext {
 public:
 
@@ -86,7 +86,7 @@ public:
 	}
 	uint64 ms;
 	bool selecting;
-	virtual const ContextPaintContext *toContextPaintContext() const {
+	virtual const InlinePaintContext *toInlinePaintContext() const {
 		return 0;
 	}
 
@@ -475,22 +475,20 @@ private:
 
 };
 
-class ContextPaintContext : public PaintContext {
+class InlinePaintContext : public PaintContext {
 public:
-	ContextPaintContext(uint64 ms, bool selecting, bool paused) : PaintContext(ms, selecting), paused(paused) {
+	InlinePaintContext(uint64 ms, bool selecting, bool paused) : PaintContext(ms, selecting), paused(paused) {
 	}
-	virtual const ContextPaintContext *toContextPaintContext() const {
+	virtual const InlinePaintContext *toInlinePaintContext() const {
 		return this;
 	}
 	bool paused;
 };
 
-struct ContextResult;
-
-class LayoutContextItem : public LayoutItem {
+class LayoutInlineItem : public LayoutItem {
 public:
 
-	LayoutContextItem(ContextResult *result, DocumentData *doc, PhotoData *photo);
+	LayoutInlineItem(InlineResult *result, DocumentData *doc, PhotoData *photo);
 	
 	virtual void setPosition(int32 position);
 	int32 position() const;
@@ -499,13 +497,13 @@ public:
 		return true;
 	}
 
-	ContextResult *result() const;
+	InlineResult *result() const;
 	DocumentData *document() const;
 	PhotoData *photo() const;
 	void preload();
 
 protected:
-	ContextResult *_result;
+	InlineResult *_result;
 	DocumentData *_doc;
 	PhotoData *_photo;
 
@@ -513,8 +511,8 @@ protected:
 
 };
 
-class SendContextItemLink : public ITextLink {
-	TEXT_LINK_CLASS(SendContextItemLink)
+class SendInlineItemLink : public ITextLink {
+	TEXT_LINK_CLASS(SendInlineItemLink)
 
 public:
 	virtual void onClick(Qt::MouseButton) const {
@@ -535,9 +533,9 @@ private:
 
 };
 
-class LayoutContextGif : public LayoutContextItem {
+class LayoutInlineGif : public LayoutInlineItem {
 public:
-	LayoutContextGif(ContextResult *result, DocumentData *doc, bool saved);
+	LayoutInlineGif(InlineResult *result, DocumentData *doc, bool saved);
 
 	virtual void setPosition(int32 position);
 	virtual void initDimensions();
@@ -551,7 +549,7 @@ public:
 	virtual void linkOver(const TextLinkPtr &lnk);
 	virtual void linkOut(const TextLinkPtr &lnk);
 
-	~LayoutContextGif();
+	~LayoutInlineGif();
 
 private:
 	QSize countFrameSize() const;

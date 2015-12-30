@@ -424,7 +424,7 @@ namespace App {
 					data->setBotInfoVersion(d.vbot_info_version.v);
 					data->botInfo->readsAllHistory = d.is_bot_chat_history();
 					data->botInfo->cantJoinGroups = d.is_bot_nochats();
-					data->botInfo->contextPlaceholder = d.has_bot_context_placeholder() ? qs(d.vbot_context_placeholder) : QString();
+					data->botInfo->inlinePlaceholder = d.has_bot_inline_placeholder() ? '_' + qs(d.vbot_inline_placeholder) : QString();
 				} else {
 					data->setBotInfoVersion(-1);
 				}
@@ -2610,12 +2610,15 @@ namespace App {
 	}
 
 	void setProxySettings(QNetworkAccessManager &manager) {
+		manager.setProxy(getHttpProxySettings());
+	}
+
+	QNetworkProxy getHttpProxySettings() {
 		if (cConnectionType() == dbictHttpProxy) {
 			const ConnectionProxy &p(cConnectionProxy());
-			manager.setProxy(QNetworkProxy(QNetworkProxy::HttpProxy, p.host, p.port, p.user, p.password));
-		} else {
-			manager.setProxy(QNetworkProxy(QNetworkProxy::DefaultProxy));
+			return QNetworkProxy(QNetworkProxy::HttpProxy, p.host, p.port, p.user, p.password);
 		}
+		return QNetworkProxy(QNetworkProxy::DefaultProxy);
 	}
 
 	void setProxySettings(QTcpSocket &socket) {

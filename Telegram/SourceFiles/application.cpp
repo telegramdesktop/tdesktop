@@ -885,6 +885,7 @@ Application::~Application() {
 
 	socket.close();
 	closeApplication();
+	stopWebLoadManager();
 	App::deinitMedia();
 	deinitImageLinkManager();
 

@@ -102,8 +102,8 @@ namespace Ui {
 		return false;
 	}
 
-	bool isContextItemBeingChosen() {
-		if (MainWidget *m = App::main()) return m->ui_isContextItemBeingChosen();
+	bool isInlineItemBeingChosen() {
+		if (MainWidget *m = App::main()) return m->ui_isInlineItemBeingChosen();
 		return false;
 	}
 
@@ -112,13 +112,13 @@ namespace Ui {
 		if (MainWidget *m = App::main()) m->ui_repaintHistoryItem(item);
 	}
 
-	void repaintContextItem(const LayoutContextItem *layout) {
+	void repaintInlineItem(const LayoutInlineItem *layout) {
 		if (!layout) return;
-		if (MainWidget *m = App::main()) m->ui_repaintContextItem(layout);
+		if (MainWidget *m = App::main()) m->ui_repaintInlineItem(layout);
 	}
 
-	bool isContextItemVisible(const LayoutContextItem *layout) {
-		if (MainWidget *m = App::main()) return m->ui_isContextItemVisible(layout);
+	bool isInlineItemVisible(const LayoutInlineItem *layout) {
+		if (MainWidget *m = App::main()) return m->ui_isInlineItemVisible(layout);
 		return false;
 	}
 

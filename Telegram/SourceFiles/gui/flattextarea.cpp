@@ -252,53 +252,53 @@ EmojiPtr FlatTextarea::getSingleEmoji() const {
 	return 0;
 }
 
-void FlatTextarea::getMentionHashtagBotCommandStart(QString &start, UserData *&contextBot, QString &contextBotUsername) const {
+void FlatTextarea::getMentionHashtagBotCommandStart(QString &start, UserData *&inlineBot, QString &inlineBotUsername) const {
 	int32 pos = textCursor().position();
 	if (textCursor().anchor() != pos) return;
 
-	// check context bot query
+	// check inline bot query
 	const QString &text(getLastText());
-	int32 contextUsernameStart = 1, contextUsernameLength = 0, size = text.size();
+	int32 inlineUsernameStart = 1, inlineUsernameLength = 0, size = text.size();
 	if (size > 2 && text.at(0) == '@' && text.at(1).isLetter()) {
-		contextUsernameLength = 1;
-		for (int32 i = contextUsernameStart + 1, l = text.size(); i < l; ++i) {
+		inlineUsernameLength = 1;
+		for (int32 i = inlineUsernameStart + 1, l = text.size(); i < l; ++i) {
 			if (text.at(i).isLetterOrNumber() || text.at(i).unicode() == '_') {
-				++contextUsernameLength;
+				++inlineUsernameLength;
 				continue;
 			}
 			if (!text.at(i).isSpace()) {
-				contextUsernameLength = 0;
+				inlineUsernameLength = 0;
 			}
 			break;
 		}
-		if (contextUsernameLength && contextUsernameStart + contextUsernameLength < text.size() && text.at(contextUsernameStart + contextUsernameLength).isSpace()) {
-			QStringRef username = text.midRef(contextUsernameStart, contextUsernameLength);
-			if (username != contextBotUsername) {
-				contextBotUsername = username.toString();
-				PeerData *peer = App::peerByName(contextBotUsername);
+		if (inlineUsernameLength && inlineUsernameStart + inlineUsernameLength < text.size() && text.at(inlineUsernameStart + inlineUsernameLength).isSpace()) {
+			QStringRef username = text.midRef(inlineUsernameStart, inlineUsernameLength);
+			if (username != inlineBotUsername) {
+				inlineBotUsername = username.toString();
+				PeerData *peer = App::peerByName(inlineBotUsername);
 				if (peer) {
 					if (peer->isUser()) {
-						contextBot = peer->asUser();
+						inlineBot = peer->asUser();
 					} else {
-						contextBot = 0;
+						inlineBot = 0;
 					}
 				} else {
-					contextBot = ContextBotLookingUpData;
+					inlineBot = InlineBotLookingUpData;
 				}
 			}
-			if (contextBot == ContextBotLookingUpData) return;
+			if (inlineBot == InlineBotLookingUpData) return;
 
-			if (contextBot && (!contextBot->botInfo || contextBot->botInfo->contextPlaceholder.isEmpty())) {
-				contextBot = 0;
+			if (inlineBot && (!inlineBot->botInfo || inlineBot->botInfo->inlinePlaceholder.isEmpty())) {
+				inlineBot = 0;
 			} else {
-				start = text.mid(contextUsernameStart + contextUsernameLength + 1);
+				start = text.mid(inlineUsernameStart + inlineUsernameLength + 1);
 				return;
 			}
 		}
 	}
-	if (!contextUsernameLength) {
-		contextBot = 0;
-		contextBotUsername = QString();
+	if (!inlineUsernameLength) {
+		inlineBot = 0;
+		inlineBotUsername = QString();
 	}
 
 	// check mention / hashtag / bot command

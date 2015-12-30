@@ -204,7 +204,7 @@ fileLocationUnavailable#7c596b46 volume_id:long local_id:int secret:long = FileL
 fileLocation#53d69076 dc_id:int volume_id:long local_id:int secret:long = FileLocation;
 
 userEmpty#200250ba id:int = User;
-user#cb574c74 flags:# self:flags.10?true contact:flags.11?true mutual_contact:flags.12?true deleted:flags.13?true bot:flags.14?true bot_chat_history:flags.15?true bot_nochats:flags.16?true verified:flags.17?true restricted:flags.18?true id:int access_hash:flags.0?long first_name:flags.1?string last_name:flags.2?string username:flags.3?string phone:flags.4?string photo:flags.5?UserProfilePhoto status:flags.6?UserStatus bot_info_version:flags.14?int restriction_reason:flags.18?string bot_context_placeholder:flags.19?string = User;
+user#d10d979a flags:# self:flags.10?true contact:flags.11?true mutual_contact:flags.12?true deleted:flags.13?true bot:flags.14?true bot_chat_history:flags.15?true bot_nochats:flags.16?true verified:flags.17?true restricted:flags.18?true id:int access_hash:flags.0?long first_name:flags.1?string last_name:flags.2?string username:flags.3?string phone:flags.4?string photo:flags.5?UserProfilePhoto status:flags.6?UserStatus bot_info_version:flags.14?int restriction_reason:flags.18?string bot_inline_placeholder:flags.19?string = User;
 
 userProfilePhotoEmpty#4f11bae1 = UserProfilePhoto;
 userProfilePhoto#d559d8c8 photo_id:long photo_small:FileLocation photo_big:FileLocation = UserProfilePhoto;
@@ -400,7 +400,7 @@ updateNewStickerSet#688a30aa stickerset:messages.StickerSet = Update;
 updateStickerSetsOrder#f0dfb451 order:Vector<long> = Update;
 updateStickerSets#43ae3dec = Update;
 updateSavedGifs#9375341e = Update;
-updateBotContextQuery#934bca16 query_id:long user_id:int query:string offset:string = Update;
+updateBotInlineQuery#c01eea08 query_id:long user_id:int query:string offset:string = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -640,26 +640,26 @@ channels.channelParticipant#d0d9b163 participant:ChannelParticipant users:Vector
 help.termsOfService#f1ee3e90 text:string = help.TermsOfService;
 
 foundGif#162ecc1f url:string thumb_url:string content_url:string content_type:string w:int h:int = FoundGif;
-foundGifCached#fdfe5e4d url:string document:Document = FoundGif;
+foundGifCached#9c750409 url:string photo:Photo document:Document = FoundGif;
 
 messages.foundGifs#450a1c0a next_offset:int results:Vector<FoundGif> = messages.FoundGifs;
 
 messages.savedGifsNotModified#e8025ca2 = messages.SavedGifs;
 messages.savedGifs#2e0709a5 hash:int gifs:Vector<Document> = messages.SavedGifs;
 
-inputBotContextMessageMediaAuto#113c6793 caption:string = InputBotContextMessage;
-inputBotContextMessageText#52832c56 flags:# no_webpage:flags.0?true message:string entities:flags.1?Vector<MessageEntity> = InputBotContextMessage;
+inputBotInlineMessageMediaAuto#2e43e587 caption:string = InputBotInlineMessage;
+inputBotInlineMessageText#adf0df71 flags:# no_webpage:flags.0?true message:string entities:flags.1?Vector<MessageEntity> = InputBotInlineMessage;
 
-inputBotContextResult#72d8b33b flags:# id:string type:string title:flags.1?string description:flags.2?string url:flags.3?string thumb_url:flags.4?string content_url:flags.5?string content_type:flags.5?string w:flags.6?int h:flags.6?int duration:flags.7?int send_message:InputBotContextMessage = InputBotContextResult;
+inputBotInlineResult#2cbbe15a flags:# id:string type:string title:flags.1?string description:flags.2?string url:flags.3?string thumb_url:flags.4?string content_url:flags.5?string content_type:flags.5?string w:flags.6?int h:flags.6?int duration:flags.7?int send_message:InputBotInlineMessage = InputBotInlineResult;
 
-botContextMessageMediaAuto#a9ec3903 caption:string = BotContextMessage;
-botContextMessageText#2eb67d88 flags:# no_webpage:flags.0?true message:string entities:flags.1?Vector<MessageEntity> = BotContextMessage;
+botInlineMessageMediaAuto#fc56e87d caption:string = BotInlineMessage;
+botInlineMessageText#a56197a9 flags:# no_webpage:flags.0?true message:string entities:flags.1?Vector<MessageEntity> = BotInlineMessage;
 
-botContextMediaResultDocument#392ebe49 id:string type:string document:Document send_message:BotContextMessage = BotContextResult;
-botContextMediaResultPhoto#139ce337 id:string type:string photo:Photo send_message:BotContextMessage = BotContextResult;
-botContextResult#50a2cecf flags:# id:string type:string title:flags.1?string description:flags.2?string url:flags.3?string thumb_url:flags.4?string content_url:flags.5?string content_type:flags.5?string w:flags.6?int h:flags.6?int duration:flags.7?int send_message:BotContextMessage = BotContextResult;
+botInlineMediaResultDocument#f897d33e id:string type:string document:Document send_message:BotInlineMessage = BotInlineResult;
+botInlineMediaResultPhoto#c5528587 id:string type:string photo:Photo send_message:BotInlineMessage = BotInlineResult;
+botInlineResult#9bebaeb9 flags:# id:string type:string title:flags.1?string description:flags.2?string url:flags.3?string thumb_url:flags.4?string content_url:flags.5?string content_type:flags.5?string w:flags.6?int h:flags.6?int duration:flags.7?int send_message:BotInlineMessage = BotInlineResult;
 
-messages.botResults#772740b1 flags:# media:flags.0?true query_id:long next_offset:flags.1?string results:Vector<BotContextResult> = messages.BotResults;
+messages.botResults#1170b0a3 flags:# gallery:flags.0?true query_id:long next_offset:flags.1?string results:Vector<BotInlineResult> = messages.BotResults;
 
 ---functions---
 
@@ -781,9 +781,9 @@ messages.getDocumentByHash#338e2464 sha256:bytes size:int mime_type:string = Doc
 messages.searchGifs#bf9a776b q:string offset:int = messages.FoundGifs;
 messages.getSavedGifs#83bf3d52 hash:int = messages.SavedGifs;
 messages.saveGif#327a30cb id:InputDocument unsave:Bool = Bool;
-messages.getContextBotResults#36e7d06c bot:InputUser query:string offset:string = messages.BotResults;
-messages.setContextBotResults#d7f2de0f flags:# media:flags.0?true private:flags.1?true query_id:long results:Vector<InputBotContextResult> cache_time:int next_offset:flags.2?string = Bool;
-messages.sendContextBotResult#bdb3c4d0 flags:# broadcast:flags.4?true peer:InputPeer reply_to_msg_id:flags.0?int random_id:long query_id:long id:string = Updates;
+messages.getInlineBotResults#9324600d bot:InputUser query:string offset:string = messages.BotResults;
+messages.setInlineBotResults#3f23ec12 flags:# gallery:flags.0?true private:flags.1?true query_id:long results:Vector<InputBotInlineResult> cache_time:int next_offset:flags.2?string = Bool;
+messages.sendInlineBotResult#b16e06fe flags:# broadcast:flags.4?true peer:InputPeer reply_to_msg_id:flags.0?int random_id:long query_id:long id:string = Updates;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#a041495 pts:int date:int qts:int = updates.Difference;

@@ -215,6 +215,7 @@ void ConnectionBox::onSave() {
 		Local::writeSettings();
 		MTP::restart();
 		reinitImageLinkManager();
+		reinitWebLoadManager();
 		emit closed();
 	}
 }

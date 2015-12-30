@@ -224,14 +224,11 @@ inline StorageKey storageKey(const StorageImageLocation &location) {
 	return storageKey(location.dc(), location.volume(), location.local());
 }
 
-class StorageImage : public Image {
+class RemoteImage : public Image {
 public:
 
-	StorageImage(const StorageImageLocation &location, int32 size = 0);
-	StorageImage(const StorageImageLocation &location, QByteArray &bytes);
-	
-	int32 width() const;
-	int32 height() const;
+	RemoteImage() : _loader(0) {
+	}
 
 	void automaticLoad(const HistoryItem *item); // auto load photo
 	void automaticLoadSettingsChanged();
@@ -250,11 +247,10 @@ public:
 	void load(bool loadFirst = false, bool prior = true);
 	void loadEvenCancelled(bool loadFirst = false, bool prior = true);
 
-	virtual const StorageImageLocation &location() const {
-		return _location;
-	}
+	virtual void setInformation(int32 size, int32 width, int32 height) = 0;
+	virtual FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) = 0;
 
-	~StorageImage();
+	~RemoteImage();
 
 protected:
 	void checkload() const {
@@ -262,10 +258,7 @@ protected:
 	}
 
 private:
-	StorageImageLocation _location;
-	int32 _size;
-	mutable mtpFileLoader *_loader;
-
+	mutable FileLoader *_loader;
 	bool amLoading() const {
 		return _loader && _loader != CancelledFileLoader;
 	}
@@ -273,9 +266,50 @@ private:
 
 };
 
+class StorageImage : public RemoteImage {
+public:
+
+	StorageImage(const StorageImageLocation &location, int32 size = 0);
+	StorageImage(const StorageImageLocation &location, QByteArray &bytes);
+	
+	int32 width() const;
+	int32 height() const;
+	
+	virtual void setInformation(int32 size, int32 width, int32 height);
+	virtual FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading);
+
+	virtual const StorageImageLocation &location() const {
+		return _location;
+	}
+
+private:
+	StorageImageLocation _location;
+	int32 _size;
+
+};
+
 StorageImage *getImage(const StorageImageLocation &location, int32 size = 0);
 StorageImage *getImage(const StorageImageLocation &location, const QByteArray &bytes);
 Image *getImage(int32 width, int32 height, const MTPFileLocation &location);
+
+class WebImage : public RemoteImage {
+public:
+
+	WebImage(const QString &url);
+
+	int32 width() const;
+	int32 height() const;
+
+	virtual void setInformation(int32 size, int32 width, int32 height);
+	virtual FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading);
+
+private:
+	QString _url;
+	int32 _size, _width, _height;
+
+};
+
+WebImage *getImage(const QUrl &url);
 
 class ImagePtr : public ManagedPtr<Image> {
 public:

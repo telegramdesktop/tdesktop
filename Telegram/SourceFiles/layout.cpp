@@ -1281,34 +1281,34 @@ LayoutOverviewLink::Link::Link(const QString &url, const QString &text)
 , lnk(linkFromUrl(url)) {
 }
 
-LayoutContextItem::LayoutContextItem(ContextResult *result, DocumentData *doc, PhotoData *photo)
+LayoutInlineItem::LayoutInlineItem(InlineResult *result, DocumentData *doc, PhotoData *photo)
 : _result(result)
 , _doc(doc)
 , _photo(photo)
 , _position(0) {
 }
 
-void LayoutContextItem::setPosition(int32 position) {
+void LayoutInlineItem::setPosition(int32 position) {
 	_position = position;
 }
 
-int32 LayoutContextItem::position() const {
+int32 LayoutInlineItem::position() const {
 	return _position;
 }
 
-ContextResult *LayoutContextItem::result() const {
+InlineResult *LayoutInlineItem::result() const {
 	return _result;
 }
 
-DocumentData *LayoutContextItem::document() const {
+DocumentData *LayoutInlineItem::document() const {
 	return _doc;
 }
 
-PhotoData *LayoutContextItem::photo() const {
+PhotoData *LayoutInlineItem::photo() const {
 	return _photo;
 }
 
-void LayoutContextItem::preload() {
+void LayoutInlineItem::preload() {
 	if (_result) {
 		if (_result->photo) {
 			_result->photo->thumb->load();
@@ -1324,15 +1324,15 @@ void LayoutContextItem::preload() {
 	}
 }
 
-LayoutContextGif::LayoutContextGif(ContextResult *result, DocumentData *doc, bool saved) : LayoutContextItem(result, doc, 0)
+LayoutInlineGif::LayoutInlineGif(InlineResult *result, DocumentData *doc, bool saved) : LayoutInlineItem(result, doc, 0)
 , _state(0)
 , _gif(0)
-, _send(new SendContextItemLink())
+, _send(new SendInlineItemLink())
 , _delete((doc && saved) ? new DeleteSavedGifLink(doc) : 0)
 , _animation(0) {
 }
 
-void LayoutContextGif::initDimensions() {
+void LayoutInlineGif::initDimensions() {
 	int32 w = content_width(), h = content_height();
 	if (w <= 0 || h <= 0) {
 		_maxw = 0;
@@ -1343,8 +1343,8 @@ void LayoutContextGif::initDimensions() {
 	_minh = st::inlineMediaHeight + st::inlineResultsSkip;
 }
 
-void LayoutContextGif::setPosition(int32 position) {
-	LayoutContextItem::setPosition(position);
+void LayoutInlineGif::setPosition(int32 position) {
+	LayoutInlineItem::setPosition(position);
 	if (_position < 0) {
 		if (gif()) delete _gif;
 		_gif = 0;
@@ -1364,13 +1364,13 @@ void DeleteSavedGifLink::onClick(Qt::MouseButton button) const {
 	if (App::main()) emit App::main()->savedGifsUpdated();
 }
 
-void LayoutContextGif::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void LayoutInlineGif::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
 	content_automaticLoad();
 
 	bool loaded = content_loaded(), loading = content_loading(), displayLoading = content_displayLoading();
 	if (loaded && !gif() && _gif != BadClipReader) {
-		LayoutContextGif *that = const_cast<LayoutContextGif*>(this);
-		that->_gif = new ClipReader(content_location(), content_data(), func(that, &LayoutContextGif::clipCallback));
+		LayoutInlineGif *that = const_cast<LayoutInlineGif*>(this);
+		that->_gif = new ClipReader(content_location(), content_data(), func(that, &LayoutInlineGif::clipCallback));
 		if (gif()) _gif->setAutoplay();
 	}
 
@@ -1388,8 +1388,8 @@ void LayoutContextGif::paint(Painter &p, const QRect &clip, uint32 selection, co
 
 	QRect r(0, 0, _width, height);
 	if (animating) {
-		if (!_thumb.isNull()) const_cast<LayoutContextGif*>(this)->_thumb = QPixmap();
-		const ContextPaintContext *ctx = context->toContextPaintContext();
+		if (!_thumb.isNull()) const_cast<LayoutInlineGif*>(this)->_thumb = QPixmap();
+		const InlinePaintContext *ctx = context->toInlinePaintContext();
 		t_assert(ctx);
 		p.drawPixmap(r.topLeft(), _gif->current(frame.width(), frame.height(), _width, height, ctx->paused ? 0 : context->ms));
 	} else {
@@ -1426,7 +1426,7 @@ void LayoutContextGif::paint(Painter &p, const QRect &clip, uint32 selection, co
 		}
 	}
 
-	if (_state & StateOver) {
+	if (_delete && (_state & StateOver)) {
 		float64 deleteOver = _a_deleteOver.current(context->ms, (_state & StateDeleteOver) ? 1 : 0);
 		QPoint deletePos = QPoint(_width - st::stickerPanDelete.pxWidth(), 0);
 		p.setOpacity(deleteOver + (1 - deleteOver) * st::stickerPanDeleteOpacity);
@@ -1435,7 +1435,7 @@ void LayoutContextGif::paint(Painter &p, const QRect &clip, uint32 selection, co
 	}
 }
 
-void LayoutContextGif::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+void LayoutInlineGif::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
 	if (x >= 0 && x < _width && y >= 0 && y < st::inlineMediaHeight) {
 		if (_delete && (rtl() ? _width - x : x) >= _width - st::stickerPanDelete.pxWidth() && y < st::stickerPanDelete.pxHeight()) {
 			link = _delete;
@@ -1445,10 +1445,10 @@ void LayoutContextGif::getState(TextLinkPtr &link, HistoryCursorState &cursor, i
 	}
 }
 
-void LayoutContextGif::linkOver(const TextLinkPtr &link) {
+void LayoutInlineGif::linkOver(const TextLinkPtr &link) {
 	if (_delete && link == _delete) {
 		if (!(_state & StateDeleteOver)) {
-			EnsureAnimation(_a_deleteOver, 0, func(this, &LayoutContextGif::update));
+			EnsureAnimation(_a_deleteOver, 0, func(this, &LayoutInlineGif::update));
 			_state |= StateDeleteOver;
 			_a_deleteOver.start(1, st::stickersRowDuration);
 		}
@@ -1457,7 +1457,7 @@ void LayoutContextGif::linkOver(const TextLinkPtr &link) {
 		if (!content_loaded()) {
 			ensureAnimation();
 			if (!(_state & StateOver)) {
-				EnsureAnimation(_animation->_a_over, 0, func(this, &LayoutContextGif::update));
+				EnsureAnimation(_animation->_a_over, 0, func(this, &LayoutInlineGif::update));
 				_animation->_a_over.start(1, st::stickersRowDuration);
 			}
 		}
@@ -1465,10 +1465,10 @@ void LayoutContextGif::linkOver(const TextLinkPtr &link) {
 	}
 }
 
-void LayoutContextGif::linkOut(const TextLinkPtr &link) {
+void LayoutInlineGif::linkOut(const TextLinkPtr &link) {
 	if (_delete && link == _delete) {
 		if (_state & StateDeleteOver) {
-			EnsureAnimation(_a_deleteOver, 1, func(this, &LayoutContextGif::update));
+			EnsureAnimation(_a_deleteOver, 1, func(this, &LayoutInlineGif::update));
 			_state &= ~StateDeleteOver;
 			_a_deleteOver.start(0, st::stickersRowDuration);
 		}
@@ -1477,7 +1477,7 @@ void LayoutContextGif::linkOut(const TextLinkPtr &link) {
 		if (!content_loaded()) {
 			ensureAnimation();
 			if (_state & StateOver) {
-				EnsureAnimation(_animation->_a_over, 1, func(this, &LayoutContextGif::update));
+				EnsureAnimation(_animation->_a_over, 1, func(this, &LayoutInlineGif::update));
 				_animation->_a_over.start(0, st::stickersRowDuration);
 			}
 		}
@@ -1485,7 +1485,7 @@ void LayoutContextGif::linkOut(const TextLinkPtr &link) {
 	}
 }
 
-QSize LayoutContextGif::countFrameSize() const {
+QSize LayoutInlineGif::countFrameSize() const {
 	bool animating = (gif() && _gif->ready());
 	int32 framew = animating ? _gif->width() : content_width(), frameh = animating ? _gif->height() : content_height(), height = st::inlineMediaHeight;
 	if (framew * height > frameh * _width) {
@@ -1512,15 +1512,15 @@ QSize LayoutContextGif::countFrameSize() const {
 	return QSize(framew, frameh);
 }
 
-LayoutContextGif::~LayoutContextGif() {
+LayoutInlineGif::~LayoutInlineGif() {
 	deleteAndMark(_animation);
 }
 
-void LayoutContextGif::prepareThumb(int32 width, int32 height, const QSize &frame) const {
+void LayoutInlineGif::prepareThumb(int32 width, int32 height, const QSize &frame) const {
 	if (_doc && !_doc->thumb->isNull()) {
 		if (_doc->thumb->loaded()) {
 			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				const_cast<LayoutContextGif*>(this)->_thumb = _doc->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+				const_cast<LayoutInlineGif*>(this)->_thumb = _doc->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
 			}
 		} else {
 			_doc->thumb->load();
@@ -1528,7 +1528,7 @@ void LayoutContextGif::prepareThumb(int32 width, int32 height, const QSize &fram
 	} else if (_result && !_result->thumb_url.isEmpty()) {
 		if (_result->thumb->loaded()) {
 			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				const_cast<LayoutContextGif*>(this)->_thumb = _result->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+				const_cast<LayoutInlineGif*>(this)->_thumb = _result->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
 			}
 		} else {
 			_result->thumb->load();
@@ -1536,20 +1536,20 @@ void LayoutContextGif::prepareThumb(int32 width, int32 height, const QSize &fram
 	}
 }
 
-void LayoutContextGif::ensureAnimation() const {
+void LayoutInlineGif::ensureAnimation() const {
 	if (!_animation) {
-		_animation = new AnimationData(animation(const_cast<LayoutContextGif*>(this), &LayoutContextGif::step_radial));
+		_animation = new AnimationData(animation(const_cast<LayoutInlineGif*>(this), &LayoutInlineGif::step_radial));
 	}
 }
 
-bool LayoutContextGif::isRadialAnimation(uint64 ms) const {
+bool LayoutInlineGif::isRadialAnimation(uint64 ms) const {
 	if (!_animation || !_animation->radial.animating()) return false;
 
 	_animation->radial.step(ms);
 	return _animation && _animation->radial.animating();
 }
 
-void LayoutContextGif::step_radial(uint64 ms, bool timer) {
+void LayoutInlineGif::step_radial(uint64 ms, bool timer) {
 	if (timer) {
 		update();
 	} else {
@@ -1561,7 +1561,7 @@ void LayoutContextGif::step_radial(uint64 ms, bool timer) {
 	}
 }
 
-void LayoutContextGif::clipCallback(ClipReaderNotification notification) {
+void LayoutInlineGif::clipCallback(ClipReaderNotification notification) {
 	switch (notification) {
 	case ClipReaderReinit: {
 		if (gif()) {
@@ -1573,7 +1573,7 @@ void LayoutContextGif::clipCallback(ClipReaderNotification notification) {
 				int32 height = st::inlineMediaHeight;
 				QSize frame = countFrameSize();
 				_gif->start(frame.width(), frame.height(), _width, height, false);
-			} else if (_gif->paused() && !Ui::isContextItemVisible(this)) {
+			} else if (_gif->paused() && !Ui::isInlineItemVisible(this)) {
 				delete _gif;
 				_gif = 0;
 				content_forget();
@@ -1591,19 +1591,20 @@ void LayoutContextGif::clipCallback(ClipReaderNotification notification) {
 	}
 }
 
-void LayoutContextGif::update() {
+void LayoutInlineGif::update() {
 	if (_position >= 0) {
-		Ui::repaintContextItem(this);
+		Ui::repaintInlineItem(this);
 	}
 }
 
-int32 LayoutContextGif::content_width() const {
-	if (_doc) {
-		if (_doc->dimensions.width() > 0) {
-			return _doc->dimensions.width();
+int32 LayoutInlineGif::content_width() const {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	if (doc) {
+		if (doc->dimensions.width() > 0) {
+			return doc->dimensions.width();
 		}
-		if (!_doc->thumb->isNull()) {
-			return _doc->thumb->width();
+		if (!doc->thumb->isNull()) {
+			return doc->thumb->width();
 		}
 	} else if (_result) {
 		return _result->width;
@@ -1611,13 +1612,14 @@ int32 LayoutContextGif::content_width() const {
 	return 0;
 }
 
-int32 LayoutContextGif::content_height() const {
-	if (_doc) {
-		if (_doc->dimensions.height() > 0) {
-			return _doc->dimensions.height();
+int32 LayoutInlineGif::content_height() const {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	if (doc) {
+		if (doc->dimensions.height() > 0) {
+			return doc->dimensions.height();
 		}
-		if (!_doc->thumb->isNull()) {
-			return _doc->thumb->height();
+		if (!doc->thumb->isNull()) {
+			return doc->thumb->height();
 		}
 	} else if (_result) {
 		return _result->height;
@@ -1625,42 +1627,50 @@ int32 LayoutContextGif::content_height() const {
 	return 0;
 }
 
-bool LayoutContextGif::content_loading() const {
-	return _doc ? _doc->loading() : _result->loading();
+bool LayoutInlineGif::content_loading() const {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	return doc ? doc->loading() : _result->loading();
 }
 
-bool LayoutContextGif::content_displayLoading() const {
-	return _doc ? _doc->displayLoading() : _result->displayLoading();
+bool LayoutInlineGif::content_displayLoading() const {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	return doc ? doc->displayLoading() : _result->displayLoading();
 }
 
-bool LayoutContextGif::content_loaded() const {
-	return _doc ? _doc->loaded() : _result->loaded();
+bool LayoutInlineGif::content_loaded() const {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	return doc ? doc->loaded() : _result->loaded();
 }
 
-float64 LayoutContextGif::content_progress() const {
-	return _doc ? _doc->progress() : _result->progress();
+float64 LayoutInlineGif::content_progress() const {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	return doc ? doc->progress() : _result->progress();
 }
 
-void LayoutContextGif::content_automaticLoad() const {
-	if (_doc) {
-		_doc->automaticLoad(0);
+void LayoutInlineGif::content_automaticLoad() const {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	if (doc) {
+		doc->automaticLoad(0);
 	} else {
 		_result->automaticLoadGif();
 	}
 }
 
-void LayoutContextGif::content_forget() {
-	if (_doc) {
-		_doc->forget();
+void LayoutInlineGif::content_forget() {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	if (doc) {
+		doc->forget();
 	} else {
 		_result->forget();
 	}
 }
 
-FileLocation LayoutContextGif::content_location() const {
-	return _doc ? _doc->location() : FileLocation();
+FileLocation LayoutInlineGif::content_location() const {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	return doc ? doc->location() : FileLocation();
 }
 
-QByteArray LayoutContextGif::content_data() const {
-	return _doc ? _doc->data() : _result->data();
+QByteArray LayoutInlineGif::content_data() const {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	return doc ? doc->data() : _result->data();
 }

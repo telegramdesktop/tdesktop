@@ -891,7 +891,7 @@ bool VideoData::loaded(bool check) const {
 		if (_loader->fileType() == mtpc_storage_fileUnknown) {
 			_loader->deleteLater();
 			_loader->rpcInvalidate();
-			_loader = CancelledFileLoader;
+			_loader = CancelledMtpFileLoader;
 		} else {
 			VideoData *that = const_cast<VideoData*>(this);
 			that->_location = FileLocation(mtpToStorageType(_loader->fileType()), _loader->fileName());
@@ -906,7 +906,7 @@ bool VideoData::loaded(bool check) const {
 }
 
 bool VideoData::loading() const {
-	return _loader && _loader != CancelledFileLoader;
+	return _loader && _loader != CancelledMtpFileLoader;
 }
 
 bool VideoData::displayLoading() const {
@@ -943,7 +943,7 @@ void VideoData::save(const QString &toFile, ActionOnLoad action, const FullMsgId
 		return;
 	}
 
-	if (_loader == CancelledFileLoader) _loader = 0;
+	if (_loader == CancelledMtpFileLoader) _loader = 0;
 	if (_loader) {
 		if (!_loader->setFileName(toFile)) {
 			cancel();
@@ -959,8 +959,8 @@ void VideoData::save(const QString &toFile, ActionOnLoad action, const FullMsgId
 	} else {
 		status = FileReady;
 		_loader = new mtpFileLoader(dc, id, access, VideoFileLocation, toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
-		_loader->connect(_loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(videoLoadProgress(mtpFileLoader*)));
-		_loader->connect(_loader, SIGNAL(failed(mtpFileLoader*,bool)), App::main(), SLOT(videoLoadProgress(mtpFileLoader*,bool)));
+		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(videoLoadProgress(FileLoader*)));
+		_loader->connect(_loader, SIGNAL(failed(FileLoader*,bool)), App::main(), SLOT(videoLoadFailed(FileLoader*,bool)));
 		_loader->start();
 	}
 
@@ -971,7 +971,7 @@ void VideoData::cancel() {
 	if (!loading()) return;
 
 	mtpFileLoader *l = _loader;
-	_loader = CancelledFileLoader;
+	_loader = CancelledMtpFileLoader;
 	if (l) {
 		l->cancel();
 		l->deleteLater();
@@ -1148,7 +1148,7 @@ void AudioData::forget() {
 void AudioData::automaticLoad(const HistoryItem *item) {
 	if (loaded() || status != FileReady) return;
 
-	if (saveToCache() && _loader != CancelledFileLoader) {
+	if (saveToCache() && _loader != CancelledMtpFileLoader) {
 		if (item) {
 			bool loadFromCloud = false;
 			if (item->history()->peer->isUser()) {
@@ -1162,7 +1162,7 @@ void AudioData::automaticLoad(const HistoryItem *item) {
 }
 
 void AudioData::automaticLoadSettingsChanged() {
-	if (loaded() || status != FileReady || !saveToCache() || _loader != CancelledFileLoader) return;
+	if (loaded() || status != FileReady || !saveToCache() || _loader != CancelledMtpFileLoader) return;
 	_loader = 0;
 }
 
@@ -1208,7 +1208,7 @@ bool AudioData::loaded(bool check) const {
 		if (_loader->fileType() == mtpc_storage_fileUnknown) {
 			_loader->deleteLater();
 			_loader->rpcInvalidate();
-			_loader = CancelledFileLoader;
+			_loader = CancelledMtpFileLoader;
 		} else {
 			AudioData *that = const_cast<AudioData*>(this);
 			that->_location = FileLocation(mtpToStorageType(_loader->fileType()), _loader->fileName());
@@ -1224,7 +1224,7 @@ bool AudioData::loaded(bool check) const {
 }
 
 bool AudioData::loading() const {
-	return _loader && _loader != CancelledFileLoader;
+	return _loader && _loader != CancelledMtpFileLoader;
 }
 
 bool AudioData::displayLoading() const {
@@ -1265,7 +1265,7 @@ void AudioData::save(const QString &toFile, ActionOnLoad action, const FullMsgId
 		return;
 	}
 
-	if (_loader == CancelledFileLoader) _loader = 0;
+	if (_loader == CancelledMtpFileLoader) _loader = 0;
 	if (_loader) {
 		if (!_loader->setFileName(toFile)) {
 			cancel();
@@ -1281,8 +1281,8 @@ void AudioData::save(const QString &toFile, ActionOnLoad action, const FullMsgId
 	} else {
 		status = FileReady;
 		_loader = new mtpFileLoader(dc, id, access, AudioFileLocation, toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
-		_loader->connect(_loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(audioLoadProgress(mtpFileLoader*)));
-		_loader->connect(_loader, SIGNAL(failed(mtpFileLoader*,bool)), App::main(), SLOT(audioLoadFailed(mtpFileLoader*,bool)));
+		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(audioLoadProgress(FileLoader*)));
+		_loader->connect(_loader, SIGNAL(failed(FileLoader*,bool)), App::main(), SLOT(audioLoadFailed(FileLoader*,bool)));
 		_loader->start();
 	}
 
@@ -1293,7 +1293,7 @@ void AudioData::cancel() {
 	if (!loading()) return;
 
 	mtpFileLoader *l = _loader;
-	_loader = CancelledFileLoader;
+	_loader = CancelledMtpFileLoader;
 	if (l) {
 		l->cancel();
 		l->deleteLater();
@@ -1561,7 +1561,7 @@ void DocumentData::forget() {
 void DocumentData::automaticLoad(const HistoryItem *item) {
 	if (loaded() || status != FileReady) return;
 
-	if (saveToCache() && _loader != CancelledFileLoader) {
+	if (saveToCache() && _loader != CancelledMtpFileLoader) {
 		if (type == StickerDocument) {
 			save(QString(), _actionOnLoad, _actionOnLoadMsgId);
 		} else if (isAnimation()) {
@@ -1581,7 +1581,7 @@ void DocumentData::automaticLoad(const HistoryItem *item) {
 }
 
 void DocumentData::automaticLoadSettingsChanged() {
-	if (loaded() || status != FileReady || !isAnimation() || !saveToCache() || _loader != CancelledFileLoader) return;
+	if (loaded() || status != FileReady || !isAnimation() || !saveToCache() || _loader != CancelledMtpFileLoader) return;
 	_loader = 0;
 }
 
@@ -1646,7 +1646,7 @@ bool DocumentData::loaded(bool check) const {
 		if (_loader->fileType() == mtpc_storage_fileUnknown) {
 			_loader->deleteLater();
 			_loader->rpcInvalidate();
-			_loader = CancelledFileLoader;
+			_loader = CancelledMtpFileLoader;
 		} else {
 			DocumentData *that = const_cast<DocumentData*>(this);
 			that->_location = FileLocation(mtpToStorageType(_loader->fileType()), _loader->fileName());
@@ -1665,7 +1665,7 @@ bool DocumentData::loaded(bool check) const {
 }
 
 bool DocumentData::loading() const {
-	return _loader && _loader != CancelledFileLoader;
+	return _loader && _loader != CancelledMtpFileLoader;
 }
 
 bool DocumentData::displayLoading() const {
@@ -1706,7 +1706,7 @@ void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMs
 		return;
 	}
 
-	if (_loader == CancelledFileLoader) _loader = 0;
+	if (_loader == CancelledMtpFileLoader) _loader = 0;
 	if (_loader) {
 		if (!_loader->setFileName(toFile)) {
 			cancel();
@@ -1722,8 +1722,8 @@ void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMs
 	} else {
 		status = FileReady;
 		_loader = new mtpFileLoader(dc, id, access, DocumentFileLocation, toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
-		_loader->connect(_loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(documentLoadProgress(mtpFileLoader*)));
-		_loader->connect(_loader, SIGNAL(failed(mtpFileLoader*,bool)), App::main(), SLOT(documentLoadFailed(mtpFileLoader*,bool)));
+		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(documentLoadProgress(FileLoader*)));
+		_loader->connect(_loader, SIGNAL(failed(FileLoader*,bool)), App::main(), SLOT(documentLoadFailed(FileLoader*,bool)));
 		_loader->start();
 	}
 
@@ -1734,7 +1734,7 @@ void DocumentData::cancel() {
 	if (!loading()) return;
 
 	mtpFileLoader *l = _loader;
-	_loader = CancelledFileLoader;
+	_loader = CancelledMtpFileLoader;
 	if (l) {
 		l->cancel();
 		l->deleteLater();
@@ -2034,30 +2034,30 @@ void ImageLinkData::load() {
 	manager.getData(this);
 }
 
-void ContextResult::automaticLoadGif() const {
+void InlineResult::automaticLoadGif() const {
 
 }
 
-QByteArray ContextResult::data() const {
+QByteArray InlineResult::data() const {
 	return _data;
 }
 
-bool ContextResult::loading() const {
+bool InlineResult::loading() const {
 	return false;
 }
 
-bool ContextResult::loaded() const {
+bool InlineResult::loaded() const {
 	return false;
 }
 
-bool ContextResult::displayLoading() const {
+bool InlineResult::displayLoading() const {
 	return false;
 }
 
-void ContextResult::forget() {
+void InlineResult::forget() {
 }
 
-float64 ContextResult::progress() const {
+float64 InlineResult::progress() const {
 	return 0.;
 }
 

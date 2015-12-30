@@ -559,9 +559,9 @@ public:
 	bool isItemVisible(HistoryItem *item);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
-	void ui_repaintContextItem(const LayoutContextItem *gif);
-	bool ui_isContextItemVisible(const LayoutContextItem *layout);
-	bool ui_isContextItemBeingChosen();
+	void ui_repaintInlineItem(const LayoutInlineItem *gif);
+	bool ui_isInlineItemVisible(const LayoutInlineItem *layout);
+	bool ui_isInlineItemBeingChosen();
 
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
 	void notify_botCommandsChanged(UserData *user);
@@ -760,11 +760,11 @@ private:
 	CollapseButton _collapseComments;
 
 	MentionsDropdown _attachMention;
-	UserData *_contextBot;
-	QString _contextBotUsername;
-	mtpRequestId _contextBotResolveRequestId;
-	void contextBotResolveDone(const MTPcontacts_ResolvedPeer &result);
-	bool contextBotResolveFail(const RPCError &error);
+	UserData *_inlineBot;
+	QString _inlineBotUsername;
+	mtpRequestId _inlineBotResolveRequestId;
+	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
+	bool inlineBotResolveFail(const RPCError &error);
 
 	bool isBotStart() const;
 	bool isBlocked() const;

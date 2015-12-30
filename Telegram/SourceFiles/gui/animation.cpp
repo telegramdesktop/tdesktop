@@ -95,6 +95,7 @@ namespace anim {
 				_clipThreads.at(i)->quit();
 				_clipThreads.at(i)->wait();
 				delete _clipManagers.at(i);
+				delete _clipThreads.at(i);
 			}
 			_clipThreads.clear();
 			_clipManagers.clear();

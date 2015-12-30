@@ -327,7 +327,7 @@ struct BotInfo {
 	bool inited;
 	bool readsAllHistory, cantJoinGroups;
 	int32 version;
-	QString shareText, description, contextPlaceholder;
+	QString shareText, description, inlinePlaceholder;
 	QList<BotCommand> commands;
 	Text text; // description
 
@@ -385,7 +385,7 @@ public:
 
 	BotInfo *botInfo;
 };
-static UserData * const ContextBotLookingUpData = SharedMemoryLocation<UserData, 0>();
+static UserData * const InlineBotLookingUpData = SharedMemoryLocation<UserData, 0>();
 
 class ChatData : public PeerData {
 public:
@@ -1324,7 +1324,7 @@ public:
 		deinit();
 	}
 
-	public slots:
+public slots:
 	void onFinished(QNetworkReply *reply);
 	void onFailed(QNetworkReply *reply);
 
@@ -1337,9 +1337,9 @@ private:
 	ImagePtr *black;
 };
 
-class ContextResult {
+class InlineResult {
 public:
-	ContextResult(uint64 queryId)
+	InlineResult(uint64 queryId)
 		: queryId(queryId)
 		, doc(0)
 		, photo(0)
@@ -1374,7 +1374,7 @@ private:
 	QByteArray _data;
 
 };
-typedef QList<ContextResult*> ContextResults;
+typedef QList<InlineResult*> InlineResults;
 
 QString saveFileName(const QString &title, const QString &filter, const QString &prefix, QString name, bool savingAs, const QDir &dir = QDir());
 MsgId clientMsgId();

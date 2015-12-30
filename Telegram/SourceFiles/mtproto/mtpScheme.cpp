@@ -1144,7 +1144,7 @@ void _serialize_user(MTPStringLogger &to, int32 stage, int32 lev, Types &types, 
 	case 17: to.add("  status: "); ++stages.back(); if (flag & MTPDuser::flag_status) { types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 6 IN FIELD flags ]"); } break;
 	case 18: to.add("  bot_info_version: "); ++stages.back(); if (flag & MTPDuser::flag_bot_info_version) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 14 IN FIELD flags ]"); } break;
 	case 19: to.add("  restriction_reason: "); ++stages.back(); if (flag & MTPDuser::flag_restriction_reason) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 18 IN FIELD flags ]"); } break;
-	case 20: to.add("  bot_context_placeholder: "); ++stages.back(); if (flag & MTPDuser::flag_bot_context_placeholder) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 19 IN FIELD flags ]"); } break;
+	case 20: to.add("  bot_inline_placeholder: "); ++stages.back(); if (flag & MTPDuser::flag_bot_inline_placeholder) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 19 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -3053,11 +3053,11 @@ void _serialize_updateSavedGifs(MTPStringLogger &to, int32 stage, int32 lev, Typ
 	to.add("{ updateSavedGifs }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
 }
 
-void _serialize_updateBotContextQuery(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+void _serialize_updateBotInlineQuery(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
-		to.add("{ updateBotContextQuery");
+		to.add("{ updateBotInlineQuery");
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
@@ -5116,7 +5116,8 @@ void _serialize_foundGifCached(MTPStringLogger &to, int32 stage, int32 lev, Type
 	}
 	switch (stage) {
 	case 0: to.add("  url: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  document: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  photo: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 2: to.add("  document: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -5153,11 +5154,11 @@ void _serialize_messages_savedGifs(MTPStringLogger &to, int32 stage, int32 lev, 
 	}
 }
 
-void _serialize_inputBotContextMessageMediaAuto(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+void _serialize_inputBotInlineMessageMediaAuto(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
-		to.add("{ inputBotContextMessageMediaAuto");
+		to.add("{ inputBotInlineMessageMediaAuto");
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
@@ -5166,52 +5167,52 @@ void _serialize_inputBotContextMessageMediaAuto(MTPStringLogger &to, int32 stage
 	}
 }
 
-void _serialize_inputBotContextMessageText(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+void _serialize_inputBotInlineMessageText(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
-		to.add("{ inputBotContextMessageText");
+		to.add("{ inputBotInlineMessageText");
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  no_webpage: "); ++stages.back(); if (flag & MTPDinputBotContextMessageText::flag_no_webpage) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 1: to.add("  no_webpage: "); ++stages.back(); if (flag & MTPDinputBotInlineMessageText::flag_no_webpage) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	case 2: to.add("  message: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 3: to.add("  entities: "); ++stages.back(); if (flag & MTPDinputBotContextMessageText::flag_entities) { types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	case 3: to.add("  entities: "); ++stages.back(); if (flag & MTPDinputBotInlineMessageText::flag_entities) { types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
 
-void _serialize_inputBotContextResult(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+void _serialize_inputBotInlineResult(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
-		to.add("{ inputBotContextResult");
+		to.add("{ inputBotInlineResult");
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 1: to.add("  id: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 2: to.add("  type: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 3: to.add("  title: "); ++stages.back(); if (flag & MTPDinputBotContextResult::flag_title) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
-	case 4: to.add("  description: "); ++stages.back(); if (flag & MTPDinputBotContextResult::flag_description) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
-	case 5: to.add("  url: "); ++stages.back(); if (flag & MTPDinputBotContextResult::flag_url) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 3 IN FIELD flags ]"); } break;
-	case 6: to.add("  thumb_url: "); ++stages.back(); if (flag & MTPDinputBotContextResult::flag_thumb_url) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
-	case 7: to.add("  content_url: "); ++stages.back(); if (flag & MTPDinputBotContextResult::flag_content_url) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
-	case 8: to.add("  content_type: "); ++stages.back(); if (flag & MTPDinputBotContextResult::flag_content_type) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
-	case 9: to.add("  w: "); ++stages.back(); if (flag & MTPDinputBotContextResult::flag_w) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 6 IN FIELD flags ]"); } break;
-	case 10: to.add("  h: "); ++stages.back(); if (flag & MTPDinputBotContextResult::flag_h) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 6 IN FIELD flags ]"); } break;
-	case 11: to.add("  duration: "); ++stages.back(); if (flag & MTPDinputBotContextResult::flag_duration) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 7 IN FIELD flags ]"); } break;
+	case 3: to.add("  title: "); ++stages.back(); if (flag & MTPDinputBotInlineResult::flag_title) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	case 4: to.add("  description: "); ++stages.back(); if (flag & MTPDinputBotInlineResult::flag_description) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
+	case 5: to.add("  url: "); ++stages.back(); if (flag & MTPDinputBotInlineResult::flag_url) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 3 IN FIELD flags ]"); } break;
+	case 6: to.add("  thumb_url: "); ++stages.back(); if (flag & MTPDinputBotInlineResult::flag_thumb_url) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
+	case 7: to.add("  content_url: "); ++stages.back(); if (flag & MTPDinputBotInlineResult::flag_content_url) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
+	case 8: to.add("  content_type: "); ++stages.back(); if (flag & MTPDinputBotInlineResult::flag_content_type) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
+	case 9: to.add("  w: "); ++stages.back(); if (flag & MTPDinputBotInlineResult::flag_w) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 6 IN FIELD flags ]"); } break;
+	case 10: to.add("  h: "); ++stages.back(); if (flag & MTPDinputBotInlineResult::flag_h) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 6 IN FIELD flags ]"); } break;
+	case 11: to.add("  duration: "); ++stages.back(); if (flag & MTPDinputBotInlineResult::flag_duration) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 7 IN FIELD flags ]"); } break;
 	case 12: to.add("  send_message: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
 
-void _serialize_botContextMessageMediaAuto(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+void _serialize_botInlineMessageMediaAuto(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
-		to.add("{ botContextMessageMediaAuto");
+		to.add("{ botInlineMessageMediaAuto");
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
@@ -5220,27 +5221,27 @@ void _serialize_botContextMessageMediaAuto(MTPStringLogger &to, int32 stage, int
 	}
 }
 
-void _serialize_botContextMessageText(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+void _serialize_botInlineMessageText(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
-		to.add("{ botContextMessageText");
+		to.add("{ botInlineMessageText");
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  no_webpage: "); ++stages.back(); if (flag & MTPDbotContextMessageText::flag_no_webpage) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 1: to.add("  no_webpage: "); ++stages.back(); if (flag & MTPDbotInlineMessageText::flag_no_webpage) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	case 2: to.add("  message: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 3: to.add("  entities: "); ++stages.back(); if (flag & MTPDbotContextMessageText::flag_entities) { types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	case 3: to.add("  entities: "); ++stages.back(); if (flag & MTPDbotInlineMessageText::flag_entities) { types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
 
-void _serialize_botContextMediaResultDocument(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+void _serialize_botInlineMediaResultDocument(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
-		to.add("{ botContextMediaResultDocument");
+		to.add("{ botInlineMediaResultDocument");
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
@@ -5252,11 +5253,11 @@ void _serialize_botContextMediaResultDocument(MTPStringLogger &to, int32 stage, 
 	}
 }
 
-void _serialize_botContextMediaResultPhoto(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+void _serialize_botInlineMediaResultPhoto(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
-		to.add("{ botContextMediaResultPhoto");
+		to.add("{ botInlineMediaResultPhoto");
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
@@ -5268,26 +5269,26 @@ void _serialize_botContextMediaResultPhoto(MTPStringLogger &to, int32 stage, int
 	}
 }
 
-void _serialize_botContextResult(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+void _serialize_botInlineResult(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
-		to.add("{ botContextResult");
+		to.add("{ botInlineResult");
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 1: to.add("  id: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 2: to.add("  type: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 3: to.add("  title: "); ++stages.back(); if (flag & MTPDbotContextResult::flag_title) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
-	case 4: to.add("  description: "); ++stages.back(); if (flag & MTPDbotContextResult::flag_description) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
-	case 5: to.add("  url: "); ++stages.back(); if (flag & MTPDbotContextResult::flag_url) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 3 IN FIELD flags ]"); } break;
-	case 6: to.add("  thumb_url: "); ++stages.back(); if (flag & MTPDbotContextResult::flag_thumb_url) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
-	case 7: to.add("  content_url: "); ++stages.back(); if (flag & MTPDbotContextResult::flag_content_url) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
-	case 8: to.add("  content_type: "); ++stages.back(); if (flag & MTPDbotContextResult::flag_content_type) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
-	case 9: to.add("  w: "); ++stages.back(); if (flag & MTPDbotContextResult::flag_w) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 6 IN FIELD flags ]"); } break;
-	case 10: to.add("  h: "); ++stages.back(); if (flag & MTPDbotContextResult::flag_h) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 6 IN FIELD flags ]"); } break;
-	case 11: to.add("  duration: "); ++stages.back(); if (flag & MTPDbotContextResult::flag_duration) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 7 IN FIELD flags ]"); } break;
+	case 3: to.add("  title: "); ++stages.back(); if (flag & MTPDbotInlineResult::flag_title) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	case 4: to.add("  description: "); ++stages.back(); if (flag & MTPDbotInlineResult::flag_description) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
+	case 5: to.add("  url: "); ++stages.back(); if (flag & MTPDbotInlineResult::flag_url) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 3 IN FIELD flags ]"); } break;
+	case 6: to.add("  thumb_url: "); ++stages.back(); if (flag & MTPDbotInlineResult::flag_thumb_url) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
+	case 7: to.add("  content_url: "); ++stages.back(); if (flag & MTPDbotInlineResult::flag_content_url) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
+	case 8: to.add("  content_type: "); ++stages.back(); if (flag & MTPDbotInlineResult::flag_content_type) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
+	case 9: to.add("  w: "); ++stages.back(); if (flag & MTPDbotInlineResult::flag_w) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 6 IN FIELD flags ]"); } break;
+	case 10: to.add("  h: "); ++stages.back(); if (flag & MTPDbotInlineResult::flag_h) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 6 IN FIELD flags ]"); } break;
+	case 11: to.add("  duration: "); ++stages.back(); if (flag & MTPDbotInlineResult::flag_duration) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 7 IN FIELD flags ]"); } break;
 	case 12: to.add("  send_message: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
@@ -5302,7 +5303,7 @@ void _serialize_messages_botResults(MTPStringLogger &to, int32 stage, int32 lev,
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  media: "); ++stages.back(); if (flag & MTPDmessages_botResults::flag_media) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 1: to.add("  gallery: "); ++stages.back(); if (flag & MTPDmessages_botResults::flag_gallery) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	case 2: to.add("  query_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 3: to.add("  next_offset: "); ++stages.back(); if (flag & MTPDmessages_botResults::flag_next_offset) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
 	case 4: to.add("  results: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
@@ -5838,21 +5839,21 @@ void _serialize_messages_saveGif(MTPStringLogger &to, int32 stage, int32 lev, Ty
 	}
 }
 
-void _serialize_messages_setContextBotResults(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+void _serialize_messages_setInlineBotResults(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
-		to.add("{ messages_setContextBotResults");
+		to.add("{ messages_setInlineBotResults");
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  media: "); ++stages.back(); if (flag & MTPmessages_setContextBotResults::flag_media) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
-	case 2: to.add("  private: "); ++stages.back(); if (flag & MTPmessages_setContextBotResults::flag_private) { to.add("YES [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	case 1: to.add("  gallery: "); ++stages.back(); if (flag & MTPmessages_setInlineBotResults::flag_gallery) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  private: "); ++stages.back(); if (flag & MTPmessages_setInlineBotResults::flag_private) { to.add("YES [ BY BIT 1 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
 	case 3: to.add("  query_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 4: to.add("  results: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 5: to.add("  cache_time: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 6: to.add("  next_offset: "); ++stages.back(); if (flag & MTPmessages_setContextBotResults::flag_next_offset) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
+	case 6: to.add("  next_offset: "); ++stages.back(); if (flag & MTPmessages_setInlineBotResults::flag_next_offset) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -6903,18 +6904,18 @@ void _serialize_messages_migrateChat(MTPStringLogger &to, int32 stage, int32 lev
 	}
 }
 
-void _serialize_messages_sendContextBotResult(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+void _serialize_messages_sendInlineBotResult(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
-		to.add("{ messages_sendContextBotResult");
+		to.add("{ messages_sendInlineBotResult");
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
 	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  broadcast: "); ++stages.back(); if (flag & MTPmessages_sendContextBotResult::flag_broadcast) { to.add("YES [ BY BIT 4 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
+	case 1: to.add("  broadcast: "); ++stages.back(); if (flag & MTPmessages_sendInlineBotResult::flag_broadcast) { to.add("YES [ BY BIT 4 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
 	case 2: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 3: to.add("  reply_to_msg_id: "); ++stages.back(); if (flag & MTPmessages_sendContextBotResult::flag_reply_to_msg_id) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 3: to.add("  reply_to_msg_id: "); ++stages.back(); if (flag & MTPmessages_sendInlineBotResult::flag_reply_to_msg_id) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	case 4: to.add("  random_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 5: to.add("  query_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 6: to.add("  id: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
@@ -7366,11 +7367,11 @@ void _serialize_messages_getSavedGifs(MTPStringLogger &to, int32 stage, int32 le
 	}
 }
 
-void _serialize_messages_getContextBotResults(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+void _serialize_messages_getInlineBotResults(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
-		to.add("{ messages_getContextBotResults");
+		to.add("{ messages_getInlineBotResults");
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
@@ -7871,7 +7872,7 @@ namespace {
 		_serializers.insert(mtpc_updateStickerSetsOrder, _serialize_updateStickerSetsOrder);
 		_serializers.insert(mtpc_updateStickerSets, _serialize_updateStickerSets);
 		_serializers.insert(mtpc_updateSavedGifs, _serialize_updateSavedGifs);
-		_serializers.insert(mtpc_updateBotContextQuery, _serialize_updateBotContextQuery);
+		_serializers.insert(mtpc_updateBotInlineQuery, _serialize_updateBotInlineQuery);
 		_serializers.insert(mtpc_updates_state, _serialize_updates_state);
 		_serializers.insert(mtpc_updates_differenceEmpty, _serialize_updates_differenceEmpty);
 		_serializers.insert(mtpc_updates_difference, _serialize_updates_difference);
@@ -8042,14 +8043,14 @@ namespace {
 		_serializers.insert(mtpc_messages_foundGifs, _serialize_messages_foundGifs);
 		_serializers.insert(mtpc_messages_savedGifsNotModified, _serialize_messages_savedGifsNotModified);
 		_serializers.insert(mtpc_messages_savedGifs, _serialize_messages_savedGifs);
-		_serializers.insert(mtpc_inputBotContextMessageMediaAuto, _serialize_inputBotContextMessageMediaAuto);
-		_serializers.insert(mtpc_inputBotContextMessageText, _serialize_inputBotContextMessageText);
-		_serializers.insert(mtpc_inputBotContextResult, _serialize_inputBotContextResult);
-		_serializers.insert(mtpc_botContextMessageMediaAuto, _serialize_botContextMessageMediaAuto);
-		_serializers.insert(mtpc_botContextMessageText, _serialize_botContextMessageText);
-		_serializers.insert(mtpc_botContextMediaResultDocument, _serialize_botContextMediaResultDocument);
-		_serializers.insert(mtpc_botContextMediaResultPhoto, _serialize_botContextMediaResultPhoto);
-		_serializers.insert(mtpc_botContextResult, _serialize_botContextResult);
+		_serializers.insert(mtpc_inputBotInlineMessageMediaAuto, _serialize_inputBotInlineMessageMediaAuto);
+		_serializers.insert(mtpc_inputBotInlineMessageText, _serialize_inputBotInlineMessageText);
+		_serializers.insert(mtpc_inputBotInlineResult, _serialize_inputBotInlineResult);
+		_serializers.insert(mtpc_botInlineMessageMediaAuto, _serialize_botInlineMessageMediaAuto);
+		_serializers.insert(mtpc_botInlineMessageText, _serialize_botInlineMessageText);
+		_serializers.insert(mtpc_botInlineMediaResultDocument, _serialize_botInlineMediaResultDocument);
+		_serializers.insert(mtpc_botInlineMediaResultPhoto, _serialize_botInlineMediaResultPhoto);
+		_serializers.insert(mtpc_botInlineResult, _serialize_botInlineResult);
 		_serializers.insert(mtpc_messages_botResults, _serialize_messages_botResults);
 
 		_serializers.insert(mtpc_req_pq, _serialize_req_pq);
@@ -8092,7 +8093,7 @@ namespace {
 		_serializers.insert(mtpc_messages_editChatAdmin, _serialize_messages_editChatAdmin);
 		_serializers.insert(mtpc_messages_reorderStickerSets, _serialize_messages_reorderStickerSets);
 		_serializers.insert(mtpc_messages_saveGif, _serialize_messages_saveGif);
-		_serializers.insert(mtpc_messages_setContextBotResults, _serialize_messages_setContextBotResults);
+		_serializers.insert(mtpc_messages_setInlineBotResults, _serialize_messages_setInlineBotResults);
 		_serializers.insert(mtpc_upload_saveFilePart, _serialize_upload_saveFilePart);
 		_serializers.insert(mtpc_upload_saveBigFilePart, _serialize_upload_saveBigFilePart);
 		_serializers.insert(mtpc_help_saveAppLog, _serialize_help_saveAppLog);
@@ -8170,7 +8171,7 @@ namespace {
 		_serializers.insert(mtpc_messages_startBot, _serialize_messages_startBot);
 		_serializers.insert(mtpc_messages_toggleChatAdmins, _serialize_messages_toggleChatAdmins);
 		_serializers.insert(mtpc_messages_migrateChat, _serialize_messages_migrateChat);
-		_serializers.insert(mtpc_messages_sendContextBotResult, _serialize_messages_sendContextBotResult);
+		_serializers.insert(mtpc_messages_sendInlineBotResult, _serialize_messages_sendInlineBotResult);
 		_serializers.insert(mtpc_channels_createChannel, _serialize_channels_createChannel);
 		_serializers.insert(mtpc_channels_editAdmin, _serialize_channels_editAdmin);
 		_serializers.insert(mtpc_channels_editTitle, _serialize_channels_editTitle);
@@ -8203,7 +8204,7 @@ namespace {
 		_serializers.insert(mtpc_messages_getDocumentByHash, _serialize_messages_getDocumentByHash);
 		_serializers.insert(mtpc_messages_searchGifs, _serialize_messages_searchGifs);
 		_serializers.insert(mtpc_messages_getSavedGifs, _serialize_messages_getSavedGifs);
-		_serializers.insert(mtpc_messages_getContextBotResults, _serialize_messages_getContextBotResults);
+		_serializers.insert(mtpc_messages_getInlineBotResults, _serialize_messages_getInlineBotResults);
 		_serializers.insert(mtpc_updates_getState, _serialize_updates_getState);
 		_serializers.insert(mtpc_updates_getDifference, _serialize_updates_getDifference);
 		_serializers.insert(mtpc_updates_getChannelDifference, _serialize_updates_getChannelDifference);

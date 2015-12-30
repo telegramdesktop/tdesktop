@@ -798,16 +798,16 @@ void MainWidget::ui_repaintHistoryItem(const HistoryItem *item) {
 	if (overview) overview->ui_repaintHistoryItem(item);
 }
 
-void MainWidget::ui_repaintContextItem(const LayoutContextItem *layout) {
-	history.ui_repaintContextItem(layout);
+void MainWidget::ui_repaintInlineItem(const LayoutInlineItem *layout) {
+	history.ui_repaintInlineItem(layout);
 }
 
-bool MainWidget::ui_isContextItemVisible(const LayoutContextItem *layout) {
-	return history.ui_isContextItemVisible(layout);
+bool MainWidget::ui_isInlineItemVisible(const LayoutInlineItem *layout) {
+	return history.ui_isInlineItemVisible(layout);
 }
 
-bool MainWidget::ui_isContextItemBeingChosen() {
-	return history.ui_isContextItemBeingChosen();
+bool MainWidget::ui_isInlineItemBeingChosen() {
+	return history.ui_isInlineItemBeingChosen();
 }
 
 void MainWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
@@ -1638,8 +1638,11 @@ void MainWidget::messagesAffected(PeerData *peer, const MTPmessages_AffectedMess
 	}
 }
 
-void MainWidget::videoLoadProgress(mtpFileLoader *loader) {
-	VideoData *video = App::video(loader->objId());
+void MainWidget::videoLoadProgress(FileLoader *loader) {
+	mtpFileLoader *l = loader ? loader->mtpLoader() : 0;
+	if (!l) return;
+
+	VideoData *video = App::video(l->objId());
 	if (video->loaded()) {
 		video->performActionOnLoad();
 	}
@@ -1679,9 +1682,12 @@ void MainWidget::ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId) {
 	Ui::showPeerHistory(peerId, showAtMsgId);
 }
 
-void MainWidget::videoLoadFailed(mtpFileLoader *loader, bool started) {
-	loadFailed(loader, started, SLOT(videoLoadRetry()));
-	VideoData *video = App::video(loader->objId());
+void MainWidget::videoLoadFailed(FileLoader *loader, bool started) {
+	mtpFileLoader *l = loader ? loader->mtpLoader() : 0;
+	if (!l) return;
+
+	loadFailed(l, started, SLOT(videoLoadRetry()));
+	VideoData *video = App::video(l->objId());
 	if (video) {
 		if (video->loading()) video->cancel();
 		video->status = FileDownloadFailed;
@@ -1694,8 +1700,11 @@ void MainWidget::videoLoadRetry() {
 	if (video) video->save(failedFileName);
 }
 
-void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
-	AudioData *audio = App::audio(loader->objId());
+void MainWidget::audioLoadProgress(FileLoader *loader) {
+	mtpFileLoader *l = loader ? loader->mtpLoader() : 0;
+	if (!l) return;
+
+	AudioData *audio = App::audio(l->objId());
 	if (audio->loaded()) {
 		audio->performActionOnLoad();
 	}
@@ -1813,9 +1822,12 @@ void MainWidget::hidePlayer() {
 	}
 }
 
-void MainWidget::audioLoadFailed(mtpFileLoader *loader, bool started) {
-	loadFailed(loader, started, SLOT(audioLoadRetry()));
-	AudioData *audio = App::audio(loader->objId());
+void MainWidget::audioLoadFailed(FileLoader *loader, bool started) {
+	mtpFileLoader *l = loader ? loader->mtpLoader() : 0;
+	if (!l) return;
+
+	loadFailed(l, started, SLOT(audioLoadRetry()));
+	AudioData *audio = App::audio(l->objId());
 	if (audio) {
 		if (audio->loading()) audio->cancel();
 		audio->status = FileDownloadFailed;
@@ -1828,8 +1840,11 @@ void MainWidget::audioLoadRetry() {
 	if (audio) audio->save(failedFileName);
 }
 
-void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
-	DocumentData *document = App::document(loader->objId());
+void MainWidget::documentLoadProgress(FileLoader *loader) {
+	mtpFileLoader *l = loader ? loader->mtpLoader() : 0;
+	if (!l) return;
+
+	DocumentData *document = App::document(l->objId());
 	if (document->loaded()) {
 		document->performActionOnLoad();
 	}
@@ -1855,9 +1870,12 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 	}
 }
 
-void MainWidget::documentLoadFailed(mtpFileLoader *loader, bool started) {
-	loadFailed(loader, started, SLOT(documentLoadRetry()));
-	DocumentData *document = App::document(loader->objId());
+void MainWidget::documentLoadFailed(FileLoader *loader, bool started) {
+	mtpFileLoader *l = loader ? loader->mtpLoader() : 0;
+	if (!l) return;
+
+	loadFailed(l, started, SLOT(documentLoadRetry()));
+	DocumentData *document = App::document(l->objId());
 	if (document) {
 		if (document->loading()) document->cancel();
 		document->status = FileDownloadFailed;

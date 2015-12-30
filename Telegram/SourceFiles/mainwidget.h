@@ -410,9 +410,9 @@ public:
 	void ui_showStickerPreview(DocumentData *sticker);
 	void ui_hideStickerPreview();
 	void ui_repaintHistoryItem(const HistoryItem *item);
-	void ui_repaintContextItem(const LayoutContextItem *layout);
-	bool ui_isContextItemVisible(const LayoutContextItem *layout);
-	bool ui_isContextItemBeingChosen();
+	void ui_repaintInlineItem(const LayoutInlineItem *layout);
+	bool ui_isInlineItemVisible(const LayoutInlineItem *layout);
+	bool ui_isInlineItemBeingChosen();
 	void ui_showPeerHistory(quint64 peer, qint32 msgId, bool back);
 
 	void notify_botCommandsChanged(UserData *bot);
@@ -439,15 +439,15 @@ public slots:
 
 	void webPagesUpdate();
 
-	void videoLoadProgress(mtpFileLoader *loader);
-	void videoLoadFailed(mtpFileLoader *loader, bool started);
+	void videoLoadProgress(FileLoader *loader);
+	void videoLoadFailed(FileLoader *loader, bool started);
 	void videoLoadRetry();
-	void audioLoadProgress(mtpFileLoader *loader);
-	void audioLoadFailed(mtpFileLoader *loader, bool started);
+	void audioLoadProgress(FileLoader *loader);
+	void audioLoadFailed(FileLoader *loader, bool started);
 	void audioLoadRetry();
 	void audioPlayProgress(const AudioMsgId &audioId);
-	void documentLoadProgress(mtpFileLoader *loader);
-	void documentLoadFailed(mtpFileLoader *loader, bool started);
+	void documentLoadProgress(FileLoader *loader);
+	void documentLoadFailed(FileLoader *loader, bool started);
 	void documentLoadRetry();
 	void documentPlayProgress(const SongMsgId &songId);
 	void hidePlayer();

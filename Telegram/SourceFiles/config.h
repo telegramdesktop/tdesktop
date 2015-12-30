@@ -86,7 +86,7 @@ enum {
 	ClipThreadsCount = 8,
 	AverageGifSize = 320 * 240,
 	WaitBeforeGifPause = 200, // wait 200ms for gif draw before pausing it
-	ContextBotRequestDelay = 400, // wait 400ms before context bot realtime request
+	InlineBotRequestDelay = 400, // wait 400ms before context bot realtime request
 
 	AVBlockSize = 4096, // 4Kb for ffmpeg blocksize
 
@@ -344,6 +344,7 @@ enum {
     MaxUploadDocumentSize = 1500 * 1024 * 1024, // 1500mb documents max
     UseBigFilesFrom = 10 * 1024 * 1024, // mtp big files methods used for files greater than 10mb
 	MaxFileQueries = 16, // max 16 file parts downloaded at the same time
+	MaxWebFileQueries = 8, // max 8 http[s] files downloaded at the same time
 
 	UploadPartSize = 32 * 1024, // 32kb for photo
     DocumentMaxPartsCount = 3000, // no more than 3000 parts

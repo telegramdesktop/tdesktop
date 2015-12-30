@@ -2630,8 +2630,8 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _toHistoryEnd(this, st::historyToEnd)
 , _collapseComments(this)
 , _attachMention(this)
-, _contextBot(0)
-, _contextBotResolveRequestId(0)
+, _inlineBot(0)
+, _inlineBotResolveRequestId(0)
 , _reportSpamPanel(this)
 , _send(this, lang(lng_send_button), st::btnSend)
 , _unblock(this, lang(lng_unblock_button), st::btnUnblock)
@@ -4949,23 +4949,23 @@ bool HistoryWidget::hasBroadcastToggle() const {
 	return _peer && _peer->isChannel() && !_peer->isMegagroup() && _peer->asChannel()->canPublish() && !_peer->asChannel()->isBroadcast();
 }
 
-void HistoryWidget::contextBotResolveDone(const MTPcontacts_ResolvedPeer &result) {
-	_contextBot = 0;
+void HistoryWidget::inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result) {
+	_inlineBot = 0;
 	if (result.type() == mtpc_contacts_resolvedPeer) {
 		const MTPDcontacts_resolvedPeer &d(result.c_contacts_resolvedPeer());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		PeerId peerId = peerFromMTP(d.vpeer);
 		if (peerId && peerIsUser(peerId)) {
-			_contextBot = App::user(peerId);
+			_inlineBot = App::user(peerId);
 		}
 	}
 	onCheckMentionDropdown();
 }
 
-bool HistoryWidget::contextBotResolveFail(const RPCError &error) {
+bool HistoryWidget::inlineBotResolveFail(const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
-	_contextBot = 0;
+	_inlineBot = 0;
 	onCheckMentionDropdown();
 	return true;
 }
@@ -5311,28 +5311,29 @@ void HistoryWidget::onFieldFocused() {
 void HistoryWidget::onCheckMentionDropdown() {
 	if (!_history || _a_show.animating()) return;
 
-	QString start, contextBotUsername(_contextBotUsername);
-	_field.getMentionHashtagBotCommandStart(start, _contextBot, _contextBotUsername);
-	if (contextBotUsername != _contextBotUsername) {
-		if (_contextBotResolveRequestId) {
-			MTP::cancel(_contextBotResolveRequestId);
-			_contextBotResolveRequestId = 0;
+	QString start, inlineBotUsername(_inlineBotUsername);
+	_field.getMentionHashtagBotCommandStart(start, _inlineBot, _inlineBotUsername);
+	if (inlineBotUsername != _inlineBotUsername) {
+		if (_inlineBotResolveRequestId) {
+			MTP::cancel(_inlineBotResolveRequestId);
+			_inlineBotResolveRequestId = 0;
 		}
-		if (_contextBot == ContextBotLookingUpData) {
-			_contextBotResolveRequestId = MTP::send(MTPcontacts_ResolveUsername(MTP_string(_contextBotUsername)), rpcDone(&HistoryWidget::contextBotResolveDone), rpcFail(&HistoryWidget::contextBotResolveFail));
+		if (_inlineBot == InlineBotLookingUpData) {
+			LOG(("Inline bot unknown! resolving @%1").arg(_inlineBotUsername));
+			_inlineBotResolveRequestId = MTP::send(MTPcontacts_ResolveUsername(MTP_string(_inlineBotUsername)), rpcDone(&HistoryWidget::inlineBotResolveDone), rpcFail(&HistoryWidget::inlineBotResolveFail));
 			return;
 		}
-	} else if (_contextBot == ContextBotLookingUpData) {
+	} else if (_inlineBot == InlineBotLookingUpData) {
 		return;
 	}
 
-	if (_contextBot) {
-		_emojiPan.queryContextBot(_contextBot, start);
+	if (_inlineBot) {
+		_emojiPan.queryInlineBot(_inlineBot, start);
 		if (!_attachMention.isHidden()) {
 			_attachMention.hideStart();
 		}
 	} else {
-		_emojiPan.contextBotChanged();
+		_emojiPan.inlineBotChanged();
 		if (!start.isEmpty()) {
 			if (start.at(0) == '#' && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) Local::readRecentHashtags();
 			if (start.at(0) == '@' && _peer->isUser()) return;
@@ -5770,16 +5771,16 @@ void HistoryWidget::ui_repaintHistoryItem(const HistoryItem *item) {
 	}
 }
 
-void HistoryWidget::ui_repaintContextItem(const LayoutContextItem *layout) {
-	_emojiPan.ui_repaintContextItem(layout);
+void HistoryWidget::ui_repaintInlineItem(const LayoutInlineItem *layout) {
+	_emojiPan.ui_repaintInlineItem(layout);
 }
 
-bool HistoryWidget::ui_isContextItemVisible(const LayoutContextItem *layout) {
-	return _emojiPan.ui_isContextItemVisible(layout);
+bool HistoryWidget::ui_isInlineItemVisible(const LayoutInlineItem *layout) {
+	return _emojiPan.ui_isInlineItemVisible(layout);
 }
 
-bool HistoryWidget::ui_isContextItemBeingChosen() {
-	return _emojiPan.ui_isContextItemBeingChosen();
+bool HistoryWidget::ui_isInlineItemBeingChosen() {
+	return _emojiPan.ui_isInlineItemBeingChosen();
 }
 
 void HistoryWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
