@@ -5327,7 +5327,7 @@ void HistoryWidget::onCheckMentionDropdown() {
 	}
 
 	if (_contextBot) {
-		_emojiPan.showContextResults(_contextBot, start);
+		_emojiPan.queryContextBot(_contextBot, start);
 		if (!_attachMention.isHidden()) {
 			_attachMention.hideStart();
 		}

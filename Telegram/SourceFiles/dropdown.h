@@ -314,31 +314,6 @@ struct StickerIcon {
 	int32 pixw, pixh;
 };
 
-struct ContextResult {
-	ContextResult(uint64 queryId)
-		: queryId(queryId)
-		, doc(0)
-		, photo(0)
-		, width(0)
-		, height(0)
-		, duration(0)
-		, noWebPage(false) {
-	}
-	uint64 queryId;
-	QString id, type;
-	DocumentData *doc;
-	PhotoData *photo;
-	QString title, description, url, thumb_url;
-	QString content_type, content_url;
-	int32 width, height, duration;
-
-	QString message; // botContextMessageText
-	bool noWebPage;
-	EntitiesInText entities;
-	QString caption; // if message.isEmpty() use botContextMessageMediaAuto
-};
-typedef QList<ContextResult*> ContextResults;
-
 class StickerPanInner : public TWidget {
 	Q_OBJECT
 
@@ -366,8 +341,9 @@ public:
 	void refreshStickers();
 	void refreshRecentStickers(bool resize = true);
 	void refreshSavedGifs();
-	void refreshContextRows(const ContextResults &results);
+	void refreshContextRows(UserData *bot, const ContextResults &results);
 	void refreshRecent();
+	void contextBotChanged();
 
 	void fillIcons(QList<StickerIcon> &icons);
 	void fillPanels(QVector<EmojiPanel*> &panels);
@@ -377,12 +353,14 @@ public:
 	void preloadImages();
 
 	uint64 currentSet(int yOffset) const;
-	void refreshContextResults(const ContextResults &results);
-	void contextBotChanged();
 
 	void ui_repaintContextItem(const LayoutContextItem *layout);
 	bool ui_isContextItemVisible(const LayoutContextItem *layout);
 	bool ui_isContextItemBeingChosen();
+
+	bool contextResultsShown() const {
+		return _showingContextItems && !_showingSavedGifs;
+	}
 
 	~StickerPanInner() {
 		clearContextRows();
@@ -445,28 +423,33 @@ private:
 	QList<bool> _custom;
 
 	bool _showingSavedGifs, _showingContextItems;
+	QString _inlineBotTitle;
 	uint64 _lastScrolled;
 	QTimer _updateContextItems;
 
-	typedef QList<LayoutContextItem*> ContextItems;
+	typedef QVector<LayoutContextItem*> ContextItems;
 	struct ContextRow {
 		ContextRow() : height(0) {
 		}
 		int32 height;
 		ContextItems items;
 	};
-	typedef QList<ContextRow> ContextRows;
+	typedef QVector<ContextRow> ContextRows;
 	ContextRows _contextRows;
 	void clearContextRows();
 
 	typedef QMap<DocumentData*, LayoutContextGif*> GifLayouts;
 	GifLayouts _gifLayouts;
-	LayoutContextGif *layoutPrepare(DocumentData *doc, int32 position, int32 width);
+	LayoutContextGif *layoutPrepareSavedGif(DocumentData *doc, int32 position);
 
 	typedef QMap<ContextResult*, LayoutContextItem*> ContextLayouts;
 	ContextLayouts _contextLayouts;
+	LayoutContextItem *layoutPrepareContextResult(ContextResult *result, int32 position);
 
-	ContextRow &layoutContextRow(ContextRow &row, int32 *widths, int32 sumWidth);
+	void contextRowsAddItem(DocumentData *savedGif, ContextResult *result, ContextRow &row, int32 &sumWidth);
+	void contextRowFinalize(ContextRow &row, int32 &sumWidth, bool force = false);
+
+	ContextRow &layoutContextRow(ContextRow &row, int32 sumWidth = 0);
 	void deleteUnusedGifLayouts();
 
 	void deleteUnusedContextLayouts();
@@ -569,7 +552,7 @@ public:
 	bool eventFilter(QObject *obj, QEvent *e);
 	void stickersInstalled(uint64 setId);
 
-	void showContextResults(UserData *bot, QString query);
+	void queryContextBot(UserData *bot, QString query);
 	void contextBotChanged();
 
 	bool overlaps(const QRect &globalRect) {
@@ -701,7 +684,7 @@ private:
 	ContextCache _contextCache;
 	QTimer _contextRequestTimer;
 
-	void refreshContextRows(bool newResults);
+	void showContextRows(bool newResults);
 	UserData *_contextBot;
 	QString _contextQuery, _contextNextQuery, _contextNextOffset;
 	mtpRequestId _contextRequestId;

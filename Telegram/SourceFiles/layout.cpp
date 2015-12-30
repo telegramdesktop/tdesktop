@@ -1281,33 +1281,31 @@ LayoutOverviewLink::Link::Link(const QString &url, const QString &text)
 , lnk(linkFromUrl(url)) {
 }
 
-LayoutContextItem::LayoutContextItem(ContextResult *result)
+LayoutContextItem::LayoutContextItem(ContextResult *result, DocumentData *doc, PhotoData *photo)
 : _result(result)
-, _doc(0)
-, _position(0) {
-}
-
-LayoutContextItem::LayoutContextItem(DocumentData *doc)
-: _result(0)
 , _doc(doc)
+, _photo(photo)
 , _position(0) {
 }
 
-void LayoutContextItem::setPosition(int32 position, int32 width) {
+void LayoutContextItem::setPosition(int32 position) {
 	_position = position;
-	resizeGetHeight(width);
 }
 
 int32 LayoutContextItem::position() const {
 	return _position;
 }
 
+ContextResult *LayoutContextItem::result() const {
+	return _result;
+}
+
 DocumentData *LayoutContextItem::document() const {
 	return _doc;
 }
 
-ContextResult *LayoutContextItem::result() const {
-	return _result;
+PhotoData *LayoutContextItem::photo() const {
+	return _photo;
 }
 
 void LayoutContextItem::preload() {
@@ -1316,27 +1314,37 @@ void LayoutContextItem::preload() {
 			_result->photo->thumb->load();
 		} else if (_result->doc) {
 			_result->doc->thumb->load();
+		} else if (!_result->thumb_url.isEmpty()) {
+			_result->thumb->load();
 		}
 	} else if (_doc) {
 		_doc->thumb->load();
+	} else if (_photo) {
+		_photo->medium->load();
 	}
 }
 
-LayoutContextGif::LayoutContextGif(DocumentData *data, bool saved) : LayoutContextItem(data)
+LayoutContextGif::LayoutContextGif(ContextResult *result, DocumentData *doc, bool saved) : LayoutContextItem(result, doc, 0)
 , _state(0)
 , _gif(0)
 , _send(new SendContextItemLink())
-, _delete(saved ? new DeleteSavedGifLink(data) : 0)
+, _delete((doc && saved) ? new DeleteSavedGifLink(doc) : 0)
 , _animation(0) {
 }
 
 void LayoutContextGif::initDimensions() {
-	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::savedGifsLeft;
-	_minh = st::savedGifHeight + st::savedGifsSkip;
+	int32 w = content_width(), h = content_height();
+	if (w <= 0 || h <= 0) {
+		_maxw = 0;
+	} else {
+		w = w * st::inlineMediaHeight / h;
+		_maxw = qMax(w, int32(st::inlineResultsMinWidth));
+	}
+	_minh = st::inlineMediaHeight + st::inlineResultsSkip;
 }
 
-void LayoutContextGif::setPosition(int32 position, int32 width) {
-	LayoutContextItem::setPosition(position, width);
+void LayoutContextGif::setPosition(int32 position) {
+	LayoutContextItem::setPosition(position);
 	if (_position < 0) {
 		if (gif()) delete _gif;
 		_gif = 0;
@@ -1357,12 +1365,12 @@ void DeleteSavedGifLink::onClick(Qt::MouseButton button) const {
 }
 
 void LayoutContextGif::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
-	_doc->automaticLoad(0);
+	content_automaticLoad();
 
-	bool loaded = _doc->loaded(), displayLoading = _doc->displayLoading();
+	bool loaded = content_loaded(), loading = content_loading(), displayLoading = content_displayLoading();
 	if (loaded && !gif() && _gif != BadClipReader) {
 		LayoutContextGif *that = const_cast<LayoutContextGif*>(this);
-		that->_gif = new ClipReader(_doc->location(), _doc->data(), func(that, &LayoutContextGif::clipCallback));
+		that->_gif = new ClipReader(content_location(), content_data(), func(that, &LayoutContextGif::clipCallback));
 		if (gif()) _gif->setAutoplay();
 	}
 
@@ -1370,12 +1378,12 @@ void LayoutContextGif::paint(Painter &p, const QRect &clip, uint32 selection, co
 	if (displayLoading) {
 		ensureAnimation();
 		if (!_animation->radial.animating()) {
-			_animation->radial.start(_doc->progress());
+			_animation->radial.start(content_progress());
 		}
 	}
 	bool radial = isRadialAnimation(context->ms);
 
-	int32 height = st::savedGifHeight;
+	int32 height = st::inlineMediaHeight;
 	QSize frame = countFrameSize();
 
 	QRect r(0, 0, _width, height);
@@ -1385,20 +1393,12 @@ void LayoutContextGif::paint(Painter &p, const QRect &clip, uint32 selection, co
 		t_assert(ctx);
 		p.drawPixmap(r.topLeft(), _gif->current(frame.width(), frame.height(), _width, height, ctx->paused ? 0 : context->ms));
 	} else {
-		if (!_doc->thumb->isNull()) {
-			if (_doc->thumb->loaded()) {
-				if (_thumb.width() != _width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-					const_cast<LayoutContextGif*>(this)->_thumb = _doc->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, _width, height);
-				}
-			} else {
-				_doc->thumb->load();
-			}
-		}
+		prepareThumb(_width, height, frame);
 		p.drawPixmap(r.topLeft(), _thumb);
 	}
 
-	if (radial || (!_gif && !loaded && !_doc->loading()) || (_gif == BadClipReader)) {
-		float64 radialOpacity = (radial && loaded && !_doc->uploading()) ? _animation->radial.opacity() : 1;
+	if (radial || (!_gif && !loaded && !loading) || (_gif == BadClipReader)) {
+		float64 radialOpacity = (radial && loaded) ? _animation->radial.opacity() : 1;
 		if (_animation && _animation->_a_over.animating(context->ms)) {
 			float64 over = _animation->_a_over.current();
 			p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
@@ -1410,9 +1410,9 @@ void LayoutContextGif::paint(Painter &p, const QRect &clip, uint32 selection, co
 
 		p.setOpacity(radialOpacity);
 		style::sprite icon;
-		if (_doc->loaded() && !radial) {
+		if (loaded && !radial) {
 			icon = st::msgFileInPlay;
-		} else if (radial || _doc->loading()) {
+		} else if (radial || loading) {
 			icon = st::msgFileInCancel;
 		} else {
 			icon = st::msgFileInDownload;
@@ -1436,8 +1436,8 @@ void LayoutContextGif::paint(Painter &p, const QRect &clip, uint32 selection, co
 }
 
 void LayoutContextGif::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
-	if (x >= 0 && x < _width && y >= 0 && y < st::savedGifHeight) {
-		if ((rtl() ? _width - x : x) >= _width - st::stickerPanDelete.pxWidth() && y < st::stickerPanDelete.pxHeight()) {
+	if (x >= 0 && x < _width && y >= 0 && y < st::inlineMediaHeight) {
+		if (_delete && (rtl() ? _width - x : x) >= _width - st::stickerPanDelete.pxWidth() && y < st::stickerPanDelete.pxHeight()) {
 			link = _delete;
 		} else {
 			link = _send;
@@ -1446,15 +1446,15 @@ void LayoutContextGif::getState(TextLinkPtr &link, HistoryCursorState &cursor, i
 }
 
 void LayoutContextGif::linkOver(const TextLinkPtr &link) {
-	if (link == _delete) {
+	if (_delete && link == _delete) {
 		if (!(_state & StateDeleteOver)) {
 			EnsureAnimation(_a_deleteOver, 0, func(this, &LayoutContextGif::update));
 			_state |= StateDeleteOver;
 			_a_deleteOver.start(1, st::stickersRowDuration);
 		}
 	}
-	if (link == _delete || link == _send) {
-		if (!_doc->loaded()) {
+	if ((_delete && link == _delete) || link == _send) {
+		if (!content_loaded()) {
 			ensureAnimation();
 			if (!(_state & StateOver)) {
 				EnsureAnimation(_animation->_a_over, 0, func(this, &LayoutContextGif::update));
@@ -1466,15 +1466,15 @@ void LayoutContextGif::linkOver(const TextLinkPtr &link) {
 }
 
 void LayoutContextGif::linkOut(const TextLinkPtr &link) {
-	if (link == _delete) {
+	if (_delete && link == _delete) {
 		if (_state & StateDeleteOver) {
 			EnsureAnimation(_a_deleteOver, 1, func(this, &LayoutContextGif::update));
 			_state &= ~StateDeleteOver;
 			_a_deleteOver.start(0, st::stickersRowDuration);
 		}
 	}
-	if (link == _delete || link == _send) {
-		if (!_doc->loaded()) {
+	if ((_delete && link == _delete) || link == _send) {
+		if (!content_loaded()) {
 			ensureAnimation();
 			if (_state & StateOver) {
 				EnsureAnimation(_animation->_a_over, 1, func(this, &LayoutContextGif::update));
@@ -1487,7 +1487,7 @@ void LayoutContextGif::linkOut(const TextLinkPtr &link) {
 
 QSize LayoutContextGif::countFrameSize() const {
 	bool animating = (gif() && _gif->ready());
-	int32 framew = animating ? _gif->width() : _doc->thumb->width(), frameh = animating ? _gif->height() : _doc->thumb->height(), height = st::savedGifHeight;
+	int32 framew = animating ? _gif->width() : content_width(), frameh = animating ? _gif->height() : content_height(), height = st::inlineMediaHeight;
 	if (framew * height > frameh * _width) {
 		if (framew < st::maxStickerSize || frameh > height) {
 			if (frameh > height || (framew * height / frameh) <= st::maxStickerSize) {
@@ -1516,6 +1516,26 @@ LayoutContextGif::~LayoutContextGif() {
 	deleteAndMark(_animation);
 }
 
+void LayoutContextGif::prepareThumb(int32 width, int32 height, const QSize &frame) const {
+	if (_doc && !_doc->thumb->isNull()) {
+		if (_doc->thumb->loaded()) {
+			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+				const_cast<LayoutContextGif*>(this)->_thumb = _doc->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+			}
+		} else {
+			_doc->thumb->load();
+		}
+	} else if (_result && !_result->thumb_url.isEmpty()) {
+		if (_result->thumb->loaded()) {
+			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+				const_cast<LayoutContextGif*>(this)->_thumb = _result->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+			}
+		} else {
+			_result->thumb->load();
+		}
+	}
+}
+
 void LayoutContextGif::ensureAnimation() const {
 	if (!_animation) {
 		_animation = new AnimationData(animation(const_cast<LayoutContextGif*>(this), &LayoutContextGif::step_radial));
@@ -1533,8 +1553,8 @@ void LayoutContextGif::step_radial(uint64 ms, bool timer) {
 	if (timer) {
 		update();
 	} else {
-		_animation->radial.update(_doc->progress(), !_doc->loading() || _doc->loaded(), ms);
-		if (!_animation->radial.animating() && _doc->loaded()) {
+		_animation->radial.update(content_progress(), !content_loading() || content_loaded(), ms);
+		if (!_animation->radial.animating() && content_loaded()) {
 			delete _animation;
 			_animation = 0;
 		}
@@ -1548,15 +1568,15 @@ void LayoutContextGif::clipCallback(ClipReaderNotification notification) {
 			if (_gif->state() == ClipError) {
 				delete _gif;
 				_gif = BadClipReader;
-				_doc->forget();
+				content_forget();
 			} else if (_gif->ready() && !_gif->started()) {
-				int32 height = st::savedGifHeight;
+				int32 height = st::inlineMediaHeight;
 				QSize frame = countFrameSize();
 				_gif->start(frame.width(), frame.height(), _width, height, false);
 			} else if (_gif->paused() && !Ui::isContextItemVisible(this)) {
 				delete _gif;
 				_gif = 0;
-				_doc->forget();
+				content_forget();
 			}
 		}
 
@@ -1575,4 +1595,72 @@ void LayoutContextGif::update() {
 	if (_position >= 0) {
 		Ui::repaintContextItem(this);
 	}
+}
+
+int32 LayoutContextGif::content_width() const {
+	if (_doc) {
+		if (_doc->dimensions.width() > 0) {
+			return _doc->dimensions.width();
+		}
+		if (!_doc->thumb->isNull()) {
+			return _doc->thumb->width();
+		}
+	} else if (_result) {
+		return _result->width;
+	}
+	return 0;
+}
+
+int32 LayoutContextGif::content_height() const {
+	if (_doc) {
+		if (_doc->dimensions.height() > 0) {
+			return _doc->dimensions.height();
+		}
+		if (!_doc->thumb->isNull()) {
+			return _doc->thumb->height();
+		}
+	} else if (_result) {
+		return _result->height;
+	}
+	return 0;
+}
+
+bool LayoutContextGif::content_loading() const {
+	return _doc ? _doc->loading() : _result->loading();
+}
+
+bool LayoutContextGif::content_displayLoading() const {
+	return _doc ? _doc->displayLoading() : _result->displayLoading();
+}
+
+bool LayoutContextGif::content_loaded() const {
+	return _doc ? _doc->loaded() : _result->loaded();
+}
+
+float64 LayoutContextGif::content_progress() const {
+	return _doc ? _doc->progress() : _result->progress();
+}
+
+void LayoutContextGif::content_automaticLoad() const {
+	if (_doc) {
+		_doc->automaticLoad(0);
+	} else {
+		_result->automaticLoadGif();
+	}
+}
+
+void LayoutContextGif::content_forget() {
+	if (_doc) {
+		_doc->forget();
+	} else {
+		_result->forget();
+	}
+}
+
+FileLocation LayoutContextGif::content_location() const {
+	return _doc ? _doc->location() : FileLocation();
+}
+
+QByteArray LayoutContextGif::content_data() const {
+	return _doc ? _doc->data() : _result->data();
 }

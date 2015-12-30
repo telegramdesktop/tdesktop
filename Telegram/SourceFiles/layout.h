@@ -490,19 +490,24 @@ struct ContextResult;
 class LayoutContextItem : public LayoutItem {
 public:
 
-	LayoutContextItem(ContextResult *result);
-	LayoutContextItem(DocumentData *doc);
+	LayoutContextItem(ContextResult *result, DocumentData *doc, PhotoData *photo);
 	
-	virtual void setPosition(int32 position, int32 width);
+	virtual void setPosition(int32 position);
 	int32 position() const;
 
-	DocumentData *document() const;
+	virtual bool fullLine() const {
+		return true;
+	}
+
 	ContextResult *result() const;
+	DocumentData *document() const;
+	PhotoData *photo() const;
 	void preload();
 
 protected:
 	ContextResult *_result;
 	DocumentData *_doc;
+	PhotoData *_photo;
 
 	int32 _position; // < 0 means removed from layout
 
@@ -532,10 +537,14 @@ private:
 
 class LayoutContextGif : public LayoutContextItem {
 public:
-	LayoutContextGif(DocumentData *data, bool saved);
+	LayoutContextGif(ContextResult *result, DocumentData *doc, bool saved);
 
-	virtual void setPosition(int32 position, int32 width);
+	virtual void setPosition(int32 position);
 	virtual void initDimensions();
+
+	virtual bool fullLine() const {
+		return false;
+	}
 
 	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
 	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
@@ -546,6 +555,17 @@ public:
 
 private:
 	QSize countFrameSize() const;
+
+	int32 content_width() const;
+	int32 content_height() const;
+	bool content_loading() const;
+	bool content_displayLoading() const;
+	bool content_loaded() const;
+	float64 content_progress() const;
+	void content_automaticLoad() const;
+	void content_forget();
+	FileLocation content_location() const;
+	QByteArray content_data() const;
 
 	enum StateFlags {
 		StateOver       = 0x01,
@@ -559,6 +579,7 @@ private:
 		return (!_gif || _gif == BadClipReader) ? false : true;
 	}
 	QPixmap _thumb;
+	void prepareThumb(int32 width, int32 height, const QSize &frame) const;
 
 	void ensureAnimation() const;
 	bool isRadialAnimation(uint64 ms) const;

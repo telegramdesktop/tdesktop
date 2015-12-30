@@ -663,15 +663,6 @@
     <ClCompile Include="GeneratedFiles\Release\moc_usernamebox.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_history.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_history.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_history.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\types.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -897,6 +888,15 @@
     <ClCompile Include="SourceFiles\layout.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_structs.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_structs.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_structs.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -975,9 +975,6 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\pspecific_mac_p.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\structs.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\numbers.h">
@@ -1208,6 +1205,9 @@
       <Filter>gui</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\layout.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\structs.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
   </ItemGroup>

@@ -1289,6 +1289,93 @@ struct WebPageData {
 
 };
 
+void initImageLinkManager();
+void reinitImageLinkManager();
+void deinitImageLinkManager();
+
+enum ImageLinkType {
+	InvalidImageLink = 0,
+	GoogleMapsLink
+};
+struct ImageLinkData {
+	ImageLinkData(const QString &id) : id(id), type(InvalidImageLink), loading(false) {
+	}
+
+	QString id;
+	ImagePtr thumb;
+	ImageLinkType type;
+	bool loading;
+
+	void load();
+};
+
+class ImageLinkManager : public QObject {
+	Q_OBJECT
+public:
+	ImageLinkManager() : manager(0), black(0) {
+	}
+	void init();
+	void reinit();
+	void deinit();
+
+	void getData(ImageLinkData *data);
+
+	~ImageLinkManager() {
+		deinit();
+	}
+
+	public slots:
+	void onFinished(QNetworkReply *reply);
+	void onFailed(QNetworkReply *reply);
+
+private:
+	void failed(ImageLinkData *data);
+
+	QNetworkAccessManager *manager;
+	QMap<QNetworkReply*, ImageLinkData*> dataLoadings, imageLoadings;
+	QMap<ImageLinkData*, int32> serverRedirects;
+	ImagePtr *black;
+};
+
+class ContextResult {
+public:
+	ContextResult(uint64 queryId)
+		: queryId(queryId)
+		, doc(0)
+		, photo(0)
+		, width(0)
+		, height(0)
+		, duration(0)
+		, noWebPage(false) {
+	}
+	uint64 queryId;
+	QString id, type;
+	DocumentData *doc;
+	PhotoData *photo;
+	QString title, description, url, thumb_url;
+	QString content_type, content_url;
+	int32 width, height, duration;
+
+	QString message; // botContextMessageText
+	bool noWebPage;
+	EntitiesInText entities;
+	QString caption; // if message.isEmpty() use botContextMessageMediaAuto
+
+	ImagePtr thumb;
+	void automaticLoadGif() const;
+	QByteArray data() const;
+	bool loading() const;
+	bool loaded() const;
+	bool displayLoading() const;
+	void forget();
+	float64 progress() const;
+
+private:
+	QByteArray _data;
+
+};
+typedef QList<ContextResult*> ContextResults;
+
 QString saveFileName(const QString &title, const QString &filter, const QString &prefix, QString name, bool savingAs, const QDir &dir = QDir());
 MsgId clientMsgId();
 

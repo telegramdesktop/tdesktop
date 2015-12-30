@@ -1859,54 +1859,6 @@ private:
 	int16 _pixw, _pixh;
 };
 
-void initImageLinkManager();
-void reinitImageLinkManager();
-void deinitImageLinkManager();
-
-enum ImageLinkType {
-	InvalidImageLink = 0,
-	GoogleMapsLink
-};
-struct ImageLinkData {
-	ImageLinkData(const QString &id) : id(id), type(InvalidImageLink), loading(false) {
-	}
-
-	QString id;
-	ImagePtr thumb;
-	ImageLinkType type;
-	bool loading;
-
-	void load();
-};
-
-class ImageLinkManager : public QObject {
-	Q_OBJECT
-public:
-	ImageLinkManager() : manager(0), black(0) {
-	}
-	void init();
-	void reinit();
-	void deinit();
-
-	void getData(ImageLinkData *data);
-
-	~ImageLinkManager() {
-		deinit();
-	}
-
-public slots:
-	void onFinished(QNetworkReply *reply);
-	void onFailed(QNetworkReply *reply);
-
-private:
-	void failed(ImageLinkData *data);
-
-	QNetworkAccessManager *manager;
-	QMap<QNetworkReply*, ImageLinkData*> dataLoadings, imageLoadings;
-	QMap<ImageLinkData*, int32> serverRedirects;
-	ImagePtr *black;
-};
-
 class HistoryImageLink : public HistoryMedia {
 public:
 

@@ -1991,10 +1991,10 @@ stickerPreviewDuration: 150;
 stickerPreviewBg: #FFFFFFB0;
 stickerPreviewMin: 0.1;
 
-savedGifsLeft: 15px;
-savedGifsSkip: 3px;
-savedGifHeight: 96px;
-savedGifMinWidth: 64px;
+inlineResultsLeft: 15px;
+inlineResultsSkip: 3px;
+inlineMediaHeight: 96px;
+inlineResultsMinWidth: 64px;
 
 verifiedCheckProfile: sprite(285px, 235px, 18px, 18px);
 verifiedCheckProfilePos: point(7px, 6px);
