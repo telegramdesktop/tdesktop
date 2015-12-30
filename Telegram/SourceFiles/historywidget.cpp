@@ -5327,17 +5327,22 @@ void HistoryWidget::onCheckMentionDropdown() {
 	}
 
 	if (_contextBot) {
-		_attachMention.showContextResults(_contextBot, start);
-	} else if (!start.isEmpty()) {
-		if (start.at(0) == '#' && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) Local::readRecentHashtags();
-		if (start.at(0) == '@' && _peer->isUser()) return;
-		if (start.at(0) == '/' && _peer->isUser() && !_peer->asUser()->botInfo) return;
-		_attachMention.showFiltered(_peer, start);
-	} else {
+		_emojiPan.showContextResults(_contextBot, start);
 		if (!_attachMention.isHidden()) {
 			_attachMention.hideStart();
 		}
-		_attachMention.clearContextResults();
+	} else {
+		_emojiPan.clearContextResults();
+		if (!start.isEmpty()) {
+			if (start.at(0) == '#' && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) Local::readRecentHashtags();
+			if (start.at(0) == '@' && _peer->isUser()) return;
+			if (start.at(0) == '/' && _peer->isUser() && !_peer->asUser()->botInfo) return;
+			_attachMention.showFiltered(_peer, start);
+		} else {
+			if (!_attachMention.isHidden()) {
+				_attachMention.hideStart();
+			}
+		}
 	}
 }
 
@@ -5770,11 +5775,11 @@ void HistoryWidget::ui_repaintSavedGif(const LayoutSavedGif *layout) {
 }
 
 bool HistoryWidget::ui_isSavedGifVisible(const LayoutSavedGif *layout) {
-	return _emojiPan.ui_isSavedGifVisible(layout) || _attachMention.ui_isSavedGifVisible(layout);
+	return _emojiPan.ui_isSavedGifVisible(layout);
 }
 
 bool HistoryWidget::ui_isGifBeingChosen() {
-	return _emojiPan.ui_isGifBeingChosen() || _attachMention.ui_isGifBeingChosen();
+	return _emojiPan.ui_isGifBeingChosen();
 }
 
 void HistoryWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {

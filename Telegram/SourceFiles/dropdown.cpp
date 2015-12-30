@@ -2254,7 +2254,9 @@ EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 , s_scroll(this, st::emojiScroll)
 , s_inner()
 , s_switch(&s_scroll, false)
-, _removingSetId(0) {
+, _removingSetId(0)
+, _contextBot(0)
+, _contextRequestId(0) {
 	setFocusPolicy(Qt::NoFocus);
 	e_scroll.setFocusPolicy(Qt::NoFocus);
 	e_scroll.viewport()->setFocusPolicy(Qt::NoFocus);
@@ -2318,6 +2320,10 @@ EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 	connect(&_saveConfigTimer, SIGNAL(timeout()), this, SLOT(onSaveConfig()));
 	connect(&e_inner, SIGNAL(saveConfigDelayed(int32)), this, SLOT(onSaveConfigDelayed(int32)));
 	connect(&s_inner, SIGNAL(saveConfigDelayed(int32)), this, SLOT(onSaveConfigDelayed(int32)));
+
+	// context bots
+	_contextRequestTimer.setSingleShot(true);
+	connect(&_contextRequestTimer, SIGNAL(timeout()), this, SLOT(onContextRequest()));
 
 	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
@@ -3159,12 +3165,134 @@ void EmojiPan::onDelayedHide() {
 	_removingSetId = 0;
 }
 
-MentionsInner::MentionsInner(MentionsDropdown *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, ContextRows *crows)
+void EmojiPan::clearContextResults() {
+	if (_contextRequestId) MTP::cancel(_contextRequestId);
+	_contextRequestId = 0;
+	_contextQuery = _contextNextQuery = _contextNextOffset = QString();
+	_contextBot = 0;
+	_contextCache.clear();
+}
+
+void EmojiPan::contextResultsDone(const MTPmessages_BotResults &result) {
+	_contextRequestId = 0;
+
+	ContextCache::iterator it = _contextCache.find(_contextQuery);
+
+	bool adding = (it != _contextCache.cend());
+	if (result.type() == mtpc_messages_botResults) {
+		const MTPDmessages_botResults &d(result.c_messages_botResults());
+		const QVector<MTPBotContextResult> &v(d.vresults.c_vector().v);
+		uint64 queryId(d.vquery_id.v);
+
+		if (!adding) {
+			it = _contextCache.insert(_contextQuery, ContextCacheEntry());
+		}
+		it->nextOffset = v.isEmpty() ? QString() : qs(d.vnext_offset);
+
+		int32 count = v.size();
+		if (count) {
+			it->results.reserve(it->results.size() + count);
+		}
+		for (int32 i = 0; i < count; ++i) {
+			ContextResult result(queryId);
+			const MTPBotContextMessage *message = 0;
+			switch (v.at(i).type()) {
+			case mtpc_botContextMediaResultPhoto: {
+				const MTPDbotContextMediaResultPhoto &r(v.at(i).c_botContextMediaResultPhoto());
+				result.id = qs(r.vid);
+				result.type = qs(r.vtype);
+				result.photo = App::feedPhoto(r.vphoto);
+				message = &r.vsend_message;
+			} break;
+			case mtpc_botContextMediaResultDocument: {
+				const MTPDbotContextMediaResultDocument &r(v.at(i).c_botContextMediaResultDocument());
+				result.id = qs(r.vid);
+				result.type = qs(r.vtype);
+				result.doc = App::feedDocument(r.vdocument);
+				message = &r.vsend_message;
+			} break;
+			case mtpc_botContextResult: {
+				const MTPDbotContextResult &r(v.at(i).c_botContextResult());
+				result.id = qs(r.vid);
+				result.type = qs(r.vtype);
+				result.title = qs(r.vtitle);
+				result.description = qs(r.vdescription);
+				result.url = qs(r.vurl);
+				result.thumb_url = qs(r.vthumb_url);
+				result.content_type = qs(r.vcontent_type);
+				result.content_url = qs(r.vcontent_url);
+				message = &r.vsend_message;
+			} break;
+			}
+			bool badAttachment = (!result.photo || result.photo->access) && (!result.doc || result.doc->access);
+			bool canSend = (result.photo || result.doc || !result.message.isEmpty());
+			if (!result.type.isEmpty() && !badAttachment && !canSend) {
+				it->results.push_back(result);
+			}
+		}
+	} else if (adding) {
+		it->results.clear();
+		it->nextOffset = QString();
+	}
+	refreshContextRows(!adding);
+}
+
+bool EmojiPan::contextResultsFail(const RPCError &error) {
+	if (mtpIsFlood(error)) return false;
+	_contextRequestId = 0;
+	return true;
+}
+
+void EmojiPan::showContextResults(UserData *bot, QString query) {
+	bool force = false;
+	if (bot != _contextBot) {
+		if (!isHidden()) hideStart();
+
+		clearContextResults();
+		_contextBot = bot;
+		force = true;
+	}
+	if (_contextRequestId) {
+		MTP::cancel(_contextRequestId);
+		_contextRequestId = 0;
+	}
+	if (_contextQuery != query || force) {
+		if (_contextCache.contains(_contextQuery)) {
+			refreshContextRows(true);
+		} else {
+			_contextNextQuery = _contextQuery;
+			_contextRequestTimer.start(ContextBotRequestDelay);
+		}
+	}
+}
+
+void EmojiPan::onContextRequest() {
+	if (_contextRequestId) return;
+	_contextQuery = _contextNextQuery;
+
+	QString nextOffset;
+	ContextCache::const_iterator i = _contextCache.constFind(_contextQuery);
+	if (i != _contextCache.cend()) {
+		nextOffset = i->nextOffset;
+		if (nextOffset.isEmpty()) return;
+	}
+	_contextRequestId = MTP::send(MTPmessages_GetContextBotResults(_contextBot->inputUser, MTP_string(_contextQuery), MTP_string(nextOffset)), rpcDone(&EmojiPan::contextResultsDone), rpcFail(&EmojiPan::contextResultsFail));
+}
+
+void EmojiPan::refreshContextRows(bool toDown) {
+	bool clear = true;
+	ContextCache::const_iterator i = _contextCache.constFind(_contextQuery);
+	if (i == _contextCache.cend()) {
+		clear = !i->results.isEmpty();
+		_contextNextOffset = i->nextOffset;
+	}
+}
+
+MentionsInner::MentionsInner(MentionsDropdown *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows)
 : _parent(parent)
 , _mrows(mrows)
 , _hrows(hrows)
 , _brows(brows)
-, _crows(crows)
 , _sel(-1)
 , _mouseSel(false)
 , _overDelete(false) {
@@ -3422,9 +3550,7 @@ void MentionsInner::onParentGeometryChanged() {
 
 MentionsDropdown::MentionsDropdown(QWidget *parent) : TWidget(parent)
 , _scroll(this, st::mentionScroll)
-, _inner(this, &_mrows, &_hrows, &_brows, &_crows)
-, _contextBot(0)
-, _contextRequestId(0)
+, _inner(this, &_mrows, &_hrows, &_brows)
 , _chat(0)
 , _user(0)
 , _channel(0)
@@ -3436,9 +3562,6 @@ MentionsDropdown::MentionsDropdown(QWidget *parent) : TWidget(parent)
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideStart()));
 	connect(&_inner, SIGNAL(chosen(QString)), this, SIGNAL(chosen(QString)));
 	connect(&_inner, SIGNAL(mustScrollTo(int,int)), &_scroll, SLOT(scrollToY(int,int)));
-
-	_contextRequestTimer.setSingleShot(true);
-	connect(&_contextRequestTimer, SIGNAL(timeout()), this, SLOT(onContextRequest()));
 
 	connect(App::wnd(), SIGNAL(imageLoaded()), &_inner, SLOT(update()));
 
@@ -3470,137 +3593,7 @@ void MentionsDropdown::paintEvent(QPaintEvent *e) {
 
 }
 
-void MentionsDropdown::clearContextResults() {
-	if (_contextRequestId) MTP::cancel(_contextRequestId);
-	_contextRequestId = 0;
-	_contextQuery = _contextNextQuery = _contextNextOffset = QString();
-	_contextBot = 0;
-	_contextCache.clear();
-
-	_crows.clear();
-}
-
-void MentionsDropdown::contextResultsDone(const MTPmessages_BotResults &result) {
-	_contextRequestId = 0;
-
-	ContextCache::iterator it = _contextCache.find(_contextQuery);
-
-	bool adding = (it != _contextCache.cend());
-	if (result.type() == mtpc_messages_botResults) {
-		const MTPDmessages_botResults &d(result.c_messages_botResults());
-		const QVector<MTPBotContextResult> &v(d.vresults.c_vector().v);
-		uint64 queryId(d.vquery_id.v);
-
-		if (!adding) {
-			it = _contextCache.insert(_contextQuery, ContextCacheEntry());
-		}
-		it->nextOffset = v.isEmpty() ? QString() : qs(d.vnext_offset);
-
-		int32 count = v.size();
-		if (count) {
-			it->results.reserve(it->results.size() + count);
-		}
-		for (int32 i = 0; i < count; ++i) {
-			ContextResult result(queryId);
-			const MTPBotContextMessage *message = 0;
-			switch (v.at(i).type()) {
-			case mtpc_botContextMediaResultPhoto: {
-				const MTPDbotContextMediaResultPhoto &r(v.at(i).c_botContextMediaResultPhoto());
-				result.id = qs(r.vid);
-				result.type = qs(r.vtype);
-				result.photo = App::feedPhoto(r.vphoto);
-				message = &r.vsend_message;
-			} break;
-			case mtpc_botContextMediaResultDocument: {
-				const MTPDbotContextMediaResultDocument &r(v.at(i).c_botContextMediaResultDocument());
-				result.id = qs(r.vid);
-				result.type = qs(r.vtype);
-				result.doc = App::feedDocument(r.vdocument);
-				message = &r.vsend_message;
-			} break;
-			case mtpc_botContextResult: {
-				const MTPDbotContextResult &r(v.at(i).c_botContextResult());
-				result.id = qs(r.vid);
-				result.type = qs(r.vtype);
-				result.title = qs(r.vtitle);
-				result.description = qs(r.vdescription);
-				result.url = qs(r.vurl);
-				result.thumb_url = qs(r.vthumb_url);
-				result.content_type = qs(r.vcontent_type);
-				result.content_url = qs(r.vcontent_url);
-				message = &r.vsend_message;
-			} break;
-			}
-			bool badAttachment = (!result.photo || result.photo->access) && (!result.doc || result.doc->access);
-			bool canSend = (result.photo || result.doc || !result.message.isEmpty());
-			if (!result.type.isEmpty() && !badAttachment && !canSend) {
-				it->results.push_back(result);
-			}
-		}
-	} else if (adding) {
-		it->results.clear();
-		it->nextOffset = QString();
-	}
-	refreshContextRows(!adding);
-}
-
-bool MentionsDropdown::contextResultsFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
-	_contextRequestId = 0;
-	return true;
-}
-
-void MentionsDropdown::showContextResults(UserData *bot, QString query) {
-	bool force = false;
-	if (bot != _contextBot) {
-		if (!isHidden()) hideStart();
-
-		clearContextResults();
-		_contextBot = bot;
-		force = true;
-	}
-	if (_contextRequestId) {
-		MTP::cancel(_contextRequestId);
-		_contextRequestId = 0;
-	}
-	if (_contextQuery != query || force) {
-		if (_contextCache.contains(_contextQuery)) {
-			refreshContextRows(true);
-		} else {
-			_contextNextQuery = _contextQuery;
-			_contextRequestTimer.start(ContextBotRequestDelay);
-		}
-	}
-}
-
-void MentionsDropdown::onContextRequest() {
-	if (_contextRequestId) return;
-	_contextQuery = _contextNextQuery;
-
-	QString nextOffset;
-	ContextCache::const_iterator i = _contextCache.constFind(_contextQuery);
-	if (i != _contextCache.cend()) {
-		nextOffset = i->nextOffset;
-		if (nextOffset.isEmpty()) return;
-	}
-	_contextRequestId = MTP::send(MTPmessages_GetContextBotResults(_contextBot->inputUser, MTP_string(_contextQuery), MTP_string(nextOffset)), rpcDone(&MentionsDropdown::contextResultsDone), rpcFail(&MentionsDropdown::contextResultsFail));
-}
-
-void MentionsDropdown::refreshContextRows(bool toDown) {
-	bool clear = true;
-	ContextCache::const_iterator i = _contextCache.constFind(_contextQuery);
-	if (i == _contextCache.cend()) {
-		clear = !i->results.isEmpty();
-		_contextNextOffset = i->nextOffset;
-	}
-	rowsUpdated(MentionRows(), HashtagRows(), BotCommandRows(), clear ? ContextRows() : _crows, toDown);
-}
-
 void MentionsDropdown::showFiltered(PeerData *peer, QString start) {
-	if (_contextBot) {
-		clearContextResults();
-	}
-
 	_chat = peer->asChat();
 	_user = peer->asUser();
 	_channel = peer->asChannel();
@@ -3620,8 +3613,6 @@ bool MentionsDropdown::clearFilteredBotCommands() {
 }
 
 void MentionsDropdown::updateFiltered(bool toDown) {
-	clearContextResults();
-
 	int32 now = unixtime();
 	MentionRows rows;
 	HashtagRows hrows;
@@ -3743,23 +3734,21 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 			}
 		}
 	}
-	rowsUpdated(rows, hrows, brows, ContextRows(), toDown);
+	rowsUpdated(rows, hrows, brows, toDown);
 }
 
-void MentionsDropdown::rowsUpdated(const MentionRows &mrows, const HashtagRows &hrows, const BotCommandRows &brows, const ContextRows &crows, bool toDown) {
-	if (mrows.isEmpty() && hrows.isEmpty() && brows.isEmpty() && crows.isEmpty()) {
+void MentionsDropdown::rowsUpdated(const MentionRows &mrows, const HashtagRows &hrows, const BotCommandRows &brows, bool toDown) {
+	if (mrows.isEmpty() && hrows.isEmpty() && brows.isEmpty()) {
 		if (!isHidden()) {
 			hideStart();
 		}
 		_mrows.clear();
 		_hrows.clear();
 		_brows.clear();
-		_crows.clear();
 	} else {
 		_mrows = mrows;
 		_hrows = hrows;
 		_brows = brows;
-		_crows = crows;
 		bool hidden = _hiding || isHidden();
 		if (hidden) {
 			show();
@@ -3909,17 +3898,6 @@ bool MentionsDropdown::eventFilter(QObject *obj, QEvent *e) {
 		}
 	}
 	return QWidget::eventFilter(obj, e);
-}
-
-void MentionsDropdown::ui_repaintSavedGif(const LayoutSavedGif *layout) {
-}
-
-bool MentionsDropdown::ui_isSavedGifVisible(const LayoutSavedGif *layout) {
-	return false;
-}
-
-bool MentionsDropdown::ui_isGifBeingChosen() {
-	return false;
 }
 
 MentionsDropdown::~MentionsDropdown() {

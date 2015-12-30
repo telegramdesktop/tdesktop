@@ -5386,11 +5386,18 @@ void HistoryWebPage::draw(Painter &p, const HistoryItem *parent, const QRect &r,
 		_data->photo->medium->load(false, false);
 		bool full = _data->photo->medium->loaded();
 		QPixmap pix;
-		int32 pw = qMax(_pixw, int16(_lineHeight));
+		int32 pw = qMax(_pixw, int16(_lineHeight)), ph = _pixh;
+		int32 pixw = _pixw, pixh = articleThumbHeight(_data->photo, _pixw);
+		int32 maxw = convertScale(_data->photo->medium->width()), maxh = convertScale(_data->photo->medium->height());
+		if (pixw * ph != pixh * pw) {
+			float64 coef = (pixw * ph > pixh * pw) ? qMin(ph / float64(pixh), maxh / float64(pixh)) : qMin(pw / float64(pixw), maxw / float64(pixw));
+			pixh = qRound(pixh * coef);
+			pixw = qRound(pixw * coef);
+		}
 		if (full) {
-			pix = _data->photo->medium->pixSingle(_pixw, articleThumbHeight(_data->photo, _pixw), pw, _pixh);
+			pix = _data->photo->medium->pixSingle(pixw, pixh, pw, ph);
 		} else {
-			pix = _data->photo->thumb->pixBlurredSingle(_pixw, articleThumbHeight(_data->photo, _pixw), pw, _pixh);
+			pix = _data->photo->thumb->pixBlurredSingle(pixw, pixh, pw, ph);
 		}
 		p.drawPixmapLeft(lshift + width - pw, 0, _width, pix);
 		if (selected) {

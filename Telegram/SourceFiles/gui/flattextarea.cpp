@@ -258,21 +258,21 @@ void FlatTextarea::getMentionHashtagBotCommandStart(QString &start, UserData *&c
 
 	// check context bot query
 	const QString &text(getLastText());
-	int32 size = text.size();
+	int32 contextUsernameStart = 1, contextUsernameLength = 0, size = text.size();
 	if (size > 2 && text.at(0) == '@' && text.at(1).isLetter()) {
-		int32 usernameStart = 1, usernameLength = 1;
-		for (int32 i = usernameStart + 1, l = text.size(); i < l; ++i) {
+		contextUsernameLength = 1;
+		for (int32 i = contextUsernameStart + 1, l = text.size(); i < l; ++i) {
 			if (text.at(i).isLetterOrNumber() || text.at(i).unicode() == '_') {
-				++usernameLength;
+				++contextUsernameLength;
 				continue;
 			}
 			if (!text.at(i).isSpace()) {
-				usernameLength = 0;
+				contextUsernameLength = 0;
 			}
 			break;
 		}
-		if (usernameLength && usernameStart + usernameLength < text.size() && text.at(usernameStart + usernameLength).isSpace()) {
-			QStringRef username = text.midRef(usernameStart, usernameLength);
+		if (contextUsernameLength && contextUsernameStart + contextUsernameLength < text.size() && text.at(contextUsernameStart + contextUsernameLength).isSpace()) {
+			QStringRef username = text.midRef(contextUsernameStart, contextUsernameLength);
 			if (username != contextBotUsername) {
 				contextBotUsername = username.toString();
 				PeerData *peer = App::peerByName(contextBotUsername);
@@ -291,13 +291,14 @@ void FlatTextarea::getMentionHashtagBotCommandStart(QString &start, UserData *&c
 			if (contextBot && (!contextBot->botInfo || contextBot->botInfo->contextPlaceholder.isEmpty())) {
 				contextBot = 0;
 			} else {
-				start = text.mid(usernameStart + usernameLength + 1);
+				start = text.mid(contextUsernameStart + contextUsernameLength + 1);
 				return;
 			}
-		} else {
-			contextBot = 0;
-			contextBotUsername = QString();
 		}
+	}
+	if (!contextUsernameLength) {
+		contextBot = 0;
+		contextBotUsername = QString();
 	}
 
 	// check mention / hashtag / bot command
