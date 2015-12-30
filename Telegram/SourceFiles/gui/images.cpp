@@ -449,6 +449,7 @@ QPixmap imagePix(QImage img, int32 w, int32 h, bool smooth, bool blurred, bool r
 		}
 	}
 	if (rounded) imageRound(img);
+	img.setDevicePixelRatio(cRetinaFactor());
 	return QPixmap::fromImage(img, Qt::ColorOnly);
 }
 

@@ -395,6 +395,7 @@ public slots:
 	void updateSelected();
 	void onSettings();
 	void onPreview();
+	void onUpdateContextItems();
 
 signals:
 
@@ -444,6 +445,8 @@ private:
 	QList<bool> _custom;
 
 	bool _showingSavedGifs, _showingContextItems;
+	uint64 _lastScrolled;
+	QTimer _updateContextItems;
 
 	typedef QList<LayoutContextItem*> ContextItems;
 	struct ContextRow {

@@ -1215,6 +1215,7 @@ StickerPanInner::StickerPanInner() : TWidget()
 , _top(0)
 , _showingSavedGifs(cShowingSavedGifs())
 , _showingContextItems(_showingSavedGifs)
+, _lastScrolled(0)
 , _selected(-1)
 , _pressedSel(-1)
 , _settings(this, lang(lng_stickers_you_have))
@@ -1230,6 +1231,9 @@ StickerPanInner::StickerPanInner() : TWidget()
 	
 	_previewTimer.setSingleShot(true);
 	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreview()));
+
+	_updateContextItems.setSingleShot(true);
+	connect(&_updateContextItems, SIGNAL(timeout()), this, SLOT(onUpdateContextItems()));
 }
 
 void StickerPanInner::setMaxHeight(int32 h) {
@@ -1241,6 +1245,7 @@ void StickerPanInner::setMaxHeight(int32 h) {
 void StickerPanInner::setScrollTop(int top) {
 	if (top == _top) return;
 
+	_lastScrolled = getms();
 	_top = top;
 	updateSelected();
 }
@@ -1778,20 +1783,12 @@ void StickerPanInner::refreshContextRows(const ContextResults &results) {
 }
 
 void StickerPanInner::ui_repaintContextItem(const LayoutContextItem *layout) {
-	int32 position = layout->position();
-	if (!_showingContextItems || position < 0) return;
-
-	int32 row = position / MatrixRowShift, col = position % MatrixRowShift;
-	t_assert((row < _contextRows.size()) && (col < _contextRows.at(row).items.size()));
-	
-	const ContextItems &contextItems(_contextRows.at(row).items);
-	int32 left = st::savedGifsLeft, top = st::emojiPanHeader;
-	for (int32 i = 0; i < row; ++i) {
-		top += _contextRows.at(i).height;
+	uint64 ms = getms();
+	if (_lastScrolled + 100 <= ms) {
+		update();
+	} else {
+		_updateContextItems.start(_lastScrolled + 100 - ms);
 	}
-	for (int32 i = 0; i < col; ++i) left += contextItems.at(i)->width() + st::savedGifsSkip;
-
-	rtlupdate(left, top, contextItems.at(col)->width(), contextItems.at(col)->height());
 }
 
 bool StickerPanInner::ui_isContextItemVisible(const LayoutContextItem *layout) {
@@ -2132,6 +2129,17 @@ void StickerPanInner::onPreview() {
 			Ui::showStickerPreview(_sets.at(tab).pack.at(sel));
 			_previewShown = true;
 		}
+	}
+}
+
+void StickerPanInner::onUpdateContextItems() {
+	if (!_showingContextItems) return;
+
+	uint64 ms = getms();
+	if (_lastScrolled + 100 <= ms) {
+		update();
+	} else {
+		_updateContextItems.start(_lastScrolled + 100 - ms);
 	}
 }
 

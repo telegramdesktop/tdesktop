@@ -1388,7 +1388,7 @@ void LayoutContextGif::paint(Painter &p, const QRect &clip, uint32 selection, co
 		if (!_doc->thumb->isNull()) {
 			if (_doc->thumb->loaded()) {
 				if (_thumb.width() != _width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-					const_cast<LayoutContextGif*>(this)->_thumb = _doc->thumb->pixNoCache(frame.width(), frame.height(), true, false, false, _width, height);
+					const_cast<LayoutContextGif*>(this)->_thumb = _doc->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, _width, height);
 				}
 			} else {
 				_doc->thumb->load();

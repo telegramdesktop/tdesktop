@@ -556,7 +556,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_media_type_links" = "Link condivisi";
 
 "lng_media_open_with" = "Apri con";
-"lng_media_download" = "Download";
+"lng_media_download" = "Scarica";
 "lng_media_cancel" = "Annulla";
 "lng_media_video" = "Video";
 "lng_media_audio" = "Nota vocale";
