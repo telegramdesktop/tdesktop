@@ -807,7 +807,7 @@ StorageImage *getImage(const StorageImageLocation &location, const QByteArray &b
 }
 
 
-WebImage::WebImage(const QString &url) : _url(url), _width(0), _height(0), _size(0) {
+WebImage::WebImage(const QString &url) : _url(url), _size(0), _width(0), _height(0) {
 }
 
 int32 WebImage::width() const {
