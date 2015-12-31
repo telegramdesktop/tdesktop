@@ -78,9 +78,7 @@ style::color documentColor(int32 colorIndex);
 style::sprite documentCorner(int32 colorIndex);
 RoundCorners documentCorners(int32 colorIndex);
 
-class LayoutMediaItem;
-class OverviewItemInfo;
-
+class InlinePaintContext;
 class PaintContext {
 public:
 
@@ -88,8 +86,14 @@ public:
 	}
 	uint64 ms;
 	bool selecting;
+	virtual const InlinePaintContext *toInlinePaintContext() const {
+		return 0;
+	}
 
 };
+
+class LayoutMediaItem;
+class OverviewItemInfo;
 
 class LayoutItem {
 public:
@@ -471,31 +475,100 @@ private:
 
 };
 
-class LayoutSavedGif {
+class InlinePaintContext : public PaintContext {
 public:
-	LayoutSavedGif(DocumentData *data);
+	InlinePaintContext(uint64 ms, bool selecting, bool paused, bool lastRow)
+		: PaintContext(ms, selecting)
+		, paused(paused)
+		, lastRow(lastRow) {
+	}
+	virtual const InlinePaintContext *toInlinePaintContext() const {
+		return this;
+	}
+	bool paused, lastRow;
+};
 
-	void paint(Painter &p, bool paused, uint64 ms) const;
-	void preload();
-	DocumentData *document() const {
-		return _data;
+class LayoutInlineItem : public LayoutItem {
+public:
+
+	LayoutInlineItem(InlineResult *result, DocumentData *doc, PhotoData *photo);
+	
+	virtual void setPosition(int32 position);
+	int32 position() const;
+
+	virtual bool fullLine() const {
+		return true;
 	}
 
-	void setPosition(int32 position, int32 width);
-	void setWidth(int32 width);
-	int32 position() const;
-	int32 width() const;
+	InlineResult *result() const;
+	DocumentData *document() const;
+	PhotoData *photo() const;
+	void preload();
 
-	void notify_over(bool over);
-	void notify_deleteOver(bool over);
+	void update();
 
-	~LayoutSavedGif();
+protected:
+	InlineResult *_result;
+	DocumentData *_doc;
+	PhotoData *_photo;
+
+	int32 _position; // < 0 means removed from layout
+
+};
+
+class SendInlineItemLink : public ITextLink {
+	TEXT_LINK_CLASS(SendInlineItemLink)
+
+public:
+	virtual void onClick(Qt::MouseButton) const {
+	}
+
+};
+
+class DeleteSavedGifLink : public ITextLink {
+	TEXT_LINK_CLASS(DeleteSavedGifLink)
+
+public:
+	DeleteSavedGifLink(DocumentData *data) : _data(data) {
+	}
+	virtual void onClick(Qt::MouseButton) const;
 
 private:
-	DocumentData *_data;
-	int32 _position; // < 0 means removed from layout
-	int32 _width;
+	DocumentData  *_data;
+
+};
+
+class LayoutInlineGif : public LayoutInlineItem {
+public:
+	LayoutInlineGif(InlineResult *result, DocumentData *doc, bool saved);
+
+	virtual void setPosition(int32 position);
+	virtual void initDimensions();
+
+	virtual bool fullLine() const {
+		return false;
+	}
+
+	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
+	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
+	virtual void linkOver(const TextLinkPtr &lnk);
+	virtual void linkOut(const TextLinkPtr &lnk);
+
+	~LayoutInlineGif();
+
+private:
 	QSize countFrameSize() const;
+
+	int32 content_width() const;
+	int32 content_height() const;
+	bool content_loading() const;
+	bool content_displayLoading() const;
+	bool content_loaded() const;
+	float64 content_progress() const;
+	void content_automaticLoad() const;
+	void content_forget();
+	FileLocation content_location() const;
+	QByteArray content_data() const;
 
 	enum StateFlags {
 		StateOver       = 0x01,
@@ -504,22 +577,23 @@ private:
 	int32 _state;
 
 	ClipReader *_gif;
+	TextLinkPtr _send, _delete;
 	bool gif() const {
 		return (!_gif || _gif == BadClipReader) ? false : true;
 	}
-	QPixmap _thumb;
+	mutable QPixmap _thumb;
+	void prepareThumb(int32 width, int32 height, const QSize &frame) const;
 
 	void ensureAnimation() const;
 	bool isRadialAnimation(uint64 ms) const;
 	void step_radial(uint64 ms, bool timer);
 
 	void clipCallback(ClipReaderNotification notification);
-	void update();
 
 	struct AnimationData {
-		AnimationData(AnimationCallbacks *radialCallbacks)
+		AnimationData(AnimationCreator creator)
 			: over(false)
-			, radial(radialCallbacks) {
+			, radial(creator) {
 		}
 		bool over;
 		FloatAnimation _a_over;
@@ -527,5 +601,80 @@ private:
 	};
 	mutable AnimationData *_animation;
 	mutable FloatAnimation _a_deleteOver;
+
+};
+
+class LayoutInlinePhoto : public LayoutInlineItem {
+public:
+	LayoutInlinePhoto(InlineResult *result, PhotoData *photo);
+
+	virtual void initDimensions();
+
+	virtual bool fullLine() const {
+		return false;
+	}
+
+	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
+	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
+
+private:
+	QSize countFrameSize() const;
+
+	int32 content_width() const;
+	int32 content_height() const;
+	bool content_loaded() const;
+	void content_forget();
+
+	TextLinkPtr _send;
+
+	mutable QPixmap _thumb;
+	mutable bool _thumbLoaded;
+	void prepareThumb(int32 width, int32 height, const QSize &frame) const;
+
+};
+
+class LayoutInlineWebVideo : public LayoutInlineItem {
+public:
+	LayoutInlineWebVideo(InlineResult *result);
+
+	virtual void initDimensions();
+
+	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
+	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
+
+private:
+
+	TextLinkPtr _send;
+
+	mutable QPixmap _thumb;
+	Text _title, _description;
+	QString _duration;
+	int32 _durationWidth;
+
+	void prepareThumb(int32 width, int32 height) const;
+
+};
+
+class LayoutInlineArticle : public LayoutInlineItem {
+public:
+	LayoutInlineArticle(InlineResult *result, bool withThumb);
+
+	virtual void initDimensions();
+	virtual int32 resizeGetHeight(int32 width);
+
+	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
+	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
+
+private:
+
+	TextLinkPtr _send, _url;
+
+	bool _withThumb;
+	mutable QPixmap _thumb;
+	Text _title, _description;
+	QString _letter, _urlText;
+	int32 _urlWidth;
+
+	void prepareThumb(int32 width, int32 height) const;
 
 };

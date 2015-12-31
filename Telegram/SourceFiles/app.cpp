@@ -113,6 +113,9 @@ namespace {
 	typedef QHash<PhotoData*, LastPhotosList::iterator> LastPhotosMap;
 	LastPhotosMap lastPhotosMap;
 
+	typedef QMap<FileLoader*, InlineResult*> InlineResultLoaders;
+	InlineResultLoaders inlineResultLoaders;
+
 	style::color _msgServiceBg;
 	style::color _msgServiceSelectBg;
 	style::color _historyScrollBarColor;
@@ -202,7 +205,7 @@ namespace App {
 		globalNotifyAllPtr = UnknownNotifySettings;
 		globalNotifyUsersPtr = UnknownNotifySettings;
 		globalNotifyChatsPtr = UnknownNotifySettings;
-		App::uploader()->clear();
+		if (App::uploader()) App::uploader()->clear();
 		clearStorageImages();
 		if (w) {
 			w->getTitle()->updateBackButton();
@@ -424,6 +427,7 @@ namespace App {
 					data->setBotInfoVersion(d.vbot_info_version.v);
 					data->botInfo->readsAllHistory = d.is_bot_chat_history();
 					data->botInfo->cantJoinGroups = d.is_bot_nochats();
+					data->botInfo->inlinePlaceholder = d.has_bot_inline_placeholder() ? '_' + qs(d.vbot_inline_placeholder) : QString();
 				} else {
 					data->setBotInfoVersion(-1);
 				}
@@ -938,7 +942,7 @@ namespace App {
 		if (!item->toHistoryForwarded() && item->out()) {
 			if (HistoryMedia *media = item->getMedia()) {
 				if (DocumentData *doc = media->getDocument()) {
-					if (doc->type == AnimatedDocument && doc->mime.toLower() == qstr("video/mp4")) {
+					if (doc->isGifv()) {
 						addSavedGif(doc);
 					}
 				}
@@ -1352,7 +1356,6 @@ namespace App {
 			return page;
 		} break;
 		case mtpc_webPagePending: return App::feedWebPage(webpage.c_webPagePending());
-		case mtpc_webPageExternal: LOG(("API Error: should not get webPageExternal in App::feedWebPage")); break;
 		}
 		return 0;
 	}
@@ -1431,12 +1434,25 @@ namespace App {
 	}
 
 	PeerData *peerByName(const QString &username) {
+		QString uname(username.trimmed());
 		for (PeersData::const_iterator i = peersData.cbegin(), e = peersData.cend(); i != e; ++i) {
-			if (!i.value()->userName().compare(username.trimmed(), Qt::CaseInsensitive)) {
+			if (!i.value()->userName().compare(uname, Qt::CaseInsensitive)) {
 				return i.value()->asUser();
 			}
 		}
 		return 0;
+	}
+
+	void updateImage(ImagePtr &old, ImagePtr now) {
+		if (now->isNull()) return;
+		if (old->isNull()) {
+			old = now;
+		} else if (DelayedStorageImage *img = old->toDelayedStorageImage()) {
+			StorageImageLocation loc = now->location();
+			if (!loc.isNull()) {
+				img->setStorageLocation(loc);
+			}
+		}
 	}
 
 	PhotoData *photo(const PhotoId &photo) {
@@ -1458,12 +1474,12 @@ namespace App {
 				delete convert->uploadingData;
 				convert->uploadingData = 0;
 			}
-			convert->access = access;
-			if (!convert->date && date) {
+			if (date) {
+				convert->access = access;
 				convert->date = date;
-				convert->thumb = thumb;
-				convert->medium = medium;
-				convert->full = full;
+				updateImage(convert->thumb, thumb);
+				updateImage(convert->medium, medium);
+				updateImage(convert->full, full);
 			}
 		}
 		PhotosData::const_iterator i = ::photosData.constFind(photo);
@@ -1478,12 +1494,12 @@ namespace App {
 			::photosData.insert(photo, result);
 		} else {
 			result = i.value();
-			if (result != convert && !result->date && date) {
+			if (result != convert && date) {
 				result->access = access;
 				result->date = date;
-				result->thumb = thumb;
-				result->medium = medium;
-				result->full = full;
+				updateImage(result->thumb, thumb);
+				updateImage(result->medium, medium);
+				updateImage(result->full, full);
 			}
 			inLastIter = lastPhotosMap.find(result);
 		}
@@ -1519,13 +1535,13 @@ namespace App {
 				convert->id = video;
 				convert->status = FileReady;
 			}
-			convert->access = access;
-			if (!convert->date && date) {
+			if (date) {
+				convert->access = access;
 				convert->date = date;
+				updateImage(convert->thumb, thumb);
 				convert->duration = duration;
 				convert->w = w;
 				convert->h = h;
-				convert->thumb = thumb;
 				convert->dc = dc;
 				convert->size = size;
 			}
@@ -1541,13 +1557,13 @@ namespace App {
 			::videosData.insert(video, result);
 		} else {
 			result = i.value();
-			if (result != convert && !result->date && date) {
+			if (result != convert && date) {
 				result->access = access;
 				result->date = date;
 				result->duration = duration;
 				result->w = w;
 				result->h = h;
-				result->thumb = thumb;
+				updateImage(result->thumb, thumb);
 				result->dc = dc;
 				result->size = size;
 			}
@@ -1573,8 +1589,8 @@ namespace App {
 				convert->id = audio;
 				convert->status = FileReady;
 			}
-			convert->access = access;
-			if (!convert->date && date) {
+			if (date) {
+				convert->access = access;
 				convert->date = date;
 				convert->mime = mime;
 				convert->duration = duration;
@@ -1593,7 +1609,7 @@ namespace App {
 			::audiosData.insert(audio, result);
 		} else {
 			result = i.value();
-			if (result != convert && !result->date && date) {
+			if (result != convert && date) {
 				result->access = access;
 				result->date = date;
 				result->mime = mime;
@@ -1621,37 +1637,29 @@ namespace App {
 				if (i != ::documentsData.cend() && i.value() == convert) {
 					::documentsData.erase(i);
 				}
+				Local::copyStickerImage(mediaKey(DocumentFileLocation, convert->dc, convert->id), mediaKey(DocumentFileLocation, dc, document));
 				convert->id = document;
 				convert->status = FileReady;
 				sentSticker = !!convert->sticker();
 			}
-			convert->access = access;
-			if (!convert->date && date) {
+			if (date) {
+				convert->access = access;
 				convert->date = date;
 				convert->setattributes(attributes);
 				convert->mime = mime;
-				convert->thumb = thumb;
-				convert->dc = dc;
-				convert->size = size;
-				convert->recountIsImage();
-			} else {
 				if (!thumb->isNull() && (convert->thumb->isNull() || convert->thumb->width() < thumb->width() || convert->thumb->height() < thumb->height())) {
 					convert->thumb = thumb;
 				}
-				if (convert->sticker() && !attributes.isEmpty() && (convert->sticker()->alt.isEmpty() || convert->sticker()->set.type() == mtpc_inputStickerSetEmpty)) {
-					for (QVector<MTPDocumentAttribute>::const_iterator i = attributes.cbegin(), e = attributes.cend(); i != e; ++i) {
-						if (i->type() == mtpc_documentAttributeSticker) {
-							const MTPDdocumentAttributeSticker &d(i->c_documentAttributeSticker());
-							if (d.valt.c_string().v.length() > 0) {
-								convert->sticker()->alt = qs(d.valt);
-								convert->sticker()->set = d.vstickerset;
-							}
-						}
-					}
+				convert->dc = dc;
+				convert->size = size;
+				convert->recountIsImage();
+				if (convert->sticker() && convert->sticker()->loc.isNull() && !thumbLocation.isNull()) {
+					convert->sticker()->loc = thumbLocation;
 				}
 			}
-			if (convert->sticker() && convert->sticker()->loc.isNull() && !thumbLocation.isNull()) {
-				convert->sticker()->loc = thumbLocation;
+
+			if (cSavedGifs().indexOf(convert) >= 0) { // id changed
+				Local::writeSavedGifs();
 			}
 
 			const FileLocation &loc(convert->location(true));
@@ -1672,34 +1680,19 @@ namespace App {
 			::documentsData.insert(document, result);
 		} else {
 			result = i.value();
-			if (result != convert) {
-				if (!result->date && date) {
-					result->access = access;
-					result->date = date;
-					result->setattributes(attributes);
-					result->mime = mime;
+			if (result != convert && date) {
+				result->access = access;
+				result->date = date;
+				result->setattributes(attributes);
+				result->mime = mime;
+				if (!thumb->isNull() && (result->thumb->isNull() || result->thumb->width() < thumb->width() || result->thumb->height() < thumb->height())) {
 					result->thumb = thumb;
-					result->dc = dc;
-					result->size = size;
-					result->recountIsImage();
-				} else {
-					if (!thumb->isNull() && (result->thumb->isNull() || result->thumb->width() < thumb->width() || result->thumb->height() < thumb->height())) {
-						result->thumb = thumb;
-					}
-					if (result->sticker() && !attributes.isEmpty() && (result->sticker()->alt.isEmpty() || result->sticker()->set.type() == mtpc_inputStickerSetEmpty)) {
-						for (QVector<MTPDocumentAttribute>::const_iterator i = attributes.cbegin(), e = attributes.cend(); i != e; ++i) {
-							if (i->type() == mtpc_documentAttributeSticker) {
-								const MTPDdocumentAttributeSticker &d(i->c_documentAttributeSticker());
-								if (d.valt.c_string().v.length() > 0) {
-									result->sticker()->alt = qs(d.valt);
-									result->sticker()->set = d.vstickerset;
-								}
-							}
-						}
-					}
-					if (result->sticker() && result->sticker()->loc.isNull() && !thumbLocation.isNull()) {
-						result->sticker()->loc = thumbLocation;
-					}
+				}
+				result->dc = dc;
+				result->size = size;
+				result->recountIsImage();
+				if (result->sticker() && result->sticker()->loc.isNull() && !thumbLocation.isNull()) {
+					result->sticker()->loc = thumbLocation;
 				}
 			}
 		}
@@ -2468,10 +2461,6 @@ namespace App {
 		::gifItems.remove(reader);
 	}
 
-	const GifItems &gifItems() {
-		return ::gifItems;
-	}
-
 	void stopGifItems() {
 		if (!::gifItems.isEmpty()) {
 			GifItems gifs = ::gifItems;
@@ -2520,6 +2509,19 @@ namespace App {
 			}
 		}
 		if (changeInMin) App::main()->updateMutedIn(changeInMin);
+	}
+
+	void regInlineResultLoader(FileLoader *loader, InlineResult *result) {
+		::inlineResultLoaders.insert(loader, result);
+	}
+
+	void unregInlineResultLoader(FileLoader *loader) {
+		::inlineResultLoaders.remove(loader);
+	}
+
+	InlineResult *inlineResultFromLoader(FileLoader *loader) {
+		InlineResultLoaders::const_iterator i = ::inlineResultLoaders.find(loader);
+		return (i == ::inlineResultLoaders.cend()) ? 0 : i.value();
 	}
 
 	inline void insertReplyMarkup(ChannelId channelId, MsgId msgId, const ReplyMarkup &markup) {
@@ -2610,12 +2612,15 @@ namespace App {
 	}
 
 	void setProxySettings(QNetworkAccessManager &manager) {
+		manager.setProxy(getHttpProxySettings());
+	}
+
+	QNetworkProxy getHttpProxySettings() {
 		if (cConnectionType() == dbictHttpProxy) {
 			const ConnectionProxy &p(cConnectionProxy());
-			manager.setProxy(QNetworkProxy(QNetworkProxy::HttpProxy, p.host, p.port, p.user, p.password));
-		} else {
-			manager.setProxy(QNetworkProxy(QNetworkProxy::DefaultProxy));
+			return QNetworkProxy(QNetworkProxy::HttpProxy, p.host, p.port, p.user, p.password);
 		}
+		return QNetworkProxy(QNetworkProxy::DefaultProxy);
 	}
 
 	void setProxySettings(QTcpSocket &socket) {

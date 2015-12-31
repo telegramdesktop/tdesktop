@@ -240,18 +240,22 @@ namespace App {
 
 	void regGifItem(ClipReader *reader, HistoryItem *item);
 	void unregGifItem(ClipReader *reader);
-	const GifItems &gifItems();
 	void stopGifItems();
 
 	void regMuted(PeerData *peer, int32 changeIn);
 	void unregMuted(PeerData *peer);
 	void updateMuted();
 
+	void regInlineResultLoader(FileLoader *loader, InlineResult *result);
+	void unregInlineResultLoader(FileLoader *loader);
+	InlineResult *inlineResultFromLoader(FileLoader *loader);
+
 	void feedReplyMarkup(ChannelId channelId, MsgId msgId, const MTPReplyMarkup &markup);
 	void clearReplyMarkup(ChannelId channelId, MsgId msgId);
 	const ReplyMarkup &replyMarkup(ChannelId channelId, MsgId msgId);
 
 	void setProxySettings(QNetworkAccessManager &manager);
+	QNetworkProxy getHttpProxySettings();
 	void setProxySettings(QTcpSocket &socket);
 
 	QImage **cornersMask();

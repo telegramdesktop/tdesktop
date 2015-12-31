@@ -135,7 +135,7 @@ MediaView::MediaView() : TWidget(App::wnd())
 
 	hide();
 	createWinId();
-	
+
 	_saveMsgUpdater.setSingleShot(true);
 	connect(&_saveMsgUpdater, SIGNAL(timeout()), this, SLOT(updateImage()));
 
@@ -183,7 +183,7 @@ void MediaView::moveToScreen() {
 	if (avail != geometry()) {
 		setGeometry(avail);
 	}
-	
+
 	int32 navSkip = 2 * st::mvControlMargin + st::mvControlSize;
 	_closeNav = myrtlrect(width() - st::mvControlMargin - st::mvControlSize, st::mvControlMargin, st::mvControlSize, st::mvControlSize);
 	_closeNavIcon = centersprite(_closeNav, st::mvClose);
@@ -474,10 +474,8 @@ void MediaView::step_radial(uint64 ms, bool timer) {
 }
 
 MediaView::~MediaView() {
-	delete _gif;
-	setBadPointer(_gif);
-	delete _menu;
-	setBadPointer(_menu);
+	deleteAndMark(_gif);
+	deleteAndMark(_menu);
 }
 
 void MediaView::showSaveMsgFile() {
@@ -603,14 +601,11 @@ void MediaView::onDocClick() {
 	}
 }
 
-void MediaView::ui_clipRepaint(ClipReader *reader) {
-	if (reader == _gif) {
-		update(_x, _y, _w, _h);
-	}
-}
+void MediaView::clipCallback(ClipReaderNotification notification) {
+	if (!_gif) return;
 
-void MediaView::notify_clipReinit(ClipReader *reader) {
-	if (reader == _gif) {
+	switch (notification) {
+	case ClipReaderReinit: {
 		if (HistoryItem *item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid)) {
 			if (_gif->state() == ClipError) {
 				_current = QPixmap();
@@ -619,6 +614,13 @@ void MediaView::notify_clipReinit(ClipReader *reader) {
 		} else {
 			stopGif();
 		}
+	} break;
+
+	case ClipReaderRepaint: {
+		if (!_gif->currentDisplayed()) {
+			update(_x, _y, _w, _h);
+		}
+	} break;
 	}
 }
 
@@ -736,7 +738,7 @@ void MediaView::onCopy() {
 		if (!_current.isNull()) {
 			QApplication::clipboard()->setPixmap(_current);
 		} else if (gifShown()) {
-			QApplication::clipboard()->setPixmap(QPixmap::fromImage(_gif->frameOriginal()));
+			QApplication::clipboard()->setPixmap(_gif->frameOriginal());
 		}
 	} else {
 		if (!_photo || !_photo->loaded()) return;
@@ -953,7 +955,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 					if (_doc->dimensions.width() && _doc->dimensions.height()) {
 						_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), true, true, false, _doc->dimensions.width(), _doc->dimensions.height());
 					}
-					_gif = new ClipReader(location, _doc->data());
+					_gif = new ClipReader(location, _doc->data(), func(this, &MediaView::clipCallback));
 				}
 			} else if (location.accessEnable()) {
 				if (_doc->isAnimation()) {
@@ -961,7 +963,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 						if (_doc->dimensions.width() && _doc->dimensions.height()) {
 							_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), true, true, false, _doc->dimensions.width(), _doc->dimensions.height());
 						}
-						_gif = new ClipReader(location, _doc->data());
+						_gif = new ClipReader(location, _doc->data(), func(this, &MediaView::clipCallback));
 					}
 				} else {
 					if (QImageReader(location.name()).canRead()) {
@@ -1513,8 +1515,8 @@ void MediaView::moveToNext(int32 delta) {
 				if (HistoryMedia *media = item->getMedia()) {
 					switch (media->type()) {
 					case MediaTypePhoto: displayPhoto(static_cast<HistoryPhoto*>(item->getMedia())->photo(), item); preloadData(delta); break;
-					case MediaTypeDocument: 
-					case MediaTypeGif: 
+					case MediaTypeDocument:
+					case MediaTypeGif:
 					case MediaTypeSticker: displayDocument(media->getDocument(), item); preloadData(delta); break;
 					}
 				} else {
@@ -1560,8 +1562,8 @@ void MediaView::preloadData(int32 delta) {
 				if (HistoryMedia *media = item->getMedia()) {
 					switch (media->type()) {
 					case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->forget(); break;
-					case MediaTypeDocument: 
-					case MediaTypeGif: 
+					case MediaTypeDocument:
+					case MediaTypeGif:
 					case MediaTypeSticker: media->getDocument()->forget(); break;
 					}
 				}

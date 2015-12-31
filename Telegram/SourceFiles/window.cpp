@@ -641,7 +641,7 @@ void Window::sendServiceHistoryRequest() {
 	UserData *user = App::userLoaded(ServiceUserId);
 	if (!user) {
 		int32 userFlags = MTPDuser::flag_first_name | MTPDuser::flag_phone | MTPDuser::flag_status | MTPDuser::flag_verified;
-		user = App::feedUsers(MTP_vector<MTPUser>(1, MTP_user(MTP_int(userFlags), MTP_int(ServiceUserId), MTPlong(), MTP_string("Telegram"), MTPstring(), MTPstring(), MTP_string("42777"), MTP_userProfilePhotoEmpty(), MTP_userStatusRecently(), MTPint(), MTPstring())));
+		user = App::feedUsers(MTP_vector<MTPUser>(1, MTP_user(MTP_int(userFlags), MTP_int(ServiceUserId), MTPlong(), MTP_string("Telegram"), MTPstring(), MTPstring(), MTP_string("42777"), MTP_userProfilePhotoEmpty(), MTP_userStatusRecently(), MTPint(), MTPstring(), MTPstring())));
 	}
 	_serviceHistoryRequest = MTP::send(MTPmessages_GetHistory(user->input, MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), main->rpcDone(&MainWidget::serviceHistoryDone), main->rpcFail(&MainWidget::serviceHistoryFail));
 }
@@ -795,12 +795,6 @@ void Window::showDocument(DocumentData *doc, HistoryItem *item) {
 	_mediaView->setFocus();
 }
 
-void Window::ui_clipRepaint(ClipReader *reader) {
-	if (_mediaView && !_mediaView->isHidden()) {
-		_mediaView->ui_clipRepaint(reader);
-	}
-}
-
 void Window::ui_showLayer(LayeredWidget *box, ShowLayerOptions options) {
 	if (box) {
 		bool fast = (options.testFlag(ForceFastShowLayer)) || Ui::isLayerShown();
@@ -844,12 +838,6 @@ bool Window::ui_isLayerShown() {
 
 bool Window::ui_isMediaViewShown() {
 	return _mediaView && !_mediaView->isHidden();
-}
-
-void Window::notify_clipReinit(ClipReader *reader) {
-	if (_mediaView && !_mediaView->isHidden()) {
-		_mediaView->notify_clipReinit(reader);
-	}
 }
 
 void Window::showConnecting(const QString &text, const QString &reconnect) {

@@ -25,7 +25,7 @@ class LayeredWidget;
 namespace App {
 
 	void sendBotCommand(const QString &cmd, MsgId replyTo = 0);
-	void insertBotCommand(const QString &cmd);
+	bool insertBotCommand(const QString &cmd, bool specialGif = false);
 	void searchByHashtag(const QString &tag, PeerData *inPeer);
 	void openPeerByName(const QString &username, bool toProfile = false, const QString &startToken = QString());
 	void joinGroupByHash(const QString &hash);
@@ -46,13 +46,11 @@ namespace Ui { // openssl doesn't allow me to use UI :(
 	void hideLayer(bool fast = false);
 	bool isLayerShown();
 	bool isMediaViewShown();
-	bool isGifBeingChosen();
-
-	void clipRepaint(ClipReader *reader);
+	bool isInlineItemBeingChosen();
 
 	void repaintHistoryItem(const HistoryItem *item);
-	void repaintSavedGif(const LayoutSavedGif *layout);
-	bool isSavedGifVisible(const LayoutSavedGif *reader);
+	void repaintInlineItem(const LayoutInlineItem *layout);
+	bool isInlineItemVisible(const LayoutInlineItem *reader);
 
 	void showPeerHistory(const PeerId &peer, MsgId msgId, bool back = false);
 	inline void showPeerHistory(const PeerData *peer, MsgId msgId, bool back = false) {
@@ -86,12 +84,12 @@ namespace Notify {
 
 	void clipStopperHidden(ClipStopperType type);
 
-	void clipReinit(ClipReader *reader);
-
 	void historyItemResized(const HistoryItem *item, bool scrollToIt = false);
 	inline void historyItemsResized() {
 		historyItemResized(0);
 	}
 	void historyItemLayoutChanged(const HistoryItem *item);
+
+	void automaticLoadSettingsChangedGif();
 
 };

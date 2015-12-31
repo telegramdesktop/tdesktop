@@ -23,7 +23,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 static const int32 AppVersion = 9015;
 static const wchar_t *AppVersionStr = L"0.9.15";
 static const bool DevVersion = false;
-#define BETA_VERSION (9015004ULL) // just comment this line to build public version
+#define BETA_VERSION (9015005ULL) // just comment this line to build public version
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -83,9 +83,10 @@ enum {
 	LocalEncryptKeySize = 256, // 2048 bit
 
 	AnimationTimerDelta = 7,
-	ClipThreadsCount = 4,
+	ClipThreadsCount = 8,
 	AverageGifSize = 320 * 240,
 	WaitBeforeGifPause = 200, // wait 200ms for gif draw before pausing it
+	InlineBotRequestDelay = 400, // wait 400ms before context bot realtime request
 
 	AVBlockSize = 4096, // 4Kb for ffmpeg blocksize
 
@@ -343,6 +344,7 @@ enum {
     MaxUploadDocumentSize = 1500 * 1024 * 1024, // 1500mb documents max
     UseBigFilesFrom = 10 * 1024 * 1024, // mtp big files methods used for files greater than 10mb
 	MaxFileQueries = 16, // max 16 file parts downloaded at the same time
+	MaxWebFileQueries = 8, // max 8 http[s] files downloaded at the same time
 
 	UploadPartSize = 32 * 1024, // 32kb for photo
     DocumentMaxPartsCount = 3000, // no more than 3000 parts

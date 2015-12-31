@@ -31,8 +31,9 @@ namespace App {
 		if (MainWidget *m = main()) m->sendBotCommand(cmd, replyTo);
 	}
 
-	void insertBotCommand(const QString &cmd) {
-		if (MainWidget *m = main()) m->insertBotCommand(cmd);
+	bool insertBotCommand(const QString &cmd, bool specialGif) {
+		if (MainWidget *m = main()) return m->insertBotCommand(cmd, specialGif);
+		return false;
 	}
 
 	void searchByHashtag(const QString &tag, PeerData *inPeer) {
@@ -102,21 +103,9 @@ namespace Ui {
 		return false;
 	}
 
-	bool isGifBeingChosen() {
-		if (MainWidget *m = App::main()) return m->ui_isGifBeingChosen();
+	bool isInlineItemBeingChosen() {
+		if (MainWidget *m = App::main()) return m->ui_isInlineItemBeingChosen();
 		return false;
-	}
-
-	void clipRepaint(ClipReader *reader) {
-		const GifItems &items(App::gifItems());
-		GifItems::const_iterator it = items.constFind(reader);
-		if (it != items.cend()) {
-			if (reader->currentDisplayed()) {
-				return;
-			}
-			Ui::repaintHistoryItem(it.value());
-		}
-		if (Window *w = App::wnd()) w->ui_clipRepaint(reader);
 	}
 
 	void repaintHistoryItem(const HistoryItem *item) {
@@ -124,13 +113,13 @@ namespace Ui {
 		if (MainWidget *m = App::main()) m->ui_repaintHistoryItem(item);
 	}
 
-	void repaintSavedGif(const LayoutSavedGif *layout) {
+	void repaintInlineItem(const LayoutInlineItem *layout) {
 		if (!layout) return;
-		if (MainWidget *m = App::main()) m->ui_repaintSavedGif(layout);
+		if (MainWidget *m = App::main()) m->ui_repaintInlineItem(layout);
 	}
 
-	bool isSavedGifVisible(const LayoutSavedGif *layout) {
-		if (MainWidget *m = App::main()) return m->ui_isSavedGifVisible(layout);
+	bool isInlineItemVisible(const LayoutInlineItem *layout) {
+		if (MainWidget *m = App::main()) return m->ui_isInlineItemVisible(layout);
 		return false;
 	}
 
@@ -168,41 +157,16 @@ namespace Notify {
 		if (MainWidget *m = App::main()) m->notify_clipStopperHidden(type);
 	}
 
-	void clipReinit(ClipReader *reader) {
-		const GifItems &items(App::gifItems());
-		GifItems::const_iterator it = items.constFind(reader);
-		if (it != items.cend()) {
-			HistoryItem *item = it.value();
-
-			bool stopped = false;
-			if (reader->paused()) {
-				if (MainWidget *m = App::main()) {
-					if (!m->isItemVisible(item)) { // stop animation if it is not visible
-						if (HistoryMedia *media = item->getMedia()) {
-							media->stopInline(item);
-							if (DocumentData *document = media->getDocument()) { // forget data from memory
-								document->forget();
-							}
-							stopped = true;
-						}
-					}
-				}
-			}
-			if (!stopped) {
-				item->initDimensions(); // can delete reader and items entry it
-				Notify::historyItemResized(item);
-				Notify::historyItemLayoutChanged(item);
-			}
-		}
-		if (Window *w = App::wnd()) w->notify_clipReinit(reader);
-	}
-
 	void historyItemResized(const HistoryItem *item, bool scrollToIt) {
 		if (MainWidget *m = App::main()) m->notify_historyItemResized(item, scrollToIt);
 	}
 
 	void historyItemLayoutChanged(const HistoryItem *item) {
 		if (MainWidget *m = App::main()) m->notify_historyItemLayoutChanged(item);
+	}
+
+	void automaticLoadSettingsChangedGif() {
+		if (MainWidget *m = App::main()) m->notify_automaticLoadSettingsChangedGif();
 	}
 
 }

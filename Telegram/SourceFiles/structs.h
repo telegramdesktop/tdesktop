@@ -327,7 +327,7 @@ struct BotInfo {
 	bool inited;
 	bool readsAllHistory, cantJoinGroups;
 	int32 version;
-	QString shareText, description;
+	QString shareText, description, inlinePlaceholder;
 	QList<BotCommand> commands;
 	Text text; // description
 
@@ -385,6 +385,7 @@ public:
 
 	BotInfo *botInfo;
 };
+static UserData * const InlineBotLookingUpData = SharedMemoryLocation<UserData, 0>();
 
 class ChatData : public PeerData {
 public:
@@ -1132,8 +1133,14 @@ public:
 	bool isAnimation() const {
 		return (type == AnimatedDocument) || !mime.compare(qstr("image/gif"), Qt::CaseInsensitive);
 	}
+	bool isGifv() const {
+		return (type == AnimatedDocument) && !mime.compare(qstr("video/mp4"), Qt::CaseInsensitive);
+	}
+	int32 duration() const {
+		return (isAnimation() || type == VideoDocument) ? _duration : -1;
+	}
 	bool isImage() const {
-		return _isImage;
+		return !isAnimation() && (type != VideoDocument) && (_duration > 0);
 	}
 	void recountIsImage();
 
@@ -1159,7 +1166,7 @@ private:
 	FileLocation _location;
 	QByteArray _data;
 	DocumentAdditionalData *_additional;
-	bool _isImage;
+	int32 _duration;
 
 	ActionOnLoad _actionOnLoad;
 	FullMsgId _actionOnLoadMsgId;
@@ -1266,7 +1273,7 @@ inline WebPageType toWebPageType(const QString &type) {
 
 struct WebPageData {
 	WebPageData(const WebPageId &id, WebPageType type = WebPageArticle, const QString &url = QString(), const QString &displayUrl = QString(), const QString &siteName = QString(), const QString &title = QString(), const QString &description = QString(), PhotoData *photo = 0, DocumentData *doc = 0, int32 duration = 0, const QString &author = QString(), int32 pendingTill = -1);
-	
+
 	void forget() {
 		if (photo) photo->forget();
 	}
@@ -1281,6 +1288,54 @@ struct WebPageData {
 	int32 pendingTill;
 
 };
+
+class InlineResult {
+public:
+	InlineResult(uint64 queryId)
+		: queryId(queryId)
+		, doc(0)
+		, photo(0)
+		, width(0)
+		, height(0)
+		, duration(0)
+		, noWebPage(false)
+		, _loader(0) {
+	}
+	uint64 queryId;
+	QString id, type;
+	DocumentData *doc;
+	PhotoData *photo;
+	QString title, description, url, thumb_url;
+	QString content_type, content_url;
+	int32 width, height, duration;
+
+	QString message; // botContextMessageText
+	bool noWebPage;
+	EntitiesInText entities;
+	QString caption; // if message.isEmpty() use botContextMessageMediaAuto
+
+	ImagePtr thumb;
+
+	void automaticLoadGif();
+	void automaticLoadSettingsChangedGif();
+	void saveFile(const QString &toFile, LoadFromCloudSetting fromCloud, bool autoLoading);
+	void cancelFile();
+
+	QByteArray data() const;
+	bool loading() const;
+	bool loaded() const;
+	bool displayLoading() const;
+	void forget();
+	float64 progress() const;
+
+	~InlineResult();
+
+private:
+	QByteArray _data;
+	mutable webFileLoader *_loader;
+
+};
+typedef QList<InlineResult*> InlineResults;
 
 QString saveFileName(const QString &title, const QString &filter, const QString &prefix, QString name, bool savingAs, const QDir &dir = QDir());
 MsgId clientMsgId();

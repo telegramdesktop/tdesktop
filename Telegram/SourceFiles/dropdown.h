@@ -254,7 +254,7 @@ public:
 
 	void fillPanels(QVector<EmojiPanel*> &panels);
 	void refreshPanels(QVector<EmojiPanel*> &panels);
-	
+
 public slots:
 
 	void updateSelected();
@@ -333,15 +333,20 @@ public:
 
 	void step_selected(uint64 ms, bool timer);
 
-	void hideFinish();
+	void hideFinish(bool completely);
+	void showFinish();
 	void showStickerSet(uint64 setId);
+	void updateShowingSavedGifs();
 
+	bool showSectionIcons() const;
 	void clearSelection(bool fast = false);
 
 	void refreshStickers();
 	void refreshRecentStickers(bool resize = true);
 	void refreshSavedGifs();
+	void refreshInlineRows(UserData *bot, const InlineResults &results, bool resultsDeleted);
 	void refreshRecent();
+	void inlineBotChanged();
 
 	void fillIcons(QList<StickerIcon> &icons);
 	void fillPanels(QVector<EmojiPanel*> &panels);
@@ -352,13 +357,18 @@ public:
 
 	uint64 currentSet(int yOffset) const;
 
-	void ui_repaintSavedGif(const LayoutSavedGif *layout);
-	bool ui_isSavedGifVisible(const LayoutSavedGif *layout);
-	bool ui_isGifBeingChosen();
+	void ui_repaintInlineItem(const LayoutInlineItem *layout);
+	bool ui_isInlineItemVisible(const LayoutInlineItem *layout);
+	bool ui_isInlineItemBeingChosen();
+
+	bool inlineResultsShown() const {
+		return _showingInlineItems && !_showingSavedGifs;
+	}
 
 	~StickerPanInner() {
-		clearSavedGifs();
-		deleteUnusedLayouts();
+		clearInlineRows(true);
+		deleteUnusedGifLayouts();
+		deleteUnusedInlineLayouts();
 	}
 
 public slots:
@@ -366,10 +376,14 @@ public slots:
 	void updateSelected();
 	void onSettings();
 	void onPreview();
+	void onUpdateInlineItems();
 
 signals:
 
 	void selected(DocumentData *sticker);
+	void selected(PhotoData *photo);
+	void selected(InlineResult *result, UserData *bot);
+
 	void removing(quint64 setId);
 
 	void refreshIcons();
@@ -385,9 +399,9 @@ signals:
 
 private:
 
-	void paintSavedGifs(Painter &p, const QRect &r);
+	void paintInlineItems(Painter &p, const QRect &r);
 	void paintStickers(Painter &p, const QRect &r);
-		
+
 	int32 _maxHeight;
 
 	void appendSet(uint64 setId);
@@ -414,21 +428,44 @@ private:
 	QList<DisplayedSet> _sets;
 	QList<bool> _custom;
 
-	bool _showingGifs;
+	bool _showingSavedGifs, _showingInlineItems;
+	bool _setGifCommand;
+	UserData *_inlineBot;
+	QString _inlineBotTitle;
+	uint64 _lastScrolled;
+	QTimer _updateInlineItems;
+	bool _inlineWithThumb;
 
-	typedef QList<LayoutSavedGif*> GifRow;
-	typedef QList<GifRow> GifRows;
-	GifRows _gifRows;
-	void clearSavedGifs();
-	void deleteUnusedLayouts();
+	typedef QVector<LayoutInlineItem*> InlineItems;
+	struct InlineRow {
+		InlineRow() : height(0) {
+		}
+		int32 height;
+		InlineItems items;
+	};
+	typedef QVector<InlineRow> InlineRows;
+	InlineRows _inlineRows;
+	void clearInlineRows(bool resultsDeleted);
 
-	typedef QMap<DocumentData*, LayoutSavedGif*> GifLayouts;
+	typedef QMap<DocumentData*, LayoutInlineGif*> GifLayouts;
 	GifLayouts _gifLayouts;
-	LayoutSavedGif *layoutPrepare(DocumentData *doc, int32 position, int32 width);
-	const GifRow &layoutGifRow(const GifRow &row, int32 *widths, int32 sumWidth);
+	LayoutInlineGif *layoutPrepareSavedGif(DocumentData *doc, int32 position);
+
+	typedef QMap<InlineResult*, LayoutInlineItem*> InlineLayouts;
+	InlineLayouts _inlineLayouts;
+	LayoutInlineItem *layoutPrepareInlineResult(InlineResult *result, int32 position);
+
+	void inlineRowsAddItem(DocumentData *savedGif, InlineResult *result, InlineRow &row, int32 &sumWidth);
+	bool inlineRowFinalize(InlineRow &row, int32 &sumWidth, bool force = false);
+
+	InlineRow &layoutInlineRow(InlineRow &row, int32 sumWidth = 0);
+	void deleteUnusedGifLayouts();
+
+	void deleteUnusedInlineLayouts();
 
 	int32 _selected, _pressedSel;
 	QPoint _lastMousePos;
+	TextLinkPtr _linkOver, _linkDown;
 
 	LinkButton _settings;
 
@@ -481,7 +518,7 @@ public:
 
 	EmojiSwitchButton(QWidget *parent, bool toStickers); // otherwise toEmoji
 	void paintEvent(QPaintEvent *e);
-	void updateText();
+	void updateText(const QString &inlineBotUsername = QString());
 
 protected:
 
@@ -491,7 +528,7 @@ protected:
 
 };
 
-class EmojiPan : public TWidget {
+class EmojiPan : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -500,6 +537,8 @@ public:
 
 	void setMaxHeight(int32 h);
 	void paintEvent(QPaintEvent *e);
+
+	void moveBottom(int32 bottom, bool force = false);
 
 	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
@@ -524,6 +563,9 @@ public:
 	bool eventFilter(QObject *obj, QEvent *e);
 	void stickersInstalled(uint64 setId);
 
+	void queryInlineBot(UserData *bot, QString query);
+	void clearInlineBot();
+
 	bool overlaps(const QRect &globalRect) {
 		if (isHidden() || !_cache.isNull()) return false;
 
@@ -534,9 +576,11 @@ public:
 					 ).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
 
-	void ui_repaintSavedGif(const LayoutSavedGif *layout);
-	bool ui_isSavedGifVisible(const LayoutSavedGif *layout);
-	bool ui_isGifBeingChosen();
+	void ui_repaintInlineItem(const LayoutInlineItem *layout);
+	bool ui_isInlineItemVisible(const LayoutInlineItem *layout);
+	bool ui_isInlineItemBeingChosen();
+
+	void notify_automaticLoadSettingsChangedGif();
 
 public slots:
 
@@ -563,20 +607,26 @@ public slots:
 	void onSaveConfig();
 	void onSaveConfigDelayed(int32 delay);
 
+	void onInlineRequest();
+
 signals:
 
 	void emojiSelected(EmojiPtr emoji);
 	void stickerSelected(DocumentData *sticker);
+	void photoSelected(PhotoData *photo);
+	void inlineResultSelected(InlineResult *result, UserData *bot);
+
 	void updateStickers();
 
 private:
 
 	void validateSelectedIcon(bool animated = false);
 
-	int32 _maxHeight;
+	int32 _maxHeight, _maxHeightEmoji, _maxHeightStickers;
 	bool _horizontal;
 
 	void leaveToChildEvent(QEvent *e);
+	void hideAnimated();
 
 	void updateSelected();
 	void updateIcons();
@@ -633,6 +683,33 @@ private:
 
 	QTimer _saveConfigTimer;
 
+	// inline bots
+	struct InlineCacheEntry {
+		~InlineCacheEntry() {
+			clearResults();
+		}
+		QString nextOffset;
+		InlineResults results;
+		void clearResults() {
+			for (int32 i = 0, l = results.size(); i < l; ++i) {
+				delete results.at(i);
+			}
+			results.clear();
+		}
+	};
+	typedef QMap<QString, InlineCacheEntry*> InlineCache;
+	InlineCache _inlineCache;
+	QTimer _inlineRequestTimer;
+
+	void inlineBotChanged();
+	void showInlineRows(bool newResults);
+	bool refreshInlineRows();
+	UserData *_inlineBot;
+	QString _inlineQuery, _inlineNextQuery, _inlineNextOffset;
+	mtpRequestId _inlineRequestId;
+	void inlineResultsDone(const MTPmessages_BotResults &result);
+	bool inlineResultsFail(const RPCError &error);
+
 };
 
 typedef QList<UserData*> MentionRows;
@@ -645,7 +722,7 @@ class MentionsInner : public TWidget {
 
 public:
 
-	MentionsInner(MentionsDropdown *parent, MentionRows *rows, HashtagRows *hrows, BotCommandRows *crows);
+	MentionsInner(MentionsDropdown *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows);
 
 	void paintEvent(QPaintEvent *e);
 
@@ -676,9 +753,9 @@ private:
 	void setSel(int sel, bool scroll = false);
 
 	MentionsDropdown *_parent;
-	MentionRows *_rows;
+	MentionRows *_mrows;
 	HashtagRows *_hrows;
-	BotCommandRows *_crows;
+	BotCommandRows *_brows;
 	int32 _sel;
 	bool _mouseSel;
 	QPoint _mousePos;
@@ -697,7 +774,7 @@ public:
 
 	void fastHide();
 
-	bool clearFilteredCommands();
+	bool clearFilteredBotCommands();
 	void showFiltered(PeerData *peer, QString start);
 	void updateFiltered(bool toDown = false);
 	void setBoundings(QRect boundings);
@@ -721,10 +798,6 @@ public:
 		return rect().contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
 
-	void ui_repaintSavedGif(const LayoutSavedGif *layout);
-	bool ui_isSavedGifVisible(const LayoutSavedGif *layout);
-	bool ui_isGifBeingChosen();
-
 	~MentionsDropdown();
 
 signals:
@@ -743,9 +816,11 @@ private:
 	void recount(bool toDown = false);
 
 	QPixmap _cache;
-	MentionRows _rows;
+	MentionRows _mrows;
 	HashtagRows _hrows;
-	BotCommandRows _crows;
+	BotCommandRows _brows;
+
+	void rowsUpdated(const MentionRows &rows, const HashtagRows &hrows, const BotCommandRows &brows, bool toDown);
 
 	ScrollArea _scroll;
 	MentionsInner _inner;

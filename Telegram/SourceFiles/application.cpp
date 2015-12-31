@@ -489,7 +489,7 @@ int32 Application::updatingReady() {
 #endif
 
 FileUploader *Application::uploader() {
-	if (!::uploader) ::uploader = new FileUploader();
+	if (!::uploader && !App::quiting()) ::uploader = new FileUploader();
 	return ::uploader;
 }
 
@@ -708,7 +708,7 @@ void Application::checkMapVersion() {
 			if (cDevVersion() && Local::oldMapVersion() < 9014) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Sticker management: manually rearrange your sticker packs, pack order is now synced across all your devices\n\xe2\x80\x94 Click and hold on a sticker to preview it before sending\n\xe2\x80\x94 New context menu for chats in chats list\n\xe2\x80\x94 Support for all existing emoji");// .replace('@', qsl("@") + QChar(0x200D));
 			} else if (Local::oldMapVersion() < 9015) {
-				versionFeatures = lang(lng_new_version_text).trimmed();
+//				versionFeatures = lang(lng_new_version_text).trimmed();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}
@@ -878,16 +878,20 @@ void Application::closeApplication() {
 
 Application::~Application() {
 	App::setQuiting();
+
 	window->setParent(0);
 
 	anim::stopManager();
 
 	socket.close();
 	closeApplication();
+	stopWebLoadManager();
 	App::deinitMedia();
 	deinitImageLinkManager();
+
 	mainApp = 0;
 	delete ::uploader;
+
 	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	delete updateReply;
 	updateReply = 0;

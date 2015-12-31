@@ -260,10 +260,7 @@ void LayoutRadialProgressItem::checkRadialFinished() {
 }
 
 LayoutRadialProgressItem::~LayoutRadialProgressItem() {
-	if (_radial) {
-		delete _radial;
-		setBadPointer(_radial);
-	}
+	deleteAndMark(_radial);
 }
 
 void LayoutAbstractFileItem::setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const {
@@ -507,7 +504,7 @@ void LayoutOverviewVideo::paint(Painter &p, const QRect &clip, uint32 selection,
 
 void LayoutOverviewVideo::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
 	bool loaded = _data->loaded();
-		
+
 	if (hasPoint(x, y)) {
 		link = loaded ? _openl : (_data->loading() ? _cancell : _savel);
 	}
@@ -827,7 +824,7 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 
 		QRect shadow(rtlrect(nameleft, 0, _width - nameleft, st::linksBorder, _width));
 		if (clip.intersects(shadow)) {
-			p.fillRect(clip.intersected(shadow), st::linksBorderColor);
+			p.fillRect(clip.intersected(shadow), st::linksBorderFg);
 		}
 
 		QRect rthumb(rtlrect(0, st::linksBorder + st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, _width));
@@ -1245,7 +1242,7 @@ void LayoutOverviewLink::paint(Painter &p, const QRect &clip, uint32 selection, 
 	}
 
 	if (clip.intersects(rtlrect(left, 0, w, st::linksBorder, _width))) {
-		p.fillRect(clip.intersected(rtlrect(left, 0, w, st::linksBorder, _width)), st::linksBorderColor);
+		p.fillRect(clip.intersected(rtlrect(left, 0, w, st::linksBorder, _width)), st::linksBorderFg);
 	}
 }
 
@@ -1278,76 +1275,108 @@ void LayoutOverviewLink::getState(TextLinkPtr &link, HistoryCursorState &cursor,
 	}
 }
 
-LayoutOverviewLink::Link::Link(const QString &url, const QString &text) 
+LayoutOverviewLink::Link::Link(const QString &url, const QString &text)
 : text(text)
 , width(st::normalFont->width(text))
 , lnk(linkFromUrl(url)) {
 }
 
-LayoutSavedGif::LayoutSavedGif(DocumentData *data)
-: _data(data)
-, _position(0)
-, _width(st::savedGifMinWidth)
+LayoutInlineItem::LayoutInlineItem(InlineResult *result, DocumentData *doc, PhotoData *photo)
+: _result(result)
+, _doc(doc)
+, _photo(photo)
+, _position(0) {
+}
+
+void LayoutInlineItem::setPosition(int32 position) {
+	_position = position;
+}
+
+int32 LayoutInlineItem::position() const {
+	return _position;
+}
+
+InlineResult *LayoutInlineItem::result() const {
+	return _result;
+}
+
+DocumentData *LayoutInlineItem::document() const {
+	return _doc;
+}
+
+PhotoData *LayoutInlineItem::photo() const {
+	return _photo;
+}
+
+void LayoutInlineItem::preload() {
+	if (_result) {
+		if (_result->photo) {
+			_result->photo->thumb->load();
+		} else if (_result->doc) {
+			_result->doc->thumb->load();
+		} else if (!_result->thumb->isNull()) {
+			_result->thumb->load();
+		}
+	} else if (_doc) {
+		_doc->thumb->load();
+	} else if (_photo) {
+		_photo->medium->load();
+	}
+}
+
+void LayoutInlineItem::update() {
+	if (_position >= 0) {
+		Ui::repaintInlineItem(this);
+	}
+}
+
+LayoutInlineGif::LayoutInlineGif(InlineResult *result, DocumentData *doc, bool saved) : LayoutInlineItem(result, doc, 0)
 , _state(0)
 , _gif(0)
+, _send(new SendInlineItemLink())
+, _delete((doc && saved) ? new DeleteSavedGifLink(doc) : 0)
 , _animation(0) {
 }
 
-void LayoutSavedGif::setPosition(int32 position, int32 width) {
-	_position = position;
-	_width = width;
+void LayoutInlineGif::initDimensions() {
+	int32 w = content_width(), h = content_height();
+	if (w <= 0 || h <= 0) {
+		_maxw = 0;
+	} else {
+		w = w * st::inlineMediaHeight / h;
+		_maxw = qMax(w, int32(st::inlineResultsMinWidth));
+	}
+	_minh = st::inlineMediaHeight + st::inlineResultsSkip;
+}
+
+void LayoutInlineGif::setPosition(int32 position) {
+	LayoutInlineItem::setPosition(position);
 	if (_position < 0) {
 		if (gif()) delete _gif;
 		_gif = 0;
 	}
 }
 
-void LayoutSavedGif::setWidth(int32 width) {
-	_width = width;
-}
+void DeleteSavedGifLink::onClick(Qt::MouseButton button) const {
+	if (button != Qt::LeftButton) return;
 
-int32 LayoutSavedGif::position() const {
-	return _position;
-}
+	int32 index = cSavedGifs().indexOf(_data);
+	if (index >= 0) {
+		cRefSavedGifs().remove(index);
+		Local::writeSavedGifs();
 
-int32 LayoutSavedGif::width() const {
-	return _width;
-}
-
-void LayoutSavedGif::notify_over(bool over) {
-	if (!_data->loaded()) {
-		ensureAnimation();
-		if (over == !(_state & StateOver)) {
-			EnsureAnimation(_animation->_a_over, (_state & StateOver) ? 1 : 0, (func(this, &LayoutSavedGif::update)));
-			_animation->_a_over.start(over ? 1 : 0, st::stickersRowDuration);
-		}
+		MTP::send(MTPmessages_SaveGif(MTP_inputDocument(MTP_long(_data->id), MTP_long(_data->access)), MTP_bool(true)));
 	}
-	if (over) {
-		_state |= StateOver;
-	} else {
-		_state &= ~StateOver;
-	}
+	if (App::main()) emit App::main()->savedGifsUpdated();
 }
 
-void LayoutSavedGif::notify_deleteOver(bool over) {
-	if (over == !(_state & StateDeleteOver)) {
-		EnsureAnimation(_a_deleteOver, (_state & StateDeleteOver) ? 1 : 0, func(this, &LayoutSavedGif::update));
-		if (over) {
-			_state |= StateDeleteOver;
-		} else {
-			_state &= ~StateDeleteOver;
-		}
-		_a_deleteOver.start((_state & StateDeleteOver) ? 1 : 0, st::stickersRowDuration);
-	}
-}
+void LayoutInlineGif::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+	content_automaticLoad();
 
-void LayoutSavedGif::paint(Painter &p, bool paused, uint64 ms) const {
-	_data->automaticLoad(0);
-
-	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
+	bool loaded = content_loaded(), loading = content_loading(), displayLoading = content_displayLoading();
 	if (loaded && !gif() && _gif != BadClipReader) {
-		LayoutSavedGif *that = const_cast<LayoutSavedGif*>(this);
-		that->_gif = new ClipReader(_data->location(), _data->data(), func(that, &LayoutSavedGif::clipCallback));
+		LayoutInlineGif *that = const_cast<LayoutInlineGif*>(this);
+		that->_gif = new ClipReader(content_location(), content_data(), func(that, &LayoutInlineGif::clipCallback));
 		if (gif()) _gif->setAutoplay();
 	}
 
@@ -1355,34 +1384,32 @@ void LayoutSavedGif::paint(Painter &p, bool paused, uint64 ms) const {
 	if (displayLoading) {
 		ensureAnimation();
 		if (!_animation->radial.animating()) {
-			_animation->radial.start(_data->progress());
+			_animation->radial.start(content_progress());
 		}
 	}
-	bool radial = isRadialAnimation(ms);
+	bool radial = isRadialAnimation(context->ms);
 
-	int32 height = st::savedGifHeight;
+	int32 height = st::inlineMediaHeight;
 	QSize frame = countFrameSize();
 
 	QRect r(0, 0, _width, height);
 	if (animating) {
-		if (!_thumb.isNull()) const_cast<LayoutSavedGif*>(this)->_thumb = QPixmap();
-		p.drawPixmap(r.topLeft(), _gif->current(frame.width(), frame.height(), _width, height, paused ? 0 : ms));
+		if (!_thumb.isNull()) _thumb = QPixmap();
+		const InlinePaintContext *ctx = context->toInlinePaintContext();
+		t_assert(ctx);
+		p.drawPixmap(r.topLeft(), _gif->current(frame.width(), frame.height(), _width, height, ctx->paused ? 0 : context->ms));
 	} else {
-		if (!_data->thumb->isNull()) {
-			if (_data->thumb->loaded()) {
-				if (_thumb.width() != _width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-					const_cast<LayoutSavedGif*>(this)->_thumb = _data->thumb->pixNoCache(frame.width(), frame.height(), true, false, false, _width, height);
-				}
-			} else {
-				_data->thumb->load();
-			}
+		prepareThumb(_width, height, frame);
+		if (_thumb.isNull()) {
+			p.fillRect(r, st::overviewPhotoBg);
+		} else {
+			p.drawPixmap(r.topLeft(), _thumb);
 		}
-		p.drawPixmap(r.topLeft(), _thumb);
 	}
 
-	if (radial || (!_gif && !loaded && !_data->loading()) || (_gif == BadClipReader)) {
-		float64 radialOpacity = (radial && loaded && !_data->uploading()) ? _animation->radial.opacity() : 1;
-		if (_animation && _animation->_a_over.animating(ms)) {
+	if (radial || (!_gif && !loaded && !loading) || (_gif == BadClipReader)) {
+		float64 radialOpacity = (radial && loaded) ? _animation->radial.opacity() : 1;
+		if (_animation && _animation->_a_over.animating(context->ms)) {
 			float64 over = _animation->_a_over.current();
 			p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
 			p.fillRect(r, st::black);
@@ -1393,9 +1420,9 @@ void LayoutSavedGif::paint(Painter &p, bool paused, uint64 ms) const {
 
 		p.setOpacity(radialOpacity);
 		style::sprite icon;
-		if (_data->loaded() && !radial) {
+		if (loaded && !radial) {
 			icon = st::msgFileInPlay;
-		} else if (radial || _data->loading()) {
+		} else if (radial || loading) {
 			icon = st::msgFileInCancel;
 		} else {
 			icon = st::msgFileInDownload;
@@ -1409,8 +1436,8 @@ void LayoutSavedGif::paint(Painter &p, bool paused, uint64 ms) const {
 		}
 	}
 
-	if (_state & StateOver) {
-		float64 deleteOver = _a_deleteOver.current(ms, (_state & StateDeleteOver) ? 1 : 0);
+	if (_delete && (_state & StateOver)) {
+		float64 deleteOver = _a_deleteOver.current(context->ms, (_state & StateDeleteOver) ? 1 : 0);
 		QPoint deletePos = QPoint(_width - st::stickerPanDelete.pxWidth(), 0);
 		p.setOpacity(deleteOver + (1 - deleteOver) * st::stickerPanDeleteOpacity);
 		p.drawSpriteLeft(deletePos, _width, st::stickerPanDelete);
@@ -1418,9 +1445,60 @@ void LayoutSavedGif::paint(Painter &p, bool paused, uint64 ms) const {
 	}
 }
 
-QSize LayoutSavedGif::countFrameSize() const {
+void LayoutInlineGif::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+	if (x >= 0 && x < _width && y >= 0 && y < st::inlineMediaHeight) {
+		if (_delete && (rtl() ? _width - x : x) >= _width - st::stickerPanDelete.pxWidth() && y < st::stickerPanDelete.pxHeight()) {
+			link = _delete;
+		} else {
+			link = _send;
+		}
+	}
+}
+
+void LayoutInlineGif::linkOver(const TextLinkPtr &link) {
+	if (_delete && link == _delete) {
+		if (!(_state & StateDeleteOver)) {
+			EnsureAnimation(_a_deleteOver, 0, func(this, &LayoutInlineGif::update));
+			_state |= StateDeleteOver;
+			_a_deleteOver.start(1, st::stickersRowDuration);
+		}
+	}
+	if ((_delete && link == _delete) || link == _send) {
+		if (!content_loaded()) {
+			ensureAnimation();
+			if (!(_state & StateOver)) {
+				EnsureAnimation(_animation->_a_over, 0, func(this, &LayoutInlineGif::update));
+				_animation->_a_over.start(1, st::stickersRowDuration);
+			}
+		}
+		_state |= StateOver;
+	}
+}
+
+void LayoutInlineGif::linkOut(const TextLinkPtr &link) {
+	if (_delete && link == _delete) {
+		if (_state & StateDeleteOver) {
+			update();
+			EnsureAnimation(_a_deleteOver, 1, func(this, &LayoutInlineItem::update));
+			_state &= ~StateDeleteOver;
+			_a_deleteOver.start(0, st::stickersRowDuration);
+		}
+	}
+	if ((_delete && link == _delete) || link == _send) {
+		if (!content_loaded()) {
+			ensureAnimation();
+			if (_state & StateOver) {
+				EnsureAnimation(_animation->_a_over, 1, func(this, &LayoutInlineItem::update));
+				_animation->_a_over.start(0, st::stickersRowDuration);
+			}
+		}
+		_state &= ~StateOver;
+	}
+}
+
+QSize LayoutInlineGif::countFrameSize() const {
 	bool animating = (gif() && _gif->ready());
-	int32 framew = animating ? _gif->width() : _data->thumb->width(), frameh = animating ? _gif->height() : _data->thumb->height(), height = st::savedGifHeight;
+	int32 framew = animating ? _gif->width() : content_width(), frameh = animating ? _gif->height() : content_height(), height = st::inlineMediaHeight;
 	if (framew * height > frameh * _width) {
 		if (framew < st::maxStickerSize || frameh > height) {
 			if (frameh > height || (framew * height / frameh) <= st::maxStickerSize) {
@@ -1445,68 +1523,511 @@ QSize LayoutSavedGif::countFrameSize() const {
 	return QSize(framew, frameh);
 }
 
-void LayoutSavedGif::preload() {
-	_data->thumb->load();
+LayoutInlineGif::~LayoutInlineGif() {
+	if (gif()) deleteAndMark(_gif);
+	deleteAndMark(_animation);
 }
 
-LayoutSavedGif::~LayoutSavedGif() {
-	delete _animation;
-	setBadPointer(_animation);
-}
-
-void LayoutSavedGif::ensureAnimation() const {
-	if (!_animation) {
-		_animation = new AnimationData(animation(const_cast<LayoutSavedGif*>(this), &LayoutSavedGif::step_radial));
+void LayoutInlineGif::prepareThumb(int32 width, int32 height, const QSize &frame) const {
+	if (_doc && !_doc->thumb->isNull()) {
+		if (_doc->thumb->loaded()) {
+			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+				_thumb = _doc->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+			}
+		} else {
+			_doc->thumb->load();
+		}
+	} else if (_result && !_result->thumb_url.isEmpty()) {
+		if (_result->thumb->loaded()) {
+			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+				_thumb = _result->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+			}
+		} else {
+			_result->thumb->load();
+		}
 	}
 }
 
-bool LayoutSavedGif::isRadialAnimation(uint64 ms) const {
+void LayoutInlineGif::ensureAnimation() const {
+	if (!_animation) {
+		_animation = new AnimationData(animation(const_cast<LayoutInlineGif*>(this), &LayoutInlineGif::step_radial));
+	}
+}
+
+bool LayoutInlineGif::isRadialAnimation(uint64 ms) const {
 	if (!_animation || !_animation->radial.animating()) return false;
 
 	_animation->radial.step(ms);
 	return _animation && _animation->radial.animating();
 }
 
-void LayoutSavedGif::step_radial(uint64 ms, bool timer) {
+void LayoutInlineGif::step_radial(uint64 ms, bool timer) {
 	if (timer) {
 		update();
 	} else {
-		_animation->radial.update(_data->progress(), !_data->loading() || _data->loaded(), ms);
-		if (!_animation->radial.animating() && _data->loaded()) {
+		_animation->radial.update(content_progress(), !content_loading() || content_loaded(), ms);
+		if (!_animation->radial.animating() && content_loaded()) {
 			delete _animation;
 			_animation = 0;
 		}
 	}
 }
 
-void LayoutSavedGif::clipCallback(ClipReaderNotification notification) {
+void LayoutInlineGif::clipCallback(ClipReaderNotification notification) {
 	switch (notification) {
 	case ClipReaderReinit: {
 		if (gif()) {
 			if (_gif->state() == ClipError) {
 				delete _gif;
 				_gif = BadClipReader;
-				_data->forget();
+				content_forget();
 			} else if (_gif->ready() && !_gif->started()) {
-				int32 height = st::savedGifHeight;
+				int32 height = st::inlineMediaHeight;
 				QSize frame = countFrameSize();
 				_gif->start(frame.width(), frame.height(), _width, height, false);
-			} else if (_gif->paused() && !Ui::isSavedGifVisible(this)) {
+			} else if (_gif->paused() && !Ui::isInlineItemVisible(this)) {
 				delete _gif;
 				_gif = 0;
-				_data->forget();
+				content_forget();
 			}
 		}
 
 		update();
 	} break;
 
-	case ClipReaderRepaint: update(); break;
+	case ClipReaderRepaint: {
+		if (gif() && !_gif->currentDisplayed()) {
+			update();
+		}
+	} break;
 	}
 }
 
-void LayoutSavedGif::update() {
-	if (_position >= 0) {
-		Ui::repaintSavedGif(this);
+int32 LayoutInlineGif::content_width() const {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	if (doc) {
+		if (doc->dimensions.width() > 0) {
+			return doc->dimensions.width();
+		}
+		if (!doc->thumb->isNull()) {
+			return doc->thumb->width();
+		}
+	} else if (_result) {
+		return _result->width;
+	}
+	return 0;
+}
+
+int32 LayoutInlineGif::content_height() const {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	if (doc) {
+		if (doc->dimensions.height() > 0) {
+			return doc->dimensions.height();
+		}
+		if (!doc->thumb->isNull()) {
+			return doc->thumb->height();
+		}
+	} else if (_result) {
+		return _result->height;
+	}
+	return 0;
+}
+
+bool LayoutInlineGif::content_loading() const {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	return doc ? doc->loading() : _result->loading();
+}
+
+bool LayoutInlineGif::content_displayLoading() const {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	return doc ? doc->displayLoading() : _result->displayLoading();
+}
+
+bool LayoutInlineGif::content_loaded() const {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	return doc ? doc->loaded() : _result->loaded();
+}
+
+float64 LayoutInlineGif::content_progress() const {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	return doc ? doc->progress() : _result->progress();
+}
+
+void LayoutInlineGif::content_automaticLoad() const {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	if (doc) {
+		doc->automaticLoad(0);
+	} else {
+		_result->automaticLoadGif();
+	}
+}
+
+void LayoutInlineGif::content_forget() {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	if (doc) {
+		doc->forget();
+	} else {
+		_result->forget();
+	}
+}
+
+FileLocation LayoutInlineGif::content_location() const {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	return doc ? doc->location() : FileLocation();
+}
+
+QByteArray LayoutInlineGif::content_data() const {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	return doc ? doc->data() : _result->data();
+}
+
+LayoutInlinePhoto::LayoutInlinePhoto(InlineResult *result, PhotoData *photo) : LayoutInlineItem(result, 0, photo)
+, _send(new SendInlineItemLink())
+, _thumbLoaded(false) {
+}
+
+void LayoutInlinePhoto::initDimensions() {
+	int32 w = content_width(), h = content_height();
+	if (w <= 0 || h <= 0) {
+		_maxw = 0;
+	} else {
+		w = w * st::inlineMediaHeight / h;
+		_maxw = qMax(w, int32(st::inlineResultsMinWidth));
+	}
+	_minh = st::inlineMediaHeight + st::inlineResultsSkip;
+}
+
+void LayoutInlinePhoto::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+	bool loaded = content_loaded();
+
+	int32 height = st::inlineMediaHeight;
+	QSize frame = countFrameSize();
+
+	QRect r(0, 0, _width, height);
+
+	prepareThumb(_width, height, frame);
+	if (_thumb.isNull()) {
+		p.fillRect(r, st::overviewPhotoBg);
+	} else {
+		p.drawPixmap(r.topLeft(), _thumb);
+	}
+}
+
+void LayoutInlinePhoto::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+	if (x >= 0 && x < _width && y >= 0 && y < st::inlineMediaHeight) {
+		link = _send;
+	}
+}
+
+QSize LayoutInlinePhoto::countFrameSize() const {
+	int32 framew = content_width(), frameh = content_height(), height = st::inlineMediaHeight;
+	if (framew * height > frameh * _width) {
+		if (framew < st::maxStickerSize || frameh > height) {
+			if (frameh > height || (framew * height / frameh) <= st::maxStickerSize) {
+				framew = framew * height / frameh;
+				frameh = height;
+			} else {
+				frameh = int32(frameh * st::maxStickerSize) / framew;
+				framew = st::maxStickerSize;
+			}
+		}
+	} else {
+		if (frameh < st::maxStickerSize || framew > _width) {
+			if (framew > _width || (frameh * _width / framew) <= st::maxStickerSize) {
+				frameh = frameh * _width / framew;
+				framew = _width;
+			} else {
+				framew = int32(framew * st::maxStickerSize) / frameh;
+				frameh = st::maxStickerSize;
+			}
+		}
+	}
+	return QSize(framew, frameh);
+}
+
+void LayoutInlinePhoto::prepareThumb(int32 width, int32 height, const QSize &frame) const {
+	if (_photo) {
+		if (_photo->medium->loaded()) {
+			if (!_thumbLoaded || _thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+				_thumb = _photo->medium->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+			}
+			_thumbLoaded = true;
+		} else {
+			if (_photo->thumb->loaded()) {
+				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+					_thumb = _photo->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+				}
+			}
+			_photo->medium->load();
+		}
+	} else {
+		if (_result->thumb->loaded()) {
+			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+				_thumb = _result->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+			}
+		} else {
+			_result->thumb->load();
+		}
+	}
+}
+
+int32 LayoutInlinePhoto::content_width() const {
+	PhotoData *photo = _photo ? _photo : (_result ? _result->photo : 0);
+	if (photo) {
+		return photo->full->width();
+	} else if (_result) {
+		return _result->width;
+	}
+	return 0;
+}
+
+int32 LayoutInlinePhoto::content_height() const {
+	PhotoData *photo = _photo ? _photo : (_result ? _result->photo : 0);
+	if (photo) {
+		return photo->full->height();
+	} else if (_result) {
+		return _result->height;
+	}
+	return 0;
+}
+
+bool LayoutInlinePhoto::content_loaded() const {
+	PhotoData *photo = _photo ? _photo : (_result ? _result->photo : 0);
+	return photo ? photo->loaded() : _result->loaded();
+}
+
+void LayoutInlinePhoto::content_forget() {
+	PhotoData *photo = _photo ? _photo : (_result ? _result->photo : 0);
+	if (photo) {
+		photo->forget();
+	} else {
+		_result->forget();
+	}
+}
+
+LayoutInlineWebVideo::LayoutInlineWebVideo(InlineResult *result) : LayoutInlineItem(result, 0, 0)
+, _send(new SendInlineItemLink())
+, _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
+, _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
+	if (_result->duration) {
+		_duration = formatDurationText(_result->duration);
+	}
+}
+
+void LayoutInlineWebVideo::initDimensions() {
+	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
+	int32 textWidth = _maxw - (_result->thumb->isNull() ? 0 : (st::inlineThumbSize + st::inlineThumbSkip));
+	TextParseOptions titleOpts = { 0, _maxw, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
+	_title.setText(st::semiboldFont, textOneLine(_result->title), titleOpts);
+	int32 titleHeight = qMin(_title.countHeight(_maxw), 2 * st::semiboldFont->height);
+
+	int32 descriptionLines = _result->thumb->isNull() ? 3 : (titleHeight > st::semiboldFont->height ? 1 : 2);
+
+	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, descriptionLines * st::normalFont->height, Qt::LayoutDirectionAuto };
+	_description.setText(st::normalFont, _result->description, descriptionOpts);
+	int32 descriptionHeight = qMin(_description.countHeight(_maxw), descriptionLines * st::normalFont->height);
+
+	_minh = _result->thumb->isNull() ? titleHeight + descriptionHeight : st::inlineThumbSize;
+	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
+}
+
+void LayoutInlineWebVideo::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+	int32 left = st::inlineThumbSize + st::inlineThumbSkip;
+	prepareThumb(st::inlineThumbSize, st::inlineThumbSize);
+	if (_thumb.isNull()) {
+		p.fillRect(rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width), _result->thumb->isNull() ? st::black : st::overviewPhotoBg);
+	} else {
+		p.drawPixmapLeft(0, st::inlineRowMargin, _width, _thumb);
+	}
+
+	if (!_duration.isEmpty()) {
+		int32 durationTop = st::inlineRowMargin + st::inlineThumbSize - st::normalFont->height - st::inlineDurationMargin;
+		p.fillRect(rtlrect(0, durationTop - st::inlineDurationMargin, st::inlineThumbSize, st::normalFont->height + 2 * st::inlineDurationMargin, _width), st::msgDateImgBg);
+		p.setPen(st::white);
+		p.setFont(st::normalFont);
+		p.drawTextRight(_width - st::inlineThumbSize + st::inlineDurationMargin, durationTop, _width, _duration);
+	}
+
+	p.setPen(st::black);
+	_title.drawLeftElided(p, left, st::inlineRowMargin, _width - left, _width, 2);
+	int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
+
+	p.setPen(st::inlineDescriptionFg);
+	int32 descriptionLines = _result->thumb->isNull() ? 3 : (titleHeight > st::semiboldFont->height ? 1 : 2);
+	_description.drawLeftElided(p, left, st::inlineRowMargin + titleHeight, _width - left, _width, descriptionLines);
+
+	const InlinePaintContext *ctx = context->toInlinePaintContext();
+	t_assert(ctx);
+	if (!ctx->lastRow) {
+		p.fillRect(rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
+	}
+}
+
+void LayoutInlineWebVideo::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+	if (x >= 0 && x < _width && y >= 0 && y < _height) {
+		link = _send;
+	}
+}
+
+void LayoutInlineWebVideo::prepareThumb(int32 width, int32 height) const {
+	if (_result->thumb->loaded()) {
+		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+			int32 w = qMax(_result->thumb->width(), 1), h = qMax(_result->thumb->height(), 1);
+			if (w * height > h * width) {
+				if (height < h) {
+					w = w * height / h;
+					h = height;
+				}
+			} else {
+				if (width < w) {
+					h = h * width / w;
+					w = width;
+				}
+			}
+			_thumb = _result->thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), true, false, false, width, height);
+		}
+	} else {
+		_result->thumb->load();
+	}
+}
+
+LayoutInlineArticle::LayoutInlineArticle(InlineResult *result, bool withThumb) : LayoutInlineItem(result, 0, 0)
+, _send(new SendInlineItemLink())
+, _url(result->url.isEmpty() ? 0 : linkFromUrl(result->url))
+, _withThumb(withThumb)
+, _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
+, _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
+	QVector<QStringRef> parts = _result->url.splitRef('/');
+	if (!parts.isEmpty()) {
+		QStringRef domain = parts.at(0);
+		if (parts.size() > 2 && domain.endsWith(':') && parts.at(1).isEmpty()) { // http:// and others
+			domain = parts.at(2);
+		}
+
+		parts = domain.split('@').back().split('.');
+		if (parts.size() > 1) {
+			_letter = parts.at(parts.size() - 2).at(0).toUpper();
+		}
+	}
+	if (_letter.isEmpty() && !_result->title.isEmpty()) {
+		_letter = _result->title.at(0).toUpper();
+	}
+}
+
+void LayoutInlineArticle::initDimensions() {
+	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
+	int32 textWidth = _maxw - (_withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0);
+	TextParseOptions titleOpts = { 0, _maxw, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
+	_title.setText(st::semiboldFont, textOneLine(_result->title), titleOpts);
+	int32 titleHeight = qMin(_title.countHeight(_maxw), 2 * st::semiboldFont->height);
+
+	int32 descriptionLines = (_withThumb || _url) ? 2 : 3;
+
+	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, descriptionLines * st::normalFont->height, Qt::LayoutDirectionAuto };
+	_description.setText(st::normalFont, _result->description, descriptionOpts);
+	int32 descriptionHeight = qMin(_description.countHeight(_maxw), descriptionLines * st::normalFont->height);
+
+	_minh = titleHeight + descriptionHeight;
+	if (_url) _minh += st::normalFont->height;
+	if (_withThumb) _minh = qMax(_minh, int32(st::inlineThumbSize));
+	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
+}
+
+int32 LayoutInlineArticle::resizeGetHeight(int32 width) {
+	_width = qMin(width, _maxw);
+	if (_url) {
+		_urlText = _result->url;
+		_urlWidth = st::normalFont->width(_urlText);
+		if (_urlWidth > _width - st::inlineThumbSize - st::inlineThumbSkip) {
+			_urlText = st::normalFont->elided(_result->url, _width - st::inlineThumbSize - st::inlineThumbSkip);
+			_urlWidth = st::normalFont->width(_urlText);
+		}
+	}
+	_height = _minh;
+	return _height;
+}
+
+void LayoutInlineArticle::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+	int32 left = st::emojiPanHeaderLeft - st::inlineResultsLeft;
+	if (_withThumb) {
+		left = st::inlineThumbSize + st::inlineThumbSkip;
+		prepareThumb(st::inlineThumbSize, st::inlineThumbSize);
+		QRect rthumb(rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width));
+		if (_thumb.isNull()) {
+			if (_result->thumb->isNull() && !_letter.isEmpty()) {
+				int32 index = (_letter.at(0).unicode() % 4);
+				style::color colors[] = { st::msgFileRedColor, st::msgFileYellowColor, st::msgFileGreenColor, st::msgFileBlueColor };
+
+				p.fillRect(rthumb, colors[index]);
+				if (!_letter.isEmpty()) {
+					p.setFont(st::linksLetterFont);
+					p.setPen(st::white);
+					p.drawText(rthumb, _letter, style::al_center);
+				}
+			} else {
+				p.fillRect(rthumb, st::overviewPhotoBg);
+			}
+		} else {
+			p.drawPixmapLeft(rthumb.topLeft(), _width, _thumb);
+		}
+	}
+
+	p.setPen(st::black);
+	_title.drawLeftElided(p, left, st::inlineRowMargin, _width - left, _width, 2);
+	int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
+
+	p.setPen(st::inlineDescriptionFg);
+	int32 descriptionLines = (_withThumb || _url) ? 2 : 3;
+	_description.drawLeftElided(p, left, st::inlineRowMargin + titleHeight, _width - left, _width, descriptionLines);
+
+	if (_url) {
+		int32 descriptionHeight = qMin(_description.countHeight(_width - left), st::normalFont->height * descriptionLines);
+		p.drawTextLeft(left, st::inlineRowMargin + titleHeight + descriptionHeight, _width, _urlText, _urlWidth);
+	}
+
+	const InlinePaintContext *ctx = context->toInlinePaintContext();
+	t_assert(ctx);
+	if (!ctx->lastRow) {
+		p.fillRect(rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
+	}
+}
+
+void LayoutInlineArticle::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+	if (x >= 0 && x < _width && y >= 0 && y < _height) {
+		if (_url) {
+			int32 left = st::inlineThumbSize + st::inlineThumbSkip;
+			int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
+			int32 descriptionLines = 2;
+			int32 descriptionHeight = qMin(_description.countHeight(_width - left), st::normalFont->height * descriptionLines);
+			if (rtlrect(left, st::inlineRowMargin + titleHeight + descriptionHeight, _urlWidth, st::normalFont->height, _width).contains(x, y)) {
+				link = _url;
+				return;
+			}
+		}
+		link = _send;
+	}
+}
+
+void LayoutInlineArticle::prepareThumb(int32 width, int32 height) const {
+	if (_result->thumb->isNull()) return;
+
+	if (_result->thumb->loaded()) {
+		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+			int32 w = qMax(_result->thumb->width(), 1), h = qMax(_result->thumb->height(), 1);
+			if (w * height > h * width) {
+				if (height < h) {
+					w = w * height / h;
+					h = height;
+				}
+			} else {
+				if (width < w) {
+					h = h * width / w;
+					w = width;
+				}
+			}
+			_thumb = _result->thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), true, false, false, width, height);
+		}
+	} else {
+		_result->thumb->load();
 	}
 }

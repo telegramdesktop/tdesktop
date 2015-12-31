@@ -94,7 +94,7 @@ private:
 	bool _canDelete;
 	QString _selStr;
 	int32 _selStrLeft, _selStrWidth;
-    
+
     bool _animating;
 
 	FlatButton _clearSelection;
@@ -317,17 +317,17 @@ public:
 
 	DialogsIndexed &contactsList();
 	DialogsIndexed &dialogsList();
-    
+
 	void sendMessage(History *hist, const QString &text, MsgId replyTo, bool broadcast, WebPageId webPageId = 0);
 	void saveRecentHashtags(const QString &text);
-    
+
     void readServerHistory(History *history, bool force = true);
 
 	uint64 animActiveTimeStart(const HistoryItem *msg) const;
 	void stopAnimActive();
 
 	void sendBotCommand(const QString &cmd, MsgId msgId);
-	void insertBotCommand(const QString &cmd);
+	bool insertBotCommand(const QString &cmd, bool specialGif);
 
 	void searchMessages(const QString &query, PeerData *inPeer);
 	bool preloadOverview(PeerData *peer, MediaOverviewType type);
@@ -364,7 +364,7 @@ public:
 	void updateBotKeyboard(History *h);
 
 	void pushReplyReturn(HistoryItem *item);
-	
+
 	bool hasForwardingItems();
 	void fillForwardingInfo(Text *&from, Text *&text, bool &serviceColor, ImagePtr &preview);
 	void updateForwardingTexts();
@@ -410,9 +410,9 @@ public:
 	void ui_showStickerPreview(DocumentData *sticker);
 	void ui_hideStickerPreview();
 	void ui_repaintHistoryItem(const HistoryItem *item);
-	void ui_repaintSavedGif(const LayoutSavedGif *layout);
-	bool ui_isSavedGifVisible(const LayoutSavedGif *layout);
-	bool ui_isGifBeingChosen();
+	void ui_repaintInlineItem(const LayoutInlineItem *layout);
+	bool ui_isInlineItemVisible(const LayoutInlineItem *layout);
+	bool ui_isInlineItemBeingChosen();
 	void ui_showPeerHistory(quint64 peer, qint32 msgId, bool back);
 
 	void notify_botCommandsChanged(UserData *bot);
@@ -422,6 +422,7 @@ public:
 	void notify_clipStopperHidden(ClipStopperType type);
 	void notify_historyItemResized(const HistoryItem *row, bool scrollToIt);
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
+	void notify_automaticLoadSettingsChangedGif();
 
 	~MainWidget();
 
@@ -439,17 +440,19 @@ public slots:
 
 	void webPagesUpdate();
 
-	void videoLoadProgress(mtpFileLoader *loader);
-	void videoLoadFailed(mtpFileLoader *loader, bool started);
+	void videoLoadProgress(FileLoader *loader);
+	void videoLoadFailed(FileLoader *loader, bool started);
 	void videoLoadRetry();
-	void audioLoadProgress(mtpFileLoader *loader);
-	void audioLoadFailed(mtpFileLoader *loader, bool started);
+	void audioLoadProgress(FileLoader *loader);
+	void audioLoadFailed(FileLoader *loader, bool started);
 	void audioLoadRetry();
 	void audioPlayProgress(const AudioMsgId &audioId);
-	void documentLoadProgress(mtpFileLoader *loader);
-	void documentLoadFailed(mtpFileLoader *loader, bool started);
+	void documentLoadProgress(FileLoader *loader);
+	void documentLoadFailed(FileLoader *loader, bool started);
 	void documentLoadRetry();
 	void documentPlayProgress(const SongMsgId &songId);
+	void inlineResultLoadProgress(FileLoader *loader);
+	void inlineResultLoadFailed(FileLoader *loader, bool started);
 	void hidePlayer();
 
 	void dialogsCancelled();
@@ -613,7 +616,7 @@ private:
 
 	QSet<PeerData*> updateNotifySettingPeers;
 	SingleTimer updateNotifySettingTimer;
-    
+
     typedef QMap<PeerData*, QPair<mtpRequestId, MsgId> > ReadRequests;
     ReadRequests _readRequests;
 	typedef QMap<PeerData*, MsgId> ReadRequestsPending;

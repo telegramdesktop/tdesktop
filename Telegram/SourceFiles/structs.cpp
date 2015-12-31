@@ -283,7 +283,7 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 	case mtpc_botInfo: {
 		const MTPDbotInfo &d(info.c_botInfo());
 		if (peerFromUser(d.vuser_id.v) != id) return;
-		
+
 		if (botInfo) {
 			botInfo->version = d.vversion.v;
 		} else {
@@ -296,7 +296,7 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 			botInfo->text = Text(st::msgMinWidth);
 		}
 		botInfo->shareText = qs(d.vshare_text);
-		
+
 		const QVector<MTPBotCommand> &v(d.vcommands.c_vector().v);
 		botInfo->commands.reserve(v.size());
 		bool changedCommands = false;
@@ -661,8 +661,7 @@ ImagePtr PhotoData::makeReplyPreview() {
 }
 
 PhotoData::~PhotoData() {
-	delete uploadingData;
-	setBadPointer(uploadingData);
+	deleteAndMark(uploadingData);
 }
 
 void PhotoLink::onClick(Qt::MouseButton button) const {
@@ -682,7 +681,7 @@ void PhotoSaveLink::onClick(Qt::MouseButton button) const {
 
 void PhotoCancelLink::onClick(Qt::MouseButton button) const {
 	if (button != Qt::LeftButton) return;
-	
+
 	PhotoData *data = photo();
 	if (!data->date) return;
 
@@ -908,7 +907,7 @@ bool VideoData::loaded(bool check) const {
 		if (_loader->fileType() == mtpc_storage_fileUnknown) {
 			_loader->deleteLater();
 			_loader->rpcInvalidate();
-			_loader = CancelledFileLoader;
+			_loader = CancelledMtpFileLoader;
 		} else {
 			VideoData *that = const_cast<VideoData*>(this);
 			that->_location = FileLocation(mtpToStorageType(_loader->fileType()), _loader->fileName());
@@ -923,7 +922,7 @@ bool VideoData::loaded(bool check) const {
 }
 
 bool VideoData::loading() const {
-	return _loader && _loader != CancelledFileLoader;
+	return _loader && _loader != CancelledMtpFileLoader;
 }
 
 bool VideoData::displayLoading() const {
@@ -960,7 +959,7 @@ void VideoData::save(const QString &toFile, ActionOnLoad action, const FullMsgId
 		return;
 	}
 
-	if (_loader == CancelledFileLoader) _loader = 0;
+	if (_loader == CancelledMtpFileLoader) _loader = 0;
 	if (_loader) {
 		if (!_loader->setFileName(toFile)) {
 			cancel();
@@ -976,8 +975,8 @@ void VideoData::save(const QString &toFile, ActionOnLoad action, const FullMsgId
 	} else {
 		status = FileReady;
 		_loader = new mtpFileLoader(dc, id, access, VideoFileLocation, toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
-		_loader->connect(_loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(videoLoadProgress(mtpFileLoader*)));
-		_loader->connect(_loader, SIGNAL(failed(mtpFileLoader*,bool)), App::main(), SLOT(videoLoadProgress(mtpFileLoader*,bool)));
+		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(videoLoadProgress(FileLoader*)));
+		_loader->connect(_loader, SIGNAL(failed(FileLoader*,bool)), App::main(), SLOT(videoLoadFailed(FileLoader*,bool)));
 		_loader->start();
 	}
 
@@ -988,7 +987,7 @@ void VideoData::cancel() {
 	if (!loading()) return;
 
 	mtpFileLoader *l = _loader;
-	_loader = CancelledFileLoader;
+	_loader = CancelledMtpFileLoader;
 	if (l) {
 		l->cancel();
 		l->deleteLater();
@@ -1165,7 +1164,7 @@ void AudioData::forget() {
 void AudioData::automaticLoad(const HistoryItem *item) {
 	if (loaded() || status != FileReady) return;
 
-	if (saveToCache() && _loader != CancelledFileLoader) {
+	if (saveToCache() && _loader != CancelledMtpFileLoader) {
 		if (item) {
 			bool loadFromCloud = false;
 			if (item->history()->peer->isUser()) {
@@ -1179,7 +1178,7 @@ void AudioData::automaticLoad(const HistoryItem *item) {
 }
 
 void AudioData::automaticLoadSettingsChanged() {
-	if (loaded() || status != FileReady || !saveToCache() || _loader != CancelledFileLoader) return;
+	if (loaded() || status != FileReady || !saveToCache() || _loader != CancelledMtpFileLoader) return;
 	_loader = 0;
 }
 
@@ -1225,7 +1224,7 @@ bool AudioData::loaded(bool check) const {
 		if (_loader->fileType() == mtpc_storage_fileUnknown) {
 			_loader->deleteLater();
 			_loader->rpcInvalidate();
-			_loader = CancelledFileLoader;
+			_loader = CancelledMtpFileLoader;
 		} else {
 			AudioData *that = const_cast<AudioData*>(this);
 			that->_location = FileLocation(mtpToStorageType(_loader->fileType()), _loader->fileName());
@@ -1241,7 +1240,7 @@ bool AudioData::loaded(bool check) const {
 }
 
 bool AudioData::loading() const {
-	return _loader && _loader != CancelledFileLoader;
+	return _loader && _loader != CancelledMtpFileLoader;
 }
 
 bool AudioData::displayLoading() const {
@@ -1282,7 +1281,7 @@ void AudioData::save(const QString &toFile, ActionOnLoad action, const FullMsgId
 		return;
 	}
 
-	if (_loader == CancelledFileLoader) _loader = 0;
+	if (_loader == CancelledMtpFileLoader) _loader = 0;
 	if (_loader) {
 		if (!_loader->setFileName(toFile)) {
 			cancel();
@@ -1298,8 +1297,8 @@ void AudioData::save(const QString &toFile, ActionOnLoad action, const FullMsgId
 	} else {
 		status = FileReady;
 		_loader = new mtpFileLoader(dc, id, access, AudioFileLocation, toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
-		_loader->connect(_loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(audioLoadProgress(mtpFileLoader*)));
-		_loader->connect(_loader, SIGNAL(failed(mtpFileLoader*,bool)), App::main(), SLOT(audioLoadFailed(mtpFileLoader*,bool)));
+		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(audioLoadProgress(FileLoader*)));
+		_loader->connect(_loader, SIGNAL(failed(FileLoader*,bool)), App::main(), SLOT(audioLoadFailed(FileLoader*,bool)));
 		_loader->start();
 	}
 
@@ -1310,7 +1309,7 @@ void AudioData::cancel() {
 	if (!loading()) return;
 
 	mtpFileLoader *l = _loader;
-	_loader = CancelledFileLoader;
+	_loader = CancelledMtpFileLoader;
 	if (l) {
 		l->cancel();
 		l->deleteLater();
@@ -1506,7 +1505,7 @@ DocumentData::DocumentData(const DocumentId &id, const uint64 &access, int32 dat
 , status(FileReady)
 , uploadOffset(0)
 , _additional(0)
-, _isImage(false)
+, _duration(-1)
 , _actionOnLoad(ActionOnLoadNone)
 , _loader(0) {
 	_location = Local::readFileLocation(mediaKey(DocumentFileLocation, dc, id));
@@ -1531,8 +1530,10 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 				type = StickerDocument;
 				StickerData *sticker = new StickerData();
 				_additional = sticker;
-				sticker->alt = qs(d.valt);
-				sticker->set = d.vstickerset;
+			}
+			if (sticker()) {
+				sticker()->alt = qs(d.valt);
+				sticker()->set = d.vstickerset;
 			}
 		} break;
 		case mtpc_documentAttributeVideo: {
@@ -1540,17 +1541,21 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			if (type == FileDocument) {
 				type = VideoDocument;
 			}
-//			duration = d.vduration.v;
+			_duration = d.vduration.v;
 			dimensions = QSize(d.vw.v, d.vh.v);
 		} break;
 		case mtpc_documentAttributeAudio: {
 			const MTPDdocumentAttributeAudio &d(attributes[i].c_documentAttributeAudio());
-			type = SongDocument;
-			SongData *song = new SongData();
-			_additional = song;
-			song->duration = d.vduration.v;
-			song->title = qs(d.vtitle);
-			song->performer = qs(d.vperformer);
+			if (type == FileDocument) {
+				type = SongDocument;
+				SongData *song = new SongData();
+				_additional = song;
+			}
+			if (song()) {
+				song()->duration = d.vduration.v;
+				song()->title = qs(d.vtitle);
+				song()->performer = qs(d.vperformer);
+			}
 		} break;
 		case mtpc_documentAttributeFilename: name = qs(attributes[i].c_documentAttributeFilename().vfile_name); break;
 		}
@@ -1578,7 +1583,7 @@ void DocumentData::forget() {
 void DocumentData::automaticLoad(const HistoryItem *item) {
 	if (loaded() || status != FileReady) return;
 
-	if (saveToCache() && _loader != CancelledFileLoader) {
+	if (saveToCache() && _loader != CancelledMtpFileLoader) {
 		if (type == StickerDocument) {
 			save(QString(), _actionOnLoad, _actionOnLoadMsgId);
 		} else if (isAnimation()) {
@@ -1598,7 +1603,7 @@ void DocumentData::automaticLoad(const HistoryItem *item) {
 }
 
 void DocumentData::automaticLoadSettingsChanged() {
-	if (loaded() || status != FileReady || !isAnimation() || !saveToCache() || _loader != CancelledFileLoader) return;
+	if (loaded() || status != FileReady || !isAnimation() || !saveToCache() || _loader != CancelledMtpFileLoader) return;
 	_loader = 0;
 }
 
@@ -1663,7 +1668,7 @@ bool DocumentData::loaded(bool check) const {
 		if (_loader->fileType() == mtpc_storage_fileUnknown) {
 			_loader->deleteLater();
 			_loader->rpcInvalidate();
-			_loader = CancelledFileLoader;
+			_loader = CancelledMtpFileLoader;
 		} else {
 			DocumentData *that = const_cast<DocumentData*>(this);
 			that->_location = FileLocation(mtpToStorageType(_loader->fileType()), _loader->fileName());
@@ -1682,7 +1687,7 @@ bool DocumentData::loaded(bool check) const {
 }
 
 bool DocumentData::loading() const {
-	return _loader && _loader != CancelledFileLoader;
+	return _loader && _loader != CancelledMtpFileLoader;
 }
 
 bool DocumentData::displayLoading() const {
@@ -1723,7 +1728,7 @@ void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMs
 		return;
 	}
 
-	if (_loader == CancelledFileLoader) _loader = 0;
+	if (_loader == CancelledMtpFileLoader) _loader = 0;
 	if (_loader) {
 		if (!_loader->setFileName(toFile)) {
 			cancel();
@@ -1739,8 +1744,8 @@ void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMs
 	} else {
 		status = FileReady;
 		_loader = new mtpFileLoader(dc, id, access, DocumentFileLocation, toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
-		_loader->connect(_loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(documentLoadProgress(mtpFileLoader*)));
-		_loader->connect(_loader, SIGNAL(failed(mtpFileLoader*,bool)), App::main(), SLOT(documentLoadFailed(mtpFileLoader*,bool)));
+		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(documentLoadProgress(FileLoader*)));
+		_loader->connect(_loader, SIGNAL(failed(FileLoader*,bool)), App::main(), SLOT(documentLoadFailed(FileLoader*,bool)));
 		_loader->start();
 	}
 
@@ -1751,7 +1756,7 @@ void DocumentData::cancel() {
 	if (!loading()) return;
 
 	mtpFileLoader *l = _loader;
-	_loader = CancelledFileLoader;
+	_loader = CancelledMtpFileLoader;
 	if (l) {
 		l->cancel();
 		l->deleteLater();
@@ -1828,7 +1833,8 @@ bool fileIsImage(const QString &name, const QString &mime) {
 }
 
 void DocumentData::recountIsImage() {
-	_isImage = fileIsImage(name, mime);
+	if (isAnimation() || type == VideoDocument) return;
+	_duration = fileIsImage(name, mime) ? 1 : -1; // hack
 }
 
 DocumentData::~DocumentData() {
@@ -1847,6 +1853,104 @@ WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &u
 , photo(photo)
 , doc(doc)
 , pendingTill(pendingTill) {
+}
+
+void InlineResult::automaticLoadGif() {
+	if (loaded() || type != qstr("gif") || (content_type != qstr("video/mp4") && content_type != "image/gif")) return;
+
+	if (_loader != CancelledWebFileLoader) {
+		// if load at least anywhere
+		bool loadFromCloud = !(cAutoDownloadGif() & dbiadNoPrivate) || !(cAutoDownloadGif() & dbiadNoGroups);
+		saveFile(QString(), loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly, true);
+	}
+}
+
+void InlineResult::automaticLoadSettingsChangedGif() {
+	if (loaded() || _loader != CancelledWebFileLoader) return;
+	_loader = 0;
+}
+
+void InlineResult::saveFile(const QString &toFile, LoadFromCloudSetting fromCloud, bool autoLoading) {
+	if (loaded()) {
+		return;
+	}
+
+	if (_loader == CancelledWebFileLoader) _loader = 0;
+	if (_loader) {
+		if (!_loader->setFileName(toFile)) {
+			cancelFile();
+			_loader = 0;
+		}
+	}
+
+	if (_loader) {
+		if (fromCloud == LoadFromCloudOrLocal) _loader->permitLoadFromCloud();
+	} else {
+		_loader = new webFileLoader(content_url, toFile, fromCloud, autoLoading);
+		App::regInlineResultLoader(_loader, this);
+
+		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(inlineResultLoadProgress(FileLoader*)));
+		_loader->connect(_loader, SIGNAL(failed(FileLoader*,bool)), App::main(), SLOT(inlineResultLoadFailed(FileLoader*,bool)));
+		_loader->start();
+	}
+}
+
+void InlineResult::cancelFile() {
+	if (!loading()) return;
+
+	App::unregInlineResultLoader(_loader);
+
+	webFileLoader *l = _loader;
+	_loader = CancelledWebFileLoader;
+	if (l) {
+		l->cancel();
+		l->deleteLater();
+		l->stop();
+	}
+}
+
+QByteArray InlineResult::data() const {
+	return _data;
+}
+
+bool InlineResult::loading() const {
+	return _loader && _loader != CancelledWebFileLoader;
+}
+
+bool InlineResult::loaded() const {
+	if (loading() && _loader->done()) {
+		App::unregInlineResultLoader(_loader);
+		if (_loader->fileType() == mtpc_storage_fileUnknown) {
+			_loader->deleteLater();
+			_loader->stop();
+			_loader = CancelledWebFileLoader;
+		} else {
+			InlineResult *that = const_cast<InlineResult*>(this);
+			that->_data = _loader->bytes();
+
+			_loader->deleteLater();
+			_loader->stop();
+			_loader = 0;
+		}
+	}
+	return !_data.isEmpty();
+}
+
+bool InlineResult::displayLoading() const {
+	return loading() ? (!_loader->loadingLocal() || !_loader->autoLoading()) : false;
+}
+
+void InlineResult::forget() {
+	thumb->forget();
+	_data.clear();
+}
+
+float64 InlineResult::progress() const {
+	return loading() ? _loader->currentProgress() : (loaded() ? 1 : 0);	return false;
+}
+
+InlineResult::~InlineResult() {
+	cancelFile();
 }
 
 void PeerLink::onClick(Qt::MouseButton button) const {

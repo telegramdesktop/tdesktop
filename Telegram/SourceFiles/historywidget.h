@@ -98,7 +98,7 @@ public:
 	void notifyMigrateUpdated();
 
 	~HistoryInner();
-	
+
 public slots:
 
 	void onUpdateSelected();
@@ -186,7 +186,7 @@ private:
 	bool _touchScroll, _touchSelect, _touchInProgress;
 	QPoint _touchStart, _touchPrevPos, _touchPos;
 	QTimer _touchSelectTimer;
-	
+
 	TouchScrollState _touchScrollState;
 	bool _touchPrevPosValid, _touchWaitingAcceleration;
 	QPoint _touchSpeed;
@@ -418,7 +418,6 @@ public:
 	void contextMenuEvent(QContextMenuEvent *e);
 
 	void updateTopBarSelection();
-	void checkMentionDropdown();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
 	void topBarClick();
@@ -445,6 +444,8 @@ public:
 	void sendActionDone(const MTPBool &result, mtpRequestId req);
 
 	void destroyData();
+
+	void updateFieldPlaceholder();
 
 	void uploadImage(const QImage &img, PrepareMediaType type, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, const QString &source = QString(), bool withText = false);
 	void uploadFile(const QString &file, PrepareMediaType type, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, bool withText = false); // with confirmation
@@ -485,7 +486,7 @@ public:
 	void noSelectingScroll();
 
 	bool touchScroll(const QPoint &delta);
-    
+
 	uint64 animActiveTimeStart(const HistoryItem *msg) const;
 	void stopAnimActive();
 
@@ -517,7 +518,7 @@ public:
 	void onListEscapePressed();
 
 	void sendBotCommand(const QString &cmd, MsgId replyTo);
-	void insertBotCommand(const QString &cmd);
+	bool insertBotCommand(const QString &cmd, bool specialGif);
 
 	bool eventFilter(QObject *obj, QEvent *e);
 	void updateBotKeyboard(History *h = 0);
@@ -560,11 +561,12 @@ public:
 	bool isItemVisible(HistoryItem *item);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
-	void ui_repaintSavedGif(const LayoutSavedGif *gif);
-	bool ui_isSavedGifVisible(const LayoutSavedGif *layout);
-	bool ui_isGifBeingChosen();
+	void ui_repaintInlineItem(const LayoutInlineItem *gif);
+	bool ui_isInlineItemVisible(const LayoutInlineItem *layout);
+	bool ui_isInlineItemBeingChosen();
 
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
+	void notify_automaticLoadSettingsChangedGif();
 	void notify_botCommandsChanged(UserData *user);
 	void notify_userIsBotChanged(UserData *user);
 	void notify_migrateUpdated(PeerData *peer);
@@ -639,6 +641,8 @@ public slots:
 
 	void onFieldTabbed();
 	void onStickerSend(DocumentData *sticker);
+	void onPhotoSend(PhotoData *photo);
+	void onInlineResultSend(InlineResult *result, UserData *bot);
 
 	void onVisibleChanged();
 
@@ -650,7 +654,7 @@ public slots:
 
 	void onFieldFocused();
 	void onFieldResize();
-	void onFieldCursorChanged();
+	void onCheckMentionDropdown();
 	void onScrollTimer();
 
 	void onForwardSelected();
@@ -679,6 +683,9 @@ private:
 	int32 _replyToNameVersion;
 	IconedButton _replyForwardPreviewCancel;
 	void updateReplyToName();
+
+	void sendExistingDocument(DocumentData *doc, const QString &caption, UserData *bot);
+	void sendExistingPhoto(PhotoData *photo, const QString &caption, UserData *bot);
 
 	void drawField(Painter &p);
 	void drawRecordButton(Painter &p);
@@ -761,6 +768,11 @@ private:
 	CollapseButton _collapseComments;
 
 	MentionsDropdown _attachMention;
+	UserData *_inlineBot;
+	QString _inlineBotUsername;
+	mtpRequestId _inlineBotResolveRequestId;
+	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
+	bool inlineBotResolveFail(QString name, const RPCError &error);
 
 	bool isBotStart() const;
 	bool isBlocked() const;
