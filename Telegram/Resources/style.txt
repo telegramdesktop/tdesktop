@@ -554,8 +554,8 @@ taDefFlat: flatTextarea {
 	font: inpDefFont;
 	cursor: cursor(text);
 
-	phColor: #AAA;
-	phFocusColor: #CCC;
+	phColor: #999;
+	phFocusColor: #AAA;
 	phAlign: align(topleft);
 	phPos: point(2px, 0px);
 	phShift: 50px;
@@ -1595,7 +1595,7 @@ profileMinBtnPadding: 10px;
 membersPadding: margins(0px, 10px, 0px, 10px);
 
 forwardMargins: margins(30px, 10px, 30px, 10px);
-forwardFont: font(16px); 
+forwardFont: font(16px);
 forwardBg: rgba(0, 0, 0, 76);
 btnProfileCancel: flatButton(btnDefFlat, btnDefBig) {
 	color: #666d78;

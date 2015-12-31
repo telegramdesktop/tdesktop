@@ -90,4 +90,6 @@ namespace Notify {
 	}
 	void historyItemLayoutChanged(const HistoryItem *item);
 
+	void automaticLoadSettingsChangedGif();
+
 };

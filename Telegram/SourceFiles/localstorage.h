@@ -65,7 +65,7 @@ namespace Local {
 
 	bool checkPasscode(const QByteArray &passcode);
 	void setPasscode(const QByteArray &passcode);
-	
+
 	enum ClearManagerTask {
 		ClearManagerAll = 0xFFFF,
 		ClearManagerDownloads = 0x01,
@@ -138,6 +138,11 @@ namespace Local {
 	TaskId startAudioLoad(const StorageKey &location, mtpFileLoader *loader);
 	int32 hasAudios();
 	qint64 storageAudiosSize();
+
+	void writeWebFile(const QString &url, const QByteArray &data, bool overwrite = true);
+	TaskId startWebFileLoad(const QString &url, webFileLoader *loader);
+	int32 hasWebFiles();
+	qint64 storageWebFilesSize();
 
 	void cancelTask(TaskId id);
 

@@ -1273,7 +1273,7 @@ inline WebPageType toWebPageType(const QString &type) {
 
 struct WebPageData {
 	WebPageData(const WebPageId &id, WebPageType type = WebPageArticle, const QString &url = QString(), const QString &displayUrl = QString(), const QString &siteName = QString(), const QString &title = QString(), const QString &description = QString(), PhotoData *photo = 0, DocumentData *doc = 0, int32 duration = 0, const QString &author = QString(), int32 pendingTill = -1);
-	
+
 	void forget() {
 		if (photo) photo->forget();
 	}
@@ -1365,6 +1365,7 @@ public:
 	ImagePtr thumb;
 
 	void automaticLoadGif();
+	void automaticLoadSettingsChangedGif();
 	void saveFile(const QString &toFile, LoadFromCloudSetting fromCloud, bool autoLoading);
 	void cancelFile();
 

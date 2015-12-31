@@ -330,6 +330,7 @@ void AutoDownloadBox::onSave() {
 			for (DocumentsData::const_iterator i = data.cbegin(), e = data.cend(); i != e; ++i) {
 				i.value()->automaticLoadSettingsChanged();
 			}
+			Notify::automaticLoadSettingsChangedGif();
 		}
 		changed = true;
 	}

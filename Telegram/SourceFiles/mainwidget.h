@@ -94,7 +94,7 @@ private:
 	bool _canDelete;
 	QString _selStr;
 	int32 _selStrLeft, _selStrWidth;
-    
+
     bool _animating;
 
 	FlatButton _clearSelection;
@@ -317,10 +317,10 @@ public:
 
 	DialogsIndexed &contactsList();
 	DialogsIndexed &dialogsList();
-    
+
 	void sendMessage(History *hist, const QString &text, MsgId replyTo, bool broadcast, WebPageId webPageId = 0);
 	void saveRecentHashtags(const QString &text);
-    
+
     void readServerHistory(History *history, bool force = true);
 
 	uint64 animActiveTimeStart(const HistoryItem *msg) const;
@@ -364,7 +364,7 @@ public:
 	void updateBotKeyboard(History *h);
 
 	void pushReplyReturn(HistoryItem *item);
-	
+
 	bool hasForwardingItems();
 	void fillForwardingInfo(Text *&from, Text *&text, bool &serviceColor, ImagePtr &preview);
 	void updateForwardingTexts();
@@ -422,6 +422,7 @@ public:
 	void notify_clipStopperHidden(ClipStopperType type);
 	void notify_historyItemResized(const HistoryItem *row, bool scrollToIt);
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
+	void notify_automaticLoadSettingsChangedGif();
 
 	~MainWidget();
 
@@ -615,7 +616,7 @@ private:
 
 	QSet<PeerData*> updateNotifySettingPeers;
 	SingleTimer updateNotifySettingTimer;
-    
+
     typedef QMap<PeerData*, QPair<mtpRequestId, MsgId> > ReadRequests;
     ReadRequests _readRequests;
 	typedef QMap<PeerData*, MsgId> ReadRequestsPending;

@@ -807,6 +807,10 @@ public:
 	virtual int32 resize(int32 width) = 0; // return new height
 	virtual void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const = 0;
 
+	virtual UserData *viaBot() const {
+		return 0;
+	}
+
 	History *history() const {
 		return _history;
 	}
@@ -1066,7 +1070,7 @@ public:
 	CommentsLink(HistoryItem *item) : _item(item) {
 	}
 	void onClick(Qt::MouseButton button) const;
-	
+
 private:
 	HistoryItem *_item;
 };
@@ -1243,7 +1247,7 @@ protected:
 	}
 	bool isThumbAnimation(uint64 ms) const {
 		if (!_animation || !_animation->_a_thumbOver.animating()) return false;
-		
+
 		_animation->_a_thumbOver.step(ms);
 		return _animation && _animation->_a_thumbOver.animating();
 	}
@@ -1311,7 +1315,7 @@ public:
 		return _caption.original();
 	}
 	bool needsBubble(const HistoryItem *parent) const {
-		return !_caption.isEmpty() || parent->toHistoryReply();
+		return !_caption.isEmpty() || parent->toHistoryReply() || parent->viaBot();
 	}
 	bool customInfoLayout() const {
 		return _caption.isEmpty();
@@ -1380,7 +1384,7 @@ public:
 	ImagePtr replyPreview();
 
 	bool needsBubble(const HistoryItem *parent) const {
-		return !_caption.isEmpty() || parent->toHistoryReply();
+		return !_caption.isEmpty() || parent->toHistoryReply() || parent->viaBot();
 	}
 	bool customInfoLayout() const {
 		return _caption.isEmpty();
@@ -1616,7 +1620,7 @@ public:
 		return _caption.original();
 	}
 	bool needsBubble(const HistoryItem *parent) const {
-		return !_caption.isEmpty() || parent->toHistoryReply();
+		return !_caption.isEmpty() || parent->toHistoryReply() || parent->viaBot();
 	}
 	bool customInfoLayout() const {
 		return _caption.isEmpty();
@@ -1632,18 +1636,13 @@ public:
 
 protected:
 
-	float64 dataProgress() const {
-		return _data->progress();
-	}
-	bool dataFinished() const {
-		return !_data->loading() && !_data->uploading();
-	}
-	bool dataLoaded() const {
-		return _data->loaded();
-	}
+	float64 dataProgress() const;
+	bool dataFinished() const;
+	bool dataLoaded() const;
 
 private:
 
+	const HistoryItem *_parent;
 	DocumentData *_data;
 	int32 _thumbw, _thumbh;
 	Text _caption;
@@ -1840,7 +1839,7 @@ public:
 	HistoryMedia *attach() const {
 		return _attach;
 	}
-	
+
 	~HistoryWebPage();
 
 private:
@@ -1885,7 +1884,7 @@ public:
 	}
 
 	bool needsBubble(const HistoryItem *parent) const {
-		return !_title.isEmpty() || !_description.isEmpty() || parent->toHistoryForwarded() || parent->toHistoryReply();
+		return !_title.isEmpty() || !_description.isEmpty() || parent->toHistoryForwarded() || parent->toHistoryReply() || parent->viaBot();
 	}
 	bool customInfoLayout() const {
 		return true;
@@ -1898,6 +1897,33 @@ private:
 
 	int32 fullWidth() const;
 	int32 fullHeight() const;
+
+};
+
+class ViaInlineBotLink : public ITextLink {
+	TEXT_LINK_CLASS(ViaInlineBotLink)
+
+public:
+	ViaInlineBotLink(UserData *bot) : _bot(bot) {
+	}
+	void onClick(Qt::MouseButton button) const;
+
+private:
+	UserData *_bot;
+
+};
+
+class HistoryMessageVia {
+public:
+	HistoryMessageVia(int32 userId);
+
+	bool isNull() const;
+	void resize(int32 availw);
+
+	UserData *bot;
+	QString text;
+	int32 width, fullWidth;
+	TextLinkPtr lnk;
 
 };
 
@@ -1915,8 +1941,11 @@ public:
 	void initDimensions();
 	void fromNameUpdated() const;
 
-	UserData *viaBot() const {
-		return _viaBot;
+	virtual HistoryMessageVia *via() const {
+		return (_via && !_via->isNull()) ? _via : 0;
+	}
+	virtual UserData *viaBot() const {
+		return via() ? via()->bot : 0;
 	}
 
 	int32 plainMaxWidth() const;
@@ -1932,7 +1961,7 @@ public:
 		return drawBubble();
 	}
 	bool displayFromName() const {
-		return hasFromName() && (!emptyText() || !_media || !_media->isDisplayed() || toHistoryReply() || !_media->hideFromName());
+		return hasFromName() && (!emptyText() || !_media || !_media->isDisplayed() || toHistoryReply() || viaBot() || !_media->hideFromName());
 	}
 	bool uploading() const {
 		return _media && _media->uploading();
@@ -1943,7 +1972,7 @@ public:
 	void setId(MsgId newId);
 	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const;
 
-	virtual void drawMessageText(Painter &p, const QRect &trect, uint32 selection) const;
+	virtual void drawMessageText(Painter &p, QRect trect, uint32 selection) const;
 
 	int32 resize(int32 width);
 	bool hasPoint(int32 x, int32 y) const;
@@ -1966,7 +1995,7 @@ public:
 	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
     QString notificationHeader() const;
     QString notificationText() const;
-    
+
 	void updateMedia(const MTPMessageMedia *media, bool allowEmitResize) {
 		if (media && _media && _media->type() != MediaTypeWebPage) {
 			_media->updateFrom(*media, this, allowEmitResize);
@@ -2036,12 +2065,12 @@ protected:
 	Text _text;
 
 	int32 _textWidth, _textHeight;
-	UserData *_viaBot;
+	HistoryMessageVia *_via;
 
 	HistoryMedia *_media;
 	QString _timeText;
 	int32 _timeWidth;
-	
+
 	QString _viewsText;
 	int32 _views, _viewsWidth;
 
@@ -2058,7 +2087,7 @@ public:
 
 	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const;
 	void drawForwardedFrom(Painter &p, int32 x, int32 y, int32 w, bool selected) const;
-	void drawMessageText(Painter &p, const QRect &trect, uint32 selection) const;
+	void drawMessageText(Painter &p, QRect trect, uint32 selection) const;
 	int32 resize(int32 width);
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
@@ -2115,7 +2144,7 @@ public:
 
 	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const;
 	void drawReplyTo(Painter &p, int32 x, int32 y, int32 w, bool selected, bool likeService = false) const;
-	void drawMessageText(Painter &p, const QRect &trect, uint32 selection) const;
+	void drawMessageText(Painter &p, QRect trect, uint32 selection) const;
 	int32 resize(int32 width);
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;

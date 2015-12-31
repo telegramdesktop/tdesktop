@@ -504,7 +504,7 @@ void LayoutOverviewVideo::paint(Painter &p, const QRect &clip, uint32 selection,
 
 void LayoutOverviewVideo::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
 	bool loaded = _data->loaded();
-		
+
 	if (hasPoint(x, y)) {
 		link = loaded ? _openl : (_data->loading() ? _cancell : _savel);
 	}
@@ -1275,7 +1275,7 @@ void LayoutOverviewLink::getState(TextLinkPtr &link, HistoryCursorState &cursor,
 	}
 }
 
-LayoutOverviewLink::Link::Link(const QString &url, const QString &text) 
+LayoutOverviewLink::Link::Link(const QString &url, const QString &text)
 : text(text)
 , width(st::normalFont->width(text))
 , lnk(linkFromUrl(url)) {
@@ -1371,7 +1371,7 @@ void DeleteSavedGifLink::onClick(Qt::MouseButton button) const {
 }
 
 void LayoutInlineGif::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
-//	content_automaticLoad();
+	content_automaticLoad();
 
 	bool loaded = content_loaded(), loading = content_loading(), displayLoading = content_displayLoading();
 	if (loaded && !gif() && _gif != BadClipReader) {
@@ -1832,23 +1832,20 @@ void LayoutInlineWebVideo::initDimensions() {
 }
 
 void LayoutInlineWebVideo::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
-	int32 left = 0;
-	if (!_result->thumb->isNull()) {
-		left = st::inlineThumbSize + st::inlineThumbSkip;
-		prepareThumb(st::inlineThumbSize, st::inlineThumbSize);
-		if (_thumb.isNull()) {
-			p.fillRect(rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width), _result->thumb->isNull() ? st::black : st::overviewPhotoBg);
-		} else {
-			p.drawPixmapLeft(0, st::inlineRowMargin, _width, _thumb);
-		}
+	int32 left = st::inlineThumbSize + st::inlineThumbSkip;
+	prepareThumb(st::inlineThumbSize, st::inlineThumbSize);
+	if (_thumb.isNull()) {
+		p.fillRect(rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width), _result->thumb->isNull() ? st::black : st::overviewPhotoBg);
+	} else {
+		p.drawPixmapLeft(0, st::inlineRowMargin, _width, _thumb);
+	}
 
-		if (!_duration.isEmpty()) {
-			int32 durationTop = st::inlineRowMargin + st::inlineThumbSize - st::normalFont->height - st::inlineDurationMargin;
-			p.fillRect(rtlrect(0, durationTop - st::inlineDurationMargin, st::inlineThumbSize, st::normalFont->height + 2 * st::inlineDurationMargin, _width), st::msgDateImgBg);
-			p.setPen(st::white);
-			p.setFont(st::normalFont);
-			p.drawTextRight(_width - st::inlineThumbSize + st::inlineDurationMargin, durationTop, _width, _duration);
-		}
+	if (!_duration.isEmpty()) {
+		int32 durationTop = st::inlineRowMargin + st::inlineThumbSize - st::normalFont->height - st::inlineDurationMargin;
+		p.fillRect(rtlrect(0, durationTop - st::inlineDurationMargin, st::inlineThumbSize, st::normalFont->height + 2 * st::inlineDurationMargin, _width), st::msgDateImgBg);
+		p.setPen(st::white);
+		p.setFont(st::normalFont);
+		p.drawTextRight(_width - st::inlineThumbSize + st::inlineDurationMargin, durationTop, _width, _duration);
 	}
 
 	p.setPen(st::black);
@@ -1951,7 +1948,7 @@ int32 LayoutInlineArticle::resizeGetHeight(int32 width) {
 }
 
 void LayoutInlineArticle::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
-	int32 left = 0;
+	int32 left = st::emojiPanHeaderLeft - st::inlineResultsLeft;
 	if (_withThumb) {
 		left = st::inlineThumbSize + st::inlineThumbSkip;
 		prepareThumb(st::inlineThumbSize, st::inlineThumbSize);

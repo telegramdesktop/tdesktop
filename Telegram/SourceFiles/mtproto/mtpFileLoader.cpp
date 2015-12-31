@@ -628,7 +628,7 @@ void webFileLoader::onFinished(const QByteArray &data) {
 	emit App::wnd()->imageLoaded();
 
 	if (_localStatus == LocalNotFound || _localStatus == LocalFailed) {
-		//Local::writeWebFile(_url, StorageImageSaved(mtpToStorageType(_type), _data));
+		Local::writeWebFile(_url, _data);
 	}
 	emit progress(this);
 	loadNext();
@@ -646,7 +646,7 @@ bool webFileLoader::tryLoadLocal() {
 		return true;
 	}
 
-	_localTaskId = 0;// Local::startWebFileLoad(_url, this);
+	_localTaskId = Local::startWebFileLoad(_url, this);
 	if (_localStatus != LocalNotTried) {
 		return _complete;
 	} else if (_localTaskId) {
