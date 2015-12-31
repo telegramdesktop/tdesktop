@@ -113,6 +113,9 @@ namespace {
 	typedef QHash<PhotoData*, LastPhotosList::iterator> LastPhotosMap;
 	LastPhotosMap lastPhotosMap;
 
+	typedef QMap<FileLoader*, InlineResult*> InlineResultLoaders;
+	InlineResultLoaders inlineResultLoaders;
+
 	style::color _msgServiceBg;
 	style::color _msgServiceSelectBg;
 	style::color _historyScrollBarColor;
@@ -1459,12 +1462,12 @@ namespace App {
 				delete convert->uploadingData;
 				convert->uploadingData = 0;
 			}
-			convert->access = access;
-			if (!convert->date && date) {
+			if (date) {
+				convert->access = access;
 				convert->date = date;
-				convert->thumb = thumb;
-				convert->medium = medium;
-				convert->full = full;
+				if (convert->thumb->isNull() && !thumb->isNull()) convert->thumb = thumb;
+				if (convert->medium->isNull() && !medium->isNull()) convert->medium = medium;
+				if (convert->full->isNull() && !full->isNull()) convert->full = full;
 			}
 		}
 		PhotosData::const_iterator i = ::photosData.constFind(photo);
@@ -1479,12 +1482,12 @@ namespace App {
 			::photosData.insert(photo, result);
 		} else {
 			result = i.value();
-			if (result != convert && !result->date && date) {
+			if (result != convert && date) {
 				result->access = access;
 				result->date = date;
-				result->thumb = thumb;
-				result->medium = medium;
-				result->full = full;
+				if (result->thumb->isNull() && !thumb->isNull()) result->thumb = thumb;
+				if (result->medium->isNull() && !medium->isNull()) result->medium = medium;
+				if (result->full->isNull() && !full->isNull()) result->full = full;
 			}
 			inLastIter = lastPhotosMap.find(result);
 		}
@@ -1520,13 +1523,15 @@ namespace App {
 				convert->id = video;
 				convert->status = FileReady;
 			}
-			convert->access = access;
-			if (!convert->date && date) {
+			if (date) {
+				convert->access = access;
 				convert->date = date;
+				if (convert->thumb->isNull() && !thumb->isNull()) {
+					convert->thumb = thumb;
+				}
 				convert->duration = duration;
 				convert->w = w;
 				convert->h = h;
-				convert->thumb = thumb;
 				convert->dc = dc;
 				convert->size = size;
 			}
@@ -1542,13 +1547,15 @@ namespace App {
 			::videosData.insert(video, result);
 		} else {
 			result = i.value();
-			if (result != convert && !result->date && date) {
+			if (result != convert && date) {
 				result->access = access;
 				result->date = date;
 				result->duration = duration;
 				result->w = w;
 				result->h = h;
-				result->thumb = thumb;
+				if (result->thumb->isNull() && !thumb->isNull()) {
+					result->thumb = thumb;
+				}
 				result->dc = dc;
 				result->size = size;
 			}
@@ -1574,8 +1581,8 @@ namespace App {
 				convert->id = audio;
 				convert->status = FileReady;
 			}
-			convert->access = access;
-			if (!convert->date && date) {
+			if (date) {
+				convert->access = access;
 				convert->date = date;
 				convert->mime = mime;
 				convert->duration = duration;
@@ -1594,7 +1601,7 @@ namespace App {
 			::audiosData.insert(audio, result);
 		} else {
 			result = i.value();
-			if (result != convert && !result->date && date) {
+			if (result != convert && date) {
 				result->access = access;
 				result->date = date;
 				result->mime = mime;
@@ -1622,6 +1629,7 @@ namespace App {
 				if (i != ::documentsData.cend() && i.value() == convert) {
 					::documentsData.erase(i);
 				}
+				Local::copyStickerImage(mediaKey(DocumentFileLocation, convert->dc, convert->id), mediaKey(DocumentFileLocation, dc, document));
 				convert->id = document;
 				convert->status = FileReady;
 				if (cSavedGifs().indexOf(convert) >= 0) { // id changed
@@ -1629,35 +1637,21 @@ namespace App {
 				}
 				sentSticker = !!convert->sticker();
 			}
-			convert->access = access;
-			if (!convert->date && date) {
+			if (date) {
+				convert->access = access;
 				convert->date = date;
 				convert->setattributes(attributes);
 				convert->mime = mime;
-				convert->thumb = thumb;
-				convert->dc = dc;
-				convert->size = size;
-				convert->recountIsImage();
-			} else {
 				if (!thumb->isNull() && (convert->thumb->isNull() || convert->thumb->width() < thumb->width() || convert->thumb->height() < thumb->height())) {
 					convert->thumb = thumb;
 				}
-				if (convert->sticker() && !attributes.isEmpty() && (convert->sticker()->alt.isEmpty() || convert->sticker()->set.type() == mtpc_inputStickerSetEmpty)) {
-					for (QVector<MTPDocumentAttribute>::const_iterator i = attributes.cbegin(), e = attributes.cend(); i != e; ++i) {
-						if (i->type() == mtpc_documentAttributeSticker) {
-							const MTPDdocumentAttributeSticker &d(i->c_documentAttributeSticker());
-							if (d.valt.c_string().v.length() > 0) {
-								convert->sticker()->alt = qs(d.valt);
-								convert->sticker()->set = d.vstickerset;
-							}
-						}
-					}
+				convert->dc = dc;
+				convert->size = size;
+				convert->recountIsImage();
+				if (convert->sticker() && convert->sticker()->loc.isNull() && !thumbLocation.isNull()) {
+					convert->sticker()->loc = thumbLocation;
 				}
 			}
-			if (convert->sticker() && convert->sticker()->loc.isNull() && !thumbLocation.isNull()) {
-				convert->sticker()->loc = thumbLocation;
-			}
-
 			const FileLocation &loc(convert->location(true));
 			if (!loc.isEmpty()) {
 				Local::writeFileLocation(mediaKey(DocumentFileLocation, convert->dc, convert->id), loc);
@@ -1676,34 +1670,19 @@ namespace App {
 			::documentsData.insert(document, result);
 		} else {
 			result = i.value();
-			if (result != convert) {
-				if (!result->date && date) {
-					result->access = access;
-					result->date = date;
-					result->setattributes(attributes);
-					result->mime = mime;
+			if (result != convert && date) {
+				result->access = access;
+				result->date = date;
+				result->setattributes(attributes);
+				result->mime = mime;
+				if (!thumb->isNull() && (result->thumb->isNull() || result->thumb->width() < thumb->width() || result->thumb->height() < thumb->height())) {
 					result->thumb = thumb;
-					result->dc = dc;
-					result->size = size;
-					result->recountIsImage();
-				} else {
-					if (!thumb->isNull() && (result->thumb->isNull() || result->thumb->width() < thumb->width() || result->thumb->height() < thumb->height())) {
-						result->thumb = thumb;
-					}
-					if (result->sticker() && !attributes.isEmpty() && (result->sticker()->alt.isEmpty() || result->sticker()->set.type() == mtpc_inputStickerSetEmpty)) {
-						for (QVector<MTPDocumentAttribute>::const_iterator i = attributes.cbegin(), e = attributes.cend(); i != e; ++i) {
-							if (i->type() == mtpc_documentAttributeSticker) {
-								const MTPDdocumentAttributeSticker &d(i->c_documentAttributeSticker());
-								if (d.valt.c_string().v.length() > 0) {
-									result->sticker()->alt = qs(d.valt);
-									result->sticker()->set = d.vstickerset;
-								}
-							}
-						}
-					}
-					if (result->sticker() && result->sticker()->loc.isNull() && !thumbLocation.isNull()) {
-						result->sticker()->loc = thumbLocation;
-					}
+				}
+				result->dc = dc;
+				result->size = size;
+				result->recountIsImage();
+				if (result->sticker() && result->sticker()->loc.isNull() && !thumbLocation.isNull()) {
+					result->sticker()->loc = thumbLocation;
 				}
 			}
 		}
@@ -2520,6 +2499,19 @@ namespace App {
 			}
 		}
 		if (changeInMin) App::main()->updateMutedIn(changeInMin);
+	}
+
+	void regInlineResultLoader(FileLoader *loader, InlineResult *result) {
+		::inlineResultLoaders.insert(loader, result);
+	}
+
+	void unregInlineResultLoader(FileLoader *loader) {
+		::inlineResultLoaders.remove(loader);
+	}
+
+	InlineResult *inlineResultFromLoader(FileLoader *loader) {
+		InlineResultLoaders::const_iterator i = ::inlineResultLoaders.find(loader);
+		return (i == ::inlineResultLoaders.cend()) ? 0 : i.value();
 	}
 
 	inline void insertReplyMarkup(ChannelId channelId, MsgId msgId, const ReplyMarkup &markup) {

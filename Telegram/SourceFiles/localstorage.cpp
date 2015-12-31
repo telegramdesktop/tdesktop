@@ -2576,6 +2576,15 @@ namespace Local {
 		return _stickerImagesMap.constFind(location) != _stickerImagesMap.cend();
 	}
 
+	void copyStickerImage(const StorageKey &oldLocation, const StorageKey &newLocation) {
+		StorageMap::const_iterator i = _stickerImagesMap.constFind(oldLocation);
+		if (i != _stickerImagesMap.cend()) {
+			_stickerImagesMap.insert(newLocation, i.value());
+			_mapChanged = true;
+			_writeMap();
+		}
+	}
+
 	int32 hasStickers() {
 		return _stickerImagesMap.size();
 	}

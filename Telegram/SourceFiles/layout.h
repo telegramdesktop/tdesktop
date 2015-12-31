@@ -502,6 +502,8 @@ public:
 	PhotoData *photo() const;
 	void preload();
 
+	void update();
+
 protected:
 	InlineResult *_result;
 	DocumentData *_doc;
@@ -576,7 +578,7 @@ private:
 	bool gif() const {
 		return (!_gif || _gif == BadClipReader) ? false : true;
 	}
-	QPixmap _thumb;
+	mutable QPixmap _thumb;
 	void prepareThumb(int32 width, int32 height, const QSize &frame) const;
 
 	void ensureAnimation() const;
@@ -584,7 +586,6 @@ private:
 	void step_radial(uint64 ms, bool timer);
 
 	void clipCallback(ClipReaderNotification notification);
-	void update();
 
 	struct AnimationData {
 		AnimationData(AnimationCreator creator)
@@ -597,5 +598,34 @@ private:
 	};
 	mutable AnimationData *_animation;
 	mutable FloatAnimation _a_deleteOver;
+
+};
+
+class LayoutInlinePhoto : public LayoutInlineItem {
+public:
+	LayoutInlinePhoto(InlineResult *result, PhotoData *photo);
+
+	virtual void initDimensions();
+
+	virtual bool fullLine() const {
+		return false;
+	}
+
+	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
+	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
+
+private:
+	QSize countFrameSize() const;
+
+	int32 content_width() const;
+	int32 content_height() const;
+	bool content_loaded() const;
+	void content_forget();
+
+	TextLinkPtr _send;
+
+	mutable QPixmap _thumb;
+	mutable bool _thumbLoaded;
+	void prepareThumb(int32 width, int32 height, const QSize &frame) const;
 
 };

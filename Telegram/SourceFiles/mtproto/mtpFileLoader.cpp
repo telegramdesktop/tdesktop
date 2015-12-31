@@ -57,7 +57,7 @@ namespace {
 	WebLoadMainManager *_webLoadMainManager = 0;
 }
 
-FileLoader::FileLoader(const QString &toFile, int32 size, LocationType locationType, LoadFromCloudSetting fromCloud, bool autoLoading)
+FileLoader::FileLoader(const QString &toFile, int32 size, LocationType locationType, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading)
 : _prev(0)
 , _next(0)
 , _priority(0)
@@ -67,7 +67,7 @@ FileLoader::FileLoader(const QString &toFile, int32 size, LocationType locationT
 , _complete(false)
 , _localStatus(LocalNotTried)
 , _fileIsOpen(false)
-, _toCache(LoadToCacheAsWell)
+, _toCache(toCache)
 , _fromCloud(fromCloud)
 , _size(size)
 , _type(mtpc_storage_fileUnknown)
@@ -339,7 +339,7 @@ void FileLoader::startLoading(bool loadFirst, bool prior) {
 }
 
 mtpFileLoader::mtpFileLoader(const StorageImageLocation *location, int32 size, LoadFromCloudSetting fromCloud, bool autoLoading)
-: FileLoader(QString(), size, UnknownFileLocation, fromCloud, autoLoading)
+: FileLoader(QString(), size, UnknownFileLocation, LoadToCacheAsWell, fromCloud, autoLoading)
 , _lastComplete(false)
 , _skippedBytes(0)
 , _nextRequestOffset(0)
@@ -355,7 +355,7 @@ mtpFileLoader::mtpFileLoader(const StorageImageLocation *location, int32 size, L
 }
 
 mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, LocationType type, const QString &to, int32 size, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading)
-: FileLoader(to, size, type, fromCloud, autoLoading)
+: FileLoader(to, size, type, toCache, fromCloud, autoLoading)
 , _lastComplete(false)
 , _skippedBytes(0)
 , _nextRequestOffset(0)
@@ -566,7 +566,7 @@ mtpFileLoader::~mtpFileLoader() {
 }
 
 webFileLoader::webFileLoader(const QString &url, const QString &to, LoadFromCloudSetting fromCloud, bool autoLoading)
-: FileLoader(QString(), 0, UnknownFileLocation, fromCloud, autoLoading)
+: FileLoader(QString(), 0, UnknownFileLocation, LoadToCacheAsWell, fromCloud, autoLoading)
 , _url(url)
 , _requestSent(false)
 , _already(0) {
@@ -834,6 +834,8 @@ void WebLoadManager::onFailed(QNetworkReply *reply) {
 	}
 	webFileLoaderPrivate *loader = j.value();
 	_replies.erase(j);
+
+	LOG(("Network Error: Failed to request '%1', error %2 (%3)").arg(QString::fromLatin1(loader->_url.toEncoded())).arg(int(reply->error())).arg(reply->errorString()));
 
 	if (!handleReplyResult(loader, WebReplyProcessError)) {
 		_loaders.remove(loader);

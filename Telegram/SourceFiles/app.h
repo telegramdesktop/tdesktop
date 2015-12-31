@@ -246,6 +246,10 @@ namespace App {
 	void unregMuted(PeerData *peer);
 	void updateMuted();
 
+	void regInlineResultLoader(FileLoader *loader, InlineResult *result);
+	void unregInlineResultLoader(FileLoader *loader);
+	InlineResult *inlineResultFromLoader(FileLoader *loader);
+
 	void feedReplyMarkup(ChannelId channelId, MsgId msgId, const MTPReplyMarkup &markup);
 	void clearReplyMarkup(ChannelId channelId, MsgId msgId);
 	const ReplyMarkup &replyMarkup(ChannelId channelId, MsgId msgId);

@@ -1888,6 +1888,24 @@ void MainWidget::documentLoadRetry() {
 	if (document) document->save(failedFileName);
 }
 
+void MainWidget::inlineResultLoadProgress(FileLoader *loader) {
+	//InlineResult *result = App::inlineResultFromLoader(loader);
+	//if (!result) return;
+
+	//result->loaded();
+
+	//Ui::repaintInlineItem();
+}
+
+void MainWidget::inlineResultLoadFailed(FileLoader *loader, bool started) {
+	//InlineResult *result = App::inlineResultFromLoader(loader);
+	//if (!result) return;
+
+	//result->loaded();
+
+	//Ui::repaintInlineItem();
+}
+
 void MainWidget::audioMarkRead(AudioData *data) {
 	const AudioItems &items(App::audioItems());
 	AudioItems::const_iterator i = items.constFind(data);

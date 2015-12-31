@@ -1314,13 +1314,19 @@ void LayoutInlineItem::preload() {
 			_result->photo->thumb->load();
 		} else if (_result->doc) {
 			_result->doc->thumb->load();
-		} else if (!_result->thumb_url.isEmpty()) {
+		} else if (!_result->thumb->isNull()) {
 			_result->thumb->load();
 		}
 	} else if (_doc) {
 		_doc->thumb->load();
 	} else if (_photo) {
 		_photo->medium->load();
+	}
+}
+
+void LayoutInlineItem::update() {
+	if (_position >= 0) {
+		Ui::repaintInlineItem(this);
 	}
 }
 
@@ -1365,7 +1371,7 @@ void DeleteSavedGifLink::onClick(Qt::MouseButton button) const {
 }
 
 void LayoutInlineGif::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
-	content_automaticLoad();
+//	content_automaticLoad();
 
 	bool loaded = content_loaded(), loading = content_loading(), displayLoading = content_displayLoading();
 	if (loaded && !gif() && _gif != BadClipReader) {
@@ -1394,7 +1400,11 @@ void LayoutInlineGif::paint(Painter &p, const QRect &clip, uint32 selection, con
 		p.drawPixmap(r.topLeft(), _gif->current(frame.width(), frame.height(), _width, height, ctx->paused ? 0 : context->ms));
 	} else {
 		prepareThumb(_width, height, frame);
-		p.drawPixmap(r.topLeft(), _thumb);
+		if (_thumb.isNull()) {
+			p.fillRect(r, st::overviewPhotoBg);
+		} else {
+			p.drawPixmap(r.topLeft(), _thumb);
+		}
 	}
 
 	if (radial || (!_gif && !loaded && !loading) || (_gif == BadClipReader)) {
@@ -1468,7 +1478,8 @@ void LayoutInlineGif::linkOver(const TextLinkPtr &link) {
 void LayoutInlineGif::linkOut(const TextLinkPtr &link) {
 	if (_delete && link == _delete) {
 		if (_state & StateDeleteOver) {
-			EnsureAnimation(_a_deleteOver, 1, func(this, &LayoutInlineGif::update));
+			update();
+			EnsureAnimation(_a_deleteOver, 1, func(this, &LayoutInlineItem::update));
 			_state &= ~StateDeleteOver;
 			_a_deleteOver.start(0, st::stickersRowDuration);
 		}
@@ -1477,7 +1488,7 @@ void LayoutInlineGif::linkOut(const TextLinkPtr &link) {
 		if (!content_loaded()) {
 			ensureAnimation();
 			if (_state & StateOver) {
-				EnsureAnimation(_animation->_a_over, 1, func(this, &LayoutInlineGif::update));
+				EnsureAnimation(_animation->_a_over, 1, func(this, &LayoutInlineItem::update));
 				_animation->_a_over.start(0, st::stickersRowDuration);
 			}
 		}
@@ -1513,6 +1524,7 @@ QSize LayoutInlineGif::countFrameSize() const {
 }
 
 LayoutInlineGif::~LayoutInlineGif() {
+	if (gif()) deleteAndMark(_gif);
 	deleteAndMark(_animation);
 }
 
@@ -1588,12 +1600,6 @@ void LayoutInlineGif::clipCallback(ClipReaderNotification notification) {
 			update();
 		}
 	} break;
-	}
-}
-
-void LayoutInlineGif::update() {
-	if (_position >= 0) {
-		Ui::repaintInlineItem(this);
 	}
 }
 
@@ -1673,4 +1679,128 @@ FileLocation LayoutInlineGif::content_location() const {
 QByteArray LayoutInlineGif::content_data() const {
 	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
 	return doc ? doc->data() : _result->data();
+}
+
+LayoutInlinePhoto::LayoutInlinePhoto(InlineResult *result, PhotoData *photo) : LayoutInlineItem(result, 0, photo)
+, _send(new SendInlineItemLink())
+, _thumbLoaded(false) {
+}
+
+void LayoutInlinePhoto::initDimensions() {
+	int32 w = content_width(), h = content_height();
+	if (w <= 0 || h <= 0) {
+		_maxw = 0;
+	} else {
+		w = w * st::inlineMediaHeight / h;
+		_maxw = qMax(w, int32(st::inlineResultsMinWidth));
+	}
+	_minh = st::inlineMediaHeight + st::inlineResultsSkip;
+}
+
+void LayoutInlinePhoto::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+	bool loaded = content_loaded();
+
+	int32 height = st::inlineMediaHeight;
+	QSize frame = countFrameSize();
+
+	QRect r(0, 0, _width, height);
+
+	prepareThumb(_width, height, frame);
+	if (_thumb.isNull()) {
+		p.fillRect(r, st::overviewPhotoBg);
+	} else {
+		p.drawPixmap(r.topLeft(), _thumb);
+	}
+}
+
+void LayoutInlinePhoto::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+	if (x >= 0 && x < _width && y >= 0 && y < st::inlineMediaHeight) {
+		link = _send;
+	}
+}
+
+QSize LayoutInlinePhoto::countFrameSize() const {
+	int32 framew = content_width(), frameh = content_height(), height = st::inlineMediaHeight;
+	if (framew * height > frameh * _width) {
+		if (framew < st::maxStickerSize || frameh > height) {
+			if (frameh > height || (framew * height / frameh) <= st::maxStickerSize) {
+				framew = framew * height / frameh;
+				frameh = height;
+			} else {
+				frameh = int32(frameh * st::maxStickerSize) / framew;
+				framew = st::maxStickerSize;
+			}
+		}
+	} else {
+		if (frameh < st::maxStickerSize || framew > _width) {
+			if (framew > _width || (frameh * _width / framew) <= st::maxStickerSize) {
+				frameh = frameh * _width / framew;
+				framew = _width;
+			} else {
+				framew = int32(framew * st::maxStickerSize) / frameh;
+				frameh = st::maxStickerSize;
+			}
+		}
+	}
+	return QSize(framew, frameh);
+}
+
+void LayoutInlinePhoto::prepareThumb(int32 width, int32 height, const QSize &frame) const {
+	if (_photo) {
+		if (_photo->medium->loaded()) {
+			if (!_thumbLoaded || _thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+				_thumb = _photo->medium->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+			}
+			_thumbLoaded = true;
+		} else {
+			if (_photo->thumb->loaded()) {
+				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+					_thumb = _photo->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+				}
+			}
+			_photo->medium->load();
+		}
+	} else {
+		if (_result->thumb->loaded()) {
+			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+				_thumb = _result->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+			}
+		} else {
+			_result->thumb->load();
+		}
+	}
+}
+
+int32 LayoutInlinePhoto::content_width() const {
+	PhotoData *photo = _photo ? _photo : (_result ? _result->photo : 0);
+	if (photo) {
+		return photo->full->width();
+	} else if (_result) {
+		return _result->width;
+	}
+	return 0;
+}
+
+int32 LayoutInlinePhoto::content_height() const {
+	PhotoData *photo = _photo ? _photo : (_result ? _result->photo : 0);
+	if (photo) {
+		return photo->full->height();
+	} else if (_result) {
+		return _result->height;
+	}
+	return 0;
+}
+
+bool LayoutInlinePhoto::content_loaded() const {
+	PhotoData *photo = _photo ? _photo : (_result ? _result->photo : 0);
+	return photo ? photo->loaded() : _result->loaded();
+}
+
+void LayoutInlinePhoto::content_forget() {
+	PhotoData *photo = _photo ? _photo : (_result ? _result->photo : 0);
+	if (photo) {
+		photo->forget();
+	} else {
+		_result->forget();
+	}
 }

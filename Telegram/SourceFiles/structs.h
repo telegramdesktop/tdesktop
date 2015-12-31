@@ -1346,7 +1346,8 @@ public:
 		, width(0)
 		, height(0)
 		, duration(0)
-		, noWebPage(false) {
+		, noWebPage(false)
+		, _loader(0) {
 	}
 	uint64 queryId;
 	QString id, type;
@@ -1362,7 +1363,11 @@ public:
 	QString caption; // if message.isEmpty() use botContextMessageMediaAuto
 
 	ImagePtr thumb;
-	void automaticLoadGif() const;
+
+	void automaticLoadGif();
+	void saveFile(const QString &toFile, LoadFromCloudSetting fromCloud, bool autoLoading);
+	void cancelFile();
+
 	QByteArray data() const;
 	bool loading() const;
 	bool loaded() const;
@@ -1370,8 +1375,11 @@ public:
 	void forget();
 	float64 progress() const;
 
+	~InlineResult();
+
 private:
 	QByteArray _data;
+	mutable webFileLoader *_loader;
 
 };
 typedef QList<InlineResult*> InlineResults;

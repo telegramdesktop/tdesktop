@@ -556,19 +556,19 @@ template <typename R>
 inline FunctionCreator<R> func(R(*method)()) {
 	return FunctionCreator<R>(new WrappedFunction<R>(method));
 }
-template <typename O, typename R>
+template <typename O, typename I, typename R>
 class ObjectFunction : public FunctionImplementation<R> {
 public:
-	typedef R(O::*Method)();
+	typedef R(I::*Method)();
 	ObjectFunction(O *obj, Method method) : _obj(obj), _method(method) {}
 	virtual R call() { return (_obj->*_method)(); }
 private:
 	O *_obj;
 	Method _method;
 };
-template <typename O, typename R>
-inline FunctionCreator<R> func(O *obj, R(O::*method)()) {
-	return FunctionCreator<R>(new ObjectFunction<O, R>(obj, method));
+template <typename O, typename I, typename R>
+inline FunctionCreator<R> func(O *obj, R(I::*method)()) {
+	return FunctionCreator<R>(new ObjectFunction<O, I, R>(obj, method));
 }
 
 template <typename R, typename A1>
@@ -625,19 +625,19 @@ template <typename R, typename A1>
 inline Function1Creator<R, A1> func(R(*method)(A1)) {
 	return Function1Creator<R, A1>(new WrappedFunction1<R, A1>(method));
 }
-template <typename O, typename R, typename A1>
+template <typename O, typename I, typename R, typename A1>
 class ObjectFunction1 : public Function1Implementation<R, A1> {
 public:
-	typedef R(O::*Method)(A1);
+	typedef R(I::*Method)(A1);
 	ObjectFunction1(O *obj, Method method) : _obj(obj), _method(method) {}
 	virtual R call(A1 a1) { return (_obj->*_method)(a1); }
 private:
 	O *_obj;
 	Method _method;
 };
-template <typename O, typename R, typename A1>
-Function1Creator<R, A1> func(O *obj, R(O::*method)(A1)) {
-	return Function1Creator<R, A1>(new ObjectFunction1<O, R, A1>(obj, method));
+template <typename O, typename I, typename R, typename A1>
+Function1Creator<R, A1> func(O *obj, R(I::*method)(A1)) {
+	return Function1Creator<R, A1>(new ObjectFunction1<O, I, R, A1>(obj, method));
 }
 
 template <typename R, typename A1, typename A2>
@@ -695,17 +695,17 @@ Function2Creator<R, A1, A2> func(R(*method)(A1, A2)) {
 	return Function2Creator<R, A1, A2>(new WrappedFunction2<R, A1, A2>(method));
 }
 
-template <typename O, typename R, typename A1, typename A2>
+template <typename O, typename I, typename R, typename A1, typename A2>
 class ObjectFunction2 : public Function2Implementation<R, A1, A2> {
 public:
-	typedef R(O::*Method)(A1, A2);
+	typedef R(I::*Method)(A1, A2);
 	ObjectFunction2(O *obj, Method method) : _obj(obj), _method(method) {}
 	virtual R call(A1 a1, A2 a2) { return (_obj->*_method)(a1, a2); }
 private:
 	O *_obj;
 	Method _method;
 };
-template <typename O, typename R, typename A1, typename A2>
-Function2Creator<R, A1, A2> func(O *obj, R(O::*method)(A1, A2)) {
-	return Function2Creator<R, A1, A2>(new ObjectFunction2<O, R, A1, A2>(obj, method));
+template <typename O, typename I, typename R, typename A1, typename A2>
+Function2Creator<R, A1, A2> func(O *obj, R(I::*method)(A1, A2)) {
+	return Function2Creator<R, A1, A2>(new ObjectFunction2<O, I, R, A1, A2>(obj, method));
 }

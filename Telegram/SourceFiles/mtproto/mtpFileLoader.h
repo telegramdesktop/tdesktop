@@ -126,7 +126,7 @@ class FileLoader : public QObject {
 
 public:
 
-	FileLoader(const QString &toFile, int32 size, LocationType locationType, LoadFromCloudSetting fromCloud, bool autoLoading);
+	FileLoader(const QString &toFile, int32 size, LocationType locationType, LoadToCacheSetting, LoadFromCloudSetting fromCloud, bool autoLoading);
 	bool done() const {
 		return _complete;
 	}

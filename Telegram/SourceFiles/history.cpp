@@ -1561,13 +1561,25 @@ HistoryItem *History::createItemForwarded(HistoryBlock *block, MsgId id, QDateTi
 	return regItem(new HistoryForwarded(this, block, id, date, from, msg));
 }
 
-HistoryItem *History::createItemDocument(HistoryBlock *block, MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption) {
+HistoryItem *History::createItemDocument(HistoryBlock *block, MsgId id, int32 flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption) {
+	HistoryItem *result = 0;
+
+	if ((flags & MTPDmessage::flag_reply_to_msg_id) && replyTo > 0) {
+		result = new HistoryReply(this, block, id, flags, viaBotId, replyTo, date, from, doc, caption);
+	} else {
+		result = new HistoryMessage(this, block, id, flags, viaBotId, date, from, doc, caption);
+	}
+
+	return regItem(result);
+}
+
+HistoryItem *History::createItemPhoto(HistoryBlock *block, MsgId id, int32 flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption) {
 	HistoryItem *result = 0;
 
 	if (flags & MTPDmessage::flag_reply_to_msg_id && replyTo > 0) {
-		result = new HistoryReply(this, block, id, flags, replyTo, date, from, doc, caption);
+		result = new HistoryReply(this, block, id, flags, viaBotId, replyTo, date, from, photo, caption);
 	} else {
-		result = new HistoryMessage(this, block, id, flags, date, from, doc, caption);
+		result = new HistoryMessage(this, block, id, flags, viaBotId, date, from, photo, caption);
 	}
 
 	return regItem(result);
@@ -1633,7 +1645,7 @@ HistoryItem *History::addNewForwarded(MsgId id, QDateTime date, int32 from, Hist
 	return addNewItem(to, newBlock, createItemForwarded(to, id, date, from, item), true);
 }
 
-HistoryItem *History::addNewDocument(MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption) {
+HistoryItem *History::addNewDocument(MsgId id, int32 flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption) {
 	HistoryBlock *to = 0;
 	bool newBlock = blocks.isEmpty();
 	if (newBlock) {
@@ -1641,7 +1653,18 @@ HistoryItem *History::addNewDocument(MsgId id, int32 flags, MsgId replyTo, QDate
 	} else {
 		to = blocks.back();
 	}
-	return addNewItem(to, newBlock, createItemDocument(to, id, flags, replyTo, date, from, doc, caption), true);
+	return addNewItem(to, newBlock, createItemDocument(to, id, flags, viaBotId, replyTo, date, from, doc, caption), true);
+}
+
+HistoryItem *History::addNewPhoto(MsgId id, int32 flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption) {
+	HistoryBlock *to = 0;
+	bool newBlock = blocks.isEmpty();
+	if (newBlock) {
+		to = new HistoryBlock(this);
+	} else {
+		to = blocks.back();
+	}
+	return addNewItem(to, newBlock, createItemPhoto(to, id, flags, viaBotId, replyTo, date, from, photo, caption), true);
 }
 
 void History::createInitialDateBlock(const QDateTime &date) {
@@ -3209,8 +3232,8 @@ HistoryFileMedia::~HistoryFileMedia() {
 	deleteAndMark(_animation);
 }
 
-HistoryPhoto::HistoryPhoto(const MTPDphoto &photo, const QString &caption, HistoryItem *parent) : HistoryFileMedia()
-, _data(App::feedPhoto(photo))
+HistoryPhoto::HistoryPhoto(PhotoData *photo, const QString &caption, const HistoryItem *parent) : HistoryFileMedia()
+, _data(photo)
 , _pixw(1)
 , _pixh(1)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
@@ -3219,15 +3242,6 @@ HistoryPhoto::HistoryPhoto(const MTPDphoto &photo, const QString &caption, Histo
 	if (!caption.isEmpty()) {
 		_caption.setText(st::msgFont, caption + parent->skipBlock(), itemTextNoMonoOptions(parent));
 	}
-	init();
-}
-
-HistoryPhoto::HistoryPhoto(PhotoData *photo) : HistoryFileMedia()
-, _data(photo)
-, _pixw(1)
-, _pixh(1) {
-	setLinks(new PhotoLink(_data), new PhotoSaveLink(_data), new PhotoCancelLink(_data));
-
 	init();
 }
 
@@ -5181,7 +5195,7 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 				_attach = new HistoryDocument(_data->doc, QString(), parent);
 			}
 		} else if (_data->photo) {
-			_attach = new HistoryPhoto(_data->photo);
+			_attach = new HistoryPhoto(_data->photo, QString(), parent);
 		}
 	}
 
@@ -5798,23 +5812,23 @@ HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, const MTPD
 , _text(st::msgMinWidth)
 , _textWidth(0)
 , _textHeight(0)
+, _viaBot(msg.has_via_bot_id() ? App::userLoaded(peerFromUser(msg.vvia_bot_id)) : 0)
 , _media(0)
-, _views(msg.has_views() ? msg.vviews.v : -1)
-{
+, _views(msg.has_views() ? msg.vviews.v : -1) {
 	QString text(textClean(qs(msg.vmessage)));
 	initTime();
 	initMedia(msg.has_media() ? (&msg.vmedia) : 0, text);
 	setText(text, msg.has_entities() ? entitiesFromMTP(msg.ventities.c_vector().v) : EntitiesInText());
 }
 
-HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const EntitiesInText &entities, HistoryMedia *fromMedia) :
+HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, int32 viaBotId, QDateTime date, int32 from, const QString &msg, const EntitiesInText &entities, HistoryMedia *fromMedia) :
 HistoryItem(history, block, msgId, flags, date, from)
 , _text(st::msgMinWidth)
 , _textWidth(0)
 , _textHeight(0)
+, _viaBot(viaBotId ? App::userLoaded(peerFromUser(viaBotId)) : 0)
 , _media(0)
-, _views(fromChannel() ? 1 : -1)
-{
+, _views(fromChannel() ? 1 : -1) {
 	initTime();
 	if (fromMedia) {
 		_media = fromMedia->clone();
@@ -5823,16 +5837,30 @@ HistoryItem(history, block, msgId, flags, date, from)
 	setText(msg, entities);
 }
 
-HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, DocumentData *doc, const QString &caption) :
+HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, int32 viaBotId, QDateTime date, int32 from, DocumentData *doc, const QString &caption) :
 HistoryItem(history, block, msgId, flags, date, from)
 , _text(st::msgMinWidth)
 , _textWidth(0)
 , _textHeight(0)
+, _viaBot(viaBotId ? App::userLoaded(peerFromUser(viaBotId)) : 0)
 , _media(0)
-, _views(fromChannel() ? 1 : -1)
-{
+, _views(fromChannel() ? 1 : -1) {
 	initTime();
 	initMediaFromDocument(doc, caption);
+	setText(QString(), EntitiesInText());
+}
+
+HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, int32 viaBotId, QDateTime date, int32 from, PhotoData *photo, const QString &caption) :
+HistoryItem(history, block, msgId, flags, date, from)
+, _text(st::msgMinWidth)
+, _textWidth(0)
+, _textHeight(0)
+, _viaBot(viaBotId ? App::userLoaded(peerFromUser(viaBotId)) : 0)
+, _media(0)
+, _views(fromChannel() ? 1 : -1) {
+	initTime();
+	_media = new HistoryPhoto(photo, caption, this);
+	_media->regItem(this);
 	setText(QString(), EntitiesInText());
 }
 
@@ -5886,7 +5914,7 @@ void HistoryMessage::initMedia(const MTPMessageMedia *media, QString &currentTex
 	case mtpc_messageMediaPhoto: {
 		const MTPDmessageMediaPhoto &photo(media->c_messageMediaPhoto());
 		if (photo.vphoto.type() == mtpc_photo) {
-			_media = new HistoryPhoto(photo.vphoto.c_photo(), qs(photo.vcaption), this);
+			_media = new HistoryPhoto(App::feedPhoto(photo.vphoto.c_photo()), qs(photo.vcaption), this);
 		}
 	} break;
 	case mtpc_messageMediaVideo: {
@@ -6468,7 +6496,8 @@ HistoryMessage::~HistoryMessage() {
 	}
 }
 
-HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessage &msg) : HistoryMessage(history, block, msg)
+HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessage &msg)
+: HistoryMessage(history, block, msg)
 , fwdDate(::date(msg.vfwd_date))
 , fwdFrom(App::peer(peerFromMTP(msg.vfwd_from_id)))
 , fwdFromVersion(fwdFrom->nameVersion)
@@ -6476,7 +6505,8 @@ HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const 
 	fwdNameUpdated();
 }
 
-HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg) : HistoryMessage(history, block, id, newMessageFlags(history->peer) | (!history->peer->isChannel() && msg->getMedia() && (msg->getMedia()->type() == MediaTypeAudio/* || msg->getMedia()->type() == MediaTypeVideo*/) ? MTPDmessage::flag_media_unread : 0), date, from, msg->HistoryMessage::originalText(), msg->HistoryMessage::originalEntities(), msg->getMedia())
+HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg)
+: HistoryMessage(history, block, id, newMessageFlags(history->peer) | (!history->peer->isChannel() && msg->getMedia() && (msg->getMedia()->type() == MediaTypeAudio/* || msg->getMedia()->type() == MediaTypeVideo*/) ? MTPDmessage::flag_media_unread : 0), msg->viaBot() ? peerToUser(msg->viaBot()->id) : 0, date, from, msg->HistoryMessage::originalText(), msg->HistoryMessage::originalEntities(), msg->getMedia())
 , fwdDate(msg->dateForwarded())
 , fwdFrom(msg->fromForwarded())
 , fwdFromVersion(fwdFrom->nameVersion)
@@ -6647,8 +6677,8 @@ HistoryReply::HistoryReply(History *history, HistoryBlock *block, const MTPDmess
 	}
 }
 
-HistoryReply::HistoryReply(History *history, HistoryBlock *block, MsgId msgId, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption)
-: HistoryMessage(history, block, msgId, flags, date, from, doc, caption)
+HistoryReply::HistoryReply(History *history, HistoryBlock *block, MsgId msgId, int32 flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption)
+: HistoryMessage(history, block, msgId, flags, viaBotId, date, from, doc, caption)
 , replyToMsgId(replyTo)
 , replyToMsg(0)
 , replyToVersion(0)
@@ -6658,6 +6688,16 @@ HistoryReply::HistoryReply(History *history, HistoryBlock *block, MsgId msgId, i
 	}
 }
 
+HistoryReply::HistoryReply(History *history, HistoryBlock *block, MsgId msgId, int32 flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption)
+: HistoryMessage(history, block, msgId, flags, viaBotId, date, from, photo, caption)
+, replyToMsgId(replyTo)
+, replyToMsg(0)
+, replyToVersion(0)
+, _maxReplyWidth(0) {
+	if (!updateReplyTo() && App::api()) {
+		App::api()->requestReplyTo(this, history->peer->asChannel(), replyToMsgId);
+	}
+}
 QString HistoryReply::selectedText(uint32 selection) const {
 	if (selection != FullSelection || !replyToMsg) return HistoryMessage::selectedText(selection);
 	QString result, original = HistoryMessage::selectedText(selection);

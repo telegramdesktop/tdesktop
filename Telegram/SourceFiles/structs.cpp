@@ -1514,8 +1514,10 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 				type = StickerDocument;
 				StickerData *sticker = new StickerData();
 				_additional = sticker;
-				sticker->alt = qs(d.valt);
-				sticker->set = d.vstickerset;
+			}
+			if (sticker()) {
+				sticker()->alt = qs(d.valt);
+				sticker()->set = d.vstickerset;
 			}
 		} break;
 		case mtpc_documentAttributeVideo: {
@@ -1528,12 +1530,16 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 		} break;
 		case mtpc_documentAttributeAudio: {
 			const MTPDdocumentAttributeAudio &d(attributes[i].c_documentAttributeAudio());
-			type = SongDocument;
-			SongData *song = new SongData();
-			_additional = song;
-			song->duration = d.vduration.v;
-			song->title = qs(d.vtitle);
-			song->performer = qs(d.vperformer);
+			if (type == FileDocument) {
+				type = SongDocument;
+				SongData *song = new SongData();
+				_additional = song;
+			}
+			if (song()) {
+				song()->duration = d.vduration.v;
+				song()->title = qs(d.vtitle);
+				song()->performer = qs(d.vperformer);
+			}
 		} break;
 		case mtpc_documentAttributeFilename: name = qs(attributes[i].c_documentAttributeFilename().vfile_name); break;
 		}
@@ -2034,8 +2040,53 @@ void ImageLinkData::load() {
 	manager.getData(this);
 }
 
-void InlineResult::automaticLoadGif() const {
+void InlineResult::automaticLoadGif() {
+	if (loaded() || type != qstr("gif") || (content_type != qstr("video/mp4") && content_type != "image/gif")) return;
 
+	if (_loader != CancelledWebFileLoader) {
+		// if load at least anywhere
+		bool loadFromCloud = !(cAutoDownloadGif() & dbiadNoPrivate) || !(cAutoDownloadGif() & dbiadNoGroups);
+		saveFile(QString(), loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly, true);
+	}
+}
+
+void InlineResult::saveFile(const QString &toFile, LoadFromCloudSetting fromCloud, bool autoLoading) {
+	if (loaded()) {
+		return;
+	}
+
+	if (_loader == CancelledWebFileLoader) _loader = 0;
+	if (_loader) {
+		if (!_loader->setFileName(toFile)) {
+			cancelFile();
+			_loader = 0;
+		}
+	}
+
+	if (_loader) {
+		if (fromCloud == LoadFromCloudOrLocal) _loader->permitLoadFromCloud();
+	} else {
+		_loader = new webFileLoader(content_url, toFile, fromCloud, autoLoading);
+		App::regInlineResultLoader(_loader, this);
+
+		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(inlineResultLoadProgress(FileLoader*)));
+		_loader->connect(_loader, SIGNAL(failed(FileLoader*,bool)), App::main(), SLOT(inlineResultLoadFailed(FileLoader*,bool)));
+		_loader->start();
+	}
+}
+
+void InlineResult::cancelFile() {
+	if (!loading()) return;
+
+	App::unregInlineResultLoader(_loader);
+
+	webFileLoader *l = _loader;
+	_loader = CancelledWebFileLoader;
+	if (l) {
+		l->cancel();
+		l->deleteLater();
+		l->stop();
+	}
 }
 
 QByteArray InlineResult::data() const {
@@ -2043,22 +2094,43 @@ QByteArray InlineResult::data() const {
 }
 
 bool InlineResult::loading() const {
-	return false;
+	return _loader && _loader != CancelledWebFileLoader;
 }
 
 bool InlineResult::loaded() const {
-	return false;
+	if (loading() && _loader->done()) {
+		App::unregInlineResultLoader(_loader);
+		if (_loader->fileType() == mtpc_storage_fileUnknown) {
+			_loader->deleteLater();
+			_loader->stop();
+			_loader = CancelledWebFileLoader;
+		} else {
+			InlineResult *that = const_cast<InlineResult*>(this);
+			that->_data = _loader->bytes();
+
+			_loader->deleteLater();
+			_loader->stop();
+			_loader = 0;
+		}
+	}
+	return !_data.isEmpty();
 }
 
 bool InlineResult::displayLoading() const {
-	return false;
+	return loading() ? (!_loader->loadingLocal() || !_loader->autoLoading()) : false;
 }
 
 void InlineResult::forget() {
+	thumb->forget();
+	_data.clear();
 }
 
 float64 InlineResult::progress() const {
-	return 0.;
+	return loading() ? _loader->currentProgress() : (loaded() ? 1 : 0);	return false;
+}
+
+InlineResult::~InlineResult() {
+	cancelFile();
 }
 
 void PeerLink::onClick(Qt::MouseButton button) const {

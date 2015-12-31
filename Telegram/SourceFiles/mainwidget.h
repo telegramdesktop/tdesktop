@@ -450,6 +450,8 @@ public slots:
 	void documentLoadFailed(FileLoader *loader, bool started);
 	void documentLoadRetry();
 	void documentPlayProgress(const SongMsgId &songId);
+	void inlineResultLoadProgress(FileLoader *loader);
+	void inlineResultLoadFailed(FileLoader *loader, bool started);
 	void hidePlayer();
 
 	void dialogsCancelled();

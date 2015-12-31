@@ -638,6 +638,8 @@ public slots:
 
 	void onFieldTabbed();
 	void onStickerSend(DocumentData *sticker);
+	void onPhotoSend(PhotoData *photo);
+	void onInlineResultSend(InlineResult *result, UserData *bot);
 
 	void onVisibleChanged();
 
@@ -678,6 +680,9 @@ private:
 	int32 _replyToNameVersion;
 	IconedButton _replyForwardPreviewCancel;
 	void updateReplyToName();
+
+	void sendExistingDocument(DocumentData *doc, const QString &caption, UserData *bot);
+	void sendExistingPhoto(PhotoData *photo, const QString &caption, UserData *bot);
 
 	void drawField(Painter &p);
 	void drawRecordButton(Painter &p);

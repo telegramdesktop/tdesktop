@@ -2708,6 +2708,8 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(&_scrollTimer, SIGNAL(timeout()), this, SLOT(onScrollTimer()));
 	connect(&_emojiPan, SIGNAL(emojiSelected(EmojiPtr)), &_field, SLOT(onEmojiInsert(EmojiPtr)));
 	connect(&_emojiPan, SIGNAL(stickerSelected(DocumentData*)), this, SLOT(onStickerSend(DocumentData*)));
+	connect(&_emojiPan, SIGNAL(photoSelected(PhotoData*)), this, SLOT(onPhotoSend(PhotoData*)));
+	connect(&_emojiPan, SIGNAL(inlineResultSelected(InlineResult*,UserData*)), this, SLOT(onInlineResultSend(InlineResult*,UserData*)));
 	connect(&_emojiPan, SIGNAL(updateStickers()), this, SLOT(updateStickers()));
 	connect(&_sendActionStopTimer, SIGNAL(timeout()), this, SLOT(onCancelSendAction()));
 	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreviewTimeout()));
@@ -6267,7 +6269,15 @@ void HistoryWidget::onFieldTabbed() {
 }
 
 void HistoryWidget::onStickerSend(DocumentData *sticker) {
-	if (!_history || !sticker || !canSendMessages(_peer)) return;
+	sendExistingDocument(sticker, QString(), 0);
+}
+
+void HistoryWidget::onPhotoSend(PhotoData *photo) {
+	sendExistingPhoto(photo, QString(), 0);
+}
+
+void HistoryWidget::onInlineResultSend(InlineResult *result, UserData *bot) {
+	if (!_history || !result || !canSendMessages(_peer)) return;
 
 	App::main()->readServerHistory(_history, false);
 	fastShowAtEnd(_history);
@@ -6290,13 +6300,156 @@ void HistoryWidget::onStickerSend(DocumentData *sticker) {
 	} else {
 		flags |= MTPDmessage::flag_from_id;
 	}
-	_history->addNewDocument(newId.msg, flags, replyToId(), date(MTP_int(unixtime())), fromChannelName ? 0 : MTP::authedId(), sticker, QString());
+	if (bot) {
+		flags |= MTPDmessage::flag_via_bot_id;
+	}
 
-	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaDocument(MTP_inputDocument(MTP_long(sticker->id), MTP_long(sticker->access)), MTP_string("")), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
+	if (result->message.isEmpty()) {
+		if (result->doc) {
+			_history->addNewDocument(newId.msg, flags, bot ? peerToUser(bot->id) : 0, replyToId(), date(MTP_int(unixtime())), fromChannelName ? 0 : MTP::authedId(), result->doc, result->caption);
+		} else if (result->photo) {
+			_history->addNewPhoto(newId.msg, flags, bot ? peerToUser(bot->id) : 0, replyToId(), date(MTP_int(unixtime())), fromChannelName ? 0 : MTP::authedId(), result->photo, result->caption);
+		} else if (result->type == qstr("gif")) {
+			MTPPhotoSize thumbSize;
+			QPixmap thumb;
+			int32 tw = result->thumb->width(), th = result->thumb->height();
+			if (tw > 0 && th > 0 && tw < 20 * th && th < 20 * tw && result->thumb->loaded()) {
+				if (tw > th) {
+					if (tw > 90) {
+						th = th * 90 / tw;
+						tw = 90;
+					}
+				} else if (th > 90) {
+					tw = tw * 90 / th;
+					th = 90;
+				}
+				thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(tw), MTP_int(th), MTP_int(0));
+				thumb = result->thumb->pixNoCache(tw, th, true, false, false);
+			} else {
+				tw = th = 0;
+				thumbSize = MTP_photoSizeEmpty(MTP_string(""));
+			}
+			uint64 docId = MTP::nonce<uint64>();
+			QVector<MTPDocumentAttribute> attributes(1, MTP_documentAttributeFilename(MTP_string((result->content_type == qstr("video/mp4") ? "animation.gif.mp4" : "animation.gif"))));
+			attributes.push_back(MTP_documentAttributeAnimated());
+			attributes.push_back(MTP_documentAttributeVideo(MTP_int(result->duration), MTP_int(result->width), MTP_int(result->height)));
+			MTPDocument document = MTP_document(MTP_long(docId), MTP_long(0), MTP_int(unixtime()), MTP_string(result->content_type), MTP_int(result->data().size()), thumbSize, MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));
+			if (tw > 0 && th > 0) {
+				App::feedDocument(document, thumb);
+			}
+			Local::writeStickerImage(mediaKey(DocumentFileLocation, MTP::maindc(), docId), result->data());
+			_history->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(_history->peer->id), MTPPeer(), MTPint(), MTP_int(bot ? peerToUser(bot->id) : 0), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(document, MTP_string(result->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
+		} else if (result->type == qstr("photo")) {
+			QImage fileThumb(result->thumb->pix().toImage());
+
+			PreparedPhotoThumbs photoThumbs;
+			QVector<MTPPhotoSize> photoSizes;
+
+			QPixmap thumb = (fileThumb.width() > 100 || fileThumb.height() > 100) ? QPixmap::fromImage(fileThumb.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(fileThumb);
+			photoThumbs.insert('s', thumb);
+			photoSizes.push_back(MTP_photoSize(MTP_string("s"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0)));
+
+			QPixmap medium = (fileThumb.width() > 320 || fileThumb.height() > 320) ? QPixmap::fromImage(fileThumb.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(fileThumb);
+			photoThumbs.insert('m', medium);
+			photoSizes.push_back(MTP_photoSize(MTP_string("m"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
+
+			MTPPhoto photo = MTP_photo(MTP_long(MTP::nonce<uint64>()), MTP_long(0), MTP_int(unixtime()), MTP_vector<MTPPhotoSize>(photoSizes));
+			_history->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(_history->peer->id), MTPPeer(), MTPint(), MTP_int(bot ? peerToUser(bot->id) : 0), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(photo, MTP_string(result->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
+		}
+	} else {
+		if (result->noWebPage) {
+			sendFlags |= MTPmessages_SendMessage::flag_no_webpage;
+		}
+		_history->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(_history->peer->id), MTPPeer(), MTPint(), MTP_int(bot ? peerToUser(bot->id) : 0), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(result->message), MTP_messageMediaEmpty(), MTPnullMarkup, linksToMTP(result->entities), MTP_int(1)), NewMessageUnread);
+	}
+	_history->sendRequestId = MTP::send(MTPmessages_SendInlineBotResult(MTP_int(sendFlags), _peer->input, MTP_int(replyToId()), MTP_long(randomId), MTP_long(result->queryId), MTP_string(result->id)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
 	App::main()->finishForwarding(_history, _broadcast.checked());
 	cancelReply(lastKeyboardUsed);
 
-	if (sticker->sticker()) App::main()->incrementSticker(sticker);
+	App::historyRegRandom(randomId, newId);
+
+	setFieldText(QString());
+	_saveDraftText = true;
+	_saveDraftStart = getms();
+	onDraftSave();
+
+	if (!_attachMention.isHidden()) _attachMention.hideStart();
+	if (!_attachType.isHidden()) _attachType.hideStart();
+	if (!_emojiPan.isHidden()) _emojiPan.hideStart();
+
+	_field.setFocus();
+}
+
+void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &caption, UserData *bot) {
+	if (!_history || !doc || !canSendMessages(_peer)) return;
+
+	App::main()->readServerHistory(_history, false);
+	fastShowAtEnd(_history);
+
+	uint64 randomId = MTP::nonce<uint64>();
+	FullMsgId newId(_channel, clientMsgId());
+
+	bool lastKeyboardUsed = lastForceReplyReplied();
+
+	bool out = !_peer->isSelf(), unread = !_peer->isSelf();
+	int32 flags = newMessageFlags(_peer) | MTPDmessage::flag_media; // unread, out
+	int32 sendFlags = 0;
+	if (replyToId()) {
+		flags |= MTPDmessage::flag_reply_to_msg_id;
+		sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
+	}
+	bool fromChannelName = _peer->isChannel() && !_peer->isMegagroup() && _peer->asChannel()->canPublish() && (_peer->asChannel()->isBroadcast() || _broadcast.checked());
+	if (fromChannelName) {
+		sendFlags |= MTPmessages_SendMedia::flag_broadcast;
+	} else {
+		flags |= MTPDmessage::flag_from_id;
+	}
+	_history->addNewDocument(newId.msg, flags, bot ? peerToUser(bot->id) : 0, replyToId(), date(MTP_int(unixtime())), fromChannelName ? 0 : MTP::authedId(), doc, caption);
+
+	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaDocument(MTP_inputDocument(MTP_long(doc->id), MTP_long(doc->access)), MTP_string(caption)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
+	App::main()->finishForwarding(_history, _broadcast.checked());
+	cancelReply(lastKeyboardUsed);
+
+	if (doc->sticker()) App::main()->incrementSticker(doc);
+
+	App::historyRegRandom(randomId, newId);
+
+	if (!_attachMention.isHidden()) _attachMention.hideStart();
+	if (!_attachType.isHidden()) _attachType.hideStart();
+	if (!_emojiPan.isHidden()) _emojiPan.hideStart();
+
+	_field.setFocus();
+}
+
+void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption, UserData *bot) {
+	if (!_history || !photo || !canSendMessages(_peer)) return;
+
+	App::main()->readServerHistory(_history, false);
+	fastShowAtEnd(_history);
+
+	uint64 randomId = MTP::nonce<uint64>();
+	FullMsgId newId(_channel, clientMsgId());
+
+	bool lastKeyboardUsed = lastForceReplyReplied();
+
+	bool out = !_peer->isSelf(), unread = !_peer->isSelf();
+	int32 flags = newMessageFlags(_peer) | MTPDmessage::flag_media; // unread, out
+	int32 sendFlags = 0;
+	if (replyToId()) {
+		flags |= MTPDmessage::flag_reply_to_msg_id;
+		sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
+	}
+	bool fromChannelName = _peer->isChannel() && !_peer->isMegagroup() && _peer->asChannel()->canPublish() && (_peer->asChannel()->isBroadcast() || _broadcast.checked());
+	if (fromChannelName) {
+		sendFlags |= MTPmessages_SendMedia::flag_broadcast;
+	} else {
+		flags |= MTPDmessage::flag_from_id;
+	}
+	_history->addNewPhoto(newId.msg, flags, bot ? peerToUser(bot->id) : 0, replyToId(), date(MTP_int(unixtime())), fromChannelName ? 0 : MTP::authedId(), photo, caption);
+
+	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaPhoto(MTP_inputPhoto(MTP_long(photo->id), MTP_long(photo->access)), MTP_string(caption)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
+	App::main()->finishForwarding(_history, _broadcast.checked());
+	cancelReply(lastKeyboardUsed);
 
 	App::historyRegRandom(randomId, newId);
 

@@ -294,6 +294,8 @@ void FlatTextarea::getMentionHashtagBotCommandStart(QString &start, UserData *&i
 				start = text.mid(inlineUsernameStart + inlineUsernameLength + 1);
 				return;
 			}
+		} else {
+			inlineUsernameLength = 0;
 		}
 	}
 	if (!inlineUsernameLength) {

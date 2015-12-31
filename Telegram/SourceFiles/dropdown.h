@@ -341,7 +341,7 @@ public:
 	void refreshStickers();
 	void refreshRecentStickers(bool resize = true);
 	void refreshSavedGifs();
-	void refreshInlineRows(UserData *bot, const InlineResults &results);
+	void refreshInlineRows(UserData *bot, const InlineResults &results, bool resultsDeleted);
 	void refreshRecent();
 	void inlineBotChanged();
 
@@ -363,7 +363,7 @@ public:
 	}
 
 	~StickerPanInner() {
-		clearInlineRows();
+		clearInlineRows(true);
 		deleteUnusedGifLayouts();
 		deleteUnusedInlineLayouts();
 	}
@@ -378,6 +378,9 @@ public slots:
 signals:
 
 	void selected(DocumentData *sticker);
+	void selected(PhotoData *photo);
+	void selected(InlineResult *result, UserData *bot);
+
 	void removing(quint64 setId);
 
 	void refreshIcons();
@@ -423,6 +426,7 @@ private:
 	QList<bool> _custom;
 
 	bool _showingSavedGifs, _showingInlineItems;
+	UserData *_inlineBot;
 	QString _inlineBotTitle;
 	uint64 _lastScrolled;
 	QTimer _updateInlineItems;
@@ -436,7 +440,7 @@ private:
 	};
 	typedef QVector<InlineRow> InlineRows;
 	InlineRows _inlineRows;
-	void clearInlineRows();
+	void clearInlineRows(bool resultsDeleted);
 
 	typedef QMap<DocumentData*, LayoutInlineGif*> GifLayouts;
 	GifLayouts _gifLayouts;
@@ -447,7 +451,7 @@ private:
 	LayoutInlineItem *layoutPrepareInlineResult(InlineResult *result, int32 position);
 
 	void inlineRowsAddItem(DocumentData *savedGif, InlineResult *result, InlineRow &row, int32 &sumWidth);
-	void inlineRowFinalize(InlineRow &row, int32 &sumWidth, bool force = false);
+	bool inlineRowFinalize(InlineRow &row, int32 &sumWidth, bool force = false);
 
 	InlineRow &layoutInlineRow(InlineRow &row, int32 sumWidth = 0);
 	void deleteUnusedGifLayouts();
@@ -600,6 +604,9 @@ signals:
 
 	void emojiSelected(EmojiPtr emoji);
 	void stickerSelected(DocumentData *sticker);
+	void photoSelected(PhotoData *photo);
+	void inlineResultSelected(InlineResult *result, UserData *bot);
+
 	void updateStickers();
 
 private:

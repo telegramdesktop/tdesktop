@@ -195,13 +195,15 @@ public:
 
 	HistoryItem *createItem(HistoryBlock *block, const MTPMessage &msg, bool applyServiceAction);
 	HistoryItem *createItemForwarded(HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg);
-	HistoryItem *createItemDocument(HistoryBlock *block, MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption);
+	HistoryItem *createItemDocument(HistoryBlock *block, MsgId id, int32 flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption);
+	HistoryItem *createItemPhoto(HistoryBlock *block, MsgId id, int32 flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption);
 
 	HistoryItem *addNewService(MsgId msgId, QDateTime date, const QString &text, int32 flags = 0, HistoryMedia *media = 0, bool newMsg = true);
 	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
 	HistoryItem *addToHistory(const MTPMessage &msg);
 	HistoryItem *addNewForwarded(MsgId id, QDateTime date, int32 from, HistoryMessage *item);
-	HistoryItem *addNewDocument(MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption);
+	HistoryItem *addNewDocument(MsgId id, int32 flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption);
+	HistoryItem *addNewPhoto(MsgId id, int32 flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption);
 
 	void addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPMessageGroup> *collapsed);
 	void addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPMessageGroup> *collapsed);
@@ -1271,8 +1273,7 @@ private:
 class HistoryPhoto : public HistoryFileMedia {
 public:
 
-	HistoryPhoto(const MTPDphoto &photo, const QString &caption, HistoryItem *parent);
-	HistoryPhoto(PhotoData *photo);
+	HistoryPhoto(PhotoData *photo, const QString &caption, const HistoryItem *parent);
 	HistoryPhoto(PeerData *chat, const MTPDphoto &photo, int32 width = 0);
 	HistoryPhoto(const HistoryPhoto &other);
 	void init();
@@ -1904,14 +1905,19 @@ class HistoryMessage : public HistoryItem {
 public:
 
 	HistoryMessage(History *history, HistoryBlock *block, const MTPDmessage &msg);
-	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const EntitiesInText &entities, HistoryMedia *media); // local forwarded
-	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, DocumentData *doc, const QString &caption); // local sticker and reply sticker
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, int32 viaBotId, QDateTime date, int32 from, const QString &msg, const EntitiesInText &entities, HistoryMedia *media); // local forwarded
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, int32 viaBotId, QDateTime date, int32 from, DocumentData *doc, const QString &caption); // local document
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, int32 viaBotId, QDateTime date, int32 from, PhotoData *photo, const QString &caption); // local photo
 
 	void initTime();
 	void initMedia(const MTPMessageMedia *media, QString &currentText);
 	void initMediaFromDocument(DocumentData *doc, const QString &caption);
 	void initDimensions();
 	void fromNameUpdated() const;
+
+	UserData *viaBot() const {
+		return _viaBot;
+	}
 
 	int32 plainMaxWidth() const;
 	void countPositionAndSize(int32 &left, int32 &width) const;
@@ -2030,6 +2036,7 @@ protected:
 	Text _text;
 
 	int32 _textWidth, _textHeight;
+	UserData *_viaBot;
 
 	HistoryMedia *_media;
 	QString _timeText;
@@ -2091,7 +2098,8 @@ class HistoryReply : public HistoryMessage {
 public:
 
 	HistoryReply(History *history, HistoryBlock *block, const MTPDmessage &msg);
-	HistoryReply(History *history, HistoryBlock *block, MsgId msgId, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption);
+	HistoryReply(History *history, HistoryBlock *block, MsgId msgId, int32 flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption);
+	HistoryReply(History *history, HistoryBlock *block, MsgId msgId, int32 flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption);
 
 	void initDimensions();
 
