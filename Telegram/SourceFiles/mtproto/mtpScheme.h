@@ -288,8 +288,8 @@ enum {
 	mtpc_updates_difference = 0xf49ca0,
 	mtpc_updates_differenceSlice = 0xa8fb1981,
 	mtpc_updatesTooLong = 0xe317af7e,
-	mtpc_updateShortMessage = 0x63bd23d,
-	mtpc_updateShortChatMessage = 0xb024ead6,
+	mtpc_updateShortMessage = 0x13e4deaa,
+	mtpc_updateShortChatMessage = 0x248afa62,
 	mtpc_updateShort = 0x78d4dec1,
 	mtpc_updatesCombined = 0x725b04c3,
 	mtpc_updates = 0x74ae4240,
@@ -11802,7 +11802,7 @@ public:
 		flag_media_unread = (1 << 5),
 		flag_fwd_from_id = (1 << 2),
 		flag_fwd_date = (1 << 2),
-		flag_via_bot_id = (1 << 8),
+		flag_via_bot_id = (1 << 11),
 		flag_reply_to_msg_id = (1 << 3),
 		flag_entities = (1 << 7),
 	};
@@ -11846,7 +11846,7 @@ public:
 		flag_media_unread = (1 << 5),
 		flag_fwd_from_id = (1 << 2),
 		flag_fwd_date = (1 << 2),
-		flag_via_bot_id = (1 << 8),
+		flag_via_bot_id = (1 << 11),
 		flag_reply_to_msg_id = (1 << 3),
 		flag_entities = (1 << 7),
 	};

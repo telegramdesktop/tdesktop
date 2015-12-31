@@ -518,7 +518,7 @@ public:
 	void onListEscapePressed();
 
 	void sendBotCommand(const QString &cmd, MsgId replyTo);
-	void insertBotCommand(const QString &cmd);
+	bool insertBotCommand(const QString &cmd, bool specialGif);
 
 	bool eventFilter(QObject *obj, QEvent *e);
 	void updateBotKeyboard(History *h = 0);

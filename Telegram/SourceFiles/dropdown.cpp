@@ -1215,6 +1215,7 @@ StickerPanInner::StickerPanInner() : TWidget()
 , _top(0)
 , _showingSavedGifs(cShowingSavedGifs())
 , _showingInlineItems(_showingSavedGifs)
+, _setGifCommand(false)
 , _lastScrolled(0)
 , _inlineWithThumb(false)
 , _selected(-1)
@@ -1609,19 +1610,25 @@ void StickerPanInner::clearSelection(bool fast) {
 	}
 }
 
-void StickerPanInner::hideFinish() {
-	clearInlineRows(false);
-	for (GifLayouts::const_iterator i = _gifLayouts.cbegin(), e = _gifLayouts.cend(); i != e; ++i) {
-		i.value()->document()->forget();
-	}
-	for (InlineLayouts::const_iterator i = _inlineLayouts.cbegin(), e = _inlineLayouts.cend(); i != e; ++i) {
-		if (i.value()->result()->doc) {
-			i.value()->result()->doc->forget();
+void StickerPanInner::hideFinish(bool completely) {
+	if (completely) {
+		clearInlineRows(false);
+		for (GifLayouts::const_iterator i = _gifLayouts.cbegin(), e = _gifLayouts.cend(); i != e; ++i) {
+			i.value()->document()->forget();
 		}
-		if (i.value()->result()->photo) {
-			i.value()->result()->photo->forget();
+		for (InlineLayouts::const_iterator i = _inlineLayouts.cbegin(), e = _inlineLayouts.cend(); i != e; ++i) {
+			if (i.value()->result()->doc) {
+				i.value()->result()->doc->forget();
+			}
+			if (i.value()->result()->photo) {
+				i.value()->result()->photo->forget();
+			}
 		}
 	}
+	if (_setGifCommand && _showingSavedGifs) {
+		App::insertBotCommand(qsl(""), true);
+	}
+	_setGifCommand = false;
 }
 
 void StickerPanInner::refreshStickers() {
@@ -1713,6 +1720,7 @@ void StickerPanInner::refreshSavedGifs() {
 }
 
 void StickerPanInner::inlineBotChanged() {
+	_setGifCommand = false;
 	refreshInlineRows(0, InlineResults(), true);
 	deleteUnusedInlineLayouts();
 }
@@ -2351,11 +2359,16 @@ void StickerPanInner::showStickerSet(uint64 setId) {
 		refreshSavedGifs();
 		emit scrollToY(0);
 		emit scrollUpdated();
-		_setGifCommand = App::insertBotCommand(qsl("@gif"));
+		showFinish();
 		return;
 	}
 
 	if (_showingInlineItems) {
+		if (_setGifCommand && _showingSavedGifs) {
+			App::insertBotCommand(qsl(""), true);
+		}
+		_setGifCommand = false;
+
 		_showingInlineItems = false;
 		cSetShowingSavedGifs(false);
 		emit saveConfigDelayed(SaveRecentEmojisTimeout);
@@ -2379,6 +2392,12 @@ void StickerPanInner::showStickerSet(uint64 setId) {
 	_lastMousePos = QCursor::pos();
 
 	update();
+}
+
+void StickerPanInner::showFinish() {
+	if (_showingInlineItems && _showingSavedGifs) {
+		_setGifCommand = App::insertBotCommand((cTestMode() ? qstr("@contextbot") : qstr("@gif")), true);
+	}
 }
 
 EmojiPanel::EmojiPanel(QWidget *parent, const QString &text, uint64 setId, bool special, int32 wantedY) : TWidget(parent)
@@ -3151,7 +3170,7 @@ void EmojiPan::hideAnimated() {
 void EmojiPan::hideFinish() {
 	hide();
 	e_inner.hideFinish();
-	s_inner.hideFinish();
+	s_inner.hideFinish(true);
 	_cache = _toCache = _fromCache = QPixmap();
 	_a_slide.stop();
 	_horizontal = false;
@@ -3419,6 +3438,9 @@ void EmojiPan::onSwitch() {
 		} else if (!cShowingSavedGifs() && !cSavedGifs().isEmpty() && cStickerSets().isEmpty()) {
 			s_inner.showStickerSet(NoneStickerSetId);
 		}
+		if (cShowingSavedGifs()) {
+			s_inner.showFinish();
+		}
 		validateSelectedIcon();
 		setMaxHeight(_maxHeight);
 	}
@@ -3436,6 +3458,8 @@ void EmojiPan::onSwitch() {
 
 	if (_stickersShown) {
 		e_inner.hideFinish();
+	} else {
+		s_inner.hideFinish(false);
 	}
 
 	a_toCoord = (_stickersShown != rtl()) ? anim::ivalue(st::emojiPanWidth, 0) : anim::ivalue(-st::emojiPanWidth, 0);

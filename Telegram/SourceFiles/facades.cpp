@@ -31,8 +31,9 @@ namespace App {
 		if (MainWidget *m = main()) m->sendBotCommand(cmd, replyTo);
 	}
 
-	void insertBotCommand(const QString &cmd) {
-		if (MainWidget *m = main()) m->insertBotCommand(cmd);
+	bool insertBotCommand(const QString &cmd, bool specialGif) {
+		if (MainWidget *m = main()) return m->insertBotCommand(cmd, specialGif);
+		return false;
 	}
 
 	void searchByHashtag(const QString &tag, PeerData *inPeer) {

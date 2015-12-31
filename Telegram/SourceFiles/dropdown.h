@@ -333,7 +333,8 @@ public:
 
 	void step_selected(uint64 ms, bool timer);
 
-	void hideFinish();
+	void hideFinish(bool completely);
+	void showFinish();
 	void showStickerSet(uint64 setId);
 
 	bool showSectionIcons() const;
@@ -427,6 +428,7 @@ private:
 	QList<bool> _custom;
 
 	bool _showingSavedGifs, _showingInlineItems;
+	bool _setGifCommand;
 	UserData *_inlineBot;
 	QString _inlineBotTitle;
 	uint64 _lastScrolled;

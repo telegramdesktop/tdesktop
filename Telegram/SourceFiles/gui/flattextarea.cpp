@@ -313,7 +313,7 @@ void FlatTextarea::getMentionHashtagBotCommandStart(QString &start, UserData *&i
 			inlineUsernameLength = 0;
 		}
 	}
-	if (!inlineUsernameLength) {
+	if (inlineUsernameLength < 3) {
 		inlineBot = 0;
 		inlineBotUsername = QString();
 	}

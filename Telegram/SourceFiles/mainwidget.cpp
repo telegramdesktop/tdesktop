@@ -1390,8 +1390,8 @@ void MainWidget::sendBotCommand(const QString &cmd, MsgId replyTo) {
 	history.sendBotCommand(cmd, replyTo);
 }
 
-void MainWidget::insertBotCommand(const QString &cmd) {
-	history.insertBotCommand(cmd);
+bool MainWidget::insertBotCommand(const QString &cmd, bool specialGif) {
+	return history.insertBotCommand(cmd, specialGif);
 }
 
 void MainWidget::searchMessages(const QString &query, PeerData *inPeer) {

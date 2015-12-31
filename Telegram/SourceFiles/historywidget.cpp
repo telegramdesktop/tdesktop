@@ -4829,8 +4829,8 @@ void HistoryWidget::sendBotCommand(const QString &cmd, MsgId replyTo) { // reply
 	_field.setFocus();
 }
 
-void HistoryWidget::insertBotCommand(const QString &cmd) {
-	if (!_history) return;
+bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
+	if (!_history) return false;
 
 	QString toInsert = cmd;
 	PeerData *bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? (App::hoveredLinkItem()->toHistoryForwarded() ? App::hoveredLinkItem()->toHistoryForwarded()->fromForwarded() : App::hoveredLinkItem()->from()) : 0);
@@ -4844,20 +4844,31 @@ void HistoryWidget::insertBotCommand(const QString &cmd) {
 
 	if (toInsert.at(0) != '@') {
 		QString text = _field.getLastText();
-		QRegularExpressionMatch m = QRegularExpression(qsl("^/[A-Za-z_0-9]{0,64}(@[A-Za-z_0-9]{0,32})?(\\s|$)")).match(text);
-		if (m.hasMatch()) {
-			text = toInsert + text.mid(m.capturedLength());
+		if (specialGif) {
+			if (text.trimmed() == (cTestMode() ? qstr("@contextbot") : qstr("@gif")) && text.at(0) == '@') {
+				_field.setTextFast(QString(), true);
+			}
 		} else {
-			text = toInsert + text;
-		}
-		_field.setTextFast(text);
+			QRegularExpressionMatch m = QRegularExpression(qsl("^/[A-Za-z_0-9]{0,64}(@[A-Za-z_0-9]{0,32})?(\\s|$)")).match(text);
+			if (m.hasMatch()) {
+				text = toInsert + text.mid(m.capturedLength());
+			} else {
+				text = toInsert + text;
+			}
+			_field.setTextFast(text);
 
-		QTextCursor cur(_field.textCursor());
-		cur.movePosition(QTextCursor::End);
-		_field.setTextCursor(cur);
+			QTextCursor cur(_field.textCursor());
+			cur.movePosition(QTextCursor::End);
+			_field.setTextCursor(cur);
+		}
 	} else {
-		_field.setTextFast(toInsert, true);
+		if (!specialGif || _field.getLastText().isEmpty()) {
+			_field.setTextFast(toInsert, true);
+			_field.setFocus();
+			return true;
+		}
 	}
+	return false;
 }
 
 bool HistoryWidget::eventFilter(QObject *obj, QEvent *e) {
@@ -5333,7 +5344,11 @@ void HistoryWidget::onCheckMentionDropdown() {
 		if (_inlineBot != bot) {
 			updateFieldPlaceholder();
 		}
-		_emojiPan.queryInlineBot(_inlineBot, start);
+		if (_inlineBot->username == (cTestMode() ? qstr("contextbot") : qstr("gif")) && start.isEmpty()) {
+			_emojiPan.clearInlineBot();
+		} else {
+			_emojiPan.queryInlineBot(_inlineBot, start);
+		}
 		if (!_attachMention.isHidden()) {
 			_attachMention.hideStart();
 		}

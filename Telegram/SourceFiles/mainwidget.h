@@ -327,7 +327,7 @@ public:
 	void stopAnimActive();
 
 	void sendBotCommand(const QString &cmd, MsgId msgId);
-	void insertBotCommand(const QString &cmd);
+	bool insertBotCommand(const QString &cmd, bool specialGif);
 
 	void searchMessages(const QString &query, PeerData *inPeer);
 	bool preloadOverview(PeerData *peer, MediaOverviewType type);
