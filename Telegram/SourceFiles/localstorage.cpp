@@ -609,7 +609,7 @@ namespace {
 		if (!_working()) return;
 
 		_manager->writingLocations();
-		if (_fileLocations.isEmpty()) {
+		if (_fileLocations.isEmpty() && _webFilesMap.isEmpty()) {
 			if (_locationsKey) {
 				clearKey(_locationsKey);
 				_locationsKey = 0;

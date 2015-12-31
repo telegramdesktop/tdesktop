@@ -268,9 +268,9 @@ ClipReader::Frame *ClipReader::frameToWrite() const { // 0 means not ready
 	return _frames + (((step + 3) / 2) % 3);
 }
 
-ClipReader::Frame *ClipReader::frameToRequestOther() const {
+ClipReader::Frame *ClipReader::frameToRequestOther(bool check) const {
 	int32 step = _step.loadAcquire();
-	if (step == FirstFrameNotReadStep || step == WaitingForRequestStep) {
+	if (step == FirstFrameNotReadStep || step == WaitingForRequestStep || (check && (step % 2))) {
 		return 0;
 	}
 	return _frames + (((step + 5) / 2) % 3);
@@ -347,9 +347,8 @@ QPixmap ClipReader::current(int32 framew, int32 frameh, int32 outerw, int32 oute
 	QImage cache;
 	frame->pix = _prepareFrame(frame->request, frame->original, cache, true);
 
-	Frame *other = frameToRequestOther();
-	t_assert(other != 0);
-	other->request = frame->request;
+	Frame *other = frameToRequestOther(true);
+	if (other) other->request = frame->request;
 
 	moveToNextShow();
 
@@ -1056,17 +1055,18 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 		_loadLevel.fetchAndAddRelaxed(reader->_width * reader->_height - AverageGifSize);
 	}
 	if (!reader->_paused && (result == ClipProcessRepaint || result == ClipProcessWait)) {
-		ClipReader::Frame *frame = it.key()->frameToWrite(), *other = it.key()->frameToRequestOther();
+		ClipReader::Frame *frame = it.key()->frameToWrite(), *other = it.key()->frameToRequestOther(false);
 		t_assert(frame != 0 && other != 0);
 		if (qMax(frame->when, other->when) + WaitBeforeGifPause < qMax(reader->_previousMs, ms)) {
 			reader->_paused = true;
-			it.key()->_paused.storeRelease(true);
+			it.key()->_paused.storeRelease(1);
 			result = ClipProcessReinit;
 		}
 	}
 	if (result == ClipProcessReinit || result == ClipProcessRepaint || result == ClipProcessStarted) {
 		ClipReader::Frame *frame = it.key()->frameToWrite();
 		t_assert(frame != 0);
+		frame->pix = QPixmap();
 		frame->pix = reader->_current;
 		frame->original = reader->_currentOriginal;
 		frame->displayed = false;

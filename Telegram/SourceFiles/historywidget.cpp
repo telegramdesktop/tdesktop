@@ -3500,6 +3500,10 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	} else {
 		doneShow();
 	}
+	if (_inlineBot) {
+		_inlineBot = 0;
+		_emojiPan.clearInlineBot();
+	}
 
 	if (App::wnd()) QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
 
@@ -4833,12 +4837,14 @@ bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
 	if (!_history) return false;
 
 	QString toInsert = cmd;
-	PeerData *bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? (App::hoveredLinkItem()->toHistoryForwarded() ? App::hoveredLinkItem()->toHistoryForwarded()->fromForwarded() : App::hoveredLinkItem()->from()) : 0);
-	if (!bot->isUser() || !bot->asUser()->botInfo) bot = 0;
-	QString username = bot ? bot->asUser()->username : QString();
-	int32 botStatus = _peer->isChat() ? _peer->asChat()->botStatus : (_peer->isMegagroup() ? _peer->asChannel()->mgInfo->botStatus : -1);
-	if (toInsert.indexOf('@') < 0 && !username.isEmpty() && (botStatus == 0 || botStatus == 2)) {
-		toInsert += '@' + username;
+	if (!toInsert.isEmpty() && toInsert.at(0) != '@') {
+		PeerData *bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? (App::hoveredLinkItem()->toHistoryForwarded() ? App::hoveredLinkItem()->toHistoryForwarded()->fromForwarded() : App::hoveredLinkItem()->from()) : 0);
+		if (!bot->isUser() || !bot->asUser()->botInfo) bot = 0;
+		QString username = bot ? bot->asUser()->username : QString();
+		int32 botStatus = _peer->isChat() ? _peer->asChat()->botStatus : (_peer->isMegagroup() ? _peer->asChannel()->mgInfo->botStatus : -1);
+		if (toInsert.indexOf('@') < 0 && !username.isEmpty() && (botStatus == 0 || botStatus == 2)) {
+			toInsert += '@' + username;
+		}
 	}
 	toInsert += ' ';
 

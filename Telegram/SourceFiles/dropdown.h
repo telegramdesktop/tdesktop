@@ -336,6 +336,7 @@ public:
 	void hideFinish(bool completely);
 	void showFinish();
 	void showStickerSet(uint64 setId);
+	void updateShowingSavedGifs();
 
 	bool showSectionIcons() const;
 	void clearSelection(bool fast = false);

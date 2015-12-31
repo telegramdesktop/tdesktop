@@ -491,30 +491,6 @@ struct ClipFrameRequest {
 	bool rounded;
 };
 
-template <typename Type>
-class Atomic {
-public:
-
-	Atomic(const Type &value = Type()) : _value(value) {
-	}
-
-	Type get() const {
-		QReadLocker lock(&_lock);
-		Type result = _value;
-		return result;
-	}
-
-	void set(const Type &value) {
-		QWriteLocker lock(&_lock);
-		_value = value;
-	}
-
-private:
-	Type _value;
-	mutable QReadWriteLock _lock;
-
-};
-
 enum ClipReaderNotification {
 	ClipReaderReinit,
 	ClipReaderRepaint,
@@ -596,7 +572,7 @@ private:
 	mutable Frame _frames[3];
 	Frame *frameToShow() const; // 0 means not ready
 	Frame *frameToWrite() const; // 0 means not ready
-	Frame *frameToRequestOther() const;
+	Frame *frameToRequestOther(bool check) const;
 	void moveToNextShow() const;
 	void moveToNextWrite() const;
 

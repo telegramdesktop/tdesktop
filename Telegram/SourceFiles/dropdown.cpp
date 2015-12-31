@@ -1880,11 +1880,15 @@ void StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &resu
 	int32 count = results.size(), until = 0, untilrow = 0, untilcol = 0;
 	if (!count) {
 		clearInlineRows(resultsDeleted);
-		_showingSavedGifs = true;
 		if (_showingInlineItems) {
-			refreshSavedGifs();
-			emit scrollToY(0);
-			emit scrollUpdated();
+			_showingSavedGifs = cShowingSavedGifs();
+			if (_showingSavedGifs) {
+				refreshSavedGifs();
+				emit scrollToY(0);
+				emit scrollUpdated();
+			} else {
+				showStickerSet(RecentStickerSetId);
+			}
 		}
 		return;
 	}
@@ -2353,6 +2357,7 @@ void StickerPanInner::showStickerSet(uint64 setId) {
 		bool wasNotShowingGifs = !_showingInlineItems;
 		if (wasNotShowingGifs) {
 			_showingInlineItems = true;
+			_showingSavedGifs = true;
 			cSetShowingSavedGifs(true);
 			emit saveConfigDelayed(SaveRecentEmojisTimeout);
 		}
@@ -2392,6 +2397,17 @@ void StickerPanInner::showStickerSet(uint64 setId) {
 	_lastMousePos = QCursor::pos();
 
 	update();
+}
+
+void StickerPanInner::updateShowingSavedGifs() {
+	if (cShowingSavedGifs()) {
+		if (!_showingInlineItems) {
+			_showingSavedGifs = _showingInlineItems = true;
+			if (_inlineRows.isEmpty()) refreshSavedGifs();
+		}
+	} else if (!_showingInlineItems) {
+		_showingSavedGifs = _showingInlineItems = false;
+	}
 }
 
 void StickerPanInner::showFinish() {
@@ -3437,6 +3453,8 @@ void EmojiPan::onSwitch() {
 			s_inner.showStickerSet(DefaultStickerSetId);
 		} else if (!cShowingSavedGifs() && !cSavedGifs().isEmpty() && cStickerSets().isEmpty()) {
 			s_inner.showStickerSet(NoneStickerSetId);
+		} else {
+			s_inner.updateShowingSavedGifs();
 		}
 		if (cShowingSavedGifs()) {
 			s_inner.showFinish();
