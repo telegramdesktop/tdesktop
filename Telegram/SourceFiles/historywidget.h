@@ -98,7 +98,7 @@ public:
 	void notifyMigrateUpdated();
 
 	~HistoryInner();
-	
+
 public slots:
 
 	void onUpdateSelected();
@@ -186,7 +186,7 @@ private:
 	bool _touchScroll, _touchSelect, _touchInProgress;
 	QPoint _touchStart, _touchPrevPos, _touchPos;
 	QTimer _touchSelectTimer;
-	
+
 	TouchScrollState _touchScrollState;
 	bool _touchPrevPosValid, _touchWaitingAcceleration;
 	QPoint _touchSpeed;
@@ -445,6 +445,8 @@ public:
 
 	void destroyData();
 
+	void updateFieldPlaceholder();
+
 	void uploadImage(const QImage &img, PrepareMediaType type, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, const QString &source = QString(), bool withText = false);
 	void uploadFile(const QString &file, PrepareMediaType type, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, bool withText = false); // with confirmation
 	void uploadFiles(const QStringList &files, PrepareMediaType type);
@@ -484,7 +486,7 @@ public:
 	void noSelectingScroll();
 
 	bool touchScroll(const QPoint &delta);
-    
+
 	uint64 animActiveTimeStart(const HistoryItem *msg) const;
 	void stopAnimActive();
 
@@ -564,6 +566,7 @@ public:
 	bool ui_isInlineItemBeingChosen();
 
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
+	void notify_automaticLoadSettingsChangedGif();
 	void notify_botCommandsChanged(UserData *user);
 	void notify_userIsBotChanged(UserData *user);
 	void notify_migrateUpdated(PeerData *peer);
@@ -769,7 +772,7 @@ private:
 	QString _inlineBotUsername;
 	mtpRequestId _inlineBotResolveRequestId;
 	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
-	bool inlineBotResolveFail(const RPCError &error);
+	bool inlineBotResolveFail(QString name, const RPCError &error);
 
 	bool isBotStart() const;
 	bool isBlocked() const;

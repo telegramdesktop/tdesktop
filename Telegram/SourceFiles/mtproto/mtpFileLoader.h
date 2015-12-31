@@ -279,7 +279,7 @@ protected:
 
 	uint64 _id; // for other locations
 	uint64 _access;
-	
+
 };
 
 class webFileLoaderPrivate;

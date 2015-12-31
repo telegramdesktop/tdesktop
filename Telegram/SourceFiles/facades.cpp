@@ -164,4 +164,8 @@ namespace Notify {
 		if (MainWidget *m = App::main()) m->notify_historyItemLayoutChanged(item);
 	}
 
+	void automaticLoadSettingsChangedGif() {
+		if (MainWidget *m = App::main()) m->notify_automaticLoadSettingsChangedGif();
+	}
+
 }

@@ -109,6 +109,8 @@ inline bool operator!=(const StorageImageLocation &a, const StorageImageLocation
 
 QPixmap imagePix(QImage img, int32 w, int32 h, bool smooth, bool blurred, bool rounded, int32 outerw, int32 outerh);
 
+class DelayedStorageImage;
+
 class HistoryItem;
 class Image {
 public:
@@ -173,7 +175,7 @@ public:
 	}
 
 	bool isNull() const;
-	
+
 	void forget() const;
 
 	QByteArray savedFormat() const {
@@ -181,6 +183,13 @@ public:
 	}
 	QByteArray savedData() const {
 		return _saved;
+	}
+
+	virtual DelayedStorageImage *toDelayedStorageImage() {
+		return 0;
+	}
+	virtual const DelayedStorageImage *toDelayedStorageImage() const {
+		return 0;
 	}
 
 	virtual ~Image();
@@ -209,6 +218,7 @@ Image *getImage(const QString &file, QByteArray format);
 Image *getImage(const QByteArray &filecontent, QByteArray format);
 Image *getImage(const QPixmap &pixmap, QByteArray format);
 Image *getImage(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap);
+Image *getImage(int32 width, int32 height);
 
 typedef QPair<uint64, uint64> StorageKey;
 inline uint64 storageMix32To64(int32 a, int32 b) {
@@ -256,6 +266,7 @@ protected:
 	void checkload() const {
 		doCheckload();
 	}
+	void loadLocal();
 
 private:
 	mutable FileLoader *_loader;
@@ -271,10 +282,10 @@ public:
 
 	StorageImage(const StorageImageLocation &location, int32 size = 0);
 	StorageImage(const StorageImageLocation &location, QByteArray &bytes);
-	
+
 	int32 width() const;
 	int32 height() const;
-	
+
 	virtual void setInformation(int32 size, int32 width, int32 height);
 	virtual FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading);
 
@@ -282,9 +293,42 @@ public:
 		return _location;
 	}
 
-private:
+protected:
 	StorageImageLocation _location;
 	int32 _size;
+
+};
+
+class DelayedStorageImage : public StorageImage {
+public:
+
+	DelayedStorageImage();
+	DelayedStorageImage(int32 w, int32 h);
+	DelayedStorageImage(QByteArray &bytes);
+
+	void setStorageLocation(const StorageImageLocation location);
+
+	virtual DelayedStorageImage *toDelayedStorageImage() {
+		return this;
+	}
+	virtual const DelayedStorageImage *toDelayedStorageImage() const {
+		return this;
+	}
+
+	void automaticLoad(const HistoryItem *item); // auto load photo
+	void automaticLoadSettingsChanged();
+
+	bool loading() const {
+		return _location.isNull() ? _loadRequested : StorageImage::loading();
+	}
+	bool displayLoading() const;
+	void cancel();
+
+	void load(bool loadFirst = false, bool prior = true);
+	void loadEvenCancelled(bool loadFirst = false, bool prior = true);
+
+private:
+	bool _loadRequested, _loadCancelled, _loadFromCloud;
 
 };
 
@@ -327,7 +371,21 @@ public:
 	ImagePtr(const StorageImageLocation &location, const QByteArray &bytes) : Parent(getImage(location, bytes)) {
 	}
 	ImagePtr(int32 width, int32 height, const MTPFileLocation &location, ImagePtr def = ImagePtr());
+	ImagePtr(int32 width, int32 height) : Parent(getImage(width, height)) {
+	}
 };
+
+inline QSize resizeKeepAspect(int32 width, int32 height, int32 towidth, int32 toheight) {
+	int32 w = qMax(width, 1), h = qMax(height, 1);
+	if (w * toheight > h * towidth) {
+		h = qRound(h * towidth / float64(w));
+		w = towidth;
+	} else {
+		w = qRound(w * toheight / float64(h));
+		h = toheight;
+	}
+	return QSize(qMax(w, 1), qMax(h, 1));
+}
 
 void clearStorageImages();
 void clearAllImages();

@@ -601,7 +601,7 @@ void MainWidget::cancelForwarding() {
 
 void MainWidget::finishForwarding(History *hist, bool broadcast) {
 	if (!hist) return;
-	
+
 	bool fromChannelName = hist->peer->isChannel() && !hist->peer->isMegagroup() && hist->peer->asChannel()->canPublish() && (hist->peer->asChannel()->isBroadcast() || broadcast);
 	if (!_toForward.isEmpty()) {
 		bool genClientSideMessage = (_toForward.size() < 2);
@@ -813,6 +813,10 @@ bool MainWidget::ui_isInlineItemBeingChosen() {
 void MainWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 	history.notify_historyItemLayoutChanged(item);
 	if (overview) overview->notify_historyItemLayoutChanged(item);
+}
+
+void MainWidget::notify_automaticLoadSettingsChangedGif() {
+	history.notify_automaticLoadSettingsChangedGif();
 }
 
 void MainWidget::notify_historyItemResized(const HistoryItem *item, bool scrollToIt) {
@@ -1355,7 +1359,7 @@ void MainWidget::saveRecentHashtags(const QString &text) {
 
 void MainWidget::readServerHistory(History *hist, bool force) {
 	if (!hist || (!force && !hist->unreadCount)) return;
-    
+
 	MsgId upTo = hist->inboxRead(0);
 	if (hist->isChannel() && !hist->peer->asChannel()->amIn()) {
 		return; // no read request for channels that I didn't koin
@@ -2988,7 +2992,7 @@ void MainWidget::updSetState(int32 pts, int32 date, int32 qts, int32 seq) {
 
 void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_ChannelDifference &diff) {
 	_channelFailDifferenceTimeout.remove(channel);
-	
+
 	int32 timeout = 0;
 	bool isFinal = true;
 	switch (diff.type()) {
@@ -3041,7 +3045,7 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats, false);
-		
+
 		_handlingChannelDifference = true;
 		feedMessageIds(d.vother_updates);
 
@@ -3194,7 +3198,7 @@ void MainWidget::gotDifference(const MTPupdates_Difference &diff) {
 		noUpdatesTimer.start(NoUpdatesTimeout);
 
 		_ptsWaiter.setRequesting(false);
-		
+
 		App::emitPeerUpdated();
 	} break;
 	case mtpc_updates_differenceSlice: {
@@ -3995,7 +3999,7 @@ void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 	if (end <= from || !MTP::authedId()) return;
 
 	App::wnd()->checkAutoLock();
-	
+
 	if (mtpTypeId(*from) == mtpc_new_session_created) {
 		MTPNewSession newSession(from, end);
 		updSeq = 0;
@@ -4135,7 +4139,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 				}
 			}
 		}
-		
+
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, updates)) {
 			return;
 		}

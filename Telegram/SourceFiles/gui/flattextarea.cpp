@@ -30,6 +30,7 @@ FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const
 , _maxLength(-1)
 , _ctrlEnterSubmit(true)
 , _oldtext(v)
+, _phAfter(0)
 , _phVisible(!v.length())
 , a_phLeft(_phVisible ? 0 : st.phShift)
 , a_phAlpha(_phVisible ? 1 : 0)
@@ -47,10 +48,10 @@ FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const
 , _correcting(false) {
 	setAcceptRichText(false);
 	resize(_st.width, _st.font->height);
-	
+
 	setFont(_st.font->f);
 	setAlignment(_st.align);
-	
+
 	setPlaceholder(pholder);
 
 	QPalette p(palette());
@@ -87,8 +88,21 @@ FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const
 	}
 }
 
-void FlatTextarea::setTextFast(const QString &text) {
-	setPlainText(text);
+void FlatTextarea::setTextFast(const QString &text, bool withUndo) {
+	if (withUndo) {
+		QTextCursor c(document()->docHandle(), 0);
+		c.joinPreviousEditBlock();
+		c.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+		c.insertText(text);
+		c.movePosition(QTextCursor::End);
+		c.endEditBlock();
+	} else {
+		setPlainText(text);
+	}
+	finishPlaceholder();
+}
+
+void FlatTextarea::finishPlaceholder() {
 	if (_a_appearance.animating()) {
 		a_phLeft.finish();
 		a_phAlpha.finish();
@@ -206,10 +220,14 @@ void FlatTextarea::paintEvent(QPaintEvent *e) {
 	if (phDraw) {
 		p.save();
 		p.setClipRect(r);
-		QRect phRect(_st.textMrg.left() - _fakeMargin + _st.phPos.x() + a_phLeft.current(), _st.textMrg.top() - _fakeMargin + _st.phPos.y(), width() - _st.textMrg.left() - _st.textMrg.right(), height() - _st.textMrg.top() - _st.textMrg.bottom());
-		p.setFont(_st.font->f);
+		p.setFont(_st.font);
 		p.setPen(a_phColor.current());
-		p.drawText(phRect, _ph, QTextOption(_st.phAlign));
+		if (_st.phAlign == style::al_topleft && _phAfter > 0) {
+			p.drawText(_st.textMrg.left() - _fakeMargin + a_phLeft.current() + _st.font->width(getLastText().mid(0, _phAfter)), _st.textMrg.top() - _fakeMargin - st::lineWidth + _st.font->ascent, _ph);
+		} else {
+			QRect phRect(_st.textMrg.left() - _fakeMargin + _st.phPos.x() + a_phLeft.current(), _st.textMrg.top() - _fakeMargin + _st.phPos.y(), width() - _st.textMrg.left() - _st.textMrg.right(), height() - _st.textMrg.top() - _st.textMrg.bottom());
+			p.drawText(phRect, _ph, QTextOption(_st.phAlign));
+		}
 		p.restore();
 		p.setOpacity(1);
 	}
@@ -241,7 +259,7 @@ EmojiPtr FlatTextarea::getSingleEmoji() const {
 	QTextFragment fragment;
 
 	getSingleEmojiFragment(text, fragment);
-	
+
 	if (!text.isEmpty()) {
 		QTextCharFormat format = fragment.charFormat();
 		QString imageName = static_cast<QTextImageFormat*>(&format)->name();
@@ -253,9 +271,6 @@ EmojiPtr FlatTextarea::getSingleEmoji() const {
 }
 
 void FlatTextarea::getMentionHashtagBotCommandStart(QString &start, UserData *&inlineBot, QString &inlineBotUsername) const {
-	int32 pos = textCursor().position();
-	if (textCursor().anchor() != pos) return;
-
 	// check inline bot query
 	const QString &text(getLastText());
 	int32 inlineUsernameStart = 1, inlineUsernameLength = 0, size = text.size();
@@ -302,6 +317,9 @@ void FlatTextarea::getMentionHashtagBotCommandStart(QString &start, UserData *&i
 		inlineBot = 0;
 		inlineBotUsername = QString();
 	}
+
+	int32 pos = textCursor().position();
+	if (textCursor().anchor() != pos) return;
 
 	// check mention / hashtag / bot command
 	QTextDocument *doc(document());
@@ -764,7 +782,7 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 
 			emoji = 0;
 			replacePosition = -1;
-		} else {	
+		} else {
 			break;
 		}
 	}
@@ -888,14 +906,18 @@ void FlatTextarea::step_appearance(float64 ms, bool timer) {
 	if (timer) update();
 }
 
-void FlatTextarea::setPlaceholder(const QString &ph) {
+void FlatTextarea::setPlaceholder(const QString &ph, int32 afterSymbols) {
 	_ph = ph;
-	_phelided = _st.font->elided(_ph, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1);
+	if (_phAfter != afterSymbols) {
+		_phAfter = afterSymbols;
+		updatePlaceholder();
+	}
+	_phelided = _st.font->elided(_ph, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1 - (_phAfter ? _st.font->width(getLastText().mid(0, _phAfter)) : 0));
 	if (_phVisible) update();
 }
 
 void FlatTextarea::updatePlaceholder() {
-	bool vis = getLastText().isEmpty();
+	bool vis = (getLastText().size() <= _phAfter);
 	if (vis == _phVisible) return;
 
 	a_phLeft.start(vis ? 0 : _st.phShift);

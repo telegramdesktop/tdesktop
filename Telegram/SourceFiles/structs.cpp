@@ -283,7 +283,7 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 	case mtpc_botInfo: {
 		const MTPDbotInfo &d(info.c_botInfo());
 		if (peerFromUser(d.vuser_id.v) != id) return;
-		
+
 		if (botInfo) {
 			botInfo->version = d.vversion.v;
 		} else {
@@ -296,7 +296,7 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 			botInfo->text = Text(st::msgMinWidth);
 		}
 		botInfo->shareText = qs(d.vshare_text);
-		
+
 		const QVector<MTPBotCommand> &v(d.vcommands.c_vector().v);
 		botInfo->commands.reserve(v.size());
 		bool changedCommands = false;
@@ -681,7 +681,7 @@ void PhotoSaveLink::onClick(Qt::MouseButton button) const {
 
 void PhotoCancelLink::onClick(Qt::MouseButton button) const {
 	if (button != Qt::LeftButton) return;
-	
+
 	PhotoData *data = photo();
 	if (!data->date) return;
 
@@ -1847,6 +1847,11 @@ void InlineResult::automaticLoadGif() {
 		bool loadFromCloud = !(cAutoDownloadGif() & dbiadNoPrivate) || !(cAutoDownloadGif() & dbiadNoGroups);
 		saveFile(QString(), loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly, true);
 	}
+}
+
+void InlineResult::automaticLoadSettingsChangedGif() {
+	if (loaded() || _loader != CancelledWebFileLoader) return;
+	_loader = 0;
 }
 
 void InlineResult::saveFile(const QString &toFile, LoadFromCloudSetting fromCloud, bool autoLoading) {

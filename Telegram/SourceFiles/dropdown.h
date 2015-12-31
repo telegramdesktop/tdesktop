@@ -254,7 +254,7 @@ public:
 
 	void fillPanels(QVector<EmojiPanel*> &panels);
 	void refreshPanels(QVector<EmojiPanel*> &panels);
-	
+
 public slots:
 
 	void updateSelected();
@@ -336,6 +336,7 @@ public:
 	void hideFinish();
 	void showStickerSet(uint64 setId);
 
+	bool showSectionIcons() const;
 	void clearSelection(bool fast = false);
 
 	void refreshStickers();
@@ -398,7 +399,7 @@ private:
 
 	void paintInlineItems(Painter &p, const QRect &r);
 	void paintStickers(Painter &p, const QRect &r);
-		
+
 	int32 _maxHeight;
 
 	void appendSet(uint64 setId);
@@ -430,6 +431,7 @@ private:
 	QString _inlineBotTitle;
 	uint64 _lastScrolled;
 	QTimer _updateInlineItems;
+	bool _inlineWithThumb;
 
 	typedef QVector<LayoutInlineItem*> InlineItems;
 	struct InlineRow {
@@ -513,7 +515,7 @@ public:
 
 	EmojiSwitchButton(QWidget *parent, bool toStickers); // otherwise toEmoji
 	void paintEvent(QPaintEvent *e);
-	void updateText();
+	void updateText(const QString &inlineBotUsername = QString());
 
 protected:
 
@@ -532,6 +534,8 @@ public:
 
 	void setMaxHeight(int32 h);
 	void paintEvent(QPaintEvent *e);
+
+	void moveBottom(int32 bottom, bool force = false);
 
 	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
@@ -557,7 +561,7 @@ public:
 	void stickersInstalled(uint64 setId);
 
 	void queryInlineBot(UserData *bot, QString query);
-	void inlineBotChanged();
+	void clearInlineBot();
 
 	bool overlaps(const QRect &globalRect) {
 		if (isHidden() || !_cache.isNull()) return false;
@@ -572,6 +576,8 @@ public:
 	void ui_repaintInlineItem(const LayoutInlineItem *layout);
 	bool ui_isInlineItemVisible(const LayoutInlineItem *layout);
 	bool ui_isInlineItemBeingChosen();
+
+	void notify_automaticLoadSettingsChangedGif();
 
 public slots:
 
@@ -613,10 +619,11 @@ private:
 
 	void validateSelectedIcon(bool animated = false);
 
-	int32 _maxHeight;
+	int32 _maxHeight, _maxHeightEmoji, _maxHeightStickers;
 	bool _horizontal;
 
 	void leaveToChildEvent(QEvent *e);
+	void hideAnimated();
 
 	void updateSelected();
 	void updateIcons();
@@ -691,7 +698,9 @@ private:
 	InlineCache _inlineCache;
 	QTimer _inlineRequestTimer;
 
+	void inlineBotChanged();
 	void showInlineRows(bool newResults);
+	bool refreshInlineRows();
 	UserData *_inlineBot;
 	QString _inlineQuery, _inlineNextQuery, _inlineNextOffset;
 	mtpRequestId _inlineRequestId;

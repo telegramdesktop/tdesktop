@@ -51,8 +51,9 @@ public:
 	const QString &getLastText() const {
 		return _oldtext;
 	}
-	void setPlaceholder(const QString &ph);
+	void setPlaceholder(const QString &ph, int32 afterSymbols = 0);
 	void updatePlaceholder();
+	void finishPlaceholder();
 
 	QRect getTextRect() const;
 	int32 fakeMargin() const;
@@ -78,7 +79,7 @@ public:
 	QMimeData *createMimeDataFromSelection() const;
 	void setCtrlEnterSubmit(bool ctrlEnterSubmit);
 
-	void setTextFast(const QString &text);
+	void setTextFast(const QString &text, bool withUndo = false);
 
 public slots:
 
@@ -124,6 +125,7 @@ private:
 	bool _ctrlEnterSubmit;
 
 	QString _ph, _phelided, _oldtext;
+	int32 _phAfter;
 	bool _phVisible;
 	anim::ivalue a_phLeft;
 	anim::fvalue a_phAlpha;

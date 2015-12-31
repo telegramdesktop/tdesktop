@@ -591,6 +591,10 @@ Image *getImage(const QByteArray &filecontent, QByteArray format, const QPixmap 
 	return new Image(filecontent, format, pixmap);
 }
 
+Image *getImage(int32 width, int32 height) {
+	return new DelayedStorageImage(width, height);
+}
+
 void clearStorageImages() {
 	for (StorageImages::const_iterator i = storageImages.cbegin(), e = storageImages.cend(); i != e; ++i) {
 		delete i.value();
@@ -642,6 +646,13 @@ void RemoteImage::doCheckload() const {
 	_loader = 0;
 
 	_forgot = false;
+}
+
+void RemoteImage::loadLocal() {
+	if (loaded() || amLoading()) return;
+
+	_loader = createLoader(LoadFromLocalOnly, true);
+	if (_loader) _loader->start();
 }
 
 void RemoteImage::setData(QByteArray &bytes, const QByteArray &bytesFormat) {
@@ -779,6 +790,89 @@ void StorageImage::setInformation(int32 size, int32 width, int32 height) {
 FileLoader *StorageImage::createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) {
 	if (_location.isNull()) return 0;
 	return new mtpFileLoader(&_location, _size, fromCloud, autoLoading);
+}
+
+DelayedStorageImage::DelayedStorageImage() : StorageImage(StorageImageLocation())
+, _loadRequested(false)
+, _loadCancelled(false)
+, _loadFromCloud(false) {
+}
+
+DelayedStorageImage::DelayedStorageImage(int32 w, int32 h) : StorageImage(StorageImageLocation(w, h, 0, 0, 0, 0))
+, _loadRequested(false)
+, _loadCancelled(false)
+, _loadFromCloud(false) {
+}
+
+DelayedStorageImage::DelayedStorageImage(QByteArray &bytes) : StorageImage(StorageImageLocation(), bytes)
+, _loadRequested(false)
+, _loadCancelled(false)
+, _loadFromCloud(false) {
+}
+
+void DelayedStorageImage::setStorageLocation(const StorageImageLocation location) {
+	_location = location;
+	if (_loadRequested) {
+		if (!_loadCancelled) {
+			if (_loadFromCloud) {
+				load();
+			} else {
+				loadLocal();
+			}
+		}
+		_loadRequested = false;
+	}
+}
+
+void DelayedStorageImage::automaticLoad(const HistoryItem *item) {
+	if (_location.isNull()) {
+		if (!_loadCancelled && item) {
+			bool loadFromCloud = false;
+			if (item->history()->peer->isUser()) {
+				loadFromCloud = !(cAutoDownloadPhoto() & dbiadNoPrivate);
+			} else {
+				loadFromCloud = !(cAutoDownloadPhoto() & dbiadNoGroups);
+			}
+
+			if (_loadRequested) {
+				if (loadFromCloud) _loadFromCloud = loadFromCloud;
+			} else {
+				_loadFromCloud = loadFromCloud;
+				_loadRequested = true;
+			}
+		}
+	} else {
+		StorageImage::automaticLoad(item);
+	}
+}
+
+void DelayedStorageImage::automaticLoadSettingsChanged() {
+	if (_loadCancelled) _loadCancelled = false;
+	StorageImage::automaticLoadSettingsChanged();
+}
+
+void DelayedStorageImage::load(bool loadFirst, bool prior) {
+	if (_location.isNull()) {
+		_loadRequested = _loadFromCloud = true;
+	} else {
+		StorageImage::load(loadFirst, prior);
+	}
+}
+
+void DelayedStorageImage::loadEvenCancelled(bool loadFirst, bool prior) {
+	_loadCancelled = false;
+	StorageImage::loadEvenCancelled(loadFirst, prior);
+}
+
+bool DelayedStorageImage::displayLoading() const {
+	return _location.isNull() ? true : StorageImage::displayLoading();
+}
+
+void DelayedStorageImage::cancel() {
+	if (_loadRequested) {
+		_loadRequested = false;
+	}
+	StorageImage::cancel();
 }
 
 StorageImage *getImage(const StorageImageLocation &location, int32 size) {

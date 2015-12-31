@@ -1443,6 +1443,18 @@ namespace App {
 		return 0;
 	}
 
+	void updateImage(ImagePtr &old, ImagePtr now) {
+		if (now->isNull()) return;
+		if (old->isNull()) {
+			old = now;
+		} else if (DelayedStorageImage *img = old->toDelayedStorageImage()) {
+			StorageImageLocation loc = now->location();
+			if (!loc.isNull()) {
+				img->setStorageLocation(loc);
+			}
+		}
+	}
+
 	PhotoData *photo(const PhotoId &photo) {
 		PhotosData::const_iterator i = ::photosData.constFind(photo);
 		if (i == ::photosData.cend()) {
@@ -1465,9 +1477,9 @@ namespace App {
 			if (date) {
 				convert->access = access;
 				convert->date = date;
-				if (convert->thumb->isNull() && !thumb->isNull()) convert->thumb = thumb;
-				if (convert->medium->isNull() && !medium->isNull()) convert->medium = medium;
-				if (convert->full->isNull() && !full->isNull()) convert->full = full;
+				updateImage(convert->thumb, thumb);
+				updateImage(convert->medium, medium);
+				updateImage(convert->full, full);
 			}
 		}
 		PhotosData::const_iterator i = ::photosData.constFind(photo);
@@ -1485,9 +1497,9 @@ namespace App {
 			if (result != convert && date) {
 				result->access = access;
 				result->date = date;
-				if (result->thumb->isNull() && !thumb->isNull()) result->thumb = thumb;
-				if (result->medium->isNull() && !medium->isNull()) result->medium = medium;
-				if (result->full->isNull() && !full->isNull()) result->full = full;
+				updateImage(result->thumb, thumb);
+				updateImage(result->medium, medium);
+				updateImage(result->full, full);
 			}
 			inLastIter = lastPhotosMap.find(result);
 		}
@@ -1526,9 +1538,7 @@ namespace App {
 			if (date) {
 				convert->access = access;
 				convert->date = date;
-				if (convert->thumb->isNull() && !thumb->isNull()) {
-					convert->thumb = thumb;
-				}
+				updateImage(convert->thumb, thumb);
 				convert->duration = duration;
 				convert->w = w;
 				convert->h = h;
@@ -1553,9 +1563,7 @@ namespace App {
 				result->duration = duration;
 				result->w = w;
 				result->h = h;
-				if (result->thumb->isNull() && !thumb->isNull()) {
-					result->thumb = thumb;
-				}
+				updateImage(result->thumb, thumb);
 				result->dc = dc;
 				result->size = size;
 			}
@@ -1632,9 +1640,6 @@ namespace App {
 				Local::copyStickerImage(mediaKey(DocumentFileLocation, convert->dc, convert->id), mediaKey(DocumentFileLocation, dc, document));
 				convert->id = document;
 				convert->status = FileReady;
-				if (cSavedGifs().indexOf(convert) >= 0) { // id changed
-					Local::writeSavedGifs();
-				}
 				sentSticker = !!convert->sticker();
 			}
 			if (date) {
@@ -1652,6 +1657,11 @@ namespace App {
 					convert->sticker()->loc = thumbLocation;
 				}
 			}
+
+			if (cSavedGifs().indexOf(convert) >= 0) { // id changed
+				Local::writeSavedGifs();
+			}
+
 			const FileLocation &loc(convert->location(true));
 			if (!loc.isEmpty()) {
 				Local::writeFileLocation(mediaKey(DocumentFileLocation, convert->dc, convert->id), loc);

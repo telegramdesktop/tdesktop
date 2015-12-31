@@ -367,7 +367,7 @@ namespace {
 	bool fileExists(const FileKey &fkey, int options = UserPath | SafePath) {
 		return fileExists(toFilePart(fkey), options);
 	}
-		
+
 	bool readFile(FileReadDescriptor &result, const QString &name, int options = UserPath | SafePath) {
 		if (options & UserPath) {
 			if (!_userWorking()) return false;
@@ -561,6 +561,8 @@ namespace {
 	typedef QMap<PeerId, bool> DraftsNotReadMap;
 	DraftsNotReadMap _draftsNotReadMap;
 
+	typedef QPair<FileKey, qint32> FileDesc; // file, size
+
 	typedef QMultiMap<MediaKey, FileLocation> FileLocations;
 	FileLocations _fileLocations;
 	typedef QPair<MediaKey, FileLocation> FileLocationPair;
@@ -568,10 +570,13 @@ namespace {
 	FileLocationPairs _fileLocationPairs;
 	typedef QMap<MediaKey, MediaKey> FileLocationAliases;
 	FileLocationAliases _fileLocationAliases;
+	typedef QMap<QString, FileDesc> WebFilesMap;
+	WebFilesMap _webFilesMap;
+	uint64 _storageWebFilesSize = 0;
 	FileKey _locationsKey = 0, _reportSpamStatusesKey = 0;
-	
+
 	FileKey _recentStickersKeyOld = 0, _stickersKey = 0, _savedGifsKey = 0;
-	
+
 	FileKey _backgroundKey = 0;
 	bool _backgroundWasRead = false;
 
@@ -581,7 +586,6 @@ namespace {
 
 	FileKey _savedPeersKey = 0;
 
-	typedef QPair<FileKey, qint32> FileDesc; // file, size
 	typedef QMap<StorageKey, FileDesc> StorageMap;
 	StorageMap _imagesMap, _stickerImagesMap, _audiosMap;
 	int32 _storageImagesSize = 0, _storageStickersSize = 0, _storageAudiosSize = 0;
@@ -643,6 +647,12 @@ namespace {
 				size += sizeof(quint64) * 2 + sizeof(quint64) * 2;
 			}
 
+			size += sizeof(quint32); // web files count
+			for (WebFilesMap::const_iterator i = _webFilesMap.cbegin(), e = _webFilesMap.cend(); i != e; ++i) {
+				// url + filekey + size
+				size += _stringSize(i.key()) + sizeof(quint64) + sizeof(qint32);
+			}
+
 			EncryptedDescriptor data(size);
 			for (FileLocations::const_iterator i = _fileLocations.cbegin(); i != _fileLocations.cend(); ++i) {
 				data.stream << quint64(i.key().first) << quint64(i.key().second) << quint32(i.value().type) << i.value().name();
@@ -661,6 +671,11 @@ namespace {
 			data.stream << quint32(_fileLocationAliases.size());
 			for (FileLocationAliases::const_iterator i = _fileLocationAliases.cbegin(), e = _fileLocationAliases.cend(); i != e; ++i) {
 				data.stream << quint64(i.key().first) << quint64(i.key().second) << quint64(i.value().first) << quint64(i.value().second);
+			}
+
+			data.stream << quint32(_webFilesMap.size());
+			for (WebFilesMap::const_iterator i = _webFilesMap.cbegin(), e = _webFilesMap.cend(); i != e; ++i) {
+				data.stream << i.key() << quint64(i.value().first) << qint32(i.value().second);
 			}
 
 			FileWriteDescriptor file(_locationsKey);
@@ -709,6 +724,20 @@ namespace {
 				quint64 kfirst, ksecond, vfirst, vsecond;
 				locations.stream >> kfirst >> ksecond >> vfirst >> vsecond;
 				_fileLocationAliases.insert(MediaKey(kfirst, ksecond), MediaKey(vfirst, vsecond));
+			}
+
+			_storageWebFilesSize = 0;
+			_webFilesMap.clear();
+
+			quint32 webLocationsCount;
+			locations.stream >> webLocationsCount;
+			for (quint32 i = 0; i < webLocationsCount; ++i) {
+				QString url;
+				quint64 key;
+				qint32 size;
+				locations.stream >> url >> key >> size;
+				_webFilesMap.insert(url, FileDesc(key, size));
+				_storageWebFilesSize += size;
 			}
 		}
 	}
@@ -2114,7 +2143,7 @@ namespace Local {
 			data.stream << quint32(dbiDcOption) << quint32(i.key());
 			data.stream << quint32(i->flags) << QString::fromUtf8(i->ip.data(), i->ip.size());
 			data.stream << quint32(i->port);
-		}			
+		}
 		data.stream << quint32(dbiLangFile) << cLangFile();
 
 		data.stream << quint32(dbiConnectionType) << qint32(cConnectionType());
@@ -2154,6 +2183,8 @@ namespace Local {
 		_stickerImagesMap.clear();
 		_audiosMap.clear();
 		_storageImagesSize = _storageStickersSize = _storageAudiosSize = 0;
+		_webFilesMap.clear();
+		_storageWebFilesSize = 0;
 		_locationsKey = _reportSpamStatusesKey = 0;
 		_recentStickersKeyOld = _stickersKey = _savedGifsKey = 0;
 		_backgroundKey = _userSettingsKey = _recentHashtagsKey = _savedPeersKey = 0;
@@ -2437,9 +2468,10 @@ namespace Local {
 			quint32 imageType;
 			readFromStream(image.stream, locFirst, locSecond, imageType, imageData);
 
-			if (locFirst != _location.first || locSecond != _location.second) {
-				return;
-			}
+			// we're saving files now before we have actual location
+			//if (locFirst != _location.first || locSecond != _location.second) {
+			//	return;
+			//}
 
 			_result = new Result(StorageFileType(imageType), imageData, _readImageFlag);
 		}
@@ -2650,6 +2682,110 @@ namespace Local {
 
 	qint64 storageAudiosSize() {
 		return _storageAudiosSize;
+	}
+
+	qint32 _storageWebFileSize(const QString &url, qint32 rawlen) {
+		// fulllen + url + len + data
+		qint32 result = sizeof(uint32) + _stringSize(url) + sizeof(quint32) + rawlen;
+		if (result & 0x0F) result += 0x10 - (result & 0x0F);
+		result += tdfMagicLen + sizeof(qint32) + sizeof(quint32) + 0x10 + 0x10; // magic + version + len of encrypted + part of sha1 + md5
+		return result;
+	}
+
+	void writeWebFile(const QString &url, const QByteArray &content, bool overwrite) {
+		if (!_working()) return;
+
+		qint32 size = _storageWebFileSize(url, content.size());
+		WebFilesMap::const_iterator i = _webFilesMap.constFind(url);
+		if (i == _webFilesMap.cend()) {
+			i = _webFilesMap.insert(url, FileDesc(genKey(UserPath), size));
+			_storageWebFilesSize += size;
+			_writeLocations();
+		} else if (!overwrite) {
+			return;
+		}
+		EncryptedDescriptor data(_stringSize(url) + sizeof(quint32) + sizeof(quint32) + content.size());
+		data.stream << url << content;
+		FileWriteDescriptor file(i.value().first, UserPath);
+		file.writeEncrypted(data);
+		if (i.value().second != size) {
+			_storageWebFilesSize += size;
+			_storageWebFilesSize -= i.value().second;
+			_webFilesMap[url].second = size;
+		}
+	}
+
+	class WebFileLoadTask : public Task {
+	public:
+		WebFileLoadTask(const FileKey &key, const QString &url, webFileLoader *loader)
+			: _key(key)
+			, _url(url)
+			, _loader(loader)
+			, _result(0) {
+		}
+		void process() {
+			FileReadDescriptor image;
+			if (!readEncryptedFile(image, _key, UserPath)) {
+				return;
+			}
+
+			QByteArray imageData;
+			QString url;
+			image.stream >> url >> imageData;
+
+			_result = new Result(StorageFilePartial, imageData);
+		}
+		void finish() {
+			if (_result) {
+				_loader->localLoaded(_result->image, _result->format, _result->pixmap);
+			} else {
+				WebFilesMap::iterator j = _webFilesMap.find(_url);
+				if (j != _webFilesMap.cend() && j->first == _key) {
+					clearKey(j.value().first, UserPath);
+					_storageWebFilesSize -= j.value().second;
+					_webFilesMap.erase(j);
+				}
+				_loader->localLoaded(StorageImageSaved());
+			}
+		}
+		virtual ~WebFileLoadTask() {
+			deleteAndMark(_result);
+		}
+
+	protected:
+		FileKey _key;
+		QString _url;
+		struct Result {
+			Result(StorageFileType type, const QByteArray &data) : image(type, data) {
+				QByteArray guessFormat;
+				pixmap = QPixmap::fromImage(App::readImage(data, &guessFormat, false), Qt::ColorOnly);
+				if (!pixmap.isNull()) {
+					format = guessFormat;
+				}
+			}
+			StorageImageSaved image;
+			QByteArray format;
+			QPixmap pixmap;
+		};
+		webFileLoader *_loader;
+		Result *_result;
+
+	};
+
+	TaskId startWebFileLoad(const QString &url, webFileLoader *loader) {
+		WebFilesMap::const_iterator j = _webFilesMap.constFind(url);
+		if (j == _webFilesMap.cend() || !_localLoader) {
+			return 0;
+		}
+		return _localLoader->addTask(new WebFileLoadTask(j->first, url, loader));
+	}
+
+	int32 hasWebFiles() {
+		return _webFilesMap.size();
+	}
+
+	qint64 storageWebFilesSize() {
+		return _storageWebFilesSize;
 	}
 
 	void cancelTask(TaskId id) {
@@ -3003,7 +3139,7 @@ namespace Local {
 			data.stream << quint32(saved.size());
 			for (SavedGifs::const_iterator i = saved.cbegin(), e = saved.cend(); i != e; ++i) {
 				DocumentData *doc = *i;
-				
+
 				data.stream << quint64(doc->id) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type) << qint32(doc->duration());
 				_writeStorageImageLocation(data.stream, doc->thumb->location());
 			}
@@ -3056,7 +3192,7 @@ namespace Local {
 
 			DocumentData *doc = App::documentSet(id, 0, access, date, attributes, mime, thumb.isNull() ? ImagePtr() : ImagePtr(thumb), dc, size, thumb);
 			if (!doc->isAnimation()) continue;
-			
+
 			saved.push_back(doc);
 		}
 	}
@@ -3185,7 +3321,7 @@ namespace Local {
 
 		QString tag;
 		quint16 count;
-			
+
 		RecentHashtagPack write, search;
 		if (writeCount) {
 			write.reserve(writeCount);
@@ -3416,7 +3552,7 @@ namespace Local {
 
 			QDateTime t;
 			saved.stream >> t;
-			
+
 			cRefSavedPeers().insert(peer, t);
 			cRefSavedPeersByTime().insert(t, peer);
 			peers.push_back(peer);
