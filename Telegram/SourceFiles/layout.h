@@ -477,12 +477,15 @@ private:
 
 class InlinePaintContext : public PaintContext {
 public:
-	InlinePaintContext(uint64 ms, bool selecting, bool paused) : PaintContext(ms, selecting), paused(paused) {
+	InlinePaintContext(uint64 ms, bool selecting, bool paused, bool lastRow)
+		: PaintContext(ms, selecting)
+		, paused(paused)
+		, lastRow(lastRow) {
 	}
 	virtual const InlinePaintContext *toInlinePaintContext() const {
 		return this;
 	}
-	bool paused;
+	bool paused, lastRow;
 };
 
 class LayoutInlineItem : public LayoutItem {
@@ -627,5 +630,51 @@ private:
 	mutable QPixmap _thumb;
 	mutable bool _thumbLoaded;
 	void prepareThumb(int32 width, int32 height, const QSize &frame) const;
+
+};
+
+class LayoutInlineWebVideo : public LayoutInlineItem {
+public:
+	LayoutInlineWebVideo(InlineResult *result);
+
+	virtual void initDimensions();
+
+	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
+	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
+
+private:
+
+	TextLinkPtr _send;
+
+	mutable QPixmap _thumb;
+	Text _title, _description;
+	QString _duration;
+	int32 _durationWidth;
+
+	void prepareThumb(int32 width, int32 height) const;
+
+};
+
+class LayoutInlineArticle : public LayoutInlineItem {
+public:
+	LayoutInlineArticle(InlineResult *result, bool withThumb);
+
+	virtual void initDimensions();
+	virtual int32 resizeGetHeight(int32 width);
+
+	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
+	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
+
+private:
+
+	TextLinkPtr _send, _url;
+
+	bool _withThumb;
+	mutable QPixmap _thumb;
+	Text _title, _description;
+	QString _letter, _urlText;
+	int32 _urlWidth;
+
+	void prepareThumb(int32 width, int32 height) const;
 
 };

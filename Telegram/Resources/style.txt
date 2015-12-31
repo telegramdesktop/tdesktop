@@ -1991,11 +1991,6 @@ stickerPreviewDuration: 150;
 stickerPreviewBg: #FFFFFFB0;
 stickerPreviewMin: 0.1;
 
-inlineResultsLeft: 15px;
-inlineResultsSkip: 3px;
-inlineMediaHeight: 96px;
-inlineResultsMinWidth: 64px;
-
 verifiedCheckProfile: sprite(285px, 235px, 18px, 18px);
 verifiedCheckProfilePos: point(7px, 6px);
 verifiedCheck: sprite(285px, 221px, 14px, 14px);
@@ -2346,9 +2341,21 @@ linksMaxWidth: 520px;
 linksLetterFont: font(24px);
 linksMargin: 5px;
 linksBorder: 1px;
-linksBorderColor: #eaeaea;
+linksBorderFg: #eaeaea;
 linksDateColor: #000;
 linksDateMargin: 15px;
 
 linksPhotoCheck: sprite(184px, 196px, 16px, 16px);
 linksPhotoChecked: sprite(168px, 196px, 16px, 16px);
+
+inlineResultsLeft: 15px;
+inlineResultsSkip: 3px;
+inlineMediaHeight: 96px;
+inlineThumbSize: 64px;
+inlineThumbSkip: 10px;
+inlineDescriptionFg: #8a8a8a;
+inlineRowMargin: 6px;
+inlineRowBorder: linksBorder;
+inlineRowBorderFg: linksBorderFg;
+inlineResultsMinWidth: 64px;
+inlineDurationMargin: 3px;

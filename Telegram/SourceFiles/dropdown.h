@@ -430,6 +430,7 @@ private:
 	QString _inlineBotTitle;
 	uint64 _lastScrolled;
 	QTimer _updateInlineItems;
+	bool _inlineWithThumb;
 
 	typedef QVector<LayoutInlineItem*> InlineItems;
 	struct InlineRow {
@@ -617,6 +618,7 @@ private:
 	bool _horizontal;
 
 	void leaveToChildEvent(QEvent *e);
+	void hideAnimated();
 
 	void updateSelected();
 	void updateIcons();

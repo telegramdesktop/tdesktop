@@ -824,7 +824,7 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 
 		QRect shadow(rtlrect(nameleft, 0, _width - nameleft, st::linksBorder, _width));
 		if (clip.intersects(shadow)) {
-			p.fillRect(clip.intersected(shadow), st::linksBorderColor);
+			p.fillRect(clip.intersected(shadow), st::linksBorderFg);
 		}
 
 		QRect rthumb(rtlrect(0, st::linksBorder + st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, _width));
@@ -1242,7 +1242,7 @@ void LayoutOverviewLink::paint(Painter &p, const QRect &clip, uint32 selection, 
 	}
 
 	if (clip.intersects(rtlrect(left, 0, w, st::linksBorder, _width))) {
-		p.fillRect(clip.intersected(rtlrect(left, 0, w, st::linksBorder, _width)), st::linksBorderColor);
+		p.fillRect(clip.intersected(rtlrect(left, 0, w, st::linksBorder, _width)), st::linksBorderFg);
 	}
 }
 
@@ -1394,7 +1394,7 @@ void LayoutInlineGif::paint(Painter &p, const QRect &clip, uint32 selection, con
 
 	QRect r(0, 0, _width, height);
 	if (animating) {
-		if (!_thumb.isNull()) const_cast<LayoutInlineGif*>(this)->_thumb = QPixmap();
+		if (!_thumb.isNull()) _thumb = QPixmap();
 		const InlinePaintContext *ctx = context->toInlinePaintContext();
 		t_assert(ctx);
 		p.drawPixmap(r.topLeft(), _gif->current(frame.width(), frame.height(), _width, height, ctx->paused ? 0 : context->ms));
@@ -1532,7 +1532,7 @@ void LayoutInlineGif::prepareThumb(int32 width, int32 height, const QSize &frame
 	if (_doc && !_doc->thumb->isNull()) {
 		if (_doc->thumb->loaded()) {
 			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				const_cast<LayoutInlineGif*>(this)->_thumb = _doc->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+				_thumb = _doc->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
 			}
 		} else {
 			_doc->thumb->load();
@@ -1540,7 +1540,7 @@ void LayoutInlineGif::prepareThumb(int32 width, int32 height, const QSize &frame
 	} else if (_result && !_result->thumb_url.isEmpty()) {
 		if (_result->thumb->loaded()) {
 			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				const_cast<LayoutInlineGif*>(this)->_thumb = _result->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+				_thumb = _result->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
 			}
 		} else {
 			_result->thumb->load();
@@ -1802,5 +1802,235 @@ void LayoutInlinePhoto::content_forget() {
 		photo->forget();
 	} else {
 		_result->forget();
+	}
+}
+
+LayoutInlineWebVideo::LayoutInlineWebVideo(InlineResult *result) : LayoutInlineItem(result, 0, 0)
+, _send(new SendInlineItemLink())
+, _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
+, _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
+	if (_result->duration) {
+		_duration = formatDurationText(_result->duration);
+	}
+}
+
+void LayoutInlineWebVideo::initDimensions() {
+	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
+	int32 textWidth = _maxw - (_result->thumb->isNull() ? 0 : (st::inlineThumbSize + st::inlineThumbSkip));
+	TextParseOptions titleOpts = { 0, _maxw, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
+	_title.setText(st::semiboldFont, textOneLine(_result->title), titleOpts);
+	int32 titleHeight = qMin(_title.countHeight(_maxw), 2 * st::semiboldFont->height);
+
+	int32 descriptionLines = _result->thumb->isNull() ? 3 : (titleHeight > st::semiboldFont->height ? 1 : 2);
+
+	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, descriptionLines * st::normalFont->height, Qt::LayoutDirectionAuto };
+	_description.setText(st::normalFont, _result->description, descriptionOpts);
+	int32 descriptionHeight = qMin(_description.countHeight(_maxw), descriptionLines * st::normalFont->height);
+
+	_minh = _result->thumb->isNull() ? titleHeight + descriptionHeight : st::inlineThumbSize;
+	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
+}
+
+void LayoutInlineWebVideo::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+	int32 left = 0;
+	if (!_result->thumb->isNull()) {
+		left = st::inlineThumbSize + st::inlineThumbSkip;
+		prepareThumb(st::inlineThumbSize, st::inlineThumbSize);
+		if (_thumb.isNull()) {
+			p.fillRect(rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width), _result->thumb->isNull() ? st::black : st::overviewPhotoBg);
+		} else {
+			p.drawPixmapLeft(0, st::inlineRowMargin, _width, _thumb);
+		}
+
+		if (!_duration.isEmpty()) {
+			int32 durationTop = st::inlineRowMargin + st::inlineThumbSize - st::normalFont->height - st::inlineDurationMargin;
+			p.fillRect(rtlrect(0, durationTop - st::inlineDurationMargin, st::inlineThumbSize, st::normalFont->height + 2 * st::inlineDurationMargin, _width), st::msgDateImgBg);
+			p.setPen(st::white);
+			p.setFont(st::normalFont);
+			p.drawTextRight(_width - st::inlineThumbSize + st::inlineDurationMargin, durationTop, _width, _duration);
+		}
+	}
+
+	p.setPen(st::black);
+	_title.drawLeftElided(p, left, st::inlineRowMargin, _width - left, _width, 2);
+	int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
+
+	p.setPen(st::inlineDescriptionFg);
+	int32 descriptionLines = _result->thumb->isNull() ? 3 : (titleHeight > st::semiboldFont->height ? 1 : 2);
+	_description.drawLeftElided(p, left, st::inlineRowMargin + titleHeight, _width - left, _width, descriptionLines);
+
+	const InlinePaintContext *ctx = context->toInlinePaintContext();
+	t_assert(ctx);
+	if (!ctx->lastRow) {
+		p.fillRect(rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
+	}
+}
+
+void LayoutInlineWebVideo::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+	if (x >= 0 && x < _width && y >= 0 && y < _height) {
+		link = _send;
+	}
+}
+
+void LayoutInlineWebVideo::prepareThumb(int32 width, int32 height) const {
+	if (_result->thumb->loaded()) {
+		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+			int32 w = qMax(_result->thumb->width(), 1), h = qMax(_result->thumb->height(), 1);
+			if (w * height > h * width) {
+				if (height < h) {
+					w = w * height / h;
+					h = height;
+				}
+			} else {
+				if (width < w) {
+					h = h * width / w;
+					w = width;
+				}
+			}
+			_thumb = _result->thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), true, false, false, width, height);
+		}
+	} else {
+		_result->thumb->load();
+	}
+}
+
+LayoutInlineArticle::LayoutInlineArticle(InlineResult *result, bool withThumb) : LayoutInlineItem(result, 0, 0)
+, _send(new SendInlineItemLink())
+, _url(result->url.isEmpty() ? 0 : linkFromUrl(result->url))
+, _withThumb(withThumb)
+, _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
+, _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
+	QVector<QStringRef> parts = _result->url.splitRef('/');
+	if (!parts.isEmpty()) {
+		QStringRef domain = parts.at(0);
+		if (parts.size() > 2 && domain.endsWith(':') && parts.at(1).isEmpty()) { // http:// and others
+			domain = parts.at(2);
+		}
+
+		parts = domain.split('@').back().split('.');
+		if (parts.size() > 1) {
+			_letter = parts.at(parts.size() - 2).at(0).toUpper();
+		}
+	}
+	if (_letter.isEmpty() && !_result->title.isEmpty()) {
+		_letter = _result->title.at(0).toUpper();
+	}
+}
+
+void LayoutInlineArticle::initDimensions() {
+	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
+	int32 textWidth = _maxw - (_withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0);
+	TextParseOptions titleOpts = { 0, _maxw, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
+	_title.setText(st::semiboldFont, textOneLine(_result->title), titleOpts);
+	int32 titleHeight = qMin(_title.countHeight(_maxw), 2 * st::semiboldFont->height);
+
+	int32 descriptionLines = (_withThumb || _url) ? 2 : 3;
+
+	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, descriptionLines * st::normalFont->height, Qt::LayoutDirectionAuto };
+	_description.setText(st::normalFont, _result->description, descriptionOpts);
+	int32 descriptionHeight = qMin(_description.countHeight(_maxw), descriptionLines * st::normalFont->height);
+
+	_minh = titleHeight + descriptionHeight;
+	if (_url) _minh += st::normalFont->height;
+	if (_withThumb) _minh = qMax(_minh, int32(st::inlineThumbSize));
+	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
+}
+
+int32 LayoutInlineArticle::resizeGetHeight(int32 width) {
+	_width = qMin(width, _maxw);
+	if (_url) {
+		_urlText = _result->url;
+		_urlWidth = st::normalFont->width(_urlText);
+		if (_urlWidth > _width - st::inlineThumbSize - st::inlineThumbSkip) {
+			_urlText = st::normalFont->elided(_result->url, _width - st::inlineThumbSize - st::inlineThumbSkip);
+			_urlWidth = st::normalFont->width(_urlText);
+		}
+	}
+	_height = _minh;
+	return _height;
+}
+
+void LayoutInlineArticle::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+	int32 left = 0;
+	if (_withThumb) {
+		left = st::inlineThumbSize + st::inlineThumbSkip;
+		prepareThumb(st::inlineThumbSize, st::inlineThumbSize);
+		QRect rthumb(rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width));
+		if (_thumb.isNull()) {
+			if (_result->thumb->isNull() && !_letter.isEmpty()) {
+				int32 index = (_letter.at(0).unicode() % 4);
+				style::color colors[] = { st::msgFileRedColor, st::msgFileYellowColor, st::msgFileGreenColor, st::msgFileBlueColor };
+
+				p.fillRect(rthumb, colors[index]);
+				if (!_letter.isEmpty()) {
+					p.setFont(st::linksLetterFont);
+					p.setPen(st::white);
+					p.drawText(rthumb, _letter, style::al_center);
+				}
+			} else {
+				p.fillRect(rthumb, st::overviewPhotoBg);
+			}
+		} else {
+			p.drawPixmapLeft(rthumb.topLeft(), _width, _thumb);
+		}
+	}
+
+	p.setPen(st::black);
+	_title.drawLeftElided(p, left, st::inlineRowMargin, _width - left, _width, 2);
+	int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
+
+	p.setPen(st::inlineDescriptionFg);
+	int32 descriptionLines = (_withThumb || _url) ? 2 : 3;
+	_description.drawLeftElided(p, left, st::inlineRowMargin + titleHeight, _width - left, _width, descriptionLines);
+
+	if (_url) {
+		int32 descriptionHeight = qMin(_description.countHeight(_width - left), st::normalFont->height * descriptionLines);
+		p.drawTextLeft(left, st::inlineRowMargin + titleHeight + descriptionHeight, _width, _urlText, _urlWidth);
+	}
+
+	const InlinePaintContext *ctx = context->toInlinePaintContext();
+	t_assert(ctx);
+	if (!ctx->lastRow) {
+		p.fillRect(rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
+	}
+}
+
+void LayoutInlineArticle::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+	if (x >= 0 && x < _width && y >= 0 && y < _height) {
+		if (_url) {
+			int32 left = st::inlineThumbSize + st::inlineThumbSkip;
+			int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
+			int32 descriptionLines = 2;
+			int32 descriptionHeight = qMin(_description.countHeight(_width - left), st::normalFont->height * descriptionLines);
+			if (rtlrect(left, st::inlineRowMargin + titleHeight + descriptionHeight, _urlWidth, st::normalFont->height, _width).contains(x, y)) {
+				link = _url;
+				return;
+			}
+		}
+		link = _send;
+	}
+}
+
+void LayoutInlineArticle::prepareThumb(int32 width, int32 height) const {
+	if (_result->thumb->isNull()) return;
+
+	if (_result->thumb->loaded()) {
+		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+			int32 w = qMax(_result->thumb->width(), 1), h = qMax(_result->thumb->height(), 1);
+			if (w * height > h * width) {
+				if (height < h) {
+					w = w * height / h;
+					h = height;
+				}
+			} else {
+				if (width < w) {
+					h = h * width / w;
+					w = width;
+				}
+			}
+			_thumb = _result->thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), true, false, false, width, height);
+		}
+	} else {
+		_result->thumb->load();
 	}
 }

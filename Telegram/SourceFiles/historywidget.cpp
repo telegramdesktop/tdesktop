@@ -4345,9 +4345,8 @@ void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
 	_saveDraftStart = getms();
 	onDraftSave();
 
-	if (!_attachMention.isHidden()) _attachMention.hideStart();
+	onCheckMentionDropdown();
 	if (!_attachType.isHidden()) _attachType.hideStart();
-	if (!_emojiPan.isHidden()) _emojiPan.hideStart();
 
 	if (replyTo < 0) cancelReply(lastKeyboardUsed);
 	if (_previewData && _previewData->pendingTill) previewCancel();
@@ -6357,6 +6356,7 @@ void HistoryWidget::onInlineResultSend(InlineResult *result, UserData *bot) {
 			_history->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(_history->peer->id), MTPPeer(), MTPint(), MTP_int(bot ? peerToUser(bot->id) : 0), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(photo, MTP_string(result->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
 		}
 	} else {
+		flags |= MTPDmessage::flag_entities;
 		if (result->noWebPage) {
 			sendFlags |= MTPmessages_SendMessage::flag_no_webpage;
 		}
@@ -6373,9 +6373,8 @@ void HistoryWidget::onInlineResultSend(InlineResult *result, UserData *bot) {
 	_saveDraftStart = getms();
 	onDraftSave();
 
-	if (!_attachMention.isHidden()) _attachMention.hideStart();
+	onCheckMentionDropdown();
 	if (!_attachType.isHidden()) _attachType.hideStart();
-	if (!_emojiPan.isHidden()) _emojiPan.hideStart();
 
 	_field.setFocus();
 }

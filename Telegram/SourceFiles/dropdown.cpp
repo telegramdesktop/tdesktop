@@ -1216,6 +1216,7 @@ StickerPanInner::StickerPanInner() : TWidget()
 , _showingSavedGifs(cShowingSavedGifs())
 , _showingInlineItems(_showingSavedGifs)
 , _lastScrolled(0)
+, _inlineWithThumb(false)
 , _selected(-1)
 , _pressedSel(-1)
 , _settings(this, lang(lng_stickers_you_have))
@@ -1301,7 +1302,7 @@ void StickerPanInner::paintEvent(QPaintEvent *e) {
 }
 
 void StickerPanInner::paintInlineItems(Painter &p, const QRect &r) {
-	InlinePaintContext context(getms(), false, _previewShown);
+	InlinePaintContext context(getms(), false, _previewShown, false);
 
 	int32 top = st::emojiPanHeader;
 	int32 fromx = rtl() ? (width() - r.x() - r.width()) : r.x(), tox = rtl() ? (width() - r.x()) : (r.x() + r.width());
@@ -1310,6 +1311,7 @@ void StickerPanInner::paintInlineItems(Painter &p, const QRect &r) {
 		if (top >= r.top() + r.height()) break;
 		if (top + inlineRow.height > r.top()) {
 			int32 left = st::inlineResultsLeft;
+			if (row == rows - 1) context.lastRow = true;
 			for (int32 col = 0, cols = inlineRow.items.size(); col < cols; ++col) {
 				if (left >= tox) break;
 
@@ -1750,9 +1752,9 @@ LayoutInlineItem *StickerPanInner::layoutPrepareInlineResult(InlineResult *resul
 		} else if (result->type == qstr("photo")) {
 			layout = new LayoutInlinePhoto(result, 0);
 		} else if (result->type == qstr("web_player_video")) {
-	//		layout = new LayoutInlineWebVideo(result, 0);
+			layout = new LayoutInlineWebVideo(result);
 		} else if (result->type == qstr("article")) {
-//			layout = new LayoutInlineArticle(result, 0);
+			layout = new LayoutInlineArticle(result, _inlineWithThumb);
 		}
 		if (!layout) return 0;
 
@@ -1926,6 +1928,16 @@ void StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &resu
 		}
 	}
 	_inlineRows.resize(untilrow);
+
+	if (_inlineRows.isEmpty()) {
+		_inlineWithThumb = false;
+		for (int32 i = until; i < count; ++i) {
+			if (!results.at(i)->thumb->isNull()) {
+				_inlineWithThumb = true;
+				break;
+			}
+		}
+	}
 
 	_inlineRows.reserve(count);
 	InlineRow row;
@@ -3072,6 +3084,10 @@ void EmojiPan::step_appearance(float64 ms, bool timer) {
 void EmojiPan::hideStart() {
 	if (_removingSetId || s_inner.inlineResultsShown()) return;
 
+	hideAnimated();
+}
+
+void EmojiPan::hideAnimated() {
 	if (_cache.isNull()) {
 		QPixmap from = _fromCache, to = _toCache;
 		_fromCache = _toCache = QPixmap();
@@ -3412,7 +3428,7 @@ void EmojiPan::onDelayedHide() {
 void EmojiPan::inlineBotChanged() {
 	if (!_inlineBot) return;
 
-	if (!isHidden()) hideStart();
+	if (!isHidden()) hideAnimated();
 
 	if (_inlineRequestId) MTP::cancel(_inlineRequestId);
 	_inlineRequestId = 0;
@@ -3572,7 +3588,7 @@ void EmojiPan::showInlineRows(bool newResults) {
 	s_inner.refreshInlineRows(_inlineBot, clear ? InlineResults() : i.value()->results, false);
 	if (newResults) s_scroll.scrollToY(0);
 	if (clear && !isHidden() && _stickersShown && s_inner.inlineResultsShown()) {
-		hideStart();
+		hideAnimated();
 	} else if (!clear) {
 		_hideTimer.stop();
 		if (!isHidden() || _hiding) {
