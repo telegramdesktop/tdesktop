@@ -27,7 +27,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 namespace anim {
 
 	typedef float64 (*transition)(const float64 &delta, const float64 &dt);
-	
+
     float64 linear(const float64 &delta, const float64 &dt);
 	float64 sineInOut(const float64 &delta, const float64 &dt);
     float64 halfSine(const float64 &delta, const float64 &dt);
@@ -520,6 +520,11 @@ enum ClipReaderNotification {
 	ClipReaderRepaint,
 };
 
+enum ClipReaderSteps {
+	FirstFrameNotReadStep = -2,
+	WaitingForRequestStep = -1,
+};
+
 class ClipReaderPrivate;
 class ClipReader {
 public:
@@ -538,11 +543,16 @@ public:
 
 	void start(int32 framew, int32 frameh, int32 outerw, int32 outerh, bool rounded);
 	QPixmap current(int32 framew, int32 frameh, int32 outerw, int32 outerh, uint64 ms);
-	QImage frameOriginal() const {
-		return _currentOriginal;
+	QPixmap frameOriginal() const {
+		Frame *frame = frameToShow();
+		if (!frame) return QPixmap();
+		QPixmap result(frame ? QPixmap::fromImage(frame->original) : QPixmap());
+		result.detach();
+		return result;
 	}
 	bool currentDisplayed() const {
-		return _currentDisplayed.load();
+		Frame *frame = frameToShow();
+		return frame ? frame->displayed : true;
 	}
 	bool paused() const {
 		return _paused.loadAcquire();
@@ -556,7 +566,7 @@ public:
 
 	ClipState state() const;
 	bool started() const {
-		return _request.valid();
+		return _step.loadAcquire() >= 0;
 	}
 	bool ready() const;
 
@@ -571,14 +581,26 @@ private:
 
 	ClipState _state;
 
-	ClipFrameRequest _request;
-
 	mutable int32 _width, _height;
 
-	QPixmap _current;
-	QImage _currentOriginal, _cacheForResize;
-	QAtomicInt _currentDisplayed, _paused, _lastDisplayMs;
-	Atomic<uint64> _startDisplayMs;
+	mutable QAtomicInt _step; // -2, -1 - init, 0-5 - work, show ((state + 1) / 2) % 3 state, write ((state + 3) / 2) % 3
+	struct Frame {
+		Frame() : displayed(false), when(0) {
+		}
+		QPixmap pix;
+		QImage original;
+		ClipFrameRequest request;
+		bool displayed;
+		uint64 when;
+	};
+	mutable Frame _frames[3];
+	Frame *frameToShow() const; // 0 means not ready
+	Frame *frameToWrite() const; // 0 means not ready
+	Frame *frameToRequestOther() const;
+	void moveToNextShow() const;
+	void moveToNextWrite() const;
+
+	QAtomicInt _paused;
 	int32 _threadIndex;
 
 	bool _autoplay;

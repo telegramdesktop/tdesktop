@@ -135,7 +135,7 @@ MediaView::MediaView() : TWidget(App::wnd())
 
 	hide();
 	createWinId();
-	
+
 	_saveMsgUpdater.setSingleShot(true);
 	connect(&_saveMsgUpdater, SIGNAL(timeout()), this, SLOT(updateImage()));
 
@@ -183,7 +183,7 @@ void MediaView::moveToScreen() {
 	if (avail != geometry()) {
 		setGeometry(avail);
 	}
-	
+
 	int32 navSkip = 2 * st::mvControlMargin + st::mvControlSize;
 	_closeNav = myrtlrect(width() - st::mvControlMargin - st::mvControlSize, st::mvControlMargin, st::mvControlSize, st::mvControlSize);
 	_closeNavIcon = centersprite(_closeNav, st::mvClose);
@@ -738,7 +738,7 @@ void MediaView::onCopy() {
 		if (!_current.isNull()) {
 			QApplication::clipboard()->setPixmap(_current);
 		} else if (gifShown()) {
-			QApplication::clipboard()->setPixmap(QPixmap::fromImage(_gif->frameOriginal()));
+			QApplication::clipboard()->setPixmap(_gif->frameOriginal());
 		}
 	} else {
 		if (!_photo || !_photo->loaded()) return;
@@ -1515,8 +1515,8 @@ void MediaView::moveToNext(int32 delta) {
 				if (HistoryMedia *media = item->getMedia()) {
 					switch (media->type()) {
 					case MediaTypePhoto: displayPhoto(static_cast<HistoryPhoto*>(item->getMedia())->photo(), item); preloadData(delta); break;
-					case MediaTypeDocument: 
-					case MediaTypeGif: 
+					case MediaTypeDocument:
+					case MediaTypeGif:
 					case MediaTypeSticker: displayDocument(media->getDocument(), item); preloadData(delta); break;
 					}
 				} else {
@@ -1562,8 +1562,8 @@ void MediaView::preloadData(int32 delta) {
 				if (HistoryMedia *media = item->getMedia()) {
 					switch (media->type()) {
 					case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->forget(); break;
-					case MediaTypeDocument: 
-					case MediaTypeGif: 
+					case MediaTypeDocument:
+					case MediaTypeGif:
 					case MediaTypeSticker: media->getDocument()->forget(); break;
 					}
 				}

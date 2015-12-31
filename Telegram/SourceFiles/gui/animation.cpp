@@ -225,10 +225,8 @@ ClipReader::ClipReader(const FileLocation &location, const QByteArray &data, Cal
 , _state(ClipReading)
 , _width(0)
 , _height(0)
-, _currentDisplayed(1)
+, _step(FirstFrameNotReadStep)
 , _paused(0)
-, _lastDisplayMs(0)
-, _startDisplayMs(getms())
 , _autoplay(false)
 , _private(0) {
 	if (_clipThreads.size() < ClipThreadsCount) {
@@ -250,6 +248,48 @@ ClipReader::ClipReader(const FileLocation &location, const QByteArray &data, Cal
 	_clipManagers.at(_threadIndex)->append(this, location, data);
 }
 
+ClipReader::Frame *ClipReader::frameToShow() const { // 0 means not ready
+	int32 step = _step.loadAcquire();
+	if (step == FirstFrameNotReadStep) {
+		return 0;
+	} else if (step == WaitingForRequestStep) {
+		return _frames;
+	}
+	return _frames + (((step + 1) / 2) % 3);
+}
+
+ClipReader::Frame *ClipReader::frameToWrite() const { // 0 means not ready
+	int32 step = _step.loadAcquire();
+	if (step == FirstFrameNotReadStep) {
+		return _frames;
+	} else if (step == WaitingForRequestStep) {
+		return 0;
+	}
+	return _frames + (((step + 3) / 2) % 3);
+}
+
+ClipReader::Frame *ClipReader::frameToRequestOther() const {
+	int32 step = _step.loadAcquire();
+	if (step == FirstFrameNotReadStep || step == WaitingForRequestStep) {
+		return 0;
+	}
+	return _frames + (((step + 5) / 2) % 3);
+}
+
+void ClipReader::moveToNextShow() const {
+	int32 step = _step.loadAcquire();
+	if (step % 2) {
+		_step.storeRelease((step + 1) % 6);
+	}
+}
+
+void ClipReader::moveToNextWrite() const {
+	int32 step = _step.loadAcquire();
+	if (!(step % 2)) {
+		_step.storeRelease(step + 1);
+	}
+}
+
 void ClipReader::callback(ClipReader *reader, int32 threadIndex, ClipReaderNotification notification) {
 	// check if reader is not deleted already
 	if (_clipManagers.size() > threadIndex && _clipManagers.at(threadIndex)->carries(reader)) {
@@ -261,20 +301,28 @@ void ClipReader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, b
 	if (_clipManagers.size() <= _threadIndex) error();
 	if (_state == ClipError) return;
 
-	int32 factor(cIntRetinaFactor());
-	_request.factor = factor;
-	_request.framew = framew * factor;
-	_request.frameh = frameh * factor;
-	_request.outerw = outerw * factor;
-	_request.outerh = outerh * factor;
-	_request.rounded = rounded;
-	_clipManagers.at(_threadIndex)->start(this);
+	if (_step.loadAcquire() == WaitingForRequestStep) {
+		int32 factor(cIntRetinaFactor());
+		ClipFrameRequest request;
+		request.factor = factor;
+		request.framew = framew * factor;
+		request.frameh = frameh * factor;
+		request.outerw = outerw * factor;
+		request.outerh = outerh * factor;
+		request.rounded = rounded;
+		_frames[0].request = _frames[1].request = _frames[2].request = request;
+		_step.storeRelease(0); // start working
+		_clipManagers.at(_threadIndex)->start(this);
+	}
 }
 
 QPixmap ClipReader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, uint64 ms) {
-	_currentDisplayed.store(1);
+	Frame *frame = frameToShow();
+	t_assert(frame != 0);
+
+	frame->displayed = true;
 	if (ms) {
-		_lastDisplayMs.storeRelease(int32(ms - _startDisplayMs.get()));
+		frame->when = ms;
 		if (_paused.loadAcquire()) {
 			_paused.storeRelease(0);
 			if (_clipManagers.size() <= _threadIndex) error();
@@ -285,39 +333,44 @@ QPixmap ClipReader::current(int32 framew, int32 frameh, int32 outerw, int32 oute
 	}
 
 	int32 factor(cIntRetinaFactor());
-	QPixmap result(_current);
-	if (result.width() == outerw * factor && result.height() == outerh * factor) {
-		return result;
+	if (frame->pix.width() == outerw * factor && frame->pix.height() == outerh * factor) {
+		moveToNextShow();
+		return frame->pix;
 	}
 
-	_request.framew = framew * factor;
-	_request.frameh = frameh * factor;
-	_request.outerw = outerw * factor;
-	_request.outerh = outerh * factor;
+	frame->request.framew = framew * factor;
+	frame->request.frameh = frameh * factor;
+	frame->request.outerw = outerw * factor;
+	frame->request.outerh = outerh * factor;
+	frame->pix = QPixmap();
 
-	QImage current(_currentOriginal);
-	current.setDevicePixelRatio(cRetinaFactor());
+	QImage cache;
+	frame->pix = _prepareFrame(frame->request, frame->original, cache, true);
 
-	result = _current = QPixmap();
-	result = _current = _prepareFrame(_request, current, _cacheForResize, true);
+	Frame *other = frameToRequestOther();
+	t_assert(other != 0);
+	other->request = frame->request;
+
+	moveToNextShow();
 
 	if (_clipManagers.size() <= _threadIndex) error();
 	if (_state != ClipError) {
 		_clipManagers.at(_threadIndex)->update(this);
 	}
 
-	return result;
+	return frame->pix;
 }
 
 bool ClipReader::ready() const {
 	if (_width && _height) return true;
 
-	QImage first(_currentOriginal);
-	if (first.isNull()) return false;
-
-	_width = first.width();
-	_height = first.height();
-	return true;
+	const Frame *frame = frameToShow();
+	if (frame) {
+		_width = frame->original.width();
+		_height = frame->original.height();
+		return true;
+	}
+	return false;
 }
 
 int32 ClipReader::width() const {
@@ -1003,25 +1056,21 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 		_loadLevel.fetchAndAddRelaxed(reader->_width * reader->_height - AverageGifSize);
 	}
 	if (!reader->_paused && (result == ClipProcessRepaint || result == ClipProcessWait)) {
-		int32 lastDisplay = it.key()->_lastDisplayMs.loadAcquire();
-		if (lastDisplay > 3000 || lastDisplay < 0) { // playing more then a day
-			it.key()->_startDisplayMs.set(ms);
-			it.key()->_lastDisplayMs.storeRelease(getms() - ms);
-		} else if (it.key()->_startDisplayMs.get() + lastDisplay + WaitBeforeGifPause < qMax(reader->_previousMs, ms)) {
+		ClipReader::Frame *frame = it.key()->frameToWrite(), *other = it.key()->frameToRequestOther();
+		t_assert(frame != 0 && other != 0);
+		if (qMax(frame->when, other->when) + WaitBeforeGifPause < qMax(reader->_previousMs, ms)) {
 			reader->_paused = true;
 			it.key()->_paused.storeRelease(true);
-			if (it.key()->_startDisplayMs.get() + it.key()->_lastDisplayMs.loadAcquire() + WaitBeforeGifPause >= qMax(reader->_previousMs, ms)) {
-				it.key()->_paused.storeRelease(false);
-				reader->_paused = false;
-			} else {
-				result = ClipProcessReinit;
-			}
+			result = ClipProcessReinit;
 		}
 	}
 	if (result == ClipProcessReinit || result == ClipProcessRepaint || result == ClipProcessStarted) {
-		it.key()->_current = reader->_current;
-		it.key()->_currentOriginal = reader->_currentOriginal;
-		it.key()->_currentDisplayed.store(false);
+		ClipReader::Frame *frame = it.key()->frameToWrite();
+		t_assert(frame != 0);
+		frame->pix = reader->_current;
+		frame->original = reader->_currentOriginal;
+		frame->displayed = false;
+		it.key()->moveToNextWrite();
 		if (result == ClipProcessReinit) {
 			emit callback(it.key(), it.key()->threadIndex(), ClipReaderReinit);
 		} else if (result == ClipProcessRepaint) {
@@ -1073,7 +1122,8 @@ void ClipReadManager::process() {
 						it.key()->_paused = false;
 					}
 				}
-				i.value()->_request = i.key()->_request;
+				ClipReader::Frame *frame = i.key()->frameToWrite();
+				if (frame) i.value()->_request = frame->request;
 				i.value() = 0;
 			}
 		}
