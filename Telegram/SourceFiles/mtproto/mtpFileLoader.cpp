@@ -66,6 +66,8 @@ FileLoader::FileLoader(const QString &toFile, int32 size, LocationType locationT
 , _inQueue(false)
 , _complete(false)
 , _localStatus(LocalNotTried)
+, _file(toFile)
+, _fname(toFile)
 , _fileIsOpen(false)
 , _toCache(toCache)
 , _fromCloud(fromCloud)
