@@ -888,13 +888,13 @@
     <ClCompile Include="SourceFiles\layout.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_structs.cpp">
+    <ClCompile Include="GeneratedFiles\Deploy\moc_history.cpp">
       <Filter>Generated Files\Deploy</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_structs.cpp">
+    <ClCompile Include="GeneratedFiles\Debug\moc_history.cpp">
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_structs.cpp">
+    <ClCompile Include="GeneratedFiles\Release\moc_history.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
   </ItemGroup>
