@@ -163,7 +163,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 				PeerData *act = App::main()->activePeer();
 				MsgId actId = App::main()->activeMsgId();
 				for (; from < to; ++from) {
-					bool active = ((_filterResults[from]->history->peer == act) || (_filterResults[from]->history->peer->migrateTo() && _filterResults[from]->history->peer->migrateTo() == act)) && !actId;					
+					bool active = ((_filterResults[from]->history->peer == act) || (_filterResults[from]->history->peer->migrateTo() && _filterResults[from]->history->peer->migrateTo() == act)) && !actId;
 					bool selected = (from == _filteredSel) || (_filterResults[from]->history->peer == _menuPeer);
 					_filterResults[from]->paint(p, w, active, selected, paintingOther);
 					p.translate(0, st::dlgHeight);
@@ -872,7 +872,7 @@ void DialogsInner::onHashtagFilterUpdate(QStringRef newFilter) {
 	}
 	_hashtagFilter = newFilter.toString();
 	if (cRecentSearchHashtags().isEmpty() && cRecentWriteHashtags().isEmpty()) {
-		Local::readRecentHashtags();
+		Local::readRecentHashtagsAndBots();
 	}
 	const RecentHashtagPack &recent(cRecentSearchHashtags());
 	_hashtagResults.clear();
@@ -1385,7 +1385,7 @@ void DialogsInner::loadPeerPhotos(int32 yFrom) {
 		if (from < _filterResults.size()) {
 			int32 to = (yTo / int32(st::dlgHeight)) + 1, w = width();
 			if (to > _filterResults.size()) to = _filterResults.size();
-			
+
 			for (; from < to; ++from) {
 				_filterResults[from]->history->peer->photo->load();
 			}
@@ -1434,7 +1434,7 @@ bool DialogsInner::choosePeer() {
 					}
 				}
 				cSetRecentSearchHashtags(recent);
-				Local::writeRecentHashtags();
+				Local::writeRecentHashtagsAndBots();
 				emit refreshHashtags();
 
 				selByMouse = true;
@@ -1487,7 +1487,7 @@ void DialogsInner::saveRecentHashtags(const QString &text) {
 			}
 		}
 		if (!found && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) {
-			Local::readRecentHashtags();
+			Local::readRecentHashtagsAndBots();
 			recent = cRecentSearchHashtags();
 		}
 		found = true;
@@ -1495,7 +1495,7 @@ void DialogsInner::saveRecentHashtags(const QString &text) {
 	}
 	if (found) {
 		cSetRecentSearchHashtags(recent);
-		Local::writeRecentHashtags();
+		Local::writeRecentHashtagsAndBots();
 	}
 }
 

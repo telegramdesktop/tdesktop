@@ -184,7 +184,7 @@ void AnimationManager::clipCallback(ClipReader *reader, qint32 threadIndex, qint
 	ClipReader::callback(reader, threadIndex, ClipReaderNotification(notification));
 }
 
-QPixmap _prepareFrame(const ClipFrameRequest &request, const QImage &original, QImage &cache, bool hasAlpha) {
+QPixmap _prepareFrame(const ClipFrameRequest &request, const QImage &original, bool hasAlpha, QImage &cache) {
 	bool badSize = (original.width() != request.framew) || (original.height() != request.frameh);
 	bool needOuter = (request.outerw != request.framew) || (request.outerh != request.frameh);
 	if (badSize || needOuter || hasAlpha || request.rounded) {
@@ -258,14 +258,16 @@ ClipReader::Frame *ClipReader::frameToShow() const { // 0 means not ready
 	return _frames + (((step + 1) / 2) % 3);
 }
 
-ClipReader::Frame *ClipReader::frameToWrite() const { // 0 means not ready
-	int32 step = _step.loadAcquire();
-	if (step == FirstFrameNotReadStep) {
-		return _frames;
-	} else if (step == WaitingForRequestStep) {
+ClipReader::Frame *ClipReader::frameToWrite(int32 *index) const { // 0 means not ready
+	int32 step = _step.loadAcquire(), i = 0;
+	if (step == WaitingForRequestStep) {
+		if (index) *index = 0;
 		return 0;
+	} else if (step != FirstFrameNotReadStep) {
+		i = (((step + 3) / 2) % 3);
 	}
-	return _frames + (((step + 3) / 2) % 3);
+	if (index) *index = i;
+	return _frames + i;
 }
 
 ClipReader::Frame *ClipReader::frameToRequestOther(bool check) const {
@@ -342,10 +344,10 @@ QPixmap ClipReader::current(int32 framew, int32 frameh, int32 outerw, int32 oute
 	frame->request.frameh = frameh * factor;
 	frame->request.outerw = outerw * factor;
 	frame->request.outerh = outerh * factor;
-	frame->pix = QPixmap();
 
-	QImage cache;
-	frame->pix = _prepareFrame(frame->request, frame->original, cache, true);
+	QImage cacheForResize;
+	frame->pix = QPixmap();
+	frame->pix = _prepareFrame(frame->request, frame->original, true, cacheForResize);
 
 	Frame *other = frameToRequestOther(true);
 	if (other) other->request = frame->request;
@@ -830,8 +832,7 @@ public:
 	, _location(_data.isEmpty() ? new FileLocation(location) : 0)
 	, _accessed(false)
 	, _implementation(0)
-	, _currentHasAlpha(true)
-	, _nextHasAlpha(true)
+	, _frame(_frames)
 	, _width(0)
 	, _height(0)
 	, _previousMs(0)
@@ -850,12 +851,12 @@ public:
 		if (!_implementation && !init()) {
 			return error();
 		}
-		if (_currentOriginal.isNull()) {
-			if (!_implementation->readNextFrame(_currentOriginal, _currentHasAlpha, QSize())) {
+		if (_frame->original.isNull()) {
+			if (!_implementation->readNextFrame(_frame->original, _frame->alpha, QSize())) {
 				return error();
 			}
-			_width = _currentOriginal.width();
-			_height = _currentOriginal.height();
+			_width = _frame->original.width();
+			_height = _frame->original.height();
 			return ClipProcessReinit;
 		}
 		return ClipProcessWait;
@@ -868,12 +869,12 @@ public:
 			return start(ms);
 		}
 
-		if (_current.isNull()) { // first frame read, but not yet prepared
-			_currentOriginal.setDevicePixelRatio(_request.factor);
+		if (_frame->pix.isNull()) { // first frame read, but not yet prepared
+			_frame->original.setDevicePixelRatio(_request.factor);
 
 			_previousMs = _currentMs;
 			_currentMs = ms;
-			_current = _prepareFrame(_request, _currentOriginal, _currentCache, _currentHasAlpha);
+			_frame->pix = _prepareFrame(_request, _frame->original, _frame->alpha, _frame->cache);
 
 			if (!prepareNextFrame()) {
 				return error();
@@ -906,20 +907,16 @@ public:
 	void swapBuffers(uint64 ms = 0) {
 		_previousMs = _currentMs;
 		_currentMs = qMax(ms, _nextUpdateMs);
-		qSwap(_currentOriginal, _nextOriginal);
-		qSwap(_current, _next);
-		qSwap(_currentCache, _nextCache);
-		qSwap(_currentHasAlpha, _nextHasAlpha);
 	}
 
 	bool prepareNextFrame() {
-		if (!_implementation->readNextFrame(_nextOriginal, _nextHasAlpha, QSize(_request.framew, _request.frameh))) {
+		if (!_implementation->readNextFrame(_frame->original, _frame->alpha, QSize(_request.framew, _request.frameh))) {
 			return false;
 		}
 		_nextUpdateMs = _currentMs + nextFrameDelay();
-		_nextOriginal.setDevicePixelRatio(_request.factor);
-		_next = QPixmap();
-		_next = _prepareFrame(_request, _nextOriginal, _nextCache, _nextHasAlpha);
+		_frame->original.setDevicePixelRatio(_request.factor);
+		_frame->pix = QPixmap();
+		_frame->pix = _prepareFrame(_request, _frame->original, _frame->alpha, _frame->cache);
 		return true;
 	}
 
@@ -979,9 +976,16 @@ private:
 	ClipReaderImplementation *_implementation;
 
 	ClipFrameRequest _request;
-	QPixmap _current, _next;
-	QImage _currentOriginal, _nextOriginal, _currentCache, _nextCache;
-	bool _currentHasAlpha, _nextHasAlpha;
+	struct Frame {
+		Frame() : alpha(true) {
+		}
+		QPixmap pix;
+		QImage original, cache;
+		bool alpha;
+	};
+	Frame _frames[3];
+	Frame *_frame;
+
 	int32 _width, _height;
 
 	uint64 _previousMs, _currentMs, _nextUpdateMs;
@@ -1016,34 +1020,58 @@ void ClipReadManager::start(ClipReader *reader) {
 }
 
 void ClipReadManager::update(ClipReader *reader) {
-	QMutexLocker lock(&_readerPointersMutex);
-	_readerPointers.insert(reader, reader->_private);
+	QReadLocker lock(&_readerPointersMutex);
+	ReaderPointers::const_iterator i = _readerPointers.constFind(reader);
+	if (i == _readerPointers.cend()) {
+		lock.unlock();
+
+		QWriteLocker lock(&_readerPointersMutex);
+		_readerPointers.insert(reader, MutableAtomicInt(1));
+	} else {
+		i->v.storeRelease(1);
+	}
 	emit processDelayed();
 }
 
 void ClipReadManager::stop(ClipReader *reader) {
-	QMutexLocker lock(&_readerPointersMutex);
+	if (!carries(reader)) return;
+
+	QWriteLocker lock(&_readerPointersMutex);
 	_readerPointers.remove(reader);
 	emit processDelayed();
 }
 
 bool ClipReadManager::carries(ClipReader *reader) const {
-	QMutexLocker lock(&_readerPointersMutex);
+	QReadLocker lock(&_readerPointersMutex);
 	return _readerPointers.contains(reader);
 }
 
-bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcessResult result, uint64 ms) {
-	QMutexLocker lock(&_readerPointersMutex);
+ClipReadManager::ReaderPointers::iterator ClipReadManager::unsafeFindReaderPointer(ClipReaderPrivate *reader) {
 	ReaderPointers::iterator it = _readerPointers.find(reader->_interface);
-	if (it != _readerPointers.cend() && it.key()->_private != reader) {
-		it = _readerPointers.end(); // it is a new reader which was realloced in the same address
-	}
+
+	// could be a new reader which was realloced in the same address
+	return (it == _readerPointers.cend() || it.key()->_private == reader) ? it : _readerPointers.end();
+}
+
+ClipReadManager::ReaderPointers::const_iterator ClipReadManager::constUnsafeFindReaderPointer(ClipReaderPrivate *reader) const {
+	ReaderPointers::const_iterator it = _readerPointers.constFind(reader->_interface);
+
+	// could be a new reader which was realloced in the same address
+	return (it == _readerPointers.cend() || it.key()->_private == reader) ? it : _readerPointers.cend();
+}
+
+bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcessResult result, uint64 ms) {
+	QReadLocker lock(&_readerPointersMutex);
+	ReaderPointers::const_iterator it = constUnsafeFindReaderPointer(reader);
 	if (result == ClipProcessError) {
 		if (it != _readerPointers.cend()) {
 			it.key()->error();
 			emit callback(it.key(), it.key()->threadIndex(), ClipReaderReinit);
 
-			_readerPointers.erase(it);
+			lock.unlock();
+			QWriteLocker lock(&_readerPointersMutex);
+			ReaderPointers::iterator i = unsafeFindReaderPointer(reader);
+			if (i != _readerPointers.cend()) _readerPointers.erase(i);
 		}
 		return false;
 	}
@@ -1066,9 +1094,9 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 	if (result == ClipProcessReinit || result == ClipProcessRepaint || result == ClipProcessStarted) {
 		ClipReader::Frame *frame = it.key()->frameToWrite();
 		t_assert(frame != 0);
-		frame->pix = QPixmap();
-		frame->pix = reader->_current;
-		frame->original = reader->_currentOriginal;
+		frame->clear();
+		frame->pix = reader->_frame->pix;
+		frame->original = reader->_frame->original;
 		frame->displayed = false;
 		it.key()->moveToNextWrite();
 		if (result == ClipProcessReinit) {
@@ -1082,7 +1110,7 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 
 ClipReadManager::ResultHandleState ClipReadManager::handleResult(ClipReaderPrivate *reader, ClipProcessResult result, uint64 ms) {
 	if (!handleProcessResult(reader, result, ms)) {
-		_loadLevel.fetchAndAddRelaxed(-1 * (reader->_currentOriginal.isNull() ? AverageGifSize : reader->_width * reader->_height));
+		_loadLevel.fetchAndAddRelaxed(-1 * (reader->_frame->original.isNull() ? AverageGifSize : reader->_width * reader->_height));
 		delete reader;
 		return ResultHandleRemove;
 	}
@@ -1110,27 +1138,37 @@ void ClipReadManager::process() {
 
 	uint64 ms = getms(), minms = ms + 86400 * 1000ULL;
 	{
-		QMutexLocker lock(&_readerPointersMutex);
-		for (ReaderPointers::iterator i = _readerPointers.begin(), e = _readerPointers.end(); i != e; ++i) {
-			if (i.value()) {
-				Readers::iterator it = _readers.find(i.value());
-				if (it == _readers.cend()) {
-					_readers.insert(i.value(), 0);
+		QReadLocker lock(&_readerPointersMutex);
+		for (ReaderPointers::iterator it = _readerPointers.begin(), e = _readerPointers.end(); it != e; ++it) {
+			if (it->v.loadAcquire()) {
+				Readers::iterator i = _readers.find(it.key()->_private);
+				if (i == _readers.cend()) {
+					_readers.insert(it.key()->_private, 0);
 				} else {
-					it.value() = ms;
-					if (it.key()->_paused && !i.key()->_paused.loadAcquire()) {
-						it.key()->_paused = false;
+					i.value() = ms;
+					if (i.key()->_paused && !it.key()->_paused.loadAcquire()) {
+						i.key()->_paused = false;
 					}
 				}
-				ClipReader::Frame *frame = i.key()->frameToWrite();
-				if (frame) i.value()->_request = frame->request;
-				i.value() = 0;
+				ClipReader::Frame *frame = it.key()->frameToWrite();
+				if (frame) it.key()->_private->_request = frame->request;
+				it->v.storeRelease(0);
 			}
 		}
 	}
 
 	for (Readers::iterator i = _readers.begin(), e = _readers.end(); i != e;) {
 		if (i.value() <= ms) {
+			{
+				QReadLocker lock(&_readerPointersMutex);
+				ReaderPointers::const_iterator it = constUnsafeFindReaderPointer(i.key());
+				if (it != _readerPointers.cend()) {
+					int32 index = 0;
+					ClipReader::Frame *frame = it.key()->frameToWrite(&index);
+					if (frame) frame->clear();
+					i.key()->_frame = i.key()->_frames + index;
+				}
+			}
 			ClipProcessResult result = i.key()->process(ms);
 
 			ResultHandleState state = handleResult(i.key(), result, ms);
@@ -1167,13 +1205,13 @@ void ClipReadManager::finish() 	{
 }
 
 void ClipReadManager::clear() {
-    QMutexLocker lock(&_readerPointersMutex);
-    for (ReaderPointers::iterator i = _readerPointers.begin(), e = _readerPointers.end(); i != e; ++i) {
-        if (i.value()) {
-            i.key()->_private = 0;
-        }
-    }
-    _readerPointers.clear();
+	{
+		QWriteLocker lock(&_readerPointersMutex);
+		for (ReaderPointers::iterator it = _readerPointers.begin(), e = _readerPointers.end(); it != e; ++it) {
+			it.key()->_private = 0;
+		}
+		_readerPointers.clear();
+	}
 
     for (Readers::iterator i = _readers.begin(), e = _readers.end(); i != e; ++i) {
         delete i.key();
@@ -1195,12 +1233,12 @@ MTPDocumentAttribute clipReadAnimatedAttributes(const QString &fname, const QByt
 		if (reader->readNextFrame(cover, hasAlpha, QSize())) {
 			if (cover.width() > 0 && cover.height() > 0 && cover.width() < cover.height() * 10 && cover.height() < cover.width() * 10) {
 				if (hasAlpha) {
-					QImage cache;
+					QImage cacheForResize;
 					ClipFrameRequest request;
 					request.framew = request.outerw = cover.width();
 					request.frameh = request.outerh = cover.height();
 					request.factor = 1;
-					cover = _prepareFrame(request, cover, cache, hasAlpha).toImage();
+					cover = _prepareFrame(request, cover, hasAlpha, cacheForResize).toImage();
 				}
 				int32 duration = reader->duration();
 				delete reader;

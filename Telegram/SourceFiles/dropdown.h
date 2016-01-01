@@ -736,6 +736,8 @@ public:
 	bool moveSel(int direction);
 	bool select();
 
+	void setRecentInlineBotsInRows(int32 bots);
+
 	QString getSelected() const;
 
 signals:
@@ -756,6 +758,7 @@ private:
 	MentionRows *_mrows;
 	HashtagRows *_hrows;
 	BotCommandRows *_brows;
+	int32 _recentInlineBotsInRows;
 	int32 _sel;
 	bool _mouseSel;
 	QPoint _mousePos;
@@ -775,7 +778,7 @@ public:
 	void fastHide();
 
 	bool clearFilteredBotCommands();
-	void showFiltered(PeerData *peer, QString start);
+	void showFiltered(PeerData *peer, QString query, bool start);
 	void updateFiltered(bool toDown = false);
 	void setBoundings(QRect boundings);
 
@@ -820,7 +823,7 @@ private:
 	HashtagRows _hrows;
 	BotCommandRows _brows;
 
-	void rowsUpdated(const MentionRows &rows, const HashtagRows &hrows, const BotCommandRows &brows, bool toDown);
+	void rowsUpdated(const MentionRows &mrows, const HashtagRows &hrows, const BotCommandRows &brows, bool toDown);
 
 	ScrollArea _scroll;
 	MentionsInner _inner;
@@ -830,6 +833,7 @@ private:
 	ChannelData *_channel;
 	QString _filter;
 	QRect _boundings;
+	bool _addInlineBots;
 
 	int32 _width, _height;
 	bool _hiding;

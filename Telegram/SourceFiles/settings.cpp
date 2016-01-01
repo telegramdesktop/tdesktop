@@ -121,6 +121,8 @@ int32 gSavedGifsLimit = 100;
 
 RecentHashtagPack gRecentWriteHashtags, gRecentSearchHashtags;
 
+RecentInlineBots gRecentInlineBots;
+
 bool gPasswordRecovered = false;
 int32 gPasscodeBadTries = 0;
 uint64 gPasscodeLastTry = 0;

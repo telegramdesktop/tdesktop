@@ -80,6 +80,8 @@ namespace Notify {
 	void userIsContactChanged(UserData *user, bool fromThisApp = false);
 	void botCommandsChanged(UserData *user);
 
+	void inlineBotRequesting(bool requesting);
+
 	void migrateUpdated(PeerData *peer);
 
 	void clipStopperHidden(ClipStopperType type);

@@ -1307,6 +1307,13 @@ btnAttachEmoji: iconedButton(btnAttachDocument) {
 
 	width: 33px;
 }
+emojiCircle: size(19px, 19px);
+emojiCirclePeriod: 1500;
+emojiCircleDuration: 500;
+emojiCircleTop: 13px;
+emojiCircleLine: 2px;
+emojiCircleFg: #b9b9b9;
+emojiCirclePart: 3.5;
 btnBotKbShow: iconedButton(btnAttachEmoji) {
 	icon: sprite(375px, 74px, 21px, 21px);
 	iconPos: point(6px, 12px);

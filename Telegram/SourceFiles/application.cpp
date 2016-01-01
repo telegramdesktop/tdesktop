@@ -548,7 +548,7 @@ void Application::stopUpdate() {
 void Application::startUpdateCheck(bool forceWait) {
 	updateCheckTimer.stop();
 	if (updateRequestId || updateThread || updateReply || !cAutoUpdate()) return;
-	
+
 	int32 constDelay = cBetaVersion() ? 600 : UpdateDelayConstPart, randDelay = cBetaVersion() ? 300 : UpdateDelayRandPart;
 	int32 updateInSecs = cLastUpdateCheck() + constDelay + int32(MTP::nonce<uint32>() % randDelay) - unixtime();
 	bool sendRequest = (updateInSecs <= 0 || updateInSecs > (constDelay + randDelay));
@@ -684,7 +684,7 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 	socket.close();
 
 	psCheckLocalSocket(serverName);
-  
+
 	if (!server.listen(serverName)) {
 		DEBUG_LOG(("Application Error: failed to start listening to %1 server, error %2").arg(serverName).arg(int(server.serverError())));
 		return App::quit();
@@ -705,10 +705,11 @@ void Application::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (cDevVersion() && Local::oldMapVersion() < 9014) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Sticker management: manually rearrange your sticker packs, pack order is now synced across all your devices\n\xe2\x80\x94 Click and hold on a sticker to preview it before sending\n\xe2\x80\x94 New context menu for chats in chats list\n\xe2\x80\x94 Support for all existing emoji");// .replace('@', qsl("@") + QChar(0x200D));
+			if (cDevVersion() && Local::oldMapVersion() < 9016) {
+//				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Sticker management: manually rearrange your sticker packs, pack order is now synced across all your devices\n\xe2\x80\x94 Click and hold on a sticker to preview it before sending\n\xe2\x80\x94 New context menu for chats in chats list\n\xe2\x80\x94 Support for all existing emoji");// .replace('@', qsl("@") + QChar(0x200D));
+				versionFeatures = lng_new_version_text(lt_gifs_link, qsl("https://telegram.org/blog/gif-revolution"), lt_bots_link, qsl("https://telegram.org/blog/inline-bots")).trimmed();
 			} else if (Local::oldMapVersion() < 9015) {
-//				versionFeatures = lang(lng_new_version_text).trimmed();
+				versionFeatures = lng_new_version_text(lt_gifs_link, qsl("https://telegram.org/blog/gif-revolution"), lt_bots_link, qsl("https://telegram.org/blog/inline-bots")).trimmed();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}
@@ -769,7 +770,7 @@ void Application::startApp() {
 	}
 
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
-	
+
 	if (state != Local::ReadMapPassNeeded) {
 		checkMapVersion();
 	}
@@ -912,7 +913,7 @@ Application::~Application() {
 	cSetChatDogImage(0);
 
 	style::stopManager();
-	
+
 	delete _translator;
 }
 

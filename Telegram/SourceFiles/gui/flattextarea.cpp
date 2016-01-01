@@ -270,7 +270,9 @@ EmojiPtr FlatTextarea::getSingleEmoji() const {
 	return 0;
 }
 
-void FlatTextarea::getMentionHashtagBotCommandStart(QString &start, UserData *&inlineBot, QString &inlineBotUsername) const {
+QString FlatTextarea::getMentionHashtagBotCommandPart(bool &start, UserData *&inlineBot, QString &inlineBotUsername) const {
+	start = false;
+
 	// check inline bot query
 	const QString &text(getLastText());
 	int32 inlineUsernameStart = 1, inlineUsernameLength = 0, size = text.size();
@@ -301,13 +303,12 @@ void FlatTextarea::getMentionHashtagBotCommandStart(QString &start, UserData *&i
 					inlineBot = InlineBotLookingUpData;
 				}
 			}
-			if (inlineBot == InlineBotLookingUpData) return;
+			if (inlineBot == InlineBotLookingUpData) return QString();
 
 			if (inlineBot && (!inlineBot->botInfo || inlineBot->botInfo->inlinePlaceholder.isEmpty())) {
 				inlineBot = 0;
 			} else {
-				start = text.mid(inlineUsernameStart + inlineUsernameLength + 1);
-				return;
+				return text.mid(inlineUsernameStart + inlineUsernameLength + 1);
 			}
 		} else {
 			inlineUsernameLength = 0;
@@ -319,7 +320,7 @@ void FlatTextarea::getMentionHashtagBotCommandStart(QString &start, UserData *&i
 	}
 
 	int32 pos = textCursor().position();
-	if (textCursor().anchor() != pos) return;
+	if (textCursor().anchor() != pos) return QString();
 
 	// check mention / hashtag / bot command
 	QTextDocument *doc(document());
@@ -339,29 +340,33 @@ void FlatTextarea::getMentionHashtagBotCommandStart(QString &start, UserData *&i
 		for (int i = pos - p; i > 0; --i) {
 			if (t.at(i - 1) == '@') {
 				if ((pos - p - i < 1 || t.at(i).isLetter()) && (i < 2 || !(t.at(i - 2).isLetterOrNumber() || t.at(i - 2) == '_'))) {
-					start = t.mid(i - 1, pos - p - i + 1);
+					start = (i == 1) && (p == 0);
+					return t.mid(i - 1, pos - p - i + 1);
 				} else if ((pos - p - i < 1 || t.at(i).isLetter()) && i > 2 && (t.at(i - 2).isLetterOrNumber() || t.at(i - 2) == '_') && !mentionInCommand) {
 					mentionInCommand = true;
 					--i;
 					continue;
 				}
-				return;
+				return QString();
 			} else if (t.at(i - 1) == '#') {
 				if (i < 2 || !(t.at(i - 2).isLetterOrNumber() || t.at(i - 2) == '_')) {
-					start = t.mid(i - 1, pos - p - i + 1);
+					start = (i == 1) && (p == 0);
+					return t.mid(i - 1, pos - p - i + 1);
 				}
-				return;
+				return QString();
 			} else if (t.at(i - 1) == '/') {
 				if (i < 2) {
-					start = t.mid(i - 1, pos - p - i + 1);
+					start = (i == 1) && (p == 0);
+					return t.mid(i - 1, pos - p - i + 1);
 				}
-				return;
+				return QString();
 			}
 			if (pos - p - i > 127 || (!mentionInCommand && (pos - p - i > 63))) break;
 			if (!t.at(i - 1).isLetterOrNumber() && t.at(i - 1) != '_') break;
 		}
-		return;
+		break;
 	}
+	return QString();
 }
 
 void FlatTextarea::onMentionHashtagOrBotCommandInsert(QString str) {
