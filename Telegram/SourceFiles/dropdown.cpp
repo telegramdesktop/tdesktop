@@ -1252,8 +1252,8 @@ void StickerPanInner::setScrollTop(int top) {
 	updateSelected();
 }
 
-int StickerPanInner::countHeight() {
-	int result = 0, minLastH = _maxHeight - st::stickerPanPadding;
+int32 StickerPanInner::countHeight(bool plain) {
+	int result = 0, minLastH = plain ? 0 : (_maxHeight - st::stickerPanPadding);
 	if (_showingInlineItems) {
 		result = st::emojiPanHeader;
 		for (int i = 0, l = _inlineRows.count(); i < l; ++i) {
@@ -1876,20 +1876,27 @@ uint64 StickerPanInner::currentSet(int yOffset) const {
 	return _sets.isEmpty() ? RecentStickerSetId : _sets.back().id;
 }
 
+void StickerPanInner::hideInlineRowsPanel() {
+	clearInlineRows(false);
+	if (_showingInlineItems) {
+		_showingSavedGifs = cShowingSavedGifs();
+		if (_showingSavedGifs) {
+			refreshSavedGifs();
+			emit scrollToY(0);
+			emit scrollUpdated();
+		} else {
+			showStickerSet(RecentStickerSetId);
+		}
+	}
+}
+
 void StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &results, bool resultsDeleted) {
 	int32 count = results.size(), until = 0, untilrow = 0, untilcol = 0;
 	if (!count) {
-		clearInlineRows(resultsDeleted);
-		if (_showingInlineItems) {
-			_showingSavedGifs = cShowingSavedGifs();
-			if (_showingSavedGifs) {
-				refreshSavedGifs();
-				emit scrollToY(0);
-				emit scrollUpdated();
-			} else {
-				showStickerSet(RecentStickerSetId);
-			}
+		if (resultsDeleted) {
+			clearInlineRows(true);
 		}
+		emit emptyInlineRows();
 		return;
 	}
 
@@ -2559,6 +2566,8 @@ EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 , _iconSelX(0, 0)
 , _iconsStartAnim(0)
 , _stickersShown(false)
+, _shownFromInlineQuery(false)
+, _contentMaxHeight(st::emojiPanMaxHeight)
 , _a_slide(animation(this, &EmojiPan::step_slide))
 , e_scroll(this, st::emojiScroll)
 , e_inner()
@@ -2620,6 +2629,8 @@ EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 	connect(&s_inner, SIGNAL(selected(PhotoData*)), this, SIGNAL(photoSelected(PhotoData*)));
 	connect(&s_inner, SIGNAL(selected(InlineResult*,UserData*)), this, SIGNAL(inlineResultSelected(InlineResult*,UserData*)));
 
+	connect(&s_inner, SIGNAL(emptyInlineRows()), this, SLOT(onEmptyInlineRows()));
+
 	connect(&s_switch, SIGNAL(clicked()), this, SLOT(onSwitch()));
 	connect(&e_switch, SIGNAL(clicked()), this, SLOT(onSwitch()));
 	s_switch.moveToRight(0, 0, st::emojiPanWidth);
@@ -2648,7 +2659,7 @@ EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 }
 
 void EmojiPan::setMaxHeight(int32 h) {
-	h = qMin(int(st::emojiPanMaxHeight), h);
+	h = qMin(_contentMaxHeight, h);
 	int32 he = h - st::rbEmoji.height;
 	int32 hs = h - (s_inner.showSectionIcons() ? st::rbEmoji.height : 0);
 	if (h == _maxHeight && he == _maxHeightEmoji && hs == _maxHeightStickers) return;
@@ -3170,6 +3181,8 @@ void EmojiPan::hideStart() {
 }
 
 void EmojiPan::hideAnimated() {
+	if (_hiding) return;
+
 	if (_cache.isNull()) {
 		QPixmap from = _fromCache, to = _toCache;
 		_fromCache = _toCache = QPixmap();
@@ -3219,9 +3232,13 @@ void EmojiPan::showStart() {
 		e_inner.refreshRecent();
 		if (s_inner.inlineResultsShown() && refreshInlineRows()) {
 			_stickersShown = true;
+			_shownFromInlineQuery = true;
+			_contentMaxHeight = qMin(s_inner.countHeight(true), int(st::emojiPanMaxHeight));
 		} else {
 			s_inner.refreshRecent();
 			_stickersShown = false;
+			_shownFromInlineQuery = false;
+			_contentMaxHeight = st::emojiPanMaxHeight;
 		}
 		s_inner.preloadImages();
 		setMaxHeight(_maxHeight);
@@ -3706,6 +3723,14 @@ void EmojiPan::onInlineRequest() {
 	_inlineRequestId = MTP::send(MTPmessages_GetInlineBotResults(_inlineBot->inputUser, MTP_string(_inlineQuery), MTP_string(nextOffset)), rpcDone(&EmojiPan::inlineResultsDone), rpcFail(&EmojiPan::inlineResultsFail));
 }
 
+void EmojiPan::onEmptyInlineRows() {
+	if (_shownFromInlineQuery) {
+		hideAnimated();
+	} else {
+		s_inner.hideInlineRowsPanel();
+	}
+}
+
 bool EmojiPan::refreshInlineRows() {
 	bool clear = true;
 	InlineCache::const_iterator i = _inlineCache.constFind(_inlineQuery);
@@ -3726,6 +3751,10 @@ void EmojiPan::showInlineRows(bool newResults) {
 	e_switch.moveToRight(0, 0, st::emojiPanWidth);
 
 	bool hidden = isHidden();
+	if (!hidden && _shownFromInlineQuery && !clear) {
+		_contentMaxHeight = qMax(s_inner.countHeight(true), int(st::emojiPanMaxHeight));
+		setMaxHeight(_maxHeight);
+	}
 	if (clear && !hidden && _stickersShown && s_inner.inlineResultsShown()) {
 		hideAnimated();
 	} else if (!clear) {

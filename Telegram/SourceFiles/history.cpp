@@ -6554,12 +6554,12 @@ int32 HistoryMessage::resize(int32 width) {
 	if (width < st::msgMinWidth) return _height;
 
 	width -= st::msgMargin.left() + st::msgMargin.right();
+	if (width < st::msgPadding.left() + st::msgPadding.right() + 1) {
+		width = st::msgPadding.left() + st::msgPadding.right() + 1;
+	} else if (width > st::msgMaxWidth) {
+		width = st::msgMaxWidth;
+	}
 	if (drawBubble()) {
-		if (width < st::msgPadding.left() + st::msgPadding.right() + 1) {
-			width = st::msgPadding.left() + st::msgPadding.right() + 1;
-		} else if (width > st::msgMaxWidth) {
-			width = st::msgMaxWidth;
-		}
 		bool media = (_media && _media->isDisplayed());
 		if (width >= _maxw) {
 			_height = _minh;

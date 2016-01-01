@@ -347,6 +347,7 @@ public:
 	void refreshInlineRows(UserData *bot, const InlineResults &results, bool resultsDeleted);
 	void refreshRecent();
 	void inlineBotChanged();
+	void hideInlineRowsPanel();
 
 	void fillIcons(QList<StickerIcon> &icons);
 	void fillPanels(QVector<EmojiPanel*> &panels);
@@ -364,6 +365,7 @@ public:
 	bool inlineResultsShown() const {
 		return _showingInlineItems && !_showingSavedGifs;
 	}
+	int32 countHeight(bool plain = false);
 
 	~StickerPanInner() {
 		clearInlineRows(true);
@@ -387,6 +389,7 @@ signals:
 	void removing(quint64 setId);
 
 	void refreshIcons();
+	void emptyInlineRows();
 
 	void switchToEmoji();
 
@@ -406,7 +409,6 @@ private:
 
 	void appendSet(uint64 setId);
 
-	int32 countHeight();
 	void selectEmoji(EmojiPtr emoji);
 	QRect stickerRect(int tab, int sel);
 
@@ -608,6 +610,7 @@ public slots:
 	void onSaveConfigDelayed(int32 delay);
 
 	void onInlineRequest();
+	void onEmptyInlineRows();
 
 signals:
 
@@ -664,7 +667,8 @@ private:
 	anim::ivalue _iconsX, _iconSelX;
 	uint64 _iconsStartAnim;
 
-	bool _stickersShown;
+	bool _stickersShown, _shownFromInlineQuery;
+	int32 _contentMaxHeight;
 	QPixmap _fromCache, _toCache;
 	anim::ivalue a_fromCoord, a_toCoord;
 	anim::fvalue a_fromAlpha, a_toAlpha;
