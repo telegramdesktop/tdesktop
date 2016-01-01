@@ -149,6 +149,10 @@ namespace Notify {
 		if (MainWidget *m = App::main()) m->notify_botCommandsChanged(user);
 	}
 
+	void inlineBotRequesting(bool requesting) {
+		if (MainWidget *m = App::main()) m->notify_inlineBotRequesting(requesting);
+	}
+
 	void migrateUpdated(PeerData *peer) {
 		if (MainWidget *m = App::main()) m->notify_migrateUpdated(peer);
 	}

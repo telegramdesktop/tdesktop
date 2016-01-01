@@ -3028,6 +3028,10 @@ void HistoryWidget::notify_botCommandsChanged(UserData *user) {
 	}
 }
 
+void HistoryWidget::notify_inlineBotRequesting(bool requesting) {
+	_attachEmoji.setLoading(requesting);
+}
+
 void HistoryWidget::notify_userIsBotChanged(UserData *user) {
 	if (_peer && _peer == user) {
 		_list->notifyIsBotChanged();
@@ -4971,6 +4975,7 @@ bool HistoryWidget::hasBroadcastToggle() const {
 }
 
 void HistoryWidget::inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result) {
+	Notify::inlineBotRequesting(false);
 	_inlineBotUsername = QString();
 	if (result.type() == mtpc_contacts_resolvedPeer) {
 		const MTPDcontacts_resolvedPeer &d(result.c_contacts_resolvedPeer());
@@ -4982,6 +4987,8 @@ void HistoryWidget::inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result)
 
 bool HistoryWidget::inlineBotResolveFail(QString name, const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
+
+	Notify::inlineBotRequesting(false);
 	if (name == _inlineBotUsername) {
 		_inlineBot = 0;
 		onCheckMentionDropdown();
@@ -5335,10 +5342,12 @@ void HistoryWidget::onCheckMentionDropdown() {
 	_field.getMentionHashtagBotCommandStart(start, _inlineBot, _inlineBotUsername);
 	if (inlineBotUsername != _inlineBotUsername) {
 		if (_inlineBotResolveRequestId) {
+			Notify::inlineBotRequesting(false);
 			MTP::cancel(_inlineBotResolveRequestId);
 			_inlineBotResolveRequestId = 0;
 		}
 		if (_inlineBot == InlineBotLookingUpData) {
+			Notify::inlineBotRequesting(true);
 			_inlineBotResolveRequestId = MTP::send(MTPcontacts_ResolveUsername(MTP_string(_inlineBotUsername)), rpcDone(&HistoryWidget::inlineBotResolveDone), rpcFail(&HistoryWidget::inlineBotResolveFail, _inlineBotUsername));
 			return;
 		}

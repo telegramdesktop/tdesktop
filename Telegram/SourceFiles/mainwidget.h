@@ -416,6 +416,7 @@ public:
 	void ui_showPeerHistory(quint64 peer, qint32 msgId, bool back);
 
 	void notify_botCommandsChanged(UserData *bot);
+	void notify_inlineBotRequesting(bool requesting);
 	void notify_userIsBotChanged(UserData *bot);
 	void notify_userIsContactChanged(UserData *user, bool fromThisApp);
 	void notify_migrateUpdated(PeerData *peer);

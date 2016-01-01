@@ -3560,10 +3560,13 @@ void EmojiPan::inlineBotChanged() {
 	}
 	_inlineCache.clear();
 	s_inner.inlineBotChanged();
+
+	Notify::inlineBotRequesting(false);
 }
 
 void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 	_inlineRequestId = 0;
+	Notify::inlineBotRequesting(false);
 
 	InlineCache::iterator it = _inlineCache.find(_inlineQuery);
 
@@ -3659,6 +3662,8 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 
 bool EmojiPan::inlineResultsFail(const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
+
+	Notify::inlineBotRequesting(false);
 	_inlineRequestId = 0;
 	return true;
 }
@@ -3674,6 +3679,7 @@ void EmojiPan::queryInlineBot(UserData *bot, QString query) {
 		if (_inlineRequestId) {
 			MTP::cancel(_inlineRequestId);
 			_inlineRequestId = 0;
+			Notify::inlineBotRequesting(false);
 		}
 		if (_inlineCache.contains(query)) {
 			_inlineRequestTimer.stop();
@@ -3696,6 +3702,7 @@ void EmojiPan::onInlineRequest() {
 		nextOffset = i.value()->nextOffset;
 		if (nextOffset.isEmpty()) return;
 	}
+	Notify::inlineBotRequesting(true);
 	_inlineRequestId = MTP::send(MTPmessages_GetInlineBotResults(_inlineBot->inputUser, MTP_string(_inlineQuery), MTP_string(nextOffset)), rpcDone(&EmojiPan::inlineResultsDone), rpcFail(&EmojiPan::inlineResultsFail));
 }
 

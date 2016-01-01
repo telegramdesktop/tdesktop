@@ -106,7 +106,7 @@ public:
 
 	void setText(const QString &text);
 	QString getText() const;
-	
+
 public slots:
 
 	void onStateChange(int oldState, ButtonStateChangeSource source);
@@ -133,6 +133,28 @@ public:
 	MaskedButton(QWidget *parent, const style::iconedButton &st, const QString &text = QString());
 
 	void paintEvent(QPaintEvent *e);
+
+};
+
+class EmojiButton : public IconedButton {
+	Q_OBJECT
+
+public:
+	EmojiButton(QWidget *parent, const style::iconedButton &st);
+
+	void paintEvent(QPaintEvent *e);
+	void setLoading(bool loading);
+
+private:
+	bool _loading;
+	FloatAnimation a_loading;
+	Animation _a_loading;
+
+	void step_loading(uint64 ms, bool timer) {
+		if (timer) {
+			update();
+		}
+	}
 
 };
 

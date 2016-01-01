@@ -568,6 +568,7 @@ public:
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
 	void notify_automaticLoadSettingsChangedGif();
 	void notify_botCommandsChanged(UserData *user);
+	void notify_inlineBotRequesting(bool requesting);
 	void notify_userIsBotChanged(UserData *user);
 	void notify_migrateUpdated(PeerData *peer);
 	void notify_clipStopperHidden(ClipStopperType type);
@@ -784,7 +785,9 @@ private:
 
 	FlatButton _send, _unblock, _botStart, _joinChannel, _muteUnmute;
 	mtpRequestId _unblockRequest, _reportSpamRequest;
-	IconedButton _attachDocument, _attachPhoto, _attachEmoji, _kbShow, _kbHide, _cmdStart;
+	IconedButton _attachDocument, _attachPhoto;
+	EmojiButton _attachEmoji;
+	IconedButton _kbShow, _kbHide, _cmdStart;
 	FlatCheckbox _broadcast;
 	bool _cmdStartShown;
 	MessageField _field;

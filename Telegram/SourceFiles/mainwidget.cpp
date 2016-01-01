@@ -759,6 +759,10 @@ void MainWidget::notify_botCommandsChanged(UserData *bot) {
 	history.notify_botCommandsChanged(bot);
 }
 
+void MainWidget::notify_inlineBotRequesting(bool requesting) {
+	history.notify_inlineBotRequesting(requesting);
+}
+
 void MainWidget::notify_userIsBotChanged(UserData *bot) {
 	history.notify_userIsBotChanged(bot);
 }
