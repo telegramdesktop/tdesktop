@@ -832,7 +832,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "GIF 혁명: 10배 빠른 전송, 다운로드 및 자동재생이 가능하며, 스티커 패널에서 즐겨찾는 GIF를 저장가능\n\nGIF에 대한 자세한 정보:\n{gifs_link}\n\n@-봇 : 모든 대화에 봇 기능을 추가 할 수 있습니다. 봇 아이디를 입력란에 같이 입력해주시면 즉시 결과값을 확인 할 수 있습니다.\"@gif dog\"와 같은 명령어를 입력란에 같이 입력해보세요. 예시:@gif, @wiki, @bingpic, @vid.\n\n@-봇에 대한 자세한 정보\n{bots_link}\n\n업데이트 추가사항: 미디어, 사진, 음성메시지 및 GIF 파일 자동다운로드 설정화면 새로운 디자인 적용";
+"lng_new_version_text" = "GIF 혁명: 10배 빠른 전송, 다운로드 및 자동재생이 가능하며, 스티커 패널에서 즐겨찾는 GIF를 저장가능\n\nGIF에 대한 자세한 정보:\n{gifs_link}\n\n@-봇 : 모든 대화에 봇 기능을 추가 할 수 있습니다. 봇 아이디를 입력란에 같이 입력해주시면 즉시 결과값을 확인 할 수 있습니다.“@gif dog”와 같은 명령어를 입력란에 같이 입력해보세요. 예시:@gif, @wiki, @bing, @vid, @bold.\n\n@-봇에 대한 자세한 정보\n{bots_link}\n\n업데이트 추가사항: 미디어, 사진, 음성메시지 및 GIF 파일 자동다운로드 설정화면 새로운 디자인 적용";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

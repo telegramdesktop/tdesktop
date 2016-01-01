@@ -832,7 +832,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "GIF-revolutie: 10 keer zo snel GIF's sturen en downloaden. Speel ze automatisch af en sla je favorieten op in het stickerpaneel.\n\nmeer over GIFs:\n{gifs_link}\n\nInline-bots: Voeg botcontent toe aan chats op een nieuwe manier! Geef in het invoerveld de naam van een bot en je commando in en stuur de resultaten naar je chatpartner. Probeer het eens met “@gif dog”. Voorbeelden: @gif, @wiki, @bing, @vid.\n\nMeer over inline-bots:\n{bots_link}\n\nIn deze release hebben we nog meer voor je. Een nieuw design voor media en automatische download-instellingen voor foto's, spraakberichten en GIF's.";
+"lng_new_version_text" = "GIF-revolutie: 10 keer zo snel GIF's sturen en downloaden. Speel ze automatisch af en sla je favorieten op in het stickerpaneel.\n\nMeer over GIFs:\n{gifs_link}\n\nInline-bots: Voeg botcontent toe aan chats op een nieuwe manier! Geef in het invoerveld de naam van een bot en je commando in en stuur de resultaten naar je chatpartner. Probeer het eens met “@gif dog”. Voorbeelden: @gif, @wiki, @bing, @vid, @bold.\n\nMeer over inline-bots:\n{bots_link}\n\nIn deze release hebben we nog meer voor je. Een nieuw design voor media en automatische download-instellingen voor foto's, spraakberichten en GIF's.";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
