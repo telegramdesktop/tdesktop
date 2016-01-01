@@ -1897,9 +1897,9 @@ LayoutInlineArticle::LayoutInlineArticle(InlineResult *result, bool withThumb) :
 , _withThumb(withThumb)
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
-	QVector<QStringRef> parts = _result->url.splitRef('/');
+	QStringList parts = _result->url.split('/');
 	if (!parts.isEmpty()) {
-		QStringRef domain = parts.at(0);
+		QString domain = parts.at(0);
 		if (parts.size() > 2 && domain.endsWith(':') && parts.at(1).isEmpty()) { // http:// and others
 			domain = parts.at(2);
 		}
