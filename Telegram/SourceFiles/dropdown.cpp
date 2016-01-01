@@ -3766,7 +3766,7 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 		if (selected) {
 			p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::mentionBgOver->b);
 			int skip = (st::mentionHeight - st::notifyClose.icon.pxHeight()) / 2;
-			if (!_hrows->isEmpty()) p.drawPixmap(QPoint(width() - st::notifyClose.icon.pxWidth() - skip, i * st::mentionHeight + skip), App::sprite(), st::notifyClose.icon);
+			if (!_hrows->isEmpty() || (!_mrows->isEmpty() && i < _recentInlineBotsInRows)) p.drawPixmap(QPoint(width() - st::notifyClose.icon.pxWidth() - skip, i * st::mentionHeight + skip), App::sprite(), st::notifyClose.icon);
 		}
 		p.setPen(st::black->p);
 		if (!_mrows->isEmpty()) {
@@ -3902,6 +3902,10 @@ bool MentionsInner::select() {
 	return false;
 }
 
+void MentionsInner::setRecentInlineBotsInRows(int32 bots) {
+	_recentInlineBotsInRows = bots;
+}
+
 QString MentionsInner::getSelected() const {
 	int32 maxSel = (_mrows->isEmpty() ? (_hrows->isEmpty() ? _brows->size() : _hrows->size()) : _mrows->size());
 	if (_sel >= 0 && _sel < maxSel) {
@@ -3930,20 +3934,32 @@ void MentionsInner::mousePressEvent(QMouseEvent *e) {
 	_mouseSel = true;
 	onUpdateSelected(true);
 	if (e->button() == Qt::LeftButton) {
-		if (_overDelete && _sel >= 0 && _sel < _hrows->size()) {
+		if (_overDelete && _sel >= 0 && _sel < (_mrows->isEmpty() ? _hrows->size() : _recentInlineBotsInRows)) {
 			_mousePos = mapToGlobal(e->pos());
-
-			QString toRemove = _hrows->at(_sel);
-			RecentHashtagPack recent(cRecentWriteHashtags());
-			for (RecentHashtagPack::iterator i = recent.begin(); i != recent.cend();) {
-				if (i->first == toRemove) {
-					i = recent.erase(i);
-				} else {
-					++i;
+			bool removed = false;
+			if (_mrows->isEmpty()) {
+				QString toRemove = _hrows->at(_sel);
+				RecentHashtagPack &recent(cRefRecentWriteHashtags());
+				for (RecentHashtagPack::iterator i = recent.begin(); i != recent.cend();) {
+					if (i->first == toRemove) {
+						i = recent.erase(i);
+						removed = true;
+					} else {
+						++i;
+					}
+				}
+			} else {
+				UserData *toRemove = _mrows->at(_sel);
+				RecentInlineBots &recent(cRefRecentInlineBots());
+				int32 index = recent.indexOf(toRemove);
+				if (index >= 0) {
+					recent.remove(index);
+					removed = true;
 				}
 			}
-			cSetRecentWriteHashtags(recent);
-			Local::writeRecentHashtags();
+			if (removed) {
+				Local::writeRecentHashtagsAndBots();
+			}
 			_parent->updateFiltered();
 
 			_mouseSel = true;
@@ -3980,8 +3996,8 @@ void MentionsInner::onUpdateSelected(bool force) {
 	if ((!force && !rect().contains(mouse)) || !_mouseSel) return;
 
 	int w = width(), mouseY = mouse.y();
-	_overDelete = _mrows->isEmpty() && (mouse.x() >= w - st::mentionHeight);
 	int32 sel = mouseY / int32(st::mentionHeight), maxSel = _mrows->isEmpty() ? (_hrows->isEmpty() ? _brows->size() : _hrows->size()) : _mrows->size();
+	_overDelete = (!_hrows->isEmpty() || (!_mrows->isEmpty() && sel < _recentInlineBotsInRows)) ? (mouse.x() >= w - st::mentionHeight) : false;
 	if (sel < 0 || sel >= maxSel) {
 		sel = -1;
 	}
@@ -4043,15 +4059,23 @@ void MentionsDropdown::paintEvent(QPaintEvent *e) {
 
 }
 
-void MentionsDropdown::showFiltered(PeerData *peer, QString start) {
+void MentionsDropdown::showFiltered(PeerData *peer, QString query, bool start) {
+	if (query.isEmpty() || (peer->isUser() && query.at(0) == '@' && (!start || cRecentInlineBots().isEmpty()))) {
+		if (!isHidden()) {
+			hideStart();
+		}
+		return;
+	}
+
 	_chat = peer->asChat();
 	_user = peer->asUser();
 	_channel = peer->asChannel();
-	start = start.toLower();
-	bool toDown = (_filter != start);
+	query = query.toLower();
+	bool toDown = (_filter != query);
 	if (toDown) {
-		_filter = start;
+		_filter = query;
 	}
+	_addInlineBots = start;
 
 	updateFiltered(toDown);
 }
@@ -4063,13 +4087,34 @@ bool MentionsDropdown::clearFilteredBotCommands() {
 }
 
 void MentionsDropdown::updateFiltered(bool toDown) {
-	int32 now = unixtime();
-	MentionRows rows;
+	int32 now = unixtime(), recentInlineBots = 0;
+	MentionRows mrows;
 	HashtagRows hrows;
 	BotCommandRows brows;
+	if (_filter.at(0) == '@') {
+		if (_chat) {
+			mrows.reserve((_addInlineBots ? cRecentInlineBots().size() : 0) + (_chat->participants.isEmpty() ? _chat->lastAuthors.size() : _chat->participants.size()));
+		} else if (_channel && _channel->isMegagroup()) {
+			if (_channel->mgInfo->lastParticipants.isEmpty() || _channel->lastParticipantsCountOutdated()) {
+			} else {
+				mrows.reserve((_addInlineBots ? cRecentInlineBots().size() : 0) + _channel->mgInfo->lastParticipants.size());
+			}
+		} else if (_addInlineBots) {
+			mrows.reserve(cRecentInlineBots().size());
+		}
+		if (_addInlineBots) {
+			for (RecentInlineBots::const_iterator i = cRecentInlineBots().cbegin(), e = cRecentInlineBots().cend(); i != e; ++i) {
+				UserData *user = *i;
+				if (user->username.isEmpty()) continue;
+				if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
+				mrows.push_back(user);
+				++recentInlineBots;
+			}
+		}
+	}
 	if (_filter.at(0) == '@' && _chat) {
 		QMultiMap<int32, UserData*> ordered;
-		rows.reserve(_chat->participants.isEmpty() ? _chat->lastAuthors.size() : _chat->participants.size());
+		mrows.reserve(mrows.size() + (_chat->participants.isEmpty() ? _chat->lastAuthors.size() : _chat->participants.size()));
 		if (_chat->noParticipantInfo()) {
 			if (App::api()) App::api()->requestFullPeer(_chat);
 		} else if (!_chat->participants.isEmpty()) {
@@ -4084,7 +4129,7 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 			UserData *user = *i;
 			if (user->username.isEmpty()) continue;
 			if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
-			rows.push_back(user);
+			mrows.push_back(user);
 			if (!ordered.isEmpty()) {
 				ordered.remove(App::onlineForSort(user, now), user);
 			}
@@ -4092,7 +4137,7 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 		if (!ordered.isEmpty()) {
 			for (QMultiMap<int32, UserData*>::const_iterator i = ordered.cend(), b = ordered.cbegin(); i != b;) {
 				--i;
-				rows.push_back(i.value());
+				mrows.push_back(i.value());
 			}
 		}
 	} else if (_filter.at(0) == '@' && _channel && _channel->isMegagroup()) {
@@ -4100,12 +4145,12 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 		if (_channel->mgInfo->lastParticipants.isEmpty() || _channel->lastParticipantsCountOutdated()) {
 			if (App::api()) App::api()->requestLastParticipants(_channel);
 		} else {
-			rows.reserve(_channel->mgInfo->lastParticipants.size());
+			mrows.reserve(mrows.size() + _channel->mgInfo->lastParticipants.size());
 			for (MegagroupInfo::LastParticipants::const_iterator i = _channel->mgInfo->lastParticipants.cbegin(), e = _channel->mgInfo->lastParticipants.cend(); i != e; ++i) {
 				UserData *user = *i;
 				if (user->username.isEmpty()) continue;
 				if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
-				rows.push_back(user);
+				mrows.push_back(user);
 			}
 		}
 	} else if (_filter.at(0) == '#') {
@@ -4184,7 +4229,8 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 			}
 		}
 	}
-	rowsUpdated(rows, hrows, brows, toDown);
+	rowsUpdated(mrows, hrows, brows, toDown);
+	_inner.setRecentInlineBotsInRows(recentInlineBots);
 }
 
 void MentionsDropdown::rowsUpdated(const MentionRows &mrows, const HashtagRows &hrows, const BotCommandRows &brows, bool toDown) {

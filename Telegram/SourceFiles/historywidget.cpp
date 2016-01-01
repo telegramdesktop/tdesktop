@@ -5338,8 +5338,9 @@ void HistoryWidget::onCheckMentionDropdown() {
 	if (!_history || _a_show.animating()) return;
 
 	UserData *bot = _inlineBot;
-	QString start, inlineBotUsername(_inlineBotUsername);
-	_field.getMentionHashtagBotCommandStart(start, _inlineBot, _inlineBotUsername);
+	bool start = false;
+	QString inlineBotUsername(_inlineBotUsername);
+	QString query = _field.getMentionHashtagBotCommandPart(start, _inlineBot, _inlineBotUsername);
 	if (inlineBotUsername != _inlineBotUsername) {
 		if (_inlineBotResolveRequestId) {
 			Notify::inlineBotRequesting(false);
@@ -5359,10 +5360,10 @@ void HistoryWidget::onCheckMentionDropdown() {
 		if (_inlineBot != bot) {
 			updateFieldPlaceholder();
 		}
-		if (_inlineBot->username == (cTestMode() ? qstr("contextbot") : qstr("gif")) && start.isEmpty()) {
+		if (_inlineBot->username == (cTestMode() ? qstr("contextbot") : qstr("gif")) && query.isEmpty()) {
 			_emojiPan.clearInlineBot();
 		} else {
-			_emojiPan.queryInlineBot(_inlineBot, start);
+			_emojiPan.queryInlineBot(_inlineBot, query);
 		}
 		if (!_attachMention.isHidden()) {
 			_attachMention.hideStart();
@@ -5373,16 +5374,12 @@ void HistoryWidget::onCheckMentionDropdown() {
 			_field.finishPlaceholder();
 		}
 		_emojiPan.clearInlineBot();
-		if (!start.isEmpty()) {
-			if (start.at(0) == '#' && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) Local::readRecentHashtags();
-			if (start.at(0) == '@' && _peer->isUser()) return;
-			if (start.at(0) == '/' && _peer->isUser() && !_peer->asUser()->botInfo) return;
-			_attachMention.showFiltered(_peer, start);
-		} else {
-			if (!_attachMention.isHidden()) {
-				_attachMention.hideStart();
-			}
+		if (!query.isEmpty()) {
+			if (query.at(0) == '#' && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) Local::readRecentHashtagsAndBots();
+			if (query.at(0) == '@' && cRecentInlineBots().isEmpty()) Local::readRecentHashtagsAndBots();
+			if (query.at(0) == '/' && _peer->isUser() && !_peer->asUser()->botInfo) return;
 		}
+		_attachMention.showFiltered(_peer, query, start);
 	}
 }
 
@@ -6427,6 +6424,18 @@ void HistoryWidget::onInlineResultSend(InlineResult *result, UserData *bot) {
 	_saveDraftText = true;
 	_saveDraftStart = getms();
 	onDraftSave();
+
+	RecentInlineBots &bots(cRefRecentInlineBots());
+	int32 index = bots.indexOf(bot);
+	if (index) {
+		if (index > 0) {
+			bots.removeAt(index);
+		} else if (bots.size() >= RecentInlineBotsLimit) {
+			bots.resize(RecentInlineBotsLimit - 1);
+		}
+		bots.push_front(bot);
+		Local::writeRecentHashtagsAndBots();
+	}
 
 	onCheckMentionDropdown();
 	if (!_attachType.isHidden()) _attachType.hideStart();

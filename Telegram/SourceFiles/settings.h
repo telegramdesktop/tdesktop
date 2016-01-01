@@ -230,8 +230,12 @@ DeclareSetting(bool, ShowingSavedGifs);
 DeclareSetting(int32, SavedGifsLimit);
 
 typedef QList<QPair<QString, ushort> > RecentHashtagPack;
-DeclareSetting(RecentHashtagPack, RecentWriteHashtags);
+DeclareRefSetting(RecentHashtagPack, RecentWriteHashtags);
 DeclareSetting(RecentHashtagPack, RecentSearchHashtags);
+
+class UserData;
+typedef QVector<UserData*> RecentInlineBots;
+DeclareRefSetting(RecentInlineBots, RecentInlineBots);
 
 DeclareSetting(bool, PasswordRecovered);
 

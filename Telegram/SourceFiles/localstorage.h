@@ -157,8 +157,8 @@ namespace Local {
 	void writeBackground(int32 id, const QImage &img);
 	bool readBackground();
 
-	void writeRecentHashtags();
-	void readRecentHashtags();
+	void writeRecentHashtagsAndBots();
+	void readRecentHashtagsAndBots();
 
 	void addSavedPeer(PeerData *peer, const QDateTime &position);
 	void removeSavedPeer(PeerData *peer);

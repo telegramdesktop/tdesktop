@@ -1349,7 +1349,7 @@ void MainWidget::saveRecentHashtags(const QString &text) {
 			}
 		}
 		if (!found && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) {
-			Local::readRecentHashtags();
+			Local::readRecentHashtagsAndBots();
 			recent = cRecentWriteHashtags();
 		}
 		found = true;
@@ -1357,7 +1357,7 @@ void MainWidget::saveRecentHashtags(const QString &text) {
 	}
 	if (found) {
 		cSetRecentWriteHashtags(recent);
-		Local::writeRecentHashtags();
+		Local::writeRecentHashtagsAndBots();
 	}
 }
 

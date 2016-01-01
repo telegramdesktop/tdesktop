@@ -129,7 +129,7 @@ namespace Ui {
 
 	void showPeerHistoryAsync(const PeerId &peer, MsgId msgId) {
 		if (MainWidget *m = App::main()) {
-			QMetaObject::invokeMethod(m, SLOT(ui_showPeerHistoryAsync(quint64,qint32)), Qt::QueuedConnection, Q_ARG(quint64, peer), Q_ARG(qint32, msgId));
+			QMetaObject::invokeMethod(m, "ui_showPeerHistoryAsync", Qt::QueuedConnection, Q_ARG(quint64, peer), Q_ARG(qint32, msgId));
 		}
 	}
 

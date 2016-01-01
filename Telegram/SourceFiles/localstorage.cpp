@@ -538,22 +538,22 @@ namespace {
 	FileKey _dataNameKey = 0;
 
 	enum { // Local Storage Keys
-		lskUserMap            = 0x00,
-		lskDraft              = 0x01, // data: PeerId peer
-		lskDraftPosition      = 0x02, // data: PeerId peer
-		lskImages             = 0x03, // data: StorageKey location
-		lskLocations          = 0x04, // no data
-		lskStickerImages      = 0x05, // data: StorageKey location
-		lskAudios             = 0x06, // data: StorageKey location
-		lskRecentStickersOld  = 0x07, // no data
-		lskBackground         = 0x08, // no data
-		lskUserSettings       = 0x09, // no data
-		lskRecentHashtags     = 0x0a, // no data
-		lskStickers           = 0x0b, // no data
-		lskSavedPeers         = 0x0c, // no data
-		lskReportSpamStatuses = 0x0d, // no data
-		lskSavedGifsOld       = 0x0e,
-		lskSavedGifs          = 0x0f,
+		lskUserMap               = 0x00,
+		lskDraft                 = 0x01, // data: PeerId peer
+		lskDraftPosition         = 0x02, // data: PeerId peer
+		lskImages                = 0x03, // data: StorageKey location
+		lskLocations             = 0x04, // no data
+		lskStickerImages         = 0x05, // data: StorageKey location
+		lskAudios                = 0x06, // data: StorageKey location
+		lskRecentStickersOld     = 0x07, // no data
+		lskBackground            = 0x08, // no data
+		lskUserSettings          = 0x09, // no data
+		lskRecentHashtagsAndBots = 0x0a, // no data
+		lskStickers              = 0x0b, // no data
+		lskSavedPeers            = 0x0c, // no data
+		lskReportSpamStatuses    = 0x0d, // no data
+		lskSavedGifsOld          = 0x0e, // no data
+		lskSavedGifs             = 0x0f, // no data
 	};
 
 	typedef QMap<PeerId, FileKey> DraftsMap;
@@ -581,8 +581,8 @@ namespace {
 	bool _backgroundWasRead = false;
 
 	FileKey _userSettingsKey = 0;
-	FileKey _recentHashtagsKey = 0;
-	bool _recentHashtagsWereRead = false;
+	FileKey _recentHashtagsAndBotsKey = 0;
+	bool _recentHashtagsAndBotsWereRead = false;
 
 	FileKey _savedPeersKey = 0;
 
@@ -726,18 +726,20 @@ namespace {
 				_fileLocationAliases.insert(MediaKey(kfirst, ksecond), MediaKey(vfirst, vsecond));
 			}
 
-			_storageWebFilesSize = 0;
-			_webFilesMap.clear();
+			if (!locations.stream.atEnd()) {
+				_storageWebFilesSize = 0;
+				_webFilesMap.clear();
 
-			quint32 webLocationsCount;
-			locations.stream >> webLocationsCount;
-			for (quint32 i = 0; i < webLocationsCount; ++i) {
-				QString url;
-				quint64 key;
-				qint32 size;
-				locations.stream >> url >> key >> size;
-				_webFilesMap.insert(url, FileDesc(key, size));
-				_storageWebFilesSize += size;
+				quint32 webLocationsCount;
+				locations.stream >> webLocationsCount;
+				for (quint32 i = 0; i < webLocationsCount; ++i) {
+					QString url;
+					quint64 key;
+					qint32 size;
+					locations.stream >> url >> key >> size;
+					_webFilesMap.insert(url, FileDesc(key, size));
+					_storageWebFilesSize += size;
+				}
 			}
 		}
 	}
@@ -1667,7 +1669,7 @@ namespace {
 		qint64 storageImagesSize = 0, storageStickersSize = 0, storageAudiosSize = 0;
 		quint64 locationsKey = 0, reportSpamStatusesKey = 0;
 		quint64 recentStickersKeyOld = 0, stickersKey = 0, savedGifsKey = 0;
-		quint64 backgroundKey = 0, userSettingsKey = 0, recentHashtagsKey = 0, savedPeersKey = 0;
+		quint64 backgroundKey = 0, userSettingsKey = 0, recentHashtagsAndBotsKey = 0, savedPeersKey = 0;
 		while (!map.stream.atEnd()) {
 			quint32 keyType;
 			map.stream >> keyType;
@@ -1744,8 +1746,8 @@ namespace {
 			case lskUserSettings: {
 				map.stream >> userSettingsKey;
 			} break;
-			case lskRecentHashtags: {
-				map.stream >> recentHashtagsKey;
+			case lskRecentHashtagsAndBots: {
+				map.stream >> recentHashtagsAndBotsKey;
 			} break;
 			case lskStickers: {
 				map.stream >> stickersKey;
@@ -1788,7 +1790,7 @@ namespace {
 		_savedPeersKey = savedPeersKey;
 		_backgroundKey = backgroundKey;
 		_userSettingsKey = userSettingsKey;
-		_recentHashtagsKey = recentHashtagsKey;
+		_recentHashtagsAndBotsKey = recentHashtagsAndBotsKey;
 		_oldMapVersion = mapData.version;
 		if (_oldMapVersion < AppVersion) {
 			_mapChanged = true;
@@ -1861,7 +1863,7 @@ namespace {
 		if (_savedPeersKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_backgroundKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_userSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
-		if (_recentHashtagsKey) mapSize += sizeof(quint32) + sizeof(quint64);
+		if (_recentHashtagsAndBotsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		EncryptedDescriptor mapData(mapSize);
 		if (!_draftsMap.isEmpty()) {
 			mapData.stream << quint32(lskDraft) << quint32(_draftsMap.size());
@@ -1917,8 +1919,8 @@ namespace {
 		if (_userSettingsKey) {
 			mapData.stream << quint32(lskUserSettings) << quint64(_userSettingsKey);
 		}
-		if (_recentHashtagsKey) {
-			mapData.stream << quint32(lskRecentHashtags) << quint64(_recentHashtagsKey);
+		if (_recentHashtagsAndBotsKey) {
+			mapData.stream << quint32(lskRecentHashtagsAndBots) << quint64(_recentHashtagsAndBotsKey);
 		}
 		map.writeEncrypted(mapData);
 
@@ -2187,7 +2189,7 @@ namespace Local {
 		_storageWebFilesSize = 0;
 		_locationsKey = _reportSpamStatusesKey = 0;
 		_recentStickersKeyOld = _stickersKey = _savedGifsKey = 0;
-		_backgroundKey = _userSettingsKey = _recentHashtagsKey = _savedPeersKey = 0;
+		_backgroundKey = _userSettingsKey = _recentHashtagsAndBotsKey = _savedPeersKey = 0;
 		_oldMapVersion = _oldSettingsVersion = 0;
 		_mapChanged = true;
 		_writeMap(WriteMapNow);
@@ -3258,89 +3260,6 @@ namespace Local {
 		return false;
 	}
 
-	void writeRecentHashtags() {
-		if (!_working()) return;
-
-		const RecentHashtagPack &write(cRecentWriteHashtags()), &search(cRecentSearchHashtags());
-		if (write.isEmpty() && search.isEmpty()) readRecentHashtags();
-		if (write.isEmpty() && search.isEmpty()) {
-			if (_recentHashtagsKey) {
-				clearKey(_recentHashtagsKey);
-				_recentHashtagsKey = 0;
-				_mapChanged = true;
-			}
-			_writeMap();
-		} else {
-			if (!_recentHashtagsKey) {
-				_recentHashtagsKey = genKey();
-				_mapChanged = true;
-				_writeMap(WriteMapFast);
-			}
-			quint32 size = sizeof(quint32) * 2, writeCnt = 0, searchCnt = 0;
-			for (RecentHashtagPack::const_iterator i = write.cbegin(); i != write.cend(); ++i) {
-				if (!i->first.isEmpty()) {
-					size += _stringSize(i->first) + sizeof(quint16);
-					++writeCnt;
-				}
-			}
-			for (RecentHashtagPack::const_iterator i = search.cbegin(); i != search.cend(); ++i) {
-				if (!i->first.isEmpty()) {
-					size += _stringSize(i->first) + sizeof(quint16);
-					++searchCnt;
-				}
-			}
-			EncryptedDescriptor data(size);
-			data.stream << quint32(writeCnt) << quint32(searchCnt);
-			for (RecentHashtagPack::const_iterator i = write.cbegin(); i != write.cend(); ++i) {
-				if (!i->first.isEmpty()) data.stream << i->first << quint16(i->second);
-			}
-			for (RecentHashtagPack::const_iterator i = search.cbegin(); i != search.cend(); ++i) {
-				if (!i->first.isEmpty()) data.stream << i->first << quint16(i->second);
-			}
-			FileWriteDescriptor file(_recentHashtagsKey);
-			file.writeEncrypted(data);
-		}
-	}
-
-	void readRecentHashtags() {
-		if (_recentHashtagsWereRead) return;
-		_recentHashtagsWereRead = true;
-
-		if (!_recentHashtagsKey) return;
-
-		FileReadDescriptor hashtags;
-		if (!readEncryptedFile(hashtags, _recentHashtagsKey)) {
-			clearKey(_recentHashtagsKey);
-			_recentHashtagsKey = 0;
-			_writeMap();
-			return;
-		}
-
-		quint32 writeCount = 0, searchCount = 0;
-		hashtags.stream >> writeCount >> searchCount;
-
-		QString tag;
-		quint16 count;
-
-		RecentHashtagPack write, search;
-		if (writeCount) {
-			write.reserve(writeCount);
-			for (uint32 i = 0; i < writeCount; ++i) {
-				hashtags.stream >> tag >> count;
-				write.push_back(qMakePair(tag.trimmed(), count));
-			}
-		}
-		if (searchCount) {
-			search.reserve(searchCount);
-			for (uint32 i = 0; i < searchCount; ++i) {
-				hashtags.stream >> tag >> count;
-				search.push_back(qMakePair(tag.trimmed(), count));
-			}
-		}
-		cSetRecentWriteHashtags(write);
-		cSetRecentSearchHashtags(search);
-	}
-
 	uint32 _peerSize(PeerData *peer) {
 		uint32 result = sizeof(quint64) + sizeof(quint64) + _storageImageLocationSize();
 		if (peer->isUser()) {
@@ -3370,7 +3289,7 @@ namespace Local {
 		return result;
 	}
 
-	void _writePeer(QDataStream &stream, PeerData *peer) {
+	void _writePeer(QDataStream &stream, PeerData *peer, int32 fileVersion = AppVersion) {
 		stream << quint64(peer->id) << quint64(peer->photoId);
 		_writeStorageImageLocation(stream, peer->photoLoc);
 		if (peer->isUser()) {
@@ -3379,6 +3298,9 @@ namespace Local {
 			stream << user->firstName << user->lastName << user->phone << user->username << quint64(user->access);
 			if (AppVersion >= 9012) {
 				stream << qint32(user->flags);
+			}
+			if (AppVersion >= 9016 || fileVersion >= 9016) {
+				stream << (user->botInfo ? user->botInfo->inlinePlaceholder : QString());
 			}
 			stream << qint32(user->onlineTill) << qint32(user->contact) << qint32(user->botInfo ? user->botInfo->version : -1);
 		} else if (peer->isChat()) {
@@ -3396,24 +3318,30 @@ namespace Local {
 		}
 	}
 
-	PeerData *_readPeer(FileReadDescriptor &from) {
+	PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 		PeerData *result = 0;
 		quint64 peerId = 0, photoId = 0;
 		from.stream >> peerId >> photoId;
 
 		StorageImageLocation photoLoc(_readStorageImageLocation(from));
 
+		result = App::peerLoaded(peerId);
+		if (result && result->loaded) return result;
+
 		result = App::peer(peerId);
 		result->loaded = true;
 		if (result->isUser()) {
 			UserData *user = result->asUser();
 
-			QString first, last, phone, username;
+			QString first, last, phone, username, inlinePlaceholder;
 			quint64 access;
 			qint32 flags = 0, onlineTill, contact, botInfoVersion;
 			from.stream >> first >> last >> phone >> username >> access;
 			if (from.version >= 9012) {
 				from.stream >> flags;
+			}
+			if (from.version >= 9016 || fileVersion >= 9016) {
+				from.stream >> inlinePlaceholder;
 			}
 			from.stream >> onlineTill >> contact >> botInfoVersion;
 
@@ -3427,6 +3355,9 @@ namespace Local {
 			user->onlineTill = onlineTill;
 			user->contact = contact;
 			user->setBotInfoVersion(botInfoVersion);
+			if (!inlinePlaceholder.isEmpty() && user->botInfo) {
+				user->botInfo->inlinePlaceholder = inlinePlaceholder;
+			}
 
 			if (peerToUser(user->id) == MTP::authedId()) {
 				user->input = MTP_inputPeerSelf();
@@ -3487,6 +3418,113 @@ namespace Local {
 		App::markPeerUpdated(result);
 		emit App::main()->peerPhotoChanged(result);
 		return result;
+	}
+
+	void writeRecentHashtagsAndBots() {
+		if (!_working()) return;
+
+		const RecentHashtagPack &write(cRecentWriteHashtags()), &search(cRecentSearchHashtags());
+		const RecentInlineBots &bots(cRecentInlineBots());
+		if (write.isEmpty() && search.isEmpty() && bots.isEmpty()) readRecentHashtagsAndBots();
+		if (write.isEmpty() && search.isEmpty() && bots.isEmpty()) {
+			if (_recentHashtagsAndBotsKey) {
+				clearKey(_recentHashtagsAndBotsKey);
+				_recentHashtagsAndBotsKey = 0;
+				_mapChanged = true;
+			}
+			_writeMap();
+		} else {
+			if (!_recentHashtagsAndBotsKey) {
+				_recentHashtagsAndBotsKey = genKey();
+				_mapChanged = true;
+				_writeMap(WriteMapFast);
+			}
+			quint32 size = sizeof(quint32) * 3, writeCnt = 0, searchCnt = 0, botsCnt = cRecentInlineBots().size();
+			for (RecentHashtagPack::const_iterator i = write.cbegin(), e = write.cend(); i != e;  ++i) {
+				if (!i->first.isEmpty()) {
+					size += _stringSize(i->first) + sizeof(quint16);
+					++writeCnt;
+				}
+			}
+			for (RecentHashtagPack::const_iterator i = search.cbegin(), e = search.cend(); i != e; ++i) {
+				if (!i->first.isEmpty()) {
+					size += _stringSize(i->first) + sizeof(quint16);
+					++searchCnt;
+				}
+			}
+			for (RecentInlineBots::const_iterator i = bots.cbegin(), e = bots.cend(); i != e; ++i) {
+				size += _peerSize(*i);
+			}
+
+			EncryptedDescriptor data(size);
+			data.stream << quint32(writeCnt) << quint32(searchCnt);
+			for (RecentHashtagPack::const_iterator i = write.cbegin(), e = write.cend(); i != e; ++i) {
+				if (!i->first.isEmpty()) data.stream << i->first << quint16(i->second);
+			}
+			for (RecentHashtagPack::const_iterator i = search.cbegin(), e = search.cend(); i != e; ++i) {
+				if (!i->first.isEmpty()) data.stream << i->first << quint16(i->second);
+			}
+			data.stream << quint32(botsCnt);
+			for (RecentInlineBots::const_iterator i = bots.cbegin(), e = bots.cend(); i != e; ++i) {
+				_writePeer(data.stream, *i, 9016);
+			}
+			FileWriteDescriptor file(_recentHashtagsAndBotsKey);
+			file.writeEncrypted(data);
+		}
+	}
+
+	void readRecentHashtagsAndBots() {
+		if (_recentHashtagsAndBotsWereRead) return;
+		_recentHashtagsAndBotsWereRead = true;
+
+		if (!_recentHashtagsAndBotsKey) return;
+
+		FileReadDescriptor hashtags;
+		if (!readEncryptedFile(hashtags, _recentHashtagsAndBotsKey)) {
+			clearKey(_recentHashtagsAndBotsKey);
+			_recentHashtagsAndBotsKey = 0;
+			_writeMap();
+			return;
+		}
+
+		quint32 writeCount = 0, searchCount = 0, botsCount = 0;
+		hashtags.stream >> writeCount >> searchCount;
+
+		QString tag;
+		quint16 count;
+
+		RecentHashtagPack write, search;
+		RecentInlineBots bots;
+		if (writeCount) {
+			write.reserve(writeCount);
+			for (uint32 i = 0; i < writeCount; ++i) {
+				hashtags.stream >> tag >> count;
+				write.push_back(qMakePair(tag.trimmed(), count));
+			}
+		}
+		if (searchCount) {
+			search.reserve(searchCount);
+			for (uint32 i = 0; i < searchCount; ++i) {
+				hashtags.stream >> tag >> count;
+				search.push_back(qMakePair(tag.trimmed(), count));
+			}
+		}
+		cSetRecentWriteHashtags(write);
+		cSetRecentSearchHashtags(search);
+
+		if (!hashtags.stream.atEnd()) {
+			hashtags.stream >> botsCount;
+			if (botsCount) {
+				bots.reserve(botsCount);
+				for (uint32 i = 0; i < botsCount; ++i) {
+					PeerData *peer = _readPeer(hashtags, 9016);
+					if (peer && peer->isUser() && peer->asUser()->botInfo && !peer->asUser()->botInfo->inlinePlaceholder.isEmpty() && !peer->asUser()->username.isEmpty()) {
+						bots.push_back(peer->asUser());
+					}
+				}
+			}
+			cSetRecentInlineBots(bots);
+		}
 	}
 
 	void writeSavedPeers() {
@@ -3651,8 +3689,8 @@ namespace Local {
 				_stickersKey = 0;
 				_mapChanged = true;
 			}
-			if (_recentHashtagsKey) {
-				_recentHashtagsKey = 0;
+			if (_recentHashtagsAndBotsKey) {
+				_recentHashtagsAndBotsKey = 0;
 				_mapChanged = true;
 			}
 			if (_savedPeersKey) {
