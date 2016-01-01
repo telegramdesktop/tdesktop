@@ -3326,10 +3326,12 @@ namespace Local {
 		StorageImageLocation photoLoc(_readStorageImageLocation(from));
 
 		result = App::peerLoaded(peerId);
-		if (result && result->loaded) return result;
+		bool wasLoaded = (result && result->loaded);
 
-		result = App::peer(peerId);
-		result->loaded = true;
+		if (!wasLoaded) {
+			result = App::peer(peerId);
+			result->loaded = true;
+		}
 		if (result->isUser()) {
 			UserData *user = result->asUser();
 
@@ -3348,26 +3350,28 @@ namespace Local {
 			bool showPhone = !isServiceUser(user->id) && (peerToUser(user->id) != MTP::authedId()) && (contact <= 0);
 			QString pname = (showPhone && !phone.isEmpty()) ? App::formatPhone(phone) : QString();
 
-			user->setName(first, last, pname, username);
+			if (!wasLoaded) {
+				user->setName(first, last, pname, username);
 
-			user->access = access;
-			user->flags = flags;
-			user->onlineTill = onlineTill;
-			user->contact = contact;
-			user->setBotInfoVersion(botInfoVersion);
-			if (!inlinePlaceholder.isEmpty() && user->botInfo) {
-				user->botInfo->inlinePlaceholder = inlinePlaceholder;
+				user->access = access;
+				user->flags = flags;
+				user->onlineTill = onlineTill;
+				user->contact = contact;
+				user->setBotInfoVersion(botInfoVersion);
+				if (!inlinePlaceholder.isEmpty() && user->botInfo) {
+					user->botInfo->inlinePlaceholder = inlinePlaceholder;
+				}
+
+				if (peerToUser(user->id) == MTP::authedId()) {
+					user->input = MTP_inputPeerSelf();
+					user->inputUser = MTP_inputUserSelf();
+				} else {
+					user->input = MTP_inputPeerUser(MTP_int(peerToUser(user->id)), MTP_long((user->access == UserNoAccess) ? 0 : user->access));
+					user->inputUser = MTP_inputUser(MTP_int(peerToUser(user->id)), MTP_long((user->access == UserNoAccess) ? 0 : user->access));
+				}
+
+				user->photo = photoLoc.isNull() ? ImagePtr(userDefPhoto(user->colorIndex)) : ImagePtr(photoLoc);
 			}
-
-			if (peerToUser(user->id) == MTP::authedId()) {
-				user->input = MTP_inputPeerSelf();
-				user->inputUser = MTP_inputUserSelf();
-			} else {
-				user->input = MTP_inputPeerUser(MTP_int(peerToUser(user->id)), MTP_long((user->access == UserNoAccess) ? 0 : user->access));
-				user->inputUser = MTP_inputUser(MTP_int(peerToUser(user->id)), MTP_long((user->access == UserNoAccess) ? 0 : user->access));
-			}
-
-			user->photo = photoLoc.isNull() ? ImagePtr(userDefPhoto(user->colorIndex)) : ImagePtr(photoLoc);
 		} else if (result->isChat()) {
 			ChatData *chat = result->asChat();
 
@@ -3381,19 +3385,21 @@ namespace Local {
 				// flagsData was haveLeft
 				flags = (flagsData == 1 ? MTPDchat::flag_left : 0);
 			}
-			chat->updateName(name, QString(), QString());
-			chat->count = count;
-			chat->date = date;
-			chat->version = version;
-			chat->creator = creator;
-			chat->isForbidden = (forbidden == 1);
-			chat->flags = flags;
-			chat->invitationUrl = invitationUrl;
+			if (!wasLoaded) {
+				chat->updateName(name, QString(), QString());
+				chat->count = count;
+				chat->date = date;
+				chat->version = version;
+				chat->creator = creator;
+				chat->isForbidden = (forbidden == 1);
+				chat->flags = flags;
+				chat->invitationUrl = invitationUrl;
 
-			chat->input = MTP_inputPeerChat(MTP_int(peerToChat(chat->id)));
-			chat->inputChat = MTP_int(peerToChat(chat->id));
+				chat->input = MTP_inputPeerChat(MTP_int(peerToChat(chat->id)));
+				chat->inputChat = MTP_int(peerToChat(chat->id));
 
-			chat->photo = photoLoc.isNull() ? ImagePtr(chatDefPhoto(chat->colorIndex)) : ImagePtr(photoLoc);
+				chat->photo = photoLoc.isNull() ? ImagePtr(chatDefPhoto(chat->colorIndex)) : ImagePtr(photoLoc);
+			}
 		} else if (result->isChannel()) {
 			ChannelData *channel = result->asChannel();
 
@@ -3402,21 +3408,25 @@ namespace Local {
 			qint32 date, version, adminned, forbidden, flags;
 			from.stream >> name >> access >> date >> version >> forbidden >> flags >> invitationUrl;
 
-			channel->updateName(name, QString(), QString());
-			channel->access = access;
-			channel->date = date;
-			channel->version = version;
-			channel->isForbidden = (forbidden == 1);
-			channel->flags = flags;
-			channel->invitationUrl = invitationUrl;
+			if (!wasLoaded) {
+				channel->updateName(name, QString(), QString());
+				channel->access = access;
+				channel->date = date;
+				channel->version = version;
+				channel->isForbidden = (forbidden == 1);
+				channel->flags = flags;
+				channel->invitationUrl = invitationUrl;
 
-			channel->input = MTP_inputPeerChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
-			channel->inputChannel = MTP_inputChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
+				channel->input = MTP_inputPeerChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
+				channel->inputChannel = MTP_inputChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 
-			channel->photo = photoLoc.isNull() ? ImagePtr((channel->isMegagroup() ? chatDefPhoto(channel->colorIndex) : channelDefPhoto(channel->colorIndex))) : ImagePtr(photoLoc);
+				channel->photo = photoLoc.isNull() ? ImagePtr((channel->isMegagroup() ? chatDefPhoto(channel->colorIndex) : channelDefPhoto(channel->colorIndex))) : ImagePtr(photoLoc);
+			}
 		}
-		App::markPeerUpdated(result);
-		emit App::main()->peerPhotoChanged(result);
+		if (!wasLoaded) {
+			App::markPeerUpdated(result);
+			emit App::main()->peerPhotoChanged(result);
+		}
 		return result;
 	}
 

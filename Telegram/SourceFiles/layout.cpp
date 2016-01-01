@@ -1529,13 +1529,14 @@ LayoutInlineGif::~LayoutInlineGif() {
 }
 
 void LayoutInlineGif::prepareThumb(int32 width, int32 height, const QSize &frame) const {
-	if (_doc && !_doc->thumb->isNull()) {
-		if (_doc->thumb->loaded()) {
+	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
+	if (doc && !doc->thumb->isNull()) {
+		if (doc->thumb->loaded()) {
 			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				_thumb = _doc->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+				_thumb = doc->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
 			}
 		} else {
-			_doc->thumb->load();
+			doc->thumb->load();
 		}
 	} else if (_result && !_result->thumb_url.isEmpty()) {
 		if (_result->thumb->loaded()) {
@@ -1746,19 +1747,20 @@ QSize LayoutInlinePhoto::countFrameSize() const {
 }
 
 void LayoutInlinePhoto::prepareThumb(int32 width, int32 height, const QSize &frame) const {
-	if (_photo) {
-		if (_photo->medium->loaded()) {
+	PhotoData *photo = _photo ? _photo : (_result ? _result->photo : 0);
+	if (photo) {
+		if (photo->medium->loaded()) {
 			if (!_thumbLoaded || _thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				_thumb = _photo->medium->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+				_thumb = photo->medium->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
 			}
 			_thumbLoaded = true;
 		} else {
-			if (_photo->thumb->loaded()) {
+			if (photo->thumb->loaded()) {
 				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-					_thumb = _photo->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+					_thumb = photo->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
 				}
 			}
-			_photo->medium->load();
+			photo->medium->load();
 		}
 	} else {
 		if (_result->thumb->loaded()) {
