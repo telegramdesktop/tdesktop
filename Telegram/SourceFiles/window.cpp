@@ -453,9 +453,9 @@ void Window::firstShow() {
 	trayIconMenu = new QMenu(this);
 	trayIconMenu->setFont(QFont("Tahoma"));
 #endif
-	QString notificationItem = lang(cDesktopNotify() 
+	QString notificationItem = lang(cDesktopNotify()
 		? lng_disable_notifications_from_tray : lng_enable_notifications_from_tray);
-	
+
 	if (cPlatform() == dbipWindows || cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 		trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
 		trayIconMenu->addAction(notificationItem, this, SLOT(toggleDisplayNotifyFromTray()))->setEnabled(true);
@@ -940,7 +940,7 @@ void Window::paintEvent(QPaintEvent *e) {
 
 HitTestType Window::hitTest(const QPoint &p) const {
 	int x(p.x()), y(p.y()), w(width()), h(height());
-	
+
 	const int32 raw = psResizeRowWidth();
 	if (!windowState().testFlag(Qt::WindowMaximized)) {
 		if (y < raw) {
@@ -1019,7 +1019,7 @@ void Window::mouseMoveEvent(QMouseEvent *e) {
 		if (dragging) {
 			if (windowState().testFlag(Qt::WindowMaximized)) {
 				setWindowState(windowState() & ~Qt::WindowMaximized);
-				
+
 				dragStart = e->globalPos() - frameGeometry().topLeft();
 			} else {
 				move(e->globalPos() - dragStart);
@@ -1260,7 +1260,7 @@ Window::TempDirState Window::localStorageState() {
 	if (_clearManager && _clearManager->hasTask(Local::ClearManagerStorage)) {
 		return TempDirRemoving;
 	}
-	return (Local::hasImages() || Local::hasStickers() || Local::hasAudios()) ? TempDirExists : TempDirEmpty;
+	return (Local::hasImages() || Local::hasStickers() || Local::hasWebFiles() || Local::hasAudios()) ? TempDirExists : TempDirEmpty;
 }
 
 void Window::tempDirDelete(int task) {

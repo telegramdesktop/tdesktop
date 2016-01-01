@@ -3028,6 +3028,10 @@ void HistoryWidget::notify_botCommandsChanged(UserData *user) {
 	}
 }
 
+void HistoryWidget::notify_inlineBotRequesting(bool requesting) {
+	_attachEmoji.setLoading(requesting);
+}
+
 void HistoryWidget::notify_userIsBotChanged(UserData *user) {
 	if (_peer && _peer == user) {
 		_list->notifyIsBotChanged();
@@ -4971,6 +4975,7 @@ bool HistoryWidget::hasBroadcastToggle() const {
 }
 
 void HistoryWidget::inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result) {
+	Notify::inlineBotRequesting(false);
 	_inlineBotUsername = QString();
 	if (result.type() == mtpc_contacts_resolvedPeer) {
 		const MTPDcontacts_resolvedPeer &d(result.c_contacts_resolvedPeer());
@@ -4982,6 +4987,8 @@ void HistoryWidget::inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result)
 
 bool HistoryWidget::inlineBotResolveFail(QString name, const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
+
+	Notify::inlineBotRequesting(false);
 	if (name == _inlineBotUsername) {
 		_inlineBot = 0;
 		onCheckMentionDropdown();
@@ -5331,14 +5338,17 @@ void HistoryWidget::onCheckMentionDropdown() {
 	if (!_history || _a_show.animating()) return;
 
 	UserData *bot = _inlineBot;
-	QString start, inlineBotUsername(_inlineBotUsername);
-	_field.getMentionHashtagBotCommandStart(start, _inlineBot, _inlineBotUsername);
+	bool start = false;
+	QString inlineBotUsername(_inlineBotUsername);
+	QString query = _field.getMentionHashtagBotCommandPart(start, _inlineBot, _inlineBotUsername);
 	if (inlineBotUsername != _inlineBotUsername) {
 		if (_inlineBotResolveRequestId) {
+			Notify::inlineBotRequesting(false);
 			MTP::cancel(_inlineBotResolveRequestId);
 			_inlineBotResolveRequestId = 0;
 		}
 		if (_inlineBot == InlineBotLookingUpData) {
+			Notify::inlineBotRequesting(true);
 			_inlineBotResolveRequestId = MTP::send(MTPcontacts_ResolveUsername(MTP_string(_inlineBotUsername)), rpcDone(&HistoryWidget::inlineBotResolveDone), rpcFail(&HistoryWidget::inlineBotResolveFail, _inlineBotUsername));
 			return;
 		}
@@ -5350,10 +5360,10 @@ void HistoryWidget::onCheckMentionDropdown() {
 		if (_inlineBot != bot) {
 			updateFieldPlaceholder();
 		}
-		if (_inlineBot->username == (cTestMode() ? qstr("contextbot") : qstr("gif")) && start.isEmpty()) {
+		if (_inlineBot->username == (cTestMode() ? qstr("contextbot") : qstr("gif")) && query.isEmpty()) {
 			_emojiPan.clearInlineBot();
 		} else {
-			_emojiPan.queryInlineBot(_inlineBot, start);
+			_emojiPan.queryInlineBot(_inlineBot, query);
 		}
 		if (!_attachMention.isHidden()) {
 			_attachMention.hideStart();
@@ -5364,16 +5374,12 @@ void HistoryWidget::onCheckMentionDropdown() {
 			_field.finishPlaceholder();
 		}
 		_emojiPan.clearInlineBot();
-		if (!start.isEmpty()) {
-			if (start.at(0) == '#' && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) Local::readRecentHashtags();
-			if (start.at(0) == '@' && _peer->isUser()) return;
-			if (start.at(0) == '/' && _peer->isUser() && !_peer->asUser()->botInfo) return;
-			_attachMention.showFiltered(_peer, start);
-		} else {
-			if (!_attachMention.isHidden()) {
-				_attachMention.hideStart();
-			}
+		if (!query.isEmpty()) {
+			if (query.at(0) == '#' && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) Local::readRecentHashtagsAndBots();
+			if (query.at(0) == '@' && cRecentInlineBots().isEmpty()) Local::readRecentHashtagsAndBots();
+			if (query.at(0) == '/' && _peer->isUser() && !_peer->asUser()->botInfo) return;
 		}
+		_attachMention.showFiltered(_peer, query, start);
 	}
 }
 
@@ -6418,6 +6424,18 @@ void HistoryWidget::onInlineResultSend(InlineResult *result, UserData *bot) {
 	_saveDraftText = true;
 	_saveDraftStart = getms();
 	onDraftSave();
+
+	RecentInlineBots &bots(cRefRecentInlineBots());
+	int32 index = bots.indexOf(bot);
+	if (index) {
+		if (index > 0) {
+			bots.removeAt(index);
+		} else if (bots.size() >= RecentInlineBotsLimit) {
+			bots.resize(RecentInlineBotsLimit - 1);
+		}
+		bots.push_front(bot);
+		Local::writeRecentHashtagsAndBots();
+	}
 
 	onCheckMentionDropdown();
 	if (!_attachType.isHidden()) _attachType.hideStart();

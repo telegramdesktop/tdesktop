@@ -289,6 +289,59 @@ void MaskedButton::paintEvent(QPaintEvent *e) {
 	}
 }
 
+EmojiButton::EmojiButton(QWidget *parent, const style::iconedButton &st) : IconedButton(parent, st)
+, _loading(false)
+, _a_loading(animation(this, &EmojiButton::step_loading)) {
+}
+
+void EmojiButton::paintEvent(QPaintEvent *e) {
+	QPainter p(this);
+
+	uint64 ms = getms();
+	float64 loading = a_loading.current(ms, _loading ? 1 : 0);
+	p.setOpacity(_opacity * (1 - loading));
+
+	p.fillRect(e->rect(), a_bg.current());
+
+	p.setOpacity(a_opacity.current() * _opacity * (1 - loading));
+
+	const QRect &i((_state & StateDown) ? _st.downIcon : _st.icon);
+	if (i.width()) {
+		const QPoint &t((_state & StateDown) ? _st.downIconPos : _st.iconPos);
+		p.drawPixmap(t, App::sprite(), i);
+	}
+
+	QRect inner(QPoint((width() - st::emojiCircle.width()) / 2, st::emojiCircleTop), st::emojiCircle);
+	int32 full = 5760;
+	int32 start = qRound(full * float64(ms % uint64(st::emojiCirclePeriod)) / st::emojiCirclePeriod), part = qRound(full / st::emojiCirclePart);
+
+	p.setBrush(Qt::NoBrush);
+	p.setRenderHint(QPainter::HighQualityAntialiasing);
+
+	p.setPen(QPen(st::emojiCircleFg->c, st::emojiCircleLine));
+	p.setOpacity(a_opacity.current() * _opacity);
+	p.drawEllipse(inner);
+
+	p.setPen(QPen(st::white->c, st::emojiCircleLine));
+	p.setOpacity(loading);
+	p.drawArc(inner, (full - start) % full, part);
+
+	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+}
+
+void EmojiButton::setLoading(bool loading) {
+	if (_loading != loading) {
+		EnsureAnimation(a_loading, _loading ? 1. : 0., func(this, &EmojiButton::update));
+		a_loading.start(loading ? 1. : 0., st::emojiCircleDuration);
+		_loading = loading;
+		if (_loading) {
+			_a_loading.start();
+		} else {
+			_a_loading.stop();
+		}
+	}
+}
+
 BoxButton::BoxButton(QWidget *parent, const QString &text, const style::BoxButton &st) : Button(parent)
 , _text(text.toUpper())
 , _fullText(text.toUpper())

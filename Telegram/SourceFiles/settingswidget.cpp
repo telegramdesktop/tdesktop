@@ -462,7 +462,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 	top += st::setHeaderSkip;
 
 	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	top += _autoUpdate.height(); 
+	top += _autoUpdate.height();
 	QString textToDraw;
 	if (cAutoUpdate()) {
 		switch (_updatingState) {
@@ -485,7 +485,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
     if (cPlatform() == dbipWindows) {
         top += _workmodeTray.height() + st::setLittleSkip;
         top += _workmodeWindow.height() + st::setSectionSkip;
-        
+
         top += _autoStart.height() + st::setLittleSkip;
         top += _startMinimized.height() + st::setSectionSkip;
 
@@ -500,12 +500,12 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
         p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_scale_label));
         top += st::setHeaderSkip;
         top += _dpiAutoScale.height() + st::setLittleSkip;
-        
+
         top += _dpiSlider.height() + st::dpiFont4->height;
         int32 sLeft = _dpiSlider.x() + _dpiWidth1 / 2, sWidth = _dpiSlider.width();
         float64 sStep = (sWidth - _dpiWidth1 / 2 - _dpiWidth4 / 2) / float64(dbisScaleCount - 2);
         p.setFont(st::dpiFont1->f);
-        
+
         p.setPen((scaleIs(dbisOne) ? st::dpiActive : st::dpiInactive)->p);
         p.drawText(sLeft + qRound(0 * sStep) - _dpiWidth1 / 2, top - (st::dpiFont4->height - st::dpiFont1->height) / 2 - st::dpiFont1->descent, scaleLabel(dbisOne));
         p.setFont(st::dpiFont2->f);
@@ -519,7 +519,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
         p.drawText(sLeft + qRound(3 * sStep) - _dpiWidth4 / 2, top - (st::dpiFont4->height - st::dpiFont4->height) / 2 - st::dpiFont4->descent, scaleLabel(dbisTwo));
         p.setFont(st::linkFont->f);
     }
-    
+
 	if (self()) {
 		// chat options
 		p.setFont(st::setHeaderFont->f);
@@ -575,7 +575,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 
 		top += st::setHeaderSkip;
 
-		int32 cntImages = Local::hasImages() + Local::hasStickers(), cntAudios = Local::hasAudios();
+		int32 cntImages = Local::hasImages() + Local::hasStickers() + Local::hasWebFiles(), cntAudios = Local::hasAudios();
 		if (cntImages > 0 && cntAudios > 0) {
 			if (_localStorageHeight != 2) {
 				cntAudios = 0;
@@ -587,7 +587,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 			}
 		}
 		if (cntImages > 0) {
-			QString cnt = lng_settings_images_cached(lt_count, cntImages, lt_size, formatSizeText(Local::storageImagesSize() + Local::storageStickersSize()));
+			QString cnt = lng_settings_images_cached(lt_count, cntImages, lt_size, formatSizeText(Local::storageImagesSize() + Local::storageStickersSize() + Local::storageWebFilesSize()));
 			p.drawText(_left + st::setHeaderLeft, top + st::linkFont->ascent, cnt);
 		}
 		if (_localStorageHeight == 2) top += _localStorageClear.height() + st::setLittleSkip;
@@ -644,7 +644,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 	p.setPen(st::setHeaderColor->p);
 	p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_advanced));
 	top += st::setHeaderSkip;
-	
+
 	p.setFont(st::linkFont->f);
 	p.setPen(st::black->p);
 	if (self()) {
@@ -702,7 +702,7 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
     if (cPlatform() == dbipWindows) {
         _workmodeTray.move(_left, top); top += _workmodeTray.height() + st::setLittleSkip;
         _workmodeWindow.move(_left, top); top += _workmodeWindow.height() + st::setSectionSkip;
-        
+
         _autoStart.move(_left, top); top += _autoStart.height() + st::setLittleSkip;
         _startMinimized.move(_left, top); top += _startMinimized.height() + st::setSectionSkip;
 
@@ -715,7 +715,7 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
         _dpiAutoScale.move(_left, top); top += _dpiAutoScale.height() + st::setLittleSkip;
         _dpiSlider.move(_left, top); top += _dpiSlider.height() + st::dpiFont4->height;
     }
-    
+
 	// chat options
 	if (self()) {
 		top += st::setHeaderSkip;
@@ -739,7 +739,7 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 		// local storage
 		_localStorageClear.move(_left + st::setWidth - _localStorageClear.width(), top + st::setHeaderTop + st::setHeaderFont->ascent - st::linkFont->ascent);
 		top += st::setHeaderSkip;
-		if ((Local::hasImages() || Local::hasStickers()) && Local::hasAudios()) {
+		if ((Local::hasImages() || Local::hasStickers() || Local::hasWebFiles()) && Local::hasAudios()) {
 			_localStorageHeight = 2;
 			top += _localStorageClear.height() + st::setLittleSkip;
 		} else {
@@ -1031,7 +1031,7 @@ void SettingsInner::showAll() {
 			_workmodeTray.hide();
 		}
         _workmodeWindow.hide();
-        
+
         _autoStart.hide();
         _startMinimized.hide();
 
@@ -1163,7 +1163,7 @@ void SettingsInner::onUpdatePhotoCancel() {
 void SettingsInner::onUpdatePhoto() {
 	saveError();
 
-	QStringList imgExtensions(cImgExtensions());	
+	QStringList imgExtensions(cImgExtensions());
 	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;All files (*.*)"));
 
 	QImage img;

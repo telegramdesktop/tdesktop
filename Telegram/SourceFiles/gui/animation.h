@@ -563,6 +563,10 @@ private:
 	struct Frame {
 		Frame() : displayed(false), when(0) {
 		}
+		void clear() {
+			pix = QPixmap();
+			original = QImage();
+		}
 		QPixmap pix;
 		QImage original;
 		ClipFrameRequest request;
@@ -571,7 +575,7 @@ private:
 	};
 	mutable Frame _frames[3];
 	Frame *frameToShow() const; // 0 means not ready
-	Frame *frameToWrite() const; // 0 means not ready
+	Frame *frameToWrite(int32 *index = 0) const; // 0 means not ready
 	Frame *frameToRequestOther(bool check) const;
 	void moveToNextShow() const;
 	void moveToNextWrite() const;
@@ -629,9 +633,17 @@ private:
     void clear();
 
 	QAtomicInt _loadLevel;
-	typedef QMap<ClipReader*, ClipReaderPrivate*> ReaderPointers;
+	struct MutableAtomicInt {
+		MutableAtomicInt(int value) : v(value) {
+		}
+		mutable QAtomicInt v;
+	};
+	typedef QMap<ClipReader*, MutableAtomicInt> ReaderPointers;
 	ReaderPointers _readerPointers;
-	mutable QMutex _readerPointersMutex;
+	mutable QReadWriteLock _readerPointersMutex;
+
+	ReaderPointers::const_iterator constUnsafeFindReaderPointer(ClipReaderPrivate *reader) const;
+	ReaderPointers::iterator unsafeFindReaderPointer(ClipReaderPrivate *reader);
 
 	bool handleProcessResult(ClipReaderPrivate *reader, ClipProcessResult result, uint64 ms);
 

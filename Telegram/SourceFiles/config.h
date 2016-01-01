@@ -23,7 +23,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 static const int32 AppVersion = 9015;
 static const wchar_t *AppVersionStr = L"0.9.15";
 static const bool DevVersion = false;
-#define BETA_VERSION (9015005ULL) // just comment this line to build public version
+#define BETA_VERSION (9015006ULL) // just comment this line to build public version
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -87,6 +87,7 @@ enum {
 	AverageGifSize = 320 * 240,
 	WaitBeforeGifPause = 200, // wait 200ms for gif draw before pausing it
 	InlineBotRequestDelay = 400, // wait 400ms before context bot realtime request
+	RecentInlineBotsLimit = 10,
 
 	AVBlockSize = 4096, // 4Kb for ffmpeg blocksize
 

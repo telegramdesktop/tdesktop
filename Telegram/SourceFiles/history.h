@@ -1808,11 +1808,12 @@ public:
 	DocumentData *getDocument() {
 		return _attach ? _attach->getDocument() : 0;
 	}
-
+	ClipReader *getClipReader() {
+		return _attach ? _attach->getClipReader() : 0;
+	}
 	bool playInline(HistoryItem *item) {
 		return _attach ? _attach->playInline(item) : false;
 	}
-
 	void stopInline(HistoryItem *item) {
 		if (_attach) _attach->stopInline(item);
 	}
