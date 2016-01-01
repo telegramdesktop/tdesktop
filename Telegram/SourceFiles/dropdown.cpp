@@ -1303,7 +1303,7 @@ void StickerPanInner::paintEvent(QPaintEvent *e) {
 }
 
 void StickerPanInner::paintInlineItems(Painter &p, const QRect &r) {
-	InlinePaintContext context(getms(), false, _previewShown, false);
+	InlinePaintContext context(getms(), false, Ui::isLayerShown() || Ui::isMediaViewShown() || _previewShown, false);
 
 	int32 top = st::emojiPanHeader;
 	int32 fromx = rtl() ? (width() - r.x() - r.width()) : r.x(), tox = rtl() ? (width() - r.x()) : (r.x() + r.width());

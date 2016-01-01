@@ -3594,6 +3594,7 @@ namespace Local {
 	struct ClearManagerData {
 		QThread *thread;
 		StorageMap images, stickers, audios;
+		WebFilesMap webFiles;
 		QMutex mutex;
 		QList<int> tasks;
 		bool working;
@@ -3693,6 +3694,22 @@ namespace Local {
 					_storageStickersSize = 0;
 					_mapChanged = true;
 				}
+				if (data->webFiles.isEmpty()) {
+					data->webFiles = _webFilesMap;
+				} else {
+					for (WebFilesMap::const_iterator i = _webFilesMap.cbegin(), e = _webFilesMap.cend(); i != e; ++i) {
+						QString k = i.key();
+						while (data->webFiles.constFind(k) != data->webFiles.cend()) {
+							k += '#';
+						}
+						data->webFiles.insert(k, i.value());
+					}
+				}
+				if (!_webFilesMap.isEmpty()) {
+					_webFilesMap.clear();
+					_storageWebFilesSize = 0;
+					_writeLocations();
+				}
 				if (data->audios.isEmpty()) {
 					data->audios = _audiosMap;
 				} else {
@@ -3745,6 +3762,7 @@ namespace Local {
 			int task = 0;
 			bool result = false;
 			StorageMap images, stickers, audios;
+			WebFilesMap webFiles;
 			{
 				QMutexLocker lock(&data->mutex);
 				if (data->tasks.isEmpty()) {
@@ -3755,6 +3773,7 @@ namespace Local {
 				images = data->images;
 				stickers = data->stickers;
 				audios = data->audios;
+				webFiles = data->webFiles;
 			}
 			switch (task) {
 			case ClearManagerAll: {
@@ -3784,6 +3803,9 @@ namespace Local {
 					clearKey(i.value().first, UserPath);
 				}
 				for (StorageMap::const_iterator i = audios.cbegin(), e = audios.cend(); i != e; ++i) {
+					clearKey(i.value().first, UserPath);
+				}
+				for (WebFilesMap::const_iterator i = webFiles.cbegin(), e = webFiles.cend(); i != e; ++i) {
 					clearKey(i.value().first, UserPath);
 				}
 				result = true;
