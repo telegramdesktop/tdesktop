@@ -2420,7 +2420,7 @@ void StickerPanInner::updateShowingSavedGifs() {
 			if (_inlineRows.isEmpty()) refreshSavedGifs();
 		}
 	} else if (!_showingInlineItems) {
-		_showingSavedGifs = _showingInlineItems = false;
+		_showingSavedGifs = false;
 	}
 }
 
@@ -2544,8 +2544,10 @@ void EmojiSwitchButton::paintEvent(QPaintEvent *e) {
 
 EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 , _maxHeight(st::emojiPanMaxHeight)
-, _maxHeightEmoji(_maxHeight - st::rbEmoji.height)
-, _maxHeightStickers(_maxHeight - st::rbEmoji.height)
+, _contentMaxHeight(st::emojiPanMaxHeight)
+, _contentHeight(_contentMaxHeight)
+, _contentHeightEmoji(_contentHeight - st::rbEmoji.height)
+, _contentHeightStickers(_contentHeight - st::rbEmoji.height)
 , _horizontal(false)
 , _noTabUpdate(false)
 , _hiding(false)
@@ -2574,7 +2576,6 @@ EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 , _iconsStartAnim(0)
 , _stickersShown(false)
 , _shownFromInlineQuery(false)
-, _contentMaxHeight(st::emojiPanMaxHeight)
 , _a_slide(animation(this, &EmojiPan::step_slide))
 , e_scroll(this, st::emojiScroll)
 , e_inner()
@@ -2592,11 +2593,12 @@ EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 	s_scroll.viewport()->setFocusPolicy(Qt::NoFocus);
 
 	_width = st::dropdownDef.padding.left() + st::emojiPanWidth + st::dropdownDef.padding.right();
-	_height = st::dropdownDef.padding.top() + _maxHeight + st::dropdownDef.padding.bottom();
+	_height = st::dropdownDef.padding.top() + _contentHeight + st::dropdownDef.padding.bottom();
+	_bottom = 0;
 	resize(_width, _height);
 
-	e_scroll.resize(st::emojiPanWidth, _maxHeightEmoji);
-	s_scroll.resize(st::emojiPanWidth, _maxHeightStickers);
+	e_scroll.resize(st::emojiPanWidth, _contentHeightEmoji);
+	s_scroll.resize(st::emojiPanWidth, _contentHeightStickers);
 
 	e_scroll.move(st::dropdownDef.padding.left(), st::dropdownDef.padding.top());
 	e_scroll.setWidget(&e_inner);
@@ -2607,7 +2609,7 @@ EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 	s_inner.moveToLeft(0, 0, s_scroll.width());
 
 	int32 left = _iconsLeft = st::dropdownDef.padding.left() + (st::emojiPanWidth - 8 * st::rbEmoji.width) / 2;
-	int32 top = _iconsTop = st::dropdownDef.padding.top() + _maxHeight - st::rbEmoji.height;
+	int32 top = _iconsTop = st::dropdownDef.padding.top() + _contentHeight - st::rbEmoji.height;
 	prepareTab(left, top, _width, _recent);
 	prepareTab(left, top, _width, _people);
 	prepareTab(left, top, _width, _nature);
@@ -2666,32 +2668,39 @@ EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 }
 
 void EmojiPan::setMaxHeight(int32 h) {
-	h = qMin(_contentMaxHeight, h);
+	_maxHeight = h;
+	updateContentHeight();
+}
+
+void EmojiPan::updateContentHeight() {
+	int32 h = qMin(_contentMaxHeight, _maxHeight);
 	int32 he = h - st::rbEmoji.height;
 	int32 hs = h - (s_inner.showSectionIcons() ? st::rbEmoji.height : 0);
-	if (h == _maxHeight && he == _maxHeightEmoji && hs == _maxHeightStickers) return;
+	if (h == _contentHeight && he == _contentHeightEmoji && hs == _contentHeightStickers) return;
 
-	int32 was = _maxHeight, wase = _maxHeightEmoji, wass = _maxHeightStickers;
-	_maxHeight = h;
-	_maxHeightEmoji = he;
-	_maxHeightStickers = hs;
+	int32 was = _contentHeight, wase = _contentHeightEmoji, wass = _contentHeightStickers;
+	_contentHeight = h;
+	_contentHeightEmoji = he;
+	_contentHeightStickers = hs;
 
-	_height = st::dropdownDef.padding.top() + _maxHeight + st::dropdownDef.padding.bottom();
+	_height = st::dropdownDef.padding.top() + _contentHeight + st::dropdownDef.padding.bottom();
+
 	resize(_width, _height);
+	move(x(), _bottom - height());
 
-	if (was > _maxHeight || (was == _maxHeight && wass > _maxHeightStickers)) {
-		e_scroll.resize(st::emojiPanWidth, _maxHeightEmoji);
-		s_scroll.resize(st::emojiPanWidth, _maxHeightStickers);
-		s_inner.setMaxHeight(_maxHeightStickers);
-		e_inner.setMaxHeight(_maxHeightEmoji);
+	if (was > _contentHeight || (was == _contentHeight && wass > _contentHeightStickers)) {
+		e_scroll.resize(st::emojiPanWidth, _contentHeightEmoji);
+		s_scroll.resize(st::emojiPanWidth, _contentHeightStickers);
+		s_inner.setMaxHeight(_contentHeightStickers);
+		e_inner.setMaxHeight(_contentHeightEmoji);
 	} else {
-		s_inner.setMaxHeight(_maxHeightStickers);
-		e_inner.setMaxHeight(_maxHeightEmoji);
-		e_scroll.resize(st::emojiPanWidth, _maxHeightEmoji);
-		s_scroll.resize(st::emojiPanWidth, _maxHeightStickers);
+		s_inner.setMaxHeight(_contentHeightStickers);
+		e_inner.setMaxHeight(_contentHeightEmoji);
+		e_scroll.resize(st::emojiPanWidth, _contentHeightEmoji);
+		s_scroll.resize(st::emojiPanWidth, _contentHeightStickers);
 	}
 
-	_iconsTop = st::dropdownDef.padding.top() + _maxHeight - st::rbEmoji.height;
+	_iconsTop = st::dropdownDef.padding.top() + _contentHeight - st::rbEmoji.height;
 	_recent.move(_recent.x(), _iconsTop);
 	_people.move(_people.x(), _iconsTop);
 	_nature.move(_nature.x(), _iconsTop);
@@ -2832,14 +2841,15 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 }
 
 void EmojiPan::moveBottom(int32 bottom, bool force) {
+	_bottom = bottom;
 	if (isHidden() && !force) {
-		move(x(), bottom - height());
+		move(x(), _bottom - height());
 		return;
 	}
 	if (_stickersShown && s_inner.inlineResultsShown()) {
-		moveToLeft(0, bottom - height());
+		moveToLeft(0, _bottom - height());
 	} else {
-		moveToRight(0, bottom - height());
+		moveToRight(0, _bottom - height());
 	}
 }
 
@@ -3016,7 +3026,7 @@ void EmojiPan::onRefreshIcons() {
 	updateSelected();
 	if (_stickersShown) {
 		validateSelectedIcon();
-		setMaxHeight(_maxHeight);
+		updateContentHeight();
 	}
 	updateIcons();
 }
@@ -3240,15 +3250,13 @@ void EmojiPan::showStart() {
 		if (s_inner.inlineResultsShown() && refreshInlineRows()) {
 			_stickersShown = true;
 			_shownFromInlineQuery = true;
-			_contentMaxHeight = qMin(s_inner.countHeight(true), int(st::emojiPanMaxHeight));
 		} else {
 			s_inner.refreshRecent();
 			_stickersShown = false;
 			_shownFromInlineQuery = false;
-			_contentMaxHeight = st::emojiPanMaxHeight;
 		}
+		recountContentMaxHeight();
 		s_inner.preloadImages();
-		setMaxHeight(_maxHeight);
 		_fromCache = _toCache = QPixmap();
 		_a_slide.stop();
 		moveBottom(y() + height(), true);
@@ -3307,7 +3315,7 @@ void EmojiPan::stickersInstalled(uint64 setId) {
 	}
 	showAll();
 	s_inner.showStickerSet(setId);
-	setMaxHeight(_maxHeight);
+	updateContentHeight();
 	showStart();
 }
 
@@ -3484,7 +3492,7 @@ void EmojiPan::onSwitch() {
 			s_inner.showFinish();
 		}
 		validateSelectedIcon();
-		setMaxHeight(_maxHeight);
+		updateContentHeight();
 	}
 	_iconOver = -1;
 	_iconHovers = _icons.isEmpty() ? QVector<float64>() : QVector<float64>(_icons.size(), 0);
@@ -3584,6 +3592,7 @@ void EmojiPan::inlineBotChanged() {
 	}
 	_inlineCache.clear();
 	s_inner.inlineBotChanged();
+	s_inner.hideInlineRowsPanel();
 
 	Notify::inlineBotRequesting(false);
 }
@@ -3731,7 +3740,7 @@ void EmojiPan::onInlineRequest() {
 }
 
 void EmojiPan::onEmptyInlineRows() {
-	if (_shownFromInlineQuery) {
+	if (_shownFromInlineQuery || _stickersShown) {
 		hideAnimated();
 	} else {
 		s_inner.hideInlineRowsPanel();
@@ -3758,11 +3767,10 @@ void EmojiPan::showInlineRows(bool newResults) {
 	e_switch.moveToRight(0, 0, st::emojiPanWidth);
 
 	bool hidden = isHidden();
-	if (!hidden && _shownFromInlineQuery && !clear) {
-		_contentMaxHeight = qMax(s_inner.countHeight(true), int(st::emojiPanMaxHeight));
-		setMaxHeight(_maxHeight);
+	if (!hidden && !clear) {
+		recountContentMaxHeight();
 	}
-	if (clear && !hidden && _stickersShown && s_inner.inlineResultsShown()) {
+	if (clear && !hidden && _stickersShown) {
 		hideAnimated();
 	} else if (!clear) {
 		_hideTimer.stop();
@@ -3772,6 +3780,15 @@ void EmojiPan::showInlineRows(bool newResults) {
 			onSwitch();
 		}
 	}
+}
+
+void EmojiPan::recountContentMaxHeight() {
+	if (_shownFromInlineQuery) {
+		_contentMaxHeight = qMin(s_inner.countHeight(true), int(st::emojiPanMaxHeight));
+	} else {
+		_contentMaxHeight = st::emojiPanMaxHeight;
+	}
+	updateContentHeight();
 }
 
 MentionsInner::MentionsInner(MentionsDropdown *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows)

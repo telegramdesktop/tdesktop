@@ -3560,6 +3560,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		connect(&_scroll, SIGNAL(geometryChanged()), _list, SLOT(onParentGeometryChanged()));
 		connect(&_scroll, SIGNAL(scrolled()), _list, SLOT(onUpdateSelected()));
 	} else {
+		setFieldText(QString());
 		doneShow();
 	}
 
@@ -5037,7 +5038,7 @@ void HistoryWidget::inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result)
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 	}
-	onCheckMentionDropdown();
+	updateInlineBotQuery();
 }
 
 bool HistoryWidget::inlineBotResolveFail(QString name, const RPCError &error) {
@@ -5896,8 +5897,8 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 	_cmdStart.move(_attachEmoji.x() - _cmdStart.width(), height() - kbh - _cmdStart.height());
 
 	_attachType.move(0, _attachDocument.y() - _attachType.height());
-	_emojiPan.setMaxHeight(height() - st::dropdownDef.padding.top() - st::dropdownDef.padding.bottom() - _attachEmoji.height());
 	_emojiPan.moveBottom(_attachEmoji.y());
+	_emojiPan.setMaxHeight(height() - st::dropdownDef.padding.top() - st::dropdownDef.padding.bottom() - _attachEmoji.height());
 
 	switch (_attachDrag) {
 	case DragStateFiles:

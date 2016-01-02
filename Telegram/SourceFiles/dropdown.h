@@ -625,8 +625,9 @@ private:
 
 	void validateSelectedIcon(bool animated = false);
 
-	int32 _maxHeight, _maxHeightEmoji, _maxHeightStickers;
+	int32 _maxHeight, _contentMaxHeight, _contentHeight, _contentHeightEmoji, _contentHeightStickers;
 	bool _horizontal;
+	void updateContentHeight();
 
 	void leaveToChildEvent(QEvent *e);
 	void hideAnimated();
@@ -642,7 +643,7 @@ private:
 
 	bool _noTabUpdate;
 
-	int32 _width, _height;
+	int32 _width, _height, _bottom;
 	bool _hiding;
 	QPixmap _cache;
 
@@ -668,7 +669,6 @@ private:
 	uint64 _iconsStartAnim;
 
 	bool _stickersShown, _shownFromInlineQuery;
-	int32 _contentMaxHeight;
 	QPixmap _fromCache, _toCache;
 	anim::ivalue a_fromCoord, a_toCoord;
 	anim::fvalue a_fromAlpha, a_toAlpha;
@@ -707,6 +707,7 @@ private:
 
 	void inlineBotChanged();
 	void showInlineRows(bool newResults);
+	void recountContentMaxHeight();
 	bool refreshInlineRows();
 	UserData *_inlineBot;
 	QString _inlineQuery, _inlineNextQuery, _inlineNextOffset;
