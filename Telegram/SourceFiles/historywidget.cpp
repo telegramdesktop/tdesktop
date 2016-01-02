@@ -883,6 +883,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			if ((lnkVideo && lnkVideo->video()->loading()) || (lnkAudio && lnkAudio->audio()->loading()) || (lnkDocument && lnkDocument->document()->loading())) {
 				_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
 			} else {
+				if (lnkDocument && lnkDocument->document()->loaded() && lnkDocument->document()->isGifv()) {
+					_menu->addAction(lang(lng_context_save_gif), this, SLOT(saveContextGif()))->setEnabled(true);
+				}
 				if ((lnkVideo && !lnkVideo->video()->already(true).isEmpty()) || (lnkAudio && !lnkAudio->audio()->already(true).isEmpty()) || (lnkDocument && !lnkDocument->document()->already(true).isEmpty())) {
 					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 				}
@@ -3401,6 +3404,12 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	_scroll.takeWidget();
 	updateTopBarSelection();
 
+	if (_inlineBot) {
+		_inlineBot = 0;
+		_emojiPan.clearInlineBot();
+		updateFieldPlaceholder();
+	}
+
 	_showAtMsgId = showAtMsgId;
 	_histInited = false;
 
@@ -3503,10 +3512,6 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		connect(&_scroll, SIGNAL(scrolled()), _list, SLOT(onUpdateSelected()));
 	} else {
 		doneShow();
-	}
-	if (_inlineBot) {
-		_inlineBot = 0;
-		_emojiPan.clearInlineBot();
 	}
 
 	if (App::wnd()) QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));

@@ -1900,6 +1900,10 @@ void StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &resu
 		return;
 	}
 
+	if (_showingInlineItems) {
+		clearSelection(true);
+	}
+
 	t_assert(bot != 0);
 	_inlineBot = bot;
 	_inlineBotTitle = lng_inline_bot_results(lt_inline_bot, bot->username.isEmpty() ? bot->name : ('@' + bot->username));
@@ -1976,7 +1980,10 @@ void StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &resu
 	update();
 
 	emit refreshIcons();
-	updateSelected();
+	if (_showingInlineItems) {
+		_lastMousePos = QCursor::pos();
+		updateSelected();
+	}
 }
 
 void StickerPanInner::ui_repaintInlineItem(const LayoutInlineItem *layout) {
