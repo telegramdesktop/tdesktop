@@ -64,7 +64,8 @@ public:
 	QSize minimumSizeHint() const;
 
 	EmojiPtr getSingleEmoji() const;
-	QString getMentionHashtagBotCommandPart(bool &start, UserData *&contextBot, QString &contextBotUsername) const;
+	QString getMentionHashtagBotCommandPart(bool &start) const;
+	QString getInlineBotQuery(UserData *&contextBot, QString &contextBotUsername) const;
 	void removeSingleEmoji();
 	bool hasText() const;
 

@@ -1364,7 +1364,11 @@ void DocumentOpenLink::doOpen(DocumentData *data, ActionOnLoad action) {
 				}
 			} else if (location.accessEnable()) {
 				if ((App::hoveredLinkItem() || App::contextItem()) && (data->isAnimation() || QImageReader(location.name()).canRead())) {
-					App::wnd()->showDocument(data, item);
+					if (action == ActionOnLoadPlayInline) {
+						item->getMedia()->playInline(item);
+					} else {
+						App::wnd()->showDocument(data, item);
+					}
 				} else {
 					psOpenFile(location.name());
 				}
@@ -1634,7 +1638,11 @@ void DocumentData::performActionOnLoad() {
 		} else if (_actionOnLoad == ActionOnLoadOpen || _actionOnLoad == ActionOnLoadPlayInline) {
 			if (loc.accessEnable()) {
 				if (showImage && QImageReader(loc.name()).canRead()) {
-					App::wnd()->showDocument(this, item);
+					if (_actionOnLoad == ActionOnLoadPlayInline) {
+						item->getMedia()->playInline(item);
+					} else {
+						App::wnd()->showDocument(this, item);
+					}
 				} else {
 					psOpenFile(already);
 				}

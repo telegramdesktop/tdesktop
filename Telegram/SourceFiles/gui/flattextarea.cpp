@@ -270,11 +270,9 @@ EmojiPtr FlatTextarea::getSingleEmoji() const {
 	return 0;
 }
 
-QString FlatTextarea::getMentionHashtagBotCommandPart(bool &start, UserData *&inlineBot, QString &inlineBotUsername) const {
-	start = false;
-
-	// check inline bot query
+QString FlatTextarea::getInlineBotQuery(UserData *&inlineBot, QString &inlineBotUsername) const {
 	const QString &text(getLastText());
+
 	int32 inlineUsernameStart = 1, inlineUsernameLength = 0, size = text.size();
 	if (size > 2 && text.at(0) == '@' && text.at(1).isLetter()) {
 		inlineUsernameLength = 1;
@@ -318,6 +316,11 @@ QString FlatTextarea::getMentionHashtagBotCommandPart(bool &start, UserData *&in
 		inlineBot = 0;
 		inlineBotUsername = QString();
 	}
+	return QString();
+}
+
+QString FlatTextarea::getMentionHashtagBotCommandPart(bool &start) const {
+	start = false;
 
 	int32 pos = textCursor().position();
 	if (textCursor().anchor() != pos) return QString();

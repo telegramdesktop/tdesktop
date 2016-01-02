@@ -2820,9 +2820,53 @@ void HistoryWidget::onMentionHashtagOrBotCommandInsert(QString str) {
 	}
 }
 
+void HistoryWidget::updateInlineBotQuery() {
+	UserData *bot = _inlineBot;
+	bool start = false;
+	QString inlineBotUsername(_inlineBotUsername);
+	QString query = _field.getInlineBotQuery(_inlineBot, _inlineBotUsername);
+	if (inlineBotUsername != _inlineBotUsername) {
+		if (_inlineBotResolveRequestId) {
+			Notify::inlineBotRequesting(false);
+			MTP::cancel(_inlineBotResolveRequestId);
+			_inlineBotResolveRequestId = 0;
+		}
+		if (_inlineBot == InlineBotLookingUpData) {
+			Notify::inlineBotRequesting(true);
+			_inlineBotResolveRequestId = MTP::send(MTPcontacts_ResolveUsername(MTP_string(_inlineBotUsername)), rpcDone(&HistoryWidget::inlineBotResolveDone), rpcFail(&HistoryWidget::inlineBotResolveFail, _inlineBotUsername));
+			return;
+		}
+	} else if (_inlineBot == InlineBotLookingUpData) {
+		return;
+	}
+
+	if (_inlineBot) {
+		if (_inlineBot != bot) {
+			updateFieldPlaceholder();
+		}
+		if (_inlineBot->username == (cTestMode() ? qstr("contextbot") : qstr("gif")) && query.isEmpty()) {
+			_emojiPan.clearInlineBot();
+		} else {
+			_emojiPan.queryInlineBot(_inlineBot, query);
+		}
+		if (!_attachMention.isHidden()) {
+			_attachMention.hideStart();
+		}
+	} else {
+		if (_inlineBot != bot) {
+			updateFieldPlaceholder();
+			_field.finishPlaceholder();
+		}
+		_emojiPan.clearInlineBot();
+		onCheckMentionDropdown();
+	}
+}
+
 void HistoryWidget::onTextChange() {
+	updateInlineBotQuery();
+
 	if (_peer && (!_peer->isChannel() || _peer->isMegagroup() || !_peer->asChannel()->canPublish() || (!_peer->asChannel()->isBroadcast() && !_broadcast.checked()))) {
-		if (!_inlineBot && !_inlineBotResolveRequestId && (_textUpdateEventsFlags & TextUpdateEventsSendTyping)) {
+		if (!_inlineBot && (_textUpdateEventsFlags & TextUpdateEventsSendTyping)) {
 			updateSendAction(_history, SendActionTyping);
 		}
 	}
@@ -5347,52 +5391,16 @@ void HistoryWidget::onFieldFocused() {
 }
 
 void HistoryWidget::onCheckMentionDropdown() {
-	if (!_history || _a_show.animating()) return;
+	if (!_history || _a_show.animating() || _inlineBot) return;
 
-	UserData *bot = _inlineBot;
 	bool start = false;
-	QString inlineBotUsername(_inlineBotUsername);
-	QString query = _field.getMentionHashtagBotCommandPart(start, _inlineBot, _inlineBotUsername);
-	if (inlineBotUsername != _inlineBotUsername) {
-		if (_inlineBotResolveRequestId) {
-			Notify::inlineBotRequesting(false);
-			MTP::cancel(_inlineBotResolveRequestId);
-			_inlineBotResolveRequestId = 0;
-		}
-		if (_inlineBot == InlineBotLookingUpData) {
-			Notify::inlineBotRequesting(true);
-			_inlineBotResolveRequestId = MTP::send(MTPcontacts_ResolveUsername(MTP_string(_inlineBotUsername)), rpcDone(&HistoryWidget::inlineBotResolveDone), rpcFail(&HistoryWidget::inlineBotResolveFail, _inlineBotUsername));
-			return;
-		}
-	} else if (_inlineBot == InlineBotLookingUpData) {
-		return;
+	QString query = _field.getMentionHashtagBotCommandPart(start);
+	if (!query.isEmpty()) {
+		if (query.at(0) == '#' && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) Local::readRecentHashtagsAndBots();
+		if (query.at(0) == '@' && cRecentInlineBots().isEmpty()) Local::readRecentHashtagsAndBots();
+		if (query.at(0) == '/' && _peer->isUser() && !_peer->asUser()->botInfo) return;
 	}
-
-	if (_inlineBot) {
-		if (_inlineBot != bot) {
-			updateFieldPlaceholder();
-		}
-		if (_inlineBot->username == (cTestMode() ? qstr("contextbot") : qstr("gif")) && query.isEmpty()) {
-			_emojiPan.clearInlineBot();
-		} else {
-			_emojiPan.queryInlineBot(_inlineBot, query);
-		}
-		if (!_attachMention.isHidden()) {
-			_attachMention.hideStart();
-		}
-	} else {
-		if (_inlineBot != bot) {
-			updateFieldPlaceholder();
-			_field.finishPlaceholder();
-		}
-		_emojiPan.clearInlineBot();
-		if (!query.isEmpty()) {
-			if (query.at(0) == '#' && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) Local::readRecentHashtagsAndBots();
-			if (query.at(0) == '@' && cRecentInlineBots().isEmpty()) Local::readRecentHashtagsAndBots();
-			if (query.at(0) == '/' && _peer->isUser() && !_peer->asUser()->botInfo) return;
-		}
-		_attachMention.showFiltered(_peer, query, start);
-	}
+	_attachMention.showFiltered(_peer, query, start);
 }
 
 void HistoryWidget::updateFieldPlaceholder() {

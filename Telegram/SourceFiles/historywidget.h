@@ -451,6 +451,7 @@ public:
 	void destroyData();
 
 	void updateFieldPlaceholder();
+	void updateInlineBotQuery();
 
 	void uploadImage(const QImage &img, PrepareMediaType type, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, const QString &source = QString(), bool withText = false);
 	void uploadFile(const QString &file, PrepareMediaType type, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, bool withText = false); // with confirmation
