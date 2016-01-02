@@ -73,6 +73,9 @@ DeclareSetting(uint64, RealBetaVersion);
 DeclareSetting(QByteArray, BetaPrivateKey);
 
 DeclareSetting(bool, TestMode);
+inline QString cInlineGifBotUsername() {
+	return cTestMode() ? qstr("contextbot") : qstr("gif");
+}
 DeclareSetting(QString, LoggedPhoneNumber);
 DeclareReadSetting(uint32, ConnectionsInSession);
 DeclareSetting(bool, AutoStart);

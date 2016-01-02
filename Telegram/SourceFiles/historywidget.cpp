@@ -2844,7 +2844,7 @@ void HistoryWidget::updateInlineBotQuery() {
 		if (_inlineBot != bot) {
 			updateFieldPlaceholder();
 		}
-		if (_inlineBot->username == (cTestMode() ? qstr("contextbot") : qstr("gif")) && query.isEmpty()) {
+		if (_inlineBot->username == cInlineGifBotUsername() && query.isEmpty()) {
 			_emojiPan.clearInlineBot();
 		} else {
 			_emojiPan.queryInlineBot(_inlineBot, query);
@@ -4910,7 +4910,7 @@ bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
 	if (toInsert.at(0) != '@') {
 		QString text = _field.getLastText();
 		if (specialGif) {
-			if (text.trimmed() == (cTestMode() ? qstr("@contextbot") : qstr("@gif")) && text.at(0) == '@') {
+			if (text.trimmed() == '@' + cInlineGifBotUsername() && text.at(0) == '@') {
 				setFieldText(QString(), TextUpdateEventsSaveDraft, false);
 			}
 		} else {

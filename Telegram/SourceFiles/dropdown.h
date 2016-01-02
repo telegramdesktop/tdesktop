@@ -348,6 +348,7 @@ public:
 	void refreshRecent();
 	void inlineBotChanged();
 	void hideInlineRowsPanel();
+	void clearInlineRowsPanel();
 
 	void fillIcons(QList<StickerIcon> &icons);
 	void fillPanels(QVector<EmojiPanel*> &panels);
@@ -465,6 +466,7 @@ private:
 
 	void deleteUnusedInlineLayouts();
 
+	int32 validateExistingInlineRows(const InlineResults &results);
 	int32 _selected, _pressedSel;
 	QPoint _lastMousePos;
 	TextLinkPtr _linkOver, _linkDown;
@@ -631,6 +633,7 @@ private:
 
 	void leaveToChildEvent(QEvent *e);
 	void hideAnimated();
+	void prepareShowHideCache();
 
 	void updateSelected();
 	void updateIcons();
@@ -707,6 +710,7 @@ private:
 
 	void inlineBotChanged();
 	void showInlineRows(bool newResults);
+	bool hideOnNoInlineResults();
 	void recountContentMaxHeight();
 	bool refreshInlineRows();
 	UserData *_inlineBot;
