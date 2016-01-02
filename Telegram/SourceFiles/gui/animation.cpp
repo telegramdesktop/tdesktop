@@ -880,7 +880,6 @@ public:
 			return error();
 		}
 		if (ms >= _nextUpdateMs) {
-			LOG(("Slow frame, keeping up.."));
 			if (!prepareNextFrame()) {
 				return error();
 			}
@@ -1075,7 +1074,6 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 		ClipReader::Frame *other = it.key()->frameToWriteNext(false);
 		t_assert(other != 0);
 		if (other->when && other->when + WaitBeforeGifPause < qMax(reader->_previousMs, ms)) {
-			LOG(("Pausing reader.."));
 			reader->_paused = true;
 			it.key()->_paused.storeRelease(1);
 			result = ClipProcessPaused;

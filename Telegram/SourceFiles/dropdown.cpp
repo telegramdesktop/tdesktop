@@ -1672,6 +1672,7 @@ void StickerPanInner::inlineRowsAddItem(DocumentData *savedGif, InlineResult *re
 	}
 	if (!layout) return;
 
+	layout->preload();
 	if (inlineRowFinalize(row, sumWidth, layout->fullLine())) {
 		layout->setPosition(_inlineRows.size() * MatrixRowShift);
 	}
@@ -3458,6 +3459,9 @@ void EmojiPan::onScroll() {
 	if (_stickersShown) {
 		updatePanelsPositions(s_panels, st);
 		validateSelectedIcon(true);
+		if (st + s_scroll.height() > s_scroll.scrollTopMax()) {
+			onInlineRequest();
+		}
 	}
 	s_inner.setScrollTop(st);
 }
@@ -3633,9 +3637,9 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 		if (!adding) {
 			it = _inlineCache.insert(_inlineQuery, new InlineCacheEntry());
 		}
-		it.value()->nextOffset = v.isEmpty() ? QString() : qs(d.vnext_offset);
+		it.value()->nextOffset = qs(d.vnext_offset);
 
-		int32 count = v.size();
+		int32 count = v.size(), added = 0;
 		if (count) {
 			it.value()->results.reserve(it.value()->results.size() + count);
 		}
@@ -3704,14 +3708,19 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 			if (result->type.isEmpty() || badAttachment || !canSend) {
 				delete result;
 			} else {
+				++added;
 				it.value()->results.push_back(result);
 			}
 		}
+
+		if (!added) {
+			it.value()->nextOffset = QString();
+		}
 	} else if (adding) {
-		it.value()->clearResults();
 		it.value()->nextOffset = QString();
 	}
 	showInlineRows(!adding);
+	onScroll();
 }
 
 bool EmojiPan::inlineResultsFail(const RPCError &error) {
