@@ -4,6 +4,8 @@ This is the complete source code and the build instructions for the alpha versio
 
 The source code is published under GPLv3 with OpenSSL exception, the license is available [here][license].
 
+[![Gitter][gitter_img]][gitter_chat]
+
 ## Supported systems
 
 * Windows XP - Windows 10 (**not** RT)
@@ -106,3 +108,5 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 [xcode]: XCODE.md
 [xcode_old]: XCODEold.md
 [qtcreator]: QTCREATOR.md
+[gitter_chat]: https://gitter.im/telegramdesktop/tdesktop
+[gitter_img]: https://badges.gitter.im/telegramdesktop/tdesktop.svg
