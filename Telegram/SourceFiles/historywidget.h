@@ -389,6 +389,11 @@ public:
 
 };
 
+enum TextUpdateEventsFlags {
+	TextUpdateEventsSaveDraft  = 0x01,
+	TextUpdateEventsSendTyping = 0x02,
+};
+
 class HistoryWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
@@ -446,6 +451,7 @@ public:
 	void destroyData();
 
 	void updateFieldPlaceholder();
+	void updateInlineBotQuery();
 
 	void uploadImage(const QImage &img, PrepareMediaType type, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, const QString &source = QString(), bool withText = false);
 	void uploadFile(const QString &file, PrepareMediaType type, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, bool withText = false); // with confirmation
@@ -738,7 +744,7 @@ private:
 	bool savedGifsFailed(const RPCError &error);
 
 	void writeDraft(MsgId *replyTo = 0, const QString *text = 0, const MessageCursor *cursor = 0, bool *previewCancelled = 0);
-	void setFieldText(const QString &text);
+	void setFieldText(const QString &text, int32 textUpdateEventsFlags = 0, bool clearUndoHistory = true);
 
 	QStringList getMediasFromMime(const QMimeData *d);
 
@@ -814,7 +820,7 @@ private:
 	int32 _selCount; // < 0 - text selected, focus list, not _field
 
 	TaskQueue _fileLoader;
-	bool _synthedTextUpdate;
+	int32 _textUpdateEventsFlags;
 
 	int64 _serviceImageCacheSize;
 	QString _confirmSource;

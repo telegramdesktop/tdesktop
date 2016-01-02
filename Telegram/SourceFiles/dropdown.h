@@ -347,6 +347,8 @@ public:
 	void refreshInlineRows(UserData *bot, const InlineResults &results, bool resultsDeleted);
 	void refreshRecent();
 	void inlineBotChanged();
+	void hideInlineRowsPanel();
+	void clearInlineRowsPanel();
 
 	void fillIcons(QList<StickerIcon> &icons);
 	void fillPanels(QVector<EmojiPanel*> &panels);
@@ -364,6 +366,7 @@ public:
 	bool inlineResultsShown() const {
 		return _showingInlineItems && !_showingSavedGifs;
 	}
+	int32 countHeight(bool plain = false);
 
 	~StickerPanInner() {
 		clearInlineRows(true);
@@ -387,6 +390,7 @@ signals:
 	void removing(quint64 setId);
 
 	void refreshIcons();
+	void emptyInlineRows();
 
 	void switchToEmoji();
 
@@ -406,7 +410,6 @@ private:
 
 	void appendSet(uint64 setId);
 
-	int32 countHeight();
 	void selectEmoji(EmojiPtr emoji);
 	QRect stickerRect(int tab, int sel);
 
@@ -463,6 +466,7 @@ private:
 
 	void deleteUnusedInlineLayouts();
 
+	int32 validateExistingInlineRows(const InlineResults &results);
 	int32 _selected, _pressedSel;
 	QPoint _lastMousePos;
 	TextLinkPtr _linkOver, _linkDown;
@@ -608,6 +612,7 @@ public slots:
 	void onSaveConfigDelayed(int32 delay);
 
 	void onInlineRequest();
+	void onEmptyInlineRows();
 
 signals:
 
@@ -622,11 +627,13 @@ private:
 
 	void validateSelectedIcon(bool animated = false);
 
-	int32 _maxHeight, _maxHeightEmoji, _maxHeightStickers;
+	int32 _maxHeight, _contentMaxHeight, _contentHeight, _contentHeightEmoji, _contentHeightStickers;
 	bool _horizontal;
+	void updateContentHeight();
 
 	void leaveToChildEvent(QEvent *e);
 	void hideAnimated();
+	void prepareShowHideCache();
 
 	void updateSelected();
 	void updateIcons();
@@ -639,7 +646,7 @@ private:
 
 	bool _noTabUpdate;
 
-	int32 _width, _height;
+	int32 _width, _height, _bottom;
 	bool _hiding;
 	QPixmap _cache;
 
@@ -664,7 +671,7 @@ private:
 	anim::ivalue _iconsX, _iconSelX;
 	uint64 _iconsStartAnim;
 
-	bool _stickersShown;
+	bool _stickersShown, _shownFromInlineQuery;
 	QPixmap _fromCache, _toCache;
 	anim::ivalue a_fromCoord, a_toCoord;
 	anim::fvalue a_fromAlpha, a_toAlpha;
@@ -703,6 +710,8 @@ private:
 
 	void inlineBotChanged();
 	void showInlineRows(bool newResults);
+	bool hideOnNoInlineResults();
+	void recountContentMaxHeight();
 	bool refreshInlineRows();
 	UserData *_inlineBot;
 	QString _inlineQuery, _inlineNextQuery, _inlineNextOffset;

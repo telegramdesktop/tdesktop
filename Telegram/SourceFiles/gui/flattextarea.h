@@ -64,7 +64,8 @@ public:
 	QSize minimumSizeHint() const;
 
 	EmojiPtr getSingleEmoji() const;
-	QString getMentionHashtagBotCommandPart(bool &start, UserData *&contextBot, QString &contextBotUsername) const;
+	QString getMentionHashtagBotCommandPart(bool &start) const;
+	QString getInlineBotQuery(UserData *&contextBot, QString &contextBotUsername) const;
 	void removeSingleEmoji();
 	bool hasText() const;
 
@@ -79,7 +80,7 @@ public:
 	QMimeData *createMimeDataFromSelection() const;
 	void setCtrlEnterSubmit(bool ctrlEnterSubmit);
 
-	void setTextFast(const QString &text, bool withUndo = false);
+	void setTextFast(const QString &text, bool clearUndoHistory = true);
 
 public slots:
 

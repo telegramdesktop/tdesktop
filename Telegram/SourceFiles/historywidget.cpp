@@ -883,6 +883,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			if ((lnkVideo && lnkVideo->video()->loading()) || (lnkAudio && lnkAudio->audio()->loading()) || (lnkDocument && lnkDocument->document()->loading())) {
 				_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
 			} else {
+				if (lnkDocument && lnkDocument->document()->loaded() && lnkDocument->document()->isGifv()) {
+					_menu->addAction(lang(lng_context_save_gif), this, SLOT(saveContextGif()))->setEnabled(true);
+				}
 				if ((lnkVideo && !lnkVideo->video()->already(true).isEmpty()) || (lnkAudio && !lnkAudio->audio()->already(true).isEmpty()) || (lnkDocument && !lnkDocument->document()->already(true).isEmpty())) {
 					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 				}
@@ -2665,7 +2668,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _attachDragDocument(this)
 , _attachDragPhoto(this)
 , _fileLoader(this, FileLoaderQueueStopTimeout)
-, _synthedTextUpdate(false)
+, _textUpdateEventsFlags(TextUpdateEventsSaveDraft | TextUpdateEventsSendTyping)
 , _serviceImageCacheSize(0)
 , _confirmWithTextId(0)
 , _titlePeerTextWidth(0)
@@ -2817,9 +2820,55 @@ void HistoryWidget::onMentionHashtagOrBotCommandInsert(QString str) {
 	}
 }
 
+void HistoryWidget::updateInlineBotQuery() {
+	UserData *bot = _inlineBot;
+	bool start = false;
+	QString inlineBotUsername(_inlineBotUsername);
+	QString query = _field.getInlineBotQuery(_inlineBot, _inlineBotUsername);
+	if (inlineBotUsername != _inlineBotUsername) {
+		if (_inlineBotResolveRequestId) {
+			Notify::inlineBotRequesting(false);
+			MTP::cancel(_inlineBotResolveRequestId);
+			_inlineBotResolveRequestId = 0;
+		}
+		if (_inlineBot == InlineBotLookingUpData) {
+			Notify::inlineBotRequesting(true);
+			_inlineBotResolveRequestId = MTP::send(MTPcontacts_ResolveUsername(MTP_string(_inlineBotUsername)), rpcDone(&HistoryWidget::inlineBotResolveDone), rpcFail(&HistoryWidget::inlineBotResolveFail, _inlineBotUsername));
+			return;
+		}
+	} else if (_inlineBot == InlineBotLookingUpData) {
+		return;
+	}
+
+	if (_inlineBot) {
+		if (_inlineBot != bot) {
+			updateFieldPlaceholder();
+		}
+		if (_inlineBot->username == cInlineGifBotUsername() && query.isEmpty()) {
+			_emojiPan.clearInlineBot();
+		} else {
+			_emojiPan.queryInlineBot(_inlineBot, query);
+		}
+		if (!_attachMention.isHidden()) {
+			_attachMention.hideStart();
+		}
+	} else {
+		if (_inlineBot != bot) {
+			updateFieldPlaceholder();
+			_field.finishPlaceholder();
+		}
+		_emojiPan.clearInlineBot();
+		onCheckMentionDropdown();
+	}
+}
+
 void HistoryWidget::onTextChange() {
+	updateInlineBotQuery();
+
 	if (_peer && (!_peer->isChannel() || _peer->isMegagroup() || !_peer->asChannel()->canPublish() || (!_peer->asChannel()->isBroadcast() && !_broadcast.checked()))) {
-		updateSendAction(_history, SendActionTyping);
+		if (!_inlineBot && (_textUpdateEventsFlags & TextUpdateEventsSendTyping)) {
+			updateSendAction(_history, SendActionTyping);
+		}
 	}
 
 	if (cHasAudioCapture()) {
@@ -2843,13 +2892,13 @@ void HistoryWidget::onTextChange() {
 		update();
 	}
 
-	if (!_peer || _synthedTextUpdate) return;
+	if (!_peer || !(_textUpdateEventsFlags & TextUpdateEventsSaveDraft)) return;
 	_saveDraftText = true;
 	onDraftSave(true);
 }
 
 void HistoryWidget::onDraftSaveDelayed() {
-	if (!_peer || _synthedTextUpdate) return;
+	if (!_peer || !(_textUpdateEventsFlags & TextUpdateEventsSaveDraft)) return;
 	if (!_field.textCursor().anchor() && !_field.textCursor().position() && !_field.verticalScrollBar()->value()) {
 		if (!Local::hasDraftPositions(_peer->id)) return;
 	}
@@ -2905,7 +2954,6 @@ void HistoryWidget::onCancelSendAction() {
 
 void HistoryWidget::updateSendAction(History *history, SendActionType type, int32 progress) {
 	if (!history) return;
-	if (type == SendActionTyping && _synthedTextUpdate) return;
 
 	bool doing = (progress >= 0);
 
@@ -3298,7 +3346,9 @@ void HistoryWidget::applyDraft(bool parseLinks) {
 	if (!_history) return;
 	setFieldText(_history->draft);
 	_field.setFocus();
-	_history->draftCursor.applyTo(_field, &_synthedTextUpdate);
+	_textUpdateEventsFlags = 0;
+	_history->draftCursor.applyTo(_field);
+	_textUpdateEventsFlags = TextUpdateEventsSaveDraft | TextUpdateEventsSendTyping;
 	_previewCancelled = _history->draftPreviewCancelled;
 	if (parseLinks) {
 		onPreviewParse();
@@ -3401,6 +3451,12 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	_scroll.takeWidget();
 	updateTopBarSelection();
 
+	if (_inlineBot) {
+		_inlineBot = 0;
+		_emojiPan.clearInlineBot();
+		updateFieldPlaceholder();
+	}
+
 	_showAtMsgId = showAtMsgId;
 	_histInited = false;
 
@@ -3485,7 +3541,9 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 			_field.setFocus();
 			if (!draft.text.isEmpty()) {
 				MessageCursor cur = Local::readDraftPositions(fromMigrated ? _migrated->peer->id : _peer->id);
-				cur.applyTo(_field, &_synthedTextUpdate);
+				_textUpdateEventsFlags = 0;
+				cur.applyTo(_field);
+				_textUpdateEventsFlags = TextUpdateEventsSaveDraft | TextUpdateEventsSendTyping;
 			}
 			_replyToId = readyToForward() ? 0 : draft.replyTo;
 			_previewCancelled = draft.previewCancelled;
@@ -3502,11 +3560,8 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		connect(&_scroll, SIGNAL(geometryChanged()), _list, SLOT(onParentGeometryChanged()));
 		connect(&_scroll, SIGNAL(scrolled()), _list, SLOT(onUpdateSelected()));
 	} else {
+		setFieldText(QString());
 		doneShow();
-	}
-	if (_inlineBot) {
-		_inlineBot = 0;
-		_emojiPan.clearInlineBot();
 	}
 
 	if (App::wnd()) QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
@@ -4855,8 +4910,8 @@ bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
 	if (toInsert.at(0) != '@') {
 		QString text = _field.getLastText();
 		if (specialGif) {
-			if (text.trimmed() == (cTestMode() ? qstr("@contextbot") : qstr("@gif")) && text.at(0) == '@') {
-				_field.setTextFast(QString(), true);
+			if (text.trimmed() == '@' + cInlineGifBotUsername() && text.at(0) == '@') {
+				setFieldText(QString(), TextUpdateEventsSaveDraft, false);
 			}
 		} else {
 			QRegularExpressionMatch m = QRegularExpression(qsl("^/[A-Za-z_0-9]{0,64}(@[A-Za-z_0-9]{0,32})?(\\s|$)")).match(text);
@@ -4873,7 +4928,7 @@ bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
 		}
 	} else {
 		if (!specialGif || _field.getLastText().isEmpty()) {
-			_field.setTextFast(toInsert, true);
+			setFieldText(toInsert, TextUpdateEventsSaveDraft, false);
 			_field.setFocus();
 			return true;
 		}
@@ -4975,6 +5030,7 @@ bool HistoryWidget::hasBroadcastToggle() const {
 }
 
 void HistoryWidget::inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result) {
+	_inlineBotResolveRequestId = 0;
 	Notify::inlineBotRequesting(false);
 	_inlineBotUsername = QString();
 	if (result.type() == mtpc_contacts_resolvedPeer) {
@@ -4982,12 +5038,13 @@ void HistoryWidget::inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result)
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 	}
-	onCheckMentionDropdown();
+	updateInlineBotQuery();
 }
 
 bool HistoryWidget::inlineBotResolveFail(QString name, const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
 
+	_inlineBotResolveRequestId = 0;
 	Notify::inlineBotRequesting(false);
 	if (name == _inlineBotUsername) {
 		_inlineBot = 0;
@@ -5335,52 +5392,16 @@ void HistoryWidget::onFieldFocused() {
 }
 
 void HistoryWidget::onCheckMentionDropdown() {
-	if (!_history || _a_show.animating()) return;
+	if (!_history || _a_show.animating() || _inlineBot) return;
 
-	UserData *bot = _inlineBot;
 	bool start = false;
-	QString inlineBotUsername(_inlineBotUsername);
-	QString query = _field.getMentionHashtagBotCommandPart(start, _inlineBot, _inlineBotUsername);
-	if (inlineBotUsername != _inlineBotUsername) {
-		if (_inlineBotResolveRequestId) {
-			Notify::inlineBotRequesting(false);
-			MTP::cancel(_inlineBotResolveRequestId);
-			_inlineBotResolveRequestId = 0;
-		}
-		if (_inlineBot == InlineBotLookingUpData) {
-			Notify::inlineBotRequesting(true);
-			_inlineBotResolveRequestId = MTP::send(MTPcontacts_ResolveUsername(MTP_string(_inlineBotUsername)), rpcDone(&HistoryWidget::inlineBotResolveDone), rpcFail(&HistoryWidget::inlineBotResolveFail, _inlineBotUsername));
-			return;
-		}
-	} else if (_inlineBot == InlineBotLookingUpData) {
-		return;
+	QString query = _field.getMentionHashtagBotCommandPart(start);
+	if (!query.isEmpty()) {
+		if (query.at(0) == '#' && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) Local::readRecentHashtagsAndBots();
+		if (query.at(0) == '@' && cRecentInlineBots().isEmpty()) Local::readRecentHashtagsAndBots();
+		if (query.at(0) == '/' && _peer->isUser() && !_peer->asUser()->botInfo) return;
 	}
-
-	if (_inlineBot) {
-		if (_inlineBot != bot) {
-			updateFieldPlaceholder();
-		}
-		if (_inlineBot->username == (cTestMode() ? qstr("contextbot") : qstr("gif")) && query.isEmpty()) {
-			_emojiPan.clearInlineBot();
-		} else {
-			_emojiPan.queryInlineBot(_inlineBot, query);
-		}
-		if (!_attachMention.isHidden()) {
-			_attachMention.hideStart();
-		}
-	} else {
-		if (_inlineBot != bot) {
-			updateFieldPlaceholder();
-			_field.finishPlaceholder();
-		}
-		_emojiPan.clearInlineBot();
-		if (!query.isEmpty()) {
-			if (query.at(0) == '#' && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) Local::readRecentHashtagsAndBots();
-			if (query.at(0) == '@' && cRecentInlineBots().isEmpty()) Local::readRecentHashtagsAndBots();
-			if (query.at(0) == '/' && _peer->isUser() && !_peer->asUser()->botInfo) return;
-		}
-		_attachMention.showFiltered(_peer, query, start);
-	}
+	_attachMention.showFiltered(_peer, query, start);
 }
 
 void HistoryWidget::updateFieldPlaceholder() {
@@ -5876,8 +5897,8 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 	_cmdStart.move(_attachEmoji.x() - _cmdStart.width(), height() - kbh - _cmdStart.height());
 
 	_attachType.move(0, _attachDocument.y() - _attachType.height());
-	_emojiPan.setMaxHeight(height() - st::dropdownDef.padding.top() - st::dropdownDef.padding.bottom() - _attachEmoji.height());
 	_emojiPan.moveBottom(_attachEmoji.y());
+	_emojiPan.setMaxHeight(height() - st::dropdownDef.padding.top() - st::dropdownDef.padding.bottom() - _attachEmoji.height());
 
 	switch (_attachDrag) {
 	case DragStateFiles:
@@ -6523,10 +6544,10 @@ void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption, 
 	_field.setFocus();
 }
 
-void HistoryWidget::setFieldText(const QString &text) {
-	_synthedTextUpdate = true;
-	_field.setTextFast(text);
-	_synthedTextUpdate = false;
+void HistoryWidget::setFieldText(const QString &text, int32 textUpdateEventsFlags, bool clearUndoHistory) {
+	_textUpdateEventsFlags = textUpdateEventsFlags;
+	_field.setTextFast(text, clearUndoHistory);
+	_textUpdateEventsFlags = TextUpdateEventsSaveDraft | TextUpdateEventsSendTyping;
 
 	_previewCancelled = false;
 	_previewData = 0;

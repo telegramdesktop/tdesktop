@@ -3803,7 +3803,7 @@ void HistoryVideo::updateStatusText(const HistoryItem *parent) const {
 	} else if (_data->status == FileUploading) {
 		statusSize = _data->uploadOffset;
 	} else if (_data->loading()) {
-		statusSize = _data->progress();
+		statusSize = _data->loadOffset();
 	} else if (!_data->already().isEmpty()) {
 		statusSize = FileStatusSizeLoaded;
 	} else {
@@ -6554,12 +6554,12 @@ int32 HistoryMessage::resize(int32 width) {
 	if (width < st::msgMinWidth) return _height;
 
 	width -= st::msgMargin.left() + st::msgMargin.right();
+	if (width < st::msgPadding.left() + st::msgPadding.right() + 1) {
+		width = st::msgPadding.left() + st::msgPadding.right() + 1;
+	} else if (width > st::msgMaxWidth) {
+		width = st::msgMaxWidth;
+	}
 	if (drawBubble()) {
-		if (width < st::msgPadding.left() + st::msgPadding.right() + 1) {
-			width = st::msgPadding.left() + st::msgPadding.right() + 1;
-		} else if (width > st::msgMaxWidth) {
-			width = st::msgMaxWidth;
-		}
 		bool media = (_media && _media->isDisplayed());
 		if (width >= _maxw) {
 			_height = _minh;
@@ -6778,7 +6778,6 @@ HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const 
 , fwdFrom(App::peer(peerFromMTP(msg.vfwd_from_id)))
 , fwdFromVersion(fwdFrom->nameVersion)
 , fromWidth(st::msgServiceFont->width(lang(lng_forwarded_from)) + st::msgServiceFont->spacew) {
-	fwdNameUpdated();
 }
 
 HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg)
@@ -6787,7 +6786,6 @@ HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId 
 , fwdFrom(msg->fromForwarded())
 , fwdFromVersion(fwdFrom->nameVersion)
 , fromWidth(st::msgServiceFont->width(lang(lng_forwarded_from)) + st::msgServiceFont->spacew) {
-	fwdNameUpdated();
 }
 
 QString HistoryForwarded::selectedText(uint32 selection) const {
@@ -6799,16 +6797,16 @@ QString HistoryForwarded::selectedText(uint32 selection) const {
 }
 
 void HistoryForwarded::initDimensions() {
-	HistoryMessage::initDimensions();
 	fwdNameUpdated();
-}
-
-void HistoryForwarded::fwdNameUpdated() const {
-	fwdFromName.setText(st::msgServiceNameFont, App::peerName(fwdFrom), _textNameOptions);
+	HistoryMessage::initDimensions();
 	if (!_media) {
 		int32 _namew = st::msgPadding.left() + fromWidth + fwdFromName.maxWidth() + st::msgPadding.right();
 		if (_namew > _maxw) _maxw = _namew;
 	}
+}
+
+void HistoryForwarded::fwdNameUpdated() const {
+	fwdFromName.setText(st::msgServiceNameFont, App::peerName(fwdFrom), _textNameOptions);
 }
 
 void HistoryForwarded::draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const {
@@ -6974,7 +6972,9 @@ HistoryReply::HistoryReply(History *history, HistoryBlock *block, MsgId msgId, i
 	if (!updateReplyTo() && App::api()) {
 		App::api()->requestReplyTo(this, history->peer->asChannel(), replyToMsgId);
 	}
+	replyToNameUpdated();
 }
+
 QString HistoryReply::selectedText(uint32 selection) const {
 	if (selection != FullSelection || !replyToMsg) return HistoryMessage::selectedText(selection);
 	QString result, original = HistoryMessage::selectedText(selection);
@@ -6984,8 +6984,12 @@ QString HistoryReply::selectedText(uint32 selection) const {
 }
 
 void HistoryReply::initDimensions() {
-	HistoryMessage::initDimensions();
 	replyToNameUpdated();
+	HistoryMessage::initDimensions();
+	if (!_media) {
+		int32 replyw = st::msgPadding.left() + _maxReplyWidth - st::msgReplyPadding.left() - st::msgReplyPadding.right() + st::msgPadding.right();
+		if (replyw > _maxw) _maxw = replyw;
+	}
 }
 
 bool HistoryReply::updateReplyTo(bool force) {
@@ -7020,11 +7024,6 @@ void HistoryReply::replyToNameUpdated() const {
 		_maxReplyWidth = st::msgDateFont->width(lang(replyToMsgId ? lng_profile_loading : lng_deleted_message));
 	}
 	_maxReplyWidth = st::msgReplyPadding.left() + st::msgReplyBarSkip + _maxReplyWidth + st::msgReplyPadding.right();
-
-	if (!_media) {
-		int32 replyw = st::msgPadding.left() + _maxReplyWidth - st::msgReplyPadding.left() - st::msgReplyPadding.right() + st::msgPadding.right();
-		if (replyw > _maxw) _maxw = replyw;
-	}
 }
 
 int32 HistoryReply::replyToWidth() const {

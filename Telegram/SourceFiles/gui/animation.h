@@ -576,7 +576,7 @@ private:
 	mutable Frame _frames[3];
 	Frame *frameToShow() const; // 0 means not ready
 	Frame *frameToWrite(int32 *index = 0) const; // 0 means not ready
-	Frame *frameToRequestOther(bool check) const;
+	Frame *frameToWriteNext(bool check) const;
 	void moveToNextShow() const;
 	void moveToNextWrite() const;
 
@@ -596,8 +596,9 @@ static ClipReader * const BadClipReader = SharedMemoryLocation<ClipReader, 0>();
 enum ClipProcessResult {
 	ClipProcessError,
 	ClipProcessStarted,
-	ClipProcessReinit,
+	ClipProcessPaused,
 	ClipProcessRepaint,
+	ClipProcessCopyFrame,
 	ClipProcessWait,
 };
 

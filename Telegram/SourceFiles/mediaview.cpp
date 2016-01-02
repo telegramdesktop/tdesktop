@@ -490,7 +490,7 @@ void MediaView::close() {
 }
 
 void MediaView::activateControls() {
-	_controlsHideTimer.start(int(st::mvWaitHide));
+	if (!_menu) _controlsHideTimer.start(int(st::mvWaitHide));
 	if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) {
 		_controlsState = ControlsShowing;
 		_controlsAnimStarted = getms();
@@ -500,7 +500,7 @@ void MediaView::activateControls() {
 }
 
 void MediaView::onHideControls(bool force) {
-	if (!force && !_dropdown.isHidden()) return;
+	if (!force && (!_dropdown.isHidden() || _menu)) return;
 	if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) return;
 	_controlsState = ControlsHiding;
 	_controlsAnimStarted = getms();
@@ -1871,6 +1871,7 @@ void MediaView::contextMenuEvent(QContextMenuEvent *e) {
 		connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
 		_menu->popup(e->globalPos());
 		e->accept();
+		activateControls();
 	}
 }
 
@@ -1968,6 +1969,7 @@ void MediaView::hide() {
 void MediaView::onMenuDestroy(QObject *obj) {
 	if (_menu == obj) {
 		_menu = 0;
+		activateControls();
 	}
 	_receiveMouse = false;
 	QTimer::singleShot(0, this, SLOT(receiveMouse()));
