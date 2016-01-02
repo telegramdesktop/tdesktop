@@ -88,16 +88,16 @@ FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const
 	}
 }
 
-void FlatTextarea::setTextFast(const QString &text, bool withUndo) {
-	if (withUndo) {
+void FlatTextarea::setTextFast(const QString &text, bool clearUndoHistory) {
+	if (clearUndoHistory) {
+		setPlainText(text);
+	} else {
 		QTextCursor c(document()->docHandle(), 0);
 		c.joinPreviousEditBlock();
 		c.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
 		c.insertText(text);
 		c.movePosition(QTextCursor::End);
 		c.endEditBlock();
-	} else {
-		setPlainText(text);
 	}
 	finishPlaceholder();
 }

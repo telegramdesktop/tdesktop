@@ -79,7 +79,7 @@ public:
 	QMimeData *createMimeDataFromSelection() const;
 	void setCtrlEnterSubmit(bool ctrlEnterSubmit);
 
-	void setTextFast(const QString &text, bool withUndo = false);
+	void setTextFast(const QString &text, bool clearUndoHistory = true);
 
 public slots:
 

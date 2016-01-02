@@ -2668,7 +2668,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _attachDragDocument(this)
 , _attachDragPhoto(this)
 , _fileLoader(this, FileLoaderQueueStopTimeout)
-, _synthedTextUpdate(false)
+, _textUpdateEventsFlags(TextUpdateEventsSaveDraft | TextUpdateEventsSendTyping)
 , _serviceImageCacheSize(0)
 , _confirmWithTextId(0)
 , _titlePeerTextWidth(0)
@@ -2822,7 +2822,9 @@ void HistoryWidget::onMentionHashtagOrBotCommandInsert(QString str) {
 
 void HistoryWidget::onTextChange() {
 	if (_peer && (!_peer->isChannel() || _peer->isMegagroup() || !_peer->asChannel()->canPublish() || (!_peer->asChannel()->isBroadcast() && !_broadcast.checked()))) {
-		updateSendAction(_history, SendActionTyping);
+		if (!_inlineBot && !_inlineBotResolveRequestId && (_textUpdateEventsFlags & TextUpdateEventsSendTyping)) {
+			updateSendAction(_history, SendActionTyping);
+		}
 	}
 
 	if (cHasAudioCapture()) {
@@ -2846,13 +2848,13 @@ void HistoryWidget::onTextChange() {
 		update();
 	}
 
-	if (!_peer || _synthedTextUpdate) return;
+	if (!_peer || !(_textUpdateEventsFlags & TextUpdateEventsSaveDraft)) return;
 	_saveDraftText = true;
 	onDraftSave(true);
 }
 
 void HistoryWidget::onDraftSaveDelayed() {
-	if (!_peer || _synthedTextUpdate) return;
+	if (!_peer || !(_textUpdateEventsFlags & TextUpdateEventsSaveDraft)) return;
 	if (!_field.textCursor().anchor() && !_field.textCursor().position() && !_field.verticalScrollBar()->value()) {
 		if (!Local::hasDraftPositions(_peer->id)) return;
 	}
@@ -2908,7 +2910,6 @@ void HistoryWidget::onCancelSendAction() {
 
 void HistoryWidget::updateSendAction(History *history, SendActionType type, int32 progress) {
 	if (!history) return;
-	if (type == SendActionTyping && _synthedTextUpdate) return;
 
 	bool doing = (progress >= 0);
 
@@ -3301,7 +3302,9 @@ void HistoryWidget::applyDraft(bool parseLinks) {
 	if (!_history) return;
 	setFieldText(_history->draft);
 	_field.setFocus();
-	_history->draftCursor.applyTo(_field, &_synthedTextUpdate);
+	_textUpdateEventsFlags = 0;
+	_history->draftCursor.applyTo(_field);
+	_textUpdateEventsFlags = TextUpdateEventsSaveDraft | TextUpdateEventsSendTyping;
 	_previewCancelled = _history->draftPreviewCancelled;
 	if (parseLinks) {
 		onPreviewParse();
@@ -3494,7 +3497,9 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 			_field.setFocus();
 			if (!draft.text.isEmpty()) {
 				MessageCursor cur = Local::readDraftPositions(fromMigrated ? _migrated->peer->id : _peer->id);
-				cur.applyTo(_field, &_synthedTextUpdate);
+				_textUpdateEventsFlags = 0;
+				cur.applyTo(_field);
+				_textUpdateEventsFlags = TextUpdateEventsSaveDraft | TextUpdateEventsSendTyping;
 			}
 			_replyToId = readyToForward() ? 0 : draft.replyTo;
 			_previewCancelled = draft.previewCancelled;
@@ -4861,7 +4866,7 @@ bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
 		QString text = _field.getLastText();
 		if (specialGif) {
 			if (text.trimmed() == (cTestMode() ? qstr("@contextbot") : qstr("@gif")) && text.at(0) == '@') {
-				_field.setTextFast(QString(), true);
+				setFieldText(QString(), TextUpdateEventsSaveDraft, false);
 			}
 		} else {
 			QRegularExpressionMatch m = QRegularExpression(qsl("^/[A-Za-z_0-9]{0,64}(@[A-Za-z_0-9]{0,32})?(\\s|$)")).match(text);
@@ -4878,7 +4883,7 @@ bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
 		}
 	} else {
 		if (!specialGif || _field.getLastText().isEmpty()) {
-			_field.setTextFast(toInsert, true);
+			setFieldText(toInsert, TextUpdateEventsSaveDraft, false);
 			_field.setFocus();
 			return true;
 		}
@@ -4980,6 +4985,7 @@ bool HistoryWidget::hasBroadcastToggle() const {
 }
 
 void HistoryWidget::inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result) {
+	_inlineBotResolveRequestId = 0;
 	Notify::inlineBotRequesting(false);
 	_inlineBotUsername = QString();
 	if (result.type() == mtpc_contacts_resolvedPeer) {
@@ -4993,6 +4999,7 @@ void HistoryWidget::inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result)
 bool HistoryWidget::inlineBotResolveFail(QString name, const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
 
+	_inlineBotResolveRequestId = 0;
 	Notify::inlineBotRequesting(false);
 	if (name == _inlineBotUsername) {
 		_inlineBot = 0;
@@ -6528,10 +6535,10 @@ void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption, 
 	_field.setFocus();
 }
 
-void HistoryWidget::setFieldText(const QString &text) {
-	_synthedTextUpdate = true;
-	_field.setTextFast(text);
-	_synthedTextUpdate = false;
+void HistoryWidget::setFieldText(const QString &text, int32 textUpdateEventsFlags, bool clearUndoHistory) {
+	_textUpdateEventsFlags = textUpdateEventsFlags;
+	_field.setTextFast(text, clearUndoHistory);
+	_textUpdateEventsFlags = TextUpdateEventsSaveDraft | TextUpdateEventsSendTyping;
 
 	_previewCancelled = false;
 	_previewData = 0;

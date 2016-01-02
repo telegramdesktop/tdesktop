@@ -1355,15 +1355,13 @@ struct MessageCursor {
 		QScrollBar *s = edit.verticalScrollBar();
 		scroll = (s && (s->value() != s->maximum())) ? s->value() : QFIXED_MAX;
 	}
-	void applyTo(QTextEdit &edit, bool *lock = 0) {
-		if (lock) *lock = true;
+	void applyTo(QTextEdit &edit) {
 		QTextCursor c = edit.textCursor();
 		c.setPosition(anchor, QTextCursor::MoveAnchor);
 		c.setPosition(position, QTextCursor::KeepAnchor);
 		edit.setTextCursor(c);
 		QScrollBar *s = edit.verticalScrollBar();
 		if (s) s->setValue(scroll);
-		if (lock) *lock = false;
 	}
 	int position, anchor, scroll;
 };
