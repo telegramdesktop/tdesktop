@@ -225,7 +225,7 @@ ClipReader::ClipReader(const FileLocation &location, const QByteArray &data, Cal
 , _state(ClipReading)
 , _width(0)
 , _height(0)
-, _step(FirstFrameNotReadStep)
+, _step(WaitingForDimensionsStep)
 , _paused(0)
 , _autoplay(false)
 , _private(0) {
@@ -248,47 +248,69 @@ ClipReader::ClipReader(const FileLocation &location, const QByteArray &data, Cal
 	_clipManagers.at(_threadIndex)->append(this, location, data);
 }
 
-ClipReader::Frame *ClipReader::frameToShow() const { // 0 means not ready
-	int32 step = _step.loadAcquire();
-	if (step == FirstFrameNotReadStep) {
-		return 0;
-	} else if (step == WaitingForRequestStep) {
-		return _frames;
-	}
-	return _frames + (((step + 1) / 2) % 3);
-}
-
-ClipReader::Frame *ClipReader::frameToWrite(int32 *index) const { // 0 means not ready
-	int32 step = _step.loadAcquire(), i = 0;
-	if (step == WaitingForRequestStep) {
+ClipReader::Frame *ClipReader::frameToShow(int32 *index) const { // 0 means not ready
+	int32 step = _step.loadAcquire(), i;
+	if (step == WaitingForDimensionsStep) {
 		if (index) *index = 0;
 		return 0;
-	} else if (step != FirstFrameNotReadStep) {
-		i = (((step + 3) / 2) % 3);
+	} else if (step == WaitingForRequestStep) {
+		i = 0;
+	} else if (step == WaitingForFirstFrameStep) {
+		i = 0;
+	} else {
+		i = (step / 2) % 3;
 	}
 	if (index) *index = i;
 	return _frames + i;
 }
 
-ClipReader::Frame *ClipReader::frameToWriteNext(bool checkNotWriting) const {
-	int32 step = _step.loadAcquire();
-	if (step == FirstFrameNotReadStep || step == WaitingForRequestStep || (checkNotWriting && !(step % 2))) {
+ClipReader::Frame *ClipReader::frameToWrite(int32 *index) const { // 0 means not ready
+	int32 step = _step.loadAcquire(), i;
+	if (step == WaitingForDimensionsStep) {
+		i = 0;
+	} else if (step == WaitingForRequestStep) {
+		if (index) *index = 0;
+		return 0;
+	} else if (step == WaitingForFirstFrameStep) {
+		i = 0;
+	} else {
+		i = ((step + 2) / 2) % 3;
+	}
+	if (index) *index = i;
+	return _frames + i;
+}
+
+ClipReader::Frame *ClipReader::frameToWriteNext(bool checkNotWriting, int32 *index) const {
+	int32 step = _step.loadAcquire(), i;
+	if (step == WaitingForDimensionsStep || step == WaitingForRequestStep || (checkNotWriting && (step % 2))) {
+		if (index) *index = 0;
 		return 0;
 	}
-	return _frames + (((step + 5) / 2) % 3);
+	i = ((step + 4) / 2) % 3;
+	if (index) *index = i;
+	return _frames + i;
 }
 
 void ClipReader::moveToNextShow() const {
 	int32 step = _step.loadAcquire();
-	if (step % 2) {
-		_step.storeRelease((step + 1) % 6);
+	if (step == WaitingForDimensionsStep) {
+	} else if (step == WaitingForRequestStep) {
+		_step.storeRelease(WaitingForFirstFrameStep);
+	} else if (step == WaitingForFirstFrameStep) {
+	} else if (!(step % 2)) {
+		_step.storeRelease(step + 1);
 	}
 }
 
 void ClipReader::moveToNextWrite() const {
 	int32 step = _step.loadAcquire();
-	if (!(step % 2)) {
-		_step.storeRelease(step + 1);
+	if (step == WaitingForDimensionsStep) {
+		_step.storeRelease(WaitingForRequestStep);
+	} else if (step == WaitingForRequestStep) {
+	} else if (step == WaitingForFirstFrameStep) {
+		_step.storeRelease(0);
+	} else if (step % 2) {
+		_step.storeRelease((step + 1) % 6);
 	}
 }
 
@@ -313,7 +335,7 @@ void ClipReader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, b
 		request.outerh = outerh * factor;
 		request.rounded = rounded;
 		_frames[0].request = _frames[1].request = _frames[2].request = request;
-		_step.storeRelease(0); // start working
+		moveToNextShow();
 		_clipManagers.at(_threadIndex)->start(this);
 	}
 }
@@ -322,9 +344,8 @@ QPixmap ClipReader::current(int32 framew, int32 frameh, int32 outerw, int32 oute
 	Frame *frame = frameToShow();
 	t_assert(frame != 0);
 
-	frame->displayed = true;
 	if (ms) {
-		frame->when = ms;
+		frame->displayed.storeRelease(1);
 		if (_paused.loadAcquire()) {
 			_paused.storeRelease(0);
 			if (_clipManagers.size() <= _threadIndex) error();
@@ -332,6 +353,8 @@ QPixmap ClipReader::current(int32 framew, int32 frameh, int32 outerw, int32 oute
 				_clipManagers.at(_threadIndex)->update(this);
 			}
 		}
+	} else {
+		frame->displayed.storeRelease(-1); // displayed, but should be paused
 	}
 
 	int32 factor(cIntRetinaFactor());
@@ -835,9 +858,7 @@ public:
 	, _frame(0)
 	, _width(0)
 	, _height(0)
-	, _previousMs(0)
-	, _currentMs(0)
-	, _nextUpdateMs(0)
+	, _nextFrameWhen(0)
 	, _paused(false) {
 		if (_data.isEmpty() && !_location->accessEnable()) {
 			error();
@@ -868,23 +889,19 @@ public:
 			return start(ms);
 		}
 
-		if (!_paused && ms >= _nextUpdateMs) {
+		if (!_paused && ms >= _nextFrameWhen) {
 			return ClipProcessRepaint;
 		}
 		return ClipProcessWait;
 	}
 
 	ClipProcessResult finishProcess(uint64 ms) {
-		_previousMs = _currentMs;
 		if (!prepareNextFrame()) {
 			return error();
 		}
-		if (ms >= _nextUpdateMs) {
-			if (!prepareNextFrame()) {
-				return error();
-			}
+		if (ms >= _nextFrameWhen && !prepareNextFrame(true)) {
+			return error();
 		}
-		_currentMs = qMax(ms, _nextUpdateMs);
 		return ClipProcessCopyFrame;
 	}
 
@@ -893,15 +910,17 @@ public:
 		return qMax(delay, 5);
 	}
 
-	bool prepareNextFrame() {
+	bool prepareNextFrame(bool keepup = false) {
 		t_assert(frame() != 0 && _request.valid());
 		if (!_implementation->readNextFrame(frame()->original, frame()->alpha, QSize(_request.framew, _request.frameh))) {
 			return false;
 		}
-		_nextUpdateMs = _currentMs + nextFrameDelay();
+		_nextFrameWhen += nextFrameDelay();
+		if (keepup) _nextFrameWhen = qMax(_nextFrameWhen, getms());
 		frame()->original.setDevicePixelRatio(_request.factor);
 		frame()->pix = QPixmap();
 		frame()->pix = _prepareFrame(_request, frame()->original, frame()->alpha, frame()->cache);
+		frame()->when = _nextFrameWhen;
 		return true;
 	}
 
@@ -962,11 +981,12 @@ private:
 
 	ClipFrameRequest _request;
 	struct Frame {
-		Frame() : alpha(true) {
+		Frame() : alpha(true), when(0) {
 		}
 		QPixmap pix;
 		QImage original, cache;
 		bool alpha;
+		uint64 when;
 	};
 	Frame _frames[3];
 	int32 _frame;
@@ -976,7 +996,7 @@ private:
 
 	int32 _width, _height;
 
-	uint64 _previousMs, _currentMs, _nextUpdateMs;
+	uint64 _nextFrameWhen;
 
 	bool _paused;
 
@@ -1070,13 +1090,16 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 	if (result == ClipProcessStarted) {
 		_loadLevel.fetchAndAddRelaxed(reader->_width * reader->_height - AverageGifSize);
 	}
-	if (!reader->_paused && (result == ClipProcessRepaint || result == ClipProcessWait)) {
-		ClipReader::Frame *other = it.key()->frameToWriteNext(false);
-		t_assert(other != 0);
-		if (other->when && other->when + WaitBeforeGifPause < qMax(reader->_previousMs, ms)) {
-			reader->_paused = true;
-			it.key()->_paused.storeRelease(1);
-			result = ClipProcessPaused;
+	if (!reader->_paused && result == ClipProcessRepaint) {
+		int32 ishowing, iprevious;
+		ClipReader::Frame *showing = it.key()->frameToShow(&ishowing), *previous = it.key()->frameToWriteNext(false, &iprevious);
+		t_assert(previous != 0 && showing != 0 && ishowing >= 0 && iprevious >= 0);
+		if (reader->_frames[ishowing].when > 0 && showing->displayed.loadAcquire() <= 0) { // current frame was not shown
+			if (reader->_frames[ishowing].when + WaitBeforeGifPause < ms || (reader->_frames[iprevious].when && previous->displayed.loadAcquire() <= 0)) {
+				reader->_paused = true;
+				it.key()->_paused.storeRelease(1);
+				result = ClipProcessPaused;
+			}
 		}
 	}
 	if (result == ClipProcessStarted || result == ClipProcessCopyFrame) {
@@ -1085,14 +1108,17 @@ bool ClipReadManager::handleProcessResult(ClipReaderPrivate *reader, ClipProcess
 		frame->clear();
 		frame->pix = reader->frame()->pix;
 		frame->original = reader->frame()->original;
-		frame->displayed = false;
-		it.key()->moveToNextWrite();
+		frame->displayed.storeRelease(0);
 		if (result == ClipProcessStarted) {
+			reader->_nextFrameWhen = ms;
+			it.key()->moveToNextWrite();
 			emit callback(it.key(), it.key()->threadIndex(), ClipReaderReinit);
 		}
 	} else if (result == ClipProcessPaused) {
+		it.key()->moveToNextWrite();
 		emit callback(it.key(), it.key()->threadIndex(), ClipReaderReinit);
 	} else if (result == ClipProcessRepaint) {
+		it.key()->moveToNextWrite();
 		emit callback(it.key(), it.key()->threadIndex(), ClipReaderRepaint);
 	}
 	return true;
@@ -1174,7 +1200,7 @@ void ClipReadManager::process() {
 				return;
 			}
 			ms = getms();
-			i.value() = reader->_nextUpdateMs ? reader->_nextUpdateMs : (ms + 86400 * 1000ULL);
+			i.value() = reader->_nextFrameWhen ? reader->_nextFrameWhen : (ms + 86400 * 1000ULL);
 		}
 		if (!reader->_paused && i.value() < minms) {
 			minms = i.value();

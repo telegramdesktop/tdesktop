@@ -2630,6 +2630,8 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _migrated(0)
 , _history(0)
 , _histInited(false)
+, _lastScroll(0)
+, _lastScrolled(0)
 , _toHistoryEnd(this, st::historyToEnd)
 , _collapseComments(this)
 , _attachMention(this)
@@ -2721,6 +2723,9 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 		connect(audioCapture(), SIGNAL(onUpdate(qint16,qint32)), this, SLOT(onRecordUpdate(qint16,qint32)));
 		connect(audioCapture(), SIGNAL(onDone(QByteArray,qint32)), this, SLOT(onRecordDone(QByteArray,qint32)));
 	}
+
+	_updateHistoryItems.setSingleShot(true);
+	connect(&_updateHistoryItems, SIGNAL(timeout()), this, SLOT(onUpdateHistoryItems()));
 
 	_scrollTimer.setSingleShot(false);
 
@@ -3507,6 +3512,8 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		_scroll.hide();
 		_scroll.setWidget(_list);
 		_list->show();
+
+		_updateHistoryItems.stop();
 
 		if (_history->lastWidth || _history->isReadyFor(_showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop)) {
 			_fixedInScrollMsgId = 0;
@@ -4360,6 +4367,11 @@ void HistoryWidget::onListScroll() {
 			break;
 		}
 	}
+
+	if (st != _lastScroll) {
+		_lastScrolled = getms();
+		_lastScroll = st;
+	}
 }
 
 void HistoryWidget::onVisibleChanged() {
@@ -4407,8 +4419,9 @@ void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
 	_saveDraftStart = getms();
 	onDraftSave();
 
-	onCheckMentionDropdown();
+	if (!_attachMention.isHidden()) _attachMention.hideStart();
 	if (!_attachType.isHidden()) _attachType.hideStart();
+	if (!_emojiPan.isHidden()) _emojiPan.hideStart();
 
 	if (replyTo < 0) cancelReply(lastKeyboardUsed);
 	if (_previewData && _previewData->pendingTill) previewCancel();
@@ -5834,7 +5847,21 @@ bool HistoryWidget::isItemVisible(HistoryItem *item) {
 
 void HistoryWidget::ui_repaintHistoryItem(const HistoryItem *item) {
 	if (_peer && _list && (item->history() == _history || (_migrated && item->history() == _migrated))) {
-		_list->repaintItem(item);
+		uint64 ms = getms();
+		if (_lastScrolled + 100 <= ms) {
+			_list->repaintItem(item);
+		} else {
+			_updateHistoryItems.start(_lastScrolled + 100 - ms);
+		}
+	}
+}
+
+void HistoryWidget::onUpdateHistoryItems() {
+	uint64 ms = getms();
+	if (_lastScrolled + 100 <= ms) {
+		_list->update();
+	} else {
+		_updateHistoryItems.start(_lastScrolled + 100 - ms);
 	}
 }
 
@@ -6459,8 +6486,9 @@ void HistoryWidget::onInlineResultSend(InlineResult *result, UserData *bot) {
 		Local::writeRecentHashtagsAndBots();
 	}
 
-	onCheckMentionDropdown();
+	if (!_attachMention.isHidden()) _attachMention.hideStart();
 	if (!_attachType.isHidden()) _attachType.hideStart();
+	if (!_emojiPan.isHidden()) _emojiPan.hideStart();
 
 	_field.setFocus();
 }
