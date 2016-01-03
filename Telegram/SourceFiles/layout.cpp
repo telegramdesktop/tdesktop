@@ -300,14 +300,14 @@ LayoutOverviewDate::LayoutOverviewDate(const QDate &date, bool month)
 
 void LayoutOverviewDate::initDimensions() {
 	_maxw = st::normalFont->width(_text);
-	_minh = st::linksDateMargin + st::normalFont->height + st::linksDateMargin + st::linksBorder;
+	_minh = st::linksDateMargin.top() + st::normalFont->height + st::linksDateMargin.bottom() + st::linksBorder;
 }
 
 void LayoutOverviewDate::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
-	if (clip.intersects(QRect(0, st::linksDateMargin, _width, st::normalFont->height))) {
+	if (clip.intersects(QRect(0, st::linksDateMargin.top(), _width, st::normalFont->height))) {
 		p.setPen(st::linksDateColor);
-		p.setFont(st::normalFont);
-		p.drawTextLeft(0, st::linksDateMargin, _width, _text);
+		p.setFont(st::semiboldFont);
+		p.drawTextLeft(0, st::linksDateMargin.top(), _width, _text);
 	}
 }
 
@@ -756,17 +756,17 @@ LayoutOverviewDocument::LayoutOverviewDocument(DocumentData *document, HistoryIt
 		_data->thumb->load();
 		int32 tw = _data->thumb->width(), th = _data->thumb->height();
 		if (tw > th) {
-			_thumbw = (tw * st::msgFileThumbSize) / th;
+			_thumbw = (tw * st::overviewFileSize) / th;
 		} else {
-			_thumbw = st::msgFileThumbSize;
+			_thumbw = st::overviewFileSize;
 		}
 	} else {
 		_thumbw = 0;
 	}
 
 	_extw = st::semiboldFont->width(_ext);
-	if (_extw > st::msgFileThumbSize - st::msgFileExtPadding * 2) {
-		_ext = st::semiboldFont->elided(_ext, st::msgFileThumbSize - st::msgFileExtPadding * 2, Qt::ElideMiddle);
+	if (_extw > st::overviewFileSize - st::msgFileExtPadding * 2) {
+		_ext = st::semiboldFont->elided(_ext, st::overviewFileSize - st::msgFileExtPadding * 2, Qt::ElideMiddle);
 		_extw = st::semiboldFont->width(_ext);
 	}
 }
@@ -776,7 +776,7 @@ void LayoutOverviewDocument::initDimensions() {
 	if (_data->song()) {
 		_minh = st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom();
 	} else {
-		_minh = st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom() + st::lineWidth;
+		_minh = st::overviewFilePadding.top() + st::overviewFileSize + st::overviewFilePadding.bottom() + st::lineWidth;
 	}
 }
 
@@ -845,23 +845,23 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 			p.drawSpriteCenter(inner, icon);
 		}
 	} else {
-		nameleft = st::msgFileThumbSize + st::msgFileThumbPadding.right();
-		nametop = st::linksBorder + st::msgFileThumbNameTop;
-		statustop = st::linksBorder + st::msgFileThumbStatusTop;
-		datetop = st::linksBorder + st::msgFileThumbLinkTop;
+		nameleft = st::overviewFileSize + st::overviewFilePadding.right();
+		nametop = st::linksBorder + st::overviewFileNameTop;
+		statustop = st::linksBorder + st::overviewFileStatusTop;
+		datetop = st::linksBorder + st::overviewFileDateTop;
 
 		QRect shadow(rtlrect(nameleft, 0, _width - nameleft, st::linksBorder, _width));
 		if (clip.intersects(shadow)) {
 			p.fillRect(clip.intersected(shadow), st::linksBorderFg);
 		}
 
-		QRect rthumb(rtlrect(0, st::linksBorder + st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, _width));
+		QRect rthumb(rtlrect(0, st::linksBorder + st::overviewFilePadding.top(), st::overviewFileSize, st::overviewFileSize, _width));
 		if (clip.intersects(rthumb)) {
 			if (wthumb) {
 				if (_data->thumb->loaded()) {
 					if (_thumb.isNull() || loaded != _thumbForLoaded) {
 						_thumbForLoaded = loaded;
-						_thumb = _data->thumb->pixNoCache(_thumbw, 0, true, !_thumbForLoaded, false, st::msgFileThumbSize, st::msgFileThumbSize);
+						_thumb = _data->thumb->pixNoCache(_thumbw, 0, true, !_thumbForLoaded, false, st::overviewFileSize, st::overviewFileSize);
 					}
 					p.drawPixmap(rthumb.topLeft(), _thumb);
 				} else {
@@ -921,10 +921,10 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 					}
 				}
 			}
-			if (selected) {
-				p.drawSprite(rthumb.topLeft() + QPoint(rtl() ? 0 : (rthumb.width() - st::linksPhotoChecked.pxWidth()), rthumb.height() - st::linksPhotoChecked.pxHeight()), st::linksPhotoChecked);
-			} else if (context->selecting) {
-				p.drawSprite(rthumb.topLeft() + QPoint(rtl() ? 0 : (rthumb.width() - st::linksPhotoCheck.pxWidth()), rthumb.height() - st::linksPhotoCheck.pxHeight()), st::linksPhotoCheck);
+			if (selected || context->selecting) {
+				QRect check(rthumb.topLeft() + QPoint(rtl() ? 0 : (rthumb.width() - st::defaultCheckbox.diameter), rthumb.height() - st::defaultCheckbox.diameter), QSize(st::defaultCheckbox.diameter, st::defaultCheckbox.diameter));
+				p.fillRect(check, selected ? st::overviewFileChecked : st::overviewFileCheck);
+				p.drawSpriteCenter(check, st::defaultCheckbox.checkIcon);
 			}
 		}
 	}
@@ -977,12 +977,12 @@ void LayoutOverviewDocument::getState(TextLinkPtr &link, HistoryCursorState &cur
 			return;
 		}
 	} else {
-		nameleft = st::msgFileThumbSize + st::msgFileThumbPadding.right();
-		nametop = st::linksBorder + st::msgFileThumbNameTop;
-		statustop = st::linksBorder + st::msgFileThumbStatusTop;
-		datetop = st::linksBorder + st::msgFileThumbLinkTop;
+		nameleft = st::overviewFileSize + st::overviewFilePadding.right();
+		nametop = st::linksBorder + st::overviewFileNameTop;
+		statustop = st::linksBorder + st::overviewFileStatusTop;
+		datetop = st::linksBorder + st::overviewFileDateTop;
 
-		QRect rthumb(rtlrect(0, st::linksBorder + st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, _width));
+		QRect rthumb(rtlrect(0, st::linksBorder + st::overviewFilePadding.top(), st::overviewFileSize, st::overviewFileSize, _width));
 
 		if (rthumb.contains(x, y)) {
 			link = loaded ? _openl : ((_data->loading() || _data->status == FileUploading) ? _cancell : _savel);
@@ -1181,7 +1181,7 @@ void LayoutOverviewLink::initDimensions() {
 		_minh += qMin(3 * st::normalFont->height, _text.countHeight(_maxw - st::dlgPhotoSize - st::dlgPhotoPadding));
 	}
 	_minh += _links.size() * st::normalFont->height;
-	_minh = qMax(_minh, int32(st::dlgPhotoSize)) + st::linksMargin * 2 + st::linksBorder;
+	_minh = qMax(_minh, int32(st::dlgPhotoSize)) + st::linksMargin.top() + st::linksMargin.bottom() + st::linksBorder;
 }
 
 int32 LayoutOverviewLink::resizeGetHeight(int32 width) {
@@ -1199,12 +1199,12 @@ int32 LayoutOverviewLink::resizeGetHeight(int32 width) {
 		_height += qMin(3 * st::normalFont->height, _text.countHeight(_width - st::dlgPhotoSize - st::dlgPhotoPadding));
 	}
 	_height += _links.size() * st::normalFont->height;
-	_height = qMax(_height, int32(st::dlgPhotoSize)) + st::linksMargin * 2 + st::linksBorder;
+	_height = qMax(_height, int32(st::dlgPhotoSize)) + st::linksMargin.top() + st::linksMargin.bottom() + st::linksBorder;
 	return _height;
 }
 
 void LayoutOverviewLink::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
-	int32 left = st::dlgPhotoSize + st::dlgPhotoPadding, top = st::linksMargin + st::linksBorder, w = _width - left;
+	int32 left = st::dlgPhotoSize + st::dlgPhotoPadding, top = st::linksMargin.top() + st::linksBorder, w = _width - left;
 	if (clip.intersects(rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width))) {
 		if (_page && _page->photo) {
 			QPixmap pix;
@@ -1244,6 +1244,8 @@ void LayoutOverviewLink::paint(Painter &p, const QRect &clip, uint32 selection, 
 
 	if (!_title.isEmpty() && _text.isEmpty() && _links.size() == 1) {
 		top += (st::dlgPhotoSize - st::semiboldFont->height - st::normalFont->height) / 2;
+	} else {
+		top = st::linksTextTop;
 	}
 
 	p.setPen(st::black);
@@ -1278,7 +1280,7 @@ void LayoutOverviewLink::paint(Painter &p, const QRect &clip, uint32 selection, 
 }
 
 void LayoutOverviewLink::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
-	int32 left = st::dlgPhotoSize + st::dlgPhotoPadding, top = st::linksMargin + st::linksBorder, w = _width - left;
+	int32 left = st::dlgPhotoSize + st::dlgPhotoPadding, top = st::linksMargin.top() + st::linksBorder, w = _width - left;
 	if (rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width).contains(x, y)) {
 		link = _photol;
 		return;
