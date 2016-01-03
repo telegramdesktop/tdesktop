@@ -81,6 +81,7 @@ style::color documentSelectedColor(int32 colorIndex);
 style::sprite documentCorner(int32 colorIndex);
 RoundCorners documentCorners(int32 colorIndex);
 
+class OverviewPaintContext;
 class InlinePaintContext;
 class PaintContext {
 public:
@@ -89,6 +90,10 @@ public:
 	}
 	uint64 ms;
 	bool selecting;
+
+	virtual const OverviewPaintContext *toOverviewPaintContext() const {
+		return 0;
+	}
 	virtual const InlinePaintContext *toInlinePaintContext() const {
 		return 0;
 	}
@@ -257,6 +262,17 @@ protected:
 
 	// duration = -1 - no duration, duration = -2 - "GIF" duration
 	void setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const;
+
+};
+
+class OverviewPaintContext : public PaintContext {
+public:
+	OverviewPaintContext(uint64 ms, bool selecting) : PaintContext(ms, selecting), isAfterDate(false) {
+	}
+	const OverviewPaintContext *toOverviewPaintContext() const {
+		return this;
+	}
+	bool isAfterDate;
 
 };
 

@@ -5857,6 +5857,8 @@ void HistoryWidget::ui_repaintHistoryItem(const HistoryItem *item) {
 }
 
 void HistoryWidget::onUpdateHistoryItems() {
+	if (!_list) return;
+
 	uint64 ms = getms();
 	if (_lastScrolled + 100 <= ms) {
 		_list->update();

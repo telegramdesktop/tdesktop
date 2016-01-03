@@ -850,9 +850,11 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 		statustop = st::linksBorder + st::overviewFileStatusTop;
 		datetop = st::linksBorder + st::overviewFileDateTop;
 
-		QRect shadow(rtlrect(nameleft, 0, _width - nameleft, st::linksBorder, _width));
-		if (clip.intersects(shadow)) {
-			p.fillRect(clip.intersected(shadow), st::linksBorderFg);
+		const OverviewPaintContext *pcontext = context->toOverviewPaintContext();
+		t_assert(pcontext != 0);
+		QRect border(rtlrect(nameleft, 0, _width - nameleft, st::linksBorder, _width));
+		if (!pcontext->isAfterDate && clip.intersects(border)) {
+			p.fillRect(clip.intersected(border), st::linksBorderFg);
 		}
 
 		QRect rthumb(rtlrect(0, st::linksBorder + st::overviewFilePadding.top(), st::overviewFileSize, st::overviewFileSize, _width));
@@ -1274,8 +1276,11 @@ void LayoutOverviewLink::paint(Painter &p, const QRect &clip, uint32 selection, 
 		top += st::normalFont->height;
 	}
 
-	if (clip.intersects(rtlrect(left, 0, w, st::linksBorder, _width))) {
-		p.fillRect(clip.intersected(rtlrect(left, 0, w, st::linksBorder, _width)), st::linksBorderFg);
+	const OverviewPaintContext *pcontext = context->toOverviewPaintContext();
+	t_assert(pcontext != 0);
+	QRect border(rtlrect(left, 0, w, st::linksBorder, _width));
+	if (!pcontext->isAfterDate && clip.intersects(border)) {
+		p.fillRect(clip.intersected(border), st::linksBorderFg);
 	}
 }
 

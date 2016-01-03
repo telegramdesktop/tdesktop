@@ -834,7 +834,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 		p.setClipRect(r);
 	}
 	uint64 ms = getms();
-	PaintContext context(ms, _selMode);
+	OverviewPaintContext context(ms, _selMode);
 
 	if (_history->overview[_type].isEmpty() && (!_migrated || !_history->overviewLoaded(_type) || _migrated->overview[_type].isEmpty())) {
 		QPoint dogPos((_width - st::msgDogImg.pxWidth()) / 2, ((height() - st::msgDogImg.pxHeight()) * 4) / 9);
@@ -887,6 +887,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 				if (_reversed) curY = _height - curY;
 				if (_marginTop + curY >= r.y() + r.height()) break;
 
+				context.isAfterDate = (j > 0) ? !_items.at(j - 1)->toLayoutMediaItem() : false;
 				p.translate(0, curY - y);
 				_items.at(i)->paint(p, r.translated(-_rowsLeft, -_marginTop - curY), itemSelectedValue(i), &context);
 				y = curY;
