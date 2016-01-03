@@ -75,6 +75,9 @@ QString formatPlayedText(qint64 played, qint64 duration);
 QString documentName(DocumentData *document);
 int32 documentColorIndex(DocumentData *document, QString &ext);
 style::color documentColor(int32 colorIndex);
+style::color documentDarkColor(int32 colorIndex);
+style::color documentOverColor(int32 colorIndex);
+style::color documentSelectedColor(int32 colorIndex);
 style::sprite documentCorner(int32 colorIndex);
 RoundCorners documentCorners(int32 colorIndex);
 
@@ -267,7 +270,7 @@ public:
 	void setTop(int32 top) {
 		_top = top;
 	}
-	
+
 private:
 	int32 _top;
 
@@ -276,7 +279,7 @@ private:
 class LayoutOverviewDate : public LayoutItem {
 public:
 	LayoutOverviewDate(const QDate &date, bool month);
-	
+
 	virtual void initDimensions();
 	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
 
@@ -426,6 +429,9 @@ private:
 	DocumentData *_data;
 	TextLinkPtr _msgl, _namel;
 
+	mutable bool _thumbForLoaded;
+	mutable QPixmap _thumb;
+
 	QString _name, _date, _ext;
 	int32 _namew, _datew, _extw;
 	int32 _thumbw, _colorIndex;
@@ -492,7 +498,7 @@ class LayoutInlineItem : public LayoutItem {
 public:
 
 	LayoutInlineItem(InlineResult *result, DocumentData *doc, PhotoData *photo);
-	
+
 	virtual void setPosition(int32 position);
 	int32 position() const;
 

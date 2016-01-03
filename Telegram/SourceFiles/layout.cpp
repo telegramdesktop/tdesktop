@@ -193,6 +193,21 @@ style::color documentColor(int32 colorIndex) {
 	return colors[colorIndex & 3];
 }
 
+style::color documentDarkColor(int32 colorIndex) {
+	static style::color colors[] = { st::msgFileBlueDark, st::msgFileGreenDark, st::msgFileRedDark, st::msgFileYellowDark };
+	return colors[colorIndex & 3];
+}
+
+style::color documentOverColor(int32 colorIndex) {
+	static style::color colors[] = { st::msgFileBlueOver, st::msgFileGreenOver, st::msgFileRedOver, st::msgFileYellowOver };
+	return colors[colorIndex & 3];
+}
+
+style::color documentSelectedColor(int32 colorIndex) {
+	static style::color colors[] = { st::msgFileBlueSelected, st::msgFileGreenSelected, st::msgFileRedSelected, st::msgFileYellowSelected };
+	return colors[colorIndex & 3];
+}
+
 style::sprite documentCorner(int32 colorIndex) {
 	static style::sprite corners[] = { st::msgFileBlue, st::msgFileGreen, st::msgFileRed, st::msgFileYellow };
 	return corners[colorIndex & 3];
@@ -727,6 +742,7 @@ LayoutOverviewDocument::LayoutOverviewDocument(DocumentData *document, HistoryIt
 , _data(document)
 , _msgl(new MessageLink(parent))
 , _namel(new DocumentOpenLink(_data))
+, _thumbForLoaded(false)
 , _name(documentName(_data))
 , _date(langDateTime(date(_data->date)))
 , _namew(st::semiboldFont->width(_name))
@@ -843,25 +859,24 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 		if (clip.intersects(rthumb)) {
 			if (wthumb) {
 				if (_data->thumb->loaded()) {
-					QPixmap thumb = loaded ? _data->thumb->pixSingle(_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize) : _data->thumb->pixBlurredSingle(_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize);
-					p.drawPixmap(rthumb.topLeft(), thumb);
+					if (_thumb.isNull() || loaded != _thumbForLoaded) {
+						_thumbForLoaded = loaded;
+						_thumb = _data->thumb->pixNoCache(_thumbw, 0, true, !_thumbForLoaded, false, st::msgFileThumbSize, st::msgFileThumbSize);
+					}
+					p.drawPixmap(rthumb.topLeft(), _thumb);
 				} else {
-					App::roundRect(p, rthumb, st::black, BlackCorners);
+					p.fillRect(rthumb, st::black);
 				}
 			} else {
-				App::roundRect(p, rthumb, documentColor(_colorIndex), documentCorners(_colorIndex));
-				if (!radial && loaded) {
-					style::sprite icon = documentCorner(_colorIndex);
-					p.drawSprite(rthumb.topLeft() + QPoint(rtl() ? 0 : (rthumb.width() - icon.pxWidth()), 0), icon);
-					if (!_ext.isEmpty()) {
-						p.setFont(st::semiboldFont);
-						p.setPen(st::white);
-						p.drawText(rthumb.left() + (rthumb.width() - _extw) / 2, rthumb.top() + st::msgFileExtTop + st::semiboldFont->ascent, _ext);
-					}
+				p.fillRect(rthumb, documentColor(_colorIndex));
+				if (!radial && loaded && !_ext.isEmpty()) {
+					p.setFont(st::semiboldFont);
+					p.setPen(st::white);
+					p.drawText(rthumb.left() + (rthumb.width() - _extw) / 2, rthumb.top() + st::msgFileExtTop + st::semiboldFont->ascent, _ext);
 				}
 			}
 			if (selected) {
-				App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
+				p.fillRect(rthumb, textstyleCurrent()->selectOverlay);
 			}
 
 			if (radial || (!loaded && !_data->loading())) {
@@ -870,15 +885,19 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
                     float64 radialOpacity = (radial && loaded && !_data->uploading()) ? _radial->opacity() : 1;
 					p.setPen(Qt::NoPen);
 					if (selected) {
-						p.setBrush(st::msgDateImgBgSelected);
+						p.setBrush(wthumb ? st::msgDateImgBgSelected : documentSelectedColor(_colorIndex));
 					} else if (_a_iconOver.animating()) {
 						_a_iconOver.step(context->ms);
 						float64 over = a_iconOver.current();
-						p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
-						p.setBrush(st::black);
+						if (wthumb) {
+							p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
+							p.setBrush(st::black);
+						} else {
+							p.setBrush(style::interpolate(documentDarkColor(_colorIndex), documentOverColor(_colorIndex), over));
+						}
 					} else {
 						bool over = textlnkDrawOver(_data->loading() ? _cancell : _savel);
-						p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
+						p.setBrush(over ? (wthumb ? st::msgDateImgBgOver : documentOverColor(_colorIndex)) : (wthumb ? st::msgDateImgBg : documentDarkColor(_colorIndex)));
 					}
 					p.setOpacity(radialOpacity * p.opacity());
 

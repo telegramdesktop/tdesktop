@@ -1197,6 +1197,18 @@ msgFileRedColor: #e47272;
 msgFileYellowColor: #efc274;
 msgFileGreenColor: #61b96e;
 msgFileBlueColor: #72b1df;
+msgFileRedDark: #cd5b5e;
+msgFileYellowDark: #e6a561;
+msgFileGreenDark: #4da859;
+msgFileBlueDark: #5c9ece;
+msgFileRedOver: #c35154;
+msgFileYellowOver: #dc9c5a;
+msgFileGreenOver: #44a050;
+msgFileBlueOver: #5294c4;
+msgFileRedSelected: #9f6a82;
+msgFileYellowSelected: #b19d84;
+msgFileGreenSelected: #46a07e;
+msgFileBlueSelected: #5099d0;
 
 msgFileMenuSize: size(36px, 36px);
 msgFileSize: 44px;
