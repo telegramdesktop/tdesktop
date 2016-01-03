@@ -1392,7 +1392,9 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 		case mtpc_messageMediaUnsupported:
 		default: badMedia = 1; break;
 		}
-		if (badMedia) {
+		if (false && badMedia == 1) {
+//			QString text(lng_message_unsupported(lt_link, qsl("https://desktop.telegram.org")));
+		} else if (badMedia) {
 			result = new HistoryServiceMsg(this, block, m.vid.v, date(m.vdate), lang((badMedia == 2) ? lng_message_empty : lng_media_unsupported), m.vflags.v, 0, m.has_from_id() ? m.vfrom_id.v : 0);
 		} else {
 			if ((m.has_fwd_date() && m.vfwd_date.v > 0) || (m.has_fwd_from_id() && peerFromMTP(m.vfwd_from_id) != 0)) {

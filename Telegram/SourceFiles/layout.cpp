@@ -629,12 +629,24 @@ void LayoutOverviewAudio::paint(Painter &p, const QRect &clip, uint32 selection,
 	if (clip.intersects(rtlrect(nameleft, statustop, namewidth, st::normalFont->height, _width))) {
 		p.setFont(st::normalFont);
 		p.setPen(selected ? st::mediaInFgSelected : st::mediaInFg);
+		int32 unreadx = nameleft;
 		if (_statusSize == FileStatusSizeLoaded || _statusSize == FileStatusSizeReady) {
 			textstyleSet(&(selected ? st::mediaInStyleSelected : st::mediaInStyle));
 			_details.drawLeftElided(p, nameleft, statustop, namewidth, _width);
 			textstyleRestore();
+			unreadx += _details.maxWidth();
 		} else {
-			p.drawTextLeft(nameleft, statustop, _width, _statusText);
+			int32 statusw = st::normalFont->width(_statusText);
+			p.drawTextLeft(nameleft, statustop, _width, _statusText, statusw);
+			unreadx += statusw;
+		}
+		if (_parent->isMediaUnread() && unreadx + st::mediaUnreadSkip + st::mediaUnreadSize <= _width) {
+			p.setPen(Qt::NoPen);
+			p.setBrush(selected ? st::msgFileInBgSelected : st::msgFileInBg);
+
+			p.setRenderHint(QPainter::HighQualityAntialiasing, true);
+			p.drawEllipse(rtlrect(unreadx + st::mediaUnreadSkip, statustop + st::mediaUnreadTop, st::mediaUnreadSize, st::mediaUnreadSize, _width));
+			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 		}
 	}
 }
