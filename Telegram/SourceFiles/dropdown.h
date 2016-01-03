@@ -584,6 +584,9 @@ public:
 	bool ui_isInlineItemVisible(const LayoutInlineItem *layout);
 	bool ui_isInlineItemBeingChosen();
 
+	bool inlineResultsShown() const {
+		return s_inner.inlineResultsShown();
+	}
 	void notify_automaticLoadSettingsChangedGif();
 
 public slots:

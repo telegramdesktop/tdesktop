@@ -2769,7 +2769,7 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 		if (_cache.isNull()) {
 			p.fillRect(myrtlrect(r.x() + r.width() - st::emojiScroll.width, r.y(), st::emojiScroll.width, e_scroll.height()), st::white->b);
 			if (_stickersShown && s_inner.showSectionIcons()) {
-				p.fillRect(r.left(), _iconsTop, r.width(), st::rbEmoji.height, st::emojiPanCategories->b);
+				p.fillRect(r.left(), _iconsTop, r.width(), st::rbEmoji.height, st::emojiPanCategories);
 				p.drawSpriteLeft(_iconsLeft + 7 * st::rbEmoji.width + st::rbEmojiRecent.imagePos.x(), _iconsTop + st::rbEmojiRecent.imagePos.y(), width(), st::stickersSettings);
 
 				if (!_icons.isEmpty()) {
@@ -2818,10 +2818,13 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 						p.drawSpriteRight(QRect(width() - _iconsLeft - 7 * st::rbEmoji.width, _iconsTop, st::stickerIconRight.pxWidth(), st::rbEmoji.height), width(), st::stickerIconRight);
 					}
 				}
-			} else {
-				p.fillRect(r.left(), _recent.y(), (rtl() ? _objects.x() : _recent.x() - r.left()), st::rbEmoji.height, st::emojiPanCategories->b);
+			} else if (_stickersShown) {
 				int32 x = rtl() ? (_recent.x() + _recent.width()) : (_objects.x() + _objects.width());
-				p.fillRect(x, _recent.y(), r.left() + r.width() - x, st::rbEmoji.height, st::emojiPanCategories->b);
+				p.fillRect(x, _recent.y(), r.left() + r.width() - x, st::rbEmoji.height, st::white);
+			} else {
+				p.fillRect(r.left(), _recent.y(), (rtl() ? _objects.x() : _recent.x() - r.left()), st::rbEmoji.height, st::emojiPanCategories);
+				int32 x = rtl() ? (_recent.x() + _recent.width()) : (_objects.x() + _objects.width());
+				p.fillRect(x, _recent.y(), r.left() + r.width() - x, st::rbEmoji.height, st::emojiPanCategories);
 			}
 		} else {
 			p.fillRect(r, st::white->b);

@@ -116,18 +116,6 @@ enum MediaOverviewType {
 	OverviewCount
 };
 
-inline MediaOverviewType mediaToOverviewType(HistoryMediaType t) {
-	switch (t) {
-	case MediaTypePhoto: return OverviewPhotos;
-	case MediaTypeVideo: return OverviewVideos;
-	case MediaTypeDocument: return OverviewDocuments;
-	case MediaTypeGif: return OverviewDocuments;
-//	case MediaTypeSticker: return OverviewDocuments;
-	case MediaTypeAudio: return OverviewAudios;
-	}
-	return OverviewCount;
-}
-
 inline MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
 	switch (type) {
 	case OverviewPhotos: return MTP_inputMessagesFilterPhotos();
@@ -163,6 +151,12 @@ struct SendAction {
 class HistoryMedia;
 class HistoryMessage;
 class HistoryUnreadBar;
+
+enum AddToOverviewMethod {
+	AddToOverviewNew, // when new message is added to history
+	AddToOverviewFront, // when old messages slice was received
+	AddToOverviewBack, // when new messages slice was received and it is the last one, we index all media
+};
 
 class ChannelHistory;
 class History {
@@ -207,8 +201,8 @@ public:
 
 	void addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPMessageGroup> *collapsed);
 	void addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPMessageGroup> *collapsed);
-	void addToOverview(HistoryItem *item, MediaOverviewType type);
-	bool addToOverviewFront(HistoryItem *item, MediaOverviewType type);
+	bool addToOverview(MediaOverviewType type, MsgId msgId, AddToOverviewMethod method);
+	void eraseFromOverview(MediaOverviewType type, MsgId msgId);
 
 	void newItemAdded(HistoryItem *item);
 	void unregTyping(UserData *from);
@@ -270,7 +264,6 @@ public:
 	}
 
 	void paintDialog(Painter &p, int32 w, bool sel) const;
-	void eraseFromOverview(MediaOverviewType type, MsgId msgId);
 	bool updateTyping(uint64 ms = 0, uint32 dots = 0, bool force = false);
 	void clearLastKeyboard();
 
@@ -823,7 +816,7 @@ public:
 	const HistoryBlock *block() const {
 		return _block;
 	}
-	void destroy();
+	virtual void destroy();
 	void detach();
 	void detachFast();
 	bool detached() const {
@@ -873,7 +866,7 @@ public:
 		return _history->isChannel() && isImportantChannelMessage(id, _flags);
 	}
 	bool indexInOverview() const {
-		return (!history()->isChannel() || history()->isMegagroup() || fromChannel());
+		return (id > 0) && (!history()->isChannel() || history()->isMegagroup() || fromChannel());
 	}
 
 	virtual bool needCheck() const {
@@ -905,6 +898,9 @@ public:
 		return false;
 	}
 	virtual void updateMedia(const MTPMessageMedia *media, bool allowEmitResize) {
+	}
+	virtual int32 addToOverview(AddToOverviewMethod method) {
+		return 0;
 	}
 	virtual bool hasBubble() const {
 		return false;
@@ -1206,6 +1202,18 @@ protected:
 	int32 _width;
 
 };
+
+inline MediaOverviewType mediaToOverviewType(HistoryMedia *media) {
+	switch (media->type()) {
+	case MediaTypePhoto: return OverviewPhotos;
+	case MediaTypeVideo: return OverviewVideos;
+	case MediaTypeDocument: return media->getDocument()->song() ? OverviewAudioDocuments : OverviewDocuments;
+	case MediaTypeGif: return media->getDocument()->isGifv() ? OverviewCount : OverviewDocuments;
+//	case MediaTypeSticker: return OverviewDocuments;
+	case MediaTypeAudio: return OverviewAudios;
+	}
+	return OverviewCount;
+}
 
 class HistoryFileMedia : public HistoryMedia {
 public:
@@ -1672,6 +1680,7 @@ public:
 	}
 
 	void initDimensions(const HistoryItem *parent);
+	int32 resize(int32 width, const HistoryItem *parent);
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
@@ -1971,7 +1980,7 @@ public:
 
 	UserData *bot;
 	QString text;
-	int32 width, fullWidth;
+	int32 width, maxWidth;
 	TextLinkPtr lnk;
 
 };
@@ -2023,6 +2032,8 @@ public:
 
 	virtual void drawMessageText(Painter &p, QRect trect, uint32 selection) const;
 
+	void destroy();
+
 	int32 resize(int32 width);
 	bool hasPoint(int32 x, int32 y) const;
 	bool pointInTime(int32 right, int32 bottom, int32 x, int32 y, InfoDisplayType type) const;
@@ -2052,6 +2063,8 @@ public:
 			setMedia(media, allowEmitResize);
 		}
 	}
+	int32 addToOverview(AddToOverviewMethod method);
+	void eraseFromOverview();
 
 	QString selectedText(uint32 selection) const;
 	QString inDialogsText() const;
@@ -2152,7 +2165,7 @@ public:
 	}
 	QString selectedText(uint32 selection) const;
 	bool displayForwardedFrom() const {
-		return (!_media || !_media->isDisplayed() || !_media->hideForwardedFrom());
+		return via() || !_media || !_media->isDisplayed() || !_media->hideForwardedFrom();
 	}
 
 	HistoryForwarded *toHistoryForwarded() {
@@ -2195,6 +2208,7 @@ public:
 	void drawReplyTo(Painter &p, int32 x, int32 y, int32 w, bool selected, bool likeService = false) const;
 	void drawMessageText(Painter &p, QRect trect, uint32 selection) const;
 	int32 resize(int32 width);
+	void resizeVia(int32 w) const;
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
 	void getStateFromMessageText(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const QRect &r) const;
@@ -2222,6 +2236,10 @@ protected:
 	mutable Text replyToName, replyToText;
 	mutable int32 replyToVersion;
 	mutable int32 _maxReplyWidth;
+	HistoryMessageVia *_replyToVia;
+	HistoryMessageVia *replyToVia() const {
+		return (_replyToVia && !_replyToVia->isNull()) ? _replyToVia : 0;
+	}
 	int32 toWidth;
 
 };

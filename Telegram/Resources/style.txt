@@ -1197,6 +1197,18 @@ msgFileRedColor: #e47272;
 msgFileYellowColor: #efc274;
 msgFileGreenColor: #61b96e;
 msgFileBlueColor: #72b1df;
+msgFileRedDark: #cd5b5e;
+msgFileYellowDark: #e6a561;
+msgFileGreenDark: #4da859;
+msgFileBlueDark: #5c9ece;
+msgFileRedOver: #c35154;
+msgFileYellowOver: #dc9c5a;
+msgFileGreenOver: #44a050;
+msgFileBlueOver: #5294c4;
+msgFileRedSelected: #9f6a82;
+msgFileYellowSelected: #b19d84;
+msgFileGreenSelected: #46a07e;
+msgFileBlueSelected: #5099d0;
 
 msgFileMenuSize: size(36px, 36px);
 msgFileSize: 44px;
@@ -2161,6 +2173,14 @@ overviewPhotoCheck: sprite(245px, 308px, 32px, 32px);
 overviewPhotoChecked: sprite(278px, 308px, 32px, 32px);
 overviewPhotoSelectOverlay: #0a7bb03f;
 
+overviewFilePadding: margins(0px, 3px, 16px, 3px);
+overviewFileSize: 70px;
+overviewFileNameTop: 7px;
+overviewFileStatusTop: 27px;
+overviewFileDateTop: 49px;
+overviewFileChecked: #2fa9e2;
+overviewFileCheck: #00000066;
+
 // Mac specific
 
 macAccessory: size(450, 90);
@@ -2346,11 +2366,12 @@ playlistPadding: 10px;
 linksSearchMargin: margins(20px, 20px, 20px, 0px);
 linksMaxWidth: 520px;
 linksLetterFont: font(24px);
-linksMargin: 5px;
+linksMargin: margins(0px, 7px, 0px, 5px);
+linksTextTop: 6px;
 linksBorder: 1px;
 linksBorderFg: #eaeaea;
-linksDateColor: #000;
-linksDateMargin: 15px;
+linksDateColor: #808080;
+linksDateMargin: margins(0px, 15px, 0px, 2px);
 
 linksPhotoCheck: sprite(184px, 196px, 16px, 16px);
 linksPhotoChecked: sprite(168px, 196px, 16px, 16px);

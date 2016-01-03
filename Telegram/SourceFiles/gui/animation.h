@@ -497,8 +497,9 @@ enum ClipReaderNotification {
 };
 
 enum ClipReaderSteps {
-	FirstFrameNotReadStep = -2,
-	WaitingForRequestStep = -1,
+	WaitingForDimensionsStep = -3, // before ClipReaderPrivate read the first image and got the original frame size
+	WaitingForRequestStep = -2, // before ClipReader got the original frame size and prepared the frame request
+	WaitingForFirstFrameStep = -1, // before ClipReaderPrivate got the frame request and started waiting for the 1-2 delay
 };
 
 class ClipReaderPrivate;
@@ -528,7 +529,7 @@ public:
 	}
 	bool currentDisplayed() const {
 		Frame *frame = frameToShow();
-		return frame ? frame->displayed : true;
+		return frame ? (frame->displayed.loadAcquire() != 0) : true;
 	}
 	bool paused() const {
 		return _paused.loadAcquire();
@@ -542,7 +543,8 @@ public:
 
 	ClipState state() const;
 	bool started() const {
-		return _step.loadAcquire() >= 0;
+		int32 step = _step.loadAcquire();
+		return (step == WaitingForFirstFrameStep) || (step >= 0);
 	}
 	bool ready() const;
 
@@ -561,7 +563,7 @@ private:
 
 	mutable QAtomicInt _step; // -2, -1 - init, 0-5 - work, show ((state + 1) / 2) % 3 state, write ((state + 3) / 2) % 3
 	struct Frame {
-		Frame() : displayed(false), when(0) {
+		Frame() : displayed(false) {
 		}
 		void clear() {
 			pix = QPixmap();
@@ -570,13 +572,12 @@ private:
 		QPixmap pix;
 		QImage original;
 		ClipFrameRequest request;
-		bool displayed;
-		uint64 when;
+		QAtomicInt displayed;
 	};
 	mutable Frame _frames[3];
-	Frame *frameToShow() const; // 0 means not ready
+	Frame *frameToShow(int32 *index = 0) const; // 0 means not ready
 	Frame *frameToWrite(int32 *index = 0) const; // 0 means not ready
-	Frame *frameToWriteNext(bool check) const;
+	Frame *frameToWriteNext(bool check, int32 *index = 0) const;
 	void moveToNextShow() const;
 	void moveToNextWrite() const;
 
