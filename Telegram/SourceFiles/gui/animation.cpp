@@ -435,7 +435,8 @@ public:
 		, _device(0)
 		, _dataSize(0) {
 	}
-	virtual bool readNextFrame(QImage &to, bool &hasAlpha, const QSize &size) = 0;
+	virtual bool readNextFrame() = 0;
+	virtual bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) = 0;
 	virtual int32 nextFrameDelay() = 0;
 	virtual bool start(bool onlyGifv) = 0;
 	virtual ~ClipReaderImplementation() {
@@ -482,30 +483,35 @@ public:
 			return false;
 		}
 
-		QImage frame; // QGifHandler always reads first to internal QImage and returns it
-		if (!_reader->read(&frame)) {
+		_frame = QImage(); // QGifHandler always reads first to internal QImage and returns it
+		if (!_reader->read(&_frame) || _frame.isNull()) {
 			return false;
 		}
 		--_framesLeft;
+		return true;
+	}
 
-		if (size.isEmpty() || size == frame.size()) {
-			int32 w = frame.width(), h = frame.height();
-			if (to.width() == w && to.height() == h && to.format() == frame.format()) {
-				if (to.byteCount() != frame.byteCount()) {
-					int bpl = qMin(to.bytesPerLine(), frame.bytesPerLine());
+	bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) {
+		t_assert(!_frame.isNull());
+		if (size.isEmpty() || size == _frame.size()) {
+			int32 w = _frame.width(), h = _frame.height();
+			if (to.width() == w && to.height() == h && to.format() == _frame.format()) {
+				if (to.byteCount() != _frame.byteCount()) {
+					int bpl = qMin(to.bytesPerLine(), _frame.bytesPerLine());
 					for (int i = 0; i < h; ++i) {
-						memcpy(to.scanLine(i), frame.constScanLine(i), bpl);
+						memcpy(to.scanLine(i), _frame.constScanLine(i), bpl);
 					}
 				} else {
-					memcpy(to.bits(), frame.constBits(), frame.byteCount());
+					memcpy(to.bits(), _frame.constBits(), _frame.byteCount());
 				}
 			} else {
-				to = frame.copy();
+				to = _frame.copy();
 			}
 		} else {
-			to = frame.scaled(size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+			to = _frame.scaled(size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 		}
-		hasAlpha = frame.hasAlphaChannel();
+		hasAlpha = _frame.hasAlphaChannel();
+		_frame = QImage();
 		return true;
 	}
 
@@ -525,6 +531,7 @@ public:
 private:
 	QImageReader *_reader;
 	int32 _framesLeft, _frameDelay;
+	QImage _frame;
 
 	bool jumpToStart() {
 		if (_reader && _reader->jumpToImage(0)) {
@@ -563,6 +570,7 @@ public:
 		, _frame(0)
 		, _opened(false)
 		, _hadFrame(false)
+		, _frameRead(false)
 		, _packetSize(0)
 		, _packetData(0)
 		, _packetWas(false)
@@ -578,7 +586,7 @@ public:
 		_avpkt.size = 0;
 	}
 
-	bool readNextFrame(QImage &to, bool &hasAlpha, const QSize &size) {
+	bool readNextFrame() {
 		int res;
 		while (true) {
 			if (_avpkt.size > 0) { // previous packet not finished
@@ -630,56 +638,7 @@ public:
 			}
 
 			if (got_frame) {
-				_hadFrame = true;
-
-				if (!_width || !_height) {
-					_width = _frame->width;
-					_height = _frame->height;
-					if (!_width || !_height) {
-						LOG(("Gif Error: Bad frame size %1").arg(logData()));
-						return false;
-					}
-				}
-
-				QSize toSize(size.isEmpty() ? QSize(_width, _height) : size);
-				if (to.isNull() || to.size() != toSize) {
-					to = QImage(toSize, QImage::Format_ARGB32);
-				}
-				hasAlpha = (_frame->format == AV_PIX_FMT_BGRA || (_frame->format == -1 && _codecContext->pix_fmt == AV_PIX_FMT_BGRA));
-				if (_frame->width == toSize.width() && _frame->height == toSize.height() && hasAlpha) {
-					int32 sbpl = _frame->linesize[0], dbpl = to.bytesPerLine(), bpl = qMin(sbpl, dbpl);
-					uchar *s = _frame->data[0], *d = to.bits();
-					for (int32 i = 0, l = _frame->height; i < l; ++i) {
-						memcpy(d + i * dbpl, s + i * sbpl, bpl);
-					}
-				} else {
-					if ((_swsSize != toSize) || (_frame->format != -1 && _frame->format != _codecContext->pix_fmt) || !_swsContext) {
-						_swsSize = toSize;
-						_swsContext = sws_getCachedContext(_swsContext, _frame->width, _frame->height, AVPixelFormat(_frame->format), toSize.width(), toSize.height(), AV_PIX_FMT_BGRA, 0, 0, 0, 0);
-					}
-					uint8_t * toData[1] = { to.bits() };
-					int	toLinesize[1] = { to.bytesPerLine() };
-					if ((res = sws_scale(_swsContext, _frame->data, _frame->linesize, 0, _frame->height, toData, toLinesize)) != _swsSize.height()) {
-						LOG(("Gif Error: Unable to sws_scale to good size %1, height %2, should be %3").arg(logData()).arg(res).arg(_swsSize.height()));
-						return false;
-					}
-				}
-
-				int64 duration = av_frame_get_pkt_duration(_frame);
-				int64 framePts = (_frame->pkt_pts == AV_NOPTS_VALUE) ? _frame->pkt_dts : _frame->pkt_pts;
-				int64 frameMs = (framePts * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
-				_currentFrameDelay = _nextFrameDelay;
-				if (_frameMs + _currentFrameDelay < frameMs) {
-					_currentFrameDelay = int32(frameMs - _frameMs);
-				}
-				if (duration == AV_NOPTS_VALUE) {
-					_nextFrameDelay = 0;
-				} else {
-					_nextFrameDelay = (duration * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
-				}
-                _frameMs = frameMs;
-
-                av_frame_unref(_frame);
+				_hadFrame = _frameRead = true;
 				return true;
 			}
 
@@ -702,6 +661,61 @@ public:
 		}
 
 		return false;
+	}
+
+	bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) {
+		t_assert(_frameRead);
+		_frameRead = false;
+
+		if (!_width || !_height) {
+			_width = _frame->width;
+			_height = _frame->height;
+			if (!_width || !_height) {
+				LOG(("Gif Error: Bad frame size %1").arg(logData()));
+				return false;
+			}
+		}
+
+		QSize toSize(size.isEmpty() ? QSize(_width, _height) : size);
+		if (to.isNull() || to.size() != toSize) {
+			to = QImage(toSize, QImage::Format_ARGB32);
+		}
+		hasAlpha = (_frame->format == AV_PIX_FMT_BGRA || (_frame->format == -1 && _codecContext->pix_fmt == AV_PIX_FMT_BGRA));
+		if (_frame->width == toSize.width() && _frame->height == toSize.height() && hasAlpha) {
+			int32 sbpl = _frame->linesize[0], dbpl = to.bytesPerLine(), bpl = qMin(sbpl, dbpl);
+			uchar *s = _frame->data[0], *d = to.bits();
+			for (int32 i = 0, l = _frame->height; i < l; ++i) {
+				memcpy(d + i * dbpl, s + i * sbpl, bpl);
+			}
+		} else {
+			if ((_swsSize != toSize) || (_frame->format != -1 && _frame->format != _codecContext->pix_fmt) || !_swsContext) {
+				_swsSize = toSize;
+				_swsContext = sws_getCachedContext(_swsContext, _frame->width, _frame->height, AVPixelFormat(_frame->format), toSize.width(), toSize.height(), AV_PIX_FMT_BGRA, 0, 0, 0, 0);
+			}
+			uint8_t * toData[1] = { to.bits() };
+			int	toLinesize[1] = { to.bytesPerLine() }, res;
+			if ((res = sws_scale(_swsContext, _frame->data, _frame->linesize, 0, _frame->height, toData, toLinesize)) != _swsSize.height()) {
+				LOG(("Gif Error: Unable to sws_scale to good size %1, height %2, should be %3").arg(logData()).arg(res).arg(_swsSize.height()));
+				return false;
+			}
+		}
+
+		int64 duration = av_frame_get_pkt_duration(_frame);
+		int64 framePts = (_frame->pkt_pts == AV_NOPTS_VALUE) ? _frame->pkt_dts : _frame->pkt_pts;
+		int64 frameMs = (framePts * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
+		_currentFrameDelay = _nextFrameDelay;
+		if (_frameMs + _currentFrameDelay < frameMs) {
+			_currentFrameDelay = int32(frameMs - _frameMs);
+		}
+		if (duration == AV_NOPTS_VALUE) {
+			_nextFrameDelay = 0;
+		} else {
+			_nextFrameDelay = (duration * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
+		}
+		_frameMs = frameMs;
+
+		av_frame_unref(_frame);
+		return true;
 	}
 
 	int32 nextFrameDelay() {
@@ -799,7 +813,7 @@ private:
 	AVCodecContext *_codecContext;
 	int32 _streamId;
 	AVFrame *_frame;
-	bool _opened, _hadFrame;
+	bool _opened, _hadFrame, _frameRead;
 
 	AVPacket _avpkt;
 	int _packetSize;
@@ -872,7 +886,10 @@ public:
 			return error();
 		}
 		if (frame() && frame()->original.isNull()) {
-			if (!_implementation->readNextFrame(frame()->original, frame()->alpha, QSize())) {
+			if (!_implementation->readNextFrame()) {
+				return error();
+			}
+			if (!_implementation->renderFrame(frame()->original, frame()->alpha, QSize())) {
 				return error();
 			}
 			_width = frame()->original.width();
@@ -896,10 +913,13 @@ public:
 	}
 
 	ClipProcessResult finishProcess(uint64 ms) {
-		if (!prepareNextFrame()) {
+		if (!readNextFrame()) {
 			return error();
 		}
-		if (ms >= _nextFrameWhen && !prepareNextFrame(true)) {
+		if (ms >= _nextFrameWhen && !readNextFrame(true)) {
+			return error();
+		}
+		if (!renderFrame()) {
 			return error();
 		}
 		return ClipProcessCopyFrame;
@@ -910,13 +930,22 @@ public:
 		return qMax(delay, 5);
 	}
 
-	bool prepareNextFrame(bool keepup = false) {
-		t_assert(frame() != 0 && _request.valid());
-		if (!_implementation->readNextFrame(frame()->original, frame()->alpha, QSize(_request.framew, _request.frameh))) {
+	bool readNextFrame(bool keepup = false) {
+		if (!_implementation->readNextFrame()) {
 			return false;
 		}
 		_nextFrameWhen += nextFrameDelay();
-		if (keepup) _nextFrameWhen = qMax(_nextFrameWhen, getms());
+		if (keepup) {
+			_nextFrameWhen = qMax(_nextFrameWhen, getms());
+		}
+		return true;
+	}
+
+	bool renderFrame() {
+		t_assert(frame() != 0 && _request.valid());
+		if (!_implementation->renderFrame(frame()->original, frame()->alpha, QSize(_request.framew, _request.frameh))) {
+			return false;
+		}
 		frame()->original.setDevicePixelRatio(_request.factor);
 		frame()->pix = QPixmap();
 		frame()->pix = _prepareFrame(_request, frame()->original, frame()->alpha, frame()->cache);
@@ -1250,7 +1279,7 @@ MTPDocumentAttribute clipReadAnimatedAttributes(const QString &fname, const QByt
 	FFMpegReaderImplementation *reader = new FFMpegReaderImplementation(&localloc, &localdata);
 	if (reader->start(true)) {
 		bool hasAlpha = false;
-		if (reader->readNextFrame(cover, hasAlpha, QSize())) {
+		if (reader->readNextFrame() && reader->renderFrame(cover, hasAlpha, QSize())) {
 			if (cover.width() > 0 && cover.height() > 0 && cover.width() < cover.height() * 10 && cover.height() < cover.width() * 10) {
 				if (hasAlpha) {
 					QImage cacheForResize;
