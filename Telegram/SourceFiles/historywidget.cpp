@@ -6277,7 +6277,8 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		e->ignore();
 	} else if (e->key() == Qt::Key_Back) {
-		onCancel();
+		Ui::showChatsList();
+		emit cancelled();
 	} else if (e->key() == Qt::Key_PageDown) {
 		if ((e->modifiers() & Qt::ControlModifier) || (e->modifiers() & Qt::MetaModifier)) {
 			PeerData *after = 0;
@@ -6780,8 +6781,12 @@ void HistoryWidget::updatePreview() {
 }
 
 void HistoryWidget::onCancel() {
-	Ui::showChatsList();
-	emit cancelled();
+	if (_inlineBot && _field.getLastText().startsWith('@' + _inlineBot->username + ' ')) {
+		setFieldText(QString(), TextUpdateEventsSaveDraft, false);
+	} else {
+		Ui::showChatsList();
+		emit cancelled();
+	}
 }
 
 void HistoryWidget::onFullPeerUpdated(PeerData *data) {

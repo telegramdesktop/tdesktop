@@ -569,7 +569,7 @@ namespace App {
 
 				ChannelData *cdata = data->asChannel();
 				cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
-				
+
 				QString uname = d.has_username() ? textOneLine(qs(d.vusername)) : QString();
 				cdata->setName(qs(d.vtitle), uname);
 
@@ -901,18 +901,12 @@ namespace App {
 			peerId = peerFromUser(m.vfrom_id);
 		}
 		if (HistoryItem *existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
-			bool hasLinks = m.has_entities() && !m.ventities.c_vector().v.isEmpty();
-			if ((hasLinks && !existing->hasTextLinks()) || (!hasLinks && existing->textHasLinks())) {
-				existing->setText(qs(m.vmessage), m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText());
-				existing->initDimensions();
-				Notify::historyItemResized(existing);
-				if (existing->hasTextLinks() && existing->indexInOverview()) {
-					existing->history()->addToOverview(existing, OverviewLinks);
-				}
-			}
+			existing->setText(qs(m.vmessage), m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText());
+			existing->initDimensions();
+			Notify::historyItemResized(existing);
 
 			existing->updateMedia(m.has_media() ? (&m.vmedia) : 0, true);
-
+			existing->addToOverview(AddToOverviewNew);
 			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
 
 			if (!existing->detached()) {
@@ -1001,7 +995,7 @@ namespace App {
 				const string &s(d.vbytes.c_string().v);
 				QByteArray bytes(s.data(), s.size());
 				return ImagePtr(StorageImageLocation(d.vw.v, d.vh.v, 0, 0, 0, 0), bytes);
-			}				
+			}
 		} break;
 		}
 		return ImagePtr();
@@ -1028,7 +1022,7 @@ namespace App {
 		}
 		return StorageImageLocation();
 	}
-	
+
 	void feedInboxRead(const PeerId &peer, MsgId upTo) {
 		History *h = App::historyLoaded(peer);
 		if (h) {
@@ -1250,7 +1244,7 @@ namespace App {
 				const string &s(i->c_photoSize().vtype.c_string().v);
 				if (s.size()) size = s[0];
 			} break;
-				
+
 			case mtpc_photoCachedSize: {
 				const string &s(i->c_photoCachedSize().vtype.c_string().v);
 				if (s.size()) size = s[0];
@@ -1291,7 +1285,7 @@ namespace App {
 		}
 		return App::photoSet(photo.vid.v, convert, 0, 0, ImagePtr(), ImagePtr(), ImagePtr());
 	}
-	
+
 	VideoData *feedVideo(const MTPDvideo &video, VideoData *convert) {
 		return App::videoSet(video.vid.v, convert, video.vaccess_hash.v, video.vdate.v, video.vduration.v, video.vw.v, video.vh.v, App::image(video.vthumb), video.vdc_id.v, video.vsize.v);
 	}
@@ -1767,7 +1761,7 @@ namespace App {
 		}
 		return result;
 	}
-	
+
 	ImageLinkData *imageLink(const QString &imageLink) {
 		ImageLinksData::const_iterator i = imageLinksData.constFind(imageLink);
 		if (i == imageLinksData.cend()) {
@@ -1775,7 +1769,7 @@ namespace App {
 		}
 		return i.value();
 	}
-		
+
 	ImageLinkData *imageLinkSet(const QString &imageLink, ImageLinkType type, const QString &url) {
 		ImageLinksData::const_iterator i = imageLinksData.constFind(imageLink);
 		ImageLinkData *result;
@@ -1812,7 +1806,7 @@ namespace App {
 	MTPPhoto photoFromUserPhoto(MTPint userId, MTPint date, const MTPUserProfilePhoto &photo) {
 		if (photo.type() == mtpc_userProfilePhoto) {
 			const MTPDuserProfilePhoto &uphoto(photo.c_userProfilePhoto());
-				
+
 			QVector<MTPPhotoSize> photoSizes;
 			photoSizes.push_back(MTP_photoSize(MTP_string("a"), uphoto.vphoto_small, MTP_int(160), MTP_int(160), MTP_int(0)));
 			photoSizes.push_back(MTP_photoSize(MTP_string("c"), uphoto.vphoto_big, MTP_int(640), MTP_int(640), MTP_int(0)));
@@ -1837,7 +1831,7 @@ namespace App {
 	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead) {
 		return ::histories.findOrInsert(peer, unreadCnt, maxInboxRead);
 	}
-	
+
 	History *historyLoaded(const PeerId &peer) {
 		return ::histories.find(peer);
 	}
@@ -2136,13 +2130,13 @@ namespace App {
 		prepareCorners(MessageOutCorners, st::msgRadius, st::msgOutBg, &st::msgOutShadow);
 		prepareCorners(MessageOutSelectedCorners, st::msgRadius, st::msgOutBgSelected, &st::msgOutShadowSelected);
 	}
-	
+
 	void clearHistories() {
 		textlnkOver(TextLinkPtr());
 		textlnkDown(TextLinkPtr());
 
 		histories().clear();
-	
+
 		clearStorageImages();
 		cSetServerBackgrounds(WallPapers());
 
@@ -2191,7 +2185,7 @@ namespace App {
 	HistoryItem *pressedItem() {
 		return ::pressedItem;
 	}
-	
+
 	void hoveredLinkItem(HistoryItem *item) {
 		::hoveredLinkItem = item;
 	}
@@ -2207,7 +2201,7 @@ namespace App {
 	HistoryItem *pressedLinkItem() {
 		return ::pressedLinkItem;
 	}
-	
+
 	void contextItem(HistoryItem *item) {
 		::contextItem = item;
 	}
@@ -2539,7 +2533,7 @@ namespace App {
 		case mtpc_replyKeyboardMarkup: {
 			const MTPDreplyKeyboardMarkup &d(markup.c_replyKeyboardMarkup());
 			data.flags = d.vflags.v;
-			
+
 			const QVector<MTPKeyboardButtonRow> &v(d.vrows.c_vector().v);
 			if (!v.isEmpty()) {
 				commands.reserve(v.size());
@@ -2630,7 +2624,7 @@ namespace App {
 		} else {
 			socket.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
 		}
-	}	
+	}
 
 	QImage **cornersMask() {
 		return ::cornersMask;

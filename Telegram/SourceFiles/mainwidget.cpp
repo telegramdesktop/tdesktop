@@ -4128,18 +4128,12 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 			if (peerId) {
 				if (HistoryItem *item = App::histItemById(peerToChannel(peerId), d.vid.v)) {
 					if (!text.isEmpty()) {
-						bool hasLinks = d.has_entities() && !d.ventities.c_vector().v.isEmpty();
-						if ((hasLinks && !item->hasTextLinks()) || (!hasLinks && item->textHasLinks())) {
-							item->setText(text, d.has_entities() ? entitiesFromMTP(d.ventities.c_vector().v) : EntitiesInText());
-							item->initDimensions();
-							Notify::historyItemResized(item);
-							if (item->hasTextLinks() && item->indexInOverview()) {
-								item->history()->addToOverview(item, OverviewLinks);
-							}
-						}
+						item->setText(text, d.has_entities() ? entitiesFromMTP(d.ventities.c_vector().v) : EntitiesInText());
+						item->initDimensions();
+						Notify::historyItemResized(item);
 					}
-
 					item->updateMedia(d.has_media() ? (&d.vmedia) : 0, true);
+					item->addToOverview(AddToOverviewNew);
 				}
 			}
 		}

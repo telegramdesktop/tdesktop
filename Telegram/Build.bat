@@ -53,9 +53,12 @@ if %BetaVersion% neq 0 (
     exit /b 1
   )
 )
-
 cd SourceFiles\
-copy telegram.qrc /B+,,/Y
+if "%1" == "fast" (
+  echo Skipping touching of telegram.qrc..
+) else (
+  copy telegram.qrc /B+,,/Y
+)
 cd ..\
 if %errorlevel% neq 0 goto error
 
