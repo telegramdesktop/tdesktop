@@ -20,8 +20,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 9016;
-static const wchar_t *AppVersionStr = L"0.9.16";
+static const int32 AppVersion = 9017;
+static const wchar_t *AppVersionStr = L"0.9.17";
 static const bool DevVersion = false;
 //#define BETA_VERSION (9015008ULL) // just comment this line to build public version
 
