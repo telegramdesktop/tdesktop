@@ -108,95 +108,120 @@ enum LocalLoadStatus {
 
 typedef void *TaskId; // no interface, just id
 
-struct mtpFileLoaderQueue;
-class mtpFileLoader : public QObject, public RPCSender {
+enum LoadFromCloudSetting {
+	LoadFromCloudOrLocal,
+	LoadFromLocalOnly,
+};
+enum LoadToCacheSetting {
+	LoadToFileOnly,
+	LoadToCacheAsWell,
+};
+
+class mtpFileLoader;
+class webFileLoader;
+
+struct FileLoaderQueue;
+class FileLoader : public QObject {
 	Q_OBJECT
 
 public:
 
-	mtpFileLoader(int32 dc, const uint64 &volume, int32 local, const uint64 &secret, int32 size = 0);
-	mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, LocationType type, const QString &to, int32 size, bool todata = false);
+	FileLoader(const QString &toFile, int32 size, LocationType locationType, LoadToCacheSetting, LoadFromCloudSetting fromCloud, bool autoLoading);
 	bool done() const {
-		return complete;
+		return _complete;
 	}
 	mtpTypeId fileType() const {
-		return type;
+		return _type;
 	}
 	const QByteArray &bytes() const {
-		return data;
+		return _data;
 	}
 	QByteArray imageFormat() const;
 	QPixmap imagePixmap() const;
 	QString fileName() const {
-		return fname;
+		return _fname;
 	}
 	float64 currentProgress() const;
-	int32 currentOffset(bool includeSkipped = false) const;
+	virtual int32 currentOffset(bool includeSkipped = false) const = 0;
 	int32 fullSize() const;
 
-	void setFileName(const QString &filename); // set filename for duplicateInData loader
+	bool setFileName(const QString &filename); // set filename for loaders to cache
+	void permitLoadFromCloud();
 
 	void pause();
 	void start(bool loadFirst = false, bool prior = true);
 	void cancel();
-	bool loading() const;
 
-	uint64 objId() const;
+	bool loading() const {
+		return _inQueue;
+	}
+	bool paused() const {
+		return _paused;
+	}
+	bool started() const {
+		return _inQueue || _paused;
+	}
+	bool loadingLocal() const {
+		return (_localStatus == LocalLoading);
+	}
+	bool autoLoading() const {
+		return _autoLoading;
+	}
 
-	~mtpFileLoader();
+	virtual mtpFileLoader *mtpLoader() {
+		return 0;
+	}
+	virtual const mtpFileLoader *mtpLoader() const {
+		return 0;
+	}
+	virtual webFileLoader *webLoader() {
+		return 0;
+	}
+	virtual const webFileLoader *webLoader() const {
+		return 0;
+	}
+	virtual void stop() {
+	}
+	virtual ~FileLoader();
 
 	void localLoaded(const StorageImageSaved &result, const QByteArray &imageFormat = QByteArray(), const QPixmap &imagePixmap = QPixmap());
 
-	mtpFileLoader *prev, *next;
-	int32 priority;
-
 signals:
 
-	void progress(mtpFileLoader *loader);
-	void failed(mtpFileLoader *loader, bool started);
+	void progress(FileLoader *loader);
+	void failed(FileLoader *loader, bool started);
 
-private:
+protected:
 
-	mtpFileLoaderQueue *queue;
-	bool inQueue, complete;
-	LocalLoadStatus _localStatus;
+	FileLoader *_prev, *_next;
+	int32 _priority;
+	FileLoaderQueue *_queue;
 
-	bool tryLoadLocal();
-	void cancelRequests();
+	bool _paused, _autoLoading, _inQueue, _complete;
+	mutable LocalLoadStatus _localStatus;
 
-	typedef QMap<mtpRequestId, int32> Requests;
-	Requests requests;
-	int32 skippedBytes;
-	int32 nextRequestOffset;
-	bool lastComplete;
+	virtual bool tryLoadLocal() = 0;
+	virtual void cancelRequests() = 0;
 
-	void started(bool loadFirst, bool prior);
+	void startLoading(bool loadFirst, bool prior);
 	void removeFromQueue();
+	void cancel(bool failed);
 
 	void loadNext();
-	void finishFail();
-	bool loadPart();
-	void partLoaded(int32 offset, const MTPupload_File &result, mtpRequestId req);
-	bool partFailed(const RPCError &error);
+	virtual bool loadPart() = 0;
 
-	int32 dc;
+	QFile _file;
+	QString _fname;
+	bool _fileIsOpen;
+
+	LoadToCacheSetting _toCache;
+	LoadFromCloudSetting _fromCloud;
+
+	QByteArray _data;
+
+	int32 _size;
+	mtpTypeId _type;
 	LocationType _locationType;
-
-	uint64 volume; // for photo locations
-	int32 local;
-	uint64 secret;
-
-	uint64 id; // for other locations
-	uint64 access;
-	QFile file;
-	QString fname;
-	bool fileIsOpen;
-	bool duplicateInData;
-
-	QByteArray data;
-
-	int32 size;
-	mtpTypeId type;
 
 	TaskId _localTaskId;
 	mutable QByteArray _imageFormat;
@@ -204,3 +229,177 @@ private:
 	void readImage() const;
 
 };
+
+class StorageImageLocation;
+class mtpFileLoader : public FileLoader, public RPCSender {
+	Q_OBJECT
+
+public:
+
+	mtpFileLoader(const StorageImageLocation *location, int32 size, LoadFromCloudSetting fromCloud, bool autoLoading);
+	mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, LocationType type, const QString &toFile, int32 size, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading);
+
+	virtual int32 currentOffset(bool includeSkipped = false) const;
+
+	uint64 objId() const {
+		return _id;
+	}
+
+	virtual mtpFileLoader *mtpLoader() {
+		return this;
+	}
+	virtual const mtpFileLoader *mtpLoader() const {
+		return this;
+	}
+
+	virtual void stop() {
+		rpcInvalidate();
+	}
+
+	~mtpFileLoader();
+
+protected:
+
+	virtual bool tryLoadLocal();
+	virtual void cancelRequests();
+
+	typedef QMap<mtpRequestId, int32> Requests;
+	Requests _requests;
+
+	virtual bool loadPart();
+	void partLoaded(int32 offset, const MTPupload_File &result, mtpRequestId req);
+	bool partFailed(const RPCError &error);
+
+	bool _lastComplete;
+	int32 _skippedBytes;
+	int32 _nextRequestOffset;
+
+	int32 _dc;
+	const StorageImageLocation *_location;
+
+	uint64 _id; // for other locations
+	uint64 _access;
+
+};
+
+class webFileLoaderPrivate;
+
+class webFileLoader : public FileLoader {
+	Q_OBJECT
+
+public:
+
+	webFileLoader(const QString &url, const QString &to, LoadFromCloudSetting fromCloud, bool autoLoading);
+
+	virtual int32 currentOffset(bool includeSkipped = false) const;
+	virtual webFileLoader *webLoader() {
+		return this;
+	}
+	virtual const webFileLoader *webLoader() const {
+		return this;
+	}
+
+	void onProgress(qint64 already, qint64 size);
+	void onFinished(const QByteArray &data);
+	void onError();
+
+	virtual void stop() {
+		cancelRequests();
+	}
+
+	~webFileLoader();
+
+protected:
+
+	virtual void cancelRequests();
+	virtual bool tryLoadLocal();
+	virtual bool loadPart();
+
+	QString _url;
+
+	bool _requestSent;
+	int32 _already;
+
+	friend class WebLoadManager;
+	webFileLoaderPrivate *_private;
+
+};
+
+enum WebReplyProcessResult {
+	WebReplyProcessError,
+	WebReplyProcessProgress,
+	WebReplyProcessFinished,
+};
+
+class WebLoadManager : public QObject {
+	Q_OBJECT
+
+public:
+
+	WebLoadManager(QThread *thread);
+
+	void setProxySettings(const QNetworkProxy &proxy);
+
+	void append(webFileLoader *loader, const QString &url);
+	void stop(webFileLoader *reader);
+	bool carries(webFileLoader *reader) const;
+
+	~WebLoadManager();
+
+signals:
+	void processDelayed();
+	void proxyApplyDelayed();
+
+	void progress(webFileLoader *loader, qint64 already, qint64 size);
+	void finished(webFileLoader *loader, QByteArray data);
+	void error(webFileLoader *loader);
+
+public slots:
+	void onFailed(QNetworkReply *reply);
+	void onFailed(QNetworkReply::NetworkError error);
+	void onProgress(qint64 already, qint64 size);
+	void onMeta();
+
+	void process();
+	void proxyApply();
+	void finish();
+
+private:
+	void clear();
+	void sendRequest(webFileLoaderPrivate *loader, const QString &redirect = QString());
+	bool handleReplyResult(webFileLoaderPrivate *loader, WebReplyProcessResult result);
+
+	QNetworkProxy _proxySettings;
+	QNetworkAccessManager _manager;
+	typedef QMap<webFileLoader*, webFileLoaderPrivate*> LoaderPointers;
+	LoaderPointers _loaderPointers;
+	mutable QMutex _loaderPointersMutex;
+
+	typedef OrderedSet<webFileLoaderPrivate*> Loaders;
+	Loaders _loaders;
+
+	typedef QMap<QNetworkReply*, webFileLoaderPrivate*> Replies;
+	Replies _replies;
+
+};
+
+class WebLoadMainManager : public QObject {
+	Q_OBJECT
+
+public:
+
+public slots:
+
+	void progress(webFileLoader *loader, qint64 already, qint64 size);
+	void finished(webFileLoader *loader, QByteArray data);
+	void error(webFileLoader *loader);
+
+};
+
+static FileLoader * const CancelledFileLoader = SharedMemoryLocation<FileLoader, 0>();
+static mtpFileLoader * const CancelledMtpFileLoader = static_cast<mtpFileLoader*>(CancelledFileLoader);
+static webFileLoader * const CancelledWebFileLoader = static_cast<webFileLoader*>(CancelledFileLoader);
+static WebLoadManager * const FinishedWebLoadManager = SharedMemoryLocation<WebLoadManager, 0>();
+
+void reinitWebLoadManager();
+void stopWebLoadManager();

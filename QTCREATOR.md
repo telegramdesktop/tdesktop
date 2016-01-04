@@ -44,13 +44,24 @@ Download [opus-1.1 sources](http://downloads.xiph.org/releases/opus/opus-1.1.tar
 
 ####FFmpeg
 
-Download sources [ffmpeg-2.6.3.tar.bz2](http://ffmpeg.org/releases/ffmpeg-2.6.3.tar.bz2) from https://www.ffmpeg.org/download.html, extract to **/home/user/TBuild/Libraries** to have **/home/user/TBuild/Libraries/ffmpeg-2.6.3**, go to **/home/user/TBuild/Libraries/ffmpeg-2.6.3** and run
+In Terminal go to **/home/user/TBuild/Libraries** and run
+
+    git clone git://anongit.freedesktop.org/git/libva
+    cd libva
+    ./autogen.sh --enable-static
+    make
+    sudo make install
+    cd ..
+
+    git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
+    cd ffmpeg
+    git checkout release/2.8
 
     sudo apt-get update
     sudo apt-get -y --force-yes install autoconf automake build-essential libass-dev libfreetype6-dev libgpac-dev libsdl1.2-dev libtheora-dev libtool libva-dev libvdpau-dev libvorbis-dev libxcb1-dev libxcb-shm0-dev libxcb-xfixes0-dev pkg-config texi2html zlib1g-dev
     sudo apt-get install yasm
 
-    ./configure --prefix=/usr/local --disable-programs --disable-everything --enable-libopus --enable-decoder=aac --enable-decoder=aac_latm --enable-decoder=aasc --enable-decoder=mp1 --enable-decoder=mp1float --enable-decoder=mp2 --enable-decoder=mp2float --enable-decoder=mp3 --enable-decoder=mp3adu --enable-decoder=mp3adufloat --enable-decoder=mp3float --enable-decoder=mp3on4 --enable-decoder=mp3on4float --enable-decoder=wavpack --enable-decoder=opus --enable-decoder=vorbis --enable-decoder=wmalossless --enable-decoder=wmapro --enable-decoder=wmav1 --enable-decoder=wmav2 --enable-decoder=wmavoice --enable-decoder=flac --enable-encoder=libopus --enable-parser=aac --enable-parser=aac_latm --enable-parser=mpegaudio --enable-parser=opus --enable-parser=vorbis --enable-parser=flac --enable-demuxer=aac --enable-demuxer=wav --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=mov --enable-demuxer=flac --enable-muxer=ogg --enable-muxer=opus
+    ./configure --prefix=/usr/local --disable-programs --disable-doc --disable-pthreads --disable-mmx --disable-everything --enable-libopus --enable-decoder=aac --enable-decoder=aac_latm --enable-decoder=aasc --enable-decoder=flac --enable-decoder=gif --enable-decoder=h264 --enable-decoder=h264_vdpau --enable-decoder=mp1 --enable-decoder=mp1float --enable-decoder=mp2 --enable-decoder=mp2float --enable-decoder=mp3 --enable-decoder=mp3adu --enable-decoder=mp3adufloat --enable-decoder=mp3float --enable-decoder=mp3on4 --enable-decoder=mp3on4float --enable-decoder=mpeg4 --enable-decoder=mpeg4_vdpau --enable-decoder=msmpeg4v2 --enable-decoder=msmpeg4v3 --enable-decoder=opus --enable-decoder=vorbis --enable-decoder=wavpack --enable-decoder=wmalossless --enable-decoder=wmapro --enable-decoder=wmav1 --enable-decoder=wmav2 --enable-decoder=wmavoice --enable-encoder=libopus --enable-hwaccel=h264_vaapi --enable-hwaccel=h264_vdpau --enable-hwaccel=mpeg4_vaapi --enable-hwaccel=mpeg4_vdpau --enable-parser=aac --enable-parser=aac_latm --enable-parser=flac --enable-parser=h264 --enable-parser=mpeg4video --enable-parser=mpegaudio --enable-parser=opus --enable-parser=vorbis --enable-demuxer=aac --enable-demuxer=flac --enable-demuxer=gif --enable-demuxer=h264 --enable-demuxer=mov --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=wav --enable-muxer=ogg --enable-muxer=opus
 
     make
     sudo make install

@@ -446,7 +446,7 @@ void Application::onSwitchDebugMode() {
 			f.write("1");
 			f.close();
 		}
-		App::wnd()->hideLayer();
+		Ui::hideLayer();
 	}
 }
 
@@ -490,7 +490,7 @@ int32 Application::updatingReady() {
 #endif
 
 FileUploader *Application::uploader() {
-	if (!::uploader) ::uploader = new FileUploader();
+	if (!::uploader && !App::quiting()) ::uploader = new FileUploader();
 	return ::uploader;
 }
 
@@ -551,7 +551,7 @@ void Application::startUpdateCheck(bool forceWait) {
 	if (updateRequestId || updateThread || updateReply || !cAutoUpdate() || true) return;
 	
 	int32 constDelay = cBetaVersion() ? 600 : UpdateDelayConstPart, randDelay = cBetaVersion() ? 300 : UpdateDelayRandPart;
-	int32 updateInSecs = cLastUpdateCheck() + constDelay + (rand() % randDelay) - unixtime();
+	int32 updateInSecs = cLastUpdateCheck() + constDelay + int32(MTP::nonce<uint32>() % randDelay) - unixtime();
 	bool sendRequest = (updateInSecs <= 0 || updateInSecs > (constDelay + randDelay));
 	if (!sendRequest && !forceWait) {
 		QDir updates(cWorkingDir() + "tupdates");
@@ -685,7 +685,7 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 	socket.close();
 
 	psCheckLocalSocket(serverName);
-  
+
 	if (!server.listen(serverName)) {
 		LOG(("Application Error: failed to start listening to %1 server, error %2").arg(serverName).arg(int(server.serverError())));
 		return App::quit();
@@ -706,10 +706,11 @@ void Application::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (cDevVersion() && Local::oldMapVersion() < 9014) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Sticker management: manually rearrange your sticker packs, pack order is now synced across all your devices\n\xe2\x80\x94 Click and hold on a sticker to preview it before sending\n\xe2\x80\x94 New context menu for chats in chats list\n\xe2\x80\x94 Support for all existing emoji");// .replace('@', qsl("@") + QChar(0x200D));
-			} else if (Local::oldMapVersion() < 9015) {
-				versionFeatures = lang(lng_new_version_text).trimmed();
+			if (cDevVersion() && Local::oldMapVersion() < 9016) {
+//				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Sticker management: manually rearrange your sticker packs, pack order is now synced across all your devices\n\xe2\x80\x94 Click and hold on a sticker to preview it before sending\n\xe2\x80\x94 New context menu for chats in chats list\n\xe2\x80\x94 Support for all existing emoji");// .replace('@', qsl("@") + QChar(0x200D));
+				versionFeatures = lng_new_version_text(lt_gifs_link, qsl("https://telegram.org/blog/gif-revolution"), lt_bots_link, qsl("https://telegram.org/blog/inline-bots")).trimmed();
+			} else if (Local::oldMapVersion() < 9016) {
+				versionFeatures = lng_new_version_text(lt_gifs_link, qsl("https://telegram.org/blog/gif-revolution"), lt_bots_link, qsl("https://telegram.org/blog/inline-bots")).trimmed();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}
@@ -770,6 +771,7 @@ void Application::startApp() {
 	}
 
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
+
 	if (state != Local::ReadMapPassNeeded) {
 		checkMapVersion();
 	}
@@ -878,16 +880,20 @@ void Application::closeApplication() {
 
 Application::~Application() {
 	App::setQuiting();
+
 	window->setParent(0);
 
 	anim::stopManager();
 
 	socket.close();
 	closeApplication();
+	stopWebLoadManager();
 	App::deinitMedia();
 	deinitImageLinkManager();
+
 	mainApp = 0;
 	delete ::uploader;
+
 	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	delete updateReply;
 	updateReply = 0;
@@ -897,7 +903,9 @@ Application::~Application() {
 	updateThread = 0;
 	#endif
 
-	delete window;
+	Window *w = window;
+	window = 0;
+	delete w;
 
 	delete cChatBackground();
 	cSetChatBackground(0);
@@ -906,7 +914,7 @@ Application::~Application() {
 	cSetChatDogImage(0);
 
 	style::stopManager();
-	
+
 	delete _translator;
 }
 

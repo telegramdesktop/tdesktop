@@ -24,8 +24,13 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 #include "flatcheckbox.h"
 
-FlatCheckbox::FlatCheckbox(QWidget *parent, const QString &text, bool checked, const style::flatCheckbox &st) : Button(parent),
-	_st(st), a_over(0, 0), _text(text), _opacity(1), _checked(checked) {
+FlatCheckbox::FlatCheckbox(QWidget *parent, const QString &text, bool checked, const style::flatCheckbox &st) : Button(parent)
+, _st(st)
+, a_over(0, 0)
+, _a_appearance(animation(this, &FlatCheckbox::step_appearance))
+, _text(text)
+, _opacity(1)
+, _checked(checked) {
 	connect(this, SIGNAL(clicked()), this, SLOT(onClicked()));
 	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
 	setCursor(_st.cursor);
@@ -60,17 +65,17 @@ void FlatCheckbox::onClicked() {
 void FlatCheckbox::onStateChange(int oldState, ButtonStateChangeSource source) {
 	if ((_state & StateOver) && !(oldState & StateOver)) {
 		a_over.start(1);
-		anim::start(this);
+		_a_appearance.start();
 	} else if (!(_state & StateOver) && (oldState & StateOver)) {
 		a_over.start(0);
-		anim::start(this);
+		_a_appearance.start();
 	}
 	if ((_state & StateDisabled) && !(oldState & StateDisabled)) {
 		setCursor(_st.disabledCursor);
-		anim::start(this);
+		_a_appearance.start();
 	} else if (!(_state & StateDisabled) && (oldState & StateDisabled)) {
 		setCursor(_st.cursor);
-		anim::start(this);
+		_a_appearance.start();
 	}
 }
 
@@ -114,17 +119,15 @@ void FlatCheckbox::paintEvent(QPaintEvent *e) {
 	}
 }
 
-bool FlatCheckbox::animStep(float64 ms) {
+void FlatCheckbox::step_appearance(float64 ms, bool timer) {
 	float64 dt = ms / _st.duration;
-	bool res = true;
 	if (dt >= 1) {
+		_a_appearance.stop();
 		a_over.finish();
-		res = false;
 	} else {
 		a_over.update(dt, _st.bgFunc);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 template <typename Type>
@@ -135,7 +138,8 @@ public:
 	TemplateRadiobuttonsGroup(const QString &name) : _name(name), _val(0) {
 	}
 
-	void remove(Type * const &radio);
+	void remove(Type * const &radio) {
+	}
 	int32 val() const {
 		return _val;
 	}
@@ -232,12 +236,16 @@ FlatRadiobutton::~FlatRadiobutton() {
 	reinterpret_cast<FlatRadiobuttonGroup*>(_group)->remove(this);
 }
 
-Checkbox::Checkbox(QWidget *parent, const QString &text, bool checked, const style::Checkbox &st) : Button(parent),
-_st(st),
-a_over(0), a_checked(checked ? 1 : 0),
-_a_over(animFunc(this, &Checkbox::animStep_over)), _a_checked(animFunc(this, &Checkbox::animStep_checked)),
-_text(text), _fullText(text), _textWidth(st.font->width(text)),
-_checked(checked) {
+Checkbox::Checkbox(QWidget *parent, const QString &text, bool checked, const style::Checkbox &st) : Button(parent)
+, _st(st)
+, a_over(0)
+, a_checked(checked ? 1 : 0)
+, _a_over(animation(this, &Checkbox::step_over))
+, _a_checked(animation(this, &Checkbox::step_checked))
+, _text(text)
+, _fullText(text)
+, _textWidth(st.font->width(text))
+, _checked(checked) {
 	if (_st.width <= 0) {
 		resize(_textWidth - _st.width, _st.height);
 	} else {
@@ -275,30 +283,26 @@ void Checkbox::setChecked(bool checked) {
 	}
 }
 
-bool Checkbox::animStep_over(float64 ms) {
+void Checkbox::step_over(float64 ms, bool timer) {
 	float64 dt = ms / _st.duration;
-	bool res = true;
 	if (dt >= 1) {
+		_a_over.stop();
 		a_over.finish();
-		res = false;
 	} else {
 		a_over.update(dt, anim::linear);
 	}
-	update(_checkRect);
-	return res;
+	if (timer) update(_checkRect);
 }
 
-bool Checkbox::animStep_checked(float64 ms) {
+void Checkbox::step_checked(float64 ms, bool timer) {
 	float64 dt = ms / _st.duration;
-	bool res = true;
 	if (dt >= 1) {
 		a_checked.finish();
-		res = false;
+		_a_checked.stop();
 	} else {
 		a_checked.update(dt, anim::linear);
 	}
-	update(_checkRect);
-	return res;
+	if (timer) update(_checkRect);
 }
 
 void Checkbox::paintEvent(QPaintEvent *e) {
@@ -372,12 +376,18 @@ void Checkbox::onStateChange(int oldState, ButtonStateChangeSource source) {
 	}
 }
 
-Radiobutton::Radiobutton(QWidget *parent, const QString &group, int32 value, const QString &text, bool checked, const style::Radiobutton &st) : Button(parent),
-_st(st),
-a_over(0), a_checked(checked ? 1 : 0),
-_a_over(animFunc(this, &Radiobutton::animStep_over)), _a_checked(animFunc(this, &Radiobutton::animStep_checked)),
-_text(text), _fullText(text), _textWidth(st.font->width(text)),
-_checked(checked), _group(radiobuttons.reg(group)), _value(value) {
+Radiobutton::Radiobutton(QWidget *parent, const QString &group, int32 value, const QString &text, bool checked, const style::Radiobutton &st) : Button(parent)
+, _st(st)
+, a_over(0)
+, a_checked(checked ? 1 : 0)
+, _a_over(animation(this, &Radiobutton::step_over))
+, _a_checked(animation(this, &Radiobutton::step_checked))
+, _text(text)
+, _fullText(text)
+, _textWidth(st.font->width(text))
+, _checked(checked)
+, _group(radiobuttons.reg(group))
+, _value(value) {
 	if (_st.width <= 0) {
 		resize(_textWidth - _st.width, _st.height);
 	} else {
@@ -419,30 +429,26 @@ void Radiobutton::setChecked(bool checked) {
 	}
 }
 
-bool Radiobutton::animStep_over(float64 ms) {
+void Radiobutton::step_over(float64 ms, bool timer) {
 	float64 dt = ms / _st.duration;
-	bool res = true;
 	if (dt >= 1) {
+		_a_over.stop();
 		a_over.finish();
-		res = false;
 	} else {
 		a_over.update(dt, anim::linear);
 	}
-	update(_checkRect);
-	return res;
+	if (timer) update(_checkRect);
 }
 
-bool Radiobutton::animStep_checked(float64 ms) {
+void Radiobutton::step_checked(float64 ms, bool timer) {
 	float64 dt = ms / _st.duration;
-	bool res = true;
 	if (dt >= 1) {
 		a_checked.finish();
-		res = false;
+		_a_checked.stop();
 	} else {
 		a_checked.update(dt, anim::linear);
 	}
-	update(_checkRect);
-	return res;
+	if (timer) update(_checkRect);
 }
 
 void Radiobutton::paintEvent(QPaintEvent *e) {

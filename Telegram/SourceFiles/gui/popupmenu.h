@@ -59,7 +59,7 @@ private:
 
 	void childHiding(PopupMenu *child);
 
-	bool animStep_hide(float64 ms);
+	void step_hide(float64 ms, bool timer);
 
 	void init();
 	void hideFinish();

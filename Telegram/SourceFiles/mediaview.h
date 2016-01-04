@@ -22,7 +22,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 #include "dropdown.h"
 
-class MediaView : public TWidget, public RPCSender, public Animated {
+class MediaView : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -65,13 +65,13 @@ public:
 	void updateControls();
 	void updateDropdown();
 
-	bool animStep(float64 dt);
-
 	void showSaveMsgFile();
 	void close();
 
 	void activateControls();
 	void onDocClick();
+
+	void clipCallback(ClipReaderNotification notification);
 
 	~MediaView();
 
@@ -98,7 +98,6 @@ public slots:
 	void onTouchTimer();
 
 	void updateImage();
-	void onGifUpdated();
 
 private:
 
@@ -112,6 +111,9 @@ private:
 
 	void updateHeader();
 	void snapXY();
+
+	void step_state(uint64 ms, bool timer);
+	void step_radial(uint64 ms, bool timer);
 
 	QBrush _transparentBrush;
 
@@ -138,8 +140,12 @@ private:
 	bool _pressed;
 	int32 _dragging;
 	QPixmap _current;
-	AnimatedGif _currentGif;
+	ClipReader *_gif;
 	int32 _full; // -1 - thumb, 0 - medium, 1 - full
+
+	bool fileShown() const;
+	bool gifShown() const;
+	void stopGif();
 
 	style::sprite _docIcon;
 	style::color _docIconColor;
@@ -147,10 +153,7 @@ private:
 	int32 _docNameWidth, _docSizeWidth, _docExtWidth;
 	QRect _docRect, _docIconRect;
 	int32 _docThumbx, _docThumby, _docThumbw;
-	uint64 _docRadialFirst, _docRadialStart, _docRadialLast;
-	float64 _docRadialOpacity;
-	QPen _docRadialPen;
-	anim::fvalue a_docRadial, a_docRadialStart;
+	RadialAnimation _docRadial;
 	LinkButton _docDownload, _docSaveAs, _docCancel;
 
 	History *_migrated, *_history; // if conversation photos or files overview
@@ -183,6 +186,8 @@ private:
 	OverState _over, _down;
 	QPoint _lastAction, _lastMouseMovePos;
 	bool _ignoringDropdown;
+
+	Animation _a_state;
 
 	enum ControlsState {
 		ControlsShowing,

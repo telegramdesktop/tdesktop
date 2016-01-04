@@ -108,8 +108,7 @@ public:
 	void mouseMoveEvent(QMouseEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void leaveEvent(QEvent *e);
-	void updateLink();
-
+	
 protected:
 
 	void hideAll();
@@ -118,7 +117,7 @@ protected:
 private:
 
 	void updateSelected(const QPoint &cursorGlobalPosition);
-	bool goodAnimStep(float64 ms);
+	void step_good(float64 ms, bool timer);
 
 	BoxButton _close;
 	Text _text;
@@ -132,5 +131,5 @@ private:
 
 	QString _goodTextLink;
 	anim::fvalue a_goodOpacity;
-	Animation a_good;
+	Animation _a_good;
 };

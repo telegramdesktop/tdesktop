@@ -57,7 +57,7 @@ public:
 	void touchScrollUpdated(const QPoint &screenPos);
 	QPoint mapMouseToItem(QPoint p, MsgId itemId, int32 itemIndex);
 
-	int32 resizeToWidth(int32 nwidth, int32 scrollTop, int32 minHeight); // returns new scroll top
+	int32 resizeToWidth(int32 nwidth, int32 scrollTop, int32 minHeight, bool force = false); // returns new scroll top
 	void dropResizeIndex();
 
 	PeerData *peer() const;
@@ -67,12 +67,11 @@ public:
 
 	void setSelectMode(bool enabled);
 
-	void mediaOverviewUpdated(bool fromResize = false);
+	void mediaOverviewUpdated();
 	void changingMsgId(HistoryItem *row, MsgId newId);
-	void msgUpdated(const HistoryItem *msg);
+	void repaintItem(const HistoryItem *msg);
 	void itemRemoved(HistoryItem *item);
-	void itemResized(HistoryItem *item, bool scrollToIt);
-
+	
 	void getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const;
 	void clearSelectedItems(bool onlyTextSelection = false);
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
@@ -111,6 +110,8 @@ public slots:
 
 private:
 
+	MsgId complexMsgId(const HistoryItem *item) const;
+
 	bool itemMigrated(MsgId msgId) const;
 	ChannelId itemChannel(MsgId msgId) const;
 	MsgId itemMsgId(MsgId msgId) const;
@@ -123,8 +124,7 @@ private:
 
 	void updateDragSelection(MsgId dragSelFrom, int32 dragSelFromIndex, MsgId dragSelTo, int32 dragSelToIndex, bool dragSelecting);
 
-	void updateMsg(HistoryItem *item);
-	void updateMsg(MsgId itemId, int32 itemIndex);
+	void repaintItem(MsgId itemId, int32 itemIndex);
 
 	void touchResetSpeed();
 	void touchUpdateSpeed();
@@ -133,8 +133,8 @@ private:
 	void applyDragSelection();
 	void addSelectionRange(int32 selFrom, int32 selTo, History *history);
 
-	QPixmap genPix(PhotoData *photo, int32 size);
-	void showAll(bool recountHeights = false);
+	void recountMargins();
+	int32 countHeight();
 
 	OverviewWidget *_overview;
 	ScrollArea *_scroll;
@@ -142,52 +142,32 @@ private:
 
 	PeerData *_peer;
 	MediaOverviewType _type;
+	bool _reversed;
 	History *_migrated, *_history;
 	ChannelId _channel;
 	
-	// photos
-	int32 _photosInRow, _photosToAdd, _vsize;
-	struct CachedSize {
-		int32 vsize;
-		bool medium;
-		QPixmap pix;
-	};
-	typedef QMap<PhotoData*, CachedSize> CachedSizes;
-	CachedSizes _cached;
 	bool _selMode;
+	uint32 itemSelectedValue(int32 index) const;
 
-	// audio documents
-	int32 _audioLeft, _audioWidth, _audioHeight;
+	int32 _rowsLeft, _rowWidth;
 
-	// shared links
-	int32 _linksLeft, _linksWidth;
-	struct Link {
-		Link() : width(0) {
-		}
-		Link(const QString &url, const QString &text) : url(url), text(text), width(st::msgFont->width(text)) {
-		}
-		QString url, text;
-		int32 width;
-	};
-	struct CachedLink {
-		CachedLink() : titleWidth(0), page(0), pixw(0), pixh(0), text(st::msgMinWidth) {
-		}
-		CachedLink(HistoryItem *item);
-		int32 countHeight(int32 w);
+	typedef QVector<LayoutItem*> Items;
+	Items _items;
+	typedef QMap<HistoryItem*, LayoutMediaItem*> LayoutItems;
+	LayoutItems _layoutItems;
+	typedef QMap<int32, LayoutOverviewDate*> LayoutDates;
+	LayoutDates _layoutDates;
+	LayoutMediaItem *layoutPrepare(HistoryItem *item);
+	LayoutItem *layoutPrepare(const QDate &date, bool month);
+	int32 setLayoutItem(int32 index, LayoutItem *item, int32 top);
 
-		QString title, letter;
-		int32 titleWidth;
-		WebPageData *page;
-		int32 pixw, pixh;
-		Text text;
-		QVector<Link> urls;
-	};
-	typedef QMap<MsgId, CachedLink*> CachedLinks;
-	CachedLinks _links;
 	FlatInput _search;
 	IconedButton _cancelSearch;
 	QVector<MsgId> _results;
 	int32 _itemsToBeLoaded;
+
+	// photos
+	int32 _photosInRow, _photosToAdd;
 
 	QTimer _searchTimer;
 	QString _searchQuery;
@@ -211,23 +191,7 @@ private:
 	typedef QMap<mtpRequestId, QString> SearchQueries;
 	SearchQueries _searchQueries;
 
-	CachedLink *cachedLink(HistoryItem *item);
-
-	// other
-	struct CachedItem {
-		CachedItem() : msgid(0), y(0) {
-		}
-		CachedItem(MsgId msgid, const QDate &date, int32 y) : msgid(msgid), date(date), y(y) {
-		}
-		MsgId msgid;
-		QDate date;
-		int32 y;
-		CachedLink *link;
-	};
-	typedef QVector<CachedItem> CachedItems;
-	CachedItems _items;
-
-	int32 _width, _height, _minHeight, _addToY;
+	int32 _width, _height, _minHeight, _marginTop, _marginBottom;
 
 	QTimer _linkTipTimer;
 
@@ -249,14 +213,9 @@ private:
 	int32 _dragItemIndex;
 	MsgId _mousedItem;
 	int32 _mousedItemIndex;
-	int32 _lnkOverIndex, _lnkDownIndex; // for OverviewLinks, 0 - none, -1 - photo or title, > 0 - lnk index
 	uint16 _dragSymbol;
 	bool _dragWasInactive;
 
-	QString urlByIndex(MsgId msgid, int32 index, int32 lnkIndex, bool *fullShown = 0) const;
-	bool urlIsEmail(const QString &url) const;
-
-	QString _contextMenuUrl;
 	TextLinkPtr _contextMenuLnk;
 
 	MsgId _dragSelFrom, _dragSelTo;
@@ -307,17 +266,15 @@ public:
 
 	void fastShow(bool back = false, int32 lastScrollTop = -1);
 	void animShow(const QPixmap &oldAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false, int32 lastScrollTop = -1);
-	bool animStep_show(float64 ms);
+	void step_show(float64 ms, bool timer);
 
 	void updateWideMode();
 	void doneShow();
 
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);
-	void msgUpdated(const HistoryItem *msg);
 	void itemRemoved(HistoryItem *item);
-	void itemResized(HistoryItem *row, bool scrollToIt);
-
+	
 	QPoint clampMousePosition(QPoint point);
 
 	void checkSelectingScroll(QPoint point);
@@ -341,6 +298,10 @@ public:
 		_inGrab = false;
 		resizeEvent(0);
 	}
+
+	void ui_repaintHistoryItem(const HistoryItem *item);
+
+	void notify_historyItemLayoutChanged(const HistoryItem *item);
 
 	~OverviewWidget();
 

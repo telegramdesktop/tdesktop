@@ -31,6 +31,10 @@ set "DeployPath=%ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStrFull%"
 set "SignPath=..\..\TelegramPrivate\Sign.bat"
 
 if %BetaVersion% neq 0 (
+  if exist %DeployPath%\ (
+    echo Deploy folder for version %AppVersionStr% already exists!
+    exit /b 1
+  )
   if exist %ReleasePath%\%BetaKeyFile% (
     echo Beta version key file for version %AppVersion% already exists!
     exit /b 1
@@ -40,19 +44,21 @@ if %BetaVersion% neq 0 (
     echo Deploy folder for version %AppVersionStr%.dev already exists!
     exit /b 1
   )
+  if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%\ (
+    echo Deploy folder for version %AppVersionStr% already exists!
+    exit /b 1
+  )
   if exist %ReleasePath%\tupdate%AppVersion% (
     echo Update file for version %AppVersion% already exists!
     exit /b 1
   )
 )
-
-if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%\ (
-  echo Deploy folder for version %AppVersionStr% already exists!
-  exit /b 1
-)
-
 cd SourceFiles\
-rem copy telegram.qrc /B+,,/Y
+if "%1" == "fast" (
+  echo Skipping touching of telegram.qrc..
+) else (
+  copy telegram.qrc /B+,,/Y
+)
 cd ..\
 if %errorlevel% neq 0 goto error
 
@@ -149,7 +155,7 @@ xcopy %DeployPath%\%PortableFile% %FinalDeployPath%\
 if %BetaVersion% equ 0 (
   xcopy %DeployPath%\%SetupFile% %FinalDeployPath%\
 ) else (
-  xcopy %DeployPath%\%BetaKeyFile% %FinalDeployPath%\
+  xcopy %DeployPath%\%BetaKeyFile% %FinalDeployPath%\ /Y
 )
 xcopy %DeployPath%\Telegram.pdb %FinalDeployPath%\
 xcopy %DeployPath%\Updater.exe %FinalDeployPath%\

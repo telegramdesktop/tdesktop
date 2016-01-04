@@ -54,3 +54,32 @@ private:
 
 	BoxButton _save, _cancel;
 };
+
+class AutoDownloadBox : public AbstractBox {
+	Q_OBJECT
+
+public:
+
+	AutoDownloadBox();
+	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
+
+public slots:
+
+	void onSave();
+
+protected:
+
+	void hideAll();
+	void showAll();
+
+private:
+
+	Checkbox _photoPrivate, _photoGroups;
+	Checkbox _audioPrivate, _audioGroups;
+	Checkbox _gifPrivate, _gifGroups, _gifPlay;
+
+	int32 _sectionHeight;
+
+	BoxButton _save, _cancel;
+};

@@ -65,7 +65,7 @@ namespace Local {
 
 	bool checkPasscode(const QByteArray &passcode);
 	void setPasscode(const QByteArray &passcode);
-	
+
 	enum ClearManagerTask {
 		ClearManagerAll = 0xFFFF,
 		ClearManagerDownloads = 0x01,
@@ -129,6 +129,8 @@ namespace Local {
 
 	void writeStickerImage(const StorageKey &location, const QByteArray &data, bool overwrite = true);
 	TaskId startStickerImageLoad(const StorageKey &location, mtpFileLoader *loader);
+	bool willStickerImageLoad(const StorageKey &location);
+	void copyStickerImage(const StorageKey &oldLocation, const StorageKey &newLocation);
 	int32 hasStickers();
 	qint64 storageStickersSize();
 
@@ -137,16 +139,26 @@ namespace Local {
 	int32 hasAudios();
 	qint64 storageAudiosSize();
 
+	void writeWebFile(const QString &url, const QByteArray &data, bool overwrite = true);
+	TaskId startWebFileLoad(const QString &url, webFileLoader *loader);
+	int32 hasWebFiles();
+	qint64 storageWebFilesSize();
+
 	void cancelTask(TaskId id);
 
 	void writeStickers();
 	void readStickers();
+	int32 countStickersHash(bool checkOfficial = false);
+
+	void writeSavedGifs();
+	void readSavedGifs();
+	int32 countSavedGifsHash();
 
 	void writeBackground(int32 id, const QImage &img);
 	bool readBackground();
 
-	void writeRecentHashtags();
-	void readRecentHashtags();
+	void writeRecentHashtagsAndBots();
+	void readRecentHashtagsAndBots();
 
 	void addSavedPeer(PeerData *peer, const QDateTime &position);
 	void removeSavedPeer(PeerData *peer);

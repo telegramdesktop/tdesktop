@@ -72,12 +72,15 @@ void CodeInput::correctValue(const QString &was, QString &now) {
 	if (strict) emit codeEntered();
 }
 
-IntroCode::IntroCode(IntroWidget *parent) : IntroStage(parent), errorAlpha(0),
-	next(this, lang(lng_intro_next), st::btnIntroNext),
-	_desc(st::introTextSize.width()),
-	_noTelegramCode(this, lang(lng_code_no_telegram), st::introLink),
-	_noTelegramCodeRequestId(0),
-	code(this, st::inpIntroCode, lang(lng_code_ph)), waitTillCall(intro()->getCallTimeout()) {
+IntroCode::IntroCode(IntroWidget *parent) : IntroStage(parent)
+, a_errorAlpha(0)
+, _a_error(animation(this, &IntroCode::step_error))
+, next(this, lang(lng_intro_next), st::btnIntroNext)
+, _desc(st::introTextSize.width())
+, _noTelegramCode(this, lang(lng_code_no_telegram), st::introLink)
+, _noTelegramCodeRequestId(0)
+, code(this, st::inpIntroCode, lang(lng_code_ph))
+, waitTillCall(intro()->getCallTimeout()) {
 	setVisible(false);
 	setGeometry(parent->innerRect());
 
@@ -132,8 +135,8 @@ void IntroCode::paintEvent(QPaintEvent *e) {
 		}
 		p.drawText(QRect(textRect.left(), code.y() + code.height() + st::introCallSkip, st::introTextSize.width(), st::introErrHeight), callText, style::al_center);
 	}
-	if (animating() || error.length()) {
-		p.setOpacity(errorAlpha.current());
+	if (_a_error.animating() || error.length()) {
+		p.setOpacity(a_errorAlpha.current());
 		p.setFont(st::introErrFont->f);
 		p.setPen(st::introErrColor->p);
 		p.drawText(QRect(textRect.left(), next.y() + next.height() + st::introErrTop, st::introTextSize.width(), st::introErrHeight), error, style::al_center);
@@ -151,32 +154,30 @@ void IntroCode::resizeEvent(QResizeEvent *e) {
 
 void IntroCode::showError(const QString &err) {
 	if (!err.isEmpty()) code.notaBene();
-	if (!animating() && err == error) return;
+	if (!_a_error.animating() && err == error) return;
 
 	if (err.length()) {
 		error = err;
-		errorAlpha.start(1);
+		a_errorAlpha.start(1);
 	} else {
-		errorAlpha.start(0);
+		a_errorAlpha.start(0);
 	}
-	anim::start(this);
+	_a_error.start();
 }
 
-bool IntroCode::animStep(float64 ms) {
+void IntroCode::step_error(float64 ms, bool timer) {
 	float64 dt = ms / st::introErrDuration;
 
-	bool res = true;
 	if (dt >= 1) {
-		res = false;
-		errorAlpha.finish();
-		if (!errorAlpha.current()) {
+		_a_error.stop();
+		a_errorAlpha.finish();
+		if (!a_errorAlpha.current()) {
 			error = "";
 		}
 	} else {
-		errorAlpha.update(dt, st::introErrFunc);
+		a_errorAlpha.update(dt, st::introErrFunc);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 void IntroCode::activate() {
@@ -185,7 +186,7 @@ void IntroCode::activate() {
 		callTimer.start(1000);
 	}
 	error = "";
-	errorAlpha = anim::fvalue(0);
+	a_errorAlpha = anim::fvalue(0);
 	sentCode = QString();
 	show();
 	code.setDisabled(false);

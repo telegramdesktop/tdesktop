@@ -554,8 +554,8 @@ taDefFlat: flatTextarea {
 	font: inpDefFont;
 	cursor: cursor(text);
 
-	phColor: #AAA;
-	phFocusColor: #CCC;
+	phColor: #999;
+	phFocusColor: #AAA;
 	phAlign: align(topleft);
 	phPos: point(2px, 0px);
 	phShift: 50px;
@@ -776,8 +776,8 @@ setClose: iconedButton(btnDefIconed) {
 	height: 43px;
 }
 setClosePos: point(32px, 32px);
-setPhotoImg: sprite(0px, 220px, 120px, 120px);
-setOverPhotoImg: sprite(122px, 220px, 120px, 120px);
+setPhotoImg: sprite(0px, 218px, 120px, 120px);
+setOverPhotoImg: sprite(122px, 218px, 120px, 120px);
 setPhotoDuration: 150;
 
 setPadding: 26px;
@@ -1015,25 +1015,25 @@ msgPadding: margins(13px, 7px, 13px, 8px);
 msgMargin: margins(13px, 4px, 53px, 4px);
 msgLnkPadding: 2px; // for media open / save links
 msgBorder: #f0f0f0;
-msgOutBg: #effdde;
 msgInBg: #fff;
-msgOutSelectBg: #b7dbdb;
-msgInSelectBg: #c2dcf2; // #358cd4 with 30% opacity
+msgInBgSelected: #c2dcf2; // #358cd4 with 30% opacity
+msgOutBg: #effdde;
+msgOutBgSelected: #b7dbdb;
 msgSelectOverlay: #358cd44c;
 msgStickerOverlay: #358cd47f;
-msgOutServiceColor: #3a8e26;
-msgInServiceColor: #0e7acd;
-msgOutServiceSelColor: #367570;
-msgInServiceSelColor: #0e7acd;
+msgInServiceFg: #0e7acd;
+msgInServiceFgSelected: #0e7acd;
+msgOutServiceFg: #3a8e26;
+msgOutServiceFgSelected: #367570;
 msgShadow: 2px;
 msgInShadow: #748ea229;
+msgInShadowSelected: #548dbb29;
 msgOutShadow: #3ac34740;
-msgInSelectShadow: #548dbb29;
-msgOutSelectShadow: #37a78e40;
-msgInDateColor: #a0acb6;
-msgOutDateColor: #6cc264;
-msgInSelectDateColor: #6a9cc5;
-msgOutSelectDateColor: #50a79c;
+msgOutShadowSelected: #37a78e40;
+msgInDateFg: #a0acb6;
+msgInDateFgSelected: #6a9cc5;
+msgOutDateFg: #6cc264;
+msgOutDateFgSelected: #50a79c;
 
 msgReplyPadding: margins(6px, 6px, 11px, 6px);
 msgReplyBarPos: point(1px, 0px);
@@ -1086,11 +1086,12 @@ msgDateDelta: point(2px, 5px);
 msgDateImgDelta: 4px;
 msgDateImgColor: #fff;
 msgDateImgBg: #00000054;
-msgDateImgSelectBg: #1c4a7187;
+msgDateImgBgOver: #00000074;
+msgDateImgBgSelected: #1c4a7187;
 msgDateImgPadding: point(8px, 2px);
 msgDateImgCheckSpace: 4px;
 
-msgDogImg: sprite(213px, 93px, 126px, 126px);
+msgDogImg: sprite(216px, 92px, 126px, 126px);
 historyPadding: 10px;
 
 collapseButton: flatButton(btnDefFlat) {
@@ -1117,7 +1118,7 @@ defaultTextStyle: textStyle {
 	linkFg: btnYesColor;
 	linkFgDown: btnYesHover;
 	monoFg: #777;
-	selectBg: msgInSelectBg;
+	selectBg: msgInBgSelected;
 	selectOverlay: msgSelectOverlay;
 	lineHeight: 0px;
 }
@@ -1135,12 +1136,12 @@ serviceTextStyle: textStyle(defaultTextStyle) {
 }
 inTextStyle: textStyle(defaultTextStyle) {
 	monoFg: #4e7391;
-	selectBg: msgInSelectBg;
+	selectBg: msgInBgSelected;
 	selectOverlay: msgSelectOverlay;
 }
 outTextStyle: textStyle(defaultTextStyle) {
 	monoFg: #469165;
-	selectBg: msgOutSelectBg;
+	selectBg: msgOutBgSelected;
 	selectOverlay: msgSelectOverlay;
 }
 medviewSaveAsTextStyle: textStyle(defaultTextStyle) {
@@ -1165,52 +1166,109 @@ introErrLabelTextStyle: textStyle(defaultTextStyle) {
 	lineHeight: 27px;
 }
 
-mediaMaxWidth: 250px;
-mediaFont: font(fsize);
-mediaPadding: margins(7px, 6px, 7px, 6px);
+mediaPadding: margins(0px, 0px, 0px, 0px);//1px, 1px, 1px, 1px);//2px, 2px, 2px, 2px);
+mediaCaptionSkip: 5px;
+mediaHeaderSkip: 5px;
 mediaThumbSize: 48px;
 mediaNameTop: 3px;
 mediaDetailsShift: 3px;
-mediaDocOutImg: sprite(6px, 146px, 48px, 48px);
-mediaDocInImg: sprite(56px, 146px, 48px, 48px);
-mediaAudioOutImg: sprite(106px, 146px, 48px, 48px);
-mediaAudioInImg: sprite(156px, 146px, 48px, 48px);
-mediaMusicOutImg: sprite(322px, 345px, 48px, 48px);
-mediaMusicInImg: sprite(322px, 395px, 48px, 48px);
-mediaPlayOutImg: sprite(122px, 341px, 48px, 48px);
-mediaPlayInImg: sprite(172px, 341px, 48px, 48px);
-mediaPauseOutImg: sprite(222px, 341px, 48px, 48px);
-mediaPauseInImg: sprite(272px, 341px, 48px, 48px);
-mediaInColor: msgInDateColor;
-mediaOutColor: msgOutDateColor;
-mediaInSelectColor: msgInSelectDateColor;
-mediaOutSelectColor: msgOutSelectDateColor;
-mediaOutUnreadColor: #6aad60;
-mediaOutUnreadSelectColor: #5aa382;
-mediaInUnreadColor: #999;
-mediaInUnreadSelectColor: #7b95aa;
-mediaUnreadSize: 4px;
+mediaInFg: msgInDateFg;
+mediaInFgSelected: msgInDateFgSelected;
+mediaOutFg: msgOutDateFg;
+mediaOutFgSelected: msgOutDateFgSelected;
+mediaInUnreadFg: #999;
+mediaInUnreadFgSelected: #7b95aa;
+mediaOutUnreadFg: #6aad60;
+mediaOutUnreadFgSelected: #5aa382;
+mediaUnreadSize: 7px;
 mediaUnreadSkip: 5px;
-mediaSaveDelta: 14px; // between bubble and download
-mediaSaveButton: flatButton(btnDefFlat) {
-	color: #507da2;
-	overColor: #507da2;
-	downColor: #507da2;
+mediaUnreadTop: 6px;
 
-	bgColor: white;
-	overBgColor: overBg;
-	downBgColor: overBg;
-
-	width: -28px;
-	height: 34px;
-
-	textTop: 7px;
-	overTextTop: 7px;
-	downTextTop: 8px;
-
-	font: font(fsize);
-	overFont: font(fsize);
+mediaInStyle: textStyle(defaultTextStyle) {
+	linkFg: mediaInFg;
+	linkFgDown: mediaInFg;
 }
+mediaInStyleSelected: textStyle(defaultTextStyle) {
+	linkFg: mediaInFgSelected;
+	linkFgDown: mediaInFgSelected;
+}
+
+msgFileRedColor: #e47272;
+msgFileYellowColor: #efc274;
+msgFileGreenColor: #61b96e;
+msgFileBlueColor: #72b1df;
+msgFileRedDark: #cd5b5e;
+msgFileYellowDark: #e6a561;
+msgFileGreenDark: #4da859;
+msgFileBlueDark: #5c9ece;
+msgFileRedOver: #c35154;
+msgFileYellowOver: #dc9c5a;
+msgFileGreenOver: #44a050;
+msgFileBlueOver: #5294c4;
+msgFileRedSelected: #9f6a82;
+msgFileYellowSelected: #b19d84;
+msgFileGreenSelected: #46a07e;
+msgFileBlueSelected: #5099d0;
+
+msgFileMenuSize: size(36px, 36px);
+msgFileSize: 44px;
+msgFilePadding: margins(14px, 12px, 11px, 12px);
+msgFileThumbSize: 72px;
+msgFileThumbPadding: margins(10px, 10px, 14px, 10px);
+msgFileThumbNameTop: 12px;
+msgFileThumbStatusTop: 32px;
+msgFileThumbLinkTop: 60px;
+msgFileThumbLinkInFg: #3da5e0;
+msgFileThumbLinkInFgSelected: #3da5e0;
+msgFileThumbLinkOutFg: #5eba5b;
+msgFileThumbLinkOutFgSelected: #31a298;
+msgFileNameTop: 16px;
+msgFileStatusTop: 37px;
+msgFileMinWidth: 294px;
+msgFileInBg: #59b6eb;
+msgFileInBgOver: #4eade3;
+msgFileInBgSelected: #51a3d3;
+msgFileOutBg: #78c67f;
+msgFileOutBgOver: #6bc272;
+msgFileOutBgSelected: #5fb389;
+
+msgFileOutImage: sprite(0px, 146px, 18px, 18px);
+msgFileOutImageSelected: sprite(18px, 146px, 18px, 18px);
+msgFileInImage: sprite(0px, 164px, 18px, 18px);
+msgFileInImageSelected: sprite(18px, 164px, 18px, 18px);
+msgFileOutFile: sprite(36px, 146px, 18px, 18px);
+msgFileOutFileSelected: sprite(54px, 146px, 18px, 18px);
+msgFileInFile: sprite(36px, 164px, 18px, 18px);
+msgFileInFileSelected: sprite(54px, 164px, 18px, 18px);
+msgFileOutDownload: sprite(72px, 142px, 14px, 20px);
+msgFileOutDownloadSelected: sprite(86px, 142px, 14px, 20px);
+msgFileInDownload: sprite(72px, 162px, 14px, 20px);
+msgFileInDownloadSelected: sprite(86px, 162px, 14px, 20px);
+msgFileOutCancel: sprite(100px, 147px, 16px, 16px);
+msgFileOutCancelSelected: sprite(116px, 147px, 16px, 16px);
+msgFileInCancel: sprite(100px, 165px, 16px, 16px);
+msgFileInCancelSelected: sprite(116px, 165px, 16px, 16px);
+msgFileOutPause: sprite(132px, 147px, 14px, 16px);
+msgFileOutPauseSelected: sprite(146px, 147px, 14px, 16px);
+msgFileInPause: sprite(132px, 165px, 14px, 16px);
+msgFileInPauseSelected: sprite(146px, 165px, 14px, 16px);
+msgFileOutPlay: sprite(160px, 146px, 20px, 18px);
+msgFileOutPlaySelected: sprite(180px, 146px, 20px, 18px);
+msgFileInPlay: sprite(160px, 164px, 20px, 18px);
+msgFileInPlaySelected: sprite(180px, 164px, 20px, 18px);
+
+msgFileRed: sprite(0px, 425px, 20px, 20px);
+msgFileYellow: sprite(20px, 425px, 20px, 20px);
+msgFileGreen: sprite(40px, 425px, 20px, 20px);
+msgFileBlue: sprite(60px, 425px, 20px, 20px);
+
+msgFileOverDuration: 200;
+msgFileRadialLine: 3px;
+
+msgFileExtPadding: 8px;
+msgFileExtTop: 30px;
+
+msgVideoSize: size(320px, 240px);
 
 sendPadding: 9px;
 btnSend: flatButton(btnDefFlat) {
@@ -1261,6 +1319,13 @@ btnAttachEmoji: iconedButton(btnAttachDocument) {
 
 	width: 33px;
 }
+emojiCircle: size(19px, 19px);
+emojiCirclePeriod: 1500;
+emojiCircleDuration: 500;
+emojiCircleTop: 13px;
+emojiCircleLine: 2px;
+emojiCircleFg: #b9b9b9;
+emojiCirclePart: 3.5;
 btnBotKbShow: iconedButton(btnAttachEmoji) {
 	icon: sprite(375px, 74px, 21px, 21px);
 	iconPos: point(6px, 12px);
@@ -1480,7 +1545,6 @@ notifySlowHideFunc: transition(easeInCirc);
 notifyWaitShortHide: 0;
 notifyWaitLongHide: 20000;
 notifyFastAnim: 150;
-notifyFastAnimFunc: transition(linear);
 notifyWidth: 316px;
 notifyHeight: 80px;
 notifyDeltaX: 6px;
@@ -1550,7 +1614,7 @@ profileMinBtnPadding: 10px;
 membersPadding: margins(0px, 10px, 0px, 10px);
 
 forwardMargins: margins(30px, 10px, 30px, 10px);
-forwardFont: font(16px); 
+forwardFont: font(16px);
 forwardBg: rgba(0, 0, 0, 76);
 btnProfileCancel: flatButton(btnDefFlat, btnDefBig) {
 	color: #666d78;
@@ -1820,6 +1884,8 @@ emojiObjectsActive: sprite(308px, 264px, 21px, 22px);
 emojiSymbolsOver: sprite(84px, 196px, 21px, 22px);
 emojiSymbolsActive: sprite(287px, 286px, 21px, 22px);
 stickersSettings: sprite(140px, 124px, 21px, 22px);
+savedGifsOver: sprite(329px, 286px, 21px, 22px);
+savedGifsActive: sprite(350px, 286px, 21px, 22px);
 
 emojiPanCategories: #f7f7f7;
 
@@ -1975,6 +2041,11 @@ botKbScroll: flatScroll(solidScroll) {
 	width: 10px;
 }
 
+minPhotoSize: 100px;
+maxMediaSize: 420px;
+maxStickerSize: 256px;
+maxGifSize: 320px;
+
 mvBgColor: #222;
 mvBgOpacity: 0.92;
 mvThickFont: semiboldFont;
@@ -2063,14 +2134,12 @@ mvDocExtFont: font(semibold 18px);
 mvDocExtColor: white;
 mvDocExtPadding: 10px;
 mvDocLinksTop: 57px;
-mvDocRed: sprite(0px, 400px, 80px, 80px);
-mvDocRedColor: #e47272;
-mvDocYellow: sprite(80px, 400px, 80px, 80px);
-mvDocYellowColor: #efc274;
-mvDocGreen: sprite(160px, 400px, 80px, 80px);
-mvDocGreenColor: #61b96e;
-mvDocBlue: sprite(240px, 400px, 80px, 80px);
-mvDocBlueColor: #72b1df;
+mvDocRed: sprite(0px, 400px, 25px, 25px);
+mvDocYellow: sprite(25px, 400px, 25px, 25px);
+mvDocGreen: sprite(50px, 400px, 25px, 25px);
+mvDocBlue: sprite(75px, 400px, 25px, 25px);
+mvDocIconSize: 80px;
+
 mvDocLink: linkButton(btnDefLink) {
 	color: #4595d3;
 	overColor: #4595d3;
@@ -2098,10 +2167,19 @@ medviewSaveMsg: #000000b2;
 mvTransparentBrush: sprite(9px, 124px, 8px, 8px);
 
 overviewPhotoSkip: 10px;
-overviewPhotoMinSize: 100px;
+overviewPhotoBg: #F1F1F1;
+overviewPhotoMinSize: minPhotoSize;
 overviewPhotoCheck: sprite(245px, 308px, 32px, 32px);
 overviewPhotoChecked: sprite(278px, 308px, 32px, 32px);
 overviewPhotoSelectOverlay: #0a7bb03f;
+
+overviewFilePadding: margins(0px, 3px, 16px, 3px);
+overviewFileSize: 70px;
+overviewFileNameTop: 7px;
+overviewFileStatusTop: 27px;
+overviewFileDateTop: 49px;
+overviewFileChecked: #2fa9e2;
+overviewFileCheck: #00000066;
 
 // Mac specific
 
@@ -2159,10 +2237,6 @@ mediaviewLoader: size(78px, 33px);
 mediaviewLoaderPoint: size(9px, 9px);
 mediaviewLoaderSkip: 9px;
 
-minPhotoSize: 100px;
-maxMediaSize: 420px;
-maxStickerSize: 256px;
-
 downloadPathSkip: 10px;
 
 usernamePadding: margins(23px, 22px, 21px, 12px);
@@ -2172,10 +2246,9 @@ usernameTextStyle: textStyle(defaultTextStyle) {
 }
 usernameDefaultFg: #777;
 
-youtubeIcon: sprite(336px, 221px, 60px, 60px);
-vimeoIcon: sprite(336px, 283px, 60px, 60px);
+youtubeIcon: sprite(116px, 338px, 72px, 50px);
 videoIcon: sprite(0px, 340px, 60px, 60px);
-locationSize: size(320, 240);
+locationSize: size(320px, 240px);
 
 boxOptionListPadding: margins(2px, 20px, 2px, 2px);
 
@@ -2293,11 +2366,24 @@ playlistPadding: 10px;
 linksSearchMargin: margins(20px, 20px, 20px, 0px);
 linksMaxWidth: 520px;
 linksLetterFont: font(24px);
-linksMargin: 5px;
+linksMargin: margins(0px, 7px, 0px, 5px);
+linksTextTop: 6px;
 linksBorder: 1px;
-linksBorderColor: #eaeaea;
-linksDateColor: #000;
-linksDateMargin: 15px;
+linksBorderFg: #eaeaea;
+linksDateColor: #808080;
+linksDateMargin: margins(0px, 15px, 0px, 2px);
 
 linksPhotoCheck: sprite(184px, 196px, 16px, 16px);
 linksPhotoChecked: sprite(168px, 196px, 16px, 16px);
+
+inlineResultsLeft: 15px;
+inlineResultsSkip: 3px;
+inlineMediaHeight: 96px;
+inlineThumbSize: 64px;
+inlineThumbSkip: 10px;
+inlineDescriptionFg: #8a8a8a;
+inlineRowMargin: 6px;
+inlineRowBorder: linksBorder;
+inlineRowBorderFg: linksBorderFg;
+inlineResultsMinWidth: 64px;
+inlineDurationMargin: 3px;

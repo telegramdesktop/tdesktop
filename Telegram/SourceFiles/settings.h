@@ -73,6 +73,9 @@ DeclareSetting(uint64, RealBetaVersion);
 DeclareSetting(QByteArray, BetaPrivateKey);
 
 DeclareSetting(bool, TestMode);
+inline QString cInlineGifBotUsername() {
+	return cTestMode() ? qstr("contextbot") : qstr("gif");
+}
 DeclareSetting(QString, LoggedPhoneNumber);
 DeclareReadSetting(uint32, ConnectionsInSession);
 DeclareSetting(bool, AutoStart);
@@ -195,9 +198,8 @@ DeclareRefSetting(EmojiColorVariants, EmojiVariants);
 
 RecentEmojiPack &cGetRecentEmojis();
 
-struct DocumentData;
+class DocumentData;
 typedef QVector<DocumentData*> StickerPack;
-DeclareSetting(int32, StickersHash);
 
 typedef QList<QPair<DocumentData*, int16> > RecentStickerPackOld;
 typedef QVector<QPair<uint64, ushort> > RecentStickerPreload;
@@ -206,8 +208,6 @@ DeclareSetting(RecentStickerPreload, RecentStickersPreload);
 DeclareRefSetting(RecentStickerPack, RecentStickers);
 
 RecentStickerPack &cGetRecentStickers();
-
-DeclareSetting(uint64, LastStickersUpdate);
 
 static const uint64 DefaultStickerSetId = 0; // for backward compatibility
 static const uint64 CustomStickerSetId = 0xFFFFFFFFFFFFFFFFULL, RecentStickerSetId = 0xFFFFFFFFFFFFFFFEULL;
@@ -224,10 +224,21 @@ typedef QMap<uint64, StickerSet> StickerSets;
 DeclareRefSetting(StickerSets, StickerSets);
 typedef QList<uint64> StickerSetsOrder;
 DeclareRefSetting(StickerSetsOrder, StickerSetsOrder);
+DeclareSetting(uint64, LastStickersUpdate);
+
+typedef QVector<DocumentData*> SavedGifs;
+DeclareRefSetting(SavedGifs, SavedGifs);
+DeclareSetting(uint64, LastSavedGifsUpdate);
+DeclareSetting(bool, ShowingSavedGifs);
+DeclareSetting(int32, SavedGifsLimit);
 
 typedef QList<QPair<QString, ushort> > RecentHashtagPack;
-DeclareSetting(RecentHashtagPack, RecentWriteHashtags);
+DeclareRefSetting(RecentHashtagPack, RecentWriteHashtags);
 DeclareSetting(RecentHashtagPack, RecentSearchHashtags);
+
+class UserData;
+typedef QVector<UserData*> RecentInlineBots;
+DeclareRefSetting(RecentInlineBots, RecentInlineBots);
 
 DeclareSetting(bool, PasswordRecovered);
 
@@ -326,5 +337,15 @@ DeclareRefSetting(SavedPeersByTime, SavedPeersByTime);
 
 typedef QMap<uint64, DBIPeerReportSpamStatus> ReportSpamStatuses;
 DeclareRefSetting(ReportSpamStatuses, ReportSpamStatuses);
+
+enum DBIAutoDownloadFlags {
+	dbiadNoPrivate = 0x01,
+	dbiadNoGroups  = 0x02,
+};
+
+DeclareSetting(int32, AutoDownloadPhoto);
+DeclareSetting(int32, AutoDownloadAudio);
+DeclareSetting(int32, AutoDownloadGif);
+DeclareSetting(bool, AutoPlayGif);
 
 void settingsParseArgs(int argc, char *argv[]);

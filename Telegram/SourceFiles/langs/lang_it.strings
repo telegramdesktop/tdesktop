@@ -48,6 +48,19 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_month11" = "Novembre";
 "lng_month12" = "Dicembre";
 
+"lng_month1_small" = "Gen";
+"lng_month2_small" = "Feb";
+"lng_month3_small" = "Mar";
+"lng_month4_small" = "Apr";
+"lng_month5_small" = "Mag";
+"lng_month6_small" = "Giu";
+"lng_month7_small" = "Lug";
+"lng_month8_small" = "Ago";
+"lng_month9_small" = "Set";
+"lng_month10_small" = "Ott";
+"lng_month11_small" = "Nov";
+"lng_month12_small" = "Dic";
+
 "lng_weekday1" = "Lun";
 "lng_weekday2" = "Mar";
 "lng_weekday3" = "Mer";
@@ -66,6 +79,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_month_day" = "{day} {month}";
 "lng_month_day_year" = "{day} {month} {year}";
+"lng_month_year" = "{month}, {year}";
 
 "lng_box_ok" = "Ok";
 
@@ -108,6 +122,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_server_error" = "Errore interno del server.";
 "lng_flood_error" = "Troppi tentativi. Per favore riprova più tardi.";
+"lng_gif_error" = "C'è stato un errore nel leggere la GIF :(";
 "lng_deleted" = "Sconosciuto";
 "lng_deleted_message" = "Messaggio eliminato";
 
@@ -134,7 +149,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_code_ph" = "Codice";
 "lng_code_desc" = "Abbiamo inviato un messaggio col codice\ndi attivazione al tuo telefono. Inseriscilo qui";
 "lng_code_telegram" = "Per favore inserisci il codice che hai\nappena ricevuto nell'altra app di [b]Telegram[/b].";
-"lng_code_no_telegram" = "Invia codice tramite SMS";
+"lng_code_no_telegram" = "Invia codice via SMS";
 "lng_code_call" = "Telegram ti chiamerà tra {minutes}:{seconds}";
 "lng_code_calling" = "Richiedendo una telefonata da Telegram..";
 "lng_code_called" = "Telegram ti ha chiamato";
@@ -470,8 +485,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_create_channel_crop" = "Seleziona un riquadro per la foto del canale";
 
 "lng_failed_add_participant" = "Impossibile aggiungere l'utente. Riprova più tardi.";
-"lng_failed_add_not_mutual" = "Spiacenti, se una persona lascia un gruppo,\nsolo un contatto in comune può reinvitarla\n(chi ti invita deve avere il tuo contatto\nsu Telegram, e viceversa).";
-"lng_failed_add_not_mutual_channel" = "Spiacenti, se una persona lascia un canale,\nsolo un contatto in comune può reinvitarla\n(chi ti invita deve avere il tuo contatto\nsu Telegram, e viceversa).";
+"lng_failed_add_not_mutual" = "Spiacenti, se una persona lascia un gruppo, solo un contatto in comune può reinvitarla (chi ti invita deve avere il tuo numero, e viceversa).";
+"lng_failed_add_not_mutual_channel" = "Spiacenti, se una persona lascia un canale, solo un contatto in comune può reinvitarla (chi ti invita deve avere il tuo numero, e viceversa).";
 
 "lng_sure_delete_contact" = "Sicuro di volere eliminare {contact} dalla tua lista dei contatti?";
 "lng_sure_delete_history" = "Sicuro di voler eliminare tutta la cronologia dei messaggi con {contact}?\n\nQuesta azione non può essere annullata.";
@@ -496,7 +511,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_action_kick_user" = "{from} ha rimosso {user}";
 "lng_action_user_left" = "{from} ha lasciato il gruppo";
 "lng_action_user_joined" = "{from} si è unito al gruppo";
-"lng_action_user_joined_by_link" = "{from} si è unito al gruppo tramite link di invito";
+"lng_action_user_joined_by_link" = "{from} si è unito al gruppo via link di invito";
 "lng_action_user_registered" = "{from} si è unito a Telegram";
 "lng_action_removed_photo" = "{from} ha rimosso la foto del gruppo";
 "lng_action_removed_photo_channel" = "Foto del canale rimossa";
@@ -556,10 +571,18 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_media_type_links" = "Link condivisi";
 
 "lng_media_open_with" = "Apri con";
-"lng_media_download" = "Download";
+"lng_media_download" = "Scarica";
 "lng_media_cancel" = "Annulla";
 "lng_media_video" = "Video";
 "lng_media_audio" = "Nota vocale";
+
+"lng_media_auto_settings" = "Impostazioni di download automatico";
+"lng_media_auto_photo" = "Download automatico foto";
+"lng_media_auto_audio" = "Download automatico audio";
+"lng_media_auto_gif" = "Download automatico GIF";
+"lng_media_auto_private_chats" = "Chat";
+"lng_media_auto_groups" = "Gruppi e canali";
+"lng_media_auto_play" = "Autoriproduzione";
 
 "lng_emoji_category0" = "Utilizzate di frequente";
 "lng_emoji_category1" = "Persone";
@@ -571,7 +594,12 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_emoji_category7" = "Simboli e bandiere";
 
 "lng_switch_stickers" = "Sticker";
+"lng_switch_stickers_gifs" = "GIF e Sticker";
 "lng_switch_emoji" = "Emoji";
+
+"lng_saved_gifs" = "GIF salvate";
+"lng_inline_bot_results" = "Risultati da {inline_bot}";
+"lng_inline_bot_no_results" = "Nessun risultato";
 
 "lng_box_remove" = "Rimuovi";
 
@@ -664,6 +692,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_save_file" = "Salva file";
 "lng_save_downloaded" = "{ready} / {total} {mb}";
 "lng_duration_and_size" = "{duration}, {size}";
+"lng_duration_played" = "{played} / {duration}";
+"lng_date_and_duration" = "{date}, {duration}";
 "lng_choose_images" = "Scegli immagini";
 
 "lng_context_view_profile" = "Visualizza profilo";
@@ -699,6 +729,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_context_delete_file" = "Elimina file";
 "lng_context_close_file" = "Chiudi file";
 "lng_context_copy_text" = "Copia testo";
+"lng_context_save_gif" = "Salva GIF";
 "lng_context_to_msg" = "Vai al messaggio";
 "lng_context_reply_msg" = "Rispondi";
 "lng_context_forward_msg" = "Inoltra messaggio";
@@ -801,7 +832,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";
-"lng_new_version_text" = "— Gestione degli sticker: Riordina manualmente i tuoi set di sticker, ora sono sincronizzati tra i tuoi dispositivi\n— Clicca e tieni premuto su uno sticker per visualizzare l'anteprima prima di inviarlo\n— Nuovo menu contestuale per le chat nella lista chat\n— Tutte le nuove emoji ora sono supportate";
+"lng_new_version_text" = "Rivoluzione GIF: L'invio e il download delle GIF sono ora 10 volte più veloci, riproduci automaticamente le GIF e salva le tue GIF preferite in una pagina dedicata nel pannello sticker.\n\nPiù info sulle GIF:\n{gifs_link}\n\n@-Bot: Un nuovo modo di aggiungere contenuto dai bot in qualsiasi chat. Scrivi l'username di un bot e la tua domanda nel campo di scrittura per ricevere risultati immediati e inviarli nella chat. Prova a scrivere “@gif dog” nella tua prossima chat. Bot di esempio: @gif, @wiki, @bing, @vid, @bold.\n\nPiù info sui @-Bot:\n{bots_link}\n\nInoltre in questa versione: Nuovo design per i media, impostazioni di download automatico per foto, note vocali e GIF.";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

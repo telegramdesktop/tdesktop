@@ -83,7 +83,7 @@
       <SubSystem>Windows</SubSystem>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
       <AdditionalLibraryDirectories>.\..\..\Libraries\lzma\C\Util\LzmaLib\Debug;.\..\..\Libraries\libexif-0.6.20\win32\Debug;.\..\..\Libraries\ffmpeg;.\..\..\Libraries\opus\win32\VS2010\Win32\Debug;.\..\..\Libraries\openal-soft\build\Debug;.\..\..\Libraries\zlib-1.2.8\contrib\vstudio\vc11\x86\ZlibStatDebug;.\..\..\Libraries\openssl_debug\Debug\lib;$(QTDIR)\lib;$(QTDIR)\plugins;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;Shlwapi.lib;Gdiplus.lib;imm32.lib;winmm.lib;qtmaind.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Cored.lib;Qt5Guid.lib;qtharfbuzzngd.lib;qtpcred.lib;qtfreetyped.lib;Qt5Widgetsd.lib;Qt5Networkd.lib;Qt5PlatformSupportd.lib;platforms\qwindowsd.lib;imageformats\qwebpd.lib;libeay32.lib;ssleay32.lib;Crypt32.lib;zlibstat.lib;LzmaLib.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;OpenAL32.lib;common.lib;libavformat\libavformat.a;libavcodec\libavcodec.a;libavutil\libavutil.a;libswresample\libswresample.a;opus.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;Shlwapi.lib;Gdiplus.lib;imm32.lib;winmm.lib;qtmaind.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Cored.lib;Qt5Guid.lib;qtharfbuzzngd.lib;qtpcred.lib;qtfreetyped.lib;Qt5Widgetsd.lib;Qt5Networkd.lib;Qt5PlatformSupportd.lib;platforms\qwindowsd.lib;imageformats\qwebpd.lib;libeay32.lib;ssleay32.lib;Crypt32.lib;zlibstat.lib;LzmaLib.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;OpenAL32.lib;common.lib;libavformat\libavformat.a;libavcodec\libavcodec.a;libavutil\libavutil.a;libswresample\libswresample.a;libswscale\libswscale.a;opus.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ImageHasSafeExceptionHandlers />
       <IgnoreSpecificDefaultLibraries>LIBCMT</IgnoreSpecificDefaultLibraries>
@@ -112,7 +112,7 @@
       <SubSystem>Windows</SubSystem>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
       <AdditionalLibraryDirectories>.\..\..\Libraries\lzma\C\Util\LzmaLib\Release;.\..\..\Libraries\libexif-0.6.20\win32\Release;.\..\..\Libraries\ffmpeg;.\..\..\Libraries\opus\win32\VS2010\Win32\Release;.\..\..\Libraries\openal-soft\build\Release;.\..\..\Libraries\zlib-1.2.8\contrib\vstudio\vc11\x86\ZlibStatRelease;.\..\..\Libraries\openssl\Release\lib;$(QTDIR)\lib;$(QTDIR)\plugins;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;Shlwapi.lib;Gdiplus.lib;imm32.lib;winmm.lib;qtmain.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Core.lib;Qt5Gui.lib;qtharfbuzzng.lib;qtpcre.lib;qtfreetype.lib;Qt5Widgets.lib;Qt5Network.lib;Qt5PlatformSupport.lib;platforms\qwindows.lib;imageformats\qwebp.lib;libeay32.lib;ssleay32.lib;Crypt32.lib;zlibstat.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;LzmaLib.lib;OpenAL32.lib;common.lib;libavformat\libavformat.a;libavcodec\libavcodec.a;libavutil\libavutil.a;libswresample\libswresample.a;opus.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;Shlwapi.lib;Gdiplus.lib;imm32.lib;winmm.lib;qtmain.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Core.lib;Qt5Gui.lib;qtharfbuzzng.lib;qtpcre.lib;qtfreetype.lib;Qt5Widgets.lib;Qt5Network.lib;Qt5PlatformSupport.lib;platforms\qwindows.lib;imageformats\qwebp.lib;libeay32.lib;ssleay32.lib;Crypt32.lib;zlibstat.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;LzmaLib.lib;OpenAL32.lib;common.lib;libavformat\libavformat.a;libavcodec\libavcodec.a;libavutil\libavutil.a;libswresample\libswresample.a;libswscale\libswscale.a;opus.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers />
       <ImportLibrary>$(SolutionDir)$(Platform)\$(Configuration)Intermediate\$(TargetName).lib</ImportLibrary>
       <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
@@ -142,7 +142,7 @@
       <SubSystem>Windows</SubSystem>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
       <AdditionalLibraryDirectories>.\..\..\Libraries\lzma\C\Util\LzmaLib\Release;.\..\..\Libraries\libexif-0.6.20\win32\Release;.\..\..\Libraries\ffmpeg;.\..\..\Libraries\opus\win32\VS2010\Win32\Release;.\..\..\Libraries\openal-soft\build\Release;.\..\..\Libraries\zlib-1.2.8\contrib\vstudio\vc11\x86\ZlibStatRelease;.\..\..\Libraries\openssl\Release\lib;$(QTDIR)\lib;$(QTDIR)\plugins;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;Shlwapi.lib;Gdiplus.lib;imm32.lib;winmm.lib;qtmain.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Core.lib;Qt5Gui.lib;qtharfbuzzng.lib;qtpcre.lib;qtfreetype.lib;Qt5Widgets.lib;Qt5Network.lib;Qt5PlatformSupport.lib;platforms\qwindows.lib;imageformats\qwebp.lib;libeay32.lib;ssleay32.lib;Crypt32.lib;zlibstat.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;LzmaLib.lib;OpenAL32.lib;common.lib;libavformat\libavformat.a;libavcodec\libavcodec.a;libavutil\libavutil.a;libswresample\libswresample.a;opus.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;Shlwapi.lib;Gdiplus.lib;imm32.lib;winmm.lib;qtmain.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Core.lib;Qt5Gui.lib;qtharfbuzzng.lib;qtpcre.lib;qtfreetype.lib;Qt5Widgets.lib;Qt5Network.lib;Qt5PlatformSupport.lib;platforms\qwindows.lib;imageformats\qwebp.lib;libeay32.lib;ssleay32.lib;Crypt32.lib;zlibstat.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;LzmaLib.lib;OpenAL32.lib;common.lib;libavformat\libavformat.a;libavcodec\libavcodec.a;libavutil\libavutil.a;libswresample\libswresample.a;libswscale\libswscale.a;opus.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>
       </ImageHasSafeExceptionHandlers>
       <ImportLibrary>$(SolutionDir)$(Platform)\$(Configuration)Intermediate\$(TargetName).lib</ImportLibrary>
@@ -386,10 +386,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Debug\moc_stickersetbox.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_switcher.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
@@ -648,10 +644,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_stickersetbox.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_switcher.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
@@ -939,10 +931,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_switcher.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_sysbuttons.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -1009,7 +997,6 @@
     <ClCompile Include="SourceFiles\gui\flatbutton.cpp" />
     <ClCompile Include="SourceFiles\gui\scrollarea.cpp" />
     <ClCompile Include="SourceFiles\gui\style_core.cpp" />
-    <ClCompile Include="SourceFiles\gui\switcher.cpp" />
     <ClCompile Include="SourceFiles\gui\text.cpp" />
     <ClCompile Include="SourceFiles\gui\twidget.cpp" />
     <ClCompile Include="SourceFiles\history.cpp" />
@@ -1023,6 +1010,7 @@
     <ClCompile Include="SourceFiles\lang.cpp" />
     <ClCompile Include="SourceFiles\langloaderplain.cpp" />
     <ClCompile Include="SourceFiles\layerwidget.cpp" />
+    <ClCompile Include="SourceFiles\layout.cpp" />
     <ClCompile Include="SourceFiles\localimageloader.cpp" />
     <ClCompile Include="SourceFiles\localstorage.cpp" />
     <ClCompile Include="SourceFiles\logs.cpp" />
@@ -1635,34 +1623,20 @@
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
     </CustomBuild>
     <ClInclude Include="SourceFiles\gui\style_core.h" />
-    <CustomBuild Include="SourceFiles\gui\switcher.h">
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">Moc%27ing switcher.h...</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DAL_LIBTYPE_STATIC -DCUSTOM_API_ID -DUNICODE -D_WITH_DEBUG -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS  "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\openssl\Release\include" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.5.1\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.5.1\QtGui" "-fstdafx.h" "-f../../SourceFiles/gui/switcher.h"</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Moc%27ing switcher.h...</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -D_SCL_SECURE_NO_WARNINGS  "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\openssl_debug\Debug\include" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.5.1\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.5.1\QtGui" "-fstdafx.h" "-f../../SourceFiles/gui/switcher.h"</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Moc%27ing switcher.h...</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DAL_LIBTYPE_STATIC -DUNICODE -D_WITH_DEBUG -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS  "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\openssl\Release\include" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.5.1\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.5.1\QtGui" "-fstdafx.h" "-f../../SourceFiles/gui/switcher.h"</Command>
-    </CustomBuild>
     <ClInclude Include="SourceFiles\gui\text.h" />
     <CustomBuild Include="SourceFiles\history.h">
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">Moc%27ing history.h...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DAL_LIBTYPE_STATIC -DCUSTOM_API_ID -DUNICODE -D_WITH_DEBUG -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS  "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\openssl\Release\include" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.5.1\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.5.1\QtGui" "-fstdafx.h" "-f../../SourceFiles/history.h"</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/history.h"  -DAL_LIBTYPE_STATIC -DCUSTOM_API_ID -DUNICODE -D_WITH_DEBUG -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\openssl\Release\include" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.5.1\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.5.1\QtGui"</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Moc%27ing history.h...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -D_SCL_SECURE_NO_WARNINGS  "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\openssl_debug\Debug\include" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.5.1\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.5.1\QtGui" "-fstdafx.h" "-f../../SourceFiles/history.h"</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/history.h"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -D_SCL_SECURE_NO_WARNINGS "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\openssl_debug\Debug\include" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.5.1\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.5.1\QtGui"</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Moc%27ing history.h...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DAL_LIBTYPE_STATIC -DUNICODE -D_WITH_DEBUG -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS  "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\openssl\Release\include" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.5.1\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.5.1\QtGui" "-fstdafx.h" "-f../../SourceFiles/history.h"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/history.h"  -DAL_LIBTYPE_STATIC -DUNICODE -D_WITH_DEBUG -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\openssl\Release\include" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.5.1\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.5.1\QtGui"</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\historywidget.h">
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Moc%27ing historywidget.h...</Message>
@@ -1792,6 +1766,26 @@
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Moc%27ing localstorage.h...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DAL_LIBTYPE_STATIC -DUNICODE -D_WITH_DEBUG -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS  "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\openssl\Release\include" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.5.1\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.5.1\QtGui" "-fstdafx.h" "-f../../SourceFiles/localstorage.h"</Command>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\layout.h">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">
+      </Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">
+      </Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">
+      </Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </Command>
     </CustomBuild>
     <ClInclude Include="SourceFiles\logs.h" />
     <CustomBuild Include="SourceFiles\mtproto\mtpConnection.h">
@@ -2024,7 +2018,26 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="SourceFiles\settings.h" />
-    <ClInclude Include="SourceFiles\structs.h" />
+    <CustomBuild Include="SourceFiles\structs.h">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">
+      </Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">
+      </Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">
+      </Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </Command>
+    </CustomBuild>
     <ClInclude Include="SourceFiles\style.h" />
     <CustomBuild Include="SourceFiles\sysbuttons.h">
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Moc%27ing sysbuttons.h...</Message>

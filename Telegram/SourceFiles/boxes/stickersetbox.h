@@ -144,13 +144,11 @@ public slots:
 
 private:
 
-	bool animStep_shifting(float64 ms);
+	void step_shifting(uint64 ms, bool timer);
 	void paintRow(Painter &p, int32 index);
 	void clear();
 	void setRemoveSel(int32 removeSel);
 	float64 aboveShadowOpacity() const;
-	void updateAnimatedRegions();
-	bool updateAnimatedValues();
 
 	int32 _rowHeight;
 	struct StickerSetRow {

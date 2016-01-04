@@ -609,18 +609,6 @@
     <ClCompile Include="GeneratedFiles\Release\moc_aboutbox.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\gui\switcher.cpp">
-      <Filter>gui</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_switcher.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_switcher.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_switcher.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\mediaview.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -673,15 +661,6 @@
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_usernamebox.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_history.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_history.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_history.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\types.cpp">
@@ -906,6 +885,18 @@
     <ClCompile Include="SourceFiles\mtproto\mtpAuthKey.cpp">
       <Filter>mtproto</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\layout.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_history.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_history.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_history.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -984,9 +975,6 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\pspecific_mac_p.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\structs.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\numbers.h">
@@ -1129,9 +1117,6 @@
     <CustomBuild Include="SourceFiles\gui\flatlabel.h">
       <Filter>gui</Filter>
     </CustomBuild>
-    <CustomBuild Include="SourceFiles\gui\switcher.h">
-      <Filter>gui</Filter>
-    </CustomBuild>
     <CustomBuild Include="SourceFiles\mediaview.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
@@ -1218,6 +1203,12 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\gui\popupmenu.h">
       <Filter>gui</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\layout.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\structs.h">
+      <Filter>Source Files</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

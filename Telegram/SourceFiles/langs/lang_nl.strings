@@ -48,6 +48,19 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_month11" = "november";
 "lng_month12" = "december";
 
+"lng_month1_small" = "jan";
+"lng_month2_small" = "feb";
+"lng_month3_small" = "mrt";
+"lng_month4_small" = "apr";
+"lng_month5_small" = "mei";
+"lng_month6_small" = "jun";
+"lng_month7_small" = "jul";
+"lng_month8_small" = "aug";
+"lng_month9_small" = "sep";
+"lng_month10_small" = "okt";
+"lng_month11_small" = "nov";
+"lng_month12_small" = "dec";
+
 "lng_weekday1" = "ma";
 "lng_weekday2" = "di";
 "lng_weekday3" = "wo";
@@ -66,6 +79,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_month_day" = "{day} {month}";
 "lng_month_day_year" = "{day} {month}, {year}";
+"lng_month_year" = "{month}, {year}";
 
 "lng_box_ok" = "Ok";
 
@@ -108,6 +122,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_server_error" = "Interne serverfout.";
 "lng_flood_error" = "Teveel pogingen. Probeer het later opnieuw.";
+"lng_gif_error" = "Er is iets een fout opgetreden bij het lezen van de GIF :(";
 "lng_deleted" = "Onbekend";
 "lng_deleted_message" = "Verwijderd bericht";
 
@@ -217,7 +232,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_settings_section_general" = "Algemeen";
 "lng_settings_change_lang" = "Taal wijzigen";
 "lng_languages" = "Talen";
-"lng_sure_save_language" = "Telegram moet herstarten om de taal te wijzigen";
+"lng_sure_save_language" = "Opnieuw starten om de taal te wijzen?";
 "lng_settings_auto_update" = "Automatisch bijwerken";
 "lng_settings_current_version" = "Versie {version}";
 "lng_settings_check_now" = "Controleer op updates";
@@ -470,8 +485,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_create_channel_crop" = "Kies een vierkant voor de kanaalfoto";
 
 "lng_failed_add_participant" = "Gebruiker toevoegen mislukt.  Probeer het later.";
-"lng_failed_add_not_mutual" = "Iemand die de groep verlaat kan alleen\nDoor een wederzijds contact \nworden toegevoegd \n(opgeslagen nummers) ";
-"lng_failed_add_not_mutual_channel" = "Iemand die het kanaal verlaat kan alleen\nDoor een wederzijds contact \nworden toegevoegd \n(opgeslagen nummers) ";
+"lng_failed_add_not_mutual" = "Iemand die de groep verlaat kan alleen door een wederzijds contact worden toegevoegd (opgeslagen nummers)";
+"lng_failed_add_not_mutual_channel" = "Iemand die het kanaal verlaat kan alleen door een wederzijds contact worden toegevoegd (opgeslagen nummers)";
 
 "lng_sure_delete_contact" = "{contact} echt verwijderen uit contacten?";
 "lng_sure_delete_history" = "Geschiedenis met {contact} echt wissen? \n\nDeze actie kan niet ongedaan worden gemaakt.";
@@ -561,6 +576,14 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_media_video" = "Video";
 "lng_media_audio" = "Spraakbericht";
 
+"lng_media_auto_settings" = "Instellingen voor media-downloads";
+"lng_media_auto_photo" = "Foto's automatisch downloaden";
+"lng_media_auto_audio" = "Audio automatisch downloaden";
+"lng_media_auto_gif" = "GIF's automatisch downloaden";
+"lng_media_auto_private_chats" = "Chats";
+"lng_media_auto_groups" = "Groepen en kanalen";
+"lng_media_auto_play" = "Automatisch afspelen";
+
 "lng_emoji_category0" = "Veelgebruikt";
 "lng_emoji_category1" = "Mensen";
 "lng_emoji_category2" = "Natuur";
@@ -571,7 +594,12 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_emoji_category7" = "Symbolen en vlaggen";
 
 "lng_switch_stickers" = "Stickers";
+"lng_switch_stickers_gifs" = "GIF's & stickers";
 "lng_switch_emoji" = "Emoji";
+
+"lng_saved_gifs" = "Opgeslagen GIF's";
+"lng_inline_bot_results" = "Resultaten van {inline_bot}";
+"lng_inline_bot_no_results" = "Geen resultaten";
 
 "lng_box_remove" = "Verwijder";
 
@@ -664,6 +692,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_save_file" = "Bestand opslaan";
 "lng_save_downloaded" = "{ready} / {total} {mb}";
 "lng_duration_and_size" = "{duration}, {size}";
+"lng_duration_played" = "{played} / {duration}";
+"lng_date_and_duration" = "{date}, {duration}";
 "lng_choose_images" = "Afbeeldingen kiezen";
 
 "lng_context_view_profile" = "Profiel weergeven";
@@ -699,6 +729,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_context_delete_file" = "Bestand verwijderen";
 "lng_context_close_file" = "Bestand sluiten";
 "lng_context_copy_text" = "Tekst kopiëren";
+"lng_context_save_gif" = "GIF opslaan";
 "lng_context_to_msg" = "Naar bericht gaan";
 "lng_context_reply_msg" = "Antwoord";
 "lng_context_forward_msg" = "Bericht doorsturen";
@@ -801,7 +832,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Stickerbeheer: Je kunt nu handmatig je stickerbundels sorteren, de volgorde synchroniseren we voor je, over al je apparaten.\n— Klik en hou een sticker vast om een voorbeeld weer te geven voor het versturen.\n— Nieuw contextmenu voor chats in het chats-overzicht\n— Ondersteuning voor alle bestaande emoji";
+"lng_new_version_text" = "GIF-revolutie: 10 keer zo snel GIF's sturen en downloaden. Speel ze automatisch af en sla je favorieten op in het stickerpaneel.\n\nMeer over GIFs:\n{gifs_link}\n\nInline-bots: Voeg botcontent toe aan chats op een nieuwe manier! Geef in het invoerveld de naam van een bot en je commando in en stuur de resultaten naar je chatpartner. Probeer het eens met “@gif dog”. Voorbeelden: @gif, @wiki, @bing, @vid, @bold.\n\nMeer over inline-bots:\n{bots_link}\n\nIn deze release hebben we nog meer voor je. Een nieuw design voor media en automatische download-instellingen voor foto's, spraakberichten en GIF's.";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

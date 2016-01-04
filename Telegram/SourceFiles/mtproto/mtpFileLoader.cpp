@@ -26,159 +26,376 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 
 namespace {
-	int32 _priority = 1;
+	int32 GlobalPriority = 1;
 	struct DataRequested {
 		DataRequested() {
 			memset(v, 0, sizeof(v));
 		}
 		int64 v[MTPDownloadSessionsCount];
 	};
-	QMap<int32, DataRequested> _dataRequested;
+	QMap<int32, DataRequested> DataRequestedMap;
 }
-struct mtpFileLoaderQueue {
-	mtpFileLoaderQueue() : queries(0), start(0), end(0) {
+
+struct FileLoaderQueue {
+	FileLoaderQueue(int32 limit) : queries(0), limit(limit), start(0), end(0) {
 	}
-	int32 queries;
-	mtpFileLoader *start, *end;
+	int32 queries, limit;
+	FileLoader *start, *end;
 };
 
 namespace {
-	typedef QMap<int32, mtpFileLoaderQueue> LoaderQueues;
+	typedef QMap<int32, FileLoaderQueue> LoaderQueues;
 	LoaderQueues queues;
-}
 
-mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &volume, int32 local, const uint64 &secret, int32 size) : prev(0), next(0),
-priority(0), inQueue(false), complete(false),
-_localStatus(LocalNotTried), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
-dc(dc), _locationType(UnknownFileLocation), volume(volume), local(local), secret(secret),
-id(0), access(0), fileIsOpen(false), size(size), type(mtpc_storage_fileUnknown), _localTaskId(0) {
-	LoaderQueues::iterator i = queues.find(dc);
-	if (i == queues.cend()) {
-		i = queues.insert(dc, mtpFileLoaderQueue());
+	FileLoaderQueue _webQueue(MaxWebFileQueries);
+
+	QThread *_webLoadThread = 0;
+	WebLoadManager *_webLoadManager = 0;
+	WebLoadManager *webLoadManager() {
+		return (_webLoadManager && _webLoadManager != FinishedWebLoadManager) ? _webLoadManager : 0;
 	}
-	queue = &i.value();
+	WebLoadMainManager *_webLoadMainManager = 0;
 }
 
-mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, LocationType type, const QString &to, int32 size, bool todata) : prev(0), next(0),
-priority(0), inQueue(false), complete(false),
-_localStatus(LocalNotTried), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
-dc(dc), _locationType(type), volume(0), local(0), secret(0),
-id(id), access(access), file(to), fname(to), fileIsOpen(false), duplicateInData(todata), size(size), type(mtpc_storage_fileUnknown), _localTaskId(0) {
-	LoaderQueues::iterator i = queues.find(MTP::dld[0] + dc);
-	if (i == queues.cend()) {
-		i = queues.insert(MTP::dld[0] + dc, mtpFileLoaderQueue());
-	}
-	queue = &i.value();
+FileLoader::FileLoader(const QString &toFile, int32 size, LocationType locationType, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading)
+: _prev(0)
+, _next(0)
+, _priority(0)
+, _paused(false)
+, _autoLoading(autoLoading)
+, _inQueue(false)
+, _complete(false)
+, _localStatus(LocalNotTried)
+, _file(toFile)
+, _fname(toFile)
+, _fileIsOpen(false)
+, _toCache(toCache)
+, _fromCloud(fromCloud)
+, _size(size)
+, _type(mtpc_storage_fileUnknown)
+, _locationType(locationType)
+, _localTaskId(0) {
 }
 
-QByteArray mtpFileLoader::imageFormat() const {
+QByteArray FileLoader::imageFormat() const {
 	if (_imageFormat.isEmpty() && _locationType == UnknownFileLocation) {
 		readImage();
 	}
 	return _imageFormat;
 }
 
-QPixmap mtpFileLoader::imagePixmap() const {
+QPixmap FileLoader::imagePixmap() const {
 	if (_imagePixmap.isNull() && _locationType == UnknownFileLocation) {
 		readImage();
 	}
 	return _imagePixmap;
 }
 
-void mtpFileLoader::readImage() const {
+void FileLoader::readImage() const {
 	QByteArray format;
-	switch (type) {
+	switch (_type) {
 	case mtpc_storage_fileGif: format = "GIF"; break;
 	case mtpc_storage_fileJpeg: format = "JPG"; break;
 	case mtpc_storage_filePng: format = "PNG"; break;
 	default: format = QByteArray(); break;
 	}
-	_imagePixmap = QPixmap::fromImage(App::readImage(data, &format, false), Qt::ColorOnly);
+	_imagePixmap = QPixmap::fromImage(App::readImage(_data, &format, false), Qt::ColorOnly);
 	if (!_imagePixmap.isNull()) {
 		_imageFormat = format;
 	}
 }
 
-float64 mtpFileLoader::currentProgress() const {
-	if (complete) return 1;
+float64 FileLoader::currentProgress() const {
+	if (_complete) return 1;
 	if (!fullSize()) return 0;
 	return float64(currentOffset()) / fullSize();
 }
 
-int32 mtpFileLoader::currentOffset(bool includeSkipped) const {
-	return (fileIsOpen ? file.size() : data.size()) - (includeSkipped ? 0 : skippedBytes);
+int32 FileLoader::fullSize() const {
+	return _size;
 }
 
-int32 mtpFileLoader::fullSize() const {
-	return size;
+bool FileLoader::setFileName(const QString &fileName) {
+	if (_toCache != LoadToCacheAsWell || !_fname.isEmpty()) return fileName.isEmpty();
+	_fname = fileName;
+	_file.setFileName(_fname);
+	return true;
 }
 
-void mtpFileLoader::setFileName(const QString &fileName) {
-	if (duplicateInData && fname.isEmpty()) {
-		file.setFileName(fname = fileName);
-	}
+void FileLoader::permitLoadFromCloud() {
+	_fromCloud = LoadFromCloudOrLocal;
 }
 
-uint64 mtpFileLoader::objId() const {
-	return id;
-}
-
-void mtpFileLoader::loadNext() {
-	if (queue->queries >= MaxFileQueries) return;
-	for (mtpFileLoader *i = queue->start; i;) {
+void FileLoader::loadNext() {
+	if (_queue->queries >= _queue->limit) return;
+	for (FileLoader *i = _queue->start; i;) {
 		if (i->loadPart()) {
-			if (queue->queries >= MaxFileQueries) return;
+			if (_queue->queries >= _queue->limit) return;
 		} else {
-			i = i->next;
+			i = i->_next;
 		}
 	}
 }
 
-void mtpFileLoader::finishFail() {
-	bool started = currentOffset(true) > 0;
-	cancelRequests();
-	type = mtpc_storage_fileUnknown;
-	complete = true;
-	if (fileIsOpen) {
-		file.close();
-		fileIsOpen = false;
-		file.remove();
+void FileLoader::removeFromQueue() {
+	if (!_inQueue) return;
+	if (_next) {
+		_next->_prev = _prev;
 	}
-	data = QByteArray();
-	emit failed(this, started);
-	file.setFileName(fname = QString());
+	if (_prev) {
+		_prev->_next = _next;
+	}
+	if (_queue->end == this) {
+		_queue->end = _prev;
+	}
+	if (_queue->start == this) {
+		_queue->start = _next;
+	}
+	_next = _prev = 0;
+	_inQueue = false;
+}
+
+void FileLoader::pause() {
+	removeFromQueue();
+	_paused = true;
+}
+
+FileLoader::~FileLoader() {
+	if (_localTaskId) {
+		Local::cancelTask(_localTaskId);
+	}
+	removeFromQueue();
+}
+
+void FileLoader::localLoaded(const StorageImageSaved &result, const QByteArray &imageFormat, const QPixmap &imagePixmap) {
+	_localTaskId = 0;
+	if (result.type == StorageFileUnknown) {
+		_localStatus = LocalFailed;
+		start(true);
+		return;
+	}
+	_data = result.data;
+	_type = mtpFromStorageType(result.type);
+	if (!imagePixmap.isNull()) {
+		_imageFormat = imageFormat;
+		_imagePixmap = imagePixmap;
+	}
+	_localStatus = LocalLoaded;
+	if (!_fname.isEmpty() && _toCache == LoadToCacheAsWell) {
+		if (!_fileIsOpen) _fileIsOpen = _file.open(QIODevice::WriteOnly);
+		if (!_fileIsOpen) {
+			cancel(true);
+			return;
+		}
+		if (_file.write(_data) != qint64(_data.size())) {
+			cancel(true);
+			return;
+		}
+	}
+
+	_complete = true;
+	if (_fileIsOpen) {
+		_file.close();
+		_fileIsOpen = false;
+		psPostprocessFile(QFileInfo(_file).absoluteFilePath());
+	}
+	emit App::wnd()->imageLoaded();
+	emit progress(this);
 	loadNext();
 }
 
+void FileLoader::start(bool loadFirst, bool prior) {
+	if (_paused) {
+		_paused = false;
+	}
+	if (_complete || tryLoadLocal()) return;
+
+	if (_fromCloud == LoadFromLocalOnly) {
+		cancel();
+		return;
+	}
+
+	if (!_fname.isEmpty() && _toCache == LoadToFileOnly && !_fileIsOpen) {
+		_fileIsOpen = _file.open(QIODevice::WriteOnly);
+		if (!_fileIsOpen) {
+			return cancel(true);
+		}
+	}
+
+	FileLoader *before = 0, *after = 0;
+	if (prior) {
+		if (_inQueue && _priority == GlobalPriority) {
+			if (loadFirst) {
+				if (!_prev) return startLoading(loadFirst, prior);
+				before = _queue->start;
+			} else {
+				if (!_next || _next->_priority < GlobalPriority) return startLoading(loadFirst, prior);
+				after = _next;
+				while (after->_next && after->_next->_priority == GlobalPriority) {
+					after = after->_next;
+				}
+			}
+		} else {
+			_priority = GlobalPriority;
+			if (loadFirst) {
+				if (_inQueue && !_prev) return startLoading(loadFirst, prior);
+				before = _queue->start;
+			} else {
+				if (_inQueue) {
+					if (_next && _next->_priority == GlobalPriority) {
+						after = _next;
+					} else if (_prev && _prev->_priority < GlobalPriority) {
+						before = _prev;
+						while (before->_prev && before->_prev->_priority < GlobalPriority) {
+							before = before->_prev;
+						}
+					} else {
+						return startLoading(loadFirst, prior);
+					}
+				} else {
+					if (_queue->start && _queue->start->_priority == GlobalPriority) {
+						after = _queue->start;
+					} else {
+						before = _queue->start;
+					}
+				}
+				if (after) {
+					while (after->_next && after->_next->_priority == GlobalPriority) {
+						after = after->_next;
+					}
+				}
+			}
+		}
+	} else {
+		if (loadFirst) {
+			if (_inQueue && (!_prev || _prev->_priority == GlobalPriority)) return startLoading(loadFirst, prior);
+			before = _prev;
+			while (before->_prev && before->_prev->_priority != GlobalPriority) {
+				before = before->_prev;
+			}
+		} else {
+			if (_inQueue && !_next) return startLoading(loadFirst, prior);
+			after = _queue->end;
+		}
+	}
+
+	removeFromQueue();
+
+	_inQueue = true;
+	if (!_queue->start) {
+		_queue->start = _queue->end = this;
+	} else if (before) {
+		if (before != _next) {
+			_prev = before->_prev;
+			_next = before;
+			_next->_prev = this;
+			if (_prev) {
+				_prev->_next = this;
+			}
+			if (_queue->start->_prev) _queue->start = _queue->start->_prev;
+		}
+	} else if (after) {
+		if (after != _prev) {
+			_next = after->_next;
+			_prev = after;
+			after->_next = this;
+			if (_next) {
+				_next->_prev = this;
+			}
+			if (_queue->end->_next) _queue->end = _queue->end->_next;
+		}
+	} else {
+		LOG(("Queue Error: _start && !before && !after"));
+	}
+	return startLoading(loadFirst, prior);
+}
+
+void FileLoader::cancel() {
+	cancel(false);
+}
+
+void FileLoader::cancel(bool fail) {
+	bool started = currentOffset(true) > 0;
+	cancelRequests();
+	_type = mtpc_storage_fileUnknown;
+	_complete = true;
+	if (_fileIsOpen) {
+		_file.close();
+		_fileIsOpen = false;
+		_file.remove();
+	}
+	_data = QByteArray();
+	if (fail) {
+		emit failed(this, started);
+	} else {
+		emit progress(this);
+	}
+	_fname = QString();
+	_file.setFileName(_fname);
+	loadNext();
+}
+
+void FileLoader::startLoading(bool loadFirst, bool prior) {
+	if ((_queue->queries >= _queue->limit && (!loadFirst || !prior)) || _complete) return;
+	loadPart();
+}
+
+mtpFileLoader::mtpFileLoader(const StorageImageLocation *location, int32 size, LoadFromCloudSetting fromCloud, bool autoLoading)
+: FileLoader(QString(), size, UnknownFileLocation, LoadToCacheAsWell, fromCloud, autoLoading)
+, _lastComplete(false)
+, _skippedBytes(0)
+, _nextRequestOffset(0)
+, _dc(location->dc())
+, _location(location)
+, _id(0)
+, _access(0) {
+	LoaderQueues::iterator i = queues.find(MTP::dld[0] + _dc);
+	if (i == queues.cend()) {
+		i = queues.insert(MTP::dld[0] + _dc, FileLoaderQueue(MaxFileQueries));
+	}
+	_queue = &i.value();
+}
+
+mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, LocationType type, const QString &to, int32 size, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading)
+: FileLoader(to, size, type, toCache, fromCloud, autoLoading)
+, _lastComplete(false)
+, _skippedBytes(0)
+, _nextRequestOffset(0)
+, _dc(dc)
+, _location(0)
+, _id(id)
+, _access(access) {
+	LoaderQueues::iterator i = queues.find(MTP::dld[0] + _dc);
+	if (i == queues.cend()) {
+		i = queues.insert(MTP::dld[0] + _dc, FileLoaderQueue(MaxFileQueries));
+	}
+	_queue = &i.value();
+}
+
+int32 mtpFileLoader::currentOffset(bool includeSkipped) const {
+	return (_fileIsOpen ? _file.size() : _data.size()) - (includeSkipped ? 0 : _skippedBytes);
+}
+
 bool mtpFileLoader::loadPart() {
-	if (complete || lastComplete || (!requests.isEmpty() && !size)) return false;
-	if (size && nextRequestOffset >= size) return false;
+	if (_complete || _lastComplete || (!_requests.isEmpty() && !_size)) return false;
+	if (_size && _nextRequestOffset >= _size) return false;
 
 	int32 limit = DocumentDownloadPartSize;
 	MTPInputFileLocation loc;
-	switch (_locationType) {
-	case UnknownFileLocation:
-		loc = MTP_inputFileLocation(MTP_long(volume), MTP_int(local), MTP_long(secret));
+	if (_location) {
+		loc = MTP_inputFileLocation(MTP_long(_location->volume()), MTP_int(_location->local()), MTP_long(_location->secret()));
 		limit = DownloadPartSize;
-	break;
-	case VideoFileLocation:
-		loc = MTP_inputVideoFileLocation(MTP_long(id), MTP_long(access));
-	break;
-	case AudioFileLocation:
-		loc = MTP_inputAudioFileLocation(MTP_long(id), MTP_long(access));
-	break;
-	case DocumentFileLocation:
-		loc = MTP_inputDocumentFileLocation(MTP_long(id), MTP_long(access));
-	break;
-	default:
-		finishFail();
-		return false;
-	break;
+	} else {
+		switch (_locationType) {
+		case VideoFileLocation: loc = MTP_inputVideoFileLocation(MTP_long(_id), MTP_long(_access)); break;
+		case AudioFileLocation: loc = MTP_inputAudioFileLocation(MTP_long(_id), MTP_long(_access)); break;
+		case DocumentFileLocation: loc = MTP_inputDocumentFileLocation(MTP_long(_id), MTP_long(_access)); break;
+		default: cancel(true); return false; break;
+		}
 	}
-
-	int32 offset = nextRequestOffset, dcIndex = 0;
-	DataRequested &dr(_dataRequested[dc]);
-	if (size) {
+	int32 offset = _nextRequestOffset, dcIndex = 0;
+	DataRequested &dr(DataRequestedMap[_dc]);
+	if (_size) {
 		for (int32 i = 1; i < MTPDownloadSessionsCount; ++i) {
 			if (dr.v[i] < dr.v[dcIndex]) {
 				dcIndex = i;
@@ -186,104 +403,103 @@ bool mtpFileLoader::loadPart() {
 		}
 	}
 
-	App::app()->killDownloadSessionsStop(dc);
+	App::app()->killDownloadSessionsStop(_dc);
 
-	mtpRequestId reqId = MTP::send(MTPupload_GetFile(MTPupload_getFile(loc, MTP_int(offset), MTP_int(limit))), rpcDone(&mtpFileLoader::partLoaded, offset), rpcFail(&mtpFileLoader::partFailed), MTP::dld[dcIndex] + dc, 50);
+	mtpRequestId reqId = MTP::send(MTPupload_GetFile(MTPupload_getFile(loc, MTP_int(offset), MTP_int(limit))), rpcDone(&mtpFileLoader::partLoaded, offset), rpcFail(&mtpFileLoader::partFailed), MTP::dld[dcIndex] + _dc, 50);
 
-	++queue->queries;
+	++_queue->queries;
 	dr.v[dcIndex] += limit;
-	requests.insert(reqId, dcIndex);
-	nextRequestOffset += limit;
+	_requests.insert(reqId, dcIndex);
+	_nextRequestOffset += limit;
 
 	return true;
 }
 
 void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRequestId req) {
-//	uint64 ms = getms();
-	Requests::iterator i = requests.find(req);
-	if (i == requests.cend()) return loadNext();
+	Requests::iterator i = _requests.find(req);
+	if (i == _requests.cend()) return loadNext();
 
 	int32 limit = (_locationType == UnknownFileLocation) ? DownloadPartSize : DocumentDownloadPartSize;
 	int32 dcIndex = i.value();
-	_dataRequested[dc].v[dcIndex] -= limit;
+	DataRequestedMap[_dc].v[dcIndex] -= limit;
 
-	--queue->queries;
-	requests.erase(i);
+	--_queue->queries;
+	_requests.erase(i);
 
 	const MTPDupload_file &d(result.c_upload_file());
 	const string &bytes(d.vbytes.c_string().v);
 	if (bytes.size()) {
-		if (fileIsOpen) {
-			int64 fsize = file.size();
+		if (_fileIsOpen) {
+			int64 fsize = _file.size();
 			if (offset < fsize) {
-				skippedBytes -= bytes.size();
+				_skippedBytes -= bytes.size();
 			} else if (offset > fsize) {
-				skippedBytes += offset - fsize;
+				_skippedBytes += offset - fsize;
 			}
-			file.seek(offset);
-			if (file.write(bytes.data(), bytes.size()) != qint64(bytes.size())) {
-				return finishFail();
+			_file.seek(offset);
+			if (_file.write(bytes.data(), bytes.size()) != qint64(bytes.size())) {
+				return cancel(true);
 			}
 		} else {
-			data.reserve(offset + bytes.size());
-			if (offset > data.size()) {
-				skippedBytes += offset - data.size();
-				data.resize(offset);
+			_data.reserve(offset + bytes.size());
+			if (offset > _data.size()) {
+				_skippedBytes += offset - _data.size();
+				_data.resize(offset);
 			}
-			if (offset == data.size()) {
-				data.append(bytes.data(), bytes.size());
+			if (offset == _data.size()) {
+				_data.append(bytes.data(), bytes.size());
 			} else {
-				skippedBytes -= bytes.size();
-				if (int64(offset + bytes.size()) > data.size()) {
-					data.resize(offset + bytes.size());
+				_skippedBytes -= bytes.size();
+				if (int64(offset + bytes.size()) > _data.size()) {
+					_data.resize(offset + bytes.size());
 				}
-				memcpy(data.data() + offset, bytes.data(), bytes.size());
+				memcpy(_data.data() + offset, bytes.data(), bytes.size());
 			}
 		}
 	}
 	if (!bytes.size() || (bytes.size() % 1024)) { // bad next offset
-		lastComplete = true;
+		_lastComplete = true;
 	}
-	if (requests.isEmpty() && (lastComplete || (size && nextRequestOffset >= size))) {
-		if (!fname.isEmpty() && duplicateInData) {
-			if (!fileIsOpen) fileIsOpen = file.open(QIODevice::WriteOnly);
-			if (!fileIsOpen) {
-				return finishFail();
+	if (_requests.isEmpty() && (_lastComplete || (_size && _nextRequestOffset >= _size))) {
+		if (!_fname.isEmpty() && (_toCache == LoadToCacheAsWell)) {
+			if (!_fileIsOpen) _fileIsOpen = _file.open(QIODevice::WriteOnly);
+			if (!_fileIsOpen) {
+				return cancel(true);
 			}
-			if (file.write(data) != qint64(data.size())) {
-				return finishFail();
+			if (_file.write(_data) != qint64(_data.size())) {
+				return cancel(true);
 			}
 		}
-		type = d.vtype.type();
-		complete = true;
-		if (fileIsOpen) {
-			file.close();
-			fileIsOpen = false;
-			psPostprocessFile(QFileInfo(file).absoluteFilePath());
+		_type = d.vtype.type();
+		_complete = true;
+		if (_fileIsOpen) {
+			_file.close();
+			_fileIsOpen = false;
+			psPostprocessFile(QFileInfo(_file).absoluteFilePath());
 		}
 		removeFromQueue();
 
 		emit App::wnd()->imageLoaded();
 
-		if (!queue->queries) {
-			App::app()->killDownloadSessionsStart(dc);
+		if (!_queue->queries) {
+			App::app()->killDownloadSessionsStart(_dc);
 		}
 
 		if (_localStatus == LocalNotFound || _localStatus == LocalFailed) {
 			if (_locationType != UnknownFileLocation) { // audio, video, document
-				MediaKey mkey = mediaKey(_locationType, dc, id);
-				if (!fname.isEmpty()) {
-					Local::writeFileLocation(mkey, FileLocation(mtpToStorageType(type), fname));
+				MediaKey mkey = mediaKey(_locationType, _dc, _id);
+				if (!_fname.isEmpty()) {
+					Local::writeFileLocation(mkey, FileLocation(mtpToStorageType(_type), _fname));
 				}
-				if (duplicateInData) {
+				if (_toCache == LoadToCacheAsWell) {
 					if (_locationType == DocumentFileLocation) {
-						Local::writeStickerImage(mkey, data);
+						Local::writeStickerImage(mkey, _data);
 					} else if (_locationType == AudioFileLocation) {
-						Local::writeAudio(mkey, data);
+						Local::writeAudio(mkey, _data);
 					}
 				}
 			} else {
-				Local::writeImage(storageKey(dc, volume, local), StorageImageSaved(mtpToStorageType(type), data));
+				Local::writeImage(storageKey(*_location), StorageImageSaved(mtpToStorageType(_type), _data));
 			}
 		}
 	}
@@ -294,30 +510,26 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 bool mtpFileLoader::partFailed(const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
 
-	finishFail();
+	cancel(true);
 	return true;
 }
 
-void mtpFileLoader::removeFromQueue() {
-	if (!inQueue) return;
-	if (next) {
-		next->prev = prev;
-	}
-	if (prev) {
-		prev->next = next;
-	}
-	if (queue->end == this) {
-		queue->end = prev;
-	}
-	if (queue->start == this) {
-		queue->start = next;
-	}
-	next = prev = 0;
-	inQueue = false;
-}
+void mtpFileLoader::cancelRequests() {
+	if (_requests.isEmpty()) return;
 
-void mtpFileLoader::pause() {
-	removeFromQueue();
+	int32 limit = (_locationType == UnknownFileLocation) ? DownloadPartSize : DocumentDownloadPartSize;
+	DataRequested &dr(DataRequestedMap[_dc]);
+	for (Requests::const_iterator i = _requests.cbegin(), e = _requests.cend(); i != e; ++i) {
+		MTP::cancel(i.key());
+		int32 dcIndex = i.value();
+		dr.v[dcIndex] -= limit;
+	}
+	_queue->queries -= _requests.size();
+	_requests.clear();
+
+	if (!_queue->queries) {
+		App::app()->killDownloadSessionsStart(_dc);
+	}
 }
 
 bool mtpFileLoader::tryLoadLocal() {
@@ -328,15 +540,11 @@ bool mtpFileLoader::tryLoadLocal() {
 		return true;
 	}
 
-	if (_locationType == UnknownFileLocation) {
-		_localTaskId = Local::startImageLoad(storageKey(dc, volume, local), this);
-		if (_localTaskId) {
-			_localStatus = LocalLoading;
-			return true;
-		}
+	if (_location) {
+		_localTaskId = Local::startImageLoad(storageKey(*_location), this);
 	} else {
-		if (duplicateInData) {
-			MediaKey mkey = mediaKey(_locationType, dc, id);
+		if (_toCache == LoadToCacheAsWell) {
+			MediaKey mkey = mediaKey(_locationType, _dc, _id);
 			if (_locationType == DocumentFileLocation) {
 				_localTaskId = Local::startStickerImageLoad(mkey, this);
 			} else if (_locationType == AudioFileLocation) {
@@ -345,221 +553,487 @@ bool mtpFileLoader::tryLoadLocal() {
 		}
 	}
 
-	if (data.isEmpty()) {
-		_localStatus = LocalNotFound;
-		return false;
+	if (_localStatus != LocalNotTried) {
+		return _complete;
+	} else if (_localTaskId) {
+		_localStatus = LocalLoading;
+		return true;
 	}
-
-	_localStatus = LocalLoaded;
-	if (!fname.isEmpty() && duplicateInData) {
-		if (!fileIsOpen) fileIsOpen = file.open(QIODevice::WriteOnly);
-		if (!fileIsOpen) {
-			finishFail();
-			return true;
-		}
-		if (file.write(data) != qint64(data.size())) {
-			finishFail();
-			return true;
-		}
-	}
-	complete = true;
-	if (fileIsOpen) {
-		file.close();
-		fileIsOpen = false;
-		psPostprocessFile(QFileInfo(file).absoluteFilePath());
-	}
-	emit App::wnd()->imageLoaded();
-	emit progress(this);
-	loadNext();
-	return true;
-}
-
-void mtpFileLoader::localLoaded(const StorageImageSaved &result, const QByteArray &imageFormat, const QPixmap &imagePixmap) {
-	_localTaskId = 0;
-	if (result.type == StorageFileUnknown) {
-		_localStatus = LocalFailed;
-		start(true);
-		return;
-	}
-	data = result.data;
-	type = mtpFromStorageType(result.type);
-	if (!imagePixmap.isNull()) {
-		_imageFormat = imageFormat;
-		_imagePixmap = imagePixmap;
-	}
-	_localStatus = LocalLoaded;
-	if (!fname.isEmpty() && duplicateInData) {
-		if (!fileIsOpen) fileIsOpen = file.open(QIODevice::WriteOnly);
-		if (!fileIsOpen) {
-			finishFail();
-			return;
-		}
-		if (file.write(data) != qint64(data.size())) {
-			finishFail();
-			return;
-		}
-	}
-	complete = true;
-	if (fileIsOpen) {
-		file.close();
-		fileIsOpen = false;
-		psPostprocessFile(QFileInfo(file).absoluteFilePath());
-	}
-	emit App::wnd()->imageLoaded();
-	emit progress(this);
-	loadNext();
-}
-
-void mtpFileLoader::start(bool loadFirst, bool prior) {
-	if (complete || tryLoadLocal()) return;
-
-	if (!fname.isEmpty() && !duplicateInData && !fileIsOpen) {
-		fileIsOpen = file.open(QIODevice::WriteOnly);
-		if (!fileIsOpen) {
-			return finishFail();
-		}
-	}
-
-	mtpFileLoader *before = 0, *after = 0;
-	if (prior) {
-		if (inQueue && priority == _priority) {
-			if (loadFirst) {
-				if (!prev) return started(loadFirst, prior);
-				before = queue->start;
-			} else {
-				if (!next || next->priority < _priority) return started(loadFirst, prior);
-				after = next;
-				while (after->next && after->next->priority == _priority) {
-					after = after->next;
-				}
-			}
-		} else {
-			priority = _priority;
-			if (loadFirst) {
-				if (inQueue && !prev) return started(loadFirst, prior);
-				before = queue->start;
-			} else {
-				if (inQueue) {
-					if (next && next->priority == _priority) {
-						after = next;
-					} else if (prev && prev->priority < _priority) {
-						before = prev;
-						while (before->prev && before->prev->priority < _priority) {
-							before = before->prev;
-						}
-					} else {
-						return started(loadFirst, prior);
-					}
-				} else {
-					if (queue->start && queue->start->priority == _priority) {
-						after = queue->start;
-					} else {
-						before = queue->start;
-					}
-				}
-				if (after) {
-					while (after->next && after->next->priority == _priority) {
-						after = after->next;
-					}
-				}
-			}
-		}
-	} else {
-		if (loadFirst) {
-			if (inQueue && (!prev || prev->priority == _priority)) return started(loadFirst, prior);
-			before = prev;
-			while (before->prev && before->prev->priority != _priority) {
-				before = before->prev;
-			}
-		} else {
-			if (inQueue && !next) return started(loadFirst, prior);
-			after = queue->end;
-		}
-	}
-
-	removeFromQueue();
-
-	inQueue = true;
-	if (!queue->start) {
-		queue->start = queue->end = this;
-	} else if (before) {
-		if (before != next) {
-			prev = before->prev;
-			next = before;
-			next->prev = this;
-			if (prev) {
-				prev->next = this;
-			}
-			if (queue->start->prev) queue->start = queue->start->prev;
-		}
-	} else if (after) {
-		if (after != prev) {
-			next = after->next;
-			prev = after;
-			after->next = this;
-			if (next) {
-				next->prev = this;
-			}
-			if (queue->end->next) queue->end = queue->end->next;
-		}
-	} else {
-		LOG(("Queue Error: _start && !before && !after"));
-	}
-	return started(loadFirst, prior);
-}
-
-void mtpFileLoader::cancel() {
-	cancelRequests();
-	type = mtpc_storage_fileUnknown;
-	complete = true;
-	if (fileIsOpen) {
-		file.close();
-		fileIsOpen = false;
-		file.remove();
-	}
-	data = QByteArray();
-	file.setFileName(QString());
-	emit progress(this);
-	loadNext();
-}
-
-void mtpFileLoader::cancelRequests() {
-	if (requests.isEmpty()) return;
-
-	int32 limit = (_locationType == UnknownFileLocation) ? DownloadPartSize : DocumentDownloadPartSize;
-	DataRequested &dr(_dataRequested[dc]);
-	for (Requests::const_iterator i = requests.cbegin(), e = requests.cend(); i != e; ++i) {
-		MTP::cancel(i.key());
-		int32 dcIndex = i.value();
-		dr.v[dcIndex] -= limit;
-	}
-	queue->queries -= requests.size();
-	requests.clear();
-
-	if (!queue->queries) {
-		App::app()->killDownloadSessionsStart(dc);
-	}
-}
-
-bool mtpFileLoader::loading() const {
-	return inQueue;
-}
-
-void mtpFileLoader::started(bool loadFirst, bool prior) {
-	if ((queue->queries >= MaxFileQueries && (!loadFirst || !prior)) || complete) return;
-	loadPart();
+	_localStatus = LocalNotFound;
+	return false;
 }
 
 mtpFileLoader::~mtpFileLoader() {
-	if (_localTaskId) {
-		Local::cancelTask(_localTaskId);
+	cancelRequests();
+}
+
+webFileLoader::webFileLoader(const QString &url, const QString &to, LoadFromCloudSetting fromCloud, bool autoLoading)
+: FileLoader(QString(), 0, UnknownFileLocation, LoadToCacheAsWell, fromCloud, autoLoading)
+, _url(url)
+, _requestSent(false)
+, _already(0) {
+	_queue = &_webQueue;
+}
+
+bool webFileLoader::loadPart() {
+	if (_complete || _requestSent || _webLoadManager == FinishedWebLoadManager) return false;
+	if (!_webLoadManager) {
+		_webLoadMainManager = new WebLoadMainManager();
+
+		_webLoadThread = new QThread();
+		_webLoadManager = new WebLoadManager(_webLoadThread);
+
+		_webLoadThread->start();
+	}
+
+	_requestSent = true;
+	_webLoadManager->append(this, _url);
+	return false;
+}
+
+int32 webFileLoader::currentOffset(bool includeSkipped) const {
+	return _already;
+}
+
+void webFileLoader::onProgress(qint64 already, qint64 size) {
+	_size = size;
+	_already = already;
+	emit progress(this);
+}
+
+void webFileLoader::onFinished(const QByteArray &data) {
+	if (_fileIsOpen) {
+		if (_file.write(data.constData(), data.size()) != qint64(data.size())) {
+			return cancel(true);
+		}
+	} else {
+		_data = data;
+	}
+	if (!_fname.isEmpty() && (_toCache == LoadToCacheAsWell)) {
+		if (!_fileIsOpen) _fileIsOpen = _file.open(QIODevice::WriteOnly);
+		if (!_fileIsOpen) {
+			return cancel(true);
+		}
+		if (_file.write(_data) != qint64(_data.size())) {
+			return cancel(true);
+		}
+	}
+	_type = mtpc_storage_filePartial;
+	_complete = true;
+	if (_fileIsOpen) {
+		_file.close();
+		_fileIsOpen = false;
+		psPostprocessFile(QFileInfo(_file).absoluteFilePath());
 	}
 	removeFromQueue();
-	cancelRequests();
+
+	emit App::wnd()->imageLoaded();
+
+	if (_localStatus == LocalNotFound || _localStatus == LocalFailed) {
+		Local::writeWebFile(_url, _data);
+	}
+	emit progress(this);
+	loadNext();
+}
+
+void webFileLoader::onError() {
+	cancel(true);
+}
+
+bool webFileLoader::tryLoadLocal() {
+	if (_localStatus == LocalNotFound || _localStatus == LocalLoaded || _localStatus == LocalFailed) {
+		return false;
+	}
+	if (_localStatus == LocalLoading) {
+		return true;
+	}
+
+	_localTaskId = Local::startWebFileLoad(_url, this);
+	if (_localStatus != LocalNotTried) {
+		return _complete;
+	} else if (_localTaskId) {
+		_localStatus = LocalLoading;
+		return true;
+	}
+	_localStatus = LocalNotFound;
+	return false;
+}
+
+void webFileLoader::cancelRequests() {
+	if (!webLoadManager()) return;
+	webLoadManager()->stop(this);
+}
+
+webFileLoader::~webFileLoader() {
+}
+
+class webFileLoaderPrivate {
+public:
+	webFileLoaderPrivate(webFileLoader *loader, const QString &url)
+		: _interface(loader)
+		, _url(url)
+		, _already(0)
+		, _size(0)
+		, _reply(0)
+		, _redirectsLeft(MaxHttpRedirects) {
+	}
+
+	QNetworkReply *reply() {
+		return _reply;
+	}
+
+	QNetworkReply *request(QNetworkAccessManager &manager, const QString &redirect) {
+		if (!redirect.isEmpty()) _url = redirect;
+
+		QNetworkRequest req(_url);
+		QByteArray rangeHeaderValue = "bytes=" + QByteArray::number(_already) + "-";
+		req.setRawHeader("Range", rangeHeaderValue);
+		_reply = manager.get(req);
+		return _reply;
+	}
+
+	bool oneMoreRedirect() {
+		if (_redirectsLeft) {
+			--_redirectsLeft;
+			return true;
+		}
+		return false;
+	}
+
+	void setData(const QByteArray &data) {
+		_data = data;
+	}
+	void addData(const QByteArray &data) {
+		_data.append(data);
+	}
+	const QByteArray &data() {
+		return _data;
+	}
+	void setProgress(qint64 already, qint64 size) {
+		_already = already;
+		_size = qMax(size, 0LL);
+	}
+
+	qint64 size() const {
+		return _size;
+	}
+	qint64 already() const {
+		return _already;
+	}
+
+private:
+	webFileLoader *_interface;
+	QUrl _url;
+	qint64 _already, _size;
+	QNetworkReply *_reply;
+	int32 _redirectsLeft;
+	QByteArray _data;
+
+	friend class WebLoadManager;
+};
+
+void reinitWebLoadManager() {
+	if (webLoadManager()) {
+		webLoadManager()->setProxySettings(App::getHttpProxySettings());
+	}
+}
+
+void stopWebLoadManager() {
+	if (webLoadManager()) {
+		_webLoadThread->quit();
+		_webLoadThread->wait();
+		delete _webLoadManager;
+		delete _webLoadMainManager;
+		delete _webLoadThread;
+		_webLoadThread = 0;
+		_webLoadMainManager = 0;
+		_webLoadManager = FinishedWebLoadManager;
+	}
+}
+
+void WebLoadManager::setProxySettings(const QNetworkProxy &proxy) {
+	QMutexLocker lock(&_loaderPointersMutex);
+	_proxySettings = proxy;
+	emit proxyApplyDelayed();
+}
+
+WebLoadManager::WebLoadManager(QThread *thread) {
+	moveToThread(thread);
+	_manager.moveToThread(thread);
+	connect(thread, SIGNAL(started()), this, SLOT(process()));
+	connect(thread, SIGNAL(finished()), this, SLOT(finish()));
+	connect(this, SIGNAL(processDelayed()), this, SLOT(process()), Qt::QueuedConnection);
+	connect(this, SIGNAL(proxyApplyDelayed()), this, SLOT(proxyApply()), Qt::QueuedConnection);
+
+	connect(this, SIGNAL(progress(webFileLoader*,qint64,qint64)), _webLoadMainManager, SLOT(progress(webFileLoader*,qint64,qint64)));
+	connect(this, SIGNAL(finished(webFileLoader*,QByteArray)), _webLoadMainManager, SLOT(finished(webFileLoader*,QByteArray)));
+	connect(this, SIGNAL(error(webFileLoader*)), _webLoadMainManager, SLOT(error(webFileLoader*)));
+
+	connect(&_manager, SIGNAL(authenticationRequired(QNetworkReply*,QAuthenticator*)), this, SLOT(onFailed(QNetworkReply*)));
+	connect(&_manager, SIGNAL(sslErrors(QNetworkReply*,const QList<QSslError>&)), this, SLOT(onFailed(QNetworkReply*)));
+}
+
+void WebLoadManager::append(webFileLoader *loader, const QString &url) {
+	loader->_private = new webFileLoaderPrivate(loader, url);
+
+	QMutexLocker lock(&_loaderPointersMutex);
+	_loaderPointers.insert(loader, loader->_private);
+	emit processDelayed();
+}
+
+void WebLoadManager::stop(webFileLoader *loader) {
+	QMutexLocker lock(&_loaderPointersMutex);
+	_loaderPointers.remove(loader);
+	emit processDelayed();
+}
+
+bool WebLoadManager::carries(webFileLoader *loader) const {
+	QMutexLocker lock(&_loaderPointersMutex);
+	return _loaderPointers.contains(loader);
+}
+
+bool WebLoadManager::handleReplyResult(webFileLoaderPrivate *loader, WebReplyProcessResult result) {
+	QMutexLocker lock(&_loaderPointersMutex);
+	LoaderPointers::iterator it = _loaderPointers.find(loader->_interface);
+	if (it != _loaderPointers.cend() && it.key()->_private != loader) {
+		it = _loaderPointers.end(); // it is a new loader which was realloced in the same address
+	}
+	if (it == _loaderPointers.cend()) {
+		return false;
+	}
+
+	if (result == WebReplyProcessProgress) {
+		if (loader->size() > AnimationInMemory) {
+			LOG(("API Error: too large file is loaded to cache: %1").arg(loader->size()));
+			result = WebReplyProcessError;
+		}
+	}
+	if (result == WebReplyProcessError) {
+		if (it != _loaderPointers.cend()) {
+			emit error(it.key());
+		}
+		return false;
+	}
+	if (loader->already() < loader->size() || !loader->size()) {
+		emit progress(it.key(), loader->already(), loader->size());
+		return true;
+	}
+	emit finished(it.key(), loader->data());
+	return false;
+}
+
+void WebLoadManager::onFailed(QNetworkReply::NetworkError error) {
+	onFailed(qobject_cast<QNetworkReply*>(QObject::sender()));
+}
+
+void WebLoadManager::onFailed(QNetworkReply *reply) {
+	if (!reply) return;
+	reply->deleteLater();
+
+	Replies::iterator j = _replies.find(reply);
+	if (j == _replies.cend()) { // handled already
+		return;
+	}
+	webFileLoaderPrivate *loader = j.value();
+	_replies.erase(j);
+
+	LOG(("Network Error: Failed to request '%1', error %2 (%3)").arg(QString::fromLatin1(loader->_url.toEncoded())).arg(int(reply->error())).arg(reply->errorString()));
+
+	if (!handleReplyResult(loader, WebReplyProcessError)) {
+		_loaders.remove(loader);
+		delete loader;
+	}
+}
+
+void WebLoadManager::onProgress(qint64 already, qint64 size) {
+	QNetworkReply *reply = qobject_cast<QNetworkReply*>(QObject::sender());
+	if (!reply) return;
+
+	Replies::iterator j = _replies.find(reply);
+	if (j == _replies.cend()) { // handled already
+		return;
+	}
+	webFileLoaderPrivate *loader = j.value();
+
+	WebReplyProcessResult result = WebReplyProcessProgress;
+	QVariant statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
+	int32 status = statusCode.isValid() ? statusCode.toInt() : 200;
+	if (status != 200 && status != 206 && status != 416) {
+		if (status == 301 || status == 302) {
+			QString loc = reply->header(QNetworkRequest::LocationHeader).toString();
+			if (!loc.isEmpty()) {
+				if (loader->oneMoreRedirect()) {
+					sendRequest(loader, loc);
+					return;
+				} else {
+					LOG(("Network Error: Too many HTTP redirects in onFinished() for web file loader: %1").arg(loc));
+					result = WebReplyProcessError;
+				}
+			}
+		} else {
+			LOG(("Network Error: Bad HTTP status received in WebLoadManager::onProgress(): %1").arg(statusCode.toInt()));
+			result = WebReplyProcessError;
+		}
+	} else {
+		loader->setProgress(already, size);
+		QByteArray r = reply->readAll();
+		if (!r.isEmpty()) {
+			loader->addData(r);
+		}
+		if (size == 0) {
+			LOG(("Network Error: Zero size received for HTTP download progress in WebLoadManager::onProgress(): %1 / %2").arg(already).arg(size));
+			result = WebReplyProcessError;
+		}
+	}
+	if (!handleReplyResult(loader, result)) {
+		_replies.erase(j);
+		_loaders.remove(loader);
+		delete loader;
+
+		reply->abort();
+		reply->deleteLater();
+	}
+}
+
+void WebLoadManager::onMeta() {
+	QNetworkReply *reply = qobject_cast<QNetworkReply*>(QObject::sender());
+	if (!reply) return;
+
+	Replies::iterator j = _replies.find(reply);
+	if (j == _replies.cend()) { // handled already
+		return;
+	}
+	webFileLoaderPrivate *loader = j.value();
+
+	typedef QList<QNetworkReply::RawHeaderPair> Pairs;
+	Pairs pairs = reply->rawHeaderPairs();
+	for (Pairs::iterator i = pairs.begin(), e = pairs.end(); i != e; ++i) {
+		if (QString::fromUtf8(i->first).toLower() == "content-range") {
+			QRegularExpressionMatch m = QRegularExpression(qsl("/(\\d+)([^\\d]|$)")).match(QString::fromUtf8(i->second));
+			if (m.hasMatch()) {
+				loader->setProgress(qMax(qint64(loader->data().size()), loader->already()), m.captured(1).toLongLong());
+				if (!handleReplyResult(loader, WebReplyProcessProgress)) {
+					_replies.erase(j);
+					_loaders.remove(loader);
+					delete loader;
+
+					reply->abort();
+					reply->deleteLater();
+				}
+			}
+		}
+	}
+}
+
+void WebLoadManager::process() {
+	Loaders newLoaders;
+	{
+		QMutexLocker lock(&_loaderPointersMutex);
+		for (LoaderPointers::iterator i = _loaderPointers.begin(), e = _loaderPointers.end(); i != e; ++i) {
+			Loaders::iterator it = _loaders.find(i.value());
+			if (i.value()) {
+				if (it == _loaders.cend()) {
+					_loaders.insert(i.value());
+					newLoaders.insert(i.value());
+				}
+				i.value() = 0;
+			}
+		}
+		for (Loaders::iterator i = _loaders.begin(), e = _loaders.end(); i != e;) {
+			LoaderPointers::iterator it = _loaderPointers.find(i.key()->_interface);
+			if (it != _loaderPointers.cend() && it.key()->_private != i.key()) {
+				it = _loaderPointers.end();
+			}
+			if (it == _loaderPointers.cend()) {
+				if (QNetworkReply *reply = i.key()->reply()) {
+					_replies.remove(reply);
+					reply->abort();
+					reply->deleteLater();
+				}
+				delete i.key();
+				i = _loaders.erase(i);
+			} else {
+				++i;
+			}
+		}
+	}
+	for (Loaders::const_iterator i = newLoaders.cbegin(), e = newLoaders.cend(); i != e; ++i) {
+		if (_loaders.contains(i.key())) {
+			sendRequest(i.key());
+		}
+	}
+}
+
+void WebLoadManager::sendRequest(webFileLoaderPrivate *loader, const QString &redirect) {
+	Replies::iterator j = _replies.find(loader->reply());
+	if (j != _replies.cend()) {
+		QNetworkReply *r = j.key();
+		_replies.erase(j);
+
+		r->abort();
+		r->deleteLater();
+	}
+
+	QNetworkReply *r = loader->request(_manager, redirect);
+	connect(r, SIGNAL(downloadProgress(qint64, qint64)), this, SLOT(onProgress(qint64, qint64)));
+	connect(r, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onFailed(QNetworkReply::NetworkError)));
+	connect(r, SIGNAL(metaDataChanged()), this, SLOT(onMeta()));
+	_replies.insert(r, loader);
+}
+
+void WebLoadManager::proxyApply() {
+	QMutexLocker lock(&_loaderPointersMutex);
+	_manager.setProxy(_proxySettings);
+}
+
+void WebLoadManager::finish() {
+	clear();
+}
+
+void WebLoadManager::clear() {
+	QMutexLocker lock(&_loaderPointersMutex);
+	for (LoaderPointers::iterator i = _loaderPointers.begin(), e = _loaderPointers.end(); i != e; ++i) {
+		if (i.value()) {
+			i.key()->_private = 0;
+		}
+	}
+	_loaderPointers.clear();
+
+	for (Loaders::iterator i = _loaders.begin(), e = _loaders.end(); i != e; ++i) {
+		delete i.key();
+	}
+	_loaders.clear();
+
+	for (Replies::iterator i = _replies.begin(), e = _replies.end(); i != e; ++i) {
+		delete i.key();
+	}
+	_replies.clear();
+}
+
+WebLoadManager::~WebLoadManager() {
+	clear();
+}
+
+void WebLoadMainManager::progress(webFileLoader *loader, qint64 already, qint64 size) {
+	if (webLoadManager() && webLoadManager()->carries(loader)) {
+		loader->onProgress(already, size);
+	}
+}
+
+void WebLoadMainManager::finished(webFileLoader *loader, QByteArray data) {
+	if (webLoadManager() && webLoadManager()->carries(loader)) {
+		loader->onFinished(data);
+	}
+}
+
+void WebLoadMainManager::error(webFileLoader *loader) {
+	if (webLoadManager() && webLoadManager()->carries(loader)) {
+		loader->onError();
+	}
 }
 
 namespace MTP {
 	void clearLoaderPriorities() {
-		++_priority;
+		++GlobalPriority;
 	}
 }

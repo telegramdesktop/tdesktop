@@ -25,7 +25,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "gui/flatinput.h"
 #include "intro.h"
 
-class IntroSignup : public IntroStage, public Animated, public RPCSender {
+class IntroSignup : public IntroStage, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -37,7 +37,8 @@ public:
 	void mouseMoveEvent(QMouseEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 
-	bool animStep(float64 ms);
+	void step_error(float64 ms, bool timer);
+	void step_photo(float64 ms, bool timer);
 
 	void activate();
 	void deactivate();
@@ -60,7 +61,9 @@ private:
 	void stopCheck();
 
 	QString error;
-	anim::fvalue errorAlpha, a_photo;
+	anim::fvalue a_errorAlpha, a_photoOver;
+	Animation _a_error;
+	Animation _a_photo;
 
 	FlatButton next;
 

@@ -67,7 +67,8 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 , _aboutTop(0)
 , _aboutHeight(0)
 
-, a_photo(0)
+, a_photoOver(0)
+, _a_photo(animation(this, &ProfileInner::step_photo))
 , _photoOver(false)
 
 // migrate to megagroup
@@ -232,11 +233,11 @@ void ProfileInner::onShareContact() {
 }
 
 void ProfileInner::onInviteToGroup() {
-	App::wnd()->showLayer(new ContactsBox(_peerUser));
+	Ui::showLayer(new ContactsBox(_peerUser));
 }
 
 void ProfileInner::onSendMessage() {
-	App::main()->showPeerHistory(_peer->id, ShowAtUnreadMsgId);
+	Ui::showPeerHistory(_peer, ShowAtUnreadMsgId);
 }
 
 void ProfileInner::onSearchInPeer() {
@@ -302,37 +303,36 @@ void ProfileInner::onUpdatePhoto() {
 	}
 	PhotoCropBox *box = new PhotoCropBox(img, _peer);
 	connect(box, SIGNAL(closed()), this, SLOT(onPhotoUpdateStart()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void ProfileInner::onClearHistory() {
 	if (_peerChannel) return;
 	ConfirmBox *box = new ConfirmBox(_peer->isUser() ? lng_sure_delete_history(lt_contact, _peer->name) : lng_sure_delete_group_history(lt_group, _peer->name), lang(lng_box_delete), st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onClearHistorySure()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void ProfileInner::onClearHistorySure() {
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	App::main()->clearHistory(_peer);
 }
 
 void ProfileInner::onDeleteConversation() {
 	ConfirmBox *box = new ConfirmBox(_peer->isUser() ? lng_sure_delete_history(lt_contact, _peer->name) : (_peer->isChat() ? lng_sure_delete_and_exit(lt_group, _peer->name) : lang(_peer->isMegagroup() ? lng_sure_leave_group : lng_sure_leave_channel)), lang(_peer->isUser() ? lng_box_delete : lng_box_leave), _peer->isChannel() ? st::defaultBoxButton : st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteConversationSure()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void ProfileInner::onDeleteConversationSure() {
+	Ui::hideLayer();
 	if (_peerUser) {
 		App::main()->deleteConversation(_peer);
 	} else if (_peerChat) {
-		App::wnd()->hideLayer();
-		App::main()->showDialogs();
+		Ui::showChatsList();
 		MTP::send(MTPmessages_DeleteChatUser(_peerChat->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, _peer), App::main()->rpcFail(&MainWidget::leaveChatFailed, _peer));
 	} else if (_peerChannel) {
-		App::wnd()->hideLayer();
-		App::main()->showDialogs();
+		Ui::showChatsList();
 		if (_peerChannel->migrateFrom()) {
 			App::main()->deleteConversation(_peerChannel->migrateFrom());
 		}
@@ -344,13 +344,13 @@ void ProfileInner::onDeleteChannel() {
 	if (!_peerChannel) return;
 	ConfirmBox *box = new ConfirmBox(lang(_peer->isMegagroup() ? lng_sure_delete_group : lng_sure_delete_channel), lang(lng_box_delete), st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteChannelSure()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void ProfileInner::onDeleteChannelSure() {
 	if (_peerChannel) {
-		App::wnd()->hideLayer();
-		App::main()->showDialogs();
+		Ui::hideLayer();
+		Ui::showChatsList();
 		if (_peerChannel->migrateFrom()) {
 			App::main()->deleteConversation(_peerChannel->migrateFrom());
 		}
@@ -382,13 +382,13 @@ bool ProfileInner::blockFail(const RPCError &error) {
 
 void ProfileInner::onAddParticipant() {
 	if (_peerChat) {
-		App::wnd()->showLayer(new ContactsBox(_peerChat, MembersFilterRecent));
+		Ui::showLayer(new ContactsBox(_peerChat, MembersFilterRecent));
 	} else if (_peerChannel && _peerChannel->mgInfo) {
 		MembersAlreadyIn already;
 		for (MegagroupInfo::LastParticipants::const_iterator i = _peerChannel->mgInfo->lastParticipants.cbegin(), e = _peerChannel->mgInfo->lastParticipants.cend(); i != e; ++i) {
 			already.insert(*i, true);
 		}
-		App::wnd()->showLayer(new ContactsBox(_peerChannel, MembersFilterRecent, already));
+		Ui::showLayer(new ContactsBox(_peerChannel, MembersFilterRecent, already));
 	}
 }
 
@@ -397,7 +397,7 @@ void ProfileInner::onMigrate() {
 
 	ConfirmBox *box = new ConfirmBox(lang(lng_profile_migrate_sure));
 	connect(box, SIGNAL(confirmed()), this, SLOT(onMigrateSure()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void ProfileInner::onMigrateSure() {
@@ -459,7 +459,7 @@ void ProfileInner::onInvitationLink() {
 	if (!_peerChat && !_peerChannel) return;
 
 	QApplication::clipboard()->setText(_peerChat ? _peerChat->invitationUrl : (_peerChannel ? _peerChannel->invitationUrl : QString()));
-	App::wnd()->showLayer(new InformBox(lang(lng_group_invite_copied)));
+	Ui::showLayer(new InformBox(lang(lng_group_invite_copied)));
 }
 
 void ProfileInner::onPublicLink() {
@@ -467,22 +467,22 @@ void ProfileInner::onPublicLink() {
 	
 	if (_peerChannel->isPublic()) {
 		QApplication::clipboard()->setText(qsl("https://telegram.me/") + _peerChannel->username);
-		App::wnd()->showLayer(new InformBox(lang(lng_channel_public_link_copied)));
+		Ui::showLayer(new InformBox(lang(lng_channel_public_link_copied)));
 	} else {
-		App::wnd()->showLayer(new SetupChannelBox(_peerChannel, true));
+		Ui::showLayer(new SetupChannelBox(_peerChannel, true));
 	}
 }
 
 void ProfileInner::onMembers() {
 	if (!_peerChannel) return;
-	App::wnd()->showLayer(new MembersBox(_peerChannel, MembersFilterRecent));
+	Ui::showLayer(new MembersBox(_peerChannel, MembersFilterRecent));
 }
 
 void ProfileInner::onAdmins() {
 	if (_peerChannel) {
-		App::wnd()->showLayer(new MembersBox(_peerChannel, MembersFilterAdmins));
+		Ui::showLayer(new MembersBox(_peerChannel, MembersFilterAdmins));
 	} else if (_peerChat) {
-		App::wnd()->showLayer(new ContactsBox(_peerChat, MembersFilterAdmins));
+		Ui::showLayer(new ContactsBox(_peerChat, MembersFilterAdmins));
 	}
 }
 
@@ -491,7 +491,7 @@ void ProfileInner::onCreateInvitationLink() {
 
 	ConfirmBox *box = new ConfirmBox(lang(((_peerChat && _peerChat->invitationUrl.isEmpty()) || (_peerChannel && _peerChannel->invitationUrl.isEmpty())) ? lng_group_invite_about : lng_group_invite_about_new));
 	connect(box, SIGNAL(confirmed()), this, SLOT(onCreateInvitationLinkSure()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void ProfileInner::onCreateInvitationLinkSure() {
@@ -514,7 +514,7 @@ void ProfileInner::chatInviteDone(const MTPExportedChatInvite &result) {
 	updateInvitationLink();
 	showAll();
 	resizeEvent(0);
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 }
 
 void ProfileInner::onFullPeerUpdated(PeerData *peer) {
@@ -562,7 +562,7 @@ void ProfileInner::onBotSettings() {
 	for (int32 i = 0, l = _peerUser->botInfo->commands.size(); i != l; ++i) {
 		QString cmd = _peerUser->botInfo->commands.at(i).command;
 		if (!cmd.compare(qsl("settings"), Qt::CaseInsensitive)) {
-			App::main()->showPeerHistory(_peer->id, ShowAtTheEndMsgId);
+			Ui::showPeerHistory(_peer, ShowAtTheEndMsgId);
 			App::main()->sendBotCommand('/' + cmd, 0);
 			return;
 		}
@@ -576,7 +576,7 @@ void ProfileInner::onBotHelp() {
 	for (int32 i = 0, l = _peerUser->botInfo->commands.size(); i != l; ++i) {
 		QString cmd = _peerUser->botInfo->commands.at(i).command;
 		if (!cmd.compare(qsl("help"), Qt::CaseInsensitive)) {
-			App::main()->showPeerHistory(_peer->id, ShowAtTheEndMsgId);
+			Ui::showPeerHistory(_peer, ShowAtTheEndMsgId);
 			App::main()->sendBotCommand('/' + cmd, 0);
 			return;
 		}
@@ -767,11 +767,11 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	if (_photoLink || _peerUser || (_peerChat && !_peerChat->canEdit()) || (_peerChannel && !_amCreator)) {
 		p.drawPixmap(_left, top, _peer->photo->pix(st::profilePhotoSize));
 	} else {
-		if (a_photo.current() < 1) {
+		if (a_photoOver.current() < 1) {
 			p.drawPixmap(QPoint(_left, top), App::sprite(), st::setPhotoImg);
 		}
-		if (a_photo.current() > 0) {
-			p.setOpacity(a_photo.current());
+		if (a_photoOver.current() > 0) {
+			p.setOpacity(a_photoOver.current());
 			p.drawPixmap(QPoint(_left, top), App::sprite(), st::setOverPhotoImg);
 			p.setOpacity(1);
 		}
@@ -991,8 +991,8 @@ void ProfileInner::mouseMoveEvent(QMouseEvent *e) {
 	if (photoOver != _photoOver) {
 		_photoOver = photoOver;
 		if (!_photoLink && ((_peerChat && _peerChat->canEdit()) || (_peerChannel && _amCreator))) {
-			a_photo.start(_photoOver ? 1 : 0);
-			anim::start(this);
+			a_photoOver.start(_photoOver ? 1 : 0);
+			_a_photo.start();
 		}
 	}
 	if (!_photoLink && (_peerUser || (_peerChat && !_peerChat->canEdit()) || (_peerChannel && !_amCreator))) {
@@ -1075,7 +1075,7 @@ void ProfileInner::mouseReleaseEvent(QMouseEvent *e) {
 		_kickConfirm = _kickOver;
 		ConfirmBox *box = new ConfirmBox(lng_profile_sure_kick(lt_user, _kickOver->firstName), lang(lng_box_remove));
 		connect(box, SIGNAL(confirmed()), this, SLOT(onKickConfirm()));
-		App::wnd()->showLayer(box);
+		Ui::showLayer(box);
 	}
 	if (textlnkDown()) {
 		TextLinkPtr lnk = textlnkDown();
@@ -1085,7 +1085,7 @@ void ProfileInner::mouseReleaseEvent(QMouseEvent *e) {
 				App::searchByHashtag(lnk->encoded(), _peerChannel);
 			} else {
 				if (reBotCommand().match(lnk->encoded()).hasMatch()) {
-					App::main()->showPeerHistory(_peer->id, ShowAtTheEndMsgId);
+					Ui::showPeerHistory(_peer, ShowAtTheEndMsgId);
 				}
 				lnk->onClick(e->button());
 			}
@@ -1104,7 +1104,7 @@ void ProfileInner::onKickConfirm() {
 	if (_peerChat) {
 		App::main()->kickParticipant(_peerChat, _kickConfirm);
 	} else if (_peerChannel) {
-		App::wnd()->hideLayer();
+		Ui::hideLayer();
 		App::api()->kickParticipant(_peerChannel, _kickConfirm);
 	}
 }
@@ -1236,7 +1236,7 @@ bool ProfileInner::updateMediaLinks(int32 *addToScroll) {
 }
 
 void ProfileInner::migrateDone(const MTPUpdates &updates) {
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	App::main()->sentUpdatesReceived(updates);
 	const QVector<MTPChat> *v = 0;
 	switch (updates.type()) {
@@ -1250,7 +1250,7 @@ void ProfileInner::migrateDone(const MTPUpdates &updates) {
 		for (int32 i = 0, l = v->size(); i < l; ++i) {
 			if (v->at(i).type() == mtpc_channel) {
 				peer = App::channel(v->at(i).c_channel().vid.v);
-				App::main()->showPeerHistory(peer->id, ShowAtUnreadMsgId);
+				Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 				QTimer::singleShot(ReloadChannelMembersTimeout, App::api(), SLOT(delayedRequestParticipantsCount()));
 			}
 		}
@@ -1262,7 +1262,7 @@ void ProfileInner::migrateDone(const MTPUpdates &updates) {
 
 bool ProfileInner::migrateFail(const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	return true;
 }
 
@@ -1425,17 +1425,15 @@ void ProfileInner::onCopyUsername() {
 	QApplication::clipboard()->setText('@' + _peerUser->username);
 }
 
-bool ProfileInner::animStep(float64 ms) {
+void ProfileInner::step_photo(float64 ms, bool timer) {
 	float64 dt = ms / st::setPhotoDuration;
-	bool res = true;
 	if (dt >= 1) {
-		res = false;
-		a_photo.finish();
+		_a_photo.stop();
+		a_photoOver.finish();
 	} else {
-		a_photo.update(dt, anim::linear);
+		a_photoOver.update(dt, anim::linear);
 	}
-	update(_left, st::profilePadding.top(), st::setPhotoSize, st::setPhotoSize);
-	return res;
+	if (timer) update(_left, st::profilePadding.top(), st::setPhotoSize, st::setPhotoSize);
 }
 
 PeerData *ProfileInner::peer() const {
@@ -1724,7 +1722,7 @@ QString ProfileInner::overviewLinkText(int32 type, int32 count) {
 ProfileWidget::ProfileWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 , _scroll(this, st::setScroll)
 , _inner(this, &_scroll, peer)
-, _a_show(animFunc(this, &ProfileWidget::animStep_show))
+, _a_show(animation(this, &ProfileWidget::step_show))
 , _sideShadow(this, st::shadowColor)
 , _topShadow(this, st::shadowColor)
 , _inGrab(false) {
@@ -1834,7 +1832,9 @@ int32 ProfileWidget::lastScrollTop() const {
 void ProfileWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back, int32 lastScrollTop) {
 	if (App::app()) App::app()->mtpPause();
 
-	stopGif();
+	if (!cAutoPlayGif()) {
+		App::stopGifItems();
+	}
 
 	(back ? _cacheOver : _cacheUnder) = bgAnimCache;
 	(back ? _cacheTopBarOver : _cacheTopBarUnder) = bgAnimTopBarCache;
@@ -1858,15 +1858,13 @@ void ProfileWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTo
 	_inner.setFocus();
 }
 
-bool ProfileWidget::animStep_show(float64 ms) {
+void ProfileWidget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
-	bool res = true;
 	if (dt >= 1) {
 		_a_show.stop();
 		_sideShadow.setVisible(cWideMode());
 		_topShadow.show();
 
-		res = false;
 		a_coordUnder.finish();
 		a_coordOver.finish();
 		a_shadow.finish();
@@ -1883,9 +1881,10 @@ bool ProfileWidget::animStep_show(float64 ms) {
 		a_coordOver.update(dt, st::slideFunction);
 		a_shadow.update(dt, st::slideFunction);
 	}
-	update();
-	App::main()->topBar()->update();
-	return res;
+	if (timer) {
+		update();
+		App::main()->topBar()->update();
+	}
 }
 
 void ProfileWidget::updateOnlineDisplay() {

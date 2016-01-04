@@ -84,7 +84,7 @@ void AboutBox::onVersion() {
 
 		App::app()->clipboard()->setText(url);
 
-		App::showLayer(new InformBox("The link to the current private beta version of Telegram Desktop was copied to the clipboard."));
+		Ui::showLayer(new InformBox("The link to the current private beta version of Telegram Desktop was copied to the clipboard."));
 	} else {
 		QDesktopServices::openUrl(qsl("https://desktop.telegram.org/?_hash=changelog"));
 	}

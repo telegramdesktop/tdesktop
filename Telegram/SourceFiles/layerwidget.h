@@ -27,7 +27,7 @@ class LayeredWidget : public TWidget {
 
 public:
 
-	virtual void animStep(float64 ms) {
+	virtual void showStep(float64 ms) {
 	}
 	virtual void parentResized() = 0;
 	virtual void startHide() {
@@ -57,7 +57,7 @@ signals:
 
 };
 
-class BackgroundWidget : public TWidget, public Animated {
+class BackgroundWidget : public TWidget {
 	Q_OBJECT
 
 public:
@@ -76,7 +76,7 @@ public:
 	void replaceInner(LayeredWidget *n);
 	void showLayerLast(LayeredWidget *n);
 
-	bool animStep(float64 ms);
+	void step_background(float64 ms, bool timer);
 
 	bool canSetFocus() const;
 	void setInnerFocus();
@@ -98,8 +98,9 @@ private:
 	LayeredWidget *w;
 	typedef QList<LayeredWidget*> HiddenLayers;
 	HiddenLayers _hidden;
-	anim::fvalue aBackground;
-	anim::transition aBackgroundFunc;
+	anim::fvalue a_bg;
+	Animation _a_background;
+
 	bool hiding;
 
 	BoxShadow shadow;
@@ -115,7 +116,7 @@ public:
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
-	bool animStep_shown(float64 ms);
+	void step_shown(float64 ms, bool timer);
 
 	void showPreview(DocumentData *sticker);
 	void hidePreview();
@@ -130,6 +131,12 @@ private:
 	anim::fvalue a_shown;
 	Animation _a_shown;
 	DocumentData *_doc;
+	ClipReader *_gif;
+	bool gif() const {
+		return (!_gif || _gif == BadClipReader) ? false : true;
+	}
+
+	void clipCallback(ClipReaderNotification notification);
 
 	enum CacheStatus {
 		CacheNotLoaded,

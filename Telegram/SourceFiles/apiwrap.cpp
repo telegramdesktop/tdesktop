@@ -64,36 +64,6 @@ void ApiWrap::itemRemoved(HistoryItem *item) {
 	}
 }
 
-void ApiWrap::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
-	if (HistoryReply *reply = oldItem->toHistoryReply()) {
-		ChannelData *channel = reply->history()->peer->asChannel();
-		ReplyToRequests *requests(replyToRequests(channel, true));
-		if (requests) {
-			ReplyToRequests::iterator i = requests->find(reply->replyToId());
-			if (i != requests->cend()) {
-				for (QList<HistoryReply*>::iterator j = i->replies.begin(); j != i->replies.end();) {
-					if ((*j) == reply) {
-						if (HistoryReply *newReply = newItem->toHistoryReply()) {
-							*j = newReply;
-							++j;
-						} else {
-							j = i->replies.erase(j);
-						}
-					} else {
-						++j;
-					}
-				}
-				if (i->replies.isEmpty()) {
-					requests->erase(i);
-				}
-			}
-			if (channel && requests->isEmpty()) {
-				_channelReplyToRequests.remove(channel);
-			}
-		}
-	}
-}
-
 void ApiWrap::requestReplyTo(HistoryReply *reply, ChannelData *channel, MsgId id) {
 	ReplyToRequest &req(channel ? _channelReplyToRequests[channel][id] : _replyToRequests[id]);
 	req.replies.append(reply);
@@ -916,12 +886,11 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 		}
 	}
 
-	MainWidget *m = App::main();
 	for (QMap<uint64, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
 		HistoryItem *item = App::histories().addNewMessage(v->at(i.value()), NewMessageExisting);
 		if (item) {
 			item->initDimensions();
-			if (m) m->itemResized(item);
+			Notify::historyItemResized(item);
 		}
 	}
 
@@ -934,7 +903,7 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 				if (j != items.cend()) {
 					for (HistoryItemsMap::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
 						k.key()->initDimensions();
-						if (m) m->itemResized(k.key());
+						Notify::historyItemResized(k.key());
 					}
 				}
 			}
@@ -946,5 +915,5 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 }
 
 ApiWrap::~ApiWrap() {
-	App::deinitMedia(false);
+	App::clearHistories();
 }

@@ -36,10 +36,10 @@ namespace {
 	const QRegularExpression _reMailName(qsl("[a-zA-Z\\-_\\.0-9]{1,256}$"));
 	const QRegularExpression _reMailStart(qsl("^[a-zA-Z\\-_\\.0-9]{1,256}\\@"));
 	const QRegularExpression _reHashtag(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])#[\\w]{2,64}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
-	const QRegularExpression _reMention(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])@[A-Za-z_0-9]{5,32}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
+	const QRegularExpression _reMention(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])@[A-Za-z_0-9]{3,32}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
 	const QRegularExpression _reBotCommand(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])/[A-Za-z_0-9]{1,64}(@[A-Za-z_0-9]{5,32})?([\\W]|$)"));
-	const QRegularExpression _rePre(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])(````?)[\\s\\S]+?(````?)([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)"), QRegularExpression::UseUnicodePropertiesOption);
-	const QRegularExpression _reCode(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])(`)[^\\n]+?(`)([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)"), QRegularExpression::UseUnicodePropertiesOption);
+	const QRegularExpression _rePre(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\?\\%\\^\\*\\(\\)\\-\\+=\\x10])(````?)[\\s\\S]+?(````?)([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\?\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)"), QRegularExpression::UseUnicodePropertiesOption);
+	const QRegularExpression _reCode(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\?\\%\\^\\*\\(\\)\\-\\+=\\x10])(`)[^\\n]+?(`)([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\?\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)"), QRegularExpression::UseUnicodePropertiesOption);
 	QSet<int32> _validProtocols, _validTopDomains;
 
 	const style::textStyle *_textStyle = 0;
@@ -101,6 +101,10 @@ void textlnkDown(const TextLinkPtr &lnk) {
 
 const TextLinkPtr &textlnkDown() {
 	return _downLnk;
+}
+
+bool textlnkDrawOver(const TextLinkPtr &lnk) {
+	return (_overLnk == lnk) && (!_downLnk || _downLnk == lnk);
 }
 
 QString textOneLine(const QString &text, bool trim, bool rich) {
@@ -916,7 +920,7 @@ void EmailLink::onClick(Qt::MouseButton button) const {
 }
 
 void CustomTextLink::onClick(Qt::MouseButton button) const {
-	App::wnd()->showLayer(new ConfirmLinkBox(text()));
+	Ui::showLayer(new ConfirmLinkBox(text()));
 }
 
 void MentionLink::onClick(Qt::MouseButton button) const {
@@ -1027,6 +1031,9 @@ public:
 		_y = top;
 		_yFrom = yFrom + top;
 		_yTo = (yTo < 0) ? -1 : (yTo + top);
+		if (_elideLast) {
+			_yToElide = _yTo;
+		}
 		_selectedFrom = selectedFrom;
 		_selectedTo = selectedTo;
 		_wLeft = _w = w;
@@ -1077,7 +1084,7 @@ public:
 				last_rBearing = _rb;
 				last_rPadding = b->f_rpadding();
 				_wLeft = _w - (b->f_width() - last_rBearing);
-				if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yTo)) {
+				if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yToElide)) {
 					_wLeft -= _elideRemoveFromEnd;
 				}
 
@@ -1131,7 +1138,7 @@ public:
 					}
 
 					int32 elidedLineHeight = qMax(_lineHeight, blockHeight);
-					bool elidedLine = _elideLast && (_y + elidedLineHeight >= _yTo);
+					bool elidedLine = _elideLast && (_y + elidedLineHeight >= _yToElide);
 					if (elidedLine) {
 						_lineHeight = elidedLineHeight;
 					} else if (f != j) {
@@ -1150,7 +1157,7 @@ public:
 					last_rBearing = j->f_rbearing();
 					last_rPadding = j->rpadding;
 					_wLeft = _w - (j_width - last_rBearing);
-					if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yTo)) {
+					if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yToElide)) {
 						_wLeft -= _elideRemoveFromEnd;
 					}
 
@@ -1161,7 +1168,7 @@ public:
 				}
 				if (lpadding > 0) { // no words in this block, spaces only
 					int32 elidedLineHeight = qMax(_lineHeight, blockHeight);
-					bool elidedLine = _elideLast && (_y + elidedLineHeight >= _yTo);
+					bool elidedLine = _elideLast && (_y + elidedLineHeight >= _yToElide);
 					if (elidedLine) {
 						_lineHeight = elidedLineHeight;
 					}
@@ -1175,7 +1182,7 @@ public:
 					last_rBearing = _rb;
 					last_rPadding = b->rpadding();
 					_wLeft = _w;
-					if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yTo)) {
+					if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yToElide)) {
 						_wLeft -= _elideRemoveFromEnd;
 					}
 
@@ -1185,7 +1192,7 @@ public:
 			}
 
 			int32 elidedLineHeight = qMax(_lineHeight, blockHeight);
-			bool elidedLine = _elideLast && (_y + elidedLineHeight >= _yTo);
+			bool elidedLine = _elideLast && (_y + elidedLineHeight >= _yToElide);
 			if (elidedLine) {
 				_lineHeight = elidedLineHeight;
 			}
@@ -1198,7 +1205,7 @@ public:
 			last_rBearing = _rb;
 			last_rPadding = b->f_rpadding();
 			_wLeft = _w - (b->f_width() - last_rBearing);
-			if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yTo)) {
+			if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yToElide)) {
 				_wLeft -= _elideRemoveFromEnd;
 			}
 
@@ -1297,7 +1304,7 @@ public:
 		}
 
 		ITextBlock *_endBlock = (_endBlockIter == _end) ? 0 : (*_endBlockIter);
-		bool elidedLine = _elideLast && _endBlock && (_y + _lineHeight >= _yTo);
+		bool elidedLine = _elideLast && _endBlock && (_y + _lineHeight >= _yToElide);
 
 		int blockIndex = _lineStartBlock;
 		ITextBlock *currentBlock = _t->_blocks[blockIndex];
@@ -1385,6 +1392,7 @@ public:
 			return true;
 		}
 
+		int skipIndex = -1;
 		QVarLengthArray<int> visualOrder(nItems);
 		QVarLengthArray<uchar> levels(nItems);
 		for (int i = 0; i < nItems; ++i) {
@@ -1396,6 +1404,7 @@ public:
 			TextBlockType _type = currentBlock->type();
 			if (_type == TextBlockTSkip) {
 				levels[i] = si.analysis.bidiLevel = 0;
+				skipIndex = i;
 			} else {
 				levels[i] = si.analysis.bidiLevel;
 			}
@@ -1406,6 +1415,13 @@ public:
 			}
 		}
 	    QTextEngine::bidiReorder(nItems, levels.data(), visualOrder.data());
+		if (rtl() && skipIndex == nItems - 1) {
+			for (int32 i = nItems; i > 1;) {
+				--i;
+				visualOrder[i] = visualOrder[i - 1];
+			}
+			visualOrder[0] = skipIndex;
+		}
 
 		blockIndex = _lineStartBlock;
 		currentBlock = _t->_blocks[blockIndex];
@@ -2396,7 +2412,7 @@ private:
 	int32 _elideRemoveFromEnd;
 	style::align _align;
 	QPen _originalPen;
-	int32 _yFrom, _yTo;
+	int32 _yFrom, _yTo, _yToElide;
 	uint16 _selectedFrom, _selectedTo;
 	const QChar *_str;
 
