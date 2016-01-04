@@ -3354,11 +3354,16 @@ void HistoryPhoto::draw(Painter &p, const HistoryItem *parent, const QRect &r, b
 		p.setOpacity(radialOpacity);
 		style::sprite icon;
 		if (radial || _data->loading()) {
-			icon = (selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+			DelayedStorageImage *delayed = _data->full->toDelayedStorageImage();
+			if (!delayed || !delayed->location().isNull()) {
+				icon = (selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+			}
 		} else {
 			icon = (selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
 		}
-		p.drawSpriteCenter(inner, icon);
+		if (!icon.isEmpty()) {
+			p.drawSpriteCenter(inner, icon);
+		}
 		if (radial) {
 			p.setOpacity(1);
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
@@ -3403,8 +3408,15 @@ void HistoryPhoto::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height) {
 		if (_data->uploading()) {
 			lnk = _cancell;
+		} else if (_data->loaded()) {
+			lnk = _openl;
+		} else if (_data->loading()) {
+			DelayedStorageImage *delayed = _data->full->toDelayedStorageImage();
+			if (!delayed || !delayed->location().isNull()) {
+				lnk = _cancell;
+			}
 		} else {
-			lnk = _data->loaded() ? _openl : (_data->loading() ? _cancell : _savel);
+			lnk = _savel;
 		}
 		if (_caption.isEmpty() && parent->getMedia() == this) {
 			int32 fullRight = skipx + width, fullBottom = skipy + height;
@@ -4563,11 +4575,15 @@ void HistoryGif::draw(Painter &p, const HistoryItem *parent, const QRect &r, boo
 		if (_data->loaded() && !radial) {
 			icon = (selected ? st::msgFileInPlaySelected : st::msgFileInPlay);
 		} else if (radial || _data->loading()) {
-			icon = (selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+			if (parent->id > 0) {
+				icon = (selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
+			}
 		} else {
 			icon = (selected ? st::msgFileInDownloadSelected : st::msgFileInDownload);
 		}
-		p.drawSpriteCenter(inner, icon);
+		if (!icon.isEmpty()) {
+			p.drawSpriteCenter(inner, icon);
+		}
 		if (radial) {
 			p.setOpacity(1);
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
