@@ -193,6 +193,21 @@ style::color documentColor(int32 colorIndex) {
 	return colors[colorIndex & 3];
 }
 
+style::color documentDarkColor(int32 colorIndex) {
+	static style::color colors[] = { st::msgFileBlueDark, st::msgFileGreenDark, st::msgFileRedDark, st::msgFileYellowDark };
+	return colors[colorIndex & 3];
+}
+
+style::color documentOverColor(int32 colorIndex) {
+	static style::color colors[] = { st::msgFileBlueOver, st::msgFileGreenOver, st::msgFileRedOver, st::msgFileYellowOver };
+	return colors[colorIndex & 3];
+}
+
+style::color documentSelectedColor(int32 colorIndex) {
+	static style::color colors[] = { st::msgFileBlueSelected, st::msgFileGreenSelected, st::msgFileRedSelected, st::msgFileYellowSelected };
+	return colors[colorIndex & 3];
+}
+
 style::sprite documentCorner(int32 colorIndex) {
 	static style::sprite corners[] = { st::msgFileBlue, st::msgFileGreen, st::msgFileRed, st::msgFileYellow };
 	return corners[colorIndex & 3];
@@ -285,14 +300,14 @@ LayoutOverviewDate::LayoutOverviewDate(const QDate &date, bool month)
 
 void LayoutOverviewDate::initDimensions() {
 	_maxw = st::normalFont->width(_text);
-	_minh = st::linksDateMargin + st::normalFont->height + st::linksDateMargin + st::linksBorder;
+	_minh = st::linksDateMargin.top() + st::normalFont->height + st::linksDateMargin.bottom() + st::linksBorder;
 }
 
 void LayoutOverviewDate::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
-	if (clip.intersects(QRect(0, st::linksDateMargin, _width, st::normalFont->height))) {
+	if (clip.intersects(QRect(0, st::linksDateMargin.top(), _width, st::normalFont->height))) {
 		p.setPen(st::linksDateColor);
-		p.setFont(st::normalFont);
-		p.drawTextLeft(0, st::linksDateMargin, _width, _text);
+		p.setFont(st::semiboldFont);
+		p.drawTextLeft(0, st::linksDateMargin.top(), _width, _text);
 	}
 }
 
@@ -629,12 +644,24 @@ void LayoutOverviewAudio::paint(Painter &p, const QRect &clip, uint32 selection,
 	if (clip.intersects(rtlrect(nameleft, statustop, namewidth, st::normalFont->height, _width))) {
 		p.setFont(st::normalFont);
 		p.setPen(selected ? st::mediaInFgSelected : st::mediaInFg);
+		int32 unreadx = nameleft;
 		if (_statusSize == FileStatusSizeLoaded || _statusSize == FileStatusSizeReady) {
 			textstyleSet(&(selected ? st::mediaInStyleSelected : st::mediaInStyle));
 			_details.drawLeftElided(p, nameleft, statustop, namewidth, _width);
 			textstyleRestore();
+			unreadx += _details.maxWidth();
 		} else {
-			p.drawTextLeft(nameleft, statustop, _width, _statusText);
+			int32 statusw = st::normalFont->width(_statusText);
+			p.drawTextLeft(nameleft, statustop, _width, _statusText, statusw);
+			unreadx += statusw;
+		}
+		if (_parent->isMediaUnread() && unreadx + st::mediaUnreadSkip + st::mediaUnreadSize <= _width) {
+			p.setPen(Qt::NoPen);
+			p.setBrush(selected ? st::msgFileInBgSelected : st::msgFileInBg);
+
+			p.setRenderHint(QPainter::HighQualityAntialiasing, true);
+			p.drawEllipse(rtlrect(unreadx + st::mediaUnreadSkip, statustop + st::mediaUnreadTop, st::mediaUnreadSize, st::mediaUnreadSize, _width));
+			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 		}
 	}
 }
@@ -715,6 +742,7 @@ LayoutOverviewDocument::LayoutOverviewDocument(DocumentData *document, HistoryIt
 , _data(document)
 , _msgl(new MessageLink(parent))
 , _namel(new DocumentOpenLink(_data))
+, _thumbForLoaded(false)
 , _name(documentName(_data))
 , _date(langDateTime(date(_data->date)))
 , _namew(st::semiboldFont->width(_name))
@@ -728,17 +756,17 @@ LayoutOverviewDocument::LayoutOverviewDocument(DocumentData *document, HistoryIt
 		_data->thumb->load();
 		int32 tw = _data->thumb->width(), th = _data->thumb->height();
 		if (tw > th) {
-			_thumbw = (tw * st::msgFileThumbSize) / th;
+			_thumbw = (tw * st::overviewFileSize) / th;
 		} else {
-			_thumbw = st::msgFileThumbSize;
+			_thumbw = st::overviewFileSize;
 		}
 	} else {
 		_thumbw = 0;
 	}
 
 	_extw = st::semiboldFont->width(_ext);
-	if (_extw > st::msgFileThumbSize - st::msgFileExtPadding * 2) {
-		_ext = st::semiboldFont->elided(_ext, st::msgFileThumbSize - st::msgFileExtPadding * 2, Qt::ElideMiddle);
+	if (_extw > st::overviewFileSize - st::msgFileExtPadding * 2) {
+		_ext = st::semiboldFont->elided(_ext, st::overviewFileSize - st::msgFileExtPadding * 2, Qt::ElideMiddle);
 		_extw = st::semiboldFont->width(_ext);
 	}
 }
@@ -748,7 +776,7 @@ void LayoutOverviewDocument::initDimensions() {
 	if (_data->song()) {
 		_minh = st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom();
 	} else {
-		_minh = st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom() + st::lineWidth;
+		_minh = st::overviewFilePadding.top() + st::overviewFileSize + st::overviewFilePadding.bottom() + st::lineWidth;
 	}
 }
 
@@ -817,39 +845,40 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 			p.drawSpriteCenter(inner, icon);
 		}
 	} else {
-		nameleft = st::msgFileThumbSize + st::msgFileThumbPadding.right();
-		nametop = st::linksBorder + st::msgFileThumbNameTop;
-		statustop = st::linksBorder + st::msgFileThumbStatusTop;
-		datetop = st::linksBorder + st::msgFileThumbLinkTop;
+		nameleft = st::overviewFileSize + st::overviewFilePadding.right();
+		nametop = st::linksBorder + st::overviewFileNameTop;
+		statustop = st::linksBorder + st::overviewFileStatusTop;
+		datetop = st::linksBorder + st::overviewFileDateTop;
 
-		QRect shadow(rtlrect(nameleft, 0, _width - nameleft, st::linksBorder, _width));
-		if (clip.intersects(shadow)) {
-			p.fillRect(clip.intersected(shadow), st::linksBorderFg);
+		const OverviewPaintContext *pcontext = context->toOverviewPaintContext();
+		t_assert(pcontext != 0);
+		QRect border(rtlrect(nameleft, 0, _width - nameleft, st::linksBorder, _width));
+		if (!pcontext->isAfterDate && clip.intersects(border)) {
+			p.fillRect(clip.intersected(border), st::linksBorderFg);
 		}
 
-		QRect rthumb(rtlrect(0, st::linksBorder + st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, _width));
+		QRect rthumb(rtlrect(0, st::linksBorder + st::overviewFilePadding.top(), st::overviewFileSize, st::overviewFileSize, _width));
 		if (clip.intersects(rthumb)) {
 			if (wthumb) {
 				if (_data->thumb->loaded()) {
-					QPixmap thumb = loaded ? _data->thumb->pixSingle(_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize) : _data->thumb->pixBlurredSingle(_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize);
-					p.drawPixmap(rthumb.topLeft(), thumb);
+					if (_thumb.isNull() || loaded != _thumbForLoaded) {
+						_thumbForLoaded = loaded;
+						_thumb = _data->thumb->pixNoCache(_thumbw, 0, true, !_thumbForLoaded, false, st::overviewFileSize, st::overviewFileSize);
+					}
+					p.drawPixmap(rthumb.topLeft(), _thumb);
 				} else {
-					App::roundRect(p, rthumb, st::black, BlackCorners);
+					p.fillRect(rthumb, st::black);
 				}
 			} else {
-				App::roundRect(p, rthumb, documentColor(_colorIndex), documentCorners(_colorIndex));
-				if (!radial && loaded) {
-					style::sprite icon = documentCorner(_colorIndex);
-					p.drawSprite(rthumb.topLeft() + QPoint(rtl() ? 0 : (rthumb.width() - icon.pxWidth()), 0), icon);
-					if (!_ext.isEmpty()) {
-						p.setFont(st::semiboldFont);
-						p.setPen(st::white);
-						p.drawText(rthumb.left() + (rthumb.width() - _extw) / 2, rthumb.top() + st::msgFileExtTop + st::semiboldFont->ascent, _ext);
-					}
+				p.fillRect(rthumb, documentColor(_colorIndex));
+				if (!radial && loaded && !_ext.isEmpty()) {
+					p.setFont(st::semiboldFont);
+					p.setPen(st::white);
+					p.drawText(rthumb.left() + (rthumb.width() - _extw) / 2, rthumb.top() + st::msgFileExtTop + st::semiboldFont->ascent, _ext);
 				}
 			}
 			if (selected) {
-				App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
+				p.fillRect(rthumb, textstyleCurrent()->selectOverlay);
 			}
 
 			if (radial || (!loaded && !_data->loading())) {
@@ -858,15 +887,19 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
                     float64 radialOpacity = (radial && loaded && !_data->uploading()) ? _radial->opacity() : 1;
 					p.setPen(Qt::NoPen);
 					if (selected) {
-						p.setBrush(st::msgDateImgBgSelected);
+						p.setBrush(wthumb ? st::msgDateImgBgSelected : documentSelectedColor(_colorIndex));
 					} else if (_a_iconOver.animating()) {
 						_a_iconOver.step(context->ms);
 						float64 over = a_iconOver.current();
-						p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
-						p.setBrush(st::black);
+						if (wthumb) {
+							p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
+							p.setBrush(st::black);
+						} else {
+							p.setBrush(style::interpolate(documentDarkColor(_colorIndex), documentOverColor(_colorIndex), over));
+						}
 					} else {
 						bool over = textlnkDrawOver(_data->loading() ? _cancell : _savel);
-						p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
+						p.setBrush(over ? (wthumb ? st::msgDateImgBgOver : documentOverColor(_colorIndex)) : (wthumb ? st::msgDateImgBg : documentDarkColor(_colorIndex)));
 					}
 					p.setOpacity(radialOpacity * p.opacity());
 
@@ -890,10 +923,10 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 					}
 				}
 			}
-			if (selected) {
-				p.drawSprite(rthumb.topLeft() + QPoint(rtl() ? 0 : (rthumb.width() - st::linksPhotoChecked.pxWidth()), rthumb.height() - st::linksPhotoChecked.pxHeight()), st::linksPhotoChecked);
-			} else if (context->selecting) {
-				p.drawSprite(rthumb.topLeft() + QPoint(rtl() ? 0 : (rthumb.width() - st::linksPhotoCheck.pxWidth()), rthumb.height() - st::linksPhotoCheck.pxHeight()), st::linksPhotoCheck);
+			if (selected || context->selecting) {
+				QRect check(rthumb.topLeft() + QPoint(rtl() ? 0 : (rthumb.width() - st::defaultCheckbox.diameter), rthumb.height() - st::defaultCheckbox.diameter), QSize(st::defaultCheckbox.diameter, st::defaultCheckbox.diameter));
+				p.fillRect(check, selected ? st::overviewFileChecked : st::overviewFileCheck);
+				p.drawSpriteCenter(check, st::defaultCheckbox.checkIcon);
 			}
 		}
 	}
@@ -946,12 +979,12 @@ void LayoutOverviewDocument::getState(TextLinkPtr &link, HistoryCursorState &cur
 			return;
 		}
 	} else {
-		nameleft = st::msgFileThumbSize + st::msgFileThumbPadding.right();
-		nametop = st::linksBorder + st::msgFileThumbNameTop;
-		statustop = st::linksBorder + st::msgFileThumbStatusTop;
-		datetop = st::linksBorder + st::msgFileThumbLinkTop;
+		nameleft = st::overviewFileSize + st::overviewFilePadding.right();
+		nametop = st::linksBorder + st::overviewFileNameTop;
+		statustop = st::linksBorder + st::overviewFileStatusTop;
+		datetop = st::linksBorder + st::overviewFileDateTop;
 
-		QRect rthumb(rtlrect(0, st::linksBorder + st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, _width));
+		QRect rthumb(rtlrect(0, st::linksBorder + st::overviewFilePadding.top(), st::overviewFileSize, st::overviewFileSize, _width));
 
 		if (rthumb.contains(x, y)) {
 			link = loaded ? _openl : ((_data->loading() || _data->status == FileUploading) ? _cancell : _savel);
@@ -1150,7 +1183,7 @@ void LayoutOverviewLink::initDimensions() {
 		_minh += qMin(3 * st::normalFont->height, _text.countHeight(_maxw - st::dlgPhotoSize - st::dlgPhotoPadding));
 	}
 	_minh += _links.size() * st::normalFont->height;
-	_minh = qMax(_minh, int32(st::dlgPhotoSize)) + st::linksMargin * 2 + st::linksBorder;
+	_minh = qMax(_minh, int32(st::dlgPhotoSize)) + st::linksMargin.top() + st::linksMargin.bottom() + st::linksBorder;
 }
 
 int32 LayoutOverviewLink::resizeGetHeight(int32 width) {
@@ -1168,12 +1201,12 @@ int32 LayoutOverviewLink::resizeGetHeight(int32 width) {
 		_height += qMin(3 * st::normalFont->height, _text.countHeight(_width - st::dlgPhotoSize - st::dlgPhotoPadding));
 	}
 	_height += _links.size() * st::normalFont->height;
-	_height = qMax(_height, int32(st::dlgPhotoSize)) + st::linksMargin * 2 + st::linksBorder;
+	_height = qMax(_height, int32(st::dlgPhotoSize)) + st::linksMargin.top() + st::linksMargin.bottom() + st::linksBorder;
 	return _height;
 }
 
 void LayoutOverviewLink::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
-	int32 left = st::dlgPhotoSize + st::dlgPhotoPadding, top = st::linksMargin + st::linksBorder, w = _width - left;
+	int32 left = st::dlgPhotoSize + st::dlgPhotoPadding, top = st::linksMargin.top() + st::linksBorder, w = _width - left;
 	if (clip.intersects(rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width))) {
 		if (_page && _page->photo) {
 			QPixmap pix;
@@ -1213,6 +1246,8 @@ void LayoutOverviewLink::paint(Painter &p, const QRect &clip, uint32 selection, 
 
 	if (!_title.isEmpty() && _text.isEmpty() && _links.size() == 1) {
 		top += (st::dlgPhotoSize - st::semiboldFont->height - st::normalFont->height) / 2;
+	} else {
+		top = st::linksTextTop;
 	}
 
 	p.setPen(st::black);
@@ -1241,13 +1276,16 @@ void LayoutOverviewLink::paint(Painter &p, const QRect &clip, uint32 selection, 
 		top += st::normalFont->height;
 	}
 
-	if (clip.intersects(rtlrect(left, 0, w, st::linksBorder, _width))) {
-		p.fillRect(clip.intersected(rtlrect(left, 0, w, st::linksBorder, _width)), st::linksBorderFg);
+	const OverviewPaintContext *pcontext = context->toOverviewPaintContext();
+	t_assert(pcontext != 0);
+	QRect border(rtlrect(left, 0, w, st::linksBorder, _width));
+	if (!pcontext->isAfterDate && clip.intersects(border)) {
+		p.fillRect(clip.intersected(border), st::linksBorderFg);
 	}
 }
 
 void LayoutOverviewLink::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
-	int32 left = st::dlgPhotoSize + st::dlgPhotoPadding, top = st::linksMargin + st::linksBorder, w = _width - left;
+	int32 left = st::dlgPhotoSize + st::dlgPhotoPadding, top = st::linksMargin.top() + st::linksBorder, w = _width - left;
 	if (rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width).contains(x, y)) {
 		link = _photol;
 		return;
@@ -1809,6 +1847,7 @@ void LayoutInlinePhoto::content_forget() {
 
 LayoutInlineWebVideo::LayoutInlineWebVideo(InlineResult *result) : LayoutInlineItem(result, 0, 0)
 , _send(new SendInlineItemLink())
+, _link(result->content_url.isEmpty() ? 0 : linkFromUrl(result->content_url))
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
 	if (_result->duration) {
@@ -1866,8 +1905,13 @@ void LayoutInlineWebVideo::paint(Painter &p, const QRect &clip, uint32 selection
 }
 
 void LayoutInlineWebVideo::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
-	if (x >= 0 && x < _width && y >= 0 && y < _height) {
+	if (x >= 0 && x < st::inlineThumbSize && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::inlineThumbSize) {
+		link = _link;
+		return;
+	}
+	if (x >= st::inlineThumbSize + st::inlineThumbSkip && x < _width && y >= 0 && y < _height) {
 		link = _send;
+		return;
 	}
 }
 
@@ -1896,6 +1940,7 @@ void LayoutInlineWebVideo::prepareThumb(int32 width, int32 height) const {
 LayoutInlineArticle::LayoutInlineArticle(InlineResult *result, bool withThumb) : LayoutInlineItem(result, 0, 0)
 , _send(new SendInlineItemLink())
 , _url(result->url.isEmpty() ? 0 : linkFromUrl(result->url))
+, _link(result->content_url.isEmpty() ? 0 : linkFromUrl(result->content_url))
 , _withThumb(withThumb)
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
@@ -1995,7 +2040,12 @@ void LayoutInlineArticle::paint(Painter &p, const QRect &clip, uint32 selection,
 }
 
 void LayoutInlineArticle::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
-	if (x >= 0 && x < _width && y >= 0 && y < _height) {
+	int32 left = _withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0;
+	if (x >= 0 && x < left - st::inlineThumbSkip && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::inlineThumbSize) {
+		link = _link;
+		return;
+	}
+	if (x >= left && x < _width && y >= 0 && y < _height) {
 		if (_url) {
 			int32 left = st::inlineThumbSize + st::inlineThumbSkip;
 			int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
@@ -2007,6 +2057,7 @@ void LayoutInlineArticle::getState(TextLinkPtr &link, HistoryCursorState &cursor
 			}
 		}
 		link = _send;
+		return;
 	}
 }
 

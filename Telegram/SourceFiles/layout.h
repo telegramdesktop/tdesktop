@@ -75,9 +75,13 @@ QString formatPlayedText(qint64 played, qint64 duration);
 QString documentName(DocumentData *document);
 int32 documentColorIndex(DocumentData *document, QString &ext);
 style::color documentColor(int32 colorIndex);
+style::color documentDarkColor(int32 colorIndex);
+style::color documentOverColor(int32 colorIndex);
+style::color documentSelectedColor(int32 colorIndex);
 style::sprite documentCorner(int32 colorIndex);
 RoundCorners documentCorners(int32 colorIndex);
 
+class OverviewPaintContext;
 class InlinePaintContext;
 class PaintContext {
 public:
@@ -86,6 +90,10 @@ public:
 	}
 	uint64 ms;
 	bool selecting;
+
+	virtual const OverviewPaintContext *toOverviewPaintContext() const {
+		return 0;
+	}
 	virtual const InlinePaintContext *toInlinePaintContext() const {
 		return 0;
 	}
@@ -257,6 +265,17 @@ protected:
 
 };
 
+class OverviewPaintContext : public PaintContext {
+public:
+	OverviewPaintContext(uint64 ms, bool selecting) : PaintContext(ms, selecting), isAfterDate(false) {
+	}
+	const OverviewPaintContext *toOverviewPaintContext() const {
+		return this;
+	}
+	bool isAfterDate;
+
+};
+
 class OverviewItemInfo {
 public:
 	OverviewItemInfo() : _top(0) {
@@ -267,7 +286,7 @@ public:
 	void setTop(int32 top) {
 		_top = top;
 	}
-	
+
 private:
 	int32 _top;
 
@@ -276,7 +295,7 @@ private:
 class LayoutOverviewDate : public LayoutItem {
 public:
 	LayoutOverviewDate(const QDate &date, bool month);
-	
+
 	virtual void initDimensions();
 	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
 
@@ -426,6 +445,9 @@ private:
 	DocumentData *_data;
 	TextLinkPtr _msgl, _namel;
 
+	mutable bool _thumbForLoaded;
+	mutable QPixmap _thumb;
+
 	QString _name, _date, _ext;
 	int32 _namew, _datew, _extw;
 	int32 _thumbw, _colorIndex;
@@ -492,7 +514,7 @@ class LayoutInlineItem : public LayoutItem {
 public:
 
 	LayoutInlineItem(InlineResult *result, DocumentData *doc, PhotoData *photo);
-	
+
 	virtual void setPosition(int32 position);
 	int32 position() const;
 
@@ -644,7 +666,7 @@ public:
 
 private:
 
-	TextLinkPtr _send;
+	TextLinkPtr _send, _link;
 
 	mutable QPixmap _thumb;
 	Text _title, _description;
@@ -667,7 +689,7 @@ public:
 
 private:
 
-	TextLinkPtr _send, _url;
+	TextLinkPtr _send, _url, _link;
 
 	bool _withThumb;
 	mutable QPixmap _thumb;

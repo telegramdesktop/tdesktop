@@ -1680,6 +1680,7 @@ public:
 	}
 
 	void initDimensions(const HistoryItem *parent);
+	int32 resize(int32 width, const HistoryItem *parent);
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
@@ -1979,7 +1980,7 @@ public:
 
 	UserData *bot;
 	QString text;
-	int32 width, fullWidth;
+	int32 width, maxWidth;
 	TextLinkPtr lnk;
 
 };
@@ -2164,7 +2165,7 @@ public:
 	}
 	QString selectedText(uint32 selection) const;
 	bool displayForwardedFrom() const {
-		return (!_media || !_media->isDisplayed() || !_media->hideForwardedFrom());
+		return via() || !_media || !_media->isDisplayed() || !_media->hideForwardedFrom();
 	}
 
 	HistoryForwarded *toHistoryForwarded() {
@@ -2207,6 +2208,7 @@ public:
 	void drawReplyTo(Painter &p, int32 x, int32 y, int32 w, bool selected, bool likeService = false) const;
 	void drawMessageText(Painter &p, QRect trect, uint32 selection) const;
 	int32 resize(int32 width);
+	void resizeVia(int32 w) const;
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
 	void getStateFromMessageText(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const QRect &r) const;
@@ -2234,6 +2236,10 @@ protected:
 	mutable Text replyToName, replyToText;
 	mutable int32 replyToVersion;
 	mutable int32 _maxReplyWidth;
+	HistoryMessageVia *_replyToVia;
+	HistoryMessageVia *replyToVia() const {
+		return (_replyToVia && !_replyToVia->isNull()) ? _replyToVia : 0;
+	}
 	int32 toWidth;
 
 };

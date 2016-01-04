@@ -1663,14 +1663,14 @@ void StickerPanInner::refreshStickers() {
 	updateSelected();
 }
 
-void StickerPanInner::inlineRowsAddItem(DocumentData *savedGif, InlineResult *result, InlineRow &row, int32 &sumWidth) {
+bool StickerPanInner::inlineRowsAddItem(DocumentData *savedGif, InlineResult *result, InlineRow &row, int32 &sumWidth) {
 	LayoutInlineItem *layout = 0;
 	if (savedGif) {
 		layout = layoutPrepareSavedGif(savedGif, (_inlineRows.size() * MatrixRowShift) + row.items.size());
 	} else if (result) {
 		layout = layoutPrepareInlineResult(result, (_inlineRows.size() * MatrixRowShift) + row.items.size());
 	}
-	if (!layout) return;
+	if (!layout) return false;
 
 	layout->preload();
 	if (inlineRowFinalize(row, sumWidth, layout->fullLine())) {
@@ -1678,6 +1678,7 @@ void StickerPanInner::inlineRowsAddItem(DocumentData *savedGif, InlineResult *re
 	}
 	row.items.push_back(layout);
 	sumWidth += layout->maxWidth();
+	return true;
 }
 
 bool StickerPanInner::inlineRowFinalize(InlineRow &row, int32 &sumWidth, bool force) {
@@ -1770,7 +1771,7 @@ LayoutInlineItem *StickerPanInner::layoutPrepareInlineResult(InlineResult *resul
 			layout = new LayoutInlineGif(result, 0, false);
 		} else if (result->type == qstr("photo")) {
 			layout = new LayoutInlinePhoto(result, 0);
-		} else if (result->type == qstr("web_player_video")) {
+		} else if (result->type == qstr("video")) {
 			layout = new LayoutInlineWebVideo(result);
 		} else if (result->type == qstr("article")) {
 			layout = new LayoutInlineArticle(result, _inlineWithThumb);
@@ -1901,14 +1902,14 @@ void StickerPanInner::clearInlineRowsPanel() {
 	clearInlineRows(false);
 }
 
-void StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &results, bool resultsDeleted) {
+int32 StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &results, bool resultsDeleted) {
 	_inlineBot = bot;
 	if (results.isEmpty() && (!_inlineBot || _inlineBot->username != cInlineGifBotUsername())) {
 		if (resultsDeleted) {
 			clearInlineRows(true);
 		}
 		emit emptyInlineRows();
-		return;
+		return 0;
 	}
 
 	if (_showingInlineItems) {
@@ -1921,7 +1922,7 @@ void StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &resu
 	_showingInlineItems = true;
 	_showingSavedGifs = false;
 
-	int32 count = results.size(), from = validateExistingInlineRows(results);
+	int32 count = results.size(), from = validateExistingInlineRows(results), added = 0;
 
 	if (count) {
 		_inlineRows.reserve(count);
@@ -1929,7 +1930,9 @@ void StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &resu
 		row.items.reserve(SavedGifsMaxPerRow);
 		int32 sumWidth = 0;
 		for (int32 i = from; i < count; ++i) {
-			inlineRowsAddItem(0, results.at(i), row, sumWidth);
+			if (inlineRowsAddItem(0, results.at(i), row, sumWidth)) {
+				++added;
+			}
 		}
 		inlineRowFinalize(row, sumWidth, true);
 	}
@@ -1943,6 +1946,8 @@ void StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &resu
 		_lastMousePos = QCursor::pos();
 		updateSelected();
 	}
+
+	return added;
 }
 
 int32 StickerPanInner::validateExistingInlineRows(const InlineResults &results) {
@@ -3722,7 +3727,10 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 	} else if (adding) {
 		it.value()->nextOffset = QString();
 	}
-	showInlineRows(!adding);
+
+	if (!showInlineRows(!adding)) {
+		it.value()->nextOffset = QString();
+	}
 	onScroll();
 }
 
@@ -3782,7 +3790,7 @@ void EmojiPan::onEmptyInlineRows() {
 	}
 }
 
-bool EmojiPan::refreshInlineRows() {
+bool EmojiPan::refreshInlineRows(int32 *added) {
 	bool clear = true;
 	InlineCache::const_iterator i = _inlineCache.constFind(_inlineQuery);
 	if (i != _inlineCache.cend()) {
@@ -3790,12 +3798,14 @@ bool EmojiPan::refreshInlineRows() {
 		_inlineNextOffset = i.value()->nextOffset;
 	}
 	if (clear) prepareShowHideCache();
-	s_inner.refreshInlineRows(_inlineBot, clear ? InlineResults() : i.value()->results, false);
+	int32 result = s_inner.refreshInlineRows(_inlineBot, clear ? InlineResults() : i.value()->results, false);
+	if (added) *added = result;
 	return !clear;
 }
 
-void EmojiPan::showInlineRows(bool newResults) {
-	bool clear = !refreshInlineRows();
+int32 EmojiPan::showInlineRows(bool newResults) {
+	int32 added = 0;
+	bool clear = !refreshInlineRows(&added);
 	if (newResults) s_scroll.scrollToY(0);
 
 	e_switch.updateText(clear ? QString() : _inlineBot->username);
@@ -3819,6 +3829,8 @@ void EmojiPan::showInlineRows(bool newResults) {
 			onSwitch();
 		}
 	}
+
+	return added;
 }
 
 void EmojiPan::recountContentMaxHeight() {

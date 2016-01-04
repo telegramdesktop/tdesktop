@@ -344,7 +344,7 @@ public:
 	void refreshStickers();
 	void refreshRecentStickers(bool resize = true);
 	void refreshSavedGifs();
-	void refreshInlineRows(UserData *bot, const InlineResults &results, bool resultsDeleted);
+	int32 refreshInlineRows(UserData *bot, const InlineResults &results, bool resultsDeleted);
 	void refreshRecent();
 	void inlineBotChanged();
 	void hideInlineRowsPanel();
@@ -458,7 +458,7 @@ private:
 	InlineLayouts _inlineLayouts;
 	LayoutInlineItem *layoutPrepareInlineResult(InlineResult *result, int32 position);
 
-	void inlineRowsAddItem(DocumentData *savedGif, InlineResult *result, InlineRow &row, int32 &sumWidth);
+	bool inlineRowsAddItem(DocumentData *savedGif, InlineResult *result, InlineRow &row, int32 &sumWidth);
 	bool inlineRowFinalize(InlineRow &row, int32 &sumWidth, bool force = false);
 
 	InlineRow &layoutInlineRow(InlineRow &row, int32 sumWidth = 0);
@@ -712,10 +712,10 @@ private:
 	QTimer _inlineRequestTimer;
 
 	void inlineBotChanged();
-	void showInlineRows(bool newResults);
+	int32 showInlineRows(bool newResults);
 	bool hideOnNoInlineResults();
 	void recountContentMaxHeight();
-	bool refreshInlineRows();
+	bool refreshInlineRows(int32 *added = 0);
 	UserData *_inlineBot;
 	QString _inlineQuery, _inlineNextQuery, _inlineNextOffset;
 	mtpRequestId _inlineRequestId;

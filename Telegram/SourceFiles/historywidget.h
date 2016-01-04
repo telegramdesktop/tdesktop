@@ -682,6 +682,8 @@ public slots:
 	void onRecordDone(QByteArray result, qint32 samples);
 	void onRecordUpdate(qint16 level, qint32 samples);
 
+	void onUpdateHistoryItems();
+
 private:
 
 	MsgId _replyToId;
@@ -770,6 +772,10 @@ private:
 	HistoryInner *_list;
 	History *_migrated, *_history;
 	bool _histInited; // initial updateListSize() called
+
+	int32 _lastScroll;
+	uint64 _lastScrolled;
+	QTimer _updateHistoryItems; // gifs optimization
 
 	IconedButton _toHistoryEnd;
 	CollapseButton _collapseComments;
