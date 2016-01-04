@@ -7022,7 +7022,7 @@ void HistoryReply::initDimensions() {
 	if (!_media) {
 		int32 replyw = st::msgPadding.left() + _maxReplyWidth - st::msgReplyPadding.left() - st::msgReplyPadding.right() + st::msgPadding.right();
 		if (replyToVia()) {
-			replyw += st::msgServiceFont->spacew + via()->maxWidth;
+			replyw += st::msgServiceFont->spacew + replyToVia()->maxWidth;
 		}
 		if (replyw > _maxw) _maxw = replyw;
 	}
