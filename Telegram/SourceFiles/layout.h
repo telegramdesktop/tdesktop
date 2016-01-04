@@ -666,7 +666,7 @@ public:
 
 private:
 
-	TextLinkPtr _send;
+	TextLinkPtr _send, _link;
 
 	mutable QPixmap _thumb;
 	Text _title, _description;
@@ -689,7 +689,7 @@ public:
 
 private:
 
-	TextLinkPtr _send, _url;
+	TextLinkPtr _send, _url, _link;
 
 	bool _withThumb;
 	mutable QPixmap _thumb;

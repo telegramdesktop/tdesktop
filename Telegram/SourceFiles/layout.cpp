@@ -1847,6 +1847,7 @@ void LayoutInlinePhoto::content_forget() {
 
 LayoutInlineWebVideo::LayoutInlineWebVideo(InlineResult *result) : LayoutInlineItem(result, 0, 0)
 , _send(new SendInlineItemLink())
+, _link(result->content_url.isEmpty() ? 0 : linkFromUrl(result->content_url))
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
 	if (_result->duration) {
@@ -1904,8 +1905,13 @@ void LayoutInlineWebVideo::paint(Painter &p, const QRect &clip, uint32 selection
 }
 
 void LayoutInlineWebVideo::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
-	if (x >= 0 && x < _width && y >= 0 && y < _height) {
+	if (x >= 0 && x < st::inlineThumbSize && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::inlineThumbSize) {
+		link = _link;
+		return;
+	}
+	if (x >= st::inlineThumbSize + st::inlineThumbSkip && x < _width && y >= 0 && y < _height) {
 		link = _send;
+		return;
 	}
 }
 
@@ -1934,6 +1940,7 @@ void LayoutInlineWebVideo::prepareThumb(int32 width, int32 height) const {
 LayoutInlineArticle::LayoutInlineArticle(InlineResult *result, bool withThumb) : LayoutInlineItem(result, 0, 0)
 , _send(new SendInlineItemLink())
 , _url(result->url.isEmpty() ? 0 : linkFromUrl(result->url))
+, _link(result->content_url.isEmpty() ? 0 : linkFromUrl(result->content_url))
 , _withThumb(withThumb)
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
@@ -2033,7 +2040,12 @@ void LayoutInlineArticle::paint(Painter &p, const QRect &clip, uint32 selection,
 }
 
 void LayoutInlineArticle::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
-	if (x >= 0 && x < _width && y >= 0 && y < _height) {
+	int32 left = _withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0;
+	if (x >= 0 && x < left - st::inlineThumbSkip && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::inlineThumbSize) {
+		link = _link;
+		return;
+	}
+	if (x >= left && x < _width && y >= 0 && y < _height) {
 		if (_url) {
 			int32 left = st::inlineThumbSize + st::inlineThumbSkip;
 			int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
@@ -2045,6 +2057,7 @@ void LayoutInlineArticle::getState(TextLinkPtr &link, HistoryCursorState &cursor
 			}
 		}
 		link = _send;
+		return;
 	}
 }
 
