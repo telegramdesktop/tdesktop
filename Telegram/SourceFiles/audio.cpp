@@ -97,11 +97,6 @@ bool _checkALError() {
 Q_DECLARE_METATYPE(AudioMsgId);
 Q_DECLARE_METATYPE(SongMsgId);
 void audioInit() {
-	if (!audioDevice) {
-		av_register_all();
-		avcodec_register_all();
-	}
-
 	if (!capture) {
 		capture = new AudioCapture();
 		cSetHasAudioCapture(capture->check());
@@ -114,7 +109,7 @@ void audioInit() {
 		LOG(("Audio Error: default sound device not present."));
 		return;
 	}
-	
+
 	ALCint attributes[] = { ALC_STEREO_SOURCES, 8, 0 };
 	audioContext = alcCreateContext(audioDevice, attributes);
 	alcMakeContextCurrent(audioContext);
@@ -516,7 +511,7 @@ void AudioPlayer::play(const SongMsgId &song, int64 position) {
 
 bool AudioPlayer::checkCurrentALError(MediaOverviewType type) {
 	if (_checkALError()) return true;
-	
+
 	switch (type) {
 	case OverviewAudios:
 		setStoppedState(&_audioData[_audioCurrent], AudioPlayerStoppedAtError);
@@ -1091,7 +1086,7 @@ protected:
 
 	QFile f;
 	int32 dataPos;
-	
+
 	bool openFile() {
 		if (data.isEmpty()) {
 			if (f.isOpen()) f.close();
@@ -1884,7 +1879,7 @@ void AudioCaptureInner::onInit() {
 }
 
 void AudioCaptureInner::onStart() {
-	
+
 	// Start OpenAL Capture
     const ALCchar *dName = alcGetString(0, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER);
     DEBUG_LOG(("Audio Info: Capture device name '%1'").arg(dName));
@@ -1905,7 +1900,7 @@ void AudioCaptureInner::onStart() {
 	// Create encoding context
 
 	d->ioBuffer = (uchar*)av_malloc(AVBlockSize);
-	
+
 	d->ioContext = avio_alloc_context(d->ioBuffer, AVBlockSize, 1, static_cast<void*>(d), &AudioCapturePrivate::_read_data, &AudioCapturePrivate::_write_data, &AudioCapturePrivate::_seek_data);
 	int res = 0;
 	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
@@ -2390,7 +2385,7 @@ public:
 	QString title() {
 		return _title;
 	}
-	
+
 	QString performer() {
 		return _performer;
 	}

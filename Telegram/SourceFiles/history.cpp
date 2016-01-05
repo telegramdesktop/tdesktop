@@ -4596,18 +4596,15 @@ void HistoryGif::draw(Painter &p, const HistoryItem *parent, const QRect &r, boo
 			p.setFont(st::normalFont);
 			p.setPen(st::white);
 			p.drawTextLeft(statusX, statusY, _width, _statusText, statusW - 2 * st::msgDateImgPadding.x());
-
-			// date
-			if (_caption.isEmpty() && parent->getMedia() == this) {
-				int32 fullRight = skipx + width, fullBottom = skipy + height;
-				parent->drawInfo(p, fullRight, fullBottom, 2 * skipx + width, selected, InfoDisplayOverImage);
-			}
 		}
 	}
 
 	if (!_caption.isEmpty()) {
 		p.setPen(st::black);
 		_caption.draw(p, st::msgPadding.left(), skipy + height + st::mediaPadding.bottom() + st::mediaCaptionSkip, captionw);
+	} else if (parent->getMedia() == this) {
+		int32 fullRight = skipx + width, fullBottom = skipy + height;
+		parent->drawInfo(p, fullRight, fullBottom, 2 * skipx + width, selected, InfoDisplayOverImage);
 	}
 }
 
