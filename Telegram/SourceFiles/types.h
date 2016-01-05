@@ -132,10 +132,10 @@ inline void mylocaltime(struct tm * _Tm, const time_t * _Time) {
 #endif
 }
 
-class InitOpenSSL {
+class LibrariesInitializer {
 public:
-	InitOpenSSL();
-	~InitOpenSSL();
+	LibrariesInitializer();
+	~LibrariesInitializer();
 };
 
 bool checkms(); // returns true if time has changed
@@ -143,7 +143,7 @@ uint64 getms(bool checked = false);
 
 class SingleTimer : public QTimer { // single shot timer with check
 	Q_OBJECT
-	
+
 public:
 
 	SingleTimer();

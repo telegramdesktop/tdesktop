@@ -264,7 +264,7 @@ public:
 	}
 
 	void paintDialog(Painter &p, int32 w, bool sel) const;
-	bool updateTyping(uint64 ms = 0, uint32 dots = 0, bool force = false);
+	bool updateTyping(uint64 ms, bool force = false);
 	void clearLastKeyboard();
 
 	typedef QList<HistoryBlock*> Blocks;
@@ -310,7 +310,7 @@ public:
 	SendActionUsers sendActions;
 	QString typingStr;
 	Text typingText;
-	uint32 typingFrame;
+	uint32 typingDots;
 	QMap<SendActionType, uint64> mySendActions;
 
 	typedef QList<MsgId> MediaOverview;
@@ -1323,15 +1323,12 @@ public:
 		return _caption.original();
 	}
 	bool needsBubble(const HistoryItem *parent) const {
-		return !_caption.isEmpty() || parent->toHistoryReply() || parent->viaBot();
+		return !_caption.isEmpty() || parent->toHistoryForwarded() || parent->toHistoryReply() || parent->viaBot();
 	}
 	bool customInfoLayout() const {
 		return _caption.isEmpty();
 	}
 	bool hideFromName() const {
-		return true;
-	}
-	bool hideForwardedFrom() const {
 		return true;
 	}
 
@@ -1392,15 +1389,12 @@ public:
 	ImagePtr replyPreview();
 
 	bool needsBubble(const HistoryItem *parent) const {
-		return !_caption.isEmpty() || parent->toHistoryReply() || parent->viaBot();
+		return !_caption.isEmpty() || parent->toHistoryForwarded() || parent->toHistoryReply() || parent->viaBot();
 	}
 	bool customInfoLayout() const {
 		return _caption.isEmpty();
 	}
 	bool hideFromName() const {
-		return true;
-	}
-	bool hideForwardedFrom() const {
 		return true;
 	}
 
@@ -1628,15 +1622,12 @@ public:
 		return _caption.original();
 	}
 	bool needsBubble(const HistoryItem *parent) const {
-		return !_caption.isEmpty() || parent->toHistoryReply() || parent->viaBot();
+		return !_caption.isEmpty() || parent->toHistoryForwarded() || parent->toHistoryReply() || parent->viaBot();
 	}
 	bool customInfoLayout() const {
 		return _caption.isEmpty();
 	}
 	bool hideFromName() const {
-		return true;
-	}
-	bool hideForwardedFrom() const {
 		return true;
 	}
 
@@ -2165,7 +2156,7 @@ public:
 	}
 	QString selectedText(uint32 selection) const;
 	bool displayForwardedFrom() const {
-		return via() || !_media || !_media->isDisplayed() || !_media->hideForwardedFrom();
+		return via() || !_media || !_media->isDisplayed() || (fwdFrom->isChannel() || !_media->hideForwardedFrom());
 	}
 
 	HistoryForwarded *toHistoryForwarded() {
