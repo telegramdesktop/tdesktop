@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
     //signal(SIGSEGV, _sigsegvHandler);
 #endif
 
-	InitOpenSSL _init;
+	LibrariesInitializer _init;
 
 	settingsParseArgs(argc, argv);
 	for (int32 i = 0; i < argc; ++i) {

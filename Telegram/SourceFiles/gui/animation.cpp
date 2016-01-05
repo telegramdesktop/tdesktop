@@ -484,7 +484,7 @@ public:
 	, _frameDelay(0) {
 	}
 
-	bool readNextFrame(QImage &to, bool &hasAlpha, const QSize &size) {
+	bool readNextFrame() {
 		if (_reader) _frameDelay = _reader->nextImageDelay();
 		if (_framesLeft < 1 && !jumpToStart()) {
 			return false;

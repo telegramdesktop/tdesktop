@@ -99,7 +99,7 @@ namespace {
 		clock_gettime(CLOCK_REALTIME, &ts);
 		_msgIdMsStart = 1000000000 * uint64(ts.tv_sec) + uint64(ts.tv_nsec);
 #endif
-        
+
 		uint32 msgIdRand;
 		memset_rand(&msgIdRand, sizeof(uint32));
 		_msgIdStart = (((uint64)((uint32)unixtime()) << 32) | (uint64)msgIdRand);
@@ -187,6 +187,32 @@ namespace {
 		delete l;
 	}
 
+	int _ffmpegLockManager(void **mutex, AVLockOp op) {
+		switch (op) {
+		case AV_LOCK_CREATE: {
+			t_assert(*mutex == 0);
+			*mutex = reinterpret_cast<void*>(new QMutex());
+		} break;
+
+		case AV_LOCK_OBTAIN: {
+			t_assert(*mutex != 0);
+			reinterpret_cast<QMutex*>(*mutex)->lock();
+		} break;
+
+		case AV_LOCK_RELEASE: {
+			t_assert(*mutex != 0);
+			reinterpret_cast<QMutex*>(*mutex)->unlock();
+		}; break;
+
+		case AV_LOCK_DESTROY: {
+			t_assert(*mutex != 0);
+			delete reinterpret_cast<QMutex*>(*mutex);
+			*mutex = 0;
+		} break;
+		}
+		return 0;
+	}
+
 	float64 _msFreq;
 	float64 _msgIdCoef;
     int64 _msStart = 0, _msAddToMsStart = 0, _msAddToUnixtime = 0;
@@ -238,7 +264,7 @@ namespace {
 	_MsStarter _msStarter;
 }
 
-InitOpenSSL::InitOpenSSL() {
+LibrariesInitializer::LibrariesInitializer() {
 	if (!RAND_status()) { // should be always inited in all modern OS
 		char buf[16];
 		memcpy(buf, &_msStart, 8);
@@ -262,10 +288,17 @@ InitOpenSSL::InitOpenSSL() {
 	CRYPTO_set_dynlock_lock_callback(_sslLockFunction);
 	CRYPTO_set_dynlock_destroy_callback(_sslDestroyFunction);
 
+	av_register_all();
+	avcodec_register_all();
+
+	av_lockmgr_register(_ffmpegLockManager);
+
 	_sslInited = true;
 }
 
-InitOpenSSL::~InitOpenSSL() {
+LibrariesInitializer::~LibrariesInitializer() {
+	av_lockmgr_register(0);
+
 	delete[] _sslLocks;
 	_sslLocks = 0;
 }
@@ -640,10 +673,7 @@ char *hashMd5Hex(const int32 *hashmd5, void *dest) {
 }
 
 void memset_rand(void *data, uint32 len) {
-	if (!_sslInited) {
-		LOG(("Critical Error: memset_rand() called before OpenSSL init!"));
-		exit(-1);
-	}
+	t_assert(_sslInited);
 	RAND_bytes((uchar*)data, len);
 }
 
