@@ -1323,15 +1323,12 @@ public:
 		return _caption.original();
 	}
 	bool needsBubble(const HistoryItem *parent) const {
-		return !_caption.isEmpty() || parent->toHistoryReply() || parent->viaBot();
+		return !_caption.isEmpty() || parent->toHistoryForwarded() || parent->toHistoryReply() || parent->viaBot();
 	}
 	bool customInfoLayout() const {
 		return _caption.isEmpty();
 	}
 	bool hideFromName() const {
-		return true;
-	}
-	bool hideForwardedFrom() const {
 		return true;
 	}
 
@@ -1392,15 +1389,12 @@ public:
 	ImagePtr replyPreview();
 
 	bool needsBubble(const HistoryItem *parent) const {
-		return !_caption.isEmpty() || parent->toHistoryReply() || parent->viaBot();
+		return !_caption.isEmpty() || parent->toHistoryForwarded() || parent->toHistoryReply() || parent->viaBot();
 	}
 	bool customInfoLayout() const {
 		return _caption.isEmpty();
 	}
 	bool hideFromName() const {
-		return true;
-	}
-	bool hideForwardedFrom() const {
 		return true;
 	}
 
@@ -1628,15 +1622,12 @@ public:
 		return _caption.original();
 	}
 	bool needsBubble(const HistoryItem *parent) const {
-		return !_caption.isEmpty() || parent->toHistoryReply() || parent->viaBot();
+		return !_caption.isEmpty() || parent->toHistoryForwarded() || parent->toHistoryReply() || parent->viaBot();
 	}
 	bool customInfoLayout() const {
 		return _caption.isEmpty();
 	}
 	bool hideFromName() const {
-		return true;
-	}
-	bool hideForwardedFrom() const {
 		return true;
 	}
 
@@ -2165,7 +2156,7 @@ public:
 	}
 	QString selectedText(uint32 selection) const;
 	bool displayForwardedFrom() const {
-		return via() || !_media || !_media->isDisplayed() || !_media->hideForwardedFrom();
+		return via() || !_media || !_media->isDisplayed() || (fwdFrom->isChannel() || !_media->hideForwardedFrom());
 	}
 
 	HistoryForwarded *toHistoryForwarded() {
