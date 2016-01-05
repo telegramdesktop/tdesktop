@@ -4575,7 +4575,7 @@ void HistoryGif::draw(Painter &p, const HistoryItem *parent, const QRect &r, boo
 		if (_data->loaded() && !radial) {
 			icon = (selected ? st::msgFileInPlaySelected : st::msgFileInPlay);
 		} else if (radial || _data->loading()) {
-			if (parent->id > 0) {
+			if (parent->id > 0 || _data->uploading()) {
 				icon = (selected ? st::msgFileInCancelSelected : st::msgFileInCancel);
 			}
 		} else {

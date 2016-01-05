@@ -189,18 +189,25 @@ QPixmap _prepareFrame(const ClipFrameRequest &request, const QImage &original, b
 	bool needOuter = (request.outerw != request.framew) || (request.outerh != request.frameh);
 	if (badSize || needOuter || hasAlpha || request.rounded) {
 		int32 factor(request.factor);
-		bool fill = false;
-		if (cache.width() != request.outerw || cache.height() != request.outerh) {
+		bool newcache = (cache.width() != request.outerw || cache.height() != request.outerh);
+		if (newcache) {
 			cache = QImage(request.outerw, request.outerh, QImage::Format_ARGB32_Premultiplied);
-			if (request.framew < request.outerw || request.frameh < request.outerh || hasAlpha) {
-				fill = true;
-			}
 			cache.setDevicePixelRatio(factor);
 		}
 		{
 			Painter p(&cache);
-			if (fill) {
-				p.fillRect(0, 0, cache.width() / factor, cache.height() / factor, st::black);
+			if (newcache) {
+				if (request.framew < request.outerw) {
+					p.fillRect(0, 0, (request.outerw - request.framew) / (2 * factor), cache.height() / factor, st::black);
+					p.fillRect((request.outerw - request.framew) / (2 * factor) + (request.framew / factor), 0, (cache.width() / factor) - ((request.outerw - request.framew) / (2 * factor) + (request.framew / factor)), cache.height() / factor, st::black);
+				}
+				if (request.frameh < request.outerh) {
+					p.fillRect(qMax(0, (request.outerw - request.framew) / (2 * factor)), 0, qMin(cache.width(), request.framew) / factor, (request.outerh - request.frameh) / (2 * factor), st::black);
+					p.fillRect(qMax(0, (request.outerw - request.framew) / (2 * factor)), (request.outerh - request.frameh) / (2 * factor) + (request.frameh / factor), qMin(cache.width(), request.framew) / factor, (cache.height() / factor) - ((request.outerh - request.frameh) / (2 * factor) + (request.frameh / factor)), st::black);
+				}
+			}
+			if (hasAlpha) {
+				p.fillRect(qMax(0, (request.outerw - request.framew) / (2 * factor)), qMax(0, (request.outerh - request.frameh) / (2 * factor)), qMin(cache.width(), request.framew) / factor, qMin(cache.height(), request.frameh) / factor, st::white);
 			}
 			QPoint position((request.outerw - request.framew) / (2 * factor), (request.outerh - request.frameh) / (2 * factor));
 			if (badSize) {
