@@ -594,6 +594,11 @@ public:
 	}
 
 	bool readNextFrame() {
+		if (_frameRead) {
+			av_frame_unref(_frame);
+			_frameRead = false;
+		}
+
 		int res;
 		while (true) {
 			if (_avpkt.size > 0) { // previous packet not finished
@@ -645,6 +650,20 @@ public:
 			}
 
 			if (got_frame) {
+				int64 duration = av_frame_get_pkt_duration(_frame);
+				int64 framePts = (_frame->pkt_pts == AV_NOPTS_VALUE) ? _frame->pkt_dts : _frame->pkt_pts;
+				int64 frameMs = (framePts * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
+				_currentFrameDelay = _nextFrameDelay;
+				if (_frameMs + _currentFrameDelay < frameMs) {
+					_currentFrameDelay = int32(frameMs - _frameMs);
+				}
+				if (duration == AV_NOPTS_VALUE) {
+					_nextFrameDelay = 0;
+				} else {
+					_nextFrameDelay = (duration * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
+				}
+				_frameMs = frameMs;
+
 				_hadFrame = _frameRead = true;
 				return true;
 			}
@@ -706,20 +725,6 @@ public:
 				return false;
 			}
 		}
-
-		int64 duration = av_frame_get_pkt_duration(_frame);
-		int64 framePts = (_frame->pkt_pts == AV_NOPTS_VALUE) ? _frame->pkt_dts : _frame->pkt_pts;
-		int64 frameMs = (framePts * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
-		_currentFrameDelay = _nextFrameDelay;
-		if (_frameMs + _currentFrameDelay < frameMs) {
-			_currentFrameDelay = int32(frameMs - _frameMs);
-		}
-		if (duration == AV_NOPTS_VALUE) {
-			_nextFrameDelay = 0;
-		} else {
-			_nextFrameDelay = (duration * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
-		}
-		_frameMs = frameMs;
 
 		av_frame_unref(_frame);
 		return true;
@@ -799,6 +804,10 @@ public:
 	}
 
 	~FFMpegReaderImplementation() {
+		if (_frameRead) {
+			av_frame_unref(_frame);
+			_frameRead = false;
+		}
 		if (_ioContext) av_free(_ioContext);
 		if (_codecContext) avcodec_close(_codecContext);
 		if (_swsContext) sws_freeContext(_swsContext);
