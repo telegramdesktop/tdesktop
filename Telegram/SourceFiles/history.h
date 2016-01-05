@@ -264,7 +264,7 @@ public:
 	}
 
 	void paintDialog(Painter &p, int32 w, bool sel) const;
-	bool updateTyping(uint64 ms = 0, uint32 dots = 0, bool force = false);
+	bool updateTyping(uint64 ms, bool force = false);
 	void clearLastKeyboard();
 
 	typedef QList<HistoryBlock*> Blocks;
@@ -310,7 +310,7 @@ public:
 	SendActionUsers sendActions;
 	QString typingStr;
 	Text typingText;
-	uint32 typingFrame;
+	uint32 typingDots;
 	QMap<SendActionType, uint64> mySendActions;
 
 	typedef QList<MsgId> MediaOverview;

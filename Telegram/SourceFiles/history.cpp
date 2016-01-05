@@ -321,8 +321,7 @@ void History::clearLastKeyboard() {
 	lastKeyboardFrom = 0;
 }
 
-bool History::updateTyping(uint64 ms, uint32 dots, bool force) {
-	if (!ms) ms = getms(true);
+bool History::updateTyping(uint64 ms, bool force) {
 	bool changed = force;
 	for (TypingUsers::iterator i = typing.begin(), e = typing.end(); i != e;) {
 		if (ms >= i.value()) {
@@ -369,7 +368,7 @@ bool History::updateTyping(uint64 ms, uint32 dots, bool force) {
 		}
 	}
 	if (!typingStr.isEmpty()) {
-		if (typingText.lastDots(dots % 4)) {
+		if (typingText.lastDots(typingDots % 4)) {
 			changed = true;
 		}
 	}
@@ -1245,7 +1244,7 @@ void Histories::regSendAction(History *history, UserData *user, const MTPSendMes
 		return;
 	}
 
-	uint64 ms = getms(true);
+	uint64 ms = getms();
 	switch (action.type()) {
 	case mtpc_sendMessageTypingAction: history->typing[user] = ms + 6000; break;
 	case mtpc_sendMessageRecordVideoAction: history->sendActions.insert(user, SendAction(SendActionRecordVideo, ms + 6000)); break;
@@ -1264,17 +1263,16 @@ void Histories::regSendAction(History *history, UserData *user, const MTPSendMes
 	TypingHistories::const_iterator i = typing.find(history);
 	if (i == typing.cend()) {
 		typing.insert(history, ms);
-		history->typingFrame = 0;
+		history->typingDots = 0;
+		_a_typings.start();
 	}
-
-	history->updateTyping(ms, history->typingFrame, true);
-	_a_typings.start();
+	history->updateTyping(ms, true);
 }
 
 void Histories::step_typings(uint64 ms, bool timer) {
 	for (TypingHistories::iterator i = typing.begin(), e = typing.end(); i != e;) {
-		uint32 typingFrame = (ms - i.value()) / 150;
-		i.key()->updateTyping(ms, typingFrame);
+		i.key()->typingDots = (ms - i.value()) / 150;
+		i.key()->updateTyping(ms);
 		if (i.key()->typing.isEmpty() && i.key()->sendActions.isEmpty()) {
 			i = typing.erase(i);
 		} else {
@@ -1815,16 +1813,16 @@ void History::unregTyping(UserData *from) {
 	uint64 updateAtMs = 0;
 	TypingUsers::iterator i = typing.find(from);
 	if (i != typing.end()) {
-		updateAtMs = getms(true);
+		updateAtMs = getms();
 		i.value() = updateAtMs;
 	}
 	SendActionUsers::iterator j = sendActions.find(from);
 	if (j != sendActions.end()) {
-		if (!updateAtMs) updateAtMs = getms(true);
+		if (!updateAtMs) updateAtMs = getms();
 		j.value().until = updateAtMs;
 	}
 	if (updateAtMs) {
-		updateTyping(updateAtMs, 0, true);
+		updateTyping(updateAtMs, true);
 	}
 }
 
