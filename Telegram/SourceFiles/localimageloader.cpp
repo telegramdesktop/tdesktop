@@ -135,7 +135,7 @@ TaskQueue::~TaskQueue() {
 void TaskQueueWorker::onTaskAdded() {
 	if (_inTaskAdded) return;
 	_inTaskAdded = true;
-	
+
 	bool someTasksLeft = false;
 	do {
 		TaskPtr task;
@@ -326,7 +326,7 @@ void FileLoadTask::process() {
 				}
 			}
 		}
-		if (filemime == qstr("video/mp4") || filename.endsWith(qstr(".mp4"), Qt::CaseInsensitive)) {
+		if (filemime == qstr("video/mp4") || filename.endsWith(qstr(".mp4"), Qt::CaseInsensitive) || animated) {
 			QImage cover;
 			MTPDocumentAttribute animatedAttribute = clipReadAnimatedAttributes(_filepath, _content, cover);
 			if (animatedAttribute.type() == mtpc_documentAttributeVideo) {
@@ -350,7 +350,9 @@ void FileLoadTask::process() {
 
 					thumbId = MTP::nonce<uint64>();
 
-					filemime = qstr("video/mp4");
+					if (filename.endsWith(qstr(".mp4"), Qt::CaseInsensitive)) {
+						filemime = qstr("video/mp4");
+					}
 				}
 			}
 		}
@@ -414,7 +416,7 @@ void FileLoadTask::process() {
 			_type = PrepareDocument;
 		}
 	}
-	
+
 	_result->type = _type;
 	_result->filepath = _filepath;
 	_result->content = _content;
