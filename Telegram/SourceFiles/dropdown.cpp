@@ -1912,9 +1912,7 @@ int32 StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &res
 		return 0;
 	}
 
-	if (_showingInlineItems) {
-		clearSelection(true);
-	}
+	clearSelection(true);
 
 	t_assert(_inlineBot != 0);
 	_inlineBotTitle = lng_inline_bot_results(lt_inline_bot, _inlineBot->username.isEmpty() ? _inlineBot->name : ('@' + _inlineBot->username));
@@ -1942,10 +1940,9 @@ int32 StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &res
 	update();
 
 	emit refreshIcons();
-	if (_showingInlineItems) {
-		_lastMousePos = QCursor::pos();
-		updateSelected();
-	}
+
+	_lastMousePos = QCursor::pos();
+	updateSelected();
 
 	return added;
 }
@@ -2440,10 +2437,12 @@ void StickerPanInner::showStickerSet(uint64 setId) {
 void StickerPanInner::updateShowingSavedGifs() {
 	if (cShowingSavedGifs()) {
 		if (!_showingInlineItems) {
+			clearSelection(true);
 			_showingSavedGifs = _showingInlineItems = true;
 			if (_inlineRows.isEmpty()) refreshSavedGifs();
 		}
 	} else if (!_showingInlineItems) {
+		clearSelection(true);
 		_showingSavedGifs = false;
 	}
 }
