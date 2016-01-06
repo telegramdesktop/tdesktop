@@ -7086,10 +7086,16 @@ HistoryItem *HistoryReply::replyToMessage() const {
 
 void HistoryReply::replyToReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
 	if (replyToMsg == oldItem) {
+		delete _replyToVia;
+		_replyToVia = 0;
 		replyToMsg = newItem;
 		if (!newItem) {
 			replyToMsgId = 0;
 			initDimensions();
+		} else if (!replyToMsg->toHistoryForwarded()) {
+			if (UserData *bot = replyToMsg->viaBot()) {
+				_replyToVia = new HistoryMessageVia(peerToUser(bot->id));
+			}
 		}
 	}
 }
