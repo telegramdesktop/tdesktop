@@ -1390,10 +1390,13 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 		case mtpc_messageMediaUnsupported:
 		default: badMedia = 1; break;
 		}
-		if (false && badMedia == 1) {
-//			QString text(lng_message_unsupported(lt_link, qsl("https://desktop.telegram.org")));
+		if (badMedia == 1) {
+			QString text(lng_message_unsupported(lt_link, qsl("https://desktop.telegram.org")));
+			EntitiesInText entities = textParseEntities(text, _historyTextNoMonoOptions.flags);
+			entities.push_front(EntityInText(EntityInTextItalic, 0, text.size()));
+			result = new HistoryMessage(this, block, m.vid.v, m.vflags.v, m.vvia_bot_id.v, date(m.vdate), m.vfrom_id.v, text, entities, 0);
 		} else if (badMedia) {
-			result = new HistoryServiceMsg(this, block, m.vid.v, date(m.vdate), lang((badMedia == 2) ? lng_message_empty : lng_media_unsupported), m.vflags.v, 0, m.has_from_id() ? m.vfrom_id.v : 0);
+			result = new HistoryServiceMsg(this, block, m.vid.v, date(m.vdate), lang(lng_message_empty), m.vflags.v, 0, m.has_from_id() ? m.vfrom_id.v : 0);
 		} else {
 			if ((m.has_fwd_date() && m.vfwd_date.v > 0) || (m.has_fwd_from_id() && peerFromMTP(m.vfwd_from_id) != 0)) {
 				result = new HistoryForwarded(this, block, m);
@@ -5979,10 +5982,10 @@ void ViaInlineBotLink::onClick(Qt::MouseButton button) const {
 }
 
 HistoryMessageVia::HistoryMessageVia(int32 userId)
-	: bot(App::userLoaded(peerFromUser(userId)))
-	, width(0)
-	, maxWidth(st::msgServiceNameFont->width(qsl("via @") + bot->username))
-	, lnk(new ViaInlineBotLink(bot)) {
+: bot(App::userLoaded(peerFromUser(userId)))
+, width(0)
+, maxWidth(bot ? st::msgServiceNameFont->width(lng_inline_bot_via(lt_inline_bot, '@' + bot->username)) : 0)
+, lnk(new ViaInlineBotLink(bot)) {
 }
 
 bool HistoryMessageVia::isNull() const {
@@ -5990,21 +5993,16 @@ bool HistoryMessageVia::isNull() const {
 }
 
 void HistoryMessageVia::resize(int32 availw) {
-	if (width < maxWidth && availw > width) {
+	if (availw < 0) {
+		text = QString();
+		width = 0;
+	} else {
+		text = lng_inline_bot_via(lt_inline_bot, '@' + bot->username);
 		if (availw < maxWidth) {
-			text = st::msgServiceNameFont->elided(qsl("via @") + bot->username, availw);
+			text = st::msgServiceNameFont->elided(text, availw);
 			width = st::msgServiceNameFont->width(text);
-		} else {
-			text = qsl("via @") + bot->username;
+		} else if (width < maxWidth) {
 			width = maxWidth;
-		}
-	} else if (availw < width) {
-		if (availw > 0) {
-			text = st::msgServiceNameFont->elided(qsl("via @") + bot->username, availw);
-			width = st::msgServiceNameFont->width(text);
-		} else {
-			text = QString();
-			width = 0;
 		}
 	}
 }
@@ -6024,11 +6022,11 @@ HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, const MTPD
 }
 
 HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, int32 viaBotId, QDateTime date, int32 from, const QString &msg, const EntitiesInText &entities, HistoryMedia *fromMedia) :
-HistoryItem(history, block, msgId, flags, date, from)
+HistoryItem(history, block, msgId, flags, date, (flags & MTPDmessage::flag_from_id) ? from : 0)
 , _text(st::msgMinWidth)
 , _textWidth(0)
 , _textHeight(0)
-, _via(viaBotId ? new HistoryMessageVia(viaBotId) : 0)
+, _via((flags & MTPDmessage::flag_via_bot_id) ? new HistoryMessageVia(viaBotId) : 0)
 , _media(0)
 , _views(fromChannel() ? 1 : -1) {
 	initTime();
@@ -6040,11 +6038,11 @@ HistoryItem(history, block, msgId, flags, date, from)
 }
 
 HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, int32 viaBotId, QDateTime date, int32 from, DocumentData *doc, const QString &caption) :
-HistoryItem(history, block, msgId, flags, date, from)
+HistoryItem(history, block, msgId, flags, date, (flags & MTPDmessage::flag_from_id) ? from : 0)
 , _text(st::msgMinWidth)
 , _textWidth(0)
 , _textHeight(0)
-, _via(viaBotId ? new HistoryMessageVia(viaBotId) : 0)
+, _via((flags & MTPDmessage::flag_via_bot_id) ? new HistoryMessageVia(viaBotId) : 0)
 , _media(0)
 , _views(fromChannel() ? 1 : -1) {
 	initTime();
@@ -6053,11 +6051,11 @@ HistoryItem(history, block, msgId, flags, date, from)
 }
 
 HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, int32 viaBotId, QDateTime date, int32 from, PhotoData *photo, const QString &caption) :
-HistoryItem(history, block, msgId, flags, date, from)
+HistoryItem(history, block, msgId, flags, date, (flags & MTPDmessage::flag_from_id) ? from : 0)
 , _text(st::msgMinWidth)
 , _textWidth(0)
 , _textHeight(0)
-, _via(viaBotId ? new HistoryMessageVia(viaBotId) : 0)
+, _via((flags & MTPDmessage::flag_via_bot_id) ? new HistoryMessageVia(viaBotId) : 0)
 , _media(0)
 , _views(fromChannel() ? 1 : -1) {
 	initTime();

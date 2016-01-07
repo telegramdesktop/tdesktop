@@ -6368,11 +6368,11 @@ void HistoryWidget::onFieldTabbed() {
 }
 
 void HistoryWidget::onStickerSend(DocumentData *sticker) {
-	sendExistingDocument(sticker, QString(), 0);
+	sendExistingDocument(sticker, QString());
 }
 
 void HistoryWidget::onPhotoSend(PhotoData *photo) {
-	sendExistingPhoto(photo, QString(), 0);
+	sendExistingPhoto(photo, QString());
 }
 
 void HistoryWidget::onInlineResultSend(InlineResult *result, UserData *bot) {
@@ -6495,7 +6495,7 @@ void HistoryWidget::onInlineResultSend(InlineResult *result, UserData *bot) {
 	_field.setFocus();
 }
 
-void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &caption, UserData *bot) {
+void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &caption) {
 	if (!_history || !doc || !canSendMessages(_peer)) return;
 
 	App::main()->readServerHistory(_history, false);
@@ -6519,7 +6519,7 @@ void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 	} else {
 		flags |= MTPDmessage::flag_from_id;
 	}
-	_history->addNewDocument(newId.msg, flags, bot ? peerToUser(bot->id) : 0, replyToId(), date(MTP_int(unixtime())), fromChannelName ? 0 : MTP::authedId(), doc, caption);
+	_history->addNewDocument(newId.msg, flags, 0, replyToId(), date(MTP_int(unixtime())), fromChannelName ? 0 : MTP::authedId(), doc, caption);
 
 	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaDocument(MTP_inputDocument(MTP_long(doc->id), MTP_long(doc->access)), MTP_string(caption)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
 	App::main()->finishForwarding(_history, _broadcast.checked());
@@ -6536,7 +6536,7 @@ void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 	_field.setFocus();
 }
 
-void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption, UserData *bot) {
+void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption) {
 	if (!_history || !photo || !canSendMessages(_peer)) return;
 
 	App::main()->readServerHistory(_history, false);
@@ -6560,7 +6560,7 @@ void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption, 
 	} else {
 		flags |= MTPDmessage::flag_from_id;
 	}
-	_history->addNewPhoto(newId.msg, flags, bot ? peerToUser(bot->id) : 0, replyToId(), date(MTP_int(unixtime())), fromChannelName ? 0 : MTP::authedId(), photo, caption);
+	_history->addNewPhoto(newId.msg, flags, 0, replyToId(), date(MTP_int(unixtime())), fromChannelName ? 0 : MTP::authedId(), photo, caption);
 
 	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaPhoto(MTP_inputPhoto(MTP_long(photo->id), MTP_long(photo->access)), MTP_string(caption)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
 	App::main()->finishForwarding(_history, _broadcast.checked());

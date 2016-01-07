@@ -693,8 +693,8 @@ private:
 	IconedButton _replyForwardPreviewCancel;
 	void updateReplyToName();
 
-	void sendExistingDocument(DocumentData *doc, const QString &caption, UserData *bot);
-	void sendExistingPhoto(PhotoData *photo, const QString &caption, UserData *bot);
+	void sendExistingDocument(DocumentData *doc, const QString &caption);
+	void sendExistingPhoto(PhotoData *photo, const QString &caption);
 
 	void drawField(Painter &p);
 	void drawRecordButton(Painter &p);

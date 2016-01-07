@@ -263,7 +263,7 @@ const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink) 
 
 class TextParser {
 public:
-	
+
 	static Qt::LayoutDirection stringDirection(const QString &str, int32 from, int32 to) {
 		const ushort *p = reinterpret_cast<const ushort*>(str.unicode()) + from;
 		const ushort *end = p + (to - from);
@@ -340,7 +340,7 @@ public:
 	void getLinkData(const QString &original, QString &result, int32 &fullDisplayed) {
 		if (!original.isEmpty() && original.at(0) == '/') {
 			result = original;
-			fullDisplayed = -4; // bot command 
+			fullDisplayed = -4; // bot command
 		} else if (!original.isEmpty() && original.at(0) == '@') {
 			result = original;
 			fullDisplayed = -3; // mention
@@ -454,7 +454,7 @@ public:
 			while (waitingEntity != entitiesEnd && waitingEntity->length <= 0) ++waitingEntity;
 		}
 	}
-	
+
 	bool readCommand() {
 		const QChar *afterCmd = textSkipCommand(ptr, end, links.size() < 0x7FFF);
 		if (afterCmd == ptr) {
@@ -975,7 +975,7 @@ public:
 
 	void initParagraphBidi() {
 		if (!_parLength || !_parAnalysis.isEmpty()) return;
-		
+
 		Text::TextBlocks::const_iterator i = _parStartBlock, e = _t->_blocks.cend(), n = i + 1;
 
 		bool ignore = false;
@@ -1340,7 +1340,7 @@ public:
 					*_getSymbolAfter = false;
 					*_getSymbolUpon = ((_lnkX >= _x) && (_lineStart > 0)) ? true : false;
 				}
-				return false;  
+				return false;
 			} else if (_lnkX >= x + (_w - _wLeft)) {
 				if (_parDirection == Qt::RightToLeft) {
 					*_getSymbol = _lineStart;
@@ -2428,7 +2428,7 @@ private:
 	style::font _f;
 	QFixed _x, _w, _wLeft;
 	int32 _y, _yDelta, _lineHeight, _fontHeight;
-	
+
 	// elided hack support
 	int32 _blocksSize;
 	int32 _elideSavedIndex;
@@ -2913,7 +2913,7 @@ QString Text::original(uint16 selectedFrom, uint16 selectedTo, ExpandLinksMode m
 	result.reserve(_text.size());
 
 	int32 lnkFrom = 0, lnkIndex = 0;
-	for (TextBlocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); true; ++i) {		
+	for (TextBlocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); true; ++i) {
 		int32 blockLnkIndex = (i == e) ? 0 : (*i)->lnkIndex();
 		int32 blockFrom = (i == e) ? _text.size() : (*i)->from();
 		if (blockLnkIndex != lnkIndex) {
@@ -3156,7 +3156,8 @@ namespace {
 class BlockParser {
 public:
 
-	BlockParser(QTextEngine *e, TextBlock *b, QFixed minResizeWidth, int32 blockFrom) : block(b), eng(e) {
+	BlockParser(QTextEngine *e, TextBlock *b, QFixed minResizeWidth, int32 blockFrom, const QString &str)
+		: block(b), eng(e), str(str) {
 		parseWords(minResizeWidth, blockFrom);
 	}
 
@@ -3234,7 +3235,7 @@ public:
 
 					if (lbh.currentPosition >= eng->layoutData->string.length()
 						|| attributes[lbh.currentPosition].whiteSpace
-						|| attributes[lbh.currentPosition].lineBreak) {
+						|| isLineBreak(attributes, lbh.currentPosition)) {
 						lbh.adjustRightBearing();
 						block->_words.push_back(TextWord(wordStart + blockFrom, lbh.tmpData.textWidth, qMin(QFixed(), lbh.rightBearing)));
 						block->_width += lbh.tmpData.textWidth;
@@ -3281,10 +3282,19 @@ public:
 		}
 	}
 
+	bool isLineBreak(const QCharAttributes *attributes, int32 index) {
+		bool lineBreak = attributes[index].lineBreak;
+		if (lineBreak && block->lnkIndex() > 0 && index > 0 && str.at(index - 1) == '/') {
+			return false; // don't break after / in links
+		}
+		return lineBreak;
+	}
+
 private:
 
 	TextBlock *block;
 	QTextEngine *eng;
+	const QString &str;
 
 };
 
@@ -3318,14 +3328,15 @@ TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResi
 			}
 		}
 
-		QStackTextEngine engine(str.mid(_from, length), blockFont->f);
+		QString part = str.mid(_from, length);
+		QStackTextEngine engine(part, blockFont->f);
 		engine.itemize();
 
 		QTextLayout layout(&engine);
 		layout.beginLayout();
 		layout.createLine();
 
-		BlockParser parser(&engine, this, minResizeWidth, _from);
+		BlockParser parser(&engine, this, minResizeWidth, _from, part);
 
 		layout.endLayout();
 	}
@@ -3687,7 +3698,7 @@ void initLinkSets() {
 
 namespace {
 	// accent char list taken from https://github.com/aristus/accent-folding
-	inline QChar chNoAccent(int32 code) { 
+	inline QChar chNoAccent(int32 code) {
 		switch (code) {
 		case 7834: return QChar(97);
 		case 193: return QChar(97);
@@ -4411,7 +4422,7 @@ QString textAccentFold(const QString &text) {
 				result[i] = noAccent;
 			} else {
 				if (copying) result[i] = *ch;
-				++ch, ++i; 
+				++ch, ++i;
 				if (copying) result[i] = *ch;
 			}
 		} else {

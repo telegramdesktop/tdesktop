@@ -907,7 +907,8 @@ void MainWidget::forwardLayer(int32 forwardSelected) {
 
 void MainWidget::deleteLayer(int32 selectedCount) {
 	QString str((selectedCount < 0) ? lang(selectedCount < -1 ? lng_selected_cancel_sure_this : lng_selected_delete_sure_this) : lng_selected_delete_sure(lt_count, selectedCount));
-	ConfirmBox *box = new ConfirmBox((selectedCount < 0) ? str : str.arg(selectedCount), lang(lng_box_delete));
+	QString btn(lang((selectedCount < -1) ? lng_selected_upload_stop : lng_box_delete)), cancel(lang((selectedCount < -1) ? lng_continue : lng_cancel));
+	ConfirmBox *box = new ConfirmBox(str, btn, st::defaultBoxButton, cancel);
 	if (selectedCount < 0) {
 		if (selectedCount < -1) {
 			if (HistoryItem *item = App::contextItem()) {
