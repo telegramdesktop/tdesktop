@@ -6542,7 +6542,7 @@ void HistoryMessage::drawMessageText(Painter &p, QRect trect, uint32 selection) 
 	p.setFont(st::msgFont);
 	uint16 selectedFrom = (selection == FullSelection) ? 0 : (selection >> 16) & 0xFFFF;
 	uint16 selectedTo = (selection == FullSelection) ? 0 : selection & 0xFFFF;
-	_text.draw(p, trect.x(), trect.y(), trect.width(), Qt::AlignLeft, 0, -1, selectedFrom, selectedTo);
+	_text.draw(p, trect.x(), trect.y(), trect.width(), style::al_left, 0, -1, selectedFrom, selectedTo);
 }
 
 void HistoryMessage::destroy() {
