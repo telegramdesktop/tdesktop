@@ -208,10 +208,10 @@ public:
 }
 
 - (void) userNotificationCenter:(NSUserNotificationCenter *)center didActivateNotification:(NSUserNotification *)notification {
-    NSNumber *instObj = [[notification userInfo] objectForKey:@"inst"];
+    NSNumber *instObj = [[notification userInfo] objectForKey:@"launch"];
 	unsigned long long instLong = instObj ? [instObj unsignedLongLongValue] : 0;
 	DEBUG_LOG(("Received notification with instance %1").arg(instLong));
-    if (instLong != cInstance()) { // other app instance notification
+	if (instLong != Global::LaunchId()) { // other app instance notification
         return;
     }
     if (notification.activationType == NSUserNotificationActivationTypeReplied) {
@@ -283,8 +283,8 @@ void PsMacWindowPrivate::showNotify(uint64 peer, int32 msgId, const QPixmap &pix
     NSUserNotification *notification = [[NSUserNotification alloc] init];
 	NSImage *img = qt_mac_create_nsimage(pix);
 
-	DEBUG_LOG(("Sending notification with userinfo: peer %1, msgId %2 and instance %3").arg(peer).arg(msgId).arg(cInstance()));
-    [notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer],@"peer",[NSNumber numberWithInt:msgId],@"msgid",[NSNumber numberWithUnsignedLongLong:cInstance()],@"inst",nil]];
+	DEBUG_LOG(("Sending notification with userinfo: peer %1, msgId %2 and instance %3").arg(peer).arg(msgId).arg(Global::LaunchId()));
+    [notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer],@"peer",[NSNumber numberWithInt:msgId],@"msgid",[NSNumber numberWithUnsignedLongLong:Global::LaunchId()],@"launch",nil]];
 
 	[notification setTitle:QNSString(title).s()];
     [notification setSubtitle:QNSString(subtitle).s()];
@@ -352,7 +352,7 @@ void PsMacWindowPrivate::clearNotifies(unsigned long long peer) {
         NSArray *notifies = [center deliveredNotifications];
         for (id notify in notifies) {
 			NSDictionary *dict = [notify userInfo];
-			if ([[dict objectForKey:@"peer"] unsignedLongLongValue] == peer && [[dict objectForKey:@"inst"] unsignedLongLongValue] == cInstance()) {
+			if ([[dict objectForKey:@"peer"] unsignedLongLongValue] == peer && [[dict objectForKey:@"launch"] unsignedLongLongValue] == Global::LaunchId()) {
                 [center removeDeliveredNotification:notify];
             }
         }

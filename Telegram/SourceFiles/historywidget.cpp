@@ -2763,6 +2763,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 
 	_attachMention.hide();
 	connect(&_attachMention, SIGNAL(chosen(QString)), this, SLOT(onMentionHashtagOrBotCommandInsert(QString)));
+	connect(&_attachMention, SIGNAL(stickerSelected(DocumentData*)), this, SLOT(onStickerSend(DocumentData*)));
 	_field.installEventFilter(&_attachMention);
 	_field.setCtrlEnterSubmit(cCtrlEnter());
 
@@ -2807,13 +2808,18 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 }
 
 void HistoryWidget::start() {
-	connect(App::main(), SIGNAL(stickersUpdated()), &_emojiPan, SLOT(refreshStickers()));
+	connect(App::main(), SIGNAL(stickersUpdated()), this, SLOT(onStickersUpdated()));
 	connect(App::main(), SIGNAL(savedGifsUpdated()), &_emojiPan, SLOT(refreshSavedGifs()));
 
 	updateRecentStickers();
 	if (App::main()) emit App::main()->savedGifsUpdated();
 
 	connect(App::api(), SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
+}
+
+void HistoryWidget::onStickersUpdated() {
+	_emojiPan.refreshStickers();
+	updateStickersByEmoji();
 }
 
 void HistoryWidget::onMentionHashtagOrBotCommandInsert(QString str) {
@@ -2867,8 +2873,23 @@ void HistoryWidget::updateInlineBotQuery() {
 	}
 }
 
+void HistoryWidget::updateStickersByEmoji() {
+	int32 len = 0;
+	if (EmojiPtr emoji = emojiFromText(_field.getLastText(), &len)) {
+		if (_field.getLastText().size() <= len) {
+			_attachMention.showStickers(emoji);
+		} else {
+			len = 0;
+		}
+	}
+	if (!len) {
+		_attachMention.showStickers(EmojiPtr(0));
+	}
+}
+
 void HistoryWidget::onTextChange() {
 	updateInlineBotQuery();
+	updateStickersByEmoji();
 
 	if (_peer && (!_peer->isChannel() || _peer->isMegagroup() || !_peer->asChannel()->canPublish() || (!_peer->asChannel()->isBroadcast() && !_broadcast.checked()))) {
 		if (!_inlineBot && (_textUpdateEventsFlags & TextUpdateEventsSendTyping)) {
@@ -3143,24 +3164,24 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 	for (int32 i = 0, l = d_sets.size(); i != l; ++i) {
 		if (d_sets.at(i).type() == mtpc_stickerSet) {
 			const MTPDstickerSet &set(d_sets.at(i).c_stickerSet());
-			StickerSets::iterator i = sets.find(set.vid.v);
+			StickerSets::iterator it = sets.find(set.vid.v);
 			QString title = stickerSetTitle(set);
-			if (i == sets.cend()) {
-				i = sets.insert(set.vid.v, StickerSet(set.vid.v, set.vaccess_hash.v, title, qs(set.vshort_name), set.vcount.v, set.vhash.v, set.vflags.v | MTPDstickerSet_flag_NOT_LOADED));
+			if (it == sets.cend()) {
+				it = sets.insert(set.vid.v, StickerSet(set.vid.v, set.vaccess_hash.v, title, qs(set.vshort_name), set.vcount.v, set.vhash.v, set.vflags.v | MTPDstickerSet_flag_NOT_LOADED));
 			} else {
-				i->access = set.vaccess_hash.v;
-				i->title = title;
-				i->shortName = qs(set.vshort_name);
-				i->flags = set.vflags.v;
-				if (i->count != set.vcount.v || i->hash != set.vhash.v) {
-					i->count = set.vcount.v;
-					i->hash = set.vhash.v;
-					i->flags |= MTPDstickerSet_flag_NOT_LOADED; // need to request this set
+				it->access = set.vaccess_hash.v;
+				it->title = title;
+				it->shortName = qs(set.vshort_name);
+				it->flags = set.vflags.v;
+				if (it->count != set.vcount.v || it->hash != set.vhash.v || it->emoji.isEmpty()) {
+					it->count = set.vcount.v;
+					it->hash = set.vhash.v;
+					it->flags |= MTPDstickerSet_flag_NOT_LOADED; // need to request this set
 				}
 			}
-			if (!(i->flags & MTPDstickerSet::flag_disabled) || (i->flags & MTPDstickerSet::flag_official)) {
+			if (!(it->flags & MTPDstickerSet::flag_disabled) || (it->flags & MTPDstickerSet::flag_official)) {
 				setsOrder.push_back(set.vid.v);
-				if (i->stickers.isEmpty() || (i->flags & MTPDstickerSet_flag_NOT_LOADED)) {
+				if (it->stickers.isEmpty() || (it->flags & MTPDstickerSet_flag_NOT_LOADED)) {
 					setsToRequest.insert(set.vid.v, set.vaccess_hash.v);
 				}
 			}
@@ -5405,10 +5426,10 @@ void HistoryWidget::onFieldFocused() {
 }
 
 void HistoryWidget::onCheckMentionDropdown() {
-	if (!_history || _a_show.animating() || _inlineBot) return;
+	if (!_history || _a_show.animating()) return;
 
 	bool start = false;
-	QString query = _field.getMentionHashtagBotCommandPart(start);
+	QString query = _inlineBot ? QString() : _field.getMentionHashtagBotCommandPart(start);
 	if (!query.isEmpty()) {
 		if (query.at(0) == '#' && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) Local::readRecentHashtagsAndBots();
 		if (query.at(0) == '@' && cRecentInlineBots().isEmpty()) Local::readRecentHashtagsAndBots();
@@ -6368,11 +6389,11 @@ void HistoryWidget::onFieldTabbed() {
 }
 
 void HistoryWidget::onStickerSend(DocumentData *sticker) {
-	sendExistingDocument(sticker, QString(), 0);
+	sendExistingDocument(sticker, QString());
 }
 
 void HistoryWidget::onPhotoSend(PhotoData *photo) {
-	sendExistingPhoto(photo, QString(), 0);
+	sendExistingPhoto(photo, QString());
 }
 
 void HistoryWidget::onInlineResultSend(InlineResult *result, UserData *bot) {
@@ -6495,7 +6516,7 @@ void HistoryWidget::onInlineResultSend(InlineResult *result, UserData *bot) {
 	_field.setFocus();
 }
 
-void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &caption, UserData *bot) {
+void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &caption) {
 	if (!_history || !doc || !canSendMessages(_peer)) return;
 
 	App::main()->readServerHistory(_history, false);
@@ -6519,7 +6540,7 @@ void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 	} else {
 		flags |= MTPDmessage::flag_from_id;
 	}
-	_history->addNewDocument(newId.msg, flags, bot ? peerToUser(bot->id) : 0, replyToId(), date(MTP_int(unixtime())), fromChannelName ? 0 : MTP::authedId(), doc, caption);
+	_history->addNewDocument(newId.msg, flags, 0, replyToId(), date(MTP_int(unixtime())), fromChannelName ? 0 : MTP::authedId(), doc, caption);
 
 	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaDocument(MTP_inputDocument(MTP_long(doc->id), MTP_long(doc->access)), MTP_string(caption)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
 	App::main()->finishForwarding(_history, _broadcast.checked());
@@ -6529,6 +6550,13 @@ void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 
 	App::historyRegRandom(randomId, newId);
 
+	if (_attachMention.stickersShown()) {
+		setFieldText(QString());
+		_saveDraftText = true;
+		_saveDraftStart = getms();
+		onDraftSave();
+	}
+
 	if (!_attachMention.isHidden()) _attachMention.hideStart();
 	if (!_attachType.isHidden()) _attachType.hideStart();
 	if (!_emojiPan.isHidden()) _emojiPan.hideStart();
@@ -6536,7 +6564,7 @@ void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 	_field.setFocus();
 }
 
-void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption, UserData *bot) {
+void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption) {
 	if (!_history || !photo || !canSendMessages(_peer)) return;
 
 	App::main()->readServerHistory(_history, false);
@@ -6560,7 +6588,7 @@ void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption, 
 	} else {
 		flags |= MTPDmessage::flag_from_id;
 	}
-	_history->addNewPhoto(newId.msg, flags, bot ? peerToUser(bot->id) : 0, replyToId(), date(MTP_int(unixtime())), fromChannelName ? 0 : MTP::authedId(), photo, caption);
+	_history->addNewPhoto(newId.msg, flags, 0, replyToId(), date(MTP_int(unixtime())), fromChannelName ? 0 : MTP::authedId(), photo, caption);
 
 	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaPhoto(MTP_inputPhoto(MTP_long(photo->id), MTP_long(photo->access)), MTP_string(caption)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
 	App::main()->finishForwarding(_history, _broadcast.checked());
@@ -6813,7 +6841,9 @@ void HistoryWidget::updatePreview() {
 void HistoryWidget::onCancel() {
 	if (_inlineBot && _field.getLastText().startsWith('@' + _inlineBot->username + ' ')) {
 		setFieldText(QString(), TextUpdateEventsSaveDraft, false);
-	} else {
+	} else if (!_attachMention.isHidden()) {
+		_attachMention.hideStart();
+	} else  {
 		Ui::showChatsList();
 		emit cancelled();
 	}

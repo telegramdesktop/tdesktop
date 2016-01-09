@@ -907,7 +907,8 @@ void MainWidget::forwardLayer(int32 forwardSelected) {
 
 void MainWidget::deleteLayer(int32 selectedCount) {
 	QString str((selectedCount < 0) ? lang(selectedCount < -1 ? lng_selected_cancel_sure_this : lng_selected_delete_sure_this) : lng_selected_delete_sure(lt_count, selectedCount));
-	ConfirmBox *box = new ConfirmBox((selectedCount < 0) ? str : str.arg(selectedCount), lang(lng_box_delete));
+	QString btn(lang((selectedCount < -1) ? lng_selected_upload_stop : lng_box_delete)), cancel(lang((selectedCount < -1) ? lng_continue : lng_cancel));
+	ConfirmBox *box = new ConfirmBox(str, btn, st::defaultBoxButton, cancel);
 	if (selectedCount < 0) {
 		if (selectedCount < -1) {
 			if (HistoryItem *item = App::contextItem()) {
@@ -4127,12 +4128,11 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 			feedUpdate(MTP_updateMessageID(d.vid, MTP_long(randomId))); // ignore real date
 			if (peerId) {
 				if (HistoryItem *item = App::histItemById(peerToChannel(peerId), d.vid.v)) {
-					if (!text.isEmpty()) {
-						item->setText(text, d.has_entities() ? entitiesFromMTP(d.ventities.c_vector().v) : EntitiesInText());
-						item->initDimensions();
-						Notify::historyItemResized(item);
-					}
-					item->updateMedia(d.has_media() ? (&d.vmedia) : 0, true);
+					item->setText(text, d.has_entities() ? entitiesFromMTP(d.ventities.c_vector().v) : EntitiesInText());
+					item->updateMedia(d.has_media() ? (&d.vmedia) : 0);
+					item->initDimensions();
+					Notify::historyItemResized(item);
+
 					item->addToOverview(AddToOverviewNew);
 				}
 			}
@@ -4594,21 +4594,41 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		if (d.vstickerset.type() == mtpc_messages_stickerSet) {
 			const MTPDmessages_stickerSet &set(d.vstickerset.c_messages_stickerSet());
 			if (set.vset.type() == mtpc_stickerSet) {
+				const MTPDstickerSet &s(set.vset.c_stickerSet());
+
+				StickerSets &sets(cRefStickerSets());
+				StickerSets::iterator it = sets.find(s.vid.v);
+				if (it == sets.cend()) {
+					it = sets.insert(s.vid.v, StickerSet(s.vid.v, s.vaccess_hash.v, stickerSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v));
+				}
+
 				const QVector<MTPDocument> &v(set.vdocuments.c_vector().v);
-				StickerPack pack;
-				pack.reserve(v.size());
+				it->stickers.clear();
+				it->stickers.reserve(v.size());
 				for (int32 i = 0, l = v.size(); i < l; ++i) {
 					DocumentData *doc = App::feedDocument(v.at(i));
 					if (!doc || !doc->sticker()) continue;
 
-					pack.push_back(doc);
+					it->stickers.push_back(doc);
 				}
+				it->emoji.clear();
+				const QVector<MTPStickerPack> &packs(set.vpacks.c_vector().v);
+				for (int32 i = 0, l = packs.size(); i < l; ++i) {
+					if (packs.at(i).type() != mtpc_stickerPack) continue;
+					const MTPDstickerPack &pack(packs.at(i).c_stickerPack());
+					if (EmojiPtr e = emojiGetNoColor(emojiFromText(qs(pack.vemoticon)))) {
+						const QVector<MTPlong> &stickers(pack.vdocuments.c_vector().v);
+						StickerPack p;
+						p.reserve(stickers.size());
+						for (int32 j = 0, c = stickers.size(); j < c; ++j) {
+							DocumentData *doc = App::document(stickers.at(j).v);
+							if (!doc || !doc->sticker()) continue;
 
-				const MTPDstickerSet &s(set.vset.c_stickerSet());
-
-				StickerSets &sets(cRefStickerSets());
-
-				sets.insert(s.vid.v, StickerSet(s.vid.v, s.vaccess_hash.v, stickerSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v)).value().stickers = pack;
+							p.push_back(doc);
+						}
+						it->emoji.insert(e, p);
+					}
+				}
 
 				StickerSetsOrder &order(cRefStickerSetsOrder());
 				int32 insertAtIndex = 0, currentIndex = order.indexOf(s.vid.v);
@@ -4621,8 +4641,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 				StickerSets::iterator custom = sets.find(CustomStickerSetId);
 				if (custom != sets.cend()) {
-					for (int32 i = 0, l = pack.size(); i < l; ++i) {
-						int32 removeIndex = custom->stickers.indexOf(pack.at(i));
+					for (int32 i = 0, l = it->stickers.size(); i < l; ++i) {
+						int32 removeIndex = custom->stickers.indexOf(it->stickers.at(i));
 						if (removeIndex >= 0) custom->stickers.removeAt(removeIndex);
 					}
 					if (custom->stickers.isEmpty()) {

@@ -365,7 +365,7 @@ yi += stride;
 
 #undef update
 			}
-			
+
 			delete[] rgb;
 		}
 	}
@@ -444,7 +444,7 @@ QPixmap imagePix(QImage img, int32 w, int32 h, bool smooth, bool blurred, bool r
 			{
 				QPainter p(&result);
 				if (w < outerw || h < outerh) {
-					p.fillRect(0, 0, result.width(), result.height(), st::black->b);
+					p.fillRect(0, 0, result.width(), result.height(), st::black);
 				}
 				p.drawImage((result.width() - img.width()) / (2 * cIntRetinaFactor()), (result.height() - img.height()) / (2 * cIntRetinaFactor()), img);
 			}
@@ -459,7 +459,12 @@ QPixmap imagePix(QImage img, int32 w, int32 h, bool smooth, bool blurred, bool r
 QPixmap Image::pixNoCache(int32 w, int32 h, bool smooth, bool blurred, bool rounded, int32 outerw, int32 outerh) const {
 	if (!loading()) const_cast<Image*>(this)->load();
 	restore();
-	if (_data.isNull()) return blank()->pix();
+	if (_data.isNull()) {
+		if (h <= 0 && height() > 0) {
+			h = qRound(width() * w / float64(height()));
+		}
+		return blank()->pixNoCache(w, h, smooth, blurred, rounded, outerw, outerh);
+	}
 
 	if (isNull() && outerw > 0 && outerh > 0) {
 		outerw *= cIntRetinaFactor();
@@ -470,7 +475,15 @@ QPixmap Image::pixNoCache(int32 w, int32 h, bool smooth, bool blurred, bool roun
 
 		{
 			QPainter p(&result);
-			p.fillRect(0, 0, result.width(), result.height(), st::black);
+			if (w < outerw) {
+				p.fillRect(0, 0, (outerw - w) / 2, result.height(), st::black);
+				p.fillRect(((outerw - w) / 2) + w, 0, result.width() - (((outerw - w) / 2) + w), result.height(), st::black);
+			}
+			if (h < outerh) {
+				p.fillRect(qMax(0, (outerw - w) / 2), 0, qMin(result.width(), w), (outerh - h) / 2, st::black);
+				p.fillRect(qMax(0, (outerw - w) / 2), ((outerh - h) / 2) + h, qMin(result.width(), w), result.height() - (((outerh - h) / 2) + h), st::black);
+			}
+			p.fillRect(qMax(0, (outerw - w) / 2), qMax(0, (outerh - h) / 2), qMin(result.width(), w), qMin(result.height(), h), st::white);
 		}
 
 		if (rounded) imageRound(result);

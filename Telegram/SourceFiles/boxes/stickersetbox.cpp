@@ -43,6 +43,7 @@ _input(set), _installRequest(0) {
 
 void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 	_pack.clear();
+	_emoji.clear();
 	if (set.type() == mtpc_messages_stickerSet) {
 		const MTPDmessages_stickerSet &d(set.c_messages_stickerSet());
 		const QVector<MTPDocument> &v(d.vdocuments.c_vector().v);
@@ -50,8 +51,25 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
 			DocumentData *doc = App::feedDocument(v.at(i));
 			if (!doc || !doc->sticker()) continue;
-			
+
 			_pack.push_back(doc);
+		}
+		const QVector<MTPStickerPack> &packs(d.vpacks.c_vector().v);
+		for (int32 i = 0, l = packs.size(); i < l; ++i) {
+			if (packs.at(i).type() != mtpc_stickerPack) continue;
+			const MTPDstickerPack &pack(packs.at(i).c_stickerPack());
+			if (EmojiPtr e = emojiGetNoColor(emojiFromText(qs(pack.vemoticon)))) {
+				const QVector<MTPlong> &stickers(pack.vdocuments.c_vector().v);
+				StickerPack p;
+				p.reserve(stickers.size());
+				for (int32 j = 0, c = stickers.size(); j < c; ++j) {
+					DocumentData *doc = App::document(stickers.at(j).v);
+					if (!doc || !doc->sticker()) continue;
+
+					p.push_back(doc);
+				}
+				_emoji.insert(e, p);
+			}
 		}
 		if (d.vset.type() == mtpc_stickerSet) {
 			const MTPDstickerSet &s(d.vset.c_stickerSet());
@@ -91,7 +109,12 @@ void StickerSetInner::installDone(const MTPBool &result) {
 	StickerSets &sets(cRefStickerSets());
 
 	_setFlags &= ~MTPDstickerSet::flag_disabled;
-	sets.insert(_setId, StickerSet(_setId, _setAccess, _setTitle, _setShortName, _setCount, _setHash, _setFlags)).value().stickers = _pack;
+	StickerSets::iterator it = sets.find(_setId);
+	if (it == sets.cend()) {
+		it = sets.insert(_setId, StickerSet(_setId, _setAccess, _setTitle, _setShortName, _setCount, _setHash, _setFlags));
+	}
+	it.value().stickers = _pack;
+	it.value().emoji = _emoji;
 
 	StickerSetsOrder &order(cRefStickerSetsOrder());
 	int32 insertAtIndex = 0, currentIndex = order.indexOf(_setId);
@@ -507,7 +530,7 @@ void StickersInner::onUpdateSelected() {
 
 float64 StickersInner::aboveShadowOpacity() const {
 	if (_above < 0) return 0;
-	
+
 	int32 dx = 0;
 	int32 dy = qAbs(_above * _rowHeight + _rows.at(_above)->yadd.current() - _started * _rowHeight);
 	return qMin((dx + dy)  * 2. / _rowHeight, 1.);
@@ -613,7 +636,7 @@ void StickersInner::rebuild() {
 	clear();
 	const StickerSetsOrder &order(cStickerSetsOrder());
 	_animStartTimes.reserve(order.size());
-		
+
 	const StickerSets &sets(cStickerSets());
 	for (int32 i = 0, l = order.size(); i < l; ++i) {
 		StickerSets::const_iterator it = sets.constFind(order.at(i));

@@ -2843,6 +2843,16 @@ namespace Local {
 			}
 			_writeStorageImageLocation(stream, doc->sticker()->loc);
 		}
+
+		if (AppVersion > 9018) {
+			stream << qint32(it->emoji.size());
+			for (StickersByEmojiMap::const_iterator j = it->emoji.cbegin(), e = it->emoji.cend(); j != e; ++j) {
+				stream << emojiString(j.key()) << qint32(j->size());
+				for (int32 k = 0, l = j->size(); k < l; ++k) {
+					stream << quint64(j->at(k)->id);
+				}
+			}
+		}
 	}
 
 	void writeStickers() {
@@ -2881,6 +2891,14 @@ namespace Local {
 					// loc
 					size += _storageImageLocationSize();
 				}
+
+				if (AppVersion > 9018) {
+					size += sizeof(qint32); // emojiCount
+					for (StickersByEmojiMap::const_iterator j = i->emoji.cbegin(), e = i->emoji.cend(); j != e; ++j) {
+						size += _stringSize(emojiString(j.key())) + sizeof(qint32) + (j->size() * sizeof(quint64));
+					}
+				}
+
 				++setsCount;
 			}
 
@@ -3072,6 +3090,29 @@ namespace Local {
 
 				set.stickers.push_back(doc);
 				++set.count;
+			}
+
+			if (stickers.version > 9018) {
+				qint32 emojiCount;
+				stickers.stream >> emojiCount;
+				for (int32 j = 0; j < emojiCount; ++j) {
+					QString emojiString;
+					qint32 stickersCount;
+					stickers.stream >> emojiString >> stickersCount;
+					StickerPack pack;
+					pack.reserve(stickersCount);
+					for (int32 k = 0; k < stickersCount; ++k) {
+						quint64 id;
+						stickers.stream >> id;
+						DocumentData *doc = App::document(id);
+						if (!doc || !doc->sticker()) continue;
+
+						pack.push_back(doc);
+					}
+					if (EmojiPtr e = emojiGetNoColor(emojiFromText(emojiString))) {
+						set.emoji.insert(e, pack);
+					}
+				}
 			}
 		}
 	}

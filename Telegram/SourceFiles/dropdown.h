@@ -734,9 +734,10 @@ class MentionsInner : public TWidget {
 
 public:
 
-	MentionsInner(MentionsDropdown *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows);
+	MentionsInner(MentionsDropdown *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, StickerPack *srows);
 
 	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
 
 	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
@@ -745,7 +746,7 @@ public:
 	void mouseMoveEvent(QMouseEvent *e);
 
 	void clearSel();
-	bool moveSel(int direction);
+	bool moveSel(int key);
 	bool select();
 
 	void setRecentInlineBotsInRows(int32 bots);
@@ -755,6 +756,7 @@ public:
 signals:
 
 	void chosen(QString mentionOrHashtag);
+	void selected(DocumentData *sticker);
 	void mustScrollTo(int scrollToTop, int scrollToBottom);
 
 public slots:
@@ -764,13 +766,15 @@ public slots:
 
 private:
 
+	void updateSelectedRow();
 	void setSel(int sel, bool scroll = false);
 
 	MentionsDropdown *_parent;
 	MentionRows *_mrows;
 	HashtagRows *_hrows;
 	BotCommandRows *_brows;
-	int32 _recentInlineBotsInRows;
+	StickerPack *_srows;
+	int32 _stickersPerRow, _recentInlineBotsInRows;
 	int32 _sel;
 	bool _mouseSel;
 	QPoint _mousePos;
@@ -791,7 +795,8 @@ public:
 
 	bool clearFilteredBotCommands();
 	void showFiltered(PeerData *peer, QString query, bool start);
-	void updateFiltered(bool toDown = false);
+	void showStickers(EmojiPtr emoji);
+	void updateFiltered(bool resetScroll = false);
 	void setBoundings(QRect boundings);
 
 	void step_appearance(float64 ms, bool timer);
@@ -807,6 +812,10 @@ public:
 	bool eventFilter(QObject *obj, QEvent *e);
 	QString getSelected() const;
 
+	bool stickersShown() const {
+		return !_srows.isEmpty();
+	}
+
 	bool overlaps(const QRect &globalRect) {
 		if (isHidden() || !testAttribute(Qt::WA_OpaquePaintEvent)) return false;
 
@@ -818,6 +827,7 @@ public:
 signals:
 
 	void chosen(QString mentionOrHashtag);
+	void stickerSelected(DocumentData *sticker);
 
 public slots:
 
@@ -828,14 +838,15 @@ public slots:
 
 private:
 
-	void recount(bool toDown = false);
+	void recount(bool resetScroll = false);
 
 	QPixmap _cache;
 	MentionRows _mrows;
 	HashtagRows _hrows;
 	BotCommandRows _brows;
+	StickerPack _srows;
 
-	void rowsUpdated(const MentionRows &mrows, const HashtagRows &hrows, const BotCommandRows &brows, bool toDown);
+	void rowsUpdated(const MentionRows &mrows, const HashtagRows &hrows, const BotCommandRows &brows, const StickerPack &srows, bool resetScroll);
 
 	ScrollArea _scroll;
 	MentionsInner _inner;
@@ -843,6 +854,7 @@ private:
 	ChatData *_chat;
 	UserData *_user;
 	ChannelData *_channel;
+	EmojiPtr _emoji;
 	QString _filter;
 	QRect _boundings;
 	bool _addInlineBots;

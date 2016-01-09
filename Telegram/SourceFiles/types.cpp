@@ -264,7 +264,7 @@ namespace {
 	_MsStarter _msStarter;
 }
 
-LibrariesInitializer::LibrariesInitializer() {
+void initThirdParty() {
 	if (!RAND_status()) { // should be always inited in all modern OS
 		char buf[16];
 		memcpy(buf, &_msStart, 8);
@@ -296,7 +296,7 @@ LibrariesInitializer::LibrariesInitializer() {
 	_sslInited = true;
 }
 
-LibrariesInitializer::~LibrariesInitializer() {
+void deinitThirdParty() {
 	av_lockmgr_register(0);
 
 	delete[] _sslLocks;

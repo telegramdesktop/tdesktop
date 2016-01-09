@@ -452,6 +452,7 @@ public:
 
 	void updateFieldPlaceholder();
 	void updateInlineBotQuery();
+	void updateStickersByEmoji();
 
 	void uploadImage(const QImage &img, PrepareMediaType type, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, const QString &source = QString(), bool withText = false);
 	void uploadFile(const QString &file, PrepareMediaType type, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, bool withText = false); // with confirmation
@@ -643,6 +644,7 @@ public slots:
 	void onCmdStart();
 
 	void activate();
+	void onStickersUpdated();
 	void onMentionHashtagOrBotCommandInsert(QString str);
 	void onTextChange();
 
@@ -693,8 +695,8 @@ private:
 	IconedButton _replyForwardPreviewCancel;
 	void updateReplyToName();
 
-	void sendExistingDocument(DocumentData *doc, const QString &caption, UserData *bot);
-	void sendExistingPhoto(PhotoData *photo, const QString &caption, UserData *bot);
+	void sendExistingDocument(DocumentData *doc, const QString &caption);
+	void sendExistingPhoto(PhotoData *photo, const QString &caption);
 
 	void drawField(Painter &p);
 	void drawRecordButton(Painter &p);
