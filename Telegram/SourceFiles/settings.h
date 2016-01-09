@@ -209,6 +209,8 @@ DeclareRefSetting(RecentStickerPack, RecentStickers);
 
 RecentStickerPack &cGetRecentStickers();
 
+typedef QMap<EmojiPtr, StickerPack> StickersByEmojiMap;
+
 static const uint64 DefaultStickerSetId = 0; // for backward compatibility
 static const uint64 CustomStickerSetId = 0xFFFFFFFFFFFFFFFFULL, RecentStickerSetId = 0xFFFFFFFFFFFFFFFEULL;
 static const uint64 NoneStickerSetId = 0xFFFFFFFFFFFFFFFDULL; // for emoji/stickers panel
@@ -219,6 +221,7 @@ struct StickerSet {
 	QString title, shortName;
 	int32 count, hash, flags;
 	StickerPack stickers;
+	StickersByEmojiMap emoji;
 };
 typedef QMap<uint64, StickerSet> StickerSets;
 DeclareRefSetting(StickerSets, StickerSets);
@@ -305,8 +308,6 @@ DeclareSetting(bool, Retina);
 DeclareSetting(float64, RetinaFactor);
 DeclareSetting(int32, IntRetinaFactor);
 DeclareSetting(bool, CustomNotifies);
-
-DeclareReadSetting(uint64, Instance);
 
 DeclareReadSetting(DBIPlatform, Platform);
 DeclareReadSetting(bool, IsElCapitan);

@@ -95,3 +95,20 @@ namespace Notify {
 	void automaticLoadSettingsChangedGif();
 
 };
+
+namespace Global {
+
+	class Initializer {
+	public:
+		Initializer();
+		~Initializer();
+	};
+
+#define DeclareGlobalReadOnly(Type, Name) const Type &Name();
+#define DeclareGlobal(Type, Name) DeclareGlobalReadOnly(Type, Name) \
+	void Set##Name(const Type &Name); \
+	Type &Ref##Name();
+
+	DeclareGlobalReadOnly(uint64, LaunchId);
+
+};

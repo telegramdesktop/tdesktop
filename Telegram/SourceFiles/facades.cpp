@@ -174,3 +174,40 @@ namespace Notify {
 	}
 
 }
+
+namespace Global {
+
+	struct Data {
+		uint64 LaunchId;
+	};
+
+	Data *_data = 0;
+
+	Initializer::Initializer() {
+		initThirdParty();
+		_data = new Data();
+
+		memset_rand(&_data->LaunchId, sizeof(_data->LaunchId));
+	}
+
+	Initializer::~Initializer() {
+		deinitThirdParty();
+	}
+
+#define DefineGlobalReadOnly(Type, Name) const Type &Name() { \
+	t_assert_full(_data != 0, "_data is null in Global::" #Name, __FILE__, __LINE__); \
+	return _data->Name; \
+}
+#define DefineGlobal(Type, Name) DefineGlobalReadOnly(Type, Name) \
+void Set##Name(const Type &Name) { \
+	t_assert_full(_data != 0, "_data is null in Global::Set" #Name, __FILE__, __LINE__); \
+	_data->Name = Name; \
+} \
+Type &Ref##Name() { \
+	t_assert_full(_data != 0, "_data is null in Global::Ref" #Name, __FILE__, __LINE__); \
+	return _data->Name; \
+}
+
+	DefineGlobalReadOnly(uint64, LaunchId);
+
+};

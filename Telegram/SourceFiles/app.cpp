@@ -902,12 +902,12 @@ namespace App {
 		}
 		if (HistoryItem *existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
 			existing->setText(qs(m.vmessage), m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText());
+			existing->updateMedia(m.has_media() ? (&m.vmedia) : 0);
+			existing->setViewsCount(m.has_views() ? m.vviews.v : -1, false);
 			existing->initDimensions();
 			Notify::historyItemResized(existing);
 
-			existing->updateMedia(m.has_media() ? (&m.vmedia) : 0, true);
 			existing->addToOverview(AddToOverviewNew);
-			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
 
 			if (!existing->detached()) {
 				App::checkSavedGif(existing);
@@ -929,6 +929,8 @@ namespace App {
 			Local::writeSavedGifs();
 
 			if (App::main()) emit App::main()->savedGifsUpdated();
+			cSetLastSavedGifsUpdate(0);
+			App::main()->updateStickers();
 		}
 	}
 

@@ -32,8 +32,6 @@ int main(int argc, char *argv[]) {
     //signal(SIGSEGV, _sigsegvHandler);
 #endif
 
-	LibrariesInitializer _init;
-
 	settingsParseArgs(argc, argv);
 	for (int32 i = 0; i < argc; ++i) {
 		if (string("-fixprevious") == argv[i]) {
@@ -43,6 +41,8 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	logsInit();
+
+	Global::Initializer _init;
 
 	Local::readSettings();
 	if (Local::oldSettingsVersion() < AppVersion) {

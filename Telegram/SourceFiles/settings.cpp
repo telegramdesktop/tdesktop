@@ -134,7 +134,6 @@ bool gRetina = false;
 float64 gRetinaFactor = 1.;
 int32 gIntRetinaFactor = 1;
 bool gCustomNotifies = true;
-uint64 gInstance = 0.;
 
 #ifdef Q_OS_WIN
 DBIPlatform gPlatform = dbipWindows;
@@ -190,7 +189,6 @@ void settingsParseArgs(int argc, char *argv[]) {
 		gCustomNotifies = false;
 	}
 #endif
-    memset_rand(&gInstance, sizeof(gInstance));
 	gExeDir = psCurrentExeDirectory(argc, argv);
 	gExeName = psCurrentExeName(argc, argv);
     for (int32 i = 0; i < argc; ++i) {

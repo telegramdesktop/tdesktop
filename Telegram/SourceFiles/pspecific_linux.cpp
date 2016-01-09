@@ -520,7 +520,7 @@ namespace {
 };
 
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent),
-posInited(false), trayIcon(0), trayIconMenu(0), icon256(qsl(":/gui/art/icon256.png")), iconbig256(icon256), wndIcon(QPixmap::fromImage(icon256, Qt::ColorOnly)), _psCheckStatusIconLeft(100), _psLastIndicatorUpdate(0) {
+posInited(false), trayIcon(0), trayIconMenu(0), icon256(qsl(":/gui/art/icon256.png")), iconbig256(icon256), wndIcon(QIcon::fromTheme("telegram", QIcon(QPixmap::fromImage(icon256, Qt::ColorOnly)))), _psCheckStatusIconLeft(100), _psLastIndicatorUpdate(0) {
     connect(&_psCheckStatusIconTimer, SIGNAL(timeout()), this, SLOT(psStatusIconCheck()));
     _psCheckStatusIconTimer.setSingleShot(false);
 
@@ -1172,13 +1172,15 @@ void psRegisterCustomScheme() {
     DEBUG_LOG(("App Info: placing .desktop file"));
     if (QDir(home + qsl(".local/")).exists()) {
         QString apps = home + qsl(".local/share/applications/");
+        QString icons = home + qsl(".local/share/icons/");
         if (!QDir(apps).exists()) QDir().mkpath(apps);
+        if (!QDir(icons).exists()) QDir().mkpath(icons);
 
         QString path = cWorkingDir() + qsl("tdata/"), file = path + qsl("telegramdesktop.desktop");
         QDir().mkpath(path);
         QFile f(file);
         if (f.open(QIODevice::WriteOnly)) {
-            QString icon = path + qsl("icon.png");
+            QString icon = icons + qsl("telegram.png");
             if (!QFile(icon).exists()) {
                 if (QFile(qsl(":/gui/art/icon256.png")).copy(icon)) {
                     DEBUG_LOG(("App Info: Icon copied to 'tdata'"));
@@ -1194,7 +1196,7 @@ void psRegisterCustomScheme() {
             s << "Name=Telegram Desktop\n";
             s << "Comment=Official desktop version of Telegram messaging app\n";
             s << "Exec=" << escapeShell(cExeDir() + cExeName()) << " -- %u\n";
-            s << "Icon=" << icon << "\n";
+            s << "Icon=telegram\n";
             s << "Terminal=false\n";
             s << "StartupWMClass=Telegram\n";
             s << "Type=Application\n";
