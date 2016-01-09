@@ -1513,8 +1513,6 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			_additional = 0;
 		} break;
 		case mtpc_documentAttributeSticker: {
-			bool wasByEmoji = Global::StickersByEmoji_Remove(this);
-
 			const MTPDdocumentAttributeSticker &d(attributes[i].c_documentAttributeSticker());
 			if (type == FileDocument) {
 				type = StickerDocument;
@@ -1524,7 +1522,6 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			if (sticker()) {
 				sticker()->alt = qs(d.valt);
 				sticker()->set = d.vstickerset;
-				if (wasByEmoji) Global::StickersByEmoji_Add(this);
 			}
 		} break;
 		case mtpc_documentAttributeVideo: {

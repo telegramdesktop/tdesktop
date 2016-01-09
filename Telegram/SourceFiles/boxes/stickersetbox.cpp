@@ -43,6 +43,7 @@ _input(set), _installRequest(0) {
 
 void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 	_pack.clear();
+	_emoji.clear();
 	if (set.type() == mtpc_messages_stickerSet) {
 		const MTPDmessages_stickerSet &d(set.c_messages_stickerSet());
 		const QVector<MTPDocument> &v(d.vdocuments.c_vector().v);
@@ -52,6 +53,23 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 			if (!doc || !doc->sticker()) continue;
 
 			_pack.push_back(doc);
+		}
+		const QVector<MTPStickerPack> &packs(d.vpacks.c_vector().v);
+		for (int32 i = 0, l = packs.size(); i < l; ++i) {
+			if (packs.at(i).type() != mtpc_stickerPack) continue;
+			const MTPDstickerPack &pack(packs.at(i).c_stickerPack());
+			if (EmojiPtr e = emojiGetNoColor(emojiFromText(qs(pack.vemoticon)))) {
+				const QVector<MTPlong> &stickers(pack.vdocuments.c_vector().v);
+				StickerPack p;
+				p.reserve(stickers.size());
+				for (int32 j = 0, c = stickers.size(); j < c; ++j) {
+					DocumentData *doc = App::document(stickers.at(j).v);
+					if (!doc || !doc->sticker()) continue;
+
+					p.push_back(doc);
+				}
+				_emoji.insert(e, p);
+			}
 		}
 		if (d.vset.type() == mtpc_stickerSet) {
 			const MTPDstickerSet &s(d.vset.c_stickerSet());
@@ -91,8 +109,12 @@ void StickerSetInner::installDone(const MTPBool &result) {
 	StickerSets &sets(cRefStickerSets());
 
 	_setFlags &= ~MTPDstickerSet::flag_disabled;
-	sets.insert(_setId, StickerSet(_setId, _setAccess, _setTitle, _setShortName, _setCount, _setHash, _setFlags)).value().stickers = _pack;
-	Global::StickersByEmoji_AddPack(_pack);
+	StickerSets::iterator it = sets.find(_setId);
+	if (it == sets.cend()) {
+		it = sets.insert(_setId, StickerSet(_setId, _setAccess, _setTitle, _setShortName, _setCount, _setHash, _setFlags));
+	}
+	it.value().stickers = _pack;
+	it.value().emoji = _emoji;
 
 	StickerSetsOrder &order(cRefStickerSetsOrder());
 	int32 insertAtIndex = 0, currentIndex = order.indexOf(_setId);
@@ -868,7 +890,6 @@ void StickersBox::onSave() {
 					if (removeIndex >= 0) cRefStickerSetsOrder().removeAt(removeIndex);
 					sets.erase(it);
 				}
-				Global::StickersByEmoji_RemovePack(it->stickers);
 			}
 		}
 	}
@@ -881,7 +902,6 @@ void StickersBox::onSave() {
 				MTPInputStickerSet setId = (it->id && it->access) ? MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access)) : MTP_inputStickerSetShortName(MTP_string(it->shortName));
 				_disenableRequests.insert(MTP::send(MTPmessages_InstallStickerSet(setId, MTP_boolFalse()), rpcDone(&StickersBox::disenableDone), rpcFail(&StickersBox::disenableFail), 0, 5), NullType());
 				it->flags &= ~MTPDstickerSet::flag_disabled;
-				Global::StickersByEmoji_AddPack(it->stickers);
 			}
 			order.push_back(reorder.at(i));
 		}
@@ -890,7 +910,6 @@ void StickersBox::onSave() {
 		if (it->id == CustomStickerSetId || it->id == RecentStickerSetId || order.contains(it->id)) {
 			++it;
 		} else {
-			Global::StickersByEmoji_RemovePack(it->stickers);
 			it = sets.erase(it);
 		}
 	}

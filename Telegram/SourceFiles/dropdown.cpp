@@ -3564,7 +3564,6 @@ void EmojiPan::onRemoveSetSure() {
 	Ui::hideLayer();
 	StickerSets::iterator it = cRefStickerSets().find(_removingSetId);
 	if (it != cRefStickerSets().cend() && !(it->flags & MTPDstickerSet::flag_official)) {
-		Global::StickersByEmoji_RemovePack(it->stickers);
 		if (it->id && it->access) {
 			MTP::send(MTPmessages_UninstallStickerSet(MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access))));
 		} else if (!it->shortName.isEmpty()) {
@@ -3842,7 +3841,7 @@ void EmojiPan::recountContentMaxHeight() {
 	updateContentHeight();
 }
 
-MentionsInner::MentionsInner(MentionsDropdown *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, StickerByEmojiRows *srows)
+MentionsInner::MentionsInner(MentionsDropdown *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, StickerPack *srows)
 : _parent(parent)
 , _mrows(mrows)
 , _hrows(hrows)
@@ -4290,7 +4289,7 @@ void MentionsDropdown::showStickers(EmojiPtr emoji) {
 	bool resetScroll = (_emoji != emoji);
 	_emoji = emoji;
 	if (!emoji) {
-		rowsUpdated(_mrows, _hrows, _brows, StickerByEmojiRows(), false);
+		rowsUpdated(_mrows, _hrows, _brows, StickerPack(), false);
 		return;
 	}
 
@@ -4312,15 +4311,30 @@ void MentionsDropdown::updateFiltered(bool resetScroll) {
 	MentionRows mrows;
 	HashtagRows hrows;
 	BotCommandRows brows;
-	StickerByEmojiRows srows;
+	StickerPack srows;
 	if (_emoji) {
-		const StickersByEmojiMap &stickers(Global::StickersByEmoji());
-		StickersByEmojiMap::const_iterator it = stickers.constFind(emojiGetNoColor(_emoji));
-		if (it != stickers.cend() && !it->isEmpty()) {
-			srows.reserve(it->size());
-			for (StickersByEmojiList::const_iterator i = it->cbegin(), e = it->cend(); i != e; ++i) {
-				srows.push_back(i.key());
+		QMap<uint64, uint64> setsToRequest;
+		StickerSets &sets(cRefStickerSets());
+		const StickerSetsOrder &order(cStickerSetsOrder());
+		for (int32 i = 0, l = order.size(); i < l; ++i) {
+			StickerSets::iterator it = sets.find(order.at(i));
+			if (it != sets.cend()) {
+				if (it->emoji.isEmpty()) {
+					setsToRequest.insert(it->id, it->access);
+					it->flags |= MTPDstickerSet_flag_NOT_LOADED;
+				} else {
+					StickersByEmojiMap::const_iterator i = it->emoji.constFind(emojiGetNoColor(_emoji));
+					if (i != it->emoji.cend()) {
+						srows.append(*i);
+					}
+				}
 			}
+		}
+		if (!setsToRequest.isEmpty() && App::api()) {
+			for (QMap<uint64, uint64>::const_iterator i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
+				App::api()->scheduleStickerSetRequest(i.key(), i.value());
+			}
+			App::api()->requestStickerSets();
 		}
 	} else if (_filter.at(0) == '@') {
 		if (_chat) {
@@ -4464,7 +4478,7 @@ void MentionsDropdown::updateFiltered(bool resetScroll) {
 	_inner.setRecentInlineBotsInRows(recentInlineBots);
 }
 
-void MentionsDropdown::rowsUpdated(const MentionRows &mrows, const HashtagRows &hrows, const BotCommandRows &brows, const StickerByEmojiRows &srows, bool resetScroll) {
+void MentionsDropdown::rowsUpdated(const MentionRows &mrows, const HashtagRows &hrows, const BotCommandRows &brows, const StickerPack &srows, bool resetScroll) {
 	if (mrows.isEmpty() && hrows.isEmpty() && brows.isEmpty() && srows.isEmpty()) {
 		if (!isHidden()) {
 			hideStart();

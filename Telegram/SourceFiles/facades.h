@@ -96,9 +96,6 @@ namespace Notify {
 
 };
 
-typedef OrderedSet<DocumentData*> StickersByEmojiList;
-typedef QMap<EmojiPtr, StickersByEmojiList> StickersByEmojiMap;
-
 namespace Global {
 
 	class Initializer {
@@ -113,11 +110,5 @@ namespace Global {
 	Type &Ref##Name();
 
 	DeclareGlobalReadOnly(uint64, LaunchId);
-
-	DeclareGlobal(StickersByEmojiMap, StickersByEmoji);
-	void StickersByEmoji_Add(DocumentData *doc);
-	bool StickersByEmoji_Remove(DocumentData *doc);
-	void StickersByEmoji_AddPack(const StickerPack &pack);
-	void StickersByEmoji_RemovePack(const StickerPack &pack);
 
 };

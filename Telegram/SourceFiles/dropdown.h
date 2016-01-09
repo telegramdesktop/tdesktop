@@ -727,7 +727,6 @@ private:
 typedef QList<UserData*> MentionRows;
 typedef QList<QString> HashtagRows;
 typedef QList<QPair<UserData*, const BotCommand*> > BotCommandRows;
-typedef QList<DocumentData*> StickerByEmojiRows;
 
 class MentionsDropdown;
 class MentionsInner : public TWidget {
@@ -735,7 +734,7 @@ class MentionsInner : public TWidget {
 
 public:
 
-	MentionsInner(MentionsDropdown *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, StickerByEmojiRows *srows);
+	MentionsInner(MentionsDropdown *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, StickerPack *srows);
 
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
@@ -774,7 +773,7 @@ private:
 	MentionRows *_mrows;
 	HashtagRows *_hrows;
 	BotCommandRows *_brows;
-	StickerByEmojiRows *_srows;
+	StickerPack *_srows;
 	int32 _stickersPerRow, _recentInlineBotsInRows;
 	int32 _sel;
 	bool _mouseSel;
@@ -845,9 +844,9 @@ private:
 	MentionRows _mrows;
 	HashtagRows _hrows;
 	BotCommandRows _brows;
-	StickerByEmojiRows _srows;
+	StickerPack _srows;
 
-	void rowsUpdated(const MentionRows &mrows, const HashtagRows &hrows, const BotCommandRows &brows, const StickerByEmojiRows &srows, bool resetScroll);
+	void rowsUpdated(const MentionRows &mrows, const HashtagRows &hrows, const BotCommandRows &brows, const StickerPack &srows, bool resetScroll);
 
 	ScrollArea _scroll;
 	MentionsInner _inner;

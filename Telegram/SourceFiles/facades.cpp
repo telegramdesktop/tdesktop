@@ -179,8 +179,6 @@ namespace Global {
 
 	struct Data {
 		uint64 LaunchId;
-
-		StickersByEmojiMap StickersByEmoji;
 	};
 
 	Data *_data = 0;
@@ -188,6 +186,7 @@ namespace Global {
 	Initializer::Initializer() {
 		initThirdParty();
 		_data = new Data();
+
 		memset_rand(&_data->LaunchId, sizeof(_data->LaunchId));
 	}
 
@@ -210,47 +209,5 @@ Type &Ref##Name() { \
 }
 
 	DefineGlobalReadOnly(uint64, LaunchId);
-
-	DefineGlobal(StickersByEmojiMap, StickersByEmoji);
-
-	void StickersByEmoji_Add(DocumentData *doc) {
-		if (StickerData *sticker = doc->sticker()) {
-			if (EmojiPtr emoji = emojiGetNoColor(emojiFromText(sticker->alt))) {
-				RefStickersByEmoji()[emoji].insert(doc);
-			}
-		}
-	}
-
-	bool StickersByEmoji_Remove(DocumentData *doc) {
-		if (StickerData *sticker = doc->sticker()) {
-			if (EmojiPtr emoji = emojiGetNoColor(emojiFromText(sticker->alt))) {
-				StickersByEmojiMap stickers(RefStickersByEmoji());
-				StickersByEmojiMap::iterator iList = stickers.find(emoji);
-				if (iList != stickers.cend()) {
-					StickersByEmojiList::iterator iEntry = iList->find(doc);
-					if (iEntry != iList->cend()) {
-						iList->erase(iEntry);
-						if (iList->isEmpty()) {
-							stickers.erase(iList);
-						}
-						return true;
-					}
-				}
-			}
-		}
-		return false;
-	}
-
-	void StickersByEmoji_AddPack(const StickerPack &pack) {
-		for (StickerPack::const_iterator i = pack.cbegin(), e = pack.cend(); i != e; ++i) {
-			StickersByEmoji_Add(*i);
-		}
-	}
-
-	void StickersByEmoji_RemovePack(const StickerPack &pack) {
-		for (StickerPack::const_iterator i = pack.cbegin(), e = pack.cend(); i != e; ++i) {
-			StickersByEmoji_Remove(*i);
-		}
-	}
 
 };

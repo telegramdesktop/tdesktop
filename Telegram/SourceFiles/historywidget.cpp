@@ -3164,24 +3164,24 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 	for (int32 i = 0, l = d_sets.size(); i != l; ++i) {
 		if (d_sets.at(i).type() == mtpc_stickerSet) {
 			const MTPDstickerSet &set(d_sets.at(i).c_stickerSet());
-			StickerSets::iterator i = sets.find(set.vid.v);
+			StickerSets::iterator it = sets.find(set.vid.v);
 			QString title = stickerSetTitle(set);
-			if (i == sets.cend()) {
-				i = sets.insert(set.vid.v, StickerSet(set.vid.v, set.vaccess_hash.v, title, qs(set.vshort_name), set.vcount.v, set.vhash.v, set.vflags.v | MTPDstickerSet_flag_NOT_LOADED));
+			if (it == sets.cend()) {
+				it = sets.insert(set.vid.v, StickerSet(set.vid.v, set.vaccess_hash.v, title, qs(set.vshort_name), set.vcount.v, set.vhash.v, set.vflags.v | MTPDstickerSet_flag_NOT_LOADED));
 			} else {
-				i->access = set.vaccess_hash.v;
-				i->title = title;
-				i->shortName = qs(set.vshort_name);
-				i->flags = set.vflags.v;
-				if (i->count != set.vcount.v || i->hash != set.vhash.v) {
-					i->count = set.vcount.v;
-					i->hash = set.vhash.v;
-					i->flags |= MTPDstickerSet_flag_NOT_LOADED; // need to request this set
+				it->access = set.vaccess_hash.v;
+				it->title = title;
+				it->shortName = qs(set.vshort_name);
+				it->flags = set.vflags.v;
+				if (it->count != set.vcount.v || it->hash != set.vhash.v || it->emoji.isEmpty()) {
+					it->count = set.vcount.v;
+					it->hash = set.vhash.v;
+					it->flags |= MTPDstickerSet_flag_NOT_LOADED; // need to request this set
 				}
 			}
-			if (!(i->flags & MTPDstickerSet::flag_disabled) || (i->flags & MTPDstickerSet::flag_official)) {
+			if (!(it->flags & MTPDstickerSet::flag_disabled) || (it->flags & MTPDstickerSet::flag_official)) {
 				setsOrder.push_back(set.vid.v);
-				if (i->stickers.isEmpty() || (i->flags & MTPDstickerSet_flag_NOT_LOADED)) {
+				if (it->stickers.isEmpty() || (it->flags & MTPDstickerSet_flag_NOT_LOADED)) {
 					setsToRequest.insert(set.vid.v, set.vaccess_hash.v);
 				}
 			}
@@ -3201,7 +3201,6 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 					++i;
 				}
 			}
-			Global::StickersByEmoji_RemovePack(it->stickers);
 			it = sets.erase(it);
 		}
 	}
