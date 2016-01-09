@@ -897,7 +897,7 @@ public:
 	virtual bool serviceMsg() const {
 		return false;
 	}
-	virtual void updateMedia(const MTPMessageMedia *media, bool allowEmitResize) {
+	virtual void updateMedia(const MTPMessageMedia *media) {
 	}
 	virtual int32 addToOverview(AddToOverviewMethod method) {
 		return 0;
@@ -918,7 +918,7 @@ public:
 
 	virtual void drawInfo(Painter &p, int32 right, int32 bottom, int32 width, bool selected, InfoDisplayType type) const {
 	}
-	virtual void setViewsCount(int32 count) {
+	virtual void setViewsCount(int32 count, bool reinit = true) {
 	}
 	virtual void setId(MsgId newId);
 	virtual void setDate(const QDateTime &date) { // for date items
@@ -1161,7 +1161,7 @@ public:
 	virtual void unregItem(HistoryItem *item) {
 	}
 
-	virtual void updateFrom(const MTPMessageMedia &media, HistoryItem *parent, bool allowEmitResize) {
+	virtual void updateFrom(const MTPMessageMedia &media, HistoryItem *parent) {
 	}
 
 	virtual bool isImageLink() const {
@@ -1309,7 +1309,7 @@ public:
 		return _data;
 	}
 
-	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent, bool allowEmitResize);
+	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent);
 
 	void regItem(HistoryItem *item);
 	void unregItem(HistoryItem *item);
@@ -1451,7 +1451,7 @@ public:
 	void regItem(HistoryItem *item);
 	void unregItem(HistoryItem *item);
 
-	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent, bool allowEmitResize);
+	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent);
 
 	bool needsBubble(const HistoryItem *parent) const {
 		return true;
@@ -1519,7 +1519,7 @@ public:
 	void regItem(HistoryItem *item);
 	void unregItem(HistoryItem *item);
 
-	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent, bool allowEmitResize);
+	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent);
 
 	bool hasReplyPreview() const {
 		return !_data->thumb->isNull();
@@ -1611,7 +1611,7 @@ public:
 	void regItem(HistoryItem *item);
 	void unregItem(HistoryItem *item);
 
-	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent, bool allowEmitResize);
+	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent);
 
 	bool hasReplyPreview() const {
 		return !_data->thumb->isNull();
@@ -1686,7 +1686,7 @@ public:
 	void regItem(HistoryItem *item);
 	void unregItem(HistoryItem *item);
 
-	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent, bool allowEmitResize);
+	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent);
 
 	bool needsBubble(const HistoryItem *parent) const {
 		return false;
@@ -1745,7 +1745,7 @@ public:
 	void regItem(HistoryItem *item);
 	void unregItem(HistoryItem *item);
 
-	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent, bool allowEmitResize);
+	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent);
 
 	bool needsBubble(const HistoryItem *parent) const {
 		return true;
@@ -1988,7 +1988,7 @@ public:
 	void initMedia(const MTPMessageMedia *media, QString &currentText);
 	void initMediaFromDocument(DocumentData *doc, const QString &caption);
 	void initDimensions();
-	void fromNameUpdated() const;
+	void fromNameUpdated(int32 width) const;
 
 	virtual HistoryMessageVia *via() const {
 		return (_via && !_via->isNull()) ? _via : 0;
@@ -2017,7 +2017,7 @@ public:
 	}
 
 	void drawInfo(Painter &p, int32 right, int32 bottom, int32 width, bool selected, InfoDisplayType type) const;
-	void setViewsCount(int32 count);
+	void setViewsCount(int32 count, bool reinit = true);
 	void setId(MsgId newId);
 	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const;
 
@@ -2047,11 +2047,11 @@ public:
     QString notificationHeader() const;
     QString notificationText() const;
 
-	void updateMedia(const MTPMessageMedia *media, bool allowEmitResize) {
+	void updateMedia(const MTPMessageMedia *media) {
 		if (media && _media && _media->type() != MediaTypeWebPage) {
-			_media->updateFrom(*media, this, allowEmitResize);
+			_media->updateFrom(*media, this);
 		} else {
-			setMedia(media, allowEmitResize);
+			setMedia(media);
 		}
 	}
 	int32 addToOverview(AddToOverviewMethod method);
@@ -2060,7 +2060,7 @@ public:
 	QString selectedText(uint32 selection) const;
 	QString inDialogsText() const;
 	HistoryMedia *getMedia(bool inOverview = false) const;
-	void setMedia(const MTPMessageMedia *media, bool allowEmitResize);
+	void setMedia(const MTPMessageMedia *media);
 	void setText(const QString &text, const EntitiesInText &entities);
 	QString originalText() const;
 	EntitiesInText originalEntities() const;
