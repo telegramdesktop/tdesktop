@@ -95,3 +95,29 @@ namespace Notify {
 	void automaticLoadSettingsChangedGif();
 
 };
+
+typedef OrderedSet<DocumentData*> StickersByEmojiList;
+typedef QMap<EmojiPtr, StickersByEmojiList> StickersByEmojiMap;
+
+namespace Global {
+
+	class Initializer {
+	public:
+		Initializer();
+		~Initializer();
+	};
+
+#define DeclareGlobalReadOnly(Type, Name) const Type &Name();
+#define DeclareGlobal(Type, Name) DeclareGlobalReadOnly(Type, Name) \
+	void Set##Name(const Type &Name); \
+	Type &Ref##Name();
+
+	DeclareGlobalReadOnly(uint64, LaunchId);
+
+	DeclareGlobal(StickersByEmojiMap, StickersByEmoji);
+	void StickersByEmoji_Add(DocumentData *doc);
+	bool StickersByEmoji_Remove(DocumentData *doc);
+	void StickersByEmoji_AddPack(const StickerPack &pack);
+	void StickersByEmoji_RemovePack(const StickerPack &pack);
+
+};

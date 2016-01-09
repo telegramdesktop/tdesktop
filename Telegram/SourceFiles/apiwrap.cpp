@@ -430,7 +430,7 @@ void ApiWrap::requestBots(ChannelData *peer) {
 
 void ApiWrap::gotChat(PeerData *peer, const MTPmessages_Chats &result) {
 	_peerRequests.remove(peer);
-	
+
 	if (result.type() == mtpc_messages_chats) {
 		const QVector<MTPChat> &v(result.c_messages_chats().vchats.c_vector().v);
 		bool badVersion = false;
@@ -682,10 +682,11 @@ void ApiWrap::requestStickerSets() {
 
 void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) {
 	_stickerSetRequests.remove(setId);
-	
+
 	if (result.type() != mtpc_messages_stickerSet) return;
 	const MTPDmessages_stickerSet &d(result.c_messages_stickerSet());
-	
+	const QVector<MTPStickerPack> &v(d.vpacks.c_vector().v);
+
 	if (d.vset.type() != mtpc_stickerSet) return;
 	const MTPDstickerSet &s(d.vset.c_stickerSet());
 
@@ -731,12 +732,15 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 			++i;
 		}
 	}
+
+	Global::StickersByEmoji_RemovePack(it->stickers);
 	if (pack.isEmpty()) {
 		int32 removeIndex = cStickerSetsOrder().indexOf(setId);
 		if (removeIndex >= 0) cRefStickerSetsOrder().removeAt(removeIndex);
 		sets.erase(it);
 	} else {
 		it->stickers = pack;
+		Global::StickersByEmoji_AddPack(it->stickers);
 	}
 
 	if (writeRecent) {

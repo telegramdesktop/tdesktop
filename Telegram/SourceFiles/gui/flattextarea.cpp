@@ -738,7 +738,7 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 				const QChar *ch = t.constData(), *e = ch + t.size();
 				for (; ch != e; ++ch, ++fp) {
 					int32 emojiLen = 0;
-					emoji = emojiFromText(ch, e, emojiLen);
+					emoji = emojiFromText(ch, e, &emojiLen);
 					if (emoji) {
 						if (replacePosition >= 0) {
 							emoji = 0; // replace tilde char format first

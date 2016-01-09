@@ -4744,14 +4744,11 @@ bool HistoryGif::dataLoaded() const {
 HistorySticker::HistorySticker(DocumentData *document) : HistoryMedia()
 , _pixw(1)
 , _pixh(1)
-, _data(document) {
+, _data(document)
+, _emoji(_data->sticker()->alt) {
 	_data->thumb->load();
-	if (!_data->sticker()->alt.isEmpty()) {
-		_emoji = _data->sticker()->alt;
-		int32 elen = 0;
-		if (EmojiPtr e = emojiFromText(_emoji.constData(), _emoji.constEnd(), elen)) {
-			_emoji = emojiString(e);
-		}
+	if (EmojiPtr e = emojiFromText(_emoji)) {
+		_emoji = emojiString(e);
 	}
 }
 

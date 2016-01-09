@@ -190,7 +190,6 @@ void settingsParseArgs(int argc, char *argv[]) {
 		gCustomNotifies = false;
 	}
 #endif
-    memset_rand(&gInstance, sizeof(gInstance));
 	gExeDir = psCurrentExeDirectory(argc, argv);
 	gExeName = psCurrentExeName(argc, argv);
     for (int32 i = 0; i < argc; ++i) {

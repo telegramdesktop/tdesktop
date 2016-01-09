@@ -2920,6 +2920,8 @@ namespace Local {
 		RecentStickerPack &recent(cRefRecentStickers());
 		recent.clear();
 
+		Global::SetStickersByEmoji(StickersByEmojiMap());
+
 		StickerSet &def(sets.insert(DefaultStickerSetId, StickerSet(DefaultStickerSetId, 0, lang(lng_stickers_default_set), QString(), 0, 0, MTPDstickerSet::flag_official)).value());
 		StickerSet &custom(sets.insert(CustomStickerSetId, StickerSet(CustomStickerSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, 0)).value());
 
@@ -2992,6 +2994,8 @@ namespace Local {
 
 		StickerSetsOrder &order(cRefStickerSetsOrder());
 		order.clear();
+
+		Global::SetStickersByEmoji(StickersByEmojiMap());
 
 		quint32 cnt;
 		QByteArray hash;
@@ -3072,6 +3076,10 @@ namespace Local {
 
 				set.stickers.push_back(doc);
 				++set.count;
+			}
+
+			if (setId != CustomStickerSetId) {
+				Global::StickersByEmoji_AddPack(set.stickers);
 			}
 		}
 	}

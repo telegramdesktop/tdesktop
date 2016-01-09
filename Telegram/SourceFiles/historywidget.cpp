@@ -2763,6 +2763,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 
 	_attachMention.hide();
 	connect(&_attachMention, SIGNAL(chosen(QString)), this, SLOT(onMentionHashtagOrBotCommandInsert(QString)));
+	connect(&_attachMention, SIGNAL(stickerSelected(DocumentData*)), this, SLOT(onStickerSend(DocumentData*)));
 	_field.installEventFilter(&_attachMention);
 	_field.setCtrlEnterSubmit(cCtrlEnter());
 
@@ -2807,13 +2808,18 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 }
 
 void HistoryWidget::start() {
-	connect(App::main(), SIGNAL(stickersUpdated()), &_emojiPan, SLOT(refreshStickers()));
+	connect(App::main(), SIGNAL(stickersUpdated()), this, SLOT(onStickersUpdated()));
 	connect(App::main(), SIGNAL(savedGifsUpdated()), &_emojiPan, SLOT(refreshSavedGifs()));
 
 	updateRecentStickers();
 	if (App::main()) emit App::main()->savedGifsUpdated();
 
 	connect(App::api(), SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
+}
+
+void HistoryWidget::onStickersUpdated() {
+	_emojiPan.refreshStickers();
+	updateStickersByEmoji();
 }
 
 void HistoryWidget::onMentionHashtagOrBotCommandInsert(QString str) {
@@ -2867,8 +2873,23 @@ void HistoryWidget::updateInlineBotQuery() {
 	}
 }
 
+void HistoryWidget::updateStickersByEmoji() {
+	int32 len = 0;
+	if (EmojiPtr emoji = emojiFromText(_field.getLastText(), &len)) {
+		if (_field.getLastText().size() <= len) {
+			_attachMention.showStickers(emoji);
+		} else {
+			len = 0;
+		}
+	}
+	if (!len) {
+		_attachMention.showStickers(EmojiPtr(0));
+	}
+}
+
 void HistoryWidget::onTextChange() {
 	updateInlineBotQuery();
+	updateStickersByEmoji();
 
 	if (_peer && (!_peer->isChannel() || _peer->isMegagroup() || !_peer->asChannel()->canPublish() || (!_peer->asChannel()->isBroadcast() && !_broadcast.checked()))) {
 		if (!_inlineBot && (_textUpdateEventsFlags & TextUpdateEventsSendTyping)) {
@@ -3180,6 +3201,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 					++i;
 				}
 			}
+			Global::StickersByEmoji_RemovePack(it->stickers);
 			it = sets.erase(it);
 		}
 	}
@@ -5405,10 +5427,10 @@ void HistoryWidget::onFieldFocused() {
 }
 
 void HistoryWidget::onCheckMentionDropdown() {
-	if (!_history || _a_show.animating() || _inlineBot) return;
+	if (!_history || _a_show.animating()) return;
 
 	bool start = false;
-	QString query = _field.getMentionHashtagBotCommandPart(start);
+	QString query = _inlineBot ? QString() : _field.getMentionHashtagBotCommandPart(start);
 	if (!query.isEmpty()) {
 		if (query.at(0) == '#' && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) Local::readRecentHashtagsAndBots();
 		if (query.at(0) == '@' && cRecentInlineBots().isEmpty()) Local::readRecentHashtagsAndBots();
@@ -6529,6 +6551,13 @@ void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 
 	App::historyRegRandom(randomId, newId);
 
+	if (_attachMention.stickersShown()) {
+		setFieldText(QString());
+		_saveDraftText = true;
+		_saveDraftStart = getms();
+		onDraftSave();
+	}
+
 	if (!_attachMention.isHidden()) _attachMention.hideStart();
 	if (!_attachType.isHidden()) _attachType.hideStart();
 	if (!_emojiPan.isHidden()) _emojiPan.hideStart();
@@ -6813,7 +6842,9 @@ void HistoryWidget::updatePreview() {
 void HistoryWidget::onCancel() {
 	if (_inlineBot && _field.getLastText().startsWith('@' + _inlineBot->username + ' ')) {
 		setFieldText(QString(), TextUpdateEventsSaveDraft, false);
-	} else {
+	} else if (!_attachMention.isHidden()) {
+		_attachMention.hideStart();
+	} else  {
 		Ui::showChatsList();
 		emit cancelled();
 	}

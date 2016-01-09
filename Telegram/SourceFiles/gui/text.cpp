@@ -598,7 +598,7 @@ public:
 
 	void parseEmojiFromCurrent() {
 		int len = 0;
-		EmojiPtr e = emojiFromText(ptr - emojiLookback, end, len);
+		EmojiPtr e = emojiFromText(ptr - emojiLookback, end, &len);
 		if (!e) return;
 
 		for (int l = len - emojiLookback - 1; l > 0; --l) {
@@ -4502,8 +4502,7 @@ goodCanBreakEntity = canBreakEntity;\
 #undef MARK_GOOD_AS_LEVEL
 
 		int elen = 0;
-		EmojiPtr e = emojiFromText(ch, end, elen);
-		if (e) {
+		if (EmojiPtr e = emojiFromText(ch, end, &elen)) {
 			for (int i = 0; i < elen; ++i, ++ch, ++s) {
 				if (ch->isHighSurrogate() && i + 1 < elen && (ch + 1)->isLowSurrogate()) {
 					++ch;

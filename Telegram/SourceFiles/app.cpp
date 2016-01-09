@@ -1969,6 +1969,7 @@ namespace App {
 		if (api()) api()->clearWebPageRequests();
 		cSetRecentStickers(RecentStickerPack());
 		cSetStickerSets(StickerSets());
+		Global::SetStickersByEmoji(StickersByEmojiMap());
 		cSetStickerSetsOrder(StickerSetsOrder());
 		cSetLastStickersUpdate(0);
 		cSetSavedGifs(SavedGifs());

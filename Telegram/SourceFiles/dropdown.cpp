@@ -3564,6 +3564,7 @@ void EmojiPan::onRemoveSetSure() {
 	Ui::hideLayer();
 	StickerSets::iterator it = cRefStickerSets().find(_removingSetId);
 	if (it != cRefStickerSets().cend() && !(it->flags & MTPDstickerSet::flag_official)) {
+		Global::StickersByEmoji_RemovePack(it->stickers);
 		if (it->id && it->access) {
 			MTP::send(MTPmessages_UninstallStickerSet(MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access))));
 		} else if (!it->shortName.isEmpty()) {
@@ -3841,23 +3842,73 @@ void EmojiPan::recountContentMaxHeight() {
 	updateContentHeight();
 }
 
-MentionsInner::MentionsInner(MentionsDropdown *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows)
+MentionsInner::MentionsInner(MentionsDropdown *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, StickerByEmojiRows *srows)
 : _parent(parent)
 , _mrows(mrows)
 , _hrows(hrows)
 , _brows(brows)
+, _srows(srows)
+, _stickersPerRow(1)
+, _recentInlineBotsInRows(0)
 , _sel(-1)
 , _mouseSel(false)
 , _overDelete(false) {
 }
 
 void MentionsInner::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
+
+	QRect r(e->rect());
+	if (r != rect()) p.setClipRect(r);
 
 	int32 atwidth = st::mentionFont->width('@'), hashwidth = st::mentionFont->width('#');
 	int32 mentionleft = 2 * st::mentionPadding.left() + st::mentionPhotoSize;
 	int32 mentionwidth = width() - mentionleft - 2 * st::mentionPadding.right();
 	int32 htagleft = st::btnAttachPhoto.width + st::taMsgField.textMrg.left() - st::lineWidth, htagwidth = width() - st::mentionPadding.right() - htagleft - st::mentionScroll.width;
+
+	if (!_srows->isEmpty()) {
+		int32 rows = rowscount(_srows->size(), _stickersPerRow);
+		int32 fromrow = floorclamp(r.y() - st::stickerPanPadding, st::stickerPanSize.height(), 0, rows);
+		int32 torow = ceilclamp(r.y() + r.height() - st::stickerPanPadding, st::stickerPanSize.height(), 0, rows);
+		int32 fromcol = floorclamp(r.x() - st::stickerPanPadding, st::stickerPanSize.width(), 0, _stickersPerRow);
+		int32 tocol = ceilclamp(r.x() + r.width() - st::stickerPanPadding, st::stickerPanSize.width(), 0, _stickersPerRow);
+		for (int32 row = fromrow; row < torow; ++row) {
+			for (int32 col = fromcol; col < tocol; ++col) {
+				int32 index = row * _stickersPerRow + col;
+				if (index >= _srows->size()) break;
+
+				DocumentData *sticker = _srows->at(index);
+				if (!sticker->sticker()) continue;
+
+				QPoint pos(st::stickerPanPadding + col * st::stickerPanSize.width(), st::stickerPanPadding + row * st::stickerPanSize.height());
+				if (_sel == index) {
+					QPoint tl(pos);
+					if (rtl()) tl.setX(width() - tl.x() - st::stickerPanSize.width());
+					App::roundRect(p, QRect(tl, st::stickerPanSize), st::emojiPanHover, StickerHoverCorners);
+				}
+
+				bool goodThumb = !sticker->thumb->isNull() && ((sticker->thumb->width() >= 128) || (sticker->thumb->height() >= 128));
+				if (goodThumb) {
+					sticker->thumb->load();
+				} else {
+					sticker->checkSticker();
+				}
+
+				float64 coef = qMin((st::stickerPanSize.width() - st::msgRadius * 2) / float64(sticker->dimensions.width()), (st::stickerPanSize.height() - st::msgRadius * 2) / float64(sticker->dimensions.height()));
+				if (coef > 1) coef = 1;
+				int32 w = qRound(coef * sticker->dimensions.width()), h = qRound(coef * sticker->dimensions.height());
+				if (w < 1) w = 1;
+				if (h < 1) h = 1;
+				QPoint ppos = pos + QPoint((st::stickerPanSize.width() - w) / 2, (st::stickerPanSize.height() - h) / 2);
+				if (goodThumb) {
+					p.drawPixmapLeft(ppos, width(), sticker->thumb->pix(w, h));
+				} else if (!sticker->sticker()->img->isNull()) {
+					p.drawPixmapLeft(ppos, width(), sticker->sticker()->img->pix(w, h));
+				}
+			}
+		}
+		return;
+	}
 
 	int32 from = qFloor(e->rect().top() / st::mentionHeight), to = qFloor(e->rect().bottom() / st::mentionHeight) + 1;
 	int32 last = _mrows->isEmpty() ? (_hrows->isEmpty() ? _brows->size() : _hrows->size()) : _mrows->size();
@@ -3970,6 +4021,10 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 	p.fillRect(cWideMode() ? st::lineWidth : 0, _parent->innerBottom() - st::lineWidth, width() - (cWideMode() ? st::lineWidth : 0), st::lineWidth, st::shadowColor->b);
 }
 
+void MentionsInner::resizeEvent(QResizeEvent *e) {
+	_stickersPerRow = int32(width() - 2 * st::stickerPanPadding) / int32(st::stickerPanSize.width());
+}
+
 void MentionsInner::mouseMoveEvent(QMouseEvent *e) {
 	_mousePos = mapToGlobal(e->pos());
 	_mouseSel = true;
@@ -3978,29 +4033,47 @@ void MentionsInner::mouseMoveEvent(QMouseEvent *e) {
 
 void MentionsInner::clearSel() {
 	_mouseSel = _overDelete = false;
-	setSel((_mrows->isEmpty() && _brows->isEmpty() && _hrows->isEmpty()) ? -1 : 0);
+	setSel((_mrows->isEmpty() && _brows->isEmpty() && _hrows->isEmpty() && _srows->isEmpty()) ? -1 : 0);
 }
 
-bool MentionsInner::moveSel(int direction) {
+bool MentionsInner::moveSel(int key) {
 	_mouseSel = false;
-	int32 maxSel = (_mrows->isEmpty() ? (_hrows->isEmpty() ? _brows->size() : _hrows->size()) : _mrows->size());
+	int32 maxSel = (_mrows->isEmpty() ? (_hrows->isEmpty() ? (_brows->isEmpty() ? _srows->size() : _brows->size()) : _hrows->size()) : _mrows->size());
+	int32 direction = (key == Qt::Key_Up) ? -1 : (key == Qt::Key_Down ? 1 : 0);
+	if (!_srows->isEmpty()) {
+		if (key == Qt::Key_Left) {
+			direction = -1;
+		} else if (key == Qt::Key_Right) {
+			direction = 1;
+		} else {
+			direction *= _stickersPerRow;
+		}
+	}
 	if (_sel >= maxSel || _sel < 0) {
-		if (direction < 0) {
+		if (direction < -1) {
+			setSel(((maxSel - 1) / _stickersPerRow) * _stickersPerRow, true);
+		} else if (direction < 0) {
 			setSel(maxSel - 1, true);
 		} else {
 			setSel(0, true);
 		}
 		return (_sel >= 0 && _sel < maxSel);
 	}
-	setSel((_sel + direction >= maxSel) ? -1 : (_sel + direction), true);
+	setSel((_sel + direction >= maxSel || _sel + direction < 0) ? -1 : (_sel + direction), true);
 	return true;
 }
 
 bool MentionsInner::select() {
-	QString sel = getSelected();
-	if (!sel.isEmpty()) {
-		emit chosen(sel);
-		return true;
+	if (!_srows->isEmpty()) {
+		if (_sel >= 0 && _sel < _srows->size()) {
+			emit selected(_srows->at(_sel));
+		}
+	} else {
+		QString sel = getSelected();
+		if (!sel.isEmpty()) {
+			emit chosen(sel);
+			return true;
+		}
 	}
 	return false;
 }
@@ -4086,21 +4159,51 @@ void MentionsInner::leaveEvent(QEvent *e) {
 	}
 }
 
+void MentionsInner::updateSelectedRow() {
+	if (_sel >= 0) {
+		if (_srows->isEmpty()) {
+			update(0, _sel * st::mentionHeight, width(), st::mentionHeight);
+		} else {
+			int32 row = _sel / _stickersPerRow, col = _sel % _stickersPerRow;
+			update(st::stickerPanPadding + col * st::stickerPanSize.width(), st::stickerPanPadding + row * st::stickerPanSize.height(), st::stickerPanSize.width(), st::stickerPanSize.height());
+		}
+	}
+}
+
 void MentionsInner::setSel(int sel, bool scroll) {
-	if (_sel >= 0) update(0, _sel * st::mentionHeight, width(), st::mentionHeight);
+	updateSelectedRow();
 	_sel = sel;
-	if (_sel >= 0) update(0, _sel * st::mentionHeight, width(), st::mentionHeight);
-	int32 maxSel = _mrows->isEmpty() ? (_hrows->isEmpty() ? _brows->size() : _hrows->size()) : _mrows->size();
-	if (scroll && _sel >= 0 && _sel < maxSel) emit mustScrollTo(_sel * st::mentionHeight, (_sel + 1) * st::mentionHeight);
+	updateSelectedRow();
+
+	if (scroll && _sel >= 0) {
+		if (_srows->isEmpty()) {
+			emit mustScrollTo(_sel * st::mentionHeight, (_sel + 1) * st::mentionHeight);
+		} else {
+			int32 row = _sel / _stickersPerRow;
+			emit mustScrollTo(st::stickerPanPadding + row * st::stickerPanSize.height(), st::stickerPanPadding + (row + 1) * st::stickerPanSize.height());
+		}
+	}
 }
 
 void MentionsInner::onUpdateSelected(bool force) {
 	QPoint mouse(mapFromGlobal(_mousePos));
 	if ((!force && !rect().contains(mouse)) || !_mouseSel) return;
 
-	int w = width(), mouseY = mouse.y();
-	int32 sel = mouseY / int32(st::mentionHeight), maxSel = _mrows->isEmpty() ? (_hrows->isEmpty() ? _brows->size() : _hrows->size()) : _mrows->size();
-	_overDelete = (!_hrows->isEmpty() || (!_mrows->isEmpty() && sel < _recentInlineBotsInRows)) ? (mouse.x() >= w - st::mentionHeight) : false;
+	int32 sel = -1, maxSel = 0;
+	if (!_srows->isEmpty()) {
+		int32 rows = rowscount(_srows->size(), _stickersPerRow);
+		int32 row = (mouse.y() >= st::stickerPanPadding) ? ((mouse.y() - st::stickerPanPadding) / st::stickerPanSize.height()) : -1;
+		int32 col = (mouse.x() >= st::stickerPanPadding) ? ((mouse.x() - st::stickerPanPadding) / st::stickerPanSize.width()) : -1;
+		if (row >= 0 && col >= 0) {
+			sel = row * _stickersPerRow + col;
+		}
+		maxSel = _srows->size();
+		_overDelete = false;
+	} else {
+		sel = mouse.y() / int32(st::mentionHeight);
+		maxSel = _mrows->isEmpty() ? (_hrows->isEmpty() ? _brows->size() : _hrows->size()) : _mrows->size();
+		_overDelete = (!_hrows->isEmpty() || (!_mrows->isEmpty() && sel < _recentInlineBotsInRows)) ? (mouse.x() >= width() - st::mentionHeight) : false;
+	}
 	if (sel < 0 || sel >= maxSel) {
 		sel = -1;
 	}
@@ -4119,7 +4222,7 @@ void MentionsInner::onParentGeometryChanged() {
 
 MentionsDropdown::MentionsDropdown(QWidget *parent) : TWidget(parent)
 , _scroll(this, st::mentionScroll)
-, _inner(this, &_mrows, &_hrows, &_brows)
+, _inner(this, &_mrows, &_hrows, &_brows, &_srows)
 , _chat(0)
 , _user(0)
 , _channel(0)
@@ -4130,6 +4233,7 @@ MentionsDropdown::MentionsDropdown(QWidget *parent) : TWidget(parent)
 	_hideTimer.setSingleShot(true);
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideStart()));
 	connect(&_inner, SIGNAL(chosen(QString)), this, SIGNAL(chosen(QString)));
+	connect(&_inner, SIGNAL(selected(DocumentData*)), this, SIGNAL(stickerSelected(DocumentData*)));
 	connect(&_inner, SIGNAL(mustScrollTo(int,int)), &_scroll, SLOT(scrollToY(int,int)));
 
 	connect(App::wnd(), SIGNAL(imageLoaded()), &_inner, SLOT(update()));
@@ -4150,7 +4254,7 @@ MentionsDropdown::MentionsDropdown(QWidget *parent) : TWidget(parent)
 }
 
 void MentionsDropdown::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 
 	if (_a_appearance.animating()) {
 		p.setOpacity(a_opacity.current());
@@ -4158,29 +4262,43 @@ void MentionsDropdown::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
-	p.fillRect(rect(), st::white->b);
-
+	p.fillRect(rect(), st::white);
 }
 
 void MentionsDropdown::showFiltered(PeerData *peer, QString query, bool start) {
-	if (query.isEmpty() || (peer->isUser() && query.at(0) == '@' && (!start || cRecentInlineBots().isEmpty()))) {
-		if (!isHidden()) {
-			hideStart();
-		}
-		return;
-	}
-
 	_chat = peer->asChat();
 	_user = peer->asUser();
 	_channel = peer->asChannel();
+	if (query.isEmpty()) {
+		rowsUpdated(MentionRows(), HashtagRows(), BotCommandRows(), _srows, false);
+		return;
+	}
+
+	_emoji = EmojiPtr();
+
 	query = query.toLower();
-	bool toDown = (_filter != query);
-	if (toDown) {
+	bool resetScroll = (_filter != query);
+	if (resetScroll) {
 		_filter = query;
 	}
 	_addInlineBots = start;
 
-	updateFiltered(toDown);
+	updateFiltered(resetScroll);
+}
+
+void MentionsDropdown::showStickers(EmojiPtr emoji) {
+	bool resetScroll = (_emoji != emoji);
+	_emoji = emoji;
+	if (!emoji) {
+		rowsUpdated(_mrows, _hrows, _brows, StickerByEmojiRows(), false);
+		return;
+	}
+
+	_chat = 0;
+	_user = 0;
+	_channel = 0;
+
+	updateFiltered(resetScroll);
 }
 
 bool MentionsDropdown::clearFilteredBotCommands() {
@@ -4189,12 +4307,22 @@ bool MentionsDropdown::clearFilteredBotCommands() {
 	return true;
 }
 
-void MentionsDropdown::updateFiltered(bool toDown) {
+void MentionsDropdown::updateFiltered(bool resetScroll) {
 	int32 now = unixtime(), recentInlineBots = 0;
 	MentionRows mrows;
 	HashtagRows hrows;
 	BotCommandRows brows;
-	if (_filter.at(0) == '@') {
+	StickerByEmojiRows srows;
+	if (_emoji) {
+		const StickersByEmojiMap &stickers(Global::StickersByEmoji());
+		StickersByEmojiMap::const_iterator it = stickers.constFind(emojiGetNoColor(_emoji));
+		if (it != stickers.cend() && !it->isEmpty()) {
+			srows.reserve(it->size());
+			for (StickersByEmojiList::const_iterator i = it->cbegin(), e = it->cend(); i != e; ++i) {
+				srows.push_back(i.key());
+			}
+		}
+	} else if (_filter.at(0) == '@') {
 		if (_chat) {
 			mrows.reserve((_addInlineBots ? cRecentInlineBots().size() : 0) + (_chat->participants.isEmpty() ? _chat->lastAuthors.size() : _chat->participants.size()));
 		} else if (_channel && _channel->isMegagroup()) {
@@ -4214,46 +4342,46 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 				++recentInlineBots;
 			}
 		}
-	}
-	if (_filter.at(0) == '@' && _chat) {
-		QMultiMap<int32, UserData*> ordered;
-		mrows.reserve(mrows.size() + (_chat->participants.isEmpty() ? _chat->lastAuthors.size() : _chat->participants.size()));
-		if (_chat->noParticipantInfo()) {
-			if (App::api()) App::api()->requestFullPeer(_chat);
-		} else if (!_chat->participants.isEmpty()) {
-			for (ChatData::Participants::const_iterator i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
-				UserData *user = i.key();
-				if (user->username.isEmpty()) continue;
-				if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
-				ordered.insertMulti(App::onlineForSort(user, now), user);
+		if (_chat) {
+			QMultiMap<int32, UserData*> ordered;
+			mrows.reserve(mrows.size() + (_chat->participants.isEmpty() ? _chat->lastAuthors.size() : _chat->participants.size()));
+			if (_chat->noParticipantInfo()) {
+				if (App::api()) App::api()->requestFullPeer(_chat);
+			} else if (!_chat->participants.isEmpty()) {
+				for (ChatData::Participants::const_iterator i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
+					UserData *user = i.key();
+					if (user->username.isEmpty()) continue;
+					if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
+					ordered.insertMulti(App::onlineForSort(user, now), user);
+				}
 			}
-		}
-		for (MentionRows::const_iterator i = _chat->lastAuthors.cbegin(), e = _chat->lastAuthors.cend(); i != e; ++i) {
-			UserData *user = *i;
-			if (user->username.isEmpty()) continue;
-			if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
-			mrows.push_back(user);
-			if (!ordered.isEmpty()) {
-				ordered.remove(App::onlineForSort(user, now), user);
-			}
-		}
-		if (!ordered.isEmpty()) {
-			for (QMultiMap<int32, UserData*>::const_iterator i = ordered.cend(), b = ordered.cbegin(); i != b;) {
-				--i;
-				mrows.push_back(i.value());
-			}
-		}
-	} else if (_filter.at(0) == '@' && _channel && _channel->isMegagroup()) {
-		QMultiMap<int32, UserData*> ordered;
-		if (_channel->mgInfo->lastParticipants.isEmpty() || _channel->lastParticipantsCountOutdated()) {
-			if (App::api()) App::api()->requestLastParticipants(_channel);
-		} else {
-			mrows.reserve(mrows.size() + _channel->mgInfo->lastParticipants.size());
-			for (MegagroupInfo::LastParticipants::const_iterator i = _channel->mgInfo->lastParticipants.cbegin(), e = _channel->mgInfo->lastParticipants.cend(); i != e; ++i) {
+			for (MentionRows::const_iterator i = _chat->lastAuthors.cbegin(), e = _chat->lastAuthors.cend(); i != e; ++i) {
 				UserData *user = *i;
 				if (user->username.isEmpty()) continue;
 				if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
 				mrows.push_back(user);
+				if (!ordered.isEmpty()) {
+					ordered.remove(App::onlineForSort(user, now), user);
+				}
+			}
+			if (!ordered.isEmpty()) {
+				for (QMultiMap<int32, UserData*>::const_iterator i = ordered.cend(), b = ordered.cbegin(); i != b;) {
+					--i;
+					mrows.push_back(i.value());
+				}
+			}
+		} else if (_channel && _channel->isMegagroup()) {
+			QMultiMap<int32, UserData*> ordered;
+			if (_channel->mgInfo->lastParticipants.isEmpty() || _channel->lastParticipantsCountOutdated()) {
+				if (App::api()) App::api()->requestLastParticipants(_channel);
+			} else {
+				mrows.reserve(mrows.size() + _channel->mgInfo->lastParticipants.size());
+				for (MegagroupInfo::LastParticipants::const_iterator i = _channel->mgInfo->lastParticipants.cbegin(), e = _channel->mgInfo->lastParticipants.cend(); i != e; ++i) {
+					UserData *user = *i;
+					if (user->username.isEmpty()) continue;
+					if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
+					mrows.push_back(user);
+				}
 			}
 		}
 	} else if (_filter.at(0) == '#') {
@@ -4332,28 +4460,31 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 			}
 		}
 	}
-	rowsUpdated(mrows, hrows, brows, toDown);
+	rowsUpdated(mrows, hrows, brows, srows, resetScroll);
 	_inner.setRecentInlineBotsInRows(recentInlineBots);
 }
 
-void MentionsDropdown::rowsUpdated(const MentionRows &mrows, const HashtagRows &hrows, const BotCommandRows &brows, bool toDown) {
-	if (mrows.isEmpty() && hrows.isEmpty() && brows.isEmpty()) {
+void MentionsDropdown::rowsUpdated(const MentionRows &mrows, const HashtagRows &hrows, const BotCommandRows &brows, const StickerByEmojiRows &srows, bool resetScroll) {
+	if (mrows.isEmpty() && hrows.isEmpty() && brows.isEmpty() && srows.isEmpty()) {
 		if (!isHidden()) {
 			hideStart();
 		}
 		_mrows.clear();
 		_hrows.clear();
 		_brows.clear();
+		_srows.clear();
 	} else {
 		_mrows = mrows;
 		_hrows = hrows;
 		_brows = brows;
+		_srows = srows;
+
 		bool hidden = _hiding || isHidden();
 		if (hidden) {
 			show();
 			_scroll.show();
 		}
-		recount(toDown);
+		recount(resetScroll);
 		if (hidden) {
 			hide();
 			showStart();
@@ -4363,31 +4494,37 @@ void MentionsDropdown::rowsUpdated(const MentionRows &mrows, const HashtagRows &
 
 void MentionsDropdown::setBoundings(QRect boundings) {
 	_boundings = boundings;
-	resize(_boundings.width(), height());
-	_scroll.resize(size());
-	_inner.resize(width(), _inner.height());
 	recount();
 }
 
-void MentionsDropdown::recount(bool toDown) {
-	int32 h = (_mrows.isEmpty() ? (_hrows.isEmpty() ? _brows.size() : _hrows.size()) : _mrows.size()) * st::mentionHeight, oldst = _scroll.scrollTop(), st = oldst;
+void MentionsDropdown::recount(bool resetScroll) {
+	int32 h = 0, oldst = _scroll.scrollTop(), st = oldst, maxh = 4.5 * st::mentionHeight;
+	if (!_srows.isEmpty()) {
+		int32 stickersPerRow = int32(_boundings.width() - 2 * st::stickerPanPadding) / int32(st::stickerPanSize.width());
+		int32 rows = rowscount(_srows.size(), stickersPerRow);
+		h = st::stickerPanPadding + rows * st::stickerPanSize.height();
+	} else if (!_mrows.isEmpty()) {
+		h = _mrows.size() * st::mentionHeight;
+	} else if (!_hrows.isEmpty()) {
+		h = _hrows.size() * st::mentionHeight;
+	} else if (!_brows.isEmpty()) {
+		h = _brows.size() * st::mentionHeight;
+	}
 
-	if (_inner.height() != h) {
-//		st += h - _inner.height();
-		_inner.resize(width(), h);
+	if (_inner.width() != _boundings.width() || _inner.height() != h) {
+		_inner.resize(_boundings.width(), h);
 	}
 	if (h > _boundings.height()) h = _boundings.height();
-	if (h > 4.5 * st::mentionHeight) h = 4.5 * st::mentionHeight;
-	if (height() != h) {
-//		st += _scroll.height() - h;
-		setGeometry(0, _boundings.height() - h, width(), h);
-		_scroll.resize(width(), h);
+	if (h > maxh) h = maxh;
+	if (width() != _boundings.width() || height() != h) {
+		setGeometry(0, _boundings.height() - h, _boundings.width(), h);
+		_scroll.resize(_boundings.width(), h);
 	} else if (y() != _boundings.height() - h) {
 		move(0, _boundings.height() - h);
 	}
-	if (toDown) st = 0;// _scroll.scrollTopMax();
+	if (resetScroll) st = 0;
 	if (st != oldst) _scroll.scrollToY(st);
-	if (toDown) _inner.clearSel();
+	if (resetScroll) _inner.clearSel();
 }
 
 void MentionsDropdown::fastHide() {
@@ -4487,11 +4624,8 @@ bool MentionsDropdown::eventFilter(QObject *obj, QEvent *e) {
 	if (isHidden()) return QWidget::eventFilter(obj, e);
 	if (e->type() == QEvent::KeyPress) {
 		QKeyEvent *ev = static_cast<QKeyEvent*>(e);
-		if (ev->key() == Qt::Key_Up) {
-			_inner.moveSel(-1);
-			return true;
-		} else if (ev->key() == Qt::Key_Down) {
-			return _inner.moveSel(1);
+		if (ev->key() == Qt::Key_Up || ev->key() == Qt::Key_Down || (!_srows.isEmpty() && (ev->key() == Qt::Key_Left || ev->key() == Qt::Key_Right))) {
+			return _inner.moveSel(ev->key());
 		} else if (ev->key() == Qt::Key_Enter || ev->key() == Qt::Key_Return) {
 			return _inner.select();
 		}

@@ -4607,8 +4607,14 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				const MTPDstickerSet &s(set.vset.c_stickerSet());
 
 				StickerSets &sets(cRefStickerSets());
-
-				sets.insert(s.vid.v, StickerSet(s.vid.v, s.vaccess_hash.v, stickerSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v)).value().stickers = pack;
+				StickerSets::iterator it = sets.find(s.vid.v);
+				if (it != sets.cend()) {
+					Global::StickersByEmoji_RemovePack(it->stickers);
+				} else {
+					it = sets.insert(s.vid.v, StickerSet(s.vid.v, s.vaccess_hash.v, stickerSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v));
+				}
+				it->stickers = pack;
+				Global::StickersByEmoji_AddPack(pack);
 
 				StickerSetsOrder &order(cRefStickerSetsOrder());
 				int32 insertAtIndex = 0, currentIndex = order.indexOf(s.vid.v);

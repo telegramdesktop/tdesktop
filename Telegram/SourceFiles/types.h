@@ -133,11 +133,8 @@ inline void mylocaltime(struct tm * _Tm, const time_t * _Time) {
 #endif
 }
 
-class LibrariesInitializer {
-public:
-	LibrariesInitializer();
-	~LibrariesInitializer();
-};
+void initThirdParty(); // called by Global::Initializer
+void deinitThirdParty();
 
 bool checkms(); // returns true if time has changed
 uint64 getms(bool checked = false);
@@ -458,6 +455,9 @@ MimeType mimeTypeForName(const QString &mime);
 MimeType mimeTypeForFile(const QFileInfo &file);
 MimeType mimeTypeForData(const QByteArray &data);
 
+inline int32 rowscount(int32 count, int32 perrow) {
+	return (count + perrow - 1) / perrow;
+}
 inline int32 floorclamp(int32 value, int32 step, int32 lowest, int32 highest) {
 	return qMin(qMax(value / step, lowest), highest);
 }
