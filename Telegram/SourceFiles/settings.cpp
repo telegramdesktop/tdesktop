@@ -134,7 +134,6 @@ bool gRetina = false;
 float64 gRetinaFactor = 1.;
 int32 gIntRetinaFactor = 1;
 bool gCustomNotifies = true;
-uint64 gInstance = 0.;
 
 #ifdef Q_OS_WIN
 DBIPlatform gPlatform = dbipWindows;
