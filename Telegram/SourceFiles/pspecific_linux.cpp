@@ -1,17 +1,17 @@
 /*
 This file is part of Telegram Desktop,
 the official desktop version of Telegram messaging app, see https://telegram.org
- 
+
 Telegram Desktop is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
- 
+
 It is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
- 
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
@@ -667,7 +667,7 @@ void PsMainWindow::psUpdateCounter() {
     } else if (trayIcon) {
 		int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted);
 		bool muted = cIncludeMuted() ? (App::histories().unreadMuted >= counter) : false;
-		
+
 		style::color bg = muted ? st::counterMuteBG : st::counterBG;
         QIcon iconSmall;
         iconSmall.addPixmap(QPixmap::fromImage(iconWithCounter(16, counter, bg, true), Qt::ColorOnly));
@@ -1072,7 +1072,7 @@ QString psCurrentLanguage() {
 namespace {
     QString _psHomeDir() {
         struct passwd *pw = getpwuid(getuid());
-        return (pw && pw->pw_dir && strlen(pw->pw_dir)) ? (QString::fromLocal8Bit(pw->pw_dir) + '/') : QString();
+        return (pw && pw->pw_dir && strlen(pw->pw_dir)) ? (fromUtf8Safe(pw->pw_dir) + '/') : QString();
     }
 }
 
@@ -1086,7 +1086,7 @@ QString psDownloadPath() {
 }
 
 QString psCurrentExeDirectory(int argc, char *argv[]) {
-    QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
+    QString first = argc ? fromUtf8Safe(argv[0]) : QString();
     if (!first.isEmpty()) {
         QFileInfo info(first);
         if (info.isSymLink()) {
@@ -1100,7 +1100,7 @@ QString psCurrentExeDirectory(int argc, char *argv[]) {
 }
 
 QString psCurrentExeName(int argc, char *argv[]) {
-	QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
+	QString first = argc ? fromUtf8Safe(argv[0]) : QString();
 	if (!first.isEmpty()) {
 		QFileInfo info(first);
         if (info.isSymLink()) {

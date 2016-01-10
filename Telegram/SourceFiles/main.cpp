@@ -25,11 +25,9 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 
 int main(int argc, char *argv[]) {
-#ifdef _NEED_WIN_GENERATE_DUMP
+#ifdef Q_OS_WIN
 	_oldWndExceptionFilter = SetUnhandledExceptionFilter(_exceptionFilter);
-#endif
-#ifdef _NEED_LINUX_GENERATE_DUMP
-    //signal(SIGSEGV, _sigsegvHandler);
+//	CAPIHook apiHook("kernel32.dll", "SetUnhandledExceptionFilter", (PROC)RedirectedSetUnhandledExceptionFilter);
 #endif
 
 	settingsParseArgs(argc, argv);
@@ -40,7 +38,11 @@ int main(int argc, char *argv[]) {
 			return psCleanup();
 		}
 	}
-	logsInit();
+	if (!logsInit()) {
+		return 0;
+	}
+
+	installSignalHandlers();
 
 	Global::Initializer _init;
 
@@ -58,7 +60,7 @@ int main(int argc, char *argv[]) {
 	if (cDebug()) {
 		LOG(("Application Info: Telegram started in debug mode"));
 		for (int32 i = 0; i < argc; ++i) {
-			LOG(("Argument: %1").arg(QString::fromLocal8Bit(argv[i])));
+			LOG(("Argument: %1").arg(fromUtf8Safe(argv[i])));
 		}
         QStringList logs = psInitLogs();
         for (int32 i = 0, l = logs.size(); i < l; ++i) {

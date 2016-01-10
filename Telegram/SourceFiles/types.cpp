@@ -22,6 +22,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 #include "application.h"
 
+#include <signal.h>
+
 uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
 
 #ifdef Q_OS_WIN
@@ -301,6 +303,47 @@ void deinitThirdParty() {
 
 	delete[] _sslLocks;
 	_sslLocks = 0;
+}
+
+namespace {
+	FILE *_crashDump = 0;
+	int _crashDumpNo = 0;
+}
+
+void _signalHandler(int signum) {
+	const char* name = 0;
+	switch (signum) {
+	case SIGABRT: name = "SIGABRT"; break;
+	case SIGSEGV: name = "SIGSEGV"; break;
+	case SIGILL: name = "SIGILL"; break;
+	case SIGFPE: name = "SIGFPE"; break;
+#ifndef Q_OS_WIN
+	case SIGBUS: name = "SIGBUS"; break;
+	case SIGSYS: name = "SIGSYS"; break;
+#endif
+	}
+	LOG(("Caught signal %1").arg(name));
+	if (name)
+		fprintf(stdout, "Caught signal %d (%s)\n", signum, name);
+	else
+		fprintf(stdout, "Caught signal %d\n", signum);
+
+
+	//printStackTrace();
+}
+
+void installSignalHandlers() {
+	_crashDump = fopen((cWorkingDir() + qsl("tdata/working")).toUtf8().constData(), "wb");
+	if (_crashDump) _crashDumpNo = fileno(_crashDump);
+
+	signal(SIGABRT, _signalHandler);
+	signal(SIGSEGV, _signalHandler);
+	signal(SIGILL, _signalHandler);
+	signal(SIGFPE, _signalHandler);
+#ifndef Q_OS_WIN
+	signal(SIGBUS, _signalHandler);
+	signal(SIGSYS, _signalHandler);
+#endif
 }
 
 bool checkms() {

@@ -3906,122 +3906,120 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 				}
 			}
 		}
-		return;
-	}
+	} else {
+		int32 from = qFloor(e->rect().top() / st::mentionHeight), to = qFloor(e->rect().bottom() / st::mentionHeight) + 1;
+		int32 last = _mrows->isEmpty() ? (_hrows->isEmpty() ? _brows->size() : _hrows->size()) : _mrows->size();
+		bool hasUsername = _parent->filter().indexOf('@') > 1;
+		for (int32 i = from; i < to; ++i) {
+			if (i >= last) break;
 
-	int32 from = qFloor(e->rect().top() / st::mentionHeight), to = qFloor(e->rect().bottom() / st::mentionHeight) + 1;
-	int32 last = _mrows->isEmpty() ? (_hrows->isEmpty() ? _brows->size() : _hrows->size()) : _mrows->size();
-	bool hasUsername = _parent->filter().indexOf('@') > 1;
-	for (int32 i = from; i < to; ++i) {
-		if (i >= last) break;
-
-		bool selected = (i == _sel);
-		if (selected) {
-			p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::mentionBgOver->b);
-			int skip = (st::mentionHeight - st::notifyClose.icon.pxHeight()) / 2;
-			if (!_hrows->isEmpty() || (!_mrows->isEmpty() && i < _recentInlineBotsInRows)) p.drawPixmap(QPoint(width() - st::notifyClose.icon.pxWidth() - skip, i * st::mentionHeight + skip), App::sprite(), st::notifyClose.icon);
-		}
-		p.setPen(st::black->p);
-		if (!_mrows->isEmpty()) {
-			UserData *user = _mrows->at(i);
-			QString first = (_parent->filter().size() < 2) ? QString() : ('@' + user->username.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('@' + user->username) : user->username.mid(_parent->filter().size() - 1);
-			int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second), unamewidth = firstwidth + secondwidth, namewidth = user->nameText.maxWidth();
-			if (mentionwidth < unamewidth + namewidth) {
-				namewidth = (mentionwidth * namewidth) / (namewidth + unamewidth);
-				unamewidth = mentionwidth - namewidth;
-				if (firstwidth < unamewidth + st::mentionFont->elidew) {
-					if (firstwidth < unamewidth) {
-						first = st::mentionFont->elided(first, unamewidth);
-					} else if (!second.isEmpty()) {
-						first = st::mentionFont->elided(first + second, unamewidth);
-						second = QString();
+			bool selected = (i == _sel);
+			if (selected) {
+				p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::mentionBgOver->b);
+				int skip = (st::mentionHeight - st::notifyClose.icon.pxHeight()) / 2;
+				if (!_hrows->isEmpty() || (!_mrows->isEmpty() && i < _recentInlineBotsInRows)) p.drawPixmap(QPoint(width() - st::notifyClose.icon.pxWidth() - skip, i * st::mentionHeight + skip), App::sprite(), st::notifyClose.icon);
+			}
+			p.setPen(st::black->p);
+			if (!_mrows->isEmpty()) {
+				UserData *user = _mrows->at(i);
+				QString first = (_parent->filter().size() < 2) ? QString() : ('@' + user->username.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('@' + user->username) : user->username.mid(_parent->filter().size() - 1);
+				int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second), unamewidth = firstwidth + secondwidth, namewidth = user->nameText.maxWidth();
+				if (mentionwidth < unamewidth + namewidth) {
+					namewidth = (mentionwidth * namewidth) / (namewidth + unamewidth);
+					unamewidth = mentionwidth - namewidth;
+					if (firstwidth < unamewidth + st::mentionFont->elidew) {
+						if (firstwidth < unamewidth) {
+							first = st::mentionFont->elided(first, unamewidth);
+						} else if (!second.isEmpty()) {
+							first = st::mentionFont->elided(first + second, unamewidth);
+							second = QString();
+						}
+					} else {
+						second = st::mentionFont->elided(second, unamewidth - firstwidth);
 					}
-				} else {
-					second = st::mentionFont->elided(second, unamewidth - firstwidth);
 				}
-			}
-			user->photo->load();
-			p.drawPixmap(st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), user->photo->pixRounded(st::mentionPhotoSize));
-			user->nameText.drawElided(p, 2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop, namewidth);
-
-			p.setFont(st::mentionFont->f);
-			p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
-			p.drawText(mentionleft + namewidth + st::mentionPadding.right(), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
-			if (!second.isEmpty()) {
-				p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
-				p.drawText(mentionleft + namewidth + st::mentionPadding.right() + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
-			}
-		} else if (!_hrows->isEmpty()) {
-			QString hrow = _hrows->at(i);
-			QString first = (_parent->filter().size() < 2) ? QString() : ('#' + hrow.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('#' + hrow) : hrow.mid(_parent->filter().size() - 1);
-			int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second);
-			if (htagwidth < firstwidth + secondwidth) {
-				if (htagwidth < firstwidth + st::mentionFont->elidew) {
-					first = st::mentionFont->elided(first + second, htagwidth);
-					second = QString();
-				} else {
-					second = st::mentionFont->elided(second, htagwidth - firstwidth);
-				}
-			}
-
-			p.setFont(st::mentionFont->f);
-			if (!first.isEmpty()) {
-				p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
-				p.drawText(htagleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
-			}
-			if (!second.isEmpty()) {
-				p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
-				p.drawText(htagleft + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
-			}
-		} else {
-			UserData *user = _brows->at(i).first;
-
-			const BotCommand *command = _brows->at(i).second;
-			QString toHighlight = command->command;
-			int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : ((_parent->channel() && _parent->channel()->isMegagroup()) ? _parent->channel()->mgInfo->botStatus : -1);
-			if (hasUsername || botStatus == 0 || botStatus == 2) {
-				toHighlight += '@' + user->username;
-			}
-			if (true || _parent->chat() || botStatus == 0 || botStatus == 2) {
 				user->photo->load();
 				p.drawPixmap(st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), user->photo->pixRounded(st::mentionPhotoSize));
-			}
+				user->nameText.drawElided(p, 2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop, namewidth);
 
-			int32 addleft = 0, widthleft = mentionwidth;
-			QString first = (_parent->filter().size() < 2) ? QString() : ('/' + toHighlight.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('/' + toHighlight) : toHighlight.mid(_parent->filter().size() - 1);
-			int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second);
-			if (widthleft < firstwidth + secondwidth) {
-				if (widthleft < firstwidth + st::mentionFont->elidew) {
-					first = st::mentionFont->elided(first + second, widthleft);
-					second = QString();
-				} else {
-					second = st::mentionFont->elided(second, widthleft - firstwidth);
+				p.setFont(st::mentionFont->f);
+				p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
+				p.drawText(mentionleft + namewidth + st::mentionPadding.right(), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
+				if (!second.isEmpty()) {
+					p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
+					p.drawText(mentionleft + namewidth + st::mentionPadding.right() + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
+				}
+			} else if (!_hrows->isEmpty()) {
+				QString hrow = _hrows->at(i);
+				QString first = (_parent->filter().size() < 2) ? QString() : ('#' + hrow.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('#' + hrow) : hrow.mid(_parent->filter().size() - 1);
+				int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second);
+				if (htagwidth < firstwidth + secondwidth) {
+					if (htagwidth < firstwidth + st::mentionFont->elidew) {
+						first = st::mentionFont->elided(first + second, htagwidth);
+						second = QString();
+					} else {
+						second = st::mentionFont->elided(second, htagwidth - firstwidth);
+					}
+				}
+
+				p.setFont(st::mentionFont->f);
+				if (!first.isEmpty()) {
+					p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
+					p.drawText(htagleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
+				}
+				if (!second.isEmpty()) {
+					p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
+					p.drawText(htagleft + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
+				}
+			} else {
+				UserData *user = _brows->at(i).first;
+
+				const BotCommand *command = _brows->at(i).second;
+				QString toHighlight = command->command;
+				int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : ((_parent->channel() && _parent->channel()->isMegagroup()) ? _parent->channel()->mgInfo->botStatus : -1);
+				if (hasUsername || botStatus == 0 || botStatus == 2) {
+					toHighlight += '@' + user->username;
+				}
+				if (true || _parent->chat() || botStatus == 0 || botStatus == 2) {
+					user->photo->load();
+					p.drawPixmap(st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), user->photo->pixRounded(st::mentionPhotoSize));
+				}
+
+				int32 addleft = 0, widthleft = mentionwidth;
+				QString first = (_parent->filter().size() < 2) ? QString() : ('/' + toHighlight.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('/' + toHighlight) : toHighlight.mid(_parent->filter().size() - 1);
+				int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second);
+				if (widthleft < firstwidth + secondwidth) {
+					if (widthleft < firstwidth + st::mentionFont->elidew) {
+						first = st::mentionFont->elided(first + second, widthleft);
+						second = QString();
+					} else {
+						second = st::mentionFont->elided(second, widthleft - firstwidth);
+					}
+				}
+				p.setFont(st::mentionFont->f);
+				if (!first.isEmpty()) {
+					p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
+					p.drawText(mentionleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
+				}
+				if (!second.isEmpty()) {
+					p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
+					p.drawText(mentionleft + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
+				}
+				addleft += firstwidth + secondwidth + st::mentionPadding.left();
+				widthleft -= firstwidth + secondwidth + st::mentionPadding.left();
+				if (widthleft > st::mentionFont->elidew && !command->descriptionText().isEmpty()) {
+					p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
+					command->descriptionText().drawElided(p, mentionleft + addleft, i * st::mentionHeight + st::mentionTop, widthleft, 1, style::al_right);
 				}
 			}
-			p.setFont(st::mentionFont->f);
-			if (!first.isEmpty()) {
-				p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
-				p.drawText(mentionleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
-			}
-			if (!second.isEmpty()) {
-				p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
-				p.drawText(mentionleft + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
-			}
-			addleft += firstwidth + secondwidth + st::mentionPadding.left();
-			widthleft -= firstwidth + secondwidth + st::mentionPadding.left();
-			if (widthleft > st::mentionFont->elidew && !command->descriptionText().isEmpty()) {
-				p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
-				command->descriptionText().drawElided(p, mentionleft + addleft, i * st::mentionHeight + st::mentionTop, widthleft, 1, style::al_right);
-			}
 		}
+		p.fillRect(cWideMode() ? st::lineWidth : 0, _parent->innerBottom() - st::lineWidth, width() - (cWideMode() ? st::lineWidth : 0), st::lineWidth, st::shadowColor->b);
 	}
-
 	p.fillRect(cWideMode() ? st::lineWidth : 0, _parent->innerTop(), width() - (cWideMode() ? st::lineWidth : 0), st::lineWidth, st::shadowColor->b);
-	p.fillRect(cWideMode() ? st::lineWidth : 0, _parent->innerBottom() - st::lineWidth, width() - (cWideMode() ? st::lineWidth : 0), st::lineWidth, st::shadowColor->b);
 }
 
 void MentionsInner::resizeEvent(QResizeEvent *e) {
-	_stickersPerRow = int32(width() - 2 * st::stickerPanPadding) / int32(st::stickerPanSize.width());
+	_stickersPerRow = qMax(1, int32(width() - 2 * st::stickerPanPadding) / int32(st::stickerPanSize.width()));
 }
 
 void MentionsInner::mouseMoveEvent(QMouseEvent *e) {
@@ -4514,7 +4512,7 @@ void MentionsDropdown::setBoundings(QRect boundings) {
 void MentionsDropdown::recount(bool resetScroll) {
 	int32 h = 0, oldst = _scroll.scrollTop(), st = oldst, maxh = 4.5 * st::mentionHeight;
 	if (!_srows.isEmpty()) {
-		int32 stickersPerRow = int32(_boundings.width() - 2 * st::stickerPanPadding) / int32(st::stickerPanSize.width());
+		int32 stickersPerRow = qMax(1, int32(_boundings.width() - 2 * st::stickerPanPadding) / int32(st::stickerPanSize.width()));
 		int32 rows = rowscount(_srows.size(), stickersPerRow);
 		h = st::stickerPanPadding + rows * st::stickerPanSize.height();
 	} else if (!_mrows.isEmpty()) {

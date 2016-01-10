@@ -45,12 +45,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include <lzma.h>
 #endif
 
-#if defined Q_OS_WIN
-#define _NEED_WIN_GENERATE_DUMP
-#elif defined Q_OS_LINUX32 || defined Q_OS_LINUX64
-#define _NEED_LINUX_GENERATE_DUMP
-#endif
-
 extern "C" {
 
 #include <libavcodec/avcodec.h>

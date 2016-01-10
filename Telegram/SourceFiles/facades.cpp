@@ -178,7 +178,7 @@ namespace Notify {
 namespace Global {
 
 	struct Data {
-		uint64 LaunchId;
+		uint64 LaunchId = 0;
 	};
 
 	Data *_data = 0;

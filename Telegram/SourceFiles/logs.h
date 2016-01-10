@@ -92,6 +92,6 @@ inline void t_assert_fail(const char *message, const char *file, int32 line) {
 #define t_assert_c(condition, comment) t_assert_full(condition, "\"" #condition "\" (" comment ")", __FILE__, __LINE__)
 #define t_assert(condition) t_assert_full(condition, "\"" #condition "\"", __FILE__, __LINE__)
 
-void logsInit();
+bool logsInit();
 void logsInitDebug();
 void logsClose();

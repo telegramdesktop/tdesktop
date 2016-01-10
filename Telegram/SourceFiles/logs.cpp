@@ -30,13 +30,6 @@ namespace {
 
 	QMutex debugLogMutex, mainLogMutex;
 
-	class _StreamCreator {
-	public:
-		~_StreamCreator() {
-			logsClose();
-		}
-	};
-
 	QString debugLogEntryStart() {
 		static uint32 logEntry = 0;
 
@@ -45,7 +38,7 @@ namespace {
 		QThread *thread = QThread::currentThread();
 		MTPThread *mtpThread = qobject_cast<MTPThread*>(thread);
 		uint32 threadId = mtpThread ? mtpThread->getThreadId() : 0;
-		
+
 		return QString("[%1 %2-%3]").arg(tm.toString("hh:mm:ss.zzz")).arg(QString("%1").arg(threadId, 2, 10, zero)).arg(++logEntry, 7, 10, zero);
 	}
 }
@@ -179,9 +172,8 @@ void moveOldDataFiles(const QString &wasDir) {
 	}
 }
 
-void logsInit() {
-	static _StreamCreator streamCreator;
-	if (mainLogStream) return;
+bool logsInit() {
+	t_assert(mainLogStream == 0);
 
 	QFile beta(cExeDir() + qsl("TelegramBeta_data/tdata/beta"));
 	if (cBetaVersion()) {
@@ -283,6 +275,7 @@ void logsInit() {
 	}
 
 	QDir().setCurrent(cWorkingDir());
+	return true;
 }
 
 void logsInitDebug() {
@@ -398,7 +391,7 @@ void logsClose() {
 }
 
 QString logVectorLong(const QVector<MTPlong> &ids) {
-	if (!ids.size()) return "[void list]";
+	if (!ids.size()) return "[]";
 	QString idsStr = QString("[%1").arg(ids.cbegin()->v);
 	for (QVector<MTPlong>::const_iterator i = ids.cbegin() + 1, e = ids.cend(); i != e; ++i) {
 		idsStr += QString(", %2").arg(i->v);
@@ -407,7 +400,7 @@ QString logVectorLong(const QVector<MTPlong> &ids) {
 }
 
 QString logVectorLong(const QVector<uint64> &ids) {
-	if (!ids.size()) return "[void list]";
+	if (!ids.size()) return "[]";
 	QString idsStr = QString("[%1").arg(*ids.cbegin());
 	for (QVector<uint64>::const_iterator i = ids.cbegin() + 1, e = ids.cend(); i != e; ++i) {
 		idsStr += QString(", %2").arg(*i);

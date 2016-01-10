@@ -2499,6 +2499,7 @@ MsgId History::msgIdForRead() const {
 int32 History::geomResize(int32 newWidth, int32 *ytransform, const HistoryItem *resizedItem) {
 	if (width != newWidth) resizedItem = 0; // recount all items
 	if (width != newWidth || resizedItem) {
+		width = newWidth;
 		int32 y = 0;
 		for (Blocks::iterator i = blocks.begin(), e = blocks.end(); i != e; ++i) {
 			HistoryBlock *block = *i;
@@ -2513,7 +2514,6 @@ int32 History::geomResize(int32 newWidth, int32 *ytransform, const HistoryItem *
 				ytransform = 0;
 			}
 		}
-		width = newWidth;
 		height = y;
 	}
 	return height;

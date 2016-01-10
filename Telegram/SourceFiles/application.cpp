@@ -208,7 +208,7 @@ void Application::updateGotCurrent() {
 	if (!updateReply || updateThread) return;
 
 	cSetLastUpdateCheck(unixtime());
-	QRegularExpressionMatch m = QRegularExpression(qsl("^\\s*(\\d+)\\s*:\\s*([\\x21-\\x7f]+)\\s*$")).match(QString::fromUtf8(updateReply->readAll()));
+	QRegularExpressionMatch m = QRegularExpression(qsl("^\\s*(\\d+)\\s*:\\s*([\\x21-\\x7f]+)\\s*$")).match(QString::fromLatin1(updateReply->readAll()));
 	if (m.hasMatch()) {
 		uint64 currentVersion = m.captured(1).toULongLong();
 		QString url = m.captured(2);
@@ -642,7 +642,7 @@ void Application::socketConnected() {
 	}
 	commands += qsl("CMD:show;");
 	DEBUG_LOG(("Application Info: writing commands %1").arg(commands));
-	socket.write(commands.toLocal8Bit());
+	socket.write(commands.toLatin1());
 }
 
 void Application::socketWritten(qint64/* bytes*/) {
@@ -799,13 +799,13 @@ void Application::readClients() {
 	for (ClientSockets::iterator i = clients.begin(), e = clients.end(); i != e; ++i) {
 		i->second.append(i->first->readAll());
 		if (i->second.size()) {
-			QString cmds(QString::fromLocal8Bit(i->second));
+			QString cmds(QString::fromLatin1(i->second));
 			int32 from = 0, l = cmds.length();
 			for (int32 to = cmds.indexOf(QChar(';'), from); to >= from; to = (from < l) ? cmds.indexOf(QChar(';'), from) : -1) {
 				QStringRef cmd(&cmds, from, to - from);
 				if (cmd.startsWith(qsl("CMD:"))) {
 					execExternal(cmds.mid(from + 4, to - from - 4));
-					QByteArray response(qsl("RES:%1;").arg(QCoreApplication::applicationPid()).toUtf8());
+					QByteArray response(qsl("RES:%1;").arg(QCoreApplication::applicationPid()).toLatin1());
 					i->first->write(response.data(), response.size());
 				} else if (cmd.startsWith(qsl("SEND:"))) {
 					if (cSendPaths().isEmpty()) {

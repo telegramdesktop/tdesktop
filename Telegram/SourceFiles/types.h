@@ -133,6 +133,8 @@ inline void mylocaltime(struct tm * _Tm, const time_t * _Time) {
 #endif
 }
 
+void installSignalHandlers();
+
 void initThirdParty(); // called by Global::Initializer
 void deinitThirdParty();
 
@@ -232,6 +234,19 @@ private:
 
 #define qsl(s) QStringLiteral(s)
 #define qstr(s) QLatin1String(s, sizeof(s) - 1)
+
+inline QString fromUtf8Safe(const char *str, int32 size = -1) {
+	if (!str || !size) return QString();
+	if (size < 0) size = int32(strlen(str));
+	QString result(QString::fromUtf8(str, size));
+	QByteArray back = result.toUtf8();
+	if (back.size() != size || memcmp(back.constData(), str, size)) return QString::fromLocal8Bit(str, size);
+	return result;
+}
+
+inline QString fromUtf8Safe(const QByteArray &str) {
+	return fromUtf8Safe(str.constData(), str.size());
+}
 
 static const QRegularExpression::PatternOptions reMultiline(QRegularExpression::DotMatchesEverythingOption | QRegularExpression::MultilineOption);
 
