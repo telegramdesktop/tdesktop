@@ -4323,7 +4323,7 @@ void MentionsDropdown::updateFiltered(bool resetScroll) {
 				} else {
 					StickersByEmojiMap::const_iterator i = it->emoji.constFind(emojiGetNoColor(_emoji));
 					if (i != it->emoji.cend()) {
-						srows.append(*i);
+						srows += *i;
 					}
 				}
 			}
