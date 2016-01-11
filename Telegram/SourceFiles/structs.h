@@ -717,10 +717,6 @@ inline bool PeerData::canWrite() const {
 	return isChannel() ? asChannel()->canWrite() : (isChat() ? asChat()->canWrite() : (isUser() ? asUser()->canWrite() : false));
 }
 
-inline int32 newMessageFlags(PeerData *p) {
-	return p->isSelf() ? 0 : (((p->isChat() || (p->isUser() && !p->asUser()->botInfo)) ? MTPDmessage::flag_unread : 0) | MTPDmessage::flag_out);
-}
-
 enum ActionOnLoad {
 	ActionOnLoadNone,
 	ActionOnLoadOpen,

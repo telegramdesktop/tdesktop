@@ -6578,17 +6578,18 @@ int32 HistoryMessage::resize(int32 width) {
 			if (media) _height += _media->resize(width, this);
 		}
 
-		int32 l = 0, w = 0;
-		countPositionAndSize(l, w);
-
 		if (displayFromName()) {
 			if (emptyText()) {
 				_height += st::msgPadding.top() + st::msgNameFont->height + st::mediaHeaderSkip;
 			} else {
 				_height += st::msgNameFont->height;
 			}
+			int32 l = 0, w = 0;
+			countPositionAndSize(l, w);
 			fromNameUpdated(w);
 		} else if (via() && !toHistoryForwarded()) {
+			int32 l = 0, w = 0;
+			countPositionAndSize(l, w);
 			via()->resize(w - st::msgPadding.left() - st::msgPadding.right());
 			if (emptyText() && !displayFromName()) {
 				_height += st::msgPadding.top() + st::msgNameFont->height + st::mediaHeaderSkip;
@@ -6788,7 +6789,7 @@ HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const 
 }
 
 HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg)
-: HistoryMessage(history, block, id, newMessageFlags(history->peer) | (!history->peer->isChannel() && msg->getMedia() && (msg->getMedia()->type() == MediaTypeAudio/* || msg->getMedia()->type() == MediaTypeVideo*/) ? MTPDmessage::flag_media_unread : 0), msg->via() ? peerToUser(msg->viaBot()->id) : 0, date, from, msg->HistoryMessage::originalText(), msg->HistoryMessage::originalEntities(), msg->getMedia())
+: HistoryMessage(history, block, id, newForwardedFlags(history->peer, from, msg), msg->via() ? peerToUser(msg->viaBot()->id) : 0, date, from, msg->HistoryMessage::originalText(), msg->HistoryMessage::originalEntities(), msg->getMedia())
 , fwdDate(msg->dateForwarded())
 , fwdFrom(msg->fromForwarded())
 , fwdFromVersion(fwdFrom->nameVersion)
@@ -6818,6 +6819,11 @@ void HistoryForwarded::initDimensions() {
 void HistoryForwarded::fwdNameUpdated() const {
 	QString fwdName((via() && fwdFrom->isUser()) ? fwdFrom->asUser()->firstName : App::peerName(fwdFrom));
 	fwdFromName.setText(st::msgServiceNameFont, fwdName, _textNameOptions);
+	if (via()) {
+		int32 l = 0, w = 0;
+		countPositionAndSize(l, w);
+		via()->resize(w - st::msgPadding.left() - st::msgPadding.right() - fromWidth - fwdFromName.maxWidth() - st::msgServiceFont->spacew);
+	}
 }
 
 void HistoryForwarded::draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const {
@@ -6870,7 +6876,9 @@ int32 HistoryForwarded::resize(int32 width) {
 				_height += st::msgServiceNameFont->height;
 			}
 			if (via()) {
-				via()->resize(width - st::msgPadding.left() - st::msgPadding.right() - fromWidth - fwdFromName.maxWidth() - st::msgServiceFont->spacew);
+				int32 l = 0, w = 0;
+				countPositionAndSize(l, w);
+				via()->resize(w - st::msgPadding.left() - st::msgPadding.right() - fromWidth - fwdFromName.maxWidth() - st::msgServiceFont->spacew);
 			}
 		}
 	}

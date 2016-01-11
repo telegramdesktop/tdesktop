@@ -4030,7 +4030,7 @@ void MentionsInner::mouseMoveEvent(QMouseEvent *e) {
 
 void MentionsInner::clearSel() {
 	_mouseSel = _overDelete = false;
-	setSel((_mrows->isEmpty() && _brows->isEmpty() && _hrows->isEmpty() && _srows->isEmpty()) ? -1 : 0);
+	setSel((_mrows->isEmpty() && _brows->isEmpty() && _hrows->isEmpty()) ? -1 : 0);
 }
 
 bool MentionsInner::moveSel(int key) {
