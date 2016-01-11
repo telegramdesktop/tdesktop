@@ -89,6 +89,7 @@ SOURCES += \
     ./SourceFiles/autoupdater.cpp \
     ./SourceFiles/dialogswidget.cpp \
     ./SourceFiles/dropdown.cpp \
+    ./SourceFiles/facades.cpp \
     ./SourceFiles/fileuploader.cpp \
     ./SourceFiles/history.cpp \
     ./SourceFiles/historywidget.cpp \
@@ -112,6 +113,7 @@ SOURCES += \
     ./SourceFiles/types.cpp \
     ./SourceFiles/window.cpp \
     ./SourceFiles/mtproto/mtp.cpp \
+    ./SourceFiles/mtproto/mtpAuthKey.cpp \
     ./SourceFiles/mtproto/mtpConnection.cpp \
     ./SourceFiles/mtproto/mtpCoreTypes.cpp \
     ./SourceFiles/mtproto/mtpDC.cpp \
@@ -175,6 +177,7 @@ HEADERS += \
     ./SourceFiles/countries.h \
     ./SourceFiles/dialogswidget.h \
     ./SourceFiles/dropdown.h \
+    ./SourceFiles/facades.h \
     ./SourceFiles/fileuploader.h \
     ./SourceFiles/history.h \
     ./SourceFiles/historywidget.h \
