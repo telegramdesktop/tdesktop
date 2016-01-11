@@ -22,6 +22,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 #include "application.h"
 
+#include <signal.h>
+
+uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
+
 #ifdef Q_OS_WIN
 #elif defined Q_OS_MAC
 #include <mach/mach_time.h>
@@ -97,7 +101,7 @@ namespace {
 		clock_gettime(CLOCK_REALTIME, &ts);
 		_msgIdMsStart = 1000000000 * uint64(ts.tv_sec) + uint64(ts.tv_nsec);
 #endif
-        
+
 		uint32 msgIdRand;
 		memset_rand(&msgIdRand, sizeof(uint32));
 		_msgIdStart = (((uint64)((uint32)unixtime()) << 32) | (uint64)msgIdRand);
@@ -185,6 +189,32 @@ namespace {
 		delete l;
 	}
 
+	int _ffmpegLockManager(void **mutex, AVLockOp op) {
+		switch (op) {
+		case AV_LOCK_CREATE: {
+			t_assert(*mutex == 0);
+			*mutex = reinterpret_cast<void*>(new QMutex());
+		} break;
+
+		case AV_LOCK_OBTAIN: {
+			t_assert(*mutex != 0);
+			reinterpret_cast<QMutex*>(*mutex)->lock();
+		} break;
+
+		case AV_LOCK_RELEASE: {
+			t_assert(*mutex != 0);
+			reinterpret_cast<QMutex*>(*mutex)->unlock();
+		}; break;
+
+		case AV_LOCK_DESTROY: {
+			t_assert(*mutex != 0);
+			delete reinterpret_cast<QMutex*>(*mutex);
+			*mutex = 0;
+		} break;
+		}
+		return 0;
+	}
+
 	float64 _msFreq;
 	float64 _msgIdCoef;
     int64 _msStart = 0, _msAddToMsStart = 0, _msAddToUnixtime = 0;
@@ -236,7 +266,7 @@ namespace {
 	_MsStarter _msStarter;
 }
 
-InitOpenSSL::InitOpenSSL() {
+void initThirdParty() {
 	if (!RAND_status()) { // should be always inited in all modern OS
 		char buf[16];
 		memcpy(buf, &_msStart, 8);
@@ -260,12 +290,60 @@ InitOpenSSL::InitOpenSSL() {
 	CRYPTO_set_dynlock_lock_callback(_sslLockFunction);
 	CRYPTO_set_dynlock_destroy_callback(_sslDestroyFunction);
 
+	av_register_all();
+	avcodec_register_all();
+
+	av_lockmgr_register(_ffmpegLockManager);
+
 	_sslInited = true;
 }
 
-InitOpenSSL::~InitOpenSSL() {
+void deinitThirdParty() {
+	av_lockmgr_register(0);
+
 	delete[] _sslLocks;
 	_sslLocks = 0;
+}
+
+namespace {
+	FILE *_crashDump = 0;
+	int _crashDumpNo = 0;
+}
+
+void _signalHandler(int signum) {
+	const char* name = 0;
+	switch (signum) {
+	case SIGABRT: name = "SIGABRT"; break;
+	case SIGSEGV: name = "SIGSEGV"; break;
+	case SIGILL: name = "SIGILL"; break;
+	case SIGFPE: name = "SIGFPE"; break;
+#ifndef Q_OS_WIN
+	case SIGBUS: name = "SIGBUS"; break;
+	case SIGSYS: name = "SIGSYS"; break;
+#endif
+	}
+	LOG(("Caught signal %1").arg(name));
+	if (name)
+		fprintf(stdout, "Caught signal %d (%s)\n", signum, name);
+	else
+		fprintf(stdout, "Caught signal %d\n", signum);
+
+
+	//printStackTrace();
+}
+
+void installSignalHandlers() {
+	_crashDump = fopen((cWorkingDir() + qsl("tdata/working")).toUtf8().constData(), "wb");
+	if (_crashDump) _crashDumpNo = fileno(_crashDump);
+
+	signal(SIGABRT, _signalHandler);
+	signal(SIGSEGV, _signalHandler);
+	signal(SIGILL, _signalHandler);
+	signal(SIGFPE, _signalHandler);
+#ifndef Q_OS_WIN
+	signal(SIGBUS, _signalHandler);
+	signal(SIGSYS, _signalHandler);
+#endif
 }
 
 bool checkms() {
@@ -638,10 +716,7 @@ char *hashMd5Hex(const int32 *hashmd5, void *dest) {
 }
 
 void memset_rand(void *data, uint32 len) {
-	if (!_sslInited) {
-		LOG(("Critical Error: memset_rand() called before OpenSSL init!"));
-		exit(-1);
-	}
+	t_assert(_sslInited);
 	RAND_bytes((uchar*)data, len);
 }
 

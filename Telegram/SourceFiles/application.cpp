@@ -208,7 +208,7 @@ void Application::updateGotCurrent() {
 	if (!updateReply || updateThread) return;
 
 	cSetLastUpdateCheck(unixtime());
-	QRegularExpressionMatch m = QRegularExpression(qsl("^\\s*(\\d+)\\s*:\\s*([\\x21-\\x7f]+)\\s*$")).match(QString::fromUtf8(updateReply->readAll()));
+	QRegularExpressionMatch m = QRegularExpression(qsl("^\\s*(\\d+)\\s*:\\s*([\\x21-\\x7f]+)\\s*$")).match(QString::fromLatin1(updateReply->readAll()));
 	if (m.hasMatch()) {
 		uint64 currentVersion = m.captured(1).toULongLong();
 		QString url = m.captured(2);
@@ -445,7 +445,7 @@ void Application::onSwitchDebugMode() {
 			f.write("1");
 			f.close();
 		}
-		App::wnd()->hideLayer();
+		Ui::hideLayer();
 	}
 }
 
@@ -489,7 +489,7 @@ int32 Application::updatingReady() {
 #endif
 
 FileUploader *Application::uploader() {
-	if (!::uploader) ::uploader = new FileUploader();
+	if (!::uploader && !App::quiting()) ::uploader = new FileUploader();
 	return ::uploader;
 }
 
@@ -548,9 +548,9 @@ void Application::stopUpdate() {
 void Application::startUpdateCheck(bool forceWait) {
 	updateCheckTimer.stop();
 	if (updateRequestId || updateThread || updateReply || !cAutoUpdate()) return;
-	
+
 	int32 constDelay = cBetaVersion() ? 600 : UpdateDelayConstPart, randDelay = cBetaVersion() ? 300 : UpdateDelayRandPart;
-	int32 updateInSecs = cLastUpdateCheck() + constDelay + (rand() % randDelay) - unixtime();
+	int32 updateInSecs = cLastUpdateCheck() + constDelay + int32(MTP::nonce<uint32>() % randDelay) - unixtime();
 	bool sendRequest = (updateInSecs <= 0 || updateInSecs > (constDelay + randDelay));
 	if (!sendRequest && !forceWait) {
 		QDir updates(cWorkingDir() + "tupdates");
@@ -642,7 +642,7 @@ void Application::socketConnected() {
 	}
 	commands += qsl("CMD:show;");
 	DEBUG_LOG(("Application Info: writing commands %1").arg(commands));
-	socket.write(commands.toLocal8Bit());
+	socket.write(commands.toLatin1());
 }
 
 void Application::socketWritten(qint64/* bytes*/) {
@@ -684,7 +684,7 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 	socket.close();
 
 	psCheckLocalSocket(serverName);
-  
+
 	if (!server.listen(serverName)) {
 		DEBUG_LOG(("Application Error: failed to start listening to %1 server, error %2").arg(serverName).arg(int(server.serverError())));
 		return App::quit();
@@ -705,10 +705,10 @@ void Application::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (cDevVersion() && Local::oldMapVersion() < 9014) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Sticker management: manually rearrange your sticker packs, pack order is now synced across all your devices\n\xe2\x80\x94 Click and hold on a sticker to preview it before sending\n\xe2\x80\x94 New context menu for chats in chats list\n\xe2\x80\x94 Support for all existing emoji");// .replace('@', qsl("@") + QChar(0x200D));
-			} else if (Local::oldMapVersion() < 9015) {
-				versionFeatures = lang(lng_new_version_text).trimmed();
+			if (cDevVersion() && Local::oldMapVersion() < 9019) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Choose an emoticon and see the suggested stickers\n\xe2\x80\x94 Bug fixes in minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
+			} else if (Local::oldMapVersion() < 9016) {
+				versionFeatures = lng_new_version_text(lt_gifs_link, qsl("https://telegram.org/blog/gif-revolution"), lt_bots_link, qsl("https://telegram.org/blog/inline-bots")).trimmed();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}
@@ -769,7 +769,7 @@ void Application::startApp() {
 	}
 
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
-	
+
 	if (state != Local::ReadMapPassNeeded) {
 		checkMapVersion();
 	}
@@ -799,13 +799,13 @@ void Application::readClients() {
 	for (ClientSockets::iterator i = clients.begin(), e = clients.end(); i != e; ++i) {
 		i->second.append(i->first->readAll());
 		if (i->second.size()) {
-			QString cmds(QString::fromLocal8Bit(i->second));
+			QString cmds(QString::fromLatin1(i->second));
 			int32 from = 0, l = cmds.length();
 			for (int32 to = cmds.indexOf(QChar(';'), from); to >= from; to = (from < l) ? cmds.indexOf(QChar(';'), from) : -1) {
 				QStringRef cmd(&cmds, from, to - from);
 				if (cmd.startsWith(qsl("CMD:"))) {
 					execExternal(cmds.mid(from + 4, to - from - 4));
-					QByteArray response(qsl("RES:%1;").arg(QCoreApplication::applicationPid()).toUtf8());
+					QByteArray response(qsl("RES:%1;").arg(QCoreApplication::applicationPid()).toLatin1());
 					i->first->write(response.data(), response.size());
 				} else if (cmd.startsWith(qsl("SEND:"))) {
 					if (cSendPaths().isEmpty()) {
@@ -878,16 +878,20 @@ void Application::closeApplication() {
 
 Application::~Application() {
 	App::setQuiting();
+
 	window->setParent(0);
 
 	anim::stopManager();
 
 	socket.close();
 	closeApplication();
+	stopWebLoadManager();
 	App::deinitMedia();
 	deinitImageLinkManager();
+
 	mainApp = 0;
 	delete ::uploader;
+
 	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	delete updateReply;
 	updateReply = 0;
@@ -897,7 +901,9 @@ Application::~Application() {
 	updateThread = 0;
 	#endif
 
-	delete window;
+	Window *w = window;
+	window = 0;
+	delete w;
 
 	delete cChatBackground();
 	cSetChatBackground(0);
@@ -906,7 +912,7 @@ Application::~Application() {
 	cSetChatDogImage(0);
 
 	style::stopManager();
-	
+
 	delete _translator;
 }
 

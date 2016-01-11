@@ -36,7 +36,7 @@ PopupMenu::PopupMenu(const style::PopupMenu &st) : TWidget(0)
 , _selected(-1)
 , _childMenuIndex(-1)
 , a_opacity(1)
-, _a_hide(animFunc(this, &PopupMenu::animStep_hide))
+, _a_hide(animation(this, &PopupMenu::step_hide))
 , _deleteOnHide(true)
 , _triggering(false)
 , _deleteLater(false) {
@@ -54,7 +54,7 @@ PopupMenu::PopupMenu(QMenu *menu, const style::PopupMenu &st) : TWidget(0)
 , _selected(-1)
 , _childMenuIndex(-1)
 , a_opacity(1)
-, _a_hide(animFunc(this, &PopupMenu::animStep_hide))
+, _a_hide(animation(this, &PopupMenu::step_hide))
 , _deleteOnHide(true)
 , _triggering(false)
 , _deleteLater(false) {
@@ -440,18 +440,16 @@ void PopupMenu::hideFinish() {
 	hide();
 }
 
-bool PopupMenu::animStep_hide(float64 ms) {
+void PopupMenu::step_hide(float64 ms, bool timer) {
 	float64 dt = ms / _st.duration;
-	bool res = true;
 	if (dt >= 1) {
+		_a_hide.stop();
 		a_opacity.finish();
 		hideFinish();
-		res = false;
 	} else {
 		a_opacity.update(dt, anim::linear);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 void PopupMenu::deleteOnHide(bool del) {

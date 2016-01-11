@@ -30,7 +30,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "gui/text.h"
 
 PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
-, _a_show(animFunc(this, &PasscodeWidget::animStep_show))
+, _a_show(animation(this, &PasscodeWidget::step_show))
 , _passcode(this, st::passcodeInput)
 , _submit(this, lang(lng_passcode_submit), st::passcodeSubmit)
 , _logout(this, lang(lng_passcode_logout)) {
@@ -129,13 +129,11 @@ void PasscodeWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 	show();
 }
 
-bool PasscodeWidget::animStep_show(float64 ms) {
+void PasscodeWidget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
-	bool res = true;
 	if (dt >= 1) {
 		_a_show.stop();
 
-		res = false;
 		a_coordUnder.finish();
 		a_coordOver.finish();
 		a_shadow.finish();
@@ -151,11 +149,10 @@ bool PasscodeWidget::animStep_show(float64 ms) {
 		a_coordOver.update(dt, st::slideFunction);
 		a_shadow.update(dt, st::slideFunction);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
-void PasscodeWidget::animStop_show() {
+void PasscodeWidget::stop_show() {
 	_a_show.stop();
 }
 

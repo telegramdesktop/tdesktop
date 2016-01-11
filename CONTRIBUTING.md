@@ -11,6 +11,7 @@ This document describes how you can contribute to Telegram Desktop. Please read 
 * [Pull upstream changes into your fork regularly](#pull-upstream-changes-into-your-fork-regularly)
 * [How to get your pull request accepted](#how-to-get-your-pull-request-accepted)
   * [Keep your pull requests limited to a single issue](#keep-your-pull-requests-limited-to-a-single-issue)
+    * [Squash your commits to a single commit](#squash-your-commits-to-a-single-commit)
   * [Don't mix code changes with whitespace cleanup](#dont-mix-code-changes-with-whitespace-cleanup)
   * [Keep your code simple!](#keep-your-code-simple)
   * [Test your changes!](#test-your-changes)
@@ -106,6 +107,21 @@ Pull requests should be as small/atomic as possible. Large, wide-sweeping change
 
 * If you are making spelling corrections in the docs, don't modify other files.
 * If you are adding new functions don't '*cleanup*' unrelated functions. That cleanup belongs in another pull request.
+
+#### Squash your commits to a single commit
+
+To keep the history of the project clean, you should make one commit per pull request.
+If you already have multiple commits, you can add the commits together (squash them) with the following commands in Git Bash:
+
+1. Open `Git Bash` (or `Git Shell`)
+2. Enter following command to squash the recent {N} commits: `git reset --soft HEAD~{N} && git commit` (replace `{N}` with the number of commits you want to squash)
+3. Press <kbd>i</kbd> to get into Insert-mode
+4. Enter the commit message of the new commit (and add the [signature](#sign-your-work) at the and)
+5. After adding the message, press <kbd>ESC</kbd> to get out of the Insert-mode
+6. Write `:wq` and press <kbd>Enter</kbd> to save the new message or write `:q!` to discard your changes
+7. Enter `git push --force` to push the new commit to the remote repository
+
+For example, if you want to squash the last 5 commits, use `git reset --soft HEAD~5 && git commit`
 
 ### Don't mix code changes with whitespace cleanup
 

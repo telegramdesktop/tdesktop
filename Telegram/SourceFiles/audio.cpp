@@ -27,15 +27,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #define AL_ALEXT_PROTOTYPES
 #include <AL/alext.h>
 
-extern "C" {
-
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/opt.h>
-#include <libswresample/swresample.h>
-
-}
-
 #ifdef Q_OS_MAC
 
 extern "C" {
@@ -106,15 +97,11 @@ bool _checkALError() {
 Q_DECLARE_METATYPE(AudioMsgId);
 Q_DECLARE_METATYPE(SongMsgId);
 void audioInit() {
-	av_register_all();
-	avcodec_register_all();
-
 	if (!capture) {
 		capture = new AudioCapture();
 		cSetHasAudioCapture(capture->check());
 	}
 
-	uint64 ms = getms();
 	if (audioDevice) return;
 
 	audioDevice = alcOpenDevice(0);
@@ -122,7 +109,7 @@ void audioInit() {
 		LOG(("Audio Error: default sound device not present."));
 		return;
 	}
-	
+
 	ALCint attributes[] = { ALC_STEREO_SOURCES, 8, 0 };
 	audioContext = alcCreateContext(audioDevice, attributes);
 	alcMakeContextCurrent(audioContext);
@@ -223,7 +210,6 @@ void audioInit() {
 	player = new AudioPlayer();
 	alcDevicePauseSOFT(audioDevice);
 
-	LOG(("Audio init time: %1").arg(getms() - ms));
 	cSetHasAudioPlayer(true);
 }
 
@@ -464,7 +450,7 @@ void AudioPlayer::play(const AudioMsgId &audio, int64 position) {
 		}
 		current->audio = audio;
 		current->file = audio.audio->location(true);
-		current->data = audio.audio->data;
+		current->data = audio.audio->data();
 		if (current->file.isEmpty() && current->data.isEmpty()) {
 			setStoppedState(current, AudioPlayerStoppedAtError);
 			onError(audio);
@@ -508,14 +494,11 @@ void AudioPlayer::play(const SongMsgId &song, int64 position) {
 		}
 		current->song = song;
 		current->file = song.song->location(true);
-		current->data = song.song->data;
+		current->data = song.song->data();
 		if (current->file.isEmpty() && current->data.isEmpty()) {
 			setStoppedState(current);
-			if (!song.song->loader) {
+			if (!song.song->loading()) {
 				DocumentOpenLink::doOpen(song.song);
-				song.song->openOnSave = 0;
-				song.song->openOnSaveMsgId = FullMsgId();
-				if (song.song->loader) song.song->loader->start(true, true);
 			}
 		} else {
 			current->state = fadedStart ? AudioPlayerStarting : AudioPlayerPlaying;
@@ -528,7 +511,7 @@ void AudioPlayer::play(const SongMsgId &song, int64 position) {
 
 bool AudioPlayer::checkCurrentALError(MediaOverviewType type) {
 	if (_checkALError()) return true;
-	
+
 	switch (type) {
 	case OverviewAudios:
 		setStoppedState(&_audioData[_audioCurrent], AudioPlayerStoppedAtError);
@@ -1103,7 +1086,7 @@ protected:
 
 	QFile f;
 	int32 dataPos;
-	
+
 	bool openFile() {
 		if (data.isEmpty()) {
 			if (f.isOpen()) f.close();
@@ -1126,7 +1109,6 @@ protected:
 
 };
 
-static const uint32 AVBlockSize = 4096; // 4Kb
 static const AVSampleFormat _toFormat = AV_SAMPLE_FMT_S16;
 static const int64_t _toChannelLayout = AV_CH_LAYOUT_STEREO;
 static const int32 _toChannels = 2;
@@ -1189,14 +1171,14 @@ public:
 			return false;
 		}
 
-		freq = fmtContext->streams[streamId]->codec->sample_rate;
+		freq = codecContext->sample_rate;
 		if (fmtContext->streams[streamId]->duration == AV_NOPTS_VALUE) {
 			len = (fmtContext->duration * freq) / AV_TIME_BASE;
 		} else {
 			len = (fmtContext->streams[streamId]->duration * freq * fmtContext->streams[streamId]->time_base.num) / fmtContext->streams[streamId]->time_base.den;
 		}
-		uint64_t layout = fmtContext->streams[streamId]->codec->channel_layout;
-		inputFormat = fmtContext->streams[streamId]->codec->sample_fmt;
+		uint64_t layout = codecContext->channel_layout;
+		inputFormat = codecContext->sample_fmt;
 		switch (layout) {
 		case AV_CH_LAYOUT_MONO:
 			switch (inputFormat) {
@@ -1302,7 +1284,7 @@ public:
 				char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 				LOG(("Audio Error: Unable to avcodec_decode_audio4() file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 
-				av_free_packet(&avpkt);
+				av_packet_unref(&avpkt);
 				if (res == AVERROR_INVALIDDATA) return 0; // try to skip bad packet
 				return -1;
 			}
@@ -1319,7 +1301,7 @@ public:
 							char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 							LOG(("Audio Error: Unable to av_samples_alloc for file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 
-							av_free_packet(&avpkt);
+							av_packet_unref(&avpkt);
 							return -1;
 						}
 					}
@@ -1327,7 +1309,7 @@ public:
 						char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 						LOG(("Audio Error: Unable to swr_convert for file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 
-						av_free_packet(&avpkt);
+						av_packet_unref(&avpkt);
 						return -1;
 					}
 					int32 resultLen = av_samples_get_buffer_size(0, _toChannels, res, _toFormat, 1);
@@ -1339,7 +1321,7 @@ public:
 				}
 			}
 		}
-		av_free_packet(&avpkt);
+		av_packet_unref(&avpkt);
 		return 1;
 	}
 
@@ -1897,7 +1879,7 @@ void AudioCaptureInner::onInit() {
 }
 
 void AudioCaptureInner::onStart() {
-	
+
 	// Start OpenAL Capture
     const ALCchar *dName = alcGetString(0, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER);
     DEBUG_LOG(("Audio Info: Capture device name '%1'").arg(dName));
@@ -1918,7 +1900,7 @@ void AudioCaptureInner::onStart() {
 	// Create encoding context
 
 	d->ioBuffer = (uchar*)av_malloc(AVBlockSize);
-	
+
 	d->ioContext = avio_alloc_context(d->ioBuffer, AVBlockSize, 1, static_cast<void*>(d), &AudioCapturePrivate::_read_data, &AudioCapturePrivate::_write_data, &AudioCapturePrivate::_seek_data);
 	int res = 0;
 	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
@@ -2403,7 +2385,7 @@ public:
 	QString title() {
 		return _title;
 	}
-	
+
 	QString performer() {
 		return _performer;
 	}

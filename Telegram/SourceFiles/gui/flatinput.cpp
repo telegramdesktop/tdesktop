@@ -51,12 +51,22 @@ namespace {
 	InputStyle<MaskedInputField> _inputFieldStyle;
 }
 
-FlatInput::FlatInput(QWidget *parent, const style::flatInput &st, const QString &pholder, const QString &v) : QLineEdit(v, parent),
-_oldtext(v), _fullph(pholder), _fastph(false), _customUpDown(false), _phVisible(!v.length()),
-a_phLeft(_phVisible ? 0 : st.phShift), a_phAlpha(_phVisible ? 1 : 0), a_phColor(st.phColor->c),
-a_borderColor(st.borderColor->c), a_bgColor(st.bgColor->c), _notingBene(0), _st(st) {
+FlatInput::FlatInput(QWidget *parent, const style::flatInput &st, const QString &pholder, const QString &v) : QLineEdit(v, parent)
+, _oldtext(v)
+, _fullph(pholder)
+, _fastph(false)
+, _customUpDown(false)
+, _phVisible(!v.length())
+, a_phLeft(_phVisible ? 0 : st.phShift)
+, a_phAlpha(_phVisible ? 1 : 0)
+, a_phColor(st.phColor->c)
+, a_borderColor(st.borderColor->c)
+, a_bgColor(st.bgColor->c)
+, _a_appearance(animation(this, &FlatInput::step_appearance))
+, _notingBene(0)
+, _st(st) {
 	resize(_st.width, _st.height);
-	
+
 	setFont(_st.font->f);
 	setAlignment(_st.align);
 
@@ -158,7 +168,7 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 	}
 
 	bool phDraw = _phVisible;
-	if (animating()) {
+	if (_a_appearance.animating()) {
 		p.setOpacity(a_phAlpha.current());
 		phDraw = true;
 	}
@@ -180,7 +190,7 @@ void FlatInput::focusInEvent(QFocusEvent *e) {
 		a_borderColor.start(_st.borderActive->c);
 	}
 	a_bgColor.start(_st.bgActive->c);
-	anim::start(this);
+	_a_appearance.start();
 	QLineEdit::focusInEvent(e);
 	emit focused();
 }
@@ -191,7 +201,7 @@ void FlatInput::focusOutEvent(QFocusEvent *e) {
 		a_borderColor.start(_st.borderColor->c);
 	}
 	a_bgColor.start(_st.bgColor->c);
-	anim::start(this);
+	_a_appearance.start();
 	QLineEdit::focusOutEvent(e);
 	emit blurred();
 }
@@ -224,11 +234,10 @@ QSize FlatInput::minimumSizeHint() const {
 	return geometry().size();
 }
 
-bool FlatInput::animStep(float64 ms) {
+void FlatInput::step_appearance(float64 ms, bool timer) {
 	float dt = ms / _st.phDuration;
-	bool res = true;
 	if (dt >= 1) {
-		res = false;
+		_a_appearance.stop();
 		a_phLeft.finish();
 		a_phAlpha.finish();
 		a_phColor.finish();
@@ -236,8 +245,8 @@ bool FlatInput::animStep(float64 ms) {
 		if (_notingBene > 0) {
 			_notingBene = -1;
 			a_borderColor.start((hasFocus() ? _st.borderActive : _st.borderColor)->c);
-			anim::start(this);
-			return true;
+			_a_appearance.start();
+			return;
 		} else if (_notingBene) {
 			_notingBene = 0;
 		}
@@ -249,8 +258,7 @@ bool FlatInput::animStep(float64 ms) {
 		a_bgColor.update(dt, _st.phColorFunc);
 		a_borderColor.update(dt, _st.phColorFunc);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 void FlatInput::setPlaceholder(const QString &ph) {
@@ -279,7 +287,7 @@ void FlatInput::updatePlaceholder() {
 	} else {
 		a_phLeft.start(vis ? 0 : _st.phShift);
 		a_phAlpha.start(vis ? 1 : 0);
-		anim::start(this);
+		_a_appearance.start();
 	}
 	_phVisible = vis;
 }
@@ -345,11 +353,11 @@ void FlatInput::notaBene() {
 	_notingBene = 1;
 	setFocus();
 	a_borderColor.start(_st.borderError->c);
-	anim::start(this);
+	_a_appearance.start();
 }
 
-CountryCodeInput::CountryCodeInput(QWidget *parent, const style::flatInput &st) : FlatInput(parent, st), _nosignal(false) {
-
+CountryCodeInput::CountryCodeInput(QWidget *parent, const style::flatInput &st) : FlatInput(parent, st)
+, _nosignal(false) {
 }
 
 void CountryCodeInput::startErasing(QKeyEvent *e) {
@@ -541,38 +549,39 @@ void PhonePartInput::onChooseCode(const QString &code) {
 	updatePlaceholder();
 }
 
-InputArea::InputArea(QWidget *parent, const style::InputArea &st, const QString &ph, const QString &val) : TWidget(parent),
-_maxLength(-1),
-_inner(this),
-_oldtext(val),
+InputArea::InputArea(QWidget *parent, const style::InputArea &st, const QString &ph, const QString &val) : TWidget(parent)
+, _maxLength(-1)
+, _inner(this)
+, _oldtext(val)
 
-_ctrlEnterSubmit(CtrlEnterSubmitCtrlEnter),
-_undoAvailable(false),
-_redoAvailable(false),
-_inHeightCheck(false),
+, _ctrlEnterSubmit(CtrlEnterSubmitCtrlEnter)
+, _undoAvailable(false)
+, _redoAvailable(false)
+, _inHeightCheck(false)
 
-_customUpDown(false),
+, _customUpDown(false)
 
-_placeholderFull(ph),
-_placeholderVisible(val.isEmpty()),
-a_placeholderLeft(_placeholderVisible ? 0 : st.placeholderShift),
-a_placeholderOpacity(_placeholderVisible ? 1 : 0),
-a_placeholderFg(st.placeholderFg->c),
-_a_placeholderFg(animFunc(this, &InputArea::animStep_placeholderFg)),
-_a_placeholderShift(animFunc(this, &InputArea::animStep_placeholderShift)),
+, _placeholderFull(ph)
+, _placeholderVisible(val.isEmpty())
+, a_placeholderLeft(_placeholderVisible ? 0 : st.placeholderShift)
+, a_placeholderOpacity(_placeholderVisible ? 1 : 0)
+, a_placeholderFg(st.placeholderFg->c)
+, _a_placeholderFg(animation(this, &InputArea::step_placeholderFg))
+, _a_placeholderShift(animation(this, &InputArea::step_placeholderShift))
 
-a_borderOpacityActive(0),
-a_borderFg(st.borderFg->c),
-_a_border(animFunc(this, &InputArea::animStep_border)),
+, a_borderOpacityActive(0)
+, a_borderFg(st.borderFg->c)
+, _a_border(animation(this, &InputArea::step_border))
 
-_focused(false), _error(false),
+, _focused(false)
+, _error(false)
 
-_st(st),
+, _st(st)
 
-_touchPress(false),
-_touchRightButton(false),
-_touchMove(false),
-_correcting(false) {
+, _touchPress(false)
+, _touchRightButton(false)
+, _touchMove(false)
+, _correcting(false) {
 	_inner.setAcceptRichText(false);
 	resize(_st.width, _st.heightMin);
 
@@ -950,7 +959,7 @@ void InputArea::processDocumentContentsChange(int position, int charsAdded) {
 				const QChar *ch = t.constData(), *e = ch + t.size();
 				for (; ch != e; ++ch, ++fp) {
 					int32 emojiLen = 0;
-					emoji = emojiFromText(ch, e, emojiLen);
+					emoji = emojiFromText(ch, e, &emojiLen);
 					if (emoji) {
 						if (replacePosition >= 0) {
 							emoji = 0; // replace tilde char format first
@@ -1106,47 +1115,42 @@ void InputArea::onRedoAvailable(bool avail) {
 	if (App::wnd()) App::wnd()->updateGlobalMenu();
 }
 
-bool InputArea::animStep_placeholderFg(float64 ms) {
-	float dt = ms / _st.duration;
-	bool res = true;
+void InputArea::step_placeholderFg(float64 ms, bool timer) {
+	float64 dt = ms / _st.duration;
 	if (dt >= 1) {
-		res = false;
+		_a_placeholderFg.stop();
 		a_placeholderFg.finish();
 	} else {
 		a_placeholderFg.update(dt, anim::linear);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
-bool InputArea::animStep_placeholderShift(float64 ms) {
-	float dt = ms / _st.duration;
-	bool res = true;
+void InputArea::step_placeholderShift(float64 ms, bool timer) {
+	float64 dt = ms / _st.duration;
 	if (dt >= 1) {
-		res = false;
+		_a_placeholderShift.stop();
 		a_placeholderLeft.finish();
 		a_placeholderOpacity.finish();
 	} else {
 		a_placeholderLeft.update(dt, anim::linear);
 		a_placeholderOpacity.update(dt, anim::linear);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
-bool InputArea::animStep_border(float64 ms) {
-	float dt = ms / _st.duration;
+void InputArea::step_border(float64 ms, bool timer) {
+	float64 dt = ms / _st.duration;
 	bool res = true;
 	if (dt >= 1) {
-		res = false;
+		_a_border.stop();
 		a_borderFg.finish();
 		a_borderOpacityActive.finish();
 	} else {
 		a_borderFg.update(dt, anim::linear);
 		a_borderOpacityActive.update(dt, anim::linear);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 void InputArea::updatePlaceholder() {
@@ -1261,41 +1265,41 @@ void InputArea::showError() {
 	}
 }
 
-InputField::InputField(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val) : TWidget(parent),
-_maxLength(-1),
-_inner(this),
-_oldtext(val),
+InputField::InputField(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val) : TWidget(parent)
+, _maxLength(-1)
+, _inner(this)
+, _oldtext(val)
 
-_undoAvailable(false),
-_redoAvailable(false),
+, _undoAvailable(false)
+, _redoAvailable(false)
 
-_customUpDown(true),
+, _customUpDown(true)
 
-_placeholderFull(ph),
-_placeholderVisible(val.isEmpty()),
-a_placeholderLeft(_placeholderVisible ? 0 : st.placeholderShift),
-a_placeholderOpacity(_placeholderVisible ? 1 : 0),
-a_placeholderFg(st.placeholderFg->c),
-_a_placeholderFg(animFunc(this, &InputField::animStep_placeholderFg)),
-_a_placeholderShift(animFunc(this, &InputField::animStep_placeholderShift)),
+, _placeholderFull(ph)
+, _placeholderVisible(val.isEmpty())
+, a_placeholderLeft(_placeholderVisible ? 0 : st.placeholderShift)
+, a_placeholderOpacity(_placeholderVisible ? 1 : 0)
+, a_placeholderFg(st.placeholderFg->c)
+, _a_placeholderFg(animation(this, &InputField::step_placeholderFg))
+, _a_placeholderShift(animation(this, &InputField::step_placeholderShift))
 
-a_borderOpacityActive(0),
-a_borderFg(st.borderFg->c),
-_a_border(animFunc(this, &InputField::animStep_border)),
+, a_borderOpacityActive(0)
+, a_borderFg(st.borderFg->c)
+, _a_border(animation(this, &InputField::step_border))
 
-_focused(false), _error(false),
+, _focused(false)
+, _error(false)
 
-_st(st),
+, _st(st)
 
-_touchPress(false),
-_touchRightButton(false),
-_touchMove(false),
-_correcting(false) {
+, _touchPress(false)
+, _touchRightButton(false)
+, _touchMove(false)
+, _correcting(false) {
 	_inner.setAcceptRichText(false);
 	resize(_st.width, _st.height);
 
 	_inner.setWordWrapMode(QTextOption::NoWrap);
-	_inner.setLineWrapMode(QTextEdit::NoWrap);
 
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
@@ -1327,7 +1331,7 @@ _correcting(false) {
 	connect(&_inner, SIGNAL(undoAvailable(bool)), this, SLOT(onUndoAvailable(bool)));
 	connect(&_inner, SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
 	if (App::wnd()) connect(&_inner, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
-	
+
 	setCursor(style::cur_text);
 	if (!val.isEmpty()) {
 		_inner.setPlainText(val);
@@ -1408,7 +1412,7 @@ void InputField::paintEvent(QPaintEvent *e) {
 	if (_st.iconSprite.pxWidth()) {
 		p.drawSpriteLeft(_st.iconPosition, width(), _st.iconSprite);
 	}
-	
+
 	bool drawPlaceholder = _placeholderVisible;
 	if (_a_placeholderShift.animating()) {
 		p.setOpacity(a_placeholderOpacity.current());
@@ -1421,11 +1425,11 @@ void InputField::paintEvent(QPaintEvent *e) {
 		QRect r(rect().marginsRemoved(_st.textMargins + _st.placeholderMargins));
 		r.moveLeft(r.left() + a_placeholderLeft.current());
 		if (rtl()) r.moveLeft(width() - r.left() - r.width());
-	
+
 		p.setFont(_st.font);
 		p.setPen(a_placeholderFg.current());
 		p.drawText(r, _placeholder, _st.placeholderAlign);
-	
+
 		p.restore();
 	}
 	TWidget::paintEvent(e);
@@ -1659,7 +1663,7 @@ void InputField::processDocumentContentsChange(int position, int charsAdded) {
 					}
 
 					int32 emojiLen = 0;
-					emoji = emojiFromText(ch, e, emojiLen);
+					emoji = emojiFromText(ch, e, &emojiLen);
 					if (emoji) {
 						if (replacePosition >= 0) {
 							emoji = 0; // replace tilde char format first
@@ -1834,47 +1838,41 @@ void InputField::selectAll() {
 	_inner.setTextCursor(c);
 }
 
-bool InputField::animStep_placeholderFg(float64 ms) {
-	float dt = ms / _st.duration;
-	bool res = true;
+void InputField::step_placeholderFg(float64 ms, bool timer) {
+	float64 dt = ms / _st.duration;
 	if (dt >= 1) {
-		res = false;
+		_a_placeholderFg.stop();
 		a_placeholderFg.finish();
 	} else {
 		a_placeholderFg.update(dt, anim::linear);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
-bool InputField::animStep_placeholderShift(float64 ms) {
-	float dt = ms / _st.duration;
-	bool res = true;
+void InputField::step_placeholderShift(float64 ms, bool timer) {
+	float64 dt = ms / _st.duration;
 	if (dt >= 1) {
-		res = false;
+		_a_placeholderShift.stop();
 		a_placeholderLeft.finish();
 		a_placeholderOpacity.finish();
 	} else {
 		a_placeholderLeft.update(dt, anim::linear);
 		a_placeholderOpacity.update(dt, anim::linear);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
-bool InputField::animStep_border(float64 ms) {
-	float dt = ms / _st.duration;
-	bool res = true;
+void InputField::step_border(float64 ms, bool timer) {
+	float64 dt = ms / _st.duration;
 	if (dt >= 1) {
-		res = false;
+		_a_border.stop();
 		a_borderFg.finish();
 		a_borderOpacityActive.finish();
 	} else {
 		a_borderFg.update(dt, anim::linear);
 		a_borderOpacityActive.update(dt, anim::linear);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 void InputField::updatePlaceholder() {
@@ -1981,34 +1979,35 @@ void InputField::showError() {
 	}
 }
 
-MaskedInputField::MaskedInputField(QWidget *parent, const style::InputField &st, const QString &placeholder, const QString &val) : QLineEdit(val, parent),
-_st(st),
-_maxLength(-1),
-_oldtext(val),
+MaskedInputField::MaskedInputField(QWidget *parent, const style::InputField &st, const QString &placeholder, const QString &val) : QLineEdit(val, parent)
+, _st(st)
+, _maxLength(-1)
+, _oldtext(val)
 
-_undoAvailable(false),
-_redoAvailable(false),
+, _undoAvailable(false)
+, _redoAvailable(false)
 
-_customUpDown(false),
+, _customUpDown(false)
 
-_placeholderFull(placeholder),
-_placeholderVisible(val.isEmpty()),
-_placeholderFast(false),
-a_placeholderLeft(_placeholderVisible ? 0 : st.placeholderShift),
-a_placeholderOpacity(_placeholderVisible ? 1 : 0),
-a_placeholderFg(st.placeholderFg->c),
-_a_placeholderFg(animFunc(this, &MaskedInputField::animStep_placeholderFg)),
-_a_placeholderShift(animFunc(this, &MaskedInputField::animStep_placeholderShift)),
+, _placeholderFull(placeholder)
+, _placeholderVisible(val.isEmpty())
+, _placeholderFast(false)
+, a_placeholderLeft(_placeholderVisible ? 0 : st.placeholderShift)
+, a_placeholderOpacity(_placeholderVisible ? 1 : 0)
+, a_placeholderFg(st.placeholderFg->c)
+, _a_placeholderFg(animation(this, &MaskedInputField::step_placeholderFg))
+, _a_placeholderShift(animation(this, &MaskedInputField::step_placeholderShift))
 
-a_borderOpacityActive(0),
-a_borderFg(st.borderFg->c),
-_a_border(animFunc(this, &MaskedInputField::animStep_border)),
+, a_borderOpacityActive(0)
+, a_borderFg(st.borderFg->c)
+, _a_border(animation(this, &MaskedInputField::step_border))
 
-_focused(false), _error(false),
+, _focused(false)
+, _error(false)
 
-_touchPress(false),
-_touchRightButton(false),
-_touchMove(false) {
+, _touchPress(false)
+, _touchRightButton(false)
+, _touchMove(false) {
 	resize(_st.width, _st.height);
 
 	setFont(_st.font->f);
@@ -2029,7 +2028,7 @@ _touchMove(false) {
 	setStyle(&_inputFieldStyle);
 	QLineEdit::setTextMargins(0, 0, 0, 0);
 	setContentsMargins(0, 0, 0, 0);
-	
+
 	setAttribute(Qt::WA_AcceptTouchEvents);
 	_touchTimer.setSingleShot(true);
 	connect(&_touchTimer, SIGNAL(timeout()), this, SLOT(onTouchTimer()));
@@ -2188,47 +2187,41 @@ QSize MaskedInputField::minimumSizeHint() const {
 	return geometry().size();
 }
 
-bool MaskedInputField::animStep_placeholderFg(float64 ms) {
-	float dt = ms / _st.duration;
-	bool res = true;
+void MaskedInputField::step_placeholderFg(float64 ms, bool timer) {
+	float64 dt = ms / _st.duration;
 	if (dt >= 1) {
-		res = false;
+		_a_placeholderFg.stop();
 		a_placeholderFg.finish();
 	} else {
 		a_placeholderFg.update(dt, anim::linear);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
-bool MaskedInputField::animStep_placeholderShift(float64 ms) {
-	float dt = ms / _st.duration;
-	bool res = true;
+void MaskedInputField::step_placeholderShift(float64 ms, bool timer) {
+	float64 dt = ms / _st.duration;
 	if (dt >= 1) {
-		res = false;
+		_a_placeholderShift.stop();
 		a_placeholderLeft.finish();
 		a_placeholderOpacity.finish();
 	} else {
 		a_placeholderLeft.update(dt, anim::linear);
 		a_placeholderOpacity.update(dt, anim::linear);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
-bool MaskedInputField::animStep_border(float64 ms) {
-	float dt = ms / _st.duration;
-	bool res = true;
+void MaskedInputField::step_border(float64 ms, bool timer) {
+	float64 dt = ms / _st.duration;
 	if (dt >= 1) {
-		res = false;
+		_a_border.stop();
 		a_borderFg.finish();
 		a_borderOpacityActive.finish();
 	} else {
 		a_borderFg.update(dt, anim::linear);
 		a_borderOpacityActive.update(dt, anim::linear);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 bool MaskedInputField::setPlaceholder(const QString &placeholder) {

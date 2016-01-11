@@ -115,7 +115,7 @@ void SessionsInner::onTerminate() {
 			_terminateBox = new ConfirmBox(lang(lng_settings_reset_one_sure), lang(lng_settings_reset_button), st::attentionBoxButton);
 			connect(_terminateBox, SIGNAL(confirmed()), this, SLOT(onTerminateSure()));
 			connect(_terminateBox, SIGNAL(destroyed(QObject*)), this, SLOT(onNoTerminateBox(QObject*)));
-			App::wnd()->replaceLayer(_terminateBox);
+			Ui::showLayer(_terminateBox, KeepOtherLayers);
 		}
 	}
 }
@@ -138,7 +138,7 @@ void SessionsInner::onTerminateAll() {
 	_terminateBox = new ConfirmBox(lang(lng_settings_reset_sure), lang(lng_settings_reset_button), st::attentionBoxButton);
 	connect(_terminateBox, SIGNAL(confirmed()), this, SLOT(onTerminateAllSure()));
 	connect(_terminateBox, SIGNAL(destroyed(QObject*)), this, SLOT(onNoTerminateBox(QObject*)));
-	App::wnd()->replaceLayer(_terminateBox);
+	Ui::showLayer(_terminateBox, KeepOtherLayers);
 }
 
 void SessionsInner::onTerminateAllSure() {

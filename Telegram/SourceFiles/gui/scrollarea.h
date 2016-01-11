@@ -50,7 +50,7 @@ private:
 
 };
 
-class ScrollBar : public QWidget, public Animated {
+class ScrollBar : public QWidget {
 	Q_OBJECT
 
 public:
@@ -67,7 +67,7 @@ public:
 	void mouseReleaseEvent(QMouseEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
-	bool animStep(float64 ms);
+	void step_appearance(float64 ms, bool timer);
 
 	void hideTimeout(int64 dt);
 
@@ -100,6 +100,8 @@ private:
 	QTimer _hideTimer;
 
 	anim::cvalue a_bg, a_bar;
+	Animation _a_appearance;
+
 	QRect _bar;
 };
 

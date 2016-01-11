@@ -280,7 +280,7 @@ void PasscodeBox::setPasswordDone(const MTPBool &result) {
 	_setRequest = 0;
 	emit reloadPassword();
 	ConfirmBox *box = new InformBox(lang(_reenterPasscode.isHidden() ? lng_cloud_password_removed : (_oldPasscode.isHidden() ? lng_cloud_password_was_set : lng_cloud_password_updated)));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 bool PasscodeBox::setPasswordFail(const RPCError &error) {
@@ -308,7 +308,7 @@ bool PasscodeBox::setPasswordFail(const RPCError &error) {
 		_recoverEmail.showError();
 		update();
 	} else if (err == "EMAIL_UNCONFIRMED") {
-		App::wnd()->showLayer(new InformBox(lang(lng_cloud_password_almost)));
+		Ui::showLayer(new InformBox(lang(lng_cloud_password_almost)));
 		emit reloadPassword();
 	} else if (mtpIsFlood(error)) {
 		if (_oldPasscode.isHidden()) return false;
@@ -385,7 +385,7 @@ void PasscodeBox::onSave(bool force) {
 			_replacedBy = new ConfirmBox(lang(lng_cloud_password_about_recover), lang(lng_cloud_password_skip_email), st::attentionBoxButton);
 			connect(_replacedBy, SIGNAL(confirmed()), this, SLOT(onForceNoMail()));
 			connect(_replacedBy, SIGNAL(destroyed(QObject*)), this, SLOT(onBoxDestroyed(QObject*)));
-			App::wnd()->replaceLayer(_replacedBy);
+			Ui::showLayer(_replacedBy, KeepOtherLayers);
 		} else {
 			QByteArray newPasswordData = pwd.isEmpty() ? QByteArray() : (_newSalt + pwd.toUtf8() + _newSalt);
 			QByteArray newPasswordHash = pwd.isEmpty() ? QByteArray() : QByteArray(32, Qt::Uninitialized);
@@ -481,7 +481,7 @@ void PasscodeBox::recover() {
 	connect(_replacedBy, SIGNAL(reloadPassword()), this, SIGNAL(reloadPassword()));
 	connect(_replacedBy, SIGNAL(recoveryExpired()), this, SLOT(onRecoverExpired()));
 	connect(_replacedBy, SIGNAL(destroyed(QObject*)), this, SLOT(onBoxDestroyed(QObject*)));
-	App::wnd()->replaceLayer(_replacedBy);
+	Ui::showLayer(_replacedBy, KeepOtherLayers);
 }
 
 void PasscodeBox::recoverStarted(const MTPauth_PasswordRecovery &result) {
@@ -583,7 +583,7 @@ void RecoverBox::codeSubmitDone(bool recover, const MTPauth_Authorization &resul
 	_submitRequest = 0;
 
 	emit reloadPassword();
-	App::wnd()->showLayer(new InformBox(lang(lng_cloud_password_removed)));
+	Ui::showLayer(new InformBox(lang(lng_cloud_password_removed)));
 }
 
 bool RecoverBox::codeSubmitFail(const RPCError &error) {
@@ -592,7 +592,7 @@ bool RecoverBox::codeSubmitFail(const RPCError &error) {
 	const QString &err = error.type();
 	if (err == "PASSWORD_EMPTY") {
 		emit reloadPassword();
-		App::wnd()->showLayer(new InformBox(lang(lng_cloud_password_removed)));
+		Ui::showLayer(new InformBox(lang(lng_cloud_password_removed)));
 		return true;
 	} else if (err == "PASSWORD_RECOVERY_NA") {
 		onClose();

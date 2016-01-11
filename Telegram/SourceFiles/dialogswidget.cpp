@@ -163,7 +163,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 				PeerData *act = App::main()->activePeer();
 				MsgId actId = App::main()->activeMsgId();
 				for (; from < to; ++from) {
-					bool active = ((_filterResults[from]->history->peer == act) || (_filterResults[from]->history->peer->migrateTo() && _filterResults[from]->history->peer->migrateTo() == act)) && !actId;					
+					bool active = ((_filterResults[from]->history->peer == act) || (_filterResults[from]->history->peer->migrateTo() && _filterResults[from]->history->peer->migrateTo() == act)) && !actId;
 					bool selected = (from == _filteredSel) || (_filterResults[from]->history->peer == _menuPeer);
 					_filterResults[from]->paint(p, w, active, selected, paintingOther);
 					p.translate(0, st::dlgHeight);
@@ -488,16 +488,6 @@ void DialogsInner::removeDialog(History *history) {
 	refresh();
 }
 
-void DialogsInner::removeContact(UserData *user) {
-	if (sel && sel->history->peer == user) {
-		sel = 0;
-	}
-	contactsNoDialogs.del(user);
-	contacts.del(user);
-
-	refresh();
-}
-
 void DialogsInner::dlgUpdated(DialogRow *row) {
 	if (_state == DefaultState) {
 		update(0, row->pos * st::dlgHeight, fullWidth(), st::dlgHeight);
@@ -675,12 +665,12 @@ void DialogsInner::onContextClearHistory() {
 	_menuActionPeer = _menuPeer;
 	ConfirmBox *box = new ConfirmBox(_menuPeer->isUser() ? lng_sure_delete_history(lt_contact, _menuPeer->name) : lng_sure_delete_group_history(lt_group, _menuPeer->name), lang(lng_box_delete), st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onContextClearHistorySure()));
-	App::showLayer(box);
+	Ui::showLayer(box);
 }
 
 void DialogsInner::onContextClearHistorySure() {
 	if (!_menuActionPeer || _menuActionPeer->isChannel()) return;
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	App::main()->clearHistory(_menuActionPeer);
 }
 
@@ -690,14 +680,14 @@ void DialogsInner::onContextDeleteAndLeave() {
 	_menuActionPeer = _menuPeer;
 	ConfirmBox *box = new ConfirmBox(_menuPeer->isUser() ? lng_sure_delete_history(lt_contact, _menuPeer->name) : (_menuPeer->isChat() ? lng_sure_delete_and_exit(lt_group, _menuPeer->name) : lang(_menuPeer->isMegagroup() ? lng_sure_leave_group : lng_sure_leave_channel)), lang(_menuPeer->isUser() ? lng_box_delete : lng_box_leave), _menuPeer->isChannel() ? st::defaultBoxButton : st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onContextDeleteAndLeaveSure()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void DialogsInner::onContextDeleteAndLeaveSure() {
 	if (!_menuActionPeer) return;
 
-	App::wnd()->hideLayer();
-	App::main()->showDialogs();
+	Ui::hideLayer();
+	Ui::showChatsList();
 	if (_menuActionPeer->isUser()) {
 		App::main()->deleteConversation(_menuActionPeer);
 	} else if (_menuActionPeer->isChat()) {
@@ -882,7 +872,7 @@ void DialogsInner::onHashtagFilterUpdate(QStringRef newFilter) {
 	}
 	_hashtagFilter = newFilter.toString();
 	if (cRecentSearchHashtags().isEmpty() && cRecentWriteHashtags().isEmpty()) {
-		Local::readRecentHashtags();
+		Local::readRecentHashtagsAndBots();
 	}
 	const RecentHashtagPack &recent(cRecentSearchHashtags());
 	_hashtagResults.clear();
@@ -915,14 +905,6 @@ void DialogsInner::clearSearchResults(bool clearPeople) {
 	_lastSearchDate = 0;
 	_lastSearchPeer = 0;
 	_lastSearchId = _lastSearchMigratedId = 0;
-}
-
-void DialogsInner::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
-	for (int i = 0; i < _searchResults.size(); ++i) {
-		if (_searchResults[i]->_item == oldItem) {
-			_searchResults[i]->_item = newItem;
-		}
-	}
 }
 
 void DialogsInner::updateNotifySettings(PeerData *peer) {
@@ -1096,9 +1078,11 @@ void DialogsInner::peopleReceived(const QString &query, const QVector<MTPPeer> &
 void DialogsInner::contactsReceived(const QVector<MTPContact> &contacts) {
 	for (QVector<MTPContact>::const_iterator i = contacts.cbegin(), e = contacts.cend(); i != e; ++i) {
 		int32 uid = i->c_contact().vuser_id.v;
-		addNewContact(uid);
 		if (uid == MTP::authedId() && App::self()) {
-			App::self()->contact = 1;
+			if (App::self()->contact < 1) {
+				App::self()->contact = 1;
+				Notify::userIsContactChanged(App::self());
+			}
 		}
 	}
 	if (!sel && contactsNoDialogs.list.count && false) {
@@ -1108,23 +1092,25 @@ void DialogsInner::contactsReceived(const QVector<MTPContact> &contacts) {
 	refresh();
 }
 
-int32 DialogsInner::addNewContact(int32 uid, bool select) { // -2 - err, -1 - don't scroll, >= 0 - scroll
-	PeerId peer = peerFromUser(uid);
-	if (!App::peerLoaded(peer)) return -2;
-
-	History *history = App::history(peer);
-	contacts.addByName(history);
-	DialogsList::RowByPeer::const_iterator i = dialogs.list.rowByPeer.constFind(peer);
-	if (i == dialogs.list.rowByPeer.cend()) {
-		DialogRow *added = contactsNoDialogs.addByName(history);
-		if (!added) return -2;
-		return -1;
+void DialogsInner::notify_userIsContactChanged(UserData *user, bool fromThisApp) {
+	if (user->contact > 0) {
+		History *history = App::history(user->id);
+		contacts.addByName(history);
+		DialogsList::RowByPeer::const_iterator i = dialogs.list.rowByPeer.constFind(user->id);
+		if (i == dialogs.list.rowByPeer.cend()) {
+			contactsNoDialogs.addByName(history);
+		} else if (fromThisApp) {
+			sel = i.value();
+			contactSel = false;
+		}
+	} else {
+		if (sel && sel->history->peer == user) {
+			sel = 0;
+		}
+		contactsNoDialogs.del(user);
+		contacts.del(user);
 	}
-	if (select) {
-		sel = i.value();
-		contactSel = false;
-	}
-	return i.value()->pos * st::dlgHeight;
+	refresh();
 }
 
 void DialogsInner::refresh(bool toTop) {
@@ -1399,7 +1385,7 @@ void DialogsInner::loadPeerPhotos(int32 yFrom) {
 		if (from < _filterResults.size()) {
 			int32 to = (yTo / int32(st::dlgHeight)) + 1, w = width();
 			if (to > _filterResults.size()) to = _filterResults.size();
-			
+
 			for (; from < to; ++from) {
 				_filterResults[from]->history->peer->photo->load();
 			}
@@ -1448,7 +1434,7 @@ bool DialogsInner::choosePeer() {
 					}
 				}
 				cSetRecentSearchHashtags(recent);
-				Local::writeRecentHashtags();
+				Local::writeRecentHashtagsAndBots();
 				emit refreshHashtags();
 
 				selByMouse = true;
@@ -1501,7 +1487,7 @@ void DialogsInner::saveRecentHashtags(const QString &text) {
 			}
 		}
 		if (!found && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) {
-			Local::readRecentHashtags();
+			Local::readRecentHashtagsAndBots();
 			recent = cRecentSearchHashtags();
 		}
 		found = true;
@@ -1509,7 +1495,7 @@ void DialogsInner::saveRecentHashtags(const QString &text) {
 	}
 	if (found) {
 		cSetRecentSearchHashtags(recent);
-		Local::writeRecentHashtags();
+		Local::writeRecentHashtagsAndBots();
 	}
 }
 
@@ -1737,7 +1723,7 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : TWidget(parent)
 , _cancelSearch(this, st::btnCancelSearch)
 , _scroll(this, st::dlgScroll)
 , _inner(&_scroll, parent)
-, _a_show(animFunc(this, &DialogsWidget::animStep_show))
+, _a_show(animation(this, &DialogsWidget::step_show))
 , _searchInPeer(0)
 , _searchInMigrated(0)
 , _searchFull(false)
@@ -1839,13 +1825,11 @@ void DialogsWidget::animShow(const QPixmap &bgAnimCache) {
 	show();
 }
 
-bool DialogsWidget::animStep_show(float64 ms) {
+void DialogsWidget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
-	bool res = true;
 	if (dt >= 1) {
 		_a_show.stop();
 
-		res = false;
 		a_coordUnder.finish();
 		a_coordOver.finish();
 		a_shadow.finish();
@@ -1865,8 +1849,7 @@ bool DialogsWidget::animStep_show(float64 ms) {
 		a_coordOver.update(dt, st::slideFunction);
 		a_shadow.update(dt, st::slideFunction);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 void DialogsWidget::onCancel() {
@@ -1879,12 +1862,17 @@ void DialogsWidget::itemRemoved(HistoryItem *item) {
 	_inner.itemRemoved(item);
 }
 
-void DialogsWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
-	_inner.itemReplaced(oldItem, newItem);
-}
-
 void DialogsWidget::updateNotifySettings(PeerData *peer) {
 	_inner.updateNotifySettings(peer);
+}
+
+void DialogsWidget::notify_userIsContactChanged(UserData *user, bool fromThisApp) {
+	if (fromThisApp) {
+		_filter.setText(QString());
+		_filter.updatePlaceholder();
+		onFilterUpdate();
+	}
+	_inner.notify_userIsContactChanged(user, fromThisApp);
 }
 
 void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
@@ -2273,17 +2261,6 @@ bool DialogsWidget::peopleFailed(const RPCError &error, mtpRequestId req) {
 	return true;
 }
 
-bool DialogsWidget::addNewContact(int32 uid, bool show) {
-	_filter.setText(QString());
-	_filter.updatePlaceholder();
-	onFilterUpdate();
-	int32 to = _inner.addNewContact(uid, true);
-	if (to < -1 || !show) return false;
-	_inner.refresh();
-	if (to >= 0) _scroll.scrollToY(to);
-	return true;
-}
-
 void DialogsWidget::dragEnterEvent(QDragEnterEvent *e) {
 	if (App::main()->selectingPeer()) return;
 
@@ -2540,13 +2517,6 @@ void DialogsWidget::removeDialog(History *history) {
 	onFilterUpdate();
 }
 
-void DialogsWidget::removeContact(UserData *user) {
-	_filter.setText(QString());
-	_filter.updatePlaceholder();
-	onFilterUpdate();
-	_inner.removeContact(user);
-}
-
 DialogsIndexed &DialogsWidget::contactsList() {
 	return _inner.contactsList();
 }
@@ -2556,11 +2526,11 @@ DialogsIndexed &DialogsWidget::dialogsList() {
 }
 
 void DialogsWidget::onAddContact() {
-	App::wnd()->replaceLayer(new AddContactBox());
+	Ui::showLayer(new AddContactBox(), KeepOtherLayers);
 }
 
 void DialogsWidget::onNewGroup() {
-	App::wnd()->showLayer(new NewGroupBox());
+	Ui::showLayer(new NewGroupBox());
 }
 
 bool DialogsWidget::onCancelSearch() {
@@ -2571,7 +2541,7 @@ bool DialogsWidget::onCancelSearch() {
 	}
 	if (_searchInPeer && !clearing) {
 		if (!cWideMode()) {
-			App::main()->showPeerHistory(_searchInPeer->id, ShowAtUnreadMsgId);
+			Ui::showPeerHistory(_searchInPeer, ShowAtUnreadMsgId);
 		}
 		_searchInPeer = _searchInMigrated = 0;
 		_inner.searchInPeer(0);
@@ -2591,7 +2561,7 @@ void DialogsWidget::onCancelSearchInPeer() {
 	}
 	if (_searchInPeer) {
 		if (!cWideMode() && !App::main()->selectingPeer()) {
-			App::main()->showPeerHistory(_searchInPeer->id, ShowAtUnreadMsgId);
+			Ui::showPeerHistory(_searchInPeer, ShowAtUnreadMsgId);
 		}
 		_searchInPeer = _searchInMigrated = 0;
 		_inner.searchInPeer(0);

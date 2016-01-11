@@ -106,7 +106,7 @@ namespace {
 	bool sessionLoggedOff = false;
 
 	UINT tbCreatedMsgId = 0;
-	
+
 	ComPtr<ITaskbarList3> taskbarList;
 
 	ComPtr<IToastNotificationManagerStatics> toastNotificationManager;
@@ -132,7 +132,7 @@ namespace {
 	HWND createTaskbarHider() {
 		HINSTANCE appinst = (HINSTANCE)GetModuleHandle(0);
 		HWND hWnd = 0;
-		
+
 		QString cn = QString("TelegramTaskbarHider");
 		LPCWSTR _cn = (LPCWSTR)cn.utf16();
 		WNDCLASSEX wc;
@@ -153,7 +153,7 @@ namespace {
 			DEBUG_LOG(("Application Error: could not register taskbar hider window class, error: %1").arg(GetLastError()));
 			return hWnd;
 		}
-		
+
 		hWnd = CreateWindowEx(WS_EX_TOOLWINDOW, _cn, 0, WS_POPUP, 0, 0, 0, 0, 0, 0, appinst, 0);
 		if (!hWnd) {
 			DEBUG_LOG(("Application Error: could not create taskbar hider window class, error: %1").arg(GetLastError()));
@@ -186,12 +186,12 @@ namespace {
 				hwnds[i] = 0;
 			}
 		}
-		
+
 		void setColor(QColor c) {
 			r = c.red();
 			g = c.green();
 			b = c.blue();
-			
+
 			if (!hwnds[0]) return;
 			Gdiplus::SolidBrush brush(Gdiplus::Color(_alphas[0], r, g, b));
 			for (int i = 0; i < 4; ++i) {
@@ -251,7 +251,7 @@ namespace {
 			Gdiplus::GdiplusStartupInput gdiplusStartupInput;
 			ULONG_PTR gdiplusToken;
 			Gdiplus::Status gdiRes = Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
-	
+
 			if (gdiRes != Gdiplus::Ok) {
 				LOG(("Application Error: could not init GDI+, error: %1").arg((int)gdiRes));
 				return false;
@@ -460,7 +460,7 @@ namespace {
 					from = _fullsize - (_size - _shift);
 					max_w *= 2;
 					for (int i = 0; i < 4; i += 2) {
-						DeleteObject(bitmaps[i]); 
+						DeleteObject(bitmaps[i]);
 						bitmaps[i] = CreateCompatibleBitmap(screenDC, max_w, _size);
 						SelectObject(dcs[i], bitmaps[i]);
 					}
@@ -549,7 +549,7 @@ namespace {
 			_y = y;
 			_w = w;
 			_h = h;
-	
+
 			if (hidden && (changes & _PsShadowShown)) {
 				for (int i = 0; i < 4; ++i) {
 					SetWindowPos(hwnds[i], hwnd, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW | SWP_NOACTIVATE);
@@ -680,7 +680,7 @@ namespace {
 
 	typedef HRESULT (FAR STDAPICALLTYPE *f_shOpenWithDialog)(HWND hwndParent, const OPENASINFO *poainfo);
 	f_shOpenWithDialog shOpenWithDialog = 0;
-	
+
 	typedef HRESULT (FAR STDAPICALLTYPE *f_shAssocEnumHandlers)(PCWSTR pszExtra, ASSOC_FILTER afFilter, IEnumAssocHandlers **ppEnumHandler);
 	f_shAssocEnumHandlers shAssocEnumHandlers = 0;
 
@@ -695,7 +695,7 @@ namespace {
 
 	typedef HRESULT (FAR STDAPICALLTYPE *f_shQueryUserNotificationState)(QUERY_USER_NOTIFICATION_STATE *pquns);
 	f_shQueryUserNotificationState shQueryUserNotificationState = 0;
-		
+
 	typedef HRESULT (FAR STDAPICALLTYPE *f_setCurrentProcessExplicitAppUserModelID)(__in PCWSTR AppID);
 	f_setCurrentProcessExplicitAppUserModelID setCurrentProcessExplicitAppUserModelID = 0;
 
@@ -849,7 +849,7 @@ namespace {
 				QTimer::singleShot(0, Application::wnd(), SLOT(updateCounter()));
 				Application::wnd()->update();
 			} return false;
-				
+
 			case WM_NCPAINT: if (QSysInfo::WindowsVersion >= QSysInfo::WV_WINDOWS8) return false; *result = 0; return true;
 
 			case WM_NCCALCSIZE: {
@@ -936,7 +936,7 @@ namespace {
 					case HitTestBottomLeft:  *result = HTBOTTOMLEFT; break;
 					case HitTestLeft:        *result = HTLEFT; break;
 					case HitTestTopLeft:     *result = HTTOPLEFT; break;
-					case HitTestNone: 
+					case HitTestNone:
 					default:                 *result = HTTRANSPARENT; break;
 				};
 			} return true;
@@ -951,7 +951,7 @@ namespace {
 				GetWindowRect(hWnd, &r);
 				HitTestType res = Application::wnd()->hitTest(QPoint(p.x - r.left + dleft, p.y - r.top + dtop));
 				switch (res) {
-					case HitTestIcon: 
+					case HitTestIcon:
 						if (menuHidden && getms() < menuHidden + 10) {
 							menuHidden = 0;
 							if (getms() < menuShown + GetDoubleClickTime()) {
@@ -1229,7 +1229,7 @@ void PsMainWindow::psInitFrameless() {
 	if (!ps_hWnd) return;
 
 	if (useWtsapi) wtsRegisterSessionNotification(ps_hWnd, NOTIFY_FOR_THIS_SESSION);
-		
+
 	if (frameless) {
 		setWindowFlags(Qt::FramelessWindowHint);
 	}
@@ -1395,7 +1395,7 @@ void PsMainWindow::psUpdateMargins() {
 		RECT w, m;
 		GetWindowRect(ps_hWnd, &w);
 		m = w;
-		
+
 		HMONITOR hMonitor = MonitorFromRect(&w, MONITOR_DEFAULTTONEAREST);
 		if (hMonitor) {
 			MONITORINFO mi;
@@ -1915,7 +1915,7 @@ void psDoFixPrevious() {
 		LSTATUS newKeyRes2 = RegOpenKeyEx(HKEY_CURRENT_USER, newKeyStr2.toStdWString().c_str(), 0, KEY_READ, &newKey2);
 		LSTATUS oldKeyRes1 = RegOpenKeyEx(HKEY_LOCAL_MACHINE, oldKeyStr1.toStdWString().c_str(), 0, KEY_READ, &oldKey1);
 		LSTATUS oldKeyRes2 = RegOpenKeyEx(HKEY_LOCAL_MACHINE, oldKeyStr2.toStdWString().c_str(), 0, KEY_READ, &oldKey2);
-		
+
 		bool existNew1 = (newKeyRes1 == ERROR_SUCCESS) && (RegQueryValueEx(newKey1, L"InstallDate", 0, &checkType, (BYTE*)checkStr, &checkSize) == ERROR_SUCCESS); checkSize = bufSize * 2;
 		bool existNew2 = (newKeyRes2 == ERROR_SUCCESS) && (RegQueryValueEx(newKey2, L"InstallDate", 0, &checkType, (BYTE*)checkStr, &checkSize) == ERROR_SUCCESS); checkSize = bufSize * 2;
 		bool existOld1 = (oldKeyRes1 == ERROR_SUCCESS) && (RegQueryValueEx(oldKey1, L"InstallDate", 0, &checkType, (BYTE*)checkStr, &checkSize) == ERROR_SUCCESS); checkSize = bufSize * 2;
@@ -2048,7 +2048,7 @@ bool psShowOpenWithMenu(int x, int y, const QString &file) {
 				ULONG ulFetched = 0;
 				hr = assocHandlers->Next(1, &handler, &ulFetched);
 				if (FAILED(hr) || hr == S_FALSE || !ulFetched) break;
-				
+
 				LPWSTR name = 0;
 				if (SUCCEEDED(handler->GetUIName(&name))) {
 					LPWSTR icon = 0;
@@ -2063,7 +2063,7 @@ bool psShowOpenWithMenu(int x, int y, const QString &file) {
 				} else {
 					handler->Release();
 				}
-			} while (hr != S_FALSE); 
+			} while (hr != S_FALSE);
 			assocHandlers->Release();
 		}
 
@@ -2201,7 +2201,7 @@ namespace {
 		}
 		return true;
 	}
-	
+
 	bool _psSetKeyValue(HKEY rkey, LPCWSTR value, QString v) {
 		static const int bufSize = 4096;
 		DWORD defaultType, defaultSize = bufSize * 2;
@@ -2352,7 +2352,6 @@ void psUpdateOverlayed(TWidget *widget) {
 	if (!wv) widget->setAttribute(Qt::WA_WState_Visible, false);
 }
 
-#ifdef _NEED_WIN_GENERATE_DUMP
 static const WCHAR *_programName = AppName; // folder in APPDATA, if current path is unavailable for writing
 static const WCHAR *_exeName = L"Telegram.exe";
 
@@ -2396,16 +2395,16 @@ HANDLE _generateDumpFileAtPath(const WCHAR *path) {
     GetLocalTime(&stLocalTime);
 
 	if (cBetaVersion()) {
-		wsprintf(szFileName, L"%s%s-%ld-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp", 
-				 szPath, szExeName, cBetaVersion(), 
-				 stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay, 
-				 stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond, 
+		wsprintf(szFileName, L"%s%s-%ld-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp",
+				 szPath, szExeName, cBetaVersion(),
+				 stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay,
+				 stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond,
 				 GetCurrentProcessId(), GetCurrentThreadId());
 	} else {
-		wsprintf(szFileName, L"%s%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp", 
-				 szPath, szExeName, AppVersionStr, 
-				 stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay, 
-				 stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond, 
+		wsprintf(szFileName, L"%s%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp",
+				 szPath, szExeName, AppVersionStr,
+				 stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay,
+				 stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond,
 				 GetCurrentProcessId(), GetCurrentThreadId());
 	}
     return CreateFile(szFileName, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
@@ -2455,9 +2454,16 @@ void _generateDump(EXCEPTION_POINTERS* pExceptionPointers) {
 
 LONG CALLBACK _exceptionFilter(EXCEPTION_POINTERS* pExceptionPointers) {
 	_generateDump(pExceptionPointers);
-    return _oldWndExceptionFilter ? (*_oldWndExceptionFilter)(pExceptionPointers) : EXCEPTION_CONTINUE_SEARCH;
+	return _oldWndExceptionFilter ? (*_oldWndExceptionFilter)(pExceptionPointers) : EXCEPTION_CONTINUE_SEARCH;
 }
-#endif
+
+// see http://www.codeproject.com/Articles/154686/SetUnhandledExceptionFilter-and-the-C-C-Runtime-Li
+LPTOP_LEVEL_EXCEPTION_FILTER WINAPI RedirectedSetUnhandledExceptionFilter(_In_opt_ LPTOP_LEVEL_EXCEPTION_FILTER lpTopLevelExceptionFilter) {
+	// When the CRT calls SetUnhandledExceptionFilter with NULL parameter
+	// our handler will not get removed.
+	_oldWndExceptionFilter = lpTopLevelExceptionFilter;
+	return 0;
+}
 
 class StringReferenceWrapper {
 public:
@@ -2595,7 +2601,7 @@ public:
 	~ToastEventHandler() {
 	}
 
-	// DesktopToastActivatedEventHandler 
+	// DesktopToastActivatedEventHandler
 	IFACEMETHODIMP Invoke(_In_ IToastNotification *sender, _In_ IInspectable* args) {
 		ToastNotifications::iterator i = toastNotifications.find(_peerId);
 		if (i != toastNotifications.cend()) {
@@ -2620,7 +2626,7 @@ public:
 						tomsg = false;
 					}
 				}
-				App::main()->showPeerHistory(history->peer->id, tomsg ? _msgId : ShowAtUnreadMsgId);
+				Ui::showPeerHistory(history, tomsg ? _msgId : ShowAtUnreadMsgId);
 				App::wnd()->notifyClear(history);
 			}
 			SetForegroundWindow(App::wnd()->psHwnd());
@@ -2867,7 +2873,7 @@ void CheckPinnedAppUserModelId() {
 
 	QString path = pinnedPath();
 	std::wstring p = QDir::toNativeSeparators(path).toStdWString();
-	
+
 	WCHAR src[MAX_PATH];
 	GetModuleFileName(GetModuleHandle(0), src, MAX_PATH);
 	BY_HANDLE_FILE_INFORMATION srcinfo = { 0 };
@@ -2913,7 +2919,7 @@ void CheckPinnedAppUserModelId() {
 			BOOL dstres = GetFileInformationByHandle(dstfile, &dstinfo);
 			CloseHandle(dstfile);
 			if (!dstres) continue;
-			
+
 			if (srcinfo.dwVolumeSerialNumber == dstinfo.dwVolumeSerialNumber && srcinfo.nFileIndexLow == dstinfo.nFileIndexLow && srcinfo.nFileIndexHigh == dstinfo.nFileIndexHigh) {
 				ComPtr<IPropertyStore> propertyStore;
 				hr = shellLink.As(&propertyStore);
@@ -3005,7 +3011,7 @@ void CleanupAppUserModelIdShortcut() {
 
 bool ValidateAppUserModelIdShortcutAt(const QString &path) {
 	static const int maxFileLen = MAX_PATH * 10;
-	
+
 	std::wstring p = QDir::toNativeSeparators(path).toStdWString();
 
 	DWORD attributes = GetFileAttributes(p.c_str());

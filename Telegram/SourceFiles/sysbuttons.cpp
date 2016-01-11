@@ -28,8 +28,12 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "autoupdater.h"
 
-SysBtn::SysBtn(QWidget *parent, const style::sysButton &st, const QString &text) : Button(parent),
-_st(st), a_color(_st.color->c), _overLevel(0), _text(text) {
+SysBtn::SysBtn(QWidget *parent, const style::sysButton &st, const QString &text) : Button(parent)
+, _st(st)
+, a_color(_st.color->c)
+, _a_color(animation(this, &SysBtn::step_color))
+, _overLevel(0)
+, _text(text) {
 	int32 w = _st.size.width() + (_text.isEmpty() ? 0 : ((_st.size.width() - _st.img.pxWidth()) / 2 + st::titleTextButton.font->width(_text)));
 	resize(w, _st.size.height());
 	setCursor(style::cur_default);
@@ -51,11 +55,11 @@ void SysBtn::onStateChange(int oldState, ButtonStateChangeSource source) {
 	a_color.start((_state & StateOver ? _st.overColor : _st.color)->c);
 
 	if (source == ButtonByUser || source == ButtonByPress) {
-		anim::stop(this);
+		_a_color.stop();
 		a_color.finish();
 		update();
 	} else {
-		anim::start(this);
+		_a_color.start();
 	}
 }
 
@@ -96,17 +100,15 @@ HitTestType SysBtn::hitTest(const QPoint &p) const {
 	return HitTestNone;
 }
 
-bool SysBtn::animStep(float64 ms) {
+void SysBtn::step_color(float64 ms, bool timer) {
 	float64 dt = ms / _st.duration;
-	bool res = true;
 	if (dt >= 1) {
+		_a_color.stop();
 		a_color.finish();
-		res = false;
 	} else {
 		a_color.update(dt, anim::linear);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 MinimizeBtn::MinimizeBtn(QWidget *parent, Window *window) : SysBtn(parent, st::sysMin), wnd(window) {

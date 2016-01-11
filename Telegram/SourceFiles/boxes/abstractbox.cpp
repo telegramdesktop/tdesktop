@@ -36,7 +36,7 @@ void BlueTitleShadow::paintEvent(QPaintEvent *e) {
 
 BlueTitleClose::BlueTitleClose(QWidget *parent) : Button(parent)
 , a_iconFg(st::boxBlueCloseBg->c)
-, _a_over(animFunc(this, &BlueTitleClose::animStep_over)) {
+, _a_over(animation(this, &BlueTitleClose::step_over)) {
 	resize(st::boxTitleHeight, st::boxTitleHeight);
 	setCursor(style::cur_pointer);
 	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
@@ -49,18 +49,15 @@ void BlueTitleClose::onStateChange(int oldState, ButtonStateChangeSource source)
 	}
 }
 
-bool BlueTitleClose::animStep_over(float64 ms) {
+void BlueTitleClose::step_over(float64 ms, bool timer) {
 	float64 dt = ms / st::boxBlueCloseDuration;
-	bool res = true;
 	if (dt >= 1) {
-		res = false;
+		_a_over.stop();
 		a_iconFg.finish();
 	} else {
 		a_iconFg.update(dt, anim::linear);
 	}
-	update((st::boxTitleHeight - st::boxBlueCloseIcon.pxWidth()) / 2, (st::boxTitleHeight - st::boxBlueCloseIcon.pxHeight()) / 2, st::boxBlueCloseIcon.pxWidth(), st::boxBlueCloseIcon.pxHeight());
-	return res;
-
+	if (timer) update((st::boxTitleHeight - st::boxBlueCloseIcon.pxWidth()) / 2, (st::boxTitleHeight - st::boxBlueCloseIcon.pxHeight()) / 2, st::boxBlueCloseIcon.pxWidth(), st::boxBlueCloseIcon.pxHeight());
 }
 
 void BlueTitleClose::paintEvent(QPaintEvent *e) {
@@ -156,7 +153,7 @@ void AbstractBox::paintEvent(QPaintEvent *e) {
 	if (paint(p)) return;
 }
 
-void AbstractBox::animStep(float64 ms) {
+void AbstractBox::showStep(float64 ms) {
 	if (ms >= 1) {
 		a_opacity.finish();
 		_cache = QPixmap();

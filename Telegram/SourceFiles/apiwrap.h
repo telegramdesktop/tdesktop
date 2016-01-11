@@ -29,7 +29,6 @@ public:
 	void init();
 
 	void itemRemoved(HistoryItem *item);
-	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 		
 	void requestReplyTo(HistoryReply *reply, ChannelData *channel, MsgId id);
 

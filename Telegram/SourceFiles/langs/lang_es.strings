@@ -48,6 +48,19 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_month11" = "noviembre";
 "lng_month12" = "diciembre";
 
+"lng_month1_small" = "ene";
+"lng_month2_small" = "feb";
+"lng_month3_small" = "mar";
+"lng_month4_small" = "abr";
+"lng_month5_small" = "may";
+"lng_month6_small" = "jun";
+"lng_month7_small" = "jul";
+"lng_month8_small" = "ago";
+"lng_month9_small" = "sep";
+"lng_month10_small" = "oct";
+"lng_month11_small" = "nov";
+"lng_month12_small" = "dic";
+
 "lng_weekday1" = "lun";
 "lng_weekday2" = "mar";
 "lng_weekday3" = "mié";
@@ -66,6 +79,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_month_day" = "{day} de {month}";
 "lng_month_day_year" = "{day} de {month} de {year}";
+"lng_month_year" = "{month}, {year}";
 
 "lng_box_ok" = "OK";
 
@@ -108,6 +122,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_server_error" = "Error interno del servidor.";
 "lng_flood_error" = "Muchos intentos. Por favor, reinténtalo más tarde.";
+"lng_gif_error" = "Ocurrió un error al leer la animación GIF :(";
 "lng_deleted" = "Desconocido";
 "lng_deleted_message" = "Mensaje eliminado";
 
@@ -470,13 +485,13 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_create_channel_crop" = "Selecciona el área para la foto del canal";
 
 "lng_failed_add_participant" = "No se pudo añadir al usuario. Por favor, reinténtalo más tarde.";
-"lng_failed_add_not_mutual" = "Lo sentimos, si una persona deja un\ngrupo, sólo un contacto mutuo puede \ntraerlo de vuelta (ellos necesitan tener\ntu número, y tú el suyo).";
-"lng_failed_add_not_mutual_channel" = "Lo sentimos, si una persona deja el canal, \nsólo un contacto mutuo puede volver \na invitarlo (necesitan tener tu \nnúmero y tú el de ellos).";
+"lng_failed_add_not_mutual" = "Lo sentimos, si una persona deja el grupo, sólo un contacto mutuo puede volver a invitarlo (necesitan tener tu número y tú el suyo).";
+"lng_failed_add_not_mutual_channel" = "Lo sentimos, si una persona deja el canal, sólo un contacto mutuo puede volver a invitarlo (necesitan tener tu número y tú el suyo).";
 
 "lng_sure_delete_contact" = "¿Quieres eliminar a {contact} de tu lista de contactos?";
-"lng_sure_delete_history" = "¿Quieres eliminar todo el historial de mensajes con {contact}?\n\nEsta acción no se puede deshacer.";
+"lng_sure_delete_history" = "¿Quieres borrar todo el historial de mensajes con {contact}?\n\nEsta acción no se puede deshacer.";
 "lng_sure_delete_group_history" = "¿Quieres borrar todo el historial en «{group}»?\n\nEsta acción no se puede deshacer.";
-"lng_sure_delete_and_exit" = "¿Quieres eliminar todo el historial de mensajes y dejar el grupo «{group}»?\n\nEsta acción no se puede deshacer.";
+"lng_sure_delete_and_exit" = "¿Quieres borrar todo el historial de mensajes y dejar el grupo «{group}»?\n\nEsta acción no se puede deshacer.";
 "lng_sure_leave_channel" = "¿Quieres dejar este canal?";
 "lng_sure_delete_channel" = "¿Quieres eliminar este canal? Todos los miembros y mensajes se perderán.";
 "lng_sure_leave_group" = "¿Quieres salir del grupo?\nNo puedes deshacer esta acción.";
@@ -561,6 +576,14 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_media_video" = "Vídeo";
 "lng_media_audio" = "Mensaje de voz";
 
+"lng_media_auto_settings" = "Ajustes de descarga automática de multimedia";
+"lng_media_auto_photo" = "Descarga automática de fotos";
+"lng_media_auto_audio" = "Descarga automática de audio";
+"lng_media_auto_gif" = "Descarga automática de GIF";
+"lng_media_auto_private_chats" = "Chats";
+"lng_media_auto_groups" = "Grupos y canales";
+"lng_media_auto_play" = "Autorreproducir";
+
 "lng_emoji_category0" = "Uso frecuente";
 "lng_emoji_category1" = "Personas";
 "lng_emoji_category2" = "Naturaleza";
@@ -571,7 +594,12 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_emoji_category7" = "Símbolos y banderas";
 
 "lng_switch_stickers" = "Stickers";
+"lng_switch_stickers_gifs" = "GIF y stickers";
 "lng_switch_emoji" = "Emoji";
+
+"lng_saved_gifs" = "GIF guardados";
+"lng_inline_bot_results" = "Resultados de {inline_bot}";
+"lng_inline_bot_no_results" = "Sin resultados";
 
 "lng_box_remove" = "Eliminar";
 
@@ -616,7 +644,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_broadcast_ph" = "Difunde un mensaje...";
 "lng_record_cancel" = "Suelta fuera de aquí para cancelar";
 "lng_empty_history" = "";
-"lng_willbe_history" = "Por favor, selecciona un chat para comenzar";
+"lng_willbe_history" = "Selecciona un chat para comenzar";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Tú";
 "lng_bot_description" = "¿Qué puede hacer este bot?";
@@ -664,6 +692,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_save_file" = "Guardar archivo";
 "lng_save_downloaded" = "{ready} / {total} {mb}";
 "lng_duration_and_size" = "{duration}, {size}";
+"lng_duration_played" = "{played} / {duration}";
+"lng_date_and_duration" = "{date}, {duration}";
 "lng_choose_images" = "Elegir imágenes";
 
 "lng_context_view_profile" = "Ver información";
@@ -699,6 +729,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_context_delete_file" = "Eliminar archivo";
 "lng_context_close_file" = "Cerrar archivo";
 "lng_context_copy_text" = "Copiar texto";
+"lng_context_save_gif" = "Guardar GIF";
 "lng_context_to_msg" = "Ir al mensaje";
 "lng_context_reply_msg" = "Responder";
 "lng_context_forward_msg" = "Reenviar mensaje";
@@ -717,7 +748,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_send_image_too_large" = "No se pudo enviar el archivo, porque es más grande que 1.5 GB :(";
 "lng_send_folder" = "No se pudo enviar «{name}», porque es un directorio :(";
 
-"lng_forward_choose" = "Elegir destinatario...";
+"lng_forward_choose" = "Elige un destinatario...";
 "lng_forward_cant" = "Lo sentimos, no puedes reenviar aquí :(";
 "lng_forward_confirm" = "¿Reenviar a {recipient}?";
 "lng_forward_share_contact" = "¿Compartir contacto con {recipient}?";
@@ -801,7 +832,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Administra los stickers: ordena manualmente tus packs de stickers. El orden de los packs se sincronizará en todos tus dispositivos \n— Haz clic y mantén en un sticker para ver una vista previa antes de enviar\n— Nuevo menú contextual para los chats en la lista de chats \n— Soporte de todos los emojis existentes";
+"lng_new_version_text" = "Revolución del GIF: envío y descarga 10 veces más rápido, reproducción automática, guarda tus GIF favoritos en una pestaña especial en el panel de stickers.\n\nMás sobre los GIF:\n{gifs_link}\n\nBots integrados: una nueva forma para añadir contenidos en los chats. Escribe el alias del bot y tu solicitud, en el campo de escritura, para obtener resultados inmediatamente y enviarlos a tu compañero de chat. Prueba escribiendo “@gif dog” en un chat. Algunos ejemplos: @gif, @wiki, @bing, @vid, @bold.\n\nMás sobre los bots integrados:\n{bots_link}\n\nTambién encontrarás un lindo nuevo diseño para la multimedia y ajustes de descarga automática para fotos, mensajes de voz y GIF.";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

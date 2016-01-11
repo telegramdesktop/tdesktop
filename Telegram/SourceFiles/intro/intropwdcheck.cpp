@@ -30,18 +30,19 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "intro/intropwdcheck.h"
 #include "intro/intro.h"
 
-IntroPwdCheck::IntroPwdCheck(IntroWidget *parent) : IntroStage(parent),
-errorAlpha(0),
-_next(this, lang(lng_intro_submit), st::btnIntroNext),
-_salt(parent->getPwdSalt()),
-_hasRecovery(parent->getHasRecovery()),
-_hint(parent->getPwdHint()),
-_pwdField(this, st::inpIntroPassword, lang(lng_signin_password)),
-_codeField(this, st::inpIntroPassword, lang(lng_signin_code)),
-_toRecover(this, lang(lng_signin_recover)),
-_toPassword(this, lang(lng_signin_try_password)),
-_reset(this, lang(lng_signin_reset_account), st::btnRedLink),
-sentRequest(0) {
+IntroPwdCheck::IntroPwdCheck(IntroWidget *parent) : IntroStage(parent)
+, a_errorAlpha(0)
+, _a_error(animation(this, &IntroPwdCheck::step_error))
+, _next(this, lang(lng_intro_submit), st::btnIntroNext)
+, _salt(parent->getPwdSalt())
+, _hasRecovery(parent->getHasRecovery())
+, _hint(parent->getPwdHint())
+, _pwdField(this, st::inpIntroPassword, lang(lng_signin_password))
+, _codeField(this, st::inpIntroPassword, lang(lng_signin_code))
+, _toRecover(this, lang(lng_signin_recover))
+, _toPassword(this, lang(lng_signin_try_password))
+, _reset(this, lang(lng_signin_reset_account), st::btnRedLink)
+, sentRequest(0) {
 	setVisible(false);
 	setGeometry(parent->innerRect());
 
@@ -86,8 +87,8 @@ void IntroPwdCheck::paintEvent(QPaintEvent *e) {
 	} else if (!_hint.isEmpty()) {
 		_hintText.drawElided(p, _pwdField.x(), _pwdField.y() + _pwdField.height() + st::introFinishSkip, _pwdField.width(), 1, style::al_top);
 	}
-	if (animating() || error.length()) {
-		p.setOpacity(errorAlpha.current());
+	if (_a_error.animating() || error.length()) {
+		p.setOpacity(a_errorAlpha.current());
 
 		QRect errRect((width() - st::introErrWidth) / 2, (_pwdField.y() + _pwdField.height() + st::introFinishSkip + st::introFont->height + _next.y() - st::introErrHeight) / 2, st::introErrWidth, st::introErrHeight);
 		p.setFont(st::introErrFont->f);
@@ -111,32 +112,30 @@ void IntroPwdCheck::resizeEvent(QResizeEvent *e) {
 }
 
 void IntroPwdCheck::showError(const QString &err) {
-	if (!animating() && err == error) return;
+	if (!_a_error.animating() && err == error) return;
 
 	if (err.length()) {
 		error = err;
-		errorAlpha.start(1);
+		a_errorAlpha.start(1);
 	} else {
-		errorAlpha.start(0);
+		a_errorAlpha.start(0);
 	}
-	anim::start(this);
+	_a_error.start();
 }
 
-bool IntroPwdCheck::animStep(float64 ms) {
+void IntroPwdCheck::step_error(float64 ms, bool timer) {
 	float64 dt = ms / st::introErrDuration;
 
-	bool res = true;
 	if (dt >= 1) {
-		res = false;
-		errorAlpha.finish();
-		if (!errorAlpha.current()) {
+		_a_error.stop();
+		a_errorAlpha.finish();
+		if (!a_errorAlpha.current()) {
 			error = "";
 		}
 	} else {
-		errorAlpha.update(dt, st::introErrFunc);
+		a_errorAlpha.update(dt, st::introErrFunc);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 void IntroPwdCheck::activate() {
@@ -289,14 +288,14 @@ void IntroPwdCheck::onToRecover() {
 		update();
 	} else {
 		ConfirmBox *box = new InformBox(lang(lng_signin_no_email_forgot));
-		App::wnd()->showLayer(box);
+		Ui::showLayer(box);
 		connect(box, SIGNAL(destroyed(QObject*)), this, SLOT(onToReset()));
 	}
 }
 
 void IntroPwdCheck::onToPassword() {
 	ConfirmBox *box = new InformBox(lang(lng_signin_cant_email_forgot));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 	connect(box, SIGNAL(destroyed(QObject*)), this, SLOT(onToReset()));
 }
 
@@ -319,7 +318,7 @@ void IntroPwdCheck::onReset() {
 	if (sentRequest) return;
 	ConfirmBox *box = new ConfirmBox(lang(lng_signin_sure_reset), lang(lng_signin_reset), st::attentionBoxButton);
 	connect(box, SIGNAL(confirmed()), this, SLOT(onResetSure()));
-	App::wnd()->showLayer(box);
+	Ui::showLayer(box);
 }
 
 void IntroPwdCheck::onResetSure() {
@@ -335,7 +334,7 @@ bool IntroPwdCheck::deleteFail(const RPCError &error) {
 }
 
 void IntroPwdCheck::deleteDone(const MTPBool &v) {
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	intro()->onIntroNext();
 }
 

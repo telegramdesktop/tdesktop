@@ -24,7 +24,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "style.h"
 #include "animation.h"
 
-class FlatTextarea : public QTextEdit, public Animated {
+class UserData;
+class FlatTextarea : public QTextEdit {
 	Q_OBJECT
 	T_WIDGET
 
@@ -50,19 +51,21 @@ public:
 	const QString &getLastText() const {
 		return _oldtext;
 	}
-	void setPlaceholder(const QString &ph);
+	void setPlaceholder(const QString &ph, int32 afterSymbols = 0);
 	void updatePlaceholder();
+	void finishPlaceholder();
 
 	QRect getTextRect() const;
 	int32 fakeMargin() const;
 
-	bool animStep(float64 ms);
+	void step_appearance(float64 ms, bool timer);
 
 	QSize sizeHint() const;
 	QSize minimumSizeHint() const;
 
 	EmojiPtr getSingleEmoji() const;
-	void getMentionHashtagBotCommandStart(QString &start) const;
+	QString getMentionHashtagBotCommandPart(bool &start) const;
+	QString getInlineBotQuery(UserData *&contextBot, QString &contextBotUsername) const;
 	void removeSingleEmoji();
 	bool hasText() const;
 
@@ -77,7 +80,7 @@ public:
 	QMimeData *createMimeDataFromSelection() const;
 	void setCtrlEnterSubmit(bool ctrlEnterSubmit);
 
-	void setTextFast(const QString &text);
+	void setTextFast(const QString &text, bool clearUndoHistory = true);
 
 public slots:
 
@@ -123,10 +126,13 @@ private:
 	bool _ctrlEnterSubmit;
 
 	QString _ph, _phelided, _oldtext;
+	int32 _phAfter;
 	bool _phVisible;
 	anim::ivalue a_phLeft;
 	anim::fvalue a_phAlpha;
 	anim::cvalue a_phColor;
+	Animation _a_appearance;
+
 	style::flatTextarea _st;
 
 	bool _undoAvailable, _redoAvailable, _inDrop, _inHeightCheck;

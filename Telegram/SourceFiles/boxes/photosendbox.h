@@ -65,16 +65,23 @@ private:
 	void updateBoxSize();
 
 	FileLoadResultPtr _file;
-	int32 _thumbx, _thumby, _thumbw, _thumbh;
-	QString _name, _size;
-	int32 _namew, _textw;
+	bool _animated;
+
+	QPixmap _thumb;
+
 	InputArea _caption;
 	bool _compressedFromSettings;
 	Checkbox _compressed;
 	BoxButton _send, _cancel;
-	QPixmap _thumb;
+
+	int32 _thumbx, _thumby, _thumbw, _thumbh;
+	Text _name;
+	QString _status;
+	int32 _statusw;
+	bool _isImage;
 
 	QString _phone, _fname, _lname;
+
 	MsgId _replyTo;
 
 	bool _confirmed;

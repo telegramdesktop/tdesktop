@@ -45,20 +45,13 @@ namespace {
 	typedef QMap<PeerData*, bool> UpdatedPeers;
 	UpdatedPeers updatedPeers;
 
-	typedef QHash<PhotoId, PhotoData*> PhotosData;
 	PhotosData photosData;
-
-	typedef QHash<VideoId, VideoData*> VideosData;
 	VideosData videosData;
-
-	typedef QHash<AudioId, AudioData*> AudiosData;
 	AudiosData audiosData;
+	DocumentsData documentsData;
 
 	typedef QHash<QString, ImageLinkData*> ImageLinksData;
 	ImageLinksData imageLinksData;
-
-	typedef QHash<DocumentId, DocumentData*> DocumentsData;
-	DocumentsData documentsData;
 
 	typedef QHash<WebPageId, WebPageData*> WebPagesData;
 	WebPagesData webPagesData;
@@ -69,15 +62,16 @@ namespace {
 	typedef QMap<ChannelId, ReplyMarkups> ChannelReplyMarkups;
 	ChannelReplyMarkups channelReplyMarkups;
 
+	PhotoItems photoItems;
 	VideoItems videoItems;
 	AudioItems audioItems;
 	DocumentItems documentItems;
 	WebPageItems webPageItems;
+	SharedContactItems sharedContactItems;
+	GifItems gifItems;
+
 	typedef QMap<HistoryItem*, QMap<HistoryReply*, bool> > RepliesTo;
 	RepliesTo repliesTo;
-
-	typedef QMap<int32, QString> SharedContactPhones;
-	SharedContactPhones sharedContactPhones;
 
 	Histories histories;
 
@@ -118,6 +112,9 @@ namespace {
 	LastPhotosList lastPhotos;
 	typedef QHash<PhotoData*, LastPhotosList::iterator> LastPhotosMap;
 	LastPhotosMap lastPhotosMap;
+
+	typedef QMap<FileLoader*, InlineResult*> InlineResultLoaders;
+	InlineResultLoaders inlineResultLoaders;
 
 	style::color _msgServiceBg;
 	style::color _msgServiceSelectBg;
@@ -208,7 +205,7 @@ namespace App {
 		globalNotifyAllPtr = UnknownNotifySettings;
 		globalNotifyUsersPtr = UnknownNotifySettings;
 		globalNotifyChatsPtr = UnknownNotifySettings;
-		App::uploader()->clear();
+		if (App::uploader()) App::uploader()->clear();
 		clearStorageImages();
 		if (w) {
 			w->getTitle()->updateBackButton();
@@ -430,6 +427,7 @@ namespace App {
 					data->setBotInfoVersion(d.vbot_info_version.v);
 					data->botInfo->readsAllHistory = d.is_bot_chat_history();
 					data->botInfo->cantJoinGroups = d.is_bot_nochats();
+					data->botInfo->inlinePlaceholder = d.has_bot_inline_placeholder() ? '_' + qs(d.vbot_inline_placeholder) : QString();
 				} else {
 					data->setBotInfoVersion(-1);
 				}
@@ -465,10 +463,8 @@ namespace App {
 				data->contact = 0;
 			}
 			if (App::main()) {
-				if (data->contact > 0 && !wasContact) {
-					App::main()->addNewContact(peerToUser(data->id), false);
-				} else if (wasContact && data->contact <= 0) {
-					App::main()->removeContact(data);
+				if ((data->contact > 0 && !wasContact) || (wasContact && data->contact < 1)) {
+					Notify::userIsContactChanged(data);
 				}
 
 				if (emitPeerUpdated) {
@@ -573,7 +569,7 @@ namespace App {
 
 				ChannelData *cdata = data->asChannel();
 				cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
-				
+
 				QString uname = d.has_username() ? textOneLine(qs(d.vusername)) : QString();
 				cdata->setName(qs(d.vtitle), uname);
 
@@ -905,23 +901,49 @@ namespace App {
 			peerId = peerFromUser(m.vfrom_id);
 		}
 		if (HistoryItem *existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
-			bool hasLinks = m.has_entities() && !m.ventities.c_vector().v.isEmpty();
-			if ((hasLinks && !existing->hasTextLinks()) || (!hasLinks && existing->textHasLinks())) {
-				existing->setText(qs(m.vmessage), m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText());
-				existing->initDimensions();
-				if (App::main()) App::main()->itemResized(existing);
-				if (existing->hasTextLinks() && existing->indexInOverview()) {
-					existing->history()->addToOverview(existing, OverviewLinks);
-				}
+			existing->setText(qs(m.vmessage), m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText());
+			existing->updateMedia(m.has_media() ? (&m.vmedia) : 0);
+			existing->setViewsCount(m.has_views() ? m.vviews.v : -1, false);
+			existing->initDimensions();
+			Notify::historyItemResized(existing);
+
+			existing->addToOverview(AddToOverviewNew);
+
+			if (!existing->detached()) {
+				App::checkSavedGif(existing);
+				return true;
 			}
 
-			existing->updateMedia(m.has_media() ? (&m.vmedia) : 0, true);
-
-			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
-
-			return !existing->detached();
+			return false;
 		}
 		return false;
+	}
+
+	void addSavedGif(DocumentData *doc) {
+		SavedGifs &saved(cRefSavedGifs());
+		int32 index = saved.indexOf(doc);
+		if (index) {
+			if (index > 0) saved.remove(index);
+			saved.push_front(doc);
+			if (saved.size() > cSavedGifsLimit()) saved.pop_back();
+			Local::writeSavedGifs();
+
+			if (App::main()) emit App::main()->savedGifsUpdated();
+			cSetLastSavedGifsUpdate(0);
+			App::main()->updateStickers();
+		}
+	}
+
+	void checkSavedGif(HistoryItem *item) {
+		if (!item->toHistoryForwarded() && (item->out() || item->history()->peer == App::self())) {
+			if (HistoryMedia *media = item->getMedia()) {
+				if (DocumentData *doc = media->getDocument()) {
+					if (doc->isGifv()) {
+						addSavedGif(doc);
+					}
+				}
+			}
+		}
 	}
 
 	void feedMsgs(const QVector<MTPMessage> &msgs, NewMessageType type) {
@@ -975,7 +997,7 @@ namespace App {
 				const string &s(d.vbytes.c_string().v);
 				QByteArray bytes(s.data(), s.size());
 				return ImagePtr(StorageImageLocation(d.vw.v, d.vh.v, 0, 0, 0, 0), bytes);
-			}				
+			}
 		} break;
 		}
 		return ImagePtr();
@@ -1002,7 +1024,7 @@ namespace App {
 		}
 		return StorageImageLocation();
 	}
-	
+
 	void feedInboxRead(const PeerId &peer, MsgId upTo) {
 		History *h = App::historyLoaded(peer);
 		if (h) {
@@ -1060,7 +1082,7 @@ namespace App {
 			}
 		}
 		if (resized) {
-			App::main()->itemResized(0);
+			Notify::historyItemsResized();
 		}
 		if (main()) {
 			for (QMap<History*, bool>::const_iterator i = historiesToCheck.cbegin(), e = historiesToCheck.cend(); i != e; ++i) {
@@ -1113,17 +1135,13 @@ namespace App {
 				user->contact = -1;
 			break;
 			}
-			if (user->contact > 0) {
-				if (!wasContact) {
-					App::main()->addNewContact(peerToUser(user->id), false);
-				}
-			} else {
+			if (user->contact < 1) {
 				if (user->contact < 0 && !user->phone.isEmpty() && peerToUser(user->id) != MTP::authedId()) {
 					user->contact = 0;
 				}
-				if (wasContact) {
-					App::main()->removeContact(user);
-				}
+			}
+			if ((user->contact > 0 && !wasContact) || (wasContact && user->contact < 1)) {
+				Notify::userIsContactChanged(user);
 			}
 
 			bool showPhone = !isServiceUser(user->id) && !user->isSelf() && !user->contact;
@@ -1182,7 +1200,7 @@ namespace App {
 			case 'm': newThumbLevel = 2; newMediumLevel = 0; newFullLevel = 3; break; // box 320x320
 			case 'x': newThumbLevel = 5; newMediumLevel = 3; newFullLevel = 1; break; // box 800x800
 			case 'y': newThumbLevel = 6; newMediumLevel = 6; newFullLevel = 0; break; // box 1280x1280
-			case 'w': newThumbLevel = 8; newMediumLevel = 8; newFullLevel = 2; break; // box 2560x2560
+			case 'w': newThumbLevel = 8; newMediumLevel = 8; newFullLevel = 2; break; // box 2560x2560 // if loading this fix HistoryPhoto::updateFrom
 			case 'a': newThumbLevel = 1; newMediumLevel = 4; newFullLevel = 8; break; // crop 160x160
 			case 'b': newThumbLevel = 3; newMediumLevel = 1; newFullLevel = 7; break; // crop 320x320
 			case 'c': newThumbLevel = 4; newMediumLevel = 2; newFullLevel = 6; break; // crop 640x640
@@ -1228,7 +1246,7 @@ namespace App {
 				const string &s(i->c_photoSize().vtype.c_string().v);
 				if (s.size()) size = s[0];
 			} break;
-				
+
 			case mtpc_photoCachedSize: {
 				const string &s(i->c_photoCachedSize().vtype.c_string().v);
 				if (s.size()) size = s[0];
@@ -1269,7 +1287,7 @@ namespace App {
 		}
 		return App::photoSet(photo.vid.v, convert, 0, 0, ImagePtr(), ImagePtr(), ImagePtr());
 	}
-	
+
 	VideoData *feedVideo(const MTPDvideo &video, VideoData *convert) {
 		return App::videoSet(video.vid.v, convert, video.vaccess_hash.v, video.vdate.v, video.vduration.v, video.vw.v, video.vh.v, App::image(video.vthumb), video.vdc_id.v, video.vsize.v);
 	}
@@ -1412,18 +1430,31 @@ namespace App {
 	}
 
 	PeerData *peerByName(const QString &username) {
+		QString uname(username.trimmed());
 		for (PeersData::const_iterator i = peersData.cbegin(), e = peersData.cend(); i != e; ++i) {
-			if (!i.value()->userName().compare(username.trimmed(), Qt::CaseInsensitive)) {
+			if (!i.value()->userName().compare(uname, Qt::CaseInsensitive)) {
 				return i.value()->asUser();
 			}
 		}
 		return 0;
 	}
 
+	void updateImage(ImagePtr &old, ImagePtr now) {
+		if (now->isNull()) return;
+		if (old->isNull()) {
+			old = now;
+		} else if (DelayedStorageImage *img = old->toDelayedStorageImage()) {
+			StorageImageLocation loc = now->location();
+			if (!loc.isNull()) {
+				img->setStorageLocation(loc);
+			}
+		}
+	}
+
 	PhotoData *photo(const PhotoId &photo) {
-		PhotosData::const_iterator i = photosData.constFind(photo);
-		if (i == photosData.cend()) {
-			i = photosData.insert(photo, new PhotoData(photo));
+		PhotosData::const_iterator i = ::photosData.constFind(photo);
+		if (i == ::photosData.cend()) {
+			i = ::photosData.insert(photo, new PhotoData(photo));
 		}
 		return i.value();
 	}
@@ -1431,38 +1462,40 @@ namespace App {
 	PhotoData *photoSet(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full) {
 		if (convert) {
 			if (convert->id != photo) {
-				PhotosData::iterator i = photosData.find(convert->id);
-				if (i != photosData.cend() && i.value() == convert) {
-					photosData.erase(i);
+				PhotosData::iterator i = ::photosData.find(convert->id);
+				if (i != ::photosData.cend() && i.value() == convert) {
+					::photosData.erase(i);
 				}
 				convert->id = photo;
+				delete convert->uploadingData;
+				convert->uploadingData = 0;
 			}
-			convert->access = access;
-			if (!convert->date && date) {
+			if (date) {
+				convert->access = access;
 				convert->date = date;
-				convert->thumb = thumb;
-				convert->medium = medium;
-				convert->full = full;
+				updateImage(convert->thumb, thumb);
+				updateImage(convert->medium, medium);
+				updateImage(convert->full, full);
 			}
 		}
-		PhotosData::const_iterator i = photosData.constFind(photo);
+		PhotosData::const_iterator i = ::photosData.constFind(photo);
 		PhotoData *result;
 		LastPhotosMap::iterator inLastIter = lastPhotosMap.end();
-		if (i == photosData.cend()) {
+		if (i == ::photosData.cend()) {
 			if (convert) {
 				result = convert;
 			} else {
 				result = new PhotoData(photo, access, date, thumb, medium, full);
 			}
-			photosData.insert(photo, result);
+			::photosData.insert(photo, result);
 		} else {
 			result = i.value();
-			if (result != convert && !result->date && date) {
+			if (result != convert && date) {
 				result->access = access;
 				result->date = date;
-				result->thumb = thumb;
-				result->medium = medium;
-				result->full = full;
+				updateImage(result->thumb, thumb);
+				updateImage(result->medium, medium);
+				updateImage(result->full, full);
 			}
 			inLastIter = lastPhotosMap.find(result);
 		}
@@ -1481,9 +1514,9 @@ namespace App {
 	}
 
 	VideoData *video(const VideoId &video) {
-		VideosData::const_iterator i = videosData.constFind(video);
-		if (i == videosData.cend()) {
-			i = videosData.insert(video, new VideoData(video));
+		VideosData::const_iterator i = ::videosData.constFind(video);
+		if (i == ::videosData.cend()) {
+			i = ::videosData.insert(video, new VideoData(video));
 		}
 		return i.value();
 	}
@@ -1491,42 +1524,42 @@ namespace App {
 	VideoData *videoSet(const VideoId &video, VideoData *convert, const uint64 &access, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size) {
 		if (convert) {
 			if (convert->id != video) {
-				VideosData::iterator i = videosData.find(convert->id);
-				if (i != videosData.cend() && i.value() == convert) {
-					videosData.erase(i);
+				VideosData::iterator i = ::videosData.find(convert->id);
+				if (i != ::videosData.cend() && i.value() == convert) {
+					::videosData.erase(i);
 				}
 				convert->id = video;
 				convert->status = FileReady;
 			}
-			convert->access = access;
-			if (!convert->date && date) {
+			if (date) {
+				convert->access = access;
 				convert->date = date;
+				updateImage(convert->thumb, thumb);
 				convert->duration = duration;
 				convert->w = w;
 				convert->h = h;
-				convert->thumb = thumb;
 				convert->dc = dc;
 				convert->size = size;
 			}
 		}
-		VideosData::const_iterator i = videosData.constFind(video);
+		VideosData::const_iterator i = ::videosData.constFind(video);
 		VideoData *result;
-		if (i == videosData.cend()) {
+		if (i == ::videosData.cend()) {
 			if (convert) {
 				result = convert;
 			} else {
 				result = new VideoData(video, access, date, duration, w, h, thumb, dc, size);
 			}
-			videosData.insert(video, result);
+			::videosData.insert(video, result);
 		} else {
 			result = i.value();
-			if (result != convert && !result->date && date) {
+			if (result != convert && date) {
 				result->access = access;
 				result->date = date;
 				result->duration = duration;
 				result->w = w;
 				result->h = h;
-				result->thumb = thumb;
+				updateImage(result->thumb, thumb);
 				result->dc = dc;
 				result->size = size;
 			}
@@ -1535,9 +1568,9 @@ namespace App {
 	}
 
 	AudioData *audio(const AudioId &audio) {
-		AudiosData::const_iterator i = audiosData.constFind(audio);
-		if (i == audiosData.cend()) {
-			i = audiosData.insert(audio, new AudioData(audio));
+		AudiosData::const_iterator i = ::audiosData.constFind(audio);
+		if (i == ::audiosData.cend()) {
+			i = ::audiosData.insert(audio, new AudioData(audio));
 		}
 		return i.value();
 	}
@@ -1545,15 +1578,15 @@ namespace App {
 	AudioData *audioSet(const AudioId &audio, AudioData *convert, const uint64 &access, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) {
 		if (convert) {
 			if (convert->id != audio) {
-				AudiosData::iterator i = audiosData.find(convert->id);
-				if (i != audiosData.cend() && i.value() == convert) {
-					audiosData.erase(i);
+				AudiosData::iterator i = ::audiosData.find(convert->id);
+				if (i != ::audiosData.cend() && i.value() == convert) {
+					::audiosData.erase(i);
 				}
 				convert->id = audio;
 				convert->status = FileReady;
 			}
-			convert->access = access;
-			if (!convert->date && date) {
+			if (date) {
+				convert->access = access;
 				convert->date = date;
 				convert->mime = mime;
 				convert->duration = duration;
@@ -1561,18 +1594,18 @@ namespace App {
 				convert->size = size;
 			}
 		}
-		AudiosData::const_iterator i = audiosData.constFind(audio);
+		AudiosData::const_iterator i = ::audiosData.constFind(audio);
 		AudioData *result;
-		if (i == audiosData.cend()) {
+		if (i == ::audiosData.cend()) {
 			if (convert) {
 				result = convert;
 			} else {
 				result = new AudioData(audio, access, date, mime, duration, dc, size);
 			}
-			audiosData.insert(audio, result);
+			::audiosData.insert(audio, result);
 		} else {
 			result = i.value();
-			if (result != convert && !result->date && date) {
+			if (result != convert && date) {
 				result->access = access;
 				result->date = date;
 				result->mime = mime;
@@ -1585,9 +1618,9 @@ namespace App {
 	}
 
 	DocumentData *document(const DocumentId &document) {
-		DocumentsData::const_iterator i = documentsData.constFind(document);
-		if (i == documentsData.cend()) {
-			i = documentsData.insert(document, new DocumentData(document));
+		DocumentsData::const_iterator i = ::documentsData.constFind(document);
+		if (i == ::documentsData.cend()) {
+			i = ::documentsData.insert(document, new DocumentData(document));
 		}
 		return i.value();
 	}
@@ -1596,40 +1629,33 @@ namespace App {
 		bool sentSticker = false;
 		if (convert) {
 			if (convert->id != document) {
-				DocumentsData::iterator i = documentsData.find(convert->id);
-				if (i != documentsData.cend() && i.value() == convert) {
-					documentsData.erase(i);
+				DocumentsData::iterator i = ::documentsData.find(convert->id);
+				if (i != ::documentsData.cend() && i.value() == convert) {
+					::documentsData.erase(i);
 				}
+				Local::copyStickerImage(mediaKey(DocumentFileLocation, convert->dc, convert->id), mediaKey(DocumentFileLocation, dc, document));
 				convert->id = document;
 				convert->status = FileReady;
 				sentSticker = !!convert->sticker();
 			}
-			convert->access = access;
-			if (!convert->date && date) {
+			if (date) {
+				convert->access = access;
 				convert->date = date;
 				convert->setattributes(attributes);
 				convert->mime = mime;
-				convert->thumb = thumb;
-				convert->dc = dc;
-				convert->size = size;
-			} else {
 				if (!thumb->isNull() && (convert->thumb->isNull() || convert->thumb->width() < thumb->width() || convert->thumb->height() < thumb->height())) {
 					convert->thumb = thumb;
 				}
-				if (convert->sticker() && !attributes.isEmpty() && (convert->sticker()->alt.isEmpty() || convert->sticker()->set.type() == mtpc_inputStickerSetEmpty)) {
-					for (QVector<MTPDocumentAttribute>::const_iterator i = attributes.cbegin(), e = attributes.cend(); i != e; ++i) {
-						if (i->type() == mtpc_documentAttributeSticker) {
-							const MTPDdocumentAttributeSticker &d(i->c_documentAttributeSticker());
-							if (d.valt.c_string().v.length() > 0) {
-								convert->sticker()->alt = qs(d.valt);
-								convert->sticker()->set = d.vstickerset;
-							}
-						}
-					}
+				convert->dc = dc;
+				convert->size = size;
+				convert->recountIsImage();
+				if (convert->sticker() && convert->sticker()->loc.isNull() && !thumbLocation.isNull()) {
+					convert->sticker()->loc = thumbLocation;
 				}
 			}
-			if (convert->sticker() && !convert->sticker()->loc.dc && thumbLocation.dc) {
-				convert->sticker()->loc = thumbLocation;
+
+			if (cSavedGifs().indexOf(convert) >= 0) { // id changed
+				Local::writeSavedGifs();
 			}
 
 			const FileLocation &loc(convert->location(true));
@@ -1637,45 +1663,32 @@ namespace App {
 				Local::writeFileLocation(mediaKey(DocumentFileLocation, convert->dc, convert->id), loc);
 			}
 		}
-		DocumentsData::const_iterator i = documentsData.constFind(document);
+		DocumentsData::const_iterator i = ::documentsData.constFind(document);
 		DocumentData *result;
-		if (i == documentsData.cend()) {
+		if (i == ::documentsData.cend()) {
 			if (convert) {
 				result = convert;
 			} else {
 				result = new DocumentData(document, access, date, attributes, mime, thumb, dc, size);
+				result->recountIsImage();
 				if (result->sticker()) result->sticker()->loc = thumbLocation;
 			}
-			documentsData.insert(document, result);
+			::documentsData.insert(document, result);
 		} else {
 			result = i.value();
-			if (result != convert) {
-				if (!result->date && date) {
-					result->access = access;
-					result->date = date;
-					result->setattributes(attributes);
-					result->mime = mime;
+			if (result != convert && date) {
+				result->access = access;
+				result->date = date;
+				result->setattributes(attributes);
+				result->mime = mime;
+				if (!thumb->isNull() && (result->thumb->isNull() || result->thumb->width() < thumb->width() || result->thumb->height() < thumb->height())) {
 					result->thumb = thumb;
-					result->dc = dc;
-					result->size = size;
-				} else {
-					if (!thumb->isNull() && (result->thumb->isNull() || result->thumb->width() < thumb->width() || result->thumb->height() < thumb->height())) {
-						result->thumb = thumb;
-					}
-					if (result->sticker() && !attributes.isEmpty() && (result->sticker()->alt.isEmpty() || result->sticker()->set.type() == mtpc_inputStickerSetEmpty)) {
-						for (QVector<MTPDocumentAttribute>::const_iterator i = attributes.cbegin(), e = attributes.cend(); i != e; ++i) {
-							if (i->type() == mtpc_documentAttributeSticker) {
-								const MTPDdocumentAttributeSticker &d(i->c_documentAttributeSticker());
-								if (d.valt.c_string().v.length() > 0) {
-									result->sticker()->alt = qs(d.valt);
-									result->sticker()->set = d.vstickerset;
-								}
-							}
-						}
-					}
-					if (result->sticker() && !result->sticker()->loc.dc && thumbLocation.dc) {
-						result->sticker()->loc = thumbLocation;
-					}
+				}
+				result->dc = dc;
+				result->size = size;
+				result->recountIsImage();
+				if (result->sticker() && result->sticker()->loc.isNull() && !thumbLocation.isNull()) {
+					result->sticker()->loc = thumbLocation;
 				}
 			}
 		}
@@ -1750,7 +1763,7 @@ namespace App {
 		}
 		return result;
 	}
-	
+
 	ImageLinkData *imageLink(const QString &imageLink) {
 		ImageLinksData::const_iterator i = imageLinksData.constFind(imageLink);
 		if (i == imageLinksData.cend()) {
@@ -1758,7 +1771,7 @@ namespace App {
 		}
 		return i.value();
 	}
-		
+
 	ImageLinkData *imageLinkSet(const QString &imageLink, ImageLinkType type, const QString &url) {
 		ImageLinksData::const_iterator i = imageLinksData.constFind(imageLink);
 		ImageLinkData *result;
@@ -1775,16 +1788,16 @@ namespace App {
 	void forgetMedia() {
 		lastPhotos.clear();
 		lastPhotosMap.clear();
-		for (PhotosData::const_iterator i = photosData.cbegin(), e = photosData.cend(); i != e; ++i) {
+		for (PhotosData::const_iterator i = ::photosData.cbegin(), e = ::photosData.cend(); i != e; ++i) {
 			i.value()->forget();
 		}
-		for (VideosData::const_iterator i = videosData.cbegin(), e = videosData.cend(); i != e; ++i) {
+		for (VideosData::const_iterator i = ::videosData.cbegin(), e = ::videosData.cend(); i != e; ++i) {
 			i.value()->forget();
 		}
-		for (AudiosData::const_iterator i = audiosData.cbegin(), e = audiosData.cend(); i != e; ++i) {
+		for (AudiosData::const_iterator i = ::audiosData.cbegin(), e = ::audiosData.cend(); i != e; ++i) {
 			i.value()->forget();
 		}
-		for (DocumentsData::const_iterator i = documentsData.cbegin(), e = documentsData.cend(); i != e; ++i) {
+		for (DocumentsData::const_iterator i = ::documentsData.cbegin(), e = ::documentsData.cend(); i != e; ++i) {
 			i.value()->forget();
 		}
 		for (ImageLinksData::const_iterator i = imageLinksData.cbegin(), e = imageLinksData.cend(); i != e; ++i) {
@@ -1795,7 +1808,7 @@ namespace App {
 	MTPPhoto photoFromUserPhoto(MTPint userId, MTPint date, const MTPUserProfilePhoto &photo) {
 		if (photo.type() == mtpc_userProfilePhoto) {
 			const MTPDuserProfilePhoto &uphoto(photo.c_userProfilePhoto());
-				
+
 			QVector<MTPPhotoSize> photoSizes;
 			photoSizes.push_back(MTP_photoSize(MTP_string("a"), uphoto.vphoto_small, MTP_int(160), MTP_int(160), MTP_int(0)));
 			photoSizes.push_back(MTP_photoSize(MTP_string("c"), uphoto.vphoto_big, MTP_int(640), MTP_int(640), MTP_int(0)));
@@ -1820,7 +1833,7 @@ namespace App {
 	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead) {
 		return ::histories.findOrInsert(peer, unreadCnt, maxInboxRead);
 	}
-	
+
 	History *historyLoaded(const PeerId &peer) {
 		return ::histories.find(peer);
 	}
@@ -1836,47 +1849,16 @@ namespace App {
 		return 0;
 	}
 
-	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
-		if (HistoryReply *r = oldItem->toHistoryReply()) {
-			QMap<HistoryReply*, bool> &replies(::repliesTo[r->replyToMessage()]);
-			replies.remove(r);
-			if (HistoryReply *n = newItem->toHistoryReply()) {
-				replies.insert(n, true);
-			}
-		}
-		RepliesTo::iterator i = ::repliesTo.find(oldItem);
-		if (i != ::repliesTo.cend() && oldItem != newItem) {
-			QMap<HistoryReply*, bool> replies = i.value();
-			::repliesTo.erase(i);
-			::repliesTo[newItem] = replies;
-			for (QMap<HistoryReply*, bool>::iterator i = replies.begin(), e = replies.end(); i != e; ++i) {
-				i.key()->replyToReplaced(oldItem, newItem);
-			}
-		}
-		newItem->history()->itemReplaced(oldItem, newItem);
-		if (App::main()) App::main()->itemReplaced(oldItem, newItem);
-		if (App::hoveredItem() == oldItem) App::hoveredItem(newItem);
-		if (App::pressedItem() == oldItem) App::pressedItem(newItem);
-		if (App::hoveredLinkItem() == oldItem) App::hoveredLinkItem(newItem);
-		if (App::pressedLinkItem() == oldItem) App::pressedLinkItem(newItem);
-		if (App::contextItem() == oldItem) App::contextItem(newItem);
-		if (App::mousedItem() == oldItem) App::mousedItem(newItem);
-	}
-
-	HistoryItem *historyRegItem(HistoryItem *item) {
+	void historyRegItem(HistoryItem *item) {
 		MsgsData *data = fetchMsgsData(item->channelId());
 		MsgsData::const_iterator i = data->constFind(item->id);
 		if (i == data->cend()) {
 			data->insert(item->id, item);
-			return 0;
-		}
-		if (i.value() != item && !i.value()->block() && item->block()) { // replace search item
-			itemReplaced(i.value(), item);
-			delete i.value();
+		} else if (i.value() != item) {
+			LOG(("App Error: trying to historyRegItem() an already registered item"));
+			i.value()->destroy();
 			data->insert(item->id, item);
-			return 0;
 		}
-		return (i.value() == item) ? 0 : i.value();
 	}
 
 	void historyItemDetached(HistoryItem *item) {
@@ -1927,6 +1909,8 @@ namespace App {
 	}
 
 	void historyClearMsgs() {
+		::repliesTo.clear();
+
 		QVector<HistoryItem*> toDelete;
 		for (MsgsData::const_iterator i = msgsData.cbegin(), e = msgsData.cend(); i != e; ++i) {
 			if ((*i)->detached()) {
@@ -1952,7 +1936,6 @@ namespace App {
 	}
 
 	void historyClearItems() {
-		historyClearMsgs();
 		randomData.clear();
 		sentData.clear();
 		mutedPeers.clear();
@@ -1963,39 +1946,41 @@ namespace App {
 			delete *i;
 		}
 		peersData.clear();
-		for (PhotosData::const_iterator i = photosData.cbegin(), e = photosData.cend(); i != e; ++i) {
+		for (PhotosData::const_iterator i = ::photosData.cbegin(), e = ::photosData.cend(); i != e; ++i) {
 			delete *i;
 		}
-		photosData.clear();
-		for (VideosData::const_iterator i = videosData.cbegin(), e = videosData.cend(); i != e; ++i) {
+		::photosData.clear();
+		for (VideosData::const_iterator i = ::videosData.cbegin(), e = ::videosData.cend(); i != e; ++i) {
 			delete *i;
 		}
-		videosData.clear();
-		for (AudiosData::const_iterator i = audiosData.cbegin(), e = audiosData.cend(); i != e; ++i) {
+		::videosData.clear();
+		for (AudiosData::const_iterator i = ::audiosData.cbegin(), e = ::audiosData.cend(); i != e; ++i) {
 			delete *i;
 		}
-		audiosData.clear();
-		for (DocumentsData::const_iterator i = documentsData.cbegin(), e = documentsData.cend(); i != e; ++i) {
+		::audiosData.clear();
+		for (DocumentsData::const_iterator i = ::documentsData.cbegin(), e = ::documentsData.cend(); i != e; ++i) {
 			delete *i;
 		}
-		documentsData.clear();
+		::documentsData.clear();
 		for (WebPagesData::const_iterator i = webPagesData.cbegin(), e = webPagesData.cend(); i != e; ++i) {
 			delete *i;
 		}
 		webPagesData.clear();
 		if (api()) api()->clearWebPageRequests();
 		cSetRecentStickers(RecentStickerPack());
-		cSetStickersHash(0);
 		cSetStickerSets(StickerSets());
 		cSetStickerSetsOrder(StickerSetsOrder());
 		cSetLastStickersUpdate(0);
+		cSetSavedGifs(SavedGifs());
+		cSetLastSavedGifsUpdate(0);
 		cSetReportSpamStatuses(ReportSpamStatuses());
+		::photoItems.clear();
 		::videoItems.clear();
 		::audioItems.clear();
 		::documentItems.clear();
 		::webPageItems.clear();
-		::sharedContactPhones.clear();
-		::repliesTo.clear();
+		::sharedContactItems.clear();
+		::gifItems.clear();
 		lastPhotos.clear();
 		lastPhotosMap.clear();
 		::self = 0;
@@ -2085,7 +2070,6 @@ namespace App {
 	}
 
 	void initMedia() {
-		deinitMedia(false);
 		audioInit();
 
 		if (!::monofont) {
@@ -2126,9 +2110,9 @@ namespace App {
 		prepareCorners(ServiceSelectedCorners, st::msgRadius, st::msgServiceSelectBg);
 		prepareCorners(SelectedOverlayCorners, st::msgRadius, st::msgSelectOverlay);
 		prepareCorners(DateCorners, st::msgRadius, st::msgDateImgBg);
-		prepareCorners(DateSelectedCorners, st::msgRadius, st::msgDateImgSelectBg);
+		prepareCorners(DateSelectedCorners, st::msgRadius, st::msgDateImgBgSelected);
 		prepareCorners(InShadowCorners, st::msgRadius, st::msgInShadow);
-		prepareCorners(InSelectedShadowCorners, st::msgRadius, st::msgInSelectShadow);
+		prepareCorners(InSelectedShadowCorners, st::msgRadius, st::msgInShadowSelected);
 		prepareCorners(ForwardCorners, st::msgRadius, st::forwardBg);
 		prepareCorners(MediaviewSaveCorners, st::msgRadius, st::medviewSaveMsg);
 		prepareCorners(EmojiHoverCorners, st::msgRadius, st::emojiPanHover);
@@ -2138,56 +2122,54 @@ namespace App {
 		prepareCorners(BotKeyboardDownCorners, st::msgRadius, st::botKbDownBg);
 		prepareCorners(PhotoSelectOverlayCorners, st::msgRadius, st::overviewPhotoSelectOverlay);
 
-		prepareCorners(DocRedCorners, st::msgRadius, st::mvDocRedColor);
-		prepareCorners(DocYellowCorners, st::msgRadius, st::mvDocYellowColor);
-		prepareCorners(DocGreenCorners, st::msgRadius, st::mvDocGreenColor);
-		prepareCorners(DocBlueCorners, st::msgRadius, st::mvDocBlueColor);
+		prepareCorners(DocBlueCorners, st::msgRadius, st::msgFileBlueColor);
+		prepareCorners(DocGreenCorners, st::msgRadius, st::msgFileGreenColor);
+		prepareCorners(DocRedCorners, st::msgRadius, st::msgFileRedColor);
+		prepareCorners(DocYellowCorners, st::msgRadius, st::msgFileYellowColor);
 
 		prepareCorners(MessageInCorners, st::msgRadius, st::msgInBg, &st::msgInShadow);
-		prepareCorners(MessageInSelectedCorners, st::msgRadius, st::msgInSelectBg, &st::msgInSelectShadow);
+		prepareCorners(MessageInSelectedCorners, st::msgRadius, st::msgInBgSelected, &st::msgInShadowSelected);
 		prepareCorners(MessageOutCorners, st::msgRadius, st::msgOutBg, &st::msgOutShadow);
-		prepareCorners(MessageOutSelectedCorners, st::msgRadius, st::msgOutSelectBg, &st::msgOutSelectShadow);
-		prepareCorners(ButtonHoverCorners, st::msgRadius, st::mediaSaveButton.overBgColor, &st::msgInShadow);
-
+		prepareCorners(MessageOutSelectedCorners, st::msgRadius, st::msgOutBgSelected, &st::msgOutShadowSelected);
 	}
-	
-	void deinitMedia(bool completely) {
+
+	void clearHistories() {
 		textlnkOver(TextLinkPtr());
 		textlnkDown(TextLinkPtr());
 
 		histories().clear();
 
-		if (completely) {
-			audioFinish();
-
-			delete ::sprite;
-			::sprite = 0;
-			delete ::emoji;
-			::emoji = 0;
-			delete ::emojiLarge;
-			::emojiLarge = 0;
-			for (int32 j = 0; j < 4; ++j) {
-				for (int32 i = 0; i < RoundCornersCount; ++i) {
-					delete ::corners[i].p[j]; ::corners[i].p[j] = 0;
-				}
-				delete ::cornersMask[j]; ::cornersMask[j] = 0;
-			}
-			for (CornersMap::const_iterator i = ::cornersMap.cbegin(), e = ::cornersMap.cend(); i != e; ++i) {
-				for (int32 j = 0; j < 4; ++j) {
-					delete i->p[j];
-				}
-			}
-			::cornersMap.clear();
-			mainEmojiMap.clear();
-			otherEmojiMap.clear();
-
-			clearAllImages();
-		} else {
-			clearStorageImages();
-			cSetServerBackgrounds(WallPapers());
-		}
+		clearStorageImages();
+		cSetServerBackgrounds(WallPapers());
 
 		serviceImageCacheSize = imageCacheSize();
+	}
+
+	void deinitMedia() {
+		audioFinish();
+
+		delete ::sprite;
+		::sprite = 0;
+		delete ::emoji;
+		::emoji = 0;
+		delete ::emojiLarge;
+		::emojiLarge = 0;
+		for (int32 j = 0; j < 4; ++j) {
+			for (int32 i = 0; i < RoundCornersCount; ++i) {
+				delete ::corners[i].p[j]; ::corners[i].p[j] = 0;
+			}
+			delete ::cornersMask[j]; ::cornersMask[j] = 0;
+		}
+		for (CornersMap::const_iterator i = ::cornersMap.cbegin(), e = ::cornersMap.cend(); i != e; ++i) {
+			for (int32 j = 0; j < 4; ++j) {
+				delete i->p[j];
+			}
+		}
+		::cornersMap.clear();
+		mainEmojiMap.clear();
+		otherEmojiMap.clear();
+
+		clearAllImages();
 	}
 
 	void hoveredItem(HistoryItem *item) {
@@ -2205,7 +2187,7 @@ namespace App {
 	HistoryItem *pressedItem() {
 		return ::pressedItem;
 	}
-	
+
 	void hoveredLinkItem(HistoryItem *item) {
 		::hoveredLinkItem = item;
 	}
@@ -2221,7 +2203,7 @@ namespace App {
 	HistoryItem *pressedLinkItem() {
 		return ::pressedLinkItem;
 	}
-	
+
 	void contextItem(HistoryItem *item) {
 		::contextItem = item;
 	}
@@ -2317,16 +2299,24 @@ namespace App {
         if (!format) {
             format = &tmpFormat;
         }
-        QImageReader reader(&buffer, *format);
-		if (animated) *animated = reader.supportsAnimation() && reader.imageCount() > 1;
-		if (!reader.read(&result)) {
-			return QImage();
+		{
+			QImageReader reader(&buffer, *format);
+#if QT_VERSION >= QT_VERSION_CHECK(5, 5, 0)
+			reader.setAutoTransform(true);
+#endif
+			if (animated) *animated = reader.supportsAnimation() && reader.imageCount() > 1;
+			QByteArray fmt = reader.format();
+			if (!fmt.isEmpty()) *format = fmt;
+			if (!reader.read(&result)) {
+				return QImage();
+			}
+			fmt = reader.format();
+			if (!fmt.isEmpty()) *format = fmt;
 		}
-
 		buffer.seek(0);
-        *format = reader.format();
-        QString fmt = QString::fromUtf8(*format).toLower() ;
+        QString fmt = QString::fromUtf8(*format).toLower();
 		if (fmt == "jpg" || fmt == "jpeg") {
+#if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
 			ExifData *exifData = exif_data_new_from_data((const uchar*)(data.constData()), data.size());
 			if (exifData) {
 				ExifByteOrder byteOrder = exif_data_get_byte_order(exifData);
@@ -2347,6 +2337,7 @@ namespace App {
 				}
 				exif_data_free(exifData);
 			}
+#endif
 		} else if (opaque && result.hasAlphaChannel()) {
 			QImage solid(result.width(), result.height(), QImage::Format_ARGB32_Premultiplied);
 			solid.fill(st::white->c);
@@ -2370,8 +2361,24 @@ namespace App {
 		return result;
 	}
 
+	void regPhotoItem(PhotoData *data, HistoryItem *item) {
+		::photoItems[data].insert(item, NullType());
+	}
+
+	void unregPhotoItem(PhotoData *data, HistoryItem *item) {
+		::photoItems[data].remove(item);
+	}
+
+	const PhotoItems &photoItems() {
+		return ::photoItems;
+	}
+
+	const PhotosData &photosData() {
+		return ::photosData;
+	}
+
 	void regVideoItem(VideoData *data, HistoryItem *item) {
-		::videoItems[data][item] = true;
+		::videoItems[data].insert(item, NullType());
 	}
 
 	void unregVideoItem(VideoData *data, HistoryItem *item) {
@@ -2382,8 +2389,12 @@ namespace App {
 		return ::videoItems;
 	}
 
+	const VideosData &videosData() {
+		return ::videosData;
+	}
+
 	void regAudioItem(AudioData *data, HistoryItem *item) {
-		::audioItems[data][item] = true;
+		::audioItems[data].insert(item, NullType());
 	}
 
 	void unregAudioItem(AudioData*data, HistoryItem *item) {
@@ -2394,8 +2405,12 @@ namespace App {
 		return ::audioItems;
 	}
 
+	const AudiosData &audiosData() {
+		return ::audiosData;
+	}
+
 	void regDocumentItem(DocumentData *data, HistoryItem *item) {
-		::documentItems[data][item] = true;
+		::documentItems[data].insert(item, NullType());
 	}
 
 	void unregDocumentItem(DocumentData *data, HistoryItem *item) {
@@ -2406,8 +2421,12 @@ namespace App {
 		return ::documentItems;
 	}
 
+	const DocumentsData &documentsData() {
+		return ::documentsData;
+	}
+
 	void regWebPageItem(WebPageData *data, HistoryItem *item) {
-		::webPageItems[data][item] = true;
+		::webPageItems[data].insert(item, NullType());
 	}
 
 	void unregWebPageItem(WebPageData *data, HistoryItem *item) {
@@ -2418,12 +2437,46 @@ namespace App {
 		return ::webPageItems;
 	}
 
-	void regSharedContactPhone(int32 userId, const QString &phone) {
-		::sharedContactPhones[userId] = phone;
+	void regSharedContactItem(int32 userId, HistoryItem *item) {
+		::sharedContactItems[userId].insert(item, NullType());
+	}
+
+	void unregSharedContactItem(int32 userId, HistoryItem *item) {
+		::sharedContactItems[userId].remove(item);
+	}
+
+	const SharedContactItems &sharedContactItems() {
+		return ::sharedContactItems;
+	}
+
+	void regGifItem(ClipReader *reader, HistoryItem *item) {
+		::gifItems.insert(reader, item);
+	}
+
+	void unregGifItem(ClipReader *reader) {
+		::gifItems.remove(reader);
+	}
+
+	void stopGifItems() {
+		if (!::gifItems.isEmpty()) {
+			GifItems gifs = ::gifItems;
+			for (GifItems::const_iterator i = gifs.cbegin(), e = gifs.cend(); i != e; ++i) {
+				if (HistoryMedia *media = i.value()->getMedia()) {
+					media->stopInline(i.value());
+				}
+			}
+		}
 	}
 
 	QString phoneFromSharedContact(int32 userId) {
-		return ::sharedContactPhones.value(userId);
+		SharedContactItems::const_iterator i = ::sharedContactItems.constFind(userId);
+		if (i != ::sharedContactItems.cend()) {
+			HistoryMedia *media = i->cbegin().key()->getMedia();
+			if (media && media->type() == MediaTypeContact) {
+				return static_cast<HistoryContact*>(media)->phone();
+			}
+		}
+		return QString();
 	}
 
 	void regMuted(PeerData *peer, int32 changeIn) {
@@ -2454,6 +2507,19 @@ namespace App {
 		if (changeInMin) App::main()->updateMutedIn(changeInMin);
 	}
 
+	void regInlineResultLoader(FileLoader *loader, InlineResult *result) {
+		::inlineResultLoaders.insert(loader, result);
+	}
+
+	void unregInlineResultLoader(FileLoader *loader) {
+		::inlineResultLoaders.remove(loader);
+	}
+
+	InlineResult *inlineResultFromLoader(FileLoader *loader) {
+		InlineResultLoaders::const_iterator i = ::inlineResultLoaders.find(loader);
+		return (i == ::inlineResultLoaders.cend()) ? 0 : i.value();
+	}
+
 	inline void insertReplyMarkup(ChannelId channelId, MsgId msgId, const ReplyMarkup &markup) {
 		if (channelId == NoChannel) {
 			replyMarkups.insert(msgId, markup);
@@ -2469,7 +2535,7 @@ namespace App {
 		case mtpc_replyKeyboardMarkup: {
 			const MTPDreplyKeyboardMarkup &d(markup.c_replyKeyboardMarkup());
 			data.flags = d.vflags.v;
-			
+
 			const QVector<MTPKeyboardButtonRow> &v(d.vrows.c_vector().v);
 			if (!v.isEmpty()) {
 				commands.reserve(v.size());
@@ -2542,12 +2608,15 @@ namespace App {
 	}
 
 	void setProxySettings(QNetworkAccessManager &manager) {
+		manager.setProxy(getHttpProxySettings());
+	}
+
+	QNetworkProxy getHttpProxySettings() {
 		if (cConnectionType() == dbictHttpProxy) {
 			const ConnectionProxy &p(cConnectionProxy());
-			manager.setProxy(QNetworkProxy(QNetworkProxy::HttpProxy, p.host, p.port, p.user, p.password));
-		} else {
-			manager.setProxy(QNetworkProxy(QNetworkProxy::DefaultProxy));
+			return QNetworkProxy(QNetworkProxy::HttpProxy, p.host, p.port, p.user, p.password);
 		}
+		return QNetworkProxy(QNetworkProxy::DefaultProxy);
 	}
 
 	void setProxySettings(QTcpSocket &socket) {
@@ -2557,7 +2626,7 @@ namespace App {
 		} else {
 			socket.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
 		}
-	}	
+	}
 
 	QImage **cornersMask() {
 		return ::cornersMask;

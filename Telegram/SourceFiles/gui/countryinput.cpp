@@ -137,7 +137,7 @@ void CountryInput::mousePressEvent(QMouseEvent *e) {
 	if (_active) {
 		CountrySelectBox *box = new CountrySelectBox();
 		connect(box, SIGNAL(countryChosen(const QString&)), this, SLOT(onChooseCountry(const QString&)));
-		App::wnd()->showLayer(box);
+		Ui::showLayer(box);
 	}
 }
 
@@ -152,7 +152,7 @@ void CountryInput::leaveEvent(QEvent *e) {
 }
 
 void CountryInput::onChooseCode(const QString &code) {
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	if (code.length()) {
 		CountriesByCode::const_iterator i = _countriesByCode.constFind(code);
 		if (i != _countriesByCode.cend()) {
@@ -169,7 +169,7 @@ void CountryInput::onChooseCode(const QString &code) {
 }
 
 bool CountryInput::onChooseCountry(const QString &iso) {
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 
 	CountriesByISO2::const_iterator i = _countriesByISO2.constFind(iso);
 	const CountryInfo *info = (i == _countriesByISO2.cend()) ? 0 : (*i);

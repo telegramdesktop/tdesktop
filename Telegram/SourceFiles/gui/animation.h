@@ -24,12 +24,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include <QtCore/QTimer>
 #include <QtGui/QColor>
 
-class Animated;
-
 namespace anim {
 
 	typedef float64 (*transition)(const float64 &delta, const float64 &dt);
-	
+
     float64 linear(const float64 &delta, const float64 &dt);
 	float64 sineInOut(const float64 &delta, const float64 &dt);
     float64 halfSine(const float64 &delta, const float64 &dt);
@@ -74,6 +72,8 @@ namespace anim {
 			_delta = 0;
 		}
 
+		typedef float64 Type;
+
 	private:
 
 		float64 _cur, _from, _delta;
@@ -111,6 +111,8 @@ namespace anim {
 			_from = _cur;
 			_delta = 0;
 		}
+
+		typedef int32 Type;
 
 	private:
 
@@ -181,253 +183,486 @@ namespace anim {
 			_delta_r = _delta_g = _delta_b = _delta_a = 0;
 		}
 
+		typedef QColor Type;
+
 	private:
 
 		QColor _cur;
 		float64 _from_r, _from_g, _from_b, _from_a, _delta_r, _delta_g, _delta_b, _delta_a;
 	};
 
-	void start(Animated *obj);
-	void step(Animated *obj);
-	void stop(Animated *obj);
-
 	void startManager();
 	void stopManager();
 
 };
 
-class Animated {
+class Animation;
+
+class AnimationImplementation {
 public:
+	virtual void start() {}
+	virtual void step(Animation *a, uint64 ms, bool timer) = 0;
+	virtual ~AnimationImplementation() {}
+};
+class AnimationCreator {
+public:
+	AnimationCreator(AnimationImplementation *ptr) : _ptr(ptr) {}
+	AnimationCreator(const AnimationCreator &other) : _ptr(other.create()) {}
+	AnimationImplementation *create() const { return exchange(_ptr); }
+	~AnimationCreator() { deleteAndMark(_ptr); }
+private:
+	AnimationCreator &operator=(const AnimationCreator &other);
+	mutable AnimationImplementation *_ptr;
+};
+class AnimationCallbacks {
+public:
+	AnimationCallbacks(const AnimationCreator &creator) : _implementation(creator.create()) {}
+	void start() { _implementation->start();  }
+	void step(Animation *a, uint64 ms, bool timer) { _implementation->step(a, ms, timer); }
+	~AnimationCallbacks() { deleteAndMark(_implementation); }
+private:
+	AnimationCallbacks(const AnimationCallbacks &other);
+	AnimationCallbacks &operator=(const AnimationCallbacks &other);
+	AnimationImplementation *_implementation;
+};
 
-	Animated() : animStarted(0), animInProcess(false) {
+class Animation {
+public:
+	Animation(AnimationCreator cb) : _cb(cb), _animating(false) {
 	}
 
-	virtual bool animStep(float64 ms) = 0;
+	void start();
+	void stop();
 
-	void animReset() {
-		animStarted = float64(getms());
+	void step(uint64 ms, bool timer = false) {
+		_cb.step(this, ms, timer);
 	}
 
-	virtual ~Animated() {
-		if (animating()) {
-			anim::stop(this);
-		}
+	void step() {
+		step(getms(), false);
 	}
 
 	bool animating() const {
-		return animInProcess;
-	}
-
-private:
-
-	float64 animStarted;
-	bool animInProcess;
-	friend class AnimationManager;
-
-};
-
-class AnimationFunc {
-public:
-	virtual bool animStep(float64 ms) = 0;
-	virtual ~AnimationFunc() {
-	}
-};
-
-template <typename Type>
-class AnimationFuncOwned : public AnimationFunc {
-public:
-	typedef bool (Type::*Method)(float64);
-
-	AnimationFuncOwned(Type *obj, Method method) : _obj(obj), _method(method) {
-	}
-
-	bool animStep(float64 ms) {
-		return (_obj->*_method)(ms);
-	}
-	
-private:
-	Type *_obj;
-	Method _method;
-	
-};
-
-template <typename Type>
-AnimationFunc *animFunc(Type *obj, typename AnimationFuncOwned<Type>::Method method) {
-	return new AnimationFuncOwned<Type>(obj, method);
-}
-
-class Animation : public Animated {
-public:
-
-	Animation(AnimationFunc *func) : _func(func) {
-	}
-
-	void start() {
-		anim::start(this);
-	}
-	void stop() {
-		anim::stop(this);
-	}
-
-	//Animation
-	bool animStep(float64 ms) {
-		return _func->animStep(ms);
+		return _animating;
 	}
 
 	~Animation() {
-		delete _func;
+		if (_animating) stop();
 	}
 
 private:
-	AnimationFunc *_func;
+	AnimationCallbacks _cb;
+	bool _animating;
 
 };
+
+template <typename Type>
+class AnimationCallbacksRelative : public AnimationImplementation {
+public:
+	typedef void (Type::*Method)(float64, bool);
+
+	AnimationCallbacksRelative(Type *obj, Method method) : _started(0), _obj(obj), _method(method) {
+	}
+
+	void start() {
+		_started = float64(getms());
+	}
+
+	void step(Animation *a, uint64 ms, bool timer) {
+		(_obj->*_method)(ms - _started, timer);
+	}
+
+private:
+	float64 _started;
+	Type *_obj;
+	Method _method;
+
+};
+template <typename Type>
+AnimationCreator animation(Type *obj, typename AnimationCallbacksRelative<Type>::Method method) {
+	return AnimationCreator(new AnimationCallbacksRelative<Type>(obj, method));
+}
+
+template <typename Type>
+class AnimationCallbacksAbsolute : public AnimationImplementation {
+public:
+	typedef void (Type::*Method)(uint64, bool);
+
+	AnimationCallbacksAbsolute(Type *obj, Method method) : _obj(obj), _method(method) {
+	}
+
+	void step(Animation *a, uint64 ms, bool timer) {
+		(_obj->*_method)(ms, timer);
+	}
+
+private:
+	Type *_obj;
+	Method _method;
+
+};
+template <typename Type>
+AnimationCreator animation(Type *obj, typename AnimationCallbacksAbsolute<Type>::Method method) {
+	return AnimationCreator(new AnimationCallbacksAbsolute<Type>(obj, method));
+}
+
+template <typename Type, typename Param>
+class AnimationCallbacksRelativeWithParam : public AnimationImplementation {
+public:
+	typedef void (Type::*Method)(Param, float64, bool);
+
+	AnimationCallbacksRelativeWithParam(Param param, Type *obj, Method method) : _started(0), _param(param), _obj(obj), _method(method) {
+	}
+
+	void start() {
+		_started = float64(getms());
+	}
+
+	void step(Animation *a, uint64 ms, bool timer) {
+		(_obj->*_method)(_param, ms - _started, timer);
+	}
+
+private:
+	float64 _started;
+	Param _param;
+	Type *_obj;
+	Method _method;
+
+};
+template <typename Type, typename Param>
+AnimationCreator animation(Param param, Type *obj, typename AnimationCallbacksRelativeWithParam<Type, Param>::Method method) {
+	return AnimationCreator(new AnimationCallbacksRelativeWithParam<Type, Param>(param, obj, method));
+}
+
+template <typename Type, typename Param>
+class AnimationCallbacksAbsoluteWithParam : public AnimationImplementation {
+public:
+	typedef void (Type::*Method)(Param, uint64, bool);
+
+	AnimationCallbacksAbsoluteWithParam(Param param, Type *obj, Method method) : _param(param), _obj(obj), _method(method) {
+	}
+
+	void step(Animation *a, uint64 ms, bool timer) {
+		(_obj->*_method)(_param, ms, timer);
+	}
+
+private:
+	Param _param;
+	Type *_obj;
+	Method _method;
+
+};
+template <typename Type, typename Param>
+AnimationCreator animation(Param param, Type *obj, typename AnimationCallbacksAbsoluteWithParam<Type, Param>::Method method) {
+	return AnimationCreator(new AnimationCallbacksAbsoluteWithParam<Type, Param>(param, obj, method));
+}
+
+template <typename AnimType>
+class SimpleAnimation {
+public:
+
+	typedef Function<void> Callback;
+
+	SimpleAnimation() : _data(0) {
+	}
+
+	bool animating(uint64 ms) {
+		if (_data && _data->_a.animating()) {
+			_data->_a.step(ms);
+			return _data && _data->_a.animating();
+		}
+		return false;
+	}
+
+	bool isNull() {
+		return !_data;
+	}
+
+	typename AnimType::Type current() {
+		return _data ? _data->a.current() : typename AnimType::Type();
+	}
+
+	typename AnimType::Type current(uint64 ms, const typename AnimType::Type &def) {
+		return animating(ms) ? current() : def;
+	}
+
+	void setup(const typename AnimType::Type &from, Callback::Creator update) {
+		if (!_data) {
+			_data = new Data(from, update, animation(this, &SimpleAnimation<AnimType>::step));
+		} else {
+			_data->a = AnimType(from, from);
+		}
+	}
+
+	void start(const typename AnimType::Type &to, float64 duration, anim::transition transition = anim::linear) {
+		if (_data) {
+			_data->a.start(to);
+			_data->_a.start();
+			_data->duration = duration;
+			_data->transition = transition;
+		}
+	}
+
+	~SimpleAnimation() {
+		deleteAndMark(_data);
+	}
+
+private:
+	typedef struct _Data {
+		_Data(const typename AnimType::Type &from, Callback::Creator update, AnimationCreator acb)
+			: a(from, from)
+			, _a(acb)
+			, update(update)
+			, duration(0)
+			, transition(anim::linear) {
+		}
+		AnimType a;
+		Animation _a;
+		Callback update;
+		float64 duration;
+		anim::transition transition;
+	} Data;
+	Data *_data;
+
+	void step(float64 ms, bool timer) {
+		float64 dt = (ms >= _data->duration) ? 1 : (ms / _data->duration);
+		if (dt >= 1) {
+			_data->a.finish();
+			_data->_a.stop();
+		} else {
+			_data->a.update(dt, _data->transition);
+		}
+		if (timer) {
+			_data->update.call();
+		}
+		if (!_data->_a.animating()) {
+			delete _data;
+			_data = 0;
+		}
+	}
+
+};
+
+typedef SimpleAnimation<anim::fvalue> FloatAnimation;
+typedef SimpleAnimation<anim::ivalue> IntAnimation;
+typedef SimpleAnimation<anim::cvalue> ColorAnimation;
+
+#define EnsureAnimation(animation, from, callback) if ((animation).isNull()) { (animation).setup((from), (callback)); }
+
+class ClipReader;
 
 class AnimationManager : public QObject {
 Q_OBJECT
 
 public:
+	AnimationManager();
 
-	AnimationManager() : timer(this), iterating(false) {
-		timer.setSingleShot(false);
-		connect(&timer, SIGNAL(timeout()), this, SLOT(timeout()));
-	}
-
-	void start(Animated *obj) {
-		obj->animReset();
-		if (iterating) {
-			toStart.insert(obj);
-			if (!toStop.isEmpty()) {
-				toStop.remove(obj);
-			}
-		} else {
-			if (!objs.size()) {
-				timer.start(AnimationTimerDelta);
-			}
-			objs.insert(obj);
-		}
-		obj->animInProcess = true;
-	}
-
-	void step(Animated *obj) {
-		if (iterating) return;
-
-		float64 ms = float64(getms());
-		AnimObjs::iterator i = objs.find(obj);
-		if (i != objs.cend()) {
-			Animated *obj = *i;
-			if (!obj->animStep(ms - obj->animStarted)) {
-				objs.erase(i);
-				if (!objs.size()) {
-					timer.stop();
-				}
-				obj->animInProcess = false;
-			}
-		}
-	}
-
-	void stop(Animated *obj) {
-		if (iterating) {
-			toStop.insert(obj);
-			if (!toStart.isEmpty()) {
-				toStart.insert(obj);
-			}
-		} else {
-			AnimObjs::iterator i = objs.find(obj);
-			if (i != objs.cend()) {
-				objs.erase(i);
-				if (!objs.size()) {
-					timer.stop();
-				}
-			}
-		}
-		obj->animInProcess = false;
-	}
+	void start(Animation *obj);
+	void stop(Animation *obj);
 
 public slots:
-	void timeout() {
-		iterating = true;
-		float64 ms = float64(getms());
-		for (AnimObjs::iterator i = objs.begin(), e = objs.end(); i != e; ) {
-			Animated *obj = *i;
-			if (!obj->animStep(ms - obj->animStarted)) {
-				i = objs.erase(i);
-				obj->animInProcess = false;
-			} else {
-				++i;
-			}
-		}
-		iterating = false;
-		if (!toStart.isEmpty()) {
-			for (AnimObjs::iterator i = toStart.begin(), e = toStart.end(); i != e; ++i) {
-				objs.insert(*i);
-			}
-			toStart.clear();
-		}
-		if (!toStop.isEmpty()) {
-			for (AnimObjs::iterator i = toStop.begin(), e = toStop.end(); i != e; ++i) {
-				objs.remove(*i);
-			}
-			toStop.clear();
-		}
-		if (!objs.size()) {
-			timer.stop();
-		}
-	}
+	void timeout();
+
+	void clipCallback(ClipReader *reader, qint32 threadIndex, qint32 notification);
 
 private:
-
-	typedef QSet<Animated*> AnimObjs;
-	AnimObjs objs;
-	AnimObjs toStart;
-	AnimObjs toStop;
-	QTimer timer;
-	bool iterating;
+	typedef QMap<Animation*, NullType> AnimatingObjects;
+	AnimatingObjects _objects, _starting, _stopping;
+	QTimer _timer;
+	bool _iterating;
 
 };
 
-class HistoryItem;
 class FileLocation;
-class AnimatedGif : public QObject, public Animated {
+
+enum ClipState {
+	ClipReading,
+	ClipError,
+};
+
+struct ClipFrameRequest {
+	ClipFrameRequest() : factor(0), framew(0), frameh(0), outerw(0), outerh(0), rounded(false) {
+	}
+	bool valid() const {
+		return factor > 0;
+	}
+	int32 factor;
+	int32 framew, frameh;
+	int32 outerw, outerh;
+	bool rounded;
+};
+
+enum ClipReaderNotification {
+	ClipReaderReinit,
+	ClipReaderRepaint,
+};
+
+enum ClipReaderSteps {
+	WaitingForDimensionsStep = -3, // before ClipReaderPrivate read the first image and got the original frame size
+	WaitingForRequestStep = -2, // before ClipReader got the original frame size and prepared the frame request
+	WaitingForFirstFrameStep = -1, // before ClipReaderPrivate got the frame request and started waiting for the 1-2 delay
+};
+
+class ClipReaderPrivate;
+class ClipReader {
+public:
+
+	typedef Function1<void, ClipReaderNotification> Callback;
+
+	ClipReader(const FileLocation &location, const QByteArray &data, Callback::Creator cb);
+	static void callback(ClipReader *reader, int32 threadIndex, ClipReaderNotification notification); // reader can be deleted
+
+	void setAutoplay() {
+		_autoplay = true;
+	}
+	bool autoplay() const {
+		return _autoplay;
+	}
+
+	void start(int32 framew, int32 frameh, int32 outerw, int32 outerh, bool rounded);
+	QPixmap current(int32 framew, int32 frameh, int32 outerw, int32 outerh, uint64 ms);
+	QPixmap frameOriginal() const {
+		Frame *frame = frameToShow();
+		if (!frame) return QPixmap();
+		QPixmap result(frame ? QPixmap::fromImage(frame->original) : QPixmap());
+		result.detach();
+		return result;
+	}
+	bool currentDisplayed() const {
+		Frame *frame = frameToShow();
+		return frame ? (frame->displayed.loadAcquire() != 0) : true;
+	}
+	bool paused() const {
+		return _paused.loadAcquire();
+	}
+	int32 threadIndex() const {
+		return _threadIndex;
+	}
+
+	int32 width() const;
+	int32 height() const;
+
+	ClipState state() const;
+	bool started() const {
+		int32 step = _step.loadAcquire();
+		return (step == WaitingForFirstFrameStep) || (step >= 0);
+	}
+	bool ready() const;
+
+	void stop();
+	void error();
+
+	~ClipReader();
+
+private:
+
+	Callback _cb;
+
+	ClipState _state;
+
+	mutable int32 _width, _height;
+
+	mutable QAtomicInt _step; // -2, -1 - init, 0-5 - work, show ((state + 1) / 2) % 3 state, write ((state + 3) / 2) % 3
+	struct Frame {
+		Frame() : displayed(false) {
+		}
+		void clear() {
+			pix = QPixmap();
+			original = QImage();
+		}
+		QPixmap pix;
+		QImage original;
+		ClipFrameRequest request;
+		QAtomicInt displayed;
+	};
+	mutable Frame _frames[3];
+	Frame *frameToShow(int32 *index = 0) const; // 0 means not ready
+	Frame *frameToWrite(int32 *index = 0) const; // 0 means not ready
+	Frame *frameToWriteNext(bool check, int32 *index = 0) const;
+	void moveToNextShow() const;
+	void moveToNextWrite() const;
+
+	QAtomicInt _paused;
+	int32 _threadIndex;
+
+	bool _autoplay;
+
+	friend class ClipReadManager;
+
+	ClipReaderPrivate *_private;
+
+};
+
+static ClipReader * const BadClipReader = SharedMemoryLocation<ClipReader, 0>();
+
+enum ClipProcessResult {
+	ClipProcessError,
+	ClipProcessStarted,
+	ClipProcessPaused,
+	ClipProcessRepaint,
+	ClipProcessCopyFrame,
+	ClipProcessWait,
+};
+
+class ClipReadManager : public QObject {
 	Q_OBJECT
 
 public:
 
-	AnimatedGif() : msg(0), file(0), access(false), reader(0), w(0), h(0), frame(0), framesCount(0), duration(0) {
+	ClipReadManager(QThread *thread);
+	int32 loadLevel() const {
+		return _loadLevel.load();
 	}
-
-	bool animStep(float64 ms);
-
-	void start(HistoryItem *row, const FileLocation &file);
-	void stop(bool onItemRemoved = false);
-
-	bool isNull() const {
-		return !reader;
-	}
-
-	~AnimatedGif() {
-		stop(true);
-	}
-
-	const QPixmap &current(int32 width = 0, int32 height = 0, bool rounded = false);
+	void append(ClipReader *reader, const FileLocation &location, const QByteArray &data);
+	void start(ClipReader *reader);
+	void update(ClipReader *reader);
+	void stop(ClipReader *reader);
+	bool carries(ClipReader *reader) const;
+	~ClipReadManager();
 
 signals:
 
-	void updated();
+	void processDelayed();
 
-public:
+	void callback(ClipReader *reader, qint32 threadIndex, qint32 notification);
 
-	HistoryItem *msg;
-	QImage img;
-	FileLocation *file;
-	bool access;
-	QImageReader *reader;
-	int32 w, h, frame;
+public slots:
+
+	void process();
+    void finish();
 
 private:
 
-	QVector<QPixmap> frames;
-	QVector<QImage> images;
-	QVector<int64> delays;
-	int32 framesCount, duration;
+    void clear();
+
+	QAtomicInt _loadLevel;
+	struct MutableAtomicInt {
+		MutableAtomicInt(int value) : v(value) {
+		}
+		mutable QAtomicInt v;
+	};
+	typedef QMap<ClipReader*, MutableAtomicInt> ReaderPointers;
+	ReaderPointers _readerPointers;
+	mutable QReadWriteLock _readerPointersMutex;
+
+	ReaderPointers::const_iterator constUnsafeFindReaderPointer(ClipReaderPrivate *reader) const;
+	ReaderPointers::iterator unsafeFindReaderPointer(ClipReaderPrivate *reader);
+
+	bool handleProcessResult(ClipReaderPrivate *reader, ClipProcessResult result, uint64 ms);
+
+	enum ResultHandleState {
+		ResultHandleRemove,
+		ResultHandleStop,
+		ResultHandleContinue,
+	};
+	ResultHandleState handleResult(ClipReaderPrivate *reader, ClipProcessResult result, uint64 ms);
+
+	typedef QMap<ClipReaderPrivate*, uint64> Readers;
+	Readers _readers;
+
+	QTimer _timer;
+	QThread *_processingInThread;
+	bool _needReProcess;
+
 };
+
+MTPDocumentAttribute clipReadAnimatedAttributes(const QString &fname, const QByteArray &data, QImage &cover);

@@ -27,17 +27,17 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "window.h"
 
-ConnectionBox::ConnectionBox() : AbstractBox(st::boxWidth),
-_hostInput(this, st::connectionHostInputField, lang(lng_connection_host_ph), cConnectionProxy().host),
-_portInput(this, st::connectionPortInputField, lang(lng_connection_port_ph), QString::number(cConnectionProxy().port)),
-_userInput(this, st::connectionUserInputField, lang(lng_connection_user_ph), cConnectionProxy().user),
-_passwordInput(this, st::connectionPasswordInputField, lang(lng_connection_password_ph), cConnectionProxy().password),
-_autoRadio(this, qsl("conn_type"), dbictAuto, lang(lng_connection_auto_rb), (cConnectionType() == dbictAuto)),
-_httpProxyRadio(this, qsl("conn_type"), dbictHttpProxy, lang(lng_connection_http_proxy_rb), (cConnectionType() == dbictHttpProxy)),
-_tcpProxyRadio(this, qsl("conn_type"), dbictTcpProxy, lang(lng_connection_tcp_proxy_rb), (cConnectionType() == dbictTcpProxy)),
-_tryIPv6(this, lang(lng_connection_try_ipv6), cTryIPv6()),
-_save(this, lang(lng_connection_save), st::defaultBoxButton),
-_cancel(this, lang(lng_cancel), st::cancelBoxButton) {
+ConnectionBox::ConnectionBox() : AbstractBox(st::boxWidth)
+, _hostInput(this, st::connectionHostInputField, lang(lng_connection_host_ph), cConnectionProxy().host)
+, _portInput(this, st::connectionPortInputField, lang(lng_connection_port_ph), QString::number(cConnectionProxy().port))
+, _userInput(this, st::connectionUserInputField, lang(lng_connection_user_ph), cConnectionProxy().user)
+, _passwordInput(this, st::connectionPasswordInputField, lang(lng_connection_password_ph), cConnectionProxy().password)
+, _autoRadio(this, qsl("conn_type"), dbictAuto, lang(lng_connection_auto_rb), (cConnectionType() == dbictAuto))
+, _httpProxyRadio(this, qsl("conn_type"), dbictHttpProxy, lang(lng_connection_http_proxy_rb), (cConnectionType() == dbictHttpProxy))
+, _tcpProxyRadio(this, qsl("conn_type"), dbictTcpProxy, lang(lng_connection_tcp_proxy_rb), (cConnectionType() == dbictTcpProxy))
+, _tryIPv6(this, lang(lng_connection_try_ipv6), cTryIPv6())
+, _save(this, lang(lng_connection_save), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 
 	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -215,6 +215,132 @@ void ConnectionBox::onSave() {
 		Local::writeSettings();
 		MTP::restart();
 		reinitImageLinkManager();
+		reinitWebLoadManager();
 		emit closed();
 	}
+}
+
+AutoDownloadBox::AutoDownloadBox() : AbstractBox(st::boxWidth)
+, _photoPrivate(this, lang(lng_media_auto_private_chats), !(cAutoDownloadPhoto() & dbiadNoPrivate))
+, _photoGroups(this,  lang(lng_media_auto_groups), !(cAutoDownloadPhoto() & dbiadNoGroups))
+, _audioPrivate(this, lang(lng_media_auto_private_chats), !(cAutoDownloadAudio() & dbiadNoPrivate))
+, _audioGroups(this, lang(lng_media_auto_groups), !(cAutoDownloadAudio() & dbiadNoGroups))
+, _gifPrivate(this, lang(lng_media_auto_private_chats), !(cAutoDownloadGif() & dbiadNoPrivate))
+, _gifGroups(this, lang(lng_media_auto_groups), !(cAutoDownloadGif() & dbiadNoGroups))
+, _gifPlay(this, lang(lng_media_auto_play), cAutoPlayGif())
+, _sectionHeight(st::boxTitleHeight + 2 * (st::defaultCheckbox.height + st::setLittleSkip))
+, _save(this, lang(lng_connection_save), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
+
+	setMaxHeight(3 * _sectionHeight + st::setLittleSkip + _gifPlay.height() + st::setLittleSkip + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+
+	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
+	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+
+	prepare();
+}
+
+void AutoDownloadBox::hideAll() {
+	_photoPrivate.hide();
+	_photoGroups.hide();
+	_audioPrivate.hide();
+	_audioGroups.hide();
+	_gifPrivate.hide();
+	_gifGroups.hide();
+	_gifPlay.hide();
+
+	_save.hide();
+	_cancel.hide();
+}
+
+void AutoDownloadBox::showAll() {
+	_photoPrivate.show();
+	_photoGroups.show();
+	_audioPrivate.show();
+	_audioGroups.show();
+	_gifPrivate.show();
+	_gifGroups.show();
+	_gifPlay.show();
+
+	_save.show();
+	_cancel.show();
+}
+
+void AutoDownloadBox::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	if (paint(p)) return;
+
+	p.setPen(st::black);
+	p.setFont(st::semiboldFont);
+	p.drawTextLeft(st::boxTitlePosition.x(), st::boxTitlePosition.y(), width(), lang(lng_media_auto_photo));
+	p.drawTextLeft(st::boxTitlePosition.x(), _sectionHeight + st::boxTitlePosition.y(), width(), lang(lng_media_auto_audio));
+	p.drawTextLeft(st::boxTitlePosition.x(), 2 * _sectionHeight + st::boxTitlePosition.y(), width(), lang(lng_media_auto_gif));
+}
+
+void AutoDownloadBox::resizeEvent(QResizeEvent *e) {
+	_photoPrivate.moveToLeft(st::boxTitlePosition.x(), st::boxTitleHeight + st::setLittleSkip);
+	_photoGroups.moveToLeft(st::boxTitlePosition.x(), _photoPrivate.y() + _photoPrivate.height() + st::setLittleSkip);
+
+	_audioPrivate.moveToLeft(st::boxTitlePosition.x(), _sectionHeight + st::boxTitleHeight + st::setLittleSkip);
+	_audioGroups.moveToLeft(st::boxTitlePosition.x(), _audioPrivate.y() + _audioPrivate.height() + st::setLittleSkip);
+
+	_gifPrivate.moveToLeft(st::boxTitlePosition.x(), 2 * _sectionHeight + st::boxTitleHeight + st::setLittleSkip);
+	_gifGroups.moveToLeft(st::boxTitlePosition.x(), _gifPrivate.y() + _gifPrivate.height() + st::setLittleSkip);
+	_gifPlay.moveToLeft(st::boxTitlePosition.x(), _gifGroups.y() + _gifGroups.height() + st::setLittleSkip);
+
+	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
+	_cancel.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
+}
+
+void AutoDownloadBox::onSave() {
+	bool changed = false;
+	int32 autoDownloadPhoto = (_photoPrivate.checked() ? 0 : dbiadNoPrivate) | (_photoGroups.checked() ? 0 : dbiadNoGroups);
+	if (cAutoDownloadPhoto() != autoDownloadPhoto) {
+		bool enabledPrivate = ((cAutoDownloadPhoto() & dbiadNoPrivate) && !(autoDownloadPhoto & dbiadNoPrivate));
+		bool enabledGroups = ((cAutoDownloadPhoto() & dbiadNoGroups) && !(autoDownloadPhoto & dbiadNoGroups));
+		cSetAutoDownloadPhoto(autoDownloadPhoto);
+		if (enabledPrivate || enabledGroups) {
+			const PhotosData &data(App::photosData());
+			for (PhotosData::const_iterator i = data.cbegin(), e = data.cend(); i != e; ++i) {
+				i.value()->automaticLoadSettingsChanged();
+			}
+		}
+		changed = true;
+	}
+	int32 autoDownloadAudio = (_audioPrivate.checked() ? 0 : dbiadNoPrivate) | (_audioGroups.checked() ? 0 : dbiadNoGroups);
+	if (cAutoDownloadAudio() != autoDownloadAudio) {
+		bool enabledPrivate = ((cAutoDownloadAudio() & dbiadNoPrivate) && !(autoDownloadAudio & dbiadNoPrivate));
+		bool enabledGroups = ((cAutoDownloadAudio() & dbiadNoGroups) && !(autoDownloadAudio & dbiadNoGroups));
+		cSetAutoDownloadAudio(autoDownloadAudio);
+		if (enabledPrivate || enabledGroups) {
+			const AudiosData &data(App::audiosData());
+			for (AudiosData::const_iterator i = data.cbegin(), e = data.cend(); i != e; ++i) {
+				i.value()->automaticLoadSettingsChanged();
+			}
+		}
+		changed = true;
+	}
+	int32 autoDownloadGif = (_gifPrivate.checked() ? 0 : dbiadNoPrivate) | (_gifGroups.checked() ? 0 : dbiadNoGroups);
+	if (cAutoDownloadGif() != autoDownloadGif) {
+		bool enabledPrivate = ((cAutoDownloadGif() & dbiadNoPrivate) && !(autoDownloadGif & dbiadNoPrivate));
+		bool enabledGroups = ((cAutoDownloadGif() & dbiadNoGroups) && !(autoDownloadGif & dbiadNoGroups));
+		cSetAutoDownloadGif(autoDownloadGif);
+		if (enabledPrivate || enabledGroups) {
+			const DocumentsData &data(App::documentsData());
+			for (DocumentsData::const_iterator i = data.cbegin(), e = data.cend(); i != e; ++i) {
+				i.value()->automaticLoadSettingsChanged();
+			}
+			Notify::automaticLoadSettingsChangedGif();
+		}
+		changed = true;
+	}
+	if (cAutoPlayGif() != _gifPlay.checked()) {
+		cSetAutoPlayGif(_gifPlay.checked());
+		if (!cAutoPlayGif()) {
+			App::stopGifItems();
+		}
+		changed = true;
+	}
+	if (changed) Local::writeUserSettings();
+	onClose();
 }

@@ -45,13 +45,16 @@ namespace {
 	};
 }
 
-IntroPhone::IntroPhone(IntroWidget *parent) : IntroStage(parent),
-    errorAlpha(0), changed(false),
-	next(this, lang(lng_intro_next), st::btnIntroNext),
-	country(this, st::introCountry),
-	phone(this, st::inpIntroPhone), code(this, st::inpIntroCountryCode),
-	_signup(this, lng_phone_notreg(lt_signup_start, textcmdStartLink(1), lt_signup_end, textcmdStopLink()), st::introErrLabel, st::introErrLabelTextStyle),
-    _showSignup(false) {
+IntroPhone::IntroPhone(IntroWidget *parent) : IntroStage(parent)
+, a_errorAlpha(0)
+, _a_error(animation(this, &IntroPhone::step_error))
+, changed(false)
+, next(this, lang(lng_intro_next), st::btnIntroNext)
+, country(this, st::introCountry)
+, phone(this, st::inpIntroPhone)
+, code(this, st::inpIntroCountryCode)
+, _signup(this, lng_phone_notreg(lt_signup_start, textcmdStartLink(1), lt_signup_end, textcmdStopLink()), st::introErrLabel, st::introErrLabelTextStyle)
+, _showSignup(false) {
 	setVisible(false);
 	setGeometry(parent->innerRect());
 
@@ -92,9 +95,9 @@ void IntroPhone::paintEvent(QPaintEvent *e) {
 		p.setFont(st::introFont->f);
 		p.drawText(textRect, lang(lng_phone_desc), style::al_bottom);
 	}
-	if (animating() || error.length()) {
+	if (_a_error.animating() || error.length()) {
 		int32 errorY = _showSignup ? ((phone.y() + phone.height() + next.y() - st::introErrFont->height) / 2) : (next.y() + next.height() + st::introErrTop);
-		p.setOpacity(errorAlpha.current());
+		p.setOpacity(a_errorAlpha.current());
 		p.setFont(st::introErrFont->f);
 		p.setPen(st::introErrColor->p);
 		p.drawText(QRect(textRect.x(), errorY, textRect.width(), st::introErrFont->height), error, style::al_top);
@@ -123,36 +126,34 @@ void IntroPhone::showError(const QString &err, bool signUp) {
 		_showSignup = signUp;
 	}
 
-	if (!animating() && err == error) return;
+	if (!_a_error.animating() && err == error) return;
 
 	if (err.length()) {
 		error = err;
-		errorAlpha.start(1);
+		a_errorAlpha.start(1);
 	} else {
-		errorAlpha.start(0);
+		a_errorAlpha.start(0);
 	}
 	_signup.hide();
-	anim::start(this);
+	_a_error.start();
 }
 
-bool IntroPhone::animStep(float64 ms) {
+void IntroPhone::step_error(float64 ms, bool timer) {
 	float64 dt = ms / st::introErrDuration;
 
-	bool res = true;
 	if (dt >= 1) {
-		res = false;
-		errorAlpha.finish();
-		if (!errorAlpha.current()) {
+		_a_error.stop();
+		a_errorAlpha.finish();
+		if (!a_errorAlpha.current()) {
 			error = "";
 			_signup.hide();
 		} else if (!error.isEmpty() && _showSignup) {
 			_signup.show();
 		}
 	} else {
-		errorAlpha.update(dt, st::introErrFunc);
+		a_errorAlpha.update(dt, st::introErrFunc);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 void IntroPhone::countryChanged() {
@@ -293,7 +294,7 @@ void IntroPhone::selectCountry(const QString &c) {
 
 void IntroPhone::activate() {
 	error = "";
-	errorAlpha = anim::fvalue(0);
+	a_errorAlpha = anim::fvalue(0);
 	show();
 	enableAll(true);
 }

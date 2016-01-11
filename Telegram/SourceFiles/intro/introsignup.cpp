@@ -30,12 +30,15 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "intro/introsignup.h"
 #include "intro/intro.h"
 
-IntroSignup::IntroSignup(IntroWidget *parent) : IntroStage(parent),
-	errorAlpha(0), a_photo(0),
-	next(this, lang(lng_intro_finish), st::btnIntroNext),
-	first(this, st::inpIntroName, lang(lng_signup_firstname)),
-	last(this, st::inpIntroName, lang(lng_signup_lastname)),
-	_invertOrder(langFirstNameGoesSecond()) {
+IntroSignup::IntroSignup(IntroWidget *parent) : IntroStage(parent)
+, a_errorAlpha(0)
+, a_photoOver(0)
+, _a_error(animation(this, &IntroSignup::step_error))
+, _a_photo(animation(this, &IntroSignup::step_photo))
+, next(this, lang(lng_intro_finish), st::btnIntroNext)
+, first(this, st::inpIntroName, lang(lng_signup_firstname))
+, last(this, st::inpIntroName, lang(lng_signup_lastname))
+, _invertOrder(langFirstNameGoesSecond()) {
 	setVisible(false);
 	setGeometry(parent->innerRect());
 
@@ -54,9 +57,8 @@ void IntroSignup::mouseMoveEvent(QMouseEvent *e) {
 	if (photoOver != _photoOver) {
 		_photoOver = photoOver;
 		if (_photoSmall.isNull()) {
-			a_photo.start(_photoOver ? 1 : 0);
-			errorAlpha.restart();
-			anim::start(this);
+			a_photoOver.start(_photoOver ? 1 : 0);
+			_a_photo.start();
 		}
 	}
 
@@ -90,7 +92,7 @@ void IntroSignup::mousePressEvent(QMouseEvent *e) {
 		}
 		PhotoCropBox *box = new PhotoCropBox(img, PeerId(0));
 		connect(box, SIGNAL(ready(const QImage &)), this, SLOT(onPhotoReady(const QImage &)));
-		App::wnd()->showLayer(box);
+		Ui::showLayer(box);
 	}
 }
 
@@ -107,8 +109,8 @@ void IntroSignup::paintEvent(QPaintEvent *e) {
 		p.setFont(st::introFont->f);
 		p.drawText(textRect, lang(lng_signup_desc), style::al_bottom);
 	}
-	if (animating() || error.length()) {
-		p.setOpacity(errorAlpha.current());
+	if (_a_error.animating() || error.length()) {
+		p.setOpacity(a_errorAlpha.current());
 
 		QRect errRect;
 		if (_invertOrder) {
@@ -124,17 +126,17 @@ void IntroSignup::paintEvent(QPaintEvent *e) {
 	}
 
 	if (_photoSmall.isNull()) {
-		if (a_photo.current() < 1) {
+		if (a_photoOver.current() < 1) {
 			QRect pix(st::setPhotoImg);
 			pix.moveTo(pix.x() + (pix.width() - st::introPhotoSize) / 2, pix.y() + (pix.height() - st::introPhotoSize) / 2);
 			pix.setSize(QSize(st::introPhotoSize, st::introPhotoSize));
 			p.drawPixmap(QPoint(_phLeft, _phTop), App::sprite(), pix);
 		}
-		if (a_photo.current() > 0) {
+		if (a_photoOver.current() > 0) {
 			QRect pix(st::setOverPhotoImg);
 			pix.moveTo(pix.x() + (pix.width() - st::introPhotoSize) / 2, pix.y() + (pix.height() - st::introPhotoSize) / 2);
 			pix.setSize(QSize(st::introPhotoSize, st::introPhotoSize));
-			p.setOpacity(a_photo.current());
+			p.setOpacity(a_photoOver.current());
 			p.drawPixmap(QPoint(_phLeft, _phTop), App::sprite(), pix);
 			p.setOpacity(1);
 		}
@@ -160,35 +162,42 @@ void IntroSignup::resizeEvent(QResizeEvent *e) {
 }
 
 void IntroSignup::showError(const QString &err) {
-	if (!animating() && err == error) return;
+	if (!_a_error.animating() && err == error) return;
 
 	if (err.length()) {
 		error = err;
-		errorAlpha.start(1);
+		a_errorAlpha.start(1);
 	} else {
-		errorAlpha.start(0);
+		a_errorAlpha.start(0);
 	}
-	a_photo.restart();
-	anim::start(this);
+	_a_error.start();
 }
 
-bool IntroSignup::animStep(float64 ms) {
+void IntroSignup::step_error(float64 ms, bool timer) {
 	float64 dt = ms / st::introErrDuration;
 
-	bool res = true;
 	if (dt >= 1) {
-		res = false;
-		errorAlpha.finish();
-		if (!errorAlpha.current()) {
+		_a_error.stop();
+		a_errorAlpha.finish();
+		if (!a_errorAlpha.current()) {
 			error = "";
 		}
-		a_photo.finish();
 	} else {
-		errorAlpha.update(dt, st::introErrFunc);
-		a_photo.update(dt, anim::linear);
+		a_errorAlpha.update(dt, st::introErrFunc);
 	}
-	update();
-	return res;
+	if (timer) update();
+}
+
+void IntroSignup::step_photo(float64 ms, bool timer) {
+	float64 dt = ms / st::introErrDuration;
+
+	if (dt >= 1) {
+		_a_photo.stop();
+		a_photoOver.finish();
+	} else {
+		a_photoOver.update(dt, anim::linear);
+	}
+	if (timer) update();
 }
 
 void IntroSignup::activate() {

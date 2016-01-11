@@ -43,8 +43,8 @@ public:
 	void nextPressed();
 	void stopPressed();
 
-	bool progressStep(float64 ms);
-	bool stateStep(float64 ms);
+	void step_progress(float64 ms, bool timer);
+	void step_state(uint64 ms, bool timer);
 
 	void updateState(SongMsgId playing, AudioPlayerState playingState, int64 playingPosition, int64 playingDuration, int32 playingFrequency);
 	void updateState();
@@ -97,7 +97,7 @@ private:
 	float64 _stateHovers[OverStateCount];
 	typedef QMap<int32, uint64> StateAnimations;
 	StateAnimations _stateAnimations;
-	Animation _stateAnim;
+	Animation _a_state;
 
 	SongMsgId _song;
 	bool _msgmigrated;
@@ -114,7 +114,7 @@ private:
 	int32 _loaded;
 
 	anim::fvalue a_progress, a_loadProgress;
-	Animation _progressAnim;
+	Animation _a_progress;
 
 	PlainShadow _sideShadow;
 

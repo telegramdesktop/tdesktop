@@ -21,10 +21,14 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "gui/flatbutton.h"
 
-FlatButton::FlatButton(QWidget *parent, const QString &text, const style::flatButton &st) : Button(parent),
-	_text(text),
-	_st(st), _autoFontPadding(0),
-	a_bg(st.bgColor->c), a_text(st.color->c), _opacity(1) {
+FlatButton::FlatButton(QWidget *parent, const QString &text, const style::flatButton &st) : Button(parent)
+, _text(text)
+, _st(st)
+, _autoFontPadding(0)
+, a_bg(st.bgColor->c)
+, a_text(st.color->c)
+, _a_appearance(animation(this, &FlatButton::step_appearance))
+, _opacity(1) {
 	if (_st.width < 0) {
 		_st.width = textWidth() - _st.width;
 	} else if (!_st.width) {
@@ -88,19 +92,17 @@ void FlatButton::resizeEvent(QResizeEvent *e) {
 	return Button::resizeEvent(e);
 }
 
-bool FlatButton::animStep(float64 ms) {
+void FlatButton::step_appearance(float64 ms, bool timer) {
 	float64 dt = ms / _st.duration;
-	bool res = true;
 	if (dt >= 1) {
+		_a_appearance.stop();
 		a_bg.finish();
 		a_text.finish();
-		res = false;
 	} else {
 		a_bg.update(dt, anim::linear);
 		a_text.update(dt, anim::linear);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 void FlatButton::onStateChange(int oldState, ButtonStateChangeSource source) {
@@ -110,12 +112,12 @@ void FlatButton::onStateChange(int oldState, ButtonStateChangeSource source) {
 	a_bg.start(bgColorTo->c);
 	a_text.start(colorTo->c);
 	if (source == ButtonByUser || source == ButtonByPress) {
-		anim::stop(this);
+		_a_appearance.stop();
 		a_bg.finish();
 		a_text.finish();
 		update();
 	} else {
-		anim::start(this);
+		_a_appearance.start();
 	}
 }
 
@@ -164,8 +166,14 @@ void LinkButton::onStateChange(int oldState, ButtonStateChangeSource source) {
 LinkButton::~LinkButton() {
 }
 
-IconedButton::IconedButton(QWidget *parent, const style::iconedButton &st, const QString &text) : Button(parent),
-	_text(text), _st(st), _width(_st.width), a_opacity(_st.opacity), a_bg(_st.bgColor->c), _opacity(1) {
+IconedButton::IconedButton(QWidget *parent, const style::iconedButton &st, const QString &text) : Button(parent)
+, _text(text)
+, _st(st)
+, _width(_st.width)
+, a_opacity(_st.opacity)
+, a_bg(_st.bgColor->c)
+, _a_appearance(animation(this, &IconedButton::step_appearance))
+, _opacity(1) {
 
 	if (_width < 0) {
 		_width = _st.font->width(text) - _width;
@@ -199,25 +207,23 @@ QString IconedButton::getText() const {
 	return _text;
 }
 
-bool IconedButton::animStep(float64 ms) {
-	bool res = true;
+void IconedButton::step_appearance(float64 ms, bool timer) {
 	if (_st.duration <= 1) {
+		_a_appearance.stop();
 		a_opacity.finish();
 		a_bg.finish();
-		res = false;
 	} else {
 		float64 dt = ms / _st.duration;
 		if (dt >= 1) {
+			_a_appearance.stop();
 			a_opacity.finish();
 			a_bg.finish();
-			res = false;
 		} else {
 			a_opacity.update(dt, anim::linear);
 			a_bg.update(dt, anim::linear);
 		}
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 void IconedButton::onStateChange(int oldState, ButtonStateChangeSource source) {
@@ -225,12 +231,12 @@ void IconedButton::onStateChange(int oldState, ButtonStateChangeSource source) {
 	a_bg.start(((_state & (StateOver | StateDown)) ? _st.overBgColor : _st.bgColor)->c);
 
 	if (source == ButtonByUser || source == ButtonByPress) {
-		anim::stop(this);
+		_a_appearance.stop();
 		a_opacity.finish();
 		a_bg.finish();
 		update();
 	} else {
-		anim::start(this);
+		_a_appearance.start();
 	}
 }
 
@@ -283,10 +289,65 @@ void MaskedButton::paintEvent(QPaintEvent *e) {
 	}
 }
 
-BoxButton::BoxButton(QWidget *parent, const QString &text, const style::BoxButton &st) : Button(parent),
-_text(text.toUpper()), _fullText(text.toUpper()), _textWidth(st.font->width(_text)),
-_st(st),
-a_textBgOverOpacity(0), a_textFg(st.textFg->c), _a_over(animFunc(this, &BoxButton::animStep_over)) {
+EmojiButton::EmojiButton(QWidget *parent, const style::iconedButton &st) : IconedButton(parent, st)
+, _loading(false)
+, _a_loading(animation(this, &EmojiButton::step_loading)) {
+}
+
+void EmojiButton::paintEvent(QPaintEvent *e) {
+	QPainter p(this);
+
+	uint64 ms = getms();
+	float64 loading = a_loading.current(ms, _loading ? 1 : 0);
+	p.setOpacity(_opacity * (1 - loading));
+
+	p.fillRect(e->rect(), a_bg.current());
+
+	p.setOpacity(a_opacity.current() * _opacity * (1 - loading));
+
+	const QRect &i((_state & StateDown) ? _st.downIcon : _st.icon);
+	if (i.width()) {
+		const QPoint &t((_state & StateDown) ? _st.downIconPos : _st.iconPos);
+		p.drawPixmap(t, App::sprite(), i);
+	}
+
+	p.setOpacity(a_opacity.current() * _opacity);
+	p.setPen(QPen(st::emojiCircleFg, st::emojiCircleLine));
+	p.setBrush(Qt::NoBrush);
+
+	p.setRenderHint(QPainter::HighQualityAntialiasing);
+	QRect inner(QPoint((width() - st::emojiCircle.width()) / 2, st::emojiCircleTop), st::emojiCircle);
+	if (loading > 0) {
+		int32 full = 5760;
+		int32 start = qRound(full * float64(ms % uint64(st::emojiCirclePeriod)) / st::emojiCirclePeriod), part = qRound(loading * full / st::emojiCirclePart);
+		p.drawArc(inner, start, full - part);
+	} else {
+		p.drawEllipse(inner);
+	}
+	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+}
+
+void EmojiButton::setLoading(bool loading) {
+	if (_loading != loading) {
+		EnsureAnimation(a_loading, _loading ? 1. : 0., func(this, &EmojiButton::update));
+		a_loading.start(loading ? 1. : 0., st::emojiCircleDuration);
+		_loading = loading;
+		if (_loading) {
+			_a_loading.start();
+		} else {
+			_a_loading.stop();
+		}
+	}
+}
+
+BoxButton::BoxButton(QWidget *parent, const QString &text, const style::BoxButton &st) : Button(parent)
+, _text(text.toUpper())
+, _fullText(text.toUpper())
+, _textWidth(st.font->width(_text))
+, _st(st)
+, a_textBgOverOpacity(0)
+, a_textFg(st.textFg->c)
+, _a_over(animation(this, &BoxButton::step_over)) {
 	if (_st.width <= 0) {
 		resize(_textWidth - _st.width, _st.height);
 	} else {
@@ -322,19 +383,17 @@ void BoxButton::paintEvent(QPaintEvent *e) {
 	p.drawText((width() - _textWidth) / 2, _st.textTop + _st.font->ascent, _text);
 }
 
-bool BoxButton::animStep_over(float64 ms) {
+void BoxButton::step_over(float64 ms, bool timer) {
 	float64 dt = ms / _st.duration;
-	bool res = true;
 	if (dt >= 1) {
+		_a_over.stop();
 		a_textFg.finish();
 		a_textBgOverOpacity.finish();
-		res = false;
 	} else {
 		a_textFg.update(dt, anim::linear);
 		a_textBgOverOpacity.update(dt, anim::linear);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
 void BoxButton::onStateChange(int oldState, ButtonStateChangeSource source) {

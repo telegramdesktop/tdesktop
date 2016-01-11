@@ -190,9 +190,11 @@ struct FileLoadResult {
 	QByteArray content;
 
 	QString filename;
+	QString filemime;
 	int32 filesize;
 	UploadFileParts fileparts;
 	QByteArray filemd5;
+	int32 partssize;
 
 	uint64 thumbId; // id is always file-id of media, thumbId is file-id of thumb ( == id for photos)
 	QString thumbname;
@@ -205,14 +207,16 @@ struct FileLoadResult {
 	MTPDocument document;
 
 	PreparedPhotoThumbs photoThumbs;
-	QString photoCaption;
+	QString caption;
 
 	QString originalText; // when pasted had an image mime save text mime here to insert if image send was cancelled
 
 	void setFileData(const QByteArray &filedata) {
-		if (!filedata.isEmpty()) {
-			int32 size = filedata.size();
-			for (int32 i = 0, part = 0; i < size; i += UploadPartSize, ++part) {
+		if (filedata.isEmpty()) {
+			partssize = 0;
+		} else {
+			partssize = filedata.size();
+			for (int32 i = 0, part = 0; i < partssize; i += UploadPartSize, ++part) {
 				fileparts.insert(part, filedata.mid(i, UploadPartSize));
 			}
 			filemd5.resize(32);

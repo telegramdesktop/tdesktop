@@ -45,11 +45,15 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include <lzma.h>
 #endif
 
-#if defined Q_OS_WIN
-#define _NEED_WIN_GENERATE_DUMP
-#elif defined Q_OS_LINUX32 || defined Q_OS_LINUX64
-#define _NEED_LINUX_GENERATE_DUMP
-#endif
+extern "C" {
+
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/opt.h>
+#include <libswresample/swresample.h>
+#include <libswscale/swscale.h>
+
+}
 
 #include "types.h"
 #include "config.h"
@@ -64,7 +68,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "gui/flatbutton.h"
 #include "gui/boxshadow.h"
 #include "gui/popupmenu.h"
-#include "gui/switcher.h"
 #include "gui/scrollarea.h"
 #include "gui/images.h"
 #include "gui/text.h"

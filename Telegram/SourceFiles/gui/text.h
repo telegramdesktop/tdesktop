@@ -323,6 +323,8 @@ public:
 	virtual bool fullDisplayed() const {
 		return true;
 	}
+	virtual void setFullDisplayed(bool full) {
+	}
 	virtual QString encoded() const {
 		return QString();
 	}
@@ -362,6 +364,10 @@ public:
 
 	bool fullDisplayed() const {
 		return _fullDisplayed;
+	}
+
+	void setFullDisplayed(bool full) {
+		_fullDisplayed = full;
 	}
 
 	QString encoded() const {
@@ -679,6 +685,8 @@ const TextLinkPtr &textlnkOver();
 
 void textlnkDown(const TextLinkPtr &lnk);
 const TextLinkPtr &textlnkDown();
+
+bool textlnkDrawOver(const TextLinkPtr &lnk);
 
 // textcmd
 QString textcmdSkipBlock(ushort w, ushort h);

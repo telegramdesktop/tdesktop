@@ -21,7 +21,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #pragma once
 
 class ProfileWidget;
-class ProfileInner : public TWidget, public RPCSender, public Animated {
+class ProfileInner : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -44,7 +44,7 @@ public:
 	void resizeEvent(QResizeEvent *e);
 	void contextMenuEvent(QContextMenuEvent *e);
 
-	bool animStep(float64 ms);
+	void step_photo(float64 ms, bool timer);
 
 	PeerData *peer() const;
 	bool allMediaShown() const;
@@ -162,7 +162,8 @@ private:
 	Text _about;
 	int32 _aboutTop, _aboutHeight;
 
-	anim::fvalue a_photo;
+	anim::fvalue a_photoOver;
+	Animation _a_photo;
 	bool _photoOver;
 
 	QString _errorText;
@@ -235,7 +236,7 @@ public:
 	int32 lastScrollTop() const;
 
 	void animShow(const QPixmap &oldAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false, int32 lastScrollTop = -1);
-	bool animStep_show(float64 ms);
+	void step_show(float64 ms, bool timer);
 
 	void updateOnlineDisplay();
 	void updateOnlineDisplayTimer();

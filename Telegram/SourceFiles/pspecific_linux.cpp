@@ -1,17 +1,17 @@
 /*
 This file is part of Telegram Desktop,
 the official desktop version of Telegram messaging app, see https://telegram.org
- 
+
 Telegram Desktop is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
- 
+
 It is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
- 
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
@@ -520,7 +520,7 @@ namespace {
 };
 
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent),
-posInited(false), trayIcon(0), trayIconMenu(0), icon256(qsl(":/gui/art/icon256.png")), iconbig256(icon256), wndIcon(QPixmap::fromImage(icon256, Qt::ColorOnly)), _psCheckStatusIconLeft(100), _psLastIndicatorUpdate(0) {
+posInited(false), trayIcon(0), trayIconMenu(0), icon256(qsl(":/gui/art/icon256.png")), iconbig256(icon256), wndIcon(QIcon::fromTheme("telegram", QIcon(QPixmap::fromImage(icon256, Qt::ColorOnly)))), _psCheckStatusIconLeft(100), _psLastIndicatorUpdate(0) {
     connect(&_psCheckStatusIconTimer, SIGNAL(timeout()), this, SLOT(psStatusIconCheck()));
     _psCheckStatusIconTimer.setSingleShot(false);
 
@@ -667,7 +667,7 @@ void PsMainWindow::psUpdateCounter() {
     } else if (trayIcon) {
 		int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted);
 		bool muted = cIncludeMuted() ? (App::histories().unreadMuted >= counter) : false;
-		
+
 		style::color bg = muted ? st::counterMuteBG : st::counterBG;
         QIcon iconSmall;
         iconSmall.addPixmap(QPixmap::fromImage(iconWithCounter(16, counter, bg, true), Qt::ColorOnly));
@@ -1072,7 +1072,7 @@ QString psCurrentLanguage() {
 namespace {
     QString _psHomeDir() {
         struct passwd *pw = getpwuid(getuid());
-        return (pw && pw->pw_dir && strlen(pw->pw_dir)) ? (QString::fromLocal8Bit(pw->pw_dir) + '/') : QString();
+        return (pw && pw->pw_dir && strlen(pw->pw_dir)) ? (fromUtf8Safe(pw->pw_dir) + '/') : QString();
     }
 }
 
@@ -1086,7 +1086,7 @@ QString psDownloadPath() {
 }
 
 QString psCurrentExeDirectory(int argc, char *argv[]) {
-    QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
+    QString first = argc ? fromUtf8Safe(argv[0]) : QString();
     if (!first.isEmpty()) {
         QFileInfo info(first);
         if (info.isSymLink()) {
@@ -1100,7 +1100,7 @@ QString psCurrentExeDirectory(int argc, char *argv[]) {
 }
 
 QString psCurrentExeName(int argc, char *argv[]) {
-	QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
+	QString first = argc ? fromUtf8Safe(argv[0]) : QString();
 	if (!first.isEmpty()) {
 		QFileInfo info(first);
         if (info.isSymLink()) {
@@ -1142,7 +1142,7 @@ void psOpenFile(const QString &name, bool openWith) {
 }
 
 void psShowInFolder(const QString &name) {
-    App::wnd()->hideLayer(true);
+    Ui::hideLayer(true);
     system((qsl("xdg-open ") + escapeShell(QFileInfo(name).absoluteDir().absolutePath())).toUtf8().constData());
 }
 
@@ -1172,13 +1172,15 @@ void psRegisterCustomScheme() {
     DEBUG_LOG(("App Info: placing .desktop file"));
     if (QDir(home + qsl(".local/")).exists()) {
         QString apps = home + qsl(".local/share/applications/");
+        QString icons = home + qsl(".local/share/icons/");
         if (!QDir(apps).exists()) QDir().mkpath(apps);
+        if (!QDir(icons).exists()) QDir().mkpath(icons);
 
         QString path = cWorkingDir() + qsl("tdata/"), file = path + qsl("telegramdesktop.desktop");
         QDir().mkpath(path);
         QFile f(file);
         if (f.open(QIODevice::WriteOnly)) {
-            QString icon = path + qsl("icon.png");
+            QString icon = icons + qsl("telegram.png");
             if (!QFile(icon).exists()) {
                 if (QFile(qsl(":/gui/art/icon256.png")).copy(icon)) {
                     DEBUG_LOG(("App Info: Icon copied to 'tdata'"));
@@ -1194,7 +1196,7 @@ void psRegisterCustomScheme() {
             s << "Name=Telegram Desktop\n";
             s << "Comment=Official desktop version of Telegram messaging app\n";
             s << "Exec=" << escapeShell(cExeDir() + cExeName()) << " -- %u\n";
-            s << "Icon=" << icon << "\n";
+            s << "Icon=telegram\n";
             s << "Terminal=false\n";
             s << "StartupWMClass=Telegram\n";
             s << "Type=Application\n";

@@ -24,18 +24,34 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "flattextarea.h"
 #include "window.h"
 
-FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v) : QTextEdit(parent),
-_minHeight(-1), _maxHeight(-1), _maxLength(-1), _ctrlEnterSubmit(true),
-_oldtext(v), _phVisible(!v.length()),
-a_phLeft(_phVisible ? 0 : st.phShift), a_phAlpha(_phVisible ? 1 : 0), a_phColor(st.phColor->c),
-_st(st), _undoAvailable(false), _redoAvailable(false), _inDrop(false), _inHeightCheck(false), _fakeMargin(0),
-_touchPress(false), _touchRightButton(false), _touchMove(false), _correcting(false) {
+FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v) : QTextEdit(parent)
+, _minHeight(-1)
+, _maxHeight(-1)
+, _maxLength(-1)
+, _ctrlEnterSubmit(true)
+, _oldtext(v)
+, _phAfter(0)
+, _phVisible(!v.length())
+, a_phLeft(_phVisible ? 0 : st.phShift)
+, a_phAlpha(_phVisible ? 1 : 0)
+, a_phColor(st.phColor->c)
+, _a_appearance(animation(this, &FlatTextarea::step_appearance))
+, _st(st)
+, _undoAvailable(false)
+, _redoAvailable(false)
+, _inDrop(false)
+, _inHeightCheck(false)
+, _fakeMargin(0)
+, _touchPress(false)
+, _touchRightButton(false)
+, _touchMove(false)
+, _correcting(false) {
 	setAcceptRichText(false);
 	resize(_st.width, _st.font->height);
-	
+
 	setFont(_st.font->f);
 	setAlignment(_st.align);
-	
+
 	setPlaceholder(pholder);
 
 	QPalette p(palette());
@@ -72,12 +88,25 @@ _touchPress(false), _touchRightButton(false), _touchMove(false), _correcting(fal
 	}
 }
 
-void FlatTextarea::setTextFast(const QString &text) {
-	setPlainText(text);
-	if (animating()) {
+void FlatTextarea::setTextFast(const QString &text, bool clearUndoHistory) {
+	if (clearUndoHistory) {
+		setPlainText(text);
+	} else {
+		QTextCursor c(document()->docHandle(), 0);
+		c.joinPreviousEditBlock();
+		c.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+		c.insertText(text);
+		c.movePosition(QTextCursor::End);
+		c.endEditBlock();
+	}
+	finishPlaceholder();
+}
+
+void FlatTextarea::finishPlaceholder() {
+	if (_a_appearance.animating()) {
 		a_phLeft.finish();
 		a_phAlpha.finish();
-		anim::stop(this);
+		_a_appearance.stop();
 		update();
 	}
 }
@@ -184,17 +213,21 @@ void FlatTextarea::paintEvent(QPaintEvent *e) {
 	QRect r(rect().intersected(e->rect()));
 	p.fillRect(r, _st.bgColor->b);
 	bool phDraw = _phVisible;
-	if (animating()) {
+	if (_a_appearance.animating()) {
 		p.setOpacity(a_phAlpha.current());
 		phDraw = true;
 	}
 	if (phDraw) {
 		p.save();
 		p.setClipRect(r);
-		QRect phRect(_st.textMrg.left() - _fakeMargin + _st.phPos.x() + a_phLeft.current(), _st.textMrg.top() - _fakeMargin + _st.phPos.y(), width() - _st.textMrg.left() - _st.textMrg.right(), height() - _st.textMrg.top() - _st.textMrg.bottom());
-		p.setFont(_st.font->f);
+		p.setFont(_st.font);
 		p.setPen(a_phColor.current());
-		p.drawText(phRect, _ph, QTextOption(_st.phAlign));
+		if (_st.phAlign == style::al_topleft && _phAfter > 0) {
+			p.drawText(_st.textMrg.left() - _fakeMargin + a_phLeft.current() + _st.font->width(getLastText().mid(0, _phAfter)), _st.textMrg.top() - _fakeMargin - st::lineWidth + _st.font->ascent, _ph);
+		} else {
+			QRect phRect(_st.textMrg.left() - _fakeMargin + _st.phPos.x() + a_phLeft.current(), _st.textMrg.top() - _fakeMargin + _st.phPos.y(), width() - _st.textMrg.left() - _st.textMrg.right(), height() - _st.textMrg.top() - _st.textMrg.bottom());
+			p.drawText(phRect, _ph, QTextOption(_st.phAlign));
+		}
 		p.restore();
 		p.setOpacity(1);
 	}
@@ -203,13 +236,13 @@ void FlatTextarea::paintEvent(QPaintEvent *e) {
 
 void FlatTextarea::focusInEvent(QFocusEvent *e) {
 	a_phColor.start(_st.phFocusColor->c);
-	anim::start(this);
+	_a_appearance.start();
 	QTextEdit::focusInEvent(e);
 }
 
 void FlatTextarea::focusOutEvent(QFocusEvent *e) {
 	a_phColor.start(_st.phColor->c);
-	anim::start(this);
+	_a_appearance.start();
 	QTextEdit::focusOutEvent(e);
 }
 
@@ -226,7 +259,7 @@ EmojiPtr FlatTextarea::getSingleEmoji() const {
 	QTextFragment fragment;
 
 	getSingleEmojiFragment(text, fragment);
-	
+
 	if (!text.isEmpty()) {
 		QTextCharFormat format = fragment.charFormat();
 		QString imageName = static_cast<QTextImageFormat*>(&format)->name();
@@ -237,10 +270,62 @@ EmojiPtr FlatTextarea::getSingleEmoji() const {
 	return 0;
 }
 
-void FlatTextarea::getMentionHashtagBotCommandStart(QString &start) const {
-	int32 pos = textCursor().position();
-	if (textCursor().anchor() != pos) return;
+QString FlatTextarea::getInlineBotQuery(UserData *&inlineBot, QString &inlineBotUsername) const {
+	const QString &text(getLastText());
 
+	int32 inlineUsernameStart = 1, inlineUsernameLength = 0, size = text.size();
+	if (size > 2 && text.at(0) == '@' && text.at(1).isLetter()) {
+		inlineUsernameLength = 1;
+		for (int32 i = inlineUsernameStart + 1, l = text.size(); i < l; ++i) {
+			if (text.at(i).isLetterOrNumber() || text.at(i).unicode() == '_') {
+				++inlineUsernameLength;
+				continue;
+			}
+			if (!text.at(i).isSpace()) {
+				inlineUsernameLength = 0;
+			}
+			break;
+		}
+		if (inlineUsernameLength && inlineUsernameStart + inlineUsernameLength < text.size() && text.at(inlineUsernameStart + inlineUsernameLength).isSpace()) {
+			QStringRef username = text.midRef(inlineUsernameStart, inlineUsernameLength);
+			if (username != inlineBotUsername) {
+				inlineBotUsername = username.toString();
+				PeerData *peer = App::peerByName(inlineBotUsername);
+				if (peer) {
+					if (peer->isUser()) {
+						inlineBot = peer->asUser();
+					} else {
+						inlineBot = 0;
+					}
+				} else {
+					inlineBot = InlineBotLookingUpData;
+				}
+			}
+			if (inlineBot == InlineBotLookingUpData) return QString();
+
+			if (inlineBot && (!inlineBot->botInfo || inlineBot->botInfo->inlinePlaceholder.isEmpty())) {
+				inlineBot = 0;
+			} else {
+				return text.mid(inlineUsernameStart + inlineUsernameLength + 1);
+			}
+		} else {
+			inlineUsernameLength = 0;
+		}
+	}
+	if (inlineUsernameLength < 3) {
+		inlineBot = 0;
+		inlineBotUsername = QString();
+	}
+	return QString();
+}
+
+QString FlatTextarea::getMentionHashtagBotCommandPart(bool &start) const {
+	start = false;
+
+	int32 pos = textCursor().position();
+	if (textCursor().anchor() != pos) return QString();
+
+	// check mention / hashtag / bot command
 	QTextDocument *doc(document());
 	QTextBlock block = doc->findBlock(pos);
 	for (QTextBlock::Iterator iter = block.begin(); !iter.atEnd(); ++iter) {
@@ -258,29 +343,33 @@ void FlatTextarea::getMentionHashtagBotCommandStart(QString &start) const {
 		for (int i = pos - p; i > 0; --i) {
 			if (t.at(i - 1) == '@') {
 				if ((pos - p - i < 1 || t.at(i).isLetter()) && (i < 2 || !(t.at(i - 2).isLetterOrNumber() || t.at(i - 2) == '_'))) {
-					start = t.mid(i - 1, pos - p - i + 1);
+					start = (i == 1) && (p == 0);
+					return t.mid(i - 1, pos - p - i + 1);
 				} else if ((pos - p - i < 1 || t.at(i).isLetter()) && i > 2 && (t.at(i - 2).isLetterOrNumber() || t.at(i - 2) == '_') && !mentionInCommand) {
 					mentionInCommand = true;
 					--i;
 					continue;
 				}
-				return;
+				return QString();
 			} else if (t.at(i - 1) == '#') {
 				if (i < 2 || !(t.at(i - 2).isLetterOrNumber() || t.at(i - 2) == '_')) {
-					start = t.mid(i - 1, pos - p - i + 1);
+					start = (i == 1) && (p == 0);
+					return t.mid(i - 1, pos - p - i + 1);
 				}
-				return;
+				return QString();
 			} else if (t.at(i - 1) == '/') {
 				if (i < 2) {
-					start = t.mid(i - 1, pos - p - i + 1);
+					start = (i == 1) && (p == 0);
+					return t.mid(i - 1, pos - p - i + 1);
 				}
-				return;
+				return QString();
 			}
 			if (pos - p - i > 127 || (!mentionInCommand && (pos - p - i > 63))) break;
 			if (!t.at(i - 1).isLetterOrNumber() && t.at(i - 1) != '_') break;
 		}
-		return;
+		break;
 	}
+	return QString();
 }
 
 void FlatTextarea::onMentionHashtagOrBotCommandInsert(QString str) {
@@ -649,7 +738,7 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 				const QChar *ch = t.constData(), *e = ch + t.size();
 				for (; ch != e; ++ch, ++fp) {
 					int32 emojiLen = 0;
-					emoji = emojiFromText(ch, e, emojiLen);
+					emoji = emojiFromText(ch, e, &emojiLen);
 					if (emoji) {
 						if (replacePosition >= 0) {
 							emoji = 0; // replace tilde char format first
@@ -701,7 +790,7 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 
 			emoji = 0;
 			replacePosition = -1;
-		} else {	
+		} else {
 			break;
 		}
 	}
@@ -807,11 +896,10 @@ void FlatTextarea::onRedoAvailable(bool avail) {
 	if (App::wnd()) App::wnd()->updateGlobalMenu();
 }
 
-bool FlatTextarea::animStep(float64 ms) {
+void FlatTextarea::step_appearance(float64 ms, bool timer) {
 	float dt = ms / _st.phDuration;
-	bool res = true;
 	if (dt >= 1) {
-		res = false;
+		_a_appearance.stop();
 		a_phLeft.finish();
 		a_phAlpha.finish();
 		a_phColor.finish();
@@ -823,23 +911,26 @@ bool FlatTextarea::animStep(float64 ms) {
 		a_phAlpha.update(dt, _st.phAlphaFunc);
 		a_phColor.update(dt, _st.phColorFunc);
 	}
-	update();
-	return res;
+	if (timer) update();
 }
 
-void FlatTextarea::setPlaceholder(const QString &ph) {
+void FlatTextarea::setPlaceholder(const QString &ph, int32 afterSymbols) {
 	_ph = ph;
-	_phelided = _st.font->elided(_ph, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1);
+	if (_phAfter != afterSymbols) {
+		_phAfter = afterSymbols;
+		updatePlaceholder();
+	}
+	_phelided = _st.font->elided(_ph, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1 - (_phAfter ? _st.font->width(getLastText().mid(0, _phAfter)) : 0));
 	if (_phVisible) update();
 }
 
 void FlatTextarea::updatePlaceholder() {
-	bool vis = getLastText().isEmpty();
+	bool vis = (getLastText().size() <= _phAfter);
 	if (vis == _phVisible) return;
 
 	a_phLeft.start(vis ? 0 : _st.phShift);
 	a_phAlpha.start(vis ? 1 : 0);
-	anim::start(this);
+	_a_appearance.start();
 
 	_phVisible = vis;
 }

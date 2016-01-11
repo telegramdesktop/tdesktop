@@ -108,16 +108,20 @@ RecentEmojiPack gRecentEmojis;
 RecentEmojisPreload gRecentEmojisPreload;
 EmojiColorVariants gEmojiVariants;
 
-int32 gStickersHash = 0;
-
 RecentStickerPreload gRecentStickersPreload;
 RecentStickerPack gRecentStickers;
 StickerSets gStickerSets;
 StickerSetsOrder gStickerSetsOrder;
-
 uint64 gLastStickersUpdate = 0;
 
+SavedGifs gSavedGifs;
+uint64 gLastSavedGifsUpdate = 0;
+bool gShowingSavedGifs = false;
+int32 gSavedGifsLimit = 100;
+
 RecentHashtagPack gRecentWriteHashtags, gRecentSearchHashtags;
+
+RecentInlineBots gRecentInlineBots;
 
 bool gPasswordRecovered = false;
 int32 gPasscodeBadTries = 0;
@@ -130,7 +134,6 @@ bool gRetina = false;
 float64 gRetinaFactor = 1.;
 int32 gIntRetinaFactor = 1;
 bool gCustomNotifies = true;
-uint64 gInstance = 0.;
 
 #ifdef Q_OS_WIN
 DBIPlatform gPlatform = dbipWindows;
@@ -171,6 +174,11 @@ SavedPeersByTime gSavedPeersByTime;
 
 ReportSpamStatuses gReportSpamStatuses;
 
+int32 gAutoDownloadPhoto = 0; // all auto download
+int32 gAutoDownloadAudio = 0;
+int32 gAutoDownloadGif = 0;
+bool gAutoPlayGif = true;
+
 void settingsParseArgs(int argc, char *argv[]) {
 #ifdef Q_OS_MAC
 	gIsElCapitan = (QSysInfo::macVersion() >= QSysInfo::MV_10_11);
@@ -181,7 +189,6 @@ void settingsParseArgs(int argc, char *argv[]) {
 		gCustomNotifies = false;
 	}
 #endif
-    memset_rand(&gInstance, sizeof(gInstance));
 	gExeDir = psCurrentExeDirectory(argc, argv);
 	gExeName = psCurrentExeName(argc, argv);
     for (int32 i = 0; i < argc; ++i) {
@@ -192,7 +199,7 @@ void settingsParseArgs(int argc, char *argv[]) {
 		} else if (string("-many") == argv[i]) {
 			gManyInstance = true;
 		} else if (string("-key") == argv[i] && i + 1 < argc) {
-			gKeyFile = QString::fromLocal8Bit(argv[++i]);
+			gKeyFile = fromUtf8Safe(argv[++i]);
 		} else if (string("-autostart") == argv[i]) {
 			gFromAutoStart = true;
 		} else if (string("-noupdate") == argv[i]) {
@@ -203,15 +210,15 @@ void settingsParseArgs(int argc, char *argv[]) {
 			gStartInTray = true;
 		} else if (string("-sendpath") == argv[i] && i + 1 < argc) {
 			for (++i; i < argc; ++i) {
-				gSendPaths.push_back(QString::fromLocal8Bit(argv[i]));
+				gSendPaths.push_back(fromUtf8Safe(argv[i]));
 			}
 		} else if (string("-workdir") == argv[i] && i + 1 < argc) {
-			QString dir = QString::fromLocal8Bit(argv[++i]);
+			QString dir = fromUtf8Safe(argv[++i]);
 			if (QDir().exists(dir)) {
 				gWorkingDir = dir;
 			}
 		} else if (string("--") == argv[i] && i + 1 < argc) {
-			gStartUrl = QString::fromLocal8Bit(argv[++i]);
+			gStartUrl = fromUtf8Safe(argv[++i]);
 		}
 	}
 }

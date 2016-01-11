@@ -1,17 +1,17 @@
 /*
 This file is part of Telegram Desktop,
 the official desktop version of Telegram messaging app, see https://telegram.org
- 
+
 Telegram Desktop is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
- 
+
 It is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
- 
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
@@ -76,14 +76,14 @@ void MacPrivate::notifyClicked(unsigned long long peer, int msgid) {
 				tomsg = false;
 			}
 		}
-		App::main()->showPeerHistory(history->peer->id, tomsg ? msgid : ShowAtUnreadMsgId);
+		Ui::showPeerHistory(history, tomsg ? msgid : ShowAtUnreadMsgId);
 		App::wnd()->notifyClear(history);
 	}
 }
 
 void MacPrivate::notifyReplied(unsigned long long peer, int msgid, const char *str) {
     History *history = App::history(PeerId(peer));
-    
+
 	App::main()->sendMessage(history, QString::fromUtf8(str), (msgid > 0 && !history->peer->isUser()) ? msgid : 0, false);
 }
 
@@ -592,7 +592,7 @@ QString psDownloadPath() {
 }
 
 QString psCurrentExeDirectory(int argc, char *argv[]) {
-    QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
+    QString first = argc ? fromUtf8Safe(argv[0]) : QString();
     if (!first.isEmpty()) {
         QFileInfo info(first);
         if (info.exists()) {
@@ -603,7 +603,7 @@ QString psCurrentExeDirectory(int argc, char *argv[]) {
 }
 
 QString psCurrentExeName(int argc, char *argv[]) {
-	QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
+	QString first = argc ? fromUtf8Safe(argv[0]) : QString();
 	if (!first.isEmpty()) {
 		QFileInfo info(first);
 		if (info.exists()) {

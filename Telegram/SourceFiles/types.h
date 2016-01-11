@@ -20,7 +20,30 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+template <typename T>
+void deleteAndMark(T *&link) {
+	delete link;
+	link = reinterpret_cast<T*>(0x00000BAD);
+}
+
+template <typename T>
+T *exchange(T *&ptr) {
+	T *result = 0;
+	qSwap(result, ptr);
+	return result;
+}
+
 struct NullType {
+};
+
+template <typename T>
+class OrderedSet : public QMap<T, NullType> {
+public:
+
+	void insert(const T &v) {
+		QMap<T, NullType>::insert(v, NullType());
+	}
+
 };
 
 //typedef unsigned char uchar; // Qt has uchar
@@ -32,6 +55,13 @@ typedef qint64 int64;
 typedef quint64 uint64;
 
 static const int32 ScrollMax = INT_MAX;
+
+extern uint64 _SharedMemoryLocation[];
+template <typename T, unsigned int N>
+T *SharedMemoryLocation() {
+	static_assert(N < 4, "Only 4 shared memory locations!");
+	return reinterpret_cast<T*>(_SharedMemoryLocation + N);
+}
 
 #ifdef Q_OS_WIN
 typedef float float32;
@@ -103,18 +133,17 @@ inline void mylocaltime(struct tm * _Tm, const time_t * _Time) {
 #endif
 }
 
-class InitOpenSSL {
-public:
-	InitOpenSSL();
-	~InitOpenSSL();
-};
+void installSignalHandlers();
+
+void initThirdParty(); // called by Global::Initializer
+void deinitThirdParty();
 
 bool checkms(); // returns true if time has changed
 uint64 getms(bool checked = false);
 
 class SingleTimer : public QTimer { // single shot timer with check
 	Q_OBJECT
-	
+
 public:
 
 	SingleTimer();
@@ -206,6 +235,19 @@ private:
 #define qsl(s) QStringLiteral(s)
 #define qstr(s) QLatin1String(s, sizeof(s) - 1)
 
+inline QString fromUtf8Safe(const char *str, int32 size = -1) {
+	if (!str || !size) return QString();
+	if (size < 0) size = int32(strlen(str));
+	QString result(QString::fromUtf8(str, size));
+	QByteArray back = result.toUtf8();
+	if (back.size() != size || memcmp(back.constData(), str, size)) return QString::fromLocal8Bit(str, size);
+	return result;
+}
+
+inline QString fromUtf8Safe(const QByteArray &str) {
+	return fromUtf8Safe(str.constData(), str.size());
+}
+
 static const QRegularExpression::PatternOptions reMultiline(QRegularExpression::DotMatchesEverythingOption | QRegularExpression::MultilineOption);
 
 template <typename T>
@@ -283,6 +325,10 @@ enum DataBlockId {
 	dbiIncludeMuted         = 0x31,
 	dbiMaxMegaGroupCount    = 0x32,
 	dbiDownloadPath         = 0x33,
+	dbiAutoDownload         = 0x34,
+	dbiSavedGifsLimit       = 0x35,
+	dbiShowingSavedGifs     = 0x36,
+	dbiAutoPlay             = 0x37,
 
 	dbiEncryptedWithSalt    = 333,
 	dbiEncrypted            = 444,
@@ -424,6 +470,9 @@ MimeType mimeTypeForName(const QString &mime);
 MimeType mimeTypeForFile(const QFileInfo &file);
 MimeType mimeTypeForData(const QByteArray &data);
 
+inline int32 rowscount(int32 count, int32 perrow) {
+	return (count + perrow - 1) / perrow;
+}
 inline int32 floorclamp(int32 value, int32 step, int32 lowest, int32 highest) {
 	return qMin(qMax(value / step, lowest), highest);
 }
@@ -443,3 +492,235 @@ enum ForwardWhatMessages {
 	ForwardPressedMessage,
 	ForwardPressedLinkMessage
 };
+
+enum ShowLayerOption {
+	CloseOtherLayers          = 0x00,
+	KeepOtherLayers           = 0x01,
+	ShowAfterOtherLayers      = 0x03,
+
+	AnimatedShowLayer         = 0x00,
+	ForceFastShowLayer        = 0x04,
+};
+typedef QFlags<ShowLayerOption> ShowLayerOptions;
+
+static int32 FullArcLength = 360 * 16;
+static int32 QuarterArcLength = (FullArcLength / 4);
+static int32 MinArcLength = (FullArcLength / 360);
+static int32 AlmostFullArcLength = (FullArcLength - MinArcLength);
+
+template <typename I>
+inline void destroyImplementation(I *&ptr) {
+	if (ptr) {
+		ptr->destroy();
+		ptr = 0;
+	}
+	deleteAndMark(ptr);
+}
+
+template <typename R>
+class FunctionImplementation {
+public:
+	virtual R call() = 0;
+	virtual void destroy() { delete this; }
+	virtual ~FunctionImplementation() {}
+};
+template <typename R>
+class NullFunctionImplementation : public FunctionImplementation<R> {
+public:
+	virtual R call() { return R(); }
+	virtual void destroy() {}
+	static NullFunctionImplementation<R> SharedInstance;
+};
+template <typename R>
+NullFunctionImplementation<R> NullFunctionImplementation<R>::SharedInstance;
+template <typename R>
+class FunctionCreator {
+public:
+	FunctionCreator(FunctionImplementation<R> *ptr) : _ptr(ptr) {}
+	FunctionCreator(const FunctionCreator<R> &other) : _ptr(other.create()) {}
+	FunctionImplementation<R> *create() const { return exchange(_ptr); }
+	~FunctionCreator() { destroyImplementation(_ptr); }
+private:
+	FunctionCreator<R> &operator=(const FunctionCreator<R> &other);
+	mutable FunctionImplementation<R> *_ptr;
+};
+template <typename R>
+class Function {
+public:
+	typedef FunctionCreator<R> Creator;
+	static Creator Null() { return Creator(&NullFunctionImplementation<R>::SharedInstance); }
+	Function(const Creator &creator) : _implementation(creator.create()) {}
+	R call() { return _implementation->call(); }
+	~Function() { destroyImplementation(_implementation); }
+private:
+	Function(const Function<R> &other);
+	Function<R> &operator=(const Function<R> &other);
+	FunctionImplementation<R> *_implementation;
+};
+
+template <typename R>
+class WrappedFunction : public FunctionImplementation<R> {
+public:
+	typedef R(*Method)();
+	WrappedFunction(Method method) : _method(method) {}
+	virtual R call() { return (*_method)(); }
+private:
+	Method _method;
+};
+template <typename R>
+inline FunctionCreator<R> func(R(*method)()) {
+	return FunctionCreator<R>(new WrappedFunction<R>(method));
+}
+template <typename O, typename I, typename R>
+class ObjectFunction : public FunctionImplementation<R> {
+public:
+	typedef R(I::*Method)();
+	ObjectFunction(O *obj, Method method) : _obj(obj), _method(method) {}
+	virtual R call() { return (_obj->*_method)(); }
+private:
+	O *_obj;
+	Method _method;
+};
+template <typename O, typename I, typename R>
+inline FunctionCreator<R> func(O *obj, R(I::*method)()) {
+	return FunctionCreator<R>(new ObjectFunction<O, I, R>(obj, method));
+}
+
+template <typename R, typename A1>
+class Function1Implementation {
+public:
+	virtual R call(A1 a1) = 0;
+	virtual void destroy() { delete this; }
+	virtual ~Function1Implementation() {}
+};
+template <typename R, typename A1>
+class NullFunction1Implementation : public Function1Implementation<R, A1> {
+public:
+	virtual R call(A1 a1) { return R(); }
+	virtual void destroy() {}
+	static NullFunction1Implementation<R, A1> SharedInstance;
+};
+template <typename R, typename A1>
+NullFunction1Implementation<R, A1> NullFunction1Implementation<R, A1>::SharedInstance;
+template <typename R, typename A1>
+class Function1Creator {
+public:
+	Function1Creator(Function1Implementation<R, A1> *ptr) : _ptr(ptr) {}
+	Function1Creator(const Function1Creator<R, A1> &other) : _ptr(other.create()) {}
+	Function1Implementation<R, A1> *create() const { return exchange(_ptr); }
+	~Function1Creator() { destroyImplementation(_ptr); }
+private:
+	Function1Creator<R, A1> &operator=(const Function1Creator<R, A1> &other);
+	mutable Function1Implementation<R, A1> *_ptr;
+};
+template <typename R, typename A1>
+class Function1 {
+public:
+	typedef Function1Creator<R, A1> Creator;
+	static Creator Null() { return Creator(&NullFunction1Implementation<R, A1>::SharedInstance); }
+	Function1(const Creator &creator) : _implementation(creator.create()) {}
+	R call(A1 a1) { return _implementation->call(a1); }
+	~Function1() { _implementation->destroy(); }
+private:
+	Function1(const Function1<R, A1> &other);
+	Function1<R, A1> &operator=(const Function1<R, A1> &other);
+	Function1Implementation<R, A1> *_implementation;
+};
+
+template <typename R, typename A1>
+class WrappedFunction1 : public Function1Implementation<R, A1> {
+public:
+	typedef R(*Method)(A1);
+	WrappedFunction1(Method method) : _method(method) {}
+	virtual R call(A1 a1) { return (*_method)(a1); }
+private:
+	Method _method;
+};
+template <typename R, typename A1>
+inline Function1Creator<R, A1> func(R(*method)(A1)) {
+	return Function1Creator<R, A1>(new WrappedFunction1<R, A1>(method));
+}
+template <typename O, typename I, typename R, typename A1>
+class ObjectFunction1 : public Function1Implementation<R, A1> {
+public:
+	typedef R(I::*Method)(A1);
+	ObjectFunction1(O *obj, Method method) : _obj(obj), _method(method) {}
+	virtual R call(A1 a1) { return (_obj->*_method)(a1); }
+private:
+	O *_obj;
+	Method _method;
+};
+template <typename O, typename I, typename R, typename A1>
+Function1Creator<R, A1> func(O *obj, R(I::*method)(A1)) {
+	return Function1Creator<R, A1>(new ObjectFunction1<O, I, R, A1>(obj, method));
+}
+
+template <typename R, typename A1, typename A2>
+class Function2Implementation {
+public:
+	virtual R call(A1 a1, A2 a2) = 0;
+	virtual void destroy() { delete this; }
+	virtual ~Function2Implementation() {}
+};
+template <typename R, typename A1, typename A2>
+class NullFunction2Implementation : public Function2Implementation<R, A1, A2> {
+public:
+	virtual R call(A1 a1, A2 a2) { return R(); }
+	virtual void destroy() {}
+	static NullFunction2Implementation<R, A1, A2> SharedInstance;
+};
+template <typename R, typename A1, typename A2>
+NullFunction2Implementation<R, A1, A2> NullFunction2Implementation<R, A1, A2>::SharedInstance;
+template <typename R, typename A1, typename A2>
+class Function2Creator {
+public:
+	Function2Creator(Function2Implementation<R, A1, A2> *ptr) : _ptr(ptr) {}
+	Function2Creator(const Function2Creator<R, A1, A2> &other) : _ptr(other.create()) {}
+	Function2Implementation<R, A1, A2> *create() const { return exchange(_ptr); }
+	~Function2Creator() { destroyImplementation(_ptr); }
+private:
+	Function2Creator<R, A1, A2> &operator=(const Function2Creator<R, A1, A2> &other);
+	mutable Function2Implementation<R, A1, A2> *_ptr;
+};
+template <typename R, typename A1, typename A2>
+class Function2 {
+public:
+	typedef Function2Creator<R, A1, A2> Creator;
+	static Creator Null() { return Creator(&NullFunction2Implementation<R, A1, A2>::SharedInstance); }
+	Function2(const Creator &creator) : _implementation(creator.create()) {}
+	R call(A1 a1, A2 a2) { return _implementation->call(a1, a2); }
+	~Function2() { destroyImplementation(_implementation); }
+private:
+	Function2(const Function2<R, A1, A2> &other);
+	Function2<R, A1, A2> &operator=(const Function2<R, A1, A2> &other);
+	Function2Implementation<R, A1, A2> *_implementation;
+};
+
+template <typename R, typename A1, typename A2>
+class WrappedFunction2 : public Function2Implementation<R, A1, A2> {
+public:
+	typedef R(*Method)(A1, A2);
+	WrappedFunction2(Method method) : _method(method) {}
+	virtual R call(A1 a1, A2 a2) { return (*_method)(a1, a2); }
+private:
+	Method _method;
+};
+template <typename R, typename A1, typename A2>
+Function2Creator<R, A1, A2> func(R(*method)(A1, A2)) {
+	return Function2Creator<R, A1, A2>(new WrappedFunction2<R, A1, A2>(method));
+}
+
+template <typename O, typename I, typename R, typename A1, typename A2>
+class ObjectFunction2 : public Function2Implementation<R, A1, A2> {
+public:
+	typedef R(I::*Method)(A1, A2);
+	ObjectFunction2(O *obj, Method method) : _obj(obj), _method(method) {}
+	virtual R call(A1 a1, A2 a2) { return (_obj->*_method)(a1, a2); }
+private:
+	O *_obj;
+	Method _method;
+};
+template <typename O, typename I, typename R, typename A1, typename A2>
+Function2Creator<R, A1, A2> func(O *obj, R(I::*method)(A1, A2)) {
+	return Function2Creator<R, A1, A2>(new ObjectFunction2<O, I, R, A1, A2>(obj, method));
+}

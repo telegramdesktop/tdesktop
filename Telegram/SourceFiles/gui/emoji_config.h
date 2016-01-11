@@ -83,7 +83,7 @@ inline EmojiPtr emojiFromUrl(const QString &url) {
 	return emojiFromKey(url.midRef(10).toULongLong(0, 16)); // skip emoji://e.
 }
 
-inline EmojiPtr emojiFromText(const QChar *ch, const QChar *e, int &len) {
+inline EmojiPtr emojiFromText(const QChar *ch, const QChar *e, int *plen = 0) {
 	EmojiPtr emoji = 0;
 	if (ch + 1 < e && ((ch->isHighSurrogate() && (ch + 1)->isLowSurrogate()) || (((ch->unicode() >= 0x30 && ch->unicode() < 0x3A) || ch->unicode() == 0x23 || ch->unicode() == 0x2A) && (ch + 1)->unicode() == 0x20E3))) {
 		uint32 code = (ch->unicode() << 16) | (ch + 1)->unicode();
@@ -108,15 +108,15 @@ inline EmojiPtr emojiFromText(const QChar *ch, const QChar *e, int &len) {
 	} else if (ch + 2 < e && ((ch->unicode() >= 0x30 && ch->unicode() < 0x3A) || ch->unicode() == 0x23 || ch->unicode() == 0x2A) && (ch + 1)->unicode() == 0xFE0F && (ch + 2)->unicode() == 0x20E3) {
 		uint32 code = (ch->unicode() << 16) | (ch + 2)->unicode();
 		emoji = emojiGet(code);
-		len = emoji->len + 1;
+		if (plen) *plen = emoji->len + 1;
 		return emoji;
 	} else if (ch < e) {
 		emoji = emojiGet(ch->unicode());
-		Q_ASSERT(emoji != TwoSymbolEmoji);
+		t_assert(emoji != TwoSymbolEmoji);
 	}
 
 	if (emoji) {
-		len = emoji->len + ((ch + emoji->len < e && (ch + emoji->len)->unicode() == 0xFE0F) ? 1 : 0);
+		int32 len = emoji->len + ((ch + emoji->len < e && (ch + emoji->len)->unicode() == 0xFE0F) ? 1 : 0);
 		if (emoji->color && (ch + len + 1 < e && (ch + len)->isHighSurrogate() && (ch + len + 1)->isLowSurrogate())) { // color
 			uint32 color = ((uint32((ch + len)->unicode()) << 16) | uint32((ch + len + 1)->unicode()));
 			EmojiPtr col = emojiGet(emoji, color);
@@ -128,8 +128,21 @@ inline EmojiPtr emojiFromText(const QChar *ch, const QChar *e, int &len) {
 				}
 			}
 		}
+		if (plen) *plen = len;
 	}
-	
+
+	return emoji;
+}
+
+inline EmojiPtr emojiFromText(const QString &text, int32 *plen = 0) {
+	return text.isEmpty() ? EmojiPtr(0) : emojiFromText(text.constBegin(), text.constEnd(), plen);
+}
+
+inline EmojiPtr emojiGetNoColor(EmojiPtr emoji) {
+	if (emoji && emoji->color && (emoji->color & 0xFFFF0000U) != 0xFFFF0000U) {
+		EmojiPtr result = emojiGet(emoji->code);
+		return (result == TwoSymbolEmoji) ? emojiGet(emoji->code, emoji->code2) : result;
+	}
 	return emoji;
 }
 
@@ -180,7 +193,7 @@ inline QString replaceEmojis(const QString &text, EntitiesInText &entities) {
 		if (canFindEmoji) {
 			emojiFind(ch, e, newEmojiEnd, emojiCode);
 		}
-		
+
 		while (currentEntity < entitiesCount && ch >= emojiStart + entities[currentEntity].offset + entities[currentEntity].length) {
 			++currentEntity;
 		}

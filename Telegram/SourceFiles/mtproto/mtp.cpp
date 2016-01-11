@@ -154,6 +154,9 @@ namespace {
 	bool onErrorDefault(mtpRequestId requestId, const RPCError &error) {
 		const QString &err(error.type());
 		int32 code = error.code();
+		if (!mtpIsFlood(error)) {
+			int breakpoint = 0;
+		}
 		bool badGuestDC = (code == 400) && (err == qsl("FILE_ID_INVALID"));
         QRegularExpressionMatch m;
 		if ((m = QRegularExpression("^(FILE|PHONE|NETWORK|USER)_MIGRATE_(\\d+)$").match(err)).hasMatch()) {

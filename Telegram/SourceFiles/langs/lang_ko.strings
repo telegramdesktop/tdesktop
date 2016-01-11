@@ -48,6 +48,19 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_month11" = "11월";
 "lng_month12" = "12월";
 
+"lng_month1_small" = "1월";
+"lng_month2_small" = "2월";
+"lng_month3_small" = "3월";
+"lng_month4_small" = "4월";
+"lng_month5_small" = "5월";
+"lng_month6_small" = "6월";
+"lng_month7_small" = "7월";
+"lng_month8_small" = "8월";
+"lng_month9_small" = "9월";
+"lng_month10_small" = "10월";
+"lng_month11_small" = "11월";
+"lng_month12_small" = "12월";
+
 "lng_weekday1" = "월";
 "lng_weekday2" = "화";
 "lng_weekday3" = "수";
@@ -66,6 +79,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_month_day" = "{month} {day}일";
 "lng_month_day_year" = "{month} {day}, {year}";
+"lng_month_year" = "{month}, {year}";
 
 "lng_box_ok" = "확인";
 
@@ -108,6 +122,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_server_error" = "내부 서버 오류";
 "lng_flood_error" = "시도가 너무 많습니다. 나중에 다시 시도해주세요.";
+"lng_gif_error" = "GIF 애니메이션을 읽는 동안 에러가 발생하였습니다.";
 "lng_deleted" = "알 수 없음";
 "lng_deleted_message" = "삭제된 메시지";
 
@@ -470,8 +485,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_create_channel_crop" = "채널프로필 사진으로 사용할 사각영역을 선택하세요";
 
 "lng_failed_add_participant" = "사용자를 추가 하지 못하였습니다. 나중에 다시 시도해주세요";
-"lng_failed_add_not_mutual" = "죄송합니다. 그룹방에서 대화상대방이 나갔을 경우, \n상대 전화번호가 있는 분만 초대가 가능합니다. \n(서로 전화번호가 등록되어져 있어야만 가능)";
-"lng_failed_add_not_mutual_channel" = "죄송합니다. 채널에서 대화상대방이 나갔을 경우,\n상대 전화번호가 있는 분만 초대가 가능합니다.\n(서로 전화번호가 등록되어져 있어야만 가능)";
+"lng_failed_add_not_mutual" = "죄송합니다. 그룹방에서 대화상대방이 나갔을 경우, 상대 전화번호가 있는 분만 초대가 가능합니다. (서로 전화번호가 등록되어져 있어야만 가능)";
+"lng_failed_add_not_mutual_channel" = "죄송합니다. 채널에서 대화상대방이 나갔을 경우, 상대 전화번호가 있는 분만 초대가 가능합니다. (서로 전화번호가 등록되어져 있어야만 가능)";
 
 "lng_sure_delete_contact" = "{contact} 님을 주소록에서 \n삭제하시겠습니까?";
 "lng_sure_delete_history" = "{contact} 님과 관련된 모든 메시지를 \n삭제하시겠습니까?\n\n삭제 하실 경우 취소가 불가능합니다.";
@@ -561,6 +576,14 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_media_video" = "비디오 파일";
 "lng_media_audio" = "음성 메시지";
 
+"lng_media_auto_settings" = "미디어 자동 다운로드 설정";
+"lng_media_auto_photo" = "사진 자동 다운로드";
+"lng_media_auto_audio" = "음성 메시지 자동 다운로드";
+"lng_media_auto_gif" = "GIF 자동 다운로드";
+"lng_media_auto_private_chats" = "비밀대화";
+"lng_media_auto_groups" = "그룹과 채널";
+"lng_media_auto_play" = "자동재생";
+
 "lng_emoji_category0" = "자주 사용";
 "lng_emoji_category1" = "사람";
 "lng_emoji_category2" = "자연";
@@ -571,7 +594,12 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_emoji_category7" = "심볼 및 국기";
 
 "lng_switch_stickers" = "스티커";
+"lng_switch_stickers_gifs" = "GIF & 스티커";
 "lng_switch_emoji" = "이모티콘";
+
+"lng_saved_gifs" = "저장된 GIF";
+"lng_inline_bot_results" = "{inline_bot} 결과";
+"lng_inline_bot_no_results" = "결과 없음";
 
 "lng_box_remove" = "삭제";
 
@@ -664,6 +692,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_save_file" = "파일 저장";
 "lng_save_downloaded" = "{ready} / {total} {mb}";
 "lng_duration_and_size" = "{duration}, {size}";
+"lng_duration_played" = "{played} / {duration}";
+"lng_date_and_duration" = "{date}, {duration}";
 "lng_choose_images" = "이미지 선택";
 
 "lng_context_view_profile" = "프로필 보기";
@@ -699,6 +729,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_context_delete_file" = "파일 삭제";
 "lng_context_close_file" = "파일 닫기";
 "lng_context_copy_text" = "텍스트 복사";
+"lng_context_save_gif" = "GIF 저장";
 "lng_context_to_msg" = "메시지로 이동";
 "lng_context_reply_msg" = "답장";
 "lng_context_forward_msg" = "메시지 전달";
@@ -801,7 +832,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 스티커관리 : 스티커팩을 순서를 수동으로 변경하여, 연결된 모든 기기에 동기화 \n— 스티커를 지속하여 누를 경우 전송전 프리뷰 기능 추가\n— 채팅목록에 채팅관련 메뉴 추가\n— 기존 이모티콘 지원";
+"lng_new_version_text" = "GIF 혁명: 10배 빠른 전송, 다운로드 및 자동재생이 가능하며, 스티커 패널에서 즐겨찾는 GIF를 저장가능\n\nGIF에 대한 자세한 정보:\n{gifs_link}\n\n@-봇 : 모든 대화에 봇 기능을 추가 할 수 있습니다. 봇 아이디를 입력란에 같이 입력해주시면 즉시 결과값을 확인 할 수 있습니다.“@gif dog”와 같은 명령어를 입력란에 같이 입력해보세요. 예시:@gif, @wiki, @bing, @vid, @bold.\n\n@-봇에 대한 자세한 정보\n{bots_link}\n\n업데이트 추가사항: 미디어, 사진, 음성메시지 및 GIF 파일 자동다운로드 설정화면 새로운 디자인 적용";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

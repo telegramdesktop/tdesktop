@@ -228,8 +228,8 @@ void ContactsInner::onAddBot() {
 	} else {
 		App::main()->addParticipants(_addToPeer, QVector<UserData*>(1, _bot));
 	}
-	App::wnd()->hideLayer();
-	App::main()->showPeerHistory(_addToPeer->id, ShowAtUnreadMsgId);
+	Ui::hideLayer();
+	Ui::showPeerHistory(_addToPeer, ShowAtUnreadMsgId);
 }
 
 void ContactsInner::onAddAdmin() {
@@ -269,9 +269,9 @@ bool ContactsInner::addAdminFail(const RPCError &error, mtpRequestId req) {
 	_addAdminRequestId = 0;
 	if (_addAdminBox) _addAdminBox->onClose();
 	if (error.type() == "USERS_TOO_MUCH") {
-		App::wnd()->replaceLayer(new MaxInviteBox(_channel->invitationUrl));
+		Ui::showLayer(new MaxInviteBox(_channel->invitationUrl), KeepOtherLayers);
 	} else if (error.type() == "ADMINS_TOO_MUCH") {
-		App::wnd()->replaceLayer(new InformBox(lang(lng_channel_admins_too_much)));
+		Ui::showLayer(new InformBox(lang(lng_channel_admins_too_much)), KeepOtherLayers);
 	} else  {
 		emit adminAdded();
 	}
@@ -292,7 +292,7 @@ void ContactsInner::peerUpdated(PeerData *peer) {
 			inited = true;
 		}
 		if (!_chat->canEdit()) {
-			App::wnd()->hideLayer();
+			Ui::hideLayer();
 		} else if (!_chat->participants.isEmpty()) {
 			for (ContactsData::iterator i = _contactsData.begin(), e = _contactsData.end(); i != e; ++i) {
 				delete i.value();
@@ -741,16 +741,16 @@ void ContactsInner::chooseParticipant() {
 				_addAdminBox = new ConfirmBox(lng_channel_admin_sure(lt_user, _addAdmin->firstName));
 				connect(_addAdminBox, SIGNAL(confirmed()), this, SLOT(onAddAdmin()));
 				connect(_addAdminBox, SIGNAL(destroyed(QObject*)), this, SLOT(onNoAddAdminBox(QObject*)));
-				App::wnd()->replaceLayer(_addAdminBox);
+				Ui::showLayer(_addAdminBox, KeepOtherLayers);
 			} else if (bot() && (peer->isChat() || peer->isMegagroup())) {
 				_addToPeer = peer;
 				ConfirmBox *box = new ConfirmBox(lng_bot_sure_invite(lt_group, peer->name));
 				connect(box, SIGNAL(confirmed()), this, SLOT(onAddBot()));
-				App::wnd()->replaceLayer(box);
+				Ui::showLayer(box, KeepOtherLayers);
 			} else {
 				App::wnd()->hideSettings(true);
 				App::main()->choosePeer(peer->id, ShowAtUnreadMsgId);
-				App::wnd()->hideLayer();
+				Ui::hideLayer();
 			}
 		}
 	}
@@ -1558,7 +1558,7 @@ void ContactsBox::resizeEvent(QResizeEvent *e) {
 
 void ContactsBox::closePressed() {
 	if (_inner.channel() && !_inner.hasAlreadyMembersInChannel()) {
-		App::main()->showPeerHistory(_inner.channel()->id, ShowAtTheEndMsgId);
+		Ui::showPeerHistory(_inner.channel(), ShowAtTheEndMsgId);
 	}
 }
 
@@ -1590,8 +1590,8 @@ void ContactsBox::onInvite() {
 
 	App::main()->addParticipants(_inner.chat() ? (PeerData*)_inner.chat() : _inner.channel(), users);
 	if (_inner.chat()) {
-		App::wnd()->hideLayer();
-		App::main()->showPeerHistory(_inner.chat()->id, ShowAtTheEndMsgId);
+		Ui::hideLayer();
+		Ui::showPeerHistory(_inner.chat(), ShowAtTheEndMsgId);
 	} else {
 		onClose();
 	}
@@ -1713,7 +1713,7 @@ void ContactsBox::onScroll() {
 }
 
 void ContactsBox::creationDone(const MTPUpdates &updates) {
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 
 	App::main()->sentUpdatesReceived(updates);
 	const QVector<MTPChat> *v = 0;
@@ -1730,7 +1730,7 @@ void ContactsBox::creationDone(const MTPUpdates &updates) {
 			if (!_creationPhoto.isNull()) {
 				App::app()->uploadProfilePhoto(_creationPhoto, peer->id);
 			}
-			App::main()->showPeerHistory(peer->id, ShowAtUnreadMsgId);
+			Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 		}
 	} else {
 		LOG(("API Error: chat not found in updates (ContactsBox::creationDone)"));
@@ -1749,7 +1749,7 @@ bool ContactsBox::creationFail(const RPCError &error) {
 		_filter.showError();
 		return true;
 	} else if (error.type() == "PEER_FLOOD") {
-		App::wnd()->replaceLayer(new InformBox(lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)))));
+		Ui::showLayer(new InformBox(lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)))), KeepOtherLayers);
 		return true;
 	}
 	return false;
@@ -1872,7 +1872,7 @@ void MembersInner::mouseReleaseEvent(QMouseEvent *e) {
 		_kickBox = new ConfirmBox((_filter == MembersFilterRecent ? (_channel->isMegagroup() ? lng_profile_sure_kick : lng_profile_sure_kick_channel) : lng_profile_sure_kick_admin)(lt_user, _kickConfirm->firstName));
 		connect(_kickBox, SIGNAL(confirmed()), this, SLOT(onKickConfirm()));
 		connect(_kickBox, SIGNAL(destroyed(QObject*)), this, SLOT(onKickBoxDestroyed(QObject*)));
-		App::wnd()->replaceLayer(_kickBox);
+		Ui::showLayer(_kickBox, KeepOtherLayers);
 	}
 	_kickDown = -1;
 }
@@ -1993,7 +1993,7 @@ void MembersInner::chooseParticipant() {
 	}
 	if (_sel < 0 || _sel >= _rows.size()) return;
 	if (PeerData *peer = _rows[_sel]) {
-		App::wnd()->hideLayer();
+		Ui::hideLayer();
 		App::main()->showPeerProfile(peer, ShowAtUnreadMsgId);
 	}
 }
@@ -2199,7 +2199,7 @@ void MembersInner::membersReceived(const MTPchannels_ChannelParticipants &result
 
 bool MembersInner::membersFailed(const RPCError &error, mtpRequestId req) {
 	if (mtpIsFlood(error)) return false;
-	App::wnd()->hideLayer();
+	Ui::hideLayer();
 	return true;
 }
 
@@ -2298,16 +2298,16 @@ void MembersBox::onScroll() {
 
 void MembersBox::onAdd() {
 	if (_inner.filter() == MembersFilterRecent && _inner.channel()->count >= (_inner.channel()->isMegagroup() ? cMaxMegaGroupCount() : cMaxGroupCount())) {
-		App::wnd()->replaceLayer(new MaxInviteBox(_inner.channel()->invitationUrl));
+		Ui::showLayer(new MaxInviteBox(_inner.channel()->invitationUrl), KeepOtherLayers);
 		return;
 	}
 	ContactsBox *box = new ContactsBox(_inner.channel(), _inner.filter(), _inner.already());
 	if (_inner.filter() == MembersFilterRecent) {
-		App::wnd()->showLayer(box);
+		Ui::showLayer(box);
 	} else {
 		_addBox = box;
 		connect(_addBox, SIGNAL(adminAdded()), this, SLOT(onAdminAdded()));
-		App::wnd()->replaceLayer(_addBox);
+		Ui::showLayer(_addBox, KeepOtherLayers);
 	}
 }
 

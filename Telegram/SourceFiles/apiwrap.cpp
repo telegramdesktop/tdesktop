@@ -64,36 +64,6 @@ void ApiWrap::itemRemoved(HistoryItem *item) {
 	}
 }
 
-void ApiWrap::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
-	if (HistoryReply *reply = oldItem->toHistoryReply()) {
-		ChannelData *channel = reply->history()->peer->asChannel();
-		ReplyToRequests *requests(replyToRequests(channel, true));
-		if (requests) {
-			ReplyToRequests::iterator i = requests->find(reply->replyToId());
-			if (i != requests->cend()) {
-				for (QList<HistoryReply*>::iterator j = i->replies.begin(); j != i->replies.end();) {
-					if ((*j) == reply) {
-						if (HistoryReply *newReply = newItem->toHistoryReply()) {
-							*j = newReply;
-							++j;
-						} else {
-							j = i->replies.erase(j);
-						}
-					} else {
-						++j;
-					}
-				}
-				if (i->replies.isEmpty()) {
-					requests->erase(i);
-				}
-			}
-			if (channel && requests->isEmpty()) {
-				_channelReplyToRequests.remove(channel);
-			}
-		}
-	}
-}
-
 void ApiWrap::requestReplyTo(HistoryReply *reply, ChannelData *channel, MsgId id) {
 	ReplyToRequest &req(channel ? _channelReplyToRequests[channel][id] : _replyToRequests[id]);
 	req.replies.append(reply);
@@ -460,7 +430,7 @@ void ApiWrap::requestBots(ChannelData *peer) {
 
 void ApiWrap::gotChat(PeerData *peer, const MTPmessages_Chats &result) {
 	_peerRequests.remove(peer);
-	
+
 	if (result.type() == mtpc_messages_chats) {
 		const QVector<MTPChat> &v(result.c_messages_chats().vchats.c_vector().v);
 		bool badVersion = false;
@@ -702,9 +672,9 @@ void ApiWrap::scheduleStickerSetRequest(uint64 setId, uint64 access) {
 
 void ApiWrap::requestStickerSets() {
 	for (QMap<uint64, QPair<uint64, mtpRequestId> >::iterator i = _stickerSetRequests.begin(), j = i, e = _stickerSetRequests.end(); i != e; i = j) {
+		++j;
 		if (i.value().second) continue;
 
-		++j;
 		int32 wait = (j == e) ? 0 : 10;
 		i.value().second = MTP::send(MTPmessages_GetStickerSet(MTP_inputStickerSetID(MTP_long(i.key()), MTP_long(i.value().first))), rpcDone(&ApiWrap::gotStickerSet, i.key()), rpcFail(&ApiWrap::gotStickerSetFail, i.key()), 0, wait);
 	}
@@ -712,10 +682,10 @@ void ApiWrap::requestStickerSets() {
 
 void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) {
 	_stickerSetRequests.remove(setId);
-	
+
 	if (result.type() != mtpc_messages_stickerSet) return;
 	const MTPDmessages_stickerSet &d(result.c_messages_stickerSet());
-	
+
 	if (d.vset.type() != mtpc_stickerSet) return;
 	const MTPDstickerSet &s(d.vset.c_stickerSet());
 
@@ -761,12 +731,32 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 			++i;
 		}
 	}
+
 	if (pack.isEmpty()) {
 		int32 removeIndex = cStickerSetsOrder().indexOf(setId);
 		if (removeIndex >= 0) cRefStickerSetsOrder().removeAt(removeIndex);
 		sets.erase(it);
 	} else {
 		it->stickers = pack;
+		it->emoji.clear();
+		const QVector<MTPStickerPack> &v(d.vpacks.c_vector().v);
+		for (int32 i = 0, l = v.size(); i < l; ++i) {
+			if (v.at(i).type() != mtpc_stickerPack) continue;
+
+			const MTPDstickerPack &pack(v.at(i).c_stickerPack());
+			if (EmojiPtr e = emojiGetNoColor(emojiFromText(qs(pack.vemoticon)))) {
+				const QVector<MTPlong> &stickers(pack.vdocuments.c_vector().v);
+				StickerPack p;
+				p.reserve(stickers.size());
+				for (int32 j = 0, c = stickers.size(); j < c; ++j) {
+					DocumentData *doc = App::document(stickers.at(j).v);
+					if (!doc || !doc->sticker()) continue;
+
+					p.push_back(doc);
+				}
+				it->emoji.insert(e, p);
+			}
+		}
 	}
 
 	if (writeRecent) {
@@ -916,12 +906,11 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 		}
 	}
 
-	MainWidget *m = App::main();
 	for (QMap<uint64, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
 		HistoryItem *item = App::histories().addNewMessage(v->at(i.value()), NewMessageExisting);
 		if (item) {
 			item->initDimensions();
-			if (m) m->itemResized(item);
+			Notify::historyItemResized(item);
 		}
 	}
 
@@ -934,7 +923,7 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 				if (j != items.cend()) {
 					for (HistoryItemsMap::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
 						k.key()->initDimensions();
-						if (m) m->itemResized(k.key());
+						Notify::historyItemResized(k.key());
 					}
 				}
 			}
@@ -946,5 +935,5 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 }
 
 ApiWrap::~ApiWrap() {
-	App::deinitMedia(false);
+	App::clearHistories();
 }

@@ -113,8 +113,6 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void leaveEvent(QEvent *e);
 
-	bool animStep_photoOver(float64 ms);
-
 	void setInnerFocus() {
 		_title.setFocus();
 	}
@@ -135,6 +133,8 @@ protected:
 	void showDone();
 
 private:
+
+	void step_photoOver(float64 ms, bool timer);
 
 	QRect photoRect() const;
 
@@ -202,7 +202,7 @@ protected:
 private:
 
 	void updateSelected(const QPoint &cursorGlobalPosition);
-	bool animStep_goodFade(float64 ms);
+	void step_goodFade(float64 ms, bool timer);
 
 	void onUpdateDone(const MTPBool &result);
 	bool onUpdateFail(const RPCError &error);

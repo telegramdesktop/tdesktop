@@ -32,7 +32,7 @@ public:
 	void init();
 
 	void paintEvent(QPaintEvent *e);
-	
+
 	bool loaded() const;
 	int32 notInstalled() const;
 	bool official() const;
@@ -60,6 +60,7 @@ private:
 	bool installFailed(const RPCError &error);
 
 	StickerPack _pack;
+	StickersByEmojiMap _emoji;
 	bool _loaded;
 	uint64 _setId, _setAccess;
 	QString _title, _setTitle, _setShortName;
@@ -118,7 +119,7 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void mouseMoveEvent(QMouseEvent *e);
 	void mouseReleaseEvent(QMouseEvent *e);
-	
+
 	void rebuild();
 	bool savingStart() {
 		if (_saving) return false;
@@ -144,13 +145,11 @@ public slots:
 
 private:
 
-	bool animStep_shifting(float64 ms);
+	void step_shifting(uint64 ms, bool timer);
 	void paintRow(Painter &p, int32 index);
 	void clear();
 	void setRemoveSel(int32 removeSel);
 	float64 aboveShadowOpacity() const;
-	void updateAnimatedRegions();
-	bool updateAnimatedValues();
 
 	int32 _rowHeight;
 	struct StickerSetRow {
@@ -203,7 +202,7 @@ public:
 	StickersBox();
 	void resizeEvent(QResizeEvent *e);
 	void paintEvent(QPaintEvent *e);
-	
+
 	void closePressed();
 
 public slots:

@@ -111,7 +111,11 @@ then go to **/Users/user/TBuild/Libraries/opus** and there run
 
 ####FFmpeg
 
-Download sources [ffmpeg-2.6.3.tar.bz2](http://ffmpeg.org/releases/ffmpeg-2.6.3.tar.bz2) from https://www.ffmpeg.org/download.html, extract to **/Users/user/TBuild/Libraries** to have **/Users/user/TBuild/Libraries/ffmpeg-2.6.3**
+In Terminal go to **/Users/user/TBuild/Libraries** and run:
+
+    git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
+    cd ffmpeg
+    git checkout release/2.8
 
 #####Building libraries
 
@@ -123,7 +127,7 @@ In Termianl go to **/Users/user/TBuild/Libraries/libiconv-1.14** and run
     make
     sudo make install
 
-Then in Terminal go to **/Users/user/TBuild/Libraries/ffmpeg-2.6.3** and run
+Then in Terminal go to **/Users/user/TBuild/Libraries/ffmpeg** and run
 
     ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 
@@ -133,7 +137,7 @@ Then in Terminal go to **/Users/user/TBuild/Libraries/ffmpeg-2.6.3** and run
     LDFLAGS=`freetype-config --libs`
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/usr/X11/lib/pkgconfig
 
-    ./configure --prefix=/usr/local --disable-programs --disable-everything --enable-libopus --enable-decoder=aac --enable-decoder=aac_latm --enable-decoder=aasc --enable-decoder=mp1 --enable-decoder=mp1float --enable-decoder=mp2 --enable-decoder=mp2float --enable-decoder=mp3 --enable-decoder=mp3adu --enable-decoder=mp3adufloat --enable-decoder=mp3float --enable-decoder=mp3on4 --enable-decoder=mp3on4float --enable-decoder=wavpack --enable-decoder=opus --enable-decoder=vorbis --enable-decoder=wmalossless --enable-decoder=wmapro --enable-decoder=wmav1 --enable-decoder=wmav2 --enable-decoder=wmavoice --enable-decoder=flac --enable-encoder=libopus --enable-parser=aac --enable-parser=aac_latm --enable-parser=mpegaudio --enable-parser=opus --enable-parser=vorbis --enable-parser=flac --enable-demuxer=aac --enable-demuxer=wav --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=mov --enable-demuxer=flac --enable-muxer=ogg --enable-muxer=opus --extra-cflags="-mmacosx-version-min=10.6" --extra-cxxflags="-mmacosx-version-min=10.6" --extra-ldflags="-mmacosx-version-min=10.6"
+    ./configure --prefix=/usr/local/ffmpeg_old --disable-programs --disable-doc --disable-everything --disable-pthreads --enable-libopus --enable-decoder=aac --enable-decoder=aac_latm --enable-decoder=aasc --enable-decoder=flac --enable-decoder=gif --enable-decoder=h264 --enable-decoder=mp1 --enable-decoder=mp1float --enable-decoder=mp2 --enable-decoder=mp2float --enable-decoder=mp3 --enable-decoder=mp3adu --enable-decoder=mp3adufloat --enable-decoder=mp3float --enable-decoder=mp3on4 --enable-decoder=mp3on4float --enable-decoder=mpeg4 --enable-decoder=msmpeg4v2 --enable-decoder=msmpeg4v3 --enable-decoder=opus --enable-decoder=vorbis --enable-decoder=wavpack --enable-decoder=wmalossless --enable-decoder=wmapro --enable-decoder=wmav1 --enable-decoder=wmav2 --enable-decoder=wmavoice --enable-encoder=libopus --enable-parser=aac --enable-parser=aac_latm --enable-parser=flac --enable-parser=h264 --enable-parser=mpeg4video --enable-parser=mpegaudio --enable-parser=opus --enable-parser=vorbis --enable-demuxer=aac --enable-demuxer=flac --enable-demuxer=gif --enable-demuxer=h264 --enable-demuxer=mov --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=wav --enable-muxer=ogg --enable-muxer=opus --extra-cflags="-mmacosx-version-min=10.6" --extra-cxxflags="-mmacosx-version-min=10.6" --extra-ldflags="-mmacosx-version-min=10.6"
 
     make
     sudo make install

@@ -23,14 +23,17 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "window.h"
 #include "mainwidget.h"
 
+#include "layerwidget.h"
+
 namespace App {
 
 	void sendBotCommand(const QString &cmd, MsgId replyTo) {
 		if (MainWidget *m = main()) m->sendBotCommand(cmd, replyTo);
 	}
 
-	void insertBotCommand(const QString &cmd) {
-		if (MainWidget *m = main()) m->insertBotCommand(cmd);
+	bool insertBotCommand(const QString &cmd, bool specialGif) {
+		if (MainWidget *m = main()) return m->insertBotCommand(cmd, specialGif);
+		return false;
 	}
 
 	void searchByHashtag(const QString &tag, PeerData *inPeer) {
@@ -66,18 +69,6 @@ namespace App {
 		if (Window *win = wnd()) win->showSettings();
 	}
 
-	void showLayer(LayeredWidget *widget, bool forceFast) {
-		if (Window *w = wnd()) w->showLayer(widget, forceFast);
-	}
-
-	void replaceLayer(LayeredWidget *widget) {
-		if (Window *w = wnd()) w->replaceLayer(widget);
-	}
-
-	void showLayerLast(LayeredWidget *widget) {
-		if (Window *w = wnd()) w->showLayerLast(widget);
-	}
-
 }
 
 namespace Ui {
@@ -90,20 +81,133 @@ namespace Ui {
 		if (MainWidget *m = App::main()) m->ui_hideStickerPreview();
 	}
 
+	void showLayer(LayeredWidget *box, ShowLayerOptions options) {
+		if (Window *w = App::wnd()) {
+			w->ui_showLayer(box, options);
+		} else {
+			delete box;
+		}
+	}
+
+	void hideLayer(bool fast) {
+		if (Window *w = App::wnd()) w->ui_showLayer(0, ShowLayerOptions(CloseOtherLayers) | (fast ? ForceFastShowLayer : AnimatedShowLayer));
+	}
+
+	bool isLayerShown() {
+		if (Window *w = App::wnd()) return w->ui_isLayerShown();
+		return false;
+	}
+
+	bool isMediaViewShown() {
+		if (Window *w = App::wnd()) return w->ui_isMediaViewShown();
+		return false;
+	}
+
+	bool isInlineItemBeingChosen() {
+		if (MainWidget *m = App::main()) return m->ui_isInlineItemBeingChosen();
+		return false;
+	}
+
+	void repaintHistoryItem(const HistoryItem *item) {
+		if (!item) return;
+		if (MainWidget *m = App::main()) m->ui_repaintHistoryItem(item);
+	}
+
+	void repaintInlineItem(const LayoutInlineItem *layout) {
+		if (!layout) return;
+		if (MainWidget *m = App::main()) m->ui_repaintInlineItem(layout);
+	}
+
+	bool isInlineItemVisible(const LayoutInlineItem *layout) {
+		if (MainWidget *m = App::main()) return m->ui_isInlineItemVisible(layout);
+		return false;
+	}
+
+	void showPeerHistory(const PeerId &peer, MsgId msgId, bool back) {
+		if (MainWidget *m = App::main()) m->ui_showPeerHistory(peer, msgId, back);
+	}
+
+	void showPeerHistoryAsync(const PeerId &peer, MsgId msgId) {
+		if (MainWidget *m = App::main()) {
+			QMetaObject::invokeMethod(m, "ui_showPeerHistoryAsync", Qt::QueuedConnection, Q_ARG(quint64, peer), Q_ARG(qint32, msgId));
+		}
+	}
+
 }
 
 namespace Notify {
 
 	void userIsBotChanged(UserData *user) {
-		if (MainWidget *m = App::main()) m->notifyUserIsBotChanged(user);
+		if (MainWidget *m = App::main()) m->notify_userIsBotChanged(user);
+	}
+
+	void userIsContactChanged(UserData *user, bool fromThisApp) {
+		if (MainWidget *m = App::main()) m->notify_userIsContactChanged(user, fromThisApp);
 	}
 
 	void botCommandsChanged(UserData *user) {
-		if (MainWidget *m = App::main()) m->notifyBotCommandsChanged(user);
+		if (MainWidget *m = App::main()) m->notify_botCommandsChanged(user);
+	}
+
+	void inlineBotRequesting(bool requesting) {
+		if (MainWidget *m = App::main()) m->notify_inlineBotRequesting(requesting);
 	}
 
 	void migrateUpdated(PeerData *peer) {
-		if (MainWidget *m = App::main()) m->notifyMigrateUpdated(peer);
+		if (MainWidget *m = App::main()) m->notify_migrateUpdated(peer);
+	}
+
+	void clipStopperHidden(ClipStopperType type) {
+		if (MainWidget *m = App::main()) m->notify_clipStopperHidden(type);
+	}
+
+	void historyItemResized(const HistoryItem *item, bool scrollToIt) {
+		if (MainWidget *m = App::main()) m->notify_historyItemResized(item, scrollToIt);
+	}
+
+	void historyItemLayoutChanged(const HistoryItem *item) {
+		if (MainWidget *m = App::main()) m->notify_historyItemLayoutChanged(item);
+	}
+
+	void automaticLoadSettingsChangedGif() {
+		if (MainWidget *m = App::main()) m->notify_automaticLoadSettingsChangedGif();
 	}
 
 }
+
+namespace Global {
+
+	struct Data {
+		uint64 LaunchId = 0;
+	};
+
+	Data *_data = 0;
+
+	Initializer::Initializer() {
+		initThirdParty();
+		_data = new Data();
+
+		memset_rand(&_data->LaunchId, sizeof(_data->LaunchId));
+	}
+
+	Initializer::~Initializer() {
+		deinitThirdParty();
+	}
+
+#define DefineGlobalReadOnly(Type, Name) const Type &Name() { \
+	t_assert_full(_data != 0, "_data is null in Global::" #Name, __FILE__, __LINE__); \
+	return _data->Name; \
+}
+#define DefineGlobal(Type, Name) DefineGlobalReadOnly(Type, Name) \
+void Set##Name(const Type &Name) { \
+	t_assert_full(_data != 0, "_data is null in Global::Set" #Name, __FILE__, __LINE__); \
+	_data->Name = Name; \
+} \
+Type &Ref##Name() { \
+	t_assert_full(_data != 0, "_data is null in Global::Ref" #Name, __FILE__, __LINE__); \
+	return _data->Name; \
+}
+
+	DefineGlobalReadOnly(uint64, LaunchId);
+
+};
