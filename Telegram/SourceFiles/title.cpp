@@ -73,7 +73,7 @@ TitleWidget::TitleWidget(Window *window) : TWidget(window)
 	_update.hide();
     _cancel.hide();
     _back.hide();
-	if (App::app()->updatingState() == Application::UpdatingReady || cHasPasscode()) {
+	if (Sandboxer::updatingState() == Application::UpdatingReady || cHasPasscode()) {
 		showUpdateBtn();
 	}
 	stateChanged();
@@ -87,7 +87,7 @@ TitleWidget::TitleWidget(Window *window) : TWidget(window)
 	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	connect(App::app(), SIGNAL(updateReady()), this, SLOT(showUpdateBtn()));
 	#endif
-	
+
     if (cPlatform() != dbipWindows) {
         _minimize.hide();
         _maximize.hide();
@@ -173,10 +173,10 @@ void TitleWidget::resizeEvent(QResizeEvent *e) {
     if (cPlatform() == dbipWindows) {
         p.setX(p.x() - _close.width());
         _close.move(p);
-        
+
         p.setX(p.x() - _maximize.width());
         _restore.move(p); _maximize.move(p);
-        
+
         p.setX(p.x() - _minimize.width());
         _minimize.move(p);
     }
@@ -264,7 +264,7 @@ void TitleWidget::updateCounter() {
 	bool muted = cIncludeMuted() ? (App::histories().unreadMuted >= counter) : false;
 
 	style::color bg = muted ? st::counterMuteBG : st::counterBG;
-	
+
 	if (counter > 0) {
 		int32 size = cRetina() ? -32 : -16;
 		switch (cScale()) {
@@ -322,7 +322,7 @@ void TitleWidget::showUpdateBtn() {
 	} else {
 		_lock.hide();
 	}
-	bool updateReady = App::app()->updatingState() == Application::UpdatingReady;
+	bool updateReady = (Sandboxer::updatingState() == Application::UpdatingReady);
 	if (updateReady || cEvalScale(cConfigScale()) != cEvalScale(cRealScale())) {
 		_update.setText(lang(updateReady ? lng_menu_update : lng_menu_restart));
 		_update.show();

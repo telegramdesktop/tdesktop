@@ -2571,15 +2571,6 @@ void Text::setMarkedText(style::font font, const QString &text, const EntitiesIn
 	_font = font;
 	clean();
 	{
-//		QByteArray ba = text.toUtf8(); // chars for OS X crash investigation
-//		const char *ch = ba.constData();
-//		LOG(("STR: %1").arg(text));
-//		LOG(("BYTES: %1").arg(mb(ba.constData(), ba.size()).str()));
-//		for (int32 i = 0; i < text.size(); ++i) {
-//			LOG(("LETTER %1: '%2' - %3").arg(i).arg(text.at(i)).arg(text.at(i).unicode()));
-//		}
-//		int32 w = _font->width(text);
-
 //		QString newText; // utf16 of the text for emoji
 //		newText.reserve(8 * text.size());
 //		for (const QChar *ch = text.constData(), *e = ch + text.size(); ch != e; ++ch) {

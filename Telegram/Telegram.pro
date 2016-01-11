@@ -10,7 +10,7 @@ CONFIG(debug, debug|release) {
     DESTDIR = ./../Debug
 }
 CONFIG(release, debug|release) {
-    DEFINES += _WITH_DEBUG CUSTOM_API_ID
+    DEFINES += CUSTOM_API_ID
     OBJECTS_DIR = ./../ReleaseIntermediate
     MOC_DIR = ./GenFiles/Release
     RCC_DIR = ./GenFiles
@@ -47,7 +47,7 @@ style_classes_h.depends = ./../../Telegram/Resources/style_classes.txt
 numbers_cpp.target = ./GeneratedFiles/numbers.cpp
 numbers_cpp.depends = FORCE
 numbers_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
-numbers_cpp.depends = ./../../Telegram/Resources/numbers.txt 
+numbers_cpp.depends = ./../../Telegram/Resources/numbers.txt
 
 lang_auto_cpp.target = ./GeneratedFiles/lang_auto.cpp
 lang_auto_cpp.depends = FORCE

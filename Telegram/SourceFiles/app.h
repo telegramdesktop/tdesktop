@@ -22,7 +22,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 #include "types.h"
 
-class Application;
+class AppClass;
 class Window;
 class MainWidget;
 class SettingsWidget;
@@ -59,7 +59,7 @@ struct ReplyMarkup {
 class LayeredWidget;
 
 namespace App {
-	Application *app();
+	AppClass *app();
 	Window *wnd();
 	MainWidget *main();
 	SettingsWidget *settings();

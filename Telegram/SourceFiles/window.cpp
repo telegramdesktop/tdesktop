@@ -1212,7 +1212,7 @@ void Window::toggleDisplayNotifyFromTray() {
 }
 
 void Window::closeEvent(QCloseEvent *e) {
-	if (MTP::authedId() && !App::app()->isSavingSession() && minimizeToTray()) {
+	if (MTP::authedId() && !Sandboxer::isSavingSession() && minimizeToTray()) {
 		e->ignore();
 	} else {
 		App::quit();

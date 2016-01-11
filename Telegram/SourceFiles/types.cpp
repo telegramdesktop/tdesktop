@@ -266,43 +266,47 @@ namespace {
 	_MsStarter _msStarter;
 }
 
-void initThirdParty() {
-	if (!RAND_status()) { // should be always inited in all modern OS
-		char buf[16];
-		memcpy(buf, &_msStart, 8);
-		memcpy(buf + 8, &_msFreq, 8);
-		uchar sha256Buffer[32];
-		RAND_seed(hashSha256(buf, 16, sha256Buffer), 32);
-		if (!RAND_status()) {
-			LOG(("MTP Error: Could not init OpenSSL rand, RAND_status() is 0.."));
+namespace ThirdParty {
+
+	void start() {
+		if (!RAND_status()) { // should be always inited in all modern OS
+			char buf[16];
+			memcpy(buf, &_msStart, 8);
+			memcpy(buf + 8, &_msFreq, 8);
+			uchar sha256Buffer[32];
+			RAND_seed(hashSha256(buf, 16, sha256Buffer), 32);
+			if (!RAND_status()) {
+				LOG(("MTP Error: Could not init OpenSSL rand, RAND_status() is 0.."));
+			}
 		}
+
+		int32 numLocks = CRYPTO_num_locks();
+		if (numLocks) {
+			_sslLocks = new QMutex[numLocks];
+			CRYPTO_set_locking_callback(_sslLockingCallback);
+		} else {
+			LOG(("MTP Error: Could not init OpenSSL threads, CRYPTO_num_locks() returned zero!"));
+		}
+		CRYPTO_THREADID_set_callback(_sslThreadId);
+		CRYPTO_set_dynlock_create_callback(_sslCreateFunction);
+		CRYPTO_set_dynlock_lock_callback(_sslLockFunction);
+		CRYPTO_set_dynlock_destroy_callback(_sslDestroyFunction);
+
+		av_register_all();
+		avcodec_register_all();
+
+		av_lockmgr_register(_ffmpegLockManager);
+
+		_sslInited = true;
 	}
 
-	int32 numLocks = CRYPTO_num_locks();
-	if (numLocks) {
-		_sslLocks = new QMutex[numLocks];
-		CRYPTO_set_locking_callback(_sslLockingCallback);
-	} else {
-		LOG(("MTP Error: Could not init OpenSSL threads, CRYPTO_num_locks() returned zero!"));
+	void finish() {
+		av_lockmgr_register(0);
+
+		delete[] _sslLocks;
+		_sslLocks = 0;
 	}
-	CRYPTO_THREADID_set_callback(_sslThreadId);
-	CRYPTO_set_dynlock_create_callback(_sslCreateFunction);
-	CRYPTO_set_dynlock_lock_callback(_sslLockFunction);
-	CRYPTO_set_dynlock_destroy_callback(_sslDestroyFunction);
 
-	av_register_all();
-	avcodec_register_all();
-
-	av_lockmgr_register(_ffmpegLockManager);
-
-	_sslInited = true;
-}
-
-void deinitThirdParty() {
-	av_lockmgr_register(0);
-
-	delete[] _sslLocks;
-	_sslLocks = 0;
 }
 
 namespace {

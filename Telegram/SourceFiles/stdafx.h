@@ -38,6 +38,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include <QtNetwork/QNetworkAccessManager>
 #include <QtNetwork/QNetworkReply>
 #include <QtNetwork/QNetworkProxy>
+#include <QtNetwork/QLocalSocket>
+#include <QtNetwork/QLocalServer>
 
 #ifdef Q_OS_WIN // use Lzma SDK for win
 #include <LzmaLib.h>

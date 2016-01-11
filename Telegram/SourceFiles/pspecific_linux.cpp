@@ -197,8 +197,6 @@ namespace {
     typedef UnityLauncherEntry* (*f_unity_launcher_entry_get_for_desktop_id)(const gchar* desktop_id);
     f_unity_launcher_entry_get_for_desktop_id ps_unity_launcher_entry_get_for_desktop_id = 0;
 
-    QStringList _initLogs;
-
     template <typename TFunction>
     bool loadFunction(QLibrary &lib, const char *name, TFunction &func) {
         if (!lib.isLoaded()) return false;
@@ -207,7 +205,7 @@ namespace {
         if (func) {
             return true;
         } else {
-            _initLogs.push_back(QString("Init Error: Failed to load '%1' function!").arg(name));
+            LOG(("Error: failed to load '%1' function!").arg(name));
             return false;
         }
     }
@@ -362,26 +360,24 @@ namespace {
 
             if (noQtTrayIcon) cSetSupportTray(false);
 
-            std::cout << "libs init..\n";
+			DEBUG_LOG(("Loading libraries"));
             setupGtk();
             setupUnity();
         }
 
         bool loadLibrary(QLibrary &lib, const char *name, int version) {
-            std::cout << "loading " << name << " with version " << version << "..\n";
+			DEBUG_LOG(("Loading '%1' with version %2..").arg(QLatin1String(name)).arg(version));
             lib.setFileNameAndVersion(QLatin1String(name), version);
             if (lib.load()) {
-                std::cout << "loaded " << name << " with version " << version << "!\n";
-                _initLogs.push_back(QString("Loaded '%1' version %2 library").arg(name).arg(version));
+				DEBUG_LOG(("Loaded '%1' with version %2!").arg(QLatin1String(name)).arg(version));
                 return true;
-            }
+			}
             lib.setFileNameAndVersion(QLatin1String(name), QString());
             if (lib.load()) {
-                std::cout << "loaded " << name << " without version!\n";
-                _initLogs.push_back(QString("Loaded '%1' without version library").arg(name));
+				DEBUG_LOG(("Loaded '%1' without version!").arg(QLatin1String(name)));
                 return true;
-            }
-            std::cout << "could not load " << name << " without version.\n";
+			}
+			LOG(("Could not load '%1' with version %2 :(").arg(QLatin1String(name)).arg(version));
             return false;
         }
 
@@ -406,7 +402,7 @@ namespace {
             if (!loadFunction(lib_gtk, "g_object_unref", ps_g_object_unref)) return;
 
             useGtkBase = true;
-            std::cout << "loaded gtk funcs!\n";
+			DEBUG_LOG(("Library gtk functions loaded!"));
         }
 
         void setupAppIndicator(QLibrary &lib_indicator) {
@@ -415,7 +411,7 @@ namespace {
             if (!loadFunction(lib_indicator, "app_indicator_set_menu", ps_app_indicator_set_menu)) return;
             if (!loadFunction(lib_indicator, "app_indicator_set_icon_full", ps_app_indicator_set_icon_full)) return;
             useAppIndicator = true;
-            std::cout << "loaded appindicator funcs!\n";
+			DEBUG_LOG(("Library appindicator functions loaded!"));
         }
 
         void setupGtk() {
@@ -461,13 +457,12 @@ namespace {
             }
 
             if (!useGtkBase && lib_gtk.isLoaded()) {
-                std::cout << "no appindicator, trying to load gtk..\n";
+				LOG(("Could not load appindicator, trying to load gtk.."));
                 setupGtkBase(lib_gtk);
             }
             if (!useGtkBase) {
                 useAppIndicator = false;
-                _initLogs.push_back(QString("Init Error: Failed to load 'gtk-x11-2.0' library!"));
-                std::cout << "no appindicator :(\n";
+				LOG(("Could not load gtk-x11-2.0!"));
                 return;
             }
 
@@ -485,8 +480,8 @@ namespace {
             if (!loadFunction(lib_gtk, "gtk_get_current_event_time", ps_gtk_get_current_event_time)) return;
             if (!loadFunction(lib_gtk, "g_idle_add", ps_g_idle_add)) return;
             useStatusIcon = true;
-            std::cout << "status icon api loaded\n";
-        }
+			DEBUG_LOG(("Status icon api loaded!"));
+		}
 
         void setupUnity() {
             if (noTryUnity) return;
@@ -498,7 +493,7 @@ namespace {
             if (!loadFunction(lib_unity, "unity_launcher_entry_set_count", ps_unity_launcher_entry_set_count)) return;
             if (!loadFunction(lib_unity, "unity_launcher_entry_set_count_visible", ps_unity_launcher_entry_set_count_visible)) return;
             useUnityCount = true;
-            std::cout << "unity count api loaded\n";
+			DEBUG_LOG(("Unity count api loaded!"));
         }
     };
 
@@ -508,7 +503,7 @@ namespace {
 		}
 
 		bool nativeEventFilter(const QByteArray &eventType, void *message, long *result) {
-			Window *wnd = Application::wnd();
+			Window *wnd = App::wnd();
 			if (!wnd) return false;
 
 			return false;
@@ -889,7 +884,7 @@ void PsMainWindow::psFirstShow() {
 		setWindowState(Qt::WindowMaximized);
 	}
 
-	if ((cFromAutoStart() && cStartMinimized()) || cStartInTray()) {
+	if ((cLaunchMode() == LaunchModeAutoStart && cStartMinimized()) || cStartInTray()) {
 		setWindowState(Qt::WindowMinimized);
 		if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
 			hide();
@@ -972,20 +967,10 @@ void PsMainWindow::psNotifyShown(NotifyWindow *w) {
 void PsMainWindow::psPlatformNotify(HistoryItem *item, int32 fwdCount) {
 }
 
-PsApplication::PsApplication(int &argc, char **argv) : QApplication(argc, argv) {
-    _PsInitializer _psInitializer;
-    Q_UNUSED(_psInitializer);
-}
-
-void PsApplication::psInstallEventFilter() {
+QAbstractNativeEventFilter *psNativeEventFilter() {
     delete _psEventFilter;
 	_psEventFilter = new _PsEventFilter();
-    installNativeEventFilter(_psEventFilter);
-}
-
-PsApplication::~PsApplication() {
-    delete _psEventFilter;
-    _psEventFilter = 0;
+	return _psEventFilter;
 }
 
 bool _removeDirectory(const QString &path) { // from http://stackoverflow.com/questions/2256945/removing-a-non-empty-directory-programmatically-in-c-or-c
@@ -1045,14 +1030,6 @@ bool psSkipAudioNotify() {
 
 bool psSkipDesktopNotify() {
 	return false;
-}
-
-QStringList psInitLogs() {
-    return _initLogs;
-}
-
-void psClearInitLogs() {
-    _initLogs = QStringList();
 }
 
 void psActivateProcess(uint64 pid) {
@@ -1146,10 +1123,16 @@ void psShowInFolder(const QString &name) {
     system((qsl("xdg-open ") + escapeShell(QFileInfo(name).absoluteDir().absolutePath())).toUtf8().constData());
 }
 
-void psStart() {
-}
+namespace PlatformSpecific {
 
-void psFinish() {
+	Initializer::Initializer() {
+	}
+
+	Initializer::~Initializer() {
+		delete _psEventFilter;
+		_psEventFilter = 0;
+	}
+
 }
 
 namespace {
@@ -1275,7 +1258,7 @@ bool _execUpdater(bool update = true) {
         args[argIndex++] = p_noupdate;
         args[argIndex++] = p_tosettings;
     }
-    if (cFromAutoStart()) args[argIndex++] = p_autostart;
+    if (cLaunchMode() == LaunchModeAutoStart) args[argIndex++] = p_autostart;
     if (cDebug()) args[argIndex++] = p_debug;
 	if (cStartInTray()) args[argIndex++] = p_startintray;
 	if (cTestMode()) args[argIndex++] = p_testmode;
@@ -1370,18 +1353,3 @@ bool linuxMoveFile(const char *from, const char *to) {
 
 	return true;
 }
-
-#ifdef _NEED_LINUX_GENERATE_DUMP
-void _sigsegvHandler(int sig) {
-    void *array[50] = {0};
-    size_t size;
-
-    // get void*'s for all entries on the stack
-    size = backtrace(array, 50);
-
-    // print out all the frames to stderr
-    fprintf(stderr, "Error: signal %d:\n", sig);
-    backtrace_symbols_fd(array, size, STDERR_FILENO);
-    exit(1);
-}
-#endif

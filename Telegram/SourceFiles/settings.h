@@ -24,10 +24,8 @@ extern bool gDebug;
 inline bool cDebug() {
 #if defined _DEBUG
 	return true;
-#elif defined _WITH_DEBUG
-	return gDebug;
 #else
-	return false;
+	return gDebug;
 #endif
 }
 inline void cSetDebug(bool debug) {
@@ -54,6 +52,8 @@ DeclareSetting(Qt::LayoutDirection, LangDir);
 inline bool rtl() {
 	return cRtl();
 }
+
+DeclareReadSetting(QString, Arguments);
 
 struct mtpDcOption {
 	mtpDcOption(int id, int flags, const string &ip, int port) : id(id), flags(flags), ip(ip), port(port) {
@@ -82,7 +82,13 @@ DeclareSetting(bool, AutoStart);
 DeclareSetting(bool, StartMinimized);
 DeclareSetting(bool, StartInTray);
 DeclareSetting(bool, SendToMenu);
-DeclareReadSetting(bool, FromAutoStart);
+enum LaunchMode {
+	LaunchModeNormal = 0,
+	LaunchModeAutoStart,
+	LaunchModeFixPrevious,
+	LaunchModeCleanup,
+};
+DeclareReadSetting(LaunchMode, LaunchMode);
 DeclareSetting(QString, WorkingDir);
 inline void cForceWorkingDir(const QString &newDir) {
 	cSetWorkingDir(newDir);

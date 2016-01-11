@@ -25,56 +25,25 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 
 int main(int argc, char *argv[]) {
+	int result = 0;
+
 #ifdef Q_OS_WIN
 	_oldWndExceptionFilter = SetUnhandledExceptionFilter(_exceptionFilter);
 //	CAPIHook apiHook("kernel32.dll", "SetUnhandledExceptionFilter", (PROC)RedirectedSetUnhandledExceptionFilter);
 #endif
 
 	settingsParseArgs(argc, argv);
-	for (int32 i = 0; i < argc; ++i) {
-		if (string("-fixprevious") == argv[i]) {
-			return psFixPrevious();
-		} else if (string("-cleanup") == argv[i]) {
-			return psCleanup();
-		}
-	}
-	if (!logsInit()) {
-		return 0;
+	if (cLaunchMode() == LaunchModeFixPrevious) {
+		return psFixPrevious();
+	} else if (cLaunchMode() == LaunchModeCleanup) {
+		return psCleanup();
 	}
 
-	installSignalHandlers();
-
-	Global::Initializer _init;
-
-	Local::readSettings();
-	if (Local::oldSettingsVersion() < AppVersion) {
-		psNewVersion();
-	}
-	if (cFromAutoStart() && !cAutoStart()) {
-		psAutoStart(false, true);
-		Local::stop();
-		return 0;
-	}
-
-	DEBUG_LOG(("Application Info: Telegram started, test mode: %1, exe dir: %2").arg(logBool(cTestMode())).arg(cExeDir()));
-	if (cDebug()) {
-		LOG(("Application Info: Telegram started in debug mode"));
-		for (int32 i = 0; i < argc; ++i) {
-			LOG(("Argument: %1").arg(fromUtf8Safe(argv[i])));
-		}
-        QStringList logs = psInitLogs();
-        for (int32 i = 0, l = logs.size(); i < l; ++i) {
-            LOG(("Init Log: %1").arg(logs.at(i)));
-        }
-    }
-    psClearInitLogs();
-
-	DEBUG_LOG(("Application Info: ideal thread count: %1, using %2 connections per session").arg(QThread::idealThreadCount()).arg(cConnectionsInSession()));
-
-	psStart();
-	int result = 0;
+	Logs::Initializer _logs;
 	{
-		QByteArray args[] = { "-style=0" }; // prepare fake args
+		PlatformSpecific::Initializer _ps;
+
+		QByteArray args[] = { "-style=0" }; // prepare fake args to disable QT_STYLE_OVERRIDE env variable
 		static const int a_cnt = sizeof(args) / sizeof(args[0]);
 		int a_argc = a_cnt + 1;
 		char *a_argv[a_cnt + 1] = { argv[0], args[0].data() };
@@ -84,22 +53,11 @@ int main(int argc, char *argv[]) {
 			result = app.exec();
 		}
 	}
-    psFinish();
-	Local::stop();
 
-	DEBUG_LOG(("Application Info: Telegram done, result: %1").arg(result));
+	DEBUG_LOG(("Telegram finished, result: %1").arg(result));
 
 	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if (cRestartingUpdate()) {
-		if (!cBetaVersion() && DevVersion) {
-			LOG(("Writing 'devversion' file before launching the Updater!"));
-			QFile f(cWorkingDir() + qsl("tdata/devversion"));
-			if (!f.exists() && f.open(QIODevice::WriteOnly)) {
-				f.write("1");
-				f.close();
-			}
-		}
-
 		DEBUG_LOG(("Application Info: executing updater to install update.."));
 		psExecUpdater();
 	} else
@@ -109,6 +67,5 @@ int main(int argc, char *argv[]) {
 		psExecTelegram();
 	}
 
-	logsClose();
 	return result;
 }

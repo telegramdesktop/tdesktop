@@ -151,12 +151,12 @@ namespace App {
 		return result;
 	}
 
-	Application *app() {
-		return Application::app();
+	AppClass *app() {
+		return AppClass::app();
 	}
 
 	Window *wnd() {
-		return Application::wnd();
+		return AppClass::wnd();
 	}
 
 	MainWidget *main() {
@@ -2279,9 +2279,7 @@ namespace App {
 		if (wnd()) {
 			wnd()->quit();
 		}
-		if (app()) {
-			app()->quit();
-		}
+		Application::quit();
 	}
 
 	bool quiting() {

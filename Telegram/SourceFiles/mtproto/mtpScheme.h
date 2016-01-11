@@ -31439,8 +31439,4 @@ inline MTPmessages_botResults MTP_messages_botResults(MTPint _flags, const MTPlo
 }
 
 // Human-readable text serialization
-#if (defined _DEBUG || defined _WITH_DEBUG)
-
 void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons);
-
-#endif

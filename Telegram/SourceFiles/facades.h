@@ -37,7 +37,7 @@ namespace App {
 
 };
 
-namespace Ui { // openssl doesn't allow me to use UI :(
+namespace Ui {
 
 	void showStickerPreview(DocumentData *sticker);
 	void hideStickerPreview();
@@ -98,17 +98,32 @@ namespace Notify {
 
 namespace Global {
 
-	class Initializer {
-	public:
-		Initializer();
-		~Initializer();
-	};
+	bool CheckBetaVersionDir();
+	void WorkingDirReady();
+
+	void start();
+	void finish();
 
 #define DeclareGlobalReadOnly(Type, Name) const Type &Name();
 #define DeclareGlobal(Type, Name) DeclareGlobalReadOnly(Type, Name) \
 	void Set##Name(const Type &Name); \
 	Type &Ref##Name();
 
-	DeclareGlobalReadOnly(uint64, LaunchId);
+	DeclareGlobalReadOnly(QString, LangSystemISO);
+	DeclareGlobalReadOnly(int32, LangSystem);
+
+}
+
+namespace Sandbox {
+
+	void start();
+	void finish();
+
+#define DeclareSandboxReadOnly(Type, Name) const Type &Name();
+#define DeclareSandbox(Type, Name) DeclareSandboxReadOnly(Type, Name) \
+	void Set##Name(const Type &Name); \
+	Type &Ref##Name();
+
+	DeclareSandboxReadOnly(uint64, LaunchId);
 
 };

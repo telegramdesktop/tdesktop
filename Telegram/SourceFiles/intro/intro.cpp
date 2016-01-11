@@ -47,7 +47,7 @@ namespace {
 			emit signalEmitOn->countryChanged();
 		}
 		#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-		if (App::app()) App::app()->startUpdateCheck();
+		Sandboxer::startUpdateCheck();
 		#endif
 	}
 }

@@ -84,6 +84,16 @@ using std::swap;
 
 #include "logs.h"
 
+static volatile int *t_assert_nullptr = 0;
+inline void t_noop() {}
+inline void t_assert_fail(const char *message, const char *file, int32 line) {
+	LOG(("Assertion Failed! %1 %2:%3").arg(message).arg(file).arg(line));
+	*t_assert_nullptr = 0;
+}
+#define t_assert_full(condition, message, file, line) ((!(condition)) ? t_assert_fail(message, file, line) : t_noop())
+#define t_assert_c(condition, comment) t_assert_full(condition, "\"" #condition "\" (" comment ")", __FILE__, __LINE__)
+#define t_assert(condition) t_assert_full(condition, "\"" #condition "\"", __FILE__, __LINE__)
+
 class Exception : public exception {
 public:
 
@@ -135,8 +145,12 @@ inline void mylocaltime(struct tm * _Tm, const time_t * _Time) {
 
 void installSignalHandlers();
 
-void initThirdParty(); // called by Global::Initializer
-void deinitThirdParty();
+namespace ThirdParty {
+
+	void start();
+	void finish();
+
+}
 
 bool checkms(); // returns true if time has changed
 uint64 getms(bool checked = false);

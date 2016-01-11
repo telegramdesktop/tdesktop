@@ -750,7 +750,7 @@ void SetupChannelBox::mouseMoveEvent(QMouseEvent *e) {
 void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (_linkOver) {
-		App::app()->clipboard()->setText(_channel->invitationUrl);
+		Sandboxer::setClipboardText(_channel->invitationUrl);
 		_goodTextLink = lang(lng_create_channel_link_copied);
 		a_goodOpacity = anim::fvalue(1, 0);
 		_a_goodFade.start();

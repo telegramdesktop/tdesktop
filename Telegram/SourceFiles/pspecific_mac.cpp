@@ -307,7 +307,7 @@ void PsMainWindow::psFirstShow() {
 		setWindowState(Qt::WindowMaximized);
 	}
 
-	if ((cFromAutoStart() && cStartMinimized()) || cStartInTray()) {
+	if ((cLaunchMode() == LaunchModeAutoStart && cStartMinimized()) || cStartInTray()) {
 		setWindowState(Qt::WindowMinimized);
 		if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
 			hide();
@@ -516,18 +516,10 @@ bool PsMainWindow::eventFilter(QObject *obj, QEvent *evt) {
 	return QMainWindow::eventFilter(obj, evt);
 }
 
-PsApplication::PsApplication(int &argc, char **argv) : QApplication(argc, argv) {
-}
-
-void PsApplication::psInstallEventFilter() {
+QAbstractNativeEventFilter *psNativeEventFilter() {
     delete _psEventFilter;
 	_psEventFilter = new _PsEventFilter();
     installNativeEventFilter(_psEventFilter);
-}
-
-PsApplication::~PsApplication() {
-    delete _psEventFilter;
-    _psEventFilter = 0;
 }
 
 void psDeleteDir(const QString &dir) {
@@ -649,12 +641,19 @@ void psShowInFolder(const QString &name) {
     objc_showInFinder(name, QFileInfo(name).absolutePath());
 }
 
-void psStart() {
-	objc_start();
-}
+namespace PlatformSpecific {
 
-void psFinish() {
-    objc_finish();
+	Initializer::Initializer() {
+		objc_start();
+	}
+
+	Initializer::~Initializer() {
+		delete _psEventFilter;
+		_psEventFilter = 0;
+
+		objc_finish();
+	}
+
 }
 
 void psNewVersion() {

@@ -26,11 +26,11 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include <QtNetwork/QLocalServer>
 #include <QtNetwork/QNetworkReply>
 
-class UpdateDownloader : public QObject {
+class UpdateChecker : public QObject {
 	Q_OBJECT
 
 public:
-	UpdateDownloader(QThread *thread, const QString &url);
+	UpdateChecker(QThread *thread, const QString &url);
 
 	void unpackUpdate();
 
@@ -39,7 +39,7 @@ public:
 
 	static void clearAll();
 
-	~UpdateDownloader();
+	~UpdateChecker();
 
 public slots:
 
@@ -67,7 +67,7 @@ private:
 bool checkReadyUpdate();
 
 #else
-class UpdateDownloader : public QObject {
+class UpdateChecker : public QObject {
 	Q_OBJECT
 };
 

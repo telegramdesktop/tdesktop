@@ -127,7 +127,7 @@ namespace {
 	};
 	typedef QMap<StorageKey, ToastImage> ToastImages;
 	ToastImages toastImages;
-	bool toastImageSaved = false;
+	bool ToastImageSavedFlag = false;
 
 	HWND createTaskbarHider() {
 		HINSTANCE appinst = (HINSTANCE)GetModuleHandle(0);
@@ -267,14 +267,14 @@ namespace {
 				return false;
 			}
 
-			QRect avail(App::app() ? App::app()->desktop()->availableGeometry() : QDesktopWidget().availableGeometry());
+			QRect avail(Sandboxer::availableGeometry());
 			max_w = avail.width();
 			if (max_w < st::wndMinWidth) max_w = st::wndMinWidth;
 			max_h = avail.height();
 			if (max_h < st::wndMinHeight) max_h = st::wndMinHeight;
 
 			HINSTANCE appinst = (HINSTANCE)GetModuleHandle(0);
-			HWND hwnd = Application::wnd() ? Application::wnd()->psHwnd() : 0;
+			HWND hwnd = App::wnd() ? App::wnd()->psHwnd() : 0;
 
 			for (int i = 0; i < 4; ++i) {
 				QString cn = QString("TelegramShadow%1").arg(i);
@@ -402,7 +402,7 @@ namespace {
 		}
 
 		void update(int changes, WINDOWPOS *pos = 0) {
-			HWND hwnd = Application::wnd() ? Application::wnd()->psHwnd() : 0;
+			HWND hwnd = App::wnd() ? App::wnd()->psHwnd() : 0;
 			if (!hwnd || !hwnds[0]) return;
 
 			if (changes == _PsShadowActivate) {
@@ -421,7 +421,7 @@ namespace {
 				}
 				return;
 			}
-			if (!Application::wnd()->psPosInited()) return;
+			if (!App::wnd()->psPosInited()) return;
 
 			int x = _x, y = _y, w = _w, h = _h;
 			if (pos && (!(pos->flags & SWP_NOMOVE) || !(pos->flags & SWP_NOSIZE) || !(pos->flags & SWP_NOREPOSITION))) {
@@ -614,7 +614,7 @@ namespace {
 
 		switch (msg) {
 			case WM_CLOSE:
-				Application::wnd()->close();
+				App::wnd()->close();
 			break;
 			case WM_NCHITTEST: {
 				int32 xPos = GET_X_LPARAM(lParam), yPos = GET_Y_LPARAM(lParam);
@@ -797,7 +797,7 @@ namespace {
 		}
 
 		bool nativeEventFilter(const QByteArray &eventType, void *message, long *result) {
-			Window *wnd = Application::wnd();
+			Window *wnd = App::wnd();
 			if (!wnd) return false;
 
 			MSG *msg = (MSG*)message;
@@ -846,8 +846,8 @@ namespace {
 				} else {
 					_psShadowWindows.setColor(_shInactive);
 				}
-				QTimer::singleShot(0, Application::wnd(), SLOT(updateCounter()));
-				Application::wnd()->update();
+				QTimer::singleShot(0, App::wnd(), SLOT(updateCounter()));
+				App::wnd()->update();
 			} return false;
 
 			case WM_NCPAINT: if (QSysInfo::WindowsVersion >= QSysInfo::WV_WINDOWS8) return false; *result = 0; return true;
@@ -922,7 +922,7 @@ namespace {
 				POINTS p = MAKEPOINTS(lParam);
 				RECT r;
 				GetWindowRect(hWnd, &r);
-				HitTestType res = Application::wnd()->hitTest(QPoint(p.x - r.left + dleft, p.y - r.top + dtop));
+				HitTestType res = App::wnd()->hitTest(QPoint(p.x - r.left + dleft, p.y - r.top + dtop));
 				switch (res) {
 					case HitTestClient:
 					case HitTestSysButton:   *result = HTCLIENT; break;
@@ -949,22 +949,22 @@ namespace {
 				POINTS p = MAKEPOINTS(lParam);
 				RECT r;
 				GetWindowRect(hWnd, &r);
-				HitTestType res = Application::wnd()->hitTest(QPoint(p.x - r.left + dleft, p.y - r.top + dtop));
+				HitTestType res = App::wnd()->hitTest(QPoint(p.x - r.left + dleft, p.y - r.top + dtop));
 				switch (res) {
 					case HitTestIcon:
 						if (menuHidden && getms() < menuHidden + 10) {
 							menuHidden = 0;
 							if (getms() < menuShown + GetDoubleClickTime()) {
-								Application::wnd()->close();
+								App::wnd()->close();
 							}
 						} else {
-							QRect icon = Application::wnd()->iconRect();
+							QRect icon = App::wnd()->iconRect();
 							p.x = r.left - dleft + icon.left();
 							p.y = r.top - dtop + icon.top() + icon.height();
-							Application::wnd()->psUpdateSysMenu(Application::wnd()->windowHandle()->windowState());
+							App::wnd()->psUpdateSysMenu(App::wnd()->windowHandle()->windowState());
 							menuShown = getms();
 							menuHidden = 0;
-							TrackPopupMenu(Application::wnd()->psMenu(), TPM_LEFTALIGN | TPM_TOPALIGN | TPM_LEFTBUTTON, p.x, p.y, 0, hWnd, 0);
+							TrackPopupMenu(App::wnd()->psMenu(), TPM_LEFTALIGN | TPM_TOPALIGN | TPM_LEFTBUTTON, p.x, p.y, 0, hWnd, 0);
 							menuHidden = getms();
 						}
 					return true;
@@ -975,17 +975,17 @@ namespace {
 				POINTS p = MAKEPOINTS(lParam);
 				RECT r;
 				GetWindowRect(hWnd, &r);
-				HitTestType res = Application::wnd()->hitTest(QPoint(p.x - r.left + dleft, p.y - r.top + dtop));
+				HitTestType res = App::wnd()->hitTest(QPoint(p.x - r.left + dleft, p.y - r.top + dtop));
 				switch (res) {
-					case HitTestIcon: Application::wnd()->close(); return true;
+					case HitTestIcon: App::wnd()->close(); return true;
 				};
 			} return false;
 
 			case WM_SYSCOMMAND: {
 				if (wParam == SC_MOUSEMENU) {
 					POINTS p = MAKEPOINTS(lParam);
-					Application::wnd()->psUpdateSysMenu(Application::wnd()->windowHandle()->windowState());
-					TrackPopupMenu(Application::wnd()->psMenu(), TPM_LEFTALIGN | TPM_TOPALIGN | TPM_LEFTBUTTON, p.x, p.y, 0, hWnd, 0);
+					App::wnd()->psUpdateSysMenu(App::wnd()->windowHandle()->windowState());
+					TrackPopupMenu(App::wnd()->psMenu(), TPM_LEFTALIGN | TPM_TOPALIGN | TPM_LEFTBUTTON, p.x, p.y, 0, hWnd, 0);
 				}
 			} return false;
 
@@ -993,10 +993,10 @@ namespace {
 				if (HIWORD(wParam)) return false;
 				int cmd = LOWORD(wParam);
 				switch (cmd) {
-					case SC_CLOSE: Application::wnd()->close(); return true;
-					case SC_MINIMIZE: Application::wnd()->setWindowState(Qt::WindowMinimized); return true;
-					case SC_MAXIMIZE: Application::wnd()->setWindowState(Qt::WindowMaximized); return true;
-					case SC_RESTORE: Application::wnd()->setWindowState(Qt::WindowNoState); return true;
+					case SC_CLOSE: App::wnd()->close(); return true;
+					case SC_MINIMIZE: App::wnd()->setWindowState(Qt::WindowMinimized); return true;
+					case SC_MAXIMIZE: App::wnd()->setWindowState(Qt::WindowMaximized); return true;
+					case SC_RESTORE: App::wnd()->setWindowState(Qt::WindowNoState); return true;
 				}
 			} return true;
 
@@ -1190,7 +1190,7 @@ void PsMainWindow::psInitSize() {
 	setMinimumHeight(st::wndMinHeight);
 
 	TWindowPos pos(cWindowPos());
-	QRect avail(App::app() ? App::app()->desktop()->availableGeometry() : QDesktopWidget().availableGeometry());
+	QRect avail(Sandboxer::availableGeometry());
 	bool maximized = false;
 	QRect geom(avail.x() + (avail.width() - st::wndDefWidth) / 2, avail.y() + (avail.height() - st::wndDefHeight) / 2, st::wndDefWidth, st::wndDefHeight);
 	if (pos.w && pos.h) {
@@ -1309,7 +1309,7 @@ void PsMainWindow::psFirstShow() {
 		setWindowState(Qt::WindowMaximized);
 	}
 
-	if ((cFromAutoStart() && cStartMinimized()) || cStartInTray()) {
+	if ((cLaunchMode() == LaunchModeAutoStart && cStartMinimized()) || cStartInTray()) {
 		setWindowState(Qt::WindowMinimized);
 		if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
 			hide();
@@ -1553,18 +1553,10 @@ void PsMainWindow::psPlatformNotify(HistoryItem *item, int32 fwdCount) {
 	CreateToast(item->history()->peer, item->id, showpix, title, subtitle, msg);
 }
 
-PsApplication::PsApplication(int &argc, char **argv) : QApplication(argc, argv) {
-}
-
-void PsApplication::psInstallEventFilter() {
+QAbstractNativeEventFilter *psNativeEventFilter() {
 	delete _psEventFilter;
 	_psEventFilter = new _PsEventFilter();
-	installNativeEventFilter(_psEventFilter);
-}
-
-PsApplication::~PsApplication() {
-	delete _psEventFilter;
-	_psEventFilter = 0;
+	return _psEventFilter;
 }
 
 void psDeleteDir(const QString &dir) {
@@ -2159,13 +2151,21 @@ void psShowInFolder(const QString &name) {
 	ShellExecute(0, 0, qsl("explorer").toStdWString().c_str(), (qsl("/select,") + nameEscaped).toStdWString().c_str(), 0, SW_SHOWNORMAL);
 }
 
-void psStart() {
-}
 
-void psFinish() {
-	if (toastImageSaved) {
-		psDeleteDir(cWorkingDir() + qsl("tdata/temp"));
+namespace PlatformSpecific {
+
+	Initializer::Initializer() {
 	}
+
+	Initializer::~Initializer() {
+		delete _psEventFilter;
+		_psEventFilter = 0;
+
+		if (ToastImageSavedFlag) {
+			psDeleteDir(cWorkingDir() + qsl("tdata/temp"));
+		}
+	}
+
 }
 
 namespace {
@@ -2250,7 +2250,7 @@ void psNewVersion() {
 
 void psExecUpdater() {
 	QString targs = qsl("-update");
-	if (cFromAutoStart()) targs += qsl(" -autostart");
+	if (cLaunchMode() == LaunchModeAutoStart) targs += qsl(" -autostart");
 	if (cDebug()) targs += qsl(" -debug");
 	if (cStartInTray()) targs += qsl(" -startintray");
 	if (cWriteProtected()) targs += qsl(" -writeprotected \"") + cExeDir() + '"';
@@ -2270,7 +2270,7 @@ void psExecUpdater() {
 void psExecTelegram() {
 	QString targs = qsl("-noupdate");
 	if (cRestartingToSettings()) targs += qsl(" -tosettings");
-	if (cFromAutoStart()) targs += qsl(" -autostart");
+	if (cLaunchMode() == LaunchModeAutoStart) targs += qsl(" -autostart");
 	if (cDebug()) targs += qsl(" -debug");
 	if (cStartInTray()) targs += qsl(" -startintray");
 	if (cTestMode()) targs += qsl(" -testmode");
@@ -2741,7 +2741,7 @@ QString toastImage(const StorageKey &key, PeerData *peer) {
 			App::wnd()->iconLarge().save(v.path, "PNG");
 		}
 		i = toastImages.insert(key, v);
-		toastImageSaved = true;
+		ToastImageSavedFlag = true;
 	}
 	return i->path;
 }

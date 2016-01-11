@@ -26,6 +26,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 bool gRtl = false;
 Qt::LayoutDirection gLangDir = gRtl ? Qt::RightToLeft : Qt::LeftToRight;
 
+QString gArguments;
+
 mtpDcOptions gDcOptions;
 
 bool gDevVersion = DevVersion;
@@ -57,7 +59,7 @@ bool gAutoStart = false;
 bool gSendToMenu = false;
 bool gAutoUpdate = true;
 TWindowPos gWindowPos;
-bool gFromAutoStart = false;
+LaunchMode gLaunchMode = LaunchModeNormal;
 bool gSupportTray = true;
 DBIWorkMode gWorkMode = dbiwmWindowAndTray;
 DBIConnectionType gConnectionType = dbictAuto;
@@ -189,6 +191,13 @@ void settingsParseArgs(int argc, char *argv[]) {
 		gCustomNotifies = false;
 	}
 #endif
+
+	QStringList args;
+	for (int32 i = 0; i < argc; ++i) {
+		args.push_back('"' + fromUtf8Safe(argv[i]) + '"');
+	}
+	gArguments = args.join(' ');
+
 	gExeDir = psCurrentExeDirectory(argc, argv);
 	gExeName = psCurrentExeName(argc, argv);
     for (int32 i = 0; i < argc; ++i) {
@@ -201,7 +210,11 @@ void settingsParseArgs(int argc, char *argv[]) {
 		} else if (string("-key") == argv[i] && i + 1 < argc) {
 			gKeyFile = fromUtf8Safe(argv[++i]);
 		} else if (string("-autostart") == argv[i]) {
-			gFromAutoStart = true;
+			gLaunchMode = LaunchModeAutoStart;
+		} else if (string("-fixprevious") == argv[i]) {
+			gLaunchMode = LaunchModeFixPrevious;
+		} else if (string("-cleanup") == argv[i]) {
+			gLaunchMode = LaunchModeCleanup;
 		} else if (string("-noupdate") == argv[i]) {
 			gNoStartUpdate = true;
 		} else if (string("-tosettings") == argv[i]) {

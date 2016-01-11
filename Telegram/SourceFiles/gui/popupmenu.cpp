@@ -464,7 +464,7 @@ void PopupMenu::showMenu(const QPoint &p, PopupMenu *parent, PressSource source)
 	_parent = parent;
 
 	QPoint w = p - QPoint(0, _padding.top());
-	QRect r = App::app() ? App::app()->desktop()->screenGeometry(p) : QDesktopWidget().screenGeometry(p);
+	QRect r = Sandboxer::screenGeometry(p);
 	if (rtl()) {
 		if (w.x() - width() < r.x() - _padding.left()) {
 			if (_parent && w.x() + _parent->width() - _padding.left() - _padding.right() + width() - _padding.right() <= r.x() + r.width()) {

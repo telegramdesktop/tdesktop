@@ -793,7 +793,7 @@ out.write('\n// Type classes definitions\n' + typesText);
 out.write('\n// Type constructors with data\n' + dataTexts);
 out.write('\n// RPC methods\n' + funcsText);
 out.write('\n// Inline methods definition\n' + inlineMethods);
-out.write('\n// Human-readable text serialization\n#if (defined _DEBUG || defined _WITH_DEBUG)\n\nvoid mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons);\n\n#endif\n');
+out.write('\n// Human-readable text serialization\nvoid mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons);\n');
 
 outCpp = open('mtpScheme.cpp', 'w');
 outCpp.write('/*\n');
@@ -816,7 +816,6 @@ outCpp.write('Full license: https://github.com/telegramdesktop/tdesktop/blob/mas
 outCpp.write('Copyright (c) 2014 John Preston, https://desktop.telegram.org\n');
 outCpp.write('*/\n');
 outCpp.write('#include "stdafx.h"\n#include "mtpScheme.h"\n\n');
-outCpp.write('#if (defined _DEBUG || defined _WITH_DEBUG)\n\n');
 outCpp.write('typedef QVector<mtpTypeId> Types;\ntypedef QVector<int32> StagesFlags;\n\n');
 outCpp.write(textSerializeMethods);
 outCpp.write('namespace {\n');
@@ -825,7 +824,7 @@ outCpp.write('\ttypedef QMap<mtpTypeId, mtpTextSerializer> TextSerializers;\n\tT
 outCpp.write('\tvoid initTextSerializers() {\n');
 outCpp.write(textSerializeInit);
 outCpp.write('\t}\n}\n');
-outCpp.write(textSerializeFull + '\n#endif\n');
+outCpp.write(textSerializeFull + '\n');
 
 print('Done, written {0} constructors, {1} functions.'.format(consts, funcs));
 
