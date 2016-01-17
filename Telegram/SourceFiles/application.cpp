@@ -149,7 +149,7 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
 	connect(&_localSocket, SIGNAL(error(QLocalSocket::LocalSocketError)), this, SLOT(socketError(QLocalSocket::LocalSocketError)));
 	connect(&_localSocket, SIGNAL(bytesWritten(qint64)), this, SLOT(socketWritten(qint64)));
 	connect(&_localSocket, SIGNAL(readyRead()), this, SLOT(socketReading()));
-	connect(&_localSocket, SIGNAL(newConnection()), this, SLOT(newInstanceConnected()));
+	connect(&_localServer, SIGNAL(newConnection()), this, SLOT(newInstanceConnected()));
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	connect(&_updateCheckTimer, SIGNAL(timeout()), this, SLOT(updateCheck()));
