@@ -31,17 +31,21 @@ enum LogDataType {
 	LogDataCount
 };
 
-QMutex *LogsMutexes = 0;
-QMutex *_logsMutex(LogDataType type) {
-	if (!LogsMutexes) {
+QMutex *_logsMutex(LogDataType type, bool clear = false) {
+	static QMutex *LogsMutexes = 0;
+	if (clear) {
+		delete[] LogsMutexes;
+		LogsMutexes = 0;
+	} else if (!LogsMutexes) {
 		LogsMutexes = new QMutex[LogDataCount];
 	}
 	return &LogsMutexes[type];
 }
+
 QString _logsFilePath(LogDataType type, const QString &postfix = QString()) {
 	QString path(cWorkingDir());
 	switch (type) {
-	case LogDataMain: path += qstr("log.txt"); break;
+	case LogDataMain: path += qstr("log") + postfix + qstr(".txt"); break;
 	case LogDataDebug: path += qstr("DebugLogs/log") + postfix + qstr(".txt"); break;
 	case LogDataTcp: path += qstr("DebugLogs/tcp") + postfix + qstr(".txt"); break;
 	case LogDataMtp: path += qstr("DebugLogs/mtp") + postfix + qstr(".txt"); break;
@@ -49,21 +53,45 @@ QString _logsFilePath(LogDataType type, const QString &postfix = QString()) {
 	return path;
 }
 
+int32 LogsStartIndexChosen = -1;
+QString _logsEntryStart() {
+	static int32 index = 0;
+	QDateTime tm(QDateTime::currentDateTime());
+
+	QThread *thread = QThread::currentThread();
+	MTPThread *mtpThread = qobject_cast<MTPThread*>(thread);
+	uint threadId = mtpThread ? mtpThread->getThreadId() : 0;
+
+	return QString("[%1 %2-%3]").arg(tm.toString("hh:mm:ss.zzz")).arg(QString("%1").arg(threadId, 2, 10, QChar('0'))).arg(++index, 7, 10, QChar('0'));
+}
+
 class LogsDataFields {
 public:
-	QString entryStart() {
-		QDateTime tm(QDateTime::currentDateTime());
 
-		QThread *thread = QThread::currentThread();
-		MTPThread *mtpThread = qobject_cast<MTPThread*>(thread);
-		uint threadId = mtpThread ? mtpThread->getThreadId() : 0;
-
-		return QString("[%1 %2-%3]").arg(tm.toString("hh:mm:ss.zzz")).arg(QString("%1").arg(threadId, 2, 10, QChar('0'))).arg(++index, 7, 10, QChar('0'));
+	LogsDataFields() {
+		for (int32 i = 0; i < LogDataCount; ++i) {
+			files[i].reset(new QFile());
+		}
 	}
 
 	bool openMain() {
-		QMutexLocker lock(_logsMutex(LogDataMain));
+		return reopen(LogDataMain, 0, qsl("start"));
+	}
+
+	bool instanceChecked() {
 		return reopen(LogDataMain, 0, QString());
+	}
+
+	QString full() {
+		if (!streams[LogDataMain].device()) {
+			return QString();
+		}
+
+		QFile out(files[LogDataMain]->fileName());
+		if (out.open(QIODevice::ReadOnly)) {
+			return QString::fromUtf8(out.readAll());
+		}
+		return QString();
 	}
 
 	void write(LogDataType type, const QString &msg) {
@@ -77,7 +105,7 @@ public:
 
 private:
 
-	QFile files[LogDataCount];
+	QSharedPointer<QFile> files[LogDataCount];
 	QTextStream streams[LogDataCount];
 
 	int32 part = -1, index = 0;
@@ -85,28 +113,90 @@ private:
 	bool reopen(LogDataType type, int32 dayIndex, const QString &postfix) {
 		if (streams[type].device()) {
 			if (type == LogDataMain) {
-				return true;
+				if (!postfix.isEmpty()) {
+					return true;
+				}
+			} else {
+				streams[type].setDevice(0);
+				files[type]->close();
 			}
-			streams[type].setDevice(0);
-			files[type].close();
 		}
 
-		files[type].setFileName(_logsFilePath(type, postfix));
 		QFlags<QIODevice::OpenModeFlag> mode = QIODevice::WriteOnly | QIODevice::Text;
-		if (type != LogDataMain) {
-			if (files[type].exists()) {
-				if (files[type].open(QIODevice::ReadOnly | QIODevice::Text)) {
-					if (QString::fromUtf8(files[type].readLine()).toInt() == dayIndex) {
+		if (type == LogDataMain) { // we can call LOG() in LogDataMain reopen - mutex not locked
+			if (postfix.isEmpty()) { // instance checked, need to move to log.txt
+				t_assert(!files[type]->fileName().isEmpty()); // one of log_startXX.txt should've been opened already
+
+				QSharedPointer<QFile> to(new QFile(_logsFilePath(type, postfix)));
+				if (to->exists() && !to->remove()) {
+					LOG(("Could not delete '%1' file to start new logging!").arg(to->fileName()));
+					return false;
+				}
+				if (!QFile(files[type]->fileName()).copy(to->fileName())) { // don't close files[type] yet
+					LOG(("Could not copy '%1' to '%2' to start new logging!").arg(files[type]->fileName()).arg(to->fileName()));
+					return false;
+				}
+				if (to->open(mode | QIODevice::Append)) {
+					qSwap(files[type], to);
+					streams[type].setDevice(files[type].data());
+					streams[type].setCodec("UTF-8");
+					LOG(("Moved logging from '%1' to '%2'!").arg(to->fileName()).arg(files[type]->fileName()));
+					to->remove();
+
+					LogsStartIndexChosen = -1;
+
+					QDir working(cWorkingDir()); // delete all other log_startXX.txt that we can
+					QStringList oldlogs = working.entryList(QStringList("log_start*.txt"), QDir::Files);
+					for (QStringList::const_iterator i = oldlogs.cbegin(), e = oldlogs.cend(); i != e; ++i) {
+						QString oldlog = cWorkingDir() + *i, oldlogend = i->mid(qstr("log_start").size());
+						if (oldlogend.size() == 1 + qstr(".txt").size() && oldlogend.at(0).isDigit() && oldlogend.midRef(1) == qstr(".txt")) {
+							bool removed = QFile(*i).remove();
+							LOG(("Old start log '%1' found, deleted: %2").arg(*i).arg(Logs::b(removed)));
+						}
+					}
+
+					return true;
+				}
+				LOG(("Could not open '%1' file to start new logging!").arg(to->fileName()));
+				return false;
+			} else {
+				bool found = false;
+				int32 oldest = -1; // find not existing log_startX.txt or pick the oldest one (by lastModified)
+				QDateTime oldestLastModified;
+				for (int32 i = 0; i < 10; ++i) {
+					QString trying = _logsFilePath(type, qsl("_start%1").arg(i));
+					files[type]->setFileName(trying);
+					if (!files[type]->exists()) {
+						LogsStartIndexChosen = i;
+						found = true;
+						break;
+					}
+					QDateTime lastModified = QFileInfo(trying).lastModified();
+					if (oldest < 0 || lastModified < oldestLastModified) {
+						oldestLastModified = lastModified;
+						oldest = i;
+					}
+				}
+				if (!found) {
+					files[type]->setFileName(_logsFilePath(type, qsl("_start%1").arg(oldest)));
+					LogsStartIndexChosen = oldest;
+				}
+			}
+		} else {
+			files[type]->setFileName(_logsFilePath(type, postfix));
+			if (files[type]->exists()) {
+				if (files[type]->open(QIODevice::ReadOnly | QIODevice::Text)) {
+					if (QString::fromUtf8(files[type]->readLine()).toInt() == dayIndex) {
 						mode |= QIODevice::Append;
 					}
-					files[type].close();
+					files[type]->close();
 				}
 			} else {
 				QDir().mkdir(cWorkingDir() + qstr("DebugLogs"));
 			}
 		}
-		if (files[type].open(mode)) {
-			streams[type].setDevice(&files[type]);
+		if (files[type]->open(mode)) {
+			streams[type].setDevice(files[type].data());
 			streams[type].setCodec("UTF-8");
 
 			if (type != LogDataMain) {
@@ -115,6 +205,8 @@ private:
 			}
 
 			return true;
+		} else if (type != LogDataMain) {
+			LOG(("Could not open debug log '%1'!").arg(files[type]->fileName()));
 		}
 		return false;
 	}
@@ -145,8 +237,11 @@ LogsDataFields *LogsData = 0;
 typedef QList<QPair<LogDataType, QString> > LogsInMemoryList;
 LogsInMemoryList *LogsInMemory = 0;
 LogsInMemoryList *DeletedLogsInMemory = SharedMemoryLocation<LogsInMemoryList, 0>();
+
+QString LogsBeforeSingleInstanceChecked; // LogsInMemory already dumped in LogsData, but LogsData is about to be deleted
+
 void _logsWrite(LogDataType type, const QString &msg) {
-	if (LogsData) {
+	if (LogsData && (type == LogDataMain || LogsStartIndexChosen < 0)) {
 		if (type == LogDataMain || cDebug()) {
 			LogsData->write(type, msg);
 		}
@@ -154,7 +249,9 @@ void _logsWrite(LogDataType type, const QString &msg) {
 		if (!LogsInMemory) {
 			LogsInMemory = new LogsInMemoryList;
 		}
-		LogsInMemory->push_back(qMakePair(LogDataMain, msg));
+		LogsInMemory->push_back(qMakePair(type, msg));
+	} else if (!LogsBeforeSingleInstanceChecked.isEmpty() && type == LogDataMain) {
+		LogsBeforeSingleInstanceChecked += msg;
 	}
 }
 
@@ -217,7 +314,7 @@ namespace Logs {
 		if (!LogsData->openMain()) {
 			delete LogsData;
 			LogsData = 0;
-			LOG(("Error: could not open '%1' for writing log!").arg(_logsFilePath(LogDataMain)));
+			LOG(("Could not open '%1' for writing log!").arg(_logsFilePath(LogDataMain, qsl("_startXX"))));
 			return;
 		}
 
@@ -234,29 +331,74 @@ namespace Logs {
 			t_assert(LogsInMemory != DeletedLogsInMemory);
 			LogsInMemoryList list = *LogsInMemory;
 			for (LogsInMemoryList::const_iterator i = list.cbegin(), e = list.cend(); i != e; ++i) {
-				_logsWrite(i->first, i->second);
+				if (i->first == LogDataMain) {
+					_logsWrite(i->first, i->second);
+				}
 			}
-		}
-		if (LogsInMemory) {
-			t_assert(LogsInMemory != DeletedLogsInMemory);
-			delete LogsInMemory;
-			LogsInMemory = DeletedLogsInMemory;
 		}
 
 		LOG(("Logs started."));
-		DEBUG_LOG(("Debug logs started."));
 	}
 
 	Initializer::~Initializer() {
 		delete LogsData;
 		LogsData = 0;
 
-		delete[] LogsMutexes;
-		LogsMutexes = 0;
+		if (LogsInMemory && LogsInMemory != DeletedLogsInMemory) {
+			delete LogsInMemory;
+		}
+		LogsInMemory = DeletedLogsInMemory;
+
+		_logsMutex(LogDataMain, true);
 	}
 
 	bool started() {
 		return LogsData != 0;
+	}
+
+	bool instanceChecked() {
+		if (!LogsData) return false;
+
+		if (!LogsData->instanceChecked()) {
+			LogsBeforeSingleInstanceChecked = Logs::full();
+
+			delete LogsData;
+			LogsData = 0;
+			LOG(("Could not move logging to '%1'!").arg(_logsFilePath(LogDataMain)));
+			return false;
+		}
+
+		if (LogsInMemory) {
+			t_assert(LogsInMemory != DeletedLogsInMemory);
+			LogsInMemoryList list = *LogsInMemory;
+			for (LogsInMemoryList::const_iterator i = list.cbegin(), e = list.cend(); i != e; ++i) {
+				if (i->first != LogDataMain) {
+					_logsWrite(i->first, i->second);
+				}
+			}
+		}
+		if (LogsInMemory) {
+			t_assert(LogsInMemory != DeletedLogsInMemory);
+			delete LogsInMemory;
+		}
+		LogsInMemory = DeletedLogsInMemory;
+
+		DEBUG_LOG(("Debug logs started."));
+		LogsBeforeSingleInstanceChecked.clear();
+		return true;
+	}
+
+	void multipleInstances() {
+		if (LogsInMemory) {
+			t_assert(LogsInMemory != DeletedLogsInMemory);
+			delete LogsInMemory;
+		}
+		LogsInMemory = DeletedLogsInMemory;
+
+		if (cDebug()) {
+			LOG(("WARNING: debug logs are not written in multiple instances mode!"));
+		}
+		LogsBeforeSingleInstanceChecked.clear();
 	}
 
 	void writeMain(const QString &v) {
@@ -267,7 +409,7 @@ namespace Logs {
 		QString msg(QString("[%1.%2.%3 %4:%5:%6] %7\n").arg(tm.tm_year + 1900).arg(tm.tm_mon + 1, 2, 10, QChar('0')).arg(tm.tm_mday, 2, 10, QChar('0')).arg(tm.tm_hour, 2, 10, QChar('0')).arg(tm.tm_min, 2, 10, QChar('0')).arg(tm.tm_sec, 2, 10, QChar('0')).arg(v));
 		_logsWrite(LogDataMain, msg);
 
-		QString debugmsg(QString("%1 %2\n").arg(LogsData->entryStart()).arg(v));
+		QString debugmsg(QString("%1 %2\n").arg(_logsEntryStart()).arg(v));
 		_logsWrite(LogDataDebug, debugmsg);
 	}
 
@@ -286,7 +428,7 @@ namespace Logs {
 			file = found + 1;
 		}
 
-		QString msg(QString("%1 %2 (%3 : %4)\n").arg(LogsData->entryStart()).arg(v).arg(file).arg(line));
+		QString msg(QString("%1 %2 (%3 : %4)\n").arg(_logsEntryStart()).arg(v).arg(file).arg(line));
 		_logsWrite(LogDataDebug, msg);
 
 #ifdef Q_OS_WIN
@@ -299,13 +441,37 @@ namespace Logs {
 	}
 
 	void writeTcp(const QString &v) {
-		QString msg(QString("%1 %2\n").arg(LogsData->entryStart()).arg(v));
+		QString msg(QString("%1 %2\n").arg(_logsEntryStart()).arg(v));
 		_logsWrite(LogDataTcp, msg);
 	}
 
 	void writeMtp(int32 dc, const QString &v) {
-		QString msg(QString("%1 (dc:%2) %3\n").arg(LogsData->entryStart()).arg(dc).arg(v));
+		QString msg(QString("%1 (dc:%2) %3\n").arg(_logsEntryStart()).arg(dc).arg(v));
 		_logsWrite(LogDataMtp, msg);
+	}
+
+	QString full() {
+		if (LogsData) {
+			return LogsData->full();
+		}
+		if (!LogsInMemory || LogsInMemory == DeletedLogsInMemory) {
+			return LogsBeforeSingleInstanceChecked;
+		}
+
+		int32 size = 0;
+		for (LogsInMemoryList::const_iterator i = LogsInMemory->cbegin(), e = LogsInMemory->cend(); i != e; ++i) {
+			if (i->first == LogDataMain) {
+				size += i->second.size();
+			}
+		}
+		QString result;
+		result.reserve(size);
+		for (LogsInMemoryList::const_iterator i = LogsInMemory->cbegin(), e = LogsInMemory->cend(); i != e; ++i) {
+			if (i->first == LogDataMain) {
+				result += i->second;
+			}
+		}
+		return result;
 	}
 
 	QString vector(const QVector<MTPlong> &ids) {

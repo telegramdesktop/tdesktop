@@ -29,11 +29,16 @@ namespace Logs {
 	};
 	bool started();
 
+	bool instanceChecked();
+	void multipleInstances();
+
 	void writeMain(const QString &v);
 
 	void writeDebug(const char *file, int32 line, const QString &v);
 	void writeTcp(const QString &v);
 	void writeMtp(int32 dc, const QString &v);
+
+	QString full();
 
 	inline const char *b(bool v) {
 		return v ? "[TRUE]" : "[FALSE]";

@@ -139,12 +139,6 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
 , _updateChecker(0)
 #endif
 {
-	if (!Logs::started()) {
-		// show error window
-		quit();
-		return;
-	}
-
 	QByteArray d(QDir(cWorkingDir()).absolutePath().toUtf8());
 	char h[33] = { 0 };
 	hashMd5Hex(d.constData(), d.size(), h);
@@ -164,9 +158,10 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
 #endif
 
 	if (cManyInstance()) {
+		LOG(("Many instance allowed, starting.."));
 		singleInstanceChecked();
 	} else {
-        DEBUG_LOG(("Application Info: connecting local socket to %1..").arg(_localServerName));
+        LOG(("Connecting local socket to %1..").arg(_localServerName));
 		_localSocket.connectToServer(_localServerName);
 	}
 }
@@ -193,7 +188,7 @@ Application::~Application() {
 
 
 void Application::socketConnected() {
-	DEBUG_LOG(("Application Info: socket connected, this is not the first application instance, sending show command.."));
+	LOG(("Socket connected, this is not the first application instance, sending show command.."));
 	_secondInstance = true;
 
 	QString commands;
@@ -212,46 +207,46 @@ void Application::socketConnected() {
 
 void Application::socketWritten(qint64/* bytes*/) {
 	if (_localSocket.state() != QLocalSocket::ConnectedState) {
-		DEBUG_LOG(("Application Error: socket is not connected %1").arg(_localSocket.state()));
+		LOG(("Socket is not connected %1").arg(_localSocket.state()));
 		return;
 	}
 	if (_localSocket.bytesToWrite()) {
 		return;
 	}
-	DEBUG_LOG(("Application Info: show command written, waiting response.."));
+	LOG(("Show command written, waiting response.."));
 }
 
 void Application::socketReading() {
 	if (_localSocket.state() != QLocalSocket::ConnectedState) {
-		DEBUG_LOG(("Application Error: socket is not connected %1").arg(_localSocket.state()));
+		LOG(("Socket is not connected %1").arg(_localSocket.state()));
 		return;
 	}
 	_localSocketReadData.append(_localSocket.readAll());
 	if (QRegularExpression("RES:(\\d+);").match(_localSocketReadData).hasMatch()) {
 		uint64 pid = _localSocketReadData.mid(4, _localSocketReadData.length() - 5).toULongLong();
 		psActivateProcess(pid);
-		DEBUG_LOG(("Application Info: show command response received, pid = %1, activating and quiting..").arg(pid));
+		LOG(("Show command response received, pid = %1, activating and quiting..").arg(pid));
 		return App::quit();
 	}
 }
 
 void Application::socketError(QLocalSocket::LocalSocketError e) {
 	if (_secondInstance) {
-		DEBUG_LOG(("Application Error: could not write show command, error %1, quiting..").arg(e));
+		LOG(("Could not write show command, error %1, quiting..").arg(e));
 		return App::quit();
 	}
 
 	if (e == QLocalSocket::ServerNotFoundError) {
-		DEBUG_LOG(("Application Info: this is the only instance of Telegram, starting server and app.."));
+		LOG(("This is the only instance of Telegram, starting server and app.."));
 	} else {
-		DEBUG_LOG(("Application Info: socket connect error %1, starting server and app..").arg(e));
+		LOG(("Socket connect error %1, starting server and app..").arg(e));
 	}
 	_localSocket.close();
 
 	psCheckLocalSocket(_localServerName);
 
 	if (!_localServer.listen(_localServerName)) {
-		DEBUG_LOG(("Application Error: failed to start listening to %1 server, error %2").arg(_localServerName).arg(int(_localServer.serverError())));
+		LOG(("Failed to start listening to %1 server, error %2").arg(_localServerName).arg(int(_localServer.serverError())));
 		return App::quit();
 	}
 
@@ -267,6 +262,16 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 }
 
 void Application::singleInstanceChecked() {
+	if (cManyInstance()) {
+		Logs::multipleInstances();
+	}
+	if ((!cManyInstance() && !Logs::instanceChecked()) || !Logs::started()) {
+		MessageBox(0, (QString::fromStdWString(L"Could not initialize logs!\n\n") + Logs::full()).toStdWString().c_str(), L"Error!", MB_ICONERROR);
+		// show error window
+		App::quit();
+		return;
+	}
+
 	Global::start();
 
 	// if crashed, show window and try to autoupdate
