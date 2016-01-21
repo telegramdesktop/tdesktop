@@ -231,6 +231,8 @@ void Application::socketReading() {
 }
 
 void Application::socketError(QLocalSocket::LocalSocketError e) {
+	if (App::quiting()) return;
+
 	if (_secondInstance) {
 		LOG(("Could not write show command, error %1, quiting..").arg(e));
 		return App::quit();
@@ -265,18 +267,33 @@ void Application::singleInstanceChecked() {
 	if (cManyInstance()) {
 		Logs::multipleInstances();
 	}
-	if ((!cManyInstance() && !Logs::instanceChecked()) || !Logs::started()) {
-		MessageBox(0, (QString::fromStdWString(L"Could not initialize logs!\n\n") + Logs::full()).toStdWString().c_str(), L"Error!", MB_ICONERROR);
-		// show error window
-		App::quit();
-		return;
-	}
 
 	Global::start();
 
-	// if crashed, show window and try to autoupdate
-
-	new AppClass();
+	if (!Logs::started() || (!cManyInstance() && !Logs::instanceChecked())) {
+		// show error window
+		MessageBox(0, (QString::fromStdWString(L"Could not start Telegram Dekstop! Log:\n\n") + Logs::full()).toStdWString().c_str(), L"Error!", MB_ICONERROR);
+		App::quit();
+	} else {
+		SignalHandlers::Status status = SignalHandlers::start();
+		if (status == SignalHandlers::CantOpen) {
+			// show error window
+			MessageBox(0, (QString::fromStdWString(L"Could not start Telegram Dekstop! Log:\n\n") + Logs::full()).toStdWString().c_str(), L"Error!", MB_ICONERROR);
+			App::quit();
+		} else {
+			if (status == SignalHandlers::LastCrashed) {
+				// show error window
+				MessageBox(0, (QString::fromStdWString(L"Last time Telegram Dekstop crashed! Log:\n\n") + Logs::full()).toStdWString().c_str(), L"Error!", MB_ICONERROR);
+				if (SignalHandlers::restart() == SignalHandlers::CantOpen) {
+					// show error window
+					MessageBox(0, (QString::fromStdWString(L"Could not start Telegram Dekstop! Log:\n\n") + Logs::full()).toStdWString().c_str(), L"Error!", MB_ICONERROR);
+					App::quit();
+					return;
+				}
+			}
+			new AppClass();
+		}
+	}
 }
 
 void Application::socketDisconnected() {
@@ -637,8 +654,6 @@ namespace Sandboxer {
 AppClass::AppClass() : QObject()
 , _uploader(0) {
 	AppObject = this;
-
-	installSignalHandlers();
 
 	ThirdParty::start();
 	Sandbox::start();
@@ -1035,6 +1050,8 @@ void AppClass::execExternal(const QString &cmd) {
 }
 
 AppClass::~AppClass() {
+	abort();
+
 	_window.setParent(0);
 
 	anim::stopManager();

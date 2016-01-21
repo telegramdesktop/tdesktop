@@ -2368,6 +2368,88 @@ typedef BOOL (FAR STDAPICALLTYPE *t_miniDumpWriteDump)(
 );
 t_miniDumpWriteDump miniDumpWriteDump = 0;
 
+//// SymCleanup()
+//typedef BOOL(__stdcall *tSC)(IN HANDLE hProcess);
+//tSC pSC;
+//
+// SymFunctionTableAccess64()
+typedef PVOID (FAR STDAPICALLTYPE *t_SymFunctionTableAccess64)(HANDLE hProcess, DWORD64 AddrBase);
+t_SymFunctionTableAccess64 symFunctionTableAccess64 = 0;
+
+//// SymGetLineFromAddr64()
+//typedef BOOL(__stdcall *tSGLFA)(IN HANDLE hProcess, IN DWORD64 dwAddr,
+//	OUT PDWORD pdwDisplacement, OUT PIMAGEHLP_LINE64 Line);
+//tSGLFA pSGLFA;
+//
+// SymGetModuleBase64()
+typedef DWORD64 (FAR STDAPICALLTYPE *t_SymGetModuleBase64)(IN HANDLE hProcess, IN DWORD64 dwAddr);
+t_SymGetModuleBase64 symGetModuleBase64 = 0;
+
+//// SymGetModuleInfo64()
+//typedef BOOL(__stdcall *tSGMI)(IN HANDLE hProcess, IN DWORD64 dwAddr, OUT IMAGEHLP_MODULE64_V2 *ModuleInfo);
+//tSGMI pSGMI;
+
+//  // SymGetModuleInfo64()
+//  typedef BOOL (__stdcall *tSGMI_V3)( IN HANDLE hProcess, IN DWORD64 dwAddr, OUT IMAGEHLP_MODULE64_V3 *ModuleInfo );
+//  tSGMI_V3 pSGMI_V3;
+
+//// SymGetOptions()
+//typedef DWORD(__stdcall *tSGO)(VOID);
+//tSGO pSGO;
+//
+//// SymGetSymFromAddr64()
+//typedef BOOL(__stdcall *tSGSFA)(IN HANDLE hProcess, IN DWORD64 dwAddr,
+//	OUT PDWORD64 pdwDisplacement, OUT PIMAGEHLP_SYMBOL64 Symbol);
+//tSGSFA pSGSFA;
+//
+//// SymInitialize()
+//typedef BOOL(__stdcall *tSI)(IN HANDLE hProcess, IN PSTR UserSearchPath, IN BOOL fInvadeProcess);
+//tSI pSI;
+//
+//// SymLoadModule64()
+//typedef DWORD64(__stdcall *tSLM)(IN HANDLE hProcess, IN HANDLE hFile,
+//	IN PSTR ImageName, IN PSTR ModuleName, IN DWORD64 BaseOfDll, IN DWORD SizeOfDll);
+//tSLM pSLM;
+//
+//// SymSetOptions()
+//typedef DWORD(__stdcall *tSSO)(IN DWORD SymOptions);
+//tSSO pSSO;
+
+typedef BOOL (FAR STDAPICALLTYPE *t_StackWalk64)(
+	_In_ DWORD MachineType,
+	_In_ HANDLE hProcess,
+	_In_ HANDLE hThread,
+	_Inout_ LPSTACKFRAME64 StackFrame,
+	_Inout_ PVOID ContextRecord,
+	_In_opt_ PREAD_PROCESS_MEMORY_ROUTINE64 ReadMemoryRoutine,
+	_In_opt_ PFUNCTION_TABLE_ACCESS_ROUTINE64 FunctionTableAccessRoutine,
+	_In_opt_ PGET_MODULE_BASE_ROUTINE64 GetModuleBaseRoutine,
+	_In_opt_ PTRANSLATE_ADDRESS_ROUTINE64 TranslateAddress
+);
+t_StackWalk64 stackWalk64 = 0;
+
+//// UnDecorateSymbolName()
+//typedef DWORD(__stdcall WINAPI *tUDSN)(PCSTR DecoratedName, PSTR UnDecoratedName,
+//	DWORD UndecoratedLength, DWORD Flags);
+//tUDSN pUDSN;
+//
+//typedef BOOL(__stdcall WINAPI *tSGSP)(HANDLE hProcess, PSTR SearchPath, DWORD SearchPathLength);
+//tSGSP pSGSP;
+
+BOOL __stdcall ReadProcessMemoryRoutine64(
+	_In_ HANDLE hProcess,
+	_In_ DWORD64 qwBaseAddress,
+	_Out_writes_bytes_(nSize) PVOID lpBuffer,
+	_In_ DWORD nSize,
+	_Out_ LPDWORD lpNumberOfBytesRead
+	) {
+	SIZE_T st;
+	BOOL bRet = ReadProcessMemory(hProcess, (LPVOID)qwBaseAddress, lpBuffer, nSize, &st);
+	*lpNumberOfBytesRead = (DWORD)st;
+	//printf("ReadMemory: hProcess: %p, baseAddr: %p, buffer: %p, size: %d, read: %d, result: %d\n", hProcess, (LPVOID) qwBaseAddress, lpBuffer, nSize, (DWORD) st, (DWORD) bRet);
+	return bRet;
+}
+
 HANDLE _generateDumpFileAtPath(const WCHAR *path) {
 	static const int maxFileLen = MAX_PATH * 10;
 
@@ -2381,7 +2463,7 @@ HANDLE _generateDumpFileAtPath(const WCHAR *path) {
 		}
 	}
 
-    WCHAR szFileName[maxFileLen];
+	WCHAR szFileName[maxFileLen];
 	WCHAR szExeName[maxFileLen];
 
 	wcscpy_s(szExeName, _exeName);
@@ -2410,14 +2492,94 @@ HANDLE _generateDumpFileAtPath(const WCHAR *path) {
     return CreateFile(szFileName, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
 }
 
+bool LoadDbgHelp() {
+	if (miniDumpWriteDump) return true;
+
+	HMODULE hDll = 0;
+
+	WCHAR szTemp[4096];
+	if (GetModuleFileName(NULL, szTemp, 4096) > 0) {
+		wcscat(szTemp, L".local");
+		if (GetFileAttributes(szTemp) == INVALID_FILE_ATTRIBUTES) {
+			// ".local" file does not exist, so we can try to load the dbghelp.dll from the "Debugging Tools for Windows"
+			if (GetEnvironmentVariable(L"ProgramFiles", szTemp, 4096) > 0) {
+				wcscat(szTemp, L"\\Debugging Tools for Windows\\dbghelp.dll");
+				// now check if the file exists:
+				if (GetFileAttributes(szTemp) != INVALID_FILE_ATTRIBUTES) {
+					hDll = LoadLibrary(szTemp);
+				}
+			}
+			// Still not found? Then try to load the 64-Bit version:
+			if (!hDll && (GetEnvironmentVariable(L"ProgramFiles", szTemp, 4096) > 0)) {
+				wcscat(szTemp, L"\\Debugging Tools for Windows 64-Bit\\dbghelp.dll");
+				if (GetFileAttributes(szTemp) != INVALID_FILE_ATTRIBUTES) {
+					hDll = LoadLibrary(szTemp);
+				}
+			}
+		}
+	}
+	if (!hDll) {
+		hDll = LoadLibrary(L"DBGHELP.DLL");
+	}
+
+	if (!hDll) return false;
+
+	miniDumpWriteDump = (t_miniDumpWriteDump)GetProcAddress(hDll, "MiniDumpWriteDump");
+
+	//pSI = (tSI)GetProcAddress(m_hDbhHelp, "SymInitialize");
+	//pSC = (tSC)GetProcAddress(m_hDbhHelp, "SymCleanup");
+
+	stackWalk64 = (t_StackWalk64)GetProcAddress(hDll, "StackWalk64");
+	//pSGO = (tSGO)GetProcAddress(m_hDbhHelp, "SymGetOptions");
+	//pSSO = (tSSO)GetProcAddress(m_hDbhHelp, "SymSetOptions");
+
+	symFunctionTableAccess64 = (t_SymFunctionTableAccess64)GetProcAddress(hDll, "SymFunctionTableAccess64");
+	//pSGLFA = (tSGLFA)GetProcAddress(m_hDbhHelp, "SymGetLineFromAddr64");
+	symGetModuleBase64 = (t_SymGetModuleBase64)GetProcAddress(hDll, "SymGetModuleBase64");
+	//pSGMI = (tSGMI)GetProcAddress(m_hDbhHelp, "SymGetModuleInfo64");
+	////pSGMI_V3 = (tSGMI_V3) GetProcAddress(m_hDbhHelp, "SymGetModuleInfo64" );
+	//pSGSFA = (tSGSFA)GetProcAddress(m_hDbhHelp, "SymGetSymFromAddr64");
+	//pUDSN = (tUDSN)GetProcAddress(m_hDbhHelp, "UnDecorateSymbolName");
+	//pSLM = (tSLM)GetProcAddress(m_hDbhHelp, "SymLoadModule64");
+	//pSGSP = (tSGSP)GetProcAddress(m_hDbhHelp, "SymGetSearchPath");
+
+	if (!miniDumpWriteDump ||
+		!stackWalk64) {
+		miniDumpWriteDump = 0;
+		return false;
+	}
+
+	//// SymInitialize
+	//if (szSymPath != NULL)
+	//	m_szSymPath = _strdup(szSymPath);
+	//if (this->pSI(m_hProcess, m_szSymPath, FALSE) == FALSE)
+	//	this->m_parent->OnDbgHelpErr("SymInitialize", GetLastError(), 0);
+
+	//DWORD symOptions = this->pSGO();  // SymGetOptions
+	//symOptions |= SYMOPT_LOAD_LINES;
+	//symOptions |= SYMOPT_FAIL_CRITICAL_ERRORS;
+	////symOptions |= SYMOPT_NO_PROMPTS;
+	//// SymSetOptions
+	//symOptions = this->pSSO(symOptions);
+
+	//char buf[StackWalker::STACKWALK_MAX_NAMELEN] = { 0 };
+	//if (this->pSGSP != NULL)
+	//{
+	//	if (this->pSGSP(m_hProcess, buf, StackWalker::STACKWALK_MAX_NAMELEN) == FALSE)
+	//		this->m_parent->OnDbgHelpErr("SymGetSearchPath", GetLastError(), 0);
+	//}
+	//char szUserName[1024] = { 0 };
+	//DWORD dwSize = 1024;
+	//GetUserNameA(szUserName, &dwSize);
+	//this->m_parent->OnSymInit(buf, symOptions, szUserName);
+
+	return true;
+}
+
 void _generateDump(EXCEPTION_POINTERS* pExceptionPointers) {
 	static const int maxFileLen = MAX_PATH * 10;
 
-	HMODULE hDll = LoadLibrary(L"DBGHELP.DLL");
-	if (!hDll) return;
-
-	miniDumpWriteDump = (t_miniDumpWriteDump)GetProcAddress(hDll, "MiniDumpWriteDump");
-	if (!miniDumpWriteDump) return;
+	if (!LoadDbgHelp()) return;
 
 	HANDLE hDumpFile = 0;
 
@@ -2463,6 +2625,150 @@ LPTOP_LEVEL_EXCEPTION_FILTER WINAPI RedirectedSetUnhandledExceptionFilter(_In_op
 	// our handler will not get removed.
 	_oldWndExceptionFilter = lpTopLevelExceptionFilter;
 	return 0;
+}
+
+// stack walking code taken from StackWalker
+static const int StackEntryMaxNameLength = 1024;
+struct StackEntry {
+	DWORD64 offset;  // if 0, we have no valid entry
+	CHAR name[StackEntryMaxNameLength];
+	CHAR undName[StackEntryMaxNameLength];
+	CHAR undFullName[StackEntryMaxNameLength];
+	DWORD64 offsetFromSmybol;
+	DWORD offsetFromLine;
+	DWORD lineNumber;
+	CHAR lineFileName[StackEntryMaxNameLength];
+	DWORD symType;
+	LPCSTR symTypeString;
+	CHAR moduleName[StackEntryMaxNameLength];
+	DWORD64 baseOfImage;
+	CHAR loadedImageName[StackEntryMaxNameLength];
+};
+
+enum StackEntryType {
+	StackEntryFirst,
+	StackEntryNext,
+	StackEntryLast,
+};
+
+struct IMAGEHLP_MODULE64_V2 {
+	DWORD    SizeOfStruct;           // set to sizeof(IMAGEHLP_MODULE64)
+	DWORD64  BaseOfImage;            // base load address of module
+	DWORD    ImageSize;              // virtual size of the loaded module
+	DWORD    TimeDateStamp;          // date/time stamp from pe header
+	DWORD    CheckSum;               // checksum from the pe header
+	DWORD    NumSyms;                // number of symbols in the symbol table
+	SYM_TYPE SymType;                // type of symbols loaded
+	CHAR     ModuleName[32];         // module name
+	CHAR     ImageName[256];         // image name
+	CHAR     LoadedImageName[256];   // symbol file name
+};
+
+char ImageHlpSymbol64[sizeof(IMAGEHLP_SYMBOL64) + StackEntryMaxNameLength];
+
+void psWriteStackTrace(int n) {
+	if (!LoadDbgHelp()) return;
+
+	HANDLE hThread = GetCurrentThread(), hProcess = GetCurrentProcess();
+	const CONTEXT *context = NULL;
+	LPVOID pUserData = NULL;
+
+	CONTEXT c;
+	StackEntry csEntry;
+	IMAGEHLP_SYMBOL64 *pSym = NULL;
+	IMAGEHLP_MODULE64_V2 Module;
+	IMAGEHLP_LINE64 Line;
+	int frameNum;
+
+	if (!LoadDbgHelp()) {
+		SignalHandlers::dump() << "ERROR: Could not load dbghelp.dll!\n";
+		return;
+	}
+
+	memset(&c, 0, sizeof(CONTEXT));
+	c.ContextFlags = CONTEXT_FULL;
+	RtlCaptureContext(&c);
+
+	// init STACKFRAME for first call
+	STACKFRAME64 s; // in/out stackframe
+	memset(&s, 0, sizeof(s));
+	DWORD imageType;
+#ifdef _M_IX86
+	// normally, call ImageNtHeader() and use machine info from PE header
+	imageType = IMAGE_FILE_MACHINE_I386;
+	s.AddrPC.Offset = c.Eip;
+	s.AddrPC.Mode = AddrModeFlat;
+	s.AddrFrame.Offset = c.Ebp;
+	s.AddrFrame.Mode = AddrModeFlat;
+	s.AddrStack.Offset = c.Esp;
+	s.AddrStack.Mode = AddrModeFlat;
+#elif _M_X64
+	imageType = IMAGE_FILE_MACHINE_AMD64;
+	s.AddrPC.Offset = c.Rip;
+	s.AddrPC.Mode = AddrModeFlat;
+	s.AddrFrame.Offset = c.Rsp;
+	s.AddrFrame.Mode = AddrModeFlat;
+	s.AddrStack.Offset = c.Rsp;
+	s.AddrStack.Mode = AddrModeFlat;
+#elif _M_IA64
+	imageType = IMAGE_FILE_MACHINE_IA64;
+	s.AddrPC.Offset = c.StIIP;
+	s.AddrPC.Mode = AddrModeFlat;
+	s.AddrFrame.Offset = c.IntSp;
+	s.AddrFrame.Mode = AddrModeFlat;
+	s.AddrBStore.Offset = c.RsBSP;
+	s.AddrBStore.Mode = AddrModeFlat;
+	s.AddrStack.Offset = c.IntSp;
+	s.AddrStack.Mode = AddrModeFlat;
+#else
+#error "Platform not supported!"
+#endif
+
+	pSym = (IMAGEHLP_SYMBOL64 *)ImageHlpSymbol64;
+	memset(pSym, 0, sizeof(IMAGEHLP_SYMBOL64) + StackEntryMaxNameLength);
+	pSym->SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
+	pSym->MaxNameLength = StackEntryMaxNameLength;
+
+	memset(&Line, 0, sizeof(Line));
+	Line.SizeOfStruct = sizeof(Line);
+
+	memset(&Module, 0, sizeof(Module));
+	Module.SizeOfStruct = sizeof(Module);
+
+	for (frameNum = 0; ; ++frameNum) {
+		// get next stack frame (StackWalk64(), SymFunctionTableAccess64(), SymGetModuleBase64())
+		// if this returns ERROR_INVALID_ADDRESS (487) or ERROR_NOACCESS (998), you can
+		// assume that either you are done, or that the stack is so hosed that the next
+		// deeper frame could not be found.
+		// CONTEXT need not to be suplied if imageTyp is IMAGE_FILE_MACHINE_I386!
+		if (!stackWalk64(imageType, hProcess, hThread, &s, &c, ReadProcessMemoryRoutine64, symFunctionTableAccess64, symGetModuleBase64, NULL)) {
+			SignalHandlers::dump() << "ERROR: Call to StackWalk64() failed!\n";
+			return;
+		}
+
+		csEntry.offset = s.AddrPC.Offset;
+		csEntry.name[0] = 0;
+		csEntry.undName[0] = 0;
+		csEntry.undFullName[0] = 0;
+		csEntry.offsetFromSmybol = 0;
+		csEntry.offsetFromLine = 0;
+		csEntry.lineFileName[0] = 0;
+		csEntry.lineNumber = 0;
+		csEntry.loadedImageName[0] = 0;
+		csEntry.moduleName[0] = 0;
+		if (s.AddrPC.Offset == s.AddrReturn.Offset) {
+			SignalHandlers::dump() << s.AddrPC.Offset << "\n";
+			SignalHandlers::dump() << "ERROR: StackWalk64() endless callstack!";
+			return;
+		}
+		if (s.AddrPC.Offset != 0) { // we seem to have a valid PC
+			SignalHandlers::dump() << s.AddrPC.Offset << "\n";
+		}
+
+		if (s.AddrReturn.Offset == 0) {
+			break;
+		}
+	}
 }
 
 class StringReferenceWrapper {

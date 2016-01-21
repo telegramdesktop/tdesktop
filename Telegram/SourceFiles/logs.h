@@ -85,3 +85,22 @@ namespace Logs {
 
 #define MTP_LOG(dc, msg) { if (cDebug() || !Logs::started()) Logs::writeMtp(dc, QString msg); }
 //usage MTP_LOG(dc, ("log: %1 %2").arg(1).arg(2))
+
+namespace SignalHandlers {
+
+	struct dump {
+		~dump();
+	};
+	const dump &operator<<(const dump &stream, const char *str);
+	const dump &operator<<(const dump &stream, int num);
+
+	enum Status {
+		CantOpen,
+		LastCrashed,
+		Started
+	};
+	Status start();
+	Status restart(); // can be only CantOpen or Started
+	void finish();
+
+}

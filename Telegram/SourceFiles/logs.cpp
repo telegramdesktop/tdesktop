@@ -267,13 +267,11 @@ namespace Logs {
 		}
 		bool workingDirChosen = cBetaVersion();
 
-		QString moveOldDataFrom;
+		QString initialWorkingDir = QDir(cWorkingDir()).absolutePath() + '/', moveOldDataFrom;
 		if (cBetaVersion()) {
 			cSetDebug(true);
 #if (defined Q_OS_MAC || defined Q_OS_LINUX)
 		} else {
-			QString wasDir = QDir(cWorkingDir()).absolutePath() + '/';
-
 #ifdef _DEBUG
 			cForceWorkingDir(cExeDir());
 #else
@@ -284,7 +282,7 @@ namespace Logs {
 			workingDirChosen = true;
 
 #if (defined Q_OS_LINUX && !defined _DEBUG) // fix first version
-			moveOldDataFrom = wasDir;
+			moveOldDataFrom = initialWorkingDir;
 #endif
 
 #endif
@@ -303,17 +301,22 @@ namespace Logs {
 
 		cForceWorkingDir(QDir(cWorkingDir()).absolutePath() + '/');
 		QDir().setCurrent(cWorkingDir());
+		QDir().mkpath(cWorkingDir() + qstr("tdata"));
 
 		Global::WorkingDirReady();
-
-		LOG(("Launched version: %1, dev: %2, beta: %3, debug mode: %4, test dc: %5").arg(AppVersion).arg(Logs::b(cDevVersion())).arg(cBetaVersion()).arg(Logs::b(cDebug())).arg(Logs::b(cTestMode())));
-		LOG(("Executable dir: %1, name: %2").arg(cExeDir()).arg(cExeName()));
-		LOG(("Working dir: %1").arg(cWorkingDir()));
-		LOG(("Arguments: %1").arg(cArguments()));
 
 		if (!LogsData->openMain()) {
 			delete LogsData;
 			LogsData = 0;
+		}
+
+		LOG(("Launched version: %1, dev: %2, beta: %3, debug mode: %4, test dc: %5").arg(AppVersion).arg(Logs::b(cDevVersion())).arg(cBetaVersion()).arg(Logs::b(cDebug())).arg(Logs::b(cTestMode())));
+		LOG(("Executable dir: %1, name: %2").arg(cExeDir()).arg(cExeName()));
+		LOG(("Initial working dir: %1").arg(initialWorkingDir));
+		LOG(("Working dir: %1").arg(cWorkingDir()));
+		LOG(("Arguments: %1").arg(cArguments()));
+
+		if (!LogsData) {
 			LOG(("Could not open '%1' for writing log!").arg(_logsFilePath(LogDataMain, qsl("_startXX"))));
 			return;
 		}
@@ -333,11 +336,12 @@ namespace Logs {
 			for (LogsInMemoryList::const_iterator i = list.cbegin(), e = list.cend(); i != e; ++i) {
 				if (i->first == LogDataMain) {
 					_logsWrite(i->first, i->second);
+					LOG(("First: %1, %2").arg(i->first).arg(i->second));
 				}
 			}
 		}
 
-		LOG(("Logs started."));
+		LOG(("Logs started"));
 	}
 
 	Initializer::~Initializer() {
@@ -367,6 +371,8 @@ namespace Logs {
 			LOG(("Could not move logging to '%1'!").arg(_logsFilePath(LogDataMain)));
 			return false;
 		}
+
+
 
 		if (LogsInMemory) {
 			t_assert(LogsInMemory != DeletedLogsInMemory);
@@ -538,4 +544,127 @@ void _moveOldDataFiles(const QString &wasDir) {
 			LOG(("Could not copy 'data'!"));
 		}
 	}
+}
+
+namespace SignalHandlers {
+
+	QByteArray CrashDumpPath;
+	FILE *CrashDumpFile = 0;
+	int CrashDumpFileNo = 0;
+
+	void _writeChar(char ch) {
+		fwrite(&ch, 1, 1, CrashDumpFile);
+	}
+
+	dump::~dump() {
+		if (CrashDumpFile) {
+			fflush(CrashDumpFile);
+		}
+	}
+
+	const dump &operator<<(const dump &stream, const char *str) {
+		if (!CrashDumpFile) return stream;
+
+		fwrite(str, 1, strlen(str), CrashDumpFile);
+		return stream;
+	}
+
+	const dump &operator<<(const dump &stream, int num) {
+		if (!CrashDumpFile) return stream;
+
+		if (num < 0) {
+			_writeChar('-');
+			num = -num;
+		}
+		int upper = 1, prev = num / 10;
+		while (prev >= upper) {
+			upper *= 10;
+		}
+		while (upper > 0) {
+			int digit = (num / upper);
+			_writeChar('0' + digit);
+			num -= digit * upper;
+			upper /= 10;
+		}
+		return stream;
+	}
+
+	void Handler(int signum) {
+		const char* name = 0;
+		switch (signum) {
+		case SIGABRT: name = "SIGABRT"; break;
+		case SIGSEGV: name = "SIGSEGV"; break;
+		case SIGILL: name = "SIGILL"; break;
+		case SIGFPE: name = "SIGFPE"; break;
+#ifndef Q_OS_WIN
+		case SIGBUS: name = "SIGBUS"; break;
+		case SIGSYS: name = "SIGSYS"; break;
+#endif
+		}
+
+		if (name) {
+			dump() << "Caught signal " << signum << " (" << name << ")\n";
+		} else {
+			dump() << "Caught signal " << signum << "\n";
+		}
+		dump() << "Platform: ";
+		switch (cPlatform()) {
+		case dbipWindows: dump() << "win"; break;
+		case dbipMac: dump() << "mac"; break;
+		case dbipMacOld: dump() << "macold"; break;
+		case dbipLinux64: dump() << "linux64"; break;
+		case dbipLinux32: dump() << "linux32"; break;
+		}
+		dump() << "\n\nBacktrace:\n";
+		psWriteStackTrace(CrashDumpFileNo);
+	}
+
+	Status start() {
+		CrashDumpPath = (cWorkingDir() + qsl("tdata/working")).toUtf8();
+		if (FILE *f = fopen(CrashDumpPath.constData(), "rb")) {
+			QByteArray lastdump;
+			char buffer[64 * 1024] = { 0 };
+			int32 read = 0;
+			while ((read = fread(buffer, 1, 64 * 1024, f)) > 0) {
+				lastdump.append(buffer, read);
+			}
+			fclose(f);
+
+			Global::SetLastCrashDump(lastdump);
+
+			LOG(("Opened '%1' for reading, the previous Telegram Desktop launch was not finished properly :( Crash log size: %2").arg(QString::fromUtf8(CrashDumpPath)).arg(lastdump.size()));
+
+			return LastCrashed;
+		}
+		return restart();
+	}
+
+	Status restart() {
+		CrashDumpFile = fopen(CrashDumpPath.constData(), "wb");
+		if (CrashDumpFile) {
+			CrashDumpFileNo = fileno(CrashDumpFile);
+
+			signal(SIGABRT, SignalHandlers::Handler);
+			signal(SIGSEGV, SignalHandlers::Handler);
+			signal(SIGILL, SignalHandlers::Handler);
+			signal(SIGFPE, SignalHandlers::Handler);
+#ifndef Q_OS_WIN
+			signal(SIGBUS, SignalHandlers::Handler);
+			signal(SIGSYS, SignalHandlers::Handler);
+#endif
+			return Started;
+		}
+
+		LOG(("Could not open '%1' for writing!").arg(QString::fromUtf8(CrashDumpPath)));
+
+		return CantOpen;
+	}
+
+	void finish() {
+		if (CrashDumpFile) {
+			fclose(CrashDumpFile);
+			unlink(CrashDumpPath.constData());
+		}
+	}
+
 }

@@ -22,6 +22,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #define PSAPI_VERSION 1 // fix WinXP
 //#define Q_NO_TEMPLATE_FRIENDS // fix some compiler difference issues
 
+#include <signal.h>
+
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 #include <openssl/pem.h>

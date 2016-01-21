@@ -143,8 +143,6 @@ inline void mylocaltime(struct tm * _Tm, const time_t * _Time) {
 #endif
 }
 
-void installSignalHandlers();
-
 namespace ThirdParty {
 
 	void start();

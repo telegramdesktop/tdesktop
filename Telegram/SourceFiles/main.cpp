@@ -67,5 +67,6 @@ int main(int argc, char *argv[]) {
 		psExecTelegram();
 	}
 
+	SignalHandlers::finish();
 	return result;
 }

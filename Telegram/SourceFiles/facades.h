@@ -111,6 +111,7 @@ namespace Global {
 
 	DeclareGlobalReadOnly(QString, LangSystemISO);
 	DeclareGlobalReadOnly(int32, LangSystem);
+	DeclareGlobal(QByteArray, LastCrashDump);
 
 }
 

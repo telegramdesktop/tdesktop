@@ -179,6 +179,8 @@ namespace Notify {
 struct GlobalDataStruct {
 	QString LangSystemISO;
 	int32 LangSystem = languageDefault;
+
+	QByteArray LastCrashDump;
 };
 GlobalDataStruct *GlobalData = 0;
 
@@ -278,6 +280,7 @@ Type &Ref##Name() { \
 
 	DefineGlobalReadOnly(QString, LangSystemISO);
 	DefineGlobalReadOnly(int32, LangSystem);
+	DefineGlobal(QByteArray, LastCrashDump);
 
 }
 
