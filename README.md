@@ -4,6 +4,12 @@ This is the complete source code and the build instructions for the alpha versio
 
 The source code is published under GPLv3 with OpenSSL exception, the license is available [here][license].
 
+## Dark theme
+
+**This fork of Telegram Desktop has a dark theme**
+
+![](tgdark.png)
+
 ## Supported systems
 
 * Windows XP - Windows 10 (**not** RT)
