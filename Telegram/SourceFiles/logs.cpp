@@ -551,6 +551,7 @@ namespace SignalHandlers {
 	QByteArray CrashDumpPath;
 	FILE *CrashDumpFile = 0;
 	int CrashDumpFileNo = 0;
+	char LaunchedDateTimeStr[32] = { 0 };
 
 	void _writeChar(char ch) {
 		fwrite(&ch, 1, 1, CrashDumpFile);
@@ -569,25 +570,42 @@ namespace SignalHandlers {
 		return stream;
 	}
 
-	const dump &operator<<(const dump &stream, int num) {
+	template <typename Type>
+	const dump &_writeNumber(const dump &stream, Type number) {
 		if (!CrashDumpFile) return stream;
 
-		if (num < 0) {
+		if (number < 0) {
 			_writeChar('-');
-			num = -num;
+			number = -number;
 		}
-		int upper = 1, prev = num / 10;
+		Type upper = 1, prev = number / 10;
 		while (prev >= upper) {
 			upper *= 10;
 		}
 		while (upper > 0) {
-			int digit = (num / upper);
+			int digit = (number / upper);
 			_writeChar('0' + digit);
-			num -= digit * upper;
+			number -= digit * upper;
 			upper /= 10;
 		}
 		return stream;
 	}
+
+	const dump &operator<<(const dump &stream, int num) {
+		return _writeNumber(stream, num);
+	}
+
+	const dump &operator<<(const dump &stream, DWORD num) {
+		return _writeNumber(stream, num);
+	}
+
+	const dump &operator<<(const dump &stream, DWORD64 num) {
+		return _writeNumber(stream, num);
+	}
+
+	Qt::HANDLE LoggingCrashThreadId = 0;
+	bool LoggingCrashHeaderWritten = false;
+	QMutex LoggingCrashMutex;
 
 	void Handler(int signum) {
 		const char* name = 0;
@@ -602,21 +620,48 @@ namespace SignalHandlers {
 #endif
 		}
 
+		Qt::HANDLE thread = QThread::currentThreadId();
+		if (thread == LoggingCrashThreadId) return;
+
+		QMutexLocker lock(&LoggingCrashMutex);
+		LoggingCrashThreadId = thread;
+
+		if (!LoggingCrashHeaderWritten) {
+			LoggingCrashHeaderWritten = true;
+			if (cBetaVersion()) {
+				dump() << "Version: " << cBetaVersion() << " beta\n";
+			} else {
+				dump() << "Version: " << AppVersion;
+				if (cDevVersion()) {
+					dump() << " dev\n";
+				} else {
+					dump() << "\n";
+				}
+			}
+			dump() << "Launched: " << LaunchedDateTimeStr << "\n";
+			dump() << "Platform: ";
+			switch (cPlatform()) {
+			case dbipWindows: dump() << "win"; break;
+			case dbipMac: dump() << "mac"; break;
+			case dbipMacOld: dump() << "macold"; break;
+			case dbipLinux64: dump() << "linux64"; break;
+			case dbipLinux32: dump() << "linux32"; break;
+			}
+			dump() << "\n";
+			psWriteDump();
+			dump() << "\n";
+		}
 		if (name) {
-			dump() << "Caught signal " << signum << " (" << name << ")\n";
+			dump() << "Caught signal " << signum << " (" << name << ") in thread " << uint64(thread) << "\n";
 		} else {
-			dump() << "Caught signal " << signum << "\n";
+			dump() << "Caught signal " << signum << " in thread " << uint64(thread) << "\n";
 		}
-		dump() << "Platform: ";
-		switch (cPlatform()) {
-		case dbipWindows: dump() << "win"; break;
-		case dbipMac: dump() << "mac"; break;
-		case dbipMacOld: dump() << "macold"; break;
-		case dbipLinux64: dump() << "linux64"; break;
-		case dbipLinux32: dump() << "linux32"; break;
-		}
-		dump() << "\n\nBacktrace:\n";
+
+		dump() << "\nBacktrace:\n";
 		psWriteStackTrace(CrashDumpFileNo);
+		dump() << "\n";
+
+		LoggingCrashThreadId = 0;
 	}
 
 	Status start() {
@@ -643,6 +688,10 @@ namespace SignalHandlers {
 		CrashDumpFile = fopen(CrashDumpPath.constData(), "wb");
 		if (CrashDumpFile) {
 			CrashDumpFileNo = fileno(CrashDumpFile);
+
+			QByteArray launchedDateTime = QDateTime::currentDateTime().toString("dd.MM.yyyy hh:mm:ss").toUtf8();
+			t_assert(launchedDateTime.size() < sizeof(LaunchedDateTimeStr));
+			memcpy(LaunchedDateTimeStr, launchedDateTime.constData(), launchedDateTime.size());
 
 			signal(SIGABRT, SignalHandlers::Handler);
 			signal(SIGSEGV, SignalHandlers::Handler);

@@ -37,6 +37,8 @@ int main(int argc, char *argv[]) {
 		return psFixPrevious();
 	} else if (cLaunchMode() == LaunchModeCleanup) {
 		return psCleanup();
+	} else if (cLaunchMode() == LaunchModeShowCrash) {
+		return psShowCrash(QFileInfo(cStartUrl()).absoluteFilePath());
 	}
 
 	Logs::Initializer _logs;

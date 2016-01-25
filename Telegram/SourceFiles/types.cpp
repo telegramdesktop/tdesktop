@@ -293,7 +293,7 @@ namespace ThirdParty {
 		av_register_all();
 		avcodec_register_all();
 
-		av_lockmgr_register(_ffmpegLockManager);
+//		av_lockmgr_register(_ffmpegLockManager);
 
 		_sslInited = true;
 	}

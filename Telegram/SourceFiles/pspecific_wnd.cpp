@@ -2368,52 +2368,76 @@ typedef BOOL (FAR STDAPICALLTYPE *t_miniDumpWriteDump)(
 );
 t_miniDumpWriteDump miniDumpWriteDump = 0;
 
-//// SymCleanup()
-//typedef BOOL(__stdcall *tSC)(IN HANDLE hProcess);
-//tSC pSC;
-//
-// SymFunctionTableAccess64()
-typedef PVOID (FAR STDAPICALLTYPE *t_SymFunctionTableAccess64)(HANDLE hProcess, DWORD64 AddrBase);
+// Stack walk code is inspired by http://www.codeproject.com/Articles/11132/Walking-the-callstack
+
+static const int StackEntryMaxNameLength = MAX_SYM_NAME + 1;
+
+typedef BOOL(FAR STDAPICALLTYPE *t_SymCleanup)(
+	_In_ HANDLE hProcess
+);
+t_SymCleanup symCleanup = 0;
+
+typedef PVOID (FAR STDAPICALLTYPE *t_SymFunctionTableAccess64)(
+    _In_ HANDLE hProcess,
+    _In_ DWORD64 AddrBase
+);
 t_SymFunctionTableAccess64 symFunctionTableAccess64 = 0;
 
-//// SymGetLineFromAddr64()
-//typedef BOOL(__stdcall *tSGLFA)(IN HANDLE hProcess, IN DWORD64 dwAddr,
-//	OUT PDWORD pdwDisplacement, OUT PIMAGEHLP_LINE64 Line);
-//tSGLFA pSGLFA;
-//
-// SymGetModuleBase64()
-typedef DWORD64 (FAR STDAPICALLTYPE *t_SymGetModuleBase64)(IN HANDLE hProcess, IN DWORD64 dwAddr);
+typedef BOOL (FAR STDAPICALLTYPE *t_SymGetLineFromAddr64)(
+    _In_ HANDLE hProcess,
+    _In_ DWORD64 dwAddr,
+    _Out_ PDWORD pdwDisplacement,
+    _Out_ PIMAGEHLP_LINEW64 Line
+);
+t_SymGetLineFromAddr64 symGetLineFromAddr64 = 0;
+
+typedef DWORD64 (FAR STDAPICALLTYPE *t_SymGetModuleBase64)(
+    _In_ HANDLE hProcess,
+    _In_ DWORD64 qwAddr
+);
 t_SymGetModuleBase64 symGetModuleBase64 = 0;
 
-//// SymGetModuleInfo64()
-//typedef BOOL(__stdcall *tSGMI)(IN HANDLE hProcess, IN DWORD64 dwAddr, OUT IMAGEHLP_MODULE64_V2 *ModuleInfo);
-//tSGMI pSGMI;
+typedef BOOL (FAR STDAPICALLTYPE *t_SymGetModuleInfo64)(
+    _In_ HANDLE hProcess,
+    _In_ DWORD64 qwAddr,
+    _Out_ PIMAGEHLP_MODULEW64 ModuleInfo
+);
+t_SymGetModuleInfo64 symGetModuleInfo64 = 0;
 
-//  // SymGetModuleInfo64()
-//  typedef BOOL (__stdcall *tSGMI_V3)( IN HANDLE hProcess, IN DWORD64 dwAddr, OUT IMAGEHLP_MODULE64_V3 *ModuleInfo );
-//  tSGMI_V3 pSGMI_V3;
+typedef DWORD (FAR STDAPICALLTYPE *t_SymGetOptions)(
+	VOID
+);
+t_SymGetOptions symGetOptions = 0;
 
-//// SymGetOptions()
-//typedef DWORD(__stdcall *tSGO)(VOID);
-//tSGO pSGO;
-//
-//// SymGetSymFromAddr64()
-//typedef BOOL(__stdcall *tSGSFA)(IN HANDLE hProcess, IN DWORD64 dwAddr,
-//	OUT PDWORD64 pdwDisplacement, OUT PIMAGEHLP_SYMBOL64 Symbol);
-//tSGSFA pSGSFA;
-//
-//// SymInitialize()
-//typedef BOOL(__stdcall *tSI)(IN HANDLE hProcess, IN PSTR UserSearchPath, IN BOOL fInvadeProcess);
-//tSI pSI;
-//
-//// SymLoadModule64()
-//typedef DWORD64(__stdcall *tSLM)(IN HANDLE hProcess, IN HANDLE hFile,
-//	IN PSTR ImageName, IN PSTR ModuleName, IN DWORD64 BaseOfDll, IN DWORD SizeOfDll);
-//tSLM pSLM;
-//
-//// SymSetOptions()
-//typedef DWORD(__stdcall *tSSO)(IN DWORD SymOptions);
-//tSSO pSSO;
+typedef DWORD (FAR STDAPICALLTYPE *t_SymSetOptions)(
+    _In_ DWORD SymOptions
+);
+t_SymSetOptions symSetOptions = 0;
+
+typedef BOOL (FAR STDAPICALLTYPE *t_SymGetSymFromAddr64)(
+	IN HANDLE hProcess,
+	IN DWORD64 dwAddr,
+	OUT PDWORD64 pdwDisplacement,
+	OUT PIMAGEHLP_SYMBOL64 Symbol
+);
+t_SymGetSymFromAddr64 symGetSymFromAddr64 = 0;
+
+typedef BOOL (FAR STDAPICALLTYPE *t_SymInitialize)(
+	_In_ HANDLE hProcess,
+	_In_opt_ PCWSTR UserSearchPath,
+	_In_ BOOL fInvadeProcess
+);
+t_SymInitialize symInitialize = 0;
+
+typedef DWORD64 (FAR STDAPICALLTYPE *t_SymLoadModule64)(
+	_In_ HANDLE hProcess,
+	_In_opt_ HANDLE hFile,
+	_In_opt_ PCSTR ImageName,
+	_In_opt_ PCSTR ModuleName,
+	_In_ DWORD64 BaseOfDll,
+	_In_ DWORD SizeOfDll
+);
+t_SymLoadModule64 symLoadModule64;
 
 typedef BOOL (FAR STDAPICALLTYPE *t_StackWalk64)(
 	_In_ DWORD MachineType,
@@ -2428,13 +2452,20 @@ typedef BOOL (FAR STDAPICALLTYPE *t_StackWalk64)(
 );
 t_StackWalk64 stackWalk64 = 0;
 
-//// UnDecorateSymbolName()
-//typedef DWORD(__stdcall WINAPI *tUDSN)(PCSTR DecoratedName, PSTR UnDecoratedName,
-//	DWORD UndecoratedLength, DWORD Flags);
-//tUDSN pUDSN;
-//
-//typedef BOOL(__stdcall WINAPI *tSGSP)(HANDLE hProcess, PSTR SearchPath, DWORD SearchPathLength);
-//tSGSP pSGSP;
+typedef DWORD (FAR STDAPICALLTYPE *t_UnDecorateSymbolName)(
+	PCSTR DecoratedName,
+	PSTR UnDecoratedName,
+	DWORD UndecoratedLength,
+	DWORD Flags
+);
+t_UnDecorateSymbolName unDecorateSymbolName = 0;
+
+typedef BOOL(FAR STDAPICALLTYPE *t_SymGetSearchPath)(
+	_In_ HANDLE hProcess,
+	_Out_writes_(SearchPathLength) PWSTR SearchPath,
+	_In_ DWORD SearchPathLength
+);
+t_SymGetSearchPath symGetSearchPath = 0;
 
 BOOL __stdcall ReadProcessMemoryRoutine64(
 	_In_ HANDLE hProcess,
@@ -2442,11 +2473,11 @@ BOOL __stdcall ReadProcessMemoryRoutine64(
 	_Out_writes_bytes_(nSize) PVOID lpBuffer,
 	_In_ DWORD nSize,
 	_Out_ LPDWORD lpNumberOfBytesRead
-	) {
+) {
 	SIZE_T st;
 	BOOL bRet = ReadProcessMemory(hProcess, (LPVOID)qwBaseAddress, lpBuffer, nSize, &st);
 	*lpNumberOfBytesRead = (DWORD)st;
-	//printf("ReadMemory: hProcess: %p, baseAddr: %p, buffer: %p, size: %d, read: %d, result: %d\n", hProcess, (LPVOID) qwBaseAddress, lpBuffer, nSize, (DWORD) st, (DWORD) bRet);
+
 	return bRet;
 }
 
@@ -2492,8 +2523,38 @@ HANDLE _generateDumpFileAtPath(const WCHAR *path) {
     return CreateFile(szFileName, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
 }
 
-bool LoadDbgHelp() {
-	if (miniDumpWriteDump) return true;
+// **************************************** ToolHelp32 ************************
+#define MAX_MODULE_NAME32 255
+#define TH32CS_SNAPMODULE   0x00000008
+#pragma pack( push, 8 )
+typedef struct tagMODULEENTRY32
+{
+	DWORD   dwSize;
+	DWORD   th32ModuleID;       // This module
+	DWORD   th32ProcessID;      // owning process
+	DWORD   GlblcntUsage;       // Global usage count on the module
+	DWORD   ProccntUsage;       // Module usage count in th32ProcessID's context
+	BYTE  * modBaseAddr;        // Base address of module in th32ProcessID's context
+	DWORD   modBaseSize;        // Size in bytes of module starting at modBaseAddr
+	HMODULE hModule;            // The hModule of this module in th32ProcessID's context
+	char    szModule[MAX_MODULE_NAME32 + 1];
+	char    szExePath[MAX_PATH];
+} MODULEENTRY32;
+typedef MODULEENTRY32 *PMODULEENTRY32;
+typedef MODULEENTRY32 *LPMODULEENTRY32;
+#pragma pack( pop )
+
+typedef HANDLE (FAR STDAPICALLTYPE *t_CreateToolhelp32Snapshot)(DWORD dwFlags, DWORD th32ProcessID);
+t_CreateToolhelp32Snapshot createToolhelp32Snapshot = 0;
+
+typedef BOOL (FAR STDAPICALLTYPE *t_Module32First)(HANDLE hSnapshot, LPMODULEENTRY32 lpme);
+t_Module32First module32First = 0;
+
+typedef BOOL (FAR STDAPICALLTYPE *t_Module32Next)(HANDLE hSnapshot, LPMODULEENTRY32 lpme);
+t_Module32Next module32Next = 0;
+
+bool LoadDbgHelp(bool extended = false) {
+	if (miniDumpWriteDump && (!extended || symInitialize)) return true;
 
 	HMODULE hDll = 0;
 
@@ -2526,52 +2587,158 @@ bool LoadDbgHelp() {
 
 	miniDumpWriteDump = (t_miniDumpWriteDump)GetProcAddress(hDll, "MiniDumpWriteDump");
 
-	//pSI = (tSI)GetProcAddress(m_hDbhHelp, "SymInitialize");
-	//pSC = (tSC)GetProcAddress(m_hDbhHelp, "SymCleanup");
-
 	stackWalk64 = (t_StackWalk64)GetProcAddress(hDll, "StackWalk64");
-	//pSGO = (tSGO)GetProcAddress(m_hDbhHelp, "SymGetOptions");
-	//pSSO = (tSSO)GetProcAddress(m_hDbhHelp, "SymSetOptions");
-
 	symFunctionTableAccess64 = (t_SymFunctionTableAccess64)GetProcAddress(hDll, "SymFunctionTableAccess64");
-	//pSGLFA = (tSGLFA)GetProcAddress(m_hDbhHelp, "SymGetLineFromAddr64");
 	symGetModuleBase64 = (t_SymGetModuleBase64)GetProcAddress(hDll, "SymGetModuleBase64");
-	//pSGMI = (tSGMI)GetProcAddress(m_hDbhHelp, "SymGetModuleInfo64");
-	////pSGMI_V3 = (tSGMI_V3) GetProcAddress(m_hDbhHelp, "SymGetModuleInfo64" );
-	//pSGSFA = (tSGSFA)GetProcAddress(m_hDbhHelp, "SymGetSymFromAddr64");
-	//pUDSN = (tUDSN)GetProcAddress(m_hDbhHelp, "UnDecorateSymbolName");
-	//pSLM = (tSLM)GetProcAddress(m_hDbhHelp, "SymLoadModule64");
-	//pSGSP = (tSGSP)GetProcAddress(m_hDbhHelp, "SymGetSearchPath");
 
 	if (!miniDumpWriteDump ||
-		!stackWalk64) {
+		!stackWalk64 ||
+		!symFunctionTableAccess64 ||
+		!symGetModuleBase64) {
 		miniDumpWriteDump = 0;
 		return false;
 	}
 
-	//// SymInitialize
-	//if (szSymPath != NULL)
-	//	m_szSymPath = _strdup(szSymPath);
-	//if (this->pSI(m_hProcess, m_szSymPath, FALSE) == FALSE)
-	//	this->m_parent->OnDbgHelpErr("SymInitialize", GetLastError(), 0);
+	if (extended) {
+		HANDLE hProcess = GetCurrentProcess();
+		DWORD dwProcessId = GetCurrentProcessId();
 
-	//DWORD symOptions = this->pSGO();  // SymGetOptions
-	//symOptions |= SYMOPT_LOAD_LINES;
-	//symOptions |= SYMOPT_FAIL_CRITICAL_ERRORS;
-	////symOptions |= SYMOPT_NO_PROMPTS;
-	//// SymSetOptions
-	//symOptions = this->pSSO(symOptions);
+		symGetLineFromAddr64 = (t_SymGetLineFromAddr64)GetProcAddress(hDll, "SymGetLineFromAddrW64");
+		symGetModuleInfo64 = (t_SymGetModuleInfo64)GetProcAddress(hDll, "SymGetModuleInfoW64");
+		symGetSymFromAddr64 = (t_SymGetSymFromAddr64)GetProcAddress(hDll, "SymGetSymFromAddr64");
+		unDecorateSymbolName = (t_UnDecorateSymbolName)GetProcAddress(hDll, "UnDecorateSymbolName");
+		symInitialize = (t_SymInitialize)GetProcAddress(hDll, "SymInitializeW");
+		symCleanup = (t_SymCleanup)GetProcAddress(hDll, "SymCleanup");
+		symGetSearchPath = (t_SymGetSearchPath)GetProcAddress(hDll, "SymGetSearchPathW");
+		symGetOptions = (t_SymGetOptions)GetProcAddress(hDll, "SymGetOptions");
+		symSetOptions = (t_SymSetOptions)GetProcAddress(hDll, "SymSetOptions");
+		symLoadModule64 = (t_SymLoadModule64)GetProcAddress(hDll, "SymLoadModule64");
+		if (!symGetModuleInfo64 ||
+			!symGetLineFromAddr64 ||
+			!symGetSymFromAddr64 ||
+			!unDecorateSymbolName ||
+			!symInitialize ||
+			!symCleanup ||
+			!symGetOptions ||
+			!symSetOptions ||
+			!symLoadModule64) {
+			symInitialize = 0;
+			return false;
+		}
 
-	//char buf[StackWalker::STACKWALK_MAX_NAMELEN] = { 0 };
-	//if (this->pSGSP != NULL)
-	//{
-	//	if (this->pSGSP(m_hProcess, buf, StackWalker::STACKWALK_MAX_NAMELEN) == FALSE)
-	//		this->m_parent->OnDbgHelpErr("SymGetSearchPath", GetLastError(), 0);
-	//}
-	//char szUserName[1024] = { 0 };
-	//DWORD dwSize = 1024;
-	//GetUserNameA(szUserName, &dwSize);
-	//this->m_parent->OnSymInit(buf, symOptions, szUserName);
+		const size_t nSymPathLen = 10 * MAX_PATH;
+		WCHAR szSymPath[nSymPathLen] = { 0 };
+
+		wcscat_s(szSymPath, nSymPathLen, L".;..;");
+
+		WCHAR szTemp[MAX_PATH + 1] = { 0 };
+		if (GetCurrentDirectory(MAX_PATH, szTemp) > 0)	{
+			wcscat_s(szSymPath, nSymPathLen, szTemp);
+			wcscat_s(szSymPath, nSymPathLen, L";");
+		}
+
+		if (GetModuleFileName(NULL, szTemp, MAX_PATH) > 0) {
+			for (WCHAR *p = (szTemp + wcslen(szTemp) - 1); p >= szTemp; --p) {
+				if ((*p == '\\') || (*p == '/') || (*p == ':'))	{
+					*p = 0;
+					break;
+				}
+			}
+			if (wcslen(szTemp) > 0)	{
+				wcscat_s(szSymPath, nSymPathLen, szTemp);
+				wcscat_s(szSymPath, nSymPathLen, L";");
+			}
+		}
+		if (GetEnvironmentVariable(L"_NT_SYMBOL_PATH", szTemp, MAX_PATH) > 0) {
+			wcscat_s(szSymPath, nSymPathLen, szTemp);
+			wcscat_s(szSymPath, nSymPathLen, L";");
+		}
+		if (GetEnvironmentVariable(L"_NT_ALTERNATE_SYMBOL_PATH", szTemp, MAX_PATH) > 0) {
+			wcscat_s(szSymPath, nSymPathLen, szTemp);
+			wcscat_s(szSymPath, nSymPathLen, L";");
+		}
+		if (GetEnvironmentVariable(L"SYSTEMROOT", szTemp, MAX_PATH) > 0) {
+			wcscat_s(szSymPath, nSymPathLen, szTemp);
+			wcscat_s(szSymPath, nSymPathLen, L";");
+
+			// also add the "system32"-directory:
+			wcscat_s(szTemp, MAX_PATH, L"\\system32");
+			wcscat_s(szSymPath, nSymPathLen, szTemp);
+			wcscat_s(szSymPath, nSymPathLen, L";");
+		}
+
+		if (GetEnvironmentVariable(L"SYSTEMDRIVE", szTemp, MAX_PATH) > 0) {
+			wcscat_s(szSymPath, nSymPathLen, L"SRV*");
+			wcscat_s(szSymPath, nSymPathLen, szTemp);
+			wcscat_s(szSymPath, nSymPathLen, L"\\websymbols*http://msdl.microsoft.com/download/symbols;");
+		} else {
+			wcscat_s(szSymPath, nSymPathLen, L"SRV*c:\\websymbols*http://msdl.microsoft.com/download/symbols;");
+		}
+
+		if (symInitialize(hProcess, szSymPath, FALSE) == FALSE) {
+			symInitialize = 0;
+			return false;
+		}
+
+		DWORD symOptions = symGetOptions();
+		symOptions |= SYMOPT_LOAD_LINES;
+		symOptions |= SYMOPT_FAIL_CRITICAL_ERRORS;
+		symOptions = symSetOptions(symOptions);
+
+		//WCHAR buf[StackEntryMaxNameLength] = { 0 };
+		//if (symGetSearchPath) {
+		//	if (symGetSearchPath(hProcess, buf, StackEntryMaxNameLength) == FALSE) {
+		//		return false;
+		//	}
+		//}
+
+		//WCHAR szUserName[1024] = { 0 };
+		//DWORD dwSize = 1024;
+		//GetUserName(szUserName, &dwSize);
+
+		const WCHAR *dllname[] = { L"kernel32.dll",  L"tlhelp32.dll" };
+		HINSTANCE hToolhelp = NULL;
+
+		HANDLE hSnap;
+		MODULEENTRY32 me;
+		me.dwSize = sizeof(me);
+		BOOL keepGoing;
+		size_t i;
+
+		for (i = 0; i < (sizeof(dllname) / sizeof(dllname[0])); i++) {
+			hToolhelp = LoadLibrary(dllname[i]);
+			if (!hToolhelp) continue;
+
+			createToolhelp32Snapshot = (t_CreateToolhelp32Snapshot)GetProcAddress(hToolhelp, "CreateToolhelp32Snapshot");
+			module32First = (t_Module32First)GetProcAddress(hToolhelp, "Module32First");
+			module32Next = (t_Module32Next)GetProcAddress(hToolhelp, "Module32Next");
+			if (createToolhelp32Snapshot && module32First && module32Next) {
+				break; // found the functions!
+			}
+			FreeLibrary(hToolhelp);
+			hToolhelp = NULL;
+		}
+
+		if (hToolhelp == NULL) {
+			return false;
+		}
+
+		hSnap = createToolhelp32Snapshot(TH32CS_SNAPMODULE, dwProcessId);
+		if (hSnap == (HANDLE)-1)
+			return FALSE;
+
+		keepGoing = !!module32First(hSnap, &me);
+		int cnt = 0;
+		while (keepGoing) {
+			symLoadModule64(hProcess, 0, me.szExePath, me.szModule, (DWORD64)me.modBaseAddr, me.modBaseSize);
+			++cnt;
+			keepGoing = !!module32Next(hSnap, &me);
+		}
+		CloseHandle(hSnap);
+		FreeLibrary(hToolhelp);
+
+		return (cnt > 0);
+	}
 
 	return true;
 }
@@ -2627,8 +2794,6 @@ LPTOP_LEVEL_EXCEPTION_FILTER WINAPI RedirectedSetUnhandledExceptionFilter(_In_op
 	return 0;
 }
 
-// stack walking code taken from StackWalker
-static const int StackEntryMaxNameLength = 1024;
 struct StackEntry {
 	DWORD64 offset;  // if 0, we have no valid entry
 	CHAR name[StackEntryMaxNameLength];
@@ -2637,12 +2802,12 @@ struct StackEntry {
 	DWORD64 offsetFromSmybol;
 	DWORD offsetFromLine;
 	DWORD lineNumber;
-	CHAR lineFileName[StackEntryMaxNameLength];
+	WCHAR lineFileName[StackEntryMaxNameLength];
 	DWORD symType;
 	LPCSTR symTypeString;
-	CHAR moduleName[StackEntryMaxNameLength];
+	WCHAR moduleName[StackEntryMaxNameLength];
 	DWORD64 baseOfImage;
-	CHAR loadedImageName[StackEntryMaxNameLength];
+	WCHAR loadedImageName[StackEntryMaxNameLength];
 };
 
 enum StackEntryType {
@@ -2651,39 +2816,203 @@ enum StackEntryType {
 	StackEntryLast,
 };
 
-struct IMAGEHLP_MODULE64_V2 {
-	DWORD    SizeOfStruct;           // set to sizeof(IMAGEHLP_MODULE64)
-	DWORD64  BaseOfImage;            // base load address of module
-	DWORD    ImageSize;              // virtual size of the loaded module
-	DWORD    TimeDateStamp;          // date/time stamp from pe header
-	DWORD    CheckSum;               // checksum from the pe header
-	DWORD    NumSyms;                // number of symbols in the symbol table
-	SYM_TYPE SymType;                // type of symbols loaded
-	CHAR     ModuleName[32];         // module name
-	CHAR     ImageName[256];         // image name
-	CHAR     LoadedImageName[256];   // symbol file name
-};
+char GetModuleInfoData[2 * sizeof(IMAGEHLP_MODULEW64)];
+BOOL _getModuleInfo(HANDLE hProcess, DWORD64 baseAddr, IMAGEHLP_MODULEW64 *pModuleInfo) {
+	pModuleInfo->SizeOfStruct = sizeof(IMAGEHLP_MODULEW64);
+
+	memcpy(GetModuleInfoData, pModuleInfo, sizeof(IMAGEHLP_MODULEW64));
+	if (symGetModuleInfo64(hProcess, baseAddr, (IMAGEHLP_MODULEW64*)GetModuleInfoData) != FALSE) {
+		// only copy as much memory as is reserved...
+		memcpy(pModuleInfo, GetModuleInfoData, sizeof(IMAGEHLP_MODULEW64));
+		pModuleInfo->SizeOfStruct = sizeof(IMAGEHLP_MODULEW64);
+		return TRUE;
+	}
+	return FALSE;
+}
+
+void psWriteDump() {
+	OSVERSIONINFOEXA version;
+	ZeroMemory(&version, sizeof(OSVERSIONINFOEXA));
+	version.dwOSVersionInfoSize = sizeof(version);
+	if (GetVersionExA((OSVERSIONINFOA*)&version) != FALSE) {
+		SignalHandlers::dump() << "OS-Version: " << version.dwMajorVersion << "." << version.dwMinorVersion << "." << version.dwBuildNumber << "\n";
+	}
+}
 
 char ImageHlpSymbol64[sizeof(IMAGEHLP_SYMBOL64) + StackEntryMaxNameLength];
+QString _showCrashDump(const QByteArray &crashdump) {
+	HANDLE hProcess = GetCurrentProcess();
 
-void psWriteStackTrace(int n) {
-	if (!LoadDbgHelp()) return;
+	QString initial = QString::fromUtf8(crashdump), result;
+	QStringList lines = initial.split('\n');
+	result.reserve(initial.size());
+	int32 i = 0, l = lines.size();
+	QString versionstr;
+	uint64 version = 0, betaversion = 0;
+	for (;  i < l; ++i) {
+		result.append(lines.at(i)).append('\n');
+		QString line = lines.at(i).trimmed();
+		if (line.startsWith(qstr("Version: "))) {
+			versionstr = line.mid(qstr("Version: ").size()).trimmed();
+			version = versionstr.toULongLong();
+			if (versionstr.endsWith(qstr("beta"))) {
+				if (version % 1000) {
+					betaversion = version;
+				} else {
+					version /= 1000;
+				}
+			}
+			break;
+		}
+	}
+
+	// maybe need to launch another executable
+	QString tolaunch;
+	if ((betaversion && betaversion != cBetaVersion()) || (!betaversion && version && version != AppVersion)) {
+		QString path = cExeDir();
+		QRegularExpressionMatch m = QRegularExpression("deploy/\\d+\\.\\d+/\\d+\\.\\d+\\.\\d+(/|\\.dev/|_\\d+/)(Telegram/)?$").match(path);
+		if (m.hasMatch()) {
+			QString base = path.mid(0, m.capturedStart()) + qstr("deploy/");
+			int32 major = version / 1000000, minor = (version % 1000000) / 1000, micro = (version % 1000);
+			base += qsl("%1.%2/%3.%4.%5").arg(major).arg(minor).arg(major).arg(minor).arg(micro);
+			if (betaversion) {
+				base += qsl("_%1").arg(betaversion);
+			} else if (QDir(base + qstr(".dev")).exists()) {
+				base += qstr(".dev");
+			}
+			if (QFile(base + qstr("/Telegram/Telegram.exe")).exists()) {
+				base += qstr("/Telegram");
+			}
+			tolaunch = base + qstr("Telegram.exe");
+		}
+	}
+	if (!tolaunch.isEmpty()) {
+		if (QFile(tolaunch).exists()) {
+			// run it
+			return QString();
+		} else {
+			result.append(qsl("ERROR: executable '%1' for this crashdump was not found!").arg(tolaunch));
+		}
+	}
+
+	while (i < l) {
+		for (; i < l; ++i) {
+			result.append(lines.at(i)).append('\n');
+			QString line = lines.at(i).trimmed();
+			if (line == qstr("Backtrace:")) {
+				++i;
+				break;
+			}
+		}
+
+		IMAGEHLP_SYMBOL64 *pSym = NULL;
+		IMAGEHLP_MODULEW64 Module;
+		IMAGEHLP_LINEW64 Line;
+
+		pSym = (IMAGEHLP_SYMBOL64*)ImageHlpSymbol64;
+		memset(pSym, 0, sizeof(IMAGEHLP_SYMBOL64) + StackEntryMaxNameLength);
+		pSym->SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
+		pSym->MaxNameLength = StackEntryMaxNameLength;
+
+		memset(&Line, 0, sizeof(Line));
+		Line.SizeOfStruct = sizeof(Line);
+
+		memset(&Module, 0, sizeof(Module));
+		Module.SizeOfStruct = sizeof(Module);
+
+		StackEntry csEntry;
+		for (int32 start = i; i < l; ++i) {
+			QString line = lines.at(i).trimmed();
+			if (line.isEmpty()) break;
+
+			result.append(qsl("%1. ").arg(i + 1 - start));
+			if (!QRegularExpression(qsl("^\\d+$")).match(line).hasMatch()) {
+				if (!lines.at(i).startsWith(qstr("ERROR: "))) {
+					result.append(qstr("BAD LINE: "));
+				}
+				result.append(line).append('\n');
+				continue;
+			}
+
+			DWORD64 address = line.toULongLong();
+
+			csEntry.offset = address;
+			csEntry.name[0] = 0;
+			csEntry.undName[0] = 0;
+			csEntry.undFullName[0] = 0;
+			csEntry.offsetFromSmybol = 0;
+			csEntry.offsetFromLine = 0;
+			csEntry.lineFileName[0] = 0;
+			csEntry.lineNumber = 0;
+			csEntry.loadedImageName[0] = 0;
+			csEntry.moduleName[0] = 0;
+
+			if (symGetSymFromAddr64(hProcess, address, &(csEntry.offsetFromSmybol), pSym) != FALSE) {
+				// TODO: Mache dies sicher...!
+				strcpy_s(csEntry.name, pSym->Name);
+
+				unDecorateSymbolName(pSym->Name, csEntry.undName, StackEntryMaxNameLength, UNDNAME_NAME_ONLY);
+				unDecorateSymbolName(pSym->Name, csEntry.undFullName, StackEntryMaxNameLength, UNDNAME_COMPLETE);
+
+				if (symGetLineFromAddr64) {
+					if (symGetLineFromAddr64(hProcess, address, &(csEntry.offsetFromLine), &Line) != FALSE) {
+						csEntry.lineNumber = Line.LineNumber;
+
+						// TODO: Mache dies sicher...!
+						wcscpy_s(csEntry.lineFileName, Line.FileName);
+					}
+				}
+			} else {
+				result.append("ERROR: could not get Sym from Addr! for ").append(QString::number(address)).append('\n');
+				continue;
+			}
+
+			if (_getModuleInfo(hProcess, address, &Module) != FALSE) {
+				// TODO: Mache dies sicher...!
+				wcscpy_s(csEntry.moduleName, Module.ModuleName);
+			}
+			if (csEntry.name[0] == 0) {
+				strcpy_s(csEntry.name, "(function-name not available)");
+			}
+			if (csEntry.undName[0] != 0) {
+				strcpy_s(csEntry.name, csEntry.undName);
+			}
+			if (csEntry.undFullName[0] != 0) {
+				strcpy_s(csEntry.name, csEntry.undFullName);
+			}
+			if (csEntry.lineFileName[0] == 0) {
+				if (csEntry.moduleName[0] == 0) {
+					wcscpy_s(csEntry.moduleName, L"module-name not available");
+				}
+				result.append(csEntry.name).append(qsl(" (%1) 0x%3").arg(QString::fromWCharArray(csEntry.moduleName)).arg(address, 0, 16)).append('\n');
+			} else {
+				QString file = QString::fromWCharArray(csEntry.lineFileName).toLower();
+				int32 index = file.indexOf(qstr("tbuild\\tdesktop\\telegram\\"));
+				if (index >= 0) {
+					file = file.mid(index + qstr("tbuild\\tdesktop\\telegram\\").size());
+					if (file.startsWith(qstr("sourcefiles\\"))) {
+						file = file.mid(qstr("sourcefiles\\").size());
+					}
+				}
+				result.append(csEntry.name).append(qsl(" (%1 - %2) 0x%3").arg(file).arg(csEntry.lineNumber).arg(address, 0, 16)).append('\n');
+			}
+		}
+	}
+	return result;
+}
+
+void psWriteStackTrace(int file) {
+	if (!LoadDbgHelp()) {
+		SignalHandlers::dump() << "ERROR: Could not load dbghelp.dll!\n";
+		return;
+	}
 
 	HANDLE hThread = GetCurrentThread(), hProcess = GetCurrentProcess();
 	const CONTEXT *context = NULL;
 	LPVOID pUserData = NULL;
 
 	CONTEXT c;
-	StackEntry csEntry;
-	IMAGEHLP_SYMBOL64 *pSym = NULL;
-	IMAGEHLP_MODULE64_V2 Module;
-	IMAGEHLP_LINE64 Line;
 	int frameNum;
-
-	if (!LoadDbgHelp()) {
-		SignalHandlers::dump() << "ERROR: Could not load dbghelp.dll!\n";
-		return;
-	}
 
 	memset(&c, 0, sizeof(CONTEXT));
 	c.ContextFlags = CONTEXT_FULL;
@@ -2724,18 +3053,7 @@ void psWriteStackTrace(int n) {
 #error "Platform not supported!"
 #endif
 
-	pSym = (IMAGEHLP_SYMBOL64 *)ImageHlpSymbol64;
-	memset(pSym, 0, sizeof(IMAGEHLP_SYMBOL64) + StackEntryMaxNameLength);
-	pSym->SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
-	pSym->MaxNameLength = StackEntryMaxNameLength;
-
-	memset(&Line, 0, sizeof(Line));
-	Line.SizeOfStruct = sizeof(Line);
-
-	memset(&Module, 0, sizeof(Module));
-	Module.SizeOfStruct = sizeof(Module);
-
-	for (frameNum = 0; ; ++frameNum) {
+	for (frameNum = 0; frameNum < 1000; ++frameNum) {
 		// get next stack frame (StackWalk64(), SymFunctionTableAccess64(), SymGetModuleBase64())
 		// if this returns ERROR_INVALID_ADDRESS (487) or ERROR_NOACCESS (998), you can
 		// assume that either you are done, or that the stack is so hosed that the next
@@ -2746,16 +3064,6 @@ void psWriteStackTrace(int n) {
 			return;
 		}
 
-		csEntry.offset = s.AddrPC.Offset;
-		csEntry.name[0] = 0;
-		csEntry.undName[0] = 0;
-		csEntry.undFullName[0] = 0;
-		csEntry.offsetFromSmybol = 0;
-		csEntry.offsetFromLine = 0;
-		csEntry.lineFileName[0] = 0;
-		csEntry.lineNumber = 0;
-		csEntry.loadedImageName[0] = 0;
-		csEntry.moduleName[0] = 0;
 		if (s.AddrPC.Offset == s.AddrReturn.Offset) {
 			SignalHandlers::dump() << s.AddrPC.Offset << "\n";
 			SignalHandlers::dump() << "ERROR: StackWalk64() endless callstack!";
@@ -2769,6 +3077,41 @@ void psWriteStackTrace(int n) {
 			break;
 		}
 	}
+}
+
+int psShowCrash(const QString &crashdump) {
+	QString text;
+
+	QFile dump(crashdump);
+	if (dump.open(QIODevice::ReadOnly)) {
+		text = qsl("Crash dump file '%1':\n\n").arg(QFileInfo(crashdump).absoluteFilePath());
+		if (!LoadDbgHelp(true)) {
+			text += qsl("ERROR: could not init dbghelp.dll!");
+		} else {
+			text += _showCrashDump(dump.readAll());
+			symCleanup(GetCurrentProcess());
+		}
+	} else {
+		text = qsl("ERROR: could not read crash dump file '%1'").arg(QFileInfo(crashdump).absoluteFilePath());
+	}
+
+	WCHAR szTemp[MAX_PATH + 1] = { 0 };
+	GetModuleFileName(NULL, szTemp, MAX_PATH);
+
+	QByteArray args[] = { QString::fromWCharArray(szTemp).toUtf8() };
+	int a_argc = 1;
+	char *a_argv[1] = { args[0].data() };
+	QApplication app(a_argc, a_argv);
+
+	QTextEdit wnd;
+	wnd.setReadOnly(true);
+	wnd.setPlainText(text);
+
+	QRect scr(QApplication::primaryScreen()->availableGeometry());
+	wnd.setGeometry(scr.x() + (scr.width() / 6), scr.y() + (scr.height() / 6), scr.width() / 2, scr.height() / 2);
+	wnd.show();
+
+	return app.exec();
 }
 
 class StringReferenceWrapper {

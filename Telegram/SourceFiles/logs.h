@@ -93,6 +93,8 @@ namespace SignalHandlers {
 	};
 	const dump &operator<<(const dump &stream, const char *str);
 	const dump &operator<<(const dump &stream, int num);
+	const dump &operator<<(const dump &stream, DWORD num);
+	const dump &operator<<(const dump &stream, DWORD64 num);
 
 	enum Status {
 		CantOpen,

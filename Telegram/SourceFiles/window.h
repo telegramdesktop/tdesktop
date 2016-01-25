@@ -169,7 +169,7 @@ public:
 
 	QRect clientRect() const;
 	QRect photoRect() const;
-	
+
 	IntroWidget *introWidget();
 	MainWidget *mainWidget();
 	SettingsWidget *settingsWidget();
@@ -245,12 +245,12 @@ public slots:
 
 	void updateIsActive(int timeout = 0);
 	void stateChanged(Qt::WindowState state);
-	
+
 	void checkHistoryActivation();
 	void updateCounter();
 
 	void checkAutoLock();
-    
+
 	void showSettings();
 	void hideSettings(bool fast = false);
 	void layerHidden();
@@ -351,6 +351,41 @@ private:
 	NotifyWindows notifyWindows;
 
 	MediaView *_mediaView;
+};
+
+class NotStartedWindow : public TWidget {
+public:
+
+	NotStartedWindow();
+
+protected:
+
+	void closeEvent(QCloseEvent *e);
+	void resizeEvent(QResizeEvent *e);
+
+private:
+
+	QLabel _label;
+	QTextEdit _log;
+
+};
+
+class LastCrashedWindow : public TWidget {
+public:
+
+	LastCrashedWindow();
+
+protected:
+
+	void closeEvent(QCloseEvent *e);
+	void resizeEvent(QResizeEvent *e);
+
+private:
+
+	QLabel _label;
+	QTextEdit _log;
+	QPushButton _send;
+
 };
 
 #endif // MAINWINDOW_H

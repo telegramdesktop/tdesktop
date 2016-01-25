@@ -4000,7 +4000,8 @@ HistoryDocument::HistoryDocument(const HistoryDocument &other) : HistoryFileMedi
 , _linkcancell(new DocumentCancelLink(_data))
 , _name(other._name)
 , _namew(other._namew)
-, _thumbw(other._thumbw) {
+, _thumbw(other._thumbw)
+, _caption(other._caption) {
 	setLinks(new DocumentOpenLink(_data), new DocumentSaveLink(_data), new DocumentCancelLink(_data));
 
 	setStatusSize(other._statusSize);
@@ -4378,6 +4379,7 @@ HistoryGif::HistoryGif(const HistoryGif &other) : HistoryFileMedia()
 , _data(other._data)
 , _thumbw(other._thumbw)
 , _thumbh(other._thumbh)
+, _caption(other._caption)
 , _gif(0) {
 	setLinks(new GifOpenLink(_data), new GifOpenLink(_data), new DocumentCancelLink(_data));
 

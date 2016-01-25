@@ -215,6 +215,9 @@ void settingsParseArgs(int argc, char *argv[]) {
 			gLaunchMode = LaunchModeFixPrevious;
 		} else if (string("-cleanup") == argv[i]) {
 			gLaunchMode = LaunchModeCleanup;
+		} else if (string("-crash") == argv[i] && i + 1 < argc) {
+			gLaunchMode = LaunchModeShowCrash;
+			gStartUrl = fromUtf8Safe(argv[++i]);
 		} else if (string("-noupdate") == argv[i]) {
 			gNoStartUpdate = true;
 		} else if (string("-tosettings") == argv[i]) {

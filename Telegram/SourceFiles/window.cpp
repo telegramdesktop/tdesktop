@@ -1825,3 +1825,62 @@ Window::~Window() {
 	delete main;
 	delete settings;
 }
+
+NotStartedWindow::NotStartedWindow() : TWidget(0)
+, _label(this)
+, _log(this) {
+	_label.setText(qsl("Could not start Telegram Desktop! Log:"));
+	_label.show();
+
+	_log.setReadOnly(true);
+	_log.setPlainText(Logs::full());
+	_log.show();
+
+	QRect scr(QApplication::primaryScreen()->availableGeometry());
+	setGeometry(scr.x() + (scr.width() / 6), scr.y() + (scr.height() / 6), scr.width() / 2, scr.height() / 2);
+	show();
+}
+
+void NotStartedWindow::closeEvent(QCloseEvent *e) {
+	deleteLater();
+}
+
+void NotStartedWindow::resizeEvent(QResizeEvent *e) {
+	int padding = _label.sizeHint().height() / 2;
+	_label.setGeometry(padding, padding, width() - 2 * padding, _label.sizeHint().height());
+	_log.setGeometry(padding, padding * 2 + _label.sizeHint().height(), width() - 2 * padding, height() - 3 * padding - _label.sizeHint().height());
+}
+
+LastCrashedWindow::LastCrashedWindow() : TWidget(0)
+, _label(this)
+, _log(this)
+, _send(this) {
+	_label.setText(qsl("Could not start Telegram Desktop! Log:"));
+	_label.show();
+
+	_log.setReadOnly(true);
+	_log.setPlainText(Logs::full());
+	_log.show();
+
+	_send.setText(qsl("Send Crash Report"));
+	_send.show();
+
+	QRect scr(QApplication::primaryScreen()->availableGeometry());
+	setGeometry(scr.x() + (scr.width() / 6), scr.y() + (scr.height() / 6), scr.width() / 2, scr.height() / 2);
+	show();
+}
+
+void LastCrashedWindow::closeEvent(QCloseEvent *e) {
+	deleteLater();
+	if (SignalHandlers::restart() == SignalHandlers::CantOpen) {
+		new NotStartedWindow();
+	} else {
+		new AppClass();
+	}
+}
+
+void LastCrashedWindow::resizeEvent(QResizeEvent *e) {
+	int padding = _label.sizeHint().height() / 2;
+	_label.setGeometry(padding, padding, width() - 2 * padding, _label.sizeHint().height());
+	_log.setGeometry(padding, padding * 2 + _label.sizeHint().height(), width() - 2 * padding, height() - 3 * padding - _label.sizeHint().height());
+}

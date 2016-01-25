@@ -271,26 +271,14 @@ void Application::singleInstanceChecked() {
 	Global::start();
 
 	if (!Logs::started() || (!cManyInstance() && !Logs::instanceChecked())) {
-		// show error window
-		MessageBox(0, (QString::fromStdWString(L"Could not start Telegram Dekstop! Log:\n\n") + Logs::full()).toStdWString().c_str(), L"Error!", MB_ICONERROR);
-		App::quit();
+		new NotStartedWindow();
 	} else {
 		SignalHandlers::Status status = SignalHandlers::start();
 		if (status == SignalHandlers::CantOpen) {
-			// show error window
-			MessageBox(0, (QString::fromStdWString(L"Could not start Telegram Dekstop! Log:\n\n") + Logs::full()).toStdWString().c_str(), L"Error!", MB_ICONERROR);
-			App::quit();
+			new NotStartedWindow();
+		} else if (status == SignalHandlers::LastCrashed) {
+			new LastCrashedWindow();
 		} else {
-			if (status == SignalHandlers::LastCrashed) {
-				// show error window
-				MessageBox(0, (QString::fromStdWString(L"Last time Telegram Dekstop crashed! Log:\n\n") + Logs::full()).toStdWString().c_str(), L"Error!", MB_ICONERROR);
-				if (SignalHandlers::restart() == SignalHandlers::CantOpen) {
-					// show error window
-					MessageBox(0, (QString::fromStdWString(L"Could not start Telegram Dekstop! Log:\n\n") + Logs::full()).toStdWString().c_str(), L"Error!", MB_ICONERROR);
-					App::quit();
-					return;
-				}
-			}
 			new AppClass();
 		}
 	}
@@ -1050,10 +1038,7 @@ void AppClass::execExternal(const QString &cmd) {
 }
 
 AppClass::~AppClass() {
-	abort();
-
 	_window.setParent(0);
-
 	anim::stopManager();
 
 	stopWebLoadManager();
