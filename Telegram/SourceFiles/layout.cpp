@@ -293,9 +293,9 @@ void LayoutAbstractFileItem::setStatusSize(int32 newSize, int32 fullSize, int32 
 	}
 }
 
-LayoutOverviewDate::LayoutOverviewDate(const QDate &date, bool month)
-	: _date(date)
-	, _text(month ? langMonthFull(date) : langDayOfMonthFull(date)) {
+LayoutOverviewDate::LayoutOverviewDate(const QDate &date, bool month) : LayoutItem(OverviewItemInfo::Bit())
+, _date(date)
+, _text(month ? langMonthFull(date) : langDayOfMonthFull(date)) {
 }
 
 void LayoutOverviewDate::initDimensions() {
@@ -311,7 +311,7 @@ void LayoutOverviewDate::paint(Painter &p, const QRect &clip, uint32 selection, 
 	}
 }
 
-LayoutOverviewPhoto::LayoutOverviewPhoto(PhotoData *photo, HistoryItem *parent) : LayoutMediaItem(parent)
+LayoutOverviewPhoto::LayoutOverviewPhoto(PhotoData *photo, HistoryItem *parent) : LayoutMediaItem(0, parent)
 , _data(photo)
 , _link(new PhotoLink(photo))
 , _goodLoaded(false) {
@@ -385,7 +385,7 @@ void LayoutOverviewPhoto::getState(TextLinkPtr &link, HistoryCursorState &cursor
 	}
 }
 
-LayoutOverviewVideo::LayoutOverviewVideo(VideoData *video, HistoryItem *parent) : LayoutAbstractFileItem(parent)
+LayoutOverviewVideo::LayoutOverviewVideo(VideoData *video, HistoryItem *parent) : LayoutAbstractFileItem(0, parent)
 , _data(video)
 , _duration(formatDurationText(_data->duration))
 , _thumbLoaded(false) {
@@ -550,7 +550,7 @@ void LayoutOverviewVideo::updateStatusText() const {
 	}
 }
 
-LayoutOverviewAudio::LayoutOverviewAudio(AudioData *audio, HistoryItem *parent) : LayoutAbstractFileItem(parent)
+LayoutOverviewAudio::LayoutOverviewAudio(AudioData *audio, HistoryItem *parent) : LayoutAbstractFileItem(OverviewItemInfo::Bit(), parent)
 , _data(audio)
 , _namel(new AudioOpenLink(_data)) {
 	setLinks(new AudioOpenLink(_data), new AudioOpenLink(_data), new AudioCancelLink(_data));
@@ -738,7 +738,7 @@ bool LayoutOverviewAudio::updateStatusText() const {
 	return showPause;
 }
 
-LayoutOverviewDocument::LayoutOverviewDocument(DocumentData *document, HistoryItem *parent) : LayoutAbstractFileItem(parent)
+LayoutOverviewDocument::LayoutOverviewDocument(DocumentData *document, HistoryItem *parent) : LayoutAbstractFileItem(OverviewItemInfo::Bit(), parent)
 , _data(document)
 , _msgl(new MessageLink(parent))
 , _namel(new DocumentOpenLink(_data))
@@ -1061,7 +1061,7 @@ namespace {
 	}
 }
 
-LayoutOverviewLink::LayoutOverviewLink(HistoryMedia *media, HistoryItem *parent) : LayoutMediaItem(parent)
+LayoutOverviewLink::LayoutOverviewLink(HistoryMedia *media, HistoryItem *parent) : LayoutMediaItem(OverviewItemInfo::Bit(), parent)
 , _titlew(0)
 , _page(0)
 , _pixw(0)
@@ -1319,8 +1319,8 @@ LayoutOverviewLink::Link::Link(const QString &url, const QString &text)
 , lnk(linkFromUrl(url)) {
 }
 
-LayoutInlineItem::LayoutInlineItem(InlineResult *result, DocumentData *doc, PhotoData *photo)
-: _result(result)
+LayoutInlineItem::LayoutInlineItem(InlineResult *result, DocumentData *doc, PhotoData *photo) : LayoutItem(0)
+, _result(result)
 , _doc(doc)
 , _photo(photo)
 , _position(0) {

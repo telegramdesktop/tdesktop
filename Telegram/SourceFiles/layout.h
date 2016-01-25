@@ -101,11 +101,9 @@ public:
 };
 
 class LayoutMediaItem;
-class OverviewItemInfo;
-
-class LayoutItem {
+class LayoutItem : public Interfaces {
 public:
-	LayoutItem() : _maxw(0), _minh(0) {
+	LayoutItem(uint64 i_mask) : Interfaces(i_mask), _maxw(0), _minh(0) {
 	}
 
 	int32 maxWidth() const {
@@ -163,12 +161,6 @@ public:
 	virtual DocumentData *getDocument() const {
 		return 0;
 	}
-	virtual OverviewItemInfo *getOverviewItemInfo() {
-		return 0;
-	}
-	virtual const OverviewItemInfo *getOverviewItemInfo() const {
-		return 0;
-	}
 	MsgId msgId() const {
 		const HistoryItem *item = getItem();
 		return item ? item->id : 0;
@@ -182,7 +174,7 @@ protected:
 
 class LayoutMediaItem : public LayoutItem {
 public:
-	LayoutMediaItem(HistoryItem *parent) : _parent(parent) {
+	LayoutMediaItem(uint64 i_mask, HistoryItem *parent) : LayoutItem(i_mask), _parent(parent) {
 	}
 
 	virtual LayoutMediaItem *toLayoutMediaItem() {
@@ -202,7 +194,7 @@ protected:
 
 class LayoutRadialProgressItem : public LayoutMediaItem {
 public:
-	LayoutRadialProgressItem(HistoryItem *parent) : LayoutMediaItem(parent)
+	LayoutRadialProgressItem(uint64 i_mask, HistoryItem *parent) : LayoutMediaItem(i_mask, parent)
 		, _radial(0)
 		, a_iconOver(0, 0)
 		, _a_iconOver(animation(this, &LayoutRadialProgressItem::step_iconOver)) {
@@ -248,7 +240,7 @@ private:
 
 class LayoutAbstractFileItem : public LayoutRadialProgressItem {
 public:
-	LayoutAbstractFileItem(HistoryItem *parent) : LayoutRadialProgressItem(parent) {
+	LayoutAbstractFileItem(uint64 i_mask, HistoryItem *parent) : LayoutRadialProgressItem(i_mask, parent) {
 	}
 
 protected:
@@ -276,7 +268,7 @@ public:
 
 };
 
-class OverviewItemInfo {
+class OverviewItemInfo : public BasicInterface<OverviewItemInfo> {
 public:
 	OverviewItemInfo() : _top(0) {
 	}
@@ -299,16 +291,7 @@ public:
 	virtual void initDimensions();
 	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
 
-	virtual OverviewItemInfo *getOverviewItemInfo() {
-		return &_info;
-	}
-	virtual const OverviewItemInfo *getOverviewItemInfo() const {
-		return &_info;
-	}
-
 private:
-	OverviewItemInfo _info;
-
 	QDate _date;
 	QString _text;
 
@@ -374,13 +357,6 @@ public:
 	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
 	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
 
-	virtual OverviewItemInfo *getOverviewItemInfo() {
-		return &_info;
-	}
-	virtual const OverviewItemInfo *getOverviewItemInfo() const {
-		return &_info;
-	}
-
 protected:
 	virtual float64 dataProgress() const {
 		return _data->progress();
@@ -396,7 +372,6 @@ protected:
 	}
 
 private:
-	OverviewItemInfo _info;
 	AudioData *_data;
 	TextLinkPtr _namel;
 
@@ -419,12 +394,6 @@ public:
 	virtual DocumentData *getDocument() const {
 		return _data;
 	}
-	virtual OverviewItemInfo *getOverviewItemInfo() {
-		return &_info;
-	}
-	virtual const OverviewItemInfo *getOverviewItemInfo() const {
-		return &_info;
-	}
 
 protected:
 	virtual float64 dataProgress() const {
@@ -441,7 +410,6 @@ protected:
 	}
 
 private:
-	OverviewItemInfo _info;
 	DocumentData *_data;
 	TextLinkPtr _msgl, _namel;
 
@@ -468,15 +436,7 @@ public:
 	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
 	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
 
-	virtual OverviewItemInfo *getOverviewItemInfo() {
-		return &_info;
-	}
-	virtual const OverviewItemInfo *getOverviewItemInfo() const {
-		return &_info;
-	}
-
 private:
-	OverviewItemInfo _info;
 	TextLinkPtr _photol;
 
 	QString _title, _letter;

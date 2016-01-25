@@ -355,7 +355,7 @@ void OverviewInner::repaintItem(MsgId itemId, int32 itemIndex) {
 			int32 row = (_photosToAdd + shownAtIndex) / _photosInRow, col = (_photosToAdd + shownAtIndex) % _photosInRow;
 			update(int32(col * w), _marginTop + int32(row * vsize), qCeil(w), vsize);
 		} else {
-			int32 top = _items.at(itemIndex)->getOverviewItemInfo()->top();
+			int32 top = _items.at(itemIndex)->Get<OverviewItemInfo>()->top();
 			if (_reversed) top = _height - top;
 			update(_rowsLeft, _marginTop + top, _rowWidth, _items.at(itemIndex)->height());
 		}
@@ -729,7 +729,7 @@ QPoint OverviewInner::mapMouseToItem(QPoint p, MsgId itemId, int32 itemIndex) {
 		p.setX(p.x() - int32(col * w) - st::overviewPhotoSkip);
 		p.setY(p.y() - _marginTop - row * (_rowWidth + st::overviewPhotoSkip) - st::overviewPhotoSkip);
 	} else {
-		int32 top = _items.at(itemIndex)->getOverviewItemInfo()->top();
+		int32 top = _items.at(itemIndex)->Get<OverviewItemInfo>()->top();
 		if (_reversed) top = _height - top;
 		p.setY(p.y() - _marginTop - top);
 	}
@@ -765,7 +765,7 @@ int32 OverviewInner::itemTop(const FullMsgId &msgId) const {
 		int32 itemIndex = -1;
 		fixItemIndex(itemIndex, (msgId.channel == _channel) ? msgId.msg : ((_migrated && msgId.channel == _migrated->channelId()) ? -msgId.msg : 0));
 		if (itemIndex >= 0) {
-			int32 top = _items.at(itemIndex)->getOverviewItemInfo()->top();
+			int32 top = _items.at(itemIndex)->Get<OverviewItemInfo>()->top();
 			if (_reversed) top = _height - top;
 			return _marginTop + top;
 		}
@@ -879,10 +879,10 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 		int32 y = 0, w = _rowWidth;
 		for (int32 j = 0, l = _items.size(); j < l; ++j) {
 			int32 i = _reversed ? (l - j - 1) : j, nexti = _reversed ? (i - 1) : (i + 1);
-			int32 nextItemTop = (j + 1 == l) ? (_reversed ? 0 : _height) : _items.at(nexti)->getOverviewItemInfo()->top();
+			int32 nextItemTop = (j + 1 == l) ? (_reversed ? 0 : _height) : _items.at(nexti)->Get<OverviewItemInfo>()->top();
 			if (_reversed) nextItemTop = _height - nextItemTop;
 			if (_marginTop + nextItemTop > r.top()) {
-				OverviewItemInfo *info = _items.at(i)->getOverviewItemInfo();
+				OverviewItemInfo *info = _items.at(i)->Get<OverviewItemInfo>();
 				int32 curY = info->top();
 				if (_reversed) curY = _height - curY;
 				if (_marginTop + curY >= r.y() + r.height()) break;
@@ -944,10 +944,10 @@ void OverviewInner::onUpdateSelected() {
 		for (int32 j = 0, l = _items.size(); j < l; ++j) {
 			bool lastItem = (j + 1 == l);
 			int32 i = _reversed ? (l - j - 1) : j, nexti = _reversed ? (i - 1) : (i + 1);
-			int32 nextItemTop = lastItem ? (_reversed ? 0 : _height) : _items.at(nexti)->getOverviewItemInfo()->top();
+			int32 nextItemTop = lastItem ? (_reversed ? 0 : _height) : _items.at(nexti)->Get<OverviewItemInfo>()->top();
 			if (_reversed) nextItemTop = _height - nextItemTop;
 			if (_marginTop + nextItemTop > m.y() || lastItem) {
-				int32 top = _items.at(i)->getOverviewItemInfo()->top();
+				int32 top = _items.at(i)->Get<OverviewItemInfo>()->top();
 				if (_reversed) top = _height - top;
 				if (!_items.at(i)->toLayoutMediaItem()) { // day item
 					int32 h = _items.at(i)->height();
@@ -956,11 +956,11 @@ void OverviewInner::onUpdateSelected() {
 					if (i > 0 && (beforeItem || i == _items.size() - 1)) {
 						--i;
 						if (!_items.at(i)->toLayoutMediaItem()) break; // wtf
-						top = _items.at(i)->getOverviewItemInfo()->top();
+						top = _items.at(i)->Get<OverviewItemInfo>()->top();
 					} else if (i < _items.size() - 1 && (!beforeItem || !i)) {
 						++i;
 						if (!_items.at(i)->toLayoutMediaItem()) break; // wtf
-						top = _items.at(i)->getOverviewItemInfo()->top();
+						top = _items.at(i)->Get<OverviewItemInfo>()->top();
 					} else {
 						break; // wtf
 					}
@@ -1385,7 +1385,7 @@ int32 OverviewInner::resizeToWidth(int32 nwidth, int32 scrollTop, int32 minHeigh
 		for (int32 i = 0, l = _items.size(); i < l; ++i) {
 			int32 h = _items.at(i)->resizeGetHeight(_rowWidth);
 			if (resize) {
-				_items.at(i)->getOverviewItemInfo()->setTop(_height + (_reversed ? h : 0));
+				_items.at(i)->Get<OverviewItemInfo>()->setTop(_height + (_reversed ? h : 0));
 				_height += h;
 			}
 		}
@@ -1746,7 +1746,7 @@ void OverviewInner::mediaOverviewUpdated() {
 			if (allGood) {
 				if (_items.size() > index && complexMsgId(_items.at(index)->getItem()) == msgid) {
 					if (withDates) prevDate = _items.at(index)->getItem()->date.date();
-					top = _items.at(index)->getOverviewItemInfo()->top();
+					top = _items.at(index)->Get<OverviewItemInfo>()->top();
 					if (!_reversed) {
 						top += _items.at(index)->height();
 					}
@@ -1756,7 +1756,7 @@ void OverviewInner::mediaOverviewUpdated() {
 				if (_items.size() > index + 1 && !_items.at(index)->toLayoutMediaItem() && complexMsgId(_items.at(index + 1)->getItem()) == msgid) { // day item
 					++index;
 					if (withDates) prevDate = _items.at(index)->getItem()->date.date();
-					top = _items.at(index)->getOverviewItemInfo()->top();
+					top = _items.at(index)->Get<OverviewItemInfo>()->top();
 					if (!_reversed) {
 						top += _items.at(index)->height();
 					}
@@ -1877,7 +1877,7 @@ void OverviewInner::repaintItem(const HistoryItem *msg) {
 			if (history == _migrated) msgid = -msgid;
 			for (int32 i = 0, l = _items.size(); i != l; ++i) {
 				if (complexMsgId(_items.at(i)->getItem()) == msgid) {
-					int32 top = _items.at(i)->getOverviewItemInfo()->top();
+					int32 top = _items.at(i)->Get<OverviewItemInfo>()->top();
 					if (_reversed) top = _height - top;
 					update(_rowsLeft, _marginTop + top, _rowWidth, _items.at(i)->height());
 					break;
@@ -1982,7 +1982,7 @@ int32 OverviewInner::setLayoutItem(int32 index, LayoutItem *item, int32 top) {
 		_items.push_back(item);
 	}
 	int32 h = item->resizeGetHeight(_rowWidth);
-	if (OverviewItemInfo *info = item->getOverviewItemInfo()) {
+	if (OverviewItemInfo *info = item->Get<OverviewItemInfo>()) {
 		info->setTop(top + (_reversed ? h : 0));
 	}
 	return h;

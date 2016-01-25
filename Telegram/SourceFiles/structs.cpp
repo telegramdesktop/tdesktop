@@ -34,6 +34,39 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "audio.h"
 #include "localstorage.h"
 
+class InterfacesMetadatasMap : public QMap<uint64, InterfacesMetadata*> {
+public:
+	~InterfacesMetadatasMap() {
+		for (const_iterator i = cbegin(), e = cend(); i != e; ++i) {
+			delete i.value();
+		}
+	}
+};
+
+const InterfacesMetadata *GetInterfacesMetadata(uint64 mask) {
+	typedef QMap<uint64, InterfacesMetadata*> InterfacesMetadatasMap;
+	static InterfacesMetadatasMap InterfacesMetadatas;
+	static QMutex InterfacesMetadatasMutex;
+
+	QMutexLocker lock(&InterfacesMetadatasMutex);
+	InterfacesMetadatasMap::const_iterator i = InterfacesMetadatas.constFind(mask);
+	if (i == InterfacesMetadatas.cend()) {
+		InterfacesMetadata *meta = new InterfacesMetadata(mask);
+		if (!meta) { // terminate if we can't allocate memory
+			throw "Can't allocate memory!";
+		}
+
+		i = InterfacesMetadatas.insert(mask, meta);
+	}
+	return i.value();
+}
+
+InterfaceWrapStruct InterfaceWraps[64] = {
+	{ 0, 0, 0 }
+};
+
+QAtomicInt InterfaceIndexLast(0);
+
 namespace {
 	int32 peerColorIndex(const PeerId &peer) {
 		int32 myId(MTP::authedId()), peerId(peerToBareInt(peer));
