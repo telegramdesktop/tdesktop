@@ -270,7 +270,7 @@ public:
 
 class OverviewItemInfo : public BasicInterface<OverviewItemInfo> {
 public:
-	OverviewItemInfo() : _top(0) {
+	OverviewItemInfo(Interfaces *) : _top(0) {
 	}
 	int32 top() const {
 		return _top;

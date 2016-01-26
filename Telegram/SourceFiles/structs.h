@@ -39,7 +39,7 @@ template <typename Type>
 struct InterfaceWrapTemplate {
 	static const int Size = CeilDivideMinimumOne<sizeof(Type), sizeof(uint64)>::Result * sizeof(uint64);
 	static void Construct(void *location, Interfaces *interfaces) {
-		(new (location) Type())->interfaces = interfaces;
+		new (location) Type(interfaces);
 	}
 	static void Destruct(void *location) {
 		((Type*)location)->~Type();
@@ -71,6 +71,14 @@ public:
 	}
 	static const uint64 Bit() {
 		return (1 << Index());
+	}
+
+};
+
+template <typename Type>
+class BasicInterfaceWithPointer : public BasicInterface<Type> {
+public:
+	BasicInterfaceWithPointer(Interfaces *interfaces) : interfaces(interfaces) {
 	}
 	Interfaces *interfaces = 0;
 };
