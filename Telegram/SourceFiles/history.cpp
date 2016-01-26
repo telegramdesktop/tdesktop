@@ -1918,11 +1918,6 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 	const MTPMessageGroup *groupsBegin = (isChannel() && collapsed) ? collapsed->constData() : 0, *groupsIt = groupsBegin, *groupsEnd = (isChannel() && collapsed) ? (groupsBegin + collapsed->size()) : 0;
 
 	HistoryItem *oldFirst = 0, *last = 0;
-	if (!blocks.isEmpty()) {
-		t_assert(blocks.size() > 1);
-		oldFirst = blocks.at(1)->items.front();
-	}
-
 	HistoryBlock *block = new HistoryBlock(this);
 	block->items.reserve(slice.size() + (collapsed ? collapsed->size() : 0));
 	for (QVector<MTPmessage>::const_iterator i = slice.cend(), e = slice.cbegin(); i != e;) {
@@ -1947,6 +1942,10 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 		last = addMessageGroupAfterPrevToBlock(group, last, block);
 	}
 
+	if (!blocks.isEmpty()) {
+		t_assert(blocks.size() > 1);
+		oldFirst = blocks.at(1)->items.front();
+	}
 	while (oldFirst && last && oldFirst->type() == HistoryItemGroup && last->type() == HistoryItemGroup) {
 		static_cast<HistoryGroup*>(last)->uniteWith(static_cast<HistoryGroup*>(oldFirst));
 		oldFirst->destroy();
