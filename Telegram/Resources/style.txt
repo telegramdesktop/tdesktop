@@ -30,9 +30,9 @@ emojiImgSize: 18px; // exceptional value for retina
 emojiSize: 18px;
 emojiPadding: 0px;
 
-counterBG: #f23c34;
+counterBG: #232629;
 counterMuteBG: #888;
-counterColor: #bbb;
+counterColor: #fff;
 counterMacInvColor: #23262901;
 
 lineWidth: 1px;
@@ -396,7 +396,7 @@ titleBackButton: iconedButton(btnDefIconed) {
 	downIconPos: point(5px, 10px);
 
 	bgColor: #ddd;
-	overBgColor: #232629;
+	overBgColor: #fff;
 
 	width: -30px;
 	height: 39px;
