@@ -362,7 +362,7 @@ btnDefIconed: iconedButton {
 	cursor: cursor(pointer);
 }
 
-sysBtnDelta: 0px;
+sysBtnDelta: 3px;
 sysUpd: sysButton {
 	size: size(22px, 28px);
 	img: sprite(184px, 1px, 19px, 19px);
@@ -395,7 +395,7 @@ titleBackButton: iconedButton(btnDefIconed) {
 	downIcon: sprite(9px, 104px, 13px, 20px);
 	downIconPos: point(5px, 10px);
 
-	bgColor: #c4d8e9;
+	bgColor: #ddd;
 	overBgColor: #232629;
 
 	width: -30px;
