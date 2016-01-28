@@ -10,7 +10,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 ![](tgdark.png)
 
-Binary download can be found under ([releases](https://github.com/NXij/tdesktop-dark/releases))
+Binary download can be found under [releases](https://github.com/NXij/tdesktop-dark/releases)
 
 ## Supported systems
 
