@@ -89,9 +89,10 @@ TitleWidget::TitleWidget(Window *window) : TWidget(window)
 	connect(&_contacts, SIGNAL(clicked()), this, SLOT(onContacts()));
 	connect(&_about, SIGNAL(clicked()), this, SLOT(onAbout()));
 	connect(wnd->windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(stateChanged(Qt::WindowState)));
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	connect(App::app(), SIGNAL(updateReady()), this, SLOT(showUpdateBtn()));
-	#endif
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	Sandboxer::connect(SIGNAL(updateReady()), this, SLOT(showUpdateBtn()));
+#endif
 
     if (cPlatform() != dbipWindows) {
         _minimize.hide();

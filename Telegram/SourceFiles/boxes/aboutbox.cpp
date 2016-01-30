@@ -82,7 +82,7 @@ void AboutBox::onVersion() {
 		}
 		url = url.arg(qsl("tbeta%1_%2").arg(cRealBetaVersion()).arg(countBetaVersionSignature(cRealBetaVersion())));
 
-		Sandboxer::setClipboardText(url);
+		Application::clipboard()->setText(url);
 
 		Ui::showLayer(new InformBox("The link to the current private beta version of Telegram Desktop was copied to the clipboard."));
 	} else {

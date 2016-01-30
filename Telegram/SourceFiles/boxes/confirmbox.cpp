@@ -212,7 +212,7 @@ void MaxInviteBox::mouseMoveEvent(QMouseEvent *e) {
 void MaxInviteBox::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (_linkOver) {
-		Sandboxer::setClipboardText(_link);
+		Application::clipboard()->setText(_link);
 		_goodTextLink = lang(lng_create_channel_link_copied);
 		a_goodOpacity = anim::fvalue(1, 0);
 		_a_good.start();

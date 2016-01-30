@@ -2209,7 +2209,7 @@ namespace {
 		zByteArray *ba = (zByteArray*)opaque;
 		uLong toRead = 0;
 		if (!ba->err) {
-			if (ba->data.size() > ba->pos) {
+			if (ba->data.size() > int(ba->pos)) {
 				toRead = qMin(size, uLong(ba->data.size() - ba->pos));
 				memcpy(buf, ba->data.constData() + ba->pos, toRead);
 				ba->pos += toRead;
@@ -2223,7 +2223,7 @@ namespace {
 
 	uLong zByteArrayWriteFile(voidpf opaque, voidpf stream, const void* buf, uLong size) {
 		zByteArray *ba = (zByteArray*)opaque;
-		if (ba->data.size() < ba->pos + size) {
+		if (ba->data.size() < int(ba->pos + size)) {
 			ba->data.resize(ba->pos + size);
 		}
 		memcpy(ba->data.data() + ba->pos, buf, size);
@@ -2257,7 +2257,7 @@ namespace {
 			case ZLIB_FILEFUNC_SEEK_CUR: ba->pos += offset; break;
 			case ZLIB_FILEFUNC_SEEK_END: ba->pos = ba->data.size() + offset; break;
 			}
-			if (ba->pos > ba->data.size()) {
+			if (int(ba->pos) > ba->data.size()) {
 				ba->err = -1;
 			}
 		}
@@ -2303,6 +2303,7 @@ void LastCrashedWindow::onCheckingFinished() {
 	reportPart.setBody(Global::LastCrashDump());
 	multipart->append(reportPart);
 
+#ifdef Q_OS_WIN
 	QFileInfo dmpFile(_minidumpFull);
 	if (dmpFile.exists() && dmpFile.size() > 0 && dmpFile.size() < 20 * 1024 * 1024 &&
 		QRegularExpression(qsl("^Telegram\\-[\\d\\.\\-]{1,64}\\.dmp$")).match(dmpFile.fileName()).hasMatch()) {
@@ -2354,6 +2355,7 @@ void LastCrashedWindow::onCheckingFinished() {
 			}
 		}
 	}
+#endif
 
 	_sendReply = _sendManager.post(QNetworkRequest(qsl("https://tdesktop.com/crash.php?act=report")), multipart);
 	multipart->setParent(_sendReply);
