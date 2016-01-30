@@ -35,6 +35,8 @@ Binary download can be found under [releases](https://github.com/NXij/tdesktop-d
 
 ## Build instructions
 
+Before starting with the building, be sure to change the dir name from "tdesktop-dark" to "tdesktop"
+
 * [Visual Studio 2015][msvc]
 * [XCode 7][xcode]
 * [XCode 7 for OS X 10.6 and 10.7][xcode_old]
