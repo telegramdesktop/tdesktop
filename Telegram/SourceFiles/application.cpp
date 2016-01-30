@@ -311,7 +311,7 @@ void Application::readClients() {
 			for (int32 to = cmds.indexOf(QChar(';'), from); to >= from; to = (from < l) ? cmds.indexOf(QChar(';'), from) : -1) {
 				QStringRef cmd(&cmds, from, to - from);
 				if (cmd.startsWith(qsl("CMD:"))) {
-					App::app()->execExternal(cmds.mid(from + 4, to - from - 4));
+					Sandboxer::execExternal(cmds.mid(from + 4, to - from - 4));
 					QByteArray response(qsl("RES:%1;").arg(QCoreApplication::applicationPid()).toLatin1());
 					i->first->write(response.data(), response.size());
 				} else if (cmd.startsWith(qsl("SEND:"))) {
@@ -485,7 +485,7 @@ void Application::startUpdateCheck(bool forceWait) {
 	if (_updateThread || _updateReply || !cAutoUpdate()) return;
 
 	int32 constDelay = cBetaVersion() ? 600 : UpdateDelayConstPart, randDelay = cBetaVersion() ? 300 : UpdateDelayRandPart;
-	int32 updateInSecs = cLastUpdateCheck() + constDelay + int32(MTP::nonce<uint32>() % randDelay) - unixtime();
+	int32 updateInSecs = cLastUpdateCheck() + constDelay + int32(rand() % randDelay) - unixtime();
 	bool sendRequest = (updateInSecs <= 0 || updateInSecs > (constDelay + randDelay));
 	if (!sendRequest && !forceWait) {
 		QDir updates(cWorkingDir() + "tupdates");
@@ -562,6 +562,17 @@ namespace Sandboxer {
 			return a->isSavingSession();
 		}
 		return false;
+	}
+
+	void execExternal(const QString &cmd) {
+		DEBUG_LOG(("Application Info: executing external command '%1'").arg(cmd));
+		if (cmd == "show") {
+			if (App::wnd()) {
+				App::wnd()->activate();
+			} else if (PreLaunchWindow::instance()) {
+				PreLaunchWindow::instance()->activate();
+			}
+		}
 	}
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -643,6 +654,8 @@ AppClass::AppClass() : QObject()
 , _uploader(0) {
 	AppObject = this;
 
+	Fonts::start();
+
 	ThirdParty::start();
 	Sandbox::start();
 	Local::start();
@@ -657,10 +670,6 @@ AppClass::AppClass() : QObject()
 	}
 
 	application()->installEventFilter(new EventFilterForKeys(this));
-
-	QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Regular.ttf"));
-	QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Bold.ttf"));
-	QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Semibold.ttf"));
 
 	float64 dpi = QApplication::primaryScreen()->logicalDotsPerInch();
 	if (dpi <= 108) { // 0-96-108
@@ -1027,13 +1036,6 @@ void AppClass::checkMapVersion() {
 	}
 	if (cNeedConfigResave()) {
 		Local::writeUserSettings();
-	}
-}
-
-void AppClass::execExternal(const QString &cmd) {
-	DEBUG_LOG(("Application Info: executing external command '%1'").arg(cmd));
-	if (cmd == "show") {
-		_window.activate();
 	}
 }
 

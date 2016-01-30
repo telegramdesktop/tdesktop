@@ -112,11 +112,13 @@ namespace Global {
 	DeclareGlobalReadOnly(QString, LangSystemISO);
 	DeclareGlobalReadOnly(int32, LangSystem);
 	DeclareGlobal(QByteArray, LastCrashDump);
+	DeclareGlobal(ConnectionProxy, PreLaunchProxy);
 
 }
 
 namespace Sandbox {
 
+	bool started();
 	void start();
 	void finish();
 

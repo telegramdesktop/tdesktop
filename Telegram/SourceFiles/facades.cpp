@@ -181,6 +181,7 @@ struct GlobalDataStruct {
 	int32 LangSystem = languageDefault;
 
 	QByteArray LastCrashDump;
+	ConnectionProxy PreLaunchProxy;
 };
 GlobalDataStruct *GlobalData = 0;
 
@@ -257,6 +258,8 @@ namespace Global {
 				break;
 			}
 		}
+
+		srand((int32)time(NULL));
 	}
 
 	void finish() {
@@ -281,6 +284,7 @@ Type &Ref##Name() { \
 	DefineGlobalReadOnly(QString, LangSystemISO);
 	DefineGlobalReadOnly(int32, LangSystem);
 	DefineGlobal(QByteArray, LastCrashDump);
+	DefineGlobal(ConnectionProxy, PreLaunchProxy);
 
 }
 
@@ -290,6 +294,10 @@ struct SandboxDataStruct {
 SandboxDataStruct *SandboxData = 0;
 
 namespace Sandbox {
+
+	bool started() {
+		return SandboxData != 0;
+	}
 
 	void start() {
 		SandboxData = new SandboxDataStruct();

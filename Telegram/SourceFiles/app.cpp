@@ -2610,9 +2610,14 @@ namespace App {
 	}
 
 	QNetworkProxy getHttpProxySettings() {
-		if (cConnectionType() == dbictHttpProxy) {
-			const ConnectionProxy &p(cConnectionProxy());
-			return QNetworkProxy(QNetworkProxy::HttpProxy, p.host, p.port, p.user, p.password);
+		const ConnectionProxy *proxy = 0;
+		if (Sandbox::started()) {
+			proxy = (cConnectionType() == dbictHttpProxy) ? (&cConnectionProxy()) : 0;
+		} else {
+			proxy = Global::PreLaunchProxy().host.isEmpty() ? 0 : (&Global::PreLaunchProxy());
+		}
+		if (proxy) {
+			return QNetworkProxy(QNetworkProxy::HttpProxy, proxy->host, proxy->port, proxy->user, proxy->password);
 		}
 		return QNetworkProxy(QNetworkProxy::DefaultProxy);
 	}

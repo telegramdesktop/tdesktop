@@ -552,6 +552,7 @@ namespace SignalHandlers {
 	FILE *CrashDumpFile = 0;
 	int CrashDumpFileNo = 0;
 	char LaunchedDateTimeStr[32] = { 0 };
+	char LaunchedBinaryName[256] = { 0 };
 
 	void _writeChar(char ch) {
 		fwrite(&ch, 1, 1, CrashDumpFile);
@@ -628,6 +629,8 @@ namespace SignalHandlers {
 
 		if (!LoggingCrashHeaderWritten) {
 			LoggingCrashHeaderWritten = true;
+			dump() << "Binary: " << LaunchedBinaryName << "\n";
+			dump() << "ApiId: " << ApiId << "\n";
 			if (cBetaVersion()) {
 				dump() << "Version: " << cBetaVersion() << " beta\n";
 			} else {
@@ -685,6 +688,10 @@ namespace SignalHandlers {
 	}
 
 	Status restart() {
+		if (CrashDumpFile) {
+			return Started;
+		}
+
 		CrashDumpFile = fopen(CrashDumpPath.constData(), "wb");
 		if (CrashDumpFile) {
 			CrashDumpFileNo = fileno(CrashDumpFile);
@@ -692,6 +699,10 @@ namespace SignalHandlers {
 			QByteArray launchedDateTime = QDateTime::currentDateTime().toString("dd.MM.yyyy hh:mm:ss").toUtf8();
 			t_assert(launchedDateTime.size() < sizeof(LaunchedDateTimeStr));
 			memcpy(LaunchedDateTimeStr, launchedDateTime.constData(), launchedDateTime.size());
+
+			QByteArray launchedBinaryName = cExeName().toUtf8();
+			t_assert(launchedBinaryName.size() < sizeof(LaunchedBinaryName));
+			memcpy(LaunchedBinaryName, launchedBinaryName.constData(), launchedBinaryName.size());
 
 			signal(SIGABRT, SignalHandlers::Handler);
 			signal(SIGSEGV, SignalHandlers::Handler);

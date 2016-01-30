@@ -42,6 +42,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include <QtNetwork/QNetworkProxy>
 #include <QtNetwork/QLocalSocket>
 #include <QtNetwork/QLocalServer>
+#include <QtNetwork/QHttpMultiPart>
 
 #ifdef Q_OS_WIN // use Lzma SDK for win
 #include <LzmaLib.h>

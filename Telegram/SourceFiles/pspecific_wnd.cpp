@@ -2221,7 +2221,7 @@ namespace {
 }
 
 void RegisterCustomScheme() {
-	#ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
+#ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 	DEBUG_LOG(("App Info: Checking custom scheme 'tg'.."));
 
 	HKEY rkey;
@@ -2238,7 +2238,7 @@ void RegisterCustomScheme() {
 	if (!_psOpenRegKey(L"Software\\Classes\\tg\\shell\\open", &rkey)) return;
 	if (!_psOpenRegKey(L"Software\\Classes\\tg\\shell\\open\\command", &rkey)) return;
 	if (!_psSetKeyValue(rkey, 0, '"' + exe + qsl("\" -workdir \"") + cWorkingDir() + qsl("\" -- \"%1\""))) return;
-	#endif
+#endif
 }
 
 void psNewVersion() {
@@ -2840,7 +2840,7 @@ void psWriteDump() {
 }
 
 char ImageHlpSymbol64[sizeof(IMAGEHLP_SYMBOL64) + StackEntryMaxNameLength];
-QString _showCrashDump(const QByteArray &crashdump) {
+QString _showCrashDump(const QByteArray &crashdump, QString dumpfile) {
 	HANDLE hProcess = GetCurrentProcess();
 
 	QString initial = QString::fromUtf8(crashdump), result;
@@ -2862,6 +2862,7 @@ QString _showCrashDump(const QByteArray &crashdump) {
 					version /= 1000;
 				}
 			}
+			++i;
 			break;
 		}
 	}
@@ -2888,8 +2889,13 @@ QString _showCrashDump(const QByteArray &crashdump) {
 	}
 	if (!tolaunch.isEmpty()) {
 		if (QFile(tolaunch).exists()) {
-			// run it
-			return QString();
+			QString targs = qsl("-crash \"%1\"").arg(dumpfile.replace('"', qsl("\"\"")));
+			HINSTANCE r = ShellExecute(0, 0, QDir::toNativeSeparators(tolaunch).toStdWString().c_str(), targs.toStdWString().c_str(), 0, SW_SHOWNORMAL);
+			if (long(r) < 32) {
+				result.append(qsl("ERROR: executable '%1' with args '%2' for this crashdump could not be launched! Result: %3").arg(tolaunch).arg(targs).arg(long(r)));
+			} else {
+				return QString();
+			}
 		} else {
 			result.append(qsl("ERROR: executable '%1' for this crashdump was not found!").arg(tolaunch));
 		}
@@ -3088,7 +3094,7 @@ int psShowCrash(const QString &crashdump) {
 		if (!LoadDbgHelp(true)) {
 			text += qsl("ERROR: could not init dbghelp.dll!");
 		} else {
-			text += _showCrashDump(dump.readAll());
+			text += _showCrashDump(dump.readAll(), crashdump);
 			symCleanup(GetCurrentProcess());
 		}
 	} else {
@@ -3103,14 +3109,7 @@ int psShowCrash(const QString &crashdump) {
 	char *a_argv[1] = { args[0].data() };
 	QApplication app(a_argc, a_argv);
 
-	QTextEdit wnd;
-	wnd.setReadOnly(true);
-	wnd.setPlainText(text);
-
-	QRect scr(QApplication::primaryScreen()->availableGeometry());
-	wnd.setGeometry(scr.x() + (scr.width() / 6), scr.y() + (scr.height() / 6), scr.width() / 2, scr.height() / 2);
-	wnd.show();
-
+	ShowCrashReportWindow wnd(text);
 	return app.exec();
 }
 

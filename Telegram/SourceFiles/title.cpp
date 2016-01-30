@@ -73,7 +73,12 @@ TitleWidget::TitleWidget(Window *window) : TWidget(window)
 	_update.hide();
     _cancel.hide();
     _back.hide();
-	if (Sandboxer::updatingState() == Application::UpdatingReady || cHasPasscode()) {
+	if (
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+		Sandboxer::updatingState() == Application::UpdatingReady ||
+#endif
+		cHasPasscode()
+	) {
 		showUpdateBtn();
 	}
 	stateChanged();
@@ -322,7 +327,11 @@ void TitleWidget::showUpdateBtn() {
 	} else {
 		_lock.hide();
 	}
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	bool updateReady = (Sandboxer::updatingState() == Application::UpdatingReady);
+#else
+	bool updateReady = false;
+#endif
 	if (updateReady || cEvalScale(cConfigScale()) != cEvalScale(cRealScale())) {
 		_update.setText(lang(updateReady ? lng_menu_update : lng_menu_restart));
 		_update.show();

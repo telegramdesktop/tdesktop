@@ -113,6 +113,8 @@ namespace Sandboxer {
 	void setActiveWindow(QWidget *window);
 	bool isSavingSession();
 
+	void execExternal(const QString &cmd);
+
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 
 	void startUpdateCheck();
@@ -173,8 +175,6 @@ public:
 
 	void checkLocalTime();
 	void checkMapVersion();
-
-	void execExternal(const QString &cmd);
 
 signals:
 

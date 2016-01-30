@@ -329,7 +329,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 
 	updateOnlineDisplay();
 
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	switch (Sandboxer::updatingState()) {
 	case Application::UpdatingDownload:
 		setUpdatingState(UpdatingDownload, true);
@@ -338,9 +338,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	case Application::UpdatingReady: setUpdatingState(UpdatingReady, true); break;
 	default: setUpdatingState(UpdatingNone, true); break;
 	}
-	#else
-	_updatingState = UpdatingNone;
-	#endif
+#endif
 
 	updateConnectionType();
 
@@ -1284,7 +1282,7 @@ void SettingsInner::onCheckNow() {
 #endif
 
 void SettingsInner::onRestartNow() {
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	checkReadyUpdate();
 	if (_updatingState == UpdatingReady) {
 		cSetRestartingUpdate(true);
@@ -1292,10 +1290,10 @@ void SettingsInner::onRestartNow() {
 		cSetRestarting(true);
 		cSetRestartingToSettings(true);
 	}
-	#else
+#else
 	cSetRestarting(true);
 	cSetRestartingToSettings(true);
-	#endif
+#endif
 	App::quit();
 }
 

@@ -897,6 +897,9 @@
     <ClCompile Include="GeneratedFiles\Release\moc_history.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\_other\zip.c">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -985,6 +988,15 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\facades.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\_other\zip.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\_other\ioapi.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\_other\crypt.h">
+      <Filter>Generated Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

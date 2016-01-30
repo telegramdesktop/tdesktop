@@ -154,14 +154,12 @@ public:
 	QPixmap pixColoredNoCache(const style::color &add, int32 w = 0, int32 h = 0, bool smooth = false) const;
 	QPixmap pixBlurredColoredNoCache(const style::color &add, int32 w, int32 h = 0) const;
 
-	virtual int32 width() const {
-		restore();
-		return _data.width();
+	int32 width() const {
+		return qMax(countWidth(), 1);
 	}
 
-	virtual int32 height() const {
-		restore();
-		return _data.height();
+	int32 height() const {
+		return qMax(countHeight(), 1);
 	}
 
 	virtual void load(bool loadFirst = false, bool prior = true) {
@@ -202,6 +200,16 @@ protected:
 	virtual void checkload() const {
 	}
 	void invalidateSizeCache() const;
+
+	virtual int32 countWidth() const {
+		restore();
+		return _data.width();
+	}
+
+	virtual int32 countHeight() const {
+		restore();
+		return _data.height();
+	}
 
 	mutable QByteArray _saved, _format;
 	mutable bool _forgot;
@@ -283,9 +291,6 @@ public:
 	StorageImage(const StorageImageLocation &location, int32 size = 0);
 	StorageImage(const StorageImageLocation &location, QByteArray &bytes);
 
-	int32 width() const;
-	int32 height() const;
-
 	virtual void setInformation(int32 size, int32 width, int32 height);
 	virtual FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading);
 
@@ -296,6 +301,9 @@ public:
 protected:
 	StorageImageLocation _location;
 	int32 _size;
+
+	virtual int32 countWidth() const;
+	virtual int32 countHeight() const;
 
 };
 
@@ -341,11 +349,13 @@ public:
 
 	WebImage(const QString &url);
 
-	int32 width() const;
-	int32 height() const;
-
 	virtual void setInformation(int32 size, int32 width, int32 height);
 	virtual FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading);
+
+protected:
+
+	virtual int32 countWidth() const;
+	virtual int32 countHeight() const;
 
 private:
 	QString _url;

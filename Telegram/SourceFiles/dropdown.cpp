@@ -4320,7 +4320,7 @@ void MentionsDropdown::updateFiltered(bool resetScroll) {
 				if (it->emoji.isEmpty()) {
 					setsToRequest.insert(it->id, it->access);
 					it->flags |= MTPDstickerSet_flag_NOT_LOADED;
-				} else {
+				} else if (!(it->flags & MTPDstickerSet::flag_disabled)) {
 					StickersByEmojiMap::const_iterator i = it->emoji.constFind(emojiGetNoColor(_emoji));
 					if (i != it->emoji.cend()) {
 						srows += *i;
