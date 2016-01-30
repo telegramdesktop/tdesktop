@@ -596,11 +596,15 @@ namespace SignalHandlers {
 		return _writeNumber(stream, num);
 	}
 
-	const dump &operator<<(const dump &stream, uint32 num) {
+	const dump &operator<<(const dump &stream, unsigned int num) {
 		return _writeNumber(stream, num);
 	}
 
-	const dump &operator<<(const dump &stream, uint64 num) {
+	const dump &operator<<(const dump &stream, unsigned long num) {
+		return _writeNumber(stream, num);
+	}
+
+	const dump &operator<<(const dump &stream, unsigned long long num) {
 		return _writeNumber(stream, num);
 	}
 

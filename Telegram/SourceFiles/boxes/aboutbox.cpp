@@ -44,6 +44,8 @@ AboutBox::AboutBox() : AbstractBox(st::aboutWidth)
 	connect(&_done, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	prepare();
+
+	setAcceptDrops(true);
 }
 
 void AboutBox::hideAll() {
@@ -103,6 +105,30 @@ void AboutBox::paintEvent(QPaintEvent *e) {
 	if (paint(p)) return;
 
 	paintTitle(p, qsl("Telegram Desktop"));
+}
+
+QString _getCrashReportFile(const QMimeData *m) {
+	if (!m || m->urls().size() != 1) return QString();
+
+	QString file(m->urls().at(0).toLocalFile());
+	if (file.startsWith(qsl("/.file/id="))) file = psConvertFileUrl(file);
+
+	return file.endsWith(qstr(".telegramcrash"), Qt::CaseInsensitive) ? file : QString();
+}
+
+void AboutBox::dragEnterEvent(QDragEnterEvent *e) {
+	if (!_getCrashReportFile(e->mimeData()).isEmpty()) {
+		e->setDropAction(Qt::CopyAction);
+		e->accept();
+	}
+}
+
+void AboutBox::dropEvent(QDropEvent *e) {
+	if (!_getCrashReportFile(e->mimeData()).isEmpty()) {
+		e->acceptProposedAction();
+		psExecTelegram(_getCrashReportFile(e->mimeData()));
+		App::quit();
+	}
 }
 
 QString telegramFaqLink() {
