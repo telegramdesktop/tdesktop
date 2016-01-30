@@ -2267,15 +2267,16 @@ void psExecUpdater() {
 	}
 }
 
-void psExecTelegram() {
-	QString targs = qsl("-noupdate");
-	if (cRestartingToSettings()) targs += qsl(" -tosettings");
-	if (cLaunchMode() == LaunchModeAutoStart) targs += qsl(" -autostart");
-	if (cDebug()) targs += qsl(" -debug");
-	if (cStartInTray()) targs += qsl(" -startintray");
-	if (cTestMode()) targs += qsl(" -testmode");
-	if (cDataFile() != qsl("data")) targs += qsl(" -key \"") + cDataFile() + '"';
-
+void psExecTelegram(const QString &crashreport) {
+	QString targs = crashreport.isEmpty() ? qsl("-noupdate") : ('"' + crashreport + '"');
+	if (crashreport.isEmpty()) {
+		if (cRestartingToSettings()) targs += qsl(" -tosettings");
+		if (cLaunchMode() == LaunchModeAutoStart) targs += qsl(" -autostart");
+		if (cDebug()) targs += qsl(" -debug");
+		if (cStartInTray()) targs += qsl(" -startintray");
+		if (cTestMode()) targs += qsl(" -testmode");
+		if (cDataFile() != qsl("data")) targs += qsl(" -key \"") + cDataFile() + '"';
+	}
 	QString telegram(QDir::toNativeSeparators(cExeDir() + cExeName())), wdir(QDir::toNativeSeparators(cWorkingDir()));
 
 	DEBUG_LOG(("Application Info: executing %1 %2").arg(cExeDir() + cExeName()).arg(targs));
@@ -3059,7 +3060,7 @@ void psWriteStackTrace(int file) {
 #error "Platform not supported!"
 #endif
 
-	for (frameNum = 0; frameNum < 1000; ++frameNum) {
+	for (frameNum = 0; frameNum < 1024; ++frameNum) {
 		// get next stack frame (StackWalk64(), SymFunctionTableAccess64(), SymGetModuleBase64())
 		// if this returns ERROR_INVALID_ADDRESS (487) or ERROR_NOACCESS (998), you can
 		// assume that either you are done, or that the stack is so hosed that the next

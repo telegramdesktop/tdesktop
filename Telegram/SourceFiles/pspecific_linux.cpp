@@ -973,6 +973,112 @@ QAbstractNativeEventFilter *psNativeEventFilter() {
 	return _psEventFilter;
 }
 
+void psWriteDump() {
+}
+
+void psWriteStackTrace(int file) {
+	void *addresses[1024] = { 0 };
+
+	size_t size = backtrace(addresses, 1024);
+
+	backtrace_symbols_fd(addresses, size, file);
+}
+
+QString demanglestr(const QString &mangled) {
+	QByteArray cmd = ("c++filt -n " + mangled).toUtf8();
+	FILE *f = popen(cmd.constData(), "r");
+	if (!f) return "BAD_SYMBOL_" + mangled;
+
+	QString result;
+	char buffer[4096] = { 0 };
+	while (!feof(f)) {
+		if (fgets(buffer, 4096, f) != NULL) {
+			result += buffer;
+		}
+	}
+	pclose(f);
+	return result.trimmed();
+}
+
+QString _showCrashDump(const QByteArray &crashdump, QString dumpfile) {
+	QString initial = QString::fromUtf8(crashdump), result;
+	QStringList lines = initial.split('\n');
+	result.reserve(initial.size());
+	int32 i = 0, l = lines.size();
+
+	while (i < l) {
+		for (; i < l; ++i) {
+			result.append(lines.at(i)).append('\n');
+			QString line = lines.at(i).trimmed();
+			if (line == qstr("Backtrace:")) {
+				++i;
+				break;
+			}
+		}
+
+		for (int32 start = i; i < l; ++i) {
+			QString line = lines.at(i).trimmed();
+			if (line.isEmpty()) break;
+
+			if (!QRegularExpression(qsl("^\\d+")).match(line).hasMatch()) {
+				if (!lines.at(i).startsWith(qstr("ERROR: "))) {
+					result.append(qstr("BAD LINE: "));
+				}
+				result.append(line).append('\n');
+				continue;
+			}
+			QStringList lst = line.split(' ', QString::SkipEmptyParts);
+			result.append(lst.at(0)).append(' ');
+			for (int j = 1, s = lst.size();;) {
+				if (lst.at(j).startsWith('_')) {
+					result.append(demanglestr(lst.at(j)));
+					if (++j < s) {
+						result.append(' ');
+						for (;;) {
+							result.append(lst.at(j));
+							if (++j < s) {
+								result.append(' ');
+							} else {
+								break;
+							}
+						}
+					}
+					break;
+				} else if (j > 2) {
+					result.append(lst.at(j));
+				}
+				if (++j < s) {
+					result.append(' ');
+				} else {
+					break;
+				}
+			}
+			result.append('\n');
+		}
+	}
+	return result;
+}
+
+int psShowCrash(const QString &crashdump) {
+	QString text;
+
+	QFile dump(crashdump);
+	if (dump.open(QIODevice::ReadOnly)) {
+		text = qsl("Crash dump file '%1':\n\n").arg(QFileInfo(crashdump).absoluteFilePath());
+		text += _showCrashDump(dump.readAll(), crashdump);
+	} else {
+		text = qsl("ERROR: could not read crash dump file '%1'").arg(QFileInfo(crashdump).absoluteFilePath());
+	}
+
+	QByteArray args[] = { "" };
+	int a_argc = 1;
+	char *a_argv[1] = { args[0].data() };
+	QApplication app(a_argc, a_argv);
+
+	ShowCrashReportWindow wnd(text);
+	return app.exec();
+}
+
 bool _removeDirectory(const QString &path) { // from http://stackoverflow.com/questions/2256945/removing-a-non-empty-directory-programmatically-in-c-or-c
     QByteArray pathRaw = QFile::encodeName(path);
     DIR *d = opendir(pathRaw.constData());
@@ -1243,15 +1349,15 @@ void psNewVersion() {
 	psRegisterCustomScheme();
 }
 
-bool _execUpdater(bool update = true) {
+bool _execUpdater(bool update = true, const QString &crashreport = QString()) {
     static const int MaxLen = 65536, MaxArgsCount = 128;
 
     char path[MaxLen] = {0};
     QByteArray data(QFile::encodeName(cExeDir() + "Updater"));
     memcpy(path, data.constData(), data.size());
 
-    char *args[MaxArgsCount] = {0}, p_noupdate[] = "-noupdate", p_autostart[] = "-autostart", p_debug[] = "-debug", p_tosettings[] = "-tosettings", p_key[] = "-key", p_path[] = "-workpath", p_startintray[] = "-startintray", p_testmode[] = "-testmode";
-    char p_datafile[MaxLen] = {0}, p_pathbuf[MaxLen] = {0};
+    char *args[MaxArgsCount] = {0}, p_noupdate[] = "-noupdate", p_autostart[] = "-autostart", p_debug[] = "-debug", p_tosettings[] = "-tosettings", p_key[] = "-key", p_path[] = "-workpath", p_startintray[] = "-startintray", p_testmode[] = "-testmode", p_crashreport[] = "-crashreport";
+    char p_datafile[MaxLen] = {0}, p_pathbuf[MaxLen] = {0}, p_crashreportbuf[MaxLen] = {0};
     int argIndex = 0;
     args[argIndex++] = path;
     if (!update) {
@@ -1276,6 +1382,14 @@ bool _execUpdater(bool update = true) {
         args[argIndex++] = p_path;
         args[argIndex++] = p_pathbuf;
     }
+	if (!crashreport.isEmpty()) {
+		QByteArray crashreportf = crashreport.toUtf8();
+		if (crashreportf.size() < MaxLen) {
+			memcpy(p_crashreportbuf, crashreportf.constData(), crashreportf.size());
+			args[argIndex++] = p_crashreport;
+			args[argIndex++] = p_crashreportbuf;
+		}
+	}
 
     pid_t pid = fork();
     switch (pid) {
@@ -1291,8 +1405,8 @@ void psExecUpdater() {
 	}
 }
 
-void psExecTelegram() {
-    _execUpdater(false);
+void psExecTelegram(const QString &crashreport) {
+    _execUpdater(false, crashreport);
 }
 
 bool psShowOpenWithMenu(int x, int y, const QString &file) {

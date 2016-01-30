@@ -153,7 +153,7 @@ int psCleanup();
 int psFixPrevious();
 
 void psExecUpdater();
-void psExecTelegram();
+void psExecTelegram(const QString &arg = QString());
 
 bool psShowOpenWithMenu(int x, int y, const QString &file);
 
