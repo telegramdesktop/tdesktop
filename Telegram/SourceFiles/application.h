@@ -107,7 +107,6 @@ private:
 
 namespace Sandboxer {
 
-	void setClipboardText(const QString &text);
 	QRect availableGeometry();
 	QRect screenGeometry(const QPoint &p);
 	void setActiveWindow(QWidget *window);

@@ -69,7 +69,7 @@ public:
 		}
 		return _index.loadAcquire() - 1;
 	}
-	static const uint64 Bit() {
+	static uint64 Bit() {
 		return (1 << Index());
 	}
 
@@ -86,7 +86,7 @@ public:
 class InterfacesMetadata {
 public:
 
-	InterfacesMetadata(uint64 mask) : _mask(mask), size(0), last(64) {
+	InterfacesMetadata(uint64 mask) : size(0), last(64), _mask(mask) {
 		for (int i = 0; i < 64; ++i) {
 			uint64 m = (1 << i);
 			if (_mask & m) {

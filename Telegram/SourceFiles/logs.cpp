@@ -108,7 +108,7 @@ private:
 	QSharedPointer<QFile> files[LogDataCount];
 	QTextStream streams[LogDataCount];
 
-	int32 part = -1, index = 0;
+	int32 part = -1;
 
 	bool reopen(LogDataType type, int32 dayIndex, const QString &postfix) {
 		if (streams[type].device()) {
@@ -596,12 +596,29 @@ namespace SignalHandlers {
 		return _writeNumber(stream, num);
 	}
 
-	const dump &operator<<(const dump &stream, DWORD num) {
+	const dump &operator<<(const dump &stream, uint32 num) {
 		return _writeNumber(stream, num);
 	}
 
-	const dump &operator<<(const dump &stream, DWORD64 num) {
+	const dump &operator<<(const dump &stream, uint64 num) {
 		return _writeNumber(stream, num);
+	}
+
+	const dump &operator<<(const dump &stream, double num) {
+		if (num < 0) {
+			_writeChar('-');
+			num = -num;
+		}
+		_writeNumber(stream, uint64(floor(num)));
+		_writeChar('.');
+		num -= floor(num);
+		for (int i = 0; i < 4; ++i) {
+			num *= 10;
+			int digit = int(floor(num));
+			_writeChar('0' + digit);
+			num -= digit;
+		}
+		return stream;
 	}
 
 	Qt::HANDLE LoggingCrashThreadId = 0;
@@ -665,6 +682,10 @@ namespace SignalHandlers {
 		dump() << "\n";
 
 		LoggingCrashThreadId = 0;
+
+#ifndef Q_OS_WIN
+		exit(1);
+#endif
 	}
 
 	Status start() {
@@ -697,11 +718,11 @@ namespace SignalHandlers {
 			CrashDumpFileNo = fileno(CrashDumpFile);
 
 			QByteArray launchedDateTime = QDateTime::currentDateTime().toString("dd.MM.yyyy hh:mm:ss").toUtf8();
-			t_assert(launchedDateTime.size() < sizeof(LaunchedDateTimeStr));
+			t_assert(launchedDateTime.size() < int(sizeof(LaunchedDateTimeStr)));
 			memcpy(LaunchedDateTimeStr, launchedDateTime.constData(), launchedDateTime.size());
 
 			QByteArray launchedBinaryName = cExeName().toUtf8();
-			t_assert(launchedBinaryName.size() < sizeof(LaunchedBinaryName));
+			t_assert(launchedBinaryName.size() < int(sizeof(LaunchedBinaryName)));
 			memcpy(LaunchedBinaryName, launchedBinaryName.constData(), launchedBinaryName.size());
 
 			signal(SIGABRT, SignalHandlers::Handler);

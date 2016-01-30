@@ -558,12 +558,12 @@ bool checkReadyUpdate() {
 	QDir().mkpath(QFileInfo(curUpdater).absolutePath());
 	DEBUG_LOG(("Update Info: moving %1 to %2..").arg(updater.absoluteFilePath()).arg(curUpdater));
 	if (!objc_moveFile(updater.absoluteFilePath(), curUpdater)) {
-		UpdateDownloader::clearAll();
+		UpdateChecker::clearAll();
 		return false;
 	}
 #elif defined Q_OS_LINUX
 	if (!linuxMoveFile(QFile::encodeName(updater.absoluteFilePath()).constData(), QFile::encodeName(curUpdater).constData())) {
-		UpdateDownloader::clearAll();
+		UpdateChecker::clearAll();
 		return false;
 	}
 #endif

@@ -151,6 +151,8 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
 	connect(&_localSocket, SIGNAL(readyRead()), this, SLOT(socketReading()));
 	connect(&_localServer, SIGNAL(newConnection()), this, SLOT(newInstanceConnected()));
 
+	connect(this, SIGNAL(aboutToQuit()), this, SLOT(closeApplication()));
+
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	connect(&_updateCheckTimer, SIGNAL(timeout()), this, SLOT(updateCheck()));
 	connect(this, SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
@@ -531,12 +533,6 @@ inline Application *application() {
 
 namespace Sandboxer {
 
-	void setClipboardText(const QString &text) {
-		if (Application *a = application()) {
-			a->clipboard()->setText(text);
-		}
-	}
-
 	QRect availableGeometry() {
 		if (Application *a = application()) {
 			return a->desktop()->availableGeometry();
@@ -724,8 +720,7 @@ AppClass::AppClass() : QObject()
 
 	application()->installNativeEventFilter(psNativeEventFilter());
 
-	connect(this, SIGNAL(aboutToQuit()), this, SLOT(closeApplication()));
-	connect(this, SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
+	connect(application(), SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
 
 	connect(&_mtpUnpauseTimer, SIGNAL(timeout()), this, SLOT(doMtpUnpause()));
 

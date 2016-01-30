@@ -211,7 +211,7 @@ public:
     NSNumber *instObj = [[notification userInfo] objectForKey:@"launch"];
 	unsigned long long instLong = instObj ? [instObj unsignedLongLongValue] : 0;
 	DEBUG_LOG(("Received notification with instance %1").arg(instLong));
-	if (instLong != Global::LaunchId()) { // other app instance notification
+	if (instLong != Sandbox::LaunchId()) { // other app instance notification
         return;
     }
     if (notification.activationType == NSUserNotificationActivationTypeReplied) {
@@ -283,8 +283,8 @@ void PsMacWindowPrivate::showNotify(uint64 peer, int32 msgId, const QPixmap &pix
     NSUserNotification *notification = [[NSUserNotification alloc] init];
 	NSImage *img = qt_mac_create_nsimage(pix);
 
-	DEBUG_LOG(("Sending notification with userinfo: peer %1, msgId %2 and instance %3").arg(peer).arg(msgId).arg(Global::LaunchId()));
-    [notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer],@"peer",[NSNumber numberWithInt:msgId],@"msgid",[NSNumber numberWithUnsignedLongLong:Global::LaunchId()],@"launch",nil]];
+	DEBUG_LOG(("Sending notification with userinfo: peer %1, msgId %2 and instance %3").arg(peer).arg(msgId).arg(Sandbox::LaunchId()));
+    [notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer],@"peer",[NSNumber numberWithInt:msgId],@"msgid",[NSNumber numberWithUnsignedLongLong:Sandbox::LaunchId()],@"launch",nil]];
 
 	[notification setTitle:QNSString(title).s()];
     [notification setSubtitle:QNSString(subtitle).s()];
@@ -352,7 +352,7 @@ void PsMacWindowPrivate::clearNotifies(unsigned long long peer) {
         NSArray *notifies = [center deliveredNotifications];
         for (id notify in notifies) {
 			NSDictionary *dict = [notify userInfo];
-			if ([[dict objectForKey:@"peer"] unsignedLongLongValue] == peer && [[dict objectForKey:@"launch"] unsignedLongLongValue] == Global::LaunchId()) {
+			if ([[dict objectForKey:@"peer"] unsignedLongLongValue] == peer && [[dict objectForKey:@"launch"] unsignedLongLongValue] == Sandbox::LaunchId()) {
                 [center removeDeliveredNotification:notify];
             }
         }
@@ -950,7 +950,7 @@ void objc_registerCustomScheme() {
 	#endif
 }
 
-BOOL _execUpdater(BOOL update = YES) {
+BOOL _execUpdater(BOOL update = YES, const QString &crashreport = QString()) {
 	NSString *path = @"", *args = @"";
 	@try {
 		path = [[NSBundle mainBundle] bundlePath];
@@ -972,6 +972,10 @@ BOOL _execUpdater(BOOL update = YES) {
 			[args addObject:@"-key"];
 			[args addObject:QNSString(cDataFile()).s()];
 		}
+		if (!crashreport.isEmpty()) {
+			[args addObject:@"-crashreport"];
+			[args addObject:QNSString(crashreport).s()];
+		}
 
 		DEBUG_LOG(("Application Info: executing %1 %2").arg(objcString(path)).arg(objcString([args componentsJoinedByString:@" "])));
 		if (![NSTask launchedTaskWithLaunchPath:path arguments:args]) {
@@ -992,8 +996,8 @@ bool objc_execUpdater() {
 	return !!_execUpdater();
 }
 
-void objc_execTelegram() {
-	_execUpdater(NO);
+void objc_execTelegram(const QString &crashreport) {
+	_execUpdater(NO, crashreport);
 }
 
 void objc_activateProgram(WId winId) {
@@ -1025,6 +1029,10 @@ bool objc_moveFile(const QString &from, const QString &to) {
 
 void objc_deleteDir(const QString &dir) {
 	[[NSFileManager defaultManager] removeItemAtPath:QNSString(dir).s() error:nil];
+}
+
+double objc_appkitVersion() {
+	return NSAppKitVersionNumber;
 }
 
 QString objc_appDataPath() {

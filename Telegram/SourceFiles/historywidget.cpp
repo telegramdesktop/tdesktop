@@ -4804,8 +4804,22 @@ void HistoryWidget::onDocumentSelect() {
 	}
 }
 
+QString _getCrashReportFile(const QMimeData *m) {
+	if (!m || m->urls().size() != 1) return QString();
+
+	QString file(m->urls().at(0).toLocalFile());
+	if (file.startsWith(qsl("/.file/id="))) file = psConvertFileUrl(file);
+
+	return file.endsWith(qstr(".telegramcrash"), Qt::CaseInsensitive) ? file : QString();
+}
 
 void HistoryWidget::dragEnterEvent(QDragEnterEvent *e) {
+	if (!_peer && !_getCrashReportFile(e->mimeData()).isEmpty()) {
+		e->setDropAction(Qt::CopyAction);
+		e->accept();
+		return;
+	}
+
 	if (!_history) return;
 
 	if (_peer && (_peer->isChannel() && !_peer->asChannel()->canPublish())) return;
@@ -5127,6 +5141,13 @@ bool HistoryWidget::kbWasHidden() const {
 }
 
 void HistoryWidget::dropEvent(QDropEvent *e) {
+	if (!_peer && !_getCrashReportFile(e->mimeData()).isEmpty()) {
+		e->acceptProposedAction();
+		psExecTelegram(_getCrashReportFile(e->mimeData()));
+		App::quit();
+		return;
+	}
+
 	_attachDrag = DragStateNone;
 	updateDragAreas();
 	e->acceptProposedAction();

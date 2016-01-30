@@ -140,6 +140,10 @@ private:
 
 };
 
+void psWriteDump();
+void psWriteStackTrace(int file);
+int psShowCrash(const QString &crashdump);
+
 void psDeleteDir(const QString &dir);
 
 void psUserActionDone();
@@ -171,7 +175,7 @@ int psCleanup();
 int psFixPrevious();
 
 void psExecUpdater();
-void psExecTelegram();
+void psExecTelegram(const QString &crashreport = QString());
 
 bool psShowOpenWithMenu(int x, int y, const QString &file);
 

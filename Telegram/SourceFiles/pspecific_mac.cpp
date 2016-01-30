@@ -26,6 +26,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "passcodewidget.h"
 
+#include <execinfo.h>
+
 namespace {
     QStringList _initLogs;
 
@@ -38,7 +40,7 @@ namespace {
 		}
 
 		bool nativeEventFilter(const QByteArray &eventType, void *message, long *result) {
-			Window *wnd = Application::wnd();
+			Window *wnd = AppClass::wnd();
 			if (!wnd) return false;
 
 			return wnd->psFilterNativeEvent(message);
@@ -213,7 +215,7 @@ void PsMainWindow::psInitSize() {
 	bool maximized = false;
 	QRect geom(avail.x() + (avail.width() - st::wndDefWidth) / 2, avail.y() + (avail.height() - st::wndDefHeight) / 2, st::wndDefWidth, st::wndDefHeight);
 	if (pos.w && pos.h) {
-		QList<QScreen*> screens = App::app()->screens();
+		QList<QScreen*> screens = Application::screens();
 		for (QList<QScreen*>::const_iterator i = screens.cbegin(), e = screens.cend(); i != e; ++i) {
 			QByteArray name = (*i)->name().toUtf8();
 			if (pos.moncrc == hashCrc32(name.constData(), name.size())) {
@@ -266,7 +268,7 @@ void PsMainWindow::psSavePosition(Qt::WindowState state) {
 
 	int px = curPos.x + curPos.w / 2, py = curPos.y + curPos.h / 2, d = 0;
 	QScreen *chosen = 0;
-	QList<QScreen*> screens = App::app()->screens();
+	QList<QScreen*> screens = Application::screens();
 	for (QList<QScreen*>::const_iterator i = screens.cbegin(), e = screens.cend(); i != e; ++i) {
 		int dx = (*i)->geometry().x() + (*i)->geometry().width() / 2 - px; if (dx < 0) dx = -dx;
 		int dy = (*i)->geometry().y() + (*i)->geometry().height() / 2 - py; if (dy < 0) dy = -dy;
@@ -422,13 +424,13 @@ void PsMainWindow::psMacUpdateMenu() {
 		canSelectAll = !edit->text().isEmpty();
 		canUndo = edit->isUndoAvailable();
 		canRedo = edit->isRedoAvailable();
-		canPaste = !App::app()->clipboard()->text().isEmpty();
+		canPaste = !Application::clipboard()->text().isEmpty();
 	} else if (FlatTextarea *edit = qobject_cast<FlatTextarea*>(focused)) {
 		canCut = canCopy = canDelete = edit->textCursor().hasSelection();
 		canSelectAll = !edit->getLastText().isEmpty();
 		canUndo = edit->isUndoAvailable();
 		canRedo = edit->isRedoAvailable();
-		canPaste = !App::app()->clipboard()->text().isEmpty();
+		canPaste = !Application::clipboard()->text().isEmpty();
 	} else if (HistoryInner *list = qobject_cast<HistoryInner*>(focused)) {
 		canCopy = list->canCopySelected();
 		canDelete = list->canDeleteSelected();
@@ -519,7 +521,115 @@ bool PsMainWindow::eventFilter(QObject *obj, QEvent *evt) {
 QAbstractNativeEventFilter *psNativeEventFilter() {
     delete _psEventFilter;
 	_psEventFilter = new _PsEventFilter();
-    installNativeEventFilter(_psEventFilter);
+	return _psEventFilter;
+}
+
+void psWriteDump() {
+	double v = objc_appkitVersion();
+	SignalHandlers::dump() << "OS-Version: " << v;
+}
+
+void psWriteStackTrace(int file) {
+	void *addresses[1024] = { 0 };
+
+	size_t size = backtrace(addresses, 1024);
+
+	backtrace_symbols_fd(addresses, size, file);
+}
+
+QString demanglestr(const QString &mangled) {
+	QByteArray cmd = ("c++filt -n " + mangled).toUtf8();
+	FILE *f = popen(cmd.constData(), "r");
+	if (!f) return "BAD_SYMBOL_" + mangled;
+
+	QString result;
+	char buffer[4096] = {0};
+	while (!feof(f)) {
+		if (fgets(buffer, 4096, f) != NULL) {
+			result += buffer;
+		}
+	}
+	pclose(f);
+	return result.trimmed();
+}
+
+QString _showCrashDump(const QByteArray &crashdump, QString dumpfile) {
+	QString initial = QString::fromUtf8(crashdump), result;
+	QStringList lines = initial.split('\n');
+	result.reserve(initial.size());
+	int32 i = 0, l = lines.size();
+
+	while (i < l) {
+		for (; i < l; ++i) {
+			result.append(lines.at(i)).append('\n');
+			QString line = lines.at(i).trimmed();
+			if (line == qstr("Backtrace:")) {
+				++i;
+				break;
+			}
+		}
+
+		for (int32 start = i; i < l; ++i) {
+			QString line = lines.at(i).trimmed();
+			if (line.isEmpty()) break;
+
+			if (!QRegularExpression(qsl("^\\d+")).match(line).hasMatch()) {
+				if (!lines.at(i).startsWith(qstr("ERROR: "))) {
+					result.append(qstr("BAD LINE: "));
+				}
+				result.append(line).append('\n');
+				continue;
+			}
+			QStringList lst = line.split(' ', QString::SkipEmptyParts);
+			result.append(lst.at(0)).append(' ');
+			for (int j = 1, s = lst.size();;) {
+				if (lst.at(j).startsWith('_')) {
+					result.append(demanglestr(lst.at(j)));
+					if (++j < s) {
+						result.append(' ');
+						for (;;) {
+							result.append(lst.at(j));
+							if (++j < s) {
+								result.append(' ');
+							} else {
+								break;
+							}
+						}
+					}
+					break;
+				} else if (j > 2) {
+					result.append(lst.at(j));
+				}
+				if (++j < s) {
+					result.append(' ');
+				} else {
+					break;
+				}
+			}
+			result.append('\n');
+		}
+	}
+	return result;
+}
+
+int psShowCrash(const QString &crashdump) {
+	QString text;
+
+	QFile dump(crashdump);
+	if (dump.open(QIODevice::ReadOnly)) {
+		text = qsl("Crash dump file '%1':\n\n").arg(QFileInfo(crashdump).absoluteFilePath());
+		text += _showCrashDump(dump.readAll(), crashdump);
+	} else {
+		text = qsl("ERROR: could not read crash dump file '%1'").arg(QFileInfo(crashdump).absoluteFilePath());
+	}
+
+	QByteArray args[] = { "" };
+	int a_argc = 1;
+	char *a_argv[1] = { args[0].data() };
+	QApplication app(a_argc, a_argv);
+
+	ShowCrashReportWindow wnd(text);
+	return app.exec();
 }
 
 void psDeleteDir(const QString &dir) {
@@ -666,8 +776,8 @@ void psExecUpdater() {
 	}
 }
 
-void psExecTelegram() {
-	objc_execTelegram();
+void psExecTelegram(const QString &crashreport) {
+	objc_execTelegram(crashreport);
 }
 
 void psAutoStart(bool start, bool silent) {
