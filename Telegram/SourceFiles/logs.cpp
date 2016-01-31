@@ -547,6 +547,7 @@ void _moveOldDataFiles(const QString &wasDir) {
 }
 
 #if defined Q_OS_MAC || defined Q_OS_LINUX32 || defined Q_OS_LINUX64
+
 #include <execinfo.h>
 #include <signal.h>
 #include <sys/syscall.h>
@@ -554,8 +555,6 @@ void _moveOldDataFiles(const QString &wasDir) {
 #ifdef Q_OS_MAC
 
 #include <dlfcn.h>
-#include <mach-o/dyld_images.h>
-#include <mach-o/dyld.h>
 
 #endif
 
