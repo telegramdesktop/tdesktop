@@ -118,7 +118,7 @@ LONG CALLBACK _exceptionFilter(EXCEPTION_POINTERS* pExceptionPointers);
 LPTOP_LEVEL_EXCEPTION_FILTER WINAPI RedirectedSetUnhandledExceptionFilter(_In_opt_ LPTOP_LEVEL_EXCEPTION_FILTER lpTopLevelExceptionFilter);
 
 void psWriteDump();
-void psWriteStackTrace(int file);
+void psWriteStackTrace();
 int psShowCrash(const QString &crashdump);
 
 void psDeleteDir(const QString &dir);

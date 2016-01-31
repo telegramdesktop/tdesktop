@@ -114,7 +114,6 @@ private:
 };
 
 void psWriteDump();
-void psWriteStackTrace(int file);
 int psShowCrash(const QString &crashdump);
 
 void psDeleteDir(const QString &dir);

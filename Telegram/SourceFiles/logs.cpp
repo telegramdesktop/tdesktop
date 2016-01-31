@@ -546,6 +546,21 @@ void _moveOldDataFiles(const QString &wasDir) {
 	}
 }
 
+#if defined Q_OS_MAC || defined Q_OS_LINUX32 || defined Q_OS_LINUX64
+#include <execinfo.h>
+#include <signal.h>
+#include <sys/syscall.h>
+
+#ifdef Q_OS_MAC
+
+#include <dlfcn.h>
+#include <mach-o/dyld_images.h>
+#include <mach-o/dyld.h>
+
+#endif
+
+#endif
+
 namespace SignalHandlers {
 
 	QByteArray CrashDumpPath;
@@ -629,7 +644,17 @@ namespace SignalHandlers {
 	bool LoggingCrashHeaderWritten = false;
 	QMutex LoggingCrashMutex;
 
+// see https://github.com/benbjohnson/bandicoot
+#if defined Q_OS_MAC || defined Q_OS_LINUX32 || defined Q_OS_LINUX64
+	struct sigaction SIG_def[32];
+
+	void Handler(int signum, siginfo_t *info, void *ucontext) {
+		sigaction(signum, &SIG_def[signum], 0);
+
+#else
 	void Handler(int signum) {
+#endif
+
 		const char* name = 0;
 		switch (signum) {
 		case SIGABRT: name = "SIGABRT"; break;
@@ -681,15 +706,69 @@ namespace SignalHandlers {
 			dump() << "Caught signal " << signum << " in thread " << uint64(thread) << "\n";
 		}
 
+#if defined Q_OS_MAC || defined Q_OS_LINUX32 || defined Q_OS_LINUX64
+		ucontext_t *uc = (ucontext_t*)ucontext;
+
+		void *addresses[128] = { 0 };
+		void *caller = 0;
+
+#if defined(__APPLE__) && !defined(MAC_OS_X_VERSION_10_6)
+			/* OSX < 10.6 */
+#if defined(__x86_64__)
+			caller = (void*)uap->uc_mcontext->__ss.__rip;
+#elif defined(__i386__)
+			caller = (void*)uap->uc_mcontext->__ss.__eip;
+#else
+			caller = (void*)uap->uc_mcontext->__ss.__srr0;
+#endif
+#elif defined(__APPLE__) && defined(MAC_OS_X_VERSION_10_6)
+			/* OSX >= 10.6 */
+#if defined(_STRUCT_X86_THREAD_STATE64) && !defined(__i386__)
+			caller = (void*)uc->uc_mcontext->__ss.__rip;
+#else
+			caller = (void*)uap->uc_mcontext->__ss.__eip;
+#endif
+#elif defined(__linux__)
+			/* Linux */
+#if defined(__i386__)
+			caller = (void*)uap->uc_mcontext.gregs[14]; /* Linux 32 */
+#elif defined(__X86_64__) || defined(__x86_64__)
+			caller = (void*)uap->uc_mcontext.gregs[16]; /* Linux 64 */
+#elif defined(__ia64__) /* Linux IA64 */
+			caller = (void*)uap->uc_mcontext.sc_ip;
+#endif
+
+#endif
+
+		size_t size = backtrace(addresses, 128);
+
+		/* overwrite sigaction with caller's address */
+		if (caller) addresses[1] = caller;
+
+#ifdef Q_OS_MAC
+		dump() << "\nBase image addresses:\n";
+		for (size_t i = 0; i < size; ++i) {
+			Dl_info info;
+			dump() << i << " ";
+			if (dladdr(addresses[i], &info)) {
+				dump() << uint64(info.dli_fbase) << " (" << info.dli_fname << ")\n";
+			} else {
+				dump() << "_unknown_module_\n";
+			}
+		}
+#endif
+
 		dump() << "\nBacktrace:\n";
-		psWriteStackTrace(CrashDumpFileNo);
+
+		backtrace_symbols_fd(addresses, size, CrashDumpFileNo);
+
+#else
+		psWriteStackTrace();
+#endif
+
 		dump() << "\n";
 
 		LoggingCrashThreadId = 0;
-
-#ifndef Q_OS_WIN
-		exit(1);
-#endif
 	}
 
 	Status start() {
@@ -729,13 +808,24 @@ namespace SignalHandlers {
 			t_assert(launchedBinaryName.size() < int(sizeof(LaunchedBinaryName)));
 			memcpy(LaunchedBinaryName, launchedBinaryName.constData(), launchedBinaryName.size());
 
+#ifndef Q_OS_WIN
+			struct sigaction sigact;
+
+			sigact.sa_sigaction = SignalHandlers::Handler;
+			sigemptyset(&sigact.sa_mask);
+			sigact.sa_flags = SA_NODEFER | SA_RESETHAND | SA_SIGINFO;
+
+			sigaction(SIGABRT, &sigact, &SIG_def[SIGABRT]);
+			sigaction(SIGSEGV, &sigact, &SIG_def[SIGSEGV]);
+			sigaction(SIGILL, &sigact, &SIG_def[SIGILL]);
+			sigaction(SIGFPE, &sigact, &SIG_def[SIGFPE]);
+			sigaction(SIGBUS, &sigact, &SIG_def[SIGBUS]);
+			sigaction(SIGSYS, &sigact, &SIG_def[SIGSYS]);
+#else
 			signal(SIGABRT, SignalHandlers::Handler);
 			signal(SIGSEGV, SignalHandlers::Handler);
 			signal(SIGILL, SignalHandlers::Handler);
 			signal(SIGFPE, SignalHandlers::Handler);
-#ifndef Q_OS_WIN
-			signal(SIGBUS, SignalHandlers::Handler);
-			signal(SIGSYS, SignalHandlers::Handler);
 #endif
 			return Started;
 		}

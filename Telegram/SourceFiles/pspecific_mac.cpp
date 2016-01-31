@@ -529,14 +529,6 @@ void psWriteDump() {
 	SignalHandlers::dump() << "OS-Version: " << v;
 }
 
-void psWriteStackTrace(int file) {
-	void *addresses[1024] = { 0 };
-
-	size_t size = backtrace(addresses, 1024);
-
-	backtrace_symbols_fd(addresses, size, file);
-}
-
 QString demanglestr(const QString &mangled) {
 	QByteArray cmd = ("c++filt -n " + mangled).toUtf8();
 	FILE *f = popen(cmd.constData(), "r");
@@ -553,6 +545,69 @@ QString demanglestr(const QString &mangled) {
 	return result.trimmed();
 }
 
+QString escapeShell(const QString &str) {
+	QString result;
+	const QChar *b = str.constData(), *e = str.constEnd();
+	for (const QChar *ch = b; ch != e; ++ch) {
+		if (*ch == ' ' || *ch == '"' || *ch == '\'' || *ch == '\\') {
+			if (result.isEmpty()) {
+				result.reserve(str.size() * 2);
+			}
+			if (ch > b) {
+				result.append(b, ch - b);
+			}
+			result.append('\\');
+			b = ch;
+		}
+	}
+	if (result.isEmpty()) return str;
+
+	if (e > b) {
+		result.append(b, e - b);
+	}
+	return result;
+}
+
+QStringList atosstr(uint64 *addresses, int count, uint64 base) {
+	QStringList result;
+	if (!count) return result;
+
+	result.reserve(count);
+	QString cmdstr = "atos -o " + escapeShell(cExeDir() + cExeName()) + qsl("/Contents/MacOS/Telegram -l 0x%1").arg(base, 0, 16);
+	for (int i = 0; i < count; ++i) {
+		if (addresses[i]) {
+			cmdstr += qsl(" 0x%1").arg(addresses[i], 0, 16);
+		}
+	}
+	QByteArray cmd = cmdstr.toUtf8();
+	FILE *f = popen(cmd.constData(), "r");
+
+	QStringList atosResult;
+	if (f) {
+		char buffer[4096] = {0};
+		while (!feof(f)) {
+			if (fgets(buffer, 4096, f) != NULL) {
+				atosResult.push_back(QString::fromUtf8(buffer));
+			}
+		}
+		pclose(f);
+	}
+	for (int i = 0, j = 0; i < count; ++i) {
+		if (addresses[i]) {
+			if (j < atosResult.size() && !atosResult.at(j).isEmpty() && !atosResult.at(j).startsWith(qstr("0x"))) {
+				result.push_back(atosResult.at(j).trimmed());
+			} else {
+				result.push_back(QString());
+			}
+			++j;
+		} else {
+			result.push_back(QString());
+		}
+	}
+	return result;
+
+}
+
 QString _showCrashDump(const QByteArray &crashdump, QString dumpfile) {
 	QString initial = QString::fromUtf8(crashdump), result;
 	QStringList lines = initial.split('\n');
@@ -560,6 +615,38 @@ QString _showCrashDump(const QByteArray &crashdump, QString dumpfile) {
 	int32 i = 0, l = lines.size();
 
 	while (i < l) {
+		uint64 addresses[1024] = { 0 };
+		for (; i < l; ++i) {
+			result.append(lines.at(i)).append('\n');
+			QString line = lines.at(i).trimmed();
+			if (line == qstr("Base image addresses:")) {
+				++i;
+				break;
+			}
+		}
+
+		uint64 base = 0;
+		for (int32 start = i; i < l; ++i) {
+			QString line = lines.at(i).trimmed();
+			if (line.isEmpty()) break;
+
+			if (!base) {
+				QRegularExpressionMatch m = QRegularExpression(qsl("^\\d+ (\\d+) \\((.+)\\)")).match(line);
+				if (m.hasMatch()) {
+					if (uint64 address = m.captured(1).toULongLong()) {
+						if (m.captured(2).endsWith(qstr("Contents/MacOS/Telegram"))) {
+							base = address;
+						}
+					}
+				}
+			}
+		}
+		if (base) {
+			result.append(qsl("(base address read: 0x%1)\n").arg(base, 0, 16));
+		} else {
+			result.append(qsl("ERROR: base address not read!\n"));
+		}
+
 		for (; i < l; ++i) {
 			result.append(lines.at(i)).append('\n');
 			QString line = lines.at(i).trimmed();
@@ -569,7 +656,22 @@ QString _showCrashDump(const QByteArray &crashdump, QString dumpfile) {
 			}
 		}
 
-		for (int32 start = i; i < l; ++i) {
+		int32 start = i;
+		for (; i < l; ++i) {
+			QString line = lines.at(i).trimmed();
+			if (line.isEmpty()) break;
+
+			if (QRegularExpression(qsl("^\\d+")).match(line).hasMatch()) {
+				QStringList lst = line.split(' ', QString::SkipEmptyParts);
+				if (lst.size() > 2) {
+					uint64 addr = lst.at(2).startsWith(qstr("0x")) ? lst.at(2).mid(2).toULongLong(0, 16) : lst.at(2).toULongLong();
+					addresses[i - start] = addr;
+				}
+			}
+		}
+
+		QStringList atos = atosstr(addresses, i - start, base);
+		for (i = start; i < l; ++i) {
 			QString line = lines.at(i).trimmed();
 			if (line.isEmpty()) break;
 
@@ -581,7 +683,18 @@ QString _showCrashDump(const QByteArray &crashdump, QString dumpfile) {
 				continue;
 			}
 			QStringList lst = line.split(' ', QString::SkipEmptyParts);
-			result.append(lst.at(0)).append(' ');
+			result.append('\n').append(lst.at(0)).append(qsl(". "));
+			if (lst.size() < 3) {
+				result.append(qstr("BAD LINE: ")).append(line).append('\n');
+				continue;
+			}
+			if (i - start < atos.size()) {
+				if (!atos.at(i - start).isEmpty()) {
+					result.append(atos.at(i - start)).append('\n');
+					continue;
+				}
+			}
+
 			for (int j = 1, s = lst.size();;) {
 				if (lst.at(j).startsWith('_')) {
 					result.append(demanglestr(lst.at(j)));
@@ -606,7 +719,7 @@ QString _showCrashDump(const QByteArray &crashdump, QString dumpfile) {
 					break;
 				}
 			}
-			result.append('\n');
+			result.append(qsl(" [demangled]")).append('\n');
 		}
 	}
 	return result;

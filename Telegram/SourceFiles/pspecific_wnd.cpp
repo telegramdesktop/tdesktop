@@ -3008,7 +3008,7 @@ QString _showCrashDump(const QByteArray &crashdump, QString dumpfile) {
 	return result;
 }
 
-void psWriteStackTrace(int file) {
+void psWriteStackTrace() {
 	if (!LoadDbgHelp()) {
 		SignalHandlers::dump() << "ERROR: Could not load dbghelp.dll!\n";
 		return;

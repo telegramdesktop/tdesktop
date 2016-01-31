@@ -976,14 +976,6 @@ QAbstractNativeEventFilter *psNativeEventFilter() {
 void psWriteDump() {
 }
 
-void psWriteStackTrace(int file) {
-	void *addresses[1024] = { 0 };
-
-	size_t size = backtrace(addresses, 1024);
-
-	backtrace_symbols_fd(addresses, size, file);
-}
-
 QString demanglestr(const QString &mangled) {
 	QByteArray cmd = ("c++filt -n " + mangled).toUtf8();
 	FILE *f = popen(cmd.constData(), "r");
