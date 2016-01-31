@@ -554,3 +554,5 @@ private:
 	PreLaunchLog _log;
 
 };
+
+int showCrashReportWindow(const QString &crashdump);

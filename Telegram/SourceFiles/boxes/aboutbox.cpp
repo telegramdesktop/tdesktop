@@ -126,7 +126,7 @@ void AboutBox::dragEnterEvent(QDragEnterEvent *e) {
 void AboutBox::dropEvent(QDropEvent *e) {
 	if (!_getCrashReportFile(e->mimeData()).isEmpty()) {
 		e->acceptProposedAction();
-		psShowCrash(_getCrashReportFile(e->mimeData()));
+		showCrashReportWindow(_getCrashReportFile(e->mimeData()));
 	}
 }
 

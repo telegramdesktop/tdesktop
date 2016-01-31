@@ -22,6 +22,15 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include <iostream>
 #include "pspecific.h"
 
+// see https://blog.inventic.eu/2012/08/qt-and-google-breakpad/
+#ifdef Q_OS_WIN
+#include "client/windows/handler/exception_handler.h"
+#elif defined Q_OS_MAC
+#include "client/mac/handler/exception_handler.h"
+#elif defined Q_OS_LINUX64 || defined Q_OS_LINUX32
+#include "client/linux/handler/exception_handler.h"
+#endif
+
 enum LogDataType {
 	LogDataMain,
 	LogDataDebug,
@@ -257,6 +266,11 @@ void _logsWrite(LogDataType type, const QString &msg) {
 
 void _moveOldDataFiles(const QString &from);
 
+namespace SignalHandlers {
+	void StartBreakpad();
+	void FinishBreakpad();
+}
+
 namespace Logs {
 
 	Initializer::Initializer() {
@@ -304,6 +318,7 @@ namespace Logs {
 		QDir().mkpath(cWorkingDir() + qstr("tdata"));
 
 		Global::WorkingDirReady();
+		SignalHandlers::StartBreakpad();
 
 		if (!LogsData->openMain()) {
 			delete LogsData;
@@ -354,6 +369,8 @@ namespace Logs {
 		LogsInMemory = DeletedLogsInMemory;
 
 		_logsMutex(LogDataMain, true);
+
+		SignalHandlers::FinishBreakpad();
 	}
 
 	bool started() {
@@ -640,6 +657,60 @@ namespace SignalHandlers {
 		return stream;
 	}
 
+	google_breakpad::ExceptionHandler* BreakpadExceptionHandler = 0;
+
+#ifdef Q_OS_WIN
+	bool DumpCallback(const wchar_t* _dump_dir, const wchar_t* _minidump_id, void* context, EXCEPTION_POINTERS* exinfo, MDRawAssertionInfo* assertion, bool success)
+#elif defined Q_OS_MAC
+	bool DumpCallback(const char* _dump_dir, const char* _minidump_id, void *context, bool success)
+#elif defined Q_OS_LINUX64 || defined Q_OS_LINUX32
+	bool DumpCallback(const google_breakpad::MinidumpDescriptor &md, void *context, bool success)
+#endif
+	{
+		return success;
+	}
+
+	void StartBreakpad() {
+		QString dumpPath = cWorkingDir() + qsl("tdumps");
+		QDir().mkpath(dumpPath);
+
+#ifdef Q_OS_WIN
+		BreakpadExceptionHandler = new google_breakpad::ExceptionHandler(
+			dumpPath.toStdWString(),
+			/*FilterCallback*/ 0,
+			DumpCallback,
+			/*context*/	0,
+			true
+		);
+#elif defined Q_OS_MAC
+		pHandler = new google_breakpad::ExceptionHandler(
+			dumpPath.toStdString(),
+			/*FilterCallback*/ 0,
+			DumpCallback,
+			/*context*/ 0,
+			true,
+			0
+		);
+#elif defined Q_OS_LINUX64 || defined Q_OS_LINUX32
+		pHandler = new google_breakpad::ExceptionHandler(
+			google_breakpad::MinidumpDescriptor(dumpPath.toStdString()),
+			/*FilterCallback*/ 0,
+			DumpCallback,
+			/*context*/ 0,
+			true,
+			-1
+		);
+#endif
+	}
+
+	void FinishBreakpad() {
+		if (BreakpadExceptionHandler) {
+			google_breakpad::ExceptionHandler *h = BreakpadExceptionHandler;
+			BreakpadExceptionHandler = 0;
+			delete h;
+		}
+	}
+
 	Qt::HANDLE LoggingCrashThreadId = 0;
 	bool LoggingCrashHeaderWritten = false;
 	QMutex LoggingCrashMutex;
@@ -769,6 +840,8 @@ namespace SignalHandlers {
 		backtrace_symbols_fd(addresses, size, CrashDumpFileNo);
 
 #else
+		dump() << "\nBacktrace:\n";
+
 		psWriteStackTrace();
 #endif
 
@@ -842,6 +915,10 @@ namespace SignalHandlers {
 	}
 
 	void finish() {
+		if (BreakpadExceptionHandler) {
+			delete BreakpadExceptionHandler;
+			BreakpadExceptionHandler = 0;
+		}
 		if (CrashDumpFile) {
 			fclose(CrashDumpFile);
 			unlink(CrashDumpPath.constData());

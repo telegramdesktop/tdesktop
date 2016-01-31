@@ -2356,19 +2356,6 @@ void psUpdateOverlayed(TWidget *widget) {
 static const WCHAR *_programName = AppName; // folder in APPDATA, if current path is unavailable for writing
 static const WCHAR *_exeName = L"Telegram.exe";
 
-LPTOP_LEVEL_EXCEPTION_FILTER _oldWndExceptionFilter = 0;
-
-typedef BOOL (FAR STDAPICALLTYPE *t_miniDumpWriteDump)(
-    _In_ HANDLE hProcess,
-    _In_ DWORD ProcessId,
-    _In_ HANDLE hFile,
-    _In_ MINIDUMP_TYPE DumpType,
-    _In_opt_ PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam,
-    _In_opt_ PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam,
-    _In_opt_ PMINIDUMP_CALLBACK_INFORMATION CallbackParam
-);
-t_miniDumpWriteDump miniDumpWriteDump = 0;
-
 // Stack walk code is inspired by http://www.codeproject.com/Articles/11132/Walking-the-callstack
 
 static const int StackEntryMaxNameLength = MAX_SYM_NAME + 1;
@@ -2555,7 +2542,7 @@ typedef BOOL (FAR STDAPICALLTYPE *t_Module32Next)(HANDLE hSnapshot, LPMODULEENTR
 t_Module32Next module32Next = 0;
 
 bool LoadDbgHelp(bool extended = false) {
-	if (miniDumpWriteDump && (!extended || symInitialize)) return true;
+	if (stackWalk64 && (!extended || symInitialize)) return true;
 
 	HMODULE hDll = 0;
 
@@ -2586,17 +2573,14 @@ bool LoadDbgHelp(bool extended = false) {
 
 	if (!hDll) return false;
 
-	miniDumpWriteDump = (t_miniDumpWriteDump)GetProcAddress(hDll, "MiniDumpWriteDump");
-
 	stackWalk64 = (t_StackWalk64)GetProcAddress(hDll, "StackWalk64");
 	symFunctionTableAccess64 = (t_SymFunctionTableAccess64)GetProcAddress(hDll, "SymFunctionTableAccess64");
 	symGetModuleBase64 = (t_SymGetModuleBase64)GetProcAddress(hDll, "SymGetModuleBase64");
 
-	if (!miniDumpWriteDump ||
-		!stackWalk64 ||
+	if (!stackWalk64 ||
 		!symFunctionTableAccess64 ||
 		!symGetModuleBase64) {
-		miniDumpWriteDump = 0;
+		stackWalk64 = 0;
 		return false;
 	}
 
@@ -2686,17 +2670,6 @@ bool LoadDbgHelp(bool extended = false) {
 		symOptions |= SYMOPT_FAIL_CRITICAL_ERRORS;
 		symOptions = symSetOptions(symOptions);
 
-		//WCHAR buf[StackEntryMaxNameLength] = { 0 };
-		//if (symGetSearchPath) {
-		//	if (symGetSearchPath(hProcess, buf, StackEntryMaxNameLength) == FALSE) {
-		//		return false;
-		//	}
-		//}
-
-		//WCHAR szUserName[1024] = { 0 };
-		//DWORD dwSize = 1024;
-		//GetUserName(szUserName, &dwSize);
-
 		const WCHAR *dllname[] = { L"kernel32.dll",  L"tlhelp32.dll" };
 		HINSTANCE hToolhelp = NULL;
 
@@ -2742,57 +2715,6 @@ bool LoadDbgHelp(bool extended = false) {
 	}
 
 	return true;
-}
-
-void _generateDump(EXCEPTION_POINTERS* pExceptionPointers) {
-	static const int maxFileLen = MAX_PATH * 10;
-
-	if (!LoadDbgHelp()) return;
-
-	HANDLE hDumpFile = 0;
-
-	WCHAR szPath[maxFileLen];
-	DWORD len = GetModuleFileName(GetModuleHandle(0), szPath, maxFileLen);
-	if (!len) return;
-
-	WCHAR *pathEnd = szPath  + len;
-
-	if (!_wcsicmp(pathEnd - wcslen(_exeName), _exeName)) {
-		wsprintf(pathEnd - wcslen(_exeName), L"");
-		hDumpFile = _generateDumpFileAtPath(szPath);
-	}
-	if (!hDumpFile || hDumpFile == INVALID_HANDLE_VALUE) {
-		WCHAR wstrPath[maxFileLen];
-		DWORD wstrPathLen;
-		if (wstrPathLen = GetEnvironmentVariable(L"APPDATA", wstrPath, maxFileLen)) {
-			wsprintf(wstrPath + wstrPathLen, L"\\%s\\", _programName);
-			hDumpFile = _generateDumpFileAtPath(wstrPath);
-		}
-	}
-
-	if (!hDumpFile || hDumpFile == INVALID_HANDLE_VALUE) {
-		return;
-	}
-
-	MINIDUMP_EXCEPTION_INFORMATION ExpParam = {0};
-    ExpParam.ThreadId = GetCurrentThreadId();
-    ExpParam.ExceptionPointers = pExceptionPointers;
-    ExpParam.ClientPointers = TRUE;
-
-    miniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hDumpFile, MiniDumpWithDataSegs, &ExpParam, NULL, NULL);
-}
-
-LONG CALLBACK _exceptionFilter(EXCEPTION_POINTERS* pExceptionPointers) {
-	_generateDump(pExceptionPointers);
-	return _oldWndExceptionFilter ? (*_oldWndExceptionFilter)(pExceptionPointers) : EXCEPTION_CONTINUE_SEARCH;
-}
-
-// see http://www.codeproject.com/Articles/154686/SetUnhandledExceptionFilter-and-the-C-C-Runtime-Li
-LPTOP_LEVEL_EXCEPTION_FILTER WINAPI RedirectedSetUnhandledExceptionFilter(_In_opt_ LPTOP_LEVEL_EXCEPTION_FILTER lpTopLevelExceptionFilter) {
-	// When the CRT calls SetUnhandledExceptionFilter with NULL parameter
-	// our handler will not get removed.
-	_oldWndExceptionFilter = lpTopLevelExceptionFilter;
-	return 0;
 }
 
 struct StackEntry {
@@ -2841,7 +2763,11 @@ void psWriteDump() {
 }
 
 char ImageHlpSymbol64[sizeof(IMAGEHLP_SYMBOL64) + StackEntryMaxNameLength];
-QString _showCrashDump(const QByteArray &crashdump, QString dumpfile) {
+QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile) {
+	if (!LoadDbgHelp(true)) {
+		return qsl("ERROR: could not init dbghelp.dll!");
+	}
+
 	HANDLE hProcess = GetCurrentProcess();
 
 	QString initial = QString::fromUtf8(crashdump), result;
@@ -2889,17 +2815,7 @@ QString _showCrashDump(const QByteArray &crashdump, QString dumpfile) {
 		}
 	}
 	if (!tolaunch.isEmpty()) {
-		if (QFile(tolaunch).exists()) {
-			QString targs = qsl("-crash \"%1\"").arg(dumpfile.replace('"', qsl("\"\"")));
-			HINSTANCE r = ShellExecute(0, 0, QDir::toNativeSeparators(tolaunch).toStdWString().c_str(), targs.toStdWString().c_str(), 0, SW_SHOWNORMAL);
-			if (long(r) < 32) {
-				result.append(qsl("ERROR: executable '%1' with args '%2' for this crashdump could not be launched! Result: %3").arg(tolaunch).arg(targs).arg(long(r)));
-			} else {
-				return QString();
-			}
-		} else {
-			result.append(qsl("ERROR: executable '%1' for this crashdump was not found!").arg(tolaunch));
-		}
+		result.append(qsl("ERROR: for this crashdump executable '%1' should be used!").arg(tolaunch));
 	}
 
 	while (i < l) {
@@ -3005,6 +2921,8 @@ QString _showCrashDump(const QByteArray &crashdump, QString dumpfile) {
 			}
 		}
 	}
+
+	symCleanup(hProcess);
 	return result;
 }
 
@@ -3084,34 +3002,6 @@ void psWriteStackTrace() {
 			break;
 		}
 	}
-}
-
-int psShowCrash(const QString &crashdump) {
-	QString text;
-
-	QFile dump(crashdump);
-	if (dump.open(QIODevice::ReadOnly)) {
-		text = qsl("Crash dump file '%1':\n\n").arg(QFileInfo(crashdump).absoluteFilePath());
-		if (!LoadDbgHelp(true)) {
-			text += qsl("ERROR: could not init dbghelp.dll!");
-		} else {
-			text += _showCrashDump(dump.readAll(), crashdump);
-			symCleanup(GetCurrentProcess());
-		}
-	} else {
-		text = qsl("ERROR: could not read crash dump file '%1'").arg(QFileInfo(crashdump).absoluteFilePath());
-	}
-
-	WCHAR szTemp[MAX_PATH + 1] = { 0 };
-	GetModuleFileName(NULL, szTemp, MAX_PATH);
-
-	QByteArray args[] = { QString::fromWCharArray(szTemp).toUtf8() };
-	int a_argc = 1;
-	char *a_argv[1] = { args[0].data() };
-	QApplication app(a_argc, a_argv);
-
-	ShowCrashReportWindow wnd(text);
-	return app.exec();
 }
 
 class StringReferenceWrapper {

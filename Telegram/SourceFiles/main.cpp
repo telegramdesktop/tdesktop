@@ -27,18 +27,13 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 int main(int argc, char *argv[]) {
 	int result = 0;
 
-#ifdef Q_OS_WIN
-	_oldWndExceptionFilter = SetUnhandledExceptionFilter(_exceptionFilter);
-//	CAPIHook apiHook("kernel32.dll", "SetUnhandledExceptionFilter", (PROC)RedirectedSetUnhandledExceptionFilter);
-#endif
-
 	settingsParseArgs(argc, argv);
 	if (cLaunchMode() == LaunchModeFixPrevious) {
 		return psFixPrevious();
 	} else if (cLaunchMode() == LaunchModeCleanup) {
 		return psCleanup();
 	} else if (cLaunchMode() == LaunchModeShowCrash) {
-		return psShowCrash(QFileInfo(cStartUrl()).absoluteFilePath());
+		return showCrashReportWindow(QFileInfo(cStartUrl()).absoluteFilePath());
 	}
 
 	Logs::Initializer _logs;

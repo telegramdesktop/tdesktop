@@ -46,6 +46,42 @@
     <Filter Include="Version">
       <UniqueIdentifier>{9d7bbb7d-817b-4f19-a719-74e674bdc84b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ThirdParty">
+      <UniqueIdentifier>{cda95767-f353-4a6b-a124-73632e61028a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\minizip">
+      <UniqueIdentifier>{1abe710c-3c36-484c-b2a5-881c29a051c2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\breakpad">
+      <UniqueIdentifier>{7bd3aaf0-4c45-4177-841d-e09b420f969b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\breakpad\client">
+      <UniqueIdentifier>{7e91af88-3ca1-43f3-b213-ae3a6e9adbe3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\breakpad\client\windows">
+      <UniqueIdentifier>{729af6c6-f616-40f3-86d8-7a177a4ca581}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\breakpad\client\windows\handler">
+      <UniqueIdentifier>{6ebf64cf-1373-4c85-bc7c-a334da36957d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\breakpad\client\windows\common">
+      <UniqueIdentifier>{342ef107-8d0a-4518-a4ef-186706a51186}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\breakpad\client\windows\crash_generation">
+      <UniqueIdentifier>{ea350daa-d09f-4e6a-a31d-46c971c7e117}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\breakpad\common">
+      <UniqueIdentifier>{22eae21d-0b6e-4c24-b12a-cad8538b25cf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\breakpad\common\windows">
+      <UniqueIdentifier>{6a602fc1-ef90-4276-ad51-e68e520a750d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\breakpad\google_breakpad">
+      <UniqueIdentifier>{8c8b7809-73e8-4074-986d-39cfda2961a0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\breakpad\google_breakpad\common">
+      <UniqueIdentifier>{1a35c875-fa31-4146-9555-1443abb58026}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SourceFiles\main.cpp">
@@ -897,8 +933,17 @@
     <ClCompile Include="GeneratedFiles\Release\moc_history.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\_other\zip.c">
-      <Filter>Generated Files</Filter>
+    <ClCompile Include="ThirdParty\minizip\zip.c">
+      <Filter>ThirdParty\minizip</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\breakpad\client\windows\handler\exception_handler.cc">
+      <Filter>ThirdParty\breakpad\client\windows\handler</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\breakpad\client\windows\crash_generation\crash_generation_client.cc">
+      <Filter>ThirdParty\breakpad\client\windows\crash_generation</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\breakpad\common\windows\guid_string.cc">
+      <Filter>ThirdParty\breakpad\common\windows</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -989,14 +1034,77 @@
     <ClInclude Include="SourceFiles\facades.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\_other\zip.h">
-      <Filter>Generated Files</Filter>
+    <ClInclude Include="ThirdParty\minizip\crypt.h">
+      <Filter>ThirdParty\minizip</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\_other\ioapi.h">
-      <Filter>Generated Files</Filter>
+    <ClInclude Include="ThirdParty\minizip\ioapi.h">
+      <Filter>ThirdParty\minizip</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\_other\crypt.h">
-      <Filter>Generated Files</Filter>
+    <ClInclude Include="ThirdParty\minizip\zip.h">
+      <Filter>ThirdParty\minizip</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\client\windows\handler\exception_handler.h">
+      <Filter>ThirdParty\breakpad\client\windows\handler</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\client\windows\common\ipc_protocol.h">
+      <Filter>ThirdParty\breakpad\client\windows\common</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\client\windows\crash_generation\crash_generation_client.h">
+      <Filter>ThirdParty\breakpad\client\windows\crash_generation</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\common\windows\string_utils-inl.h">
+      <Filter>ThirdParty\breakpad\common\windows</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\common\scoped_ptr.h">
+      <Filter>ThirdParty\breakpad\common</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\google_breakpad\common\minidump_format.h">
+      <Filter>ThirdParty\breakpad\google_breakpad\common</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\common\windows\guid_string.h">
+      <Filter>ThirdParty\breakpad\common\windows</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\google_breakpad\common\breakpad_types.h">
+      <Filter>ThirdParty\breakpad\google_breakpad\common</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\google_breakpad\common\minidump_cpu_amd64.h">
+      <Filter>ThirdParty\breakpad\google_breakpad\common</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\google_breakpad\common\minidump_cpu_arm.h">
+      <Filter>ThirdParty\breakpad\google_breakpad\common</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\google_breakpad\common\minidump_cpu_arm64.h">
+      <Filter>ThirdParty\breakpad\google_breakpad\common</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\google_breakpad\common\minidump_cpu_mips.h">
+      <Filter>ThirdParty\breakpad\google_breakpad\common</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\google_breakpad\common\minidump_cpu_ppc.h">
+      <Filter>ThirdParty\breakpad\google_breakpad\common</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\google_breakpad\common\minidump_cpu_ppc64.h">
+      <Filter>ThirdParty\breakpad\google_breakpad\common</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\google_breakpad\common\minidump_cpu_sparc.h">
+      <Filter>ThirdParty\breakpad\google_breakpad\common</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\google_breakpad\common\minidump_cpu_x86.h">
+      <Filter>ThirdParty\breakpad\google_breakpad\common</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\google_breakpad\common\minidump_exception_linux.h">
+      <Filter>ThirdParty\breakpad\google_breakpad\common</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\google_breakpad\common\minidump_exception_mac.h">
+      <Filter>ThirdParty\breakpad\google_breakpad\common</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\google_breakpad\common\minidump_exception_ps3.h">
+      <Filter>ThirdParty\breakpad\google_breakpad\common</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\google_breakpad\common\minidump_exception_solaris.h">
+      <Filter>ThirdParty\breakpad\google_breakpad\common</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\breakpad\google_breakpad\common\minidump_exception_win32.h">
+      <Filter>ThirdParty\breakpad\google_breakpad\common</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
