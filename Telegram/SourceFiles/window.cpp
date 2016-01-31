@@ -2113,7 +2113,7 @@ void LastCrashedWindow::onViewReport() {
 }
 
 void LastCrashedWindow::onSaveReport() {
-	QString to = QFileDialog::getSaveFileName(0, qsl("Telegram Crash Report"), QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + qsl("/report"), qsl("Telegram crash report (*.telegramcrash)"));
+	QString to = QFileDialog::getSaveFileName(0, qsl("Telegram Crash Report"), QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + qsl("/report.telegramcrash"), qsl("Telegram crash report (*.telegramcrash)"));
 	if (!to.isEmpty()) {
 		QFile file(to);
 		if (file.open(QIODevice::WriteOnly)) {
@@ -2873,4 +2873,8 @@ ShowCrashReportWindow::ShowCrashReportWindow(const QString &text)
 
 void ShowCrashReportWindow::resizeEvent(QResizeEvent *e) {
 	_log.setGeometry(rect().marginsRemoved(QMargins(basicSize(), basicSize(), basicSize(), basicSize())));
+}
+
+void ShowCrashReportWindow::closeEvent(QCloseEvent *e) {
+    deleteLater();
 }

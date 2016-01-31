@@ -979,6 +979,8 @@ void psWriteDump() {
 }
 
 QString demanglestr(const QString &mangled) {
+    if (mangled.isEmpty()) return mangled;
+
 	QByteArray cmd = ("c++filt -n " + mangled).toUtf8();
 	FILE *f = popen(cmd.constData(), "r");
 	if (!f) return "BAD_SYMBOL_" + mangled;
@@ -994,6 +996,51 @@ QString demanglestr(const QString &mangled) {
 	return result.trimmed();
 }
 
+QStringList addr2linestr(uint64 *addresses, int count) {
+	QStringList result;
+	if (!count) return result;
+
+	result.reserve(count);
+	QString cmdstr = "addr2line -e " + escapeShell(cExeDir() + cExeName());
+	for (int i = 0; i < count; ++i) {
+		if (addresses[i]) {
+			cmdstr += qsl(" 0x%1").arg(addresses[i], 0, 16);
+		}
+	}
+	QByteArray cmd = cmdstr.toUtf8();
+	FILE *f = popen(cmd.constData(), "r");
+
+	QStringList addr2lineResult;
+	if (f) {
+		char buffer[4096] = {0};
+		while (!feof(f)) {
+			if (fgets(buffer, 4096, f) != NULL) {
+				addr2lineResult.push_back(QString::fromUtf8(buffer));
+			}
+		}
+		pclose(f);
+	}
+	for (int i = 0, j = 0; i < count; ++i) {
+		if (addresses[i]) {
+			if (j < addr2lineResult.size() && !addr2lineResult.at(j).isEmpty() && !addr2lineResult.at(j).startsWith(qstr("0x"))) {
+				QString res = addr2lineResult.at(j).trimmed();
+                if (int index = res.indexOf(qstr("/Telegram/"))) {
+                    if (index > 0) {
+                        res = res.mid(index + qstr("/Telegram/").size());
+                    }
+                }
+                result.push_back(res);
+			} else {
+				result.push_back(QString());
+			}
+			++j;
+		} else {
+			result.push_back(QString());
+		}
+	}
+	return result;
+}
+
 QString _showCrashDump(const QByteArray &crashdump, QString dumpfile) {
 	QString initial = QString::fromUtf8(crashdump), result;
 	QStringList lines = initial.split('\n');
@@ -1001,6 +1048,7 @@ QString _showCrashDump(const QByteArray &crashdump, QString dumpfile) {
 	int32 i = 0, l = lines.size();
 
 	while (i < l) {
+        uint64 addresses[1024] = { 0 };
 		for (; i < l; ++i) {
 			result.append(lines.at(i)).append('\n');
 			QString line = lines.at(i).trimmed();
@@ -1010,21 +1058,59 @@ QString _showCrashDump(const QByteArray &crashdump, QString dumpfile) {
 			}
 		}
 
-		for (int32 start = i; i < l; ++i) {
+        int32 start = i;
+		for (; i < l; ++i) {
+            QString line = lines.at(i).trimmed();
+			if (line.isEmpty()) break;
+
+            QRegularExpressionMatch m1 = QRegularExpression(qsl("^(.+)\\(([^+]+)\\+([^\\)]+)\\)\\[(.+)\\]$")).match(line);
+            QRegularExpressionMatch m2 = QRegularExpression(qsl("^(.+)\\[(.+)\\]$")).match(line);
+            QString addrstr = m1.hasMatch() ? m1.captured(4) : (m2.hasMatch() ? m2.captured(2) : QString());
+            if (!addrstr.isEmpty()) {
+                uint64 addr = addrstr.startsWith(qstr("0x")) ? addrstr.mid(2).toULongLong(0, 16) : addrstr.toULongLong();
+                if (addr > 1) {
+                    addresses[i - start] = addr;
+                }
+            }
+		}
+
+		QStringList addr2line = addr2linestr(addresses, i - start);
+		for (i = start; i < l; ++i) {
 			QString line = lines.at(i).trimmed();
 			if (line.isEmpty()) break;
 
-            result.append(qsl("%1. ").arg(i + 1 - start));
+            result.append(qsl("\n%1. ").arg(i - start));
             if (line.startsWith(qstr("ERROR: "))) {
                 result.append(line).append('\n');
                 continue;
             }
-            QRegularExpressionMatch m = QRegularExpression(qsl("^(.+)\\(([^+]+)\\+([^\\)]+)\\)(.+)$")).match(line);
-            if (!m.hasMatch()) {
+            if (line == qstr("[0x1]")) {
+                result.append(qsl("(0x1 separator)\n"));
+                continue;
+            }
+
+            QRegularExpressionMatch m1 = QRegularExpression(qsl("^(.+)\\(([^+]*)\\+([^\\)]+)\\)(.+)$")).match(line);
+            QRegularExpressionMatch m2 = QRegularExpression(qsl("^(.+)\\[(.+)\\]$")).match(line);
+            if (!m1.hasMatch() && !m2.hasMatch()) {
                 result.append(qstr("BAD LINE: ")).append(line).append('\n');
                 continue;
             }
-            result.append(demanglestr(m.captured(2))).append(qsl(" + ")).append(m.captured(3)).append(qsl(" (")).append(m.captured(1)).append(qsl(") ")).append(m.captured(4)).append('\n');
+
+            if (m1.hasMatch()) {
+                result.append(demanglestr(m1.captured(2))).append(qsl(" + ")).append(m1.captured(3)).append(qsl(" [")).append(m1.captured(1)).append(qsl("] "));
+                if (!addr2line.at(i - start).isEmpty() && addr2line.at(i - start) != qsl("??:0")) {
+                    result.append(qsl(" (")).append(addr2line.at(i - start)).append(qsl(")\n"));
+                } else {
+                    result.append(m1.captured(4)).append(qsl(" (demangled)")).append('\n');
+                }
+            } else {
+                result.append('[').append(m2.captured(1)).append(']');
+                if (!addr2line.at(i - start).isEmpty() && addr2line.at(i - start) != qsl("??:0")) {
+                    result.append(qsl(" (")).append(addr2line.at(i - start)).append(qsl(")\n"));
+                } else {
+                    result.append(' ').append(m2.captured(2)).append('\n');
+                }
+            }
 		}
 	}
 	return result;
@@ -1041,13 +1127,18 @@ int psShowCrash(const QString &crashdump) {
 		text = qsl("ERROR: could not read crash dump file '%1'").arg(QFileInfo(crashdump).absoluteFilePath());
 	}
 
-	QByteArray args[] = { "" };
-	int a_argc = 1;
-	char *a_argv[1] = { args[0].data() };
-	QApplication app(a_argc, a_argv);
+    if (Sandbox::started()) {
+        ShowCrashReportWindow *wnd = new ShowCrashReportWindow(text);
+        return 0;
+    }
 
-	ShowCrashReportWindow wnd(text);
-	return app.exec();
+    QByteArray args[] = { "" };
+    int a_argc = 1;
+    char *a_argv[1] = { args[0].data() };
+    QApplication app(a_argc, a_argv);
+
+    ShowCrashReportWindow *wnd = new ShowCrashReportWindow(text);
+    return app.exec();
 }
 
 bool _removeDirectory(const QString &path) { // from http://stackoverflow.com/questions/2256945/removing-a-non-empty-directory-programmatically-in-c-or-c
