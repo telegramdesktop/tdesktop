@@ -12,6 +12,9 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 Binary download can be found under [releases](https://github.com/NXij/tdesktop-dark/releases)
 
+Co-development and messing-around with [JuanPotato](https://github.com/JuanPotato) and [Melvin V.](https://mel.vin/)
+
+
 ## Supported systems
 
 * Windows XP - Windows 10 (**not** RT)
