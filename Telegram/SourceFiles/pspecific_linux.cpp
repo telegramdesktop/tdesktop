@@ -516,6 +516,8 @@ namespace {
 
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent),
 posInited(false), trayIcon(0), trayIconMenu(0), icon256(qsl(":/gui/art/icon256.png")), iconbig256(icon256), wndIcon(QIcon::fromTheme("telegram", QIcon(QPixmap::fromImage(icon256, Qt::ColorOnly)))), _psCheckStatusIconLeft(100), _psLastIndicatorUpdate(0) {
+    _PsInitializer initializer;
+
     connect(&_psCheckStatusIconTimer, SIGNAL(timeout()), this, SLOT(psStatusIconCheck()));
     _psCheckStatusIconTimer.setSingleShot(false);
 
@@ -683,7 +685,7 @@ void PsMainWindow::psInitSize() {
 	bool maximized = false;
 	QRect geom(avail.x() + (avail.width() - st::wndDefWidth) / 2, avail.y() + (avail.height() - st::wndDefHeight) / 2, st::wndDefWidth, st::wndDefHeight);
 	if (pos.w && pos.h) {
-		QList<QScreen*> screens = App::app()->screens();
+		QList<QScreen*> screens = Application::screens();
 		for (QList<QScreen*>::const_iterator i = screens.cbegin(), e = screens.cend(); i != e; ++i) {
 			QByteArray name = (*i)->name().toUtf8();
 			if (pos.moncrc == hashCrc32(name.constData(), name.size())) {
@@ -736,7 +738,7 @@ void PsMainWindow::psSavePosition(Qt::WindowState state) {
 
 	int px = curPos.x + curPos.w / 2, py = curPos.y + curPos.h / 2, d = 0;
 	QScreen *chosen = 0;
-	QList<QScreen*> screens = App::app()->screens();
+	QList<QScreen*> screens = Application::screens();
 	for (QList<QScreen*>::const_iterator i = screens.cbegin(), e = screens.cend(); i != e; ++i) {
 		int dx = (*i)->geometry().x() + (*i)->geometry().width() / 2 - px; if (dx < 0) dx = -dx;
 		int dy = (*i)->geometry().y() + (*i)->geometry().height() / 2 - py; if (dy < 0) dy = -dy;
@@ -1012,40 +1014,17 @@ QString _showCrashDump(const QByteArray &crashdump, QString dumpfile) {
 			QString line = lines.at(i).trimmed();
 			if (line.isEmpty()) break;
 
-			if (!QRegularExpression(qsl("^\\d+")).match(line).hasMatch()) {
-				if (!lines.at(i).startsWith(qstr("ERROR: "))) {
-					result.append(qstr("BAD LINE: "));
-				}
-				result.append(line).append('\n');
-				continue;
-			}
-			QStringList lst = line.split(' ', QString::SkipEmptyParts);
-			result.append(lst.at(0)).append(' ');
-			for (int j = 1, s = lst.size();;) {
-				if (lst.at(j).startsWith('_')) {
-					result.append(demanglestr(lst.at(j)));
-					if (++j < s) {
-						result.append(' ');
-						for (;;) {
-							result.append(lst.at(j));
-							if (++j < s) {
-								result.append(' ');
-							} else {
-								break;
-							}
-						}
-					}
-					break;
-				} else if (j > 2) {
-					result.append(lst.at(j));
-				}
-				if (++j < s) {
-					result.append(' ');
-				} else {
-					break;
-				}
-			}
-			result.append('\n');
+            result.append(qsl("%1. ").arg(i + 1 - start));
+            if (line.startsWith(qstr("ERROR: "))) {
+                result.append(line).append('\n');
+                continue;
+            }
+            QRegularExpressionMatch m = QRegularExpression(qsl("^(.+)\\(([^+]+)\\+([^\\)]+)\\)(.+)$")).match(line);
+            if (!m.hasMatch()) {
+                result.append(qstr("BAD LINE: ")).append(line).append('\n');
+                continue;
+            }
+            result.append(demanglestr(m.captured(2))).append(qsl(" + ")).append(m.captured(3)).append(qsl(" (")).append(m.captured(1)).append(qsl(") ")).append(m.captured(4)).append('\n');
 		}
 	}
 	return result;
