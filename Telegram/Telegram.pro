@@ -281,12 +281,12 @@ QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-result -Wno-unused-parameter -Wno-unused-v
 
 CONFIG(release, debug|release) {
     QMAKE_CXXFLAGS_RELEASE -= -O2
-    QMAKE_CXXFLAGS_RELEASE += -Ofast -flto -fno-strict-aliasing
+    QMAKE_CXXFLAGS_RELEASE += -Ofast -flto -fno-strict-aliasing -g
     QMAKE_LFLAGS_RELEASE -= -O1
-    QMAKE_LFLAGS_RELEASE += -Ofast -flto -rdynamic
+    QMAKE_LFLAGS_RELEASE += -Ofast -flto -rdynamic -g
 }
 CONFIG(debug, debug|release) {
-	QMAKE_LFLAGS_DEBUG += -rdynamic
+	QMAKE_LFLAGS_DEBUG += -rdynamic -g
 }
 
 INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.5.1/QtGui\

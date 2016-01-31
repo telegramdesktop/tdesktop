@@ -126,8 +126,7 @@ void AboutBox::dragEnterEvent(QDragEnterEvent *e) {
 void AboutBox::dropEvent(QDropEvent *e) {
 	if (!_getCrashReportFile(e->mimeData()).isEmpty()) {
 		e->acceptProposedAction();
-		psExecTelegram(_getCrashReportFile(e->mimeData()));
-		App::quit();
+		psShowCrash(_getCrashReportFile(e->mimeData()));
 	}
 }
 

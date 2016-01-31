@@ -547,6 +547,7 @@ public:
 protected:
 
 	void resizeEvent(QResizeEvent *e);
+    void closeEvent(QCloseEvent *e);
 
 private:
 

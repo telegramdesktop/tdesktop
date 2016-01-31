@@ -709,41 +709,47 @@ namespace SignalHandlers {
 #if defined Q_OS_MAC || defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 		ucontext_t *uc = (ucontext_t*)ucontext;
 
-		void *addresses[128] = { 0 };
 		void *caller = 0;
-
 #if defined(__APPLE__) && !defined(MAC_OS_X_VERSION_10_6)
 			/* OSX < 10.6 */
 #if defined(__x86_64__)
-			caller = (void*)uap->uc_mcontext->__ss.__rip;
+			caller = (void*)uc->uc_mcontext->__ss.__rip;
 #elif defined(__i386__)
-			caller = (void*)uap->uc_mcontext->__ss.__eip;
+			caller = (void*)uc->uc_mcontext->__ss.__eip;
 #else
-			caller = (void*)uap->uc_mcontext->__ss.__srr0;
+			caller = (void*)uc->uc_mcontext->__ss.__srr0;
 #endif
 #elif defined(__APPLE__) && defined(MAC_OS_X_VERSION_10_6)
 			/* OSX >= 10.6 */
 #if defined(_STRUCT_X86_THREAD_STATE64) && !defined(__i386__)
 			caller = (void*)uc->uc_mcontext->__ss.__rip;
 #else
-			caller = (void*)uap->uc_mcontext->__ss.__eip;
+			caller = (void*)uc->uc_mcontext->__ss.__eip;
 #endif
 #elif defined(__linux__)
 			/* Linux */
 #if defined(__i386__)
-			caller = (void*)uap->uc_mcontext.gregs[14]; /* Linux 32 */
+			caller = (void*)uc->uc_mcontext.gregs[14]; /* Linux 32 */
 #elif defined(__X86_64__) || defined(__x86_64__)
-			caller = (void*)uap->uc_mcontext.gregs[16]; /* Linux 64 */
+			caller = (void*)uc->uc_mcontext.gregs[16]; /* Linux 64 */
 #elif defined(__ia64__) /* Linux IA64 */
-			caller = (void*)uap->uc_mcontext.sc_ip;
+			caller = (void*)uc->uc_mcontext.sc_ip;
 #endif
 
 #endif
 
+        void *addresses[132] = { 0 };
 		size_t size = backtrace(addresses, 128);
 
 		/* overwrite sigaction with caller's address */
-		if (caller) addresses[1] = caller;
+        if (caller) {
+            for (int i = size; i > 1; --i) {
+                addresses[i + 3] = addresses[i];
+            }
+            addresses[2] = (void*)0x1;
+            addresses[3] = caller;
+            addresses[4] = (void*)0x1;
+        }
 
 #ifdef Q_OS_MAC
 		dump() << "\nBase image addresses:\n";
