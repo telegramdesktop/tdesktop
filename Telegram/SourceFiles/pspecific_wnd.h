@@ -113,13 +113,9 @@ private:
 	void psDestroyIcons();
 };
 
-extern LPTOP_LEVEL_EXCEPTION_FILTER _oldWndExceptionFilter;
-LONG CALLBACK _exceptionFilter(EXCEPTION_POINTERS* pExceptionPointers);
-LPTOP_LEVEL_EXCEPTION_FILTER WINAPI RedirectedSetUnhandledExceptionFilter(_In_opt_ LPTOP_LEVEL_EXCEPTION_FILTER lpTopLevelExceptionFilter);
-
 void psWriteDump();
 void psWriteStackTrace();
-int psShowCrash(const QString &crashdump);
+QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile);
 
 void psDeleteDir(const QString &dir);
 

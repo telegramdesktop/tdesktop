@@ -141,7 +141,7 @@ private:
 };
 
 void psWriteDump();
-int psShowCrash(const QString &crashdump);
+QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile);
 
 void psDeleteDir(const QString &dir);
 

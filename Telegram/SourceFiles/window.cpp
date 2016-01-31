@@ -41,7 +41,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "mediaview.h"
 #include "localstorage.h"
 
-#include "_other/zip.h"
+#include "zip.h"
 
 ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : QWidget(parent), _shadow(st::boxShadow), _reconnect(this, QString()) {
 	set(text, reconnect);
@@ -63,6 +63,7 @@ void ConnectingWidget::set(const QString &text, const QString &reconnect) {
 	resize(st::connectingPadding.left() + _textWidth + _reconnectWidth + st::connectingPadding.right() + st::boxShadow.pxWidth(), st::boxShadow.pxHeight() + st::connectingPadding.top() + st::linkFont->height + st::connectingPadding.bottom());
 	update();
 }
+
 void ConnectingWidget::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
@@ -2021,22 +2022,24 @@ LastCrashedWindow::LastCrashedWindow()
 #ifdef Q_OS_WIN
 	if (_sendingState != SendingNoReport) {
 		QString maxDump, maxDumpFull;
-		QDateTime maxDumpModified;
+		QDateTime maxDumpModified, workingModified = QFileInfo(cWorkingDir() + qsl("tdata/working")).lastModified();
 		qint64 maxDumpSize = 0;
 		QFileInfoList list = QDir(cWorkingDir() + qsl("tdumps")).entryInfoList();
 		for (int32 i = 0, l = list.size(); i < l; ++i) {
-			if (maxDump.isEmpty() || maxDumpModified < list.at(i).lastModified()) {
-				maxDump = list.at(i).fileName();
-				maxDumpFull = list.at(i).absoluteFilePath();
-				maxDumpModified = list.at(i).lastModified();
-				maxDumpSize = list.at(i).size();
+			QString name = list.at(i).fileName();
+			if (name.endsWith(qstr(".dmp"))) {
+				QDateTime modified = list.at(i).lastModified();
+				if (maxDump.isEmpty() || qAbs(workingModified.secsTo(modified)) < qAbs(workingModified.secsTo(maxDumpModified))) {
+					maxDump = name;
+					maxDumpModified = modified;
+					maxDumpFull = list.at(i).absoluteFilePath();
+					maxDumpSize = list.at(i).size();
+				}
 			}
 		}
-		if (!maxDump.isEmpty()) {
-			if (qAbs(QFileInfo(cWorkingDir() + qsl("tdata/working")).lastModified().secsTo(maxDumpModified)) < 10) {
-				_minidumpName = maxDump;
-				_minidumpFull = maxDumpFull;
-			}
+		if (!maxDump.isEmpty() && qAbs(workingModified.secsTo(maxDumpModified)) < 10) {
+			_minidumpName = maxDump;
+			_minidumpFull = maxDumpFull;
 		}
 
 		_minidump.setText(qsl("+ %1 (%2 KB)").arg(_minidumpName).arg(maxDumpSize / 1024));
@@ -2306,7 +2309,7 @@ void LastCrashedWindow::onCheckingFinished() {
 #ifdef Q_OS_WIN
 	QFileInfo dmpFile(_minidumpFull);
 	if (dmpFile.exists() && dmpFile.size() > 0 && dmpFile.size() < 20 * 1024 * 1024 &&
-		QRegularExpression(qsl("^Telegram\\-[\\d\\.\\-]{1,64}\\.dmp$")).match(dmpFile.fileName()).hasMatch()) {
+		QRegularExpression(qsl("^[a-z0-9\\-]{1,64}\\.dmp$")).match(dmpFile.fileName()).hasMatch()) {
 		QFile file(_minidumpFull);
 		if (file.open(QIODevice::ReadOnly)) {
 			QByteArray minidump = file.readAll();
@@ -2877,4 +2880,29 @@ void ShowCrashReportWindow::resizeEvent(QResizeEvent *e) {
 
 void ShowCrashReportWindow::closeEvent(QCloseEvent *e) {
     deleteLater();
+}
+
+int showCrashReportWindow(const QString &crashdump) {
+	QString text;
+
+	QFile dump(crashdump);
+	if (dump.open(QIODevice::ReadOnly)) {
+		text = qsl("Crash dump file '%1':\n\n").arg(QFileInfo(crashdump).absoluteFilePath());
+		text += psPrepareCrashDump(dump.readAll(), crashdump);
+	} else {
+		text = qsl("ERROR: could not read crash dump file '%1'").arg(QFileInfo(crashdump).absoluteFilePath());
+	}
+
+	if (Sandbox::started()) {
+		ShowCrashReportWindow *wnd = new ShowCrashReportWindow(text);
+		return 0;
+	}
+
+	QByteArray args[] = { QDir::toNativeSeparators(cExeDir() + cExeName()).toUtf8() };
+	int a_argc = 1;
+	char *a_argv[1] = { args[0].data() };
+	QApplication app(a_argc, a_argv);
+
+	ShowCrashReportWindow *wnd = new ShowCrashReportWindow(text);
+	return app.exec();
 }

@@ -608,7 +608,7 @@ QStringList atosstr(uint64 *addresses, int count, uint64 base) {
 
 }
 
-QString _showCrashDump(const QByteArray &crashdump, QString dumpfile) {
+QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile) {
 	QString initial = QString::fromUtf8(crashdump), result;
 	QStringList lines = initial.split('\n');
 	result.reserve(initial.size());
@@ -723,26 +723,6 @@ QString _showCrashDump(const QByteArray &crashdump, QString dumpfile) {
 		}
 	}
 	return result;
-}
-
-int psShowCrash(const QString &crashdump) {
-	QString text;
-
-	QFile dump(crashdump);
-	if (dump.open(QIODevice::ReadOnly)) {
-		text = qsl("Crash dump file '%1':\n\n").arg(QFileInfo(crashdump).absoluteFilePath());
-		text += _showCrashDump(dump.readAll(), crashdump);
-	} else {
-		text = qsl("ERROR: could not read crash dump file '%1'").arg(QFileInfo(crashdump).absoluteFilePath());
-	}
-
-	QByteArray args[] = { "" };
-	int a_argc = 1;
-	char *a_argv[1] = { args[0].data() };
-	QApplication app(a_argc, a_argv);
-
-	ShowCrashReportWindow wnd(text);
-	return app.exec();
 }
 
 void psDeleteDir(const QString &dir) {
