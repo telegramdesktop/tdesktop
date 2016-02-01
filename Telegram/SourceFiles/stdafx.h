@@ -22,7 +22,9 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #define PSAPI_VERSION 1 // fix WinXP
 //#define Q_NO_TEMPLATE_FRIENDS // fix some compiler difference issues
 
-#include <signal.h>
+#define __STDC_FORMAT_MACROS // fix breakpad for mac
+
+#ifdef __cplusplus
 
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
@@ -52,11 +54,17 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 extern "C" {
 
+#endif
+
+#include "zip.h"
+
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/opt.h>
 #include <libswresample/swresample.h>
 #include <libswscale/swscale.h>
+
+#ifdef __cplusplus
 
 }
 
@@ -79,3 +87,5 @@ extern "C" {
 #include "gui/flatlabel.h"
 
 #include "app.h"
+
+#endif

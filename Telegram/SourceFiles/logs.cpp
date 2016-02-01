@@ -656,60 +656,6 @@ namespace SignalHandlers {
 		return stream;
 	}
 
-	google_breakpad::ExceptionHandler* BreakpadExceptionHandler = 0;
-
-#ifdef Q_OS_WIN
-	bool DumpCallback(const wchar_t* _dump_dir, const wchar_t* _minidump_id, void* context, EXCEPTION_POINTERS* exinfo, MDRawAssertionInfo* assertion, bool success)
-#elif defined Q_OS_MAC
-	bool DumpCallback(const char* _dump_dir, const char* _minidump_id, void *context, bool success)
-#elif defined Q_OS_LINUX64 || defined Q_OS_LINUX32
-	bool DumpCallback(const google_breakpad::MinidumpDescriptor &md, void *context, bool success)
-#endif
-	{
-		return success;
-	}
-
-	void StartBreakpad() {
-		QString dumpPath = cWorkingDir() + qsl("tdumps");
-		QDir().mkpath(dumpPath);
-
-#ifdef Q_OS_WIN
-		BreakpadExceptionHandler = new google_breakpad::ExceptionHandler(
-			dumpPath.toStdWString(),
-			/*FilterCallback*/ 0,
-			DumpCallback,
-			/*context*/	0,
-			true
-		);
-#elif defined Q_OS_MAC
-		pHandler = new google_breakpad::ExceptionHandler(
-			dumpPath.toStdString(),
-			/*FilterCallback*/ 0,
-			DumpCallback,
-			/*context*/ 0,
-			true,
-			0
-		);
-#elif defined Q_OS_LINUX64 || defined Q_OS_LINUX32
-		pHandler = new google_breakpad::ExceptionHandler(
-			google_breakpad::MinidumpDescriptor(dumpPath.toStdString()),
-			/*FilterCallback*/ 0,
-			DumpCallback,
-			/*context*/ 0,
-			true,
-			-1
-		);
-#endif
-	}
-
-	void FinishBreakpad() {
-		if (BreakpadExceptionHandler) {
-			google_breakpad::ExceptionHandler *h = BreakpadExceptionHandler;
-			BreakpadExceptionHandler = 0;
-			delete h;
-		}
-	}
-
 	Qt::HANDLE LoggingCrashThreadId = 0;
 	bool LoggingCrashHeaderWritten = false;
 	QMutex LoggingCrashMutex;
@@ -719,7 +665,9 @@ namespace SignalHandlers {
 	struct sigaction SIG_def[32];
 
 	void Handler(int signum, siginfo_t *info, void *ucontext) {
-		sigaction(signum, &SIG_def[signum], 0);
+		if (signum > 0) {
+			sigaction(signum, &SIG_def[signum], 0);
+		}
 
 #else
 	void Handler(int signum) {
@@ -780,6 +728,7 @@ namespace SignalHandlers {
 		ucontext_t *uc = (ucontext_t*)ucontext;
 
 		void *caller = 0;
+		if (uc) {
 #if defined(__APPLE__) && !defined(MAC_OS_X_VERSION_10_6)
 			/* OSX < 10.6 */
 #if defined(__x86_64__)
@@ -807,6 +756,7 @@ namespace SignalHandlers {
 #endif
 
 #endif
+		}
 
         void *addresses[132] = { 0 };
 		size_t size = backtrace(addresses, 128);
@@ -847,6 +797,63 @@ namespace SignalHandlers {
 		dump() << "\n";
 
 		LoggingCrashThreadId = 0;
+	}
+
+	google_breakpad::ExceptionHandler* BreakpadExceptionHandler = 0;
+
+#ifdef Q_OS_WIN
+	bool DumpCallback(const wchar_t* _dump_dir, const wchar_t* _minidump_id, void* context, EXCEPTION_POINTERS* exinfo, MDRawAssertionInfo* assertion, bool success)
+#elif defined Q_OS_MAC
+	bool DumpCallback(const char* _dump_dir, const char* _minidump_id, void *context, bool success)
+#elif defined Q_OS_LINUX64 || defined Q_OS_LINUX32
+	bool DumpCallback(const google_breakpad::MinidumpDescriptor &md, void *context, bool success)
+#endif
+	{
+#ifdef Q_OS_MAC
+		Handler(-1, 0, 0);
+#endif
+		return success;
+	}
+
+	void StartBreakpad() {
+		QString dumpPath = cWorkingDir() + qsl("tdumps");
+		QDir().mkpath(dumpPath);
+
+#ifdef Q_OS_WIN
+		BreakpadExceptionHandler = new google_breakpad::ExceptionHandler(
+			dumpPath.toStdWString(),
+			/*FilterCallback*/ 0,
+			DumpCallback,
+			/*context*/	0,
+			true
+		);
+#elif defined Q_OS_MAC
+		BreakpadExceptionHandler = new google_breakpad::ExceptionHandler(
+			dumpPath.toStdString(),
+			/*FilterCallback*/ 0,
+			DumpCallback,
+			/*context*/ 0,
+			true,
+			0
+		);
+#elif defined Q_OS_LINUX64 || defined Q_OS_LINUX32
+		BreakpadExceptionHandler = new google_breakpad::ExceptionHandler(
+			google_breakpad::MinidumpDescriptor(dumpPath.toStdString()),
+			/*FilterCallback*/ 0,
+			DumpCallback,
+			/*context*/ 0,
+			true,
+			-1
+		);
+#endif
+	}
+
+	void FinishBreakpad() {
+		if (BreakpadExceptionHandler) {
+			google_breakpad::ExceptionHandler *h = BreakpadExceptionHandler;
+			BreakpadExceptionHandler = 0;
+			delete h;
+		}
 	}
 
 	Status start() {
@@ -893,7 +900,9 @@ namespace SignalHandlers {
 			sigemptyset(&sigact.sa_mask);
 			sigact.sa_flags = SA_NODEFER | SA_RESETHAND | SA_SIGINFO;
 
+#ifndef Q_OS_MAC // let breakpad handle this
 			sigaction(SIGABRT, &sigact, &SIG_def[SIGABRT]);
+#endif
 			sigaction(SIGSEGV, &sigact, &SIG_def[SIGSEGV]);
 			sigaction(SIGILL, &sigact, &SIG_def[SIGILL]);
 			sigaction(SIGFPE, &sigact, &SIG_def[SIGFPE]);

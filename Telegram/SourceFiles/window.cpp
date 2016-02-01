@@ -41,8 +41,6 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "mediaview.h"
 #include "localstorage.h"
 
-#include "zip.h"
-
 ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : QWidget(parent), _shadow(st::boxShadow), _reconnect(this, QString()) {
 	set(text, reconnect);
 	connect(&_reconnect, SIGNAL(clicked()), this, SLOT(onReconnect()));
@@ -2019,7 +2017,6 @@ LastCrashedWindow::LastCrashedWindow()
 #endif
 {
 
-#ifdef Q_OS_WIN
 	if (_sendingState != SendingNoReport) {
 		QString maxDump, maxDumpFull;
 		QDateTime maxDumpModified, workingModified = QFileInfo(cWorkingDir() + qsl("tdata/working")).lastModified();
@@ -2044,7 +2041,6 @@ LastCrashedWindow::LastCrashedWindow()
 
 		_minidump.setText(qsl("+ %1 (%2 KB)").arg(_minidumpName).arg(maxDumpSize / 1024));
 	}
-#endif
 
 	_networkSettings.setText(qsl("NETWORK SETTINGS"));
 	connect(&_networkSettings, SIGNAL(clicked()), this, SLOT(onNetworkSettings()));
@@ -2306,10 +2302,9 @@ void LastCrashedWindow::onCheckingFinished() {
 	reportPart.setBody(Global::LastCrashDump());
 	multipart->append(reportPart);
 
-#ifdef Q_OS_WIN
 	QFileInfo dmpFile(_minidumpFull);
 	if (dmpFile.exists() && dmpFile.size() > 0 && dmpFile.size() < 20 * 1024 * 1024 &&
-		QRegularExpression(qsl("^[a-z0-9\\-]{1,64}\\.dmp$")).match(dmpFile.fileName()).hasMatch()) {
+		QRegularExpression(qsl("^[a-zA-Z0-9\\-]{1,64}\\.dmp$")).match(dmpFile.fileName()).hasMatch()) {
 		QFile file(_minidumpFull);
 		if (file.open(QIODevice::ReadOnly)) {
 			QByteArray minidump = file.readAll();
@@ -2330,9 +2325,9 @@ void LastCrashedWindow::onCheckingFinished() {
 			zfuncs.ztell_file = zByteArrayTellFile;
 
 			if (zipFile zf = zipOpen2(0, APPEND_STATUS_CREATE, 0, &zfuncs)) {
-				zip_fileinfo zfi = { 0 };
+				zip_fileinfo zfi = { { 0, 0, 0, 0, 0, 0 }, 0, 0, 0 };
 				std::wstring fileName = dmpFile.fileName().toStdWString();
-				if (zipOpenNewFileInZip(zf, std::string(fileName.begin(), fileName.end()).c_str(), &zfi, NULL, 0, NULL, 0, NULL, Z_DEFLATED, Z_DEFAULT_COMPRESSION) != S_OK) {
+				if (zipOpenNewFileInZip(zf, std::string(fileName.begin(), fileName.end()).c_str(), &zfi, NULL, 0, NULL, 0, NULL, Z_DEFLATED, Z_DEFAULT_COMPRESSION) != ZIP_OK) {
 					failed = true;
 				} else if (zipWriteInFileInZip(zf, minidump.constData(), minidump.size()) != 0) {
 					failed = true;
@@ -2358,7 +2353,6 @@ void LastCrashedWindow::onCheckingFinished() {
 			}
 		}
 	}
-#endif
 
 	_sendReply = _sendManager.post(QNetworkRequest(qsl("https://tdesktop.com/crash.php?act=report")), multipart);
 	multipart->setParent(_sendReply);
