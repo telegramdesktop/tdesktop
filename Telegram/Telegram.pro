@@ -273,11 +273,16 @@ HEADERS += \
   ./SourceFiles/pspecific_mac.h
 }
 
+SOURCES += \
+  ./ThirdParty/minizip/zip.c \
+  ./ThirdParty/minizip/ioapi.c
+
 CONFIG += precompile_header
 
 PRECOMPILED_HEADER = ./SourceFiles/stdafx.h
 
 QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-result -Wno-unused-parameter -Wno-unused-variable -Wno-switch -Wno-comment -Wno-unused-but-set-variable
+QMAKE_CFLAGS_WARN_ON += -Wno-unused-result -Wno-unused-parameter -Wno-unused-variable -Wno-switch -Wno-comment -Wno-unused-but-set-variable
 
 CONFIG(release, debug|release) {
     QMAKE_CXXFLAGS_RELEASE -= -O2
@@ -294,7 +299,9 @@ INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.5.1/QtGui\
                ./../../Libraries/QtStatic/qtbase/include\
                /usr/local/include/opus\
                ./SourceFiles\
-               ./GeneratedFiles
+               ./GeneratedFiles\
+               ./ThirdParty/minizip\
+               ./../../Libraries/breakpad/src
 
 INCLUDEPATH += "/usr/include/libappindicator-0.1"
 INCLUDEPATH += "/usr/include/gtk-2.0"
@@ -311,11 +318,13 @@ INCLUDEPATH += "/usr/include/atk-1.0"
 INCLUDEPATH += "/usr/include/dee-1.0"
 INCLUDEPATH += "/usr/include/libdbusmenu-glib-0.4"
 
-LIBS += -lcrypto -lssl -lz -ldl -llzma -lexif -lopenal -lavformat -lavcodec -lswresample -lswscale -lavutil -lopus -lva
+LIBS += -lcrypto -lssl -ldl -llzma -lexif -lopenal -lavformat -lavcodec -lswresample -lswscale -lavutil -lopus -lva
 LIBS += ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libcomposeplatforminputcontextplugin.a \
         ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libibusplatforminputcontextplugin.a \
         ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.a
+LIBS += /usr/local/lib/libz.a
 LIBS += /usr/local/lib/libxkbcommon.a
+LIBS += ./../../../Libraries/breakpad/src/client/linux/libbreakpad_client.a
 
 RESOURCES += \
     ./SourceFiles/telegram.qrc \
