@@ -14,6 +14,8 @@ Binary download can be found under [releases](https://github.com/NXij/tdesktop-d
 
 Co-development and messing-around with [JuanPotato](https://github.com/JuanPotato) and [Melvin V.](https://mel.vin/)
 
+Melvin V. has his own fork of telegram with seperate patches [Link to his gitlab](https://git.mel.vin/melvin/telegram-desktop)
+
 
 ## Supported systems
 
