@@ -92,6 +92,7 @@ namespace SignalHandlers {
 		~dump();
 	};
 	const dump &operator<<(const dump &stream, const char *str);
+    const dump &operator<<(const dump &stream, const wchar_t *str);
 	const dump &operator<<(const dump &stream, int num);
 	const dump &operator<<(const dump &stream, unsigned int num);
 	const dump &operator<<(const dump &stream, unsigned long num);
