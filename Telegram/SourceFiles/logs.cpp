@@ -389,8 +389,6 @@ namespace Logs {
 			return false;
 		}
 
-
-
 		if (LogsInMemory) {
 			t_assert(LogsInMemory != DeletedLogsInMemory);
 			LogsInMemoryList list = *LogsInMemory;
@@ -720,7 +718,9 @@ namespace SignalHandlers {
 		}
 		if (name) {
 			dump() << "Caught signal " << signum << " (" << name << ") in thread " << uint64(thread) << "\n";
-		} else {
+		} else if (signum == -1) {
+            dump() << "Google Breakpad caught a crash, minidump written in thread " << uint64(thread) << "\n";
+        } else {
 			dump() << "Caught signal " << signum << " in thread " << uint64(thread) << "\n";
 		}
 
@@ -809,9 +809,7 @@ namespace SignalHandlers {
 	bool DumpCallback(const google_breakpad::MinidumpDescriptor &md, void *context, bool success)
 #endif
 	{
-#ifdef Q_OS_MAC
 		Handler(-1, 0, 0);
-#endif
 		return success;
 	}
 
