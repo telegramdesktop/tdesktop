@@ -2024,6 +2024,9 @@ LastCrashedWindow::LastCrashedWindow()
             if (!possibleDump.startsWith('/')) {
                 possibleDump = cWorkingDir() + qsl("tdumps/") + possibleDump;
             }
+			if (!possibleDump.endsWith('.dmp')) {
+				possibleDump += qsl(".dmp");
+			}
             QFileInfo possibleInfo(possibleDump);
             if (possibleInfo.exists()) {
                 _minidumpName = possibleInfo.fileName();

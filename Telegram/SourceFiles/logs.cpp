@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include <iostream>
+#include <signal.h>
 #include "pspecific.h"
 
 // see https://blog.inventic.eu/2012/08/qt-and-google-breakpad/
