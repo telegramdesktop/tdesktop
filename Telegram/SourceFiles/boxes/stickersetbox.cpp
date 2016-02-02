@@ -727,6 +727,7 @@ StickersBox::StickersBox() : ItemListBox(st::boxScroll)
 	setMaxHeight(snap(countHeight(), int32(st::sessionsHeight), int32(st::boxMaxListHeight)));
 
 	connect(App::main(), SIGNAL(stickersUpdated()), this, SLOT(onStickersUpdated()));
+	App::main()->updateStickers();
 
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));

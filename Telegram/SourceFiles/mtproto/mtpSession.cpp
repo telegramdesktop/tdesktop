@@ -86,7 +86,7 @@ void MTProtoSession::start(int32 dcenter) {
 		DEBUG_LOG(("Session Info: MTProtoSession::start called on already started session"));
 		return;
 	}
-	
+
 	msSendCall = msWait = 0;
 
 	connect(&timeouter, SIGNAL(timeout()), this, SLOT(checkRequestsByTimer()));
@@ -265,7 +265,7 @@ void MTProtoSession::checkRequestsByTimer() {
 	}
 
 	if (stateRequestIds.size()) {
-		DEBUG_LOG(("MTP Info: requesting state of msgs: %1").arg(logVectorLong(stateRequestIds)));
+		DEBUG_LOG(("MTP Info: requesting state of msgs: %1").arg(Logs::vector(stateRequestIds)));
 		{
 			QWriteLocker locker(data.stateRequestMutex());
 			for (uint32 i = 0, l = stateRequestIds.size(); i < l; ++i) {
@@ -398,7 +398,7 @@ mtpRequestId MTProtoSession::resend(quint64 msgId, quint64 msCanWait, bool force
 			if (sendMsgStateInfo) {
 				char cantResend[2] = {1, 0};
 				DEBUG_LOG(("Message Info: cant resend %1, request not found").arg(msgId));
-					
+
 				return send(MTP_msgs_state_info(MTP_long(msgId), MTP_string(string(cantResend, cantResend + 1))));
 			}
 			return 0;
@@ -485,7 +485,7 @@ void MTProtoSession::layerWasInitedForDC(bool wasInited) {
 }
 
 void MTProtoSession::notifyLayerInited(bool wasInited) {
-	DEBUG_LOG(("MTP Info: emitting MTProtoDC::layerWasInited(%1), dcWithShift %2").arg(logBool(wasInited)).arg(dcWithShift));
+	DEBUG_LOG(("MTP Info: emitting MTProtoDC::layerWasInited(%1), dcWithShift %2").arg(Logs::b(wasInited)).arg(dcWithShift));
 	dc->setConnectionInited(wasInited);
 	emit dc->layerWasInited(wasInited);
 }

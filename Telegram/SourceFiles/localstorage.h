@@ -54,7 +54,7 @@ namespace _local_inner {
 namespace Local {
 
 	void start();
-	void stop();
+	void finish();
 
 	void readSettings();
 	void writeSettings();

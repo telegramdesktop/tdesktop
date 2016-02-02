@@ -10,7 +10,7 @@ CONFIG(debug, debug|release) {
     DESTDIR = ./../Debug
 }
 CONFIG(release, debug|release) {
-    DEFINES += _WITH_DEBUG CUSTOM_API_ID
+    DEFINES += CUSTOM_API_ID
     OBJECTS_DIR = ./../ReleaseIntermediate
     MOC_DIR = ./GenFiles/Release
     RCC_DIR = ./GenFiles
@@ -47,7 +47,7 @@ style_classes_h.depends = ./../../Telegram/Resources/style_classes.txt
 numbers_cpp.target = ./GeneratedFiles/numbers.cpp
 numbers_cpp.depends = FORCE
 numbers_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
-numbers_cpp.depends = ./../../Telegram/Resources/numbers.txt 
+numbers_cpp.depends = ./../../Telegram/Resources/numbers.txt
 
 lang_auto_cpp.target = ./GeneratedFiles/lang_auto.cpp
 lang_auto_cpp.depends = FORCE
@@ -273,17 +273,25 @@ HEADERS += \
   ./SourceFiles/pspecific_mac.h
 }
 
+SOURCES += \
+  ./ThirdParty/minizip/zip.c \
+  ./ThirdParty/minizip/ioapi.c
+
 CONFIG += precompile_header
 
 PRECOMPILED_HEADER = ./SourceFiles/stdafx.h
 
 QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-result -Wno-unused-parameter -Wno-unused-variable -Wno-switch -Wno-comment -Wno-unused-but-set-variable
+QMAKE_CFLAGS_WARN_ON += -Wno-unused-result -Wno-unused-parameter -Wno-unused-variable -Wno-switch -Wno-comment -Wno-unused-but-set-variable
 
 CONFIG(release, debug|release) {
     QMAKE_CXXFLAGS_RELEASE -= -O2
-    QMAKE_CXXFLAGS_RELEASE += -Ofast -flto -fno-strict-aliasing
+    QMAKE_CXXFLAGS_RELEASE += -Ofast -flto -fno-strict-aliasing -g
     QMAKE_LFLAGS_RELEASE -= -O1
-    QMAKE_LFLAGS_RELEASE += -Ofast -flto
+    QMAKE_LFLAGS_RELEASE += -Ofast -flto -rdynamic -g
+}
+CONFIG(debug, debug|release) {
+	QMAKE_LFLAGS_DEBUG += -rdynamic -g
 }
 
 INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.5.1/QtGui\
@@ -291,7 +299,9 @@ INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.5.1/QtGui\
                ./../../Libraries/QtStatic/qtbase/include\
                /usr/local/include/opus\
                ./SourceFiles\
-               ./GeneratedFiles
+               ./GeneratedFiles\
+               ./ThirdParty/minizip\
+               ./../../Libraries/breakpad/src
 
 INCLUDEPATH += "/usr/include/libappindicator-0.1"
 INCLUDEPATH += "/usr/include/gtk-2.0"
@@ -308,11 +318,13 @@ INCLUDEPATH += "/usr/include/atk-1.0"
 INCLUDEPATH += "/usr/include/dee-1.0"
 INCLUDEPATH += "/usr/include/libdbusmenu-glib-0.4"
 
-LIBS += -lcrypto -lssl -lz -ldl -llzma -lexif -lopenal -lavformat -lavcodec -lswresample -lswscale -lavutil -lopus -lva
+LIBS += -lcrypto -lssl -ldl -llzma -lexif -lopenal -lavformat -lavcodec -lswresample -lswscale -lavutil -lopus -lva
 LIBS += ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libcomposeplatforminputcontextplugin.a \
         ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libibusplatforminputcontextplugin.a \
         ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.a
+LIBS += /usr/local/lib/libz.a
 LIBS += /usr/local/lib/libxkbcommon.a
+LIBS += ./../../../Libraries/breakpad/src/client/linux/libbreakpad_client.a
 
 RESOURCES += \
     ./SourceFiles/telegram.qrc \

@@ -32,12 +32,9 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 using std::deque;
 using std::wstring;
 
-#define _NEED_WIN_GENERATE_DUMP
-
-#ifdef _NEED_WIN_GENERATE_DUMP
 extern LPTOP_LEVEL_EXCEPTION_FILTER _oldWndExceptionFilter;
 LONG CALLBACK _exceptionFilter(EXCEPTION_POINTERS* pExceptionPointers);
-#endif _NEED_WIN_GENERATE_DUMP
+LPTOP_LEVEL_EXCEPTION_FILTER WINAPI RedirectedSetUnhandledExceptionFilter(_In_opt_ LPTOP_LEVEL_EXCEPTION_FILTER lpTopLevelExceptionFilter);
 
 static int updaterVersion = 1000;
 static const WCHAR *updaterVersionStr = L"0.1.0";

@@ -191,7 +191,7 @@ void UsernameBox::onChanged() {
 }
 
 void UsernameBox::onLinkClick() {
-	App::app()->clipboard()->setText(qsl("https://telegram.me/") + getName());
+	Application::clipboard()->setText(qsl("https://telegram.me/") + getName());
 	_copiedTextLink = lang(lng_username_copied);
 	update();
 }

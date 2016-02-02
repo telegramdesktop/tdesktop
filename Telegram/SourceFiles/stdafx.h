@@ -22,6 +22,10 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #define PSAPI_VERSION 1 // fix WinXP
 //#define Q_NO_TEMPLATE_FRIENDS // fix some compiler difference issues
 
+#define __STDC_FORMAT_MACROS // fix breakpad for mac
+
+#ifdef __cplusplus
+
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
@@ -38,6 +42,9 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include <QtNetwork/QNetworkAccessManager>
 #include <QtNetwork/QNetworkReply>
 #include <QtNetwork/QNetworkProxy>
+#include <QtNetwork/QLocalSocket>
+#include <QtNetwork/QLocalServer>
+#include <QtNetwork/QHttpMultiPart>
 
 #ifdef Q_OS_WIN // use Lzma SDK for win
 #include <LzmaLib.h>
@@ -45,19 +52,19 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include <lzma.h>
 #endif
 
-#if defined Q_OS_WIN
-#define _NEED_WIN_GENERATE_DUMP
-#elif defined Q_OS_LINUX32 || defined Q_OS_LINUX64
-#define _NEED_LINUX_GENERATE_DUMP
+extern "C" {
+
 #endif
 
-extern "C" {
+#include "zip.h"
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/opt.h>
 #include <libswresample/swresample.h>
 #include <libswscale/swscale.h>
+
+#ifdef __cplusplus
 
 }
 
@@ -80,3 +87,5 @@ extern "C" {
 #include "gui/flatlabel.h"
 
 #include "app.h"
+
+#endif

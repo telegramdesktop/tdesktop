@@ -80,7 +80,6 @@ void Button::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void Button::setOver(bool over, ButtonStateChangeSource source) {
-//	LOG(("Set over: %1, by: %2 AT %3").arg(logBool(over)).arg(source).arg(dynamic_cast<IconedButton*>(this) ? dynamic_cast<IconedButton*>(this)->getText() : qsl("Unknown")));
 	if (over && !(_state & StateOver)) {
 		int oldState = _state;
 		_state |= StateOver;

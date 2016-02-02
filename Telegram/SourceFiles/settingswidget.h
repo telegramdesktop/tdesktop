@@ -233,6 +233,7 @@ private:
 	QString _curVersionText, _newVersionText;
 	int32 _curVersionWidth, _newVersionWidth;
 
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	enum UpdatingState {
 		UpdatingNone,
 		UpdatingCheck,
@@ -243,6 +244,7 @@ private:
 	};
 	UpdatingState _updatingState;
 	QString _newVersionDownload;
+#endif
 
 	// chat options
 	FlatCheckbox _replaceEmojis;
@@ -296,12 +298,10 @@ private:
 	void offPasswordDone(const MTPBool &result);
 	bool offPasswordFail(const RPCError &error);
 
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void setUpdatingState(UpdatingState state, bool force = false);
 	void setDownloadProgress(qint64 ready, qint64 total);
-	#endif
-
-
+#endif
 };
 
 class SettingsWidget : public TWidget {
@@ -338,7 +338,7 @@ public:
 public slots:
 
 	void onParentResize(const QSize &newSize);
-	
+
 private:
 
 	void showAll();

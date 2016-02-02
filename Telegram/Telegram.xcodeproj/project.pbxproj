@@ -44,6 +44,8 @@
 		0710CA051B0B9404001B4272 /* moc_stickersetbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0710CA041B0B9404001B4272 /* moc_stickersetbox.cpp */; };
 		07129D6A1C16D230002DC495 /* mtpAuthKey.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07129D691C16D230002DC495 /* mtpAuthKey.cpp */; };
 		07129D6E1C16D245002DC495 /* facades.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07129D6C1C16D245002DC495 /* facades.cpp */; };
+		071AD8D21C5E8E6D008C9E90 /* zip.c in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8D11C5E8E6D008C9E90 /* zip.c */; };
+		071AD8F81C5E99D6008C9E90 /* ioapi.c in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8F71C5E99D6008C9E90 /* ioapi.c */; };
 		0732E4A9199E262300D50FE7 /* overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4A7199E262300D50FE7 /* overviewwidget.cpp */; };
 		0732E4AC199E268A00D50FE7 /* moc_overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */; };
 		074756191A1372C600CA07F7 /* moc_types.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074756181A1372C600CA07F7 /* moc_types.cpp */; };
@@ -276,6 +278,13 @@
 		07129D691C16D230002DC495 /* mtpAuthKey.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mtpAuthKey.cpp; path = SourceFiles/mtproto/mtpAuthKey.cpp; sourceTree = SOURCE_ROOT; };
 		07129D6C1C16D245002DC495 /* facades.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = facades.cpp; path = SourceFiles/facades.cpp; sourceTree = SOURCE_ROOT; };
 		07129D6D1C16D245002DC495 /* facades.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = facades.h; path = SourceFiles/facades.h; sourceTree = SOURCE_ROOT; };
+		071AD86B1C5E8536008C9E90 /* crypt.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = crypt.h; path = ThirdParty/minizip/crypt.h; sourceTree = SOURCE_ROOT; };
+		071AD86C1C5E8536008C9E90 /* ioapi.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ioapi.h; path = ThirdParty/minizip/ioapi.h; sourceTree = SOURCE_ROOT; };
+		071AD86E1C5E8536008C9E90 /* zip.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = zip.h; path = ThirdParty/minizip/zip.h; sourceTree = SOURCE_ROOT; };
+		071AD8D11C5E8E6D008C9E90 /* zip.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = zip.c; path = ThirdParty/minizip/zip.c; sourceTree = SOURCE_ROOT; };
+		071AD8F71C5E99D6008C9E90 /* ioapi.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ioapi.c; path = ThirdParty/minizip/ioapi.c; sourceTree = SOURCE_ROOT; };
+		071AD9091C5EA2A5008C9E90 /* Breakpad.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Breakpad.framework; path = Users/antanubis/TBuild/Libraries/breakpad/Breakpad.framework; sourceTree = "<group>"; };
+		071AD90B1C5EA37D008C9E90 /* Breakpad.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Breakpad.framework; path = "Users/antanubis/Library/Developer/Xcode/DerivedData/Breakpad-ffxagkgqghkohhawycvgjexmnjhs/Build/Products/Debug/Breakpad.framework"; sourceTree = "<group>"; };
 		072E117A1A56EB9400A87ACC /* lang_pt_BR.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_pt_BR.strings; path = SourceFiles/langs/lang_pt_BR.strings; sourceTree = SOURCE_ROOT; };
 		0732E4A7199E262300D50FE7 /* overviewwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = overviewwidget.cpp; path = SourceFiles/overviewwidget.cpp; sourceTree = SOURCE_ROOT; };
 		0732E4A8199E262300D50FE7 /* overviewwidget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = overviewwidget.h; path = SourceFiles/overviewwidget.h; sourceTree = SOURCE_ROOT; };
@@ -756,6 +765,26 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		071AD8691C5E8504008C9E90 /* ThirdParty */ = {
+			isa = PBXGroup;
+			children = (
+				071AD86A1C5E8522008C9E90 /* minizip */,
+			);
+			name = ThirdParty;
+			sourceTree = "<group>";
+		};
+		071AD86A1C5E8522008C9E90 /* minizip */ = {
+			isa = PBXGroup;
+			children = (
+				071AD86B1C5E8536008C9E90 /* crypt.h */,
+				071AD86C1C5E8536008C9E90 /* ioapi.h */,
+				071AD8F71C5E99D6008C9E90 /* ioapi.c */,
+				071AD86E1C5E8536008C9E90 /* zip.h */,
+				071AD8D11C5E8E6D008C9E90 /* zip.c */,
+			);
+			name = minizip;
+			sourceTree = "<group>";
+		};
 		074968CB1A44D0B800394F46 /* langs */ = {
 			isa = PBXGroup;
 			children = (
@@ -1223,6 +1252,8 @@
 		AF39DD055C3EF8226FBE929D /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				071AD90B1C5EA37D008C9E90 /* Breakpad.framework */,
+				071AD9091C5EA2A5008C9E90 /* Breakpad.framework */,
 				0752F8741C2C89F40026D0BC /* VideoToolbox.framework */,
 				0752F8721C2C89220026D0BC /* VideoDecodeAcceleration.framework */,
 				07CAACD71AEA64F00058E508 /* AudioUnit.framework */,
@@ -1293,6 +1324,7 @@
 				07084684195445A600B5AE3A /* Updater.xcodeproj */,
 				2EB56BE3C2D93CDAB0C52E67 /* Sources */,
 				25B08E2869634E9BCBA333A2 /* Generated Sources */,
+				071AD8691C5E8504008C9E90 /* ThirdParty */,
 				74B182DB50CB5611B5C1C297 /* Supporting Files */,
 				AF39DD055C3EF8226FBE929D /* Frameworks */,
 				FE0A091FDBFB3E9C31B7A1BD /* Products */,
@@ -1326,6 +1358,7 @@
 				D1C883685E82D5676953459A /* Link Binary With Libraries */,
 				07C3AF341948FC3B0016CFF1 /* Force Resources Directory */,
 				07C3AF25194336160016CFF1 /* Resources */,
+				071AD90E1C60AA74008C9E90 /* Copy crashpad_handler */,
 				07489B6D1A28972E00348CD9 /* Sign Application */,
 				0746AC8B1A28CD1C0040AE26 /* Make Installer */,
 			);
@@ -1413,6 +1446,20 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		071AD90E1C60AA74008C9E90 /* Copy crashpad_handler */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Copy crashpad_handler";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "mkdir -p \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Helpers\" && cp \"./../../Libraries/crashpad/crashpad/out/Release/crashpad_handler\" \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Helpers/\"";
+		};
 		0746AC8B1A28CD1C0040AE26 /* Make Installer */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -1557,6 +1604,7 @@
 				074FCB8E19D36851004C6EB2 /* popupmenu.cpp in Compile Sources */,
 				3AA6E7264581F82856FB37F7 /* text.cpp in Compile Sources */,
 				FCE6518C548DF7BC82228A4A /* twidget.cpp in Compile Sources */,
+				071AD8D21C5E8E6D008C9E90 /* zip.c in Compile Sources */,
 				E9F1CE7F9B18C7C85A50E62D /* style_auto.cpp in Compile Sources */,
 				EBE29731916DB43BF49FE7A4 /* aboutbox.cpp in Compile Sources */,
 				4426AF526AAD86D6F73CE36F /* addcontactbox.cpp in Compile Sources */,
@@ -1587,6 +1635,7 @@
 				352349751855EF76DECA4D60 /* moc_historywidget.cpp in Compile Sources */,
 				4B0036C794BEA27AF9419768 /* moc_layerwidget.cpp in Compile Sources */,
 				C14E6C902F6435B3149ECD64 /* moc_profilewidget.cpp in Compile Sources */,
+				071AD8F81C5E99D6008C9E90 /* ioapi.c in Compile Sources */,
 				074756191A1372C600CA07F7 /* moc_types.cpp in Compile Sources */,
 				98E4F55DB5D8E64AB9F08C83 /* moc_localimageloader.cpp in Compile Sources */,
 				A24E4B5B683764E07683ECEC /* moc_mainwidget.cpp in Compile Sources */,
@@ -1730,6 +1779,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CC = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
+				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_WARN_BOOL_CONVERSION = NO;
 				CLANG_WARN_CONSTANT_CONVERSION = NO;
 				CLANG_WARN_EMPTY_BODY = YES;
@@ -1777,6 +1828,10 @@
 					/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/System/Library/Frameworks/OpenGL.framework/Versions/A/Headers,
 					/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/System/Library/Frameworks/AGL.framework/Headers,
 					"/usr/local/Qt-5.5.1/mkspecs/macx-clang",
+					./ThirdParty/breakpad,
+					./ThirdParty/minizip,
+					./../../Libraries/crashpad/crashpad,
+					./../../Libraries/crashpad/crashpad/third_party/mini_chromium/mini_chromium,
 				);
 				INFOPLIST_FILE = Telegram.plist;
 				INSTALL_DIR = ./../Mac/Release/;
@@ -1798,7 +1853,6 @@
 					"-Wall",
 					"-W",
 					"-fPIE",
-					"-D_WITH_DEBUG",
 					"-DQT_WIDGETS_LIB",
 					"-DQT_NETWORK_LIB",
 					"-DQT_GUI_LIB",
@@ -1808,18 +1862,15 @@
 					"-Wno-unused-function",
 					"-Wno-switch",
 					"-Wno-comment",
-					"-I./../../Libraries/openssl-xcode/include",
 					"-DCUSTOM_API_ID",
+					"-I./../../Libraries/openssl-xcode/include",
 				);
 				OTHER_CPLUSPLUSFLAGS = (
 					"-pipe",
 					"-g",
-					"-std=c++11",
-					"-stdlib=libc++",
 					"-Wall",
 					"-W",
 					"-fPIE",
-					"-D_WITH_DEBUG",
 					"-DQT_WIDGETS_LIB",
 					"-DQT_NETWORK_LIB",
 					"-DQT_GUI_LIB",
@@ -1829,18 +1880,18 @@
 					"-Wno-unused-function",
 					"-Wno-switch",
 					"-Wno-comment",
-					"-I./../../Libraries/openssl-xcode/include",
 					"-DCUSTOM_API_ID",
+					"-I./../../Libraries/openssl-xcode/include",
 				);
 				OTHER_LDFLAGS = (
 					"-headerpad_max_install_names",
-					"-stdlib=libc++",
 					"-L/usr/local/Qt-5.5.1/lib",
 					"-L/usr/local/Qt-5.5.1/plugins/bearer",
 					"-L/usr/local/Qt-5.5.1/plugins/platforms",
 					"-lcups",
+					"-lbsm",
 					"-L/usr/local/Qt-5.5.1/plugins/imageformats",
-					"-lz",
+					/usr/local/lib/libz.a,
 					"-lm",
 					/usr/local/lib/libopenal.a,
 					/usr/local/lib/libopus.a,
@@ -1852,7 +1903,11 @@
 					/usr/local/lib/libswresample.a,
 					/usr/local/lib/libavutil.a,
 					/usr/local/lib/libiconv.a,
-					"../../Libraries/openssl-xcode/libcrypto.a",
+					"./../../Libraries/openssl-xcode/libcrypto.a",
+					./../../Libraries/crashpad/crashpad/out/Release/libbase.a,
+					./../../Libraries/crashpad/crashpad/out/Release/libcrashpad_client.a,
+					./../../Libraries/crashpad/crashpad/out/Release/libcrashpad_util.a,
+					"-g",
 				);
 				PRODUCT_NAME = Telegram;
 				QT_LIBRARY_SUFFIX = "";
@@ -1865,6 +1920,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CC = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
+				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_WARN_BOOL_CONVERSION = NO;
 				CLANG_WARN_CONSTANT_CONVERSION = NO;
 				CLANG_WARN_EMPTY_BODY = YES;
@@ -1913,6 +1970,10 @@
 					/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/System/Library/Frameworks/OpenGL.framework/Versions/A/Headers,
 					/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/System/Library/Frameworks/AGL.framework/Headers,
 					"/usr/local/Qt-5.5.1/mkspecs/macx-clang",
+					./ThirdParty/breakpad,
+					./ThirdParty/minizip,
+					./../../Libraries/crashpad/crashpad,
+					./../../Libraries/crashpad/crashpad/third_party/mini_chromium/mini_chromium,
 				);
 				INFOPLIST_FILE = Telegram.plist;
 				INSTALL_DIR = ./../Mac/Debug/;
@@ -1950,8 +2011,6 @@
 				OTHER_CPLUSPLUSFLAGS = (
 					"-pipe",
 					"-g",
-					"-std=c++11",
-					"-stdlib=libc++",
 					"-Wall",
 					"-W",
 					"-fPIE",
@@ -1969,13 +2028,13 @@
 				);
 				OTHER_LDFLAGS = (
 					"-headerpad_max_install_names",
-					"-stdlib=libc++",
 					"-L/usr/local/Qt-5.5.1/lib",
 					"-L/usr/local/Qt-5.5.1/plugins/bearer",
 					"-L/usr/local/Qt-5.5.1/plugins/platforms",
 					"-lcups",
+					"-lbsm",
 					"-L/usr/local/Qt-5.5.1/plugins/imageformats",
-					"-lz",
+					/usr/local/lib/libz.a,
 					"-lm",
 					/usr/local/lib/libopenal.a,
 					/usr/local/lib/libopus.a,
@@ -1987,7 +2046,11 @@
 					/usr/local/lib/libswresample.a,
 					/usr/local/lib/libavutil.a,
 					/usr/local/lib/libiconv.a,
-					"../../Libraries/openssl-xcode/libcrypto.a",
+					"./../../Libraries/openssl-xcode/libcrypto.a",
+					./../../Libraries/crashpad/crashpad/out/Release/libbase.a,
+					./../../Libraries/crashpad/crashpad/out/Release/libcrashpad_client.a,
+					./../../Libraries/crashpad/crashpad/out/Release/libcrashpad_util.a,
+					"-g",
 				);
 				PRODUCT_NAME = Telegram;
 				QT_LIBRARY_SUFFIX = _debug;

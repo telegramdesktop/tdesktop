@@ -24,6 +24,10 @@ namespace App {
 	const QPixmap &sprite();
 }
 
+namespace Fonts {
+	void start();
+}
+
 class Painter : public QPainter {
 public:
 	explicit Painter(QPaintDevice *device) : QPainter(device) {
