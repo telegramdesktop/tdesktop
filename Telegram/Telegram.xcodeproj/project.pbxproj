@@ -46,7 +46,6 @@
 		07129D6E1C16D245002DC495 /* facades.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07129D6C1C16D245002DC495 /* facades.cpp */; };
 		071AD8D21C5E8E6D008C9E90 /* zip.c in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8D11C5E8E6D008C9E90 /* zip.c */; };
 		071AD8F81C5E99D6008C9E90 /* ioapi.c in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8F71C5E99D6008C9E90 /* ioapi.c */; };
-		071AD90A1C5EA2A5008C9E90 /* Breakpad.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 071AD9091C5EA2A5008C9E90 /* Breakpad.framework */; };
 		0732E4A9199E262300D50FE7 /* overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4A7199E262300D50FE7 /* overviewwidget.cpp */; };
 		0732E4AC199E268A00D50FE7 /* moc_overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */; };
 		074756191A1372C600CA07F7 /* moc_types.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074756181A1372C600CA07F7 /* moc_types.cpp */; };
@@ -279,8 +278,6 @@
 		071AD86E1C5E8536008C9E90 /* zip.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = zip.h; path = ThirdParty/minizip/zip.h; sourceTree = SOURCE_ROOT; };
 		071AD8D11C5E8E6D008C9E90 /* zip.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = zip.c; path = ThirdParty/minizip/zip.c; sourceTree = SOURCE_ROOT; };
 		071AD8F71C5E99D6008C9E90 /* ioapi.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ioapi.c; path = ThirdParty/minizip/ioapi.c; sourceTree = SOURCE_ROOT; };
-		071AD9091C5EA2A5008C9E90 /* Breakpad.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Breakpad.framework; path = Users/antanubis/TBuild/Libraries/breakpad/Breakpad.framework; sourceTree = "<group>"; };
-		071AD90B1C5EA37D008C9E90 /* Breakpad.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Breakpad.framework; path = "Users/antanubis/Library/Developer/Xcode/DerivedData/Breakpad-ffxagkgqghkohhawycvgjexmnjhs/Build/Products/Debug/Breakpad.framework"; sourceTree = "<group>"; };
 		072E117A1A56EB9400A87ACC /* lang_pt_BR.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_pt_BR.strings; path = SourceFiles/langs/lang_pt_BR.strings; sourceTree = SOURCE_ROOT; };
 		0732E4A7199E262300D50FE7 /* overviewwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = overviewwidget.cpp; path = SourceFiles/overviewwidget.cpp; sourceTree = SOURCE_ROOT; };
 		0732E4A8199E262300D50FE7 /* overviewwidget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = overviewwidget.h; path = SourceFiles/overviewwidget.h; sourceTree = SOURCE_ROOT; };
@@ -504,7 +501,6 @@
 		77FF486B1F9BCD55A8A3F35D /* /usr/local/Qt-5.3.2/mkspecs/modules/qt_lib_concurrent.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.2/mkspecs/modules/qt_lib_concurrent.pri"; sourceTree = "<absolute>"; };
 		7A94C7168B3FCBE5F04A013B /* /usr/local/Qt-5.3.2/mkspecs/modules/qt_lib_declarative.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.2/mkspecs/modules/qt_lib_declarative.pri"; sourceTree = "<absolute>"; };
 		7C2F42B222EE88E26A6FED62 /* /usr/local/Qt-5.3.2/mkspecs/modules/qt_lib_designer_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.2/mkspecs/modules/qt_lib_designer_private.pri"; sourceTree = "<absolute>"; };
-		7C8F9CA4FCE8AF8FCCCB961E /* phoneinput.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = phoneinput.cpp; path = SourceFiles/gui/phoneinput.cpp; sourceTree = "<absolute>"; };
 		7CA6945B22800A0F30B75DA5 /* addcontactbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = addcontactbox.cpp; path = SourceFiles/boxes/addcontactbox.cpp; sourceTree = "<absolute>"; };
 		7CDE9D7CB2C729BC3612372B /* addcontactbox.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = addcontactbox.h; path = SourceFiles/boxes/addcontactbox.h; sourceTree = "<absolute>"; };
 		7D075A915E8739C1B6BC5F43 /* types.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = types.cpp; path = SourceFiles/types.cpp; sourceTree = "<absolute>"; };
@@ -1111,7 +1107,6 @@
 				060A694B42A4555240009936 /* /usr/local/Qt-5.3.2/mkspecs/modules/qt_plugin_qtga.pri */,
 				BD22EFEFCC02644B1883CE19 /* /usr/local/Qt-5.3.2/mkspecs/modules/qt_plugin_qtiff.pri */,
 				B8C1F6C965A7A14FBA8D4518 /* /usr/local/Qt-5.3.2/mkspecs/modules/qt_plugin_qtmedia_audioengine.pri */,
-				74C1C232DFAA71028A0412CA /* /usr/local/Qt-5.3.2/mkspecs/modules/qt_plugin_qtmultimedia_m3u.pri */,
 				C84546C18DCBB04166195DCF /* /usr/local/Qt-5.3.2/mkspecs/modules/qt_plugin_qtposition_positionpoll.pri */,
 				AB1C02DDBD8E88DD9A9AFDDD /* /usr/local/Qt-5.3.2/mkspecs/modules/qt_plugin_qtsensorgestures_plugin.pri */,
 				8B4BB4E74F8A4442EF563D7D /* /usr/local/Qt-5.3.2/mkspecs/modules/qt_plugin_qtsensorgestures_shakeplugin.pri */,
@@ -1772,8 +1767,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CC = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang;
-				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
-				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_WARN_BOOL_CONVERSION = NO;
 				CLANG_WARN_CONSTANT_CONVERSION = NO;
 				CLANG_WARN_EMPTY_BODY = YES;
@@ -1882,10 +1875,11 @@
 					"-L/usr/local/Qt-5.3.2/plugins/bearer",
 					"-L/usr/local/Qt-5.3.2/plugins/platforms",
 					"-lcups",
+					"-lbsm",
 					"-L/usr/local/Qt-5.3.2/plugins/imageformats",
-					/usr/local/lib/libz.a,
+					/usr/local/zlib_old/lib/libz.a,
 					"-lm",
-					/usr/local/lib/libopenal.a,
+					/usr/local/openal_old/lib/libopenal.a,
 					/usr/local/lib/libopus.a,
 					/usr/local/lib/liblzma.a,
 					/usr/local/lib/libexif.a,
@@ -1912,8 +1906,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CC = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang;
-				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
-				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_WARN_BOOL_CONVERSION = NO;
 				CLANG_WARN_CONSTANT_CONVERSION = NO;
 				CLANG_WARN_EMPTY_BODY = YES;
@@ -2024,10 +2016,11 @@
 					"-L/usr/local/Qt-5.3.2/plugins/bearer",
 					"-L/usr/local/Qt-5.3.2/plugins/platforms",
 					"-lcups",
+					"-lbsm",
 					"-L/usr/local/Qt-5.3.2/plugins/imageformats",
-					/usr/local/lib/libz.a,
+					/usr/local/zlib_old/lib/libz.a,
 					"-lm",
-					/usr/local/lib/libopenal.a,
+					/usr/local/openal_old/lib/libopenal.a,
 					/usr/local/lib/libopus.a,
 					/usr/local/lib/liblzma.a,
 					/usr/local/lib/libexif.a,
