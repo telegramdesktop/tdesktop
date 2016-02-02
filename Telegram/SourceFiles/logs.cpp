@@ -715,7 +715,8 @@ namespace SignalHandlers {
 
 		if (!LoggingCrashHeaderWritten) {
 			LoggingCrashHeaderWritten = true;
-			for (AnnotationsMap::const_iterator i = ProcessAnnotations.cbegin(), e = ProcessAnnotations.cend(); i != e; ++i) {
+			const AnnotationsMap c_ProcessAnnotations(ProcessAnnotations);
+			for (AnnotationsMap::const_iterator i = c_ProcessAnnotations.begin(), e = c_ProcessAnnotations.end(); i != e; ++i) {
 				dump() << i->first.c_str() << ": " << i->second.c_str() << "\n";
 			}
 			psWriteDump();
@@ -839,11 +840,11 @@ namespace SignalHandlers {
 #endif
 
 	void StartBreakpad() {
-		ProcessAnnotations["Binary"] = cExeName().toUtf8().toStdString();
-		ProcessAnnotations["ApiId"] = QString::number(ApiId).toUtf8().toStdString();
-		ProcessAnnotations["Version"] = (cBetaVersion() ? qsl("%1 beta").arg(cBetaVersion()) : (cDevVersion() ? qsl("%1 dev") : qsl("%1")).arg(AppVersion)).toUtf8().toStdString();
-		ProcessAnnotations["Launched"] = QDateTime::currentDateTime().toString("dd.MM.yyyy hh:mm:ss").toUtf8().toStdString();
-		ProcessAnnotations["Platform"] = cPlatformString().toUtf8().toStdString();
+		ProcessAnnotations["Binary"] = cExeName().toUtf8().constData();
+		ProcessAnnotations["ApiId"] = QString::number(ApiId).toUtf8().constData();
+		ProcessAnnotations["Version"] = (cBetaVersion() ? qsl("%1 beta").arg(cBetaVersion()) : (cDevVersion() ? qsl("%1 dev") : qsl("%1")).arg(AppVersion)).toUtf8().constData();
+		ProcessAnnotations["Launched"] = QDateTime::currentDateTime().toString("dd.MM.yyyy hh:mm:ss").toUtf8().constData();
+		ProcessAnnotations["Platform"] = cPlatformString().toUtf8().constData();
 
 		QString dumpspath = cWorkingDir() + qsl("tdata/dumps");
 		QDir().mkpath(dumpspath);
@@ -870,8 +871,8 @@ namespace SignalHandlers {
 		SetSignalHandlers = false;
 #else
 		crashpad::CrashpadClient crashpad_client;
-		std::string handler = (cExeDir() + cExeName() + qsl("/Contents/Helpers/crashpad_handler")).toUtf8().toStdString();
-		std::string database = dumpspath.toUtf8().toStdString();
+		std::string handler = (cExeDir() + cExeName() + qsl("/Contents/Helpers/crashpad_handler")).toUtf8().constData();
+		std::string database = dumpspath.toUtf8().constData();
 		if (crashpad_client.StartHandler(base::FilePath(handler),
 										 base::FilePath(database),
 										 std::string(),
