@@ -28,6 +28,20 @@ In your build Terminal run:
 
 to set minimal supported OS version to 10.8 for future console builds.
 
+####zlib 1.2.8
+
+http://www.zlib.net/ > Download [**zlib source code, version 1.2.8, zipfile format**](http://zlib.net/zlib128.zip)
+
+Extract to **/Users/user/TBuild/Libraries**
+
+#####Building library
+
+In Terminal go to **/Users/user/TBuild/Libraries/zlib-1.2.8** and run:
+
+	CFLAGS="-mmacosx-version-min=10.8" LDFLAGS="-mmacosx-version-min=10.8" ./configure
+	make
+	sudo make install
+
 ####OpenSSL 1.0.1g
 
 #####Get openssl-xcode project file 
@@ -37,7 +51,7 @@ From https://github.com/telegramdesktop/openssl-xcode with git in Terminal:
 * go to **/Users/user/TBuild/Libraries
 * run:
  
-		git clone https://github.com/telegramdesktop/openssl-xcode.git
+	git clone https://github.com/telegramdesktop/openssl-xcode.git
 
 or:
 

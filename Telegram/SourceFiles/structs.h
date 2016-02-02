@@ -25,6 +25,13 @@ typedef void(*InterfaceConstruct)(void *location, Interfaces *interfaces);
 typedef void(*InterfaceDestruct)(void *location);
 
 struct InterfaceWrapStruct {
+	InterfaceWrapStruct() : Size(0), Construct(0), Destruct(0) {
+	}
+	InterfaceWrapStruct(int size, InterfaceConstruct construct, InterfaceDestruct destruct)
+	: Size(size)
+	, Construct(construct)
+	, Destruct(destruct) {
+	}
 	int Size;
 	InterfaceConstruct Construct;
 	InterfaceDestruct Destruct;
@@ -62,7 +69,7 @@ public:
 			if (InterfaceIndexLast.testAndSetOrdered(last, last + 1)) {
 				t_assert(last < 64);
 				if (_index.testAndSetOrdered(0, last + 1)) {
-					InterfaceWraps[last] = { InterfaceWrapTemplate<Type>::Size, InterfaceWrapTemplate<Type>::Construct, InterfaceWrapTemplate<Type>::Destruct };
+					InterfaceWraps[last] = InterfaceWrapStruct(InterfaceWrapTemplate<Type>::Size, InterfaceWrapTemplate<Type>::Construct, InterfaceWrapTemplate<Type>::Destruct);
 				}
 				break;
 			}

@@ -61,9 +61,7 @@ const InterfacesMetadata *GetInterfacesMetadata(uint64 mask) {
 	return i.value();
 }
 
-InterfaceWrapStruct InterfaceWraps[64] = {
-	{ 0, 0, 0 }
-};
+InterfaceWrapStruct InterfaceWraps[64];
 
 QAtomicInt InterfaceIndexLast(0);
 
