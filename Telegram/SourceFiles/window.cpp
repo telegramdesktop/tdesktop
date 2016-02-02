@@ -2018,26 +2018,30 @@ LastCrashedWindow::LastCrashedWindow()
 {
 
 	if (_sendingState != SendingNoReport) {
-        qint64 dumpSize = 0;
-        QString possibleDump = getReportField(qstr("minidump"), qstr("Minidump:"));
-        if (!possibleDump.isEmpty()) {
-            if (!possibleDump.startsWith('/')) {
-                possibleDump = cWorkingDir() + qsl("tdumps/") + possibleDump;
-            }
+		qint64 dumpsize = 0;
+		QString dumpspath = cWorkingDir() + qsl("tdata/dumps");
+#if defined Q_OS_MAC && !defined MAC_USE_BREAKPAD
+		dumpspath += qsl("/completed");
+#endif
+		QString possibleDump = getReportField(qstr("minidump"), qstr("Minidump:"));
+		if (!possibleDump.isEmpty()) {
+			if (!possibleDump.startsWith('/')) {
+				possibleDump = dumpspath + '/' + possibleDump;
+			}
 			if (!possibleDump.endsWith('.dmp')) {
 				possibleDump += qsl(".dmp");
 			}
-            QFileInfo possibleInfo(possibleDump);
-            if (possibleInfo.exists()) {
-                _minidumpName = possibleInfo.fileName();
-                _minidumpFull = possibleInfo.absoluteFilePath();
-                dumpSize = possibleInfo.size();
-            }
-        }
-        if (_minidumpFull.isEmpty()) {
-            QString maxDump, maxDumpFull;
+			QFileInfo possibleInfo(possibleDump);
+			if (possibleInfo.exists()) {
+				_minidumpName = possibleInfo.fileName();
+				_minidumpFull = possibleInfo.absoluteFilePath();
+				dumpsize = possibleInfo.size();
+			}
+		}
+		if (_minidumpFull.isEmpty()) {
+			QString maxDump, maxDumpFull;
             QDateTime maxDumpModified, workingModified = QFileInfo(cWorkingDir() + qsl("tdata/working")).lastModified();
-            QFileInfoList list = QDir(cWorkingDir() + qsl("tdumps")).entryInfoList();
+			QFileInfoList list = QDir(dumpspath).entryInfoList();
             for (int32 i = 0, l = list.size(); i < l; ++i) {
                 QString name = list.at(i).fileName();
                 if (name.endsWith(qstr(".dmp"))) {
@@ -2046,7 +2050,7 @@ LastCrashedWindow::LastCrashedWindow()
                         maxDump = name;
                         maxDumpModified = modified;
                         maxDumpFull = list.at(i).absoluteFilePath();
-                        dumpSize = list.at(i).size();
+                        dumpsize = list.at(i).size();
                     }
                 }
             }
@@ -2056,7 +2060,7 @@ LastCrashedWindow::LastCrashedWindow()
             }
         }
 
-		_minidump.setText(qsl("+ %1 (%2 KB)").arg(_minidumpName).arg(dumpSize / 1024));
+		_minidump.setText(qsl("+ %1 (%2 KB)").arg(_minidumpName).arg(dumpsize / 1024));
 	}
 
 	_networkSettings.setText(qsl("NETWORK SETTINGS"));
@@ -2303,6 +2307,7 @@ void LastCrashedWindow::onCheckingFinished() {
 		return;
 	} else if (result != "Report") {
 		_pleaseSendReport.setText(qsl("This report is about some old version of Telegram Desktop."));
+		_pleaseSendReport.setText(qsl("Response: %1").arg(QString::fromLatin1(result)));
 		_sendingState = SendingTooOld;
 		updateControls();
 		return;

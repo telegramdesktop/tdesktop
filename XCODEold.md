@@ -22,6 +22,20 @@ In your build Terminal run
 
 to set minimal supported OS version to 10.6 for future console builds.
 
+####zlib 1.2.8
+
+http://www.zlib.net/ > Download [**zlib source code, version 1.2.8, zipfile format**](http://zlib.net/zlib128.zip)
+
+Extract to **/Users/user/TBuild/Libraries**
+
+#####Building library
+
+In Terminal go to **/Users/user/TBuild/Libraries/zlib-1.2.8** and run:
+
+        prefix=/usr/local/zlib_old CFLAGS="-mmacosx-version-min=10.6" LDFLAGS="-mmacosx-version-min=10.6" ./configure
+        make
+        sudo make install
+
 ####OpenSSL 1.0.1g
 
 Get sources from https://github.com/telegramdesktop/openssl-xcode, by git – in Terminal go to **/Users/user/TBuild/Libraries** and run
@@ -85,7 +99,7 @@ to have **/Users/user/TBuild/Libraries/openal-soft/CMakeLists.txt**
 
 In Terminal go to **/Users/user/TBuild/Libraries/openal-soft/build** and there run
 
-    cmake -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.6 ..
+    cmake -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.6 -D CMAKE_INSTALL_PREFIX:STRING=/usr/local/openal_old ..
     make
     sudo make install
 

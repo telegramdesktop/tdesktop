@@ -45,25 +45,7 @@
 		07129D6A1C16D230002DC495 /* mtpAuthKey.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07129D691C16D230002DC495 /* mtpAuthKey.cpp */; };
 		07129D6E1C16D245002DC495 /* facades.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07129D6C1C16D245002DC495 /* facades.cpp */; };
 		071AD8D21C5E8E6D008C9E90 /* zip.c in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8D11C5E8E6D008C9E90 /* zip.c */; };
-		071AD8D71C5E8F35008C9E90 /* breakpad_nlist_64.cc in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8D31C5E8F35008C9E90 /* breakpad_nlist_64.cc */; };
-		071AD8D81C5E8F35008C9E90 /* dynamic_images.cc in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8D41C5E8F35008C9E90 /* dynamic_images.cc */; };
-		071AD8D91C5E8F35008C9E90 /* exception_handler.cc in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8D51C5E8F35008C9E90 /* exception_handler.cc */; };
-		071AD8DA1C5E8F35008C9E90 /* minidump_generator.cc in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8D61C5E8F35008C9E90 /* minidump_generator.cc */; };
-		071AD8DE1C5E912C008C9E90 /* crash_generation_client.cc in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8DC1C5E912C008C9E90 /* crash_generation_client.cc */; };
-		071AD8DF1C5E912C008C9E90 /* crash_generation_server.cc in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8DD1C5E912C008C9E90 /* crash_generation_server.cc */; };
-		071AD8E21C5E9143008C9E90 /* minidump_file_writer.cc in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8E11C5E9143008C9E90 /* minidump_file_writer.cc */; };
-		071AD8E61C5E9196008C9E90 /* convert_UTF.c in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8E31C5E9196008C9E90 /* convert_UTF.c */; };
-		071AD8E71C5E9196008C9E90 /* md5.cc in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8E41C5E9196008C9E90 /* md5.cc */; };
-		071AD8E81C5E9196008C9E90 /* string_conversion.cc in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8E51C5E9196008C9E90 /* string_conversion.cc */; };
-		071AD8F01C5E91E3008C9E90 /* bootstrap_compat.cc in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8E91C5E91E3008C9E90 /* bootstrap_compat.cc */; };
-		071AD8F11C5E91E3008C9E90 /* file_id.cc in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8EA1C5E91E3008C9E90 /* file_id.cc */; };
-		071AD8F21C5E91E3008C9E90 /* MachIPC.mm in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8EB1C5E91E3008C9E90 /* MachIPC.mm */; };
-		071AD8F31C5E91E3008C9E90 /* macho_id.cc in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8EC1C5E91E3008C9E90 /* macho_id.cc */; };
-		071AD8F41C5E91E3008C9E90 /* macho_utilities.cc in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8ED1C5E91E3008C9E90 /* macho_utilities.cc */; };
-		071AD8F51C5E91E3008C9E90 /* macho_walker.cc in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8EE1C5E91E3008C9E90 /* macho_walker.cc */; };
-		071AD8F61C5E91E3008C9E90 /* string_utilities.cc in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8EF1C5E91E3008C9E90 /* string_utilities.cc */; };
 		071AD8F81C5E99D6008C9E90 /* ioapi.c in Compile Sources */ = {isa = PBXBuildFile; fileRef = 071AD8F71C5E99D6008C9E90 /* ioapi.c */; };
-		071AD90A1C5EA2A5008C9E90 /* Breakpad.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 071AD9091C5EA2A5008C9E90 /* Breakpad.framework */; };
 		0732E4A9199E262300D50FE7 /* overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4A7199E262300D50FE7 /* overviewwidget.cpp */; };
 		0732E4AC199E268A00D50FE7 /* moc_overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */; };
 		074756191A1372C600CA07F7 /* moc_types.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074756181A1372C600CA07F7 /* moc_types.cpp */; };
@@ -299,67 +281,7 @@
 		071AD86B1C5E8536008C9E90 /* crypt.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = crypt.h; path = ThirdParty/minizip/crypt.h; sourceTree = SOURCE_ROOT; };
 		071AD86C1C5E8536008C9E90 /* ioapi.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ioapi.h; path = ThirdParty/minizip/ioapi.h; sourceTree = SOURCE_ROOT; };
 		071AD86E1C5E8536008C9E90 /* zip.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = zip.h; path = ThirdParty/minizip/zip.h; sourceTree = SOURCE_ROOT; };
-		071AD8751C5E85A0008C9E90 /* exception_handler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = exception_handler.h; path = ThirdParty/breakpad/client/mac/handler/exception_handler.h; sourceTree = SOURCE_ROOT; };
-		071AD8791C5E8672008C9E90 /* crash_generation_client.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = crash_generation_client.h; sourceTree = "<group>"; };
-		071AD87B1C5E8688008C9E90 /* ucontext_compat.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ucontext_compat.h; path = ThirdParty/breakpad/client/mac/handler/ucontext_compat.h; sourceTree = SOURCE_ROOT; };
-		071AD87F1C5E87AA008C9E90 /* scoped_ptr.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = scoped_ptr.h; path = ThirdParty/breakpad/common/scoped_ptr.h; sourceTree = SOURCE_ROOT; };
-		071AD8811C5E87C2008C9E90 /* MachIPC.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = MachIPC.h; path = ThirdParty/breakpad/common/mac/MachIPC.h; sourceTree = SOURCE_ROOT; };
-		071AD8851C5E8853008C9E90 /* bootstrap_compat.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = bootstrap_compat.h; path = ThirdParty/breakpad/common/mac/bootstrap_compat.h; sourceTree = SOURCE_ROOT; };
-		071AD8881C5E8886008C9E90 /* minidump_generator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = minidump_generator.h; path = ThirdParty/breakpad/client/mac/handler/minidump_generator.h; sourceTree = SOURCE_ROOT; };
-		071AD88B1C5E88AA008C9E90 /* crash_generation_server.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = crash_generation_server.h; sourceTree = "<group>"; };
-		071AD88D1C5E88CD008C9E90 /* minidump_file_writer-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "minidump_file_writer-inl.h"; path = "ThirdParty/breakpad/client/minidump_file_writer-inl.h"; sourceTree = SOURCE_ROOT; };
-		071AD88F1C5E88CD008C9E90 /* minidump_file_writer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = minidump_file_writer.h; path = ThirdParty/breakpad/client/minidump_file_writer.h; sourceTree = SOURCE_ROOT; };
-		071AD8911C5E88EA008C9E90 /* client_info.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = client_info.h; sourceTree = "<group>"; };
-		071AD8921C5E8994008C9E90 /* memory.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = memory.h; path = ThirdParty/breakpad/common/memory.h; sourceTree = SOURCE_ROOT; };
-		071AD8951C5E89D1008C9E90 /* breakpad_types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = breakpad_types.h; path = ThirdParty/breakpad/google_breakpad/common/breakpad_types.h; sourceTree = SOURCE_ROOT; };
-		071AD8961C5E89D1008C9E90 /* minidump_cpu_amd64.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = minidump_cpu_amd64.h; path = ThirdParty/breakpad/google_breakpad/common/minidump_cpu_amd64.h; sourceTree = SOURCE_ROOT; };
-		071AD8971C5E89D1008C9E90 /* minidump_cpu_arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = minidump_cpu_arm.h; path = ThirdParty/breakpad/google_breakpad/common/minidump_cpu_arm.h; sourceTree = SOURCE_ROOT; };
-		071AD8981C5E89D1008C9E90 /* minidump_cpu_arm64.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = minidump_cpu_arm64.h; path = ThirdParty/breakpad/google_breakpad/common/minidump_cpu_arm64.h; sourceTree = SOURCE_ROOT; };
-		071AD8991C5E89D1008C9E90 /* minidump_cpu_mips.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = minidump_cpu_mips.h; path = ThirdParty/breakpad/google_breakpad/common/minidump_cpu_mips.h; sourceTree = SOURCE_ROOT; };
-		071AD89A1C5E89D1008C9E90 /* minidump_cpu_ppc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = minidump_cpu_ppc.h; path = ThirdParty/breakpad/google_breakpad/common/minidump_cpu_ppc.h; sourceTree = SOURCE_ROOT; };
-		071AD89B1C5E89D1008C9E90 /* minidump_cpu_ppc64.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = minidump_cpu_ppc64.h; path = ThirdParty/breakpad/google_breakpad/common/minidump_cpu_ppc64.h; sourceTree = SOURCE_ROOT; };
-		071AD89C1C5E89D1008C9E90 /* minidump_cpu_sparc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = minidump_cpu_sparc.h; path = ThirdParty/breakpad/google_breakpad/common/minidump_cpu_sparc.h; sourceTree = SOURCE_ROOT; };
-		071AD89D1C5E89D1008C9E90 /* minidump_cpu_x86.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = minidump_cpu_x86.h; path = ThirdParty/breakpad/google_breakpad/common/minidump_cpu_x86.h; sourceTree = SOURCE_ROOT; };
-		071AD89E1C5E89D1008C9E90 /* minidump_exception_linux.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = minidump_exception_linux.h; path = ThirdParty/breakpad/google_breakpad/common/minidump_exception_linux.h; sourceTree = SOURCE_ROOT; };
-		071AD89F1C5E89D1008C9E90 /* minidump_exception_mac.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = minidump_exception_mac.h; path = ThirdParty/breakpad/google_breakpad/common/minidump_exception_mac.h; sourceTree = SOURCE_ROOT; };
-		071AD8A01C5E89D1008C9E90 /* minidump_exception_ps3.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = minidump_exception_ps3.h; path = ThirdParty/breakpad/google_breakpad/common/minidump_exception_ps3.h; sourceTree = SOURCE_ROOT; };
-		071AD8A11C5E89D1008C9E90 /* minidump_exception_solaris.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = minidump_exception_solaris.h; path = ThirdParty/breakpad/google_breakpad/common/minidump_exception_solaris.h; sourceTree = SOURCE_ROOT; };
-		071AD8A21C5E89D1008C9E90 /* minidump_exception_win32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = minidump_exception_win32.h; path = ThirdParty/breakpad/google_breakpad/common/minidump_exception_win32.h; sourceTree = SOURCE_ROOT; };
-		071AD8A31C5E89D1008C9E90 /* minidump_format.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = minidump_format.h; path = ThirdParty/breakpad/google_breakpad/common/minidump_format.h; sourceTree = SOURCE_ROOT; };
-		071AD8A41C5E89D1008C9E90 /* minidump_size.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = minidump_size.h; path = ThirdParty/breakpad/google_breakpad/common/minidump_size.h; sourceTree = SOURCE_ROOT; };
-		071AD8A61C5E8A30008C9E90 /* macho_utilities.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = macho_utilities.h; path = ThirdParty/breakpad/common/mac/macho_utilities.h; sourceTree = SOURCE_ROOT; };
-		071AD8A91C5E8A7B008C9E90 /* dynamic_images.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = dynamic_images.h; path = ThirdParty/breakpad/client/mac/handler/dynamic_images.h; sourceTree = SOURCE_ROOT; };
-		071AD8AB1C5E8A99008C9E90 /* mach_vm_compat.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = mach_vm_compat.h; path = ThirdParty/breakpad/client/mac/handler/mach_vm_compat.h; sourceTree = SOURCE_ROOT; };
-		071AD8AD1C5E8B07008C9E90 /* breakpad_nlist_64.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = breakpad_nlist_64.h; path = ThirdParty/breakpad/client/mac/handler/breakpad_nlist_64.h; sourceTree = SOURCE_ROOT; };
-		071AD8AF1C5E8B16008C9E90 /* byteswap.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = byteswap.h; path = ThirdParty/breakpad/common/mac/byteswap.h; sourceTree = SOURCE_ROOT; };
-		071AD8B11C5E8B23008C9E90 /* linux_libc_support.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = linux_libc_support.h; path = ThirdParty/breakpad/common/linux/linux_libc_support.h; sourceTree = SOURCE_ROOT; };
-		071AD8B31C5E8B43008C9E90 /* string_conversion.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = string_conversion.h; path = ThirdParty/breakpad/common/string_conversion.h; sourceTree = SOURCE_ROOT; };
-		071AD8B61C5E8B5C008C9E90 /* file_id.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = file_id.h; path = ThirdParty/breakpad/common/mac/file_id.h; sourceTree = SOURCE_ROOT; };
-		071AD8B81C5E8B81008C9E90 /* scoped_task_suspend-inl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "scoped_task_suspend-inl.h"; path = "ThirdParty/breakpad/common/mac/scoped_task_suspend-inl.h"; sourceTree = SOURCE_ROOT; };
-		071AD8BA1C5E8B9B008C9E90 /* macho_id.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = macho_id.h; path = ThirdParty/breakpad/common/mac/macho_id.h; sourceTree = SOURCE_ROOT; };
-		071AD8BD1C5E8BB0008C9E90 /* convert_UTF.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = convert_UTF.h; path = ThirdParty/breakpad/common/convert_UTF.h; sourceTree = SOURCE_ROOT; };
-		071AD8BF1C5E8BC8008C9E90 /* using_std_string.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = using_std_string.h; path = ThirdParty/breakpad/common/using_std_string.h; sourceTree = SOURCE_ROOT; };
-		071AD8C11C5E8BE5008C9E90 /* macho_walker.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = macho_walker.h; path = ThirdParty/breakpad/common/mac/macho_walker.h; sourceTree = SOURCE_ROOT; };
-		071AD8C41C5E8BFD008C9E90 /* md5.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = md5.h; path = ThirdParty/breakpad/common/md5.h; sourceTree = SOURCE_ROOT; };
-		071AD8C71C5E8C14008C9E90 /* string_utilities.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = string_utilities.h; path = ThirdParty/breakpad/common/mac/string_utilities.h; sourceTree = SOURCE_ROOT; };
 		071AD8D11C5E8E6D008C9E90 /* zip.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = zip.c; path = ThirdParty/minizip/zip.c; sourceTree = SOURCE_ROOT; };
-		071AD8D31C5E8F35008C9E90 /* breakpad_nlist_64.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = breakpad_nlist_64.cc; path = ThirdParty/breakpad/client/mac/handler/breakpad_nlist_64.cc; sourceTree = SOURCE_ROOT; };
-		071AD8D41C5E8F35008C9E90 /* dynamic_images.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = dynamic_images.cc; path = ThirdParty/breakpad/client/mac/handler/dynamic_images.cc; sourceTree = SOURCE_ROOT; };
-		071AD8D51C5E8F35008C9E90 /* exception_handler.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = exception_handler.cc; path = ThirdParty/breakpad/client/mac/handler/exception_handler.cc; sourceTree = SOURCE_ROOT; };
-		071AD8D61C5E8F35008C9E90 /* minidump_generator.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = minidump_generator.cc; path = ThirdParty/breakpad/client/mac/handler/minidump_generator.cc; sourceTree = SOURCE_ROOT; };
-		071AD8DC1C5E912C008C9E90 /* crash_generation_client.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = crash_generation_client.cc; sourceTree = "<group>"; };
-		071AD8DD1C5E912C008C9E90 /* crash_generation_server.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = crash_generation_server.cc; sourceTree = "<group>"; };
-		071AD8E11C5E9143008C9E90 /* minidump_file_writer.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = minidump_file_writer.cc; path = ThirdParty/breakpad/client/minidump_file_writer.cc; sourceTree = SOURCE_ROOT; };
-		071AD8E31C5E9196008C9E90 /* convert_UTF.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = convert_UTF.c; path = ThirdParty/breakpad/common/convert_UTF.c; sourceTree = SOURCE_ROOT; };
-		071AD8E41C5E9196008C9E90 /* md5.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = md5.cc; path = ThirdParty/breakpad/common/md5.cc; sourceTree = SOURCE_ROOT; };
-		071AD8E51C5E9196008C9E90 /* string_conversion.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = string_conversion.cc; path = ThirdParty/breakpad/common/string_conversion.cc; sourceTree = SOURCE_ROOT; };
-		071AD8E91C5E91E3008C9E90 /* bootstrap_compat.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = bootstrap_compat.cc; path = ThirdParty/breakpad/common/mac/bootstrap_compat.cc; sourceTree = SOURCE_ROOT; };
-		071AD8EA1C5E91E3008C9E90 /* file_id.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = file_id.cc; path = ThirdParty/breakpad/common/mac/file_id.cc; sourceTree = SOURCE_ROOT; };
-		071AD8EB1C5E91E3008C9E90 /* MachIPC.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = MachIPC.mm; path = ThirdParty/breakpad/common/mac/MachIPC.mm; sourceTree = SOURCE_ROOT; };
-		071AD8EC1C5E91E3008C9E90 /* macho_id.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = macho_id.cc; path = ThirdParty/breakpad/common/mac/macho_id.cc; sourceTree = SOURCE_ROOT; };
-		071AD8ED1C5E91E3008C9E90 /* macho_utilities.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = macho_utilities.cc; path = ThirdParty/breakpad/common/mac/macho_utilities.cc; sourceTree = SOURCE_ROOT; };
-		071AD8EE1C5E91E3008C9E90 /* macho_walker.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = macho_walker.cc; path = ThirdParty/breakpad/common/mac/macho_walker.cc; sourceTree = SOURCE_ROOT; };
-		071AD8EF1C5E91E3008C9E90 /* string_utilities.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = string_utilities.cc; path = ThirdParty/breakpad/common/mac/string_utilities.cc; sourceTree = SOURCE_ROOT; };
 		071AD8F71C5E99D6008C9E90 /* ioapi.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ioapi.c; path = ThirdParty/minizip/ioapi.c; sourceTree = SOURCE_ROOT; };
 		071AD9091C5EA2A5008C9E90 /* Breakpad.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Breakpad.framework; path = Users/antanubis/TBuild/Libraries/breakpad/Breakpad.framework; sourceTree = "<group>"; };
 		071AD90B1C5EA37D008C9E90 /* Breakpad.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Breakpad.framework; path = "Users/antanubis/Library/Developer/Xcode/DerivedData/Breakpad-ffxagkgqghkohhawycvgjexmnjhs/Build/Products/Debug/Breakpad.framework"; sourceTree = "<group>"; };
@@ -787,7 +709,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				071AD90A1C5EA2A5008C9E90 /* Breakpad.framework in Link Binary With Libraries */,
 				0752F8751C2C89F40026D0BC /* VideoToolbox.framework in Link Binary With Libraries */,
 				0752F8731C2C89220026D0BC /* VideoDecodeAcceleration.framework in Link Binary With Libraries */,
 				07CAACD81AEA64F00058E508 /* AudioUnit.framework in Link Binary With Libraries */,
@@ -846,7 +767,6 @@
 		071AD8691C5E8504008C9E90 /* ThirdParty */ = {
 			isa = PBXGroup;
 			children = (
-				071AD8701C5E8546008C9E90 /* breakpad */,
 				071AD86A1C5E8522008C9E90 /* minizip */,
 			);
 			name = ThirdParty;
@@ -862,146 +782,6 @@
 				071AD8D11C5E8E6D008C9E90 /* zip.c */,
 			);
 			name = minizip;
-			sourceTree = "<group>";
-		};
-		071AD8701C5E8546008C9E90 /* breakpad */ = {
-			isa = PBXGroup;
-			children = (
-				071AD8931C5E89BE008C9E90 /* google_breakpad */,
-				071AD87E1C5E8792008C9E90 /* common */,
-				071AD8711C5E8569008C9E90 /* client */,
-			);
-			name = breakpad;
-			sourceTree = "<group>";
-		};
-		071AD8711C5E8569008C9E90 /* client */ = {
-			isa = PBXGroup;
-			children = (
-				071AD88D1C5E88CD008C9E90 /* minidump_file_writer-inl.h */,
-				071AD88F1C5E88CD008C9E90 /* minidump_file_writer.h */,
-				071AD8E11C5E9143008C9E90 /* minidump_file_writer.cc */,
-				071AD8721C5E8575008C9E90 /* mac */,
-			);
-			name = client;
-			sourceTree = "<group>";
-		};
-		071AD8721C5E8575008C9E90 /* mac */ = {
-			isa = PBXGroup;
-			children = (
-				071AD8771C5E8672008C9E90 /* crash_generation */,
-				071AD8731C5E8579008C9E90 /* handler */,
-			);
-			name = mac;
-			sourceTree = "<group>";
-		};
-		071AD8731C5E8579008C9E90 /* handler */ = {
-			isa = PBXGroup;
-			children = (
-				071AD8D31C5E8F35008C9E90 /* breakpad_nlist_64.cc */,
-				071AD8AD1C5E8B07008C9E90 /* breakpad_nlist_64.h */,
-				071AD8D41C5E8F35008C9E90 /* dynamic_images.cc */,
-				071AD8A91C5E8A7B008C9E90 /* dynamic_images.h */,
-				071AD8751C5E85A0008C9E90 /* exception_handler.h */,
-				071AD8D51C5E8F35008C9E90 /* exception_handler.cc */,
-				071AD8AB1C5E8A99008C9E90 /* mach_vm_compat.h */,
-				071AD8881C5E8886008C9E90 /* minidump_generator.h */,
-				071AD8D61C5E8F35008C9E90 /* minidump_generator.cc */,
-				071AD87B1C5E8688008C9E90 /* ucontext_compat.h */,
-			);
-			name = handler;
-			sourceTree = "<group>";
-		};
-		071AD8771C5E8672008C9E90 /* crash_generation */ = {
-			isa = PBXGroup;
-			children = (
-				071AD8911C5E88EA008C9E90 /* client_info.h */,
-				071AD8791C5E8672008C9E90 /* crash_generation_client.h */,
-				071AD8DC1C5E912C008C9E90 /* crash_generation_client.cc */,
-				071AD88B1C5E88AA008C9E90 /* crash_generation_server.h */,
-				071AD8DD1C5E912C008C9E90 /* crash_generation_server.cc */,
-			);
-			name = crash_generation;
-			path = ThirdParty/breakpad/client/mac/crash_generation;
-			sourceTree = SOURCE_ROOT;
-		};
-		071AD87E1C5E8792008C9E90 /* common */ = {
-			isa = PBXGroup;
-			children = (
-				071AD8B01C5E8B1B008C9E90 /* linux */,
-				071AD8801C5E87B5008C9E90 /* mac */,
-				071AD8BD1C5E8BB0008C9E90 /* convert_UTF.h */,
-				071AD8E31C5E9196008C9E90 /* convert_UTF.c */,
-				071AD8C41C5E8BFD008C9E90 /* md5.h */,
-				071AD8E41C5E9196008C9E90 /* md5.cc */,
-				071AD8921C5E8994008C9E90 /* memory.h */,
-				071AD87F1C5E87AA008C9E90 /* scoped_ptr.h */,
-				071AD8B31C5E8B43008C9E90 /* string_conversion.h */,
-				071AD8E51C5E9196008C9E90 /* string_conversion.cc */,
-				071AD8BF1C5E8BC8008C9E90 /* using_std_string.h */,
-			);
-			name = common;
-			sourceTree = "<group>";
-		};
-		071AD8801C5E87B5008C9E90 /* mac */ = {
-			isa = PBXGroup;
-			children = (
-				071AD8851C5E8853008C9E90 /* bootstrap_compat.h */,
-				071AD8E91C5E91E3008C9E90 /* bootstrap_compat.cc */,
-				071AD8AF1C5E8B16008C9E90 /* byteswap.h */,
-				071AD8B61C5E8B5C008C9E90 /* file_id.h */,
-				071AD8EA1C5E91E3008C9E90 /* file_id.cc */,
-				071AD8811C5E87C2008C9E90 /* MachIPC.h */,
-				071AD8EB1C5E91E3008C9E90 /* MachIPC.mm */,
-				071AD8BA1C5E8B9B008C9E90 /* macho_id.h */,
-				071AD8EC1C5E91E3008C9E90 /* macho_id.cc */,
-				071AD8A61C5E8A30008C9E90 /* macho_utilities.h */,
-				071AD8ED1C5E91E3008C9E90 /* macho_utilities.cc */,
-				071AD8C11C5E8BE5008C9E90 /* macho_walker.h */,
-				071AD8EE1C5E91E3008C9E90 /* macho_walker.cc */,
-				071AD8B81C5E8B81008C9E90 /* scoped_task_suspend-inl.h */,
-				071AD8C71C5E8C14008C9E90 /* string_utilities.h */,
-				071AD8EF1C5E91E3008C9E90 /* string_utilities.cc */,
-			);
-			name = mac;
-			sourceTree = "<group>";
-		};
-		071AD8931C5E89BE008C9E90 /* google_breakpad */ = {
-			isa = PBXGroup;
-			children = (
-				071AD8941C5E89C4008C9E90 /* common */,
-			);
-			name = google_breakpad;
-			sourceTree = "<group>";
-		};
-		071AD8941C5E89C4008C9E90 /* common */ = {
-			isa = PBXGroup;
-			children = (
-				071AD8951C5E89D1008C9E90 /* breakpad_types.h */,
-				071AD8961C5E89D1008C9E90 /* minidump_cpu_amd64.h */,
-				071AD8971C5E89D1008C9E90 /* minidump_cpu_arm.h */,
-				071AD8981C5E89D1008C9E90 /* minidump_cpu_arm64.h */,
-				071AD8991C5E89D1008C9E90 /* minidump_cpu_mips.h */,
-				071AD89A1C5E89D1008C9E90 /* minidump_cpu_ppc.h */,
-				071AD89B1C5E89D1008C9E90 /* minidump_cpu_ppc64.h */,
-				071AD89C1C5E89D1008C9E90 /* minidump_cpu_sparc.h */,
-				071AD89D1C5E89D1008C9E90 /* minidump_cpu_x86.h */,
-				071AD89E1C5E89D1008C9E90 /* minidump_exception_linux.h */,
-				071AD89F1C5E89D1008C9E90 /* minidump_exception_mac.h */,
-				071AD8A01C5E89D1008C9E90 /* minidump_exception_ps3.h */,
-				071AD8A11C5E89D1008C9E90 /* minidump_exception_solaris.h */,
-				071AD8A21C5E89D1008C9E90 /* minidump_exception_win32.h */,
-				071AD8A31C5E89D1008C9E90 /* minidump_format.h */,
-				071AD8A41C5E89D1008C9E90 /* minidump_size.h */,
-			);
-			name = common;
-			sourceTree = "<group>";
-		};
-		071AD8B01C5E8B1B008C9E90 /* linux */ = {
-			isa = PBXGroup;
-			children = (
-				071AD8B11C5E8B23008C9E90 /* linux_libc_support.h */,
-			);
-			name = linux;
 			sourceTree = "<group>";
 		};
 		074968CB1A44D0B800394F46 /* langs */ = {
@@ -1578,6 +1358,7 @@
 				07C3AF25194336160016CFF1 /* Resources */,
 				07489B6B1A28949600348CD9 /* Build Updater */,
 				0746AC8F1A28D4140040AE26 /* Clean Updater */,
+				071AD90E1C60AA74008C9E90 /* Copy crashpad_handler */,
 				07489B6D1A28972E00348CD9 /* Sign Application */,
 			);
 			buildRules = (
@@ -1659,6 +1440,20 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		071AD90E1C60AA74008C9E90 /* Copy crashpad_handler */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Copy crashpad_handler";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "mkdir -p \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Helpers\" && cp \"./../../Libraries/crashpad/crashpad/out/Release/crashpad_handler\" \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Helpers/\"";
+		};
 		0746AC8F1A28D4140040AE26 /* Clean Updater */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -1774,7 +1569,6 @@
 				0732E4A9199E262300D50FE7 /* overviewwidget.cpp in Compile Sources */,
 				1DF53374E3B6A31661548D08 /* historywidget.cpp in Compile Sources */,
 				078A2FCD1A811CA600CCC7A0 /* backgroundbox.cpp in Compile Sources */,
-				071AD8D81C5E8F35008C9E90 /* dynamic_images.cc in Compile Sources */,
 				37A3C6C782A0E4BC7B09536B /* langloaderplain.cpp in Compile Sources */,
 				19A66ECD6EE2F8356F27D32D /* layerwidget.cpp in Compile Sources */,
 				89ADB41E48A3B5E24ABB626C /* profilewidget.cpp in Compile Sources */,
@@ -1788,28 +1582,23 @@
 				4078D5D614EB3ECF7F1848C7 /* types.cpp in Compile Sources */,
 				68FFEB7CA30BF0149161B809 /* window.cpp in Compile Sources */,
 				0CB7DE9A54CC9BF86FB7B5CA /* mtp.cpp in Compile Sources */,
-				071AD8E71C5E9196008C9E90 /* md5.cc in Compile Sources */,
 				DF259E9677CC63AF8754032B /* mtpConnection.cpp in Compile Sources */,
 				074FCB9119D36E60004C6EB2 /* moc_popupmenu.cpp in Compile Sources */,
 				B6346B66B0A2228A91D8A5D9 /* mtpDC.cpp in Compile Sources */,
 				0755AEDF1AD12A80004D738A /* moc_sessionsbox.cpp in Compile Sources */,
 				07129D6E1C16D245002DC495 /* facades.cpp in Compile Sources */,
 				B8CA3E1E11A7E0E7DF9E1CDE /* mtpFileLoader.cpp in Compile Sources */,
-				071AD8DF1C5E912C008C9E90 /* crash_generation_server.cc in Compile Sources */,
 				0755AEDD1AD12A80004D738A /* moc_abstractbox.cpp in Compile Sources */,
 				99F0A9B2AFE5ABDCBFC04510 /* mtpRPC.cpp in Compile Sources */,
 				A297B1E3CE33CC501DFEDB6E /* mtpSession.cpp in Compile Sources */,
 				D1FC601FC2F9F3E33F3A14E9 /* animation.cpp in Compile Sources */,
 				8F65F0D95B1F0CEB859F2FB3 /* boxshadow.cpp in Compile Sources */,
-				071AD8F41C5E91E3008C9E90 /* macho_utilities.cc in Compile Sources */,
 				D7EF8F129FCCE9AB3F3F081F /* button.cpp in Compile Sources */,
 				07DC42A01B5EA15300B6B888 /* numbers.cpp in Compile Sources */,
 				C03447C9A7D9FF73463B8BB5 /* countryinput.cpp in Compile Sources */,
 				07BE850F1A2093C9008ACB9F /* localstorage.cpp in Compile Sources */,
 				CDB0266A8B7CB20A95266BCD /* emoji_config.cpp in Compile Sources */,
-				071AD8DA1C5E8F35008C9E90 /* minidump_generator.cc in Compile Sources */,
 				0732E4AC199E268A00D50FE7 /* moc_overviewwidget.cpp in Compile Sources */,
-				071AD8F01C5E91E3008C9E90 /* bootstrap_compat.cc in Compile Sources */,
 				7C2B2DEE467A4C4679F1C3C9 /* filedialog.cpp in Compile Sources */,
 				832C50BFD7D09AF042A51D4F /* flatbutton.cpp in Compile Sources */,
 				B91D13BCC3963CB9C12D24A4 /* flatcheckbox.cpp in Compile Sources */,
@@ -1818,7 +1607,6 @@
 				03270F718426CFE84729079E /* flattextarea.cpp in Compile Sources */,
 				E3D7A5CA24541D5DB69D6606 /* images.cpp in Compile Sources */,
 				ADE99904299B99EB6135E8D9 /* scrollarea.cpp in Compile Sources */,
-				071AD8F11C5E91E3008C9E90 /* file_id.cc in Compile Sources */,
 				07129D6A1C16D230002DC495 /* mtpAuthKey.cpp in Compile Sources */,
 				90085DF442550A0845D5AF37 /* style_core.cpp in Compile Sources */,
 				074FCB8E19D36851004C6EB2 /* popupmenu.cpp in Compile Sources */,
@@ -1838,7 +1626,6 @@
 				07DB67511AD07CB800A51329 /* intropwdcheck.cpp in Compile Sources */,
 				3ABE4F9B2264F770D944106D /* emojibox.cpp in Compile Sources */,
 				07D703BB19B88FB900C4EED2 /* moc_audio.cpp in Compile Sources */,
-				071AD8E81C5E9196008C9E90 /* string_conversion.cc in Compile Sources */,
 				77B998AC22A13EF3DDEE07AC /* photocropbox.cpp in Compile Sources */,
 				F278C423357CA99797EA30AB /* photosendbox.cpp in Compile Sources */,
 				E8D95529CED88F18818C9A8B /* intro.cpp in Compile Sources */,
@@ -1862,27 +1649,20 @@
 				A24E4B5B683764E07683ECEC /* moc_mainwidget.cpp in Compile Sources */,
 				0710CA051B0B9404001B4272 /* moc_stickersetbox.cpp in Compile Sources */,
 				07DE92A71AA4925B00A18F6F /* autolockbox.cpp in Compile Sources */,
-				071AD8F51C5E91E3008C9E90 /* macho_walker.cc in Compile Sources */,
 				07D8509919F8320900623D75 /* usernamebox.cpp in Compile Sources */,
-				071AD8F21C5E91E3008C9E90 /* MachIPC.mm in Compile Sources */,
-				071AD8DE1C5E912C008C9E90 /* crash_generation_client.cc in Compile Sources */,
 				A469EC9C4C367E0B773A9BB7 /* moc_settingswidget.cpp in Compile Sources */,
 				FD2FE0C564A7389A2E609EC7 /* moc_sysbuttons.cpp in Compile Sources */,
 				E97B3CFAB59B49BACFFC5F7C /* moc_title.cpp in Compile Sources */,
 				07D8510819F8340A00623D75 /* moc_usernamebox.cpp in Compile Sources */,
 				9A0D5DDC7816FC2538EB6A96 /* moc_window.cpp in Compile Sources */,
-				071AD8D91C5E8F35008C9E90 /* exception_handler.cc in Compile Sources */,
 				06EABCC49D2EEE4076322BE7 /* moc_mtp.cpp in Compile Sources */,
 				0755AEDE1AD12A80004D738A /* moc_intropwdcheck.cpp in Compile Sources */,
 				07DE92AA1AA4928200A18F6F /* moc_autolockbox.cpp in Compile Sources */,
 				07B604351B46A20900CA29FE /* moc_playerwidget.cpp in Compile Sources */,
 				8F6F5D7F82036331E8C6DAE6 /* moc_mtpConnection.cpp in Compile Sources */,
 				B780F9E21269259B90A1F32A /* moc_mtpDC.cpp in Compile Sources */,
-				071AD8F31C5E91E3008C9E90 /* macho_id.cc in Compile Sources */,
 				07080BCF1A43588C00741A51 /* lang_auto.cpp in Compile Sources */,
 				07539B1D1A1416AF00083EFC /* moc_history.cpp in Compile Sources */,
-				071AD8E61C5E9196008C9E90 /* convert_UTF.c in Compile Sources */,
-				071AD8F61C5E91E3008C9E90 /* string_utilities.cc in Compile Sources */,
 				2A500B102B7CE80F3EB6E13E /* moc_mtpFileLoader.cpp in Compile Sources */,
 				07A6933519927B160099CB9F /* moc_mediaview.cpp in Compile Sources */,
 				07A69332199277BA0099CB9F /* mediaview.cpp in Compile Sources */,
@@ -1894,7 +1674,6 @@
 				07DE92A01AA4923300A18F6F /* passcodewidget.cpp in Compile Sources */,
 				B0B88EFE444C0DE673389418 /* moc_flatbutton.cpp in Compile Sources */,
 				1BD711B4C358EA7D727BF358 /* moc_flatcheckbox.cpp in Compile Sources */,
-				071AD8D71C5E8F35008C9E90 /* breakpad_nlist_64.cc in Compile Sources */,
 				565F748438E6CE0148C54AFE /* moc_flatinput.cpp in Compile Sources */,
 				8B71D1C7BB9DCEE6511219C2 /* moc_flatlabel.cpp in Compile Sources */,
 				0710C9FE1B0B9376001B4272 /* stickersetbox.cpp in Compile Sources */,
@@ -1908,7 +1687,6 @@
 				7062978F12EEA525893A5E6F /* moc_aboutbox.cpp in Compile Sources */,
 				E8B28580819B882A5964561A /* moc_addcontactbox.cpp in Compile Sources */,
 				07B604321B46A0EC00CA29FE /* playerwidget.cpp in Compile Sources */,
-				071AD8E21C5E9143008C9E90 /* minidump_file_writer.cc in Compile Sources */,
 				D6874C00733283846ACA9AB2 /* moc_confirmbox.cpp in Compile Sources */,
 				ED2557A57C6782721DC494AF /* moc_connectionbox.cpp in Compile Sources */,
 				5FC914F652D1B16FDA8F0634 /* moc_contactsbox.cpp in Compile Sources */,
@@ -2009,6 +1787,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CC = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
+				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_WARN_BOOL_CONVERSION = NO;
 				CLANG_WARN_CONSTANT_CONVERSION = NO;
 				CLANG_WARN_EMPTY_BODY = YES;
@@ -2023,7 +1803,7 @@
 				DYLIB_COMPATIBILITY_VERSION = 0.9;
 				DYLIB_CURRENT_VERSION = 0.9.19;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				FRAMEWORK_SEARCH_PATHS = ./../../Libraries/breakpad;
+				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_LINK_WITH_DYNAMIC_LIBRARIES = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -2058,6 +1838,8 @@
 					"/usr/local/Qt-5.5.1/mkspecs/macx-clang",
 					./ThirdParty/breakpad,
 					./ThirdParty/minizip,
+					./../../Libraries/crashpad/crashpad,
+					./../../Libraries/crashpad/crashpad/third_party/mini_chromium/mini_chromium,
 				);
 				INFOPLIST_FILE = Telegram.plist;
 				INSTALL_DIR = ./../Mac/Release/;
@@ -2094,8 +1876,6 @@
 				OTHER_CPLUSPLUSFLAGS = (
 					"-pipe",
 					"-g",
-					"-std=c++11",
-					"-stdlib=libc++",
 					"-Wall",
 					"-W",
 					"-fPIE",
@@ -2113,11 +1893,11 @@
 				);
 				OTHER_LDFLAGS = (
 					"-headerpad_max_install_names",
-					"-stdlib=libc++",
 					"-L/usr/local/Qt-5.5.1/lib",
 					"-L/usr/local/Qt-5.5.1/plugins/bearer",
 					"-L/usr/local/Qt-5.5.1/plugins/platforms",
 					"-lcups",
+					"-lbsm",
 					"-L/usr/local/Qt-5.5.1/plugins/imageformats",
 					/usr/local/lib/libz.a,
 					"-lm",
@@ -2131,7 +1911,10 @@
 					/usr/local/lib/libswresample.a,
 					/usr/local/lib/libavutil.a,
 					/usr/local/lib/libiconv.a,
-					"../../Libraries/openssl-xcode/libcrypto.a",
+					"./../../Libraries/openssl-xcode/libcrypto.a",
+					./../../Libraries/crashpad/crashpad/out/Release/libbase.a,
+					./../../Libraries/crashpad/crashpad/out/Release/libcrashpad_client.a,
+					./../../Libraries/crashpad/crashpad/out/Release/libcrashpad_util.a,
 					"-g",
 				);
 				PRODUCT_NAME = Telegram;
@@ -2145,6 +1928,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CC = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
+				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_WARN_BOOL_CONVERSION = NO;
 				CLANG_WARN_CONSTANT_CONVERSION = NO;
 				CLANG_WARN_EMPTY_BODY = YES;
@@ -2160,7 +1945,7 @@
 				DYLIB_CURRENT_VERSION = 0.9.19;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				FRAMEWORK_SEARCH_PATHS = ./../../Libraries/breakpad;
+				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_LINK_WITH_DYNAMIC_LIBRARIES = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -2195,6 +1980,8 @@
 					"/usr/local/Qt-5.5.1/mkspecs/macx-clang",
 					./ThirdParty/breakpad,
 					./ThirdParty/minizip,
+					./../../Libraries/crashpad/crashpad,
+					./../../Libraries/crashpad/crashpad/third_party/mini_chromium/mini_chromium,
 				);
 				INFOPLIST_FILE = Telegram.plist;
 				INSTALL_DIR = ./../Mac/Debug/;
@@ -2232,8 +2019,6 @@
 				OTHER_CPLUSPLUSFLAGS = (
 					"-pipe",
 					"-g",
-					"-std=c++11",
-					"-stdlib=libc++",
 					"-Wall",
 					"-W",
 					"-fPIE",
@@ -2251,11 +2036,11 @@
 				);
 				OTHER_LDFLAGS = (
 					"-headerpad_max_install_names",
-					"-stdlib=libc++",
 					"-L/usr/local/Qt-5.5.1/lib",
 					"-L/usr/local/Qt-5.5.1/plugins/bearer",
 					"-L/usr/local/Qt-5.5.1/plugins/platforms",
 					"-lcups",
+					"-lbsm",
 					"-L/usr/local/Qt-5.5.1/plugins/imageformats",
 					/usr/local/lib/libz.a,
 					"-lm",
@@ -2269,7 +2054,10 @@
 					/usr/local/lib/libswresample.a,
 					/usr/local/lib/libavutil.a,
 					/usr/local/lib/libiconv.a,
-					"../../Libraries/openssl-xcode/libcrypto.a",
+					"./../../Libraries/openssl-xcode/libcrypto.a",
+					./../../Libraries/crashpad/crashpad/out/Release/libbase.a,
+					./../../Libraries/crashpad/crashpad/out/Release/libcrashpad_client.a,
+					./../../Libraries/crashpad/crashpad/out/Release/libcrashpad_util.a,
 					"-g",
 				);
 				PRODUCT_NAME = Telegram;

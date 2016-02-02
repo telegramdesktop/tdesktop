@@ -688,6 +688,10 @@ QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile) {
 				result.append(qstr("BAD LINE: ")).append(line).append('\n');
 				continue;
 			}
+			if (lst.size() > 5 && lst.at(3) == qsl("0x0") && lst.at(4) == qsl("+") && lst.at(5) == qsl("1")) {
+				result.append(qsl("(0x1 separator)\n"));
+				continue;
+			}
 			if (i - start < atos.size()) {
 				if (!atos.at(i - start).isEmpty()) {
 					result.append(atos.at(i - start)).append('\n');

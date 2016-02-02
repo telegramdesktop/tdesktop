@@ -26,7 +26,13 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #ifdef Q_OS_WIN
 #include "client/windows/handler/exception_handler.h"
 #elif defined Q_OS_MAC
+
+#ifdef MAC_USE_BREAKPAD
 #include "client/mac/handler/exception_handler.h"
+#else
+#include "client/crashpad_client.h"
+#endif
+
 #elif defined Q_OS_LINUX64 || defined Q_OS_LINUX32
 #include "client/linux/handler/exception_handler.h"
 #endif
@@ -671,10 +677,12 @@ namespace SignalHandlers {
 	bool LoggingCrashHeaderWritten = false;
 	QMutex LoggingCrashMutex;
 
-    const char *BreakpadDumpPath = 0;
+	typedef std::map<std::string, std::string> AnnotationsMap;
+	AnnotationsMap ProcessAnnotations;
+
+	const char *BreakpadDumpPath = 0;
     const wchar_t *BreakpadDumpPathW = 0;
 
-// see https://github.com/benbjohnson/bandicoot
 #if defined Q_OS_MAC || defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 	struct sigaction SIG_def[32];
 
@@ -707,28 +715,10 @@ namespace SignalHandlers {
 
 		if (!LoggingCrashHeaderWritten) {
 			LoggingCrashHeaderWritten = true;
-			dump() << "Binary: " << LaunchedBinaryName << "\n";
-			dump() << "ApiId: " << ApiId << "\n";
-			if (cBetaVersion()) {
-				dump() << "Version: " << cBetaVersion() << " beta\n";
-			} else {
-				dump() << "Version: " << AppVersion;
-				if (cDevVersion()) {
-					dump() << " dev\n";
-				} else {
-					dump() << "\n";
-				}
+			const AnnotationsMap c_ProcessAnnotations(ProcessAnnotations);
+			for (AnnotationsMap::const_iterator i = c_ProcessAnnotations.begin(), e = c_ProcessAnnotations.end(); i != e; ++i) {
+				dump() << i->first.c_str() << ": " << i->second.c_str() << "\n";
 			}
-			dump() << "Launched: " << LaunchedDateTimeStr << "\n";
-			dump() << "Platform: ";
-			switch (cPlatform()) {
-			case dbipWindows: dump() << "win"; break;
-			case dbipMac: dump() << "mac"; break;
-			case dbipMacOld: dump() << "macold"; break;
-			case dbipLinux64: dump() << "linux64"; break;
-			case dbipLinux32: dump() << "linux32"; break;
-			}
-			dump() << "\n";
 			psWriteDump();
 			dump() << "\n";
 		}
@@ -745,6 +735,7 @@ namespace SignalHandlers {
 			dump() << "Caught signal " << signum << " in thread " << uint64(thread) << "\n";
 		}
 
+		// see https://github.com/benbjohnson/bandicoot
 #if defined Q_OS_MAC || defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 		ucontext_t *uc = (ucontext_t*)ucontext;
 
@@ -820,6 +811,8 @@ namespace SignalHandlers {
 		LoggingCrashThreadId = 0;
 	}
 
+	bool SetSignalHandlers = true;
+#if !defined Q_OS_MAC || defined MAC_USE_BREAKPAD
 	google_breakpad::ExceptionHandler* BreakpadExceptionHandler = 0;
 
 #ifdef Q_OS_WIN
@@ -844,31 +837,54 @@ namespace SignalHandlers {
 #endif
 		return success;
 	}
+#endif
 
 	void StartBreakpad() {
-		QString dumpPath = cWorkingDir() + qsl("tdumps");
-		QDir().mkpath(dumpPath);
+		ProcessAnnotations["Binary"] = cExeName().toUtf8().constData();
+		ProcessAnnotations["ApiId"] = QString::number(ApiId).toUtf8().constData();
+		ProcessAnnotations["Version"] = (cBetaVersion() ? qsl("%1 beta").arg(cBetaVersion()) : (cDevVersion() ? qsl("%1 dev") : qsl("%1")).arg(AppVersion)).toUtf8().constData();
+		ProcessAnnotations["Launched"] = QDateTime::currentDateTime().toString("dd.MM.yyyy hh:mm:ss").toUtf8().constData();
+		ProcessAnnotations["Platform"] = cPlatformString().toUtf8().constData();
+
+		QString dumpspath = cWorkingDir() + qsl("tdata/dumps");
+		QDir().mkpath(dumpspath);
 
 #ifdef Q_OS_WIN
 		BreakpadExceptionHandler = new google_breakpad::ExceptionHandler(
-			dumpPath.toStdWString(),
+			dumpspath.toStdWString(),
 			/*FilterCallback*/ 0,
 			DumpCallback,
 			/*context*/	0,
 			true
 		);
 #elif defined Q_OS_MAC
+
+#ifdef MAC_USE_BREAKPAD
 		BreakpadExceptionHandler = new google_breakpad::ExceptionHandler(
-			dumpPath.toStdString(),
+			dumpspath.toUtf8().toStdString(),
 			/*FilterCallback*/ 0,
 			DumpCallback,
 			/*context*/ 0,
 			true,
 			0
 		);
+		SetSignalHandlers = false;
+#else
+		crashpad::CrashpadClient crashpad_client;
+		std::string handler = (cExeDir() + cExeName() + qsl("/Contents/Helpers/crashpad_handler")).toUtf8().constData();
+		std::string database = dumpspath.toUtf8().constData();
+		if (crashpad_client.StartHandler(base::FilePath(handler),
+										 base::FilePath(database),
+										 std::string(),
+										 ProcessAnnotations,
+										 std::vector<std::string>(),
+										 false)) {
+			crashpad_client.UseHandler();
+		}
+#endif
 #elif defined Q_OS_LINUX64 || defined Q_OS_LINUX32
 		BreakpadExceptionHandler = new google_breakpad::ExceptionHandler(
-			google_breakpad::MinidumpDescriptor(dumpPath.toStdString()),
+			google_breakpad::MinidumpDescriptor(dumpspath.toUtf8().toStdString()),
 			/*FilterCallback*/ 0,
 			DumpCallback,
 			/*context*/ 0,
@@ -879,11 +895,13 @@ namespace SignalHandlers {
 	}
 
 	void FinishBreakpad() {
+#if !defined Q_OS_MAC || defined MAC_USE_BREAKPAD
 		if (BreakpadExceptionHandler) {
 			google_breakpad::ExceptionHandler *h = BreakpadExceptionHandler;
 			BreakpadExceptionHandler = 0;
 			delete h;
 		}
+#endif
 	}
 
 	Status start() {
@@ -914,36 +932,27 @@ namespace SignalHandlers {
 		CrashDumpFile = fopen(CrashDumpPath.constData(), "wb");
 		if (CrashDumpFile) {
 			CrashDumpFileNo = fileno(CrashDumpFile);
-
-			QByteArray launchedDateTime = QDateTime::currentDateTime().toString("dd.MM.yyyy hh:mm:ss").toUtf8();
-			t_assert(launchedDateTime.size() < int(sizeof(LaunchedDateTimeStr)));
-			memcpy(LaunchedDateTimeStr, launchedDateTime.constData(), launchedDateTime.size());
-
-			QByteArray launchedBinaryName = cExeName().toUtf8();
-			t_assert(launchedBinaryName.size() < int(sizeof(LaunchedBinaryName)));
-			memcpy(LaunchedBinaryName, launchedBinaryName.constData(), launchedBinaryName.size());
-
+			if (SetSignalHandlers) {
 #ifndef Q_OS_WIN
-			struct sigaction sigact;
+				struct sigaction sigact;
 
-			sigact.sa_sigaction = SignalHandlers::Handler;
-			sigemptyset(&sigact.sa_mask);
-			sigact.sa_flags = SA_NODEFER | SA_RESETHAND | SA_SIGINFO;
+				sigact.sa_sigaction = SignalHandlers::Handler;
+				sigemptyset(&sigact.sa_mask);
+				sigact.sa_flags = SA_NODEFER | SA_RESETHAND | SA_SIGINFO;
 
-#ifndef Q_OS_MAC // let breakpad handle this
-			sigaction(SIGABRT, &sigact, &SIG_def[SIGABRT]);
-#endif
-			sigaction(SIGSEGV, &sigact, &SIG_def[SIGSEGV]);
-			sigaction(SIGILL, &sigact, &SIG_def[SIGILL]);
-			sigaction(SIGFPE, &sigact, &SIG_def[SIGFPE]);
-			sigaction(SIGBUS, &sigact, &SIG_def[SIGBUS]);
-			sigaction(SIGSYS, &sigact, &SIG_def[SIGSYS]);
+				sigaction(SIGABRT, &sigact, &SIG_def[SIGABRT]);
+				sigaction(SIGSEGV, &sigact, &SIG_def[SIGSEGV]);
+				sigaction(SIGILL, &sigact, &SIG_def[SIGILL]);
+				sigaction(SIGFPE, &sigact, &SIG_def[SIGFPE]);
+				sigaction(SIGBUS, &sigact, &SIG_def[SIGBUS]);
+				sigaction(SIGSYS, &sigact, &SIG_def[SIGSYS]);
 #else
-			signal(SIGABRT, SignalHandlers::Handler);
-			signal(SIGSEGV, SignalHandlers::Handler);
-			signal(SIGILL, SignalHandlers::Handler);
-			signal(SIGFPE, SignalHandlers::Handler);
+				signal(SIGABRT, SignalHandlers::Handler);
+				signal(SIGSEGV, SignalHandlers::Handler);
+				signal(SIGILL, SignalHandlers::Handler);
+				signal(SIGFPE, SignalHandlers::Handler);
 #endif
+			}
 			return Started;
 		}
 
@@ -953,10 +962,7 @@ namespace SignalHandlers {
 	}
 
 	void finish() {
-		if (BreakpadExceptionHandler) {
-			delete BreakpadExceptionHandler;
-			BreakpadExceptionHandler = 0;
-		}
+		FinishBreakpad();
 		if (CrashDumpFile) {
 			fclose(CrashDumpFile);
 			unlink(CrashDumpPath.constData());

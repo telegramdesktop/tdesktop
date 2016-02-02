@@ -32,6 +32,20 @@ Install dev libraries
 
     sudo apt-get install libexif-dev liblzma-dev libz-dev libssl-dev libappindicator-dev libunity-dev
 
+####zlib 1.2.8
+
+http://www.zlib.net/ > Download [**zlib source code, version 1.2.8, zipfile format**](http://zlib.net/zlib128.zip)
+
+Extract to **/home/user/TBuild/Libraries**
+
+#####Building library
+
+In Terminal go to **/home/user/TBuild/Libraries/zlib-1.2.8** and run:
+
+        ./configure
+        make
+        sudo make install
+
 Install audio libraries
 
 ####Opus codec 1.1
