@@ -162,7 +162,7 @@ typedef QMap<mtpRequestId, mtpRequest> mtpPreRequestMap;
 typedef QMap<mtpMsgId, mtpRequest> mtpRequestMap;
 typedef QMap<mtpMsgId, bool> mtpMsgIdsSet;
 class mtpMsgIdsMap : public QMap<mtpMsgId, bool> {
-public:	
+public:
 	typedef QMap<mtpMsgId, bool> ParentType;
 
 	bool insert(const mtpMsgId &k, bool v) {
@@ -595,7 +595,7 @@ inline bool operator!=(const MTPint256 &a, const MTPint256 &b) {
 class MTPdouble {
 public:
 	float64 v;
-	
+
 	MTPdouble() {
 	}
 	MTPdouble(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_double) {
@@ -702,7 +702,7 @@ public:
 			from += ((l + 1) >> 2) + (((l + 1) & 0x03) ? 1 : 0);
 		}
 		if (from > end) throw mtpErrorInsufficient();
-		
+
 		if (!data) setData(new MTPDstring());
 		MTPDstring &v(_string());
 		v.v.resize(l);
@@ -895,7 +895,6 @@ inline bool operator!=(const MTPvector<T> &a, const MTPvector<T> &b) {
 }
 
 // Human-readable text serialization
-#if (defined _DEBUG || defined _WITH_DEBUG)
 
 template <typename Type>
 QString mtpWrapNumber(Type number, int32 base = 10) {
@@ -964,8 +963,6 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end) {
 	}
 	return QString::fromUtf8(to.p, to.size);
 }
-
-#endif
 
 #include "mtpScheme.h"
 

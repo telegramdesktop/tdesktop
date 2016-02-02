@@ -151,12 +151,12 @@ namespace App {
 		return result;
 	}
 
-	Application *app() {
-		return Application::app();
+	AppClass *app() {
+		return AppClass::app();
 	}
 
 	Window *wnd() {
-		return Application::wnd();
+		return AppClass::wnd();
 	}
 
 	MainWidget *main() {
@@ -935,7 +935,7 @@ namespace App {
 	}
 
 	void checkSavedGif(HistoryItem *item) {
-		if (!item->toHistoryForwarded() && item->out()) {
+		if (!item->toHistoryForwarded() && (item->out() || item->history()->peer == App::self())) {
 			if (HistoryMedia *media = item->getMedia()) {
 				if (DocumentData *doc = media->getDocument()) {
 					if (doc->isGifv()) {
@@ -2279,9 +2279,7 @@ namespace App {
 		if (wnd()) {
 			wnd()->quit();
 		}
-		if (app()) {
-			app()->quit();
-		}
+		Application::quit();
 	}
 
 	bool quiting() {
@@ -2612,9 +2610,14 @@ namespace App {
 	}
 
 	QNetworkProxy getHttpProxySettings() {
-		if (cConnectionType() == dbictHttpProxy) {
-			const ConnectionProxy &p(cConnectionProxy());
-			return QNetworkProxy(QNetworkProxy::HttpProxy, p.host, p.port, p.user, p.password);
+		const ConnectionProxy *proxy = 0;
+		if (Sandbox::started()) {
+			proxy = (cConnectionType() == dbictHttpProxy) ? (&cConnectionProxy()) : 0;
+		} else {
+			proxy = Global::PreLaunchProxy().host.isEmpty() ? 0 : (&Global::PreLaunchProxy());
+		}
+		if (proxy) {
+			return QNetworkProxy(QNetworkProxy::HttpProxy, proxy->host, proxy->port, proxy->user, proxy->password);
 		}
 		return QNetworkProxy(QNetworkProxy::DefaultProxy);
 	}

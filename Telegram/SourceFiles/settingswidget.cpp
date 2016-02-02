@@ -269,11 +269,11 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	_newVersionWidth = st::linkFont->width(_newVersionText);
 
 	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	connect(App::app(), SIGNAL(updateChecking()), this, SLOT(onUpdateChecking()));
-	connect(App::app(), SIGNAL(updateLatest()), this, SLOT(onUpdateLatest()));
-	connect(App::app(), SIGNAL(updateDownloading(qint64,qint64)), this, SLOT(onUpdateDownloading(qint64,qint64)));
-	connect(App::app(), SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
-	connect(App::app(), SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
+	Sandboxer::connect(SIGNAL(updateChecking()), this, SLOT(onUpdateChecking()));
+	Sandboxer::connect(SIGNAL(updateLatest()), this, SLOT(onUpdateLatest()));
+	Sandboxer::connect(SIGNAL(updateProgress(qint64,qint64)), this, SLOT(onUpdateDownloading(qint64,qint64)));
+	Sandboxer::connect(SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
+	Sandboxer::connect(SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
 	#endif
 
 	// chat options
@@ -329,18 +329,16 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 
 	updateOnlineDisplay();
 
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	switch (App::app()->updatingState()) {
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	switch (Sandboxer::updatingState()) {
 	case Application::UpdatingDownload:
 		setUpdatingState(UpdatingDownload, true);
-		setDownloadProgress(App::app()->updatingReady(), App::app()->updatingSize());
+		setDownloadProgress(Sandboxer::updatingReady(), Sandboxer::updatingSize());
 	break;
 	case Application::UpdatingReady: setUpdatingState(UpdatingReady, true); break;
 	default: setUpdatingState(UpdatingNone, true); break;
 	}
-	#else
-	_updatingState = UpdatingNone;
-	#endif
+#endif
 
 	updateConnectionType();
 
@@ -1261,14 +1259,14 @@ void SettingsInner::onAutoUpdate() {
 	Local::writeSettings();
 	resizeEvent(0);
 	if (cAutoUpdate()) {
-		App::app()->startUpdateCheck();
+		Sandboxer::startUpdateCheck();
 		if (_updatingState == UpdatingNone) {
 			_checkNow.show();
 		} else if (_updatingState == UpdatingReady) {
 			_restartNow.show();
 		}
 	} else {
-		App::app()->stopUpdate();
+		Sandboxer::stopUpdate();
 		_restartNow.hide();
 		_checkNow.hide();
 	}
@@ -1279,12 +1277,12 @@ void SettingsInner::onCheckNow() {
 	if (!cAutoUpdate()) return;
 
 	cSetLastUpdateCheck(0);
-	App::app()->startUpdateCheck();
+	Sandboxer::startUpdateCheck();
 }
 #endif
 
 void SettingsInner::onRestartNow() {
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	checkReadyUpdate();
 	if (_updatingState == UpdatingReady) {
 		cSetRestartingUpdate(true);
@@ -1292,10 +1290,10 @@ void SettingsInner::onRestartNow() {
 		cSetRestarting(true);
 		cSetRestartingToSettings(true);
 	}
-	#else
+#else
 	cSetRestarting(true);
 	cSetRestartingToSettings(true);
-	#endif
+#endif
 	App::quit();
 }
 
@@ -1785,7 +1783,7 @@ SettingsWidget::SettingsWidget(Window *parent) : TWidget(parent)
 	connect(App::wnd(), SIGNAL(resized(const QSize&)), this, SLOT(onParentResize(const QSize&)));
 	connect(&_close, SIGNAL(clicked()), App::wnd(), SLOT(showSettings()));
 
-	setGeometry(QRect(0, st::titleHeight, Application::wnd()->width(), Application::wnd()->height() - st::titleHeight));
+	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 
 	showAll();
 }

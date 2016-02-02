@@ -31,7 +31,10 @@ public:
 	void resizeEvent(QResizeEvent *e);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
-	
+
+	void dragEnterEvent(QDragEnterEvent *e);
+	void dropEvent(QDropEvent *e);
+
 public slots:
 
 	void onVersion();

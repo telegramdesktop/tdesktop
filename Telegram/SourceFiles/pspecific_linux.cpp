@@ -1,17 +1,17 @@
 /*
 This file is part of Telegram Desktop,
 the official desktop version of Telegram messaging app, see https://telegram.org
- 
+
 Telegram Desktop is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
- 
+
 It is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
- 
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
@@ -197,8 +197,6 @@ namespace {
     typedef UnityLauncherEntry* (*f_unity_launcher_entry_get_for_desktop_id)(const gchar* desktop_id);
     f_unity_launcher_entry_get_for_desktop_id ps_unity_launcher_entry_get_for_desktop_id = 0;
 
-    QStringList _initLogs;
-
     template <typename TFunction>
     bool loadFunction(QLibrary &lib, const char *name, TFunction &func) {
         if (!lib.isLoaded()) return false;
@@ -207,7 +205,7 @@ namespace {
         if (func) {
             return true;
         } else {
-            _initLogs.push_back(QString("Init Error: Failed to load '%1' function!").arg(name));
+            LOG(("Error: failed to load '%1' function!").arg(name));
             return false;
         }
     }
@@ -362,26 +360,24 @@ namespace {
 
             if (noQtTrayIcon) cSetSupportTray(false);
 
-            std::cout << "libs init..\n";
+			DEBUG_LOG(("Loading libraries"));
             setupGtk();
             setupUnity();
         }
 
         bool loadLibrary(QLibrary &lib, const char *name, int version) {
-            std::cout << "loading " << name << " with version " << version << "..\n";
+			DEBUG_LOG(("Loading '%1' with version %2..").arg(QLatin1String(name)).arg(version));
             lib.setFileNameAndVersion(QLatin1String(name), version);
             if (lib.load()) {
-                std::cout << "loaded " << name << " with version " << version << "!\n";
-                _initLogs.push_back(QString("Loaded '%1' version %2 library").arg(name).arg(version));
+				DEBUG_LOG(("Loaded '%1' with version %2!").arg(QLatin1String(name)).arg(version));
                 return true;
-            }
+			}
             lib.setFileNameAndVersion(QLatin1String(name), QString());
             if (lib.load()) {
-                std::cout << "loaded " << name << " without version!\n";
-                _initLogs.push_back(QString("Loaded '%1' without version library").arg(name));
+				DEBUG_LOG(("Loaded '%1' without version!").arg(QLatin1String(name)));
                 return true;
-            }
-            std::cout << "could not load " << name << " without version.\n";
+			}
+			LOG(("Could not load '%1' with version %2 :(").arg(QLatin1String(name)).arg(version));
             return false;
         }
 
@@ -406,7 +402,7 @@ namespace {
             if (!loadFunction(lib_gtk, "g_object_unref", ps_g_object_unref)) return;
 
             useGtkBase = true;
-            std::cout << "loaded gtk funcs!\n";
+			DEBUG_LOG(("Library gtk functions loaded!"));
         }
 
         void setupAppIndicator(QLibrary &lib_indicator) {
@@ -415,7 +411,7 @@ namespace {
             if (!loadFunction(lib_indicator, "app_indicator_set_menu", ps_app_indicator_set_menu)) return;
             if (!loadFunction(lib_indicator, "app_indicator_set_icon_full", ps_app_indicator_set_icon_full)) return;
             useAppIndicator = true;
-            std::cout << "loaded appindicator funcs!\n";
+			DEBUG_LOG(("Library appindicator functions loaded!"));
         }
 
         void setupGtk() {
@@ -461,13 +457,12 @@ namespace {
             }
 
             if (!useGtkBase && lib_gtk.isLoaded()) {
-                std::cout << "no appindicator, trying to load gtk..\n";
+				LOG(("Could not load appindicator, trying to load gtk.."));
                 setupGtkBase(lib_gtk);
             }
             if (!useGtkBase) {
                 useAppIndicator = false;
-                _initLogs.push_back(QString("Init Error: Failed to load 'gtk-x11-2.0' library!"));
-                std::cout << "no appindicator :(\n";
+				LOG(("Could not load gtk-x11-2.0!"));
                 return;
             }
 
@@ -485,8 +480,8 @@ namespace {
             if (!loadFunction(lib_gtk, "gtk_get_current_event_time", ps_gtk_get_current_event_time)) return;
             if (!loadFunction(lib_gtk, "g_idle_add", ps_g_idle_add)) return;
             useStatusIcon = true;
-            std::cout << "status icon api loaded\n";
-        }
+			DEBUG_LOG(("Status icon api loaded!"));
+		}
 
         void setupUnity() {
             if (noTryUnity) return;
@@ -498,7 +493,7 @@ namespace {
             if (!loadFunction(lib_unity, "unity_launcher_entry_set_count", ps_unity_launcher_entry_set_count)) return;
             if (!loadFunction(lib_unity, "unity_launcher_entry_set_count_visible", ps_unity_launcher_entry_set_count_visible)) return;
             useUnityCount = true;
-            std::cout << "unity count api loaded\n";
+			DEBUG_LOG(("Unity count api loaded!"));
         }
     };
 
@@ -508,7 +503,7 @@ namespace {
 		}
 
 		bool nativeEventFilter(const QByteArray &eventType, void *message, long *result) {
-			Window *wnd = Application::wnd();
+			Window *wnd = App::wnd();
 			if (!wnd) return false;
 
 			return false;
@@ -521,6 +516,8 @@ namespace {
 
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent),
 posInited(false), trayIcon(0), trayIconMenu(0), icon256(qsl(":/gui/art/icon256.png")), iconbig256(icon256), wndIcon(QIcon::fromTheme("telegram", QIcon(QPixmap::fromImage(icon256, Qt::ColorOnly)))), _psCheckStatusIconLeft(100), _psLastIndicatorUpdate(0) {
+    _PsInitializer initializer;
+
     connect(&_psCheckStatusIconTimer, SIGNAL(timeout()), this, SLOT(psStatusIconCheck()));
     _psCheckStatusIconTimer.setSingleShot(false);
 
@@ -667,7 +664,7 @@ void PsMainWindow::psUpdateCounter() {
     } else if (trayIcon) {
 		int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted);
 		bool muted = cIncludeMuted() ? (App::histories().unreadMuted >= counter) : false;
-		
+
 		style::color bg = muted ? st::counterMuteBG : st::counterBG;
         QIcon iconSmall;
         iconSmall.addPixmap(QPixmap::fromImage(iconWithCounter(16, counter, bg, true), Qt::ColorOnly));
@@ -688,7 +685,7 @@ void PsMainWindow::psInitSize() {
 	bool maximized = false;
 	QRect geom(avail.x() + (avail.width() - st::wndDefWidth) / 2, avail.y() + (avail.height() - st::wndDefHeight) / 2, st::wndDefWidth, st::wndDefHeight);
 	if (pos.w && pos.h) {
-		QList<QScreen*> screens = App::app()->screens();
+		QList<QScreen*> screens = Application::screens();
 		for (QList<QScreen*>::const_iterator i = screens.cbegin(), e = screens.cend(); i != e; ++i) {
 			QByteArray name = (*i)->name().toUtf8();
 			if (pos.moncrc == hashCrc32(name.constData(), name.size())) {
@@ -741,7 +738,7 @@ void PsMainWindow::psSavePosition(Qt::WindowState state) {
 
 	int px = curPos.x + curPos.w / 2, py = curPos.y + curPos.h / 2, d = 0;
 	QScreen *chosen = 0;
-	QList<QScreen*> screens = App::app()->screens();
+	QList<QScreen*> screens = Application::screens();
 	for (QList<QScreen*>::const_iterator i = screens.cbegin(), e = screens.cend(); i != e; ++i) {
 		int dx = (*i)->geometry().x() + (*i)->geometry().width() / 2 - px; if (dx < 0) dx = -dx;
 		int dy = (*i)->geometry().y() + (*i)->geometry().height() / 2 - py; if (dy < 0) dy = -dy;
@@ -889,7 +886,7 @@ void PsMainWindow::psFirstShow() {
 		setWindowState(Qt::WindowMaximized);
 	}
 
-	if ((cFromAutoStart() && cStartMinimized()) || cStartInTray()) {
+	if ((cLaunchMode() == LaunchModeAutoStart && cStartMinimized()) || cStartInTray()) {
 		setWindowState(Qt::WindowMinimized);
 		if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
 			hide();
@@ -972,20 +969,151 @@ void PsMainWindow::psNotifyShown(NotifyWindow *w) {
 void PsMainWindow::psPlatformNotify(HistoryItem *item, int32 fwdCount) {
 }
 
-PsApplication::PsApplication(int &argc, char **argv) : QApplication(argc, argv) {
-    _PsInitializer _psInitializer;
-    Q_UNUSED(_psInitializer);
-}
-
-void PsApplication::psInstallEventFilter() {
+QAbstractNativeEventFilter *psNativeEventFilter() {
     delete _psEventFilter;
 	_psEventFilter = new _PsEventFilter();
-    installNativeEventFilter(_psEventFilter);
+	return _psEventFilter;
 }
 
-PsApplication::~PsApplication() {
-    delete _psEventFilter;
-    _psEventFilter = 0;
+void psWriteDump() {
+}
+
+QString demanglestr(const QString &mangled) {
+    if (mangled.isEmpty()) return mangled;
+
+	QByteArray cmd = ("c++filt -n " + mangled).toUtf8();
+	FILE *f = popen(cmd.constData(), "r");
+	if (!f) return "BAD_SYMBOL_" + mangled;
+
+	QString result;
+	char buffer[4096] = { 0 };
+	while (!feof(f)) {
+		if (fgets(buffer, 4096, f) != NULL) {
+			result += buffer;
+		}
+	}
+	pclose(f);
+	return result.trimmed();
+}
+
+QStringList addr2linestr(uint64 *addresses, int count) {
+	QStringList result;
+	if (!count) return result;
+
+	result.reserve(count);
+	QString cmdstr = "addr2line -e " + escapeShell(cExeDir() + cExeName());
+	for (int i = 0; i < count; ++i) {
+		if (addresses[i]) {
+			cmdstr += qsl(" 0x%1").arg(addresses[i], 0, 16);
+		}
+	}
+	QByteArray cmd = cmdstr.toUtf8();
+	FILE *f = popen(cmd.constData(), "r");
+
+	QStringList addr2lineResult;
+	if (f) {
+		char buffer[4096] = {0};
+		while (!feof(f)) {
+			if (fgets(buffer, 4096, f) != NULL) {
+				addr2lineResult.push_back(QString::fromUtf8(buffer));
+			}
+		}
+		pclose(f);
+	}
+	for (int i = 0, j = 0; i < count; ++i) {
+		if (addresses[i]) {
+			if (j < addr2lineResult.size() && !addr2lineResult.at(j).isEmpty() && !addr2lineResult.at(j).startsWith(qstr("0x"))) {
+				QString res = addr2lineResult.at(j).trimmed();
+                if (int index = res.indexOf(qstr("/Telegram/"))) {
+                    if (index > 0) {
+                        res = res.mid(index + qstr("/Telegram/").size());
+                    }
+                }
+                result.push_back(res);
+			} else {
+				result.push_back(QString());
+			}
+			++j;
+		} else {
+			result.push_back(QString());
+		}
+	}
+	return result;
+}
+
+QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile) {
+	QString initial = QString::fromUtf8(crashdump), result;
+	QStringList lines = initial.split('\n');
+	result.reserve(initial.size());
+	int32 i = 0, l = lines.size();
+
+	while (i < l) {
+        uint64 addresses[1024] = { 0 };
+		for (; i < l; ++i) {
+			result.append(lines.at(i)).append('\n');
+			QString line = lines.at(i).trimmed();
+			if (line == qstr("Backtrace:")) {
+				++i;
+				break;
+			}
+		}
+
+        int32 start = i;
+		for (; i < l; ++i) {
+            QString line = lines.at(i).trimmed();
+			if (line.isEmpty()) break;
+
+            QRegularExpressionMatch m1 = QRegularExpression(qsl("^(.+)\\(([^+]+)\\+([^\\)]+)\\)\\[(.+)\\]$")).match(line);
+            QRegularExpressionMatch m2 = QRegularExpression(qsl("^(.+)\\[(.+)\\]$")).match(line);
+            QString addrstr = m1.hasMatch() ? m1.captured(4) : (m2.hasMatch() ? m2.captured(2) : QString());
+            if (!addrstr.isEmpty()) {
+                uint64 addr = addrstr.startsWith(qstr("0x")) ? addrstr.mid(2).toULongLong(0, 16) : addrstr.toULongLong();
+                if (addr > 1) {
+                    addresses[i - start] = addr;
+                }
+            }
+		}
+
+		QStringList addr2line = addr2linestr(addresses, i - start);
+		for (i = start; i < l; ++i) {
+			QString line = lines.at(i).trimmed();
+			if (line.isEmpty()) break;
+
+            result.append(qsl("\n%1. ").arg(i - start));
+            if (line.startsWith(qstr("ERROR: "))) {
+                result.append(line).append('\n');
+                continue;
+            }
+            if (line == qstr("[0x1]")) {
+                result.append(qsl("(0x1 separator)\n"));
+                continue;
+            }
+
+            QRegularExpressionMatch m1 = QRegularExpression(qsl("^(.+)\\(([^+]*)\\+([^\\)]+)\\)(.+)$")).match(line);
+            QRegularExpressionMatch m2 = QRegularExpression(qsl("^(.+)\\[(.+)\\]$")).match(line);
+            if (!m1.hasMatch() && !m2.hasMatch()) {
+                result.append(qstr("BAD LINE: ")).append(line).append('\n');
+                continue;
+            }
+
+            if (m1.hasMatch()) {
+                result.append(demanglestr(m1.captured(2))).append(qsl(" + ")).append(m1.captured(3)).append(qsl(" [")).append(m1.captured(1)).append(qsl("] "));
+                if (!addr2line.at(i - start).isEmpty() && addr2line.at(i - start) != qsl("??:0")) {
+                    result.append(qsl(" (")).append(addr2line.at(i - start)).append(qsl(")\n"));
+                } else {
+                    result.append(m1.captured(4)).append(qsl(" (demangled)")).append('\n');
+                }
+            } else {
+                result.append('[').append(m2.captured(1)).append(']');
+                if (!addr2line.at(i - start).isEmpty() && addr2line.at(i - start) != qsl("??:0")) {
+                    result.append(qsl(" (")).append(addr2line.at(i - start)).append(qsl(")\n"));
+                } else {
+                    result.append(' ').append(m2.captured(2)).append('\n');
+                }
+            }
+		}
+	}
+	return result;
 }
 
 bool _removeDirectory(const QString &path) { // from http://stackoverflow.com/questions/2256945/removing-a-non-empty-directory-programmatically-in-c-or-c
@@ -1047,14 +1175,6 @@ bool psSkipDesktopNotify() {
 	return false;
 }
 
-QStringList psInitLogs() {
-    return _initLogs;
-}
-
-void psClearInitLogs() {
-    _initLogs = QStringList();
-}
-
 void psActivateProcess(uint64 pid) {
 //	objc_activateProgram();
 }
@@ -1072,7 +1192,7 @@ QString psCurrentLanguage() {
 namespace {
     QString _psHomeDir() {
         struct passwd *pw = getpwuid(getuid());
-        return (pw && pw->pw_dir && strlen(pw->pw_dir)) ? (QString::fromLocal8Bit(pw->pw_dir) + '/') : QString();
+        return (pw && pw->pw_dir && strlen(pw->pw_dir)) ? (fromUtf8Safe(pw->pw_dir) + '/') : QString();
     }
 }
 
@@ -1086,7 +1206,7 @@ QString psDownloadPath() {
 }
 
 QString psCurrentExeDirectory(int argc, char *argv[]) {
-    QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
+    QString first = argc ? fromUtf8Safe(argv[0]) : QString();
     if (!first.isEmpty()) {
         QFileInfo info(first);
         if (info.isSymLink()) {
@@ -1100,7 +1220,7 @@ QString psCurrentExeDirectory(int argc, char *argv[]) {
 }
 
 QString psCurrentExeName(int argc, char *argv[]) {
-	QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
+	QString first = argc ? fromUtf8Safe(argv[0]) : QString();
 	if (!first.isEmpty()) {
 		QFileInfo info(first);
         if (info.isSymLink()) {
@@ -1146,10 +1266,16 @@ void psShowInFolder(const QString &name) {
     system((qsl("xdg-open ") + escapeShell(QFileInfo(name).absoluteDir().absolutePath())).toUtf8().constData());
 }
 
-void psStart() {
-}
+namespace PlatformSpecific {
 
-void psFinish() {
+	Initializer::Initializer() {
+	}
+
+	Initializer::~Initializer() {
+		delete _psEventFilter;
+		_psEventFilter = 0;
+	}
+
 }
 
 namespace {
@@ -1260,22 +1386,22 @@ void psNewVersion() {
 	psRegisterCustomScheme();
 }
 
-bool _execUpdater(bool update = true) {
+bool _execUpdater(bool update = true, const QString &crashreport = QString()) {
     static const int MaxLen = 65536, MaxArgsCount = 128;
 
     char path[MaxLen] = {0};
     QByteArray data(QFile::encodeName(cExeDir() + "Updater"));
     memcpy(path, data.constData(), data.size());
 
-    char *args[MaxArgsCount] = {0}, p_noupdate[] = "-noupdate", p_autostart[] = "-autostart", p_debug[] = "-debug", p_tosettings[] = "-tosettings", p_key[] = "-key", p_path[] = "-workpath", p_startintray[] = "-startintray", p_testmode[] = "-testmode";
-    char p_datafile[MaxLen] = {0}, p_pathbuf[MaxLen] = {0};
+    char *args[MaxArgsCount] = {0}, p_noupdate[] = "-noupdate", p_autostart[] = "-autostart", p_debug[] = "-debug", p_tosettings[] = "-tosettings", p_key[] = "-key", p_path[] = "-workpath", p_startintray[] = "-startintray", p_testmode[] = "-testmode", p_crashreport[] = "-crashreport";
+    char p_datafile[MaxLen] = {0}, p_pathbuf[MaxLen] = {0}, p_crashreportbuf[MaxLen] = {0};
     int argIndex = 0;
     args[argIndex++] = path;
     if (!update) {
         args[argIndex++] = p_noupdate;
         args[argIndex++] = p_tosettings;
     }
-    if (cFromAutoStart()) args[argIndex++] = p_autostart;
+    if (cLaunchMode() == LaunchModeAutoStart) args[argIndex++] = p_autostart;
     if (cDebug()) args[argIndex++] = p_debug;
 	if (cStartInTray()) args[argIndex++] = p_startintray;
 	if (cTestMode()) args[argIndex++] = p_testmode;
@@ -1293,6 +1419,14 @@ bool _execUpdater(bool update = true) {
         args[argIndex++] = p_path;
         args[argIndex++] = p_pathbuf;
     }
+	if (!crashreport.isEmpty()) {
+		QByteArray crashreportf = crashreport.toUtf8();
+		if (crashreportf.size() < MaxLen) {
+			memcpy(p_crashreportbuf, crashreportf.constData(), crashreportf.size());
+			args[argIndex++] = p_crashreport;
+			args[argIndex++] = p_crashreportbuf;
+		}
+	}
 
     pid_t pid = fork();
     switch (pid) {
@@ -1308,8 +1442,8 @@ void psExecUpdater() {
 	}
 }
 
-void psExecTelegram() {
-    _execUpdater(false);
+void psExecTelegram(const QString &crashreport) {
+    _execUpdater(false, crashreport);
 }
 
 bool psShowOpenWithMenu(int x, int y, const QString &file) {
@@ -1370,18 +1504,3 @@ bool linuxMoveFile(const char *from, const char *to) {
 
 	return true;
 }
-
-#ifdef _NEED_LINUX_GENERATE_DUMP
-void _sigsegvHandler(int sig) {
-    void *array[50] = {0};
-    size_t size;
-
-    // get void*'s for all entries on the stack
-    size = backtrace(array, 50);
-
-    // print out all the frames to stderr
-    fprintf(stderr, "Error: signal %d:\n", sig);
-    backtrace_symbols_fd(array, size, STDERR_FILENO);
-    exit(1);
-}
-#endif

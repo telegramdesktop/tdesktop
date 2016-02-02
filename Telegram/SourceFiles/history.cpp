@@ -1918,11 +1918,6 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 	const MTPMessageGroup *groupsBegin = (isChannel() && collapsed) ? collapsed->constData() : 0, *groupsIt = groupsBegin, *groupsEnd = (isChannel() && collapsed) ? (groupsBegin + collapsed->size()) : 0;
 
 	HistoryItem *oldFirst = 0, *last = 0;
-	if (!blocks.isEmpty()) {
-		t_assert(blocks.size() > 1);
-		oldFirst = blocks.at(1)->items.front();
-	}
-
 	HistoryBlock *block = new HistoryBlock(this);
 	block->items.reserve(slice.size() + (collapsed ? collapsed->size() : 0));
 	for (QVector<MTPmessage>::const_iterator i = slice.cend(), e = slice.cbegin(); i != e;) {
@@ -1947,6 +1942,10 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 		last = addMessageGroupAfterPrevToBlock(group, last, block);
 	}
 
+	if (!blocks.isEmpty()) {
+		t_assert(blocks.size() > 1);
+		oldFirst = blocks.at(1)->items.front();
+	}
 	while (oldFirst && last && oldFirst->type() == HistoryItemGroup && last->type() == HistoryItemGroup) {
 		static_cast<HistoryGroup*>(last)->uniteWith(static_cast<HistoryGroup*>(oldFirst));
 		oldFirst->destroy();
@@ -2499,6 +2498,7 @@ MsgId History::msgIdForRead() const {
 int32 History::geomResize(int32 newWidth, int32 *ytransform, const HistoryItem *resizedItem) {
 	if (width != newWidth) resizedItem = 0; // recount all items
 	if (width != newWidth || resizedItem) {
+		width = newWidth;
 		int32 y = 0;
 		for (Blocks::iterator i = blocks.begin(), e = blocks.end(); i != e; ++i) {
 			HistoryBlock *block = *i;
@@ -2513,7 +2513,6 @@ int32 History::geomResize(int32 newWidth, int32 *ytransform, const HistoryItem *
 				ytransform = 0;
 			}
 		}
-		width = newWidth;
 		height = y;
 	}
 	return height;
@@ -2601,10 +2600,10 @@ void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages 
 		if (peer->isChannel()) {
 			peer->asChannel()->ptsReceived(d.vpts.v);
 		} else {
-			LOG(("API Error: received messages.channelMessages when no channel was passed! (History::overviewSliceDone, onlyCounts %1)").arg(logBool(onlyCounts)));
+			LOG(("API Error: received messages.channelMessages when no channel was passed! (History::overviewSliceDone, onlyCounts %1)").arg(Logs::b(onlyCounts)));
 		}
 		if (d.has_collapsed()) { // should not be returned
-			LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (History::overviewSliceDone, onlyCounts %1)").arg(logBool(onlyCounts)));
+			LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (History::overviewSliceDone, onlyCounts %1)").arg(Logs::b(onlyCounts)));
 		}
 
 		App::feedUsers(d.vusers);
@@ -4000,7 +3999,8 @@ HistoryDocument::HistoryDocument(const HistoryDocument &other) : HistoryFileMedi
 , _linkcancell(new DocumentCancelLink(_data))
 , _name(other._name)
 , _namew(other._namew)
-, _thumbw(other._thumbw) {
+, _thumbw(other._thumbw)
+, _caption(other._caption) {
 	setLinks(new DocumentOpenLink(_data), new DocumentSaveLink(_data), new DocumentCancelLink(_data));
 
 	setStatusSize(other._statusSize);
@@ -4378,6 +4378,7 @@ HistoryGif::HistoryGif(const HistoryGif &other) : HistoryFileMedia()
 , _data(other._data)
 , _thumbw(other._thumbw)
 , _thumbh(other._thumbh)
+, _caption(other._caption)
 , _gif(0) {
 	setLinks(new GifOpenLink(_data), new GifOpenLink(_data), new DocumentCancelLink(_data));
 
@@ -6578,17 +6579,18 @@ int32 HistoryMessage::resize(int32 width) {
 			if (media) _height += _media->resize(width, this);
 		}
 
-		int32 l = 0, w = 0;
-		countPositionAndSize(l, w);
-
 		if (displayFromName()) {
 			if (emptyText()) {
 				_height += st::msgPadding.top() + st::msgNameFont->height + st::mediaHeaderSkip;
 			} else {
 				_height += st::msgNameFont->height;
 			}
+			int32 l = 0, w = 0;
+			countPositionAndSize(l, w);
 			fromNameUpdated(w);
 		} else if (via() && !toHistoryForwarded()) {
+			int32 l = 0, w = 0;
+			countPositionAndSize(l, w);
 			via()->resize(w - st::msgPadding.left() - st::msgPadding.right());
 			if (emptyText() && !displayFromName()) {
 				_height += st::msgPadding.top() + st::msgNameFont->height + st::mediaHeaderSkip;
@@ -6788,7 +6790,7 @@ HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const 
 }
 
 HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg)
-: HistoryMessage(history, block, id, newMessageFlags(history->peer) | (!history->peer->isChannel() && msg->getMedia() && (msg->getMedia()->type() == MediaTypeAudio/* || msg->getMedia()->type() == MediaTypeVideo*/) ? MTPDmessage::flag_media_unread : 0), msg->via() ? peerToUser(msg->viaBot()->id) : 0, date, from, msg->HistoryMessage::originalText(), msg->HistoryMessage::originalEntities(), msg->getMedia())
+: HistoryMessage(history, block, id, newForwardedFlags(history->peer, from, msg), msg->via() ? peerToUser(msg->viaBot()->id) : 0, date, from, msg->HistoryMessage::originalText(), msg->HistoryMessage::originalEntities(), msg->getMedia())
 , fwdDate(msg->dateForwarded())
 , fwdFrom(msg->fromForwarded())
 , fwdFromVersion(fwdFrom->nameVersion)
@@ -6818,6 +6820,11 @@ void HistoryForwarded::initDimensions() {
 void HistoryForwarded::fwdNameUpdated() const {
 	QString fwdName((via() && fwdFrom->isUser()) ? fwdFrom->asUser()->firstName : App::peerName(fwdFrom));
 	fwdFromName.setText(st::msgServiceNameFont, fwdName, _textNameOptions);
+	if (via()) {
+		int32 l = 0, w = 0;
+		countPositionAndSize(l, w);
+		via()->resize(w - st::msgPadding.left() - st::msgPadding.right() - fromWidth - fwdFromName.maxWidth() - st::msgServiceFont->spacew);
+	}
 }
 
 void HistoryForwarded::draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const {
@@ -6870,7 +6877,9 @@ int32 HistoryForwarded::resize(int32 width) {
 				_height += st::msgServiceNameFont->height;
 			}
 			if (via()) {
-				via()->resize(width - st::msgPadding.left() - st::msgPadding.right() - fromWidth - fwdFromName.maxWidth() - st::msgServiceFont->spacew);
+				int32 l = 0, w = 0;
+				countPositionAndSize(l, w);
+				via()->resize(w - st::msgPadding.left() - st::msgPadding.right() - fromWidth - fwdFromName.maxWidth() - st::msgServiceFont->spacew);
 			}
 		}
 	}

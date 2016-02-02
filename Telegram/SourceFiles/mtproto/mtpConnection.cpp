@@ -78,14 +78,14 @@ namespace {
 			) {
 				ERR_load_crypto_strings();
 				LOG(("BigNum Error: BN_bin2bn failed, error: %1").arg(ERR_error_string(ERR_get_error(), 0)));
-				DEBUG_LOG(("BigNum Error: base %1, power %2, modul %3").arg(mb(&g_be, sizeof(uint32)).str()).arg(mb(power, 64 * sizeof(uint32)).str()).arg(mb(modul, 64 * sizeof(uint32)).str()));
+				DEBUG_LOG(("BigNum Error: base %1, power %2, modul %3").arg(Logs::mb(&g_be, sizeof(uint32)).str()).arg(Logs::mb(power, 64 * sizeof(uint32)).str()).arg(Logs::mb(modul, 64 * sizeof(uint32)).str()));
 				return false;
 			}
 
 			if (!BN_mod_exp(&bnResult, &bn_g, &bnPower, &bnModul, ctx)) {
 				ERR_load_crypto_strings();
 				LOG(("BigNum Error: BN_mod_exp failed, error: %1").arg(ERR_error_string(ERR_get_error(), 0)));
-				DEBUG_LOG(("BigNum Error: base %1, power %2, modul %3").arg(mb(&g_be, sizeof(uint32)).str()).arg(mb(power, 64 * sizeof(uint32)).str()).arg(mb(modul, 64 * sizeof(uint32)).str()));
+				DEBUG_LOG(("BigNum Error: base %1, power %2, modul %3").arg(Logs::mb(&g_be, sizeof(uint32)).str()).arg(Logs::mb(power, 64 * sizeof(uint32)).str()).arg(Logs::mb(modul, 64 * sizeof(uint32)).str()));
 				return false;
 			}
 
@@ -109,7 +109,7 @@ namespace {
 			if (!BN_mod_exp(&bnResult, &bn_g_a, &bnPower, &bnModul, ctx)) {
 				ERR_load_crypto_strings();
 				LOG(("BigNum Error: BN_mod_exp failed, error: %1").arg(ERR_error_string(ERR_get_error(), 0)));
-				DEBUG_LOG(("BigNum Error: base %1, power %2, modul %3").arg(mb(&g_be, sizeof(uint32)).str()).arg(mb(power, 64 * sizeof(uint32)).str()).arg(mb(modul, 64 * sizeof(uint32)).str()));
+				DEBUG_LOG(("BigNum Error: base %1, power %2, modul %3").arg(Logs::mb(&g_be, sizeof(uint32)).str()).arg(Logs::mb(power, 64 * sizeof(uint32)).str()).arg(Logs::mb(modul, 64 * sizeof(uint32)).str()));
 				return false;
 			}
 
@@ -123,7 +123,7 @@ namespace {
 				DEBUG_LOG(("BigNum Error: bad g_aResult export len (%1)").arg(resultLen));
 				return false;
 			}
-			
+
 			BN_add_word(&bn_g_a, 1); // check g_a < dh_prime - 1
 			if (BN_cmp(&bn_g_a, &bnModul) >= 0) {
 				DEBUG_LOG(("BigNum Error: bad g_a >= dh_prime - 1"));
@@ -169,7 +169,7 @@ namespace {
 			) {
 				ERR_load_crypto_strings();
 				LOG(("BigNum PT Error: BN_bin2bn failed, error: %1").arg(ERR_error_string(ERR_get_error(), 0)));
-				DEBUG_LOG(("BigNum PT Error: prime %1").arg(mb(pData, 64 * sizeof(uint32)).str()));
+				DEBUG_LOG(("BigNum PT Error: prime %1").arg(Logs::mb(pData, 64 * sizeof(uint32)).str()));
 				return false;
 			}
 
@@ -412,12 +412,12 @@ namespace {
 		}
         if (packet[0] != int32(size * sizeof(mtpPrime))) {
 			LOG(("TCP Error: bad packet header"));
-			TCP_LOG(("TCP Error: bad packet header, packet: %1").arg(mb(packet, size * sizeof(mtpPrime)).str()));
+			TCP_LOG(("TCP Error: bad packet header, packet: %1").arg(Logs::mb(packet, size * sizeof(mtpPrime)).str()));
 			return mtpBuffer(1, -500);
 		}
 		if (packet[size - 1] != hashCrc32(packet, (size - 1) * sizeof(mtpPrime))) {
 			LOG(("TCP Error: bad packet checksum"));
-			TCP_LOG(("TCP Error: bad packet checksum, packet: %1").arg(mb(packet, size * sizeof(mtpPrime)).str()));
+			TCP_LOG(("TCP Error: bad packet checksum, packet: %1").arg(Logs::mb(packet, size * sizeof(mtpPrime)).str()));
 			return mtpBuffer(1, -500);
 		}
 		TCP_LOG(("TCP Info: packet received, num = %1, size = %2").arg(packet[1]).arg(size * sizeof(mtpPrime)));
@@ -500,18 +500,18 @@ namespace {
 		uint32 len = buffer.size();
 		if (len < 5) {
 			LOG(("Fake PQ Error: bad request answer, len = %1").arg(len * sizeof(mtpPrime)));
-			DEBUG_LOG(("Fake PQ Error: answer bytes %1").arg(mb(answer, len * sizeof(mtpPrime)).str()));
+			DEBUG_LOG(("Fake PQ Error: answer bytes %1").arg(Logs::mb(answer, len * sizeof(mtpPrime)).str()));
 			throw Exception("bad pq reply");
 		}
 		if (answer[0] != 0 || answer[1] != 0 || (((uint32)answer[2]) & 0x03) != 1/* || (unixtime() - answer[3] > 300) || (answer[3] - unixtime() > 60)*/) { // didnt sync time yet
 			LOG(("Fake PQ Error: bad request answer start (%1 %2 %3)").arg(answer[0]).arg(answer[1]).arg(answer[2]));
-			DEBUG_LOG(("Fake PQ Error: answer bytes %1").arg(mb(answer, len * sizeof(mtpPrime)).str()));
+			DEBUG_LOG(("Fake PQ Error: answer bytes %1").arg(Logs::mb(answer, len * sizeof(mtpPrime)).str()));
 			throw Exception("bad pq reply");
 		}
 		uint32 answerLen = (uint32)answer[4];
 		if (answerLen != (len - 5) * sizeof(mtpPrime)) {
 			LOG(("Fake PQ Error: bad request answer %1 <> %2").arg(answerLen).arg((len - 5) * sizeof(mtpPrime)));
-			DEBUG_LOG(("Fake PQ Error: answer bytes %1").arg(mb(answer, len * sizeof(mtpPrime)).str()));
+			DEBUG_LOG(("Fake PQ Error: answer bytes %1").arg(Logs::mb(answer, len * sizeof(mtpPrime)).str()));
 			throw Exception("bad pq reply");
 		}
 		const mtpPrime *from(answer + 5), *end(from + len - 5);
@@ -692,7 +692,7 @@ void MTPautoConnection::sendData(mtpBuffer &buffer) {
 
 	if (buffer.size() < 3) {
 		LOG(("TCP Error: writing bad packet, len = %1").arg(buffer.size() * sizeof(mtpPrime)));
-		TCP_LOG(("TCP Error: bad packet %1").arg(mb(&buffer[0], buffer.size() * sizeof(mtpPrime)).str()));
+		TCP_LOG(("TCP Error: bad packet %1").arg(Logs::mb(&buffer[0], buffer.size() * sizeof(mtpPrime)).str()));
 		emit error();
 		return;
 	}
@@ -979,7 +979,7 @@ void MTPtcpConnection::sendData(mtpBuffer &buffer) {
 
 	if (buffer.size() < 3) {
 		LOG(("TCP Error: writing bad packet, len = %1").arg(buffer.size() * sizeof(mtpPrime)));
-		TCP_LOG(("TCP Error: bad packet %1").arg(mb(&buffer[0], buffer.size() * sizeof(mtpPrime)).str()));
+		TCP_LOG(("TCP Error: bad packet %1").arg(Logs::mb(&buffer[0], buffer.size() * sizeof(mtpPrime)).str()));
 		emit error();
 		return;
 	}
@@ -989,7 +989,7 @@ void MTPtcpConnection::sendData(mtpBuffer &buffer) {
 	buffer[0] = len;
 	buffer[1] = packetNum++;
 	buffer[size - 1] = hashCrc32(&buffer[0], len - 4);
-	TCP_LOG(("TCP Info: write %1 packet %2 bytes %3").arg(packetNum).arg(len).arg(mb(&buffer[0], len).str()));
+	TCP_LOG(("TCP Info: write %1 packet %2 bytes %3").arg(packetNum).arg(len).arg(Logs::mb(&buffer[0], len).str()));
 
 	sock.write((const char*)&buffer[0], len);
 }
@@ -1068,18 +1068,18 @@ void MTPhttpConnection::sendData(mtpBuffer &buffer) {
 
 	if (buffer.size() < 3) {
 		LOG(("TCP Error: writing bad packet, len = %1").arg(buffer.size() * sizeof(mtpPrime)));
-		TCP_LOG(("TCP Error: bad packet %1").arg(mb(&buffer[0], buffer.size() * sizeof(mtpPrime)).str()));
+		TCP_LOG(("TCP Error: bad packet %1").arg(Logs::mb(&buffer[0], buffer.size() * sizeof(mtpPrime)).str()));
 		emit error();
 		return;
 	}
-	
+
 	int32 requestSize = (buffer.size() - 3) * sizeof(mtpPrime);
 
 	QNetworkRequest request(address);
 	request.setHeader(QNetworkRequest::ContentLengthHeader, QVariant(requestSize));
     request.setHeader(QNetworkRequest::ContentTypeHeader, QVariant(qsl("application/x-www-form-urlencoded")));
 
-	TCP_LOG(("HTTP Info: sending %1 len request %2").arg(requestSize).arg(mb(&buffer[2], requestSize).str()));
+	TCP_LOG(("HTTP Info: sending %1 len request %2").arg(requestSize).arg(Logs::mb(&buffer[2], requestSize).str()));
 	requests.insert(manager.post(request, QByteArray((const char*)(&buffer[2]), requestSize)));
 }
 
@@ -1521,7 +1521,7 @@ mtpMsgId MTProtoConnectionPrivate::replaceMsgId(mtpRequest &request, mtpMsgId ne
 				}
 				mtpMsgId m = msgid();
 				if (m <= newId) break; // wtf
-				
+
 				newId = m;
 			}
 
@@ -1956,7 +1956,7 @@ void MTProtoConnectionPrivate::restart(bool mayBeBadKey) {
 	QReadLocker lockFinished(&sessionDataMutex);
 	if (!sessionData) return;
 
-	DEBUG_LOG(("MTP Info: restarting MTProtoConnection, maybe bad key = %1").arg(logBool(mayBeBadKey)));
+	DEBUG_LOG(("MTP Info: restarting MTProtoConnection, maybe bad key = %1").arg(Logs::b(mayBeBadKey)));
 
 	_waitForReceivedTimer.stop();
 	_waitForConnectedTimer.stop();
@@ -2083,7 +2083,7 @@ void MTProtoConnectionPrivate::onWaitConnectedFailed() {
 void MTProtoConnectionPrivate::onWaitIPv4Failed() {
 	_conn = _conn6;
 	destroyConn(&_conn4);
-	
+
 	if (_conn) {
 		DEBUG_LOG(("MTP Info: can't connect through IPv4, using IPv6 connection."));
 
@@ -2144,14 +2144,14 @@ void MTProtoConnectionPrivate::handleReceived() {
 		const mtpPrime *encrypted(encryptedBuf.data());
 		if (len < 18) { // 2 auth_key_id, 4 msg_key, 2 salt, 2 session, 2 msg_id, 1 seq_no, 1 length, (1 data + 3 padding) min
 			LOG(("TCP Error: bad message received, len %1").arg(len * sizeof(mtpPrime)));
-			TCP_LOG(("TCP Error: bad message %1").arg(mb(encrypted, len * sizeof(mtpPrime)).str()));
+			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(encrypted, len * sizeof(mtpPrime)).str()));
 
 			lockFinished.unlock();
 			return restart();
 		}
 		if (keyId != *(uint64*)encrypted) {
 			LOG(("TCP Error: bad auth_key_id %1 instead of %2 received").arg(keyId).arg(*(uint64*)encrypted));
-			TCP_LOG(("TCP Error: bad message %1").arg(mb(encrypted, len * sizeof(mtpPrime)).str()));
+			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(encrypted, len * sizeof(mtpPrime)).str()));
 
 			lockFinished.unlock();
 			return restart();
@@ -2161,7 +2161,7 @@ void MTProtoConnectionPrivate::handleReceived() {
 		mtpPrime *data((mtpPrime*)dataBuffer.data()), *msg = data + 8;
 		const mtpPrime *from(msg), *end;
 		MTPint128 msgKey(*(MTPint128*)(encrypted + 2));
-		
+
 		aesDecrypt(encrypted + 6, data, dataBuffer.size(), key, msgKey);
 
 		uint64 serverSalt = *(uint64*)&data[0], session = *(uint64*)&data[2], msgId = *(uint64*)&data[4];
@@ -2170,7 +2170,7 @@ void MTProtoConnectionPrivate::handleReceived() {
 
 		if (uint32(dataBuffer.size()) < msgLen + 8 * sizeof(mtpPrime) || (msgLen & 0x03)) {
 			LOG(("TCP Error: bad msg_len received %1, data size: %2").arg(msgLen).arg(dataBuffer.size()));
-			TCP_LOG(("TCP Error: bad message %1").arg(mb(encrypted, len * sizeof(mtpPrime)).str()));
+			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(encrypted, len * sizeof(mtpPrime)).str()));
 			_conn->received().pop_front();
 
 			lockFinished.unlock();
@@ -2179,13 +2179,13 @@ void MTProtoConnectionPrivate::handleReceived() {
 		uchar sha1Buffer[20];
 		if (memcmp(&msgKey, hashSha1(data, msgLen + 8 * sizeof(mtpPrime), sha1Buffer) + 1, sizeof(msgKey))) {
 			LOG(("TCP Error: bad SHA1 hash after aesDecrypt in message"));
-			TCP_LOG(("TCP Error: bad message %1").arg(mb(encrypted, len * sizeof(mtpPrime)).str()));
+			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(encrypted, len * sizeof(mtpPrime)).str()));
 			_conn->received().pop_front();
 
 			lockFinished.unlock();
 			return restart();
 		}
-		TCP_LOG(("TCP Info: decrypted message %1,%2,%3 is %4 len").arg(msgId).arg(seqNo).arg(logBool(needAck)).arg(msgLen + 8 * sizeof(mtpPrime)));
+		TCP_LOG(("TCP Info: decrypted message %1,%2,%3 is %4 len").arg(msgId).arg(seqNo).arg(Logs::b(needAck)).arg(msgLen + 8 * sizeof(mtpPrime)));
 
 		uint64 serverSession = sessionData->getSession();
 		if (session != serverSession) {
@@ -2261,7 +2261,7 @@ void MTProtoConnectionPrivate::handleReceived() {
 		// send acks
 		uint32 toAckSize = ackRequestData.size();
 		if (toAckSize) {
-			DEBUG_LOG(("MTP Info: will send %1 acks, ids: %2").arg(toAckSize).arg(logVectorLong(ackRequestData)));
+			DEBUG_LOG(("MTP Info: will send %1 acks, ids: %2").arg(toAckSize).arg(Logs::vector(ackRequestData)));
 			emit sendAnythingAsync(MTPAckSendWaiting);
 		}
 
@@ -2273,7 +2273,7 @@ void MTProtoConnectionPrivate::handleReceived() {
 				DEBUG_LOG(("MTP Info: emitting needToReceive() - need to parse in another thread, haveReceivedMap.size() = %1").arg(sessionData->haveReceivedMap().size()));
 			}
 		}
-		
+
 		if (emitSignal) {
 			emit needToReceive();
 		}
@@ -2344,7 +2344,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 			bool needAck = (inSeqNo.v & 0x01);
 			if (needAck) ackRequestData.push_back(inMsgId);
 
-			DEBUG_LOG(("Message Info: message from container, msg_id: %1, needAck: %2").arg(inMsgId.v).arg(logBool(needAck)));
+			DEBUG_LOG(("Message Info: message from container, msg_id: %1, needAck: %2").arg(inMsgId.v).arg(Logs::b(needAck)));
 
 			otherEnd = from + (bytes.v >> 2);
 			if (otherEnd > end) throw mtpErrorInsufficient();
@@ -2373,7 +2373,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 		const QVector<MTPlong> &ids(msg.c_msgs_ack().vmsg_ids.c_vector().v);
 		uint32 idsCount = ids.size();
 
-		DEBUG_LOG(("Message Info: acks received, ids: %1").arg(logVectorLong(ids)));
+		DEBUG_LOG(("Message Info: acks received, ids: %1").arg(Logs::vector(ids)));
 		if (!idsCount) return (badTime ? 0 : 1);
 
 		if (badTime) {
@@ -2500,7 +2500,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 		MTPMsgsStateReq msg(from, end);
 		const QVector<MTPlong> ids(msg.c_msgs_state_req().vmsg_ids.c_vector().v);
 		uint32 idsCount = ids.size();
-		DEBUG_LOG(("Message Info: msgs_state_req received, ids: %1").arg(logVectorLong(ids)));
+		DEBUG_LOG(("Message Info: msgs_state_req received, ids: %1").arg(Logs::vector(ids)));
 		if (!idsCount) return 1;
 
 		QByteArray info(idsCount, Qt::Uninitialized);
@@ -2546,11 +2546,11 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 	case mtpc_msgs_state_info: {
 		MTPMsgsStateInfo msg(from, end);
 		const MTPDmsgs_state_info &data(msg.c_msgs_state_info());
-		
+
 		uint64 reqMsgId = data.vreq_msg_id.v;
 		const string &states(data.vinfo.c_string().v);
 
-		DEBUG_LOG(("Message Info: msg state received, msgId %1, reqMsgId: %2, HEX states %3").arg(msgId).arg(reqMsgId).arg(mb(states.data(), states.length()).str()));
+		DEBUG_LOG(("Message Info: msg state received, msgId %1, reqMsgId: %2, HEX states %3").arg(msgId).arg(reqMsgId).arg(Logs::mb(states.data(), states.length()).str()));
 		mtpRequest requestBuffer;
 		{ // find this request in session-shared sent requests map
 			QReadLocker locker(sessionData->haveSentMutex());
@@ -2607,7 +2607,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 
 		QVector<MTPlong> toAck;
 
-		DEBUG_LOG(("Message Info: msgs all info received, msgId %1, reqMsgIds: %2, states %3").arg(msgId).arg(logVectorLong(ids)).arg(mb(states.data(), states.length()).str()));
+		DEBUG_LOG(("Message Info: msgs all info received, msgId %1, reqMsgIds: %2, states %3").arg(msgId).arg(Logs::vector(ids)).arg(Logs::mb(states.data(), states.length()).str()));
 		handleMsgsStates(ids, states, toAck);
 
 		requestsAcked(toAck);
@@ -2669,13 +2669,13 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 			resendRequestData.push_back(resMsgId);
 		}
 	} return 1;
-	
+
 	case mtpc_msg_resend_req: {
 		MTPMsgResendReq msg(from, end);
 		const QVector<MTPlong> &ids(msg.c_msg_resend_req().vmsg_ids.c_vector().v);
 
 		uint32 idsCount = ids.size();
-		DEBUG_LOG(("Message Info: resend of msgs requested, ids: %1").arg(logVectorLong(ids)));
+		DEBUG_LOG(("Message Info: resend of msgs requested, ids: %1").arg(Logs::vector(ids)));
 		if (!idsCount) return (badTime ? 0 : 1);
 
 		QVector<quint64> toResend(ids.size(), Qt::Uninitialized);
@@ -2762,7 +2762,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 
 		mtpBuffer update(from - start);
 		if (from > start) memcpy(update.data(), start, (from - start) * sizeof(mtpPrime));
-		
+
 		QWriteLocker locker(sessionData->haveReceivedMutex());
 		mtpResponseMap &haveReceived(sessionData->haveReceivedMap());
 		mtpRequestId fakeRequestId = sessionData->nextFakeRequestId();
@@ -2782,7 +2782,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 		MTPPong msg(from, end);
 		const MTPDpong &data(msg.c_pong());
 		DEBUG_LOG(("Message Info: pong received, msg_id: %1, ping_id: %2").arg(data.vmsg_id.v).arg(data.vping_id.v));
-		
+
 		if (!wasSent(data.vmsg_id.v)) {
 			DEBUG_LOG(("Message Error: such msg_id %1 ping_id %2 was not sent recently").arg(data.vmsg_id.v).arg(data.vping_id.v));
 			return 0;
@@ -2817,7 +2817,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 
 	mtpBuffer update(end - from);
 	if (end > from) memcpy(update.data(), from, (end - from) * sizeof(mtpPrime));
-		
+
 	QWriteLocker locker(sessionData->haveReceivedMutex());
 	mtpResponseMap &haveReceived(sessionData->haveReceivedMap());
 	mtpRequestId fakeRequestId = sessionData->nextFakeRequestId();
@@ -2859,14 +2859,14 @@ mtpBuffer MTProtoConnectionPrivate::ungzip(const mtpPrime *from, const mtpPrime 
 		if (res != Z_OK && res != Z_STREAM_END) {
 			inflateEnd(&stream);
 			LOG(("RPC Error: could not unpack gziped data, code: %1").arg(res));
-			DEBUG_LOG(("RPC Error: bad gzip: %1").arg(mb(&packed.c_string().v[0], packedLen).str()));
+			DEBUG_LOG(("RPC Error: bad gzip: %1").arg(Logs::mb(&packed.c_string().v[0], packedLen).str()));
 			return mtpBuffer();
 		}
 	}
 	if (stream.avail_out & 0x03) {
 		uint32 badSize = result.size() * sizeof(mtpPrime) - stream.avail_out;
 		LOG(("RPC Error: bad length of unpacked data %1").arg(badSize));
-		DEBUG_LOG(("RPC Error: bad unpacked data %1").arg(mb(result.data(), badSize).str()));
+		DEBUG_LOG(("RPC Error: bad unpacked data %1").arg(Logs::mb(result.data(), badSize).str()));
 		return mtpBuffer();
 	}
 	result.resize(result.size() - (stream.avail_out >> 2));
@@ -2893,7 +2893,7 @@ bool MTProtoConnectionPrivate::requestsFixTimeSalt(const QVector<MTPlong> &ids, 
 void MTProtoConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byResponse) {
 	uint32 idsCount = ids.size();
 
-	DEBUG_LOG(("Message Info: requests acked, ids %1").arg(logVectorLong(ids)));
+	DEBUG_LOG(("Message Info: requests acked, ids %1").arg(Logs::vector(ids)));
 
 	RPCCallbackClears clearedAcked;
 	QVector<MTPlong> toAckMore;
@@ -2995,7 +2995,7 @@ void MTProtoConnectionPrivate::handleMsgsStates(const QVector<MTPlong> &ids, con
 		DEBUG_LOG(("Message Info: void ids vector in handleMsgsStates()"));
 		return;
 	}
-			
+
 	acked.reserve(acked.size() + idsCount);
 
 	for (uint32 i = 0, count = idsCount; i < count; ++i) {
@@ -3137,7 +3137,7 @@ void MTProtoConnectionPrivate::updateAuthKey() 	{
 		clearMessages();
 		keyId = newKeyId;
 	}
-	DEBUG_LOG(("AuthKey Info: MTProtoConnection update key from MTProtoSession, dc %1 result: %2").arg(dc).arg(mb(&keyId, sizeof(keyId)).str()));
+	DEBUG_LOG(("AuthKey Info: MTProtoConnection update key from MTProtoSession, dc %1 result: %2").arg(dc).arg(Logs::mb(&keyId, sizeof(keyId)).str()));
 	if (keyId) {
 		return authKeyCreated();
 	}
@@ -3186,7 +3186,7 @@ void MTProtoConnectionPrivate::pqAnswered() {
 	const MTPDresPQ &res_pq_data(res_pq.c_resPQ());
 	if (res_pq_data.vnonce != authKeyData->nonce) {
 		LOG(("AuthKey Error: received nonce <> sent nonce (in res_pq)!"));
-		DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(mb(&res_pq_data.vnonce, 16).str()).arg(mb(&authKeyData->nonce, 16).str()));
+		DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&res_pq_data.vnonce, 16).str()).arg(Logs::mb(&authKeyData->nonce, 16).str()));
 		return restart();
 	}
 
@@ -3225,7 +3225,7 @@ void MTProtoConnectionPrivate::pqAnswered() {
 
 	if (!parsePQ(pq, p, q)) {
 		LOG(("AuthKey Error: could not factor pq!"));
-		DEBUG_LOG(("AuthKey Error: problematic pq: %1").arg(mb(&pq[0], pq.length()).str()));
+		DEBUG_LOG(("AuthKey Error: problematic pq: %1").arg(Logs::mb(&pq[0], pq.length()).str()));
 		return restart();
 	}
 
@@ -3247,7 +3247,7 @@ void MTProtoConnectionPrivate::pqAnswered() {
 		tmp.reserve(encSize);
 		p_q_inner.write(tmp);
 		LOG(("AuthKey Error: too large data for RSA encrypt, size %1").arg(encSize * sizeof(mtpPrime)));
-		DEBUG_LOG(("AuthKey Error: bad data for RSA encrypt %1").arg(mb(&tmp[0], tmp.size() * 4).str()));
+		DEBUG_LOG(("AuthKey Error: bad data for RSA encrypt %1").arg(Logs::mb(&tmp[0], tmp.size() * 4).str()));
 		return restart(); // can't be 255-byte string
 	}
 
@@ -3291,12 +3291,12 @@ void MTProtoConnectionPrivate::dhParamsAnswered() {
 		const MTPDserver_DH_params_ok &encDH(res_DH_params.c_server_DH_params_ok());
 		if (encDH.vnonce != authKeyData->nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in server_DH_params_ok)!"));
-			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(mb(&encDH.vnonce, 16).str()).arg(mb(&authKeyData->nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&encDH.vnonce, 16).str()).arg(Logs::mb(&authKeyData->nonce, 16).str()));
 			return restart();
 		}
 		if (encDH.vserver_nonce != authKeyData->server_nonce) {
 			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in server_DH_params_ok)!"));
-			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(mb(&encDH.vserver_nonce, 16).str()).arg(mb(&authKeyData->server_nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&encDH.vserver_nonce, 16).str()).arg(Logs::mb(&authKeyData->server_nonce, 16).str()));
 			return restart();
 		}
 
@@ -3304,7 +3304,7 @@ void MTProtoConnectionPrivate::dhParamsAnswered() {
 		uint32 encDHLen = encDHStr.length(), encDHBufLen = encDHLen >> 2;
 		if ((encDHLen & 0x03) || encDHBufLen < 6) {
 			LOG(("AuthKey Error: bad encrypted data length %1 (in server_DH_params_ok)!").arg(encDHLen));
-			DEBUG_LOG(("AuthKey Error: received encrypted data %1").arg(mb(&encDHStr[0], encDHLen).str()));
+			DEBUG_LOG(("AuthKey Error: received encrypted data %1").arg(Logs::mb(&encDHStr[0], encDHLen).str()));
 			return restart();
 		}
 
@@ -3334,18 +3334,18 @@ void MTProtoConnectionPrivate::dhParamsAnswered() {
 		const MTPDserver_DH_inner_data &dh_inner_data(dh_inner.c_server_DH_inner_data());
 		if (dh_inner_data.vnonce != authKeyData->nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in server_DH_inner_data)!"));
-			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(mb(&dh_inner_data.vnonce, 16).str()).arg(mb(&authKeyData->nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&dh_inner_data.vnonce, 16).str()).arg(Logs::mb(&authKeyData->nonce, 16).str()));
 			return restart();
 		}
 		if (dh_inner_data.vserver_nonce != authKeyData->server_nonce) {
 			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in server_DH_inner_data)!"));
-			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(mb(&dh_inner_data.vserver_nonce, 16).str()).arg(mb(&authKeyData->server_nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&dh_inner_data.vserver_nonce, 16).str()).arg(Logs::mb(&authKeyData->server_nonce, 16).str()));
 			return restart();
 		}
 		uchar sha1Buffer[20];
 		if (memcmp(&decBuffer[0], hashSha1(&decBuffer[5], (to - from) * sizeof(mtpPrime), sha1Buffer), 20)) {
 			LOG(("AuthKey Error: sha1 hash of encrypted part did not match!"));
-			DEBUG_LOG(("AuthKey Error: sha1 did not match, server_nonce: %1, new_nonce %2, encrypted data %3").arg(mb(&authKeyData->server_nonce, 16).str()).arg(mb(&authKeyData->new_nonce, 16).str()).arg(mb(&encDHStr[0], encDHLen).str()));
+			DEBUG_LOG(("AuthKey Error: sha1 did not match, server_nonce: %1, new_nonce %2, encrypted data %3").arg(Logs::mb(&authKeyData->server_nonce, 16).str()).arg(Logs::mb(&authKeyData->new_nonce, 16).str()).arg(Logs::mb(&encDHStr[0], encDHLen).str()));
 			return restart();
 		}
 		unixtimeSet(dh_inner_data.vserver_time.v);
@@ -3353,15 +3353,15 @@ void MTProtoConnectionPrivate::dhParamsAnswered() {
 		const string &dhPrime(dh_inner_data.vdh_prime.c_string().v), &g_a(dh_inner_data.vg_a.c_string().v);
 		if (dhPrime.length() != 256 || g_a.length() != 256) {
 			LOG(("AuthKey Error: bad dh_prime len (%1) or g_a len (%2)").arg(dhPrime.length()).arg(g_a.length()));
-			DEBUG_LOG(("AuthKey Error: dh_prime %1, g_a %2").arg(mb(&dhPrime[0], dhPrime.length()).str()).arg(mb(&g_a[0], g_a.length()).str()));
+			DEBUG_LOG(("AuthKey Error: dh_prime %1, g_a %2").arg(Logs::mb(&dhPrime[0], dhPrime.length()).str()).arg(Logs::mb(&g_a[0], g_a.length()).str()));
 			return restart();
 		}
-		
+
 		// check that dhPrime and (dhPrime - 1) / 2 are really prime using openssl BIGNUM methods
 		_BigNumPrimeTest bnPrimeTest;
 		if (!bnPrimeTest.isPrimeAndGood(&dhPrime[0], MTPMillerRabinIterCount, dh_inner_data.vg.v)) {
 			LOG(("AuthKey Error: bad dh_prime primality!").arg(dhPrime.length()).arg(g_a.length()));
-			DEBUG_LOG(("AuthKey Error: dh_prime %1").arg(mb(&dhPrime[0], dhPrime.length()).str()));
+			DEBUG_LOG(("AuthKey Error: dh_prime %1").arg(Logs::mb(&dhPrime[0], dhPrime.length()).str()));
 			return restart();
 		}
 
@@ -3376,18 +3376,18 @@ void MTProtoConnectionPrivate::dhParamsAnswered() {
 		const MTPDserver_DH_params_fail &encDH(res_DH_params.c_server_DH_params_fail());
 		if (encDH.vnonce != authKeyData->nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in server_DH_params_fail)!"));
-			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(mb(&encDH.vnonce, 16).str()).arg(mb(&authKeyData->nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&encDH.vnonce, 16).str()).arg(Logs::mb(&authKeyData->nonce, 16).str()));
 			return restart();
 		}
 		if (encDH.vserver_nonce != authKeyData->server_nonce) {
 			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in server_DH_params_fail)!"));
-			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(mb(&encDH.vserver_nonce, 16).str()).arg(mb(&authKeyData->server_nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&encDH.vserver_nonce, 16).str()).arg(Logs::mb(&authKeyData->server_nonce, 16).str()));
 			return restart();
 		}
 		uchar sha1Buffer[20];
 		if (encDH.vnew_nonce_hash != *(MTPint128*)(hashSha1(&authKeyData->new_nonce, 32, sha1Buffer) + 1)) {
 			LOG(("AuthKey Error: received new_nonce_hash did not match!"));
-			DEBUG_LOG(("AuthKey Error: received new_nonce_hash: %1, new_nonce: %2").arg(mb(&encDH.vnew_nonce_hash, 16).str()).arg(mb(&authKeyData->new_nonce, 32).str()));
+			DEBUG_LOG(("AuthKey Error: received new_nonce_hash: %1, new_nonce: %2").arg(Logs::mb(&encDH.vnew_nonce_hash, 16).str()).arg(Logs::mb(&authKeyData->new_nonce, 32).str()));
 			return restart();
 		}
 		LOG(("AuthKey Error: server_DH_params_fail received!"));
@@ -3430,7 +3430,7 @@ void MTProtoConnectionPrivate::dhClientParamsSend() {
 	MTPSet_client_DH_params req_client_DH_params;
 	req_client_DH_params.vnonce = authKeyData->nonce;
 	req_client_DH_params.vserver_nonce = authKeyData->server_nonce;
-		
+
 	string &sdhEncString(req_client_DH_params.vencrypted_data._string().v);
 
 	uint32 client_dh_inner_size = client_dh_inner.innerLength(), encSize = (client_dh_inner_size >> 2) + 5, encFullSize = encSize;
@@ -3477,14 +3477,14 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 		const MTPDdh_gen_ok &resDH(res_client_DH_params.c_dh_gen_ok());
 		if (resDH.vnonce != authKeyData->nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in dh_gen_ok)!"));
-			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(mb(&resDH.vnonce, 16).str()).arg(mb(&authKeyData->nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&resDH.vnonce, 16).str()).arg(Logs::mb(&authKeyData->nonce, 16).str()));
 
 			lockFinished.unlock();
 			return restart();
 		}
 		if (resDH.vserver_nonce != authKeyData->server_nonce) {
 			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in dh_gen_ok)!"));
-			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(mb(&resDH.vserver_nonce, 16).str()).arg(mb(&authKeyData->server_nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&resDH.vserver_nonce, 16).str()).arg(Logs::mb(&authKeyData->server_nonce, 16).str()));
 
 			lockFinished.unlock();
 			return restart();
@@ -3493,7 +3493,7 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 		uchar sha1Buffer[20];
 		if (resDH.vnew_nonce_hash1 != *(MTPint128*)(hashSha1(authKeyData->new_nonce_buf, 41, sha1Buffer) + 1)) {
 			LOG(("AuthKey Error: received new_nonce_hash1 did not match!"));
-			DEBUG_LOG(("AuthKey Error: received new_nonce_hash1: %1, new_nonce_buf: %2").arg(mb(&resDH.vnew_nonce_hash1, 16).str()).arg(mb(authKeyData->new_nonce_buf, 41).str()));
+			DEBUG_LOG(("AuthKey Error: received new_nonce_hash1: %1, new_nonce_buf: %2").arg(Logs::mb(&resDH.vnew_nonce_hash1, 16).str()).arg(Logs::mb(authKeyData->new_nonce_buf, 41).str()));
 
 			lockFinished.unlock();
 			return restart();
@@ -3506,7 +3506,7 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 		authKey->setKey(authKeyData->auth_key);
 		authKey->setDC(dc % _mtp_internal::dcShift);
 
-		DEBUG_LOG(("AuthKey Info: auth key gen succeed, id: %1, server salt: %2, auth key: %3").arg(authKey->keyId()).arg(serverSalt).arg(mb(authKeyData->auth_key, 256).str()));
+		DEBUG_LOG(("AuthKey Info: auth key gen succeed, id: %1, server salt: %2, auth key: %3").arg(authKey->keyId()).arg(serverSalt).arg(Logs::mb(authKeyData->auth_key, 256).str()));
 
 		sessionData->owner()->notifyKeyCreated(authKey); // slot will call authKeyCreated()
 		sessionData->clear();
@@ -3517,14 +3517,14 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 		const MTPDdh_gen_retry &resDH(res_client_DH_params.c_dh_gen_retry());
 		if (resDH.vnonce != authKeyData->nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in dh_gen_retry)!"));
-			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(mb(&resDH.vnonce, 16).str()).arg(mb(&authKeyData->nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&resDH.vnonce, 16).str()).arg(Logs::mb(&authKeyData->nonce, 16).str()));
 
 			lockFinished.unlock();
 			return restart();
 		}
 		if (resDH.vserver_nonce != authKeyData->server_nonce) {
 			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in dh_gen_retry)!"));
-			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(mb(&resDH.vserver_nonce, 16).str()).arg(mb(&authKeyData->server_nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&resDH.vserver_nonce, 16).str()).arg(Logs::mb(&authKeyData->server_nonce, 16).str()));
 
 			lockFinished.unlock();
 			return restart();
@@ -3533,7 +3533,7 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 		uchar sha1Buffer[20];
 		if (resDH.vnew_nonce_hash2 != *(MTPint128*)(hashSha1(authKeyData->new_nonce_buf, 41, sha1Buffer) + 1)) {
 			LOG(("AuthKey Error: received new_nonce_hash2 did not match!"));
-			DEBUG_LOG(("AuthKey Error: received new_nonce_hash2: %1, new_nonce_buf: %2").arg(mb(&resDH.vnew_nonce_hash2, 16).str()).arg(mb(authKeyData->new_nonce_buf, 41).str()));
+			DEBUG_LOG(("AuthKey Error: received new_nonce_hash2: %1, new_nonce_buf: %2").arg(Logs::mb(&resDH.vnew_nonce_hash2, 16).str()).arg(Logs::mb(authKeyData->new_nonce_buf, 41).str()));
 
 			lockFinished.unlock();
 			return restart();
@@ -3545,14 +3545,14 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 		const MTPDdh_gen_fail &resDH(res_client_DH_params.c_dh_gen_fail());
 		if (resDH.vnonce != authKeyData->nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in dh_gen_fail)!"));
-			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(mb(&resDH.vnonce, 16).str()).arg(mb(&authKeyData->nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&resDH.vnonce, 16).str()).arg(Logs::mb(&authKeyData->nonce, 16).str()));
 
 			lockFinished.unlock();
 			return restart();
 		}
 		if (resDH.vserver_nonce != authKeyData->server_nonce) {
 			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in dh_gen_fail)!"));
-			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(mb(&resDH.vserver_nonce, 16).str()).arg(mb(&authKeyData->server_nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&resDH.vserver_nonce, 16).str()).arg(Logs::mb(&authKeyData->server_nonce, 16).str()));
 
 			lockFinished.unlock();
 			return restart();
@@ -3561,7 +3561,7 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 		uchar sha1Buffer[20];
         if (resDH.vnew_nonce_hash3 != *(MTPint128*)(hashSha1(authKeyData->new_nonce_buf, 41, sha1Buffer) + 1)) {
 			LOG(("AuthKey Error: received new_nonce_hash3 did not match!"));
-			DEBUG_LOG(("AuthKey Error: received new_nonce_hash3: %1, new_nonce_buf: %2").arg(mb(&resDH.vnew_nonce_hash3, 16).str()).arg(mb(authKeyData->new_nonce_buf, 41).str()));
+			DEBUG_LOG(("AuthKey Error: received new_nonce_hash3: %1, new_nonce_buf: %2").arg(Logs::mb(&resDH.vnew_nonce_hash3, 16).str()).arg(Logs::mb(authKeyData->new_nonce_buf, 41).str()));
 
 			lockFinished.unlock();
 			return restart();
@@ -3622,7 +3622,7 @@ void MTProtoConnectionPrivate::onError4(bool mayBeBadKey) {
 		destroyConn();
 		_waitForConnectedTimer.stop();
 
-		MTP_LOG(dc, ("Restarting after error in IPv4 connection, maybe bad key: %1..").arg(logBool(mayBeBadKey)));
+		MTP_LOG(dc, ("Restarting after error in IPv4 connection, maybe bad key: %1..").arg(Logs::b(mayBeBadKey)));
 		return restart(mayBeBadKey);
 	} else {
 		destroyConn(&_conn4);
@@ -3636,7 +3636,7 @@ void MTProtoConnectionPrivate::onError6(bool mayBeBadKey) {
 		destroyConn();
 		_waitForConnectedTimer.stop();
 
-		MTP_LOG(dc, ("Restarting after error in IPv6 connection, maybe bad key: %1..").arg(logBool(mayBeBadKey)));
+		MTP_LOG(dc, ("Restarting after error in IPv6 connection, maybe bad key: %1..").arg(Logs::b(mayBeBadKey)));
 		return restart(mayBeBadKey);
 	} else {
 		destroyConn(&_conn6);
@@ -3692,18 +3692,18 @@ bool MTProtoConnectionPrivate::readResponseNotSecure(TResponse &response) {
 		uint32 len = buffer.size();
 		if (len < 5) {
 			LOG(("AuthKey Error: bad request answer, len = %1").arg(len * sizeof(mtpPrime)));
-			DEBUG_LOG(("AuthKey Error: answer bytes %1").arg(mb(answer, len * sizeof(mtpPrime)).str()));
+			DEBUG_LOG(("AuthKey Error: answer bytes %1").arg(Logs::mb(answer, len * sizeof(mtpPrime)).str()));
 			return false;
 		}
 		if (answer[0] != 0 || answer[1] != 0 || (((uint32)answer[2]) & 0x03) != 1/* || (unixtime() - answer[3] > 300) || (answer[3] - unixtime() > 60)*/) { // didnt sync time yet
 			LOG(("AuthKey Error: bad request answer start (%1 %2 %3)").arg(answer[0]).arg(answer[1]).arg(answer[2]));
-			DEBUG_LOG(("AuthKey Error: answer bytes %1").arg(mb(answer, len * sizeof(mtpPrime)).str()));
+			DEBUG_LOG(("AuthKey Error: answer bytes %1").arg(Logs::mb(answer, len * sizeof(mtpPrime)).str()));
 			return false;
 		}
 		uint32 answerLen = (uint32)answer[4];
 		if (answerLen != (len - 5) * sizeof(mtpPrime)) {
 			LOG(("AuthKey Error: bad request answer %1 <> %2").arg(answerLen).arg((len - 5) * sizeof(mtpPrime)));
-			DEBUG_LOG(("AuthKey Error: answer bytes %1").arg(mb(answer, len * sizeof(mtpPrime)).str()));
+			DEBUG_LOG(("AuthKey Error: answer bytes %1").arg(Logs::mb(answer, len * sizeof(mtpPrime)).str()));
 			return false;
 		}
 		const mtpPrime *from(answer + 5), *end(from + len - 5);
@@ -3720,7 +3720,7 @@ bool MTProtoConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResp
 
 	uint32 messageSize = mtpRequestData::messageSize(request);
 	if (messageSize < 5 || fullSize < messageSize + 4) return false;
-	
+
 	ReadLockerAttempt lock(sessionData->keyMutex());
 	if (!lock) {
 		DEBUG_LOG(("MTP Info: could not lock key for read in sendBuffer(), dc %1, restarting..").arg(dc));
@@ -3758,7 +3758,7 @@ bool MTProtoConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResp
 	*((MTPint128*)&result[4]) = msgKey;
 
 	aesEncrypt(request->constData(), &result[8], fullSize * sizeof(mtpPrime), key, msgKey);
-	
+
 	DEBUG_LOG(("MTP Info: sending request, size: %1, num: %2, time: %3").arg(fullSize + 6).arg((*request)[4]).arg((*request)[5]));
 
 	_conn->setSentEncrypted();

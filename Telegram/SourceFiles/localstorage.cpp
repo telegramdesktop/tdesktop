@@ -412,7 +412,7 @@ namespace {
 				continue;
 			}
 			if (memcmp(magic, tdfMagic, tdfMagicLen)) {
-				DEBUG_LOG(("App Info: bad magic %1 in '%2'").arg(mb(magic, tdfMagicLen).str()).arg(name));
+				DEBUG_LOG(("App Info: bad magic %1 in '%2'").arg(Logs::mb(magic, tdfMagicLen).str()).arg(name));
 				continue;
 			}
 
@@ -863,7 +863,7 @@ namespace {
 			stream.readRawData((char*)key, 256);
 			if (!_checkStreamStatus(stream)) return false;
 
-			DEBUG_LOG(("MTP Info: key found, dc %1, key: %2").arg(dcId).arg(mb(key, 256).str()));
+			DEBUG_LOG(("MTP Info: key found, dc %1, key: %2").arg(dcId).arg(Logs::mb(key, 256).str()));
 			dcId = dcId % _mtp_internal::dcShift;
 			mtpAuthKeyPtr keyPtr(new mtpAuthKey());
 			keyPtr->setKey(key);
@@ -1983,15 +1983,7 @@ namespace _local_inner {
 
 namespace Local {
 
-	void start() {
-		if (!_started) {
-			_started = true;
-			_manager = new _local_inner::Manager();
-			_localLoader = new TaskQueue(0, FileLoaderQueueStopTimeout);
-		}
-	}
-
-	void stop() {
+	void finish() {
 		if (_manager) {
 			_writeMap(WriteMapNow);
 			_manager->finish();
@@ -2002,8 +1994,11 @@ namespace Local {
 		}
 	}
 
-	void readSettings() {
-		Local::start();
+	void start() {
+		t_assert(_manager == 0);
+
+		_manager = new _local_inner::Manager();
+		_localLoader = new TaskQueue(0, FileLoaderQueueStopTimeout);
 
 		_basePath = cWorkingDir() + qsl("tdata/");
 		if (!QDir().exists(_basePath)) QDir().mkpath(_basePath);

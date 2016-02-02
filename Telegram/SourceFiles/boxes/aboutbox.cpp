@@ -44,6 +44,8 @@ AboutBox::AboutBox() : AbstractBox(st::aboutWidth)
 	connect(&_done, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	prepare();
+
+	setAcceptDrops(true);
 }
 
 void AboutBox::hideAll() {
@@ -82,7 +84,7 @@ void AboutBox::onVersion() {
 		}
 		url = url.arg(qsl("tbeta%1_%2").arg(cRealBetaVersion()).arg(countBetaVersionSignature(cRealBetaVersion())));
 
-		App::app()->clipboard()->setText(url);
+		Application::clipboard()->setText(url);
 
 		Ui::showLayer(new InformBox("The link to the current private beta version of Telegram Desktop was copied to the clipboard."));
 	} else {
@@ -103,6 +105,29 @@ void AboutBox::paintEvent(QPaintEvent *e) {
 	if (paint(p)) return;
 
 	paintTitle(p, qsl("Telegram Desktop"));
+}
+
+QString _getCrashReportFile(const QMimeData *m) {
+	if (!m || m->urls().size() != 1) return QString();
+
+	QString file(m->urls().at(0).toLocalFile());
+	if (file.startsWith(qsl("/.file/id="))) file = psConvertFileUrl(file);
+
+	return file.endsWith(qstr(".telegramcrash"), Qt::CaseInsensitive) ? file : QString();
+}
+
+void AboutBox::dragEnterEvent(QDragEnterEvent *e) {
+	if (!_getCrashReportFile(e->mimeData()).isEmpty()) {
+		e->setDropAction(Qt::CopyAction);
+		e->accept();
+	}
+}
+
+void AboutBox::dropEvent(QDropEvent *e) {
+	if (!_getCrashReportFile(e->mimeData()).isEmpty()) {
+		e->acceptProposedAction();
+		showCrashReportWindow(_getCrashReportFile(e->mimeData()));
+	}
 }
 
 QString telegramFaqLink() {

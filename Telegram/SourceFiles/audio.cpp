@@ -2059,7 +2059,7 @@ void AudioCaptureInner::onStop(bool needResult) {
 			}
 		}
 	}
-	DEBUG_LOG(("Audio Capture: stopping (need result: %1), size: %2, samples: %3").arg(logBool(needResult)).arg(d->data.size()).arg(d->fullSamples));
+	DEBUG_LOG(("Audio Capture: stopping (need result: %1), size: %2, samples: %3").arg(Logs::b(needResult)).arg(d->data.size()).arg(d->fullSamples));
 	_captured = QByteArray();
 
 	// Finish stream

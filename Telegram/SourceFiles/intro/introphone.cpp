@@ -230,7 +230,7 @@ void IntroPhone::phoneCheckDone(const MTPauth_CheckedPhone &result) {
 
 		checkRequest.start(1000);
 
-		sentRequest = MTP::send(MTPauth_SendCode(MTP_string(sentPhone), MTP_int(5), MTP_int(ApiId), MTP_string(ApiHash), MTP_string(Application::language())), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
+		sentRequest = MTP::send(MTPauth_SendCode(MTP_string(sentPhone), MTP_int(5), MTP_int(ApiId), MTP_string(ApiHash), MTP_string(Global::LangSystemISO())), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
 	} else {
 		showError(lang(lng_bad_phone_noreg), true);
 		enableAll(true);
@@ -240,7 +240,7 @@ void IntroPhone::phoneCheckDone(const MTPauth_CheckedPhone &result) {
 void IntroPhone::phoneSubmitDone(const MTPauth_SentCode &result) {
 	stopCheck();
 	enableAll(false);
-	
+
 	if (result.type() == mtpc_auth_sentCode) {
 		const MTPDauth_sentCode &d(result.c_auth_sentCode());
 		intro()->setPhone(sentPhone, d.vphone_code_hash.c_string().v.c_str(), mtpIsTrue(d.vphone_registered));
@@ -260,7 +260,7 @@ void IntroPhone::toSignUp() {
 
 	checkRequest.start(1000);
 
-	sentRequest = MTP::send(MTPauth_SendCode(MTP_string(sentPhone), MTP_int(0), MTP_int(ApiId), MTP_string(ApiHash), MTP_string(Application::language())), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
+	sentRequest = MTP::send(MTPauth_SendCode(MTP_string(sentPhone), MTP_int(0), MTP_int(ApiId), MTP_string(ApiHash), MTP_string(Global::LangSystemISO())), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
 }
 
 bool IntroPhone::phoneSubmitFail(const RPCError &error) {

@@ -2235,6 +2235,13 @@ protected:
 
 };
 
+inline int32 newMessageFlags(PeerData *p) {
+	return p->isSelf() ? 0 : (((p->isChat() || (p->isUser() && !p->asUser()->botInfo)) ? MTPDmessage::flag_unread : 0) | MTPDmessage::flag_out);
+}
+inline int32 newForwardedFlags(PeerData *p, int32 from, HistoryMessage *msg) {
+	return newMessageFlags(p) | (from ? MTPDmessage::flag_from_id : 0) | (msg->via() ? MTPDmessage::flag_via_bot_id : 0) | (!p->isChannel() && msg->getMedia() && (msg->getMedia()->type() == MediaTypeAudio/* || msg->getMedia()->type() == MediaTypeVideo*/) ? MTPDmessage::flag_media_unread : 0);
+}
+
 class HistoryServiceMsg : public HistoryItem {
 public:
 

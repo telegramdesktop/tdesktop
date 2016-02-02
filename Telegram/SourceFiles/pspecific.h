@@ -35,3 +35,12 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #ifdef Q_OS_WIN
 #include "pspecific_wnd.h"
 #endif
+
+namespace PlatformSpecific {
+
+	struct Initializer {
+		Initializer();
+		~Initializer();
+	};
+
+}

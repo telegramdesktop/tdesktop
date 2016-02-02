@@ -22,8 +22,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "mtpScheme.h"
 
-#if (defined _DEBUG || defined _WITH_DEBUG)
-
 typedef QVector<mtpTypeId> Types;
 typedef QVector<int32> StagesFlags;
 
@@ -8266,4 +8264,3 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 	}
 }
 
-#endif

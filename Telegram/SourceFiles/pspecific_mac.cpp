@@ -1,17 +1,17 @@
 /*
 This file is part of Telegram Desktop,
 the official desktop version of Telegram messaging app, see https://telegram.org
- 
+
 Telegram Desktop is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
- 
+
 It is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
- 
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
@@ -26,6 +26,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "passcodewidget.h"
 
+#include <execinfo.h>
+
 namespace {
     QStringList _initLogs;
 
@@ -38,7 +40,7 @@ namespace {
 		}
 
 		bool nativeEventFilter(const QByteArray &eventType, void *message, long *result) {
-			Window *wnd = Application::wnd();
+			Window *wnd = AppClass::wnd();
 			if (!wnd) return false;
 
 			return wnd->psFilterNativeEvent(message);
@@ -83,7 +85,7 @@ void MacPrivate::notifyClicked(unsigned long long peer, int msgid) {
 
 void MacPrivate::notifyReplied(unsigned long long peer, int msgid, const char *str) {
     History *history = App::history(PeerId(peer));
-    
+
 	App::main()->sendMessage(history, QString::fromUtf8(str), (msgid > 0 && !history->peer->isUser()) ? msgid : 0, false);
 }
 
@@ -213,7 +215,7 @@ void PsMainWindow::psInitSize() {
 	bool maximized = false;
 	QRect geom(avail.x() + (avail.width() - st::wndDefWidth) / 2, avail.y() + (avail.height() - st::wndDefHeight) / 2, st::wndDefWidth, st::wndDefHeight);
 	if (pos.w && pos.h) {
-		QList<QScreen*> screens = App::app()->screens();
+		QList<QScreen*> screens = Application::screens();
 		for (QList<QScreen*>::const_iterator i = screens.cbegin(), e = screens.cend(); i != e; ++i) {
 			QByteArray name = (*i)->name().toUtf8();
 			if (pos.moncrc == hashCrc32(name.constData(), name.size())) {
@@ -266,7 +268,7 @@ void PsMainWindow::psSavePosition(Qt::WindowState state) {
 
 	int px = curPos.x + curPos.w / 2, py = curPos.y + curPos.h / 2, d = 0;
 	QScreen *chosen = 0;
-	QList<QScreen*> screens = App::app()->screens();
+	QList<QScreen*> screens = Application::screens();
 	for (QList<QScreen*>::const_iterator i = screens.cbegin(), e = screens.cend(); i != e; ++i) {
 		int dx = (*i)->geometry().x() + (*i)->geometry().width() / 2 - px; if (dx < 0) dx = -dx;
 		int dy = (*i)->geometry().y() + (*i)->geometry().height() / 2 - py; if (dy < 0) dy = -dy;
@@ -307,7 +309,7 @@ void PsMainWindow::psFirstShow() {
 		setWindowState(Qt::WindowMaximized);
 	}
 
-	if ((cFromAutoStart() && cStartMinimized()) || cStartInTray()) {
+	if ((cLaunchMode() == LaunchModeAutoStart && cStartMinimized()) || cStartInTray()) {
 		setWindowState(Qt::WindowMinimized);
 		if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
 			hide();
@@ -422,13 +424,13 @@ void PsMainWindow::psMacUpdateMenu() {
 		canSelectAll = !edit->text().isEmpty();
 		canUndo = edit->isUndoAvailable();
 		canRedo = edit->isRedoAvailable();
-		canPaste = !App::app()->clipboard()->text().isEmpty();
+		canPaste = !Application::clipboard()->text().isEmpty();
 	} else if (FlatTextarea *edit = qobject_cast<FlatTextarea*>(focused)) {
 		canCut = canCopy = canDelete = edit->textCursor().hasSelection();
 		canSelectAll = !edit->getLastText().isEmpty();
 		canUndo = edit->isUndoAvailable();
 		canRedo = edit->isRedoAvailable();
-		canPaste = !App::app()->clipboard()->text().isEmpty();
+		canPaste = !Application::clipboard()->text().isEmpty();
 	} else if (HistoryInner *list = qobject_cast<HistoryInner*>(focused)) {
 		canCopy = list->canCopySelected();
 		canDelete = list->canDeleteSelected();
@@ -516,18 +518,215 @@ bool PsMainWindow::eventFilter(QObject *obj, QEvent *evt) {
 	return QMainWindow::eventFilter(obj, evt);
 }
 
-PsApplication::PsApplication(int &argc, char **argv) : QApplication(argc, argv) {
-}
-
-void PsApplication::psInstallEventFilter() {
+QAbstractNativeEventFilter *psNativeEventFilter() {
     delete _psEventFilter;
 	_psEventFilter = new _PsEventFilter();
-    installNativeEventFilter(_psEventFilter);
+	return _psEventFilter;
 }
 
-PsApplication::~PsApplication() {
-    delete _psEventFilter;
-    _psEventFilter = 0;
+void psWriteDump() {
+	double v = objc_appkitVersion();
+	SignalHandlers::dump() << "OS-Version: " << v;
+}
+
+QString demanglestr(const QString &mangled) {
+	QByteArray cmd = ("c++filt -n " + mangled).toUtf8();
+	FILE *f = popen(cmd.constData(), "r");
+	if (!f) return "BAD_SYMBOL_" + mangled;
+
+	QString result;
+	char buffer[4096] = {0};
+	while (!feof(f)) {
+		if (fgets(buffer, 4096, f) != NULL) {
+			result += buffer;
+		}
+	}
+	pclose(f);
+	return result.trimmed();
+}
+
+QString escapeShell(const QString &str) {
+	QString result;
+	const QChar *b = str.constData(), *e = str.constEnd();
+	for (const QChar *ch = b; ch != e; ++ch) {
+		if (*ch == ' ' || *ch == '"' || *ch == '\'' || *ch == '\\') {
+			if (result.isEmpty()) {
+				result.reserve(str.size() * 2);
+			}
+			if (ch > b) {
+				result.append(b, ch - b);
+			}
+			result.append('\\');
+			b = ch;
+		}
+	}
+	if (result.isEmpty()) return str;
+
+	if (e > b) {
+		result.append(b, e - b);
+	}
+	return result;
+}
+
+QStringList atosstr(uint64 *addresses, int count, uint64 base) {
+	QStringList result;
+	if (!count) return result;
+
+	result.reserve(count);
+	QString cmdstr = "atos -o " + escapeShell(cExeDir() + cExeName()) + qsl("/Contents/MacOS/Telegram -l 0x%1").arg(base, 0, 16);
+	for (int i = 0; i < count; ++i) {
+		if (addresses[i]) {
+			cmdstr += qsl(" 0x%1").arg(addresses[i], 0, 16);
+		}
+	}
+	QByteArray cmd = cmdstr.toUtf8();
+	FILE *f = popen(cmd.constData(), "r");
+
+	QStringList atosResult;
+	if (f) {
+		char buffer[4096] = {0};
+		while (!feof(f)) {
+			if (fgets(buffer, 4096, f) != NULL) {
+				atosResult.push_back(QString::fromUtf8(buffer));
+			}
+		}
+		pclose(f);
+	}
+	for (int i = 0, j = 0; i < count; ++i) {
+		if (addresses[i]) {
+			if (j < atosResult.size() && !atosResult.at(j).isEmpty() && !atosResult.at(j).startsWith(qstr("0x"))) {
+				result.push_back(atosResult.at(j).trimmed());
+			} else {
+				result.push_back(QString());
+			}
+			++j;
+		} else {
+			result.push_back(QString());
+		}
+	}
+	return result;
+
+}
+
+QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile) {
+	QString initial = QString::fromUtf8(crashdump), result;
+	QStringList lines = initial.split('\n');
+	result.reserve(initial.size());
+	int32 i = 0, l = lines.size();
+
+	while (i < l) {
+		uint64 addresses[1024] = { 0 };
+		for (; i < l; ++i) {
+			result.append(lines.at(i)).append('\n');
+			QString line = lines.at(i).trimmed();
+			if (line == qstr("Base image addresses:")) {
+				++i;
+				break;
+			}
+		}
+
+		uint64 base = 0;
+		for (int32 start = i; i < l; ++i) {
+			QString line = lines.at(i).trimmed();
+			if (line.isEmpty()) break;
+
+			if (!base) {
+				QRegularExpressionMatch m = QRegularExpression(qsl("^\\d+ (\\d+) \\((.+)\\)")).match(line);
+				if (m.hasMatch()) {
+					if (uint64 address = m.captured(1).toULongLong()) {
+						if (m.captured(2).endsWith(qstr("Contents/MacOS/Telegram"))) {
+							base = address;
+						}
+					}
+				}
+			}
+		}
+		if (base) {
+			result.append(qsl("(base address read: 0x%1)\n").arg(base, 0, 16));
+		} else {
+			result.append(qsl("ERROR: base address not read!\n"));
+		}
+
+		for (; i < l; ++i) {
+			result.append(lines.at(i)).append('\n');
+			QString line = lines.at(i).trimmed();
+			if (line == qstr("Backtrace:")) {
+				++i;
+				break;
+			}
+		}
+
+		int32 start = i;
+		for (; i < l; ++i) {
+			QString line = lines.at(i).trimmed();
+			if (line.isEmpty()) break;
+
+			if (QRegularExpression(qsl("^\\d+")).match(line).hasMatch()) {
+				QStringList lst = line.split(' ', QString::SkipEmptyParts);
+				if (lst.size() > 2) {
+					uint64 addr = lst.at(2).startsWith(qstr("0x")) ? lst.at(2).mid(2).toULongLong(0, 16) : lst.at(2).toULongLong();
+					addresses[i - start] = addr;
+				}
+			}
+		}
+
+		QStringList atos = atosstr(addresses, i - start, base);
+		for (i = start; i < l; ++i) {
+			QString line = lines.at(i).trimmed();
+			if (line.isEmpty()) break;
+
+			if (!QRegularExpression(qsl("^\\d+")).match(line).hasMatch()) {
+				if (!lines.at(i).startsWith(qstr("ERROR: "))) {
+					result.append(qstr("BAD LINE: "));
+				}
+				result.append(line).append('\n');
+				continue;
+			}
+			QStringList lst = line.split(' ', QString::SkipEmptyParts);
+			result.append('\n').append(lst.at(0)).append(qsl(". "));
+			if (lst.size() < 3) {
+				result.append(qstr("BAD LINE: ")).append(line).append('\n');
+				continue;
+			}
+			if (lst.size() > 5 && lst.at(3) == qsl("0x0") && lst.at(4) == qsl("+") && lst.at(5) == qsl("1")) {
+				result.append(qsl("(0x1 separator)\n"));
+				continue;
+			}
+			if (i - start < atos.size()) {
+				if (!atos.at(i - start).isEmpty()) {
+					result.append(atos.at(i - start)).append('\n');
+					continue;
+				}
+			}
+
+			for (int j = 1, s = lst.size();;) {
+				if (lst.at(j).startsWith('_')) {
+					result.append(demanglestr(lst.at(j)));
+					if (++j < s) {
+						result.append(' ');
+						for (;;) {
+							result.append(lst.at(j));
+							if (++j < s) {
+								result.append(' ');
+							} else {
+								break;
+							}
+						}
+					}
+					break;
+				} else if (j > 2) {
+					result.append(lst.at(j));
+				}
+				if (++j < s) {
+					result.append(' ');
+				} else {
+					break;
+				}
+			}
+			result.append(qsl(" [demangled]")).append('\n');
+		}
+	}
+	return result;
 }
 
 void psDeleteDir(const QString &dir) {
@@ -592,7 +791,7 @@ QString psDownloadPath() {
 }
 
 QString psCurrentExeDirectory(int argc, char *argv[]) {
-    QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
+    QString first = argc ? fromUtf8Safe(argv[0]) : QString();
     if (!first.isEmpty()) {
         QFileInfo info(first);
         if (info.exists()) {
@@ -603,7 +802,7 @@ QString psCurrentExeDirectory(int argc, char *argv[]) {
 }
 
 QString psCurrentExeName(int argc, char *argv[]) {
-	QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
+	QString first = argc ? fromUtf8Safe(argv[0]) : QString();
 	if (!first.isEmpty()) {
 		QFileInfo info(first);
 		if (info.exists()) {
@@ -649,12 +848,19 @@ void psShowInFolder(const QString &name) {
     objc_showInFinder(name, QFileInfo(name).absolutePath());
 }
 
-void psStart() {
-	objc_start();
-}
+namespace PlatformSpecific {
 
-void psFinish() {
-    objc_finish();
+	Initializer::Initializer() {
+		objc_start();
+	}
+
+	Initializer::~Initializer() {
+		delete _psEventFilter;
+		_psEventFilter = 0;
+
+		objc_finish();
+	}
+
 }
 
 void psNewVersion() {
@@ -667,8 +873,8 @@ void psExecUpdater() {
 	}
 }
 
-void psExecTelegram() {
-	objc_execTelegram();
+void psExecTelegram(const QString &crashreport) {
+	objc_execTelegram(crashreport);
 }
 
 void psAutoStart(bool start, bool silent) {

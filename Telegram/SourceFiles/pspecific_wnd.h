@@ -113,21 +113,9 @@ private:
 	void psDestroyIcons();
 };
 
-#ifdef _NEED_WIN_GENERATE_DUMP
-extern LPTOP_LEVEL_EXCEPTION_FILTER _oldWndExceptionFilter;
-LONG CALLBACK _exceptionFilter(EXCEPTION_POINTERS* pExceptionPointers);
-#endif
-
-class PsApplication : public QApplication {
-	Q_OBJECT
-
-public:
-
-	PsApplication(int &argc, char **argv);
-	void psInstallEventFilter();
-	~PsApplication();
-
-};
+void psWriteDump();
+void psWriteStackTrace();
+QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile);
 
 void psDeleteDir(const QString &dir);
 
@@ -161,15 +149,15 @@ int psCleanup();
 int psFixPrevious();
 
 void psExecUpdater();
-void psExecTelegram();
+void psExecTelegram(const QString &arg = QString());
 
 bool psShowOpenWithMenu(int x, int y, const QString &file);
 
 void psPostprocessFile(const QString &name);
 void psOpenFile(const QString &name, bool openWith = false);
 void psShowInFolder(const QString &name);
-void psStart();
-void psFinish();
+
+QAbstractNativeEventFilter *psNativeEventFilter();
 
 void psNewVersion();
 

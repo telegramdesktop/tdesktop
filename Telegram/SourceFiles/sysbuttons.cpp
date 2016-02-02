@@ -79,7 +79,7 @@ void SysBtn::paintEvent(QPaintEvent *e) {
 	}
 	p.fillRect(x, y, _st.img.pxWidth(), _st.img.pxHeight(), c);
 	p.drawPixmap(QPoint(x, y), App::sprite(), _st.img);
-	
+
 	if (!_text.isEmpty()) {
 		p.setFont(st::titleTextButton.font->f);
 		p.setPen(c);
@@ -148,12 +148,13 @@ UpdateBtn::UpdateBtn(QWidget *parent, Window *window, const QString &text) : Sys
 }
 
 void UpdateBtn::onClick() {
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	checkReadyUpdate();
-	#endif
-	if (App::app()->updatingState() == Application::UpdatingReady) {
+	if (Sandboxer::updatingState() == Application::UpdatingReady) {
 		cSetRestartingUpdate(true);
-	} else {
+	} else
+#endif
+	{
 		cSetRestarting(true);
 		cSetRestartingToSettings(false);
 	}
