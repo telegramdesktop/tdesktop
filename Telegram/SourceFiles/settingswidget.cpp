@@ -804,7 +804,9 @@ void SettingsInner::keyPressEvent(QKeyEvent *e) {
 			break;
         } else if (str == qstr("loadlang")) {
             chooseCustomLang();
-        } else if (qsl("debugmode").startsWith(str) || qsl("testmode").startsWith(str) || qsl("loadlang").startsWith(str)) {
+		} else if (str == qstr("crashplease")) {
+			t_assert(!"Crashed in Settings!");
+		} else if (qsl("debugmode").startsWith(str) || qsl("testmode").startsWith(str) || qsl("loadlang").startsWith(str) || qsl("crashplease").startsWith(str)) {
 			break;
 		}
 		++from;
