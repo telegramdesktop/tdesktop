@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include <iostream>
+#include <signal.h>
 #include "pspecific.h"
 
 // see https://blog.inventic.eu/2012/08/qt-and-google-breakpad/
@@ -606,6 +606,19 @@ namespace SignalHandlers {
 		return stream;
 	}
 
+    const dump &operator<<(const dump &stream, const wchar_t *str) {
+        if (!CrashDumpFile) return stream;
+
+        for (int i = 0, l = wcslen(str); i < l; ++i) {
+            if (str[i] >= 0 && str[i] < 128) {
+                _writeChar(char(str[i]));
+            } else {
+                _writeChar('?');
+            }
+        }
+        return stream;
+    }
+
 	template <typename Type>
 	const dump &_writeNumber(const dump &stream, Type number) {
 		if (!CrashDumpFile) return stream;
@@ -667,7 +680,9 @@ namespace SignalHandlers {
 	typedef std::map<std::string, std::string> AnnotationsMap;
 	AnnotationsMap ProcessAnnotations;
 
-// see https://github.com/benbjohnson/bandicoot
+	const char *BreakpadDumpPath = 0;
+    const wchar_t *BreakpadDumpPathW = 0;
+
 #if defined Q_OS_MAC || defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 	struct sigaction SIG_def[32];
 
@@ -710,10 +725,16 @@ namespace SignalHandlers {
 			dump() << "Caught signal " << signum << " (" << name << ") in thread " << uint64(thread) << "\n";
 		} else if (signum == -1) {
             dump() << "Google Breakpad caught a crash, minidump written in thread " << uint64(thread) << "\n";
+            if (BreakpadDumpPath) {
+                dump() << "Minidump: " << BreakpadDumpPath << "\n";
+            } else if (BreakpadDumpPathW) {
+                dump() << "Minidump: " << BreakpadDumpPathW << "\n";
+            }
         } else {
 			dump() << "Caught signal " << signum << " in thread " << uint64(thread) << "\n";
 		}
 
+		// see https://github.com/benbjohnson/bandicoot
 #if defined Q_OS_MAC || defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 		ucontext_t *uc = (ucontext_t*)ucontext;
 
@@ -801,7 +822,18 @@ namespace SignalHandlers {
 	bool DumpCallback(const google_breakpad::MinidumpDescriptor &md, void *context, bool success)
 #endif
 	{
+#ifdef Q_OS_WIN
+        BreakpadDumpPathW = _minidump_id;
+        Handler(-1);
+#else
+
+#ifdef Q_OS_MAC
+        BreakpadDumpPath = _minidump_id;
+#else
+        BreakpadDumpPath = md.path();
+#endif
 		Handler(-1, 0, 0);
+#endif
 		return success;
 	}
 #endif

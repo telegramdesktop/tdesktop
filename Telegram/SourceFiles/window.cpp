@@ -2018,32 +2018,49 @@ LastCrashedWindow::LastCrashedWindow()
 {
 
 	if (_sendingState != SendingNoReport) {
-		QString maxDump, maxDumpFull;
-		QDateTime maxDumpModified, workingModified = QFileInfo(cWorkingDir() + qsl("tdata/working")).lastModified();
-		qint64 maxDumpSize = 0;
+		qint64 dumpsize = 0;
 		QString dumpspath = cWorkingDir() + qsl("tdata/dumps");
 #if defined Q_OS_MAC && !defined MAC_USE_BREAKPAD
 		dumpspath += qsl("/completed");
 #endif
-		QFileInfoList list = QDir(dumpspath).entryInfoList();
-		for (int32 i = 0, l = list.size(); i < l; ++i) {
-			QString name = list.at(i).fileName();
-			if (name.endsWith(qstr(".dmp"))) {
-				QDateTime modified = list.at(i).lastModified();
-				if (maxDump.isEmpty() || qAbs(workingModified.secsTo(modified)) < qAbs(workingModified.secsTo(maxDumpModified))) {
-					maxDump = name;
-					maxDumpModified = modified;
-					maxDumpFull = list.at(i).absoluteFilePath();
-					maxDumpSize = list.at(i).size();
-				}
+		QString possibleDump = getReportField(qstr("minidump"), qstr("Minidump:"));
+		if (!possibleDump.isEmpty()) {
+			if (!possibleDump.startsWith('/')) {
+				possibleDump = dumpspath + '/' + possibleDump;
+			}
+			if (!possibleDump.endsWith('.dmp')) {
+				possibleDump += qsl(".dmp");
+			}
+			QFileInfo possibleInfo(possibleDump);
+			if (possibleInfo.exists()) {
+				_minidumpName = possibleInfo.fileName();
+				_minidumpFull = possibleInfo.absoluteFilePath();
+				dumpsize = possibleInfo.size();
 			}
 		}
-		if (!maxDump.isEmpty() && qAbs(workingModified.secsTo(maxDumpModified)) < 10) {
-			_minidumpName = maxDump;
-			_minidumpFull = maxDumpFull;
-		}
+		if (_minidumpFull.isEmpty()) {
+			QString maxDump, maxDumpFull;
+            QDateTime maxDumpModified, workingModified = QFileInfo(cWorkingDir() + qsl("tdata/working")).lastModified();
+			QFileInfoList list = QDir(dumpspath).entryInfoList();
+            for (int32 i = 0, l = list.size(); i < l; ++i) {
+                QString name = list.at(i).fileName();
+                if (name.endsWith(qstr(".dmp"))) {
+                    QDateTime modified = list.at(i).lastModified();
+                    if (maxDump.isEmpty() || qAbs(workingModified.secsTo(modified)) < qAbs(workingModified.secsTo(maxDumpModified))) {
+                        maxDump = name;
+                        maxDumpModified = modified;
+                        maxDumpFull = list.at(i).absoluteFilePath();
+                        dumpsize = list.at(i).size();
+                    }
+                }
+            }
+            if (!maxDump.isEmpty() && qAbs(workingModified.secsTo(maxDumpModified)) < 10) {
+                _minidumpName = maxDump;
+                _minidumpFull = maxDumpFull;
+            }
+        }
 
-		_minidump.setText(qsl("+ %1 (%2 KB)").arg(_minidumpName).arg(maxDumpSize / 1024));
+		_minidump.setText(qsl("+ %1 (%2 KB)").arg(_minidumpName).arg(dumpsize / 1024));
 	}
 
 	_networkSettings.setText(qsl("NETWORK SETTINGS"));
