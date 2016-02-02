@@ -10,7 +10,9 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 ![](tgdark.png)
 
-Binary download can be found under [releases](https://github.com/NXij/tdesktop-dark/releases)
+Windows: Binary download can be found under [releases](https://github.com/NXij/tdesktop-dark/releases)
+Arch Linux: PKGBUILD on [aur](https://aur.archlinux.org/packages/telegram-desktop-dark-git/)
+
 
 Co-development and messing-around with [JuanPotato](https://github.com/JuanPotato) and [Melvin V.](https://mel.vin/)
 
