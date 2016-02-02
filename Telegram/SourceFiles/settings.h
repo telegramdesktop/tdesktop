@@ -317,6 +317,7 @@ DeclareSetting(int32, IntRetinaFactor);
 DeclareSetting(bool, CustomNotifies);
 
 DeclareReadSetting(DBIPlatform, Platform);
+DeclareReadSetting(QString, PlatformString);
 DeclareReadSetting(bool, IsElCapitan);
 DeclareReadSetting(QUrl, UpdateURL);
 

@@ -2021,7 +2021,11 @@ LastCrashedWindow::LastCrashedWindow()
 		QString maxDump, maxDumpFull;
 		QDateTime maxDumpModified, workingModified = QFileInfo(cWorkingDir() + qsl("tdata/working")).lastModified();
 		qint64 maxDumpSize = 0;
-		QFileInfoList list = QDir(cWorkingDir() + qsl("tdumps")).entryInfoList();
+		QString dumpspath = cWorkingDir() + qsl("tdata/dumps");
+#if defined Q_OS_MAC && !defined MAC_USE_BREAKPAD
+		dumpspath += qsl("/completed");
+#endif
+		QFileInfoList list = QDir(dumpspath).entryInfoList();
 		for (int32 i = 0, l = list.size(); i < l; ++i) {
 			QString name = list.at(i).fileName();
 			if (name.endsWith(qstr(".dmp"))) {
@@ -2286,6 +2290,7 @@ void LastCrashedWindow::onCheckingFinished() {
 		return;
 	} else if (result != "Report") {
 		_pleaseSendReport.setText(qsl("This report is about some old version of Telegram Desktop."));
+		_pleaseSendReport.setText(qsl("Response: %1").arg(QString::fromLatin1(result)));
 		_sendingState = SendingTooOld;
 		updateControls();
 		return;

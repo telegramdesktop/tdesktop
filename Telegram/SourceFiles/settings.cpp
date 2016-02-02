@@ -139,19 +139,17 @@ bool gCustomNotifies = true;
 
 #ifdef Q_OS_WIN
 DBIPlatform gPlatform = dbipWindows;
-QUrl gUpdateURL = QUrl(qsl("http://tdesktop.com/win/tupdates/current"));
 #elif defined Q_OS_MAC
 DBIPlatform gPlatform = dbipMac;
-QUrl gUpdateURL = QUrl(qsl("http://tdesktop.com/mac/tupdates/current"));
-#elif defined Q_OS_LINUX32
-DBIPlatform gPlatform = dbipLinux32;
-QUrl gUpdateURL = QUrl(qsl("http://tdesktop.com/linux32/tupdates/current"));
 #elif defined Q_OS_LINUX64
 DBIPlatform gPlatform = dbipLinux64;
-QUrl gUpdateURL = QUrl(qsl("http://tdesktop.com/linux/tupdates/current"));
+#elif defined Q_OS_LINUX32
+DBIPlatform gPlatform = dbipLinux32;
 #else
 #error Unknown platform
 #endif
+QString gPlatformString;
+QUrl gUpdateURL;
 bool gIsElCapitan = false;
 
 bool gContactsReceived = false;
@@ -183,14 +181,36 @@ bool gAutoPlayGif = true;
 
 void settingsParseArgs(int argc, char *argv[]) {
 #ifdef Q_OS_MAC
-	gIsElCapitan = (QSysInfo::macVersion() >= QSysInfo::MV_10_11);
-	if (QSysInfo::macVersion() < QSysInfo::MV_10_8) {
-		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac32/tupdates/current"));
+	if (QSysInfo::macVersion() >= QSysInfo::MV_10_11) {
+		gIsElCapitan = true;
+	} else if (QSysInfo::macVersion() < QSysInfo::MV_10_8) {
 		gPlatform = dbipMacOld;
-	} else {
-		gCustomNotifies = false;
 	}
 #endif
+	
+	switch (cPlatform()) {
+	case dbipWindows:
+		gUpdateURL = QUrl(qsl("http://tdesktop.com/win/tupdates/current"));
+		gPlatformString = qsl("Windows");
+	break;
+	case dbipMac:
+		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac/tupdates/current"));
+		gPlatformString = qsl("MacOS");
+		gCustomNotifies = false;
+	break;
+	case dbipMacOld:
+		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac32/tupdates/current"));
+		gPlatformString = qsl("MacOSold");
+	break;
+	case dbipLinux64:
+		gUpdateURL = QUrl(qsl("http://tdesktop.com/linux/tupdates/current"));
+		gPlatformString = qsl("Linux64bit");
+	break;
+	case dbipLinux32:
+		gUpdateURL = QUrl(qsl("http://tdesktop.com/linux32/tupdates/current"));
+		gPlatformString = qsl("Linux32bit");
+	break;
+	}
 
 	QStringList args;
 	for (int32 i = 0; i < argc; ++i) {
