@@ -63,6 +63,7 @@
 		0755AEDF1AD12A80004D738A /* moc_sessionsbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0755AEDC1AD12A80004D738A /* moc_sessionsbox.cpp */; };
 		0764D55A1ABAD6F900FBFEED /* apiwrap.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0764D5581ABAD6F900FBFEED /* apiwrap.cpp */; };
 		0764D55D1ABAD71B00FBFEED /* moc_apiwrap.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0764D55C1ABAD71B00FBFEED /* moc_apiwrap.cpp */; };
+		077BA0141C621BC000B9123B /* Breakpad.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 077BA0131C621BC000B9123B /* Breakpad.framework */; };
 		078A2FCA1A811C5900CCC7A0 /* moc_backgroundbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078A2FC91A811C5900CCC7A0 /* moc_backgroundbox.cpp */; };
 		078A2FCD1A811CA600CCC7A0 /* backgroundbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078A2FCB1A811CA600CCC7A0 /* backgroundbox.cpp */; };
 		07A69332199277BA0099CB9F /* mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A69330199277BA0099CB9F /* mediaview.cpp */; };
@@ -312,6 +313,7 @@
 		0764D5591ABAD6F900FBFEED /* apiwrap.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = apiwrap.h; path = SourceFiles/apiwrap.h; sourceTree = SOURCE_ROOT; };
 		0764D55C1ABAD71B00FBFEED /* moc_apiwrap.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_apiwrap.cpp; path = GeneratedFiles/Debug/moc_apiwrap.cpp; sourceTree = SOURCE_ROOT; };
 		0771C4C94B623FC34BF62983 /* intro.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = intro.cpp; path = SourceFiles/intro/intro.cpp; sourceTree = "<absolute>"; };
+		077BA0131C621BC000B9123B /* Breakpad.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Breakpad.framework; path = Users/antanubis/TBuild/Libraries/breakpad/src/client/mac/build/Release/Breakpad.framework; sourceTree = "<group>"; };
 		078A2FC91A811C5900CCC7A0 /* moc_backgroundbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_backgroundbox.cpp; path = GeneratedFiles/Debug/moc_backgroundbox.cpp; sourceTree = SOURCE_ROOT; };
 		078A2FCB1A811CA600CCC7A0 /* backgroundbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = backgroundbox.cpp; path = SourceFiles/boxes/backgroundbox.cpp; sourceTree = SOURCE_ROOT; };
 		078A2FCC1A811CA600CCC7A0 /* backgroundbox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = backgroundbox.h; path = SourceFiles/boxes/backgroundbox.h; sourceTree = SOURCE_ROOT; };
@@ -710,6 +712,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				077BA0141C621BC000B9123B /* Breakpad.framework in Link Binary With Libraries */,
 				0752F8751C2C89F40026D0BC /* VideoToolbox.framework in Link Binary With Libraries */,
 				0752F8731C2C89220026D0BC /* VideoDecodeAcceleration.framework in Link Binary With Libraries */,
 				07CAACD81AEA64F00058E508 /* AudioUnit.framework in Link Binary With Libraries */,
@@ -1252,6 +1255,7 @@
 		AF39DD055C3EF8226FBE929D /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				077BA0131C621BC000B9123B /* Breakpad.framework */,
 				071AD90B1C5EA37D008C9E90 /* Breakpad.framework */,
 				071AD9091C5EA2A5008C9E90 /* Breakpad.framework */,
 				0752F8741C2C89F40026D0BC /* VideoToolbox.framework */,
@@ -1458,7 +1462,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "mkdir -p \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Helpers\" && cp \"./../../Libraries/crashpad/crashpad/out/Release/crashpad_handler\" \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Helpers/\"";
+			shellScript = "rm -rf \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Frameworks\" && mkdir -p \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Frameworks\" && cp -a \"./../../Libraries/breakpad/src/client/mac/build/Release/Breakpad.framework\" \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Frameworks/Breakpad.framework\"";
 		};
 		0746AC8B1A28CD1C0040AE26 /* Make Installer */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1748,7 +1752,7 @@
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				OBJROOT = ./../Mac/DebugIntermediate;
-				PRODUCT_BUNDLE_IDENTIFIER = "org.telegram.desktop";
+				PRODUCT_BUNDLE_IDENTIFIER = org.telegram.desktop;
 				PRODUCT_NAME = "Meta Compile";
 				QT_LIBRARY_SUFFIX = _debug;
 				SDKROOT = macosx;
@@ -1767,7 +1771,7 @@
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				LLVM_LTO = YES;
 				OBJROOT = ./../Mac/ReleaseIntermediate;
-				PRODUCT_BUNDLE_IDENTIFIER = "org.telegram.desktop";
+				PRODUCT_BUNDLE_IDENTIFIER = org.telegram.desktop;
 				PRODUCT_NAME = "Meta Compile";
 				QT_LIBRARY_SUFFIX = "";
 				SDKROOT = macosx;
@@ -1795,7 +1799,7 @@
 				DYLIB_COMPATIBILITY_VERSION = 0.9;
 				DYLIB_CURRENT_VERSION = 0.9.19;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				FRAMEWORK_SEARCH_PATHS = "";
+				FRAMEWORK_SEARCH_PATHS = ./../../Libraries/breakpad/src/client/mac/build/Release;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_LINK_WITH_DYNAMIC_LIBRARIES = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -1857,6 +1861,7 @@
 					"-DQT_NETWORK_LIB",
 					"-DQT_GUI_LIB",
 					"-DQT_CORE_LIB",
+					"-DMAC_USE_BREAKPAD",
 					"-Wno-unused-variable",
 					"-Wno-unused-parameter",
 					"-Wno-unused-function",
@@ -1875,6 +1880,7 @@
 					"-DQT_NETWORK_LIB",
 					"-DQT_GUI_LIB",
 					"-DQT_CORE_LIB",
+					"-DMAC_USE_BREAKPAD",
 					"-Wno-unused-variable",
 					"-Wno-unused-parameter",
 					"-Wno-unused-function",
@@ -1904,9 +1910,6 @@
 					/usr/local/lib/libavutil.a,
 					/usr/local/lib/libiconv.a,
 					"./../../Libraries/openssl-xcode/libcrypto.a",
-					./../../Libraries/crashpad/crashpad/out/Release/libbase.a,
-					./../../Libraries/crashpad/crashpad/out/Release/libcrashpad_client.a,
-					./../../Libraries/crashpad/crashpad/out/Release/libcrashpad_util.a,
 					"-g",
 				);
 				PRODUCT_NAME = Telegram;
@@ -1937,7 +1940,7 @@
 				DYLIB_CURRENT_VERSION = 0.9.19;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				FRAMEWORK_SEARCH_PATHS = "";
+				FRAMEWORK_SEARCH_PATHS = ./../../Libraries/breakpad/src/client/mac/build/Release;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_LINK_WITH_DYNAMIC_LIBRARIES = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -2001,6 +2004,7 @@
 					"-DQT_NETWORK_LIB",
 					"-DQT_GUI_LIB",
 					"-DQT_CORE_LIB",
+					"-DMAC_USE_BREAKPAD",
 					"-Wno-unused-variable",
 					"-Wno-unused-parameter",
 					"-Wno-unused-function",
@@ -2019,6 +2023,7 @@
 					"-DQT_NETWORK_LIB",
 					"-DQT_GUI_LIB",
 					"-DQT_CORE_LIB",
+					"-DMAC_USE_BREAKPAD",
 					"-Wno-unused-variable",
 					"-Wno-unused-parameter",
 					"-Wno-unused-function",
@@ -2047,9 +2052,6 @@
 					/usr/local/lib/libavutil.a,
 					/usr/local/lib/libiconv.a,
 					"./../../Libraries/openssl-xcode/libcrypto.a",
-					./../../Libraries/crashpad/crashpad/out/Release/libbase.a,
-					./../../Libraries/crashpad/crashpad/out/Release/libcrashpad_client.a,
-					./../../Libraries/crashpad/crashpad/out/Release/libcrashpad_util.a,
 					"-g",
 				);
 				PRODUCT_NAME = Telegram;
@@ -2070,8 +2072,8 @@
 				LLVM_LTO = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				OBJROOT = ./../Mac/ReleaseIntermediate;
+				PRODUCT_BUNDLE_IDENTIFIER = org.telegram.desktop;
 				PRODUCT_NAME = "Telegram Desktop";
-				PRODUCT_BUNDLE_IDENTIFIER = "org.telegram.desktop";
 				QT_LIBRARY_SUFFIX = "";
 				SYMROOT = ./../Mac;
 			};
@@ -2087,8 +2089,8 @@
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				OBJROOT = ./../Mac/DebugIntermediate;
+				PRODUCT_BUNDLE_IDENTIFIER = org.telegram.desktop;
 				PRODUCT_NAME = "Telegram Desktop";
-				PRODUCT_BUNDLE_IDENTIFIER = "org.telegram.desktop";
 				QT_LIBRARY_SUFFIX = _debug;
 				SYMROOT = ./../Mac;
 			};

@@ -1200,7 +1200,7 @@ QByteArray objc_FileBookmark::bookmark() const {
 }
 
 objc_FileBookmark::~objc_FileBookmark() {
-	if (data->counter > 0) {
+	if (data && data->counter > 0) {
 		LOG(("Did not disable() bookmark, counter: %1").arg(data->counter));
 		[data->url stopAccessingSecurityScopedResource];
 	}
