@@ -221,7 +221,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 		connect(App::main(), SIGNAL(peerPhotoChanged(PeerData *)), this, SLOT(peerUpdated(PeerData *)));
 		connect(App::main(), SIGNAL(peerNameChanged(PeerData *, const PeerData::Names &, const PeerData::NameFirstChars &)), this, SLOT(peerUpdated(PeerData *)));
 
-		connect(App::app(), SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onReloadPassword(Qt::ApplicationState)));
+		Sandboxer::connect(SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onReloadPassword(Qt::ApplicationState)));
 	}
 
 	// profile
@@ -803,7 +803,9 @@ void SettingsInner::keyPressEvent(QKeyEvent *e) {
 			break;
         } else if (str == qstr("loadlang")) {
             chooseCustomLang();
-        } else if (qsl("debugmode").startsWith(str) || qsl("testmode").startsWith(str) || qsl("loadlang").startsWith(str)) {
+		} else if (str == qstr("crashplease")) {
+			t_assert(!"Crashed in Settings!");
+		} else if (qsl("debugmode").startsWith(str) || qsl("testmode").startsWith(str) || qsl("loadlang").startsWith(str) || qsl("crashplease").startsWith(str)) {
 			break;
 		}
 		++from;
