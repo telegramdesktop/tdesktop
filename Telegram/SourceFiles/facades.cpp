@@ -199,7 +199,7 @@ namespace Global {
 				dataStream.setVersion(QDataStream::Qt_5_3);
 				dataStream << quint64(cRealBetaVersion()) << cBetaPrivateKey();
 			} else {
-				LOG(("Error: could not open '%1' for writing private key!").arg(beta.fileName()));
+				LOG(("FATAL: Could not open '%1' for writing private key!").arg(beta.fileName()));
 				return false;
 			}
 		} else if (beta.exists()) {
@@ -216,11 +216,11 @@ namespace Global {
 					cSetBetaPrivateKey(k);
 					cSetRealBetaVersion(v);
 				} else {
-					LOG(("Error: '%1' is corrupted, reinstall private beta!").arg(beta.fileName()));
+					LOG(("FATAL: '%1' is corrupted, reinstall private beta!").arg(beta.fileName()));
 					return false;
 				}
 			} else {
-				LOG(("Error: could not open '%1' for reading private key!").arg(beta.fileName()));
+				LOG(("FATAL: could not open '%1' for reading private key!").arg(beta.fileName()));
 				return false;
 			}
 		}

@@ -498,7 +498,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_sure_delete_group" = "Tem certeza que deseja apagar este grupo? Todos os membros serão removidos e todas as mensagens serão perdidas.";
 
 "lng_message_empty" = "Mensagem Vazia";
-"lng_media_unsupported" = "Mídia Não-Suportada";
+"lng_message_unsupported" = "Essa mensagem não é suportada em sua versão do Telegram Desktop. Atualize para a última versão nas Configurações ou instale por aqui {link}";
 
 "lng_action_add_user" = "{from} adicionou {user}";
 "lng_action_add_users_many" = "{from} adicionou {users}";
@@ -600,6 +600,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_saved_gifs" = "GIFs Salvos";
 "lng_inline_bot_results" = "Resultados de {inline_bot}";
 "lng_inline_bot_no_results" = "Nenhum resultado";
+"lng_inline_bot_via" = "via {inline_bot}";
 
 "lng_box_remove" = "Remover";
 
@@ -793,7 +794,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_selected_delete" = "Apagar";
 "lng_selected_forward" = "Encaminhar";
 "lng_selected_count" = "{count:_not_used_|# mensagem|# mensagens}";
-"lng_selected_cancel_sure_this" = "Você deseja cancelar o envio?";
+"lng_selected_cancel_sure_this" = "Cancelar envio?";
+"lng_selected_upload_stop" = "Parar";
 "lng_selected_delete_sure_this" = "Você deseja apagar essa mensagem?";
 "lng_selected_delete_sure" = "Você deseja apagar {count:_not_used_|# mensagem|# mensagens}?";
 "lng_box_delete" = "Apagar";

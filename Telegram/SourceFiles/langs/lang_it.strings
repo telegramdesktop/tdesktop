@@ -498,7 +498,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_sure_delete_group" = "Sei sicuro di voler eliminare questo gruppo? Tutti i membri verranno rimossi e i messaggi verranno persi.";
 
 "lng_message_empty" = "Messaggio vuoto";
-"lng_media_unsupported" = "Media non supportato";
+"lng_message_unsupported" = "Questo messaggio non è supportato dalla tua versione di Telegram Desktop. Per favore, aggiorna all'ultima versione dalle Impostazioni o installalo da {link}";
 
 "lng_action_add_user" = "{from} ha aggiunto {user}";
 "lng_action_add_users_many" = "{from} ha aggiunto {users}";
@@ -600,6 +600,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_saved_gifs" = "GIF salvate";
 "lng_inline_bot_results" = "Risultati da {inline_bot}";
 "lng_inline_bot_no_results" = "Nessun risultato";
+"lng_inline_bot_via" = "via {inline_bot}";
 
 "lng_box_remove" = "Rimuovi";
 
@@ -793,7 +794,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_selected_delete" = "Elimina";
 "lng_selected_forward" = "Inoltra";
 "lng_selected_count" = "{count:_not_used_|# messaggio|# messaggi}";
-"lng_selected_cancel_sure_this" = "Vuoi annullare il caricamento?";
+"lng_selected_cancel_sure_this" = "Annullare il caricamento?";
+"lng_selected_upload_stop" = "Arresta ";
 "lng_selected_delete_sure_this" = "Vuoi eliminare questo messaggio?";
 "lng_selected_delete_sure" = "Vuoi eliminare {count:_not_used_|# messaggio|# messaggi}?";
 "lng_box_delete" = "Elimina";
@@ -832,7 +834,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";
-"lng_new_version_text" = "Rivoluzione GIF: L'invio e il download delle GIF sono ora 10 volte più veloci, riproduci automaticamente le GIF e salva le tue GIF preferite in una pagina dedicata nel pannello sticker.\n\nPiù info sulle GIF:\n{gifs_link}\n\n@-Bot: Un nuovo modo di aggiungere contenuto dai bot in qualsiasi chat. Scrivi l'username di un bot e la tua domanda nel campo di scrittura per ricevere risultati immediati e inviarli nella chat. Prova a scrivere “@gif dog” nella tua prossima chat. Bot di esempio: @gif, @wiki, @bing, @vid, @bold.\n\nPiù info sui @-Bot:\n{bots_link}\n\nInoltre in questa versione: Nuovo design per i media, impostazioni di download automatico per foto, note vocali e GIF.";
+"lng_new_version_text" = "Rivoluzione GIF: L'invio e il download delle GIF sono ora 10 volte più veloci, riproduci automaticamente le GIF e salva le tue GIF preferite in una pagina dedicata nel pannello sticker.\n\nPiù info sulle GIF:\n{gifs_link}\n\nInline Bot: Un nuovo modo di aggiungere contenuto dai bot in qualsiasi chat. Scrivi l'username di un bot e la tua domanda nel campo di scrittura per ricevere risultati immediati e inviarli nella chat. Prova a scrivere “@gif dog” nella tua prossima chat. Bot di esempio: @gif, @wiki, @bing, @vid, @bold.\n\nPiù info sugli Inline Bot:\n{bots_link}\n\nInoltre in questa versione: Nuovo design per i media, impostazioni di download automatico per foto, note vocali e GIF.";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

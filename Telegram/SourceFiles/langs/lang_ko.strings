@@ -498,7 +498,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_sure_delete_group" = "정말로 그룹방을 삭제하시겠습니까? 모든 구성원 및 메시지가 삭제됩니다.";
 
 "lng_message_empty" = "메시지 없음";
-"lng_media_unsupported" = "지원하지 않는 미디어";
+"lng_message_unsupported" = "이 메시지는 텔레그램 데스크탑에서 호환이 되지 않습니다. 설정에서 최신 버전으로 업데이트를 하던가 {link}를 통하여 설치해주세요.";
 
 "lng_action_add_user" = "{from} 님께서 {user} 님을 초대하셨습니다.";
 "lng_action_add_users_many" = "{from}님께서 {users}명을 초대하였습니다.";
@@ -600,6 +600,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_saved_gifs" = "저장된 GIF";
 "lng_inline_bot_results" = "{inline_bot} 결과";
 "lng_inline_bot_no_results" = "결과 없음";
+"lng_inline_bot_via" = "{inline_bot} 결과";
 
 "lng_box_remove" = "삭제";
 
@@ -794,6 +795,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_selected_forward" = "전달";
 "lng_selected_count" = "{count:_not_used_|# 메시지|# 메시지}";
 "lng_selected_cancel_sure_this" = "업로드를 취소하시겠습니까?";
+"lng_selected_upload_stop" = "정지";
 "lng_selected_delete_sure_this" = "메시지를 삭제하시겠습니까?";
 "lng_selected_delete_sure" = "{count:_not_used_|# 메시지|# 메시지}를 삭제하시겠습니까?";
 "lng_box_delete" = "삭제";

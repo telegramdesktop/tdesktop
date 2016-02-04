@@ -498,7 +498,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_sure_delete_group" = "Groep echt verwijderen? Berichten worden gewist en alle deelnemers verwijderd.";
 
 "lng_message_empty" = "Leeg bericht";
-"lng_media_unsupported" = "Niet-ondersteunde media";
+"lng_message_unsupported" = "Dit bericht wordt niet ondersteund door jouw versie van Telegram Desktop. Werk bij naar de laatste versie via de instellingen of installeer vanuit {link}";
 
 "lng_action_add_user" = "{from} heeft {user} toegevoegd";
 "lng_action_add_users_many" = "{from} heeft {users} toegevoegd";
@@ -600,6 +600,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_saved_gifs" = "Opgeslagen GIF's";
 "lng_inline_bot_results" = "Resultaten van {inline_bot}";
 "lng_inline_bot_no_results" = "Geen resultaten";
+"lng_inline_bot_via" = "via {inline_bot}";
 
 "lng_box_remove" = "Verwijder";
 
@@ -793,7 +794,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_selected_delete" = "Verwijder";
 "lng_selected_forward" = "Doorsturen";
 "lng_selected_count" = "{count:_not_used_|# bericht|# berichten}";
-"lng_selected_cancel_sure_this" = "Wil je deze upload annuleren?";
+"lng_selected_cancel_sure_this" = "Upload annuleren?";
+"lng_selected_upload_stop" = "Stoppen";
 "lng_selected_delete_sure_this" = "Wil je dit bericht verwijderen?";
 "lng_selected_delete_sure" = "Wil je {count:_not_used_|# bericht|# berichten} verwijderen?";
 "lng_box_delete" = "Verwijder";

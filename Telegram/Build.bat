@@ -29,6 +29,8 @@ set "HomePath=..\..\Telegram"
 set "ReleasePath=..\Win32\Deploy"
 set "DeployPath=%ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStrFull%"
 set "SignPath=..\..\TelegramPrivate\Sign.bat"
+set "BinaryName=Telegram"
+set "DropboxSymbolsPath=Z:\Dropbox\Telegram\symbols"
 
 if %BetaVersion% neq 0 (
   if exist %DeployPath%\ (
@@ -71,9 +73,13 @@ echo .
 echo Version %AppVersionStrFull% build successfull. Preparing..
 echo .
 
+echo Dumping debug symbols..
+call ..\..\Libraries\breakpad\src\tools\windows\binaries\dump_syms.exe %ReleasePath%\%BinaryName%.pdb > %ReleasePath%\%BinaryName%.sym
+echo Done!
+
 set "PATH=%PATH%;C:\Program Files\7-Zip;C:\Program Files (x86)\Inno Setup 5"
 
-call %SignPath% %ReleasePath%\Telegram.exe
+call %SignPath% %ReleasePath%\%BinaryName%.exe
 if %errorlevel% neq 0 goto error
 
 call %SignPath% %ReleasePath%\Updater.exe
@@ -90,7 +96,7 @@ if %BetaVersion% equ 0 (
 )
 
 cd %ReleasePath%
-call Packer.exe -version %VersionForPacker% -path Telegram.exe -path Updater.exe %DevParam%
+call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe %DevParam%
 cd %HomePath%
 if %errorlevel% neq 0 goto error
 
@@ -108,6 +114,22 @@ if %BetaVersion% neq 0 (
   set "UpdateFile=%UpdateFile%_%BetaSignature%"
   set "PortableFile=tbeta%BetaVersion%_%BetaSignature%.zip"
 )
+
+for /f ^"usebackq^ eol^=^
+
+^ delims^=^" %%a in (..\Win32\Debug\Telegram.sym) do (
+  set "SymbolsHashLine=%%a"
+  goto symbolslinedone
+)
+:symbolslinedone
+FOR /F "tokens=1,2,3,4* delims= " %%i in ("%SymbolsHashLine%") do set "SymbolsH
+ash=%%l"
+
+echo Copying %BinaryName%.sym to %DropboxSymbolsPath%\%BinaryName%\%SymbolsHash%
+if not exist %DropboxSymbolsPath%\%BinaryName% mkdir %DropboxSymbolsPath%\%BinaryName%
+if not exist %DropboxSymbolsPath%\%BinaryName%\%SymbolsHash% mkdir %DropboxSymbolsPath%\%BinaryName%\%SymbolsHash%
+xcopy %ReleasePath%\%BinaryName%.sym %DropboxSymbolsPath%\%BinaryName%\%SymbolsHash%\
+echo Done!
 
 if not exist %ReleasePath%\deploy mkdir %ReleasePath%\deploy
 if not exist %ReleasePath%\deploy\%AppVersionStrMajor% mkdir %ReleasePath%\deploy\%AppVersionStrMajor%
@@ -144,7 +166,7 @@ if not exist %DeployPath%\%PortableFile% goto error
 if %BetaVersion% equ 0 (
   if not exist %DeployPath%\%SetupFile% goto error
 )
-if not exist %DeployPath%\Telegram.pdb goto error
+if not exist %DeployPath%\%BinaryName%.pdb goto error
 if not exist %DeployPath%\Updater.exe goto error
 if not exist %DeployPath%\Updater.pdb goto error
 if not exist %FinalReleasePath%\%AppVersionStrMajor% mkdir %FinalReleasePath%\%AppVersionStrMajor%
@@ -157,7 +179,7 @@ if %BetaVersion% equ 0 (
 ) else (
   xcopy %DeployPath%\%BetaKeyFile% %FinalDeployPath%\ /Y
 )
-xcopy %DeployPath%\Telegram.pdb %FinalDeployPath%\
+xcopy %DeployPath%\%BinaryName%.pdb %FinalDeployPath%\
 xcopy %DeployPath%\Updater.exe %FinalDeployPath%\
 xcopy %DeployPath%\Updater.pdb %FinalDeployPath%\
 

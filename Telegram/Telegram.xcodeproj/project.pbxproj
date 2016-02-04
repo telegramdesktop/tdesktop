@@ -1357,9 +1357,7 @@
 				07C3AF341948FC3B0016CFF1 /* Force Resources Directory */,
 				07C3AF25194336160016CFF1 /* Resources */,
 				07489B6B1A28949600348CD9 /* Build Updater */,
-				0746AC8F1A28D4140040AE26 /* Clean Updater */,
 				071AD90E1C60AA74008C9E90 /* Copy crashpad_handler */,
-				07489B6D1A28972E00348CD9 /* Sign Application */,
 			);
 			buildRules = (
 			);
@@ -1454,20 +1452,6 @@
 			shellPath = /bin/sh;
 			shellScript = "mkdir -p \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Helpers\" && cp \"./../../Libraries/crashpad/crashpad/out/Release/crashpad_handler\" \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Helpers/\"";
 		};
-		0746AC8F1A28D4140040AE26 /* Clean Updater */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "Clean Updater";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "rm -rf \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Frameworks/Updater.dSYM\"";
-		};
 		07489B6B1A28949600348CD9 /* Build Updater */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -1481,20 +1465,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "xcodebuild -project Updater.xcodeproj -configuration $CONFIGURATION";
-		};
-		07489B6D1A28972E00348CD9 /* Sign Application */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "Sign Application";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "codesign --force --deep --sign \"Developer ID Application: John Preston\" \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app\"";
 		};
 		07C3AF341948FC3B0016CFF1 /* Force Resources Directory */ = {
 			isa = PBXShellScriptBuildPhase;
