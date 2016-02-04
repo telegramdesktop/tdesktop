@@ -78,7 +78,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_weekday7_full" = "Sonntag";
 
 "lng_month_day" = "{day}. {month}";
-"lng_month_day_year" = "{day} {month}, {year}";
+"lng_month_day_year" = "{day}. {month} {year}";
 "lng_month_year" = "{month}, {year}";
 
 "lng_box_ok" = "OK";
@@ -454,7 +454,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_chat_all_members_admins" = "Alle Mitglieder Sind Admins";
 "lng_chat_about_all_admins" = "Gruppenmitglieder können neue Leute hinzufügen sowie den Gruppennamen und das Bild ändern.";
-"lng_chat_about_admins" = "Nur Admins können neue neue Leute hinzufügen und entfernen, den Gruppennamen und das Bild ändern.";
+"lng_chat_about_admins" = "Nur Admins können neue Leute hinzufügen und entfernen, den Gruppennamen und das Bild ändern.";
 
 "lng_participant_filter" = "Suche";
 "lng_participant_invite" = "Einladen";
@@ -498,7 +498,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_sure_delete_group" = "Sicher, dass du diese Gruppe löschen willst? Alle Mitglieder und Nachrichten werden entfernt.";
 
 "lng_message_empty" = "Leere Nachricht";
-"lng_media_unsupported" = "Format Nicht Unterstützt";
+"lng_message_unsupported" = "Diese Nachricht wird von deiner Telegram Desktop Version nicht unterstützt. Bitte aktualisiere sie in den Einstellungen oder über {link}";
 
 "lng_action_add_user" = "{from} hat {user} hinzugefügt";
 "lng_action_add_users_many" = "{from} hat {users} hinzugefügt";
@@ -600,6 +600,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_saved_gifs" = "Gespeicherte GIFs";
 "lng_inline_bot_results" = "Ergebnisse von {inline_bot}";
 "lng_inline_bot_no_results" = "Keine Ergebnisse";
+"lng_inline_bot_via" = "via {inline_bot}";
 
 "lng_box_remove" = "Entfernen";
 
@@ -793,7 +794,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_selected_delete" = "Löschen";
 "lng_selected_forward" = "Weiterleiten";
 "lng_selected_count" = "{count:_not_used_|# Nachricht|# Nachrichten}";
-"lng_selected_cancel_sure_this" = "Upload wirklich abbrechen?";
+"lng_selected_cancel_sure_this" = "Upload abbrechen?";
+"lng_selected_upload_stop" = "Abbrechen";
 "lng_selected_delete_sure_this" = "Diese Nachricht wirklich löschen?";
 "lng_selected_delete_sure" = "Willst du {count:_not_used_|# Nachricht|# Nachrichten} löschen?";
 "lng_box_delete" = "Löschen";
@@ -877,7 +879,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_mac_menu_redo" = "Wiederholen";
 "lng_mac_menu_cut" = "Ausschneiden";
 "lng_mac_menu_copy" = "Kopieren";
-"lng_mac_menu_paste" = "Einsetzen";
+"lng_mac_menu_paste" = "Einfügen";
 "lng_mac_menu_delete" = "Löschen";
 "lng_mac_menu_select_all" = "Alles auswählen";
 "lng_mac_menu_window" = "Fenster";

@@ -165,13 +165,7 @@ fi
       fi
     fi
 
-    if [ ! -d "$DropboxPath" ]; then
-      mkdir "$DropboxPath"
-    fi
-
-    if [ ! -d "$DropboxDeployPath" ]; then
-      mkdir "$DropboxDeployPath"
-    fi
+    mkdir -p "$DropboxDeployPath"
   fi
 #fi
 

@@ -338,7 +338,7 @@ namespace Logs {
 		LOG(("Arguments: %1").arg(cArguments()));
 
 		if (!LogsData) {
-			LOG(("Could not open '%1' for writing log!").arg(_logsFilePath(LogDataMain, qsl("_startXX"))));
+			LOG(("FATAL: Could not open '%1' for writing log!").arg(_logsFilePath(LogDataMain, qsl("_startXX"))));
 			return;
 		}
 
@@ -391,7 +391,7 @@ namespace Logs {
 
 			delete LogsData;
 			LogsData = 0;
-			LOG(("Could not move logging to '%1'!").arg(_logsFilePath(LogDataMain)));
+			LOG(("FATAL: Could not move logging to '%1'!").arg(_logsFilePath(LogDataMain)));
 			return false;
 		}
 
@@ -860,6 +860,7 @@ namespace SignalHandlers {
 #elif defined Q_OS_MAC
 
 #ifdef MAC_USE_BREAKPAD
+#ifndef _DEBUG
 		BreakpadExceptionHandler = new google_breakpad::ExceptionHandler(
 			dumpspath.toUtf8().toStdString(),
 			/*FilterCallback*/ 0,
@@ -868,6 +869,7 @@ namespace SignalHandlers {
 			true,
 			0
 		);
+#endif
 		SetSignalHandlers = false;
 #else
 		crashpad::CrashpadClient crashpad_client;
@@ -956,7 +958,7 @@ namespace SignalHandlers {
 			return Started;
 		}
 
-		LOG(("Could not open '%1' for writing!").arg(QString::fromUtf8(CrashDumpPath)));
+		LOG(("FATAL: Could not open '%1' for writing!").arg(QString::fromUtf8(CrashDumpPath)));
 
 		return CantOpen;
 	}

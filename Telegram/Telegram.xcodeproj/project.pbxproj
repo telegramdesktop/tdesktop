@@ -1363,8 +1363,6 @@
 				07C3AF341948FC3B0016CFF1 /* Force Resources Directory */,
 				07C3AF25194336160016CFF1 /* Resources */,
 				071AD90E1C60AA74008C9E90 /* Copy Breakpad framework */,
-				07489B6D1A28972E00348CD9 /* Sign Application */,
-				0746AC8B1A28CD1C0040AE26 /* Make Installer */,
 			);
 			buildRules = (
 			);
@@ -1463,34 +1461,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "rm -rf \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Frameworks\" && mkdir -p \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Frameworks\" && cp -a \"./../../Libraries/breakpad/src/client/mac/build/Release/Breakpad.framework\" \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Frameworks/Breakpad.framework\"";
-		};
-		0746AC8B1A28CD1C0040AE26 /* Make Installer */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "Make Installer";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "productbuild --sign \"3rd Party Mac Developer Installer: TELEGRAM MESSENGER LLP (6N38VWS5BX)\" --component \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app\" /Applications \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.pkg\"";
-		};
-		07489B6D1A28972E00348CD9 /* Sign Application */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "Sign Application";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "codesign --force --deep --sign \"3rd Party Mac Developer Application: TELEGRAM MESSENGER LLP (6N38VWS5BX)\" \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app\" --entitlements \"Telegram/Telegram Desktop.entitlements\"";
 		};
 		07C3AF341948FC3B0016CFF1 /* Force Resources Directory */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -2065,8 +2035,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = "Telegram/Telegram Desktop.entitlements";
-				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				LLVM_LTO = YES;
@@ -2083,8 +2051,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = "Telegram/Telegram Desktop.entitlements";
-				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
