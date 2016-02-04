@@ -37,6 +37,7 @@ if [ "$BuildTarget" == "linux" ]; then
   WorkPath="./../Linux"
   FixScript="$HomePath/FixMake.sh"
   ReleasePath="./../Linux/Release"
+  BinaryName="Telegram"
 elif [ "$BuildTarget" == "linux32" ]; then
   echo "Building version $AppVersionStrFull for Linux 32bit.."
   UpdateFile="tlinux32upd$AppVersion"
@@ -44,6 +45,7 @@ elif [ "$BuildTarget" == "linux32" ]; then
   WorkPath="./../Linux"
   FixScript="$HomePath/FixMake32.sh"
   ReleasePath="./../Linux/Release"
+  BinaryName="Telegram"
 elif [ "$BuildTarget" == "mac" ]; then
   echo "Building version $AppVersionStrFull for OS X 10.8+.."
   UpdateFile="tmacupd$AppVersion"
@@ -104,6 +106,9 @@ fi
 #fi
 
 if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
+
+  DropboxSymbolsPath="/media/psf/Home/Dropbox/Telegram/symbols"
+
   mkdir -p "$WorkPath/ReleaseIntermediateUpdater"
   cd "$WorkPath/ReleaseIntermediateUpdater"
   /usr/local/Qt-5.5.1/bin/qmake "$HomePath/Updater.pro"
@@ -118,8 +123,8 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
   make
   echo "Telegram build complete!"
   cd "$HomePath"
-  if [ ! -f "$ReleasePath/Telegram" ]; then
-    echo "Telegram not found!"
+  if [ ! -f "$ReleasePath/$BinaryName" ]; then
+    echo "$BinaryName not found!"
     exit 1
   fi
 
@@ -128,8 +133,16 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
     exit 1
   fi
 
+  echo "Dumping debug symbols.."
+  "./../../Libraries/breakpad/src/tools/linux/dump_syms/dump_syms" "$ReleasePath/$BinaryName" > "$ReleasePath/$BinaryName.sym"
+  echo "Done!"
+
+  echo "Stripping the executable.."
+  strip -s "$ReleasePath/$BinaryName"
+  echo "Done!"
+
   echo "Preparing version $AppVersionStrFull, executing Packer.."
-  cd "$ReleasePath" && "./Packer" -path Telegram -path Updater -version $VersionForPacker $DevParam && cd "$HomePath"
+  cd "$ReleasePath" && "./Packer" -path "$BinaryName" -path Updater -version $VersionForPacker $DevParam && cd "$HomePath"
   echo "Packer done!"
 
   if [ "$BetaVersion" != "0" ]; then
@@ -146,6 +159,12 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
     SetupFile="tbeta${BetaVersion}_${BetaSignature}.tar.xz"
   fi
 
+  SymbolsHash=`head -n 1 "$ReleasePath/$BinaryName.sym" | awk -F " " 'END {print $4}'`
+  echo "Copying $BinaryName.sym to $DropboxSymbolsPath/$BinaryName/$SymbolsHash"
+  mkdir -p "$DropboxSymbolsPath/$BinaryName/$SymbolsHash"
+  cp "$ReleasePath/$BinaryName.sym" "$DropboxSymbolsPath/$BinaryName/$SymbolsHash/"
+  echo "Done!"
+
   if [ ! -d "$ReleasePath/deploy" ]; then
     mkdir "$ReleasePath/deploy"
   fi
@@ -154,10 +173,10 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
     mkdir "$ReleasePath/deploy/$AppVersionStrMajor"
   fi
 
-  echo "Copying Telegram, Updater and $UpdateFile to deploy/$AppVersionStrMajor/$AppVersionStrFull..";
+  echo "Copying $BinaryName, Updater and $UpdateFile to deploy/$AppVersionStrMajor/$AppVersionStrFull..";
   mkdir "$DeployPath"
-  mkdir "$DeployPath/Telegram"
-  mv "$ReleasePath/Telegram" "$DeployPath/Telegram/"
+  mkdir "$DeployPath/$BinaryName"
+  mv "$ReleasePath/$BinaryName" "$DeployPath/Telegram/"
   mv "$ReleasePath/Updater" "$DeployPath/Telegram/"
   mv "$ReleasePath/$UpdateFile" "$DeployPath/"
   if [ "$BetaVersion" != "0" ]; then
@@ -167,6 +186,8 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
 fi
 
 if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" == "macstore" ]; then
+
+  DropboxSymbolsPath="./../../../Dropbox/Telegram/symbols"
 
   touch "./SourceFiles/telegram.qrc"
   xcodebuild -project Telegram.xcodeproj -alltargets -configuration Release build
@@ -180,6 +201,28 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     echo "$BinaryName.app.dSYM not found!"
     exit 1
   fi
+
+  if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
+    echo "Removing Updater debug symbols.."
+    rm -rf "$ReleasePath/$BinaryName.app/Contents/Frameworks/Updater.dSYM"
+    echo "Done!"
+  fi
+
+  echo "Dumping debug symbols.."
+  "./../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName" > "$ReleasePath/$BinaryName.sym"
+  echo "Done!"
+
+  echo "Stripping the executable.."
+  strip "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
+  echo "Done!"
+
+  echo "Signing the application.."
+  if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
+    codesign --force --deep --sign "Developer ID Application: John Preston" "$ReleasePath/$BinaryName.app"
+  elif [ "$BuildTarget" == "macstore" ]; then
+    codesign --force --deep --sign "3rd Party Mac Developer Application: TELEGRAM MESSENGER LLP (6N38VWS5BX)" "$ReleasePath/$BinaryName.app" --entitlements "Telegram/Telegram Desktop.entitlements"
+  fi
+  echo "Done!"
 
   AppUUID=`dwarfdump -u "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName" | awk -F " " '{print $2}'`
   DsymUUID=`dwarfdump -u "$ReleasePath/$BinaryName.app.dSYM" | awk -F " " '{print $2}'`
@@ -214,6 +257,12 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
       exit 1
     fi
   fi
+
+  SymbolsHash=`head -n 1 "$ReleasePath/$BinaryName.sym" | awk -F " " 'END {print $4}'`
+  echo "Copying $BinaryName.sym to $DropboxSymbolsPath/$BinaryName/$SymbolsHash"
+  mkdir -p "$DropboxSymbolsPath/$BinaryName/$SymbolsHash"
+  cp "$ReleasePath/$BinaryName.sym" "$DropboxSymbolsPath/$BinaryName/$SymbolsHash/"
+  echo "Done!"
 
   if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
     if [ "$BetaVersion" == "0" ]; then
@@ -294,6 +343,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     rm "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
     rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
 
+    mkdir -p "$DropboxDeployPath"
     cp -v "$DeployPath/$BinaryName.app" "$DropboxDeployPath/"
     cp -rv "$DeployPath/$BinaryName.app.dSYM" "$DropboxDeployPath/"
   fi

@@ -20,6 +20,8 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * libexif 0.6.20 ([LGPL](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html))
 * LZMA SDK 9.20 ([public domain](http://www.7-zip.org/sdk.html))
 * liblzma ([public domain](http://tukaani.org/xz/))
+* Google Breakpad ([License](https://chromium.googlesource.com/breakpad/breakpad/+/master/LICENSE))
+* Google Crashpad ([Apache License 2.0](https://chromium.googlesource.com/crashpad/crashpad/+/master/LICENSE))
 * OpenAL Soft ([LGPL](http://kcat.strangesoft.net/openal.html))
 * Opus codec ([BSD license](http://www.opus-codec.org/license/))
 * FFmpeg ([LGPL](https://www.ffmpeg.org/legal.html))

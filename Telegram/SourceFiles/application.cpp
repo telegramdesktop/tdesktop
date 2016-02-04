@@ -720,7 +720,7 @@ AppClass::AppClass() : QObject()
 
 	application()->installNativeEventFilter(psNativeEventFilter());
 
-	connect(application(), SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
+	Sandboxer::connect(SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
 
 	connect(&_mtpUnpauseTimer, SIGNAL(timeout()), this, SLOT(doMtpUnpause()));
 
