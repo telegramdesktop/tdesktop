@@ -435,7 +435,7 @@ void Window::init() {
 	psInitFrameless();
 	setWindowIcon(wndIcon);
 
-	App::app()->installEventFilter(this);
+	Application::instance()->installEventFilter(this);
 	connect(windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(stateChanged(Qt::WindowState)));
 	connect(windowHandle(), SIGNAL(activeChanged()), this, SLOT(checkHistoryActivation()), Qt::QueuedConnection);
 
@@ -2156,7 +2156,7 @@ QString LastCrashedWindow::getReportField(const QLatin1String &name, const QLati
 
 			if (name == qstr("version")) {
 				if (data.endsWith(qstr(" beta"))) {
-					data = QString::number(-data.replace(QRegularExpression(qsl("[^\\d]")), "").mid(0, data.size() - 5).toLongLong());
+					data = QString::number(-data.replace(QRegularExpression(qsl("[^\\d]")), "").toLongLong());
 				} else {
 					data = QString::number(data.replace(QRegularExpression(qsl("[^\\d]")), "").toLongLong());
 				}
