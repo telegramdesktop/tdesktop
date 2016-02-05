@@ -2028,7 +2028,7 @@ LastCrashedWindow::LastCrashedWindow()
 			if (!possibleDump.startsWith('/')) {
 				possibleDump = dumpspath + '/' + possibleDump;
 			}
-			if (!possibleDump.endsWith('.dmp')) {
+			if (!possibleDump.endsWith(qstr(".dmp"))) {
 				possibleDump += qsl(".dmp");
 			}
 			QFileInfo possibleInfo(possibleDump);

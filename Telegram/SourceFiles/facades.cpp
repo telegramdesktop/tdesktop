@@ -191,6 +191,7 @@ namespace Global {
 		QFile beta(cExeDir() + qsl("TelegramBeta_data/tdata/beta"));
 		if (cBetaVersion()) {
 			cForceWorkingDir(cExeDir() + qsl("TelegramBeta_data/"));
+			QDir().mkpath(cWorkingDir() + qstr("tdata"));
 			if (*BetaPrivateKey) {
 				cSetBetaPrivateKey(QByteArray(BetaPrivateKey));
 			}

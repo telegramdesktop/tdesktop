@@ -48,21 +48,6 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
   Compiles given files to single update file, compresses it with lzma and signs with a private key. It is not built in **Debug** and **Release** configurations of Telegram solution, because private key is inaccessible.
 
-* ### Prepare
-
-  Prepares a release for deployment, puts all current files to deploy/{version} folder.
-
-  **Windows**:
-  * tsetup{version}.exe installer
-  * Telegram.exe
-  * Telegram.pdb (debug info for crash minidumps view)
-  * tupdate{updversion} binary lzma update archive
-
-  **Mac**:
-  * tsetup{version}.dmg
-  * Telegram.app
-  * tmacupd{updversion} binary lzma update archive
-
 * ### MetaEmoji
 
   Creates four sprites and text2emoji replace code
