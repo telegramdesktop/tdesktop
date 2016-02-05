@@ -13,7 +13,7 @@ Replace () {
 Replace '\-llzma' '\/usr\/lib\/x86_64\-linux\-gnu\/liblzma\.a'
 Replace '\-lssl' '\/usr\/lib\/x86_64\-linux\-gnu\/libssl\.a'
 Replace '\-lcrypto' '\/usr\/lib\/x86_64\-linux\-gnu\/libcrypto\.a'
-#Replace '\-lgobject\-2\.0' '\/usr\/lib\/x86_64\-linux\-gnu\/libgobject\-2\.0\.a \/usr\/lib\/x86_64\-linux\-gnu\/libffi\.a'
+Replace '\-lgobject\-2\.0' '\/usr\/lib\/x86_64\-linux\-gnu\/libgobject\-2\.0\.a \/usr\/lib\/x86_64\-linux\-gnu\/libffi\.a'
 Replace '\-lXi' '\/usr\/lib\/x86_64\-linux\-gnu\/libXi\.a'
 Replace '\-lSM' '\/usr\/lib\/x86_64\-linux\-gnu\/libSM\.a'
 Replace '\-lICE' '\/usr\/lib\/x86_64\-linux\-gnu\/libICE\.a'

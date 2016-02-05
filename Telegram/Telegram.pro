@@ -288,10 +288,10 @@ CONFIG(release, debug|release) {
     QMAKE_CXXFLAGS_RELEASE -= -O2
     QMAKE_CXXFLAGS_RELEASE += -Ofast -flto -fno-strict-aliasing -g
     QMAKE_LFLAGS_RELEASE -= -O1
-    QMAKE_LFLAGS_RELEASE += -Ofast -flto -rdynamic -g
+    QMAKE_LFLAGS_RELEASE += -Ofast -flto -g
 }
 CONFIG(debug, debug|release) {
-	QMAKE_LFLAGS_DEBUG += -rdynamic -g
+	QMAKE_LFLAGS_DEBUG += -g
 }
 
 INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.5.1/QtGui\
