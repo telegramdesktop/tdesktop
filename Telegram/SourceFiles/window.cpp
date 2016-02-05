@@ -2692,7 +2692,7 @@ void LastCrashedWindow::onContinue() {
 	if (SignalHandlers::restart() == SignalHandlers::CantOpen) {
 		new NotStartedWindow();
 	} else {
-		new AppClass();
+		Sandboxer::startSandbox();
 	}
 	close();
 }

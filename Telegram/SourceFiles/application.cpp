@@ -281,7 +281,7 @@ void Application::singleInstanceChecked() {
 		} else if (status == SignalHandlers::LastCrashed) {
 			new LastCrashedWindow();
 		} else {
-			new AppClass();
+			Sandboxer::startSandbox();
 		}
 	}
 }
@@ -636,13 +636,38 @@ namespace Sandboxer {
 		}
 	}
 
+#endif
+
 	void connect(const char *signal, QObject *object, const char *method) {
 		if (Application *a = application()) {
 			a->connect(a, signal, object, method);
 		}
 	}
 
-#endif
+	void startSandbox() {
+		t_assert(application() != 0);
+
+		float64 dpi = Application::primaryScreen()->logicalDotsPerInch();
+		if (dpi <= 108) { // 0-96-108
+			cSetScreenScale(dbisOne);
+		} else if (dpi <= 132) { // 108-120-132
+			cSetScreenScale(dbisOneAndQuarter);
+		} else if (dpi <= 168) { // 132-144-168
+			cSetScreenScale(dbisOneAndHalf);
+		} else { // 168-192-inf
+			cSetScreenScale(dbisTwo);
+		}
+
+		if (application()->devicePixelRatio() > 1) {
+			cSetRetina(true);
+			cSetRetinaFactor(application()->devicePixelRatio());
+			cSetIntRetinaFactor(int32(cRetinaFactor()));
+			cSetConfigScale(dbisOne);
+			cSetRealScale(dbisOne);
+		}
+
+		new AppClass();
+	}
 
 }
 
@@ -667,21 +692,7 @@ AppClass::AppClass() : QObject()
 
 	application()->installEventFilter(new EventFilterForKeys(this));
 
-	float64 dpi = QApplication::primaryScreen()->logicalDotsPerInch();
-	if (dpi <= 108) { // 0-96-108
-		cSetScreenScale(dbisOne);
-	} else if (dpi <= 132) { // 108-120-132
-		cSetScreenScale(dbisOneAndQuarter);
-	} else if (dpi <= 168) { // 132-144-168
-		cSetScreenScale(dbisOneAndHalf);
-	} else { // 168-192-inf
-		cSetScreenScale(dbisTwo);
-	}
-
-	if (application()->devicePixelRatio() > 1) {
-		cSetRetina(true);
-		cSetRetinaFactor(application()->devicePixelRatio());
-		cSetIntRetinaFactor(int32(cRetinaFactor()));
+	if (cRetina()) {
 		cSetConfigScale(dbisOne);
 		cSetRealScale(dbisOne);
 	}
