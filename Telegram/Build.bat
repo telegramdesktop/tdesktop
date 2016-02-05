@@ -117,13 +117,12 @@ if %BetaVersion% neq 0 (
 
 for /f ^"usebackq^ eol^=^
 
-^ delims^=^" %%a in (..\Win32\Debug\Telegram.sym) do (
+^ delims^=^" %%a in (%ReleasePath%\%BinaryName%.sym) do (
   set "SymbolsHashLine=%%a"
   goto symbolslinedone
 )
 :symbolslinedone
-FOR /F "tokens=1,2,3,4* delims= " %%i in ("%SymbolsHashLine%") do set "SymbolsH
-ash=%%l"
+FOR /F "tokens=1,2,3,4* delims= " %%i in ("%SymbolsHashLine%") do set "SymbolsHash=%%l"
 
 echo Copying %BinaryName%.sym to %DropboxSymbolsPath%\%BinaryName%\%SymbolsHash%
 if not exist %DropboxSymbolsPath%\%BinaryName% mkdir %DropboxSymbolsPath%\%BinaryName%
