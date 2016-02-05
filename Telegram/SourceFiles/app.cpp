@@ -25,8 +25,9 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "fileuploader.h"
 #include "mainwidget.h"
+#if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
 #include <libexif/exif-data.h>
-
+#endif
 #include "localstorage.h"
 
 #include "numbers.h"
