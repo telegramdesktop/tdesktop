@@ -1000,7 +1000,7 @@ void OverviewInner::onUpdateSelected() {
 			}
 		}
 		textlnkOver(lnk);
-		QToolTip::hideText();
+		PopupTooltip::Hide();
 		App::hoveredLinkItem(lnk ? item : 0);
 		if (textlnkOver()) {
 			if (item && index >= 0) {
@@ -1015,10 +1015,10 @@ void OverviewInner::onUpdateSelected() {
 		lnkChanged = true;
 		if (oldMousedItem) repaintItem(oldMousedItem, oldMousedItemIndex);
 		if (item) repaintItem(item);
-		QToolTip::hideText();
+		PopupTooltip::Hide();
 	}
 	if (_cursorState == HistoryInDateCursorState && cursorState != HistoryInDateCursorState) {
-		QToolTip::hideText();
+		PopupTooltip::Hide();
 	}
 	if (cursorState != _cursorState) {
 		_cursorState = cursorState;
@@ -1142,14 +1142,11 @@ void OverviewInner::onUpdateSelected() {
 
 void OverviewInner::showLinkTip() {
 	TextLinkPtr lnk = textlnkOver();
-	int32 dd = QApplication::startDragDistance();
-	QPoint dp(mapFromGlobal(_dragPos));
-	QRect r(dp.x() - dd, dp.y() - dd, 2 * dd, 2 * dd);
 	if (lnk && !lnk->fullDisplayed()) {
-		QToolTip::showText(_dragPos, lnk->readable(), this, r);
+		new PopupTooltip(_dragPos, lnk->readable());
 	} else if (_cursorState == HistoryInDateCursorState && _dragAction == NoDrag && _mousedItem) {
 		if (HistoryItem *item = App::histItemById(itemChannel(_mousedItem), itemMsgId(_mousedItem))) {
-			QToolTip::showText(_dragPos, item->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)), this, r);
+			new PopupTooltip(_dragPos, item->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)));
 		}
 	}
 }

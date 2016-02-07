@@ -17,6 +17,8 @@
  */
 #pragma once
 
+#include "text.h"
+
 class PopupMenu : public TWidget {
 	Q_OBJECT
 
@@ -103,5 +105,40 @@ private:
 	Animation _a_hide;
 
 	bool _deleteOnHide, _triggering, _deleteLater;
+
+};
+
+class PopupTooltip : public TWidget {
+	Q_OBJECT
+
+public:
+
+	PopupTooltip(const QPoint &p, const QString &text, const style::Tooltip &st = st::defaultTooltip);
+
+	bool eventFilter(QObject *o, QEvent *e);
+
+	static void Hide();
+
+	~PopupTooltip();
+
+public slots:
+
+	void onHideByLeave();
+
+protected:
+
+	void paintEvent(QPaintEvent *e);
+	void hideEvent(QHideEvent *e);
+
+private:
+
+	void popup(const QPoint &p, const QString &text, const style::Tooltip *st);
+
+	Text _text;
+	QPoint _point;
+
+	const style::Tooltip *_st;
+
+	QTimer _hideByLeaveTimer;
 
 };

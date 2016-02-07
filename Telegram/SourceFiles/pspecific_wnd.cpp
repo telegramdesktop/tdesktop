@@ -37,7 +37,11 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include <wrl\implements.h>
 #include <windows.ui.notifications.h>
 
+#pragma warning(push)
+#pragma warning(disable:4091)
 #include <dbghelp.h>
+#pragma warning(pop)
+
 #include <Shlwapi.h>
 #include <Strsafe.h>
 #include <shlobj.h>

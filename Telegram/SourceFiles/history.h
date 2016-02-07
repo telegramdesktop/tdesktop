@@ -2010,7 +2010,7 @@ public:
 		return drawBubble();
 	}
 	bool displayFromName() const {
-		return hasFromName() && (!emptyText() || !_media || !_media->isDisplayed() || toHistoryReply() || viaBot() || !_media->hideFromName());
+		return hasFromName() && (!emptyText() || !_media || !_media->isDisplayed() || toHistoryReply() || toHistoryForwarded() || viaBot() || !_media->hideFromName());
 	}
 	bool uploading() const {
 		return _media && _media->uploading();

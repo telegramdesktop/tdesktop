@@ -272,6 +272,20 @@ PopupMenu {
 	widthMax: number;
 }
 
+Tooltip {
+	textBg: color;
+	textFg: color;
+	textFont: font;
+	textBorder: color;
+	textPadding: margins;
+
+	shift: point;
+	skip: number;
+
+	widthMax: number;
+	linesMax: number;
+}
+
 botKeyboardButton {
 	margin: number;
 	padding: number;

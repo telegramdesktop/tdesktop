@@ -269,6 +269,21 @@ defaultPopupMenu: PopupMenu {
 	widthMin: 180px;
 	widthMax: 300px;
 }
+
+defaultTooltip: Tooltip {
+	textBg: #eef2f5;
+	textFg: #5d6c80;
+	textFont: normalFont;
+	textBorder: #c9d1db;
+	textPadding: margins(5px, 2px, 5px, 2px);
+
+	shift: point(-20px, 20px);
+	skip: 10px;
+
+	widthMax: 800px;
+	linesMax: 12;
+}
+
 almostTransparent: #ffffff0d;
 boxScroll: flatScroll(solidScroll) {
 	width: 18px;
@@ -998,6 +1013,8 @@ historyToEndSkip: 10px;
 
 activeFadeInDuration: 500;
 activeFadeOutDuration: 3000;
+
+historyMaxWidth: 640px;
 
 msgRadius: 3px;
 

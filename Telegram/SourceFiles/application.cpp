@@ -70,6 +70,13 @@ namespace {
 						App::wnd()->setWindowState(Qt::WindowMinimized);
 						return true;
 					}
+				} else {
+					if ((ev->key() == Qt::Key_W || ev->key() == Qt::Key_F4) && (ev->modifiers() & Qt::ControlModifier)) {
+						if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
+							App::wnd()->minimizeToTray();
+							return true;
+						}
+					}
 				}
 				if (ev->key() == Qt::Key_MediaPlay) {
 					if (App::main()) App::main()->player()->playPressed();
@@ -279,7 +286,15 @@ void Application::singleInstanceChecked() {
 		if (status == SignalHandlers::CantOpen) {
 			new NotStartedWindow();
 		} else if (status == SignalHandlers::LastCrashed) {
-			new LastCrashedWindow();
+			if (Global::LastCrashDump().isEmpty()) { // don't handle bad closing for now
+				if (SignalHandlers::restart() == SignalHandlers::CantOpen) {
+					new NotStartedWindow();
+				} else {
+					Sandboxer::startSandbox();
+				}
+			} else {
+				new LastCrashedWindow();
+			}
 		} else {
 			Sandboxer::startSandbox();
 		}
@@ -558,6 +573,12 @@ namespace Sandboxer {
 			return a->isSavingSession();
 		}
 		return false;
+	}
+
+	void installEventFilter(QObject *filter) {
+		if (Application *a = application()) {
+			a->installEventFilter(filter);
+		}
 	}
 
 	void execExternal(const QString &cmd) {

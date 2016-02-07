@@ -4604,7 +4604,7 @@ void HistoryGif::draw(Painter &p, const HistoryItem *parent, const QRect &r, boo
 	if (!_caption.isEmpty()) {
 		p.setPen(st::black);
 		_caption.draw(p, st::msgPadding.left(), skipy + height + st::mediaPadding.bottom() + st::mediaCaptionSkip, captionw);
-	} else if (parent->getMedia() == this) {
+	} else if (parent->getMedia() == this && (_data->uploading() || App::hoveredItem() == parent)) {
 		int32 fullRight = skipx + width, fullBottom = skipy + height;
 		parent->drawInfo(p, fullRight, fullBottom, 2 * skipx + width, selected, InfoDisplayOverImage);
 	}
@@ -6209,17 +6209,22 @@ void HistoryMessage::initDimensions() {
 }
 
 void HistoryMessage::countPositionAndSize(int32 &left, int32 &width) const {
-	int32 mwidth = qMin(int(st::msgMaxWidth), _maxw);
+	int32 mwidth = qMin(int(st::msgMaxWidth), _maxw), hwidth = _history->width;
 	if (_media && _media->currentWidth() < mwidth) {
 		mwidth = qMax(_media->currentWidth(), qMin(mwidth, plainMaxWidth()));
 	}
 
-	left = (!fromChannel() && out()) ? st::msgMargin.right() : st::msgMargin.left();
+	left = 0;
+	if (hwidth > st::historyMaxWidth) {
+		left = (hwidth - st::historyMaxWidth) / 2;
+		hwidth = st::historyMaxWidth;
+	}
+	left += (!fromChannel() && out()) ? st::msgMargin.right() : st::msgMargin.left();
 	if (displayFromPhoto()) {
 		left += st::msgPhotoSkip;
 	}
 
-	width = _history->width - st::msgMargin.left() - st::msgMargin.right();
+	width = hwidth - st::msgMargin.left() - st::msgMargin.right();
 	if (width > mwidth) {
 		if (!fromChannel() && out()) {
 			left += width - mwidth;

@@ -520,3 +520,126 @@ PopupMenu::~PopupMenu() {
 	}
 #endif
 }
+
+PopupTooltip *PopupTooltipInstance = 0;
+
+PopupTooltip::PopupTooltip(const QPoint &p, const QString &text, const style::Tooltip &st) : TWidget(0)
+, _st(0) {
+	if (PopupTooltip *instance = PopupTooltipInstance) {
+		hide();
+		deleteLater();
+	} else {
+		PopupTooltipInstance = this;
+		Sandboxer::installEventFilter(this);
+		_hideByLeaveTimer.setSingleShot(true);
+		connect(&_hideByLeaveTimer, SIGNAL(timeout()), this, SLOT(onHideByLeave()));
+	}
+
+	setWindowFlags(Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::ToolTip | Qt::NoDropShadowWindowHint);
+	setAttribute(Qt::WA_NoSystemBackground, true);
+
+	PopupTooltipInstance->popup(p, text, &st);
+}
+
+bool PopupTooltip::eventFilter(QObject *o, QEvent *e) {
+	if (e->type() == QEvent::Leave) {
+		_hideByLeaveTimer.start(10);
+	} else if (e->type() == QEvent::Enter) {
+		_hideByLeaveTimer.stop();
+	} else if (e->type() == QEvent::MouseMove) {
+		if ((QCursor::pos() - _point).manhattanLength() > QApplication::startDragDistance()) {
+			Hide();
+		}
+	}
+	return TWidget::eventFilter(o, e);
+}
+
+void PopupTooltip::onHideByLeave() {
+	Hide();
+}
+
+PopupTooltip::~PopupTooltip() {
+	if (PopupTooltipInstance == this) {
+		PopupTooltipInstance = 0;
+	}
+}
+
+void PopupTooltip::popup(const QPoint &m, const QString &text, const style::Tooltip *st) {
+	_point = m;
+	_st = st;
+	_text = Text(_st->textFont, text, _textPlainOptions, _st->widthMax, true);
+
+	int32 addw = 2 * st::lineWidth + _st->textPadding.left() + _st->textPadding.right();
+	int32 addh = 2 * st::lineWidth + _st->textPadding.top() + _st->textPadding.bottom();
+
+	// count tooltip size
+	QSize s(addw + _text.maxWidth(), addh + _text.minHeight());
+	if (s.width() > _st->widthMax) {
+		s.setWidth(addw + _text.countWidth(_st->widthMax - addw));
+		s.setHeight(addh + _text.countHeight(s.width() - addw));
+	}
+	int32 maxh = addh + (_st->linesMax * _st->textFont->height);
+	if (s.height() > maxh) {
+		s.setHeight(maxh);
+	}
+
+	// count tooltip position
+	QPoint p(m + _st->shift);
+	if (rtl()) {
+		p.setX(m.x() - s.width() - _st->shift.x());
+	}
+	if (s.width() < 2 * _st->shift.x()) {
+		p.setX(m.x() - (s.width() / 2));
+	}
+
+	// adjust tooltip position
+	QRect r(QApplication::desktop()->screenGeometry(m));
+	if (r.x() + r.width() - _st->skip < p.x() + s.width() && p.x() + s.width() > m.x()) {
+		p.setX(qMax(r.x() + r.width() - int32(_st->skip) - s.width(), m.x() - s.width()));
+	}
+	if (r.x() + _st->skip > p.x() && p.x() < m.x()) {
+		p.setX(qMin(m.x(), r.x() + int32(_st->skip)));
+	}
+	if (r.y() + r.height() - _st->skip < p.y() + s.height()) {
+		p.setY(m.y() - s.height() - _st->skip);
+	}
+	if (r.y() > p.x()) {
+		p.setY(qMin(m.y() + _st->shift.y(), r.y() + r.height() - s.height()));
+	}
+
+	setGeometry(QRect(p, s));
+
+	_hideByLeaveTimer.stop();
+	show();
+}
+
+void PopupTooltip::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	p.fillRect(rect(), _st->textBg);
+
+	p.fillRect(QRect(0, 0, width(), st::lineWidth), _st->textBorder);
+	p.fillRect(QRect(0, height() - st::lineWidth, width(), st::lineWidth), _st->textBorder);
+	p.fillRect(QRect(0, st::lineWidth, st::lineWidth, height() - 2 * st::lineWidth), _st->textBorder);
+	p.fillRect(QRect(width() - st::lineWidth, st::lineWidth, st::lineWidth, height() - 2 * st::lineWidth), _st->textBorder);
+
+	int32 lines = qFloor((height() - 2 * st::lineWidth - _st->textPadding.top() - _st->textPadding.bottom()) / _st->textFont->height);
+
+	p.setPen(_st->textFg);
+	_text.drawElided(p, st::lineWidth + _st->textPadding.left(), st::lineWidth + _st->textPadding.top(), width() - 2 * st::lineWidth - _st->textPadding.left() - _st->textPadding.right(), lines);
+}
+
+void PopupTooltip::hideEvent(QHideEvent *e) {
+	if (PopupTooltipInstance == this) {
+		PopupTooltipInstance = 0;
+		deleteLater();
+	}
+}
+
+void PopupTooltip::Hide() {
+	if (PopupTooltip *instance = PopupTooltipInstance) {
+		PopupTooltipInstance = 0;
+		instance->hide();
+		instance->deleteLater();
+	}
+}

@@ -24,7 +24,12 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 // see https://blog.inventic.eu/2012/08/qt-and-google-breakpad/
 #ifdef Q_OS_WIN
+
+#pragma warning(push)
+#pragma warning(disable:4091)
 #include "client/windows/handler/exception_handler.h"
+#pragma warning(pop)
+
 #elif defined Q_OS_MAC
 
 #ifdef MAC_USE_BREAKPAD
