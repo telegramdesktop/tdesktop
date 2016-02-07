@@ -33,7 +33,7 @@ enum DragState {
 };
 
 class HistoryWidget;
-class HistoryInner : public TWidget {
+class HistoryInner : public TWidget, public AbstractTooltipShower {
 	Q_OBJECT
 
 public:
@@ -97,14 +97,16 @@ public:
 	void notifyIsBotChanged();
 	void notifyMigrateUpdated();
 
+	// AbstractTooltipShower
+	virtual QString tooltipText() const;
+	virtual QPoint tooltipPos() const;
+
 	~HistoryInner();
 
 public slots:
 
 	void onUpdateSelected();
 	void onParentGeometryChanged();
-
-	void showLinkTip();
 
 	void openContextUrl();
 	void copyContextUrl();
@@ -149,8 +151,6 @@ private:
 	mutable int32 _curBlock, _curItem;
 
 	bool _firstLoading;
-
-	QTimer _tooltipTimer;
 
 	Qt::CursorShape _cursor;
 	typedef QMap<HistoryItem*, uint32> SelectedItems;
@@ -249,7 +249,7 @@ private:
 
 };
 
-class BotKeyboard : public TWidget {
+class BotKeyboard : public TWidget, public AbstractTooltipShower {
 	Q_OBJECT
 
 public:
@@ -277,9 +277,12 @@ public:
 		return _wasForMsgId;
 	}
 
+	// AbstractTooltipShower
+	virtual QString tooltipText() const;
+	virtual QPoint tooltipPos() const;
+
 public slots:
 
-	void showCommandTip();
 	void updateSelected();
 
 private:
@@ -290,7 +293,6 @@ private:
 	FullMsgId _wasForMsgId;
 	int32 _height, _maxOuterHeight;
 	bool _maximizeSize, _singleUse, _forceReply;
-	QTimer _cmdTipTimer;
 
 	QPoint _lastMousePos;
 	struct Button {

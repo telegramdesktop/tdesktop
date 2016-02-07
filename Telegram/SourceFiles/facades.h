@@ -123,9 +123,10 @@ namespace Sandbox {
 	void finish();
 
 #define DeclareSandboxReadOnly(Type, Name) const Type &Name();
-#define DeclareSandbox(Type, Name) DeclareSandboxReadOnly(Type, Name) \
-	void Set##Name(const Type &Name); \
+#define DeclareSandboxRef(Type, Name) DeclareSandboxReadOnly(Type, Name) \
 	Type &Ref##Name();
+#define DeclareSandbox(Type, Name) DeclareSandboxRef(Type, Name) \
+	void Set##Name(const Type &Name);
 
 	DeclareSandboxReadOnly(uint64, LaunchId);
 

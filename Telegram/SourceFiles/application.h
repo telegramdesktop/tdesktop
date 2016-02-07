@@ -112,6 +112,8 @@ namespace Sandboxer {
 	void setActiveWindow(QWidget *window);
 	bool isSavingSession();
 
+	void installEventFilter(QObject *filter);
+
 	void execExternal(const QString &cmd);
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -128,9 +130,12 @@ namespace Sandboxer {
 	void updateProgress(qint64 ready, qint64 total);
 	void updateFailed();
 	void updateReady();
-	void connect(const char *signal, QObject *object, const char *method);
 
 #endif
+
+	void connect(const char *signal, QObject *object, const char *method);
+
+	void startSandbox();
 
 }
 

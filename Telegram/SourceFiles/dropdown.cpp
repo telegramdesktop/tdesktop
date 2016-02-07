@@ -4064,6 +4064,7 @@ bool MentionsInner::select() {
 	if (!_srows->isEmpty()) {
 		if (_sel >= 0 && _sel < _srows->size()) {
 			emit selected(_srows->at(_sel));
+			return true;
 		}
 	} else {
 		QString sel = getSelected();
@@ -4636,10 +4637,12 @@ bool MentionsDropdown::eventFilter(QObject *obj, QEvent *e) {
 	if (isHidden()) return QWidget::eventFilter(obj, e);
 	if (e->type() == QEvent::KeyPress) {
 		QKeyEvent *ev = static_cast<QKeyEvent*>(e);
-		if (ev->key() == Qt::Key_Up || ev->key() == Qt::Key_Down || (!_srows.isEmpty() && (ev->key() == Qt::Key_Left || ev->key() == Qt::Key_Right))) {
-			return _inner.moveSel(ev->key());
-		} else if (ev->key() == Qt::Key_Enter || ev->key() == Qt::Key_Return) {
-			return _inner.select();
+		if (!(ev->modifiers() & (Qt::AltModifier | Qt::ControlModifier | Qt::ShiftModifier | Qt::MetaModifier))) {
+			if (ev->key() == Qt::Key_Up || ev->key() == Qt::Key_Down || (!_srows.isEmpty() && (ev->key() == Qt::Key_Left || ev->key() == Qt::Key_Right))) {
+				return _inner.moveSel(ev->key());
+			} else if (ev->key() == Qt::Key_Enter || ev->key() == Qt::Key_Return) {
+				return _inner.select();
+			}
 		}
 	}
 	return QWidget::eventFilter(obj, e);

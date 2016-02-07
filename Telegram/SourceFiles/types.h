@@ -528,6 +528,174 @@ inline void destroyImplementation(I *&ptr) {
 	deleteAndMark(ptr);
 }
 
+class Interfaces;
+typedef void(*InterfaceConstruct)(void *location, Interfaces *interfaces);
+typedef void(*InterfaceDestruct)(void *location);
+
+struct InterfaceWrapStruct {
+	InterfaceWrapStruct() : Size(0), Construct(0), Destruct(0) {
+	}
+	InterfaceWrapStruct(int size, InterfaceConstruct construct, InterfaceDestruct destruct)
+	: Size(size)
+	, Construct(construct)
+	, Destruct(destruct) {
+	}
+	int Size;
+	InterfaceConstruct Construct;
+	InterfaceDestruct Destruct;
+};
+
+template <int Value, int Denominator>
+struct CeilDivideMinimumOne {
+	static const int Result = ((Value / Denominator) + ((!Value || (Value % Denominator)) ? 1 : 0));
+};
+
+template <typename Type>
+struct InterfaceWrapTemplate {
+	static const int Size = CeilDivideMinimumOne<sizeof(Type), sizeof(uint64)>::Result * sizeof(uint64);
+	static void Construct(void *location, Interfaces *interfaces) {
+		new (location) Type(interfaces);
+	}
+	static void Destruct(void *location) {
+		((Type*)location)->~Type();
+	}
+};
+
+extern InterfaceWrapStruct InterfaceWraps[64];
+extern QAtomicInt InterfaceIndexLast;
+
+template <typename Type>
+class BasicInterface {
+public:
+	static int Index() {
+		static QAtomicInt _index(0);
+		if (int index = _index.loadAcquire()) {
+			return index - 1;
+		}
+		while (true) {
+			int last = InterfaceIndexLast.loadAcquire();
+			if (InterfaceIndexLast.testAndSetOrdered(last, last + 1)) {
+				t_assert(last < 64);
+				if (_index.testAndSetOrdered(0, last + 1)) {
+					InterfaceWraps[last] = InterfaceWrapStruct(InterfaceWrapTemplate<Type>::Size, InterfaceWrapTemplate<Type>::Construct, InterfaceWrapTemplate<Type>::Destruct);
+				}
+				break;
+			}
+		}
+		return _index.loadAcquire() - 1;
+	}
+	static uint64 Bit() {
+		return (1 << Index());
+	}
+
+};
+
+template <typename Type>
+class BasicInterfaceWithPointer : public BasicInterface<Type> {
+public:
+	BasicInterfaceWithPointer(Interfaces *interfaces) : interfaces(interfaces) {
+	}
+	Interfaces *interfaces = 0;
+};
+
+class InterfacesMetadata {
+public:
+
+	InterfacesMetadata(uint64 mask) : size(0), last(64), _mask(mask) {
+		for (int i = 0; i < 64; ++i) {
+			uint64 m = (1 << i);
+			if (_mask & m) {
+				int s = InterfaceWraps[i].Size;
+				if (s) {
+					offsets[i] = size;
+					size += s;
+				} else {
+					offsets[i] = -1;
+				}
+			} else if (_mask < m) {
+				last = i;
+				for (; i < 64; ++i) {
+					offsets[i] = -1;
+				}
+			} else {
+				offsets[i] = -1;
+			}
+		}
+	}
+
+	int size, last;
+	int offsets[64];
+
+private:
+	uint64 _mask;
+
+};
+
+const InterfacesMetadata *GetInterfacesMetadata(uint64 mask);
+
+class Interfaces {
+public:
+
+	Interfaces(uint64 mask = 0) : _meta(GetInterfacesMetadata(mask)), _data(0) {
+		if (_meta->size) {
+			_data = malloc(_meta->size);
+			if (!_data) { // terminate if we can't allocate memory
+				throw "Can't allocate memory!";
+			}
+
+			for (int i = 0; i < _meta->last; ++i) {
+				int offset = _meta->offsets[i];
+				if (offset >= 0) {
+					try {
+						InterfaceWraps[i].Construct(_dataptrunsafe(offset), this);
+					} catch (...) {
+						while (i > 0) {
+							--i;
+							offset = _meta->offsets[--i];
+							if (offset >= 0) {
+								InterfaceWraps[i].Destruct(_dataptrunsafe(offset));
+							}
+						}
+						throw;
+					}
+				}
+			}
+		}
+	}
+	~Interfaces() {
+		if (_data) {
+			for (int i = 0; i < _meta->last; ++i) {
+				int offset = _meta->offsets[i];
+				if (offset >= 0) {
+					InterfaceWraps[i].Destruct(_dataptrunsafe(offset));
+				}
+			}
+			free(_data);
+		}
+	}
+
+	template <typename Type>
+	Type *Get() {
+		return (Type*)_dataptr(_meta->offsets[Type::Index()]);
+	}
+	template <typename Type>
+	const Type *Get() const {
+		return (const Type*)_dataptr(_meta->offsets[Type::Index()]);
+	}
+
+private:
+
+	void *_dataptrunsafe(int skip) const {
+		return (char*)_data + skip;
+	}
+	void *_dataptr(int skip) const {
+		return (skip >= 0) ? _dataptrunsafe(skip) : 0;
+	}
+	const InterfacesMetadata *_meta;
+	void *_data;
+
+};
+
 template <typename R>
 class FunctionImplementation {
 public:

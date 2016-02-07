@@ -315,14 +315,15 @@ namespace Sandbox {
 	t_assert_full(SandboxData != 0, "_data is null in Global::" #Name, __FILE__, __LINE__); \
 	return SandboxData->Name; \
 }
-#define DefineSandbox(Type, Name) DefineSandboxReadOnly(Type, Name) \
-void Set##Name(const Type &Name) { \
-	t_assert_full(SandboxData != 0, "_data is null in Global::Set" #Name, __FILE__, __LINE__); \
-	SandboxData->Name = Name; \
-} \
+#define DefineSandboxRef(Type, Name) DefineSandboxReadOnly(Type, Name) \
 Type &Ref##Name() { \
 	t_assert_full(SandboxData != 0, "_data is null in Global::Ref" #Name, __FILE__, __LINE__); \
 	return SandboxData->Name; \
+}
+#define DefineSandbox(Type, Name) DefineSandboxRef(Type, Name) \
+void Set##Name(const Type &Name) { \
+	t_assert_full(SandboxData != 0, "_data is null in Global::Set" #Name, __FILE__, __LINE__); \
+	SandboxData->Name = Name; \
 }
 
 	DefineSandboxReadOnly(uint64, LaunchId);

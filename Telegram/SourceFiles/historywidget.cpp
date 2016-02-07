@@ -75,8 +75,6 @@ HistoryInner::HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, His
 , _menu(0) {
 	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 
-	_tooltipTimer.setSingleShot(true);
-	connect(&_tooltipTimer, SIGNAL(timeout()), this, SLOT(showLinkTip()));
 	_touchSelectTimer.setSingleShot(true);
 	connect(&_touchSelectTimer, SIGNAL(timeout()), this, SLOT(onTouchSelect()));
 
@@ -458,6 +456,7 @@ void HistoryInner::touchScrollUpdated(const QPoint &screenPos) {
 QPoint HistoryInner::mapMouseToItem(QPoint p, HistoryItem *item) {
 	int32 msgy = itemTop(item);
 	if (msgy < 0) return QPoint(0, 0);
+
 	p.setY(p.y() - msgy);
 	return p;
 }
@@ -1616,7 +1615,7 @@ void HistoryInner::onUpdateSelected() {
 			}
 		}
 		textlnkOver(lnk);
-		QToolTip::hideText();
+		PopupTooltip::Hide();
 		App::hoveredLinkItem((lnk && !lnkInDesc) ? item : 0);
 		if (textlnkOver()) {
 			if (HistoryItem *item = App::hoveredLinkItem()) {
@@ -1627,11 +1626,11 @@ void HistoryInner::onUpdateSelected() {
 			}
 		}
 	}
-	if (lnk || cursorState == HistoryInDateCursorState) {
-		_tooltipTimer.start(1000);
-	}
 	if (_dragCursorState == HistoryInDateCursorState && cursorState != HistoryInDateCursorState) {
-		QToolTip::hideText();
+		PopupTooltip::Hide();
+	}
+	if (lnk || cursorState == HistoryInDateCursorState) {
+		PopupTooltip::Show(1000, this);
 	}
 
 	if (_dragAction == NoDrag) {
@@ -1868,18 +1867,20 @@ void HistoryInner::applyDragSelection(SelectedItems *toItems) const {
 	}
 }
 
-void HistoryInner::showLinkTip() {
+QString HistoryInner::tooltipText() const {
 	TextLinkPtr lnk = textlnkOver();
-	int32 dd = QApplication::startDragDistance();
-	QPoint dp(mapFromGlobal(_dragPos));
-	QRect r(dp.x() - dd, dp.y() - dd, 2 * dd, 2 * dd);
 	if (lnk && !lnk->fullDisplayed()) {
-		QToolTip::showText(_dragPos, lnk->readable(), this, r);
+		return lnk->readable();
 	} else if (_dragCursorState == HistoryInDateCursorState && _dragAction == NoDrag) {
 		if (App::hoveredItem()) {
-			QToolTip::showText(_dragPos, App::hoveredItem()->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)), this, r);
+			return App::hoveredItem()->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat));
 		}
 	}
+	return QString();
+}
+
+QPoint HistoryInner::tooltipPos() const {
+	return _dragPos;
 }
 
 void HistoryInner::onParentGeometryChanged() {
@@ -2019,9 +2020,6 @@ BotKeyboard::BotKeyboard() : TWidget()
 	setGeometry(0, 0, _st->margin, _st->margin);
 	_height = _st->margin;
 	setMouseTracking(true);
-
-	_cmdTipTimer.setSingleShot(true);
-	connect(&_cmdTipTimer, SIGNAL(timeout()), this, SLOT(showCommandTip()));
 }
 
 void BotKeyboard::paintEvent(QPaintEvent *e) {
@@ -2261,20 +2259,22 @@ void BotKeyboard::clearSelection() {
 	}
 }
 
-void BotKeyboard::showCommandTip() {
+QPoint BotKeyboard::tooltipPos() const {
+	return _lastMousePos;
+}
+
+QString BotKeyboard::tooltipText() const {
 	if (_sel >= 0) {
 		int row = (_sel / MatrixRowShift), col = _sel % MatrixRowShift;
 		if (!_btns.at(row).at(col).full) {
-			int32 dd = QApplication::startDragDistance();
-			QPoint dp(mapFromGlobal(_lastMousePos));
-			QRect r(dp.x() - dd, dp.y() - dd, 2 * dd, 2 * dd);
-			QToolTip::showText(_lastMousePos, _btns.at(row).at(col).cmd, this, r);
+			return _btns.at(row).at(col).cmd;
 		}
 	}
+	return QString();
 }
 
 void BotKeyboard::updateSelected() {
-	_cmdTipTimer.start(1000);
+	PopupTooltip::Show(1000, this);
 
 	if (_down >= 0) return;
 
@@ -2294,7 +2294,7 @@ void BotKeyboard::updateSelected() {
 		if (newSel >= 0) break;
 	}
 	if (newSel != _sel) {
-		QToolTip::hideText();
+		PopupTooltip::Hide();
 		if (newSel < 0) {
 			setCursor(style::cur_default);
 		} else if (_sel < 0) {
