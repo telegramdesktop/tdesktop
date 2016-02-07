@@ -108,21 +108,31 @@ private:
 
 };
 
+class AbstractTooltipShower {
+public:
+	virtual QString tooltipText() const = 0;
+	virtual QPoint tooltipPos() const = 0;
+	virtual const style::Tooltip *tooltipSt() const {
+		return &st::defaultTooltip;
+	}
+	virtual ~AbstractTooltipShower();
+};
+
 class PopupTooltip : public TWidget {
 	Q_OBJECT
 
 public:
 
-	PopupTooltip(const QPoint &p, const QString &text, const style::Tooltip &st = st::defaultTooltip);
-
 	bool eventFilter(QObject *o, QEvent *e);
 
+	static void Show(int32 delay, const AbstractTooltipShower *shower);
 	static void Hide();
 
 	~PopupTooltip();
 
 public slots:
 
+	void onShow();
 	void onHideByLeave();
 
 protected:
@@ -132,7 +142,13 @@ protected:
 
 private:
 
+	PopupTooltip();
+
 	void popup(const QPoint &p, const QString &text, const style::Tooltip *st);
+
+	friend class AbstractTooltipShower;
+	const AbstractTooltipShower *_shower;
+	QTimer _showTimer;
 
 	Text _text;
 	QPoint _point;

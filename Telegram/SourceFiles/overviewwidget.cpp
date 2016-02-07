@@ -91,8 +91,6 @@ OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, PeerD
 
 	App::contextItem(0);
 
-	_linkTipTimer.setSingleShot(true);
-	connect(&_linkTipTimer, SIGNAL(timeout()), this, SLOT(showLinkTip()));
 	_touchSelectTimer.setSingleShot(true);
 	connect(&_touchSelectTimer, SIGNAL(timeout()), this, SLOT(onTouchSelect()));
 
@@ -1024,7 +1022,7 @@ void OverviewInner::onUpdateSelected() {
 		_cursorState = cursorState;
 	}
 	if (lnk || cursorState == HistoryInDateCursorState) {
-		_linkTipTimer.start(1000);
+		PopupTooltip::Show(1000, this);
 	}
 
 	fixItemIndex(_dragItemIndex, _dragItem);
@@ -1139,16 +1137,20 @@ void OverviewInner::onUpdateSelected() {
 	}
 }
 
+QPoint OverviewInner::tooltipPos() const {
+	return _dragPos;
+}
 
-void OverviewInner::showLinkTip() {
+QString OverviewInner::tooltipText() const {
 	TextLinkPtr lnk = textlnkOver();
 	if (lnk && !lnk->fullDisplayed()) {
-		new PopupTooltip(_dragPos, lnk->readable());
+		return lnk->readable();
 	} else if (_cursorState == HistoryInDateCursorState && _dragAction == NoDrag && _mousedItem) {
 		if (HistoryItem *item = App::histItemById(itemChannel(_mousedItem), itemMsgId(_mousedItem))) {
-			new PopupTooltip(_dragPos, item->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)));
+			return item->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat));
 		}
 	}
+	return QString();
 }
 
 void OverviewInner::updateDragSelection(MsgId dragSelFrom, int32 dragSelFromIndex, MsgId dragSelTo, int32 dragSelToIndex, bool dragSelecting) {

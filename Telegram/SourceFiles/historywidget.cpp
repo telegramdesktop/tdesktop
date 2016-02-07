@@ -75,8 +75,6 @@ HistoryInner::HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, His
 , _menu(0) {
 	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 
-	_tooltipTimer.setSingleShot(true);
-	connect(&_tooltipTimer, SIGNAL(timeout()), this, SLOT(showLinkTip()));
 	_touchSelectTimer.setSingleShot(true);
 	connect(&_touchSelectTimer, SIGNAL(timeout()), this, SLOT(onTouchSelect()));
 
@@ -1628,11 +1626,11 @@ void HistoryInner::onUpdateSelected() {
 			}
 		}
 	}
-	if (lnk || cursorState == HistoryInDateCursorState) {
-		_tooltipTimer.start(1000);
-	}
 	if (_dragCursorState == HistoryInDateCursorState && cursorState != HistoryInDateCursorState) {
 		PopupTooltip::Hide();
+	}
+	if (lnk || cursorState == HistoryInDateCursorState) {
+		PopupTooltip::Show(1000, this);
 	}
 
 	if (_dragAction == NoDrag) {
@@ -1869,15 +1867,20 @@ void HistoryInner::applyDragSelection(SelectedItems *toItems) const {
 	}
 }
 
-void HistoryInner::showLinkTip() {
+QString HistoryInner::tooltipText() const {
 	TextLinkPtr lnk = textlnkOver();
 	if (lnk && !lnk->fullDisplayed()) {
-		new PopupTooltip(_dragPos, lnk->readable());
+		return lnk->readable();
 	} else if (_dragCursorState == HistoryInDateCursorState && _dragAction == NoDrag) {
 		if (App::hoveredItem()) {
-			new PopupTooltip(_dragPos, App::hoveredItem()->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)));
+			return App::hoveredItem()->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat));
 		}
 	}
+	return QString();
+}
+
+QPoint HistoryInner::tooltipPos() const {
+	return _dragPos;
 }
 
 void HistoryInner::onParentGeometryChanged() {
@@ -2017,9 +2020,6 @@ BotKeyboard::BotKeyboard() : TWidget()
 	setGeometry(0, 0, _st->margin, _st->margin);
 	_height = _st->margin;
 	setMouseTracking(true);
-
-	_cmdTipTimer.setSingleShot(true);
-	connect(&_cmdTipTimer, SIGNAL(timeout()), this, SLOT(showCommandTip()));
 }
 
 void BotKeyboard::paintEvent(QPaintEvent *e) {
@@ -2259,17 +2259,22 @@ void BotKeyboard::clearSelection() {
 	}
 }
 
-void BotKeyboard::showCommandTip() {
+QPoint BotKeyboard::tooltipPos() const {
+	return _lastMousePos;
+}
+
+QString BotKeyboard::tooltipText() const {
 	if (_sel >= 0) {
 		int row = (_sel / MatrixRowShift), col = _sel % MatrixRowShift;
 		if (!_btns.at(row).at(col).full) {
-			new PopupTooltip(_lastMousePos, _btns.at(row).at(col).cmd);
+			return _btns.at(row).at(col).cmd;
 		}
 	}
+	return QString();
 }
 
 void BotKeyboard::updateSelected() {
-	_cmdTipTimer.start(1000);
+	PopupTooltip::Show(1000, this);
 
 	if (_down >= 0) return;
 

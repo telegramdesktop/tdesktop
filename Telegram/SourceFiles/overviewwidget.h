@@ -21,7 +21,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #pragma once
 
 class OverviewWidget;
-class OverviewInner : public QWidget, public RPCSender {
+class OverviewInner : public QWidget, public AbstractTooltipShower, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -76,12 +76,15 @@ public:
 	void clearSelectedItems(bool onlyTextSelection = false);
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
 
+	// AbstractTooltipShower
+	virtual QString tooltipText() const;
+	virtual QPoint tooltipPos() const;
+
 	~OverviewInner();
 
 public slots:
 
 	void onUpdateSelected();
-	void showLinkTip();
 
 	void openContextUrl();
 	void copyContextUrl();

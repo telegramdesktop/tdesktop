@@ -523,22 +523,33 @@ PopupMenu::~PopupMenu() {
 
 PopupTooltip *PopupTooltipInstance = 0;
 
-PopupTooltip::PopupTooltip(const QPoint &p, const QString &text, const style::Tooltip &st) : TWidget(0)
-, _st(0) {
-	if (PopupTooltip *instance = PopupTooltipInstance) {
-		hide();
-		deleteLater();
-	} else {
-		PopupTooltipInstance = this;
-		Sandboxer::installEventFilter(this);
-		_hideByLeaveTimer.setSingleShot(true);
-		connect(&_hideByLeaveTimer, SIGNAL(timeout()), this, SLOT(onHideByLeave()));
+AbstractTooltipShower::~AbstractTooltipShower() {
+	if (PopupTooltipInstance && PopupTooltipInstance->_shower == this) {
+		PopupTooltipInstance->_shower = 0;
 	}
+}
+
+PopupTooltip::PopupTooltip() : TWidget(0)
+, _shower(0)
+, _st(0) {
+	PopupTooltipInstance = this;
 
 	setWindowFlags(Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::ToolTip | Qt::NoDropShadowWindowHint);
 	setAttribute(Qt::WA_NoSystemBackground, true);
 
-	PopupTooltipInstance->popup(p, text, &st);
+	_showTimer.setSingleShot(true);
+	connect(&_showTimer, SIGNAL(timeout()), this, SLOT(onShow()));
+}
+
+void PopupTooltip::onShow() {
+	if (_shower) {
+		QString text = _shower->tooltipText();
+		if (text.isEmpty()) {
+			Hide();
+		} else {
+			PopupTooltipInstance->popup(_shower->tooltipPos(), text, _shower->tooltipSt());
+		}
+	}
 }
 
 bool PopupTooltip::eventFilter(QObject *o, QEvent *e) {
@@ -565,6 +576,13 @@ PopupTooltip::~PopupTooltip() {
 }
 
 void PopupTooltip::popup(const QPoint &m, const QString &text, const style::Tooltip *st) {
+	if (!_hideByLeaveTimer.isSingleShot()) {
+		_hideByLeaveTimer.setSingleShot(true);
+		connect(&_hideByLeaveTimer, SIGNAL(timeout()), this, SLOT(onHideByLeave()));
+
+		Sandboxer::installEventFilter(this);
+	}
+
 	_point = m;
 	_st = st;
 	_text = Text(_st->textFont, text, _textPlainOptions, _st->widthMax, true);
@@ -631,14 +649,27 @@ void PopupTooltip::paintEvent(QPaintEvent *e) {
 
 void PopupTooltip::hideEvent(QHideEvent *e) {
 	if (PopupTooltipInstance == this) {
-		PopupTooltipInstance = 0;
-		deleteLater();
+		Hide();
+	}
+}
+
+void PopupTooltip::Show(int32 delay, const AbstractTooltipShower *shower) {
+	if (!PopupTooltipInstance) {
+		new PopupTooltip();
+	}
+	PopupTooltipInstance->_shower = shower;
+	if (delay >= 0) {
+		PopupTooltipInstance->_showTimer.start(delay);
+	} else {
+		PopupTooltipInstance->onShow();
 	}
 }
 
 void PopupTooltip::Hide() {
 	if (PopupTooltip *instance = PopupTooltipInstance) {
 		PopupTooltipInstance = 0;
+		instance->_showTimer.stop();
+		instance->_hideByLeaveTimer.stop();
 		instance->hide();
 		instance->deleteLater();
 	}
