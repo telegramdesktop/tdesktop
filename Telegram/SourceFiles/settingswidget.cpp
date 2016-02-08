@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -221,7 +221,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 		connect(App::main(), SIGNAL(peerPhotoChanged(PeerData *)), this, SLOT(peerUpdated(PeerData *)));
 		connect(App::main(), SIGNAL(peerNameChanged(PeerData *, const PeerData::Names &, const PeerData::NameFirstChars &)), this, SLOT(peerUpdated(PeerData *)));
 
-		Sandboxer::connect(SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onReloadPassword(Qt::ApplicationState)));
+		Sandbox::connect(SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onReloadPassword(Qt::ApplicationState)));
 	}
 
 	// profile
@@ -269,11 +269,11 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	_newVersionWidth = st::linkFont->width(_newVersionText);
 
 	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	Sandboxer::connect(SIGNAL(updateChecking()), this, SLOT(onUpdateChecking()));
-	Sandboxer::connect(SIGNAL(updateLatest()), this, SLOT(onUpdateLatest()));
-	Sandboxer::connect(SIGNAL(updateProgress(qint64,qint64)), this, SLOT(onUpdateDownloading(qint64,qint64)));
-	Sandboxer::connect(SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
-	Sandboxer::connect(SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
+	Sandbox::connect(SIGNAL(updateChecking()), this, SLOT(onUpdateChecking()));
+	Sandbox::connect(SIGNAL(updateLatest()), this, SLOT(onUpdateLatest()));
+	Sandbox::connect(SIGNAL(updateProgress(qint64,qint64)), this, SLOT(onUpdateDownloading(qint64,qint64)));
+	Sandbox::connect(SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
+	Sandbox::connect(SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
 	#endif
 
 	// chat options
@@ -330,10 +330,10 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	updateOnlineDisplay();
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	switch (Sandboxer::updatingState()) {
+	switch (Sandbox::updatingState()) {
 	case Application::UpdatingDownload:
 		setUpdatingState(UpdatingDownload, true);
-		setDownloadProgress(Sandboxer::updatingReady(), Sandboxer::updatingSize());
+		setDownloadProgress(Sandbox::updatingReady(), Sandbox::updatingSize());
 	break;
 	case Application::UpdatingReady: setUpdatingState(UpdatingReady, true); break;
 	default: setUpdatingState(UpdatingNone, true); break;
@@ -1261,14 +1261,14 @@ void SettingsInner::onAutoUpdate() {
 	Local::writeSettings();
 	resizeEvent(0);
 	if (cAutoUpdate()) {
-		Sandboxer::startUpdateCheck();
+		Sandbox::startUpdateCheck();
 		if (_updatingState == UpdatingNone) {
 			_checkNow.show();
 		} else if (_updatingState == UpdatingReady) {
 			_restartNow.show();
 		}
 	} else {
-		Sandboxer::stopUpdate();
+		Sandbox::stopUpdate();
 		_restartNow.hide();
 		_checkNow.hide();
 	}
@@ -1279,7 +1279,7 @@ void SettingsInner::onCheckNow() {
 	if (!cAutoUpdate()) return;
 
 	cSetLastUpdateCheck(0);
-	Sandboxer::startUpdateCheck();
+	Sandbox::startUpdateCheck();
 }
 #endif
 
@@ -1867,10 +1867,10 @@ void SettingsWidget::showAll() {
 	_scroll.show();
 	_inner.show();
 	_inner.showAll();
-	if (cWideMode()) {
-		_close.show();
-	} else {
+	if (Adaptive::OneColumn()) {
 		_close.hide();
+	} else {
+		_close.show();
 	}
 }
 
@@ -1892,11 +1892,11 @@ void SettingsWidget::dragEnterEvent(QDragEnterEvent *e) {
 void SettingsWidget::dropEvent(QDropEvent *e) {
 }
 
-void SettingsWidget::updateWideMode() {
-	if (cWideMode()) {
-		_close.show();
-	} else {
+void SettingsWidget::updateAdaptiveLayout() {
+	if (Adaptive::OneColumn()) {
 		_close.hide();
+	} else {
+		_close.show();
 	}
 }
 

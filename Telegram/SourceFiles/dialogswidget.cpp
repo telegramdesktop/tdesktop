@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -2268,7 +2268,7 @@ void DialogsWidget::dragEnterEvent(QDragEnterEvent *e) {
 	_dragForward = e->mimeData()->hasFormat(qsl("application/x-td-forward-selected"));
 	if (!_dragForward) _dragForward = e->mimeData()->hasFormat(qsl("application/x-td-forward-pressed-link"));
 	if (!_dragForward) _dragForward = e->mimeData()->hasFormat(qsl("application/x-td-forward-pressed"));
-	if (_dragForward && !cWideMode()) _dragForward = false;
+	if (_dragForward && Adaptive::OneColumn()) _dragForward = false;
 	if (_dragForward) {
 		e->setDropAction(Qt::CopyAction);
 		e->accept();
@@ -2540,7 +2540,7 @@ bool DialogsWidget::onCancelSearch() {
 		_searchRequest = 0;
 	}
 	if (_searchInPeer && !clearing) {
-		if (!cWideMode()) {
+		if (Adaptive::OneColumn()) {
 			Ui::showPeerHistory(_searchInPeer, ShowAtUnreadMsgId);
 		}
 		_searchInPeer = _searchInMigrated = 0;
@@ -2560,7 +2560,7 @@ void DialogsWidget::onCancelSearchInPeer() {
 		_searchRequest = 0;
 	}
 	if (_searchInPeer) {
-		if (!cWideMode() && !App::main()->selectingPeer()) {
+		if (Adaptive::OneColumn() && !App::main()->selectingPeer()) {
 			Ui::showPeerHistory(_searchInPeer, ShowAtUnreadMsgId);
 		}
 		_searchInPeer = _searchInMigrated = 0;
@@ -2570,7 +2570,7 @@ void DialogsWidget::onCancelSearchInPeer() {
 	_filter.clear();
 	_filter.updatePlaceholder();
 	onFilterUpdate();
-	if (cWideMode() && !App::main()->selectingPeer()) {
+	if (!Adaptive::OneColumn() && !App::main()->selectingPeer()) {
 		emit cancelled();
 	}
 }

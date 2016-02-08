@@ -142,6 +142,17 @@ In Terminal go to **/home/user/TBuild/Libraries/QtStatic** and there run
 
 building (**make** command) will take really long time.
 
+####Google Breakpad
+
+In Terminal go to **/home/user/TBuild/Libraries** and run
+
+    git clone https://chromium.googlesource.com/breakpad/breakpad
+    git clone https://chromium.googlesource.com/linux-syscall-support breakpad/src/third_party/lss
+    cd breakpad
+    ./configure
+    make
+    sudo make install
+
 ###Building Telegram Desktop
 
 * Launch Qt Creator, all projects will be taken from **/home/user/TBuild/tdesktop/Telegram**

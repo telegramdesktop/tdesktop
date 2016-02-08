@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -59,7 +59,7 @@ PlayerWidget::PlayerWidget(QWidget *parent) : TWidget(parent)
 	resize(st::wndMinWidth, st::playerHeight);
 	setMouseTracking(true);
 	memset(_stateHovers, 0, sizeof(_stateHovers));
-	_sideShadow.setVisible(cWideMode());
+	_sideShadow.setVisible(!Adaptive::OneColumn());
 }
 
 void PlayerWidget::paintEvent(QPaintEvent *e) {
@@ -364,8 +364,8 @@ void PlayerWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) 
 	}
 }
 
-void PlayerWidget::updateWideMode() {
-	_sideShadow.setVisible(cWideMode());
+void PlayerWidget::updateAdaptiveLayout() {
+	_sideShadow.setVisible(!Adaptive::OneColumn());
 }
 
 bool PlayerWidget::seekingSong(const SongMsgId &song) const {
@@ -551,7 +551,7 @@ void PlayerWidget::stopPressed() {
 void PlayerWidget::resizeEvent(QResizeEvent *e) {
 	int32 availh = (height() - st::playerLineHeight);
 	int32 ch = st::playerPlay.pxHeight() + st::playerSkip, ct = (availh - ch) / 2;
-	_playbackRect = QRect(cWideMode() ? st::lineWidth : 0, height() - st::playerMoverSize.height(), width() - (cWideMode() ? st::lineWidth : 0), st::playerMoverSize.height());
+	_playbackRect = QRect(Adaptive::OneColumn() ? 0 : st::lineWidth, height() - st::playerMoverSize.height(), width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::playerMoverSize.height());
 	_prevRect = _fullAvailable ? QRect(st::playerSkip / 2, ct, st::playerPrev.pxWidth() + st::playerSkip, ch) : QRect();
 	_playRect = QRect(_fullAvailable ? (_prevRect.x() + _prevRect.width()) : (st::playerSkip / 2), ct, st::playerPlay.pxWidth() + st::playerSkip, ch);
 	_nextRect = _fullAvailable ? QRect(_playRect.x() + _playRect.width(), ct, st::playerNext.pxWidth() + st::playerSkip, ch) : QRect();

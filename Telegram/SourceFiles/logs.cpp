@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include <signal.h>
@@ -96,6 +96,14 @@ public:
 
 	bool openMain() {
 		return reopen(LogDataMain, 0, qsl("start"));
+	}
+
+	void closeMain() {
+		QMutexLocker lock(_logsMutex(LogDataMain));
+		if (files[LogDataMain]) {
+			streams[LogDataMain].setDevice(0);
+			files[LogDataMain]->close();
+		}
 	}
 
 	bool instanceChecked() {
@@ -287,7 +295,7 @@ namespace Logs {
 	Initializer::Initializer() {
 		t_assert(LogsData == 0);
 
-		if (!Global::CheckBetaVersionDir()) {
+		if (!Sandbox::CheckBetaVersionDir()) {
 			return;
 		}
 		bool workingDirChosen = cBetaVersion();
@@ -328,7 +336,7 @@ namespace Logs {
 		QDir().setCurrent(cWorkingDir());
 		QDir().mkpath(cWorkingDir() + qstr("tdata"));
 
-		Global::WorkingDirReady();
+		Sandbox::WorkingDirReady();
 		SignalHandlers::StartBreakpad();
 
 		if (!LogsData->openMain()) {
@@ -433,6 +441,13 @@ namespace Logs {
 		LogsBeforeSingleInstanceChecked.clear();
 	}
 
+	void closeMain() {
+		LOG(("Explicitly closing main log and finishing crash handlers."));
+		if (LogsData) {
+			LogsData->closeMain();
+		}
+	}
+
 	void writeMain(const QString &v) {
 		time_t t = time(NULL);
 		struct tm tm;
@@ -490,7 +505,7 @@ namespace Logs {
 			return LogsBeforeSingleInstanceChecked;
 		}
 
-		int32 size = 0;
+		int32 size = LogsBeforeSingleInstanceChecked.size();
 		for (LogsInMemoryList::const_iterator i = LogsInMemory->cbegin(), e = LogsInMemory->cend(); i != e; ++i) {
 			if (i->first == LogDataMain) {
 				size += i->second.size();
@@ -498,6 +513,9 @@ namespace Logs {
 		}
 		QString result;
 		result.reserve(size);
+		if (!LogsBeforeSingleInstanceChecked.isEmpty()) {
+			result.append(LogsBeforeSingleInstanceChecked);
+		}
 		for (LogsInMemoryList::const_iterator i = LogsInMemory->cbegin(), e = LogsInMemory->cend(); i != e; ++i) {
 			if (i->first == LogDataMain) {
 				result += i->second;
@@ -922,7 +940,7 @@ namespace SignalHandlers {
 			}
 			fclose(f);
 
-			Global::SetLastCrashDump(lastdump);
+			Sandbox::SetLastCrashDump(lastdump);
 
 			LOG(("Opened '%1' for reading, the previous Telegram Desktop launch was not finished properly :( Crash log size: %2").arg(QString::fromUtf8(CrashDumpPath)).arg(lastdump.size()));
 

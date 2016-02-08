@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -46,9 +46,9 @@ namespace {
 			countryForReg = nearest.vcountry.c_string().v.c_str();
 			emit signalEmitOn->countryChanged();
 		}
-		#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-		Sandboxer::startUpdateCheck();
-		#endif
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+		Sandbox::startUpdateCheck();
+#endif
 	}
 }
 
@@ -425,8 +425,7 @@ void IntroWidget::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-void IntroWidget::updateWideMode() {
-
+void IntroWidget::updateAdaptiveLayout() {
 }
 
 void IntroWidget::rpcInvalidate() {

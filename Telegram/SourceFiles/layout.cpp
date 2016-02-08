@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -764,10 +764,10 @@ LayoutOverviewDocument::LayoutOverviewDocument(DocumentData *document, HistoryIt
 		_thumbw = 0;
 	}
 
-	_extw = st::semiboldFont->width(_ext);
-	if (_extw > st::overviewFileSize - st::msgFileExtPadding * 2) {
-		_ext = st::semiboldFont->elided(_ext, st::overviewFileSize - st::msgFileExtPadding * 2, Qt::ElideMiddle);
-		_extw = st::semiboldFont->width(_ext);
+	_extw = st::overviewFileExtFont->width(_ext);
+	if (_extw > st::overviewFileSize - st::overviewFileExtPadding * 2) {
+		_ext = st::overviewFileExtFont->elided(_ext, st::overviewFileSize - st::overviewFileExtPadding * 2, Qt::ElideMiddle);
+		_extw = st::overviewFileExtFont->width(_ext);
 	}
 }
 
@@ -872,9 +872,9 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 			} else {
 				p.fillRect(rthumb, documentColor(_colorIndex));
 				if (!radial && loaded && !_ext.isEmpty()) {
-					p.setFont(st::semiboldFont);
+					p.setFont(st::overviewFileExtFont);
 					p.setPen(st::white);
-					p.drawText(rthumb.left() + (rthumb.width() - _extw) / 2, rthumb.top() + st::msgFileExtTop + st::semiboldFont->ascent, _ext);
+					p.drawText(rthumb.left() + (rthumb.width() - _extw) / 2, rthumb.top() + st::overviewFileExtTop + st::overviewFileExtFont->ascent, _ext);
 				}
 			}
 			if (selected) {

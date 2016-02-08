@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -55,7 +55,7 @@ public:
 	void showAll();
 	void showSelected(uint32 selCount, bool canDelete = false);
 
-	void updateWideMode();
+	void updateAdaptiveLayout();
 
 	FlatButton *mediaTypeButton();
 
@@ -63,7 +63,7 @@ public:
 		_sideShadow.hide();
 	}
 	void grabFinish() {
-		_sideShadow.setVisible(cWideMode());
+		_sideShadow.setVisible(!Adaptive::OneColumn());
 	}
 
 public slots:
@@ -192,7 +192,7 @@ public:
 	void resizeEvent(QResizeEvent *e);
 	void keyPressEvent(QKeyEvent *e);
 
-	void updateWideMode();
+	void updateAdaptiveLayout();
 	bool needBackButton();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);

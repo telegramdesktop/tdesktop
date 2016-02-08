@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -36,7 +36,7 @@ _next(this, lang(lng_start_msgs), st::btnIntroNext) {
 
 	_changeLang.hide();
 	if (cLang() == languageDefault) {
-		int32 l = Global::LangSystem();
+		int32 l = Sandbox::LangSystem();
 		if (l != languageDefault) {
 			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[l] + qsl(".strings"), LangLoaderRequest(lng_switch_to_this));
 			QString text = loader.found().value(lng_switch_to_this);

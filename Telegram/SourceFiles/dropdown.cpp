@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
@@ -4013,9 +4013,9 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 				}
 			}
 		}
-		p.fillRect(cWideMode() ? st::lineWidth : 0, _parent->innerBottom() - st::lineWidth, width() - (cWideMode() ? st::lineWidth : 0), st::lineWidth, st::shadowColor->b);
+		p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, _parent->innerBottom() - st::lineWidth, width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowColor->b);
 	}
-	p.fillRect(cWideMode() ? st::lineWidth : 0, _parent->innerTop(), width() - (cWideMode() ? st::lineWidth : 0), st::lineWidth, st::shadowColor->b);
+	p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, _parent->innerTop(), width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowColor->b);
 }
 
 void MentionsInner::resizeEvent(QResizeEvent *e) {

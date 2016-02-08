@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
@@ -176,16 +176,31 @@ namespace Notify {
 
 }
 
-struct GlobalDataStruct {
+#define DefineReadOnlyVar(Namespace, Type, Name) const Type &Name() { \
+	t_assert_full(Namespace##Data != 0, #Namespace "Data is null in " #Namespace "::" #Name, __FILE__, __LINE__); \
+	return Namespace##Data->Name; \
+}
+#define DefineRefVar(Namespace, Type, Name) DefineReadOnlyVar(Namespace, Type, Name) \
+Type &Ref##Name() { \
+	t_assert_full(Namespace##Data != 0, #Namespace "Data is null in Global::Ref" #Name, __FILE__, __LINE__); \
+	return Namespace##Data->Name; \
+}
+#define DefineVar(Namespace, Type, Name) DefineRefVar(Namespace, Type, Name) \
+void Set##Name(const Type &Name) { \
+	t_assert_full(Namespace##Data != 0, #Namespace "Data is null in Global::Set" #Name, __FILE__, __LINE__); \
+	Namespace##Data->Name = Name; \
+}
+
+struct SandboxDataStruct {
 	QString LangSystemISO;
 	int32 LangSystem = languageDefault;
 
 	QByteArray LastCrashDump;
 	ConnectionProxy PreLaunchProxy;
 };
-GlobalDataStruct *GlobalData = 0;
+SandboxDataStruct *SandboxData = 0;
 
-namespace Global {
+namespace Sandbox {
 
 	bool CheckBetaVersionDir() {
 		QFile beta(cExeDir() + qsl("TelegramBeta_data/tdata/beta"));
@@ -248,14 +263,14 @@ namespace Global {
 	}
 
 	void start() {
-		GlobalData = new GlobalDataStruct();
+		SandboxData = new SandboxDataStruct();
 
-		GlobalData->LangSystemISO = psCurrentLanguage();
-		if (GlobalData->LangSystemISO.isEmpty()) GlobalData->LangSystemISO = qstr("en");
+		SandboxData->LangSystemISO = psCurrentLanguage();
+		if (SandboxData->LangSystemISO.isEmpty()) SandboxData->LangSystemISO = qstr("en");
 		QByteArray l = LangSystemISO().toLatin1();
 		for (int32 i = 0; i < languageCount; ++i) {
 			if (l.at(0) == LanguageCodes[i][0] && l.at(1) == LanguageCodes[i][1]) {
-				GlobalData->LangSystem = i;
+				SandboxData->LangSystem = i;
 				break;
 			}
 		}
@@ -264,68 +279,41 @@ namespace Global {
 	}
 
 	void finish() {
-		delete GlobalData;
-		GlobalData = 0;
-	}
-
-#define DefineGlobalReadOnly(Type, Name) const Type &Name() { \
-	t_assert_full(GlobalData != 0, "_data is null in Global::" #Name, __FILE__, __LINE__); \
-	return GlobalData->Name; \
-}
-#define DefineGlobal(Type, Name) DefineGlobalReadOnly(Type, Name) \
-void Set##Name(const Type &Name) { \
-	t_assert_full(GlobalData != 0, "_data is null in Global::Set" #Name, __FILE__, __LINE__); \
-	GlobalData->Name = Name; \
-} \
-Type &Ref##Name() { \
-	t_assert_full(GlobalData != 0, "_data is null in Global::Ref" #Name, __FILE__, __LINE__); \
-	return GlobalData->Name; \
-}
-
-	DefineGlobalReadOnly(QString, LangSystemISO);
-	DefineGlobalReadOnly(int32, LangSystem);
-	DefineGlobal(QByteArray, LastCrashDump);
-	DefineGlobal(ConnectionProxy, PreLaunchProxy);
-
-}
-
-struct SandboxDataStruct {
-	uint64 LaunchId = 0;
-};
-SandboxDataStruct *SandboxData = 0;
-
-namespace Sandbox {
-
-	bool started() {
-		return SandboxData != 0;
-	}
-
-	void start() {
-		SandboxData = new SandboxDataStruct();
-
-		memset_rand(&SandboxData->LaunchId, sizeof(SandboxData->LaunchId));
-	}
-
-	void finish() {
 		delete SandboxData;
 		SandboxData = 0;
 	}
 
-#define DefineSandboxReadOnly(Type, Name) const Type &Name() { \
-	t_assert_full(SandboxData != 0, "_data is null in Global::" #Name, __FILE__, __LINE__); \
-	return SandboxData->Name; \
-}
-#define DefineSandboxRef(Type, Name) DefineSandboxReadOnly(Type, Name) \
-Type &Ref##Name() { \
-	t_assert_full(SandboxData != 0, "_data is null in Global::Ref" #Name, __FILE__, __LINE__); \
-	return SandboxData->Name; \
-}
-#define DefineSandbox(Type, Name) DefineSandboxRef(Type, Name) \
-void Set##Name(const Type &Name) { \
-	t_assert_full(SandboxData != 0, "_data is null in Global::Set" #Name, __FILE__, __LINE__); \
-	SandboxData->Name = Name; \
+	DefineReadOnlyVar(Sandbox, QString, LangSystemISO);
+	DefineReadOnlyVar(Sandbox, int32, LangSystem);
+	DefineVar(Sandbox, QByteArray, LastCrashDump);
+	DefineVar(Sandbox, ConnectionProxy, PreLaunchProxy);
+
 }
 
-	DefineSandboxReadOnly(uint64, LaunchId);
+struct GlobalDataStruct {
+	uint64 LaunchId = 0;
+	Adaptive::Layout AdaptiveLayout = Adaptive::NormalLayout;
+};
+GlobalDataStruct *GlobalData = 0;
+
+namespace Global {
+
+	bool started() {
+		return GlobalData != 0;
+	}
+
+	void start() {
+		GlobalData = new GlobalDataStruct();
+
+		memset_rand(&GlobalData->LaunchId, sizeof(GlobalData->LaunchId));
+	}
+
+	void finish() {
+		delete GlobalData;
+		GlobalData = 0;
+	}
+
+	DefineReadOnlyVar(Global, uint64, LaunchId);
+	DefineVar(Global, Adaptive::Layout, AdaptiveLayout);
 
 };

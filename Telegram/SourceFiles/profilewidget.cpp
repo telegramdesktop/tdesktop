@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
@@ -1731,7 +1731,7 @@ ProfileWidget::ProfileWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 	_inner.move(0, 0);
 	_scroll.show();
 
-	_sideShadow.setVisible(cWideMode());
+	_sideShadow.setVisible(!Adaptive::OneColumn());
 
 	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(updateSelected()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
@@ -1763,8 +1763,8 @@ void ProfileWidget::resizeEvent(QResizeEvent *e) {
 		}
 	}
 
-	_topShadow.resize(width() - ((cWideMode() && !_inGrab) ? st::lineWidth : 0), st::lineWidth);
-	_topShadow.moveToLeft((cWideMode() && !_inGrab) ? st::lineWidth : 0, 0);
+	_topShadow.resize(width() - ((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0), st::lineWidth);
+	_topShadow.moveToLeft((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0, 0);
 	_sideShadow.resize(st::lineWidth, height());
 	_sideShadow.moveToLeft(0, 0);
 }
@@ -1862,7 +1862,7 @@ void ProfileWidget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
 	if (dt >= 1) {
 		_a_show.stop();
-		_sideShadow.setVisible(cWideMode());
+		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_topShadow.show();
 
 		a_coordUnder.finish();
@@ -1914,8 +1914,8 @@ void ProfileWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type)
 	}
 }
 
-void ProfileWidget::updateWideMode() {
-	_sideShadow.setVisible(cWideMode());
+void ProfileWidget::updateAdaptiveLayout() {
+	_sideShadow.setVisible(!Adaptive::OneColumn());
 }
 
 void ProfileWidget::clear() {

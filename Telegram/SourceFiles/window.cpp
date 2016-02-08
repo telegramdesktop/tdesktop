@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -1214,7 +1214,7 @@ void Window::toggleDisplayNotifyFromTray() {
 }
 
 void Window::closeEvent(QCloseEvent *e) {
-	if (MTP::authedId() && !Sandboxer::isSavingSession() && minimizeToTray()) {
+	if (MTP::authedId() && !Sandbox::isSavingSession() && minimizeToTray()) {
 		e->ignore();
 	} else {
 		App::quit();
@@ -1228,10 +1228,15 @@ TitleWidget *Window::getTitle() {
 void Window::resizeEvent(QResizeEvent *e) {
 	if (!title) return;
 
-	bool wideMode = (width() >= st::wideModeWidth);
-	if (wideMode != cWideMode()) {
-		cSetWideMode(wideMode);
-		updateWideMode();
+	Adaptive::Layout layout = Adaptive::OneColumnLayout;
+	if (width() >= st::adaptiveWideWidth) {
+		layout = Adaptive::WideLayout;
+	} else if (width() >= st::adaptiveNormalWidth) {
+		layout = Adaptive::NormalLayout;
+	}
+	if (layout != Global::AdaptiveLayout()) {
+		Global::SetAdaptiveLayout(layout);
+		updateAdaptiveLayout();
 	}
 	title->setGeometry(0, 0, width(), st::titleHeight);
 	if (layerBg) layerBg->resize(width(), height());
@@ -1239,12 +1244,12 @@ void Window::resizeEvent(QResizeEvent *e) {
 	emit resized(QSize(width(), height() - st::titleHeight));
 }
 
-void Window::updateWideMode() {
-	title->updateWideMode();
-	if (main) main->updateWideMode();
-	if (settings) settings->updateWideMode();
-	if (intro) intro->updateWideMode();
-	if (layerBg) layerBg->updateWideMode();
+void Window::updateAdaptiveLayout() {
+	title->updateAdaptiveLayout();
+	if (main) main->updateAdaptiveLayout();
+	if (settings) settings->updateAdaptiveLayout();
+	if (intro) intro->updateAdaptiveLayout();
+	if (layerBg) layerBg->updateAdaptiveLayout();
 }
 
 bool Window::needBackButton() {
@@ -2002,10 +2007,10 @@ LastCrashedWindow::LastCrashedWindow()
 , _showReport(this)
 , _saveReport(this)
 , _getApp(this)
-, _reportText(QString::fromUtf8(Global::LastCrashDump()))
+, _reportText(QString::fromUtf8(Sandbox::LastCrashDump()))
 , _reportShown(false)
 , _reportSaved(false)
-, _sendingState(((!cDevVersion() && !cBetaVersion()) || Global::LastCrashDump().isEmpty()) ? SendingNoReport : SendingUpdateCheck)
+, _sendingState(((!cDevVersion() && !cBetaVersion()) || Sandbox::LastCrashDump().isEmpty()) ? SendingNoReport : SendingUpdateCheck)
 , _updating(this)
 , _sendingProgress(0)
 , _sendingTotal(0)
@@ -2078,23 +2083,23 @@ LastCrashedWindow::LastCrashedWindow()
 	_updatingSkip.setText(qsl("SKIP"));
 	connect(&_updatingSkip, SIGNAL(clicked()), this, SLOT(onUpdateSkip()));
 
-	Sandboxer::connect(SIGNAL(updateChecking()), this, SLOT(onUpdateChecking()));
-	Sandboxer::connect(SIGNAL(updateLatest()), this, SLOT(onUpdateLatest()));
-	Sandboxer::connect(SIGNAL(updateProgress(qint64,qint64)), this, SLOT(onUpdateDownloading(qint64,qint64)));
-	Sandboxer::connect(SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
-	Sandboxer::connect(SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
+	Sandbox::connect(SIGNAL(updateChecking()), this, SLOT(onUpdateChecking()));
+	Sandbox::connect(SIGNAL(updateLatest()), this, SLOT(onUpdateLatest()));
+	Sandbox::connect(SIGNAL(updateProgress(qint64,qint64)), this, SLOT(onUpdateDownloading(qint64,qint64)));
+	Sandbox::connect(SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
+	Sandbox::connect(SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
 
-	switch (Sandboxer::updatingState()) {
+	switch (Sandbox::updatingState()) {
 	case Application::UpdatingDownload:
 		setUpdatingState(UpdatingDownload, true);
-		setDownloadProgress(Sandboxer::updatingReady(), Sandboxer::updatingSize());
+		setDownloadProgress(Sandbox::updatingReady(), Sandbox::updatingSize());
 	break;
 	case Application::UpdatingReady: setUpdatingState(UpdatingReady, true); break;
 	default: setUpdatingState(UpdatingCheck, true); break;
 	}
 
 	cSetLastUpdateCheck(0);
-	Sandboxer::startUpdateCheck();
+	Sandbox::startUpdateCheck();
 #else
 	_updating.setText(qsl("Please check if there is a new version available."));
 	if (_sendingState != SendingNoReport) {
@@ -2137,7 +2142,7 @@ void LastCrashedWindow::onSaveReport() {
 	if (!to.isEmpty()) {
 		QFile file(to);
 		if (file.open(QIODevice::WriteOnly)) {
-			file.write(Global::LastCrashDump());
+			file.write(Sandbox::LastCrashDump());
 			_reportSaved = true;
 			updateControls();
 		}
@@ -2321,7 +2326,7 @@ void LastCrashedWindow::onCheckingFinished() {
 	QHttpPart reportPart;
 	reportPart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("application/octet-stream"));
 	reportPart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant("form-data; name=\"report\"; filename=\"report.telegramcrash\""));
-	reportPart.setBody(Global::LastCrashDump());
+	reportPart.setBody(Sandbox::LastCrashDump());
 	multipart->append(reportPart);
 
 	QFileInfo dmpFile(_minidumpFull);
@@ -2578,22 +2583,22 @@ void LastCrashedWindow::updateControls() {
 }
 
 void LastCrashedWindow::onNetworkSettings() {
-	const ConnectionProxy &p(Global::PreLaunchProxy());
+	const ConnectionProxy &p(Sandbox::PreLaunchProxy());
 	NetworkSettingsWindow *box = new NetworkSettingsWindow(this, p.host, p.port ? p.port : 80, p.user, p.password);
 	connect(box, SIGNAL(saved(QString, quint32, QString, QString)), this, SLOT(onNetworkSettingsSaved(QString, quint32, QString, QString)));
 	box->show();
 }
 
 void LastCrashedWindow::onNetworkSettingsSaved(QString host, quint32 port, QString username, QString password) {
-	Global::RefPreLaunchProxy().host = host;
-	Global::RefPreLaunchProxy().port = port ? port : 80;
-	Global::RefPreLaunchProxy().user = username;
-	Global::RefPreLaunchProxy().password = password;
+	Sandbox::RefPreLaunchProxy().host = host;
+	Sandbox::RefPreLaunchProxy().port = port ? port : 80;
+	Sandbox::RefPreLaunchProxy().user = username;
+	Sandbox::RefPreLaunchProxy().password = password;
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if ((_updatingState == UpdatingFail && (_sendingState == SendingNoReport || _sendingState == SendingUpdateCheck)) || (_updatingState == UpdatingCheck)) {
-		Sandboxer::stopUpdate();
+		Sandbox::stopUpdate();
 		cSetLastUpdateCheck(0);
-		Sandboxer::startUpdateCheck();
+		Sandbox::startUpdateCheck();
 	} else
 #endif
 	if (_sendingState == SendingFail || _sendingState == SendingProgress) {
@@ -2650,7 +2655,7 @@ void LastCrashedWindow::setDownloadProgress(qint64 ready, qint64 total) {
 
 void LastCrashedWindow::onUpdateRetry() {
 	cSetLastUpdateCheck(0);
-	Sandboxer::startUpdateCheck();
+	Sandbox::startUpdateCheck();
 }
 
 void LastCrashedWindow::onUpdateSkip() {
@@ -2658,7 +2663,7 @@ void LastCrashedWindow::onUpdateSkip() {
 		onContinue();
 	} else {
 		if (_updatingState == UpdatingCheck || _updatingState == UpdatingDownload) {
-			Sandboxer::stopUpdate();
+			Sandbox::stopUpdate();
 			setUpdatingState(UpdatingFail);
 		}
 		_sendingState = SendingNone;
@@ -2692,7 +2697,7 @@ void LastCrashedWindow::onContinue() {
 	if (SignalHandlers::restart() == SignalHandlers::CantOpen) {
 		new NotStartedWindow();
 	} else {
-		Sandboxer::startSandbox();
+		Sandbox::launch();
 	}
 	close();
 }
@@ -2909,7 +2914,7 @@ int showCrashReportWindow(const QString &crashdump) {
 		text = qsl("ERROR: could not read crash dump file '%1'").arg(QFileInfo(crashdump).absoluteFilePath());
 	}
 
-	if (Sandbox::started()) {
+	if (Global::started()) {
 		ShowCrashReportWindow *wnd = new ShowCrashReportWindow(text);
 		return 0;
 	}
