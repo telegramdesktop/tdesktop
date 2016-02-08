@@ -170,7 +170,6 @@ and run
 
     cd qtbase && git apply ../../../tdesktop/Telegram/_qtbase_5_5_1_patch.diff && cd ..
 
-
 #####Install Windows SDKs
 
 If you didn't install Windows SDKs before, you need to install them now. To install the SDKs just open Telegram solution at **D:\TBuild\tdesktop\Telegram.sln** and on startup Visual Studio 2015 will popup dialog box and ask to download and install extra components (including Windows 7 SDK).
@@ -190,6 +189,32 @@ building (**nmake** command) will take really long time.
 https://visualstudiogallery.msdn.microsoft.com/c89ff880-8509-47a4-a262-e4fa07168408
 
 Download, close all VS2015 instances and install for VS2015
+
+####Google Breakpad
+
+* Install Python 2.7.11 from https://www.python.org/downloads/release/python-2711/ > [**Windows x86 MSI installer**](https://www.python.org/ftp/python/2.7.11/python-2.7.11.msi)
+* Open **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder)
+
+There go to Libraries directory
+
+    D:
+    cd TBuild\Libraries
+
+and run
+
+    git clone https://chromium.googlesource.com/breakpad/breakpad
+    git clone https://chromium.googlesource.com/external/gyp
+    set PATH=C:\Python27;%PATH%
+    cd breakpad/src/client/windows
+    ..\..\..\..\gyp\gyp --no-circular-check
+
+#####Building library
+
+* Open in VS2015 **D:\TBuild\Libraries\breakpad\src\client\windows\breakpad_client.sln**
+* Change "Treat WChar_t As Built in Type" to "No" in all projects & configurations
+* Change "Treat Warnings As Errors" to "No" in all projects & configurations
+* Build Debug configuration
+* Build Release configuration
 
 ###Building Telegram Desktop
 

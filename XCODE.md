@@ -2,11 +2,11 @@
 
 ###Prepare folder
 
-Choose a folder for the future build, for example **/Users/user/TBuild**   
-  
+Choose a folder for the future build, for example **/Users/user/TBuild**
+
 There you will have two folders, **Libraries** for third-party libs and **tdesktop** (or **tdesktop-master**) for the app.
 
-**You will need this hierarchy to be able to follow this README !** 
+**You will need this hierarchy to be able to follow this README !**
 
 ###Clone source code
 
@@ -15,8 +15,8 @@ By git – in Terminal go to **/Users/user/TBuild** and run:
     git clone https://github.com/telegramdesktop/tdesktop.git
 
 or:
-* download in ZIP and extract to **/Users/user/TBuild**   
-* rename **tdesktop-master** to **tdesktop**.     
+* download in ZIP and extract to **/Users/user/TBuild**
+* rename **tdesktop-master** to **tdesktop**.
 
 The path to Telegram.xcodeproj should now be: **/Users/user/TBuild/tdesktop/Telegram/Telegram.xcodeproj**
 
@@ -44,19 +44,19 @@ In Terminal go to **/Users/user/TBuild/Libraries/zlib-1.2.8** and run:
 
 ####OpenSSL 1.0.1g
 
-#####Get openssl-xcode project file 
+#####Get openssl-xcode project file
 
 From https://github.com/telegramdesktop/openssl-xcode with git in Terminal:
 
 * go to **/Users/user/TBuild/Libraries
 * run:
- 
+
 	git clone https://github.com/telegramdesktop/openssl-xcode.git
 
 or:
 
-* download in ZIP and extract to **/Users/user/TBuild/Libraries**, 
-* rename **openssl-xcode-master** to **openssl-xcode** 
+* download in ZIP and extract to **/Users/user/TBuild/Libraries**,
+* rename **openssl-xcode-master** to **openssl-xcode**
 
 The path to openssl.xcodeproj should now be: **/Users/user/TBuild/Libraries/openssl-xcode/openssl.xcodeproj**
 
@@ -64,8 +64,8 @@ The path to openssl.xcodeproj should now be: **/Users/user/TBuild/Libraries/open
 
 Download [**openssl-1.0.1h.tar.gz**](http://www.openssl.org/source/openssl-1.0.1h.tar.gz) (4.3 Mb)
 
-* Extract openssl-1.0.1h.tar.gz 
-* Copy everything from **openssl-1.0.1h** to **/Users/user/TBuild/Libraries/openssl-xcode** 
+* Extract openssl-1.0.1h.tar.gz
+* Copy everything from **openssl-1.0.1h** to **/Users/user/TBuild/Libraries/openssl-xcode**
 
 The folder include of openssl should be:
 **/Users/user/TBuild/Libraries/openssl-xcode/include**
@@ -106,9 +106,9 @@ From https://github.com/telegramdesktop/libexif-0.6.20 with git in Terminal:
 
 or:
 
-* download in ZIP 
+* download in ZIP
 * extract to **/Users/user/TBuild/Libraries**
-* rename **libexif-0.6.20-master** to **libexif-0.6.20** 
+* rename **libexif-0.6.20-master** to **libexif-0.6.20**
 
 The folder configure should have this path:
 **/Users/user/TBuild/Libraries/libexif-0.6.20/configure**
@@ -140,8 +140,8 @@ In Terminal go to **/Users/user/TBuild/Libraries/openal-soft/build** and there r
 ####Opus codec
 #####Get the source code
 
-* Download sources [opus-1.1.tar.gz](http://downloads.xiph.org/releases/opus/opus-1.1.tar.gz) from http://www.opus-codec.org/downloads/ 
-* Extract them to **/Users/user/TBuild/Libraries** 
+* Download sources [opus-1.1.tar.gz](http://downloads.xiph.org/releases/opus/opus-1.1.tar.gz) from http://www.opus-codec.org/downloads/
+* Extract them to **/Users/user/TBuild/Libraries**
 * Rename opus-1.1 to opus to have **/Users/user/TBuild/Libraries/opus/configure**
 
 #####Building library
@@ -210,11 +210,13 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
     cd qtbase && git checkout v5.5.1 && cd ..
 
 #####Apply the patch
-From **/Users/user/TBuild/Libraries/QtStatic/qtbase**, run:  
+
+From **/Users/user/TBuild/Libraries/QtStatic/qtbase**, run:
 
     git apply ../../../tdesktop/Telegram/_qtbase_5_5_1_patch.diff
 
 #####Building library
+
 Go to **/Users/user/TBuild/Libraries/QtStatic** and run:
 
     ./configure -debug-and-release -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang
@@ -222,6 +224,33 @@ Go to **/Users/user/TBuild/Libraries/QtStatic** and run:
     sudo make -j4 install
 
 Building (**make** command) will take a really long time.
+
+####Google Crashpad
+
+#####Install gyp
+
+In Terminal go to **/Users/user/TBuild/Libraries** and run:
+
+    git clone https://chromium.googlesource.com/external/gyp
+    git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+    cd gyp
+    ./setup.py build
+    sudo setup.py install
+    cd ..
+
+#####Build crashpad
+
+In Terminal go to **/Users/user/TBuild/Libraries** and run:
+
+    export PATH=/Users/user/TBuild/Libraries/depot_tools:$PATH:/Users/user/TBuild/Libraries/gyp
+    mkdir crashpad
+    cd crashpad
+    fetch crashpad
+    cd crashpad/third_party/mini_chromium/mini_chromium
+    git apply ../../../../../../tdesktop/Telegram/_mini_chromium_patch.diff
+    cd ../../../
+    build/gyp_crashpad.py -Dmac_deployment_target=10.8
+    ninja -C out/Release
 
 ###Building Telegram Desktop
 
