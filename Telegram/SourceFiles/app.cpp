@@ -2612,10 +2612,10 @@ namespace App {
 
 	QNetworkProxy getHttpProxySettings() {
 		const ConnectionProxy *proxy = 0;
-		if (Sandbox::started()) {
+		if (Global::started()) {
 			proxy = (cConnectionType() == dbictHttpProxy) ? (&cConnectionProxy()) : 0;
 		} else {
-			proxy = Global::PreLaunchProxy().host.isEmpty() ? 0 : (&Global::PreLaunchProxy());
+			proxy = Sandbox::PreLaunchProxy().host.isEmpty() ? 0 : (&Sandbox::PreLaunchProxy());
 		}
 		if (proxy) {
 			return QNetworkProxy(QNetworkProxy::HttpProxy, proxy->host, proxy->port, proxy->user, proxy->password);

@@ -179,7 +179,7 @@ void MediaView::moveToScreen() {
 	}
 
 	QPoint wndCenter(App::wnd()->x() + App::wnd()->width() / 2, App::wnd()->y() + App::wnd()->height() / 2);
-	QRect avail = Sandboxer::screenGeometry(wndCenter);
+	QRect avail = Sandbox::screenGeometry(wndCenter);
 	if (avail != geometry()) {
 		setGeometry(avail);
 	}
@@ -586,7 +586,7 @@ void MediaView::onSaveAs() {
 		}
 	}
 	activateWindow();
-	Sandboxer::setActiveWindow(this);
+	Sandbox::setActiveWindow(this);
 	setFocus();
 }
 
@@ -1074,7 +1074,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 		show();
 		psShowOverAll(this);
 		activateWindow();
-		Sandboxer::setActiveWindow(this);
+		Sandbox::setActiveWindow(this);
 		setFocus();
 	}
 }
@@ -1990,7 +1990,7 @@ void MediaView::onCheckActive() {
 	if (App::wnd() && isVisible()) {
 		if (App::wnd()->isActiveWindow() && App::wnd()->hasFocus()) {
 			activateWindow();
-			Sandboxer::setActiveWindow(this);
+			Sandbox::setActiveWindow(this);
 			setFocus();
 		}
 	}

@@ -324,8 +324,6 @@ DeclareReadSetting(QUrl, UpdateURL);
 DeclareSetting(bool, ContactsReceived);
 DeclareSetting(bool, DialogsReceived);
 
-DeclareSetting(bool, WideMode);
-
 DeclareSetting(int, OnlineUpdatePeriod);
 DeclareSetting(int, OfflineBlurTimeout);
 DeclareSetting(int, OfflineIdleTimeout);

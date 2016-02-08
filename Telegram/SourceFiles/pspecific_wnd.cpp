@@ -271,7 +271,7 @@ namespace {
 				return false;
 			}
 
-			QRect avail(Sandboxer::availableGeometry());
+			QRect avail(Sandbox::availableGeometry());
 			max_w = avail.width();
 			if (max_w < st::wndMinWidth) max_w = st::wndMinWidth;
 			max_h = avail.height();
@@ -1194,7 +1194,7 @@ void PsMainWindow::psInitSize() {
 	setMinimumHeight(st::wndMinHeight);
 
 	TWindowPos pos(cWindowPos());
-	QRect avail(Sandboxer::availableGeometry());
+	QRect avail(Sandbox::availableGeometry());
 	bool maximized = false;
 	QRect geom(avail.x() + (avail.width() - st::wndDefWidth) / 2, avail.y() + (avail.height() - st::wndDefHeight) / 2, st::wndDefWidth, st::wndDefHeight);
 	if (pos.w && pos.h) {

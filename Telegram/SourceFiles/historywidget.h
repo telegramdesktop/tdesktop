@@ -486,7 +486,7 @@ public:
 	void step_show(float64 ms, bool timer);
 	void animStop();
 
-	void updateWideMode();
+	void updateAdaptiveLayout();
 	void doneShow();
 
 	QPoint clampMousePosition(QPoint point);
@@ -562,7 +562,7 @@ public:
 		resizeEvent(0);
 	}
 	void grabFinish() {
-		_sideShadow.setVisible(cWideMode());
+		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_inGrab = false;
 		resizeEvent(0);
 	}

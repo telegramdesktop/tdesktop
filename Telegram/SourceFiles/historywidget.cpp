@@ -630,7 +630,7 @@ void HistoryInner::onDragExec() {
 
 		mimeData->setText(sel);
 		if (!urls.isEmpty()) mimeData->setUrls(urls);
-		if (uponSelected && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection && cWideMode()) {
+		if (uponSelected && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection && !Adaptive::OneColumn()) {
 			mimeData->setData(qsl("application/x-td-forward-selected"), "1");
 		}
 		drag->setMimeData(mimeData);
@@ -1987,7 +1987,7 @@ void ReportSpamPanel::resizeEvent(QResizeEvent *e) {
 void ReportSpamPanel::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	p.fillRect(QRect(0, 0, width(), height() - st::lineWidth), st::reportSpamBg->b);
-	p.fillRect(cWideMode() ? st::lineWidth : 0, height() - st::lineWidth, width() - (cWideMode() ? st::lineWidth : 0), st::lineWidth, st::shadowColor->b);
+	p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, height() - st::lineWidth, width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowColor->b);
 	if (!_clear.isHidden()) {
 		p.setPen(st::black->p);
 		p.setFont(st::msgFont->f);
@@ -2473,15 +2473,15 @@ void HistoryHider::mousePressEvent(QMouseEvent *e) {
 void HistoryHider::startHide() {
 	if (hiding) return;
 	hiding = true;
-	if (cWideMode()) {
+	if (Adaptive::OneColumn()) {
+		QTimer::singleShot(0, this, SLOT(deleteLater()));
+	} else {
 		if (offered) cacheForAnim = myGrab(this, box);
 		if (_forwardRequest) MTP::cancel(_forwardRequest);
 		a_opacity.start(0);
 		_send.hide();
 		_cancel.hide();
 		_a_appearance.start();
-	} else {
-		QTimer::singleShot(0, this, SLOT(deleteLater()));
 	}
 }
 
@@ -2801,7 +2801,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_attachDragPhoto.hide();
 
 	_topShadow.hide();
-	_sideShadow.setVisible(cWideMode());
+	_sideShadow.setVisible(!Adaptive::OneColumn());
 
 	connect(&_attachDragDocument, SIGNAL(dropped(const QMimeData*)), this, SLOT(onDocumentDrop(const QMimeData*)));
 	connect(&_attachDragPhoto, SIGNAL(dropped(const QMimeData*)), this, SLOT(onPhotoDrop(const QMimeData*)));
@@ -4671,7 +4671,7 @@ void HistoryWidget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
 	if (dt >= 1) {
 		_a_show.stop();
-		_sideShadow.setVisible(cWideMode());
+		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_topShadow.setVisible(_peer ? true : false);
 
 		a_coordUnder.finish();
@@ -4705,14 +4705,14 @@ void HistoryWidget::doneShow() {
 	}
 }
 
-void HistoryWidget::updateWideMode() {
-	_sideShadow.setVisible(cWideMode());
+void HistoryWidget::updateAdaptiveLayout() {
+	_sideShadow.setVisible(!Adaptive::OneColumn());
 }
 
 void HistoryWidget::animStop() {
 	if (!_a_show.animating()) return;
 	_a_show.stop();
-	_sideShadow.setVisible(cWideMode());
+	_sideShadow.setVisible(!Adaptive::OneColumn());
 	_topShadow.setVisible(_peer ? true : false);
 }
 
@@ -5301,7 +5301,7 @@ void HistoryWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) 
 
 	if (!_history) return;
 
-	int32 increaseLeft = cWideMode() ? 0 : (st::topBarForwardPadding.right() - st::topBarForwardPadding.left());
+	int32 increaseLeft = Adaptive::OneColumn() ? (st::topBarForwardPadding.right() - st::topBarForwardPadding.left()) : 0;
 	decreaseWidth += increaseLeft;
 	QRect rectForName(st::topBarForwardPadding.left() + increaseLeft, st::topBarForwardPadding.top(), width() - decreaseWidth - st::topBarForwardPadding.left() - st::topBarForwardPadding.right(), st::msgNameFont->height);
 	p.setFont(st::dlgHistFont->f);
@@ -5316,20 +5316,20 @@ void HistoryWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) 
 	p.setPen(st::dlgNameColor->p);
 	_peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 
-	if (cWideMode()) {
-		p.setOpacity(st::topBarForwardAlpha + (1 - st::topBarForwardAlpha) * over);
-		p.drawPixmap(QPoint(width() - (st::topBarForwardPadding.right() + st::topBarForwardImg.pxWidth()) / 2, (st::topBarHeight - st::topBarForwardImg.pxHeight()) / 2), App::sprite(), st::topBarForwardImg);
-	} else {
+	if (Adaptive::OneColumn()) {
 		p.setOpacity(st::topBarForwardAlpha + (1 - st::topBarForwardAlpha) * over);
 		p.drawPixmap(QPoint((st::topBarForwardPadding.right() - st::topBarBackwardImg.pxWidth()) / 2, (st::topBarHeight - st::topBarBackwardImg.pxHeight()) / 2), App::sprite(), st::topBarBackwardImg);
+	} else {
+		p.setOpacity(st::topBarForwardAlpha + (1 - st::topBarForwardAlpha) * over);
+		p.drawPixmap(QPoint(width() - (st::topBarForwardPadding.right() + st::topBarForwardImg.pxWidth()) / 2, (st::topBarHeight - st::topBarForwardImg.pxHeight()) / 2), App::sprite(), st::topBarForwardImg);
 	}
 }
 
 void HistoryWidget::topBarClick() {
-	if (cWideMode()) {
-		if (_history) App::main()->showPeerProfile(_peer);
-	} else {
+	if (Adaptive::OneColumn()) {
 		Ui::showChatsList();
+	} else {
+		if (_history) App::main()->showPeerProfile(_peer);
 	}
 }
 
@@ -5973,8 +5973,8 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 	break;
 	}
 
-	_topShadow.resize(width() - ((cWideMode() && !_inGrab) ? st::lineWidth : 0), st::lineWidth);
-	_topShadow.moveToLeft((cWideMode() && !_inGrab) ? st::lineWidth : 0, 0);
+	_topShadow.resize(width() - ((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0), st::lineWidth);
+	_topShadow.moveToLeft((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0, 0);
 	_sideShadow.resize(st::lineWidth, height());
 	_sideShadow.moveToLeft(0, 0);
 }

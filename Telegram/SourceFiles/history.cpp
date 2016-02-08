@@ -2923,6 +2923,10 @@ void HistoryItem::setId(MsgId newId) {
 	id = newId;
 }
 
+bool HistoryItem::displayFromPhoto() const {
+	return Adaptive::Wide() || (!out() && !history()->peer->isUser() && !fromChannel());
+}
+
 void HistoryItem::clipCallback(ClipReaderNotification notification) {
 	HistoryMedia *media = getMedia();
 	if (!media) return;
@@ -6209,27 +6213,27 @@ void HistoryMessage::initDimensions() {
 }
 
 void HistoryMessage::countPositionAndSize(int32 &left, int32 &width) const {
-	int32 mwidth = qMin(int(st::msgMaxWidth), _maxw), hwidth = _history->width;
-	if (_media && _media->currentWidth() < mwidth) {
-		mwidth = qMax(_media->currentWidth(), qMin(mwidth, plainMaxWidth()));
+	int32 maxwidth = qMin(int(st::msgMaxWidth), _maxw), hwidth = _history->width, hmaxwidth = st::historyMaxWidth + (Adaptive::Wide() ? (2 * st::msgPhotoSkip) : 0);
+	if (_media && _media->currentWidth() < maxwidth) {
+		maxwidth = qMax(_media->currentWidth(), qMin(maxwidth, plainMaxWidth()));
 	}
 
 	left = 0;
-	if (hwidth > st::historyMaxWidth) {
-		left = (hwidth - st::historyMaxWidth) / 2;
-		hwidth = st::historyMaxWidth;
+	if (hwidth > hmaxwidth) {
+		left = (hwidth - hmaxwidth) / 2;
+		hwidth = hmaxwidth;
 	}
 	left += (!fromChannel() && out()) ? st::msgMargin.right() : st::msgMargin.left();
 	if (displayFromPhoto()) {
-		left += st::msgPhotoSkip;
+		left += (!fromChannel() && out()) ? -st::msgPhotoSkip : st::msgPhotoSkip;
 	}
 
 	width = hwidth - st::msgMargin.left() - st::msgMargin.right();
-	if (width > mwidth) {
+	if (width > maxwidth) {
 		if (!fromChannel() && out()) {
-			left += width - mwidth;
+			left += width - maxwidth;
 		}
-		width = mwidth;
+		width = maxwidth;
 	}
 }
 
@@ -6480,7 +6484,8 @@ void HistoryMessage::draw(Painter &p, const QRect &r, uint32 selection, uint64 m
 	}
 
 	if (displayFromPhoto()) {
-		p.drawPixmap(left - st::msgPhotoSkip, _height - st::msgMargin.bottom() - st::msgPhotoSize, _from->photo->pixRounded(st::msgPhotoSize));
+		int32 photoleft = left + ((!fromChannel() && out()) ? (width + (st::msgPhotoSkip - st::msgPhotoSize)) : (-st::msgPhotoSkip));
+		p.drawPixmap(photoleft, _height - st::msgMargin.bottom() - st::msgPhotoSize, _from->photo->pixRounded(st::msgPhotoSize));
 	}
 	if (width < 1) return;
 
@@ -6647,7 +6652,8 @@ void HistoryMessage::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32
 	int32 left = 0, width = 0;
 	countPositionAndSize(left, width);
 	if (displayFromPhoto()) {
-		if (x >= left - st::msgPhotoSkip && x < left - st::msgPhotoSkip + st::msgPhotoSize && y >= _height - st::msgMargin.bottom() - st::msgPhotoSize && y < _height - st::msgMargin.bottom()) {
+		int32 photoleft = left + ((!fromChannel() && out()) ? (width + (st::msgPhotoSkip - st::msgPhotoSize)) : (-st::msgPhotoSkip));
+		if (x >= photoleft && x < photoleft + st::msgPhotoSize && y >= _height - st::msgMargin.bottom() - st::msgPhotoSize && y < _height - st::msgMargin.bottom()) {
 			lnk = _from->lnk;
 			return;
 		}
@@ -6911,7 +6917,8 @@ void HistoryForwarded::getState(TextLinkPtr &lnk, HistoryCursorState &state, int
 		int32 left = 0, width = 0;
 		countPositionAndSize(left, width);
 		if (displayFromPhoto()) {
-			if (x >= left - st::msgPhotoSkip && x < left - st::msgPhotoSkip + st::msgPhotoSize) {
+			int32 photoleft = left + ((!fromChannel() && out()) ? (width + (st::msgPhotoSkip - st::msgPhotoSize)) : (-st::msgPhotoSkip));
+			if (x >= photoleft && x < photoleft + st::msgPhotoSize) {
 				return HistoryMessage::getState(lnk, state, x, y);
 			}
 		}
@@ -7230,8 +7237,9 @@ void HistoryReply::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 	if (drawBubble()) {
 		int32 left = 0, width = 0;
 		countPositionAndSize(left, width);
-		if (displayFromPhoto()) { // from user left photo
-			if (x >= left - st::msgPhotoSkip && x < left - st::msgPhotoSkip + st::msgPhotoSize) {
+		if (displayFromPhoto()) {
+			int32 photoleft = left + ((!fromChannel() && out()) ? (width + (st::msgPhotoSkip - st::msgPhotoSize)) : (-st::msgPhotoSkip));
+			if (x >= photoleft && x < photoleft + st::msgPhotoSize) {
 				return HistoryMessage::getState(lnk, state, x, y);
 			}
 		}

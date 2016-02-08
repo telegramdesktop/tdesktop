@@ -155,8 +155,6 @@ bool gIsElCapitan = false;
 bool gContactsReceived = false;
 bool gDialogsReceived = false;
 
-bool gWideMode = true;
-
 int gOnlineUpdatePeriod = 120000;
 int gOfflineBlurTimeout = 5000;
 int gOfflineIdleTimeout = 30000;

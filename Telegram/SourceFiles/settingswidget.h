@@ -316,7 +316,7 @@ public:
 	void dragEnterEvent(QDragEnterEvent *e);
 	void dropEvent(QDropEvent *e);
 
-	void updateWideMode();
+	void updateAdaptiveLayout();
 
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
 	void step_show(float64 ms, bool timer);

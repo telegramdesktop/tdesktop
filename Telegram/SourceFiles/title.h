@@ -49,7 +49,7 @@ public:
 	void resizeEvent(QResizeEvent *e);
 
 	void updateBackButton();
-	void updateWideMode();
+	void updateAdaptiveLayout();
 	void updateCounter();
 
 	void mousePressEvent(QMouseEvent *e);

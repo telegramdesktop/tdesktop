@@ -96,7 +96,13 @@ namespace Notify {
 
 };
 
-namespace Global {
+#define DeclareReadOnlyVar(Type, Name) const Type &Name();
+#define DeclareRefVar(Type, Name) DeclareReadOnlyVar(Type, Name) \
+	Type &Ref##Name();
+#define DeclareVar(Type, Name) DeclareRefVar(Type, Name) \
+	void Set##Name(const Type &Name);
+
+namespace Sandbox {
 
 	bool CheckBetaVersionDir();
 	void WorkingDirReady();
@@ -104,30 +110,40 @@ namespace Global {
 	void start();
 	void finish();
 
-#define DeclareGlobalReadOnly(Type, Name) const Type &Name();
-#define DeclareGlobal(Type, Name) DeclareGlobalReadOnly(Type, Name) \
-	void Set##Name(const Type &Name); \
-	Type &Ref##Name();
-
-	DeclareGlobalReadOnly(QString, LangSystemISO);
-	DeclareGlobalReadOnly(int32, LangSystem);
-	DeclareGlobal(QByteArray, LastCrashDump);
-	DeclareGlobal(ConnectionProxy, PreLaunchProxy);
+	DeclareReadOnlyVar(QString, LangSystemISO);
+	DeclareReadOnlyVar(int32, LangSystem);
+	DeclareVar(QByteArray, LastCrashDump);
+	DeclareVar(ConnectionProxy, PreLaunchProxy);
 
 }
 
-namespace Sandbox {
+namespace Adaptive {
+	enum Layout {
+		OneColumnLayout,
+		NormalLayout,
+		WideLayout,
+	};
+};
+
+namespace Global {
 
 	bool started();
 	void start();
 	void finish();
 
-#define DeclareSandboxReadOnly(Type, Name) const Type &Name();
-#define DeclareSandboxRef(Type, Name) DeclareSandboxReadOnly(Type, Name) \
-	Type &Ref##Name();
-#define DeclareSandbox(Type, Name) DeclareSandboxRef(Type, Name) \
-	void Set##Name(const Type &Name);
-
-	DeclareSandboxReadOnly(uint64, LaunchId);
+	DeclareReadOnlyVar(uint64, LaunchId);
+	DeclareVar(Adaptive::Layout, AdaptiveLayout);
 
 };
+
+namespace Adaptive {
+	inline bool OneColumn() {
+		return Global::AdaptiveLayout() == OneColumnLayout;
+	}
+	inline bool Normal() {
+		return Global::AdaptiveLayout() == NormalLayout;
+	}
+	inline bool Wide() {
+		return Global::AdaptiveLayout() == WideLayout;
+	}
+}

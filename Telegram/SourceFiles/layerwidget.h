@@ -71,7 +71,7 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
-	void updateWideMode();
+	void updateAdaptiveLayout();
 
 	void replaceInner(LayeredWidget *n);
 	void showLayerLast(LayeredWidget *n);

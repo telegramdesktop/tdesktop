@@ -51,7 +51,7 @@ public:
 	void clearSelection();
 
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
-	void updateWideMode();
+	void updateAdaptiveLayout();
 
 	bool seekingSong(const SongMsgId &song) const;
 

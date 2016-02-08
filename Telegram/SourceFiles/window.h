@@ -146,7 +146,7 @@ public:
 	void paintEvent(QPaintEvent *e);
 
 	void resizeEvent(QResizeEvent *e);
-	void updateWideMode();
+	void updateAdaptiveLayout();
 	bool needBackButton();
 
 	void setupPasscode(bool anim);

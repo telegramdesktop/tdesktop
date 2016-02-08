@@ -105,7 +105,7 @@ private:
 #endif
 };
 
-namespace Sandboxer {
+namespace Sandbox {
 
 	QRect availableGeometry();
 	QRect screenGeometry(const QPoint &p);
@@ -135,7 +135,7 @@ namespace Sandboxer {
 
 	void connect(const char *signal, QObject *object, const char *method);
 
-	void startSandbox();
+	void launch();
 
 }
 

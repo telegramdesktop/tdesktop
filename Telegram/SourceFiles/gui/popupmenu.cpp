@@ -464,7 +464,7 @@ void PopupMenu::showMenu(const QPoint &p, PopupMenu *parent, PressSource source)
 	_parent = parent;
 
 	QPoint w = p - QPoint(0, _padding.top());
-	QRect r = Sandboxer::screenGeometry(p);
+	QRect r = Sandbox::screenGeometry(p);
 	if (rtl()) {
 		if (w.x() - width() < r.x() - _padding.left()) {
 			if (_parent && w.x() + _parent->width() - _padding.left() - _padding.right() + width() - _padding.right() <= r.x() + r.width()) {
@@ -580,7 +580,7 @@ void PopupTooltip::popup(const QPoint &m, const QString &text, const style::Tool
 		_hideByLeaveTimer.setSingleShot(true);
 		connect(&_hideByLeaveTimer, SIGNAL(timeout()), this, SLOT(onHideByLeave()));
 
-		Sandboxer::installEventFilter(this);
+		Sandbox::installEventFilter(this);
 	}
 
 	_point = m;

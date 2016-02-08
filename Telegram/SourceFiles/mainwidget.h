@@ -55,7 +55,7 @@ public:
 	void showAll();
 	void showSelected(uint32 selCount, bool canDelete = false);
 
-	void updateWideMode();
+	void updateAdaptiveLayout();
 
 	FlatButton *mediaTypeButton();
 
@@ -63,7 +63,7 @@ public:
 		_sideShadow.hide();
 	}
 	void grabFinish() {
-		_sideShadow.setVisible(cWideMode());
+		_sideShadow.setVisible(!Adaptive::OneColumn());
 	}
 
 public slots:
@@ -192,7 +192,7 @@ public:
 	void resizeEvent(QResizeEvent *e);
 	void keyPressEvent(QKeyEvent *e);
 
-	void updateWideMode();
+	void updateAdaptiveLayout();
 	bool needBackButton();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);

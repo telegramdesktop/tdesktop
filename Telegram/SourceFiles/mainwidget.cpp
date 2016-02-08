@@ -282,7 +282,7 @@ void TopBarWidget::startAnim() {
 
 void TopBarWidget::stopAnim() {
     _animating = false;
-	_sideShadow.setVisible(cWideMode());
+	_sideShadow.setVisible(!Adaptive::OneColumn());
 	showAll();
 }
 
@@ -346,13 +346,13 @@ void TopBarWidget::showAll() {
 				_mediaType.hide();
 			}
 		}
-        if (App::main() && App::main()->historyPeer() && !o && !p && _clearSelection.isHidden() && !cWideMode()) {
+        if (App::main() && App::main()->historyPeer() && !o && !p && _clearSelection.isHidden() && Adaptive::OneColumn()) {
 			_info.show();
 		} else {
 			_info.hide();
 		}
 	}
-	_sideShadow.setVisible(cWideMode());
+	_sideShadow.setVisible(!Adaptive::OneColumn());
 	resizeEvent(0);
 }
 
@@ -367,7 +367,7 @@ void TopBarWidget::showSelected(uint32 selCount, bool canDelete) {
 	showAll();
 }
 
-void TopBarWidget::updateWideMode() {
+void TopBarWidget::updateAdaptiveLayout() {
 	showAll();
 }
 
@@ -453,10 +453,10 @@ MainWidget::MainWidget(Window *window) : TWidget(window)
 	connect(&_cacheBackgroundTimer, SIGNAL(timeout()), this, SLOT(onCacheBackground()));
 
 	dialogs.show();
-	if (cWideMode()) {
-		history.show();
-	} else {
+	if (Adaptive::OneColumn()) {
 		history.hide();
+	} else {
+		history.show();
 	}
 	App::wnd()->getTitle()->updateBackButton();
 	_topBar.hide();
@@ -715,7 +715,7 @@ QPixmap MainWidget::grabInner() {
 		return myGrab(overview);
 	} else if (profile && !profile->isHidden()) {
 		return myGrab(profile);
-	} else if (!cWideMode() && history.isHidden()) {
+	} else if (Adaptive::OneColumn() && history.isHidden()) {
 		return myGrab(&dialogs, QRect(0, st::topBarHeight, dialogs.width(), dialogs.height() - st::topBarHeight));
 	} else if (history.peer()) {
 		return myGrab(&history);
@@ -734,7 +734,7 @@ bool MainWidget::isItemVisible(HistoryItem *item) {
 QPixmap MainWidget::grabTopBar() {
 	if (!_topBar.isHidden()) {
 		return myGrab(&_topBar);
-	} else if (!cWideMode() && history.isHidden()) {
+	} else if (Adaptive::OneColumn() && history.isHidden()) {
 		return myGrab(&dialogs, QRect(0, 0, dialogs.width(), st::topBarHeight));
 	} else {
 		return myGrab(&history, QRect(0, 0, history.width(), st::topBarHeight));
@@ -838,12 +838,7 @@ void MainWidget::notify_historyItemResized(const HistoryItem *item, bool scrollT
 void MainWidget::noHider(HistoryHider *destroyed) {
 	if (_hider == destroyed) {
 		_hider = 0;
-		if (cWideMode()) {
-			if (_forwardConfirm) {
-				_forwardConfirm->deleteLater();
-				_forwardConfirm = 0;
-			}
-		} else {
+		if (Adaptive::OneColumn()) {
 			if (_forwardConfirm) {
 				_forwardConfirm->startHide();
 				_forwardConfirm = 0;
@@ -864,6 +859,11 @@ void MainWidget::noHider(HistoryHider *destroyed) {
 				}
 			}
 			App::wnd()->getTitle()->updateBackButton();
+		} else {
+			if (_forwardConfirm) {
+				_forwardConfirm->deleteLater();
+				_forwardConfirm = 0;
+			}
 		}
 	}
 }
@@ -876,11 +876,7 @@ void MainWidget::hiderLayer(HistoryHider *h) {
 
 	_hider = h;
 	connect(_hider, SIGNAL(forwarded()), &dialogs, SLOT(onCancelSearch()));
-	if (cWideMode()) {
-		_hider->show();
-		resizeEvent(0);
-		dialogs.activate();
-	} else {
+	if (Adaptive::OneColumn()) {
 		dialogsToUp();
 
 		_hider->hide();
@@ -898,6 +894,10 @@ void MainWidget::hiderLayer(HistoryHider *h) {
 		resizeEvent(0);
 		dialogs.animShow(animCache);
 		App::wnd()->getTitle()->updateBackButton();
+	} else {
+		_hider->show();
+		resizeEvent(0);
+		dialogs.activate();
 	}
 }
 
@@ -937,7 +937,7 @@ bool MainWidget::selectingPeer(bool withConfirm) {
 
 void MainWidget::offerPeer(PeerId peer) {
 	Ui::hideLayer();
-	if (_hider->offerPeer(peer) && !cWideMode()) {
+	if (_hider->offerPeer(peer) && Adaptive::OneColumn()) {
 		_forwardConfirm = new ConfirmBox(_hider->offeredText(), lang(lng_forward_send));
 		connect(_forwardConfirm, SIGNAL(confirmed()), _hider, SLOT(forward()));
 		connect(_forwardConfirm, SIGNAL(cancelled()), this, SLOT(onForwardCancel()));
@@ -1402,7 +1402,7 @@ bool MainWidget::insertBotCommand(const QString &cmd, bool specialGif) {
 void MainWidget::searchMessages(const QString &query, PeerData *inPeer) {
 	App::wnd()->hideMediaview();
 	dialogs.searchMessages(query, inPeer);
-	if (!cWideMode()) {
+	if (Adaptive::OneColumn()) {
 		Ui::showChatsList();
 	} else {
 		dialogs.activate();
@@ -2286,15 +2286,15 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool bac
 	}
 
 	QPixmap animCache, animTopBarCache;
-	if (!_a_show.animating() && ((history.isHidden() && (profile || overview)) || (!cWideMode() && (history.isHidden() || !peerId)))) {
+	if (!_a_show.animating() && ((history.isHidden() && (profile || overview)) || (Adaptive::OneColumn() && (history.isHidden() || !peerId)))) {
 		if (peerId) {
 			animCache = grabInner();
-		} else if (cWideMode()) {
-			animCache = myGrab(this, QRect(_dialogsWidth, _playerHeight, width() - _dialogsWidth, height() - _playerHeight));
-		} else {
+		} else if (Adaptive::OneColumn()) {
 			animCache = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
+		} else {
+			animCache = myGrab(this, QRect(_dialogsWidth, _playerHeight, width() - _dialogsWidth, height() - _playerHeight));
 		}
-		if (peerId || cWideMode()) {
+		if (peerId || !Adaptive::OneColumn()) {
 			animTopBarCache = grabTopBar();
 		}
 		history.show();
@@ -2302,7 +2302,7 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool bac
 	if (history.peer() && history.peer()->id != peerId) clearBotStartToken(history.peer());
 	history.showHistory(peerId, showAtMsgId);
 
-	bool noPeer = (!history.peer() || !history.peer()->id), onlyDialogs = noPeer && !cWideMode();
+	bool noPeer = (!history.peer() || !history.peer()->id), onlyDialogs = noPeer && Adaptive::OneColumn();
 	if (profile || overview) {
 		if (profile) {
 			profile->hide();
@@ -2343,7 +2343,7 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool bac
 			}
 			_viewsIncremented.remove(activePeer());
 		}
-		if (!cWideMode() && !dialogs.isHidden()) dialogs.hide();
+		if (Adaptive::OneColumn() && !dialogs.isHidden()) dialogs.hide();
 		if (!_a_show.animating()) {
 			if (history.isHidden()) history.show();
 			if (!animCache.isNull()) {
@@ -2437,7 +2437,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 	QRect topBarRect = QRect(_topBar.x(), _topBar.y(), _topBar.width(), st::topBarHeight);
 	QRect historyRect = QRect(history.x(), topBarRect.y() + topBarRect.height(), history.width(), history.y() + history.height() - topBarRect.y() - topBarRect.height());
 	QPixmap animCache, animTopBarCache;
-	if (!_a_show.animating() && (!cWideMode() || profile || overview || history.peer())) {
+	if (!_a_show.animating() && (Adaptive::OneColumn() || profile || overview || history.peer())) {
 		animCache = grabInner();
 		animTopBarCache = grabTopBar();
 	}
@@ -2481,7 +2481,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 	if (back) clearBotStartToken(history.peer());
 	history.showHistory(0, 0);
 	history.hide();
-	if (!cWideMode()) dialogs.hide();
+	if (Adaptive::OneColumn()) dialogs.hide();
 
 	orderWidgets();
 
@@ -2531,7 +2531,7 @@ void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop)
 	if (back) clearBotStartToken(history.peer());
 	history.showHistory(0, 0);
 	history.hide();
-	if (!cWideMode()) dialogs.hide();
+	if (Adaptive::OneColumn()) dialogs.hide();
 
 	orderWidgets();
 
@@ -2728,27 +2728,7 @@ void MainWidget::showAll() {
 		cSetPasswordRecovered(false);
 		Ui::showLayer(new InformBox(lang(lng_signin_password_removed)));
 	}
-	if (cWideMode()) {
-		if (_hider) {
-			_hider->show();
-			if (_forwardConfirm) {
-				Ui::hideLayer(true);
-				_forwardConfirm = 0;
-			}
-		}
-		dialogs.show();
-		if (overview) {
-			overview->show();
-		} else if (profile) {
-			profile->show();
-		} else {
-			history.show();
-			history.resizeEvent(0);
-		}
-		if (profile || overview || history.peer()) {
-			_topBar.show();
-		}
-	} else {
+	if (Adaptive::OneColumn()) {
 		if (_hider) {
 			_hider->hide();
 			if (!_forwardConfirm && _hider->wasOffered()) {
@@ -2779,6 +2759,26 @@ void MainWidget::showAll() {
 			_topBar.show();
 			dialogs.hide();
 		}
+	} else {
+		if (_hider) {
+			_hider->show();
+			if (_forwardConfirm) {
+				Ui::hideLayer(true);
+				_forwardConfirm = 0;
+			}
+		}
+		dialogs.show();
+		if (overview) {
+			overview->show();
+		} else if (profile) {
+			profile->show();
+		} else {
+			history.show();
+			history.resizeEvent(0);
+		}
+		if (profile || overview || history.peer()) {
+			_topBar.show();
+		}
 	}
 	if (audioPlayer()) {
 		SongMsgId playing;
@@ -2802,7 +2802,14 @@ void MainWidget::showAll() {
 
 void MainWidget::resizeEvent(QResizeEvent *e) {
 	int32 tbh = _topBar.isHidden() ? 0 : st::topBarHeight;
-	if (cWideMode()) {
+	if (Adaptive::OneColumn()) {
+		_dialogsWidth = width();
+		_player.setGeometry(0, 0, _dialogsWidth, _player.height());
+		dialogs.setGeometry(0, _playerHeight, _dialogsWidth, height() - _playerHeight);
+		_topBar.setGeometry(0, _playerHeight, _dialogsWidth, st::topBarHeight);
+		history.setGeometry(0, _playerHeight + tbh, _dialogsWidth, height() - _playerHeight - tbh);
+		if (_hider) _hider->setGeometry(0, 0, _dialogsWidth, height());
+	} else {
 		_dialogsWidth = snap<int>((width() * 5) / 14, st::dlgMinWidth, st::dlgMaxWidth);
 		dialogs.resize(_dialogsWidth, height());
 		dialogs.moveToLeft(0, 0);
@@ -2816,13 +2823,6 @@ void MainWidget::resizeEvent(QResizeEvent *e) {
 			_hider->resize(width() - _dialogsWidth, height());
 			_hider->moveToLeft(_dialogsWidth, 0);
 		}
-	} else {
-		_dialogsWidth = width();
-		_player.setGeometry(0, 0, _dialogsWidth, _player.height());
-		dialogs.setGeometry(0, _playerHeight, _dialogsWidth, height() - _playerHeight);
-		_topBar.setGeometry(0, _playerHeight, _dialogsWidth, st::topBarHeight);
-		history.setGeometry(0, _playerHeight + tbh, _dialogsWidth, height() - _playerHeight - tbh);
-		if (_hider) _hider->setGeometry(0, 0, _dialogsWidth, height());
 	}
 	_mediaType.moveToLeft(width() - _mediaType.width(), _playerHeight + st::topBarHeight);
 	if (profile) profile->setGeometry(history.geometry());
@@ -2838,13 +2838,13 @@ int32 MainWidget::contentScrollAddToY() const {
 void MainWidget::keyPressEvent(QKeyEvent *e) {
 }
 
-void MainWidget::updateWideMode() {
+void MainWidget::updateAdaptiveLayout() {
 	showAll();
-	_topBar.updateWideMode();
-	history.updateWideMode();
-	if (overview) overview->updateWideMode();
-	if (profile) profile->updateWideMode();
-	_player.updateWideMode();
+	_topBar.updateAdaptiveLayout();
+	history.updateAdaptiveLayout();
+	if (overview) overview->updateAdaptiveLayout();
+	if (profile) profile->updateAdaptiveLayout();
+	_player.updateAdaptiveLayout();
 }
 
 bool MainWidget::needBackButton() {
@@ -2910,7 +2910,7 @@ void MainWidget::onTopBarClick() {
 }
 
 void MainWidget::onHistoryShown(History *history, MsgId atMsgId) {
-	if ((cWideMode() || !selectingPeer()) && (profile || overview || history)) {
+	if ((!Adaptive::OneColumn() || !selectingPeer()) && (profile || overview || history)) {
 		_topBar.show();
 	} else {
 		_topBar.hide();
@@ -2925,11 +2925,11 @@ void MainWidget::onHistoryShown(History *history, MsgId atMsgId) {
 
 void MainWidget::searchInPeer(PeerData *peer) {
 	dialogs.searchInPeer(peer);
-	if (cWideMode()) {
-		dialogs.activate();
-	} else {
+	if (Adaptive::OneColumn()) {
 		dialogsToUp();
 		Ui::showChatsList();
+	} else {
+		dialogs.activate();
 	}
 }
 
@@ -3458,9 +3458,9 @@ void MainWidget::start(const MTPUser &user) {
 
 	cSetOtherOnline(0);
 	App::feedUsers(MTP_vector<MTPUser>(1, user));
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	Sandboxer::startUpdateCheck();
-	#endif
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	Sandbox::startUpdateCheck();
+#endif
 	MTP::send(MTPupdates_GetState(), rpcDone(&MainWidget::gotState));
 	update();
 	if (!cStartUrl().isEmpty()) {

@@ -245,7 +245,7 @@ public:
 
 	void updateNotifySettings();
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
-	void updateWideMode();
+	void updateAdaptiveLayout();
 
 	void grabStart() {
 		_sideShadow.hide();
@@ -253,7 +253,7 @@ public:
 		resizeEvent(0);
 	}
 	void grabFinish() {
-		_sideShadow.setVisible(cWideMode());
+		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_inGrab = false;
 		resizeEvent(0);
 	}

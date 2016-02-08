@@ -51,7 +51,10 @@ color7: #2996ad; // sea
 color8: #ce671b; // orange
 
 wndMinWidth: 380px;
-wideModeWidth: 640px;
+
+adaptiveNormalWidth: 640px;
+adaptiveWideWidth: 1120px;
+
 wndMinHeight: 480px;
 wndDefWidth: 800px;
 wndDefHeight: 600px;

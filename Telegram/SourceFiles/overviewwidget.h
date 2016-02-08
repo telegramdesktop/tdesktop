@@ -271,7 +271,7 @@ public:
 	void animShow(const QPixmap &oldAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false, int32 lastScrollTop = -1);
 	void step_show(float64 ms, bool timer);
 
-	void updateWideMode();
+	void updateAdaptiveLayout();
 	void doneShow();
 
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
@@ -297,7 +297,7 @@ public:
 		resizeEvent(0);
 	}
 	void grabFinish() {
-		_sideShadow.setVisible(cWideMode());
+		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_inGrab = false;
 		resizeEvent(0);
 	}

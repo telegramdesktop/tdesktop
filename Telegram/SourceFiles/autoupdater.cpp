@@ -127,7 +127,7 @@ void UpdateChecker::partMetaGot() {
 					full = m.captured(1).toInt();
 				}
 
-				Sandboxer::updateProgress(already, full);
+				Sandbox::updateProgress(already, full);
 			}
 		}
 	}
@@ -180,7 +180,7 @@ void UpdateChecker::partFinished(qint64 got, qint64 total) {
 		outputFile.close();
 		unpackUpdate();
 	} else {
-		Sandboxer::updateProgress(already, full);
+		Sandbox::updateProgress(already, full);
 	}
 }
 
@@ -199,12 +199,12 @@ void UpdateChecker::partFailed(QNetworkReply::NetworkError e) {
 		}
 	}
 	LOG(("Update Error: failed to download part starting from %1, error %2").arg(already).arg(e));
-	Sandboxer::updateFailed();
+	Sandbox::updateFailed();
 }
 
 void UpdateChecker::fatalFail() {
 	clearAll();
-	Sandboxer::updateFailed();
+	Sandbox::updateFailed();
 }
 
 void UpdateChecker::clearAll() {
@@ -466,7 +466,7 @@ void UpdateChecker::unpackUpdate() {
 	}
 	outputFile.remove();
 
-	Sandboxer::updateReady();
+	Sandbox::updateReady();
 }
 
 UpdateChecker::~UpdateChecker() {

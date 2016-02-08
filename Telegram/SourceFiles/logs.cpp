@@ -295,7 +295,7 @@ namespace Logs {
 	Initializer::Initializer() {
 		t_assert(LogsData == 0);
 
-		if (!Global::CheckBetaVersionDir()) {
+		if (!Sandbox::CheckBetaVersionDir()) {
 			return;
 		}
 		bool workingDirChosen = cBetaVersion();
@@ -336,7 +336,7 @@ namespace Logs {
 		QDir().setCurrent(cWorkingDir());
 		QDir().mkpath(cWorkingDir() + qstr("tdata"));
 
-		Global::WorkingDirReady();
+		Sandbox::WorkingDirReady();
 		SignalHandlers::StartBreakpad();
 
 		if (!LogsData->openMain()) {
@@ -940,7 +940,7 @@ namespace SignalHandlers {
 			}
 			fclose(f);
 
-			Global::SetLastCrashDump(lastdump);
+			Sandbox::SetLastCrashDump(lastdump);
 
 			LOG(("Opened '%1' for reading, the previous Telegram Desktop launch was not finished properly :( Crash log size: %2").arg(QString::fromUtf8(CrashDumpPath)).arg(lastdump.size()));
 

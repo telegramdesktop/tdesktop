@@ -125,8 +125,7 @@ void BackgroundWidget::resizeEvent(QResizeEvent *e) {
 	w->parentResized();
 }
 
-void BackgroundWidget::updateWideMode() {
-
+void BackgroundWidget::updateAdaptiveLayout() {
 }
 
 void BackgroundWidget::replaceInner(LayeredWidget *n) {

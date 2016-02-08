@@ -150,7 +150,7 @@ UpdateBtn::UpdateBtn(QWidget *parent, Window *window, const QString &text) : Sys
 void UpdateBtn::onClick() {
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	checkReadyUpdate();
-	if (Sandboxer::updatingState() == Application::UpdatingReady) {
+	if (Sandbox::updatingState() == Application::UpdatingReady) {
 		cSetRestartingUpdate(true);
 	} else
 #endif

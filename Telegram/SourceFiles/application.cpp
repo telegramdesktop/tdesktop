@@ -75,6 +75,9 @@ namespace {
 						if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
 							App::wnd()->minimizeToTray();
 							return true;
+						} else {
+							App::wnd()->close();
+							return true;
 						}
 					}
 				}
@@ -178,7 +181,7 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
 Application::~Application() {
 	App::setQuiting();
 
-	Global::finish();
+	Sandbox::finish();
 
 	delete AppObject;
 
@@ -277,7 +280,7 @@ void Application::singleInstanceChecked() {
 		Logs::multipleInstances();
 	}
 
-	Global::start();
+	Sandbox::start();
 
 	if (!Logs::started() || (!cManyInstance() && !Logs::instanceChecked())) {
 		new NotStartedWindow();
@@ -286,17 +289,17 @@ void Application::singleInstanceChecked() {
 		if (status == SignalHandlers::CantOpen) {
 			new NotStartedWindow();
 		} else if (status == SignalHandlers::LastCrashed) {
-			if (Global::LastCrashDump().isEmpty()) { // don't handle bad closing for now
+			if (Sandbox::LastCrashDump().isEmpty()) { // don't handle bad closing for now
 				if (SignalHandlers::restart() == SignalHandlers::CantOpen) {
 					new NotStartedWindow();
 				} else {
-					Sandboxer::startSandbox();
+					Sandbox::launch();
 				}
 			} else {
 				new LastCrashedWindow();
 			}
 		} else {
-			Sandboxer::startSandbox();
+			Sandbox::launch();
 		}
 	}
 }
@@ -328,7 +331,7 @@ void Application::readClients() {
 			for (int32 to = cmds.indexOf(QChar(';'), from); to >= from; to = (from < l) ? cmds.indexOf(QChar(';'), from) : -1) {
 				QStringRef cmd(&cmds, from, to - from);
 				if (cmd.startsWith(qsl("CMD:"))) {
-					Sandboxer::execExternal(cmds.mid(from + 4, to - from - 4));
+					Sandbox::execExternal(cmds.mid(from + 4, to - from - 4));
 					QByteArray response(qsl("RES:%1;").arg(QCoreApplication::applicationPid()).toLatin1());
 					i->first->write(response.data(), response.size());
 				} else if (cmd.startsWith(qsl("SEND:"))) {
@@ -546,7 +549,7 @@ inline Application *application() {
 	return qobject_cast<Application*>(QApplication::instance());
 }
 
-namespace Sandboxer {
+namespace Sandbox {
 
 	QRect availableGeometry() {
 		if (Application *a = application()) {
@@ -665,7 +668,7 @@ namespace Sandboxer {
 		}
 	}
 
-	void startSandbox() {
+	void launch() {
 		t_assert(application() != 0);
 
 		float64 dpi = Application::primaryScreen()->logicalDotsPerInch();
@@ -699,7 +702,7 @@ AppClass::AppClass() : QObject()
 	Fonts::start();
 
 	ThirdParty::start();
-	Sandbox::start();
+	Global::start();
 	Local::start();
 	if (Local::oldSettingsVersion() < AppVersion) {
 		psNewVersion();
@@ -719,7 +722,7 @@ AppClass::AppClass() : QObject()
 	}
 
 	if (cLang() < languageTest) {
-		cSetLang(Global::LangSystem());
+		cSetLang(Sandbox::LangSystem());
 	}
 	if (cLang() == languageTest) {
 		if (QFileInfo(cLangFile()).exists()) {
@@ -752,7 +755,7 @@ AppClass::AppClass() : QObject()
 
 	application()->installNativeEventFilter(psNativeEventFilter());
 
-	Sandboxer::connect(SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
+	Sandbox::connect(SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
 
 	connect(&_mtpUnpauseTimer, SIGNAL(timeout()), this, SLOT(doMtpUnpause()));
 
@@ -1048,8 +1051,12 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (cDevVersion() && Local::oldMapVersion() < 9019) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Choose an emoticon and see the suggested stickers\n\xe2\x80\x94 Bug fixes in minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
+			if (cDevVersion() && Local::oldMapVersion() < 9020) {
+				if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
+					versionFeatures = QString::fromUtf8("\xe2\x80\x94 Testing new crash reporting system\n\xe2\x80\x94 Conversation history is centered in wide windows\n\xe2\x80\x94 New cute link and timestamp tooltips design\n\xe2\x80\x94 Bug fixes and other minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
+				} else {
+					versionFeatures = QString::fromUtf8("\xe2\x80\x94 Testing new crash reporting system\n\xe2\x80\x94 Conversation history is centered in wide windows\n\xe2\x80\x94 New cute link and timestamp tooltips design\n\xe2\x80\x94 Ctrl+W or Ctrl+F4 closes Telegram window\n\xe2\x80\x94 Bug fixes and other minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
+				}
 			} else if (Local::oldMapVersion() < 9016) {
 				versionFeatures = lng_new_version_text(lt_gifs_link, qsl("https://telegram.org/blog/gif-revolution"), lt_bots_link, qsl("https://telegram.org/blog/inline-bots")).trimmed();
 			} else {
@@ -1087,7 +1094,7 @@ AppClass::~AppClass() {
 	style::stopManager();
 
 	Local::finish();
-	Sandbox::finish();
+	Global::finish();
 	ThirdParty::finish();
 }
 

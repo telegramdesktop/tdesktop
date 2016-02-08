@@ -46,9 +46,9 @@ namespace {
 			countryForReg = nearest.vcountry.c_string().v.c_str();
 			emit signalEmitOn->countryChanged();
 		}
-		#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-		Sandboxer::startUpdateCheck();
-		#endif
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+		Sandbox::startUpdateCheck();
+#endif
 	}
 }
 
@@ -425,8 +425,7 @@ void IntroWidget::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-void IntroWidget::updateWideMode() {
-
+void IntroWidget::updateAdaptiveLayout() {
 }
 
 void IntroWidget::rpcInvalidate() {

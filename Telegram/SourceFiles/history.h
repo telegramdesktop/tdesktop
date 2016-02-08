@@ -1020,9 +1020,7 @@ public:
 	bool hasFromName() const {
 		return (!out() || fromChannel()) && !history()->peer->isUser();
 	}
-	bool displayFromPhoto() const {
-		return !out() && !history()->peer->isUser() && !fromChannel();
-	}
+	bool displayFromPhoto() const;
 
 	void clipCallback(ClipReaderNotification notification);
 
