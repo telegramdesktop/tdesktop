@@ -1411,6 +1411,8 @@ bool _execUpdater(bool update = true, const QString &crashreport = QString()) {
 		}
 	}
 
+	Logs::closeMain();
+	SignalHandlers::finish();
     pid_t pid = fork();
     switch (pid) {
     case -1: return false;

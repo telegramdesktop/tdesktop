@@ -98,6 +98,14 @@ public:
 		return reopen(LogDataMain, 0, qsl("start"));
 	}
 
+	void closeMain() {
+		QMutexLocker lock(_logsMutex(LogDataMain));
+		if (files[LogDataMain]) {
+			streams[LogDataMain].setDevice(0);
+			files[LogDataMain]->close();
+		}
+	}
+
 	bool instanceChecked() {
 		return reopen(LogDataMain, 0, QString());
 	}
@@ -433,6 +441,13 @@ namespace Logs {
 		LogsBeforeSingleInstanceChecked.clear();
 	}
 
+	void closeMain() {
+		LOG(("Explicitly closing main log and finishing crash handlers."));
+		if (LogsData) {
+			LogsData->closeMain();
+		}
+	}
+
 	void writeMain(const QString &v) {
 		time_t t = time(NULL);
 		struct tm tm;
@@ -490,7 +505,7 @@ namespace Logs {
 			return LogsBeforeSingleInstanceChecked;
 		}
 
-		int32 size = 0;
+		int32 size = LogsBeforeSingleInstanceChecked.size();
 		for (LogsInMemoryList::const_iterator i = LogsInMemory->cbegin(), e = LogsInMemory->cend(); i != e; ++i) {
 			if (i->first == LogDataMain) {
 				size += i->second.size();
@@ -498,6 +513,9 @@ namespace Logs {
 		}
 		QString result;
 		result.reserve(size);
+		if (!LogsBeforeSingleInstanceChecked.isEmpty()) {
+			result.append(LogsBeforeSingleInstanceChecked);
+		}
 		for (LogsInMemoryList::const_iterator i = LogsInMemory->cbegin(), e = LogsInMemory->cend(); i != e; ++i) {
 			if (i->first == LogDataMain) {
 				result += i->second;

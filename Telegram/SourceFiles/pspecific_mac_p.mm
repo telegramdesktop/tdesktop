@@ -978,8 +978,10 @@ BOOL _execUpdater(BOOL update = YES, const QString &crashreport = QString()) {
 		}
 
 		DEBUG_LOG(("Application Info: executing %1 %2").arg(objcString(path)).arg(objcString([args componentsJoinedByString:@" "])));
+		Logs::closeMain();
+		SignalHandlers::finish();
 		if (![NSTask launchedTaskWithLaunchPath:path arguments:args]) {
-			LOG(("Task not launched while executing %1 %2").arg(objcString(path)).arg(objcString([args componentsJoinedByString:@" "])));
+			DEBUG_LOG(("Task not launched while executing %1 %2").arg(objcString(path)).arg(objcString([args componentsJoinedByString:@" "])));
 			return NO;
 		}
 	}

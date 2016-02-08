@@ -32,6 +32,8 @@ namespace Logs {
 	bool instanceChecked();
 	void multipleInstances();
 
+	void closeMain();
+
 	void writeMain(const QString &v);
 
 	void writeDebug(const char *file, int32 line, const QString &v);
