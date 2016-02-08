@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "pspecific.h"
@@ -40,11 +40,11 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #pragma warning(push)
 #pragma warning(disable:4091)
 #include <dbghelp.h>
+#include <shlobj.h>
 #pragma warning(pop)
 
 #include <Shlwapi.h>
 #include <Strsafe.h>
-#include <shlobj.h>
 #include <Windowsx.h>
 #include <WtsApi32.h>
 
