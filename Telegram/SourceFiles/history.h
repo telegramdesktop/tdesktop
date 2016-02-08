@@ -1021,6 +1021,7 @@ public:
 		return (!out() || fromChannel()) && !history()->peer->isUser();
 	}
 	bool displayFromPhoto() const;
+	bool shiftFromPhoto() const;
 
 	void clipCallback(ClipReaderNotification notification);
 

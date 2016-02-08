@@ -2927,6 +2927,10 @@ bool HistoryItem::displayFromPhoto() const {
 	return Adaptive::Wide() || (!out() && !history()->peer->isUser() && !fromChannel());
 }
 
+bool HistoryItem::shiftFromPhoto() const {
+	return Adaptive::Wide() && !out() && !history()->peer->isUser() && !fromChannel();
+}
+
 void HistoryItem::clipCallback(ClipReaderNotification notification) {
 	HistoryMedia *media = getMedia();
 	if (!media) return;
@@ -6225,7 +6229,14 @@ void HistoryMessage::countPositionAndSize(int32 &left, int32 &width) const {
 	}
 	left += (!fromChannel() && out()) ? st::msgMargin.right() : st::msgMargin.left();
 	if (displayFromPhoto()) {
-		left += (!fromChannel() && out()) ? -st::msgPhotoSkip : st::msgPhotoSkip;
+		if (!fromChannel() && out()) {
+			left -= st::msgPhotoSkip;
+		} else {
+			left += st::msgPhotoSkip;
+			if (shiftFromPhoto()) {
+				left += st::msgPhotoSkip;
+			}
+		}
 	}
 
 	width = hwidth - st::msgMargin.left() - st::msgMargin.right();

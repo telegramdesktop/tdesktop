@@ -2838,12 +2838,12 @@ void HistoryWidget::updateInlineBotQuery() {
 	QString query = _field.getInlineBotQuery(_inlineBot, _inlineBotUsername);
 	if (inlineBotUsername != _inlineBotUsername) {
 		if (_inlineBotResolveRequestId) {
-			Notify::inlineBotRequesting(false);
+//			Notify::inlineBotRequesting(false);
 			MTP::cancel(_inlineBotResolveRequestId);
 			_inlineBotResolveRequestId = 0;
 		}
 		if (_inlineBot == InlineBotLookingUpData) {
-			Notify::inlineBotRequesting(true);
+//			Notify::inlineBotRequesting(true);
 			_inlineBotResolveRequestId = MTP::send(MTPcontacts_ResolveUsername(MTP_string(_inlineBotUsername)), rpcDone(&HistoryWidget::inlineBotResolveDone), rpcFail(&HistoryWidget::inlineBotResolveFail, _inlineBotUsername));
 			return;
 		}
@@ -5066,7 +5066,7 @@ bool HistoryWidget::hasBroadcastToggle() const {
 
 void HistoryWidget::inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result) {
 	_inlineBotResolveRequestId = 0;
-	Notify::inlineBotRequesting(false);
+//	Notify::inlineBotRequesting(false);
 	_inlineBotUsername = QString();
 	if (result.type() == mtpc_contacts_resolvedPeer) {
 		const MTPDcontacts_resolvedPeer &d(result.c_contacts_resolvedPeer());
@@ -5080,7 +5080,7 @@ bool HistoryWidget::inlineBotResolveFail(QString name, const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
 
 	_inlineBotResolveRequestId = 0;
-	Notify::inlineBotRequesting(false);
+//	Notify::inlineBotRequesting(false);
 	if (name == _inlineBotUsername) {
 		_inlineBot = 0;
 		onCheckMentionDropdown();

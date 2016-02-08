@@ -1285,9 +1285,6 @@ msgFileBlue: sprite(60px, 425px, 20px, 20px);
 msgFileOverDuration: 200;
 msgFileRadialLine: 3px;
 
-msgFileExtPadding: 8px;
-msgFileExtTop: 30px;
-
 msgVideoSize: size(320px, 240px);
 
 sendPadding: 9px;
@@ -2200,6 +2197,9 @@ overviewFileStatusTop: 27px;
 overviewFileDateTop: 49px;
 overviewFileChecked: #2fa9e2;
 overviewFileCheck: #00000066;
+overviewFileExtPadding: 5px;
+overviewFileExtTop: 24px;
+overviewFileExtFont: font(18px semibold);
 
 // Mac specific
 
