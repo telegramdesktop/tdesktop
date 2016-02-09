@@ -606,7 +606,7 @@ void _moveOldDataFiles(const QString &wasDir) {
 
 namespace SignalHandlers {
 
-	QByteArray CrashDumpPath;
+	QString CrashDumpPath;
 	FILE *CrashDumpFile = 0;
 	int CrashDumpFileNo = 0;
 	char LaunchedDateTimeStr[32] = { 0 };
@@ -930,8 +930,12 @@ namespace SignalHandlers {
 	}
 
 	Status start() {
-		CrashDumpPath = QFile::encodeName(cWorkingDir() + qsl("tdata/working"));
-		if (FILE *f = fopen(CrashDumpPath.constData(), "rb")) {
+		CrashDumpPath = cWorkingDir() + qsl("tdata/working");
+#ifdef Q_OS_WIN
+		if (FILE *f = _wfopen(CrashDumpPath.toStdWString().c_str(), L"rb")) {
+#else
+		if (FILE *f = fopen(QFile::encodeName(CrashDumpPath).constData(), "rb")) {
+#endif
 			QByteArray lastdump;
 			char buffer[64 * 1024] = { 0 };
 			int32 read = 0;
@@ -942,7 +946,7 @@ namespace SignalHandlers {
 
 			Sandbox::SetLastCrashDump(lastdump);
 
-			LOG(("Opened '%1' for reading, the previous Telegram Desktop launch was not finished properly :( Crash log size: %2").arg(QString::fromUtf8(CrashDumpPath)).arg(lastdump.size()));
+			LOG(("Opened '%1' for reading, the previous Telegram Desktop launch was not finished properly :( Crash log size: %2").arg(CrashDumpPath).arg(lastdump.size()));
 
 			return LastCrashed;
 		}
@@ -954,7 +958,11 @@ namespace SignalHandlers {
 			return Started;
 		}
 
-		CrashDumpFile = fopen(CrashDumpPath.constData(), "wb");
+#ifdef Q_OS_WIN
+		CrashDumpFile = _wfopen(CrashDumpPath.toStdWString().c_str(), L"wb");
+#else
+		CrashDumpFile = fopen(QFile::encodeName(CrashDumpPath).constData(), "wb");
+#endif
 		if (CrashDumpFile) {
 			CrashDumpFileNo = fileno(CrashDumpFile);
 			if (SetSignalHandlers) {
@@ -981,7 +989,7 @@ namespace SignalHandlers {
 			return Started;
 		}
 
-		LOG(("FATAL: Could not open '%1' for writing!").arg(QString::fromUtf8(CrashDumpPath)));
+		LOG(("FATAL: Could not open '%1' for writing!").arg(CrashDumpPath));
 
 		return CantOpen;
 	}
@@ -990,7 +998,11 @@ namespace SignalHandlers {
 		FinishBreakpad();
 		if (CrashDumpFile) {
 			fclose(CrashDumpFile);
-			unlink(CrashDumpPath.constData());
+#ifdef Q_OS_WIN
+			_wunlink(CrashDumpPath.toStdWString().c_str());
+#else
+			unlink(CrashDumpPath.toUtf8().constData());
+#endif
 		}
 	}
 

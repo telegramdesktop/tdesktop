@@ -1021,7 +1021,6 @@ public:
 		return (!out() || fromChannel()) && !history()->peer->isUser();
 	}
 	bool displayFromPhoto() const;
-	bool shiftFromPhoto() const;
 
 	void clipCallback(ClipReaderNotification notification);
 
@@ -2248,6 +2247,8 @@ public:
 	HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, int32 flags = 0, HistoryMedia *media = 0, int32 from = 0);
 
 	void initDimensions();
+
+	void countPositionAndSize(int32 &left, int32 &width) const;
 
 	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const;
 	int32 resize(int32 width);

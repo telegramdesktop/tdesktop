@@ -179,6 +179,10 @@ public:
 	}
 };
 
+inline int chatsListWidth(int windowWidth) {
+	return snap<int>((windowWidth * 5) / 14, st::dlgMinWidth, st::dlgMaxWidth);
+}
+
 class StickerPreviewWidget;
 
 class MainWidget : public TWidget, public RPCSender {

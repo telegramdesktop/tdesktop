@@ -124,10 +124,10 @@ for /f ^"usebackq^ eol^=^
 :symbolslinedone
 FOR /F "tokens=1,2,3,4* delims= " %%i in ("%SymbolsHashLine%") do set "SymbolsHash=%%l"
 
-echo Copying %BinaryName%.sym to %DropboxSymbolsPath%\%BinaryName%\%SymbolsHash%
-if not exist %DropboxSymbolsPath%\%BinaryName% mkdir %DropboxSymbolsPath%\%BinaryName%
-if not exist %DropboxSymbolsPath%\%BinaryName%\%SymbolsHash% mkdir %DropboxSymbolsPath%\%BinaryName%\%SymbolsHash%
-xcopy %ReleasePath%\%BinaryName%.sym %DropboxSymbolsPath%\%BinaryName%\%SymbolsHash%\
+echo Copying %BinaryName%.sym to %DropboxSymbolsPath%\%BinaryName%.pdb\%SymbolsHash%
+if not exist %DropboxSymbolsPath%\%BinaryName%.pdb mkdir %DropboxSymbolsPath%\%BinaryName%.pdb
+if not exist %DropboxSymbolsPath%\%BinaryName%.pdb\%SymbolsHash% mkdir %DropboxSymbolsPath%\%BinaryName%.pdb\%SymbolsHash%
+xcopy %ReleasePath%\%BinaryName%.sym %DropboxSymbolsPath%\%BinaryName%.pdb\%SymbolsHash%\
 echo Done!
 
 if not exist %ReleasePath%\deploy mkdir %ReleasePath%\deploy

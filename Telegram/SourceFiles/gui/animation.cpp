@@ -425,7 +425,6 @@ void ClipReader::stop() {
 }
 
 void ClipReader::error() {
-	_private = 0;
 	_state = ClipError;
 }
 
