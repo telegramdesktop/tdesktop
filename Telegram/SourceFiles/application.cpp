@@ -149,7 +149,7 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
 , _updateChecker(0)
 #endif
 {
-	QByteArray d(QDir(cWorkingDir()).absolutePath().toUtf8());
+	QByteArray d(QFile::encodeName(QDir(cWorkingDir()).absolutePath()));
 	char h[33] = { 0 };
 	hashMd5Hex(d.constData(), d.size(), h);
 	_localServerName = psServerPrefix() + h + '-' + cGUIDStr();

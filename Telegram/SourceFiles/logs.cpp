@@ -885,7 +885,7 @@ namespace SignalHandlers {
 #ifdef MAC_USE_BREAKPAD
 #ifndef _DEBUG
 		BreakpadExceptionHandler = new google_breakpad::ExceptionHandler(
-			dumpspath.toUtf8().toStdString(),
+			QFile::encodeName(dumpspath).toStdString(),
 			/*FilterCallback*/ 0,
 			DumpCallback,
 			/*context*/ 0,
@@ -897,7 +897,7 @@ namespace SignalHandlers {
 #else
 		crashpad::CrashpadClient crashpad_client;
 		std::string handler = (cExeDir() + cExeName() + qsl("/Contents/Helpers/crashpad_handler")).toUtf8().constData();
-		std::string database = dumpspath.toUtf8().constData();
+		std::string database = QFile::encodeName(dumpspath).constData();
 		if (crashpad_client.StartHandler(base::FilePath(handler),
 										 base::FilePath(database),
 										 std::string(),
@@ -909,7 +909,7 @@ namespace SignalHandlers {
 #endif
 #elif defined Q_OS_LINUX64 || defined Q_OS_LINUX32
 		BreakpadExceptionHandler = new google_breakpad::ExceptionHandler(
-			google_breakpad::MinidumpDescriptor(dumpspath.toUtf8().toStdString()),
+			google_breakpad::MinidumpDescriptor(QFile::encodeName(dumpspath).toStdString()),
 			/*FilterCallback*/ 0,
 			DumpCallback,
 			/*context*/ 0,
@@ -930,7 +930,7 @@ namespace SignalHandlers {
 	}
 
 	Status start() {
-		CrashDumpPath = (cWorkingDir() + qsl("tdata/working")).toUtf8();
+		CrashDumpPath = QFile::encodeName(cWorkingDir() + qsl("tdata/working"));
 		if (FILE *f = fopen(CrashDumpPath.constData(), "rb")) {
 			QByteArray lastdump;
 			char buffer[64 * 1024] = { 0 };

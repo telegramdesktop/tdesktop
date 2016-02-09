@@ -2919,7 +2919,7 @@ int showCrashReportWindow(const QString &crashdump) {
 		return 0;
 	}
 
-	QByteArray args[] = { QDir::toNativeSeparators(cExeDir() + cExeName()).toUtf8() };
+	QByteArray args[] = { QFile::encodeName(QDir::toNativeSeparators(cExeDir() + cExeName())) };
 	int a_argc = 1;
 	char *a_argv[1] = { args[0].data() };
 	QApplication app(a_argc, a_argv);
