@@ -53,7 +53,6 @@ color8: #ce671b; // orange
 wndMinWidth: 380px;
 
 adaptiveNormalWidth: 640px;
-adaptiveWideWidth: 1120px;
 
 wndMinHeight: 480px;
 wndDefWidth: 800px;

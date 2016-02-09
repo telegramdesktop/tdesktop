@@ -43,10 +43,10 @@ extern "C" {
 #include <unity/unity/unity.h>
 
 namespace {
-    QString escapeShell(const QString &str) {
-        QString result;
-        const QChar *b = str.constData(), *e = str.constEnd();
-        for (const QChar *ch = b; ch != e; ++ch) {
+    QByteArray escapeShell(const QByteArray &str) {
+        QByteArray result;
+        const char *b = str.constData(), *e = str.constEnd();
+        for (const char *ch = b; ch != e; ++ch) {
             if (*ch == ' ' || *ch == '"' || *ch == '\'' || *ch == '\\') {
                 if (result.isEmpty()) {
                     result.reserve(str.size() * 2);
@@ -974,13 +974,12 @@ QStringList addr2linestr(uint64 *addresses, int count) {
 	if (!count) return result;
 
 	result.reserve(count);
-	QString cmdstr = "addr2line -e " + escapeShell(cExeDir() + cExeName());
+	QByteArray cmd = "addr2line -e " + escapeShell(QFile::encodeName(cExeDir() + cExeName()));
 	for (int i = 0; i < count; ++i) {
 		if (addresses[i]) {
-			cmdstr += qsl(" 0x%1").arg(addresses[i], 0, 16);
+			cmd += qsl(" 0x%1").arg(addresses[i], 0, 16).toUtf8();
 		}
 	}
-	QByteArray cmd = cmdstr.toUtf8();
 	FILE *f = popen(cmd.constData(), "r");
 
 	QStringList addr2lineResult;
@@ -1165,7 +1164,7 @@ QString psCurrentLanguage() {
 namespace {
     QString _psHomeDir() {
         struct passwd *pw = getpwuid(getuid());
-        return (pw && pw->pw_dir && strlen(pw->pw_dir)) ? (fromUtf8Safe(pw->pw_dir) + '/') : QString();
+        return (pw && pw->pw_dir && strlen(pw->pw_dir)) ? (QFile::decodeName(pw->pw_dir) + '/') : QString();
     }
 }
 
@@ -1179,7 +1178,7 @@ QString psDownloadPath() {
 }
 
 QString psCurrentExeDirectory(int argc, char *argv[]) {
-    QString first = argc ? fromUtf8Safe(argv[0]) : QString();
+    QString first = argc ? QFile::decodeName(argv[0]) : QString();
     if (!first.isEmpty()) {
         QFileInfo info(first);
         if (info.isSymLink()) {
@@ -1193,7 +1192,7 @@ QString psCurrentExeDirectory(int argc, char *argv[]) {
 }
 
 QString psCurrentExeName(int argc, char *argv[]) {
-	QString first = argc ? fromUtf8Safe(argv[0]) : QString();
+	QString first = argc ? QFile::decodeName(argv[0]) : QString();
 	if (!first.isEmpty()) {
 		QFileInfo info(first);
         if (info.isSymLink()) {
@@ -1236,7 +1235,7 @@ void psOpenFile(const QString &name, bool openWith) {
 
 void psShowInFolder(const QString &name) {
     Ui::hideLayer(true);
-    system((qsl("xdg-open ") + escapeShell(QFileInfo(name).absoluteDir().absolutePath())).toUtf8().constData());
+    system(("xdg-open " + escapeShell(QFile::encodeName(QFileInfo(name).absoluteDir().absolutePath()))).constData());
 }
 
 namespace PlatformSpecific {
@@ -1262,13 +1261,13 @@ namespace PlatformSpecific {
 }
 
 namespace {
-    bool _psRunCommand(const QString &command) {
-        int result = system(command.toUtf8().constData());
+    bool _psRunCommand(const QByteArray &command) {
+        int result = system(command.constData());
         if (result) {
-            DEBUG_LOG(("App Error: command failed, code: %1, command (in utf8): %2").arg(result).arg(command));
+            DEBUG_LOG(("App Error: command failed, code: %1, command (in utf8): %2").arg(result).arg(command.constData()));
             return false;
         }
-        DEBUG_LOG(("App Info: command succeeded, command (in utf8): %1").arg(command));
+        DEBUG_LOG(("App Info: command succeeded, command (in utf8): %1").arg(command.constData()));
         return true;
     }
 }
@@ -1304,7 +1303,7 @@ void psRegisterCustomScheme() {
             s << "Version=1.0\n";
             s << "Name=Telegram Desktop\n";
             s << "Comment=Official desktop version of Telegram messaging app\n";
-            s << "Exec=" << escapeShell(cExeDir() + cExeName()) << " -- %u\n";
+            s << "Exec=" << escapeShell(QFile::encodeName(cExeDir() + cExeName())) << " -- %u\n";
             s << "Icon=telegram\n";
             s << "Terminal=false\n";
             s << "StartupWMClass=Telegram\n";
@@ -1313,12 +1312,12 @@ void psRegisterCustomScheme() {
             s << "MimeType=application/x-xdg-protocol-tg;x-scheme-handler/tg;\n";
             f.close();
 
-            if (_psRunCommand(qsl("desktop-file-install --dir=%1 --delete-original %2").arg(escapeShell(home + qsl(".local/share/applications"))).arg(escapeShell(file)))) {
+            if (_psRunCommand("desktop-file-install --dir=" + escapeShell(QFile::encodeName(home + qsl(".local/share/applications"))) + " --delete-original " + escapeShell(QFile::encodeName(file)))) {
                 DEBUG_LOG(("App Info: removing old .desktop file"));
                 QFile(qsl("%1.local/share/applications/telegram.desktop").arg(home)).remove();
 
-                _psRunCommand(qsl("update-desktop-database %1").arg(escapeShell(home + qsl(".local/share/applications"))));
-                _psRunCommand(qsl("xdg-mime default telegramdesktop.desktop x-scheme-handler/tg"));
+                _psRunCommand("update-desktop-database " + escapeShell(QFile::encodeName(home + qsl(".local/share/applications"))));
+                _psRunCommand("xdg-mime default telegramdesktop.desktop x-scheme-handler/tg");
             }
         } else {
             LOG(("App Error: Could not open '%1' for write").arg(file));
@@ -1326,9 +1325,9 @@ void psRegisterCustomScheme() {
     }
 
     DEBUG_LOG(("App Info: registerting for Gnome"));
-    if (_psRunCommand(qsl("gconftool-2 -t string -s /desktop/gnome/url-handlers/tg/command %1").arg(escapeShell(qsl("%1 -- %s").arg(escapeShell(cExeDir() + cExeName())))))) {
-        _psRunCommand(qsl("gconftool-2 -t bool -s /desktop/gnome/url-handlers/tg/needs_terminal false"));
-        _psRunCommand(qsl("gconftool-2 -t bool -s /desktop/gnome/url-handlers/tg/enabled true"));
+    if (_psRunCommand("gconftool-2 -t string -s /desktop/gnome/url-handlers/tg/command " + escapeShell(escapeShell(QFile::encodeName(cExeDir() + cExeName())) + " -- %s"))) {
+        _psRunCommand("gconftool-2 -t bool -s /desktop/gnome/url-handlers/tg/needs_terminal false");
+        _psRunCommand("gconftool-2 -t bool -s /desktop/gnome/url-handlers/tg/enabled true");
     }
 
     DEBUG_LOG(("App Info: placing .protocol file"));
@@ -1347,7 +1346,7 @@ void psRegisterCustomScheme() {
             QTextStream s(&f);
             s.setCodec("UTF-8");
             s << "[Protocol]\n";
-            s << "exec=" << escapeShell(cExeDir() + cExeName()) << " -- %u\n";
+            s << "exec=" << QFile::decodeName(escapeShell(QFile::encodeName(cExeDir() + cExeName()))) << " -- %u\n";
             s << "protocol=tg\n";
             s << "input=none\n";
             s << "output=none\n";
@@ -1396,14 +1395,14 @@ bool _execUpdater(bool update = true, const QString &crashreport = QString()) {
             args[argIndex++] = p_datafile;
         }
     }
-    QByteArray pathf = cWorkingDir().toUtf8();
+    QByteArray pathf = QFile::encodeName(cWorkingDir());
     if (pathf.size() < MaxLen) {
         memcpy(p_pathbuf, pathf.constData(), pathf.size());
         args[argIndex++] = p_path;
         args[argIndex++] = p_pathbuf;
     }
 	if (!crashreport.isEmpty()) {
-		QByteArray crashreportf = crashreport.toUtf8();
+		QByteArray crashreportf = QFile::encodeName(crashreport);
 		if (crashreportf.size() < MaxLen) {
 			memcpy(p_crashreportbuf, crashreportf.constData(), crashreportf.size());
 			args[argIndex++] = p_crashreport;

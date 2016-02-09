@@ -2810,7 +2810,7 @@ void MainWidget::resizeEvent(QResizeEvent *e) {
 		history.setGeometry(0, _playerHeight + tbh, _dialogsWidth, height() - _playerHeight - tbh);
 		if (_hider) _hider->setGeometry(0, 0, _dialogsWidth, height());
 	} else {
-		_dialogsWidth = snap<int>((width() * 5) / 14, st::dlgMinWidth, st::dlgMaxWidth);
+		_dialogsWidth = chatsListWidth(width());
 		dialogs.resize(_dialogsWidth, height());
 		dialogs.moveToLeft(0, 0);
 		_player.resize(width() - _dialogsWidth, _player.height());

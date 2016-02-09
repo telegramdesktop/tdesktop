@@ -297,6 +297,7 @@ CONFIG(debug, debug|release) {
 INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.5.1/QtGui\
                ./../../Libraries/QtStatic/qtbase/include/QtCore/5.5.1/QtCore\
                ./../../Libraries/QtStatic/qtbase/include\
+               /usr/local/include\
                /usr/local/include/opus\
                ./SourceFiles\
                ./GeneratedFiles\

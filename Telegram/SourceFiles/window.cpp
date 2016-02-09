@@ -1229,10 +1229,12 @@ void Window::resizeEvent(QResizeEvent *e) {
 	if (!title) return;
 
 	Adaptive::Layout layout = Adaptive::OneColumnLayout;
-	if (width() >= st::adaptiveWideWidth) {
-		layout = Adaptive::WideLayout;
-	} else if (width() >= st::adaptiveNormalWidth) {
-		layout = Adaptive::NormalLayout;
+	if (width() >= st::adaptiveNormalWidth) {
+		if (width() - chatsListWidth(width()) >= st::historyMaxWidth) {
+			layout = Adaptive::WideLayout;
+		} else {
+			layout = Adaptive::NormalLayout;
+		}
 	}
 	if (layout != Global::AdaptiveLayout()) {
 		Global::SetAdaptiveLayout(layout);
@@ -1501,7 +1503,6 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 		uint64 next = 0;
 		HistoryItem *notifyItem = 0;
 		History *notifyHistory = 0;
-		NotifyWaiters::iterator notifyWaiter = notifyWaiters.end();
 		for (NotifyWaiters::iterator i = notifyWaiters.begin(); i != notifyWaiters.end();) {
 			History *history = i.key();
 			if (history->currentNotification() && history->currentNotification()->id != i.value().msg) {
@@ -1509,7 +1510,6 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 				if (j == notifyWhenMaps.end()) {
 					history->clearNotifications();
 					i = notifyWaiters.erase(i);
-					notifyWaiter = notifyHistory ? notifyWaiters.find(notifyHistory) : notifyWaiters.end();
 					continue;
 				}
 				do {
@@ -1525,7 +1525,6 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 			if (!history->currentNotification()) {
 				notifyWhenMaps.remove(history);
 				i = notifyWaiters.erase(i);
-				notifyWaiter = notifyHistory ? notifyWaiters.find(notifyHistory) : notifyWaiters.end();
 				continue;
 			}
 			uint64 when = i.value().when;
@@ -1533,7 +1532,6 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 				next = when;
 				notifyItem = history->currentNotification();
 				notifyHistory = history;
-				notifyWaiter = i;
 			}
 			++i;
 		}
@@ -1567,8 +1565,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 							NotifyWhenMap::const_iterator k = j.value().constFind(history->currentNotification()->id);
 							if (k != j.value().cend()) {
 								nextNotify = history->currentNotification();
-								notifyWaiter.value().msg = k.key();
-								notifyWaiter.value().when = k.value();
+								notifyWaiters.insert(notifyHistory, NotifyWaiter(k.key(), k.value(), 0));
 								break;
 							}
 							history->skipNotification();
@@ -1599,7 +1596,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 				}
 
 				if (!history->hasNotification()) {
-					if (notifyWaiter != notifyWaiters.cend()) notifyWaiters.erase(notifyWaiter);
+					notifyWaiters.remove(history);
 					notifyWhenMaps.remove(history);
 					continue;
 				}
@@ -2195,7 +2192,7 @@ void LastCrashedWindow::onSendReport() {
 	App::setProxySettings(_sendManager);
 
 	QString apiid = getReportField(qstr("apiid"), qstr("ApiId:")), version = getReportField(qstr("version"), qstr("Version:"));
-	_checkReply = _sendManager.get(QNetworkRequest(qsl("https://tdesktop.com/crash.php?act=query_report&apiid=%1&version=%2").arg(apiid).arg(version)));
+	_checkReply = _sendManager.get(QNetworkRequest(qsl("https://tdesktop.com/crash.php?act=query_report&apiid=%1&version=%2&dmp=%3").arg(apiid).arg(version).arg(minidumpFileName().isEmpty() ? 0 : 1)));
 
 	connect(_checkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onSendingError(QNetworkReply::NetworkError)));
 	connect(_checkReply, SIGNAL(finished()), this, SLOT(onCheckingFinished()));
@@ -2291,6 +2288,15 @@ namespace {
 
 }
 
+QString LastCrashedWindow::minidumpFileName() {
+	QFileInfo dmpFile(_minidumpFull);
+	if (dmpFile.exists() && dmpFile.size() > 0 && dmpFile.size() < 20 * 1024 * 1024 &&
+		QRegularExpression(qsl("^[a-zA-Z0-9\\-]{1,64}\\.dmp$")).match(dmpFile.fileName()).hasMatch()) {
+		return dmpFile.fileName();
+	}
+	return QString();
+}
+
 void LastCrashedWindow::onCheckingFinished() {
 	if (!_checkReply || _sendReply) return;
 
@@ -2300,9 +2306,9 @@ void LastCrashedWindow::onCheckingFinished() {
 
 	LOG(("Crash report check for sending done, result: %1").arg(QString::fromUtf8(result)));
 
-	if (result == "Many") {
-		_pleaseSendReport.setText(qsl("Too many crash reports at this moment :("));
-		_sendingState = SendingTooMany;
+	if (result == "Old") {
+		_pleaseSendReport.setText(qsl("This report is about some old version of Telegram Desktop."));
+		_sendingState = SendingTooOld;
 		updateControls();
 		return;
 	} else if (result == "Unofficial") {
@@ -2311,10 +2317,11 @@ void LastCrashedWindow::onCheckingFinished() {
 		updateControls();
 		return;
 	} else if (result != "Report") {
-		_pleaseSendReport.setText(qsl("This report is about some old version of Telegram Desktop."));
-		_pleaseSendReport.setText(qsl("Response: %1").arg(QString::fromLatin1(result)));
-		_sendingState = SendingTooOld;
+		_pleaseSendReport.setText(qsl("Thank you for your report!"));
+		_sendingState = SendingDone;
 		updateControls();
+
+		SignalHandlers::restart();
 		return;
 	}
 
@@ -2329,15 +2336,14 @@ void LastCrashedWindow::onCheckingFinished() {
 	reportPart.setBody(Sandbox::LastCrashDump());
 	multipart->append(reportPart);
 
-	QFileInfo dmpFile(_minidumpFull);
-	if (dmpFile.exists() && dmpFile.size() > 0 && dmpFile.size() < 20 * 1024 * 1024 &&
-		QRegularExpression(qsl("^[a-zA-Z0-9\\-]{1,64}\\.dmp$")).match(dmpFile.fileName()).hasMatch()) {
+	QString dmpName = minidumpFileName();
+	if (!dmpName.isEmpty()) {
 		QFile file(_minidumpFull);
 		if (file.open(QIODevice::ReadOnly)) {
 			QByteArray minidump = file.readAll();
 			file.close();
 
-			QString zipName = dmpFile.fileName().replace(qstr(".dmp"), qstr(".zip"));
+			QString zipName = QString(dmpName).replace(qstr(".dmp"), qstr(".zip"));
 			zByteArray minidumpZip;
 
 			bool failed = false;
@@ -2353,8 +2359,8 @@ void LastCrashedWindow::onCheckingFinished() {
 
 			if (zipFile zf = zipOpen2(0, APPEND_STATUS_CREATE, 0, &zfuncs)) {
 				zip_fileinfo zfi = { { 0, 0, 0, 0, 0, 0 }, 0, 0, 0 };
-				std::wstring fileName = dmpFile.fileName().toStdWString();
-				if (zipOpenNewFileInZip(zf, std::string(fileName.begin(), fileName.end()).c_str(), &zfi, NULL, 0, NULL, 0, NULL, Z_DEFLATED, Z_DEFAULT_COMPRESSION) != ZIP_OK) {
+				QByteArray dmpNameUtf = dmpName.toUtf8();
+				if (zipOpenNewFileInZip(zf, dmpNameUtf.constData(), &zfi, NULL, 0, NULL, 0, NULL, Z_DEFLATED, Z_DEFAULT_COMPRESSION) != ZIP_OK) {
 					failed = true;
 				} else if (zipWriteInFileInZip(zf, minidump.constData(), minidump.size()) != 0) {
 					failed = true;
@@ -2919,7 +2925,7 @@ int showCrashReportWindow(const QString &crashdump) {
 		return 0;
 	}
 
-	QByteArray args[] = { QDir::toNativeSeparators(cExeDir() + cExeName()).toUtf8() };
+	QByteArray args[] = { QFile::encodeName(QDir::toNativeSeparators(cExeDir() + cExeName())) };
 	int a_argc = 1;
 	char *a_argv[1] = { args[0].data() };
 	QApplication app(a_argc, a_argv);

@@ -149,7 +149,7 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
 , _updateChecker(0)
 #endif
 {
-	QByteArray d(QDir(cWorkingDir()).absolutePath().toUtf8());
+	QByteArray d(QFile::encodeName(QDir(cWorkingDir()).absolutePath()));
 	char h[33] = { 0 };
 	hashMd5Hex(d.constData(), d.size(), h);
 	_localServerName = psServerPrefix() + h + '-' + cGUIDStr();
@@ -1051,7 +1051,7 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (cDevVersion() && Local::oldMapVersion() < 9020) {
+			if ((cDevVersion() || cBetaVersion()) && Local::oldMapVersion() < 9020) {
 				if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 					versionFeatures = QString::fromUtf8("\xe2\x80\x94 Testing new crash reporting system\n\xe2\x80\x94 Conversation history is centered in wide windows\n\xe2\x80\x94 New cute link and timestamp tooltips design\n\xe2\x80\x94 Bug fixes and other minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
 				} else {

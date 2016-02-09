@@ -2924,11 +2924,7 @@ void HistoryItem::setId(MsgId newId) {
 }
 
 bool HistoryItem::displayFromPhoto() const {
-	return Adaptive::Wide() || (!out() && !history()->peer->isUser() && !fromChannel());
-}
-
-bool HistoryItem::shiftFromPhoto() const {
-	return Adaptive::Wide() && !out() && !history()->peer->isUser() && !fromChannel();
+	return (Adaptive::Wide() || (!out() && !history()->peer->isUser())) && !fromChannel();
 }
 
 void HistoryItem::clipCallback(ClipReaderNotification notification) {
@@ -6217,31 +6213,25 @@ void HistoryMessage::initDimensions() {
 }
 
 void HistoryMessage::countPositionAndSize(int32 &left, int32 &width) const {
-	int32 maxwidth = qMin(int(st::msgMaxWidth), _maxw), hwidth = _history->width, hmaxwidth = st::historyMaxWidth + (Adaptive::Wide() ? (2 * st::msgPhotoSkip) : 0);
+	int32 maxwidth = qMin(int(st::msgMaxWidth), _maxw), hwidth = _history->width, hmaxwidth = st::historyMaxWidth;
 	if (_media && _media->currentWidth() < maxwidth) {
 		maxwidth = qMax(_media->currentWidth(), qMin(maxwidth, plainMaxWidth()));
 	}
 
 	left = 0;
-	if (hwidth > hmaxwidth) {
-		left = (hwidth - hmaxwidth) / 2;
+	if (Adaptive::Wide()) {
 		hwidth = hmaxwidth;
 	}
-	left += (!fromChannel() && out()) ? st::msgMargin.right() : st::msgMargin.left();
+	left += (!fromChannel() && out() && !Adaptive::Wide()) ? st::msgMargin.right() : st::msgMargin.left();
 	if (displayFromPhoto()) {
-		if (!fromChannel() && out()) {
-			left -= st::msgPhotoSkip;
-		} else {
-			left += st::msgPhotoSkip;
-			if (shiftFromPhoto()) {
-				left += st::msgPhotoSkip;
-			}
-		}
+		left += st::msgPhotoSkip;
+	} else if (!Adaptive::Wide() && !out() && !fromChannel() && st::msgPhotoSkip - (hmaxwidth - hwidth) > 0) {
+		left += st::msgPhotoSkip - (hmaxwidth - hwidth);
 	}
 
 	width = hwidth - st::msgMargin.left() - st::msgMargin.right();
 	if (width > maxwidth) {
-		if (!fromChannel() && out()) {
+		if (!fromChannel() && out() && !Adaptive::Wide()) {
 			left += width - maxwidth;
 		}
 		width = maxwidth;
@@ -6495,7 +6485,7 @@ void HistoryMessage::draw(Painter &p, const QRect &r, uint32 selection, uint64 m
 	}
 
 	if (displayFromPhoto()) {
-		int32 photoleft = left + ((!fromChannel() && out()) ? (width + (st::msgPhotoSkip - st::msgPhotoSize)) : (-st::msgPhotoSkip));
+		int32 photoleft = left + ((!fromChannel() && out() && !Adaptive::Wide()) ? (width + (st::msgPhotoSkip - st::msgPhotoSize)) : (-st::msgPhotoSkip));
 		p.drawPixmap(photoleft, _height - st::msgMargin.bottom() - st::msgPhotoSize, _from->photo->pixRounded(st::msgPhotoSize));
 	}
 	if (width < 1) return;
@@ -6663,7 +6653,7 @@ void HistoryMessage::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32
 	int32 left = 0, width = 0;
 	countPositionAndSize(left, width);
 	if (displayFromPhoto()) {
-		int32 photoleft = left + ((!fromChannel() && out()) ? (width + (st::msgPhotoSkip - st::msgPhotoSize)) : (-st::msgPhotoSkip));
+		int32 photoleft = left + ((!fromChannel() && out() && !Adaptive::Wide()) ? (width + (st::msgPhotoSkip - st::msgPhotoSize)) : (-st::msgPhotoSkip));
 		if (x >= photoleft && x < photoleft + st::msgPhotoSize && y >= _height - st::msgMargin.bottom() - st::msgPhotoSize && y < _height - st::msgMargin.bottom()) {
 			lnk = _from->lnk;
 			return;
@@ -6928,7 +6918,7 @@ void HistoryForwarded::getState(TextLinkPtr &lnk, HistoryCursorState &state, int
 		int32 left = 0, width = 0;
 		countPositionAndSize(left, width);
 		if (displayFromPhoto()) {
-			int32 photoleft = left + ((!fromChannel() && out()) ? (width + (st::msgPhotoSkip - st::msgPhotoSize)) : (-st::msgPhotoSkip));
+			int32 photoleft = left + ((!fromChannel() && out() && !Adaptive::Wide()) ? (width + (st::msgPhotoSkip - st::msgPhotoSize)) : (-st::msgPhotoSkip));
 			if (x >= photoleft && x < photoleft + st::msgPhotoSize) {
 				return HistoryMessage::getState(lnk, state, x, y);
 			}
@@ -7488,6 +7478,11 @@ void HistoryServiceMsg::initDimensions() {
 	if (_media) _media->initDimensions(this);
 }
 
+void HistoryServiceMsg::countPositionAndSize(int32 &left, int32 &width) const {
+	left = st::msgServiceMargin.left();
+	width = qMin(_history->width, int(st::msgMaxWidth + 2 * st::msgPhotoSkip)) - st::msgServiceMargin.left() - st::msgServiceMargin.left();
+}
+
 QString HistoryServiceMsg::selectedText(uint32 selection) const {
 	uint16 selectedFrom = (selection == FullSelection) ? 0 : (selection >> 16) & 0xFFFF;
 	uint16 selectedTo = (selection == FullSelection) ? 0xFFFF : (selection & 0xFFFF);
@@ -7528,7 +7523,8 @@ void HistoryServiceMsg::draw(Painter &p, const QRect &r, uint32 selection, uint6
 
 	textstyleSet(&st::serviceTextStyle);
 
-	int32 left = st::msgServiceMargin.left(), width = _history->width - st::msgServiceMargin.left() - st::msgServiceMargin.left(), height = _height - st::msgServiceMargin.top() - st::msgServiceMargin.bottom(); // two small margins
+	int32 left = 0, width = 0, height = _height - st::msgServiceMargin.top() - st::msgServiceMargin.bottom(); // two small margins
+	countPositionAndSize(left, width);
 	if (width < 1) return;
 
 	if (_media) {
@@ -7581,7 +7577,8 @@ int32 HistoryServiceMsg::resize(int32 width) {
 }
 
 bool HistoryServiceMsg::hasPoint(int32 x, int32 y) const {
-	int32 left = st::msgServiceMargin.left(), width = _history->width - st::msgServiceMargin.left() - st::msgServiceMargin.left(), height = _height - st::msgServiceMargin.top() - st::msgServiceMargin.bottom(); // two small margins
+	int32 left = 0, width = 0, height = _height - st::msgServiceMargin.top() - st::msgServiceMargin.bottom(); // two small margins
+	countPositionAndSize(left, width);
 	if (width < 1) return false;
 
 	if (_media) {
@@ -7594,7 +7591,8 @@ void HistoryServiceMsg::getState(TextLinkPtr &lnk, HistoryCursorState &state, in
 	lnk = TextLinkPtr();
 	state = HistoryDefaultCursorState;
 
-	int32 left = st::msgServiceMargin.left(), width = _history->width - st::msgServiceMargin.left() - st::msgServiceMargin.left(), height = _height - st::msgServiceMargin.top() - st::msgServiceMargin.bottom(); // two small margins
+	int32 left = 0, width = 0, height = _height - st::msgServiceMargin.top() - st::msgServiceMargin.bottom(); // two small margins
+	countPositionAndSize(left, width);
 	if (width < 1) return;
 
 	if (_media) {
@@ -7617,7 +7615,8 @@ void HistoryServiceMsg::getSymbol(uint16 &symbol, bool &after, bool &upon, int32
 	after = false;
 	upon = false;
 
-	int32 left = st::msgServiceMargin.left(), width = _history->width - st::msgServiceMargin.left() - st::msgServiceMargin.left(), height = _height - st::msgServiceMargin.top() - st::msgServiceMargin.bottom(); // two small margins
+	int32 left = 0, width = 0, height = _height - st::msgServiceMargin.top() - st::msgServiceMargin.bottom(); // two small margins
+	countPositionAndSize(left, width);
 	if (width < 1) return;
 
 	if (_media) {
@@ -7682,7 +7681,8 @@ void HistoryGroup::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 	lnk = TextLinkPtr();
 	state = HistoryDefaultCursorState;
 
-	int32 left = st::msgServiceMargin.left(), width = _history->width - st::msgServiceMargin.left() - st::msgServiceMargin.left(), height = _height - st::msgServiceMargin.top() - st::msgServiceMargin.bottom(); // two small margins
+	int32 left = 0, width = 0, height = _height - st::msgServiceMargin.top() - st::msgServiceMargin.bottom(); // two small margins
+	countPositionAndSize(left, width);
 	if (width < 1) return;
 
 	QRect trect(QRect(left, st::msgServiceMargin.top(), width, height).marginsAdded(-st::msgServicePadding));

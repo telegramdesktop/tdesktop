@@ -453,6 +453,7 @@ protected:
 
 private:
 
+	QString minidumpFileName();
 	void updateControls();
 
 	QString _host, _username, _password;

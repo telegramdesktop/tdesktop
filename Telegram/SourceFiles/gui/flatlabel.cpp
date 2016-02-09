@@ -46,7 +46,6 @@ void FlatLabel::setText(const QString &text) {
 
 void FlatLabel::setRichText(const QString &text) {
 	textstyleSet(&_tst);
-    const char *t = text.toUtf8().constData();
 	_text.setRichText(_st.font, text, _labelOptions);
 	int32 w = _st.width ? _st.width : _text.maxWidth(), h = _text.countHeight(w);
 	textstyleRestore();
