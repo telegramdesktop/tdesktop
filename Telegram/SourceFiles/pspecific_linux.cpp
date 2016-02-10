@@ -1242,7 +1242,7 @@ namespace PlatformSpecific {
 
 	Initializer::Initializer() {
         QString cdesktop = QString(getenv("XDG_CURRENT_DESKTOP")).toLower();
-        noQtTrayIcon = (cdesktop == qstr("pantheon")) || (cdesktop == qstr("gnome"));
+        noQtTrayIcon = (cdesktop == qstr("pantheon")) || (cdesktop == qstr("gnome") || (cdesktop == qstr("mate"));
         tryAppIndicator = (cdesktop == qstr("xfce"));
         noTryUnity = (cdesktop != qstr("unity"));
 
