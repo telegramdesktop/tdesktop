@@ -990,7 +990,7 @@ bool Window::eventFilter(QObject *obj, QEvent *evt) {
 	} else if (t == QEvent::MouseButtonRelease) {
 		Ui::hideStickerPreview();
 	}
-	if (obj == App::app()) {
+	if (obj == Application::instance()) {
 		if (t == QEvent::ApplicationActivate) {
 			psUserActionDone();
 			QTimer::singleShot(1, this, SLOT(checkHistoryActivation()));
@@ -1214,7 +1214,7 @@ void Window::toggleDisplayNotifyFromTray() {
 }
 
 void Window::closeEvent(QCloseEvent *e) {
-	if (MTP::authedId() && !Sandbox::isSavingSession() && minimizeToTray()) {
+	if (MTP::authedId() && !Sandbox::isSavingSession() && Ui::hideWindowNoQuit()) {
 		e->ignore();
 	} else {
 		App::quit();

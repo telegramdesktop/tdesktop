@@ -67,6 +67,8 @@ namespace Ui {
 		showPeerHistory(PeerId(0), 0);
 	}
 
+	bool hideWindowNoQuit();
+
 };
 
 enum ClipStopperType {

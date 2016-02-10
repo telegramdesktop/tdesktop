@@ -134,6 +134,22 @@ namespace Ui {
 		}
 	}
 
+	bool hideWindowNoQuit() {
+		if (!App::quiting()) {
+			if (Window *w = App::wnd()) {
+				if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
+					return w->minimizeToTray();
+				} else if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
+					w->hide();
+					w->updateIsActive(cOfflineBlurTimeout());
+					w->updateGlobalMenu();
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 }
 
 namespace Notify {

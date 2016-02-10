@@ -57,15 +57,8 @@ namespace {
 				QKeyEvent *ev = static_cast<QKeyEvent*>(e);
 				if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 					if (ev->key() == Qt::Key_W && (ev->modifiers() & Qt::ControlModifier)) {
-						if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
-							App::wnd()->minimizeToTray();
-							return true;
-						} else {
-							App::wnd()->hide();
-							App::wnd()->updateIsActive(cOfflineBlurTimeout());
-							App::wnd()->updateGlobalMenu();
-							return true;
-						}
+						Ui::hideWindowNoQuit();
+						return true;
 					} else if (ev->key() == Qt::Key_M && (ev->modifiers() & Qt::ControlModifier)) {
 						App::wnd()->setWindowState(Qt::WindowMinimized);
 						return true;
