@@ -647,15 +647,16 @@ const InterfacesMetadata *GetInterfacesMetadata(uint64 mask);
 class Interfaces {
 public:
 
-	Interfaces(uint64 mask = 0) : _data(0) {
+	Interfaces(uint64 mask = 0) : _data(zerodata()) {
 		if (mask) {
 			const InterfacesMetadata *meta = GetInterfacesMetadata(mask);
 			int32 size = sizeof(const InterfacesMetadata *) + meta->size;
-			_data = malloc(size);
-			if (!_data) { // terminate if we can't allocate memory
+			void *data = malloc(size);
+			if (!data) { // terminate if we can't allocate memory
 				throw "Can't allocate memory!";
 			}
 
+			_data = data;
 			_meta() = meta;
 			for (int i = 0; i < meta->last; ++i) {
 				int offset = meta->offsets[i];
@@ -677,12 +678,11 @@ public:
 		}
 	}
 	void UpdateInterfaces(uint64 mask = 0) {
-		if (!_data && !mask) return;
-		if (!_data || !_meta()->equals(mask)) {
+		if (!_meta()->equals(mask)) {
 			Interfaces tmp(mask);
 			tmp.swap(*this);
 
-			if (_data && tmp._data) {
+			if (_data != zerodata() && tmp._data != zerodata()) {
 				const InterfacesMetadata *meta = _meta(), *wasmeta = tmp._meta();
 				for (int i = 0; i < meta->last; ++i) {
 					int offset = meta->offsets[i], wasoffset = wasmeta->offsets[i];
@@ -694,7 +694,7 @@ public:
 		}
 	}
 	~Interfaces() {
-		if (_data) {
+		if (_data != zerodata()) {
 			const InterfacesMetadata *meta = _meta();
 			for (int i = 0; i < meta->last; ++i) {
 				int offset = meta->offsets[i];
@@ -716,6 +716,10 @@ public:
 	}
 
 private:
+	static const InterfacesMetadata *ZeroInterfacesMetadata;
+	static void *zerodata() {
+		return &ZeroInterfacesMetadata;
+	}
 
 	void *_dataptrunsafe(int skip) const {
 		return (char*)_data + sizeof(const InterfacesMetadata*) + skip;

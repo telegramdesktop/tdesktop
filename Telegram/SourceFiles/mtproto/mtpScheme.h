@@ -87,9 +87,6 @@ enum {
 	mtpc_inputMediaPhoto = 0xe9bfb4f3,
 	mtpc_inputMediaGeoPoint = 0xf9c44144,
 	mtpc_inputMediaContact = 0xa6e45987,
-	mtpc_inputMediaUploadedVideo = 0x82713fdf,
-	mtpc_inputMediaUploadedThumbVideo = 0x7780ddf9,
-	mtpc_inputMediaVideo = 0x936a4ebd,
 	mtpc_inputMediaUploadedDocument = 0x1d89306d,
 	mtpc_inputMediaUploadedThumbDocument = 0xad613491,
 	mtpc_inputMediaDocument = 0x1a77f29c,
@@ -102,10 +99,7 @@ enum {
 	mtpc_inputGeoPoint = 0xf3b7acc9,
 	mtpc_inputPhotoEmpty = 0x1cd7bf0d,
 	mtpc_inputPhoto = 0xfb95c6c4,
-	mtpc_inputVideoEmpty = 0x5508ec75,
-	mtpc_inputVideo = 0xee579652,
 	mtpc_inputFileLocation = 0x14637196,
-	mtpc_inputVideoFileLocation = 0x3d0364ec,
 	mtpc_inputEncryptedFileLocation = 0xf5235d55,
 	mtpc_inputDocumentFileLocation = 0x4e45abe9,
 	mtpc_inputPhotoCropAuto = 0xade6b004,
@@ -155,7 +149,6 @@ enum {
 	mtpc_messageService = 0xc06b9607,
 	mtpc_messageMediaEmpty = 0x3ded6320,
 	mtpc_messageMediaPhoto = 0x3d8ce53d,
-	mtpc_messageMediaVideo = 0x5bcf1675,
 	mtpc_messageMediaGeo = 0x56e0d474,
 	mtpc_messageMediaContact = 0x5e7d2f39,
 	mtpc_messageMediaUnsupported = 0x9f84f49e,
@@ -180,8 +173,6 @@ enum {
 	mtpc_photoSizeEmpty = 0xe17e23c,
 	mtpc_photoSize = 0x77bfb61b,
 	mtpc_photoCachedSize = 0xe9a734fa,
-	mtpc_videoEmpty = 0xc10658a8,
-	mtpc_video = 0xf72887d3,
 	mtpc_geoPointEmpty = 0x1117dd5f,
 	mtpc_geoPoint = 0x2049d70c,
 	mtpc_auth_checkedPhone = 0x811ea28e,
@@ -715,9 +706,6 @@ class MTPDinputMediaUploadedPhoto;
 class MTPDinputMediaPhoto;
 class MTPDinputMediaGeoPoint;
 class MTPDinputMediaContact;
-class MTPDinputMediaUploadedVideo;
-class MTPDinputMediaUploadedThumbVideo;
-class MTPDinputMediaVideo;
 class MTPDinputMediaUploadedDocument;
 class MTPDinputMediaUploadedThumbDocument;
 class MTPDinputMediaDocument;
@@ -734,12 +722,8 @@ class MTPDinputGeoPoint;
 class MTPinputPhoto;
 class MTPDinputPhoto;
 
-class MTPinputVideo;
-class MTPDinputVideo;
-
 class MTPinputFileLocation;
 class MTPDinputFileLocation;
-class MTPDinputVideoFileLocation;
 class MTPDinputEncryptedFileLocation;
 class MTPDinputDocumentFileLocation;
 
@@ -801,7 +785,6 @@ class MTPDmessageService;
 
 class MTPmessageMedia;
 class MTPDmessageMediaPhoto;
-class MTPDmessageMediaVideo;
 class MTPDmessageMediaGeo;
 class MTPDmessageMediaContact;
 class MTPDmessageMediaDocument;
@@ -831,10 +814,6 @@ class MTPphotoSize;
 class MTPDphotoSizeEmpty;
 class MTPDphotoSize;
 class MTPDphotoCachedSize;
-
-class MTPvideo;
-class MTPDvideoEmpty;
-class MTPDvideo;
 
 class MTPgeoPoint;
 class MTPDgeoPoint;
@@ -1283,7 +1262,6 @@ typedef MTPBoxed<MTPinputMedia> MTPInputMedia;
 typedef MTPBoxed<MTPinputChatPhoto> MTPInputChatPhoto;
 typedef MTPBoxed<MTPinputGeoPoint> MTPInputGeoPoint;
 typedef MTPBoxed<MTPinputPhoto> MTPInputPhoto;
-typedef MTPBoxed<MTPinputVideo> MTPInputVideo;
 typedef MTPBoxed<MTPinputFileLocation> MTPInputFileLocation;
 typedef MTPBoxed<MTPinputPhotoCrop> MTPInputPhotoCrop;
 typedef MTPBoxed<MTPinputAppEvent> MTPInputAppEvent;
@@ -1304,7 +1282,6 @@ typedef MTPBoxed<MTPmessageAction> MTPMessageAction;
 typedef MTPBoxed<MTPdialog> MTPDialog;
 typedef MTPBoxed<MTPphoto> MTPPhoto;
 typedef MTPBoxed<MTPphotoSize> MTPPhotoSize;
-typedef MTPBoxed<MTPvideo> MTPVideo;
 typedef MTPBoxed<MTPgeoPoint> MTPGeoPoint;
 typedef MTPBoxed<MTPauth_checkedPhone> MTPauth_CheckedPhone;
 typedef MTPBoxed<MTPauth_sentCode> MTPauth_SentCode;
@@ -2529,42 +2506,6 @@ public:
 		return *(const MTPDinputMediaContact*)data;
 	}
 
-	MTPDinputMediaUploadedVideo &_inputMediaUploadedVideo() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaUploadedVideo) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaUploadedVideo);
-		split();
-		return *(MTPDinputMediaUploadedVideo*)data;
-	}
-	const MTPDinputMediaUploadedVideo &c_inputMediaUploadedVideo() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaUploadedVideo) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaUploadedVideo);
-		return *(const MTPDinputMediaUploadedVideo*)data;
-	}
-
-	MTPDinputMediaUploadedThumbVideo &_inputMediaUploadedThumbVideo() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaUploadedThumbVideo) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaUploadedThumbVideo);
-		split();
-		return *(MTPDinputMediaUploadedThumbVideo*)data;
-	}
-	const MTPDinputMediaUploadedThumbVideo &c_inputMediaUploadedThumbVideo() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaUploadedThumbVideo) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaUploadedThumbVideo);
-		return *(const MTPDinputMediaUploadedThumbVideo*)data;
-	}
-
-	MTPDinputMediaVideo &_inputMediaVideo() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaVideo) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaVideo);
-		split();
-		return *(MTPDinputMediaVideo*)data;
-	}
-	const MTPDinputMediaVideo &c_inputMediaVideo() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputMediaVideo) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaVideo);
-		return *(const MTPDinputMediaVideo*)data;
-	}
-
 	MTPDinputMediaUploadedDocument &_inputMediaUploadedDocument() {
 		if (!data) throw mtpErrorUninitialized();
 		if (_type != mtpc_inputMediaUploadedDocument) throw mtpErrorWrongTypeId(_type, mtpc_inputMediaUploadedDocument);
@@ -2638,9 +2579,6 @@ private:
 	explicit MTPinputMedia(MTPDinputMediaPhoto *_data);
 	explicit MTPinputMedia(MTPDinputMediaGeoPoint *_data);
 	explicit MTPinputMedia(MTPDinputMediaContact *_data);
-	explicit MTPinputMedia(MTPDinputMediaUploadedVideo *_data);
-	explicit MTPinputMedia(MTPDinputMediaUploadedThumbVideo *_data);
-	explicit MTPinputMedia(MTPDinputMediaVideo *_data);
 	explicit MTPinputMedia(MTPDinputMediaUploadedDocument *_data);
 	explicit MTPinputMedia(MTPDinputMediaUploadedThumbDocument *_data);
 	explicit MTPinputMedia(MTPDinputMediaDocument *_data);
@@ -2652,9 +2590,6 @@ private:
 	friend MTPinputMedia MTP_inputMediaPhoto(const MTPInputPhoto &_id, const MTPstring &_caption);
 	friend MTPinputMedia MTP_inputMediaGeoPoint(const MTPInputGeoPoint &_geo_point);
 	friend MTPinputMedia MTP_inputMediaContact(const MTPstring &_phone_number, const MTPstring &_first_name, const MTPstring &_last_name);
-	friend MTPinputMedia MTP_inputMediaUploadedVideo(const MTPInputFile &_file, MTPint _duration, MTPint _w, MTPint _h, const MTPstring &_mime_type, const MTPstring &_caption);
-	friend MTPinputMedia MTP_inputMediaUploadedThumbVideo(const MTPInputFile &_file, const MTPInputFile &_thumb, MTPint _duration, MTPint _w, MTPint _h, const MTPstring &_mime_type, const MTPstring &_caption);
-	friend MTPinputMedia MTP_inputMediaVideo(const MTPInputVideo &_id, const MTPstring &_caption);
 	friend MTPinputMedia MTP_inputMediaUploadedDocument(const MTPInputFile &_file, const MTPstring &_mime_type, const MTPVector<MTPDocumentAttribute> &_attributes, const MTPstring &_caption);
 	friend MTPinputMedia MTP_inputMediaUploadedThumbDocument(const MTPInputFile &_file, const MTPInputFile &_thumb, const MTPstring &_mime_type, const MTPVector<MTPDocumentAttribute> &_attributes, const MTPstring &_caption);
 	friend MTPinputMedia MTP_inputMediaDocument(const MTPInputDocument &_id, const MTPstring &_caption);
@@ -2793,44 +2728,6 @@ private:
 };
 typedef MTPBoxed<MTPinputPhoto> MTPInputPhoto;
 
-class MTPinputVideo : private mtpDataOwner {
-public:
-	MTPinputVideo() : mtpDataOwner(0), _type(0) {
-	}
-	MTPinputVideo(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : mtpDataOwner(0), _type(0) {
-		read(from, end, cons);
-	}
-
-	MTPDinputVideo &_inputVideo() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputVideo) throw mtpErrorWrongTypeId(_type, mtpc_inputVideo);
-		split();
-		return *(MTPDinputVideo*)data;
-	}
-	const MTPDinputVideo &c_inputVideo() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputVideo) throw mtpErrorWrongTypeId(_type, mtpc_inputVideo);
-		return *(const MTPDinputVideo*)data;
-	}
-
-	uint32 innerLength() const;
-	mtpTypeId type() const;
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
-	void write(mtpBuffer &to) const;
-
-	typedef void ResponseType;
-
-private:
-	explicit MTPinputVideo(mtpTypeId type);
-	explicit MTPinputVideo(MTPDinputVideo *_data);
-
-	friend MTPinputVideo MTP_inputVideoEmpty();
-	friend MTPinputVideo MTP_inputVideo(const MTPlong &_id, const MTPlong &_access_hash);
-
-	mtpTypeId _type;
-};
-typedef MTPBoxed<MTPinputVideo> MTPInputVideo;
-
 class MTPinputFileLocation : private mtpDataOwner {
 public:
 	MTPinputFileLocation() : mtpDataOwner(0), _type(0) {
@@ -2849,18 +2746,6 @@ public:
 		if (!data) throw mtpErrorUninitialized();
 		if (_type != mtpc_inputFileLocation) throw mtpErrorWrongTypeId(_type, mtpc_inputFileLocation);
 		return *(const MTPDinputFileLocation*)data;
-	}
-
-	MTPDinputVideoFileLocation &_inputVideoFileLocation() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputVideoFileLocation) throw mtpErrorWrongTypeId(_type, mtpc_inputVideoFileLocation);
-		split();
-		return *(MTPDinputVideoFileLocation*)data;
-	}
-	const MTPDinputVideoFileLocation &c_inputVideoFileLocation() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_inputVideoFileLocation) throw mtpErrorWrongTypeId(_type, mtpc_inputVideoFileLocation);
-		return *(const MTPDinputVideoFileLocation*)data;
 	}
 
 	MTPDinputEncryptedFileLocation &_inputEncryptedFileLocation() {
@@ -2897,12 +2782,10 @@ public:
 private:
 	explicit MTPinputFileLocation(mtpTypeId type);
 	explicit MTPinputFileLocation(MTPDinputFileLocation *_data);
-	explicit MTPinputFileLocation(MTPDinputVideoFileLocation *_data);
 	explicit MTPinputFileLocation(MTPDinputEncryptedFileLocation *_data);
 	explicit MTPinputFileLocation(MTPDinputDocumentFileLocation *_data);
 
 	friend MTPinputFileLocation MTP_inputFileLocation(const MTPlong &_volume_id, MTPint _local_id, const MTPlong &_secret);
-	friend MTPinputFileLocation MTP_inputVideoFileLocation(const MTPlong &_id, const MTPlong &_access_hash);
 	friend MTPinputFileLocation MTP_inputEncryptedFileLocation(const MTPlong &_id, const MTPlong &_access_hash);
 	friend MTPinputFileLocation MTP_inputDocumentFileLocation(const MTPlong &_id, const MTPlong &_access_hash);
 
@@ -3655,18 +3538,6 @@ public:
 		return *(const MTPDmessageMediaPhoto*)data;
 	}
 
-	MTPDmessageMediaVideo &_messageMediaVideo() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageMediaVideo) throw mtpErrorWrongTypeId(_type, mtpc_messageMediaVideo);
-		split();
-		return *(MTPDmessageMediaVideo*)data;
-	}
-	const MTPDmessageMediaVideo &c_messageMediaVideo() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_messageMediaVideo) throw mtpErrorWrongTypeId(_type, mtpc_messageMediaVideo);
-		return *(const MTPDmessageMediaVideo*)data;
-	}
-
 	MTPDmessageMediaGeo &_messageMediaGeo() {
 		if (!data) throw mtpErrorUninitialized();
 		if (_type != mtpc_messageMediaGeo) throw mtpErrorWrongTypeId(_type, mtpc_messageMediaGeo);
@@ -3737,7 +3608,6 @@ public:
 private:
 	explicit MTPmessageMedia(mtpTypeId type);
 	explicit MTPmessageMedia(MTPDmessageMediaPhoto *_data);
-	explicit MTPmessageMedia(MTPDmessageMediaVideo *_data);
 	explicit MTPmessageMedia(MTPDmessageMediaGeo *_data);
 	explicit MTPmessageMedia(MTPDmessageMediaContact *_data);
 	explicit MTPmessageMedia(MTPDmessageMediaDocument *_data);
@@ -3746,7 +3616,6 @@ private:
 
 	friend MTPmessageMedia MTP_messageMediaEmpty();
 	friend MTPmessageMedia MTP_messageMediaPhoto(const MTPPhoto &_photo, const MTPstring &_caption);
-	friend MTPmessageMedia MTP_messageMediaVideo(const MTPVideo &_video, const MTPstring &_caption);
 	friend MTPmessageMedia MTP_messageMediaGeo(const MTPGeoPoint &_geo);
 	friend MTPmessageMedia MTP_messageMediaContact(const MTPstring &_phone_number, const MTPstring &_first_name, const MTPstring &_last_name, MTPint _user_id);
 	friend MTPmessageMedia MTP_messageMediaUnsupported();
@@ -4075,57 +3944,6 @@ private:
 	mtpTypeId _type;
 };
 typedef MTPBoxed<MTPphotoSize> MTPPhotoSize;
-
-class MTPvideo : private mtpDataOwner {
-public:
-	MTPvideo() : mtpDataOwner(0), _type(0) {
-	}
-	MTPvideo(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : mtpDataOwner(0), _type(0) {
-		read(from, end, cons);
-	}
-
-	MTPDvideoEmpty &_videoEmpty() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_videoEmpty) throw mtpErrorWrongTypeId(_type, mtpc_videoEmpty);
-		split();
-		return *(MTPDvideoEmpty*)data;
-	}
-	const MTPDvideoEmpty &c_videoEmpty() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_videoEmpty) throw mtpErrorWrongTypeId(_type, mtpc_videoEmpty);
-		return *(const MTPDvideoEmpty*)data;
-	}
-
-	MTPDvideo &_video() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_video) throw mtpErrorWrongTypeId(_type, mtpc_video);
-		split();
-		return *(MTPDvideo*)data;
-	}
-	const MTPDvideo &c_video() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_video) throw mtpErrorWrongTypeId(_type, mtpc_video);
-		return *(const MTPDvideo*)data;
-	}
-
-	uint32 innerLength() const;
-	mtpTypeId type() const;
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
-	void write(mtpBuffer &to) const;
-
-	typedef void ResponseType;
-
-private:
-	explicit MTPvideo(mtpTypeId type);
-	explicit MTPvideo(MTPDvideoEmpty *_data);
-	explicit MTPvideo(MTPDvideo *_data);
-
-	friend MTPvideo MTP_videoEmpty(const MTPlong &_id);
-	friend MTPvideo MTP_video(const MTPlong &_id, const MTPlong &_access_hash, MTPint _date, MTPint _duration, const MTPstring &_mime_type, MTPint _size, const MTPPhotoSize &_thumb, MTPint _dc_id, MTPint _w, MTPint _h);
-
-	mtpTypeId _type;
-};
-typedef MTPBoxed<MTPvideo> MTPVideo;
 
 class MTPgeoPoint : private mtpDataOwner {
 public:
@@ -9596,48 +9414,6 @@ public:
 	MTPstring vlast_name;
 };
 
-class MTPDinputMediaUploadedVideo : public mtpDataImpl<MTPDinputMediaUploadedVideo> {
-public:
-	MTPDinputMediaUploadedVideo() {
-	}
-	MTPDinputMediaUploadedVideo(const MTPInputFile &_file, MTPint _duration, MTPint _w, MTPint _h, const MTPstring &_mime_type, const MTPstring &_caption) : vfile(_file), vduration(_duration), vw(_w), vh(_h), vmime_type(_mime_type), vcaption(_caption) {
-	}
-
-	MTPInputFile vfile;
-	MTPint vduration;
-	MTPint vw;
-	MTPint vh;
-	MTPstring vmime_type;
-	MTPstring vcaption;
-};
-
-class MTPDinputMediaUploadedThumbVideo : public mtpDataImpl<MTPDinputMediaUploadedThumbVideo> {
-public:
-	MTPDinputMediaUploadedThumbVideo() {
-	}
-	MTPDinputMediaUploadedThumbVideo(const MTPInputFile &_file, const MTPInputFile &_thumb, MTPint _duration, MTPint _w, MTPint _h, const MTPstring &_mime_type, const MTPstring &_caption) : vfile(_file), vthumb(_thumb), vduration(_duration), vw(_w), vh(_h), vmime_type(_mime_type), vcaption(_caption) {
-	}
-
-	MTPInputFile vfile;
-	MTPInputFile vthumb;
-	MTPint vduration;
-	MTPint vw;
-	MTPint vh;
-	MTPstring vmime_type;
-	MTPstring vcaption;
-};
-
-class MTPDinputMediaVideo : public mtpDataImpl<MTPDinputMediaVideo> {
-public:
-	MTPDinputMediaVideo() {
-	}
-	MTPDinputMediaVideo(const MTPInputVideo &_id, const MTPstring &_caption) : vid(_id), vcaption(_caption) {
-	}
-
-	MTPInputVideo vid;
-	MTPstring vcaption;
-};
-
 class MTPDinputMediaUploadedDocument : public mtpDataImpl<MTPDinputMediaUploadedDocument> {
 public:
 	MTPDinputMediaUploadedDocument() {
@@ -9745,17 +9521,6 @@ public:
 	MTPlong vaccess_hash;
 };
 
-class MTPDinputVideo : public mtpDataImpl<MTPDinputVideo> {
-public:
-	MTPDinputVideo() {
-	}
-	MTPDinputVideo(const MTPlong &_id, const MTPlong &_access_hash) : vid(_id), vaccess_hash(_access_hash) {
-	}
-
-	MTPlong vid;
-	MTPlong vaccess_hash;
-};
-
 class MTPDinputFileLocation : public mtpDataImpl<MTPDinputFileLocation> {
 public:
 	MTPDinputFileLocation() {
@@ -9766,17 +9531,6 @@ public:
 	MTPlong vvolume_id;
 	MTPint vlocal_id;
 	MTPlong vsecret;
-};
-
-class MTPDinputVideoFileLocation : public mtpDataImpl<MTPDinputVideoFileLocation> {
-public:
-	MTPDinputVideoFileLocation() {
-	}
-	MTPDinputVideoFileLocation(const MTPlong &_id, const MTPlong &_access_hash) : vid(_id), vaccess_hash(_access_hash) {
-	}
-
-	MTPlong vid;
-	MTPlong vaccess_hash;
 };
 
 class MTPDinputEncryptedFileLocation : public mtpDataImpl<MTPDinputEncryptedFileLocation> {
@@ -10333,17 +10087,6 @@ public:
 	MTPstring vcaption;
 };
 
-class MTPDmessageMediaVideo : public mtpDataImpl<MTPDmessageMediaVideo> {
-public:
-	MTPDmessageMediaVideo() {
-	}
-	MTPDmessageMediaVideo(const MTPVideo &_video, const MTPstring &_caption) : vvideo(_video), vcaption(_caption) {
-	}
-
-	MTPVideo vvideo;
-	MTPstring vcaption;
-};
-
 class MTPDmessageMediaGeo : public mtpDataImpl<MTPDmessageMediaGeo> {
 public:
 	MTPDmessageMediaGeo() {
@@ -10584,35 +10327,6 @@ public:
 	MTPint vw;
 	MTPint vh;
 	MTPbytes vbytes;
-};
-
-class MTPDvideoEmpty : public mtpDataImpl<MTPDvideoEmpty> {
-public:
-	MTPDvideoEmpty() {
-	}
-	MTPDvideoEmpty(const MTPlong &_id) : vid(_id) {
-	}
-
-	MTPlong vid;
-};
-
-class MTPDvideo : public mtpDataImpl<MTPDvideo> {
-public:
-	MTPDvideo() {
-	}
-	MTPDvideo(const MTPlong &_id, const MTPlong &_access_hash, MTPint _date, MTPint _duration, const MTPstring &_mime_type, MTPint _size, const MTPPhotoSize &_thumb, MTPint _dc_id, MTPint _w, MTPint _h) : vid(_id), vaccess_hash(_access_hash), vdate(_date), vduration(_duration), vmime_type(_mime_type), vsize(_size), vthumb(_thumb), vdc_id(_dc_id), vw(_w), vh(_h) {
-	}
-
-	MTPlong vid;
-	MTPlong vaccess_hash;
-	MTPint vdate;
-	MTPint vduration;
-	MTPstring vmime_type;
-	MTPint vsize;
-	MTPPhotoSize vthumb;
-	MTPint vdc_id;
-	MTPint vw;
-	MTPint vh;
 };
 
 class MTPDgeoPoint : public mtpDataImpl<MTPDgeoPoint> {
@@ -21679,18 +21393,6 @@ inline uint32 MTPinputMedia::innerLength() const {
 			const MTPDinputMediaContact &v(c_inputMediaContact());
 			return v.vphone_number.innerLength() + v.vfirst_name.innerLength() + v.vlast_name.innerLength();
 		}
-		case mtpc_inputMediaUploadedVideo: {
-			const MTPDinputMediaUploadedVideo &v(c_inputMediaUploadedVideo());
-			return v.vfile.innerLength() + v.vduration.innerLength() + v.vw.innerLength() + v.vh.innerLength() + v.vmime_type.innerLength() + v.vcaption.innerLength();
-		}
-		case mtpc_inputMediaUploadedThumbVideo: {
-			const MTPDinputMediaUploadedThumbVideo &v(c_inputMediaUploadedThumbVideo());
-			return v.vfile.innerLength() + v.vthumb.innerLength() + v.vduration.innerLength() + v.vw.innerLength() + v.vh.innerLength() + v.vmime_type.innerLength() + v.vcaption.innerLength();
-		}
-		case mtpc_inputMediaVideo: {
-			const MTPDinputMediaVideo &v(c_inputMediaVideo());
-			return v.vid.innerLength() + v.vcaption.innerLength();
-		}
 		case mtpc_inputMediaUploadedDocument: {
 			const MTPDinputMediaUploadedDocument &v(c_inputMediaUploadedDocument());
 			return v.vfile.innerLength() + v.vmime_type.innerLength() + v.vattributes.innerLength() + v.vcaption.innerLength();
@@ -21745,33 +21447,6 @@ inline void MTPinputMedia::read(const mtpPrime *&from, const mtpPrime *end, mtpT
 			v.vphone_number.read(from, end);
 			v.vfirst_name.read(from, end);
 			v.vlast_name.read(from, end);
-		} break;
-		case mtpc_inputMediaUploadedVideo: _type = cons; {
-			if (!data) setData(new MTPDinputMediaUploadedVideo());
-			MTPDinputMediaUploadedVideo &v(_inputMediaUploadedVideo());
-			v.vfile.read(from, end);
-			v.vduration.read(from, end);
-			v.vw.read(from, end);
-			v.vh.read(from, end);
-			v.vmime_type.read(from, end);
-			v.vcaption.read(from, end);
-		} break;
-		case mtpc_inputMediaUploadedThumbVideo: _type = cons; {
-			if (!data) setData(new MTPDinputMediaUploadedThumbVideo());
-			MTPDinputMediaUploadedThumbVideo &v(_inputMediaUploadedThumbVideo());
-			v.vfile.read(from, end);
-			v.vthumb.read(from, end);
-			v.vduration.read(from, end);
-			v.vw.read(from, end);
-			v.vh.read(from, end);
-			v.vmime_type.read(from, end);
-			v.vcaption.read(from, end);
-		} break;
-		case mtpc_inputMediaVideo: _type = cons; {
-			if (!data) setData(new MTPDinputMediaVideo());
-			MTPDinputMediaVideo &v(_inputMediaVideo());
-			v.vid.read(from, end);
-			v.vcaption.read(from, end);
 		} break;
 		case mtpc_inputMediaUploadedDocument: _type = cons; {
 			if (!data) setData(new MTPDinputMediaUploadedDocument());
@@ -21836,30 +21511,6 @@ inline void MTPinputMedia::write(mtpBuffer &to) const {
 			v.vfirst_name.write(to);
 			v.vlast_name.write(to);
 		} break;
-		case mtpc_inputMediaUploadedVideo: {
-			const MTPDinputMediaUploadedVideo &v(c_inputMediaUploadedVideo());
-			v.vfile.write(to);
-			v.vduration.write(to);
-			v.vw.write(to);
-			v.vh.write(to);
-			v.vmime_type.write(to);
-			v.vcaption.write(to);
-		} break;
-		case mtpc_inputMediaUploadedThumbVideo: {
-			const MTPDinputMediaUploadedThumbVideo &v(c_inputMediaUploadedThumbVideo());
-			v.vfile.write(to);
-			v.vthumb.write(to);
-			v.vduration.write(to);
-			v.vw.write(to);
-			v.vh.write(to);
-			v.vmime_type.write(to);
-			v.vcaption.write(to);
-		} break;
-		case mtpc_inputMediaVideo: {
-			const MTPDinputMediaVideo &v(c_inputMediaVideo());
-			v.vid.write(to);
-			v.vcaption.write(to);
-		} break;
 		case mtpc_inputMediaUploadedDocument: {
 			const MTPDinputMediaUploadedDocument &v(c_inputMediaUploadedDocument());
 			v.vfile.write(to);
@@ -21902,9 +21553,6 @@ inline MTPinputMedia::MTPinputMedia(mtpTypeId type) : mtpDataOwner(0), _type(typ
 		case mtpc_inputMediaPhoto: setData(new MTPDinputMediaPhoto()); break;
 		case mtpc_inputMediaGeoPoint: setData(new MTPDinputMediaGeoPoint()); break;
 		case mtpc_inputMediaContact: setData(new MTPDinputMediaContact()); break;
-		case mtpc_inputMediaUploadedVideo: setData(new MTPDinputMediaUploadedVideo()); break;
-		case mtpc_inputMediaUploadedThumbVideo: setData(new MTPDinputMediaUploadedThumbVideo()); break;
-		case mtpc_inputMediaVideo: setData(new MTPDinputMediaVideo()); break;
 		case mtpc_inputMediaUploadedDocument: setData(new MTPDinputMediaUploadedDocument()); break;
 		case mtpc_inputMediaUploadedThumbDocument: setData(new MTPDinputMediaUploadedThumbDocument()); break;
 		case mtpc_inputMediaDocument: setData(new MTPDinputMediaDocument()); break;
@@ -21920,12 +21568,6 @@ inline MTPinputMedia::MTPinputMedia(MTPDinputMediaPhoto *_data) : mtpDataOwner(_
 inline MTPinputMedia::MTPinputMedia(MTPDinputMediaGeoPoint *_data) : mtpDataOwner(_data), _type(mtpc_inputMediaGeoPoint) {
 }
 inline MTPinputMedia::MTPinputMedia(MTPDinputMediaContact *_data) : mtpDataOwner(_data), _type(mtpc_inputMediaContact) {
-}
-inline MTPinputMedia::MTPinputMedia(MTPDinputMediaUploadedVideo *_data) : mtpDataOwner(_data), _type(mtpc_inputMediaUploadedVideo) {
-}
-inline MTPinputMedia::MTPinputMedia(MTPDinputMediaUploadedThumbVideo *_data) : mtpDataOwner(_data), _type(mtpc_inputMediaUploadedThumbVideo) {
-}
-inline MTPinputMedia::MTPinputMedia(MTPDinputMediaVideo *_data) : mtpDataOwner(_data), _type(mtpc_inputMediaVideo) {
 }
 inline MTPinputMedia::MTPinputMedia(MTPDinputMediaUploadedDocument *_data) : mtpDataOwner(_data), _type(mtpc_inputMediaUploadedDocument) {
 }
@@ -21951,15 +21593,6 @@ inline MTPinputMedia MTP_inputMediaGeoPoint(const MTPInputGeoPoint &_geo_point) 
 }
 inline MTPinputMedia MTP_inputMediaContact(const MTPstring &_phone_number, const MTPstring &_first_name, const MTPstring &_last_name) {
 	return MTPinputMedia(new MTPDinputMediaContact(_phone_number, _first_name, _last_name));
-}
-inline MTPinputMedia MTP_inputMediaUploadedVideo(const MTPInputFile &_file, MTPint _duration, MTPint _w, MTPint _h, const MTPstring &_mime_type, const MTPstring &_caption) {
-	return MTPinputMedia(new MTPDinputMediaUploadedVideo(_file, _duration, _w, _h, _mime_type, _caption));
-}
-inline MTPinputMedia MTP_inputMediaUploadedThumbVideo(const MTPInputFile &_file, const MTPInputFile &_thumb, MTPint _duration, MTPint _w, MTPint _h, const MTPstring &_mime_type, const MTPstring &_caption) {
-	return MTPinputMedia(new MTPDinputMediaUploadedThumbVideo(_file, _thumb, _duration, _w, _h, _mime_type, _caption));
-}
-inline MTPinputMedia MTP_inputMediaVideo(const MTPInputVideo &_id, const MTPstring &_caption) {
-	return MTPinputMedia(new MTPDinputMediaVideo(_id, _caption));
 }
 inline MTPinputMedia MTP_inputMediaUploadedDocument(const MTPInputFile &_file, const MTPstring &_mime_type, const MTPVector<MTPDocumentAttribute> &_attributes, const MTPstring &_caption) {
 	return MTPinputMedia(new MTPDinputMediaUploadedDocument(_file, _mime_type, _attributes, _caption));
@@ -22151,66 +21784,11 @@ inline MTPinputPhoto MTP_inputPhoto(const MTPlong &_id, const MTPlong &_access_h
 	return MTPinputPhoto(new MTPDinputPhoto(_id, _access_hash));
 }
 
-inline uint32 MTPinputVideo::innerLength() const {
-	switch (_type) {
-		case mtpc_inputVideo: {
-			const MTPDinputVideo &v(c_inputVideo());
-			return v.vid.innerLength() + v.vaccess_hash.innerLength();
-		}
-	}
-	return 0;
-}
-inline mtpTypeId MTPinputVideo::type() const {
-	if (!_type) throw mtpErrorUninitialized();
-	return _type;
-}
-inline void MTPinputVideo::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	if (cons != _type) setData(0);
-	switch (cons) {
-		case mtpc_inputVideoEmpty: _type = cons; break;
-		case mtpc_inputVideo: _type = cons; {
-			if (!data) setData(new MTPDinputVideo());
-			MTPDinputVideo &v(_inputVideo());
-			v.vid.read(from, end);
-			v.vaccess_hash.read(from, end);
-		} break;
-		default: throw mtpErrorUnexpected(cons, "MTPinputVideo");
-	}
-}
-inline void MTPinputVideo::write(mtpBuffer &to) const {
-	switch (_type) {
-		case mtpc_inputVideo: {
-			const MTPDinputVideo &v(c_inputVideo());
-			v.vid.write(to);
-			v.vaccess_hash.write(to);
-		} break;
-	}
-}
-inline MTPinputVideo::MTPinputVideo(mtpTypeId type) : mtpDataOwner(0), _type(type) {
-	switch (type) {
-		case mtpc_inputVideoEmpty: break;
-		case mtpc_inputVideo: setData(new MTPDinputVideo()); break;
-		default: throw mtpErrorBadTypeId(type, "MTPinputVideo");
-	}
-}
-inline MTPinputVideo::MTPinputVideo(MTPDinputVideo *_data) : mtpDataOwner(_data), _type(mtpc_inputVideo) {
-}
-inline MTPinputVideo MTP_inputVideoEmpty() {
-	return MTPinputVideo(mtpc_inputVideoEmpty);
-}
-inline MTPinputVideo MTP_inputVideo(const MTPlong &_id, const MTPlong &_access_hash) {
-	return MTPinputVideo(new MTPDinputVideo(_id, _access_hash));
-}
-
 inline uint32 MTPinputFileLocation::innerLength() const {
 	switch (_type) {
 		case mtpc_inputFileLocation: {
 			const MTPDinputFileLocation &v(c_inputFileLocation());
 			return v.vvolume_id.innerLength() + v.vlocal_id.innerLength() + v.vsecret.innerLength();
-		}
-		case mtpc_inputVideoFileLocation: {
-			const MTPDinputVideoFileLocation &v(c_inputVideoFileLocation());
-			return v.vid.innerLength() + v.vaccess_hash.innerLength();
 		}
 		case mtpc_inputEncryptedFileLocation: {
 			const MTPDinputEncryptedFileLocation &v(c_inputEncryptedFileLocation());
@@ -22237,12 +21815,6 @@ inline void MTPinputFileLocation::read(const mtpPrime *&from, const mtpPrime *en
 			v.vlocal_id.read(from, end);
 			v.vsecret.read(from, end);
 		} break;
-		case mtpc_inputVideoFileLocation: _type = cons; {
-			if (!data) setData(new MTPDinputVideoFileLocation());
-			MTPDinputVideoFileLocation &v(_inputVideoFileLocation());
-			v.vid.read(from, end);
-			v.vaccess_hash.read(from, end);
-		} break;
 		case mtpc_inputEncryptedFileLocation: _type = cons; {
 			if (!data) setData(new MTPDinputEncryptedFileLocation());
 			MTPDinputEncryptedFileLocation &v(_inputEncryptedFileLocation());
@@ -22266,11 +21838,6 @@ inline void MTPinputFileLocation::write(mtpBuffer &to) const {
 			v.vlocal_id.write(to);
 			v.vsecret.write(to);
 		} break;
-		case mtpc_inputVideoFileLocation: {
-			const MTPDinputVideoFileLocation &v(c_inputVideoFileLocation());
-			v.vid.write(to);
-			v.vaccess_hash.write(to);
-		} break;
 		case mtpc_inputEncryptedFileLocation: {
 			const MTPDinputEncryptedFileLocation &v(c_inputEncryptedFileLocation());
 			v.vid.write(to);
@@ -22286,7 +21853,6 @@ inline void MTPinputFileLocation::write(mtpBuffer &to) const {
 inline MTPinputFileLocation::MTPinputFileLocation(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_inputFileLocation: setData(new MTPDinputFileLocation()); break;
-		case mtpc_inputVideoFileLocation: setData(new MTPDinputVideoFileLocation()); break;
 		case mtpc_inputEncryptedFileLocation: setData(new MTPDinputEncryptedFileLocation()); break;
 		case mtpc_inputDocumentFileLocation: setData(new MTPDinputDocumentFileLocation()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputFileLocation");
@@ -22294,17 +21860,12 @@ inline MTPinputFileLocation::MTPinputFileLocation(mtpTypeId type) : mtpDataOwner
 }
 inline MTPinputFileLocation::MTPinputFileLocation(MTPDinputFileLocation *_data) : mtpDataOwner(_data), _type(mtpc_inputFileLocation) {
 }
-inline MTPinputFileLocation::MTPinputFileLocation(MTPDinputVideoFileLocation *_data) : mtpDataOwner(_data), _type(mtpc_inputVideoFileLocation) {
-}
 inline MTPinputFileLocation::MTPinputFileLocation(MTPDinputEncryptedFileLocation *_data) : mtpDataOwner(_data), _type(mtpc_inputEncryptedFileLocation) {
 }
 inline MTPinputFileLocation::MTPinputFileLocation(MTPDinputDocumentFileLocation *_data) : mtpDataOwner(_data), _type(mtpc_inputDocumentFileLocation) {
 }
 inline MTPinputFileLocation MTP_inputFileLocation(const MTPlong &_volume_id, MTPint _local_id, const MTPlong &_secret) {
 	return MTPinputFileLocation(new MTPDinputFileLocation(_volume_id, _local_id, _secret));
-}
-inline MTPinputFileLocation MTP_inputVideoFileLocation(const MTPlong &_id, const MTPlong &_access_hash) {
-	return MTPinputFileLocation(new MTPDinputVideoFileLocation(_id, _access_hash));
 }
 inline MTPinputFileLocation MTP_inputEncryptedFileLocation(const MTPlong &_id, const MTPlong &_access_hash) {
 	return MTPinputFileLocation(new MTPDinputEncryptedFileLocation(_id, _access_hash));
@@ -23440,10 +23001,6 @@ inline uint32 MTPmessageMedia::innerLength() const {
 			const MTPDmessageMediaPhoto &v(c_messageMediaPhoto());
 			return v.vphoto.innerLength() + v.vcaption.innerLength();
 		}
-		case mtpc_messageMediaVideo: {
-			const MTPDmessageMediaVideo &v(c_messageMediaVideo());
-			return v.vvideo.innerLength() + v.vcaption.innerLength();
-		}
 		case mtpc_messageMediaGeo: {
 			const MTPDmessageMediaGeo &v(c_messageMediaGeo());
 			return v.vgeo.innerLength();
@@ -23479,12 +23036,6 @@ inline void MTPmessageMedia::read(const mtpPrime *&from, const mtpPrime *end, mt
 			if (!data) setData(new MTPDmessageMediaPhoto());
 			MTPDmessageMediaPhoto &v(_messageMediaPhoto());
 			v.vphoto.read(from, end);
-			v.vcaption.read(from, end);
-		} break;
-		case mtpc_messageMediaVideo: _type = cons; {
-			if (!data) setData(new MTPDmessageMediaVideo());
-			MTPDmessageMediaVideo &v(_messageMediaVideo());
-			v.vvideo.read(from, end);
 			v.vcaption.read(from, end);
 		} break;
 		case mtpc_messageMediaGeo: _type = cons; {
@@ -23531,11 +23082,6 @@ inline void MTPmessageMedia::write(mtpBuffer &to) const {
 			v.vphoto.write(to);
 			v.vcaption.write(to);
 		} break;
-		case mtpc_messageMediaVideo: {
-			const MTPDmessageMediaVideo &v(c_messageMediaVideo());
-			v.vvideo.write(to);
-			v.vcaption.write(to);
-		} break;
 		case mtpc_messageMediaGeo: {
 			const MTPDmessageMediaGeo &v(c_messageMediaGeo());
 			v.vgeo.write(to);
@@ -23570,7 +23116,6 @@ inline MTPmessageMedia::MTPmessageMedia(mtpTypeId type) : mtpDataOwner(0), _type
 	switch (type) {
 		case mtpc_messageMediaEmpty: break;
 		case mtpc_messageMediaPhoto: setData(new MTPDmessageMediaPhoto()); break;
-		case mtpc_messageMediaVideo: setData(new MTPDmessageMediaVideo()); break;
 		case mtpc_messageMediaGeo: setData(new MTPDmessageMediaGeo()); break;
 		case mtpc_messageMediaContact: setData(new MTPDmessageMediaContact()); break;
 		case mtpc_messageMediaUnsupported: break;
@@ -23581,8 +23126,6 @@ inline MTPmessageMedia::MTPmessageMedia(mtpTypeId type) : mtpDataOwner(0), _type
 	}
 }
 inline MTPmessageMedia::MTPmessageMedia(MTPDmessageMediaPhoto *_data) : mtpDataOwner(_data), _type(mtpc_messageMediaPhoto) {
-}
-inline MTPmessageMedia::MTPmessageMedia(MTPDmessageMediaVideo *_data) : mtpDataOwner(_data), _type(mtpc_messageMediaVideo) {
 }
 inline MTPmessageMedia::MTPmessageMedia(MTPDmessageMediaGeo *_data) : mtpDataOwner(_data), _type(mtpc_messageMediaGeo) {
 }
@@ -23599,9 +23142,6 @@ inline MTPmessageMedia MTP_messageMediaEmpty() {
 }
 inline MTPmessageMedia MTP_messageMediaPhoto(const MTPPhoto &_photo, const MTPstring &_caption) {
 	return MTPmessageMedia(new MTPDmessageMediaPhoto(_photo, _caption));
-}
-inline MTPmessageMedia MTP_messageMediaVideo(const MTPVideo &_video, const MTPstring &_caption) {
-	return MTPmessageMedia(new MTPDmessageMediaVideo(_video, _caption));
 }
 inline MTPmessageMedia MTP_messageMediaGeo(const MTPGeoPoint &_geo) {
 	return MTPmessageMedia(new MTPDmessageMediaGeo(_geo));
@@ -24082,87 +23622,6 @@ inline MTPphotoSize MTP_photoSize(const MTPstring &_type, const MTPFileLocation 
 }
 inline MTPphotoSize MTP_photoCachedSize(const MTPstring &_type, const MTPFileLocation &_location, MTPint _w, MTPint _h, const MTPbytes &_bytes) {
 	return MTPphotoSize(new MTPDphotoCachedSize(_type, _location, _w, _h, _bytes));
-}
-
-inline uint32 MTPvideo::innerLength() const {
-	switch (_type) {
-		case mtpc_videoEmpty: {
-			const MTPDvideoEmpty &v(c_videoEmpty());
-			return v.vid.innerLength();
-		}
-		case mtpc_video: {
-			const MTPDvideo &v(c_video());
-			return v.vid.innerLength() + v.vaccess_hash.innerLength() + v.vdate.innerLength() + v.vduration.innerLength() + v.vmime_type.innerLength() + v.vsize.innerLength() + v.vthumb.innerLength() + v.vdc_id.innerLength() + v.vw.innerLength() + v.vh.innerLength();
-		}
-	}
-	return 0;
-}
-inline mtpTypeId MTPvideo::type() const {
-	if (!_type) throw mtpErrorUninitialized();
-	return _type;
-}
-inline void MTPvideo::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	if (cons != _type) setData(0);
-	switch (cons) {
-		case mtpc_videoEmpty: _type = cons; {
-			if (!data) setData(new MTPDvideoEmpty());
-			MTPDvideoEmpty &v(_videoEmpty());
-			v.vid.read(from, end);
-		} break;
-		case mtpc_video: _type = cons; {
-			if (!data) setData(new MTPDvideo());
-			MTPDvideo &v(_video());
-			v.vid.read(from, end);
-			v.vaccess_hash.read(from, end);
-			v.vdate.read(from, end);
-			v.vduration.read(from, end);
-			v.vmime_type.read(from, end);
-			v.vsize.read(from, end);
-			v.vthumb.read(from, end);
-			v.vdc_id.read(from, end);
-			v.vw.read(from, end);
-			v.vh.read(from, end);
-		} break;
-		default: throw mtpErrorUnexpected(cons, "MTPvideo");
-	}
-}
-inline void MTPvideo::write(mtpBuffer &to) const {
-	switch (_type) {
-		case mtpc_videoEmpty: {
-			const MTPDvideoEmpty &v(c_videoEmpty());
-			v.vid.write(to);
-		} break;
-		case mtpc_video: {
-			const MTPDvideo &v(c_video());
-			v.vid.write(to);
-			v.vaccess_hash.write(to);
-			v.vdate.write(to);
-			v.vduration.write(to);
-			v.vmime_type.write(to);
-			v.vsize.write(to);
-			v.vthumb.write(to);
-			v.vdc_id.write(to);
-			v.vw.write(to);
-			v.vh.write(to);
-		} break;
-	}
-}
-inline MTPvideo::MTPvideo(mtpTypeId type) : mtpDataOwner(0), _type(type) {
-	switch (type) {
-		case mtpc_videoEmpty: setData(new MTPDvideoEmpty()); break;
-		case mtpc_video: setData(new MTPDvideo()); break;
-		default: throw mtpErrorBadTypeId(type, "MTPvideo");
-	}
-}
-inline MTPvideo::MTPvideo(MTPDvideoEmpty *_data) : mtpDataOwner(_data), _type(mtpc_videoEmpty) {
-}
-inline MTPvideo::MTPvideo(MTPDvideo *_data) : mtpDataOwner(_data), _type(mtpc_video) {
-}
-inline MTPvideo MTP_videoEmpty(const MTPlong &_id) {
-	return MTPvideo(new MTPDvideoEmpty(_id));
-}
-inline MTPvideo MTP_video(const MTPlong &_id, const MTPlong &_access_hash, MTPint _date, MTPint _duration, const MTPstring &_mime_type, MTPint _size, const MTPPhotoSize &_thumb, MTPint _dc_id, MTPint _w, MTPint _h) {
-	return MTPvideo(new MTPDvideo(_id, _access_hash, _date, _duration, _mime_type, _size, _thumb, _dc_id, _w, _h));
 }
 
 inline uint32 MTPgeoPoint::innerLength() const {

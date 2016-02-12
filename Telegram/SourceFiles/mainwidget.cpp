@@ -1647,24 +1647,6 @@ void MainWidget::messagesAffected(PeerData *peer, const MTPmessages_AffectedMess
 	}
 }
 
-void MainWidget::videoLoadProgress(FileLoader *loader) {
-	mtpFileLoader *l = loader ? loader->mtpLoader() : 0;
-	if (!l) return;
-
-	VideoData *video = App::video(l->objId());
-	if (video->loaded()) {
-		video->performActionOnLoad();
-	}
-
-	const VideoItems &items(App::videoItems());
-	VideoItems::const_iterator i = items.constFind(video);
-	if (i != items.cend()) {
-		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			Ui::repaintHistoryItem(j.key());
-		}
-	}
-}
-
 void MainWidget::loadFailed(mtpFileLoader *loader, bool started, const char *retrySlot) {
 	failedObjId = loader->objId();
 	failedFileName = loader->fileName();
@@ -1689,24 +1671,6 @@ void MainWidget::onDownloadPathSettings() {
 
 void MainWidget::ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId) {
 	Ui::showPeerHistory(peerId, showAtMsgId);
-}
-
-void MainWidget::videoLoadFailed(FileLoader *loader, bool started) {
-	mtpFileLoader *l = loader ? loader->mtpLoader() : 0;
-	if (!l) return;
-
-	loadFailed(l, started, SLOT(videoLoadRetry()));
-	VideoData *video = App::video(l->objId());
-	if (video) {
-		if (video->loading()) video->cancel();
-		video->status = FileDownloadFailed;
-	}
-}
-
-void MainWidget::videoLoadRetry() {
-	Ui::hideLayer();
-	VideoData *video = App::video(failedObjId);
-	if (video) video->save(failedFileName);
 }
 
 void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
@@ -1879,17 +1843,9 @@ void MainWidget::inlineResultLoadFailed(FileLoader *loader, bool started) {
 	//Ui::repaintInlineItem();
 }
 
-void MainWidget::audioMarkRead(DocumentData *data) {
+void MainWidget::mediaMarkRead(DocumentData *data) {
 	const DocumentItems &items(App::documentItems());
 	DocumentItems::const_iterator i = items.constFind(data);
-	if (i != items.cend()) {
-		mediaMarkRead(i.value());
-	}
-}
-
-void MainWidget::videoMarkRead(VideoData *data) {
-	const VideoItems &items(App::videoItems());
-	VideoItems::const_iterator i = items.constFind(data);
 	if (i != items.cend()) {
 		mediaMarkRead(i.value());
 	}

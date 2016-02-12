@@ -1354,7 +1354,7 @@ private:
 class HistoryVideo : public HistoryFileMedia {
 public:
 
-	HistoryVideo(const MTPDvideo &video, const QString &caption, HistoryItem *parent);
+	HistoryVideo(DocumentData *document, const QString &caption, HistoryItem *parent);
 	HistoryVideo(const HistoryVideo &other);
 	HistoryMediaType type() const {
 		return MediaTypeVideo;
@@ -1372,7 +1372,7 @@ public:
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
 
-	VideoData *video() const {
+	DocumentData *getDocument() {
 		return _data;
 	}
 
@@ -1411,8 +1411,8 @@ protected:
 	}
 
 private:
-	VideoData *_data;
-	int16 _thumbw;
+	DocumentData *_data;
+	int32 _thumbw;
 	Text _caption;
 
 	void setStatusSize(int32 newSize) const;

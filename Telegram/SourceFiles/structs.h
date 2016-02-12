@@ -815,105 +815,6 @@ enum FileStatus {
 	FileReady = 1,
 };
 
-class VideoData {
-public:
-	VideoData(const VideoId &id, const uint64 &access = 0, int32 date = 0, int32 duration = 0, int32 w = 0, int32 h = 0, const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
-
-	void automaticLoad(const HistoryItem *item) {
-	}
-	void automaticLoadSettingsChanged() {
-	}
-
-	bool loaded(bool check = false) const;
-	bool loading() const;
-	bool displayLoading() const;
-	void save(const QString &toFile, ActionOnLoad action = ActionOnLoadNone, const FullMsgId &actionMsgId = FullMsgId(), LoadFromCloudSetting fromCloud = LoadFromCloudOrLocal, bool autoLoading = false);
-	void cancel();
-	float64 progress() const;
-	int32 loadOffset() const;
-	bool uploading() const;
-
-	QString already(bool check = false) const;
-	QByteArray data() const;
-	const FileLocation &location(bool check = false) const;
-	void setLocation(const FileLocation &loc);
-
-	bool saveToCache() const {
-		return false;
-	}
-
-	void performActionOnLoad();
-
-	void forget();
-
-	VideoId id;
-	uint64 access;
-	int32 date;
-	int32 duration;
-	int32 w, h;
-	ImagePtr thumb, replyPreview;
-	int32 dc, size;
-	// geo, caption
-
-	FileStatus status;
-	int32 uploadOffset;
-
-private:
-	FileLocation _location;
-
-	ActionOnLoad _actionOnLoad;
-	FullMsgId _actionOnLoadMsgId;
-	mutable mtpFileLoader *_loader;
-
-	void notifyLayoutChanged() const;
-
-};
-
-class VideoLink : public ITextLink {
-	TEXT_LINK_CLASS(VideoLink)
-
-public:
-	VideoLink(VideoData *video) : _video(video) {
-	}
-	VideoData *video() const {
-		return _video;
-	}
-
-private:
-	VideoData *_video;
-
-};
-
-class VideoSaveLink : public VideoLink {
-	TEXT_LINK_CLASS(VideoSaveLink)
-
-public:
-	VideoSaveLink(VideoData *video) : VideoLink(video) {
-	}
-	static void doSave(VideoData *video, bool forceSavingAs = false);
-	void onClick(Qt::MouseButton button) const;
-};
-
-class VideoOpenLink : public VideoLink {
-	TEXT_LINK_CLASS(VideoOpenLink)
-
-public:
-	VideoOpenLink(VideoData *video) : VideoLink(video) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
-};
-
-class VideoCancelLink : public VideoLink {
-	TEXT_LINK_CLASS(VideoCancelLink)
-
-public:
-	VideoCancelLink(VideoData *video) : VideoLink(video) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
-};
-
 enum DocumentType {
 	FileDocument     = 0,
 	VideoDocument    = 1,
@@ -1026,11 +927,14 @@ public:
 	bool isMusic() const {
 		return (type == SongDocument) ? !static_cast<SongData*>(_additional)->title.isEmpty() : false;
 	}
+	bool isVideo() const {
+		return (type == VideoDocument);
+	}
 	int32 duration() const {
-		return (isAnimation() || type == VideoDocument) ? _duration : -1;
+		return (isAnimation() || isVideo()) ? _duration : -1;
 	}
 	bool isImage() const {
-		return !isAnimation() && (type != VideoDocument) && (_duration > 0);
+		return !isAnimation() && !isVideo() && (_duration > 0);
 	}
 	void recountIsImage();
 	void setData(const QByteArray &data) {
@@ -1053,6 +957,11 @@ public:
 	int32 uploadOffset;
 
 	int32 md5[8];
+
+	MediaKey mediaKey() const {
+		LocationType t = isVideo() ? VideoFileLocation : (voice() ? AudioFileLocation : DocumentFileLocation);
+		return ::mediaKey(t, dc, id);
+	}
 
 private:
 

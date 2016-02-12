@@ -385,11 +385,11 @@ void LayoutOverviewPhoto::getState(TextLinkPtr &link, HistoryCursorState &cursor
 	}
 }
 
-LayoutOverviewVideo::LayoutOverviewVideo(VideoData *video, HistoryItem *parent) : LayoutAbstractFileItem(0, parent)
+LayoutOverviewVideo::LayoutOverviewVideo(DocumentData *video, HistoryItem *parent) : LayoutAbstractFileItem(0, parent)
 , _data(video)
-, _duration(formatDurationText(_data->duration))
+, _duration(formatDurationText(_data->duration()))
 , _thumbLoaded(false) {
-	setLinks(new VideoOpenLink(_data), new VideoSaveLink(_data), new VideoCancelLink(_data));
+	setLinks(new DocumentOpenLink(_data), new DocumentSaveLink(_data), new DocumentCancelLink(_data));
 }
 
 void LayoutOverviewVideo::initDimensions() {

@@ -1362,13 +1362,6 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 			default: badMedia = 1; break;
 			}
 			break;
-		case mtpc_messageMediaVideo:
-			switch (m.vmedia.c_messageMediaVideo().vvideo.type()) {
-			case mtpc_video: break;
-			case mtpc_videoEmpty: badMedia = 2; break;
-			default: badMedia = 1; break;
-			}
-			break;
 		case mtpc_messageMediaDocument:
 			switch (m.vmedia.c_messageMediaDocument().vdocument.type()) {
 			case mtpc_document: break;
@@ -3047,12 +3040,6 @@ void RadialAnimation::draw(Painter &p, const QRect &inner, int32 thickness, cons
 }
 
 namespace {
-	int32 videoMaxStatusWidth(VideoData *video) {
-		int32 result = st::normalFont->width(formatDownloadText(video->size, video->size));
-		result = qMax(result, st::normalFont->width(formatDurationAndSizeText(video->duration, video->size)));
-		return result;
-	}
-
 	int32 documentMaxStatusWidth(DocumentData *document) {
 		int32 result = st::normalFont->width(formatDownloadText(document->size, document->size));
 		if (SongData *song = document->song()) {
@@ -3061,6 +3048,8 @@ namespace {
 		} else if (VoiceData *voice = document->voice()) {
 			result = qMax(result, st::normalFont->width(formatPlayedText(voice->duration, voice->duration)));
 			result = qMax(result, st::normalFont->width(formatDurationAndSizeText(voice->duration, document->size)));
+		} else if (document->isVideo()) {
+			result = qMax(result, st::normalFont->width(formatDurationAndSizeText(document->duration(), document->size)));
 		} else {
 			result = qMax(result, st::normalFont->width(formatSizeText(document->size)));
 		}
@@ -3494,15 +3483,15 @@ ImagePtr HistoryPhoto::replyPreview() {
 	return _data->makeReplyPreview();
 }
 
-HistoryVideo::HistoryVideo(const MTPDvideo &video, const QString &caption, HistoryItem *parent) : HistoryFileMedia()
-, _data(App::feedVideo(video))
+HistoryVideo::HistoryVideo(DocumentData *document, const QString &caption, HistoryItem *parent) : HistoryFileMedia()
+, _data(document)
 , _thumbw(1)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
 	if (!caption.isEmpty()) {
 		_caption.setText(st::msgFont, caption + parent->skipBlock(), itemTextNoMonoOptions(parent));
 	}
 
-	setLinks(new VideoOpenLink(_data), new VideoSaveLink(_data), new VideoCancelLink(_data));
+	setLinks(new DocumentOpenLink(_data), new DocumentSaveLink(_data), new DocumentCancelLink(_data));
 
 	setStatusSize(FileStatusSizeReady);
 
@@ -3513,7 +3502,7 @@ HistoryVideo::HistoryVideo(const HistoryVideo &other) : HistoryFileMedia()
 , _data(other._data)
 , _thumbw(other._thumbw)
 , _caption(other._caption) {
-	setLinks(new VideoOpenLink(_data), new VideoSaveLink(_data), new VideoCancelLink(_data));
+	setLinks(new DocumentOpenLink(_data), new DocumentSaveLink(_data), new DocumentCancelLink(_data));
 
 	setStatusSize(other._statusSize);
 }
@@ -3539,8 +3528,8 @@ void HistoryVideo::initDimensions(const HistoryItem *parent) {
 
 	_thumbw = qMax(tw, 1);
 	int32 minWidth = qMax(st::minPhotoSize, parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
-	minWidth = qMax(minWidth, videoMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
-	_maxw = qMax(_thumbw, int16(minWidth));
+	minWidth = qMax(minWidth, documentMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
+	_maxw = qMax(_thumbw, int32(minWidth));
 	_minh = qMax(th, int32(st::minPhotoSize));
 	if (bubble) {
 		_maxw += st::mediaPadding.left() + st::mediaPadding.right();
@@ -3575,8 +3564,8 @@ int32 HistoryVideo::resize(int32 width, const HistoryItem *parent) {
 	}
 
 	int32 minWidth = qMax(st::minPhotoSize, parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
-	minWidth = qMax(minWidth, videoMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
-	_width = qMax(_thumbw, int16(minWidth));
+	minWidth = qMax(minWidth, documentMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
+	_width = qMax(_thumbw, int32(minWidth));
 	_height = qMax(th, int32(st::minPhotoSize));
 	if (bubble) {
 		_width += st::mediaPadding.left() + st::mediaPadding.right();
@@ -3722,7 +3711,7 @@ void HistoryVideo::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 }
 
 void HistoryVideo::setStatusSize(int32 newSize) const {
-	HistoryFileMedia::setStatusSize(newSize, _data->size, _data->duration, 0);
+	HistoryFileMedia::setStatusSize(newSize, _data->size, _data->duration(), 0);
 }
 
 const QString HistoryVideo::inDialogsText() const {
@@ -3753,11 +3742,11 @@ void HistoryVideo::updateStatusText(const HistoryItem *parent) const {
 }
 
 void HistoryVideo::regItem(HistoryItem *item) {
-	App::regVideoItem(_data, item);
+	App::regDocumentItem(_data, item);
 }
 
 void HistoryVideo::unregItem(HistoryItem *item) {
-	App::unregVideoItem(_data, item);
+	App::unregDocumentItem(_data, item);
 }
 
 ImagePtr HistoryVideo::replyPreview() {
@@ -4346,9 +4335,9 @@ void HistoryDocument::updateFrom(const MTPMessageMedia &media, HistoryItem *pare
 		App::feedDocument(media.c_messageMediaDocument().vdocument, _data);
 		if (!_data->data().isEmpty()) {
 			if (_data->voice()) {
-				Local::writeAudio(mediaKey(AudioFileLocation, _data->dc, _data->id), _data->data());
+				Local::writeAudio(_data->mediaKey(), _data->data());
 			} else {
-				Local::writeStickerImage(mediaKey(DocumentFileLocation, _data->dc, _data->id), _data->data());
+				Local::writeStickerImage(_data->mediaKey(), _data->data());
 			}
 		}
 	}
@@ -4887,7 +4876,7 @@ void HistorySticker::updateFrom(const MTPMessageMedia &media, HistoryItem *paren
 	if (media.type() == mtpc_messageMediaDocument) {
 		App::feedDocument(media.c_messageMediaDocument().vdocument, _data);
 		if (!_data->data().isEmpty()) {
-			Local::writeStickerImage(mediaKey(DocumentFileLocation, _data->dc, _data->id), _data->data());
+			Local::writeStickerImage(_data->mediaKey(), _data->data());
 		}
 	}
 }
@@ -6113,12 +6102,6 @@ void HistoryMessage::initMedia(const MTPMessageMedia *media, QString &currentTex
 			_media = new HistoryPhoto(App::feedPhoto(photo.vphoto.c_photo()), qs(photo.vcaption), this);
 		}
 	} break;
-	case mtpc_messageMediaVideo: {
-		const MTPDmessageMediaVideo &video(media->c_messageMediaVideo());
-		if (video.vvideo.type() == mtpc_video) {
-			_media = new HistoryVideo(video.vvideo.c_video(), qs(video.vcaption), this);
-		}
-	} break;
 	case mtpc_messageMediaDocument: {
 		const MTPDocument &document(media->c_messageMediaDocument().vdocument);
 		if (document.type() == mtpc_document) {
@@ -6146,6 +6129,8 @@ void HistoryMessage::initMediaFromDocument(DocumentData *doc, const QString &cap
 		_media = new HistorySticker(doc);
 	} else if (doc->isAnimation()) {
 		_media = new HistoryGif(doc, caption, this);
+	} else if (doc->isVideo()) {
+		_media = new HistoryVideo(doc, caption, this);
 	} else {
 		_media = new HistoryDocument(doc, caption, this);
 	}

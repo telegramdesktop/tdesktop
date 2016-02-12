@@ -150,9 +150,6 @@ inputMediaUploadedPhoto#f7aff1c0 file:InputFile caption:string = InputMedia;
 inputMediaPhoto#e9bfb4f3 id:InputPhoto caption:string = InputMedia;
 inputMediaGeoPoint#f9c44144 geo_point:InputGeoPoint = InputMedia;
 inputMediaContact#a6e45987 phone_number:string first_name:string last_name:string = InputMedia;
-inputMediaUploadedVideo#82713fdf file:InputFile duration:int w:int h:int mime_type:string caption:string = InputMedia;
-inputMediaUploadedThumbVideo#7780ddf9 file:InputFile thumb:InputFile duration:int w:int h:int mime_type:string caption:string = InputMedia;
-inputMediaVideo#936a4ebd id:InputVideo caption:string = InputMedia;
 inputMediaUploadedDocument#1d89306d file:InputFile mime_type:string attributes:Vector<DocumentAttribute> caption:string = InputMedia;
 inputMediaUploadedThumbDocument#ad613491 file:InputFile thumb:InputFile mime_type:string attributes:Vector<DocumentAttribute> caption:string = InputMedia;
 inputMediaDocument#1a77f29c id:InputDocument caption:string = InputMedia;
@@ -169,11 +166,7 @@ inputGeoPoint#f3b7acc9 lat:double long:double = InputGeoPoint;
 inputPhotoEmpty#1cd7bf0d = InputPhoto;
 inputPhoto#fb95c6c4 id:long access_hash:long = InputPhoto;
 
-inputVideoEmpty#5508ec75 = InputVideo;
-inputVideo#ee579652 id:long access_hash:long = InputVideo;
-
 inputFileLocation#14637196 volume_id:long local_id:int secret:long = InputFileLocation;
-inputVideoFileLocation#3d0364ec id:long access_hash:long = InputFileLocation;
 inputEncryptedFileLocation#f5235d55 id:long access_hash:long = InputFileLocation;
 inputDocumentFileLocation#4e45abe9 id:long access_hash:long = InputFileLocation;
 
@@ -238,7 +231,6 @@ messageService#c06b9607 flags:# unread:flags.0?true out:flags.1?true mentioned:f
 
 messageMediaEmpty#3ded6320 = MessageMedia;
 messageMediaPhoto#3d8ce53d photo:Photo caption:string = MessageMedia;
-messageMediaVideo#5bcf1675 video:Video caption:string = MessageMedia;
 messageMediaGeo#56e0d474 geo:GeoPoint = MessageMedia;
 messageMediaContact#5e7d2f39 phone_number:string first_name:string last_name:string user_id:int = MessageMedia;
 messageMediaUnsupported#9f84f49e = MessageMedia;
@@ -267,9 +259,6 @@ photo#cded42fe id:long access_hash:long date:int sizes:Vector<PhotoSize> = Photo
 photoSizeEmpty#e17e23c type:string = PhotoSize;
 photoSize#77bfb61b type:string location:FileLocation w:int h:int size:int = PhotoSize;
 photoCachedSize#e9a734fa type:string location:FileLocation w:int h:int bytes:bytes = PhotoSize;
-
-videoEmpty#c10658a8 id:long = Video;
-video#f72887d3 id:long access_hash:long date:int duration:int mime_type:string size:int thumb:PhotoSize dc_id:int w:int h:int = Video;
 
 geoPointEmpty#1117dd5f = GeoPoint;
 geoPoint#2049d70c long:double lat:double = GeoPoint;

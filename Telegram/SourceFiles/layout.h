@@ -317,7 +317,7 @@ private:
 
 class LayoutOverviewVideo : public LayoutAbstractFileItem {
 public:
-	LayoutOverviewVideo(VideoData *photo, HistoryItem *parent);
+	LayoutOverviewVideo(DocumentData *video, HistoryItem *parent);
 
 	virtual void initDimensions();
 	virtual int32 resizeGetHeight(int32 width);
@@ -339,7 +339,7 @@ protected:
 	}
 
 private:
-	VideoData *_data;
+	DocumentData *_data;
 
 	QString _duration;
 	mutable QPixmap _pix;
