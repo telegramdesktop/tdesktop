@@ -183,7 +183,7 @@ void NotifyWindow::updateNotifyDisplay() {
 
 		QRect rectForName(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height);
 		if (!App::passcoded() && cNotifyView() <= dbinvShowName) {
-			if (history->peer->isChat()) {
+			if (history->peer->isChat() || history->peer->isMegagroup()) {
 				p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), App::sprite(), st::dlgChatImg);
 				rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
 			} else if (history->peer->isChannel()) {
