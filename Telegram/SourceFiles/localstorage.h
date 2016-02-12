@@ -144,6 +144,8 @@ namespace Local {
 	int32 hasWebFiles();
 	qint64 storageWebFilesSize();
 
+	void countVoiceWaveform(DocumentData *document);
+
 	void cancelTask(TaskId id);
 
 	void writeStickers();

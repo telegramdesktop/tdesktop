@@ -48,7 +48,6 @@ namespace {
 
 	PhotosData photosData;
 	VideosData videosData;
-	AudiosData audiosData;
 	DocumentsData documentsData;
 
 	typedef QHash<QString, ImageLinkData*> ImageLinksData;
@@ -65,7 +64,6 @@ namespace {
 
 	PhotoItems photoItems;
 	VideoItems videoItems;
-	AudioItems audioItems;
 	DocumentItems documentItems;
 	WebPageItems webPageItems;
 	SharedContactItems sharedContactItems;
@@ -1293,22 +1291,6 @@ namespace App {
 		return App::videoSet(video.vid.v, convert, video.vaccess_hash.v, video.vdate.v, video.vduration.v, video.vw.v, video.vh.v, App::image(video.vthumb), video.vdc_id.v, video.vsize.v);
 	}
 
-	AudioData *feedAudio(const MTPaudio &audio, AudioData *convert) {
-		switch (audio.type()) {
-		case mtpc_audio: {
-			return feedAudio(audio.c_audio(), convert);
-		} break;
-		case mtpc_audioEmpty: {
-			return App::audioSet(audio.c_audioEmpty().vid.v, convert, 0, 0, QString(), 0, 0, 0);
-		} break;
-		}
-		return App::audio(0);
-	}
-
-	AudioData *feedAudio(const MTPDaudio &audio, AudioData *convert) {
-		return App::audioSet(audio.vid.v, convert, audio.vaccess_hash.v, audio.vdate.v, qs(audio.vmime_type), audio.vduration.v, audio.vdc_id.v, audio.vsize.v);
-	}
-
 	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb) {
 		switch (document.type()) {
 		case mtpc_document: {
@@ -1568,56 +1550,6 @@ namespace App {
 		return result;
 	}
 
-	AudioData *audio(const AudioId &audio) {
-		AudiosData::const_iterator i = ::audiosData.constFind(audio);
-		if (i == ::audiosData.cend()) {
-			i = ::audiosData.insert(audio, new AudioData(audio));
-		}
-		return i.value();
-	}
-
-	AudioData *audioSet(const AudioId &audio, AudioData *convert, const uint64 &access, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) {
-		if (convert) {
-			if (convert->id != audio) {
-				AudiosData::iterator i = ::audiosData.find(convert->id);
-				if (i != ::audiosData.cend() && i.value() == convert) {
-					::audiosData.erase(i);
-				}
-				convert->id = audio;
-				convert->status = FileReady;
-			}
-			if (date) {
-				convert->access = access;
-				convert->date = date;
-				convert->mime = mime;
-				convert->duration = duration;
-				convert->dc = dc;
-				convert->size = size;
-			}
-		}
-		AudiosData::const_iterator i = ::audiosData.constFind(audio);
-		AudioData *result;
-		if (i == ::audiosData.cend()) {
-			if (convert) {
-				result = convert;
-			} else {
-				result = new AudioData(audio, access, date, mime, duration, dc, size);
-			}
-			::audiosData.insert(audio, result);
-		} else {
-			result = i.value();
-			if (result != convert && date) {
-				result->access = access;
-				result->date = date;
-				result->mime = mime;
-				result->duration = duration;
-				result->dc = dc;
-				result->size = size;
-			}
-		}
-		return result;
-	}
-
 	DocumentData *document(const DocumentId &document) {
 		DocumentsData::const_iterator i = ::documentsData.constFind(document);
 		if (i == ::documentsData.cend()) {
@@ -1795,9 +1727,6 @@ namespace App {
 		for (VideosData::const_iterator i = ::videosData.cbegin(), e = ::videosData.cend(); i != e; ++i) {
 			i.value()->forget();
 		}
-		for (AudiosData::const_iterator i = ::audiosData.cbegin(), e = ::audiosData.cend(); i != e; ++i) {
-			i.value()->forget();
-		}
 		for (DocumentsData::const_iterator i = ::documentsData.cbegin(), e = ::documentsData.cend(); i != e; ++i) {
 			i.value()->forget();
 		}
@@ -1955,10 +1884,6 @@ namespace App {
 			delete *i;
 		}
 		::videosData.clear();
-		for (AudiosData::const_iterator i = ::audiosData.cbegin(), e = ::audiosData.cend(); i != e; ++i) {
-			delete *i;
-		}
-		::audiosData.clear();
 		for (DocumentsData::const_iterator i = ::documentsData.cbegin(), e = ::documentsData.cend(); i != e; ++i) {
 			delete *i;
 		}
@@ -1977,7 +1902,6 @@ namespace App {
 		cSetReportSpamStatuses(ReportSpamStatuses());
 		::photoItems.clear();
 		::videoItems.clear();
-		::audioItems.clear();
 		::documentItems.clear();
 		::webPageItems.clear();
 		::sharedContactItems.clear();
@@ -2390,22 +2314,6 @@ namespace App {
 
 	const VideosData &videosData() {
 		return ::videosData;
-	}
-
-	void regAudioItem(AudioData *data, HistoryItem *item) {
-		::audioItems[data].insert(item, NullType());
-	}
-
-	void unregAudioItem(AudioData*data, HistoryItem *item) {
-		::audioItems[data].remove(item);
-	}
-
-	const AudioItems &audioItems() {
-		return ::audioItems;
-	}
-
-	const AudiosData &audiosData() {
-		return ::audiosData;
 	}
 
 	void regDocumentItem(DocumentData *data, HistoryItem *item) {

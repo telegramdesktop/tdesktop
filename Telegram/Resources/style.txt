@@ -1286,6 +1286,15 @@ msgFileRadialLine: 3px;
 
 msgVideoSize: size(320px, 240px);
 
+msgWaveformBar: 2px;
+msgWaveformSkip: 1px;
+msgWaveformMin: 2px;
+msgWaveformMax: 20px;
+msgWaveformInActive: #59b6eb;
+msgWaveformInInactive: #deeaf1;
+msgWaveformOutActive: #78c67f;
+msgWaveformOutInactive: #c4e8c5;
+
 sendPadding: 9px;
 btnSend: flatButton(btnDefFlat) {
 	color: btnYesColor;
@@ -1386,7 +1395,7 @@ btnRecordAudio: sprite(379px, 390px, 16px, 24px);
 btnRecordAudioActive: sprite(379px, 366px, 16px, 24px);
 recordSignalColor: #f17077;
 recordSignalMin: 5px;
-recordSignalMax: 10px;
+recordSignalMax: 12px;
 recordCancel: #aaa;
 recordCancelActive: #ec6466;
 recordFont: font(13px);

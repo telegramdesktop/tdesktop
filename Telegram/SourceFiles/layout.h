@@ -349,9 +349,9 @@ private:
 
 };
 
-class LayoutOverviewAudio : public LayoutAbstractFileItem {
+class LayoutOverviewVoice : public LayoutAbstractFileItem {
 public:
-	LayoutOverviewAudio(AudioData *audio, HistoryItem *parent);
+	LayoutOverviewVoice(DocumentData *voice, HistoryItem *parent);
 
 	virtual void initDimensions();
 	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
@@ -372,7 +372,7 @@ protected:
 	}
 
 private:
-	AudioData *_data;
+	DocumentData *_data;
 	TextLinkPtr _namel;
 
 	mutable Text _name, _details;

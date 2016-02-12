@@ -532,18 +532,21 @@ inline void destroyImplementation(I *&ptr) {
 class Interfaces;
 typedef void(*InterfaceConstruct)(void *location, Interfaces *interfaces);
 typedef void(*InterfaceDestruct)(void *location);
+typedef void(*InterfaceAssign)(void *location, void *waslocation);
 
 struct InterfaceWrapStruct {
 	InterfaceWrapStruct() : Size(0), Construct(0), Destruct(0) {
 	}
-	InterfaceWrapStruct(int size, InterfaceConstruct construct, InterfaceDestruct destruct)
+	InterfaceWrapStruct(int size, InterfaceConstruct construct, InterfaceDestruct destruct, InterfaceAssign assign)
 	: Size(size)
 	, Construct(construct)
-	, Destruct(destruct) {
+	, Destruct(destruct)
+	, Assign(assign) {
 	}
 	int Size;
 	InterfaceConstruct Construct;
 	InterfaceDestruct Destruct;
+	InterfaceAssign Assign;
 };
 
 template <int Value, int Denominator>
@@ -559,6 +562,9 @@ struct InterfaceWrapTemplate {
 	}
 	static void Destruct(void *location) {
 		((Type*)location)->~Type();
+	}
+	static void Assign(void *location, void *waslocation) {
+		*((Type*)location) = *((Type*)waslocation);
 	}
 };
 
@@ -578,7 +584,7 @@ public:
 			if (InterfaceIndexLast.testAndSetOrdered(last, last + 1)) {
 				t_assert(last < 64);
 				if (_index.testAndSetOrdered(0, last + 1)) {
-					InterfaceWraps[last] = InterfaceWrapStruct(InterfaceWrapTemplate<Type>::Size, InterfaceWrapTemplate<Type>::Construct, InterfaceWrapTemplate<Type>::Destruct);
+					InterfaceWraps[last] = InterfaceWrapStruct(InterfaceWrapTemplate<Type>::Size, InterfaceWrapTemplate<Type>::Construct, InterfaceWrapTemplate<Type>::Destruct, InterfaceWrapTemplate<Type>::Assign);
 				}
 				break;
 			}
@@ -627,6 +633,10 @@ public:
 	int size, last;
 	int offsets[64];
 
+	bool equals(const uint64 &mask) const {
+		return _mask == mask;
+	}
+
 private:
 	uint64 _mask;
 
@@ -637,22 +647,25 @@ const InterfacesMetadata *GetInterfacesMetadata(uint64 mask);
 class Interfaces {
 public:
 
-	Interfaces(uint64 mask = 0) : _meta(GetInterfacesMetadata(mask)), _data(0) {
-		if (_meta->size) {
-			_data = malloc(_meta->size);
+	Interfaces(uint64 mask = 0) : _data(0) {
+		if (mask) {
+			const InterfacesMetadata *meta = GetInterfacesMetadata(mask);
+			int32 size = sizeof(const InterfacesMetadata *) + meta->size;
+			_data = malloc(size);
 			if (!_data) { // terminate if we can't allocate memory
 				throw "Can't allocate memory!";
 			}
 
-			for (int i = 0; i < _meta->last; ++i) {
-				int offset = _meta->offsets[i];
+			_meta() = meta;
+			for (int i = 0; i < meta->last; ++i) {
+				int offset = meta->offsets[i];
 				if (offset >= 0) {
 					try {
 						InterfaceWraps[i].Construct(_dataptrunsafe(offset), this);
 					} catch (...) {
 						while (i > 0) {
 							--i;
-							offset = _meta->offsets[--i];
+							offset = meta->offsets[--i];
 							if (offset >= 0) {
 								InterfaceWraps[i].Destruct(_dataptrunsafe(offset));
 							}
@@ -663,10 +676,28 @@ public:
 			}
 		}
 	}
+	void UpdateInterfaces(uint64 mask = 0) {
+		if (!_data && !mask) return;
+		if (!_data || !_meta()->equals(mask)) {
+			Interfaces tmp(mask);
+			tmp.swap(*this);
+
+			if (_data && tmp._data) {
+				const InterfacesMetadata *meta = _meta(), *wasmeta = tmp._meta();
+				for (int i = 0; i < meta->last; ++i) {
+					int offset = meta->offsets[i], wasoffset = wasmeta->offsets[i];
+					if (offset >= 0 && wasoffset >= 0) {
+						InterfaceWraps[i].Assign(_dataptrunsafe(offset), tmp._dataptrunsafe(wasoffset));
+					}
+				}
+			}
+		}
+	}
 	~Interfaces() {
 		if (_data) {
-			for (int i = 0; i < _meta->last; ++i) {
-				int offset = _meta->offsets[i];
+			const InterfacesMetadata *meta = _meta();
+			for (int i = 0; i < meta->last; ++i) {
+				int offset = meta->offsets[i];
 				if (offset >= 0) {
 					InterfaceWraps[i].Destruct(_dataptrunsafe(offset));
 				}
@@ -677,23 +708,32 @@ public:
 
 	template <typename Type>
 	Type *Get() {
-		return (Type*)_dataptr(_meta->offsets[Type::Index()]);
+		return static_cast<Type*>(_dataptr(_meta()->offsets[Type::Index()]));
 	}
 	template <typename Type>
 	const Type *Get() const {
-		return (const Type*)_dataptr(_meta->offsets[Type::Index()]);
+		return static_cast<const Type*>(_dataptr(_meta()->offsets[Type::Index()]));
 	}
 
 private:
 
 	void *_dataptrunsafe(int skip) const {
-		return (char*)_data + skip;
+		return (char*)_data + sizeof(const InterfacesMetadata*) + skip;
 	}
 	void *_dataptr(int skip) const {
 		return (skip >= 0) ? _dataptrunsafe(skip) : 0;
 	}
-	const InterfacesMetadata *_meta;
+	const InterfacesMetadata *&_meta() const {
+		return *static_cast<const InterfacesMetadata**>(_data);
+	}
 	void *_data;
+
+	Interfaces(const Interfaces &other);
+	Interfaces &operator=(const Interfaces &other);
+
+	void swap(Interfaces &other) {
+		std::swap(_data, other._data);
+	}
 
 };
 

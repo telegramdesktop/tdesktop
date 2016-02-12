@@ -388,7 +388,7 @@ bool mtpFileLoader::loadPart() {
 	} else {
 		switch (_locationType) {
 		case VideoFileLocation: loc = MTP_inputVideoFileLocation(MTP_long(_id), MTP_long(_access)); break;
-		case AudioFileLocation: loc = MTP_inputAudioFileLocation(MTP_long(_id), MTP_long(_access)); break;
+		case AudioFileLocation: loc = MTP_inputDocumentFileLocation(MTP_long(_id), MTP_long(_access)); break;
 		case DocumentFileLocation: loc = MTP_inputDocumentFileLocation(MTP_long(_id), MTP_long(_access)); break;
 		default: cancel(true); return false; break;
 		}

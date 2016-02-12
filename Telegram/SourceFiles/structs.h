@@ -914,138 +914,13 @@ public:
 
 };
 
-class AudioData {
-public:
-	AudioData(const AudioId &id, const uint64 &access = 0, int32 date = 0, const QString &mime = QString(), int32 duration = 0, int32 dc = 0, int32 size = 0);
-
-	void automaticLoad(const HistoryItem *item); // auto load voice message
-	void automaticLoadSettingsChanged();
-
-	bool loaded(bool check = false) const;
-	bool loading() const;
-	bool displayLoading() const;
-	void save(const QString &toFile, ActionOnLoad action = ActionOnLoadNone, const FullMsgId &actionMsgId = FullMsgId(), LoadFromCloudSetting fromCloud = LoadFromCloudOrLocal, bool autoLoading = false);
-	void cancel();
-	float64 progress() const;
-	int32 loadOffset() const;
-	bool uploading() const;
-
-	QString already(bool check = false) const;
-	QByteArray data() const;
-	const FileLocation &location(bool check = false) const;
-	void setLocation(const FileLocation &loc);
-
-	bool saveToCache() const;
-
-	void performActionOnLoad();
-
-	void forget();
-	void setData(const QByteArray &data) {
-		_data = data;
-	}
-
-	AudioId id;
-	uint64 access;
-	int32 date;
-	QString mime;
-	int32 duration;
-	int32 dc;
-	int32 size;
-
-	FileStatus status;
-	int32 uploadOffset;
-
-	int32 md5[8];
-
-private:
-	FileLocation _location;
-	QByteArray _data;
-
-	ActionOnLoad _actionOnLoad;
-	FullMsgId _actionOnLoadMsgId;
-	mutable mtpFileLoader *_loader;
-
-	void notifyLayoutChanged() const;
-
-};
-
-struct AudioMsgId {
-	AudioMsgId() : audio(0) {
-	}
-	AudioMsgId(AudioData *audio, const FullMsgId &msgId) : audio(audio), msgId(msgId) {
-	}
-	AudioMsgId(AudioData *audio, ChannelId channelId, MsgId msgId) : audio(audio), msgId(channelId, msgId) {
-	}
-	operator bool() const {
-		return audio;
-	}
-	AudioData *audio;
-	FullMsgId msgId;
-
-};
-
-inline bool operator<(const AudioMsgId &a, const AudioMsgId &b) {
-	return quintptr(a.audio) < quintptr(b.audio) || (quintptr(a.audio) == quintptr(b.audio) && a.msgId < b.msgId);
-}
-inline bool operator==(const AudioMsgId &a, const AudioMsgId &b) {
-	return a.audio == b.audio && a.msgId == b.msgId;
-}
-inline bool operator!=(const AudioMsgId &a, const AudioMsgId &b) {
-	return !(a == b);
-}
-
-class AudioLink : public ITextLink {
-	TEXT_LINK_CLASS(AudioLink)
-
-public:
-	AudioLink(AudioData *audio) : _audio(audio) {
-	}
-	AudioData *audio() const {
-		return _audio;
-	}
-
-private:
-	AudioData *_audio;
-
-};
-
-class AudioSaveLink : public AudioLink {
-	TEXT_LINK_CLASS(AudioSaveLink)
-
-public:
-	AudioSaveLink(AudioData *audio) : AudioLink(audio) {
-	}
-	static void doSave(AudioData *audio, bool forceSavingAs = false);
-	void onClick(Qt::MouseButton button) const;
-
-};
-
-class AudioOpenLink : public AudioLink {
-	TEXT_LINK_CLASS(AudioOpenLink)
-
-public:
-	AudioOpenLink(AudioData *audio) : AudioLink(audio) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
-};
-
-class AudioCancelLink : public AudioLink {
-	TEXT_LINK_CLASS(AudioCancelLink)
-
-public:
-	AudioCancelLink(AudioData *audio) : AudioLink(audio) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
-};
-
 enum DocumentType {
 	FileDocument     = 0,
 	VideoDocument    = 1,
 	SongDocument     = 2,
 	StickerDocument  = 3,
 	AnimatedDocument = 4,
+	VoiceDocument    = 5,
 };
 
 struct DocumentAdditionalData {
@@ -1070,6 +945,16 @@ struct SongData : public DocumentAdditionalData {
 	int32 duration;
 	QString title, performer;
 
+};
+
+typedef QVector<char> VoiceWaveform; // [0] == -1 -- counting, [0] == -2 -- could not count
+struct VoiceData : public DocumentAdditionalData {
+	VoiceData() : duration(0), wavemax(0) {
+	}
+	~VoiceData();
+	int32 duration;
+	VoiceWaveform waveform;
+	char wavemax;
 };
 
 bool fileIsImage(const QString &name, const QString &mime);
@@ -1126,11 +1011,20 @@ public:
 	SongData *song() {
 		return (type == SongDocument) ? static_cast<SongData*>(_additional) : 0;
 	}
+	VoiceData *voice() {
+		return (type == VoiceDocument) ? static_cast<VoiceData*>(_additional) : 0;
+	}
+	const VoiceData *voice() const {
+		return (type == VoiceDocument) ? static_cast<VoiceData*>(_additional) : 0;
+	}
 	bool isAnimation() const {
 		return (type == AnimatedDocument) || !mime.compare(qstr("image/gif"), Qt::CaseInsensitive);
 	}
 	bool isGifv() const {
 		return (type == AnimatedDocument) && !mime.compare(qstr("video/mp4"), Qt::CaseInsensitive);
+	}
+	bool isMusic() const {
+		return (type == SongDocument) ? !static_cast<SongData*>(_additional)->title.isEmpty() : false;
 	}
 	int32 duration() const {
 		return (isAnimation() || type == VideoDocument) ? _duration : -1;
@@ -1139,6 +1033,9 @@ public:
 		return !isAnimation() && (type != VideoDocument) && (_duration > 0);
 	}
 	void recountIsImage();
+	void setData(const QByteArray &data) {
+		_data = data;
+	}
 
 	~DocumentData();
 
@@ -1172,6 +1069,9 @@ private:
 
 };
 
+VoiceWaveform documentWaveformDecode(const QByteArray &encoded5bit);
+QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform);
+
 struct SongMsgId {
 	SongMsgId() : song(0) {
 	}
@@ -1193,6 +1093,31 @@ inline bool operator==(const SongMsgId &a, const SongMsgId &b) {
 	return a.song == b.song && a.msgId == b.msgId;
 }
 inline bool operator!=(const SongMsgId &a, const SongMsgId &b) {
+	return !(a == b);
+}
+
+struct AudioMsgId {
+	AudioMsgId() : audio(0) {
+	}
+	AudioMsgId(DocumentData *audio, const FullMsgId &msgId) : audio(audio), msgId(msgId) {
+	}
+	AudioMsgId(DocumentData *audio, ChannelId channelId, MsgId msgId) : audio(audio), msgId(channelId, msgId) {
+	}
+	operator bool() const {
+		return audio;
+	}
+	DocumentData *audio;
+	FullMsgId msgId;
+
+};
+
+inline bool operator<(const AudioMsgId &a, const AudioMsgId &b) {
+	return quintptr(a.audio) < quintptr(b.audio) || (quintptr(a.audio) == quintptr(b.audio) && a.msgId < b.msgId);
+}
+inline bool operator==(const AudioMsgId &a, const AudioMsgId &b) {
+	return a.audio == b.audio && a.msgId == b.msgId;
+}
+inline bool operator!=(const AudioMsgId &a, const AudioMsgId &b) {
 	return !(a == b);
 }
 
@@ -1233,13 +1158,22 @@ public:
 
 };
 
+class VoiceSaveLink : public DocumentOpenLink {
+	TEXT_LINK_CLASS(VoiceSaveLink)
+
+public:
+	VoiceSaveLink(DocumentData *document) : DocumentOpenLink(document) {
+	}
+	void onClick(Qt::MouseButton button) const;
+
+};
+
 class GifOpenLink : public DocumentOpenLink {
 	TEXT_LINK_CLASS(GifOpenLink)
 
 public:
 	GifOpenLink(DocumentData *document) : DocumentOpenLink(document) {
 	}
-	static void doOpen(DocumentData *document);
 	void onClick(Qt::MouseButton button) const;
 
 };

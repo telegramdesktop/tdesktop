@@ -37,7 +37,6 @@ class FileUploader;
 typedef QMap<HistoryItem*, NullType> HistoryItemsMap;
 typedef QHash<PhotoData*, HistoryItemsMap> PhotoItems;
 typedef QHash<VideoData*, HistoryItemsMap> VideoItems;
-typedef QHash<AudioData*, HistoryItemsMap> AudioItems;
 typedef QHash<DocumentData*, HistoryItemsMap> DocumentItems;
 typedef QHash<WebPageData*, HistoryItemsMap> WebPageItems;
 typedef QHash<int32, HistoryItemsMap> SharedContactItems;
@@ -45,7 +44,6 @@ typedef QHash<ClipReader*, HistoryItem*> GifItems;
 
 typedef QHash<PhotoId, PhotoData*> PhotosData;
 typedef QHash<VideoId, VideoData*> VideosData;
-typedef QHash<AudioId, AudioData*> AudiosData;
 typedef QHash<DocumentId, DocumentData*> DocumentsData;
 
 struct ReplyMarkup {
@@ -107,8 +105,6 @@ namespace App {
 	PhotoData *feedPhoto(const MTPPhoto &photo, PhotoData *convert = 0);
 	PhotoData *feedPhoto(const MTPDphoto &photo, PhotoData *convert = 0);
 	VideoData *feedVideo(const MTPDvideo &video, VideoData *convert = 0);
-	AudioData *feedAudio(const MTPaudio &audio, AudioData *convert = 0);
-	AudioData *feedAudio(const MTPDaudio &audio, AudioData *convert = 0);
 	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb);
 	DocumentData *feedDocument(const MTPdocument &document, DocumentData *convert = 0);
 	DocumentData *feedDocument(const MTPDdocument &document, DocumentData *convert = 0);
@@ -138,8 +134,6 @@ namespace App {
 	PhotoData *photoSet(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full);
 	VideoData *video(const VideoId &video);
 	VideoData *videoSet(const VideoId &video, VideoData *convert, const uint64 &access, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size);
-	AudioData *audio(const AudioId &audio);
-	AudioData *audioSet(const AudioId &audio, AudioData *convert, const uint64 &access, int32 date, const QString &mime, int32 duration, int32 dc, int32 size);
 	DocumentData *document(const DocumentId &document);
 	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation);
 	WebPageData *webPage(const WebPageId &webPage);
@@ -218,11 +212,6 @@ namespace App {
 	void unregVideoItem(VideoData *data, HistoryItem *item);
 	const VideoItems &videoItems();
 	const VideosData &videosData();
-
-	void regAudioItem(AudioData *data, HistoryItem *item);
-	void unregAudioItem(AudioData*data, HistoryItem *item);
-	const AudioItems &audioItems();
-	const AudiosData &audiosData();
 
 	void regDocumentItem(DocumentData *data, HistoryItem *item);
 	void unregDocumentItem(DocumentData *data, HistoryItem *item);

@@ -550,23 +550,25 @@ void LayoutOverviewVideo::updateStatusText() const {
 	}
 }
 
-LayoutOverviewAudio::LayoutOverviewAudio(AudioData *audio, HistoryItem *parent) : LayoutAbstractFileItem(OverviewItemInfo::Bit(), parent)
-, _data(audio)
-, _namel(new AudioOpenLink(_data)) {
-	setLinks(new AudioOpenLink(_data), new AudioOpenLink(_data), new AudioCancelLink(_data));
+LayoutOverviewVoice::LayoutOverviewVoice(DocumentData *voice, HistoryItem *parent) : LayoutAbstractFileItem(OverviewItemInfo::Bit(), parent)
+, _data(voice)
+, _namel(new DocumentOpenLink(_data)) {
+	t_assert(_data->voice() != 0);
+
+	setLinks(new DocumentOpenLink(_data), new DocumentOpenLink(_data), new DocumentCancelLink(_data));
 	updateName();
 	QString d = textcmdLink(1, textRichPrepare(langDateTime(date(_data->date))));
 	TextParseOptions opts = { TextParseRichText, 0, 0, Qt::LayoutDirectionAuto };
-	_details.setText(st::normalFont, lng_date_and_duration(lt_date, d, lt_duration, formatDurationText(_data->duration)), opts);
+	_details.setText(st::normalFont, lng_date_and_duration(lt_date, d, lt_duration, formatDurationText(_data->voice()->duration)), opts);
 	_details.setLink(1, TextLinkPtr(new MessageLink(parent)));
 }
 
-void LayoutOverviewAudio::initDimensions() {
+void LayoutOverviewVoice::initDimensions() {
 	_maxw = st::profileMaxWidth;
 	_minh = st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom() + st::lineWidth;
 }
 
-void LayoutOverviewAudio::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void LayoutOverviewVoice::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
 	bool selected = (selection == FullSelection);
 
 	_data->automaticLoad(_parent);
@@ -666,7 +668,7 @@ void LayoutOverviewAudio::paint(Painter &p, const QRect &clip, uint32 selection,
 	}
 }
 
-void LayoutOverviewAudio::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+void LayoutOverviewVoice::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
 	bool loaded = _data->loaded();
 
 	bool showPause = updateStatusText();
@@ -696,7 +698,7 @@ void LayoutOverviewAudio::getState(TextLinkPtr &link, HistoryCursorState &cursor
 	}
 }
 
-void LayoutOverviewAudio::updateName() const {
+void LayoutOverviewVoice::updateName() const {
 	int32 version = 0;
 	if (HistoryForwarded *fwd = _parent->toHistoryForwarded()) {
 		_name.setText(st::semiboldFont, lang(lng_forwarded_from) + ' ' + App::peerName(fwd->fromForwarded()), _textNameOptions);
@@ -708,7 +710,7 @@ void LayoutOverviewAudio::updateName() const {
 	_nameVersion = version;
 }
 
-bool LayoutOverviewAudio::updateStatusText() const {
+bool LayoutOverviewVoice::updateStatusText() const {
 	bool showPause = false;
 	int32 statusSize = 0, realDuration = 0;
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
@@ -733,7 +735,7 @@ bool LayoutOverviewAudio::updateStatusText() const {
 		statusSize = FileStatusSizeReady;
 	}
 	if (statusSize != _statusSize) {
-		setStatusSize(statusSize, _data->size, _data->duration, realDuration);
+		setStatusSize(statusSize, _data->size, _data->voice()->duration, realDuration);
 	}
 	return showPause;
 }

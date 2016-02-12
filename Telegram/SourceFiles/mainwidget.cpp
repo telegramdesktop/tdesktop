@@ -1124,9 +1124,9 @@ bool MainWidget::kickParticipantFail(ChatData *chat, const RPCError &error) {
 
 void MainWidget::checkPeerHistory(PeerData *peer) {
 	if (peer->isChannel() && !peer->isMegagroup()) {
-		MTP::send(MTPchannels_GetImportantHistory(peer->asChannel()->inputChannel, MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::checkedHistory, peer));
+		MTP::send(MTPchannels_GetImportantHistory(peer->asChannel()->inputChannel, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::checkedHistory, peer));
 	} else {
-		MTP::send(MTPmessages_GetHistory(peer->input, MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::checkedHistory, peer));
+		MTP::send(MTPmessages_GetHistory(peer->input, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::checkedHistory, peer));
 	}
 }
 
@@ -1479,9 +1479,9 @@ void MainWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
 					switch (i) {
 					case OverviewPhotos: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaPhotos, lang(lng_media_type_photos))), SIGNAL(clicked()), this, SLOT(onPhotosSelect())); break;
 					case OverviewVideos: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaVideos, lang(lng_media_type_videos))), SIGNAL(clicked()), this, SLOT(onVideosSelect())); break;
-					case OverviewAudioDocuments: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaSongs, lang(lng_media_type_songs))), SIGNAL(clicked()), this, SLOT(onSongsSelect())); break;
-					case OverviewDocuments: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaDocuments, lang(lng_media_type_files))), SIGNAL(clicked()), this, SLOT(onDocumentsSelect())); break;
-					case OverviewAudios: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaAudios, lang(lng_media_type_audios))), SIGNAL(clicked()), this, SLOT(onAudiosSelect())); break;
+					case OverviewMusicFiles: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaSongs, lang(lng_media_type_songs))), SIGNAL(clicked()), this, SLOT(onSongsSelect())); break;
+					case OverviewFiles: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaDocuments, lang(lng_media_type_files))), SIGNAL(clicked()), this, SLOT(onDocumentsSelect())); break;
+					case OverviewVoiceFiles: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaAudios, lang(lng_media_type_audios))), SIGNAL(clicked()), this, SLOT(onAudiosSelect())); break;
 					case OverviewLinks: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaLinks, lang(lng_media_type_links))), SIGNAL(clicked()), this, SLOT(onLinksSelect())); break;
 					}
 				}
@@ -1709,24 +1709,6 @@ void MainWidget::videoLoadRetry() {
 	if (video) video->save(failedFileName);
 }
 
-void MainWidget::audioLoadProgress(FileLoader *loader) {
-	mtpFileLoader *l = loader ? loader->mtpLoader() : 0;
-	if (!l) return;
-
-	AudioData *audio = App::audio(l->objId());
-	if (audio->loaded()) {
-		audio->performActionOnLoad();
-	}
-
-	const AudioItems &items(App::audioItems());
-	AudioItems::const_iterator i = items.constFind(audio);
-	if (i != items.cend()) {
-		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			Ui::repaintHistoryItem(j.key());
-		}
-	}
-}
-
 void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 	AudioMsgId playing;
 	AudioPlayerState state = AudioPlayerStopped;
@@ -1734,7 +1716,7 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 	if (playing == audioId && state == AudioPlayerStoppedAtStart) {
 		audioPlayer()->clearStoppedAtStart(audioId);
 
-		AudioData *audio = audioId.audio;
+		DocumentData *audio = audioId.audio;
 		QString already = audio->already(true);
 		if (already.isEmpty() && !audio->data().isEmpty()) {
 			bool mp3 = (audio->mime == qstr("audio/mp3"));
@@ -1746,7 +1728,7 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 						f.close();
 						already = filename;
 						audio->setLocation(FileLocation(StorageFilePartial, filename));
-						Local::writeFileLocation(mediaKey(mtpToLocationType(mtpc_inputAudioFileLocation), audio->dc, audio->id), FileLocation(mtpToStorageType(mtpc_storage_filePartial), filename));
+						Local::writeFileLocation(mediaKey(AudioFileLocation, audio->dc, audio->id), FileLocation(mtpToStorageType(mtpc_storage_filePartial), filename));
 					}
 				}
 			}
@@ -1794,7 +1776,7 @@ void MainWidget::documentPlayProgress(const SongMsgId &songId) {
 						f.close();
 						already = filename;
 						document->setLocation(FileLocation(StorageFilePartial, filename));
-						Local::writeFileLocation(mediaKey(mtpToLocationType(mtpc_inputDocumentFileLocation), document->dc, document->id), FileLocation(mtpToStorageType(mtpc_storage_filePartial), filename));
+						Local::writeFileLocation(mediaKey(DocumentFileLocation, document->dc, document->id), FileLocation(mtpToStorageType(mtpc_storage_filePartial), filename));
 					}
 				}
 			}
@@ -1829,24 +1811,6 @@ void MainWidget::hidePlayer() {
 		_playerHeight = 0;
 		resizeEvent(0);
 	}
-}
-
-void MainWidget::audioLoadFailed(FileLoader *loader, bool started) {
-	mtpFileLoader *l = loader ? loader->mtpLoader() : 0;
-	if (!l) return;
-
-	loadFailed(l, started, SLOT(audioLoadRetry()));
-	AudioData *audio = App::audio(l->objId());
-	if (audio) {
-		if (audio->loading()) audio->cancel();
-		audio->status = FileDownloadFailed;
-	}
-}
-
-void MainWidget::audioLoadRetry() {
-	Ui::hideLayer();
-	AudioData *audio = App::audio(failedObjId);
-	if (audio) audio->save(failedFileName);
 }
 
 void MainWidget::documentLoadProgress(FileLoader *loader) {
@@ -1915,9 +1879,9 @@ void MainWidget::inlineResultLoadFailed(FileLoader *loader, bool started) {
 	//Ui::repaintInlineItem();
 }
 
-void MainWidget::audioMarkRead(AudioData *data) {
-	const AudioItems &items(App::audioItems());
-	AudioItems::const_iterator i = items.constFind(data);
+void MainWidget::audioMarkRead(DocumentData *data) {
+	const DocumentItems &items(App::documentItems());
+	DocumentItems::const_iterator i = items.constFind(data);
 	if (i != items.cend()) {
 		mediaMarkRead(i.value());
 	}
@@ -2428,7 +2392,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 	if (overview && overview->peer() == peer) {
 		if (overview->type() != type) {
 			overview->switchType(type);
-		} else if (type == OverviewAudioDocuments) { // hack for player
+		} else if (type == OverviewMusicFiles) { // hack for player
 			showBackFromStack();
 		}
 		return;
@@ -2872,17 +2836,17 @@ void MainWidget::onVideosSelect() {
 }
 
 void MainWidget::onSongsSelect() {
-	if (overview) overview->switchType(OverviewAudioDocuments);
+	if (overview) overview->switchType(OverviewMusicFiles);
 	_mediaType.hideStart();
 }
 
 void MainWidget::onDocumentsSelect() {
-	if (overview) overview->switchType(OverviewDocuments);
+	if (overview) overview->switchType(OverviewFiles);
 	_mediaType.hideStart();
 }
 
 void MainWidget::onAudiosSelect() {
-	if (overview) overview->switchType(OverviewAudios);
+	if (overview) overview->switchType(OverviewVoiceFiles);
 	_mediaType.hideStart();
 }
 

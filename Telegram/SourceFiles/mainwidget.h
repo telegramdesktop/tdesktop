@@ -375,7 +375,7 @@ public:
 	void cancelForwarding();
 	void finishForwarding(History *hist, bool broadcast); // send them
 
-	void audioMarkRead(AudioData *data);
+	void audioMarkRead(DocumentData *data);
 	void videoMarkRead(VideoData *data);
 	void mediaMarkRead(const HistoryItemsMap &items);
 
@@ -448,9 +448,6 @@ public slots:
 	void videoLoadProgress(FileLoader *loader);
 	void videoLoadFailed(FileLoader *loader, bool started);
 	void videoLoadRetry();
-	void audioLoadProgress(FileLoader *loader);
-	void audioLoadFailed(FileLoader *loader, bool started);
-	void audioLoadRetry();
 	void audioPlayProgress(const AudioMsgId &audioId);
 	void documentLoadProgress(FileLoader *loader);
 	void documentLoadFailed(FileLoader *loader, bool started);
