@@ -1995,6 +1995,7 @@ LastCrashedWindow::LastCrashedWindow()
 : _port(80)
 , _label(this)
 , _pleaseSendReport(this)
+, _yourReportName(this)
 , _minidump(this)
 , _report(this)
 , _send(this)
@@ -2007,7 +2008,7 @@ LastCrashedWindow::LastCrashedWindow()
 , _reportText(QString::fromUtf8(Sandbox::LastCrashDump()))
 , _reportShown(false)
 , _reportSaved(false)
-, _sendingState(((!cDevVersion() && !cBetaVersion()) || Sandbox::LastCrashDump().isEmpty()) ? SendingNoReport : SendingUpdateCheck)
+, _sendingState(Sandbox::LastCrashDump().isEmpty() ? SendingNoReport : SendingUpdateCheck)
 , _updating(this)
 , _sendingProgress(0)
 , _sendingTotal(0)
@@ -2018,7 +2019,9 @@ LastCrashedWindow::LastCrashedWindow()
 , _updatingSkip(this, false)
 #endif
 {
-
+	if (!cDevVersion() && !cBetaVersion()) {
+		_sendingState = SendingNoReport;
+	}
 	if (_sendingState != SendingNoReport) {
 		qint64 dumpsize = 0;
 		QString dumpspath = cWorkingDir() + qsl("tdata/dumps");
@@ -2061,8 +2064,11 @@ LastCrashedWindow::LastCrashedWindow()
                 _minidumpFull = maxDumpFull;
             }
         }
-
-		_minidump.setText(qsl("+ %1 (%2 KB)").arg(_minidumpName).arg(dumpsize / 1024));
+		if (_minidumpName.isEmpty()) {
+			_sendingState = SendingNoReport;
+		} else {
+			_minidump.setText(qsl("+ %1 (%2 KB)").arg(_minidumpName).arg(dumpsize / 1024));
+		}
 	}
 
 	_networkSettings.setText(qsl("NETWORK SETTINGS"));
@@ -2105,6 +2111,9 @@ LastCrashedWindow::LastCrashedWindow()
 #endif
 
 	_pleaseSendReport.setText(qsl("Please send us a crash report."));
+	_yourReportName.setText(qsl("Your crash report tag: %1").arg(_minidumpName));
+	_yourReportName.setCursor(style::cur_text);
+	_yourReportName.setTextInteractionFlags(Qt::TextSelectableByMouse);
 
 	_report.setPlainText(_reportText);
 
@@ -2411,6 +2420,7 @@ void LastCrashedWindow::updateControls() {
 		_sendSkip.hide();
 		_continue.hide();
 		_pleaseSendReport.hide();
+		_yourReportName.hide();
 		_getApp.hide();
 		_showReport.hide();
 		_report.hide();
@@ -2427,6 +2437,7 @@ void LastCrashedWindow::updateControls() {
 			h += padding + _updatingCheck.height() + padding;
 			if (_sendingState == SendingNoReport) {
 				_pleaseSendReport.hide();
+				_yourReportName.hide();
 				_getApp.hide();
 				_showReport.hide();
 				_report.hide();
@@ -2436,14 +2447,17 @@ void LastCrashedWindow::updateControls() {
 				_sendSkip.hide();
 				_continue.show();
 			} else {
-				h += _showReport.height() + padding;
+				h += _showReport.height() + padding + _yourReportName.height() + padding;
 				_pleaseSendReport.show();
+				_yourReportName.show();
 				if (_sendingState == SendingTooOld || _sendingState == SendingUnofficial) {
 					QString verStr = getReportField(qstr("version"), qstr("Version:"));
 					qint64 ver = verStr.isEmpty() ? 0 : verStr.toLongLong();
 					if (!ver || (ver == AppVersion) || (ver < 0 && (-ver / 1000) == AppVersion)) {
 						h += _getApp.height() + padding;
 						_getApp.show();
+						h -= _yourReportName.height() + padding; // hide report name
+						_yourReportName.hide();
 					} else {
 						_getApp.hide();
 					}
@@ -2498,6 +2512,7 @@ void LastCrashedWindow::updateControls() {
 		} else {
 			_getApp.hide();
 			_pleaseSendReport.hide();
+			_yourReportName.hide();
 			_showReport.hide();
 			_report.hide();
 			_minidump.hide();
@@ -2519,6 +2534,7 @@ void LastCrashedWindow::updateControls() {
 	h += padding + _send.height() + padding;
 	if (_sendingState == SendingNoReport) {
 		_pleaseSendReport.hide();
+		_yourReportName.hide();
 		_showReport.hide();
 		_report.hide();
 		_minidump.hide();
@@ -2528,8 +2544,9 @@ void LastCrashedWindow::updateControls() {
 		_continue.show();
 		_networkSettings.hide();
 	} else {
-		h += _showReport.height() + padding;
+		h += _showReport.height() + padding + _yourReportName.height() + padding;
 		_pleaseSendReport.show();
+		_yourReportName.show();
 		if (_reportShown) {
 			h += (_pleaseSendReport.height() * 12.5) + padding + (_minidumpName.isEmpty() ? 0 : (_minidump.height() + padding));
 			_report.show();
@@ -2771,6 +2788,7 @@ void LastCrashedWindow::resizeEvent(QResizeEvent *e) {
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	_pleaseSendReport.move(padding, padding * 2 + _networkSettings.height() + _networkSettings.height() + padding + (_showReport.height() - _pleaseSendReport.height()) / 2);
 	_showReport.move(padding * 2 + _pleaseSendReport.width(), padding * 2 + _networkSettings.height() + _networkSettings.height() + padding);
+	_yourReportName.move(padding, _showReport.y() + _showReport.height() + padding);
 	_getApp.move((width() - _getApp.width()) / 2, _showReport.y() + _showReport.height() + padding);
 
 	if (_sendingState == SendingFail || _sendingState == SendingProgress) {
@@ -2791,11 +2809,11 @@ void LastCrashedWindow::resizeEvent(QResizeEvent *e) {
 
 	_pleaseSendReport.move(padding, padding * 2 + _networkSettings.height() + _networkSettings.height() + padding + _getApp.height() + padding + (_showReport.height() - _pleaseSendReport.height()) / 2);
 	_showReport.move(padding * 2 + _pleaseSendReport.width(), padding * 2 + _networkSettings.height() + _networkSettings.height() + padding + _getApp.height() + padding);
+	_yourReportName.move(padding, _showReport.y() + _showReport.height() + padding);
 
 	_networkSettings.move(padding * 2 + _pleaseSendReport.width(), padding * 2 + _networkSettings.height() + _networkSettings.height() + padding + _getApp.height() + padding);
 #endif
-
-	_report.setGeometry(padding, _showReport.y() + _showReport.height() + padding, width() - 2 * padding, _pleaseSendReport.height() * 12.5);
+	_report.setGeometry(padding, _yourReportName.y() + _yourReportName.height() + padding, width() - 2 * padding, _pleaseSendReport.height() * 12.5);
 	_minidump.move(padding, _report.y() + _report.height() + padding);
 	_saveReport.move(_showReport.x(), _showReport.y());
 
