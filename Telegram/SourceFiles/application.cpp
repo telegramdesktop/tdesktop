@@ -689,7 +689,8 @@ namespace Sandbox {
 }
 
 AppClass::AppClass() : QObject()
-, _uploader(0) {
+, _uploader(0)
+, _translator(0) {
 	AppObject = this;
 
 	Fonts::start();
