@@ -265,12 +265,13 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 			}
 			for (QVector<MTPMessage>::const_iterator i = messages->cbegin(), e = messages->cend(); i != e; ++i) {
 				HistoryItem *item = App::histories().addNewMessage(*i, NewMessageExisting);
+				MsgId msgId = item ? item->id : idFromMessage(*i);
 				if (migratedSearch) {
-					_searchResults.push_front(-item->id);
-					_lastSearchMigratedId = item->id;
+					if (item) _searchResults.push_front(-item->id);
+					_lastSearchMigratedId = msgId;
 				} else {
-					_searchResults.push_front(item->id);
-					_lastSearchId = item->id;
+					if (item) _searchResults.push_front(item->id);
+					_lastSearchId = msgId;
 				}
 			}
 			mediaOverviewUpdated();

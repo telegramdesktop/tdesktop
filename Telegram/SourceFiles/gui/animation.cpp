@@ -142,7 +142,7 @@ void AnimationManager::stop(Animation *obj) {
 	if (_iterating) {
 		_stopping.insert(obj, NullType());
 		if (!_starting.isEmpty()) {
-			_starting.insert(obj, NullType());
+			_starting.remove(obj);
 		}
 	} else {
 		AnimatingObjects::iterator i = _objects.find(obj);
@@ -159,7 +159,9 @@ void AnimationManager::timeout() {
 	_iterating = true;
 	uint64 ms = getms();
 	for (AnimatingObjects::const_iterator i = _objects.begin(), e = _objects.end(); i != e; ++i) {
-		i.key()->step(ms, true);
+		if (!_stopping.contains(i.key())) {
+			i.key()->step(ms, true);
+		}
 	}
 	_iterating = false;
 

@@ -2469,7 +2469,7 @@ namespace App {
 
 	QString phoneFromSharedContact(int32 userId) {
 		SharedContactItems::const_iterator i = ::sharedContactItems.constFind(userId);
-		if (i != ::sharedContactItems.cend()) {
+		if (i != ::sharedContactItems.cend() && !i->isEmpty()) {
 			HistoryMedia *media = i->cbegin().key()->getMedia();
 			if (media && media->type() == MediaTypeContact) {
 				return static_cast<HistoryContact*>(media)->phone();

@@ -689,6 +689,8 @@ namespace Sandbox {
 }
 
 AppClass::AppClass() : QObject()
+, _lastActionTime(0)
+, _window(0)
 , _uploader(0)
 , _translator(0) {
 	AppObject = this;
@@ -749,20 +751,21 @@ AppClass::AppClass() : QObject()
 
 	application()->installNativeEventFilter(psNativeEventFilter());
 
-	Sandbox::connect(SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
+	cChangeTimeFormat(QLocale::system().timeFormat(QLocale::ShortFormat));
 
 	connect(&_mtpUnpauseTimer, SIGNAL(timeout()), this, SLOT(doMtpUnpause()));
 
 	connect(&killDownloadSessionsTimer, SIGNAL(timeout()), this, SLOT(killDownloadSessions()));
 
-	cChangeTimeFormat(QLocale::system().timeFormat(QLocale::ShortFormat));
-
 	DEBUG_LOG(("Application Info: starting app.."));
 
 	QMimeDatabase().mimeTypeForName(qsl("text/plain")); // create mime database
 
-	_window.createWinId();
-	_window.init();
+	_window = new Window();
+	_window->createWinId();
+	_window->init();
+
+	Sandbox::connect(SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
 
 	DEBUG_LOG(("Application Info: window created.."));
 
@@ -785,18 +788,18 @@ AppClass::AppClass() : QObject()
 
 	DEBUG_LOG(("Application Info: showing."));
 	if (state == Local::ReadMapPassNeeded) {
-		_window.setupPasscode(false);
+		_window->setupPasscode(false);
 	} else {
 		if (MTP::authedId()) {
-			_window.setupMain(false);
+			_window->setupMain(false);
 		} else {
-			_window.setupIntro(false);
+			_window->setupIntro(false);
 		}
 	}
-	_window.firstShow();
+	_window->firstShow();
 
 	if (cStartToSettings()) {
-		_window.showSettings();
+		_window->showSettings();
 	}
 
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
@@ -805,7 +808,7 @@ AppClass::AppClass() : QObject()
 		checkMapVersion();
 	}
 
-	_window.updateIsActive(cOnlineFocusTimeout());
+	_window->updateIsActive(cOnlineFocusTimeout());
 }
 
 void AppClass::regPhotoUpdate(const PeerId &peer, const FullMsgId &msgId) {
@@ -922,7 +925,7 @@ void AppClass::checkLocalTime() {
 
 void AppClass::onAppStateChanged(Qt::ApplicationState state) {
 	checkLocalTime();
-	_window.updateIsActive((state == Qt::ApplicationActive) ? cOnlineFocusTimeout() : cOfflineBlurTimeout());
+	_window->updateIsActive((state == Qt::ApplicationActive) ? cOnlineFocusTimeout() : cOfflineBlurTimeout());
 }
 
 void AppClass::killDownloadSessions() {
@@ -1058,7 +1061,7 @@ void AppClass::checkMapVersion() {
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));
-				_window.serviceNotification(versionFeatures);
+				_window->serviceNotification(versionFeatures);
 			}
 		}
 	}
@@ -1068,7 +1071,10 @@ void AppClass::checkMapVersion() {
 }
 
 AppClass::~AppClass() {
-	_window.setParent(0);
+	if (Window *w = _window) {
+		_window = 0;
+		delete w;
+	}
 	anim::stopManager();
 
 	stopWebLoadManager();
@@ -1097,9 +1103,9 @@ AppClass *AppClass::app() {
 }
 
 Window *AppClass::wnd() {
-	return AppObject ? &AppObject->_window : 0;
+	return AppObject ? AppObject->_window : 0;
 }
 
 MainWidget *AppClass::main() {
-	return AppObject ? AppObject->_window.mainWidget() : 0;
+	return (AppObject && AppObject->_window) ? AppObject->_window->mainWidget() : 0;
 }

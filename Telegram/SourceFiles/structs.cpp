@@ -189,7 +189,9 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer a
 		photoId = newPhotoId;
 		photo = newPhoto;
 		photoLoc = newPhotoLoc;
-		emit App::main()->peerPhotoChanged(this);
+		if (App::main()) {
+			emit App::main()->peerPhotoChanged(this);
+		}
 	}
 }
 

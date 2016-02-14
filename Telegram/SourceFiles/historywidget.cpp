@@ -680,8 +680,6 @@ void HistoryInner::itemRemoved(HistoryItem *item) {
 		_widget->updateTopBarSelection();
 	}
 
-	if (_dragAction == NoDrag) return;
-
 	if (_dragItem == item) {
 		dragActionCancel();
 	}
@@ -733,8 +731,9 @@ void HistoryInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton but
 
 	if (needClick) {
 		DEBUG_LOG(("Clicked link: %1 (%2) %3").arg(needClick->text()).arg(needClick->readable()).arg(needClick->encoded()));
-		needClick->onClick(button);
 		dragActionCancel();
+
+		needClick->onClick(button); // this possibly can delete this object
 		return;
 	}
 	if (_dragAction == PrepareSelect && !_dragWasInactive && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection) {
@@ -777,6 +776,7 @@ void HistoryInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton but
 		}
 	}
 	_dragAction = NoDrag;
+	_dragItem = 0;
 	_dragSelType = TextSelectLetters;
 	_widget->noSelectingScroll();
 	_widget->updateTopBarSelection();

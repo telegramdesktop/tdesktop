@@ -1185,7 +1185,7 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 		History *h = App::history(peer->id);
 		if (!h->lastMsg) {
 			HistoryItem *item = h->addNewMessage((*v)[0], NewMessageLast);
-			if (collapsed && !collapsed->isEmpty() && collapsed->at(0).type() == mtpc_messageGroup && h->isChannel()) {
+			if (item && collapsed && !collapsed->isEmpty() && collapsed->at(0).type() == mtpc_messageGroup && h->isChannel()) {
 				if (collapsed->at(0).c_messageGroup().vmax_id.v > item->id) {
 					if (h->asChannelHistory()->onlyImportant()) {
 						h->asChannelHistory()->clearOther();

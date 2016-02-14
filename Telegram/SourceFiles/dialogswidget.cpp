@@ -1040,13 +1040,16 @@ bool DialogsInner::searchReceived(const QVector<MTPMessage> &messages, DialogsSe
 				_lastSearchDate = lastDateFound;
 			}
 		}
-		if (type == DialogsSearchFromStart || type == DialogsSearchFromOffset) {
-			_lastSearchPeer = item->history()->peer;
+		if (item) {
+			if (type == DialogsSearchFromStart || type == DialogsSearchFromOffset) {
+				_lastSearchPeer = item->history()->peer;
+			}
 		}
+		MsgId msgId = item ? item->id : idFromMessage(*i);
 		if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
-			_lastSearchMigratedId = item->id;
+			_lastSearchMigratedId = msgId;
 		} else {
-			_lastSearchId = item->id;
+			_lastSearchId = msgId;
 		}
 	}
 	if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {

@@ -208,7 +208,7 @@ private:
 
 	uint64 _lastActionTime;
 
-	Window _window;
+	Window *_window;
 	FileUploader *_uploader;
 	Translator *_translator;
 
