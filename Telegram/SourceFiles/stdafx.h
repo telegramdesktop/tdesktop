@@ -26,6 +26,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #ifdef __cplusplus
 
+#include <numeric>
+
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
