@@ -455,6 +455,25 @@ public:
 		}
 	}
 
+	bool readSkipBlockCommand() {
+		const QChar *afterCmd = textSkipCommand(ptr, end, links.size() < 0x7FFF);
+		if (afterCmd == ptr) {
+			return false;
+		}
+
+		ushort cmd = (++ptr)->unicode();
+		++ptr;
+
+		switch (cmd) {
+		case TextCommandSkipBlock:
+			createSkipBlock(ptr->unicode(), (ptr + 1)->unicode());
+		break;
+		}
+
+		ptr = afterCmd;
+		return true;
+	}
+
 	bool readCommand() {
 		const QChar *afterCmd = textSkipCommand(ptr, end, links.size() < 0x7FFF);
 		if (afterCmd == ptr) {
@@ -530,7 +549,6 @@ public:
 		} break;
 
 		case TextCommandSkipBlock:
-			createBlock();
 			createSkipBlock(ptr->unicode(), (ptr + 1)->unicode());
 		break;
 
@@ -703,6 +721,13 @@ public:
 			if (sumFinished || _t->_text.size() >= 0x8000) break; // 32k max
 		}
 		createBlock();
+		if (sumFinished && rich) { // we could've skipped the final skip block command
+			for (; ptr < end; ++ptr) {
+				if (*ptr == TextCommand && readSkipBlockCommand()) {
+					break;
+				}
+			}
+		}
 		removeFlags.clear();
 
 		_t->_links.resize(maxLnkIndex);

@@ -610,15 +610,12 @@ public slots:
 	void onPhotoUploaded(const FullMsgId &msgId, const MTPInputFile &file);
 	void onDocumentUploaded(const FullMsgId &msgId, const MTPInputFile &file);
 	void onThumbDocumentUploaded(const FullMsgId &msgId, const MTPInputFile &file, const MTPInputFile &thumb);
-	void onAudioUploaded(const FullMsgId &msgId, const MTPInputFile &file);
 
 	void onPhotoProgress(const FullMsgId &msgId);
 	void onDocumentProgress(const FullMsgId &msgId);
-	void onAudioProgress(const FullMsgId &msgId);
 
 	void onPhotoFailed(const FullMsgId &msgId);
 	void onDocumentFailed(const FullMsgId &msgId);
-	void onAudioFailed(const FullMsgId &msgId);
 
 	void onReportSpamClicked();
 	void onReportSpamSure();
@@ -683,8 +680,8 @@ public slots:
 	void updateField();
 
 	void onRecordError();
-	void onRecordDone(QByteArray result, qint32 samples);
-	void onRecordUpdate(qint16 level, qint32 samples);
+	void onRecordDone(QByteArray result, VoiceWaveform waveform, qint32 samples);
+	void onRecordUpdate(quint16 level, qint32 samples);
 
 	void onUpdateHistoryItems();
 

@@ -405,33 +405,44 @@ namespace {
 		return mayBeBadKey;
 	}
 
-	mtpBuffer _handleTcpResponse(mtpPrime *packet, uint32 size) {
-		if (size < 4 || size * sizeof(mtpPrime) > MTPPacketSizeMax) {
-			LOG(("TCP Error: bad packet size %1").arg(size * sizeof(mtpPrime)));
+	uint32 _tcpPacketSize(const char *packet) { // must have at least 4 bytes readable
+		uint32 result = (packet[0] > 0) ? packet[0] : 0;
+		if (result == 0x7f) {
+			const uchar *bytes = reinterpret_cast<const uchar*>(packet);
+			result = (((uint32(bytes[3]) << 8) | uint32(bytes[2])) << 8) | uint32(bytes[1]);
+			return (result << 2) + 4;
+		}
+		return (result << 2) + 1;
+	}
+
+	mtpBuffer _handleTcpResponse(const char *packet, uint32 length) {
+		if (length < 5 || length > MTPPacketSizeMax) {
+			LOG(("TCP Error: bad packet size %1").arg(length));
 			return mtpBuffer(1, -500);
 		}
-        if (packet[0] != int32(size * sizeof(mtpPrime))) {
+		int32 size = packet[0], len = length - 1;
+		if (size == 0x7f) {
+			const uchar *bytes = reinterpret_cast<const uchar*>(packet);
+			size = (((uint32(bytes[3]) << 8) | uint32(bytes[2])) << 8) | uint32(bytes[1]);
+			len -= 3;
+		}
+		if (size * sizeof(mtpPrime) != len) {
 			LOG(("TCP Error: bad packet header"));
-			TCP_LOG(("TCP Error: bad packet header, packet: %1").arg(Logs::mb(packet, size * sizeof(mtpPrime)).str()));
+			TCP_LOG(("TCP Error: bad packet header, packet: %1").arg(Logs::mb(packet, length).str()));
 			return mtpBuffer(1, -500);
 		}
-		if (packet[size - 1] != hashCrc32(packet, (size - 1) * sizeof(mtpPrime))) {
-			LOG(("TCP Error: bad packet checksum"));
-			TCP_LOG(("TCP Error: bad packet checksum, packet: %1").arg(Logs::mb(packet, size * sizeof(mtpPrime)).str()));
-			return mtpBuffer(1, -500);
-		}
-		TCP_LOG(("TCP Info: packet received, num = %1, size = %2").arg(packet[1]).arg(size * sizeof(mtpPrime)));
-		if (size == 4) {
-			if (packet[2] == -429) {
+		TCP_LOG(("TCP Info: packet received, size = %1").arg(size * sizeof(mtpPrime)));
+		if (size == 1) {
+			if (packet[0] == -429) {
 				LOG(("Protocol Error: -429 flood code returned!"));
 			} else {
-				LOG(("TCP Error: error packet received, code = %1").arg(packet[2]));
+				LOG(("TCP Error: error packet received, code = %1").arg(packet[0]));
 			}
-			return mtpBuffer(1, packet[2]);
+			return mtpBuffer(1, packet[0]);
 		}
 
-		mtpBuffer data(size - 3);
-		memcpy(data.data(), packet + 2, (size - 3) * sizeof(mtpPrime));
+		mtpBuffer data(size);
+		memcpy(data.data(), packet + (length - len), size * sizeof(mtpPrime));
 
 		return data;
 	}
@@ -557,7 +568,7 @@ void MTPabstractTcpConnection::socketRead() {
 			if (packetLeft) {
 				packetLeft -= bytes;
 				if (!packetLeft) {
-					socketPacket((mtpPrime*)(currentPos - packetRead), packetRead >> 2);
+					socketPacket(currentPos - packetRead, packetRead);
 					currentPos = (char*)shortBuffer;
 					packetRead = packetLeft = 0;
 					readingToShort = true;
@@ -568,14 +579,14 @@ void MTPabstractTcpConnection::socketRead() {
 			} else {
 				bool move = false;
 				while (packetRead >= 4) {
-					uint32 packetSize = *(uint32*)(currentPos - packetRead);
-					if (packetSize < 16 || packetSize > MTPPacketSizeMax || (packetSize & 0x03)) {
+					uint32 packetSize = _tcpPacketSize(currentPos - packetRead);
+					if (packetSize < 5 || packetSize > MTPPacketSizeMax) {
 						LOG(("TCP Error: packet size = %1").arg(packetSize));
 						emit error();
 						return;
 					}
 					if (packetRead >= packetSize) {
-						socketPacket((mtpPrime*)(currentPos - packetRead), packetSize >> 2);
+						socketPacket(currentPos - packetRead, packetSize);
 						packetRead -= packetSize;
 						packetLeft = 0;
 						move = true;
@@ -704,15 +715,41 @@ void MTPautoConnection::sendData(mtpBuffer &buffer) {
 	}
 }
 
+uint32 FourCharsToUInt(char ch1, char ch2, char ch3, char ch4) {
+	char ch[4] = { ch1, ch2, ch3, ch4 };
+	return *reinterpret_cast<uint32*>(ch);
+}
+
 void MTPautoConnection::tcpSend(mtpBuffer &buffer) {
-	uint32 size = buffer.size(), len = size * 4;
+	if (!packetNum) {
+		char nonce[64];
+		uint32 *first = reinterpret_cast<uint32*>(nonce), *second = first + 1;
+		uint32 g1 = FourCharsToUInt('P', 'O', 'S', 'T'), g2 = FourCharsToUInt('G', 'E', 'T', ' '), g3 = FourCharsToUInt('H', 'E', 'A', 'D');
+		uint32 first1 = 0x44414548U, first2 = 0x54534f50U, first3 = 0x20544547U, first4 = 0x20544547U, first5 = 0xeeeeeeeeU;
+		uint32 second1 = 0;
+		do {
+			memset_rand(nonce, sizeof(nonce));
+		} while (*first == first1 || *first == first2 || *first == first3 || *first == first4 || *first == first5 || *second == second1 || nonce[0] == 0xef);
+		sock.write(nonce, sizeof(nonce));
+	}
+	++packetNum;
 
-	buffer[0] = len;
-	buffer[1] = packetNum++;
-	buffer[size - 1] = hashCrc32(&buffer[0], len - 4);
-	TCP_LOG(("TCP Info: write %1 packet %2 bytes").arg(packetNum).arg(len));
+	uint32 size = buffer.size() - 3, len = size * 4;
+	char *data = reinterpret_cast<char*>(&buffer[0]);
+	if (size < 0x7f) {
+		data[7] = char(size);
+		TCP_LOG(("TCP Info: write %1 packet %2").arg(packetNum).arg(len + 1));
 
-	sock.write((const char*)&buffer[0], len);
+		sock.write(data + 7, len + 1);
+	} else {
+		data[4] = 0x7f;
+		reinterpret_cast<uchar*>(data)[5] = uchar(size & 0xFF);
+		reinterpret_cast<uchar*>(data)[6] = uchar((size >> 8) & 0xFF);
+		reinterpret_cast<uchar*>(data)[7] = uchar((size >> 16) & 0xFF);
+		TCP_LOG(("TCP Info: write %1 packet %2").arg(packetNum).arg(len + 4));
+
+		sock.write(data + 4, len + 4);
+	}
 }
 
 void MTPautoConnection::httpSend(mtpBuffer &buffer) {
@@ -831,10 +868,10 @@ void MTPautoConnection::requestFinished(QNetworkReply *reply) {
 	}
 }
 
-void MTPautoConnection::socketPacket(mtpPrime *packet, uint32 size) {
+void MTPautoConnection::socketPacket(const char *packet, uint32 length) {
 	if (status == FinishedWork) return;
 
-	mtpBuffer data = _handleTcpResponse(packet, size);
+	mtpBuffer data = _handleTcpResponse(packet, length);
 	if (data.size() == 1) {
 		if (status == WaitingBoth) {
 			status = WaitingHttp;
@@ -984,14 +1021,35 @@ void MTPtcpConnection::sendData(mtpBuffer &buffer) {
 		return;
 	}
 
-	uint32 size = buffer.size(), len = size * 4;
+	if (!packetNum) {
+		char nonce[64];
+		uint32 *first = reinterpret_cast<uint32*>(nonce), *second = first + 1;
+		uint32 g1 = FourCharsToUInt('P', 'O', 'S', 'T'), g2 = FourCharsToUInt('G', 'E', 'T', ' '), g3 = FourCharsToUInt('H', 'E', 'A', 'D');
+		uint32 first1 = 0x44414548U, first2 = 0x54534f50U, first3 = 0x20544547U, first4 = 0x20544547U, first5 = 0xeeeeeeeeU;
+		uint32 second1 = 0;
+		do {
+			memset_rand(nonce, sizeof(nonce));
+		} while (*first == first1 || *first == first2 || *first == first3 || *first == first4 || *first == first5 || *second == second1 || nonce[0] == 0xef);
+		sock.write(nonce, sizeof(nonce));
+	}
+	++packetNum;
 
-	buffer[0] = len;
-	buffer[1] = packetNum++;
-	buffer[size - 1] = hashCrc32(&buffer[0], len - 4);
-	TCP_LOG(("TCP Info: write %1 packet %2 bytes %3").arg(packetNum).arg(len).arg(Logs::mb(&buffer[0], len).str()));
+	uint32 size = buffer.size() - 3, len = size * 4;
+	char *data = reinterpret_cast<char*>(&buffer[0]);
+	if (size < 0x7f) {
+		data[7] = char(size);
+		TCP_LOG(("TCP Info: write %1 packet %2").arg(packetNum).arg(len + 1));
 
-	sock.write((const char*)&buffer[0], len);
+		sock.write(data + 7, len + 1);
+	} else {
+		data[4] = 0x7f;
+		reinterpret_cast<uchar*>(data)[5] = uchar(size & 0xFF);
+		reinterpret_cast<uchar*>(data)[6] = uchar((size >> 8) & 0xFF);
+		reinterpret_cast<uchar*>(data)[7] = uchar((size >> 16) & 0xFF);
+		TCP_LOG(("TCP Info: write %1 packet %2").arg(packetNum).arg(len + 4));
+
+		sock.write(data + 4, len + 4);
+	}
 }
 
 void MTPtcpConnection::disconnectFromServer() {
@@ -1011,10 +1069,10 @@ void MTPtcpConnection::connectToServer(const QString &addr, int32 port, int32 fl
 	sock.connectToHost(QHostAddress(_addr), _port);
 }
 
-void MTPtcpConnection::socketPacket(mtpPrime *packet, uint32 size) {
+void MTPtcpConnection::socketPacket(const char *packet, uint32 length) {
 	if (status == FinishedWork) return;
 
-	mtpBuffer data = _handleTcpResponse(packet, size);
+	mtpBuffer data = _handleTcpResponse(packet, length);
 	if (data.size() == 1) {
 		bool mayBeBadKey = (data[0] == -410) && _sentEncrypted;
 		emit error(mayBeBadKey);

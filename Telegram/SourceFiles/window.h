@@ -459,7 +459,7 @@ private:
 	QString _host, _username, _password;
 	quint32 _port;
 
-	PreLaunchLabel _label, _pleaseSendReport, _minidump;
+	PreLaunchLabel _label, _pleaseSendReport, _yourReportName, _minidump;
 	PreLaunchLog _report;
 	PreLaunchButton _send, _sendSkip, _networkSettings, _continue, _showReport, _saveReport, _getApp;
 

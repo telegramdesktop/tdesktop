@@ -864,10 +864,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	_contextMenuLnk = textlnkOver();
 	HistoryItem *item = App::hoveredItem() ? App::hoveredItem() : App::hoveredLinkItem();
 	PhotoLink *lnkPhoto = dynamic_cast<PhotoLink*>(_contextMenuLnk.data());
-    VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
-    AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
     DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument) {
+	bool lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideo() : false;
+	bool lnkIsAudio = lnkDocument ? lnkDocument->document()->voice() : false;
+	if (lnkPhoto || lnkDocument) {
 		if (isUponSelected > 0) {
 			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
 		}
@@ -879,17 +879,17 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_save_image), this, SLOT(saveContextImage()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_image), this, SLOT(copyContextImage()))->setEnabled(true);
 		} else {
-			if ((lnkVideo && lnkVideo->video()->loading()) || (lnkAudio && lnkAudio->audio()->loading()) || (lnkDocument && lnkDocument->document()->loading())) {
+			if (lnkDocument && lnkDocument->document()->loading()) {
 				_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
 			} else {
 				if (lnkDocument && lnkDocument->document()->loaded() && lnkDocument->document()->isGifv()) {
 					_menu->addAction(lang(lng_context_save_gif), this, SLOT(saveContextGif()))->setEnabled(true);
 				}
-				if ((lnkVideo && !lnkVideo->video()->already(true).isEmpty()) || (lnkAudio && !lnkAudio->audio()->already(true).isEmpty()) || (lnkDocument && !lnkDocument->document()->already(true).isEmpty())) {
+				if (lnkDocument && !lnkDocument->document()->already(true).isEmpty()) {
 					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 				}
-				_menu->addAction(lang(lnkVideo ? lng_context_open_video : (lnkAudio ? lng_context_open_audio : lng_context_open_file)), this, SLOT(openContextFile()))->setEnabled(true);
-				_menu->addAction(lang(lnkVideo ? lng_context_save_video : (lnkAudio ? lng_context_save_audio : lng_context_save_file)), this, SLOT(saveContextFile()))->setEnabled(true);
+				_menu->addAction(lang(lnkIsVideo ? lng_context_open_video : (lnkIsAudio ? lng_context_open_audio : lng_context_open_file)), this, SLOT(openContextFile()))->setEnabled(true);
+				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsAudio ? lng_context_save_audio : lng_context_save_file)), this, SLOT(saveContextFile()))->setEnabled(true);
 			}
 		}
 		if (isUponSelected > 1) {
@@ -1069,11 +1069,7 @@ void HistoryInner::copyContextImage() {
 }
 
 void HistoryInner::cancelContextDownload() {
-	if (VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data())) {
-		lnkVideo->video()->cancel();
-	} else if (AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data())) {
-		lnkAudio->audio()->cancel();
-	} else if (DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data())) {
+	if (DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data())) {
 		lnkDocument->document()->cancel();
 	} else if (HistoryItem *item = App::contextItem()) {
 		if (HistoryMedia *media = item->getMedia()) {
@@ -1086,11 +1082,7 @@ void HistoryInner::cancelContextDownload() {
 
 void HistoryInner::showContextInFolder() {
 	QString already;
-	if (VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data())) {
-		already = lnkVideo->video()->already(true);
-	} else if (AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data())) {
-		already = lnkAudio->audio()->already(true);
-	} else if (DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data())) {
+	if (DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data())) {
 		already = lnkDocument->document()->already(true);
 	} else if (HistoryItem *item = App::contextItem()) {
 		if (HistoryMedia *media = item->getMedia()) {
@@ -1105,21 +1097,13 @@ void HistoryInner::showContextInFolder() {
 void HistoryInner::openContextFile() {
 	HistoryItem *was = App::hoveredLinkItem();
 	App::hoveredLinkItem(App::contextItem());
-	VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
-    AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
     DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	if (lnkVideo) VideoOpenLink(lnkVideo->video()).onClick(Qt::LeftButton);
-	if (lnkAudio) AudioOpenLink(lnkAudio->audio()).onClick(Qt::LeftButton);
 	if (lnkDocument) DocumentOpenLink(lnkDocument->document()).onClick(Qt::LeftButton);
 	App::hoveredLinkItem(was);
 }
 
 void HistoryInner::saveContextFile() {
-	if (VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data())) {
-		VideoSaveLink::doSave(lnkVideo->video(), true);
-	} else if (AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data())) {
-		AudioSaveLink::doSave(lnkAudio->audio(), true);
-	} else if (DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data())) {
+	if (DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data())) {
 		DocumentSaveLink::doSave(lnkDocument->document(), true);
 	} else if (HistoryItem *item = App::contextItem()) {
 		if (HistoryMedia *media = item->getMedia()) {
@@ -2720,8 +2704,8 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreviewTimeout()));
 	if (audioCapture()) {
 		connect(audioCapture(), SIGNAL(onError()), this, SLOT(onRecordError()));
-		connect(audioCapture(), SIGNAL(onUpdate(qint16,qint32)), this, SLOT(onRecordUpdate(qint16,qint32)));
-		connect(audioCapture(), SIGNAL(onDone(QByteArray,qint32)), this, SLOT(onRecordDone(QByteArray,qint32)));
+		connect(audioCapture(), SIGNAL(onUpdate(quint16,qint32)), this, SLOT(onRecordUpdate(quint16,qint32)));
+		connect(audioCapture(), SIGNAL(onDone(QByteArray,VoiceWaveform,qint32)), this, SLOT(onRecordDone(QByteArray,VoiceWaveform,qint32)));
 	}
 
 	_updateHistoryItems.setSingleShot(true);
@@ -3005,8 +2989,8 @@ void HistoryWidget::updateSendAction(History *history, SendActionType type, int3
 		case SendActionTyping: action = MTP_sendMessageTypingAction(); break;
 		case SendActionRecordVideo: action = MTP_sendMessageRecordVideoAction(); break;
 		case SendActionUploadVideo: action = MTP_sendMessageUploadVideoAction(MTP_int(progress)); break;
-		case SendActionRecordAudio: action = MTP_sendMessageRecordAudioAction(); break;
-		case SendActionUploadAudio: action = MTP_sendMessageUploadAudioAction(MTP_int(progress)); break;
+		case SendActionRecordVoice: action = MTP_sendMessageRecordAudioAction(); break;
+		case SendActionUploadVoice: action = MTP_sendMessageUploadAudioAction(MTP_int(progress)); break;
 		case SendActionUploadPhoto: action = MTP_sendMessageUploadPhotoAction(MTP_int(progress)); break;
 		case SendActionUploadFile: action = MTP_sendMessageUploadDocumentAction(MTP_int(progress)); break;
 		case SendActionChooseLocation: action = MTP_sendMessageGeoLocationAction(); break;
@@ -3055,16 +3039,16 @@ void HistoryWidget::onRecordError() {
 	stopRecording(false);
 }
 
-void HistoryWidget::onRecordDone(QByteArray result, qint32 samples) {
+void HistoryWidget::onRecordDone(QByteArray result, VoiceWaveform waveform, qint32 samples) {
 	if (!_peer) return;
 
 	App::wnd()->activateWindow();
 	int32 duration = samples / AudioVoiceMsgFrequency;
-	_fileLoader.addTask(new FileLoadTask(result, duration, FileLoadTo(_peer->id, _broadcast.checked(), replyToId())));
+	_fileLoader.addTask(new FileLoadTask(result, duration, waveform, FileLoadTo(_peer->id, _broadcast.checked(), replyToId())));
 	cancelReply(lastForceReplyReplied());
 }
 
-void HistoryWidget::onRecordUpdate(qint16 level, qint32 samples) {
+void HistoryWidget::onRecordUpdate(quint16 level, qint32 samples) {
 	if (!_recording) {
 		return;
 	}
@@ -3077,7 +3061,7 @@ void HistoryWidget::onRecordUpdate(qint16 level, qint32 samples) {
 	}
 	updateField();
 	if (_peer && (!_peer->isChannel() || _peer->isMegagroup() || !_peer->asChannel()->canPublish() || (!_peer->asChannel()->isBroadcast() && !_broadcast.checked()))) {
-		updateSendAction(_history, SendActionRecordAudio);
+		updateSendAction(_history, SendActionRecordVoice);
 	}
 }
 
@@ -4241,9 +4225,9 @@ void HistoryWidget::firstLoadMessages() {
 	}
 
 	if (loadImportant) {
-		_firstLoadRequest = MTP::send(MTPchannels_GetImportantHistory(from->asChannel()->inputChannel, MTP_int(offset_id), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from), rpcFail(&HistoryWidget::messagesFailed));
+		_firstLoadRequest = MTP::send(MTPchannels_GetImportantHistory(from->asChannel()->inputChannel, MTP_int(offset_id), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from), rpcFail(&HistoryWidget::messagesFailed));
 	} else {
-		_firstLoadRequest = MTP::send(MTPmessages_GetHistory(from->input, MTP_int(offset_id), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from), rpcFail(&HistoryWidget::messagesFailed));
+		_firstLoadRequest = MTP::send(MTPmessages_GetHistory(from->input, MTP_int(offset_id), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from), rpcFail(&HistoryWidget::messagesFailed));
 	}
 }
 
@@ -4265,9 +4249,9 @@ void HistoryWidget::loadMessages() {
 	int32 offset = 0, loadCount = offset_id ? MessagesPerPage : MessagesFirstLoad;
 
 	if (loadImportant) {
-		_preloadRequest = MTP::send(MTPchannels_GetImportantHistory(from->peer->asChannel()->inputChannel, MTP_int(offset_id), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from->peer), rpcFail(&HistoryWidget::messagesFailed));
+		_preloadRequest = MTP::send(MTPchannels_GetImportantHistory(from->peer->asChannel()->inputChannel, MTP_int(offset_id), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from->peer), rpcFail(&HistoryWidget::messagesFailed));
 	} else {
-		_preloadRequest = MTP::send(MTPmessages_GetHistory(from->peer->input, MTP_int(offset_id), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from->peer), rpcFail(&HistoryWidget::messagesFailed));
+		_preloadRequest = MTP::send(MTPmessages_GetHistory(from->peer->input, MTP_int(offset_id), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from->peer), rpcFail(&HistoryWidget::messagesFailed));
 	}
 }
 
@@ -4295,9 +4279,9 @@ void HistoryWidget::loadMessagesDown() {
 	}
 
 	if (loadImportant) {
-		_preloadDownRequest = MTP::send(MTPchannels_GetImportantHistory(from->peer->asChannel()->inputChannel, MTP_int(offset_id + 1), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from->peer), rpcFail(&HistoryWidget::messagesFailed));
+		_preloadDownRequest = MTP::send(MTPchannels_GetImportantHistory(from->peer->asChannel()->inputChannel, MTP_int(offset_id + 1), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from->peer), rpcFail(&HistoryWidget::messagesFailed));
 	} else {
-		_preloadDownRequest = MTP::send(MTPmessages_GetHistory(from->peer->input, MTP_int(offset_id + 1), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from->peer), rpcFail(&HistoryWidget::messagesFailed));
+		_preloadDownRequest = MTP::send(MTPmessages_GetHistory(from->peer->input, MTP_int(offset_id + 1), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from->peer), rpcFail(&HistoryWidget::messagesFailed));
 	}
 }
 
@@ -4355,9 +4339,9 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 	}
 
 	if (loadImportant) {
-		_delayedShowAtRequest = MTP::send(MTPchannels_GetImportantHistory(from->asChannel()->inputChannel, MTP_int(offset_id), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from), rpcFail(&HistoryWidget::messagesFailed));
+		_delayedShowAtRequest = MTP::send(MTPchannels_GetImportantHistory(from->asChannel()->inputChannel, MTP_int(offset_id), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from), rpcFail(&HistoryWidget::messagesFailed));
 	} else {
-		_delayedShowAtRequest = MTP::send(MTPmessages_GetHistory(from->input, MTP_int(offset_id), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from), rpcFail(&HistoryWidget::messagesFailed));
+		_delayedShowAtRequest = MTP::send(MTPmessages_GetHistory(from->input, MTP_int(offset_id), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from), rpcFail(&HistoryWidget::messagesFailed));
 	}
 }
 
@@ -4807,7 +4791,7 @@ void HistoryWidget::onDocumentSelect() {
 void HistoryWidget::dragEnterEvent(QDragEnterEvent *e) {
 	if (!_history) return;
 
-	if (_peer && (_peer->isChannel() && !_peer->asChannel()->canPublish())) return;
+	if (_peer && !_canSendMessages) return;
 
 	_attachDrag = getDragState(e->mimeData());
 	updateDragAreas();
@@ -4887,7 +4871,7 @@ void HistoryWidget::stopRecording(bool send) {
 	_recording = false;
 	_recordingSamples = 0;
 	if (_peer && (!_peer->isChannel() || _peer->isMegagroup() || !_peer->asChannel()->canPublish() || (!_peer->asChannel()->isBroadcast() && !_broadcast.checked()))) {
-		updateSendAction(_history, SendActionRecordAudio, -1);
+		updateSendAction(_history, SendActionRecordVoice, -1);
 	}
 
 	updateControlsVisibility();
@@ -5151,7 +5135,7 @@ void HistoryWidget::onPhotoDrop(const QMimeData *data) {
 void HistoryWidget::onDocumentDrop(const QMimeData *data) {
 	if (!_history) return;
 
-	if (_peer && (_peer->isChannel() && !_peer->asChannel()->canPublish())) return;
+	if (_peer && !_canSendMessages) return;
 
 	QStringList files = getMediasFromMime(data);
 	if (files.isEmpty()) return;
@@ -5161,7 +5145,7 @@ void HistoryWidget::onDocumentDrop(const QMimeData *data) {
 
 void HistoryWidget::onFilesDrop(const QMimeData *data) {
 
-	if (_peer && (_peer->isChannel() && !_peer->asChannel()->canPublish())) return;
+	if (_peer && !_canSendMessages) return;
 
 	QStringList files = getMediasFromMime(data);
 	if (files.isEmpty()) {
@@ -5522,13 +5506,10 @@ void HistoryWidget::confirmSendFile(const FileLoadResultPtr &file, bool ctrlShif
 	connect(App::uploader(), SIGNAL(photoReady(const FullMsgId&, const MTPInputFile&)), this, SLOT(onPhotoUploaded(const FullMsgId&, const MTPInputFile&)), Qt::UniqueConnection);
 	connect(App::uploader(), SIGNAL(documentReady(const FullMsgId&, const MTPInputFile&)), this, SLOT(onDocumentUploaded(const FullMsgId&, const MTPInputFile&)), Qt::UniqueConnection);
 	connect(App::uploader(), SIGNAL(thumbDocumentReady(const FullMsgId&, const MTPInputFile&, const MTPInputFile&)), this, SLOT(onThumbDocumentUploaded(const FullMsgId&, const MTPInputFile&, const MTPInputFile&)), Qt::UniqueConnection);
-	connect(App::uploader(), SIGNAL(audioReady(const FullMsgId&, const MTPInputFile&)), this, SLOT(onAudioUploaded(const FullMsgId&, const MTPInputFile&)), Qt::UniqueConnection);
 	connect(App::uploader(), SIGNAL(photoProgress(const FullMsgId&)), this, SLOT(onPhotoProgress(const FullMsgId&)), Qt::UniqueConnection);
 	connect(App::uploader(), SIGNAL(documentProgress(const FullMsgId&)), this, SLOT(onDocumentProgress(const FullMsgId&)), Qt::UniqueConnection);
-	connect(App::uploader(), SIGNAL(audioProgress(const FullMsgId&)), this, SLOT(onAudioProgress(const FullMsgId&)), Qt::UniqueConnection);
 	connect(App::uploader(), SIGNAL(photoFailed(const FullMsgId&)), this, SLOT(onPhotoFailed(const FullMsgId&)), Qt::UniqueConnection);
 	connect(App::uploader(), SIGNAL(documentFailed(const FullMsgId&)), this, SLOT(onDocumentFailed(const FullMsgId&)), Qt::UniqueConnection);
-	connect(App::uploader(), SIGNAL(audioFailed(const FullMsgId&)), this, SLOT(onAudioFailed(const FullMsgId&)), Qt::UniqueConnection);
 
 	App::uploader()->upload(newId, file);
 
@@ -5552,7 +5533,7 @@ void HistoryWidget::confirmSendFile(const FileLoadResultPtr &file, bool ctrlShif
 		if (!h->peer->isChannel()) {
 			flags |= MTPDmessage::flag_media_unread;
 		}
-		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(file->to.peer), MTPPeer(), MTPint(), MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaAudio(file->audio), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
+		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(file->to.peer), MTPPeer(), MTPint(), MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(file->document, MTP_string(file->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
 	}
 
 	if (_peer && file->to.peer == _peer->id) {
@@ -5628,7 +5609,9 @@ namespace {
 		} else if (document->type == StickerDocument && document->sticker()) {
 			attributes.push_back(MTP_documentAttributeSticker(MTP_string(document->sticker()->alt), document->sticker()->set));
 		} else if (document->type == SongDocument && document->song()) {
-			attributes.push_back(MTP_documentAttributeAudio(MTP_int(document->song()->duration), MTP_string(document->song()->title), MTP_string(document->song()->performer)));
+			attributes.push_back(MTP_documentAttributeAudio(MTP_int(MTPDdocumentAttributeAudio::flag_title | MTPDdocumentAttributeAudio::flag_performer), MTP_int(document->song()->duration), MTP_string(document->song()->title), MTP_string(document->song()->performer), MTPstring()));
+		} else if (document->type == VoiceDocument && document->voice()) {
+			attributes.push_back(MTP_documentAttributeAudio(MTP_int(MTPDdocumentAttributeAudio::flag_voice | MTPDdocumentAttributeAudio::flag_waveform), MTP_int(document->voice()->duration), MTPstring(), MTPstring(), MTP_string(documentWaveformEncode5bit(document->voice()->waveform))));
 		}
 		return MTP_vector<MTPDocumentAttribute>(attributes);
 	}
@@ -5684,33 +5667,6 @@ void HistoryWidget::onThumbDocumentUploaded(const FullMsgId &newId, const MTPInp
 	}
 }
 
-void HistoryWidget::onAudioUploaded(const FullMsgId &newId, const MTPInputFile &file) {
-	if (!MTP::authedId()) return;
-	HistoryMessage *item = dynamic_cast<HistoryMessage*>(App::histItemById(newId));
-	if (item) {
-		AudioData *audio = 0;
-		if (HistoryAudio *media = dynamic_cast<HistoryAudio*>(item->getMedia())) {
-			audio = media->audio();
-		}
-		if (audio) {
-			uint64 randomId = MTP::nonce<uint64>();
-			App::historyRegRandom(randomId, newId);
-			History *hist = item->history();
-			MsgId replyTo = item->toHistoryReply() ? item->toHistoryReply()->replyToId() : 0;
-			int32 sendFlags = 0;
-			if (replyTo) {
-				sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
-			}
-
-			bool fromChannelName = hist->peer->isChannel() && !hist->peer->isMegagroup() && hist->peer->asChannel()->canPublish() && item->fromChannel();
-			if (fromChannelName) {
-				sendFlags |= MTPmessages_SendMedia::flag_broadcast;
-			}
-			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedAudio(file, MTP_int(audio->duration), MTP_string(audio->mime)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
-		}
-	}
-}
-
 void HistoryWidget::onPhotoProgress(const FullMsgId &newId) {
 	if (!MTP::authedId()) return;
 	if (HistoryItem *item = App::histItemById(newId)) {
@@ -5728,18 +5684,7 @@ void HistoryWidget::onDocumentProgress(const FullMsgId &newId) {
 		HistoryMedia *media = item->getMedia();
 		DocumentData *doc = media ? media->getDocument() : 0;
 		if (!item->fromChannel()) {
-			updateSendAction(item->history(), SendActionUploadFile, doc ? doc->uploadOffset : 0);
-		}
-		Ui::repaintHistoryItem(item);
-	}
-}
-
-void HistoryWidget::onAudioProgress(const FullMsgId &newId) {
-	if (!MTP::authedId()) return;
-	if (HistoryItem *item = App::histItemById(newId)) {
-		AudioData *audio = (item->getMedia() && item->getMedia()->type() == MediaTypeAudio) ? static_cast<HistoryAudio*>(item->getMedia())->audio() : 0;
-		if (!item->fromChannel()) {
-			updateSendAction(item->history(), SendActionUploadAudio, audio ? audio->uploadOffset : 0);
+			updateSendAction(item->history(), (doc && doc->voice()) ? SendActionUploadVoice : SendActionUploadFile, doc ? doc->uploadOffset : 0);
 		}
 		Ui::repaintHistoryItem(item);
 	}
@@ -5760,19 +5705,10 @@ void HistoryWidget::onDocumentFailed(const FullMsgId &newId) {
 	if (!MTP::authedId()) return;
 	HistoryItem *item = App::histItemById(newId);
 	if (item) {
+		HistoryMedia *media = item->getMedia();
+		DocumentData *doc = media ? media->getDocument() : 0;
 		if (!item->fromChannel()) {
-			updateSendAction(item->history(), SendActionUploadFile, -1);
-		}
-		Ui::repaintHistoryItem(item);
-	}
-}
-
-void HistoryWidget::onAudioFailed(const FullMsgId &newId) {
-	if (!MTP::authedId()) return;
-	HistoryItem *item = App::histItemById(newId);
-	if (item) {
-		if (!item->fromChannel()) {
-			updateSendAction(item->history(), SendActionUploadAudio, -1);
+			updateSendAction(item->history(), (doc && doc->voice()) ? SendActionUploadVoice : SendActionUploadFile, -1);
 		}
 		Ui::repaintHistoryItem(item);
 	}
@@ -7194,7 +7130,7 @@ void HistoryWidget::drawRecording(Painter &p) {
 	p.setPen(Qt::NoPen);
 	p.setBrush(st::recordSignalColor->b);
 	p.setRenderHint(QPainter::HighQualityAntialiasing);
-	float64 delta = qMin(float64(a_recordingLevel.current()) * 3 * M_PI / 0x7fff, 1.);
+	float64 delta = qMin(float64(a_recordingLevel.current()) / 0x4000, 1.);
 	int32 d = 2 * qRound(st::recordSignalMin + (delta * (st::recordSignalMax - st::recordSignalMin)));
 	p.drawEllipse(_attachPhoto.x() + (_attachEmoji.width() - d) / 2, _attachPhoto.y() + (_attachPhoto.height() - d) / 2, d, d);
 	p.setRenderHint(QPainter::HighQualityAntialiasing, false);

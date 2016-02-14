@@ -39,7 +39,7 @@ OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, PeerD
 , _resizeSkip(0)
 , _peer(peer->migrateTo() ? peer->migrateTo() : peer)
 , _type(type)
-, _reversed(_type != OverviewDocuments && _type != OverviewLinks)
+, _reversed(_type != OverviewFiles && _type != OverviewLinks)
 , _migrated(_peer->migrateFrom() ? App::history(_peer->migrateFrom()->id) : 0)
 , _history(App::history(_peer->id))
 , _channel(peerToChannel(_peer->id))
@@ -108,7 +108,7 @@ OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, PeerD
 	connect(&_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchMessages()));
 
 	_cancelSearch.hide();
-	if (_type == OverviewLinks || _type == OverviewDocuments) {
+	if (_type == OverviewLinks || _type == OverviewFiles) {
 		_search.show();
 	} else {
 		_search.hide();
@@ -736,7 +736,7 @@ QPoint OverviewInner::mapMouseToItem(QPoint p, MsgId itemId, int32 itemIndex) {
 }
 
 void OverviewInner::activate() {
-	if (_type == OverviewLinks || _type == OverviewDocuments) {
+	if (_type == OverviewLinks || _type == OverviewFiles) {
 		_search.setFocus();
 	} else {
 		setFocus();
@@ -760,7 +760,7 @@ void OverviewInner::clear() {
 }
 
 int32 OverviewInner::itemTop(const FullMsgId &msgId) const {
-	if (_type == OverviewAudioDocuments) {
+	if (_type == OverviewMusicFiles) {
 		int32 itemIndex = -1;
 		fixItemIndex(itemIndex, (msgId.channel == _channel) ? msgId.msg : ((_migrated && msgId.channel == _migrated->channelId()) ? -msgId.msg : 0));
 		if (itemIndex >= 0) {
@@ -1261,10 +1261,10 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 	_contextMenuLnk = textlnkOver();
 	PhotoLink *lnkPhoto = dynamic_cast<PhotoLink*>(_contextMenuLnk.data());
-	VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
-	AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
 	DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument) {
+	bool lnkIsAudio = lnkDocument ? lnkDocument->document()->voice() : false;
+	bool lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideo() : false;
+	if (lnkPhoto || lnkDocument) {
 		_menu = new PopupMenu();
 		if (App::hoveredLinkItem()) {
 			_menu->addAction(lang(lng_context_to_msg), this, SLOT(goToMessage()))->setEnabled(true);
@@ -1272,14 +1272,14 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (lnkPhoto) {
 			_menu->addAction(lang(lng_context_open_image), this, SLOT(openContextUrl()))->setEnabled(true);
 		} else {
-			if ((lnkVideo && lnkVideo->video()->loading()) || (lnkAudio && lnkAudio->audio()->loading()) || (lnkDocument && lnkDocument->document()->loading())) {
+			if (lnkDocument && lnkDocument->document()->loading()) {
 				_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
 			} else {
-				if ((lnkVideo && !lnkVideo->video()->already(true).isEmpty()) || (lnkAudio && !lnkAudio->audio()->already(true).isEmpty()) || (lnkDocument && !lnkDocument->document()->already(true).isEmpty())) {
+				if (lnkDocument && !lnkDocument->document()->already(true).isEmpty()) {
 					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 				}
-				_menu->addAction(lang(lnkVideo ? lng_context_open_video : (lnkAudio ? lng_context_open_audio : lng_context_open_file)), this, SLOT(openContextFile()))->setEnabled(true);
-				_menu->addAction(lang(lnkVideo ? lng_context_save_video : (lnkAudio ? lng_context_save_audio : lng_context_save_file)), this, SLOT(saveContextFile()))->setEnabled(true);
+				_menu->addAction(lang(lnkIsVideo ? lng_context_open_video : (lnkIsAudio ? lng_context_open_audio : lng_context_open_file)), this, SLOT(openContextFile()))->setEnabled(true);
+				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsAudio ? lng_context_save_audio : lng_context_save_file)), this, SLOT(saveContextFile()))->setEnabled(true);
 			}
 		}
 		if (isUponSelected > 1) {
@@ -1421,8 +1421,8 @@ void OverviewInner::switchType(MediaOverviewType type) {
 	if (_type != type) {
 		clear();
 		_type = type;
-		_reversed = (_type != OverviewLinks && _type != OverviewDocuments);
-		if (_type == OverviewLinks || _type == OverviewDocuments) {
+		_reversed = (_type != OverviewLinks && _type != OverviewFiles);
+		if (_type == OverviewLinks || _type == OverviewFiles) {
 			_search.show();
 		} else {
 			_search.hide();
@@ -1502,43 +1502,27 @@ void OverviewInner::selectMessage() {
 }
 
 void OverviewInner::cancelContextDownload() {
-	VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
-	AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
 	DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	if (lnkVideo) {
-		lnkVideo->video()->cancel();
-	} else if (lnkAudio) {
-		lnkAudio->audio()->cancel();
-	} else if (lnkDocument) {
+	if (lnkDocument) {
 		lnkDocument->document()->cancel();
 	}
 }
 
 void OverviewInner::showContextInFolder() {
-	VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
-	AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
 	DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	QString already = lnkVideo ? lnkVideo->video()->already(true) : (lnkAudio ? lnkAudio->audio()->already(true) : (lnkDocument ? lnkDocument->document()->already(true) : QString()));
+	QString already = lnkDocument ? lnkDocument->document()->already(true) : QString();
 	if (!already.isEmpty()) psShowInFolder(already);
 }
 
 void OverviewInner::saveContextFile() {
-	VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
-	AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
 	DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	if (lnkVideo) VideoSaveLink::doSave(lnkVideo->video(), true);
-	if (lnkAudio) AudioSaveLink::doSave(lnkAudio->audio(), true);
 	if (lnkDocument) DocumentSaveLink::doSave(lnkDocument->document(), true);
 }
 
 void OverviewInner::openContextFile() {
 	HistoryItem *was = App::hoveredLinkItem();
 	App::hoveredLinkItem(App::contextItem());
-	VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
-	AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
 	DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	if (lnkVideo) VideoOpenLink(lnkVideo->video()).onClick(Qt::LeftButton);
-	if (lnkAudio) AudioOpenLink(lnkAudio->audio()).onClick(Qt::LeftButton);
 	if (lnkDocument) DocumentOpenLink(lnkDocument->document()).onClick(Qt::LeftButton);
 	App::hoveredLinkItem(was);
 }
@@ -1582,7 +1566,7 @@ void OverviewInner::onNeedSearchMessages() {
 }
 
 void OverviewInner::onSearchUpdate() {
-	QString filterText = (_type == OverviewLinks || _type == OverviewDocuments) ? _search.text().trimmed() : QString();
+	QString filterText = (_type == OverviewLinks || _type == OverviewFiles) ? _search.text().trimmed() : QString();
 	bool inSearch = !filterText.isEmpty(), changed = (inSearch != _inSearch);
 	_inSearch = inSearch;
 
@@ -1730,7 +1714,7 @@ void OverviewInner::mediaOverviewUpdated() {
 
 		_height = countHeight();
 	} else {
-		bool dateEveryMonth = (_type == OverviewDocuments), dateEveryDay = (_type == OverviewLinks);
+		bool dateEveryMonth = (_type == OverviewFiles), dateEveryDay = (_type == OverviewLinks);
 		bool withDates = (dateEveryMonth || dateEveryDay);
 
 		History::MediaOverview &o(_history->overview[_type]), *migratedOverview = _migrated ? &_migrated->overview[_type] : 0;
@@ -1794,7 +1778,7 @@ void OverviewInner::mediaOverviewUpdated() {
 	int32 newHeight = _marginTop + _height + _marginBottom, deltaHeight = newHeight - height();
 	if (deltaHeight) {
 		resize(_width, newHeight);
-		if (_type != OverviewLinks && _type != OverviewDocuments) {
+		if (_type != OverviewLinks && _type != OverviewFiles) {
 			_overview->scrollBy(deltaHeight);
 		}
 	} else {
@@ -1910,10 +1894,10 @@ void OverviewInner::recountMargins() {
 	if (_type == OverviewPhotos || _type == OverviewVideos) {
 		_marginBottom = 0;
 		_marginTop = qMax(_minHeight - _height - _marginBottom, 0);
-	} else if (_type == OverviewAudioDocuments) {
+	} else if (_type == OverviewMusicFiles) {
 		_marginTop = st::playlistPadding;
 		_marginBottom = qMax(_minHeight - _height - _marginTop, int32(st::playlistPadding));
-	} else if (_type == OverviewLinks || _type == OverviewDocuments) {
+	} else if (_type == OverviewLinks || _type == OverviewFiles) {
 		_marginTop = st::linksSearchMargin.top() + _search.height() + st::linksSearchMargin.bottom();
 		_marginBottom = qMax(_minHeight - _height - _marginTop, int32(st::playlistPadding));
 	} else {
@@ -1937,19 +1921,19 @@ LayoutMediaItem *OverviewInner::layoutPrepare(HistoryItem *item) {
 	} else if (_type == OverviewVideos) {
 		if (media && media->type() == MediaTypeVideo) {
 			if ((i = _layoutItems.constFind(item)) == _layoutItems.cend()) {
-				i = _layoutItems.insert(item, new LayoutOverviewVideo(static_cast<HistoryVideo*>(media)->video(), item));
+				i = _layoutItems.insert(item, new LayoutOverviewVideo(media->getDocument(), item));
 				i.value()->initDimensions();
 			}
 		}
-	} else if (_type == OverviewAudios) {
-		if (media && media->type() == MediaTypeAudio) {
+	} else if (_type == OverviewVoiceFiles) {
+		if (media && (media->type() == MediaTypeVoiceFile)) {
 			if ((i = _layoutItems.constFind(item)) == _layoutItems.cend()) {
-				i = _layoutItems.insert(item, new LayoutOverviewAudio(static_cast<HistoryAudio*>(media)->audio(), item));
+				i = _layoutItems.insert(item, new LayoutOverviewVoice(media->getDocument(), item));
 				i.value()->initDimensions();
 			}
 		}
-	} else if (_type == OverviewDocuments || _type == OverviewAudioDocuments) {
-		if (media && (media->type() == MediaTypeDocument || media->type() == MediaTypeGif)) {
+	} else if (_type == OverviewFiles || _type == OverviewMusicFiles) {
+		if (media && (media->type() == MediaTypeFile || media->type() == MediaTypeMusicFile || media->type() == MediaTypeGif)) {
 			if ((i = _layoutItems.constFind(item)) == _layoutItems.cend()) {
 				i = _layoutItems.insert(item, new LayoutOverviewDocument(media->getDocument(), item));
 				i.value()->initDimensions();
@@ -2033,7 +2017,7 @@ void OverviewWidget::onScroll() {
 	int32 preloadThreshold = _scroll.height() * 5;
 	bool needToPreload = false;
 	do {
-		needToPreload = (type() == OverviewLinks || type() == OverviewDocuments) ? (_scroll.scrollTop() + preloadThreshold > _scroll.scrollTopMax()) : (_scroll.scrollTop() < preloadThreshold);
+		needToPreload = (type() == OverviewLinks || type() == OverviewFiles) ? (_scroll.scrollTop() + preloadThreshold > _scroll.scrollTopMax()) : (_scroll.scrollTop() < preloadThreshold);
 		if (!needToPreload || !_inner.preloadLocal()) {
 			break;
 		}
@@ -2098,7 +2082,7 @@ void OverviewWidget::scrollBy(int32 add) {
 }
 
 void OverviewWidget::scrollReset() {
-	_scroll.scrollToY((type() == OverviewLinks || type() == OverviewDocuments) ? 0 : _scroll.scrollTopMax());
+	_scroll.scrollToY((type() == OverviewLinks || type() == OverviewFiles) ? 0 : _scroll.scrollTopMax());
 }
 
 void OverviewWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) {
@@ -2143,9 +2127,9 @@ void OverviewWidget::switchType(MediaOverviewType type) {
 	switch (type) {
 	case OverviewPhotos: _header = lang(lng_profile_photos_header); break;
 	case OverviewVideos: _header = lang(lng_profile_videos_header); break;
-	case OverviewAudioDocuments: _header = lang(lng_profile_songs_header); break;
-	case OverviewDocuments: _header = lang(lng_profile_files_header); break;
-	case OverviewAudios: _header = lang(lng_profile_audios_header); break;
+	case OverviewMusicFiles: _header = lang(lng_profile_songs_header); break;
+	case OverviewFiles: _header = lang(lng_profile_files_header); break;
+	case OverviewVoiceFiles: _header = lang(lng_profile_audios_header); break;
 	case OverviewLinks: _header = lang(lng_profile_shared_links_header); break;
 	}
 	noSelectingScroll();
@@ -2184,7 +2168,7 @@ int32 OverviewWidget::lastScrollTop() const {
 }
 
 int32 OverviewWidget::countBestScroll() const {
-	if (type() == OverviewAudioDocuments && audioPlayer()) {
+	if (type() == OverviewMusicFiles && audioPlayer()) {
 		SongMsgId playing;
 		AudioPlayerState playingState = AudioPlayerStopped;
 		audioPlayer()->currentState(&playing, &playingState);
@@ -2194,7 +2178,7 @@ int32 OverviewWidget::countBestScroll() const {
 				return snap(top - int(_scroll.height() - (st::msgPadding.top() + st::mediaThumbSize + st::msgPadding.bottom())) / 2, 0, _scroll.scrollTopMax());
 			}
 		}
-	} else if (type() == OverviewLinks || type() == OverviewDocuments) {
+	} else if (type() == OverviewLinks || type() == OverviewFiles) {
 		return 0;
 	}
 	return _scroll.scrollTopMax();
@@ -2351,7 +2335,7 @@ void OverviewWidget::onScrollTimer() {
 }
 
 void OverviewWidget::onPlayerSongChanged(const FullMsgId &msgId) {
-	if (type() == OverviewAudioDocuments) {
+	if (type() == OverviewMusicFiles) {
 //		int32 top = _inner.itemTop(msgId);
 //		if (top > 0) {
 //			_scroll.scrollToY(snap(top - int(_scroll.height() - (st::msgPadding.top() + st::mediaThumbSize + st::msgPadding.bottom())) / 2, 0, _scroll.scrollTopMax()));

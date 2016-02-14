@@ -317,7 +317,7 @@ private:
 
 class LayoutOverviewVideo : public LayoutAbstractFileItem {
 public:
-	LayoutOverviewVideo(VideoData *photo, HistoryItem *parent);
+	LayoutOverviewVideo(DocumentData *video, HistoryItem *parent);
 
 	virtual void initDimensions();
 	virtual int32 resizeGetHeight(int32 width);
@@ -339,7 +339,7 @@ protected:
 	}
 
 private:
-	VideoData *_data;
+	DocumentData *_data;
 
 	QString _duration;
 	mutable QPixmap _pix;
@@ -349,9 +349,9 @@ private:
 
 };
 
-class LayoutOverviewAudio : public LayoutAbstractFileItem {
+class LayoutOverviewVoice : public LayoutAbstractFileItem {
 public:
-	LayoutOverviewAudio(AudioData *audio, HistoryItem *parent);
+	LayoutOverviewVoice(DocumentData *voice, HistoryItem *parent);
 
 	virtual void initDimensions();
 	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
@@ -372,7 +372,7 @@ protected:
 	}
 
 private:
-	AudioData *_data;
+	DocumentData *_data;
 	TextLinkPtr _namel;
 
 	mutable Text _name, _details;

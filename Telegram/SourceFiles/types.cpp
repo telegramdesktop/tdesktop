@@ -1044,6 +1044,8 @@ const InterfacesMetadata *GetInterfacesMetadata(uint64 mask) {
 	return i.value();
 }
 
+const InterfacesMetadata *Interfaces::ZeroInterfacesMetadata = GetInterfacesMetadata(0);
+
 InterfaceWrapStruct InterfaceWraps[64];
 
 QAtomicInt InterfaceIndexLast(0);

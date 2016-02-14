@@ -30,23 +30,6 @@ enum LocationType {
 	AudioFileLocation    = 0x74dc404d, // mtpc_inputAudioFileLocation
 	VideoFileLocation    = 0x3d0364ec, // mtpc_inputVideoFileLocation
 };
-inline LocationType mtpToLocationType(mtpTypeId type) {
-	switch (type) {
-		case mtpc_inputDocumentFileLocation: return DocumentFileLocation;
-		case mtpc_inputAudioFileLocation: return AudioFileLocation;
-		case mtpc_inputVideoFileLocation: return VideoFileLocation;
-		default: return UnknownFileLocation;
-	}
-}
-inline mtpTypeId mtpFromLocationType(LocationType type) {
-	switch (type) {
-		case DocumentFileLocation: return mtpc_inputDocumentFileLocation;
-		case AudioFileLocation: return mtpc_inputAudioFileLocation;
-		case VideoFileLocation: return mtpc_inputVideoFileLocation;
-		case UnknownFileLocation:
-		default: return 0;
-	}
-}
 
 enum StorageFileType {
 	StorageFileUnknown = 0xaa963b05, // mtpc_storage_fileUnknown

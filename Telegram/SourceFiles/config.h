@@ -20,8 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 9021;
-static const wchar_t *AppVersionStr = L"0.9.21";
+static const int32 AppVersion = 9022;
+static const wchar_t *AppVersionStr = L"0.9.22";
 static const bool DevVersion = true;
 //#define BETA_VERSION (9019002ULL) // just comment this line to build public version
 
@@ -117,6 +117,8 @@ enum {
 	AudioVoiceMsgBufferSize = 1024 * 1024, // 1 Mb buffers
 	AudioVoiceMsgInMemory = 2 * 1024 * 1024, // 2 Mb audio is hold in memory and auto loaded
 	AudioPauseDeviceTimeout = 3000, // pause in 3 secs after playing is over
+
+	WaveformSamplesCount = 100,
 
 	StickerInMemory = 2 * 1024 * 1024, // 2 Mb stickers hold in memory, auto loaded and displayed inline
 	StickerMaxSize = 2048, // 2048x2048 is a max image size for sticker
