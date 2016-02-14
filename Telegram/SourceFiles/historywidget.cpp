@@ -866,7 +866,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	PhotoLink *lnkPhoto = dynamic_cast<PhotoLink*>(_contextMenuLnk.data());
     DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
 	bool lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideo() : false;
-	bool lnkIsAudio = lnkDocument ? lnkDocument->document()->voice() : false;
+	bool lnkIsAudio = lnkDocument ? (lnkDocument->document()->voice() != 0) : false;
 	if (lnkPhoto || lnkDocument) {
 		if (isUponSelected > 0) {
 			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);

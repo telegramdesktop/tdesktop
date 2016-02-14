@@ -993,7 +993,7 @@ void DocumentCancelLink::onClick(Qt::MouseButton button) const {
 }
 
 VoiceData::~VoiceData() {
-	if (!waveform.isEmpty() && waveform.at(0) == -1 && waveform.size() > sizeof(TaskId)) {
+	if (!waveform.isEmpty() && waveform.at(0) == -1 && waveform.size() > int32(sizeof(TaskId))) {
 		TaskId taskId = 0;
 		memcpy(&taskId, waveform.constData() + 1, sizeof(taskId));
 		Local::cancelTask(taskId);
