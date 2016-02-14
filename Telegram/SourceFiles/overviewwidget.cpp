@@ -1262,7 +1262,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	_contextMenuLnk = textlnkOver();
 	PhotoLink *lnkPhoto = dynamic_cast<PhotoLink*>(_contextMenuLnk.data());
 	DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	bool lnkIsAudio = lnkDocument ? lnkDocument->document()->voice() : false;
+	bool lnkIsAudio = lnkDocument ? (lnkDocument->document()->voice() != 0) : false;
 	bool lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideo() : false;
 	if (lnkPhoto || lnkDocument) {
 		_menu = new PopupMenu();

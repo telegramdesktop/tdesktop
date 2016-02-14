@@ -4069,7 +4069,7 @@ void HistoryDocument::draw(Painter &p, const HistoryItem *parent, const QRect &r
 		uchar max_value = 0;
 		int32 max_delta = st::msgWaveformMax - st::msgWaveformMin, bottom = st::msgFilePadding.top() + st::msgWaveformMax;
 		p.setPen(Qt::NoPen);
-		for (uint32 i = 0, bar_x = 0, sum_i = 0; i < wf_size; ++i) {
+		for (int32 i = 0, bar_x = 0, sum_i = 0; i < wf_size; ++i) {
 			uchar value = wf ? wf->at(i) : 0;
 			if (sum_i + bar_count >= wf_size) { // draw bar
 				sum_i = sum_i + bar_count - wf_size;

@@ -1867,10 +1867,10 @@ struct AudioCapturePrivate {
 		, swrContext(0)
 		, lastUpdate(0)
 		, levelMax(0)
+		, dataPos(0)
 		, waveformMod(0)
 		, waveformEach(AudioVoiceMsgFrequency / 100)
-		, waveformPeak(0)
-		, dataPos(0) {
+		, waveformPeak(0) {
 	}
 	ALCdevice *device;
 	AVOutputFormat *fmt;
@@ -2548,7 +2548,7 @@ public:
 
 			const char *data = buffer.data();
 			if (fmt == AL_FORMAT_MONO8 || fmt == AL_FORMAT_STEREO8) {
-				for (int32 i = 0, l = buffer.size(); i + sizeof(uchar) <= l;) {
+				for (int32 i = 0, l = buffer.size(); i + int32(sizeof(uchar)) <= l;) {
 					uint16 sample = qAbs((int32(*(uchar*)(data + i)) - 128) * 256);
 					if (peak < sample) {
 						peak = sample;
@@ -2563,7 +2563,7 @@ public:
 					}
 				}
 			} else if (fmt == AL_FORMAT_MONO16 || fmt == AL_FORMAT_STEREO16) {
-				for (int32 i = 0, l = buffer.size(); i + sizeof(uint16) <= l;) {
+				for (int32 i = 0, l = buffer.size(); i + int32(sizeof(uint16)) <= l;) {
 					uint16 sample = qAbs(int32(*(int16*)(data + i)));
 					if (peak < sample) {
 						peak = sample;

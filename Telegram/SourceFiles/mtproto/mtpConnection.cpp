@@ -431,18 +431,19 @@ namespace {
 			TCP_LOG(("TCP Error: bad packet header, packet: %1").arg(Logs::mb(packet, length).str()));
 			return mtpBuffer(1, -500);
 		}
+		const mtpPrime *packetdata = reinterpret_cast<const mtpPrime*>(packet + (length - len));
 		TCP_LOG(("TCP Info: packet received, size = %1").arg(size * sizeof(mtpPrime)));
 		if (size == 1) {
-			if (packet[0] == -429) {
+			if (*packetdata == -429) {
 				LOG(("Protocol Error: -429 flood code returned!"));
 			} else {
-				LOG(("TCP Error: error packet received, code = %1").arg(packet[0]));
+				LOG(("TCP Error: error packet received, code = %1").arg(*packetdata));
 			}
-			return mtpBuffer(1, packet[0]);
+			return mtpBuffer(1, *packetdata);
 		}
 
 		mtpBuffer data(size);
-		memcpy(data.data(), packet + (length - len), size * sizeof(mtpPrime));
+		memcpy(data.data(), packetdata, size * sizeof(mtpPrime));
 
 		return data;
 	}
@@ -729,7 +730,7 @@ void MTPautoConnection::tcpSend(mtpBuffer &buffer) {
 		uint32 second1 = 0;
 		do {
 			memset_rand(nonce, sizeof(nonce));
-		} while (*first == first1 || *first == first2 || *first == first3 || *first == first4 || *first == first5 || *second == second1 || nonce[0] == 0xef);
+		} while (*first == first1 || *first == first2 || *first == first3 || *first == first4 || *first == first5 || *second == second1 || *reinterpret_cast<uchar*>(nonce) == 0xef);
 		sock.write(nonce, sizeof(nonce));
 	}
 	++packetNum;
@@ -1029,7 +1030,7 @@ void MTPtcpConnection::sendData(mtpBuffer &buffer) {
 		uint32 second1 = 0;
 		do {
 			memset_rand(nonce, sizeof(nonce));
-		} while (*first == first1 || *first == first2 || *first == first3 || *first == first4 || *first == first5 || *second == second1 || nonce[0] == 0xef);
+		} while (*first == first1 || *first == first2 || *first == first3 || *first == first4 || *first == first5 || *second == second1 || *reinterpret_cast<uchar*>(nonce) == 0xef);
 		sock.write(nonce, sizeof(nonce));
 	}
 	++packetNum;
