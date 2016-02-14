@@ -95,23 +95,24 @@ enum HistoryMediaType {
 	MediaTypeVideo,
 	MediaTypeGeo,
 	MediaTypeContact,
-	MediaTypeAudio,
-	MediaTypeDocument,
+	MediaTypeFile,
 	MediaTypeGif,
 	MediaTypeSticker,
 	MediaTypeImageLink,
 	MediaTypeWebPage,
+	MediaTypeMusicFile,
+	MediaTypeVoiceFile,
 
 	MediaTypeCount
 };
 
 enum MediaOverviewType {
-	OverviewPhotos,
-	OverviewVideos,
-	OverviewAudioDocuments,
-	OverviewDocuments,
-	OverviewAudios,
-	OverviewLinks,
+	OverviewPhotos     = 0,
+	OverviewVideos     = 1,
+	OverviewMusicFiles = 2,
+	OverviewFiles      = 3,
+	OverviewVoiceFiles = 4,
+	OverviewLinks      = 5,
 
 	OverviewCount
 };
@@ -120,9 +121,9 @@ inline MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
 	switch (type) {
 	case OverviewPhotos: return MTP_inputMessagesFilterPhotos();
 	case OverviewVideos: return MTP_inputMessagesFilterVideo();
-	case OverviewAudioDocuments: return MTP_inputMessagesFilterAudioDocuments();
-	case OverviewDocuments: return MTP_inputMessagesFilterDocument();
-	case OverviewAudios: return MTP_inputMessagesFilterAudio();
+	case OverviewMusicFiles: return MTP_inputMessagesFilterMusic();
+	case OverviewFiles: return MTP_inputMessagesFilterDocument();
+	case OverviewVoiceFiles: return MTP_inputMessagesFilterVoice();
 	case OverviewLinks: return MTP_inputMessagesFilterUrl();
 	default: type = OverviewCount; break;
 	}
@@ -133,8 +134,8 @@ enum SendActionType {
 	SendActionTyping,
 	SendActionRecordVideo,
 	SendActionUploadVideo,
-	SendActionRecordAudio,
-	SendActionUploadAudio,
+	SendActionRecordVoice,
+	SendActionUploadVoice,
 	SendActionUploadPhoto,
 	SendActionUploadFile,
 	SendActionChooseLocation,
@@ -1205,10 +1206,11 @@ inline MediaOverviewType mediaToOverviewType(HistoryMedia *media) {
 	switch (media->type()) {
 	case MediaTypePhoto: return OverviewPhotos;
 	case MediaTypeVideo: return OverviewVideos;
-	case MediaTypeDocument: return media->getDocument()->song() ? OverviewAudioDocuments : OverviewDocuments;
-	case MediaTypeGif: return media->getDocument()->isGifv() ? OverviewCount : OverviewDocuments;
-//	case MediaTypeSticker: return OverviewDocuments;
-	case MediaTypeAudio: return OverviewAudios;
+	case MediaTypeFile: return OverviewFiles;
+	case MediaTypeMusicFile: return media->getDocument()->isMusic() ? OverviewMusicFiles : OverviewFiles;
+	case MediaTypeVoiceFile: return OverviewVoiceFiles;
+	case MediaTypeGif: return media->getDocument()->isGifv() ? OverviewCount : OverviewFiles;
+//	case MediaTypeSticker: return OverviewFiles;
 	}
 	return OverviewCount;
 }
@@ -1352,7 +1354,7 @@ private:
 class HistoryVideo : public HistoryFileMedia {
 public:
 
-	HistoryVideo(const MTPDvideo &video, const QString &caption, HistoryItem *parent);
+	HistoryVideo(DocumentData *document, const QString &caption, HistoryItem *parent);
 	HistoryVideo(const HistoryVideo &other);
 	HistoryMediaType type() const {
 		return MediaTypeVideo;
@@ -1370,7 +1372,7 @@ public:
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
 
-	VideoData *video() const {
+	DocumentData *getDocument() {
 		return _data;
 	}
 
@@ -1409,8 +1411,8 @@ protected:
 	}
 
 private:
-	VideoData *_data;
-	int16 _thumbw;
+	DocumentData *_data;
+	int32 _thumbw;
 	Text _caption;
 
 	void setStatusSize(int32 newSize) const;
@@ -1418,76 +1420,52 @@ private:
 
 };
 
-class HistoryAudio : public HistoryFileMedia {
-public:
-
-	HistoryAudio(const MTPDaudio &audio);
-	HistoryAudio(const HistoryAudio &other);
-	HistoryMediaType type() const {
-		return MediaTypeAudio;
+struct HistoryDocumentThumbed : public BasicInterface<HistoryDocumentThumbed> {
+	HistoryDocumentThumbed(Interfaces *interfaces) : _thumbw(0), _linkw(0) {
 	}
-	HistoryMedia *clone() const {
-		return new HistoryAudio(*this);
+	TextLinkPtr _linksavel, _linkcancell;
+	int32 _thumbw;
+
+	mutable int32 _linkw;
+	mutable QString _link;
+};
+struct HistoryDocumentCaptioned : public BasicInterface<HistoryDocumentCaptioned> {
+	HistoryDocumentCaptioned(Interfaces *interfaces) : _caption(st::msgFileMinWidth - st::msgPadding.left() - st::msgPadding.right()) {
 	}
-
-	void initDimensions(const HistoryItem *parent);
-
-	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
-
-	const QString inDialogsText() const;
-	const QString inHistoryText() const;
-
-	bool uploading() const {
-		return _data->uploading();
+	Text _caption;
+};
+struct HistoryDocumentNamed : public BasicInterface<HistoryDocumentNamed> {
+	HistoryDocumentNamed(Interfaces *interfaces) : _namew(0) {
 	}
+	QString _name;
+	int32 _namew;
+};
+class HistoryDocument;
+struct HistoryDocumentVoicePlayback {
+	HistoryDocumentVoicePlayback(const HistoryDocument *that);
 
-	AudioData *audio() {
-		return _data;
+	int32 _position;
+	anim::fvalue a_progress;
+	Animation _a_progress;
+};
+struct HistoryDocumentVoice : public BasicInterface<HistoryDocumentVoice> {
+	HistoryDocumentVoice(Interfaces *that) : _playback(0) {
 	}
-
-	void regItem(HistoryItem *item);
-	void unregItem(HistoryItem *item);
-
-	void updateFrom(const MTPMessageMedia &media, HistoryItem *parent);
-
-	bool needsBubble(const HistoryItem *parent) const {
-		return true;
+	~HistoryDocumentVoice() {
+		deleteAndMark(_playback);
 	}
-	bool customInfoLayout() const {
-		return false;
-	}
-	QMargins bubbleMargins() const {
-		return st::msgPadding;
-	}
-
-protected:
-
-	float64 dataProgress() const {
-		return _data->progress();
-	}
-	bool dataFinished() const {
-		return !_data->loading() && !_data->uploading();
-	}
-	bool dataLoaded() const {
-		return _data->loaded();
-	}
-
-private:
-	AudioData *_data;
-
-	void setStatusSize(int32 newSize, qint64 realDuration = 0) const;
-	bool updateStatusText(const HistoryItem *parent) const; // returns showPause
-
+	void ensurePlayback(const HistoryDocument *interfaces) const;
+	void checkPlaybackFinished() const;
+	mutable HistoryDocumentVoicePlayback *_playback;
 };
 
-class HistoryDocument : public HistoryFileMedia {
+class HistoryDocument : public HistoryFileMedia, public Interfaces {
 public:
 
 	HistoryDocument(DocumentData *document, const QString &caption, const HistoryItem *parent);
 	HistoryDocument(const HistoryDocument &other);
 	HistoryMediaType type() const {
-		return MediaTypeDocument;
+		return _data->voice() ? MediaTypeVoiceFile : (_data->song() ? MediaTypeMusicFile : MediaTypeFile);
 	}
 	HistoryMedia *clone() const {
 		return new HistoryDocument(*this);
@@ -1506,10 +1484,6 @@ public:
 		return _data->uploading();
 	}
 
-	bool withThumb() const {
-		return !_data->song() && !_data->thumb->isNull() && _data->thumb->width() && _data->thumb->height();
-	}
-
 	DocumentData *getDocument() {
 		return _data;
 	}
@@ -1525,7 +1499,10 @@ public:
 	ImagePtr replyPreview();
 
 	QString getCaption() const {
-		return _caption.original();
+		if (const HistoryDocumentCaptioned *captioned = Get<HistoryDocumentCaptioned>()) {
+			return captioned->_caption.original();
+		}
+		return QString();
 	}
 	bool needsBubble(const HistoryItem *parent) const {
 		return true;
@@ -1534,11 +1511,13 @@ public:
 		return false;
 	}
 	QMargins bubbleMargins() const {
-		return withThumb() ? QMargins(st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top(), st::msgFileThumbPadding.left(), st::msgFileThumbPadding.bottom()) : st::msgPadding;
+		return Get<HistoryDocumentThumbed>() ? QMargins(st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top(), st::msgFileThumbPadding.left(), st::msgFileThumbPadding.bottom()) : st::msgPadding;
 	}
 	bool hideForwardedFrom() const {
 		return _data->song();
 	}
+
+	void step_voiceProgress(float64 ms, bool timer);
 
 protected:
 
@@ -1554,17 +1533,9 @@ protected:
 
 private:
 
+	void create(bool caption);
+	const HistoryItem *_parent;
 	DocumentData *_data;
-	TextLinkPtr _linksavel, _linkcancell;
-
-	QString _name;
-	int32 _namew;
-	int32 _thumbw;
-
-	mutable int32 _linkw;
-	mutable QString _link;
-
-	Text _caption;
 
 	void setStatusSize(int32 newSize, qint64 realDuration = 0) const;
 	bool updateStatusText(const HistoryItem *parent) const; // returns showPause
@@ -2237,7 +2208,20 @@ inline int32 newMessageFlags(PeerData *p) {
 	return p->isSelf() ? 0 : (((p->isChat() || (p->isUser() && !p->asUser()->botInfo)) ? MTPDmessage::flag_unread : 0) | MTPDmessage::flag_out);
 }
 inline int32 newForwardedFlags(PeerData *p, int32 from, HistoryMessage *msg) {
-	return newMessageFlags(p) | (from ? MTPDmessage::flag_from_id : 0) | (msg->via() ? MTPDmessage::flag_via_bot_id : 0) | (!p->isChannel() && msg->getMedia() && (msg->getMedia()->type() == MediaTypeAudio/* || msg->getMedia()->type() == MediaTypeVideo*/) ? MTPDmessage::flag_media_unread : 0);
+	int32 result = newMessageFlags(p) | (from ? MTPDmessage::flag_from_id : 0);
+	if (msg->via()) {
+		result |= MTPDmessage::flag_via_bot_id;
+	}
+	if (!p->isChannel()) {
+		if (HistoryMedia *media = msg->getMedia()) {
+			if (media->type() == MediaTypeVoiceFile) {
+				result |= MTPDmessage::flag_media_unread;
+//			} else if (media->type() == MediaTypeVideo) {
+//				result |= MTPDmessage::flag_media_unread;
+			}
+		}
+	}
+	return result;
 }
 
 class HistoryServiceMsg : public HistoryItem {

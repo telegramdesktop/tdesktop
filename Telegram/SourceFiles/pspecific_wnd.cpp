@@ -2475,48 +2475,6 @@ BOOL __stdcall ReadProcessMemoryRoutine64(
 	return bRet;
 }
 
-HANDLE _generateDumpFileAtPath(const WCHAR *path) {
-	static const int maxFileLen = MAX_PATH * 10;
-
-	WCHAR szPath[maxFileLen];
-	wsprintf(szPath, L"%stdumps\\", path);
-
-    if (!CreateDirectory(szPath, NULL)) {
-		DWORD errCode = GetLastError();
-		if (errCode && errCode != ERROR_ALREADY_EXISTS) {
-			return 0;
-		}
-	}
-
-	WCHAR szFileName[maxFileLen];
-	WCHAR szExeName[maxFileLen];
-
-	wcscpy_s(szExeName, _exeName);
-	WCHAR *dotFrom = wcschr(szExeName, WCHAR(L'.'));
-	if (dotFrom) {
-		wsprintf(dotFrom, L"");
-	}
-
-    SYSTEMTIME stLocalTime;
-
-    GetLocalTime(&stLocalTime);
-
-	if (cBetaVersion()) {
-		wsprintf(szFileName, L"%s%s-%ld-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp",
-				 szPath, szExeName, cBetaVersion(),
-				 stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay,
-				 stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond,
-				 GetCurrentProcessId(), GetCurrentThreadId());
-	} else {
-		wsprintf(szFileName, L"%s%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp",
-				 szPath, szExeName, AppVersionStr,
-				 stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay,
-				 stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond,
-				 GetCurrentProcessId(), GetCurrentThreadId());
-	}
-    return CreateFile(szFileName, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
-}
-
 // **************************************** ToolHelp32 ************************
 #define MAX_MODULE_NAME32 255
 #define TH32CS_SNAPMODULE   0x00000008

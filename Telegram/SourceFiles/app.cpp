@@ -47,8 +47,6 @@ namespace {
 	UpdatedPeers updatedPeers;
 
 	PhotosData photosData;
-	VideosData videosData;
-	AudiosData audiosData;
 	DocumentsData documentsData;
 
 	typedef QHash<QString, ImageLinkData*> ImageLinksData;
@@ -64,8 +62,6 @@ namespace {
 	ChannelReplyMarkups channelReplyMarkups;
 
 	PhotoItems photoItems;
-	VideoItems videoItems;
-	AudioItems audioItems;
 	DocumentItems documentItems;
 	WebPageItems webPageItems;
 	SharedContactItems sharedContactItems;
@@ -1289,26 +1285,6 @@ namespace App {
 		return App::photoSet(photo.vid.v, convert, 0, 0, ImagePtr(), ImagePtr(), ImagePtr());
 	}
 
-	VideoData *feedVideo(const MTPDvideo &video, VideoData *convert) {
-		return App::videoSet(video.vid.v, convert, video.vaccess_hash.v, video.vdate.v, video.vduration.v, video.vw.v, video.vh.v, App::image(video.vthumb), video.vdc_id.v, video.vsize.v);
-	}
-
-	AudioData *feedAudio(const MTPaudio &audio, AudioData *convert) {
-		switch (audio.type()) {
-		case mtpc_audio: {
-			return feedAudio(audio.c_audio(), convert);
-		} break;
-		case mtpc_audioEmpty: {
-			return App::audioSet(audio.c_audioEmpty().vid.v, convert, 0, 0, QString(), 0, 0, 0);
-		} break;
-		}
-		return App::audio(0);
-	}
-
-	AudioData *feedAudio(const MTPDaudio &audio, AudioData *convert) {
-		return App::audioSet(audio.vid.v, convert, audio.vaccess_hash.v, audio.vdate.v, qs(audio.vmime_type), audio.vduration.v, audio.vdc_id.v, audio.vsize.v);
-	}
-
 	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb) {
 		switch (document.type()) {
 		case mtpc_document: {
@@ -1514,110 +1490,6 @@ namespace App {
 		return result;
 	}
 
-	VideoData *video(const VideoId &video) {
-		VideosData::const_iterator i = ::videosData.constFind(video);
-		if (i == ::videosData.cend()) {
-			i = ::videosData.insert(video, new VideoData(video));
-		}
-		return i.value();
-	}
-
-	VideoData *videoSet(const VideoId &video, VideoData *convert, const uint64 &access, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size) {
-		if (convert) {
-			if (convert->id != video) {
-				VideosData::iterator i = ::videosData.find(convert->id);
-				if (i != ::videosData.cend() && i.value() == convert) {
-					::videosData.erase(i);
-				}
-				convert->id = video;
-				convert->status = FileReady;
-			}
-			if (date) {
-				convert->access = access;
-				convert->date = date;
-				updateImage(convert->thumb, thumb);
-				convert->duration = duration;
-				convert->w = w;
-				convert->h = h;
-				convert->dc = dc;
-				convert->size = size;
-			}
-		}
-		VideosData::const_iterator i = ::videosData.constFind(video);
-		VideoData *result;
-		if (i == ::videosData.cend()) {
-			if (convert) {
-				result = convert;
-			} else {
-				result = new VideoData(video, access, date, duration, w, h, thumb, dc, size);
-			}
-			::videosData.insert(video, result);
-		} else {
-			result = i.value();
-			if (result != convert && date) {
-				result->access = access;
-				result->date = date;
-				result->duration = duration;
-				result->w = w;
-				result->h = h;
-				updateImage(result->thumb, thumb);
-				result->dc = dc;
-				result->size = size;
-			}
-		}
-		return result;
-	}
-
-	AudioData *audio(const AudioId &audio) {
-		AudiosData::const_iterator i = ::audiosData.constFind(audio);
-		if (i == ::audiosData.cend()) {
-			i = ::audiosData.insert(audio, new AudioData(audio));
-		}
-		return i.value();
-	}
-
-	AudioData *audioSet(const AudioId &audio, AudioData *convert, const uint64 &access, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) {
-		if (convert) {
-			if (convert->id != audio) {
-				AudiosData::iterator i = ::audiosData.find(convert->id);
-				if (i != ::audiosData.cend() && i.value() == convert) {
-					::audiosData.erase(i);
-				}
-				convert->id = audio;
-				convert->status = FileReady;
-			}
-			if (date) {
-				convert->access = access;
-				convert->date = date;
-				convert->mime = mime;
-				convert->duration = duration;
-				convert->dc = dc;
-				convert->size = size;
-			}
-		}
-		AudiosData::const_iterator i = ::audiosData.constFind(audio);
-		AudioData *result;
-		if (i == ::audiosData.cend()) {
-			if (convert) {
-				result = convert;
-			} else {
-				result = new AudioData(audio, access, date, mime, duration, dc, size);
-			}
-			::audiosData.insert(audio, result);
-		} else {
-			result = i.value();
-			if (result != convert && date) {
-				result->access = access;
-				result->date = date;
-				result->mime = mime;
-				result->duration = duration;
-				result->dc = dc;
-				result->size = size;
-			}
-		}
-		return result;
-	}
-
 	DocumentData *document(const DocumentId &document) {
 		DocumentsData::const_iterator i = ::documentsData.constFind(document);
 		if (i == ::documentsData.cend()) {
@@ -1634,10 +1506,15 @@ namespace App {
 				if (i != ::documentsData.cend() && i.value() == convert) {
 					::documentsData.erase(i);
 				}
-				Local::copyStickerImage(mediaKey(DocumentFileLocation, convert->dc, convert->id), mediaKey(DocumentFileLocation, dc, document));
+
+				// inline bot sent gifs caching
+				if (!convert->voice() && !convert->isVideo()) {
+					Local::copyStickerImage(mediaKey(DocumentFileLocation, convert->dc, convert->id), mediaKey(DocumentFileLocation, dc, document));
+				}
+
 				convert->id = document;
 				convert->status = FileReady;
-				sentSticker = !!convert->sticker();
+				sentSticker = (convert->sticker() != 0);
 			}
 			if (date) {
 				convert->access = access;
@@ -1645,7 +1522,7 @@ namespace App {
 				convert->setattributes(attributes);
 				convert->mime = mime;
 				if (!thumb->isNull() && (convert->thumb->isNull() || convert->thumb->width() < thumb->width() || convert->thumb->height() < thumb->height())) {
-					convert->thumb = thumb;
+					updateImage(convert->thumb, thumb);
 				}
 				convert->dc = dc;
 				convert->size = size;
@@ -1661,7 +1538,7 @@ namespace App {
 
 			const FileLocation &loc(convert->location(true));
 			if (!loc.isEmpty()) {
-				Local::writeFileLocation(mediaKey(DocumentFileLocation, convert->dc, convert->id), loc);
+				Local::writeFileLocation(convert->mediaKey(), loc);
 			}
 		}
 		DocumentsData::const_iterator i = ::documentsData.constFind(document);
@@ -1672,7 +1549,9 @@ namespace App {
 			} else {
 				result = new DocumentData(document, access, date, attributes, mime, thumb, dc, size);
 				result->recountIsImage();
-				if (result->sticker()) result->sticker()->loc = thumbLocation;
+				if (result->sticker()) {
+					result->sticker()->loc = thumbLocation;
+				}
 			}
 			::documentsData.insert(document, result);
 		} else {
@@ -1693,7 +1572,9 @@ namespace App {
 				}
 			}
 		}
-		if (sentSticker && App::main()) App::main()->incrementSticker(result);
+		if (sentSticker && App::main()) {
+			App::main()->incrementSticker(result);
+		}
 		return result;
 	}
 
@@ -1790,12 +1671,6 @@ namespace App {
 		lastPhotos.clear();
 		lastPhotosMap.clear();
 		for (PhotosData::const_iterator i = ::photosData.cbegin(), e = ::photosData.cend(); i != e; ++i) {
-			i.value()->forget();
-		}
-		for (VideosData::const_iterator i = ::videosData.cbegin(), e = ::videosData.cend(); i != e; ++i) {
-			i.value()->forget();
-		}
-		for (AudiosData::const_iterator i = ::audiosData.cbegin(), e = ::audiosData.cend(); i != e; ++i) {
 			i.value()->forget();
 		}
 		for (DocumentsData::const_iterator i = ::documentsData.cbegin(), e = ::documentsData.cend(); i != e; ++i) {
@@ -1951,14 +1826,6 @@ namespace App {
 			delete *i;
 		}
 		::photosData.clear();
-		for (VideosData::const_iterator i = ::videosData.cbegin(), e = ::videosData.cend(); i != e; ++i) {
-			delete *i;
-		}
-		::videosData.clear();
-		for (AudiosData::const_iterator i = ::audiosData.cbegin(), e = ::audiosData.cend(); i != e; ++i) {
-			delete *i;
-		}
-		::audiosData.clear();
 		for (DocumentsData::const_iterator i = ::documentsData.cbegin(), e = ::documentsData.cend(); i != e; ++i) {
 			delete *i;
 		}
@@ -1976,8 +1843,6 @@ namespace App {
 		cSetLastSavedGifsUpdate(0);
 		cSetReportSpamStatuses(ReportSpamStatuses());
 		::photoItems.clear();
-		::videoItems.clear();
-		::audioItems.clear();
 		::documentItems.clear();
 		::webPageItems.clear();
 		::sharedContactItems.clear();
@@ -2376,38 +2241,6 @@ namespace App {
 		return ::photosData;
 	}
 
-	void regVideoItem(VideoData *data, HistoryItem *item) {
-		::videoItems[data].insert(item, NullType());
-	}
-
-	void unregVideoItem(VideoData *data, HistoryItem *item) {
-		::videoItems[data].remove(item);
-	}
-
-	const VideoItems &videoItems() {
-		return ::videoItems;
-	}
-
-	const VideosData &videosData() {
-		return ::videosData;
-	}
-
-	void regAudioItem(AudioData *data, HistoryItem *item) {
-		::audioItems[data].insert(item, NullType());
-	}
-
-	void unregAudioItem(AudioData*data, HistoryItem *item) {
-		::audioItems[data].remove(item);
-	}
-
-	const AudioItems &audioItems() {
-		return ::audioItems;
-	}
-
-	const AudiosData &audiosData() {
-		return ::audiosData;
-	}
-
 	void regDocumentItem(DocumentData *data, HistoryItem *item) {
 		::documentItems[data].insert(item, NullType());
 	}
@@ -2469,7 +2302,7 @@ namespace App {
 
 	QString phoneFromSharedContact(int32 userId) {
 		SharedContactItems::const_iterator i = ::sharedContactItems.constFind(userId);
-		if (i != ::sharedContactItems.cend()) {
+		if (i != ::sharedContactItems.cend() && !i->isEmpty()) {
 			HistoryMedia *media = i->cbegin().key()->getMedia();
 			if (media && media->type() == MediaTypeContact) {
 				return static_cast<HistoryContact*>(media)->phone();

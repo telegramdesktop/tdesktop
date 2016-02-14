@@ -1698,6 +1698,7 @@ bool StickerPanInner::inlineRowFinalize(InlineRow &row, int32 &sumWidth, bool fo
 
 void StickerPanInner::refreshSavedGifs() {
 	if (_showingSavedGifs) {
+		_settings.hide();
 		clearInlineRows(false);
 		if (_showingInlineItems) {
 			const SavedGifs &saved(cSavedGifs());
@@ -1919,6 +1920,7 @@ int32 StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &res
 
 	_showingInlineItems = true;
 	_showingSavedGifs = false;
+	_settings.hide();
 
 	int32 count = results.size(), from = validateExistingInlineRows(results), added = 0;
 

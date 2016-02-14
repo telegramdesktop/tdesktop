@@ -258,7 +258,7 @@ void DialogsInner::peopleResultPaint(PeerData *peer, Painter &p, int32 w, bool a
 	QRect rectForName(nameleft, st::dlgPaddingVer + st::dlgNameTop, namewidth, st::msgNameFont->height);
 
 	// draw chat icon
-	if (peer->isChat()) {
+	if (peer->isChat() || peer->isMegagroup()) {
 		p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), App::sprite(), (act ? st::dlgActiveChatImg : st::dlgChatImg));
 		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
 	} else if (peer->isChannel()) {
@@ -1040,13 +1040,16 @@ bool DialogsInner::searchReceived(const QVector<MTPMessage> &messages, DialogsSe
 				_lastSearchDate = lastDateFound;
 			}
 		}
-		if (type == DialogsSearchFromStart || type == DialogsSearchFromOffset) {
-			_lastSearchPeer = item->history()->peer;
+		if (item) {
+			if (type == DialogsSearchFromStart || type == DialogsSearchFromOffset) {
+				_lastSearchPeer = item->history()->peer;
+			}
 		}
+		MsgId msgId = item ? item->id : idFromMessage(*i);
 		if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
-			_lastSearchMigratedId = item->id;
+			_lastSearchMigratedId = msgId;
 		} else {
-			_lastSearchId = item->id;
+			_lastSearchId = msgId;
 		}
 	}
 	if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {

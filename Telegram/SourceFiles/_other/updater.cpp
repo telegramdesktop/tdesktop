@@ -482,9 +482,14 @@ HANDLE _generateDumpFileAtPath(const WCHAR *path) {
 	static const int maxFileLen = MAX_PATH * 10;
 
 	WCHAR szPath[maxFileLen];
-	wsprintf(szPath, L"%stdumps\\", path);
-
+	wsprintf(szPath, L"%stdata\\", path);
     if (!CreateDirectory(szPath, NULL)) {
+		if (GetLastError() != ERROR_ALREADY_EXISTS) {
+			return 0;
+		}
+	}
+	wsprintf(szPath, L"%sdumps\\", path);
+	if (!CreateDirectory(szPath, NULL)) {
 		if (GetLastError() != ERROR_ALREADY_EXISTS) {
 			return 0;
 		}
