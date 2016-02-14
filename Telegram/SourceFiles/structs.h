@@ -626,6 +626,9 @@ public:
 	bool isVerified() const {
 		return flags & MTPDchannel::flag_verified;
 	}
+	bool canAddParticipants() const {
+		return amCreator() || amEditor() || (flags & MTPDchannel::flag_invites_enabled);
+	}
 
 //	ImagePtr photoFull;
 	QString invitationUrl;

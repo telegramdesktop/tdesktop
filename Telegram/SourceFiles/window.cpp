@@ -2019,7 +2019,7 @@ LastCrashedWindow::LastCrashedWindow()
 , _updatingSkip(this, false)
 #endif
 {
-	if (!cDevVersion() && !cBetaVersion()) {
+	if (!cDevVersion() && !cBetaVersion()) { // currently accept crash reports only from testers
 		_sendingState = SendingNoReport;
 	}
 	if (_sendingState != SendingNoReport) {
@@ -2064,10 +2064,17 @@ LastCrashedWindow::LastCrashedWindow()
                 _minidumpFull = maxDumpFull;
             }
         }
-		if (_minidumpName.isEmpty()) {
+		if (_minidumpName.isEmpty()) { // currently don't accept crash reports without dumps from google libraries
 			_sendingState = SendingNoReport;
 		} else {
 			_minidump.setText(qsl("+ %1 (%2 KB)").arg(_minidumpName).arg(dumpsize / 1024));
+		}
+	}
+	if (_sendingState != SendingNoReport) {
+		QString version = getReportField(qstr("version"), qstr("Version:"));
+		QString current = cBetaVersion() ? qsl("-%1").arg(cBetaVersion()) : QString::number(AppVersion);
+		if (version != current) { // currently don't accept crash reports from not current app version
+			_sendingState = SendingNoReport;
 		}
 	}
 
@@ -2201,7 +2208,7 @@ void LastCrashedWindow::onSendReport() {
 	App::setProxySettings(_sendManager);
 
 	QString apiid = getReportField(qstr("apiid"), qstr("ApiId:")), version = getReportField(qstr("version"), qstr("Version:"));
-	_checkReply = _sendManager.get(QNetworkRequest(qsl("https://tdesktop.com/crash.php?act=query_report&apiid=%1&version=%2&dmp=%3").arg(apiid).arg(version).arg(minidumpFileName().isEmpty() ? 0 : 1)));
+	_checkReply = _sendManager.get(QNetworkRequest(qsl("https://tdesktop.com/crash.php?act=query_report&apiid=%1&version=%2&dmp=%3&platform=%4").arg(apiid).arg(version).arg(minidumpFileName().isEmpty() ? 0 : 1).arg(cPlatformString())));
 
 	connect(_checkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onSendingError(QNetworkReply::NetworkError)));
 	connect(_checkReply, SIGNAL(finished()), this, SLOT(onCheckingFinished()));

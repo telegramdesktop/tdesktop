@@ -1084,6 +1084,8 @@ bool MainWidget::addParticipantFail(UserData *user, const RPCError &error) {
 
 	QString text = lang(lng_failed_add_participant);
 	if (error.type() == "USER_LEFT_CHAT") { // trying to return banned user to his group
+	} else if (error.type() == "USER_PRIVACY_RESTRICTED") {
+		text = lang(lng_cant_invite_privacy);
 	} else if (error.type() == "USER_NOT_MUTUAL_CONTACT") { // trying to return user who does not have me in contacts
 		text = lang(lng_failed_add_not_mutual);
 	} else if (error.type() == "USER_ALREADY_PARTICIPANT" && user->botInfo) {
@@ -1100,6 +1102,8 @@ bool MainWidget::addParticipantsFail(ChannelData *channel, const RPCError &error
 
 	QString text = lang(lng_failed_add_participant);
 	if (error.type() == "USER_LEFT_CHAT") { // trying to return banned user to his group
+	} else if (error.type() == "USER_PRIVACY_RESTRICTED") {
+		text = lang(lng_cant_invite_privacy_channel);
 	} else if (error.type() == "USER_NOT_MUTUAL_CONTACT") { // trying to return user who does not have me in contacts
 		text = lang(channel->isMegagroup() ? lng_failed_add_not_mutual : lng_failed_add_not_mutual_channel);
 	} else if (error.type() == "PEER_FLOOD") {

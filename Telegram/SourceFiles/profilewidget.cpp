@@ -817,7 +817,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	top += st::profilePhotoSize;
 	top += st::profileButtonTop;
 
-	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->amEditor() && _peerChannel->isMegagroup()))) {
+	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->canAddParticipants() && _peerChannel->isMegagroup()))) {
 		top += _shareContact.height();
 	} else {
 		top -= st::profileButtonTop;
@@ -1294,13 +1294,17 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	top += st::profileButtonTop;
 
 	_uploadPhoto.setGeometry(_left, top, btnWidth, _uploadPhoto.height());
-	_addParticipant.setGeometry(_left + _width - btnWidth, top, btnWidth, _addParticipant.height());
+	if (_peerChannel && _peerChannel->count < cMaxMegaGroupCount() && _peerChannel->isMegagroup() && !_amCreator && !_peerChannel->amEditor() && _peerChannel->canAddParticipants()) {
+		_addParticipant.setGeometry(_left, top, btnWidth, _addParticipant.height());
+	} else {
+		_addParticipant.setGeometry(_left + _width - btnWidth, top, btnWidth, _addParticipant.height());
+	}
 
 	_sendMessage.setGeometry(_left, top, btnWidth, _sendMessage.height());
 	_shareContact.setGeometry(_left + _width - btnWidth, top, btnWidth, _shareContact.height());
 	_inviteToGroup.setGeometry(_left + _width - btnWidth, top, btnWidth, _inviteToGroup.height());
 
-	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->amEditor() && _peerChannel->isMegagroup()))) {
+	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->canAddParticipants() && _peerChannel->isMegagroup()))) {
 		top += _shareContact.height();
 	} else {
 		top -= st::profileButtonTop;
@@ -1634,7 +1638,7 @@ void ProfileInner::showAll() {
 				_invitationLink.hide();
 			}
 		}
-		if (_peerChannel->count < cMaxMegaGroupCount() && _peerChannel->isMegagroup() && (_amCreator || _peerChannel->amEditor())) {
+		if (_peerChannel->count < cMaxMegaGroupCount() && _peerChannel->isMegagroup() && _peerChannel->canAddParticipants()) {
 			_addParticipant.show();
 		} else {
 			_addParticipant.hide();

@@ -4059,9 +4059,12 @@ void HistoryDocument::draw(Painter &p, const HistoryItem *parent, const QRect &r
 		float64 prg = voice->_playback ? voice->_playback->a_progress.current() : 0;
 
 		// rescale waveform by going in waveform.size * bar_count 1D grid
-		style::color active(outbg ? st::msgWaveformOutActive : st::msgWaveformInActive);
-		style::color inactive(outbg ? st::msgWaveformOutInactive : st::msgWaveformInInactive);
+		style::color active(outbg ? (selected ? st::msgWaveformOutActiveSelected : st::msgWaveformOutActive) : (selected ? st::msgWaveformInActiveSelected : st::msgWaveformInActive));
+		style::color inactive(outbg ? (selected ? st::msgWaveformOutInactiveSelected : st::msgWaveformOutInactive) : (selected ? st::msgWaveformInInactiveSelected : st::msgWaveformInInactive));
 		int32 wf_size = wf ? wf->size() : WaveformSamplesCount, availw = int32(namewidth + st::msgWaveformSkip), activew = qRound(availw * prg);
+		if (!outbg && !voice->_playback && parent->isMediaUnread()) {
+			activew = availw;
+		}
 		int32 bar_count = qMin(availw / int32(st::msgWaveformBar + st::msgWaveformSkip), wf_size);
 		uchar max_value = 0;
 		int32 max_delta = st::msgWaveformMax - st::msgWaveformMin, bottom = st::msgFilePadding.top() + st::msgWaveformMax;
@@ -7531,6 +7534,8 @@ void HistoryServiceMsg::draw(Painter &p, const QRect &r, uint32 selection, uint6
 }
 
 int32 HistoryServiceMsg::resize(int32 width) {
+	int32 maxwidth = qMin(_history->width, int(st::msgMaxWidth + 2 * st::msgPhotoSkip));
+	if (width > maxwidth) width = maxwidth;
 	width -= st::msgServiceMargin.left() + st::msgServiceMargin.left(); // two small margins
 	if (width < st::msgServicePadding.left() + st::msgServicePadding.right() + 1) width = st::msgServicePadding.left() + st::msgServicePadding.right() + 1;
 

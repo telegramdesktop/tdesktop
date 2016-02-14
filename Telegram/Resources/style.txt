@@ -1291,9 +1291,13 @@ msgWaveformSkip: 1px;
 msgWaveformMin: 2px;
 msgWaveformMax: 20px;
 msgWaveformInActive: #59b6eb;
-msgWaveformInInactive: #deeaf1;
+msgWaveformInActiveSelected: #51a3d3;
+msgWaveformInInactive: #d4dee6;
+msgWaveformInInactiveSelected: #9cc1e1;
 msgWaveformOutActive: #78c67f;
-msgWaveformOutInactive: #c4e8c5;
+msgWaveformOutActiveSelected: #6badad;
+msgWaveformOutInactive: #b3e2b4;
+msgWaveformOutInactiveSelected: #91c3c3;
 
 sendPadding: 9px;
 btnSend: flatButton(btnDefFlat) {
