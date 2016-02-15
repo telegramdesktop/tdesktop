@@ -1842,6 +1842,9 @@ namespace App {
 		cSetSavedGifs(SavedGifs());
 		cSetLastSavedGifsUpdate(0);
 		cSetReportSpamStatuses(ReportSpamStatuses());
+		cSetAutoDownloadPhoto(0);
+		cSetAutoDownloadAudio(0);
+		cSetAutoDownloadGif(0);
 		::photoItems.clear();
 		::documentItems.clear();
 		::webPageItems.clear();

@@ -994,7 +994,7 @@ void MainWidget::deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHis
 		return;
 	}
 
-	MTP::send(MTPmessages_DeleteHistory(peer->input, d.voffset), rpcDone(&MainWidget::deleteHistoryPart, peer));
+	MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
 }
 
 void MainWidget::deleteMessages(PeerData *peer, const QVector<MTPint> &ids) {
