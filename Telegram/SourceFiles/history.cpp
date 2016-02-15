@@ -3803,6 +3803,7 @@ HistoryDocument::HistoryDocument(DocumentData *document, const QString &caption,
 }
 
 HistoryDocument::HistoryDocument(const HistoryDocument &other) : HistoryFileMedia()
+, Interfaces()
 , _parent(0)
 , _data(other._data) {
 	const HistoryDocumentCaptioned *captioned = other.Get<HistoryDocumentCaptioned>();
