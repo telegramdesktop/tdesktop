@@ -7462,7 +7462,11 @@ void HistoryServiceMsg::initDimensions() {
 
 void HistoryServiceMsg::countPositionAndSize(int32 &left, int32 &width) const {
 	left = st::msgServiceMargin.left();
-	width = qMin(_history->width, int(st::msgMaxWidth + 2 * st::msgPhotoSkip)) - st::msgServiceMargin.left() - st::msgServiceMargin.left();
+	int32 maxwidth = _history->width;
+	if (Adaptive::Wide()) {
+		maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip));
+	}
+	width = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();
 }
 
 QString HistoryServiceMsg::selectedText(uint32 selection) const {
@@ -7536,7 +7540,10 @@ void HistoryServiceMsg::draw(Painter &p, const QRect &r, uint32 selection, uint6
 }
 
 int32 HistoryServiceMsg::resize(int32 width) {
-	int32 maxwidth = qMin(_history->width, int(st::msgMaxWidth + 2 * st::msgPhotoSkip));
+	int32 maxwidth = _history->width;
+	if (Adaptive::Wide()) {
+		maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip));
+	}
 	if (width > maxwidth) width = maxwidth;
 	width -= st::msgServiceMargin.left() + st::msgServiceMargin.left(); // two small margins
 	if (width < st::msgServicePadding.left() + st::msgServicePadding.right() + 1) width = st::msgServicePadding.left() + st::msgServicePadding.right() + 1;
