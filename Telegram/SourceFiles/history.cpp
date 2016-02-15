@@ -2536,13 +2536,14 @@ void History::clear(bool leaveItems) {
 			if (App::wnd() && !App::quiting()) App::wnd()->mediaOverviewUpdated(peer, MediaOverviewType(i));
 		}
 	}
-	for (Blocks::const_iterator i = blocks.cbegin(), e = blocks.cend(); i != e; ++i) {
+	Blocks lst = blocks;
+	blocks.clear();
+	for (Blocks::const_iterator i = lst.cbegin(), e = lst.cend(); i != e; ++i) {
 		if (leaveItems) {
 			(*i)->clear(true);
 		}
 		delete *i;
 	}
-	blocks.clear();
 	if (leaveItems) {
 		lastKeyboardInited = false;
 	} else {
@@ -2698,16 +2699,17 @@ int32 HistoryBlock::geomResize(int32 newWidth, int32 *ytransform, const HistoryI
 }
 
 void HistoryBlock::clear(bool leaveItems) {
+	Items lst = items;
+	items.clear();
 	if (leaveItems) {
-		for (Items::const_iterator i = items.cbegin(), e = items.cend(); i != e; ++i) {
+		for (Items::const_iterator i = lst.cbegin(), e = lst.cend(); i != e; ++i) {
 			(*i)->detachFast();
 		}
 	} else {
-		for (Items::const_iterator i = items.cbegin(), e = items.cend(); i != e; ++i) {
+		for (Items::const_iterator i = lst.cbegin(), e = lst.cend(); i != e; ++i) {
 			delete *i;
 		}
 	}
-	items.clear();
 }
 
 void HistoryBlock::removeItem(HistoryItem *item) {
