@@ -1016,7 +1016,7 @@ historyToEndSkip: 10px;
 activeFadeInDuration: 500;
 activeFadeOutDuration: 3000;
 
-historyMaxWidth: 680px;
+historyMaxWidth: 720px;
 
 msgRadius: 3px;
 

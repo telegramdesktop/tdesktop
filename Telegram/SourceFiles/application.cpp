@@ -926,6 +926,9 @@ void AppClass::checkLocalTime() {
 void AppClass::onAppStateChanged(Qt::ApplicationState state) {
 	checkLocalTime();
 	_window->updateIsActive((state == Qt::ApplicationActive) ? cOnlineFocusTimeout() : cOfflineBlurTimeout());
+	if (state != Qt::ApplicationActive) {
+		PopupTooltip::Hide();
+	}
 }
 
 void AppClass::killDownloadSessions() {
