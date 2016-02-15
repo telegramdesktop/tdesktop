@@ -756,7 +756,7 @@ LayoutOverviewDocument::LayoutOverviewDocument(DocumentData *document, HistoryIt
 
 	if (withThumb()) {
 		_data->thumb->load();
-		int32 tw = _data->thumb->width(), th = _data->thumb->height();
+		int32 tw = convertScale(_data->thumb->width()), th = convertScale(_data->thumb->height());
 		if (tw > th) {
 			_thumbw = (tw * st::overviewFileSize) / th;
 		} else {
@@ -1651,7 +1651,7 @@ int32 LayoutInlineGif::content_width() const {
 			return doc->dimensions.width();
 		}
 		if (!doc->thumb->isNull()) {
-			return doc->thumb->width();
+			return convertScale(doc->thumb->width());
 		}
 	} else if (_result) {
 		return _result->width;
@@ -1666,7 +1666,7 @@ int32 LayoutInlineGif::content_height() const {
 			return doc->dimensions.height();
 		}
 		if (!doc->thumb->isNull()) {
-			return doc->thumb->height();
+			return convertScale(doc->thumb->height());
 		}
 	} else if (_result) {
 		return _result->height;
@@ -1920,7 +1920,7 @@ void LayoutInlineWebVideo::getState(TextLinkPtr &link, HistoryCursorState &curso
 void LayoutInlineWebVideo::prepareThumb(int32 width, int32 height) const {
 	if (_result->thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-			int32 w = qMax(_result->thumb->width(), 1), h = qMax(_result->thumb->height(), 1);
+			int32 w = qMax(convertScale(_result->thumb->width()), 1), h = qMax(convertScale(_result->thumb->height()), 1);
 			if (w * height > h * width) {
 				if (height < h) {
 					w = w * height / h;
@@ -2068,7 +2068,7 @@ void LayoutInlineArticle::prepareThumb(int32 width, int32 height) const {
 
 	if (_result->thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-			int32 w = qMax(_result->thumb->width(), 1), h = qMax(_result->thumb->height(), 1);
+			int32 w = qMax(convertScale(_result->thumb->width()), 1), h = qMax(convertScale(_result->thumb->height()), 1);
 			if (w * height > h * width) {
 				if (height < h) {
 					w = w * height / h;

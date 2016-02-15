@@ -546,21 +546,21 @@ void MTPabstractTcpConnection::socketRead() {
 	}
 
 	do {
-		char *readTo = currentPos;
 		uint32 toRead = packetLeft ? packetLeft : (readingToShort ? (MTPShortBufferSize * sizeof(mtpPrime)-packetRead) : 4);
 		if (readingToShort) {
 			if (currentPos + toRead > ((char*)shortBuffer) + MTPShortBufferSize * sizeof(mtpPrime)) {
 				longBuffer.resize(((packetRead + toRead) >> 2) + 1);
 				memcpy(&longBuffer[0], shortBuffer, packetRead);
-				readTo = ((char*)&longBuffer[0]) + packetRead;
+				currentPos = ((char*)&longBuffer[0]) + packetRead;
+				readingToShort = false;
 			}
 		} else {
 			if (longBuffer.size() * sizeof(mtpPrime) < packetRead + toRead) {
 				longBuffer.resize(((packetRead + toRead) >> 2) + 1);
-				readTo = ((char*)&longBuffer[0]) + packetRead;
+				currentPos = ((char*)&longBuffer[0]) + packetRead;
 			}
 		}
-		int32 bytes = (int32)sock.read(readTo, toRead);
+		int32 bytes = (int32)sock.read(currentPos, toRead);
 		if (bytes > 0) {
 			TCP_LOG(("TCP Info: read %1 bytes").arg(bytes));
 
@@ -573,6 +573,7 @@ void MTPabstractTcpConnection::socketRead() {
 					currentPos = (char*)shortBuffer;
 					packetRead = packetLeft = 0;
 					readingToShort = true;
+					longBuffer.clear();
 				} else {
 					TCP_LOG(("TCP Info: not enough %1 for packet! read %2").arg(packetLeft).arg(packetRead));
 					emit receivedSome();
@@ -602,10 +603,12 @@ void MTPabstractTcpConnection::socketRead() {
 					if (!packetRead) {
 						currentPos = (char*)shortBuffer;
 						readingToShort = true;
+						longBuffer.clear();
 					} else if (!readingToShort && packetRead < MTPShortBufferSize * sizeof(mtpPrime)) {
 						memcpy(shortBuffer, currentPos - packetRead, packetRead);
 						currentPos = (char*)shortBuffer;
 						readingToShort = true;
+						longBuffer.clear();
 					}
 				}
 			}

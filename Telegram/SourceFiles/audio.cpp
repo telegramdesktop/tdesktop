@@ -2403,7 +2403,7 @@ public:
 	}
 
 	bool open(qint64 position = 0) {
-		if (!AbstractFFMpegLoader::openFile()) {
+		if (!AbstractFFMpegLoader::open()) {
 			return false;
 		}
 

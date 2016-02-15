@@ -2536,13 +2536,14 @@ void History::clear(bool leaveItems) {
 			if (App::wnd() && !App::quiting()) App::wnd()->mediaOverviewUpdated(peer, MediaOverviewType(i));
 		}
 	}
-	for (Blocks::const_iterator i = blocks.cbegin(), e = blocks.cend(); i != e; ++i) {
+	Blocks lst = blocks;
+	blocks.clear();
+	for (Blocks::const_iterator i = lst.cbegin(), e = lst.cend(); i != e; ++i) {
 		if (leaveItems) {
 			(*i)->clear(true);
 		}
 		delete *i;
 	}
-	blocks.clear();
 	if (leaveItems) {
 		lastKeyboardInited = false;
 	} else {
@@ -2698,16 +2699,17 @@ int32 HistoryBlock::geomResize(int32 newWidth, int32 *ytransform, const HistoryI
 }
 
 void HistoryBlock::clear(bool leaveItems) {
+	Items lst = items;
+	items.clear();
 	if (leaveItems) {
-		for (Items::const_iterator i = items.cbegin(), e = items.cend(); i != e; ++i) {
+		for (Items::const_iterator i = lst.cbegin(), e = lst.cend(); i != e; ++i) {
 			(*i)->detachFast();
 		}
 	} else {
-		for (Items::const_iterator i = items.cbegin(), e = items.cend(); i != e; ++i) {
+		for (Items::const_iterator i = lst.cbegin(), e = lst.cend(); i != e; ++i) {
 			delete *i;
 		}
 	}
-	items.clear();
 }
 
 void HistoryBlock::removeItem(HistoryItem *item) {
@@ -3752,7 +3754,7 @@ void HistoryVideo::unregItem(HistoryItem *item) {
 ImagePtr HistoryVideo::replyPreview() {
 	if (_data->replyPreview->isNull() && !_data->thumb->isNull()) {
 		if (_data->thumb->loaded()) {
-			int w = _data->thumb->width(), h = _data->thumb->height();
+			int w = convertScale(_data->thumb->width()), h = convertScale(_data->thumb->height());
 			if (w <= 0) w = 1;
 			if (h <= 0) h = 1;
 			_data->replyPreview = ImagePtr(w > h ? _data->thumb->pix(w * st::msgReplyBarSize.height() / h, st::msgReplyBarSize.height()) : _data->thumb->pix(st::msgReplyBarSize.height()), "PNG");
@@ -3855,7 +3857,7 @@ void HistoryDocument::initDimensions(const HistoryItem *parent) {
 	HistoryDocumentThumbed *thumbed = Get<HistoryDocumentThumbed>();
 	if (thumbed) {
 		_data->thumb->load();
-		int32 tw = _data->thumb->width(), th = _data->thumb->height();
+		int32 tw = convertScale(_data->thumb->width()), th = convertScale(_data->thumb->height());
 		if (tw > th) {
 			thumbed->_thumbw = (tw * st::msgFileThumbSize) / th;
 		} else {

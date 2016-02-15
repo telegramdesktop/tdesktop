@@ -1052,7 +1052,7 @@ void AppClass::checkMapVersion() {
 				if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 					versionFeatures = QString::fromUtf8("\xe2\x80\x94 Voice messages waveform visualizations\n\xe2\x80\x94 Bug fixes and other minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
 				} else {
-					versionFeatures = QString::fromUtf8("\xe2\x80\x94 Testing new crash reporting system\n\xe2\x80\x94 Conversation history is centered in wide windows\n\xe2\x80\x94 New cute link and timestamp tooltips design\n\xe2\x80\x94 Ctrl+W or Ctrl+F4 closes Telegram window\n\xe2\x80\x94 Bug fixes and other minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
+					versionFeatures = QString::fromUtf8("\xe2\x80\x94 Voice messages waveform visualizations\n\xe2\x80\x94 Bug fixes and other minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
 				}
 			} else if (Local::oldMapVersion() < 9016) {
 				versionFeatures = lng_new_version_text(lt_gifs_link, qsl("https://telegram.org/blog/gif-revolution"), lt_bots_link, qsl("https://telegram.org/blog/inline-bots")).trimmed();
