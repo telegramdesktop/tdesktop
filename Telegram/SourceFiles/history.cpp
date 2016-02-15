@@ -3754,7 +3754,7 @@ void HistoryVideo::unregItem(HistoryItem *item) {
 ImagePtr HistoryVideo::replyPreview() {
 	if (_data->replyPreview->isNull() && !_data->thumb->isNull()) {
 		if (_data->thumb->loaded()) {
-			int w = _data->thumb->width(), h = _data->thumb->height();
+			int w = convertScale(_data->thumb->width()), h = convertScale(_data->thumb->height());
 			if (w <= 0) w = 1;
 			if (h <= 0) h = 1;
 			_data->replyPreview = ImagePtr(w > h ? _data->thumb->pix(w * st::msgReplyBarSize.height() / h, st::msgReplyBarSize.height()) : _data->thumb->pix(st::msgReplyBarSize.height()), "PNG");
@@ -3857,7 +3857,7 @@ void HistoryDocument::initDimensions(const HistoryItem *parent) {
 	HistoryDocumentThumbed *thumbed = Get<HistoryDocumentThumbed>();
 	if (thumbed) {
 		_data->thumb->load();
-		int32 tw = _data->thumb->width(), th = _data->thumb->height();
+		int32 tw = convertScale(_data->thumb->width()), th = convertScale(_data->thumb->height());
 		if (tw > th) {
 			thumbed->_thumbw = (tw * st::msgFileThumbSize) / th;
 		} else {
