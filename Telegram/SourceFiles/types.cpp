@@ -811,8 +811,7 @@ QString translitRusEng(const QString &rus) {
 	result.reserve(rus.size() * 2);
 
 	int32 toSkip = 0;
-	for (QString::const_iterator i = rus.cbegin(), e = rus.cend(); i != e;) {
-		i += toSkip;
+	for (QString::const_iterator i = rus.cbegin(), e = rus.cend(); i != e; i += toSkip) {
 		result += translitLetterRusEng(*i, (i + 1 == e) ? ' ' : *(i + 1), toSkip);
 	}
 	return result;

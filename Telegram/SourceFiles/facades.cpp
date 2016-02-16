@@ -63,11 +63,26 @@ namespace App {
 	}
 
 	void removeDialog(History *history) {
-		if (MainWidget *m = main()) m->removeDialog(history);
+		if (MainWidget *m = main()) {
+			m->removeDialog(history);
+		}
 	}
 
 	void showSettings() {
-		if (Window *win = wnd()) win->showSettings();
+		if (Window *w = wnd()) {
+			w->showSettings();
+		}
+	}
+
+	Q_DECLARE_METATYPE(TextLinkPtr);
+	Q_DECLARE_METATYPE(Qt::MouseButton);
+
+	void activateTextLink(TextLinkPtr link, Qt::MouseButton button) {
+		if (Window *w = wnd()) {
+			qRegisterMetaType<TextLinkPtr>();
+			qRegisterMetaType<Qt::MouseButton>();
+			QMetaObject::invokeMethod(w, "app_activateTextLink", Qt::QueuedConnection, Q_ARG(TextLinkPtr, link), Q_ARG(Qt::MouseButton, button));
+		}
 	}
 
 }

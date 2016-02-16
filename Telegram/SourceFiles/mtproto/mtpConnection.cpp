@@ -606,7 +606,7 @@ void MTPabstractTcpConnection::socketRead() {
 						longBuffer.clear();
 					} else if (!readingToShort && packetRead < MTPShortBufferSize * sizeof(mtpPrime)) {
 						memcpy(shortBuffer, currentPos - packetRead, packetRead);
-						currentPos = (char*)shortBuffer;
+						currentPos = (char*)shortBuffer + packetRead;
 						readingToShort = true;
 						longBuffer.clear();
 					}

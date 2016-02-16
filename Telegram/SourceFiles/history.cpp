@@ -681,8 +681,9 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 	int32 addToH = 0, skip = 0;
 	if (!blocks.isEmpty()) { // remove date block
 		if (width) addToH = -blocks.front()->height;
-		delete blocks.front();
+		HistoryBlock *dateblock = blocks.front();
 		blocks.pop_front();
+		delete dateblock;
 	}
 	HistoryItem *till = blocks.isEmpty() ? 0 : blocks.front()->items.front();
 

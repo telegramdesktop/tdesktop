@@ -1410,7 +1410,7 @@ namespace App {
 		QString uname(username.trimmed());
 		for (PeersData::const_iterator i = peersData.cbegin(), e = peersData.cend(); i != e; ++i) {
 			if (!i.value()->userName().compare(uname, Qt::CaseInsensitive)) {
-				return i.value()->asUser();
+				return i.value();
 			}
 		}
 		return 0;

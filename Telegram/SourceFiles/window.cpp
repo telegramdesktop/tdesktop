@@ -1651,6 +1651,10 @@ void Window::notifyUpdateAllPhotos() {
 	if (_mediaView && !_mediaView->isHidden()) _mediaView->updateControls();
 }
 
+void Window::app_activateTextLink(TextLinkPtr link, Qt::MouseButton button) {
+	link->onClick(button);
+}
+
 void Window::notifyUpdateAll() {
 	if (cCustomNotifies()) {
 		for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {

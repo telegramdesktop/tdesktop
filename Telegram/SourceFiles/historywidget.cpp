@@ -684,11 +684,12 @@ void HistoryInner::itemRemoved(HistoryItem *item) {
 		dragActionCancel();
 	}
 
+	if (_dragSelFrom == item || _dragSelTo == item) {
+		_dragSelFrom = 0;
+		_dragSelTo = 0;
+		update();
+	}
 	onUpdateSelected();
-
-	if (_dragSelFrom == item) _dragSelFrom = 0;
-	if (_dragSelTo == item) _dragSelTo = 0;
-	updateDragSelection(_dragSelFrom, _dragSelTo, _dragSelecting, true);
 }
 
 void HistoryInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton button) {
@@ -730,10 +731,9 @@ void HistoryInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton but
 	_wasSelectedText = false;
 
 	if (needClick) {
-		DEBUG_LOG(("Clicked link: %1 (%2) %3").arg(needClick->text()).arg(needClick->readable()).arg(needClick->encoded()));
+		DEBUG_LOG(("Will click link: %1 (%2) %3").arg(needClick->text()).arg(needClick->readable()).arg(needClick->encoded()));
 		dragActionCancel();
-
-		needClick->onClick(button); // this possibly can delete this object
+		App::activateTextLink(needClick, button);
 		return;
 	}
 	if (_dragAction == PrepareSelect && !_dragWasInactive && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection) {

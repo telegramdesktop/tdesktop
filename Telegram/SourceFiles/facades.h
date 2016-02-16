@@ -35,6 +35,8 @@ namespace App {
 	void removeDialog(History *history);
 	void showSettings();
 
+	void activateTextLink(TextLinkPtr link, Qt::MouseButton button);
+
 };
 
 namespace Ui {
