@@ -638,6 +638,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_cant_invite_not_contact" = "Você só pode adicionar contatos\nmútuos ao grupo no momento. {more_info}";
 "lng_cant_invite_not_contact_channel" = "Desculpe, você só pode adicionar contatos\nmútuos para canais no momento. {more_info}";
 "lng_cant_more_info" = "Informações »";
+"lng_cant_invite_privacy" = "Você não pode adicionar esse usuário em grupos devido as configurações de privacidade.";
+"lng_cant_invite_privacy_channel" = "Você não pode adicionar esse usuário em canais devido as configurações de privacidade.";
 
 "lng_send_button" = "Enviar";
 "lng_message_ph" = "Escrever a mensagem..";
@@ -834,7 +836,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras melhorias menores";
-"lng_new_version_text" = "Revolução dos GIFs: download e envio 10x mais rápido, reprodução automática, salve seus GIFs favoritos em um guia dedicada no painel de stickers.\n\nMais sobre GIFs:\n{gifs_link}\n\nBots integrados: Uma nova maneira de adicionar conteúdo de um bot a qualquer conversa. Digite o nome de usuário do bot seguido do comando no campo de texto para obter resultados imediatos e enviá-los na conversa. Experimente digitar “@gif dog” na sua próxima conversa. Bots de exemplo: @gif, @wiki, @bing, @vid, @bold.\n\nMais sobre bots integrados:\n{bots_link}\n\nTambém nessa versão: Novo design para mídias, configuração de download automático para fotos, mensagens de voz e GIFs.";
+"lng_new_version_text" = "— Nova visualização em ondas para mensagens de voz\n— Sugestões de sticker quando você inicia com emoji";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 
