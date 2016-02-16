@@ -426,7 +426,7 @@ namespace {
 			size = (((uint32(bytes[3]) << 8) | uint32(bytes[2])) << 8) | uint32(bytes[1]);
 			len -= 3;
 		}
-		if (size * sizeof(mtpPrime) != len) {
+		if (size * int32(sizeof(mtpPrime)) != len) {
 			LOG(("TCP Error: bad packet header"));
 			TCP_LOG(("TCP Error: bad packet header, packet: %1").arg(Logs::mb(packet, length).str()));
 			return mtpBuffer(1, -500);

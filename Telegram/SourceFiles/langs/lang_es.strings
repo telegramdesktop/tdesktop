@@ -638,9 +638,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_cant_invite_not_contact" = "Por ahora, sólo puedes añadir contactos \nmutuos a grupos. {more_info}";
 "lng_cant_invite_not_contact_channel" = "Lo sentimos, sólo puedes añadir contactos\nmutuos a canales. {more_info}";
 "lng_cant_more_info" = "Más información »";
+"lng_cant_invite_privacy" = "No puedes añadir a este usuario a grupos por sus ajustes de privacidad.";
+"lng_cant_invite_privacy_channel" = "No puedes añadir a este usuario a canales por sus ajustes de privacidad.";
 
 "lng_send_button" = "Enviar";
-"lng_message_ph" = "Escribir un mensaje...";
+"lng_message_ph" = "Escribe un mensaje...";
 "lng_comment_ph" = "Escribe un comentario...";
 "lng_broadcast_ph" = "Difunde un mensaje...";
 "lng_record_cancel" = "Suelta fuera de aquí para cancelar";
@@ -834,7 +836,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "Revolución del GIF: envío y descarga 10 veces más rápido, reproducción automática, guarda tus GIF favoritos en una pestaña especial en el panel de stickers.\n\nMás sobre los GIF:\n{gifs_link}\n\nBots integrados: una nueva forma para añadir contenidos en los chats. Escribe el alias del bot y tu solicitud, en el campo de escritura, para obtener resultados inmediatamente y enviarlos a tu compañero de chat. Prueba escribiendo “@gif dog” en un chat. Algunos ejemplos: @gif, @wiki, @bing, @vid, @bold.\n\nMás sobre los bots integrados:\n{bots_link}\n\nTambién encontrarás un lindo nuevo diseño para la multimedia y ajustes de descarga automática para fotos, mensajes de voz y GIF.";
+"lng_new_version_text" = "– Nueva visualización de ondas para los mensajes de voz\n– Sugerencias de stickers cuando escribes un emoji";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

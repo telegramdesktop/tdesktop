@@ -114,6 +114,8 @@ namespace Sandbox {
 	void start();
 	void finish();
 
+	uint64 UserTag();
+
 	DeclareReadOnlyVar(QString, LangSystemISO);
 	DeclareReadOnlyVar(int32, LangSystem);
 	DeclareVar(QByteArray, LastCrashDump);
