@@ -26,6 +26,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "layerwidget.h"
 #include "lang.h"
 
+Q_DECLARE_METATYPE(TextLinkPtr);
+Q_DECLARE_METATYPE(Qt::MouseButton);
+
 namespace App {
 
 	void sendBotCommand(const QString &cmd, MsgId replyTo) {
@@ -73,9 +76,6 @@ namespace App {
 			w->showSettings();
 		}
 	}
-
-	Q_DECLARE_METATYPE(TextLinkPtr);
-	Q_DECLARE_METATYPE(Qt::MouseButton);
 
 	void activateTextLink(TextLinkPtr link, Qt::MouseButton button) {
 		if (Window *w = wnd()) {
