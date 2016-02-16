@@ -35,6 +35,8 @@ namespace App {
 	void removeDialog(History *history);
 	void showSettings();
 
+	void activateTextLink(TextLinkPtr link, Qt::MouseButton button);
+
 };
 
 namespace Ui {
@@ -111,6 +113,8 @@ namespace Sandbox {
 
 	void start();
 	void finish();
+
+	uint64 UserTag();
 
 	DeclareReadOnlyVar(QString, LangSystemISO);
 	DeclareReadOnlyVar(int32, LangSystem);

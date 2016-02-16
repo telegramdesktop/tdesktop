@@ -81,7 +81,7 @@ void PopupMenu::init() {
 
 QAction *PopupMenu::addAction(const QString &text, const QObject *receiver, const char* member) {
 	QAction *a = new QAction(text, this);
-	connect(a, SIGNAL(triggered(bool)), receiver, member);
+	connect(a, SIGNAL(triggered(bool)), receiver, member, Qt::QueuedConnection);
 	return addAction(a);
 }
 

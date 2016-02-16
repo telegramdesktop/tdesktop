@@ -63,11 +63,26 @@ namespace App {
 	}
 
 	void removeDialog(History *history) {
-		if (MainWidget *m = main()) m->removeDialog(history);
+		if (MainWidget *m = main()) {
+			m->removeDialog(history);
+		}
 	}
 
 	void showSettings() {
-		if (Window *win = wnd()) win->showSettings();
+		if (Window *w = wnd()) {
+			w->showSettings();
+		}
+	}
+
+	Q_DECLARE_METATYPE(TextLinkPtr);
+	Q_DECLARE_METATYPE(Qt::MouseButton);
+
+	void activateTextLink(TextLinkPtr link, Qt::MouseButton button) {
+		if (Window *w = wnd()) {
+			qRegisterMetaType<TextLinkPtr>();
+			qRegisterMetaType<Qt::MouseButton>();
+			QMetaObject::invokeMethod(w, "app_activateTextLink", Qt::QueuedConnection, Q_ARG(TextLinkPtr, link), Q_ARG(Qt::MouseButton, button));
+		}
 	}
 
 }
@@ -215,6 +230,7 @@ struct SandboxDataStruct {
 	ConnectionProxy PreLaunchProxy;
 };
 SandboxDataStruct *SandboxData = 0;
+uint64 SandboxUserTag = 0;
 
 namespace Sandbox {
 
@@ -276,6 +292,27 @@ namespace Sandbox {
 				f.write("1");
 			}
 		}
+
+		srand((int32)time(NULL));
+
+		SandboxUserTag = 0;
+		QFile usertag(cWorkingDir() + qsl("tdata/usertag"));
+		if (usertag.open(QIODevice::ReadOnly)) {
+			if (usertag.read(reinterpret_cast<char*>(&SandboxUserTag), sizeof(uint64)) != sizeof(uint64)) {
+				SandboxUserTag = 0;
+			}
+			usertag.close();
+		}
+		if (!SandboxUserTag) {
+			do {
+				memsetrnd_bad(SandboxUserTag);
+			} while (!SandboxUserTag);
+
+			if (usertag.open(QIODevice::WriteOnly)) {
+				usertag.write(reinterpret_cast<char*>(&SandboxUserTag), sizeof(uint64));
+				usertag.close();
+			}
+		}
 	}
 
 	void start() {
@@ -290,13 +327,15 @@ namespace Sandbox {
 				break;
 			}
 		}
-
-		srand((int32)time(NULL));
 	}
 
 	void finish() {
 		delete SandboxData;
 		SandboxData = 0;
+	}
+
+	uint64 UserTag() {
+		return SandboxUserTag;
 	}
 
 	DefineReadOnlyVar(Sandbox, QString, LangSystemISO);

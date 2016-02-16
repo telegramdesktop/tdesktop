@@ -963,7 +963,9 @@ void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
 		case mtpc_dialog: {
 			const MTPDdialog &d(i->c_dialog());
 			history = App::historyFromDialog(peerFromMTP(d.vpeer), d.vunread_count.v, d.vread_inbox_max_id.v);
-			App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, history);
+			if (App::main()) {
+				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, history);
+			}
 		} break;
 
 		case mtpc_dialogChannel: {
@@ -986,7 +988,9 @@ void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
 			if (!history->isMegagroup() && d.vtop_message.v > d.vtop_important_message.v) {
 				history->setNotLoadedAtBottom();
 			}
-			App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, history);
+			if (App::main()) {
+				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, history);
+			}
 		} break;
 		}
 

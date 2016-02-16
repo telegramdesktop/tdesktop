@@ -1821,19 +1821,25 @@ void OverviewInner::itemRemoved(HistoryItem *item) {
 		_overview->updateTopBarSelection();
 	}
 
-	onUpdateSelected();
+	LayoutItems::iterator j = _layoutItems.find(item);
+	if (j != _layoutItems.cend()) {
+		int32 index = _items.indexOf(j.value());
+		if (index >= 0) {
+			_items.remove(index);
+		}
+		delete j.value();
+		_layoutItems.erase(j);
+	}
 
-	if (_dragSelFrom == msgId) {
+	if (_dragSelFrom == msgId || _dragSelTo == msgId) {
 		_dragSelFrom = 0;
 		_dragSelFromIndex = -1;
-	}
-	if (_dragSelTo == msgId) {
 		_dragSelTo = 0;
 		_dragSelToIndex = -1;
+		update();
 	}
-	updateDragSelection(_dragSelFrom, _dragSelFromIndex, _dragSelTo, _dragSelToIndex, _dragSelecting);
 
-	update();
+	onUpdateSelected();
 }
 
 void OverviewInner::repaintItem(const HistoryItem *msg) {

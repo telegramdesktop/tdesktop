@@ -221,6 +221,17 @@ inline void memsetrnd(T &value) {
 	memset_rand(&value, sizeof(value));
 }
 
+inline void memset_rand_bad(void *data, uint32 len) {
+	for (uchar *i = reinterpret_cast<uchar*>(data), *e = i + len; i != e; ++i) {
+		*i = uchar(rand() & 0xFF);
+	}
+}
+
+template <typename T>
+inline void memsetrnd_bad(T &value) {
+	memset_rand_bad(&value, sizeof(value));
+}
+
 class ReadLockerAttempt {
 public:
 

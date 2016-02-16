@@ -281,6 +281,8 @@ public slots:
 
 	void notifyUpdateAllPhotos();
 
+	void app_activateTextLink(TextLinkPtr link, Qt::MouseButton button);
+
 signals:
 
 	void resized(const QSize &size);

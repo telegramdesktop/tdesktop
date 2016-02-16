@@ -868,6 +868,7 @@ namespace SignalHandlers {
 		ProcessAnnotations["Version"] = (cBetaVersion() ? qsl("%1 beta").arg(cBetaVersion()) : (cDevVersion() ? qsl("%1 dev") : qsl("%1")).arg(AppVersion)).toUtf8().constData();
 		ProcessAnnotations["Launched"] = QDateTime::currentDateTime().toString("dd.MM.yyyy hh:mm:ss").toUtf8().constData();
 		ProcessAnnotations["Platform"] = cPlatformString().toUtf8().constData();
+		ProcessAnnotations["UserTag"] = QString::number(Sandbox::UserTag(), 16).toUtf8().constData();
 
 		QString dumpspath = cWorkingDir() + qsl("tdata/dumps");
 		QDir().mkpath(dumpspath);

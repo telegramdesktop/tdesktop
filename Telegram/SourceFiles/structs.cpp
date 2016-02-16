@@ -199,14 +199,14 @@ void PeerData::fillNames() {
 	names.clear();
 	chars.clear();
 	QString toIndex = textAccentFold(name);
+	if (cRussianLetters().match(toIndex).hasMatch()) {
+		toIndex += ' ' + translitRusEng(toIndex);
+	}
 	if (isUser()) {
 		if (!asUser()->nameOrPhone.isEmpty() && asUser()->nameOrPhone != name) toIndex += ' ' + textAccentFold(asUser()->nameOrPhone);
 		if (!asUser()->username.isEmpty()) toIndex += ' ' + textAccentFold(asUser()->username);
 	} else if (isChannel()) {
 		if (!asChannel()->username.isEmpty()) toIndex += ' ' + textAccentFold(asChannel()->username);
-	}
-	if (cRussianLetters().match(toIndex).hasMatch()) {
-		toIndex += ' ' + translitRusEng(toIndex);
 	}
 	toIndex += ' ' + rusKeyboardLayoutSwitch(toIndex);
 
