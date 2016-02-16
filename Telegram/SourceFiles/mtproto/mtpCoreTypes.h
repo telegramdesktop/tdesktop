@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -368,7 +368,7 @@ static const mtpTypeId mtpLayers[] = {
 	mtpTypeId(mtpc_invokeWithLayer18),
 };
 static const uint32 mtpLayerMaxSingle = sizeof(mtpLayers) / sizeof(mtpLayers[0]);
-static const mtpPrime mtpCurrentLayer = 45;
+static const mtpPrime mtpCurrentLayer = 47;
 
 template <typename bareT>
 class MTPBoxed : public bareT {

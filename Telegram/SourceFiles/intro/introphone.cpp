@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -230,7 +230,7 @@ void IntroPhone::phoneCheckDone(const MTPauth_CheckedPhone &result) {
 
 		checkRequest.start(1000);
 
-		sentRequest = MTP::send(MTPauth_SendCode(MTP_string(sentPhone), MTP_int(5), MTP_int(ApiId), MTP_string(ApiHash), MTP_string(Global::LangSystemISO())), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
+		sentRequest = MTP::send(MTPauth_SendCode(MTP_string(sentPhone), MTP_int(5), MTP_int(ApiId), MTP_string(ApiHash), MTP_string(Sandbox::LangSystemISO())), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
 	} else {
 		showError(lang(lng_bad_phone_noreg), true);
 		enableAll(true);
@@ -260,7 +260,7 @@ void IntroPhone::toSignUp() {
 
 	checkRequest.start(1000);
 
-	sentRequest = MTP::send(MTPauth_SendCode(MTP_string(sentPhone), MTP_int(0), MTP_int(ApiId), MTP_string(ApiHash), MTP_string(Global::LangSystemISO())), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
+	sentRequest = MTP::send(MTPauth_SendCode(MTP_string(sentPhone), MTP_int(0), MTP_int(ApiId), MTP_string(ApiHash), MTP_string(Sandbox::LangSystemISO())), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
 }
 
 bool IntroPhone::phoneSubmitFail(const RPCError &error) {

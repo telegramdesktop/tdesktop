@@ -1716,7 +1716,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.9.19;
+				CURRENT_PROJECT_VERSION = 0.9.24;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -1735,7 +1735,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 0.9.19;
+				CURRENT_PROJECT_VERSION = 0.9.24;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				GCC_OPTIMIZATION_LEVEL = fast;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
@@ -1764,10 +1764,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.9.19;
+				CURRENT_PROJECT_VERSION = 0.9.24;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DYLIB_COMPATIBILITY_VERSION = 0.9;
-				DYLIB_CURRENT_VERSION = 0.9.19;
+				DYLIB_CURRENT_VERSION = 0.9.24;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				FRAMEWORK_SEARCH_PATHS = ./../../Libraries/breakpad/src/client/mac/build/Release;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
@@ -1806,6 +1806,7 @@
 					./ThirdParty/minizip,
 					./../../Libraries/crashpad/crashpad,
 					./../../Libraries/crashpad/crashpad/third_party/mini_chromium/mini_chromium,
+					./../../Libraries/breakpad/src,
 				);
 				INFOPLIST_FILE = Telegram.plist;
 				INSTALL_DIR = ./../Mac/Release/;
@@ -1904,10 +1905,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.9.19;
+				CURRENT_PROJECT_VERSION = 0.9.24;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DYLIB_COMPATIBILITY_VERSION = 0.9;
-				DYLIB_CURRENT_VERSION = 0.9.19;
+				DYLIB_CURRENT_VERSION = 0.9.24;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				FRAMEWORK_SEARCH_PATHS = ./../../Libraries/breakpad/src/client/mac/build/Release;
@@ -1947,6 +1948,7 @@
 					./ThirdParty/minizip,
 					./../../Libraries/crashpad/crashpad,
 					./../../Libraries/crashpad/crashpad/third_party/mini_chromium/mini_chromium,
+					./../../Libraries/breakpad/src,
 				);
 				INFOPLIST_FILE = Telegram.plist;
 				INSTALL_DIR = ./../Mac/Debug/;

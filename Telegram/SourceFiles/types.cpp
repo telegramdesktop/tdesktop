@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
@@ -293,7 +293,7 @@ namespace ThirdParty {
 		av_register_all();
 		avcodec_register_all();
 
-//		av_lockmgr_register(_ffmpegLockManager);
+		av_lockmgr_register(_ffmpegLockManager);
 
 		_sslInited = true;
 	}
@@ -811,8 +811,7 @@ QString translitRusEng(const QString &rus) {
 	result.reserve(rus.size() * 2);
 
 	int32 toSkip = 0;
-	for (QString::const_iterator i = rus.cbegin(), e = rus.cend(); i != e;) {
-		i += toSkip;
+	for (QString::const_iterator i = rus.cbegin(), e = rus.cend(); i != e; i += toSkip) {
 		result += translitLetterRusEng(*i, (i + 1 == e) ? ' ' : *(i + 1), toSkip);
 	}
 	return result;
@@ -1016,3 +1015,36 @@ MimeType mimeTypeForData(const QByteArray &data) {
 	}
 	return MimeType(QMimeDatabase().mimeTypeForData(data));
 }
+
+class InterfacesMetadatasMap : public QMap<uint64, InterfacesMetadata*> {
+public:
+	~InterfacesMetadatasMap() {
+		for (const_iterator i = cbegin(), e = cend(); i != e; ++i) {
+			delete i.value();
+		}
+	}
+};
+
+const InterfacesMetadata *GetInterfacesMetadata(uint64 mask) {
+	typedef QMap<uint64, InterfacesMetadata*> InterfacesMetadatasMap;
+	static InterfacesMetadatasMap InterfacesMetadatas;
+	static QMutex InterfacesMetadatasMutex;
+
+	QMutexLocker lock(&InterfacesMetadatasMutex);
+	InterfacesMetadatasMap::const_iterator i = InterfacesMetadatas.constFind(mask);
+	if (i == InterfacesMetadatas.cend()) {
+		InterfacesMetadata *meta = new InterfacesMetadata(mask);
+		if (!meta) { // terminate if we can't allocate memory
+			throw "Can't allocate memory!";
+		}
+
+		i = InterfacesMetadatas.insert(mask, meta);
+	}
+	return i.value();
+}
+
+const InterfacesMetadata *Interfaces::ZeroInterfacesMetadata = GetInterfacesMetadata(0);
+
+InterfaceWrapStruct InterfaceWraps[64];
+
+QAtomicInt InterfaceIndexLast(0);

@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -258,7 +258,7 @@ void DialogsInner::peopleResultPaint(PeerData *peer, Painter &p, int32 w, bool a
 	QRect rectForName(nameleft, st::dlgPaddingVer + st::dlgNameTop, namewidth, st::msgNameFont->height);
 
 	// draw chat icon
-	if (peer->isChat()) {
+	if (peer->isChat() || peer->isMegagroup()) {
 		p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), App::sprite(), (act ? st::dlgActiveChatImg : st::dlgChatImg));
 		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
 	} else if (peer->isChannel()) {
@@ -963,7 +963,9 @@ void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
 		case mtpc_dialog: {
 			const MTPDdialog &d(i->c_dialog());
 			history = App::historyFromDialog(peerFromMTP(d.vpeer), d.vunread_count.v, d.vread_inbox_max_id.v);
-			App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, history);
+			if (App::main()) {
+				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, history);
+			}
 		} break;
 
 		case mtpc_dialogChannel: {
@@ -986,7 +988,9 @@ void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
 			if (!history->isMegagroup() && d.vtop_message.v > d.vtop_important_message.v) {
 				history->setNotLoadedAtBottom();
 			}
-			App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, history);
+			if (App::main()) {
+				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, history);
+			}
 		} break;
 		}
 
@@ -1040,13 +1044,16 @@ bool DialogsInner::searchReceived(const QVector<MTPMessage> &messages, DialogsSe
 				_lastSearchDate = lastDateFound;
 			}
 		}
-		if (type == DialogsSearchFromStart || type == DialogsSearchFromOffset) {
-			_lastSearchPeer = item->history()->peer;
+		if (item) {
+			if (type == DialogsSearchFromStart || type == DialogsSearchFromOffset) {
+				_lastSearchPeer = item->history()->peer;
+			}
 		}
+		MsgId msgId = item ? item->id : idFromMessage(*i);
 		if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
-			_lastSearchMigratedId = item->id;
+			_lastSearchMigratedId = msgId;
 		} else {
-			_lastSearchId = item->id;
+			_lastSearchId = msgId;
 		}
 	}
 	if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
@@ -2268,7 +2275,7 @@ void DialogsWidget::dragEnterEvent(QDragEnterEvent *e) {
 	_dragForward = e->mimeData()->hasFormat(qsl("application/x-td-forward-selected"));
 	if (!_dragForward) _dragForward = e->mimeData()->hasFormat(qsl("application/x-td-forward-pressed-link"));
 	if (!_dragForward) _dragForward = e->mimeData()->hasFormat(qsl("application/x-td-forward-pressed"));
-	if (_dragForward && !cWideMode()) _dragForward = false;
+	if (_dragForward && Adaptive::OneColumn()) _dragForward = false;
 	if (_dragForward) {
 		e->setDropAction(Qt::CopyAction);
 		e->accept();
@@ -2540,7 +2547,7 @@ bool DialogsWidget::onCancelSearch() {
 		_searchRequest = 0;
 	}
 	if (_searchInPeer && !clearing) {
-		if (!cWideMode()) {
+		if (Adaptive::OneColumn()) {
 			Ui::showPeerHistory(_searchInPeer, ShowAtUnreadMsgId);
 		}
 		_searchInPeer = _searchInMigrated = 0;
@@ -2560,7 +2567,7 @@ void DialogsWidget::onCancelSearchInPeer() {
 		_searchRequest = 0;
 	}
 	if (_searchInPeer) {
-		if (!cWideMode() && !App::main()->selectingPeer()) {
+		if (Adaptive::OneColumn() && !App::main()->selectingPeer()) {
 			Ui::showPeerHistory(_searchInPeer, ShowAtUnreadMsgId);
 		}
 		_searchInPeer = _searchInMigrated = 0;
@@ -2570,7 +2577,7 @@ void DialogsWidget::onCancelSearchInPeer() {
 	_filter.clear();
 	_filter.updatePlaceholder();
 	onFilterUpdate();
-	if (cWideMode() && !App::main()->selectingPeer()) {
+	if (!Adaptive::OneColumn() && !App::main()->selectingPeer()) {
 		emit cancelled();
 	}
 }

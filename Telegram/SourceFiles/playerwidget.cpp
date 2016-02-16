@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -59,7 +59,7 @@ PlayerWidget::PlayerWidget(QWidget *parent) : TWidget(parent)
 	resize(st::wndMinWidth, st::playerHeight);
 	setMouseTracking(true);
 	memset(_stateHovers, 0, sizeof(_stateHovers));
-	_sideShadow.setVisible(cWideMode());
+	_sideShadow.setVisible(!Adaptive::OneColumn());
 }
 
 void PlayerWidget::paintEvent(QPaintEvent *e) {
@@ -198,7 +198,7 @@ void PlayerWidget::mousePressEvent(QMouseEvent *e) {
 			audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
 			if (playing == _song && playingDuration) {
 				if (playingState == AudioPlayerPlaying || playingState == AudioPlayerStarting || playingState == AudioPlayerResuming) {
-					audioPlayer()->pauseresume(OverviewDocuments);
+					audioPlayer()->pauseresume(OverviewFiles);
 				}
 				_down = OverPlayback;
 				_downProgress = snap((pos.x() - _playbackRect.x()) / float64(_playbackRect.width()), 0., 1.);
@@ -210,7 +210,7 @@ void PlayerWidget::mousePressEvent(QMouseEvent *e) {
 			}
 		} else if (_over == OverFull && _song) {
 			if (HistoryItem *item = App::histItemById(_song.msgId)) {
-				App::main()->showMediaOverview(item->history()->peer, OverviewAudioDocuments);
+				App::main()->showMediaOverview(item->history()->peer, OverviewMusicFiles);
 			}
 		} else if (_over == OverRepeat) {
 			_repeat = !_repeat;
@@ -269,23 +269,23 @@ void PlayerWidget::updateControls() {
 	_fullAvailable = (_index >= 0);
 
 	History *history = _msgmigrated ? _migrated : _history;
-	_prevAvailable = _fullAvailable && ((_index > 0) || (_index == 0 && _migrated && !_msgmigrated && !_migrated->overview[OverviewAudioDocuments].isEmpty()));
-	_nextAvailable = _fullAvailable && ((_index < history->overview[OverviewAudioDocuments].size() - 1) || (_msgmigrated && _index == _migrated->overview[OverviewAudioDocuments].size() - 1 && _history->overviewLoaded(OverviewAudioDocuments) && _history->overviewCount(OverviewAudioDocuments) > 0));
+	_prevAvailable = _fullAvailable && ((_index > 0) || (_index == 0 && _migrated && !_msgmigrated && !_migrated->overview[OverviewMusicFiles].isEmpty()));
+	_nextAvailable = _fullAvailable && ((_index < history->overview[OverviewMusicFiles].size() - 1) || (_msgmigrated && _index == _migrated->overview[OverviewMusicFiles].size() - 1 && _history->overviewLoaded(OverviewMusicFiles) && _history->overviewCount(OverviewMusicFiles) > 0));
 	resizeEvent(0);
 	update();
 	if (_index >= 0 && _index < MediaOverviewStartPerPage) {
-		if (!_history->overviewLoaded(OverviewAudioDocuments) || (_migrated && !_migrated->overviewLoaded(OverviewAudioDocuments))) {
+		if (!_history->overviewLoaded(OverviewMusicFiles) || (_migrated && !_migrated->overviewLoaded(OverviewMusicFiles))) {
 			if (App::main()) {
-				if (_msgmigrated || (_migrated && _index == 0 && _history->overviewLoaded(OverviewAudioDocuments))) {
-					App::main()->loadMediaBack(_migrated->peer, OverviewAudioDocuments);
+				if (_msgmigrated || (_migrated && _index == 0 && _history->overviewLoaded(OverviewMusicFiles))) {
+					App::main()->loadMediaBack(_migrated->peer, OverviewMusicFiles);
 				} else {
-					App::main()->loadMediaBack(_history->peer, OverviewAudioDocuments);
-					if (_migrated && _index == 0 && _migrated->overview[OverviewAudioDocuments].isEmpty() && !_migrated->overviewLoaded(OverviewAudioDocuments)) {
-						App::main()->loadMediaBack(_migrated->peer, OverviewAudioDocuments);
+					App::main()->loadMediaBack(_history->peer, OverviewMusicFiles);
+					if (_migrated && _index == 0 && _migrated->overview[OverviewMusicFiles].isEmpty() && !_migrated->overviewLoaded(OverviewMusicFiles)) {
+						App::main()->loadMediaBack(_migrated->peer, OverviewMusicFiles);
 					}
 				}
-				if (_msgmigrated && !_history->overviewCountLoaded(OverviewAudioDocuments)) {
-					App::main()->preloadOverview(_history->peer, OverviewAudioDocuments);
+				if (_msgmigrated && !_history->overviewCountLoaded(OverviewMusicFiles)) {
+					App::main()->preloadOverview(_history->peer, OverviewMusicFiles);
 				}
 			}
 		}
@@ -296,7 +296,7 @@ void PlayerWidget::findCurrent() {
 	_index = -1;
 	if (!_history) return;
 
-	const History::MediaOverview *o = &(_msgmigrated ? _migrated : _history)->overview[OverviewAudioDocuments];
+	const History::MediaOverview *o = &(_msgmigrated ? _migrated : _history)->overview[OverviewMusicFiles];
 	if ((_msgmigrated ? _migrated : _history)->channelId() == _song.msgId.channel) {
 		for (int i = 0, l = o->size(); i < l; ++i) {
 			if (o->at(i) == _song.msgId.msg) {
@@ -312,14 +312,14 @@ void PlayerWidget::preloadNext() {
 	if (_index < 0) return;
 
 	History *history = _msgmigrated ? _migrated : _history;
-	const History::MediaOverview *o = &history->overview[OverviewAudioDocuments];
+	const History::MediaOverview *o = &history->overview[OverviewMusicFiles];
 	HistoryItem *next = 0;
 	if (_index < o->size() - 1) {
 		next = App::histItemById(history->channelId(), o->at(_index + 1));
-	} else if (_msgmigrated && _index == o->size() - 1 && _history->overviewLoaded(OverviewAudioDocuments) && _history->overviewCount(OverviewAudioDocuments) > 0) {
-		next = App::histItemById(_history->channelId(), _history->overview[OverviewAudioDocuments].at(0));
-	} else if (_msgmigrated && _index == o->size() - 1 && !_history->overviewCountLoaded(OverviewAudioDocuments)) {
-		if (App::main()) App::main()->preloadOverview(_history->peer, OverviewAudioDocuments);
+	} else if (_msgmigrated && _index == o->size() - 1 && _history->overviewLoaded(OverviewMusicFiles) && _history->overviewCount(OverviewMusicFiles) > 0) {
+		next = App::histItemById(_history->channelId(), _history->overview[OverviewMusicFiles].at(0));
+	} else if (_msgmigrated && _index == o->size() - 1 && !_history->overviewCountLoaded(OverviewMusicFiles)) {
+		if (App::main()) App::main()->preloadOverview(_history->peer, OverviewMusicFiles);
 	}
 	if (next) {
 		if (HistoryDocument *document = static_cast<HistoryDocument*>(next->getMedia())) {
@@ -348,12 +348,12 @@ void PlayerWidget::clearSelection() {
 }
 
 void PlayerWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
-	if (_history && (_history->peer == peer || (_migrated && _migrated->peer == peer)) && type == OverviewAudioDocuments) {
+	if (_history && (_history->peer == peer || (_migrated && _migrated->peer == peer)) && type == OverviewMusicFiles) {
 		_index = -1;
 		History *history = _msgmigrated ? _migrated : _history;
 		if (history->channelId() == _song.msgId.channel) {
-			for (int i = 0, l = history->overview[OverviewAudioDocuments].size(); i < l; ++i) {
-				if (history->overview[OverviewAudioDocuments].at(i) == _song.msgId.msg) {
+			for (int i = 0, l = history->overview[OverviewMusicFiles].size(); i < l; ++i) {
+				if (history->overview[OverviewMusicFiles].at(i) == _song.msgId.msg) {
 					_index = i;
 					preloadNext();
 					break;
@@ -364,8 +364,8 @@ void PlayerWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) 
 	}
 }
 
-void PlayerWidget::updateWideMode() {
-	_sideShadow.setVisible(cWideMode());
+void PlayerWidget::updateAdaptiveLayout() {
+	_sideShadow.setVisible(!Adaptive::OneColumn());
 }
 
 bool PlayerWidget::seekingSong(const SongMsgId &song) const {
@@ -476,7 +476,7 @@ void PlayerWidget::playPressed() {
 	audioPlayer()->currentState(&playing, &playingState);
 	if (playing == _song && !(playingState & AudioPlayerStoppedMask)) {
 		if (playingState == AudioPlayerPausing || playingState == AudioPlayerPaused || playingState == AudioPlayerPausedAtEnd) {
-			audioPlayer()->pauseresume(OverviewDocuments);
+			audioPlayer()->pauseresume(OverviewFiles);
 		}
 	} else {
 		audioPlayer()->play(_song);
@@ -492,7 +492,7 @@ void PlayerWidget::pausePressed() {
 	audioPlayer()->currentState(&playing, &playingState);
 	if (playing == _song && !(playingState & AudioPlayerStoppedMask)) {
 		if (playingState == AudioPlayerStarting || playingState == AudioPlayerResuming || playingState == AudioPlayerPlaying || playingState == AudioPlayerFinishing) {
-			audioPlayer()->pauseresume(OverviewDocuments);
+			audioPlayer()->pauseresume(OverviewFiles);
 		}
 	}
 }
@@ -504,7 +504,7 @@ void PlayerWidget::playPausePressed() {
 	AudioPlayerState playingState = AudioPlayerStopped;
 	audioPlayer()->currentState(&playing, &playingState);
 	if (playing == _song && !(playingState & AudioPlayerStoppedMask)) {
-		audioPlayer()->pauseresume(OverviewDocuments);
+		audioPlayer()->pauseresume(OverviewFiles);
 	} else {
 		audioPlayer()->play(_song);
 		if (App::main()) App::main()->documentPlayProgress(_song);
@@ -515,11 +515,11 @@ void PlayerWidget::prevPressed() {
 	if (isHidden()) return;
 
 	History *history = _msgmigrated ? _migrated : _history;
-	const History::MediaOverview *o = history ? &history->overview[OverviewAudioDocuments] : 0;
+	const History::MediaOverview *o = history ? &history->overview[OverviewMusicFiles] : 0;
 	if (audioPlayer() && o && _index > 0 && _index <= o->size() && !o->isEmpty()) {
 		startPlay(FullMsgId(history->channelId(), o->at(_index - 1)));
 	} else if (!_index && _history && _migrated && !_msgmigrated) {
-		o = &_migrated->overview[OverviewAudioDocuments];
+		o = &_migrated->overview[OverviewMusicFiles];
 		if (!o->isEmpty()) {
 			startPlay(FullMsgId(_migrated->channelId(), o->at(o->size() - 1)));
 		}
@@ -530,11 +530,11 @@ void PlayerWidget::nextPressed() {
 	if (isHidden()) return;
 
 	History *history = _msgmigrated ? _migrated : _history;
-	const History::MediaOverview *o = history ? &history->overview[OverviewAudioDocuments] : 0;
+	const History::MediaOverview *o = history ? &history->overview[OverviewMusicFiles] : 0;
 	if (audioPlayer() && o && _index >= 0 && _index < o->size() - 1) {
 		startPlay(FullMsgId(history->channelId(), o->at(_index + 1)));
-	} else if (o && (_index == o->size() - 1) && _msgmigrated && _history->overviewLoaded(OverviewAudioDocuments)) {
-		o = &_history->overview[OverviewAudioDocuments];
+	} else if (o && (_index == o->size() - 1) && _msgmigrated && _history->overviewLoaded(OverviewMusicFiles)) {
+		o = &_history->overview[OverviewMusicFiles];
 		if (!o->isEmpty()) {
 			startPlay(FullMsgId(_history->channelId(), o->at(0)));
 		}
@@ -544,14 +544,14 @@ void PlayerWidget::nextPressed() {
 void PlayerWidget::stopPressed() {
 	if (!_song || isHidden()) return;
 
-	audioPlayer()->stop(OverviewDocuments);
+	audioPlayer()->stop(OverviewFiles);
 	if (App::main()) App::main()->hidePlayer();
 }
 
 void PlayerWidget::resizeEvent(QResizeEvent *e) {
 	int32 availh = (height() - st::playerLineHeight);
 	int32 ch = st::playerPlay.pxHeight() + st::playerSkip, ct = (availh - ch) / 2;
-	_playbackRect = QRect(cWideMode() ? st::lineWidth : 0, height() - st::playerMoverSize.height(), width() - (cWideMode() ? st::lineWidth : 0), st::playerMoverSize.height());
+	_playbackRect = QRect(Adaptive::OneColumn() ? 0 : st::lineWidth, height() - st::playerMoverSize.height(), width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::playerMoverSize.height());
 	_prevRect = _fullAvailable ? QRect(st::playerSkip / 2, ct, st::playerPrev.pxWidth() + st::playerSkip, ch) : QRect();
 	_playRect = QRect(_fullAvailable ? (_prevRect.x() + _prevRect.width()) : (st::playerSkip / 2), ct, st::playerPlay.pxWidth() + st::playerSkip, ch);
 	_nextRect = _fullAvailable ? QRect(_playRect.x() + _playRect.width(), ct, st::playerNext.pxWidth() + st::playerSkip, ch) : QRect();
@@ -636,7 +636,7 @@ void PlayerWidget::updateState(SongMsgId playing, AudioPlayerState playingState,
 		display = _song.song->song()->duration;
 	}
 	bool showPause = false, stopped = ((playingState & AudioPlayerStoppedMask) || playingState == AudioPlayerFinishing);
-	bool wasPlaying = !!_duration;
+	bool wasPlaying = (_duration != 0);
 	if (!stopped) {
 		showPause = (playingState == AudioPlayerPlaying || playingState == AudioPlayerResuming || playingState == AudioPlayerStarting);
 	}

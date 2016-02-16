@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -34,6 +34,8 @@ namespace App {
 	bool forward(const PeerId &peer, ForwardWhatMessages what);
 	void removeDialog(History *history);
 	void showSettings();
+
+	void activateTextLink(TextLinkPtr link, Qt::MouseButton button);
 
 };
 
@@ -67,6 +69,8 @@ namespace Ui {
 		showPeerHistory(PeerId(0), 0);
 	}
 
+	bool hideWindowNoQuit();
+
 };
 
 enum ClipStopperType {
@@ -96,7 +100,13 @@ namespace Notify {
 
 };
 
-namespace Global {
+#define DeclareReadOnlyVar(Type, Name) const Type &Name();
+#define DeclareRefVar(Type, Name) DeclareReadOnlyVar(Type, Name) \
+	Type &Ref##Name();
+#define DeclareVar(Type, Name) DeclareRefVar(Type, Name) \
+	void Set##Name(const Type &Name);
+
+namespace Sandbox {
 
 	bool CheckBetaVersionDir();
 	void WorkingDirReady();
@@ -104,29 +114,42 @@ namespace Global {
 	void start();
 	void finish();
 
-#define DeclareGlobalReadOnly(Type, Name) const Type &Name();
-#define DeclareGlobal(Type, Name) DeclareGlobalReadOnly(Type, Name) \
-	void Set##Name(const Type &Name); \
-	Type &Ref##Name();
+	uint64 UserTag();
 
-	DeclareGlobalReadOnly(QString, LangSystemISO);
-	DeclareGlobalReadOnly(int32, LangSystem);
-	DeclareGlobal(QByteArray, LastCrashDump);
-	DeclareGlobal(ConnectionProxy, PreLaunchProxy);
+	DeclareReadOnlyVar(QString, LangSystemISO);
+	DeclareReadOnlyVar(int32, LangSystem);
+	DeclareVar(QByteArray, LastCrashDump);
+	DeclareVar(ConnectionProxy, PreLaunchProxy);
 
 }
 
-namespace Sandbox {
+namespace Adaptive {
+	enum Layout {
+		OneColumnLayout,
+		NormalLayout,
+		WideLayout,
+	};
+};
+
+namespace Global {
 
 	bool started();
 	void start();
 	void finish();
 
-#define DeclareSandboxReadOnly(Type, Name) const Type &Name();
-#define DeclareSandbox(Type, Name) DeclareSandboxReadOnly(Type, Name) \
-	void Set##Name(const Type &Name); \
-	Type &Ref##Name();
-
-	DeclareSandboxReadOnly(uint64, LaunchId);
+	DeclareReadOnlyVar(uint64, LaunchId);
+	DeclareVar(Adaptive::Layout, AdaptiveLayout);
 
 };
+
+namespace Adaptive {
+	inline bool OneColumn() {
+		return Global::AdaptiveLayout() == OneColumnLayout;
+	}
+	inline bool Normal() {
+		return Global::AdaptiveLayout() == NormalLayout;
+	}
+	inline bool Wide() {
+		return Global::AdaptiveLayout() == WideLayout;
+	}
+}

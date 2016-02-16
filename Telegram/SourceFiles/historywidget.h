@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -33,7 +33,7 @@ enum DragState {
 };
 
 class HistoryWidget;
-class HistoryInner : public TWidget {
+class HistoryInner : public TWidget, public AbstractTooltipShower {
 	Q_OBJECT
 
 public:
@@ -97,14 +97,16 @@ public:
 	void notifyIsBotChanged();
 	void notifyMigrateUpdated();
 
+	// AbstractTooltipShower
+	virtual QString tooltipText() const;
+	virtual QPoint tooltipPos() const;
+
 	~HistoryInner();
 
 public slots:
 
 	void onUpdateSelected();
 	void onParentGeometryChanged();
-
-	void showLinkTip();
 
 	void openContextUrl();
 	void copyContextUrl();
@@ -149,8 +151,6 @@ private:
 	mutable int32 _curBlock, _curItem;
 
 	bool _firstLoading;
-
-	QTimer _tooltipTimer;
 
 	Qt::CursorShape _cursor;
 	typedef QMap<HistoryItem*, uint32> SelectedItems;
@@ -249,7 +249,7 @@ private:
 
 };
 
-class BotKeyboard : public TWidget {
+class BotKeyboard : public TWidget, public AbstractTooltipShower {
 	Q_OBJECT
 
 public:
@@ -277,9 +277,12 @@ public:
 		return _wasForMsgId;
 	}
 
+	// AbstractTooltipShower
+	virtual QString tooltipText() const;
+	virtual QPoint tooltipPos() const;
+
 public slots:
 
-	void showCommandTip();
 	void updateSelected();
 
 private:
@@ -290,7 +293,6 @@ private:
 	FullMsgId _wasForMsgId;
 	int32 _height, _maxOuterHeight;
 	bool _maximizeSize, _singleUse, _forceReply;
-	QTimer _cmdTipTimer;
 
 	QPoint _lastMousePos;
 	struct Button {
@@ -484,7 +486,7 @@ public:
 	void step_show(float64 ms, bool timer);
 	void animStop();
 
-	void updateWideMode();
+	void updateAdaptiveLayout();
 	void doneShow();
 
 	QPoint clampMousePosition(QPoint point);
@@ -560,7 +562,7 @@ public:
 		resizeEvent(0);
 	}
 	void grabFinish() {
-		_sideShadow.setVisible(cWideMode());
+		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_inGrab = false;
 		resizeEvent(0);
 	}
@@ -608,15 +610,12 @@ public slots:
 	void onPhotoUploaded(const FullMsgId &msgId, const MTPInputFile &file);
 	void onDocumentUploaded(const FullMsgId &msgId, const MTPInputFile &file);
 	void onThumbDocumentUploaded(const FullMsgId &msgId, const MTPInputFile &file, const MTPInputFile &thumb);
-	void onAudioUploaded(const FullMsgId &msgId, const MTPInputFile &file);
 
 	void onPhotoProgress(const FullMsgId &msgId);
 	void onDocumentProgress(const FullMsgId &msgId);
-	void onAudioProgress(const FullMsgId &msgId);
 
 	void onPhotoFailed(const FullMsgId &msgId);
 	void onDocumentFailed(const FullMsgId &msgId);
-	void onAudioFailed(const FullMsgId &msgId);
 
 	void onReportSpamClicked();
 	void onReportSpamSure();
@@ -681,8 +680,8 @@ public slots:
 	void updateField();
 
 	void onRecordError();
-	void onRecordDone(QByteArray result, qint32 samples);
-	void onRecordUpdate(qint16 level, qint32 samples);
+	void onRecordDone(QByteArray result, VoiceWaveform waveform, qint32 samples);
+	void onRecordUpdate(quint16 level, qint32 samples);
 
 	void onUpdateHistoryItems();
 

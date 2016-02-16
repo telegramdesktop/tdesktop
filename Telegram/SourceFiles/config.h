@@ -16,14 +16,14 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 9019;
-static const wchar_t *AppVersionStr = L"0.9.19";
+static const int32 AppVersion = 9024;
+static const wchar_t *AppVersionStr = L"0.9.24";
 static const bool DevVersion = false;
-//#define BETA_VERSION (9019001ULL) // just comment this line to build public version
+//#define BETA_VERSION (9019002ULL) // just comment this line to build public version
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -117,6 +117,8 @@ enum {
 	AudioVoiceMsgBufferSize = 1024 * 1024, // 1 Mb buffers
 	AudioVoiceMsgInMemory = 2 * 1024 * 1024, // 2 Mb audio is hold in memory and auto loaded
 	AudioPauseDeviceTimeout = 3000, // pause in 3 secs after playing is over
+
+	WaveformSamplesCount = 100,
 
 	StickerInMemory = 2 * 1024 * 1024, // 2 Mb stickers hold in memory, auto loaded and displayed inline
 	StickerMaxSize = 2048, // 2048x2048 is a max image size for sticker

@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
@@ -101,7 +101,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 , _kickOver(0)
 , _kickDown(0)
 , _kickConfirm(0)
-	
+
 , _menu(0) {
 	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 
@@ -209,9 +209,9 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 	// shared media
 	connect((_mediaButtons[OverviewPhotos] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaPhotos()));
 	connect((_mediaButtons[OverviewVideos] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaVideos()));
-	connect((_mediaButtons[OverviewAudioDocuments] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaSongs()));
-	connect((_mediaButtons[OverviewDocuments] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaDocuments()));
-	connect((_mediaButtons[OverviewAudios] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaAudios()));
+	connect((_mediaButtons[OverviewMusicFiles] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaSongs()));
+	connect((_mediaButtons[OverviewFiles] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaDocuments()));
+	connect((_mediaButtons[OverviewVoiceFiles] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaAudios()));
 	connect((_mediaButtons[OverviewLinks] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaLinks()));
 	updateMediaLinks();
 
@@ -261,7 +261,7 @@ void ProfileInner::loadProfilePhotos(int32 yFrom) {
 	int32 yTo = yFrom + (parentWidget() ? parentWidget()->height() : App::wnd()->height()) * 5;
 	MTP::clearLoaderPriorities();
 
-	int32 partfrom = _mediaButtons[OverviewAudios]->y() + _mediaButtons[OverviewAudios]->height() + st::profileHeaderSkip;
+	int32 partfrom = _mediaButtons[OverviewVoiceFiles]->y() + _mediaButtons[OverviewVoiceFiles]->height() + st::profileHeaderSkip;
 	yFrom -= partfrom;
 	yTo -= partfrom;
 
@@ -279,7 +279,7 @@ void ProfileInner::loadProfilePhotos(int32 yFrom) {
 void ProfileInner::onUpdatePhoto() {
 	saveError();
 
-	QStringList imgExtensions(cImgExtensions());	
+	QStringList imgExtensions(cImgExtensions());
 	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;All files (*.*)"));
 
 	QImage img;
@@ -440,15 +440,15 @@ void ProfileInner::onMediaVideos() {
 }
 
 void ProfileInner::onMediaSongs() {
-	App::main()->showMediaOverview(_peer, OverviewAudioDocuments);
+	App::main()->showMediaOverview(_peer, OverviewMusicFiles);
 }
 
 void ProfileInner::onMediaDocuments() {
-	App::main()->showMediaOverview(_peer, OverviewDocuments);
+	App::main()->showMediaOverview(_peer, OverviewFiles);
 }
 
 void ProfileInner::onMediaAudios() {
-	App::main()->showMediaOverview(_peer, OverviewAudios);
+	App::main()->showMediaOverview(_peer, OverviewVoiceFiles);
 }
 
 void ProfileInner::onMediaLinks() {
@@ -464,7 +464,7 @@ void ProfileInner::onInvitationLink() {
 
 void ProfileInner::onPublicLink() {
 	if (!_peerChannel) return;
-	
+
 	if (_peerChannel->isPublic()) {
 		QApplication::clipboard()->setText(qsl("https://telegram.me/") + _peerChannel->username);
 		Ui::showLayer(new InformBox(lang(lng_channel_public_link_copied)));
@@ -776,7 +776,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 			p.setOpacity(1);
 		}
 	}
-	
+
 	int32 namew = _width - st::profilePhotoSize - st::profileNameLeft;
 	p.setPen(st::black->p);
 	if (_peer->isVerified()) {
@@ -817,7 +817,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	top += st::profilePhotoSize;
 	top += st::profileButtonTop;
 
-	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->amEditor() && _peerChannel->isMegagroup()))) {
+	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->canAddParticipants() && _peerChannel->isMegagroup()))) {
 		top += _shareContact.height();
 	} else {
 		top -= st::profileButtonTop;
@@ -1271,7 +1271,7 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	_left = (width() - _width) / 2;
 
 	int32 top = 0, btnWidth = (_width - st::profileButtonSkip) / 2;
-	
+
 	// profile
 	top += st::profilePadding.top();
 	int32 addbyname = 0;
@@ -1294,13 +1294,17 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	top += st::profileButtonTop;
 
 	_uploadPhoto.setGeometry(_left, top, btnWidth, _uploadPhoto.height());
-	_addParticipant.setGeometry(_left + _width - btnWidth, top, btnWidth, _addParticipant.height());
+	if (_peerChannel && _peerChannel->count < cMaxMegaGroupCount() && _peerChannel->isMegagroup() && !_amCreator && !_peerChannel->amEditor() && _peerChannel->canAddParticipants()) {
+		_addParticipant.setGeometry(_left, top, btnWidth, _addParticipant.height());
+	} else {
+		_addParticipant.setGeometry(_left + _width - btnWidth, top, btnWidth, _addParticipant.height());
+	}
 
 	_sendMessage.setGeometry(_left, top, btnWidth, _sendMessage.height());
 	_shareContact.setGeometry(_left + _width - btnWidth, top, btnWidth, _shareContact.height());
 	_inviteToGroup.setGeometry(_left + _width - btnWidth, top, btnWidth, _inviteToGroup.height());
 
-	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->amEditor() && _peerChannel->isMegagroup()))) {
+	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->canAddParticipants() && _peerChannel->isMegagroup()))) {
 		top += _shareContact.height();
 	} else {
 		top -= st::profileButtonTop;
@@ -1446,7 +1450,7 @@ ProfileInner::~ProfileInner() {
 	}
 	_participantsData.clear();
 }
-	
+
 void ProfileInner::openContextImage() {
 }
 
@@ -1634,7 +1638,7 @@ void ProfileInner::showAll() {
 				_invitationLink.hide();
 			}
 		}
-		if (_peerChannel->count < cMaxMegaGroupCount() && _peerChannel->isMegagroup() && (_amCreator || _peerChannel->amEditor())) {
+		if (_peerChannel->count < cMaxMegaGroupCount() && _peerChannel->isMegagroup() && _peerChannel->canAddParticipants()) {
 			_addParticipant.show();
 		} else {
 			_addParticipant.hide();
@@ -1711,9 +1715,9 @@ QString ProfileInner::overviewLinkText(int32 type, int32 count) {
 	switch (type) {
 	case OverviewPhotos: return lng_profile_photos(lt_count, count);
 	case OverviewVideos: return lng_profile_videos(lt_count, count);
-	case OverviewAudioDocuments: return lng_profile_songs(lt_count, count);
-	case OverviewDocuments: return lng_profile_files(lt_count, count);
-	case OverviewAudios: return lng_profile_audios(lt_count, count);
+	case OverviewMusicFiles: return lng_profile_songs(lt_count, count);
+	case OverviewFiles: return lng_profile_files(lt_count, count);
+	case OverviewVoiceFiles: return lng_profile_audios(lt_count, count);
 	case OverviewLinks: return lng_profile_shared_links(lt_count, count);
 	}
 	return QString();
@@ -1731,7 +1735,7 @@ ProfileWidget::ProfileWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 	_inner.move(0, 0);
 	_scroll.show();
 
-	_sideShadow.setVisible(cWideMode());
+	_sideShadow.setVisible(!Adaptive::OneColumn());
 
 	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(updateSelected()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
@@ -1763,8 +1767,8 @@ void ProfileWidget::resizeEvent(QResizeEvent *e) {
 		}
 	}
 
-	_topShadow.resize(width() - ((cWideMode() && !_inGrab) ? st::lineWidth : 0), st::lineWidth);
-	_topShadow.moveToLeft((cWideMode() && !_inGrab) ? st::lineWidth : 0, 0);
+	_topShadow.resize(width() - ((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0), st::lineWidth);
+	_topShadow.moveToLeft((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0, 0);
 	_sideShadow.resize(st::lineWidth, height());
 	_sideShadow.moveToLeft(0, 0);
 }
@@ -1862,7 +1866,7 @@ void ProfileWidget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
 	if (dt >= 1) {
 		_a_show.stop();
-		_sideShadow.setVisible(cWideMode());
+		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_topShadow.show();
 
 		a_coordUnder.finish();
@@ -1914,8 +1918,8 @@ void ProfileWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type)
 	}
 }
 
-void ProfileWidget::updateWideMode() {
-	_sideShadow.setVisible(cWideMode());
+void ProfileWidget::updateAdaptiveLayout() {
+	_sideShadow.setVisible(!Adaptive::OneColumn());
 }
 
 void ProfileWidget::clear() {

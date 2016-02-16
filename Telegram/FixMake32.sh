@@ -11,10 +11,8 @@ Replace () {
 }
 
 Replace '\-llzma' '\/usr\/lib\/i386\-linux\-gnu\/liblzma\.a'
-Replace '\-lz' '\/usr\/lib\/i386\-linux\-gnu\/libz\.a'
 Replace '\-lssl' '\/usr\/lib\/i386\-linux\-gnu\/libssl\.a'
 Replace '\-lcrypto' '\/usr\/lib\/i386\-linux\-gnu\/libcrypto\.a'
-Replace '\-lexif' '\/usr\/lib\/i386\-linux\-gnu\/libexif\.a'
 Replace '\-lgobject\-2\.0' '\/usr\/lib\/i386\-linux\-gnu\/libgobject\-2\.0\.a \/usr\/lib\/i386\-linux\-gnu\/libffi\.a'
 Replace '\-lXi' '\/usr\/lib\/i386\-linux\-gnu\/libXi\.a'
 Replace '\-lSM' '\/usr\/lib\/i386\-linux\-gnu\/libSM\.a'

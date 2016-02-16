@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 "lng_language_name" = "Nederlands";
 "lng_switch_to_this" = "Overschakelen naar Nederlands";
@@ -638,6 +638,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_cant_invite_not_contact" = "Op dit moment kun je alleen onderlinge\ncontacten aan groepen toevoegen.  {more_info}";
 "lng_cant_invite_not_contact_channel" = "Je kunt momenteel alleen onderlinge\ncontacten aan kanalen toevoegen.\n{more_info}";
 "lng_cant_more_info" = "Meer informatie »";
+"lng_cant_invite_privacy" = "Je kunt deze gebruiker niet toevoegen aan groepen door zijn/haar privacyinstellingen.";
+"lng_cant_invite_privacy_channel" = "Je kunt deze gebruiker niet toevoegen aan kanalen door zijn/haar privacyinstellingen.";
 
 "lng_send_button" = "Stuur";
 "lng_message_ph" = "Bericht schrijven";
@@ -834,7 +836,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "GIF-revolutie: 10 keer zo snel GIF's sturen en downloaden. Speel ze automatisch af en sla je favorieten op in het stickerpaneel.\n\nMeer over GIFs:\n{gifs_link}\n\nInline-bots: Voeg botcontent toe aan chats op een nieuwe manier! Geef in het invoerveld de naam van een bot en je commando in en stuur de resultaten naar je chatpartner. Probeer het eens met “@gif dog”. Voorbeelden: @gif, @wiki, @bing, @vid, @bold.\n\nMeer over inline-bots:\n{bots_link}\n\nIn deze release hebben we nog meer voor je. Een nieuw design voor media en automatische download-instellingen voor foto's, spraakberichten en GIF's.";
+"lng_new_version_text" = "— Nieuwe visualisatie voor spraakberichten\n— Stickersuggesties als een emoji typt";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

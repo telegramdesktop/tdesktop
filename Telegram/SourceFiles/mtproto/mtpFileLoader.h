@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -30,23 +30,6 @@ enum LocationType {
 	AudioFileLocation    = 0x74dc404d, // mtpc_inputAudioFileLocation
 	VideoFileLocation    = 0x3d0364ec, // mtpc_inputVideoFileLocation
 };
-inline LocationType mtpToLocationType(mtpTypeId type) {
-	switch (type) {
-		case mtpc_inputDocumentFileLocation: return DocumentFileLocation;
-		case mtpc_inputAudioFileLocation: return AudioFileLocation;
-		case mtpc_inputVideoFileLocation: return VideoFileLocation;
-		default: return UnknownFileLocation;
-	}
-}
-inline mtpTypeId mtpFromLocationType(LocationType type) {
-	switch (type) {
-		case DocumentFileLocation: return mtpc_inputDocumentFileLocation;
-		case AudioFileLocation: return mtpc_inputAudioFileLocation;
-		case VideoFileLocation: return mtpc_inputVideoFileLocation;
-		case UnknownFileLocation:
-		default: return 0;
-	}
-}
 
 enum StorageFileType {
 	StorageFileUnknown = 0xaa963b05, // mtpc_storage_fileUnknown

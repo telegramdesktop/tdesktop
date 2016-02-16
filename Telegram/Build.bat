@@ -117,18 +117,17 @@ if %BetaVersion% neq 0 (
 
 for /f ^"usebackq^ eol^=^
 
-^ delims^=^" %%a in (..\Win32\Debug\Telegram.sym) do (
+^ delims^=^" %%a in (%ReleasePath%\%BinaryName%.sym) do (
   set "SymbolsHashLine=%%a"
   goto symbolslinedone
 )
 :symbolslinedone
-FOR /F "tokens=1,2,3,4* delims= " %%i in ("%SymbolsHashLine%") do set "SymbolsH
-ash=%%l"
+FOR /F "tokens=1,2,3,4* delims= " %%i in ("%SymbolsHashLine%") do set "SymbolsHash=%%l"
 
-echo Copying %BinaryName%.sym to %DropboxSymbolsPath%\%BinaryName%\%SymbolsHash%
-if not exist %DropboxSymbolsPath%\%BinaryName% mkdir %DropboxSymbolsPath%\%BinaryName%
-if not exist %DropboxSymbolsPath%\%BinaryName%\%SymbolsHash% mkdir %DropboxSymbolsPath%\%BinaryName%\%SymbolsHash%
-xcopy %ReleasePath%\%BinaryName%.sym %DropboxSymbolsPath%\%BinaryName%\%SymbolsHash%\
+echo Copying %BinaryName%.sym to %DropboxSymbolsPath%\%BinaryName%.pdb\%SymbolsHash%
+if not exist %DropboxSymbolsPath%\%BinaryName%.pdb mkdir %DropboxSymbolsPath%\%BinaryName%.pdb
+if not exist %DropboxSymbolsPath%\%BinaryName%.pdb\%SymbolsHash% mkdir %DropboxSymbolsPath%\%BinaryName%.pdb\%SymbolsHash%
+xcopy %ReleasePath%\%BinaryName%.sym %DropboxSymbolsPath%\%BinaryName%.pdb\%SymbolsHash%\
 echo Done!
 
 if not exist %ReleasePath%\deploy mkdir %ReleasePath%\deploy

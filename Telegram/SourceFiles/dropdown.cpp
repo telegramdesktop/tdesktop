@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
@@ -1698,6 +1698,7 @@ bool StickerPanInner::inlineRowFinalize(InlineRow &row, int32 &sumWidth, bool fo
 
 void StickerPanInner::refreshSavedGifs() {
 	if (_showingSavedGifs) {
+		_settings.hide();
 		clearInlineRows(false);
 		if (_showingInlineItems) {
 			const SavedGifs &saved(cSavedGifs());
@@ -1919,6 +1920,7 @@ int32 StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &res
 
 	_showingInlineItems = true;
 	_showingSavedGifs = false;
+	_settings.hide();
 
 	int32 count = results.size(), from = validateExistingInlineRows(results), added = 0;
 
@@ -4013,9 +4015,9 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 				}
 			}
 		}
-		p.fillRect(cWideMode() ? st::lineWidth : 0, _parent->innerBottom() - st::lineWidth, width() - (cWideMode() ? st::lineWidth : 0), st::lineWidth, st::shadowColor->b);
+		p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, _parent->innerBottom() - st::lineWidth, width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowColor->b);
 	}
-	p.fillRect(cWideMode() ? st::lineWidth : 0, _parent->innerTop(), width() - (cWideMode() ? st::lineWidth : 0), st::lineWidth, st::shadowColor->b);
+	p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, _parent->innerTop(), width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowColor->b);
 }
 
 void MentionsInner::resizeEvent(QResizeEvent *e) {
@@ -4064,6 +4066,7 @@ bool MentionsInner::select() {
 	if (!_srows->isEmpty()) {
 		if (_sel >= 0 && _sel < _srows->size()) {
 			emit selected(_srows->at(_sel));
+			return true;
 		}
 	} else {
 		QString sel = getSelected();
@@ -4636,10 +4639,12 @@ bool MentionsDropdown::eventFilter(QObject *obj, QEvent *e) {
 	if (isHidden()) return QWidget::eventFilter(obj, e);
 	if (e->type() == QEvent::KeyPress) {
 		QKeyEvent *ev = static_cast<QKeyEvent*>(e);
-		if (ev->key() == Qt::Key_Up || ev->key() == Qt::Key_Down || (!_srows.isEmpty() && (ev->key() == Qt::Key_Left || ev->key() == Qt::Key_Right))) {
-			return _inner.moveSel(ev->key());
-		} else if (ev->key() == Qt::Key_Enter || ev->key() == Qt::Key_Return) {
-			return _inner.select();
+		if (!(ev->modifiers() & (Qt::AltModifier | Qt::ControlModifier | Qt::ShiftModifier | Qt::MetaModifier))) {
+			if (ev->key() == Qt::Key_Up || ev->key() == Qt::Key_Down || (!_srows.isEmpty() && (ev->key() == Qt::Key_Left || ev->key() == Qt::Key_Right))) {
+				return _inner.moveSel(ev->key());
+			} else if (ev->key() == Qt::Key_Enter || ev->key() == Qt::Key_Return) {
+				return _inner.select();
+			}
 		}
 	}
 	return QWidget::eventFilter(obj, e);

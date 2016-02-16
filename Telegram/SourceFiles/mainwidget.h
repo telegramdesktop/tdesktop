@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -55,7 +55,7 @@ public:
 	void showAll();
 	void showSelected(uint32 selCount, bool canDelete = false);
 
-	void updateWideMode();
+	void updateAdaptiveLayout();
 
 	FlatButton *mediaTypeButton();
 
@@ -63,7 +63,7 @@ public:
 		_sideShadow.hide();
 	}
 	void grabFinish() {
-		_sideShadow.setVisible(cWideMode());
+		_sideShadow.setVisible(!Adaptive::OneColumn());
 	}
 
 public slots:
@@ -179,6 +179,10 @@ public:
 	}
 };
 
+inline int chatsListWidth(int windowWidth) {
+	return snap<int>((windowWidth * 5) / 14, st::dlgMinWidth, st::dlgMaxWidth);
+}
+
 class StickerPreviewWidget;
 
 class MainWidget : public TWidget, public RPCSender {
@@ -192,7 +196,7 @@ public:
 	void resizeEvent(QResizeEvent *e);
 	void keyPressEvent(QKeyEvent *e);
 
-	void updateWideMode();
+	void updateAdaptiveLayout();
 	bool needBackButton();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
@@ -371,8 +375,7 @@ public:
 	void cancelForwarding();
 	void finishForwarding(History *hist, bool broadcast); // send them
 
-	void audioMarkRead(AudioData *data);
-	void videoMarkRead(VideoData *data);
+	void mediaMarkRead(DocumentData *data);
 	void mediaMarkRead(const HistoryItemsMap &items);
 
 	void webPageUpdated(WebPageData *page);
@@ -441,12 +444,6 @@ public slots:
 
 	void webPagesUpdate();
 
-	void videoLoadProgress(FileLoader *loader);
-	void videoLoadFailed(FileLoader *loader, bool started);
-	void videoLoadRetry();
-	void audioLoadProgress(FileLoader *loader);
-	void audioLoadFailed(FileLoader *loader, bool started);
-	void audioLoadRetry();
 	void audioPlayProgress(const AudioMsgId &audioId);
 	void documentLoadProgress(FileLoader *loader);
 	void documentLoadFailed(FileLoader *loader, bool started);

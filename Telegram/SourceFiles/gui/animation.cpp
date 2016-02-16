@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
@@ -142,7 +142,7 @@ void AnimationManager::stop(Animation *obj) {
 	if (_iterating) {
 		_stopping.insert(obj, NullType());
 		if (!_starting.isEmpty()) {
-			_starting.insert(obj, NullType());
+			_starting.remove(obj);
 		}
 	} else {
 		AnimatingObjects::iterator i = _objects.find(obj);
@@ -159,7 +159,9 @@ void AnimationManager::timeout() {
 	_iterating = true;
 	uint64 ms = getms();
 	for (AnimatingObjects::const_iterator i = _objects.begin(), e = _objects.end(); i != e; ++i) {
-		i.key()->step(ms, true);
+		if (!_stopping.contains(i.key())) {
+			i.key()->step(ms, true);
+		}
 	}
 	_iterating = false;
 
@@ -425,7 +427,6 @@ void ClipReader::stop() {
 }
 
 void ClipReader::error() {
-	_private = 0;
 	_state = ClipError;
 }
 

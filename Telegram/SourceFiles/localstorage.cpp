@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "localstorage.h"
@@ -2783,6 +2783,77 @@ namespace Local {
 
 	qint64 storageWebFilesSize() {
 		return _storageWebFilesSize;
+	}
+
+	class CountWaveformTask : public Task {
+	public:
+		CountWaveformTask(DocumentData *doc)
+			: _doc(doc)
+			, _loc(doc->location(true))
+			, _data(doc->data())
+			, _wavemax(0) {
+			if (_data.isEmpty() && !_loc.accessEnable()) {
+				_doc = 0;
+			}
+		}
+		void process() {
+			if (!_doc) return;
+
+			_waveform = audioCountWaveform(_loc, _data);
+			uchar wavemax = 0;
+			for (int32 i = 0, l = _waveform.size(); i < l; ++i) {
+				uchar waveat = _waveform.at(i);
+				if (wavemax < waveat) wavemax = waveat;
+			}
+			_wavemax = wavemax;
+		}
+		void finish() {
+			if (VoiceData *voice = _doc ? _doc->voice() : 0) {
+				if (!_waveform.isEmpty()) {
+					voice->waveform = _waveform;
+					voice->wavemax = _wavemax;
+				}
+				if (voice->waveform.isEmpty()) {
+					voice->waveform.resize(1);
+					voice->waveform[0] = -2;
+					voice->wavemax = 0;
+				} else if (voice->waveform[0] < 0) {
+					voice->waveform[0] = -2;
+					voice->wavemax = 0;
+				}
+				const DocumentItems &items(App::documentItems());
+				DocumentItems::const_iterator i = items.constFind(_doc);
+				if (i != items.cend()) {
+					for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
+						Ui::repaintHistoryItem(j.key());
+					}
+				}
+			}
+		}
+		virtual ~CountWaveformTask() {
+			if (_data.isEmpty() && _doc) {
+				_loc.accessDisable();
+			}
+		}
+
+	protected:
+		DocumentData *_doc;
+		FileLocation _loc;
+		QByteArray _data;
+		VoiceWaveform _waveform;
+		char _wavemax;
+
+	};
+
+	void countVoiceWaveform(DocumentData *document) {
+		if (VoiceData *voice = document->voice()) {
+			if (_localLoader) {
+				voice->waveform.resize(1 + sizeof(TaskId));
+				voice->waveform[0] = -1; // counting
+				TaskId taskId = _localLoader->addTask(new CountWaveformTask(document));
+				memcpy(voice->waveform.data() + 1, &taskId, sizeof(taskId));
+			}
+		}
 	}
 
 	void cancelTask(TaskId id) {

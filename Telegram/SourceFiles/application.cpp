@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "application.h"
@@ -57,18 +57,21 @@ namespace {
 				QKeyEvent *ev = static_cast<QKeyEvent*>(e);
 				if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 					if (ev->key() == Qt::Key_W && (ev->modifiers() & Qt::ControlModifier)) {
+						Ui::hideWindowNoQuit();
+						return true;
+					} else if (ev->key() == Qt::Key_M && (ev->modifiers() & Qt::ControlModifier)) {
+						App::wnd()->setWindowState(Qt::WindowMinimized);
+						return true;
+					}
+				} else {
+					if ((ev->key() == Qt::Key_W || ev->key() == Qt::Key_F4) && (ev->modifiers() & Qt::ControlModifier)) {
 						if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
 							App::wnd()->minimizeToTray();
 							return true;
 						} else {
-							App::wnd()->hide();
-							App::wnd()->updateIsActive(cOfflineBlurTimeout());
-							App::wnd()->updateGlobalMenu();
+							App::wnd()->close();
 							return true;
 						}
-					} else if (ev->key() == Qt::Key_M && (ev->modifiers() & Qt::ControlModifier)) {
-						App::wnd()->setWindowState(Qt::WindowMinimized);
-						return true;
 					}
 				}
 				if (ev->key() == Qt::Key_MediaPlay) {
@@ -139,7 +142,7 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
 , _updateChecker(0)
 #endif
 {
-	QByteArray d(QDir(cWorkingDir()).absolutePath().toUtf8());
+	QByteArray d(QFile::encodeName(QDir(cWorkingDir()).absolutePath()));
 	char h[33] = { 0 };
 	hashMd5Hex(d.constData(), d.size(), h);
 	h[4] = 0; // use first 4 chars
@@ -172,7 +175,7 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
 Application::~Application() {
 	App::setQuiting();
 
-	Global::finish();
+	Sandbox::finish();
 
 	delete AppObject;
 
@@ -271,7 +274,7 @@ void Application::singleInstanceChecked() {
 		Logs::multipleInstances();
 	}
 
-	Global::start();
+	Sandbox::start();
 
 	if (!Logs::started() || (!cManyInstance() && !Logs::instanceChecked())) {
 		new NotStartedWindow();
@@ -280,9 +283,17 @@ void Application::singleInstanceChecked() {
 		if (status == SignalHandlers::CantOpen) {
 			new NotStartedWindow();
 		} else if (status == SignalHandlers::LastCrashed) {
-			new LastCrashedWindow();
+			if (Sandbox::LastCrashDump().isEmpty()) { // don't handle bad closing for now
+				if (SignalHandlers::restart() == SignalHandlers::CantOpen) {
+					new NotStartedWindow();
+				} else {
+					Sandbox::launch();
+				}
+			} else {
+				new LastCrashedWindow();
+			}
 		} else {
-			new AppClass();
+			Sandbox::launch();
 		}
 	}
 }
@@ -314,7 +325,7 @@ void Application::readClients() {
 			for (int32 to = cmds.indexOf(QChar(';'), from); to >= from; to = (from < l) ? cmds.indexOf(QChar(';'), from) : -1) {
 				QStringRef cmd(&cmds, from, to - from);
 				if (cmd.startsWith(qsl("CMD:"))) {
-					Sandboxer::execExternal(cmds.mid(from + 4, to - from - 4));
+					Sandbox::execExternal(cmds.mid(from + 4, to - from - 4));
 					QByteArray response(qsl("RES:%1;").arg(QCoreApplication::applicationPid()).toLatin1());
 					i->first->write(response.data(), response.size());
 				} else if (cmd.startsWith(qsl("SEND:"))) {
@@ -532,7 +543,7 @@ inline Application *application() {
 	return qobject_cast<Application*>(QApplication::instance());
 }
 
-namespace Sandboxer {
+namespace Sandbox {
 
 	QRect availableGeometry() {
 		if (Application *a = application()) {
@@ -559,6 +570,12 @@ namespace Sandboxer {
 			return a->isSavingSession();
 		}
 		return false;
+	}
+
+	void installEventFilter(QObject *filter) {
+		if (Application *a = application()) {
+			a->installEventFilter(filter);
+		}
 	}
 
 	void execExternal(const QString &cmd) {
@@ -637,24 +654,52 @@ namespace Sandboxer {
 		}
 	}
 
+#endif
+
 	void connect(const char *signal, QObject *object, const char *method) {
 		if (Application *a = application()) {
 			a->connect(a, signal, object, method);
 		}
 	}
 
-#endif
+	void launch() {
+		t_assert(application() != 0);
+
+		float64 dpi = Application::primaryScreen()->logicalDotsPerInch();
+		if (dpi <= 108) { // 0-96-108
+			cSetScreenScale(dbisOne);
+		} else if (dpi <= 132) { // 108-120-132
+			cSetScreenScale(dbisOneAndQuarter);
+		} else if (dpi <= 168) { // 132-144-168
+			cSetScreenScale(dbisOneAndHalf);
+		} else { // 168-192-inf
+			cSetScreenScale(dbisTwo);
+		}
+
+		if (application()->devicePixelRatio() > 1) {
+			cSetRetina(true);
+			cSetRetinaFactor(application()->devicePixelRatio());
+			cSetIntRetinaFactor(int32(cRetinaFactor()));
+			cSetConfigScale(dbisOne);
+			cSetRealScale(dbisOne);
+		}
+
+		new AppClass();
+	}
 
 }
 
 AppClass::AppClass() : QObject()
-, _uploader(0) {
+, _lastActionTime(0)
+, _window(0)
+, _uploader(0)
+, _translator(0) {
 	AppObject = this;
 
 	Fonts::start();
 
 	ThirdParty::start();
-	Sandbox::start();
+	Global::start();
 	Local::start();
 	if (Local::oldSettingsVersion() < AppVersion) {
 		psNewVersion();
@@ -668,27 +713,13 @@ AppClass::AppClass() : QObject()
 
 	application()->installEventFilter(new EventFilterForKeys(this));
 
-	float64 dpi = QApplication::primaryScreen()->logicalDotsPerInch();
-	if (dpi <= 108) { // 0-96-108
-		cSetScreenScale(dbisOne);
-	} else if (dpi <= 132) { // 108-120-132
-		cSetScreenScale(dbisOneAndQuarter);
-	} else if (dpi <= 168) { // 132-144-168
-		cSetScreenScale(dbisOneAndHalf);
-	} else { // 168-192-inf
-		cSetScreenScale(dbisTwo);
-	}
-
-	if (application()->devicePixelRatio() > 1) {
-		cSetRetina(true);
-		cSetRetinaFactor(application()->devicePixelRatio());
-		cSetIntRetinaFactor(int32(cRetinaFactor()));
+	if (cRetina()) {
 		cSetConfigScale(dbisOne);
 		cSetRealScale(dbisOne);
 	}
 
 	if (cLang() < languageTest) {
-		cSetLang(Global::LangSystem());
+		cSetLang(Sandbox::LangSystem());
 	}
 	if (cLang() == languageTest) {
 		if (QFileInfo(cLangFile()).exists()) {
@@ -721,20 +752,21 @@ AppClass::AppClass() : QObject()
 
 	application()->installNativeEventFilter(psNativeEventFilter());
 
-	Sandboxer::connect(SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
+	cChangeTimeFormat(QLocale::system().timeFormat(QLocale::ShortFormat));
 
 	connect(&_mtpUnpauseTimer, SIGNAL(timeout()), this, SLOT(doMtpUnpause()));
 
 	connect(&killDownloadSessionsTimer, SIGNAL(timeout()), this, SLOT(killDownloadSessions()));
 
-	cChangeTimeFormat(QLocale::system().timeFormat(QLocale::ShortFormat));
-
 	DEBUG_LOG(("Application Info: starting app.."));
 
 	QMimeDatabase().mimeTypeForName(qsl("text/plain")); // create mime database
 
-	_window.createWinId();
-	_window.init();
+	_window = new Window();
+	_window->createWinId();
+	_window->init();
+
+	Sandbox::connect(SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
 
 	DEBUG_LOG(("Application Info: window created.."));
 
@@ -757,18 +789,18 @@ AppClass::AppClass() : QObject()
 
 	DEBUG_LOG(("Application Info: showing."));
 	if (state == Local::ReadMapPassNeeded) {
-		_window.setupPasscode(false);
+		_window->setupPasscode(false);
 	} else {
 		if (MTP::authedId()) {
-			_window.setupMain(false);
+			_window->setupMain(false);
 		} else {
-			_window.setupIntro(false);
+			_window->setupIntro(false);
 		}
 	}
-	_window.firstShow();
+	_window->firstShow();
 
 	if (cStartToSettings()) {
-		_window.showSettings();
+		_window->showSettings();
 	}
 
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
@@ -777,7 +809,7 @@ AppClass::AppClass() : QObject()
 		checkMapVersion();
 	}
 
-	_window.updateIsActive(cOnlineFocusTimeout());
+	_window->updateIsActive(cOnlineFocusTimeout());
 }
 
 void AppClass::regPhotoUpdate(const PeerId &peer, const FullMsgId &msgId) {
@@ -894,7 +926,10 @@ void AppClass::checkLocalTime() {
 
 void AppClass::onAppStateChanged(Qt::ApplicationState state) {
 	checkLocalTime();
-	_window.updateIsActive((state == Qt::ApplicationActive) ? cOnlineFocusTimeout() : cOfflineBlurTimeout());
+	_window->updateIsActive((state == Qt::ApplicationActive) ? cOnlineFocusTimeout() : cOfflineBlurTimeout());
+	if (state != Qt::ApplicationActive) {
+		PopupTooltip::Hide();
+	}
 }
 
 void AppClass::killDownloadSessions() {
@@ -1004,7 +1039,7 @@ void AppClass::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId) {
 	int32 filesize = 0;
 	QByteArray data;
 
-	ReadyLocalMedia ready(PreparePhoto, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, MTP_audioEmpty(MTP_long(0)), photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false, false, 0);
+	ReadyLocalMedia ready(PreparePhoto, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false, false, 0);
 
 	connect(App::uploader(), SIGNAL(photoReady(const FullMsgId&, const MTPInputFile&)), App::app(), SLOT(photoUpdated(const FullMsgId&, const MTPInputFile&)), Qt::UniqueConnection);
 
@@ -1017,16 +1052,17 @@ void AppClass::checkMapVersion() {
   if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (cDevVersion() && Local::oldMapVersion() < 9019) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Choose an emoticon and see the suggested stickers\n\xe2\x80\x94 Bug fixes in minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
-			} else if (Local::oldMapVersion() < 9016) {
-				versionFeatures = lng_new_version_text(lt_gifs_link, qsl("https://telegram.org/blog/gif-revolution"), lt_bots_link, qsl("https://telegram.org/blog/inline-bots")).trimmed();
+			if ((cDevVersion() || cBetaVersion()) && Local::oldMapVersion() < 9024) {
+//				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Voice messages waveform visualizations\n\xe2\x80\x94 Bug fixes and other minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
+				versionFeatures = lang(lng_new_version_minor).trimmed();
+			} else if (Local::oldMapVersion() < 9024) {
+				versionFeatures = lang(lng_new_version_text).trimmed();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));
-				_window.serviceNotification(versionFeatures);
+				_window->serviceNotification(versionFeatures);
 			}
 		}
 	}
@@ -1036,7 +1072,10 @@ void AppClass::checkMapVersion() {
 }
 
 AppClass::~AppClass() {
-	_window.setParent(0);
+	if (Window *w = _window) {
+		_window = 0;
+		delete w;
+	}
 	anim::stopManager();
 
 	stopWebLoadManager();
@@ -1056,7 +1095,7 @@ AppClass::~AppClass() {
 	style::stopManager();
 
 	Local::finish();
-	Sandbox::finish();
+	Global::finish();
 	ThirdParty::finish();
 }
 
@@ -1065,9 +1104,9 @@ AppClass *AppClass::app() {
 }
 
 Window *AppClass::wnd() {
-	return AppObject ? &AppObject->_window : 0;
+	return AppObject ? AppObject->_window : 0;
 }
 
 MainWidget *AppClass::main() {
-	return AppObject ? AppObject->_window.mainWidget() : 0;
+	return (AppObject && AppObject->_window) ? AppObject->_window->mainWidget() : 0;
 }

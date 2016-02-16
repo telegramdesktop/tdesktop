@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "fileuploader.h"
@@ -32,7 +32,7 @@ FileUploader::FileUploader() : sentSize(0) {
 void FileUploader::uploadMedia(const FullMsgId &msgId, const ReadyLocalMedia &media) {
 	if (media.type == PreparePhoto) {
 		App::feedPhoto(media.photo, media.photoThumbs);
-	} else if (media.type == PrepareDocument) {
+	} else if (media.type == PrepareDocument || media.type == PrepareAudio) {
 		DocumentData *document;
 		if (media.photoThumbs.isEmpty()) {
 			document = App::feedDocument(media.document);
@@ -40,13 +40,12 @@ void FileUploader::uploadMedia(const FullMsgId &msgId, const ReadyLocalMedia &me
 			document = App::feedDocument(media.document, media.photoThumbs.begin().value());
 		}
 		document->status = FileUploading;
+		if (!media.data.isEmpty()) {
+			document->setData(media.data);
+		}
 		if (!media.file.isEmpty()) {
 			document->setLocation(FileLocation(StorageFilePartial, media.file));
 		}
-	} else if (media.type == PrepareAudio) {
-		AudioData *audio = App::feedAudio(media.audio);
-		audio->status = FileUploading;
-		audio->setData(media.data);
 	}
 	queue.insert(msgId, File(media));
 	sendNext();
@@ -56,7 +55,7 @@ void FileUploader::upload(const FullMsgId &msgId, const FileLoadResultPtr &file)
 	if (file->type == PreparePhoto) {
 		PhotoData *photo = App::feedPhoto(file->photo, file->photoThumbs);
 		photo->uploadingData = new PhotoData::UploadingData(file->partssize);
-	} else if (file->type == PrepareDocument) {
+	} else if (file->type == PrepareDocument || file->type == PrepareAudio) {
 		DocumentData *document;
 		if (file->thumb.isNull()) {
 			document = App::feedDocument(file->document);
@@ -64,13 +63,12 @@ void FileUploader::upload(const FullMsgId &msgId, const FileLoadResultPtr &file)
 			document = App::feedDocument(file->document, file->thumb);
 		}
 		document->status = FileUploading;
+		if (!file->content.isEmpty()) {
+			document->setData(file->content);
+		}
 		if (!file->filepath.isEmpty()) {
 			document->setLocation(FileLocation(StorageFilePartial, file->filepath));
 		}
-	} else if (file->type == PrepareAudio) {
-		AudioData *audio = App::feedAudio(file->audio);
-		audio->status = FileUploading;
-		audio->setData(file->content);
 	}
 	queue.insert(msgId, File(file));
 	sendNext();
@@ -87,12 +85,6 @@ void FileUploader::currentFailed() {
 				doc->status = FileUploadFailed;
 			}
 			emit documentFailed(j.key());
-		} else if (j->type() == PrepareAudio) {
-			AudioData *audio = App::audio(j->id());
-			if (audio->status == FileUploading) {
-				audio->status = FileUploadFailed;
-			}
-			emit audioFailed(j.key());
 		}
 		queue.erase(j);
 	}
@@ -133,7 +125,7 @@ void FileUploader::sendNext() {
 	if (!uploading.msg) {
 		uploading = i.key();
 	} else if (i == queue.end()) {
-		i = queue.begin(); 
+		i = queue.begin();
 		uploading = i.key();
 	}
 	int todc = 0;
@@ -150,7 +142,7 @@ void FileUploader::sendNext() {
 			if (requestsSent.isEmpty() && docRequestsSent.isEmpty()) {
 				if (i->type() == PreparePhoto) {
 					emit photoReady(uploading, MTP_inputFile(MTP_long(i->id()), MTP_int(i->partsCount), MTP_string(i->filename()), MTP_string(i->file ? i->file->filemd5 : i->media.jpeg_md5)));
-				} else if (i->type() == PrepareDocument) {
+				} else if (i->type() == PrepareDocument || i->type() == PrepareAudio) {
 					QByteArray docMd5(32, Qt::Uninitialized);
 					hashMd5Hex(i->md5Hash.result(), docMd5.data());
 
@@ -160,12 +152,6 @@ void FileUploader::sendNext() {
 					} else {
 						emit documentReady(uploading, doc);
 					}
-				} else if (i->type() == PrepareAudio) {
-					QByteArray audioMd5(32, Qt::Uninitialized);
-					hashMd5Hex(i->md5Hash.result(), audioMd5.data());
-
-					MTPInputFile audio = (i->docSize > UseBigFilesFrom) ? MTP_inputFileBig(MTP_long(i->id()), MTP_int(i->docPartsCount), MTP_string(i->filename())) : MTP_inputFile(MTP_long(i->id()), MTP_int(i->docPartsCount), MTP_string(i->filename()), MTP_string(audioMd5));
-					emit audioReady(uploading, audio);
 				}
 				queue.remove(uploading);
 				uploading = FullMsgId();
@@ -212,7 +198,7 @@ void FileUploader::sendNext() {
 		i->docSentParts++;
 	} else {
 		UploadFileParts::iterator part = parts.begin();
-	
+
 		mtpRequestId requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(partsOfId), MTP_int(part.key()), MTP_string(part.value())), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::upl[todc]);
 		requestsSent.insert(requestId, part.value());
 		dcMap.insert(requestId, todc);
@@ -303,7 +289,7 @@ void FileUploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 					photo->uploadingData->offset = k->fileSentSize;
 				}
 				emit photoProgress(k.key());
-			} else if (k->type() == PrepareDocument) {
+			} else if (k->type() == PrepareDocument || k->type() == PrepareAudio) {
 				DocumentData *doc = App::document(k->id());
 				if (doc->uploading()) {
 					doc->uploadOffset = (k->docSentParts - docRequestsSent.size()) * k->docPartSize;
@@ -312,15 +298,6 @@ void FileUploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 					}
 				}
 				emit documentProgress(k.key());
-			} else if (k->type() == PrepareAudio) {
-				AudioData *audio = App::audio(k->id());
-				if (audio->uploading()) {
-					audio->uploadOffset = (k->docSentParts - docRequestsSent.size()) * k->docPartSize;
-					if (audio->uploadOffset > audio->size) {
-						audio->uploadOffset = audio->size;
-					}
-				}
-				emit audioProgress(k.key());
 			}
 		}
 	}

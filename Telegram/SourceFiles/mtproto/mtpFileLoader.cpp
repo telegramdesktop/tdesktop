@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "mainwidget.h"
@@ -387,8 +387,8 @@ bool mtpFileLoader::loadPart() {
 		limit = DownloadPartSize;
 	} else {
 		switch (_locationType) {
-		case VideoFileLocation: loc = MTP_inputVideoFileLocation(MTP_long(_id), MTP_long(_access)); break;
-		case AudioFileLocation: loc = MTP_inputAudioFileLocation(MTP_long(_id), MTP_long(_access)); break;
+		case VideoFileLocation:
+		case AudioFileLocation:
 		case DocumentFileLocation: loc = MTP_inputDocumentFileLocation(MTP_long(_id), MTP_long(_access)); break;
 		default: cancel(true); return false; break;
 		}

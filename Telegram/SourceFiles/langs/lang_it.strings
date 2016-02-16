@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 "lng_language_name" = "Italiano";
 "lng_switch_to_this" = "Passa all'italiano";
@@ -638,6 +638,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_cant_invite_not_contact" = "Spiacenti, ma al momento puoi aggiungere\nai gruppi solo contatti in comune. {more_info}";
 "lng_cant_invite_not_contact_channel" = "Spiacenti, ma al momento puoi aggiungere\nai canali solo contatti in comune. {more_info}";
 "lng_cant_more_info" = "Più info »";
+"lng_cant_invite_privacy" = "Spiacenti, non puoi aggiungere questo utente al gruppo a causa delle sue impostazioni di privacy.";
+"lng_cant_invite_privacy_channel" = "Spiacenti, non puoi aggiungere questo utente al canale a causa delle sue impostazioni di privacy.";
 
 "lng_send_button" = "Invia";
 "lng_message_ph" = "Scrivi un messaggio..";
@@ -833,8 +835,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_new_authorization" = "{name},\nAbbiamo rilevato un accesso al tuo account da un nuovo dispositivo il {day}, {date} alle {time}\n\nDispositivo: {device}\nPosizione: {location}\n\nSe non sei tu, puoi andare su Impostazioni – Mostra tutte le sessioni e terminare quella sessione.\n\nSe credi che qualcuno si sia collegato al tuo account contro il tuo volere, puoi attivare la verifica in due passaggi nelle Impostazioni. \n\nGrazie, \nIl Team di Telegram";
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
-"lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";
-"lng_new_version_text" = "Rivoluzione GIF: L'invio e il download delle GIF sono ora 10 volte più veloci, riproduci automaticamente le GIF e salva le tue GIF preferite in una pagina dedicata nel pannello sticker.\n\nPiù info sulle GIF:\n{gifs_link}\n\nInline Bot: Un nuovo modo di aggiungere contenuto dai bot in qualsiasi chat. Scrivi l'username di un bot e la tua domanda nel campo di scrittura per ricevere risultati immediati e inviarli nella chat. Prova a scrivere “@gif dog” nella tua prossima chat. Bot di esempio: @gif, @wiki, @bing, @vid, @bold.\n\nPiù info sugli Inline Bot:\n{bots_link}\n\nInoltre in questa versione: Nuovo design per i media, impostazioni di download automatico per foto, note vocali e GIF.";
+"lng_new_version_minor" = "— Risoluzione di problemi e altri miglioramenti minori";
+"lng_new_version_text" = "— Nuova visualizzazione delle onde sonore per i messaggi vocali\n— Suggerimento per gli sticker quando digiti un'emoji";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

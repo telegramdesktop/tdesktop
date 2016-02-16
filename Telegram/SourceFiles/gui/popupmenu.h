@@ -13,9 +13,11 @@
  GNU General Public License for more details.
 
  Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
- Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
  */
 #pragma once
+
+#include "text.h"
 
 class PopupMenu : public TWidget {
 	Q_OBJECT
@@ -103,5 +105,56 @@ private:
 	Animation _a_hide;
 
 	bool _deleteOnHide, _triggering, _deleteLater;
+
+};
+
+class AbstractTooltipShower {
+public:
+	virtual QString tooltipText() const = 0;
+	virtual QPoint tooltipPos() const = 0;
+	virtual const style::Tooltip *tooltipSt() const {
+		return &st::defaultTooltip;
+	}
+	virtual ~AbstractTooltipShower();
+};
+
+class PopupTooltip : public TWidget {
+	Q_OBJECT
+
+public:
+
+	bool eventFilter(QObject *o, QEvent *e);
+
+	static void Show(int32 delay, const AbstractTooltipShower *shower);
+	static void Hide();
+
+	~PopupTooltip();
+
+public slots:
+
+	void onShow();
+	void onHideByLeave();
+
+protected:
+
+	void paintEvent(QPaintEvent *e);
+	void hideEvent(QHideEvent *e);
+
+private:
+
+	PopupTooltip();
+
+	void popup(const QPoint &p, const QString &text, const style::Tooltip *st);
+
+	friend class AbstractTooltipShower;
+	const AbstractTooltipShower *_shower;
+	QTimer _showTimer;
+
+	Text _text;
+	QPoint _point;
+
+	const style::Tooltip *_st;
+
+	QTimer _hideByLeaveTimer;
 
 };

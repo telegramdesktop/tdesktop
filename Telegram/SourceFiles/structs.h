@@ -16,177 +16,9 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
-
-class Interfaces;
-typedef void(*InterfaceConstruct)(void *location, Interfaces *interfaces);
-typedef void(*InterfaceDestruct)(void *location);
-
-struct InterfaceWrapStruct {
-	InterfaceWrapStruct() : Size(0), Construct(0), Destruct(0) {
-	}
-	InterfaceWrapStruct(int size, InterfaceConstruct construct, InterfaceDestruct destruct)
-	: Size(size)
-	, Construct(construct)
-	, Destruct(destruct) {
-	}
-	int Size;
-	InterfaceConstruct Construct;
-	InterfaceDestruct Destruct;
-};
-
-template <int Value, int Denominator>
-struct CeilDivideMinimumOne {
-	static const int Result = ((Value / Denominator) + ((!Value || (Value % Denominator)) ? 1 : 0));
-};
-
-template <typename Type>
-struct InterfaceWrapTemplate {
-	static const int Size = CeilDivideMinimumOne<sizeof(Type), sizeof(uint64)>::Result * sizeof(uint64);
-	static void Construct(void *location, Interfaces *interfaces) {
-		new (location) Type(interfaces);
-	}
-	static void Destruct(void *location) {
-		((Type*)location)->~Type();
-	}
-};
-
-extern InterfaceWrapStruct InterfaceWraps[64];
-extern QAtomicInt InterfaceIndexLast;
-
-template <typename Type>
-class BasicInterface {
-public:
-	static int Index() {
-		static QAtomicInt _index(0);
-		if (int index = _index.loadAcquire()) {
-			return index - 1;
-		}
-		while (true) {
-			int last = InterfaceIndexLast.loadAcquire();
-			if (InterfaceIndexLast.testAndSetOrdered(last, last + 1)) {
-				t_assert(last < 64);
-				if (_index.testAndSetOrdered(0, last + 1)) {
-					InterfaceWraps[last] = InterfaceWrapStruct(InterfaceWrapTemplate<Type>::Size, InterfaceWrapTemplate<Type>::Construct, InterfaceWrapTemplate<Type>::Destruct);
-				}
-				break;
-			}
-		}
-		return _index.loadAcquire() - 1;
-	}
-	static uint64 Bit() {
-		return (1 << Index());
-	}
-
-};
-
-template <typename Type>
-class BasicInterfaceWithPointer : public BasicInterface<Type> {
-public:
-	BasicInterfaceWithPointer(Interfaces *interfaces) : interfaces(interfaces) {
-	}
-	Interfaces *interfaces = 0;
-};
-
-class InterfacesMetadata {
-public:
-
-	InterfacesMetadata(uint64 mask) : size(0), last(64), _mask(mask) {
-		for (int i = 0; i < 64; ++i) {
-			uint64 m = (1 << i);
-			if (_mask & m) {
-				int s = InterfaceWraps[i].Size;
-				if (s) {
-					offsets[i] = size;
-					size += s;
-				} else {
-					offsets[i] = -1;
-				}
-			} else if (_mask < m) {
-				last = i;
-				for (; i < 64; ++i) {
-					offsets[i] = -1;
-				}
-			} else {
-				offsets[i] = -1;
-			}
-		}
-	}
-
-	int size, last;
-	int offsets[64];
-
-private:
-	uint64 _mask;
-
-};
-
-const InterfacesMetadata *GetInterfacesMetadata(uint64 mask);
-
-class Interfaces {
-public:
-
-	Interfaces(uint64 mask = 0) : _meta(GetInterfacesMetadata(mask)), _data(0) {
-		if (_meta->size) {
-			_data = malloc(_meta->size);
-			if (!_data) { // terminate if we can't allocate memory
-				throw "Can't allocate memory!";
-			}
-
-			for (int i = 0; i < _meta->last; ++i) {
-				int offset = _meta->offsets[i];
-				if (offset >= 0) {
-					try {
-						InterfaceWraps[i].Construct(_dataptrunsafe(offset), this);
-					} catch (...) {
-						while (i > 0) {
-							--i;
-							offset = _meta->offsets[--i];
-							if (offset >= 0) {
-								InterfaceWraps[i].Destruct(_dataptrunsafe(offset));
-							}
-						}
-						throw;
-					}
-				}
-			}
-		}
-	}
-	~Interfaces() {
-		if (_data) {
-			for (int i = 0; i < _meta->last; ++i) {
-				int offset = _meta->offsets[i];
-				if (offset >= 0) {
-					InterfaceWraps[i].Destruct(_dataptrunsafe(offset));
-				}
-			}
-			free(_data);
-		}
-	}
-
-	template <typename Type>
-	Type *Get() {
-		return (Type*)_dataptr(_meta->offsets[Type::Index()]);
-	}
-	template <typename Type>
-	const Type *Get() const {
-		return (const Type*)_dataptr(_meta->offsets[Type::Index()]);
-	}
-
-private:
-
-	void *_dataptrunsafe(int skip) const {
-		return (char*)_data + skip;
-	}
-	void *_dataptr(int skip) const {
-		return (skip >= 0) ? _dataptrunsafe(skip) : 0;
-	}
-	const InterfacesMetadata *_meta;
-	void *_data;
-
-};
 
 typedef int32 ChannelId;
 static const ChannelId NoChannel = 0;
@@ -794,6 +626,9 @@ public:
 	bool isVerified() const {
 		return flags & MTPDchannel::flag_verified;
 	}
+	bool canAddParticipants() const {
+		return amCreator() || amEditor() || (flags & MTPDchannel::flag_invites_enabled);
+	}
 
 //	ImagePtr photoFull;
 	QString invitationUrl;
@@ -983,237 +818,13 @@ enum FileStatus {
 	FileReady = 1,
 };
 
-class VideoData {
-public:
-	VideoData(const VideoId &id, const uint64 &access = 0, int32 date = 0, int32 duration = 0, int32 w = 0, int32 h = 0, const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
-
-	void automaticLoad(const HistoryItem *item) {
-	}
-	void automaticLoadSettingsChanged() {
-	}
-
-	bool loaded(bool check = false) const;
-	bool loading() const;
-	bool displayLoading() const;
-	void save(const QString &toFile, ActionOnLoad action = ActionOnLoadNone, const FullMsgId &actionMsgId = FullMsgId(), LoadFromCloudSetting fromCloud = LoadFromCloudOrLocal, bool autoLoading = false);
-	void cancel();
-	float64 progress() const;
-	int32 loadOffset() const;
-	bool uploading() const;
-
-	QString already(bool check = false) const;
-	QByteArray data() const;
-	const FileLocation &location(bool check = false) const;
-	void setLocation(const FileLocation &loc);
-
-	bool saveToCache() const {
-		return false;
-	}
-
-	void performActionOnLoad();
-
-	void forget();
-
-	VideoId id;
-	uint64 access;
-	int32 date;
-	int32 duration;
-	int32 w, h;
-	ImagePtr thumb, replyPreview;
-	int32 dc, size;
-	// geo, caption
-
-	FileStatus status;
-	int32 uploadOffset;
-
-private:
-	FileLocation _location;
-
-	ActionOnLoad _actionOnLoad;
-	FullMsgId _actionOnLoadMsgId;
-	mutable mtpFileLoader *_loader;
-
-	void notifyLayoutChanged() const;
-
-};
-
-class VideoLink : public ITextLink {
-	TEXT_LINK_CLASS(VideoLink)
-
-public:
-	VideoLink(VideoData *video) : _video(video) {
-	}
-	VideoData *video() const {
-		return _video;
-	}
-
-private:
-	VideoData *_video;
-
-};
-
-class VideoSaveLink : public VideoLink {
-	TEXT_LINK_CLASS(VideoSaveLink)
-
-public:
-	VideoSaveLink(VideoData *video) : VideoLink(video) {
-	}
-	static void doSave(VideoData *video, bool forceSavingAs = false);
-	void onClick(Qt::MouseButton button) const;
-};
-
-class VideoOpenLink : public VideoLink {
-	TEXT_LINK_CLASS(VideoOpenLink)
-
-public:
-	VideoOpenLink(VideoData *video) : VideoLink(video) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
-};
-
-class VideoCancelLink : public VideoLink {
-	TEXT_LINK_CLASS(VideoCancelLink)
-
-public:
-	VideoCancelLink(VideoData *video) : VideoLink(video) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
-};
-
-class AudioData {
-public:
-	AudioData(const AudioId &id, const uint64 &access = 0, int32 date = 0, const QString &mime = QString(), int32 duration = 0, int32 dc = 0, int32 size = 0);
-
-	void automaticLoad(const HistoryItem *item); // auto load voice message
-	void automaticLoadSettingsChanged();
-
-	bool loaded(bool check = false) const;
-	bool loading() const;
-	bool displayLoading() const;
-	void save(const QString &toFile, ActionOnLoad action = ActionOnLoadNone, const FullMsgId &actionMsgId = FullMsgId(), LoadFromCloudSetting fromCloud = LoadFromCloudOrLocal, bool autoLoading = false);
-	void cancel();
-	float64 progress() const;
-	int32 loadOffset() const;
-	bool uploading() const;
-
-	QString already(bool check = false) const;
-	QByteArray data() const;
-	const FileLocation &location(bool check = false) const;
-	void setLocation(const FileLocation &loc);
-
-	bool saveToCache() const;
-
-	void performActionOnLoad();
-
-	void forget();
-	void setData(const QByteArray &data) {
-		_data = data;
-	}
-
-	AudioId id;
-	uint64 access;
-	int32 date;
-	QString mime;
-	int32 duration;
-	int32 dc;
-	int32 size;
-
-	FileStatus status;
-	int32 uploadOffset;
-
-	int32 md5[8];
-
-private:
-	FileLocation _location;
-	QByteArray _data;
-
-	ActionOnLoad _actionOnLoad;
-	FullMsgId _actionOnLoadMsgId;
-	mutable mtpFileLoader *_loader;
-
-	void notifyLayoutChanged() const;
-
-};
-
-struct AudioMsgId {
-	AudioMsgId() : audio(0) {
-	}
-	AudioMsgId(AudioData *audio, const FullMsgId &msgId) : audio(audio), msgId(msgId) {
-	}
-	AudioMsgId(AudioData *audio, ChannelId channelId, MsgId msgId) : audio(audio), msgId(channelId, msgId) {
-	}
-	operator bool() const {
-		return audio;
-	}
-	AudioData *audio;
-	FullMsgId msgId;
-
-};
-
-inline bool operator<(const AudioMsgId &a, const AudioMsgId &b) {
-	return quintptr(a.audio) < quintptr(b.audio) || (quintptr(a.audio) == quintptr(b.audio) && a.msgId < b.msgId);
-}
-inline bool operator==(const AudioMsgId &a, const AudioMsgId &b) {
-	return a.audio == b.audio && a.msgId == b.msgId;
-}
-inline bool operator!=(const AudioMsgId &a, const AudioMsgId &b) {
-	return !(a == b);
-}
-
-class AudioLink : public ITextLink {
-	TEXT_LINK_CLASS(AudioLink)
-
-public:
-	AudioLink(AudioData *audio) : _audio(audio) {
-	}
-	AudioData *audio() const {
-		return _audio;
-	}
-
-private:
-	AudioData *_audio;
-
-};
-
-class AudioSaveLink : public AudioLink {
-	TEXT_LINK_CLASS(AudioSaveLink)
-
-public:
-	AudioSaveLink(AudioData *audio) : AudioLink(audio) {
-	}
-	static void doSave(AudioData *audio, bool forceSavingAs = false);
-	void onClick(Qt::MouseButton button) const;
-
-};
-
-class AudioOpenLink : public AudioLink {
-	TEXT_LINK_CLASS(AudioOpenLink)
-
-public:
-	AudioOpenLink(AudioData *audio) : AudioLink(audio) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
-};
-
-class AudioCancelLink : public AudioLink {
-	TEXT_LINK_CLASS(AudioCancelLink)
-
-public:
-	AudioCancelLink(AudioData *audio) : AudioLink(audio) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
-};
-
 enum DocumentType {
 	FileDocument     = 0,
 	VideoDocument    = 1,
 	SongDocument     = 2,
 	StickerDocument  = 3,
 	AnimatedDocument = 4,
+	VoiceDocument    = 5,
 };
 
 struct DocumentAdditionalData {
@@ -1238,6 +849,16 @@ struct SongData : public DocumentAdditionalData {
 	int32 duration;
 	QString title, performer;
 
+};
+
+typedef QVector<char> VoiceWaveform; // [0] == -1 -- counting, [0] == -2 -- could not count
+struct VoiceData : public DocumentAdditionalData {
+	VoiceData() : duration(0), wavemax(0) {
+	}
+	~VoiceData();
+	int32 duration;
+	VoiceWaveform waveform;
+	char wavemax;
 };
 
 bool fileIsImage(const QString &name, const QString &mime);
@@ -1294,19 +915,34 @@ public:
 	SongData *song() {
 		return (type == SongDocument) ? static_cast<SongData*>(_additional) : 0;
 	}
+	VoiceData *voice() {
+		return (type == VoiceDocument) ? static_cast<VoiceData*>(_additional) : 0;
+	}
+	const VoiceData *voice() const {
+		return (type == VoiceDocument) ? static_cast<VoiceData*>(_additional) : 0;
+	}
 	bool isAnimation() const {
 		return (type == AnimatedDocument) || !mime.compare(qstr("image/gif"), Qt::CaseInsensitive);
 	}
 	bool isGifv() const {
 		return (type == AnimatedDocument) && !mime.compare(qstr("video/mp4"), Qt::CaseInsensitive);
 	}
+	bool isMusic() const {
+		return (type == SongDocument) ? !static_cast<SongData*>(_additional)->title.isEmpty() : false;
+	}
+	bool isVideo() const {
+		return (type == VideoDocument);
+	}
 	int32 duration() const {
-		return (isAnimation() || type == VideoDocument) ? _duration : -1;
+		return (isAnimation() || isVideo()) ? _duration : -1;
 	}
 	bool isImage() const {
-		return !isAnimation() && (type != VideoDocument) && (_duration > 0);
+		return !isAnimation() && !isVideo() && (_duration > 0);
 	}
 	void recountIsImage();
+	void setData(const QByteArray &data) {
+		_data = data;
+	}
 
 	~DocumentData();
 
@@ -1325,6 +961,11 @@ public:
 
 	int32 md5[8];
 
+	MediaKey mediaKey() const {
+		LocationType t = isVideo() ? VideoFileLocation : (voice() ? AudioFileLocation : DocumentFileLocation);
+		return ::mediaKey(t, dc, id);
+	}
+
 private:
 
 	FileLocation _location;
@@ -1339,6 +980,9 @@ private:
 	void notifyLayoutChanged() const;
 
 };
+
+VoiceWaveform documentWaveformDecode(const QByteArray &encoded5bit);
+QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform);
 
 struct SongMsgId {
 	SongMsgId() : song(0) {
@@ -1361,6 +1005,31 @@ inline bool operator==(const SongMsgId &a, const SongMsgId &b) {
 	return a.song == b.song && a.msgId == b.msgId;
 }
 inline bool operator!=(const SongMsgId &a, const SongMsgId &b) {
+	return !(a == b);
+}
+
+struct AudioMsgId {
+	AudioMsgId() : audio(0) {
+	}
+	AudioMsgId(DocumentData *audio, const FullMsgId &msgId) : audio(audio), msgId(msgId) {
+	}
+	AudioMsgId(DocumentData *audio, ChannelId channelId, MsgId msgId) : audio(audio), msgId(channelId, msgId) {
+	}
+	operator bool() const {
+		return audio;
+	}
+	DocumentData *audio;
+	FullMsgId msgId;
+
+};
+
+inline bool operator<(const AudioMsgId &a, const AudioMsgId &b) {
+	return quintptr(a.audio) < quintptr(b.audio) || (quintptr(a.audio) == quintptr(b.audio) && a.msgId < b.msgId);
+}
+inline bool operator==(const AudioMsgId &a, const AudioMsgId &b) {
+	return a.audio == b.audio && a.msgId == b.msgId;
+}
+inline bool operator!=(const AudioMsgId &a, const AudioMsgId &b) {
 	return !(a == b);
 }
 
@@ -1401,13 +1070,22 @@ public:
 
 };
 
+class VoiceSaveLink : public DocumentOpenLink {
+	TEXT_LINK_CLASS(VoiceSaveLink)
+
+public:
+	VoiceSaveLink(DocumentData *document) : DocumentOpenLink(document) {
+	}
+	void onClick(Qt::MouseButton button) const;
+
+};
+
 class GifOpenLink : public DocumentOpenLink {
 	TEXT_LINK_CLASS(GifOpenLink)
 
 public:
 	GifOpenLink(DocumentData *document) : DocumentOpenLink(document) {
 	}
-	static void doOpen(DocumentData *document);
 	void onClick(Qt::MouseButton button) const;
 
 };

@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 "lng_language_name" = "Deutsch";
 "lng_switch_to_this" = "Auf Deutsch zurücksetzen";
@@ -638,6 +638,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 "lng_cant_invite_not_contact" = "Du kannst nur Personen hinzufügen, wenn ihr eure Nummern ausgetauscht habt. {more_info}";
 "lng_cant_invite_not_contact_channel" = "Du kannst nur Personen hinzufügen,wenn ihr\neure Nummern ausgetauscht habt. {more_info}\n";
 "lng_cant_more_info" = "Weitere Infos »";
+"lng_cant_invite_privacy" = "Du kannst mit diesen Nutzern keine Gruppe erstellen, weil sie es nicht erlauben.";
+"lng_cant_invite_privacy_channel" = "Du kannst diese Nutzer keinen Kanälen hinzufügen, weil sie es nicht erlauben.";
 
 "lng_send_button" = "Senden";
 "lng_message_ph" = "Schreibe deine Nachricht..";
@@ -834,7 +836,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "GIF-Revolution: 10x schnelleres Senden und Herunterladen, Autoplay und Speichern von GIFs in einem eigenen Tab im Sticker-Panel.\n\nMehr Infos über GIFs:\n{gifs_link}\n\nInline-Bots: Ein neuer Weg um Bot-Inhalte dem Chat hinzuzufügen. Einfach den Bot-Benutzernamen gefolgt vom Suchbegriff im Eingabefeld eintippen um Echtzeitsuchergebnisse zu erhalten und im Chat zu senden. Probier doch mal “@gif dog” im nächsten Chat aus. Beispiel-Bots: @gif, @wiki, @bing, @vid, @bold.\n\nAusführliche Informationen zu den neuen Inline-Bots:\n{bot_link}\n\nAußerdem neu: Ein neues niedliches Design für Medien, automatische Download-Einstellungen für Bilder, Sprachnachrichten und GIFs.\n\nPS: Unseren deutschsprachigen Infokanal findest du hier: https://telegram.me/TelegramDE";
+"lng_new_version_text" = "—  Neue Optik für Sprachnachrichten\n— Sticker werden nach Emoji-Eingabe vorgeschlagen";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

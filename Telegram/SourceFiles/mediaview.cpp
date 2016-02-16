@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -179,7 +179,7 @@ void MediaView::moveToScreen() {
 	}
 
 	QPoint wndCenter(App::wnd()->x() + App::wnd()->width() / 2, App::wnd()->y() + App::wnd()->height() / 2);
-	QRect avail = Sandboxer::screenGeometry(wndCenter);
+	QRect avail = Sandbox::screenGeometry(wndCenter);
 	if (avail != geometry()) {
 		setGeometry(avail);
 	}
@@ -363,7 +363,7 @@ void MediaView::updateControls() {
 		_dateNav = myrtlrect(st::mvTextLeft, height() - st::mvTextTop, st::mvFont->width(_dateText), st::mvFont->height);
 	}
 	updateHeader();
-	if (_photo || (_history && (_overview == OverviewPhotos || _overview == OverviewDocuments))) {
+	if (_photo || (_history && (_overview == OverviewPhotos || _overview == OverviewFiles))) {
 		_leftNavVisible = (_index > 0) || (_index == 0 && (
 			(!_msgmigrated && _history && _history->overview[_overview].size() < _history->overviewCount(_overview)) ||
 			(_msgmigrated && _migrated && _migrated->overview[_overview].size() < _migrated->overviewCount(_overview)) ||
@@ -586,7 +586,7 @@ void MediaView::onSaveAs() {
 		}
 	}
 	activateWindow();
-	Sandboxer::setActiveWindow(this);
+	Sandbox::setActiveWindow(this);
 	setFocus();
 }
 
@@ -865,7 +865,7 @@ void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
 	_canForward = _msgid > 0;
 	_canDelete = context ? context->canDelete() : false;
 	if (_history) {
-		_overview = OverviewDocuments;
+		_overview = OverviewFiles;
 		findCurrent();
 	}
 	displayDocument(doc, context);
@@ -1074,7 +1074,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 		show();
 		psShowOverAll(this);
 		activateWindow();
-		Sandboxer::setActiveWindow(this);
+		Sandbox::setActiveWindow(this);
 		setFocus();
 	}
 }
@@ -1486,7 +1486,7 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 }
 
 void MediaView::moveToNext(int32 delta) {
-	if (_index < 0 || (_history && _overview != OverviewPhotos && _overview != OverviewDocuments) || (_overview == OverviewCount && !_user)) {
+	if (_index < 0 || (_history && _overview != OverviewPhotos && _overview != OverviewFiles) || (_overview == OverviewCount && !_user)) {
 		return;
 	}
 	if (_msgmigrated && !_history->overviewLoaded(_overview)) {
@@ -1515,7 +1515,7 @@ void MediaView::moveToNext(int32 delta) {
 				if (HistoryMedia *media = item->getMedia()) {
 					switch (media->type()) {
 					case MediaTypePhoto: displayPhoto(static_cast<HistoryPhoto*>(item->getMedia())->photo(), item); preloadData(delta); break;
-					case MediaTypeDocument:
+					case MediaTypeFile:
 					case MediaTypeGif:
 					case MediaTypeSticker: displayDocument(media->getDocument(), item); preloadData(delta); break;
 					}
@@ -1562,7 +1562,7 @@ void MediaView::preloadData(int32 delta) {
 				if (HistoryMedia *media = item->getMedia()) {
 					switch (media->type()) {
 					case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->forget(); break;
-					case MediaTypeDocument:
+					case MediaTypeFile:
 					case MediaTypeGif:
 					case MediaTypeSticker: media->getDocument()->forget(); break;
 					}
@@ -1587,7 +1587,7 @@ void MediaView::preloadData(int32 delta) {
 					if (HistoryMedia *media = item->getMedia()) {
 						switch (media->type()) {
 						case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->download(); break;
-						case MediaTypeDocument:
+						case MediaTypeFile:
 						case MediaTypeGif: {
 							DocumentData *doc = media->getDocument();
 							doc->thumb->load();
@@ -1990,7 +1990,7 @@ void MediaView::onCheckActive() {
 	if (App::wnd() && isVisible()) {
 		if (App::wnd()->isActiveWindow() && App::wnd()->hasFocus()) {
 			activateWindow();
-			Sandboxer::setActiveWindow(this);
+			Sandbox::setActiveWindow(this);
 			setFocus();
 		}
 	}

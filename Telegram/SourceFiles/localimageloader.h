@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -52,8 +52,8 @@ typedef QList<ToPrepareMedia> ToPrepareMedias;
 
 typedef QMap<int32, QByteArray> UploadFileParts;
 struct ReadyLocalMedia {
-	ReadyLocalMedia(PrepareMediaType type, const QString &file, const QString &filename, int32 filesize, const QByteArray &data, const uint64 &id, const uint64 &thumbId, const QString &thumbExt, const PeerId &peer, const MTPPhoto &photo, const MTPAudio &audio, const PreparedPhotoThumbs &photoThumbs, const MTPDocument &document, const QByteArray &jpeg, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) :
-		replyTo(replyTo), type(type), file(file), filename(filename), filesize(filesize), data(data), thumbExt(thumbExt), id(id), thumbId(thumbId), peer(peer), photo(photo), document(document), audio(audio), photoThumbs(photoThumbs), broadcast(broadcast), ctrlShiftEnter(ctrlShiftEnter) {
+	ReadyLocalMedia(PrepareMediaType type, const QString &file, const QString &filename, int32 filesize, const QByteArray &data, const uint64 &id, const uint64 &thumbId, const QString &thumbExt, const PeerId &peer, const MTPPhoto &photo, const PreparedPhotoThumbs &photoThumbs, const MTPDocument &document, const QByteArray &jpeg, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) :
+		replyTo(replyTo), type(type), file(file), filename(filename), filesize(filesize), data(data), thumbExt(thumbExt), id(id), thumbId(thumbId), peer(peer), photo(photo), document(document), photoThumbs(photoThumbs), broadcast(broadcast), ctrlShiftEnter(ctrlShiftEnter) {
 		if (!jpeg.isEmpty()) {
 			int32 size = jpeg.size();
 			for (int32 i = 0, part = 0; i < size; i += UploadPartSize, ++part) {
@@ -74,7 +74,6 @@ struct ReadyLocalMedia {
 
 	MTPPhoto photo;
 	MTPDocument document;
-	MTPAudio audio;
 	PreparedPhotoThumbs photoThumbs;
 	UploadFileParts parts;
 	QByteArray jpeg_md5;
@@ -114,7 +113,7 @@ public:
 	TaskId addTask(TaskPtr task);
 	void addTasks(const TasksList &tasks);
 	void cancelTask(TaskId id); // this task finish() won't be called
-	
+
 	TaskId addTask(Task *task) {
 		return addTask(TaskPtr(task));
 	}
@@ -203,7 +202,6 @@ struct FileLoadResult {
 	QPixmap thumb;
 
 	MTPPhoto photo;
-	MTPAudio audio;
 	MTPDocument document;
 
 	PreparedPhotoThumbs photoThumbs;
@@ -248,7 +246,7 @@ public:
 	FileLoadTask(const QString &filepath, PrepareMediaType type, const FileLoadTo &to, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm);
 	FileLoadTask(const QByteArray &content, PrepareMediaType type, const FileLoadTo &to);
 	FileLoadTask(const QImage &image, PrepareMediaType type, const FileLoadTo &to, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, const QString &originalText = QString());
-	FileLoadTask(const QByteArray &audio, int32 duration, const FileLoadTo &to);
+	FileLoadTask(const QByteArray &voice, int32 duration, const VoiceWaveform &waveform, const FileLoadTo &to);
 
 	uint64 fileid() const {
 		return _id;
@@ -265,6 +263,7 @@ protected:
 	QImage _image;
 	QByteArray _content;
 	int32 _duration;
+	VoiceWaveform _waveform;
 	PrepareMediaType _type;
 	FileLoadForceConfirmType _confirm;
 	QString _originalText;

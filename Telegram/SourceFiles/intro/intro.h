@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -40,13 +40,13 @@ public:
 	void resizeEvent(QResizeEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void keyPressEvent(QKeyEvent *e);
-	
-	void updateWideMode();
+
+	void updateAdaptiveLayout();
 
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
 	void step_show(float64 ms, bool timer);
 	void stop_show();
-		
+
 	void step_stage(float64 ms, bool timer);
 
 	QRect innerRect() const;
@@ -150,7 +150,7 @@ public:
 	}
 
 protected:
-	
+
 	IntroWidget *intro() {
 		return qobject_cast<IntroWidget*>(parent());
 	}

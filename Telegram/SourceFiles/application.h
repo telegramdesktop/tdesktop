@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -105,12 +105,14 @@ private:
 #endif
 };
 
-namespace Sandboxer {
+namespace Sandbox {
 
 	QRect availableGeometry();
 	QRect screenGeometry(const QPoint &p);
 	void setActiveWindow(QWidget *window);
 	bool isSavingSession();
+
+	void installEventFilter(QObject *filter);
 
 	void execExternal(const QString &cmd);
 
@@ -128,9 +130,12 @@ namespace Sandboxer {
 	void updateProgress(qint64 ready, qint64 total);
 	void updateFailed();
 	void updateReady();
-	void connect(const char *signal, QObject *object, const char *method);
 
 #endif
+
+	void connect(const char *signal, QObject *object, const char *method);
+
+	void launch();
 
 }
 
@@ -203,7 +208,7 @@ private:
 
 	uint64 _lastActionTime;
 
-	Window _window;
+	Window *_window;
 	FileUploader *_uploader;
 	Translator *_translator;
 

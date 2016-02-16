@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "pspecific.h"
@@ -37,10 +37,14 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include <wrl\implements.h>
 #include <windows.ui.notifications.h>
 
+#pragma warning(push)
+#pragma warning(disable:4091)
 #include <dbghelp.h>
+#include <shlobj.h>
+#pragma warning(pop)
+
 #include <Shlwapi.h>
 #include <Strsafe.h>
-#include <shlobj.h>
 #include <Windowsx.h>
 #include <WtsApi32.h>
 
@@ -267,7 +271,7 @@ namespace {
 				return false;
 			}
 
-			QRect avail(Sandboxer::availableGeometry());
+			QRect avail(Sandbox::availableGeometry());
 			max_w = avail.width();
 			if (max_w < st::wndMinWidth) max_w = st::wndMinWidth;
 			max_h = avail.height();
@@ -1190,7 +1194,7 @@ void PsMainWindow::psInitSize() {
 	setMinimumHeight(st::wndMinHeight);
 
 	TWindowPos pos(cWindowPos());
-	QRect avail(Sandboxer::availableGeometry());
+	QRect avail(Sandbox::availableGeometry());
 	bool maximized = false;
 	QRect geom(avail.x() + (avail.width() - st::wndDefWidth) / 2, avail.y() + (avail.height() - st::wndDefHeight) / 2, st::wndDefWidth, st::wndDefHeight);
 	if (pos.w && pos.h) {
@@ -2280,6 +2284,8 @@ void psExecTelegram(const QString &crashreport) {
 	QString telegram(QDir::toNativeSeparators(cExeDir() + cExeName())), wdir(QDir::toNativeSeparators(cWorkingDir()));
 
 	DEBUG_LOG(("Application Info: executing %1 %2").arg(cExeDir() + cExeName()).arg(targs));
+	Logs::closeMain();
+	SignalHandlers::finish();
 	HINSTANCE r = ShellExecute(0, 0, telegram.toStdWString().c_str(), targs.toStdWString().c_str(), wdir.isEmpty() ? 0 : wdir.toStdWString().c_str(), SW_SHOWNORMAL);
 	if (long(r) < 32) {
 		DEBUG_LOG(("Application Error: failed to execute %1, working directory: '%2', result: %3").arg(telegram).arg(wdir).arg(long(r)));
@@ -2467,48 +2473,6 @@ BOOL __stdcall ReadProcessMemoryRoutine64(
 	*lpNumberOfBytesRead = (DWORD)st;
 
 	return bRet;
-}
-
-HANDLE _generateDumpFileAtPath(const WCHAR *path) {
-	static const int maxFileLen = MAX_PATH * 10;
-
-	WCHAR szPath[maxFileLen];
-	wsprintf(szPath, L"%stdumps\\", path);
-
-    if (!CreateDirectory(szPath, NULL)) {
-		DWORD errCode = GetLastError();
-		if (errCode && errCode != ERROR_ALREADY_EXISTS) {
-			return 0;
-		}
-	}
-
-	WCHAR szFileName[maxFileLen];
-	WCHAR szExeName[maxFileLen];
-
-	wcscpy_s(szExeName, _exeName);
-	WCHAR *dotFrom = wcschr(szExeName, WCHAR(L'.'));
-	if (dotFrom) {
-		wsprintf(dotFrom, L"");
-	}
-
-    SYSTEMTIME stLocalTime;
-
-    GetLocalTime(&stLocalTime);
-
-	if (cBetaVersion()) {
-		wsprintf(szFileName, L"%s%s-%ld-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp",
-				 szPath, szExeName, cBetaVersion(),
-				 stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay,
-				 stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond,
-				 GetCurrentProcessId(), GetCurrentThreadId());
-	} else {
-		wsprintf(szFileName, L"%s%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp",
-				 szPath, szExeName, AppVersionStr,
-				 stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay,
-				 stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond,
-				 GetCurrentProcessId(), GetCurrentThreadId());
-	}
-    return CreateFile(szFileName, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
 }
 
 // **************************************** ToolHelp32 ************************

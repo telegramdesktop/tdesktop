@@ -13,7 +13,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "pspecific.h"
@@ -43,10 +43,10 @@ extern "C" {
 #include <unity/unity/unity.h>
 
 namespace {
-    QString escapeShell(const QString &str) {
-        QString result;
-        const QChar *b = str.constData(), *e = str.constEnd();
-        for (const QChar *ch = b; ch != e; ++ch) {
+    QByteArray escapeShell(const QByteArray &str) {
+        QByteArray result;
+        const char *b = str.constData(), *e = str.constEnd();
+        for (const char *ch = b; ch != e; ++ch) {
             if (*ch == ' ' || *ch == '"' || *ch == '\'' || *ch == '\\') {
                 if (result.isEmpty()) {
                     result.reserve(str.size() * 2);
@@ -346,156 +346,141 @@ namespace {
         return FALSE;
     }
 
-    class _PsInitializer {
-    public:
-        _PsInitializer() {
-            static bool inited = false;
-            if (inited) return;
-            inited = true;
-
-            QString cdesktop = QString(getenv("XDG_CURRENT_DESKTOP")).toLower();
-            noQtTrayIcon = (cdesktop == qstr("pantheon")) || (cdesktop == qstr("gnome"));
-            tryAppIndicator = (cdesktop == qstr("xfce"));
-            noTryUnity = (cdesktop != qstr("unity"));
-
-            if (noQtTrayIcon) cSetSupportTray(false);
-
-			DEBUG_LOG(("Loading libraries"));
-            setupGtk();
-            setupUnity();
+    bool loadLibrary(QLibrary &lib, const char *name, int version) {
+        DEBUG_LOG(("Loading '%1' with version %2..").arg(QLatin1String(name)).arg(version));
+        lib.setFileNameAndVersion(QLatin1String(name), version);
+        if (lib.load()) {
+            DEBUG_LOG(("Loaded '%1' with version %2!").arg(QLatin1String(name)).arg(version));
+            return true;
         }
-
-        bool loadLibrary(QLibrary &lib, const char *name, int version) {
-			DEBUG_LOG(("Loading '%1' with version %2..").arg(QLatin1String(name)).arg(version));
-            lib.setFileNameAndVersion(QLatin1String(name), version);
-            if (lib.load()) {
-				DEBUG_LOG(("Loaded '%1' with version %2!").arg(QLatin1String(name)).arg(version));
-                return true;
-			}
-            lib.setFileNameAndVersion(QLatin1String(name), QString());
-            if (lib.load()) {
-				DEBUG_LOG(("Loaded '%1' without version!").arg(QLatin1String(name)));
-                return true;
-			}
-			LOG(("Could not load '%1' with version %2 :(").arg(QLatin1String(name)).arg(version));
-            return false;
+        lib.setFileNameAndVersion(QLatin1String(name), QString());
+        if (lib.load()) {
+            DEBUG_LOG(("Loaded '%1' without version!").arg(QLatin1String(name)));
+            return true;
         }
+        LOG(("Could not load '%1' with version %2 :(").arg(QLatin1String(name)).arg(version));
+        return false;
+    }
 
-        void setupGtkBase(QLibrary &lib_gtk) {
-            if (!loadFunction(lib_gtk, "gtk_init_check", ps_gtk_init_check)) return;
-            if (!loadFunction(lib_gtk, "gtk_menu_new", ps_gtk_menu_new)) return;
-            if (!loadFunction(lib_gtk, "gtk_menu_get_type", ps_gtk_menu_get_type)) return;
+    void setupGtkBase(QLibrary &lib_gtk) {
+        if (!loadFunction(lib_gtk, "gtk_init_check", ps_gtk_init_check)) return;
+        if (!loadFunction(lib_gtk, "gtk_menu_new", ps_gtk_menu_new)) return;
+        if (!loadFunction(lib_gtk, "gtk_menu_get_type", ps_gtk_menu_get_type)) return;
 
-            if (!loadFunction(lib_gtk, "gtk_menu_item_new_with_label", ps_gtk_menu_item_new_with_label)) return;
-            if (!loadFunction(lib_gtk, "gtk_menu_item_set_label", ps_gtk_menu_item_set_label)) return;
-            if (!loadFunction(lib_gtk, "gtk_menu_shell_append", ps_gtk_menu_shell_append)) return;
-            if (!loadFunction(lib_gtk, "gtk_menu_shell_get_type", ps_gtk_menu_shell_get_type)) return;
-            if (!loadFunction(lib_gtk, "gtk_widget_show", ps_gtk_widget_show)) return;
-            if (!loadFunction(lib_gtk, "gtk_widget_get_toplevel", ps_gtk_widget_get_toplevel)) return;
-            if (!loadFunction(lib_gtk, "gtk_widget_get_visible", ps_gtk_widget_get_visible)) return;
-            if (!loadFunction(lib_gtk, "gtk_widget_set_sensitive", ps_gtk_widget_set_sensitive)) return;
+        if (!loadFunction(lib_gtk, "gtk_menu_item_new_with_label", ps_gtk_menu_item_new_with_label)) return;
+        if (!loadFunction(lib_gtk, "gtk_menu_item_set_label", ps_gtk_menu_item_set_label)) return;
+        if (!loadFunction(lib_gtk, "gtk_menu_shell_append", ps_gtk_menu_shell_append)) return;
+        if (!loadFunction(lib_gtk, "gtk_menu_shell_get_type", ps_gtk_menu_shell_get_type)) return;
+        if (!loadFunction(lib_gtk, "gtk_widget_show", ps_gtk_widget_show)) return;
+        if (!loadFunction(lib_gtk, "gtk_widget_get_toplevel", ps_gtk_widget_get_toplevel)) return;
+        if (!loadFunction(lib_gtk, "gtk_widget_get_visible", ps_gtk_widget_get_visible)) return;
+        if (!loadFunction(lib_gtk, "gtk_widget_set_sensitive", ps_gtk_widget_set_sensitive)) return;
 
-            if (!loadFunction(lib_gtk, "g_type_check_instance_cast", ps_g_type_check_instance_cast)) return;
-            if (!loadFunction(lib_gtk, "g_signal_connect_data", ps_g_signal_connect_data)) return;
+        if (!loadFunction(lib_gtk, "g_type_check_instance_cast", ps_g_type_check_instance_cast)) return;
+        if (!loadFunction(lib_gtk, "g_signal_connect_data", ps_g_signal_connect_data)) return;
 
-            if (!loadFunction(lib_gtk, "g_object_ref_sink", ps_g_object_ref_sink)) return;
-            if (!loadFunction(lib_gtk, "g_object_unref", ps_g_object_unref)) return;
+        if (!loadFunction(lib_gtk, "g_object_ref_sink", ps_g_object_ref_sink)) return;
+        if (!loadFunction(lib_gtk, "g_object_unref", ps_g_object_unref)) return;
 
+        DEBUG_LOG(("Library gtk functions loaded!"));
+        if (ps_gtk_init_check(0, 0)) {
+            DEBUG_LOG(("Checked gtk with gtk_init_check!"));
             useGtkBase = true;
-			DEBUG_LOG(("Library gtk functions loaded!"));
+        } else {
+            DEBUG_LOG(("Failed to gtk_init_check(0, 0)!"));
         }
+    }
 
-        void setupAppIndicator(QLibrary &lib_indicator) {
-            if (!loadFunction(lib_indicator, "app_indicator_new", ps_app_indicator_new)) return;
-            if (!loadFunction(lib_indicator, "app_indicator_set_status", ps_app_indicator_set_status)) return;
-            if (!loadFunction(lib_indicator, "app_indicator_set_menu", ps_app_indicator_set_menu)) return;
-            if (!loadFunction(lib_indicator, "app_indicator_set_icon_full", ps_app_indicator_set_icon_full)) return;
-            useAppIndicator = true;
-			DEBUG_LOG(("Library appindicator functions loaded!"));
-        }
+    void setupAppIndicator(QLibrary &lib_indicator) {
+        if (!loadFunction(lib_indicator, "app_indicator_new", ps_app_indicator_new)) return;
+        if (!loadFunction(lib_indicator, "app_indicator_set_status", ps_app_indicator_set_status)) return;
+        if (!loadFunction(lib_indicator, "app_indicator_set_menu", ps_app_indicator_set_menu)) return;
+        if (!loadFunction(lib_indicator, "app_indicator_set_icon_full", ps_app_indicator_set_icon_full)) return;
+        useAppIndicator = true;
+        DEBUG_LOG(("Library appindicator functions loaded!"));
+    }
 
-        void setupGtk() {
-            QLibrary lib_gtk, lib_indicator;
-            if (!noQtTrayIcon && !tryAppIndicator) {
-                if (!noTryUnity) {
-                    if (loadLibrary(lib_gtk, "gtk-3", 0)) {
+    void setupGtk() {
+        QLibrary lib_gtk, lib_indicator;
+        if (!noQtTrayIcon && !tryAppIndicator) {
+            if (!noTryUnity) {
+                if (loadLibrary(lib_gtk, "gtk-3", 0)) {
+                    setupGtkBase(lib_gtk);
+                }
+                if (!useGtkBase) {
+                    if (loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
                         setupGtkBase(lib_gtk);
                     }
-                    if (!useGtkBase) {
-                        if (loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
-                            setupGtkBase(lib_gtk);
-                        }
-                    }
-                    if (!useGtkBase) {
-                        noTryUnity = true;
-                    }
                 }
-                return;
+                if (!useGtkBase) {
+                    noTryUnity = true;
+                }
             }
+            return;
+        }
 
-            if (loadLibrary(lib_indicator, "appindicator3", 1)) {
-                if (loadLibrary(lib_gtk, "gtk-3", 0)) {
+        if (loadLibrary(lib_indicator, "appindicator3", 1)) {
+            if (loadLibrary(lib_gtk, "gtk-3", 0)) {
+                setupGtkBase(lib_gtk);
+                setupAppIndicator(lib_indicator);
+            }
+        }
+        if (!useGtkBase || !useAppIndicator) {
+            if (loadLibrary(lib_indicator, "appindicator", 1)) {
+                if (loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
+                    useGtkBase = useAppIndicator = false;
                     setupGtkBase(lib_gtk);
                     setupAppIndicator(lib_indicator);
                 }
             }
-            if (!useGtkBase || !useAppIndicator) {
-                if (loadLibrary(lib_indicator, "appindicator", 1)) {
-                    if (loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
-                        useGtkBase = useAppIndicator = false;
-                        setupGtkBase(lib_gtk);
-                        setupAppIndicator(lib_indicator);
-                    }
-                }
-            }
-            if (tryAppIndicator) {
-                if (useGtkBase && useAppIndicator) {
-                    noQtTrayIcon = true;
-                    cSetSupportTray(false);
-                }
-                return;
-            }
-
-            if (!useGtkBase && lib_gtk.isLoaded()) {
-				LOG(("Could not load appindicator, trying to load gtk.."));
-                setupGtkBase(lib_gtk);
-            }
-            if (!useGtkBase) {
-                useAppIndicator = false;
-				LOG(("Could not load gtk-x11-2.0!"));
-                return;
-            }
-
-            if (!loadFunction(lib_gtk, "gdk_init_check", ps_gdk_init_check)) return;
-            if (!loadFunction(lib_gtk, "gdk_pixbuf_new_from_data", ps_gdk_pixbuf_new_from_data)) return;
-            if (!loadFunction(lib_gtk, "gtk_status_icon_new_from_pixbuf", ps_gtk_status_icon_new_from_pixbuf)) return;
-            if (!loadFunction(lib_gtk, "gtk_status_icon_set_from_pixbuf", ps_gtk_status_icon_set_from_pixbuf)) return;
-            if (!loadFunction(lib_gtk, "gtk_status_icon_set_title", ps_gtk_status_icon_set_title)) return;
-            if (!loadFunction(lib_gtk, "gtk_status_icon_set_tooltip_text", ps_gtk_status_icon_set_tooltip_text)) return;
-            if (!loadFunction(lib_gtk, "gtk_status_icon_set_visible", ps_gtk_status_icon_set_visible)) return;
-            if (!loadFunction(lib_gtk, "gtk_status_icon_is_embedded", ps_gtk_status_icon_is_embedded)) return;
-            if (!loadFunction(lib_gtk, "gtk_status_icon_get_geometry", ps_gtk_status_icon_get_geometry)) return;
-            if (!loadFunction(lib_gtk, "gtk_status_icon_position_menu", ps_gtk_status_icon_position_menu)) return;
-            if (!loadFunction(lib_gtk, "gtk_menu_popup", ps_gtk_menu_popup)) return;
-            if (!loadFunction(lib_gtk, "gtk_get_current_event_time", ps_gtk_get_current_event_time)) return;
-            if (!loadFunction(lib_gtk, "g_idle_add", ps_g_idle_add)) return;
-            useStatusIcon = true;
-			DEBUG_LOG(("Status icon api loaded!"));
-		}
-
-        void setupUnity() {
-            if (noTryUnity) return;
-
-            QLibrary lib_unity(qstr("unity"), 9, 0);
-            if (!loadLibrary(lib_unity, "unity", 9)) return;
-
-            if (!loadFunction(lib_unity, "unity_launcher_entry_get_for_desktop_id", ps_unity_launcher_entry_get_for_desktop_id)) return;
-            if (!loadFunction(lib_unity, "unity_launcher_entry_set_count", ps_unity_launcher_entry_set_count)) return;
-            if (!loadFunction(lib_unity, "unity_launcher_entry_set_count_visible", ps_unity_launcher_entry_set_count_visible)) return;
-            useUnityCount = true;
-			DEBUG_LOG(("Unity count api loaded!"));
         }
-    };
+        if (tryAppIndicator) {
+            if (useGtkBase && useAppIndicator) {
+                noQtTrayIcon = true;
+                cSetSupportTray(false);
+            }
+            return;
+        }
+
+        if (!useGtkBase && lib_gtk.isLoaded()) {
+            LOG(("Could not load appindicator, trying to load gtk.."));
+            setupGtkBase(lib_gtk);
+        }
+        if (!useGtkBase) {
+            useAppIndicator = false;
+            LOG(("Could not load gtk-x11-2.0!"));
+            return;
+        }
+
+        if (!loadFunction(lib_gtk, "gdk_init_check", ps_gdk_init_check)) return;
+        if (!loadFunction(lib_gtk, "gdk_pixbuf_new_from_data", ps_gdk_pixbuf_new_from_data)) return;
+        if (!loadFunction(lib_gtk, "gtk_status_icon_new_from_pixbuf", ps_gtk_status_icon_new_from_pixbuf)) return;
+        if (!loadFunction(lib_gtk, "gtk_status_icon_set_from_pixbuf", ps_gtk_status_icon_set_from_pixbuf)) return;
+        if (!loadFunction(lib_gtk, "gtk_status_icon_set_title", ps_gtk_status_icon_set_title)) return;
+        if (!loadFunction(lib_gtk, "gtk_status_icon_set_tooltip_text", ps_gtk_status_icon_set_tooltip_text)) return;
+        if (!loadFunction(lib_gtk, "gtk_status_icon_set_visible", ps_gtk_status_icon_set_visible)) return;
+        if (!loadFunction(lib_gtk, "gtk_status_icon_is_embedded", ps_gtk_status_icon_is_embedded)) return;
+        if (!loadFunction(lib_gtk, "gtk_status_icon_get_geometry", ps_gtk_status_icon_get_geometry)) return;
+        if (!loadFunction(lib_gtk, "gtk_status_icon_position_menu", ps_gtk_status_icon_position_menu)) return;
+        if (!loadFunction(lib_gtk, "gtk_menu_popup", ps_gtk_menu_popup)) return;
+        if (!loadFunction(lib_gtk, "gtk_get_current_event_time", ps_gtk_get_current_event_time)) return;
+        if (!loadFunction(lib_gtk, "g_idle_add", ps_g_idle_add)) return;
+        useStatusIcon = true;
+        DEBUG_LOG(("Status icon api loaded!"));
+    }
+
+    void setupUnity() {
+        if (noTryUnity) return;
+
+        QLibrary lib_unity(qstr("unity"), 9, 0);
+        if (!loadLibrary(lib_unity, "unity", 9)) return;
+
+        if (!loadFunction(lib_unity, "unity_launcher_entry_get_for_desktop_id", ps_unity_launcher_entry_get_for_desktop_id)) return;
+        if (!loadFunction(lib_unity, "unity_launcher_entry_set_count", ps_unity_launcher_entry_set_count)) return;
+        if (!loadFunction(lib_unity, "unity_launcher_entry_set_count_visible", ps_unity_launcher_entry_set_count_visible)) return;
+        useUnityCount = true;
+        DEBUG_LOG(("Unity count api loaded!"));
+    }
 
     class _PsEventFilter : public QAbstractNativeEventFilter {
 	public:
@@ -516,8 +501,6 @@ namespace {
 
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent),
 posInited(false), trayIcon(0), trayIconMenu(0), icon256(qsl(":/gui/art/icon256.png")), iconbig256(icon256), wndIcon(QIcon::fromTheme("telegram", QIcon(QPixmap::fromImage(icon256, Qt::ColorOnly)))), _psCheckStatusIconLeft(100), _psLastIndicatorUpdate(0) {
-    _PsInitializer initializer;
-
     connect(&_psCheckStatusIconTimer, SIGNAL(timeout()), this, SLOT(psStatusIconCheck()));
     _psCheckStatusIconTimer.setSingleShot(false);
 
@@ -770,41 +753,31 @@ void PsMainWindow::psCreateTrayIcon() {
     if (!noQtTrayIcon) {
         cSetSupportTray(QSystemTrayIcon::isSystemTrayAvailable());
         if (!noTryUnity) {
-            if (ps_gtk_init_check(0, 0)) {
-                DEBUG_LOG(("Checked gtk with gtk_init_check!"));
-            } else {
-                DEBUG_LOG(("Failed to gtk_init_check(0, 0)!"));
-                useUnityCount = false;
-            }
+            useUnityCount = false;
         }
         return;
     }
 
     if (useAppIndicator) {
         DEBUG_LOG(("Trying to create AppIndicator"));
-        if (ps_gtk_init_check(0, 0)) {
-            DEBUG_LOG(("Checked gtk with gtk_init_check!"));
-            _trayMenu = ps_gtk_menu_new();
-            if (_trayMenu) {
-                DEBUG_LOG(("Created gtk menu for appindicator!"));
-                QFileInfo f(_trayIconImageFile());
-                if (f.exists()) {
-                    QByteArray path = QFile::encodeName(f.absoluteFilePath());
-                   _trayIndicator = ps_app_indicator_new("Telegram Desktop", path.constData(), APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
-                   if (_trayIndicator) {
-                       DEBUG_LOG(("Created appindicator!"));
-                   } else {
-                       DEBUG_LOG(("Failed to app_indicator_new()!"));
-                   }
+        _trayMenu = ps_gtk_menu_new();
+        if (_trayMenu) {
+            DEBUG_LOG(("Created gtk menu for appindicator!"));
+            QFileInfo f(_trayIconImageFile());
+            if (f.exists()) {
+                QByteArray path = QFile::encodeName(f.absoluteFilePath());
+                _trayIndicator = ps_app_indicator_new("Telegram Desktop", path.constData(), APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
+                if (_trayIndicator) {
+                    DEBUG_LOG(("Created appindicator!"));
                 } else {
-                    useAppIndicator = false;
-                    DEBUG_LOG(("Failed to create image file!"));
+                    DEBUG_LOG(("Failed to app_indicator_new()!"));
                 }
             } else {
-                DEBUG_LOG(("Failed to gtk_menu_new()!"));
+                useAppIndicator = false;
+                DEBUG_LOG(("Failed to create image file!"));
             }
         } else {
-            DEBUG_LOG(("Failed to gtk_init_check(0, 0)!"));
+            DEBUG_LOG(("Failed to gtk_menu_new()!"));
         }
         if (_trayMenu && _trayIndicator) {
             ps_app_indicator_set_status(_trayIndicator, APP_INDICATOR_STATUS_ACTIVE);
@@ -816,7 +789,7 @@ void PsMainWindow::psCreateTrayIcon() {
         }
     }
     if (useStatusIcon) {
-        if (ps_gtk_init_check(0, 0) && ps_gdk_init_check(0, 0)) {
+        if (ps_gdk_init_check(0, 0)) {
             if (!_trayMenu) _trayMenu = ps_gtk_menu_new();
             if (_trayMenu) {
                 loadPixbuf(_trayIconImageGen());
@@ -1001,13 +974,12 @@ QStringList addr2linestr(uint64 *addresses, int count) {
 	if (!count) return result;
 
 	result.reserve(count);
-	QString cmdstr = "addr2line -e " + escapeShell(cExeDir() + cExeName());
+	QByteArray cmd = "addr2line -e " + escapeShell(QFile::encodeName(cExeDir() + cExeName()));
 	for (int i = 0; i < count; ++i) {
 		if (addresses[i]) {
-			cmdstr += qsl(" 0x%1").arg(addresses[i], 0, 16);
+			cmd += qsl(" 0x%1").arg(addresses[i], 0, 16).toUtf8();
 		}
 	}
-	QByteArray cmd = cmdstr.toUtf8();
 	FILE *f = popen(cmd.constData(), "r");
 
 	QStringList addr2lineResult;
@@ -1192,7 +1164,7 @@ QString psCurrentLanguage() {
 namespace {
     QString _psHomeDir() {
         struct passwd *pw = getpwuid(getuid());
-        return (pw && pw->pw_dir && strlen(pw->pw_dir)) ? (fromUtf8Safe(pw->pw_dir) + '/') : QString();
+        return (pw && pw->pw_dir && strlen(pw->pw_dir)) ? (QFile::decodeName(pw->pw_dir) + '/') : QString();
     }
 }
 
@@ -1206,7 +1178,7 @@ QString psDownloadPath() {
 }
 
 QString psCurrentExeDirectory(int argc, char *argv[]) {
-    QString first = argc ? fromUtf8Safe(argv[0]) : QString();
+    QString first = argc ? QFile::decodeName(argv[0]) : QString();
     if (!first.isEmpty()) {
         QFileInfo info(first);
         if (info.isSymLink()) {
@@ -1220,7 +1192,7 @@ QString psCurrentExeDirectory(int argc, char *argv[]) {
 }
 
 QString psCurrentExeName(int argc, char *argv[]) {
-	QString first = argc ? fromUtf8Safe(argv[0]) : QString();
+	QString first = argc ? QFile::decodeName(argv[0]) : QString();
 	if (!first.isEmpty()) {
 		QFileInfo info(first);
         if (info.isSymLink()) {
@@ -1263,12 +1235,22 @@ void psOpenFile(const QString &name, bool openWith) {
 
 void psShowInFolder(const QString &name) {
     Ui::hideLayer(true);
-    system((qsl("xdg-open ") + escapeShell(QFileInfo(name).absoluteDir().absolutePath())).toUtf8().constData());
+    system(("xdg-open " + escapeShell(QFile::encodeName(QFileInfo(name).absoluteDir().absolutePath()))).constData());
 }
 
 namespace PlatformSpecific {
 
 	Initializer::Initializer() {
+        QString cdesktop = QString(getenv("XDG_CURRENT_DESKTOP")).toLower();
+        noQtTrayIcon = (cdesktop == qstr("pantheon")) || (cdesktop == qstr("gnome"));
+        tryAppIndicator = (cdesktop == qstr("xfce"));
+        noTryUnity = (cdesktop != qstr("unity"));
+
+        if (noQtTrayIcon) cSetSupportTray(false);
+
+        DEBUG_LOG(("Loading libraries"));
+        setupGtk();
+        setupUnity();
 	}
 
 	Initializer::~Initializer() {
@@ -1279,13 +1261,13 @@ namespace PlatformSpecific {
 }
 
 namespace {
-    bool _psRunCommand(const QString &command) {
-        int result = system(command.toUtf8().constData());
+    bool _psRunCommand(const QByteArray &command) {
+        int result = system(command.constData());
         if (result) {
-            DEBUG_LOG(("App Error: command failed, code: %1, command (in utf8): %2").arg(result).arg(command));
+            DEBUG_LOG(("App Error: command failed, code: %1, command (in utf8): %2").arg(result).arg(command.constData()));
             return false;
         }
-        DEBUG_LOG(("App Info: command succeeded, command (in utf8): %1").arg(command));
+        DEBUG_LOG(("App Info: command succeeded, command (in utf8): %1").arg(command.constData()));
         return true;
     }
 }
@@ -1321,7 +1303,7 @@ void psRegisterCustomScheme() {
             s << "Version=1.0\n";
             s << "Name=Telegram Desktop\n";
             s << "Comment=Official desktop version of Telegram messaging app\n";
-            s << "Exec=" << escapeShell(cExeDir() + cExeName()) << " -- %u\n";
+            s << "Exec=" << escapeShell(QFile::encodeName(cExeDir() + cExeName())) << " -- %u\n";
             s << "Icon=telegram\n";
             s << "Terminal=false\n";
             s << "StartupWMClass=Telegram\n";
@@ -1330,12 +1312,12 @@ void psRegisterCustomScheme() {
             s << "MimeType=application/x-xdg-protocol-tg;x-scheme-handler/tg;\n";
             f.close();
 
-            if (_psRunCommand(qsl("desktop-file-install --dir=%1 --delete-original %2").arg(escapeShell(home + qsl(".local/share/applications"))).arg(escapeShell(file)))) {
+            if (_psRunCommand("desktop-file-install --dir=" + escapeShell(QFile::encodeName(home + qsl(".local/share/applications"))) + " --delete-original " + escapeShell(QFile::encodeName(file)))) {
                 DEBUG_LOG(("App Info: removing old .desktop file"));
                 QFile(qsl("%1.local/share/applications/telegram.desktop").arg(home)).remove();
 
-                _psRunCommand(qsl("update-desktop-database %1").arg(escapeShell(home + qsl(".local/share/applications"))));
-                _psRunCommand(qsl("xdg-mime default telegramdesktop.desktop x-scheme-handler/tg"));
+                _psRunCommand("update-desktop-database " + escapeShell(QFile::encodeName(home + qsl(".local/share/applications"))));
+                _psRunCommand("xdg-mime default telegramdesktop.desktop x-scheme-handler/tg");
             }
         } else {
             LOG(("App Error: Could not open '%1' for write").arg(file));
@@ -1343,9 +1325,9 @@ void psRegisterCustomScheme() {
     }
 
     DEBUG_LOG(("App Info: registerting for Gnome"));
-    if (_psRunCommand(qsl("gconftool-2 -t string -s /desktop/gnome/url-handlers/tg/command %1").arg(escapeShell(qsl("%1 -- %s").arg(escapeShell(cExeDir() + cExeName())))))) {
-        _psRunCommand(qsl("gconftool-2 -t bool -s /desktop/gnome/url-handlers/tg/needs_terminal false"));
-        _psRunCommand(qsl("gconftool-2 -t bool -s /desktop/gnome/url-handlers/tg/enabled true"));
+    if (_psRunCommand("gconftool-2 -t string -s /desktop/gnome/url-handlers/tg/command " + escapeShell(escapeShell(QFile::encodeName(cExeDir() + cExeName())) + " -- %s"))) {
+        _psRunCommand("gconftool-2 -t bool -s /desktop/gnome/url-handlers/tg/needs_terminal false");
+        _psRunCommand("gconftool-2 -t bool -s /desktop/gnome/url-handlers/tg/enabled true");
     }
 
     DEBUG_LOG(("App Info: placing .protocol file"));
@@ -1364,7 +1346,7 @@ void psRegisterCustomScheme() {
             QTextStream s(&f);
             s.setCodec("UTF-8");
             s << "[Protocol]\n";
-            s << "exec=" << escapeShell(cExeDir() + cExeName()) << " -- %u\n";
+            s << "exec=" << QFile::decodeName(escapeShell(QFile::encodeName(cExeDir() + cExeName()))) << " -- %u\n";
             s << "protocol=tg\n";
             s << "input=none\n";
             s << "output=none\n";
@@ -1413,14 +1395,14 @@ bool _execUpdater(bool update = true, const QString &crashreport = QString()) {
             args[argIndex++] = p_datafile;
         }
     }
-    QByteArray pathf = cWorkingDir().toUtf8();
+    QByteArray pathf = QFile::encodeName(cWorkingDir());
     if (pathf.size() < MaxLen) {
         memcpy(p_pathbuf, pathf.constData(), pathf.size());
         args[argIndex++] = p_path;
         args[argIndex++] = p_pathbuf;
     }
 	if (!crashreport.isEmpty()) {
-		QByteArray crashreportf = crashreport.toUtf8();
+		QByteArray crashreportf = QFile::encodeName(crashreport);
 		if (crashreportf.size() < MaxLen) {
 			memcpy(p_crashreportbuf, crashreportf.constData(), crashreportf.size());
 			args[argIndex++] = p_crashreport;
@@ -1428,6 +1410,8 @@ bool _execUpdater(bool update = true, const QString &crashreport = QString()) {
 		}
 	}
 
+	Logs::closeMain();
+	SignalHandlers::finish();
     pid_t pid = fork();
     switch (pid) {
     case -1: return false;

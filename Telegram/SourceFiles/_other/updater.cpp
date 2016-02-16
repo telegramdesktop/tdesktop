@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "updater.h"
 
@@ -328,8 +328,6 @@ void updateRegistry() {
 	}
 }
 
-#include <ShlObj.h>
-
 int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdParamarg, int cmdShow) {
 	openLog();
 
@@ -484,9 +482,14 @@ HANDLE _generateDumpFileAtPath(const WCHAR *path) {
 	static const int maxFileLen = MAX_PATH * 10;
 
 	WCHAR szPath[maxFileLen];
-	wsprintf(szPath, L"%stdumps\\", path);
-
+	wsprintf(szPath, L"%stdata\\", path);
     if (!CreateDirectory(szPath, NULL)) {
+		if (GetLastError() != ERROR_ALREADY_EXISTS) {
+			return 0;
+		}
+	}
+	wsprintf(szPath, L"%sdumps\\", path);
+	if (!CreateDirectory(szPath, NULL)) {
 		if (GetLastError() != ERROR_ALREADY_EXISTS) {
 			return 0;
 		}

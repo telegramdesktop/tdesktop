@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -56,7 +56,7 @@ public:
 	void play(const AudioMsgId &audio, int64 position = 0);
 	void play(const SongMsgId &song, int64 position = 0);
 	void pauseresume(MediaOverviewType type, bool fast = false);
-	void seek(int64 position); // type == OverviewDocuments
+	void seek(int64 position); // type == OverviewFiles
 	void stop(MediaOverviewType type);
 
 	void stopAndClear();
@@ -201,8 +201,8 @@ signals:
 	void captureOnStart();
 	void captureOnStop(bool needResult);
 
-	void onDone(QByteArray data, qint32 samples);
-	void onUpdate(qint16 level, qint32 samples);
+	void onDone(QByteArray data, VoiceWaveform waveform, qint32 samples);
+	void onUpdate(quint16 level, qint32 samples);
 	void onError();
 
 private:
@@ -338,8 +338,8 @@ public:
 signals:
 
 	void error();
-	void update(qint16 level, qint32 samples);
-	void done(QByteArray data, qint32 samples);
+	void update(quint16 level, qint32 samples);
+	void done(QByteArray data, VoiceWaveform waveform, qint32 samples);
 
 public slots:
 
@@ -360,3 +360,4 @@ private:
 };
 
 MTPDocumentAttribute audioReadSongAttributes(const QString &fname, const QByteArray &data, QImage &cover, QByteArray &coverBytes, QByteArray &coverFormat);
+VoiceWaveform audioCountWaveform(const FileLocation &file, const QByteArray &data);
