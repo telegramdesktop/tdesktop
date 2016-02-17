@@ -189,14 +189,14 @@ public:
 	}
 
 	HistoryItem *createItem(HistoryBlock *block, const MTPMessage &msg, bool applyServiceAction);
-	HistoryItem *createItemForwarded(HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg);
+	HistoryItem *createItemForwarded(HistoryBlock *block, MsgId id, int32 flags, QDateTime date, int32 from, HistoryMessage *msg);
 	HistoryItem *createItemDocument(HistoryBlock *block, MsgId id, int32 flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption);
 	HistoryItem *createItemPhoto(HistoryBlock *block, MsgId id, int32 flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption);
 
 	HistoryItem *addNewService(MsgId msgId, QDateTime date, const QString &text, int32 flags = 0, HistoryMedia *media = 0, bool newMsg = true);
 	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
 	HistoryItem *addToHistory(const MTPMessage &msg);
-	HistoryItem *addNewForwarded(MsgId id, QDateTime date, int32 from, HistoryMessage *item);
+	HistoryItem *addNewForwarded(MsgId id, int32 flags, QDateTime date, int32 from, HistoryMessage *item);
 	HistoryItem *addNewDocument(MsgId id, int32 flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption);
 	HistoryItem *addNewPhoto(MsgId id, int32 flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption);
 
@@ -779,7 +779,7 @@ enum InfoDisplayType {
 };
 
 inline bool isImportantChannelMessage(MsgId id, int32 flags) { // client-side important msgs always has_views or has_from_id
-	return (flags & MTPDmessage::flag_out) || (flags & MTPDmessage::flag_mentioned) || ((id > 0 || flags != 0) && !(flags & MTPDmessage::flag_from_id));
+	return (flags & MTPDmessage::flag_out) || (flags & MTPDmessage::flag_mentioned) || (flags & MTPDmessage::flag_post);
 }
 
 enum HistoryItemType {
@@ -860,14 +860,20 @@ public:
 	bool hasViews() const {
 		return _flags & MTPDmessage::flag_views;
 	}
-	bool fromChannel() const {
-		return _from->isChannel();
+	bool isPost() const {
+		return _flags & MTPDmessage::flag_post;
 	}
 	bool isImportant() const {
 		return _history->isChannel() && isImportantChannelMessage(id, _flags);
 	}
 	bool indexInOverview() const {
-		return (id > 0) && (!history()->isChannel() || history()->isMegagroup() || fromChannel());
+		return (id > 0) && (!history()->isChannel() || history()->isMegagroup() || isPost());
+	}
+	bool isSilent() const {
+		return _flags & MTPDmessage::flag_silent;
+	}
+	virtual int32 viewsCount() const {
+		return hasViews() ? 1 : -1;
 	}
 
 	virtual bool needCheck() const {
@@ -937,7 +943,7 @@ public:
 
 		if (id == 1) return false;
 		if (channel->amCreator()) return true;
-		if (fromChannel()) {
+		if (isPost()) {
 			if (channel->amEditor() && out()) return true;
 			return false;
 		}
@@ -979,12 +985,6 @@ public:
 	virtual int32 timeWidth() const {
 		return 0;
 	}
-	virtual QString viewsText() const {
-		return QString();
-	}
-	virtual int32 viewsWidth() const {
-		return 0;
-	}
 	virtual bool pointInTime(int32 right, int32 bottom, int32 x, int32 y, InfoDisplayType type) const {
 		return false;
 	}
@@ -1019,7 +1019,10 @@ public:
 	}
 
 	bool hasFromName() const {
-		return (!out() || fromChannel()) && !history()->peer->isUser();
+		return (!out() || isPost()) && !history()->peer->isUser();
+	}
+	PeerData *author() const {
+		return isPost() ? history()->peer : _from;
 	}
 	bool displayFromPhoto() const;
 
@@ -1030,10 +1033,11 @@ public:
 protected:
 
 	PeerData *_from;
-	mutable int32 _fromVersion;
 	History *_history;
 	HistoryBlock *_block;
 	int32 _flags;
+
+	mutable int32 _authorNameVersion;
 
 };
 
@@ -1931,25 +1935,40 @@ private:
 
 };
 
-class HistoryMessageVia {
-public:
-	HistoryMessageVia(int32 userId);
+struct HistoryMessageVia : public BasicInterface<HistoryMessageVia> {
+	HistoryMessageVia(Interfaces *);
+
+	void create(int32 userId);
 
 	bool isNull() const;
-	void resize(int32 availw);
+	void resize(int32 availw) const;
 
 	UserData *bot;
-	QString text;
-	int32 width, maxWidth;
+	mutable QString text;
+	mutable int32 width, maxWidth;
 	TextLinkPtr lnk;
-
 };
 
-class HistoryMessage : public HistoryItem {
+struct HistoryMessageViews : public BasicInterface<HistoryMessageViews> {
+	HistoryMessageViews(Interfaces *);
+
+	QString _viewsText;
+	int32 _views, _viewsWidth;
+};
+
+struct HistoryMessageSigned : public BasicInterface<HistoryMessageSigned> {
+	HistoryMessageSigned(Interfaces *);
+	void create(UserData *from, const QDateTime &date);
+	int32 maxWidth() const;
+
+	Text _signature;
+};
+
+class HistoryMessage : public HistoryItem, public Interfaces {
 public:
 
 	HistoryMessage(History *history, HistoryBlock *block, const MTPDmessage &msg);
-	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, int32 viaBotId, QDateTime date, int32 from, const QString &msg, const EntitiesInText &entities, HistoryMedia *media); // local forwarded
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, int32 viaBotId, QDateTime date, int32 from, const QString &msg, const EntitiesInText &entities, int32 fromViews, HistoryMedia *fromMedia); // local forwarded
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, int32 viaBotId, QDateTime date, int32 from, DocumentData *doc, const QString &caption); // local document
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, int32 viaBotId, QDateTime date, int32 from, PhotoData *photo, const QString &caption); // local photo
 
@@ -1959,8 +1978,9 @@ public:
 	void initDimensions();
 	void fromNameUpdated(int32 width) const;
 
-	virtual HistoryMessageVia *via() const {
-		return (_via && !_via->isNull()) ? _via : 0;
+	const HistoryMessageVia *via() const {
+		const HistoryMessageVia *result = Get<HistoryMessageVia>();
+		return (result && !result->isNull()) ? result : 0;
 	}
 	virtual UserData *viaBot() const {
 		return via() ? via()->bot : 0;
@@ -2037,20 +2057,20 @@ public:
 
 	int32 infoWidth() const {
 		int32 result = _timeWidth;
-		if (!_viewsText.isEmpty()) {
-			result += st::msgDateViewsSpace + _viewsWidth + st::msgDateCheckSpace + st::msgViewsImg.pxWidth();
+		if (const HistoryMessageViews *views = Get<HistoryMessageViews>()) {
+			result += st::msgDateViewsSpace + views->_viewsWidth + st::msgDateCheckSpace + st::msgViewsImg.pxWidth();
 		} else if (id < 0 && history()->peer->isSelf()) {
 			result += st::msgDateCheckSpace + st::msgCheckImg.pxWidth();
 		}
-		if (out() && !fromChannel()) {
+		if (out() && !isPost()) {
 			result += st::msgDateCheckSpace + st::msgCheckImg.pxWidth();
 		}
 		return result;
 	}
 	int32 timeLeft() const {
 		int32 result = 0;
-		if (!_viewsText.isEmpty()) {
-			result += st::msgDateViewsSpace + _viewsWidth + st::msgDateCheckSpace + st::msgViewsImg.pxWidth();
+		if (const HistoryMessageViews *views = Get<HistoryMessageViews>()) {
+			result += st::msgDateViewsSpace + views->_viewsWidth + st::msgDateCheckSpace + st::msgViewsImg.pxWidth();
 		} else if (id < 0 && history()->peer->isSelf()) {
 			result += st::msgDateCheckSpace + st::msgCheckImg.pxWidth();
 		}
@@ -2059,18 +2079,19 @@ public:
 	int32 timeWidth() const {
 		return _timeWidth;
 	}
-	QString viewsText() const {
-		return _viewsText;
-	}
-	int32 viewsWidth() const {
-		return _viewsWidth;
+
+	int32 viewsCount() const {
+		if (const HistoryMessageViews *views = Get<HistoryMessageViews>()) {
+			return views->_views;
+		}
+		return HistoryItem::viewsCount();
 	}
 
 	virtual QDateTime dateForwarded() const { // dynamic_cast optimize
 		return date;
 	}
 	virtual PeerData *fromForwarded() const { // dynamic_cast optimize
-		return from();
+		return author();
 	}
 
 	HistoryMessage *toHistoryMessage() { // dynamic_cast optimize
@@ -2084,17 +2105,15 @@ public:
 
 protected:
 
+	void create(int32 viaBotId, int32 viewsCount);
+
 	Text _text;
 
 	int32 _textWidth, _textHeight;
-	HistoryMessageVia *_via;
 
 	HistoryMedia *_media;
 	QString _timeText;
 	int32 _timeWidth;
-
-	QString _viewsText;
-	int32 _views, _viewsWidth;
 
 };
 
@@ -2102,7 +2121,7 @@ class HistoryForwarded : public HistoryMessage {
 public:
 
 	HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessage &msg);
-	HistoryForwarded(History *history, HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg);
+	HistoryForwarded(History *history, HistoryBlock *block, MsgId id, int32 flags, QDateTime date, int32 from, HistoryMessage *msg);
 
 	void initDimensions();
 	void fwdNameUpdated() const;
@@ -2175,7 +2194,7 @@ public:
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
 
 	PeerData *replyTo() const {
-		return replyToMsg ? replyToMsg->from() : 0;
+		return replyToMsg ? replyToMsg->author() : 0;
 	}
 	QString selectedText(uint32 selection) const;
 

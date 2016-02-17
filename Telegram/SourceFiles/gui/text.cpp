@@ -914,19 +914,22 @@ void TextLink::onClick(Qt::MouseButton button) const {
 		PopupTooltip::Hide();
 
 		QString url = TextLink::encoded();
-		QRegularExpressionMatch telegramMeUser = QRegularExpression(qsl("^https?://telegram\\.me/([a-zA-Z0-9\\.\\_]+)/?(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
+		QRegularExpressionMatch telegramMeUser = QRegularExpression(qsl("^https?://telegram\\.me/([a-zA-Z0-9\\.\\_]+)(/?\\?|/?$|/(\\d+)/?(?:\\?|$))"), QRegularExpression::CaseInsensitiveOption).match(url);
 		QRegularExpressionMatch telegramMeGroup = QRegularExpression(qsl("^https?://telegram\\.me/joinchat/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
 		QRegularExpressionMatch telegramMeStickers = QRegularExpression(qsl("^https?://telegram\\.me/addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
 		QRegularExpressionMatch telegramMeShareUrl = QRegularExpression(qsl("^https?://telegram\\.me/share/url\\?(.+)$"), QRegularExpression::CaseInsensitiveOption).match(url);
-		if (telegramMeUser.hasMatch()) {
-			QString params = url.mid(telegramMeUser.captured(0).size());
-			url = qsl("tg://resolve/?domain=") + myUrlEncode(telegramMeUser.captured(1)) + (params.isEmpty() ? QString() : '&' + params);
-		} else if (telegramMeGroup.hasMatch()) {
+		if (telegramMeGroup.hasMatch()) {
 			url = qsl("tg://join?invite=") + myUrlEncode(telegramMeGroup.captured(1));
 		} else if (telegramMeStickers.hasMatch()) {
 			url = qsl("tg://addstickers?set=") + myUrlEncode(telegramMeStickers.captured(1));
 		} else if (telegramMeShareUrl.hasMatch()) {
 			url = qsl("tg://msg_url?") + telegramMeShareUrl.captured(1);
+		} else if (telegramMeUser.hasMatch()) {
+			QString params = url.mid(telegramMeUser.captured(0).size()), postParam;
+			if (QRegularExpression(qsl("^/\\d+/?(?:\\?|$)")).match(telegramMeUser.captured(2)).hasMatch()) {
+				postParam = qsl("&post=") + telegramMeUser.captured(3);
+			}
+			url = qsl("tg://resolve/?domain=") + myUrlEncode(telegramMeUser.captured(1)) + postParam + (params.isEmpty() ? QString() : '&' + params);
 		}
 
 		if (QRegularExpression(qsl("^tg://[a-zA-Z0-9]+"), QRegularExpression::CaseInsensitiveOption).match(url).hasMatch()) {
@@ -949,6 +952,17 @@ void EmailLink::onClick(Qt::MouseButton button) const {
 
 void CustomTextLink::onClick(Qt::MouseButton button) const {
 	Ui::showLayer(new ConfirmLinkBox(text()));
+}
+
+void LocationLink::onClick(Qt::MouseButton button) const {
+	if (!psLaunchMaps(_lat, _lon)) {
+		QDesktopServices::openUrl(_text);
+	}
+}
+
+void LocationLink::setup() {
+	QString latlon = _lat + ',' + _lon;
+	_text = qsl("https://maps.google.com/maps?q=") + latlon + qsl("&ll=") + latlon + qsl("&z=16");
 }
 
 void MentionLink::onClick(Qt::MouseButton button) const {

@@ -374,7 +374,7 @@ public:
 		QUrl u(_url), good(u.isValid() ? u.toEncoded() : QString());
 		QString result(good.isValid() ? QString::fromUtf8(good.toEncoded()) : _url);
 
-		if (!QRegularExpression(qsl("^[a-zA-Z]+://")).match(result).hasMatch()) { // no protocol
+		if (!QRegularExpression(qsl("^[a-zA-Z]+:")).match(result).hasMatch()) { // no protocol
 			return qsl("http://") + result;
 		}
 		return result;
@@ -420,6 +420,36 @@ public:
 private:
 
 	QString _email;
+
+};
+
+class LocationLink : public ITextLink {
+	TEXT_LINK_CLASS(LocationLink)
+
+public:
+
+	LocationLink(const QString &lat, const QString &lon) : _lat(lat), _lon(lon) {
+		setup();
+	}
+
+	const QString &text() const {
+		return _text;
+	}
+
+	void onClick(Qt::MouseButton button) const;
+
+	const QString &readable() const {
+		return _text;
+	}
+
+	QString encoded() const {
+		return _text;
+	}
+
+private:
+
+	void setup();
+	QString _lat, _lon, _text;
 
 };
 

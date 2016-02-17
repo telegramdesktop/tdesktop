@@ -194,3 +194,5 @@ public:
 	}
 
 };
+
+bool psLaunchMaps(const QString &lat, const QString &lon);

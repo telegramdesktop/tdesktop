@@ -44,8 +44,8 @@ namespace App {
 		if (MainWidget *m = main()) m->searchMessages(tag + ' ', (inPeer && inPeer->isChannel()) ? inPeer : 0);
 	}
 
-	void openPeerByName(const QString &username, bool toProfile, const QString &startToken) {
-		if (MainWidget *m = main()) m->openPeerByName(username, toProfile, startToken);
+	void openPeerByName(const QString &username, MsgId msgId, const QString &startToken) {
+		if (MainWidget *m = main()) m->openPeerByName(username, msgId, startToken);
 	}
 
 	void joinGroupByHash(const QString &hash) {
@@ -90,11 +90,15 @@ namespace App {
 namespace Ui {
 
 	void showStickerPreview(DocumentData *sticker) {
-		if (MainWidget *m = App::main()) m->ui_showStickerPreview(sticker);
+		if (Window *w = App::wnd()) {
+			w->ui_showStickerPreview(sticker);
+		}
 	}
 
 	void hideStickerPreview() {
-		if (MainWidget *m = App::main()) m->ui_hideStickerPreview();
+		if (Window *w = App::wnd()) {
+			w->ui_hideStickerPreview();
+		}
 	}
 
 	void showLayer(LayeredWidget *box, ShowLayerOptions options) {

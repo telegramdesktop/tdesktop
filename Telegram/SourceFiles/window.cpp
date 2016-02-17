@@ -210,8 +210,8 @@ void NotifyWindow::updateNotifyDisplay() {
 				item->drawInDialog(p, r, active, textCachedFor, itemTextCache);
 			} else {
 				p.setFont(st::dlgHistFont->f);
-				if (item->hasFromName() && !item->fromChannel()) {
-					itemTextCache.setText(st::dlgHistFont, item->from()->name);
+				if (item->hasFromName() && !item->isPost()) {
+					itemTextCache.setText(st::dlgHistFont, item->author()->name);
 					p.setPen(st::dlgSystemColor->p);
 					itemTextCache.drawElided(p, r.left(), r.top(), r.width(), st::dlgHistFont->height);
 					r.setTop(r.top() + st::dlgHistFont->height);
@@ -363,9 +363,22 @@ NotifyWindow::~NotifyWindow() {
 	if (App::wnd()) App::wnd()->notifyShowNext(this);
 }
 
-Window::Window(QWidget *parent) : PsMainWindow(parent), _serviceHistoryRequest(0), title(0),
-_passcode(0), intro(0), main(0), settings(0), layerBg(0), _isActive(false),
-_connecting(0), _clearManager(0), dragging(false), _inactivePress(false), _shouldLockAt(0), _mediaView(0) {
+Window::Window(QWidget *parent) : PsMainWindow(parent)
+, _serviceHistoryRequest(0)
+, title(0)
+, _passcode(0)
+, intro(0)
+, main(0)
+, settings(0)
+, layerBg(0)
+, _stickerPreview(0)
+, _isActive(false)
+, _connecting(0)
+, _clearManager(0)
+, dragging(false)
+, _inactivePress(false)
+, _shouldLockAt(0)
+, _mediaView(0) {
 
 	icon16 = icon256.scaledToWidth(16, Qt::SmoothTransformation);
 	icon32 = icon256.scaledToWidth(32, Qt::SmoothTransformation);
@@ -842,6 +855,23 @@ bool Window::ui_isMediaViewShown() {
 	return _mediaView && !_mediaView->isHidden();
 }
 
+void Window::ui_showStickerPreview(DocumentData *sticker) {
+	if (!sticker || ((!sticker->isAnimation() || !sticker->loaded()) && !sticker->sticker())) return;
+	if (!_stickerPreview) {
+		_stickerPreview = new StickerPreviewWidget(this);
+		resizeEvent(0);
+	}
+	if (_stickerPreview->isHidden()) {
+		fixOrder();
+	}
+	_stickerPreview->showPreview(sticker);
+}
+
+void Window::ui_hideStickerPreview() {
+	if (!_stickerPreview) return;
+	_stickerPreview->hidePreview();
+}
+
 void Window::showConnecting(const QString &text, const QString &reconnect) {
 	if (_connecting) {
 		_connecting->set(text, reconnect);
@@ -1169,6 +1199,7 @@ void Window::layerFinishedHide(BackgroundWidget *was) {
 void Window::fixOrder() {
 	title->raise();
 	if (layerBg) layerBg->raise();
+	if (_stickerPreview) _stickerPreview->raise();
 	if (_connecting) _connecting->raise();
 }
 
@@ -1242,6 +1273,7 @@ void Window::resizeEvent(QResizeEvent *e) {
 	}
 	title->setGeometry(0, 0, width(), st::titleHeight);
 	if (layerBg) layerBg->resize(width(), height());
+	if (_stickerPreview) _stickerPreview->setGeometry(0, title->height(), width(), height() - title->height());
 	if (_connecting) _connecting->setGeometry(0, height() - _connecting->height(), _connecting->width(), _connecting->height());
 	emit resized(QSize(width(), height() - st::titleHeight));
 }
@@ -1316,6 +1348,11 @@ void Window::notifySchedule(History *history, HistoryItem *item) {
 	if (App::quiting() || !history->currentNotification() || !main) return;
 
 	PeerData *notifyByFrom = (!history->peer->isUser() && item->mentionsMe()) ? item->from() : 0;
+
+	if (item->isSilent()) {
+		history->popNotification(item);
+		return;
+	}
 
 	bool haveSetting = (history->peer->notify != UnknownNotifySettings);
 	if (haveSetting) {
@@ -1824,6 +1861,7 @@ void Window::updateIsActive(int timeout) {
 
 Window::~Window() {
     notifyClearFast();
+	deleteAndMark(_stickerPreview);
 	delete _clearManager;
 	delete _connecting;
 	delete _mediaView;
@@ -2730,7 +2768,7 @@ void LastCrashedWindow::onUpdateFailed() {
 void LastCrashedWindow::onContinue() {
 	if (SignalHandlers::restart() == SignalHandlers::CantOpen) {
 		new NotStartedWindow();
-	} else {
+	} else if (!Global::started()) {
 		Sandbox::launch();
 	}
 	close();

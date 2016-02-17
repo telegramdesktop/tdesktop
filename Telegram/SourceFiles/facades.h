@@ -27,7 +27,7 @@ namespace App {
 	void sendBotCommand(const QString &cmd, MsgId replyTo = 0);
 	bool insertBotCommand(const QString &cmd, bool specialGif = false);
 	void searchByHashtag(const QString &tag, PeerData *inPeer);
-	void openPeerByName(const QString &username, bool toProfile = false, const QString &startToken = QString());
+	void openPeerByName(const QString &username, MsgId msgId = ShowAtUnreadMsgId, const QString &startToken = QString());
 	void joinGroupByHash(const QString &hash);
 	void stickersBox(const QString &name);
 	void openLocalUrl(const QString &url);

@@ -1654,7 +1654,7 @@ namespace App {
 		return i.value();
 	}
 
-	ImageLinkData *imageLinkSet(const QString &imageLink, ImageLinkType type, const QString &url) {
+	ImageLinkData *imageLinkSet(const QString &imageLink, ImageLinkType type) {
 		ImageLinksData::const_iterator i = imageLinksData.constFind(imageLink);
 		ImageLinkData *result;
 		if (i == imageLinksData.cend()) {

@@ -1306,16 +1306,17 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (_selectedMsgId) repaintItem(_selectedMsgId, -1);
 	} else if (!ignoreMousedItem && App::mousedItem() && App::mousedItem()->channelId() == itemChannel(_mousedItem) && App::mousedItem()->id == itemMsgId(_mousedItem)) {
 		_menu = new PopupMenu();
-		if ((_contextMenuLnk && dynamic_cast<TextLink*>(_contextMenuLnk.data()))) {
+		QLatin1String linktype = _contextMenuLnk ? _contextMenuLnk->type() : qstr("");
+		if (linktype == qstr("TextLink") || linktype == qstr("LocationLink")) {
 			_menu->addAction(lang(lng_context_open_link), this, SLOT(openContextUrl()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_link), this, SLOT(copyContextUrl()))->setEnabled(true);
-		} else if ((_contextMenuLnk && dynamic_cast<EmailLink*>(_contextMenuLnk.data()))) {
+		} else if (linktype == qstr("EmailLink")) {
 			_menu->addAction(lang(lng_context_open_email), this, SLOT(openContextUrl()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_email), this, SLOT(copyContextUrl()))->setEnabled(true);
-		} else if (_contextMenuLnk && dynamic_cast<MentionLink*>(_contextMenuLnk.data())) {
+		} else if (linktype == qstr("MentionLink")) {
 			_menu->addAction(lang(lng_context_open_mention), this, SLOT(openContextUrl()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_mention), this, SLOT(copyContextUrl()))->setEnabled(true);
-		} else if (_contextMenuLnk && dynamic_cast<HashtagLink*>(_contextMenuLnk.data())) {
+		} else if (linktype == qstr("HashtagLink")) {
 			_menu->addAction(lang(lng_context_open_hashtag), this, SLOT(openContextUrl()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_hashtag), this, SLOT(copyContextUrl()))->setEnabled(true);
 		} else {

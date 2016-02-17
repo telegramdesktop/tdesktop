@@ -183,8 +183,6 @@ inline int chatsListWidth(int windowWidth) {
 	return snap<int>((windowWidth * 5) / 14, st::dlgMinWidth, st::dlgMaxWidth);
 }
 
-class StickerPreviewWidget;
-
 class MainWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
@@ -212,7 +210,7 @@ public:
 	void start(const MTPUser &user);
 
 	void openLocalUrl(const QString &str);
-	void openPeerByName(const QString &name, bool toProfile = false, const QString &startToken = QString());
+	void openPeerByName(const QString &name, MsgId msgId = ShowAtUnreadMsgId, const QString &startToken = QString());
 	void joinGroupByHash(const QString &hash);
 	void stickersBox(const MTPInputStickerSet &set);
 
@@ -410,8 +408,6 @@ public:
 
 	bool isItemVisible(HistoryItem *item);
 
-	void ui_showStickerPreview(DocumentData *sticker);
-	void ui_hideStickerPreview();
 	void ui_repaintHistoryItem(const HistoryItem *item);
 	void ui_repaintInlineItem(const LayoutInlineItem *layout);
 	bool ui_isInlineItemVisible(const LayoutInlineItem *layout);
@@ -544,7 +540,7 @@ private:
 	void updateReceived(const mtpPrime *from, const mtpPrime *end);
 	bool updateFail(const RPCError &e);
 
-	void usernameResolveDone(QPair<bool, QString> toProfileStartToken, const MTPcontacts_ResolvedPeer &result);
+	void usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, const MTPcontacts_ResolvedPeer &result);
 	bool usernameResolveFail(QString name, const RPCError &error);
 
 	void inviteCheckDone(QString hash, const MTPChatInvite &invite);
@@ -577,8 +573,6 @@ private:
 	StackItems _stack;
 	PeerData *_peerInStack;
 	MsgId _msgIdInStack;
-
-	StickerPreviewWidget *_stickerPreview;
 
 	int32 _playerHeight;
 	int32 _contentScrollAddToY;

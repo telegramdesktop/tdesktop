@@ -926,3 +926,7 @@ QString strNeedToRefresh2() {
 	const uint32 letters[] = { 0x8F001546, 0xAF007A49, 0xB8002B5F, 0x1A000B54, 0xD003E49, 0xE0003663, 0x4900796F, 0x500836E, 0x9A00D156, 0x5E00FF69, 0x5900C765, 0x3D00D177 };
 	return strMakeFromLetters(letters, sizeof(letters) / sizeof(letters[0]));
 }
+
+bool psLaunchMaps(const QString &lat, const QString &lon) {
+	return false;
+}

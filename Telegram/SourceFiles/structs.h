@@ -156,6 +156,7 @@ inline bool isClientMsgId(MsgId id) {
 }
 static const MsgId ShowAtTheEndMsgId = -0x40000000;
 static const MsgId SwitchAtTopMsgId = -0x3FFFFFFF;
+static const MsgId ShowAtProfileMsgId = -0x3FFFFFFE;
 static const MsgId ServerMaxMsgId = 0x3FFFFFFF;
 static const MsgId ShowAtUnreadMsgId = 0;
 
@@ -622,12 +623,15 @@ public:
 	bool canViewParticipants() const {
 		return flagsFull & MTPDchannelFull::flag_can_view_participants;
 	}
+	bool addsSignature() const {
+		return flags & MTPDchannel::flag_signatures;
+	}
 	bool isForbidden;
 	bool isVerified() const {
 		return flags & MTPDchannel::flag_verified;
 	}
 	bool canAddParticipants() const {
-		return amCreator() || amEditor() || (flags & MTPDchannel::flag_invites_enabled);
+		return amCreator() || amEditor() || (flags & MTPDchannel::flag_admin_invites);
 	}
 
 //	ImagePtr photoFull;
