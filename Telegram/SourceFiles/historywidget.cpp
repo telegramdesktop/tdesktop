@@ -7159,7 +7159,7 @@ void HistoryWidget::drawRecording(Painter &p) {
 }
 
 void HistoryWidget::paintEvent(QPaintEvent *e) {
-	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) return;
+	if (!App::main() || (App::wnd() && App::wnd()->contentOverlapped(this, e))) return;
 
 	Painter p(this);
 	QRect r(e->rect());

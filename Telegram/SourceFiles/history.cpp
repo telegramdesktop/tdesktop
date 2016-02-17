@@ -5982,7 +5982,8 @@ HistoryMessageVia::HistoryMessageVia(Interfaces *)
 }
 
 void HistoryMessageVia::create(int32 userId) {
-	if (bot = App::userLoaded(peerFromUser(userId))) {
+	bot = App::userLoaded(peerFromUser(userId));
+	if (bot) {
 		maxWidth = st::msgServiceNameFont->width(lng_inline_bot_via(lt_inline_bot, '@' + bot->username));
 		lnk.reset(new ViaInlineBotLink(bot));
 	}

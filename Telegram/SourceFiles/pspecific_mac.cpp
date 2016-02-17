@@ -902,6 +902,10 @@ QByteArray psPathBookmark(const QString &path) {
 	return objc_pathBookmark(path);
 }
 
+bool psLaunchMaps(const QString &lat, const QString &lon) {
+	return QDesktopServices::openUrl(qsl("https://maps.apple.com/?q=Point&z=16&ll=%1,%2").arg(lat).arg(lon));
+}
+
 QString strNotificationAboutThemeChange() {
 	const uint32 letters[] = { 0xE9005541, 0x5600DC70, 0x88001570, 0xF500D86C, 0x8100E165, 0xEE005949, 0x2900526E, 0xAE00FB74, 0x96000865, 0x7000CD72, 0x3B001566, 0x5F007361, 0xAE00B663, 0x74009A65, 0x29003054, 0xC6002668, 0x98003865, 0xFA00336D, 0xA3007A65, 0x93001443, 0xBB007868, 0xE100E561, 0x3500366E, 0xC0007A67, 0x200CA65, 0xBE00DF64, 0xE300BB4E, 0x2900D26F, 0xD500D374, 0xE900E269, 0x86008F66, 0xC4006669, 0x1C00A863, 0xE600A761, 0x8E00EE74, 0xB300B169, 0xCF00B36F, 0xE600D36E };
 	return strMakeFromLetters(letters, sizeof(letters) / sizeof(letters[0]));
@@ -925,8 +929,4 @@ QString strNeedToRefresh1() {
 QString strNeedToRefresh2() {
 	const uint32 letters[] = { 0x8F001546, 0xAF007A49, 0xB8002B5F, 0x1A000B54, 0xD003E49, 0xE0003663, 0x4900796F, 0x500836E, 0x9A00D156, 0x5E00FF69, 0x5900C765, 0x3D00D177 };
 	return strMakeFromLetters(letters, sizeof(letters) / sizeof(letters[0]));
-}
-
-bool psLaunchMaps(const QString &lat, const QString &lon) {
-	return false;
 }
