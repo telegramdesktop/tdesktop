@@ -725,6 +725,10 @@ public:
 	const Type *Get() const {
 		return static_cast<const Type*>(_dataptr(_meta()->offsets[Type::Index()]));
 	}
+	template <typename Type>
+	bool Is() const {
+		return (_meta()->offsets[Type::Index()] >= 0);
+	}
 
 private:
 	static const InterfacesMetadata *ZeroInterfacesMetadata;

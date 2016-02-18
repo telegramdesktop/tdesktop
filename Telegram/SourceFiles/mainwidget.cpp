@@ -537,7 +537,7 @@ void MainWidget::fillForwardingInfo(Text *&from, Text *&text, bool &serviceColor
 	if (_toForward.isEmpty()) return;
 	int32 version = 0;
 	for (SelectedItemSet::const_iterator i = _toForward.cbegin(), e = _toForward.cend(); i != e; ++i) {
-		version += i.value()->fwdAuthor()->nameVersion;
+		version += i.value()->authorOriginal()->nameVersion;
 	}
 	if (version != _toForwardNameVersion) {
 		updateForwardingTexts();
@@ -558,7 +558,7 @@ void MainWidget::updateForwardingTexts() {
 		QVector<PeerData*> fromUsers;
 		fromUsers.reserve(_toForward.size());
 		for (SelectedItemSet::const_iterator i = _toForward.cbegin(), e = _toForward.cend(); i != e; ++i) {
-			PeerData *from = i.value()->fwdAuthor();
+			PeerData *from = i.value()->authorOriginal();
 			if (!fromUsersMap.contains(from)) {
 				fromUsersMap.insert(from, true);
 				fromUsers.push_back(from);

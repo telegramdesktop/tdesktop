@@ -951,7 +951,7 @@ namespace App {
 	}
 
 	void checkSavedGif(HistoryItem *item) {
-		if (!item->toHistoryForwarded() && (item->out() || item->history()->peer == App::self())) {
+		if (!item->Is<HistoryMessageForwarded>() && (item->out() || item->history()->peer == App::self())) {
 			if (HistoryMedia *media = item->getMedia()) {
 				if (DocumentData *doc = media->getDocument()) {
 					if (doc->isGifv()) {

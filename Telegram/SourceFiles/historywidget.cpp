@@ -4894,7 +4894,7 @@ void HistoryWidget::sendBotCommand(const QString &cmd, MsgId replyTo) { // reply
 	bool lastKeyboardUsed = (_keyboard.forMsgId() == FullMsgId(_channel, _history->lastKeyboardId)) && (_keyboard.forMsgId() == FullMsgId(_channel, replyTo));
 
 	QString toSend = cmd;
-	PeerData *bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? App::hoveredLinkItem()->toHistoryForwarded()->fwdFrom() : 0);
+	PeerData *bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? App::hoveredLinkItem()->fromOriginal() : 0);
 	if (bot && (!bot->isUser() || !bot->asUser()->botInfo)) bot = 0;
 	QString username = bot ? bot->asUser()->username : QString();
 	int32 botStatus = _peer->isChat() ? _peer->asChat()->botStatus : (_peer->isMegagroup() ? _peer->asChannel()->mgInfo->botStatus : -1);
@@ -4919,7 +4919,7 @@ bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
 
 	QString toInsert = cmd;
 	if (!toInsert.isEmpty() && toInsert.at(0) != '@') {
-		PeerData *bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? App::hoveredLinkItem()->toHistoryForwarded()->fwdFrom() : 0);
+		PeerData *bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? App::hoveredLinkItem()->fromOriginal() : 0);
 		if (!bot->isUser() || !bot->asUser()->botInfo) bot = 0;
 		QString username = bot ? bot->asUser()->username : QString();
 		int32 botStatus = _peer->isChat() ? _peer->asChat()->botStatus : (_peer->isMegagroup() ? _peer->asChannel()->mgInfo->botStatus : -1);
