@@ -4564,7 +4564,7 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 	if (showFromName) {
 		flags |= MTPDmessage::flag_from_id;
 	}
-	h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(peer), MTPPeer(), MTPint(), MTPint(), MTPint(), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId)), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
+	h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(peer), MTPnullFwdHeader, MTPint(), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId)), MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint()), NewMessageUnread);
 	h->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), p->input, MTP_int(replyTo), MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, h->sendRequestId);
 
 	App::historyRegRandom(randomId, newId);
@@ -4894,7 +4894,7 @@ void HistoryWidget::sendBotCommand(const QString &cmd, MsgId replyTo) { // reply
 	bool lastKeyboardUsed = (_keyboard.forMsgId() == FullMsgId(_channel, _history->lastKeyboardId)) && (_keyboard.forMsgId() == FullMsgId(_channel, replyTo));
 
 	QString toSend = cmd;
-	PeerData *bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? (App::hoveredLinkItem()->toHistoryForwarded() ? App::hoveredLinkItem()->toHistoryForwarded()->fromForwarded() : App::hoveredLinkItem()->from()) : 0);
+	PeerData *bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? App::hoveredLinkItem()->toHistoryForwarded()->fwdFrom() : 0);
 	if (bot && (!bot->isUser() || !bot->asUser()->botInfo)) bot = 0;
 	QString username = bot ? bot->asUser()->username : QString();
 	int32 botStatus = _peer->isChat() ? _peer->asChat()->botStatus : (_peer->isMegagroup() ? _peer->asChannel()->mgInfo->botStatus : -1);
@@ -4919,7 +4919,7 @@ bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
 
 	QString toInsert = cmd;
 	if (!toInsert.isEmpty() && toInsert.at(0) != '@') {
-		PeerData *bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? (App::hoveredLinkItem()->toHistoryForwarded() ? App::hoveredLinkItem()->toHistoryForwarded()->fromForwarded() : App::hoveredLinkItem()->from()) : 0);
+		PeerData *bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? App::hoveredLinkItem()->toHistoryForwarded()->fwdFrom() : 0);
 		if (!bot->isUser() || !bot->asUser()->botInfo) bot = 0;
 		QString username = bot ? bot->asUser()->username : QString();
 		int32 botStatus = _peer->isChat() ? _peer->asChat()->botStatus : (_peer->isMegagroup() ? _peer->asChannel()->mgInfo->botStatus : -1);
@@ -5532,14 +5532,14 @@ void HistoryWidget::confirmSendFile(const FileLoadResultPtr &file, bool ctrlShif
 		flags |= MTPDmessage::flag_from_id;
 	}
 	if (file->type == PreparePhoto) {
-		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(showFromName ? 0 : MTP::authedId()), peerToMTP(file->to.peer), MTPPeer(), MTPint(), MTPint(), MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(file->photo, MTP_string(file->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
+		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(showFromName ? 0 : MTP::authedId()), peerToMTP(file->to.peer), MTPnullFwdHeader, MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(file->photo, MTP_string(file->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint()), NewMessageUnread);
 	} else if (file->type == PrepareDocument) {
-		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(showFromName ? 0 : MTP::authedId()), peerToMTP(file->to.peer), MTPPeer(), MTPint(), MTPint(), MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(file->document, MTP_string(file->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
+		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(showFromName ? 0 : MTP::authedId()), peerToMTP(file->to.peer), MTPnullFwdHeader, MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(file->document, MTP_string(file->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint()), NewMessageUnread);
 	} else if (file->type == PrepareAudio) {
 		if (!h->peer->isChannel()) {
 			flags |= MTPDmessage::flag_media_unread;
 		}
-		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(showFromName ? 0 : MTP::authedId()), peerToMTP(file->to.peer), MTPPeer(), MTPint(), MTPint(), MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(file->document, MTP_string(file->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
+		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(showFromName ? 0 : MTP::authedId()), peerToMTP(file->to.peer), MTPnullFwdHeader, MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(file->document, MTP_string(file->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint()), NewMessageUnread);
 	}
 
 	if (_peer && file->to.peer == _peer->id) {
@@ -6410,7 +6410,7 @@ void HistoryWidget::onInlineResultSend(InlineResult *result, UserData *bot) {
 				App::feedDocument(document, thumb);
 			}
 			Local::writeStickerImage(mediaKey(DocumentFileLocation, MTP::maindc(), docId), result->data());
-			_history->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(_history->peer->id), MTPPeer(), MTPint(), MTPint(), MTP_int(bot ? peerToUser(bot->id) : 0), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(document, MTP_string(result->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
+			_history->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(_history->peer->id), MTPnullFwdHeader, MTP_int(bot ? peerToUser(bot->id) : 0), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(document, MTP_string(result->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint()), NewMessageUnread);
 		} else if (result->type == qstr("photo")) {
 			QImage fileThumb(result->thumb->pix().toImage());
 
@@ -6429,14 +6429,14 @@ void HistoryWidget::onInlineResultSend(InlineResult *result, UserData *bot) {
 			PhotoData *ph = App::photoSet(photoId, 0, 0, unixtime(), thumbPtr, ImagePtr(medium.width(), medium.height()), ImagePtr(result->width, result->height));
 			MTPPhoto photo = MTP_photo(MTP_long(photoId), MTP_long(0), MTP_int(ph->date), MTP_vector<MTPPhotoSize>(photoSizes));
 
-			_history->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(_history->peer->id), MTPPeer(), MTPint(), MTPint(), MTP_int(bot ? peerToUser(bot->id) : 0), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(photo, MTP_string(result->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
+			_history->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(_history->peer->id), MTPnullFwdHeader, MTP_int(bot ? peerToUser(bot->id) : 0), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(photo, MTP_string(result->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint()), NewMessageUnread);
 		}
 	} else {
 		flags |= MTPDmessage::flag_entities;
 		if (result->noWebPage) {
 			sendFlags |= MTPmessages_SendMessage::flag_no_webpage;
 		}
-		_history->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(_history->peer->id), MTPPeer(), MTPint(), MTPint(), MTP_int(bot ? peerToUser(bot->id) : 0), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(result->message), MTP_messageMediaEmpty(), MTPnullMarkup, linksToMTP(result->entities), MTP_int(1)), NewMessageUnread);
+		_history->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(_history->peer->id), MTPnullFwdHeader, MTP_int(bot ? peerToUser(bot->id) : 0), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(result->message), MTP_messageMediaEmpty(), MTPnullMarkup, linksToMTP(result->entities), MTP_int(1), MTPint()), NewMessageUnread);
 	}
 	_history->sendRequestId = MTP::send(MTPmessages_SendInlineBotResult(MTP_int(sendFlags), _peer->input, MTP_int(replyToId()), MTP_long(randomId), MTP_long(result->queryId), MTP_string(result->id)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
 	App::main()->finishForwarding(_history, _broadcast.checked());

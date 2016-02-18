@@ -985,7 +985,8 @@ enum { // client side flags
 	MTPDstickerSet_flag_NOT_LOADED = (1 << 31), // sticker set is not yet loaded
 };
 
-static const MTPReplyMarkup MTPnullMarkup = MTP_replyKeyboardMarkup(MTP_int(0), MTP_vector<MTPKeyboardButtonRow>(0));
-static const MTPVector<MTPMessageEntity> MTPnullEntities = MTP_vector<MTPMessageEntity>(0);
+extern const MTPReplyMarkup MTPnullMarkup;
+extern const MTPVector<MTPMessageEntity> MTPnullEntities;
+extern const MTPMessageFwdHeader MTPnullFwdHeader;
 
 QString stickerSetTitle(const MTPDstickerSet &s);

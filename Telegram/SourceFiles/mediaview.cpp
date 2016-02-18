@@ -909,11 +909,7 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 	_y = (height() - _h) / 2;
 	_width = _w;
 	if (_msgid && item) {
-		if (HistoryForwarded *fwd = item->toHistoryForwarded()) {
-			_from = fwd->fromForwarded();
-		} else {
-			_from = item->author();
-		}
+		_from = item->fwdAuthor();
 	} else {
 		_from = _user;
 	}
@@ -1062,11 +1058,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 	}
 	_x = (width() - _w) / 2;
 	_y = (height() - _h) / 2;
-	if (HistoryForwarded *fwd = item->toHistoryForwarded()) {
-		_from = fwd->fromForwarded();
-	} else {
-		_from = item->author();
-	}
+	_from = item->fwdAuthor();
 	_full = 1;
 	updateControls();
 	if (isHidden()) {

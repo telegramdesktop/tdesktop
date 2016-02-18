@@ -194,7 +194,7 @@ fileLocationUnavailable#7c596b46 volume_id:long local_id:int secret:long = FileL
 fileLocation#53d69076 dc_id:int volume_id:long local_id:int secret:long = FileLocation;
 
 userEmpty#200250ba id:int = User;
-user#d10d979a flags:# self:flags.10?true contact:flags.11?true mutual_contact:flags.12?true deleted:flags.13?true bot:flags.14?true bot_chat_history:flags.15?true bot_nochats:flags.16?true verified:flags.17?true restricted:flags.18?true id:int access_hash:flags.0?long first_name:flags.1?string last_name:flags.2?string username:flags.3?string phone:flags.4?string photo:flags.5?UserProfilePhoto status:flags.6?UserStatus bot_info_version:flags.14?int restriction_reason:flags.18?string bot_inline_placeholder:flags.19?string = User;
+user#d10d979a flags:# self:flags.10?true contact:flags.11?true mutual_contact:flags.12?true deleted:flags.13?true bot:flags.14?true bot_chat_history:flags.15?true bot_nochats:flags.16?true verified:flags.17?true restricted:flags.18?true min:flags.20?true id:int access_hash:flags.0?long first_name:flags.1?string last_name:flags.2?string username:flags.3?string phone:flags.4?string photo:flags.5?UserProfilePhoto status:flags.6?UserStatus bot_info_version:flags.14?int restriction_reason:flags.18?string bot_inline_placeholder:flags.19?string = User;
 
 userProfilePhotoEmpty#4f11bae1 = UserProfilePhoto;
 userProfilePhoto#d559d8c8 photo_id:long photo_small:FileLocation photo_big:FileLocation = UserProfilePhoto;
@@ -226,8 +226,8 @@ chatPhotoEmpty#37c1011c = ChatPhoto;
 chatPhoto#6153276a photo_small:FileLocation photo_big:FileLocation = ChatPhoto;
 
 messageEmpty#83e5de54 id:int = Message;
-message#ef11cef6 flags:# unread:flags.0?true out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true silent:flags.13?true post:flags.14?true id:int from_id:flags.8?int to_id:Peer fwd_from_id:flags.2?Peer fwd_date:flags.2?int fwd_post:flags.12?int via_bot_id:flags.11?int reply_to_msg_id:flags.3?int date:int message:string media:flags.9?MessageMedia reply_markup:flags.6?ReplyMarkup entities:flags.7?Vector<MessageEntity> views:flags.10?int = Message;
-messageService#c06b9607 flags:# unread:flags.0?true out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true id:int from_id:flags.8?int to_id:Peer date:int action:MessageAction = Message;
+message#c09be45f flags:# unread:flags.0?true out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true silent:flags.13?true post:flags.14?true id:int from_id:flags.8?int to_id:Peer fwd_from:flags.2?MessageFwdHeader via_bot_id:flags.11?int reply_to_msg_id:flags.3?int date:int message:string media:flags.9?MessageMedia reply_markup:flags.6?ReplyMarkup entities:flags.7?Vector<MessageEntity> views:flags.10?int edit_date:flags.15?int = Message;
+messageService#c06b9607 flags:# unread:flags.0?true out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true silent:flags.13?true post:flags.14?true id:int from_id:flags.8?int to_id:Peer date:int action:MessageAction = Message;
 
 messageMediaEmpty#3ded6320 = MessageMedia;
 messageMediaPhoto#3d8ce53d photo:Photo caption:string = MessageMedia;
@@ -383,6 +383,7 @@ updateStickerSets#43ae3dec = Update;
 updateSavedGifs#9375341e = Update;
 updateBotInlineQuery#c01eea08 query_id:long user_id:int query:string offset:string = Update;
 updateBotInlineSend#f69e113 user_id:int query:string id:string = Update;
+updateEditChannelMessage#1b3f4df7 message:Message pts:int pts_count:int = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -391,8 +392,8 @@ updates.difference#f49ca0 new_messages:Vector<Message> new_encrypted_messages:Ve
 updates.differenceSlice#a8fb1981 new_messages:Vector<Message> new_encrypted_messages:Vector<EncryptedMessage> other_updates:Vector<Update> chats:Vector<Chat> users:Vector<User> intermediate_state:updates.State = updates.Difference;
 
 updatesTooLong#e317af7e = Updates;
-updateShortMessage#3afbe9d1 flags:# unread:flags.0?true out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true silent:flags.13?true id:int user_id:int message:string pts:int pts_count:int date:int fwd_from_id:flags.2?Peer fwd_date:flags.2?int fwd_post:flags.12?int via_bot_id:flags.11?int reply_to_msg_id:flags.3?int entities:flags.7?Vector<MessageEntity> = Updates;
-updateShortChatMessage#ca2ef195 flags:# unread:flags.0?true out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true silent:flags.13?true id:int from_id:int chat_id:int message:string pts:int pts_count:int date:int fwd_from_id:flags.2?Peer fwd_date:flags.2?int fwd_post:flags.12?int via_bot_id:flags.11?int reply_to_msg_id:flags.3?int entities:flags.7?Vector<MessageEntity> = Updates;
+updateShortMessage#914fbf11 flags:# unread:flags.0?true out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true silent:flags.13?true id:int user_id:int message:string pts:int pts_count:int date:int fwd_from:flags.2?MessageFwdHeader via_bot_id:flags.11?int reply_to_msg_id:flags.3?int entities:flags.7?Vector<MessageEntity> = Updates;
+updateShortChatMessage#16812688 flags:# unread:flags.0?true out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true silent:flags.13?true id:int from_id:int chat_id:int message:string pts:int pts_count:int date:int fwd_from:flags.2?MessageFwdHeader via_bot_id:flags.11?int reply_to_msg_id:flags.3?int entities:flags.7?Vector<MessageEntity> = Updates;
 updateShort#78d4dec1 update:Update date:int = Updates;
 updatesCombined#725b04c3 updates:Vector<Update> users:Vector<User> chats:Vector<Chat> date:int seq_start:int seq:int = Updates;
 updates#74ae4240 updates:Vector<Update> users:Vector<User> chats:Vector<Chat> date:int seq:int = Updates;
@@ -407,7 +408,7 @@ upload.file#96a18d5 type:storage.FileType mtime:int bytes:bytes = upload.File;
 
 dcOption#5d8c6cc flags:# ipv6:flags.0?true media_only:flags.1?true tcpo_only:flags.2?true id:int ip_address:string port:int = DcOption;
 
-config#6bbc5f8 date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int push_chat_period_ms:int push_chat_limit:int saved_gifs_limit:int disabled_features:Vector<DisabledFeature> = Config;
+config#317ceef4 date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int push_chat_period_ms:int push_chat_limit:int saved_gifs_limit:int edit_time_limit:int disabled_features:Vector<DisabledFeature> = Config;
 
 nearestDc#8e1a1775 country:string this_dc:int nearest_dc:int = NearestDc;
 
@@ -641,6 +642,10 @@ messages.botResults#1170b0a3 flags:# gallery:flags.0?true query_id:long next_off
 
 exportedMessageLink#1f486803 link:string = ExportedMessageLink;
 
+messageFwdHeader#c786ddcb flags:# from_id:flags.0?int date:int channel_id:flags.1?int channel_post:flags.2?int = MessageFwdHeader;
+
+channels.messageEditData#b86fd3cf flags:# caption:flags.1?true from_id:int edit_by:flags.0?int edit_date:flags.0?int users:Vector<User> = channels.MessageEditData;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -814,3 +819,5 @@ channels.deleteChannel#c0111fe3 channel:InputChannel = Updates;
 channels.toggleInvites#49609307 channel:InputChannel enabled:Bool = Updates;
 channels.exportMessageLink#c846d22d channel:InputChannel id:int = ExportedMessageLink;
 channels.toggleSignatures#1f69b606 channel:InputChannel enabled:Bool = Updates;
+channels.getMessageEditData#27ea3a28 channel:InputChannel id:int = channels.MessageEditData;
+channels.editMessage#dcda80ed flags:# no_webpage:flags.1?true channel:InputChannel id:int message:string entities:flags.3?Vector<MessageEntity> = Updates;

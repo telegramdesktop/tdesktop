@@ -160,7 +160,7 @@ namespace Ui {
 					return w->minimizeToTray();
 				} else if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 					w->hide();
-					w->updateIsActive(cOfflineBlurTimeout());
+					w->updateIsActive(Global::OfflineBlurTimeout());
 					w->updateGlobalMenu();
 					return true;
 				}
@@ -352,6 +352,23 @@ namespace Sandbox {
 struct GlobalDataStruct {
 	uint64 LaunchId = 0;
 	Adaptive::Layout AdaptiveLayout = Adaptive::NormalLayout;
+
+	// config
+	int32 ChatSizeMax = 200;
+	int32 MegagroupSizeMax = 1000;
+	int32 ForwardedCountMax = 100;
+	int32 OnlineUpdatePeriod = 120000;
+	int32 OfflineBlurTimeout = 5000;
+	int32 OfflineIdleTimeout = 30000;
+	int32 OnlineFocusTimeout = 1000;
+	int32 OnlineCloudTimeout = 300000;
+	int32 NotifyCloudDelay = 30000;
+	int32 NotifyDefaultDelay = 1500;
+	int32 ChatBigSize = 190; // ?
+	int32 PushChatPeriod = 0; // ?
+	int32 PushChatLimit = 0; // ?
+	int32 SavedGifsLimit = 100;
+	int32 EditTimeLimit = 0; // ?
 };
 GlobalDataStruct *GlobalData = 0;
 
@@ -374,5 +391,22 @@ namespace Global {
 
 	DefineReadOnlyVar(Global, uint64, LaunchId);
 	DefineVar(Global, Adaptive::Layout, AdaptiveLayout);
+
+	// config
+	DefineVar(Global, int32, ChatSizeMax);
+	DefineVar(Global, int32, MegagroupSizeMax);
+	DefineVar(Global, int32, ForwardedCountMax);
+	DefineVar(Global, int32, OnlineUpdatePeriod);
+	DefineVar(Global, int32, OfflineBlurTimeout);
+	DefineVar(Global, int32, OfflineIdleTimeout);
+	DefineVar(Global, int32, OnlineFocusTimeout);
+	DefineVar(Global, int32, OnlineCloudTimeout);
+	DefineVar(Global, int32, NotifyCloudDelay);
+	DefineVar(Global, int32, NotifyDefaultDelay);
+	DefineVar(Global, int32, ChatBigSize);
+	DefineVar(Global, int32, PushChatPeriod);
+	DefineVar(Global, int32, PushChatLimit);
+	DefineVar(Global, int32, SavedGifsLimit);
+	DefineVar(Global, int32, EditTimeLimit);
 
 };

@@ -140,6 +140,23 @@ namespace Global {
 	DeclareReadOnlyVar(uint64, LaunchId);
 	DeclareVar(Adaptive::Layout, AdaptiveLayout);
 
+	// config
+	DeclareVar(int32, ChatSizeMax);
+	DeclareVar(int32, MegagroupSizeMax);
+	DeclareVar(int32, ForwardedCountMax);
+	DeclareVar(int32, OnlineUpdatePeriod);
+	DeclareVar(int32, OfflineBlurTimeout);
+	DeclareVar(int32, OfflineIdleTimeout);
+	DeclareVar(int32, OnlineFocusTimeout); // not from config
+	DeclareVar(int32, OnlineCloudTimeout);
+	DeclareVar(int32, NotifyCloudDelay);
+	DeclareVar(int32, NotifyDefaultDelay);
+	DeclareVar(int32, ChatBigSize);
+	DeclareVar(int32, PushChatPeriod);
+	DeclareVar(int32, PushChatLimit);
+	DeclareVar(int32, SavedGifsLimit);
+	DeclareVar(int32, EditTimeLimit);
+
 };
 
 namespace Adaptive {

@@ -350,7 +350,7 @@ namespace App {
 		for (QVector<MTPUser>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
 			const MTPuser &user(*i);
             data = 0;
-			bool wasContact = false;
+			bool wasContact = false, minimal = false;
 			const MTPUserStatus *status = 0, emptyStatus = MTP_userStatusEmpty();
 
 			switch (user.type()) {
@@ -372,19 +372,22 @@ namespace App {
 			} break;
 			case mtpc_user: {
 				const MTPDuser &d(user.c_user());
+				minimal = d.is_min();
 
 				PeerId peer(peerFromUser(d.vid.v));
 				data = App::user(peer);
-				data->flags = d.vflags.v;
-				if (d.is_self()) {
-					data->input = MTP_inputPeerSelf();
-					data->inputUser = MTP_inputUserSelf();
-				} else if (!d.has_access_hash()) {
-					data->input = MTP_inputPeerUser(d.vid, MTP_long((data->access == UserNoAccess) ? 0 : data->access));
-					data->inputUser = MTP_inputUser(d.vid, MTP_long((data->access == UserNoAccess) ? 0 : data->access));
-				} else {
-					data->input = MTP_inputPeerUser(d.vid, d.vaccess_hash);
-					data->inputUser = MTP_inputUser(d.vid, d.vaccess_hash);
+				if (!minimal) {
+					data->flags = d.vflags.v;
+					if (d.is_self()) {
+						data->input = MTP_inputPeerSelf();
+						data->inputUser = MTP_inputUserSelf();
+					} else if (!d.has_access_hash()) {
+						data->input = MTP_inputPeerUser(d.vid, MTP_long((data->access == UserNoAccess) ? 0 : data->access));
+						data->inputUser = MTP_inputUser(d.vid, MTP_long((data->access == UserNoAccess) ? 0 : data->access));
+					} else {
+						data->input = MTP_inputPeerUser(d.vid, d.vaccess_hash);
+						data->inputUser = MTP_inputUser(d.vid, d.vaccess_hash);
+					}
 				}
 				if (d.is_deleted()) {
 					data->setPhone(QString());
@@ -393,10 +396,10 @@ namespace App {
 					data->access = UserNoAccess;
 					status = &emptyStatus;
 				} else {
-					QString phone = d.has_phone() ? qs(d.vphone) : QString();
+					QString phone = minimal ? data->phone : (d.has_phone() ? qs(d.vphone) : QString());
 					QString fname = d.has_first_name() ? textOneLine(qs(d.vfirst_name)) : QString();
 					QString lname = d.has_last_name() ? textOneLine(qs(d.vlast_name)) : QString();
-					QString uname = d.has_username() ? textOneLine(qs(d.vusername)) : QString();
+					QString uname = minimal ? data->username : (d.has_username() ? textOneLine(qs(d.vusername)) : QString());
 
 					bool phoneChanged = (data->phone != phone);
 					if (phoneChanged) data->setPhone(phone);
@@ -420,22 +423,24 @@ namespace App {
 					status = d.has_status() ? &d.vstatus : &emptyStatus;
 				}
 				wasContact = (data->contact > 0);
-				if (d.has_bot_info_version()) {
-					data->setBotInfoVersion(d.vbot_info_version.v);
-					data->botInfo->readsAllHistory = d.is_bot_chat_history();
-					data->botInfo->cantJoinGroups = d.is_bot_nochats();
-					data->botInfo->inlinePlaceholder = d.has_bot_inline_placeholder() ? '_' + qs(d.vbot_inline_placeholder) : QString();
-				} else {
-					data->setBotInfoVersion(-1);
-				}
-				data->contact = (d.is_contact() || d.is_mutual_contact()) ? 1 : (data->phone.isEmpty() ? -1 : 0);
-				if (data->contact == 1 && cReportSpamStatuses().value(data->id, dbiprsNoButton) != dbiprsNoButton) {
-					cRefReportSpamStatuses().insert(data->id, dbiprsNoButton);
-					Local::writeReportSpamStatuses();
-				}
-				if (d.is_self() && ::self != data) {
-					::self = data;
-					if (App::wnd()) App::wnd()->updateGlobalMenu();
+				if (!minimal) {
+					if (d.has_bot_info_version()) {
+						data->setBotInfoVersion(d.vbot_info_version.v);
+						data->botInfo->readsAllHistory = d.is_bot_chat_history();
+						data->botInfo->cantJoinGroups = d.is_bot_nochats();
+						data->botInfo->inlinePlaceholder = d.has_bot_inline_placeholder() ? '_' + qs(d.vbot_inline_placeholder) : QString();
+					} else {
+						data->setBotInfoVersion(-1);
+					}
+					data->contact = (d.is_contact() || d.is_mutual_contact()) ? 1 : (data->phone.isEmpty() ? -1 : 0);
+					if (data->contact == 1 && cReportSpamStatuses().value(data->id, dbiprsNoButton) != dbiprsNoButton) {
+						cRefReportSpamStatuses().insert(data->id, dbiprsNoButton);
+						Local::writeReportSpamStatuses();
+					}
+					if (d.is_self() && ::self != data) {
+						::self = data;
+						if (App::wnd()) App::wnd()->updateGlobalMenu();
+					}
 				}
 			} break;
 			}
@@ -443,7 +448,7 @@ namespace App {
             if (!data) continue;
 
 			data->loaded = true;
-			if (status) switch (status->type()) {
+			if (status && !minimal) switch (status->type()) {
 			case mtpc_userStatusEmpty: data->onlineTill = 0; break;
 			case mtpc_userStatusRecently:
 				if (data->onlineTill > -10) { // don't modify pseudo-online
@@ -916,13 +921,27 @@ namespace App {
 		return false;
 	}
 
+	void updateEditedMessage(const MTPDmessage &m) {
+		PeerId peerId = peerFromMTP(m.vto_id);
+		if (m.has_from_id() && peerToUser(peerId) == MTP::authedId()) {
+			peerId = peerFromUser(m.vfrom_id);
+		}
+		if (HistoryItem *existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
+			existing->setText(qs(m.vmessage), m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText());
+			existing->updateMedia(m.has_media() ? (&m.vmedia) : 0, true);
+			existing->setViewsCount(m.has_views() ? m.vviews.v : -1, false);
+			existing->initDimensions();
+			Notify::historyItemResized(existing);
+		}
+	}
+
 	void addSavedGif(DocumentData *doc) {
 		SavedGifs &saved(cRefSavedGifs());
 		int32 index = saved.indexOf(doc);
 		if (index) {
 			if (index > 0) saved.remove(index);
 			saved.push_front(doc);
-			if (saved.size() > cSavedGifsLimit()) saved.pop_back();
+			if (saved.size() > Global::SavedGifsLimit()) saved.pop_back();
 			Local::writeSavedGifs();
 
 			if (App::main()) emit App::main()->savedGifsUpdated();

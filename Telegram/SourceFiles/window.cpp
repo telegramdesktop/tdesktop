@@ -435,7 +435,7 @@ void Window::onInactiveTimer() {
 void Window::stateChanged(Qt::WindowState state) {
 	psUserActionDone();
 
-	updateIsActive((state == Qt::WindowMinimized) ? cOfflineBlurTimeout() : cOnlineFocusTimeout());
+	updateIsActive((state == Qt::WindowMinimized) ? Global::OfflineBlurTimeout() : Global::OnlineFocusTimeout());
 
 	psUpdateSysMenu(state);
 	if (state == Qt::WindowMinimized && cWorkMode() == dbiwmTrayOnly) {
@@ -1075,7 +1075,7 @@ bool Window::minimizeToTray() {
 		cSetSeenTrayTooltip(true);
 		Local::writeSettings();
 	}
-	updateIsActive(cOfflineBlurTimeout());
+	updateIsActive(Global::OfflineBlurTimeout());
 	updateTrayMenu();
 	updateGlobalMenu();
 	return true;
@@ -1157,7 +1157,7 @@ void Window::activate() {
 	setVisible(true);
 	psActivateProcess();
 	activateWindow();
-	updateIsActive(cOnlineFocusTimeout());
+	updateIsActive(Global::OnlineFocusTimeout());
 	if (wasHidden) {
 		if (main) {
 			main->windowShown();
@@ -1382,12 +1382,12 @@ void Window::notifySchedule(History *history, HistoryItem *item) {
 	HistoryForwarded *fwd = item->toHistoryForwarded();
 	int delay = fwd ? 500 : 100, t = unixtime();
 	uint64 ms = getms(true);
-	bool isOnline = main->lastWasOnline(), otherNotOld = ((cOtherOnline() * uint64(1000)) + cOnlineCloudTimeout() > t * uint64(1000));
+	bool isOnline = main->lastWasOnline(), otherNotOld = ((cOtherOnline() * uint64(1000)) + Global::OnlineCloudTimeout() > t * uint64(1000));
 	bool otherLaterThanMe = (cOtherOnline() * uint64(1000) + (ms - main->lastSetOnline()) > t * uint64(1000));
 	if (!isOnline && otherNotOld && otherLaterThanMe) {
-		delay = cNotifyCloudDelay();
+		delay = Global::NotifyCloudDelay();
 	} else if (cOtherOnline() >= t) {
-		delay = cNotifyDefaultDelay();
+		delay = Global::NotifyDefaultDelay();
 	}
 
 	uint64 when = getms(true) + delay;

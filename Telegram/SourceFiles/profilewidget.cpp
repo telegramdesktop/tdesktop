@@ -72,7 +72,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 , _photoOver(false)
 
 // migrate to megagroup
-, _showMigrate(_peerChat && _amCreator && !_peerChat->isMigrated() && _peerChat->count >= cMaxGroupCount())
+, _showMigrate(_peerChat && _amCreator && !_peerChat->isMigrated() && _peerChat->count >= Global::ChatSizeMax())
 , _forceShowMigrate(false)
 , _aboutMigrate(st::normalFont, lang(lng_profile_migrate_about), _defaultOptions, st::wndMinWidth - st::profilePadding.left() - st::profilePadding.right())
 , _migrate(this, lang(lng_profile_migrate_button), st::btnMigrateToMega)
@@ -537,7 +537,7 @@ void ProfileInner::onFullPeerUpdated(PeerData *peer) {
 		}
 	} else if (_peerChat) {
 		updateInvitationLink();
-		_showMigrate = (_peerChat && _amCreator && !_peerChat->isMigrated() && (_forceShowMigrate || _peerChat->count >= cMaxGroupCount()));
+		_showMigrate = (_peerChat && _amCreator && !_peerChat->isMigrated() && (_forceShowMigrate || _peerChat->count >= Global::ChatSizeMax()));
 		showAll();
 		resizeEvent(0);
 		_admins.setText(lng_channel_admins_link(lt_count, _peerChat->adminsEnabled() ? (_peerChat->admins.size() + 1) : 0));
@@ -597,7 +597,7 @@ void ProfileInner::peerUpdated(PeerData *data) {
 		} else if (_peerChat) {
 			if (_peerChat->photoId && _peerChat->photoId != UnknownPeerPhotoId) photo = App::photo(_peerChat->photoId);
 			_admins.setText(lng_channel_admins_link(lt_count, _peerChat->adminsEnabled() ? (_peerChat->admins.size() + 1) : 0));
-			_showMigrate = (_peerChat && _amCreator && !_peerChat->isMigrated() && (_forceShowMigrate || _peerChat->count >= cMaxGroupCount()));
+			_showMigrate = (_peerChat && _amCreator && !_peerChat->isMigrated() && (_forceShowMigrate || _peerChat->count >= Global::ChatSizeMax()));
 			if (App::main()) App::main()->topBar()->showAll();
 		} else if (_peerChannel) {
 			if (_peerChannel->photoId && _peerChannel->photoId != UnknownPeerPhotoId) photo = App::photo(_peerChannel->photoId);
@@ -838,13 +838,13 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	if (_showMigrate) {
 		p.setFont(st::profileHeaderFont->f);
 		p.setPen(st::profileHeaderColor->p);
-		p.drawText(_left + st::profileHeaderLeft, top + st::profileHeaderTop + st::profileHeaderFont->ascent, lng_profile_migrate_reached(lt_count, cMaxGroupCount()));
+		p.drawText(_left + st::profileHeaderLeft, top + st::profileHeaderTop + st::profileHeaderFont->ascent, lng_profile_migrate_reached(lt_count, Global::ChatSizeMax()));
 		top += st::profileHeaderSkip;
 
 		_aboutMigrate.draw(p, _left, top, _width); top += _aboutMigrate.countHeight(_width) + st::setLittleSkip;
 		p.setFont(st::normalFont);
 		p.setPen(st::black);
-		p.drawText(_left, top + st::normalFont->ascent, lng_profile_migrate_feature1(lt_count, cMaxMegaGroupCount())); top += st::normalFont->height + st::setLittleSkip;
+		p.drawText(_left, top + st::normalFont->ascent, lng_profile_migrate_feature1(lt_count, Global::MegagroupSizeMax())); top += st::normalFont->height + st::setLittleSkip;
 		p.drawText(_left, top + st::normalFont->ascent, lang(lng_profile_migrate_feature2)); top += st::normalFont->height + st::setLittleSkip;
 		p.drawText(_left, top + st::normalFont->ascent, lang(lng_profile_migrate_feature3)); top += st::normalFont->height + st::setLittleSkip;
 		p.drawText(_left, top + st::normalFont->ascent, lang(lng_profile_migrate_feature4)); top += st::normalFont->height + st::setSectionSkip;
@@ -1296,7 +1296,7 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	top += st::profileButtonTop;
 
 	_uploadPhoto.setGeometry(_left, top, btnWidth, _uploadPhoto.height());
-	if (_peerChannel && _peerChannel->count < cMaxMegaGroupCount() && _peerChannel->isMegagroup() && !_amCreator && !_peerChannel->amEditor() && _peerChannel->canAddParticipants()) {
+	if (_peerChannel && _peerChannel->count < Global::MegagroupSizeMax() && _peerChannel->isMegagroup() && !_amCreator && !_peerChannel->amEditor() && _peerChannel->canAddParticipants()) {
 		_addParticipant.setGeometry(_left, top, btnWidth, _addParticipant.height());
 	} else {
 		_addParticipant.setGeometry(_left + _width - btnWidth, top, btnWidth, _addParticipant.height());
@@ -1592,7 +1592,7 @@ void ProfileInner::showAll() {
 				_createInvitationLink.hide();
 				_invitationLink.hide();
 			}
-			if (_peerChat->count < cMaxGroupCount() && !_showMigrate) {
+			if (_peerChat->count < Global::ChatSizeMax() && !_showMigrate) {
 				_addParticipant.show();
 			} else {
 				_addParticipant.hide();
@@ -1640,7 +1640,7 @@ void ProfileInner::showAll() {
 				_invitationLink.hide();
 			}
 		}
-		if (_peerChannel->count < cMaxMegaGroupCount() && _peerChannel->isMegagroup() && _peerChannel->canAddParticipants()) {
+		if (_peerChannel->count < Global::MegagroupSizeMax() && _peerChannel->isMegagroup() && _peerChannel->canAddParticipants()) {
 			_addParticipant.show();
 		} else {
 			_addParticipant.hide();

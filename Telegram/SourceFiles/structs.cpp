@@ -98,15 +98,15 @@ ImagePtr channelDefPhoto(int32 index) {
 NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
 NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersPtr = UnknownNotifySettings, globalNotifyChatsPtr = UnknownNotifySettings;
 
-PeerData::PeerData(const PeerId &id) : id(id), lnk(new PeerLink(this))
+PeerData::PeerData(const PeerId &id) : id(id)
+, lnk(new PeerLink(this))
 , loaded(false)
 , colorIndex(peerColorIndex(id))
 , color(peerColor(colorIndex))
 , photo((isChat() || isMegagroup()) ? chatDefPhoto(colorIndex) : (isChannel() ? channelDefPhoto(colorIndex) : userDefPhoto(colorIndex)))
 , photoId(UnknownPeerPhotoId)
 , nameVersion(0)
-, notify(UnknownNotifySettings)
-{
+, notify(UnknownNotifySettings) {
 	if (!peerIsUser(id) && !peerIsChannel(id)) updateName(QString(), QString(), QString());
 }
 

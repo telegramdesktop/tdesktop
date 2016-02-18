@@ -427,7 +427,7 @@ void ContactsInner::paintDialog(Painter &p, PeerData *peer, ContactData *data, b
 			sel = false;
 		}
 	} else {
-		if (data->inchat || data->check || selectedCount() >= ((_channel && _channel->isMegagroup()) ? cMaxMegaGroupCount() : cMaxGroupCount())) {
+		if (data->inchat || data->check || selectedCount() >= ((_channel && _channel->isMegagroup()) ? Global::MegagroupSizeMax() : Global::ChatSizeMax())) {
 			sel = false;
 		}
 	}
@@ -767,7 +767,7 @@ void ContactsInner::changeCheckState(ContactData *data, PeerData *peer) {
 		data->check = false;
 		_checkedContacts.remove(peer);
 		--_selCount;
-	} else if (selectedCount() < ((_channel && _channel->isMegagroup()) ? cMaxMegaGroupCount() : cMaxGroupCount())) {
+	} else if (selectedCount() < ((_channel && _channel->isMegagroup()) ? Global::MegagroupSizeMax() : Global::ChatSizeMax())) {
 		data->check = true;
 		_checkedContacts.insert(peer, true);
 		++_selCount;
@@ -1535,7 +1535,7 @@ void ContactsBox::paintEvent(QPaintEvent *e) {
 		paintTitle(p, lang(lng_channel_admins));
 	} else if (_inner.chat() || _inner.creating() != CreatingGroupNone) {
 		QString title(lang(addingAdmin ? lng_channel_add_admin : lng_profile_add_participant));
-		QString additional(addingAdmin ? QString() : QString("%1 / %2").arg(_inner.selectedCount()).arg(((_inner.channel() && _inner.channel()->isMegagroup()) ? cMaxMegaGroupCount() : cMaxGroupCount())));
+		QString additional(addingAdmin ? QString() : QString("%1 / %2").arg(_inner.selectedCount()).arg(((_inner.channel() && _inner.channel()->isMegagroup()) ? Global::MegagroupSizeMax() : Global::ChatSizeMax())));
 		paintTitle(p, title, additional);
 	} else if (_inner.bot()) {
 		paintTitle(p, lang(lng_bot_choose_group));
@@ -1757,7 +1757,7 @@ bool ContactsBox::creationFail(const RPCError &error) {
 
 MembersInner::MembersInner(ChannelData *channel, MembersFilter filter) : TWidget()
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
-, _newItemHeight((channel->amCreator() && (channel->count < (channel->isMegagroup() ? cMaxMegaGroupCount() : cMaxGroupCount()) || (!channel->isMegagroup() && !channel->isPublic()) || filter == MembersFilterAdmins)) ? st::contactsNewItemHeight : 0)
+, _newItemHeight((channel->amCreator() && (channel->count < (channel->isMegagroup() ? Global::MegagroupSizeMax() : Global::ChatSizeMax()) || (!channel->isMegagroup() && !channel->isPublic()) || filter == MembersFilterAdmins)) ? st::contactsNewItemHeight : 0)
 , _newItemSel(false)
 , _channel(channel)
 , _filter(filter)
@@ -1787,7 +1787,7 @@ MembersInner::MembersInner(ChannelData *channel, MembersFilter filter) : TWidget
 
 void MembersInner::load() {
 	if (!_loadingRequestId) {
-		_loadingRequestId = MTP::send(MTPchannels_GetParticipants(_channel->inputChannel, (_filter == MembersFilterRecent) ? MTP_channelParticipantsRecent() : MTP_channelParticipantsAdmins(), MTP_int(0), MTP_int(cMaxGroupCount())), rpcDone(&MembersInner::membersReceived), rpcFail(&MembersInner::membersFailed));
+		_loadingRequestId = MTP::send(MTPchannels_GetParticipants(_channel->inputChannel, (_filter == MembersFilterRecent) ? MTP_channelParticipantsRecent() : MTP_channelParticipantsAdmins(), MTP_int(0), MTP_int(Global::ChatSizeMax())), rpcDone(&MembersInner::membersReceived), rpcFail(&MembersInner::membersFailed));
 	}
 }
 
@@ -1826,7 +1826,7 @@ void MembersInner::paintEvent(QPaintEvent *e) {
 			paintDialog(p, _rows[from], data(from), sel, kickSel, kickDown);
 			p.translate(0, _rowHeight);
 		}
-		if (to == _rows.size() && _filter == MembersFilterRecent && (_rows.size() < _channel->count || _rows.size() >= cMaxGroupCount())) {
+		if (to == _rows.size() && _filter == MembersFilterRecent && (_rows.size() < _channel->count || _rows.size() >= Global::ChatSizeMax())) {
 			p.setPen(st::stickersReorderFg);
 			_about.draw(p, st::contactsPadding.left(), st::stickersReorderPadding.top(), _aboutWidth, style::al_center);
 		}
@@ -2005,7 +2005,7 @@ void MembersInner::refresh() {
 	} else {
 		_about.setText(st::boxTextFont, lng_channel_only_last_shown(lt_count, _rows.size()));
 		_aboutHeight = st::stickersReorderPadding.top() + _about.countHeight(_aboutWidth) + st::stickersReorderPadding.bottom();
-		if (_filter != MembersFilterRecent || (_rows.size() >= _channel->count && _rows.size() < cMaxGroupCount())) {
+		if (_filter != MembersFilterRecent || (_rows.size() >= _channel->count && _rows.size() < Global::ChatSizeMax())) {
 			_aboutHeight = 0;
 		}
 		resize(width(), st::membersPadding.top() + _newItemHeight + _rows.size() * _rowHeight + st::membersPadding.bottom() + _aboutHeight);
@@ -2220,7 +2220,7 @@ void MembersInner::kickAdminDone(const MTPUpdates &result, mtpRequestId req) {
 
 bool MembersInner::kickFail(const RPCError &error, mtpRequestId req) {
 	if (mtpIsFlood(error)) return false;
-	
+
 	if (_kickBox) _kickBox->onClose();
 	load();
 	return true;
@@ -2297,7 +2297,7 @@ void MembersBox::onScroll() {
 }
 
 void MembersBox::onAdd() {
-	if (_inner.filter() == MembersFilterRecent && _inner.channel()->count >= (_inner.channel()->isMegagroup() ? cMaxMegaGroupCount() : cMaxGroupCount())) {
+	if (_inner.filter() == MembersFilterRecent && _inner.channel()->count >= (_inner.channel()->isMegagroup() ? Global::MegagroupSizeMax() : Global::ChatSizeMax())) {
 		Ui::showLayer(new MaxInviteBox(_inner.channel()->invitationUrl), KeepOtherLayers);
 		return;
 	}

@@ -904,7 +904,7 @@ public:
 	virtual bool serviceMsg() const {
 		return false;
 	}
-	virtual void updateMedia(const MTPMessageMedia *media) {
+	virtual void updateMedia(const MTPMessageMedia *media, bool edited = false) {
 	}
 	virtual int32 addToOverview(AddToOverviewMethod method) {
 		return 0;
@@ -1025,6 +1025,16 @@ public:
 		return isPost() ? history()->peer : _from;
 	}
 	bool displayFromPhoto() const;
+
+	virtual QDateTime fwdDate() const { // dynamic_cast optimize
+		return date;
+	}
+	virtual PeerData *fwdFrom() const { // dynamic_cast optimize
+		return from();
+	}
+	virtual PeerData *fwdAuthor() const { // dynamic_cast optimize
+		return author();
+	}
 
 	void clipCallback(ClipReaderNotification notification);
 
@@ -2036,8 +2046,8 @@ public:
     QString notificationHeader() const;
     QString notificationText() const;
 
-	void updateMedia(const MTPMessageMedia *media) {
-		if (media && _media && _media->type() != MediaTypeWebPage) {
+	void updateMedia(const MTPMessageMedia *media, bool edited = false) {
+		if (!edited && media && _media && _media->type() != MediaTypeWebPage) {
 			_media->updateFrom(*media, this);
 		} else {
 			setMedia(media);
@@ -2087,13 +2097,6 @@ public:
 		return HistoryItem::viewsCount();
 	}
 
-	virtual QDateTime dateForwarded() const { // dynamic_cast optimize
-		return date;
-	}
-	virtual PeerData *fromForwarded() const { // dynamic_cast optimize
-		return author();
-	}
-
 	HistoryMessage *toHistoryMessage() { // dynamic_cast optimize
 		return this;
 	}
@@ -2120,7 +2123,7 @@ protected:
 class HistoryForwarded : public HistoryMessage {
 public:
 
-	HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessage &msg);
+	HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessage &msg, const MTPDmessageFwdHeader &f);
 	HistoryForwarded(History *history, HistoryBlock *block, MsgId id, int32 flags, QDateTime date, int32 from, HistoryMessage *msg);
 
 	void initDimensions();
@@ -2136,15 +2139,18 @@ public:
 	void getForwardedState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 w) const;
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
 
-	QDateTime dateForwarded() const {
-		return fwdDate;
+	QDateTime fwdDate() const {
+		return _fwdDate;
 	}
-	PeerData *fromForwarded() const {
-		return fwdFrom;
+	PeerData *fwdAuthor() const {
+		return _fwdAuthor;
+	}
+	PeerData *fwdFrom() const {
+		return _fwdFrom;
 	}
 	QString selectedText(uint32 selection) const;
 	bool displayForwardedFrom() const {
-		return via() || !_media || !_media->isDisplayed() || (fwdFrom->isChannel() || !_media->hideForwardedFrom());
+		return via() || !_media || !_media->isDisplayed() || _fwdAuthor->isChannel() || !_media->hideForwardedFrom();
 	}
 
 	HistoryForwarded *toHistoryForwarded() {
@@ -2156,11 +2162,11 @@ public:
 
 protected:
 
-	QDateTime fwdDate;
-	PeerData *fwdFrom;
-	mutable Text fwdFromName;
-	mutable int32 fwdFromVersion;
-	int32 fromWidth;
+	QDateTime _fwdDate;
+	PeerData *_fwdAuthor, *_fwdFrom;
+	mutable Text _fwdAuthorName;
+	mutable int32 _fwdAuthorVersion;
+	int32 _fromWidth;
 
 };
 

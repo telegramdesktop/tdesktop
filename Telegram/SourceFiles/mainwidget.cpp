@@ -537,11 +537,7 @@ void MainWidget::fillForwardingInfo(Text *&from, Text *&text, bool &serviceColor
 	if (_toForward.isEmpty()) return;
 	int32 version = 0;
 	for (SelectedItemSet::const_iterator i = _toForward.cbegin(), e = _toForward.cend(); i != e; ++i) {
-		if (HistoryForwarded *fwd = i.value()->toHistoryForwarded()) {
-			version += fwd->fromForwarded()->nameVersion;
-		} else {
-			version += i.value()->author()->nameVersion;
-		}
+		version += i.value()->fwdAuthor()->nameVersion;
 	}
 	if (version != _toForwardNameVersion) {
 		updateForwardingTexts();
@@ -562,10 +558,7 @@ void MainWidget::updateForwardingTexts() {
 		QVector<PeerData*> fromUsers;
 		fromUsers.reserve(_toForward.size());
 		for (SelectedItemSet::const_iterator i = _toForward.cbegin(), e = _toForward.cend(); i != e; ++i) {
-			PeerData *from = i.value()->author();
-			if (HistoryForwarded *fwd = i.value()->toHistoryForwarded()) {
-				from = fwd->fromForwarded();
-			}
+			PeerData *from = i.value()->fwdAuthor();
 			if (!fromUsersMap.contains(from)) {
 				fromUsersMap.insert(from, true);
 				fromUsers.push_back(from);
@@ -1328,7 +1321,7 @@ void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, 
 		if (!sentEntities.c_vector().v.isEmpty()) {
 			sendFlags |= MTPmessages_SendMessage::flag_entities;
 		}
-		hist->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(hist->peer->id), MTPPeer(), MTPint(), MTPint(), MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, localEntities, MTP_int(1)), NewMessageUnread);
+		hist->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(hist->peer->id), MTPnullFwdHeader, MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, localEntities, MTP_int(1), MTPint()), NewMessageUnread);
 		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, sentEntities), rpcDone(&MainWidget::sentUpdatesReceived, randomId), rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 	}
 
@@ -1912,7 +1905,7 @@ void MainWidget::serviceNotification(const QString &msg, const MTPMessageMedia &
 	HistoryItem *item = 0;
 	while (textSplit(sendingText, sendingEntities, leftText, leftEntities, MaxMessageSize)) {
 		MTPVector<MTPMessageEntity> localEntities = linksToMTP(sendingEntities);
-		item = App::histories().addNewMessage(MTP_message(MTP_int(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(MTP::authedId())), MTPPeer(), MTPint(), MTPint(), MTPint(), MTPint(), MTP_int(unixtime()), MTP_string(sendingText), media, MTPnullMarkup, localEntities, MTPint()), NewMessageUnread);
+		item = App::histories().addNewMessage(MTP_message(MTP_int(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(MTP::authedId())), MTPnullFwdHeader, MTPint(), MTPint(), MTP_int(unixtime()), MTP_string(sendingText), media, MTPnullMarkup, localEntities, MTPint(), MTPint()), NewMessageUnread);
 	}
 	if (item) {
 		history.peerMessagesUpdated(item->history()->peer->id);
@@ -3461,7 +3454,7 @@ void MainWidget::openPeerByName(const QString &username, MsgId msgId, const QStr
 				showPeerProfile(peer);
 			}
 		} else {
-			if (msgId == ShowAtProfileMsgId) {
+			if (msgId == ShowAtProfileMsgId || !peer->isChannel()) { // show specific posts only in channels / supergroups
 				msgId = ShowAtUnreadMsgId;
 			}
 			if (peer->isUser() && peer->asUser()->botInfo) {
@@ -3541,7 +3534,7 @@ void MainWidget::usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, c
 			showPeerProfile(peer);
 		}
 	} else {
-		if (msgId == ShowAtProfileMsgId) {
+		if (msgId == ShowAtProfileMsgId || !peer->isChannel()) { // show specific posts only in channels / supergroups
 			msgId = ShowAtUnreadMsgId;
 		}
 		if (peer->isUser() && peer->asUser()->botInfo) {
@@ -3892,21 +3885,21 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 	App::wnd()->checkAutoLock();
 
 	bool isOnline = App::wnd()->isActive();
-	int updateIn = cOnlineUpdatePeriod();
+	int updateIn = Global::OnlineUpdatePeriod();
 	if (isOnline) {
 		uint64 idle = psIdleTime();
-		if (idle >= uint64(cOfflineIdleTimeout())) {
+		if (idle >= uint64(Global::OfflineIdleTimeout())) {
 			isOnline = false;
 			if (!_isIdle) {
 				_isIdle = true;
 				_idleFinishTimer.start(900);
 			}
 		} else {
-			updateIn = qMin(updateIn, int(cOfflineIdleTimeout() - idle));
+			updateIn = qMin(updateIn, int(Global::OfflineIdleTimeout() - idle));
 		}
 	}
 	uint64 ms = getms(true);
-	if (isOnline != _lastWasOnline || (isOnline && _lastSetOnline + cOnlineUpdatePeriod() <= ms) || (isOnline && gotOtherOffline)) {
+	if (isOnline != _lastWasOnline || (isOnline && _lastSetOnline + Global::OnlineUpdatePeriod() <= ms) || (isOnline && gotOtherOffline)) {
 		if (_onlineRequest) {
 			MTP::cancel(_onlineRequest);
 			_onlineRequest = 0;
@@ -3916,20 +3909,20 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 		_lastSetOnline = ms;
 		_onlineRequest = MTP::send(MTPaccount_UpdateStatus(MTP_bool(!isOnline)));
 
-		if (App::self()) App::self()->onlineTill = unixtime() + (isOnline ? (cOnlineUpdatePeriod() / 1000) : -1);
+		if (App::self()) App::self()->onlineTill = unixtime() + (isOnline ? (Global::OnlineUpdatePeriod() / 1000) : -1);
 
 		_lastSetOnline = getms(true);
 
 		updateOnlineDisplay();
 	} else if (isOnline) {
-		updateIn = qMin(updateIn, int(_lastSetOnline + cOnlineUpdatePeriod() - ms));
+		updateIn = qMin(updateIn, int(_lastSetOnline + Global::OnlineUpdatePeriod() - ms));
 	}
 	_onlineTimer.start(updateIn);
 }
 
 void MainWidget::checkIdleFinish() {
 	if (this != App::main()) return;
-	if (psIdleTime() < uint64(cOfflineIdleTimeout())) {
+	if (psIdleTime() < uint64(Global::OfflineIdleTimeout())) {
 		_idleFinishTimer.stop();
 		_isIdle = false;
 		updateOnline();
@@ -4011,18 +4004,28 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 
 	case mtpc_updateShortMessage: {
 		const MTPDupdateShortMessage &d(updates.c_updateShortMessage());
-		if (!App::userLoaded(d.vuser_id.v) || (d.has_fwd_from_id() && !App::peerLoaded(peerFromMTP(d.vfwd_from_id))) || (d.has_via_bot_id() && !App::peerLoaded(peerFromUser(d.vvia_bot_id)))) {
+		if (!App::userLoaded(d.vuser_id.v) || (d.has_via_bot_id() && !App::peerLoaded(peerFromUser(d.vvia_bot_id)))) {
 			MTP_LOG(0, ("getDifference { good - getting user for updateShortMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
 			return getDifference();
 		}
-
+		if (d.has_fwd_from() && d.vfwd_from.type() == mtpc_messageFwdHeader) {
+			const MTPDmessageFwdHeader &f(d.vfwd_from.c_messageFwdHeader());
+			if (f.has_from_id() && !App::peerLoaded(peerFromUser(f.vfrom_id))) {
+				MTP_LOG(0, ("getDifference { good - getting user for updateShortMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
+				return getDifference();
+			}
+			if (f.has_channel_id() && !App::peerLoaded(peerFromChannel(f.vchannel_id))) {
+				MTP_LOG(0, ("getDifference { good - getting user for updateShortMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
+				return getDifference();
+			}
+		}
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, updates)) {
 			return;
 		}
 
 		// update before applying skipped
 		int32 flags = d.vflags.v | MTPDmessage::flag_from_id;
-		HistoryItem *item = App::histories().addNewMessage(MTP_message(MTP_int(flags), d.vid, d.is_out() ? MTP_int(MTP::authedId()) : d.vuser_id, MTP_peerUser(d.is_out() ? d.vuser_id : MTP_int(MTP::authedId())), d.vfwd_from_id, d.vfwd_date, d.vfwd_post, d.vvia_bot_id, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, d.has_entities() ? d.ventities : MTPnullEntities, MTPint()), NewMessageUnread);
+		HistoryItem *item = App::histories().addNewMessage(MTP_message(MTP_int(flags), d.vid, d.is_out() ? MTP_int(MTP::authedId()) : d.vuser_id, MTP_peerUser(d.is_out() ? d.vuser_id : MTP_int(MTP::authedId())), d.vfwd_from, d.vvia_bot_id, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, d.has_entities() ? d.ventities : MTPnullEntities, MTPint(), MTPint()), NewMessageUnread);
 		if (item) {
 			history.peerMessagesUpdated(item->history()->peer->id);
 		}
@@ -4035,19 +4038,29 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	case mtpc_updateShortChatMessage: {
 		const MTPDupdateShortChatMessage &d(updates.c_updateShortChatMessage());
 		bool noFrom = !App::userLoaded(d.vfrom_id.v);
-		if (!App::chatLoaded(d.vchat_id.v) || noFrom || (d.has_fwd_from_id() && !App::peerLoaded(peerFromMTP(d.vfwd_from_id))) || (d.has_via_bot_id() && !App::peerLoaded(peerFromUser(d.vvia_bot_id)))) {
+		if (!App::chatLoaded(d.vchat_id.v) || noFrom || (d.has_via_bot_id() && !App::peerLoaded(peerFromUser(d.vvia_bot_id)))) {
 			MTP_LOG(0, ("getDifference { good - getting user for updateShortChatMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
 			if (noFrom && App::api()) App::api()->requestFullPeer(App::chatLoaded(d.vchat_id.v));
 			return getDifference();
 		}
-
+		if (d.has_fwd_from() && d.vfwd_from.type() == mtpc_messageFwdHeader) {
+			const MTPDmessageFwdHeader &f(d.vfwd_from.c_messageFwdHeader());
+			if (f.has_from_id() && !App::peerLoaded(peerFromUser(f.vfrom_id))) {
+				MTP_LOG(0, ("getDifference { good - getting user for updateShortChatMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
+				return getDifference();
+			}
+			if (f.has_channel_id() && !App::peerLoaded(peerFromChannel(f.vchannel_id))) {
+				MTP_LOG(0, ("getDifference { good - getting user for updateShortChatMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
+				return getDifference();
+			}
+		}
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, updates)) {
 			return;
 		}
 
 		// update before applying skipped
 		int32 flags = d.vflags.v | MTPDmessage::flag_from_id;
-		HistoryItem *item = App::histories().addNewMessage(MTP_message(MTP_int(flags), d.vid, d.vfrom_id, MTP_peerChat(d.vchat_id), d.vfwd_from_id, d.vfwd_date, d.vfwd_post, d.vvia_bot_id, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, d.has_entities() ? d.ventities : MTPnullEntities, MTPint()), NewMessageUnread);
+		HistoryItem *item = App::histories().addNewMessage(MTP_message(MTP_int(flags), d.vid, d.vfrom_id, MTP_peerChat(d.vchat_id), d.vfwd_from, d.vvia_bot_id, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, d.has_entities() ? d.ventities : MTPnullEntities, MTPint(), MTPint()), NewMessageUnread);
 		if (item) {
 			history.peerMessagesUpdated(item->history()->peer->id);
 		}
@@ -4436,6 +4449,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		const MTPDupdatePrivacy &d(update.c_updatePrivacy());
 	} break;
 
+	/////// Channel updates
 	case mtpc_updateChannel: {
 		const MTPDupdateChannel &d(update.c_updateChannel());
 		if (ChannelData *channel = App::channelLoaded(d.vchannel_id.v)) {
@@ -4475,6 +4489,27 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			if (item) {
 				history.peerMessagesUpdated(item->history()->peer->id);
 			}
+		}
+		if (channel && !_handlingChannelDifference) {
+			channel->ptsApplySkippedUpdates();
+		}
+	} break;
+
+	case mtpc_updateEditChannelMessage: {
+		const MTPDupdateEditChannelMessage &d(update.c_updateEditChannelMessage());
+		ChannelData *channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
+
+		if (channel && !_handlingChannelDifference) {
+			if (channel->ptsRequesting()) { // skip global updates while getting channel difference
+				return;
+			} else if (!channel->ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
+				return;
+			}
+		}
+
+		// update before applying skipped
+		if (d.vmessage.type() == mtpc_message) { // apply message edit
+			App::updateEditedMessage(d.vmessage.c_message());
 		}
 		if (channel && !_handlingChannelDifference) {
 			channel->ptsApplySkippedUpdates();
@@ -4528,6 +4563,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	////// Cloud sticker sets
 	case mtpc_updateNewStickerSet: {
 		const MTPDupdateNewStickerSet &d(update.c_updateNewStickerSet());
 		if (d.vstickerset.type() == mtpc_messages_stickerSet) {
@@ -4624,6 +4660,5 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		cSetLastSavedGifsUpdate(0);
 		App::main()->updateStickers();
 	} break;
-
 	}
 }

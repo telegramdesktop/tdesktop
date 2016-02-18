@@ -822,12 +822,12 @@ namespace {
 			if (_dcOpts) _dcOpts->insert(dcIdWithShift, mtpDcOption(dcIdWithShift % _mtp_internal::dcShift, flags, ip.toUtf8().constData(), port));
 		} break;
 
-		case dbiMaxGroupCount: {
+		case dbiChatSizeMax: {
 			qint32 maxSize;
 			stream >> maxSize;
 			if (!_checkStreamStatus(stream)) return false;
 
-			cSetMaxGroupCount(maxSize);
+			Global::SetChatSizeMax(maxSize);
 		} break;
 
 		case dbiSavedGifsLimit: {
@@ -835,15 +835,15 @@ namespace {
 			stream >> limit;
 			if (!_checkStreamStatus(stream)) return false;
 
-			cSetSavedGifsLimit(limit);
+			Global::SetSavedGifsLimit(limit);
 		} break;
 
-		case dbiMaxMegaGroupCount: {
+		case dbiMegagroupSizeMax: {
 			qint32 maxSize;
 			stream >> maxSize;
 			if (!_checkStreamStatus(stream)) return false;
 
-			cSetMaxMegaGroupCount(maxSize);
+			Global::SetMegagroupSizeMax(maxSize);
 		} break;
 
 		case dbiUser: {
@@ -2124,9 +2124,9 @@ namespace Local {
 		size += sizeof(quint32) + sizeof(qint32) * 6;
 
 		EncryptedDescriptor data(size);
-		data.stream << quint32(dbiMaxGroupCount) << qint32(cMaxGroupCount());
-		data.stream << quint32(dbiMaxMegaGroupCount) << qint32(cMaxMegaGroupCount());
-		data.stream << quint32(dbiSavedGifsLimit) << qint32(cSavedGifsLimit());
+		data.stream << quint32(dbiChatSizeMax) << qint32(Global::ChatSizeMax());
+		data.stream << quint32(dbiMegagroupSizeMax) << qint32(Global::MegagroupSizeMax());
+		data.stream << quint32(dbiSavedGifsLimit) << qint32(Global::SavedGifsLimit());
 		data.stream << quint32(dbiAutoStart) << qint32(cAutoStart());
 		data.stream << quint32(dbiStartMinimized) << qint32(cStartMinimized());
 		data.stream << quint32(dbiSendToMenu) << qint32(cSendToMenu());

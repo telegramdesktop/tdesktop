@@ -189,7 +189,7 @@ void ConfirmLinkBox::onOpenLink() {
 
 MaxInviteBox::MaxInviteBox(const QString &link) : AbstractBox(st::boxWidth)
 , _close(this, lang(lng_box_ok), st::defaultBoxButton)
-, _text(st::boxTextFont, lng_participant_invite_sorry(lt_count, cMaxGroupCount()), _confirmBoxTextOptions, st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
+, _text(st::boxTextFont, lng_participant_invite_sorry(lt_count, Global::ChatSizeMax()), _confirmBoxTextOptions, st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
 , _link(link)
 , _linkOver(false)
 , a_goodOpacity(0, 0)

@@ -1389,8 +1389,8 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 		} else if (badMedia) {
 			result = new HistoryServiceMsg(this, block, m.vid.v, date(m.vdate), lang(lng_message_empty), m.vflags.v, 0, m.has_from_id() ? m.vfrom_id.v : 0);
 		} else {
-			if ((m.has_fwd_date() && m.vfwd_date.v > 0) || (m.has_fwd_from_id() && peerFromMTP(m.vfwd_from_id) != 0)) {
-				result = new HistoryForwarded(this, block, m);
+			if (m.has_fwd_from() && m.vfwd_from.type() == mtpc_messageFwdHeader) {
+				result = new HistoryForwarded(this, block, m, m.vfwd_from.c_messageFwdHeader());
 			} else if (m.has_reply_to_msg_id() && m.vreply_to_msg_id.v > 0) {
 				result = new HistoryReply(this, block, m);
 			} else {
@@ -6832,27 +6832,28 @@ HistoryMessage::~HistoryMessage() {
 	}
 }
 
-HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessage &msg)
+HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessage &msg, const MTPDmessageFwdHeader &f)
 : HistoryMessage(history, block, msg)
-, fwdDate(::date(msg.vfwd_date))
-, fwdFrom(App::peer(peerFromMTP(msg.vfwd_from_id)))
-, fwdFromVersion(fwdFrom->nameVersion)
-, fromWidth(st::msgServiceFont->width(lang(lng_forwarded_from)) + st::msgServiceFont->spacew) {
+, _fwdDate(::date(f.vdate))
+, _fwdAuthor(App::peer(f.has_channel_id() ? peerFromChannel(f.vchannel_id) : peerFromUser(f.vfrom_id)))
+, _fwdFrom(App::peer(f.has_from_id() ? peerFromUser(f.vfrom_id) : peerFromChannel(f.vchannel_id)))
+, _fromWidth(st::msgServiceFont->width(lang(lng_forwarded_from)) + st::msgServiceFont->spacew) {
 }
 
 HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, int32 flags, QDateTime date, int32 from, HistoryMessage *msg)
 : HistoryMessage(history, block, id, newForwardedFlags(history->peer, from, msg) | flags, msg->via() ? peerToUser(msg->viaBot()->id) : 0, date, from, msg->HistoryMessage::originalText(), msg->HistoryMessage::originalEntities(), msg->HistoryMessage::viewsCount(), msg->getMedia())
-, fwdDate(msg->dateForwarded())
-, fwdFrom(msg->fromForwarded())
-, fwdFromVersion(fwdFrom->nameVersion)
-, fromWidth(st::msgServiceFont->width(lang(lng_forwarded_from)) + st::msgServiceFont->spacew) {
+, _fwdDate(msg->fwdDate())
+, _fwdAuthor(msg->fwdAuthor())
+, _fwdFrom(msg->fwdFrom())
+, _fwdAuthorVersion(_fwdAuthor->nameVersion)
+, _fromWidth(st::msgServiceFont->width(lang(lng_forwarded_from)) + st::msgServiceFont->spacew) {
 }
 
 QString HistoryForwarded::selectedText(uint32 selection) const {
 	if (selection != FullSelection) return HistoryMessage::selectedText(selection);
 	QString result, original = HistoryMessage::selectedText(selection);
-	result.reserve(lang(lng_forwarded_from).size() + fwdFrom->name.size() + 4 + original.size());
-	result.append('[').append(lang(lng_forwarded_from)).append(' ').append(fwdFrom->name).append(qsl("]\n")).append(original);
+	result.reserve(lang(lng_forwarded_from).size() + _fwdAuthor->name.size() + 4 + original.size());
+	result.append('[').append(lang(lng_forwarded_from)).append(' ').append(_fwdAuthor->name).append(qsl("]\n")).append(original);
 	return result;
 }
 
@@ -6860,7 +6861,7 @@ void HistoryForwarded::initDimensions() {
 	fwdNameUpdated();
 	HistoryMessage::initDimensions();
 	if (!_media) {
-		int32 _namew = st::msgPadding.left() + fromWidth + fwdFromName.maxWidth() + st::msgPadding.right();
+		int32 _namew = st::msgPadding.left() + _fromWidth + _fwdAuthorName.maxWidth() + st::msgPadding.right();
 		if (via()) {
 			_namew += st::msgServiceFont->spacew + via()->maxWidth;
 		}
@@ -6869,19 +6870,19 @@ void HistoryForwarded::initDimensions() {
 }
 
 void HistoryForwarded::fwdNameUpdated() const {
-	QString fwdName((via() && fwdFrom->isUser()) ? fwdFrom->asUser()->firstName : App::peerName(fwdFrom));
-	fwdFromName.setText(st::msgServiceNameFont, fwdName, _textNameOptions);
+	QString fwdName((via() && _fwdAuthor->isUser()) ? _fwdAuthor->asUser()->firstName : App::peerName(_fwdAuthor));
+	_fwdAuthorName.setText(st::msgServiceNameFont, fwdName, _textNameOptions);
 	if (via()) {
 		int32 l = 0, w = 0;
 		countPositionAndSize(l, w);
-		via()->resize(w - st::msgPadding.left() - st::msgPadding.right() - fromWidth - fwdFromName.maxWidth() - st::msgServiceFont->spacew);
+		via()->resize(w - st::msgPadding.left() - st::msgPadding.right() - _fromWidth - _fwdAuthorName.maxWidth() - st::msgServiceFont->spacew);
 	}
 }
 
 void HistoryForwarded::draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const {
-	if (drawBubble() && fwdFrom->nameVersion > fwdFromVersion) {
+	if (drawBubble() && _fwdAuthor->nameVersion > _fwdAuthorVersion) {
 		fwdNameUpdated();
-		fwdFromVersion = fwdFrom->nameVersion;
+		_fwdAuthorVersion = _fwdAuthor->nameVersion;
 	}
 	HistoryMessage::draw(p, r, selection, ms);
 }
@@ -6893,18 +6894,18 @@ void HistoryForwarded::drawForwardedFrom(Painter &p, int32 x, int32 y, int32 w, 
 	p.setPen((selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg))->p);
 	p.setFont(serviceFont);
 
-	if (via() && w > fromWidth + fwdFromName.maxWidth() + serviceFont->spacew) {
+	if (via() && w > _fromWidth + _fwdAuthorName.maxWidth() + serviceFont->spacew) {
 		p.drawText(x, y + serviceFont->ascent, lang(lng_forwarded_from));
 
 		p.setFont(serviceName);
-		fwdFromName.draw(p, x + fromWidth, y, w - fromWidth);
+		_fwdAuthorName.draw(p, x + _fromWidth, y, w - _fromWidth);
 
-		p.drawText(x + fromWidth + fwdFromName.maxWidth() + serviceFont->spacew, y + serviceFont->ascent, via()->text);
-	} else if (w > fromWidth) {
+		p.drawText(x + _fromWidth + _fwdAuthorName.maxWidth() + serviceFont->spacew, y + serviceFont->ascent, via()->text);
+	} else if (w > _fromWidth) {
 		p.drawText(x, y + serviceFont->ascent, lang(lng_forwarded_from));
 
 		p.setFont(serviceName);
-		fwdFromName.drawElided(p, x + fromWidth, y, w - fromWidth);
+		_fwdAuthorName.drawElided(p, x + _fromWidth, y, w - _fromWidth);
 	} else {
 		p.drawText(x, y + serviceFont->ascent, serviceFont->elided(lang(lng_forwarded_from), w));
 	}
@@ -6930,7 +6931,7 @@ int32 HistoryForwarded::resize(int32 width) {
 			if (via()) {
 				int32 l = 0, w = 0;
 				countPositionAndSize(l, w);
-				via()->resize(w - st::msgPadding.left() - st::msgPadding.right() - fromWidth - fwdFromName.maxWidth() - st::msgServiceFont->spacew);
+				via()->resize(w - st::msgPadding.left() - st::msgPadding.right() - _fromWidth - _fwdAuthorName.maxWidth() - st::msgServiceFont->spacew);
 			}
 		}
 	}
@@ -6992,9 +6993,9 @@ void HistoryForwarded::getStateFromMessageText(TextLinkPtr &lnk, HistoryCursorSt
 
 void HistoryForwarded::getForwardedState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 w) const {
 	state = HistoryDefaultCursorState;
-	if (x >= fromWidth && x < w && x < fromWidth + fwdFromName.maxWidth()) {
-		lnk = fwdFrom->lnk;
-	} else if (via() && x >= fromWidth + fwdFromName.maxWidth() + st::msgServiceFont->spacew && x < w && x < fromWidth + fwdFromName.maxWidth() + st::msgServiceFont->spacew + via()->maxWidth) {
+	if (x >= _fromWidth && x < w && x < _fromWidth + _fwdAuthorName.maxWidth()) {
+		lnk = _fwdAuthor->lnk;
+	} else if (via() && x >= _fromWidth + _fwdAuthorName.maxWidth() + st::msgServiceFont->spacew && x < w && x < _fromWidth + _fwdAuthorName.maxWidth() + st::msgServiceFont->spacew + via()->maxWidth) {
 		lnk = via()->lnk;
 	} else {
 		lnk = TextLinkPtr();
@@ -7121,7 +7122,7 @@ void HistoryReply::replyToNameUpdated() const {
 			w += st::msgServiceFont->spacew + replyToVia()->maxWidth;
 		}
 
-		_maxReplyWidth = previewSkip + qMax(w, qMin(replyToText.maxWidth(), 4 * w));
+		_maxReplyWidth = previewSkip + qMax(w, qMin(replyToText.maxWidth(), int32(st::maxSignatureSize)));
 	} else {
 		_maxReplyWidth = st::msgDateFont->width(lang(replyToMsgId ? lng_profile_loading : lng_deleted_message));
 	}
