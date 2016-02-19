@@ -90,8 +90,8 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 [telegram_api]: https://core.telegram.org
 [telegram_proto]: https://core.telegram.org/mtproto
 [license]: LICENSE
-[msvc]: MSVC.md
-[xcode]: XCODE.md
-[xcode_old]: XCODEold.md
-[qtcreator]: QTCREATOR.md
+[msvc]: doc/building-msvc.md
+[xcode]: doc/building-xcode.md
+[xcode_old]: doc/building-xcode-old.md
+[qtcreator]: doc/building-qtcreator.md
 [qmake]: doc/building-qmake.md
