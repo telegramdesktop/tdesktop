@@ -769,7 +769,8 @@ class HistoryMessage; // dynamic_cast optimize
 enum HistoryCursorState {
 	HistoryDefaultCursorState,
 	HistoryInTextCursorState,
-	HistoryInDateCursorState
+	HistoryInDateCursorState,
+	HistoryInForwardedCursorState,
 };
 
 enum InfoDisplayType {
@@ -819,13 +820,12 @@ struct HistoryMessageSigned : public BasicInterface<HistoryMessageSigned> {
 
 struct HistoryMessageForwarded : public BasicInterface<HistoryMessageForwarded> {
 	HistoryMessageForwarded(Interfaces *);
-	void authorNameUpdated(bool hasVia) const;
+	void create(const HistoryMessageVia *via) const;
 	bool display(bool hasVia) const;
 
 	PeerData *_authorOriginal, *_fromOriginal;
-	mutable Text _authorOriginalName;
-	mutable int32 _authorOriginalVersion;
-	int32 _fromWidth;
+	MsgId _originalId;
+	mutable Text _text;
 };
 
 class HistoryMedia;
@@ -2116,7 +2116,7 @@ public:
 
 protected:
 
-	void create(int32 viaBotId, int32 viewsCount, const PeerId &authorIdOriginal, const PeerId &fromIdOriginal);
+	void create(int32 viaBotId, int32 viewsCount, const PeerId &authorIdOriginal = 0, const PeerId &fromIdOriginal = 0, MsgId originalId = 0);
 
 	bool displayForwardedFrom() const {
 		if (const HistoryMessageForwarded *fwd = Get<HistoryMessageForwarded>()) {

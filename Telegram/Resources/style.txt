@@ -1163,6 +1163,24 @@ outTextStyle: textStyle(defaultTextStyle) {
 	selectBg: msgOutBgSelected;
 	selectOverlay: msgSelectOverlay;
 }
+inFwdTextStyle: textStyle(defaultTextStyle) {
+	linkFlags: semiboldFont;
+	linkFlagsOver: semiboldFont;
+	linkFg: msgInServiceFg;
+	linkFgDown: msgInServiceFg;
+}
+outFwdTextStyle: textStyle(inFwdTextStyle) {
+	linkFg: msgOutServiceFg;
+	linkFgDown: msgOutServiceFg;
+}
+inFwdTextStyleSelected: textStyle(inFwdTextStyle) {
+	linkFg: msgInServiceFgSelected;
+	linkFgDown: msgInServiceFgSelected;
+}
+outFwdTextStyleSelected: textStyle(inFwdTextStyle) {
+	linkFg: msgOutServiceFgSelected;
+	linkFgDown: msgOutServiceFgSelected;
+}
 medviewSaveAsTextStyle: textStyle(defaultTextStyle) {
 	linkFg: #91d9ff;
 	linkFgDown: #91d9ff;

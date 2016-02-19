@@ -994,7 +994,7 @@ public:
 		return _blockEnd(t, i, e) - (*i)->from();
 	}
 
-	TextPainter(QPainter *p, const Text *t) : _p(p), _t(t), _elideLast(false), _elideRemoveFromEnd(0), _str(0), _elideSavedBlock(0), _lnkResult(0), _inTextFlag(0), _getSymbol(0), _getSymbolAfter(0), _getSymbolUpon(0) {
+	TextPainter(QPainter *p, const Text *t) : _p(p), _t(t), _elideLast(false), _breakEverywhere(false), _elideRemoveFromEnd(0), _str(0), _elideSavedBlock(0), _lnkResult(0), _inTextFlag(0), _getSymbol(0), _getSymbolAfter(0), _getSymbolUpon(0) {
 	}
 
 	void initNextParagraph(Text::TextBlocks::const_iterator i) {
@@ -1192,7 +1192,7 @@ public:
 					bool elidedLine = _elideLast && (_y + elidedLineHeight >= _yToElide);
 					if (elidedLine) {
 						_lineHeight = elidedLineHeight;
-					} else if (f != j) {
+					} else if (f != j && !_breakEverywhere) {
 						// word did not fit completely, so we roll back the state to the beginning of this long word
 						j = f;
 						_wLeft = f_wLeft;
@@ -1251,7 +1251,7 @@ public:
 		}
 	}
 
-	void drawElided(int32 left, int32 top, int32 w, style::align align, int32 lines, int32 yFrom, int32 yTo, int32 removeFromEnd) {
+	void drawElided(int32 left, int32 top, int32 w, style::align align, int32 lines, int32 yFrom, int32 yTo, int32 removeFromEnd, bool breakEverywhere) {
 		if (lines <= 0 || _t->isNull()) return;
 
 		if (yTo < 0 || (lines - 1) * _t->_font->height < yTo) {
@@ -1259,6 +1259,7 @@ public:
 			_elideLast = true;
 			_elideRemoveFromEnd = removeFromEnd;
 		}
+		_breakEverywhere = breakEverywhere;
 		draw(left, top, w, align, yFrom, yTo);
 	}
 
@@ -1272,7 +1273,7 @@ public:
 		return *_lnkResult;
 	}
 
-	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, int32 w, style::align align) {
+	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, int32 w, style::align align, bool breakEverywhere) {
 		lnk = TextLinkPtr();
 		inText = false;
 
@@ -1281,6 +1282,7 @@ public:
 			_lnkY = y;
 			_lnkResult = &lnk;
 			_inTextFlag = &inText;
+			_breakEverywhere = breakEverywhere;
 			draw(0, 0, w, align, _lnkY, _lnkY + 1);
 			lnk = *_lnkResult;
 		}
@@ -2437,7 +2439,7 @@ private:
 
 	QPainter *_p;
 	const Text *_t;
-	bool _elideLast;
+	bool _elideLast, _breakEverywhere;
 	int32 _elideRemoveFromEnd;
 	style::align _align;
 	QPen _originalPen;
@@ -2984,10 +2986,10 @@ void Text::draw(QPainter &painter, int32 left, int32 top, int32 w, style::align 
 	p.draw(left, top, w, align, yFrom, yTo, selectedFrom, selectedTo);
 }
 
-void Text::drawElided(QPainter &painter, int32 left, int32 top, int32 w, int32 lines, style::align align, int32 yFrom, int32 yTo, int32 removeFromEnd) const {
+void Text::drawElided(QPainter &painter, int32 left, int32 top, int32 w, int32 lines, style::align align, int32 yFrom, int32 yTo, int32 removeFromEnd, bool breakEverywhere) const {
 //	painter.fillRect(QRect(left, top, w, countHeight(w)), QColor(0, 0, 0, 32)); // debug
 	TextPainter p(&painter, this);
-	p.drawElided(left, top, w, align, lines, yFrom, yTo, removeFromEnd);
+	p.drawElided(left, top, w, align, lines, yFrom, yTo, removeFromEnd, breakEverywhere);
 }
 
 const TextLinkPtr &Text::link(int32 x, int32 y, int32 width, style::align align) const {
@@ -2995,9 +2997,9 @@ const TextLinkPtr &Text::link(int32 x, int32 y, int32 width, style::align align)
 	return p.link(x, y, width, align);
 }
 
-void Text::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, int32 width, style::align align) const {
+void Text::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, int32 width, style::align align, bool breakEverywhere) const {
 	TextPainter p(0, this);
-	p.getState(lnk, inText, x, y, width, align);
+	p.getState(lnk, inText, x, y, width, align, breakEverywhere);
 }
 
 void Text::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y, int32 width, style::align align) const {
