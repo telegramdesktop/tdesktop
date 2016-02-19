@@ -237,6 +237,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	// notifications
 	_senderName.setDisabled(!_desktopNotify.checked());
 	_messagePreview.setDisabled(_senderName.disabled() || !_senderName.checked());
+	_soundNotify.setDisabled(!_desktopNotify.checked());
 	connect(&_desktopNotify, SIGNAL(changed()), this, SLOT(onDesktopNotify()));
 	connect(&_senderName, SIGNAL(changed()), this, SLOT(onSenderName()));
 	connect(&_messagePreview, SIGNAL(changed()), this, SLOT(onMessagePreview()));
@@ -1483,9 +1484,11 @@ void SettingsInner::onDesktopNotify() {
 		App::wnd()->notifyClear();
 		_senderName.setDisabled(true);
 		_messagePreview.setDisabled(true);
+		_soundNotify.setDisabled(true);
 	} else {
 		_senderName.setDisabled(false);
 		_messagePreview.setDisabled(!_senderName.checked());
+		_soundNotify.setDisabled(false);
 	}
 	Local::writeUserSettings();
 	if (App::wnd()) App::wnd()->updateTrayMenu();
