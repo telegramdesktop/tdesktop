@@ -73,10 +73,8 @@ For more info, see [GitHub Help][help_change_commit_message].
 
 ## Build instructions
 
-* [Visual Studio 2013][msvc]
-* [XCode 6.4][xcode]
-* [XCode 6.4 for OS X 10.6 and 10.7][xcode_old]
-* [Qt Creator 3.2.0 Ubuntu][qtcreator]
+See the [readme][README.md#build-instructions] for details on the various build
+environments.
 
 ## Pull upstream changes into your fork regularly
 
