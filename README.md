@@ -33,6 +33,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * [XCode 7][xcode]
 * [XCode 7 for OS X 10.6 and 10.7][xcode_old]
 * [Qt Creator 3.5.1 Ubuntu][qtcreator]
+* [Using qmake on GNU/Linux][qmake]
 
 ## Projects in Telegram solution
 
@@ -93,3 +94,4 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 [xcode]: XCODE.md
 [xcode_old]: XCODEold.md
 [qtcreator]: QTCREATOR.md
+[qmake]: doc/building-qmake.md
