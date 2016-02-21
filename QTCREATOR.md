@@ -101,6 +101,17 @@ then go to **/home/user/TBuild/Libraries/openal-soft/build** and run
     make
     sudo make install
 
+####OpenSSL
+
+In Terminal go to **/home/user/TBuild/Libraries** and run
+
+    git clone https://github.com/openssl/openssl
+    cd openssl
+    git checkout OpenSSL_1_0_1-stable
+    ./config
+    make
+    sudo make install
+
 ####libxkbcommon (required for Fcitx Qt plugin)
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
@@ -136,7 +147,7 @@ Install some packages for Qt (see **/home/user/TBuild/Libraries/QtStatic/qtbase/
 
 In Terminal go to **/home/user/TBuild/Libraries/QtStatic** and there run
 
-    ./configure -release -opensource -confirm-license -qt-zlib -qt-libpng -qt-libjpeg -qt-freetype -qt-harfbuzz -qt-pcre -qt-xcb -qt-xkbcommon-x11 -no-opengl -static -nomake examples -nomake tests
+    OPENSSL_LIBS='/usr/local/ssl/lib/libssl.a /usr/local/ssl/lib/libcrypto.a' ./configure -release -opensource -confirm-license -qt-zlib -qt-libpng -qt-libjpeg -qt-freetype -qt-harfbuzz -qt-pcre -qt-xcb -qt-xkbcommon-x11 -no-opengl -static -openssl-linked -nomake examples -nomake tests
     make -j4
     sudo make -j4 install
 

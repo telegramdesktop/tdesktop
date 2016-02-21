@@ -351,7 +351,9 @@ namespace Sandbox {
 
 struct GlobalDataStruct {
 	uint64 LaunchId = 0;
+
 	Adaptive::Layout AdaptiveLayout = Adaptive::NormalLayout;
+	bool AdaptiveForWide = true;
 
 	// config
 	int32 ChatSizeMax = 200;
@@ -390,7 +392,9 @@ namespace Global {
 	}
 
 	DefineReadOnlyVar(Global, uint64, LaunchId);
+
 	DefineVar(Global, Adaptive::Layout, AdaptiveLayout);
+	DefineVar(Global, bool, AdaptiveForWide);
 
 	// config
 	DefineVar(Global, int32, ChatSizeMax);

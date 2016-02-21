@@ -138,7 +138,9 @@ namespace Global {
 	void finish();
 
 	DeclareReadOnlyVar(uint64, LaunchId);
+
 	DeclareVar(Adaptive::Layout, AdaptiveLayout);
+	DeclareVar(bool, AdaptiveForWide);
 
 	// config
 	DeclareVar(int32, ChatSizeMax);
@@ -167,6 +169,6 @@ namespace Adaptive {
 		return Global::AdaptiveLayout() == NormalLayout;
 	}
 	inline bool Wide() {
-		return Global::AdaptiveLayout() == WideLayout;
+		return Global::AdaptiveForWide() && (Global::AdaptiveLayout() == WideLayout);
 	}
 }

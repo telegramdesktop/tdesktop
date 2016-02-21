@@ -752,9 +752,6 @@ void PsMainWindow::psUpdatedPosition() {
 void PsMainWindow::psCreateTrayIcon() {
     if (!noQtTrayIcon) {
         cSetSupportTray(QSystemTrayIcon::isSystemTrayAvailable());
-        if (!noTryUnity) {
-            useUnityCount = false;
-        }
         return;
     }
 
@@ -1241,21 +1238,29 @@ void psShowInFolder(const QString &name) {
 namespace PlatformSpecific {
 
 	Initializer::Initializer() {
-        QString cdesktop = QString(getenv("XDG_CURRENT_DESKTOP")).toLower();
-        noQtTrayIcon = (cdesktop == qstr("pantheon")) || (cdesktop == qstr("gnome"));
-        tryAppIndicator = (cdesktop == qstr("xfce"));
-        noTryUnity = (cdesktop != qstr("unity"));
-
-        if (noQtTrayIcon) cSetSupportTray(false);
-
-        DEBUG_LOG(("Loading libraries"));
-        setupGtk();
-        setupUnity();
 	}
 
 	Initializer::~Initializer() {
 		delete _psEventFilter;
 		_psEventFilter = 0;
+	}
+
+	namespace ThirdParty {
+		void start() {
+			QString cdesktop = QString(getenv("XDG_CURRENT_DESKTOP")).toLower();
+			noQtTrayIcon = (cdesktop == qstr("pantheon")) || (cdesktop == qstr("gnome"));
+			tryAppIndicator = (cdesktop == qstr("xfce"));
+			noTryUnity = (cdesktop != qstr("unity"));
+
+			if (noQtTrayIcon) cSetSupportTray(false);
+
+			DEBUG_LOG(("Loading libraries"));
+			setupGtk();
+			setupUnity();
+		}
+
+		void finish() {
+		}
 	}
 
 }

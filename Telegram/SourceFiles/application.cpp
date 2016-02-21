@@ -1051,9 +1051,8 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cDevVersion() || cBetaVersion()) && Local::oldMapVersion() < 9024) {
-//				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Voice messages waveform visualizations\n\xe2\x80\x94 Bug fixes and other minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
-				versionFeatures = lang(lng_new_version_minor).trimmed();
+			if ((cDevVersion() || cBetaVersion()) && Local::oldMapVersion() < 9025) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Adaptive layout for wide screens switch added to Settings\n\xe2\x80\x94 Linux version crash fix");// .replace('@', qsl("@") + QChar(0x200D));
 			} else if (Local::oldMapVersion() < 9024) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			} else {

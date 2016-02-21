@@ -861,6 +861,14 @@ namespace PlatformSpecific {
 		objc_finish();
 	}
 
+    namespace ThirdParty {
+        void start() {
+        }
+
+        void finish() {
+        }
+    }
+
 }
 
 void psNewVersion() {

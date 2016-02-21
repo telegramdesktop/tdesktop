@@ -267,6 +267,8 @@ namespace {
 namespace ThirdParty {
 
 	void start() {
+		PlatformSpecific::ThirdParty::start();
+
 		if (!RAND_status()) { // should be always inited in all modern OS
 			char buf[16];
 			memcpy(buf, &_msStart, 8);
@@ -303,6 +305,8 @@ namespace ThirdParty {
 
 		delete[] _sslLocks;
 		_sslLocks = 0;
+
+		PlatformSpecific::ThirdParty::finish();
 	}
 
 }
