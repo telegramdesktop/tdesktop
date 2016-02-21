@@ -364,11 +364,11 @@ struct GlobalDataStruct {
 	int32 OnlineCloudTimeout = 300000;
 	int32 NotifyCloudDelay = 30000;
 	int32 NotifyDefaultDelay = 1500;
-	int32 ChatBigSize = 190; // ?
-	int32 PushChatPeriod = 0; // ?
-	int32 PushChatLimit = 0; // ?
-	int32 SavedGifsLimit = 100;
-	int32 EditTimeLimit = 0; // ?
+	int32 ChatBigSize = 10;
+	int32 PushChatPeriod = 60000;
+	int32 PushChatLimit = 2;
+	int32 SavedGifsLimit = 200;
+	int32 EditTimeLimit = 172800;
 };
 GlobalDataStruct *GlobalData = 0;
 

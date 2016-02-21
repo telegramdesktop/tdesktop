@@ -123,6 +123,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_server_error" = "Internal server error.";
 "lng_flood_error" = "Too many tries. Please try again later.";
 "lng_gif_error" = "An error has occured while reading GIF animation :(";
+"lng_edit_error" = "You cannot edit this message";
 "lng_deleted" = "Unknown";
 "lng_deleted_message" = "Deleted message";
 
@@ -737,6 +738,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_save_gif" = "Save GIF";
 "lng_context_to_msg" = "Go To Message";
 "lng_context_reply_msg" = "Reply";
+"lng_context_edit_msg" = "Edit";
 "lng_context_forward_msg" = "Forward Message";
 "lng_context_delete_msg" = "Delete Message";
 "lng_context_select_msg" = "Select Message";
@@ -752,6 +754,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_send_image_empty" = "Could not send an empty file :(";
 "lng_send_image_too_large" = "Could not send a file, because it is larger than 1.5 GB :(";
 "lng_send_folder" = "Could not send «{name}» because it is a directory :(";
+
+"lng_edit_placeholder" = "Message text";
 
 "lng_forward_choose" = "Choose recipient..";
 "lng_forward_cant" = "Sorry, no way to forward here :(";
@@ -773,6 +777,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_edit_group_title" = "Edit group name";
 "lng_edit_contact_title" = "Edit contact name";
 "lng_edit_channel_title" = "Edit channel";
+"lng_edit_sign_messages" = "Sign messages";
 "lng_edit_group" = "Edit group";
 "lng_edit_self_title" = "Edit your name";
 "lng_confirm_contact_data" = "New Contact";

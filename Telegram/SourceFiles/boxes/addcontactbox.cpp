@@ -1150,14 +1150,17 @@ void EditNameTitleBox::onSaveChatDone(const MTPUpdates &updates) {
 	emit closed();
 }
 
-EditChannelBox::EditChannelBox(ChannelData *channel) :
-_channel(channel),
-_save(this, lang(lng_settings_save), st::defaultBoxButton),
-_cancel(this, lang(lng_cancel), st::cancelBoxButton),
-_title(this, st::defaultInputField, lang(lng_dlg_new_channel_name), _channel->name),
-_description(this, st::newGroupDescription, lang(lng_create_group_description), _channel->about),
-_publicLink(this, lang(channel->isPublic() ? lng_profile_edit_public_link : lng_profile_create_public_link), st::defaultBoxLinkButton),
-_saveTitleRequestId(0), _saveDescriptionRequestId(0) {
+EditChannelBox::EditChannelBox(ChannelData *channel) : AbstractBox()
+, _channel(channel)
+, _save(this, lang(lng_settings_save), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
+, _title(this, st::defaultInputField, lang(lng_dlg_new_channel_name), _channel->name)
+, _description(this, st::newGroupDescription, lang(lng_create_group_description), _channel->about)
+, _sign(this, lang(lng_edit_sign_messages), channel->addsSignature())
+, _publicLink(this, lang(channel->isPublic() ? lng_profile_edit_public_link : lng_profile_create_public_link), st::defaultBoxLinkButton)
+, _saveTitleRequestId(0)
+, _saveDescriptionRequestId(0)
+, _saveSignRequestId(0) {
 	connect(App::main(), SIGNAL(peerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)), this, SLOT(peerUpdated(PeerData*)));
 
 	setMouseTracking(true);
@@ -1183,6 +1186,7 @@ _saveTitleRequestId(0), _saveDescriptionRequestId(0) {
 void EditChannelBox::hideAll() {
 	_title.hide();
 	_description.hide();
+	_sign.hide();
 	_save.hide();
 	_cancel.hide();
 	_publicLink.hide();
@@ -1195,8 +1199,10 @@ void EditChannelBox::showAll() {
 	_cancel.show();
 	if (_channel->isMegagroup()) {
 		_publicLink.hide();
+		_sign.hide();
 	} else {
 		_publicLink.show();
+		_sign.show();
 	}
 }
 
@@ -1224,6 +1230,7 @@ void EditChannelBox::paintEvent(QPaintEvent *e) {
 void EditChannelBox::peerUpdated(PeerData *peer) {
 	if (peer == _channel) {
 		_publicLink.setText(lang(_channel->isPublic() ? lng_profile_edit_public_link : lng_profile_create_public_link));
+		_sign.setChecked(_channel->addsSignature());
 	}
 }
 
@@ -1235,6 +1242,9 @@ void EditChannelBox::onDescriptionResized() {
 void EditChannelBox::updateMaxHeight() {
 	int32 h = st::boxTitleHeight + st::newGroupInfoPadding.top() + _title.height();
 	h += st::newGroupDescriptionPadding.top() + _description.height() + st::newGroupDescriptionPadding.bottom();
+	if (!_channel->isMegagroup()) {
+		h += st::newGroupPublicLinkPadding.top() + _sign.height() + st::newGroupPublicLinkPadding.bottom();
+	}
 	h += st::newGroupPublicLinkPadding.top() + _publicLink.height() + st::newGroupPublicLinkPadding.bottom();
 	h += st::boxPadding.bottom() + st::newGroupInfoPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom();
 	setMaxHeight(h);
@@ -1246,14 +1256,16 @@ void EditChannelBox::resizeEvent(QResizeEvent *e) {
 
 	_description.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _title.y() + _title.height() + st::newGroupDescriptionPadding.top());
 
-	_publicLink.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _description.y() + _description.height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
+	_sign.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _description.y() + _description.height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
+
+	_publicLink.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _sign.y() + _sign.height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
 
 	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
 }
 
 void EditChannelBox::onSave() {
-	if (_saveTitleRequestId || _saveDescriptionRequestId) return;
+	if (_saveTitleRequestId || _saveDescriptionRequestId || _saveSignRequestId) return;
 
 	QString title = prepareText(_title.getLastText()), description = prepareText(_description.getLastText(), true);
 	if (title.isEmpty()) {
@@ -1263,7 +1275,11 @@ void EditChannelBox::onSave() {
 	}
 	_sentTitle = title;
 	_sentDescription = description;
-	_saveTitleRequestId = MTP::send(MTPchannels_EditTitle(_channel->inputChannel, MTP_string(_sentTitle)), rpcDone(&EditChannelBox::onSaveTitleDone), rpcFail(&EditChannelBox::onSaveFail));
+	if (_sentTitle == _channel->name) {
+		saveDescription();
+	} else {
+		_saveTitleRequestId = MTP::send(MTPchannels_EditTitle(_channel->inputChannel, MTP_string(_sentTitle)), rpcDone(&EditChannelBox::onSaveTitleDone), rpcFail(&EditChannelBox::onSaveFail));
+	}
 }
 
 void EditChannelBox::onPublicLink() {
@@ -1271,7 +1287,19 @@ void EditChannelBox::onPublicLink() {
 }
 
 void EditChannelBox::saveDescription() {
-	_saveDescriptionRequestId = MTP::send(MTPchannels_EditAbout(_channel->inputChannel, MTP_string(_sentDescription)), rpcDone(&EditChannelBox::onSaveDescriptionDone), rpcFail(&EditChannelBox::onSaveFail));
+	if (_sentDescription == _channel->about) {
+		saveSign();
+	} else {
+		_saveDescriptionRequestId = MTP::send(MTPchannels_EditAbout(_channel->inputChannel, MTP_string(_sentDescription)), rpcDone(&EditChannelBox::onSaveDescriptionDone), rpcFail(&EditChannelBox::onSaveFail));
+	}
+}
+
+void EditChannelBox::saveSign() {
+	if (_channel->isMegagroup() || _channel->addsSignature() == _sign.checked()) {
+		onClose();
+	} else {
+		_saveSignRequestId = MTP::send(MTPchannels_ToggleSignatures(_channel->inputChannel, MTP_bool(_sign.checked())), rpcDone(&EditChannelBox::onSaveSignDone), rpcFail(&EditChannelBox::onSaveFail));
+	}
 }
 
 bool EditChannelBox::onSaveFail(const RPCError &error, mtpRequestId req) {
@@ -1295,10 +1323,19 @@ bool EditChannelBox::onSaveFail(const RPCError &error, mtpRequestId req) {
 		_saveDescriptionRequestId = 0;
 		if (err == qstr("CHAT_ABOUT_NOT_MODIFIED")) {
 			_channel->about = _sentDescription;
-			if (App::api()) emit App::api()->fullPeerUpdated(_channel);
-			onClose();
+			if (App::api()) {
+				emit App::api()->fullPeerUpdated(_channel);
+			}
+			saveSign();
+			return true;
 		} else {
 			_description.setFocus();
+		}
+	} else if (req == _saveSignRequestId) {
+		_saveSignRequestId = 0;
+		if (err == qstr("CHAT_NOT_MODIFIED")) {
+			onClose();
+			return true;
 		}
 	}
 	return true;
@@ -1306,13 +1343,26 @@ bool EditChannelBox::onSaveFail(const RPCError &error, mtpRequestId req) {
 
 void EditChannelBox::onSaveTitleDone(const MTPUpdates &updates) {
 	_saveTitleRequestId = 0;
-	App::main()->sentUpdatesReceived(updates);
+	if (App::main()) {
+		App::main()->sentUpdatesReceived(updates);
+	}
 	saveDescription();
 }
 
 void EditChannelBox::onSaveDescriptionDone(const MTPBool &result) {
 	_saveDescriptionRequestId = 0;
 	_channel->about = _sentDescription;
-	if (App::api()) emit App::api()->fullPeerUpdated(_channel);
+	if (App::api()) {
+		emit App::api()->fullPeerUpdated(_channel);
+	}
+	saveSign();
+}
+
+void EditChannelBox::onSaveSignDone(const MTPUpdates &updates) {
+	_saveSignRequestId = 0;
+	if (App::main()) {
+		App::main()->sentUpdatesReceived(updates);
+	}
 	onClose();
 }
+

@@ -2438,3 +2438,8 @@ inlineRowBorder: linksBorder;
 inlineRowBorderFg: linksBorderFg;
 inlineResultsMinWidth: 64px;
 inlineDurationMargin: 3px;
+
+editTextArea: InputArea(defaultInputArea) {
+	textMargins: margins(1px, 6px, 1px, 4px);
+	heightMax: 256px;
+}

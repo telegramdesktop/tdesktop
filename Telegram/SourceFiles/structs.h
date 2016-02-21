@@ -131,6 +131,8 @@ typedef uint64 VideoId;
 typedef uint64 AudioId;
 typedef uint64 DocumentId;
 typedef uint64 WebPageId;
+static const WebPageId CancelledWebPageId = 0xFFFFFFFFFFFFFFFFULL;
+
 typedef int32 MsgId;
 struct FullMsgId {
 	FullMsgId() : channel(NoChannel), msg(0) {

@@ -2911,6 +2911,33 @@ bool HistoryItem::displayFromPhoto() const {
 	return (Adaptive::Wide() || (!out() && !history()->peer->isUser())) && !isPost();
 }
 
+bool HistoryItem::canEdit(const QDateTime &cur) const {
+	ChannelData *channel = _history->peer->asChannel();
+	int32 s = date.secsTo(cur);
+	if (!channel || id < 0 || date.secsTo(cur) >= Global::EditTimeLimit()) return false;
+
+	if (const HistoryMessage *msg = toHistoryMessage()) {
+		if (msg->Is<HistoryMessageVia>() || msg->Is<HistoryMessageForwarded>()) return false;
+
+		if (HistoryMedia *media = msg->getMedia()) {
+			HistoryMediaType t = media->type();
+			if (t != MediaTypePhoto &&
+				t != MediaTypeVideo &&
+				t != MediaTypeFile &&
+				t != MediaTypeGif &&
+				t != MediaTypeMusicFile &&
+				t != MediaTypeVoiceFile) {
+				return false;
+			}
+		}
+		if (isPost()) {
+			return (channel->amCreator() || (channel->amEditor() && out()));
+		}
+		return out();
+	}
+	return false;
+}
+
 void HistoryItem::clipCallback(ClipReaderNotification notification) {
 	HistoryMedia *media = getMedia();
 	if (!media) return;
@@ -3829,12 +3856,12 @@ void HistoryDocument::create(bool caption) {
 		mask |= HistoryDocumentVoice::Bit();
 	} else {
 		mask |= HistoryDocumentNamed::Bit();
-		if (caption) {
-			mask |= HistoryDocumentCaptioned::Bit();
-		}
 		if (!_data->song() && !_data->thumb->isNull() && _data->thumb->width() && _data->thumb->height()) {
 			mask |= HistoryDocumentThumbed::Bit();
 		}
+	}
+	if (caption) {
+		mask |= HistoryDocumentCaptioned::Bit();
 	}
 	UpdateInterfaces(mask);
 	if (HistoryDocumentThumbed *thumbed = Get<HistoryDocumentThumbed>()) {

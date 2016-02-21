@@ -315,18 +315,21 @@ private:
 
 	void onSaveTitleDone(const MTPUpdates &updates);
 	void onSaveDescriptionDone(const MTPBool &result);
+	void onSaveSignDone(const MTPUpdates &updates);
 	bool onSaveFail(const RPCError &e, mtpRequestId req);
 
 	void saveDescription();
+	void saveSign();
 
 	ChannelData *_channel;
 
 	BoxButton _save, _cancel;
 	InputField _title;
 	InputArea _description;
+	Checkbox _sign;
 
 	LinkButton _publicLink;
 
-	mtpRequestId _saveTitleRequestId, _saveDescriptionRequestId;
+	mtpRequestId _saveTitleRequestId, _saveDescriptionRequestId, _saveSignRequestId;
 	QString _sentTitle, _sentDescription;
 };

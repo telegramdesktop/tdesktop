@@ -870,8 +870,13 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (isUponSelected > 0) {
 			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
 		}
-		if (item && item->id > 0 && isUponSelected != 2 && isUponSelected != -2 && canSendMessages) {
-			_menu->addAction(lang(lng_context_reply_msg), _widget, SLOT(onReplyToMessage()));
+		if (item && item->id > 0 && isUponSelected != 2 && isUponSelected != -2) {
+			if (canSendMessages) {
+				_menu->addAction(lang(lng_context_reply_msg), _widget, SLOT(onReplyToMessage()));
+			}
+			if (item->canEdit(::date(unixtime()))) {
+				_menu->addAction(lang(lng_context_edit_msg), _widget, SLOT(onEditMessage()));
+			}
 		}
 		if (lnkPhoto) {
 			_menu->addAction(lang(lng_context_open_image), this, SLOT(openContextUrl()))->setEnabled(true);
@@ -920,12 +925,22 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 		if (isUponSelected > 0) {
 			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
-			if (item && item->id > 0 && isUponSelected != 2 && canSendMessages) {
-				_menu->addAction(lang(lng_context_reply_msg), _widget, SLOT(onReplyToMessage()));
+			if (item && item->id > 0 && isUponSelected != 2) {
+				if (canSendMessages) {
+					_menu->addAction(lang(lng_context_reply_msg), _widget, SLOT(onReplyToMessage()));
+				}
+				if (item->canEdit(::date(unixtime()))) {
+					_menu->addAction(lang(lng_context_edit_msg), _widget, SLOT(onEditMessage()));
+				}
 			}
 		} else {
-			if (item && item->id > 0 && isUponSelected != -2 && canSendMessages) {
-				_menu->addAction(lang(lng_context_reply_msg), _widget, SLOT(onReplyToMessage()));
+			if (item && item->id > 0 && isUponSelected != -2) {
+				if (canSendMessages) {
+					_menu->addAction(lang(lng_context_reply_msg), _widget, SLOT(onReplyToMessage()));
+				}
+				if (item->canEdit(::date(unixtime()))) {
+					_menu->addAction(lang(lng_context_edit_msg), _widget, SLOT(onEditMessage()));
+				}
 			}
 			if (item && !isUponSelected && !_contextMenuLnk) {
 				if (HistoryMedia *media = (msg ? msg->getMedia() : 0)) {
@@ -4422,7 +4437,7 @@ void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
 
 	bool lastKeyboardUsed = lastForceReplyReplied(FullMsgId(_channel, replyTo));
 
-	WebPageId webPageId = _previewCancelled ? 0xFFFFFFFFFFFFFFFFULL : ((_previewData && _previewData->pendingTill >= 0) ? _previewData->id : 0);
+	WebPageId webPageId = _previewCancelled ? CancelledWebPageId : ((_previewData && _previewData->pendingTill >= 0) ? _previewData->id : 0);
 	App::main()->sendMessage(_history, _field.getLastText(), replyTo, _broadcast.checked(), webPageId);
 
 	setFieldText(QString());
@@ -6615,6 +6630,13 @@ void HistoryWidget::onReplyToMessage() {
 	onDraftSave();
 
 	_field.setFocus();
+}
+
+void HistoryWidget::onEditMessage() {
+	HistoryItem *to = App::contextItem();
+	if (!to || !to->history()->peer->isChannel()) return;
+
+	Ui::showLayer(new EditPostBox(to));
 }
 
 bool HistoryWidget::lastForceReplyReplied(const FullMsgId &replyTo) const {

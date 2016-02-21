@@ -987,6 +987,8 @@ public:
 		return (channel->amEditor() || channel->amModerator() || out());
 	}
 
+	bool canEdit(const QDateTime &cur) const;
+
 	int32 y;
 	MsgId id;
 	QDateTime date;

@@ -359,3 +359,309 @@ void PhotoSendBox::onSend(bool ctrlShiftEnter) {
 	_confirmed = true;
 	onClose();
 }
+
+EditPostBox::EditPostBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
+, _msg(msg)
+, _animated(false)
+, _photo(false)
+, _doc(false)
+, _text(0)
+, _save(this, lang(lng_settings_save), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
+, _thumbx(0)
+, _thumby(0)
+, _thumbw(0)
+, _thumbh(0)
+, _statusw(0)
+, _isImage(false)
+, _previewCancelled(false)
+, _saveRequestId(0) {
+	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
+	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+
+	QSize dimensions;
+	ImagePtr image;
+	QString caption;
+	DocumentData *doc = 0;
+	if (HistoryMedia *media = _msg->getMedia()) {
+		HistoryMediaType t = media->type();
+		switch (t) {
+		case MediaTypeGif: {
+			_animated = true;
+			doc = static_cast<HistoryGif*>(media)->getDocument();
+			dimensions = doc->dimensions;
+			image = doc->thumb;
+		} break;
+
+		case MediaTypePhoto: {
+			_photo = true;
+			PhotoData *photo = static_cast<HistoryPhoto*>(media)->photo();
+			dimensions = QSize(photo->full->width(), photo->full->height());
+			image = photo->full;
+		} break;
+
+		case MediaTypeVideo: {
+			_animated = true;
+			doc = static_cast<HistoryVideo*>(media)->getDocument();
+			dimensions = doc->dimensions;
+			image = doc->thumb;
+		} break;
+
+		case MediaTypeFile:
+		case MediaTypeMusicFile:
+		case MediaTypeVoiceFile: {
+			_doc = true;
+			doc = static_cast<HistoryDocument*>(media)->getDocument();
+			image = doc->thumb;
+		} break;
+		}
+		caption = media->getCaption();
+	}
+	if (!_animated && (dimensions.isEmpty() || doc) || image->isNull()) {
+		_animated = false;
+		if (image->isNull()) {
+			_thumbw = 0;
+		} else {
+			int32 tw = image->width(), th = image->height();
+			if (tw > th) {
+				_thumbw = (tw * st::msgFileThumbSize) / th;
+			} else {
+				_thumbw = st::msgFileThumbSize;
+			}
+			_thumb = imagePix(image->pix().toImage(), _thumbw * cIntRetinaFactor(), 0, true, false, true, st::msgFileThumbSize, st::msgFileThumbSize);
+		}
+
+		if (doc) {
+			if (doc->voice()) {
+				_name.setText(st::semiboldFont, lang(lng_media_audio), _textNameOptions);
+			} else {
+				_name.setText(st::semiboldFont, documentName(doc), _textNameOptions);
+			}
+			_status = formatSizeText(doc->size);
+			_statusw = qMax(_name.maxWidth(), st::normalFont->width(_status));
+			_isImage = doc->isImage();
+		}
+	} else {
+		int32 maxW = 0, maxH = 0;
+		if (_animated) {
+			int32 limitW = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
+			int32 limitH = st::confirmMaxHeight;
+			maxW = dimensions.width();
+			maxH = dimensions.height();
+			if (maxW * limitH > maxH * limitW) {
+				if (maxW < limitW) {
+					maxH = maxH * limitW / maxW;
+					maxW = limitW;
+				}
+			} else {
+				if (maxH < limitH) {
+					maxW = maxW * limitH / maxH;
+					maxH = limitH;
+				}
+			}
+			_thumb = image->pixNoCache(maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), true, true, false, maxW, maxH);
+		} else {
+			maxW = dimensions.width();
+			maxH = dimensions.height();
+			_thumb = image->pixNoCache(maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), true, false, false, maxW, maxH);
+		}
+		int32 tw = _thumb.width(), th = _thumb.height();
+		if (!tw || !th) {
+			tw = th = 1;
+		}
+		_thumbw = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
+		if (_thumb.width() < _thumbw) {
+			_thumbw = (_thumb.width() > 20) ? _thumb.width() : 20;
+		}
+		int32 maxthumbh = qMin(qRound(1.5 * _thumbw), int(st::confirmMaxHeight));
+		_thumbh = qRound(th * float64(_thumbw) / tw);
+		if (_thumbh > maxthumbh) {
+			_thumbw = qRound(_thumbw * float64(maxthumbh) / _thumbh);
+			_thumbh = maxthumbh;
+			if (_thumbw < 10) {
+				_thumbw = 10;
+			}
+		}
+		_thumbx = (width() - _thumbw) / 2;
+
+		_thumb = QPixmap::fromImage(_thumb.toImage().scaled(_thumbw * cIntRetinaFactor(), _thumbh * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
+		_thumb.setDevicePixelRatio(cRetinaFactor());
+	}
+
+	if (_animated || _photo || _doc) {
+		_text = new InputArea(this, st::confirmCaptionArea, lang(lng_photo_caption), caption);
+		_text->setMaxLength(MaxPhotoCaption);
+		_text->setCtrlEnterSubmit(CtrlEnterSubmitBoth);
+	} else {
+		_text = new InputArea(this, st::editTextArea, lang(lng_edit_placeholder), msg->originalText());
+		_text->setMaxLength(MaxMessageSize);
+		_text->setCtrlEnterSubmit(cCtrlEnter() ? CtrlEnterSubmitCtrlEnter : CtrlEnterSubmitEnter);
+	}
+	updateBoxSize();
+	connect(_text, SIGNAL(resized()), this, SLOT(onCaptionResized()));
+	connect(_text, SIGNAL(submitted(bool)), this, SLOT(onSave(bool)));
+	connect(_text, SIGNAL(cancelled()), this, SLOT(onClose()));
+
+	QTextCursor c(_text->textCursor());
+	c.movePosition(QTextCursor::End);
+	_text->setTextCursor(c);
+
+	prepare();
+}
+
+void EditPostBox::onCaptionResized() {
+	updateBoxSize();
+	resizeEvent(0);
+	update();
+}
+
+void EditPostBox::updateBoxSize() {
+	if (_photo || _animated) {
+		setMaxHeight(st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom() + st::boxPhotoCompressedPadding.bottom() + _text->height() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+	} else if (_thumbw) {
+		setMaxHeight(st::boxPhotoPadding.top() + st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom() + st::boxPhotoPadding.bottom() + st::boxPhotoCompressedPadding.bottom() + _text->height() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+	} else if (_doc) {
+		setMaxHeight(st::boxPhotoPadding.top() + st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom() + st::boxPhotoPadding.bottom() + st::boxPhotoCompressedPadding.bottom() + _text->height() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+	} else {
+		setMaxHeight(st::boxPhotoPadding.top() + _text->height() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+	}
+}
+
+void EditPostBox::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	if (paint(p)) return;
+
+	if (_photo || _animated) {
+		if (_thumbx > st::boxPhotoPadding.left()) {
+			p.fillRect(st::boxPhotoPadding.left(), st::boxPhotoPadding.top(), _thumbx - st::boxPhotoPadding.left(), _thumbh, st::confirmBg->b);
+		}
+		if (_thumbx + _thumbw < width() - st::boxPhotoPadding.right()) {
+			p.fillRect(_thumbx + _thumbw, st::boxPhotoPadding.top(), width() - st::boxPhotoPadding.right() - _thumbx - _thumbw, _thumbh, st::confirmBg->b);
+		}
+		p.drawPixmap(_thumbx, st::boxPhotoPadding.top(), _thumb);
+		if (_animated) {
+			QRect inner(_thumbx + (_thumbw - st::msgFileSize) / 2, st::boxPhotoPadding.top() + (_thumbh - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::msgDateImgBg);
+
+			p.setRenderHint(QPainter::HighQualityAntialiasing);
+			p.drawEllipse(inner);
+			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+
+			p.drawSpriteCenter(inner, st::msgFileInPlay);
+		}
+	} else if (_doc) {
+		int32 w = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
+		int32 h = _thumbw ? (st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom()) : (st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom());
+		int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, linktop = 0;
+		if (_thumbw) {
+			nameleft = st::msgFileThumbPadding.left() + st::msgFileThumbSize + st::msgFileThumbPadding.right();
+			nametop = st::msgFileThumbNameTop;
+			nameright = st::msgFileThumbPadding.left();
+			statustop = st::msgFileThumbStatusTop;
+			linktop = st::msgFileThumbLinkTop;
+		} else {
+			nameleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
+			nametop = st::msgFileNameTop;
+			nameright = st::msgFilePadding.left();
+			statustop = st::msgFileStatusTop;
+		}
+		int32 namewidth = w - nameleft - (_thumbw ? st::msgFileThumbPadding.left() : st::msgFilePadding.left());
+		if (namewidth > _statusw) {
+			w -= (namewidth - _statusw);
+			namewidth = _statusw;
+		}
+		int32 x = (width() - w) / 2, y = st::boxPhotoPadding.top();
+
+		App::roundRect(p, x, y, w, h, st::msgOutBg, MessageOutCorners, &st::msgOutShadow);
+
+		if (_thumbw) {
+			QRect rthumb(rtlrect(x + st::msgFileThumbPadding.left(), y + st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, width()));
+			p.drawPixmap(rthumb.topLeft(), _thumb);
+		} else {
+			QRect inner(rtlrect(x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, width()));
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::msgFileOutBg);
+
+			p.setRenderHint(QPainter::HighQualityAntialiasing);
+			p.drawEllipse(inner);
+			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+
+			p.drawSpriteCenter(inner, _isImage ? st::msgFileOutImage : st::msgFileOutFile);
+		}
+		p.setFont(st::semiboldFont);
+		p.setPen(st::black);
+		_name.drawLeftElided(p, x + nameleft, y + nametop, namewidth, width());
+
+		style::color status(st::mediaOutFg);
+		p.setFont(st::normalFont);
+		p.setPen(status);
+		p.drawTextLeft(x + nameleft, y + statustop, width(), _status);
+	}
+}
+
+void EditPostBox::resizeEvent(QResizeEvent *e) {
+	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
+	_cancel.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
+	_text->resize(st::boxWideWidth - st::boxPhotoPadding.left() - st::boxPhotoPadding.right(), _text->height());
+	_text->moveToLeft(st::boxPhotoPadding.left(), _save.y() - st::boxButtonPadding.top() - _text->height());
+}
+
+void EditPostBox::hideAll() {
+	_save.hide();
+	_cancel.hide();
+	_text->hide();
+}
+
+void EditPostBox::showAll() {
+	_save.show();
+	_cancel.show();
+	_text->show();
+}
+
+void EditPostBox::showDone() {
+	setInnerFocus();
+}
+
+void EditPostBox::onSave(bool ctrlShiftEnter) {
+	if (_saveRequestId) return;
+
+	int32 flags = 0;
+	if (_previewCancelled) {
+		flags |= MTPchannels_EditMessage::flag_no_webpage;
+	}
+	EntitiesInText sendingEntities;
+	MTPVector<MTPMessageEntity> sentEntities = linksToMTP(sendingEntities, true);
+	if (!sentEntities.c_vector().v.isEmpty()) {
+		flags |= MTPmessages_SendMessage::flag_entities;
+	}
+	_saveRequestId = MTP::send(MTPchannels_EditMessage(MTP_int(flags), _msg->history()->peer->asChannel()->inputChannel, MTP_int(_msg->id), MTP_string(_text->getLastText()), sentEntities), rpcDone(&EditPostBox::saveDone), rpcFail(&EditPostBox::saveFail));
+}
+
+void EditPostBox::saveDone(const MTPUpdates &updates) {
+	_saveRequestId = 0;
+	onClose();
+	if (App::main()) {
+		App::main()->sentUpdatesReceived(updates);
+	}
+}
+
+bool EditPostBox::saveFail(const RPCError &error) {
+	if (mtpIsFlood(error)) return false;
+
+	_saveRequestId = 0;
+	QString err = error.type();
+	if (err == qstr("MESSAGE_ID_INVALID") || err == qstr("CHAT_ADMIN_REQUIRED") || err == qstr("MESSAGE_EDIT_TIME_EXPIRED")) {
+		_error = lang(lng_edit_error);
+	} else if (err == qstr("MESSAGE_NOT_MODIFIED")) {
+		onClose();
+		return true;
+	} else if (err == qstr("MESSAGE_EMPTY")) {
+		_text->setFocus();
+		_text->showError();
+	} else {
+		_error = lang(lng_edit_error);
+	}
+	update();
+	return true;
+}

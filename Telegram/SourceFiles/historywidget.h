@@ -594,6 +594,7 @@ public slots:
 
 	void onCancel();
 	void onReplyToMessage();
+	void onEditMessage();
 	void onReplyForwardPreviewCancel();
 
 	void onCancelSendAction();

@@ -1300,7 +1300,7 @@ void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, 
 			sendFlags |= MTPmessages_SendMessage::flag_reply_to_msg_id;
 		}
 		MTPMessageMedia media = MTP_messageMediaEmpty();
-		if (webPageId == 0xFFFFFFFFFFFFFFFFULL) {
+		if (webPageId == CancelledWebPageId) {
 			sendFlags |= MTPmessages_SendMessage::flag_no_webpage;
 		} else if (webPageId) {
 			WebPageData *page = App::webPage(webPageId);
