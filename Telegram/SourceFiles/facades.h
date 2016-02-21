@@ -139,6 +139,7 @@ namespace Global {
 
 	DeclareReadOnlyVar(uint64, LaunchId);
 	DeclareVar(Adaptive::Layout, AdaptiveLayout);
+	DeclareVar(bool, AdaptiveForWide);
 
 };
 
@@ -150,6 +151,6 @@ namespace Adaptive {
 		return Global::AdaptiveLayout() == NormalLayout;
 	}
 	inline bool Wide() {
-		return Global::AdaptiveLayout() == WideLayout;
+		return Global::AdaptiveForWide() && (Global::AdaptiveLayout() == WideLayout);
 	}
 }

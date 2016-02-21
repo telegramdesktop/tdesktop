@@ -187,6 +187,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _backFromGallery(this, lang(lng_settings_bg_from_gallery))
 , _backFromFile(this, lang(lng_settings_bg_from_file))
 , _tileBackground(this, lang(lng_settings_bg_tile), cTileBackground())
+, _adaptiveForWide(this, lang(lng_settings_adaptive_wide), Global::AdaptiveForWide())
 , _needBackgroundUpdate(false)
 
 // advanced
@@ -310,6 +311,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	connect(&_backFromGallery, SIGNAL(clicked()), this, SLOT(onBackFromGallery()));
 	connect(&_backFromFile, SIGNAL(clicked()), this, SLOT(onBackFromFile()));
 	connect(&_tileBackground, SIGNAL(changed()), this, SLOT(onTileBackground()));
+	connect(&_adaptiveForWide, SIGNAL(changed()), this, SLOT(onAdaptiveForWide()));
 
 	// advanced
 	connect(&_passcodeEdit, SIGNAL(clicked()), this, SLOT(onPasscode()));
@@ -635,6 +637,10 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		top += st::setBackgroundSize;
 		top += st::setLittleSkip;
 		top += _tileBackground.height();
+		if (Global::AdaptiveLayout() == Adaptive::WideLayout) {
+			top += st::setLittleSkip;
+			top += _adaptiveForWide.height();
+		}
 	}
 
 	// advanced
@@ -753,6 +759,10 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 
 		top += st::setLittleSkip;
 		_tileBackground.move(_left, top); top += _tileBackground.height();
+		if (Global::AdaptiveLayout() == Adaptive::WideLayout) {
+			top += st::setLittleSkip;
+			_adaptiveForWide.move(_left, top); top += _adaptiveForWide.height();
+		}
 	}
 
 	// advanced
@@ -853,6 +863,11 @@ void SettingsInner::mousePressEvent(QMouseEvent *e) {
 }
 
 void SettingsInner::contextMenuEvent(QContextMenuEvent *e) {
+}
+
+void SettingsInner::updateAdaptiveLayout() {
+	showAll();
+	resizeEvent(0);
 }
 
 void SettingsInner::step_photo(float64 ms, bool timer) {
@@ -1093,10 +1108,16 @@ void SettingsInner::showAll() {
 		_backFromGallery.show();
 		_backFromFile.show();
 		_tileBackground.show();
+		if (Global::AdaptiveLayout() == Adaptive::WideLayout) {
+			_adaptiveForWide.show();
+		} else {
+			_adaptiveForWide.hide();
+		}
 	} else {
 		_backFromGallery.hide();
 		_backFromFile.hide();
 		_tileBackground.hide();
+		_adaptiveForWide.hide();
 	}
 
 	// advanced
@@ -1628,6 +1649,16 @@ void SettingsInner::onTileBackground() {
 	}
 }
 
+void SettingsInner::onAdaptiveForWide() {
+	if (Global::AdaptiveForWide() != _adaptiveForWide.checked()) {
+		Global::SetAdaptiveForWide(_adaptiveForWide.checked());
+		if (App::wnd()) {
+			App::wnd()->updateAdaptiveLayout();
+		}
+		Local::writeUserSettings();
+	}
+}
+
 void SettingsInner::onDontAskDownloadPath() {
 	cSetAskDownloadPath(!_dontAskDownloadPath.checked());
 	Local::writeUserSettings();
@@ -1898,10 +1929,11 @@ void SettingsWidget::updateAdaptiveLayout() {
 	} else {
 		_close.show();
 	}
+	_inner.updateAdaptiveLayout();
+	resizeEvent(0);
 }
 
-void SettingsWidget::updateDisplayNotify()
-{
+void SettingsWidget::updateDisplayNotify() {
 	_inner.enableDisplayNotify(cDesktopNotify());
 }
 

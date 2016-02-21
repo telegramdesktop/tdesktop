@@ -111,14 +111,14 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
 
   mkdir -p "$WorkPath/ReleaseIntermediateUpdater"
   cd "$WorkPath/ReleaseIntermediateUpdater"
-  /usr/local/Qt-5.5.1/bin/qmake "$HomePath/Updater.pro"
+  /usr/local/Qt-5.5.1/bin/qmake "$HomePath/Updater.pro" -r -spec linux-g++
   make
   echo "Updater build complete!"
   cd "$HomePath"
 
   mkdir -p "$WorkPath/ReleaseIntermediate"
   cd "$WorkPath/ReleaseIntermediate"
-  /usr/local/Qt-5.5.1/bin/qmake "$HomePath/Telegram.pro"
+  /usr/local/Qt-5.5.1/bin/qmake "$HomePath/Telegram.pro" -r -spec linux-g++
   eval "$FixScript"
   make
   echo "Telegram build complete!"

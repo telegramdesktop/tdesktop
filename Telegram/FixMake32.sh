@@ -11,9 +11,6 @@ Replace () {
 }
 
 Replace '\-llzma' '\/usr\/lib\/i386\-linux\-gnu\/liblzma\.a'
-Replace '\-lssl' '\/usr\/lib\/i386\-linux\-gnu\/libssl\.a'
-Replace '\-lcrypto' '\/usr\/lib\/i386\-linux\-gnu\/libcrypto\.a'
-Replace '\-lgobject\-2\.0' '\/usr\/lib\/i386\-linux\-gnu\/libgobject\-2\.0\.a \/usr\/lib\/i386\-linux\-gnu\/libffi\.a'
 Replace '\-lXi' '\/usr\/lib\/i386\-linux\-gnu\/libXi\.a'
 Replace '\-lSM' '\/usr\/lib\/i386\-linux\-gnu\/libSM\.a'
 Replace '\-lICE' '\/usr\/lib\/i386\-linux\-gnu\/libICE\.a'
@@ -28,3 +25,4 @@ Replace '\-lswresample' '\/usr\/local\/lib\/libswresample\.a'
 Replace '\-lswscale' '\/usr\/local\/lib\/libswscale\.a'
 Replace '\-lavutil' '\/usr\/local\/lib\/libavutil\.a'
 Replace '\-lva' '\/usr\/local\/lib\/libva\.a'
+Replace '\-lQt5Network' '\/usr\/local\/Qt-5.5.1\/lib\/libQt5Network.a \/usr\/local\/ssl\/lib\/libssl.a \/usr\/local\/ssl\/lib\/libcrypto.a'

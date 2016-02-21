@@ -2730,7 +2730,7 @@ void LastCrashedWindow::onUpdateFailed() {
 void LastCrashedWindow::onContinue() {
 	if (SignalHandlers::restart() == SignalHandlers::CantOpen) {
 		new NotStartedWindow();
-	} else {
+	} else if (!Global::started()) {
 		Sandbox::launch();
 	}
 	close();

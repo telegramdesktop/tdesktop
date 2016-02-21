@@ -346,7 +346,9 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestI
 	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser), false);
 	App::feedPhoto(d.vprofile_photo);
 	App::feedUserLink(MTP_int(peerToUser(peer->id)), d.vlink.c_contacts_link().vmy_link, d.vlink.c_contacts_link().vforeign_link, false);
-	App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), d.vnotify_settings);
+	if (App::main()) {
+		App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), d.vnotify_settings);
+	}
 
 	peer->asUser()->setBotInfo(d.vbot_info);
 	peer->asUser()->blocked = mtpIsTrue(d.vblocked) ? UserIsBlocked : UserIsNotBlocked;

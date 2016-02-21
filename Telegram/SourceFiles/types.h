@@ -351,6 +351,7 @@ enum DataBlockId {
 	dbiSavedGifsLimit       = 0x35,
 	dbiShowingSavedGifs     = 0x36,
 	dbiAutoPlay             = 0x37,
+	dbiAdaptiveForWide      = 0x38,
 
 	dbiEncryptedWithSalt    = 333,
 	dbiEncrypted            = 444,
