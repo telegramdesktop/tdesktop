@@ -844,10 +844,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		} else {
 			uint16 symbol, selFrom = (_selected.cbegin().value() >> 16) & 0xFFFF, selTo = _selected.cbegin().value() & 0xFFFF;
 			hasSelected = (selTo > selFrom) ? 1 : 0;
-			if (_dragItem && _dragItem == App::hoveredItem()) {
-				QPoint mousePos(mapMouseToItem(mapFromGlobal(_dragPos), _dragItem));
+			if (App::mousedItem() && App::mousedItem() == App::hoveredItem()) {
+				QPoint mousePos(mapMouseToItem(mapFromGlobal(_dragPos), App::mousedItem()));
 				bool afterDragSymbol, uponSymbol;
-				_dragItem->getSymbol(symbol, afterDragSymbol, uponSymbol, mousePos.x(), mousePos.y());
+				App::mousedItem()->getSymbol(symbol, afterDragSymbol, uponSymbol, mousePos.x(), mousePos.y());
 				if (uponSymbol && symbol >= selFrom && symbol < selTo) {
 					isUponSelected = 1;
 				}
@@ -7148,7 +7148,7 @@ void HistoryWidget::drawRecording(Painter &p) {
 }
 
 void HistoryWidget::paintEvent(QPaintEvent *e) {
-	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) return;
+	if (!App::main() || (App::wnd() && App::wnd()->contentOverlapped(this, e))) return;
 
 	Painter p(this);
 	QRect r(e->rect());

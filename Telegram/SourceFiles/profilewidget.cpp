@@ -1077,6 +1077,15 @@ void ProfileInner::mouseReleaseEvent(QMouseEvent *e) {
 		connect(box, SIGNAL(confirmed()), this, SLOT(onKickConfirm()));
 		Ui::showLayer(box);
 	}
+
+	_kickDown = 0;
+	if (!_photoLink && (_peerUser || (_peerChat && !_peerChat->canEdit()) || (_peerChannel && !_amCreator))) {
+		setCursor((_kickOver || _kickDown || textlnkOver()) ? style::cur_pointer : style::cur_default);
+	} else {
+		setCursor((_kickOver || _kickDown || _photoOver || textlnkOver()) ? style::cur_pointer : style::cur_default);
+	}
+	update();
+
 	if (textlnkDown()) {
 		TextLinkPtr lnk = textlnkDown();
 		textlnkDown(TextLinkPtr());
@@ -1087,17 +1096,10 @@ void ProfileInner::mouseReleaseEvent(QMouseEvent *e) {
 				if (reBotCommand().match(lnk->encoded()).hasMatch()) {
 					Ui::showPeerHistory(_peer, ShowAtTheEndMsgId);
 				}
-				lnk->onClick(e->button());
+				App::activateTextLink(lnk, e->button());
 			}
 		}
 	}
-	_kickDown = 0;
-	if (!_photoLink && (_peerUser || (_peerChat && !_peerChat->canEdit()) || (_peerChannel && !_amCreator))) {
-		setCursor((_kickOver || _kickDown || textlnkOver()) ? style::cur_pointer : style::cur_default);
-	} else {
-		setCursor((_kickOver || _kickDown || _photoOver || textlnkOver()) ? style::cur_pointer : style::cur_default);
-	}
-	update();
 }
 
 void ProfileInner::onKickConfirm() {

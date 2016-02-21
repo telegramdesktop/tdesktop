@@ -688,11 +688,12 @@ void PhotoCancelLink::onClick(Qt::MouseButton button) const {
 	if (!data->date) return;
 
 	if (data->uploading()) {
-		HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0);
-		if (HistoryMessage *msg = item->toHistoryMessage()) {
-			if (msg->getMedia() && msg->getMedia()->type() == MediaTypePhoto && static_cast<HistoryPhoto*>(msg->getMedia())->photo() == data) {
-				App::contextItem(item);
-				App::main()->deleteLayer(-2);
+		if (HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0)) {
+			if (HistoryMessage *msg = item->toHistoryMessage()) {
+				if (msg->getMedia() && msg->getMedia()->type() == MediaTypePhoto && static_cast<HistoryPhoto*>(msg->getMedia())->photo() == data) {
+					App::contextItem(item);
+					App::main()->deleteLayer(-2);
+				}
 			}
 		}
 	} else {
@@ -964,11 +965,12 @@ void DocumentCancelLink::onClick(Qt::MouseButton button) const {
 	if (!data->date) return;
 
 	if (data->uploading()) {
-		HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0);
-		if (HistoryMessage *msg = item->toHistoryMessage()) {
-			if (msg->getMedia() && msg->getMedia()->getDocument() == data) {
-				App::contextItem(item);
-				App::main()->deleteLayer(-2);
+		if (HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0)) {
+			if (HistoryMessage *msg = item->toHistoryMessage()) {
+				if (msg->getMedia() && msg->getMedia()->getDocument() == data) {
+					App::contextItem(item);
+					App::main()->deleteLayer(-2);
+				}
 			}
 		}
 	} else {
