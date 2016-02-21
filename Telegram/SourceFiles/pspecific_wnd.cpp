@@ -2170,6 +2170,14 @@ namespace PlatformSpecific {
 		}
 	}
 
+	namespace ThirdParty {
+		void start() {
+		}
+
+		void finish() {
+		}
+	}
+
 }
 
 namespace {

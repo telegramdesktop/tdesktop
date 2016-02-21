@@ -43,4 +43,9 @@ namespace PlatformSpecific {
 		~Initializer();
 	};
 
+	namespace ThirdParty {
+		void start();
+		void finish();
+	}
+
 }
