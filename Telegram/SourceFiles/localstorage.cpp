@@ -1121,6 +1121,14 @@ namespace {
 			}
 		} break;
 
+		case dbiAdaptiveForWide: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			Global::SetAdaptiveForWide(v == 1);
+		} break;
+
 		case dbiAutoLock: {
 			qint32 v;
 			stream >> v;
@@ -1506,6 +1514,7 @@ namespace {
 		EncryptedDescriptor data(size);
 		data.stream << quint32(dbiSendKey) << qint32(cCtrlEnter() ? dbiskCtrlEnter : dbiskEnter);
 		data.stream << quint32(dbiTileBackground) << qint32(cTileBackground() ? 1 : 0);
+		data.stream << quint32(dbiAdaptiveForWide) << qint32(Global::AdaptiveForWide() ? 1 : 0);
 		data.stream << quint32(dbiAutoLock) << qint32(cAutoLock());
 		data.stream << quint32(dbiReplaceEmojis) << qint32(cReplaceEmojis() ? 1 : 0);
 		data.stream << quint32(dbiDefaultAttach) << qint32(cDefaultAttach());

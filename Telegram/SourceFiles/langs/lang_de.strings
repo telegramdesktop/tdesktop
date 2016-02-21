@@ -525,7 +525,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_profile_migrate_reached" = "Limit von {count:_not_used_|# Mitglied|# Mitgliedern} erreicht";
 "lng_profile_migrate_about" = "Für weitere Funktionen und um das Limit aufzuheben in Supergruppe ändern:";
-"lng_profile_migrate_feature1" = "— Bis zu {count:_not_used_|# Mitglied|# ;Mitglieder} sind nun möglich";
+"lng_profile_migrate_feature1" = "— Bis zu {count:_not_used_|# Mitglied|# Mitglieder} sind nun möglich";
 "lng_profile_migrate_feature2" = "— Neue Mitglieder sehen gesamten Verlauf";
 "lng_profile_migrate_feature3" = "— Admins können alle Nachrichten löschen";
 "lng_profile_migrate_feature4" = "— Mitteilungen sind standardmäßig stumm";

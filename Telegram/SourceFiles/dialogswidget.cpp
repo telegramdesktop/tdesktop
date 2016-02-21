@@ -1366,6 +1366,8 @@ void DialogsInner::selectSkipPage(int32 pixels, int32 direction) {
 }
 
 void DialogsInner::loadPeerPhotos(int32 yFrom) {
+	if (!parentWidget()) return;
+
 	int32 yTo = yFrom + parentWidget()->height() * 5;
 	MTP::clearLoaderPriorities();
 	if (_state == DefaultState) {
