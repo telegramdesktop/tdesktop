@@ -560,8 +560,9 @@ void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 		}
 	}
 	if (needClick) {
-		needClick->onClick(button);
+		DEBUG_LOG(("Will click link: %1 (%2) %3").arg(needClick->text()).arg(needClick->readable()).arg(needClick->encoded()));
 		dragActionCancel();
+		App::activateTextLink(needClick, button);
 		return;
 	}
 	if (_dragAction == PrepareSelect && !needClick && !_dragWasInactive && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection) {
