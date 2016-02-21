@@ -4690,6 +4690,7 @@ void HistoryWidget::doneShow() {
 
 void HistoryWidget::updateAdaptiveLayout() {
 	_sideShadow.setVisible(!Adaptive::OneColumn());
+	update();
 }
 
 void HistoryWidget::animStop() {

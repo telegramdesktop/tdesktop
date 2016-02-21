@@ -71,6 +71,8 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void contextMenuEvent(QContextMenuEvent *e);
 
+	void updateAdaptiveLayout();
+
 	void step_photo(float64 ms, bool timer);
 
 	void updateSize(int32 newWidth);
@@ -156,6 +158,7 @@ public slots:
 	void onBackFromGallery();
 	void onBackFromFile();
 	void onTileBackground();
+	void onAdaptiveForWide();
 
 	void onLocalStorageClear();
 
@@ -273,7 +276,7 @@ private:
 	// chat background
 	QPixmap _background;
 	LinkButton _backFromGallery, _backFromFile;
-	FlatCheckbox _tileBackground;
+	FlatCheckbox _tileBackground, _adaptiveForWide;
 	bool _needBackgroundUpdate;
 
 	// advanced
