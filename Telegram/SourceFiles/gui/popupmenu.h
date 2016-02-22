@@ -133,6 +133,7 @@ public:
 public slots:
 
 	void onShow();
+	void onWndActiveChanged();
 	void onHideByLeave();
 
 protected:

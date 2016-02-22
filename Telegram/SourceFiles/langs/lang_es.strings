@@ -262,6 +262,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_bg_from_gallery" = "Elegir desde la galería";
 "lng_settings_bg_from_file" = "Elegir desde archivos";
 "lng_settings_bg_tile" = "Fondo con mosaico";
+"lng_settings_adaptive_wide" = "Diseño adaptable para pantallas anchas";
 
 "lng_backgrounds_header" = "Elige tu nuevo fondo de chat";
 
@@ -836,7 +837,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "– Nueva visualización de ondas para los mensajes de voz\n– Sugerencias de stickers cuando escribes un emoji";
+"lng_new_version_text" = "— Ajuste para activar o desactivar el diseño adaptable para pantallas anchas \n— Arreglado el cierre inesperado en la versión para Linux";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

@@ -539,6 +539,8 @@ PopupTooltip::PopupTooltip() : TWidget(0)
 
 	_showTimer.setSingleShot(true);
 	connect(&_showTimer, SIGNAL(timeout()), this, SLOT(onShow()));
+
+	connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
 }
 
 void PopupTooltip::onShow() {
@@ -549,6 +551,12 @@ void PopupTooltip::onShow() {
 		} else {
 			PopupTooltipInstance->popup(_shower->tooltipPos(), text, _shower->tooltipSt());
 		}
+	}
+}
+
+void PopupTooltip::onWndActiveChanged() {
+	if (!App::wnd()->windowHandle()->isActive()) {
+		PopupTooltip::Hide();
 	}
 }
 
