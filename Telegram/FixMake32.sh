@@ -11,7 +11,7 @@ Replace () {
 }
 
 Replace '\-llzma' '\/usr\/lib\/i386\-linux\-gnu\/liblzma\.a'
-Replace '\-lXi' '\/usr\/lib\/i386\-linux\-gnu\/libXi\.a'
+Replace '\-lXi' '\/usr\/lib\/i386\-linux\-gnu\/libXi\.a \/usr\/lib\/i386\-linux\-gnu\/libXext\.a'
 Replace '\-lSM' '\/usr\/lib\/i386\-linux\-gnu\/libSM\.a'
 Replace '\-lICE' '\/usr\/lib\/i386\-linux\-gnu\/libICE\.a'
 Replace '\-lfontconfig' '\/usr\/lib\/i386\-linux\-gnu\/libfontconfig\.a \/usr\/lib\/i386\-linux\-gnu\/libexpat\.a'
