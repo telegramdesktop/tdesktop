@@ -262,6 +262,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_bg_from_gallery" = "이미지 선택";
 "lng_settings_bg_from_file" = "파일 선택";
 "lng_settings_bg_tile" = "타일형 배경화면";
+"lng_settings_adaptive_wide" = "와이드 스크린 레이아웃 적용";
 
 "lng_backgrounds_header" = "새로운 대화창 배경화면을 선택";
 
@@ -836,7 +837,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 음성 메시지에 웨이브 시각 효과 추가\n— 이모티콘 입력시 스티커 추천";
+"lng_new_version_text" = "— 와이드 스크린 레이아웃 설정 적용\n— 리눅스 버전 크래시 수정";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 
