@@ -1260,12 +1260,10 @@ void Window::resizeEvent(QResizeEvent *e) {
 	if (!title) return;
 
 	Adaptive::Layout layout = Adaptive::OneColumnLayout;
-	if (width() >= st::adaptiveNormalWidth) {
-		if (width() - chatsListWidth(width()) >= st::historyMaxWidth) {
-			layout = Adaptive::WideLayout;
-		} else {
-			layout = Adaptive::NormalLayout;
-		}
+	if (width() > st::adaptiveWideWidth) {
+		layout = Adaptive::WideLayout;
+	} else if (width() >= st::adaptiveNormalWidth) {
+		layout = Adaptive::NormalLayout;
 	}
 	if (layout != Global::AdaptiveLayout()) {
 		Global::SetAdaptiveLayout(layout);

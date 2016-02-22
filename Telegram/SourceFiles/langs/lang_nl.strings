@@ -262,6 +262,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_bg_from_gallery" = "Uit galerij kiezen";
 "lng_settings_bg_from_file" = "Bestand kiezen";
 "lng_settings_bg_tile" = "Naast elkaar";
+"lng_settings_adaptive_wide" = "Adaptieve layout voor brede schermen";
 
 "lng_backgrounds_header" = "Kies je nieuwe achtergrond";
 
@@ -836,7 +837,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Nieuwe visualisatie voor spraakberichten\n— Stickersuggesties als een emoji typt";
+"lng_new_version_text" = "— Adaptieve layout voor brede schermen toegevoegd aan instellingen\n— Crashes in de Linuxversie opgelost";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

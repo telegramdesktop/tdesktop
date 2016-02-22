@@ -1053,7 +1053,7 @@ void AppClass::checkMapVersion() {
 			QString versionFeatures;
 			if ((cDevVersion() || cBetaVersion()) && Local::oldMapVersion() < 9025) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Adaptive layout for wide screens switch added to Settings\n\xe2\x80\x94 Linux version crash fix");// .replace('@', qsl("@") + QChar(0x200D));
-			} else if (Local::oldMapVersion() < 9024) {
+			} else if (Local::oldMapVersion() < 9026) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
