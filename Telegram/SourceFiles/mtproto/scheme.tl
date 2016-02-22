@@ -209,7 +209,7 @@ userStatusLastMonth#77ebc742 = UserStatus;
 chatEmpty#9ba2d800 id:int = Chat;
 chat#d91cdd54 flags:# creator:flags.0?true kicked:flags.1?true left:flags.2?true admins_enabled:flags.3?true admin:flags.4?true deactivated:flags.5?true id:int title:string photo:ChatPhoto participants_count:int date:int version:int migrated_to:flags.6?InputChannel = Chat;
 chatForbidden#7328bdb id:int title:string = Chat;
-channel#4b1b7506 flags:# creator:flags.0?true kicked:flags.1?true left:flags.2?true editor:flags.3?true moderator:flags.4?true broadcast:flags.5?true verified:flags.7?true megagroup:flags.8?true restricted:flags.9?true admin_invites:flags.10?true signatures:flags.11?true id:int access_hash:long title:string username:flags.6?string photo:ChatPhoto date:int version:int restriction_reason:flags.9?string = Chat;
+channel#4b1b7506 flags:# creator:flags.0?true kicked:flags.1?true left:flags.2?true editor:flags.3?true moderator:flags.4?true broadcast:flags.5?true verified:flags.7?true megagroup:flags.8?true restricted:flags.9?true democracy:flags.10?true signatures:flags.11?true id:int access_hash:long title:string username:flags.6?string photo:ChatPhoto date:int version:int restriction_reason:flags.9?string = Chat;
 channelForbidden#2d85832c id:int access_hash:long title:string = Chat;
 
 chatFull#2e02a614 id:int participants:ChatParticipants chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite bot_info:Vector<BotInfo> = ChatFull;
@@ -280,13 +280,13 @@ inputNotifyAll#a429b886 = InputNotifyPeer;
 inputPeerNotifyEventsEmpty#f03064d8 = InputPeerNotifyEvents;
 inputPeerNotifyEventsAll#e86a2c74 = InputPeerNotifyEvents;
 
-inputPeerNotifySettings#46a2ce98 mute_until:int sound:string show_previews:Bool events_mask:int = InputPeerNotifySettings;
+inputPeerNotifySettings#38935eb2 flags:# show_previews:flags.0?true silent:flags.1?true mute_until:int sound:string = InputPeerNotifySettings;
 
 peerNotifyEventsEmpty#add53cb3 = PeerNotifyEvents;
 peerNotifyEventsAll#6d1ded88 = PeerNotifyEvents;
 
 peerNotifySettingsEmpty#70a68512 = PeerNotifySettings;
-peerNotifySettings#8d5e11ee mute_until:int sound:string show_previews:Bool events_mask:int = PeerNotifySettings;
+peerNotifySettings#9acda4c0 flags:# show_previews:flags.0?true silent:flags.1?true mute_until:int sound:string = PeerNotifySettings;
 
 wallPaper#ccb03657 id:int title:string sizes:Vector<PhotoSize> color:int = WallPaper;
 wallPaperSolid#63117f24 id:int title:string bg_color:int color:int = WallPaper;
@@ -644,7 +644,7 @@ exportedMessageLink#1f486803 link:string = ExportedMessageLink;
 
 messageFwdHeader#c786ddcb flags:# from_id:flags.0?int date:int channel_id:flags.1?int channel_post:flags.2?int = MessageFwdHeader;
 
-channels.messageEditData#b86fd3cf flags:# caption:flags.1?true from_id:int edit_by:flags.0?int edit_date:flags.0?int users:Vector<User> = channels.MessageEditData;
+channels.messageEditData#67e1255f flags:# caption:flags.0?true = channels.MessageEditData;
 
 ---functions---
 
@@ -721,9 +721,9 @@ messages.deleteHistory#b7c13bd9 peer:InputPeer max_id:int = messages.AffectedHis
 messages.deleteMessages#a5f18925 id:Vector<int> = messages.AffectedMessages;
 messages.receivedMessages#5a954c0 max_id:int = Vector<ReceivedNotifyMessage>;
 messages.setTyping#a3825e50 peer:InputPeer action:SendMessageAction = Bool;
-messages.sendMessage#fa88427a flags:# no_webpage:flags.1?true broadcast:flags.4?true silent:flags.5?true peer:InputPeer reply_to_msg_id:flags.0?int message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> = Updates;
-messages.sendMedia#c8f16791 flags:# broadcast:flags.4?true silent:flags.5?true peer:InputPeer reply_to_msg_id:flags.0?int media:InputMedia random_id:long reply_markup:flags.2?ReplyMarkup = Updates;
-messages.forwardMessages#708e0195 flags:# broadcast:flags.4?true silent:flags.5?true from_peer:InputPeer id:Vector<int> random_id:Vector<long> to_peer:InputPeer = Updates;
+messages.sendMessage#fa88427a flags:# no_webpage:flags.1?true broadcast:flags.4?true silent:flags.5?true background:flags.6?true peer:InputPeer reply_to_msg_id:flags.0?int message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> = Updates;
+messages.sendMedia#c8f16791 flags:# broadcast:flags.4?true silent:flags.5?true background:flags.6?true peer:InputPeer reply_to_msg_id:flags.0?int media:InputMedia random_id:long reply_markup:flags.2?ReplyMarkup = Updates;
+messages.forwardMessages#708e0195 flags:# broadcast:flags.4?true silent:flags.5?true background:flags.6?true from_peer:InputPeer id:Vector<int> random_id:Vector<long> to_peer:InputPeer = Updates;
 messages.reportSpam#cf1592db peer:InputPeer = Bool;
 messages.getChats#3c6aa187 id:Vector<int> = messages.Chats;
 messages.getFullChat#3b831c66 chat_id:int = messages.ChatFull;
@@ -767,7 +767,7 @@ messages.getSavedGifs#83bf3d52 hash:int = messages.SavedGifs;
 messages.saveGif#327a30cb id:InputDocument unsave:Bool = Bool;
 messages.getInlineBotResults#9324600d bot:InputUser query:string offset:string = messages.BotResults;
 messages.setInlineBotResults#3f23ec12 flags:# gallery:flags.0?true private:flags.1?true query_id:long results:Vector<InputBotInlineResult> cache_time:int next_offset:flags.2?string = Bool;
-messages.sendInlineBotResult#b16e06fe flags:# broadcast:flags.4?true silent:flags.5?true peer:InputPeer reply_to_msg_id:flags.0?int random_id:long query_id:long id:string = Updates;
+messages.sendInlineBotResult#b16e06fe flags:# broadcast:flags.4?true silent:flags.5?true background:flags.6?true peer:InputPeer reply_to_msg_id:flags.0?int random_id:long query_id:long id:string = Updates;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#a041495 pts:int date:int qts:int = updates.Difference;

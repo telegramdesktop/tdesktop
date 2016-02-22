@@ -163,12 +163,16 @@ static const MsgId ServerMaxMsgId = 0x3FFFFFFF;
 static const MsgId ShowAtUnreadMsgId = 0;
 
 struct NotifySettings {
-	NotifySettings() : mute(0), sound("default"), previews(true), events(1) {
+	NotifySettings() : flags(MTPDinputPeerNotifySettings::flag_show_previews), mute(0), sound("default") {
 	}
-	int32 mute;
+	int32 flags, mute;
 	string sound;
-	bool previews;
-	int32 events;
+	bool previews() const {
+		return flags & MTPDinputPeerNotifySettings::flag_show_previews;
+	}
+	bool silent() const {
+		return flags & MTPDinputPeerNotifySettings::flag_silent;
+	}
 };
 typedef NotifySettings *NotifySettingsPtr;
 
@@ -633,7 +637,7 @@ public:
 		return flags & MTPDchannel::flag_verified;
 	}
 	bool canAddParticipants() const {
-		return amCreator() || amEditor() || (flags & MTPDchannel::flag_admin_invites);
+		return amCreator() || amEditor() || (flags & MTPDchannel::flag_democracy);
 	}
 
 //	ImagePtr photoFull;

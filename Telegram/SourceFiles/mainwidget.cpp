@@ -2854,7 +2854,7 @@ void MainWidget::onUpdateNotifySettings() {
 		if (peer->notify == UnknownNotifySettings || peer->notify == EmptyNotifySettings) {
 			peer->notify = new NotifySettings();
 		}
-		MTP::send(MTPaccount_UpdateNotifySettings(MTP_inputNotifyPeer(peer->input), MTP_inputPeerNotifySettings(MTP_int(peer->notify->mute), MTP_string(peer->notify->sound), MTP_bool(peer->notify->previews), MTP_int(peer->notify->events))), RPCResponseHandler(), 0, updateNotifySettingPeers.isEmpty() ? 0 : 10);
+		MTP::send(MTPaccount_UpdateNotifySettings(MTP_inputNotifyPeer(peer->input), MTP_inputPeerNotifySettings(MTP_int(peer->notify->flags), MTP_int(peer->notify->mute), MTP_string(peer->notify->sound))), RPCResponseHandler(), 0, updateNotifySettingPeers.isEmpty() ? 0 : 10);
 	}
 }
 
@@ -3668,10 +3668,9 @@ void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNoti
 		}
 		if (setTo == UnknownNotifySettings) break;
 
+		setTo->flags = d.vflags.v;
 		setTo->mute = d.vmute_until.v;
 		setTo->sound = d.vsound.c_string().v;
-		setTo->previews = mtpIsTrue(d.vshow_previews);
-		setTo->events = d.vevents_mask.v;
 		if (updatePeer) {
 			if (!h) h = App::history(updatePeer->id);
 			int32 changeIn = 0;

@@ -545,7 +545,7 @@ PopupTooltip::PopupTooltip() : TWidget(0)
 
 void PopupTooltip::onShow() {
 	if (_shower) {
-		QString text = _shower->tooltipText();
+		QString text = (App::wnd() && App::wnd()->isActive(false)) ? _shower->tooltipText() : QString();
 		if (text.isEmpty()) {
 			Hide();
 		} else {

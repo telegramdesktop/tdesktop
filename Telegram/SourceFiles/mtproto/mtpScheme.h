@@ -186,11 +186,11 @@ enum {
 	mtpc_inputNotifyAll = 0xa429b886,
 	mtpc_inputPeerNotifyEventsEmpty = 0xf03064d8,
 	mtpc_inputPeerNotifyEventsAll = 0xe86a2c74,
-	mtpc_inputPeerNotifySettings = 0x46a2ce98,
+	mtpc_inputPeerNotifySettings = 0x38935eb2,
 	mtpc_peerNotifyEventsEmpty = 0xadd53cb3,
 	mtpc_peerNotifyEventsAll = 0x6d1ded88,
 	mtpc_peerNotifySettingsEmpty = 0x70a68512,
-	mtpc_peerNotifySettings = 0x8d5e11ee,
+	mtpc_peerNotifySettings = 0x9acda4c0,
 	mtpc_wallPaper = 0xccb03657,
 	mtpc_wallPaperSolid = 0x63117f24,
 	mtpc_inputReportReasonSpam = 0x58dbcab8,
@@ -449,7 +449,7 @@ enum {
 	mtpc_messages_botResults = 0x1170b0a3,
 	mtpc_exportedMessageLink = 0x1f486803,
 	mtpc_messageFwdHeader = 0xc786ddcb,
-	mtpc_channels_messageEditData = 0xb86fd3cf,
+	mtpc_channels_messageEditData = 0x67e1255f,
 	mtpc_invokeAfterMsg = 0xcb9f372d,
 	mtpc_invokeAfterMsgs = 0x3dc4b4f0,
 	mtpc_initConnection = 0x69796de9,
@@ -4240,7 +4240,7 @@ public:
 private:
 	explicit MTPinputPeerNotifySettings(MTPDinputPeerNotifySettings *_data);
 
-	friend MTPinputPeerNotifySettings MTP_inputPeerNotifySettings(MTPint _mute_until, const MTPstring &_sound, MTPBool _show_previews, MTPint _events_mask);
+	friend MTPinputPeerNotifySettings MTP_inputPeerNotifySettings(MTPint _flags, MTPint _mute_until, const MTPstring &_sound);
 };
 typedef MTPBoxed<MTPinputPeerNotifySettings> MTPInputPeerNotifySettings;
 
@@ -4301,7 +4301,7 @@ private:
 	explicit MTPpeerNotifySettings(MTPDpeerNotifySettings *_data);
 
 	friend MTPpeerNotifySettings MTP_peerNotifySettingsEmpty();
-	friend MTPpeerNotifySettings MTP_peerNotifySettings(MTPint _mute_until, const MTPstring &_sound, MTPBool _show_previews, MTPint _events_mask);
+	friend MTPpeerNotifySettings MTP_peerNotifySettings(MTPint _flags, MTPint _mute_until, const MTPstring &_sound);
 
 	mtpTypeId _type;
 };
@@ -9080,7 +9080,7 @@ public:
 private:
 	explicit MTPchannels_messageEditData(MTPDchannels_messageEditData *_data);
 
-	friend MTPchannels_messageEditData MTP_channels_messageEditData(MTPint _flags, MTPint _from_id, MTPint _edit_by, MTPint _edit_date, const MTPVector<MTPUser> &_users);
+	friend MTPchannels_messageEditData MTP_channels_messageEditData(MTPint _flags);
 };
 typedef MTPBoxed<MTPchannels_messageEditData> MTPchannels_MessageEditData;
 
@@ -9953,7 +9953,7 @@ public:
 		flag_verified = (1 << 7),
 		flag_megagroup = (1 << 8),
 		flag_restricted = (1 << 9),
-		flag_admin_invites = (1 << 10),
+		flag_democracy = (1 << 10),
 		flag_signatures = (1 << 11),
 		flag_username = (1 << 6),
 		flag_restriction_reason = (1 << 9),
@@ -9968,7 +9968,7 @@ public:
 	bool is_verified() const { return vflags.v & flag_verified; }
 	bool is_megagroup() const { return vflags.v & flag_megagroup; }
 	bool is_restricted() const { return vflags.v & flag_restricted; }
-	bool is_admin_invites() const { return vflags.v & flag_admin_invites; }
+	bool is_democracy() const { return vflags.v & flag_democracy; }
 	bool is_signatures() const { return vflags.v & flag_signatures; }
 	bool has_username() const { return vflags.v & flag_username; }
 	bool has_restriction_reason() const { return vflags.v & flag_restriction_reason; }
@@ -10551,26 +10551,40 @@ class MTPDinputPeerNotifySettings : public mtpDataImpl<MTPDinputPeerNotifySettin
 public:
 	MTPDinputPeerNotifySettings() {
 	}
-	MTPDinputPeerNotifySettings(MTPint _mute_until, const MTPstring &_sound, MTPBool _show_previews, MTPint _events_mask) : vmute_until(_mute_until), vsound(_sound), vshow_previews(_show_previews), vevents_mask(_events_mask) {
+	MTPDinputPeerNotifySettings(MTPint _flags, MTPint _mute_until, const MTPstring &_sound) : vflags(_flags), vmute_until(_mute_until), vsound(_sound) {
 	}
 
+	MTPint vflags;
 	MTPint vmute_until;
 	MTPstring vsound;
-	MTPBool vshow_previews;
-	MTPint vevents_mask;
+
+	enum {
+		flag_show_previews = (1 << 0),
+		flag_silent = (1 << 1),
+	};
+
+	bool is_show_previews() const { return vflags.v & flag_show_previews; }
+	bool is_silent() const { return vflags.v & flag_silent; }
 };
 
 class MTPDpeerNotifySettings : public mtpDataImpl<MTPDpeerNotifySettings> {
 public:
 	MTPDpeerNotifySettings() {
 	}
-	MTPDpeerNotifySettings(MTPint _mute_until, const MTPstring &_sound, MTPBool _show_previews, MTPint _events_mask) : vmute_until(_mute_until), vsound(_sound), vshow_previews(_show_previews), vevents_mask(_events_mask) {
+	MTPDpeerNotifySettings(MTPint _flags, MTPint _mute_until, const MTPstring &_sound) : vflags(_flags), vmute_until(_mute_until), vsound(_sound) {
 	}
 
+	MTPint vflags;
 	MTPint vmute_until;
 	MTPstring vsound;
-	MTPBool vshow_previews;
-	MTPint vevents_mask;
+
+	enum {
+		flag_show_previews = (1 << 0),
+		flag_silent = (1 << 1),
+	};
+
+	bool is_show_previews() const { return vflags.v & flag_show_previews; }
+	bool is_silent() const { return vflags.v & flag_silent; }
 };
 
 class MTPDwallPaper : public mtpDataImpl<MTPDwallPaper> {
@@ -13214,24 +13228,16 @@ class MTPDchannels_messageEditData : public mtpDataImpl<MTPDchannels_messageEdit
 public:
 	MTPDchannels_messageEditData() {
 	}
-	MTPDchannels_messageEditData(MTPint _flags, MTPint _from_id, MTPint _edit_by, MTPint _edit_date, const MTPVector<MTPUser> &_users) : vflags(_flags), vfrom_id(_from_id), vedit_by(_edit_by), vedit_date(_edit_date), vusers(_users) {
+	MTPDchannels_messageEditData(MTPint _flags) : vflags(_flags) {
 	}
 
 	MTPint vflags;
-	MTPint vfrom_id;
-	MTPint vedit_by;
-	MTPint vedit_date;
-	MTPVector<MTPUser> vusers;
 
 	enum {
-		flag_caption = (1 << 1),
-		flag_edit_by = (1 << 0),
-		flag_edit_date = (1 << 0),
+		flag_caption = (1 << 0),
 	};
 
 	bool is_caption() const { return vflags.v & flag_caption; }
-	bool has_edit_by() const { return vflags.v & flag_edit_by; }
-	bool has_edit_date() const { return vflags.v & flag_edit_date; }
 };
 
 // RPC methods
@@ -16418,6 +16424,7 @@ public:
 		flag_no_webpage = (1 << 1),
 		flag_broadcast = (1 << 4),
 		flag_silent = (1 << 5),
+		flag_background = (1 << 6),
 		flag_reply_to_msg_id = (1 << 0),
 		flag_reply_markup = (1 << 2),
 		flag_entities = (1 << 3),
@@ -16426,6 +16433,7 @@ public:
 	bool is_no_webpage() const { return vflags.v & flag_no_webpage; }
 	bool is_broadcast() const { return vflags.v & flag_broadcast; }
 	bool is_silent() const { return vflags.v & flag_silent; }
+	bool is_background() const { return vflags.v & flag_background; }
 	bool has_reply_to_msg_id() const { return vflags.v & flag_reply_to_msg_id; }
 	bool has_reply_markup() const { return vflags.v & flag_reply_markup; }
 	bool has_entities() const { return vflags.v & flag_entities; }
@@ -16489,12 +16497,14 @@ public:
 	enum {
 		flag_broadcast = (1 << 4),
 		flag_silent = (1 << 5),
+		flag_background = (1 << 6),
 		flag_reply_to_msg_id = (1 << 0),
 		flag_reply_markup = (1 << 2),
 	};
 
 	bool is_broadcast() const { return vflags.v & flag_broadcast; }
 	bool is_silent() const { return vflags.v & flag_silent; }
+	bool is_background() const { return vflags.v & flag_background; }
 	bool has_reply_to_msg_id() const { return vflags.v & flag_reply_to_msg_id; }
 	bool has_reply_markup() const { return vflags.v & flag_reply_markup; }
 
@@ -16554,10 +16564,12 @@ public:
 	enum {
 		flag_broadcast = (1 << 4),
 		flag_silent = (1 << 5),
+		flag_background = (1 << 6),
 	};
 
 	bool is_broadcast() const { return vflags.v & flag_broadcast; }
 	bool is_silent() const { return vflags.v & flag_silent; }
+	bool is_background() const { return vflags.v & flag_background; }
 
 	uint32 innerLength() const {
 		return vflags.innerLength() + vfrom_peer.innerLength() + vid.innerLength() + vrandom_id.innerLength() + vto_peer.innerLength();
@@ -18448,11 +18460,13 @@ public:
 	enum {
 		flag_broadcast = (1 << 4),
 		flag_silent = (1 << 5),
+		flag_background = (1 << 6),
 		flag_reply_to_msg_id = (1 << 0),
 	};
 
 	bool is_broadcast() const { return vflags.v & flag_broadcast; }
 	bool is_silent() const { return vflags.v & flag_silent; }
+	bool is_background() const { return vflags.v & flag_background; }
 	bool has_reply_to_msg_id() const { return vflags.v & flag_reply_to_msg_id; }
 
 	uint32 innerLength() const {
@@ -24333,7 +24347,7 @@ inline MTPinputPeerNotifySettings::MTPinputPeerNotifySettings() : mtpDataOwner(n
 
 inline uint32 MTPinputPeerNotifySettings::innerLength() const {
 	const MTPDinputPeerNotifySettings &v(c_inputPeerNotifySettings());
-	return v.vmute_until.innerLength() + v.vsound.innerLength() + v.vshow_previews.innerLength() + v.vevents_mask.innerLength();
+	return v.vflags.innerLength() + v.vmute_until.innerLength() + v.vsound.innerLength();
 }
 inline mtpTypeId MTPinputPeerNotifySettings::type() const {
 	return mtpc_inputPeerNotifySettings;
@@ -24343,22 +24357,20 @@ inline void MTPinputPeerNotifySettings::read(const mtpPrime *&from, const mtpPri
 
 	if (!data) setData(new MTPDinputPeerNotifySettings());
 	MTPDinputPeerNotifySettings &v(_inputPeerNotifySettings());
+	v.vflags.read(from, end);
 	v.vmute_until.read(from, end);
 	v.vsound.read(from, end);
-	v.vshow_previews.read(from, end);
-	v.vevents_mask.read(from, end);
 }
 inline void MTPinputPeerNotifySettings::write(mtpBuffer &to) const {
 	const MTPDinputPeerNotifySettings &v(c_inputPeerNotifySettings());
+	v.vflags.write(to);
 	v.vmute_until.write(to);
 	v.vsound.write(to);
-	v.vshow_previews.write(to);
-	v.vevents_mask.write(to);
 }
 inline MTPinputPeerNotifySettings::MTPinputPeerNotifySettings(MTPDinputPeerNotifySettings *_data) : mtpDataOwner(_data) {
 }
-inline MTPinputPeerNotifySettings MTP_inputPeerNotifySettings(MTPint _mute_until, const MTPstring &_sound, MTPBool _show_previews, MTPint _events_mask) {
-	return MTPinputPeerNotifySettings(new MTPDinputPeerNotifySettings(_mute_until, _sound, _show_previews, _events_mask));
+inline MTPinputPeerNotifySettings MTP_inputPeerNotifySettings(MTPint _flags, MTPint _mute_until, const MTPstring &_sound) {
+	return MTPinputPeerNotifySettings(new MTPDinputPeerNotifySettings(_flags, _mute_until, _sound));
 }
 
 inline uint32 MTPpeerNotifyEvents::innerLength() const {
@@ -24397,7 +24409,7 @@ inline uint32 MTPpeerNotifySettings::innerLength() const {
 	switch (_type) {
 		case mtpc_peerNotifySettings: {
 			const MTPDpeerNotifySettings &v(c_peerNotifySettings());
-			return v.vmute_until.innerLength() + v.vsound.innerLength() + v.vshow_previews.innerLength() + v.vevents_mask.innerLength();
+			return v.vflags.innerLength() + v.vmute_until.innerLength() + v.vsound.innerLength();
 		}
 	}
 	return 0;
@@ -24413,10 +24425,9 @@ inline void MTPpeerNotifySettings::read(const mtpPrime *&from, const mtpPrime *e
 		case mtpc_peerNotifySettings: _type = cons; {
 			if (!data) setData(new MTPDpeerNotifySettings());
 			MTPDpeerNotifySettings &v(_peerNotifySettings());
+			v.vflags.read(from, end);
 			v.vmute_until.read(from, end);
 			v.vsound.read(from, end);
-			v.vshow_previews.read(from, end);
-			v.vevents_mask.read(from, end);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPpeerNotifySettings");
 	}
@@ -24425,10 +24436,9 @@ inline void MTPpeerNotifySettings::write(mtpBuffer &to) const {
 	switch (_type) {
 		case mtpc_peerNotifySettings: {
 			const MTPDpeerNotifySettings &v(c_peerNotifySettings());
+			v.vflags.write(to);
 			v.vmute_until.write(to);
 			v.vsound.write(to);
-			v.vshow_previews.write(to);
-			v.vevents_mask.write(to);
 		} break;
 	}
 }
@@ -24444,8 +24454,8 @@ inline MTPpeerNotifySettings::MTPpeerNotifySettings(MTPDpeerNotifySettings *_dat
 inline MTPpeerNotifySettings MTP_peerNotifySettingsEmpty() {
 	return MTPpeerNotifySettings(mtpc_peerNotifySettingsEmpty);
 }
-inline MTPpeerNotifySettings MTP_peerNotifySettings(MTPint _mute_until, const MTPstring &_sound, MTPBool _show_previews, MTPint _events_mask) {
-	return MTPpeerNotifySettings(new MTPDpeerNotifySettings(_mute_until, _sound, _show_previews, _events_mask));
+inline MTPpeerNotifySettings MTP_peerNotifySettings(MTPint _flags, MTPint _mute_until, const MTPstring &_sound) {
+	return MTPpeerNotifySettings(new MTPDpeerNotifySettings(_flags, _mute_until, _sound));
 }
 
 inline uint32 MTPwallPaper::innerLength() const {
@@ -30909,7 +30919,7 @@ inline MTPchannels_messageEditData::MTPchannels_messageEditData() : mtpDataOwner
 
 inline uint32 MTPchannels_messageEditData::innerLength() const {
 	const MTPDchannels_messageEditData &v(c_channels_messageEditData());
-	return v.vflags.innerLength() + v.vfrom_id.innerLength() + (v.has_edit_by() ? v.vedit_by.innerLength() : 0) + (v.has_edit_date() ? v.vedit_date.innerLength() : 0) + v.vusers.innerLength();
+	return v.vflags.innerLength();
 }
 inline mtpTypeId MTPchannels_messageEditData::type() const {
 	return mtpc_channels_messageEditData;
@@ -30920,23 +30930,15 @@ inline void MTPchannels_messageEditData::read(const mtpPrime *&from, const mtpPr
 	if (!data) setData(new MTPDchannels_messageEditData());
 	MTPDchannels_messageEditData &v(_channels_messageEditData());
 	v.vflags.read(from, end);
-	v.vfrom_id.read(from, end);
-	if (v.has_edit_by()) { v.vedit_by.read(from, end); } else { v.vedit_by = MTPint(); }
-	if (v.has_edit_date()) { v.vedit_date.read(from, end); } else { v.vedit_date = MTPint(); }
-	v.vusers.read(from, end);
 }
 inline void MTPchannels_messageEditData::write(mtpBuffer &to) const {
 	const MTPDchannels_messageEditData &v(c_channels_messageEditData());
 	v.vflags.write(to);
-	v.vfrom_id.write(to);
-	if (v.has_edit_by()) v.vedit_by.write(to);
-	if (v.has_edit_date()) v.vedit_date.write(to);
-	v.vusers.write(to);
 }
 inline MTPchannels_messageEditData::MTPchannels_messageEditData(MTPDchannels_messageEditData *_data) : mtpDataOwner(_data) {
 }
-inline MTPchannels_messageEditData MTP_channels_messageEditData(MTPint _flags, MTPint _from_id, MTPint _edit_by, MTPint _edit_date, const MTPVector<MTPUser> &_users) {
-	return MTPchannels_messageEditData(new MTPDchannels_messageEditData(_flags, _from_id, _edit_by, _edit_date, _users));
+inline MTPchannels_messageEditData MTP_channels_messageEditData(MTPint _flags) {
+	return MTPchannels_messageEditData(new MTPDchannels_messageEditData(_flags));
 }
 
 // Human-readable text serialization
