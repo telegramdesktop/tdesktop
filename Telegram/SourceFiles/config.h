@@ -55,7 +55,7 @@ enum {
 	MTPDownloadSessionsCount = 4, // max 4 download sessions is created
 	MTPKillFileSessionTimeout = 5000, // how much time without upload / download causes additional session kill
 
-	MTPEnumDCTimeout = 4000, // 4 seconds timeout for help_getConfig to work (them move to other dc)
+	MTPEnumDCTimeout = 8000, // 8 seconds timeout for help_getConfig to work (then move to other dc)
 
 	MTPDebugBufferSize = 1024 * 1024, // 1 mb start size
 

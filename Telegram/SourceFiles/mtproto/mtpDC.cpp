@@ -258,15 +258,19 @@ void MTProtoConfigLoader::enumDC() {
 	} else {
 		MTP::killSession(MTP::cfg + _enumCurrent);
 	}
+	OrderedSet<int32> dcs;
 	{
 		QReadLocker lock(mtpDcOptionsMutex());
 		const mtpDcOptions &options(cDcOptions());
 		for (mtpDcOptions::const_iterator i = options.cbegin(), e = options.cend(); i != e; ++i) {
-			if (i.key() == _enumCurrent) {
-				_enumCurrent = (++i == e) ? options.cbegin().key() : i.key();
-				break;
-			}
+			dcs.insert(i.key() % _mtp_internal::dcShift);
 		}
+	}
+	OrderedSet<int32>::const_iterator i = dcs.constFind(_enumCurrent);
+	if (i == dcs.cend() || (++i) == dcs.cend()) {
+		_enumCurrent = dcs.cbegin().key();
+	} else {
+		_enumCurrent = i.key();
 	}
 	_enumRequest = MTP::send(MTPhelp_GetConfig(), rpcDone(configLoaded), rpcFail(configFailed), MTP::cfg + _enumCurrent);
 
