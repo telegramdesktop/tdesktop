@@ -6637,7 +6637,13 @@ void HistoryWidget::onEditMessage() {
 	HistoryItem *to = App::contextItem();
 	if (!to || !to->history()->peer->isChannel()) return;
 
-	Ui::showLayer(new EditPostBox(to));
+	EditCaptionBox *box = new EditCaptionBox(to);
+	if (box->captionFound()) {
+		Ui::showLayer(box);
+	} else {
+		delete box;
+		// edit post
+	}
 }
 
 bool HistoryWidget::lastForceReplyReplied(const FullMsgId &replyTo) const {

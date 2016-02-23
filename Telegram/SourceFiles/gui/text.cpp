@@ -5049,6 +5049,58 @@ EntitiesInText textParseEntities(QString &text, int32 flags, bool rich) { // som
 	return result;
 }
 
+QString textApplyEntities(const QString &text, const EntitiesInText &entities) {
+	if (entities.isEmpty()) return text;
+
+	QMultiMap<int32, QString> closingTags;
+	QString code(qsl("`")), pre(qsl("```"));
+
+	QString result;
+	int32 size = text.size();
+	const QChar *b = text.constData(), *already = b, *e = b + size;
+	EntitiesInText::const_iterator entity = entities.cbegin(), end = entities.cend();
+	while (entity != end && ((entity->type != EntityInTextCode && entity->type != EntityInTextPre) || entity->length <= 0 || entity->offset >= size)) {
+		++entity;
+	}
+	while (entity != end || !closingTags.isEmpty()) {
+		int32 nextOpenEntity = (entity == end) ? (size + 1) : entity->offset;
+		int32 nextCloseEntity = closingTags.isEmpty() ? (size + 1) : closingTags.cbegin().key();
+		if (nextOpenEntity <= nextCloseEntity) {
+			QString tag = (entity->type == EntityInTextCode) ? code : pre;
+			if (result.isEmpty()) result.reserve(text.size() + entities.size() * pre.size() * 2);
+
+			const QChar *offset = b + nextOpenEntity;
+			if (offset > already) {
+				result.append(already, offset - already);
+				already = offset;
+			}
+			result.append(tag);
+			closingTags.insert(qMin(entity->offset + entity->length, size), tag);
+
+			++entity;
+			while (entity != end && ((entity->type != EntityInTextCode && entity->type != EntityInTextPre) || entity->length <= 0 || entity->offset >= size)) {
+				++entity;
+			}
+		} else {
+			const QChar *offset = b + nextCloseEntity;
+			if (offset > already) {
+				result.append(already, offset - already);
+				already = offset;
+			}
+			result.append(closingTags.cbegin().value());
+			closingTags.erase(closingTags.begin());
+		}
+	}
+	if (result.isEmpty()) {
+		return text;
+	}
+	const QChar *offset = b + size;
+	if (offset > already) {
+		result.append(already, offset - already);
+	}
+	return result;
+}
+
 void emojiDraw(QPainter &p, EmojiPtr e, int x, int y) {
 	p.drawPixmap(QPoint(x, y), App::emoji(), QRect(e->x * ESize, e->y * ESize, ESize, ESize));
 }

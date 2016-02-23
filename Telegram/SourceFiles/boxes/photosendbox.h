@@ -83,17 +83,19 @@ private:
 
 };
 
-class EditPostBox : public AbstractBox, public RPCSender {
+class EditCaptionBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
 public:
 
-	EditPostBox(HistoryItem *msg);
+	EditCaptionBox(HistoryItem *msg);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
+	bool captionFound() const;
+
 	void setInnerFocus() {
-		_text->setFocus();
+		_field->setFocus();
 	}
 
 public slots:
@@ -114,12 +116,12 @@ private:
 	void saveDone(const MTPUpdates &updates);
 	bool saveFail(const RPCError &error);
 
-	HistoryItem *_msg;
+	FullMsgId _msgId;
 	bool _animated, _photo, _doc;
 
 	QPixmap _thumb;
 
-	InputArea *_text;
+	InputArea *_field;
 	BoxButton _save, _cancel;
 
 	int32 _thumbx, _thumby, _thumbw, _thumbh;

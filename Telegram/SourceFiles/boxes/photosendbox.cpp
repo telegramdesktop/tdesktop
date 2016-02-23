@@ -360,12 +360,12 @@ void PhotoSendBox::onSend(bool ctrlShiftEnter) {
 	onClose();
 }
 
-EditPostBox::EditPostBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
-, _msg(msg)
+EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
+, _msgId(msg->fullId())
 , _animated(false)
 , _photo(false)
 , _doc(false)
-, _text(0)
+, _field(0)
 , _save(this, lang(lng_settings_save), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _thumbx(0)
@@ -383,7 +383,7 @@ EditPostBox::EditPostBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 	ImagePtr image;
 	QString caption;
 	DocumentData *doc = 0;
-	if (HistoryMedia *media = _msg->getMedia()) {
+	if (HistoryMedia *media = msg->getMedia()) {
 		HistoryMediaType t = media->type();
 		switch (t) {
 		case MediaTypeGif: {
@@ -489,45 +489,51 @@ EditPostBox::EditPostBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 	}
 
 	if (_animated || _photo || _doc) {
-		_text = new InputArea(this, st::confirmCaptionArea, lang(lng_photo_caption), caption);
-		_text->setMaxLength(MaxPhotoCaption);
-		_text->setCtrlEnterSubmit(CtrlEnterSubmitBoth);
+		_field = new InputArea(this, st::confirmCaptionArea, lang(lng_photo_caption), caption);
+		_field->setMaxLength(MaxPhotoCaption);
+		_field->setCtrlEnterSubmit(CtrlEnterSubmitBoth);
 	} else {
-		_text = new InputArea(this, st::editTextArea, lang(lng_edit_placeholder), msg->originalText());
-		_text->setMaxLength(MaxMessageSize);
-		_text->setCtrlEnterSubmit(cCtrlEnter() ? CtrlEnterSubmitCtrlEnter : CtrlEnterSubmitEnter);
+		QString text = textApplyEntities(msg->originalText(), msg->originalEntities());
+		_field = new InputArea(this, st::editTextArea, lang(lng_edit_placeholder), text);
+//		_field->setMaxLength(MaxMessageSize); // entities can make text in input field larger but still valid
+		_field->setCtrlEnterSubmit(cCtrlEnter() ? CtrlEnterSubmitCtrlEnter : CtrlEnterSubmitEnter);
 	}
 	updateBoxSize();
-	connect(_text, SIGNAL(resized()), this, SLOT(onCaptionResized()));
-	connect(_text, SIGNAL(submitted(bool)), this, SLOT(onSave(bool)));
-	connect(_text, SIGNAL(cancelled()), this, SLOT(onClose()));
+	connect(_field, SIGNAL(submitted(bool)), this, SLOT(onSave(bool)));
+	connect(_field, SIGNAL(cancelled()), this, SLOT(onClose()));
+	connect(_field, SIGNAL(resized()), this, SLOT(onCaptionResized()));
 
-	QTextCursor c(_text->textCursor());
+	QTextCursor c(_field->textCursor());
 	c.movePosition(QTextCursor::End);
-	_text->setTextCursor(c);
+	_field->setTextCursor(c);
 
 	prepare();
 }
 
-void EditPostBox::onCaptionResized() {
+bool EditCaptionBox::captionFound() const {
+	return _animated || _photo || _doc;
+}
+
+void EditCaptionBox::onCaptionResized() {
 	updateBoxSize();
 	resizeEvent(0);
 	update();
 }
 
-void EditPostBox::updateBoxSize() {
+void EditCaptionBox::updateBoxSize() {
+	int32 bottomh = st::boxPhotoCompressedPadding.bottom() + _field->height() + st::normalFont->height + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom();
 	if (_photo || _animated) {
-		setMaxHeight(st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom() + st::boxPhotoCompressedPadding.bottom() + _text->height() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+		setMaxHeight(st::boxPhotoPadding.top() + _thumbh + bottomh);
 	} else if (_thumbw) {
-		setMaxHeight(st::boxPhotoPadding.top() + st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom() + st::boxPhotoPadding.bottom() + st::boxPhotoCompressedPadding.bottom() + _text->height() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+		setMaxHeight(st::boxPhotoPadding.top() + 0 + st::msgFileThumbSize + 0 + bottomh);
 	} else if (_doc) {
-		setMaxHeight(st::boxPhotoPadding.top() + st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom() + st::boxPhotoPadding.bottom() + st::boxPhotoCompressedPadding.bottom() + _text->height() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+		setMaxHeight(st::boxPhotoPadding.top() + 0 + st::msgFileSize + 0 + bottomh);
 	} else {
-		setMaxHeight(st::boxPhotoPadding.top() + _text->height() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+		setMaxHeight(st::boxPhotoPadding.top() + st::boxTitleFont->height + bottomh);
 	}
 }
 
-void EditPostBox::paintEvent(QPaintEvent *e) {
+void EditCaptionBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
 
@@ -552,93 +558,108 @@ void EditPostBox::paintEvent(QPaintEvent *e) {
 		}
 	} else if (_doc) {
 		int32 w = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
-		int32 h = _thumbw ? (st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom()) : (st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom());
-		int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, linktop = 0;
+		int32 h = _thumbw ? (0 + st::msgFileThumbSize + 0) : (0 + st::msgFileSize + 0);
+		int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0;
 		if (_thumbw) {
-			nameleft = st::msgFileThumbPadding.left() + st::msgFileThumbSize + st::msgFileThumbPadding.right();
-			nametop = st::msgFileThumbNameTop;
-			nameright = st::msgFileThumbPadding.left();
-			statustop = st::msgFileThumbStatusTop;
-			linktop = st::msgFileThumbLinkTop;
+			nameleft = 0 + st::msgFileThumbSize + st::msgFileThumbPadding.right();
+			nametop = st::msgFileThumbNameTop - st::msgFileThumbPadding.top();
+			nameright = 0;
+			statustop = st::msgFileThumbStatusTop - st::msgFileThumbPadding.top();
 		} else {
-			nameleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
-			nametop = st::msgFileNameTop;
-			nameright = st::msgFilePadding.left();
-			statustop = st::msgFileStatusTop;
+			nameleft = 0 + st::msgFileSize + st::msgFilePadding.right();
+			nametop = st::msgFileNameTop - st::msgFilePadding.top();
+			nameright = 0;
+			statustop = st::msgFileStatusTop - st::msgFilePadding.top();
 		}
-		int32 namewidth = w - nameleft - (_thumbw ? st::msgFileThumbPadding.left() : st::msgFilePadding.left());
+		int32 namewidth = w - nameleft - 0;
 		if (namewidth > _statusw) {
-			w -= (namewidth - _statusw);
-			namewidth = _statusw;
+			//w -= (namewidth - _statusw);
+			//namewidth = _statusw;
 		}
 		int32 x = (width() - w) / 2, y = st::boxPhotoPadding.top();
 
-		App::roundRect(p, x, y, w, h, st::msgOutBg, MessageOutCorners, &st::msgOutShadow);
+//		App::roundRect(p, x, y, w, h, st::msgInBg, MessageInCorners, &st::msgInShadow);
 
 		if (_thumbw) {
-			QRect rthumb(rtlrect(x + st::msgFileThumbPadding.left(), y + st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, width()));
+			QRect rthumb(rtlrect(x + 0, y + 0, st::msgFileThumbSize, st::msgFileThumbSize, width()));
 			p.drawPixmap(rthumb.topLeft(), _thumb);
 		} else {
-			QRect inner(rtlrect(x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, width()));
+			QRect inner(rtlrect(x + 0, y + 0, st::msgFileSize, st::msgFileSize, width()));
 			p.setPen(Qt::NoPen);
-			p.setBrush(st::msgFileOutBg);
+			p.setBrush(st::msgFileInBg);
 
 			p.setRenderHint(QPainter::HighQualityAntialiasing);
 			p.drawEllipse(inner);
 			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
-			p.drawSpriteCenter(inner, _isImage ? st::msgFileOutImage : st::msgFileOutFile);
+			p.drawSpriteCenter(inner, _isImage ? st::msgFileInImage : st::msgFileInFile);
 		}
 		p.setFont(st::semiboldFont);
 		p.setPen(st::black);
 		_name.drawLeftElided(p, x + nameleft, y + nametop, namewidth, width());
 
-		style::color status(st::mediaOutFg);
+		style::color status(st::mediaInFg);
 		p.setFont(st::normalFont);
 		p.setPen(status);
 		p.drawTextLeft(x + nameleft, y + statustop, width(), _status);
+	} else {
+		p.setFont(st::boxTitleFont);
+		p.setPen(st::black);
+		p.drawTextLeft(_field->x(), st::boxPhotoPadding.top(), width(), lang(lng_edit_message));
+	}
+
+	if (!_error.isEmpty()) {
+		p.setFont(st::normalFont);
+		p.setPen(st::setErrColor);
+		p.drawTextLeft(_field->x(), _field->y() + _field->height() + (st::boxButtonPadding.top() / 2), width(), _error);
 	}
 }
 
-void EditPostBox::resizeEvent(QResizeEvent *e) {
+void EditCaptionBox::resizeEvent(QResizeEvent *e) {
 	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
-	_text->resize(st::boxWideWidth - st::boxPhotoPadding.left() - st::boxPhotoPadding.right(), _text->height());
-	_text->moveToLeft(st::boxPhotoPadding.left(), _save.y() - st::boxButtonPadding.top() - _text->height());
+	_field->resize(st::boxWideWidth - st::boxPhotoPadding.left() - st::boxPhotoPadding.right(), _field->height());
+	_field->moveToLeft(st::boxPhotoPadding.left(), _save.y() - st::boxButtonPadding.top() - st::normalFont->height - _field->height());
 }
 
-void EditPostBox::hideAll() {
+void EditCaptionBox::hideAll() {
 	_save.hide();
 	_cancel.hide();
-	_text->hide();
+	_field->hide();
 }
 
-void EditPostBox::showAll() {
+void EditCaptionBox::showAll() {
 	_save.show();
 	_cancel.show();
-	_text->show();
+	_field->show();
 }
 
-void EditPostBox::showDone() {
+void EditCaptionBox::showDone() {
 	setInnerFocus();
 }
 
-void EditPostBox::onSave(bool ctrlShiftEnter) {
+void EditCaptionBox::onSave(bool ctrlShiftEnter) {
 	if (_saveRequestId) return;
+
+	HistoryItem *item = App::histItemById(_msgId);
+	if (!item) {
+		_error = lang(lng_edit_deleted);
+		update();
+		return;
+	}
 
 	int32 flags = 0;
 	if (_previewCancelled) {
 		flags |= MTPchannels_EditMessage::flag_no_webpage;
 	}
-	EntitiesInText sendingEntities;
-	MTPVector<MTPMessageEntity> sentEntities = linksToMTP(sendingEntities, true);
+	MTPVector<MTPMessageEntity> sentEntities;
 	if (!sentEntities.c_vector().v.isEmpty()) {
 		flags |= MTPmessages_SendMessage::flag_entities;
 	}
-	_saveRequestId = MTP::send(MTPchannels_EditMessage(MTP_int(flags), _msg->history()->peer->asChannel()->inputChannel, MTP_int(_msg->id), MTP_string(_text->getLastText()), sentEntities), rpcDone(&EditPostBox::saveDone), rpcFail(&EditPostBox::saveFail));
+	_saveRequestId = MTP::send(MTPchannels_EditMessage(MTP_int(flags), item->history()->peer->asChannel()->inputChannel, MTP_int(item->id), MTP_string(_field->getLastText()), sentEntities), rpcDone(&EditCaptionBox::saveDone), rpcFail(&EditCaptionBox::saveFail));
 }
 
-void EditPostBox::saveDone(const MTPUpdates &updates) {
+void EditCaptionBox::saveDone(const MTPUpdates &updates) {
 	_saveRequestId = 0;
 	onClose();
 	if (App::main()) {
@@ -646,7 +667,7 @@ void EditPostBox::saveDone(const MTPUpdates &updates) {
 	}
 }
 
-bool EditPostBox::saveFail(const RPCError &error) {
+bool EditCaptionBox::saveFail(const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
 
 	_saveRequestId = 0;
@@ -657,8 +678,8 @@ bool EditPostBox::saveFail(const RPCError &error) {
 		onClose();
 		return true;
 	} else if (err == qstr("MESSAGE_EMPTY")) {
-		_text->setFocus();
-		_text->showError();
+		_field->setFocus();
+		_field->showError();
 	} else {
 		_error = lang(lng_edit_error);
 	}
