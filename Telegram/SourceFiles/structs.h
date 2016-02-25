@@ -1217,3 +1217,7 @@ struct MessageCursor {
 	}
 	int position, anchor, scroll;
 };
+
+inline bool operator==(const MessageCursor &a, const MessageCursor &b) {
+	return (a.position == b.position) && (a.anchor == b.anchor) && (a.scroll == b.scroll);
+}

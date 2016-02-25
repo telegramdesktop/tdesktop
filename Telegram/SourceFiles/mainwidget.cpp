@@ -516,10 +516,8 @@ bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QStrin
 		return false;
 	}
 	History *h = App::history(peer);
-	h->draft = url + '\n' + text;
-	h->draftCursor.anchor = url.size() + 1;
-	h->draftCursor.position = h->draftCursor.anchor + text.size();
-	h->draftPreviewCancelled = false;
+	h->setMsgDraft(new HistoryDraft(url + '\n' + text, 0, MessageCursor(url.size() + 1, url.size() + 1 + text.size(), QFIXED_MAX), false));
+	h->setEditDraft(Nil);
 	bool opened = history.peer() && (history.peer()->id == peer);
 	if (opened) {
 		history.applyDraft();
@@ -2039,7 +2037,7 @@ ApiWrap *MainWidget::api() {
 }
 
 void MainWidget::updateReplyTo() {
-	history.updateReplyTo(true);
+	history.updateReplyEditTexts(true);
 }
 
 void MainWidget::updateBotKeyboard(History *h) {

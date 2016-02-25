@@ -36,6 +36,22 @@ T *exchange(T *&ptr) {
 struct NullType {
 };
 
+class NilPointer {
+public:
+	template <typename T>
+	operator T*() const {
+		return 0;
+	}
+	template <typename C, typename T>
+	operator T C::*() const {
+		return 0;
+	}
+
+private:
+	void operator&() const;
+};
+extern NilPointer Nil;
+
 template <typename T>
 class OrderedSet : public QMap<T, NullType> {
 public:

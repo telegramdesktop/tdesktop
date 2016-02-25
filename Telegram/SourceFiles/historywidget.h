@@ -505,9 +505,10 @@ public:
 	void updateScrollColors();
 
 	MsgId replyToId() const;
-	void updateReplyTo(bool force = false);
+	void updateReplyEditTexts(bool force = false);
 	bool lastForceReplyReplied(const FullMsgId &replyTo = FullMsgId(NoChannel, -1)) const;
 	void cancelReply(bool lastKeyboardUsed = false);
+	void cancelEdit();
 	void updateForwarding(bool force = false);
 	void cancelForwarding(); // called by MainWidget
 
@@ -595,7 +596,7 @@ public slots:
 	void onCancel();
 	void onReplyToMessage();
 	void onEditMessage();
-	void onReplyForwardPreviewCancel();
+	void onFieldBarCancel();
 
 	void onCancelSendAction();
 
@@ -689,11 +690,16 @@ public slots:
 private:
 
 	MsgId _replyToId;
-	HistoryItem *_replyTo;
-	Text _replyToName, _replyToText;
+	Text _replyToName;
 	int32 _replyToNameVersion;
-	IconedButton _replyForwardPreviewCancel;
 	void updateReplyToName();
+
+	MsgId _editMsgId;
+
+	HistoryItem *_replyEditMsg;
+	Text _replyEditMsgText;
+
+	IconedButton _fieldBarCancel;
 
 	void sendExistingDocument(DocumentData *doc, const QString &caption);
 	void sendExistingPhoto(PhotoData *photo, const QString &caption);
@@ -701,6 +707,13 @@ private:
 	void drawField(Painter &p);
 	void drawRecordButton(Painter &p);
 	void drawRecording(Painter &p);
+
+	void updateMouseTracking();
+
+	mtpRequestId _saveEditMsgRequestId;
+	void saveEditMsg();
+	void saveEditMsgDone(History *history, const MTPUpdates &updates, mtpRequestId req);
+	bool saveEditMsgFail(History *history, const RPCError &error, mtpRequestId req);
 
 	DBIPeerReportSpamStatus _reportSpamStatus;
 	void updateReportSpamStatus();
@@ -747,7 +760,8 @@ private:
 	void savedGifsGot(const MTPmessages_SavedGifs &gifs);
 	bool savedGifsFailed(const RPCError &error);
 
-	void writeDraft(MsgId *replyTo = 0, const QString *text = 0, const MessageCursor *cursor = 0, bool *previewCancelled = 0);
+	void writeDrafts(HistoryDraft **msgDraft, HistoryEditDraft **editDraft);
+	void writeDrafts(History *history);
 	void setFieldText(const QString &text, int32 textUpdateEventsFlags = 0, bool clearUndoHistory = true);
 
 	QStringList getMediasFromMime(const QMimeData *d);
@@ -806,7 +820,7 @@ private:
 	bool _cmdStartShown;
 	MessageField _field;
 	Animation _a_record, _a_recording;
-	bool _recording, _inRecord, _inField, _inReply;
+	bool _recording, _inRecord, _inField, _inReplyEdit;
 	anim::ivalue a_recordingLevel;
 	int32 _recordingSamples;
 	anim::fvalue a_recordOver, a_recordDown;

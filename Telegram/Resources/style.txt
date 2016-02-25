@@ -1429,6 +1429,7 @@ replyTop: 8px;
 replyBottom: 6px;
 replyIconPos: point(13px, 13px);
 replyIcon: sprite(343px, 197px, 24px, 24px);
+editIcon: sprite(371px, 286px, 24px, 24px);
 replyCancel: iconedButton(btnDefIconed) {
 	icon: sprite(165px, 24px, 14px, 14px);
 	iconPos: point(17px, 17px);

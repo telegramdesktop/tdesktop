@@ -127,6 +127,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_edit_deleted" = "This message was deleted";
 "lng_edit_too_long" = "Your message text is too long";
 "lng_edit_message" = "Edit message";
+"lng_edit_message_text" = "New message text..";
 "lng_deleted" = "Unknown";
 "lng_deleted_message" = "Deleted message";
 
@@ -653,6 +654,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_comment_ph" = "Write a comment..";
 "lng_broadcast_ph" = "Broadcast a message..";
 "lng_record_cancel" = "Release outside this field to cancel";
+"lng_will_be_notified" = "Members will be notified when you post";
+"lng_wont_be_notified" = "Members will not be notified when you post";
 "lng_empty_history" = "";
 "lng_willbe_history" = "Please select a chat to start messaging";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
@@ -712,6 +715,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_context_open_link" = "Open Link";
 "lng_context_copy_link" = "Copy Link";
+"lng_context_copy_post_link" = "Copy Post Link";
 "lng_context_open_email" = "Write to this address";
 "lng_context_copy_email" = "Copy email address";
 "lng_context_open_hashtag" = "Search by hashtag";

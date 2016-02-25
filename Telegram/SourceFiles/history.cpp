@@ -280,7 +280,8 @@ History::History(const PeerId &peerId) : width(0), height(0)
 , oldLoaded(false)
 , newLoaded(true)
 , lastMsg(0)
-, draftToId(0)
+, msgDraft(0)
+, editDraft(0)
 , lastWidth(0)
 , lastScrollTop(ScrollMax)
 , lastShowAtMsgId(ShowAtUnreadMsgId)
@@ -294,8 +295,7 @@ History::History(const PeerId &peerId) : width(0), height(0)
 , textCachedFor(0)
 , lastItemTextCache(st::dlgRichMinWidth)
 , posInDialogs(0)
-, typingText(st::dlgRichMinWidth)
-{
+, typingText(st::dlgRichMinWidth) {
 	if (peer->isChannel() || (peer->isUser() && peer->asUser()->botInfo)) {
 		outboxReadBefore = INT_MAX;
 	}
@@ -2674,6 +2674,12 @@ void History::removeBlock(HistoryBlock *block) {
 	delete block;
 }
 
+History::~History() {
+	clear();
+	deleteAndMark(msgDraft);
+	deleteAndMark(editDraft);
+}
+
 int32 HistoryBlock::geomResize(int32 newWidth, int32 *ytransform, const HistoryItem *resizedItem) {
 	int32 y = 0;
 	for (Items::iterator i = items.begin(), e = items.end(); i != e; ++i) {
@@ -2926,7 +2932,8 @@ bool HistoryItem::canEdit(const QDateTime &cur) const {
 				t != MediaTypeFile &&
 				t != MediaTypeGif &&
 				t != MediaTypeMusicFile &&
-				t != MediaTypeVoiceFile) {
+				t != MediaTypeVoiceFile &&
+				t != MediaTypeWebPage) {
 				return false;
 			}
 		}

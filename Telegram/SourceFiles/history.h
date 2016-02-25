@@ -149,6 +149,42 @@ struct SendAction {
 	int32 progress;
 };
 
+struct HistoryDraft {
+	HistoryDraft() : msgId(0), previewCancelled(false) {
+	}
+	HistoryDraft(const QString &text, MsgId msgId, const MessageCursor &cursor, bool previewCancelled)
+		: text(text)
+		, msgId(msgId)
+		, cursor(cursor)
+		, previewCancelled(previewCancelled) {
+	}
+	HistoryDraft(const FlatTextarea &field, MsgId msgId, bool previewCancelled)
+		: text(field.getLastText())
+		, msgId(msgId)
+		, cursor(field)
+		, previewCancelled(previewCancelled) {
+	}
+	QString text;
+	MsgId msgId; // replyToId for message draft, editMsgId for edit draft
+	MessageCursor cursor;
+	bool previewCancelled;
+};
+struct HistoryEditDraft : public HistoryDraft {
+	HistoryEditDraft()
+		: HistoryDraft()
+		, saveRequest(0) {
+	}
+	HistoryEditDraft(const QString &text, MsgId msgId, const MessageCursor &cursor, bool previewCancelled, mtpRequestId saveRequest = 0)
+		: HistoryDraft(text, msgId, cursor, previewCancelled)
+		, saveRequest(saveRequest) {
+	}
+	HistoryEditDraft(const FlatTextarea &field, MsgId msgId, bool previewCancelled, mtpRequestId saveRequest = 0)
+		: HistoryDraft(field, msgId, previewCancelled)
+		, saveRequest(saveRequest) {
+	}
+	mtpRequestId saveRequest;
+};
+
 class HistoryMedia;
 class HistoryMessage;
 class HistoryUnreadBar;
@@ -184,9 +220,7 @@ public:
 	void blockResized(HistoryBlock *block, int32 dh);
 	void removeBlock(HistoryBlock *block);
 
-	virtual ~History() {
-		clear();
-	}
+	virtual ~History();
 
 	HistoryItem *createItem(HistoryBlock *block, const MTPMessage &msg, bool applyServiceAction);
 	HistoryItem *createItemForwarded(HistoryBlock *block, MsgId id, int32 flags, QDateTime date, int32 from, HistoryMessage *msg);
@@ -284,10 +318,20 @@ public:
 	typedef QList<HistoryItem*> NotifyQueue;
 	NotifyQueue notifies;
 
-	QString draft;
-	MsgId draftToId;
-	MessageCursor draftCursor;
-	bool draftPreviewCancelled;
+	HistoryDraft *msgDraft;
+	HistoryEditDraft *editDraft;
+	HistoryDraft *draft() {
+		return editDraft ? editDraft : msgDraft;
+	}
+	void setMsgDraft(HistoryDraft *draft) {
+		if (msgDraft) delete msgDraft;
+		msgDraft = draft;
+	}
+	void setEditDraft(HistoryEditDraft *draft) {
+		if (editDraft) delete editDraft;
+		editDraft = draft;
+	}
+
 	int32 lastWidth, lastScrollTop;
 	MsgId lastShowAtMsgId;
 	bool mute;
