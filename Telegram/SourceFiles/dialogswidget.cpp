@@ -651,7 +651,7 @@ void DialogsInner::onContextProfile() {
 
 void DialogsInner::onContextToggleNotifications() {
 	if (!_menuPeer) return;
-	App::main()->updateNotifySetting(_menuPeer, menuPeerMuted());
+	App::main()->updateNotifySetting(_menuPeer, menuPeerMuted() ? NotifySettingSetNotify : NotifySettingSetMuted);
 }
 
 void DialogsInner::onContextSearch() {

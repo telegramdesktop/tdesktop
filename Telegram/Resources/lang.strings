@@ -561,8 +561,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_channel_public_link_copied" = "Link copied to clipboard.";
 
-"lng_forwarded" = "Forwarded from {original}";
-"lng_forwarded_via" = "Forwarded from {original} via {inline_bot}";
+"lng_forwarded" = "Forwarded from {user}";
+"lng_forwarded_channel" = "Forwarded from {channel}";
+"lng_forwarded_via" = "Forwarded from {user} via {inline_bot}";
+"lng_forwarded_channel_via" = "Forwarded from {channel} via {inline_bot}";
 "lng_forwarded_signed" = "{channel} ({user})";
 "lng_in_reply_to" = "In reply to";
 
@@ -653,6 +655,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_message_ph" = "Write a message..";
 "lng_comment_ph" = "Write a comment..";
 "lng_broadcast_ph" = "Broadcast a message..";
+"lng_broadcast_silent_ph" = "Silent broadcast..";
 "lng_record_cancel" = "Release outside this field to cancel";
 "lng_will_be_notified" = "Members will be notified when you post";
 "lng_wont_be_notified" = "Members will not be notified when you post";
@@ -713,16 +716,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_view_group" = "View group info";
 "lng_context_view_channel" = "View channel info";
 
-"lng_context_open_link" = "Open Link";
 "lng_context_copy_link" = "Copy Link";
 "lng_context_copy_post_link" = "Copy Post Link";
-"lng_context_open_email" = "Write to this address";
 "lng_context_copy_email" = "Copy email address";
-"lng_context_open_hashtag" = "Search by hashtag";
 "lng_context_copy_hashtag" = "Copy hashtag";
-"lng_context_open_mention" = "Open profile";
 "lng_context_copy_mention" = "Copy username";
-"lng_context_open_image" = "Open Image";
 "lng_context_save_image" = "Save Image As..";
 "lng_context_forward_image" = "Forward Image";
 "lng_context_delete_image" = "Delete Image";
@@ -731,13 +729,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_cancel_download" = "Cancel Download";
 "lng_context_show_in_folder" = "Show in Folder";
 "lng_context_show_in_finder" = "Show in Finder";
-"lng_context_open_video" = "Open Video";
 "lng_context_save_video" = "Save Video As..";
-"lng_context_open_audio" = "Open Audio";
 "lng_context_save_audio" = "Save Audio As..";
 "lng_context_pack_info" = "Pack Info";
 "lng_context_pack_add" = "Add Stickers";
-"lng_context_open_file" = "Open File";
 "lng_context_save_file" = "Save File As..";
 "lng_context_forward_file" = "Forward File";
 "lng_context_delete_file" = "Delete File";
@@ -762,8 +757,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_send_image_empty" = "Could not send an empty file :(";
 "lng_send_image_too_large" = "Could not send a file, because it is larger than 1.5 GB :(";
 "lng_send_folder" = "Could not send «{name}» because it is a directory :(";
-
-"lng_edit_placeholder" = "Message text";
 
 "lng_forward_choose" = "Choose recipient..";
 "lng_forward_cant" = "Sorry, no way to forward here :(";
@@ -851,7 +844,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— Adaptive layout for wide screens switch added to Settings\n— Linux version crash fix";
+"lng_new_version_text" = "— Edit your messages in channels and supergroups.\n— Share links to specific posts in channels via the post context menu.\n— Add admin signatures to messages in channels.\n— Send silent messages in channels that will not notify members. Useful for non-urgent or late night posting.";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

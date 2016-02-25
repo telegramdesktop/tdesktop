@@ -589,7 +589,7 @@ void MainWidget::cancelForwarding() {
 	history.cancelForwarding();
 }
 
-void MainWidget::finishForwarding(History *hist, bool broadcast) {
+void MainWidget::finishForwarding(History *hist, bool broadcast, bool silent) {
 	if (!hist) return;
 
 	if (!_toForward.isEmpty()) {
@@ -600,6 +600,7 @@ void MainWidget::finishForwarding(History *hist, bool broadcast) {
 		int32 sendFlags = 0, flags = 0;
 		bool channelPost = hist->peer->isChannel() && !hist->peer->isMegagroup() && hist->peer->asChannel()->canPublish() && (hist->peer->asChannel()->isBroadcast() || broadcast);
 		bool showFromName = !channelPost || hist->peer->asChannel()->addsSignature();
+		bool silentPost = channelPost && silent;
 		if (channelPost) {
 			sendFlags |= MTPmessages_ForwardMessages::flag_broadcast;
 			flags |= MTPDmessage::flag_views;
@@ -607,6 +608,9 @@ void MainWidget::finishForwarding(History *hist, bool broadcast) {
 		}
 		if (showFromName) {
 			flags |= MTPDmessage::flag_from_id;
+		}
+		if (silentPost) {
+			sendFlags |= MTPmessages_ForwardMessages::flag_silent;
 		}
 
 		QVector<MTPint> ids;
@@ -1267,7 +1271,7 @@ DialogsIndexed &MainWidget::dialogsList() {
 	return dialogs.dialogsList();
 }
 
-void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, bool broadcast, WebPageId webPageId) {
+void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, bool broadcast, bool silent, WebPageId webPageId) {
 	readServerHistory(hist, false);
 	history.fastShowAtEnd(hist);
 
@@ -1307,6 +1311,7 @@ void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, 
 		}
 		bool channelPost = hist->peer->isChannel() && !hist->peer->isMegagroup() && hist->peer->asChannel()->canPublish() && (hist->peer->asChannel()->isBroadcast() || broadcast);
 		bool showFromName = !channelPost || hist->peer->asChannel()->addsSignature();
+		bool silentPost = channelPost && silent;
 		if (channelPost) {
 			sendFlags |= MTPmessages_SendMessage::flag_broadcast;
 			flags |= MTPDmessage::flag_views;
@@ -1314,6 +1319,9 @@ void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, 
 		}
 		if (showFromName) {
 			flags |= MTPDmessage::flag_from_id;
+		}
+		if (silentPost) {
+			sendFlags |= MTPmessages_SendMessage::flag_silent;
 		}
 		MTPVector<MTPMessageEntity> localEntities = linksToMTP(sendingEntities), sentEntities = linksToMTP(sendingEntities, true);
 		if (!sentEntities.c_vector().v.isEmpty()) {
@@ -1323,7 +1331,7 @@ void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, 
 		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, sentEntities), rpcDone(&MainWidget::sentUpdatesReceived, randomId), rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 	}
 
-	finishForwarding(hist, broadcast);
+	finishForwarding(hist, broadcast, silent);
 }
 
 void MainWidget::saveRecentHashtags(const QString &text) {
@@ -3719,28 +3727,37 @@ bool MainWidget::failNotifySetting(MTPInputNotifyPeer peer, const RPCError &erro
 	return true;
 }
 
-void MainWidget::updateNotifySetting(PeerData *peer, bool enabled) {
+void MainWidget::updateNotifySetting(PeerData *peer, NotifySettingStatus notify, SilentNotifiesStatus silent) {
+	if (notify == NotifySettingDontChange && silent == SilentNotifiesDontChange) return;
+
 	updateNotifySettingPeers.insert(peer);
 	int32 muteFor = 86400 * 365;
 	if (peer->notify == EmptyNotifySettings) {
-		if (!enabled) {
-			peer->notify = new NotifySettings();
-			peer->notify->sound = "";
-			peer->notify->mute = unixtime() + muteFor;
-		}
-	} else {
-		if (peer->notify == UnknownNotifySettings) {
+		if (notify == NotifySettingSetMuted || silent == SilentNotifiesSetSilent) {
 			peer->notify = new NotifySettings();
 		}
-		peer->notify->sound = enabled ? "default" : "";
-		peer->notify->mute = enabled ? 0 : (unixtime() + muteFor);
+	} else if (peer->notify == UnknownNotifySettings) {
+		peer->notify = new NotifySettings();
 	}
-	if (!enabled) {
-		App::regMuted(peer, muteFor + 1);
-	} else {
-		App::unregMuted(peer);
+	if (peer->notify != EmptyNotifySettings && peer->notify != UnknownNotifySettings) {
+		if (notify != NotifySettingDontChange) {
+			peer->notify->sound = (notify == NotifySettingSetMuted) ? "" : "default";
+			peer->notify->mute = (notify == NotifySettingSetMuted) ? (unixtime() + muteFor) : 0;
+		}
+		if (silent == SilentNotifiesSetSilent) {
+			peer->notify->flags |= MTPDpeerNotifySettings::flag_silent;
+		} else if (silent == SilentNotifiesSetNotify) {
+			peer->notify->flags &= ~MTPDpeerNotifySettings::flag_silent;
+		}
 	}
-	App::history(peer->id)->setMute(!enabled);
+	if (notify != NotifySettingDontChange) {
+		if (notify == NotifySettingSetMuted) {
+			App::regMuted(peer, muteFor + 1);
+		} else {
+			App::unregMuted(peer);
+		}
+		App::history(peer->id)->setMute(notify == NotifySettingSetMuted);
+	}
 	if (history.peer() == peer) history.updateNotifySettings();
 	updateNotifySettingTimer.start(NotifySettingSaveTimeout);
 }
@@ -3752,16 +3769,17 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	RecentStickerPack::iterator i = recent.begin(), e = recent.end();
 	for (; i != e; ++i) {
 		if (i->first == sticker) {
-			++i->second;
-			if (i->second > 0x8000) {
-				for (RecentStickerPack::iterator j = recent.begin(); j != e; ++j) {
-					if (j->second > 1) {
-						j->second /= 2;
-					} else {
-						j->second = 1;
-					}
-				}
-			}
+			i->second = recent.begin()->second; // throw to the first place
+			//++i->second;
+			//if (i->second > 0x8000) {
+			//	for (RecentStickerPack::iterator j = recent.begin(); j != e; ++j) {
+			//		if (j->second > 1) {
+			//			j->second /= 2;
+			//		} else {
+			//			j->second = 1;
+			//		}
+			//	}
+			//}
 			for (; i != recent.begin(); --i) {
 				if ((i - 1)->second > i->second) {
 					break;
@@ -3773,13 +3791,14 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	}
 	if (i == e) {
 		while (recent.size() >= StickerPanPerRow * StickerPanRowsPerPage) recent.pop_back();
-		recent.push_back(qMakePair(sticker, 1));
-		for (i = recent.end() - 1; i != recent.begin(); --i) {
-			if ((i - 1)->second > i->second) {
-				break;
-			}
-			qSwap(*i, *(i - 1));
-		}
+		recent.push_front(qMakePair(sticker, recent.isEmpty() ? 1 : recent.begin()->second));
+		//recent.push_back(qMakePair(sticker, 1));
+		//for (i = recent.end() - 1; i != recent.begin(); --i) {
+		//	if ((i - 1)->second > i->second) {
+		//		break;
+		//	}
+		//	qSwap(*i, *(i - 1));
+		//}
 	}
 
 	Local::writeUserSettings();

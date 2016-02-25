@@ -1967,6 +1967,15 @@ void MTProtoConnectionPrivate::restartNow() {
 
 void MTProtoConnectionPrivate::socketStart(bool afterConfig) {
 	bool isDldDc = (dc >= MTP::dldStart) && (dc < MTP::dldEnd);
+	if (isDldDc) { // using media_only addresses only if key for this dc is already created
+		QReadLocker lockFinished(&sessionDataMutex);
+		if (sessionData) {
+			if (!sessionData->getKey()) {
+				isDldDc = false;
+			}
+		}
+
+	}
 	int32 baseDc = (dc % _mtp_internal::dcShift);
 
 	static const int IPv4address = 0, IPv6address = 1;
@@ -2046,7 +2055,7 @@ void MTProtoConnectionPrivate::socketStart(bool afterConfig) {
 	_pingSender.stop();
 
 	if (!noIPv4) DEBUG_LOG(("MTP Info: creating IPv4 connection to %1:%2 (tcp) and %1:%2 (http)..").arg(ip[IPv4address][TcpProtocol].c_str()).arg(port[IPv4address][TcpProtocol]).arg(ip[IPv4address][HttpProtocol].c_str()).arg(port[IPv4address][HttpProtocol]));
-	if (!noIPv6) DEBUG_LOG(("MTP Info: creating IPv4 connection to [%1]:%2 (tcp) and [%1]:%2 (http)..").arg(ip[IPv6address][TcpProtocol].c_str()).arg(port[IPv6address][TcpProtocol]).arg(ip[IPv4address][HttpProtocol].c_str()).arg(port[IPv4address][HttpProtocol]));
+	if (!noIPv6) DEBUG_LOG(("MTP Info: creating IPv6 connection to [%1]:%2 (tcp) and [%1]:%2 (http)..").arg(ip[IPv6address][TcpProtocol].c_str()).arg(port[IPv6address][TcpProtocol]).arg(ip[IPv4address][HttpProtocol].c_str()).arg(port[IPv4address][HttpProtocol]));
 
 	_waitForConnectedTimer.start(_waitForConnected);
 	if (_conn4) {

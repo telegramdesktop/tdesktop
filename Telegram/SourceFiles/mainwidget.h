@@ -183,6 +183,17 @@ inline int chatsListWidth(int windowWidth) {
 	return snap<int>((windowWidth * 5) / 14, st::dlgMinWidth, st::dlgMaxWidth);
 }
 
+enum SilentNotifiesStatus {
+	SilentNotifiesDontChange,
+	SilentNotifiesSetSilent,
+	SilentNotifiesSetNotify,
+};
+enum NotifySettingStatus {
+	NotifySettingDontChange,
+	NotifySettingSetMuted,
+	NotifySettingSetNotify,
+};
+
 class MainWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
@@ -220,7 +231,7 @@ public:
 	void gotNotifySetting(MTPInputNotifyPeer peer, const MTPPeerNotifySettings &settings);
 	bool failNotifySetting(MTPInputNotifyPeer peer, const RPCError &error);
 
-	void updateNotifySetting(PeerData *peer, bool enabled);
+	void updateNotifySetting(PeerData *peer, NotifySettingStatus notify, SilentNotifiesStatus silent = SilentNotifiesDontChange);
 
 	void incrementSticker(DocumentData *sticker);
 
@@ -320,7 +331,7 @@ public:
 	DialogsIndexed &contactsList();
 	DialogsIndexed &dialogsList();
 
-	void sendMessage(History *hist, const QString &text, MsgId replyTo, bool broadcast, WebPageId webPageId = 0);
+	void sendMessage(History *hist, const QString &text, MsgId replyTo, bool broadcast, bool silent, WebPageId webPageId = 0);
 	void saveRecentHashtags(const QString &text);
 
     void readServerHistory(History *history, bool force = true);
@@ -371,7 +382,7 @@ public:
 	void fillForwardingInfo(Text *&from, Text *&text, bool &serviceColor, ImagePtr &preview);
 	void updateForwardingTexts();
 	void cancelForwarding();
-	void finishForwarding(History *hist, bool broadcast); // send them
+	void finishForwarding(History *hist, bool broadcast, bool silent); // send them
 
 	void mediaMarkRead(DocumentData *data);
 	void mediaMarkRead(const HistoryItemsMap &items);

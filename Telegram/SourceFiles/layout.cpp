@@ -700,7 +700,11 @@ void LayoutOverviewVoice::getState(TextLinkPtr &link, HistoryCursorState &cursor
 void LayoutOverviewVoice::updateName() const {
 	int32 version = 0;
 	if (const HistoryMessageForwarded *fwd = _parent->Get<HistoryMessageForwarded>()) {
-		_name.setText(st::semiboldFont, lng_forwarded(lt_original, App::peerName(_parent->fromOriginal())), _textNameOptions);
+		if (_parent->fromOriginal()->isChannel()) {
+			_name.setText(st::semiboldFont, lng_forwarded_channel(lt_channel, App::peerName(_parent->fromOriginal())), _textNameOptions);
+		} else {
+			_name.setText(st::semiboldFont, lng_forwarded(lt_user, App::peerName(_parent->fromOriginal())), _textNameOptions);
+		}
 	} else {
 		_name.setText(st::semiboldFont, App::peerName(_parent->from()), _textNameOptions);
 	}

@@ -123,6 +123,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_server_error" = "Interner Serverfehler.";
 "lng_flood_error" = "Zu viele Versuche, bitte später erneut probieren.";
 "lng_gif_error" = "Ein Fehler ist beim Laden der GIF-Animation aufgetreten :(";
+"lng_edit_error" = "Du kannst diese Nachricht nicht bearbeiten";
+"lng_edit_deleted" = "Diese Nachricht wurde gelöscht";
+"lng_edit_too_long" = "Der Text ist leider zu lang";
+"lng_edit_message" = "Nachricht bearbeiten";
+"lng_edit_message_text" = "Neuer Text..";
 "lng_deleted" = "Gelöschter Kontakt";
 "lng_deleted_message" = "Gelöschte Nachricht";
 
@@ -556,7 +561,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_channel_public_link_copied" = "Link in die Zwischenablage kopiert.\n";
 
-"lng_forwarded_from" = "Weitergeleitet von";
+"lng_forwarded" = "Weitergeleitet von {user}";
+"lng_forwarded_channel" = "Weitergeleitet aus {channel}";
+"lng_forwarded_via" = "Weitergeleitet von {user} via {inline_bot}";
+"lng_forwarded_channel_via" = "Weitergeleitet aus {channel} via {inline_bot}";
+"lng_forwarded_signed" = "{channel} ({user})";
 "lng_in_reply_to" = "Antwort auf";
 
 "lng_attach_failed" = "Uploadfehler";
@@ -645,8 +654,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_send_button" = "Senden";
 "lng_message_ph" = "Schreibe deine Nachricht..";
 "lng_comment_ph" = "Schreibe ein Kommentar..";
-"lng_broadcast_ph" = "Schicke einen Broadcast..";
+"lng_broadcast_ph" = "Sende einen Broadcast..";
+"lng_broadcast_silent_ph" = "Lautloser Broadcast";
 "lng_record_cancel" = "Zum Abbrechen rausbewegen";
+"lng_will_be_notified" = "Mitglieder werden benachrichtigt";
+"lng_wont_be_notified" = "Mitglieder werden nicht benachrichtigt";
 "lng_empty_history" = "";
 "lng_willbe_history" = "Chat auswählen um zu schreiben";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
@@ -706,6 +718,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_context_open_link" = "Link öffnen";
 "lng_context_copy_link" = "Link kopieren";
+"lng_context_copy_post_link" = "Link kopieren";
 "lng_context_open_email" = "Email verfassen";
 "lng_context_copy_email" = "E-Mail-Adresse kopieren";
 "lng_context_open_hashtag" = "Nach Hashtag suchen";
@@ -736,6 +749,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_save_gif" = "GIF speichern";
 "lng_context_to_msg" = "Zur Nachricht";
 "lng_context_reply_msg" = "Antworten";
+"lng_context_edit_msg" = "Bearbeiten";
 "lng_context_forward_msg" = "Nachricht weiterleiten";
 "lng_context_delete_msg" = "Nachricht löschen";
 "lng_context_select_msg" = "Nachricht auswählen";
@@ -772,6 +786,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_edit_group_title" = "Gruppennamen ändern";
 "lng_edit_contact_title" = "Kontaktnamen ändern";
 "lng_edit_channel_title" = "Kanal bearbeiten";
+"lng_edit_sign_messages" = "Nachrichten unterschreiben";
 "lng_edit_group" = "Gruppe bearbeiten";
 "lng_edit_self_title" = "Name bearbeiten";
 "lng_confirm_contact_data" = "Neuer Kontakt";
@@ -837,7 +852,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Neue Option in den Einstellungen unter 'Hintergrund' hinzugefügt (nennt sich dort \"Flexibles Layout für breite Bildschirme\"), um das Layout bei besonders breiten Bildschirmen zu ändern\n— Abstürze in der Linux-Version behoben";
+"lng_new_version_text" = "— Bearbeite deine Nachrichten in Kanälen und Supergruppen.\n— Teile direkt Links zu einzelnen Kanal-Nachrichten über das Teilen-Symbol neben der Nachricht.\n— Unterschreibe Nachrichten in Kanälen - so kann jeder sehen, welcher Admin die Nachricht geschrieben hat.\n— Sende 'lautlose Nachrichten' in Kanälen. Klasse, wenn man mal wieder mitten in der Nacht eine Nachricht senden muss.";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

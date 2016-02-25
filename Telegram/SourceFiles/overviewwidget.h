@@ -86,12 +86,10 @@ public slots:
 
 	void onUpdateSelected();
 
-	void openContextUrl();
 	void copyContextUrl();
 	void cancelContextDownload();
 	void showContextInFolder();
 	void saveContextFile();
-	void openContextFile();
 
 	void goToMessage();
 	void deleteMessage();

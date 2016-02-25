@@ -4455,8 +4455,8 @@ void HistoryGif::initDimensions(const HistoryItem *parent) {
 	_thumbh = th;
 	_maxw = qMax(tw, int32(st::minPhotoSize));
 	_minh = qMax(th, int32(st::minPhotoSize));
+	_maxw = qMax(_maxw, parent->infoWidth() + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	if (!gif() || !_gif->ready()) {
-		_maxw = qMax(_maxw, parent->infoWidth() + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
 		_maxw = qMax(_maxw, gifMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	}
 	if (bubble) {
@@ -4506,12 +4506,12 @@ int32 HistoryGif::resize(int32 width, const HistoryItem *parent) {
 
 	_width = qMax(tw, int32(st::minPhotoSize));
 	_height = qMax(th, int32(st::minPhotoSize));
+	_width = qMax(_width, parent->infoWidth() + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	if (gif() && _gif->ready()) {
 		if (!_gif->started()) {
 			_gif->start(_thumbw, _thumbh, _width, _height, true);
 		}
 	} else {
-		_width = qMax(_width, parent->infoWidth() + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
 		_width = qMax(_width, gifMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	}
 	if (bubble) {
@@ -6064,9 +6064,17 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 		text = App::peerName(_authorOriginal);
 	}
 	if (via) {
-		text = lng_forwarded_via(lt_original, textcmdLink(1, text), lt_inline_bot, textcmdLink(2, '@' + via->_bot->username));
+		if (_authorOriginal->isChannel()) {
+			text = lng_forwarded_channel_via(lt_channel, textcmdLink(1, text), lt_inline_bot, textcmdLink(2, '@' + via->_bot->username));
+		} else {
+			text = lng_forwarded_via(lt_user, textcmdLink(1, text), lt_inline_bot, textcmdLink(2, '@' + via->_bot->username));
+		}
 	} else {
-		text = lng_forwarded(lt_original, textcmdLink(1, text));
+		if (_authorOriginal->isChannel()) {
+			text = lng_forwarded_channel(lt_channel, textcmdLink(1, text));
+		} else {
+			text = lng_forwarded(lt_user, textcmdLink(1, text));
+		}
 	}
 	TextParseOptions opts = { TextParseRichText, 0, 0, Qt::LayoutDirectionAuto };
 	textstyleSet(&st::inFwdTextStyle);

@@ -48,9 +48,9 @@ public slots:
 
 signals:
 
-	void photoReady(const FullMsgId &msgId, const MTPInputFile &file);
-	void documentReady(const FullMsgId &msgId, const MTPInputFile &file);
-	void thumbDocumentReady(const FullMsgId &msgId, const MTPInputFile &file, const MTPInputFile &thumb);
+	void photoReady(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
+	void documentReady(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
+	void thumbDocumentReady(const FullMsgId &msgId, bool silent, const MTPInputFile &file, const MTPInputFile &thumb);
 
 	void photoProgress(const FullMsgId &msgId);
 	void documentProgress(const FullMsgId &msgId);

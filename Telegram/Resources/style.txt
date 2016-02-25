@@ -1395,7 +1395,7 @@ broadcastToggle: flatCheckbox {
 	bgColor: white;
 	disColor: black;
 
-	width: 36px;
+	width: 34px;
 	height: 46px;
 	duration: 200;
 	bgFunc: transition(easeOutCirc);
@@ -1410,7 +1410,17 @@ broadcastToggle: flatCheckbox {
 	disImageRect: sprite(18px, 125px, 22px, 21px);
 	chkDisImageRect: sprite(18px, 125px, 22px, 21px);
 
-	imagePos: point(7px, 12px);
+	imagePos: point(6px, 12px);
+}
+silentToggle: flatCheckbox(broadcastToggle) {
+	width: 33px;
+
+	imageRect: sprite(354px, 242px, 21px, 21px);
+	chkImageRect: sprite(354px, 221px, 21px, 21px);
+	overImageRect: sprite(375px, 242px, 21px, 21px);
+	chkOverImageRect: sprite(375px, 221px, 21px, 21px);
+	disImageRect: sprite(354px, 242px, 21px, 21px);
+	chkDisImageRect: sprite(354px, 221px, 21px, 21px);
 }
 btnRecordAudio: sprite(379px, 390px, 16px, 24px);
 btnRecordAudioActive: sprite(379px, 366px, 16px, 24px);
