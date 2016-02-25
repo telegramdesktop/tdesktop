@@ -914,19 +914,22 @@ void TextLink::onClick(Qt::MouseButton button) const {
 		PopupTooltip::Hide();
 
 		QString url = TextLink::encoded();
-		QRegularExpressionMatch telegramMeUser = QRegularExpression(qsl("^https?://telegram\\.me/([a-zA-Z0-9\\.\\_]+)/?(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
+		QRegularExpressionMatch telegramMeUser = QRegularExpression(qsl("^https?://telegram\\.me/([a-zA-Z0-9\\.\\_]+)(/?\\?|/?$|/(\\d+)/?(?:\\?|$))"), QRegularExpression::CaseInsensitiveOption).match(url);
 		QRegularExpressionMatch telegramMeGroup = QRegularExpression(qsl("^https?://telegram\\.me/joinchat/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
 		QRegularExpressionMatch telegramMeStickers = QRegularExpression(qsl("^https?://telegram\\.me/addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
 		QRegularExpressionMatch telegramMeShareUrl = QRegularExpression(qsl("^https?://telegram\\.me/share/url\\?(.+)$"), QRegularExpression::CaseInsensitiveOption).match(url);
-		if (telegramMeUser.hasMatch()) {
-			QString params = url.mid(telegramMeUser.captured(0).size());
-			url = qsl("tg://resolve/?domain=") + myUrlEncode(telegramMeUser.captured(1)) + (params.isEmpty() ? QString() : '&' + params);
-		} else if (telegramMeGroup.hasMatch()) {
+		if (telegramMeGroup.hasMatch()) {
 			url = qsl("tg://join?invite=") + myUrlEncode(telegramMeGroup.captured(1));
 		} else if (telegramMeStickers.hasMatch()) {
 			url = qsl("tg://addstickers?set=") + myUrlEncode(telegramMeStickers.captured(1));
 		} else if (telegramMeShareUrl.hasMatch()) {
 			url = qsl("tg://msg_url?") + telegramMeShareUrl.captured(1);
+		} else if (telegramMeUser.hasMatch()) {
+			QString params = url.mid(telegramMeUser.captured(0).size()), postParam;
+			if (QRegularExpression(qsl("^/\\d+/?(?:\\?|$)")).match(telegramMeUser.captured(2)).hasMatch()) {
+				postParam = qsl("&post=") + telegramMeUser.captured(3);
+			}
+			url = qsl("tg://resolve/?domain=") + myUrlEncode(telegramMeUser.captured(1)) + postParam + (params.isEmpty() ? QString() : '&' + params);
 		}
 
 		if (QRegularExpression(qsl("^tg://[a-zA-Z0-9]+"), QRegularExpression::CaseInsensitiveOption).match(url).hasMatch()) {
@@ -949,6 +952,17 @@ void EmailLink::onClick(Qt::MouseButton button) const {
 
 void CustomTextLink::onClick(Qt::MouseButton button) const {
 	Ui::showLayer(new ConfirmLinkBox(text()));
+}
+
+void LocationLink::onClick(Qt::MouseButton button) const {
+	if (!psLaunchMaps(_lat, _lon)) {
+		QDesktopServices::openUrl(_text);
+	}
+}
+
+void LocationLink::setup() {
+	QString latlon = _lat + ',' + _lon;
+	_text = qsl("https://maps.google.com/maps?q=") + latlon + qsl("&ll=") + latlon + qsl("&z=16");
 }
 
 void MentionLink::onClick(Qt::MouseButton button) const {
@@ -980,7 +994,7 @@ public:
 		return _blockEnd(t, i, e) - (*i)->from();
 	}
 
-	TextPainter(QPainter *p, const Text *t) : _p(p), _t(t), _elideLast(false), _elideRemoveFromEnd(0), _str(0), _elideSavedBlock(0), _lnkResult(0), _inTextFlag(0), _getSymbol(0), _getSymbolAfter(0), _getSymbolUpon(0) {
+	TextPainter(QPainter *p, const Text *t) : _p(p), _t(t), _elideLast(false), _breakEverywhere(false), _elideRemoveFromEnd(0), _str(0), _elideSavedBlock(0), _lnkResult(0), _inTextFlag(0), _getSymbol(0), _getSymbolAfter(0), _getSymbolUpon(0) {
 	}
 
 	void initNextParagraph(Text::TextBlocks::const_iterator i) {
@@ -1178,7 +1192,7 @@ public:
 					bool elidedLine = _elideLast && (_y + elidedLineHeight >= _yToElide);
 					if (elidedLine) {
 						_lineHeight = elidedLineHeight;
-					} else if (f != j) {
+					} else if (f != j && !_breakEverywhere) {
 						// word did not fit completely, so we roll back the state to the beginning of this long word
 						j = f;
 						_wLeft = f_wLeft;
@@ -1237,7 +1251,7 @@ public:
 		}
 	}
 
-	void drawElided(int32 left, int32 top, int32 w, style::align align, int32 lines, int32 yFrom, int32 yTo, int32 removeFromEnd) {
+	void drawElided(int32 left, int32 top, int32 w, style::align align, int32 lines, int32 yFrom, int32 yTo, int32 removeFromEnd, bool breakEverywhere) {
 		if (lines <= 0 || _t->isNull()) return;
 
 		if (yTo < 0 || (lines - 1) * _t->_font->height < yTo) {
@@ -1245,6 +1259,7 @@ public:
 			_elideLast = true;
 			_elideRemoveFromEnd = removeFromEnd;
 		}
+		_breakEverywhere = breakEverywhere;
 		draw(left, top, w, align, yFrom, yTo);
 	}
 
@@ -1258,7 +1273,7 @@ public:
 		return *_lnkResult;
 	}
 
-	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, int32 w, style::align align) {
+	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, int32 w, style::align align, bool breakEverywhere) {
 		lnk = TextLinkPtr();
 		inText = false;
 
@@ -1267,6 +1282,7 @@ public:
 			_lnkY = y;
 			_lnkResult = &lnk;
 			_inTextFlag = &inText;
+			_breakEverywhere = breakEverywhere;
 			draw(0, 0, w, align, _lnkY, _lnkY + 1);
 			lnk = *_lnkResult;
 		}
@@ -2423,7 +2439,7 @@ private:
 
 	QPainter *_p;
 	const Text *_t;
-	bool _elideLast;
+	bool _elideLast, _breakEverywhere;
 	int32 _elideRemoveFromEnd;
 	style::align _align;
 	QPen _originalPen;
@@ -2970,10 +2986,10 @@ void Text::draw(QPainter &painter, int32 left, int32 top, int32 w, style::align 
 	p.draw(left, top, w, align, yFrom, yTo, selectedFrom, selectedTo);
 }
 
-void Text::drawElided(QPainter &painter, int32 left, int32 top, int32 w, int32 lines, style::align align, int32 yFrom, int32 yTo, int32 removeFromEnd) const {
+void Text::drawElided(QPainter &painter, int32 left, int32 top, int32 w, int32 lines, style::align align, int32 yFrom, int32 yTo, int32 removeFromEnd, bool breakEverywhere) const {
 //	painter.fillRect(QRect(left, top, w, countHeight(w)), QColor(0, 0, 0, 32)); // debug
 	TextPainter p(&painter, this);
-	p.drawElided(left, top, w, align, lines, yFrom, yTo, removeFromEnd);
+	p.drawElided(left, top, w, align, lines, yFrom, yTo, removeFromEnd, breakEverywhere);
 }
 
 const TextLinkPtr &Text::link(int32 x, int32 y, int32 width, style::align align) const {
@@ -2981,9 +2997,9 @@ const TextLinkPtr &Text::link(int32 x, int32 y, int32 width, style::align align)
 	return p.link(x, y, width, align);
 }
 
-void Text::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, int32 width, style::align align) const {
+void Text::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, int32 width, style::align align, bool breakEverywhere) const {
 	TextPainter p(0, this);
-	p.getState(lnk, inText, x, y, width, align);
+	p.getState(lnk, inText, x, y, width, align, breakEverywhere);
 }
 
 void Text::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y, int32 width, style::align align) const {
@@ -5030,6 +5046,58 @@ EntitiesInText textParseEntities(QString &text, int32 flags, bool rich) { // som
 		result.push_back(mono[monoEntity]);
 	}
 
+	return result;
+}
+
+QString textApplyEntities(const QString &text, const EntitiesInText &entities) {
+	if (entities.isEmpty()) return text;
+
+	QMultiMap<int32, QString> closingTags;
+	QString code(qsl("`")), pre(qsl("```"));
+
+	QString result;
+	int32 size = text.size();
+	const QChar *b = text.constData(), *already = b, *e = b + size;
+	EntitiesInText::const_iterator entity = entities.cbegin(), end = entities.cend();
+	while (entity != end && ((entity->type != EntityInTextCode && entity->type != EntityInTextPre) || entity->length <= 0 || entity->offset >= size)) {
+		++entity;
+	}
+	while (entity != end || !closingTags.isEmpty()) {
+		int32 nextOpenEntity = (entity == end) ? (size + 1) : entity->offset;
+		int32 nextCloseEntity = closingTags.isEmpty() ? (size + 1) : closingTags.cbegin().key();
+		if (nextOpenEntity <= nextCloseEntity) {
+			QString tag = (entity->type == EntityInTextCode) ? code : pre;
+			if (result.isEmpty()) result.reserve(text.size() + entities.size() * pre.size() * 2);
+
+			const QChar *offset = b + nextOpenEntity;
+			if (offset > already) {
+				result.append(already, offset - already);
+				already = offset;
+			}
+			result.append(tag);
+			closingTags.insert(qMin(entity->offset + entity->length, size), tag);
+
+			++entity;
+			while (entity != end && ((entity->type != EntityInTextCode && entity->type != EntityInTextPre) || entity->length <= 0 || entity->offset >= size)) {
+				++entity;
+			}
+		} else {
+			const QChar *offset = b + nextCloseEntity;
+			if (offset > already) {
+				result.append(already, offset - already);
+				already = offset;
+			}
+			result.append(closingTags.cbegin().value());
+			closingTags.erase(closingTags.begin());
+		}
+	}
+	if (result.isEmpty()) {
+		return text;
+	}
+	const QChar *offset = b + size;
+	if (offset > already) {
+		result.append(already, offset - already);
+	}
 	return result;
 }
 

@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 static const int32 AppVersion = 9026;
 static const wchar_t *AppVersionStr = L"0.9.26";
 static const bool DevVersion = false;
-//#define BETA_VERSION (9019002ULL) // just comment this line to build public version
+#define BETA_VERSION (9026001ULL) // just comment this line to build public version
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -55,7 +55,7 @@ enum {
 	MTPDownloadSessionsCount = 4, // max 4 download sessions is created
 	MTPKillFileSessionTimeout = 5000, // how much time without upload / download causes additional session kill
 
-	MTPEnumDCTimeout = 4000, // 4 seconds timeout for help_getConfig to work (them move to other dc)
+	MTPEnumDCTimeout = 8000, // 8 seconds timeout for help_getConfig to work (then move to other dc)
 
 	MTPDebugBufferSize = 1024 * 1024, // 1 mb start size
 

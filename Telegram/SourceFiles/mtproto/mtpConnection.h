@@ -113,7 +113,8 @@ public:
 
 	virtual void sendData(mtpBuffer &buffer) = 0; // has size + 3, buffer[0] = len, buffer[1] = packetnum, buffer[last] = crc32
 	virtual void disconnectFromServer() = 0;
-	virtual void connectToServer(const QString &addr, int32 port, int32 flags) = 0;
+	virtual void connectTcp(const QString &addr, int32 port, int32 flags) = 0;
+	virtual void connectHttp(const QString &addr, int32 port, int32 flags) = 0;
 	virtual bool isConnected() const = 0;
 	virtual bool usingHttpWait() {
 		return false;
@@ -181,7 +182,8 @@ public:
 
 	void sendData(mtpBuffer &buffer);
 	void disconnectFromServer();
-	void connectToServer(const QString &addr, int32 port, int32 flags);
+	void connectTcp(const QString &addr, int32 port, int32 flags);
+	void connectHttp(const QString &addr, int32 port, int32 flags);
 	bool isConnected() const;
 	bool usingHttpWait();
 	bool needHttpWait();
@@ -228,8 +230,9 @@ private:
 	typedef QSet<QNetworkReply*> Requests;
 	Requests requests;
 
-	QString _addr;
-	int32 _port, _tcpTimeout, _flags;
+	QString _addrTcp, _addrHttp;
+	int32 _portTcp, _portHttp, _flagsTcp, _flagsHttp;
+	int32 _tcpTimeout;
 	QTimer tcpTimeoutTimer;
 
 };
@@ -243,7 +246,9 @@ public:
 
 	void sendData(mtpBuffer &buffer);
 	void disconnectFromServer();
-	void connectToServer(const QString &addr, int32 port, int32 flags);
+	void connectTcp(const QString &addr, int32 port, int32 flags);
+	void connectHttp(const QString &addr, int32 port, int32 flags) { // not supported
+	}
 	bool isConnected() const;
 
 	int32 debugState() const;
@@ -288,7 +293,9 @@ public:
 
 	void sendData(mtpBuffer &buffer);
 	void disconnectFromServer();
-	void connectToServer(const QString &addr, int32 port, int32 flags);
+	void connectTcp(const QString &addr, int32 port, int32 flags) { // not supported
+	}
+	void connectHttp(const QString &addr, int32 port, int32 flags);
 	bool isConnected() const;
 	bool usingHttpWait();
 	bool needHttpWait();

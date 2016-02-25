@@ -42,11 +42,6 @@ public:
 		}
 	}
 
-signals:
-
-	void confirmed();
-	void cancelled();
-
 public slots:
 
 	void onCompressedChange();
@@ -85,5 +80,59 @@ private:
 	MsgId _replyTo;
 
 	bool _confirmed;
+
+};
+
+class EditCaptionBox : public AbstractBox, public RPCSender {
+	Q_OBJECT
+
+public:
+
+	EditCaptionBox(HistoryItem *msg);
+	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
+
+	bool captionFound() const;
+
+	void setInnerFocus() {
+		_field->setFocus();
+	}
+
+public slots:
+
+	void onCaptionResized();
+	void onSave(bool ctrlShiftEnter = false);
+
+protected:
+
+	void hideAll();
+	void showAll();
+	void showDone();
+
+private:
+
+	void updateBoxSize();
+
+	void saveDone(const MTPUpdates &updates);
+	bool saveFail(const RPCError &error);
+
+	FullMsgId _msgId;
+	bool _animated, _photo, _doc;
+
+	QPixmap _thumb;
+
+	InputArea *_field;
+	BoxButton _save, _cancel;
+
+	int32 _thumbx, _thumby, _thumbw, _thumbh;
+	Text _name;
+	QString _status;
+	int32 _statusw;
+	bool _isImage;
+
+	bool _previewCancelled;
+	mtpRequestId _saveRequestId;
+
+	QString _error;
 
 };

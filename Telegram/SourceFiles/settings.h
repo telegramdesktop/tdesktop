@@ -140,8 +140,6 @@ DeclareSetting(bool, WriteProtected);
 DeclareSetting(int32, LastUpdateCheck);
 DeclareSetting(bool, NoStartUpdate);
 DeclareSetting(bool, StartToSettings);
-DeclareSetting(int32, MaxGroupCount);
-DeclareSetting(int32, MaxMegaGroupCount);
 DeclareSetting(bool, ReplaceEmojis);
 DeclareReadSetting(bool, ManyInstance);
 DeclareSetting(bool, AskDownloadPath);
@@ -240,7 +238,6 @@ typedef QVector<DocumentData*> SavedGifs;
 DeclareRefSetting(SavedGifs, SavedGifs);
 DeclareSetting(uint64, LastSavedGifsUpdate);
 DeclareSetting(bool, ShowingSavedGifs);
-DeclareSetting(int32, SavedGifsLimit);
 
 typedef QList<QPair<QString, ushort> > RecentHashtagPack;
 DeclareRefSetting(RecentHashtagPack, RecentWriteHashtags);
@@ -323,14 +320,6 @@ DeclareReadSetting(QUrl, UpdateURL);
 
 DeclareSetting(bool, ContactsReceived);
 DeclareSetting(bool, DialogsReceived);
-
-DeclareSetting(int, OnlineUpdatePeriod);
-DeclareSetting(int, OfflineBlurTimeout);
-DeclareSetting(int, OfflineIdleTimeout);
-DeclareSetting(int, OnlineFocusTimeout);
-DeclareSetting(int, OnlineCloudTimeout);
-DeclareSetting(int, NotifyCloudDelay);
-DeclareSetting(int, NotifyDefaultDelay);
 
 DeclareSetting(int, OtherOnline);
 

@@ -44,8 +44,8 @@ namespace App {
 		if (MainWidget *m = main()) m->searchMessages(tag + ' ', (inPeer && inPeer->isChannel()) ? inPeer : 0);
 	}
 
-	void openPeerByName(const QString &username, bool toProfile, const QString &startToken) {
-		if (MainWidget *m = main()) m->openPeerByName(username, toProfile, startToken);
+	void openPeerByName(const QString &username, MsgId msgId, const QString &startToken) {
+		if (MainWidget *m = main()) m->openPeerByName(username, msgId, startToken);
 	}
 
 	void joinGroupByHash(const QString &hash) {
@@ -90,11 +90,15 @@ namespace App {
 namespace Ui {
 
 	void showStickerPreview(DocumentData *sticker) {
-		if (MainWidget *m = App::main()) m->ui_showStickerPreview(sticker);
+		if (Window *w = App::wnd()) {
+			w->ui_showStickerPreview(sticker);
+		}
 	}
 
 	void hideStickerPreview() {
-		if (MainWidget *m = App::main()) m->ui_hideStickerPreview();
+		if (Window *w = App::wnd()) {
+			w->ui_hideStickerPreview();
+		}
 	}
 
 	void showLayer(LayeredWidget *box, ShowLayerOptions options) {
@@ -156,7 +160,7 @@ namespace Ui {
 					return w->minimizeToTray();
 				} else if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 					w->hide();
-					w->updateIsActive(cOfflineBlurTimeout());
+					w->updateIsActive(Global::OfflineBlurTimeout());
 					w->updateGlobalMenu();
 					return true;
 				}
@@ -347,8 +351,26 @@ namespace Sandbox {
 
 struct GlobalDataStruct {
 	uint64 LaunchId = 0;
+
 	Adaptive::Layout AdaptiveLayout = Adaptive::NormalLayout;
 	bool AdaptiveForWide = true;
+
+	// config
+	int32 ChatSizeMax = 200;
+	int32 MegagroupSizeMax = 1000;
+	int32 ForwardedCountMax = 100;
+	int32 OnlineUpdatePeriod = 120000;
+	int32 OfflineBlurTimeout = 5000;
+	int32 OfflineIdleTimeout = 30000;
+	int32 OnlineFocusTimeout = 1000;
+	int32 OnlineCloudTimeout = 300000;
+	int32 NotifyCloudDelay = 30000;
+	int32 NotifyDefaultDelay = 1500;
+	int32 ChatBigSize = 10;
+	int32 PushChatPeriod = 60000;
+	int32 PushChatLimit = 2;
+	int32 SavedGifsLimit = 200;
+	int32 EditTimeLimit = 172800;
 };
 GlobalDataStruct *GlobalData = 0;
 
@@ -370,7 +392,25 @@ namespace Global {
 	}
 
 	DefineReadOnlyVar(Global, uint64, LaunchId);
+
 	DefineVar(Global, Adaptive::Layout, AdaptiveLayout);
 	DefineVar(Global, bool, AdaptiveForWide);
+
+	// config
+	DefineVar(Global, int32, ChatSizeMax);
+	DefineVar(Global, int32, MegagroupSizeMax);
+	DefineVar(Global, int32, ForwardedCountMax);
+	DefineVar(Global, int32, OnlineUpdatePeriod);
+	DefineVar(Global, int32, OfflineBlurTimeout);
+	DefineVar(Global, int32, OfflineIdleTimeout);
+	DefineVar(Global, int32, OnlineFocusTimeout);
+	DefineVar(Global, int32, OnlineCloudTimeout);
+	DefineVar(Global, int32, NotifyCloudDelay);
+	DefineVar(Global, int32, NotifyDefaultDelay);
+	DefineVar(Global, int32, ChatBigSize);
+	DefineVar(Global, int32, PushChatPeriod);
+	DefineVar(Global, int32, PushChatLimit);
+	DefineVar(Global, int32, SavedGifsLimit);
+	DefineVar(Global, int32, EditTimeLimit);
 
 };

@@ -74,8 +74,6 @@ bool gRestartingUpdate = false, gRestarting = false, gRestartingToSettings = fal
 int32 gLastUpdateCheck = 0;
 bool gNoStartUpdate = false;
 bool gStartToSettings = false;
-int32 gMaxGroupCount = 200;
-int32 gMaxMegaGroupCount = 500;
 DBIDefaultAttach gDefaultAttach = dbidaDocument;
 bool gReplaceEmojis = true;
 bool gAskDownloadPath = false;
@@ -119,7 +117,6 @@ uint64 gLastStickersUpdate = 0;
 SavedGifs gSavedGifs;
 uint64 gLastSavedGifsUpdate = 0;
 bool gShowingSavedGifs = false;
-int32 gSavedGifsLimit = 100;
 
 RecentHashtagPack gRecentWriteHashtags, gRecentSearchHashtags;
 
@@ -154,14 +151,6 @@ bool gIsElCapitan = false;
 
 bool gContactsReceived = false;
 bool gDialogsReceived = false;
-
-int gOnlineUpdatePeriod = 120000;
-int gOfflineBlurTimeout = 5000;
-int gOfflineIdleTimeout = 30000;
-int gOnlineFocusTimeout = 1000;
-int gOnlineCloudTimeout = 300000;
-int gNotifyCloudDelay = 30000;
-int gNotifyDefaultDelay = 1500;
 
 int gOtherOnline = 0;
 

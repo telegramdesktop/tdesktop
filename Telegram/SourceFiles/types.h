@@ -36,6 +36,22 @@ T *exchange(T *&ptr) {
 struct NullType {
 };
 
+class NilPointer {
+public:
+	template <typename T>
+	operator T*() const {
+		return 0;
+	}
+	template <typename C, typename T>
+	operator T C::*() const {
+		return 0;
+	}
+
+private:
+	void operator&() const;
+};
+extern NilPointer Nil;
+
 template <typename T>
 class OrderedSet : public QMap<T, NullType> {
 public:
@@ -304,7 +320,7 @@ enum DataBlockId {
 	dbiKey                  = 0x00,
 	dbiUser                 = 0x01,
 	dbiDcOptionOld          = 0x02,
-	dbiMaxGroupCount        = 0x03,
+	dbiChatSizeMax          = 0x03,
 	dbiMutePeer             = 0x04,
 	dbiSendKey              = 0x05,
 	dbiAutoStart            = 0x06,
@@ -345,7 +361,7 @@ enum DataBlockId {
 	dbiSongVolume           = 0x29,
 	dbiWindowsNotifications = 0x30,
 	dbiIncludeMuted         = 0x31,
-	dbiMaxMegaGroupCount    = 0x32,
+	dbiMegagroupSizeMax     = 0x32,
 	dbiDownloadPath         = 0x33,
 	dbiAutoDownload         = 0x34,
 	dbiSavedGifsLimit       = 0x35,
@@ -724,6 +740,10 @@ public:
 	template <typename Type>
 	const Type *Get() const {
 		return static_cast<const Type*>(_dataptr(_meta()->offsets[Type::Index()]));
+	}
+	template <typename Type>
+	bool Is() const {
+		return (_meta()->offsets[Type::Index()] >= 0);
 	}
 
 private:

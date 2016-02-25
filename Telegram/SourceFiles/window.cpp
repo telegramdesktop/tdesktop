@@ -210,8 +210,8 @@ void NotifyWindow::updateNotifyDisplay() {
 				item->drawInDialog(p, r, active, textCachedFor, itemTextCache);
 			} else {
 				p.setFont(st::dlgHistFont->f);
-				if (item->hasFromName() && !item->fromChannel()) {
-					itemTextCache.setText(st::dlgHistFont, item->from()->name);
+				if (item->hasFromName() && !item->isPost()) {
+					itemTextCache.setText(st::dlgHistFont, item->author()->name);
 					p.setPen(st::dlgSystemColor->p);
 					itemTextCache.drawElided(p, r.left(), r.top(), r.width(), st::dlgHistFont->height);
 					r.setTop(r.top() + st::dlgHistFont->height);
@@ -363,9 +363,22 @@ NotifyWindow::~NotifyWindow() {
 	if (App::wnd()) App::wnd()->notifyShowNext(this);
 }
 
-Window::Window(QWidget *parent) : PsMainWindow(parent), _serviceHistoryRequest(0), title(0),
-_passcode(0), intro(0), main(0), settings(0), layerBg(0), _isActive(false),
-_connecting(0), _clearManager(0), dragging(false), _inactivePress(false), _shouldLockAt(0), _mediaView(0) {
+Window::Window(QWidget *parent) : PsMainWindow(parent)
+, _serviceHistoryRequest(0)
+, title(0)
+, _passcode(0)
+, intro(0)
+, main(0)
+, settings(0)
+, layerBg(0)
+, _stickerPreview(0)
+, _isActive(false)
+, _connecting(0)
+, _clearManager(0)
+, dragging(false)
+, _inactivePress(false)
+, _shouldLockAt(0)
+, _mediaView(0) {
 
 	icon16 = icon256.scaledToWidth(16, Qt::SmoothTransformation);
 	icon32 = icon256.scaledToWidth(32, Qt::SmoothTransformation);
@@ -422,7 +435,7 @@ void Window::onInactiveTimer() {
 void Window::stateChanged(Qt::WindowState state) {
 	psUserActionDone();
 
-	updateIsActive((state == Qt::WindowMinimized) ? cOfflineBlurTimeout() : cOnlineFocusTimeout());
+	updateIsActive((state == Qt::WindowMinimized) ? Global::OfflineBlurTimeout() : Global::OnlineFocusTimeout());
 
 	psUpdateSysMenu(state);
 	if (state == Qt::WindowMinimized && cWorkMode() == dbiwmTrayOnly) {
@@ -842,6 +855,23 @@ bool Window::ui_isMediaViewShown() {
 	return _mediaView && !_mediaView->isHidden();
 }
 
+void Window::ui_showStickerPreview(DocumentData *sticker) {
+	if (!sticker || ((!sticker->isAnimation() || !sticker->loaded()) && !sticker->sticker())) return;
+	if (!_stickerPreview) {
+		_stickerPreview = new StickerPreviewWidget(this);
+		resizeEvent(0);
+	}
+	if (_stickerPreview->isHidden()) {
+		fixOrder();
+	}
+	_stickerPreview->showPreview(sticker);
+}
+
+void Window::ui_hideStickerPreview() {
+	if (!_stickerPreview) return;
+	_stickerPreview->hidePreview();
+}
+
 void Window::showConnecting(const QString &text, const QString &reconnect) {
 	if (_connecting) {
 		_connecting->set(text, reconnect);
@@ -1045,7 +1075,7 @@ bool Window::minimizeToTray() {
 		cSetSeenTrayTooltip(true);
 		Local::writeSettings();
 	}
-	updateIsActive(cOfflineBlurTimeout());
+	updateIsActive(Global::OfflineBlurTimeout());
 	updateTrayMenu();
 	updateGlobalMenu();
 	return true;
@@ -1127,7 +1157,7 @@ void Window::activate() {
 	setVisible(true);
 	psActivateProcess();
 	activateWindow();
-	updateIsActive(cOnlineFocusTimeout());
+	updateIsActive(Global::OnlineFocusTimeout());
 	if (wasHidden) {
 		if (main) {
 			main->windowShown();
@@ -1169,6 +1199,7 @@ void Window::layerFinishedHide(BackgroundWidget *was) {
 void Window::fixOrder() {
 	title->raise();
 	if (layerBg) layerBg->raise();
+	if (_stickerPreview) _stickerPreview->raise();
 	if (_connecting) _connecting->raise();
 }
 
@@ -1240,6 +1271,7 @@ void Window::resizeEvent(QResizeEvent *e) {
 	}
 	title->setGeometry(0, 0, width(), st::titleHeight);
 	if (layerBg) layerBg->resize(width(), height());
+	if (_stickerPreview) _stickerPreview->setGeometry(0, title->height(), width(), height() - title->height());
 	if (_connecting) _connecting->setGeometry(0, height() - _connecting->height(), _connecting->width(), _connecting->height());
 	emit resized(QSize(width(), height() - st::titleHeight));
 }
@@ -1315,6 +1347,11 @@ void Window::notifySchedule(History *history, HistoryItem *item) {
 
 	PeerData *notifyByFrom = (!history->peer->isUser() && item->mentionsMe()) ? item->from() : 0;
 
+	if (item->isSilent()) {
+		history->popNotification(item);
+		return;
+	}
+
 	bool haveSetting = (history->peer->notify != UnknownNotifySettings);
 	if (haveSetting) {
 		if (history->peer->notify != EmptyNotifySettings && history->peer->notify->mute > unixtime()) {
@@ -1340,15 +1377,14 @@ void Window::notifySchedule(History *history, HistoryItem *item) {
 		App::wnd()->getNotifySetting(MTP_inputNotifyPeer(history->peer->input));
 	}
 
-	HistoryForwarded *fwd = item->toHistoryForwarded();
-	int delay = fwd ? 500 : 100, t = unixtime();
+	int delay = item->Is<HistoryMessageForwarded>() ? 500 : 100, t = unixtime();
 	uint64 ms = getms(true);
-	bool isOnline = main->lastWasOnline(), otherNotOld = ((cOtherOnline() * uint64(1000)) + cOnlineCloudTimeout() > t * uint64(1000));
+	bool isOnline = main->lastWasOnline(), otherNotOld = ((cOtherOnline() * uint64(1000)) + Global::OnlineCloudTimeout() > t * uint64(1000));
 	bool otherLaterThanMe = (cOtherOnline() * uint64(1000) + (ms - main->lastSetOnline()) > t * uint64(1000));
 	if (!isOnline && otherNotOld && otherLaterThanMe) {
-		delay = cNotifyCloudDelay();
+		delay = Global::NotifyCloudDelay();
 	} else if (cOtherOnline() >= t) {
-		delay = cNotifyDefaultDelay();
+		delay = Global::NotifyDefaultDelay();
 	}
 
 	uint64 when = getms(true) + delay;
@@ -1542,7 +1578,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 				notifyWaitTimer.start(next - ms);
 				break;
 			} else {
-				HistoryForwarded *fwd = notifyItem->toHistoryForwarded(); // forwarded notify grouping
+				HistoryItem *fwd = notifyItem->Is<HistoryMessageForwarded>() ? notifyItem : 0; // forwarded notify grouping
 				int32 fwdCount = 1;
 
 				uint64 ms = getms(true);
@@ -1570,8 +1606,8 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 						} while (history->hasNotification());
 						if (nextNotify) {
 							if (fwd) {
-								HistoryForwarded *nextFwd = nextNotify->toHistoryForwarded();
-								if (nextFwd && fwd->from() == nextFwd->from() && qAbs(int64(nextFwd->date.toTime_t()) - int64(fwd->date.toTime_t())) < 2) {
+								HistoryItem *nextFwd = nextNotify->Is<HistoryMessageForwarded>() ? nextNotify : 0;
+								if (nextFwd && fwd->author() == nextFwd->author() && qAbs(int64(nextFwd->date.toTime_t()) - int64(fwd->date.toTime_t())) < 2) {
 									fwd = nextFwd;
 									++fwdCount;
 								} else {
@@ -1822,6 +1858,7 @@ void Window::updateIsActive(int timeout) {
 
 Window::~Window() {
     notifyClearFast();
+	deleteAndMark(_stickerPreview);
 	delete _clearManager;
 	delete _connecting;
 	delete _mediaView;

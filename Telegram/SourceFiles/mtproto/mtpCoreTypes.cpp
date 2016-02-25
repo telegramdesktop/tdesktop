@@ -149,6 +149,10 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 	}
 }
 
+const MTPReplyMarkup MTPnullMarkup = MTP_replyKeyboardMarkup(MTP_int(0), MTP_vector<MTPKeyboardButtonRow>(0));
+const MTPVector<MTPMessageEntity> MTPnullEntities = MTP_vector<MTPMessageEntity>(0);
+const MTPMessageFwdHeader MTPnullFwdHeader = MTP_messageFwdHeader(MTPint(), MTPint(), MTPint(), MTPint(), MTPint());
+
 QString stickerSetTitle(const MTPDstickerSet &s) {
 	QString title = qs(s.vtitle);
 	if ((s.vflags.v & MTPDstickerSet::flag_official) && !title.compare(qstr("Great Minds"), Qt::CaseInsensitive)) {

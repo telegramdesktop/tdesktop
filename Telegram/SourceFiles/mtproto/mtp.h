@@ -76,20 +76,12 @@ namespace _mtp_internal {
 
 namespace MTP {
 
-	static const uint32 cfg = 1 * _mtp_internal::dcShift; // send(MTPhelp_GetConfig(), MTP::cfg + dc) - for dc enum
-	static const uint32 lgt = 2 * _mtp_internal::dcShift; // send(MTPauth_LogOut(), MTP::lgt + dc) - for logout of guest dcs enum
-	static const uint32 dld[MTPDownloadSessionsCount] = { // send(req, callbacks, MTP::dld[i] + dc) - for download
-		0x10 * _mtp_internal::dcShift,
-		0x11 * _mtp_internal::dcShift,
-		0x12 * _mtp_internal::dcShift,
-		0x13 * _mtp_internal::dcShift,
-	};
-	static const uint32 upl[MTPUploadSessionsCount] = { // send(req, callbacks, MTP::upl[i] + dc) - for upload
-		0x20 * _mtp_internal::dcShift,
-		0x21 * _mtp_internal::dcShift,
-		0x22 * _mtp_internal::dcShift,
-		0x23 * _mtp_internal::dcShift,
-	};
+	extern const uint32 cfg; // send(MTPhelp_GetConfig(), MTP::cfg + dc) - for dc enum
+	extern const uint32 lgt; // send(MTPauth_LogOut(), MTP::lgt + dc) - for logout of guest dcs enum
+	extern const uint32 dld[MTPDownloadSessionsCount]; // send(req, callbacks, MTP::dld[i] + dc) - for download
+	extern const uint32 upl[MTPUploadSessionsCount]; // send(req, callbacks, MTP::upl[i] + dc) - for upload
+	extern const uint32 dldStart, dldEnd; // dc >= dldStart && dc < dldEnd => dc in dld
+	extern const uint32 uplStart, uplEnd; // dc >= uplStart && dc < uplEnd => dc in upl
 
 	void start();
 	bool started();
@@ -127,7 +119,7 @@ namespace MTP {
 	void cancel(mtpRequestId req);
 	void killSession(int32 dc);
 	void stopSession(int32 dc);
-	
+
 	enum {
 		RequestSent = 0,
 		RequestConnecting = 1,

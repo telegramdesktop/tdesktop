@@ -29,9 +29,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "localstorage.h"
 
-StickerSetInner::StickerSetInner(const MTPInputStickerSet &set) :
-_loaded(false), _setId(0), _setAccess(0), _setCount(0), _setHash(0), _setFlags(0), _bottom(0),
-_input(set), _installRequest(0) {
+StickerSetInner::StickerSetInner(const MTPInputStickerSet &set) : TWidget()
+, _loaded(false)
+, _setId(0)
+, _setAccess(0)
+, _setCount(0)
+, _setHash(0)
+, _setFlags(0)
+, _bottom(0)
+, _input(set)
+, _installRequest(0)
+, _previewShown(-1) {
 	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 	switch (set.type()) {
 	case mtpc_inputStickerSetID: _setId = set.c_inputStickerSetID().vid.v; _setAccess = set.c_inputStickerSetID().vaccess_hash.v; break;
@@ -39,6 +47,9 @@ _input(set), _installRequest(0) {
 	}
 	MTP::send(MTPmessages_GetStickerSet(_input), rpcDone(&StickerSetInner::gotSet), rpcFail(&StickerSetInner::failedSet));
 	App::main()->updateStickers();
+
+	_previewTimer.setSingleShot(true);
+	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreview()));
 }
 
 void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
@@ -146,6 +157,47 @@ bool StickerSetInner::installFailed(const RPCError &error) {
 	Ui::showLayer(new InformBox(lang(lng_stickers_not_found)));
 
 	return true;
+}
+
+void StickerSetInner::mousePressEvent(QMouseEvent *e) {
+	int32 index = stickerFromGlobalPos(e->globalPos());
+	if (index >= 0 && index < _pack.size()) {
+		_previewTimer.start(QApplication::startDragTime());
+	}
+}
+
+void StickerSetInner::mouseMoveEvent(QMouseEvent *e) {
+	if (_previewShown >= 0) {
+		int32 index = stickerFromGlobalPos(e->globalPos());
+		if (index >= 0 && index < _pack.size() && index != _previewShown) {
+			_previewShown = index;
+			Ui::showStickerPreview(_pack.at(_previewShown));
+		}
+	}
+}
+
+void StickerSetInner::mouseReleaseEvent(QMouseEvent *e) {
+	_previewTimer.stop();
+}
+
+void StickerSetInner::onPreview() {
+	int32 index = stickerFromGlobalPos(QCursor::pos());
+	if (index >= 0 && index < _pack.size()) {
+		_previewShown = index;
+		Ui::showStickerPreview(_pack.at(_previewShown));
+	}
+}
+
+int32 StickerSetInner::stickerFromGlobalPos(const QPoint &p) const {
+	QPoint l(mapFromGlobal(p));
+	if (rtl()) l.setX(width() - l.x());
+	int32 row = (l.y() >= st::stickersPadding.top()) ? qFloor((l.y() - st::stickersPadding.top()) / st::stickersSize.height()) : -1;
+	int32 col = (l.x() >= st::stickersPadding.left()) ? qFloor((l.x() - st::stickersPadding.left()) / st::stickersSize.width()) : -1;
+	if (row >= 0 && col >= 0 && col < StickerPanPerRow) {
+		int32 result = row * StickerPanPerRow + col;
+		return (result < _pack.size()) ? result : -1;
+	}
+	return -1;
 }
 
 void StickerSetInner::paintEvent(QPaintEvent *e) {

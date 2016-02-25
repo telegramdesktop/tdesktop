@@ -110,6 +110,7 @@ inline MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool 
 	return result;
 }
 EntitiesInText textParseEntities(QString &text, int32 flags, bool rich = false); // changes text if (flags & TextParseMono)
+QString textApplyEntities(const QString &text, const EntitiesInText &entities);
 
 #include "gui/emoji_config.h"
 
@@ -374,7 +375,7 @@ public:
 		QUrl u(_url), good(u.isValid() ? u.toEncoded() : QString());
 		QString result(good.isValid() ? QString::fromUtf8(good.toEncoded()) : _url);
 
-		if (!QRegularExpression(qsl("^[a-zA-Z]+://")).match(result).hasMatch()) { // no protocol
+		if (!QRegularExpression(qsl("^[a-zA-Z]+:")).match(result).hasMatch()) { // no protocol
 			return qsl("http://") + result;
 		}
 		return result;
@@ -420,6 +421,36 @@ public:
 private:
 
 	QString _email;
+
+};
+
+class LocationLink : public ITextLink {
+	TEXT_LINK_CLASS(LocationLink)
+
+public:
+
+	LocationLink(const QString &lat, const QString &lon) : _lat(lat), _lon(lon) {
+		setup();
+	}
+
+	const QString &text() const {
+		return _text;
+	}
+
+	void onClick(Qt::MouseButton button) const;
+
+	const QString &readable() const {
+		return _text;
+	}
+
+	QString encoded() const {
+		return _text;
+	}
+
+private:
+
+	void setup();
+	QString _lat, _lon, _text;
 
 };
 
@@ -574,27 +605,27 @@ public:
 	void replaceFont(style::font f); // does not recount anything, use at your own risk!
 
 	void draw(QPainter &p, int32 left, int32 top, int32 width, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, uint16 selectedFrom = 0, uint16 selectedTo = 0) const;
-	void drawElided(QPainter &p, int32 left, int32 top, int32 width, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0) const;
+	void drawElided(QPainter &p, int32 left, int32 top, int32 width, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0, bool breakEverywhere = false) const;
 	void drawLeft(QPainter &p, int32 left, int32 top, int32 width, int32 outerw, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, uint16 selectedFrom = 0, uint16 selectedTo = 0) const {
 		draw(p, rtl() ? (outerw - left - width) : left, top, width, align, yFrom, yTo, selectedFrom, selectedTo);
 	}
-	void drawLeftElided(QPainter &p, int32 left, int32 top, int32 width, int32 outerw, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0) const {
-		drawElided(p, rtl() ? (outerw - left - width) : left, top, width, lines, align, yFrom, yTo, removeFromEnd);
+	void drawLeftElided(QPainter &p, int32 left, int32 top, int32 width, int32 outerw, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0, bool breakEverywhere = false) const {
+		drawElided(p, rtl() ? (outerw - left - width) : left, top, width, lines, align, yFrom, yTo, removeFromEnd, breakEverywhere);
 	}
 	void drawRight(QPainter &p, int32 right, int32 top, int32 width, int32 outerw, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, uint16 selectedFrom = 0, uint16 selectedTo = 0) const {
 		draw(p, rtl() ? right : (outerw - right - width), top, width, align, yFrom, yTo, selectedFrom, selectedTo);
 	}
-	void drawRightElided(QPainter &p, int32 right, int32 top, int32 width, int32 outerw, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0) const {
-		drawElided(p, rtl() ? right : (outerw - right - width), top, width, lines, align, yFrom, yTo, removeFromEnd);
+	void drawRightElided(QPainter &p, int32 right, int32 top, int32 width, int32 outerw, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0, bool breakEverywhere = false) const {
+		drawElided(p, rtl() ? right : (outerw - right - width), top, width, lines, align, yFrom, yTo, removeFromEnd, breakEverywhere);
 	}
 
 	const TextLinkPtr &link(int32 x, int32 y, int32 width, style::align align = style::al_left) const;
 	const TextLinkPtr &linkLeft(int32 x, int32 y, int32 width, int32 outerw, style::align align = style::al_left) const {
 		return link(rtl() ? (outerw - x - width) : x, y, width, align);
 	}
-	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, int32 width, style::align align = style::al_left) const;
-	void getStateLeft(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, int32 width, int32 outerw, style::align align = style::al_left) const {
-		return getState(lnk, inText, rtl() ? (outerw - x - width) : x, y, width, align);
+	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, int32 width, style::align align = style::al_left, bool breakEverywhere = false) const;
+	void getStateLeft(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, int32 width, int32 outerw, style::align align = style::al_left, bool breakEverywhere = false) const {
+		return getState(lnk, inText, rtl() ? (outerw - x - width) : x, y, width, align, breakEverywhere);
 	}
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y, int32 width, style::align align = style::al_left) const;
 	void getSymbolLeft(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y, int32 width, int32 outerw, style::align align = style::al_left) const {

@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 
 namespace {
-	
+
 	MTProtoDCMap gDCs;
 	bool configLoadedOnce = false;
 	bool mainDCChanged = false;
@@ -152,9 +152,21 @@ namespace {
 		DEBUG_LOG(("MTP Info: got config, chat_size_max: %1, date: %2, test_mode: %3, this_dc: %4, dc_options.length: %5").arg(data.vchat_size_max.v).arg(data.vdate.v).arg(mtpIsTrue(data.vtest_mode)).arg(data.vthis_dc.v).arg(data.vdc_options.c_vector().v.size()));
 
 		mtpUpdateDcOptions(data.vdc_options.c_vector().v);
-		cSetMaxGroupCount(data.vchat_size_max.v);
-		cSetMaxMegaGroupCount(data.vmegagroup_size_max.v);
-		cSetSavedGifsLimit(data.vsaved_gifs_limit.v);
+
+		Global::SetChatSizeMax(data.vchat_size_max.v);
+		Global::SetMegagroupSizeMax(data.vmegagroup_size_max.v);
+		Global::SetForwardedCountMax(data.vforwarded_count_max.v);
+		Global::SetOnlineUpdatePeriod(data.vonline_update_period_ms.v);
+		Global::SetOfflineBlurTimeout(data.voffline_blur_timeout_ms.v);
+		Global::SetOfflineIdleTimeout(data.voffline_idle_timeout_ms.v);
+		Global::SetOnlineCloudTimeout(data.vonline_cloud_timeout_ms.v);
+		Global::SetNotifyCloudDelay(data.vnotify_cloud_delay_ms.v);
+		Global::SetNotifyDefaultDelay(data.vnotify_default_delay_ms.v);
+		Global::SetChatBigSize(data.vchat_big_size.v); // ?
+		Global::SetPushChatPeriod(data.vpush_chat_period_ms.v); // ?
+		Global::SetPushChatLimit(data.vpush_chat_limit.v); // ?
+		Global::SetSavedGifsLimit(data.vsaved_gifs_limit.v);
+		Global::SetEditTimeLimit(data.vedit_time_limit.v); // ?
 
 		configLoadedOnce = true;
 		Local::writeSettings();
@@ -246,15 +258,19 @@ void MTProtoConfigLoader::enumDC() {
 	} else {
 		MTP::killSession(MTP::cfg + _enumCurrent);
 	}
+	OrderedSet<int32> dcs;
 	{
 		QReadLocker lock(mtpDcOptionsMutex());
 		const mtpDcOptions &options(cDcOptions());
 		for (mtpDcOptions::const_iterator i = options.cbegin(), e = options.cend(); i != e; ++i) {
-			if (i.key() == _enumCurrent) {
-				_enumCurrent = (++i == e) ? options.cbegin().key() : i.key();
-				break;
-			}
+			dcs.insert(i.key() % _mtp_internal::dcShift);
 		}
+	}
+	OrderedSet<int32>::const_iterator i = dcs.constFind(_enumCurrent);
+	if (i == dcs.cend() || (++i) == dcs.cend()) {
+		_enumCurrent = dcs.cbegin().key();
+	} else {
+		_enumCurrent = i.key();
 	}
 	_enumRequest = MTP::send(MTPhelp_GetConfig(), rpcDone(configLoaded), rpcFail(configFailed), MTP::cfg + _enumCurrent);
 

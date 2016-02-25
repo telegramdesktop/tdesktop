@@ -581,8 +581,7 @@ void LayoutOverviewVoice::paint(Painter &p, const QRect &clip, uint32 selection,
 		}
 	}
 	bool showPause = updateStatusText();
-	int32 nameVersion = _parent->from()->nameVersion;
-	if (HistoryForwarded *fwd = _parent->toHistoryForwarded()) nameVersion = fwd->fromForwarded()->nameVersion;
+	int32 nameVersion = _parent->fromOriginal()->nameVersion;
 	if (nameVersion > _nameVersion) {
 		updateName();
 	}
@@ -700,13 +699,12 @@ void LayoutOverviewVoice::getState(TextLinkPtr &link, HistoryCursorState &cursor
 
 void LayoutOverviewVoice::updateName() const {
 	int32 version = 0;
-	if (HistoryForwarded *fwd = _parent->toHistoryForwarded()) {
-		_name.setText(st::semiboldFont, lang(lng_forwarded_from) + ' ' + App::peerName(fwd->fromForwarded()), _textNameOptions);
-		version = fwd->fromForwarded()->nameVersion;
+	if (const HistoryMessageForwarded *fwd = _parent->Get<HistoryMessageForwarded>()) {
+		_name.setText(st::semiboldFont, lng_forwarded(lt_original, App::peerName(_parent->fromOriginal())), _textNameOptions);
 	} else {
 		_name.setText(st::semiboldFont, App::peerName(_parent->from()), _textNameOptions);
-		version = _parent->from()->nameVersion;
 	}
+	version = _parent->fromOriginal()->nameVersion;
 	_nameVersion = version;
 }
 

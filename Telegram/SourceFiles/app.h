@@ -81,6 +81,7 @@ namespace App {
 	void feedChatAdmins(const MTPDupdateChatAdmins &d, bool emitPeerUpdated = true);
 	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d, bool emitPeerUpdated = true);
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m); // returns true if item found and it is not detached
+	void updateEditedMessage(const MTPDmessage &m);
 	void addSavedGif(DocumentData *doc);
 	void checkSavedGif(HistoryItem *item);
 	void feedMsgs(const QVector<MTPMessage> &msgs, NewMessageType type);
@@ -134,7 +135,7 @@ namespace App {
 	WebPageData *webPage(const WebPageId &webPage);
 	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill);
 	ImageLinkData *imageLink(const QString &imageLink);
-	ImageLinkData *imageLinkSet(const QString &imageLink, ImageLinkType type, const QString &url);
+	ImageLinkData *imageLinkSet(const QString &imageLink, ImageLinkType type);
 	void forgetMedia();
 
 	MTPPhoto photoFromUserPhoto(MTPint userId, MTPint date, const MTPUserProfilePhoto &photo);

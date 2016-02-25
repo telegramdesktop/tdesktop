@@ -384,8 +384,6 @@ void Application::closeApplication() {
 		i->first->close();
 	}
 	_localClients.clear();
-
-	MTP::stop();
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -808,7 +806,7 @@ AppClass::AppClass() : QObject()
 		checkMapVersion();
 	}
 
-	_window->updateIsActive(cOnlineFocusTimeout());
+	_window->updateIsActive(Global::OnlineFocusTimeout());
 }
 
 void AppClass::regPhotoUpdate(const PeerId &peer, const FullMsgId &msgId) {
@@ -926,7 +924,7 @@ void AppClass::checkLocalTime() {
 void AppClass::onAppStateChanged(Qt::ApplicationState state) {
 	checkLocalTime();
 	if (_window) {
-		_window->updateIsActive((state == Qt::ApplicationActive) ? cOnlineFocusTimeout() : cOfflineBlurTimeout());
+		_window->updateIsActive((state == Qt::ApplicationActive) ? Global::OnlineFocusTimeout() : Global::OfflineBlurTimeout());
 	}
 	if (state != Qt::ApplicationActive) {
 		PopupTooltip::Hide();
@@ -1081,6 +1079,8 @@ AppClass::~AppClass() {
 	stopWebLoadManager();
 	App::deinitMedia();
 	deinitImageLinkManager();
+
+	MTP::stop();
 
 	AppObject = 0;
 	deleteAndMark(_uploader);

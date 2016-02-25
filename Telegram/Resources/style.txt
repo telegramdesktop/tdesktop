@@ -1162,6 +1162,24 @@ outTextStyle: textStyle(defaultTextStyle) {
 	selectBg: msgOutBgSelected;
 	selectOverlay: msgSelectOverlay;
 }
+inFwdTextStyle: textStyle(defaultTextStyle) {
+	linkFlags: semiboldFont;
+	linkFlagsOver: semiboldFont;
+	linkFg: msgInServiceFg;
+	linkFgDown: msgInServiceFg;
+}
+outFwdTextStyle: textStyle(inFwdTextStyle) {
+	linkFg: msgOutServiceFg;
+	linkFgDown: msgOutServiceFg;
+}
+inFwdTextStyleSelected: textStyle(inFwdTextStyle) {
+	linkFg: msgInServiceFgSelected;
+	linkFgDown: msgInServiceFgSelected;
+}
+outFwdTextStyleSelected: textStyle(inFwdTextStyle) {
+	linkFg: msgOutServiceFgSelected;
+	linkFgDown: msgOutServiceFgSelected;
+}
 medviewSaveAsTextStyle: textStyle(defaultTextStyle) {
 	linkFg: #91d9ff;
 	linkFgDown: #91d9ff;
@@ -1411,6 +1429,7 @@ replyTop: 8px;
 replyBottom: 6px;
 replyIconPos: point(13px, 13px);
 replyIcon: sprite(343px, 197px, 24px, 24px);
+editIcon: sprite(371px, 286px, 24px, 24px);
 replyCancel: iconedButton(btnDefIconed) {
 	icon: sprite(165px, 24px, 14px, 14px);
 	iconPos: point(17px, 17px);
@@ -2073,6 +2092,7 @@ minPhotoSize: 100px;
 maxMediaSize: 420px;
 maxStickerSize: 256px;
 maxGifSize: 320px;
+maxSignatureSize: 144px;
 
 mvBgColor: #222;
 mvBgOpacity: 0.92;
@@ -2418,3 +2438,8 @@ inlineRowBorder: linksBorder;
 inlineRowBorderFg: linksBorderFg;
 inlineResultsMinWidth: 64px;
 inlineDurationMargin: 3px;
+
+editTextArea: InputArea(defaultInputArea) {
+	textMargins: margins(1px, 6px, 1px, 4px);
+	heightMax: 256px;
+}

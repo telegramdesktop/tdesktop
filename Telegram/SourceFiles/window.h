@@ -121,6 +121,8 @@ private:
 
 typedef QList<NotifyWindow*> NotifyWindows;
 
+class StickerPreviewWidget;
+
 class Window : public PsMainWindow {
 	Q_OBJECT
 
@@ -239,6 +241,8 @@ public:
 	void ui_showLayer(LayeredWidget *box, ShowLayerOptions options);
 	bool ui_isLayerShown();
 	bool ui_isMediaViewShown();
+	void ui_showStickerPreview(DocumentData *sticker);
+	void ui_hideStickerPreview();
 
 public slots:
 
@@ -311,6 +315,7 @@ private:
 	MainWidget *main;
 	SettingsWidget *settings;
 	BackgroundWidget *layerBg;
+	StickerPreviewWidget *_stickerPreview;
 
 	QTimer _isActiveTimer;
 	bool _isActive;

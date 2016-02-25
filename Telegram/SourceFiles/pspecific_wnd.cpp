@@ -3658,3 +3658,7 @@ bool InitToastManager() {
 	QDir().mkpath(cWorkingDir() + qsl("tdata/temp"));
 	return true;
 }
+
+bool psLaunchMaps(const QString &lat, const QString &lon) {
+	return QDesktopServices::openUrl(qsl("bingmaps:?lvl=16&collection=point.") + lat + '_' + lon + '_' + qsl("Point"));
+}

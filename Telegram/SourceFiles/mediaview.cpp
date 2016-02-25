@@ -883,7 +883,7 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 	_caption = Text();
 	if (HistoryMessage *itemMsg = item ? item->toHistoryMessage() : 0) {
 		if (HistoryPhoto *photoMsg = dynamic_cast<HistoryPhoto*>(itemMsg->getMedia())) {
-			_caption.setText(st::mvCaptionFont, photoMsg->getCaption(), (item->from()->isUser() && item->from()->asUser()->botInfo) ? _captionBotOptions : _captionTextOptions);
+			_caption.setText(st::mvCaptionFont, photoMsg->getCaption(), (item->author()->isUser() && item->author()->asUser()->botInfo) ? _captionBotOptions : _captionTextOptions);
 		}
 	}
 
@@ -909,11 +909,7 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 	_y = (height() - _h) / 2;
 	_width = _w;
 	if (_msgid && item) {
-		if (HistoryForwarded *fwd = item->toHistoryForwarded()) {
-			_from = fwd->fromForwarded();
-		} else {
-			_from = item->from();
-		}
+		_from = item->authorOriginal();
 	} else {
 		_from = _user;
 	}
@@ -1062,11 +1058,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 	}
 	_x = (width() - _w) / 2;
 	_y = (height() - _h) / 2;
-	if (HistoryForwarded *fwd = item->toHistoryForwarded()) {
-		_from = fwd->fromForwarded();
-	} else {
-		_from = item->from();
-	}
+	_from = item->authorOriginal();
 	_full = 1;
 	updateControls();
 	if (isHidden()) {

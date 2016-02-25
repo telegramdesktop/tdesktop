@@ -421,13 +421,13 @@ void ApiWrap::requestLastParticipants(ChannelData *peer, bool fromStart) {
 			return;
 		}
 	}
-	mtpRequestId req = MTP::send(MTPchannels_GetParticipants(peer->inputChannel, MTP_channelParticipantsRecent(), MTP_int(fromStart ? 0 : peer->mgInfo->lastParticipants.size()), MTP_int(cMaxGroupCount())), rpcDone(&ApiWrap::lastParticipantsDone, peer), rpcFail(&ApiWrap::lastParticipantsFail, peer));
+	mtpRequestId req = MTP::send(MTPchannels_GetParticipants(peer->inputChannel, MTP_channelParticipantsRecent(), MTP_int(fromStart ? 0 : peer->mgInfo->lastParticipants.size()), MTP_int(Global::ChatSizeMax())), rpcDone(&ApiWrap::lastParticipantsDone, peer), rpcFail(&ApiWrap::lastParticipantsFail, peer));
 	_participantsRequests.insert(peer, fromStart ? req : -req);
 }
 
 void ApiWrap::requestBots(ChannelData *peer) {
 	if (!peer || !peer->isMegagroup() || _botsRequests.contains(peer)) return;
-	_botsRequests.insert(peer, MTP::send(MTPchannels_GetParticipants(peer->inputChannel, MTP_channelParticipantsBots(), MTP_int(0), MTP_int(cMaxGroupCount())), rpcDone(&ApiWrap::lastParticipantsDone, peer), rpcFail(&ApiWrap::lastParticipantsFail, peer)));
+	_botsRequests.insert(peer, MTP::send(MTPchannels_GetParticipants(peer->inputChannel, MTP_channelParticipantsBots(), MTP_int(0), MTP_int(Global::ChatSizeMax())), rpcDone(&ApiWrap::lastParticipantsDone, peer), rpcFail(&ApiWrap::lastParticipantsFail, peer)));
 }
 
 void ApiWrap::gotChat(PeerData *peer, const MTPmessages_Chats &result) {

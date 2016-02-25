@@ -39,7 +39,7 @@ namespace {
 	bool _started = false;
 
 	uint32 layer;
-	
+
 	typedef QMap<mtpRequestId, RPCResponseHandler> ParserMap;
 	ParserMap parserMap;
 	QMutex parserMapLock;
@@ -210,7 +210,7 @@ namespace {
 			return true;
 		} else if (code < 0 || code >= 500 || (m = QRegularExpression("^FLOOD_WAIT_(\\d+)$").match(err)).hasMatch()) {
 			if (!requestId) return false;
-			
+
 			int32 secs = 1;
 			if (code < 0 || code >= 500) {
 				RequestsDelays::iterator i = requestsDelays.find(requestId);
@@ -367,13 +367,13 @@ namespace _mtp_internal {
 		if (!(dcWithShift % _mtp_internal::dcShift)) {
 			dcWithShift += (mainSession->getDcWithShift() % _mtp_internal::dcShift);
 		}
-		
+
 		Sessions::const_iterator i = sessions.constFind(dcWithShift);
 		if (i != sessions.cend()) return *i;
 
 		MTProtoSessionPtr result(new MTProtoSession());
 		result->start(dcWithShift);
-		
+
 		sessions.insert(dcWithShift, result);
 		return result;
 	}
@@ -381,7 +381,7 @@ namespace _mtp_internal {
 	bool paused() {
 		return _paused;
 	}
-	
+
 	void registerRequest(mtpRequestId requestId, int32 dcWithShift) {
 		{
 			QMutexLocker locker(&requestByDCLock);
@@ -629,7 +629,24 @@ namespace _mtp_internal {
 
 namespace MTP {
 
-    void start() {
+	const uint32 cfg = 1 * _mtp_internal::dcShift; // send(MTPhelp_GetConfig(), MTP::cfg + dc) - for dc enum
+	const uint32 lgt = 2 * _mtp_internal::dcShift; // send(MTPauth_LogOut(), MTP::lgt + dc) - for logout of guest dcs enum
+	const uint32 dld[MTPDownloadSessionsCount] = { // send(req, callbacks, MTP::dld[i] + dc) - for download
+		0x10 * _mtp_internal::dcShift,
+		0x11 * _mtp_internal::dcShift,
+		0x12 * _mtp_internal::dcShift,
+		0x13 * _mtp_internal::dcShift,
+	};
+	const uint32 upl[MTPUploadSessionsCount] = { // send(req, callbacks, MTP::upl[i] + dc) - for upload
+		0x20 * _mtp_internal::dcShift,
+		0x21 * _mtp_internal::dcShift,
+		0x22 * _mtp_internal::dcShift,
+		0x23 * _mtp_internal::dcShift,
+	};
+	const uint32 dldStart = dld[0], dldEnd = dld[(sizeof(dld) / sizeof(dld[0])) - 1] + _mtp_internal::dcShift;
+	const uint32 uplStart = upl[0], uplEnd = upl[(sizeof(upl) / sizeof(upl[0])) - 1] + _mtp_internal::dcShift;
+
+	void start() {
 		if (started()) return;
 
         unixtimeInit();
@@ -712,7 +729,7 @@ namespace MTP {
 		if (!(dc % _mtp_internal::dcShift)) {
 			dc += (mainSession->getDcWithShift() % _mtp_internal::dcShift);
 		}
-		
+
 		Sessions::const_iterator i = sessions.constFind(dc);
 		if (i != sessions.cend()) return (*i)->getState();
 

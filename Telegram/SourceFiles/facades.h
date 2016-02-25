@@ -27,7 +27,7 @@ namespace App {
 	void sendBotCommand(const QString &cmd, MsgId replyTo = 0);
 	bool insertBotCommand(const QString &cmd, bool specialGif = false);
 	void searchByHashtag(const QString &tag, PeerData *inPeer);
-	void openPeerByName(const QString &username, bool toProfile = false, const QString &startToken = QString());
+	void openPeerByName(const QString &username, MsgId msgId = ShowAtUnreadMsgId, const QString &startToken = QString());
 	void joinGroupByHash(const QString &hash);
 	void stickersBox(const QString &name);
 	void openLocalUrl(const QString &url);
@@ -138,8 +138,26 @@ namespace Global {
 	void finish();
 
 	DeclareReadOnlyVar(uint64, LaunchId);
+
 	DeclareVar(Adaptive::Layout, AdaptiveLayout);
 	DeclareVar(bool, AdaptiveForWide);
+
+	// config
+	DeclareVar(int32, ChatSizeMax);
+	DeclareVar(int32, MegagroupSizeMax);
+	DeclareVar(int32, ForwardedCountMax);
+	DeclareVar(int32, OnlineUpdatePeriod);
+	DeclareVar(int32, OfflineBlurTimeout);
+	DeclareVar(int32, OfflineIdleTimeout);
+	DeclareVar(int32, OnlineFocusTimeout); // not from config
+	DeclareVar(int32, OnlineCloudTimeout);
+	DeclareVar(int32, NotifyCloudDelay);
+	DeclareVar(int32, NotifyDefaultDelay);
+	DeclareVar(int32, ChatBigSize);
+	DeclareVar(int32, PushChatPeriod);
+	DeclareVar(int32, PushChatLimit);
+	DeclareVar(int32, SavedGifsLimit);
+	DeclareVar(int32, EditTimeLimit);
 
 };
 
