@@ -1,5 +1,7 @@
 set -e
 
+FastParam="$1"
+
 while IFS='' read -r line || [[ -n "$line" ]]; do
   set $line
   eval $1="$2"
@@ -189,7 +191,9 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
 
   DropboxSymbolsPath="./../../../Dropbox/Telegram/symbols"
 
-  touch "./SourceFiles/telegram.qrc"
+  if [ "$FastParam" != "fast" ]; then
+    touch "./SourceFiles/telegram.qrc"
+  fi
   xcodebuild -project Telegram.xcodeproj -alltargets -configuration Release build
 
   if [ ! -d "$ReleasePath/$BinaryName.app" ]; then
