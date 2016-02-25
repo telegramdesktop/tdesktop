@@ -86,7 +86,7 @@ void MacPrivate::notifyClicked(unsigned long long peer, int msgid) {
 void MacPrivate::notifyReplied(unsigned long long peer, int msgid, const char *str) {
     History *history = App::history(PeerId(peer));
 
-	App::main()->sendMessage(history, QString::fromUtf8(str), (msgid > 0 && !history->peer->isUser()) ? msgid : 0, false);
+	App::main()->sendMessage(history, QString::fromUtf8(str), (msgid > 0 && !history->peer->isUser()) ? msgid : 0, false, false);
 }
 
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent),
