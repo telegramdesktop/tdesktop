@@ -108,13 +108,11 @@ public slots:
 	void onUpdateSelected();
 	void onParentGeometryChanged();
 
-	void openContextUrl();
 	void copyContextUrl();
 	void saveContextImage();
 	void copyContextImage();
 	void cancelContextDownload();
 	void showContextInFolder();
-	void openContextFile();
 	void saveContextFile();
 	void saveContextGif();
 	void copyContextText();
@@ -610,6 +608,7 @@ public slots:
 	void onCancel();
 	void onReplyToMessage();
 	void onEditMessage();
+	void onCopyPostLink();
 	void onFieldBarCancel();
 
 	void onCancelSendAction();

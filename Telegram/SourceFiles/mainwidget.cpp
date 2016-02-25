@@ -3769,16 +3769,17 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	RecentStickerPack::iterator i = recent.begin(), e = recent.end();
 	for (; i != e; ++i) {
 		if (i->first == sticker) {
-			++i->second;
-			if (i->second > 0x8000) {
-				for (RecentStickerPack::iterator j = recent.begin(); j != e; ++j) {
-					if (j->second > 1) {
-						j->second /= 2;
-					} else {
-						j->second = 1;
-					}
-				}
-			}
+			i->second = recent.begin()->second; // throw to the first place
+			//++i->second;
+			//if (i->second > 0x8000) {
+			//	for (RecentStickerPack::iterator j = recent.begin(); j != e; ++j) {
+			//		if (j->second > 1) {
+			//			j->second /= 2;
+			//		} else {
+			//			j->second = 1;
+			//		}
+			//	}
+			//}
 			for (; i != recent.begin(); --i) {
 				if ((i - 1)->second > i->second) {
 					break;
@@ -3790,13 +3791,14 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	}
 	if (i == e) {
 		while (recent.size() >= StickerPanPerRow * StickerPanRowsPerPage) recent.pop_back();
-		recent.push_back(qMakePair(sticker, 1));
-		for (i = recent.end() - 1; i != recent.begin(); --i) {
-			if ((i - 1)->second > i->second) {
-				break;
-			}
-			qSwap(*i, *(i - 1));
-		}
+		recent.push_front(qMakePair(sticker, recent.isEmpty() ? 1 : recent.begin()->second));
+		//recent.push_back(qMakePair(sticker, 1));
+		//for (i = recent.end() - 1; i != recent.begin(); --i) {
+		//	if ((i - 1)->second > i->second) {
+		//		break;
+		//	}
+		//	qSwap(*i, *(i - 1));
+		//}
 	}
 
 	Local::writeUserSettings();

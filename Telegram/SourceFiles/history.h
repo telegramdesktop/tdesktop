@@ -1032,6 +1032,12 @@ public:
 	}
 
 	bool canEdit(const QDateTime &cur) const;
+	bool hasDirectLink() const {
+		return id > 0 && _history->peer->isChannel() && _history->peer->asChannel()->isPublic();
+	}
+	QString directLink() const {
+		return hasDirectLink() ? qsl("https://telegram.me/") + _history->peer->asChannel()->username + '/' + QString::number(id) : QString();
+	}
 
 	int32 y;
 	MsgId id;
