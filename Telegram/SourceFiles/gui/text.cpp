@@ -967,7 +967,7 @@ void LocationLink::setup() {
 
 void MentionLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		App::openPeerByName(_tag.mid(1), true);
+		App::openPeerByName(_tag.mid(1), ShowAtProfileMsgId);
 	}
 }
 
