@@ -391,6 +391,20 @@ public:
 
 };
 
+class SilentToggle : public FlatCheckbox, public AbstractTooltipShower {
+public:
+
+	SilentToggle(QWidget *parent);
+	void mouseMoveEvent(QMouseEvent *e);
+	void mouseReleaseEvent(QMouseEvent *e);
+	void leaveEvent(QEvent *e);
+
+	// AbstractTooltipShower
+	virtual QString tooltipText() const;
+	virtual QPoint tooltipPos() const;
+
+};
+
 enum TextUpdateEventsFlags {
 	TextUpdateEventsSaveDraft  = 0x01,
 	TextUpdateEventsSendTyping = 0x02,
@@ -609,9 +623,9 @@ public slots:
 	void peerUpdated(PeerData *data);
 	void onFullPeerUpdated(PeerData *data);
 
-	void onPhotoUploaded(const FullMsgId &msgId, const MTPInputFile &file);
-	void onDocumentUploaded(const FullMsgId &msgId, const MTPInputFile &file);
-	void onThumbDocumentUploaded(const FullMsgId &msgId, const MTPInputFile &file, const MTPInputFile &thumb);
+	void onPhotoUploaded(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
+	void onDocumentUploaded(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
+	void onThumbDocumentUploaded(const FullMsgId &msgId, bool silent, const MTPInputFile &file, const MTPInputFile &thumb);
 
 	void onPhotoProgress(const FullMsgId &msgId);
 	void onDocumentProgress(const FullMsgId &msgId);
@@ -633,7 +647,7 @@ public slots:
 	void onBotStart();
 	void onJoinChannel();
 	void onMuteUnmute();
-	void onBroadcastChange();
+	void onBroadcastSilentChange();
 
 	void onPhotoSelect();
 	void onDocumentSelect();
@@ -770,6 +784,7 @@ private:
 
 	bool readyToForward() const;
 	bool hasBroadcastToggle() const;
+	bool hasSilentToggle() const;
 
 	PeerData *_peer, *_clearPeer; // cache _peer in _clearPeer when showing clear history box
 	ChannelId _channel;
@@ -817,6 +832,7 @@ private:
 	EmojiButton _attachEmoji;
 	IconedButton _kbShow, _kbHide, _cmdStart;
 	FlatCheckbox _broadcast;
+	SilentToggle _silent;
 	bool _cmdStartShown;
 	MessageField _field;
 	Animation _a_record, _a_recording;

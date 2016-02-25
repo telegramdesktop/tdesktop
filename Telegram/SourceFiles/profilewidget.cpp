@@ -245,7 +245,7 @@ void ProfileInner::onSearchInPeer() {
 }
 
 void ProfileInner::onEnableNotifications() {
-	App::main()->updateNotifySetting(_peer, _enableNotifications.checked());
+	App::main()->updateNotifySetting(_peer, _enableNotifications.checked() ? NotifySettingSetNotify : NotifySettingSetMuted);
 }
 
 void ProfileInner::saveError(const QString &str) {

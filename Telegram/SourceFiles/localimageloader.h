@@ -166,10 +166,14 @@ private:
 };
 
 struct FileLoadTo {
-	FileLoadTo(const PeerId &peer, bool broadcast, MsgId replyTo) : peer(peer), broadcast(broadcast), replyTo(replyTo) {
+	FileLoadTo(const PeerId &peer, bool broadcast, bool silent, MsgId replyTo)
+		: peer(peer)
+		, broadcast(broadcast)
+		, silent(silent)
+		, replyTo(replyTo) {
 	}
 	PeerId peer;
-	bool broadcast;
+	bool broadcast, silent;
 	MsgId replyTo;
 };
 

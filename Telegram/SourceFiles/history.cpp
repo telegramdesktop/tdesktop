@@ -6064,9 +6064,17 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 		text = App::peerName(_authorOriginal);
 	}
 	if (via) {
-		text = lng_forwarded_via(lt_original, textcmdLink(1, text), lt_inline_bot, textcmdLink(2, '@' + via->_bot->username));
+		if (_authorOriginal->isChannel()) {
+			text = lng_forwarded_channel_via(lt_channel, textcmdLink(1, text), lt_inline_bot, textcmdLink(2, '@' + via->_bot->username));
+		} else {
+			text = lng_forwarded_via(lt_user, textcmdLink(1, text), lt_inline_bot, textcmdLink(2, '@' + via->_bot->username));
+		}
 	} else {
-		text = lng_forwarded(lt_original, textcmdLink(1, text));
+		if (_authorOriginal->isChannel()) {
+			text = lng_forwarded_channel(lt_channel, textcmdLink(1, text));
+		} else {
+			text = lng_forwarded(lt_user, textcmdLink(1, text));
+		}
 	}
 	TextParseOptions opts = { TextParseRichText, 0, 0, Qt::LayoutDirectionAuto };
 	textstyleSet(&st::inFwdTextStyle);

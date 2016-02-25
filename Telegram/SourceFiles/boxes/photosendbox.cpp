@@ -417,7 +417,7 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 		}
 		caption = media->getCaption();
 	}
-	if (!_animated && (dimensions.isEmpty() || doc) || image->isNull()) {
+	if ((!_animated && (dimensions.isEmpty() || doc)) || image->isNull()) {
 		_animated = false;
 		if (image->isNull()) {
 			_thumbw = 0;
