@@ -123,6 +123,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_server_error" = "Erro interno do servidor.";
 "lng_flood_error" = "Muitas tentativas. Por favor, tente novamente mais tarde.";
 "lng_gif_error" = "Um erro ocorreu com a animação do GIF :(";
+"lng_edit_error" = "Você não pode editar essa mensagem";
+"lng_edit_deleted" = "Essa mensagem foi apagada";
+"lng_edit_too_long" = "Sua mensagem está muito longa";
+"lng_edit_message" = "Editar mensagem";
+"lng_edit_message_text" = "Nova mensagem...";
 "lng_deleted" = "Desconhecido";
 "lng_deleted_message" = "Mensagem apagada";
 
@@ -556,7 +561,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_channel_public_link_copied" = "Link copiado para área de transferência.";
 
-"lng_forwarded_from" = "Encaminhado de";
+"lng_forwarded" = "Encaminhado de {user}";
+"lng_forwarded_channel" = "Encaminhado de {channel}";
+"lng_forwarded_via" = "Encaminhado de {user} via {online_bot}";
+"lng_forwarded_channel_via" = "Encaminhado de {channel} via {online_bot}";
+"lng_forwarded_signed" = "{channel} ({user})";
 "lng_in_reply_to" = "Em resposta a";
 
 "lng_attach_failed" = "Falhou";
@@ -646,7 +655,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_message_ph" = "Escrever a mensagem..";
 "lng_comment_ph" = "Escreva um comentário...";
 "lng_broadcast_ph" = "Transmitir a mensagem...";
+"lng_broadcast_silent_ph" = "Silenciar transmissão...";
 "lng_record_cancel" = "Solte fora desse campo para cancelar";
+"lng_will_be_notified" = "Os membros serão notificados quando você postar";
+"lng_wont_be_notified" = "Os membros não serão notificados quando você postar";
 "lng_empty_history" = "";
 "lng_willbe_history" = "Selecione um chat para começar a conversar";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
@@ -706,6 +718,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_context_open_link" = "Abrir Link";
 "lng_context_copy_link" = "Copiar Link";
+"lng_context_copy_post_link" = "Copiar Link do Post";
 "lng_context_open_email" = "Escrever para este endereço";
 "lng_context_copy_email" = "Copiar endereço de email";
 "lng_context_open_hashtag" = "Buscar pela hashtag";
@@ -736,6 +749,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_save_gif" = "Salvar GIF";
 "lng_context_to_msg" = "Ir Para Mensagem";
 "lng_context_reply_msg" = "Responder";
+"lng_context_edit_msg" = "Editar";
 "lng_context_forward_msg" = "Encaminhar Mensagem";
 "lng_context_delete_msg" = "Apagar Mensagem";
 "lng_context_select_msg" = "Selecionar Mensagem";
@@ -772,6 +786,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_edit_group_title" = "Editar nome do grupo";
 "lng_edit_contact_title" = "Editar nome de contato";
 "lng_edit_channel_title" = "Editar Canal";
+"lng_edit_sign_messages" = "Assinar mensagens";
 "lng_edit_group" = "Editar grupo";
 "lng_edit_self_title" = "Editar seu nome";
 "lng_confirm_contact_data" = "Novo Contato";
@@ -837,7 +852,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras melhorias menores";
-"lng_new_version_text" = "— Layout adaptativo para wide screens adicionado em Configurações\n— Resolvido crash nas versões Linux";
+"lng_new_version_text" = "— Edite suas mensagens em canais e supergrupos.\n— Compartilhe links para postagens específicas nos canais pelo menu de contexto do post.\n— Adicione assinaturas de administradores nas mensagens dos canais.\n— Envie mensagens silenciosas em canais, que não notificarão os membros. Útil para mensagens não urgentes ou enviadas tarde da noite.";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 
