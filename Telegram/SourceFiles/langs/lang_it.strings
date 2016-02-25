@@ -287,7 +287,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_section_cache" = "Archivio locale";
 "lng_settings_no_data_cached" = "Non ci sono dati nella cache!";
 "lng_settings_images_cached" = "{count:_not_used_|# immagine|# immagini}, {size}";
-"lng_settings_audios_cached" = "{count:_not_used_|# nota vocale|# note vocali}, {size}";
+"lng_settings_audios_cached" = "{count:_not_used_|# messaggio vocale|# messaggi vocali}, {size}";
 "lng_local_storage_clear" = "Elimina tutto";
 "lng_local_storage_clearing" = "Eliminando..";
 "lng_local_storage_cleared" = "Eliminato!";
@@ -438,8 +438,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_songs_header" = "Panoramica file audio";
 "lng_profile_files" = "{count:_not_used_|# file|# file} »";
 "lng_profile_files_header" = "Panoramica file";
-"lng_profile_audios" = "{count:_not_used_|# nota vocale|# note vocali} »";
-"lng_profile_audios_header" = "Panoramica note vocali";
+"lng_profile_audios" = "{count:_not_used_|# messaggio vocale|# messaggi vocali} »";
+"lng_profile_audios_header" = "Panoramica messaggi vocali";
 "lng_profile_shared_links" = "{count:_not_used_|# link condiviso|# link condivisi} »";
 "lng_profile_shared_links_header" = "Panoramica link condivisi";
 "lng_profile_copy_phone" = "Copia numero di telefono";
@@ -568,18 +568,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_media_type_videos" = "Video";
 "lng_media_type_songs" = "File audio";
 "lng_media_type_files" = "File";
-"lng_media_type_audios" = "Note vocali";
+"lng_media_type_audios" = "Messaggi vocali";
 "lng_media_type_links" = "Link condivisi";
 
 "lng_media_open_with" = "Apri con";
 "lng_media_download" = "Scarica";
 "lng_media_cancel" = "Annulla";
 "lng_media_video" = "Video";
-"lng_media_audio" = "Nota vocale";
+"lng_media_audio" = "Messaggio vocale";
 
 "lng_media_auto_settings" = "Impostazioni di download automatico";
 "lng_media_auto_photo" = "Download automatico foto";
-"lng_media_auto_audio" = "Download automatico audio";
+"lng_media_auto_audio" = "Download automatico messaggi vocali";
 "lng_media_auto_gif" = "Download automatico GIF";
 "lng_media_auto_private_chats" = "Chat";
 "lng_media_auto_groups" = "Gruppi e canali";
