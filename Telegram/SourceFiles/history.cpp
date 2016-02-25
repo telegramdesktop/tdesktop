@@ -4455,8 +4455,8 @@ void HistoryGif::initDimensions(const HistoryItem *parent) {
 	_thumbh = th;
 	_maxw = qMax(tw, int32(st::minPhotoSize));
 	_minh = qMax(th, int32(st::minPhotoSize));
+	_maxw = qMax(_maxw, parent->infoWidth() + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	if (!gif() || !_gif->ready()) {
-		_maxw = qMax(_maxw, parent->infoWidth() + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
 		_maxw = qMax(_maxw, gifMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	}
 	if (bubble) {
@@ -4506,12 +4506,12 @@ int32 HistoryGif::resize(int32 width, const HistoryItem *parent) {
 
 	_width = qMax(tw, int32(st::minPhotoSize));
 	_height = qMax(th, int32(st::minPhotoSize));
+	_width = qMax(_width, parent->infoWidth() + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	if (gif() && _gif->ready()) {
 		if (!_gif->started()) {
 			_gif->start(_thumbw, _thumbh, _width, _height, true);
 		}
 	} else {
-		_width = qMax(_width, parent->infoWidth() + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
 		_width = qMax(_width, gifMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	}
 	if (bubble) {

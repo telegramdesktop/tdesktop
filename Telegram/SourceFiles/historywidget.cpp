@@ -879,7 +879,6 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 		}
 		if (lnkPhoto) {
-			_menu->addAction(lang(lng_context_open_image), this, SLOT(openContextUrl()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_save_image), this, SLOT(saveContextImage()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_image), this, SLOT(copyContextImage()))->setEnabled(true);
 		} else {
@@ -892,9 +891,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (lnkDocument && !lnkDocument->document()->already(true).isEmpty()) {
 					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 				}
-				_menu->addAction(lang(lnkIsVideo ? lng_context_open_video : (lnkIsAudio ? lng_context_open_audio : lng_context_open_file)), this, SLOT(openContextFile()))->setEnabled(true);
 				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsAudio ? lng_context_save_audio : lng_context_save_file)), this, SLOT(saveContextFile()))->setEnabled(true);
 			}
+		}
+		if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
+			_menu->addAction(lang(lng_context_copy_post_link), _widget, SLOT(onCopyPostLink()));
 		}
 		if (isUponSelected > 1) {
 			_menu->addAction(lang(lng_context_forward_selected), _widget, SLOT(onForwardSelected()));
@@ -980,18 +981,17 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 		QLatin1String linktype = _contextMenuLnk ? _contextMenuLnk->type() : qstr("");
 		if (linktype == qstr("TextLink") || linktype == qstr("LocationLink")) {
-			_menu->addAction(lang(lng_context_open_link), this, SLOT(openContextUrl()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_link), this, SLOT(copyContextUrl()))->setEnabled(true);
 		} else if (linktype == qstr("EmailLink")) {
-			_menu->addAction(lang(lng_context_open_email), this, SLOT(openContextUrl()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_email), this, SLOT(copyContextUrl()))->setEnabled(true);
 		} else if (linktype == qstr("MentionLink")) {
-			_menu->addAction(lang(lng_context_open_mention), this, SLOT(openContextUrl()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_mention), this, SLOT(copyContextUrl()))->setEnabled(true);
 		} else if (linktype == qstr("HashtagLink")) {
-			_menu->addAction(lang(lng_context_open_hashtag), this, SLOT(openContextUrl()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_hashtag), this, SLOT(copyContextUrl()))->setEnabled(true);
 		} else {
+		}
+		if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
+			_menu->addAction(lang(lng_context_copy_post_link), _widget, SLOT(onCopyPostLink()));
 		}
 		if (isUponSelected > 1) {
 			_menu->addAction(lang(lng_context_forward_selected), _widget, SLOT(onForwardSelected()));
@@ -1042,13 +1042,6 @@ void HistoryInner::copySelectedText() {
 	if (!sel.isEmpty()) {
 		QApplication::clipboard()->setText(sel);
 	}
-}
-
-void HistoryInner::openContextUrl() {
-	HistoryItem *was = App::hoveredLinkItem();
-	App::hoveredLinkItem(App::contextItem());
-	_contextMenuLnk->onClick(Qt::LeftButton);
-	App::hoveredLinkItem(was);
 }
 
 void HistoryInner::copyContextUrl() {
@@ -1107,14 +1100,6 @@ void HistoryInner::showContextInFolder() {
 		}
 	}
 	if (!already.isEmpty()) psShowInFolder(already);
-}
-
-void HistoryInner::openContextFile() {
-	HistoryItem *was = App::hoveredLinkItem();
-	App::hoveredLinkItem(App::contextItem());
-    DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	if (lnkDocument) DocumentOpenLink(lnkDocument->document()).onClick(Qt::LeftButton);
-	App::hoveredLinkItem(was);
 }
 
 void HistoryInner::saveContextFile() {
@@ -6950,6 +6935,13 @@ void HistoryWidget::onEditMessage() {
 
 		_field.setFocus();
 	}
+}
+
+void HistoryWidget::onCopyPostLink() {
+	HistoryItem *to = App::contextItem();
+	if (!to || !to->hasDirectLink()) return;
+
+	QApplication::clipboard()->setText(to->directLink());
 }
 
 bool HistoryWidget::lastForceReplyReplied(const FullMsgId &replyTo) const {
