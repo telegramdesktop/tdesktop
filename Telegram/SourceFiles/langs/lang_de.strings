@@ -837,7 +837,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Neue Option in den Einstellungen hinzugefügt (\"Flexibles Layout für breite Bildschirme\"), um das Layout bei besonders breiten Bildschirmen zu ändern\n— Abstürze in der Linux-Version behoben";
+"lng_new_version_text" = "— Neue Option in den Einstellungen unter 'Hintergrund' hinzugefügt (nennt sich dort \"Flexibles Layout für breite Bildschirme\"), um das Layout bei besonders breiten Bildschirmen zu ändern\n— Abstürze in der Linux-Version behoben";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

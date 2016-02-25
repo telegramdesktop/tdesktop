@@ -378,6 +378,7 @@ QPixmap ClipReader::current(int32 framew, int32 frameh, int32 outerw, int32 oute
 	frame->request.outerh = outerh * factor;
 
 	QImage cacheForResize;
+	frame->original.setDevicePixelRatio(factor);
 	frame->pix = QPixmap();
 	frame->pix = _prepareFrame(frame->request, frame->original, true, cacheForResize);
 
