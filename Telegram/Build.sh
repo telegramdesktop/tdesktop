@@ -69,7 +69,7 @@ elif [ "$BuildTarget" == "macstore" ]; then
   echo "Building version $AppVersionStrFull for Mac App Store.."
   ReleasePath="./../Mac/Release"
   BinaryName="Telegram Desktop"
-  DropboxPath="./../../../Dropbox/$BinaryName/deploy/$AppVersionStrMajor"
+  DropboxPath="./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor"
   DropboxDeployPath="$DropboxPath/$AppVersionStrFull"
 else
   echo "Invalid target!"
@@ -109,7 +109,7 @@ fi
 
 if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
 
-  DropboxSymbolsPath="/media/psf/Home/Dropbox/$BinaryName/symbols"
+  DropboxSymbolsPath="/media/psf/Home/Dropbox/Telegram/symbols"
 
   mkdir -p "$WorkPath/ReleaseIntermediateUpdater"
   cd "$WorkPath/ReleaseIntermediateUpdater"
@@ -189,7 +189,7 @@ fi
 
 if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" == "macstore" ]; then
 
-  DropboxSymbolsPath="./../../../Dropbox/$BinaryName/symbols"
+  DropboxSymbolsPath="./../../../Dropbox/Telegram/symbols"
 
   if [ "$FastParam" != "fast" ]; then
     touch "./SourceFiles/telegram.qrc"
