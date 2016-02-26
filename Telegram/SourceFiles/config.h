@@ -142,9 +142,9 @@ enum {
 	MaxUsernameLength = 32,
 	UsernameCheckTimeout = 200,
 
-	MaxChannelDescription = 120,
+	MaxChannelDescription = 255,
 	MaxGroupChannelTitle = 255,
-	MaxPhotoCaption = 140,
+	MaxPhotoCaption = 200,
 
 	MaxMessageSize = 4096,
 	MaxHttpRedirects = 5, // when getting external data/images
