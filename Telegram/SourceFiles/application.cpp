@@ -1053,7 +1053,7 @@ void AppClass::checkMapVersion() {
 			QString versionFeatures;
 			if ((cDevVersion() || cBetaVersion()) && Local::oldMapVersion() < 9027) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Edit your messages in channels and supergroups.\n\xe2\x80\x94 Share links to specific posts in channels via the post context menu.\n\xe2\x80\x94 Add admin signatures to messages in channels.\n\xe2\x80\x94 Send silent messages in channels that will not notify members. Useful for non-urgent or late night posting.");// .replace('@', qsl("@") + QChar(0x200D));
-			} else if (Local::oldMapVersion() < 9026) {
+			} else if (Local::oldMapVersion() < 9027) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
