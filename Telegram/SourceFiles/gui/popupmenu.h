@@ -28,6 +28,7 @@ public:
 	PopupMenu(QMenu *menu, const style::PopupMenu &st = st::defaultPopupMenu);
 	QAction *addAction(const QString &text, const QObject *receiver, const char* member);
 	QAction *addAction(QAction *a);
+	QAction *addSeparator();
 	void resetActions();
 
 	typedef QVector<QAction*> Actions;

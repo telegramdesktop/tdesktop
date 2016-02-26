@@ -103,6 +103,12 @@ QAction *PopupMenu::addAction(QAction *a) {
 	return a;
 }
 
+QAction *PopupMenu::addSeparator() {
+	QAction *separator = new QAction(this);
+	separator->setSeparator(true);
+	return addAction(separator);
+}
+
 int32 PopupMenu::processAction(QAction *a, int32 index, int32 w) {
 	if (a->isSeparator() || a->text().isEmpty()) {
 		_texts[index] = _shortcutTexts[index] = QString();
