@@ -931,6 +931,12 @@ namespace App {
 			existing->updateMedia(m.has_media() ? (&m.vmedia) : 0, true);
 			existing->setViewsCount(m.has_views() ? m.vviews.v : -1, false);
 			existing->initDimensions();
+			if (existing->history()->textCachedFor == existing) {
+				existing->history()->textCachedFor = 0;
+			}
+			if (App::main()) {
+				App::main()->dlgUpdated(existing->history(), existing->id);
+			}
 			Notify::historyItemResized(existing);
 		}
 	}

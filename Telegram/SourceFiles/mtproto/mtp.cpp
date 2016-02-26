@@ -531,7 +531,10 @@ namespace _mtp_internal {
 						return;
 					}
 				} else {
-					if (h.onDone) (*h.onDone)(requestId, from, end);
+					if (h.onDone) {
+//						t_assert(App::app() != 0);
+						(*h.onDone)(requestId, from, end);
+					}
 				}
 			} catch (Exception &e) {
 				if (!rpcErrorOccured(requestId, h, rpcClientError("RESPONSE_PARSE_FAILED", QString("exception text: ") + e.what()))) {
