@@ -398,7 +398,7 @@ void MediaView::updateDropdown() {
 	_btnSaveAs->setVisible(true);
 	_btnCopy->setVisible((_doc && fileShown()) || (_photo && _photo->loaded()));
 	_btnForward->setVisible(_canForward);
-	_btnDelete->setVisible(_canDelete || (_photo && App::self() && App::self()->photoId == _photo->id) || (_photo && _photo->peer && _photo->peer->photoId == _photo->id && (_photo->peer->isChat() || (_photo->peer->isChannel() && _photo->peer->asChannel()->amCreator()))));
+	_btnDelete->setVisible(_canDelete || (_photo && App::self() && _user == App::self()) || (_photo && _photo->peer && _photo->peer->photoId == _photo->id && (_photo->peer->isChat() || (_photo->peer->isChannel() && _photo->peer->asChannel()->amCreator()))));
 	_btnViewAll->setVisible((_overview != OverviewCount) && _history);
 	_btnViewAll->setText(lang(_doc ? lng_mediaview_files_all : lng_mediaview_photos_all));
 	_dropdown.updateButtons();
@@ -707,6 +707,21 @@ void MediaView::onDelete() {
 	if (!_msgid) {
 		if (App::self() && _photo && App::self()->photoId == _photo->id) {
 			App::app()->peerClearPhoto(App::self()->id);
+		} else if (_user && _user == App::self()) {
+			for (int32 i = 0, l = _user->photos.size(); i != l; ++i) {
+				if (_user->photos.at(i) == _photo) {
+					_user->photos.removeAt(i);
+					MTP::send(MTPphotos_DeletePhotos(MTP_vector<MTPInputPhoto>(1, MTP_inputPhoto(MTP_long(_photo->id), MTP_long(_photo->access)))), rpcDone(&MediaView::deletePhotosDone), rpcFail(&MediaView::deletePhotosFail));
+					if (_user->photos.isEmpty()) {
+						hide();
+					} else if (i + 1 < l) {
+						showPhoto(_user->photos.at(i), _user);
+					} else {
+						showPhoto(_user->photos.at(i - 1), _user);
+					}
+					break;
+				}
+			}
 		} else if (_photo->peer && _photo->peer->photoId == _photo->id) {
 			App::app()->peerClearPhoto(_photo->peer->id);
 		}
@@ -2088,6 +2103,15 @@ void MediaView::userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mt
 		u->photos.push_back(photo);
 	}
 	if (App::wnd()) App::wnd()->mediaOverviewUpdated(u, OverviewCount);
+}
+
+void MediaView::deletePhotosDone(const MTPVector<MTPlong> &result) {
+}
+
+bool MediaView::deletePhotosFail(const RPCError &error) {
+	if (mtpIsFlood(error)) return false;
+
+	return true;
 }
 
 void MediaView::updateHeader() {

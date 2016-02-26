@@ -951,7 +951,7 @@ void AppClass::killDownloadSessions() {
 	}
 }
 
-void AppClass::photoUpdated(const FullMsgId &msgId, const MTPInputFile &file) {
+void AppClass::photoUpdated(const FullMsgId &msgId, bool silent, const MTPInputFile &file) {
 	if (!App::self()) return;
 
 	QMap<FullMsgId, PeerId>::iterator i = photoUpdates.find(msgId);
@@ -1040,7 +1040,7 @@ void AppClass::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId) {
 
 	ReadyLocalMedia ready(PreparePhoto, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false, false, 0);
 
-	connect(App::uploader(), SIGNAL(photoReady(const FullMsgId&, const MTPInputFile&)), App::app(), SLOT(photoUpdated(const FullMsgId&, const MTPInputFile&)), Qt::UniqueConnection);
+	connect(App::uploader(), SIGNAL(photoReady(const FullMsgId&,bool,const MTPInputFile&)), App::app(), SLOT(photoUpdated(const FullMsgId&,bool,const MTPInputFile&)), Qt::UniqueConnection);
 
 	FullMsgId newId(peerToChannel(peerId), clientMsgId());
 	App::app()->regPhotoUpdate(peerId, newId);
