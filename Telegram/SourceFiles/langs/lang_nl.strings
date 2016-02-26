@@ -561,10 +561,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_channel_public_link_copied" = "Link gekopieerd naar klembord";
 
-"lng_forwarded" = "Forwarded from {user}";
-"lng_forwarded_channel" = "Forwarded from {channel}";
-"lng_forwarded_via" = "Forwarded from {user} via {inline_bot}";
-"lng_forwarded_channel_via" = "Forwarded from {channel} via {inline_bot}";
+"lng_forwarded" = "Doorgestuurd van {user}";
+"lng_forwarded_channel" = "Doorgestuurd van {channel}";
+"lng_forwarded_via" = "Doorgestuurd van {user} via {inline_bot}";
+"lng_forwarded_channel_via" = "Doorgestuurd van {channel} via {inline_bot}";
 "lng_forwarded_signed" = "{channel} ({user})";
 "lng_in_reply_to" = "Antwoord op";
 
@@ -655,7 +655,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_message_ph" = "Bericht schrijven";
 "lng_comment_ph" = "Reactie";
 "lng_broadcast_ph" = "Massabericht";
-"lng_broadcast_silent_ph" = "Silent broadcast..";
+"lng_broadcast_silent_ph" = "Stil massabericht..";
 "lng_record_cancel" = "Annuleren: uit het vak loslaten";
 "lng_will_be_notified" = "Berichtgeving voor deelnemers";
 "lng_wont_be_notified" = "Geen berichtgeving voor deelnemers";
@@ -716,16 +716,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_view_group" = "Groepsinformatie weergeven";
 "lng_context_view_channel" = "Kanaalinformatie weergeven";
 
-"lng_context_open_link" = "Link openen";
 "lng_context_copy_link" = "Link kopiëren";
 "lng_context_copy_post_link" = "Link kopiëren";
-"lng_context_open_email" = "Naar dit adres sturen";
 "lng_context_copy_email" = "E-mailadres kopiëren";
-"lng_context_open_hashtag" = "Zoeken op hashtag";
 "lng_context_copy_hashtag" = "Hashtag kopiëren";
-"lng_context_open_mention" = "Profiel openen";
 "lng_context_copy_mention" = "Gebruikersnaam kopiëren";
-"lng_context_open_image" = "Afbeelding openen";
 "lng_context_save_image" = "Afbeelding opslaan als";
 "lng_context_forward_image" = "Afbeelding doorsturen";
 "lng_context_delete_image" = "Afbeelding verwijderen";
@@ -734,13 +729,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_cancel_download" = "Download annuleren";
 "lng_context_show_in_folder" = "Weergeven in map";
 "lng_context_show_in_finder" = "Weergeven in Finder";
-"lng_context_open_video" = "Video openen";
 "lng_context_save_video" = "Video opslaan als";
-"lng_context_open_audio" = "Geluidsbestand openen";
 "lng_context_save_audio" = "Geluidsbestand opslaan als";
 "lng_context_pack_info" = "Bundelinformatie";
 "lng_context_pack_add" = "Stickers toevoegen";
-"lng_context_open_file" = "Bestand openen";
 "lng_context_save_file" = "Bestand opslaan als";
 "lng_context_forward_file" = "Bestand doorsturen";
 "lng_context_delete_file" = "Bestand verwijderen";
@@ -852,7 +844,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Edit your messages in channels and supergroups.\n— Share links to specific posts in channels via the post context menu.\n— Add admin signatures to messages in channels.\n— Send silent messages in channels that will not notify members. Useful for non-urgent or late night posting.";
+"lng_new_version_text" = "— Bewerk nu je berichten in kanalen en supergroepen.\n— Deel links naar specifieke berichten in kanalen via het contextmenu.\n— Onderteken berichten in kanalen.\n— Stuur 'stille berichten' in kanalen. Ideaal voor als je toch echt iets moet sturen in het holst van de nacht.";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

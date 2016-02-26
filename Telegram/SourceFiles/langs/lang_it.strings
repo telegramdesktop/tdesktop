@@ -716,16 +716,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_view_group" = "Visualizza info gruppo";
 "lng_context_view_channel" = "Visualizza info canale";
 
-"lng_context_open_link" = "Apri link";
 "lng_context_copy_link" = "Copia link";
 "lng_context_copy_post_link" = "Copia link post";
-"lng_context_open_email" = "Scrivi a questo indirizzo";
 "lng_context_copy_email" = "Copia indirizzo email";
-"lng_context_open_hashtag" = "Cerca via hashtag";
 "lng_context_copy_hashtag" = "Copia hashtag";
-"lng_context_open_mention" = "Apri profilo";
 "lng_context_copy_mention" = "Copia username";
-"lng_context_open_image" = "Apri immagine";
 "lng_context_save_image" = "Salva immagine come..";
 "lng_context_forward_image" = "Inoltra immagine";
 "lng_context_delete_image" = "Elimina immagine";
@@ -734,13 +729,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_cancel_download" = "Annulla download";
 "lng_context_show_in_folder" = "Mostra nella cartella";
 "lng_context_show_in_finder" = "Mostra nel Finder";
-"lng_context_open_video" = "Apri video";
 "lng_context_save_video" = "Salva video come..";
-"lng_context_open_audio" = "Apri audio";
 "lng_context_save_audio" = "Salva audio come..";
 "lng_context_pack_info" = "Mostra sticker";
 "lng_context_pack_add" = "Aggiungi sticker";
-"lng_context_open_file" = "Apri file";
 "lng_context_save_file" = "Salva file come..";
 "lng_context_forward_file" = "Inoltra file";
 "lng_context_delete_file" = "Elimina file";

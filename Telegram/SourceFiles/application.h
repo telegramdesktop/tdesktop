@@ -191,7 +191,7 @@ public slots:
 
 	void doMtpUnpause();
 
-	void photoUpdated(const FullMsgId &msgId, const MTPInputFile &file);
+	void photoUpdated(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
 
 	void onSwitchDebugMode();
 	void onSwitchTestMode();

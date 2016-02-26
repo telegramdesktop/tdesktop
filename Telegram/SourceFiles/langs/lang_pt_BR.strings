@@ -716,16 +716,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_view_group" = "Ver info do grupo";
 "lng_context_view_channel" = "Ver info do canal";
 
-"lng_context_open_link" = "Abrir Link";
 "lng_context_copy_link" = "Copiar Link";
 "lng_context_copy_post_link" = "Copiar Link do Post";
-"lng_context_open_email" = "Escrever para este endereço";
 "lng_context_copy_email" = "Copiar endereço de email";
-"lng_context_open_hashtag" = "Buscar pela hashtag";
 "lng_context_copy_hashtag" = "Copiar hashtag";
-"lng_context_open_mention" = "Abrir perfil";
 "lng_context_copy_mention" = "Copiar nome de usuário";
-"lng_context_open_image" = "Abrir Imagem";
 "lng_context_save_image" = "Salvar Imagem Como..";
 "lng_context_forward_image" = "Encaminhar Imagem";
 "lng_context_delete_image" = "Apagar Imagem";
@@ -734,13 +729,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_cancel_download" = "Cancelar Download";
 "lng_context_show_in_folder" = "Mostrar na Pasta";
 "lng_context_show_in_finder" = "Mostrar no Finder";
-"lng_context_open_video" = "Abrir Vídeo";
 "lng_context_save_video" = "Salvar Vídeo Como..";
-"lng_context_open_audio" = "Abrir Áudio";
 "lng_context_save_audio" = "Salvar Áudio Como..";
 "lng_context_pack_info" = "Informação do pacote";
 "lng_context_pack_add" = "Adicionar aos Stickers";
-"lng_context_open_file" = "Abrir Arquivo";
 "lng_context_save_file" = "Salvar Arquivo Como..";
 "lng_context_forward_file" = "Encaminhar Arquivo";
 "lng_context_delete_file" = "Apagar Arquivo";

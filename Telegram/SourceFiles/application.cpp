@@ -951,7 +951,7 @@ void AppClass::killDownloadSessions() {
 	}
 }
 
-void AppClass::photoUpdated(const FullMsgId &msgId, const MTPInputFile &file) {
+void AppClass::photoUpdated(const FullMsgId &msgId, bool silent, const MTPInputFile &file) {
 	if (!App::self()) return;
 
 	QMap<FullMsgId, PeerId>::iterator i = photoUpdates.find(msgId);
@@ -1040,7 +1040,7 @@ void AppClass::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId) {
 
 	ReadyLocalMedia ready(PreparePhoto, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false, false, 0);
 
-	connect(App::uploader(), SIGNAL(photoReady(const FullMsgId&, const MTPInputFile&)), App::app(), SLOT(photoUpdated(const FullMsgId&, const MTPInputFile&)), Qt::UniqueConnection);
+	connect(App::uploader(), SIGNAL(photoReady(const FullMsgId&,bool,const MTPInputFile&)), App::app(), SLOT(photoUpdated(const FullMsgId&,bool,const MTPInputFile&)), Qt::UniqueConnection);
 
 	FullMsgId newId(peerToChannel(peerId), clientMsgId());
 	App::app()->regPhotoUpdate(peerId, newId);
@@ -1053,7 +1053,7 @@ void AppClass::checkMapVersion() {
 			QString versionFeatures;
 			if ((cDevVersion() || cBetaVersion()) && Local::oldMapVersion() < 9027) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Edit your messages in channels and supergroups.\n\xe2\x80\x94 Share links to specific posts in channels via the post context menu.\n\xe2\x80\x94 Add admin signatures to messages in channels.\n\xe2\x80\x94 Send silent messages in channels that will not notify members. Useful for non-urgent or late night posting.");// .replace('@', qsl("@") + QChar(0x200D));
-			} else if (Local::oldMapVersion() < 9026) {
+			} else if (Local::oldMapVersion() < 9027) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
