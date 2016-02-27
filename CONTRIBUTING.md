@@ -89,9 +89,13 @@ Check the log to be sure that you actually want the changes, before merging:
 
     git log upstream/master
 
-Then merge the changes that you fetched:
+Then rebase your changes on the latest commits in the `master` branch:
 
-    git merge upstream/master
+    git rebase upstream/master
+
+After that, you have to force push your commits:
+
+    git push --force
 
 For more info, see [GitHub Help][help_fork_repo].
 
