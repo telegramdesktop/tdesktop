@@ -175,7 +175,7 @@ void DialogRow::paint(Painter &p, int32 w, bool act, bool sel, bool onlyBackgrou
 			int32 unreadRectLeft = w - st::dlgPaddingHor - unreadRectWidth;
 			int32 unreadRectTop = st::dlgHeight - st::dlgPaddingVer - unreadRectHeight;
 			lastWidth -= unreadRectWidth + st::dlgUnreadPaddingHor;
-			p.setBrush((act ? st::dlgActiveUnreadBG : (history->mute ? st::dlgUnreadMutedBG : st::dlgUnreadBG))->b);
+			p.setBrush((act ? (history->mute ? st::dlgActiveUnreadMutedBG : st::dlgActiveUnreadBG) : (history->mute ? st::dlgUnreadMutedBG : st::dlgUnreadBG))->b);
 			p.setPen(Qt::NoPen);
 			p.drawRoundedRect(unreadRectLeft, unreadRectTop, unreadRectWidth, unreadRectHeight, st::dlgUnreadRadius, st::dlgUnreadRadius);
 			p.setFont(st::dlgUnreadFont->f);
