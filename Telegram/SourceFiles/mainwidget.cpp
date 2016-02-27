@@ -517,7 +517,7 @@ bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QStrin
 	}
 	History *h = App::history(peer);
 	h->setMsgDraft(new HistoryDraft(url + '\n' + text, 0, MessageCursor(url.size() + 1, url.size() + 1 + text.size(), QFIXED_MAX), false));
-	h->setEditDraft(Nil);
+	h->setEditDraft(nullptr);
 	bool opened = history.peer() && (history.peer()->id == peer);
 	if (opened) {
 		history.applyDraft();
@@ -810,6 +810,18 @@ void MainWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 
 void MainWidget::notify_automaticLoadSettingsChangedGif() {
 	history.notify_automaticLoadSettingsChangedGif();
+}
+
+void MainWidget::cmd_search() {
+	history.cmd_search();
+}
+
+void MainWidget::cmd_next_chat() {
+	history.cmd_next_chat();
+}
+
+void MainWidget::cmd_previous_chat() {
+	history.cmd_previous_chat();
 }
 
 void MainWidget::notify_historyItemResized(const HistoryItem *item, bool scrollToIt) {

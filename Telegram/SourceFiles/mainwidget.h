@@ -435,6 +435,10 @@ public:
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
 	void notify_automaticLoadSettingsChangedGif();
 
+	void cmd_search();
+	void cmd_next_chat();
+	void cmd_previous_chat();
+
 	~MainWidget();
 
 signals:

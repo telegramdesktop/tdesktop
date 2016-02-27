@@ -906,6 +906,9 @@
     <ClCompile Include="ThirdParty\minizip\zip.c">
       <Filter>ThirdParty\minizip</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\shortcuts.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1003,6 +1006,9 @@
     </ClInclude>
     <ClInclude Include="ThirdParty\minizip\zip.h">
       <Filter>ThirdParty\minizip</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\shortcuts.h">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -36,7 +36,12 @@ T *exchange(T *&ptr) {
 struct NullType {
 };
 
-class NilPointer {
+#if __cplusplus < 199711L
+#define TDESKTOP_CUSTOM_NULLPTR
+#endif
+
+#ifdef TDESKTOP_CUSTOM_NULLPTR
+class NullPointerClass {
 public:
 	template <typename T>
 	operator T*() const {
@@ -50,7 +55,8 @@ public:
 private:
 	void operator&() const;
 };
-extern NilPointer Nil;
+extern NullPointerClass nullptr;
+#endif
 
 template <typename T>
 class OrderedSet : public QMap<T, NullType> {

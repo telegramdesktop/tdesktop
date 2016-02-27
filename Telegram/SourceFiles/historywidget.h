@@ -596,6 +596,10 @@ public:
 	void notify_clipStopperHidden(ClipStopperType type);
 	void notify_historyItemResized(const HistoryItem *item, bool scrollToIt);
 
+	void cmd_search();
+	void cmd_next_chat();
+	void cmd_previous_chat();
+
 	~HistoryWidget();
 
 signals:

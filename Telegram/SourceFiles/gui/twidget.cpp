@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 
 #include "application.h"
+#include "window.h"
 
 namespace Fonts {
 
@@ -50,6 +51,10 @@ namespace {
 			}
 		}
 	}
+}
+
+bool TWidget::inFocusChain() const {
+	return !isHidden() && App::wnd() && (App::wnd()->focusWidget() == this || isAncestorOf(App::wnd()->focusWidget()));
 }
 
 void myEnsureResized(QWidget *target) {

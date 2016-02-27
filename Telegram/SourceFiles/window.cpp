@@ -22,6 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "style.h"
 #include "lang.h"
 
+#include "shortcuts.h"
+
 #include "window.h"
 #include "application.h"
 
@@ -1008,8 +1010,8 @@ QRect Window::iconRect() const {
 	return QRect(st::titleIconPos + title->geometry().topLeft(), st::titleIconImg.pxSize());
 }
 
-bool Window::eventFilter(QObject *obj, QEvent *evt) {
-	QEvent::Type t = evt->type();
+bool Window::eventFilter(QObject *obj, QEvent *e) {
+	QEvent::Type t = e->type();
 	if (t == QEvent::MouseButtonPress || t == QEvent::KeyPress || t == QEvent::TouchBegin || t == QEvent::Wheel) {
 		psUserActionDone();
 	} else if (t == QEvent::MouseMove) {
@@ -1019,13 +1021,15 @@ bool Window::eventFilter(QObject *obj, QEvent *evt) {
 		}
 	} else if (t == QEvent::MouseButtonRelease) {
 		Ui::hideStickerPreview();
+	} else if (t == QEvent::Shortcut) {
+		Shortcuts::launch(static_cast<QShortcutEvent*>(e)->shortcutId());
 	}
 	if (obj == Application::instance()) {
 		if (t == QEvent::ApplicationActivate) {
 			psUserActionDone();
 			QTimer::singleShot(1, this, SLOT(checkHistoryActivation()));
 		} else if (t == QEvent::FileOpen) {
-			QString url = static_cast<QFileOpenEvent*>(evt)->url().toEncoded();
+			QString url = static_cast<QFileOpenEvent*>(e)->url().toEncoded();
 			if (!url.trimmed().midRef(0, 5).compare(qsl("tg://"), Qt::CaseInsensitive)) {
 				cSetStartUrl(url);
 				if (!cStartUrl().isEmpty() && App::main() && App::self()) {
@@ -1043,7 +1047,7 @@ bool Window::eventFilter(QObject *obj, QEvent *evt) {
 			psUpdatedPosition();
 		}
 	}
-	return PsMainWindow::eventFilter(obj, evt);
+	return PsMainWindow::eventFilter(obj, e);
 }
 
 void Window::mouseMoveEvent(QMouseEvent *e) {

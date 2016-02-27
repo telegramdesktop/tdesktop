@@ -108,6 +108,7 @@ SOURCES += \
     ./SourceFiles/mainwidget.cpp \
     ./SourceFiles/settings.cpp \
     ./SourceFiles/settingswidget.cpp \
+	./SourceFiles/shortcuts.cpp \
     ./SourceFiles/structs.cpp \
     ./SourceFiles/sysbuttons.cpp \
     ./SourceFiles/title.cpp \
@@ -197,6 +198,7 @@ HEADERS += \
     ./SourceFiles/mainwidget.h \
     ./SourceFiles/settings.h \
     ./SourceFiles/settingswidget.h \
+	./SourceFiles/shortcuts.h \
     ./SourceFiles/structs.h \
     ./SourceFiles/style.h \
     ./SourceFiles/sysbuttons.h \

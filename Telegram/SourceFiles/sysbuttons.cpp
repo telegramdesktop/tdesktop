@@ -22,9 +22,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "style.h"
 #include "lang.h"
 
+#include "shortcuts.h"
+
 #include "sysbuttons.h"
-#include "passcodewidget.h"
-#include "window.h"
 #include "application.h"
 #include "autoupdater.h"
 
@@ -166,9 +166,5 @@ LockBtn::LockBtn(QWidget *parent, Window *window) : SysBtn(parent, st::sysLock),
 }
 
 void LockBtn::onClick() {
-	if (App::passcoded()) {
-		App::wnd()->passcodeWidget()->onSubmit();
-	} else {
-		App::wnd()->setupPasscode(true);
-	}
+	Shortcuts::launch(qsl("lock_telegram"));
 }

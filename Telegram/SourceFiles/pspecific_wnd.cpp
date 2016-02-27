@@ -620,6 +620,7 @@ namespace {
 			case WM_CLOSE:
 				App::wnd()->close();
 			break;
+
 			case WM_NCHITTEST: {
 				int32 xPos = GET_X_LPARAM(lParam), yPos = GET_Y_LPARAM(lParam);
 				switch (i) {
