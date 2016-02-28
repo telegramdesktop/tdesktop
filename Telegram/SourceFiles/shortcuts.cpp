@@ -239,11 +239,17 @@ namespace Shortcuts {
 
 			DeclareCommand("ctrl+pgdown", next_chat);
 			DeclareAlias("alt+down", next_chat);
-			DeclareAlias("ctrl+tab", next_chat);
 			DeclareCommand("ctrl+pgup", previous_chat);
 			DeclareAlias("alt+up", previous_chat);
-			DeclareAlias("ctrl+shift+tab", previous_chat);
-			DeclareAlias("ctrl+backtab", previous_chat);
+			if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
+				DeclareAlias("meta+tab", next_chat);
+				DeclareAlias("meta+shift+tab", previous_chat);
+				DeclareAlias("meta+backtab", previous_chat);
+			} else {
+				DeclareAlias("ctrl+tab", next_chat);
+				DeclareAlias("ctrl+shift+tab", previous_chat);
+				DeclareAlias("ctrl+backtab", previous_chat);
+			}
 
 			// other commands here
 
