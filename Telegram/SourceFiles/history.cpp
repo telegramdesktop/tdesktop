@@ -5612,10 +5612,10 @@ HistoryWebPage::~HistoryWebPage() {
 }
 
 namespace {
-	ImageLinkManager manager;
+	LocationManager manager;
 }
 
-void ImageLinkManager::init() {
+void LocationManager::init() {
 	if (manager) delete manager;
 	manager = new QNetworkAccessManager();
 	App::setProxySettings(*manager);
@@ -5635,11 +5635,11 @@ void ImageLinkManager::init() {
 	black = new ImagePtr(p, "PNG");
 }
 
-void ImageLinkManager::reinit() {
+void LocationManager::reinit() {
 	if (manager) App::setProxySettings(*manager);
 }
 
-void ImageLinkManager::deinit() {
+void LocationManager::deinit() {
 	if (manager) {
 		delete manager;
 		manager = 0;
@@ -5664,33 +5664,27 @@ void deinitImageLinkManager() {
 	manager.deinit();
 }
 
-void ImageLinkManager::getData(ImageLinkData *data) {
+void LocationManager::getData(LocationData *data) {
 	if (!manager) {
 		DEBUG_LOG(("App Error: getting image link data without manager init!"));
 		return failed(data);
 	}
-	QString url;
-	switch (data->type) {
-		case GoogleMapsLink: {
-			int32 w = st::locationSize.width(), h = st::locationSize.height();
-			int32 zoom = 13, scale = 1;
-			if (cScale() == dbisTwo || cRetina()) {
-				scale = 2;
-			} else {
-				w = convertScale(w);
-				h = convertScale(h);
-			}
-			url = qsl("https://maps.googleapis.com/maps/api/staticmap?center=") + data->id.mid(9) + qsl("&zoom=%1&size=%2x%3&maptype=roadmap&scale=%4&markers=color:red|size:big|").arg(zoom).arg(w).arg(h).arg(scale) + data->id.mid(9) + qsl("&sensor=false");
-			QNetworkReply *reply = manager->get(QNetworkRequest(QUrl(url)));
-			imageLoadings[reply] = data;
-		} break;
-		default: {
-			failed(data);
-		} break;
+
+	int32 w = st::locationSize.width(), h = st::locationSize.height();
+	int32 zoom = 13, scale = 1;
+	if (cScale() == dbisTwo || cRetina()) {
+		scale = 2;
+	} else {
+		w = convertScale(w);
+		h = convertScale(h);
 	}
+	QString coords = qsl("%1,%2").arg(data->coords.lat).arg(data->coords.lon);
+	QString url = qsl("https://maps.googleapis.com/maps/api/staticmap?center=") + coords + qsl("&zoom=%1&size=%2x%3&maptype=roadmap&scale=%4&markers=color:red|size:big|").arg(zoom).arg(w).arg(h).arg(scale) + coords + qsl("&sensor=false");
+	QNetworkReply *reply = manager->get(QNetworkRequest(QUrl(url)));
+	imageLoadings[reply] = data;
 }
 
-void ImageLinkManager::onFinished(QNetworkReply *reply) {
+void LocationManager::onFinished(QNetworkReply *reply) {
 	if (!manager) return;
 	if (reply->error() != QNetworkReply::NoError) return onFailed(reply);
 
@@ -5700,9 +5694,9 @@ void ImageLinkManager::onFinished(QNetworkReply *reply) {
 		if (status == 301 || status == 302) {
 			QString loc = reply->header(QNetworkRequest::LocationHeader).toString();
 			if (!loc.isEmpty()) {
-				QMap<QNetworkReply*, ImageLinkData*>::iterator i = dataLoadings.find(reply);
+				QMap<QNetworkReply*, LocationData*>::iterator i = dataLoadings.find(reply);
 				if (i != dataLoadings.cend()) {
-					ImageLinkData *d = i.value();
+					LocationData *d = i.value();
 					if (serverRedirects.constFind(d) == serverRedirects.cend()) {
 						serverRedirects.insert(d, 1);
 					} else if (++serverRedirects[d] > MaxHttpRedirects) {
@@ -5713,7 +5707,7 @@ void ImageLinkManager::onFinished(QNetworkReply *reply) {
 					dataLoadings.insert(manager->get(QNetworkRequest(loc)), d);
 					return;
 				} else if ((i = imageLoadings.find(reply)) != imageLoadings.cend()) {
-					ImageLinkData *d = i.value();
+					LocationData *d = i.value();
 					if (serverRedirects.constFind(d) == serverRedirects.cend()) {
 						serverRedirects.insert(d, 1);
 					} else if (++serverRedirects[d] > MaxHttpRedirects) {
@@ -5732,8 +5726,8 @@ void ImageLinkManager::onFinished(QNetworkReply *reply) {
 		}
 	}
 
-	ImageLinkData *d = 0;
-	QMap<QNetworkReply*, ImageLinkData*>::iterator i = dataLoadings.find(reply);
+	LocationData *d = 0;
+	QMap<QNetworkReply*, LocationData*>::iterator i = dataLoadings.find(reply);
 	if (i != dataLoadings.cend()) {
 		d = i.value();
 		dataLoadings.erase(i);
@@ -5744,9 +5738,7 @@ void ImageLinkManager::onFinished(QNetworkReply *reply) {
 			DEBUG_LOG(("JSON Error: Bad json received in onFinished() for image link"));
 			return onFailed(reply);
 		}
-		switch (d->type) {
-			case GoogleMapsLink: failed(d); break;
-		}
+		failed(d);
 
 		if (App::main()) App::main()->update();
 	} else {
@@ -5777,11 +5769,11 @@ void ImageLinkManager::onFinished(QNetworkReply *reply) {
 	}
 }
 
-void ImageLinkManager::onFailed(QNetworkReply *reply) {
+void LocationManager::onFailed(QNetworkReply *reply) {
 	if (!manager) return;
 
-	ImageLinkData *d = 0;
-	QMap<QNetworkReply*, ImageLinkData*>::iterator i = dataLoadings.find(reply);
+	LocationData *d = 0;
+	QMap<QNetworkReply*, LocationData*>::iterator i = dataLoadings.find(reply);
 	if (i != dataLoadings.cend()) {
 		d = i.value();
 		dataLoadings.erase(i);
@@ -5792,19 +5784,19 @@ void ImageLinkManager::onFailed(QNetworkReply *reply) {
 			imageLoadings.erase(i);
 		}
 	}
-	DEBUG_LOG(("Network Error: failed to get data for image link %1, error %2").arg(d ? d->id : 0).arg(reply->errorString()));
+	DEBUG_LOG(("Network Error: failed to get data for image link %1,%2 error %3").arg(d ? d->coords.lat : 0).arg(d ? d->coords.lon : 0).arg(reply->errorString()));
 	if (d) {
 		failed(d);
 	}
 }
 
-void ImageLinkManager::failed(ImageLinkData *data) {
+void LocationManager::failed(LocationData *data) {
 	data->loading = false;
 	data->thumb = *black;
 	serverRedirects.remove(data);
 }
 
-void ImageLinkData::load() {
+void LocationData::load() {
 	if (!thumb->isNull()) return thumb->load(false, false);
 	if (loading) return;
 
@@ -5812,7 +5804,7 @@ void ImageLinkData::load() {
 	manager.getData(this);
 }
 
-HistoryImageLink::HistoryImageLink(const QString &url, const QString &title, const QString &description) : HistoryMedia(),
+HistoryLocation::HistoryLocation(const LocationCoords &coords, const QString &title, const QString &description) : HistoryMedia(),
 _title(st::msgMinWidth),
 _description(st::msgMinWidth) {
 	if (!title.isEmpty()) {
@@ -5822,16 +5814,11 @@ _description(st::msgMinWidth) {
 		_description.setText(st::webPageDescriptionFont, textClean(description), _webpageDescriptionOptions);
 	}
 
-	QRegularExpressionMatch m = QRegularExpression(qsl("^location:(-?\\d+(?:\\.\\d+)?),(-?\\d+(?:\\.\\d+)?)$")).match(url);
-	if (m.hasMatch()) {
-		_link.reset(new LocationLink(m.captured(1), m.captured(2)));
-		_data = App::imageLinkSet(url, GoogleMapsLink);
-	} else {
-		_link.reset(new TextLink(url));
-	}
+	_link.reset(new LocationLink(coords));
+	_data = App::location(coords);
 }
 
-void HistoryImageLink::initDimensions(const HistoryItem *parent) {
+void HistoryLocation::initDimensions(const HistoryItem *parent) {
 	bool bubble = parent->hasBubble();
 
 	int32 tw = fullWidth(), th = fullHeight();
@@ -5862,7 +5849,7 @@ void HistoryImageLink::initDimensions(const HistoryItem *parent) {
 	}
 }
 
-int32 HistoryImageLink::resize(int32 width, const HistoryItem *parent) {
+int32 HistoryLocation::resize(int32 width, const HistoryItem *parent) {
 	bool bubble = parent->hasBubble();
 
 	_width = qMin(width, _maxw);
@@ -5903,7 +5890,7 @@ int32 HistoryImageLink::resize(int32 width, const HistoryItem *parent) {
 	return _height;
 }
 
-void HistoryImageLink::draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const {
+void HistoryLocation::draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const {
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	int32 skipx = 0, skipy = 0, width = _width, height = _height;
 	bool bubble = parent->hasBubble();
@@ -5967,7 +5954,7 @@ void HistoryImageLink::draw(Painter &p, const HistoryItem *parent, const QRect &
 	}
 }
 
-void HistoryImageLink::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const {
+void HistoryLocation::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const {
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	int32 skipx = 0, skipy = 0, width = _width, height = _height;
 	bool bubble = parent->hasBubble();
@@ -6009,40 +5996,20 @@ void HistoryImageLink::getState(TextLinkPtr &lnk, HistoryCursorState &state, int
 	}
 }
 
-const QString HistoryImageLink::inDialogsText() const {
-	if (_data) {
-		switch (_data->type) {
-		case GoogleMapsLink: return lang(lng_maps_point);
-		}
-	}
-	return QString();
+const QString HistoryLocation::inDialogsText() const {
+	return lang(lng_maps_point);
 }
 
-const QString HistoryImageLink::inHistoryText() const {
-	if (_data) {
-		switch (_data->type) {
-		case GoogleMapsLink: return qsl("[ ") + lang(lng_maps_point) + qsl(" : ") + _link->text() + qsl(" ]");
-		}
-	}
-	return qsl("[ Link : ") + _link->text() + qsl(" ]");
+const QString HistoryLocation::inHistoryText() const {
+	return qsl("[ ") + lang(lng_maps_point) + qsl(" : ") + _link->text() + qsl(" ]");
 }
 
-int32 HistoryImageLink::fullWidth() const {
-	if (_data) {
-		switch (_data->type) {
-		case GoogleMapsLink: return st::locationSize.width();
-		}
-	}
-	return st::minPhotoSize;
+int32 HistoryLocation::fullWidth() const {
+	return st::locationSize.width();
 }
 
-int32 HistoryImageLink::fullHeight() const {
-	if (_data) {
-		switch (_data->type) {
-		case GoogleMapsLink: return st::locationSize.height();
-		}
-	}
-	return st::minPhotoSize;
+int32 HistoryLocation::fullHeight() const {
+	return st::locationSize.height();
 }
 
 void ViaInlineBotLink::onClick(Qt::MouseButton button) const {
@@ -6285,14 +6252,14 @@ void HistoryMessage::initMedia(const MTPMessageMedia *media, QString &currentTex
 		const MTPGeoPoint &point(media->c_messageMediaGeo().vgeo);
 		if (point.type() == mtpc_geoPoint) {
 			const MTPDgeoPoint &d(point.c_geoPoint());
-			_media = new HistoryImageLink(qsl("location:%1,%2").arg(d.vlat.v).arg(d.vlong.v));
+			_media = new HistoryLocation(LocationCoords(d.vlat.v, d.vlong.v));
 		}
 	} break;
 	case mtpc_messageMediaVenue: {
 		const MTPDmessageMediaVenue &d(media->c_messageMediaVenue());
 		if (d.vgeo.type() == mtpc_geoPoint) {
 			const MTPDgeoPoint &g(d.vgeo.c_geoPoint());
-			_media = new HistoryImageLink(qsl("location:%1,%2").arg(g.vlat.v).arg(g.vlong.v), qs(d.vtitle), qs(d.vaddress));
+			_media = new HistoryLocation(LocationCoords(g.vlat.v, g.vlong.v), qs(d.vtitle), qs(d.vaddress));
 		}
 	} break;
 	case mtpc_messageMediaPhoto: {

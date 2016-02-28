@@ -910,8 +910,8 @@ QByteArray psPathBookmark(const QString &path) {
 	return objc_pathBookmark(path);
 }
 
-bool psLaunchMaps(const QString &lat, const QString &lon) {
-	return QDesktopServices::openUrl(qsl("https://maps.apple.com/?q=Point&z=16&ll=%1,%2").arg(lat).arg(lon));
+bool psLaunchMaps(const LocationCoords &coords) {
+	return QDesktopServices::openUrl(qsl("https://maps.apple.com/?q=Point&z=16&ll=%1,%2").arg(coords.lat).arg(coords.lon));
 }
 
 QString strNotificationAboutThemeChange() {

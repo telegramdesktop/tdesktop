@@ -1494,6 +1494,6 @@ bool linuxMoveFile(const char *from, const char *to) {
 	return true;
 }
 
-bool psLaunchMaps(const QString &lat, const QString &lon) {
+bool psLaunchMaps(const LocationCoords &coords) {
 	return false;
 }

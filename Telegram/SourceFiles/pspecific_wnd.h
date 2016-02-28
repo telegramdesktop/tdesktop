@@ -195,4 +195,4 @@ public:
 
 };
 
-bool psLaunchMaps(const QString &lat, const QString &lon);
+bool psLaunchMaps(const LocationCoords &coords);

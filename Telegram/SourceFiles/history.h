@@ -120,7 +120,7 @@ enum HistoryMediaType {
 	MediaTypeFile,
 	MediaTypeGif,
 	MediaTypeSticker,
-	MediaTypeImageLink,
+	MediaTypeLocation,
 	MediaTypeWebPage,
 	MediaTypeMusicFile,
 	MediaTypeVoiceFile,
@@ -1973,59 +1973,54 @@ void initImageLinkManager();
 void reinitImageLinkManager();
 void deinitImageLinkManager();
 
-enum ImageLinkType {
-	InvalidImageLink = 0,
-	GoogleMapsLink
-};
-struct ImageLinkData {
-	ImageLinkData(const QString &id) : id(id), type(InvalidImageLink), loading(false) {
+struct LocationData {
+	LocationData(const LocationCoords &coords) : coords(coords), loading(false) {
 	}
 
-	QString id;
+	LocationCoords coords;
 	ImagePtr thumb;
-	ImageLinkType type;
 	bool loading;
 
 	void load();
 };
 
-class ImageLinkManager : public QObject {
+class LocationManager : public QObject {
 	Q_OBJECT
 public:
-	ImageLinkManager() : manager(0), black(0) {
+	LocationManager() : manager(0), black(0) {
 	}
 	void init();
 	void reinit();
 	void deinit();
 
-	void getData(ImageLinkData *data);
+	void getData(LocationData *data);
 
-	~ImageLinkManager() {
+	~LocationManager() {
 		deinit();
 	}
 
-	public slots:
+public slots:
 	void onFinished(QNetworkReply *reply);
 	void onFailed(QNetworkReply *reply);
 
 private:
-	void failed(ImageLinkData *data);
+	void failed(LocationData *data);
 
 	QNetworkAccessManager *manager;
-	QMap<QNetworkReply*, ImageLinkData*> dataLoadings, imageLoadings;
-	QMap<ImageLinkData*, int32> serverRedirects;
+	QMap<QNetworkReply*, LocationData*> dataLoadings, imageLoadings;
+	QMap<LocationData*, int32> serverRedirects;
 	ImagePtr *black;
 };
 
-class HistoryImageLink : public HistoryMedia {
+class HistoryLocation : public HistoryMedia {
 public:
 
-	HistoryImageLink(const QString &url, const QString &title = QString(), const QString &description = QString());
+	HistoryLocation(const LocationCoords &coords, const QString &title = QString(), const QString &description = QString());
 	HistoryMediaType type() const {
-		return MediaTypeImageLink;
+		return MediaTypeLocation;
 	}
 	HistoryMedia *clone() const {
-		return new HistoryImageLink(*this);
+		return new HistoryLocation(*this);
 	}
 
 	void initDimensions(const HistoryItem *parent);
@@ -2049,7 +2044,7 @@ public:
 	}
 
 private:
-	ImageLinkData *_data;
+	LocationData *_data;
 	Text _title, _description;
 	TextLinkPtr _link;
 

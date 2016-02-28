@@ -521,6 +521,12 @@ void Window::clearWidgets() {
 		intro->rpcClear();
 		intro = 0;
 	}
+	if (_mediaView) {
+		if (!_mediaView->isHidden()) {
+			_mediaView->hide();
+		}
+		_mediaView->rpcClear();
+	}
 	title->updateBackButton();
 	updateGlobalMenu();
 }
