@@ -422,8 +422,7 @@ void LayoutOverviewVideo::paint(Painter &p, const QRect &clip, uint32 selection,
 
 		if (_thumbLoaded && !_data->thumb->isNull()) {
 			int32 size = _width * cIntRetinaFactor();
-			QImage img = _data->thumb->pix().toImage();
-			img = imageBlur(img);
+			QImage img = imageBlur(_data->thumb->pix().toImage());
 			if (img.width() == img.height()) {
 				if (img.width() != size) {
 					img = img.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
