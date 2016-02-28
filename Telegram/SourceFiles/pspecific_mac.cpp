@@ -176,7 +176,7 @@ void _placeCounter(QImage &img, int size, int count, style::color bg, style::col
 }
 
 void PsMainWindow::psUpdateCounter() {
-	int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted);
+	int32 counter = App::histories().unreadBadge();
 
     setWindowTitle((counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram"));
 	setWindowIcon(wndIcon);
@@ -185,7 +185,7 @@ void PsMainWindow::psUpdateCounter() {
     _private.setWindowBadge(counter ? cnt : QString());
 
 	if (trayIcon) {
-		bool muted = cIncludeMuted() ? (App::histories().unreadMuted >= counter) : false;
+		bool muted = App::histories().unreadOnlyMuted();
 		bool dm = objc_darkMode();
 
 		style::color bg = muted ? st::counterMuteBG : st::counterBG;

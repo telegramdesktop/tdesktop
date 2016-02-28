@@ -294,7 +294,7 @@ History::History(const PeerId &peerId) : width(0), height(0)
 , sendRequestId(0)
 , textCachedFor(0)
 , lastItemTextCache(st::dlgRichMinWidth)
-, posInDialogs(0)
+, _sortKeyInChatList(0)
 , typingText(st::dlgRichMinWidth) {
 	if (peer->isChannel() || (peer->isUser() && peer->asUser()->botInfo)) {
 		outboxReadBefore = INT_MAX;
@@ -367,7 +367,7 @@ bool History::updateTyping(uint64 ms, bool force) {
 		}
 	}
 	if (changed && App::main()) {
-		if (!dialogs.isEmpty()) App::main()->dlgUpdated(dialogs[0]);
+		updateChatListEntry();
 		if (App::main()->historyPeer() == peer) {
 			App::main()->topBar()->update();
 		}
@@ -1180,7 +1180,7 @@ void DialogsIndexed::peerNameChanged(PeerData *peer, const PeerData::Names &oldN
 			}
 		}
 		for (PeerData::NameFirstChars::const_iterator i = toRemove.cbegin(), e = toRemove.cend(); i != e; ++i) {
-			if (sortMode == DialogsSortByDate) history->dialogs.remove(*i);
+			if (sortMode == DialogsSortByDate) history->removeChatListEntryByLetter(*i);
 			DialogsIndex::iterator j = index.find(*i);
 			if (j != index.cend()) {
 				j.value()->del(peer->id, mainRow);
@@ -1191,11 +1191,8 @@ void DialogsIndexed::peerNameChanged(PeerData *peer, const PeerData::Names &oldN
 			if (j == index.cend()) {
 				j = index.insert(*i, new DialogsList(sortMode));
 			}
-			if (sortMode == DialogsSortByDate) {
-				history->dialogs.insert(*i, j.value()->addToEnd(history));
-			} else {
-				j.value()->addToEnd(history);
-			}
+			DialogRow *row = j.value()->addToEnd(history);
+			if (sortMode == DialogsSortByDate) history->addChatListEntryByLetter(*i, row);
 		}
 	}
 }
@@ -2175,16 +2172,10 @@ MsgId History::inboxRead(MsgId upTo) {
 	if (!upTo) upTo = msgIdForRead();
 	inboxReadBefore = qMax(inboxReadBefore, upTo + 1);
 
-	if (App::main()) {
-		if (!dialogs.isEmpty()) {
-			App::main()->dlgUpdated(dialogs[0]);
-		}
-		if (peer->migrateTo()) {
-			if (History *h = App::historyLoaded(peer->migrateTo()->id)) {
-				if (!h->dialogs.isEmpty()) {
-					App::main()->dlgUpdated(h->dialogs[0]);
-				}
-			}
+	updateChatListEntry();
+	if (peer->migrateTo()) {
+		if (History *h = App::historyLoaded(peer->migrateTo()->id)) {
+			h->updateChatListEntry();
 		}
 	}
 
@@ -2235,10 +2226,13 @@ void History::setUnreadCount(int32 newUnreadCount, bool psUpdate) {
 			showFrom = 0;
 			inboxReadBefore = qMax(inboxReadBefore, msgIdForRead() + 1);
 		}
-		App::histories().unreadFull += newUnreadCount - unreadCount;
-		if (mute) App::histories().unreadMuted += newUnreadCount - unreadCount;
+		if (inChatList()) {
+			App::histories().unreadIncrement(newUnreadCount - unreadCount, mute);
+			if (psUpdate && (!mute || cIncludeMuted()) && App::wnd()) {
+				App::wnd()->updateCounter();
+			}
+		}
 		unreadCount = newUnreadCount;
-		if (psUpdate && (!mute || cIncludeMuted()) && App::wnd()) App::wnd()->updateCounter();
 		if (unreadBar) {
 			int32 count = unreadCount;
 			if (peer->migrateTo()) {
@@ -2253,10 +2247,12 @@ void History::setUnreadCount(int32 newUnreadCount, bool psUpdate) {
 
  void History::setMute(bool newMute) {
 	if (mute != newMute) {
-		App::histories().unreadMuted += newMute ? unreadCount : (-unreadCount);
 		mute = newMute;
-		if (App::wnd()) App::wnd()->updateCounter();
-		if (!dialogs.isEmpty() && App::main()) App::main()->dlgUpdated(dialogs[0]);
+		if (inChatList() && unreadCount) {
+			App::histories().unreadMuteChanged(unreadCount, newMute);
+			if (App::wnd()) App::wnd()->updateCounter();
+		}
+		updateChatListEntry();
 	}
 }
 
@@ -2420,25 +2416,25 @@ void History::setLastMessage(HistoryItem *msg) {
 	if (msg) {
 		if (!lastMsg) Local::removeSavedPeer(peer);
 		lastMsg = msg;
-		setPosInDialogsDate(msg->date);
+		setChatsListDate(msg->date);
 	} else {
 		lastMsg = 0;
 	}
-	if (!dialogs.isEmpty() && App::main()) App::main()->dlgUpdated(dialogs[0]);
+	updateChatListEntry();
 }
 
-void History::setPosInDialogsDate(const QDateTime &date) {
-	bool updateDialog = (App::main() && (!peer->isChannel() || peer->asChannel()->amIn() || !dialogs.isEmpty()));
-	if (peer->migrateTo() && dialogs.isEmpty()) {
+void History::setChatsListDate(const QDateTime &date) {
+	bool updateDialog = (App::main() && (!peer->isChannel() || peer->asChannel()->amIn() || !_chatListLinks.isEmpty()));
+	if (peer->migrateTo() && _chatListLinks.isEmpty()) {
 		updateDialog = false;
 	}
 	if (!lastMsgDate.isNull() && lastMsgDate >= date) {
-		if (!updateDialog || !dialogs.isEmpty()) {
+		if (!updateDialog || !_chatListLinks.isEmpty()) {
 			return;
 		}
 	}
 	lastMsgDate = date;
-	posInDialogs = dialogPosFromDate(lastMsgDate);
+	_sortKeyInChatList = dialogPosFromDate(lastMsgDate);
 	if (updateDialog) {
 		App::main()->createDialog(this);
 	}
@@ -2558,6 +2554,58 @@ void History::clear(bool leaveItems) {
 		}
 	}
 	if (leaveItems && App::main()) App::main()->historyCleared(this);
+}
+
+QPair<int32, int32> History::adjustByPosInChatsList(DialogsIndexed &indexed) {
+	int32 movedFrom = _chatListLinks[0]->pos * st::dlgHeight;
+	indexed.adjustByPos(_chatListLinks);
+	int32 movedTo = _chatListLinks[0]->pos * st::dlgHeight;
+	return qMakePair(movedFrom, movedTo);
+}
+
+DialogRow *History::addToChatList(DialogsIndexed &indexed) {
+	if (!inChatList()) {
+		_chatListLinks = indexed.addToEnd(this);
+		if (unreadCount) {
+			App::histories().unreadIncrement(unreadCount, mute);
+			if (App::wnd()) App::wnd()->updateCounter();
+		}
+	}
+	t_assert(!_chatListLinks.isEmpty());
+	return _chatListLinks[0];
+}
+
+void History::removeFromChatList(DialogsIndexed &indexed) {
+	if (inChatList()) {
+		indexed.del(peer);
+		_chatListLinks.clear();
+		if (unreadCount) {
+			App::histories().unreadIncrement(-unreadCount, mute);
+			if (App::wnd()) App::wnd()->updateCounter();
+		}
+	}
+}
+
+void History::removeChatListEntryByLetter(QChar letter) {
+	t_assert(letter != 0);
+	if (inChatList()) {
+		_chatListLinks.remove(letter);
+	}
+}
+
+void History::addChatListEntryByLetter(QChar letter, DialogRow *row) {
+	t_assert(letter != 0);
+	if (inChatList()) {
+		_chatListLinks.insert(letter, row);
+	}
+}
+
+void History::updateChatListEntry() const {
+	if (MainWidget *m = App::main()) {
+		if (inChatList()) {
+			m->dlgUpdated(_chatListLinks[0]);
+		}
+	}
 }
 
 void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages &result, bool onlyCounts) {

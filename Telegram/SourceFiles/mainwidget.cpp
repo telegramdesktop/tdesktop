@@ -785,8 +785,8 @@ void MainWidget::notify_clipStopperHidden(ClipStopperType type) {
 
 void MainWidget::ui_repaintHistoryItem(const HistoryItem *item) {
 	history.ui_repaintHistoryItem(item);
-	if (!item->history()->dialogs.isEmpty() && item->history()->lastMsg == item) {
-		dialogs.dlgUpdated(item->history()->dialogs[0]);
+	if (item->history()->lastMsg == item) {
+		item->history()->updateChatListEntry();
 	}
 	if (overview) overview->ui_repaintHistoryItem(item);
 }
@@ -4246,9 +4246,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			if (h->lastMsg && h->lastMsg->out() && h->lastMsg->id <= d.vmax_id.v) {
 				dlgUpdated(h, h->lastMsg->id);
 			}
-			if (!h->dialogs.isEmpty()) {
-				dlgUpdated(h->dialogs[0]);
-			}
+			h->updateChatListEntry();
 		}
 
 		ptsApplySkippedUpdates();

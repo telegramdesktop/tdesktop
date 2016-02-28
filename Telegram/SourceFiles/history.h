@@ -40,7 +40,7 @@ public:
 	typedef QHash<PeerId, History*> Map;
 	Map map;
 
-	Histories() : _a_typings(animation(this, &Histories::step_typings)), unreadFull(0), unreadMuted(0) {
+	Histories() : _a_typings(animation(this, &Histories::step_typings)), _unreadFull(0), _unreadMuted(0) {
 	}
 
 	void regSendAction(History *history, UserData *user, const MTPSendMessageAction &action);
@@ -52,7 +52,7 @@ public:
 	void clear();
 	void remove(const PeerId &peer);
 	~Histories() {
-		unreadFull = unreadMuted = 0;
+		_unreadFull = _unreadMuted = 0;
 	}
 
 	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
@@ -62,7 +62,29 @@ public:
 	TypingHistories typing;
 	Animation _a_typings;
 
-	int32 unreadFull, unreadMuted;
+	int32 unreadBadge() const {
+		return _unreadFull - (cIncludeMuted() ? 0 : _unreadMuted);
+	}
+	bool unreadOnlyMuted() const {
+		return cIncludeMuted() ? (_unreadMuted >= _unreadFull) : false;
+	}
+	void unreadIncrement(int32 count, bool muted) {
+		_unreadFull += count;
+		if (muted) {
+			_unreadMuted += count;
+		}
+	}
+	void unreadMuteChanged(int32 count, bool muted) {
+		if (muted) {
+			_unreadMuted += count;
+		} else {
+			_unreadMuted -= count;
+		}
+	}
+
+private:
+	int32 _unreadFull, _unreadMuted;
+
 };
 
 class HistoryBlock;
@@ -195,6 +217,7 @@ enum AddToOverviewMethod {
 	AddToOverviewBack, // when new messages slice was received and it is the last one, we index all media
 };
 
+struct DialogsIndexed;
 class ChannelHistory;
 class History {
 public:
@@ -264,8 +287,26 @@ public:
 	void getReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop);
 
 	void setLastMessage(HistoryItem *msg);
-	void setPosInDialogsDate(const QDateTime &date);
 	void fixLastMessage(bool wasAtBottom);
+
+	typedef QMap<QChar, DialogRow*> ChatListLinksMap;
+	void setChatsListDate(const QDateTime &date);
+	QPair<int32, int32> adjustByPosInChatsList(DialogsIndexed &indexed);
+	uint64 sortKeyInChatList() const {
+		return _sortKeyInChatList;
+	}
+	bool inChatList() const {
+		return !_chatListLinks.isEmpty();
+	}
+	int32 posInChatList() const {
+		t_assert(inChatList());
+		return _chatListLinks[0]->pos;
+	}
+	DialogRow *addToChatList(DialogsIndexed &indexed);
+	void removeFromChatList(DialogsIndexed &indexed);
+	void removeChatListEntryByLetter(QChar letter);
+	void addChatListEntryByLetter(QChar letter, DialogRow *row);
+	void updateChatListEntry() const;
 
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;
@@ -345,10 +386,6 @@ public:
 	mutable const HistoryItem *textCachedFor; // cache
 	mutable Text lastItemTextCache;
 
-	typedef QMap<QChar, DialogRow*> DialogLinks;
-	DialogLinks dialogs;
-	uint64 posInDialogs; // like ((unixtime) << 32) | (incremented counter)
-
 	typedef QMap<UserData*, uint64> TypingUsers;
 	TypingUsers typing;
 	typedef QMap<UserData*, SendAction> SendActionUsers;
@@ -394,6 +431,9 @@ public:
 	void changeMsgId(MsgId oldId, MsgId newId);
 
 private:
+
+	ChatListLinksMap _chatListLinks;
+	uint64 _sortKeyInChatList; // like ((unixtime) << 32) | (incremented counter)
 
 	typedef QMap<MsgId, NullType> MediaOverviewIds;
 	MediaOverviewIds overviewIds[OverviewCount];
@@ -632,15 +672,15 @@ struct DialogsList {
 		if (sortMode != DialogsSortByDate) return;
 
 		DialogRow *change = row;
-		if (change != begin && begin->history->posInDialogs < row->history->posInDialogs) {
+		if (change != begin && begin->history->sortKeyInChatList() < row->history->sortKeyInChatList()) {
 			change = begin;
-		} else while (change->prev && change->prev->history->posInDialogs < row->history->posInDialogs) {
+		} else while (change->prev && change->prev->history->sortKeyInChatList() < row->history->sortKeyInChatList()) {
 			change = change->prev;
 		}
 		if (!insertBefore(row, change)) {
-			if (change->next != end && end->prev->history->posInDialogs > row->history->posInDialogs) {
+			if (change->next != end && end->prev->history->sortKeyInChatList() > row->history->sortKeyInChatList()) {
 				change = end->prev;
-			} else while (change->next != end && change->next->history->posInDialogs > row->history->posInDialogs) {
+			} else while (change->next != end && change->next->history->sortKeyInChatList() > row->history->sortKeyInChatList()) {
 				change = change->next;
 			}
 			insertAfter(row, change);
@@ -688,22 +728,19 @@ struct DialogsIndexed {
 	DialogsIndexed(DialogsSortMode sortMode) : sortMode(sortMode), list(sortMode) {
 	}
 
-	History::DialogLinks addToEnd(History *history) {
-		History::DialogLinks result;
+	History::ChatListLinksMap addToEnd(History *history) {
+		History::ChatListLinksMap result;
 		DialogsList::RowByPeer::const_iterator i = list.rowByPeer.find(history->peer->id);
-		if (i != list.rowByPeer.cend()) {
-			return i.value()->history->dialogs;
-		}
-
-		result.insert(0, list.addToEnd(history));
-		for (PeerData::NameFirstChars::const_iterator i = history->peer->chars.cbegin(), e = history->peer->chars.cend(); i != e; ++i) {
-			DialogsIndex::iterator j = index.find(*i);
-			if (j == index.cend()) {
-				j = index.insert(*i, new DialogsList(sortMode));
+		if (i == list.rowByPeer.cend()) {
+			result.insert(0, list.addToEnd(history));
+			for (PeerData::NameFirstChars::const_iterator i = history->peer->chars.cbegin(), e = history->peer->chars.cend(); i != e; ++i) {
+				DialogsIndex::iterator j = index.find(*i);
+				if (j == index.cend()) {
+					j = index.insert(*i, new DialogsList(sortMode));
+				}
+				result.insert(*i, j.value()->addToEnd(history));
 			}
-			result.insert(*i, j.value()->addToEnd(history));
 		}
-
 		return result;
 	}
 
@@ -724,8 +761,8 @@ struct DialogsIndexed {
 		return res;
 	}
 
-	void adjustByPos(const History::DialogLinks &links) {
-		for (History::DialogLinks::const_iterator i = links.cbegin(), e = links.cend(); i != e; ++i) {
+	void adjustByPos(const History::ChatListLinksMap &links) {
+		for (History::ChatListLinksMap::const_iterator i = links.cbegin(), e = links.cend(); i != e; ++i) {
 			if (i.key() == QChar(0)) {
 				list.adjustByPos(i.value());
 			} else {

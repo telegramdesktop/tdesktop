@@ -443,16 +443,12 @@ void DialogsInner::onDialogRowReplaced(DialogRow *oldRow, DialogRow *newRow) {
 }
 
 void DialogsInner::createDialog(History *history) {
-	bool creating = history->dialogs.isEmpty();
+	bool creating = !history->inChatList();
 	if (creating) {
-		history->dialogs = dialogs.addToEnd(history);
-		contactsNoDialogs.del(history->peer, history->dialogs[0]);
+		DialogRow *mainRow = history->addToChatList(dialogs);
+		contactsNoDialogs.del(history->peer, mainRow);
 	}
-
-	History::DialogLinks links = history->dialogs;
-	int32 movedFrom = links[0]->pos * st::dlgHeight;
-	dialogs.adjustByPos(links);
-	int32 movedTo = links[0]->pos * st::dlgHeight;
+	RefPair(int32, movedFrom, int32, movedTo) = history->adjustByPosInChatsList(dialogs);
 
 	emit dialogMoved(movedFrom, movedTo);
 
@@ -471,8 +467,7 @@ void DialogsInner::removeDialog(History *history) {
 	if (sel && sel->history == history) {
 		sel = 0;
 	}
-	dialogs.del(history->peer);
-	history->dialogs = History::DialogLinks();
+	history->removeFromChatList(dialogs);
 	history->clearNotifications();
 	if (App::wnd()) App::wnd()->notifyClear(history);
 	if (contacts.list.rowByPeer.constFind(history->peer->id) != contacts.list.rowByPeer.cend()) {
@@ -550,8 +545,8 @@ void DialogsInner::updateSelectedRow(PeerData *peer) {
 	if (_state == DefaultState) {
 		if (peer) {
 			if (History *h = App::historyLoaded(peer->id)) {
-				if (h->dialogs.contains(0)) {
-					update(0, h->dialogs.value(0)->pos * st::dlgHeight, fullWidth(), st::dlgHeight);
+				if (h->inChatList()) {
+					update(0, h->posInChatList() * st::dlgHeight, fullWidth(), st::dlgHeight);
 				}
 			}
 		} else if (sel) {
@@ -1019,7 +1014,7 @@ void DialogsInner::addSavedPeersAfter(const QDateTime &date) {
 	SavedPeersByTime &saved(cRefSavedPeersByTime());
 	while (!saved.isEmpty() && (date.isNull() || date < saved.lastKey())) {
 		History *history = App::history(saved.last()->id);
-		history->setPosInDialogsDate(saved.lastKey());
+		history->setChatsListDate(saved.lastKey());
 		contactsNoDialogs.del(history->peer);
 		saved.remove(saved.lastKey(), saved.last());
 	}
@@ -1074,8 +1069,11 @@ void DialogsInner::peopleReceived(const QString &query, const QVector<MTPPeer> &
 	_peopleResults.reserve(people.size());
 	for (QVector<MTPPeer>::const_iterator i = people.cbegin(), e = people.cend(); i != e; ++i) {
 		PeerId peerId = peerFromMTP(*i);
-		History *h = App::historyLoaded(peerId);
-		if (h && !h->dialogs.isEmpty()) continue; // skip dialogs
+		if (History *h = App::historyLoaded(peerId)) {
+			if (h->inChatList()) {
+				continue; // skip existing chats
+			}
+		}
 
 		_peopleResults.push_back(App::peer(peerId));
 	}
@@ -1786,11 +1784,11 @@ void DialogsWidget::activate() {
 }
 
 void DialogsWidget::createDialog(History *history) {
-	bool creating = history->dialogs.isEmpty();
+	bool creating = !history->inChatList();
 	_inner.createDialog(history);
 	if (creating && history->peer->migrateFrom()) {
 		if (History *h = App::historyLoaded(history->peer->migrateFrom()->id)) {
-			if (!h->dialogs.isEmpty()) {
+			if (h->inChatList()) {
 				removeDialog(h);
 			}
 		}

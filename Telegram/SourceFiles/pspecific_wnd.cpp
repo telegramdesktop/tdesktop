@@ -1133,8 +1133,8 @@ static HICON _qt_createHIcon(const QIcon &icon, int xSize, int ySize) {
 }
 
 void PsMainWindow::psUpdateCounter() {
-	int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted);
-	bool muted = cIncludeMuted() ? (App::histories().unreadMuted >= counter) : false;
+	int32 counter = App::histories().unreadBadge();
+	bool muted = App::histories().unreadOnlyMuted();
 
 	style::color bg = muted ? st::counterMuteBG : st::counterBG;
 	QIcon iconSmall, iconBig;

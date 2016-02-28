@@ -266,8 +266,8 @@ void TitleWidget::updateAdaptiveLayout() {
 void TitleWidget::updateCounter() {
 	if (!Adaptive::OneColumn() || !MTP::authedId()) return;
 
-	int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted);
-	bool muted = cIncludeMuted() ? (App::histories().unreadMuted >= counter) : false;
+	int32 counter = App::histories().unreadBadge();
+	bool muted = App::histories().unreadOnlyMuted();
 
 	style::color bg = muted ? st::counterMuteBG : st::counterBG;
 
