@@ -1011,24 +1011,43 @@ QRect Window::iconRect() const {
 }
 
 bool Window::eventFilter(QObject *obj, QEvent *e) {
-	QEvent::Type t = e->type();
-	if (t == QEvent::MouseButtonPress || t == QEvent::KeyPress || t == QEvent::TouchBegin || t == QEvent::Wheel) {
+	switch (e->type()) {
+	case QEvent::MouseButtonPress:
+	case QEvent::KeyPress:
+	case QEvent::TouchBegin:
+	case QEvent::Wheel:
 		psUserActionDone();
-	} else if (t == QEvent::MouseMove) {
+		break;
+
+	case QEvent::MouseMove:
 		if (main && main->isIdle()) {
 			psUserActionDone();
 			main->checkIdleFinish();
 		}
-	} else if (t == QEvent::MouseButtonRelease) {
+		break;
+
+	case QEvent::MouseButtonRelease:
 		Ui::hideStickerPreview();
-	} else if (t == QEvent::Shortcut) {
-		Shortcuts::launch(static_cast<QShortcutEvent*>(e)->shortcutId());
-	}
-	if (obj == Application::instance()) {
-		if (t == QEvent::ApplicationActivate) {
+		break;
+
+	case QEvent::ShortcutOverride: // handle shortcuts ourselves
+		return true;
+
+	case QEvent::Shortcut:
+		if (Shortcuts::launch(static_cast<QShortcutEvent*>(e)->shortcutId())) {
+			return true;
+		}
+		break;
+
+	case QEvent::ApplicationActivate:
+		if (obj == Application::instance()) {
 			psUserActionDone();
 			QTimer::singleShot(1, this, SLOT(checkHistoryActivation()));
-		} else if (t == QEvent::FileOpen) {
+		}
+		break;
+
+	case QEvent::FileOpen:
+		if (obj == Application::instance()) {
 			QString url = static_cast<QFileOpenEvent*>(e)->url().toEncoded();
 			if (!url.trimmed().midRef(0, 5).compare(qsl("tg://"), Qt::CaseInsensitive)) {
 				cSetStartUrl(url);
@@ -1039,14 +1058,23 @@ bool Window::eventFilter(QObject *obj, QEvent *e) {
 			}
 			activate();
 		}
-	} else if (obj == this) {
-		if (t == QEvent::WindowStateChange) {
+		break;
+
+	case QEvent::WindowStateChange:
+		if (obj == this) {
 			Qt::WindowState state = (windowState() & Qt::WindowMinimized) ? Qt::WindowMinimized : ((windowState() & Qt::WindowMaximized) ? Qt::WindowMaximized : ((windowState() & Qt::WindowFullScreen) ? Qt::WindowFullScreen : Qt::WindowNoState));
 			stateChanged(state);
-		} else if (t == QEvent::Move || t == QEvent::Resize) {
+		}
+		break;
+
+	case QEvent::Move:
+	case QEvent::Resize:
+		if (obj == this) {
 			psUpdatedPosition();
 		}
+		break;
 	}
+
 	return PsMainWindow::eventFilter(obj, e);
 }
 

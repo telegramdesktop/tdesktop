@@ -25,8 +25,8 @@ namespace Shortcuts {
 	void start();
 	const QStringList &errors();
 
-	void launch(int shortcutId);
-	void launch(const QString &command);
+	bool launch(int shortcutId);
+	bool launch(const QString &command);
 
 	void finish();
 

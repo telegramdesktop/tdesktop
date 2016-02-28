@@ -133,6 +133,76 @@ inline bool qMapLessThanKey(const ShortcutCommands::Handler &a, const ShortcutCo
 
 namespace Shortcuts {
 
+	// inspired by https://github.com/sindresorhus/strip-json-comments
+	QByteArray _stripJsonComments(const QByteArray &json) {
+		enum InsideComment {
+			InsideCommentNone,
+			InsideCommentSingleLine,
+			InsideCommentMultiLine,
+		};
+		InsideComment insideComment = InsideCommentNone;
+		bool insideString = false;
+
+		QByteArray result;
+
+		const char *b = json.cbegin(), *e = json.cend(), *offset = b;
+		for (const char *ch = offset; ch != e; ++ch) {
+			char currentChar = *ch;
+			char nextChar = (ch + 1 == e) ? 0 : *(ch + 1);
+
+			if (insideComment == InsideCommentNone && currentChar == '"') {
+				bool escaped = ((ch > b) && *(ch - 1) == '\\') && ((ch - 1 < b) || *(ch - 2) != '\\');
+				if (!escaped) {
+					insideString = !insideString;
+				}
+			}
+
+			if (insideString) {
+				continue;
+			}
+
+			if (insideComment == InsideCommentNone && currentChar == '/' && nextChar == '/') {
+				if (ch > offset) {
+					if (result.isEmpty()) result.reserve(json.size() - 2);
+					result.append(offset, ch - offset);
+					offset = ch;
+				}
+				insideComment = InsideCommentSingleLine;
+				++ch;
+			} else if (insideComment == InsideCommentSingleLine && currentChar == '\r' && nextChar == '\n') {
+				if (ch > offset) {
+					offset = ch;
+				}
+				++ch;
+				insideComment = InsideCommentNone;
+			} else if (insideComment == InsideCommentSingleLine && currentChar == '\n') {
+				if (ch > offset) {
+					offset = ch;
+				}
+				insideComment = InsideCommentNone;
+			} else if (insideComment == InsideCommentNone && currentChar == '/' && nextChar == '*') {
+				if (ch > offset) {
+					if (result.isEmpty()) result.reserve(json.size() - 2);
+					result.append(offset, ch - offset);
+					offset = ch;
+				}
+				insideComment = InsideCommentMultiLine;
+				++ch;
+			} else if (insideComment == InsideCommentMultiLine && currentChar == '*' && nextChar == '/') {
+				if (ch > offset) {
+					offset = ch;
+				}
+				++ch;
+				insideComment = InsideCommentNone;
+			}
+		}
+
+		if (insideComment == InsideCommentNone && e > offset && !result.isEmpty()) {
+			result.append(offset, e - offset);
+		}
+		return result.isEmpty() ? json : result;
+	}
+
 	struct DataStruct;
 	DataStruct *DataPtr = nullptr;
 
@@ -253,73 +323,116 @@ namespace Shortcuts {
 
 		new DataStruct();
 
-		QJsonArray shortcuts;
-		OrderedSet<QKeySequence> notfound;
-		QFile f(cWorkingDir() + qsl("tdata/shortcuts.json"));
-		if (f.exists()) {
-			if (f.open(QIODevice::ReadOnly)) {
-				QJsonParseError error = { 0, QJsonParseError::NoError };
-				QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &error);
-				if (error.error != QJsonParseError::NoError) {
-					DataPtr->errors.push_back(qsl("Failed to parse '%1'! Error: %2").arg(f.fileName()).arg(error.errorString()));
-				} else if (!doc.isArray()) {
-					DataPtr->errors.push_back(qsl("Failed to parse '%1'! Error: array expected").arg(f.fileName()));
-				} else {
-					for (QMap<QKeySequence, QShortcut*>::const_iterator i = DataPtr->sequences.cbegin(), e = DataPtr->sequences.cend(); i != e; ++i) {
-						notfound.insert(i.key());
-					}
+		// write default shortcuts to a file if they are not there already
+		bool defaultValid = false;
+		QFile defaultFile(cWorkingDir() + qsl("tdata/shortcuts-default.json"));
+		if (defaultFile.open(QIODevice::ReadOnly)) {
+			QJsonParseError error = { 0, QJsonParseError::NoError };
+			QJsonDocument doc = QJsonDocument::fromJson(_stripJsonComments(defaultFile.readAll()), &error);
+			defaultFile.close();
 
-					shortcuts = doc.array();
-					int limit = ShortcutsCountLimit;
-					for (QJsonArray::const_iterator i = shortcuts.constBegin(), e = shortcuts.constEnd(); i != e; ++i) {
-						if (!i->isObject()) {
-							DataPtr->errors.push_back(qsl("Bad entry in '%1'! Error: object expected").arg(f.fileName()));
-						} else {
-							QKeySequence seq;
-							QJsonObject entry(i->toObject());
-							QJsonObject::const_iterator keys = entry.constFind(qsl("keys")), command = entry.constFind(qsl("command"));
-							if (keys == entry.constEnd() || command == entry.constEnd() || !keys->isString() || (!command->isString() && !command->isNull())) {
-								DataPtr->errors.push_back(qsl("Bad entry in '%1'! Error: {\"keys\": \"..\", \"command\": [ \"..\" | null ]} expected").arg(f.fileName()));
-							} else if (command->isNull()) {
-								seq = _removeShortcut(keys->toString());
-							} else {
-								seq = _setShortcut(keys->toString(), command->toString());
-							}
-							if (!--limit) {
-								DataPtr->errors.push_back(qsl("Too many entries in '%1'!").arg(f.fileName()));
-								break;
-							} else if (DataPtr->errors.isEmpty()) {
-								notfound.remove(seq);
-							}
-						}
+			if (error.error == QJsonParseError::NoError && doc.isArray()) {
+				QJsonArray shortcuts(doc.array());
+				if (!shortcuts.isEmpty() && shortcuts.constBegin()->isObject()) {
+					QJsonObject versionObject(shortcuts.constBegin()->toObject());
+					QJsonObject::const_iterator version = versionObject.constFind(qsl("version"));
+					if (version != versionObject.constEnd() && version->isString() && version->toString() == QString::number(AppVersion)) {
+						defaultValid = true;
 					}
 				}
-				f.close();
-			} else {
-				DataPtr->errors.push_back(qsl("Could not read '") + f.fileName() + qsl("'!"));
 			}
 		}
-		if (DataPtr->errors.isEmpty() && (shortcuts.isEmpty() || !notfound.isEmpty()) && f.open(QIODevice::WriteOnly)) {
-			for (OrderedSet<QKeySequence>::const_iterator i = notfound.cbegin(), e = notfound.cend(); i != e; ++i) {
-				QMap<QKeySequence, QShortcut*>::const_iterator s = DataPtr->sequences.constFind(i.key());
-				if (s != DataPtr->sequences.cend()) {
-					QMap<int, ShortcutCommands::Handler>::const_iterator h = DataPtr->handlers.constFind(s.value()->id());
-					if (h != DataPtr->handlers.cend()) {
-						QMap<ShortcutCommands::Handler, QString>::const_iterator n = DataPtr->commandnames.constFind(h.value());
-						if (n != DataPtr->commandnames.cend()) {
-							QJsonObject entry;
-							entry.insert(qsl("keys"), i.key().toString().toLower());
-							entry.insert(qsl("command"), n.value());
-							shortcuts.append(entry);
-						}
+		if (!defaultValid && defaultFile.open(QIODevice::WriteOnly)) {
+			const char *defaultHeader = "\
+// This is a list of default shortcuts for Telegram Desktop\n\
+// Please don't modify it, its content is not used in any way\n\
+// You can place your own shortcuts in the 'shortcuts-custom.json' file\n\n";
+			defaultFile.write(defaultHeader);
+
+			QJsonArray shortcuts;
+
+			QJsonObject version;
+			version.insert(qsl("version"), QString::number(AppVersion));
+			shortcuts.push_back(version);
+
+			for (QMap<QKeySequence, QShortcut*>::const_iterator i = DataPtr->sequences.cbegin(), e = DataPtr->sequences.cend(); i != e; ++i) {
+				QMap<int, ShortcutCommands::Handler>::const_iterator h = DataPtr->handlers.constFind(i.value()->id());
+				if (h != DataPtr->handlers.cend()) {
+					QMap<ShortcutCommands::Handler, QString>::const_iterator n = DataPtr->commandnames.constFind(h.value());
+					if (n != DataPtr->commandnames.cend()) {
+						QJsonObject entry;
+						entry.insert(qsl("keys"), i.key().toString().toLower());
+						entry.insert(qsl("command"), n.value());
+						shortcuts.append(entry);
 					}
 				}
 			}
 
 			QJsonDocument doc;
 			doc.setArray(shortcuts);
-			f.write(doc.toJson(QJsonDocument::Indented));
-			f.close();
+			defaultFile.write(doc.toJson(QJsonDocument::Indented));
+			defaultFile.close();
+		}
+
+		// read custom shortcuts from file if it exists or write an empty custom shortcuts file
+		QFile customFile(cWorkingDir() + qsl("tdata/shortcuts-custom.json"));
+		if (customFile.exists()) {
+			if (customFile.open(QIODevice::ReadOnly)) {
+				QJsonParseError error = { 0, QJsonParseError::NoError };
+				QJsonDocument doc = QJsonDocument::fromJson(_stripJsonComments(customFile.readAll()), &error);
+				customFile.close();
+
+				if (error.error != QJsonParseError::NoError) {
+					DataPtr->errors.push_back(qsl("Failed to parse! Error: %2").arg(error.errorString()));
+				} else if (!doc.isArray()) {
+					DataPtr->errors.push_back(qsl("Failed to parse! Error: array expected"));
+				} else {
+					QJsonArray shortcuts = doc.array();
+					int limit = ShortcutsCountLimit;
+					for (QJsonArray::const_iterator i = shortcuts.constBegin(), e = shortcuts.constEnd(); i != e; ++i) {
+						if (!i->isObject()) {
+							DataPtr->errors.push_back(qsl("Bad entry! Error: object expected"));
+						} else {
+							QKeySequence seq;
+							QJsonObject entry(i->toObject());
+							QJsonObject::const_iterator keys = entry.constFind(qsl("keys")), command = entry.constFind(qsl("command"));
+							if (keys == entry.constEnd() || command == entry.constEnd() || !keys->isString() || (!command->isString() && !command->isNull())) {
+								DataPtr->errors.push_back(qsl("Bad entry! {\"keys\": \"...\", \"command\": [ \"...\" | null ]} expected"));
+							} else if (command->isNull()) {
+								seq = _removeShortcut(keys->toString());
+							} else {
+								seq = _setShortcut(keys->toString(), command->toString());
+							}
+							if (!--limit) {
+								DataPtr->errors.push_back(qsl("Too many entries! Limit is %1").arg(ShortcutsCountLimit));
+								break;
+							}
+						}
+					}
+				}
+			} else {
+				DataPtr->errors.push_back(qsl("Could not read the file!"));
+			}
+			if (!DataPtr->errors.isEmpty()) {
+				DataPtr->errors.push_front(qsl("While reading file '%1'...").arg(customFile.fileName()));
+			}
+		} else if (customFile.open(QIODevice::WriteOnly)) {
+			const char *customContent = "\
+// This is a list of your own shortcuts for Telegram Desktop\n\
+// You can see full list of commands in the 'shortcuts-default.json' file\n\
+// Place a null value instead of a command string to switch the shortcut off\n\n\
+[\n\
+    // {\n\
+    //     \"command\": \"close_telegram\",\n\
+    //     \"keys\": \"ctrl+f4\"\n\
+    // },\n\
+    // {\n\
+    //     \"command\": \"quit_telegram\",\n\
+    //     \"keys\": \"ctrl+q\"\n\
+    // }\n\
+]\n";
+			customFile.write(customContent);
+			customFile.close();
 		}
 	}
 
@@ -328,22 +441,26 @@ namespace Shortcuts {
 		return DataPtr->errors;
 	}
 
-	void launch(int shortcutId) {
+	bool launch(int shortcutId) {
 		t_assert(DataPtr != nullptr);
 
 		QMap<int, ShortcutCommands::Handler>::const_iterator it = DataPtr->handlers.constFind(shortcutId);
-		if (it != DataPtr->handlers.cend()) {
-			(*it.value())();
+		if (it == DataPtr->handlers.cend()) {
+			return false;
 		}
+		(*it.value())();
+		return true;
 	}
 
-	void launch(const QString &command) {
+	bool launch(const QString &command) {
 		t_assert(DataPtr != nullptr);
 
 		QMap<QString, ShortcutCommands::Handler>::const_iterator it = DataPtr->commands.constFind(command);
-		if (it != DataPtr->commands.cend()) {
-			(*it.value())();
+		if (it == DataPtr->commands.cend()) {
+			return false;
 		}
+		(*it.value())();
+		return true;
 	}
 
 	void finish() {
