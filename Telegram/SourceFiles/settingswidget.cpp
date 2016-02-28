@@ -1945,8 +1945,8 @@ void SettingsWidget::updateConnectionType() {
 	_inner.updateConnectionType();
 }
 
-void SettingsWidget::rpcInvalidate() {
-	_inner.rpcInvalidate();
+void SettingsWidget::rpcClear() {
+	_inner.rpcClear();
 }
 
 void SettingsWidget::usernameChanged() {

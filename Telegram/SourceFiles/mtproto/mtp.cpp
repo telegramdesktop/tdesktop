@@ -154,7 +154,7 @@ namespace {
 	bool onErrorDefault(mtpRequestId requestId, const RPCError &error) {
 		const QString &err(error.type());
 		int32 code = error.code();
-		if (!mtpIsFlood(error)) {
+		if (!mtpIsFlood(error) && err != qsl("AUTH_KEY_UNREGISTERED")) {
 			int breakpoint = 0;
 		}
 		bool badGuestDC = (code == 400) && (err == qsl("FILE_ID_INVALID"));

@@ -504,21 +504,21 @@ void Window::clearWidgets() {
 		settings->stop_show();
 		settings->hide();
 		settings->deleteLater();
-		settings->rpcInvalidate();
+		settings->rpcClear();
 		settings = 0;
 	}
 	if (main) {
 		main->animStop_show();
 		main->hide();
 		main->deleteLater();
-		main->rpcInvalidate();
+		main->rpcClear();
 		main = 0;
 	}
 	if (intro) {
 		intro->stop_show();
 		intro->hide();
 		intro->deleteLater();
-		intro->rpcInvalidate();
+		intro->rpcClear();
 		intro = 0;
 	}
 	title->updateBackButton();
@@ -724,7 +724,7 @@ void Window::hideSettings(bool fast) {
 		settings->stop_show();
 		settings->hide();
 		settings->deleteLater();
-		settings->rpcInvalidate();
+		settings->rpcClear();
 		settings = 0;
 		if (intro) {
 			intro->show();
@@ -737,7 +737,7 @@ void Window::hideSettings(bool fast) {
 		settings->stop_show();
 		settings->hide();
 		settings->deleteLater();
-		settings->rpcInvalidate();
+		settings->rpcClear();
 		settings = 0;
 		if (intro) {
 			intro->animShow(bg, true);

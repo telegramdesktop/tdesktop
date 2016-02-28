@@ -59,10 +59,10 @@ public:
 
 	FlatButton *mediaTypeButton();
 
-	void grabStart() {
+	void grabStart() override {
 		_sideShadow.hide();
 	}
-	void grabFinish() {
+	void grabFinish() override {
 		_sideShadow.setVisible(!Adaptive::OneColumn());
 	}
 
@@ -416,6 +416,15 @@ public:
 
 	QPixmap grabTopBar();
 	QPixmap grabInner();
+
+	void rpcClear() override {
+		history.rpcClear();
+		dialogs.rpcClear();
+		if (profile) profile->rpcClear();
+		if (overview) overview->rpcClear();
+		if (_api) _api->rpcClear();
+		RPCSender::rpcClear();
+	}
 
 	bool isItemVisible(HistoryItem *item);
 

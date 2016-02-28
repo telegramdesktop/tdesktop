@@ -259,6 +259,11 @@ public:
 
 	void updateNotifySettings(PeerData *peer);
 
+	void rpcClear() override {
+		_inner.rpcClear();
+		RPCSender::rpcClear();
+	}
+
 	void notify_userIsContactChanged(UserData *user, bool fromThisApp);
 
 signals:

@@ -1843,6 +1843,7 @@ namespace App {
 		updatedPeers.clear();
 		cSetSavedPeers(SavedPeers());
 		cSetSavedPeersByTime(SavedPeersByTime());
+		cSetRecentInlineBots(RecentInlineBots());
 		for (PeersData::const_iterator i = peersData.cbegin(), e = peersData.cend(); i != e; ++i) {
 			delete *i;
 		}

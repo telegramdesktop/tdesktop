@@ -2240,14 +2240,14 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool bac
 			profile->hide();
 			profile->clear();
 			profile->deleteLater();
-			profile->rpcInvalidate();
+			profile->rpcClear();
 			profile = 0;
 		}
 		if (overview) {
 			overview->hide();
 			overview->clear();
 			overview->deleteLater();
-			overview->rpcInvalidate();
+			overview->rpcClear();
 			overview = 0;
 		}
 		clearBotStartToken(_peerInStack);
@@ -2390,13 +2390,13 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 		overview->hide();
 		overview->clear();
 		overview->deleteLater();
-		overview->rpcInvalidate();
+		overview->rpcClear();
 	}
 	if (profile) {
 		profile->hide();
 		profile->clear();
 		profile->deleteLater();
-		profile->rpcInvalidate();
+		profile->rpcClear();
 		profile = 0;
 	}
 	overview = new OverviewWidget(this, peer, type);
@@ -2446,14 +2446,14 @@ void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop)
 		overview->hide();
 		overview->clear();
 		overview->deleteLater();
-		overview->rpcInvalidate();
+		overview->rpcClear();
 		overview = 0;
 	}
 	if (profile) {
 		profile->hide();
 		profile->clear();
 		profile->deleteLater();
-		profile->rpcInvalidate();
+		profile->rpcClear();
 	}
 	profile = new ProfileWidget(this, peer);
 	_topBar.show();

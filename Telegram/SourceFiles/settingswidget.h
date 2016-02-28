@@ -330,7 +330,7 @@ public:
 
 	void updateDisplayNotify();
 
-	void rpcInvalidate();
+	void rpcClear();
 	void usernameChanged();
 
 	void setInnerFocus();
