@@ -77,7 +77,6 @@ inline QString cInlineGifBotUsername() {
 	return cTestMode() ? qstr("contextbot") : qstr("gif");
 }
 DeclareSetting(QString, LoggedPhoneNumber);
-DeclareReadSetting(uint32, ConnectionsInSession);
 DeclareSetting(bool, AutoStart);
 DeclareSetting(bool, StartMinimized);
 DeclareSetting(bool, StartInTray);

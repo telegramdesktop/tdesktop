@@ -24,7 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mtproto/mtpFileLoader.h"
 
 namespace _mtp_internal {
-	MTProtoSessionPtr getSession(int32 dc = 0); // 0 - current set dc
+	MTProtoSession *getSession(int32 dc); // 0 - current set dc
 
 	bool paused();
 
@@ -49,21 +49,28 @@ namespace _mtp_internal {
 		return rpcErrorOccured(requestId, handler.onFail, err);
 	}
 
-	class RequestResender : public QObject {
+	// used for:
+	// - resending requests by timer which were postponed by flood delay
+	// - destroying MTProtoConnections whose thread has finished
+	class GlobalSlotCarrier : public QObject {
 		Q_OBJECT
 
 	public:
 
-		RequestResender();
+		GlobalSlotCarrier();
 
 	public slots:
 
 		void checkDelayed();
+		void connectionFinished(MTProtoConnection *connection);
 
 	private:
 
 		SingleTimer _timer;
 	};
+
+	GlobalSlotCarrier *globalSlotCarrier();
+	void queueQuittingConnection(MTProtoConnection *connection);
 };
 
 namespace MTP {
@@ -99,7 +106,7 @@ namespace MTP {
 
 	template <typename TRequest>
 	inline mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), int32 dc = 0, uint64 msCanWait = 0, mtpRequestId after = 0) {
-		if (MTProtoSessionPtr session = _mtp_internal::getSession(dc)) {
+		if (MTProtoSession *session = _mtp_internal::getSession(dc)) {
 			return session->send(request, callbacks, msCanWait, true, !dc, after);
 		}
 		return 0;
@@ -109,7 +116,7 @@ namespace MTP {
 		return send(request, RPCResponseHandler(onDone, onFail), dc, msCanWait, after);
 	}
 	inline void sendAnything(int32 dc = 0, uint64 msCanWait = 0) {
-		if (MTProtoSessionPtr session = _mtp_internal::getSession(dc)) {
+		if (MTProtoSession *session = _mtp_internal::getSession(dc)) {
 			return session->sendAnything(msCanWait);
 		}
 	}

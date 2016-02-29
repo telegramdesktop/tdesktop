@@ -110,6 +110,7 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
 	connect(&_localSocket, SIGNAL(readyRead()), this, SLOT(socketReading()));
 	connect(&_localServer, SIGNAL(newConnection()), this, SLOT(newInstanceConnected()));
 
+	QTimer::singleShot(0, this, SLOT(startApplication()));
 	connect(this, SIGNAL(aboutToQuit()), this, SLOT(closeApplication()));
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -126,27 +127,6 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
 		_localSocket.connectToServer(_localServerName);
 	}
 }
-
-Application::~Application() {
-	App::setQuiting();
-
-	Sandbox::finish();
-
-	delete AppObject;
-
-	_localSocket.close();
-	closeApplication();
-
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	delete _updateReply;
-	_updateReply = 0;
-	if (_updateChecker) _updateChecker->deleteLater();
-	_updateChecker = 0;
-	if (_updateThread) _updateThread->quit();
-	_updateThread = 0;
-#endif
-}
-
 
 void Application::socketConnected() {
 	LOG(("Socket connected, this is not the first application instance, sending show command.."));
@@ -333,13 +313,54 @@ void Application::removeClients() {
 	}
 }
 
+void Application::startApplication() {
+	if (App::quiting()) {
+		quit();
+	}
+}
+
 void Application::closeApplication() {
+	App::quit();
+
+	delete AppObject;
+	AppObject = 0;
+
+	Sandbox::finish();
+
 	_localServer.close();
 	for (LocalClients::iterator i = _localClients.begin(), e = _localClients.end(); i != e; ++i) {
 		disconnect(i->first, SIGNAL(disconnected()), this, SLOT(removeClients()));
 		i->first->close();
 	}
 	_localClients.clear();
+
+	_localSocket.close();
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	delete _updateReply;
+	_updateReply = 0;
+	if (_updateChecker) _updateChecker->deleteLater();
+	_updateChecker = 0;
+	if (_updateThread) _updateThread->quit();
+	_updateThread = 0;
+#endif
+
+	DEBUG_LOG(("Telegram finished, result: %1").arg("unknown"));
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	if (cRestartingUpdate()) {
+		DEBUG_LOG(("Application Info: executing updater to install update.."));
+		psExecUpdater();
+	} else
+#endif
+	if (cRestarting()) {
+		DEBUG_LOG(("Application Info: executing Telegram, because of restart.."));
+		psExecTelegram();
+	}
+
+	SignalHandlers::finish();
+	PlatformSpecific::finish();
+	Logs::finish();
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -899,7 +920,7 @@ void AppClass::killDownloadSessions() {
 	for (QMap<int32, uint64>::iterator i = killDownloadSessionTimes.begin(); i != killDownloadSessionTimes.end(); ) {
 		if (i.value() <= ms) {
 			for (int j = 0; j < MTPDownloadSessionsCount; ++j) {
-				MTP::stopSession(MTP::dld[j] + i.key());
+				MTP::stopSession(MTP::dld(j) + i.key());
 			}
 			i = killDownloadSessionTimes.erase(i);
 		} else {

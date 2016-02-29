@@ -38,10 +38,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace PlatformSpecific {
 
-	struct Initializer {
-		Initializer();
-		~Initializer();
-	};
+	void start();
+	void finish();
 
 	namespace ThirdParty {
 		void start();

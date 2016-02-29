@@ -58,11 +58,13 @@ class MTPThread : public QThread {
 	Q_OBJECT
 
 public:
-	MTPThread(QObject *parent = 0);
+	MTPThread();
 	uint32 getThreadId() const;
+	~MTPThread();
 
 private:
-	uint32 threadId;
+	uint32 _threadId;
+
 };
 
 class MTProtoConnection {
@@ -75,8 +77,8 @@ public:
 
 	MTProtoConnection();
 	int32 start(MTPSessionData *data, int32 dc = 0); // return dc
-	void stop();
-	void stopped();
+	void kill();
+	void waitTillFinish();
 	~MTProtoConnection();
 
 	enum {
@@ -358,6 +360,8 @@ signals:
 	void resendManyAsync(QVector<quint64> msgIds, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
 	void resendAllAsync();
 
+	void finished(MTProtoConnection *connection);
+
 public slots:
 
 	void retryByTimer();
@@ -466,7 +470,7 @@ private:
 	template <typename TResponse>
 	bool readResponseNotSecure(TResponse &response);
 
-	bool restarted;
+	bool restarted, _finished;
 
 	uint64 keyId;
 	QReadWriteLock sessionDataMutex;

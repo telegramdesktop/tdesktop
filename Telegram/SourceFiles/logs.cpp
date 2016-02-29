@@ -292,7 +292,7 @@ namespace SignalHandlers {
 
 namespace Logs {
 
-	Initializer::Initializer() {
+	void start() {
 		t_assert(LogsData == 0);
 
 		if (!Sandbox::CheckBetaVersionDir()) {
@@ -378,7 +378,7 @@ namespace Logs {
 		LOG(("Logs started"));
 	}
 
-	Initializer::~Initializer() {
+	void finish() {
 		delete LogsData;
 		LogsData = 0;
 

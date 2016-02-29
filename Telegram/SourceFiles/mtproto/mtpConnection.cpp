@@ -252,8 +252,6 @@ namespace {
 	typedef QMap<uint64, mtpPublicRSA> PublicRSAKeys;
 	PublicRSAKeys gPublicRSA;
 
-	MTProtoConnection gMainConnection;
-
 	bool gConfigInited = false;
 	void initRSAConfig() {
 		if (gConfigInited) return;
@@ -277,64 +275,73 @@ namespace {
 	}
 }
 
-MTPThread::MTPThread(QObject *parent) : QThread(parent) {
-	static uint32 gThreadId = 0;
-	threadId = ++gThreadId;
+uint32 MTPThreadIdIncrement = 0;
+
+MTPThread::MTPThread() : QThread(0)
+, _threadId(++MTPThreadIdIncrement) {
 }
 
 uint32 MTPThread::getThreadId() const {
-	return threadId;
+	return _threadId;
 }
 
-MTProtoConnection::MTProtoConnection() : thread(0), data(0) {
+MTPThread::~MTPThread() {
+}
+
+MTProtoConnection::MTProtoConnection() : thread(nullptr), data(nullptr) {
 }
 
 int32 MTProtoConnection::start(MTPSessionData *sessionData, int32 dc) {
+	t_assert(thread == nullptr && data == nullptr);
+
 	initRSAConfig();
 
-	if (thread) {
-		DEBUG_LOG(("MTP Info: MTP start called for already working connection"));
-		return dc;
-	}
-
-	thread = new MTPThread(QApplication::instance());
+	thread = new MTPThread();
 	data = new MTProtoConnectionPrivate(thread, this, sessionData, dc);
 
 	dc = data->getDC();
 	if (!dc) {
 		delete data;
+		data = nullptr;
 		delete thread;
-		data = 0;
-		thread = 0;
+		thread = nullptr;
 		return 0;
 	}
+
 	thread->start();
 	return dc;
 }
 
-void MTProtoConnection::stop() {
-	if (data) data->stop();
-	if (thread) thread->quit();
+void MTProtoConnection::kill() {
+	t_assert(data != nullptr && thread != nullptr);
+	data->stop();
+	data = nullptr; // will be deleted in thread::finished signal
+	thread->quit();
+	_mtp_internal::queueQuittingConnection(this);
 }
 
-void MTProtoConnection::stopped() {
-	if (thread) thread->deleteLater();
-	if (data) data->deleteLater();
-	thread = 0;
-	data = 0;
-	delete this;
+void MTProtoConnection::waitTillFinish() {
+	t_assert(data == nullptr && thread != nullptr);
+
+	thread->wait();
+	delete thread;
+	thread = nullptr;
 }
 
 int32 MTProtoConnection::state() const {
-	if (!data) return Disconnected;
+	t_assert(data != nullptr && thread != nullptr);
 
 	return data->getState();
 }
 
 QString MTProtoConnection::transport() const {
-	if (!data) return QString();
+	t_assert(data != nullptr && thread != nullptr);
 
 	return data->transport();
+}
+
+MTProtoConnection::~MTProtoConnection() {
+	t_assert(data == nullptr && thread == nullptr);
 }
 
 namespace {
@@ -1311,30 +1318,31 @@ void MTProtoConnectionPrivate::destroyConn(MTPabstractConnection **conn) {
 	}
 }
 
-MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConnection *owner, MTPSessionData *data, uint32 _dc)
-	: QObject(0)
-	, _state(MTProtoConnection::Disconnected)
-	, _needSessionReset(false)
-	, dc(_dc)
-    , _owner(owner)
-	, _conn(0), _conn4(0), _conn6(0)
-    , retryTimeout(1)
-    , oldConnection(true)
-    , _waitForReceived(MTPMinReceiveDelay)
-	, _waitForConnected(MTPMinConnectDelay)
-    , firstSentAt(-1)
-    , _pingId(0)
-	, _pingIdToSend(0)
-	, _pingSendAt(0)
-    , _pingMsgId(0)
-    , restarted(false)
-    , keyId(0)
+MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConnection *owner, MTPSessionData *data, uint32 _dc) : QObject(0)
+, _state(MTProtoConnection::Disconnected)
+, _needSessionReset(false)
+, dc(_dc)
+, _owner(owner)
+, _conn(0)
+, _conn4(0)
+, _conn6(0)
+, retryTimeout(1)
+, oldConnection(true)
+, _waitForReceived(MTPMinReceiveDelay)
+, _waitForConnected(MTPMinConnectDelay)
+, firstSentAt(-1)
+, _pingId(0)
+, _pingIdToSend(0)
+, _pingSendAt(0)
+, _pingMsgId(0)
+, restarted(false)
+, _finished(false)
+, keyId(0)
 //	, sessionDataMutex(QReadWriteLock::Recursive)
-    , sessionData(data)
-    , myKeyLock(false)
-	, authKeyData(0)
-	, authKeyStrings(0) {
-
+, sessionData(data)
+, myKeyLock(false)
+, authKeyData(0)
+, authKeyStrings(0) {
 	oldConnectionTimer.moveToThread(thread);
 	_waitForConnectedTimer.moveToThread(thread);
 	_waitForReceivedTimer.moveToThread(thread);
@@ -1357,6 +1365,7 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
 
 	connect(thread, SIGNAL(started()), this, SLOT(socketStart()));
 	connect(thread, SIGNAL(finished()), this, SLOT(doFinish()));
+	connect(this, SIGNAL(finished(MTProtoConnection*)), _mtp_internal::globalSlotCarrier(), SLOT(connectionFinished(MTProtoConnection*)), Qt::QueuedConnection);
 
 	connect(&retryTimer, SIGNAL(timeout()), this, SLOT(retryByTimer()));
 	connect(&_waitForConnectedTimer, SIGNAL(timeout()), this, SLOT(onWaitConnectedFailed()));
@@ -1966,6 +1975,10 @@ void MTProtoConnectionPrivate::restartNow() {
 }
 
 void MTProtoConnectionPrivate::socketStart(bool afterConfig) {
+	if (_finished) {
+		DEBUG_LOG(("MTP Error: socketStart() called for finished connection!"));
+		return;
+	}
 	bool isDldDc = (dc >= MTP::dldStart) && (dc < MTP::dldEnd);
 	if (isDldDc) { // using media_only addresses only if key for this dc is already created
 		QReadLocker lockFinished(&sessionDataMutex);
@@ -2231,7 +2244,9 @@ void MTProtoConnectionPrivate::doDisconnect() {
 
 void MTProtoConnectionPrivate::doFinish() {
 	doDisconnect();
-	_owner->stopped();
+	_finished = true;
+	emit finished(_owner);
+	deleteLater();
 }
 
 void MTProtoConnectionPrivate::handleReceived() {
@@ -3928,7 +3943,7 @@ void MTProtoConnectionPrivate::unlockKey() {
 }
 
 MTProtoConnectionPrivate::~MTProtoConnectionPrivate() {
-	doDisconnect();
+	t_assert(_finished && _conn == nullptr && _conn4 == nullptr && _conn6 == nullptr);
 }
 
 void MTProtoConnectionPrivate::stop() {
@@ -3939,9 +3954,6 @@ void MTProtoConnectionPrivate::stop() {
 			sessionData->keyMutex()->unlock();
 			myKeyLock = false;
 		}
-		sessionData = 0;
+		sessionData = nullptr;
 	}
-}
-
-MTProtoConnection::~MTProtoConnection() {
 }

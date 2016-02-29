@@ -1237,10 +1237,10 @@ void psShowInFolder(const QString &name) {
 
 namespace PlatformSpecific {
 
-	Initializer::Initializer() {
+	void start() {
 	}
 
-	Initializer::~Initializer() {
+	void finish() {
 		delete _psEventFilter;
 		_psEventFilter = 0;
 	}
