@@ -339,10 +339,10 @@ namespace Shortcuts {
 
 			if (error.error == QJsonParseError::NoError && doc.isArray()) {
 				QJsonArray shortcuts(doc.array());
-				if (!shortcuts.isEmpty() && shortcuts.constBegin()->isObject()) {
-					QJsonObject versionObject(shortcuts.constBegin()->toObject());
+				if (!shortcuts.isEmpty() && (*shortcuts.constBegin()).isObject()) {
+					QJsonObject versionObject((*shortcuts.constBegin()).toObject());
 					QJsonObject::const_iterator version = versionObject.constFind(qsl("version"));
-					if (version != versionObject.constEnd() && version->isString() && version->toString() == QString::number(AppVersion)) {
+					if (version != versionObject.constEnd() && (*version).isString() && (*version).toString() == QString::number(AppVersion)) {
 						defaultValid = true;
 					}
 				}
@@ -396,18 +396,18 @@ namespace Shortcuts {
 					QJsonArray shortcuts = doc.array();
 					int limit = ShortcutsCountLimit;
 					for (QJsonArray::const_iterator i = shortcuts.constBegin(), e = shortcuts.constEnd(); i != e; ++i) {
-						if (!i->isObject()) {
+						if (!(*i).isObject()) {
 							DataPtr->errors.push_back(qsl("Bad entry! Error: object expected"));
 						} else {
 							QKeySequence seq;
-							QJsonObject entry(i->toObject());
+							QJsonObject entry((*i).toObject());
 							QJsonObject::const_iterator keys = entry.constFind(qsl("keys")), command = entry.constFind(qsl("command"));
-							if (keys == entry.constEnd() || command == entry.constEnd() || !keys->isString() || (!command->isString() && !command->isNull())) {
+							if (keys == entry.constEnd() || command == entry.constEnd() || !(*keys).isString() || (!(*command).isString() && !(*command).isNull())) {
 								DataPtr->errors.push_back(qsl("Bad entry! {\"keys\": \"...\", \"command\": [ \"...\" | null ]} expected"));
-							} else if (command->isNull()) {
-								seq = _removeShortcut(keys->toString());
+							} else if ((*command).isNull()) {
+								seq = _removeShortcut((*keys).toString());
 							} else {
-								seq = _setShortcut(keys->toString(), command->toString());
+								seq = _setShortcut((*keys).toString(), (*command).toString());
 							}
 							if (!--limit) {
 								DataPtr->errors.push_back(qsl("Too many entries! Limit is %1").arg(ShortcutsCountLimit));
