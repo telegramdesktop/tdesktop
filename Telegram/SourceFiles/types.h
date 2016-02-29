@@ -36,7 +36,12 @@ T *exchange(T *&ptr) {
 struct NullType {
 };
 
-class NilPointer {
+#if __cplusplus < 199711L || true
+#define TDESKTOP_CUSTOM_NULLPTR
+#endif
+
+#ifdef TDESKTOP_CUSTOM_NULLPTR
+class NullPointerClass {
 public:
 	template <typename T>
 	operator T*() const {
@@ -50,7 +55,8 @@ public:
 private:
 	void operator&() const;
 };
-extern NilPointer Nil;
+extern NullPointerClass nullptr;
+#endif
 
 template <typename T>
 class OrderedSet : public QMap<T, NullType> {
@@ -546,6 +552,42 @@ static int32 FullArcLength = 360 * 16;
 static int32 QuarterArcLength = (FullArcLength / 4);
 static int32 MinArcLength = (FullArcLength / 360);
 static int32 AlmostFullArcLength = (FullArcLength - MinArcLength);
+
+template <typename T1, typename T2>
+class RefPairImplementation {
+public:
+	template <typename T3, typename T4>
+	const RefPairImplementation &operator=(const RefPairImplementation<T3, T4> &other) const {
+		_first = other._first;
+		_second = other._second;
+		return *this;
+	}
+
+	template <typename T3, typename T4>
+	const RefPairImplementation &operator=(const QPair<T3, T4> &other) const {
+		_first = other.first;
+		_second = other.second;
+		return *this;
+	}
+
+private:
+	RefPairImplementation(T1 &first, T2 &second) : _first(first), _second(second) {
+	}
+	RefPairImplementation(const RefPairImplementation &other);
+
+	template <typename T3, typename T4>
+	friend RefPairImplementation<T3, T4> RefPairCreator(T3 &first, T4 &second);
+
+	T1 &_first;
+	T2 &_second;
+};
+
+template <typename T1, typename T2>
+inline RefPairImplementation<T1, T2> RefPairCreator(T1 &first, T2 &second) {
+	return RefPairImplementation<T1, T2>(first, second);
+}
+
+#define RefPair(Type1, Name1, Type2, Name2) Type1 Name1; Type2 Name2; RefPairCreator(Name1, Name2)
 
 template <typename I>
 inline void destroyImplementation(I *&ptr) {

@@ -59,10 +59,10 @@ public:
 
 	FlatButton *mediaTypeButton();
 
-	void grabStart() {
+	void grabStart() override {
 		_sideShadow.hide();
 	}
-	void grabFinish() {
+	void grabFinish() override {
 		_sideShadow.setVisible(!Adaptive::OneColumn());
 	}
 
@@ -417,6 +417,15 @@ public:
 	QPixmap grabTopBar();
 	QPixmap grabInner();
 
+	void rpcClear() override {
+		history.rpcClear();
+		dialogs.rpcClear();
+		if (profile) profile->rpcClear();
+		if (overview) overview->rpcClear();
+		if (_api) _api->rpcClear();
+		RPCSender::rpcClear();
+	}
+
 	bool isItemVisible(HistoryItem *item);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
@@ -434,6 +443,10 @@ public:
 	void notify_historyItemResized(const HistoryItem *row, bool scrollToIt);
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
 	void notify_automaticLoadSettingsChangedGif();
+
+	void cmd_search();
+	void cmd_next_chat();
+	void cmd_previous_chat();
 
 	~MainWidget();
 

@@ -35,7 +35,9 @@ uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
 
 // Base types compile-time check
 
-NilPointer Nil;
+#ifdef TDESKTOP_CUSTOM_NULLPTR
+NullPointerClass nullptr;
+#endif
 
 namespace {
 	template <typename T, int N>

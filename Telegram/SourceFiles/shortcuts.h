@@ -20,30 +20,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtWidgets/QMainWindow>
-#include <QtNetwork/QNetworkReply>
-#include "sysbuttons.h"
-
-#ifdef Q_OS_MAC
-#include "pspecific_mac.h"
-#endif
-
-#ifdef Q_OS_LINUX
-#include "pspecific_linux.h"
-#endif
-
-#ifdef Q_OS_WIN
-#include "pspecific_wnd.h"
-#endif
-
-namespace PlatformSpecific {
+namespace Shortcuts {
 
 	void start();
-	void finish();
+	const QStringList &errors();
 
-	namespace ThirdParty {
-		void start();
-		void finish();
-	}
+	bool launch(int shortcutId);
+	bool launch(const QString &command);
+
+	void finish();
 
 }

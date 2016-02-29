@@ -103,7 +103,7 @@ void FileUploader::currentFailed() {
 
 void FileUploader::killSessions() {
 	for (int i = 0; i < MTPUploadSessionsCount; ++i) {
-		MTP::stopSession(MTP::upl[i]);
+		MTP::stopSession(MTP::upl(i));
 	}
 }
 
@@ -187,9 +187,9 @@ void FileUploader::sendNext() {
 		}
 		mtpRequestId requestId;
 		if (i->docSize > UseBigFilesFrom) {
-			requestId = MTP::send(MTPupload_SaveBigFilePart(MTP_long(i->id()), MTP_int(i->docSentParts), MTP_int(i->docPartsCount), MTP_string(toSend)), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::upl[todc]);
+			requestId = MTP::send(MTPupload_SaveBigFilePart(MTP_long(i->id()), MTP_int(i->docSentParts), MTP_int(i->docPartsCount), MTP_string(toSend)), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::upl(todc));
 		} else {
-			requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(i->id()), MTP_int(i->docSentParts), MTP_string(toSend)), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::upl[todc]);
+			requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(i->id()), MTP_int(i->docSentParts), MTP_string(toSend)), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::upl(todc));
 		}
 		docRequestsSent.insert(requestId, i->docSentParts);
 		dcMap.insert(requestId, todc);
@@ -200,7 +200,7 @@ void FileUploader::sendNext() {
 	} else {
 		UploadFileParts::iterator part = parts.begin();
 
-		mtpRequestId requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(partsOfId), MTP_int(part.key()), MTP_string(part.value())), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::upl[todc]);
+		mtpRequestId requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(partsOfId), MTP_int(part.key()), MTP_string(part.value())), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::upl(todc));
 		requestsSent.insert(requestId, part.value());
 		dcMap.insert(requestId, todc);
 		sentSize += part.value().size();
@@ -246,7 +246,7 @@ void FileUploader::clear() {
 	dcMap.clear();
 	sentSize = 0;
 	for (int32 i = 0; i < MTPUploadSessionsCount; ++i) {
-		MTP::stopSession(MTP::upl[i]);
+		MTP::stopSession(MTP::upl(i));
 		sentSizes[i] = 0;
 	}
 	killSessionsTimer.stop();

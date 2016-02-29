@@ -23,11 +23,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 class MTPlong;
 namespace Logs {
 
-	struct Initializer {
-		Initializer();
-		~Initializer();
-	};
+	void start();
 	bool started();
+	void finish();
 
 	bool instanceChecked();
 	void multipleInstances();

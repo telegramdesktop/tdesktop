@@ -48,7 +48,7 @@ public:
 
 	PeerData *peer() const;
 	bool allMediaShown() const;
-	
+
 	void updateOnlineDisplay();
 	void updateOnlineDisplayTimer();
 	void reorderParticipants();
@@ -65,7 +65,7 @@ public:
 	void allowDecreaseHeight(int32 decreaseBy);
 
 	~ProfileInner();
-	
+
 public slots:
 
 	void peerUpdated(PeerData *data);
@@ -247,15 +247,19 @@ public:
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void updateAdaptiveLayout();
 
-	void grabStart() {
+	void grabStart() override {
 		_sideShadow.hide();
 		_inGrab = true;
 		resizeEvent(0);
 	}
-	void grabFinish() {
+	void grabFinish() override {
 		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_inGrab = false;
 		resizeEvent(0);
+	}
+	void rpcClear() override {
+		_inner.rpcClear();
+		RPCSender::rpcClear();
 	}
 
 	void clear();

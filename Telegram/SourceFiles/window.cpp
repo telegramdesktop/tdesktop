@@ -22,6 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "style.h"
 #include "lang.h"
 
+#include "shortcuts.h"
+
 #include "window.h"
 #include "application.h"
 
@@ -502,22 +504,28 @@ void Window::clearWidgets() {
 		settings->stop_show();
 		settings->hide();
 		settings->deleteLater();
-		settings->rpcInvalidate();
+		settings->rpcClear();
 		settings = 0;
 	}
 	if (main) {
 		main->animStop_show();
 		main->hide();
 		main->deleteLater();
-		main->rpcInvalidate();
+		main->rpcClear();
 		main = 0;
 	}
 	if (intro) {
 		intro->stop_show();
 		intro->hide();
 		intro->deleteLater();
-		intro->rpcInvalidate();
+		intro->rpcClear();
 		intro = 0;
+	}
+	if (_mediaView) {
+		if (!_mediaView->isHidden()) {
+			_mediaView->hide();
+		}
+		_mediaView->rpcClear();
 	}
 	title->updateBackButton();
 	updateGlobalMenu();
@@ -722,7 +730,7 @@ void Window::hideSettings(bool fast) {
 		settings->stop_show();
 		settings->hide();
 		settings->deleteLater();
-		settings->rpcInvalidate();
+		settings->rpcClear();
 		settings = 0;
 		if (intro) {
 			intro->show();
@@ -735,7 +743,7 @@ void Window::hideSettings(bool fast) {
 		settings->stop_show();
 		settings->hide();
 		settings->deleteLater();
-		settings->rpcInvalidate();
+		settings->rpcClear();
 		settings = 0;
 		if (intro) {
 			intro->animShow(bg, true);
@@ -1008,24 +1016,45 @@ QRect Window::iconRect() const {
 	return QRect(st::titleIconPos + title->geometry().topLeft(), st::titleIconImg.pxSize());
 }
 
-bool Window::eventFilter(QObject *obj, QEvent *evt) {
-	QEvent::Type t = evt->type();
-	if (t == QEvent::MouseButtonPress || t == QEvent::KeyPress || t == QEvent::TouchBegin || t == QEvent::Wheel) {
+bool Window::eventFilter(QObject *obj, QEvent *e) {
+	switch (e->type()) {
+	case QEvent::MouseButtonPress:
+	case QEvent::KeyPress:
+	case QEvent::TouchBegin:
+	case QEvent::Wheel:
 		psUserActionDone();
-	} else if (t == QEvent::MouseMove) {
+		break;
+
+	case QEvent::MouseMove:
 		if (main && main->isIdle()) {
 			psUserActionDone();
 			main->checkIdleFinish();
 		}
-	} else if (t == QEvent::MouseButtonRelease) {
+		break;
+
+	case QEvent::MouseButtonRelease:
 		Ui::hideStickerPreview();
-	}
-	if (obj == Application::instance()) {
-		if (t == QEvent::ApplicationActivate) {
+		break;
+
+	case QEvent::ShortcutOverride: // handle shortcuts ourselves
+		return true;
+
+	case QEvent::Shortcut:
+		if (Shortcuts::launch(static_cast<QShortcutEvent*>(e)->shortcutId())) {
+			return true;
+		}
+		break;
+
+	case QEvent::ApplicationActivate:
+		if (obj == Application::instance()) {
 			psUserActionDone();
 			QTimer::singleShot(1, this, SLOT(checkHistoryActivation()));
-		} else if (t == QEvent::FileOpen) {
-			QString url = static_cast<QFileOpenEvent*>(evt)->url().toEncoded();
+		}
+		break;
+
+	case QEvent::FileOpen:
+		if (obj == Application::instance()) {
+			QString url = static_cast<QFileOpenEvent*>(e)->url().toEncoded();
 			if (!url.trimmed().midRef(0, 5).compare(qsl("tg://"), Qt::CaseInsensitive)) {
 				cSetStartUrl(url);
 				if (!cStartUrl().isEmpty() && App::main() && App::self()) {
@@ -1035,15 +1064,24 @@ bool Window::eventFilter(QObject *obj, QEvent *evt) {
 			}
 			activate();
 		}
-	} else if (obj == this) {
-		if (t == QEvent::WindowStateChange) {
+		break;
+
+	case QEvent::WindowStateChange:
+		if (obj == this) {
 			Qt::WindowState state = (windowState() & Qt::WindowMinimized) ? Qt::WindowMinimized : ((windowState() & Qt::WindowMaximized) ? Qt::WindowMaximized : ((windowState() & Qt::WindowFullScreen) ? Qt::WindowFullScreen : Qt::WindowNoState));
 			stateChanged(state);
-		} else if (t == QEvent::Move || t == QEvent::Resize) {
+		}
+		break;
+
+	case QEvent::Move:
+	case QEvent::Resize:
+		if (obj == this) {
 			psUpdatedPosition();
 		}
+		break;
 	}
-	return PsMainWindow::eventFilter(obj, evt);
+
+	return PsMainWindow::eventFilter(obj, e);
 }
 
 void Window::mouseMoveEvent(QMouseEvent *e) {

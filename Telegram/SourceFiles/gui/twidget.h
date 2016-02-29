@@ -183,6 +183,8 @@ public:
 	virtual void grabFinish() {
 	}
 
+	bool inFocusChain() const;
+
 private:
 
 };

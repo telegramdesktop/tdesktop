@@ -827,5 +827,3 @@ outCpp.write('\t}\n}\n');
 outCpp.write(textSerializeFull + '\n');
 
 print('Done, written {0} constructors, {1} functions.'.format(consts, funcs));
-
-print('Done, written {0} constructors, {1} functions.'.format(consts, funcs));

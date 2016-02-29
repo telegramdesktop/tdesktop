@@ -955,6 +955,7 @@ dlgActiveUnreadColor: #5b94bf;
 dlgActiveUnreadBG: white;
 dlgActiveColor: white;
 dlgActiveDateColor: #d3e2ee;
+dlgActiveUnreadMutedBG: dlgActiveDateColor;
 
 topBarHeight: 54px;
 topBarBG: white;

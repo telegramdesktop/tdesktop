@@ -2352,12 +2352,12 @@ namespace Local {
 		_readDraftCursors(peer, msgCursor, editCursor);
 
 		if (msgText.isEmpty() && !msgReplyTo) {
-			h->setMsgDraft(Nil);
+			h->setMsgDraft(nullptr);
 		} else {
 			h->setMsgDraft(new HistoryDraft(msgText, msgReplyTo, msgCursor, msgPreviewCancelled));
 		}
 		if (!editMsgId) {
-			h->setEditDraft(Nil);
+			h->setEditDraft(nullptr);
 		} else {
 			h->setEditDraft(new HistoryEditDraft(editText, editMsgId, editCursor, editPreviewCancelled));
 		}

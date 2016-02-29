@@ -59,6 +59,7 @@
 		0755AEDD1AD12A80004D738A /* moc_abstractbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0755AEDA1AD12A80004D738A /* moc_abstractbox.cpp */; };
 		0755AEDE1AD12A80004D738A /* moc_intropwdcheck.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0755AEDB1AD12A80004D738A /* moc_intropwdcheck.cpp */; };
 		0755AEDF1AD12A80004D738A /* moc_sessionsbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0755AEDC1AD12A80004D738A /* moc_sessionsbox.cpp */; };
+		075FEBEC1C82336D0003ECA3 /* shortcuts.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 075FEBEA1C82336D0003ECA3 /* shortcuts.cpp */; };
 		0764D55A1ABAD6F900FBFEED /* apiwrap.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0764D5581ABAD6F900FBFEED /* apiwrap.cpp */; };
 		0764D55D1ABAD71B00FBFEED /* moc_apiwrap.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0764D55C1ABAD71B00FBFEED /* moc_apiwrap.cpp */; };
 		078A2FCA1A811C5900CCC7A0 /* moc_backgroundbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078A2FC91A811C5900CCC7A0 /* moc_backgroundbox.cpp */; };
@@ -298,6 +299,8 @@
 		0755AEDC1AD12A80004D738A /* moc_sessionsbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_sessionsbox.cpp; path = GeneratedFiles/Debug/moc_sessionsbox.cpp; sourceTree = SOURCE_ROOT; };
 		075EB50EB07CF69FD62FB8DF /* /usr/local/Qt-5.3.2/mkspecs/modules/qt_lib_sql_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.2/mkspecs/modules/qt_lib_sql_private.pri"; sourceTree = "<absolute>"; };
 		075F99A91A45EEF200915C72 /* lang_es.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_es.strings; path = SourceFiles/langs/lang_es.strings; sourceTree = SOURCE_ROOT; };
+		075FEBEA1C82336D0003ECA3 /* shortcuts.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = shortcuts.cpp; path = SourceFiles/shortcuts.cpp; sourceTree = SOURCE_ROOT; };
+		075FEBEB1C82336D0003ECA3 /* shortcuts.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = shortcuts.h; path = SourceFiles/shortcuts.h; sourceTree = SOURCE_ROOT; };
 		0764D5581ABAD6F900FBFEED /* apiwrap.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = apiwrap.cpp; path = SourceFiles/apiwrap.cpp; sourceTree = SOURCE_ROOT; };
 		0764D5591ABAD6F900FBFEED /* apiwrap.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = apiwrap.h; path = SourceFiles/apiwrap.h; sourceTree = SOURCE_ROOT; };
 		0764D55C1ABAD71B00FBFEED /* moc_apiwrap.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_apiwrap.cpp; path = GeneratedFiles/Debug/moc_apiwrap.cpp; sourceTree = SOURCE_ROOT; };
@@ -937,6 +940,7 @@
 				047DAFB0A7DE92C63033A43C /* mainwidget.cpp */,
 				8A28F7789408AA839F48A5F2 /* settings.cpp */,
 				8CCCACE96535180FEB557712 /* settingswidget.cpp */,
+				075FEBEA1C82336D0003ECA3 /* shortcuts.cpp */,
 				07DB67451AD07C4F00A51329 /* structs.cpp */,
 				6B90F69947805586A6FAE80E /* sysbuttons.cpp */,
 				2BB2A1BB8DB0993F78F4E3C7 /* title.cpp */,
@@ -979,6 +983,7 @@
 				FE8FD20832B4C226E345CFBA /* mainwidget.h */,
 				2EA58EF6CDF368B0132BAEB9 /* settings.h */,
 				F80095A026AF9453E9C2B8BD /* settingswidget.h */,
+				075FEBEB1C82336D0003ECA3 /* shortcuts.h */,
 				07DB67461AD07C4F00A51329 /* structs.h */,
 				C913E6A1001E07EE7C13CE93 /* style.h */,
 				3BE70E2A82DC2BF402165ED5 /* sysbuttons.h */,
@@ -1638,6 +1643,7 @@
 				E8B28580819B882A5964561A /* moc_addcontactbox.cpp in Compile Sources */,
 				07B604321B46A0EC00CA29FE /* playerwidget.cpp in Compile Sources */,
 				D6874C00733283846ACA9AB2 /* moc_confirmbox.cpp in Compile Sources */,
+				075FEBEC1C82336D0003ECA3 /* shortcuts.cpp in Compile Sources */,
 				ED2557A57C6782721DC494AF /* moc_connectionbox.cpp in Compile Sources */,
 				5FC914F652D1B16FDA8F0634 /* moc_contactsbox.cpp in Compile Sources */,
 				074968D01A44D14C00394F46 /* languagebox.cpp in Compile Sources */,

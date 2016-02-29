@@ -791,6 +791,16 @@ public:
 		return RPCFailHandlerPtr(new RPCBindedFailHandlerOwnedNo<T, TReceiver>(b, static_cast<TReceiver*>(this), onFail));
 	}
 
+	virtual void rpcClear() {
+		rpcInvalidate();
+	}
+
+	virtual ~RPCSender() {
+		rpcInvalidate();
+	}
+
+protected:
+
 	void rpcInvalidate() {
 		for (DoneHandlers::iterator i = _rpcDoneHandlers.begin(), e = _rpcDoneHandlers.end(); i != e; ++i) {
 			(*i)->invalidate();
@@ -800,10 +810,6 @@ public:
 			(*i)->invalidate();
 		}
 		_rpcFailHandlers.clear();
-	}
-
-	~RPCSender() {
-		rpcInvalidate();
 	}
 
 };

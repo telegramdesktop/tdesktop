@@ -67,7 +67,6 @@ public:
 	void selectSkipPage(int32 pixels, int32 direction);
 
 	void createDialog(History *history);
-	void moveDialogToTop(const History::DialogLinks &links);
 	void dlgUpdated(DialogRow *row);
 	void dlgUpdated(History *row, MsgId msgId);
 	void removeDialog(History *history);
@@ -219,7 +218,7 @@ public:
 	void contactsReceived(const MTPcontacts_Contacts &contacts);
 	void searchReceived(DialogsSearchRequestType type, const MTPmessages_Messages &result, mtpRequestId req);
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
-	
+
 	void dragEnterEvent(QDragEnterEvent *e);
 	void dragMoveEvent(QDragMoveEvent *e);
 	void dragLeaveEvent(QDragLeaveEvent *e);
@@ -259,6 +258,11 @@ public:
 	void itemRemoved(HistoryItem *item);
 
 	void updateNotifySettings(PeerData *peer);
+
+	void rpcClear() override {
+		_inner.rpcClear();
+		RPCSender::rpcClear();
+	}
 
 	void notify_userIsContactChanged(UserData *user, bool fromThisApp);
 

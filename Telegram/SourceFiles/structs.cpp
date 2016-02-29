@@ -1219,7 +1219,7 @@ bool DocumentData::loaded(bool check) const {
 	if (loading() && _loader->done()) {
 		if (_loader->fileType() == mtpc_storage_fileUnknown) {
 			_loader->deleteLater();
-			_loader->rpcInvalidate();
+			_loader->rpcClear();
 			_loader = CancelledMtpFileLoader;
 		} else {
 			DocumentData *that = const_cast<DocumentData*>(this);
@@ -1230,7 +1230,7 @@ bool DocumentData::loaded(bool check) const {
 			}
 
 			_loader->deleteLater();
-			_loader->rpcInvalidate();
+			_loader->rpcClear();
 			_loader = 0;
 		}
 		notifyLayoutChanged();
@@ -1312,7 +1312,7 @@ void DocumentData::cancel() {
 	if (l) {
 		l->cancel();
 		l->deleteLater();
-		l->rpcInvalidate();
+		l->rpcClear();
 
 		notifyLayoutChanged();
 	}

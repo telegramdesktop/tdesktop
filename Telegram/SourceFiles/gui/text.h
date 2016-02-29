@@ -424,12 +424,31 @@ private:
 
 };
 
+struct LocationCoords {
+	LocationCoords() : lat(0), lon(0) {
+	}
+	LocationCoords(float64 lat, float64 lon) : lat(lat), lon(lon) {
+	}
+	float64 lat, lon;
+};
+inline bool operator==(const LocationCoords &a, const LocationCoords &b) {
+	return (a.lat == b.lat) && (a.lon == b.lon);
+}
+inline bool operator<(const LocationCoords &a, const LocationCoords &b) {
+	return (a.lat < b.lat) || ((a.lat == b.lat) && (a.lon < b.lon));
+}
+inline uint qHash(const LocationCoords &t, uint seed = 0) {
+	uint h1 = qHash(t.lat, seed);
+	uint h2 = qHash(t.lon, seed);
+	return ((h1 << 16) | (h1 >> 16)) ^ h2 ^ seed;
+}
+
 class LocationLink : public ITextLink {
 	TEXT_LINK_CLASS(LocationLink)
 
 public:
 
-	LocationLink(const QString &lat, const QString &lon) : _lat(lat), _lon(lon) {
+	LocationLink(const LocationCoords &coords) : _coords(coords) {
 		setup();
 	}
 
@@ -450,7 +469,8 @@ public:
 private:
 
 	void setup();
-	QString _lat, _lon, _text;
+	LocationCoords _coords;
+	QString _text;
 
 };
 

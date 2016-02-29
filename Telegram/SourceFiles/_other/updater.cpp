@@ -255,7 +255,7 @@ bool update() {
 				} else {
 					break;
 				}
-			} while (copyTries < 30);
+			} while (copyTries < 100);
 			if (!copyResult) {
 				writeLog(L"Error: failed to copy, asking to retry..");
 				WCHAR errMsg[2048];

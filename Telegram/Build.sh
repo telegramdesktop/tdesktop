@@ -123,7 +123,7 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
   /usr/local/Qt-5.5.1/bin/qmake "$HomePath/Telegram.pro" -r -spec linux-g++
   eval "$FixScript"
   make
-  echo "Telegram build complete!"
+  echo "$BinaryName build complete!"
   cd "$HomePath"
   if [ ! -f "$ReleasePath/$BinaryName" ]; then
     echo "$BinaryName not found!"
@@ -178,13 +178,13 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
   echo "Copying $BinaryName, Updater and $UpdateFile to deploy/$AppVersionStrMajor/$AppVersionStrFull..";
   mkdir "$DeployPath"
   mkdir "$DeployPath/$BinaryName"
-  mv "$ReleasePath/$BinaryName" "$DeployPath/Telegram/"
-  mv "$ReleasePath/Updater" "$DeployPath/Telegram/"
+  mv "$ReleasePath/$BinaryName" "$DeployPath/$BinaryName/"
+  mv "$ReleasePath/Updater" "$DeployPath/$BinaryName/"
   mv "$ReleasePath/$UpdateFile" "$DeployPath/"
   if [ "$BetaVersion" != "0" ]; then
     mv "$ReleasePath/$BetaKeyFile" "$DeployPath/"
   fi
-  cd "$DeployPath" && tar -cJvf "$SetupFile" "Telegram/" && cd "./../../../$HomePath"
+  cd "$DeployPath" && tar -cJvf "$SetupFile" "$BinaryName/" && cd "./../../../$HomePath"
 fi
 
 if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" == "macstore" ]; then
@@ -307,10 +307,10 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
   if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
     echo "Copying $BinaryName.app and $UpdateFile to deploy/$AppVersionStrMajor/$AppVersionStr..";
     mkdir "$DeployPath"
-    mkdir "$DeployPath/Telegram"
-    cp -r "$ReleasePath/$BinaryName.app" "$DeployPath/Telegram/"
+    mkdir "$DeployPath/$BinaryName"
+    cp -r "$ReleasePath/$BinaryName.app" "$DeployPath/$BinaryName/"
     if [ "$BetaVersion" != "0" ]; then
-      cd "$DeployPath" && zip -r "$SetupFile" "Telegram" && mv "$SetupFile" "./../../../" && cd "./../../../$HomePath"
+      cd "$DeployPath" && zip -r "$SetupFile" "$BinaryName" && mv "$SetupFile" "./../../../" && cd "./../../../$HomePath"
       mv "$ReleasePath/$BetaKeyFile" "$DeployPath/"
     fi
     mv "$ReleasePath/$BinaryName.app.dSYM" "$DeployPath/"

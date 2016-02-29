@@ -22,6 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "style.h"
 
+#include "shortcuts.h"
+
 #include "pspecific.h"
 #include "fileuploader.h"
 #include "mainwidget.h"
@@ -46,52 +48,6 @@ namespace {
 			App::main()->getDifference();
 		}
 	}
-
-	class EventFilterForKeys : public QObject {
-	public:
-
-		EventFilterForKeys(QObject *parent) : QObject(parent) {
-		}
-		bool eventFilter(QObject *o, QEvent *e) {
-			if (e->type() == QEvent::KeyPress) {
-				QKeyEvent *ev = static_cast<QKeyEvent*>(e);
-				if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
-					if (ev->key() == Qt::Key_W && (ev->modifiers() & Qt::ControlModifier)) {
-						Ui::hideWindowNoQuit();
-						return true;
-					} else if (ev->key() == Qt::Key_M && (ev->modifiers() & Qt::ControlModifier)) {
-						App::wnd()->setWindowState(Qt::WindowMinimized);
-						return true;
-					}
-				} else {
-					if ((ev->key() == Qt::Key_W || ev->key() == Qt::Key_F4) && (ev->modifiers() & Qt::ControlModifier)) {
-						if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
-							App::wnd()->minimizeToTray();
-							return true;
-						} else {
-							App::wnd()->close();
-							return true;
-						}
-					}
-				}
-				if (ev->key() == Qt::Key_MediaPlay) {
-					if (App::main()) App::main()->player()->playPressed();
-				} else if (ev->key() == Qt::Key_MediaPause) {
-					if (App::main()) App::main()->player()->pausePressed();
-				} else if (ev->key() == Qt::Key_MediaTogglePlayPause) {
-					if (App::main()) App::main()->player()->playPausePressed();
-				} else if (ev->key() == Qt::Key_MediaStop) {
-					if (App::main()) App::main()->player()->stopPressed();
-				} else if (ev->key() == Qt::Key_MediaPrevious) {
-					if (App::main()) App::main()->player()->prevPressed();
-				} else if (ev->key() == Qt::Key_MediaNext) {
-					if (App::main()) App::main()->player()->nextPressed();
-				}
-			}
-			return QObject::eventFilter(o, e);
-		}
-
-	};
 
 	QChar _toHex(ushort v) {
 		v = v & 0x000F;
@@ -154,6 +110,7 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
 	connect(&_localSocket, SIGNAL(readyRead()), this, SLOT(socketReading()));
 	connect(&_localServer, SIGNAL(newConnection()), this, SLOT(newInstanceConnected()));
 
+	QTimer::singleShot(0, this, SLOT(startApplication()));
 	connect(this, SIGNAL(aboutToQuit()), this, SLOT(closeApplication()));
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -170,27 +127,6 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
 		_localSocket.connectToServer(_localServerName);
 	}
 }
-
-Application::~Application() {
-	App::setQuiting();
-
-	Sandbox::finish();
-
-	delete AppObject;
-
-	_localSocket.close();
-	closeApplication();
-
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	delete _updateReply;
-	_updateReply = 0;
-	if (_updateChecker) _updateChecker->deleteLater();
-	_updateChecker = 0;
-	if (_updateThread) _updateThread->quit();
-	_updateThread = 0;
-#endif
-}
-
 
 void Application::socketConnected() {
 	LOG(("Socket connected, this is not the first application instance, sending show command.."));
@@ -377,13 +313,54 @@ void Application::removeClients() {
 	}
 }
 
+void Application::startApplication() {
+	if (App::quiting()) {
+		quit();
+	}
+}
+
 void Application::closeApplication() {
+	App::quit();
+
+	delete AppObject;
+	AppObject = 0;
+
+	Sandbox::finish();
+
 	_localServer.close();
 	for (LocalClients::iterator i = _localClients.begin(), e = _localClients.end(); i != e; ++i) {
 		disconnect(i->first, SIGNAL(disconnected()), this, SLOT(removeClients()));
 		i->first->close();
 	}
 	_localClients.clear();
+
+	_localSocket.close();
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	delete _updateReply;
+	_updateReply = 0;
+	if (_updateChecker) _updateChecker->deleteLater();
+	_updateChecker = 0;
+	if (_updateThread) _updateThread->quit();
+	_updateThread = 0;
+#endif
+
+	DEBUG_LOG(("Telegram finished, result: %1").arg("unknown"));
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	if (cRestartingUpdate()) {
+		DEBUG_LOG(("Application Info: executing updater to install update.."));
+		psExecUpdater();
+	} else
+#endif
+	if (cRestarting()) {
+		DEBUG_LOG(("Application Info: executing Telegram, because of restart.."));
+		psExecTelegram();
+	}
+
+	SignalHandlers::finish();
+	PlatformSpecific::finish();
+	Logs::finish();
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -708,8 +685,6 @@ AppClass::AppClass() : QObject()
 		return;
 	}
 
-	application()->installEventFilter(new EventFilterForKeys(this));
-
 	if (cRetina()) {
 		cSetConfigScale(dbisOne);
 		cSetRealScale(dbisOne);
@@ -767,6 +742,8 @@ AppClass::AppClass() : QObject()
 
 	DEBUG_LOG(("Application Info: window created.."));
 
+	Shortcuts::start();
+
 	initImageLinkManager();
 	App::initMedia();
 
@@ -807,6 +784,13 @@ AppClass::AppClass() : QObject()
 	}
 
 	_window->updateIsActive(Global::OnlineFocusTimeout());
+
+	if (!Shortcuts::errors().isEmpty()) {
+		const QStringList &errors(Shortcuts::errors());
+		for (QStringList::const_iterator i = errors.cbegin(), e = errors.cend(); i != e; ++i) {
+			LOG(("Shortcuts Error: %1").arg(*i));
+		}
+	}
 }
 
 void AppClass::regPhotoUpdate(const PeerId &peer, const FullMsgId &msgId) {
@@ -936,7 +920,7 @@ void AppClass::killDownloadSessions() {
 	for (QMap<int32, uint64>::iterator i = killDownloadSessionTimes.begin(); i != killDownloadSessionTimes.end(); ) {
 		if (i.value() <= ms) {
 			for (int j = 0; j < MTPDownloadSessionsCount; ++j) {
-				MTP::stopSession(MTP::dld[j] + i.key());
+				MTP::stopSession(MTP::dld(j) + i.key());
 			}
 			i = killDownloadSessionTimes.erase(i);
 		} else {
@@ -1070,6 +1054,8 @@ void AppClass::checkMapVersion() {
 }
 
 AppClass::~AppClass() {
+	Shortcuts::finish();
+
 	if (Window *w = _window) {
 		_window = 0;
 		delete w;

@@ -20,7 +20,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #define __HUGE
 #define PSAPI_VERSION 1 // fix WinXP
-//#define Q_NO_TEMPLATE_FRIENDS // fix some compiler difference issues
 
 #define __STDC_FORMAT_MACROS // fix breakpad for mac
 
@@ -38,15 +37,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <openssl/sha.h>
 #include <openssl/md5.h>
 
+#include <QtCore/QtCore>
 #include <QtWidgets/QtWidgets>
-#include <QtNetwork/QTcpSocket>
-#include <QtNetwork/QHostAddress>
-#include <QtNetwork/QNetworkAccessManager>
-#include <QtNetwork/QNetworkReply>
-#include <QtNetwork/QNetworkProxy>
-#include <QtNetwork/QLocalSocket>
-#include <QtNetwork/QLocalServer>
-#include <QtNetwork/QHttpMultiPart>
+#include <QtNetwork/QtNetwork>
 
 #ifdef Q_OS_WIN // use Lzma SDK for win
 #include <LzmaLib.h>

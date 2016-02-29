@@ -224,4 +224,4 @@ QString strNeedToReload();
 QString strNeedToRefresh1();
 QString strNeedToRefresh2();
 
-bool psLaunchMaps(const QString &lat, const QString &lon);
+bool psLaunchMaps(const LocationCoords &coords);

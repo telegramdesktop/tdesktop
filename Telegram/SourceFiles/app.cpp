@@ -49,8 +49,8 @@ namespace {
 	PhotosData photosData;
 	DocumentsData documentsData;
 
-	typedef QHash<QString, ImageLinkData*> ImageLinksData;
-	ImageLinksData imageLinksData;
+	typedef QHash<LocationCoords, LocationData*> LocationsData;
+	LocationsData locationsData;
 
 	typedef QHash<WebPageId, WebPageData*> WebPagesData;
 	WebPagesData webPagesData;
@@ -522,7 +522,7 @@ namespace App {
 								if (!h->isEmpty()) {
 									h->clear(true);
 								}
-								if (!hto->dialogs.isEmpty() && !h->dialogs.isEmpty()) {
+								if (hto->inChatList() && h->inChatList()) {
 									App::removeDialog(h);
 								}
 							}
@@ -1671,25 +1671,12 @@ namespace App {
 		return result;
 	}
 
-	ImageLinkData *imageLink(const QString &imageLink) {
-		ImageLinksData::const_iterator i = imageLinksData.constFind(imageLink);
-		if (i == imageLinksData.cend()) {
-			i = imageLinksData.insert(imageLink, new ImageLinkData(imageLink));
+	LocationData *location(const LocationCoords &coords) {
+		LocationsData::const_iterator i = locationsData.constFind(coords);
+		if (i == locationsData.cend()) {
+			i = locationsData.insert(coords, new LocationData(coords));
 		}
 		return i.value();
-	}
-
-	ImageLinkData *imageLinkSet(const QString &imageLink, ImageLinkType type) {
-		ImageLinksData::const_iterator i = imageLinksData.constFind(imageLink);
-		ImageLinkData *result;
-		if (i == imageLinksData.cend()) {
-			result = new ImageLinkData(imageLink);
-			imageLinksData.insert(imageLink, result);
-			result->type = type;
-		} else {
-			result = i.value();
-		}
-		return result;
 	}
 
 	void forgetMedia() {
@@ -1701,7 +1688,7 @@ namespace App {
 		for (DocumentsData::const_iterator i = ::documentsData.cbegin(), e = ::documentsData.cend(); i != e; ++i) {
 			i.value()->forget();
 		}
-		for (ImageLinksData::const_iterator i = imageLinksData.cbegin(), e = imageLinksData.cend(); i != e; ++i) {
+		for (LocationsData::const_iterator i = ::locationsData.cbegin(), e = ::locationsData.cend(); i != e; ++i) {
 			i.value()->thumb->forget();
 		}
 	}
@@ -1843,6 +1830,7 @@ namespace App {
 		updatedPeers.clear();
 		cSetSavedPeers(SavedPeers());
 		cSetSavedPeersByTime(SavedPeersByTime());
+		cSetRecentInlineBots(RecentInlineBots());
 		for (PeersData::const_iterator i = peersData.cbegin(), e = peersData.cend(); i != e; ++i) {
 			delete *i;
 		}

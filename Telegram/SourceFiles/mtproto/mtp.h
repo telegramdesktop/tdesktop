@@ -24,7 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mtproto/mtpFileLoader.h"
 
 namespace _mtp_internal {
-	MTProtoSessionPtr getSession(int32 dc = 0); // 0 - current set dc
+	MTProtoSession *getSession(int32 dc); // 0 - current set dc
 
 	bool paused();
 
@@ -49,37 +49,42 @@ namespace _mtp_internal {
 		return rpcErrorOccured(requestId, handler.onFail, err);
 	}
 
-	class RequestResender : public QObject {
+	// used for:
+	// - resending requests by timer which were postponed by flood delay
+	// - destroying MTProtoConnections whose thread has finished
+	class GlobalSlotCarrier : public QObject {
 		Q_OBJECT
 
 	public:
 
-		RequestResender();
+		GlobalSlotCarrier();
 
 	public slots:
 
 		void checkDelayed();
+		void connectionFinished(MTProtoConnection *connection);
 
 	private:
 
 		SingleTimer _timer;
 	};
 
-	class SessionKiller : public QObject {
-		Q_OBJECT
-
-	public slots:
-
-		void killSessionsDelayed();
-	};
+	GlobalSlotCarrier *globalSlotCarrier();
+	void queueQuittingConnection(MTProtoConnection *connection);
 };
 
 namespace MTP {
 
 	extern const uint32 cfg; // send(MTPhelp_GetConfig(), MTP::cfg + dc) - for dc enum
 	extern const uint32 lgt; // send(MTPauth_LogOut(), MTP::lgt + dc) - for logout of guest dcs enum
-	extern const uint32 dld[MTPDownloadSessionsCount]; // send(req, callbacks, MTP::dld[i] + dc) - for download
-	extern const uint32 upl[MTPUploadSessionsCount]; // send(req, callbacks, MTP::upl[i] + dc) - for upload
+	inline const uint32 dld(int32 index) { // send(req, callbacks, MTP::dld(i) + dc) - for download
+		t_assert(index >= 0 && index < MTPDownloadSessionsCount);
+		return (0x10 + index) * _mtp_internal::dcShift;
+	};
+	inline const uint32 upl(int32 index) { // send(req, callbacks, MTP::upl[i] + dc) - for upload
+		t_assert(index >= 0 && index < MTPUploadSessionsCount);
+		return (0x20 + index) * _mtp_internal::dcShift;
+	};
 	extern const uint32 dldStart, dldEnd; // dc >= dldStart && dc < dldEnd => dc in dld
 	extern const uint32 uplStart, uplEnd; // dc >= uplStart && dc < uplEnd => dc in upl
 
@@ -101,7 +106,7 @@ namespace MTP {
 
 	template <typename TRequest>
 	inline mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), int32 dc = 0, uint64 msCanWait = 0, mtpRequestId after = 0) {
-		if (MTProtoSessionPtr session = _mtp_internal::getSession(dc)) {
+		if (MTProtoSession *session = _mtp_internal::getSession(dc)) {
 			return session->send(request, callbacks, msCanWait, true, !dc, after);
 		}
 		return 0;
@@ -111,7 +116,7 @@ namespace MTP {
 		return send(request, RPCResponseHandler(onDone, onFail), dc, msCanWait, after);
 	}
 	inline void sendAnything(int32 dc = 0, uint64 msCanWait = 0) {
-		if (MTProtoSessionPtr session = _mtp_internal::getSession(dc)) {
+		if (MTProtoSession *session = _mtp_internal::getSession(dc)) {
 			return session->sendAnything(msCanWait);
 		}
 	}

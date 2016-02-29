@@ -28,7 +28,7 @@ class MTProtoSession;
 
 class MTPSessionData {
 public:
-	
+
 	MTPSessionData(MTProtoSession *creator)
 	: _session(0), _salt(0)
 	, _messagesSent(0), _fakeRequestId(-2000000000)
@@ -222,9 +222,8 @@ class MTProtoSession : public QObject {
 
 public:
 
-	MTProtoSession();
+	MTProtoSession(int32 dcenter);
 
-	void start(int32 dcenter = 0);
 	void restart();
 	void stop();
 	void kill();
@@ -278,13 +277,12 @@ public slots:
 	void sendMsgsStateInfo(quint64 msgId, QByteArray data);
 
 private:
-	
-	typedef QList<MTProtoConnection*> MTProtoConnections;
-	MTProtoConnections connections;
+
+	MTProtoConnection *_connection;
 
 	bool _killed;
 	bool _needToReceive;
-	
+
 	MTPSessionData data;
 
 	int32 dcWithShift;
@@ -304,7 +302,3 @@ inline QReadWriteLock *MTPSessionData::keyMutex() const {
 }
 
 MTPrpcError rpcClientError(const QString &type, const QString &description = QString());
-
-// here
-
-typedef QSharedPointer<MTProtoSession> MTProtoSessionPtr;

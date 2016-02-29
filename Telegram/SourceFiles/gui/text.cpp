@@ -955,13 +955,13 @@ void CustomTextLink::onClick(Qt::MouseButton button) const {
 }
 
 void LocationLink::onClick(Qt::MouseButton button) const {
-	if (!psLaunchMaps(_lat, _lon)) {
+	if (!psLaunchMaps(_coords)) {
 		QDesktopServices::openUrl(_text);
 	}
 }
 
 void LocationLink::setup() {
-	QString latlon = _lat + ',' + _lon;
+	QString latlon(qsl("%1,%2").arg(_coords.lat).arg(_coords.lon));
 	_text = qsl("https://maps.google.com/maps?q=") + latlon + qsl("&ll=") + latlon + qsl("&z=16");
 }
 

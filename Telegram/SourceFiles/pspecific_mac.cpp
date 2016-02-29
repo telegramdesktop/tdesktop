@@ -176,7 +176,7 @@ void _placeCounter(QImage &img, int size, int count, style::color bg, style::col
 }
 
 void PsMainWindow::psUpdateCounter() {
-	int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted);
+	int32 counter = App::histories().unreadBadge();
 
     setWindowTitle((counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram"));
 	setWindowIcon(wndIcon);
@@ -185,7 +185,7 @@ void PsMainWindow::psUpdateCounter() {
     _private.setWindowBadge(counter ? cnt : QString());
 
 	if (trayIcon) {
-		bool muted = cIncludeMuted() ? (App::histories().unreadMuted >= counter) : false;
+		bool muted = App::histories().unreadOnlyMuted();
 		bool dm = objc_darkMode();
 
 		style::color bg = muted ? st::counterMuteBG : st::counterBG;
@@ -850,11 +850,11 @@ void psShowInFolder(const QString &name) {
 
 namespace PlatformSpecific {
 
-	Initializer::Initializer() {
+	void start() {
 		objc_start();
 	}
 
-	Initializer::~Initializer() {
+	void finish() {
 		delete _psEventFilter;
 		_psEventFilter = 0;
 
@@ -910,8 +910,8 @@ QByteArray psPathBookmark(const QString &path) {
 	return objc_pathBookmark(path);
 }
 
-bool psLaunchMaps(const QString &lat, const QString &lon) {
-	return QDesktopServices::openUrl(qsl("https://maps.apple.com/?q=Point&z=16&ll=%1,%2").arg(lat).arg(lon));
+bool psLaunchMaps(const LocationCoords &coords) {
+	return QDesktopServices::openUrl(qsl("https://maps.apple.com/?q=Point&z=16&ll=%1,%2").arg(coords.lat).arg(coords.lon));
 }
 
 QString strNotificationAboutThemeChange() {

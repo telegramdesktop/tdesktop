@@ -569,12 +569,12 @@ public:
 
 	bool contentOverlapped(const QRect &globalRect);
 
-	void grabStart() {
+	void grabStart() override {
 		_sideShadow.hide();
 		_inGrab = true;
 		resizeEvent(0);
 	}
-	void grabFinish() {
+	void grabFinish() override {
 		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_inGrab = false;
 		resizeEvent(0);
@@ -595,6 +595,10 @@ public:
 	void notify_migrateUpdated(PeerData *peer);
 	void notify_clipStopperHidden(ClipStopperType type);
 	void notify_historyItemResized(const HistoryItem *item, bool scrollToIt);
+
+	void cmd_search();
+	void cmd_next_chat();
+	void cmd_previous_chat();
 
 	~HistoryWidget();
 

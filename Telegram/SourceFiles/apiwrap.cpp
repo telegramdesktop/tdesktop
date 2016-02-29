@@ -273,7 +273,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 						if (!h->isEmpty()) {
 							h->clear(true);
 						}
-						if (!hto->dialogs.isEmpty() && !h->dialogs.isEmpty()) {
+						if (hto->inChatList() && h->inChatList()) {
 							App::removeDialog(h);
 						}
 					}

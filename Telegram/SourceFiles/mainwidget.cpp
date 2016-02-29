@@ -517,7 +517,7 @@ bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QStrin
 	}
 	History *h = App::history(peer);
 	h->setMsgDraft(new HistoryDraft(url + '\n' + text, 0, MessageCursor(url.size() + 1, url.size() + 1 + text.size(), QFIXED_MAX), false));
-	h->setEditDraft(Nil);
+	h->setEditDraft(nullptr);
 	bool opened = history.peer() && (history.peer()->id == peer);
 	if (opened) {
 		history.applyDraft();
@@ -785,8 +785,8 @@ void MainWidget::notify_clipStopperHidden(ClipStopperType type) {
 
 void MainWidget::ui_repaintHistoryItem(const HistoryItem *item) {
 	history.ui_repaintHistoryItem(item);
-	if (!item->history()->dialogs.isEmpty() && item->history()->lastMsg == item) {
-		dialogs.dlgUpdated(item->history()->dialogs[0]);
+	if (item->history()->lastMsg == item) {
+		item->history()->updateChatListEntry();
 	}
 	if (overview) overview->ui_repaintHistoryItem(item);
 }
@@ -810,6 +810,18 @@ void MainWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 
 void MainWidget::notify_automaticLoadSettingsChangedGif() {
 	history.notify_automaticLoadSettingsChangedGif();
+}
+
+void MainWidget::cmd_search() {
+	history.cmd_search();
+}
+
+void MainWidget::cmd_next_chat() {
+	history.cmd_next_chat();
+}
+
+void MainWidget::cmd_previous_chat() {
+	history.cmd_previous_chat();
 }
 
 void MainWidget::notify_historyItemResized(const HistoryItem *item, bool scrollToIt) {
@@ -2228,14 +2240,14 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool bac
 			profile->hide();
 			profile->clear();
 			profile->deleteLater();
-			profile->rpcInvalidate();
+			profile->rpcClear();
 			profile = 0;
 		}
 		if (overview) {
 			overview->hide();
 			overview->clear();
 			overview->deleteLater();
-			overview->rpcInvalidate();
+			overview->rpcClear();
 			overview = 0;
 		}
 		clearBotStartToken(_peerInStack);
@@ -2378,13 +2390,13 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 		overview->hide();
 		overview->clear();
 		overview->deleteLater();
-		overview->rpcInvalidate();
+		overview->rpcClear();
 	}
 	if (profile) {
 		profile->hide();
 		profile->clear();
 		profile->deleteLater();
-		profile->rpcInvalidate();
+		profile->rpcClear();
 		profile = 0;
 	}
 	overview = new OverviewWidget(this, peer, type);
@@ -2434,14 +2446,14 @@ void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop)
 		overview->hide();
 		overview->clear();
 		overview->deleteLater();
-		overview->rpcInvalidate();
+		overview->rpcClear();
 		overview = 0;
 	}
 	if (profile) {
 		profile->hide();
 		profile->clear();
 		profile->deleteLater();
-		profile->rpcInvalidate();
+		profile->rpcClear();
 	}
 	profile = new ProfileWidget(this, peer);
 	_topBar.show();
@@ -4234,9 +4246,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			if (h->lastMsg && h->lastMsg->out() && h->lastMsg->id <= d.vmax_id.v) {
 				dlgUpdated(h, h->lastMsg->id);
 			}
-			if (!h->dialogs.isEmpty()) {
-				dlgUpdated(h->dialogs[0]);
-			}
+			h->updateChatListEntry();
 		}
 
 		ptsApplySkippedUpdates();
