@@ -294,8 +294,8 @@ History::History(const PeerId &peerId) : width(0), height(0)
 , sendRequestId(0)
 , textCachedFor(0)
 , lastItemTextCache(st::dlgRichMinWidth)
-, _sortKeyInChatList(0)
-, typingText(st::dlgRichMinWidth) {
+, typingText(st::dlgRichMinWidth)
+, _sortKeyInChatList(0) {
 	if (peer->isChannel() || (peer->isUser() && peer->asUser()->botInfo)) {
 		outboxReadBefore = INT_MAX;
 	}

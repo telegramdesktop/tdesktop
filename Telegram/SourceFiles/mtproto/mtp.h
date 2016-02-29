@@ -77,11 +77,11 @@ namespace MTP {
 
 	extern const uint32 cfg; // send(MTPhelp_GetConfig(), MTP::cfg + dc) - for dc enum
 	extern const uint32 lgt; // send(MTPauth_LogOut(), MTP::lgt + dc) - for logout of guest dcs enum
-	inline const uint32 dld(int32 index) { // send(req, callbacks, MTP::dld(i) + dc) - for download
+	inline uint32 dld(int32 index) { // send(req, callbacks, MTP::dld(i) + dc) - for download
 		t_assert(index >= 0 && index < MTPDownloadSessionsCount);
 		return (0x10 + index) * _mtp_internal::dcShift;
 	};
-	inline const uint32 upl(int32 index) { // send(req, callbacks, MTP::upl[i] + dc) - for upload
+	inline uint32 upl(int32 index) { // send(req, callbacks, MTP::upl(i) + dc) - for upload
 		t_assert(index >= 0 && index < MTPUploadSessionsCount);
 		return (0x20 + index) * _mtp_internal::dcShift;
 	};
