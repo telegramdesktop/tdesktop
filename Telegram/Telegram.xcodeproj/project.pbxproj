@@ -1824,6 +1824,7 @@
 					"-Wno-unused-function",
 					"-Wno-switch",
 					"-Wno-comment",
+					"-Wno-inconsistent-missing-override",
 					"-DCUSTOM_API_ID",
 					"-I./../../Libraries/openssl-xcode/include",
 				);
@@ -1842,6 +1843,7 @@
 					"-Wno-unused-function",
 					"-Wno-switch",
 					"-Wno-comment",
+					"-Wno-inconsistent-missing-override",
 					"-DCUSTOM_API_ID",
 					"-I./../../Libraries/openssl-xcode/include",
 				);
@@ -1966,6 +1968,7 @@
 					"-Wno-unused-function",
 					"-Wno-switch",
 					"-Wno-comment",
+					"-Wno-inconsistent-missing-override",
 					"-I./../../Libraries/openssl-xcode/include",
 				);
 				OTHER_CPLUSPLUSFLAGS = (
@@ -1984,6 +1987,7 @@
 					"-Wno-unused-function",
 					"-Wno-switch",
 					"-Wno-comment",
+					"-Wno-inconsistent-missing-override",
 					"-I./../../Libraries/openssl-xcode/include",
 				);
 				OTHER_LDFLAGS = (
