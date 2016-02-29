@@ -1522,6 +1522,11 @@ void DialogsInner::destroyData() {
 }
 
 void DialogsInner::peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const {
+	if (!inPeer) {
+		outPeer = 0;
+		outMsg = 0;
+		return;
+	}
 	if (_state == DefaultState) {
 		DialogsList::RowByPeer::const_iterator i = dialogs.list.rowByPeer.constFind(inPeer->id);
 		if (i == dialogs.list.rowByPeer.constEnd()) {
@@ -1606,6 +1611,11 @@ void DialogsInner::peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&ou
 }
 
 void DialogsInner::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const {
+	if (!inPeer) {
+		outPeer = 0;
+		outMsg = 0;
+		return;
+	}
 	if (_state == DefaultState) {
 		DialogsList::RowByPeer::const_iterator i = dialogs.list.rowByPeer.constFind(inPeer->id);
 		if (i == dialogs.list.rowByPeer.constEnd()) {

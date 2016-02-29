@@ -349,9 +349,9 @@ mtpFileLoader::mtpFileLoader(const StorageImageLocation *location, int32 size, L
 , _location(location)
 , _id(0)
 , _access(0) {
-	LoaderQueues::iterator i = queues.find(MTP::dld[0] + _dc);
+	LoaderQueues::iterator i = queues.find(MTP::dld(0) + _dc);
 	if (i == queues.cend()) {
-		i = queues.insert(MTP::dld[0] + _dc, FileLoaderQueue(MaxFileQueries));
+		i = queues.insert(MTP::dld(0) + _dc, FileLoaderQueue(MaxFileQueries));
 	}
 	_queue = &i.value();
 }
@@ -365,9 +365,9 @@ mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, L
 , _location(0)
 , _id(id)
 , _access(access) {
-	LoaderQueues::iterator i = queues.find(MTP::dld[0] + _dc);
+	LoaderQueues::iterator i = queues.find(MTP::dld(0) + _dc);
 	if (i == queues.cend()) {
-		i = queues.insert(MTP::dld[0] + _dc, FileLoaderQueue(MaxFileQueries));
+		i = queues.insert(MTP::dld(0) + _dc, FileLoaderQueue(MaxFileQueries));
 	}
 	_queue = &i.value();
 }
@@ -405,7 +405,7 @@ bool mtpFileLoader::loadPart() {
 
 	App::app()->killDownloadSessionsStop(_dc);
 
-	mtpRequestId reqId = MTP::send(MTPupload_GetFile(MTPupload_getFile(loc, MTP_int(offset), MTP_int(limit))), rpcDone(&mtpFileLoader::partLoaded, offset), rpcFail(&mtpFileLoader::partFailed), MTP::dld[dcIndex] + _dc, 50);
+	mtpRequestId reqId = MTP::send(MTPupload_GetFile(MTPupload_getFile(loc, MTP_int(offset), MTP_int(limit))), rpcDone(&mtpFileLoader::partLoaded, offset), rpcFail(&mtpFileLoader::partFailed), MTP::dld(dcIndex) + _dc, 50);
 
 	++_queue->queries;
 	dr.v[dcIndex] += limit;

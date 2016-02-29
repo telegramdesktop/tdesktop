@@ -2119,9 +2119,9 @@ void MTProtoConnectionPrivate::onSentSome(uint64 size) {
 				DEBUG_LOG(("Checking connect for request with size %1 bytes, delay will be %2").arg(size).arg(remain));
 			}
 		}
-		if (dc >= MTP::upl[0] && dc < MTP::upl[MTPUploadSessionsCount - 1] + _mtp_internal::dcShift) {
+		if (dc >= MTP::uplStart && dc < MTP::uplEnd) {
 			remain *= MTPUploadSessionsCount;
-		} else if (dc >= MTP::dld[0] && dc < MTP::dld[MTPDownloadSessionsCount - 1] + _mtp_internal::dcShift) {
+		} else if (dc >= MTP::dldStart && dc < MTP::dldEnd) {
 			remain *= MTPDownloadSessionsCount;
 		}
 		_waitForReceivedTimer.start(remain);

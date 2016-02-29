@@ -51,8 +51,8 @@ enum {
 	MTPIPv4ConnectionWaitTimeout = 1000, // 1 seconds waiting for ipv4, until we accept ipv6
 	MTPMillerRabinIterCount = 30, // 30 Miller-Rabin iterations for dh_prime primality check
 
-	MTPUploadSessionsCount = 4, // max 4 upload sessions is created
-	MTPDownloadSessionsCount = 4, // max 4 download sessions is created
+	MTPUploadSessionsCount = 2, // max 2 upload sessions is created
+	MTPDownloadSessionsCount = 2, // max 2 download sessions is created
 	MTPKillFileSessionTimeout = 5000, // how much time without upload / download causes additional session kill
 
 	MTPEnumDCTimeout = 8000, // 8 seconds timeout for help_getConfig to work (then move to other dc)
