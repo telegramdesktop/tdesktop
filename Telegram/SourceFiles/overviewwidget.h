@@ -245,9 +245,9 @@ public:
 
 	void clear();
 
-	void resizeEvent(QResizeEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void contextMenuEvent(QContextMenuEvent *e);
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	void scrollBy(int32 add);
 	void scrollReset();

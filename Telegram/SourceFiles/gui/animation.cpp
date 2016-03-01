@@ -93,6 +93,7 @@ namespace anim {
 		if (!_clipThreads.isEmpty()) {
 			for (int32 i = 0, l = _clipThreads.size(); i < l; ++i) {
 				_clipThreads.at(i)->quit();
+				DEBUG_LOG(("Waiting for clipThread to finish: %1").arg(i));
 				_clipThreads.at(i)->wait();
 				delete _clipManagers.at(i);
 				delete _clipThreads.at(i);
