@@ -344,23 +344,6 @@ void Application::closeApplication() {
 	if (_updateThread) _updateThread->quit();
 	_updateThread = 0;
 #endif
-
-	DEBUG_LOG(("Telegram finished, result: %1").arg("unknown"));
-
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	if (cRestartingUpdate()) {
-		DEBUG_LOG(("Application Info: executing updater to install update.."));
-		psExecUpdater();
-	} else
-#endif
-	if (cRestarting()) {
-		DEBUG_LOG(("Application Info: executing Telegram, because of restart.."));
-		psExecTelegram();
-	}
-
-	SignalHandlers::finish();
-	PlatformSpecific::finish();
-	Logs::finish();
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -1067,7 +1050,7 @@ AppClass::~AppClass() {
 	App::deinitMedia();
 	deinitImageLinkManager();
 
-	MTP::stop();
+	MTP::finish();
 
 	AppObject = 0;
 	deleteAndMark(_uploader);
