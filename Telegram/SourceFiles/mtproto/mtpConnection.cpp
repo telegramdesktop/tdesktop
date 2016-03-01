@@ -323,6 +323,7 @@ void MTProtoConnection::kill() {
 void MTProtoConnection::waitTillFinish() {
 	t_assert(data == nullptr && thread != nullptr);
 
+	DEBUG_LOG(("Waiting for connectionThread to finish"));
 	thread->wait();
 	delete thread;
 	thread = nullptr;

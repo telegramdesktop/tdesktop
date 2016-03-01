@@ -117,6 +117,7 @@ void TaskQueue::stop() {
 	if (_thread) {
 		_thread->requestInterruption();
 		_thread->quit();
+		DEBUG_LOG(("Waiting for taskThread to finish"));
 		_thread->wait();
 		delete _worker;
 		delete _thread;

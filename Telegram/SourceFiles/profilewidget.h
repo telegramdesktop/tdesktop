@@ -222,12 +222,12 @@ public:
 
 	ProfileWidget(QWidget *parent, PeerData *peer);
 
-	void resizeEvent(QResizeEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void paintEvent(QPaintEvent *e);
-    void dragEnterEvent(QDragEnterEvent *e);
-    void dropEvent(QDropEvent *e);
-	void keyPressEvent(QKeyEvent *e);
+	void resizeEvent(QResizeEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+    void dragEnterEvent(QDragEnterEvent *e) override;
+    void dropEvent(QDropEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
 	void topBarClick();

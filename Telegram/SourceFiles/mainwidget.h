@@ -39,13 +39,13 @@ public:
 
 	TopBarWidget(MainWidget *w);
 
-	void enterEvent(QEvent *e);
-	void enterFromChildEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
-	void leaveToChildEvent(QEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void resizeEvent(QResizeEvent *e);
+	void enterEvent(QEvent *e) override;
+	void enterFromChildEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void leaveToChildEvent(QEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 	void step_appearance(float64 ms, bool timer);
 	void enableShadow(bool enable = true);
@@ -201,9 +201,9 @@ public:
 
 	MainWidget(Window *window);
 
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void keyPressEvent(QKeyEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 	void updateAdaptiveLayout();
 	bool needBackButton();

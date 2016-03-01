@@ -741,6 +741,7 @@ void reinitWebLoadManager() {
 void stopWebLoadManager() {
 	if (webLoadManager()) {
 		_webLoadThread->quit();
+		DEBUG_LOG(("Waiting for webloadThread to finish"));
 		_webLoadThread->wait();
 		delete _webLoadManager;
 		delete _webLoadMainManager;

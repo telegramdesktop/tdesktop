@@ -423,18 +423,18 @@ public:
 	void windowShown();
 	bool isActive() const;
 
-	void resizeEvent(QResizeEvent *e);
-	void keyPressEvent(QKeyEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void paintEvent(QPaintEvent *e);
-    void dragEnterEvent(QDragEnterEvent *e);
-	void dragLeaveEvent(QDragLeaveEvent *e);
-	void leaveEvent(QEvent *e);
-    void dropEvent(QDropEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void leaveToChildEvent(QEvent *e);
-	void contextMenuEvent(QContextMenuEvent *e);
+	void resizeEvent(QResizeEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+    void dragEnterEvent(QDragEnterEvent *e) override;
+	void dragLeaveEvent(QDragLeaveEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+    void dropEvent(QDropEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void leaveToChildEvent(QEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	void updateTopBarSelection();
 
@@ -542,7 +542,7 @@ public:
 	void sendBotCommand(const QString &cmd, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd, bool specialGif);
 
-	bool eventFilter(QObject *obj, QEvent *e);
+	bool eventFilter(QObject *obj, QEvent *e) override;
 	void updateBotKeyboard(History *h = 0);
 
 	DragState getDragState(const QMimeData *d);
