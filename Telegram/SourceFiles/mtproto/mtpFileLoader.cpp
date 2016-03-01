@@ -527,7 +527,7 @@ void mtpFileLoader::cancelRequests() {
 	_queue->queries -= _requests.size();
 	_requests.clear();
 
-	if (!_queue->queries) {
+	if (!_queue->queries && App::app()) {
 		App::app()->killDownloadSessionsStart(_dc);
 	}
 }

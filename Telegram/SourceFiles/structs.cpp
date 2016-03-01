@@ -1409,6 +1409,12 @@ void DocumentData::recountIsImage() {
 
 DocumentData::~DocumentData() {
 	delete _additional;
+
+	if (loading()) {
+		_loader->deleteLater();
+		_loader->stop();
+		_loader = 0;
+	}
 }
 
 WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill) : id(id)

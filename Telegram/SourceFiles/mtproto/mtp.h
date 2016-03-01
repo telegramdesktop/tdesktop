@@ -132,9 +132,7 @@ namespace MTP {
 	};
 	int32 state(mtpRequestId req); // < 0 means waiting for such count of ms
 
-	void defOnError(const RPCError &err);
-
-	void stop();
+	void finish();
 
 	void authed(int32 uid);
 	int32 authedId();

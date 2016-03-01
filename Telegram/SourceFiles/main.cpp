@@ -43,6 +43,26 @@ int main(int argc, char *argv[]) {
 	//int a_argc = a_cnt + 1;
 	//char *a_argv[a_cnt + 1] = { argv[0], args[0].data() };
 
-	Application app(argc, argv);
-	return app.exec();
+	int result = 0;
+	{
+		Application app(argc, argv);
+		result = app.exec();
+	}
+
+	DEBUG_LOG(("Telegram finished, result: %1").arg(result));
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	if (cRestartingUpdate()) {
+		DEBUG_LOG(("Application Info: executing updater to install update.."));
+		psExecUpdater();
+	} else
+#endif
+	if (cRestarting()) {
+		DEBUG_LOG(("Application Info: executing Telegram, because of restart.."));
+		psExecTelegram();
+	}
+
+	SignalHandlers::finish();
+	PlatformSpecific::finish();
+	Logs::finish();
 }

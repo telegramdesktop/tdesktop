@@ -758,6 +758,8 @@ namespace MTP {
 	}
 
 	void cancel(mtpRequestId requestId) {
+		if (!_started) return;
+
 		mtpMsgId msgId = 0;
 		requestsDelays.remove(requestId);
 		{
@@ -831,7 +833,7 @@ namespace MTP {
 		return MTP::RequestConnecting;
 	}
 
-	void stop() {
+	void finish() {
 		for (Sessions::iterator i = sessions.begin(), e = sessions.end(); i != e; ++i) {
 			i.value()->kill();
 			delete i.value();
