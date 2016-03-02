@@ -1037,9 +1037,11 @@ bool Window::eventFilter(QObject *obj, QEvent *e) {
 		break;
 
 	case QEvent::ShortcutOverride: // handle shortcuts ourselves
+		DEBUG_LOG(("Shortcut override declined: %1").arg(static_cast<QKeyEvent*>(e)->key()));
 		return true;
 
 	case QEvent::Shortcut:
+		DEBUG_LOG(("Shortcut event catched: %1").arg(static_cast<QShortcutEvent*>(e)->key().toString()));
 		if (Shortcuts::launch(static_cast<QShortcutEvent*>(e)->shortcutId())) {
 			return true;
 		}
