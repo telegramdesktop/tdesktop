@@ -1105,7 +1105,7 @@ void Window::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 bool Window::minimizeToTray() {
-    if (App::quiting() || !psHasTrayIcon()) return false;
+    if (App::quitting() || !psHasTrayIcon()) return false;
 
 	hide();
     if (cPlatform() == dbipWindows && trayIcon && !cSeenTrayTooltip()) {
@@ -1372,16 +1372,8 @@ void Window::onClearFailed(int task, void *manager) {
 	emit tempDirClearFailed(task);
 }
 
-void Window::quit() {
-	delete _mediaView;
-	_mediaView = 0;
-	delete main;
-	main = 0;
-	notifyClearFast();
-}
-
 void Window::notifySchedule(History *history, HistoryItem *item) {
-	if (App::quiting() || !history->currentNotification() || !main) return;
+	if (App::quitting() || !history->currentNotification() || !main) return;
 
 	PeerData *notifyByFrom = (!history->peer->isUser() && item->mentionsMe()) ? item->from() : 0;
 
@@ -1514,7 +1506,7 @@ void Window::notifySettingGot() {
 }
 
 void Window::notifyShowNext(NotifyWindow *remove) {
-	if (App::quiting()) return;
+	if (App::quitting()) return;
 
 	int32 count = NotifyWindowsCount;
 	if (remove) {

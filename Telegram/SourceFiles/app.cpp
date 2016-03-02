@@ -33,7 +33,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "numbers.h"
 
 namespace {
-	bool quiting = false;
+	App::LaunchState _launchState = App::Launched;
 
 	UserData *self = 0;
 
@@ -1791,7 +1791,7 @@ namespace App {
 			}
 			::repliesTo.erase(j);
 		}
-		if (App::main() && !App::quiting()) {
+		if (App::main() && !App::quitting()) {
 			App::main()->itemRemoved(item);
 		}
 	}
@@ -2155,21 +2155,22 @@ namespace App {
 	}
 
 	void quit() {
-		if (quiting()) return;
+		if (quitting()) return;
+		setLaunchState(QuitRequested);
 
-		setQuiting();
-		if (wnd()) {
-			wnd()->quit();
-		}
 		Application::quit();
 	}
 
-	bool quiting() {
-		return ::quiting;
+	bool quitting() {
+		return _launchState != Launched;
 	}
 
-	void setQuiting() {
-		::quiting = true;
+	LaunchState launchState() {
+		return _launchState;
+	}
+
+	void setLaunchState(LaunchState state) {
+		_launchState = state;
 	}
 
 	QImage readImage(QByteArray data, QByteArray *format, bool opaque, bool *animated) {

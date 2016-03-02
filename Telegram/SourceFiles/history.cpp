@@ -2526,7 +2526,7 @@ void History::clear(bool leaveItems) {
 			}
 			overview[i].clear();
 			overviewIds[i].clear();
-			if (App::wnd() && !App::quiting()) App::wnd()->mediaOverviewUpdated(peer, MediaOverviewType(i));
+			if (App::wnd() && !App::quitting()) App::wnd()->mediaOverviewUpdated(peer, MediaOverviewType(i));
 		}
 	}
 	Blocks lst = blocks;

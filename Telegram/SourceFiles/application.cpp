@@ -166,16 +166,16 @@ void Application::socketReading() {
 	if (QRegularExpression("RES:(\\d+);").match(_localSocketReadData).hasMatch()) {
 		uint64 pid = _localSocketReadData.mid(4, _localSocketReadData.length() - 5).toULongLong();
 		psActivateProcess(pid);
-		LOG(("Show command response received, pid = %1, activating and quiting..").arg(pid));
+		LOG(("Show command response received, pid = %1, activating and quitting..").arg(pid));
 		return App::quit();
 	}
 }
 
 void Application::socketError(QLocalSocket::LocalSocketError e) {
-	if (App::quiting()) return;
+	if (App::quitting()) return;
 
 	if (_secondInstance) {
-		LOG(("Could not write show command, error %1, quiting..").arg(e));
+		LOG(("Could not write show command, error %1, quitting..").arg(e));
 		return App::quit();
 	}
 
@@ -235,7 +235,7 @@ void Application::singleInstanceChecked() {
 
 void Application::socketDisconnected() {
 	if (_secondInstance) {
-		DEBUG_LOG(("Application Error: socket disconnected before command response received, quiting.."));
+		DEBUG_LOG(("Application Error: socket disconnected before command response received, quitting.."));
 		return App::quit();
 	}
 }
@@ -314,14 +314,15 @@ void Application::removeClients() {
 }
 
 void Application::startApplication() {
-	if (App::quiting()) {
+	if (App::quitting()) {
 		quit();
 	}
 }
 
 void Application::closeApplication() {
+	if (App::launchState() != App::QuitProcessed);
+	App::setLaunchState(App::QuitProcessed);
 	App::quit();
-
 	delete AppObject;
 	AppObject = 0;
 
@@ -973,7 +974,7 @@ void AppClass::onSwitchTestMode() {
 }
 
 FileUploader *AppClass::uploader() {
-	if (!_uploader && !App::quiting()) _uploader = new FileUploader();
+	if (!_uploader && !App::quitting()) _uploader = new FileUploader();
 	return _uploader;
 }
 

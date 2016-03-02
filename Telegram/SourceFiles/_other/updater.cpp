@@ -456,7 +456,7 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 		ShellExecute(0, 0, (updateTo + L"Telegram.exe").c_str(), (L"-noupdate" + targs).c_str(), 0, SW_SHOWNORMAL);
 	}
 
-	writeLog(L"Executed Telegram.exe, closing log and quiting..");
+	writeLog(L"Executed Telegram.exe, closing log and quitting..");
 	closeLog();
 
 	return 0;

@@ -206,8 +206,6 @@ public:
 	TempDirState localStorageState();
 	void tempDirDelete(int task);
 
-	void quit();
-
     void notifySettingGot();
 	void notifySchedule(History *history, HistoryItem *item);
 	void notifyClear(History *history = 0);
