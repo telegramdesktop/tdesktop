@@ -1037,9 +1037,11 @@ bool Window::eventFilter(QObject *obj, QEvent *e) {
 		break;
 
 	case QEvent::ShortcutOverride: // handle shortcuts ourselves
+		DEBUG_LOG(("Shortcut override declined: %1").arg(static_cast<QKeyEvent*>(e)->key()));
 		return true;
 
 	case QEvent::Shortcut:
+		DEBUG_LOG(("Shortcut event catched: %1").arg(static_cast<QShortcutEvent*>(e)->key().toString()));
 		if (Shortcuts::launch(static_cast<QShortcutEvent*>(e)->shortcutId())) {
 			return true;
 		}
@@ -1105,7 +1107,7 @@ void Window::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 bool Window::minimizeToTray() {
-    if (App::quiting() || !psHasTrayIcon()) return false;
+    if (App::quitting() || !psHasTrayIcon()) return false;
 
 	hide();
     if (cPlatform() == dbipWindows && trayIcon && !cSeenTrayTooltip()) {
@@ -1372,16 +1374,8 @@ void Window::onClearFailed(int task, void *manager) {
 	emit tempDirClearFailed(task);
 }
 
-void Window::quit() {
-	delete _mediaView;
-	_mediaView = 0;
-	delete main;
-	main = 0;
-	notifyClearFast();
-}
-
 void Window::notifySchedule(History *history, HistoryItem *item) {
-	if (App::quiting() || !history->currentNotification() || !main) return;
+	if (App::quitting() || !history->currentNotification() || !main) return;
 
 	PeerData *notifyByFrom = (!history->peer->isUser() && item->mentionsMe()) ? item->from() : 0;
 
@@ -1514,7 +1508,7 @@ void Window::notifySettingGot() {
 }
 
 void Window::notifyShowNext(NotifyWindow *remove) {
-	if (App::quiting()) return;
+	if (App::quitting()) return;
 
 	int32 count = NotifyWindowsCount;
 	if (remove) {

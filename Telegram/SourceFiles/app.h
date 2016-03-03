@@ -191,9 +191,15 @@ namespace App {
 
 	bool isValidPhone(QString phone);
 
+	enum LaunchState {
+		Launched = 0,
+		QuitRequested = 1,
+		QuitProcessed = 2,
+	};
 	void quit();
-	bool quiting();
-	void setQuiting();
+	bool quitting();
+	LaunchState launchState();
+	void setLaunchState(LaunchState state);
 
 	QImage readImage(QByteArray data, QByteArray *format = 0, bool opaque = true, bool *animated = 0);
 	QImage readImage(const QString &file, QByteArray *format = 0, bool opaque = true, bool *animated = 0, QByteArray *content = 0);

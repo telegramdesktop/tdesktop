@@ -154,7 +154,7 @@ namespace Ui {
 	}
 
 	bool hideWindowNoQuit() {
-		if (!App::quiting()) {
+		if (!App::quitting()) {
 			if (Window *w = App::wnd()) {
 				if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
 					return w->minimizeToTray();

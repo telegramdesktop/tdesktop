@@ -430,7 +430,7 @@ int main(int argc, char *argv[]) {
     case 0: execv(path, args); return 1;
     }
 
-    writeLog("Executed Telegram, closing log and quiting..");
+    writeLog("Executed Telegram, closing log and quitting..");
 	closeLog();
 
 	return 0;
