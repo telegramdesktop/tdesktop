@@ -1,3 +1,16 @@
+diff --git a/mkspecs/common/g++-macx.conf b/mkspecs/common/g++-macx.conf
+index 086510d..0ee8130 100644
+--- a/mkspecs/common/g++-macx.conf
++++ b/mkspecs/common/g++-macx.conf
+@@ -14,8 +14,6 @@ QMAKE_CFLAGS_RELEASE_WITH_DEBUGINFO += -gdwarf-2
+ QMAKE_CXXFLAGS_RELEASE_WITH_DEBUGINFO += -gdwarf-2
+ QMAKE_LFLAGS_RELEASE_WITH_DEBUGINFO += -g -gdwarf-2
+ 
+-QMAKE_LFLAGS_STATIC_LIB += -all_load
+-
+ QMAKE_XCODE_GCC_VERSION = com.apple.compilers.llvmgcc42
+ 
+ QMAKE_OBJCFLAGS_PRECOMPILE       = -x objective-c-header -c ${QMAKE_PCH_INPUT} -o ${QMAKE_PCH_OUTPUT}
 diff --git a/qmake/generators/mac/pbuilder_pbx.cpp b/qmake/generators/mac/pbuilder_pbx.cpp
 index e1e3737..8f42584 100644
 --- a/qmake/generators/mac/pbuilder_pbx.cpp
