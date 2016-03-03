@@ -320,7 +320,7 @@ void Application::startApplication() {
 }
 
 void Application::closeApplication() {
-	if (App::launchState() != App::QuitProcessed);
+	if (App::launchState() == App::QuitProcessed) return;
 	App::setLaunchState(App::QuitProcessed);
 
 	delete AppObject;
