@@ -1,7 +1,7 @@
-diff --git a/qtbase/qmake/generators/mac/pbuilder_pbx.cpp b/qtbase/qmake/generators/mac/pbuilder_pbx.cpp
+diff --git a/qmake/generators/mac/pbuilder_pbx.cpp b/qmake/generators/mac/pbuilder_pbx.cpp
 index e1e3737..8f42584 100644
---- a/qtbase/qmake/generators/mac/pbuilder_pbx.cpp
-+++ b/qtbase/qmake/generators/mac/pbuilder_pbx.cpp
+--- a/qmake/generators/mac/pbuilder_pbx.cpp
++++ b/qmake/generators/mac/pbuilder_pbx.cpp
 @@ -1419,11 +1419,15 @@ ProjectBuilderMakefileGenerator::writeMakeParts(QTextStream &t)
                              plist_in_text = plist_in_text.replace("@TYPEINFO@",
                                  (project->isEmpty("QMAKE_PKGINFO_TYPEINFO")
@@ -20,10 +20,10 @@ index e1e3737..8f42584 100644
                              }
                          }
                      }
-diff --git a/qtbase/qmake/generators/makefile.cpp b/qtbase/qmake/generators/makefile.cpp
+diff --git a/qmake/generators/makefile.cpp b/qmake/generators/makefile.cpp
 index 0e3e058..4242f93 100644
---- a/qtbase/qmake/generators/makefile.cpp
-+++ b/qtbase/qmake/generators/makefile.cpp
+--- a/qmake/generators/makefile.cpp
++++ b/qmake/generators/makefile.cpp
 @@ -219,7 +219,7 @@ MakefileGenerator::initOutPaths()
          v["PRECOMPILED_DIR"] = v["OBJECTS_DIR"];
      static const char * const dirs[] = { "OBJECTS_DIR", "DESTDIR",
@@ -33,10 +33,10 @@ index 0e3e058..4242f93 100644
      for (int x = 0; dirs[x]; x++) {
          const ProKey dkey(dirs[x]);
          if (v[dkey].isEmpty())
-diff --git a/qtbase/src/3rdparty/pcre/pcre16_valid_utf16.c b/qtbase/src/3rdparty/pcre/pcre16_valid_utf16.c
+diff --git a/src/3rdparty/pcre/pcre16_valid_utf16.c b/src/3rdparty/pcre/pcre16_valid_utf16.c
 index 1987f27..6b36e4f 100644
---- a/qtbase/src/3rdparty/pcre/pcre16_valid_utf16.c
-+++ b/qtbase/src/3rdparty/pcre/pcre16_valid_utf16.c
+--- a/src/3rdparty/pcre/pcre16_valid_utf16.c
++++ b/src/3rdparty/pcre/pcre16_valid_utf16.c
 @@ -101,7 +101,7 @@ for (p = string; length-- > 0; p++)
      {
      /* Normal UTF-16 code point. Neither high nor low surrogate. */
@@ -46,10 +46,10 @@ index 1987f27..6b36e4f 100644
      {
      /* High surrogate. Must be a followed by a low surrogate. */
      if (length == 0)
-diff --git a/qtbase/src/gui/image/qbmphandler.cpp b/qtbase/src/gui/image/qbmphandler.cpp
+diff --git a/src/gui/image/qbmphandler.cpp b/src/gui/image/qbmphandler.cpp
 index bb79a13..7d2bcd5 100644
---- a/qtbase/src/gui/image/qbmphandler.cpp
-+++ b/qtbase/src/gui/image/qbmphandler.cpp
+--- a/src/gui/image/qbmphandler.cpp
++++ b/src/gui/image/qbmphandler.cpp
 @@ -220,6 +220,9 @@ static bool read_dib_body(QDataStream &s, const BMP_INFOHDR &bi, int offset, int
      int blue_scale = 0;
      int alpha_scale = 0;
@@ -70,10 +70,10 @@ index bb79a13..7d2bcd5 100644
      if (ncols > 0) {                                // read color table
          uchar rgb[4];
          int   rgb_len = t == BMP_OLD ? 3 : 4;
-diff --git a/qtbase/src/gui/painting/qpaintengine_p.h b/qtbase/src/gui/painting/qpaintengine_p.h
+diff --git a/src/gui/painting/qpaintengine_p.h b/src/gui/painting/qpaintengine_p.h
 index ebff950..642e5b7 100644
---- a/qtbase/src/gui/painting/qpaintengine_p.h
-+++ b/qtbase/src/gui/painting/qpaintengine_p.h
+--- a/src/gui/painting/qpaintengine_p.h
++++ b/src/gui/painting/qpaintengine_p.h
 @@ -87,8 +87,18 @@ public:
          if (hasSystemTransform) {
              if (systemTransform.type() <= QTransform::TxTranslate)
@@ -95,10 +95,10 @@ index ebff950..642e5b7 100644
          }
  
          // Make sure we're inside the viewport.
-diff --git a/qtbase/src/gui/text/qtextlayout.h b/qtbase/src/gui/text/qtextlayout.h
+diff --git a/src/gui/text/qtextlayout.h b/src/gui/text/qtextlayout.h
 index cbe42c3..2209490 100644
---- a/qtbase/src/gui/text/qtextlayout.h
-+++ b/qtbase/src/gui/text/qtextlayout.h
+--- a/src/gui/text/qtextlayout.h
++++ b/src/gui/text/qtextlayout.h
 @@ -194,6 +194,8 @@ private:
                                 QRectF *brect, int tabstops, int* tabarray, int tabarraylen,
                                 QPainter *painter);
@@ -108,10 +108,10 @@ index cbe42c3..2209490 100644
  };
  
  
-diff --git a/qtbase/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm b/qtbase/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
+diff --git a/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm b/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
 index ca7afb7..9d1783a 100644
---- a/qtbase/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
-+++ b/qtbase/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
+--- a/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
++++ b/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
 @@ -256,6 +256,10 @@ static void getFontDescription(CTFontDescriptorRef font, FontDescription *fd)
  
      fd->foundryName = QStringLiteral("CoreText");
@@ -123,10 +123,10 @@ index ca7afb7..9d1783a 100644
      fd->styleName = (CFStringRef)CTFontDescriptorCopyAttribute(font, kCTFontStyleNameAttribute);
      fd->weight = QFont::Normal;
      fd->style = QFont::StyleNormal;
-diff --git a/qtbase/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm b/qtbase/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
+diff --git a/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm b/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
 index 92358ec..50a5130 100644
---- a/qtbase/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
-+++ b/qtbase/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
+--- a/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
++++ b/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
 @@ -213,7 +213,7 @@ static void cleanupCocoaApplicationDelegate()
      if (reflectionDelegate) {
          if ([reflectionDelegate respondsToSelector:@selector(applicationShouldTerminate:)])
@@ -145,10 +145,23 @@ index 92358ec..50a5130 100644
  }
  
  - (void)appleEventQuit:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)replyEvent
-diff --git a/qtbase/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm b/qtbase/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
+diff --git a/src/plugins/platforms/cocoa/qcocoakeymapper.mm b/src/plugins/platforms/cocoa/qcocoakeymapper.mm
+index e46eaff..39b2d6a 100644
+--- a/src/plugins/platforms/cocoa/qcocoakeymapper.mm
++++ b/src/plugins/platforms/cocoa/qcocoakeymapper.mm
+@@ -354,7 +354,7 @@ Qt::KeyboardModifiers QCocoaKeyMapper::queryKeyboardModifiers()
+ bool QCocoaKeyMapper::updateKeyboard()
+ {
+     const UCKeyboardLayout *uchrData = 0;
+-    QCFType<TISInputSourceRef> source = TISCopyCurrentKeyboardInputSource();
++    QCFType<TISInputSourceRef> source = TISCopyCurrentASCIICapableKeyboardInputSource();//TISCopyCurrentKeyboardInputSource();
+     if (keyboard_mode != NullMode && source == currentInputSource) {
+         return false;
+     }
+diff --git a/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm b/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
 index 83c960d..74fa84d 100755
---- a/qtbase/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
-+++ b/qtbase/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
+--- a/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
++++ b/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
 @@ -102,7 +102,7 @@ QT_USE_NAMESPACE
      QCocoaSystemTrayIcon *systray;
      NSStatusItem *item;
@@ -294,10 +307,10 @@ index 83c960d..74fa84d 100755
      [super drawRect:rect];
  }
  @end
-diff --git a/qtbase/src/plugins/platforms/cocoa/qcocoawindow.mm b/qtbase/src/plugins/platforms/cocoa/qcocoawindow.mm
+diff --git a/src/plugins/platforms/cocoa/qcocoawindow.mm b/src/plugins/platforms/cocoa/qcocoawindow.mm
 index 4d0458a..24a6fd1 100644
---- a/qtbase/src/plugins/platforms/cocoa/qcocoawindow.mm
-+++ b/qtbase/src/plugins/platforms/cocoa/qcocoawindow.mm
+--- a/src/plugins/platforms/cocoa/qcocoawindow.mm
++++ b/src/plugins/platforms/cocoa/qcocoawindow.mm
 @@ -167,7 +167,7 @@ static bool isMouseEvent(NSEvent *ev)
      if (!self.window.delegate)
          return; // Already detached, pending NSAppKitDefined event
@@ -332,10 +345,10 @@ index 4d0458a..24a6fd1 100644
          NSImage *image = static_cast<NSImage *>(qt_mac_create_nsimage(pixmap));
          [iconButton setImage:image];
          [image release];
-diff --git a/qtbase/src/plugins/platforms/cocoa/qnsview.mm b/qtbase/src/plugins/platforms/cocoa/qnsview.mm
-index a18ee7f..23069a9 100644
---- a/qtbase/src/plugins/platforms/cocoa/qnsview.mm
-+++ b/qtbase/src/plugins/platforms/cocoa/qnsview.mm
+diff --git a/src/plugins/platforms/cocoa/qnsview.mm b/src/plugins/platforms/cocoa/qnsview.mm
+index a18ee7f..c2b2226 100644
+--- a/src/plugins/platforms/cocoa/qnsview.mm
++++ b/src/plugins/platforms/cocoa/qnsview.mm
 @@ -393,7 +393,7 @@ static NSString *_q_NSWindowDidChangeOcclusionStateNotification = nil;
          [self notifyWindowStateChanged:newState];
          // NSWindowDidOrderOnScreenAndFinishAnimatingNotification is private API, and not
@@ -354,7 +367,36 @@ index a18ee7f..23069a9 100644
                  ph = Qt::ScrollBegin;
          } else
  #endif
-@@ -1437,7 +1437,10 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
+@@ -1366,14 +1366,20 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
+     quint32 nativeVirtualKey = [nsevent keyCode];
+ 
+     QChar ch = QChar::ReplacementCharacter;
+-    int keyCode = Qt::Key_unknown;
+-    if ([characters length] != 0) {
+-        if (((modifiers & Qt::MetaModifier) || (modifiers & Qt::AltModifier)) && ([charactersIgnoringModifiers length] != 0))
+-            ch = QChar([charactersIgnoringModifiers characterAtIndex:0]);
+-        else
+-            ch = QChar([characters characterAtIndex:0]);
+-        keyCode = [self convertKeyCode:ch];
+-    }
++    if ([characters length] != 0) // https://bugreports.qt.io/browse/QTBUG-42584
++        ch = QChar([characters characterAtIndex:0]);
++    else if ([charactersIgnoringModifiers length] != 0 && ((modifiers & Qt::MetaModifier) || (modifiers & Qt::AltModifier)))
++        ch = QChar([charactersIgnoringModifiers characterAtIndex:0]);
++
++    int keyCode = [self convertKeyCode:ch];
++    //int keyCode = Qt::Key_unknown;
++    //if ([characters length] != 0) {
++    //    if (((modifiers & Qt::MetaModifier) || (modifiers & Qt::AltModifier)) && ([charactersIgnoringModifiers length] != 0))
++    //        ch = QChar([charactersIgnoringModifiers characterAtIndex:0]);
++    //    else
++    //        ch = QChar([characters characterAtIndex:0]);
++    //    keyCode = [self convertKeyCode:ch];
++    //}
+ 
+     // we will send a key event unless the input method sets m_sendKeyEvent to false
+     m_sendKeyEvent = true;
+@@ -1437,7 +1443,10 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
                  && qtKey == Qt::Key_Period) {
              [self handleKeyEvent:nsevent eventType:int(QEvent::KeyPress)];
              return YES;
@@ -366,10 +408,46 @@ index a18ee7f..23069a9 100644
      }
      return [super performKeyEquivalent:nsevent];
  }
-diff --git a/qtbase/src/widgets/kernel/qwidget.cpp b/qtbase/src/widgets/kernel/qwidget.cpp
+diff --git a/src/tools/qlalr/lalr.cpp b/src/tools/qlalr/lalr.cpp
+index c680764..6007494 100644
+--- a/src/tools/qlalr/lalr.cpp
++++ b/src/tools/qlalr/lalr.cpp
+@@ -246,11 +246,11 @@ void Grammar::buildExtendedGrammar ()
+   non_terminals.insert (accept_symbol);
+ }
+ 
+-struct _Nullable: public std::unary_function<Name, bool>
++struct __Nullable: public std::unary_function<Name, bool>
+ {
+   Automaton *_M_automaton;
+ 
+-  _Nullable (Automaton *aut):
++  __Nullable (Automaton *aut):
+     _M_automaton (aut) {}
+ 
+   bool operator () (Name name) const
+@@ -308,7 +308,7 @@ void Automaton::buildNullables ()
+ 
+       for (RulePointer rule = _M_grammar->rules.begin (); rule != _M_grammar->rules.end (); ++rule)
+         {
+-          NameList::iterator nn = std::find_if (rule->rhs.begin (), rule->rhs.end (), std::not1 (_Nullable (this)));
++          NameList::iterator nn = std::find_if (rule->rhs.begin (), rule->rhs.end (), std::not1 (__Nullable (this)));
+ 
+           if (nn == rule->rhs.end ())
+             changed |= nullables.insert (rule->lhs).second;
+@@ -643,7 +643,7 @@ void Automaton::buildIncludesDigraph ()
+                   if (! _M_grammar->isNonTerminal (*A))
+                     continue;
+ 
+-                  NameList::iterator first_not_nullable = std::find_if (dot, rule->rhs.end (), std::not1 (_Nullable (this)));
++                  NameList::iterator first_not_nullable = std::find_if (dot, rule->rhs.end (), std::not1 (__Nullable (this)));
+                   if (first_not_nullable != rule->rhs.end ())
+                     continue;
+ 
+diff --git a/src/widgets/kernel/qwidget.cpp b/src/widgets/kernel/qwidget.cpp
 index 7396808..e3e2faa 100644
---- a/qtbase/src/widgets/kernel/qwidget.cpp
-+++ b/qtbase/src/widgets/kernel/qwidget.cpp
+--- a/src/widgets/kernel/qwidget.cpp
++++ b/src/widgets/kernel/qwidget.cpp
 @@ -7983,7 +7983,7 @@ bool QWidget::event(QEvent *event)
      case QEvent::KeyPress: {
          QKeyEvent *k = (QKeyEvent *)event;
@@ -379,10 +457,10 @@ index 7396808..e3e2faa 100644
              if (k->key() == Qt::Key_Backtab
                  || (k->key() == Qt::Key_Tab && (k->modifiers() & Qt::ShiftModifier)))
                  res = focusNextPrevChild(false);
-diff --git a/qtbase/src/widgets/styles/qmacstyle_mac.mm b/qtbase/src/widgets/styles/qmacstyle_mac.mm
+diff --git a/src/widgets/styles/qmacstyle_mac.mm b/src/widgets/styles/qmacstyle_mac.mm
 index 0845a5e..57a5144 100644
---- a/qtbase/src/widgets/styles/qmacstyle_mac.mm
-+++ b/qtbase/src/widgets/styles/qmacstyle_mac.mm
+--- a/src/widgets/styles/qmacstyle_mac.mm
++++ b/src/widgets/styles/qmacstyle_mac.mm
 @@ -3667,9 +3667,9 @@ void QMacStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPainter
  
                  NSBezierPath *pushButtonFocusRingPath;
@@ -395,10 +473,10 @@ index 0845a5e..57a5144 100644
                  qt_drawFocusRingOnPath(cg, pushButtonFocusRingPath);
              }
  
-diff --git a/qtbase/src/widgets/util/qsystemtrayicon_qpa.cpp b/qtbase/src/widgets/util/qsystemtrayicon_qpa.cpp
+diff --git a/src/widgets/util/qsystemtrayicon_qpa.cpp b/src/widgets/util/qsystemtrayicon_qpa.cpp
 index f98aeaf..a0c5987 100644
---- a/qtbase/src/widgets/util/qsystemtrayicon_qpa.cpp
-+++ b/qtbase/src/widgets/util/qsystemtrayicon_qpa.cpp
+--- a/src/widgets/util/qsystemtrayicon_qpa.cpp
++++ b/src/widgets/util/qsystemtrayicon_qpa.cpp
 @@ -99,14 +99,18 @@ void QSystemTrayIconPrivate::updateIcon_sys()
  
  void QSystemTrayIconPrivate::updateMenu_sys()
@@ -426,10 +504,10 @@ index f98aeaf..a0c5987 100644
  }
  
  void QSystemTrayIconPrivate::updateToolTip_sys()
-diff --git a/qtbase/src/widgets/widgets/qwidgetlinecontrol.cpp b/qtbase/src/widgets/widgets/qwidgetlinecontrol.cpp
+diff --git a/src/widgets/widgets/qwidgetlinecontrol.cpp b/src/widgets/widgets/qwidgetlinecontrol.cpp
 index 75f3059..a5bfc79 100644
---- a/qtbase/src/widgets/widgets/qwidgetlinecontrol.cpp
-+++ b/qtbase/src/widgets/widgets/qwidgetlinecontrol.cpp
+--- a/src/widgets/widgets/qwidgetlinecontrol.cpp
++++ b/src/widgets/widgets/qwidgetlinecontrol.cpp
 @@ -1867,7 +1867,7 @@ void QWidgetLineControl::processKeyEvent(QKeyEvent* event)
  
      if (unknown && !isReadOnly()) {
@@ -439,10 +517,10 @@ index 75f3059..a5bfc79 100644
              insert(t);
  #ifndef QT_NO_COMPLETER
              complete(event->key());
-diff --git a/qtbase/src/widgets/widgets/qwidgettextcontrol.cpp b/qtbase/src/widgets/widgets/qwidgettextcontrol.cpp
+diff --git a/src/widgets/widgets/qwidgettextcontrol.cpp b/src/widgets/widgets/qwidgettextcontrol.cpp
 index 96438a0..e6a8a6e 100644
---- a/qtbase/src/widgets/widgets/qwidgettextcontrol.cpp
-+++ b/qtbase/src/widgets/widgets/qwidgettextcontrol.cpp
+--- a/src/widgets/widgets/qwidgettextcontrol.cpp
++++ b/src/widgets/widgets/qwidgettextcontrol.cpp
 @@ -1342,7 +1342,7 @@ void QWidgetTextControlPrivate::keyPressEvent(QKeyEvent *e)
  process:
      {
@@ -452,42 +530,3 @@ index 96438a0..e6a8a6e 100644
              if (overwriteMode
                  // no need to call deleteChar() if we have a selection, insertText
                  // does it already
-diff --git a/qtimageformats/src/3rdparty/libwebp/src/dec/vp8l.c b/qtimageformats/src/3rdparty/libwebp/src/dec/vp8l.c
-index ea0254d..e516a7a 100644
---- a/qtimageformats/src/3rdparty/libwebp/src/dec/vp8l.c
-+++ b/qtimageformats/src/3rdparty/libwebp/src/dec/vp8l.c
-@@ -12,7 +12,6 @@
- // Authors: Vikas Arora (vikaas.arora@gmail.com)
- //          Jyrki Alakuijala (jyrki@google.com)
- 
--#include <stdio.h>
- #include <stdlib.h>
- #include "./alphai.h"
- #include "./vp8li.h"
-@@ -740,6 +739,7 @@ static int DecodeAlphaData(VP8LDecoder* const dec, uint8_t* const data,
-   const int len_code_limit = NUM_LITERAL_CODES + NUM_LENGTH_CODES;
-   const int mask = hdr->huffman_mask_;
-   assert(htree_group != NULL);
-+  assert(pos < end);
-   assert(last_row <= height);
-   assert(Is8bOptimizable(hdr));
- 
-@@ -830,6 +830,7 @@ static int DecodeImageData(VP8LDecoder* const dec, uint32_t* const data,
-       (hdr->color_cache_size_ > 0) ? &hdr->color_cache_ : NULL;
-   const int mask = hdr->huffman_mask_;
-   assert(htree_group != NULL);
-+  assert(src < src_end);
-   assert(src_last <= src_end);
- 
-   while (!br->eos_ && src < src_last) {
-@@ -1294,6 +1295,10 @@ int VP8LDecodeAlphaImageStream(ALPHDecoder* const alph_dec, int last_row) {
-   assert(dec->action_ == READ_DATA);
-   assert(last_row <= dec->height_);
- 
-+  if (dec->last_pixel_ == dec->width_ * dec->height_) {
-+    return 1; // done
-+  }
-+
-   // Decode (with special row processing).
-   return alph_dec->use_8b_decode ?
-       DecodeAlphaData(dec, (uint8_t*)dec->pixels_, dec->width_, dec->height_,
