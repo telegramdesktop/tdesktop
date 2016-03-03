@@ -157,25 +157,35 @@ Then in Terminal go to **/Users/user/TBuild/Libraries/ffmpeg** and run
     sudo make install
 
 ####Qt 5.3.2, slightly patched
+#####Get the source code
 
-http://download.qt-project.org/official_releases/qt/5.3/5.3.2/single/qt-everywhere-opensource-src-5.3.2.tar.gz
+In Terminal go to **/Users/user/TBuild/Libraries** and run:
 
-Extract to **/Users/user/TBuild/Libraries**, rename **qt-everywhere-opensource-src-5.3.2** to **QtStatic** to have **/Users/user/TBuild/Libraries/QtStatic/qtbase** folder
+    git clone git://code.qt.io/qt/qt5.git QtStatic
+    cd QtStatic
+    git checkout 5.3
+    perl init-repository --module-subset=qtbase,qtimageformats
+    git checkout v5.3.2
+    cd qtimageformats && git checkout v5.3.2 && cd ..
+    cd qtbase && git checkout v5.3.2 && cd ..
 
-Apply patch:
+#####Apply the patch
 
-* OR copy (with overwrite!) everything from **/Users/user/TBuild/tdesktop/\_qt\_5\_3\_2\_patch/** to **/Users/user/TBuild/Libraries/QtStatic/**
-* OR copy **/Users/user/TBuild/tdesktop/\_qt\_5\_3\_2\_patch.diff** to **/Users/user/TBuild/Libraries/QtStatic/**, go there in Terminal and run
+From **/Users/user/TBuild/Libraries/QtStatic/qtbase**, run:
 
-    git apply _qt_5_3_2_patch.diff
+    git apply ../../../tdesktop/Telegram/_qtbase_5_3_2_patch.diff
+
+From **/Users/user/TBuild/Libraries/QtStatic/qtimageformats**, run:
+
+    git apply ../../../tdesktop/Telegram/_qtimageformats_5_3_2_patch.diff
 
 #####Building library
 
-In Terminal go to **/Users/user/TBuild/Libraries/QtStatic** and there run
+Go to **/Users/user/TBuild/Libraries/QtStatic** and run:
 
-    ./configure -debug-and-release -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-g++
-    make -j4 module-qtbase module-qtimageformats
-    sudo make module-qtbase-install_subtargets module-qtimageformats-install_subtargets
+    ./configure -debug-and-release -opensource -confirm-license -static -opengl desktop -nomake examples -nomake tests -platform macx-g++
+    make -j4
+    sudo make -j4 install
 
 building (**make** command) will take really long time.
 

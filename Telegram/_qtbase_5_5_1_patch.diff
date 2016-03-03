@@ -11203,6 +11203,19 @@ index ca92103..f681b08 100644
          QPainter p(&m_qImage);
          p.setCompositionMode(QPainter::CompositionMode_Source);
          const QVector<QRect> rects = region.rects();
+diff --git a/src/plugins/platforms/cocoa/qcocoakeymapper.mm b/src/plugins/platforms/cocoa/qcocoakeymapper.mm
+index c2d206f..d3881f6 100644
+--- a/src/plugins/platforms/cocoa/qcocoakeymapper.mm
++++ b/src/plugins/platforms/cocoa/qcocoakeymapper.mm
+@@ -356,7 +356,7 @@ Qt::KeyboardModifiers QCocoaKeyMapper::queryKeyboardModifiers()
+ bool QCocoaKeyMapper::updateKeyboard()
+ {
+     const UCKeyboardLayout *uchrData = 0;
+-    QCFType<TISInputSourceRef> source = TISCopyCurrentKeyboardInputSource();
++    QCFType<TISInputSourceRef> source = TISCopyCurrentASCIICapableKeyboardInputSource();//TISCopyCurrentKeyboardInputSource();
+     if (keyboard_mode != NullMode && source == currentInputSource) {
+         return false;
+     }
 diff --git a/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm b/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
 index 713758c..9b23ca2 100755
 --- a/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
@@ -11376,7 +11389,7 @@ index 3188463..cbee264 100644
          [iconButton setImage:image];
          [image release];
 diff --git a/src/plugins/platforms/cocoa/qnsview.mm b/src/plugins/platforms/cocoa/qnsview.mm
-index 1ec33df..03c84a1 100644
+index 1ec33df..45d436c 100644
 --- a/src/plugins/platforms/cocoa/qnsview.mm
 +++ b/src/plugins/platforms/cocoa/qnsview.mm
 @@ -1357,7 +1357,8 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
@@ -11389,7 +11402,36 @@ index 1ec33df..03c84a1 100644
              m_scrolling = true;
              ph = Qt::ScrollBegin;
          }
-@@ -1502,6 +1503,11 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
+@@ -1418,14 +1419,20 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
+     quint32 nativeVirtualKey = [nsevent keyCode];
+ 
+     QChar ch = QChar::ReplacementCharacter;
+-    int keyCode = Qt::Key_unknown;
+-    if ([characters length] != 0) {
+-        if (((modifiers & Qt::MetaModifier) || (modifiers & Qt::AltModifier)) && ([charactersIgnoringModifiers length] != 0))
+-            ch = QChar([charactersIgnoringModifiers characterAtIndex:0]);
+-        else
+-            ch = QChar([characters characterAtIndex:0]);
+-        keyCode = [self convertKeyCode:ch];
+-    }
++    if ([characters length] != 0) // https://bugreports.qt.io/browse/QTBUG-42584
++        ch = QChar([characters characterAtIndex:0]);
++    else if ([charactersIgnoringModifiers length] != 0 && ((modifiers & Qt::MetaModifier) || (modifiers & Qt::AltModifier)))
++        ch = QChar([charactersIgnoringModifiers characterAtIndex:0]);
++
++    int keyCode = [self convertKeyCode:ch];
++    //int keyCode = Qt::Key_unknown;
++    //if ([characters length] != 0) {
++    //    if (((modifiers & Qt::MetaModifier) || (modifiers & Qt::AltModifier)) && ([charactersIgnoringModifiers length] != 0))
++    //        ch = QChar([charactersIgnoringModifiers characterAtIndex:0]);
++    //    else
++    //        ch = QChar([characters characterAtIndex:0]);
++    //    keyCode = [self convertKeyCode:ch];
++    //}
+ 
+     // we will send a key event unless the input method sets m_sendKeyEvent to false
+     m_sendKeyEvent = true;
+@@ -1502,6 +1509,11 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
                  && qtKey == Qt::Key_Period) {
              [self handleKeyEvent:nsevent eventType:int(QEvent::KeyPress)];
              return YES;
