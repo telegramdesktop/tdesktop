@@ -287,6 +287,7 @@ namespace Shortcuts {
 				LOG(("Warning: could not find shortcut command handler '%1'").arg(command));
 			} else {
 				QShortcut *shortcut(new QShortcut(seq, App::wnd(), nullptr, nullptr, Qt::ApplicationShortcut));
+				shortcut->setAutoRepeat(false);
 				int shortcutId = shortcut->id();
 				if (!shortcutId) {
 					DataPtr->errors.push_back(qsl("Could not create shortcut '%1'!").arg(keys));

@@ -6722,7 +6722,7 @@ void HistoryMessage::drawMessageText(Painter &p, QRect trect, uint32 selection) 
 		bool breakEverywhere = (fwd->_text.countHeight(trect.width()) > 2 * serviceFont->height);
 		textstyleSet(&((selection == FullSelection) ? (outbg ? st::outFwdTextStyleSelected : st::inFwdTextStyleSelected) : (outbg ? st::outFwdTextStyle : st::inFwdTextStyle)));
 		fwd->_text.drawElided(p, trect.x(), trect.y(), trect.width(), 2, style::al_left, 0, -1, 0, breakEverywhere);
-		textstyleRestore();
+		textstyleSet(&(outbg ? st::outTextStyle : st::inTextStyle));
 
 		trect.setY(trect.y() + (((fwd->_text.maxWidth() > trect.width()) ? 2 : 1) * serviceFont->height));
 	}

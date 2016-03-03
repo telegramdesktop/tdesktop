@@ -197,6 +197,7 @@ StickerPreviewWidget::StickerPreviewWidget(QWidget *parent) : TWidget(parent)
 , _gif(0)
 , _cacheStatus(CacheNotLoaded) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
+	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 }
 
 void StickerPreviewWidget::paintEvent(QPaintEvent *e) {
