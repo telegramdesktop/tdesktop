@@ -841,7 +841,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 		addbyname = st::profileStatusTop + st::linkFont->ascent - (st::profileNameTop + st::profileNameFont->ascent);
 		p.setPen(st::black->p);
 		p.drawText(_left + st::profilePhotoSize + st::profileStatusLeft, top + st::profileStatusTop + st::linkFont->ascent, '@' + _peerUser->username);
-	} else if (_peerChannel && !_peerChannel->isMegagroup() && (_peerChannel->isPublic() || _amCreator )) {
+	} else if (_peerChannel && (_peerChannel->isPublic() || _amCreator)) {
 		addbyname = st::profileStatusTop + st::linkFont->ascent - (st::profileNameTop + st::profileNameFont->ascent);
 	}
 	if (!_peerChannel || !_peerChannel->canViewParticipants() || _peerChannel->isMegagroup()) {
@@ -1337,7 +1337,7 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	// profile
 	top += st::profilePadding.top();
 	int32 addbyname = 0;
-	if (_peerChannel && !_peerChannel->isMegagroup() && (_amCreator || _peerChannel->isPublic())) {
+	if (_peerChannel && (_amCreator || _peerChannel->isPublic())) {
 		_username.move(_left + st::profilePhotoSize + st::profileStatusLeft, top + st::profileStatusTop);
 		addbyname = st::profileStatusTop + st::linkFont->ascent - (st::profileNameTop + st::profileNameFont->ascent);
 	}
@@ -1711,7 +1711,7 @@ void ProfileInner::showAll() {
 		} else {
 			_deleteChannel.hide();
 		}
-		if (!_peerChannel->isMegagroup() && (_peerChannel->isPublic() || _amCreator)) {
+		if (_peerChannel->isPublic() || _amCreator) {
 			_username.show();
 		} else {
 			_username.hide();

@@ -477,6 +477,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_create_public_channel_about" = "Anyone can find the channel in search and join";
 "lng_create_private_channel_title" = "Private Channel";
 "lng_create_private_channel_about" = "Only people with a special invite link may join";
+"lng_create_public_group_title" = "Public Group";
+"lng_create_public_group_about" = "Anyone can find the group in search and join, all chat history is available to everybody";
+"lng_create_private_group_title" = "Private Group";
+"lng_create_private_group_about" = "Only invited people may join and see the chat history";
 "lng_create_channel_comments" = "Enable Comments";
 "lng_create_channel_comments_about" = "If you enable comments, members will be able to discuss your posts in the channel";
 "lng_create_group_skip" = "Skip";

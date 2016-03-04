@@ -605,12 +605,12 @@ void GroupInfoBox::onPhotoReady(const QImage &img) {
 SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : AbstractBox()
 , _channel(channel)
 , _existing(existing)
-, _public(this, qsl("channel_privacy"), 0, lang(lng_create_public_channel_title), true)
-, _private(this, qsl("channel_privacy"), 1, lang(lng_create_private_channel_title))
+, _public(this, qsl("channel_privacy"), 0, lang(channel->isMegagroup() ? lng_create_public_group_title : lng_create_public_channel_title), true)
+, _private(this, qsl("channel_privacy"), 1, lang(channel->isMegagroup() ? lng_create_private_group_title : lng_create_private_channel_title))
 , _comments(this, lang(lng_create_channel_comments), false)
 , _aboutPublicWidth(width() - st::boxPadding.left() - st::boxButtonPadding.right() - st::newGroupPadding.left() - st::defaultRadiobutton.textPosition.x())
-, _aboutPublic(st::normalFont, lang(lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth)
-, _aboutPrivate(st::normalFont, lang(lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth)
+, _aboutPublic(st::normalFont, lang(channel->isMegagroup() ? lng_create_public_group_about : lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth)
+, _aboutPrivate(st::normalFont, lang(channel->isMegagroup() ? lng_create_private_group_about : lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth)
 , _aboutComments(st::normalFont, lang(lng_create_channel_comments_about), _defaultOptions, _aboutPublicWidth)
 , _link(this, st::defaultInputField, QString(), channel->username, true)
 , _linkOver(false)
@@ -626,7 +626,7 @@ SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : Abstract
 	_checkRequestId = MTP::send(MTPchannels_CheckUsername(_channel->inputChannel, MTP_string("preston")), RPCDoneHandlerPtr(), rpcFail(&SetupChannelBox::onFirstCheckFail));
 
 	_aboutPublicHeight = _aboutPublic.countHeight(_aboutPublicWidth);
-	setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public.height() + _aboutPublicHeight + st::newGroupSkip + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth)/* + st::newGroupSkip + _comments.height() + _aboutComments.countHeight(_aboutPublicWidth)*/ + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top() + _link.height() + st::newGroupLinkPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+	updateMaxHeight();
 
 	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
 	connect(&_skip, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -669,6 +669,14 @@ void SetupChannelBox::showDone() {
 	_link.setFocus();
 }
 
+void SetupChannelBox::updateMaxHeight() {
+	if (!_channel->isMegagroup() || _public.checked()) {
+		setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public.height() + _aboutPublicHeight + st::newGroupSkip + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth)/* + st::newGroupSkip + _comments.height() + _aboutComments.countHeight(_aboutPublicWidth)*/ + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top() + _link.height() + st::newGroupLinkPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+	} else {
+		setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public.height() + _aboutPublicHeight + st::newGroupSkip + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth)/* + st::newGroupSkip + _comments.height() + _aboutComments.countHeight(_aboutPublicWidth)*/ + st::newGroupSkip + st::newGroupPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom());
+	}
+}
+
 void SetupChannelBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
 		if (_link.hasFocus()) {
@@ -699,22 +707,26 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 	//QRect aboutComments(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _comments.y() + _comments.height(), _aboutPublicWidth, _aboutPublicHeight);
 	//_aboutComments.drawLeft(p, aboutComments.x(), aboutComments.y(), aboutComments.width(), width());
 
-	p.setPen(st::black);
-	p.setFont(st::newGroupLinkFont);
-	p.drawTextLeft(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultInputField.textMargins.left(), _link.y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop, width(), lang(_link.isHidden() ? lng_create_group_invite_link : lng_create_group_link));
+	if (!_channel->isMegagroup() || !_link.isHidden()) {
+		p.setPen(st::black);
+		p.setFont(st::newGroupLinkFont);
+		p.drawTextLeft(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultInputField.textMargins.left(), _link.y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop, width(), lang(_link.isHidden() ? lng_create_group_invite_link : lng_create_group_link));
+	}
 
 	if (_link.isHidden()) {
-		QTextOption option(style::al_left);
-		option.setWrapMode(QTextOption::WrapAnywhere);
-		p.setFont(_linkOver ? st::boxTextFont->underline() : st::boxTextFont);
-		p.setPen(st::btnDefLink.color);
-		p.drawText(_invitationLink, _channel->invitationUrl, option);
-		if (!_goodTextLink.isEmpty() && a_goodOpacity.current() > 0) {
-			p.setOpacity(a_goodOpacity.current());
-			p.setPen(st::setGoodColor);
-			p.setFont(st::boxTextFont);
-			p.drawTextRight(st::boxPadding.right(), _link.y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop + st::newGroupLinkFont->ascent - st::boxTextFont->ascent, width(), _goodTextLink);
-			p.setOpacity(1);
+		if (!_channel->isMegagroup()) {
+			QTextOption option(style::al_left);
+			option.setWrapMode(QTextOption::WrapAnywhere);
+			p.setFont(_linkOver ? st::boxTextFont->underline() : st::boxTextFont);
+			p.setPen(st::btnDefLink.color);
+			p.drawText(_invitationLink, _channel->invitationUrl, option);
+			if (!_goodTextLink.isEmpty() && a_goodOpacity.current() > 0) {
+				p.setOpacity(a_goodOpacity.current());
+				p.setPen(st::setGoodColor);
+				p.setFont(st::boxTextFont);
+				p.drawTextRight(st::boxPadding.right(), _link.y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop + st::newGroupLinkFont->ascent - st::boxTextFont->ascent, width(), _goodTextLink);
+				p.setOpacity(1);
+			}
 		}
 	} else {
 		if (!_errorText.isEmpty()) {
@@ -878,6 +890,9 @@ void SetupChannelBox::onPrivacyChange() {
 	} else {
 		_link.hide();
 		setFocus();
+	}
+	if (_channel->isMegagroup()) {
+		updateMaxHeight();
 	}
 	update();
 }
@@ -1198,11 +1213,10 @@ void EditChannelBox::showAll() {
 	_description.show();
 	_save.show();
 	_cancel.show();
+	_publicLink.show();
 	if (_channel->isMegagroup()) {
-		_publicLink.hide();
 		_sign.hide();
 	} else {
-		_publicLink.show();
 		_sign.show();
 	}
 }
@@ -1259,7 +1273,11 @@ void EditChannelBox::resizeEvent(QResizeEvent *e) {
 
 	_sign.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _description.y() + _description.height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
 
-	_publicLink.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _sign.y() + _sign.height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
+	if (_channel->isMegagroup()) {
+		_publicLink.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _description.y() + _description.height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
+	} else {
+		_publicLink.moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _sign.y() + _sign.height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
+	}
 
 	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
