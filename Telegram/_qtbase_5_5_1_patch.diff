@@ -11204,18 +11204,30 @@ index ca92103..f681b08 100644
          p.setCompositionMode(QPainter::CompositionMode_Source);
          const QVector<QRect> rects = region.rects();
 diff --git a/src/plugins/platforms/cocoa/qcocoakeymapper.mm b/src/plugins/platforms/cocoa/qcocoakeymapper.mm
-index c2d206f..d3881f6 100644
+index c2d206f..0d4d7ab 100644
 --- a/src/plugins/platforms/cocoa/qcocoakeymapper.mm
 +++ b/src/plugins/platforms/cocoa/qcocoakeymapper.mm
-@@ -356,7 +356,7 @@ Qt::KeyboardModifiers QCocoaKeyMapper::queryKeyboardModifiers()
- bool QCocoaKeyMapper::updateKeyboard()
- {
-     const UCKeyboardLayout *uchrData = 0;
--    QCFType<TISInputSourceRef> source = TISCopyCurrentKeyboardInputSource();
-+    QCFType<TISInputSourceRef> source = TISCopyCurrentASCIICapableKeyboardInputSource();//TISCopyCurrentKeyboardInputSource();
-     if (keyboard_mode != NullMode && source == currentInputSource) {
-         return false;
+@@ -384,6 +384,11 @@ bool QCocoaKeyMapper::updateKeyboard()
+         keyboardInputLocale = QLocale::c();
+         keyboardInputDirection = Qt::LeftToRight;
      }
++
++    const auto newMode = keyboard_mode;
++    deleteLayouts();
++    keyboard_mode = newMode;
++
+     return true;
+ }
+ 
+@@ -466,7 +471,7 @@ QList<int> QCocoaKeyMapper::possibleKeys(const QKeyEvent *event) const
+         Qt::KeyboardModifiers neededMods = ModsTbl[i];
+         int key = kbItem->qtKey[i];
+         if (key && key != baseKey && ((keyMods & neededMods) == neededMods)) {
+-            ret << int(key + (keyMods & ~neededMods));
++            ret << int(key + neededMods);
+         }
+     }
+     return ret;
 diff --git a/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm b/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
 index 713758c..9b23ca2 100755
 --- a/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
