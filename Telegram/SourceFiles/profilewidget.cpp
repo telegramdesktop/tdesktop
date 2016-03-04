@@ -947,24 +947,31 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 					} else {
 						data->online = App::onlineText(user, l_time);
 					}
+					if (_peerChat) {
+						data->admin = (peerFromUser(_peerChat->creator) == user->id) || (_peerChat->admins.constFind(user) != _peerChat->admins.cend());
+					} else if (_peerChannel) {
+						data->admin = (_peerChannel->mgInfo->lastAdmins.constFind(user) != _peerChannel->mgInfo->lastAdmins.cend());
+					} else {
+						data->admin = false;
+					}
 					if (_amCreator) {
 						data->cankick = (user != App::self());
 					} else if (_peerChat && _peerChat->amAdmin()) {
-						data->cankick = (user != App::self()) && (_peerChat->admins.constFind(user) == _peerChat->admins.cend()) && (peerFromUser(_peerChat->creator) != user->id);
+						data->cankick = (user != App::self()) && !data->admin;
 					} else if (_peerChannel && _peerChannel->amEditor()) {
-						data->cankick = (user != App::self()) && (_peerChannel->mgInfo->lastAdmins.constFind(user) == _peerChannel->mgInfo->lastAdmins.cend());
+						data->cankick = (user != App::self()) && !data->admin;
 					} else {
 						data->cankick = (user != App::self()) && !_peerChannel && (_peerChat->invitedByMe.constFind(user) != _peerChat->invitedByMe.cend());
 					}
 				}
-				p.setPen(st::profileListNameColor->p);
-				p.setFont(st::linkFont->f);
+				p.setPen(st::profileListNameColor);
+				p.setFont(st::linkFont);
 				data->name.drawElided(p, _left + st::profileListPhotoSize + st::profileListPadding.width(), top + st::profileListNameTop, _width - _kickWidth - st::profileListPadding.width() - st::profileListPhotoSize - st::profileListPadding.width());
-				p.setFont(st::profileSubFont->f);
-				p.setPen((App::onlineColorUse(user, l_time) ? st::profileOnlineColor : st::profileOfflineColor)->p);
+				p.setFont(st::profileSubFont);
+				p.setPen(App::onlineColorUse(user, l_time) ? st::profileOnlineColor : st::profileOfflineColor);
 				p.drawText(_left + st::profileListPhotoSize + st::profileListPadding.width(), top + st::profileListPadding.height() + st::profileListPhotoSize - st::profileListStatusBottom, data->online);
 
-				if (data->cankick) {
+				if (_selectedRow == cnt && data->cankick) {
 					bool over = (user == _kickOver && (!_kickDown || _kickDown == _kickOver));
 					p.setFont((over ? st::linkOverFont : st::linkFont)->f);
 					if (user == _kickOver && _kickOver == _kickDown) {
@@ -972,7 +979,11 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 					} else {
 						p.setPen(st::btnDefLink.color->p);
 					}
-					p.drawText(_left + _width - _kickWidth, top + st::profileListNameTop + st::linkFont->ascent, lang(lng_profile_kick));
+					p.drawTextRight(width() - _left - _width, top + st::profileListNameTop, width(), lang(lng_profile_kick), _kickWidth);
+				} else if (data->admin) {
+					p.setFont(st::profileSubFont);
+					p.setPen(st::profileOfflineColor);
+					p.drawTextRight(width() - _left - _width, top + st::profileListNameTop, width(), lang(lng_profile_admin));
 				}
 			}
 			top += fullCnt * _pHeight;

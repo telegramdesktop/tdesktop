@@ -193,11 +193,11 @@ private:
 	uint64 _contactId;
 	UserData *_kickOver, *_kickDown, *_kickConfirm;
 
-	typedef struct {
+	struct ParticipantData {
 		Text name;
 		QString online;
-		bool cankick;
-	} ParticipantData;
+		bool cankick, admin;
+	};
 	typedef QVector<UserData*> Participants;
 	Participants _participants;
 	typedef QVector<ParticipantData*> ParticipantsData;
