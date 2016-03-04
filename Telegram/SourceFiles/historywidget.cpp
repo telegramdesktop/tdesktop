@@ -5587,7 +5587,26 @@ void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
 			}
 		}
 	} else if (_peer->isChannel()) {
-		text = _peer->asChannel()->count ? lng_chat_status_members(lt_count, _peer->asChannel()->count) : lang(_peer->isMegagroup() ? lng_group_status : lng_channel_status);
+		if (_peer->isMegagroup() && _peer->asChannel()->count > 0 && _peer->asChannel()->count <= Global::ChatSizeMax()) {
+			if (_peer->asChannel()->mgInfo->lastParticipants.size() < _peer->asChannel()->count || _peer->asChannel()->lastParticipantsCountOutdated()) {
+				if (App::api()) App::api()->requestLastParticipants(_peer->asChannel());
+			}
+			int32 onlineCount = 0;
+			bool onlyMe = true;
+			for (MentionRows::const_iterator i = _peer->asChannel()->mgInfo->lastParticipants.cbegin(), e = _peer->asChannel()->mgInfo->lastParticipants.cend(); i != e; ++i) {
+				if ((*i)->onlineTill > t) {
+					++onlineCount;
+					if (onlyMe && (*i) != App::self()) onlyMe = false;
+				}
+			}
+			if (onlineCount && !onlyMe) {
+				text = lng_chat_status_members_online(lt_count, _peer->asChannel()->count, lt_count_online, onlineCount);
+			} else {
+				text = lng_chat_status_members(lt_count, _peer->asChannel()->count);
+			}
+		} else {
+			text = _peer->asChannel()->count ? lng_chat_status_members(lt_count, _peer->asChannel()->count) : lang(_peer->isMegagroup() ? lng_group_status : lng_channel_status);
+		}
 	}
 	if (_titlePeerText != text) {
 		_titlePeerText = text;

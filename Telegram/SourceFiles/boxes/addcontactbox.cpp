@@ -1094,7 +1094,8 @@ void EditNameTitleBox::onSave() {
 	}
 	_sentName = first;
 	if (_peer == App::self()) {
-		_requestId = MTP::send(MTPaccount_UpdateProfile(MTP_string(first), MTP_string(last)), rpcDone(&EditNameTitleBox::onSaveSelfDone), rpcFail(&EditNameTitleBox::onSaveSelfFail));
+		int32 flags = MTPaccount_UpdateProfile::flag_first_name | MTPaccount_UpdateProfile::flag_last_name;
+		_requestId = MTP::send(MTPaccount_UpdateProfile(MTP_int(flags), MTP_string(first), MTP_string(last), MTPstring()), rpcDone(&EditNameTitleBox::onSaveSelfDone), rpcFail(&EditNameTitleBox::onSaveSelfFail));
 	} else if (_peer->isChat()) {
 		_requestId = MTP::send(MTPmessages_EditChatTitle(_peer->asChat()->inputChat, MTP_string(first)), rpcDone(&EditNameTitleBox::onSaveChatDone), rpcFail(&EditNameTitleBox::onSaveChatFail));
 	}

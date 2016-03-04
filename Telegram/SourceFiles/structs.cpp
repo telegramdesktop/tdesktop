@@ -263,7 +263,6 @@ void UserData::setBotInfoVersion(int32 version) {
 			Notify::botCommandsChanged(this);
 		}
 		botInfo->description.clear();
-		botInfo->shareText.clear();
 		botInfo->version = version;
 		botInfo->inited = false;
 	}
@@ -271,33 +270,15 @@ void UserData::setBotInfoVersion(int32 version) {
 
 void UserData::setBotInfo(const MTPBotInfo &info) {
 	switch (info.type()) {
-	case mtpc_botInfoEmpty:
-		if (botInfo) {
-			if (!botInfo->commands.isEmpty()) {
-				botInfo->commands.clear();
-				Notify::botCommandsChanged(this);
-			}
-			delete botInfo;
-			botInfo = 0;
-			Notify::userIsBotChanged(this);
-		}
-	break;
 	case mtpc_botInfo: {
 		const MTPDbotInfo &d(info.c_botInfo());
-		if (peerFromUser(d.vuser_id.v) != id) return;
-
-		if (botInfo) {
-			botInfo->version = d.vversion.v;
-		} else {
-			setBotInfoVersion(d.vversion.v);
-		}
+		if (peerFromUser(d.vuser_id.v) != id || !botInfo) return;
 
 		QString desc = qs(d.vdescription);
 		if (botInfo->description != desc) {
 			botInfo->description = desc;
 			botInfo->text = Text(st::msgMinWidth);
 		}
-		botInfo->shareText = qs(d.vshare_text);
 
 		const QVector<MTPBotCommand> &v(d.vcommands.c_vector().v);
 		botInfo->commands.reserve(v.size());

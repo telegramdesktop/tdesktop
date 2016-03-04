@@ -124,6 +124,8 @@ public slots:
 	void onBotSettings();
 	void onBotHelp();
 
+	void onUpdateDelayed();
+
 private:
 
 	void showAll();
@@ -209,6 +211,8 @@ private:
 	PopupMenu *_menu;
 
 	QString _secretText;
+
+	bool _updateDelayed;
 
 	void blockDone(bool blocked, const MTPBool &result);
 	bool blockFail(const RPCError &error);

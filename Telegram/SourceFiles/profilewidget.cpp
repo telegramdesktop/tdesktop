@@ -102,7 +102,8 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 , _kickDown(0)
 , _kickConfirm(0)
 
-, _menu(0) {
+, _menu(0)
+, _updateDelayed(false) {
 	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 
 	connect(App::api(), SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
@@ -187,9 +188,9 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 	connect(App::main(), SIGNAL(peerNameChanged(PeerData *, const PeerData::Names &, const PeerData::NameFirstChars &)), this, SLOT(peerUpdated(PeerData *)));
 
 	// about
-	if (_peerUser && _peerUser->botInfo) {
-		if (!_peerUser->botInfo->shareText.isEmpty()) {
-			_about.setText(st::linkFont, _peerUser->botInfo->shareText, _historyBotNoMonoOptions);
+	if (_peerUser) {
+		if (!_peerUser->about.isEmpty()) {
+			_about.setText(st::linkFont, _peerUser->about, _peerUser->botInfo ? _historyBotNoMonoOptions : _historyTextNoMonoOptions);
 		}
 		updateBotLinksVisibility();
 	} else {
@@ -526,11 +527,11 @@ void ProfileInner::onFullPeerUpdated(PeerData *peer) {
 		} else {
 			_photoLink = TextLinkPtr();
 		}
-		if (_peerUser->botInfo) {
-			if (_peerUser->botInfo->shareText.isEmpty()) {
+		if (_peerUser) {
+			if (_peerUser->about.isEmpty()) {
 				_about = Text(st::wndMinWidth - st::profilePadding.left() - st::profilePadding.right());
 			} else {
-				_about.setText(st::linkFont, _peerUser->botInfo->shareText, _historyBotNoMonoOptions);
+				_about.setText(st::linkFont, _peerUser->about, _peerUser->botInfo ? _historyBotNoMonoOptions : _historyTextNoMonoOptions);
 			}
 			updateBotLinksVisibility();
 			resizeEvent(0);
@@ -613,11 +614,17 @@ void ProfileInner::peerUpdated(PeerData *data) {
 			_nameCache = _peer->name;
 			_nameText.setText(st::profileNameFont, _nameCache, _textNameOptions);
 		}
-		showAll();
-		resizeEvent(0);
-	} else {
-		showAll();
 	}
+	if (!_updateDelayed) {
+		_updateDelayed = true;
+		QMetaObject::invokeMethod(this, "onUpdateDelayed", Qt::QueuedConnection);
+	}
+}
+
+void ProfileInner::onUpdateDelayed() {
+	_updateDelayed = false;
+	showAll();
+	resizeEvent(0);
 	update();
 }
 
@@ -688,34 +695,76 @@ void ProfileInner::reorderParticipants() {
 		}
 		loadProfilePhotos(_lastPreload);
 	} else if (_peerChannel && _peerChannel->isMegagroup() && _peerChannel->amIn() && !_peerChannel->mgInfo->lastParticipants.isEmpty()) {
-		bool needAdmins = _peerChannel->amEditor(), adminsOutdated = (_peerChannel->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated);
+		bool needAdmins = true, adminsOutdated = (_peerChannel->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated);
+		bool orderByOnline = true;// (_peerChannel->count > 0) && (_peerChannel->count <= Global::ChatSizeMax());
+
+		_onlineText.clear();
 		if (_peerChannel->mgInfo->lastParticipants.isEmpty() || (needAdmins && adminsOutdated) || _peerChannel->lastParticipantsCountOutdated()) {
 			if (App::api()) App::api()->requestLastParticipants(_peerChannel);
 		} else if (!_peerChannel->mgInfo->lastParticipants.isEmpty()) {
 			const MegagroupInfo::LastParticipants &list(_peerChannel->mgInfo->lastParticipants);
 			int32 s = list.size();
-			for (int32 i = 0, l = _participants.size(); i < l; ++i) {
-				if (i >= s || _participants.at(i) != list.at(i)) {
-					if (_participantsData.at(i)) {
-						delete _participantsData.at(i);
-						_participantsData[i] = 0;
-					}
-					if (i < s) {
-						_participants[i] = list.at(i);
+			if (orderByOnline) {
+				_participants.clear();
+				for (ParticipantsData::iterator i = _participantsData.begin(), e = _participantsData.end(); i != e; ++i) {
+					if (*i) {
+						delete *i;
+						*i = 0;
 					}
 				}
-			}
-			if (_participants.size() > s) {
-				_participants.resize(s);
-			} else {
 				_participants.reserve(s);
-				for (int32 i = _participants.size(); i < s; ++i) {
-					_participants.push_back(list.at(i));
+
+				UserData *self = App::self();
+				bool onlyMe = true;
+				for (int32 i = 0; i < s; ++i) {
+					UserData *user = list.at(i);
+					int32 until = App::onlineForSort(user, t);
+					Participants::iterator before = _participants.begin();
+					if (user != self) {
+						if (before != _participants.end() && (*before) == self) {
+							++before;
+						}
+						while (before != _participants.end() && App::onlineForSort(*before, t) >= until) {
+							++before;
+						}
+						if (until > t && onlyMe) onlyMe = false;
+					}
+					_participants.insert(before, user);
+					if (until > t) {
+						++onlineCount;
+					}
+				}
+				if (onlineCount && !onlyMe) {
+					_onlineText = lng_chat_status_members_online(lt_count, _peerChannel->count, lt_count_online, onlineCount);
+				} else {
+					_onlineText = lng_chat_status_members(lt_count, _peerChannel->count);
+				}
+			} else {
+				for (int32 i = 0, l = _participants.size(); i < l; ++i) {
+					if (i >= s || _participants.at(i) != list.at(i)) {
+						if (_participantsData.at(i)) {
+							delete _participantsData.at(i);
+							_participantsData[i] = 0;
+						}
+						if (i < s) {
+							_participants[i] = list.at(i);
+						}
+					}
+				}
+				if (_participants.size() > s) {
+					_participants.resize(s);
+				} else {
+					_participants.reserve(s);
+					for (int32 i = _participants.size(); i < s; ++i) {
+						_participants.push_back(list.at(i));
+					}
 				}
 			}
 			_participantsData.resize(s);
 		}
-		_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
+		if (_onlineText.isEmpty()) {
+			_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
+		}
 		loadProfilePhotos(_lastPreload);
 	} else {
 		_participants.clear();

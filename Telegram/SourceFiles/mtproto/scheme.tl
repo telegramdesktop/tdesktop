@@ -213,7 +213,7 @@ channel#4b1b7506 flags:# creator:flags.0?true kicked:flags.1?true left:flags.2?t
 channelForbidden#2d85832c id:int access_hash:long title:string = Chat;
 
 chatFull#2e02a614 id:int participants:ChatParticipants chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite bot_info:Vector<BotInfo> = ChatFull;
-channelFull#9e341ddf flags:# can_view_participants:flags.3?true id:int about:string participants_count:flags.0?int admins_count:flags.1?int kicked_count:flags.2?int read_inbox_max_id:int unread_count:int unread_important_count:int chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite bot_info:Vector<BotInfo> migrated_from_chat_id:flags.4?int migrated_from_max_id:flags.4?int = ChatFull;
+channelFull#97bee562 flags:# can_view_participants:flags.3?true id:int about:string participants_count:flags.0?int admins_count:flags.1?int kicked_count:flags.2?int read_inbox_max_id:int unread_count:int unread_important_count:int chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite bot_info:Vector<BotInfo> migrated_from_chat_id:flags.4?int migrated_from_max_id:flags.4?int pinned_msg_id:flags.5?int = ChatFull;
 
 chatParticipant#c8d7493e user_id:int inviter_id:int date:int = ChatParticipant;
 chatParticipantCreator#da13538a user_id:int = ChatParticipant;
@@ -296,7 +296,7 @@ inputReportReasonViolence#1e22c78d = ReportReason;
 inputReportReasonPornography#2e59d922 = ReportReason;
 inputReportReasonOther#e1746d0a text:string = ReportReason;
 
-userFull#5a89ac5b user:User link:contacts.Link profile_photo:Photo notify_settings:PeerNotifySettings blocked:Bool bot_info:BotInfo = UserFull;
+userFull#5932fc03 flags:# blocked:flags.0?true user:User about:flags.1?string link:contacts.Link profile_photo:flags.2?Photo notify_settings:PeerNotifySettings bot_info:flags.3?BotInfo = UserFull;
 
 contact#f911c994 user_id:int mutual:Bool = Contact;
 
@@ -384,6 +384,7 @@ updateSavedGifs#9375341e = Update;
 updateBotInlineQuery#c01eea08 query_id:long user_id:int query:string offset:string = Update;
 updateBotInlineSend#f69e113 user_id:int query:string id:string = Update;
 updateEditChannelMessage#1b3f4df7 message:Message pts:int pts_count:int = Update;
+updateChannelPinnedMessage#98592475 channel_id:int id:int = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -553,8 +554,7 @@ messages.stickerSet#b60a24a6 set:StickerSet packs:Vector<StickerPack> documents:
 
 botCommand#c27ac8c7 command:string description:string = BotCommand;
 
-botInfoEmpty#bb2e37ce = BotInfo;
-botInfo#9cf585d user_id:int version:int share_text:string description:string commands:Vector<BotCommand> = BotInfo;
+botInfo#98e81d3a user_id:int description:string commands:Vector<BotCommand> = BotInfo;
 
 keyboardButton#a2fa4880 text:string = KeyboardButton;
 
@@ -676,7 +676,7 @@ account.unregisterDevice#65c55b40 token_type:int token:string = Bool;
 account.updateNotifySettings#84be5b93 peer:InputNotifyPeer settings:InputPeerNotifySettings = Bool;
 account.getNotifySettings#12b3ad31 peer:InputNotifyPeer = PeerNotifySettings;
 account.resetNotifySettings#db7e1747 = Bool;
-account.updateProfile#f0888d68 first_name:string last_name:string = User;
+account.updateProfile#78515775 flags:# first_name:flags.0?string last_name:flags.1?string about:flags.2?string = User;
 account.updateStatus#6628562c offline:Bool = Bool;
 account.getWallPapers#c04cfac2 = Vector<WallPaper>;
 account.reportPeer#ae189d5f peer:InputPeer reason:ReportReason = Bool;
@@ -821,3 +821,4 @@ channels.exportMessageLink#c846d22d channel:InputChannel id:int = ExportedMessag
 channels.toggleSignatures#1f69b606 channel:InputChannel enabled:Bool = Updates;
 channels.getMessageEditData#27ea3a28 channel:InputChannel id:int = channels.MessageEditData;
 channels.editMessage#dcda80ed flags:# no_webpage:flags.1?true channel:InputChannel id:int message:string entities:flags.3?Vector<MessageEntity> = Updates;
+channels.updatePinnedMessage#84a41867 channel:InputChannel id:int = Updates;

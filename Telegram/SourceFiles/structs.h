@@ -334,7 +334,7 @@ struct BotInfo {
 	bool inited;
 	bool readsAllHistory, cantJoinGroups;
 	int32 version;
-	QString shareText, description, inlinePlaceholder;
+	QString description, inlinePlaceholder;
 	QList<BotCommand> commands;
 	Text text; // description
 
@@ -389,6 +389,8 @@ public:
 	typedef QList<PhotoData*> Photos;
 	Photos photos;
 	int32 photosCount; // -1 not loaded, 0 all loaded
+
+	QString about;
 
 	BotInfo *botInfo;
 };
@@ -530,11 +532,13 @@ private:
 };
 
 struct MegagroupInfo {
-	MegagroupInfo() : botStatus(0)
-	, joinedMessageFound(false)
-	, lastParticipantsStatus(LastParticipantsUpToDate)
-	, lastParticipantsCount(0)
-	, migrateFromPtr(0) {
+	MegagroupInfo()
+		: botStatus(0)
+		, pinnedMsgId(0)
+		, joinedMessageFound(false)
+		, lastParticipantsStatus(LastParticipantsUpToDate)
+		, lastParticipantsCount(0)
+		, migrateFromPtr(0) {
 	}
 	typedef QList<UserData*> LastParticipants;
 	LastParticipants lastParticipants;
@@ -546,6 +550,7 @@ struct MegagroupInfo {
 	Bots bots;
 	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 
+	MsgId pinnedMsgId;
 	bool joinedMessageFound;
 
 	enum LastParticipantsStatus {

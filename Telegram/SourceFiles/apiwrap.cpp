@@ -317,6 +317,13 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 				h->asChannelHistory()->unreadCountAll = f.vunread_count.v;
 			}
 		}
+		if (channel->isMegagroup()) {
+			if (f.has_pinned_msg_id()) {
+				channel->mgInfo->pinnedMsgId = f.vpinned_msg_id.v;
+			} else {
+				channel->mgInfo->pinnedMsgId = 0;
+			}
+		}
 		channel->fullUpdated();
 
 		App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
@@ -344,14 +351,21 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestId req) {
 	const MTPDuserFull &d(result.c_userFull());
 	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser), false);
-	App::feedPhoto(d.vprofile_photo);
+	if (d.has_profile_photo()) {
+		App::feedPhoto(d.vprofile_photo);
+	}
 	App::feedUserLink(MTP_int(peerToUser(peer->id)), d.vlink.c_contacts_link().vmy_link, d.vlink.c_contacts_link().vforeign_link, false);
 	if (App::main()) {
 		App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), d.vnotify_settings);
 	}
 
-	peer->asUser()->setBotInfo(d.vbot_info);
-	peer->asUser()->blocked = mtpIsTrue(d.vblocked) ? UserIsBlocked : UserIsNotBlocked;
+	if (d.has_bot_info()) {
+		peer->asUser()->setBotInfo(d.vbot_info);
+	} else {
+		peer->asUser()->setBotInfoVersion(-1);
+	}
+	peer->asUser()->blocked = d.is_blocked() ? UserIsBlocked : UserIsNotBlocked;
+	peer->asUser()->about = d.has_about() ? qs(d.vabout) : QString();
 
 	if (req) {
 		QMap<PeerData*, mtpRequestId>::iterator i = _fullPeerRequests.find(peer);

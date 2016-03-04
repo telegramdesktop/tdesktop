@@ -4542,6 +4542,19 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	case mtpc_updateChannelPinnedMessage: {
+		const MTPDupdateChannelPinnedMessage &d(update.c_updateChannelPinnedMessage());
+
+		if (ChannelData *channel = App::channelLoaded(d.vchannel_id.v)) {
+			if (channel->isMegagroup()) {
+				channel->mgInfo->pinnedMsgId = d.vid.v;
+				if (App::api()) {
+					emit App::api()->fullPeerUpdated(channel);
+				}
+			}
+		}
+	} break;
+
 	case mtpc_updateReadChannelInbox: {
 		const MTPDupdateReadChannelInbox &d(update.c_updateReadChannelInbox());
 		ChannelData *channel = App::channelLoaded(d.vchannel_id.v);
