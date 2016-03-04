@@ -34,19 +34,19 @@ TextParseOptions _confirmBoxTextOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 
-ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const style::BoxButton &doneStyle, const QString &cancelText, const style::BoxButton &cancelStyle) : AbstractBox(st::boxWidth),
-_informative(false),
-_text(100),
-_confirm(this, doneText.isEmpty() ? lang(lng_box_ok) : doneText, doneStyle),
-_cancel(this, cancelText.isEmpty() ? lang(lng_cancel) : cancelText, cancelStyle) {
+ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const style::BoxButton &doneStyle, const QString &cancelText, const style::BoxButton &cancelStyle) : AbstractBox(st::boxWidth)
+, _informative(false)
+, _text(100)
+, _confirm(this, doneText.isEmpty() ? lang(lng_box_ok) : doneText, doneStyle)
+, _cancel(this, cancelText.isEmpty() ? lang(lng_cancel) : cancelText, cancelStyle) {
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const style::BoxButton &doneStyle, bool informative) : AbstractBox(st::boxWidth),
-_informative(true),
-_text(100),
-_confirm(this, doneText.isEmpty() ? lang(lng_box_ok) : doneText, doneStyle),
-_cancel(this, QString(), st::cancelBoxButton) {
+ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const style::BoxButton &doneStyle, bool informative) : AbstractBox(st::boxWidth)
+, _informative(true)
+, _text(100)
+, _confirm(this, doneText.isEmpty() ? lang(lng_box_ok) : doneText, doneStyle)
+, _cancel(this, QString(), st::cancelBoxButton) {
 	init(text);
 }
 
@@ -174,7 +174,8 @@ void ConfirmBox::resizeEvent(QResizeEvent *e) {
 	_cancel.moveToRight(st::boxButtonPadding.right() + _confirm.width() + st::boxButtonPadding.left(), _confirm.y());
 }
 
-ConfirmLinkBox::ConfirmLinkBox(const QString &url) : ConfirmBox(lang(lng_open_this_link) + qsl("\n\n") + url, lang(lng_open_link)), _url(url) {
+ConfirmLinkBox::ConfirmLinkBox(const QString &url) : ConfirmBox(lang(lng_open_this_link) + qsl("\n\n") + url, lang(lng_open_link))
+, _url(url) {
 	connect(this, SIGNAL(confirmed()), this, SLOT(onOpenLink()));
 }
 
@@ -278,4 +279,102 @@ void MaxInviteBox::paintEvent(QPaintEvent *e) {
 void MaxInviteBox::resizeEvent(QResizeEvent *e) {
 	_close.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _close.height());
 	_invitationLink = myrtlrect(st::boxPadding.left(), st::boxPadding.top() + _textHeight + st::boxTextFont->height, width() - st::boxPadding.left() - st::boxPadding.right(), 2 * st::boxTextFont->height);
+}
+
+ConvertToSupergroupBox::ConvertToSupergroupBox(ChatData *chat) : AbstractBox(st::boxWideWidth)
+, _chat(chat)
+, _text(100)
+, _note(100)
+, _convert(this, lang(lng_profile_convert_confirm), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
+	QStringList text;
+	text.push_back(lang(lng_profile_convert_feature1));
+	text.push_back(lang(lng_profile_convert_feature2));
+	text.push_back(lang(lng_profile_convert_feature3));
+	text.push_back(lang(lng_profile_convert_feature4));
+
+	textstyleSet(&st::boxTextStyle);
+	_text.setText(st::boxTextFont, text.join('\n'), _confirmBoxTextOptions);
+	_note.setText(st::boxTextFont, lng_profile_convert_warning(lt_bold_start, textcmdStartSemibold(), lt_bold_end, textcmdStopSemibold()), _confirmBoxTextOptions);
+	_textWidth = st::boxWideWidth - st::boxPadding.left() - st::boxButtonPadding.right();
+	_textHeight = _text.countHeight(_textWidth);
+	setMaxHeight(st::boxTitleHeight + _textHeight + st::boxPadding.bottom() + st::boxTextFont->height + st::boxButtonPadding.top() + _convert.height() + st::boxButtonPadding.bottom());
+	textstyleRestore();
+
+	connect(&_convert, SIGNAL(clicked()), this, SLOT(onConvert()));
+	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+
+	prepare();
+}
+
+void ConvertToSupergroupBox::onConvert() {
+	MTP::send(MTPmessages_MigrateChat(_chat->inputChat), rpcDone(&ConvertToSupergroupBox::convertDone), rpcFail(&ConvertToSupergroupBox::convertFail));
+}
+
+void ConvertToSupergroupBox::convertDone(const MTPUpdates &updates) {
+	Ui::hideLayer();
+	App::main()->sentUpdatesReceived(updates);
+	const QVector<MTPChat> *v = 0;
+	switch (updates.type()) {
+	case mtpc_updates: v = &updates.c_updates().vchats.c_vector().v; break;
+	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.c_vector().v; break;
+	default: LOG(("API Error: unexpected update cons %1 (ConvertToSupergroupBox::convertDone)").arg(updates.type())); break;
+	}
+
+	PeerData *peer = 0;
+	if (v && !v->isEmpty()) {
+		for (int32 i = 0, l = v->size(); i < l; ++i) {
+			if (v->at(i).type() == mtpc_channel) {
+				peer = App::channel(v->at(i).c_channel().vid.v);
+				Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
+				QTimer::singleShot(ReloadChannelMembersTimeout, App::api(), SLOT(delayedRequestParticipantsCount()));
+			}
+		}
+	}
+	if (!peer) {
+		LOG(("API Error: channel not found in updates (ProfileInner::migrateDone)"));
+	}
+}
+
+bool ConvertToSupergroupBox::convertFail(const RPCError &error) {
+	if (mtpIsFlood(error)) return false;
+	Ui::hideLayer();
+	return true;
+}
+
+void ConvertToSupergroupBox::hideAll() {
+	_convert.hide();
+	_cancel.hide();
+}
+
+void ConvertToSupergroupBox::showAll() {
+	_convert.show();
+	_cancel.show();
+}
+
+void ConvertToSupergroupBox::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
+		onConvert();
+	} else {
+		AbstractBox::keyPressEvent(e);
+	}
+}
+
+void ConvertToSupergroupBox::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	if (paint(p)) return;
+
+	paintTitle(p, lang(lng_profile_convert_title));
+
+	// draw box title / text
+	p.setPen(st::black);
+	textstyleSet(&st::boxTextStyle);
+	_text.drawLeft(p, st::boxPadding.left(), st::boxTitleHeight, _textWidth, width());
+	_note.drawLeft(p, st::boxPadding.left(), st::boxTitleHeight + _textHeight + st::boxPadding.bottom(), _textWidth, width());
+	textstyleRestore();
+}
+
+void ConvertToSupergroupBox::resizeEvent(QResizeEvent *e) {
+	_convert.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _convert.height());
+	_cancel.moveToRight(st::boxButtonPadding.right() + _convert.width() + st::boxButtonPadding.left(), _convert.y());
 }

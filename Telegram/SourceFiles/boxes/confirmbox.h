@@ -108,7 +108,7 @@ public:
 	void mouseMoveEvent(QMouseEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void leaveEvent(QEvent *e);
-	
+
 protected:
 
 	void hideAll();
@@ -132,4 +132,35 @@ private:
 	QString _goodTextLink;
 	anim::fvalue a_goodOpacity;
 	Animation _a_good;
+};
+
+class ConvertToSupergroupBox : public AbstractBox, public RPCSender {
+	Q_OBJECT
+
+public:
+
+	ConvertToSupergroupBox(ChatData *chat);
+	void keyPressEvent(QKeyEvent *e);
+	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
+
+public slots:
+
+	void onConvert();
+
+protected:
+
+	void hideAll();
+	void showAll();
+
+private:
+
+	void convertDone(const MTPUpdates &updates);
+	bool convertFail(const RPCError &error);
+
+	ChatData *_chat;
+	Text _text, _note;
+	int32 _textWidth, _textHeight;
+
+	BoxButton _convert, _cancel;
 };

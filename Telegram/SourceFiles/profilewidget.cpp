@@ -85,6 +85,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 
 // actions
 , _searchInPeer(this, lang(lng_profile_search_messages))
+, _convertToSupergroup(this, lang(lng_profile_convert_button))
 , _clearHistory(this, lang(lng_profile_clear_history))
 , _deleteConversation(this, lang(_peer->isUser() ? lng_profile_delete_conversation : (_peer->isChat() ? lng_profile_clear_and_exit : (_peer->isMegagroup() ? lng_profile_leave_group : lng_profile_leave_channel))))
 , _wasBlocked(_peerUser ? _peerUser->blocked : UserBlockUnknown)
@@ -218,6 +219,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 
 	// actions
 	connect(&_searchInPeer, SIGNAL(clicked()), this, SLOT(onSearchInPeer()));
+	connect(&_convertToSupergroup, SIGNAL(clicked()), this, SLOT(onConvertToSupergroup()));
 	connect(&_clearHistory, SIGNAL(clicked()), this, SLOT(onClearHistory()));
 	connect(&_deleteConversation, SIGNAL(clicked()), this, SLOT(onDeleteConversation()));
 	connect(&_blockUser, SIGNAL(clicked()), this, SLOT(onBlockUser()));
@@ -243,6 +245,10 @@ void ProfileInner::onSendMessage() {
 
 void ProfileInner::onSearchInPeer() {
 	App::main()->searchInPeer(_peer);
+}
+
+void ProfileInner::onConvertToSupergroup() {
+	Ui::showLayer(new ConvertToSupergroupBox(_peerChat));
 }
 
 void ProfileInner::onEnableNotifications() {
@@ -949,6 +955,9 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	top += st::profileHeaderSkip;
 
 	top += _searchInPeer.height() + st::setLittleSkip;
+	if (_peerChat && _amCreator && !_showMigrate) {
+		top += _convertToSupergroup.height() + st::setLittleSkip;
+	}
 	if (_peerUser || _peerChat) {
 		top += _clearHistory.height() + st::setLittleSkip;
 	}
@@ -1429,6 +1438,9 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	// actions
 	top += st::profileHeaderSkip;
 	_searchInPeer.move(_left, top);	top += _searchInPeer.height() + st::setLittleSkip;
+	if (_peerChat && _amCreator && !_showMigrate) {
+		_convertToSupergroup.move(_left, top); top += _convertToSupergroup.height() + st::setLittleSkip;
+	}
 	if (_peerUser || _peerChat) {
 		_clearHistory.move(_left, top); top += _clearHistory.height() + st::setLittleSkip;
 	}
@@ -1585,6 +1597,11 @@ void ProfileInner::allowDecreaseHeight(int32 decreaseBy) {
 
 void ProfileInner::showAll() {
 	_searchInPeer.show();
+	if (_peerChat && _amCreator && !_showMigrate) {
+		_convertToSupergroup.show();
+	} else {
+		_convertToSupergroup.hide();
+	}
 	if (_peerUser || _peerChat) {
 		_clearHistory.show();
 	} else {

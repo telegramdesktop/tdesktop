@@ -542,6 +542,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_migrate_feature4" = "— Notifications are muted by default";
 "lng_profile_migrate_button" = "Upgrade to supergroup";
 "lng_profile_migrate_sure" = "Are you sure you want to upgrade this group to supergroup? This action cannot be undone.";
+"lng_profile_convert_button" = "Convert to supergroup";
+"lng_profile_convert_title" = "Convert to supergroup";
+"lng_profile_convert_about" = "In supergroups:";
+"lng_profile_convert_feature1" = "— New members can see full message history";
+"lng_profile_convert_feature2" = "— Messages are deleted for all members";
+"lng_profile_convert_feature3" = "— Members can edit their own messages";
+"lng_profile_convert_feature4" = "— Creator can set a public link for the group";
+"lng_profile_convert_warning" = "{bold_start}Note:{bold_end} This action can not be undone";
+"lng_profile_convert_confirm" = "Convert";
 
 "lng_channel_comments_count" = "{count:_not_used_|# comment|# comments}";
 "lng_channel_hide_comments" = "Hide comments";

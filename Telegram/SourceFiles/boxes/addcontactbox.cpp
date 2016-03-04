@@ -1213,7 +1213,11 @@ void EditChannelBox::showAll() {
 	_description.show();
 	_save.show();
 	_cancel.show();
-	_publicLink.show();
+	if (_channel->amCreator()) {
+		_publicLink.show();
+	} else {
+		_publicLink.hide();
+	}
 	if (_channel->isMegagroup()) {
 		_sign.hide();
 	} else {
@@ -1260,7 +1264,9 @@ void EditChannelBox::updateMaxHeight() {
 	if (!_channel->isMegagroup()) {
 		h += st::newGroupPublicLinkPadding.top() + _sign.height() + st::newGroupPublicLinkPadding.bottom();
 	}
-	h += st::newGroupPublicLinkPadding.top() + _publicLink.height() + st::newGroupPublicLinkPadding.bottom();
+	if (_channel->amCreator()) {
+		h += st::newGroupPublicLinkPadding.top() + _publicLink.height() + st::newGroupPublicLinkPadding.bottom();
+	}
 	h += st::boxPadding.bottom() + st::newGroupInfoPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom();
 	setMaxHeight(h);
 }

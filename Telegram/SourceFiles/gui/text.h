@@ -564,11 +564,13 @@ enum TextCommands {
 	TextCommandNoItalic    = 0x04,
 	TextCommandUnderline   = 0x05,
 	TextCommandNoUnderline = 0x06,
-	TextCommandLinkIndex   = 0x07, // 0 - NoLink
-	TextCommandLinkText    = 0x08,
-	TextCommandColor       = 0x09,
-	TextCommandNoColor     = 0x0A,
-	TextCommandSkipBlock   = 0x0B,
+	TextCommandSemibold    = 0x07,
+	TextCommandNoSemibold  = 0x08,
+	TextCommandLinkIndex   = 0x09, // 0 - NoLink
+	TextCommandLinkText    = 0x0A,
+	TextCommandColor       = 0x0B,
+	TextCommandNoColor     = 0x0C,
+	TextCommandSkipBlock   = 0x0D,
 
 	TextCommandLangTag     = 0x20,
 };
@@ -747,6 +749,8 @@ QString textcmdLink(ushort lnkIndex, const QString &text);
 QString textcmdLink(const QString &url, const QString &text);
 QString textcmdStartColor(const style::color &color);
 QString textcmdStopColor();
+QString textcmdStartSemibold();
+QString textcmdStopSemibold();
 const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink = true);
 
 inline bool chIsSpace(QChar ch, bool rich = false) {

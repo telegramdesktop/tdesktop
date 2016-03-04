@@ -78,6 +78,7 @@ public slots:
 	void onInviteToGroup();
 	void onSendMessage();
 	void onSearchInPeer();
+	void onConvertToSupergroup();
 	void onEnableNotifications();
 
 	void onClearHistory();
@@ -184,7 +185,7 @@ private:
 	QString overviewLinkText(int32 type, int32 count);
 
 	// actions
-	LinkButton _searchInPeer, _clearHistory, _deleteConversation;
+	LinkButton _searchInPeer, _convertToSupergroup, _clearHistory, _deleteConversation;
 	UserBlockedStatus _wasBlocked;
 	mtpRequestId _blockRequest;
 	LinkButton _blockUser, _deleteChannel;
