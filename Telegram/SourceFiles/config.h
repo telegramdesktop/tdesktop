@@ -171,6 +171,8 @@ enum {
 
 	ChoosePeerByDragTimeout = 1000, // 1 second mouse not moved to choose dialog when dragging a file
 	ReloadChannelMembersTimeout = 1000, // 1 second wait before reload members in channel after adding
+
+	PinnedMessageTextLimit = 16,
 };
 
 inline bool isNotificationsUser(uint64 id) {

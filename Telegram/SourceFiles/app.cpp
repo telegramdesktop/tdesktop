@@ -67,8 +67,8 @@ namespace {
 	SharedContactItems sharedContactItems;
 	GifItems gifItems;
 
-	typedef QMap<HistoryItem*, QMap<HistoryReply*, bool> > RepliesTo;
-	RepliesTo repliesTo;
+	typedef QMap<HistoryItem*, OrderedSet<HistoryItem*> > DependentItems;
+	DependentItems dependentItems;
 
 	Histories histories;
 
@@ -1784,12 +1784,12 @@ namespace App {
 			}
 		}
 		historyItemDetached(item);
-		RepliesTo::iterator j = ::repliesTo.find(item);
-		if (j != ::repliesTo.cend()) {
-			for (QMap<HistoryReply*, bool>::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
-				k.key()->replyToReplaced(item, 0);
+		DependentItems::iterator j = ::dependentItems.find(item);
+		if (j != ::dependentItems.cend()) {
+			for (OrderedSet<HistoryItem*>::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
+				k.key()->dependencyItemRemoved(item);
 			}
-			::repliesTo.erase(j);
+			::dependentItems.erase(j);
 		}
 		if (App::main() && !App::quitting()) {
 			App::main()->itemRemoved(item);
@@ -1797,7 +1797,7 @@ namespace App {
 	}
 
 	void historyClearMsgs() {
-		::repliesTo.clear();
+		::dependentItems.clear();
 
 		QVector<HistoryItem*> toDelete;
 		for (MsgsData::const_iterator i = msgsData.cbegin(), e = msgsData.cend(); i != e; ++i) {
@@ -1869,16 +1869,16 @@ namespace App {
 		if (App::wnd()) App::wnd()->updateGlobalMenu();
 	}
 
-	void historyRegReply(HistoryReply *reply, HistoryItem *to) {
-		::repliesTo[to].insert(reply, true);
+	void historyRegDependency(HistoryItem *dependent, HistoryItem *dependency) {
+		::dependentItems[dependency].insert(dependent);
 	}
 
-	void historyUnregReply(HistoryReply *reply, HistoryItem *to) {
-		RepliesTo::iterator i = ::repliesTo.find(to);
-		if (i != ::repliesTo.cend()) {
-			i.value().remove(reply);
+	void historyUnregDependency(HistoryItem *dependent, HistoryItem *dependency) {
+		DependentItems::iterator i = ::dependentItems.find(dependency);
+		if (i != ::dependentItems.cend()) {
+			i.value().remove(dependent);
 			if (i.value().isEmpty()) {
-				::repliesTo.erase(i);
+				::dependentItems.erase(i);
 			}
 		}
 	}

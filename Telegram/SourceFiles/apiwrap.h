@@ -29,8 +29,8 @@ public:
 	void init();
 
 	void itemRemoved(HistoryItem *item);
-		
-	void requestReplyTo(HistoryReply *reply, ChannelData *channel, MsgId id);
+
+	void requestDependencyItem(HistoryItem *dependent, ChannelData *channel, MsgId id);
 
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);
@@ -59,35 +59,35 @@ signals:
 
 public slots:
 
-	void resolveReplyTo();
+	void resolveDependencyItems();
 	void resolveWebPages();
 
 	void delayedRequestParticipantsCount();
 
 private:
 
-	void gotReplyTo(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
-	struct ReplyToRequest {
-		ReplyToRequest() : req(0) {
+	void gotDependencyItem(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
+	struct DependencyRequest {
+		DependencyRequest() : req(0) {
 		}
 		mtpRequestId req;
-		QList<HistoryReply*> replies;
+		QList<HistoryItem*> dependentItems;
 	};
-	typedef QMap<MsgId, ReplyToRequest> ReplyToRequests;
-	ReplyToRequests _replyToRequests;
-	typedef QMap<ChannelData*, ReplyToRequests> ChannelReplyToRequests;
-	ChannelReplyToRequests _channelReplyToRequests;
-	SingleTimer _replyToTimer;
+	typedef QMap<MsgId, DependencyRequest> DependencyRequests;
+	DependencyRequests _dependencyRequests;
+	typedef QMap<ChannelData*, DependencyRequests> ChannelDependencyRequests;
+	ChannelDependencyRequests _channelDependencyRequests;
+	SingleTimer _dependencyTimer;
 	typedef QVector<MTPint> MessageIds;
-	MessageIds collectMessageIds(const ReplyToRequests &requests);
-	ReplyToRequests *replyToRequests(ChannelData *channel, bool onlyExisting = false);
+	MessageIds collectMessageIds(const DependencyRequests &requests);
+	DependencyRequests *dependencyRequests(ChannelData *channel, bool onlyExisting = false);
 
 	void gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mtpRequestId req);
 	void gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestId req);
 	bool gotPeerFullFailed(PeerData *peer, const RPCError &err);
 	typedef QMap<PeerData*, mtpRequestId> PeerRequests;
 	PeerRequests _fullPeerRequests;
-	
+
 	void gotChat(PeerData *peer, const MTPmessages_Chats &result);
 	void gotUser(PeerData *peer, const MTPVector<MTPUser> &result);
 	void gotChats(const MTPmessages_Chats &result);

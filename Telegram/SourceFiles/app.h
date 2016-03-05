@@ -152,8 +152,8 @@ namespace App {
 	void historyUnregItem(HistoryItem *item);
 	void historyClearMsgs();
 	void historyClearItems();
-	void historyRegReply(HistoryReply *reply, HistoryItem *to);
-	void historyUnregReply(HistoryReply *reply, HistoryItem *to);
+	void historyRegDependency(HistoryItem *dependent, HistoryItem *dependency);
+	void historyUnregDependency(HistoryItem *dependent, HistoryItem *dependency);
 
 	void historyRegRandom(uint64 randomId, const FullMsgId &itemId);
 	void historyUnregRandom(uint64 randomId);

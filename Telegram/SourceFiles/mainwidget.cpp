@@ -2056,7 +2056,7 @@ ApiWrap *MainWidget::api() {
 	return _api;
 }
 
-void MainWidget::updateReplyTo() {
+void MainWidget::updateDependencyItem() {
 	history.updateReplyEditTexts(true);
 }
 

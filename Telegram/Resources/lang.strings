@@ -533,6 +533,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_created_chat" = "{from} created group «{title}»";
 "lng_action_created_channel" = "Channel «{title}» created";
 "lng_action_group_migrate" = "The group was upgraded to a supergroup";
+"lng_action_pinned_message" = "{from} pinned «{text}»";
+"lng_action_pinned_media" = "{from} pinned {media}";
+"lng_action_pinned_media_photo" = "a photo";
+"lng_action_pinned_media_video" = "a video file";
+"lng_action_pinned_media_music" = "a music file";
+"lng_action_pinned_media_voice" = "a voice message";
+"lng_action_pinned_media_file" = "a file";
+"lng_action_pinned_media_gif" = "a GIF animation";
+"lng_action_pinned_media_contact" = "a contact information";
+"lng_action_pinned_media_location" = "a location mark";
+"lng_action_pinned_media_sticker" = "a sticker";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# member|# members} limit reached";
 "lng_profile_migrate_about" = "If you'd like to go over this limit, you can upgrade your group to a supergroup. In supergroups:";

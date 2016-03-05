@@ -3500,7 +3500,7 @@ void HistoryWidget::applyDraft(bool parseLinks) {
 	if (_editMsgId || _replyToId) {
 		updateReplyEditTexts();
 		if (!_replyEditMsg && App::api()) {
-			App::api()->requestReplyTo(0, _peer->asChannel(), _editMsgId ? _editMsgId : _replyToId);
+			App::api()->requestDependencyItem(0, _peer->asChannel(), _editMsgId ? _editMsgId : _replyToId);
 		}
 	}
 }

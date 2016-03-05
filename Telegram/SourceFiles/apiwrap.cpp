@@ -32,7 +32,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 ApiWrap::ApiWrap(QObject *parent) : QObject(parent) {
 	App::initBackground();
 
-	connect(&_replyToTimer, SIGNAL(timeout()), this, SLOT(resolveReplyTo()));
+	connect(&_dependencyTimer, SIGNAL(timeout()), this, SLOT(resolveDependencyItems()));
 	connect(&_webPagesTimer, SIGNAL(timeout()), this, SLOT(resolveWebPages()));
 }
 
@@ -40,78 +40,78 @@ void ApiWrap::init() {
 }
 
 void ApiWrap::itemRemoved(HistoryItem *item) {
-	if (HistoryReply *reply = item->toHistoryReply()) {
-		ChannelData *channel = reply->history()->peer->asChannel();
-		ReplyToRequests *requests(replyToRequests(channel, true));
+	if (MsgId dependencyMsgId = item->dependencyMsgId()) {
+		ChannelData *channel = item->history()->peer->asChannel();
+		DependencyRequests *requests(dependencyRequests(channel, true));
 		if (requests) {
-			ReplyToRequests::iterator i = requests->find(reply->replyToId());
+			DependencyRequests::iterator i = requests->find(dependencyMsgId);
 			if (i != requests->cend()) {
-				for (QList<HistoryReply*>::iterator j = i->replies.begin(); j != i->replies.end();) {
-					if ((*j) == reply) {
-						j = i->replies.erase(j);
+				for (QList<HistoryItem*>::iterator j = i->dependentItems.begin(); j != i->dependentItems.end();) {
+					if ((*j) == item) {
+						j = i->dependentItems.erase(j);
 					} else {
 						++j;
 					}
 				}
-				if (i->replies.isEmpty()) {
+				if (i->dependentItems.isEmpty()) {
 					requests->erase(i);
 				}
 			}
 			if (channel && requests->isEmpty()) {
-				_channelReplyToRequests.remove(channel);
+				_channelDependencyRequests.remove(channel);
 			}
 		}
 	}
 }
 
-void ApiWrap::requestReplyTo(HistoryReply *reply, ChannelData *channel, MsgId id) {
-	ReplyToRequest &req(channel ? _channelReplyToRequests[channel][id] : _replyToRequests[id]);
-	req.replies.append(reply);
-	if (!req.req) _replyToTimer.start(1);
+void ApiWrap::requestDependencyItem(HistoryItem *dependency, ChannelData *channel, MsgId id) {
+	DependencyRequest &req(channel ? _channelDependencyRequests[channel][id] : _dependencyRequests[id]);
+	req.dependentItems.append(dependency);
+	if (!req.req) _dependencyTimer.start(1);
 }
 
-ApiWrap::MessageIds ApiWrap::collectMessageIds(const ReplyToRequests &requests) {
+ApiWrap::MessageIds ApiWrap::collectMessageIds(const DependencyRequests &requests) {
 	MessageIds result;
 	result.reserve(requests.size());
-	for (ReplyToRequests::const_iterator i = requests.cbegin(), e = requests.cend(); i != e; ++i) {
+	for (DependencyRequests::const_iterator i = requests.cbegin(), e = requests.cend(); i != e; ++i) {
 		if (i.value().req > 0) continue;
 		result.push_back(MTP_int(i.key()));
 	}
 	return result;
 }
 
-ApiWrap::ReplyToRequests *ApiWrap::replyToRequests(ChannelData *channel, bool onlyExisting) {
+ApiWrap::DependencyRequests *ApiWrap::dependencyRequests(ChannelData *channel, bool onlyExisting) {
 	if (channel) {
-		ChannelReplyToRequests::iterator i = _channelReplyToRequests.find(channel);
-		if (i == _channelReplyToRequests.cend()) {
+		ChannelDependencyRequests::iterator i = _channelDependencyRequests.find(channel);
+		if (i == _channelDependencyRequests.cend()) {
 			if (onlyExisting) return 0;
-			i = _channelReplyToRequests.insert(channel, ReplyToRequests());
+			i = _channelDependencyRequests.insert(channel, DependencyRequests());
 		}
 		return &i.value();
 	}
-	return &_replyToRequests;
+	return &_dependencyRequests;
 }
 
-void ApiWrap::resolveReplyTo() {
-	if (_replyToRequests.isEmpty() && _channelReplyToRequests.isEmpty()) return;
+void ApiWrap::resolveDependencyItems() {
+	if (_dependencyRequests.isEmpty() && _channelDependencyRequests.isEmpty()) return;
 
-	MessageIds ids = collectMessageIds(_replyToRequests);
+	MessageIds ids = collectMessageIds(_dependencyRequests);
 	if (!ids.isEmpty()) {
-		mtpRequestId req = MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotReplyTo, (ChannelData*)0), RPCFailHandlerPtr(), 0, 5);
-		for (ReplyToRequests::iterator i = _replyToRequests.begin(); i != _replyToRequests.cend(); ++i) {
+		mtpRequestId req = MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotDependencyItem, (ChannelData*)0), RPCFailHandlerPtr(), 0, 5);
+		for (DependencyRequests::iterator i = _dependencyRequests.begin(); i != _dependencyRequests.cend(); ++i) {
 			if (i.value().req > 0) continue;
 			i.value().req = req;
 		}
 	}
-	for (ChannelReplyToRequests::iterator j = _channelReplyToRequests.begin(); j != _channelReplyToRequests.cend();) {
+	for (ChannelDependencyRequests::iterator j = _channelDependencyRequests.begin(); j != _channelDependencyRequests.cend();) {
 		if (j->isEmpty()) {
-			j = _channelReplyToRequests.erase(j);
+			j = _channelDependencyRequests.erase(j);
 			continue;
 		}
 		MessageIds ids = collectMessageIds(j.value());
 		if (!ids.isEmpty()) {
-			mtpRequestId req = MTP::send(MTPchannels_GetMessages(j.key()->inputChannel, MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotReplyTo, j.key()), RPCFailHandlerPtr(), 0, 5);
-			for (ReplyToRequests::iterator i = j->begin(); i != j->cend(); ++i) {
+			mtpRequestId req = MTP::send(MTPchannels_GetMessages(j.key()->inputChannel, MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotDependencyItem, j.key()), RPCFailHandlerPtr(), 0, 5);
+			for (DependencyRequests::iterator i = j->begin(); i != j->cend(); ++i) {
 				if (i.value().req > 0) continue;
 				i.value().req = req;
 			}
@@ -120,7 +120,7 @@ void ApiWrap::resolveReplyTo() {
 	}
 }
 
-void ApiWrap::gotReplyTo(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId req) {
+void ApiWrap::gotDependencyItem(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId req) {
 	switch (msgs.type()) {
 	case mtpc_messages_messages: {
 		const MTPDmessages_messages &d(msgs.c_messages_messages());
@@ -141,10 +141,10 @@ void ApiWrap::gotReplyTo(ChannelData *channel, const MTPmessages_Messages &msgs,
 		if (channel) {
 			channel->ptsReceived(d.vpts.v);
 		} else {
-			LOG(("App Error: received messages.channelMessages when no channel was passed! (ApiWrap::gotReplyTo)"));
+			LOG(("App Error: received messages.channelMessages when no channel was passed! (ApiWrap::gotDependencyItem)"));
 		}
 		if (d.has_collapsed()) { // should not be returned
-			LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (ApiWrap::gotReplyTo)"));
+			LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (ApiWrap::gotDependencyItem)"));
 		}
 
 		App::feedUsers(d.vusers);
@@ -152,15 +152,15 @@ void ApiWrap::gotReplyTo(ChannelData *channel, const MTPmessages_Messages &msgs,
 		App::feedMsgs(d.vmessages, NewMessageExisting);
 	} break;
 	}
-	ReplyToRequests *requests(replyToRequests(channel, true));
+	DependencyRequests *requests(dependencyRequests(channel, true));
 	if (requests) {
-		for (ReplyToRequests::iterator i = requests->begin(); i != requests->cend();) {
+		for (DependencyRequests::iterator i = requests->begin(); i != requests->cend();) {
 			if (i.value().req == req) {
-				for (QList<HistoryReply*>::const_iterator j = i.value().replies.cbegin(), e = i.value().replies.cend(); j != e; ++j) {
+				for (QList<HistoryItem*>::const_iterator j = i.value().dependentItems.cbegin(), e = i.value().dependentItems.cend(); j != e; ++j) {
 					if (*j) {
-						(*j)->updateReplyTo(true);
-					} else {
-						App::main()->updateReplyTo();
+						(*j)->updateDependencyItem();
+					} else if (App::main()) {
+						App::main()->updateDependencyItem();
 					}
 				}
 				i = requests->erase(i);
@@ -169,7 +169,7 @@ void ApiWrap::gotReplyTo(ChannelData *channel, const MTPmessages_Messages &msgs,
 			}
 		}
 		if (channel && requests->isEmpty()) {
-			_channelReplyToRequests.remove(channel);
+			_channelDependencyRequests.remove(channel);
 		}
 	}
 }

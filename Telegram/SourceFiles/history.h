@@ -115,7 +115,6 @@ struct FakeDialogRow {
 enum HistoryMediaType {
 	MediaTypePhoto,
 	MediaTypeVideo,
-	MediaTypeGeo,
 	MediaTypeContact,
 	MediaTypeFile,
 	MediaTypeGif,
@@ -918,6 +917,15 @@ public:
 	virtual void initDimensions() = 0;
 	virtual int32 resize(int32 width) = 0; // return new height
 	virtual void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const = 0;
+
+	virtual void dependencyItemRemoved(HistoryItem *dependency) {
+	}
+	virtual bool updateDependencyItem() {
+		return true;
+	}
+	virtual MsgId dependencyMsgId() const {
+		return 0;
+	}
 
 	virtual UserData *viaBot() const {
 		return 0;
@@ -2229,15 +2237,19 @@ public:
 
 	void initDimensions();
 
-	bool updateReplyTo(bool force = false);
-	void replyToNameUpdated() const;
+	bool updateDependencyItem() override {
+		return updateReplyTo(true);
+	}
+	MsgId dependencyMsgId() const override {
+		return replyToId();
+	}
 	int32 replyToWidth() const;
 
 	TextLinkPtr replyToLink() const;
 
 	MsgId replyToId() const;
 	HistoryItem *replyToMessage() const;
-	void replyToReplaced(HistoryItem *oldItem, HistoryItem *newItem);
+	void dependencyItemRemoved(HistoryItem *dependency) override;
 
 	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const;
 	void drawReplyTo(Painter &p, int32 x, int32 y, int32 w, bool selected, bool likeService = false) const;
@@ -2264,6 +2276,9 @@ public:
 	~HistoryReply();
 
 protected:
+
+	bool updateReplyTo(bool force = false);
+	void replyToNameUpdated() const;
 
 	MsgId replyToMsgId;
 	HistoryItem *replyToMsg;
@@ -2296,6 +2311,14 @@ inline int32 newForwardedFlags(PeerData *p, int32 from, HistoryMessage *fwd) {
 	return result;
 }
 
+struct HistoryServicePinned : public BasicInterface<HistoryServicePinned> {
+	HistoryServicePinned(Interfaces *);
+
+	MsgId msgId;
+	HistoryItem *msg;
+	TextLinkPtr lnk;
+};
+
 class HistoryServiceMsg : public HistoryItem {
 public:
 
@@ -2303,6 +2326,16 @@ public:
 	HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, int32 flags = 0, HistoryMedia *media = 0, int32 from = 0);
 
 	void initDimensions();
+
+	bool updateDependencyItem() override {
+		return updatePinned(true);
+	}
+	MsgId dependencyMsgId() const override {
+		if (const HistoryServicePinned *pinned = Get<HistoryServicePinned>()) {
+			return pinned->msgId;
+		}
+		return 0;
+	}
 
 	void countPositionAndSize(int32 &left, int32 &width) const;
 
@@ -2344,6 +2377,8 @@ public:
 protected:
 
 	void setMessageByAction(const MTPmessageAction &action);
+	bool updatePinned(bool force = false);
+	bool updatePinnedText(const QString *pfrom = nullptr, QString *ptext = nullptr);
 
 	Text _text;
 	HistoryMedia *_media;

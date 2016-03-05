@@ -373,7 +373,7 @@ public:
 	ImagePtr newBackgroundThumb();
 
 	ApiWrap *api();
-	void updateReplyTo();
+	void updateDependencyItem();
 	void updateBotKeyboard(History *h);
 
 	void pushReplyReturn(HistoryItem *item);
