@@ -7548,6 +7548,7 @@ bool HistoryServiceMsg::updatePinnedText(const QString *pfrom, QString *ptext) {
 		from = textcmdLink(1, _from->name);
 	}
 
+	TextLinkPtr second;
 	HistoryServicePinned *pinned = Get<HistoryServicePinned>();
 	if (pinned && pinned->msg) {
 		HistoryMedia *media = pinned->msg->getMedia();
@@ -7582,9 +7583,11 @@ bool HistoryServiceMsg::updatePinnedText(const QString *pfrom, QString *ptext) {
 		} else {
 			text = lng_action_pinned_media(lt_from, from, lt_media, textcmdLink(2, mediaText));
 		}
+		second = pinned->lnk;
 		result = true;
 	} else if (pinned && pinned->msgId) {
 		text = lng_action_pinned_media(lt_from, from, lt_media, textcmdLink(2, lang(lng_contacts_loading)));
+		second = pinned->lnk;
 		result = true;
 	} else {
 		text = lng_action_pinned_media(lt_from, from, lt_media, lang(lng_deleted_message));
@@ -7593,6 +7596,16 @@ bool HistoryServiceMsg::updatePinnedText(const QString *pfrom, QString *ptext) {
 		*ptext = text;
 	} else {
 		setServiceText(text);
+		_text.setLink(1, TextLinkPtr(new PeerLink(_from)));
+		if (second) {
+			_text.setLink(2, second);
+		}
+		if (history()->textCachedFor == this) {
+			history()->textCachedFor = 0;
+		}
+		if (App::main()) {
+			App::main()->dlgUpdated(history(), id);
+		}
 	}
 	return result;
 }

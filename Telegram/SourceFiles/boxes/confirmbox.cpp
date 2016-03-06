@@ -180,12 +180,12 @@ ConfirmLinkBox::ConfirmLinkBox(const QString &url) : ConfirmBox(lang(lng_open_th
 }
 
 void ConfirmLinkBox::onOpenLink() {
+	Ui::hideLayer();
 	if (reMailStart().match(_url).hasMatch()) {
 		EmailLink(_url).onClick(Qt::LeftButton);
 	} else {
 		TextLink(_url).onClick(Qt::LeftButton);
 	}
-	Ui::hideLayer();
 }
 
 MaxInviteBox::MaxInviteBox(const QString &link) : AbstractBox(st::boxWidth)
