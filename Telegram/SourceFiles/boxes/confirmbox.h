@@ -199,3 +199,45 @@ private:
 	mtpRequestId _requestId;
 
 };
+
+class RichDeleteMessageBox : public AbstractBox, public RPCSender {
+	Q_OBJECT
+
+public:
+
+	RichDeleteMessageBox(ChannelData *channel, UserData *from, MsgId msgId);
+
+	void resizeEvent(QResizeEvent *e);
+
+public slots:
+
+	void onDelete();
+
+protected:
+
+	void showAll();
+	void hideAll();
+
+private:
+
+	void deleteDone(const MTPmessages_AffectedMessages &result, mtpRequestId req);
+	void banDone(const MTPUpdates &result, mtpRequestId req);
+	void reportDone(const MTPBool &result, mtpRequestId req);
+	void deleteAllPart(const MTPmessages_AffectedHistory &result, mtpRequestId req);
+
+	bool deleteFail(const RPCError &error, mtpRequestId req);
+
+	void checkFinished();
+
+	ChannelData *_channel;
+	UserData *_from;
+	MsgId _msgId;
+
+	FlatLabel _text;
+	Checkbox _banUser, _reportSpam, _deleteAll;
+
+	BoxButton _delete, _cancel;
+
+	mtpRequestId _deleteRequestId, _banRequestId, _reportRequestId, _deleteAllRequestId;
+
+};

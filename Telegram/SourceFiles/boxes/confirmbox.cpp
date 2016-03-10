@@ -434,3 +434,175 @@ bool PinMessageBox::pinFail(const RPCError &error) {
 	Ui::hideLayer();
 	return true;
 }
+
+RichDeleteMessageBox::RichDeleteMessageBox(ChannelData *channel, UserData *from, MsgId msgId) : AbstractBox(st::boxWidth)
+, _channel(channel)
+, _from(from)
+, _msgId(msgId)
+, _text(this, lang(lng_selected_delete_sure_this), st::boxLabel)
+, _banUser(this, lang(lng_ban_user), false)
+, _reportSpam(this, lang(lng_report_spam), false)
+, _deleteAll(this, lang(lng_delete_all_from), false)
+, _delete(this, lang(lng_box_delete), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
+, _deleteRequestId(0)
+, _banRequestId(0)
+, _reportRequestId(0)
+, _deleteAllRequestId(0) {
+	_text.resizeToWidth(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right());
+	setMaxHeight(st::boxPadding.top() + _text.height() + st::boxMediumSkip + _banUser.height() + st::boxLittleSkip + _reportSpam.height() + st::boxLittleSkip + _deleteAll.height() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _delete.height() + st::boxButtonPadding.bottom());
+
+	connect(&_delete, SIGNAL(clicked()), this, SLOT(onDelete()));
+	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+}
+
+void RichDeleteMessageBox::resizeEvent(QResizeEvent *e) {
+	_text.moveToLeft(st::boxPadding.left(), st::boxPadding.top());
+	_banUser.moveToLeft(st::boxPadding.left(), _text.y() + _text.height() + st::boxMediumSkip);
+	_reportSpam.moveToLeft(st::boxPadding.left(), _banUser.y() + _banUser.height() + st::boxLittleSkip);
+	_deleteAll.moveToLeft(st::boxPadding.left(), _reportSpam.y() + _reportSpam.height() + st::boxLittleSkip);
+	_delete.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _delete.height());
+	_cancel.moveToRight(st::boxButtonPadding.right() + _delete.width() + st::boxButtonPadding.left(), _delete.y());
+}
+
+void RichDeleteMessageBox::onDelete() {
+	if (_deleteRequestId || _banRequestId || _reportRequestId || _deleteAllRequestId) return;
+
+	HistoryItem *item = App::histItemById(_channel ? peerToChannel(_channel->id) : 0, _msgId);
+	if (!item || item->type() != HistoryItemMsg) {
+		Ui::hideLayer();
+		return;
+	}
+
+	QVector<MTPint> toDelete(1, MTP_int(item->id));
+	History *h = item->history();
+	bool wasOnServer = (item->id > 0), wasLast = (h->lastMsg == item);
+	bool banUser = _banUser.checked(), reportSpam = _reportSpam.checked(), deleteAll = _deleteAll.checked();
+
+	item->destroy();
+	if (!wasOnServer && wasLast && !h->lastMsg) {
+		App::main()->checkPeerHistory(h->peer);
+	}
+
+	Notify::historyItemsResized();
+	if (wasOnServer) {
+		_deleteRequestId = MTP::send(MTPchannels_DeleteMessages(_channel->inputChannel, MTP_vector<MTPint>(1, MTP_int(item->id))), rpcDone(&RichDeleteMessageBox::deleteDone), rpcFail(&RichDeleteMessageBox::deleteFail));
+	}
+	if (banUser) {
+		_banRequestId = MTP::send(MTPchannels_KickFromChannel(_channel->inputChannel, _from->inputUser, MTP_boolTrue()), rpcDone(&RichDeleteMessageBox::banDone), rpcFail(&RichDeleteMessageBox::deleteFail));
+	}
+	if (reportSpam) {
+		_reportRequestId = MTP::send(MTPchannels_ReportSpam(_channel->inputChannel, _from->inputUser, MTP_vector<MTPint>(1, MTP_int(item->id))), rpcDone(&RichDeleteMessageBox::reportDone), rpcFail(&RichDeleteMessageBox::deleteFail));
+	}
+	if (deleteAll) {
+		_deleteAllRequestId = MTP::send(MTPchannels_DeleteUserHistory(_channel->inputChannel, _from->inputUser), rpcDone(&RichDeleteMessageBox::deleteAllPart), rpcFail(&RichDeleteMessageBox::deleteFail));
+	}
+}
+
+void RichDeleteMessageBox::showAll() {
+	_text.show();
+	_banUser.show();
+	_reportSpam.show();
+	_deleteAll.show();
+	_delete.show();
+	_cancel.show();
+}
+
+void RichDeleteMessageBox::hideAll() {
+	_text.hide();
+	_banUser.hide();
+	_reportSpam.hide();
+	_deleteAll.hide();
+	_delete.hide();
+	_cancel.hide();
+}
+
+void RichDeleteMessageBox::deleteDone(const MTPmessages_AffectedMessages &result, mtpRequestId req) {
+	const MTPDmessages_affectedMessages &d(result.c_messages_affectedMessages());
+	if (_channel->ptsUpdated(d.vpts.v, d.vpts_count.v)) {
+		_channel->ptsApplySkippedUpdates();
+		App::emitPeerUpdated();
+	}
+	if (History *h = App::historyLoaded(_channel->id)) {
+		if (!h->lastMsg && App::main()) {
+			App::main()->checkPeerHistory(_channel);
+		}
+	}
+	if (req == _deleteRequestId) {
+		_deleteRequestId = 0;
+	} else if (req == _banRequestId) {
+		_banRequestId = 0;
+	} else if (req == _reportRequestId) {
+		_reportRequestId = 0;
+	} else if (req == _deleteAllRequestId) {
+		_deleteAllRequestId = 0;
+	}
+	checkFinished();
+}
+
+void RichDeleteMessageBox::banDone(const MTPUpdates &result, mtpRequestId req) {
+	if (App::main()) {
+		App::main()->sentUpdatesReceived(result);
+	}
+	if (req == _banRequestId) {
+		_banRequestId = 0;
+	}
+	checkFinished();
+}
+
+void RichDeleteMessageBox::reportDone(const MTPBool &result, mtpRequestId req) {
+	if (req == _reportRequestId) {
+		_reportRequestId = 0;
+	}
+	checkFinished();
+}
+
+void RichDeleteMessageBox::deleteAllPart(const MTPmessages_AffectedHistory &result, mtpRequestId req) {
+	const MTPDmessages_affectedHistory &d(result.c_messages_affectedHistory());
+	if (_channel->ptsUpdated(d.vpts.v, d.vpts_count.v)) {
+		_channel->ptsApplySkippedUpdates();
+		App::emitPeerUpdated();
+	}
+	if (req == _deleteRequestId) {
+		_deleteRequestId = 0;
+	} else if (req == _banRequestId) {
+		_banRequestId = 0;
+	} else if (req == _reportRequestId) {
+		_reportRequestId = 0;
+	} else if (req == _deleteAllRequestId) {
+		_deleteAllRequestId = 0;
+	}
+
+	int32 offset = d.voffset.v;
+	if (offset <= 0) {
+		if (History *h = App::historyLoaded(_channel->id)) {
+			if (!h->lastMsg && App::main()) {
+				App::main()->checkPeerHistory(_channel);
+			}
+		}
+		checkFinished();
+		return;
+	}
+
+	_deleteAllRequestId = MTP::send(MTPchannels_DeleteUserHistory(_channel->inputChannel, _from->inputUser), rpcDone(&RichDeleteMessageBox::deleteAllPart), rpcFail(&RichDeleteMessageBox::deleteFail));
+}
+
+bool RichDeleteMessageBox::deleteFail(const RPCError &error, mtpRequestId req) {
+	if (mtpIsFlood(error)) return false;
+	if (req == _deleteRequestId) {
+		_deleteRequestId = 0;
+	} else if (req == _banRequestId) {
+		_banRequestId = 0;
+	} else if (req == _reportRequestId) {
+		_reportRequestId = 0;
+	} else if (req == _deleteAllRequestId) {
+		_deleteAllRequestId = 0;
+	}
+	checkFinished();
+	return true;
+}
+
+void RichDeleteMessageBox::checkFinished() {
+	if (_deleteRequestId || _banRequestId || _reportRequestId || _deleteAllRequestId) return;
+	Ui::hideLayer();
+}

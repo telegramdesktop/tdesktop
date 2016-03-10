@@ -457,13 +457,13 @@ public:
 	}
 	typedef QMap<UserData*, int32> Participants;
 	Participants participants;
-	typedef QMap<UserData*, bool> InvitedByMe;
+	typedef OrderedSet<UserData*> InvitedByMe;
 	InvitedByMe invitedByMe;
-	typedef QMap<UserData*, bool> Admins;
+	typedef OrderedSet<UserData*> Admins;
 	Admins admins;
 	typedef QList<UserData*> LastAuthors;
 	LastAuthors lastAuthors;
-	typedef QMap<PeerData*, bool> MarkupSenders;
+	typedef OrderedSet<PeerData*> MarkupSenders;
 	MarkupSenders markupSenders;
 	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 //	ImagePtr photoFull;
@@ -542,11 +542,11 @@ struct MegagroupInfo {
 	}
 	typedef QList<UserData*> LastParticipants;
 	LastParticipants lastParticipants;
-	typedef QMap<UserData*, bool> LastAdmins;
+	typedef OrderedSet<UserData*> LastAdmins;
 	LastAdmins lastAdmins;
-	typedef QMap<PeerData*, bool> MarkupSenders;
+	typedef OrderedSet<PeerData*> MarkupSenders;
 	MarkupSenders markupSenders;
-	typedef QMap<UserData*, bool> Bots;
+	typedef OrderedSet<UserData*> Bots;
 	Bots bots;
 	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 

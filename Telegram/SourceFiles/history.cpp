@@ -1409,7 +1409,7 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 								peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
 							}
 							if (user->botInfo) {
-								peer->asChannel()->mgInfo->bots.insert(user, true);
+								peer->asChannel()->mgInfo->bots.insert(user);
 								if (peer->asChannel()->mgInfo->botStatus != 0 && peer->asChannel()->mgInfo->botStatus < 2) {
 									peer->asChannel()->mgInfo->botStatus = 2;
 								}
@@ -1427,7 +1427,7 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 							peer->asChannel()->mgInfo->lastParticipants.push_front(result->from()->asUser());
 						}
 						if (result->from()->asUser()->botInfo) {
-							peer->asChannel()->mgInfo->bots.insert(result->from()->asUser(), true);
+							peer->asChannel()->mgInfo->bots.insert(result->from()->asUser());
 							if (peer->asChannel()->mgInfo->botStatus != 0 && peer->asChannel()->mgInfo->botStatus < 2) {
 								peer->asChannel()->mgInfo->botStatus = 2;
 							}
@@ -1742,7 +1742,7 @@ HistoryItem *History::addNewItem(HistoryBlock *to, bool newBlock, HistoryItem *a
 			} else if (peer->isMegagroup()) {
 				lastAuthors = &peer->asChannel()->mgInfo->lastParticipants;
 				if (adding->from()->asUser()->botInfo) {
-					peer->asChannel()->mgInfo->bots.insert(adding->from()->asUser(), true);
+					peer->asChannel()->mgInfo->bots.insert(adding->from()->asUser());
 					if (peer->asChannel()->mgInfo->botStatus != 0 && peer->asChannel()->mgInfo->botStatus < 2) {
 						peer->asChannel()->mgInfo->botStatus = 2;
 					}
@@ -1763,14 +1763,14 @@ HistoryItem *History::addNewItem(HistoryBlock *to, bool newBlock, HistoryItem *a
 		if (adding->hasReplyMarkup()) {
 			int32 markupFlags = App::replyMarkup(channelId(), adding->id).flags;
 			if (!(markupFlags & MTPDreplyKeyboardMarkup::flag_selective) || adding->mentionsMe()) {
-				QMap<PeerData*, bool> *markupSenders = 0;
+				OrderedSet<PeerData*> *markupSenders = 0;
 				if (peer->isChat()) {
 					markupSenders = &peer->asChat()->markupSenders;
 				} else if (peer->isMegagroup()) {
 					markupSenders = &peer->asChannel()->mgInfo->markupSenders;
 				}
 				if (markupSenders) {
-					markupSenders->insert(adding->from(), true);
+					markupSenders->insert(adding->from());
 				}
 				if (markupFlags & MTPDreplyKeyboardMarkup_flag_ZERO) { // zero markup means replyKeyboardHide
 					if (lastKeyboardFrom == adding->from()->id || (!lastKeyboardInited && !peer->isChat() && !peer->isMegagroup() && !adding->out())) {
@@ -1977,7 +1977,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 			bool channel = isChannel();
 			int32 mask = 0;
 			QList<UserData*> *lastAuthors = 0;
-			QMap<PeerData*, bool> *markupSenders = 0;
+			OrderedSet<PeerData*> *markupSenders = 0;
 			if (peer->isChat()) {
 				lastAuthors = &peer->asChat()->lastAuthors;
 				markupSenders = &peer->asChat()->markupSenders;
@@ -2007,7 +2007,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 							if (!(markupFlags & MTPDreplyKeyboardMarkup::flag_selective) || item->mentionsMe()) {
 								bool wasKeyboardHide = markupSenders->contains(item->author());
 								if (!wasKeyboardHide) {
-									markupSenders->insert(item->author(), true);
+									markupSenders->insert(item->author());
 								}
 								if (!(markupFlags & MTPDreplyKeyboardMarkup_flag_ZERO)) {
 									if (!lastKeyboardInited) {
@@ -2931,6 +2931,9 @@ void HistoryItem::destroy() {
 	detach();
 	if (history()->isChannel()) {
 		history()->asChannelHistory()->messageDeleted(this);
+		if (history()->peer->isMegagroup() && history()->peer->asChannel()->mgInfo->pinnedMsgId == id) {
+			history()->peer->asChannel()->mgInfo->pinnedMsgId = 0;
+		}
 	}
 	if (history()->lastMsg == this) {
 		history()->fixLastMessage(wasAtBottom);

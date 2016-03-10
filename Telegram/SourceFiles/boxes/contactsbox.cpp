@@ -1669,7 +1669,7 @@ void ContactsBox::setAdminDone(UserData *user, const MTPBool &result) {
 		if (_inner.chat()->noParticipantInfo()) {
 			App::api()->requestFullPeer(_inner.chat());
 		} else {
-			_inner.chat()->admins.insert(user, true);
+			_inner.chat()->admins.insert(user);
 		}
 	}
 	--_saveRequestId;
@@ -2180,6 +2180,16 @@ void MembersInner::membersReceived(const MTPchannels_ChannelParticipants &result
 				_dates.push_back(date(addedTime));
 				_roles.push_back(role);
 				_datas.push_back(0);
+			}
+		}
+
+		// update admins if we got all of them
+		if (_filter == MembersFilterAdmins && _channel->isMegagroup() && _rows.size() < Global::ChatSizeMax()) {
+			_channel->mgInfo->lastAdmins.clear();
+			for (int32 i = 0, l = _rows.size(); i != l; ++i) {
+				if (_roles.at(i) == MemberRoleCreator || _roles.at(i) == MemberRoleEditor) {
+					_channel->mgInfo->lastAdmins.insert(_rows.at(i));
+				}
 			}
 		}
 	}

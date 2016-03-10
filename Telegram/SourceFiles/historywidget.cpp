@@ -6258,6 +6258,9 @@ void HistoryWidget::itemRemoved(HistoryItem *item) {
 	if (item == _replyReturn) {
 		calcNextReplyReturn();
 	}
+	if (_pinnedBar && item->id == _pinnedBar->msgId) {
+		pinnedMsgVisibilityUpdated();
+	}
 	if (_kbReplyTo && item == _kbReplyTo) {
 		onKbToggle();
 		_kbReplyTo = 0;

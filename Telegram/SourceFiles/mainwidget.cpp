@@ -907,6 +907,15 @@ void MainWidget::forwardLayer(int32 forwardSelected) {
 }
 
 void MainWidget::deleteLayer(int32 selectedCount) {
+	if (selectedCount == -1 && !overview) {
+		if (HistoryItem *item = App::contextItem()) {
+			ChannelData *channel = item->history()->peer->asChannel();
+			if (channel && !item->isPost() && !item->out() && item->from()->isUser() && (channel->amCreator() || channel->amEditor())) {
+				Ui::showLayer(new RichDeleteMessageBox(channel, item->from()->asUser(), item->id));
+				return;
+			}
+		}
+	}
 	QString str((selectedCount < 0) ? lang(selectedCount < -1 ? lng_selected_cancel_sure_this : lng_selected_delete_sure_this) : lng_selected_delete_sure(lt_count, selectedCount));
 	QString btn(lang((selectedCount < -1) ? lng_selected_upload_stop : lng_box_delete)), cancel(lang((selectedCount < -1) ? lng_continue : lng_cancel));
 	ConfirmBox *box = new ConfirmBox(str, btn, st::defaultBoxButton, cancel);

@@ -664,10 +664,10 @@ namespace App {
 					if (user) {
 						chat->participants[user] = pversion;
 						if (inviter == MTP::authedId()) {
-							chat->invitedByMe[user] = true;
+							chat->invitedByMe.insert(user);
 						}
 						if (i->type() == mtpc_chatParticipantAdmin) {
-							chat->admins[user] = true;
+							chat->admins.insert(user);
 							if (user->isSelf()) {
 								chat->flags |= MTPDchat::flag_admin;
 							}
@@ -736,7 +736,7 @@ namespace App {
 				} else if (chat->participants.find(user) == chat->participants.end()) {
 					chat->participants[user] = (chat->participants.isEmpty() ? 1 : chat->participants.begin().value());
 					if (d.vinviter_id.v == MTP::authedId()) {
-						chat->invitedByMe[user] = true;
+						chat->invitedByMe.insert(user);
 					} else {
 						chat->invitedByMe.remove(user);
 					}
@@ -876,7 +876,7 @@ namespace App {
 					if (chat->noParticipantInfo()) {
 						App::api()->requestFullPeer(chat);
 					} else {
-						chat->admins.insert(user, true);
+						chat->admins.insert(user);
 					}
 				} else {
 					if (user->isSelf()) {

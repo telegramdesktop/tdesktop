@@ -512,7 +512,7 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 		UserData *u = App::user(userId);
 		if (bots) {
 			if (u->botInfo) {
-				peer->mgInfo->bots.insert(u, true);
+				peer->mgInfo->bots.insert(u);
 				botStatus = 2;// (botStatus > 0/* || !i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
 				if (!u->botInfo->inited) {
 					needBotsInfos = true;
@@ -524,9 +524,9 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 		} else {
 			if (peer->mgInfo->lastParticipants.indexOf(u) < 0) {
 				peer->mgInfo->lastParticipants.push_back(u);
-				if (admin) peer->mgInfo->lastAdmins.insert(u, true);
+				if (admin) peer->mgInfo->lastAdmins.insert(u);
 				if (u->botInfo) {
-					peer->mgInfo->bots.insert(u, true);
+					peer->mgInfo->bots.insert(u);
 					if (peer->mgInfo->botStatus != 0 && peer->mgInfo->botStatus < 2) {
 						peer->mgInfo->botStatus = 2;
 					}

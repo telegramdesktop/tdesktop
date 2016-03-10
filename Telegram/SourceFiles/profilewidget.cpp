@@ -992,6 +992,22 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 
 		int32 partfrom = top;
 		if (!_participants.isEmpty()) {
+			if (App::self()) {
+				if (_peerChat) {
+					if (_peerChat->amAdmin() && _peerChat->admins.constFind(App::self()) == _peerChat->admins.cend()) {
+						_peerChat->admins.insert(App::self());
+					} else if (!_peerChat->amAdmin() && _peerChat->admins.constFind(App::self()) != _peerChat->admins.cend()) {
+						_peerChat->admins.remove(App::self());
+					}
+				} else if (_peerChannel && _peerChannel->isMegagroup()) {
+					if ((_peerChannel->amCreator() || _peerChannel->amEditor()) && _peerChannel->mgInfo->lastAdmins.constFind(App::self()) == _peerChannel->mgInfo->lastAdmins.cend()) {
+						_peerChannel->mgInfo->lastAdmins.insert(App::self());
+					} else if (!_peerChannel->amCreator() && !_peerChannel->amEditor() && _peerChannel->mgInfo->lastAdmins.constFind(App::self()) != _peerChannel->mgInfo->lastAdmins.cend()) {
+						_peerChannel->mgInfo->lastAdmins.remove(App::self());
+					}
+				}
+			}
+
 			int32 cnt = 0, fullCnt = _participants.size();
 			for (Participants::const_iterator i = _participants.cbegin(), e = _participants.cend(); i != e; ++i, ++cnt) {
 				int32 top = partfrom + cnt * _pHeight;
