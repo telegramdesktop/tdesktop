@@ -133,7 +133,7 @@ enum {
 	mtpc_chatEmpty = 0x9ba2d800,
 	mtpc_chat = 0xd91cdd54,
 	mtpc_chatForbidden = 0x7328bdb,
-	mtpc_channel = 0x4b1b7506,
+	mtpc_channel = 0xa14dca52,
 	mtpc_channelForbidden = 0x2d85832c,
 	mtpc_chatFull = 0x2e02a614,
 	mtpc_channelFull = 0x97bee562,
@@ -255,7 +255,7 @@ enum {
 	mtpc_updateReadHistoryOutbox = 0x2f2f21bf,
 	mtpc_updateWebPage = 0x7f891213,
 	mtpc_updateReadMessagesContents = 0x68c13933,
-	mtpc_updateChannelTooLong = 0x60946422,
+	mtpc_updateChannelTooLong = 0xeb0467fb,
 	mtpc_updateChannel = 0xb6d45656,
 	mtpc_updateChannelGroup = 0xc36c1e3c,
 	mtpc_updateNewChannelMessage = 0x62ba04d9,
@@ -5555,7 +5555,7 @@ private:
 	friend MTPupdate MTP_updateReadHistoryOutbox(const MTPPeer &_peer, MTPint _max_id, MTPint _pts, MTPint _pts_count);
 	friend MTPupdate MTP_updateWebPage(const MTPWebPage &_webpage, MTPint _pts, MTPint _pts_count);
 	friend MTPupdate MTP_updateReadMessagesContents(const MTPVector<MTPint> &_messages, MTPint _pts, MTPint _pts_count);
-	friend MTPupdate MTP_updateChannelTooLong(MTPint _channel_id);
+	friend MTPupdate MTP_updateChannelTooLong(MTPint _flags, MTPint _channel_id, MTPint _pts);
 	friend MTPupdate MTP_updateChannel(MTPint _channel_id);
 	friend MTPupdate MTP_updateChannelGroup(MTPint _channel_id, const MTPMessageGroup &_group);
 	friend MTPupdate MTP_updateNewChannelMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count);
@@ -9966,6 +9966,8 @@ public:
 		flag_restricted = (1 << 9),
 		flag_democracy = (1 << 10),
 		flag_signatures = (1 << 11),
+		flag_min = (1 << 12),
+		flag_access_hash = (1 << 13),
 		flag_username = (1 << 6),
 		flag_restriction_reason = (1 << 9),
 	};
@@ -9981,6 +9983,8 @@ public:
 	bool is_restricted() const { return vflags.v & flag_restricted; }
 	bool is_democracy() const { return vflags.v & flag_democracy; }
 	bool is_signatures() const { return vflags.v & flag_signatures; }
+	bool is_min() const { return vflags.v & flag_min; }
+	bool has_access_hash() const { return vflags.v & flag_access_hash; }
 	bool has_username() const { return vflags.v & flag_username; }
 	bool has_restriction_reason() const { return vflags.v & flag_restriction_reason; }
 };
@@ -11210,10 +11214,18 @@ class MTPDupdateChannelTooLong : public mtpDataImpl<MTPDupdateChannelTooLong> {
 public:
 	MTPDupdateChannelTooLong() {
 	}
-	MTPDupdateChannelTooLong(MTPint _channel_id) : vchannel_id(_channel_id) {
+	MTPDupdateChannelTooLong(MTPint _flags, MTPint _channel_id, MTPint _pts) : vflags(_flags), vchannel_id(_channel_id), vpts(_pts) {
 	}
 
+	MTPint vflags;
 	MTPint vchannel_id;
+	MTPint vpts;
+
+	enum {
+		flag_pts = (1 << 0),
+	};
+
+	bool has_pts() const { return vflags.v & flag_pts; }
 };
 
 class MTPDupdateChannel : public mtpDataImpl<MTPDupdateChannel> {
@@ -22948,7 +22960,7 @@ inline uint32 MTPchat::innerLength() const {
 		}
 		case mtpc_channel: {
 			const MTPDchannel &v(c_channel());
-			return v.vflags.innerLength() + v.vid.innerLength() + v.vaccess_hash.innerLength() + v.vtitle.innerLength() + (v.has_username() ? v.vusername.innerLength() : 0) + v.vphoto.innerLength() + v.vdate.innerLength() + v.vversion.innerLength() + (v.has_restriction_reason() ? v.vrestriction_reason.innerLength() : 0);
+			return v.vflags.innerLength() + v.vid.innerLength() + (v.has_access_hash() ? v.vaccess_hash.innerLength() : 0) + v.vtitle.innerLength() + (v.has_username() ? v.vusername.innerLength() : 0) + v.vphoto.innerLength() + v.vdate.innerLength() + v.vversion.innerLength() + (v.has_restriction_reason() ? v.vrestriction_reason.innerLength() : 0);
 		}
 		case mtpc_channelForbidden: {
 			const MTPDchannelForbidden &v(c_channelForbidden());
@@ -22992,7 +23004,7 @@ inline void MTPchat::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId 
 			MTPDchannel &v(_channel());
 			v.vflags.read(from, end);
 			v.vid.read(from, end);
-			v.vaccess_hash.read(from, end);
+			if (v.has_access_hash()) { v.vaccess_hash.read(from, end); } else { v.vaccess_hash = MTPlong(); }
 			v.vtitle.read(from, end);
 			if (v.has_username()) { v.vusername.read(from, end); } else { v.vusername = MTPstring(); }
 			v.vphoto.read(from, end);
@@ -23036,7 +23048,7 @@ inline void MTPchat::write(mtpBuffer &to) const {
 			const MTPDchannel &v(c_channel());
 			v.vflags.write(to);
 			v.vid.write(to);
-			v.vaccess_hash.write(to);
+			if (v.has_access_hash()) v.vaccess_hash.write(to);
 			v.vtitle.write(to);
 			if (v.has_username()) v.vusername.write(to);
 			v.vphoto.write(to);
@@ -25502,7 +25514,7 @@ inline uint32 MTPupdate::innerLength() const {
 		}
 		case mtpc_updateChannelTooLong: {
 			const MTPDupdateChannelTooLong &v(c_updateChannelTooLong());
-			return v.vchannel_id.innerLength();
+			return v.vflags.innerLength() + v.vchannel_id.innerLength() + (v.has_pts() ? v.vpts.innerLength() : 0);
 		}
 		case mtpc_updateChannel: {
 			const MTPDupdateChannel &v(c_updateChannel());
@@ -25761,7 +25773,9 @@ inline void MTPupdate::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeI
 		case mtpc_updateChannelTooLong: _type = cons; {
 			if (!data) setData(new MTPDupdateChannelTooLong());
 			MTPDupdateChannelTooLong &v(_updateChannelTooLong());
+			v.vflags.read(from, end);
 			v.vchannel_id.read(from, end);
+			if (v.has_pts()) { v.vpts.read(from, end); } else { v.vpts = MTPint(); }
 		} break;
 		case mtpc_updateChannel: _type = cons; {
 			if (!data) setData(new MTPDupdateChannel());
@@ -26024,7 +26038,9 @@ inline void MTPupdate::write(mtpBuffer &to) const {
 		} break;
 		case mtpc_updateChannelTooLong: {
 			const MTPDupdateChannelTooLong &v(c_updateChannelTooLong());
+			v.vflags.write(to);
 			v.vchannel_id.write(to);
+			if (v.has_pts()) v.vpts.write(to);
 		} break;
 		case mtpc_updateChannel: {
 			const MTPDupdateChannel &v(c_updateChannel());
@@ -26326,8 +26342,8 @@ inline MTPupdate MTP_updateWebPage(const MTPWebPage &_webpage, MTPint _pts, MTPi
 inline MTPupdate MTP_updateReadMessagesContents(const MTPVector<MTPint> &_messages, MTPint _pts, MTPint _pts_count) {
 	return MTPupdate(new MTPDupdateReadMessagesContents(_messages, _pts, _pts_count));
 }
-inline MTPupdate MTP_updateChannelTooLong(MTPint _channel_id) {
-	return MTPupdate(new MTPDupdateChannelTooLong(_channel_id));
+inline MTPupdate MTP_updateChannelTooLong(MTPint _flags, MTPint _channel_id, MTPint _pts) {
+	return MTPupdate(new MTPDupdateChannelTooLong(_flags, _channel_id, _pts));
 }
 inline MTPupdate MTP_updateChannel(MTPint _channel_id) {
 	return MTPupdate(new MTPDupdateChannel(_channel_id));

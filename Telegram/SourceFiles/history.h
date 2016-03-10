@@ -908,6 +908,17 @@ struct HistoryMessageForwarded : public BasicInterface<HistoryMessageForwarded> 
 	mutable Text _text;
 };
 
+class HistoryDependentItemCallback : public SharedCallback2<void, ChannelData*, MsgId> {
+public:
+	HistoryDependentItemCallback(FullMsgId dependent) : _dependent(dependent) {
+	}
+	void call(ChannelData *channel, MsgId msgId) const override;
+
+private:
+	FullMsgId _dependent;
+
+};
+
 class HistoryMedia;
 class HistoryItem : public HistoryElem, public Interfaces {
 public:
@@ -1076,7 +1087,12 @@ public:
 		return (channel->amEditor() || channel->amModerator() || out());
 	}
 
+	bool canPin() const {
+		return id > 0 && _history->peer->isMegagroup() && (_history->peer->asChannel()->amEditor() || _history->peer->asChannel()->amCreator()) && toHistoryMessage();
+	}
+
 	bool canEdit(const QDateTime &cur) const;
+
 	bool hasDirectLink() const {
 		return id > 0 && _history->peer->isChannel() && _history->peer->asChannel()->isPublic();
 	}
@@ -1536,6 +1552,9 @@ public:
 	}
 	ImagePtr replyPreview();
 
+	QString getCaption() const {
+		return _caption.original();
+	}
 	bool needsBubble(const HistoryItem *parent) const {
 		return !_caption.isEmpty() || parent->Is<HistoryMessageForwarded>() || parent->toHistoryReply() || parent->viaBot();
 	}

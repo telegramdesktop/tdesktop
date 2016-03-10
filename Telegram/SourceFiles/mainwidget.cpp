@@ -1510,7 +1510,6 @@ void MainWidget::changingMsgId(HistoryItem *row, MsgId newId) {
 }
 
 void MainWidget::itemRemoved(HistoryItem *item) {
-	api()->itemRemoved(item);
 	dialogs.itemRemoved(item);
 	if (history.peer() == item->history()->peer || (history.peer() && history.peer() == item->history()->peer->migrateTo())) {
 		history.itemRemoved(item);
@@ -2056,8 +2055,8 @@ ApiWrap *MainWidget::api() {
 	return _api;
 }
 
-void MainWidget::updateDependencyItem() {
-	history.updateReplyEditTexts(true);
+void MainWidget::messageDataReceived(ChannelData *channel, MsgId msgId) {
+	history.messageDataReceived(channel, msgId);
 }
 
 void MainWidget::updateBotKeyboard(History *h) {

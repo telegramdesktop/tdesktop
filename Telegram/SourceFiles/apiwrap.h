@@ -28,9 +28,8 @@ public:
 	ApiWrap(QObject *parent);
 	void init();
 
-	void itemRemoved(HistoryItem *item);
-
-	void requestDependencyItem(HistoryItem *dependent, ChannelData *channel, MsgId id);
+	typedef SharedCallback2<void, ChannelData*, MsgId> RequestMessageDataCallback;
+	void requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback *callback);
 
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);
@@ -59,28 +58,30 @@ signals:
 
 public slots:
 
-	void resolveDependencyItems();
+	void resolveMessageDatas();
 	void resolveWebPages();
 
 	void delayedRequestParticipantsCount();
 
 private:
 
-	void gotDependencyItem(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
-	struct DependencyRequest {
-		DependencyRequest() : req(0) {
+	void gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
+	struct MessageDataRequest {
+		MessageDataRequest() : req(0) {
 		}
+		typedef SharedCallback2<void, ChannelData*, MsgId>::Ptr CallbackPtr;
+		typedef QList<CallbackPtr> Callbacks;
 		mtpRequestId req;
-		QList<HistoryItem*> dependentItems;
+		Callbacks callbacks;
 	};
-	typedef QMap<MsgId, DependencyRequest> DependencyRequests;
-	DependencyRequests _dependencyRequests;
-	typedef QMap<ChannelData*, DependencyRequests> ChannelDependencyRequests;
-	ChannelDependencyRequests _channelDependencyRequests;
-	SingleTimer _dependencyTimer;
+	typedef QMap<MsgId, MessageDataRequest> MessageDataRequests;
+	MessageDataRequests _messageDataRequests;
+	typedef QMap<ChannelData*, MessageDataRequests> ChannelMessageDataRequests;
+	ChannelMessageDataRequests _channelMessageDataRequests;
+	SingleDelayedCall *_messageDataResolveDelayed;
 	typedef QVector<MTPint> MessageIds;
-	MessageIds collectMessageIds(const DependencyRequests &requests);
-	DependencyRequests *dependencyRequests(ChannelData *channel, bool onlyExisting = false);
+	MessageIds collectMessageIds(const MessageDataRequests &requests);
+	MessageDataRequests *messageDataRequests(ChannelData *channel, bool onlyExisting = false);
 
 	void gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mtpRequestId req);
 	void gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestId req);

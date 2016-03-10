@@ -29,89 +29,65 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "localstorage.h"
 
-ApiWrap::ApiWrap(QObject *parent) : QObject(parent) {
+ApiWrap::ApiWrap(QObject *parent) : QObject(parent)
+, _messageDataResolveDelayed(new SingleDelayedCall(this, "resolveMessageDatas")) {
 	App::initBackground();
 
-	connect(&_dependencyTimer, SIGNAL(timeout()), this, SLOT(resolveDependencyItems()));
 	connect(&_webPagesTimer, SIGNAL(timeout()), this, SLOT(resolveWebPages()));
 }
 
 void ApiWrap::init() {
 }
 
-void ApiWrap::itemRemoved(HistoryItem *item) {
-	if (MsgId dependencyMsgId = item->dependencyMsgId()) {
-		ChannelData *channel = item->history()->peer->asChannel();
-		DependencyRequests *requests(dependencyRequests(channel, true));
-		if (requests) {
-			DependencyRequests::iterator i = requests->find(dependencyMsgId);
-			if (i != requests->cend()) {
-				for (QList<HistoryItem*>::iterator j = i->dependentItems.begin(); j != i->dependentItems.end();) {
-					if ((*j) == item) {
-						j = i->dependentItems.erase(j);
-					} else {
-						++j;
-					}
-				}
-				if (i->dependentItems.isEmpty()) {
-					requests->erase(i);
-				}
-			}
-			if (channel && requests->isEmpty()) {
-				_channelDependencyRequests.remove(channel);
-			}
-		}
-	}
+void ApiWrap::requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback *callback) {
+	MessageDataRequest::CallbackPtr pcallback(callback);
+	MessageDataRequest &req(channel ? _channelMessageDataRequests[channel][msgId] : _messageDataRequests[msgId]);
+	req.callbacks.append(pcallback);
+	if (!req.req) _messageDataResolveDelayed->call();
 }
 
-void ApiWrap::requestDependencyItem(HistoryItem *dependency, ChannelData *channel, MsgId id) {
-	DependencyRequest &req(channel ? _channelDependencyRequests[channel][id] : _dependencyRequests[id]);
-	req.dependentItems.append(dependency);
-	if (!req.req) _dependencyTimer.start(1);
-}
-
-ApiWrap::MessageIds ApiWrap::collectMessageIds(const DependencyRequests &requests) {
+ApiWrap::MessageIds ApiWrap::collectMessageIds(const MessageDataRequests &requests) {
 	MessageIds result;
 	result.reserve(requests.size());
-	for (DependencyRequests::const_iterator i = requests.cbegin(), e = requests.cend(); i != e; ++i) {
+	for (MessageDataRequests::const_iterator i = requests.cbegin(), e = requests.cend(); i != e; ++i) {
 		if (i.value().req > 0) continue;
 		result.push_back(MTP_int(i.key()));
 	}
 	return result;
 }
 
-ApiWrap::DependencyRequests *ApiWrap::dependencyRequests(ChannelData *channel, bool onlyExisting) {
+ApiWrap::MessageDataRequests *ApiWrap::messageDataRequests(ChannelData *channel, bool onlyExisting) {
 	if (channel) {
-		ChannelDependencyRequests::iterator i = _channelDependencyRequests.find(channel);
-		if (i == _channelDependencyRequests.cend()) {
+		ChannelMessageDataRequests::iterator i = _channelMessageDataRequests.find(channel);
+		if (i == _channelMessageDataRequests.cend()) {
 			if (onlyExisting) return 0;
-			i = _channelDependencyRequests.insert(channel, DependencyRequests());
+			i = _channelMessageDataRequests.insert(channel, MessageDataRequests());
 		}
 		return &i.value();
 	}
-	return &_dependencyRequests;
+	return &_messageDataRequests;
 }
 
-void ApiWrap::resolveDependencyItems() {
-	if (_dependencyRequests.isEmpty() && _channelDependencyRequests.isEmpty()) return;
+void ApiWrap::resolveMessageDatas() {
+	if (_messageDataRequests.isEmpty() && _channelMessageDataRequests.isEmpty()) return;
 
-	MessageIds ids = collectMessageIds(_dependencyRequests);
+	MessageIds ids = collectMessageIds(_messageDataRequests);
 	if (!ids.isEmpty()) {
-		mtpRequestId req = MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotDependencyItem, (ChannelData*)0), RPCFailHandlerPtr(), 0, 5);
-		for (DependencyRequests::iterator i = _dependencyRequests.begin(); i != _dependencyRequests.cend(); ++i) {
+		mtpRequestId req = MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotMessageDatas, (ChannelData*)nullptr), RPCFailHandlerPtr(), 0, 5);
+		for (MessageDataRequests::iterator i = _messageDataRequests.begin(); i != _messageDataRequests.cend(); ++i) {
 			if (i.value().req > 0) continue;
 			i.value().req = req;
 		}
 	}
-	for (ChannelDependencyRequests::iterator j = _channelDependencyRequests.begin(); j != _channelDependencyRequests.cend();) {
+	for (ChannelMessageDataRequests::iterator j = _channelMessageDataRequests.begin(); j != _channelMessageDataRequests.cend();) {
 		if (j->isEmpty()) {
-			j = _channelDependencyRequests.erase(j);
+			j = _channelMessageDataRequests.erase(j);
 			continue;
 		}
 		MessageIds ids = collectMessageIds(j.value());
 		if (!ids.isEmpty()) {
-			mtpRequestId req = MTP::send(MTPchannels_GetMessages(j.key()->inputChannel, MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotDependencyItem, j.key()), RPCFailHandlerPtr(), 0, 5);
-			for (DependencyRequests::iterator i = j->begin(); i != j->cend(); ++i) {
+			mtpRequestId req = MTP::send(MTPchannels_GetMessages(j.key()->inputChannel, MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotMessageDatas, j.key()), RPCFailHandlerPtr(), 0, 5);
+			for (MessageDataRequests::iterator i = j->begin(); i != j->cend(); ++i) {
 				if (i.value().req > 0) continue;
 				i.value().req = req;
 			}
@@ -120,7 +96,7 @@ void ApiWrap::resolveDependencyItems() {
 	}
 }
 
-void ApiWrap::gotDependencyItem(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId req) {
+void ApiWrap::gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId req) {
 	switch (msgs.type()) {
 	case mtpc_messages_messages: {
 		const MTPDmessages_messages &d(msgs.c_messages_messages());
@@ -152,16 +128,12 @@ void ApiWrap::gotDependencyItem(ChannelData *channel, const MTPmessages_Messages
 		App::feedMsgs(d.vmessages, NewMessageExisting);
 	} break;
 	}
-	DependencyRequests *requests(dependencyRequests(channel, true));
+	MessageDataRequests *requests(messageDataRequests(channel, true));
 	if (requests) {
-		for (DependencyRequests::iterator i = requests->begin(); i != requests->cend();) {
+		for (MessageDataRequests::iterator i = requests->begin(); i != requests->cend();) {
 			if (i.value().req == req) {
-				for (QList<HistoryItem*>::const_iterator j = i.value().dependentItems.cbegin(), e = i.value().dependentItems.cend(); j != e; ++j) {
-					if (*j) {
-						(*j)->updateDependencyItem();
-					} else if (App::main()) {
-						App::main()->updateDependencyItem();
-					}
+				for (MessageDataRequest::Callbacks::const_iterator j = i.value().callbacks.cbegin(), e = i.value().callbacks.cend(); j != e; ++j) {
+					(*j)->call(channel, i.key());
 				}
 				i = requests->erase(i);
 			} else {
@@ -169,7 +141,7 @@ void ApiWrap::gotDependencyItem(ChannelData *channel, const MTPmessages_Messages
 			}
 		}
 		if (channel && requests->isEmpty()) {
-			_channelDependencyRequests.remove(channel);
+			_channelMessageDataRequests.remove(channel);
 		}
 	}
 }

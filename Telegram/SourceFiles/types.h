@@ -323,67 +323,6 @@ protected:
 QString translitRusEng(const QString &rus);
 QString rusKeyboardLayoutSwitch(const QString &from);
 
-enum DataBlockId {
-	dbiKey                  = 0x00,
-	dbiUser                 = 0x01,
-	dbiDcOptionOld          = 0x02,
-	dbiChatSizeMax          = 0x03,
-	dbiMutePeer             = 0x04,
-	dbiSendKey              = 0x05,
-	dbiAutoStart            = 0x06,
-	dbiStartMinimized       = 0x07,
-	dbiSoundNotify          = 0x08,
-	dbiWorkMode             = 0x09,
-	dbiSeenTrayTooltip      = 0x0a,
-	dbiDesktopNotify        = 0x0b,
-	dbiAutoUpdate           = 0x0c,
-	dbiLastUpdateCheck      = 0x0d,
-	dbiWindowPosition       = 0x0e,
-	dbiConnectionType       = 0x0f,
-// 0x10 reserved
-	dbiDefaultAttach        = 0x11,
-	dbiCatsAndDogs          = 0x12,
-	dbiReplaceEmojis        = 0x13,
-	dbiAskDownloadPath      = 0x14,
-	dbiDownloadPathOld      = 0x15,
-	dbiScale                = 0x16,
-	dbiEmojiTabOld          = 0x17,
-	dbiRecentEmojisOld      = 0x18,
-	dbiLoggedPhoneNumber    = 0x19,
-	dbiMutedPeers           = 0x1a,
-// 0x1b reserved
-	dbiNotifyView           = 0x1c,
-	dbiSendToMenu           = 0x1d,
-	dbiCompressPastedImage  = 0x1e,
-	dbiLang                 = 0x1f,
-	dbiLangFile             = 0x20,
-	dbiTileBackground       = 0x21,
-	dbiAutoLock             = 0x22,
-	dbiDialogLastPath       = 0x23,
-	dbiRecentEmojis         = 0x24,
-	dbiEmojiVariants        = 0x25,
-	dbiRecentStickers       = 0x26,
-	dbiDcOption             = 0x27,
-	dbiTryIPv6              = 0x28,
-	dbiSongVolume           = 0x29,
-	dbiWindowsNotifications = 0x30,
-	dbiIncludeMuted         = 0x31,
-	dbiMegagroupSizeMax     = 0x32,
-	dbiDownloadPath         = 0x33,
-	dbiAutoDownload         = 0x34,
-	dbiSavedGifsLimit       = 0x35,
-	dbiShowingSavedGifs     = 0x36,
-	dbiAutoPlay             = 0x37,
-	dbiAdaptiveForWide      = 0x38,
-
-	dbiEncryptedWithSalt    = 333,
-	dbiEncrypted            = 444,
-
-	// 500-600 reserved
-
-	dbiVersion              = 666,
-};
-
 enum DBISendKey {
 	dbiskEnter = 0,
 	dbiskCtrlEnter = 1,
@@ -813,6 +752,15 @@ private:
 		std::swap(_data, other._data);
 	}
 
+};
+
+template <typename R, typename A1, typename A2>
+class SharedCallback2 {
+public:
+	virtual R call(A1 channel, A2 msgId) const = 0;
+	virtual ~SharedCallback2() {
+	}
+	typedef QSharedPointer<SharedCallback2<R, A1, A2> > Ptr;
 };
 
 template <typename R>

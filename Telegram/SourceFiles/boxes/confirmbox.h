@@ -164,3 +164,38 @@ private:
 
 	BoxButton _convert, _cancel;
 };
+
+class PinMessageBox : public AbstractBox, public RPCSender {
+	Q_OBJECT
+
+public:
+
+	PinMessageBox(ChannelData *channel, MsgId msgId);
+
+	void resizeEvent(QResizeEvent *e);
+
+public slots:
+
+	void onPin();
+
+protected:
+
+	void showAll();
+	void hideAll();
+
+private:
+
+	void pinDone(const MTPUpdates &updates);
+	bool pinFail(const RPCError &error);
+
+	ChannelData *_channel;
+	MsgId _msgId;
+
+	FlatLabel _text;
+	Checkbox _notify;
+
+	BoxButton _pin, _cancel;
+
+	mtpRequestId _requestId;
+
+};

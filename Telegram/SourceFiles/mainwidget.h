@@ -373,7 +373,7 @@ public:
 	ImagePtr newBackgroundThumb();
 
 	ApiWrap *api();
-	void updateDependencyItem();
+	void messageDataReceived(ChannelData *channel, MsgId msgId);
 	void updateBotKeyboard(History *h);
 
 	void pushReplyReturn(HistoryItem *item);

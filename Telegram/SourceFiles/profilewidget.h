@@ -124,6 +124,7 @@ public slots:
 
 	void onBotSettings();
 	void onBotHelp();
+	void onPinnedMessage();
 
 	void onUpdateDelayed();
 
@@ -132,6 +133,7 @@ private:
 	void showAll();
 	void updateInvitationLink();
 	void updateBotLinksVisibility();
+	void updatePinnedMessageVisibility();
 
 	void chatInviteDone(const MTPExportedChatInvite &result);
 	bool updateMediaLinks(int32 *addToScroll = 0); // returns if anything changed
@@ -160,7 +162,7 @@ private:
 	FlatButton _sendMessage, _shareContact, _inviteToGroup;
 	LinkButton _cancelPhoto, _createInvitationLink, _invitationLink;
 	QString _invitationText;
-	LinkButton _botSettings, _botHelp, _username, _members, _admins;
+	LinkButton _botSettings, _botHelp, _pinnedMessage, _username, _members, _admins;
 
 	Text _about;
 	int32 _aboutTop, _aboutHeight;

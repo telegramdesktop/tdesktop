@@ -130,6 +130,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_edit_message_text" = "New message text..";
 "lng_deleted" = "Unknown";
 "lng_deleted_message" = "Deleted message";
+"lng_pinned_message" = "Pinned message";
+"lng_pinned_unpin_sure" = "Would you like to unpin this message?";
+"lng_pinned_pin_sure" = "Would you like to pin this message?";
+"lng_pinned_pin" = "Pin";
+"lng_pinned_unpin" = "Unpin";
+"lng_pinned_notify" = "Notify all members";
 
 "lng_intro" = "Welcome to the official [a href=\"https://telegram.org/\"]Telegram[/a] desktop app.\nIt's [b]fast[/b] and [b]secure[/b].";
 "lng_start_msgs" = "START MESSAGING";
@@ -770,6 +776,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_forward_msg" = "Forward Message";
 "lng_context_delete_msg" = "Delete Message";
 "lng_context_select_msg" = "Select Message";
+"lng_context_pin_msg" = "Pin Message";
+"lng_context_unpin_msg" = "Unpin Message";
 "lng_context_cancel_upload" = "Cancel Upload";
 "lng_context_copy_selected" = "Copy Selected Text";
 "lng_context_forward_selected" = "Forward Selected";

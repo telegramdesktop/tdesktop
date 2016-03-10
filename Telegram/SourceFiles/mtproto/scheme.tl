@@ -209,7 +209,7 @@ userStatusLastMonth#77ebc742 = UserStatus;
 chatEmpty#9ba2d800 id:int = Chat;
 chat#d91cdd54 flags:# creator:flags.0?true kicked:flags.1?true left:flags.2?true admins_enabled:flags.3?true admin:flags.4?true deactivated:flags.5?true id:int title:string photo:ChatPhoto participants_count:int date:int version:int migrated_to:flags.6?InputChannel = Chat;
 chatForbidden#7328bdb id:int title:string = Chat;
-channel#4b1b7506 flags:# creator:flags.0?true kicked:flags.1?true left:flags.2?true editor:flags.3?true moderator:flags.4?true broadcast:flags.5?true verified:flags.7?true megagroup:flags.8?true restricted:flags.9?true democracy:flags.10?true signatures:flags.11?true id:int access_hash:long title:string username:flags.6?string photo:ChatPhoto date:int version:int restriction_reason:flags.9?string = Chat;
+channel#a14dca52 flags:# creator:flags.0?true kicked:flags.1?true left:flags.2?true editor:flags.3?true moderator:flags.4?true broadcast:flags.5?true verified:flags.7?true megagroup:flags.8?true restricted:flags.9?true democracy:flags.10?true signatures:flags.11?true min:flags.12?true id:int access_hash:flags.13?long title:string username:flags.6?string photo:ChatPhoto date:int version:int restriction_reason:flags.9?string = Chat;
 channelForbidden#2d85832c id:int access_hash:long title:string = Chat;
 
 chatFull#2e02a614 id:int participants:ChatParticipants chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite bot_info:Vector<BotInfo> = ChatFull;
@@ -369,7 +369,7 @@ updateReadHistoryInbox#9961fd5c peer:Peer max_id:int pts:int pts_count:int = Upd
 updateReadHistoryOutbox#2f2f21bf peer:Peer max_id:int pts:int pts_count:int = Update;
 updateWebPage#7f891213 webpage:WebPage pts:int pts_count:int = Update;
 updateReadMessagesContents#68c13933 messages:Vector<int> pts:int pts_count:int = Update;
-updateChannelTooLong#60946422 channel_id:int = Update;
+updateChannelTooLong#eb0467fb flags:# channel_id:int pts:flags.0?int = Update;
 updateChannel#b6d45656 channel_id:int = Update;
 updateChannelGroup#c36c1e3c channel_id:int group:MessageGroup = Update;
 updateNewChannelMessage#62ba04d9 message:Message pts:int pts_count:int = Update;

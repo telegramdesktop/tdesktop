@@ -58,6 +58,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 , _invitationLink(this, qsl("telegram.me/joinchat/"))
 , _botSettings(this, lang(lng_profile_bot_settings))
 , _botHelp(this, lang(lng_profile_bot_help))
+, _pinnedMessage(this, lang(lng_pinned_message))
 , _username(this, (_peerChannel && _peerChannel->isPublic()) ? (qsl("telegram.me/") + _peerChannel->username) : lang(lng_profile_create_public_link))
 , _members(this, lng_channel_members_link(lt_count, (_peerChannel && _peerChannel->count > 0) ? _peerChannel->count : 1))
 , _admins(this, lng_channel_admins_link(lt_count, (_peerChannel ? (_peerChannel->adminsCount > 0 ? _peerChannel->adminsCount : 1) : ((_peerChat && _peerChat->adminsEnabled()) ? (_peerChat->admins.size() + 1) : 0))))
@@ -180,6 +181,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 
 	connect(&_botSettings, SIGNAL(clicked()), this, SLOT(onBotSettings()));
 	connect(&_botHelp, SIGNAL(clicked()), this, SLOT(onBotHelp()));
+	connect(&_pinnedMessage, SIGNAL(clicked()), this, SLOT(onPinnedMessage()));
 
 	connect(App::app(), SIGNAL(peerPhotoDone(PeerId)), this, SLOT(onPhotoUpdateDone(PeerId)));
 	connect(App::app(), SIGNAL(peerPhotoFail(PeerId)), this, SLOT(onPhotoUpdateFail(PeerId)));
@@ -201,6 +203,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 		_botSettings.hide();
 		_botHelp.hide();
 	}
+	updatePinnedMessageVisibility();
 
 	// migrate to megagroup
 	connect(&_migrate, SIGNAL(clicked()), this, SLOT(onMigrate()));
@@ -591,6 +594,14 @@ void ProfileInner::onBotHelp() {
 	updateBotLinksVisibility();
 }
 
+void ProfileInner::onPinnedMessage() {
+	if (!_peerChannel || !_peerChannel->isMegagroup() || !_peerChannel->mgInfo->pinnedMsgId) {
+		updatePinnedMessageVisibility();
+		return;
+	}
+	Ui::showPeerHistory(_peer, _peerChannel->mgInfo->pinnedMsgId);
+}
+
 void ProfileInner::peerUpdated(PeerData *data) {
 	if (data == _peer) {
 		PhotoData *photo = 0;
@@ -614,6 +625,7 @@ void ProfileInner::peerUpdated(PeerData *data) {
 			_members.setText(lng_channel_members_link(lt_count, (_peerChannel->count > 0) ? _peerChannel->count : 1));
 			_admins.setText(lng_channel_admins_link(lt_count, (_peerChannel->adminsCount > 0) ? _peerChannel->adminsCount : 1));
 			_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
+			updatePinnedMessageVisibility();
 		}
 		_photoLink = (photo && photo->date) ? TextLinkPtr(new PhotoLink(photo, _peer)) : TextLinkPtr();
 		if (_peer->name != _nameCache) {
@@ -1352,7 +1364,10 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	}
 	_members.move(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop);
 	addbyname += st::profileStatusTop + st::linkFont->ascent - (st::profileNameTop + st::profileNameFont->ascent);
-	_admins.move(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop);
+	if (!_admins.isHidden()) {
+		_admins.move(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop);
+		addbyname += st::profileStatusTop + st::linkFont->ascent - (st::profileNameTop + st::profileNameFont->ascent);
+	}
 	if ((_peerChat && _amCreator && _peerChat->canEdit()) || (_peerChannel && (_amCreator || _peerChannel->amEditor() || _peerChannel->amModerator()))) {
 		_cancelPhoto.move(_left + _width - _cancelPhoto.width(), top + st::profilePhotoSize - st::linkFont->height);
 	} else {
@@ -1360,6 +1375,7 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 		_botSettings.move(_left + st::profilePhotoSize + st::profilePhoneLeft, top + st::profileStatusTop + st::linkFont->ascent - (st::profileNameTop + st::profileNameFont->ascent) + st::profilePhoneTop);
 		_botHelp.move(_botSettings.x() + (_botSettings.isHidden() ? 0 : _botSettings.width() + st::profilePhoneLeft), _botSettings.y());
 	}
+	_pinnedMessage.move(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop);
 	top += st::profilePhotoSize;
 
 	top += st::profileButtonTop;
@@ -1773,12 +1789,21 @@ void ProfileInner::updateInvitationLink() {
 	}
 }
 
+void ProfileInner::updatePinnedMessageVisibility() {
+	if (_peerChannel && _peerChannel->isMegagroup() && _peerChannel->mgInfo->pinnedMsgId && !_amCreator && !_peerChannel->amEditor()) {
+		_pinnedMessage.show();
+	} else {
+		_pinnedMessage.hide();
+	}
+}
+
 void ProfileInner::updateBotLinksVisibility() {
 	if (!_peerUser || !_peerUser->botInfo || _peerUser->botInfo->commands.isEmpty()) {
 		_botSettings.hide();
 		_botHelp.hide();
 		return;
 	}
+
 	bool hasSettings = false, hasHelp = false;
 	for (int32 i = 0, l = _peerUser->botInfo->commands.size(); i != l; ++i) {
 		QString cmd = _peerUser->botInfo->commands.at(i).command;

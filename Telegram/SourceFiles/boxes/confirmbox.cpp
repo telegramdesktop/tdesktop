@@ -378,3 +378,59 @@ void ConvertToSupergroupBox::resizeEvent(QResizeEvent *e) {
 	_convert.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _convert.height());
 	_cancel.moveToRight(st::boxButtonPadding.right() + _convert.width() + st::boxButtonPadding.left(), _convert.y());
 }
+
+PinMessageBox::PinMessageBox(ChannelData *channel, MsgId msgId) : AbstractBox(st::boxWidth)
+, _channel(channel)
+, _msgId(msgId)
+, _text(this, lang(lng_pinned_pin_sure), st::boxLabel)
+, _notify(this, lang(lng_pinned_notify), true)
+, _pin(this, lang(lng_pinned_pin), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
+, _requestId(0) {
+	_text.resizeToWidth(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right());
+	setMaxHeight(st::boxPadding.top() + _text.height() + st::boxMediumSkip + _notify.height() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _pin.height() + st::boxButtonPadding.bottom());
+
+	connect(&_pin, SIGNAL(clicked()), this, SLOT(onPin()));
+	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+}
+
+void PinMessageBox::resizeEvent(QResizeEvent *e) {
+	_text.moveToLeft(st::boxPadding.left(), st::boxPadding.top());
+	_notify.moveToLeft(st::boxPadding.left(), _text.y() + _text.height() + st::boxMediumSkip);
+	_pin.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _pin.height());
+	_cancel.moveToRight(st::boxButtonPadding.right() + _pin.width() + st::boxButtonPadding.left(), _pin.y());
+}
+
+void PinMessageBox::onPin() {
+	if (_requestId) return;
+
+	int32 flags = _notify.checked() ? 0 : MTPchannels_UpdatePinnedMessage::flag_silent;
+	_requestId = MTP::send(MTPchannels_UpdatePinnedMessage(MTP_int(flags), _channel->inputChannel, MTP_int(_msgId)), rpcDone(&PinMessageBox::pinDone), rpcFail(&PinMessageBox::pinFail));
+}
+
+void PinMessageBox::showAll() {
+	_text.show();
+	_notify.show();
+	_pin.show();
+	_cancel.show();
+}
+
+void PinMessageBox::hideAll() {
+	_text.hide();
+	_notify.hide();
+	_pin.hide();
+	_cancel.hide();
+}
+
+void PinMessageBox::pinDone(const MTPUpdates &updates) {
+	if (App::main()) {
+		App::main()->sentUpdatesReceived(updates);
+	}
+	Ui::hideLayer();
+}
+
+bool PinMessageBox::pinFail(const RPCError &error) {
+	if (mtpIsFlood(error)) return false;
+	Ui::hideLayer();
+	return true;
+}

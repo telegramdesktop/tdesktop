@@ -2909,6 +2909,12 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 	}
 }
 
+void HistoryDependentItemCallback::call(ChannelData *channel, MsgId msgId) const {
+	if (HistoryItem *item = App::histItemById(_dependent)) {
+		item->updateDependencyItem();
+	}
+}
+
 HistoryItem::HistoryItem(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime msgDate, int32 from) : y(0)
 , id(msgId)
 , date(msgDate)
@@ -7042,7 +7048,7 @@ HistoryReply::HistoryReply(History *history, HistoryBlock *block, const MTPDmess
 , _maxReplyWidth(0)
 , _replyToVia(0) {
 	if (!updateReplyTo() && App::api()) {
-		App::api()->requestDependencyItem(this, history->peer->asChannel(), replyToMsgId);
+		App::api()->requestMessageData(history->peer->asChannel(), replyToMsgId, new HistoryDependentItemCallback(fullId()));
 	}
 }
 
@@ -7054,7 +7060,7 @@ HistoryReply::HistoryReply(History *history, HistoryBlock *block, MsgId msgId, i
 , _maxReplyWidth(0)
 , _replyToVia(0) {
 	if (!updateReplyTo() && App::api()) {
-		App::api()->requestDependencyItem(this, history->peer->asChannel(), replyToMsgId);
+		App::api()->requestMessageData(history->peer->asChannel(), replyToMsgId, new HistoryDependentItemCallback(fullId()));
 	}
 }
 
@@ -7066,7 +7072,7 @@ HistoryReply::HistoryReply(History *history, HistoryBlock *block, MsgId msgId, i
 , _maxReplyWidth(0)
 , _replyToVia(0) {
 	if (!updateReplyTo() && App::api()) {
-		App::api()->requestDependencyItem(this, history->peer->asChannel(), replyToMsgId);
+		App::api()->requestMessageData(history->peer->asChannel(), replyToMsgId, new HistoryDependentItemCallback(fullId()));
 	}
 	replyToNameUpdated();
 }
@@ -7349,8 +7355,6 @@ void HistoryReply::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, i
 HistoryReply::~HistoryReply() {
 	if (replyToMsg) {
 		App::historyUnregDependency(this, replyToMsg);
-	} else if (replyToMsgId && App::api()) {
-		App::api()->itemRemoved(this);
 	}
 	deleteAndMark(_replyToVia);
 }
@@ -7616,9 +7620,9 @@ HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, cons
 , _media(0) {
 	if (msg.has_reply_to_msg_id()) {
 		UpdateInterfaces(HistoryServicePinned::Bit());
-		Get<HistoryServicePinned>()->msgId = msg.vreply_to_msg_id.v;
+		MsgId pinnedMsgId = Get<HistoryServicePinned>()->msgId = msg.vreply_to_msg_id.v;
 		if (!updatePinned() && App::api()) {
-			App::api()->requestDependencyItem(this, history->peer->asChannel(), Get<HistoryServicePinned>()->msgId);
+			App::api()->requestMessageData(history->peer->asChannel(), pinnedMsgId, new HistoryDependentItemCallback(fullId()));
 		}
 	}
 	setMessageByAction(msg.vaction);
