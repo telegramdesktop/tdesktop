@@ -607,7 +607,7 @@ void _moveOldDataFiles(const QString &wasDir) {
 namespace SignalHandlers {
 
 	QString CrashDumpPath;
-	FILE *CrashDumpFile = 0;
+	FILE *CrashDumpFile = nullptr;
 	int CrashDumpFileNo = 0;
 	char LaunchedDateTimeStr[32] = { 0 };
 	char LaunchedBinaryName[256] = { 0 };
@@ -999,6 +999,8 @@ namespace SignalHandlers {
 		FinishBreakpad();
 		if (CrashDumpFile) {
 			fclose(CrashDumpFile);
+			CrashDumpFile = nullptr;
+
 #ifdef Q_OS_WIN
 			_wunlink(CrashDumpPath.toStdWString().c_str());
 #else
