@@ -938,9 +938,9 @@ namespace SignalHandlers {
 		if (FILE *f = fopen(QFile::encodeName(CrashDumpPath).constData(), "rb")) {
 #endif
 			QByteArray lastdump;
-			char buffer[64 * 1024] = { 0 };
-			int32 read = 0;
-			while ((read = fread(buffer, 1, 64 * 1024, f)) > 0) {
+			char buffer[256 * 1024] = { 0 };
+			int32 read = fread(buffer, 1, 256 * 1024, f);
+			if (read > 0) {
 				lastdump.append(buffer, read);
 			}
 			fclose(f);
