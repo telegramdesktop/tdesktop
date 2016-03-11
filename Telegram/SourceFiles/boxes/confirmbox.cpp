@@ -476,16 +476,11 @@ void RichDeleteMessageBox::onDelete() {
 
 	QVector<MTPint> toDelete(1, MTP_int(item->id));
 	History *h = item->history();
-	bool wasOnServer = (item->id > 0), wasLast = (h->lastMsg == item);
+	bool deleteItem = (item->id > 0), lastDeleted = (h->lastMsg == item);
 	bool banUser = _banUser.checked(), reportSpam = _reportSpam.checked(), deleteAll = _deleteAll.checked();
 
 	item->destroy();
-	if (!wasOnServer && wasLast && !h->lastMsg) {
-		App::main()->checkPeerHistory(h->peer);
-	}
-
-	Notify::historyItemsResized();
-	if (wasOnServer) {
+	if (deleteItem) {
 		_deleteRequestId = MTP::send(MTPchannels_DeleteMessages(_channel->inputChannel, MTP_vector<MTPint>(1, MTP_int(item->id))), rpcDone(&RichDeleteMessageBox::deleteDone), rpcFail(&RichDeleteMessageBox::deleteFail));
 	}
 	if (banUser) {
@@ -495,8 +490,30 @@ void RichDeleteMessageBox::onDelete() {
 		_reportRequestId = MTP::send(MTPchannels_ReportSpam(_channel->inputChannel, _from->inputUser, MTP_vector<MTPint>(1, MTP_int(item->id))), rpcDone(&RichDeleteMessageBox::reportDone), rpcFail(&RichDeleteMessageBox::deleteFail));
 	}
 	if (deleteAll) {
+		QVector<MsgId> toDestroy;
+		for (History::Blocks::const_iterator i = h->blocks.cbegin(), e = h->blocks.cend(); i != e; ++i) {
+			for (HistoryBlock::Items::const_iterator j = (*i)->items.cbegin(), n = (*i)->items.cend(); j != n; ++j) {
+				if ((*j)->from() == _from && (*j)->type() == HistoryItemMsg) {
+					toDestroy.push_back((*j)->id);
+				}
+			}
+		}
+		for (QVector<MsgId>::const_iterator i = toDestroy.cbegin(), e = toDestroy.cend(); i != e; ++i) {
+			if (HistoryItem *item = App::histItemById(peerToChannel(_channel->id), *i)) {
+				if (item == h->lastMsg) {
+					lastDeleted = true;
+				}
+				item->destroy();
+			}
+		}
 		_deleteAllRequestId = MTP::send(MTPchannels_DeleteUserHistory(_channel->inputChannel, _from->inputUser), rpcDone(&RichDeleteMessageBox::deleteAllPart), rpcFail(&RichDeleteMessageBox::deleteFail));
 	}
+
+	if (!deleteItem && !deleteAll && lastDeleted && !h->lastMsg) {
+		App::main()->checkPeerHistory(h->peer);
+	}
+
+	Notify::historyItemsResized();
 }
 
 void RichDeleteMessageBox::showAll() {
@@ -574,17 +591,17 @@ void RichDeleteMessageBox::deleteAllPart(const MTPmessages_AffectedHistory &resu
 	}
 
 	int32 offset = d.voffset.v;
-	if (offset <= 0) {
-		if (History *h = App::historyLoaded(_channel->id)) {
-			if (!h->lastMsg && App::main()) {
-				App::main()->checkPeerHistory(_channel);
-			}
-		}
-		checkFinished();
+	if (offset > 0) {
+		_deleteAllRequestId = MTP::send(MTPchannels_DeleteUserHistory(_channel->inputChannel, _from->inputUser), rpcDone(&RichDeleteMessageBox::deleteAllPart), rpcFail(&RichDeleteMessageBox::deleteFail));
 		return;
 	}
 
-	_deleteAllRequestId = MTP::send(MTPchannels_DeleteUserHistory(_channel->inputChannel, _from->inputUser), rpcDone(&RichDeleteMessageBox::deleteAllPart), rpcFail(&RichDeleteMessageBox::deleteFail));
+	if (History *h = App::historyLoaded(_channel->id)) {
+		if (!h->lastMsg && App::main()) {
+			App::main()->checkPeerHistory(_channel);
+		}
+	}
+	checkFinished();
 }
 
 bool RichDeleteMessageBox::deleteFail(const RPCError &error, mtpRequestId req) {
