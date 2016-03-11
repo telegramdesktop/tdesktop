@@ -476,7 +476,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_create_group_next" = "Next";
 "lng_create_group_create" = "Create";
 "lng_create_group_title" = "New Group";
-"lng_create_group_about" = "Groups are ideal for smaller communities,\nthey can have up to {count:_not_used|# member|# members}";
+"lng_create_group_about" = "Groups are ideal for limited communities,\nthey can have up to {count:_not_used|# member|# members}";
 "lng_create_channel_title" = "New Channel";
 "lng_create_channel_about" = "Channels are a tool for broadcasting your messages to unlimited audiences";
 "lng_create_public_channel_title" = "Public Channel";

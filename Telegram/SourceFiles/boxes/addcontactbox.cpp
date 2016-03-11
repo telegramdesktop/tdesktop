@@ -275,7 +275,7 @@ NewGroupBox::NewGroupBox() : AbstractBox(),
 _group(this, qsl("group_type"), 0, lang(lng_create_group_title), true),
 _channel(this, qsl("group_type"), 1, lang(lng_create_channel_title)),
 _aboutGroupWidth(width() - st::boxPadding.left() - st::boxButtonPadding.right() - st::newGroupPadding.left() - st::defaultRadiobutton.textPosition.x()),
-_aboutGroup(st::normalFont, lng_create_group_about(lt_count, Global::ChatSizeMax()), _defaultOptions, _aboutGroupWidth),
+_aboutGroup(st::normalFont, lng_create_group_about(lt_count, Global::MegagroupSizeMax()), _defaultOptions, _aboutGroupWidth),
 _aboutChannel(st::normalFont, lang(lng_create_channel_about), _defaultOptions, _aboutGroupWidth),
 _next(this, lang(lng_create_group_next), st::defaultBoxButton),
 _cancel(this, lang(lng_cancel), st::cancelBoxButton) {

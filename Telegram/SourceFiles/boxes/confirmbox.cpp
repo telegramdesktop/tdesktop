@@ -298,7 +298,7 @@ ConvertToSupergroupBox::ConvertToSupergroupBox(ChatData *chat) : AbstractBox(st:
 	_note.setText(st::boxTextFont, lng_profile_convert_warning(lt_bold_start, textcmdStartSemibold(), lt_bold_end, textcmdStopSemibold()), _confirmBoxTextOptions);
 	_textWidth = st::boxWideWidth - st::boxPadding.left() - st::boxButtonPadding.right();
 	_textHeight = _text.countHeight(_textWidth);
-	setMaxHeight(st::boxTitleHeight + _textHeight + st::boxPadding.bottom() + st::boxTextFont->height + st::boxButtonPadding.top() + _convert.height() + st::boxButtonPadding.bottom());
+	setMaxHeight(st::boxTitleHeight + _textHeight + st::boxPadding.bottom() + _note.countHeight(_textWidth) + st::boxButtonPadding.top() + _convert.height() + st::boxButtonPadding.bottom());
 	textstyleRestore();
 
 	connect(&_convert, SIGNAL(clicked()), this, SLOT(onConvert()));
