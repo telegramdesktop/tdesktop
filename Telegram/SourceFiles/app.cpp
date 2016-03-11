@@ -486,6 +486,7 @@ namespace App {
 		for (QVector<MTPChat>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
 			const MTPchat &chat(*i);
 			data = 0;
+			bool minimal = false;
 			switch (chat.type()) {
 			case mtpc_chat: {
 				const MTPDchat &d(chat.c_chat());
@@ -566,24 +567,36 @@ namespace App {
 				const MTPDchannel &d(chat.c_channel());
 
 				PeerId peer(peerFromChannel(d.vid.v));
-				data = App::channel(peer);
-				data->input = MTP_inputPeerChannel(d.vid, d.vaccess_hash);
+				minimal = d.is_min();
+				if (minimal) {
+					data = App::channelLoaded(peer);
+					if (!data) {
+						continue; // minimal is not loaded, need to make getDifference
+					}
+				} else {
+					data = App::channel(peer);
+					data->input = MTP_inputPeerChannel(d.vid, d.has_access_hash() ? d.vaccess_hash : MTP_long(0));
+				}
 
 				ChannelData *cdata = data->asChannel();
-				cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
-
+				if (minimal) {
+					int32 mask = MTPDchannel::flag_broadcast | MTPDchannel::flag_verified | MTPDchannel::flag_megagroup | MTPDchannel::flag_democracy;
+					cdata->flags = (cdata->flags & ~mask) | (d.vflags.v & mask);
+				} else {
+					cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
+					cdata->access = d.vaccess_hash.v;
+					cdata->date = d.vdate.v;
+					cdata->flags = d.vflags.v;
+					if (cdata->version < d.vversion.v) {
+						cdata->version = d.vversion.v;
+					}
+				}
 				QString uname = d.has_username() ? textOneLine(qs(d.vusername)) : QString();
 				cdata->setName(qs(d.vtitle), uname);
 
-				cdata->access = d.vaccess_hash.v;
-				cdata->date = d.vdate.v;
-				cdata->flags = d.vflags.v;
 				cdata->isForbidden = false;
 				cdata->flagsUpdated();
 				cdata->setPhoto(d.vphoto);
-				if (cdata->version < d.vversion.v) {
-					cdata->version = d.vversion.v;
-				}
 			} break;
 			case mtpc_channelForbidden: {
 				const MTPDchannelForbidden &d(chat.c_channelForbidden());

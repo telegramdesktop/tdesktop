@@ -625,6 +625,8 @@ private:
 	QMap<int32, MTPUpdates> _bySeqUpdates;
 	SingleTimer _bySeqTimer;
 
+	SingleTimer _byMinChannelTimer;
+
 	mtpRequestId _onlineRequest;
 	SingleTimer _onlineTimer, _onlineUpdater, _idleFinishTimer;
 	bool _lastWasOnline;

@@ -431,6 +431,7 @@ MainWidget::MainWidget(Window *window) : TWidget(window)
 	connect(&_idleFinishTimer, SIGNAL(timeout()), this, SLOT(checkIdleFinish()));
 	connect(&_bySeqTimer, SIGNAL(timeout()), this, SLOT(getDifference()));
 	connect(&_byPtsTimer, SIGNAL(timeout()), this, SLOT(onGetDifferenceTimeByPts()));
+	connect(&_byMinChannelTimer, SIGNAL(timeout()), this, SLOT(getDifference()));
 	connect(&_failDifferenceTimer, SIGNAL(timeout()), this, SLOT(onGetDifferenceTimeAfterFail()));
 	connect(_api, SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
 	connect(this, SIGNAL(peerUpdated(PeerData*)), &history, SLOT(peerUpdated(PeerData*)));
@@ -2915,8 +2916,12 @@ bool MainWidget::updateFail(const RPCError &e) {
 }
 
 void MainWidget::updSetState(int32 pts, int32 date, int32 qts, int32 seq) {
-	if (pts) _ptsWaiter.init(pts);
-	if (updDate < date) updDate = date;
+	if (pts) {
+		_ptsWaiter.init(pts);
+	}
+	if (updDate < date && !_byMinChannelTimer.isActive()) {
+		updDate = date;
+	}
 	if (qts && updQts < qts) {
 		updQts = qts;
 	}
@@ -4507,7 +4512,13 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateNewChannelMessage: {
 		const MTPDupdateNewChannelMessage &d(update.c_updateNewChannelMessage());
 		ChannelData *channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
-
+		if (!channel && !_ptsWaiter.requesting()) {
+			MTP_LOG(0, ("getDifference { good - after no channel in updateNewChannelMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
+			if (!_byMinChannelTimer.isActive()) { // getDifference after timeout
+				_byMinChannelTimer.start(WaitForSkippedTimeout);
+			}
+			return;
+		}
 		if (channel && !_handlingChannelDifference) {
 			if (channel->ptsRequesting()) { // skip global updates while getting channel difference
 				return;
@@ -4605,7 +4616,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateChannelTooLong: {
 		const MTPDupdateChannelTooLong &d(update.c_updateChannelTooLong());
 		if (ChannelData *channel = App::channelLoaded(d.vchannel_id.v)) {
-			getChannelDifference(channel);
+			if (!d.has_pts() || channel->pts() < d.vpts.v) {
+				getChannelDifference(channel);
+			}
 		}
 	} break;
 
