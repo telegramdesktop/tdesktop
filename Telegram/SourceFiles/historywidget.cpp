@@ -4166,7 +4166,7 @@ void HistoryWidget::historyCleared(History *history) {
 bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId) {
 	if (mtpIsFlood(error)) return false;
 
-	if (error.type() == qstr("CHANNEL_PRIVATE")) {
+	if (error.type() == qstr("CHANNEL_PRIVATE") || error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA")) {
 		PeerData *was = _peer;
 		Ui::showChatsList();
 		Ui::showLayer(new InformBox(lang((was && was->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
@@ -4762,7 +4762,7 @@ bool HistoryWidget::joinFail(const RPCError &error, mtpRequestId req) {
 	if (mtpIsFlood(error)) return false;
 
 	if (_unblockRequest == req) _unblockRequest = 0;
-	if (error.type() == qstr("CHANNEL_PRIVATE")) {
+	if (error.type() == qstr("CHANNEL_PRIVATE") || error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA")) {
 		Ui::showLayer(new InformBox(lang((_peer && _peer->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
 		return true;
 	}

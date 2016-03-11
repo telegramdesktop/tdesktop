@@ -944,7 +944,10 @@ bool SetupChannelBox::onCheckFail(const RPCError &error) {
 
 	_checkRequestId = 0;
 	QString err(error.type());
-	if (err == "CHANNELS_ADMIN_PUBLIC_TOO_MUCH") {
+	if (err == qstr("CHANNEL_PUBLIC_GROUP_NA")) {
+		Ui::hideLayer();
+		return true;
+	} else if (err == qstr("CHANNELS_ADMIN_PUBLIC_TOO_MUCH")) {
 		if (_existing) {
 			Ui::showLayer(new InformBox(lang(lng_channels_too_much_public_existing)));
 		} else {
@@ -953,11 +956,11 @@ bool SetupChannelBox::onCheckFail(const RPCError &error) {
 			onPrivacyChange();
 		}
 		return true;
-	} else if (err == "USERNAME_INVALID") {
+	} else if (err == qstr("USERNAME_INVALID")) {
 		_errorText = lang(lng_create_channel_link_invalid);
 		update();
 		return true;
-	} else if (err == "USERNAME_OCCUPIED" && _checkUsername != _channel->username) {
+	} else if (err == qstr("USERNAME_OCCUPIED") && _checkUsername != _channel->username) {
 		_errorText = lang(lng_create_channel_link_occupied);
 		update();
 		return true;
@@ -972,7 +975,10 @@ bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
 
 	_checkRequestId = 0;
 	QString err(error.type());
-	if (err == "CHANNELS_ADMIN_PUBLIC_TOO_MUCH") {
+	if (err == qstr("CHANNEL_PUBLIC_GROUP_NA")) {
+		Ui::hideLayer();
+		return true;
+	} else if (err == qstr("CHANNELS_ADMIN_PUBLIC_TOO_MUCH")) {
 		if (_existing) {
 			Ui::showLayer(new InformBox(lang(lng_channels_too_much_public_existing)));
 		} else {
@@ -1213,7 +1219,7 @@ void EditChannelBox::showAll() {
 	_description.show();
 	_save.show();
 	_cancel.show();
-	if (_channel->amCreator()) {
+	if (_channel->canEditUsername()) {
 		_publicLink.show();
 	} else {
 		_publicLink.hide();
@@ -1264,7 +1270,7 @@ void EditChannelBox::updateMaxHeight() {
 	if (!_channel->isMegagroup()) {
 		h += st::newGroupPublicLinkPadding.top() + _sign.height() + st::newGroupPublicLinkPadding.bottom();
 	}
-	if (_channel->amCreator()) {
+	if (_channel->canEditUsername()) {
 		h += st::newGroupPublicLinkPadding.top() + _publicLink.height() + st::newGroupPublicLinkPadding.bottom();
 	}
 	h += st::boxPadding.bottom() + st::newGroupInfoPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom();

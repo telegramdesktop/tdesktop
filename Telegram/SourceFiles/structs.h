@@ -607,6 +607,9 @@ public:
 	bool isPublic() const {
 		return flags & MTPDchannel::flag_username;
 	}
+	bool canEditUsername() const {
+		return amCreator() && (flagsFull & MTPDchannelFull::flag_can_set_username);
+	}
 	bool amCreator() const {
 		return flags & MTPDchannel::flag_creator;
 	}
