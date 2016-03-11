@@ -7568,7 +7568,7 @@ bool HistoryServiceMsg::updatePinnedText(const QString *pfrom, QString *ptext) {
 		case MediaTypeGif: mediaText = lang(lng_action_pinned_media_gif); break;
 		case MediaTypeSticker: mediaText = lang(lng_action_pinned_media_sticker); break;
 		case MediaTypeLocation: mediaText = lang(lng_action_pinned_media_location); break;
-		case MediaTypeMusicFile: mediaText = lang(lng_action_pinned_media_music); break;
+		case MediaTypeMusicFile: mediaText = lang(lng_action_pinned_media_audio); break;
 		case MediaTypeVoiceFile: mediaText = lang(lng_action_pinned_media_voice); break;
 		}
 		if (mediaText.isEmpty()) {

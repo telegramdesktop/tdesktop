@@ -543,7 +543,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media" = "{from} pinned {media}";
 "lng_action_pinned_media_photo" = "a photo";
 "lng_action_pinned_media_video" = "a video file";
-"lng_action_pinned_media_music" = "a music file";
+"lng_action_pinned_media_audio" = "an audio file";
 "lng_action_pinned_media_voice" = "a voice message";
 "lng_action_pinned_media_file" = "a file";
 "lng_action_pinned_media_gif" = "a GIF animation";
