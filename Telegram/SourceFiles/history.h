@@ -2257,7 +2257,7 @@ public:
 	HistoryReply(History *history, HistoryBlock *block, MsgId msgId, int32 flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption);
 	HistoryReply(History *history, HistoryBlock *block, MsgId msgId, int32 flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption);
 
-	void initDimensions();
+	void initDimensions() override;
 
 	bool updateDependencyItem() override {
 		return updateReplyTo(true);
@@ -2273,25 +2273,25 @@ public:
 	HistoryItem *replyToMessage() const;
 	void dependencyItemRemoved(HistoryItem *dependency) override;
 
-	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const;
+	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const override;
 	void drawReplyTo(Painter &p, int32 x, int32 y, int32 w, bool selected, bool likeService = false) const;
-	void drawMessageText(Painter &p, QRect trect, uint32 selection) const;
-	int32 resize(int32 width);
+	void drawMessageText(Painter &p, QRect trect, uint32 selection) const override;
+	int32 resize(int32 width) override;
 	void resizeVia(int32 w) const;
-	bool hasPoint(int32 x, int32 y) const;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
-	void getStateFromMessageText(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const QRect &r) const;
-	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
+	bool hasPoint(int32 x, int32 y) const override;
+	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const override;
+	void getStateFromMessageText(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const QRect &r) const override;
+	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const override;
 
 	PeerData *replyTo() const {
 		return replyToMsg ? replyToMsg->author() : 0;
 	}
-	QString selectedText(uint32 selection) const;
+	QString selectedText(uint32 selection) const override;
 
-	HistoryReply *toHistoryReply() { // dynamic_cast optimize
+	HistoryReply *toHistoryReply() override { // dynamic_cast optimize
 		return this;
 	}
-	const HistoryReply *toHistoryReply() const { // dynamic_cast optimize
+	const HistoryReply *toHistoryReply() const override { // dynamic_cast optimize
 		return this;
 	}
 
@@ -2347,7 +2347,7 @@ public:
 	HistoryServiceMsg(History *history, HistoryBlock *block, const MTPDmessageService &msg);
 	HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, int32 flags = 0, HistoryMedia *media = 0, int32 from = 0);
 
-	void initDimensions();
+	void initDimensions() override;
 
 	bool updateDependencyItem() override {
 		return updatePinned(true);
@@ -2367,36 +2367,36 @@ public:
 
 	void countPositionAndSize(int32 &left, int32 &width) const;
 
-	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const;
-	int32 resize(int32 width);
-	bool hasPoint(int32 x, int32 y) const;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
-	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
-	uint32 adjustSelection(uint16 from, uint16 to, TextSelectType type) const {
+	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const override;
+	int32 resize(int32 width) override;
+	bool hasPoint(int32 x, int32 y) const override;
+	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const override;
+	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const override;
+	uint32 adjustSelection(uint16 from, uint16 to, TextSelectType type) const override {
 		return _text.adjustSelection(from, to, type);
 	}
 
-	void linkOver(const TextLinkPtr &lnk) {
+	void linkOver(const TextLinkPtr &lnk) override {
 		if (_media) _media->linkOver(this, lnk);
 	}
-	void linkOut(const TextLinkPtr &lnk) {
+	void linkOut(const TextLinkPtr &lnk) override {
 		if (_media) _media->linkOut(this, lnk);
 	}
 
-	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
-    QString notificationText() const;
+	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const override;
+    QString notificationText() const override;
 
-	bool needCheck() const {
+	bool needCheck() const override {
 		return false;
 	}
-	bool serviceMsg() const {
+	bool serviceMsg() const override {
 		return true;
 	}
-	QString selectedText(uint32 selection) const;
-	QString inDialogsText() const;
-	QString inReplyText() const;
+	QString selectedText(uint32 selection) const override;
+	QString inDialogsText() const override;
+	QString inReplyText() const override;
 
-	HistoryMedia *getMedia(bool inOverview = false) const;
+	HistoryMedia *getMedia(bool inOverview = false) const override;
 
 	void setServiceText(const QString &text);
 
