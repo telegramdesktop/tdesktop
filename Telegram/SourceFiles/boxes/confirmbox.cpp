@@ -493,7 +493,7 @@ void RichDeleteMessageBox::onDelete() {
 		QVector<MsgId> toDestroy;
 		for (History::Blocks::const_iterator i = h->blocks.cbegin(), e = h->blocks.cend(); i != e; ++i) {
 			for (HistoryBlock::Items::const_iterator j = (*i)->items.cbegin(), n = (*i)->items.cend(); j != n; ++j) {
-				if ((*j)->from() == _from && (*j)->type() == HistoryItemMsg) {
+				if ((*j)->from() == _from && (*j)->type() == HistoryItemMsg && (*j)->canDelete()) {
 					toDestroy.push_back((*j)->id);
 				}
 			}

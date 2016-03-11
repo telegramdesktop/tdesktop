@@ -937,6 +937,7 @@ namespace App {
 			if (App::main()) {
 				App::main()->dlgUpdated(existing->history(), existing->id);
 			}
+			App::historyUpdateDependent(existing);
 			Notify::historyItemResized(existing);
 		}
 	}
@@ -1793,6 +1794,18 @@ namespace App {
 		}
 		if (App::main() && !App::quitting()) {
 			App::main()->itemRemoved(item);
+		}
+	}
+
+	void historyUpdateDependent(HistoryItem *item) {
+		DependentItems::iterator j = ::dependentItems.find(item);
+		if (j != ::dependentItems.cend()) {
+			for (OrderedSet<HistoryItem*>::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
+				k.key()->updateDependencyItem();
+			}
+		}
+		if (App::main()) {
+			App::main()->itemEdited(item);
 		}
 	}
 

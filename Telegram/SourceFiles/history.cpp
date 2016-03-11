@@ -7101,11 +7101,19 @@ void HistoryReply::initDimensions() {
 }
 
 bool HistoryReply::updateReplyTo(bool force) {
-	if (replyToMsg || !replyToMsgId) return true;
-	replyToMsg = App::histItemById(channelId(), replyToMsgId);
+	if (!force) {
+		if (replyToMsg || !replyToMsgId) {
+			return true;
+		}
+	}
+	if (!replyToMsg) {
+		replyToMsg = App::histItemById(channelId(), replyToMsgId);
+		if (replyToMsg) {
+			App::historyRegDependency(this, replyToMsg);
+		}
+	}
 
 	if (replyToMsg) {
-		App::historyRegDependency(this, replyToMsg);
 		replyToText.setText(st::msgFont, replyToMsg->inReplyText(), _textDlgOptions);
 
 		replyToNameUpdated();
@@ -7526,22 +7534,38 @@ bool HistoryServiceMsg::updatePinned(bool force) {
 	HistoryServicePinned *pinned = Get<HistoryServicePinned>();
 	t_assert(pinned != nullptr);
 
-	if (!pinned->msgId || pinned->msg) return true;
+	if (!force) {
+		if (!pinned->msgId || pinned->msg) {
+			return true;
+		}
+	}
 
 	if (!pinned->lnk) {
 		pinned->lnk = TextLinkPtr(new MessageLink(history()->peer->id, pinned->msgId));
 	}
-	pinned->msg = App::histItemById(channelId(), pinned->msgId);
+	bool gotDependencyItem = false;
+	if (!pinned->msg) {
+		pinned->msg = App::histItemById(channelId(), pinned->msgId);
+		if (pinned->msg) {
+			App::historyRegDependency(this, pinned->msg);
+			gotDependencyItem = true;
+		}
+	}
 	if (pinned->msg) {
-		App::historyRegDependency(this, pinned->msg);
 		updatePinnedText();
 	} else if (force) {
-		pinned->msgId = 0;
+		if (pinned->msgId > 0) {
+			pinned->msgId = 0;
+			gotDependencyItem = true;
+		}
 		updatePinnedText();
 	}
 	if (force) {
 		initDimensions();
 		Notify::historyItemResized(this);
+		if (gotDependencyItem && App::wnd()) {
+			App::wnd()->notifySettingGot();
+		}
 	}
 	return (pinned->msg || !pinned->msgId);
 }
@@ -7613,6 +7637,7 @@ bool HistoryServiceMsg::updatePinnedText(const QString *pfrom, QString *ptext) {
 		if (App::main()) {
 			App::main()->dlgUpdated(history(), id);
 		}
+		App::historyUpdateDependent(this);
 	}
 	return result;
 }

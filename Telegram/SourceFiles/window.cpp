@@ -1408,6 +1408,9 @@ void Window::notifySchedule(History *history, HistoryItem *item) {
 		}
 		App::wnd()->getNotifySetting(MTP_inputNotifyPeer(history->peer->input));
 	}
+	if (!item->notificationReady()) {
+		haveSetting = false;
+	}
 
 	int delay = item->Is<HistoryMessageForwarded>() ? 500 : 100, t = unixtime();
 	uint64 ms = getms(true);
@@ -1419,7 +1422,7 @@ void Window::notifySchedule(History *history, HistoryItem *item) {
 		delay = Global::NotifyDefaultDelay();
 	}
 
-	uint64 when = getms(true) + delay;
+	uint64 when = ms + delay;
 	notifyWhenAlerts[history].insert(when, notifyByFrom);
 	if (cDesktopNotify() && !psSkipDesktopNotify()) {
 		NotifyWhenMaps::iterator i = notifyWhenMaps.find(history);
@@ -1487,20 +1490,38 @@ void Window::notifySettingGot() {
 	int32 t = unixtime();
 	for (NotifyWaiters::iterator i = notifySettingWaiters.begin(); i != notifySettingWaiters.end();) {
 		History *history = i.key();
-		if (history->peer->notify == UnknownNotifySettings) {
-			++i;
-		} else {
+		bool loaded = false, muted = false;
+		if (history->peer->notify != UnknownNotifySettings) {
 			if (history->peer->notify == EmptyNotifySettings || history->peer->notify->mute <= t) {
-				notifyWaiters.insert(i.key(), i.value());
+				loaded = true;
 			} else if (PeerData *from = i.value().notifyByFrom) {
-				if (from->notify == UnknownNotifySettings) {
-					++i;
-					continue;
-				} else if (from->notify == EmptyNotifySettings || from->notify->mute <= t) {
-					notifyWaiters.insert(i.key(), i.value());
+				if (from->notify != UnknownNotifySettings) {
+					if (from->notify == EmptyNotifySettings || from->notify->mute <= t) {
+						loaded = true;
+					} else {
+						loaded = muted = true;
+					}
 				}
+			} else {
+				loaded = muted = true;
+			}
+		}
+		if (loaded) {
+			if (HistoryItem *item = App::histItemById(history->channelId(), i.value().msg)) {
+				if (!item->notificationReady()) {
+					loaded = false;
+				}
+			} else {
+				muted = true;
+			}
+		}
+		if (loaded) {
+			if (!muted) {
+				notifyWaiters.insert(i.key(), i.value());
 			}
 			i = notifySettingWaiters.erase(i);
+		} else {
+			++i;
 		}
 	}
 	notifyWaitTimer.stop();

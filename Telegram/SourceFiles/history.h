@@ -937,6 +937,9 @@ public:
 	virtual MsgId dependencyMsgId() const {
 		return 0;
 	}
+	virtual bool notificationReady() const {
+		return true;
+	}
 
 	virtual UserData *viaBot() const {
 		return 0;
@@ -2354,6 +2357,12 @@ public:
 			return pinned->msgId;
 		}
 		return 0;
+	}
+	bool notificationReady() const override {
+		if (const HistoryServicePinned *pinned = Get<HistoryServicePinned>()) {
+			return (pinned->msg || !pinned->msgId);
+		}
+		return true;
 	}
 
 	void countPositionAndSize(int32 &left, int32 &width) const;

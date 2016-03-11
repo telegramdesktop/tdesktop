@@ -192,6 +192,7 @@ enum {
 	mtpc_peerNotifyEventsAll = 0x6d1ded88,
 	mtpc_peerNotifySettingsEmpty = 0x70a68512,
 	mtpc_peerNotifySettings = 0x9acda4c0,
+	mtpc_peerSettings = 0x818426cd,
 	mtpc_wallPaper = 0xccb03657,
 	mtpc_wallPaperSolid = 0x63117f24,
 	mtpc_inputReportReasonSpam = 0x58dbcab8,
@@ -523,6 +524,8 @@ enum {
 	mtpc_messages_sendMedia = 0xc8f16791,
 	mtpc_messages_forwardMessages = 0x708e0195,
 	mtpc_messages_reportSpam = 0xcf1592db,
+	mtpc_messages_hideReportSpam = 0xa8f1709b,
+	mtpc_messages_getPeerSettings = 0x3672e09c,
 	mtpc_messages_getChats = 0x3c6aa187,
 	mtpc_messages_getFullChat = 0x3b831c66,
 	mtpc_messages_editChatTitle = 0xdc452855,
@@ -853,6 +856,9 @@ class MTPpeerNotifyEvents;
 
 class MTPpeerNotifySettings;
 class MTPDpeerNotifySettings;
+
+class MTPpeerSettings;
+class MTPDpeerSettings;
 
 class MTPwallPaper;
 class MTPDwallPaper;
@@ -1313,6 +1319,7 @@ typedef MTPBoxed<MTPinputPeerNotifyEvents> MTPInputPeerNotifyEvents;
 typedef MTPBoxed<MTPinputPeerNotifySettings> MTPInputPeerNotifySettings;
 typedef MTPBoxed<MTPpeerNotifyEvents> MTPPeerNotifyEvents;
 typedef MTPBoxed<MTPpeerNotifySettings> MTPPeerNotifySettings;
+typedef MTPBoxed<MTPpeerSettings> MTPPeerSettings;
 typedef MTPBoxed<MTPwallPaper> MTPWallPaper;
 typedef MTPBoxed<MTPreportReason> MTPReportReason;
 typedef MTPBoxed<MTPuserFull> MTPUserFull;
@@ -4310,6 +4317,37 @@ private:
 	mtpTypeId _type;
 };
 typedef MTPBoxed<MTPpeerNotifySettings> MTPPeerNotifySettings;
+
+class MTPpeerSettings : private mtpDataOwner {
+public:
+	MTPpeerSettings();
+	MTPpeerSettings(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_peerSettings) : mtpDataOwner(0) {
+		read(from, end, cons);
+	}
+
+	MTPDpeerSettings &_peerSettings() {
+		if (!data) throw mtpErrorUninitialized();
+		split();
+		return *(MTPDpeerSettings*)data;
+	}
+	const MTPDpeerSettings &c_peerSettings() const {
+		if (!data) throw mtpErrorUninitialized();
+		return *(const MTPDpeerSettings*)data;
+	}
+
+	uint32 innerLength() const;
+	mtpTypeId type() const;
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_peerSettings);
+	void write(mtpBuffer &to) const;
+
+	typedef void ResponseType;
+
+private:
+	explicit MTPpeerSettings(MTPDpeerSettings *_data);
+
+	friend MTPpeerSettings MTP_peerSettings(MTPint _flags);
+};
+typedef MTPBoxed<MTPpeerSettings> MTPPeerSettings;
 
 class MTPwallPaper : private mtpDataOwner {
 public:
@@ -10042,6 +10080,7 @@ public:
 
 	enum {
 		flag_can_view_participants = (1 << 3),
+		flag_can_set_username = (1 << 6),
 		flag_participants_count = (1 << 0),
 		flag_admins_count = (1 << 1),
 		flag_kicked_count = (1 << 2),
@@ -10051,6 +10090,7 @@ public:
 	};
 
 	bool is_can_view_participants() const { return vflags.v & flag_can_view_participants; }
+	bool is_can_set_username() const { return vflags.v & flag_can_set_username; }
 	bool has_participants_count() const { return vflags.v & flag_participants_count; }
 	bool has_admins_count() const { return vflags.v & flag_admins_count; }
 	bool has_kicked_count() const { return vflags.v & flag_kicked_count; }
@@ -10606,6 +10646,22 @@ public:
 
 	bool is_show_previews() const { return vflags.v & flag_show_previews; }
 	bool is_silent() const { return vflags.v & flag_silent; }
+};
+
+class MTPDpeerSettings : public mtpDataImpl<MTPDpeerSettings> {
+public:
+	MTPDpeerSettings() {
+	}
+	MTPDpeerSettings(MTPint _flags) : vflags(_flags) {
+	}
+
+	MTPint vflags;
+
+	enum {
+		flag_report_spam = (1 << 0),
+	};
+
+	bool is_report_spam() const { return vflags.v & flag_report_spam; }
 };
 
 class MTPDwallPaper : public mtpDataImpl<MTPDwallPaper> {
@@ -16709,6 +16765,84 @@ public:
 	MTPmessages_ReportSpam(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_reportSpam>(from, end, cons) {
 	}
 	MTPmessages_ReportSpam(const MTPInputPeer &_peer) : MTPBoxed<MTPmessages_reportSpam>(MTPmessages_reportSpam(_peer)) {
+	}
+};
+
+class MTPmessages_hideReportSpam { // RPC method 'messages.hideReportSpam'
+public:
+	MTPInputPeer vpeer;
+
+	MTPmessages_hideReportSpam() {
+	}
+	MTPmessages_hideReportSpam(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_hideReportSpam) {
+		read(from, end, cons);
+	}
+	MTPmessages_hideReportSpam(const MTPInputPeer &_peer) : vpeer(_peer) {
+	}
+
+	uint32 innerLength() const {
+		return vpeer.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_messages_hideReportSpam;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_hideReportSpam) {
+		vpeer.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vpeer.write(to);
+	}
+
+	typedef MTPBool ResponseType;
+};
+class MTPmessages_HideReportSpam : public MTPBoxed<MTPmessages_hideReportSpam> {
+public:
+	MTPmessages_HideReportSpam() {
+	}
+	MTPmessages_HideReportSpam(const MTPmessages_hideReportSpam &v) : MTPBoxed<MTPmessages_hideReportSpam>(v) {
+	}
+	MTPmessages_HideReportSpam(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_hideReportSpam>(from, end, cons) {
+	}
+	MTPmessages_HideReportSpam(const MTPInputPeer &_peer) : MTPBoxed<MTPmessages_hideReportSpam>(MTPmessages_hideReportSpam(_peer)) {
+	}
+};
+
+class MTPmessages_getPeerSettings { // RPC method 'messages.getPeerSettings'
+public:
+	MTPInputPeer vpeer;
+
+	MTPmessages_getPeerSettings() {
+	}
+	MTPmessages_getPeerSettings(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getPeerSettings) {
+		read(from, end, cons);
+	}
+	MTPmessages_getPeerSettings(const MTPInputPeer &_peer) : vpeer(_peer) {
+	}
+
+	uint32 innerLength() const {
+		return vpeer.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_messages_getPeerSettings;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getPeerSettings) {
+		vpeer.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vpeer.write(to);
+	}
+
+	typedef MTPPeerSettings ResponseType;
+};
+class MTPmessages_GetPeerSettings : public MTPBoxed<MTPmessages_getPeerSettings> {
+public:
+	MTPmessages_GetPeerSettings() {
+	}
+	MTPmessages_GetPeerSettings(const MTPmessages_getPeerSettings &v) : MTPBoxed<MTPmessages_getPeerSettings>(v) {
+	}
+	MTPmessages_GetPeerSettings(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_getPeerSettings>(from, end, cons) {
+	}
+	MTPmessages_GetPeerSettings(const MTPInputPeer &_peer) : MTPBoxed<MTPmessages_getPeerSettings>(MTPmessages_getPeerSettings(_peer)) {
 	}
 };
 
@@ -24583,6 +24717,33 @@ inline MTPpeerNotifySettings MTP_peerNotifySettingsEmpty() {
 }
 inline MTPpeerNotifySettings MTP_peerNotifySettings(MTPint _flags, MTPint _mute_until, const MTPstring &_sound) {
 	return MTPpeerNotifySettings(new MTPDpeerNotifySettings(_flags, _mute_until, _sound));
+}
+
+inline MTPpeerSettings::MTPpeerSettings() : mtpDataOwner(new MTPDpeerSettings()) {
+}
+
+inline uint32 MTPpeerSettings::innerLength() const {
+	const MTPDpeerSettings &v(c_peerSettings());
+	return v.vflags.innerLength();
+}
+inline mtpTypeId MTPpeerSettings::type() const {
+	return mtpc_peerSettings;
+}
+inline void MTPpeerSettings::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
+	if (cons != mtpc_peerSettings) throw mtpErrorUnexpected(cons, "MTPpeerSettings");
+
+	if (!data) setData(new MTPDpeerSettings());
+	MTPDpeerSettings &v(_peerSettings());
+	v.vflags.read(from, end);
+}
+inline void MTPpeerSettings::write(mtpBuffer &to) const {
+	const MTPDpeerSettings &v(c_peerSettings());
+	v.vflags.write(to);
+}
+inline MTPpeerSettings::MTPpeerSettings(MTPDpeerSettings *_data) : mtpDataOwner(_data) {
+}
+inline MTPpeerSettings MTP_peerSettings(MTPint _flags) {
+	return MTPpeerSettings(new MTPDpeerSettings(_flags));
 }
 
 inline uint32 MTPwallPaper::innerLength() const {

@@ -6267,6 +6267,15 @@ void HistoryWidget::itemRemoved(HistoryItem *item) {
 	}
 }
 
+void HistoryWidget::itemEdited(HistoryItem *item) {
+	if (item == _replyEditMsg) {
+		updateReplyEditTexts(true);
+	}
+	if (_pinnedBar && item->id == _pinnedBar->msgId) {
+		updatePinnedBar(true);
+	}
+}
+
 void HistoryWidget::updateScrollColors() {
 	if (!App::historyScrollBarColor()) return;
 	_scroll.updateColors(App::historyScrollBarColor(), App::historyScrollBgColor(), App::historyScrollBarOverColor(), App::historyScrollBgOverColor());
@@ -6785,12 +6794,19 @@ HistoryWidget::PinnedBar::PinnedBar(MsgId msgId, HistoryWidget *parent)
 }
 
 void HistoryWidget::updatePinnedBar(bool force) {
-	if (!_pinnedBar || _pinnedBar->msg) {
+	if (!_pinnedBar) {
 		return;
+	}
+	if (!force) {
+		if (_pinnedBar->msg) {
+			return;
+		}
 	}
 	t_assert(_history != nullptr);
 
-	_pinnedBar->msg = App::histItemById(_history->channelId(), _pinnedBar->msgId);
+	if (!_pinnedBar->msg) {
+		_pinnedBar->msg = App::histItemById(_history->channelId(), _pinnedBar->msgId);
+	}
 	if (_pinnedBar->msg) {
 		_pinnedBar->text.setText(st::msgFont, _pinnedBar->msg->inDialogsText(), _textDlgOptions);
 	} else if (force) {
@@ -7595,10 +7611,14 @@ void HistoryWidget::messageDataReceived(ChannelData *channel, MsgId msgId) {
 }
 
 void HistoryWidget::updateReplyEditTexts(bool force) {
-	if (_replyEditMsg || (!_editMsgId && !_replyToId)) {
-		return;
+	if (!force) {
+		if (_replyEditMsg || (!_editMsgId && !_replyToId)) {
+			return;
+		}
 	}
-	_replyEditMsg = App::histItemById(_channel, _editMsgId ? _editMsgId : _replyToId);
+	if (!_replyEditMsg) {
+		_replyEditMsg = App::histItemById(_channel, _editMsgId ? _editMsgId : _replyToId);
+	}
 	if (_replyEditMsg) {
 		_replyEditMsgText.setText(st::msgFont, _replyEditMsg->inDialogsText(), _textDlgOptions);
 

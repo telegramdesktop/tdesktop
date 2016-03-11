@@ -1541,6 +1541,12 @@ void MainWidget::itemRemoved(HistoryItem *item) {
 	}
 }
 
+void MainWidget::itemEdited(HistoryItem *item) {
+	if (history.peer() == item->history()->peer || (history.peer() && history.peer() == item->history()->peer->migrateTo())) {
+		history.itemEdited(item);
+	}
+}
+
 bool MainWidget::overviewFailed(PeerData *peer, const RPCError &error, mtpRequestId req) {
 	if (mtpIsFlood(error)) return false;
 

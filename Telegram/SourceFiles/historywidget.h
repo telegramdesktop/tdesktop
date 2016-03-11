@@ -513,6 +513,7 @@ public:
 
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
 	void itemRemoved(HistoryItem *item);
+	void itemEdited(HistoryItem *item);
 
 	void updateScrollColors();
 

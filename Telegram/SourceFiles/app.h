@@ -150,6 +150,7 @@ namespace App {
 	void historyRegItem(HistoryItem *item);
 	void historyItemDetached(HistoryItem *item);
 	void historyUnregItem(HistoryItem *item);
+	void historyUpdateDependent(HistoryItem *item);
 	void historyClearMsgs();
 	void historyClearItems();
 	void historyRegDependency(HistoryItem *dependent, HistoryItem *dependency);
