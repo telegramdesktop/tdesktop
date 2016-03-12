@@ -6818,6 +6818,7 @@ void HistoryWidget::updatePinnedBar(bool force) {
 	}
 	if (_pinnedBar->msg) {
 		_pinnedBar->text.setText(st::msgFont, _pinnedBar->msg->inDialogsText(), _textDlgOptions);
+		update();
 	} else if (force) {
 		if (_peer && _peer->isMegagroup()) {
 			_peer->asChannel()->mgInfo->pinnedMsgId = 0;
