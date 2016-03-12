@@ -6193,11 +6193,15 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 	_field.move(_attachDocument.x() + _attachDocument.width(), height() - kbh - _field.height() - st::sendPadding);
 
 	if (_pinnedBar) {
-		_scroll.move(0, st::replyHeight);
+		if (_scroll.y() != st::replyHeight) {
+			_scroll.move(0, st::replyHeight);
+			_attachMention.setBoundings(_scroll.geometry());
+		}
 		_pinnedBar->cancel.move(width() - _pinnedBar->cancel.width(), 0);
 		_pinnedBar->shadow.setGeometry(0, st::replyHeight, width(), st::lineWidth);
-	} else {
-		_scroll.move(0, _pinnedBar ? st::replyHeight : 0);
+	} else if (_scroll.y() != 0) {
+		_scroll.move(0, 0);
+		_attachMention.setBoundings(_scroll.geometry());
 	}
 
 	_attachDocument.move(0, height() - kbh - _attachDocument.height());
