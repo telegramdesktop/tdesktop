@@ -351,7 +351,14 @@ class PhotoData;
 class UserData : public PeerData {
 public:
 
-	UserData(const PeerId &id) : PeerData(id), access(0), flags(0), onlineTill(0), contact(-1), blocked(UserBlockUnknown), photosCount(-1), botInfo(0) {
+	UserData(const PeerId &id) : PeerData(id)
+		, access(0)
+		, flags(0)
+		, onlineTill(0)
+		, contact(-1)
+		, blocked(UserBlockUnknown)
+		, photosCount(-1)
+		, botInfo(0) {
 		setName(QString(), QString(), QString(), QString());
 	}
 	void setPhoto(const MTPUserProfilePhoto &photo);
@@ -399,7 +406,16 @@ static UserData * const InlineBotLookingUpData = SharedMemoryLocation<UserData, 
 class ChatData : public PeerData {
 public:
 
-	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_int(bareId())), migrateToPtr(0), count(0), date(0), version(0), creator(0), inviterForSpamReport(0), flags(0), isForbidden(false), botStatus(0) {
+	ChatData(const PeerId &id) : PeerData(id)
+		, inputChat(MTP_int(bareId()))
+		, migrateToPtr(0)
+		, count(0)
+		, date(0)
+		, version(0)
+		, creator(0)
+		, flags(0)
+		, isForbidden(false)
+		, botStatus(0) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
 	void invalidateParticipants() {
@@ -421,7 +437,6 @@ public:
 	int32 date;
 	int32 version;
 	int32 creator;
-	int32 inviterForSpamReport; // > 0 - user who invited me to chat in unread service msg, < 0 - have outgoing message
 
 	int32 flags;
 	bool isForbidden;
@@ -477,14 +492,14 @@ enum PtsSkippedQueue {
 class PtsWaiter {
 public:
 
-	PtsWaiter() :
-		_good(0),
-		_last(0),
-		_count(0),
-		_applySkippedLevel(0),
-		_requesting(false),
-		_waitingForSkipped(false),
-		_waitingForShortPoll(false) {
+	PtsWaiter()
+		: _good(0)
+		, _last(0)
+		, _count(0)
+		, _applySkippedLevel(0)
+		, _requesting(false)
+		, _waitingForSkipped(false)
+		, _waitingForShortPoll(false) {
 	}
 	void init(int32 pts) {
 		_good = _last = _count = pts;
@@ -567,7 +582,19 @@ struct MegagroupInfo {
 class ChannelData : public PeerData {
 public:
 
-	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), count(1), adminsCount(1), date(0), version(0), flags(0), flagsFull(0), mgInfo(0), isForbidden(true), inviter(0), _lastFullUpdate(0) {
+	ChannelData(const PeerId &id) : PeerData(id)
+		, access(0)
+		, inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0)))
+		, count(1)
+		, adminsCount(1)
+		, date(0)
+		, version(0)
+		, flags(0)
+		, flagsFull(0)
+		, mgInfo(nullptr)
+		, isForbidden(true)
+		, inviter(0)
+		, _lastFullUpdate(0) {
 		setName(QString(), QString());
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);

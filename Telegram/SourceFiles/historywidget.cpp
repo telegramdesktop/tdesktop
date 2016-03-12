@@ -2647,6 +2647,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _pinnedBar(0)
 , _saveEditMsgRequestId(0)
 , _reportSpamStatus(dbiprsUnknown)
+, _reportSpamSettingRequestId(ReportSpamRequestNeeded)
 , _previewData(0)
 , _previewRequest(0)
 , _previewCancelled(false)
@@ -3644,6 +3645,10 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	}
 
 	_unblockRequest = _reportSpamRequest = 0;
+	if (_reportSpamSettingRequestId > 0) {
+		MTP::cancel(_reportSpamSettingRequestId);
+	}
+	_reportSpamSettingRequestId = ReportSpamRequestNeeded;
 
 	_titlePeerText = QString();
 	_titlePeerTextWidth = 0;
@@ -3789,94 +3794,92 @@ bool HistoryWidget::contentOverlapped(const QRect &globalRect) {
 
 void HistoryWidget::updateReportSpamStatus() {
 	if (!_peer || (_peer->isUser() && (peerToUser(_peer->id) == MTP::authedId() || isNotificationsUser(_peer->id) || isServiceUser(_peer->id) || _peer->asUser()->botInfo))) {
-		_reportSpamStatus = dbiprsNoButton;
+		_reportSpamStatus = dbiprsHidden;
 		return;
 	} else {
 		ReportSpamStatuses::const_iterator i = cReportSpamStatuses().constFind(_peer->id);
 		if (i != cReportSpamStatuses().cend()) {
 			_reportSpamStatus = i.value();
+			if (_reportSpamStatus == dbiprsNoButton) {
+				_reportSpamStatus = dbiprsHidden;
+				if (!_peer->isUser() || _peer->asUser()->contact < 1) {
+					MTP::send(MTPmessages_HideReportSpam(_peer->input));
+				}
+
+				cRefReportSpamStatuses().insert(_peer->id, _reportSpamStatus);
+				Local::writeReportSpamStatuses();
+			} else if (_reportSpamStatus == dbiprsShowButton) {
+				requestReportSpamSetting();
+			}
 			_reportSpamPanel.setReported(_reportSpamStatus == dbiprsReportSent, _peer);
 			return;
 		} else if (_peer->migrateFrom()) { // migrate report status
 			i = cReportSpamStatuses().constFind(_peer->migrateFrom()->id);
 			if (i != cReportSpamStatuses().cend()) {
 				_reportSpamStatus = i.value();
-				_reportSpamPanel.setReported(_reportSpamStatus == dbiprsReportSent, _peer);
+				if (_reportSpamStatus == dbiprsNoButton) {
+					_reportSpamStatus = dbiprsHidden;
+					if (!_peer->isUser() || _peer->asUser()->contact < 1) {
+						MTP::send(MTPmessages_HideReportSpam(_peer->input));
+					}
+				} else if (_reportSpamStatus == dbiprsShowButton) {
+					requestReportSpamSetting();
+				}
 				cRefReportSpamStatuses().insert(_peer->id, _reportSpamStatus);
 				Local::writeReportSpamStatuses();
+
+				_reportSpamPanel.setReported(_reportSpamStatus == dbiprsReportSent, _peer);
 				return;
 			}
 		}
 	}
-	if (!cContactsReceived() || _firstLoadRequest) {
+	if (!cContactsReceived()) {
 		_reportSpamStatus = dbiprsUnknown;
-	} else if (!_history->loadedAtTop() && (_history->blocks.size() < 2 || (_history->blocks.size() == 2 && _history->blocks.at(1)->items.size() < 2))) {
-		_reportSpamStatus = dbiprsUnknown;
-	} else if (_peer->isUser()) {
-		if (_peer->asUser()->contact > 0) {
-			_reportSpamStatus = dbiprsNoButton;
-		} else {
-			bool anyFound = false, outFound = false;
-			for (int32 i = 0, l = _history->blocks.size(); i < l; ++i) {
-				for (int32 j = 0, c = _history->blocks.at(i)->items.size(); j < c; ++j) {
-					anyFound = true;
-					if (_history->blocks.at(i)->items.at(j)->out()) {
-						outFound = true;
-						break;
-					}
-				}
-			}
-			if (anyFound) {
-				if (outFound) {
-					_reportSpamStatus = dbiprsNoButton;
-				} else {
-					_reportSpamStatus = dbiprsShowButton;
-				}
-			} else {
-				_reportSpamStatus = dbiprsUnknown;
-			}
-		}
-	} else if (_peer->isChat()) {
-		if (_peer->asChat()->inviterForSpamReport > 0) {
-			UserData *user = App::userLoaded(_peer->asChat()->inviterForSpamReport);
-			if (user && user->contact > 0) {
-				_reportSpamStatus = dbiprsNoButton;
-			} else {
-				_reportSpamStatus = dbiprsShowButton;
-			}
-		} else {
-			_reportSpamStatus = dbiprsNoButton;
-		}
-	} else if (_peer->isChannel()) {
-		if (_peer->migrateFrom() && _peer->migrateFrom()->isChat()) {
-			if (_peer->migrateFrom()->asChat()->inviterForSpamReport > 0) {
-				UserData *user = App::userLoaded(_peer->migrateFrom()->asChat()->inviterForSpamReport);
-				if (user && user->contact > 0) {
-					_reportSpamStatus = dbiprsNoButton;
-				} else {
-					_reportSpamStatus = dbiprsShowButton;
-				}
-			} else {
-				_reportSpamStatus = dbiprsNoButton;
-			}
-		} else if (!_peer->asChannel()->inviter || _history->asChannelHistory()->maxReadMessageDate().isNull()) {
-			_reportSpamStatus = dbiprsUnknown;
-		} else if (_peer->asChannel()->inviter > 0) {
-			UserData *user = App::userLoaded(_peer->asChannel()->inviter);
-			if ((user && user->contact > 0) || (_peer->asChannel()->inviter == MTP::authedId()) || _history->asChannelHistory()->maxReadMessageDate() > _peer->asChannel()->inviteDate) {
-				_reportSpamStatus = dbiprsNoButton;
-			} else {
-				_reportSpamStatus = dbiprsShowButton;
-			}
-		} else {
-			_reportSpamStatus = dbiprsNoButton;
-		}
+	} else if (_peer->isUser() && _peer->asUser()->contact > 0) {
+		_reportSpamStatus = dbiprsHidden;
+	} else {
+		_reportSpamStatus = dbiprsRequesting;
+		requestReportSpamSetting();
 	}
-	if (_reportSpamStatus == dbiprsShowButton || _reportSpamStatus == dbiprsNoButton) {
+	if (_reportSpamStatus == dbiprsHidden) {
 		_reportSpamPanel.setReported(false, _peer);
 		cRefReportSpamStatuses().insert(_peer->id, _reportSpamStatus);
 		Local::writeReportSpamStatuses();
 	}
+}
+
+void HistoryWidget::requestReportSpamSetting() {
+	if (_reportSpamSettingRequestId >= 0 || !_peer) return;
+
+	_reportSpamSettingRequestId = MTP::send(MTPmessages_GetPeerSettings(_peer->input), rpcDone(&HistoryWidget::reportSpamSettingDone), rpcFail(&HistoryWidget::reportSpamSettingFail));
+}
+
+void HistoryWidget::reportSpamSettingDone(const MTPPeerSettings &result, mtpRequestId req) {
+	if (req != _reportSpamSettingRequestId) return;
+
+	_reportSpamSettingRequestId = 0;
+	if (result.type() == mtpc_peerSettings) {
+		const MTPDpeerSettings &d(result.c_peerSettings());
+		DBIPeerReportSpamStatus status = d.is_report_spam() ? dbiprsShowButton : dbiprsHidden;
+		if (status != _reportSpamStatus) {
+			_reportSpamStatus = status;
+			_reportSpamPanel.setReported(false, _peer);
+
+			cRefReportSpamStatuses().insert(_peer->id, _reportSpamStatus);
+			Local::writeReportSpamStatuses();
+
+			updateControlsVisibility();
+		}
+	}
+}
+
+bool HistoryWidget::reportSpamSettingFail(const RPCError &error, mtpRequestId req) {
+	if (mtpIsFlood(error)) return false;
+
+	if (req == _reportSpamSettingRequestId) {
+		req = 0;
+	}
+	return true;
 }
 
 void HistoryWidget::updateControlsVisibility() {
@@ -4166,7 +4169,7 @@ void HistoryWidget::historyCleared(History *history) {
 bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId) {
 	if (mtpIsFlood(error)) return false;
 
-	if (error.type() == qstr("CHANNEL_PRIVATE") || error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA")) {
+	if (error.type() == qstr("CHANNEL_PRIVATE") || error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA") || error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
 		PeerData *was = _peer;
 		Ui::showChatsList();
 		Ui::showLayer(new InformBox(lang((was && was->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
@@ -4762,7 +4765,7 @@ bool HistoryWidget::joinFail(const RPCError &error, mtpRequestId req) {
 	if (mtpIsFlood(error)) return false;
 
 	if (_unblockRequest == req) _unblockRequest = 0;
-	if (error.type() == qstr("CHANNEL_PRIVATE") || error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA")) {
+	if (error.type() == qstr("CHANNEL_PRIVATE") || error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA") || error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
 		Ui::showLayer(new InformBox(lang((_peer && _peer->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
 		return true;
 	}
@@ -6074,10 +6077,12 @@ bool HistoryWidget::reportSpamFail(const RPCError &error, mtpRequestId req) {
 
 void HistoryWidget::onReportSpamHide() {
 	if (_peer) {
-		cRefReportSpamStatuses().insert(_peer->id, dbiprsNoButton);
+		cRefReportSpamStatuses().insert(_peer->id, dbiprsHidden);
 		Local::writeReportSpamStatuses();
+
+		MTP::send(MTPmessages_HideReportSpam(_peer->input));
 	}
-	_reportSpamStatus = dbiprsNoButton;
+	_reportSpamStatus = dbiprsHidden;
 	updateControlsVisibility();
 }
 

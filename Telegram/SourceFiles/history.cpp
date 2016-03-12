@@ -7417,9 +7417,6 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 			text = lng_action_add_users_many(lt_from, from, lt_users, text);
 		}
 		if (foundSelf) {
-			if (unread() && history()->peer->isChat() && !history()->peer->asChat()->inviterForSpamReport && _from->isUser()) {
-				history()->peer->asChat()->inviterForSpamReport = peerToUser(_from->id);
-			}
 			if (history()->peer->isMegagroup()) {
 				history()->peer->asChannel()->mgInfo->joinedMessageFound = true;
 			}
@@ -7443,11 +7440,6 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 	case mtpc_messageActionChatCreate: {
 		const MTPDmessageActionChatCreate &d(action.c_messageActionChatCreate());
 		text = lng_action_created_chat(lt_from, from, lt_title, textClean(qs(d.vtitle)));
-		if (unread()) {
-			if (history()->peer->isChat() && !history()->peer->asChat()->inviterForSpamReport && _from->isUser() && peerToUser(_from->id) != MTP::authedId()) {
-				history()->peer->asChat()->inviterForSpamReport = peerToUser(_from->id);
-			}
-		}
 	} break;
 
 	case mtpc_messageActionChannelCreate: {

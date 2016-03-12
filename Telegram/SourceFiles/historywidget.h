@@ -759,7 +759,12 @@ private:
 	bool saveEditMsgFail(History *history, const RPCError &error, mtpRequestId req);
 
 	DBIPeerReportSpamStatus _reportSpamStatus;
+	mtpRequestId _reportSpamSettingRequestId;
+	static const mtpRequestId ReportSpamRequestNeeded = -1;
 	void updateReportSpamStatus();
+	void requestReportSpamSetting();
+	void reportSpamSettingDone(const MTPPeerSettings &result, mtpRequestId req);
+	bool reportSpamSettingFail(const RPCError &error, mtpRequestId req);
 
 	QString _previewLinks;
 	WebPageData *_previewData;
