@@ -427,7 +427,7 @@ void ContactsInner::paintDialog(Painter &p, PeerData *peer, ContactData *data, b
 			sel = false;
 		}
 	} else {
-		if (data->inchat || data->check || selectedCount() >= ((_channel && _channel->isMegagroup()) ? Global::MegagroupSizeMax() : Global::ChatSizeMax())) {
+		if (data->inchat || data->check || selectedCount() >= Global::MegagroupSizeMax()) {
 			sel = false;
 		}
 	}
@@ -771,6 +771,8 @@ void ContactsInner::changeCheckState(ContactData *data, PeerData *peer) {
 		data->check = true;
 		_checkedContacts.insert(peer, true);
 		++_selCount;
+	} else if ((!_channel || !_channel->isMegagroup()) && selectedCount() >= Global::ChatSizeMax() && selectedCount() < Global::MegagroupSizeMax()) {
+		Ui::showLayer(new InformBox(lng_profile_add_more_after_upgrade(lt_count, Global::MegagroupSizeMax())), KeepOtherLayers);
 	}
 	if (cnt != _selCount) emit chosenChanged();
 }
@@ -1535,7 +1537,7 @@ void ContactsBox::paintEvent(QPaintEvent *e) {
 		paintTitle(p, lang(lng_channel_admins));
 	} else if (_inner.chat() || _inner.creating() != CreatingGroupNone) {
 		QString title(lang(addingAdmin ? lng_channel_add_admin : lng_profile_add_participant));
-		QString additional(addingAdmin ? QString() : QString("%1 / %2").arg(_inner.selectedCount()).arg(((_inner.channel() && _inner.channel()->isMegagroup()) ? Global::MegagroupSizeMax() : Global::ChatSizeMax())));
+		QString additional(addingAdmin ? QString() : QString("%1 / %2").arg(_inner.selectedCount()).arg(Global::MegagroupSizeMax()));
 		paintTitle(p, title, additional);
 	} else if (_inner.bot()) {
 		paintTitle(p, lang(lng_bot_choose_group));
