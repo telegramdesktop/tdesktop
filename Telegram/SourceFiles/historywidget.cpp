@@ -6876,6 +6876,7 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 		_pinnedBar = nullptr;
 		result = true;
 		_scroll.scrollToY(_scroll.scrollTop() - st::replyHeight);
+		resizeEvent(0);
 	}
 	return result;
 }
@@ -7889,9 +7890,9 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 				drawRecordButton(p);
 				if (_recording) drawRecording(p);
 			}
-			if (_pinnedBar) {
-				drawPinnedBar(p);
-			}
+		}
+		if (_pinnedBar && !_pinnedBar->cancel.isHidden()) {
+			drawPinnedBar(p);
 		}
 		if (_scroll.isHidden()) {
 			QPoint dogPos((width() - st::msgDogImg.pxWidth()) / 2, ((height() - _field.height() - 2 * st::sendPadding - st::msgDogImg.pxHeight()) * 4) / 9);
