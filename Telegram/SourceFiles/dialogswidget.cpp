@@ -2094,6 +2094,7 @@ void DialogsWidget::onChooseByDrag() {
 void DialogsWidget::searchMessages(const QString &query, PeerData *inPeer) {
 	if ((_filter.getLastText() != query) || (inPeer && inPeer != _searchInPeer && inPeer->migrateTo() != _searchInPeer)) {
 		if (inPeer) {
+			onCancelSearch();
 			_searchInPeer = inPeer->migrateTo() ? inPeer->migrateTo() : inPeer;
 			_searchInMigrated = _searchInPeer ? _searchInPeer->migrateFrom() : 0;
 			_inner.searchInPeer(_searchInPeer);
