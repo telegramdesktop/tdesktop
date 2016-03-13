@@ -7228,7 +7228,11 @@ void HistoryWidget::cancelEdit() {
 		updateMouseTracking();
 	}
 
+	int32 old = _textUpdateEventsFlags;
+	_textUpdateEventsFlags = 0;
 	onTextChange();
+	_textUpdateEventsFlags = old;
+
 	updateBotKeyboard();
 	updateFieldPlaceholder();
 
