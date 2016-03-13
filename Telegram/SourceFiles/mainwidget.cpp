@@ -909,10 +909,9 @@ void MainWidget::forwardLayer(int32 forwardSelected) {
 
 void MainWidget::deleteLayer(int32 selectedCount) {
 	if (selectedCount == -1 && !overview) {
-		if (HistoryItem *item = App::contextItem()) {
-			ChannelData *channel = item->history()->peer->asChannel();
-			if (channel && !item->isPost() && !item->out() && item->from()->isUser() && (channel->amCreator() || channel->amEditor())) {
-				Ui::showLayer(new RichDeleteMessageBox(channel, item->from()->asUser(), item->id));
+		if (auto item = App::contextItem()) {
+			if (item->suggestBanReportDeleteAll()) {
+				Ui::showLayer(new RichDeleteMessageBox(item->history()->peer->asChannel(), item->from()->asUser(), item->id));
 				return;
 			}
 		}
@@ -992,9 +991,16 @@ void MainWidget::deleteHistoryAfterLeave(PeerData *peer, const MTPUpdates &updat
 
 void MainWidget::deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result) {
 	const MTPDmessages_affectedHistory &d(result.c_messages_affectedHistory());
-	if (ptsUpdated(d.vpts.v, d.vpts_count.v)) {
-		ptsApplySkippedUpdates();
-		App::emitPeerUpdated();
+	if (peer && peer->isChannel()) {
+		if (peer->asChannel()->ptsUpdated(d.vpts.v, d.vpts_count.v)) {
+			peer->asChannel()->ptsApplySkippedUpdates();
+			App::emitPeerUpdated();
+		}
+	} else {
+		if (ptsUpdated(d.vpts.v, d.vpts_count.v)) {
+			ptsApplySkippedUpdates();
+			App::emitPeerUpdated();
+		}
 	}
 
 	int32 offset = d.voffset.v;
@@ -1054,6 +1060,45 @@ void MainWidget::deleteConversation(PeerData *peer, bool deleteHistory) {
 	}
 	if (deleteHistory) {
 		MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
+	}
+}
+
+void MainWidget::deleteAllFromUser(ChannelData *channel, UserData *from) {
+	t_assert(channel != nullptr && from != nullptr);
+
+	QVector<MsgId> toDestroy;
+	if (auto history = App::historyLoaded(channel->id)) {
+		for (auto i = history->blocks.cbegin(), e = history->blocks.cend(); i != e; ++i) {
+			for (auto j = (*i)->items.cbegin(), n = (*i)->items.cend(); j != n; ++j) {
+				if ((*j)->from() == from && (*j)->type() == HistoryItemMsg && (*j)->canDelete()) {
+					toDestroy.push_back((*j)->id);
+				}
+			}
+		}
+		for (auto i = toDestroy.cbegin(), e = toDestroy.cend(); i != e; ++i) {
+			if (auto item = App::histItemById(peerToChannel(channel->id), *i)) {
+				item->destroy();
+			}
+		}
+	}
+	MTP::send(MTPchannels_DeleteUserHistory(channel->inputChannel, from->inputUser), rpcDone(&MainWidget::deleteAllFromUserPart, { channel, from }));
+}
+
+void MainWidget::deleteAllFromUserPart(DeleteAllFromUserParams params, const MTPmessages_AffectedHistory &result) {
+	const MTPDmessages_affectedHistory &d(result.c_messages_affectedHistory());
+	if (params.channel->ptsUpdated(d.vpts.v, d.vpts_count.v)) {
+		params.channel->ptsApplySkippedUpdates();
+		App::emitPeerUpdated();
+	}
+
+	int32 offset = d.voffset.v;
+	if (!MTP::authedId()) return;
+	if (offset > 0) {
+		MTP::send(MTPchannels_DeleteUserHistory(params.channel->inputChannel, params.from->inputUser), rpcDone(&MainWidget::deleteAllFromUserPart, params));
+	} else if (auto h = App::historyLoaded(params.channel)) {
+		if (!h->lastMsg) {
+			checkPeerHistory(params.channel);
+		}
 	}
 }
 

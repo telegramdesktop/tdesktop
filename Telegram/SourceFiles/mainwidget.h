@@ -306,11 +306,11 @@ public:
 
 	bool leaveChatFailed(PeerData *peer, const RPCError &e);
 	void deleteHistoryAfterLeave(PeerData *peer, const MTPUpdates &updates);
-	void deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result);
 	void deleteMessages(PeerData *peer, const QVector<MTPint> &ids);
 	void deletedContact(UserData *user, const MTPcontacts_Link &result);
 	void deleteConversation(PeerData *peer, bool deleteHistory = true);
 	void clearHistory(PeerData *peer);
+	void deleteAllFromUser(ChannelData *channel, UserData *from);
 
 	void addParticipants(PeerData *chatOrChannel, const QVector<UserData*> &users);
 	bool addParticipantFail(UserData *user, const RPCError &e);
@@ -561,6 +561,13 @@ private:
 
 	void feedUpdateVector(const MTPVector<MTPUpdate> &updates, bool skipMessageIds = false);
 	void feedMessageIds(const MTPVector<MTPUpdate> &updates);
+
+	void deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result);
+	struct DeleteAllFromUserParams {
+		ChannelData *channel;
+		UserData *from;
+	};
+	void deleteAllFromUserPart(DeleteAllFromUserParams params, const MTPmessages_AffectedHistory &result);
 
 	void updateReceived(const mtpPrime *from, const mtpPrime *end);
 	bool updateFail(const RPCError &e);
