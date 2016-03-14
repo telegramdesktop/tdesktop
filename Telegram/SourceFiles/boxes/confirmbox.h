@@ -108,7 +108,7 @@ public:
 	void mouseMoveEvent(QMouseEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void leaveEvent(QEvent *e);
-	
+
 protected:
 
 	void hideAll();
@@ -132,4 +132,101 @@ private:
 	QString _goodTextLink;
 	anim::fvalue a_goodOpacity;
 	Animation _a_good;
+};
+
+class ConvertToSupergroupBox : public AbstractBox, public RPCSender {
+	Q_OBJECT
+
+public:
+
+	ConvertToSupergroupBox(ChatData *chat);
+	void keyPressEvent(QKeyEvent *e);
+	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
+
+public slots:
+
+	void onConvert();
+
+protected:
+
+	void hideAll();
+	void showAll();
+
+private:
+
+	void convertDone(const MTPUpdates &updates);
+	bool convertFail(const RPCError &error);
+
+	ChatData *_chat;
+	Text _text, _note;
+	int32 _textWidth, _textHeight;
+
+	BoxButton _convert, _cancel;
+};
+
+class PinMessageBox : public AbstractBox, public RPCSender {
+	Q_OBJECT
+
+public:
+
+	PinMessageBox(ChannelData *channel, MsgId msgId);
+
+	void resizeEvent(QResizeEvent *e);
+
+public slots:
+
+	void onPin();
+
+protected:
+
+	void showAll();
+	void hideAll();
+
+private:
+
+	void pinDone(const MTPUpdates &updates);
+	bool pinFail(const RPCError &error);
+
+	ChannelData *_channel;
+	MsgId _msgId;
+
+	FlatLabel _text;
+	Checkbox _notify;
+
+	BoxButton _pin, _cancel;
+
+	mtpRequestId _requestId;
+
+};
+
+class RichDeleteMessageBox : public AbstractBox, public RPCSender {
+	Q_OBJECT
+
+public:
+
+	RichDeleteMessageBox(ChannelData *channel, UserData *from, MsgId msgId);
+
+	void resizeEvent(QResizeEvent *e);
+
+public slots:
+
+	void onDelete();
+
+protected:
+
+	void showAll();
+	void hideAll();
+
+private:
+
+	ChannelData *_channel;
+	UserData *_from;
+	MsgId _msgId;
+
+	FlatLabel _text;
+	Checkbox _banUser, _reportSpam, _deleteAll;
+
+	BoxButton _delete, _cancel;
+
 };

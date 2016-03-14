@@ -144,16 +144,26 @@ namespace App {
 	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead);
 	History *historyLoaded(const PeerId &peer);
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId);
+	inline History *history(const PeerData *peer) {
+		return history(peer->id);
+	}
+	inline History *historyLoaded(const PeerData *peer) {
+		return historyLoaded(peer->id);
+	}
+	inline HistoryItem *histItemById(const ChannelData *channel, MsgId itemId) {
+		return histItemById(channel ? peerToChannel(channel->id) : 0, itemId);
+	}
 	inline HistoryItem *histItemById(const FullMsgId &msgId) {
 		return histItemById(msgId.channel, msgId.msg);
 	}
 	void historyRegItem(HistoryItem *item);
 	void historyItemDetached(HistoryItem *item);
 	void historyUnregItem(HistoryItem *item);
+	void historyUpdateDependent(HistoryItem *item);
 	void historyClearMsgs();
 	void historyClearItems();
-	void historyRegReply(HistoryReply *reply, HistoryItem *to);
-	void historyUnregReply(HistoryReply *reply, HistoryItem *to);
+	void historyRegDependency(HistoryItem *dependent, HistoryItem *dependency);
+	void historyUnregDependency(HistoryItem *dependent, HistoryItem *dependency);
 
 	void historyRegRandom(uint64 randomId, const FullMsgId &itemId);
 	void historyUnregRandom(uint64 randomId);

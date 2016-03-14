@@ -107,4 +107,6 @@ namespace SignalHandlers {
 	Status restart(); // can be only CantOpen or Started
 	void finish();
 
+	void setSelfUsername(const QString &username);
+
 }

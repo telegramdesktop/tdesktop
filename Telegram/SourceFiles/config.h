@@ -20,10 +20,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 9030;
-static const wchar_t *AppVersionStr = L"0.9.30";
-static const bool DevVersion = true;
-//#define BETA_VERSION (9028002ULL) // just comment this line to build public version
+static const int32 AppVersion = 9031;
+static const wchar_t *AppVersionStr = L"0.9.31";
+static const bool DevVersion = false;
+//#define BETA_VERSION (9030002ULL) // just comment this line to build public version
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -171,6 +171,8 @@ enum {
 
 	ChoosePeerByDragTimeout = 1000, // 1 second mouse not moved to choose dialog when dragging a file
 	ReloadChannelMembersTimeout = 1000, // 1 second wait before reload members in channel after adding
+
+	PinnedMessageTextLimit = 16,
 };
 
 inline bool isNotificationsUser(uint64 id) {

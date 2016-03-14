@@ -130,6 +130,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_edit_message_text" = "Neuer Text..";
 "lng_deleted" = "Gelöschter Kontakt";
 "lng_deleted_message" = "Gelöschte Nachricht";
+"lng_pinned_message" = "Angeheftete Nachricht";
+"lng_pinned_unpin_sure" = "Angeheftete Nachricht entfernen?";
+"lng_pinned_pin_sure" = "Möchtest du diese Nachricht anheften?";
+"lng_pinned_pin" = "Anheften";
+"lng_pinned_unpin" = "Entfernen";
+"lng_pinned_notify" = "Alle benachrichtigen";
 
 "lng_intro" = "Willkommen beim [a href=\"https://telegram.org/\"]offiziellen Desktop Messenger[/a].\n[b]Schnell[/b] und [b]sicher[/b] chatten leicht gemacht.";
 "lng_start_msgs" = "JETZT STARTEN";
@@ -410,7 +416,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_edit_contact" = "Bearbeiten";
 "lng_profile_enable_notifications" = "Benachrichtigungen";
 "lng_profile_clear_history" = "Chatverlauf löschen";
-"lng_profile_delete_conversation" = "Chat entfernen";
+"lng_profile_delete_conversation" = "Chat löschen";
 "lng_profile_clear_and_exit" = "Löschen und verlassen";
 "lng_profile_leave_channel" = "Kanal verlassen";
 "lng_profile_delete_channel" = "Kanal löschen";
@@ -429,6 +435,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_add_participant" = "Neues Mitglied";
 "lng_profile_delete_and_exit" = "Verlassen";
 "lng_profile_kick" = "Entfernen";
+"lng_profile_admin" = "Admin";
 "lng_profile_sure_kick" = "{user} aus der Gruppe entfernen?";
 "lng_profile_sure_kick_channel" = "{user} aus dem Kanal entfernen?";
 "lng_profile_sure_kick_admin" = "{user} als Administrator entfernen?";
@@ -469,13 +476,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_create_group_next" = "Weiter";
 "lng_create_group_create" = "Erstellen";
 "lng_create_group_title" = "Neue Gruppe erstellen";
-"lng_create_group_about" = "{count:_not_used|# Mitglied|# Mitglieder} passen in jede Gruppe, \npraktisch für eine kleinere Gemeinschaft.";
+"lng_create_group_about" = "{count:_not_used|# Mitglied|# Mitglieder} passen in jede Gruppe, praktisch für eine kleinere Gemeinschaft.";
 "lng_create_channel_title" = "Neuen Kanal erstellen";
 "lng_create_channel_about" = "In einen Kanal passen unbegrenzt viele Leute, also ideal für ein großes Publikum.";
 "lng_create_public_channel_title" = "Öffentlicher Kanal";
 "lng_create_public_channel_about" = "Jeder kann deinen Kanal finden und beitreten";
 "lng_create_private_channel_title" = "Privater Kanal";
 "lng_create_private_channel_about" = "Man kann nur per Einladungslink deinem Kanal beitreten";
+"lng_create_public_group_title" = "Öffentliche Gruppe";
+"lng_create_public_group_about" = "Öffentliche Gruppen kann jeder über die Suche finden, gesamter Chatverlauf ist für alle einsehbar und jeder kann der Gruppe beitreten";
+"lng_create_private_group_title" = "Private Gruppe";
+"lng_create_private_group_about" = "Nur eingeladene Nutzer können die Gruppe betreten und den gesamten Chatverlauf einsehen";
 "lng_create_channel_comments" = "Kommentare aktivieren";
 "lng_create_channel_comments_about" = "Wenn du Kommentare aktivierst, können sich alle an der Diskussion beteiligen";
 "lng_create_group_skip" = "Überspringen";
@@ -528,6 +539,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_created_chat" = "{from} hat die Gruppe «{title}» erstellt";
 "lng_action_created_channel" = "Kanal «{title}» erstellt";
 "lng_action_group_migrate" = "Gruppe wurde in eine Supergruppe geändert";
+"lng_action_pinned_message" = "{from} hat «{text}» angeheftet";
+"lng_action_pinned_media" = "{from} hat {media} angeheftet";
+"lng_action_pinned_media_photo" = "ein Bild";
+"lng_action_pinned_media_video" = "ein Video";
+"lng_action_pinned_media_audio" = "ein Audio";
+"lng_action_pinned_media_voice" = "eine Sprachnachricht";
+"lng_action_pinned_media_file" = "eine Datei";
+"lng_action_pinned_media_gif" = "ein GIF";
+"lng_action_pinned_media_contact" = "einen Kontakt";
+"lng_action_pinned_media_location" = "einen Standort";
+"lng_action_pinned_media_sticker" = "einen Sticker";
 
 "lng_profile_migrate_reached" = "Limit von {count:_not_used_|# Mitglied|# Mitgliedern} erreicht";
 "lng_profile_migrate_about" = "Für weitere Funktionen und um das Limit aufzuheben in Supergruppe ändern:";
@@ -537,6 +559,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_migrate_feature4" = "— Mitteilungen sind standardmäßig stumm";
 "lng_profile_migrate_button" = "In Supergruppe ändern";
 "lng_profile_migrate_sure" = "Wirklich diese Gruppe in eine Supergruppe ändern? Das kann nicht rückgängig gemacht werden.";
+"lng_profile_convert_button" = "In Supergruppe ändern";
+"lng_profile_convert_title" = "In Supergruppe ändern";
+"lng_profile_convert_about" = "Supergruppen:";
+"lng_profile_convert_feature1" = "— Neue Mitglieder sehen gesamten Verlauf";
+"lng_profile_convert_feature2" = "— Nachrichten werden bei allen gelöscht";
+"lng_profile_convert_feature3" = "— Jeder kann eigene Nachrichten bearbeiten";
+"lng_profile_convert_feature4" = "— Gründer kann Gruppe öffentlich machen";
+"lng_profile_convert_warning" = "{bold_start}Wichtig:{bold_end} Die Änderung in eine Supergruppe kann nicht rückgängig gemacht werden.";
+"lng_profile_convert_confirm" = "Ändern";
+"lng_profile_add_more_after_upgrade" = "Du kannst nach der Änderung der Gruppe in eine Supergruppe bis zu {count:_not_used_|# Mitglied|# Mitglieder} hinzufügen.";
 
 "lng_channel_comments_count" = "{count:_not_used_|# Kommentar|# Kommentare} »";
 "lng_channel_hide_comments" = "Kommentare verstecken";
@@ -637,6 +669,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} (Sticker)";
 
+"lng_ban_user" = "Nutzer sperren";
+"lng_delete_all_from" = "Alles von diesem Nutzer löschen";
 "lng_report_spam" = "Spam melden";
 "lng_report_spam_hide" = "Schließen";
 "lng_report_spam_thanks" = "Danke!";
@@ -717,7 +751,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_view_channel" = "Kanalinfo anzeigen";
 
 "lng_context_copy_link" = "Link kopieren";
-"lng_context_copy_post_link" = "Link kopieren";
+"lng_context_copy_post_link" = "Nachrichtenlink kopieren";
 "lng_context_copy_email" = "E-Mail-Adresse kopieren";
 "lng_context_copy_hashtag" = "Hashtag kopieren";
 "lng_context_copy_mention" = "Benutzername kopieren";
@@ -745,6 +779,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_forward_msg" = "Nachricht weiterleiten";
 "lng_context_delete_msg" = "Nachricht löschen";
 "lng_context_select_msg" = "Nachricht auswählen";
+"lng_context_pin_msg" = "Nachricht anheften";
+"lng_context_unpin_msg" = "Nachricht entfernen";
 "lng_context_cancel_upload" = "Upload abbrechen";
 "lng_context_copy_selected" = "Text kopieren";
 "lng_context_forward_selected" = "Auswahl weiterleiten";
@@ -844,7 +880,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Bearbeite deine Nachrichten in Kanälen und Supergruppen.\n— Teile direkt Links zu einzelnen Kanal-Nachrichten über das Teilen-Symbol neben der Nachricht.\n— Unterschreibe Nachrichten in Kanälen - so kann jeder sehen, welcher Admin die Nachricht geschrieben hat.\n— Sende 'lautlose Nachrichten' in Kanälen. Klasse, wenn man mal wieder mitten in der Nacht eine Nachricht senden muss.";
+"lng_new_version_text" = "ÖFFENTLICHE GRUPPEN, NACHRICHTEN ANHEFTEN, 5000 MITGLIEDER\n\n— Gruppen dürfen nun 5.000 Mitglieder haben (zuvor waren es 1.000)\n— Jede Gruppe - egal wie groß -  kann ab sofort in eine Supergruppe geändert werden\n\nNeue Werkzeuge für Supergruppen-Admins:\n\n— Mache deine Gruppe öffentlich: Jeder kann den Inhalt einsehen und sie betreten\n— Hefte Nachrichten an: Perfekt um Gruppenmitglieder über Neuigkeiten zu informieren\n— Lösche mehrere Nachrichten, melde sie aufgrund von Spam, blockiere Mitglieder oder entferne alle Nachrichten von bestimmten Nutzern\n\nMehr Infos zum neuen Update:\n{link}";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

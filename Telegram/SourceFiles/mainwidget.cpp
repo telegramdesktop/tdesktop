@@ -431,6 +431,7 @@ MainWidget::MainWidget(Window *window) : TWidget(window)
 	connect(&_idleFinishTimer, SIGNAL(timeout()), this, SLOT(checkIdleFinish()));
 	connect(&_bySeqTimer, SIGNAL(timeout()), this, SLOT(getDifference()));
 	connect(&_byPtsTimer, SIGNAL(timeout()), this, SLOT(onGetDifferenceTimeByPts()));
+	connect(&_byMinChannelTimer, SIGNAL(timeout()), this, SLOT(getDifference()));
 	connect(&_failDifferenceTimer, SIGNAL(timeout()), this, SLOT(onGetDifferenceTimeAfterFail()));
 	connect(_api, SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
 	connect(this, SIGNAL(peerUpdated(PeerData*)), &history, SLOT(peerUpdated(PeerData*)));
@@ -907,6 +908,14 @@ void MainWidget::forwardLayer(int32 forwardSelected) {
 }
 
 void MainWidget::deleteLayer(int32 selectedCount) {
+	if (selectedCount == -1 && !overview) {
+		if (auto item = App::contextItem()) {
+			if (item->suggestBanReportDeleteAll()) {
+				Ui::showLayer(new RichDeleteMessageBox(item->history()->peer->asChannel(), item->from()->asUser(), item->id));
+				return;
+			}
+		}
+	}
 	QString str((selectedCount < 0) ? lang(selectedCount < -1 ? lng_selected_cancel_sure_this : lng_selected_delete_sure_this) : lng_selected_delete_sure(lt_count, selectedCount));
 	QString btn(lang((selectedCount < -1) ? lng_selected_upload_stop : lng_box_delete)), cancel(lang((selectedCount < -1) ? lng_continue : lng_cancel));
 	ConfirmBox *box = new ConfirmBox(str, btn, st::defaultBoxButton, cancel);
@@ -982,9 +991,16 @@ void MainWidget::deleteHistoryAfterLeave(PeerData *peer, const MTPUpdates &updat
 
 void MainWidget::deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result) {
 	const MTPDmessages_affectedHistory &d(result.c_messages_affectedHistory());
-	if (ptsUpdated(d.vpts.v, d.vpts_count.v)) {
-		ptsApplySkippedUpdates();
-		App::emitPeerUpdated();
+	if (peer && peer->isChannel()) {
+		if (peer->asChannel()->ptsUpdated(d.vpts.v, d.vpts_count.v)) {
+			peer->asChannel()->ptsApplySkippedUpdates();
+			App::emitPeerUpdated();
+		}
+	} else {
+		if (ptsUpdated(d.vpts.v, d.vpts_count.v)) {
+			ptsApplySkippedUpdates();
+			App::emitPeerUpdated();
+		}
 	}
 
 	int32 offset = d.voffset.v;
@@ -1044,6 +1060,45 @@ void MainWidget::deleteConversation(PeerData *peer, bool deleteHistory) {
 	}
 	if (deleteHistory) {
 		MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
+	}
+}
+
+void MainWidget::deleteAllFromUser(ChannelData *channel, UserData *from) {
+	t_assert(channel != nullptr && from != nullptr);
+
+	QVector<MsgId> toDestroy;
+	if (auto history = App::historyLoaded(channel->id)) {
+		for (auto i = history->blocks.cbegin(), e = history->blocks.cend(); i != e; ++i) {
+			for (auto j = (*i)->items.cbegin(), n = (*i)->items.cend(); j != n; ++j) {
+				if ((*j)->from() == from && (*j)->type() == HistoryItemMsg && (*j)->canDelete()) {
+					toDestroy.push_back((*j)->id);
+				}
+			}
+		}
+		for (auto i = toDestroy.cbegin(), e = toDestroy.cend(); i != e; ++i) {
+			if (auto item = App::histItemById(peerToChannel(channel->id), *i)) {
+				item->destroy();
+			}
+		}
+	}
+	MTP::send(MTPchannels_DeleteUserHistory(channel->inputChannel, from->inputUser), rpcDone(&MainWidget::deleteAllFromUserPart, { channel, from }));
+}
+
+void MainWidget::deleteAllFromUserPart(DeleteAllFromUserParams params, const MTPmessages_AffectedHistory &result) {
+	const MTPDmessages_affectedHistory &d(result.c_messages_affectedHistory());
+	if (params.channel->ptsUpdated(d.vpts.v, d.vpts_count.v)) {
+		params.channel->ptsApplySkippedUpdates();
+		App::emitPeerUpdated();
+	}
+
+	int32 offset = d.voffset.v;
+	if (!MTP::authedId()) return;
+	if (offset > 0) {
+		MTP::send(MTPchannels_DeleteUserHistory(params.channel->inputChannel, params.from->inputUser), rpcDone(&MainWidget::deleteAllFromUserPart, params));
+	} else if (auto h = App::historyLoaded(params.channel)) {
+		if (!h->lastMsg) {
+			checkPeerHistory(params.channel);
+		}
 	}
 }
 
@@ -1510,7 +1565,6 @@ void MainWidget::changingMsgId(HistoryItem *row, MsgId newId) {
 }
 
 void MainWidget::itemRemoved(HistoryItem *item) {
-	api()->itemRemoved(item);
 	dialogs.itemRemoved(item);
 	if (history.peer() == item->history()->peer || (history.peer() && history.peer() == item->history()->peer->migrateTo())) {
 		history.itemRemoved(item);
@@ -1530,6 +1584,12 @@ void MainWidget::itemRemoved(HistoryItem *item) {
 				updateForwardingTexts();
 			}
 		}
+	}
+}
+
+void MainWidget::itemEdited(HistoryItem *item) {
+	if (history.peer() == item->history()->peer || (history.peer() && history.peer() == item->history()->peer->migrateTo())) {
+		history.itemEdited(item);
 	}
 }
 
@@ -2056,8 +2116,8 @@ ApiWrap *MainWidget::api() {
 	return _api;
 }
 
-void MainWidget::updateReplyTo() {
-	history.updateReplyEditTexts(true);
+void MainWidget::messageDataReceived(ChannelData *channel, MsgId msgId) {
+	history.messageDataReceived(channel, msgId);
 }
 
 void MainWidget::updateBotKeyboard(History *h) {
@@ -2901,8 +2961,12 @@ bool MainWidget::updateFail(const RPCError &e) {
 }
 
 void MainWidget::updSetState(int32 pts, int32 date, int32 qts, int32 seq) {
-	if (pts) _ptsWaiter.init(pts);
-	if (updDate < date) updDate = date;
+	if (pts) {
+		_ptsWaiter.init(pts);
+	}
+	if (updDate < date && !_byMinChannelTimer.isActive()) {
+		updDate = date;
+	}
 	if (qts && updQts < qts) {
 		updQts = qts;
 	}
@@ -4493,7 +4557,13 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateNewChannelMessage: {
 		const MTPDupdateNewChannelMessage &d(update.c_updateNewChannelMessage());
 		ChannelData *channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
-
+		if (!channel && !_ptsWaiter.requesting()) {
+			MTP_LOG(0, ("getDifference { good - after no channel in updateNewChannelMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
+			if (!_byMinChannelTimer.isActive()) { // getDifference after timeout
+				_byMinChannelTimer.start(WaitForSkippedTimeout);
+			}
+			return;
+		}
 		if (channel && !_handlingChannelDifference) {
 			if (channel->ptsRequesting()) { // skip global updates while getting channel difference
 				return;
@@ -4542,6 +4612,19 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	case mtpc_updateChannelPinnedMessage: {
+		const MTPDupdateChannelPinnedMessage &d(update.c_updateChannelPinnedMessage());
+
+		if (ChannelData *channel = App::channelLoaded(d.vchannel_id.v)) {
+			if (channel->isMegagroup()) {
+				channel->mgInfo->pinnedMsgId = d.vid.v;
+				if (App::api()) {
+					emit App::api()->fullPeerUpdated(channel);
+				}
+			}
+		}
+	} break;
+
 	case mtpc_updateReadChannelInbox: {
 		const MTPDupdateReadChannelInbox &d(update.c_updateReadChannelInbox());
 		ChannelData *channel = App::channelLoaded(d.vchannel_id.v);
@@ -4578,7 +4661,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateChannelTooLong: {
 		const MTPDupdateChannelTooLong &d(update.c_updateChannelTooLong());
 		if (ChannelData *channel = App::channelLoaded(d.vchannel_id.v)) {
-			getChannelDifference(channel);
+			if (!d.has_pts() || channel->pts() < d.vpts.v) {
+				getChannelDifference(channel);
+			}
 		}
 	} break;
 

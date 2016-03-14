@@ -67,6 +67,13 @@ layerBg: black;
 
 overBg: #edf2f5;
 
+labelDefFlat: flatLabel {
+	font: font(fsize);
+	minWidth: 100px;
+	width: 0px;
+	align: align(left);
+}
+
 boxBg: white;
 boxVerticalMargin: 10px;
 boxWidth: 320px;
@@ -75,6 +82,8 @@ boxPadding: margins(26px, 30px, 34px, 8px);
 boxMaxListHeight: 600px;
 boxFontSize: 14px;
 boxTextFont: font(boxFontSize);
+boxLittleSkip: 10px;
+boxMediumSkip: 20px;
 
 boxTitleFg: #444444;
 boxTitleFont: font(boxFontSize bold);
@@ -125,6 +134,10 @@ redBoxLinkButton: linkButton(defaultBoxLinkButton) {
 	color: #d15948;
 	overColor: #d15948;
 	downColor: #db6352;
+}
+boxLabel: flatLabel(labelDefFlat) {
+	font: font(boxFontSize);
+	align: align(topleft);
 }
 
 defaultInputArea: InputArea {
@@ -610,13 +623,6 @@ scrollCountries: flatScroll(scrollDef) {
 }
 
 lnkText: #0f7dc7;
-
-labelDefFlat: flatLabel {
-	font: font(fsize);
-	minWidth: 100px;
-	width: 0px;
-	align: align(left);
-}
 
 introBtnTop: 288px;
 introSkip: 45px;

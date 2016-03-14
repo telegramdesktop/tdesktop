@@ -371,6 +371,8 @@ struct GlobalDataStruct {
 	int32 PushChatLimit = 2;
 	int32 SavedGifsLimit = 200;
 	int32 EditTimeLimit = 172800;
+
+	Global::HiddenPinnedMessagesMap HiddenPinnedMessages;
 };
 GlobalDataStruct *GlobalData = 0;
 
@@ -412,5 +414,7 @@ namespace Global {
 	DefineVar(Global, int32, PushChatLimit);
 	DefineVar(Global, int32, SavedGifsLimit);
 	DefineVar(Global, int32, EditTimeLimit);
+
+	DefineVar(Global, HiddenPinnedMessagesMap, HiddenPinnedMessages);
 
 };

@@ -67,8 +67,8 @@ namespace {
 	SharedContactItems sharedContactItems;
 	GifItems gifItems;
 
-	typedef QMap<HistoryItem*, QMap<HistoryReply*, bool> > RepliesTo;
-	RepliesTo repliesTo;
+	typedef QMap<HistoryItem*, OrderedSet<HistoryItem*> > DependentItems;
+	DependentItems dependentItems;
 
 	Histories histories;
 
@@ -413,6 +413,9 @@ namespace App {
 
 					QString pname = (showPhoneChanged || phoneChanged || nameChanged) ? ((showPhone && !phone.isEmpty()) ? formatPhone(phone) : QString()) : data->nameOrPhone;
 
+					if (!minimal && d.is_self() && uname != data->username) {
+						SignalHandlers::setSelfUsername(uname);
+					}
 					data->setName(fname, lname, pname, uname);
 					if (d.has_photo()) {
 						data->setPhoto(d.vphoto);
@@ -433,8 +436,8 @@ namespace App {
 						data->setBotInfoVersion(-1);
 					}
 					data->contact = (d.is_contact() || d.is_mutual_contact()) ? 1 : (data->phone.isEmpty() ? -1 : 0);
-					if (data->contact == 1 && cReportSpamStatuses().value(data->id, dbiprsNoButton) != dbiprsNoButton) {
-						cRefReportSpamStatuses().insert(data->id, dbiprsNoButton);
+					if (data->contact == 1 && cReportSpamStatuses().value(data->id, dbiprsHidden) != dbiprsHidden) {
+						cRefReportSpamStatuses().insert(data->id, dbiprsHidden);
 						Local::writeReportSpamStatuses();
 					}
 					if (d.is_self() && ::self != data) {
@@ -486,6 +489,7 @@ namespace App {
 		for (QVector<MTPChat>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
 			const MTPchat &chat(*i);
 			data = 0;
+			bool minimal = false;
 			switch (chat.type()) {
 			case mtpc_chat: {
 				const MTPDchat &d(chat.c_chat());
@@ -566,24 +570,36 @@ namespace App {
 				const MTPDchannel &d(chat.c_channel());
 
 				PeerId peer(peerFromChannel(d.vid.v));
-				data = App::channel(peer);
-				data->input = MTP_inputPeerChannel(d.vid, d.vaccess_hash);
+				minimal = d.is_min();
+				if (minimal) {
+					data = App::channelLoaded(peer);
+					if (!data) {
+						continue; // minimal is not loaded, need to make getDifference
+					}
+				} else {
+					data = App::channel(peer);
+					data->input = MTP_inputPeerChannel(d.vid, d.has_access_hash() ? d.vaccess_hash : MTP_long(0));
+				}
 
 				ChannelData *cdata = data->asChannel();
-				cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
-
+				if (minimal) {
+					int32 mask = MTPDchannel::flag_broadcast | MTPDchannel::flag_verified | MTPDchannel::flag_megagroup | MTPDchannel::flag_democracy;
+					cdata->flags = (cdata->flags & ~mask) | (d.vflags.v & mask);
+				} else {
+					cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
+					cdata->access = d.vaccess_hash.v;
+					cdata->date = d.vdate.v;
+					cdata->flags = d.vflags.v;
+					if (cdata->version < d.vversion.v) {
+						cdata->version = d.vversion.v;
+					}
+				}
 				QString uname = d.has_username() ? textOneLine(qs(d.vusername)) : QString();
 				cdata->setName(qs(d.vtitle), uname);
 
-				cdata->access = d.vaccess_hash.v;
-				cdata->date = d.vdate.v;
-				cdata->flags = d.vflags.v;
 				cdata->isForbidden = false;
 				cdata->flagsUpdated();
 				cdata->setPhoto(d.vphoto);
-				if (cdata->version < d.vversion.v) {
-					cdata->version = d.vversion.v;
-				}
 			} break;
 			case mtpc_channelForbidden: {
 				const MTPDchannelForbidden &d(chat.c_channelForbidden());
@@ -664,10 +680,10 @@ namespace App {
 					if (user) {
 						chat->participants[user] = pversion;
 						if (inviter == MTP::authedId()) {
-							chat->invitedByMe[user] = true;
+							chat->invitedByMe.insert(user);
 						}
 						if (i->type() == mtpc_chatParticipantAdmin) {
-							chat->admins[user] = true;
+							chat->admins.insert(user);
 							if (user->isSelf()) {
 								chat->flags |= MTPDchat::flag_admin;
 							}
@@ -736,7 +752,7 @@ namespace App {
 				} else if (chat->participants.find(user) == chat->participants.end()) {
 					chat->participants[user] = (chat->participants.isEmpty() ? 1 : chat->participants.begin().value());
 					if (d.vinviter_id.v == MTP::authedId()) {
-						chat->invitedByMe[user] = true;
+						chat->invitedByMe.insert(user);
 					} else {
 						chat->invitedByMe.remove(user);
 					}
@@ -876,7 +892,7 @@ namespace App {
 					if (chat->noParticipantInfo()) {
 						App::api()->requestFullPeer(chat);
 					} else {
-						chat->admins.insert(user, true);
+						chat->admins.insert(user);
 					}
 				} else {
 					if (user->isSelf()) {
@@ -937,6 +953,7 @@ namespace App {
 			if (App::main()) {
 				App::main()->dlgUpdated(existing->history(), existing->id);
 			}
+			App::historyUpdateDependent(existing);
 			Notify::historyItemResized(existing);
 		}
 	}
@@ -1144,8 +1161,8 @@ namespace App {
 			switch (myLink.type()) {
 			case mtpc_contactLinkContact:
 				user->contact = 1;
-				if (user->contact == 1 && cReportSpamStatuses().value(user->id, dbiprsNoButton) != dbiprsNoButton) {
-					cRefReportSpamStatuses().insert(user->id, dbiprsNoButton);
+				if (user->contact == 1 && cReportSpamStatuses().value(user->id, dbiprsHidden) != dbiprsHidden) {
+					cRefReportSpamStatuses().insert(user->id, dbiprsHidden);
 					Local::writeReportSpamStatuses();
 				}
 			break;
@@ -1784,20 +1801,32 @@ namespace App {
 			}
 		}
 		historyItemDetached(item);
-		RepliesTo::iterator j = ::repliesTo.find(item);
-		if (j != ::repliesTo.cend()) {
-			for (QMap<HistoryReply*, bool>::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
-				k.key()->replyToReplaced(item, 0);
+		DependentItems::iterator j = ::dependentItems.find(item);
+		if (j != ::dependentItems.cend()) {
+			for (OrderedSet<HistoryItem*>::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
+				k.key()->dependencyItemRemoved(item);
 			}
-			::repliesTo.erase(j);
+			::dependentItems.erase(j);
 		}
 		if (App::main() && !App::quitting()) {
 			App::main()->itemRemoved(item);
 		}
 	}
 
+	void historyUpdateDependent(HistoryItem *item) {
+		DependentItems::iterator j = ::dependentItems.find(item);
+		if (j != ::dependentItems.cend()) {
+			for (OrderedSet<HistoryItem*>::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
+				k.key()->updateDependencyItem();
+			}
+		}
+		if (App::main()) {
+			App::main()->itemEdited(item);
+		}
+	}
+
 	void historyClearMsgs() {
-		::repliesTo.clear();
+		::dependentItems.clear();
 
 		QVector<HistoryItem*> toDelete;
 		for (MsgsData::const_iterator i = msgsData.cbegin(), e = msgsData.cend(); i != e; ++i) {
@@ -1869,16 +1898,16 @@ namespace App {
 		if (App::wnd()) App::wnd()->updateGlobalMenu();
 	}
 
-	void historyRegReply(HistoryReply *reply, HistoryItem *to) {
-		::repliesTo[to].insert(reply, true);
+	void historyRegDependency(HistoryItem *dependent, HistoryItem *dependency) {
+		::dependentItems[dependency].insert(dependent);
 	}
 
-	void historyUnregReply(HistoryReply *reply, HistoryItem *to) {
-		RepliesTo::iterator i = ::repliesTo.find(to);
-		if (i != ::repliesTo.cend()) {
-			i.value().remove(reply);
+	void historyUnregDependency(HistoryItem *dependent, HistoryItem *dependency) {
+		DependentItems::iterator i = ::dependentItems.find(dependency);
+		if (i != ::dependentItems.cend()) {
+			i.value().remove(dependent);
 			if (i.value().isEmpty()) {
-				::repliesTo.erase(i);
+				::dependentItems.erase(i);
 			}
 		}
 	}

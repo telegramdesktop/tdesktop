@@ -4578,10 +4578,10 @@ void MentionsDropdown::recount(bool resetScroll) {
 	if (h > _boundings.height()) h = _boundings.height();
 	if (h > maxh) h = maxh;
 	if (width() != _boundings.width() || height() != h) {
-		setGeometry(0, _boundings.height() - h, _boundings.width(), h);
+		setGeometry(_boundings.x(), _boundings.y() + _boundings.height() - h, _boundings.width(), h);
 		_scroll.resize(_boundings.width(), h);
-	} else if (y() != _boundings.height() - h) {
-		move(0, _boundings.height() - h);
+	} else if (y() != _boundings.y() + _boundings.height() - h) {
+		move(_boundings.x(), _boundings.y() + _boundings.height() - h);
 	}
 	if (resetScroll) st = 0;
 	if (st != oldst) _scroll.scrollToY(st);

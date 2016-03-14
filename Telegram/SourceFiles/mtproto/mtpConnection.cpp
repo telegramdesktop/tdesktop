@@ -1294,7 +1294,7 @@ void MTProtoConnectionPrivate::createConn(bool createIPv4, bool createIPv6) {
 
 void MTProtoConnectionPrivate::destroyConn(MTPabstractConnection **conn) {
 	if (conn) {
-		MTPabstractConnection *toDisconnect = 0;
+		MTPabstractConnection *toDisconnect = nullptr;
 
 		{
 			QWriteLocker lock(&stateConnMutex);
@@ -1305,7 +1305,7 @@ void MTProtoConnectionPrivate::destroyConn(MTPabstractConnection **conn) {
 				disconnect(*conn, SIGNAL(error(bool)), 0, 0);
 				disconnect(*conn, SIGNAL(receivedData()), 0, 0);
 				disconnect(*conn, SIGNAL(receivedSome()), 0, 0);
-				*conn = 0;
+				*conn = nullptr;
 			}
 		}
 		if (toDisconnect) {
@@ -1315,7 +1315,7 @@ void MTProtoConnectionPrivate::destroyConn(MTPabstractConnection **conn) {
 	} else {
 		destroyConn(&_conn4);
 		destroyConn(&_conn6);
-		_conn = 0;
+		_conn = nullptr;
 	}
 }
 
@@ -1324,9 +1324,9 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
 , _needSessionReset(false)
 , dc(_dc)
 , _owner(owner)
-, _conn(0)
-, _conn4(0)
-, _conn6(0)
+, _conn(nullptr)
+, _conn4(nullptr)
+, _conn6(nullptr)
 , retryTimeout(1)
 , oldConnection(true)
 , _waitForReceived(MTPMinReceiveDelay)
@@ -2072,17 +2072,17 @@ void MTProtoConnectionPrivate::socketStart(bool afterConfig) {
 	if (!noIPv6) DEBUG_LOG(("MTP Info: creating IPv6 connection to [%1]:%2 (tcp) and [%3]:%4 (http)..").arg(ip[IPv6address][TcpProtocol].c_str()).arg(port[IPv6address][TcpProtocol]).arg(ip[IPv4address][HttpProtocol].c_str()).arg(port[IPv4address][HttpProtocol]));
 
 	_waitForConnectedTimer.start(_waitForConnected);
-	if (_conn4) {
-		connect(_conn4, SIGNAL(connected()), this, SLOT(onConnected4()));
-		connect(_conn4, SIGNAL(disconnected()), this, SLOT(onDisconnected4()));
-		_conn4->connectTcp(ip[IPv4address][TcpProtocol].c_str(), port[IPv4address][TcpProtocol], flags[IPv4address][TcpProtocol]);
-		_conn4->connectHttp(ip[IPv4address][HttpProtocol].c_str(), port[IPv4address][HttpProtocol], flags[IPv4address][HttpProtocol]);
+	if (auto conn = _conn4) {
+		connect(conn, SIGNAL(connected()), this, SLOT(onConnected4()));
+		connect(conn, SIGNAL(disconnected()), this, SLOT(onDisconnected4()));
+		conn->connectTcp(ip[IPv4address][TcpProtocol].c_str(), port[IPv4address][TcpProtocol], flags[IPv4address][TcpProtocol]);
+		conn->connectHttp(ip[IPv4address][HttpProtocol].c_str(), port[IPv4address][HttpProtocol], flags[IPv4address][HttpProtocol]);
 	}
-	if (_conn6) {
-		connect(_conn6, SIGNAL(connected()), this, SLOT(onConnected6()));
-		connect(_conn6, SIGNAL(disconnected()), this, SLOT(onDisconnected6()));
-		_conn6->connectTcp(ip[IPv6address][TcpProtocol].c_str(), port[IPv6address][TcpProtocol], flags[IPv6address][TcpProtocol]);
-		_conn6->connectHttp(ip[IPv6address][HttpProtocol].c_str(), port[IPv6address][HttpProtocol], flags[IPv6address][HttpProtocol]);
+	if (auto conn = _conn6) {
+		connect(conn, SIGNAL(connected()), this, SLOT(onConnected6()));
+		connect(conn, SIGNAL(disconnected()), this, SLOT(onDisconnected6()));
+		conn->connectTcp(ip[IPv6address][TcpProtocol].c_str(), port[IPv6address][TcpProtocol], flags[IPv6address][TcpProtocol]);
+		conn->connectHttp(ip[IPv6address][HttpProtocol].c_str(), port[IPv6address][HttpProtocol], flags[IPv6address][HttpProtocol]);
 	}
 }
 
