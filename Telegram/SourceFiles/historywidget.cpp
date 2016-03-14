@@ -3796,6 +3796,13 @@ void HistoryWidget::updateReportSpamStatus() {
 	if (!_peer || (_peer->isUser() && (peerToUser(_peer->id) == MTP::authedId() || isNotificationsUser(_peer->id) || isServiceUser(_peer->id) || _peer->asUser()->botInfo))) {
 		_reportSpamStatus = dbiprsHidden;
 		return;
+	} else if (!_firstLoadRequest && _history->isEmpty()) {
+		_reportSpamStatus = dbiprsNoButton;
+		if (cReportSpamStatuses().contains(_peer->id)) {
+			cRefReportSpamStatuses().remove(_peer->id);
+			Local::writeReportSpamStatuses();
+		}
+		return;
 	} else {
 		ReportSpamStatuses::const_iterator i = cReportSpamStatuses().constFind(_peer->id);
 		if (i != cReportSpamStatuses().cend()) {
@@ -3833,7 +3840,7 @@ void HistoryWidget::updateReportSpamStatus() {
 			}
 		}
 	}
-	if (!cContactsReceived()) {
+	if (!cContactsReceived() || _firstLoadRequest) {
 		_reportSpamStatus = dbiprsUnknown;
 	} else if (_peer->isUser() && _peer->asUser()->contact > 0) {
 		_reportSpamStatus = dbiprsHidden;
@@ -3851,7 +3858,20 @@ void HistoryWidget::updateReportSpamStatus() {
 void HistoryWidget::requestReportSpamSetting() {
 	if (_reportSpamSettingRequestId >= 0 || !_peer) return;
 
-	_reportSpamSettingRequestId = MTP::send(MTPmessages_GetPeerSettings(_peer->input), rpcDone(&HistoryWidget::reportSpamSettingDone), rpcFail(&HistoryWidget::reportSpamSettingFail));
+	bool outFound = false;
+	for (auto i : _history->blocks) {
+		for (auto j : i->items) {
+			if (j->out()) {
+				outFound = true;
+				break;
+			}
+		}
+	}
+	if (outFound) {
+		_reportSpamStatus = dbiprsNoButton;
+	} else {
+		_reportSpamSettingRequestId = MTP::send(MTPmessages_GetPeerSettings(_peer->input), rpcDone(&HistoryWidget::reportSpamSettingDone), rpcFail(&HistoryWidget::reportSpamSettingFail));
+	}
 }
 
 void HistoryWidget::reportSpamSettingDone(const MTPPeerSettings &result, mtpRequestId req) {
