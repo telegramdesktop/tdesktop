@@ -619,7 +619,7 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 	if (_menuPeer->isUser()) {
 		_menu->addAction(lang(lng_profile_clear_history), this, SLOT(onContextClearHistory()))->setEnabled(true);
 		_menu->addAction(lang(lng_profile_delete_conversation), this, SLOT(onContextDeleteAndLeave()))->setEnabled(true);
-		if (_menuPeer->asUser()->access != UserNoAccess) {
+		if (_menuPeer->asUser()->access != UserNoAccess && _menuPeer != App::self()) {
 			_menu->addAction(lang((_menuPeer->asUser()->blocked == UserIsBlocked) ? (_menuPeer->asUser()->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (_menuPeer->asUser()->botInfo ? lng_profile_block_bot : lng_profile_block_user)), this, SLOT(onContextToggleBlock()))->setEnabled(true);
 			connect(App::main(), SIGNAL(peerUpdated(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
 		}
@@ -2094,6 +2094,7 @@ void DialogsWidget::onChooseByDrag() {
 void DialogsWidget::searchMessages(const QString &query, PeerData *inPeer) {
 	if ((_filter.getLastText() != query) || (inPeer && inPeer != _searchInPeer && inPeer->migrateTo() != _searchInPeer)) {
 		if (inPeer) {
+			onCancelSearch();
 			_searchInPeer = inPeer->migrateTo() ? inPeer->migrateTo() : inPeer;
 			_searchInMigrated = _searchInPeer ? _searchInPeer->migrateFrom() : 0;
 			_inner.searchInPeer(_searchInPeer);

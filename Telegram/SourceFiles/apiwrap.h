@@ -28,9 +28,8 @@ public:
 	ApiWrap(QObject *parent);
 	void init();
 
-	void itemRemoved(HistoryItem *item);
-		
-	void requestReplyTo(HistoryReply *reply, ChannelData *channel, MsgId id);
+	typedef SharedCallback2<void, ChannelData*, MsgId> RequestMessageDataCallback;
+	void requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback *callback);
 
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);
@@ -59,35 +58,37 @@ signals:
 
 public slots:
 
-	void resolveReplyTo();
+	void resolveMessageDatas();
 	void resolveWebPages();
 
 	void delayedRequestParticipantsCount();
 
 private:
 
-	void gotReplyTo(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
-	struct ReplyToRequest {
-		ReplyToRequest() : req(0) {
+	void gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
+	struct MessageDataRequest {
+		MessageDataRequest() : req(0) {
 		}
+		typedef SharedCallback2<void, ChannelData*, MsgId>::Ptr CallbackPtr;
+		typedef QList<CallbackPtr> Callbacks;
 		mtpRequestId req;
-		QList<HistoryReply*> replies;
+		Callbacks callbacks;
 	};
-	typedef QMap<MsgId, ReplyToRequest> ReplyToRequests;
-	ReplyToRequests _replyToRequests;
-	typedef QMap<ChannelData*, ReplyToRequests> ChannelReplyToRequests;
-	ChannelReplyToRequests _channelReplyToRequests;
-	SingleTimer _replyToTimer;
+	typedef QMap<MsgId, MessageDataRequest> MessageDataRequests;
+	MessageDataRequests _messageDataRequests;
+	typedef QMap<ChannelData*, MessageDataRequests> ChannelMessageDataRequests;
+	ChannelMessageDataRequests _channelMessageDataRequests;
+	SingleDelayedCall *_messageDataResolveDelayed;
 	typedef QVector<MTPint> MessageIds;
-	MessageIds collectMessageIds(const ReplyToRequests &requests);
-	ReplyToRequests *replyToRequests(ChannelData *channel, bool onlyExisting = false);
+	MessageIds collectMessageIds(const MessageDataRequests &requests);
+	MessageDataRequests *messageDataRequests(ChannelData *channel, bool onlyExisting = false);
 
 	void gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mtpRequestId req);
 	void gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestId req);
 	bool gotPeerFullFailed(PeerData *peer, const RPCError &err);
 	typedef QMap<PeerData*, mtpRequestId> PeerRequests;
 	PeerRequests _fullPeerRequests;
-	
+
 	void gotChat(PeerData *peer, const MTPmessages_Chats &result);
 	void gotUser(PeerData *peer, const MTPVector<MTPUser> &result);
 	void gotChats(const MTPmessages_Chats &result);

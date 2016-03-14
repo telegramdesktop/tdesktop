@@ -212,6 +212,18 @@ QString textcmdStopColor() {
 	return result.append(TextCommand).append(QChar(TextCommandNoColor)).append(TextCommand);
 }
 
+QString textcmdStartSemibold() {
+	QString result;
+	result.reserve(3);
+	return result.append(TextCommand).append(QChar(TextCommandSemibold)).append(TextCommand);
+}
+
+QString textcmdStopSemibold() {
+	QString result;
+	result.reserve(3);
+	return result.append(TextCommand).append(QChar(TextCommandNoSemibold)).append(TextCommand);
+}
+
 const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink) {
 	const QChar *result = from + 1;
 	if (*from != TextCommand || result >= end) return from;
@@ -223,6 +235,8 @@ const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink) 
 	switch (cmd) {
 	case TextCommandBold:
 	case TextCommandNoBold:
+	case TextCommandSemibold:
+	case TextCommandNoSemibold:
 	case TextCommandItalic:
 	case TextCommandNoItalic:
 	case TextCommandUnderline:
@@ -496,6 +510,20 @@ public:
 				createBlock();
 				flags &= ~TextBlockFBold;
 			}
+		break;
+
+		case TextCommandSemibold:
+		if (!(flags & TextBlockFSemibold)) {
+			createBlock();
+			flags |= TextBlockFSemibold;
+		}
+		break;
+
+		case TextCommandNoSemibold:
+		if (flags & TextBlockFSemibold) {
+			createBlock();
+			flags &= ~TextBlockFSemibold;
+		}
 		break;
 
 		case TextCommandItalic:

@@ -211,6 +211,8 @@ private:
 	bool onCheckFail(const RPCError &error);
 	bool onFirstCheckFail(const RPCError &error);
 
+	void updateMaxHeight();
+
 	ChannelData *_channel;
 	bool _existing;
 

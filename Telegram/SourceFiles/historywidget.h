@@ -513,11 +513,12 @@ public:
 
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
 	void itemRemoved(HistoryItem *item);
+	void itemEdited(HistoryItem *item);
 
 	void updateScrollColors();
 
 	MsgId replyToId() const;
-	void updateReplyEditTexts(bool force = false);
+	void messageDataReceived(ChannelData *channel, MsgId msgId);
 	bool lastForceReplyReplied(const FullMsgId &replyTo = FullMsgId(NoChannel, -1)) const;
 	void cancelReply(bool lastKeyboardUsed = false);
 	void cancelEdit();
@@ -612,6 +613,10 @@ public slots:
 	void onCancel();
 	void onReplyToMessage();
 	void onEditMessage();
+	void onPinMessage();
+	void onUnpinMessage();
+	void onUnpinMessageSure();
+	void onPinnedHide();
 	void onCopyPostLink();
 	void onFieldBarCancel();
 
@@ -717,6 +722,26 @@ private:
 	Text _replyEditMsgText;
 
 	IconedButton _fieldBarCancel;
+	void updateReplyEditTexts(bool force = false);
+
+	struct PinnedBar {
+		PinnedBar(MsgId msgId, HistoryWidget *parent);
+
+		MsgId msgId;
+		HistoryItem *msg;
+		Text text;
+		IconedButton cancel;
+		PlainShadow shadow;
+	};
+	PinnedBar *_pinnedBar;
+	void updatePinnedBar(bool force = false);
+	bool pinnedMsgVisibilityUpdated();
+	void unpinDone(const MTPUpdates &updates);
+
+	class ReplyEditMessageDataCallback : public SharedCallback2<void, ChannelData*, MsgId> {
+	public:
+		void call(ChannelData *channel, MsgId msgId) const override;
+	};
 
 	void sendExistingDocument(DocumentData *doc, const QString &caption);
 	void sendExistingPhoto(PhotoData *photo, const QString &caption);
@@ -724,6 +749,7 @@ private:
 	void drawField(Painter &p);
 	void drawRecordButton(Painter &p);
 	void drawRecording(Painter &p);
+	void drawPinnedBar(Painter &p);
 
 	void updateMouseTracking();
 
@@ -733,7 +759,12 @@ private:
 	bool saveEditMsgFail(History *history, const RPCError &error, mtpRequestId req);
 
 	DBIPeerReportSpamStatus _reportSpamStatus;
+	mtpRequestId _reportSpamSettingRequestId;
+	static const mtpRequestId ReportSpamRequestNeeded = -1;
 	void updateReportSpamStatus();
+	void requestReportSpamSetting();
+	void reportSpamSettingDone(const MTPPeerSettings &result, mtpRequestId req);
+	bool reportSpamSettingFail(const RPCError &error, mtpRequestId req);
 
 	QString _previewLinks;
 	WebPageData *_previewData;
@@ -839,7 +870,7 @@ private:
 	bool _cmdStartShown;
 	MessageField _field;
 	Animation _a_record, _a_recording;
-	bool _recording, _inRecord, _inField, _inReplyEdit;
+	bool _recording, _inRecord, _inField, _inReplyEdit, _inPinnedMsg;
 	anim::ivalue a_recordingLevel;
 	int32 _recordingSamples;
 	anim::fvalue a_recordOver, a_recordDown;

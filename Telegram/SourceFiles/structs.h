@@ -334,7 +334,7 @@ struct BotInfo {
 	bool inited;
 	bool readsAllHistory, cantJoinGroups;
 	int32 version;
-	QString shareText, description, inlinePlaceholder;
+	QString description, inlinePlaceholder;
 	QList<BotCommand> commands;
 	Text text; // description
 
@@ -351,7 +351,14 @@ class PhotoData;
 class UserData : public PeerData {
 public:
 
-	UserData(const PeerId &id) : PeerData(id), access(0), flags(0), onlineTill(0), contact(-1), blocked(UserBlockUnknown), photosCount(-1), botInfo(0) {
+	UserData(const PeerId &id) : PeerData(id)
+		, access(0)
+		, flags(0)
+		, onlineTill(0)
+		, contact(-1)
+		, blocked(UserBlockUnknown)
+		, photosCount(-1)
+		, botInfo(0) {
 		setName(QString(), QString(), QString(), QString());
 	}
 	void setPhoto(const MTPUserProfilePhoto &photo);
@@ -390,6 +397,8 @@ public:
 	Photos photos;
 	int32 photosCount; // -1 not loaded, 0 all loaded
 
+	QString about;
+
 	BotInfo *botInfo;
 };
 static UserData * const InlineBotLookingUpData = SharedMemoryLocation<UserData, 0>();
@@ -397,7 +406,16 @@ static UserData * const InlineBotLookingUpData = SharedMemoryLocation<UserData, 
 class ChatData : public PeerData {
 public:
 
-	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_int(bareId())), migrateToPtr(0), count(0), date(0), version(0), creator(0), inviterForSpamReport(0), flags(0), isForbidden(false), botStatus(0) {
+	ChatData(const PeerId &id) : PeerData(id)
+		, inputChat(MTP_int(bareId()))
+		, migrateToPtr(0)
+		, count(0)
+		, date(0)
+		, version(0)
+		, creator(0)
+		, flags(0)
+		, isForbidden(false)
+		, botStatus(0) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
 	void invalidateParticipants() {
@@ -419,7 +437,6 @@ public:
 	int32 date;
 	int32 version;
 	int32 creator;
-	int32 inviterForSpamReport; // > 0 - user who invited me to chat in unread service msg, < 0 - have outgoing message
 
 	int32 flags;
 	bool isForbidden;
@@ -455,13 +472,13 @@ public:
 	}
 	typedef QMap<UserData*, int32> Participants;
 	Participants participants;
-	typedef QMap<UserData*, bool> InvitedByMe;
+	typedef OrderedSet<UserData*> InvitedByMe;
 	InvitedByMe invitedByMe;
-	typedef QMap<UserData*, bool> Admins;
+	typedef OrderedSet<UserData*> Admins;
 	Admins admins;
 	typedef QList<UserData*> LastAuthors;
 	LastAuthors lastAuthors;
-	typedef QMap<PeerData*, bool> MarkupSenders;
+	typedef OrderedSet<PeerData*> MarkupSenders;
 	MarkupSenders markupSenders;
 	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 //	ImagePtr photoFull;
@@ -475,14 +492,14 @@ enum PtsSkippedQueue {
 class PtsWaiter {
 public:
 
-	PtsWaiter() :
-		_good(0),
-		_last(0),
-		_count(0),
-		_applySkippedLevel(0),
-		_requesting(false),
-		_waitingForSkipped(false),
-		_waitingForShortPoll(false) {
+	PtsWaiter()
+		: _good(0)
+		, _last(0)
+		, _count(0)
+		, _applySkippedLevel(0)
+		, _requesting(false)
+		, _waitingForSkipped(false)
+		, _waitingForShortPoll(false) {
 	}
 	void init(int32 pts) {
 		_good = _last = _count = pts;
@@ -530,22 +547,25 @@ private:
 };
 
 struct MegagroupInfo {
-	MegagroupInfo() : botStatus(0)
-	, joinedMessageFound(false)
-	, lastParticipantsStatus(LastParticipantsUpToDate)
-	, lastParticipantsCount(0)
-	, migrateFromPtr(0) {
+	MegagroupInfo()
+		: botStatus(0)
+		, pinnedMsgId(0)
+		, joinedMessageFound(false)
+		, lastParticipantsStatus(LastParticipantsUpToDate)
+		, lastParticipantsCount(0)
+		, migrateFromPtr(0) {
 	}
 	typedef QList<UserData*> LastParticipants;
 	LastParticipants lastParticipants;
-	typedef QMap<UserData*, bool> LastAdmins;
+	typedef OrderedSet<UserData*> LastAdmins;
 	LastAdmins lastAdmins;
-	typedef QMap<PeerData*, bool> MarkupSenders;
+	typedef OrderedSet<PeerData*> MarkupSenders;
 	MarkupSenders markupSenders;
-	typedef QMap<UserData*, bool> Bots;
+	typedef OrderedSet<UserData*> Bots;
 	Bots bots;
 	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 
+	MsgId pinnedMsgId;
 	bool joinedMessageFound;
 
 	enum LastParticipantsStatus {
@@ -562,7 +582,19 @@ struct MegagroupInfo {
 class ChannelData : public PeerData {
 public:
 
-	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), count(1), adminsCount(1), date(0), version(0), flags(0), flagsFull(0), mgInfo(0), isForbidden(true), inviter(0), _lastFullUpdate(0) {
+	ChannelData(const PeerId &id) : PeerData(id)
+		, access(0)
+		, inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0)))
+		, count(1)
+		, adminsCount(1)
+		, date(0)
+		, version(0)
+		, flags(0)
+		, flagsFull(0)
+		, mgInfo(nullptr)
+		, isForbidden(true)
+		, inviter(0)
+		, _lastFullUpdate(0) {
 		setName(QString(), QString());
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
@@ -601,6 +633,9 @@ public:
 	}
 	bool isPublic() const {
 		return flags & MTPDchannel::flag_username;
+	}
+	bool canEditUsername() const {
+		return amCreator() && (flagsFull & MTPDchannelFull::flag_can_set_username);
 	}
 	bool amCreator() const {
 		return flags & MTPDchannel::flag_creator;

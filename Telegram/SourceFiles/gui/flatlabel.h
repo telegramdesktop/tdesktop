@@ -40,6 +40,8 @@ public:
 	void setText(const QString &text);
 	void setRichText(const QString &text);
 
+	void resizeToWidth(int32 width);
+
 	void setLink(uint16 lnkIndex, const TextLinkPtr &lnk);
 
 private:

@@ -159,6 +159,9 @@ namespace Global {
 	DeclareVar(int32, SavedGifsLimit);
 	DeclareVar(int32, EditTimeLimit);
 
+	typedef QMap<PeerId, MsgId> HiddenPinnedMessagesMap;
+	DeclareVar(HiddenPinnedMessagesMap, HiddenPinnedMessages);
+
 };
 
 namespace Adaptive {

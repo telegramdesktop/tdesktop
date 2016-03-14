@@ -306,11 +306,11 @@ public:
 
 	bool leaveChatFailed(PeerData *peer, const RPCError &e);
 	void deleteHistoryAfterLeave(PeerData *peer, const MTPUpdates &updates);
-	void deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result);
 	void deleteMessages(PeerData *peer, const QVector<MTPint> &ids);
 	void deletedContact(UserData *user, const MTPcontacts_Link &result);
 	void deleteConversation(PeerData *peer, bool deleteHistory = true);
 	void clearHistory(PeerData *peer);
+	void deleteAllFromUser(ChannelData *channel, UserData *from);
 
 	void addParticipants(PeerData *chatOrChannel, const QVector<UserData*> &users);
 	bool addParticipantFail(UserData *user, const RPCError &e);
@@ -348,6 +348,7 @@ public:
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void itemRemoved(HistoryItem *item);
+	void itemEdited(HistoryItem *item);
 
 	void loadMediaBack(PeerData *peer, MediaOverviewType type, bool many = false);
 	void peerUsernameChanged(PeerData *peer);
@@ -373,7 +374,7 @@ public:
 	ImagePtr newBackgroundThumb();
 
 	ApiWrap *api();
-	void updateReplyTo();
+	void messageDataReceived(ChannelData *channel, MsgId msgId);
 	void updateBotKeyboard(History *h);
 
 	void pushReplyReturn(HistoryItem *item);
@@ -561,6 +562,13 @@ private:
 	void feedUpdateVector(const MTPVector<MTPUpdate> &updates, bool skipMessageIds = false);
 	void feedMessageIds(const MTPVector<MTPUpdate> &updates);
 
+	void deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result);
+	struct DeleteAllFromUserParams {
+		ChannelData *channel;
+		UserData *from;
+	};
+	void deleteAllFromUserPart(DeleteAllFromUserParams params, const MTPmessages_AffectedHistory &result);
+
 	void updateReceived(const mtpPrime *from, const mtpPrime *end);
 	bool updateFail(const RPCError &e);
 
@@ -623,6 +631,8 @@ private:
 
 	QMap<int32, MTPUpdates> _bySeqUpdates;
 	SingleTimer _bySeqTimer;
+
+	SingleTimer _byMinChannelTimer;
 
 	mtpRequestId _onlineRequest;
 	SingleTimer _onlineTimer, _onlineUpdater, _idleFinishTimer;

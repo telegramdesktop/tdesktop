@@ -78,6 +78,7 @@ public slots:
 	void onInviteToGroup();
 	void onSendMessage();
 	void onSearchInPeer();
+	void onConvertToSupergroup();
 	void onEnableNotifications();
 
 	void onClearHistory();
@@ -123,12 +124,16 @@ public slots:
 
 	void onBotSettings();
 	void onBotHelp();
+	void onPinnedMessage();
+
+	void onUpdateDelayed();
 
 private:
 
 	void showAll();
 	void updateInvitationLink();
 	void updateBotLinksVisibility();
+	void updatePinnedMessageVisibility();
 
 	void chatInviteDone(const MTPExportedChatInvite &result);
 	bool updateMediaLinks(int32 *addToScroll = 0); // returns if anything changed
@@ -157,7 +162,7 @@ private:
 	FlatButton _sendMessage, _shareContact, _inviteToGroup;
 	LinkButton _cancelPhoto, _createInvitationLink, _invitationLink;
 	QString _invitationText;
-	LinkButton _botSettings, _botHelp, _username, _members, _admins;
+	LinkButton _botSettings, _botHelp, _pinnedMessage, _username, _members, _admins;
 
 	Text _about;
 	int32 _aboutTop, _aboutHeight;
@@ -182,7 +187,7 @@ private:
 	QString overviewLinkText(int32 type, int32 count);
 
 	// actions
-	LinkButton _searchInPeer, _clearHistory, _deleteConversation;
+	LinkButton _searchInPeer, _convertToSupergroup, _clearHistory, _deleteConversation;
 	UserBlockedStatus _wasBlocked;
 	mtpRequestId _blockRequest;
 	LinkButton _blockUser, _deleteChannel;
@@ -193,11 +198,11 @@ private:
 	uint64 _contactId;
 	UserData *_kickOver, *_kickDown, *_kickConfirm;
 
-	typedef struct {
+	struct ParticipantData {
 		Text name;
 		QString online;
-		bool cankick;
-	} ParticipantData;
+		bool cankick, admin;
+	};
 	typedef QVector<UserData*> Participants;
 	Participants _participants;
 	typedef QVector<ParticipantData*> ParticipantsData;
@@ -209,6 +214,8 @@ private:
 	PopupMenu *_menu;
 
 	QString _secretText;
+
+	bool _updateDelayed;
 
 	void blockDone(bool blocked, const MTPBool &result);
 	bool blockFail(const RPCError &error);
