@@ -1465,7 +1465,7 @@ HistoryItem *HistoryInner::prevItem(HistoryItem *item) {
 	if (blockIndex > 0) {
 		return item->history()->blocks[blockIndex - 1]->items.back();
 	}
-	if (item->history() == _history && _migrated && _history->loadedAtTop() && _migrated->loadedAtBottom() && !_migrated->isEmpty()) {
+	if (item->history() == _history && _migrated && _history->loadedAtTop() && !_migrated->isEmpty() && _migrated->loadedAtBottom()) {
 		return _migrated->blocks.back()->items.back();
 	}
 	return 0;
@@ -6397,7 +6397,7 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, 
 			_animActiveStart = getms();
 			_animActiveTimer.start(AnimationTimerDelta);
 			_activeAnimMsgId = _showAtMsgId;
-			if (item->isGroupMigrate() && _migrated && _migrated->loadedAtBottom() && _migrated->blocks.back()->items.back()->isGroupMigrate() && _list->historyTop() != _list->historyDrawTop()) {
+			if (item->isGroupMigrate() && _migrated && !_migrated->isEmpty() && _migrated->loadedAtBottom() && _migrated->blocks.back()->items.back()->isGroupMigrate() && _list->historyTop() != _list->historyDrawTop()) {
 				_activeAnimMsgId = -_migrated->blocks.back()->items.back()->id;
 			}
 		}
