@@ -3579,7 +3579,7 @@ ImagePtr HistoryPhoto::replyPreview() {
 	return _data->makeReplyPreview();
 }
 
-HistoryVideo::HistoryVideo(DocumentData *document, const QString &caption, HistoryItem *parent) : HistoryFileMedia()
+HistoryVideo::HistoryVideo(DocumentData *document, const QString &caption, const HistoryItem *parent) : HistoryFileMedia()
 , _data(document)
 , _thumbw(1)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
@@ -3659,6 +3659,7 @@ int32 HistoryVideo::resize(int32 width, const HistoryItem *parent) {
 		tw = width;
 	}
 
+	_thumbw = qMax(tw, 1);
 	int32 minWidth = qMax(st::minPhotoSize, parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	minWidth = qMax(minWidth, documentMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	_width = qMax(_thumbw, int32(minWidth));
@@ -5245,6 +5246,8 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 				_attach = new HistorySticker(_data->doc);
 			} else if (_data->doc->isAnimation()) {
 				_attach = new HistoryGif(_data->doc, QString(), parent);
+			} else if (_data->doc->isVideo()) {
+				_attach = new HistoryVideo(_data->doc, QString(), parent);
 			} else {
 				_attach = new HistoryDocument(_data->doc, QString(), parent);
 			}
@@ -7840,7 +7843,12 @@ HistoryMedia *HistoryServiceMsg::getMedia(bool inOverview) const {
 }
 
 HistoryServiceMsg::~HistoryServiceMsg() {
-	delete _media;
+	if (auto pinned = Get<HistoryServicePinned>()) {
+		if (pinned->msg) {
+			App::historyUnregDependency(this, pinned->msg);
+		}
+	}
+	deleteAndMark(_media);
 }
 
 HistoryDateMsg::HistoryDateMsg(History *history, HistoryBlock *block, const QDate &date) :

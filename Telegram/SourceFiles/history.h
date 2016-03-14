@@ -1527,7 +1527,7 @@ private:
 class HistoryVideo : public HistoryFileMedia {
 public:
 
-	HistoryVideo(DocumentData *document, const QString &caption, HistoryItem *parent);
+	HistoryVideo(DocumentData *document, const QString &caption, const HistoryItem *parent);
 	HistoryVideo(const HistoryVideo &other);
 	HistoryMediaType type() const {
 		return MediaTypeVideo;
