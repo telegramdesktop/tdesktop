@@ -265,9 +265,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_replace_emojis" = "Riconosci emoji";
 "lng_settings_view_emojis" = "Visualizza lista";
 "lng_settings_emoji_list" = "Emoji supportate";
-"lng_settings_send_enter" = "Spedisci con Invio";
-"lng_settings_send_ctrlenter" = "Spedisci con Ctrl+Invio";
-"lng_settings_send_cmdenter" = "Spedisci con Cmd+Invio";
+"lng_settings_send_enter" = "Invia con tasto invio";
+"lng_settings_send_ctrlenter" = "Invia con Ctrl+Invio";
+"lng_settings_send_cmdenter" = "Invia con Cmd+Invio";
 
 "lng_settings_section_background" = "Sfondo chat";
 "lng_settings_bg_from_gallery" = "Scegli dalla galleria";
@@ -379,10 +379,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_reset_button" = "Chiudi";
 "lng_settings_reset_done" = "Altre sessioni terminate";
 "lng_settings_ask_question" = "Fai una domanda";
-"lng_settings_ask_sure" = "Per favore nota che il supporto di Telegram è fornito da volontari. Proviamo a rispondere quanto prima, ma potrebbe volerci del tempo.\n\nDai un'occhiata alle FAQ di Telegram: potrai trovare importanti suggerimenti riguardo alcune problematiche e risposte alla maggior parte delle domande.";
-"lng_settings_faq_button" = "Vai alle FAQ";
+"lng_settings_ask_sure" = "Per favore nota che il supporto di Telegram è fornito da volontari. Proviamo a rispondere quanto prima, ma potrebbe volerci del tempo.\n\nDai un'occhiata alle domande frequenti su Telegram: potrai trovare importanti suggerimenti riguardo alcune problematiche e risposte alla maggior parte delle domande.";
+"lng_settings_faq_button" = "Domande frequenti";
 "lng_settings_ask_ok" = "Chiedi";
-"lng_settings_faq" = "FAQ di Telegram";
+"lng_settings_faq" = "Domande frequenti";
 "lng_settings_logout" = "Disconnetti";
 "lng_sure_logout" = "Sicuro di volerti disconnettere?";
 
@@ -476,7 +476,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_create_group_next" = "Avanti";
 "lng_create_group_create" = "Crea";
 "lng_create_group_title" = "Nuovo gruppo";
-"lng_create_group_about" = "I gruppi sono ideali per le piccole community,\npossono avere fino a {count:_not_used|# membro|# membri}";
+"lng_create_group_about" = "I gruppi sono ideali per le community limitate,\npossono avere fino a {count:_not_used|# membro|# membri}";
 "lng_create_channel_title" = "Nuovo canale";
 "lng_create_channel_about" = "I canali sono uno strumento per diffondere i tuoi messaggi a un pubblico illimitato";
 "lng_create_public_channel_title" = "Canale pubblico";
@@ -486,7 +486,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_create_public_group_title" = "Gruppo pubblico";
 "lng_create_public_group_about" = "Chiunque può trovare il gruppo nella ricerca e unirsi, la cronologia è disponibile per tutti";
 "lng_create_private_group_title" = "Gruppo privato";
-"lng_create_private_group_about" = "Solo le persone invitate possono unirsi e vedere la cronologia";
+"lng_create_private_group_about" = "Le persone si possono unire solo se invitate o con un link di invito";
 "lng_create_channel_comments" = "Attiva i commenti";
 "lng_create_channel_comments_about" = "Se attivi i commenti, i membri potranno discutere quello che pubblichi nel canale.";
 "lng_create_group_skip" = "Salta";
@@ -543,7 +543,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media" = "{from} ha fissato {media}";
 "lng_action_pinned_media_photo" = "una foto";
 "lng_action_pinned_media_video" = "un video";
-"lng_action_pinned_media_audio" = "an audio file";
+"lng_action_pinned_media_audio" = "un file audio";
 "lng_action_pinned_media_voice" = "un messaggio vocale";
 "lng_action_pinned_media_file" = "un file";
 "lng_action_pinned_media_gif" = "una GIF";
@@ -568,6 +568,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_convert_feature4" = "— Il creatore può creare un link pubblico per il gruppo";
 "lng_profile_convert_warning" = "{bold_start}Nota:{bold_end} Questa azione non può essere annullata";
 "lng_profile_convert_confirm" = "Converti";
+"lng_profile_add_more_after_upgrade" = "Sarai in grado di aggiungere fino a {count:_not_used_|# membro|# membri} dopo aver aggiornato a supergruppo.";
 
 "lng_channel_comments_count" = "{count:_not_used_|# commento|# commenti}";
 "lng_channel_hide_comments" = "Nascondi commenti";
@@ -849,7 +850,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_about_version" = "versione {version}";
 "lng_about_text_1" = "App ufficiale basata sulle [a href=\"https://core.telegram.org/api\"]API di Telegram[/a]\nper velocità e sicurezza";
 "lng_about_text_2" = "Questo software è sotto licenza [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versione 3.\nIl source code è disponibile su [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
-"lng_about_text_3" = "Visita le {faq_open}FAQ di Telegram{faq_close} per maggiori info.";
+"lng_about_text_3" = "Visita le {faq_open}domande frequenti{faq_close} per maggiori info.";
 "lng_about_done" = "Fatto";
 
 "lng_search_found_results" = "{count:Nessun messaggio trovato|# messaggio trovato|# messaggi trovati}";
@@ -879,7 +880,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Risoluzione di problemi e altri miglioramenti minori";
-"lng_new_version_text" = "— Modifica i tuoi messaggi nei canali e nei supergruppi.\n— Condividi link per post specifici nei canali con il menu contestuale dei post.\n— Aggiungi le firme per i messaggi degli amministratori nei canali.\n— Invia messaggi silenziosi nei canali che non notificheranno i membri.\nUtile per i post non urgenti o fatti di notte.";
+"lng_new_version_text" = "GRUPPI PUBBLICI, POST FISSATI, 5000 MEMBRI\n\n— I gruppi possono ora avere fino a 5000 membri (dai precedenti 1000)\n— Puoi convertire qualsiasi gruppo in supergruppo\n\nNuovi strumenti per gli amministratori dei supergruppi:\n\n— Rendi pubblico il tuo gruppo inserendo un link - chiunque sarà in grado di vedere la chat e unirsi\n— Fissa i messaggi per rendere gli aggiornamenti importanti visibili\n— Seleziona diversi messaggi per eliminarli, segnalarli, bloccare utenti ed eliminare i loro messaggi\n\nPiù info su questo aggiornamento:\n{link}";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

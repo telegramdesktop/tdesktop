@@ -476,7 +476,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_create_group_next" = "Volgende";
 "lng_create_group_create" = "Maak";
 "lng_create_group_title" = "Nieuwe groep";
-"lng_create_group_about" = "Groepen zijn voor kleinere gemeenschappen,\nmet maximaal {count:_not_used|# lid|# leden}";
+"lng_create_group_about" = "Groepen zijn voor beperkte gemeenschappen,\nmet maximaal {count:_not_used|# lid|# leden}";
 "lng_create_channel_title" = "Nieuw kanaal";
 "lng_create_channel_about" = "Kanalen kennen geen limiet en zijn geschikt om een groot publiek te bereiken";
 "lng_create_public_channel_title" = "Publiek kanaal";
@@ -486,7 +486,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_create_public_group_title" = "Publieke groep";
 "lng_create_public_group_about" = "Iedereen kan de groep vinden, er lid van worden en de geschiedenis zien";
 "lng_create_private_group_title" = "Privé-groep";
-"lng_create_private_group_about" = "Alleen uitgenodigde mensen kunnen lid worden en de geschiedenis zien";
+"lng_create_private_group_about" = "Lid worden kan alleen op uitnodiging of via uitnodigingslink";
 "lng_create_channel_comments" = "Reacties inschakelen";
 "lng_create_channel_comments_about" = "Als je reacties inschakelt kunnen leden reageren op je bericht in het kanaal.";
 "lng_create_group_skip" = "Overslaan";
@@ -543,7 +543,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media" = "{from} heeft {media} vastgezet";
 "lng_action_pinned_media_photo" = "een foto";
 "lng_action_pinned_media_video" = "een video";
-"lng_action_pinned_media_audio" = "an audio file";
+"lng_action_pinned_media_audio" = "een audiobestand";
 "lng_action_pinned_media_voice" = "een spraakbericht";
 "lng_action_pinned_media_file" = "een bestand";
 "lng_action_pinned_media_gif" = "een GIF";
@@ -568,6 +568,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_convert_feature4" = "— Maker kan een publieke groepslink instellen";
 "lng_profile_convert_warning" = "{bold_start}Let op:{bold_end} Je kunt dit niet ongedaan maken.";
 "lng_profile_convert_confirm" = "Opwaarderen";
+"lng_profile_add_more_after_upgrade" = "Waardeer op naar een supergroep om tot {count:_not_used_|# lid|# leden} toe te voegen";
 
 "lng_channel_comments_count" = "{count:_not_used_|# reactie|# reacties}";
 "lng_channel_hide_comments" = "Reacties verbergen";
@@ -879,7 +880,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Bewerk nu je berichten in kanalen en supergroepen.\n— Deel links naar specifieke berichten in kanalen via het contextmenu.\n— Onderteken berichten in kanalen.\n— Stuur 'stille berichten' in kanalen. Ideaal voor als je toch echt iets moet sturen in het holst van de nacht.";
+"lng_new_version_text" = "PUBLIEKE GROEPEN, BERICHTEN VASTZETTEN, 5000 LEDEN\n\n— Ledenlimiet voor iedere groepsvorm opgehoogd naar 5000 (voorheen 1000).\n— Iedere groep met een willekeurig aantal leden kan nu worden opgewaardeerd naar een supergroep.\n\nNieuwe functies voor  beheerders van supergroepen:\n\n— Maak je groep openbaar door een publieke link in te stellen - iedereen kan de chat zien en er lid van worden.\n— Zet berichten vast om belangrijke informatie weer te geven en alle leden te informeren.\n— Selecteer berichten om te verwijderen, ze als spam te melden, gebruikers te blokkeren of om alle berichten van bepaalde gebruikers ineens te verwijderen.\n\nMeer informatie over deze update:\n{link}";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

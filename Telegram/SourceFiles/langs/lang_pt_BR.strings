@@ -130,12 +130,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_edit_message_text" = "Nova mensagem...";
 "lng_deleted" = "Desconhecido";
 "lng_deleted_message" = "Mensagem apagada";
-"lng_pinned_message" = "Pinned message";
-"lng_pinned_unpin_sure" = "Would you like to unpin this message?";
-"lng_pinned_pin_sure" = "Would you like to pin this message?";
-"lng_pinned_pin" = "Pin";
-"lng_pinned_unpin" = "Unpin";
-"lng_pinned_notify" = "Notify all members";
+"lng_pinned_message" = "Mensagem fixada";
+"lng_pinned_unpin_sure" = "Você gostaria de desafixar essa mensagem?";
+"lng_pinned_pin_sure" = "Você gostaria de fixar essa mensagem?";
+"lng_pinned_pin" = "Fixar";
+"lng_pinned_unpin" = "Desafixar";
+"lng_pinned_notify" = "Notificar todos os membros";
 
 "lng_intro" = "Bem vindo ao cliente oficial do [a href=\"https://telegram.org/\"]Telegram[/a].\nÉ [b]rápido[/b] e [b]seguro[/b].";
 "lng_start_msgs" = "COMECE A CONVERSAR";
@@ -435,7 +435,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_add_participant" = "Adicionar Membros";
 "lng_profile_delete_and_exit" = "Sair";
 "lng_profile_kick" = "Remover";
-"lng_profile_admin" = "admin";
+"lng_profile_admin" = "administrador";
 "lng_profile_sure_kick" = "Remover {user} do grupo?";
 "lng_profile_sure_kick_channel" = "Remover {user} do canal?";
 "lng_profile_sure_kick_admin" = "Remover {user} dos administradores?";
@@ -476,17 +476,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_create_group_next" = "Próximo";
 "lng_create_group_create" = "Criar";
 "lng_create_group_title" = "Novo Grupo";
-"lng_create_group_about" = "Grupos são ideais para comunidades menores,\ncom até {count:_not_used|# membro|# membros}";
+"lng_create_group_about" = "Grupos são ideais para comunidades limitadas,\neles podem conter até {count:_not_used|# membro|# membros}";
 "lng_create_channel_title" = "Novo Canal";
 "lng_create_channel_about" = "Canais são uma ferramenta para transmitir suas mensagens para audiências ilimitadas";
 "lng_create_public_channel_title" = "Canal Público";
 "lng_create_public_channel_about" = "Qualquer um pode encontrar o canal na busca e entrar";
 "lng_create_private_channel_title" = "Canal privado";
 "lng_create_private_channel_about" = "Somente pessoas com um link especial de convite poderão entrar";
-"lng_create_public_group_title" = "Public Group";
-"lng_create_public_group_about" = "Anyone can find the group in search and join, all chat history is available to everybody";
-"lng_create_private_group_title" = "Private Group";
-"lng_create_private_group_about" = "Only invited people may join and see the chat history";
+"lng_create_public_group_title" = "Grupo Público";
+"lng_create_public_group_about" = "Qualquer um pode encontrar o grupo pela busca e entrar, todo o histórico estará disponível";
+"lng_create_private_group_title" = "Grupo Privado";
+"lng_create_private_group_about" = "Somente pessoas convidadas ou com link de convite podem entrar";
 "lng_create_channel_comments" = "Habilitar Comentários";
 "lng_create_channel_comments_about" = "Se você habilitar comentários, membros poderão discutir seus posts no canal";
 "lng_create_group_skip" = "Pular";
@@ -539,17 +539,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_created_chat" = "{from} criou o grupo «{title}»";
 "lng_action_created_channel" = "Canal «{title}» criado";
 "lng_action_group_migrate" = "O grupo foi atualizado para um supergrupo";
-"lng_action_pinned_message" = "{from} pinned «{text}»";
-"lng_action_pinned_media" = "{from} pinned {media}";
-"lng_action_pinned_media_photo" = "a photo";
-"lng_action_pinned_media_video" = "a video file";
-"lng_action_pinned_media_audio" = "an audio file";
-"lng_action_pinned_media_voice" = "a voice message";
-"lng_action_pinned_media_file" = "a file";
-"lng_action_pinned_media_gif" = "a GIF animation";
-"lng_action_pinned_media_contact" = "a contact information";
-"lng_action_pinned_media_location" = "a location mark";
-"lng_action_pinned_media_sticker" = "a sticker";
+"lng_action_pinned_message" = "{from} fixou «{text}»";
+"lng_action_pinned_media" = "{from} fixou {media}";
+"lng_action_pinned_media_photo" = "uma foto";
+"lng_action_pinned_media_video" = "um vídeo";
+"lng_action_pinned_media_audio" = "um áudio";
+"lng_action_pinned_media_voice" = "uma mensagem de voz";
+"lng_action_pinned_media_file" = "um arquivo";
+"lng_action_pinned_media_gif" = "um GIF";
+"lng_action_pinned_media_contact" = "um contato";
+"lng_action_pinned_media_location" = "uma localização";
+"lng_action_pinned_media_sticker" = "um sticker";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# membro|# membros} limite alcançado";
 "lng_profile_migrate_about" = "Se você deseja ir além do limite, pode converter seu grupo em um supergrupo. Nos supergrupos:";
@@ -559,15 +559,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_migrate_feature4" = "— Notificações silenciadas por padrão";
 "lng_profile_migrate_button" = "Atualizar para supergrupo";
 "lng_profile_migrate_sure" = "Tem certeza que deseja converter esse grupo para um supergrupo? Essa ação não pode ser desfeita.";
-"lng_profile_convert_button" = "Convert to supergroup";
-"lng_profile_convert_title" = "Convert to supergroup";
-"lng_profile_convert_about" = "In supergroups:";
-"lng_profile_convert_feature1" = "— New members see the full message history";
-"lng_profile_convert_feature2" = "— Messages are deleted for all members";
-"lng_profile_convert_feature3" = "— Members can edit their own messages";
-"lng_profile_convert_feature4" = "— Creator can set a public link for the group";
-"lng_profile_convert_warning" = "{bold_start}Note:{bold_end} This action can not be undone";
-"lng_profile_convert_confirm" = "Convert";
+"lng_profile_convert_button" = "Converter a Supergrupo";
+"lng_profile_convert_title" = "Converter a Supergrupo";
+"lng_profile_convert_about" = "Em supergrupos:";
+"lng_profile_convert_feature1" = "— Novos membros podem ver todo o histórico";
+"lng_profile_convert_feature2" = "— Mensagens apagadas desaparecerão para todos";
+"lng_profile_convert_feature3" = "— Membros podem editar as próprias mensagens";
+"lng_profile_convert_feature4" = "— Criador pode definir um link público para o grupo";
+"lng_profile_convert_warning" = "{bold_start}Nota:{bold_end} Essa ação não pode ser desfeita";
+"lng_profile_convert_confirm" = "Converter";
+"lng_profile_add_more_after_upgrade" = "Você pode adicionar até {count:_not_used_|# membro|# membros} depois de atualizar seu grupo para um supergrupo.";
 
 "lng_channel_comments_count" = "{count:_not_used_|# comentário|# comentários}";
 "lng_channel_hide_comments" = "Ocultar Comentários";
@@ -594,8 +595,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_forwarded" = "Encaminhado de {user}";
 "lng_forwarded_channel" = "Encaminhado de {channel}";
-"lng_forwarded_via" = "Encaminhado de {user} via {online_bot}";
-"lng_forwarded_channel_via" = "Encaminhado de {channel} via {online_bot}";
+"lng_forwarded_via" = "Encaminhado de {user} via {inline_bot}";
+"lng_forwarded_channel_via" = "Encaminhado de {channel} via {inline_bot}";
 "lng_forwarded_signed" = "{channel} ({user})";
 "lng_in_reply_to" = "Em resposta a";
 
@@ -668,8 +669,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
 
-"lng_ban_user" = "Ban User";
-"lng_delete_all_from" = "Delete all from this user";
+"lng_ban_user" = "Banir Usuário";
+"lng_delete_all_from" = "Apagar tudo deste usuário";
 "lng_report_spam" = "Reportar Spam";
 "lng_report_spam_hide" = "Ocultar";
 "lng_report_spam_thanks" = "Obrigado por reportar!";
@@ -778,8 +779,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_forward_msg" = "Encaminhar Mensagem";
 "lng_context_delete_msg" = "Apagar Mensagem";
 "lng_context_select_msg" = "Selecionar Mensagem";
-"lng_context_pin_msg" = "Pin Message";
-"lng_context_unpin_msg" = "Unpin Message";
+"lng_context_pin_msg" = "Fixar Mensagem";
+"lng_context_unpin_msg" = "Desafixar Mensagem";
 "lng_context_cancel_upload" = "Cancelar Envio";
 "lng_context_copy_selected" = "Copiar Texto Selecionado";
 "lng_context_forward_selected" = "Encaminhar Selecionado";
@@ -879,7 +880,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras melhorias menores";
-"lng_new_version_text" = "— Edite suas mensagens em canais e supergrupos.\n— Compartilhe links para postagens específicas nos canais pelo menu de contexto do post.\n— Adicione assinaturas de administradores nas mensagens dos canais.\n— Envie mensagens silenciosas em canais, que não notificarão os membros. Útil para mensagens não urgentes ou enviadas tarde da noite.";
+"lng_new_version_text" = "GRUPOS PÚBLICOS, POSTS FIXADOS, 5.000 MEMBROS\n\n— Grupos agora podem ter até 5.000 membros (mais que 1.000)\n— Grupos de qualquer tamanho podem ser convertidos a supergrupos\n\nNovas ferramentas para administradores dos supergrupos:\n\n— Torne seu grupo público configurando um link público - qualquer um poderá ver a conversa e entrar nela\n— Fixe mensagens para manter as atualizações mais importantes visíveis e notificar todos os membros\n— Selecione várias mensagens para apagar, reporte por spam, bloqueie usuários ou remova todas as mensagens de certos usuários\n\nMais sobre essa atualização:\n{link}";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 

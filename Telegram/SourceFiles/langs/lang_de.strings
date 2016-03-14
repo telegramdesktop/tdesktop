@@ -131,7 +131,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_deleted" = "Gelöschter Kontakt";
 "lng_deleted_message" = "Gelöschte Nachricht";
 "lng_pinned_message" = "Angeheftete Nachricht";
-"lng_pinned_unpin_sure" = "Angeheftete Nachricht wieder entfernen?";
+"lng_pinned_unpin_sure" = "Angeheftete Nachricht entfernen?";
 "lng_pinned_pin_sure" = "Möchtest du diese Nachricht anheften?";
 "lng_pinned_pin" = "Anheften";
 "lng_pinned_unpin" = "Entfernen";
@@ -476,7 +476,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_create_group_next" = "Weiter";
 "lng_create_group_create" = "Erstellen";
 "lng_create_group_title" = "Neue Gruppe erstellen";
-"lng_create_group_about" = "{count:_not_used|# Mitglied|# Mitglieder} passen in jede Gruppe, \npraktisch für eine kleinere Gemeinschaft.";
+"lng_create_group_about" = "{count:_not_used|# Mitglied|# Mitglieder} passen in jede Gruppe, praktisch für eine kleinere Gemeinschaft.";
 "lng_create_channel_title" = "Neuen Kanal erstellen";
 "lng_create_channel_about" = "In einen Kanal passen unbegrenzt viele Leute, also ideal für ein großes Publikum.";
 "lng_create_public_channel_title" = "Öffentlicher Kanal";
@@ -543,7 +543,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media" = "{from} hat {media} angeheftet";
 "lng_action_pinned_media_photo" = "ein Bild";
 "lng_action_pinned_media_video" = "ein Video";
-"lng_action_pinned_media_audio" = "an audio file";
+"lng_action_pinned_media_audio" = "ein Audio";
 "lng_action_pinned_media_voice" = "eine Sprachnachricht";
 "lng_action_pinned_media_file" = "eine Datei";
 "lng_action_pinned_media_gif" = "ein GIF";
@@ -562,12 +562,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_convert_button" = "In Supergruppe ändern";
 "lng_profile_convert_title" = "In Supergruppe ändern";
 "lng_profile_convert_about" = "Supergruppen:";
-"lng_profile_convert_feature1" = "— Neue Mitglieder sehen gesamten Nachrichtenverlauf";
-"lng_profile_convert_feature2" = "— Gelöschte Nachrichten verschwinden für alle Mitglieder";
-"lng_profile_convert_feature3" = "— Mitglieder können eigene Nachrichten nachträglich bearbeiten";
-"lng_profile_convert_feature4" = "— Gruppenersteller kann die Gruppe öffentlich machen";
+"lng_profile_convert_feature1" = "— Neue Mitglieder sehen gesamten Verlauf";
+"lng_profile_convert_feature2" = "— Nachrichten werden bei allen gelöscht";
+"lng_profile_convert_feature3" = "— Jeder kann eigene Nachrichten bearbeiten";
+"lng_profile_convert_feature4" = "— Gründer kann Gruppe öffentlich machen";
 "lng_profile_convert_warning" = "{bold_start}Wichtig:{bold_end} Die Änderung in eine Supergruppe kann nicht rückgängig gemacht werden.";
 "lng_profile_convert_confirm" = "Ändern";
+"lng_profile_add_more_after_upgrade" = "Du kannst nach der Änderung der Gruppe in eine Supergruppe bis zu {count:_not_used_|# Mitglied|# Mitglieder} hinzufügen.";
 
 "lng_channel_comments_count" = "{count:_not_used_|# Kommentar|# Kommentare} »";
 "lng_channel_hide_comments" = "Kommentare verstecken";
@@ -879,7 +880,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Bearbeite deine Nachrichten in Kanälen und Supergruppen.\n— Teile direkt Links zu einzelnen Kanal-Nachrichten über das Teilen-Symbol neben der Nachricht.\n— Unterschreibe Nachrichten in Kanälen - so kann jeder sehen, welcher Admin die Nachricht geschrieben hat.\n— Sende 'lautlose Nachrichten' in Kanälen. Klasse, wenn man mal wieder mitten in der Nacht eine Nachricht senden muss.";
+"lng_new_version_text" = "ÖFFENTLICHE GRUPPEN, NACHRICHTEN ANHEFTEN, 5000 MITGLIEDER\n\n— Gruppen dürfen nun 5.000 Mitglieder haben (zuvor waren es 1.000)\n— Jede Gruppe - egal wie groß -  kann ab sofort in eine Supergruppe geändert werden\n\nNeue Werkzeuge für Supergruppen-Admins:\n\n— Mache deine Gruppe öffentlich: Jeder kann den Inhalt einsehen und sie betreten\n— Hefte Nachrichten an: Perfekt um Gruppenmitglieder über Neuigkeiten zu informieren\n— Lösche mehrere Nachrichten, melde sie aufgrund von Spam, blockiere Mitglieder oder entferne alle Nachrichten von bestimmten Nutzern\n\nMehr Infos zum neuen Update:\n{link}";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 
