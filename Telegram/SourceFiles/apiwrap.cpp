@@ -633,14 +633,22 @@ void ApiWrap::kickParticipantDone(KickRequest kick, const MTPUpdates &result, mt
 		int32 i = kick.first->asChannel()->mgInfo->lastParticipants.indexOf(kick.second);
 		if (i >= 0) {
 			kick.first->asChannel()->mgInfo->lastParticipants.removeAt(i);
-			kick.first->asChannel()->mgInfo->lastAdmins.remove(kick.second);
 		}
-		kick.first->asChannel()->mgInfo->bots.remove(kick.second);
 		if (kick.first->asChannel()->count > 1) {
-			kick.first->asChannel()->count--;
+			--kick.first->asChannel()->count;
 		} else {
 			kick.first->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
 			kick.first->asChannel()->mgInfo->lastParticipantsCount = 0;
+		}
+		if (kick.first->asChannel()->mgInfo->lastAdmins.contains(kick.second)) {
+			kick.first->asChannel()->mgInfo->lastAdmins.remove(kick.second);
+			if (kick.first->asChannel()->adminsCount > 1) {
+				--kick.first->asChannel()->adminsCount;
+			}
+		}
+		kick.first->asChannel()->mgInfo->bots.remove(kick.second);
+		if (kick.first->asChannel()->mgInfo->bots.isEmpty() && kick.first->asChannel()->mgInfo->botStatus > 0) {
+			kick.first->asChannel()->mgInfo->botStatus = -1;
 		}
 	}
 	emit fullPeerUpdated(kick.first);

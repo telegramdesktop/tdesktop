@@ -1454,7 +1454,18 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 						if (index >= 0) {
 							peer->asChannel()->mgInfo->lastParticipants.removeAt(index);
 						}
-						peer->asChannel()->mgInfo->lastAdmins.remove(user);
+						if (peer->asChannel()->count > 1) {
+							--peer->asChannel()->count;
+						} else {
+							peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
+							peer->asChannel()->mgInfo->lastParticipantsCount = 0;
+						}
+						if (peer->asChannel()->mgInfo->lastAdmins.contains(user)) {
+							peer->asChannel()->mgInfo->lastAdmins.remove(user);
+							if (peer->asChannel()->adminsCount > 1) {
+								--peer->asChannel()->adminsCount;
+							}
+						}
 						peer->asChannel()->mgInfo->bots.remove(user);
 						if (peer->asChannel()->mgInfo->bots.isEmpty() && peer->asChannel()->mgInfo->botStatus > 0) {
 							peer->asChannel()->mgInfo->botStatus = -1;

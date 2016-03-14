@@ -257,6 +257,18 @@ void ContactsInner::addAdminDone(const MTPUpdates &result, mtpRequestId req) {
 	if (req != _addAdminRequestId) return;
 
 	_addAdminRequestId = 0;
+	if (_addAdmin && _channel && _channel->isMegagroup()) {
+		if (_channel->mgInfo->lastParticipants.indexOf(_addAdmin) < 0) {
+			_channel->mgInfo->lastParticipants.push_front(_addAdmin);
+		}
+		_channel->mgInfo->lastAdmins.insert(_addAdmin);
+		if (_addAdmin->botInfo) {
+			_channel->mgInfo->bots.insert(_addAdmin);
+			if (_channel->mgInfo->botStatus != 0 && _channel->mgInfo->botStatus < 2) {
+				_channel->mgInfo->botStatus = 2;
+			}
+		}
+	}
 	if (_addAdminBox) _addAdminBox->onClose();
 	emit adminAdded();
 }
