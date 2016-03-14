@@ -909,7 +909,7 @@ void MainWidget::forwardLayer(int32 forwardSelected) {
 
 void MainWidget::deleteLayer(int32 selectedCount) {
 	if (selectedCount == -1 && !overview) {
-		if (auto item = App::contextItem()) {
+		if (HistoryItem *item = App::contextItem()) {
 			if (item->suggestBanReportDeleteAll()) {
 				Ui::showLayer(new RichDeleteMessageBox(item->history()->peer->asChannel(), item->from()->asUser(), item->id));
 				return;
@@ -1067,16 +1067,16 @@ void MainWidget::deleteAllFromUser(ChannelData *channel, UserData *from) {
 	t_assert(channel != nullptr && from != nullptr);
 
 	QVector<MsgId> toDestroy;
-	if (auto history = App::historyLoaded(channel->id)) {
-		for (auto i = history->blocks.cbegin(), e = history->blocks.cend(); i != e; ++i) {
-			for (auto j = (*i)->items.cbegin(), n = (*i)->items.cend(); j != n; ++j) {
-				if ((*j)->from() == from && (*j)->type() == HistoryItemMsg && (*j)->canDelete()) {
-					toDestroy.push_back((*j)->id);
+	if (History *history = App::historyLoaded(channel->id)) {
+		for (HistoryBlock *block : history->blocks) {
+			for (HistoryItem *item : block->items) {
+				if (item->from() == from && item->type() == HistoryItemMsg && item->canDelete()) {
+					toDestroy.push_back(item->id);
 				}
 			}
 		}
-		for (auto i = toDestroy.cbegin(), e = toDestroy.cend(); i != e; ++i) {
-			if (auto item = App::histItemById(peerToChannel(channel->id), *i)) {
+		for (const MsgId &msgId : toDestroy) {
+			if (HistoryItem *item = App::histItemById(peerToChannel(channel->id), msgId)) {
 				item->destroy();
 			}
 		}
@@ -1095,7 +1095,7 @@ void MainWidget::deleteAllFromUserPart(DeleteAllFromUserParams params, const MTP
 	if (!MTP::authedId()) return;
 	if (offset > 0) {
 		MTP::send(MTPchannels_DeleteUserHistory(params.channel->inputChannel, params.from->inputUser), rpcDone(&MainWidget::deleteAllFromUserPart, params));
-	} else if (auto h = App::historyLoaded(params.channel)) {
+	} else if (History *h = App::historyLoaded(params.channel)) {
 		if (!h->lastMsg) {
 			checkPeerHistory(params.channel);
 		}

@@ -24,8 +24,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "localstorage.h"
 
-#include "intro/intro.h"
-#include "intro/introsteps.h"
+#include "intro/introwidget.h"
+#include "intro/introstart.h"
 #include "intro/introphone.h"
 #include "intro/introcode.h"
 #include "intro/introsignup.h"
@@ -52,19 +52,12 @@ namespace {
 	}
 }
 
-IntroWidget::IntroWidget(Window *window) : TWidget(window)
+IntroWidget::IntroWidget(QWidget *parent) : TWidget(parent)
 , _langChangeTo(0)
 , _a_stage(animation(this, &IntroWidget::step_stage))
 , _cacheHideIndex(0)
 , _cacheShowIndex(0)
 , _a_show(animation(this, &IntroWidget::step_show))
-, steps(new IntroSteps(this))
-, phone(0)
-, code(0)
-, signup(0)
-, pwdcheck(0)
-, current(0)
-, moving(0)
 , _callTimeout(60)
 , _registered(false)
 , _hasRecovery(false)
@@ -74,7 +67,7 @@ IntroWidget::IntroWidget(Window *window) : TWidget(window)
 , _backTo(0) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 
-	connect(&_back, SIGNAL(clicked()), this, SLOT(onIntroBack()));
+	connect(&_back, SIGNAL(clicked()), this, SLOT(onBack()));
 	_back.hide();
 
 	countryForReg = psCurrentCountry();
@@ -82,11 +75,10 @@ IntroWidget::IntroWidget(Window *window) : TWidget(window)
 	MTP::send(MTPhelp_GetNearestDc(), rpcDone(gotNearestDC));
 	signalEmitOn = this;
 
-	stages[0] = steps;
-	memset(stages + 1, 0, sizeof(QWidget*) * 3);
+	_stepHistory.push_back(new IntroStart(this));
 	_back.raise();
 
-	connect(window, SIGNAL(resized(const QSize&)), this, SLOT(onParentResize(const QSize&)));
+	connect(parent, SIGNAL(resized(const QSize&)), this, SLOT(onParentResize(const QSize&)));
 
 	show();
 	setFocus();
@@ -112,92 +104,77 @@ void IntroWidget::onParentResize(const QSize &newSize) {
 	resize(newSize);
 }
 
-void IntroWidget::onIntroBack() {
-	if (!current) return;
-	moving = (current == 4) ? -2 : -1;
-	prepareMove();
+void IntroWidget::onStepSubmit() {
+	step()->onSubmit();
 }
 
-void IntroWidget::onIntroNext() {
-	if (!createNext()) return;
-	moving = 1;
-	prepareMove();
+void IntroWidget::onBack() {
+	historyMove(MoveBack);
 }
 
-bool IntroWidget::createNext() {
-	if (current == sizeof(stages) / sizeof(stages[0]) - 1) return false;
-	if (!stages[current + 1]) {
-		switch (current) {
-		case 0: stages[current + 1] = phone = new IntroPhone(this); break;
-		case 1: stages[current + 1] = code = new IntroCode(this); break;
-		case 2:
-			if (_pwdSalt.isEmpty()) {
-				if (signup) delete signup;
-				stages[current + 1] = signup = new IntroSignup(this);
-			} else {
-				stages[current + 1] = pwdcheck = new IntroPwdCheck(this);
-			}
-		break;
-		case 3: stages[current + 1] = signup = new IntroSignup(this); break;
-		}
-	}
-	_back.raise();
-	return true;
-}
+void IntroWidget::historyMove(MoveType type) {
+	if (_a_stage.animating()) return;
 
-void IntroWidget::prepareMove() {
+	t_assert(_stepHistory.size() > 1);
+
 	if (App::app()) App::app()->mtpPause();
 
-	if (_cacheHide.isNull() || _cacheHideIndex != current) makeHideCache();
+	switch (type) {
+	case MoveBack: {
+		_cacheHide = grabStep();
 
-	stages[current + moving]->prepareShow();
-	if (_cacheShow.isNull() || _cacheShowIndex != current + moving) makeShowCache();
+		IntroStep *back = step();
+		_backFrom = back->hasBack() ? 1 : 0;
+		_stepHistory.pop_back();
+		back->cancelled();
+		delete back;
+	} break;
 
-	int32 m = (moving > 0) ? 1 : -1;
+	case MoveForward: {
+		_cacheHide = grabStep(1);
+		_backFrom = step(1)->hasBack() ? 1 : 0;
+		step(1)->finished();
+	} break;
+
+	case MoveReplace: {
+		_cacheHide = grabStep(1);
+		IntroStep *replaced = step(1);
+		_backFrom = replaced->hasBack() ? 1 : 0;
+		_stepHistory.removeAt(_stepHistory.size() - 2);
+		replaced->finished();
+		delete replaced;
+	} break;
+	}
+
+	_cacheShow = grabStep();
+	_backTo = step()->hasBack() ? 1 : 0;
+
+	int32 m = (type == MoveBack) ? -1 : 1;
 	a_coordHide = anim::ivalue(0, -m * st::introSlideShift);
 	a_opacityHide = anim::fvalue(1, 0);
 	a_coordShow = anim::ivalue(m * st::introSlideShift, 0);
 	a_opacityShow = anim::fvalue(0, 1);
 	_a_stage.start();
 
-	_backTo = stages[current + moving]->hasBack() ? 1 : 0;
-	_backFrom = stages[current]->hasBack() ? 1 : 0;
 	_a_stage.step();
 	if (_backFrom > 0 || _backTo > 0) {
 		_back.show();
 	} else {
 		_back.hide();
 	}
-	stages[current]->deactivate();
-	stages[current + moving]->hide();
+	step()->hide();
 }
 
-void IntroWidget::onDoneStateChanged(int oldState, ButtonStateChangeSource source) {
-	if (_a_stage.animating()) return;
-	if (source == ButtonByPress) {
-		if (oldState & Button::StateDown) {
-			_cacheHide = QPixmap();
-		} else {
-			makeHideCache();
-		}
-	} else if (source == ButtonByHover && current != 2) {
-		if (!createNext()) return;
-		if (!_cacheShow) makeShowCache(current + 1);
-	}
+void IntroWidget::pushStep(IntroStep *step, MoveType type) {
+	_stepHistory.push_back(step);
+	_back.raise();
+	_stepHistory.back()->hide();
+
+	historyMove(type);
 }
 
-void IntroWidget::makeHideCache(int stage) {
-	if (stage < 0) stage = current;
-	int w = st::introSize.width(), h = st::introSize.height();
-	_cacheHide = myGrab(stages[stage], QRect(st::introSlideShift, 0, w, h));
-	_cacheHideIndex = stage;
-}
-
-void IntroWidget::makeShowCache(int stage) {
-	if (stage < 0) stage = current + moving;
-	int w = st::introSize.width(), h = st::introSize.height();
-	_cacheShow = myGrab(stages[stage], QRect(st::introSlideShift, 0, w, h));
-	_cacheShowIndex = stage;
+QPixmap IntroWidget::grabStep(int skip) {
+	return myGrab(step(skip), QRect(st::introSlideShift, 0, st::introSize.width(), st::introSize.height()));
 }
 
 void IntroWidget::animShow(const QPixmap &bgAnimCache, bool back) {
@@ -206,8 +183,8 @@ void IntroWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 	(back ? _cacheOver : _cacheUnder) = bgAnimCache;
 
 	_a_show.stop();
-	stages[current]->show();
-	if (stages[current]->hasBack()) {
+	step()->show();
+	if (step()->hasBack()) {
 		_back.setOpacity(1);
 		_back.show();
 	} else {
@@ -215,8 +192,7 @@ void IntroWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 	}
 	(back ? _cacheUnder : _cacheOver) = myGrab(this);
 
-	stages[current]->deactivate();
-	stages[current]->hide();
+	step()->hide();
 	_back.hide();
 
 	a_coordUnder = back ? anim::ivalue(-qFloor(st::slideShift * width()), 0) : anim::ivalue(0, -qFloor(st::slideShift * width()));
@@ -239,9 +215,8 @@ void IntroWidget::step_show(float64 ms, bool timer) {
 		_cacheUnder = _cacheOver = QPixmap();
 
 		setFocus();
-		stages[current]->show();
-		stages[current]->activate();
-		if (stages[current]->hasBack()) {
+		step()->activate();
+		if (step()->hasBack()) {
 			_back.setOpacity(1);
 			_back.show();
 		}
@@ -269,11 +244,9 @@ void IntroWidget::step_stage(float64 ms, bool timer) {
 
 		_cacheHide = _cacheShow = QPixmap();
 
-		current += moving;
-		moving = 0;
 		setFocus();
-		stages[current]->activate();
-		if (!stages[current]->hasBack()) {
+		step()->activate();
+		if (!step()->hasBack()) {
 			_back.hide();
 		}
 		if (App::app()) App::app()->mtpUnpause();
@@ -312,9 +285,9 @@ void IntroWidget::paintEvent(QPaintEvent *e) {
 		p.drawPixmap(QRect(a_coordOver.current() - st::slideShadow.pxWidth(), 0, st::slideShadow.pxWidth(), height()), App::sprite(), st::slideShadow);
 	} else if (_a_stage.animating()) {
 		p.setOpacity(a_opacityHide.current());
-		p.drawPixmap(stages[current]->x() + st::introSlideShift + a_coordHide.current(), stages[current]->y(), _cacheHide);
+		p.drawPixmap(step()->x() + st::introSlideShift + a_coordHide.current(), step()->y(), _cacheHide);
 		p.setOpacity(a_opacityShow.current());
-		p.drawPixmap(stages[current + moving]->x() + st::introSlideShift + a_coordShow.current(), stages[current + moving]->y(), _cacheShow);
+		p.drawPixmap(step()->x() + st::introSlideShift + a_coordShow.current(), step()->y(), _cacheShow);
 	}
 }
 
@@ -339,11 +312,6 @@ void IntroWidget::setCode(const QString &code) {
 
 void IntroWidget::setPwdSalt(const QByteArray &salt) {
 	_pwdSalt = salt;
-	delete signup;
-	delete pwdcheck;
-	stages[3] = stages[4] = 0;
-	signup = 0;
-	pwdcheck = 0;
 }
 
 void IntroWidget::setHasRecovery(bool has) {
@@ -356,7 +324,6 @@ void IntroWidget::setPwdHint(const QString &hint) {
 
 void IntroWidget::setCodeByTelegram(bool byTelegram) {
 	_codeByTelegram = byTelegram;
-	if (code) code->updateDescText();
 }
 
 void IntroWidget::setCallTimeout(int32 callTimeout) {
@@ -397,15 +364,9 @@ bool IntroWidget::codeByTelegram() const {
 
 void IntroWidget::resizeEvent(QResizeEvent *e) {
 	QRect r(innerRect());
-	if (steps) steps->setGeometry(r);
-	if (phone) phone->setGeometry(r);
-	if (code) code->setGeometry(r);
-	if (signup) signup->setGeometry(r);
-	if (pwdcheck) pwdcheck->setGeometry(r);
-}
-
-void IntroWidget::mousePressEvent(QMouseEvent *e) {
-
+	for (IntroStep *step : _stepHistory) {
+		step->setGeometry(r);
+	}
 }
 
 void IntroWidget::finish(const MTPUser &user, const QImage &photo) {
@@ -419,9 +380,11 @@ void IntroWidget::keyPressEvent(QKeyEvent *e) {
 	if (_a_show.animating() || _a_stage.animating()) return;
 
 	if (e->key() == Qt::Key_Escape) {
-		stages[current]->onBack();
+		if (step()->hasBack()) {
+			onBack();
+		}
 	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return || e->key() == Qt::Key_Space) {
-		stages[current]->onNext();
+		onStepSubmit();
 	}
 }
 
@@ -429,17 +392,16 @@ void IntroWidget::updateAdaptiveLayout() {
 }
 
 void IntroWidget::rpcClear() {
-	if (phone) phone->rpcClear();
-	if (code) code->rpcClear();
-	if (signup) signup->rpcClear();
-	if (pwdcheck) pwdcheck->rpcClear();
+	for (IntroStep *step : _stepHistory) {
+		step->rpcClear();
+	}
 }
 
 IntroWidget::~IntroWidget() {
-	delete steps;
-	delete phone;
-	delete code;
-	delete signup;
-	delete pwdcheck;
+	while (!_stepHistory.isEmpty()) {
+		IntroStep *back = _stepHistory.back();
+		_stepHistory.pop_back();
+		delete back;
+	}
 	if (App::wnd()) App::wnd()->noIntro(this);
 }

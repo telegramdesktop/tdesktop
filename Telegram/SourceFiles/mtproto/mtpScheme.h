@@ -177,8 +177,7 @@ enum {
 	mtpc_geoPointEmpty = 0x1117dd5f,
 	mtpc_geoPoint = 0x2049d70c,
 	mtpc_auth_checkedPhone = 0x811ea28e,
-	mtpc_auth_sentCode = 0xefed51d9,
-	mtpc_auth_sentAppCode = 0xe325edcf,
+	mtpc_auth_sentCode = 0x5e002502,
 	mtpc_auth_authorization = 0xff036af1,
 	mtpc_auth_exportedAuthorization = 0xdf969c2d,
 	mtpc_inputNotifyPeer = 0xb8bc5b0c,
@@ -350,7 +349,6 @@ enum {
 	mtpc_privacyValueDisallowUsers = 0xc7f49b7,
 	mtpc_account_privacyRules = 0x554abb6f,
 	mtpc_accountDaysTTL = 0xb8d0afdf,
-	mtpc_account_sentChangePhoneCode = 0xa4f58c4c,
 	mtpc_documentAttributeImageSize = 0x6c37c15c,
 	mtpc_documentAttributeAnimated = 0x11b58939,
 	mtpc_documentAttributeSticker = 0x3a556302,
@@ -452,14 +450,20 @@ enum {
 	mtpc_exportedMessageLink = 0x1f486803,
 	mtpc_messageFwdHeader = 0xc786ddcb,
 	mtpc_channels_messageEditData = 0x67e1255f,
+	mtpc_auth_codeTypeSms = 0x72a3158c,
+	mtpc_auth_codeTypeCall = 0x741cd3e3,
+	mtpc_auth_codeTypeFlashCall = 0x226ccefb,
+	mtpc_auth_sentCodeTypeApp = 0x3dbb5986,
+	mtpc_auth_sentCodeTypeSms = 0xc000bba2,
+	mtpc_auth_sentCodeTypeCall = 0x5353e5a7,
+	mtpc_auth_sentCodeTypeFlashCall = 0xab03c6d9,
 	mtpc_invokeAfterMsg = 0xcb9f372d,
 	mtpc_invokeAfterMsgs = 0x3dc4b4f0,
 	mtpc_initConnection = 0x69796de9,
 	mtpc_invokeWithLayer = 0xda9b0d0d,
 	mtpc_invokeWithoutUpdates = 0xbf9459b7,
 	mtpc_auth_checkPhone = 0x6fe51dfb,
-	mtpc_auth_sendCode = 0x768d5f4d,
-	mtpc_auth_sendCall = 0x3c51564,
+	mtpc_auth_sendCode = 0xccfd70cf,
 	mtpc_auth_signUp = 0x1b067634,
 	mtpc_auth_signIn = 0xbcd51581,
 	mtpc_auth_logOut = 0x5717da40,
@@ -468,11 +472,12 @@ enum {
 	mtpc_auth_exportAuthorization = 0xe5bfffcd,
 	mtpc_auth_importAuthorization = 0xe3ef9613,
 	mtpc_auth_bindTempAuthKey = 0xcdd42a05,
-	mtpc_auth_sendSms = 0xda9f3e8,
 	mtpc_auth_importBotAuthorization = 0x67a3ff2c,
 	mtpc_auth_checkPassword = 0xa63011e,
 	mtpc_auth_requestPasswordRecovery = 0xd897bc66,
 	mtpc_auth_recoverPassword = 0x4ea56e92,
+	mtpc_auth_resendCode = 0x3ef1a9bf,
+	mtpc_auth_cancelCode = 0x1f040578,
 	mtpc_account_registerDevice = 0x446c712c,
 	mtpc_account_unregisterDevice = 0x65c55b40,
 	mtpc_account_updateNotifySettings = 0x84be5b93,
@@ -489,7 +494,7 @@ enum {
 	mtpc_account_deleteAccount = 0x418d4e0b,
 	mtpc_account_getAccountTTL = 0x8fc711d,
 	mtpc_account_setAccountTTL = 0x2442485e,
-	mtpc_account_sendChangePhoneCode = 0xa407a8f4,
+	mtpc_account_sendChangePhoneCode = 0x8e57deb,
 	mtpc_account_changePhone = 0x70c32edb,
 	mtpc_account_updateDeviceLocked = 0x38df3532,
 	mtpc_account_getAuthorizations = 0xe320c158,
@@ -836,7 +841,6 @@ class MTPDauth_checkedPhone;
 
 class MTPauth_sentCode;
 class MTPDauth_sentCode;
-class MTPDauth_sentAppCode;
 
 class MTPauth_authorization;
 class MTPDauth_authorization;
@@ -1071,9 +1075,6 @@ class MTPDaccount_privacyRules;
 class MTPaccountDaysTTL;
 class MTPDaccountDaysTTL;
 
-class MTPaccount_sentChangePhoneCode;
-class MTPDaccount_sentChangePhoneCode;
-
 class MTPdocumentAttribute;
 class MTPDdocumentAttributeImageSize;
 class MTPDdocumentAttributeSticker;
@@ -1254,6 +1255,14 @@ class MTPDmessageFwdHeader;
 class MTPchannels_messageEditData;
 class MTPDchannels_messageEditData;
 
+class MTPauth_codeType;
+
+class MTPauth_sentCodeType;
+class MTPDauth_sentCodeTypeApp;
+class MTPDauth_sentCodeTypeSms;
+class MTPDauth_sentCodeTypeCall;
+class MTPDauth_sentCodeTypeFlashCall;
+
 
 // Boxed types definitions
 typedef MTPBoxed<MTPresPQ> MTPResPQ;
@@ -1368,7 +1377,6 @@ typedef MTPBoxed<MTPinputPrivacyRule> MTPInputPrivacyRule;
 typedef MTPBoxed<MTPprivacyRule> MTPPrivacyRule;
 typedef MTPBoxed<MTPaccount_privacyRules> MTPaccount_PrivacyRules;
 typedef MTPBoxed<MTPaccountDaysTTL> MTPAccountDaysTTL;
-typedef MTPBoxed<MTPaccount_sentChangePhoneCode> MTPaccount_SentChangePhoneCode;
 typedef MTPBoxed<MTPdocumentAttribute> MTPDocumentAttribute;
 typedef MTPBoxed<MTPmessages_stickers> MTPmessages_Stickers;
 typedef MTPBoxed<MTPstickerPack> MTPStickerPack;
@@ -1419,6 +1427,8 @@ typedef MTPBoxed<MTPmessages_botResults> MTPmessages_BotResults;
 typedef MTPBoxed<MTPexportedMessageLink> MTPExportedMessageLink;
 typedef MTPBoxed<MTPmessageFwdHeader> MTPMessageFwdHeader;
 typedef MTPBoxed<MTPchannels_messageEditData> MTPchannels_MessageEditData;
+typedef MTPBoxed<MTPauth_codeType> MTPauth_CodeType;
+typedef MTPBoxed<MTPauth_sentCodeType> MTPauth_SentCodeType;
 
 // Type classes definitions
 
@@ -4048,52 +4058,32 @@ typedef MTPBoxed<MTPauth_checkedPhone> MTPauth_CheckedPhone;
 
 class MTPauth_sentCode : private mtpDataOwner {
 public:
-	MTPauth_sentCode() : mtpDataOwner(0), _type(0) {
-	}
-	MTPauth_sentCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : mtpDataOwner(0), _type(0) {
+	MTPauth_sentCode();
+	MTPauth_sentCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_sentCode) : mtpDataOwner(0) {
 		read(from, end, cons);
 	}
 
 	MTPDauth_sentCode &_auth_sentCode() {
 		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_auth_sentCode) throw mtpErrorWrongTypeId(_type, mtpc_auth_sentCode);
 		split();
 		return *(MTPDauth_sentCode*)data;
 	}
 	const MTPDauth_sentCode &c_auth_sentCode() const {
 		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_auth_sentCode) throw mtpErrorWrongTypeId(_type, mtpc_auth_sentCode);
 		return *(const MTPDauth_sentCode*)data;
-	}
-
-	MTPDauth_sentAppCode &_auth_sentAppCode() {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_auth_sentAppCode) throw mtpErrorWrongTypeId(_type, mtpc_auth_sentAppCode);
-		split();
-		return *(MTPDauth_sentAppCode*)data;
-	}
-	const MTPDauth_sentAppCode &c_auth_sentAppCode() const {
-		if (!data) throw mtpErrorUninitialized();
-		if (_type != mtpc_auth_sentAppCode) throw mtpErrorWrongTypeId(_type, mtpc_auth_sentAppCode);
-		return *(const MTPDauth_sentAppCode*)data;
 	}
 
 	uint32 innerLength() const;
 	mtpTypeId type() const;
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_sentCode);
 	void write(mtpBuffer &to) const;
 
 	typedef void ResponseType;
 
 private:
-	explicit MTPauth_sentCode(mtpTypeId type);
 	explicit MTPauth_sentCode(MTPDauth_sentCode *_data);
-	explicit MTPauth_sentCode(MTPDauth_sentAppCode *_data);
 
-	friend MTPauth_sentCode MTP_auth_sentCode(MTPBool _phone_registered, const MTPstring &_phone_code_hash, MTPint _send_call_timeout, MTPBool _is_password);
-	friend MTPauth_sentCode MTP_auth_sentAppCode(MTPBool _phone_registered, const MTPstring &_phone_code_hash, MTPint _send_call_timeout, MTPBool _is_password);
-
-	mtpTypeId _type;
+	friend MTPauth_sentCode MTP_auth_sentCode(MTPint _flags, const MTPauth_SentCodeType &_type, const MTPstring &_phone_code_hash, const MTPauth_CodeType &_next_type, MTPint _timeout);
 };
 typedef MTPBoxed<MTPauth_sentCode> MTPauth_SentCode;
 
@@ -6973,37 +6963,6 @@ private:
 };
 typedef MTPBoxed<MTPaccountDaysTTL> MTPAccountDaysTTL;
 
-class MTPaccount_sentChangePhoneCode : private mtpDataOwner {
-public:
-	MTPaccount_sentChangePhoneCode();
-	MTPaccount_sentChangePhoneCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_sentChangePhoneCode) : mtpDataOwner(0) {
-		read(from, end, cons);
-	}
-
-	MTPDaccount_sentChangePhoneCode &_account_sentChangePhoneCode() {
-		if (!data) throw mtpErrorUninitialized();
-		split();
-		return *(MTPDaccount_sentChangePhoneCode*)data;
-	}
-	const MTPDaccount_sentChangePhoneCode &c_account_sentChangePhoneCode() const {
-		if (!data) throw mtpErrorUninitialized();
-		return *(const MTPDaccount_sentChangePhoneCode*)data;
-	}
-
-	uint32 innerLength() const;
-	mtpTypeId type() const;
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_sentChangePhoneCode);
-	void write(mtpBuffer &to) const;
-
-	typedef void ResponseType;
-
-private:
-	explicit MTPaccount_sentChangePhoneCode(MTPDaccount_sentChangePhoneCode *_data);
-
-	friend MTPaccount_sentChangePhoneCode MTP_account_sentChangePhoneCode(const MTPstring &_phone_code_hash, MTPint _send_call_timeout);
-};
-typedef MTPBoxed<MTPaccount_sentChangePhoneCode> MTPaccount_SentChangePhoneCode;
-
 class MTPdocumentAttribute : private mtpDataOwner {
 public:
 	MTPdocumentAttribute() : mtpDataOwner(0), _type(0) {
@@ -9133,6 +9092,111 @@ private:
 };
 typedef MTPBoxed<MTPchannels_messageEditData> MTPchannels_MessageEditData;
 
+class MTPauth_codeType {
+public:
+	MTPauth_codeType() : _type(0) {
+	}
+	MTPauth_codeType(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : _type(0) {
+		read(from, end, cons);
+	}
+
+	uint32 innerLength() const;
+	mtpTypeId type() const;
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
+	void write(mtpBuffer &to) const;
+
+	typedef void ResponseType;
+
+private:
+	explicit MTPauth_codeType(mtpTypeId type);
+
+	friend MTPauth_codeType MTP_auth_codeTypeSms();
+	friend MTPauth_codeType MTP_auth_codeTypeCall();
+	friend MTPauth_codeType MTP_auth_codeTypeFlashCall();
+
+	mtpTypeId _type;
+};
+typedef MTPBoxed<MTPauth_codeType> MTPauth_CodeType;
+
+class MTPauth_sentCodeType : private mtpDataOwner {
+public:
+	MTPauth_sentCodeType() : mtpDataOwner(0), _type(0) {
+	}
+	MTPauth_sentCodeType(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : mtpDataOwner(0), _type(0) {
+		read(from, end, cons);
+	}
+
+	MTPDauth_sentCodeTypeApp &_auth_sentCodeTypeApp() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_auth_sentCodeTypeApp) throw mtpErrorWrongTypeId(_type, mtpc_auth_sentCodeTypeApp);
+		split();
+		return *(MTPDauth_sentCodeTypeApp*)data;
+	}
+	const MTPDauth_sentCodeTypeApp &c_auth_sentCodeTypeApp() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_auth_sentCodeTypeApp) throw mtpErrorWrongTypeId(_type, mtpc_auth_sentCodeTypeApp);
+		return *(const MTPDauth_sentCodeTypeApp*)data;
+	}
+
+	MTPDauth_sentCodeTypeSms &_auth_sentCodeTypeSms() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_auth_sentCodeTypeSms) throw mtpErrorWrongTypeId(_type, mtpc_auth_sentCodeTypeSms);
+		split();
+		return *(MTPDauth_sentCodeTypeSms*)data;
+	}
+	const MTPDauth_sentCodeTypeSms &c_auth_sentCodeTypeSms() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_auth_sentCodeTypeSms) throw mtpErrorWrongTypeId(_type, mtpc_auth_sentCodeTypeSms);
+		return *(const MTPDauth_sentCodeTypeSms*)data;
+	}
+
+	MTPDauth_sentCodeTypeCall &_auth_sentCodeTypeCall() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_auth_sentCodeTypeCall) throw mtpErrorWrongTypeId(_type, mtpc_auth_sentCodeTypeCall);
+		split();
+		return *(MTPDauth_sentCodeTypeCall*)data;
+	}
+	const MTPDauth_sentCodeTypeCall &c_auth_sentCodeTypeCall() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_auth_sentCodeTypeCall) throw mtpErrorWrongTypeId(_type, mtpc_auth_sentCodeTypeCall);
+		return *(const MTPDauth_sentCodeTypeCall*)data;
+	}
+
+	MTPDauth_sentCodeTypeFlashCall &_auth_sentCodeTypeFlashCall() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_auth_sentCodeTypeFlashCall) throw mtpErrorWrongTypeId(_type, mtpc_auth_sentCodeTypeFlashCall);
+		split();
+		return *(MTPDauth_sentCodeTypeFlashCall*)data;
+	}
+	const MTPDauth_sentCodeTypeFlashCall &c_auth_sentCodeTypeFlashCall() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_auth_sentCodeTypeFlashCall) throw mtpErrorWrongTypeId(_type, mtpc_auth_sentCodeTypeFlashCall);
+		return *(const MTPDauth_sentCodeTypeFlashCall*)data;
+	}
+
+	uint32 innerLength() const;
+	mtpTypeId type() const;
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
+	void write(mtpBuffer &to) const;
+
+	typedef void ResponseType;
+
+private:
+	explicit MTPauth_sentCodeType(mtpTypeId type);
+	explicit MTPauth_sentCodeType(MTPDauth_sentCodeTypeApp *_data);
+	explicit MTPauth_sentCodeType(MTPDauth_sentCodeTypeSms *_data);
+	explicit MTPauth_sentCodeType(MTPDauth_sentCodeTypeCall *_data);
+	explicit MTPauth_sentCodeType(MTPDauth_sentCodeTypeFlashCall *_data);
+
+	friend MTPauth_sentCodeType MTP_auth_sentCodeTypeApp(MTPint _length);
+	friend MTPauth_sentCodeType MTP_auth_sentCodeTypeSms(MTPint _length);
+	friend MTPauth_sentCodeType MTP_auth_sentCodeTypeCall(MTPint _length);
+	friend MTPauth_sentCodeType MTP_auth_sentCodeTypeFlashCall(const MTPstring &_pattern);
+
+	mtpTypeId _type;
+};
+typedef MTPBoxed<MTPauth_sentCodeType> MTPauth_SentCodeType;
+
 // Type constructors with data
 
 class MTPDresPQ : public mtpDataImpl<MTPDresPQ> {
@@ -10555,26 +10619,24 @@ class MTPDauth_sentCode : public mtpDataImpl<MTPDauth_sentCode> {
 public:
 	MTPDauth_sentCode() {
 	}
-	MTPDauth_sentCode(MTPBool _phone_registered, const MTPstring &_phone_code_hash, MTPint _send_call_timeout, MTPBool _is_password) : vphone_registered(_phone_registered), vphone_code_hash(_phone_code_hash), vsend_call_timeout(_send_call_timeout), vis_password(_is_password) {
+	MTPDauth_sentCode(MTPint _flags, const MTPauth_SentCodeType &_type, const MTPstring &_phone_code_hash, const MTPauth_CodeType &_next_type, MTPint _timeout) : vflags(_flags), vtype(_type), vphone_code_hash(_phone_code_hash), vnext_type(_next_type), vtimeout(_timeout) {
 	}
 
-	MTPBool vphone_registered;
+	MTPint vflags;
+	MTPauth_SentCodeType vtype;
 	MTPstring vphone_code_hash;
-	MTPint vsend_call_timeout;
-	MTPBool vis_password;
-};
+	MTPauth_CodeType vnext_type;
+	MTPint vtimeout;
 
-class MTPDauth_sentAppCode : public mtpDataImpl<MTPDauth_sentAppCode> {
-public:
-	MTPDauth_sentAppCode() {
-	}
-	MTPDauth_sentAppCode(MTPBool _phone_registered, const MTPstring &_phone_code_hash, MTPint _send_call_timeout, MTPBool _is_password) : vphone_registered(_phone_registered), vphone_code_hash(_phone_code_hash), vsend_call_timeout(_send_call_timeout), vis_password(_is_password) {
-	}
+	enum {
+		flag_phone_registered = (1 << 0),
+		flag_next_type = (1 << 1),
+		flag_timeout = (1 << 2),
+	};
 
-	MTPBool vphone_registered;
-	MTPstring vphone_code_hash;
-	MTPint vsend_call_timeout;
-	MTPBool vis_password;
+	bool is_phone_registered() const { return vflags.v & flag_phone_registered; }
+	bool has_next_type() const { return vflags.v & flag_next_type; }
+	bool has_timeout() const { return vflags.v & flag_timeout; }
 };
 
 class MTPDauth_authorization : public mtpDataImpl<MTPDauth_authorization> {
@@ -12156,17 +12218,6 @@ public:
 	MTPint vdays;
 };
 
-class MTPDaccount_sentChangePhoneCode : public mtpDataImpl<MTPDaccount_sentChangePhoneCode> {
-public:
-	MTPDaccount_sentChangePhoneCode() {
-	}
-	MTPDaccount_sentChangePhoneCode(const MTPstring &_phone_code_hash, MTPint _send_call_timeout) : vphone_code_hash(_phone_code_hash), vsend_call_timeout(_send_call_timeout) {
-	}
-
-	MTPstring vphone_code_hash;
-	MTPint vsend_call_timeout;
-};
-
 class MTPDdocumentAttributeImageSize : public mtpDataImpl<MTPDdocumentAttributeImageSize> {
 public:
 	MTPDdocumentAttributeImageSize() {
@@ -13347,6 +13398,46 @@ public:
 	bool is_caption() const { return vflags.v & flag_caption; }
 };
 
+class MTPDauth_sentCodeTypeApp : public mtpDataImpl<MTPDauth_sentCodeTypeApp> {
+public:
+	MTPDauth_sentCodeTypeApp() {
+	}
+	MTPDauth_sentCodeTypeApp(MTPint _length) : vlength(_length) {
+	}
+
+	MTPint vlength;
+};
+
+class MTPDauth_sentCodeTypeSms : public mtpDataImpl<MTPDauth_sentCodeTypeSms> {
+public:
+	MTPDauth_sentCodeTypeSms() {
+	}
+	MTPDauth_sentCodeTypeSms(MTPint _length) : vlength(_length) {
+	}
+
+	MTPint vlength;
+};
+
+class MTPDauth_sentCodeTypeCall : public mtpDataImpl<MTPDauth_sentCodeTypeCall> {
+public:
+	MTPDauth_sentCodeTypeCall() {
+	}
+	MTPDauth_sentCodeTypeCall(MTPint _length) : vlength(_length) {
+	}
+
+	MTPint vlength;
+};
+
+class MTPDauth_sentCodeTypeFlashCall : public mtpDataImpl<MTPDauth_sentCodeTypeFlashCall> {
+public:
+	MTPDauth_sentCodeTypeFlashCall() {
+	}
+	MTPDauth_sentCodeTypeFlashCall(const MTPstring &_pattern) : vpattern(_pattern) {
+	}
+
+	MTPstring vpattern;
+};
+
 // RPC methods
 
 class MTPreq_pq { // RPC method 'req_pq'
@@ -13996,8 +14087,9 @@ public:
 
 class MTPauth_sendCode { // RPC method 'auth.sendCode'
 public:
+	MTPint vflags;
 	MTPstring vphone_number;
-	MTPint vsms_type;
+	MTPBool vcurrent_number;
 	MTPint vapi_id;
 	MTPstring vapi_hash;
 	MTPstring vlang_code;
@@ -14007,25 +14099,35 @@ public:
 	MTPauth_sendCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_sendCode) {
 		read(from, end, cons);
 	}
-	MTPauth_sendCode(const MTPstring &_phone_number, MTPint _sms_type, MTPint _api_id, const MTPstring &_api_hash, const MTPstring &_lang_code) : vphone_number(_phone_number), vsms_type(_sms_type), vapi_id(_api_id), vapi_hash(_api_hash), vlang_code(_lang_code) {
+	MTPauth_sendCode(MTPint _flags, const MTPstring &_phone_number, MTPBool _current_number, MTPint _api_id, const MTPstring &_api_hash, const MTPstring &_lang_code) : vflags(_flags), vphone_number(_phone_number), vcurrent_number(_current_number), vapi_id(_api_id), vapi_hash(_api_hash), vlang_code(_lang_code) {
 	}
 
+	enum {
+		flag_allow_flashcall = (1 << 0),
+		flag_current_number = (1 << 0),
+	};
+
+	bool is_allow_flashcall() const { return vflags.v & flag_allow_flashcall; }
+	bool has_current_number() const { return vflags.v & flag_current_number; }
+
 	uint32 innerLength() const {
-		return vphone_number.innerLength() + vsms_type.innerLength() + vapi_id.innerLength() + vapi_hash.innerLength() + vlang_code.innerLength();
+		return vflags.innerLength() + vphone_number.innerLength() + (has_current_number() ? vcurrent_number.innerLength() : 0) + vapi_id.innerLength() + vapi_hash.innerLength() + vlang_code.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_auth_sendCode;
 	}
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_sendCode) {
+		vflags.read(from, end);
 		vphone_number.read(from, end);
-		vsms_type.read(from, end);
+		if (has_current_number()) { vcurrent_number.read(from, end); } else { vcurrent_number = MTPBool(); }
 		vapi_id.read(from, end);
 		vapi_hash.read(from, end);
 		vlang_code.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
+		vflags.write(to);
 		vphone_number.write(to);
-		vsms_type.write(to);
+		if (has_current_number()) vcurrent_number.write(to);
 		vapi_id.write(to);
 		vapi_hash.write(to);
 		vlang_code.write(to);
@@ -14041,49 +14143,7 @@ public:
 	}
 	MTPauth_SendCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPauth_sendCode>(from, end, cons) {
 	}
-	MTPauth_SendCode(const MTPstring &_phone_number, MTPint _sms_type, MTPint _api_id, const MTPstring &_api_hash, const MTPstring &_lang_code) : MTPBoxed<MTPauth_sendCode>(MTPauth_sendCode(_phone_number, _sms_type, _api_id, _api_hash, _lang_code)) {
-	}
-};
-
-class MTPauth_sendCall { // RPC method 'auth.sendCall'
-public:
-	MTPstring vphone_number;
-	MTPstring vphone_code_hash;
-
-	MTPauth_sendCall() {
-	}
-	MTPauth_sendCall(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_sendCall) {
-		read(from, end, cons);
-	}
-	MTPauth_sendCall(const MTPstring &_phone_number, const MTPstring &_phone_code_hash) : vphone_number(_phone_number), vphone_code_hash(_phone_code_hash) {
-	}
-
-	uint32 innerLength() const {
-		return vphone_number.innerLength() + vphone_code_hash.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_auth_sendCall;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_sendCall) {
-		vphone_number.read(from, end);
-		vphone_code_hash.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vphone_number.write(to);
-		vphone_code_hash.write(to);
-	}
-
-	typedef MTPBool ResponseType;
-};
-class MTPauth_SendCall : public MTPBoxed<MTPauth_sendCall> {
-public:
-	MTPauth_SendCall() {
-	}
-	MTPauth_SendCall(const MTPauth_sendCall &v) : MTPBoxed<MTPauth_sendCall>(v) {
-	}
-	MTPauth_SendCall(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPauth_sendCall>(from, end, cons) {
-	}
-	MTPauth_SendCall(const MTPstring &_phone_number, const MTPstring &_phone_code_hash) : MTPBoxed<MTPauth_sendCall>(MTPauth_sendCall(_phone_number, _phone_code_hash)) {
+	MTPauth_SendCode(MTPint _flags, const MTPstring &_phone_number, MTPBool _current_number, MTPint _api_id, const MTPstring &_api_hash, const MTPstring &_lang_code) : MTPBoxed<MTPauth_sendCode>(MTPauth_sendCode(_flags, _phone_number, _current_number, _api_id, _api_hash, _lang_code)) {
 	}
 };
 
@@ -14416,48 +14476,6 @@ public:
 	}
 };
 
-class MTPauth_sendSms { // RPC method 'auth.sendSms'
-public:
-	MTPstring vphone_number;
-	MTPstring vphone_code_hash;
-
-	MTPauth_sendSms() {
-	}
-	MTPauth_sendSms(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_sendSms) {
-		read(from, end, cons);
-	}
-	MTPauth_sendSms(const MTPstring &_phone_number, const MTPstring &_phone_code_hash) : vphone_number(_phone_number), vphone_code_hash(_phone_code_hash) {
-	}
-
-	uint32 innerLength() const {
-		return vphone_number.innerLength() + vphone_code_hash.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_auth_sendSms;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_sendSms) {
-		vphone_number.read(from, end);
-		vphone_code_hash.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vphone_number.write(to);
-		vphone_code_hash.write(to);
-	}
-
-	typedef MTPBool ResponseType;
-};
-class MTPauth_SendSms : public MTPBoxed<MTPauth_sendSms> {
-public:
-	MTPauth_SendSms() {
-	}
-	MTPauth_SendSms(const MTPauth_sendSms &v) : MTPBoxed<MTPauth_sendSms>(v) {
-	}
-	MTPauth_SendSms(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPauth_sendSms>(from, end, cons) {
-	}
-	MTPauth_SendSms(const MTPstring &_phone_number, const MTPstring &_phone_code_hash) : MTPBoxed<MTPauth_sendSms>(MTPauth_sendSms(_phone_number, _phone_code_hash)) {
-	}
-};
-
 class MTPauth_importBotAuthorization { // RPC method 'auth.importBotAuthorization'
 public:
 	MTPint vflags;
@@ -14612,6 +14630,90 @@ public:
 	MTPauth_RecoverPassword(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPauth_recoverPassword>(from, end, cons) {
 	}
 	MTPauth_RecoverPassword(const MTPstring &_code) : MTPBoxed<MTPauth_recoverPassword>(MTPauth_recoverPassword(_code)) {
+	}
+};
+
+class MTPauth_resendCode { // RPC method 'auth.resendCode'
+public:
+	MTPstring vphone_number;
+	MTPstring vphone_code_hash;
+
+	MTPauth_resendCode() {
+	}
+	MTPauth_resendCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_resendCode) {
+		read(from, end, cons);
+	}
+	MTPauth_resendCode(const MTPstring &_phone_number, const MTPstring &_phone_code_hash) : vphone_number(_phone_number), vphone_code_hash(_phone_code_hash) {
+	}
+
+	uint32 innerLength() const {
+		return vphone_number.innerLength() + vphone_code_hash.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_auth_resendCode;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_resendCode) {
+		vphone_number.read(from, end);
+		vphone_code_hash.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vphone_number.write(to);
+		vphone_code_hash.write(to);
+	}
+
+	typedef MTPauth_SentCode ResponseType;
+};
+class MTPauth_ResendCode : public MTPBoxed<MTPauth_resendCode> {
+public:
+	MTPauth_ResendCode() {
+	}
+	MTPauth_ResendCode(const MTPauth_resendCode &v) : MTPBoxed<MTPauth_resendCode>(v) {
+	}
+	MTPauth_ResendCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPauth_resendCode>(from, end, cons) {
+	}
+	MTPauth_ResendCode(const MTPstring &_phone_number, const MTPstring &_phone_code_hash) : MTPBoxed<MTPauth_resendCode>(MTPauth_resendCode(_phone_number, _phone_code_hash)) {
+	}
+};
+
+class MTPauth_cancelCode { // RPC method 'auth.cancelCode'
+public:
+	MTPstring vphone_number;
+	MTPstring vphone_code_hash;
+
+	MTPauth_cancelCode() {
+	}
+	MTPauth_cancelCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_cancelCode) {
+		read(from, end, cons);
+	}
+	MTPauth_cancelCode(const MTPstring &_phone_number, const MTPstring &_phone_code_hash) : vphone_number(_phone_number), vphone_code_hash(_phone_code_hash) {
+	}
+
+	uint32 innerLength() const {
+		return vphone_number.innerLength() + vphone_code_hash.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_auth_cancelCode;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_cancelCode) {
+		vphone_number.read(from, end);
+		vphone_code_hash.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vphone_number.write(to);
+		vphone_code_hash.write(to);
+	}
+
+	typedef MTPBool ResponseType;
+};
+class MTPauth_CancelCode : public MTPBoxed<MTPauth_cancelCode> {
+public:
+	MTPauth_CancelCode() {
+	}
+	MTPauth_CancelCode(const MTPauth_cancelCode &v) : MTPBoxed<MTPauth_cancelCode>(v) {
+	}
+	MTPauth_CancelCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPauth_cancelCode>(from, end, cons) {
+	}
+	MTPauth_CancelCode(const MTPstring &_phone_number, const MTPstring &_phone_code_hash) : MTPBoxed<MTPauth_cancelCode>(MTPauth_cancelCode(_phone_number, _phone_code_hash)) {
 	}
 };
 
@@ -15266,30 +15368,44 @@ public:
 
 class MTPaccount_sendChangePhoneCode { // RPC method 'account.sendChangePhoneCode'
 public:
+	MTPint vflags;
 	MTPstring vphone_number;
+	MTPBool vcurrent_number;
 
 	MTPaccount_sendChangePhoneCode() {
 	}
 	MTPaccount_sendChangePhoneCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_sendChangePhoneCode) {
 		read(from, end, cons);
 	}
-	MTPaccount_sendChangePhoneCode(const MTPstring &_phone_number) : vphone_number(_phone_number) {
+	MTPaccount_sendChangePhoneCode(MTPint _flags, const MTPstring &_phone_number, MTPBool _current_number) : vflags(_flags), vphone_number(_phone_number), vcurrent_number(_current_number) {
 	}
 
+	enum {
+		flag_allow_flashcall = (1 << 0),
+		flag_current_number = (1 << 0),
+	};
+
+	bool is_allow_flashcall() const { return vflags.v & flag_allow_flashcall; }
+	bool has_current_number() const { return vflags.v & flag_current_number; }
+
 	uint32 innerLength() const {
-		return vphone_number.innerLength();
+		return vflags.innerLength() + vphone_number.innerLength() + (has_current_number() ? vcurrent_number.innerLength() : 0);
 	}
 	mtpTypeId type() const {
 		return mtpc_account_sendChangePhoneCode;
 	}
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_sendChangePhoneCode) {
+		vflags.read(from, end);
 		vphone_number.read(from, end);
+		if (has_current_number()) { vcurrent_number.read(from, end); } else { vcurrent_number = MTPBool(); }
 	}
 	void write(mtpBuffer &to) const {
+		vflags.write(to);
 		vphone_number.write(to);
+		if (has_current_number()) vcurrent_number.write(to);
 	}
 
-	typedef MTPaccount_SentChangePhoneCode ResponseType;
+	typedef MTPauth_SentCode ResponseType;
 };
 class MTPaccount_SendChangePhoneCode : public MTPBoxed<MTPaccount_sendChangePhoneCode> {
 public:
@@ -15299,7 +15415,7 @@ public:
 	}
 	MTPaccount_SendChangePhoneCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_sendChangePhoneCode>(from, end, cons) {
 	}
-	MTPaccount_SendChangePhoneCode(const MTPstring &_phone_number) : MTPBoxed<MTPaccount_sendChangePhoneCode>(MTPaccount_sendChangePhoneCode(_phone_number)) {
+	MTPaccount_SendChangePhoneCode(MTPint _flags, const MTPstring &_phone_number, MTPBool _current_number) : MTPBoxed<MTPaccount_sendChangePhoneCode>(MTPaccount_sendChangePhoneCode(_flags, _phone_number, _current_number)) {
 	}
 };
 
@@ -24381,79 +24497,39 @@ inline MTPauth_checkedPhone MTP_auth_checkedPhone(MTPBool _phone_registered) {
 	return MTPauth_checkedPhone(new MTPDauth_checkedPhone(_phone_registered));
 }
 
+inline MTPauth_sentCode::MTPauth_sentCode() : mtpDataOwner(new MTPDauth_sentCode()) {
+}
+
 inline uint32 MTPauth_sentCode::innerLength() const {
-	switch (_type) {
-		case mtpc_auth_sentCode: {
-			const MTPDauth_sentCode &v(c_auth_sentCode());
-			return v.vphone_registered.innerLength() + v.vphone_code_hash.innerLength() + v.vsend_call_timeout.innerLength() + v.vis_password.innerLength();
-		}
-		case mtpc_auth_sentAppCode: {
-			const MTPDauth_sentAppCode &v(c_auth_sentAppCode());
-			return v.vphone_registered.innerLength() + v.vphone_code_hash.innerLength() + v.vsend_call_timeout.innerLength() + v.vis_password.innerLength();
-		}
-	}
-	return 0;
+	const MTPDauth_sentCode &v(c_auth_sentCode());
+	return v.vflags.innerLength() + v.vtype.innerLength() + v.vphone_code_hash.innerLength() + (v.has_next_type() ? v.vnext_type.innerLength() : 0) + (v.has_timeout() ? v.vtimeout.innerLength() : 0);
 }
 inline mtpTypeId MTPauth_sentCode::type() const {
-	if (!_type) throw mtpErrorUninitialized();
-	return _type;
+	return mtpc_auth_sentCode;
 }
 inline void MTPauth_sentCode::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	if (cons != _type) setData(0);
-	switch (cons) {
-		case mtpc_auth_sentCode: _type = cons; {
-			if (!data) setData(new MTPDauth_sentCode());
-			MTPDauth_sentCode &v(_auth_sentCode());
-			v.vphone_registered.read(from, end);
-			v.vphone_code_hash.read(from, end);
-			v.vsend_call_timeout.read(from, end);
-			v.vis_password.read(from, end);
-		} break;
-		case mtpc_auth_sentAppCode: _type = cons; {
-			if (!data) setData(new MTPDauth_sentAppCode());
-			MTPDauth_sentAppCode &v(_auth_sentAppCode());
-			v.vphone_registered.read(from, end);
-			v.vphone_code_hash.read(from, end);
-			v.vsend_call_timeout.read(from, end);
-			v.vis_password.read(from, end);
-		} break;
-		default: throw mtpErrorUnexpected(cons, "MTPauth_sentCode");
-	}
+	if (cons != mtpc_auth_sentCode) throw mtpErrorUnexpected(cons, "MTPauth_sentCode");
+
+	if (!data) setData(new MTPDauth_sentCode());
+	MTPDauth_sentCode &v(_auth_sentCode());
+	v.vflags.read(from, end);
+	v.vtype.read(from, end);
+	v.vphone_code_hash.read(from, end);
+	if (v.has_next_type()) { v.vnext_type.read(from, end); } else { v.vnext_type = MTPauth_CodeType(); }
+	if (v.has_timeout()) { v.vtimeout.read(from, end); } else { v.vtimeout = MTPint(); }
 }
 inline void MTPauth_sentCode::write(mtpBuffer &to) const {
-	switch (_type) {
-		case mtpc_auth_sentCode: {
-			const MTPDauth_sentCode &v(c_auth_sentCode());
-			v.vphone_registered.write(to);
-			v.vphone_code_hash.write(to);
-			v.vsend_call_timeout.write(to);
-			v.vis_password.write(to);
-		} break;
-		case mtpc_auth_sentAppCode: {
-			const MTPDauth_sentAppCode &v(c_auth_sentAppCode());
-			v.vphone_registered.write(to);
-			v.vphone_code_hash.write(to);
-			v.vsend_call_timeout.write(to);
-			v.vis_password.write(to);
-		} break;
-	}
+	const MTPDauth_sentCode &v(c_auth_sentCode());
+	v.vflags.write(to);
+	v.vtype.write(to);
+	v.vphone_code_hash.write(to);
+	if (v.has_next_type()) v.vnext_type.write(to);
+	if (v.has_timeout()) v.vtimeout.write(to);
 }
-inline MTPauth_sentCode::MTPauth_sentCode(mtpTypeId type) : mtpDataOwner(0), _type(type) {
-	switch (type) {
-		case mtpc_auth_sentCode: setData(new MTPDauth_sentCode()); break;
-		case mtpc_auth_sentAppCode: setData(new MTPDauth_sentAppCode()); break;
-		default: throw mtpErrorBadTypeId(type, "MTPauth_sentCode");
-	}
+inline MTPauth_sentCode::MTPauth_sentCode(MTPDauth_sentCode *_data) : mtpDataOwner(_data) {
 }
-inline MTPauth_sentCode::MTPauth_sentCode(MTPDauth_sentCode *_data) : mtpDataOwner(_data), _type(mtpc_auth_sentCode) {
-}
-inline MTPauth_sentCode::MTPauth_sentCode(MTPDauth_sentAppCode *_data) : mtpDataOwner(_data), _type(mtpc_auth_sentAppCode) {
-}
-inline MTPauth_sentCode MTP_auth_sentCode(MTPBool _phone_registered, const MTPstring &_phone_code_hash, MTPint _send_call_timeout, MTPBool _is_password) {
-	return MTPauth_sentCode(new MTPDauth_sentCode(_phone_registered, _phone_code_hash, _send_call_timeout, _is_password));
-}
-inline MTPauth_sentCode MTP_auth_sentAppCode(MTPBool _phone_registered, const MTPstring &_phone_code_hash, MTPint _send_call_timeout, MTPBool _is_password) {
-	return MTPauth_sentCode(new MTPDauth_sentAppCode(_phone_registered, _phone_code_hash, _send_call_timeout, _is_password));
+inline MTPauth_sentCode MTP_auth_sentCode(MTPint _flags, const MTPauth_SentCodeType &_type, const MTPstring &_phone_code_hash, const MTPauth_CodeType &_next_type, MTPint _timeout) {
+	return MTPauth_sentCode(new MTPDauth_sentCode(_flags, _type, _phone_code_hash, _next_type, _timeout));
 }
 
 inline MTPauth_authorization::MTPauth_authorization() : mtpDataOwner(new MTPDauth_authorization()) {
@@ -28462,35 +28538,6 @@ inline MTPaccountDaysTTL MTP_accountDaysTTL(MTPint _days) {
 	return MTPaccountDaysTTL(new MTPDaccountDaysTTL(_days));
 }
 
-inline MTPaccount_sentChangePhoneCode::MTPaccount_sentChangePhoneCode() : mtpDataOwner(new MTPDaccount_sentChangePhoneCode()) {
-}
-
-inline uint32 MTPaccount_sentChangePhoneCode::innerLength() const {
-	const MTPDaccount_sentChangePhoneCode &v(c_account_sentChangePhoneCode());
-	return v.vphone_code_hash.innerLength() + v.vsend_call_timeout.innerLength();
-}
-inline mtpTypeId MTPaccount_sentChangePhoneCode::type() const {
-	return mtpc_account_sentChangePhoneCode;
-}
-inline void MTPaccount_sentChangePhoneCode::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	if (cons != mtpc_account_sentChangePhoneCode) throw mtpErrorUnexpected(cons, "MTPaccount_sentChangePhoneCode");
-
-	if (!data) setData(new MTPDaccount_sentChangePhoneCode());
-	MTPDaccount_sentChangePhoneCode &v(_account_sentChangePhoneCode());
-	v.vphone_code_hash.read(from, end);
-	v.vsend_call_timeout.read(from, end);
-}
-inline void MTPaccount_sentChangePhoneCode::write(mtpBuffer &to) const {
-	const MTPDaccount_sentChangePhoneCode &v(c_account_sentChangePhoneCode());
-	v.vphone_code_hash.write(to);
-	v.vsend_call_timeout.write(to);
-}
-inline MTPaccount_sentChangePhoneCode::MTPaccount_sentChangePhoneCode(MTPDaccount_sentChangePhoneCode *_data) : mtpDataOwner(_data) {
-}
-inline MTPaccount_sentChangePhoneCode MTP_account_sentChangePhoneCode(const MTPstring &_phone_code_hash, MTPint _send_call_timeout) {
-	return MTPaccount_sentChangePhoneCode(new MTPDaccount_sentChangePhoneCode(_phone_code_hash, _send_call_timeout));
-}
-
 inline uint32 MTPdocumentAttribute::innerLength() const {
 	switch (_type) {
 		case mtpc_documentAttributeImageSize: {
@@ -31228,6 +31275,144 @@ inline MTPchannels_messageEditData::MTPchannels_messageEditData(MTPDchannels_mes
 }
 inline MTPchannels_messageEditData MTP_channels_messageEditData(MTPint _flags) {
 	return MTPchannels_messageEditData(new MTPDchannels_messageEditData(_flags));
+}
+
+inline uint32 MTPauth_codeType::innerLength() const {
+	return 0;
+}
+inline mtpTypeId MTPauth_codeType::type() const {
+	if (!_type) throw mtpErrorUninitialized();
+	return _type;
+}
+inline void MTPauth_codeType::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
+	switch (cons) {
+		case mtpc_auth_codeTypeSms: _type = cons; break;
+		case mtpc_auth_codeTypeCall: _type = cons; break;
+		case mtpc_auth_codeTypeFlashCall: _type = cons; break;
+		default: throw mtpErrorUnexpected(cons, "MTPauth_codeType");
+	}
+}
+inline void MTPauth_codeType::write(mtpBuffer &to) const {
+	switch (_type) {
+	}
+}
+inline MTPauth_codeType::MTPauth_codeType(mtpTypeId type) : _type(type) {
+	switch (type) {
+		case mtpc_auth_codeTypeSms: break;
+		case mtpc_auth_codeTypeCall: break;
+		case mtpc_auth_codeTypeFlashCall: break;
+		default: throw mtpErrorBadTypeId(type, "MTPauth_codeType");
+	}
+}
+inline MTPauth_codeType MTP_auth_codeTypeSms() {
+	return MTPauth_codeType(mtpc_auth_codeTypeSms);
+}
+inline MTPauth_codeType MTP_auth_codeTypeCall() {
+	return MTPauth_codeType(mtpc_auth_codeTypeCall);
+}
+inline MTPauth_codeType MTP_auth_codeTypeFlashCall() {
+	return MTPauth_codeType(mtpc_auth_codeTypeFlashCall);
+}
+
+inline uint32 MTPauth_sentCodeType::innerLength() const {
+	switch (_type) {
+		case mtpc_auth_sentCodeTypeApp: {
+			const MTPDauth_sentCodeTypeApp &v(c_auth_sentCodeTypeApp());
+			return v.vlength.innerLength();
+		}
+		case mtpc_auth_sentCodeTypeSms: {
+			const MTPDauth_sentCodeTypeSms &v(c_auth_sentCodeTypeSms());
+			return v.vlength.innerLength();
+		}
+		case mtpc_auth_sentCodeTypeCall: {
+			const MTPDauth_sentCodeTypeCall &v(c_auth_sentCodeTypeCall());
+			return v.vlength.innerLength();
+		}
+		case mtpc_auth_sentCodeTypeFlashCall: {
+			const MTPDauth_sentCodeTypeFlashCall &v(c_auth_sentCodeTypeFlashCall());
+			return v.vpattern.innerLength();
+		}
+	}
+	return 0;
+}
+inline mtpTypeId MTPauth_sentCodeType::type() const {
+	if (!_type) throw mtpErrorUninitialized();
+	return _type;
+}
+inline void MTPauth_sentCodeType::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
+	if (cons != _type) setData(0);
+	switch (cons) {
+		case mtpc_auth_sentCodeTypeApp: _type = cons; {
+			if (!data) setData(new MTPDauth_sentCodeTypeApp());
+			MTPDauth_sentCodeTypeApp &v(_auth_sentCodeTypeApp());
+			v.vlength.read(from, end);
+		} break;
+		case mtpc_auth_sentCodeTypeSms: _type = cons; {
+			if (!data) setData(new MTPDauth_sentCodeTypeSms());
+			MTPDauth_sentCodeTypeSms &v(_auth_sentCodeTypeSms());
+			v.vlength.read(from, end);
+		} break;
+		case mtpc_auth_sentCodeTypeCall: _type = cons; {
+			if (!data) setData(new MTPDauth_sentCodeTypeCall());
+			MTPDauth_sentCodeTypeCall &v(_auth_sentCodeTypeCall());
+			v.vlength.read(from, end);
+		} break;
+		case mtpc_auth_sentCodeTypeFlashCall: _type = cons; {
+			if (!data) setData(new MTPDauth_sentCodeTypeFlashCall());
+			MTPDauth_sentCodeTypeFlashCall &v(_auth_sentCodeTypeFlashCall());
+			v.vpattern.read(from, end);
+		} break;
+		default: throw mtpErrorUnexpected(cons, "MTPauth_sentCodeType");
+	}
+}
+inline void MTPauth_sentCodeType::write(mtpBuffer &to) const {
+	switch (_type) {
+		case mtpc_auth_sentCodeTypeApp: {
+			const MTPDauth_sentCodeTypeApp &v(c_auth_sentCodeTypeApp());
+			v.vlength.write(to);
+		} break;
+		case mtpc_auth_sentCodeTypeSms: {
+			const MTPDauth_sentCodeTypeSms &v(c_auth_sentCodeTypeSms());
+			v.vlength.write(to);
+		} break;
+		case mtpc_auth_sentCodeTypeCall: {
+			const MTPDauth_sentCodeTypeCall &v(c_auth_sentCodeTypeCall());
+			v.vlength.write(to);
+		} break;
+		case mtpc_auth_sentCodeTypeFlashCall: {
+			const MTPDauth_sentCodeTypeFlashCall &v(c_auth_sentCodeTypeFlashCall());
+			v.vpattern.write(to);
+		} break;
+	}
+}
+inline MTPauth_sentCodeType::MTPauth_sentCodeType(mtpTypeId type) : mtpDataOwner(0), _type(type) {
+	switch (type) {
+		case mtpc_auth_sentCodeTypeApp: setData(new MTPDauth_sentCodeTypeApp()); break;
+		case mtpc_auth_sentCodeTypeSms: setData(new MTPDauth_sentCodeTypeSms()); break;
+		case mtpc_auth_sentCodeTypeCall: setData(new MTPDauth_sentCodeTypeCall()); break;
+		case mtpc_auth_sentCodeTypeFlashCall: setData(new MTPDauth_sentCodeTypeFlashCall()); break;
+		default: throw mtpErrorBadTypeId(type, "MTPauth_sentCodeType");
+	}
+}
+inline MTPauth_sentCodeType::MTPauth_sentCodeType(MTPDauth_sentCodeTypeApp *_data) : mtpDataOwner(_data), _type(mtpc_auth_sentCodeTypeApp) {
+}
+inline MTPauth_sentCodeType::MTPauth_sentCodeType(MTPDauth_sentCodeTypeSms *_data) : mtpDataOwner(_data), _type(mtpc_auth_sentCodeTypeSms) {
+}
+inline MTPauth_sentCodeType::MTPauth_sentCodeType(MTPDauth_sentCodeTypeCall *_data) : mtpDataOwner(_data), _type(mtpc_auth_sentCodeTypeCall) {
+}
+inline MTPauth_sentCodeType::MTPauth_sentCodeType(MTPDauth_sentCodeTypeFlashCall *_data) : mtpDataOwner(_data), _type(mtpc_auth_sentCodeTypeFlashCall) {
+}
+inline MTPauth_sentCodeType MTP_auth_sentCodeTypeApp(MTPint _length) {
+	return MTPauth_sentCodeType(new MTPDauth_sentCodeTypeApp(_length));
+}
+inline MTPauth_sentCodeType MTP_auth_sentCodeTypeSms(MTPint _length) {
+	return MTPauth_sentCodeType(new MTPDauth_sentCodeTypeSms(_length));
+}
+inline MTPauth_sentCodeType MTP_auth_sentCodeTypeCall(MTPint _length) {
+	return MTPauth_sentCodeType(new MTPDauth_sentCodeTypeCall(_length));
+}
+inline MTPauth_sentCodeType MTP_auth_sentCodeTypeFlashCall(const MTPstring &_pattern) {
+	return MTPauth_sentCodeType(new MTPDauth_sentCodeTypeFlashCall(_pattern));
 }
 
 // Human-readable text serialization

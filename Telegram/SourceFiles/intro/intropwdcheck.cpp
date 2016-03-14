@@ -28,9 +28,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 
 #include "intro/intropwdcheck.h"
-#include "intro/intro.h"
 
-IntroPwdCheck::IntroPwdCheck(IntroWidget *parent) : IntroStage(parent)
+IntroPwdCheck::IntroPwdCheck(IntroWidget *parent) : IntroStep(parent)
 , a_errorAlpha(0)
 , _a_error(animation(this, &IntroPwdCheck::step_error))
 , _next(this, lang(lng_intro_submit), st::btnIntroNext)
@@ -130,7 +129,7 @@ void IntroPwdCheck::step_error(float64 ms, bool timer) {
 		_a_error.stop();
 		a_errorAlpha.finish();
 		if (!a_errorAlpha.current()) {
-			error = "";
+			error.clear();
 		}
 	} else {
 		a_errorAlpha.update(dt, st::introErrFunc);
@@ -139,7 +138,7 @@ void IntroPwdCheck::step_error(float64 ms, bool timer) {
 }
 
 void IntroPwdCheck::activate() {
-	show();
+	IntroStep::activate();
 	if (_pwdField.isHidden()) {
 		_codeField.setFocus();
 	} else {
@@ -147,8 +146,11 @@ void IntroPwdCheck::activate() {
 	}
 }
 
-void IntroPwdCheck::deactivate() {
-	hide();
+void IntroPwdCheck::cancelled() {
+	if (sentRequest) {
+		MTP::cancel(sentRequest);
+		sentRequest = 0;
+	}
 }
 
 void IntroPwdCheck::stopCheck() {
@@ -202,7 +204,7 @@ bool IntroPwdCheck::pwdSubmitFail(const RPCError &error) {
 		_pwdField.notaBene();
 		return true;
 	} else if (err == "PASSWORD_EMPTY") {
-		intro()->onIntroBack();
+		intro()->onBack();
 	} else if (mtpIsFlood(error)) {
 		showError(lang(lng_flood_error));
 		_pwdField.notaBene();
@@ -224,7 +226,7 @@ bool IntroPwdCheck::codeSubmitFail(const RPCError &error) {
 	_codeField.setDisabled(false);
 	const QString &err = error.type();
 	if (err == "PASSWORD_EMPTY") {
-		intro()->onIntroBack();
+		intro()->onBack();
 		return true;
 	} else if (err == "PASSWORD_RECOVERY_NA") {
 		recoverStartFail(error);
@@ -265,7 +267,7 @@ bool IntroPwdCheck::recoverStartFail(const RPCError &error) {
 	_codeField.hide();
 	_pwdField.setFocus();
 	update();
-	showError("");
+	showError(QString());
 	return true;
 }
 
@@ -275,7 +277,7 @@ void IntroPwdCheck::onToRecover() {
 			MTP::cancel(sentRequest);
 			sentRequest = 0;
 		}
-		showError("");
+		showError(QString());
 		_toRecover.hide();
 		_toPassword.show();
 		_pwdField.hide();
@@ -335,11 +337,11 @@ bool IntroPwdCheck::deleteFail(const RPCError &error) {
 
 void IntroPwdCheck::deleteDone(const MTPBool &v) {
 	Ui::hideLayer();
-	intro()->onIntroNext();
+	intro()->onBack();
 }
 
 void IntroPwdCheck::onInputChange() {
-	showError("");
+	showError(QString());
 }
 
 void IntroPwdCheck::onSubmitPwd(bool force) {
@@ -359,7 +361,7 @@ void IntroPwdCheck::onSubmitPwd(bool force) {
 		_pwdField.setDisabled(true);
 		setFocus();
 
-		showError("");
+		showError(QString());
 
 		QByteArray pwdData = _salt + _pwdField.text().toUtf8() + _salt, pwdHash(32, Qt::Uninitialized);
 		hashSha256(pwdData.constData(), pwdData.size(), pwdHash.data());
@@ -367,9 +369,6 @@ void IntroPwdCheck::onSubmitPwd(bool force) {
 	}
 }
 
-void IntroPwdCheck::onNext() {
+void IntroPwdCheck::onSubmit() {
 	onSubmitPwd();
-}
-
-void IntroPwdCheck::onBack() {
 }

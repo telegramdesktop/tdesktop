@@ -160,12 +160,12 @@ SOURCES += \
     ./SourceFiles/boxes/sessionsbox.cpp \
     ./SourceFiles/boxes/stickersetbox.cpp \
     ./SourceFiles/boxes/usernamebox.cpp \
-    ./SourceFiles/intro/intro.cpp \
+    ./SourceFiles/intro/introwidget.cpp \
     ./SourceFiles/intro/introcode.cpp \
     ./SourceFiles/intro/introphone.cpp \
     ./SourceFiles/intro/intropwdcheck.cpp \
     ./SourceFiles/intro/introsignup.cpp \
-    ./SourceFiles/intro/introsteps.cpp
+    ./SourceFiles/intro/introstart.cpp
 
 HEADERS += \
     ./SourceFiles/stdafx.h \
@@ -254,12 +254,12 @@ HEADERS += \
     ./SourceFiles/boxes/sessionsbox.h \
     ./SourceFiles/boxes/stickersetbox.h \
     ./SourceFiles/boxes/usernamebox.h \
-    ./SourceFiles/intro/intro.h \
+    ./SourceFiles/intro/introwidget.h \
     ./SourceFiles/intro/introcode.h \
     ./SourceFiles/intro/introphone.h \
     ./SourceFiles/intro/intropwdcheck.h \
     ./SourceFiles/intro/introsignup.h \
-    ./SourceFiles/intro/introsteps.h
+    ./SourceFiles/intro/introstart.h
 
 win32 {
 SOURCES += \

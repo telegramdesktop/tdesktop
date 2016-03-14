@@ -1097,7 +1097,7 @@ public:
 	bool canEdit(const QDateTime &cur) const;
 
 	bool suggestBanReportDeleteAll() const {
-		auto channel = history()->peer->asChannel();
+		ChannelData *channel = history()->peer->asChannel();
 		if (!channel || (!channel->amEditor() && !channel->amCreator())) return false;
 		return !isPost() && !out() && from()->isUser() && toHistoryMessage();
 	}

@@ -23,26 +23,26 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <QtWidgets/QWidget>
 #include "gui/flatbutton.h"
 #include "gui/countryinput.h"
-#include "intro.h"
+#include "intro/introwidget.h"
 
-class IntroPhone : public IntroStage, public RPCSender {
+class IntroPhone final : public IntroStep {
 	Q_OBJECT
 
 public:
 
 	IntroPhone(IntroWidget *parent);
 
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 	void step_error(float64 ms, bool timer);
 
 	void selectCountry(const QString &country);
 
-	void activate();
-	void deactivate();
-	void onNext();
-	void onBack();
+	void activate() override;
+	void finished() override;
+	void cancelled() override;
+	void onSubmit() override;
 
 	void phoneCheckDone(const MTPauth_CheckedPhone &result);
 	void phoneSubmitDone(const MTPauth_SentCode &result);
@@ -54,7 +54,7 @@ public slots:
 
 	void countryChanged();
 	void onInputChange();
-	void onSubmitPhone(bool force = false);
+	void onSubmitPhone();
 	void onCheckRequest();
 
 private:

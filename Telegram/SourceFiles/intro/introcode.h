@@ -23,9 +23,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <QtWidgets/QWidget>
 #include "gui/flatbutton.h"
 #include "gui/flatinput.h"
-#include "intro.h"
+#include "intro/introwidget.h"
 
-class CodeInput : public FlatInput {
+class CodeInput final : public FlatInput {
 	Q_OBJECT
 
 public:
@@ -42,7 +42,7 @@ protected:
 
 };
 
-class IntroCode : public IntroStage, public RPCSender {
+class IntroCode final : public IntroStep {
 	Q_OBJECT
 
 public:
@@ -54,15 +54,13 @@ public:
 
 	void step_error(float64 ms, bool timer);
 
-	void activate();
-	void prepareShow();
-	void deactivate();
-	void onNext();
-	void onBack();
-
 	bool hasBack() const {
 		return true;
 	}
+	void activate() override;
+	void finished() override;
+	void cancelled() override;
+	void onSubmit() override;
 
 	void codeSubmitDone(const MTPauth_Authorization &result);
 	bool codeSubmitFail(const RPCError &error);
@@ -71,7 +69,7 @@ public:
 
 public slots:
 
-	void onSubmitCode(bool force = false);
+	void onSubmitCode();
 	void onNoTelegramCode();
 	void onInputChange();
 	void onSendCall();
