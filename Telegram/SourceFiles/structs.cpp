@@ -860,14 +860,14 @@ void DocumentOpenLink::doOpen(DocumentData *data, ActionOnLoad action) {
 			if (App::main()) App::main()->mediaMarkRead(data);
 		} else if (data->size < MediaViewImageSizeLimit) {
 			if (!data->data().isEmpty() && playAnimation) {
-				if (action == ActionOnLoadPlayInline) {
+				if (action == ActionOnLoadPlayInline && item->getMedia()) {
 					item->getMedia()->playInline(item);
 				} else {
 					App::wnd()->showDocument(data, item);
 				}
 			} else if (location.accessEnable()) {
-				if ((App::hoveredLinkItem() || App::contextItem()) && (data->isAnimation() || QImageReader(location.name()).canRead())) {
-					if (action == ActionOnLoadPlayInline) {
+				if (item && (data->isAnimation() || QImageReader(location.name()).canRead())) {
+					if (action == ActionOnLoadPlayInline && item->getMedia()) {
 						item->getMedia()->playInline(item);
 					} else {
 						App::wnd()->showDocument(data, item);
@@ -1143,7 +1143,7 @@ void DocumentData::performActionOnLoad() {
 		}
 	} else if (playAnimation) {
 		if (loaded()) {
-			if (_actionOnLoad == ActionOnLoadPlayInline) {
+			if (_actionOnLoad == ActionOnLoadPlayInline && item->getMedia()) {
 				item->getMedia()->playInline(item);
 			} else {
 				App::wnd()->showDocument(this, item);
@@ -1163,7 +1163,7 @@ void DocumentData::performActionOnLoad() {
 				if (App::main()) App::main()->mediaMarkRead(this);
 			} else if (loc.accessEnable()) {
 				if (showImage && QImageReader(loc.name()).canRead()) {
-					if (_actionOnLoad == ActionOnLoadPlayInline) {
+					if (_actionOnLoad == ActionOnLoadPlayInline && item->getMedia()) {
 						item->getMedia()->playInline(item);
 					} else {
 						App::wnd()->showDocument(this, item);
