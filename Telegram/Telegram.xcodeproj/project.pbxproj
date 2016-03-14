@@ -1743,6 +1743,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CC = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
 				CLANG_WARN_BOOL_CONVERSION = NO;
 				CLANG_WARN_CONSTANT_CONVERSION = NO;
 				CLANG_WARN_EMPTY_BODY = YES;
@@ -1884,6 +1885,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CC = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
 				CLANG_WARN_BOOL_CONVERSION = NO;
 				CLANG_WARN_CONSTANT_CONVERSION = NO;
 				CLANG_WARN_EMPTY_BODY = YES;

@@ -36,7 +36,7 @@ T *exchange(T *&ptr) {
 struct NullType {
 };
 
-#if __cplusplus < 199711L || true
+#if __cplusplus < 199711L
 #define TDESKTOP_CUSTOM_NULLPTR
 #endif
 
@@ -81,6 +81,7 @@ static const int32 ScrollMax = INT_MAX;
 extern uint64 _SharedMemoryLocation[];
 template <typename T, unsigned int N>
 T *SharedMemoryLocation() {
+	static_assert(N < 4, "Only 4 shared memory locations!");
 	return reinterpret_cast<T*>(_SharedMemoryLocation + N);
 }
 
