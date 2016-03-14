@@ -3858,20 +3858,7 @@ void HistoryWidget::updateReportSpamStatus() {
 void HistoryWidget::requestReportSpamSetting() {
 	if (_reportSpamSettingRequestId >= 0 || !_peer) return;
 
-	bool outFound = false;
-	for (auto i : _history->blocks) {
-		for (auto j : i->items) {
-			if (j->out()) {
-				outFound = true;
-				break;
-			}
-		}
-	}
-	if (outFound) {
-		_reportSpamStatus = dbiprsNoButton;
-	} else {
-		_reportSpamSettingRequestId = MTP::send(MTPmessages_GetPeerSettings(_peer->input), rpcDone(&HistoryWidget::reportSpamSettingDone), rpcFail(&HistoryWidget::reportSpamSettingFail));
-	}
+	_reportSpamSettingRequestId = MTP::send(MTPmessages_GetPeerSettings(_peer->input), rpcDone(&HistoryWidget::reportSpamSettingDone), rpcFail(&HistoryWidget::reportSpamSettingFail));
 }
 
 void HistoryWidget::reportSpamSettingDone(const MTPPeerSettings &result, mtpRequestId req) {
@@ -6876,6 +6863,7 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 				_pinnedBar->shadow.show();
 			}
 			connect(&_pinnedBar->cancel, SIGNAL(clicked()), this, SLOT(onPinnedHide()));
+			_reportSpamPanel.raise();
 			_sideShadow.raise();
 			_topShadow.raise();
 			updatePinnedBar();

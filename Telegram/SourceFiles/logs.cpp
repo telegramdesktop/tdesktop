@@ -739,8 +739,8 @@ namespace SignalHandlers {
 		if (!LoggingCrashHeaderWritten) {
 			LoggingCrashHeaderWritten = true;
 			const AnnotationsMap c_ProcessAnnotations(ProcessAnnotations);
-			for (AnnotationsMap::const_iterator i = c_ProcessAnnotations.begin(), e = c_ProcessAnnotations.end(); i != e; ++i) {
-				dump() << i->first.c_str() << ": " << i->second.c_str() << "\n";
+			for (const auto &i : c_ProcessAnnotations) {
+				dump() << i.first.c_str() << ": " << i.second.c_str() << "\n";
 			}
 			psWriteDump();
 			dump() << "\n";
@@ -835,6 +835,7 @@ namespace SignalHandlers {
 	}
 
 	bool SetSignalHandlers = true;
+	bool CrashLogged = false;
 #if !defined Q_OS_MAC || defined MAC_USE_BREAKPAD
 	google_breakpad::ExceptionHandler* BreakpadExceptionHandler = 0;
 
@@ -846,6 +847,9 @@ namespace SignalHandlers {
 	bool DumpCallback(const google_breakpad::MinidumpDescriptor &md, void *context, bool success)
 #endif
 	{
+		if (CrashLogged) return success;
+		CrashLogged = true;
+
 #ifdef Q_OS_WIN
         BreakpadDumpPathW = _minidump_id;
         Handler(-1);
@@ -1006,6 +1010,14 @@ namespace SignalHandlers {
 #else
 			unlink(CrashDumpPath.toUtf8().constData());
 #endif
+		}
+	}
+
+	void setSelfUsername(const QString &username) {
+		if (username.trimmed().isEmpty()) {
+			ProcessAnnotations.erase("Username");
+		} else {
+			ProcessAnnotations["Username"] = username.toUtf8().constData();
 		}
 	}
 

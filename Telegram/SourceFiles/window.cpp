@@ -2041,6 +2041,25 @@ void PreLaunchButton::setText(const QString &text) {
 	resize(sizeHint());
 }
 
+PreLaunchCheckbox::PreLaunchCheckbox(QWidget *parent) : QCheckBox(parent) {
+	setTristate(false);
+	setCheckState(Qt::Checked);
+
+	QFont closeFont(font());
+	closeFont.setFamily(qsl("Open Sans Semibold"));
+	closeFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
+	setFont(closeFont);
+
+	setCursor(Qt::PointingHandCursor);
+	show();
+};
+
+void PreLaunchCheckbox::setText(const QString &text) {
+	QCheckBox::setText(text);
+	updateGeometry();
+	resize(sizeHint());
+}
+
 NotStartedWindow::NotStartedWindow()
 : _label(this)
 , _log(this)
@@ -2097,6 +2116,7 @@ LastCrashedWindow::LastCrashedWindow()
 , _showReport(this)
 , _saveReport(this)
 , _getApp(this)
+, _includeUsername(this)
 , _reportText(QString::fromUtf8(Sandbox::LastCrashDump()))
 , _reportShown(false)
 , _reportSaved(false)
@@ -2111,6 +2131,8 @@ LastCrashedWindow::LastCrashedWindow()
 , _updatingSkip(this, false)
 #endif
 {
+	excludeReportUsername();
+
 	if (!cDevVersion() && !cBetaVersion()) { // currently accept crash reports only from testers
 		_sendingState = SendingNoReport;
 	}
@@ -2214,7 +2236,9 @@ LastCrashedWindow::LastCrashedWindow()
 	_yourReportName.setCursor(style::cur_text);
 	_yourReportName.setTextInteractionFlags(Qt::TextSelectableByMouse);
 
-	_report.setPlainText(_reportText);
+	_includeUsername.setText(qsl("Include username @%1 as your contact info").arg(_reportUsername));
+
+	_report.setPlainText(_reportTextNoUsername);
 
 	_showReport.setText(qsl("VIEW REPORT"));
 	connect(&_showReport, SIGNAL(clicked()), this, SLOT(onViewReport()));
@@ -2247,15 +2271,36 @@ void LastCrashedWindow::onSaveReport() {
 	if (!to.isEmpty()) {
 		QFile file(to);
 		if (file.open(QIODevice::WriteOnly)) {
-			file.write(Sandbox::LastCrashDump());
+			file.write(getCrashReportRaw());
 			_reportSaved = true;
 			updateControls();
 		}
 	}
 }
 
+QByteArray LastCrashedWindow::getCrashReportRaw() const {
+	QByteArray result(Sandbox::LastCrashDump());
+	if (!_reportUsername.isEmpty() && _includeUsername.checkState() != Qt::Checked) {
+		result.replace((qsl("Username: ") + _reportUsername).toUtf8(), "Username: _not_included_");
+	}
+	return result;
+}
+
 void LastCrashedWindow::onGetApp() {
 	QDesktopServices::openUrl(qsl("https://desktop.telegram.org"));
+}
+
+void LastCrashedWindow::excludeReportUsername() {
+	QString prefix = qstr("Username:");
+	QStringList lines = _reportText.split('\n');
+	for (int32 i = 0, l = lines.size(); i < l; ++i) {
+		if (lines.at(i).trimmed().startsWith(prefix)) {
+			_reportUsername = lines.at(i).trimmed().mid(prefix.size()).trimmed();
+			lines.removeAt(i);
+			break;
+		}
+	}
+	_reportTextNoUsername = _reportUsername.isEmpty() ? _reportText : lines.join('\n');
 }
 
 QString LastCrashedWindow::getReportField(const QLatin1String &name, const QLatin1String &prefix) {
@@ -2441,7 +2486,7 @@ void LastCrashedWindow::onCheckingFinished() {
 	QHttpPart reportPart;
 	reportPart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("application/octet-stream"));
 	reportPart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant("form-data; name=\"report\"; filename=\"report.telegramcrash\""));
-	reportPart.setBody(Sandbox::LastCrashDump());
+	reportPart.setBody(getCrashReportRaw());
 	multipart->append(reportPart);
 
 	QString dmpName = minidumpFileName();
@@ -2520,6 +2565,7 @@ void LastCrashedWindow::updateControls() {
 		_continue.hide();
 		_pleaseSendReport.hide();
 		_yourReportName.hide();
+		_includeUsername.hide();
 		_getApp.hide();
 		_showReport.hide();
 		_report.hide();
@@ -2537,6 +2583,7 @@ void LastCrashedWindow::updateControls() {
 			if (_sendingState == SendingNoReport) {
 				_pleaseSendReport.hide();
 				_yourReportName.hide();
+				_includeUsername.hide();
 				_getApp.hide();
 				_showReport.hide();
 				_report.hide();
@@ -2549,6 +2596,12 @@ void LastCrashedWindow::updateControls() {
 				h += _showReport.height() + padding + _yourReportName.height() + padding;
 				_pleaseSendReport.show();
 				_yourReportName.show();
+				if (_reportUsername.isEmpty()) {
+					_includeUsername.hide();
+				} else {
+					h += _includeUsername.height() + padding;
+					_includeUsername.show();
+				}
 				if (_sendingState == SendingTooOld || _sendingState == SendingUnofficial) {
 					QString verStr = getReportField(qstr("version"), qstr("Version:"));
 					qint64 ver = verStr.isEmpty() ? 0 : verStr.toLongLong();
@@ -2557,6 +2610,10 @@ void LastCrashedWindow::updateControls() {
 						_getApp.show();
 						h -= _yourReportName.height() + padding; // hide report name
 						_yourReportName.hide();
+						if (!_reportUsername.isEmpty()) {
+							h -= _includeUsername.height() + padding;
+							_includeUsername.hide();
+						}
 					} else {
 						_getApp.hide();
 					}
@@ -2612,6 +2669,7 @@ void LastCrashedWindow::updateControls() {
 			_getApp.hide();
 			_pleaseSendReport.hide();
 			_yourReportName.hide();
+			_includeUsername.hide();
 			_showReport.hide();
 			_report.hide();
 			_minidump.hide();
@@ -2634,6 +2692,7 @@ void LastCrashedWindow::updateControls() {
 	if (_sendingState == SendingNoReport) {
 		_pleaseSendReport.hide();
 		_yourReportName.hide();
+		_includeUsername.hide();
 		_showReport.hide();
 		_report.hide();
 		_minidump.hide();
@@ -2646,6 +2705,12 @@ void LastCrashedWindow::updateControls() {
 		h += _showReport.height() + padding + _yourReportName.height() + padding;
 		_pleaseSendReport.show();
 		_yourReportName.show();
+		if (_reportUsername.isEmpty()) {
+			_includeUsername.hide();
+		} else {
+			h += _includeUsername.height() + padding;
+			_includeUsername.show();
+		}
 		if (_reportShown) {
 			h += (_pleaseSendReport.height() * 12.5) + padding + (_minidumpName.isEmpty() ? 0 : (_minidump.height() + padding));
 			_report.show();
@@ -2888,6 +2953,7 @@ void LastCrashedWindow::resizeEvent(QResizeEvent *e) {
 	_pleaseSendReport.move(padding, padding * 2 + _networkSettings.height() + _networkSettings.height() + padding + (_showReport.height() - _pleaseSendReport.height()) / 2);
 	_showReport.move(padding * 2 + _pleaseSendReport.width(), padding * 2 + _networkSettings.height() + _networkSettings.height() + padding);
 	_yourReportName.move(padding, _showReport.y() + _showReport.height() + padding);
+	_includeUsername.move(padding, _yourReportName.y() + _yourReportName.height() + padding);
 	_getApp.move((width() - _getApp.width()) / 2, _showReport.y() + _showReport.height() + padding);
 
 	if (_sendingState == SendingFail || _sendingState == SendingProgress) {
@@ -2909,10 +2975,15 @@ void LastCrashedWindow::resizeEvent(QResizeEvent *e) {
 	_pleaseSendReport.move(padding, padding * 2 + _networkSettings.height() + _networkSettings.height() + padding + _getApp.height() + padding + (_showReport.height() - _pleaseSendReport.height()) / 2);
 	_showReport.move(padding * 2 + _pleaseSendReport.width(), padding * 2 + _networkSettings.height() + _networkSettings.height() + padding + _getApp.height() + padding);
 	_yourReportName.move(padding, _showReport.y() + _showReport.height() + padding);
+	_includeUsername.move(padding, _yourReportName.y() + _yourReportName.height() + padding);
 
 	_networkSettings.move(padding * 2 + _pleaseSendReport.width(), padding * 2 + _networkSettings.height() + _networkSettings.height() + padding + _getApp.height() + padding);
 #endif
-	_report.setGeometry(padding, _yourReportName.y() + _yourReportName.height() + padding, width() - 2 * padding, _pleaseSendReport.height() * 12.5);
+	if (_reportUsername.isEmpty()) {
+		_report.setGeometry(padding, _yourReportName.y() + _yourReportName.height() + padding, width() - 2 * padding, _pleaseSendReport.height() * 12.5);
+	} else {
+		_report.setGeometry(padding, _includeUsername.y() + _includeUsername.height() + padding, width() - 2 * padding, _pleaseSendReport.height() * 12.5);
+	}
 	_minidump.move(padding, _report.y() + _report.height() + padding);
 	_saveReport.move(_showReport.x(), _showReport.y());
 

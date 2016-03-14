@@ -397,6 +397,12 @@ public:
 	void setText(const QString &text);
 };
 
+class PreLaunchCheckbox : public QCheckBox {
+public:
+	PreLaunchCheckbox(QWidget *parent);
+	void setText(const QString &text);
+};
+
 class NotStartedWindow : public PreLaunchWindow {
 public:
 
@@ -467,9 +473,15 @@ private:
 	PreLaunchLabel _label, _pleaseSendReport, _yourReportName, _minidump;
 	PreLaunchLog _report;
 	PreLaunchButton _send, _sendSkip, _networkSettings, _continue, _showReport, _saveReport, _getApp;
+	PreLaunchCheckbox _includeUsername;
 
 	QString _minidumpName, _minidumpFull, _reportText;
+	QString _reportUsername, _reportTextNoUsername;
+	QByteArray getCrashReportRaw() const;
+
 	bool _reportShown, _reportSaved;
+
+	void excludeReportUsername();
 
 	enum SendingState {
 		SendingNoReport,

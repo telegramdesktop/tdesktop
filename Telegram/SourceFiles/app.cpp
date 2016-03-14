@@ -413,6 +413,9 @@ namespace App {
 
 					QString pname = (showPhoneChanged || phoneChanged || nameChanged) ? ((showPhone && !phone.isEmpty()) ? formatPhone(phone) : QString()) : data->nameOrPhone;
 
+					if (!minimal && d.is_self() && uname != data->username) {
+						SignalHandlers::setSelfUsername(uname);
+					}
 					data->setName(fname, lname, pname, uname);
 					if (d.has_photo()) {
 						data->setPhoto(d.vphoto);
