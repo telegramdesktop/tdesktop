@@ -263,6 +263,13 @@ namespace Shortcuts {
 
 		QMap<QKeySequence, QShortcut*> sequences;
 		QMap<int, ShortcutCommands::Handler> handlers;
+
+		QSet<QString> autoRepeatCommands = {
+			qsl("media_previous"),
+			qsl("media_next"),
+			qsl("next_chat"),
+			qsl("previous_chat"),
+		};
 	};
 
 	void _createCommand(const QString &command, ShortcutCommands::Handler handler) {
@@ -287,7 +294,9 @@ namespace Shortcuts {
 				LOG(("Warning: could not find shortcut command handler '%1'").arg(command));
 			} else {
 				QShortcut *shortcut(new QShortcut(seq, App::wnd(), nullptr, nullptr, Qt::ApplicationShortcut));
-				shortcut->setAutoRepeat(false);
+				if (!DataPtr->autoRepeatCommands.contains(command)) {
+					shortcut->setAutoRepeat(false);
+				}
 				int shortcutId = shortcut->id();
 				if (!shortcutId) {
 					DataPtr->errors.push_back(qsl("Could not create shortcut '%1'!").arg(keys));
