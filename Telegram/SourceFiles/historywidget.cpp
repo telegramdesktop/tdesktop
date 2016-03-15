@@ -3606,9 +3606,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 			_migrated->unreadBar->destroy();
 		}
 		if (_pinnedBar) {
-			delete _pinnedBar;
-			_pinnedBar = nullptr;
-			_inPinnedMsg = false;
+			destroyPinnedBar();
 		}
 		_history = _migrated = 0;
 		updateBotKeyboard();
@@ -6842,9 +6840,7 @@ void HistoryWidget::updatePinnedBar(bool force) {
 		if (_peer && _peer->isMegagroup()) {
 			_peer->asChannel()->mgInfo->pinnedMsgId = 0;
 		}
-		delete _pinnedBar;
-		_pinnedBar = nullptr;
-		_inPinnedMsg = false;
+		destroyPinnedBar();
 		resizeEvent(0);
 		update();
 	}
@@ -6892,13 +6888,18 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 			App::api()->requestMessageData(_peer->asChannel(), _pinnedBar->msgId, new ReplyEditMessageDataCallback());
 		}
 	} else if (_pinnedBar) {
-		delete _pinnedBar;
-		_pinnedBar = nullptr;
+		destroyPinnedBar();
 		result = true;
 		_scroll.scrollToY(_scroll.scrollTop() - st::replyHeight);
 		resizeEvent(0);
 	}
 	return result;
+}
+
+void HistoryWidget::destroyPinnedBar() {
+	delete _pinnedBar;
+	_pinnedBar = nullptr;
+	_inPinnedMsg = false;
 }
 
 void HistoryWidget::ReplyEditMessageDataCallback::call(ChannelData *channel, MsgId msgId) const {

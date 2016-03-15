@@ -697,6 +697,8 @@ void Window::setupMain(bool anim, const MTPUser *self) {
 }
 
 void Window::updateCounter() {
+	if (App::quitting()) return;
+
 	psUpdateCounter();
 	title->updateCounter();
 }
