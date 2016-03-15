@@ -11456,7 +11456,7 @@ index 1ec33df..45d436c 100644
      }
      return [super performKeyEquivalent:nsevent];
 diff --git a/src/plugins/platforms/windows/qwindowsdialoghelpers.cpp b/src/plugins/platforms/windows/qwindowsdialoghelpers.cpp
-index da0ba27..9fd21d4 100644
+index da0ba27..3f6388c 100644
 --- a/src/plugins/platforms/windows/qwindowsdialoghelpers.cpp
 +++ b/src/plugins/platforms/windows/qwindowsdialoghelpers.cpp
 @@ -713,6 +713,9 @@ public:
@@ -11546,7 +11546,7 @@ index da0ba27..9fd21d4 100644
  
  private:
      inline IFileOpenDialog *openFileDialog() const
-@@ -1546,6 +1580,55 @@ QList<QUrl> QWindowsNativeOpenFileDialog::dialogResult() const
+@@ -1546,6 +1580,57 @@ QList<QUrl> QWindowsNativeOpenFileDialog::dialogResult() const
      return result;
  }
  
@@ -11587,13 +11587,15 @@ index da0ba27..9fd21d4 100644
 +				continue;
 +
 +			quint64 fullSize = stat.cbSize.QuadPart;
-+			result.resize(fullSize);
-+			ULONG read = 0;
-+			HRESULT r = stream->Read(result.data(), fullSize, &read);
-+			if (r == S_FALSE || r == S_OK)
-+				return result;
++			if (fullSize <= 64 * 1024 * 1024) {
++				result.resize(fullSize);
++				ULONG read = 0;
++				HRESULT r = stream->Read(result.data(), fullSize, &read);
++				if (r == S_FALSE || r == S_OK)
++					return result;
 +
-+			result.clear();
++				result.clear();
++			}
 +		}
 +	}
 +	return result;
@@ -11602,7 +11604,7 @@ index da0ba27..9fd21d4 100644
  QList<QUrl> QWindowsNativeOpenFileDialog::selectedFiles() const
  {
      QList<QUrl> result;
-@@ -1609,6 +1692,8 @@ public:
+@@ -1609,6 +1694,8 @@ public:
      virtual QUrl directory() const Q_DECL_OVERRIDE;
      virtual void selectFile(const QUrl &filename) Q_DECL_OVERRIDE;
      virtual QList<QUrl> selectedFiles() const Q_DECL_OVERRIDE;
@@ -11611,7 +11613,7 @@ index da0ba27..9fd21d4 100644
      virtual void setFilter() Q_DECL_OVERRIDE;
      virtual void selectNameFilter(const QString &filter) Q_DECL_OVERRIDE;
      virtual QString selectedNameFilter() const Q_DECL_OVERRIDE;
-@@ -1702,6 +1787,12 @@ QList<QUrl> QWindowsFileDialogHelper::selectedFiles() const
+@@ -1702,6 +1789,12 @@ QList<QUrl> QWindowsFileDialogHelper::selectedFiles() const
      return m_data.selectedFiles();
  }
  
@@ -11624,7 +11626,7 @@ index da0ba27..9fd21d4 100644
  void QWindowsFileDialogHelper::setFilter()
  {
      qCDebug(lcQpaDialogs) << __FUNCTION__;
-@@ -1992,6 +2083,8 @@ public:
+@@ -1992,6 +2085,8 @@ public:
      virtual QUrl directory() const Q_DECL_OVERRIDE;
      virtual void selectFile(const QUrl &url) Q_DECL_OVERRIDE;
      virtual QList<QUrl> selectedFiles() const Q_DECL_OVERRIDE;
@@ -11633,7 +11635,7 @@ index da0ba27..9fd21d4 100644
      virtual void setFilter() Q_DECL_OVERRIDE {}
      virtual void selectNameFilter(const QString &) Q_DECL_OVERRIDE;
      virtual QString selectedNameFilter() const Q_DECL_OVERRIDE;
-@@ -2035,6 +2128,12 @@ QList<QUrl> QWindowsXpFileDialogHelper::selectedFiles() const
+@@ -2035,6 +2130,12 @@ QList<QUrl> QWindowsXpFileDialogHelper::selectedFiles() const
      return m_data.selectedFiles();
  }
  
