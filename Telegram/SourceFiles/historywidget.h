@@ -736,6 +736,7 @@ private:
 	PinnedBar *_pinnedBar;
 	void updatePinnedBar(bool force = false);
 	bool pinnedMsgVisibilityUpdated();
+	void destroyPinnedBar();
 	void unpinDone(const MTPUpdates &updates);
 
 	class ReplyEditMessageDataCallback : public SharedCallback2<void, ChannelData*, MsgId> {
