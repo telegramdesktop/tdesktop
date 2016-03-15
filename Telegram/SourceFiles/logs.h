@@ -108,5 +108,6 @@ namespace SignalHandlers {
 	void finish();
 
 	void setSelfUsername(const QString &username);
+	void setAssertionInfo(const QString &info);
 
 }
