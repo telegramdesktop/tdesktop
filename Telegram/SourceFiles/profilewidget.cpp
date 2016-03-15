@@ -714,7 +714,7 @@ void ProfileInner::reorderParticipants() {
 		loadProfilePhotos(_lastPreload);
 	} else if (_peerChannel && _peerChannel->isMegagroup() && _peerChannel->amIn() && !_peerChannel->mgInfo->lastParticipants.isEmpty()) {
 		bool needAdmins = true, adminsOutdated = (_peerChannel->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated);
-		bool orderByOnline = true;// (_peerChannel->count > 0) && (_peerChannel->count <= Global::ChatSizeMax());
+		bool orderByOnline = (_peerChannel->count > 0) && (_peerChannel->count <= Global::ChatSizeMax());
 
 		_onlineText.clear();
 		if (_peerChannel->mgInfo->lastParticipants.isEmpty() || (needAdmins && adminsOutdated) || _peerChannel->lastParticipantsCountOutdated()) {
