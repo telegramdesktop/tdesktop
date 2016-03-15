@@ -4559,6 +4559,7 @@ namespace {
 		case 65359: return QChar(111);
 		case 65363: return QChar(115);
 		case 65367: return QChar(119);
+		case 1105: return QChar(1077);
 		default:
 			break;
 		}

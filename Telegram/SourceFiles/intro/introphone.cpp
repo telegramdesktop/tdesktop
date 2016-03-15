@@ -251,9 +251,9 @@ void IntroPhone::phoneSubmitDone(const MTPauth_SentCode &result) {
 
 	const MTPDauth_sentCode &d(result.c_auth_sentCode());
 	switch (d.vtype.type()) {
-	case mtpc_auth_sentCodeTypeApp: intro()->setCodeByTelegram(true);
+	case mtpc_auth_sentCodeTypeApp: intro()->setCodeByTelegram(true); break;
 	case mtpc_auth_sentCodeTypeSms:
-	case mtpc_auth_sentCodeTypeCall: intro()->setCodeByTelegram(false);
+	case mtpc_auth_sentCodeTypeCall: intro()->setCodeByTelegram(false); break;
 	case mtpc_auth_sentCodeTypeFlashCall: LOG(("Error: should not be flashcall!")); break;
 	}
 	intro()->setPhone(sentPhone, d.vphone_code_hash.c_string().v.c_str(), d.is_phone_registered());
