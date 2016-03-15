@@ -782,9 +782,19 @@ private:
 	QList<MsgId> _replyReturns;
 
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
-	void updateListSize(int32 addToY = 0, bool initial = false, bool loadedDown = false, const HistoryItem *resizedItem = 0, bool scrollToIt = false);
 	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
+
+	enum ScrollChangeType {
+		ScrollChangeNone,
+		ScrollChangeAdd,
+		ScrollChangeOldHistoryHeight,
+	};
+	struct ScrollChange {
+		ScrollChangeType type;
+		int value;
+	};
+	void updateListSize(bool initial = false, bool loadedDown = false, const ScrollChange &change = { ScrollChangeNone, 0 }, const HistoryItem *resizedItem = 0, bool scrollToIt = false);
 
 	void saveGifDone(DocumentData *doc, const MTPBool &result);
 

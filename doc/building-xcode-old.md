@@ -1,4 +1,4 @@
-##Build instructions for Xcode 6.4
+##Build instructions for Xcode 7.2.1
 
 ###Prepare folder
 

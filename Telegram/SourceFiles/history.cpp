@@ -852,16 +852,19 @@ HistoryItem *ChannelHistory::addNewToBlocks(const MTPMessage &msg, NewMessageTyp
 		clear(true);
 	}
 
-	HistoryBlock *to = 0;
+	HistoryBlock *to = nullptr;
 	bool newBlock = blocks.isEmpty();
 	if (newBlock) {
 		to = new HistoryBlock(this);
 	} else {
 		to = blocks.back();
+		t_assert(!to->items.isEmpty());
+		t_assert(to->items.back() != nullptr);
 	}
-	HistoryItem *item = createItem((type == NewMessageLast) ? 0 : to, msg, (type == NewMessageUnread));
-	if (type == NewMessageLast) {
+	HistoryItem *item = createItem((type == NewMessageLast) ? nullptr : to, msg, (type == NewMessageUnread));
+	if (type == NewMessageLast && item) {
 		if (!item->detached()) {
+			t_assert(!newBlock);
 			return item;
 		}
 		item->attach(to);
@@ -896,10 +899,8 @@ void ChannelHistory::switchMode() {
 	OtherList savedList;
 	if (!blocks.isEmpty()) {
 		savedList.reserve(((blocks.size() - 2) * MessagesPerPage + blocks.back()->items.size()) * (onlyImportant() ? 2 : 1));
-		for (Blocks::const_iterator i = blocks.cbegin(), e = blocks.cend(); i != e; ++i) {
-			HistoryBlock *block = *i;
-			for (HistoryBlock::Items::const_iterator j = block->items.cbegin(), end = block->items.cend(); j != end; ++j) {
-				HistoryItem *item = *j;
+		for_const (const HistoryBlock *block, blocks) {
+			for_const (HistoryItem *item, block->items) {
 				HistoryItemType itemType = item->type();
 				if (itemType == HistoryItemMsg || itemType == HistoryItemGroup) {
 					savedList.push_back(item);
@@ -994,7 +995,7 @@ HistoryBlock *ChannelHistory::findGroupBlock(MsgId msgId) const { // find block 
 	if (blocks.size() > 1) for (int32 minBlock = 0, maxBlock = blocks.size();;) {
 		for (int32 startCheckBlock = (minBlock + maxBlock) / 2, checkBlock = startCheckBlock;;) {
 			HistoryBlock *block = blocks.at(checkBlock);
-			HistoryBlock::Items::const_iterator i = block->items.cbegin(), e = block->items.cend();
+			auto i = block->items.cbegin(), e = block->items.cend();
 			for (; i != e; ++i) { // out msgs could be a mess in monotonic ids
 				if (((*i)->id > 0 && !(*i)->out()) || (*i)->type() == HistoryItemGroup) {
 					MsgId threshold = ((*i)->id > 0) ? (*i)->id : static_cast<HistoryGroup*>(*i)->minId();
@@ -1104,6 +1105,12 @@ void ChannelHistory::messageWithIdDeleted(MsgId msgId) {
 			group->destroy();
 		}
 	}
+}
+
+ChannelHistory::~ChannelHistory() {
+	// all items must be destroyed before ChannelHistory is destroyed
+	// or they will call history()->asChannelHistory() -> undefined behaviour
+	clearOnDestroy();
 }
 
 bool DialogsList::del(const PeerId &peerId, DialogRow *replacedBy) {
@@ -1299,7 +1306,7 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 	case mtpc_message: msgId = msg.c_message().vid.v; break;
 	case mtpc_messageService: msgId = msg.c_messageService().vid.v; break;
 	}
-	if (!msgId) return 0;
+	if (!msgId) return nullptr;
 
 	HistoryItem *result = App::histItemById(channelId(), msgId);
 	if (result) {
@@ -1574,6 +1581,8 @@ HistoryItem *History::addNewService(MsgId msgId, QDateTime date, const QString &
 		to = new HistoryBlock(this);
 	} else {
 		to = blocks.back();
+		t_assert(!to->items.isEmpty());
+		t_assert(to->items.back() != nullptr);
 	}
 
 	HistoryItem *result = new HistoryServiceMsg(this, to, msgId, date, text, flags, media);
@@ -1595,16 +1604,19 @@ HistoryItem *History::addNewMessage(const MTPMessage &msg, NewMessageType type) 
 		return item;
 	}
 
-	HistoryBlock *to = 0;
+	HistoryBlock *to = nullptr;
 	bool newBlock = blocks.isEmpty();
 	if (newBlock) {
 		to = new HistoryBlock(this);
 	} else {
 		to = blocks.back();
+		t_assert(!to->items.isEmpty());
+		t_assert(to->items.back() != nullptr);
 	}
-	HistoryItem *item = createItem((type == NewMessageLast) ? 0 : to, msg, (type == NewMessageUnread));
-	if (type == NewMessageLast) {
+	HistoryItem *item = createItem((type == NewMessageLast) ? nullptr : to, msg, (type == NewMessageUnread));
+	if (type == NewMessageLast && item) {
 		if (!item->detached()) {
+			t_assert(!newBlock);
 			return item;
 		}
 		item->attach(to);
@@ -1613,16 +1625,18 @@ HistoryItem *History::addNewMessage(const MTPMessage &msg, NewMessageType type) 
 }
 
 HistoryItem *History::addToHistory(const MTPMessage &msg) {
-	return createItem(0, msg, false);
+	return createItem(nullptr, msg, false);
 }
 
 HistoryItem *History::addNewForwarded(MsgId id, int32 flags, QDateTime date, int32 from, HistoryMessage *item) {
-	HistoryBlock *to = 0;
+	HistoryBlock *to = nullptr;
 	bool newBlock = blocks.isEmpty();
 	if (newBlock) {
 		to = new HistoryBlock(this);
 	} else {
 		to = blocks.back();
+		t_assert(!to->items.isEmpty());
+		t_assert(to->items.back() != nullptr);
 	}
 	return addNewItem(to, newBlock, createItemForwarded(to, id, flags, date, from, item), true);
 }
@@ -1634,6 +1648,8 @@ HistoryItem *History::addNewDocument(MsgId id, int32 flags, int32 viaBotId, MsgI
 		to = new HistoryBlock(this);
 	} else {
 		to = blocks.back();
+		t_assert(!to->items.isEmpty());
+		t_assert(to->items.back() != nullptr);
 	}
 	return addNewItem(to, newBlock, createItemDocument(to, id, flags, viaBotId, replyTo, date, from, doc, caption), true);
 }
@@ -1645,6 +1661,8 @@ HistoryItem *History::addNewPhoto(MsgId id, int32 flags, int32 viaBotId, MsgId r
 		to = new HistoryBlock(this);
 	} else {
 		to = blocks.back();
+		t_assert(!to->items.isEmpty());
+		t_assert(to->items.back() != nullptr);
 	}
 	return addNewItem(to, newBlock, createItemPhoto(to, id, flags, viaBotId, replyTo, date, from, photo, caption), true);
 }
@@ -1913,10 +1931,10 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 
 	const MTPMessageGroup *groupsBegin = (isChannel() && collapsed) ? collapsed->constData() : 0, *groupsIt = groupsBegin, *groupsEnd = (isChannel() && collapsed) ? (groupsBegin + collapsed->size()) : 0;
 
-	HistoryItem *oldFirst = 0, *last = 0;
+	HistoryItem *oldFirst = nullptr, *last = nullptr;
 	HistoryBlock *block = new HistoryBlock(this);
 	block->items.reserve(slice.size() + (collapsed ? collapsed->size() : 0));
-	for (QVector<MTPmessage>::const_iterator i = slice.cend(), e = slice.cbegin(); i != e;) {
+	for (auto i = slice.cend(), e = slice.cbegin(); i != e;) {
 		--i;
 		HistoryItem *adding = createItem(block, *i, false);
 		if (!adding) continue;
@@ -2079,11 +2097,11 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 	if (!slice.isEmpty() || (isChannel() && collapsed && !collapsed->isEmpty())) {
 		const MTPMessageGroup *groupsBegin = (isChannel() && collapsed) ? collapsed->constData() : 0, *groupsIt = groupsBegin, *groupsEnd = (isChannel() && collapsed) ? (groupsBegin + collapsed->size()) : 0;
 
-		HistoryItem *prev = blocks.isEmpty() ? 0 : blocks.back()->items.back();
+		HistoryItem *prev = blocks.isEmpty() ? nullptr : blocks.back()->items.back();
 
 		HistoryBlock *block = new HistoryBlock(this);
 		block->items.reserve(slice.size() + (collapsed ? collapsed->size() : 0));
-		for (QVector<MTPmessage>::const_iterator i = slice.cend(), e = slice.cbegin(); i != e;) {
+		for (auto i = slice.cend(), e = slice.cbegin(); i != e;) {
 			--i;
 			HistoryItem *adding = createItem(block, *i, false);
 			if (!adding) continue;
@@ -2148,9 +2166,9 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 
 int32 History::countUnread(MsgId upTo) {
 	int32 result = 0;
-	for (Blocks::const_iterator i = blocks.cend(), e = blocks.cbegin(); i != e;) {
+	for (auto i = blocks.cend(), e = blocks.cbegin(); i != e;) {
 		--i;
-		for (HistoryBlock::Items::const_iterator j = (*i)->items.cend(), en = (*i)->items.cbegin(); j != en;) {
+		for (auto j = (*i)->items.cend(), en = (*i)->items.cbegin(); j != en;) {
 			--j;
 			if ((*j)->id > 0 && (*j)->id <= upTo) {
 				break;
@@ -2165,9 +2183,9 @@ int32 History::countUnread(MsgId upTo) {
 void History::updateShowFrom() {
 	if (showFrom) return;
 
-	for (Blocks::const_iterator i = blocks.cend(); i != blocks.cbegin();) {
+	for (auto i = blocks.cend(); i != blocks.cbegin();) {
 		--i;
-		for (HistoryBlock::Items::const_iterator j = (*i)->items.cend(); j != (*i)->items.cbegin();) {
+		for (auto j = (*i)->items.cend(); j != (*i)->items.cbegin();) {
 			--j;
 			if ((*j)->type() == HistoryItemMsg && (*j)->id > 0 && (!(*j)->out() || !showFrom)) {
 				if ((*j)->id >= inboxReadBefore) {
@@ -2463,10 +2481,10 @@ void History::fixLastMessage(bool wasAtBottom) {
 }
 
 MsgId History::minMsgId() const {
-	for (Blocks::const_iterator i = blocks.cbegin(), e = blocks.cend(); i != e; ++i) {
-		for (HistoryBlock::Items::const_iterator j = (*i)->items.cbegin(), en = (*i)->items.cend(); j != en; ++j) {
-			if ((*j)->id > 0) {
-				return (*j)->id;
+	for_const (const HistoryBlock *block, blocks) {
+		for_const (const HistoryItem *item, block->items) {
+			if (item->id > 0) {
+				return item->id;
 			}
 		}
 	}
@@ -2474,9 +2492,9 @@ MsgId History::minMsgId() const {
 }
 
 MsgId History::maxMsgId() const {
-	for (Blocks::const_iterator i = blocks.cend(), e = blocks.cbegin(); i != e;) {
+	for (auto i = blocks.cend(), e = blocks.cbegin(); i != e;) {
 		--i;
-		for (HistoryBlock::Items::const_iterator j = (*i)->items.cend(), en = (*i)->items.cbegin(); j != en;) {
+		for (auto j = (*i)->items.cend(), en = (*i)->items.cbegin(); j != en;) {
 			--j;
 			if ((*j)->id > 0) {
 				return (*j)->id;
@@ -2547,14 +2565,7 @@ void History::clear(bool leaveItems) {
 			if (App::wnd() && !App::quitting()) App::wnd()->mediaOverviewUpdated(peer, MediaOverviewType(i));
 		}
 	}
-	Blocks lst = blocks;
-	blocks.clear();
-	for (Blocks::const_iterator i = lst.cbegin(), e = lst.cend(); i != e; ++i) {
-		if (leaveItems) {
-			(*i)->clear(true);
-		}
-		delete *i;
-	}
+	clearBlocks(leaveItems);
 	if (leaveItems) {
 		lastKeyboardInited = false;
 	} else {
@@ -2572,6 +2583,21 @@ void History::clear(bool leaveItems) {
 		}
 	}
 	if (leaveItems && App::main()) App::main()->historyCleared(this);
+}
+
+void History::clearBlocks(bool leaveItems) {
+	Blocks lst;
+	std::swap(lst, blocks);
+	for_const (HistoryBlock *block, lst) {
+		if (leaveItems) {
+			block->clear(true);
+		}
+		delete block;
+	}
+}
+
+void History::clearOnDestroy() {
+	clearBlocks(false);
 }
 
 QPair<int32, int32> History::adjustByPosInChatsList(DialogsIndexed &indexed) {
@@ -2716,12 +2742,6 @@ void History::blockResized(HistoryBlock *block, int32 dh) {
 	}
 }
 
-void History::clearUpto(MsgId msgId) {
-	for (HistoryItem *item = isEmpty() ? 0 : blocks.back()->items.back(); item && (item->id < 0 || item->id >= msgId); item = isEmpty() ? 0 : blocks.back()->items.back()) {
-		item->destroy();
-	}
-}
-
 void History::removeBlock(HistoryBlock *block) {
 	int32 i = blocks.indexOf(block), h = block->height;
 	if (i >= 0) {
@@ -2741,15 +2761,14 @@ void History::removeBlock(HistoryBlock *block) {
 }
 
 History::~History() {
-	clear();
+	clearOnDestroy();
 	deleteAndMark(msgDraft);
 	deleteAndMark(editDraft);
 }
 
 int32 HistoryBlock::geomResize(int32 newWidth, int32 *ytransform, const HistoryItem *resizedItem) {
 	int32 y = 0;
-	for (Items::iterator i = items.begin(), e = items.end(); i != e; ++i) {
-		HistoryItem *item = *i;
+	for_const (HistoryItem *item , items) {
 		bool updTransform = ytransform && (*ytransform >= item->y) && (*ytransform < item->y + item->height());
 		if (updTransform) *ytransform -= item->y;
 		item->y = y;
@@ -2768,15 +2787,16 @@ int32 HistoryBlock::geomResize(int32 newWidth, int32 *ytransform, const HistoryI
 }
 
 void HistoryBlock::clear(bool leaveItems) {
-	Items lst = items;
-	items.clear();
+	Items lst;
+	std::swap(lst, items);
+
 	if (leaveItems) {
-		for (Items::const_iterator i = lst.cbegin(), e = lst.cend(); i != e; ++i) {
-			(*i)->detachFast();
+		for_const (HistoryItem *item, lst) {
+			item->detachFast();
 		}
 	} else {
-		for (Items::const_iterator i = lst.cbegin(), e = lst.cend(); i != e; ++i) {
-			delete *i;
+		for_const (HistoryItem *item, lst) {
+			delete item;
 		}
 	}
 }

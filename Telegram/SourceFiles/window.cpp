@@ -78,7 +78,10 @@ void ConnectingWidget::onReconnect() {
 	MTP::restart();
 }
 
-NotifyWindow::NotifyWindow(HistoryItem *msg, int32 x, int32 y, int32 fwdCount) : history(msg->history()), item(msg), fwdCount(fwdCount)
+NotifyWindow::NotifyWindow(HistoryItem *msg, int32 x, int32 y, int32 fwdCount) : TWidget(0)
+, history(msg->history())
+, item(msg)
+, fwdCount(fwdCount)
 #ifdef Q_OS_WIN
 , started(GetTickCount())
 #endif
@@ -694,6 +697,8 @@ void Window::setupMain(bool anim, const MTPUser *self) {
 }
 
 void Window::updateCounter() {
+	if (App::quitting()) return;
+
 	psUpdateCounter();
 	title->updateCounter();
 }

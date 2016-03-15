@@ -1465,7 +1465,7 @@ HistoryItem *HistoryInner::prevItem(HistoryItem *item) {
 	if (blockIndex > 0) {
 		return item->history()->blocks[blockIndex - 1]->items.back();
 	}
-	if (item->history() == _history && _migrated && _history->loadedAtTop() && _migrated->loadedAtBottom() && !_migrated->isEmpty()) {
+	if (item->history() == _history && _migrated && _history->loadedAtTop() && !_migrated->isEmpty() && _migrated->loadedAtBottom()) {
 		return _migrated->blocks.back()->items.back();
 	}
 	return 0;
@@ -3133,7 +3133,7 @@ void HistoryWidget::sendActionDone(const MTPBool &result, mtpRequestId req) {
 }
 
 void HistoryWidget::activate() {
-	if (_history) updateListSize(0, true);
+	if (_history) updateListSize(true);
 	if (App::wnd()) App::wnd()->setInnerFocus();
 }
 
@@ -3239,7 +3239,7 @@ void HistoryWidget::notify_clipStopperHidden(ClipStopperType type) {
 }
 
 void HistoryWidget::notify_historyItemResized(const HistoryItem *row, bool scrollToIt) {
-	updateListSize(0, false, false, row, scrollToIt);
+	updateListSize(false, false, { ScrollChangeNone, 0 }, row, scrollToIt);
 }
 
 void HistoryWidget::cmd_search() {
@@ -4955,7 +4955,7 @@ void HistoryWidget::doneShow() {
 	updateReportSpamStatus();
 	updateBotKeyboard();
 	updateControlsVisibility();
-	updateListSize(0, true);
+	updateListSize(true);
 	onListScroll();
 	if (App::wnd()) {
 		App::wnd()->checkHistoryActivation();
@@ -6217,7 +6217,7 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 	_attachPhoto.move(_attachDocument.x(), _attachDocument.y());
 
 	_fieldBarCancel.move(width() - _fieldBarCancel.width(), _field.y() - st::sendPadding - _fieldBarCancel.height());
-	updateListSize(App::main() ? App::main()->contentScrollAddToY() : 0);
+	updateListSize(false, false, { ScrollChangeAdd, App::main() ? App::main()->contentScrollAddToY() : 0 });
 
 	bool kbShowShown = _history && !_kbShown && _keyboard.hasMarkup();
 	_field.resize(width() - _send.width() - _attachDocument.width() - _attachEmoji.width() - (kbShowShown ? _kbShow.width() : 0) - (_cmdStartShown ? _cmdStart.width() : 0) - (hasBroadcastToggle() ? _broadcast.width() : 0) - (hasSilentToggle() ? _silent.width() : 0), _field.height());
@@ -6303,7 +6303,7 @@ MsgId HistoryWidget::replyToId() const {
 	return _replyToId ? _replyToId : (_kbReplyTo ? _kbReplyTo->id : 0);
 }
 
-void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, const HistoryItem *resizedItem, bool scrollToIt) {
+void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollChange &change, const HistoryItem *resizedItem, bool scrollToIt) {
 	if (!_history || (initial && _histInited) || (!initial && !_histInited)) return;
 	if (_firstLoadRequest) {
 		if (resizedItem) _list->recountHeight(resizedItem);
@@ -6362,6 +6362,12 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, 
 	}
 
 	if ((!initial && !wasAtBottom) || (loadedDown && (!_history->showFrom || _history->unreadBar || _history->loadedAtBottom()) && (!_migrated || !_migrated->showFrom || _migrated->unreadBar || _history->loadedAtBottom()))) {
+		int32 addToY = 0;
+		if (change.type == ScrollChangeAdd) {
+			addToY = change.value;
+		} else if (change.type == ScrollChangeOldHistoryHeight) {
+			addToY = _list->historyHeight() - change.value;
+		}
 		_scroll.scrollToY(newSt + addToY);
 		return;
 	}
@@ -6380,7 +6386,7 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, 
 		if (iy < 0) {
 			setMsgId(0);
 			_histInited = false;
-			return updateListSize(addToY, initial);
+			return updateListSize(initial, false, change);
 		} else {
 			toY = (_scroll.height() > item->height()) ? qMax(iy - (_scroll.height() - item->height()) / 2, 0) : iy;
 			_animActiveStart = getms();
@@ -6393,13 +6399,13 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, 
 		if (iy < 0) {
 			setMsgId(0);
 			_histInited = false;
-			return updateListSize(addToY, initial);
+			return updateListSize(initial, false, change);
 		} else {
 			toY = (_scroll.height() > item->height()) ? qMax(iy - (_scroll.height() - item->height()) / 2, 0) : iy;
 			_animActiveStart = getms();
 			_animActiveTimer.start(AnimationTimerDelta);
 			_activeAnimMsgId = _showAtMsgId;
-			if (item->isGroupMigrate() && _migrated && _migrated->loadedAtBottom() && _migrated->blocks.back()->items.back()->isGroupMigrate() && _list->historyTop() != _list->historyDrawTop()) {
+			if (item->isGroupMigrate() && _migrated && !_migrated->isEmpty() && _migrated->loadedAtBottom() && _migrated->blocks.back()->items.back()->isGroupMigrate() && _list->historyTop() != _list->historyDrawTop()) {
 				_activeAnimMsgId = -_migrated->blocks.back()->items.back()->id;
 			}
 		}
@@ -6431,7 +6437,7 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, 
 				_fixedInScrollMsgId = 0;
 				_fixedInScrollMsgTop = 0;
 				_histInited = false;
-				return updateListSize(addToY, initial);
+				return updateListSize(initial, false, change);
 			}
 		} else {
 			toY = qMax(iy + item->height() - _fixedInScrollMsgTop, 0);
@@ -6447,7 +6453,7 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, 
 			if (_migrated->unreadBar) {
 				setMsgId(ShowAtUnreadMsgId);
 				_histInited = false;
-				updateListSize(0, true);
+				updateListSize(true);
 				App::wnd()->checkHistoryActivation();
 				return;
 			}
@@ -6459,7 +6465,7 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, 
 			if (_history->unreadBar) {
 				setMsgId(ShowAtUnreadMsgId);
 				_histInited = false;
-				updateListSize(0, true);
+				updateListSize(true);
 				App::wnd()->checkHistoryActivation();
 				return;
 			}
@@ -6470,10 +6476,16 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, 
 }
 
 void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed) {
-	int32 oldH = _list->historyHeight();
+	int oldH = _list->historyHeight();
 	_list->messagesReceived(peer, messages, collapsed);
 	if (!_firstLoadRequest) {
-		updateListSize(_list->historyHeight() - oldH);
+		updateListSize(false, false, { ScrollChangeOldHistoryHeight, oldH });
+		if (_animActiveTimer.isActive() && _activeAnimMsgId > 0 && _migrated && !_migrated->isEmpty() && _migrated->loadedAtBottom() && _migrated->blocks.back()->items.back()->isGroupMigrate() && _list->historyTop() != _list->historyDrawTop() && _history) {
+			HistoryItem *animActiveItem = App::histItemById(_history->channelId(), _activeAnimMsgId);
+			if (animActiveItem && animActiveItem->isGroupMigrate()) {
+				_activeAnimMsgId = -_migrated->blocks.back()->items.back()->id;
+			}
+		}
 		updateBotKeyboard();
 	}
 }
@@ -6481,7 +6493,7 @@ void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage>
 void HistoryWidget::addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed) {
 	_list->messagesReceivedDown(peer, messages, collapsed);
 	if (!_firstLoadRequest) {
-		updateListSize(0, false, true);
+		updateListSize(false, true);
 	}
 }
 

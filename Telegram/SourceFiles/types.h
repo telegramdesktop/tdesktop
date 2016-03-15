@@ -36,28 +36,6 @@ T *exchange(T *&ptr) {
 struct NullType {
 };
 
-#if __cplusplus < 199711L
-#define TDESKTOP_CUSTOM_NULLPTR
-#endif
-
-#ifdef TDESKTOP_CUSTOM_NULLPTR
-class NullPointerClass {
-public:
-	template <typename T>
-	operator T*() const {
-		return 0;
-	}
-	template <typename C, typename T>
-	operator T C::*() const {
-		return 0;
-	}
-
-private:
-	void operator&() const;
-};
-extern NullPointerClass nullptr;
-#endif
-
 template <typename T>
 class OrderedSet : public QMap<T, NullType> {
 public:
@@ -67,6 +45,19 @@ public:
 	}
 
 };
+
+#define qsl(s) QStringLiteral(s)
+#define qstr(s) QLatin1String(s, sizeof(s) - 1)
+
+// using for_const instead of plain range-based for loop to ensure usage of const_iterator
+// it is important for the copy-on-write Qt containers
+// if you have "QVector<T*> v" then "for (T * const p : v)" will still call QVector::detach(),
+// while "for_const(T *p, v)" won't and "for_const(T *&p, v)" won't compile
+template <typename T>
+struct ForConstTraits {
+	typedef const T &ExpressionType;
+};
+#define for_const(range_declaration, range_expression) for (range_declaration : static_cast<ForConstTraits<decltype(range_expression)>::ExpressionType>(range_expression))
 
 //typedef unsigned char uchar; // Qt has uchar
 typedef qint16 int16;
@@ -109,7 +100,9 @@ using std::swap;
 static volatile int *t_assert_nullptr = 0;
 inline void t_noop() {}
 inline void t_assert_fail(const char *message, const char *file, int32 line) {
-	LOG(("Assertion Failed! %1 %2:%3").arg(message).arg(file).arg(line));
+	QString info(qsl("%1 %2:%3").arg(message).arg(file).arg(line));
+	LOG(("Assertion Failed! %1 %2:%3").arg(info));
+	SignalHandlers::setAssertionInfo(info);
 	*t_assert_nullptr = 0;
 }
 #define t_assert_full(condition, message, file, line) ((!(condition)) ? t_assert_fail(message, file, line) : t_noop())
@@ -276,9 +269,6 @@ private:
 	QReadWriteLock *lock;
 
 };
-
-#define qsl(s) QStringLiteral(s)
-#define qstr(s) QLatin1String(s, sizeof(s) - 1)
 
 inline QString fromUtf8Safe(const char *str, int32 size = -1) {
 	if (!str || !size) return QString();
