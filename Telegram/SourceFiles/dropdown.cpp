@@ -3852,8 +3852,12 @@ MentionsInner::MentionsInner(MentionsDropdown *parent, MentionRows *mrows, Hasht
 , _stickersPerRow(1)
 , _recentInlineBotsInRows(0)
 , _sel(-1)
+, _down(-1)
 , _mouseSel(false)
-, _overDelete(false) {
+, _overDelete(false)
+, _previewShown(false) {
+	_previewTimer.setSingleShot(true);
+	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreview()));
 }
 
 void MentionsInner::paintEvent(QPaintEvent *e) {
@@ -4030,9 +4034,13 @@ void MentionsInner::mouseMoveEvent(QMouseEvent *e) {
 	onUpdateSelected(true);
 }
 
-void MentionsInner::clearSel() {
+void MentionsInner::clearSel(bool hidden) {
 	_mouseSel = _overDelete = false;
 	setSel((_mrows->isEmpty() && _brows->isEmpty() && _hrows->isEmpty()) ? -1 : 0);
+	if (hidden) {
+		_down = -1;
+		_previewShown = false;
+	}
 }
 
 bool MentionsInner::moveSel(int key) {
@@ -4140,10 +4148,33 @@ void MentionsInner::mousePressEvent(QMouseEvent *e) {
 
 			_mouseSel = true;
 			onUpdateSelected(true);
-		} else {
+		} else if (_srows->isEmpty()) {
 			select();
+		} else {
+			_down = _sel;
+			_previewTimer.start(QApplication::startDragTime());
 		}
 	}
+}
+
+void MentionsInner::mouseReleaseEvent(QMouseEvent *e) {
+	_previewTimer.stop();
+
+	int32 pressed = _down;
+	_down = -1;
+
+	_mousePos = mapToGlobal(e->pos());
+	_mouseSel = true;
+	onUpdateSelected(true);
+
+	if (_previewShown) {
+		_previewShown = false;
+		return;
+	}
+
+	if (_sel < 0 || _sel != pressed || _srows->isEmpty()) return;
+
+	select();
 }
 
 void MentionsInner::enterEvent(QEvent *e) {
@@ -4189,6 +4220,8 @@ void MentionsInner::onUpdateSelected(bool force) {
 	QPoint mouse(mapFromGlobal(_mousePos));
 	if ((!force && !rect().contains(mouse)) || !_mouseSel) return;
 
+	if (_down >= 0 && !_previewShown) return;
+
 	int32 sel = -1, maxSel = 0;
 	if (!_srows->isEmpty()) {
 		int32 rows = rowscount(_srows->size(), _stickersPerRow);
@@ -4209,6 +4242,12 @@ void MentionsInner::onUpdateSelected(bool force) {
 	}
 	if (sel != _sel) {
 		setSel(sel);
+		if (_down >= 0 && _sel >= 0 && _down != _sel) {
+			_down = _sel;
+			if (_down >= 0 && _down < _srows->size()) {
+				Ui::showStickerPreview(_srows->at(_down));
+			}
+		}
 	}
 }
 
@@ -4217,6 +4256,13 @@ void MentionsInner::onParentGeometryChanged() {
 	if (rect().contains(mapFromGlobal(_mousePos))) {
 		setMouseTracking(true);
 		onUpdateSelected(true);
+	}
+}
+
+void MentionsInner::onPreview() {
+	if (_down >= 0 && _down < _srows->size()) {
+		Ui::showStickerPreview(_srows->at(_down));
+		_previewShown = true;
 	}
 }
 
@@ -4532,10 +4578,10 @@ void MentionsDropdown::recount(bool resetScroll) {
 	if (h > _boundings.height()) h = _boundings.height();
 	if (h > maxh) h = maxh;
 	if (width() != _boundings.width() || height() != h) {
-		setGeometry(0, _boundings.height() - h, _boundings.width(), h);
+		setGeometry(_boundings.x(), _boundings.y() + _boundings.height() - h, _boundings.width(), h);
 		_scroll.resize(_boundings.width(), h);
-	} else if (y() != _boundings.height() - h) {
-		move(0, _boundings.height() - h);
+	} else if (y() != _boundings.y() + _boundings.height() - h) {
+		move(_boundings.x(), _boundings.y() + _boundings.height() - h);
 	}
 	if (resetScroll) st = 0;
 	if (st != oldst) _scroll.scrollToY(st);
@@ -4569,7 +4615,7 @@ void MentionsDropdown::hideFinish() {
 	hide();
 	_hiding = false;
 	_filter = qsl("-");
-	_inner.clearSel();
+	_inner.clearSel(true);
 }
 
 void MentionsDropdown::showStart() {

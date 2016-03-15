@@ -131,6 +131,8 @@ typedef uint64 VideoId;
 typedef uint64 AudioId;
 typedef uint64 DocumentId;
 typedef uint64 WebPageId;
+static const WebPageId CancelledWebPageId = 0xFFFFFFFFFFFFFFFFULL;
+
 typedef int32 MsgId;
 struct FullMsgId {
 	FullMsgId() : channel(NoChannel), msg(0) {
@@ -156,16 +158,21 @@ inline bool isClientMsgId(MsgId id) {
 }
 static const MsgId ShowAtTheEndMsgId = -0x40000000;
 static const MsgId SwitchAtTopMsgId = -0x3FFFFFFF;
+static const MsgId ShowAtProfileMsgId = -0x3FFFFFFE;
 static const MsgId ServerMaxMsgId = 0x3FFFFFFF;
 static const MsgId ShowAtUnreadMsgId = 0;
 
 struct NotifySettings {
-	NotifySettings() : mute(0), sound("default"), previews(true), events(1) {
+	NotifySettings() : flags(MTPDinputPeerNotifySettings::flag_show_previews), mute(0), sound("default") {
 	}
-	int32 mute;
+	int32 flags, mute;
 	string sound;
-	bool previews;
-	int32 events;
+	bool previews() const {
+		return flags & MTPDinputPeerNotifySettings::flag_show_previews;
+	}
+	bool silent() const {
+		return flags & MTPDinputPeerNotifySettings::flag_silent;
+	}
 };
 typedef NotifySettings *NotifySettingsPtr;
 
@@ -327,7 +334,7 @@ struct BotInfo {
 	bool inited;
 	bool readsAllHistory, cantJoinGroups;
 	int32 version;
-	QString shareText, description, inlinePlaceholder;
+	QString description, inlinePlaceholder;
 	QList<BotCommand> commands;
 	Text text; // description
 
@@ -344,7 +351,14 @@ class PhotoData;
 class UserData : public PeerData {
 public:
 
-	UserData(const PeerId &id) : PeerData(id), access(0), flags(0), onlineTill(0), contact(-1), blocked(UserBlockUnknown), photosCount(-1), botInfo(0) {
+	UserData(const PeerId &id) : PeerData(id)
+		, access(0)
+		, flags(0)
+		, onlineTill(0)
+		, contact(-1)
+		, blocked(UserBlockUnknown)
+		, photosCount(-1)
+		, botInfo(0) {
 		setName(QString(), QString(), QString(), QString());
 	}
 	void setPhoto(const MTPUserProfilePhoto &photo);
@@ -383,6 +397,8 @@ public:
 	Photos photos;
 	int32 photosCount; // -1 not loaded, 0 all loaded
 
+	QString about;
+
 	BotInfo *botInfo;
 };
 static UserData * const InlineBotLookingUpData = SharedMemoryLocation<UserData, 0>();
@@ -390,7 +406,16 @@ static UserData * const InlineBotLookingUpData = SharedMemoryLocation<UserData, 
 class ChatData : public PeerData {
 public:
 
-	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_int(bareId())), migrateToPtr(0), count(0), date(0), version(0), creator(0), inviterForSpamReport(0), flags(0), isForbidden(false), botStatus(0) {
+	ChatData(const PeerId &id) : PeerData(id)
+		, inputChat(MTP_int(bareId()))
+		, migrateToPtr(0)
+		, count(0)
+		, date(0)
+		, version(0)
+		, creator(0)
+		, flags(0)
+		, isForbidden(false)
+		, botStatus(0) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
 	void invalidateParticipants() {
@@ -412,7 +437,6 @@ public:
 	int32 date;
 	int32 version;
 	int32 creator;
-	int32 inviterForSpamReport; // > 0 - user who invited me to chat in unread service msg, < 0 - have outgoing message
 
 	int32 flags;
 	bool isForbidden;
@@ -448,13 +472,13 @@ public:
 	}
 	typedef QMap<UserData*, int32> Participants;
 	Participants participants;
-	typedef QMap<UserData*, bool> InvitedByMe;
+	typedef OrderedSet<UserData*> InvitedByMe;
 	InvitedByMe invitedByMe;
-	typedef QMap<UserData*, bool> Admins;
+	typedef OrderedSet<UserData*> Admins;
 	Admins admins;
 	typedef QList<UserData*> LastAuthors;
 	LastAuthors lastAuthors;
-	typedef QMap<PeerData*, bool> MarkupSenders;
+	typedef OrderedSet<PeerData*> MarkupSenders;
 	MarkupSenders markupSenders;
 	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 //	ImagePtr photoFull;
@@ -468,14 +492,14 @@ enum PtsSkippedQueue {
 class PtsWaiter {
 public:
 
-	PtsWaiter() :
-		_good(0),
-		_last(0),
-		_count(0),
-		_applySkippedLevel(0),
-		_requesting(false),
-		_waitingForSkipped(false),
-		_waitingForShortPoll(false) {
+	PtsWaiter()
+		: _good(0)
+		, _last(0)
+		, _count(0)
+		, _applySkippedLevel(0)
+		, _requesting(false)
+		, _waitingForSkipped(false)
+		, _waitingForShortPoll(false) {
 	}
 	void init(int32 pts) {
 		_good = _last = _count = pts;
@@ -523,22 +547,25 @@ private:
 };
 
 struct MegagroupInfo {
-	MegagroupInfo() : botStatus(0)
-	, joinedMessageFound(false)
-	, lastParticipantsStatus(LastParticipantsUpToDate)
-	, lastParticipantsCount(0)
-	, migrateFromPtr(0) {
+	MegagroupInfo()
+		: botStatus(0)
+		, pinnedMsgId(0)
+		, joinedMessageFound(false)
+		, lastParticipantsStatus(LastParticipantsUpToDate)
+		, lastParticipantsCount(0)
+		, migrateFromPtr(0) {
 	}
 	typedef QList<UserData*> LastParticipants;
 	LastParticipants lastParticipants;
-	typedef QMap<UserData*, bool> LastAdmins;
+	typedef OrderedSet<UserData*> LastAdmins;
 	LastAdmins lastAdmins;
-	typedef QMap<PeerData*, bool> MarkupSenders;
+	typedef OrderedSet<PeerData*> MarkupSenders;
 	MarkupSenders markupSenders;
-	typedef QMap<UserData*, bool> Bots;
+	typedef OrderedSet<UserData*> Bots;
 	Bots bots;
 	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 
+	MsgId pinnedMsgId;
 	bool joinedMessageFound;
 
 	enum LastParticipantsStatus {
@@ -555,7 +582,19 @@ struct MegagroupInfo {
 class ChannelData : public PeerData {
 public:
 
-	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), count(1), adminsCount(1), date(0), version(0), flags(0), flagsFull(0), mgInfo(0), isForbidden(true), inviter(0), _lastFullUpdate(0) {
+	ChannelData(const PeerId &id) : PeerData(id)
+		, access(0)
+		, inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0)))
+		, count(1)
+		, adminsCount(1)
+		, date(0)
+		, version(0)
+		, flags(0)
+		, flagsFull(0)
+		, mgInfo(nullptr)
+		, isForbidden(true)
+		, inviter(0)
+		, _lastFullUpdate(0) {
 		setName(QString(), QString());
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
@@ -595,6 +634,9 @@ public:
 	bool isPublic() const {
 		return flags & MTPDchannel::flag_username;
 	}
+	bool canEditUsername() const {
+		return amCreator() && (flagsFull & MTPDchannelFull::flag_can_set_username);
+	}
 	bool amCreator() const {
 		return flags & MTPDchannel::flag_creator;
 	}
@@ -622,12 +664,15 @@ public:
 	bool canViewParticipants() const {
 		return flagsFull & MTPDchannelFull::flag_can_view_participants;
 	}
+	bool addsSignature() const {
+		return flags & MTPDchannel::flag_signatures;
+	}
 	bool isForbidden;
 	bool isVerified() const {
 		return flags & MTPDchannel::flag_verified;
 	}
 	bool canAddParticipants() const {
-		return amCreator() || amEditor() || (flags & MTPDchannel::flag_invites_enabled);
+		return amCreator() || amEditor() || (flags & MTPDchannel::flag_democracy);
 	}
 
 //	ImagePtr photoFull;
@@ -1207,3 +1252,7 @@ struct MessageCursor {
 	}
 	int position, anchor, scroll;
 };
+
+inline bool operator==(const MessageCursor &a, const MessageCursor &b) {
+	return (a.position == b.position) && (a.anchor == b.anchor) && (a.scroll == b.scroll);
+}

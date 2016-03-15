@@ -560,8 +560,9 @@ void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 		}
 	}
 	if (needClick) {
-		needClick->onClick(button);
+		DEBUG_LOG(("Will click link: %1 (%2) %3").arg(needClick->text()).arg(needClick->readable()).arg(needClick->encoded()));
 		dragActionCancel();
+		App::activateTextLink(needClick, button);
 		return;
 	}
 	if (_dragAction == PrepareSelect && !needClick && !_dragWasInactive && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection) {
@@ -1270,7 +1271,6 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_to_msg), this, SLOT(goToMessage()))->setEnabled(true);
 		}
 		if (lnkPhoto) {
-			_menu->addAction(lang(lng_context_open_image), this, SLOT(openContextUrl()))->setEnabled(true);
 		} else {
 			if (lnkDocument && lnkDocument->document()->loading()) {
 				_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
@@ -1278,7 +1278,6 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (lnkDocument && !lnkDocument->document()->already(true).isEmpty()) {
 					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 				}
-				_menu->addAction(lang(lnkIsVideo ? lng_context_open_video : (lnkIsAudio ? lng_context_open_audio : lng_context_open_file)), this, SLOT(openContextFile()))->setEnabled(true);
 				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsAudio ? lng_context_save_audio : lng_context_save_file)), this, SLOT(saveContextFile()))->setEnabled(true);
 			}
 		}
@@ -1306,17 +1305,14 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (_selectedMsgId) repaintItem(_selectedMsgId, -1);
 	} else if (!ignoreMousedItem && App::mousedItem() && App::mousedItem()->channelId() == itemChannel(_mousedItem) && App::mousedItem()->id == itemMsgId(_mousedItem)) {
 		_menu = new PopupMenu();
-		if ((_contextMenuLnk && dynamic_cast<TextLink*>(_contextMenuLnk.data()))) {
-			_menu->addAction(lang(lng_context_open_link), this, SLOT(openContextUrl()))->setEnabled(true);
+		QLatin1String linktype = _contextMenuLnk ? _contextMenuLnk->type() : qstr("");
+		if (linktype == qstr("TextLink") || linktype == qstr("LocationLink")) {
 			_menu->addAction(lang(lng_context_copy_link), this, SLOT(copyContextUrl()))->setEnabled(true);
-		} else if ((_contextMenuLnk && dynamic_cast<EmailLink*>(_contextMenuLnk.data()))) {
-			_menu->addAction(lang(lng_context_open_email), this, SLOT(openContextUrl()))->setEnabled(true);
+		} else if (linktype == qstr("EmailLink")) {
 			_menu->addAction(lang(lng_context_copy_email), this, SLOT(copyContextUrl()))->setEnabled(true);
-		} else if (_contextMenuLnk && dynamic_cast<MentionLink*>(_contextMenuLnk.data())) {
-			_menu->addAction(lang(lng_context_open_mention), this, SLOT(openContextUrl()))->setEnabled(true);
+		} else if (linktype == qstr("MentionLink")) {
 			_menu->addAction(lang(lng_context_copy_mention), this, SLOT(copyContextUrl()))->setEnabled(true);
-		} else if (_contextMenuLnk && dynamic_cast<HashtagLink*>(_contextMenuLnk.data())) {
-			_menu->addAction(lang(lng_context_open_hashtag), this, SLOT(openContextUrl()))->setEnabled(true);
+		} else if (linktype == qstr("HashtagLink")) {
 			_menu->addAction(lang(lng_context_copy_hashtag), this, SLOT(copyContextUrl()))->setEnabled(true);
 		} else {
 		}
@@ -1445,15 +1441,6 @@ void OverviewInner::setSelectMode(bool enabled) {
 	_selMode = enabled;
 }
 
-void OverviewInner::openContextUrl() {
-	if (_contextMenuLnk) {
-		HistoryItem *was = App::hoveredLinkItem();
-		App::hoveredLinkItem(App::contextItem());
-		_contextMenuLnk->onClick(Qt::LeftButton);
-		App::hoveredLinkItem(was);
-	}
-}
-
 void OverviewInner::copyContextUrl() {
 	QString enc = _contextMenuLnk ? _contextMenuLnk->encoded() : QString();
 	if (!enc.isEmpty()) {
@@ -1517,14 +1504,6 @@ void OverviewInner::showContextInFolder() {
 void OverviewInner::saveContextFile() {
 	DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
 	if (lnkDocument) DocumentSaveLink::doSave(lnkDocument->document(), true);
-}
-
-void OverviewInner::openContextFile() {
-	HistoryItem *was = App::hoveredLinkItem();
-	App::hoveredLinkItem(App::contextItem());
-	DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	if (lnkDocument) DocumentOpenLink(lnkDocument->document()).onClick(Qt::LeftButton);
-	App::hoveredLinkItem(was);
 }
 
 bool OverviewInner::onSearchMessages(bool searchCache) {

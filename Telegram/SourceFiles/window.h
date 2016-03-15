@@ -121,6 +121,8 @@ private:
 
 typedef QList<NotifyWindow*> NotifyWindows;
 
+class StickerPreviewWidget;
+
 class Window : public PsMainWindow {
 	Q_OBJECT
 
@@ -204,8 +206,6 @@ public:
 	TempDirState localStorageState();
 	void tempDirDelete(int task);
 
-	void quit();
-
     void notifySettingGot();
 	void notifySchedule(History *history, HistoryItem *item);
 	void notifyClear(History *history = 0);
@@ -239,6 +239,8 @@ public:
 	void ui_showLayer(LayeredWidget *box, ShowLayerOptions options);
 	bool ui_isLayerShown();
 	bool ui_isMediaViewShown();
+	void ui_showStickerPreview(DocumentData *sticker);
+	void ui_hideStickerPreview();
 
 public slots:
 
@@ -311,6 +313,7 @@ private:
 	MainWidget *main;
 	SettingsWidget *settings;
 	BackgroundWidget *layerBg;
+	StickerPreviewWidget *_stickerPreview;
 
 	QTimer _isActiveTimer;
 	bool _isActive;
@@ -394,6 +397,12 @@ public:
 	void setText(const QString &text);
 };
 
+class PreLaunchCheckbox : public QCheckBox {
+public:
+	PreLaunchCheckbox(QWidget *parent);
+	void setText(const QString &text);
+};
+
 class NotStartedWindow : public PreLaunchWindow {
 public:
 
@@ -464,9 +473,15 @@ private:
 	PreLaunchLabel _label, _pleaseSendReport, _yourReportName, _minidump;
 	PreLaunchLog _report;
 	PreLaunchButton _send, _sendSkip, _networkSettings, _continue, _showReport, _saveReport, _getApp;
+	PreLaunchCheckbox _includeUsername;
 
 	QString _minidumpName, _minidumpFull, _reportText;
+	QString _reportUsername, _reportTextNoUsername;
+	QByteArray getCrashReportRaw() const;
+
 	bool _reportShown, _reportSaved;
+
+	void excludeReportUsername();
 
 	enum SendingState {
 		SendingNoReport,

@@ -428,11 +428,11 @@ void IntroWidget::keyPressEvent(QKeyEvent *e) {
 void IntroWidget::updateAdaptiveLayout() {
 }
 
-void IntroWidget::rpcInvalidate() {
-	if (phone) phone->rpcInvalidate();
-	if (code) code->rpcInvalidate();
-	if (signup) signup->rpcInvalidate();
-	if (pwdcheck) pwdcheck->rpcInvalidate();
+void IntroWidget::rpcClear() {
+	if (phone) phone->rpcClear();
+	if (code) code->rpcClear();
+	if (signup) signup->rpcClear();
+	if (pwdcheck) pwdcheck->rpcClear();
 }
 
 IntroWidget::~IntroWidget() {

@@ -194,3 +194,5 @@ public:
 	}
 
 };
+
+bool psLaunchMaps(const LocationCoords &coords);

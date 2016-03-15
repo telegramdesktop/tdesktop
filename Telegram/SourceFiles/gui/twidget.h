@@ -183,6 +183,8 @@ public:
 	virtual void grabFinish() {
 	}
 
+	bool inFocusChain() const;
+
 private:
 
 };
@@ -200,5 +202,30 @@ public:
 
 private:
 	const style::color &_color;
+
+};
+
+class SingleDelayedCall : public QObject {
+	Q_OBJECT
+
+public:
+	SingleDelayedCall(QObject *parent, const char *member) : QObject(parent), _pending(false), _member(member) {
+	}
+	void call() {
+		if (!_pending) {
+			_pending = true;
+			QMetaObject::invokeMethod(this, "makeDelayedCall", Qt::QueuedConnection);
+		}
+	}
+
+private slots:
+	void makeDelayedCall() {
+		_pending = false;
+		QMetaObject::invokeMethod(parent(), _member);
+	}
+
+private:
+	bool _pending;
+	const char *_member;
 
 };

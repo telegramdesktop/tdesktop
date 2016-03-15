@@ -22,6 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "style.h"
 
+#include "shortcuts.h"
+
 #include "pspecific.h"
 #include "fileuploader.h"
 #include "mainwidget.h"
@@ -46,52 +48,6 @@ namespace {
 			App::main()->getDifference();
 		}
 	}
-
-	class EventFilterForKeys : public QObject {
-	public:
-
-		EventFilterForKeys(QObject *parent) : QObject(parent) {
-		}
-		bool eventFilter(QObject *o, QEvent *e) {
-			if (e->type() == QEvent::KeyPress) {
-				QKeyEvent *ev = static_cast<QKeyEvent*>(e);
-				if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
-					if (ev->key() == Qt::Key_W && (ev->modifiers() & Qt::ControlModifier)) {
-						Ui::hideWindowNoQuit();
-						return true;
-					} else if (ev->key() == Qt::Key_M && (ev->modifiers() & Qt::ControlModifier)) {
-						App::wnd()->setWindowState(Qt::WindowMinimized);
-						return true;
-					}
-				} else {
-					if ((ev->key() == Qt::Key_W || ev->key() == Qt::Key_F4) && (ev->modifiers() & Qt::ControlModifier)) {
-						if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
-							App::wnd()->minimizeToTray();
-							return true;
-						} else {
-							App::wnd()->close();
-							return true;
-						}
-					}
-				}
-				if (ev->key() == Qt::Key_MediaPlay) {
-					if (App::main()) App::main()->player()->playPressed();
-				} else if (ev->key() == Qt::Key_MediaPause) {
-					if (App::main()) App::main()->player()->pausePressed();
-				} else if (ev->key() == Qt::Key_MediaTogglePlayPause) {
-					if (App::main()) App::main()->player()->playPausePressed();
-				} else if (ev->key() == Qt::Key_MediaStop) {
-					if (App::main()) App::main()->player()->stopPressed();
-				} else if (ev->key() == Qt::Key_MediaPrevious) {
-					if (App::main()) App::main()->player()->prevPressed();
-				} else if (ev->key() == Qt::Key_MediaNext) {
-					if (App::main()) App::main()->player()->nextPressed();
-				}
-			}
-			return QObject::eventFilter(o, e);
-		}
-
-	};
 
 	QChar _toHex(ushort v) {
 		v = v & 0x000F;
@@ -155,6 +111,7 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
 	connect(&_localSocket, SIGNAL(readyRead()), this, SLOT(socketReading()));
 	connect(&_localServer, SIGNAL(newConnection()), this, SLOT(newInstanceConnected()));
 
+	QTimer::singleShot(0, this, SLOT(startApplication()));
 	connect(this, SIGNAL(aboutToQuit()), this, SLOT(closeApplication()));
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -171,27 +128,6 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
 		_localSocket.connectToServer(_localServerName);
 	}
 }
-
-Application::~Application() {
-	App::setQuiting();
-
-	Sandbox::finish();
-
-	delete AppObject;
-
-	_localSocket.close();
-	closeApplication();
-
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	delete _updateReply;
-	_updateReply = 0;
-	if (_updateChecker) _updateChecker->deleteLater();
-	_updateChecker = 0;
-	if (_updateThread) _updateThread->quit();
-	_updateThread = 0;
-#endif
-}
-
 
 void Application::socketConnected() {
 	LOG(("Socket connected, this is not the first application instance, sending show command.."));
@@ -231,16 +167,16 @@ void Application::socketReading() {
 	if (QRegularExpression("RES:(\\d+);").match(_localSocketReadData).hasMatch()) {
 		uint64 pid = _localSocketReadData.mid(4, _localSocketReadData.length() - 5).toULongLong();
 		psActivateProcess(pid);
-		LOG(("Show command response received, pid = %1, activating and quiting..").arg(pid));
+		LOG(("Show command response received, pid = %1, activating and quitting..").arg(pid));
 		return App::quit();
 	}
 }
 
 void Application::socketError(QLocalSocket::LocalSocketError e) {
-	if (App::quiting()) return;
+	if (App::quitting()) return;
 
 	if (_secondInstance) {
-		LOG(("Could not write show command, error %1, quiting..").arg(e));
+		LOG(("Could not write show command, error %1, quitting..").arg(e));
 		return App::quit();
 	}
 
@@ -300,7 +236,7 @@ void Application::singleInstanceChecked() {
 
 void Application::socketDisconnected() {
 	if (_secondInstance) {
-		DEBUG_LOG(("Application Error: socket disconnected before command response received, quiting.."));
+		DEBUG_LOG(("Application Error: socket disconnected before command response received, quitting.."));
 		return App::quit();
 	}
 }
@@ -378,7 +314,21 @@ void Application::removeClients() {
 	}
 }
 
+void Application::startApplication() {
+	if (App::quitting()) {
+		quit();
+	}
+}
+
 void Application::closeApplication() {
+	if (App::launchState() == App::QuitProcessed) return;
+	App::setLaunchState(App::QuitProcessed);
+
+	delete AppObject;
+	AppObject = 0;
+
+	Sandbox::finish();
+
 	_localServer.close();
 	for (LocalClients::iterator i = _localClients.begin(), e = _localClients.end(); i != e; ++i) {
 		disconnect(i->first, SIGNAL(disconnected()), this, SLOT(removeClients()));
@@ -386,7 +336,16 @@ void Application::closeApplication() {
 	}
 	_localClients.clear();
 
-	MTP::stop();
+	_localSocket.close();
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	delete _updateReply;
+	_updateReply = 0;
+	if (_updateChecker) _updateChecker->deleteLater();
+	_updateChecker = 0;
+	if (_updateThread) _updateThread->quit();
+	_updateThread = 0;
+#endif
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -711,8 +670,6 @@ AppClass::AppClass() : QObject()
 		return;
 	}
 
-	application()->installEventFilter(new EventFilterForKeys(this));
-
 	if (cRetina()) {
 		cSetConfigScale(dbisOne);
 		cSetRealScale(dbisOne);
@@ -770,6 +727,8 @@ AppClass::AppClass() : QObject()
 
 	DEBUG_LOG(("Application Info: window created.."));
 
+	Shortcuts::start();
+
 	initImageLinkManager();
 	App::initMedia();
 
@@ -809,7 +768,14 @@ AppClass::AppClass() : QObject()
 		checkMapVersion();
 	}
 
-	_window->updateIsActive(cOnlineFocusTimeout());
+	_window->updateIsActive(Global::OnlineFocusTimeout());
+
+	if (!Shortcuts::errors().isEmpty()) {
+		const QStringList &errors(Shortcuts::errors());
+		for (QStringList::const_iterator i = errors.cbegin(), e = errors.cend(); i != e; ++i) {
+			LOG(("Shortcuts Error: %1").arg(*i));
+		}
+	}
 }
 
 void AppClass::regPhotoUpdate(const PeerId &peer, const FullMsgId &msgId) {
@@ -926,7 +892,9 @@ void AppClass::checkLocalTime() {
 
 void AppClass::onAppStateChanged(Qt::ApplicationState state) {
 	checkLocalTime();
-	_window->updateIsActive((state == Qt::ApplicationActive) ? cOnlineFocusTimeout() : cOfflineBlurTimeout());
+	if (_window) {
+		_window->updateIsActive((state == Qt::ApplicationActive) ? Global::OnlineFocusTimeout() : Global::OfflineBlurTimeout());
+	}
 	if (state != Qt::ApplicationActive) {
 		PopupTooltip::Hide();
 	}
@@ -937,7 +905,7 @@ void AppClass::killDownloadSessions() {
 	for (QMap<int32, uint64>::iterator i = killDownloadSessionTimes.begin(); i != killDownloadSessionTimes.end(); ) {
 		if (i.value() <= ms) {
 			for (int j = 0; j < MTPDownloadSessionsCount; ++j) {
-				MTP::stopSession(MTP::dld[j] + i.key());
+				MTP::stopSession(MTP::dld(j) + i.key());
 			}
 			i = killDownloadSessionTimes.erase(i);
 		} else {
@@ -952,7 +920,7 @@ void AppClass::killDownloadSessions() {
 	}
 }
 
-void AppClass::photoUpdated(const FullMsgId &msgId, const MTPInputFile &file) {
+void AppClass::photoUpdated(const FullMsgId &msgId, bool silent, const MTPInputFile &file) {
 	if (!App::self()) return;
 
 	QMap<FullMsgId, PeerId>::iterator i = photoUpdates.find(msgId);
@@ -1007,7 +975,7 @@ void AppClass::onSwitchTestMode() {
 }
 
 FileUploader *AppClass::uploader() {
-	if (!_uploader && !App::quiting()) _uploader = new FileUploader();
+	if (!_uploader && !App::quitting()) _uploader = new FileUploader();
 	return _uploader;
 }
 
@@ -1041,7 +1009,7 @@ void AppClass::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId) {
 
 	ReadyLocalMedia ready(PreparePhoto, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false, false, 0);
 
-	connect(App::uploader(), SIGNAL(photoReady(const FullMsgId&, const MTPInputFile&)), App::app(), SLOT(photoUpdated(const FullMsgId&, const MTPInputFile&)), Qt::UniqueConnection);
+	connect(App::uploader(), SIGNAL(photoReady(const FullMsgId&,bool,const MTPInputFile&)), App::app(), SLOT(photoUpdated(const FullMsgId&,bool,const MTPInputFile&)), Qt::UniqueConnection);
 
 	FullMsgId newId(peerToChannel(peerId), clientMsgId());
 	App::app()->regPhotoUpdate(peerId, newId);
@@ -1052,11 +1020,12 @@ void AppClass::checkMapVersion() {
   if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cDevVersion() || cBetaVersion()) && Local::oldMapVersion() < 9024) {
-//				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Voice messages waveform visualizations\n\xe2\x80\x94 Bug fixes and other minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
-				versionFeatures = lang(lng_new_version_minor).trimmed();
-			} else if (Local::oldMapVersion() < 9024) {
-				versionFeatures = lang(lng_new_version_text).trimmed();
+			if ((cDevVersion() || cBetaVersion()) && Local::oldMapVersion() < 9031) {
+//				QString ctrl = (cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? qsl("Cmd") : qsl("Ctrl");
+//				versionFeatures = QString::fromUtf8("\xe2\x80\x94 %1+W or %2+F4 for close window\n\xe2\x80\x94 %3+L to lock Telegram if you use a local passcode\n\xe2\x80\x94 Bug fixes and other minor improvements").arg(ctrl).arg(ctrl).arg(ctrl);// .replace('@', qsl("@") + QChar(0x200D));
+				versionFeatures = lng_new_version_text(lt_link, qsl("https://telegram.org/blog/supergroups5k")).trimmed();
+			} else if (Local::oldMapVersion() < 9031) {
+				versionFeatures = lng_new_version_text(lt_link, qsl("https://telegram.org/blog/supergroups5k")).trimmed();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}
@@ -1072,6 +1041,8 @@ void AppClass::checkMapVersion() {
 }
 
 AppClass::~AppClass() {
+	Shortcuts::finish();
+
 	if (Window *w = _window) {
 		_window = 0;
 		delete w;
@@ -1081,6 +1052,8 @@ AppClass::~AppClass() {
 	stopWebLoadManager();
 	App::deinitMedia();
 	deinitImageLinkManager();
+
+	MTP::finish();
 
 	AppObject = 0;
 	deleteAndMark(_uploader);

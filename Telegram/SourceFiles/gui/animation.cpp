@@ -93,6 +93,7 @@ namespace anim {
 		if (!_clipThreads.isEmpty()) {
 			for (int32 i = 0, l = _clipThreads.size(); i < l; ++i) {
 				_clipThreads.at(i)->quit();
+				DEBUG_LOG(("Waiting for clipThread to finish: %1").arg(i));
 				_clipThreads.at(i)->wait();
 				delete _clipManagers.at(i);
 				delete _clipThreads.at(i);
@@ -378,6 +379,7 @@ QPixmap ClipReader::current(int32 framew, int32 frameh, int32 outerw, int32 oute
 	frame->request.outerh = outerh * factor;
 
 	QImage cacheForResize;
+	frame->original.setDevicePixelRatio(factor);
 	frame->pix = QPixmap();
 	frame->pix = _prepareFrame(frame->request, frame->original, true, cacheForResize);
 

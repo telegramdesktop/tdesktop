@@ -194,3 +194,5 @@ public:
 };
 
 bool linuxMoveFile(const char *from, const char *to);
+
+bool psLaunchMaps(const LocationCoords &coords);

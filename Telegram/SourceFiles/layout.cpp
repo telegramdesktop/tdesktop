@@ -422,8 +422,7 @@ void LayoutOverviewVideo::paint(Painter &p, const QRect &clip, uint32 selection,
 
 		if (_thumbLoaded && !_data->thumb->isNull()) {
 			int32 size = _width * cIntRetinaFactor();
-			QImage img = _data->thumb->pix().toImage();
-			img = imageBlur(img);
+			QImage img = imageBlur(_data->thumb->pix().toImage());
 			if (img.width() == img.height()) {
 				if (img.width() != size) {
 					img = img.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
@@ -581,8 +580,7 @@ void LayoutOverviewVoice::paint(Painter &p, const QRect &clip, uint32 selection,
 		}
 	}
 	bool showPause = updateStatusText();
-	int32 nameVersion = _parent->from()->nameVersion;
-	if (HistoryForwarded *fwd = _parent->toHistoryForwarded()) nameVersion = fwd->fromForwarded()->nameVersion;
+	int32 nameVersion = _parent->fromOriginal()->nameVersion;
 	if (nameVersion > _nameVersion) {
 		updateName();
 	}
@@ -700,13 +698,16 @@ void LayoutOverviewVoice::getState(TextLinkPtr &link, HistoryCursorState &cursor
 
 void LayoutOverviewVoice::updateName() const {
 	int32 version = 0;
-	if (HistoryForwarded *fwd = _parent->toHistoryForwarded()) {
-		_name.setText(st::semiboldFont, lang(lng_forwarded_from) + ' ' + App::peerName(fwd->fromForwarded()), _textNameOptions);
-		version = fwd->fromForwarded()->nameVersion;
+	if (const HistoryMessageForwarded *fwd = _parent->Get<HistoryMessageForwarded>()) {
+		if (_parent->fromOriginal()->isChannel()) {
+			_name.setText(st::semiboldFont, lng_forwarded_channel(lt_channel, App::peerName(_parent->fromOriginal())), _textNameOptions);
+		} else {
+			_name.setText(st::semiboldFont, lng_forwarded(lt_user, App::peerName(_parent->fromOriginal())), _textNameOptions);
+		}
 	} else {
 		_name.setText(st::semiboldFont, App::peerName(_parent->from()), _textNameOptions);
-		version = _parent->from()->nameVersion;
 	}
+	version = _parent->fromOriginal()->nameVersion;
 	_nameVersion = version;
 }
 

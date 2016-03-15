@@ -48,7 +48,7 @@ public:
 
 	PeerData *peer() const;
 	bool allMediaShown() const;
-	
+
 	void updateOnlineDisplay();
 	void updateOnlineDisplayTimer();
 	void reorderParticipants();
@@ -65,7 +65,7 @@ public:
 	void allowDecreaseHeight(int32 decreaseBy);
 
 	~ProfileInner();
-	
+
 public slots:
 
 	void peerUpdated(PeerData *data);
@@ -78,6 +78,7 @@ public slots:
 	void onInviteToGroup();
 	void onSendMessage();
 	void onSearchInPeer();
+	void onConvertToSupergroup();
 	void onEnableNotifications();
 
 	void onClearHistory();
@@ -123,12 +124,16 @@ public slots:
 
 	void onBotSettings();
 	void onBotHelp();
+	void onPinnedMessage();
+
+	void onUpdateDelayed();
 
 private:
 
 	void showAll();
 	void updateInvitationLink();
 	void updateBotLinksVisibility();
+	void updatePinnedMessageVisibility();
 
 	void chatInviteDone(const MTPExportedChatInvite &result);
 	bool updateMediaLinks(int32 *addToScroll = 0); // returns if anything changed
@@ -157,7 +162,7 @@ private:
 	FlatButton _sendMessage, _shareContact, _inviteToGroup;
 	LinkButton _cancelPhoto, _createInvitationLink, _invitationLink;
 	QString _invitationText;
-	LinkButton _botSettings, _botHelp, _username, _members, _admins;
+	LinkButton _botSettings, _botHelp, _pinnedMessage, _username, _members, _admins;
 
 	Text _about;
 	int32 _aboutTop, _aboutHeight;
@@ -182,7 +187,7 @@ private:
 	QString overviewLinkText(int32 type, int32 count);
 
 	// actions
-	LinkButton _searchInPeer, _clearHistory, _deleteConversation;
+	LinkButton _searchInPeer, _convertToSupergroup, _clearHistory, _deleteConversation;
 	UserBlockedStatus _wasBlocked;
 	mtpRequestId _blockRequest;
 	LinkButton _blockUser, _deleteChannel;
@@ -193,11 +198,11 @@ private:
 	uint64 _contactId;
 	UserData *_kickOver, *_kickDown, *_kickConfirm;
 
-	typedef struct {
+	struct ParticipantData {
 		Text name;
 		QString online;
-		bool cankick;
-	} ParticipantData;
+		bool cankick, admin;
+	};
 	typedef QVector<UserData*> Participants;
 	Participants _participants;
 	typedef QVector<ParticipantData*> ParticipantsData;
@@ -209,6 +214,8 @@ private:
 	PopupMenu *_menu;
 
 	QString _secretText;
+
+	bool _updateDelayed;
 
 	void blockDone(bool blocked, const MTPBool &result);
 	bool blockFail(const RPCError &error);
@@ -222,12 +229,12 @@ public:
 
 	ProfileWidget(QWidget *parent, PeerData *peer);
 
-	void resizeEvent(QResizeEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void paintEvent(QPaintEvent *e);
-    void dragEnterEvent(QDragEnterEvent *e);
-    void dropEvent(QDropEvent *e);
-	void keyPressEvent(QKeyEvent *e);
+	void resizeEvent(QResizeEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+    void dragEnterEvent(QDragEnterEvent *e) override;
+    void dropEvent(QDropEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
 	void topBarClick();
@@ -247,15 +254,19 @@ public:
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void updateAdaptiveLayout();
 
-	void grabStart() {
+	void grabStart() override {
 		_sideShadow.hide();
 		_inGrab = true;
 		resizeEvent(0);
 	}
-	void grabFinish() {
+	void grabFinish() override {
 		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_inGrab = false;
 		resizeEvent(0);
+	}
+	void rpcClear() override {
+		_inner.rpcClear();
+		RPCSender::rpcClear();
 	}
 
 	void clear();

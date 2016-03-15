@@ -250,8 +250,8 @@ namespace {
 #define GTK_ALPHA 3
 
     QImage _trayIconImageGen() {
-		int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted), counterSlice = (counter >= 1000) ? (1000 + (counter % 100)) : counter;
-		bool muted = cIncludeMuted() ? (App::histories().unreadMuted >= counter) : false;
+		int32 counter = App::histories().unreadBadge(), counterSlice = (counter >= 1000) ? (1000 + (counter % 100)) : counter;
+		bool muted = App::histories().unreadOnlyMuted();
         if (_trayIconImage.isNull() || _trayIconImage.width() != _trayIconSize || muted != _trayIconMuted || counterSlice != _trayIconCount) {
             if (_trayIconImageBack.isNull() || _trayIconImageBack.width() != _trayIconSize) {
                 _trayIconImageBack = App::wnd()->iconLarge().scaled(_trayIconSize, _trayIconSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
@@ -286,8 +286,8 @@ namespace {
     }
 
     QString _trayIconImageFile() {
-		int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted), counterSlice = (counter >= 1000) ? (1000 + (counter % 100)) : counter;
-		bool muted = cIncludeMuted() ? (App::histories().unreadMuted >= counter) : false;
+		int32 counter = App::histories().unreadBadge(), counterSlice = (counter >= 1000) ? (1000 + (counter % 100)) : counter;
+		bool muted = App::histories().unreadOnlyMuted();
 
         QString name = cWorkingDir() + qsl("tdata/ticons/ico%1_%2_%3.png").arg(muted ? "mute" : "").arg(_trayIconSize).arg(counterSlice);
         QFileInfo info(name);
@@ -621,7 +621,7 @@ void PsMainWindow::psUpdateIndicator() {
 void PsMainWindow::psUpdateCounter() {
     setWindowIcon(wndIcon);
 
-	int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted);
+	int32 counter = App::histories().unreadBadge();
 
     setWindowTitle((counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram"));
     if (_psUnityLauncherEntry) {
@@ -645,8 +645,8 @@ void PsMainWindow::psUpdateCounter() {
             ps_gtk_status_icon_set_from_pixbuf(_trayIcon, _trayPixbuf);
         }
     } else if (trayIcon) {
-		int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted);
-		bool muted = cIncludeMuted() ? (App::histories().unreadMuted >= counter) : false;
+		int32 counter = App::histories().unreadBadge();
+		bool muted = App::histories().unreadOnlyMuted();
 
 		style::color bg = muted ? st::counterMuteBG : st::counterBG;
         QIcon iconSmall;
@@ -752,9 +752,6 @@ void PsMainWindow::psUpdatedPosition() {
 void PsMainWindow::psCreateTrayIcon() {
     if (!noQtTrayIcon) {
         cSetSupportTray(QSystemTrayIcon::isSystemTrayAvailable());
-        if (!noTryUnity) {
-            useUnityCount = false;
-        }
         return;
     }
 
@@ -1240,22 +1237,30 @@ void psShowInFolder(const QString &name) {
 
 namespace PlatformSpecific {
 
-	Initializer::Initializer() {
-        QString cdesktop = QString(getenv("XDG_CURRENT_DESKTOP")).toLower();
-        noQtTrayIcon = (cdesktop == qstr("pantheon")) || (cdesktop == qstr("gnome"));
-        tryAppIndicator = (cdesktop == qstr("xfce"));
-        noTryUnity = (cdesktop != qstr("unity"));
-
-        if (noQtTrayIcon) cSetSupportTray(false);
-
-        DEBUG_LOG(("Loading libraries"));
-        setupGtk();
-        setupUnity();
+	void start() {
 	}
 
-	Initializer::~Initializer() {
+	void finish() {
 		delete _psEventFilter;
 		_psEventFilter = 0;
+	}
+
+	namespace ThirdParty {
+		void start() {
+			QString cdesktop = QString(getenv("XDG_CURRENT_DESKTOP")).toLower();
+			noQtTrayIcon = (cdesktop == qstr("pantheon")) || (cdesktop == qstr("gnome"));
+			tryAppIndicator = (cdesktop == qstr("xfce"));
+			noTryUnity = (cdesktop != qstr("unity"));
+
+			if (noQtTrayIcon) cSetSupportTray(false);
+
+			DEBUG_LOG(("Loading libraries"));
+			setupGtk();
+			setupUnity();
+		}
+
+		void finish() {
+		}
 	}
 
 }
@@ -1487,4 +1492,8 @@ bool linuxMoveFile(const char *from, const char *to) {
 	}
 
 	return true;
+}
+
+bool psLaunchMaps(const LocationCoords &coords) {
+	return false;
 }

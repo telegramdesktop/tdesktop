@@ -24,10 +24,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 
 namespace {
-	typedef QMap<int32, MTProtoSessionPtr> Sessions;
+	typedef QMap<int32, MTProtoSession*> Sessions;
 	Sessions sessions;
-	QVector<MTProtoSessionPtr> sessionsToKill;
-	MTProtoSessionPtr mainSession;
+	MTProtoSession *mainSession;
 
 	typedef QMap<mtpRequestId, int32> RequestsByDC; // holds dcWithShift for request to this dc or -dc for request to main dc
 	RequestsByDC requestsByDC;
@@ -39,7 +38,7 @@ namespace {
 	bool _started = false;
 
 	uint32 layer;
-	
+
 	typedef QMap<mtpRequestId, RPCResponseHandler> ParserMap;
 	ParserMap parserMap;
 	QMutex parserMapLock;
@@ -62,13 +61,16 @@ namespace {
 	typedef QMap<int32, DCAuthWaiters> AuthWaiters; // holds request ids waiting for auth import to specific dc
 	AuthWaiters authWaiters;
 
+	typedef OrderedSet<MTProtoConnection*> MTPQuittingConnections;
+	MTPQuittingConnections quittingConnections;
+
 	QMutex toClearLock;
 	RPCCallbackClears toClear;
 
 	RPCResponseHandler globalHandler;
 	MTPStateChangedHandler stateChangedHandler = 0;
 	MTPSessionResetHandler sessionResetHandler = 0;
-	_mtp_internal::RequestResender *resender = 0;
+	_mtp_internal::GlobalSlotCarrier *_globalSlotCarrier = 0;
 
 	void importDone(const MTPauth_Authorization &result, mtpRequestId req) {
 		QMutexLocker locker1(&requestByDCLock);
@@ -111,7 +113,7 @@ namespace {
 					}
 					DEBUG_LOG(("MTP Info: resending request %1 to dc %2 after import auth").arg(requestId).arg(k.value()));
 				}
-				if (MTProtoSessionPtr session = _mtp_internal::getSession(dcWithShift)) {
+				if (MTProtoSession *session = _mtp_internal::getSession(dcWithShift)) {
 					session->sendPrepared(j.value());
 				}
 			}
@@ -154,7 +156,7 @@ namespace {
 	bool onErrorDefault(mtpRequestId requestId, const RPCError &error) {
 		const QString &err(error.type());
 		int32 code = error.code();
-		if (!mtpIsFlood(error)) {
+		if (!mtpIsFlood(error) && err != qsl("AUTH_KEY_UNREGISTERED")) {
 			int breakpoint = 0;
 		}
 		bool badGuestDC = (code == 400) && (err == qsl("FILE_ID_INVALID"));
@@ -202,14 +204,14 @@ namespace {
 				}
 				req = i.value();
 			}
-			if (MTProtoSessionPtr session = _mtp_internal::getSession(newdcWithShift)) {
+			if (MTProtoSession *session = _mtp_internal::getSession(newdcWithShift)) {
 				_mtp_internal::registerRequest(requestId, (dcWithShift < 0) ? -newdcWithShift : newdcWithShift);
 				session->sendPrepared(req);
 			}
 			return true;
 		} else if (code < 0 || code >= 500 || (m = QRegularExpression("^FLOOD_WAIT_(\\d+)$").match(err)).hasMatch()) {
 			if (!requestId) return false;
-			
+
 			int32 secs = 1;
 			if (code < 0 || code >= 500) {
 				RequestsDelays::iterator i = requestsDelays.find(requestId);
@@ -230,7 +232,7 @@ namespace {
 			}
 			delayedRequests.insert(i, DelayedRequest(requestId, sendAt));
 
-			if (resender) resender->checkDelayed();
+			if (_globalSlotCarrier) _globalSlotCarrier->checkDelayed();
 
 			return true;
 		} else if (code == 401 || (badGuestDC && badGuestDCRequests.constFind(requestId) == badGuestDCRequests.cend())) {
@@ -281,7 +283,7 @@ namespace {
 			}
 			if (!dcWithShift) return false;
 
-			if (MTProtoSessionPtr session = _mtp_internal::getSession(dcWithShift < 0 ? (-dcWithShift) : dcWithShift)) {
+			if (MTProtoSession *session = _mtp_internal::getSession(dcWithShift < 0 ? (-dcWithShift) : dcWithShift)) {
 				req->needsLayer = true;
 				session->sendPrepared(req);
 			}
@@ -319,7 +321,7 @@ namespace {
 			if (!dcWithShift) return false;
 
 			if (!req->after) {
-				if (MTProtoSessionPtr session = _mtp_internal::getSession(dcWithShift < 0 ? (-dcWithShift) : dcWithShift)) {
+				if (MTProtoSession *session = _mtp_internal::getSession(dcWithShift < 0 ? (-dcWithShift) : dcWithShift)) {
 					req->needsLayer = true;
 					session->sendPrepared(req);
 				}
@@ -346,7 +348,7 @@ namespace {
 						delayedRequests.insert(i, DelayedRequest(requestId, i->second));
 					}
 
-					if (resender) resender->checkDelayed();
+					if (_globalSlotCarrier) _globalSlotCarrier->checkDelayed();
 				}
 			}
 			return true;
@@ -360,27 +362,24 @@ namespace {
 }
 
 namespace _mtp_internal {
-	MTProtoSessionPtr getSession(int32 dcWithShift) {
-		if (!_started) return MTProtoSessionPtr();
+	MTProtoSession *getSession(int32 dcWithShift) {
+		if (!_started) return 0;
 		if (!dcWithShift) return mainSession;
 		if (!(dcWithShift % _mtp_internal::dcShift)) {
 			dcWithShift += (mainSession->getDcWithShift() % _mtp_internal::dcShift);
 		}
-		
-		Sessions::const_iterator i = sessions.constFind(dcWithShift);
-		if (i != sessions.cend()) return *i;
 
-		MTProtoSessionPtr result(new MTProtoSession());
-		result->start(dcWithShift);
-		
-		sessions.insert(dcWithShift, result);
-		return result;
+		Sessions::const_iterator i = sessions.constFind(dcWithShift);
+		if (i == sessions.cend()) {
+			i = sessions.insert(dcWithShift, new MTProtoSession(dcWithShift));
+		}
+		return i.value();
 	}
 
 	bool paused() {
 		return _paused;
 	}
-	
+
 	void registerRequest(mtpRequestId requestId, int32 dcWithShift) {
 		{
 			QMutexLocker locker(&requestByDCLock);
@@ -531,7 +530,10 @@ namespace _mtp_internal {
 						return;
 					}
 				} else {
-					if (h.onDone) (*h.onDone)(requestId, from, end);
+					if (h.onDone) {
+//						t_assert(App::app() != 0);
+						(*h.onDone)(requestId, from, end);
+					}
 				}
 			} catch (Exception &e) {
 				if (!rpcErrorOccured(requestId, h, rpcClientError("RESPONSE_PARSE_FAILED", QString("exception text: ") + e.what()))) {
@@ -577,11 +579,11 @@ namespace _mtp_internal {
 		return true;
 	}
 
-	RequestResender::RequestResender() {
+	GlobalSlotCarrier::GlobalSlotCarrier() {
 		connect(&_timer, SIGNAL(timeout()), this, SLOT(checkDelayed()));
 	}
 
-	void RequestResender::checkDelayed() {
+	void GlobalSlotCarrier::checkDelayed() {
 		uint64 now = getms(true);
 		while (!delayedRequests.isEmpty() && now >= delayedRequests.front().second) {
 			mtpRequestId requestId = delayedRequests.front().first;
@@ -609,7 +611,7 @@ namespace _mtp_internal {
 				}
 				req = j.value();
 			}
-			if (MTProtoSessionPtr session = _mtp_internal::getSession(dcWithShift < 0 ? (-dcWithShift) : dcWithShift)) {
+			if (MTProtoSession *session = _mtp_internal::getSession(dcWithShift < 0 ? (-dcWithShift) : dcWithShift)) {
 				session->sendPrepared(req);
 			}
 		}
@@ -618,23 +620,47 @@ namespace _mtp_internal {
 			_timer.start(delayedRequests.front().second - now);
 		}
 	}
+
+	void GlobalSlotCarrier::connectionFinished(MTProtoConnection *connection) {
+		MTPQuittingConnections::iterator i = quittingConnections.find(connection);
+		if (i != quittingConnections.cend()) {
+			quittingConnections.erase(i);
+		}
+
+		connection->waitTillFinish();
+		delete connection;
+	}
+
+	GlobalSlotCarrier *globalSlotCarrier() {
+		return _globalSlotCarrier;
+	}
+
+	void queueQuittingConnection(MTProtoConnection *connection) {
+		quittingConnections.insert(connection);
+	}
+
 };
 
 namespace MTP {
 
-    void start() {
+	const uint32 cfg = 1 * _mtp_internal::dcShift; // send(MTPhelp_GetConfig(), MTP::cfg + dc) - for dc enum
+	const uint32 lgt = 2 * _mtp_internal::dcShift; // send(MTPauth_LogOut(), MTP::lgt + dc) - for logout of guest dcs enum
+	const uint32 dldStart = dld(0), dldEnd = dld(MTPDownloadSessionsCount - 1) + _mtp_internal::dcShift;
+	const uint32 uplStart = upl(0), uplEnd = upl(MTPUploadSessionsCount - 1) + _mtp_internal::dcShift;
+
+	void start() {
 		if (started()) return;
 
         unixtimeInit();
 
 		MTProtoDCMap &dcs(mtpDCMap());
 
-		mainSession = MTProtoSessionPtr(new MTProtoSession());
-		mainSession->start(mtpMainDC());
-		sessions[mainSession->getDcWithShift()] = mainSession;
+		_globalSlotCarrier = new _mtp_internal::GlobalSlotCarrier();
+
+		mainSession = new MTProtoSession(mtpMainDC());
+		sessions.insert(mainSession->getDcWithShift(), mainSession);
 
 		_started = true;
-		resender = new _mtp_internal::RequestResender();
 
 		if (mtpNeedConfig()) {
 			mtpConfigLoader()->load();
@@ -649,7 +675,7 @@ namespace MTP {
 		if (!_started) return;
 
 		for (Sessions::const_iterator i = sessions.cbegin(), e = sessions.cend(); i != e; ++i) {
-			(*i)->restart();
+			i.value()->restart();
 		}
 	}
 
@@ -658,8 +684,8 @@ namespace MTP {
 
 		dcMask %= _mtp_internal::dcShift;
 		for (Sessions::const_iterator i = sessions.cbegin(), e = sessions.cend(); i != e; ++i) {
-			if (((*i)->getDcWithShift() % int(_mtp_internal::dcShift)) == dcMask) {
-				(*i)->restart();
+			if ((i.value()->getDcWithShift() % int(_mtp_internal::dcShift)) == dcMask) {
+				i.value()->restart();
 			}
 		}
 	}
@@ -673,7 +699,7 @@ namespace MTP {
 		if (!_started) return;
 		_paused = false;
 		for (Sessions::const_iterator i = sessions.cbegin(), e = sessions.cend(); i != e; ++i) {
-			(*i)->unpaused();
+			i.value()->unpaused();
 		}
 	}
 
@@ -704,9 +730,9 @@ namespace MTP {
 		if (!(dc % _mtp_internal::dcShift)) {
 			dc += (mainSession->getDcWithShift() % _mtp_internal::dcShift);
 		}
-		
+
 		Sessions::const_iterator i = sessions.constFind(dc);
-		if (i != sessions.cend()) return (*i)->getState();
+		if (i != sessions.cend()) return i.value()->getState();
 
 		return MTProtoConnection::Disconnected;
 	}
@@ -720,18 +746,20 @@ namespace MTP {
 		}
 
 		Sessions::const_iterator i = sessions.constFind(dc);
-		if (i != sessions.cend()) return (*i)->transport();
+		if (i != sessions.cend()) return i.value()->transport();
 
 		return QString();
 	}
 
 	void ping() {
-		if (MTProtoSessionPtr session = _mtp_internal::getSession(0)) {
+		if (MTProtoSession *session = _mtp_internal::getSession(0)) {
 			session->ping();
 		}
 	}
 
 	void cancel(mtpRequestId requestId) {
+		if (!_started) return;
+
 		mtpMsgId msgId = 0;
 		requestsDelays.remove(requestId);
 		{
@@ -746,7 +774,7 @@ namespace MTP {
 			QMutexLocker locker(&requestByDCLock);
 			RequestsByDC::iterator i = requestsByDC.find(requestId);
 			if (i != requestsByDC.end()) {
-				if (MTProtoSessionPtr session = _mtp_internal::getSession(abs(i.value()))) {
+				if (MTProtoSession *session = _mtp_internal::getSession(abs(i.value()))) {
 					session->cancel(requestId, msgId);
 				}
 				requestsByDC.erase(i);
@@ -755,26 +783,25 @@ namespace MTP {
 		_mtp_internal::clearCallbacks(requestId);
 	}
 
-	void killSessionsDelayed() {
-		if (!sessionsToKill.isEmpty()) {
-			sessionsToKill.clear();
-		}
-	}
-
 	void killSession(int32 dc) {
 		Sessions::iterator i = sessions.find(dc);
-		if (i != sessions.end()) {
+		if (i != sessions.cend()) {
 			bool wasMain = (i.value() == mainSession);
 
 			i.value()->kill();
-			if (sessionsToKill.isEmpty()) QTimer::singleShot(0, killSessionsDelayed);
-			sessionsToKill.push_back(i.value());
+			i.value()->deleteLater();
 			sessions.erase(i);
 
 			if (wasMain) {
-				mainSession = MTProtoSessionPtr(new MTProtoSession());
-				mainSession->start(mtpMainDC());
-				sessions[mainSession->getDcWithShift()] = mainSession;
+				mainSession = new MTProtoSession(mtpMainDC());
+				int32 newdc = mainSession->getDcWithShift();
+				i = sessions.find(newdc);
+				if (i != sessions.cend()) {
+					i.value()->kill();
+					i.value()->deleteLater();
+					sessions.erase(i);
+				}
+				sessions.insert(newdc, mainSession);
 			}
 		}
 	}
@@ -793,27 +820,36 @@ namespace MTP {
 			QMutexLocker locker(&requestByDCLock);
 			RequestsByDC::iterator i = requestsByDC.find(requestId);
 			if (i != requestsByDC.end()) {
-				if (MTProtoSessionPtr session = _mtp_internal::getSession(abs(i.value()))) {
+				if (MTProtoSession *session = _mtp_internal::getSession(abs(i.value()))) {
 					return session->requestState(requestId);
 				}
 				return MTP::RequestConnecting;
 			}
 			return MTP::RequestSent;
 		}
-		if (MTProtoSessionPtr session = _mtp_internal::getSession(-requestId)) {
+		if (MTProtoSession *session = _mtp_internal::getSession(-requestId)) {
 			return session->requestState(0);
 		}
 		return MTP::RequestConnecting;
 	}
 
-	void stop() {
+	void finish() {
 		for (Sessions::iterator i = sessions.begin(), e = sessions.end(); i != e; ++i) {
 			i.value()->kill();
+			delete i.value();
 		}
 		sessions.clear();
-		mainSession = MTProtoSessionPtr();
-		delete resender;
-		resender = 0;
+		mainSession = nullptr;
+
+		for (MTPQuittingConnections::const_iterator i = quittingConnections.cbegin(), e = quittingConnections.cend(); i != e; ++i) {
+			i.key()->waitTillFinish();
+			delete i.key();
+		}
+		quittingConnections.clear();
+
+		delete _globalSlotCarrier;
+		_globalSlotCarrier = nullptr;
+
 		mtpDestroyConfigLoader();
 
 		_started = false;

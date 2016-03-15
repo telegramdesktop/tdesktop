@@ -35,6 +35,10 @@ uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
 
 // Base types compile-time check
 
+#ifdef TDESKTOP_CUSTOM_NULLPTR
+NullPointerClass nullptr;
+#endif
+
 namespace {
 	template <typename T, int N>
 	class _TypeSizeCheckerHelper {
@@ -267,6 +271,8 @@ namespace {
 namespace ThirdParty {
 
 	void start() {
+		PlatformSpecific::ThirdParty::start();
+
 		if (!RAND_status()) { // should be always inited in all modern OS
 			char buf[16];
 			memcpy(buf, &_msStart, 8);
@@ -303,6 +309,8 @@ namespace ThirdParty {
 
 		delete[] _sslLocks;
 		_sslLocks = 0;
+
+		PlatformSpecific::ThirdParty::finish();
 	}
 
 }

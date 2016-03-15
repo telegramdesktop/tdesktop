@@ -81,6 +81,7 @@ namespace App {
 	void feedChatAdmins(const MTPDupdateChatAdmins &d, bool emitPeerUpdated = true);
 	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d, bool emitPeerUpdated = true);
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m); // returns true if item found and it is not detached
+	void updateEditedMessage(const MTPDmessage &m);
 	void addSavedGif(DocumentData *doc);
 	void checkSavedGif(HistoryItem *item);
 	void feedMsgs(const QVector<MTPMessage> &msgs, NewMessageType type);
@@ -133,8 +134,7 @@ namespace App {
 	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation);
 	WebPageData *webPage(const WebPageId &webPage);
 	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill);
-	ImageLinkData *imageLink(const QString &imageLink);
-	ImageLinkData *imageLinkSet(const QString &imageLink, ImageLinkType type, const QString &url);
+	LocationData *location(const LocationCoords &coords);
 	void forgetMedia();
 
 	MTPPhoto photoFromUserPhoto(MTPint userId, MTPint date, const MTPUserProfilePhoto &photo);
@@ -144,16 +144,26 @@ namespace App {
 	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead);
 	History *historyLoaded(const PeerId &peer);
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId);
+	inline History *history(const PeerData *peer) {
+		return history(peer->id);
+	}
+	inline History *historyLoaded(const PeerData *peer) {
+		return historyLoaded(peer->id);
+	}
+	inline HistoryItem *histItemById(const ChannelData *channel, MsgId itemId) {
+		return histItemById(channel ? peerToChannel(channel->id) : 0, itemId);
+	}
 	inline HistoryItem *histItemById(const FullMsgId &msgId) {
 		return histItemById(msgId.channel, msgId.msg);
 	}
 	void historyRegItem(HistoryItem *item);
 	void historyItemDetached(HistoryItem *item);
 	void historyUnregItem(HistoryItem *item);
+	void historyUpdateDependent(HistoryItem *item);
 	void historyClearMsgs();
 	void historyClearItems();
-	void historyRegReply(HistoryReply *reply, HistoryItem *to);
-	void historyUnregReply(HistoryReply *reply, HistoryItem *to);
+	void historyRegDependency(HistoryItem *dependent, HistoryItem *dependency);
+	void historyUnregDependency(HistoryItem *dependent, HistoryItem *dependency);
 
 	void historyRegRandom(uint64 randomId, const FullMsgId &itemId);
 	void historyUnregRandom(uint64 randomId);
@@ -191,9 +201,15 @@ namespace App {
 
 	bool isValidPhone(QString phone);
 
+	enum LaunchState {
+		Launched = 0,
+		QuitRequested = 1,
+		QuitProcessed = 2,
+	};
 	void quit();
-	bool quiting();
-	void setQuiting();
+	bool quitting();
+	LaunchState launchState();
+	void setLaunchState(LaunchState state);
 
 	QImage readImage(QByteArray data, QByteArray *format = 0, bool opaque = true, bool *animated = 0);
 	QImage readImage(const QString &file, QByteArray *format = 0, bool opaque = true, bool *animated = 0, QByteArray *content = 0);

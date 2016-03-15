@@ -255,7 +255,7 @@ bool update() {
 				} else {
 					break;
 				}
-			} while (copyTries < 30);
+			} while (copyTries < 100);
 			if (!copyResult) {
 				writeLog(L"Error: failed to copy, asking to retry..");
 				WCHAR errMsg[2048];
@@ -456,7 +456,7 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 		ShellExecute(0, 0, (updateTo + L"Telegram.exe").c_str(), (L"-noupdate" + targs).c_str(), 0, SW_SHOWNORMAL);
 	}
 
-	writeLog(L"Executed Telegram.exe, closing log and quiting..");
+	writeLog(L"Executed Telegram.exe, closing log and quitting..");
 	closeLog();
 
 	return 0;

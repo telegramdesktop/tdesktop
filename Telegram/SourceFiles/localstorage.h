@@ -106,17 +106,16 @@ namespace Local {
 	int32 oldSettingsVersion();
 
 	struct MessageDraft {
-		MessageDraft(MsgId replyTo = 0, QString text = QString(), bool previewCancelled = false) : replyTo(replyTo), text(text), previewCancelled(previewCancelled) {
+		MessageDraft(MsgId msgId = 0, QString text = QString(), bool previewCancelled = false) : msgId(msgId), text(text), previewCancelled(previewCancelled) {
 		}
-		MsgId replyTo;
+		MsgId msgId;
 		QString text;
 		bool previewCancelled;
 	};
-	void writeDraft(const PeerId &peer, const MessageDraft &draft);
-	MessageDraft readDraft(const PeerId &peer);
-	void writeDraftPositions(const PeerId &peer, const MessageCursor &cur);
-	MessageCursor readDraftPositions(const PeerId &peer);
-	bool hasDraftPositions(const PeerId &peer);
+	void writeDrafts(const PeerId &peer, const MessageDraft &msgDraft, const MessageDraft &editDraft);
+	void readDraftsWithCursors(History *h);
+	void writeDraftCursors(const PeerId &peer, const MessageCursor &msgCursor, const MessageCursor &editCursor);
+	bool hasDraftCursors(const PeerId &peer);
 
 	void writeFileLocation(MediaKey location, const FileLocation &local);
 	FileLocation readFileLocation(MediaKey location, bool check = true);

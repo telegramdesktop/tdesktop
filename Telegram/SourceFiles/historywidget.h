@@ -108,13 +108,11 @@ public slots:
 	void onUpdateSelected();
 	void onParentGeometryChanged();
 
-	void openContextUrl();
 	void copyContextUrl();
 	void saveContextImage();
 	void copyContextImage();
 	void cancelContextDownload();
 	void showContextInFolder();
-	void openContextFile();
 	void saveContextFile();
 	void saveContextGif();
 	void copyContextText();
@@ -391,6 +389,20 @@ public:
 
 };
 
+class SilentToggle : public FlatCheckbox, public AbstractTooltipShower {
+public:
+
+	SilentToggle(QWidget *parent);
+	void mouseMoveEvent(QMouseEvent *e);
+	void mouseReleaseEvent(QMouseEvent *e);
+	void leaveEvent(QEvent *e);
+
+	// AbstractTooltipShower
+	virtual QString tooltipText() const;
+	virtual QPoint tooltipPos() const;
+
+};
+
 enum TextUpdateEventsFlags {
 	TextUpdateEventsSaveDraft  = 0x01,
 	TextUpdateEventsSendTyping = 0x02,
@@ -411,18 +423,18 @@ public:
 	void windowShown();
 	bool isActive() const;
 
-	void resizeEvent(QResizeEvent *e);
-	void keyPressEvent(QKeyEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void paintEvent(QPaintEvent *e);
-    void dragEnterEvent(QDragEnterEvent *e);
-	void dragLeaveEvent(QDragLeaveEvent *e);
-	void leaveEvent(QEvent *e);
-    void dropEvent(QDropEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void leaveToChildEvent(QEvent *e);
-	void contextMenuEvent(QContextMenuEvent *e);
+	void resizeEvent(QResizeEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+    void dragEnterEvent(QDragEnterEvent *e) override;
+	void dragLeaveEvent(QDragLeaveEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+    void dropEvent(QDropEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void leaveToChildEvent(QEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	void updateTopBarSelection();
 
@@ -501,13 +513,15 @@ public:
 
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
 	void itemRemoved(HistoryItem *item);
+	void itemEdited(HistoryItem *item);
 
 	void updateScrollColors();
 
 	MsgId replyToId() const;
-	void updateReplyTo(bool force = false);
+	void messageDataReceived(ChannelData *channel, MsgId msgId);
 	bool lastForceReplyReplied(const FullMsgId &replyTo = FullMsgId(NoChannel, -1)) const;
 	void cancelReply(bool lastKeyboardUsed = false);
+	void cancelEdit();
 	void updateForwarding(bool force = false);
 	void cancelForwarding(); // called by MainWidget
 
@@ -529,7 +543,7 @@ public:
 	void sendBotCommand(const QString &cmd, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd, bool specialGif);
 
-	bool eventFilter(QObject *obj, QEvent *e);
+	bool eventFilter(QObject *obj, QEvent *e) override;
 	void updateBotKeyboard(History *h = 0);
 
 	DragState getDragState(const QMimeData *d);
@@ -556,12 +570,12 @@ public:
 
 	bool contentOverlapped(const QRect &globalRect);
 
-	void grabStart() {
+	void grabStart() override {
 		_sideShadow.hide();
 		_inGrab = true;
 		resizeEvent(0);
 	}
-	void grabFinish() {
+	void grabFinish() override {
 		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_inGrab = false;
 		resizeEvent(0);
@@ -583,6 +597,10 @@ public:
 	void notify_clipStopperHidden(ClipStopperType type);
 	void notify_historyItemResized(const HistoryItem *item, bool scrollToIt);
 
+	void cmd_search();
+	void cmd_next_chat();
+	void cmd_previous_chat();
+
 	~HistoryWidget();
 
 signals:
@@ -594,7 +612,13 @@ public slots:
 
 	void onCancel();
 	void onReplyToMessage();
-	void onReplyForwardPreviewCancel();
+	void onEditMessage();
+	void onPinMessage();
+	void onUnpinMessage();
+	void onUnpinMessageSure();
+	void onPinnedHide();
+	void onCopyPostLink();
+	void onFieldBarCancel();
 
 	void onCancelSendAction();
 
@@ -607,9 +631,9 @@ public slots:
 	void peerUpdated(PeerData *data);
 	void onFullPeerUpdated(PeerData *data);
 
-	void onPhotoUploaded(const FullMsgId &msgId, const MTPInputFile &file);
-	void onDocumentUploaded(const FullMsgId &msgId, const MTPInputFile &file);
-	void onThumbDocumentUploaded(const FullMsgId &msgId, const MTPInputFile &file, const MTPInputFile &thumb);
+	void onPhotoUploaded(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
+	void onDocumentUploaded(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
+	void onThumbDocumentUploaded(const FullMsgId &msgId, bool silent, const MTPInputFile &file, const MTPInputFile &thumb);
 
 	void onPhotoProgress(const FullMsgId &msgId);
 	void onDocumentProgress(const FullMsgId &msgId);
@@ -631,7 +655,7 @@ public slots:
 	void onBotStart();
 	void onJoinChannel();
 	void onMuteUnmute();
-	void onBroadcastChange();
+	void onBroadcastSilentChange();
 
 	void onPhotoSelect();
 	void onDocumentSelect();
@@ -688,11 +712,36 @@ public slots:
 private:
 
 	MsgId _replyToId;
-	HistoryItem *_replyTo;
-	Text _replyToName, _replyToText;
+	Text _replyToName;
 	int32 _replyToNameVersion;
-	IconedButton _replyForwardPreviewCancel;
 	void updateReplyToName();
+
+	MsgId _editMsgId;
+
+	HistoryItem *_replyEditMsg;
+	Text _replyEditMsgText;
+
+	IconedButton _fieldBarCancel;
+	void updateReplyEditTexts(bool force = false);
+
+	struct PinnedBar {
+		PinnedBar(MsgId msgId, HistoryWidget *parent);
+
+		MsgId msgId;
+		HistoryItem *msg;
+		Text text;
+		IconedButton cancel;
+		PlainShadow shadow;
+	};
+	PinnedBar *_pinnedBar;
+	void updatePinnedBar(bool force = false);
+	bool pinnedMsgVisibilityUpdated();
+	void unpinDone(const MTPUpdates &updates);
+
+	class ReplyEditMessageDataCallback : public SharedCallback2<void, ChannelData*, MsgId> {
+	public:
+		void call(ChannelData *channel, MsgId msgId) const override;
+	};
 
 	void sendExistingDocument(DocumentData *doc, const QString &caption);
 	void sendExistingPhoto(PhotoData *photo, const QString &caption);
@@ -700,9 +749,22 @@ private:
 	void drawField(Painter &p);
 	void drawRecordButton(Painter &p);
 	void drawRecording(Painter &p);
+	void drawPinnedBar(Painter &p);
+
+	void updateMouseTracking();
+
+	mtpRequestId _saveEditMsgRequestId;
+	void saveEditMsg();
+	void saveEditMsgDone(History *history, const MTPUpdates &updates, mtpRequestId req);
+	bool saveEditMsgFail(History *history, const RPCError &error, mtpRequestId req);
 
 	DBIPeerReportSpamStatus _reportSpamStatus;
+	mtpRequestId _reportSpamSettingRequestId;
+	static const mtpRequestId ReportSpamRequestNeeded = -1;
 	void updateReportSpamStatus();
+	void requestReportSpamSetting();
+	void reportSpamSettingDone(const MTPPeerSettings &result, mtpRequestId req);
+	bool reportSpamSettingFail(const RPCError &error, mtpRequestId req);
 
 	QString _previewLinks;
 	WebPageData *_previewData;
@@ -720,9 +782,19 @@ private:
 	QList<MsgId> _replyReturns;
 
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
-	void updateListSize(int32 addToY = 0, bool initial = false, bool loadedDown = false, const HistoryItem *resizedItem = 0, bool scrollToIt = false);
 	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
+
+	enum ScrollChangeType {
+		ScrollChangeNone,
+		ScrollChangeAdd,
+		ScrollChangeOldHistoryHeight,
+	};
+	struct ScrollChange {
+		ScrollChangeType type;
+		int value;
+	};
+	void updateListSize(bool initial = false, bool loadedDown = false, const ScrollChange &change = { ScrollChangeNone, 0 }, const HistoryItem *resizedItem = 0, bool scrollToIt = false);
 
 	void saveGifDone(DocumentData *doc, const MTPBool &result);
 
@@ -746,7 +818,8 @@ private:
 	void savedGifsGot(const MTPmessages_SavedGifs &gifs);
 	bool savedGifsFailed(const RPCError &error);
 
-	void writeDraft(MsgId *replyTo = 0, const QString *text = 0, const MessageCursor *cursor = 0, bool *previewCancelled = 0);
+	void writeDrafts(HistoryDraft **msgDraft, HistoryEditDraft **editDraft);
+	void writeDrafts(History *history);
 	void setFieldText(const QString &text, int32 textUpdateEventsFlags = 0, bool clearUndoHistory = true);
 
 	QStringList getMediasFromMime(const QMimeData *d);
@@ -755,6 +828,7 @@ private:
 
 	bool readyToForward() const;
 	bool hasBroadcastToggle() const;
+	bool hasSilentToggle() const;
 
 	PeerData *_peer, *_clearPeer; // cache _peer in _clearPeer when showing clear history box
 	ChannelId _channel;
@@ -802,10 +876,11 @@ private:
 	EmojiButton _attachEmoji;
 	IconedButton _kbShow, _kbHide, _cmdStart;
 	FlatCheckbox _broadcast;
+	SilentToggle _silent;
 	bool _cmdStartShown;
 	MessageField _field;
 	Animation _a_record, _a_recording;
-	bool _recording, _inRecord, _inField, _inReply;
+	bool _recording, _inRecord, _inField, _inReplyEdit, _inPinnedMsg;
 	anim::ivalue a_recordingLevel;
 	int32 _recordingSamples;
 	anim::fvalue a_recordOver, a_recordDown;

@@ -98,15 +98,15 @@ ImagePtr channelDefPhoto(int32 index) {
 NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
 NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersPtr = UnknownNotifySettings, globalNotifyChatsPtr = UnknownNotifySettings;
 
-PeerData::PeerData(const PeerId &id) : id(id), lnk(new PeerLink(this))
+PeerData::PeerData(const PeerId &id) : id(id)
+, lnk(new PeerLink(this))
 , loaded(false)
 , colorIndex(peerColorIndex(id))
 , color(peerColor(colorIndex))
 , photo((isChat() || isMegagroup()) ? chatDefPhoto(colorIndex) : (isChannel() ? channelDefPhoto(colorIndex) : userDefPhoto(colorIndex)))
 , photoId(UnknownPeerPhotoId)
 , nameVersion(0)
-, notify(UnknownNotifySettings)
-{
+, notify(UnknownNotifySettings) {
 	if (!peerIsUser(id) && !peerIsChannel(id)) updateName(QString(), QString(), QString());
 }
 
@@ -263,7 +263,6 @@ void UserData::setBotInfoVersion(int32 version) {
 			Notify::botCommandsChanged(this);
 		}
 		botInfo->description.clear();
-		botInfo->shareText.clear();
 		botInfo->version = version;
 		botInfo->inited = false;
 	}
@@ -271,33 +270,15 @@ void UserData::setBotInfoVersion(int32 version) {
 
 void UserData::setBotInfo(const MTPBotInfo &info) {
 	switch (info.type()) {
-	case mtpc_botInfoEmpty:
-		if (botInfo) {
-			if (!botInfo->commands.isEmpty()) {
-				botInfo->commands.clear();
-				Notify::botCommandsChanged(this);
-			}
-			delete botInfo;
-			botInfo = 0;
-			Notify::userIsBotChanged(this);
-		}
-	break;
 	case mtpc_botInfo: {
 		const MTPDbotInfo &d(info.c_botInfo());
-		if (peerFromUser(d.vuser_id.v) != id) return;
-
-		if (botInfo) {
-			botInfo->version = d.vversion.v;
-		} else {
-			setBotInfoVersion(d.vversion.v);
-		}
+		if (peerFromUser(d.vuser_id.v) != id || !botInfo) return;
 
 		QString desc = qs(d.vdescription);
 		if (botInfo->description != desc) {
 			botInfo->description = desc;
 			botInfo->text = Text(st::msgMinWidth);
 		}
-		botInfo->shareText = qs(d.vshare_text);
 
 		const QVector<MTPBotCommand> &v(d.vcommands.c_vector().v);
 		botInfo->commands.reserve(v.size());
@@ -688,11 +669,12 @@ void PhotoCancelLink::onClick(Qt::MouseButton button) const {
 	if (!data->date) return;
 
 	if (data->uploading()) {
-		HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0);
-		if (HistoryMessage *msg = item->toHistoryMessage()) {
-			if (msg->getMedia() && msg->getMedia()->type() == MediaTypePhoto && static_cast<HistoryPhoto*>(msg->getMedia())->photo() == data) {
-				App::contextItem(item);
-				App::main()->deleteLayer(-2);
+		if (HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0)) {
+			if (HistoryMessage *msg = item->toHistoryMessage()) {
+				if (msg->getMedia() && msg->getMedia()->type() == MediaTypePhoto && static_cast<HistoryPhoto*>(msg->getMedia())->photo() == data) {
+					App::contextItem(item);
+					App::main()->deleteLayer(-2);
+				}
 			}
 		}
 	} else {
@@ -878,14 +860,14 @@ void DocumentOpenLink::doOpen(DocumentData *data, ActionOnLoad action) {
 			if (App::main()) App::main()->mediaMarkRead(data);
 		} else if (data->size < MediaViewImageSizeLimit) {
 			if (!data->data().isEmpty() && playAnimation) {
-				if (action == ActionOnLoadPlayInline) {
+				if (action == ActionOnLoadPlayInline && item->getMedia()) {
 					item->getMedia()->playInline(item);
 				} else {
 					App::wnd()->showDocument(data, item);
 				}
 			} else if (location.accessEnable()) {
-				if ((App::hoveredLinkItem() || App::contextItem()) && (data->isAnimation() || QImageReader(location.name()).canRead())) {
-					if (action == ActionOnLoadPlayInline) {
+				if (item && (data->isAnimation() || QImageReader(location.name()).canRead())) {
+					if (action == ActionOnLoadPlayInline && item->getMedia()) {
 						item->getMedia()->playInline(item);
 					} else {
 						App::wnd()->showDocument(data, item);
@@ -964,11 +946,12 @@ void DocumentCancelLink::onClick(Qt::MouseButton button) const {
 	if (!data->date) return;
 
 	if (data->uploading()) {
-		HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0);
-		if (HistoryMessage *msg = item->toHistoryMessage()) {
-			if (msg->getMedia() && msg->getMedia()->getDocument() == data) {
-				App::contextItem(item);
-				App::main()->deleteLayer(-2);
+		if (HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0)) {
+			if (HistoryMessage *msg = item->toHistoryMessage()) {
+				if (msg->getMedia() && msg->getMedia()->getDocument() == data) {
+					App::contextItem(item);
+					App::main()->deleteLayer(-2);
+				}
 			}
 		}
 	} else {
@@ -1160,7 +1143,7 @@ void DocumentData::performActionOnLoad() {
 		}
 	} else if (playAnimation) {
 		if (loaded()) {
-			if (_actionOnLoad == ActionOnLoadPlayInline) {
+			if (_actionOnLoad == ActionOnLoadPlayInline && item->getMedia()) {
 				item->getMedia()->playInline(item);
 			} else {
 				App::wnd()->showDocument(this, item);
@@ -1180,7 +1163,7 @@ void DocumentData::performActionOnLoad() {
 				if (App::main()) App::main()->mediaMarkRead(this);
 			} else if (loc.accessEnable()) {
 				if (showImage && QImageReader(loc.name()).canRead()) {
-					if (_actionOnLoad == ActionOnLoadPlayInline) {
+					if (_actionOnLoad == ActionOnLoadPlayInline && item->getMedia()) {
 						item->getMedia()->playInline(item);
 					} else {
 						App::wnd()->showDocument(this, item);
@@ -1201,7 +1184,7 @@ bool DocumentData::loaded(bool check) const {
 	if (loading() && _loader->done()) {
 		if (_loader->fileType() == mtpc_storage_fileUnknown) {
 			_loader->deleteLater();
-			_loader->rpcInvalidate();
+			_loader->rpcClear();
 			_loader = CancelledMtpFileLoader;
 		} else {
 			DocumentData *that = const_cast<DocumentData*>(this);
@@ -1212,7 +1195,7 @@ bool DocumentData::loaded(bool check) const {
 			}
 
 			_loader->deleteLater();
-			_loader->rpcInvalidate();
+			_loader->rpcClear();
 			_loader = 0;
 		}
 		notifyLayoutChanged();
@@ -1294,7 +1277,7 @@ void DocumentData::cancel() {
 	if (l) {
 		l->cancel();
 		l->deleteLater();
-		l->rpcInvalidate();
+		l->rpcClear();
 
 		notifyLayoutChanged();
 	}
@@ -1391,6 +1374,12 @@ void DocumentData::recountIsImage() {
 
 DocumentData::~DocumentData() {
 	delete _additional;
+
+	if (loading()) {
+		_loader->deleteLater();
+		_loader->stop();
+		_loader = 0;
+	}
 }
 
 WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill) : id(id)

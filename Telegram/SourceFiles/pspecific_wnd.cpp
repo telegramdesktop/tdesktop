@@ -620,6 +620,7 @@ namespace {
 			case WM_CLOSE:
 				App::wnd()->close();
 			break;
+
 			case WM_NCHITTEST: {
 				int32 xPos = GET_X_LPARAM(lParam), yPos = GET_Y_LPARAM(lParam);
 				switch (i) {
@@ -1132,8 +1133,8 @@ static HICON _qt_createHIcon(const QIcon &icon, int xSize, int ySize) {
 }
 
 void PsMainWindow::psUpdateCounter() {
-	int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted);
-	bool muted = cIncludeMuted() ? (App::histories().unreadMuted >= counter) : false;
+	int32 counter = App::histories().unreadBadge();
+	bool muted = App::histories().unreadOnlyMuted();
 
 	style::color bg = muted ? st::counterMuteBG : st::counterBG;
 	QIcon iconSmall, iconBig;
@@ -2158,15 +2159,23 @@ void psShowInFolder(const QString &name) {
 
 namespace PlatformSpecific {
 
-	Initializer::Initializer() {
+	void start() {
 	}
 
-	Initializer::~Initializer() {
+	void finish() {
 		delete _psEventFilter;
 		_psEventFilter = 0;
 
 		if (ToastImageSavedFlag) {
 			psDeleteDir(cWorkingDir() + qsl("tdata/temp"));
+		}
+	}
+
+	namespace ThirdParty {
+		void start() {
+		}
+
+		void finish() {
 		}
 	}
 
@@ -3649,4 +3658,8 @@ bool InitToastManager() {
 	}
 	QDir().mkpath(cWorkingDir() + qsl("tdata/temp"));
 	return true;
+}
+
+bool psLaunchMaps(const LocationCoords &coords) {
+	return QDesktopServices::openUrl(qsl("bingmaps:?lvl=16&collection=point.%1_%2_Point").arg(coords.lat).arg(coords.lon));
 }

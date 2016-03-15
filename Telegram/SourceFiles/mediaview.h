@@ -107,7 +107,9 @@ private:
 	void loadBack();
 
 	void userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mtpRequestId req);
-	void filesLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req);
+
+	void deletePhotosDone(const MTPVector<MTPlong> &result);
+	bool deletePhotosFail(const RPCError &error);
 
 	void updateHeader();
 	void snapXY();

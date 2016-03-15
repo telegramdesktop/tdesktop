@@ -292,7 +292,7 @@ namespace SignalHandlers {
 
 namespace Logs {
 
-	Initializer::Initializer() {
+	void start() {
 		t_assert(LogsData == 0);
 
 		if (!Sandbox::CheckBetaVersionDir()) {
@@ -378,7 +378,7 @@ namespace Logs {
 		LOG(("Logs started"));
 	}
 
-	Initializer::~Initializer() {
+	void finish() {
 		delete LogsData;
 		LogsData = 0;
 
@@ -607,7 +607,7 @@ void _moveOldDataFiles(const QString &wasDir) {
 namespace SignalHandlers {
 
 	QString CrashDumpPath;
-	FILE *CrashDumpFile = 0;
+	FILE *CrashDumpFile = nullptr;
 	int CrashDumpFileNo = 0;
 	char LaunchedDateTimeStr[32] = { 0 };
 	char LaunchedBinaryName[256] = { 0 };
@@ -739,8 +739,8 @@ namespace SignalHandlers {
 		if (!LoggingCrashHeaderWritten) {
 			LoggingCrashHeaderWritten = true;
 			const AnnotationsMap c_ProcessAnnotations(ProcessAnnotations);
-			for (AnnotationsMap::const_iterator i = c_ProcessAnnotations.begin(), e = c_ProcessAnnotations.end(); i != e; ++i) {
-				dump() << i->first.c_str() << ": " << i->second.c_str() << "\n";
+			for (const auto &i : c_ProcessAnnotations) {
+				dump() << i.first.c_str() << ": " << i.second.c_str() << "\n";
 			}
 			psWriteDump();
 			dump() << "\n";
@@ -835,6 +835,7 @@ namespace SignalHandlers {
 	}
 
 	bool SetSignalHandlers = true;
+	bool CrashLogged = false;
 #if !defined Q_OS_MAC || defined MAC_USE_BREAKPAD
 	google_breakpad::ExceptionHandler* BreakpadExceptionHandler = 0;
 
@@ -846,6 +847,9 @@ namespace SignalHandlers {
 	bool DumpCallback(const google_breakpad::MinidumpDescriptor &md, void *context, bool success)
 #endif
 	{
+		if (CrashLogged) return success;
+		CrashLogged = true;
+
 #ifdef Q_OS_WIN
         BreakpadDumpPathW = _minidump_id;
         Handler(-1);
@@ -938,9 +942,9 @@ namespace SignalHandlers {
 		if (FILE *f = fopen(QFile::encodeName(CrashDumpPath).constData(), "rb")) {
 #endif
 			QByteArray lastdump;
-			char buffer[64 * 1024] = { 0 };
-			int32 read = 0;
-			while ((read = fread(buffer, 1, 64 * 1024, f)) > 0) {
+			char buffer[256 * 1024] = { 0 };
+			int32 read = fread(buffer, 1, 256 * 1024, f);
+			if (read > 0) {
 				lastdump.append(buffer, read);
 			}
 			fclose(f);
@@ -999,11 +1003,21 @@ namespace SignalHandlers {
 		FinishBreakpad();
 		if (CrashDumpFile) {
 			fclose(CrashDumpFile);
+			CrashDumpFile = nullptr;
+
 #ifdef Q_OS_WIN
 			_wunlink(CrashDumpPath.toStdWString().c_str());
 #else
 			unlink(CrashDumpPath.toUtf8().constData());
 #endif
+		}
+	}
+
+	void setSelfUsername(const QString &username) {
+		if (username.trimmed().isEmpty()) {
+			ProcessAnnotations.erase("Username");
+		} else {
+			ProcessAnnotations["Username"] = username.toUtf8().constData();
 		}
 	}
 

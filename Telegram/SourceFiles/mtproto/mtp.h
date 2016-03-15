@@ -24,7 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mtproto/mtpFileLoader.h"
 
 namespace _mtp_internal {
-	MTProtoSessionPtr getSession(int32 dc = 0); // 0 - current set dc
+	MTProtoSession *getSession(int32 dc); // 0 - current set dc
 
 	bool paused();
 
@@ -49,39 +49,44 @@ namespace _mtp_internal {
 		return rpcErrorOccured(requestId, handler.onFail, err);
 	}
 
-	class RequestResender : public QObject {
+	// used for:
+	// - resending requests by timer which were postponed by flood delay
+	// - destroying MTProtoConnections whose thread has finished
+	class GlobalSlotCarrier : public QObject {
 		Q_OBJECT
 
 	public:
 
-		RequestResender();
+		GlobalSlotCarrier();
 
 	public slots:
 
 		void checkDelayed();
+		void connectionFinished(MTProtoConnection *connection);
 
 	private:
 
 		SingleTimer _timer;
 	};
+
+	GlobalSlotCarrier *globalSlotCarrier();
+	void queueQuittingConnection(MTProtoConnection *connection);
 };
 
 namespace MTP {
 
-	static const uint32 cfg = 1 * _mtp_internal::dcShift; // send(MTPhelp_GetConfig(), MTP::cfg + dc) - for dc enum
-	static const uint32 lgt = 2 * _mtp_internal::dcShift; // send(MTPauth_LogOut(), MTP::lgt + dc) - for logout of guest dcs enum
-	static const uint32 dld[MTPDownloadSessionsCount] = { // send(req, callbacks, MTP::dld[i] + dc) - for download
-		0x10 * _mtp_internal::dcShift,
-		0x11 * _mtp_internal::dcShift,
-		0x12 * _mtp_internal::dcShift,
-		0x13 * _mtp_internal::dcShift,
+	extern const uint32 cfg; // send(MTPhelp_GetConfig(), MTP::cfg + dc) - for dc enum
+	extern const uint32 lgt; // send(MTPauth_LogOut(), MTP::lgt + dc) - for logout of guest dcs enum
+	inline uint32 dld(int32 index) { // send(req, callbacks, MTP::dld(i) + dc) - for download
+		t_assert(index >= 0 && index < MTPDownloadSessionsCount);
+		return (0x10 + index) * _mtp_internal::dcShift;
 	};
-	static const uint32 upl[MTPUploadSessionsCount] = { // send(req, callbacks, MTP::upl[i] + dc) - for upload
-		0x20 * _mtp_internal::dcShift,
-		0x21 * _mtp_internal::dcShift,
-		0x22 * _mtp_internal::dcShift,
-		0x23 * _mtp_internal::dcShift,
+	inline uint32 upl(int32 index) { // send(req, callbacks, MTP::upl(i) + dc) - for upload
+		t_assert(index >= 0 && index < MTPUploadSessionsCount);
+		return (0x20 + index) * _mtp_internal::dcShift;
 	};
+	extern const uint32 dldStart, dldEnd; // dc >= dldStart && dc < dldEnd => dc in dld
+	extern const uint32 uplStart, uplEnd; // dc >= uplStart && dc < uplEnd => dc in upl
 
 	void start();
 	bool started();
@@ -101,7 +106,7 @@ namespace MTP {
 
 	template <typename TRequest>
 	inline mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), int32 dc = 0, uint64 msCanWait = 0, mtpRequestId after = 0) {
-		if (MTProtoSessionPtr session = _mtp_internal::getSession(dc)) {
+		if (MTProtoSession *session = _mtp_internal::getSession(dc)) {
 			return session->send(request, callbacks, msCanWait, true, !dc, after);
 		}
 		return 0;
@@ -111,7 +116,7 @@ namespace MTP {
 		return send(request, RPCResponseHandler(onDone, onFail), dc, msCanWait, after);
 	}
 	inline void sendAnything(int32 dc = 0, uint64 msCanWait = 0) {
-		if (MTProtoSessionPtr session = _mtp_internal::getSession(dc)) {
+		if (MTProtoSession *session = _mtp_internal::getSession(dc)) {
 			return session->sendAnything(msCanWait);
 		}
 	}
@@ -119,7 +124,7 @@ namespace MTP {
 	void cancel(mtpRequestId req);
 	void killSession(int32 dc);
 	void stopSession(int32 dc);
-	
+
 	enum {
 		RequestSent = 0,
 		RequestConnecting = 1,
@@ -127,9 +132,7 @@ namespace MTP {
 	};
 	int32 state(mtpRequestId req); // < 0 means waiting for such count of ms
 
-	void defOnError(const RPCError &err);
-
-	void stop();
+	void finish();
 
 	void authed(int32 uid);
 	int32 authedId();

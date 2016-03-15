@@ -25,8 +25,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 
 int main(int argc, char *argv[]) {
-	int result = 0;
-
 	settingsParseArgs(argc, argv);
 	if (cLaunchMode() == LaunchModeFixPrevious) {
 		return psFixPrevious();
@@ -36,34 +34,35 @@ int main(int argc, char *argv[]) {
 		return showCrashReportWindow(QFileInfo(cStartUrl()).absoluteFilePath());
 	}
 
-	Logs::Initializer _logs;
+	// both are finished in Application::closeApplication
+	Logs::start(); // must be started before PlatformSpecific is started
+	PlatformSpecific::start(); // must be started before QApplication is created
+
+	//QByteArray args[] = { "-style=0" }; // prepare fake args to disable QT_STYLE_OVERRIDE env variable
+	//static const int a_cnt = sizeof(args) / sizeof(args[0]);
+	//int a_argc = a_cnt + 1;
+	//char *a_argv[a_cnt + 1] = { argv[0], args[0].data() };
+
+	int result = 0;
 	{
-		PlatformSpecific::Initializer _ps;
-
-		QByteArray args[] = { "-style=0" }; // prepare fake args to disable QT_STYLE_OVERRIDE env variable
-		static const int a_cnt = sizeof(args) / sizeof(args[0]);
-		int a_argc = a_cnt + 1;
-		char *a_argv[a_cnt + 1] = { argv[0], args[0].data() };
-
-		Application app(a_argc, a_argv);
-		if (!App::quiting()) {
-			result = app.exec();
-		}
+		Application app(argc, argv);
+		result = app.exec();
 	}
 
 	DEBUG_LOG(("Telegram finished, result: %1").arg(result));
 
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if (cRestartingUpdate()) {
 		DEBUG_LOG(("Application Info: executing updater to install update.."));
 		psExecUpdater();
 	} else
-	#endif
+#endif
 	if (cRestarting()) {
 		DEBUG_LOG(("Application Info: executing Telegram, because of restart.."));
 		psExecTelegram();
 	}
 
 	SignalHandlers::finish();
-	return result;
+	PlatformSpecific::finish();
+	Logs::finish();
 }

@@ -30,7 +30,6 @@ class Application : public QApplication {
 public:
 
 	Application(int &argc, char **argv);
-	~Application();
 
 // Single instance application
 public slots:
@@ -41,10 +40,12 @@ public slots:
 	void socketWritten(qint64 bytes);
 	void socketReading();
 	void newInstanceConnected();
-	void closeApplication();
 
 	void readClients();
 	void removeClients();
+
+	void startApplication(); // will be done in exec()
+	void closeApplication(); // will be done in aboutToQuit()
 
 private:
 
@@ -191,7 +192,7 @@ public slots:
 
 	void doMtpUnpause();
 
-	void photoUpdated(const FullMsgId &msgId, const MTPInputFile &file);
+	void photoUpdated(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
 
 	void onSwitchDebugMode();
 	void onSwitchTestMode();

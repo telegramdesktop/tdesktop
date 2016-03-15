@@ -1,4 +1,5 @@
 @echo OFF
+setlocal
 
 FOR /F "tokens=1,2* delims= " %%i in (Version) do set "%%i=%%j"
 

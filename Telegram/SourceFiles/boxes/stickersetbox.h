@@ -29,7 +29,9 @@ public:
 
 	StickerSetInner(const MTPInputStickerSet &set);
 
-	void init();
+	void mousePressEvent(QMouseEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+	void mouseReleaseEvent(QMouseEvent *e);
 
 	void paintEvent(QPaintEvent *e);
 
@@ -42,9 +44,11 @@ public:
 	void setScrollBottom(int32 bottom);
 	void install();
 
-	QString getTitle() const;
-
 	~StickerSetInner();
+
+public slots:
+
+	void onPreview();
 
 signals:
 
@@ -52,6 +56,8 @@ signals:
 	void installed(uint64 id);
 
 private:
+
+	int32 stickerFromGlobalPos(const QPoint &p) const;
 
 	void gotSet(const MTPmessages_StickerSet &set);
 	bool failedSet(const RPCError &error);
@@ -70,6 +76,9 @@ private:
 	MTPInputStickerSet _input;
 
 	mtpRequestId _installRequest;
+
+	QTimer _previewTimer;
+	int32 _previewShown;
 };
 
 class StickerSetBox : public ScrollableBox, public RPCSender {

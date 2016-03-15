@@ -236,7 +236,7 @@ public:
 	}
 
 	virtual void stop() {
-		rpcInvalidate();
+		rpcClear();
 	}
 
 	~mtpFileLoader();

@@ -71,7 +71,7 @@ public:
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void repaintItem(const HistoryItem *msg);
 	void itemRemoved(HistoryItem *item);
-	
+
 	void getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const;
 	void clearSelectedItems(bool onlyTextSelection = false);
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
@@ -86,12 +86,10 @@ public slots:
 
 	void onUpdateSelected();
 
-	void openContextUrl();
 	void copyContextUrl();
 	void cancelContextDownload();
 	void showContextInFolder();
 	void saveContextFile();
-	void openContextFile();
 
 	void goToMessage();
 	void deleteMessage();
@@ -148,7 +146,7 @@ private:
 	bool _reversed;
 	History *_migrated, *_history;
 	ChannelId _channel;
-	
+
 	bool _selMode;
 	uint32 itemSelectedValue(int32 index) const;
 
@@ -247,9 +245,9 @@ public:
 
 	void clear();
 
-	void resizeEvent(QResizeEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void contextMenuEvent(QContextMenuEvent *e);
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	void scrollBy(int32 add);
 	void scrollReset();
@@ -277,29 +275,33 @@ public:
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void itemRemoved(HistoryItem *item);
-	
+
 	QPoint clampMousePosition(QPoint point);
 
 	void checkSelectingScroll(QPoint point);
 	void noSelectingScroll();
 
 	bool touchScroll(const QPoint &delta);
-	
+
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete);
 
 	void updateScrollColors();
 
 	void updateAfterDrag();
 
-	void grabStart() {
+	void grabStart() override {
 		_sideShadow.hide();
 		_inGrab = true;
 		resizeEvent(0);
 	}
-	void grabFinish() {
+	void grabFinish() override {
 		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_inGrab = false;
 		resizeEvent(0);
+	}
+	void rpcClear() override {
+		_inner.rpcClear();
+		RPCSender::rpcClear();
 	}
 
 	void ui_repaintHistoryItem(const HistoryItem *item);

@@ -36,6 +36,28 @@ T *exchange(T *&ptr) {
 struct NullType {
 };
 
+#if __cplusplus < 199711L
+#define TDESKTOP_CUSTOM_NULLPTR
+#endif
+
+#ifdef TDESKTOP_CUSTOM_NULLPTR
+class NullPointerClass {
+public:
+	template <typename T>
+	operator T*() const {
+		return 0;
+	}
+	template <typename C, typename T>
+	operator T C::*() const {
+		return 0;
+	}
+
+private:
+	void operator&() const;
+};
+extern NullPointerClass nullptr;
+#endif
+
 template <typename T>
 class OrderedSet : public QMap<T, NullType> {
 public:
@@ -301,66 +323,6 @@ protected:
 QString translitRusEng(const QString &rus);
 QString rusKeyboardLayoutSwitch(const QString &from);
 
-enum DataBlockId {
-	dbiKey                  = 0x00,
-	dbiUser                 = 0x01,
-	dbiDcOptionOld          = 0x02,
-	dbiMaxGroupCount        = 0x03,
-	dbiMutePeer             = 0x04,
-	dbiSendKey              = 0x05,
-	dbiAutoStart            = 0x06,
-	dbiStartMinimized       = 0x07,
-	dbiSoundNotify          = 0x08,
-	dbiWorkMode             = 0x09,
-	dbiSeenTrayTooltip      = 0x0a,
-	dbiDesktopNotify        = 0x0b,
-	dbiAutoUpdate           = 0x0c,
-	dbiLastUpdateCheck      = 0x0d,
-	dbiWindowPosition       = 0x0e,
-	dbiConnectionType       = 0x0f,
-// 0x10 reserved
-	dbiDefaultAttach        = 0x11,
-	dbiCatsAndDogs          = 0x12,
-	dbiReplaceEmojis        = 0x13,
-	dbiAskDownloadPath      = 0x14,
-	dbiDownloadPathOld      = 0x15,
-	dbiScale                = 0x16,
-	dbiEmojiTabOld          = 0x17,
-	dbiRecentEmojisOld      = 0x18,
-	dbiLoggedPhoneNumber    = 0x19,
-	dbiMutedPeers           = 0x1a,
-// 0x1b reserved
-	dbiNotifyView           = 0x1c,
-	dbiSendToMenu           = 0x1d,
-	dbiCompressPastedImage  = 0x1e,
-	dbiLang                 = 0x1f,
-	dbiLangFile             = 0x20,
-	dbiTileBackground       = 0x21,
-	dbiAutoLock             = 0x22,
-	dbiDialogLastPath       = 0x23,
-	dbiRecentEmojis         = 0x24,
-	dbiEmojiVariants        = 0x25,
-	dbiRecentStickers       = 0x26,
-	dbiDcOption             = 0x27,
-	dbiTryIPv6              = 0x28,
-	dbiSongVolume           = 0x29,
-	dbiWindowsNotifications = 0x30,
-	dbiIncludeMuted         = 0x31,
-	dbiMaxMegaGroupCount    = 0x32,
-	dbiDownloadPath         = 0x33,
-	dbiAutoDownload         = 0x34,
-	dbiSavedGifsLimit       = 0x35,
-	dbiShowingSavedGifs     = 0x36,
-	dbiAutoPlay             = 0x37,
-
-	dbiEncryptedWithSalt    = 333,
-	dbiEncrypted            = 444,
-
-	// 500-600 reserved
-
-	dbiVersion              = 666,
-};
-
 enum DBISendKey {
 	dbiskEnter = 0,
 	dbiskCtrlEnter = 1,
@@ -435,10 +397,12 @@ enum DBIPlatform {
 };
 
 enum DBIPeerReportSpamStatus {
-	dbiprsNoButton,
-	dbiprsUnknown,
-	dbiprsShowButton,
-	dbiprsReportSent,
+	dbiprsNoButton   = 0, // hidden, but not in the cloud settings yet
+	dbiprsUnknown    = 1, // contacts not loaded yet
+	dbiprsShowButton = 2, // show report spam button, each show peer request setting from cloud
+	dbiprsReportSent = 3, // report sent, but the report spam panel is not hidden yet
+	dbiprsHidden     = 4, // hidden in the cloud or not needed (bots, contacts, etc), no more requests
+	dbiprsRequesting = 5, // requesting the cloud setting right now
 };
 
 typedef enum {
@@ -530,6 +494,42 @@ static int32 FullArcLength = 360 * 16;
 static int32 QuarterArcLength = (FullArcLength / 4);
 static int32 MinArcLength = (FullArcLength / 360);
 static int32 AlmostFullArcLength = (FullArcLength - MinArcLength);
+
+template <typename T1, typename T2>
+class RefPairImplementation {
+public:
+	template <typename T3, typename T4>
+	const RefPairImplementation &operator=(const RefPairImplementation<T3, T4> &other) const {
+		_first = other._first;
+		_second = other._second;
+		return *this;
+	}
+
+	template <typename T3, typename T4>
+	const RefPairImplementation &operator=(const QPair<T3, T4> &other) const {
+		_first = other.first;
+		_second = other.second;
+		return *this;
+	}
+
+private:
+	RefPairImplementation(T1 &first, T2 &second) : _first(first), _second(second) {
+	}
+	RefPairImplementation(const RefPairImplementation &other);
+
+	template <typename T3, typename T4>
+	friend RefPairImplementation<T3, T4> RefPairCreator(T3 &first, T4 &second);
+
+	T1 &_first;
+	T2 &_second;
+};
+
+template <typename T1, typename T2>
+inline RefPairImplementation<T1, T2> RefPairCreator(T1 &first, T2 &second) {
+	return RefPairImplementation<T1, T2>(first, second);
+}
+
+#define RefPair(Type1, Name1, Type2, Name2) Type1 Name1; Type2 Name2; RefPairCreator(Name1, Name2)
 
 template <typename I>
 inline void destroyImplementation(I *&ptr) {
@@ -725,6 +725,10 @@ public:
 	const Type *Get() const {
 		return static_cast<const Type*>(_dataptr(_meta()->offsets[Type::Index()]));
 	}
+	template <typename Type>
+	bool Is() const {
+		return (_meta()->offsets[Type::Index()] >= 0);
+	}
 
 private:
 	static const InterfacesMetadata *ZeroInterfacesMetadata;
@@ -750,6 +754,15 @@ private:
 		std::swap(_data, other._data);
 	}
 
+};
+
+template <typename R, typename A1, typename A2>
+class SharedCallback2 {
+public:
+	virtual R call(A1 channel, A2 msgId) const = 0;
+	virtual ~SharedCallback2() {
+	}
+	typedef QSharedPointer<SharedCallback2<R, A1, A2> > Ptr;
 };
 
 template <typename R>

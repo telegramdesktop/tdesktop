@@ -108,6 +108,7 @@ SOURCES += \
     ./SourceFiles/mainwidget.cpp \
     ./SourceFiles/settings.cpp \
     ./SourceFiles/settingswidget.cpp \
+	./SourceFiles/shortcuts.cpp \
     ./SourceFiles/structs.cpp \
     ./SourceFiles/sysbuttons.cpp \
     ./SourceFiles/title.cpp \
@@ -197,6 +198,7 @@ HEADERS += \
     ./SourceFiles/mainwidget.h \
     ./SourceFiles/settings.h \
     ./SourceFiles/settingswidget.h \
+	./SourceFiles/shortcuts.h \
     ./SourceFiles/structs.h \
     ./SourceFiles/style.h \
     ./SourceFiles/sysbuttons.h \
@@ -288,10 +290,10 @@ CONFIG(release, debug|release) {
     QMAKE_CXXFLAGS_RELEASE -= -O2
     QMAKE_CXXFLAGS_RELEASE += -Ofast -flto -fno-strict-aliasing -g
     QMAKE_LFLAGS_RELEASE -= -O1
-    QMAKE_LFLAGS_RELEASE += -Ofast -flto -g
+    QMAKE_LFLAGS_RELEASE += -Ofast -flto -g -rdynamic
 }
 CONFIG(debug, debug|release) {
-	QMAKE_LFLAGS_DEBUG += -g
+	QMAKE_LFLAGS_DEBUG += -g -rdynamic
 }
 
 INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.5.1/QtGui\
@@ -319,7 +321,7 @@ INCLUDEPATH += "/usr/include/atk-1.0"
 INCLUDEPATH += "/usr/include/dee-1.0"
 INCLUDEPATH += "/usr/include/libdbusmenu-glib-0.4"
 
-LIBS += -lcrypto -lssl -ldl -llzma -lopenal -lavformat -lavcodec -lswresample -lswscale -lavutil -lopus -lva
+LIBS += -ldl -llzma -lopenal -lavformat -lavcodec -lswresample -lswscale -lavutil -lopus -lva
 LIBS += ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libcomposeplatforminputcontextplugin.a \
         ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libibusplatforminputcontextplugin.a \
         ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.a

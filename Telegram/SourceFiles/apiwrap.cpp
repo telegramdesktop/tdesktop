@@ -29,89 +29,65 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "localstorage.h"
 
-ApiWrap::ApiWrap(QObject *parent) : QObject(parent) {
+ApiWrap::ApiWrap(QObject *parent) : QObject(parent)
+, _messageDataResolveDelayed(new SingleDelayedCall(this, "resolveMessageDatas")) {
 	App::initBackground();
 
-	connect(&_replyToTimer, SIGNAL(timeout()), this, SLOT(resolveReplyTo()));
 	connect(&_webPagesTimer, SIGNAL(timeout()), this, SLOT(resolveWebPages()));
 }
 
 void ApiWrap::init() {
 }
 
-void ApiWrap::itemRemoved(HistoryItem *item) {
-	if (HistoryReply *reply = item->toHistoryReply()) {
-		ChannelData *channel = reply->history()->peer->asChannel();
-		ReplyToRequests *requests(replyToRequests(channel, true));
-		if (requests) {
-			ReplyToRequests::iterator i = requests->find(reply->replyToId());
-			if (i != requests->cend()) {
-				for (QList<HistoryReply*>::iterator j = i->replies.begin(); j != i->replies.end();) {
-					if ((*j) == reply) {
-						j = i->replies.erase(j);
-					} else {
-						++j;
-					}
-				}
-				if (i->replies.isEmpty()) {
-					requests->erase(i);
-				}
-			}
-			if (channel && requests->isEmpty()) {
-				_channelReplyToRequests.remove(channel);
-			}
-		}
-	}
+void ApiWrap::requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback *callback) {
+	MessageDataRequest::CallbackPtr pcallback(callback);
+	MessageDataRequest &req(channel ? _channelMessageDataRequests[channel][msgId] : _messageDataRequests[msgId]);
+	req.callbacks.append(pcallback);
+	if (!req.req) _messageDataResolveDelayed->call();
 }
 
-void ApiWrap::requestReplyTo(HistoryReply *reply, ChannelData *channel, MsgId id) {
-	ReplyToRequest &req(channel ? _channelReplyToRequests[channel][id] : _replyToRequests[id]);
-	req.replies.append(reply);
-	if (!req.req) _replyToTimer.start(1);
-}
-
-ApiWrap::MessageIds ApiWrap::collectMessageIds(const ReplyToRequests &requests) {
+ApiWrap::MessageIds ApiWrap::collectMessageIds(const MessageDataRequests &requests) {
 	MessageIds result;
 	result.reserve(requests.size());
-	for (ReplyToRequests::const_iterator i = requests.cbegin(), e = requests.cend(); i != e; ++i) {
+	for (MessageDataRequests::const_iterator i = requests.cbegin(), e = requests.cend(); i != e; ++i) {
 		if (i.value().req > 0) continue;
 		result.push_back(MTP_int(i.key()));
 	}
 	return result;
 }
 
-ApiWrap::ReplyToRequests *ApiWrap::replyToRequests(ChannelData *channel, bool onlyExisting) {
+ApiWrap::MessageDataRequests *ApiWrap::messageDataRequests(ChannelData *channel, bool onlyExisting) {
 	if (channel) {
-		ChannelReplyToRequests::iterator i = _channelReplyToRequests.find(channel);
-		if (i == _channelReplyToRequests.cend()) {
+		ChannelMessageDataRequests::iterator i = _channelMessageDataRequests.find(channel);
+		if (i == _channelMessageDataRequests.cend()) {
 			if (onlyExisting) return 0;
-			i = _channelReplyToRequests.insert(channel, ReplyToRequests());
+			i = _channelMessageDataRequests.insert(channel, MessageDataRequests());
 		}
 		return &i.value();
 	}
-	return &_replyToRequests;
+	return &_messageDataRequests;
 }
 
-void ApiWrap::resolveReplyTo() {
-	if (_replyToRequests.isEmpty() && _channelReplyToRequests.isEmpty()) return;
+void ApiWrap::resolveMessageDatas() {
+	if (_messageDataRequests.isEmpty() && _channelMessageDataRequests.isEmpty()) return;
 
-	MessageIds ids = collectMessageIds(_replyToRequests);
+	MessageIds ids = collectMessageIds(_messageDataRequests);
 	if (!ids.isEmpty()) {
-		mtpRequestId req = MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotReplyTo, (ChannelData*)0), RPCFailHandlerPtr(), 0, 5);
-		for (ReplyToRequests::iterator i = _replyToRequests.begin(); i != _replyToRequests.cend(); ++i) {
+		mtpRequestId req = MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotMessageDatas, (ChannelData*)nullptr), RPCFailHandlerPtr(), 0, 5);
+		for (MessageDataRequests::iterator i = _messageDataRequests.begin(); i != _messageDataRequests.cend(); ++i) {
 			if (i.value().req > 0) continue;
 			i.value().req = req;
 		}
 	}
-	for (ChannelReplyToRequests::iterator j = _channelReplyToRequests.begin(); j != _channelReplyToRequests.cend();) {
+	for (ChannelMessageDataRequests::iterator j = _channelMessageDataRequests.begin(); j != _channelMessageDataRequests.cend();) {
 		if (j->isEmpty()) {
-			j = _channelReplyToRequests.erase(j);
+			j = _channelMessageDataRequests.erase(j);
 			continue;
 		}
 		MessageIds ids = collectMessageIds(j.value());
 		if (!ids.isEmpty()) {
-			mtpRequestId req = MTP::send(MTPchannels_GetMessages(j.key()->inputChannel, MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotReplyTo, j.key()), RPCFailHandlerPtr(), 0, 5);
-			for (ReplyToRequests::iterator i = j->begin(); i != j->cend(); ++i) {
+			mtpRequestId req = MTP::send(MTPchannels_GetMessages(j.key()->inputChannel, MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotMessageDatas, j.key()), RPCFailHandlerPtr(), 0, 5);
+			for (MessageDataRequests::iterator i = j->begin(); i != j->cend(); ++i) {
 				if (i.value().req > 0) continue;
 				i.value().req = req;
 			}
@@ -120,7 +96,7 @@ void ApiWrap::resolveReplyTo() {
 	}
 }
 
-void ApiWrap::gotReplyTo(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId req) {
+void ApiWrap::gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId req) {
 	switch (msgs.type()) {
 	case mtpc_messages_messages: {
 		const MTPDmessages_messages &d(msgs.c_messages_messages());
@@ -141,10 +117,10 @@ void ApiWrap::gotReplyTo(ChannelData *channel, const MTPmessages_Messages &msgs,
 		if (channel) {
 			channel->ptsReceived(d.vpts.v);
 		} else {
-			LOG(("App Error: received messages.channelMessages when no channel was passed! (ApiWrap::gotReplyTo)"));
+			LOG(("App Error: received messages.channelMessages when no channel was passed! (ApiWrap::gotDependencyItem)"));
 		}
 		if (d.has_collapsed()) { // should not be returned
-			LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (ApiWrap::gotReplyTo)"));
+			LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (ApiWrap::gotDependencyItem)"));
 		}
 
 		App::feedUsers(d.vusers);
@@ -152,16 +128,12 @@ void ApiWrap::gotReplyTo(ChannelData *channel, const MTPmessages_Messages &msgs,
 		App::feedMsgs(d.vmessages, NewMessageExisting);
 	} break;
 	}
-	ReplyToRequests *requests(replyToRequests(channel, true));
+	MessageDataRequests *requests(messageDataRequests(channel, true));
 	if (requests) {
-		for (ReplyToRequests::iterator i = requests->begin(); i != requests->cend();) {
+		for (MessageDataRequests::iterator i = requests->begin(); i != requests->cend();) {
 			if (i.value().req == req) {
-				for (QList<HistoryReply*>::const_iterator j = i.value().replies.cbegin(), e = i.value().replies.cend(); j != e; ++j) {
-					if (*j) {
-						(*j)->updateReplyTo(true);
-					} else {
-						App::main()->updateReplyTo();
-					}
+				for (MessageDataRequest::Callbacks::const_iterator j = i.value().callbacks.cbegin(), e = i.value().callbacks.cend(); j != e; ++j) {
+					(*j)->call(channel, i.key());
 				}
 				i = requests->erase(i);
 			} else {
@@ -169,7 +141,7 @@ void ApiWrap::gotReplyTo(ChannelData *channel, const MTPmessages_Messages &msgs,
 			}
 		}
 		if (channel && requests->isEmpty()) {
-			_channelReplyToRequests.remove(channel);
+			_channelMessageDataRequests.remove(channel);
 		}
 	}
 }
@@ -273,7 +245,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 						if (!h->isEmpty()) {
 							h->clear(true);
 						}
-						if (!hto->dialogs.isEmpty() && !h->dialogs.isEmpty()) {
+						if (hto->inChatList() && h->inChatList()) {
 							App::removeDialog(h);
 						}
 					}
@@ -317,6 +289,13 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 				h->asChannelHistory()->unreadCountAll = f.vunread_count.v;
 			}
 		}
+		if (channel->isMegagroup()) {
+			if (f.has_pinned_msg_id()) {
+				channel->mgInfo->pinnedMsgId = f.vpinned_msg_id.v;
+			} else {
+				channel->mgInfo->pinnedMsgId = 0;
+			}
+		}
 		channel->fullUpdated();
 
 		App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
@@ -344,12 +323,21 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestId req) {
 	const MTPDuserFull &d(result.c_userFull());
 	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser), false);
-	App::feedPhoto(d.vprofile_photo);
+	if (d.has_profile_photo()) {
+		App::feedPhoto(d.vprofile_photo);
+	}
 	App::feedUserLink(MTP_int(peerToUser(peer->id)), d.vlink.c_contacts_link().vmy_link, d.vlink.c_contacts_link().vforeign_link, false);
-	App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), d.vnotify_settings);
+	if (App::main()) {
+		App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), d.vnotify_settings);
+	}
 
-	peer->asUser()->setBotInfo(d.vbot_info);
-	peer->asUser()->blocked = mtpIsTrue(d.vblocked) ? UserIsBlocked : UserIsNotBlocked;
+	if (d.has_bot_info()) {
+		peer->asUser()->setBotInfo(d.vbot_info);
+	} else {
+		peer->asUser()->setBotInfoVersion(-1);
+	}
+	peer->asUser()->blocked = d.is_blocked() ? UserIsBlocked : UserIsNotBlocked;
+	peer->asUser()->about = d.has_about() ? qs(d.vabout) : QString();
 
 	if (req) {
 		QMap<PeerData*, mtpRequestId>::iterator i = _fullPeerRequests.find(peer);
@@ -419,13 +407,13 @@ void ApiWrap::requestLastParticipants(ChannelData *peer, bool fromStart) {
 			return;
 		}
 	}
-	mtpRequestId req = MTP::send(MTPchannels_GetParticipants(peer->inputChannel, MTP_channelParticipantsRecent(), MTP_int(fromStart ? 0 : peer->mgInfo->lastParticipants.size()), MTP_int(cMaxGroupCount())), rpcDone(&ApiWrap::lastParticipantsDone, peer), rpcFail(&ApiWrap::lastParticipantsFail, peer));
+	mtpRequestId req = MTP::send(MTPchannels_GetParticipants(peer->inputChannel, MTP_channelParticipantsRecent(), MTP_int(fromStart ? 0 : peer->mgInfo->lastParticipants.size()), MTP_int(Global::ChatSizeMax())), rpcDone(&ApiWrap::lastParticipantsDone, peer), rpcFail(&ApiWrap::lastParticipantsFail, peer));
 	_participantsRequests.insert(peer, fromStart ? req : -req);
 }
 
 void ApiWrap::requestBots(ChannelData *peer) {
 	if (!peer || !peer->isMegagroup() || _botsRequests.contains(peer)) return;
-	_botsRequests.insert(peer, MTP::send(MTPchannels_GetParticipants(peer->inputChannel, MTP_channelParticipantsBots(), MTP_int(0), MTP_int(cMaxGroupCount())), rpcDone(&ApiWrap::lastParticipantsDone, peer), rpcFail(&ApiWrap::lastParticipantsFail, peer)));
+	_botsRequests.insert(peer, MTP::send(MTPchannels_GetParticipants(peer->inputChannel, MTP_channelParticipantsBots(), MTP_int(0), MTP_int(Global::ChatSizeMax())), rpcDone(&ApiWrap::lastParticipantsDone, peer), rpcFail(&ApiWrap::lastParticipantsFail, peer)));
 }
 
 void ApiWrap::gotChat(PeerData *peer, const MTPmessages_Chats &result) {
@@ -524,7 +512,7 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 		UserData *u = App::user(userId);
 		if (bots) {
 			if (u->botInfo) {
-				peer->mgInfo->bots.insert(u, true);
+				peer->mgInfo->bots.insert(u);
 				botStatus = 2;// (botStatus > 0/* || !i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
 				if (!u->botInfo->inited) {
 					needBotsInfos = true;
@@ -536,9 +524,9 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 		} else {
 			if (peer->mgInfo->lastParticipants.indexOf(u) < 0) {
 				peer->mgInfo->lastParticipants.push_back(u);
-				if (admin) peer->mgInfo->lastAdmins.insert(u, true);
+				if (admin) peer->mgInfo->lastAdmins.insert(u);
 				if (u->botInfo) {
-					peer->mgInfo->bots.insert(u, true);
+					peer->mgInfo->bots.insert(u);
 					if (peer->mgInfo->botStatus != 0 && peer->mgInfo->botStatus < 2) {
 						peer->mgInfo->botStatus = 2;
 					}
@@ -645,14 +633,22 @@ void ApiWrap::kickParticipantDone(KickRequest kick, const MTPUpdates &result, mt
 		int32 i = kick.first->asChannel()->mgInfo->lastParticipants.indexOf(kick.second);
 		if (i >= 0) {
 			kick.first->asChannel()->mgInfo->lastParticipants.removeAt(i);
-			kick.first->asChannel()->mgInfo->lastAdmins.remove(kick.second);
 		}
-		kick.first->asChannel()->mgInfo->bots.remove(kick.second);
 		if (kick.first->asChannel()->count > 1) {
-			kick.first->asChannel()->count--;
+			--kick.first->asChannel()->count;
 		} else {
 			kick.first->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
 			kick.first->asChannel()->mgInfo->lastParticipantsCount = 0;
+		}
+		if (kick.first->asChannel()->mgInfo->lastAdmins.contains(kick.second)) {
+			kick.first->asChannel()->mgInfo->lastAdmins.remove(kick.second);
+			if (kick.first->asChannel()->adminsCount > 1) {
+				--kick.first->asChannel()->adminsCount;
+			}
+		}
+		kick.first->asChannel()->mgInfo->bots.remove(kick.second);
+		if (kick.first->asChannel()->mgInfo->bots.isEmpty() && kick.first->asChannel()->mgInfo->botStatus > 0) {
+			kick.first->asChannel()->mgInfo->botStatus = -1;
 		}
 	}
 	emit fullPeerUpdated(kick.first);

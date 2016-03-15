@@ -556,8 +556,71 @@ namespace {
 		lskSavedGifs             = 0x0f, // no data
 	};
 
+	enum {
+		dbiKey = 0x00,
+		dbiUser = 0x01,
+		dbiDcOptionOld = 0x02,
+		dbiChatSizeMax = 0x03,
+		dbiMutePeer = 0x04,
+		dbiSendKey = 0x05,
+		dbiAutoStart = 0x06,
+		dbiStartMinimized = 0x07,
+		dbiSoundNotify = 0x08,
+		dbiWorkMode = 0x09,
+		dbiSeenTrayTooltip = 0x0a,
+		dbiDesktopNotify = 0x0b,
+		dbiAutoUpdate = 0x0c,
+		dbiLastUpdateCheck = 0x0d,
+		dbiWindowPosition = 0x0e,
+		dbiConnectionType = 0x0f,
+		// 0x10 reserved
+		dbiDefaultAttach = 0x11,
+		dbiCatsAndDogs = 0x12,
+		dbiReplaceEmojis = 0x13,
+		dbiAskDownloadPath = 0x14,
+		dbiDownloadPathOld = 0x15,
+		dbiScale = 0x16,
+		dbiEmojiTabOld = 0x17,
+		dbiRecentEmojisOld = 0x18,
+		dbiLoggedPhoneNumber = 0x19,
+		dbiMutedPeers = 0x1a,
+		// 0x1b reserved
+		dbiNotifyView = 0x1c,
+		dbiSendToMenu = 0x1d,
+		dbiCompressPastedImage = 0x1e,
+		dbiLang = 0x1f,
+		dbiLangFile = 0x20,
+		dbiTileBackground = 0x21,
+		dbiAutoLock = 0x22,
+		dbiDialogLastPath = 0x23,
+		dbiRecentEmojis = 0x24,
+		dbiEmojiVariants = 0x25,
+		dbiRecentStickers = 0x26,
+		dbiDcOption = 0x27,
+		dbiTryIPv6 = 0x28,
+		dbiSongVolume = 0x29,
+		dbiWindowsNotifications = 0x30,
+		dbiIncludeMuted = 0x31,
+		dbiMegagroupSizeMax = 0x32,
+		dbiDownloadPath = 0x33,
+		dbiAutoDownload = 0x34,
+		dbiSavedGifsLimit = 0x35,
+		dbiShowingSavedGifs = 0x36,
+		dbiAutoPlay = 0x37,
+		dbiAdaptiveForWide = 0x38,
+		dbiHiddenPinnedMessages = 0x39,
+
+		dbiEncryptedWithSalt = 333,
+		dbiEncrypted = 444,
+
+		// 500-600 reserved
+
+		dbiVersion = 666,
+	};
+
+
 	typedef QMap<PeerId, FileKey> DraftsMap;
-	DraftsMap _draftsMap, _draftsPositionsMap;
+	DraftsMap _draftsMap, _draftCursorsMap;
 	typedef QMap<PeerId, bool> DraftsNotReadMap;
 	DraftsNotReadMap _draftsNotReadMap;
 
@@ -822,12 +885,12 @@ namespace {
 			if (_dcOpts) _dcOpts->insert(dcIdWithShift, mtpDcOption(dcIdWithShift % _mtp_internal::dcShift, flags, ip.toUtf8().constData(), port));
 		} break;
 
-		case dbiMaxGroupCount: {
+		case dbiChatSizeMax: {
 			qint32 maxSize;
 			stream >> maxSize;
 			if (!_checkStreamStatus(stream)) return false;
 
-			cSetMaxGroupCount(maxSize);
+			Global::SetChatSizeMax(maxSize);
 		} break;
 
 		case dbiSavedGifsLimit: {
@@ -835,15 +898,15 @@ namespace {
 			stream >> limit;
 			if (!_checkStreamStatus(stream)) return false;
 
-			cSetSavedGifsLimit(limit);
+			Global::SetSavedGifsLimit(limit);
 		} break;
 
-		case dbiMaxMegaGroupCount: {
+		case dbiMegagroupSizeMax: {
 			qint32 maxSize;
 			stream >> maxSize;
 			if (!_checkStreamStatus(stream)) return false;
 
-			cSetMaxMegaGroupCount(maxSize);
+			Global::SetMegagroupSizeMax(maxSize);
 		} break;
 
 		case dbiUser: {
@@ -1121,6 +1184,14 @@ namespace {
 			}
 		} break;
 
+		case dbiAdaptiveForWide: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			Global::SetAdaptiveForWide(v == 1);
+		} break;
+
 		case dbiAutoLock: {
 			qint32 v;
 			stream >> v;
@@ -1256,6 +1327,15 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			cSetEmojiVariants(v);
+		} break;
+
+
+		case dbiHiddenPinnedMessages: {
+			Global::HiddenPinnedMessagesMap v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			Global::SetHiddenPinnedMessages(v);
 		} break;
 
 		case dbiDialogLastPath: {
@@ -1502,10 +1582,14 @@ namespace {
 		size += sizeof(quint32) + sizeof(qint32) + (cRecentStickersPreload().isEmpty() ? cGetRecentStickers().size() : cRecentStickersPreload().size()) * (sizeof(uint64) + sizeof(ushort));
 		size += sizeof(quint32) + _stringSize(cDialogLastPath());
 		size += sizeof(quint32) + 3 * sizeof(qint32);
+		if (!Global::HiddenPinnedMessages().isEmpty()) {
+			size += sizeof(quint32) + sizeof(qint32) + Global::HiddenPinnedMessages().size() * (sizeof(PeerId) + sizeof(MsgId));
+		}
 
 		EncryptedDescriptor data(size);
 		data.stream << quint32(dbiSendKey) << qint32(cCtrlEnter() ? dbiskCtrlEnter : dbiskEnter);
 		data.stream << quint32(dbiTileBackground) << qint32(cTileBackground() ? 1 : 0);
+		data.stream << quint32(dbiAdaptiveForWide) << qint32(Global::AdaptiveForWide() ? 1 : 0);
 		data.stream << quint32(dbiAutoLock) << qint32(cAutoLock());
 		data.stream << quint32(dbiReplaceEmojis) << qint32(cReplaceEmojis() ? 1 : 0);
 		data.stream << quint32(dbiDefaultAttach) << qint32(cDefaultAttach());
@@ -1543,6 +1627,9 @@ namespace {
 				}
 			}
 			data.stream << quint32(dbiRecentStickers) << v;
+		}
+		if (!Global::HiddenPinnedMessages().isEmpty()) {
+			data.stream << quint32(dbiHiddenPinnedMessages) << Global::HiddenPinnedMessages();
 		}
 
 		FileWriteDescriptor file(_userSettingsKey);
@@ -1663,7 +1750,7 @@ namespace {
 		}
 		LOG(("App Info: reading encrypted map.."));
 
-		DraftsMap draftsMap, draftsPositionsMap;
+		DraftsMap draftsMap, draftCursorsMap;
 		DraftsNotReadMap draftsNotReadMap;
 		StorageMap imagesMap, stickerImagesMap, audiosMap;
 		qint64 storageImagesSize = 0, storageStickersSize = 0, storageAudiosSize = 0;
@@ -1692,7 +1779,7 @@ namespace {
 					FileKey key;
 					quint64 p;
 					map.stream >> key >> p;
-					draftsPositionsMap.insert(p, key);
+					draftCursorsMap.insert(p, key);
 				}
 			} break;
 			case lskImages: {
@@ -1772,7 +1859,7 @@ namespace {
 		}
 
 		_draftsMap = draftsMap;
-		_draftsPositionsMap = draftsPositionsMap;
+		_draftCursorsMap = draftCursorsMap;
 		_draftsNotReadMap = draftsNotReadMap;
 
 		_imagesMap = imagesMap;
@@ -1851,7 +1938,7 @@ namespace {
 
 		uint32 mapSize = 0;
 		if (!_draftsMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _draftsMap.size() * sizeof(quint64) * 2;
-		if (!_draftsPositionsMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _draftsPositionsMap.size() * sizeof(quint64) * 2;
+		if (!_draftCursorsMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _draftCursorsMap.size() * sizeof(quint64) * 2;
 		if (!_imagesMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _imagesMap.size() * (sizeof(quint64) * 3 + sizeof(qint32));
 		if (!_stickerImagesMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _stickerImagesMap.size() * (sizeof(quint64) * 3 + sizeof(qint32));
 		if (!_audiosMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _audiosMap.size() * (sizeof(quint64) * 3 + sizeof(qint32));
@@ -1871,9 +1958,9 @@ namespace {
 				mapData.stream << quint64(i.value()) << quint64(i.key());
 			}
 		}
-		if (!_draftsPositionsMap.isEmpty()) {
-			mapData.stream << quint32(lskDraftPosition) << quint32(_draftsPositionsMap.size());
-			for (DraftsMap::const_iterator i = _draftsPositionsMap.cbegin(), e = _draftsPositionsMap.cend(); i != e; ++i) {
+		if (!_draftCursorsMap.isEmpty()) {
+			mapData.stream << quint32(lskDraftPosition) << quint32(_draftCursorsMap.size());
+			for (DraftsMap::const_iterator i = _draftCursorsMap.cbegin(), e = _draftCursorsMap.cend(); i != e; ++i) {
 				mapData.stream << quint64(i.value()) << quint64(i.key());
 			}
 		}
@@ -2124,9 +2211,9 @@ namespace Local {
 		size += sizeof(quint32) + sizeof(qint32) * 6;
 
 		EncryptedDescriptor data(size);
-		data.stream << quint32(dbiMaxGroupCount) << qint32(cMaxGroupCount());
-		data.stream << quint32(dbiMaxMegaGroupCount) << qint32(cMaxMegaGroupCount());
-		data.stream << quint32(dbiSavedGifsLimit) << qint32(cSavedGifsLimit());
+		data.stream << quint32(dbiChatSizeMax) << qint32(Global::ChatSizeMax());
+		data.stream << quint32(dbiMegagroupSizeMax) << qint32(Global::MegagroupSizeMax());
+		data.stream << quint32(dbiSavedGifsLimit) << qint32(Global::SavedGifsLimit());
 		data.stream << quint32(dbiAutoStart) << qint32(cAutoStart());
 		data.stream << quint32(dbiStartMinimized) << qint32(cStartMinimized());
 		data.stream << quint32(dbiSendToMenu) << qint32(cSendToMenu());
@@ -2171,7 +2258,7 @@ namespace Local {
 
 		_passKeySalt.clear(); // reset passcode, local key
 		_draftsMap.clear();
-		_draftsPositionsMap.clear();
+		_draftCursorsMap.clear();
 		_fileLocations.clear();
 		_fileLocationPairs.clear();
 		_fileLocationAliases.clear();
@@ -2228,10 +2315,10 @@ namespace Local {
 		return _oldSettingsVersion;
 	}
 
-	void writeDraft(const PeerId &peer, const MessageDraft &draft) {
+	void writeDrafts(const PeerId &peer, const MessageDraft &msgDraft, const MessageDraft &editDraft) {
 		if (!_working()) return;
 
-		if (draft.replyTo <= 0 && draft.text.isEmpty()) {
+		if (msgDraft.msgId <= 0 && msgDraft.text.isEmpty() && editDraft.msgId <= 0) {
 			DraftsMap::iterator i = _draftsMap.find(peer);
 			if (i != _draftsMap.cend()) {
 				clearKey(i.value());
@@ -2248,8 +2335,12 @@ namespace Local {
 				_mapChanged = true;
 				_writeMap(WriteMapFast);
 			}
-			EncryptedDescriptor data(sizeof(quint64) + _stringSize(draft.text) + sizeof(qint32));
-			data.stream << quint64(peer) << draft.text << qint32(draft.replyTo) << qint32(draft.previewCancelled ? 1 : 0);
+
+			EncryptedDescriptor data(sizeof(quint64) + _stringSize(msgDraft.text) + 2 * sizeof(qint32) + _stringSize(editDraft.text) + 2 * sizeof(qint32));
+			data.stream << quint64(peer);
+			data.stream << msgDraft.text << qint32(msgDraft.msgId) << qint32(msgDraft.previewCancelled ? 1 : 0);
+			data.stream << editDraft.text << qint32(editDraft.msgId) << qint32(editDraft.previewCancelled ? 1 : 0);
+
 			FileWriteDescriptor file(i.value());
 			file.writeEncrypted(data);
 
@@ -2257,75 +2348,123 @@ namespace Local {
 		}
 	}
 
-	MessageDraft readDraft(const PeerId &peer) {
-		if (!_draftsNotReadMap.remove(peer)) return MessageDraft();
+	void clearDraftCursors(const PeerId &peer) {
+		DraftsMap::iterator i = _draftCursorsMap.find(peer);
+		if (i != _draftCursorsMap.cend()) {
+			clearKey(i.value());
+			_draftCursorsMap.erase(i);
+			_mapChanged = true;
+			_writeMap();
+		}
+	}
+
+	void _readDraftCursors(const PeerId &peer, MessageCursor &msgCursor, MessageCursor &editCursor) {
+		DraftsMap::iterator j = _draftCursorsMap.find(peer);
+		if (j == _draftCursorsMap.cend()) {
+			return;
+		}
+
+		FileReadDescriptor draft;
+		if (!readEncryptedFile(draft, j.value())) {
+			clearDraftCursors(peer);
+			return;
+		}
+		quint64 draftPeer;
+		qint32 msgPosition = 0, msgAnchor = 0, msgScroll = QFIXED_MAX;
+		qint32 editPosition = 0, editAnchor = 0, editScroll = QFIXED_MAX;
+		draft.stream >> draftPeer >> msgPosition >> msgAnchor >> msgScroll;
+		if (!draft.stream.atEnd()) {
+			draft.stream >> editPosition >> editAnchor >> editScroll;
+		}
+
+		if (draftPeer != peer) {
+			clearDraftCursors(peer);
+			return;
+		}
+
+		msgCursor = MessageCursor(msgPosition, msgAnchor, msgScroll);
+		editCursor = MessageCursor(editPosition, editAnchor, editScroll);
+	}
+
+	void readDraftsWithCursors(History *h) {
+		PeerId peer = h->peer->id;
+		if (!_draftsNotReadMap.remove(peer)) {
+			clearDraftCursors(peer);
+			return;
+		}
 
 		DraftsMap::iterator j = _draftsMap.find(peer);
 		if (j == _draftsMap.cend()) {
-			return MessageDraft();
+			clearDraftCursors(peer);
+			return;
 		}
 		FileReadDescriptor draft;
 		if (!readEncryptedFile(draft, j.value())) {
 			clearKey(j.value());
 			_draftsMap.erase(j);
-			return MessageDraft();
+			clearDraftCursors(peer);
+			return;
 		}
 
-		quint64 draftPeer;
-		QString draftText;
-		qint32 draftReplyTo = 0, draftPreviewCancelled = 0;
-		draft.stream >> draftPeer >> draftText;
-		if (draft.version >= 7021) draft.stream >> draftReplyTo;
-		if (draft.version >= 8001) draft.stream >> draftPreviewCancelled;
-		return (draftPeer == peer) ? MessageDraft(MsgId(draftReplyTo), draftText, (draftPreviewCancelled == 1)) : MessageDraft();
+		quint64 draftPeer = 0;
+		QString msgText, editText;
+		qint32 msgReplyTo = 0, msgPreviewCancelled = 0, editMsgId = 0, editPreviewCancelled = 0;
+		draft.stream >> draftPeer >> msgText;
+		if (draft.version >= 7021) {
+			draft.stream >> msgReplyTo;
+			if (draft.version >= 8001) {
+				draft.stream >> msgPreviewCancelled;
+				if (!draft.stream.atEnd()) {
+					draft.stream >> editText >> editMsgId >> editPreviewCancelled;
+				}
+			}
+		}
+		if (draftPeer != peer) {
+			clearKey(j.value());
+			_draftsMap.erase(j);
+			clearDraftCursors(peer);
+			return;
+		}
+
+		MessageCursor msgCursor, editCursor;
+		_readDraftCursors(peer, msgCursor, editCursor);
+
+		if (msgText.isEmpty() && !msgReplyTo) {
+			h->setMsgDraft(nullptr);
+		} else {
+			h->setMsgDraft(new HistoryDraft(msgText, msgReplyTo, msgCursor, msgPreviewCancelled));
+		}
+		if (!editMsgId) {
+			h->setEditDraft(nullptr);
+		} else {
+			h->setEditDraft(new HistoryEditDraft(editText, editMsgId, editCursor, editPreviewCancelled));
+		}
 	}
 
-	void writeDraftPositions(const PeerId &peer, const MessageCursor &cur) {
+	void writeDraftCursors(const PeerId &peer, const MessageCursor &msgCursor, const MessageCursor &editCursor) {
 		if (!_working()) return;
 
-		if (cur.position == 0 && cur.anchor == 0 && cur.scroll == QFIXED_MAX) {
-			DraftsMap::iterator i = _draftsPositionsMap.find(peer);
-			if (i != _draftsPositionsMap.cend()) {
-				clearKey(i.value());
-				_draftsPositionsMap.erase(i);
-				_mapChanged = true;
-				_writeMap();
-			}
+		if (msgCursor == MessageCursor() && editCursor == MessageCursor()) {
+			clearDraftCursors(peer);
 		} else {
-			DraftsMap::const_iterator i = _draftsPositionsMap.constFind(peer);
-			if (i == _draftsPositionsMap.cend()) {
-				i = _draftsPositionsMap.insert(peer, genKey());
+			DraftsMap::const_iterator i = _draftCursorsMap.constFind(peer);
+			if (i == _draftCursorsMap.cend()) {
+				i = _draftCursorsMap.insert(peer, genKey());
 				_mapChanged = true;
 				_writeMap(WriteMapFast);
 			}
+
 			EncryptedDescriptor data(sizeof(quint64) + sizeof(qint32) * 3);
-			data.stream << quint64(peer) << qint32(cur.position) << qint32(cur.anchor) << qint32(cur.scroll);
+			data.stream << quint64(peer) << qint32(msgCursor.position) << qint32(msgCursor.anchor) << qint32(msgCursor.scroll);
+			data.stream << qint32(editCursor.position) << qint32(editCursor.anchor) << qint32(editCursor.scroll);
+
 			FileWriteDescriptor file(i.value());
 			file.writeEncrypted(data);
 		}
 	}
 
-	MessageCursor readDraftPositions(const PeerId &peer) {
-		DraftsMap::iterator j = _draftsPositionsMap.find(peer);
-		if (j == _draftsPositionsMap.cend()) {
-			return MessageCursor();
-		}
-		FileReadDescriptor draft;
-		if (!readEncryptedFile(draft, j.value())) {
-			clearKey(j.value());
-			_draftsPositionsMap.erase(j);
-			return MessageCursor();
-		}
-
-		quint64 draftPeer;
-		qint32 curPosition, curAnchor, curScroll;
-		draft.stream >> draftPeer >> curPosition >> curAnchor >> curScroll;
-
-		return (draftPeer == peer) ? MessageCursor(curPosition, curAnchor, curScroll) : MessageCursor();
-	}
-
-	bool hasDraftPositions(const PeerId &peer) {
-		return (_draftsPositionsMap.constFind(peer) != _draftsPositionsMap.cend());
+	bool hasDraftCursors(const PeerId &peer) {
+		return (_draftCursorsMap.constFind(peer) != _draftCursorsMap.cend());
 	}
 
 	void writeFileLocation(MediaKey location, const FileLocation &local) {
@@ -3786,8 +3925,8 @@ namespace Local {
 				_draftsMap.clear();
 				_mapChanged = true;
 			}
-			if (!_draftsPositionsMap.isEmpty()) {
-				_draftsPositionsMap.clear();
+			if (!_draftCursorsMap.isEmpty()) {
+				_draftCursorsMap.clear();
 				_mapChanged = true;
 			}
 			if (_locationsKey) {

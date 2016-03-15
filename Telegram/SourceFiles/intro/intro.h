@@ -29,7 +29,7 @@ class IntroPwdCheck;
 class IntroStage;
 class Text;
 
-class IntroWidget : public TWidget {
+class IntroWidget final : public TWidget {
 	Q_OBJECT
 
 public:
@@ -71,7 +71,7 @@ public:
 
 	void finish(const MTPUser &user, const QImage &photo = QImage());
 
-	void rpcInvalidate();
+	void rpcClear();
 	void langChangeTo(int32 langId);
 
 	~IntroWidget();

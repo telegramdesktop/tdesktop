@@ -103,6 +103,12 @@ QAction *PopupMenu::addAction(QAction *a) {
 	return a;
 }
 
+QAction *PopupMenu::addSeparator() {
+	QAction *separator = new QAction(this);
+	separator->setSeparator(true);
+	return addAction(separator);
+}
+
 int32 PopupMenu::processAction(QAction *a, int32 index, int32 w) {
 	if (a->isSeparator() || a->text().isEmpty()) {
 		_texts[index] = _shortcutTexts[index] = QString();
@@ -539,16 +545,24 @@ PopupTooltip::PopupTooltip() : TWidget(0)
 
 	_showTimer.setSingleShot(true);
 	connect(&_showTimer, SIGNAL(timeout()), this, SLOT(onShow()));
+
+	connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
 }
 
 void PopupTooltip::onShow() {
 	if (_shower) {
-		QString text = _shower->tooltipText();
+		QString text = (App::wnd() && App::wnd()->isActive(false)) ? _shower->tooltipText() : QString();
 		if (text.isEmpty()) {
 			Hide();
 		} else {
 			PopupTooltipInstance->popup(_shower->tooltipPos(), text, _shower->tooltipSt());
 		}
+	}
+}
+
+void PopupTooltip::onWndActiveChanged() {
+	if (!App::wnd()->windowHandle()->isActive()) {
+		PopupTooltip::Hide();
 	}
 }
 

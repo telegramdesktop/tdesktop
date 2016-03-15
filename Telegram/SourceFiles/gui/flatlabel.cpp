@@ -53,6 +53,13 @@ void FlatLabel::setRichText(const QString &text) {
 	setMouseTracking(_text.hasLinks());
 }
 
+void FlatLabel::resizeToWidth(int32 width) {
+	textstyleSet(&_tst);
+	int32 w = width, h = _text.countHeight(w);
+	textstyleRestore();
+	resize(w, h);
+}
+
 void FlatLabel::setLink(uint16 lnkIndex, const TextLinkPtr &lnk) {
 	_text.setLink(lnkIndex, lnk);
 }

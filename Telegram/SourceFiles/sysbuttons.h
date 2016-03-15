@@ -20,7 +20,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtWidgets/QWidget>
 #include "gui/animation.h"
 #include "gui/button.h"
 
