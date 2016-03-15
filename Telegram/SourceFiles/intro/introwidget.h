@@ -43,9 +43,19 @@ public:
 	QRect innerRect() const;
 	QString currentCountry() const;
 
+	enum CallStatusType {
+		CallWaiting,
+		CallCalling,
+		CallCalled,
+		CallDisabled,
+	};
+	struct CallStatus {
+		CallStatusType type;
+		int timeout;
+	};
 	void setPhone(const QString &phone, const QString &phone_hash, bool registered);
 	void setCode(const QString &code);
-	void setCallTimeout(int32 callTimeout);
+	void setCallStatus(const CallStatus &status);
 	void setPwdSalt(const QByteArray &salt);
 	void setHasRecovery(bool hasRecovery);
 	void setPwdHint(const QString &hint);
@@ -54,7 +64,7 @@ public:
 	const QString &getPhone() const;
 	const QString &getPhoneHash() const;
 	const QString &getCode() const;
-	int32 getCallTimeout() const;
+	const CallStatus &getCallStatus() const;
 	const QByteArray &getPwdSalt() const;
 	bool getHasRecovery() const;
 	const QString &getPwdHint() const;
@@ -116,7 +126,7 @@ private:
 	void pushStep(IntroStep *step, MoveType type);
 
 	QString _phone, _phone_hash;
-	int32 _callTimeout;
+	CallStatus _callStatus;
 	bool _registered;
 
 	QString _code;

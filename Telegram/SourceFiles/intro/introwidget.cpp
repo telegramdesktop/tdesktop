@@ -58,7 +58,7 @@ IntroWidget::IntroWidget(QWidget *parent) : TWidget(parent)
 , _cacheHideIndex(0)
 , _cacheShowIndex(0)
 , _a_show(animation(this, &IntroWidget::step_show))
-, _callTimeout(60)
+, _callStatus({ CallDisabled, 0 })
 , _registered(false)
 , _hasRecovery(false)
 , _codeByTelegram(false)
@@ -326,8 +326,8 @@ void IntroWidget::setCodeByTelegram(bool byTelegram) {
 	_codeByTelegram = byTelegram;
 }
 
-void IntroWidget::setCallTimeout(int32 callTimeout) {
-	_callTimeout = callTimeout;
+void IntroWidget::setCallStatus(const CallStatus &status) {
+	_callStatus = status;
 }
 
 const QString &IntroWidget::getPhone() const {
@@ -342,8 +342,8 @@ const QString &IntroWidget::getCode() const {
 	return _code;
 }
 
-int32 IntroWidget::getCallTimeout() const {
-	return _callTimeout;
+const IntroWidget::CallStatus &IntroWidget::getCallStatus() const {
+	return _callStatus;
 }
 
 const QByteArray &IntroWidget::getPwdSalt() const {

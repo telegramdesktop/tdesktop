@@ -78,7 +78,7 @@ public slots:
 private:
 
 	void showError(const QString &err);
-	void callDone(const MTPBool &v);
+	void callDone(const MTPauth_SentCode &v);
 	void gotPassword(const MTPaccount_Password &result);
 
 	void stopCheck();
@@ -94,14 +94,14 @@ private:
 	mtpRequestId _noTelegramCodeRequestId;
 	QRect textRect;
 
-	void noTelegramCodeDone(const MTPBool &result);
+	void noTelegramCodeDone(const MTPauth_SentCode &result);
 	bool noTelegramCodeFail(const RPCError &result);
 
 	CodeInput code;
 	QString sentCode;
 	mtpRequestId sentRequest;
 	QTimer callTimer;
-	int32 waitTillCall;
+	IntroWidget::CallStatus callStatus;
 
 	QTimer checkRequest;
 };
