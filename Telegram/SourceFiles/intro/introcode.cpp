@@ -276,7 +276,7 @@ bool IntroCode::codeSubmitFail(const RPCError &error) {
 		return true;
 	} else if (err == "PHONE_NUMBER_UNOCCUPIED") { // success, need to signUp
 		intro()->setCode(sentCode);
-		intro()->nextStep(new IntroSignup(intro()));
+		intro()->replaceStep(new IntroSignup(intro()));
 		return true;
 	} else if (err == "SESSION_PASSWORD_NEEDED") {
 		intro()->setCode(sentCode);
@@ -338,7 +338,7 @@ void IntroCode::gotPassword(const MTPaccount_Password &result) {
 		intro()->setPwdSalt(qba(d.vcurrent_salt));
 		intro()->setHasRecovery(mtpIsTrue(d.vhas_recovery));
 		intro()->setPwdHint(qs(d.vhint));
-		intro()->nextStep(new IntroPwdCheck(intro()));
+		intro()->replaceStep(new IntroPwdCheck(intro()));
 	} break;
 	}
 }

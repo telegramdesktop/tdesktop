@@ -19,6 +19,8 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
+#include "intro/intropwdcheck.h"
+
 #include "lang.h"
 #include "style.h"
 
@@ -27,7 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "application.h"
 
-#include "intro/intropwdcheck.h"
+#include "intro/introsignup.h"
 
 IntroPwdCheck::IntroPwdCheck(IntroWidget *parent) : IntroStep(parent)
 , a_errorAlpha(0)
@@ -337,7 +339,7 @@ bool IntroPwdCheck::deleteFail(const RPCError &error) {
 
 void IntroPwdCheck::deleteDone(const MTPBool &v) {
 	Ui::hideLayer();
-	intro()->onBack();
+	intro()->replaceStep(new IntroSignup(intro()));
 }
 
 void IntroPwdCheck::onInputChange() {

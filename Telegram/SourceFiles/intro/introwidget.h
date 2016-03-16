@@ -164,7 +164,9 @@ public:
 protected:
 
 	IntroWidget *intro() {
-		return qobject_cast<IntroWidget*>(parent());
+		IntroWidget *result = qobject_cast<IntroWidget*>(parentWidget());
+		t_assert(result != nullptr);
+		return result;
 	}
 
 };

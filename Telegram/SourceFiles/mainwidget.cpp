@@ -1753,24 +1753,9 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 		audioPlayer()->clearStoppedAtStart(audioId);
 
 		DocumentData *audio = audioId.audio;
-		QString already = audio->already(true);
-		if (already.isEmpty() && !audio->data().isEmpty()) {
-			bool mp3 = (audio->mime == qstr("audio/mp3"));
-			QString filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), mp3 ? qsl(".mp3") : qsl(".ogg"), false);
-			if (!filename.isEmpty()) {
-				QFile f(filename);
-				if (f.open(QIODevice::WriteOnly)) {
-					if (f.write(audio->data()) == audio->data().size()) {
-						f.close();
-						already = filename;
-						audio->setLocation(FileLocation(StorageFilePartial, filename));
-						Local::writeFileLocation(mediaKey(AudioFileLocation, audio->dc, audio->id), FileLocation(mtpToStorageType(mtpc_storage_filePartial), filename));
-					}
-				}
-			}
-		}
-		if (!already.isEmpty()) {
-			psOpenFile(already);
+		QString filepath = audio->filepath(DocumentData::FilePathResolveSaveFromData);
+		if (!filepath.isEmpty()) {
+			psOpenFile(filepath);
 		}
 	}
 
@@ -1790,35 +1775,9 @@ void MainWidget::documentPlayProgress(const SongMsgId &songId) {
 		audioPlayer()->clearStoppedAtStart(songId);
 
 		DocumentData *document = songId.song;
-		QString already = document->already(true);
-		if (already.isEmpty() && !document->data().isEmpty()) {
-			QString name = document->name, filter;
-			MimeType mimeType = mimeTypeForName(document->mime);
-			QStringList p = mimeType.globPatterns();
-			QString pattern = p.isEmpty() ? QString() : p.front();
-			if (name.isEmpty()) {
-				name = pattern.isEmpty() ? qsl(".unknown") : pattern.replace('*', QString());
-			}
-			if (pattern.isEmpty()) {
-				filter = QString();
-			} else {
-				filter = mimeType.filterString() + qsl(";;All files (*.*)");
-			}
-			QString filename = saveFileName(lang(lng_save_file), filter, qsl("doc"), name, false);
-			if (!filename.isEmpty()) {
-				QFile f(filename);
-				if (f.open(QIODevice::WriteOnly)) {
-					if (f.write(document->data()) == document->data().size()) {
-						f.close();
-						already = filename;
-						document->setLocation(FileLocation(StorageFilePartial, filename));
-						Local::writeFileLocation(mediaKey(DocumentFileLocation, document->dc, document->id), FileLocation(mtpToStorageType(mtpc_storage_filePartial), filename));
-					}
-				}
-			}
-		}
-		if (!already.isEmpty()) {
-			psOpenFile(already);
+		QString filepath = document->filepath(DocumentData::FilePathResolveSaveFromData);
+		if (!filepath.isEmpty()) {
+			psOpenFile(filepath);
 		}
 	}
 

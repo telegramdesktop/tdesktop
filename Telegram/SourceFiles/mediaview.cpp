@@ -313,7 +313,7 @@ void MediaView::updateControls() {
 				_docRadial.start(_doc->progress());
 			}
 		} else {
-			if (_doc->loaded(true)) {
+			if (_doc->loaded(DocumentData::FilePathResolveChecked)) {
 				_docDownload.hide();
 				_docSaveAs.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocIconSize, _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
 				_docSaveAs.show();
@@ -333,7 +333,7 @@ void MediaView::updateControls() {
 		_docCancel.hide();
 	}
 
-	_saveVisible = ((_photo && _photo->loaded()) || (_doc && (_doc->loaded(true) || (!fileShown() && (_photo || _doc)))));
+	_saveVisible = ((_photo && _photo->loaded()) || (_doc && (_doc->loaded(DocumentData::FilePathResolveChecked) || (!fileShown() && (_photo || _doc)))));
 	_saveNav = myrtlrect(width() - st::mvIconSize.width() * 2, height() - st::mvIconSize.height(), st::mvIconSize.width(), st::mvIconSize.height());
 	_saveNavIcon = centersprite(_saveNav, st::mvSave);
 	_moreNav = myrtlrect(width() - st::mvIconSize.width(), height() - st::mvIconSize.height(), st::mvIconSize.width(), st::mvIconSize.height());
@@ -394,7 +394,7 @@ void MediaView::updateControls() {
 void MediaView::updateDropdown() {
 	_btnSaveCancel->setVisible(_doc && _doc->loading());
 	_btnToMessage->setVisible(_msgid > 0);
-	_btnShowInFolder->setVisible(_doc && !_doc->already(true).isEmpty());
+	_btnShowInFolder->setVisible(_doc && !_doc->filepath(DocumentData::FilePathResolveChecked).isEmpty());
 	_btnSaveAs->setVisible(true);
 	_btnCopy->setVisible((_doc && fileShown()) || (_photo && _photo->loaded()));
 	_btnForward->setVisible(_canForward);
@@ -685,8 +685,11 @@ void MediaView::onSaveCancel() {
 
 void MediaView::onShowInFolder() {
 	if (!_doc) return;
-	QString already(_doc->already(true));
-	if (!already.isEmpty()) psShowInFolder(already);
+
+	QString filepath = _doc->filepath(DocumentData::FilePathResolveChecked);
+	if (!filepath.isEmpty()) {
+		psShowInFolder(filepath);
+	}
 }
 
 void MediaView::onForward() {

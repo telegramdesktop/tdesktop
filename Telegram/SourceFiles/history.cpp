@@ -3859,7 +3859,7 @@ void HistoryVideo::updateStatusText(const HistoryItem *parent) const {
 		statusSize = _data->uploadOffset;
 	} else if (_data->loading()) {
 		statusSize = _data->loadOffset();
-	} else if (!_data->already().isEmpty()) {
+	} else if (_data->loaded()) {
 		statusSize = FileStatusSizeLoaded;
 	} else {
 		statusSize = FileStatusSizeReady;
