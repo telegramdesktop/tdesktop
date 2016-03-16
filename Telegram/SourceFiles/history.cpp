@@ -1118,7 +1118,9 @@ bool DialogsList::del(const PeerId &peerId, DialogRow *replacedBy) {
 	if (i == rowByPeer.cend()) return false;
 
 	DialogRow *row = i.value();
-	emit App::main()->dialogRowReplaced(row, replacedBy);
+	if (App::main()) {
+		emit App::main()->dialogRowReplaced(row, replacedBy);
+	}
 
 	if (row == current) {
 		current = row->next;
@@ -6179,7 +6181,7 @@ HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId id, 
 , _text(st::msgMinWidth)
 , _textWidth(0)
 , _textHeight(0)
-, _media(0) {
+, _media(nullptr) {
 	UserData *fwdViaBot = fwd->viaBot();
 	int32 viaBotId = fwdViaBot ? peerToUser(fwdViaBot->id) : 0;
 	int32 fwdViewsCount = fwd->viewsCount(), views = (fwdViewsCount > 0) ? fwdViewsCount : (isPost() ? 1 : -1);
@@ -6197,7 +6199,7 @@ HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId id, 
 	, _text(st::msgMinWidth)
 	, _textWidth(0)
 	, _textHeight(0)
-	, _media(0) {
+	, _media(nullptr) {
 	create((flags & MTPDmessage::flag_via_bot_id) ? viaBotId : 0, isPost() ? 1 : -1);
 
 	setText(msg, entities);
@@ -6208,7 +6210,7 @@ HistoryItem(history, block, msgId, flags, date, (flags & MTPDmessage::flag_from_
 , _text(st::msgMinWidth)
 , _textWidth(0)
 , _textHeight(0)
-, _media(0) {
+, _media(nullptr) {
 	create((flags & MTPDmessage::flag_via_bot_id) ? viaBotId : 0, isPost() ? 1 : -1);
 
 	initMediaFromDocument(doc, caption);
@@ -6220,7 +6222,7 @@ HistoryItem(history, block, msgId, flags, date, (flags & MTPDmessage::flag_from_
 , _text(st::msgMinWidth)
 , _textWidth(0)
 , _textHeight(0)
-, _media(0) {
+, _media(nullptr) {
 	create((flags & MTPDmessage::flag_via_bot_id) ? viaBotId : 0, isPost() ? 1 : -1);
 
 	_media = new HistoryPhoto(photo, caption, this);
@@ -6516,8 +6518,10 @@ void HistoryMessage::setMedia(const MTPMessageMedia *media) {
 	bool mediaWasDisplayed = false;
 	if (_media) {
 		mediaWasDisplayed = _media->isDisplayed();
+
+		_media->unregItem(this);
 		delete _media;
-		_media = 0;
+		_media = nullptr;
 	}
 	QString t;
 	initMedia(media, t);
@@ -7504,6 +7508,7 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 		const MTPDmessageActionChatEditPhoto &d(action.c_messageActionChatEditPhoto());
 		if (d.vphoto.type() == mtpc_photo) {
 			_media = new HistoryPhoto(history()->peer, d.vphoto.c_photo(), st::msgServicePhotoWidth);
+			_media->regItem(this);
 		}
 		text = isPost() ? lang(lng_action_changed_photo_channel) : lng_action_changed_photo(lt_from, from);
 	} break;
@@ -7879,7 +7884,10 @@ HistoryServiceMsg::~HistoryServiceMsg() {
 			App::historyUnregDependency(this, pinned->msg);
 		}
 	}
-	deleteAndMark(_media);
+	if (_media) {
+		_media->unregItem(this);
+		deleteAndMark(_media);
+	}
 }
 
 HistoryDateMsg::HistoryDateMsg(History *history, HistoryBlock *block, const QDate &date) :
