@@ -213,6 +213,13 @@ namespace Shortcuts {
 			t_assert(DataPtr == nullptr);
 			DataPtr = this;
 
+			if (autoRepeatCommands.isEmpty()) {
+				autoRepeatCommands.insert(qsl("media_previous"));
+				autoRepeatCommands.insert(qsl("media_next"));
+				autoRepeatCommands.insert(qsl("next_chat"));
+				autoRepeatCommands.insert(qsl("previous_chat"));
+			}
+
 #define DeclareAlias(keys, command) _setShortcut(qsl(keys), qsl(#command))
 #define DeclareCommand(keys, command) _createCommand(qsl(#command), ShortcutCommands::command); DeclareAlias(keys, command)
 
@@ -264,12 +271,7 @@ namespace Shortcuts {
 		QMap<QKeySequence, QShortcut*> sequences;
 		QMap<int, ShortcutCommands::Handler> handlers;
 
-		QSet<QString> autoRepeatCommands = {
-			qsl("media_previous"),
-			qsl("media_next"),
-			qsl("next_chat"),
-			qsl("previous_chat"),
-		};
+		QSet<QString> autoRepeatCommands;
 	};
 
 	void _createCommand(const QString &command, ShortcutCommands::Handler handler) {
