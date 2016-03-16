@@ -69,8 +69,8 @@ PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxW
 		if (_animated) {
 			int32 limitW = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
 			int32 limitH = st::confirmMaxHeight;
-			maxW = dimensions.width();
-			maxH = dimensions.height();
+			maxW = qMax(dimensions.width(), 1);
+			maxH = qMax(dimensions.height(), 1);
 			if (maxW * limitH > maxH * limitW) {
 				if (maxW < limitW) {
 					maxH = maxH * limitW / maxW;
@@ -446,8 +446,8 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 		if (_animated) {
 			int32 limitW = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
 			int32 limitH = st::confirmMaxHeight;
-			maxW = dimensions.width();
-			maxH = dimensions.height();
+			maxW = qMax(dimensions.width(), 1);
+			maxH = qMax(dimensions.height(), 1);
 			if (maxW * limitH > maxH * limitW) {
 				if (maxW < limitW) {
 					maxH = maxH * limitW / maxW;

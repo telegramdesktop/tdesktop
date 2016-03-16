@@ -224,12 +224,8 @@ void StickerSetInner::paintEvent(QPaintEvent *e) {
 				if (doc->status == FileReady) {
 					doc->automaticLoad(0);
 				}
-				if (doc->sticker()->img->isNull() && doc->loaded() && doc->loaded(true)) {
-					if (doc->data().isEmpty()) {
-						doc->sticker()->img = ImagePtr(doc->already());
-					} else {
-						doc->sticker()->img = ImagePtr(doc->data());
-					}
+				if (doc->sticker()->img->isNull() && doc->loaded(DocumentData::FilePathResolveChecked)) {
+					doc->sticker()->img = doc->data().isEmpty() ? ImagePtr(doc->filepath()) : ImagePtr(doc->data());
 				}
 			}
 

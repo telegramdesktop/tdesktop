@@ -657,10 +657,10 @@ void HistoryInner::onDragExec() {
 				mimeData->setData(qsl("application/x-td-forward-pressed"), "1");
 			}
 			if (lnkDocument) {
-				QString already = static_cast<DocumentOpenLink*>(textlnkDown().data())->document()->already(true);
-				if (!already.isEmpty()) {
+				QString filepath = static_cast<DocumentOpenLink*>(textlnkDown().data())->document()->filepath(DocumentData::FilePathResolveChecked);
+				if (!filepath.isEmpty()) {
 					QList<QUrl> urls;
-					urls.push_back(QUrl::fromLocalFile(already));
+					urls.push_back(QUrl::fromLocalFile(filepath));
 					mimeData->setUrls(urls);
 				}
 			}
@@ -892,7 +892,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (lnkDocument && lnkDocument->document()->loaded() && lnkDocument->document()->isGifv()) {
 					_menu->addAction(lang(lng_context_save_gif), this, SLOT(saveContextGif()))->setEnabled(true);
 				}
-				if (lnkDocument && !lnkDocument->document()->already(true).isEmpty()) {
+				if (lnkDocument && !lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
 					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 				}
 				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsAudio ? lng_context_save_audio : lng_context_save_file)), this, SLOT(saveContextFile()))->setEnabled(true);
@@ -976,7 +976,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 								if (doc->isGifv()) {
 									_menu->addAction(lang(lng_context_save_gif), this, SLOT(saveContextGif()))->setEnabled(true);
 								}
-								if (!doc->already(true).isEmpty()) {
+								if (!doc->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
 									_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 								}
 								_menu->addAction(lang(lng_context_save_file), this, SLOT(saveContextFile()))->setEnabled(true);
@@ -1101,17 +1101,19 @@ void HistoryInner::cancelContextDownload() {
 }
 
 void HistoryInner::showContextInFolder() {
-	QString already;
+	QString filepath;
 	if (DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data())) {
-		already = lnkDocument->document()->already(true);
+		filepath = lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked);
 	} else if (HistoryItem *item = App::contextItem()) {
 		if (HistoryMedia *media = item->getMedia()) {
 			if (DocumentData *doc = media->getDocument()) {
-				already = doc->already(true);
+				filepath = doc->filepath(DocumentData::FilePathResolveChecked);
 			}
 		}
 	}
-	if (!already.isEmpty()) psShowInFolder(already);
+	if (!filepath.isEmpty()) {
+		psShowInFolder(filepath);
+	}
 }
 
 void HistoryInner::saveContextFile() {
@@ -3606,9 +3608,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 			_migrated->unreadBar->destroy();
 		}
 		if (_pinnedBar) {
-			delete _pinnedBar;
-			_pinnedBar = nullptr;
-			_inPinnedMsg = false;
+			destroyPinnedBar();
 		}
 		_history = _migrated = 0;
 		updateBotKeyboard();
@@ -6202,12 +6202,14 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 	if (_pinnedBar) {
 		if (_scroll.y() != st::replyHeight) {
 			_scroll.move(0, st::replyHeight);
+			_reportSpamPanel.move(0, st::replyHeight);
 			_attachMention.setBoundings(_scroll.geometry());
 		}
 		_pinnedBar->cancel.move(width() - _pinnedBar->cancel.width(), 0);
 		_pinnedBar->shadow.setGeometry(0, st::replyHeight, width(), st::lineWidth);
 	} else if (_scroll.y() != 0) {
 		_scroll.move(0, 0);
+		_reportSpamPanel.move(0, 0);
 		_attachMention.setBoundings(_scroll.geometry());
 	}
 
@@ -6842,9 +6844,7 @@ void HistoryWidget::updatePinnedBar(bool force) {
 		if (_peer && _peer->isMegagroup()) {
 			_peer->asChannel()->mgInfo->pinnedMsgId = 0;
 		}
-		delete _pinnedBar;
-		_pinnedBar = nullptr;
-		_inPinnedMsg = false;
+		destroyPinnedBar();
 		resizeEvent(0);
 		update();
 	}
@@ -6892,13 +6892,18 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 			App::api()->requestMessageData(_peer->asChannel(), _pinnedBar->msgId, new ReplyEditMessageDataCallback());
 		}
 	} else if (_pinnedBar) {
-		delete _pinnedBar;
-		_pinnedBar = nullptr;
+		destroyPinnedBar();
 		result = true;
 		_scroll.scrollToY(_scroll.scrollTop() - st::replyHeight);
 		resizeEvent(0);
 	}
 	return result;
+}
+
+void HistoryWidget::destroyPinnedBar() {
+	delete _pinnedBar;
+	_pinnedBar = nullptr;
+	_inPinnedMsg = false;
 }
 
 void HistoryWidget::ReplyEditMessageDataCallback::call(ChannelData *channel, MsgId msgId) const {

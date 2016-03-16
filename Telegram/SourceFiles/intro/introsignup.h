@@ -23,9 +23,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <QtWidgets/QWidget>
 #include "gui/flatbutton.h"
 #include "gui/flatinput.h"
-#include "intro.h"
+#include "intro/introwidget.h"
 
-class IntroSignup : public IntroStage, public RPCSender {
+class IntroSignup final : public IntroStep {
 	Q_OBJECT
 
 public:
@@ -40,10 +40,9 @@ public:
 	void step_error(float64 ms, bool timer);
 	void step_photo(float64 ms, bool timer);
 
-	void activate();
-	void deactivate();
-	void onNext();
-	void onBack();
+	void activate() override;
+	void cancelled() override;
+	void onSubmit() override;
 
 	void nameSubmitDone(const MTPauth_Authorization &result);
 	bool nameSubmitFail(const RPCError &error);

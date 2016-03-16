@@ -20,21 +20,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "gui/flatbutton.h"
-#include "intro.h"
+#include "intro/introwidget.h"
 
-class IntroSteps : public IntroStage {
+class IntroStart final : public IntroStep {
 public:
 
-	IntroSteps(IntroWidget *parent);
+	IntroStart(IntroWidget *parent);
 
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
-	void activate();
-	void deactivate();
-	void onNext();
-	void onBack();
+	void onSubmit() override;
 
 private:
 

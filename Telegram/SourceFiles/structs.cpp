@@ -803,7 +803,7 @@ bool StickerData::setInstalled() const {
 	return false;
 }
 
-QString documentSaveFilename(DocumentData *data, bool forceSavingAs = false, const QString already = QString(), const QDir &dir = QDir()) {
+QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = false, const QString already = QString(), const QDir &dir = QDir()) {
 	QString name, filter, caption, prefix;
 	MimeType mimeType = mimeTypeForName(data->mime);
 	QStringList p = mimeType.globPatterns();
@@ -930,22 +930,21 @@ void GifOpenLink::onClick(Qt::MouseButton button) const {
 void DocumentSaveLink::doSave(DocumentData *data, bool forceSavingAs) {
 	if (!data->date) return;
 
-	QString already = data->already(true);
-	bool openWith = !already.isEmpty();
-	if (openWith && !forceSavingAs) {
+	QString filepath = data->filepath(DocumentData::FilePathResolveSaveFromData, forceSavingAs);
+	if (!filepath.isEmpty() && !forceSavingAs) {
 		QPoint pos(QCursor::pos());
-		if (!psShowOpenWithMenu(pos.x(), pos.y(), already)) {
-			psOpenFile(already, true);
+		if (!psShowOpenWithMenu(pos.x(), pos.y(), filepath)) {
+			psOpenFile(filepath, true);
 		}
 	} else {
-		QFileInfo alreadyInfo(already);
-		QDir alreadyDir(already.isEmpty() ? QDir() : alreadyInfo.dir());
-		QString alreadyName(already.isEmpty() ? QString() : alreadyInfo.fileName());
-		QString filename = documentSaveFilename(data, forceSavingAs, alreadyName, alreadyDir);
-		if (!filename.isEmpty()) {
-			ActionOnLoad action = already.isEmpty() ? ActionOnLoadNone : ActionOnLoadOpenWith;
+		QFileInfo fileinfo(filepath);
+		QDir filedir(filepath.isEmpty() ? QDir() : fileinfo.dir());
+		QString filename(filepath.isEmpty() ? QString() : fileinfo.fileName());
+		QString newfname = documentSaveFilename(data, forceSavingAs, filename, filedir);
+		if (!newfname.isEmpty()) {
+			ActionOnLoad action = filename.isEmpty() ? ActionOnLoadNone : ActionOnLoadOpenWith;
 			FullMsgId actionMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->fullId() : (App::contextItem() ? App::contextItem()->fullId() : FullMsgId());
-			data->save(filename, action, actionMsgId);
+			data->save(newfname, action, actionMsgId);
 		}
 	}
 }
@@ -1196,7 +1195,7 @@ void DocumentData::performActionOnLoad() {
 	_actionOnLoad = ActionOnLoadNone;
 }
 
-bool DocumentData::loaded(bool check) const {
+bool DocumentData::loaded(FilePathResolveType type) const {
 	if (loading() && _loader->done()) {
 		if (_loader->fileType() == mtpc_storage_fileUnknown) {
 			_loader->deleteLater();
@@ -1216,7 +1215,7 @@ bool DocumentData::loaded(bool check) const {
 		}
 		notifyLayoutChanged();
 	}
-	return !_data.isEmpty() || !already(check).isEmpty();
+	return !data().isEmpty() || !filepath(type).isEmpty();
 }
 
 bool DocumentData::loading() const {
@@ -1246,18 +1245,26 @@ bool DocumentData::uploading() const {
 }
 
 void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMsgId &actionMsgId, LoadFromCloudSetting fromCloud, bool autoLoading) {
-	if (loaded(true)) {
+	_actionOnLoad = action;
+	_actionOnLoadMsgId = actionMsgId;
+
+	if (loaded(FilePathResolveChecked)) {
 		const FileLocation &l(location(true));
 		if (!toFile.isEmpty()) {
 			if (!_data.isEmpty()) {
 				QFile f(toFile);
 				f.open(QIODevice::WriteOnly);
 				f.write(_data);
+				f.close();
+
+				setLocation(FileLocation(StorageFilePartial, toFile));
+				Local::writeFileLocation(mediaKey(), FileLocation(mtpToStorageType(mtpc_storage_filePartial), toFile));
 			} else if (l.accessEnable()) {
 				QFile(l.name()).copy(toFile);
 				l.accessDisable();
 			}
 		}
+		performActionOnLoad();
 		return;
 	}
 
@@ -1269,15 +1276,11 @@ void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMs
 		}
 	}
 
-	_actionOnLoad = action;
-	_actionOnLoadMsgId = actionMsgId;
-
 	if (_loader) {
 		if (fromCloud == LoadFromCloudOrLocal) _loader->permitLoadFromCloud();
 	} else {
 		status = FileReady;
-		LocationType type = voice() ? AudioFileLocation : (isVideo() ? VideoFileLocation : DocumentFileLocation);
-		_loader = new mtpFileLoader(dc, id, access, type, toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
+		_loader = new mtpFileLoader(dc, id, access, locationType(), toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
 		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(documentLoadProgress(FileLoader*)));
 		_loader->connect(_loader, SIGNAL(failed(FileLoader*,bool)), App::main(), SLOT(documentLoadFailed(FileLoader*,bool)));
 		_loader->start();
@@ -1328,11 +1331,6 @@ QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform) {
 	return result;
 }
 
-QString DocumentData::already(bool check) const {
-	if (check && _location.name().isEmpty()) return QString();
-	return location(check).name();
-}
-
 QByteArray DocumentData::data() const {
 	return _data;
 }
@@ -1348,6 +1346,34 @@ void DocumentData::setLocation(const FileLocation &loc) {
 	if (loc.check()) {
 		_location = loc;
 	}
+}
+
+QString DocumentData::filepath(FilePathResolveType type, bool forceSavingAs) const {
+	bool check = (type != FilePathResolveCached);
+	QString result = (check && _location.name().isEmpty()) ? QString() : location(check).name();
+	bool saveFromData = result.isEmpty() && !data().isEmpty();
+	if (saveFromData) {
+		if (type != FilePathResolveSaveFromData && type != FilePathResolveSaveFromDataSilent) {
+			saveFromData = false;
+		} else if (type == FilePathResolveSaveFromDataSilent && cAskDownloadPath()) {
+			saveFromData = false;
+		}
+	}
+	if (saveFromData) {
+		QString filename = documentSaveFilename(this, forceSavingAs);
+		if (!filename.isEmpty()) {
+			QFile f(filename);
+			if (f.open(QIODevice::WriteOnly)) {
+				if (f.write(data()) == data().size()) {
+					f.close();
+					const_cast<DocumentData*>(this)->_location = FileLocation(StorageFilePartial, filename);
+					Local::writeFileLocation(mediaKey(), _location);
+					result = filename;
+				}
+			}
+		}
+	}
+	return result;
 }
 
 ImagePtr DocumentData::makeReplyPreview() {

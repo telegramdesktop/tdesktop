@@ -30,7 +30,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "pspecific.h"
 #include "title.h"
 #include "passcodewidget.h"
-#include "intro/intro.h"
+#include "intro/introwidget.h"
 #include "mainwidget.h"
 #include "layerwidget.h"
 #include "settingswidget.h"
@@ -697,6 +697,8 @@ void Window::setupMain(bool anim, const MTPUser *self) {
 }
 
 void Window::updateCounter() {
+	if (App::quitting()) return;
+
 	psUpdateCounter();
 	title->updateCounter();
 }

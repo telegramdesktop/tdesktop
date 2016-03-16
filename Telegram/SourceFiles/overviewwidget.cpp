@@ -661,10 +661,10 @@ void OverviewInner::onDragExec() {
 
 			mimeData->setData(qsl("application/x-td-forward-pressed-link"), "1");
 			if (lnkDocument) {
-				QString already = static_cast<DocumentOpenLink*>(textlnkDown().data())->document()->already(true);
-				if (!already.isEmpty()) {
+				QString filepath = static_cast<DocumentOpenLink*>(textlnkDown().data())->document()->filepath(DocumentData::FilePathResolveChecked);
+				if (!filepath.isEmpty()) {
 					QList<QUrl> urls;
-					urls.push_back(QUrl::fromLocalFile(already));
+					urls.push_back(QUrl::fromLocalFile(filepath));
 					mimeData->setUrls(urls);
 				}
 			}
@@ -1275,7 +1275,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			if (lnkDocument && lnkDocument->document()->loading()) {
 				_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
 			} else {
-				if (lnkDocument && !lnkDocument->document()->already(true).isEmpty()) {
+				if (lnkDocument && !lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
 					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 				}
 				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsAudio ? lng_context_save_audio : lng_context_save_file)), this, SLOT(saveContextFile()))->setEnabled(true);
@@ -1496,9 +1496,12 @@ void OverviewInner::cancelContextDownload() {
 }
 
 void OverviewInner::showContextInFolder() {
-	DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	QString already = lnkDocument ? lnkDocument->document()->already(true) : QString();
-	if (!already.isEmpty()) psShowInFolder(already);
+	if (DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data())) {
+		QString filepath = lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked);
+		if (!filepath.isEmpty()) {
+			psShowInFolder(filepath);
+		}
+	}
 }
 
 void OverviewInner::saveContextFile() {

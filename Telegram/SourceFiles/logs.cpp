@@ -1021,4 +1021,8 @@ namespace SignalHandlers {
 		}
 	}
 
+	void setAssertionInfo(const QString &info) {
+		ProcessAnnotations["Assertion"] = info.toUtf8().constData();
+	}
+
 }

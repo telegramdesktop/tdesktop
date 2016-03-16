@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 
 #include "intro/introphone.h"
-#include "intro/intro.h"
+#include "intro/introcode.h"
 
 namespace {
 	class SignUpLink : public ITextLink {
@@ -45,7 +45,7 @@ namespace {
 	};
 }
 
-IntroPhone::IntroPhone(IntroWidget *parent) : IntroStage(parent)
+IntroPhone::IntroPhone(IntroWidget *parent) : IntroStep(parent)
 , a_errorAlpha(0)
 , _a_error(animation(this, &IntroPhone::step_error))
 , changed(false)
@@ -54,11 +54,11 @@ IntroPhone::IntroPhone(IntroWidget *parent) : IntroStage(parent)
 , phone(this, st::inpIntroPhone)
 , code(this, st::inpIntroCountryCode)
 , _signup(this, lng_phone_notreg(lt_signup_start, textcmdStartLink(1), lt_signup_end, textcmdStopLink()), st::introErrLabel, st::introErrLabelTextStyle)
-, _showSignup(false) {
+, _showSignup(false)
+, sentRequest(0) {
 	setVisible(false);
 	setGeometry(parent->innerRect());
 
-	connect(&next, SIGNAL(stateChanged(int, ButtonStateChangeSource)), parent, SLOT(onDoneStateChanged(int, ButtonStateChangeSource)));
 	connect(&next, SIGNAL(clicked()), this, SLOT(onSubmitPhone()));
 	connect(&phone, SIGNAL(voidBackspace(QKeyEvent*)), &code, SLOT(startErasing(QKeyEvent*)));
 	connect(&country, SIGNAL(codeChanged(const QString &)), &code, SLOT(codeSelected(const QString &)));
@@ -145,7 +145,7 @@ void IntroPhone::step_error(float64 ms, bool timer) {
 		_a_error.stop();
 		a_errorAlpha.finish();
 		if (!a_errorAlpha.current()) {
-			error = "";
+			error.clear();
 			_signup.hide();
 		} else if (!error.isEmpty() && _showSignup) {
 			_signup.show();
@@ -164,7 +164,7 @@ void IntroPhone::countryChanged() {
 
 void IntroPhone::onInputChange() {
 	changed = true;
-	showError("");
+	showError(QString());
 }
 
 void IntroPhone::disableAll() {
@@ -183,8 +183,8 @@ void IntroPhone::enableAll(bool failed) {
 	if (failed) phone.setFocus();
 }
 
-void IntroPhone::onSubmitPhone(bool force) {
-	if (!force && !next.isEnabled()) return;
+void IntroPhone::onSubmitPhone() {
+	if (sentRequest || isHidden()) return;
 
 	if (!App::isValidPhone(fullNumber())) {
 		showError(lang(lng_bad_phone));
@@ -193,7 +193,7 @@ void IntroPhone::onSubmitPhone(bool force) {
 	}
 
 	disableAll();
-	showError("");
+	showError(QString());
 
 	checkRequest.start(1000);
 
@@ -226,45 +226,58 @@ void IntroPhone::phoneCheckDone(const MTPauth_CheckedPhone &result) {
 	const MTPDauth_checkedPhone &d(result.c_auth_checkedPhone());
 	if (mtpIsTrue(d.vphone_registered)) {
 		disableAll();
-		showError("");
+		showError(QString());
 
 		checkRequest.start(1000);
 
-		sentRequest = MTP::send(MTPauth_SendCode(MTP_string(sentPhone), MTP_int(5), MTP_int(ApiId), MTP_string(ApiHash), MTP_string(Sandbox::LangSystemISO())), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
+		int32 flags = 0;
+		sentRequest = MTP::send(MTPauth_SendCode(MTP_int(flags), MTP_string(sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash), MTP_string(Sandbox::LangSystemISO())), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
 	} else {
 		showError(lang(lng_bad_phone_noreg), true);
 		enableAll(true);
+		sentRequest = 0;
 	}
 }
 
 void IntroPhone::phoneSubmitDone(const MTPauth_SentCode &result) {
 	stopCheck();
-	enableAll(false);
+	sentRequest = 0;
+	enableAll(true);
 
-	if (result.type() == mtpc_auth_sentCode) {
-		const MTPDauth_sentCode &d(result.c_auth_sentCode());
-		intro()->setPhone(sentPhone, d.vphone_code_hash.c_string().v.c_str(), mtpIsTrue(d.vphone_registered));
-		intro()->setCallTimeout(d.vsend_call_timeout.v);
-	} else if (result.type() == mtpc_auth_sentAppCode) {
-		const MTPDauth_sentAppCode &d(result.c_auth_sentAppCode());
-		intro()->setPhone(sentPhone, d.vphone_code_hash.c_string().v.c_str(), mtpIsTrue(d.vphone_registered));
-		intro()->setCallTimeout(d.vsend_call_timeout.v);
-		intro()->setCodeByTelegram(true);
+	if (result.type() != mtpc_auth_sentCode) {
+		showError(lang(lng_server_error));
+		return;
 	}
-	intro()->onIntroNext();
+
+	const MTPDauth_sentCode &d(result.c_auth_sentCode());
+	switch (d.vtype.type()) {
+	case mtpc_auth_sentCodeTypeApp: intro()->setCodeByTelegram(true); break;
+	case mtpc_auth_sentCodeTypeSms:
+	case mtpc_auth_sentCodeTypeCall: intro()->setCodeByTelegram(false); break;
+	case mtpc_auth_sentCodeTypeFlashCall: LOG(("Error: should not be flashcall!")); break;
+	}
+	intro()->setPhone(sentPhone, d.vphone_code_hash.c_string().v.c_str(), d.is_phone_registered());
+	if (d.has_next_type() && d.vnext_type.type() == mtpc_auth_codeTypeCall) {
+		intro()->setCallStatus({ IntroWidget::CallWaiting, d.has_timeout() ? d.vtimeout.v : 60 });
+	} else {
+		intro()->setCallStatus({ IntroWidget::CallDisabled, 0 });
+	}
+	intro()->nextStep(new IntroCode(intro()));
 }
 
 void IntroPhone::toSignUp() {
 	disableAll();
-	showError("");
+	showError(QString());
 
 	checkRequest.start(1000);
 
-	sentRequest = MTP::send(MTPauth_SendCode(MTP_string(sentPhone), MTP_int(0), MTP_int(ApiId), MTP_string(ApiHash), MTP_string(Sandbox::LangSystemISO())), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
+	int32 flags = 0;
+	sentRequest = MTP::send(MTPauth_SendCode(MTP_int(flags), MTP_string(sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash), MTP_string(Sandbox::LangSystemISO())), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
 }
 
 bool IntroPhone::phoneSubmitFail(const RPCError &error) {
 	stopCheck();
+	sentRequest = 0;
 	const QString &err = error.type();
 	if (err == "PHONE_NUMBER_INVALID") { // show error
 		showError(lang(lng_bad_phone));
@@ -293,21 +306,27 @@ void IntroPhone::selectCountry(const QString &c) {
 }
 
 void IntroPhone::activate() {
-	error = "";
+	IntroStep::activate();
+	phone.setFocus();
+}
+
+void IntroPhone::finished() {
+	IntroStep::finished();
+	checkRequest.stop();
+	rpcClear();
+
+	error.clear();
 	a_errorAlpha = anim::fvalue(0);
-	show();
 	enableAll(true);
 }
 
-void IntroPhone::deactivate() {
-	checkRequest.stop();
-	hide();
-	phone.clearFocus();
+void IntroPhone::cancelled() {
+	if (sentRequest) {
+		MTP::cancel(sentRequest);
+		sentRequest = 0;
+	}
 }
 
-void IntroPhone::onNext() {
+void IntroPhone::onSubmit() {
 	onSubmitPhone();
-}
-
-void IntroPhone::onBack() {
 }

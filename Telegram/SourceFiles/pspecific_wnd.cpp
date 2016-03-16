@@ -851,8 +851,10 @@ namespace {
 				} else {
 					_psShadowWindows.setColor(_shInactive);
 				}
-				QTimer::singleShot(0, App::wnd(), SLOT(updateCounter()));
-				App::wnd()->update();
+				if (Global::started()) {
+					QMetaObject::invokeMethod(App::wnd(), "updateCounter", Qt::QueuedConnection);
+					App::wnd()->update();
+				}
 			} return false;
 
 			case WM_NCPAINT: if (QSysInfo::WindowsVersion >= QSysInfo::WV_WINDOWS8) return false; *result = 0; return true;

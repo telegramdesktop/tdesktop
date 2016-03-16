@@ -238,7 +238,6 @@ public:
 		return blocks.isEmpty();
 	}
 	void clear(bool leaveItems = false);
-	void clearUpto(MsgId msgId);
 	void blockResized(HistoryBlock *block, int32 dh);
 	void removeBlock(HistoryBlock *block);
 
@@ -315,7 +314,7 @@ public:
 
 	void removeNotification(HistoryItem *item) {
 		if (!notifies.isEmpty()) {
-			for (NotifyQueue::iterator i = notifies.begin(), e = notifies.end(); i != e; ++i) {
+			for (auto i = notifies.begin(), e = notifies.end(); i != e; ++i) {
 				if ((*i) == item) {
 					notifies.erase(i);
 					break;
@@ -429,6 +428,10 @@ public:
 
 	void changeMsgId(MsgId oldId, MsgId newId);
 
+protected:
+
+	void clearOnDestroy();
+
 private:
 
 	ChatListLinksMap _chatListLinks;
@@ -437,6 +440,8 @@ private:
 	typedef QMap<MsgId, NullType> MediaOverviewIds;
 	MediaOverviewIds overviewIds[OverviewCount];
 	int32 overviewCountData[OverviewCount]; // -1 - not loaded, 0 - all loaded, > 0 - count, but not all loaded
+
+	void clearBlocks(bool leaveItems);
 
 	friend class HistoryBlock;
 	friend class ChannelHistory;
@@ -448,6 +453,8 @@ private:
 	HistoryItem *addMessageGroupAfterPrevToBlock(const MTPDmessageGroup &group, HistoryItem *prev, HistoryBlock *block);
 	HistoryItem *addMessageGroupAfterPrev(HistoryItem *newItem, HistoryItem *prev);
 
+	History(const History &) = delete;
+	History &operator=(const History &) = delete;
 };
 
 class HistoryGroup;
@@ -489,6 +496,8 @@ public:
 	HistoryJoined *insertJoinedMessage(bool unread);
 	void checkJoinedMessage(bool createUnread = false);
 	const QDateTime &maxReadMessageDate();
+
+	~ChannelHistory();
 
 private:
 
@@ -815,6 +824,9 @@ public:
 	int32 geomResize(int32 newWidth, int32 *ytransform, const HistoryItem *resizedItem); // return new size
 	int32 y, height;
 	History *history;
+
+	HistoryBlock(const HistoryBlock &) = delete;
+	HistoryBlock &operator=(const HistoryBlock &) = delete;
 };
 
 class HistoryElem {
@@ -1097,7 +1109,7 @@ public:
 	bool canEdit(const QDateTime &cur) const;
 
 	bool suggestBanReportDeleteAll() const {
-		auto channel = history()->peer->asChannel();
+		ChannelData *channel = history()->peer->asChannel();
 		if (!channel || (!channel->amEditor() && !channel->amCreator())) return false;
 		return !isPost() && !out() && from()->isUser() && toHistoryMessage();
 	}
@@ -1198,9 +1210,6 @@ public:
 
 protected:
 
-	HistoryItem(const HistoryItem &);
-	HistoryItem &operator=(const HistoryItem &);
-
 	PeerData *_from;
 	History *_history;
 	HistoryBlock *_block;
@@ -1208,6 +1217,8 @@ protected:
 
 	mutable int32 _authorNameVersion;
 
+	HistoryItem(const HistoryItem &) = delete;
+	HistoryItem &operator=(const HistoryItem &) = delete;
 };
 
 class MessageLink : public ITextLink {

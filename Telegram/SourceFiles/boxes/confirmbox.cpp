@@ -473,7 +473,7 @@ void RichDeleteMessageBox::onDelete() {
 	if (_deleteAll.checked()) {
 		App::main()->deleteAllFromUser(_channel, _from);
 	}
-	if (auto item = App::histItemById(_channel ? peerToChannel(_channel->id) : 0, _msgId)) {
+	if (HistoryItem *item = App::histItemById(_channel ? peerToChannel(_channel->id) : 0, _msgId)) {
 		bool wasLast = (item->history()->lastMsg == item);
 		item->destroy();
 		if (_msgId > 0) {

@@ -24,16 +24,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "application.h"
 
-#include "intro/introsteps.h"
-#include "intro/intro.h"
+#include "intro/introstart.h"
+#include "intro/introphone.h"
 
 #include "langloaderplain.h"
 
-IntroSteps::IntroSteps(IntroWidget *parent) : IntroStage(parent),
-_intro(this, lang(lng_intro), st::introLabel, st::introLabelTextStyle),
-_changeLang(this, QString()),
-_next(this, lang(lng_start_msgs), st::btnIntroNext) {
-
+IntroStart::IntroStart(IntroWidget *parent) : IntroStep(parent)
+, _intro(this, lang(lng_intro), st::introLabel, st::introLabelTextStyle)
+, _changeLang(this, QString())
+, _next(this, lang(lng_start_msgs), st::btnIntroNext) {
 	_changeLang.hide();
 	if (cLang() == languageDefault) {
 		int32 l = Sandbox::LangSystem();
@@ -56,15 +55,14 @@ _next(this, lang(lng_start_msgs), st::btnIntroNext) {
 
 	setGeometry(parent->innerRect());
 
-	connect(&_next, SIGNAL(stateChanged(int, ButtonStateChangeSource)), parent, SLOT(onDoneStateChanged(int, ButtonStateChangeSource)));
-	connect(&_next, SIGNAL(clicked()), parent, SLOT(onIntroNext()));
+	connect(&_next, SIGNAL(clicked()), parent, SLOT(onStepSubmit()));
 
 	connect(&_changeLang, SIGNAL(clicked()), parent, SLOT(onChangeLang()));
 
 	setMouseTracking(true);
 }
 
-void IntroSteps::paintEvent(QPaintEvent *e) {
+void IntroStart::paintEvent(QPaintEvent *e) {
 	bool trivial = (rect() == e->rect());
 
 	QPainter p(this);
@@ -80,7 +78,7 @@ void IntroSteps::paintEvent(QPaintEvent *e) {
 	p.drawPixmap(QPoint((width() - st::aboutIcon.pxWidth()) / 2, hy - st::introIconSkip - st::aboutIcon.pxHeight()), App::sprite(), st::aboutIcon);
 }
 
-void IntroSteps::resizeEvent(QResizeEvent *e) {
+void IntroStart::resizeEvent(QResizeEvent *e) {
 	if (e->oldSize().width() != width()) {
 		_next.move((width() - _next.width()) / 2, st::introBtnTop);
 		_intro.move((width() - _intro.width()) / 2, _next.y() - _intro.height() - st::introSkip);
@@ -88,17 +86,6 @@ void IntroSteps::resizeEvent(QResizeEvent *e) {
 	}
 }
 
-void IntroSteps::activate() {
-	show();
-}
-
-void IntroSteps::deactivate() {
-	hide();
-}
-
-void IntroSteps::onNext() {
-	intro()->onIntroNext();
-}
-
-void IntroSteps::onBack() {
+void IntroStart::onSubmit() {
+	intro()->nextStep(new IntroPhone(intro()));
 }

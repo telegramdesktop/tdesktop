@@ -916,7 +916,13 @@ public:
 	void automaticLoad(const HistoryItem *item); // auto load sticker or video
 	void automaticLoadSettingsChanged();
 
-	bool loaded(bool check = false) const;
+	enum FilePathResolveType {
+		FilePathResolveCached,
+		FilePathResolveChecked,
+		FilePathResolveSaveFromData,
+		FilePathResolveSaveFromDataSilent,
+	};
+	bool loaded(FilePathResolveType type = FilePathResolveCached) const;
 	bool loading() const;
 	bool displayLoading() const;
 	void save(const QString &toFile, ActionOnLoad action = ActionOnLoadNone, const FullMsgId &actionMsgId = FullMsgId(), LoadFromCloudSetting fromCloud = LoadFromCloudOrLocal, bool autoLoading = false);
@@ -925,10 +931,11 @@ public:
 	int32 loadOffset() const;
 	bool uploading() const;
 
-	QString already(bool check = false) const;
 	QByteArray data() const;
 	const FileLocation &location(bool check = false) const;
 	void setLocation(const FileLocation &loc);
+
+	QString filepath(FilePathResolveType type = FilePathResolveCached, bool forceSavingAs = false) const;
 
 	bool saveToCache() const;
 
@@ -1007,8 +1014,7 @@ public:
 	int32 md5[8];
 
 	MediaKey mediaKey() const {
-		LocationType t = isVideo() ? VideoFileLocation : (voice() ? AudioFileLocation : DocumentFileLocation);
-		return ::mediaKey(t, dc, id);
+		return ::mediaKey(locationType(), dc, id);
 	}
 
 private:
@@ -1017,6 +1023,10 @@ private:
 	QByteArray _data;
 	DocumentAdditionalData *_additional;
 	int32 _duration;
+
+	LocationType locationType() const {
+		return voice() ? AudioFileLocation : (isVideo() ? VideoFileLocation : DocumentFileLocation);
+	}
 
 	ActionOnLoad _actionOnLoad;
 	FullMsgId _actionOnLoadMsgId;

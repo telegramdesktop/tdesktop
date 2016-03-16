@@ -201,9 +201,6 @@
     <ClCompile Include="SourceFiles\boxes\emojibox.cpp">
       <Filter>boxes</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\intro\intro.cpp">
-      <Filter>intro</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\intro\introcode.cpp">
       <Filter>intro</Filter>
     </ClCompile>
@@ -211,9 +208,6 @@
       <Filter>intro</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\intro\introsignup.cpp">
-      <Filter>intro</Filter>
-    </ClCompile>
-    <ClCompile Include="SourceFiles\intro\introsteps.cpp">
       <Filter>intro</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\dropdown.cpp">
@@ -424,15 +418,6 @@
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_introcode.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_intro.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_intro.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_intro.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_historywidget.cpp">
@@ -909,6 +894,21 @@
     <ClCompile Include="SourceFiles\shortcuts.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\intro\introstart.cpp">
+      <Filter>intro</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_introwidget.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_introwidget.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_introwidget.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\intro\introwidget.cpp">
+      <Filter>intro</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -962,9 +962,6 @@
     <ClInclude Include="SourceFiles\gui\text.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\intro\introsteps.h">
-      <Filter>intro</Filter>
-    </ClInclude>
     <ClInclude Include="SourceFiles\gui\filedialog.h">
       <Filter>gui</Filter>
     </ClInclude>
@@ -1009,6 +1006,9 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\shortcuts.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\intro\introstart.h">
+      <Filter>intro</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1116,9 +1116,6 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\boxes\emojibox.h">
       <Filter>boxes</Filter>
-    </CustomBuild>
-    <CustomBuild Include="SourceFiles\intro\intro.h">
-      <Filter>intro</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\intro\introcode.h">
       <Filter>intro</Filter>
@@ -1233,6 +1230,9 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\structs.h">
       <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\intro\introwidget.h">
+      <Filter>intro</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

@@ -1772,26 +1772,12 @@ void _serialize_auth_sentCode(MTPStringLogger &to, int32 stage, int32 lev, Types
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
-	case 0: to.add("  phone_registered: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  phone_code_hash: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 2: to.add("  send_call_timeout: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 3: to.add("  is_password: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-	}
-}
-
-void _serialize_auth_sentAppCode(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
-	if (stage) {
-		to.add(",\n").addSpaces(lev);
-	} else {
-		to.add("{ auth_sentAppCode");
-		to.add("\n").addSpaces(lev);
-	}
-	switch (stage) {
-	case 0: to.add("  phone_registered: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  phone_code_hash: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 2: to.add("  send_call_timeout: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 3: to.add("  is_password: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  phone_registered: "); ++stages.back(); if (flag & MTPDauth_sentCode::flag_phone_registered) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  type: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 3: to.add("  phone_code_hash: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 4: to.add("  next_type: "); ++stages.back(); if (flag & MTPDauth_sentCode::flag_next_type) { types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	case 5: to.add("  timeout: "); ++stages.back(); if (flag & MTPDauth_sentCode::flag_timeout) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -3847,20 +3833,6 @@ void _serialize_accountDaysTTL(MTPStringLogger &to, int32 stage, int32 lev, Type
 	}
 }
 
-void _serialize_account_sentChangePhoneCode(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
-	if (stage) {
-		to.add(",\n").addSpaces(lev);
-	} else {
-		to.add("{ account_sentChangePhoneCode");
-		to.add("\n").addSpaces(lev);
-	}
-	switch (stage) {
-	case 0: to.add("  phone_code_hash: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  send_call_timeout: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-	}
-}
-
 void _serialize_documentAttributeImageSize(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
@@ -5174,6 +5146,70 @@ void _serialize_channels_messageEditData(MTPStringLogger &to, int32 stage, int32
 	}
 }
 
+void _serialize_auth_codeTypeSms(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	to.add("{ auth_codeTypeSms }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+}
+
+void _serialize_auth_codeTypeCall(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	to.add("{ auth_codeTypeCall }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+}
+
+void _serialize_auth_codeTypeFlashCall(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	to.add("{ auth_codeTypeFlashCall }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+}
+
+void _serialize_auth_sentCodeTypeApp(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ auth_sentCodeTypeApp");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  length: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
+void _serialize_auth_sentCodeTypeSms(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ auth_sentCodeTypeSms");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  length: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
+void _serialize_auth_sentCodeTypeCall(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ auth_sentCodeTypeCall");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  length: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
+void _serialize_auth_sentCodeTypeFlashCall(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ auth_sentCodeTypeFlashCall");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  pattern: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
 void _serialize_req_pq(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
@@ -5303,20 +5339,6 @@ void _serialize_register_saveDeveloperInfo(MTPStringLogger &to, int32 stage, int
 	}
 }
 
-void _serialize_auth_sendCall(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
-	if (stage) {
-		to.add(",\n").addSpaces(lev);
-	} else {
-		to.add("{ auth_sendCall");
-		to.add("\n").addSpaces(lev);
-	}
-	switch (stage) {
-	case 0: to.add("  phone_number: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  phone_code_hash: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-	}
-}
-
 void _serialize_auth_logOut(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	to.add("{ auth_logOut }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
 }
@@ -5355,11 +5377,11 @@ void _serialize_auth_bindTempAuthKey(MTPStringLogger &to, int32 stage, int32 lev
 	}
 }
 
-void _serialize_auth_sendSms(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+void _serialize_auth_cancelCode(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
-		to.add("{ auth_sendSms");
+		to.add("{ auth_cancelCode");
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
@@ -5943,11 +5965,43 @@ void _serialize_auth_sendCode(MTPStringLogger &to, int32 stage, int32 lev, Types
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  allow_flashcall: "); ++stages.back(); if (flag & MTPauth_sendCode::flag_allow_flashcall) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  phone_number: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 3: to.add("  current_number: "); ++stages.back(); if (flag & MTPauth_sendCode::flag_current_number) { types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 4: to.add("  api_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 5: to.add("  api_hash: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 6: to.add("  lang_code: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
+void _serialize_auth_resendCode(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ auth_resendCode");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
 	case 0: to.add("  phone_number: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 1: to.add("  sms_type: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 2: to.add("  api_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 3: to.add("  api_hash: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	case 4: to.add("  lang_code: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  phone_code_hash: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
+void _serialize_account_sendChangePhoneCode(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ account_sendChangePhoneCode");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  allow_flashcall: "); ++stages.back(); if (flag & MTPaccount_sendChangePhoneCode::flag_allow_flashcall) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  phone_number: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 3: to.add("  current_number: "); ++stages.back(); if (flag & MTPaccount_sendChangePhoneCode::flag_current_number) { types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -6160,19 +6214,6 @@ void _serialize_account_setPrivacy(MTPStringLogger &to, int32 stage, int32 lev, 
 
 void _serialize_account_getAccountTTL(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
 	to.add("{ account_getAccountTTL }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
-}
-
-void _serialize_account_sendChangePhoneCode(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
-	if (stage) {
-		to.add(",\n").addSpaces(lev);
-	} else {
-		to.add("{ account_sendChangePhoneCode");
-		to.add("\n").addSpaces(lev);
-	}
-	switch (stage) {
-	case 0: to.add("  phone_number: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-	}
 }
 
 void _serialize_account_getAuthorizations(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {
@@ -7746,7 +7787,6 @@ namespace {
 		_serializers.insert(mtpc_geoPoint, _serialize_geoPoint);
 		_serializers.insert(mtpc_auth_checkedPhone, _serialize_auth_checkedPhone);
 		_serializers.insert(mtpc_auth_sentCode, _serialize_auth_sentCode);
-		_serializers.insert(mtpc_auth_sentAppCode, _serialize_auth_sentAppCode);
 		_serializers.insert(mtpc_auth_authorization, _serialize_auth_authorization);
 		_serializers.insert(mtpc_auth_exportedAuthorization, _serialize_auth_exportedAuthorization);
 		_serializers.insert(mtpc_inputNotifyPeer, _serialize_inputNotifyPeer);
@@ -7918,7 +7958,6 @@ namespace {
 		_serializers.insert(mtpc_privacyValueDisallowUsers, _serialize_privacyValueDisallowUsers);
 		_serializers.insert(mtpc_account_privacyRules, _serialize_account_privacyRules);
 		_serializers.insert(mtpc_accountDaysTTL, _serialize_accountDaysTTL);
-		_serializers.insert(mtpc_account_sentChangePhoneCode, _serialize_account_sentChangePhoneCode);
 		_serializers.insert(mtpc_documentAttributeImageSize, _serialize_documentAttributeImageSize);
 		_serializers.insert(mtpc_documentAttributeAnimated, _serialize_documentAttributeAnimated);
 		_serializers.insert(mtpc_documentAttributeSticker, _serialize_documentAttributeSticker);
@@ -8020,6 +8059,13 @@ namespace {
 		_serializers.insert(mtpc_exportedMessageLink, _serialize_exportedMessageLink);
 		_serializers.insert(mtpc_messageFwdHeader, _serialize_messageFwdHeader);
 		_serializers.insert(mtpc_channels_messageEditData, _serialize_channels_messageEditData);
+		_serializers.insert(mtpc_auth_codeTypeSms, _serialize_auth_codeTypeSms);
+		_serializers.insert(mtpc_auth_codeTypeCall, _serialize_auth_codeTypeCall);
+		_serializers.insert(mtpc_auth_codeTypeFlashCall, _serialize_auth_codeTypeFlashCall);
+		_serializers.insert(mtpc_auth_sentCodeTypeApp, _serialize_auth_sentCodeTypeApp);
+		_serializers.insert(mtpc_auth_sentCodeTypeSms, _serialize_auth_sentCodeTypeSms);
+		_serializers.insert(mtpc_auth_sentCodeTypeCall, _serialize_auth_sentCodeTypeCall);
+		_serializers.insert(mtpc_auth_sentCodeTypeFlashCall, _serialize_auth_sentCodeTypeFlashCall);
 
 		_serializers.insert(mtpc_req_pq, _serialize_req_pq);
 		_serializers.insert(mtpc_req_DH_params, _serialize_req_DH_params);
@@ -8030,12 +8076,11 @@ namespace {
 		_serializers.insert(mtpc_ping_delay_disconnect, _serialize_ping_delay_disconnect);
 		_serializers.insert(mtpc_destroy_session, _serialize_destroy_session);
 		_serializers.insert(mtpc_register_saveDeveloperInfo, _serialize_register_saveDeveloperInfo);
-		_serializers.insert(mtpc_auth_sendCall, _serialize_auth_sendCall);
 		_serializers.insert(mtpc_auth_logOut, _serialize_auth_logOut);
 		_serializers.insert(mtpc_auth_resetAuthorizations, _serialize_auth_resetAuthorizations);
 		_serializers.insert(mtpc_auth_sendInvites, _serialize_auth_sendInvites);
 		_serializers.insert(mtpc_auth_bindTempAuthKey, _serialize_auth_bindTempAuthKey);
-		_serializers.insert(mtpc_auth_sendSms, _serialize_auth_sendSms);
+		_serializers.insert(mtpc_auth_cancelCode, _serialize_auth_cancelCode);
 		_serializers.insert(mtpc_account_registerDevice, _serialize_account_registerDevice);
 		_serializers.insert(mtpc_account_unregisterDevice, _serialize_account_unregisterDevice);
 		_serializers.insert(mtpc_account_updateNotifySettings, _serialize_account_updateNotifySettings);
@@ -8078,6 +8123,8 @@ namespace {
 		_serializers.insert(mtpc_invokeWithoutUpdates, _serialize_invokeWithoutUpdates);
 		_serializers.insert(mtpc_auth_checkPhone, _serialize_auth_checkPhone);
 		_serializers.insert(mtpc_auth_sendCode, _serialize_auth_sendCode);
+		_serializers.insert(mtpc_auth_resendCode, _serialize_auth_resendCode);
+		_serializers.insert(mtpc_account_sendChangePhoneCode, _serialize_account_sendChangePhoneCode);
 		_serializers.insert(mtpc_auth_signUp, _serialize_auth_signUp);
 		_serializers.insert(mtpc_auth_signIn, _serialize_auth_signIn);
 		_serializers.insert(mtpc_auth_importAuthorization, _serialize_auth_importAuthorization);
@@ -8095,7 +8142,6 @@ namespace {
 		_serializers.insert(mtpc_account_getPrivacy, _serialize_account_getPrivacy);
 		_serializers.insert(mtpc_account_setPrivacy, _serialize_account_setPrivacy);
 		_serializers.insert(mtpc_account_getAccountTTL, _serialize_account_getAccountTTL);
-		_serializers.insert(mtpc_account_sendChangePhoneCode, _serialize_account_sendChangePhoneCode);
 		_serializers.insert(mtpc_account_getAuthorizations, _serialize_account_getAuthorizations);
 		_serializers.insert(mtpc_account_getPassword, _serialize_account_getPassword);
 		_serializers.insert(mtpc_account_getPasswordSettings, _serialize_account_getPasswordSettings);

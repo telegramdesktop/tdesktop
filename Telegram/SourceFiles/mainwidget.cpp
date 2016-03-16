@@ -909,7 +909,7 @@ void MainWidget::forwardLayer(int32 forwardSelected) {
 
 void MainWidget::deleteLayer(int32 selectedCount) {
 	if (selectedCount == -1 && !overview) {
-		if (auto item = App::contextItem()) {
+		if (HistoryItem *item = App::contextItem()) {
 			if (item->suggestBanReportDeleteAll()) {
 				Ui::showLayer(new RichDeleteMessageBox(item->history()->peer->asChannel(), item->from()->asUser(), item->id));
 				return;
@@ -1067,16 +1067,16 @@ void MainWidget::deleteAllFromUser(ChannelData *channel, UserData *from) {
 	t_assert(channel != nullptr && from != nullptr);
 
 	QVector<MsgId> toDestroy;
-	if (auto history = App::historyLoaded(channel->id)) {
-		for (auto i = history->blocks.cbegin(), e = history->blocks.cend(); i != e; ++i) {
-			for (auto j = (*i)->items.cbegin(), n = (*i)->items.cend(); j != n; ++j) {
-				if ((*j)->from() == from && (*j)->type() == HistoryItemMsg && (*j)->canDelete()) {
-					toDestroy.push_back((*j)->id);
+	if (History *history = App::historyLoaded(channel->id)) {
+		for (HistoryBlock *block : history->blocks) {
+			for (HistoryItem *item : block->items) {
+				if (item->from() == from && item->type() == HistoryItemMsg && item->canDelete()) {
+					toDestroy.push_back(item->id);
 				}
 			}
 		}
-		for (auto i = toDestroy.cbegin(), e = toDestroy.cend(); i != e; ++i) {
-			if (auto item = App::histItemById(peerToChannel(channel->id), *i)) {
+		for (const MsgId &msgId : toDestroy) {
+			if (HistoryItem *item = App::histItemById(peerToChannel(channel->id), msgId)) {
 				item->destroy();
 			}
 		}
@@ -1095,7 +1095,7 @@ void MainWidget::deleteAllFromUserPart(DeleteAllFromUserParams params, const MTP
 	if (!MTP::authedId()) return;
 	if (offset > 0) {
 		MTP::send(MTPchannels_DeleteUserHistory(params.channel->inputChannel, params.from->inputUser), rpcDone(&MainWidget::deleteAllFromUserPart, params));
-	} else if (auto h = App::historyLoaded(params.channel)) {
+	} else if (History *h = App::historyLoaded(params.channel)) {
 		if (!h->lastMsg) {
 			checkPeerHistory(params.channel);
 		}
@@ -1753,24 +1753,9 @@ void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
 		audioPlayer()->clearStoppedAtStart(audioId);
 
 		DocumentData *audio = audioId.audio;
-		QString already = audio->already(true);
-		if (already.isEmpty() && !audio->data().isEmpty()) {
-			bool mp3 = (audio->mime == qstr("audio/mp3"));
-			QString filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), mp3 ? qsl(".mp3") : qsl(".ogg"), false);
-			if (!filename.isEmpty()) {
-				QFile f(filename);
-				if (f.open(QIODevice::WriteOnly)) {
-					if (f.write(audio->data()) == audio->data().size()) {
-						f.close();
-						already = filename;
-						audio->setLocation(FileLocation(StorageFilePartial, filename));
-						Local::writeFileLocation(mediaKey(AudioFileLocation, audio->dc, audio->id), FileLocation(mtpToStorageType(mtpc_storage_filePartial), filename));
-					}
-				}
-			}
-		}
-		if (!already.isEmpty()) {
-			psOpenFile(already);
+		QString filepath = audio->filepath(DocumentData::FilePathResolveSaveFromData);
+		if (!filepath.isEmpty()) {
+			psOpenFile(filepath);
 		}
 	}
 
@@ -1790,35 +1775,9 @@ void MainWidget::documentPlayProgress(const SongMsgId &songId) {
 		audioPlayer()->clearStoppedAtStart(songId);
 
 		DocumentData *document = songId.song;
-		QString already = document->already(true);
-		if (already.isEmpty() && !document->data().isEmpty()) {
-			QString name = document->name, filter;
-			MimeType mimeType = mimeTypeForName(document->mime);
-			QStringList p = mimeType.globPatterns();
-			QString pattern = p.isEmpty() ? QString() : p.front();
-			if (name.isEmpty()) {
-				name = pattern.isEmpty() ? qsl(".unknown") : pattern.replace('*', QString());
-			}
-			if (pattern.isEmpty()) {
-				filter = QString();
-			} else {
-				filter = mimeType.filterString() + qsl(";;All files (*.*)");
-			}
-			QString filename = saveFileName(lang(lng_save_file), filter, qsl("doc"), name, false);
-			if (!filename.isEmpty()) {
-				QFile f(filename);
-				if (f.open(QIODevice::WriteOnly)) {
-					if (f.write(document->data()) == document->data().size()) {
-						f.close();
-						already = filename;
-						document->setLocation(FileLocation(StorageFilePartial, filename));
-						Local::writeFileLocation(mediaKey(DocumentFileLocation, document->dc, document->id), FileLocation(mtpToStorageType(mtpc_storage_filePartial), filename));
-					}
-				}
-			}
-		}
-		if (!already.isEmpty()) {
-			psOpenFile(already);
+		QString filepath = document->filepath(DocumentData::FilePathResolveSaveFromData);
+		if (!filepath.isEmpty()) {
+			psOpenFile(filepath);
 		}
 	}
 
@@ -2166,6 +2125,8 @@ void MainWidget::scheduleViewIncrement(HistoryItem *item) {
 }
 
 void MainWidget::onViewsIncrement() {
+	if (!App::main() || !MTP::authedId()) return;
+
 	for (ViewsIncrement::iterator i = _viewsToIncrement.begin(); i != _viewsToIncrement.cend();) {
 		if (_viewsIncrementRequests.contains(i.key())) {
 			++i;
