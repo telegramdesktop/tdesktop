@@ -4353,6 +4353,18 @@ bool MentionsDropdown::clearFilteredBotCommands() {
 	return true;
 }
 
+namespace {
+	template <typename T, typename U>
+	inline int indexOfInFirstN(const T &v, const U &elem, int last) {
+		for (auto b = v.cbegin(), i = b, e = b + qMax(v.size(), last); i != e; ++i) {
+			if (*i == elem) {
+				return (i - b);
+			}
+		}
+		return -1;
+	}
+}
+
 void MentionsDropdown::updateFiltered(bool resetScroll) {
 	int32 now = unixtime(), recentInlineBots = 0;
 	MentionRows mrows;
@@ -4413,6 +4425,7 @@ void MentionsDropdown::updateFiltered(bool resetScroll) {
 					UserData *user = i.key();
 					if (user->username.isEmpty()) continue;
 					if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
+					if (indexOfInFirstN(mrows, user, recentInlineBots) >= 0) continue;
 					ordered.insertMulti(App::onlineForSort(user, now), user);
 				}
 			}
@@ -4420,6 +4433,7 @@ void MentionsDropdown::updateFiltered(bool resetScroll) {
 				UserData *user = *i;
 				if (user->username.isEmpty()) continue;
 				if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
+				if (indexOfInFirstN(mrows, user, recentInlineBots) >= 0) continue;
 				mrows.push_back(user);
 				if (!ordered.isEmpty()) {
 					ordered.remove(App::onlineForSort(user, now), user);
@@ -4441,6 +4455,7 @@ void MentionsDropdown::updateFiltered(bool resetScroll) {
 					UserData *user = *i;
 					if (user->username.isEmpty()) continue;
 					if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
+					if (indexOfInFirstN(mrows, user, recentInlineBots) >= 0) continue;
 					mrows.push_back(user);
 				}
 			}
@@ -4546,6 +4561,7 @@ void MentionsDropdown::rowsUpdated(const MentionRows &mrows, const HashtagRows &
 			_scroll.show();
 		}
 		recount(resetScroll);
+		update();
 		if (hidden) {
 			hide();
 			showStart();

@@ -392,7 +392,7 @@ void FlatTextarea::onMentionHashtagOrBotCommandInsert(QString str) {
 		QString t(fr.text());
 		for (int i = pos - p; i > 0; --i) {
 			if (t.at(i - 1) == '@' || t.at(i - 1) == '#' || t.at(i - 1) == '/') {
-				if ((i == pos - p || t.at(i).isLetter() || t.at(i - 1) == '#') && (i < 2 || !(t.at(i - 2).isLetterOrNumber() || t.at(i - 2) == '_'))) {
+				if ((i == pos - p || (t.at(i - 1) == '/' ? t.at(i).isLetterOrNumber() : t.at(i).isLetter()) || t.at(i - 1) == '#') && (i < 2 || !(t.at(i - 2).isLetterOrNumber() || t.at(i - 2) == '_'))) {
 					c.setPosition(p + i - 1, QTextCursor::MoveAnchor);
 					int till = p + i;
 					for (; (till < e) && (till - p - i + 1 < str.size()); ++till) {
