@@ -355,6 +355,8 @@ struct GlobalDataStruct {
 	Adaptive::Layout AdaptiveLayout = Adaptive::NormalLayout;
 	bool AdaptiveForWide = true;
 
+	int32 DebugLoggingFlags = 0;
+
 	// config
 	int32 ChatSizeMax = 200;
 	int32 MegagroupSizeMax = 1000;
@@ -397,6 +399,8 @@ namespace Global {
 
 	DefineVar(Global, Adaptive::Layout, AdaptiveLayout);
 	DefineVar(Global, bool, AdaptiveForWide);
+
+	DefineVar(Global, int32, DebugLoggingFlags);
 
 	// config
 	DefineVar(Global, int32, ChatSizeMax);

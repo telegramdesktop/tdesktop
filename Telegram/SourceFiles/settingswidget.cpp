@@ -811,11 +811,23 @@ void SettingsInner::keyPressEvent(QKeyEvent *e) {
 			Ui::showLayer(box);
 			from = size;
 			break;
-        } else if (str == qstr("loadlang")) {
-            chooseCustomLang();
+		} else if (str == qstr("loadlang")) {
+			chooseCustomLang();
+		} else if (str == qstr("debugfiles") && cDebug()) {
+			if (DebugLogging::FileLoader()) {
+				Global::RefDebugLoggingFlags() &= ~DebugLogging::FileLoaderFlag;
+			} else {
+				Global::RefDebugLoggingFlags() |= DebugLogging::FileLoaderFlag;
+			}
+			Ui::showLayer(new InformBox(DebugLogging::FileLoader() ? "Enabled file download logging" : "Disabled file download logging"));
 		} else if (str == qstr("crashplease")) {
 			t_assert(!"Crashed in Settings!");
-		} else if (qsl("debugmode").startsWith(str) || qsl("testmode").startsWith(str) || qsl("loadlang").startsWith(str) || qsl("crashplease").startsWith(str)) {
+		} else if (
+			qsl("debugmode").startsWith(str) ||
+			qsl("testmode").startsWith(str) ||
+			qsl("loadlang").startsWith(str) ||
+			qsl("debugfiles").startsWith(str) ||
+			qsl("crashplease").startsWith(str)) {
 			break;
 		}
 		++from;

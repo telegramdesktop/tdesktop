@@ -131,6 +131,12 @@ namespace Adaptive {
 	};
 };
 
+namespace DebugLogging {
+	enum Flags {
+		FileLoaderFlag = 0x00000001,
+	};
+}
+
 namespace Global {
 
 	bool started();
@@ -141,6 +147,8 @@ namespace Global {
 
 	DeclareVar(Adaptive::Layout, AdaptiveLayout);
 	DeclareVar(bool, AdaptiveForWide);
+
+	DeclareVar(int32, DebugLoggingFlags);
 
 	// config
 	DeclareVar(int32, ChatSizeMax);
@@ -173,5 +181,11 @@ namespace Adaptive {
 	}
 	inline bool Wide() {
 		return Global::AdaptiveForWide() && (Global::AdaptiveLayout() == WideLayout);
+	}
+}
+
+namespace DebugLogging {
+	inline bool FileLoader() {
+		return (Global::DebugLoggingFlags() | FileLoaderFlag) != 0;
 	}
 }
