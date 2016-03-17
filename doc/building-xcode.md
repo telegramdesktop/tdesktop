@@ -235,7 +235,7 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
     cd gyp
     ./setup.py build
-    sudo setup.py install
+    sudo ./setup.py install
     cd ..
 
 #####Build crashpad
