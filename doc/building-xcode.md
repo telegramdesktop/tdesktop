@@ -90,10 +90,6 @@ In Terminal go to **/Users/user/TBuild/Libraries/xz-5.0.5** and there run:
     make
     sudo make install
 
-####zlib 1.2.8
-
-Using the system lib
-
 ####libexif 0.6.20
 #####Get the source code
 
