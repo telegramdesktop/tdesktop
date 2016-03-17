@@ -78,6 +78,7 @@ public slots:
 	void onDeleteContactSure();
 	void onDeleteAndExit();
 	void onDeleteAndExitSure();
+	void onSearch();
 
 signals:
 
@@ -104,6 +105,8 @@ private:
 	FlatButton _info;
 	FlatButton _edit, _leaveGroup, _addContact, _deleteContact;
 	FlatButton _mediaType;
+
+	IconedButton _search;
 
 	PlainShadow _sideShadow;
 

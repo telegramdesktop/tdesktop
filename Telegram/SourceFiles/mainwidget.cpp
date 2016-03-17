@@ -35,6 +35,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "localstorage.h"
 
+#include "shortcuts.h"
+
 #include "audio.h"
 
 TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
@@ -56,6 +58,7 @@ TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
 , _addContact(this, lang(lng_profile_add_contact), st::topBarButton)
 , _deleteContact(this, lang(lng_profile_delete_contact), st::topBarButton)
 , _mediaType(this, lang(lng_media_type), st::topBarButton)
+, _search(this, st::topBarSearch)
 , _sideShadow(this, st::shadowColor) {
 
 	connect(&_forward, SIGNAL(clicked()), this, SLOT(onForwardSelection()));
@@ -66,6 +69,7 @@ TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
 	connect(&_deleteContact, SIGNAL(clicked()), this, SLOT(onDeleteContact()));
 	connect(&_edit, SIGNAL(clicked()), this, SLOT(onEdit()));
 	connect(&_leaveGroup, SIGNAL(clicked()), this, SLOT(onDeleteAndExit()));
+	connect(&_search, SIGNAL(clicked()), this, SLOT(onSearch()));
 
 	setCursor(style::cur_pointer);
 	showAll();
@@ -145,6 +149,10 @@ void TopBarWidget::onDeleteAndExitSure() {
 		Ui::hideLayer();
 		MTP::send(MTPmessages_DeleteChatUser(c->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, p), App::main()->rpcFail(&MainWidget::leaveChatFailed, p));
 	}
+}
+
+void TopBarWidget::onSearch() {
+	Shortcuts::launch(qsl("search"));
 }
 
 void TopBarWidget::enterEvent(QEvent *e) {
@@ -261,6 +269,7 @@ void TopBarWidget::resizeEvent(QResizeEvent *e) {
 	if (!_edit.isHidden()) _edit.move(r -= _edit.width(), 0);
 	if (!_addContact.isHidden()) _addContact.move(r -= _addContact.width(), 0);
 	if (!_mediaType.isHidden()) _mediaType.move(r -= _mediaType.width(), 0);
+	_search.move(width() - (_info.isHidden() ? st::topBarForwardPadding.right() : _info.width()) - _search.width(), 0);
 
 	_sideShadow.resize(st::lineWidth, height());
 	_sideShadow.moveToLeft(0, 0);
@@ -276,6 +285,7 @@ void TopBarWidget::startAnim() {
     _delete.hide();
     _forward.hide();
 	_mediaType.hide();
+	_search.hide();
 
 	_animating = true;
 }
@@ -318,6 +328,7 @@ void TopBarWidget::showAll() {
 		_delete.hide();
 		_forward.hide();
 		_mediaType.hide();
+		_search.hide();
 	} else {
 		if (p && p->isChannel() && (p->asChannel()->amCreator() || (p->isMegagroup() && p->asChannel()->amEditor()))) {
 			_edit.show();
@@ -346,9 +357,15 @@ void TopBarWidget::showAll() {
 				_mediaType.hide();
 			}
 		}
-        if (App::main() && App::main()->historyPeer() && !o && !p && _clearSelection.isHidden() && Adaptive::OneColumn()) {
-			_info.show();
+		if (h && !o && !p && _clearSelection.isHidden()) {
+			if (Adaptive::OneColumn()) {
+				_info.show();
+			} else {
+				_info.hide();
+			}
+			_search.show();
 		} else {
+			_search.hide();
 			_info.hide();
 		}
 	}

@@ -975,6 +975,21 @@ topBarBackAlpha: 0.8;
 topBarBackImg: sprite(65px, 112px, 9px, 16px);
 topBarBackColor: #005faf;
 topBarBackFont: font(16px);
+topBarSearch: iconedButton(btnDefIconed) {
+	bgColor: transparent;
+	overBgColor: transparent;
+
+	icon: sprite(84px, 374px, 18px, 18px);
+	iconPos: point(13px, 18px);
+	downIcon: sprite(84px, 374px, 18px, 18px);
+	downIconPos: point(13px, 18px);
+
+	opacity: 0.22;
+	overOpacity: 0.36;
+
+	width: 44px;
+	height: topBarHeight;
+}
 topBarMinPadding: 5px;
 topBarButton: flatButton(btnDefFlat) {
 	color: btnYesColor;
