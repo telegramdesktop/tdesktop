@@ -754,6 +754,9 @@ private:
 
 	void updateMouseTracking();
 
+	// destroys _history and _migrated unread bars
+	void destroyUnreadBar();
+
 	mtpRequestId _saveEditMsgRequestId;
 	void saveEditMsg();
 	void saveEditMsgDone(History *history, const MTPUpdates &updates, mtpRequestId req);

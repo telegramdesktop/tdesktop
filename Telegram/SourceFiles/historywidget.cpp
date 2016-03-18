@@ -3601,16 +3601,9 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 			_history->lastShowAtMsgId = ShowAtUnreadMsgId;
 		}
 		_history->lastScrollTop = _scroll.scrollTop();
-		if (_history->unreadBar) {
-			_history->unreadBar->destroy();
-		}
-		if (_migrated && _migrated->unreadBar) {
-			_migrated->unreadBar->destroy();
-		}
-		if (_pinnedBar) {
-			destroyPinnedBar();
-		}
-		_history = _migrated = 0;
+		destroyUnreadBar();
+		if (_pinnedBar) destroyPinnedBar();
+		_history = _migrated = nullptr;
 		updateBotKeyboard();
 	}
 
@@ -4132,12 +4125,17 @@ void HistoryWidget::updateMouseTracking() {
 	setMouseTracking(trackMouse);
 }
 
+void HistoryWidget::destroyUnreadBar() {
+	if (_history) _history->destroyUnreadBar();
+	if (_migrated) _migrated->destroyUnreadBar();
+}
+
 void HistoryWidget::newUnreadMsg(History *history, HistoryItem *item) {
 	if (App::wnd()->historyIsActive()) {
 		if (_history == history) {
 			historyWasRead();
 			if (_scroll.scrollTop() + 1 > _scroll.scrollTopMax()) {
-				if (history->unreadBar) history->unreadBar->destroy();
+				destroyUnreadBar();
 			}
 		} else {
 			App::wnd()->notifySchedule(history, item);
@@ -4146,8 +4144,7 @@ void HistoryWidget::newUnreadMsg(History *history, HistoryItem *item) {
 	} else {
 		if (_history == history) {
 			if (_scroll.scrollTop() + 1 > _scroll.scrollTopMax()) {
-				if (history->unreadBar) history->unreadBar->destroy();
-				if (_migrated && _migrated->unreadBar) _migrated->unreadBar->destroy();
+				destroyUnreadBar();
 			}
 		}
 		App::wnd()->notifySchedule(history, item);
@@ -4332,12 +4329,7 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 
 void HistoryWidget::historyLoaded() {
 	countHistoryShowFrom();
-	if (_history->unreadBar) {
-		_history->unreadBar->destroy();
-	}
-	if (_migrated && _migrated->unreadBar) {
-		_migrated->unreadBar->destroy();
-	}
+	destroyUnreadBar();
 	doneShow();
 }
 

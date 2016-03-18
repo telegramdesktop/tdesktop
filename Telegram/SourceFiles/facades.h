@@ -170,6 +170,10 @@ namespace Global {
 	typedef QMap<PeerId, MsgId> HiddenPinnedMessagesMap;
 	DeclareVar(HiddenPinnedMessagesMap, HiddenPinnedMessages);
 
+	typedef OrderedSet<HistoryItem*> PendingItemsMap;
+	DeclareRefVar(PendingItemsMap, PendingInitDimensionsItems);
+	DeclareRefVar(PendingItemsMap, PendingRepaintItems);
+
 	typedef QMap<uint64, QPixmap> CircleMasksMap;
 	DeclareRefVar(CircleMasksMap, CircleMasks);
 

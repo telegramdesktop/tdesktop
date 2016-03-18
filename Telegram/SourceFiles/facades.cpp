@@ -226,14 +226,22 @@ void Set##Name(const Type &Name) { \
 	Namespace##Data->Name = Name; \
 }
 
-struct SandboxDataStruct {
-	QString LangSystemISO;
-	int32 LangSystem = languageDefault;
+namespace Sandbox {
 
-	QByteArray LastCrashDump;
-	ConnectionProxy PreLaunchProxy;
-};
-SandboxDataStruct *SandboxData = 0;
+	namespace internal {
+
+		struct Data {
+			QString LangSystemISO;
+			int32 LangSystem = languageDefault;
+
+			QByteArray LastCrashDump;
+			ConnectionProxy PreLaunchProxy;
+		};
+
+	}
+
+}
+Sandbox::internal::Data *SandboxData = 0;
 uint64 SandboxUserTag = 0;
 
 namespace Sandbox {
@@ -320,7 +328,7 @@ namespace Sandbox {
 	}
 
 	void start() {
-		SandboxData = new SandboxDataStruct();
+		SandboxData = new internal::Data();
 
 		SandboxData->LangSystemISO = psCurrentLanguage();
 		if (SandboxData->LangSystemISO.isEmpty()) SandboxData->LangSystemISO = qstr("en");
@@ -349,36 +357,46 @@ namespace Sandbox {
 
 }
 
-struct GlobalDataStruct {
-	uint64 LaunchId = 0;
+namespace Global {
+	namespace internal {
 
-	Adaptive::Layout AdaptiveLayout = Adaptive::NormalLayout;
-	bool AdaptiveForWide = true;
+		struct Data {
+			uint64 LaunchId = 0;
 
-	int32 DebugLoggingFlags = 0;
+			Adaptive::Layout AdaptiveLayout = Adaptive::NormalLayout;
+			bool AdaptiveForWide = true;
 
-	// config
-	int32 ChatSizeMax = 200;
-	int32 MegagroupSizeMax = 1000;
-	int32 ForwardedCountMax = 100;
-	int32 OnlineUpdatePeriod = 120000;
-	int32 OfflineBlurTimeout = 5000;
-	int32 OfflineIdleTimeout = 30000;
-	int32 OnlineFocusTimeout = 1000;
-	int32 OnlineCloudTimeout = 300000;
-	int32 NotifyCloudDelay = 30000;
-	int32 NotifyDefaultDelay = 1500;
-	int32 ChatBigSize = 10;
-	int32 PushChatPeriod = 60000;
-	int32 PushChatLimit = 2;
-	int32 SavedGifsLimit = 200;
-	int32 EditTimeLimit = 172800;
+			int32 DebugLoggingFlags = 0;
 
-	Global::HiddenPinnedMessagesMap HiddenPinnedMessages;
+			// config
+			int32 ChatSizeMax = 200;
+			int32 MegagroupSizeMax = 1000;
+			int32 ForwardedCountMax = 100;
+			int32 OnlineUpdatePeriod = 120000;
+			int32 OfflineBlurTimeout = 5000;
+			int32 OfflineIdleTimeout = 30000;
+			int32 OnlineFocusTimeout = 1000;
+			int32 OnlineCloudTimeout = 300000;
+			int32 NotifyCloudDelay = 30000;
+			int32 NotifyDefaultDelay = 1500;
+			int32 ChatBigSize = 10;
+			int32 PushChatPeriod = 60000;
+			int32 PushChatLimit = 2;
+			int32 SavedGifsLimit = 200;
+			int32 EditTimeLimit = 172800;
 
-	Global::CircleMasksMap CircleMasks;
-};
-GlobalDataStruct *GlobalData = 0;
+			HiddenPinnedMessagesMap HiddenPinnedMessages;
+
+			PendingItemsMap PendingInitDimensionsItems;
+			PendingItemsMap PendingRepaintItems;
+
+			CircleMasksMap CircleMasks;
+		};
+
+	}
+}
+
+Global::internal::Data *GlobalData = 0;
 
 namespace Global {
 
@@ -387,7 +405,7 @@ namespace Global {
 	}
 
 	void start() {
-		GlobalData = new GlobalDataStruct();
+		GlobalData = new internal::Data();
 
 		memset_rand(&GlobalData->LaunchId, sizeof(GlobalData->LaunchId));
 	}
@@ -422,6 +440,9 @@ namespace Global {
 	DefineVar(Global, int32, EditTimeLimit);
 
 	DefineVar(Global, HiddenPinnedMessagesMap, HiddenPinnedMessages);
+
+	DefineRefVar(Global, PendingItemsMap, PendingInitDimensionsItems);
+	DefineRefVar(Global, PendingItemsMap, PendingRepaintItems);
 
 	DefineRefVar(Global, CircleMasksMap, CircleMasks);
 
