@@ -1,0 +1,42 @@
+sudo: required
+
+language: cpp
+
+env:
+  - BUILD_VERSION=""
+  - BUILD_VERSION="no_autoupdate"
+  - BUILD_VERSION="no_custom_scheme"
+  - BUILD_VERSION="no_autoupdate+no_custom_scheme"
+
+arch:
+  packages:
+   - bzr
+   - wget
+   - qt5-base
+
+   - git
+   - patch
+   - libunity
+   - libappindicator-gtk2
+
+   - ffmpeg
+   - icu
+   - jasper
+   - libexif
+   - libmng
+   - libwebp
+   - libxkbcommon-x11
+   - libinput
+   - libproxy
+   - mtdev
+   - openal
+   - libva
+   - desktop-file-utils
+   - gtk-update-icon-cache
+
+  script:
+   - libtool --finish /usr/lib
+   - .travis/build.sh
+
+script:
+  - .travis/arch.sh
