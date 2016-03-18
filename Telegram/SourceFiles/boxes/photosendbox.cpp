@@ -82,7 +82,7 @@ PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxW
 					maxH = limitH;
 				}
 			}
-			_thumb = imagePix(_file->thumb.toImage(), maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), true, true, false, maxW, maxH);
+			_thumb = imagePix(_file->thumb.toImage(), maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), ImagePixSmooth | ImagePixBlurred, maxW, maxH);
 		} else {
 			for (PreparedPhotoThumbs::const_iterator i = _file->photoThumbs.cbegin(), e = _file->photoThumbs.cend(); i != e; ++i) {
 				if (i->width() >= maxW && i->height() >= maxH) {
@@ -124,7 +124,7 @@ PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxW
 			} else {
 				_thumbw = st::msgFileThumbSize;
 			}
-			_thumb = imagePix(_thumb.toImage(), _thumbw * cIntRetinaFactor(), 0, true, false, true, st::msgFileThumbSize, st::msgFileThumbSize);
+			_thumb = imagePix(_thumb.toImage(), _thumbw * cIntRetinaFactor(), 0, ImagePixSmooth | ImagePixRounded, st::msgFileThumbSize, st::msgFileThumbSize);
 		}
 
 		_name.setText(st::semiboldFont, _file->filename, _textNameOptions);
@@ -274,7 +274,7 @@ void PhotoSendBox::paintEvent(QPaintEvent *e) {
 
 			p.drawSpriteCenter(inner, _isImage ? st::msgFileOutImage : st::msgFileOutFile);
 		} else {
-			p.drawPixmapLeft(x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), width(), userDefPhoto(1)->pixRounded(st::msgFileSize));
+			p.drawPixmapLeft(x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), width(), userDefPhoto(1)->pixCircled(st::msgFileSize));
 		}
 		p.setFont(st::semiboldFont);
 		p.setPen(st::black);
@@ -428,7 +428,7 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 			} else {
 				_thumbw = st::msgFileThumbSize;
 			}
-			_thumb = imagePix(image->pix().toImage(), _thumbw * cIntRetinaFactor(), 0, true, false, true, st::msgFileThumbSize, st::msgFileThumbSize);
+			_thumb = imagePix(image->pix().toImage(), _thumbw * cIntRetinaFactor(), 0, ImagePixSmooth | ImagePixRounded, st::msgFileThumbSize, st::msgFileThumbSize);
 		}
 
 		if (doc) {
@@ -459,11 +459,11 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 					maxH = limitH;
 				}
 			}
-			_thumb = image->pixNoCache(maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), true, true, false, maxW, maxH);
+			_thumb = image->pixNoCache(maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), ImagePixSmooth | ImagePixBlurred, maxW, maxH);
 		} else {
 			maxW = dimensions.width();
 			maxH = dimensions.height();
-			_thumb = image->pixNoCache(maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), true, false, false, maxW, maxH);
+			_thumb = image->pixNoCache(maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), ImagePixSmooth | ImagePixRounded, maxW, maxH);
 		}
 		int32 tw = _thumb.width(), th = _thumb.height();
 		if (!tw || !th) {

@@ -3944,8 +3944,8 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 						second = st::mentionFont->elided(second, unamewidth - firstwidth);
 					}
 				}
-				user->photo->load();
-				p.drawPixmap(st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), user->photo->pixRounded(st::mentionPhotoSize));
+				user->loadUserpic();
+				user->paintUserpicLeft(p, st::mentionPhotoSize, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width());
 				user->nameText.drawElided(p, 2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop, namewidth);
 
 				p.setFont(st::mentionFont->f);
@@ -3986,10 +3986,8 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 				if (hasUsername || botStatus == 0 || botStatus == 2) {
 					toHighlight += '@' + user->username;
 				}
-				if (true || _parent->chat() || botStatus == 0 || botStatus == 2) {
-					user->photo->load();
-					p.drawPixmap(st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), user->photo->pixRounded(st::mentionPhotoSize));
-				}
+				user->loadUserpic();
+				user->paintUserpicLeft(p, st::mentionPhotoSize, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width());
 
 				int32 addleft = 0, widthleft = mentionwidth;
 				QString first = (_parent->filter().size() < 2) ? QString() : ('/' + toHighlight.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('/' + toHighlight) : toHighlight.mid(_parent->filter().size() - 1);

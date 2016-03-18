@@ -107,7 +107,15 @@ inline bool operator!=(const StorageImageLocation &a, const StorageImageLocation
 	return !(a == b);
 }
 
-QPixmap imagePix(QImage img, int32 w, int32 h, bool smooth, bool blurred, bool rounded, int32 outerw, int32 outerh);
+enum ImagePixOption {
+	ImagePixSmooth = 0x01,
+	ImagePixBlurred = 0x02,
+	ImagePixRounded = 0x04,
+	ImagePixCircled = 0x08,
+};
+Q_DECLARE_FLAGS(ImagePixOptions, ImagePixOption);
+Q_DECLARE_OPERATORS_FOR_FLAGS(ImagePixOptions);
+QPixmap imagePix(QImage img, int w, int h, ImagePixOptions options, int outerw, int outerh);
 
 class DelayedStorageImage;
 
@@ -145,12 +153,13 @@ public:
 
 	const QPixmap &pix(int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixRounded(int32 w = 0, int32 h = 0) const;
+	const QPixmap &pixCircled(int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixBlurred(int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixColored(const style::color &add, int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixBlurredColored(const style::color &add, int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixSingle(int32 w, int32 h, int32 outerw, int32 outerh) const;
 	const QPixmap &pixBlurredSingle(int32 w, int32 h, int32 outerw, int32 outerh) const;
-	QPixmap pixNoCache(int32 w = 0, int32 h = 0, bool smooth = false, bool blurred = false, bool rounded = false, int32 outerw = -1, int32 outerh = -1) const;
+	QPixmap pixNoCache(int w = 0, int h = 0, ImagePixOptions options = 0, int outerw = -1, int outerh = -1) const;
 	QPixmap pixColoredNoCache(const style::color &add, int32 w = 0, int32 h = 0, bool smooth = false) const;
 	QPixmap pixBlurredColoredNoCache(const style::color &add, int32 w, int32 h = 0) const;
 

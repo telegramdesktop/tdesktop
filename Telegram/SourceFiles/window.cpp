@@ -172,13 +172,8 @@ void NotifyWindow::updateNotifyDisplay() {
 		p.fillRect(0, st::notifyBorderWidth, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder->b);
 
 		if (!App::passcoded() && cNotifyView() <= dbinvShowName) {
-			if (history->peer->photo->loaded()) {
-				p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), history->peer->photo->pix(st::notifyPhotoSize));
-			} else {
-				MTP::clearLoaderPriorities();
-				peerPhoto = history->peer->photo;
-				peerPhoto->load(true, true);
-			}
+			history->peer->loadUserpic(true, true);
+			history->peer->paintUserpicLeft(p, st::notifyPhotoSize, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width());
 		} else {
 			static QPixmap icon = QPixmap::fromImage(App::wnd()->iconLarge().scaled(st::notifyPhotoSize, st::notifyPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
 			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), icon);

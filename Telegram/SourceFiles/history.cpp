@@ -98,11 +98,8 @@ void DialogRow::paint(Painter &p, int32 w, bool act, bool sel, bool onlyBackgrou
 	p.fillRect(fullRect, (act ? st::dlgActiveBG : (sel ? st::dlgHoverBG : st::dlgBG))->b);
 	if (onlyBackground) return;
 
-	if (history->peer->migrateTo()) {
-		p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, history->peer->migrateTo()->photo->pix(st::dlgPhotoSize));
-	} else {
-		p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, history->peer->photo->pix(st::dlgPhotoSize));
-	}
+	PeerData *userpicPeer = (history->peer->migrateTo() ? history->peer->migrateTo() : history->peer);
+	userpicPeer->paintUserpicLeft(p, st::dlgPhotoSize, st::dlgPaddingHor, st::dlgPaddingVer, w);
 
 	int32 nameleft = st::dlgPaddingHor + st::dlgPhotoSize + st::dlgPhotoPadding;
 	int32 namewidth = w - nameleft - st::dlgPaddingHor;
@@ -205,11 +202,8 @@ void FakeDialogRow::paint(Painter &p, int32 w, bool act, bool sel, bool onlyBack
 	if (onlyBackground) return;
 
 	History *history = _item->history();
-	if (history->peer->migrateTo()) {
-		p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, history->peer->migrateTo()->photo->pix(st::dlgPhotoSize));
-	} else {
-		p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, history->peer->photo->pix(st::dlgPhotoSize));
-	}
+	PeerData *userpicPeer = (history->peer->migrateTo() ? history->peer->migrateTo() : history->peer);
+	userpicPeer->paintUserpicLeft(p, st::dlgPhotoSize, st::dlgPaddingHor, st::dlgPaddingVer, w);
 
 	int32 nameleft = st::dlgPaddingHor + st::dlgPhotoSize + st::dlgPhotoPadding;
 	int32 namewidth = w - nameleft - st::dlgPaddingHor;
@@ -1506,7 +1500,7 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 							} else if (peer->isChannel()) {
 								peer->asChannel()->setPhoto(MTP_chatPhoto(*smallLoc, *bigLoc), photo ? photo->id : 0);
 							}
-							peer->photo->load();
+							peer->loadUserpic();
 						}
 					}
 				}
@@ -5054,7 +5048,7 @@ void HistoryContact::initDimensions(const HistoryItem *parent) {
 
 	_contact = _userId ? App::userLoaded(_userId) : 0;
 	if (_contact) {
-		_contact->photo->load();
+		_contact->loadUserpic();
 	}
 	if (_contact && _contact->contact > 0) {
 		_linkl.reset(new SendMessageLink(_contact));
@@ -5106,11 +5100,10 @@ void HistoryContact::draw(Painter &p, const HistoryItem *parent, const QRect &r,
 		linktop = st::msgFileThumbLinkTop;
 
 		QRect rthumb(rtlrect(st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, width));
-		if (_contact && _contact->photo->loaded()) {
-			QPixmap thumb = _contact->photo->pixRounded(st::msgFileThumbSize, st::msgFileThumbSize);
-			p.drawPixmap(rthumb.topLeft(), thumb);
+		if (_contact) {
+			_contact->paintUserpic(p, st::msgFileThumbSize, rthumb.x(), rthumb.y());
 		} else {
-			p.drawPixmap(rthumb.topLeft(), userDefPhoto(_contact ? _contact->colorIndex : (qAbs(_userId) % UserColorsCount))->pixRounded(st::msgFileThumbSize, st::msgFileThumbSize));
+			p.drawPixmap(rthumb.topLeft(), userDefPhoto(qAbs(_userId) % UserColorsCount)->pixCircled(st::msgFileThumbSize, st::msgFileThumbSize));
 		}
 		if (selected) {
 			App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
@@ -5127,7 +5120,7 @@ void HistoryContact::draw(Painter &p, const HistoryItem *parent, const QRect &r,
 		statustop = st::msgFileStatusTop;
 
 		QRect inner(rtlrect(st::msgFilePadding.left(), st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, width));
-		p.drawPixmap(inner.topLeft(), userDefPhoto(qAbs(parent->id) % UserColorsCount)->pixRounded(st::msgFileSize, st::msgFileSize));
+		p.drawPixmap(inner.topLeft(), userDefPhoto(qAbs(parent->id) % UserColorsCount)->pixCircled(st::msgFileSize, st::msgFileSize));
 	}
 	int32 namewidth = width - nameleft - nameright;
 
@@ -6705,7 +6698,7 @@ void HistoryMessage::draw(Painter &p, const QRect &r, uint32 selection, uint64 m
 
 	if (displayFromPhoto()) {
 		int32 photoleft = left + ((outbg && !Adaptive::Wide()) ? (width + (st::msgPhotoSkip - st::msgPhotoSize)) : (-st::msgPhotoSkip));
-		p.drawPixmap(photoleft, _height - st::msgMargin.bottom() - st::msgPhotoSize, author()->photo->pixRounded(st::msgPhotoSize));
+		author()->paintUserpic(p, st::msgPhotoSize, photoleft, _height - st::msgMargin.bottom() - st::msgPhotoSize);
 	}
 	if (width < 1) return;
 

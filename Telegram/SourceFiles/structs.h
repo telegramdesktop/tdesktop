@@ -272,7 +272,18 @@ public:
 
 	int32 colorIndex;
 	style::color color;
-	ImagePtr photo;
+
+	void setUserpic(ImagePtr userpic);
+	void paintUserpic(Painter &p, int size, int x, int y) const;
+	void paintUserpicLeft(Painter &p, int size, int x, int y, int w) const {
+		paintUserpic(p, size, rtl() ? (w - x - size) : x, y);
+	}
+	void loadUserpic(bool loadFirst = false, bool prior = true) {
+		_userpic->load(loadFirst, prior);
+	}
+	StorageKey userpicUniqueKey() const;
+	void saveUserpic(const QString &path) const;
+
 	PhotoId photoId;
 	StorageImageLocation photoLoc;
 
@@ -280,12 +291,14 @@ public:
 
 	NotifySettingsPtr notify;
 
-private:
+	PeerData(const PeerData &other) = delete;
+	PeerData &operator=(const PeerData &other) = delete;
+
+protected:
 
 	PeerData(const PeerId &id);
-	friend class UserData;
-	friend class ChatData;
-	friend class ChannelData;
+	ImagePtr _userpic;
+	ImagePtr currentUserpic() const;
 };
 
 static const uint64 UserNoAccess = 0xFFFFFFFFFFFFFFFFULL;

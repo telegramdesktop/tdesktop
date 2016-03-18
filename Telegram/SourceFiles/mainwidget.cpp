@@ -4414,7 +4414,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		UserData *user = App::userLoaded(d.vuser_id.v);
 		if (user) {
 			user->setPhoto(d.vphoto);
-			user->photo->load();
+			user->loadUserpic();
 			if (mtpIsTrue(d.vprevious)) {
 				user->photosCount = -1;
 				user->photos.clear();

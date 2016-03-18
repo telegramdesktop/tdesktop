@@ -375,6 +375,8 @@ struct GlobalDataStruct {
 	int32 EditTimeLimit = 172800;
 
 	Global::HiddenPinnedMessagesMap HiddenPinnedMessages;
+
+	Global::CircleMasksMap CircleMasks;
 };
 GlobalDataStruct *GlobalData = 0;
 
@@ -420,5 +422,7 @@ namespace Global {
 	DefineVar(Global, int32, EditTimeLimit);
 
 	DefineVar(Global, HiddenPinnedMessagesMap, HiddenPinnedMessages);
+
+	DefineRefVar(Global, CircleMasksMap, CircleMasks);
 
 };

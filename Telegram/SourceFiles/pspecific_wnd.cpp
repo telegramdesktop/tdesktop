@@ -3247,10 +3247,8 @@ QString toastImage(const StorageKey &key, PeerData *peer) {
 			v.until = 0;
 		}
 		v.path = cWorkingDir() + qsl("tdata/temp/") + QString::number(MTP::nonce<uint64>(), 16) + qsl(".png");
-		if (peer->photo->loaded() && (key.first || key.second)) {
-			peer->photo->pix().save(v.path, "PNG");
-		} else if (!key.first && key.second) {
-			(peer->isUser() ? userDefPhoto : chatDefPhoto)(peer->colorIndex)->pix().save(v.path, "PNG");
+		if (key.first || key.second) {
+			peer->saveUserpic(v.path);
 		} else {
 			App::wnd()->iconLarge().save(v.path, "PNG");
 		}
@@ -3275,11 +3273,7 @@ bool CreateToast(PeerData *peer, int32 msgId, bool showpix, const QString &title
 	StorageKey key;
 	QString imagePath;
 	if (showpix) {
-		if (peer->photoLoc.isNull() || !peer->photo->loaded()) {
-			key = StorageKey(0, (peer->isUser() ? 0x1000 : 0x2000) | peer->colorIndex);
-		} else {
-			key = storageKey(peer->photoLoc);
-		}
+		key = peer->userpicUniqueKey();
 	} else {
 		key = StorageKey(0, 0);
 	}

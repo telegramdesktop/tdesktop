@@ -3616,7 +3616,7 @@ namespace Local {
 					user->inputUser = MTP_inputUser(MTP_int(peerToUser(user->id)), MTP_long((user->access == UserNoAccess) ? 0 : user->access));
 				}
 
-				user->photo = photoLoc.isNull() ? ImagePtr(userDefPhoto(user->colorIndex)) : ImagePtr(photoLoc);
+				user->setUserpic(photoLoc.isNull() ? ImagePtr(userDefPhoto(user->colorIndex)) : ImagePtr(photoLoc));
 			}
 		} else if (result->isChat()) {
 			ChatData *chat = result->asChat();
@@ -3644,7 +3644,7 @@ namespace Local {
 				chat->input = MTP_inputPeerChat(MTP_int(peerToChat(chat->id)));
 				chat->inputChat = MTP_int(peerToChat(chat->id));
 
-				chat->photo = photoLoc.isNull() ? ImagePtr(chatDefPhoto(chat->colorIndex)) : ImagePtr(photoLoc);
+				chat->setUserpic(photoLoc.isNull() ? ImagePtr(chatDefPhoto(chat->colorIndex)) : ImagePtr(photoLoc));
 			}
 		} else if (result->isChannel()) {
 			ChannelData *channel = result->asChannel();
@@ -3666,7 +3666,7 @@ namespace Local {
 				channel->input = MTP_inputPeerChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 				channel->inputChannel = MTP_inputChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 
-				channel->photo = photoLoc.isNull() ? ImagePtr((channel->isMegagroup() ? chatDefPhoto(channel->colorIndex) : channelDefPhoto(channel->colorIndex))) : ImagePtr(photoLoc);
+				channel->setUserpic(photoLoc.isNull() ? ImagePtr((channel->isMegagroup() ? chatDefPhoto(channel->colorIndex) : channelDefPhoto(channel->colorIndex))) : ImagePtr(photoLoc));
 			}
 		}
 		if (!wasLoaded) {

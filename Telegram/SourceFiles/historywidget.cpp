@@ -6744,7 +6744,7 @@ void HistoryWidget::onInlineResultSend(InlineResult *result, UserData *bot) {
 					th = 90;
 				}
 				thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(tw), MTP_int(th), MTP_int(0));
-				thumb = result->thumb->pixNoCache(tw, th, true, false, false);
+				thumb = result->thumb->pixNoCache(tw, th, ImagePixSmooth);
 			} else {
 				tw = th = 0;
 				thumbSize = MTP_photoSizeEmpty(MTP_string(""));

@@ -208,7 +208,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _logOut(this, lang(lng_settings_logout), st::btnLogout)
 , _supportGetRequest(0) {
 	if (self()) {
-		self()->photo->load();
+		self()->loadUserpic();
 
 		connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 		connect(App::api(), SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
@@ -382,7 +382,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		updateChatBackground();
 	}
 
-	QPainter p(this);
+	Painter p(this);
 
 	p.setClipRect(e->rect());
 
@@ -399,7 +399,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		}
 
 		if (_photoLink) {
-			p.drawPixmap(_left, top, self()->photo->pix(st::setPhotoSize));
+			self()->paintUserpicLeft(p, st::setPhotoSize, _left, top, st::setWidth);
 		} else {
 			if (a_photoOver.current() < 1) {
 				p.drawPixmap(QPoint(_left, top), App::sprite(), st::setPhotoImg);

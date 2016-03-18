@@ -170,6 +170,9 @@ namespace Global {
 	typedef QMap<PeerId, MsgId> HiddenPinnedMessagesMap;
 	DeclareVar(HiddenPinnedMessagesMap, HiddenPinnedMessages);
 
+	typedef QMap<uint64, QPixmap> CircleMasksMap;
+	DeclareRefVar(CircleMasksMap, CircleMasks);
+
 };
 
 namespace Adaptive {

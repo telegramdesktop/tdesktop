@@ -247,11 +247,8 @@ void DialogsInner::peopleResultPaint(PeerData *peer, Painter &p, int32 w, bool a
 
 	History *history = App::history(peer->id);
 
-	if (peer->migrateTo()) {
-		p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, peer->migrateTo()->photo->pix(st::dlgPhotoSize));
-	} else {
-		p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, peer->photo->pix(st::dlgPhotoSize));
-	}
+	PeerData *userpicPeer = (peer->migrateTo() ? peer->migrateTo() : peer);
+	userpicPeer->paintUserpicLeft(p, st::dlgPhotoSize, st::dlgPaddingHor, st::dlgPaddingVer, fullWidth());
 
 	int32 nameleft = st::dlgPaddingHor + st::dlgPhotoSize + st::dlgPhotoPadding;
 	int32 namewidth = w - nameleft - st::dlgPaddingHor;
@@ -299,7 +296,7 @@ void DialogsInner::searchInPeerPaint(Painter &p, int32 w, bool onlyBackground) c
 	p.fillRect(fullRect, st::dlgBG->b);
 	if (onlyBackground) return;
 
-	p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, _searchInPeer->photo->pix(st::dlgPhotoSize));
+	_searchInPeer->paintUserpicLeft(p, st::dlgPhotoSize, st::dlgPaddingHor, st::dlgPaddingVer, fullWidth());
 
 	int32 nameleft = st::dlgPaddingHor + st::dlgPhotoSize + st::dlgPhotoPadding;
 	int32 namewidth = w - nameleft - st::dlgPaddingHor * 2 - st::btnCancelSearch.width;
@@ -1373,7 +1370,7 @@ void DialogsInner::loadPeerPhotos(int32 yFrom) {
 		if (yFrom < otherStart) {
 			dialogs.list.adjustCurrent(yFrom, st::dlgHeight);
 			for (DialogRow *row = dialogs.list.current; row != dialogs.list.end && (row->pos * st::dlgHeight) < yTo; row = row->next) {
-				row->history->peer->photo->load();
+				row->history->peer->loadUserpic();
 			}
 			yFrom = 0;
 		} else {
@@ -1383,7 +1380,7 @@ void DialogsInner::loadPeerPhotos(int32 yFrom) {
 		if (yTo > 0) {
 			contactsNoDialogs.list.adjustCurrent(yFrom, st::dlgHeight);
 			for (DialogRow *row = contactsNoDialogs.list.current; row != contactsNoDialogs.list.end && (row->pos * st::dlgHeight) < yTo; row = row->next) {
-				row->history->peer->photo->load();
+				row->history->peer->loadUserpic();
 			}
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
@@ -1394,7 +1391,7 @@ void DialogsInner::loadPeerPhotos(int32 yFrom) {
 			if (to > _filterResults.size()) to = _filterResults.size();
 
 			for (; from < to; ++from) {
-				_filterResults[from]->history->peer->photo->load();
+				_filterResults[from]->history->peer->loadUserpic();
 			}
 		}
 
@@ -1405,7 +1402,7 @@ void DialogsInner::loadPeerPhotos(int32 yFrom) {
 			if (to > _peopleResults.size()) to = _peopleResults.size();
 
 			for (; from < to; ++from) {
-				_peopleResults[from]->photo->load();
+				_peopleResults[from]->loadUserpic();
 			}
 		}
 		from = (yFrom > filteredOffset() + ((_peopleResults.isEmpty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight) ? ((yFrom - filteredOffset() - (_peopleResults.isEmpty() ? 0 : st::searchedBarHeight) - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - _filterResults.size() - _peopleResults.size();
@@ -1415,7 +1412,7 @@ void DialogsInner::loadPeerPhotos(int32 yFrom) {
 			if (to > _searchResults.size()) to = _searchResults.size();
 
 			for (; from < to; ++from) {
-				_searchResults[from]->_item->history()->peer->photo->load();
+				_searchResults[from]->_item->history()->peer->loadUserpic();
 			}
 		}
 	}
