@@ -236,15 +236,9 @@ public:
 		return blocks.isEmpty();
 	}
 	void clear(bool leaveItems = false);
-	void blockResized(HistoryBlock *block, int32 dh);
 	void removeBlock(HistoryBlock *block);
 
 	virtual ~History();
-
-	HistoryItem *createItem(HistoryBlock *block, const MTPMessage &msg, bool applyServiceAction);
-	HistoryItem *createItemForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *msg);
-	HistoryItem *createItemDocument(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption);
-	HistoryItem *createItemPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption);
 
 	HistoryItem *addNewService(MsgId msgId, QDateTime date, const QString &text, MTPDmessage::Flags flags = 0, HistoryMedia *media = 0, bool newMsg = true);
 	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
@@ -439,6 +433,7 @@ public:
 protected:
 
 	void clearOnDestroy();
+	HistoryItem *addNewToLastBlock(const MTPMessage &msg, NewMessageType type);
 
 private:
 
@@ -467,9 +462,14 @@ private:
 	friend class HistoryBlock;
 	friend class ChannelHistory;
 
+	HistoryItem *createItem(const MTPMessage &msg, bool applyServiceAction, bool detachExistingItem);
+	HistoryItem *createItemForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *msg);
+	HistoryItem *createItemDocument(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption);
+	HistoryItem *createItemPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption);
+
 	HistoryItem *addItemAfterPrevToBlock(HistoryItem *item, HistoryItem *prev, HistoryBlock *block);
 	HistoryItem *addNewInTheMiddle(HistoryItem *newItem, int32 blockIndex, int32 itemIndex);
-	HistoryItem *addNewItem(HistoryBlock *to, bool newBlock, HistoryItem *adding, bool newMsg);
+	HistoryItem *addNewItem(HistoryItem *adding, bool newMsg);
 	HistoryItem *addMessageGroupAfterPrevToBlock(const MTPDmessageGroup &group, HistoryItem *prev, HistoryBlock *block);
 	HistoryItem *addMessageGroupAfterPrev(HistoryItem *newItem, HistoryItem *prev);
 
@@ -850,6 +850,9 @@ public:
 
 	HistoryBlock *previous() const {
 		return (_indexInHistory > 0) ? history->blocks.at(_indexInHistory - 1) : nullptr;
+	}
+	void setIndexInHistory(int index) {
+		_indexInHistory = index;
 	}
 
 protected:
@@ -1346,7 +1349,7 @@ protected:
 		return nullptr;
 	}
 
-	// this should be used only in initDimensions()
+	// this should be used only in previousItemChanged()
 	// to add required bits to the Interfaces mask
 	// after that always use Is<HistoryMessageDate>()
 	bool displayDate() const {

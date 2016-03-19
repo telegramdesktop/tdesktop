@@ -599,25 +599,24 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 		return _joinedMessage;
 	}
 
-	UserData *inviter = (peer->asChannel()->inviter > 0) ? App::userLoaded(peer->asChannel()->inviter) : 0;
-	if (!inviter) return 0;
+	UserData *inviter = (peer->asChannel()->inviter > 0) ? App::userLoaded(peer->asChannel()->inviter) : nullptr;
+	if (!inviter) return nullptr;
 
-	if (peerToUser(inviter->id) == MTP::authedId()) unread = false;
 	MTPDmessage::Flags flags = 0;
-	if (unread) {
+	if (peerToUser(inviter->id) == MTP::authedId()) {
+		unread = false;
+	} else if (unread) {
 		flags |= MTPDmessage::Flag::f_unread;
 	}
+
 	QDateTime inviteDate = peer->asChannel()->inviteDate;
 	if (unread) _maxReadMessageDate = inviteDate;
 	if (isEmpty()) {
-		HistoryBlock *to = new HistoryBlock(this);
-		bool newBlock = true;
 		_joinedMessage = HistoryJoined::create(this, inviteDate, inviter, flags);
-		if (!addNewItem(to, newBlock, _joinedMessage, unread)) {
-			_joinedMessage = 0;
-		}
+		addNewItem(_joinedMessage, unread);
 		return _joinedMessage;
 	}
+
 	for (int32 blockIndex = blocks.size(); blockIndex > 1;) {
 		HistoryBlock *block = blocks.at(--blockIndex);
 		for (int32 itemIndex = block->items.size(); itemIndex > 0;) {
@@ -627,13 +626,13 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 				if (item->date <= inviteDate) {
 					if (peer->isMegagroup() && peer->migrateFrom() && item->isGroupMigrate()) {
 						peer->asChannel()->mgInfo->joinedMessageFound = true;
-						return 0;
+						return nullptr;
 					}
 
 					++itemIndex;
 					_joinedMessage = HistoryJoined::create(this, inviteDate, inviter, flags);
 					if (!addNewInTheMiddle(_joinedMessage, blockIndex, itemIndex)) {
-						_joinedMessage = 0;
+						_joinedMessage = nullptr;
 					}
 					if (lastMsgDate.isNull() || inviteDate >= lastMsgDate) {
 						setLastMessage(_joinedMessage);
@@ -648,38 +647,19 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 	}
 
 	// adding new item to new block
-	int32 addToH = 0, skip = 0;
-	HistoryItem *till = blocks.isEmpty() ? 0 : blocks.front()->items.front();
-
 	HistoryBlock *block = new HistoryBlock(this);
+	block->setIndexInHistory(0);
+	blocks.push_front(block);
+	for (int i = 1, l = blocks.size(); i < l; ++i) {
+		blocks.at(i)->setIndexInHistory(i);
+	}
 
 	_joinedMessage = HistoryJoined::create(this, inviteDate, inviter, flags);
-	addItemAfterPrevToBlock(_joinedMessage, 0, block);
-	if (!block->items.isEmpty()) {
-		blocks.push_front(block);
-		if (width) {
-			addToH += block->height;
-			++skip;
-		}
-	} else {
-		delete block;
-	}
-	if (width && addToH) {
-		for (Blocks::iterator i = blocks.begin(), e = blocks.end(); i != e; ++i) {
-			if (skip) {
-				--skip;
-			} else {
-				(*i)->y += addToH;
-			}
-		}
-		height += addToH;
-	}
-	if (!lastMsgDate.isNull() && inviteDate >= lastMsgDate) {
-		setLastMessage(_joinedMessage);
-		if (unread) {
-			newItemAdded(_joinedMessage);
-		}
-	}
+	addItemAfterPrevToBlock(_joinedMessage, nullptr, block);
+
+	t_assert(blocks.size() > 1);
+	blocks.at(1)->items.front()->previousItemChanged();
+
 	return _joinedMessage;
 }
 
@@ -799,23 +779,7 @@ HistoryItem *ChannelHistory::addNewToBlocks(const MTPMessage &msg, NewMessageTyp
 		clear(true);
 	}
 
-	HistoryBlock *to = nullptr;
-	bool newBlock = blocks.isEmpty();
-	if (newBlock) {
-		to = new HistoryBlock(this);
-	} else {
-		to = blocks.back();
-		t_assert(!to->items.isEmpty());
-		t_assert(to->items.back() != nullptr);
-	}
-	HistoryItem *item = createItem((type == NewMessageLast) ? nullptr : to, msg, (type == NewMessageUnread));
-	if (type == NewMessageLast && item) {
-		if (!item->detached()) {
-			t_assert(!newBlock);
-			return item;
-		}
-	}
-	return addNewItem(to, newBlock, item, (type == NewMessageUnread));
+	return addNewToLastBlock(msg, type);
 }
 
 void ChannelHistory::addNewToOther(HistoryItem *item, NewMessageType type) {
@@ -866,16 +830,16 @@ void ChannelHistory::switchMode() {
 		HistoryItem *prev = 0;
 		for (int32 i = 0; i < count;) {
 			HistoryBlock *block = new HistoryBlock(this);
+			block->setIndexInHistory(blocks.size());
+			blocks.push_back(block);
+
 			int32 willAddToBlock = qMin(int32(MessagesPerPage), count - i);
 			block->items.reserve(willAddToBlock);
 			for (int32 till = i + willAddToBlock; i < till; ++i) {
 				prev = addItemAfterPrevToBlock(_otherList.at(i), prev, block);
 			}
-			blocks.push_back(block);
-			if (width) {
-				block->y = height;
-				height += block->height;
-			}
+
+			t_assert(!block->items.isEmpty());
 		}
 	}
 
@@ -1244,7 +1208,7 @@ HistoryItem *Histories::addNewMessage(const MTPMessage &msg, NewMessageType type
 	return findOrInsert(peer, 0, 0)->addNewMessage(msg, type);
 }
 
-HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, bool applyServiceAction) {
+HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction, bool detachExistingItem) {
 	MsgId msgId = 0;
 	switch (msg.type()) {
 	case mtpc_messageEmpty: msgId = msg.c_messageEmpty().vid.v; break;
@@ -1255,10 +1219,8 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPMessage &msg, boo
 
 	HistoryItem *result = App::histItemById(channelId(), msgId);
 	if (result) {
-		if (block) {
-			if (!result->detached()) {
-				result->detach();
-			}
+		if (!result->detached() && detachExistingItem) {
+			result->detach();
 		}
 		if (msg.type() == mtpc_message) {
 			result->updateMedia(msg.c_message().has_media() ? (&msg.c_message().vmedia) : 0);
@@ -1505,18 +1467,7 @@ HistoryItem *History::createItemPhoto(MsgId id, MTPDmessage::Flags flags, int32 
 }
 
 HistoryItem *History::addNewService(MsgId msgId, QDateTime date, const QString &text, MTPDmessage::Flags flags, HistoryMedia *media, bool newMsg) {
-	HistoryBlock *to = 0;
-	bool newBlock = blocks.isEmpty();
-	if (newBlock) {
-		to = new HistoryBlock(this);
-	} else {
-		to = blocks.back();
-		t_assert(!to->items.isEmpty());
-		t_assert(to->items.back() != nullptr);
-	}
-
-	HistoryItem *result = HistoryServiceMsg::create(this, msgId, date, text, flags, media);
-	return addNewItem(to, newBlock, result, newMsg);
+	return addNewItem(HistoryServiceMsg::create(this, msgId, date, text, flags, media), newMsg);
 }
 
 HistoryItem *History::addNewMessage(const MTPMessage &msg, NewMessageType type) {
@@ -1534,66 +1485,32 @@ HistoryItem *History::addNewMessage(const MTPMessage &msg, NewMessageType type) 
 		return item;
 	}
 
-	HistoryBlock *to = nullptr;
-	bool newBlock = blocks.isEmpty();
-	if (newBlock) {
-		to = new HistoryBlock(this);
-	} else {
-		to = blocks.back();
-		t_assert(!to->items.isEmpty());
-		t_assert(to->items.back() != nullptr);
+	return addNewToLastBlock(msg, type);
+}
+
+HistoryItem *History::addNewToLastBlock(const MTPMessage &msg, NewMessageType type) {
+	bool applyServiceAction = (type == NewMessageUnread), detachExistingItem = (type != NewMessageLast);
+	HistoryItem *item = createItem(msg, applyServiceAction, detachExistingItem);
+	if (!item || !item->detached()) {
+		return item;
 	}
-	HistoryItem *item = createItem((type == NewMessageLast) ? nullptr : to, msg, (type == NewMessageUnread));
-	if (type == NewMessageLast && item) {
-		if (!item->detached()) {
-			t_assert(!newBlock);
-			return item;
-		}
-	}
-	return addNewItem(to, newBlock, item, (type == NewMessageUnread));
+	return addNewItem(item, (type == NewMessageUnread));
 }
 
 HistoryItem *History::addToHistory(const MTPMessage &msg) {
-	return createItem(nullptr, msg, false);
+	return createItem(msg, false, false);
 }
 
 HistoryItem *History::addNewForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *item) {
-	HistoryBlock *to = nullptr;
-	bool newBlock = blocks.isEmpty();
-	if (newBlock) {
-		to = new HistoryBlock(this);
-	} else {
-		to = blocks.back();
-		t_assert(!to->items.isEmpty());
-		t_assert(to->items.back() != nullptr);
-	}
-	return addNewItem(to, newBlock, createItemForwarded(id, flags, date, from, item), true);
+	return addNewItem(createItemForwarded(id, flags, date, from, item), true);
 }
 
 HistoryItem *History::addNewDocument(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption) {
-	HistoryBlock *to = 0;
-	bool newBlock = blocks.isEmpty();
-	if (newBlock) {
-		to = new HistoryBlock(this);
-	} else {
-		to = blocks.back();
-		t_assert(!to->items.isEmpty());
-		t_assert(to->items.back() != nullptr);
-	}
-	return addNewItem(to, newBlock, createItemDocument(id, flags, viaBotId, replyTo, date, from, doc, caption), true);
+	return addNewItem(createItemDocument(id, flags, viaBotId, replyTo, date, from, doc, caption), true);
 }
 
 HistoryItem *History::addNewPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption) {
-	HistoryBlock *to = 0;
-	bool newBlock = blocks.isEmpty();
-	if (newBlock) {
-		to = new HistoryBlock(this);
-	} else {
-		to = blocks.back();
-		t_assert(!to->items.isEmpty());
-		t_assert(to->items.back() != nullptr);
-	}
-	return addNewItem(to, newBlock, createItemPhoto(id, flags, viaBotId, replyTo, date, from, photo, caption), true);
+	return addNewItem(createItemPhoto(id, flags, viaBotId, replyTo, date, from, photo, caption), true);
 }
 
 bool History::addToOverview(MediaOverviewType type, MsgId msgId, AddToOverviewMethod method) {
@@ -1639,27 +1556,21 @@ void History::eraseFromOverview(MediaOverviewType type, MsgId msgId) {
 	if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer, type);
 }
 
-HistoryItem *History::addNewItem(HistoryBlock *to, bool newBlock, HistoryItem *adding, bool newMsg) {
-	if (!adding) {
-		if (newBlock) delete to;
-		return adding;
-	}
+HistoryItem *History::addNewItem(HistoryItem *adding, bool newMsg) {
+	t_assert(adding != nullptr);
+	t_assert(adding->detached());
 
-	if (newBlock) {
-		to->y = height;
-		blocks.push_back(to);
+	if (blocks.isEmpty()) {
+		blocks.push_back(new HistoryBlock(this));
+		blocks.back()->setIndexInHistory(blocks.size());
 	}
-	adding->attachToBlock(to, to->items.size());
-	to->items.push_back(adding);
+	HistoryBlock *block = blocks.back();
+
+	adding->attachToBlock(block, block->items.size());
+	block->items.push_back(adding);
 	adding->previousItemChanged();
 	setLastMessage(adding);
 
-	adding->y = to->height;
-	if (width) {
-		int32 dh = adding->resize(width);
-		to->height += dh;
-		height += dh;
-	}
 	if (newMsg) {
 		newItemAdded(adding);
 	}
@@ -1775,10 +1686,6 @@ HistoryItem *History::addItemAfterPrevToBlock(HistoryItem *item, HistoryItem *pr
 	item->attachToBlock(block, block->items.size());
 	block->items.push_back(item);
 	item->previousItemChanged();
-	if (width) {
-		item->y = block->height;
-		block->height += item->resize(width);
-	}
 	return item;
 }
 
@@ -1824,10 +1731,16 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 
 	HistoryItem *last = nullptr;
 	HistoryBlock *block = new HistoryBlock(this);
+	block->setIndexInHistory(0);
+	blocks.push_front(block);
+	for (int i = 1, l = blocks.size(); i < l; ++i) {
+		blocks.at(i)->setIndexInHistory(i);
+	}
+
 	block->items.reserve(slice.size() + (collapsed ? collapsed->size() : 0));
 	for (auto i = slice.cend(), e = slice.cbegin(); i != e;) {
 		--i;
-		HistoryItem *adding = createItem(block, *i, false);
+		HistoryItem *adding = createItem(*i, false, true);
 		if (!adding) continue;
 
 		for (; groupsIt != groupsEnd; ++groupsIt) {
@@ -1847,112 +1760,99 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 		last = addMessageGroupAfterPrevToBlock(group, last, block);
 	}
 
-	HistoryItem *oldFirst = blocks.isEmpty() ? nullptr : blocks.front()->items.front();
-	while (oldFirst && last && oldFirst->type() == HistoryItemGroup && last->type() == HistoryItemGroup) {
-		static_cast<HistoryGroup*>(last)->uniteWith(static_cast<HistoryGroup*>(oldFirst));
-		oldFirst->destroy();
-		if (blocks.isEmpty()) {
-			oldFirst = 0;
-		} else {
-			t_assert(blocks.size() > 1);
-			oldFirst = blocks.at(1)->items.front();
-		}
-	}
 	if (block->items.isEmpty()) {
-		oldLoaded = true;
+		blocks.pop_front();
 		delete block;
-	} else {
-		if (oldFirst) {
-			blocks.push_front(block);
-			if (width) {
-				block->y = 0;
-				for (int32 i = 1, l = blocks.size(); i < l; ++i) {
-					blocks.at(i)->y += block->height;
-				}
-				height += block->height;
-			}
-		} else {
-			blocks.push_front(block);
-			if (width) {
-				height = block->height;
-			}
-		}
+		block = nullptr;
 
-		if (loadedAtBottom()) { // add photos to overview and authors to lastAuthors / lastParticipants
-			bool channel = isChannel();
-			int32 mask = 0;
-			QList<UserData*> *lastAuthors = 0;
-			OrderedSet<PeerData*> *markupSenders = 0;
-			if (peer->isChat()) {
-				lastAuthors = &peer->asChat()->lastAuthors;
-				markupSenders = &peer->asChat()->markupSenders;
-			} else if (peer->isMegagroup()) {
-				lastAuthors = &peer->asChannel()->mgInfo->lastParticipants;
-				markupSenders = &peer->asChannel()->mgInfo->markupSenders;
-			}
-			for (int32 i = block->items.size(); i > 0; --i) {
-				HistoryItem *item = block->items[i - 1];
-				mask |= item->addToOverview(AddToOverviewFront);
-				if (item->from()->id) {
-					if (lastAuthors) { // chats
-						if (item->from()->isUser()) {
-							if (!lastAuthors->contains(item->from()->asUser())) {
-								lastAuthors->push_back(item->from()->asUser());
-								if (peer->isMegagroup()) {
-									peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
-								}
+		oldLoaded = true;
+	} else if (loadedAtBottom()) { // add photos to overview and authors to lastAuthors / lastParticipants
+		bool channel = isChannel();
+		int32 mask = 0;
+		QList<UserData*> *lastAuthors = 0;
+		OrderedSet<PeerData*> *markupSenders = 0;
+		if (peer->isChat()) {
+			lastAuthors = &peer->asChat()->lastAuthors;
+			markupSenders = &peer->asChat()->markupSenders;
+		} else if (peer->isMegagroup()) {
+			lastAuthors = &peer->asChannel()->mgInfo->lastParticipants;
+			markupSenders = &peer->asChannel()->mgInfo->markupSenders;
+		}
+		for (int32 i = block->items.size(); i > 0; --i) {
+			HistoryItem *item = block->items[i - 1];
+			mask |= item->addToOverview(AddToOverviewFront);
+			if (item->from()->id) {
+				if (lastAuthors) { // chats
+					if (item->from()->isUser()) {
+						if (!lastAuthors->contains(item->from()->asUser())) {
+							lastAuthors->push_back(item->from()->asUser());
+							if (peer->isMegagroup()) {
+								peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
 							}
 						}
 					}
 				}
-				if (item->author()->id) {
-					if (markupSenders) { // chats with bots
-						if (!lastKeyboardInited && item->hasReplyMarkup() && !item->out()) {
-							MTPDreplyKeyboardMarkup::Flags markupFlags = App::replyMarkup(channelId(), item->id).flags;
-							if (!(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_selective) || item->mentionsMe()) {
-								bool wasKeyboardHide = markupSenders->contains(item->author());
-								if (!wasKeyboardHide) {
-									markupSenders->insert(item->author());
-								}
-								if (!(markupFlags & MTPDreplyKeyboardMarkup_ClientFlag::f_zero)) {
-									if (!lastKeyboardInited) {
-										bool botNotInChat = false;
-										if (peer->isChat()) {
-											botNotInChat = (!peer->canWrite() || !peer->asChat()->participants.isEmpty()) && item->author()->isUser() && !peer->asChat()->participants.contains(item->author()->asUser());
-										} else if (peer->isMegagroup()) {
-											botNotInChat = (!peer->canWrite() || peer->asChannel()->mgInfo->botStatus != 0) && item->author()->isUser() && !peer->asChannel()->mgInfo->bots.contains(item->author()->asUser());
-										}
-										if (wasKeyboardHide || botNotInChat) {
-											clearLastKeyboard();
-										} else {
-											lastKeyboardInited = true;
-											lastKeyboardId = item->id;
-											lastKeyboardFrom = item->author()->id;
-											lastKeyboardUsed = false;
-										}
+			}
+			if (item->author()->id) {
+				if (markupSenders) { // chats with bots
+					if (!lastKeyboardInited && item->hasReplyMarkup() && !item->out()) {
+						MTPDreplyKeyboardMarkup::Flags markupFlags = App::replyMarkup(channelId(), item->id).flags;
+						if (!(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_selective) || item->mentionsMe()) {
+							bool wasKeyboardHide = markupSenders->contains(item->author());
+							if (!wasKeyboardHide) {
+								markupSenders->insert(item->author());
+							}
+							if (!(markupFlags & MTPDreplyKeyboardMarkup_ClientFlag::f_zero)) {
+								if (!lastKeyboardInited) {
+									bool botNotInChat = false;
+									if (peer->isChat()) {
+										botNotInChat = (!peer->canWrite() || !peer->asChat()->participants.isEmpty()) && item->author()->isUser() && !peer->asChat()->participants.contains(item->author()->asUser());
+									} else if (peer->isMegagroup()) {
+										botNotInChat = (!peer->canWrite() || peer->asChannel()->mgInfo->botStatus != 0) && item->author()->isUser() && !peer->asChannel()->mgInfo->bots.contains(item->author()->asUser());
+									}
+									if (wasKeyboardHide || botNotInChat) {
+										clearLastKeyboard();
+									} else {
+										lastKeyboardInited = true;
+										lastKeyboardId = item->id;
+										lastKeyboardFrom = item->author()->id;
+										lastKeyboardUsed = false;
 									}
 								}
 							}
 						}
-					} else if (!lastKeyboardInited && item->hasReplyMarkup() && !item->out()) { // conversations with bots
-						MTPDreplyKeyboardMarkup::Flags markupFlags = App::replyMarkup(channelId(), item->id).flags;
-						if (!(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_selective) || item->mentionsMe()) {
-							if (markupFlags & MTPDreplyKeyboardMarkup_ClientFlag::f_zero) {
-								clearLastKeyboard();
-							} else {
-								lastKeyboardInited = true;
-								lastKeyboardId = item->id;
-								lastKeyboardFrom = item->author()->id;
-								lastKeyboardUsed = false;
-							}
+					}
+				} else if (!lastKeyboardInited && item->hasReplyMarkup() && !item->out()) { // conversations with bots
+					MTPDreplyKeyboardMarkup::Flags markupFlags = App::replyMarkup(channelId(), item->id).flags;
+					if (!(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_selective) || item->mentionsMe()) {
+						if (markupFlags & MTPDreplyKeyboardMarkup_ClientFlag::f_zero) {
+							clearLastKeyboard();
+						} else {
+							lastKeyboardInited = true;
+							lastKeyboardId = item->id;
+							lastKeyboardFrom = item->author()->id;
+							lastKeyboardUsed = false;
 						}
 					}
 				}
 			}
-			for (int32 t = 0; t < OverviewCount; ++t) {
-				if ((mask & (1 << t)) && App::wnd()) App::wnd()->mediaOverviewUpdated(peer, MediaOverviewType(t));
-			}
 		}
+		for (int32 t = 0; t < OverviewCount; ++t) {
+			if ((mask & (1 << t)) && App::wnd()) App::wnd()->mediaOverviewUpdated(peer, MediaOverviewType(t));
+		}
+	}
+
+	// we've added a new front block, now we check if both
+	// last message of the first block and first message of
+	// the last block are groups, if they are - unite them
+	HistoryItem *first = (block && blocks.size() > 1) ? blocks.at(1)->items.front() : nullptr;
+	if (first && last && first->type() == HistoryItemGroup && last->type() == HistoryItemGroup) {
+		static_cast<HistoryGroup*>(first)->uniteWith(static_cast<HistoryGroup*>(last));
+		last->destroy();
+
+		// last->destroy() could've destroyed this new block
+		// so we can't rely on this pointer any more
+		block = nullptr;
 	}
 
 	if (isChannel()) {
@@ -1976,10 +1876,13 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 		HistoryItem *prev = blocks.isEmpty() ? nullptr : blocks.back()->items.back();
 
 		HistoryBlock *block = new HistoryBlock(this);
+		block->setIndexInHistory(blocks.size());
+		blocks.push_back(block);
+
 		block->items.reserve(slice.size() + (collapsed ? collapsed->size() : 0));
 		for (auto i = slice.cend(), e = slice.cbegin(); i != e;) {
 			--i;
-			HistoryItem *adding = createItem(block, *i, false);
+			HistoryItem *adding = createItem(*i, false, true);
 			if (!adding) continue;
 
 			for (; groupsIt != groupsEnd; ++groupsIt) {
@@ -2002,13 +1905,10 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 		if (block->items.isEmpty()) {
 			newLoaded = true;
 			setLastMessage(lastImportantMessage());
+
+			blocks.pop_back();
 			delete block;
-		} else {
-			blocks.push_back(block);
-			if (width) {
-				block->y = height;
-				height += block->height;
-			}
+			block = nullptr;
 		}
 	}
 
@@ -2621,29 +2521,16 @@ void History::changeMsgId(MsgId oldId, MsgId newId) {
 	}
 }
 
-void History::blockResized(HistoryBlock *block, int32 dh) {
-	int32 i = blocks.indexOf(block), l = blocks.size();
-	if (i >= 0) {
-		for (++i; i < l; ++i) {
-			blocks[i]->y -= dh;
-		}
-		height -= dh;
-	}
-}
-
 void History::removeBlock(HistoryBlock *block) {
-	int32 i = blocks.indexOf(block), h = block->height;
-	if (i >= 0) {
-		blocks.removeAt(i);
-		int32 l = blocks.size();
-		if (i > 0 && l == 1) { // only fake block with date left
-			removeBlock(blocks[0]);
-			height = 0;
-		} else if (h) {
-			for (; i < l; ++i) {
-				blocks[i]->y -= h;
-			}
-			height -= h;
+	int index = blocks.indexOf(block);
+	if (index >= 0) {
+		setPendingResize();
+		blocks.removeAt(index);
+		for (int i = index, l = blocks.size(); i < l; ++i) {
+			blocks.at(i)->setIndexInHistory(i);
+		}
+		if (index < blocks.size()) {
+			blocks.at(index)->items.front()->previousItemChanged();
 		}
 	}
 	delete block;
@@ -2691,14 +2578,14 @@ void HistoryBlock::clear(bool leaveItems) {
 }
 
 void HistoryBlock::removeItem(HistoryItem *item) {
-	int32 i = items.indexOf(item), dh = 0;
+	int32 index = items.indexOf(item), dh = 0;
 	if (history->showFrom == item) {
-		history->getNextShowFrom(this, i);
+		history->getNextShowFrom(this, index);
 	}
 	if (history->unreadBar == item) {
 		history->unreadBar = nullptr;
 	}
-	if (i < 0) {
+	if (index < 0) {
 		return;
 	}
 
@@ -2708,7 +2595,7 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 			HistoryGroup *nextGroup = 0, *prevGroup = 0;
 			HistoryCollapse *nextCollapse = 0;
 			HistoryItem *prevItem = 0;
-			for (int32 nextBlock = myIndex, nextIndex = qMin(items.size(), i + 1); nextBlock < history->blocks.size(); ++nextBlock) {
+			for (int32 nextBlock = myIndex, nextIndex = qMin(items.size(), index + 1); nextBlock < history->blocks.size(); ++nextBlock) {
 				HistoryBlock *block = history->blocks.at(nextBlock);
 				for (; nextIndex < block->items.size(); ++nextIndex) {
 					HistoryItem *item = block->items.at(nextIndex);
@@ -2728,7 +2615,7 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 					break;
 				}
 			}
-			for (int32 prevBlock = myIndex + 1, prevIndex = qMax(1, i); prevBlock > 0;) {
+			for (int32 prevBlock = myIndex + 1, prevIndex = qMax(1, index); prevBlock > 0;) {
 				--prevBlock;
 				HistoryBlock *block = history->blocks.at(prevBlock);
 				if (!prevIndex) prevIndex = block->items.size();
@@ -2760,19 +2647,21 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 	// myIndex can be invalid now, because of destroying previous blocks
 
 	dh = item->height();
-	items.remove(i);
+	items.remove(index);
 	if ((!item->out() || item->isPost()) && item->unread() && history->unreadCount) {
 		history->setUnreadCount(history->unreadCount - 1);
 	}
 
 	History *h = history;
-	if (int32 l = items.size()) {
-		for (; i < l; ++i) {
-			items.at(i)->y -= dh;
+	if (int l = items.size()) {
+		for (int i = index; i < l; ++i) {
 			items.at(i)->setIndexInBlock(i);
 		}
-		height -= dh;
-		history->blockResized(this, dh);
+		if (index < items.size()) {
+			items.at(index)->previousItemChanged();
+		} else if (_indexInHistory + 1 < history->blocks.size()) {
+			history->blocks.at(_indexInHistory + 1)->items.front()->previousItemChanged();
+		}
 	} else {
 		history->removeBlock(this);
 	}
