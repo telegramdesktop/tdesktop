@@ -66,7 +66,7 @@ public:
 	void touchScrollUpdated(const QPoint &screenPos);
 	QPoint mapMouseToItem(QPoint p, HistoryItem *item);
 
-	int32 recountHeight(const HistoryItem *resizedItem);
+	int32 recountHeight();
 	void updateSize();
 
 	void repaintItem(const HistoryItem *item);
@@ -589,13 +589,13 @@ public:
 	bool ui_isInlineItemBeingChosen();
 
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
-	void notify_automaticLoadSettingsChangedGif();
 	void notify_botCommandsChanged(UserData *user);
 	void notify_inlineBotRequesting(bool requesting);
 	void notify_userIsBotChanged(UserData *user);
 	void notify_migrateUpdated(PeerData *peer);
 	void notify_clipStopperHidden(ClipStopperType type);
-	void notify_historyItemResized(const HistoryItem *item, bool scrollToIt);
+	void notify_automaticLoadSettingsChangedGif();
+	void notify_handlePendingHistoryUpdate();
 
 	void cmd_search();
 	void cmd_next_chat();
@@ -798,7 +798,7 @@ private:
 		ScrollChangeType type;
 		int value;
 	};
-	void updateListSize(bool initial = false, bool loadedDown = false, const ScrollChange &change = { ScrollChangeNone, 0 }, const HistoryItem *resizedItem = 0, bool scrollToIt = false);
+	void updateListSize(bool initial = false, bool loadedDown = false, const ScrollChange &change = { ScrollChangeNone, 0 });
 
 	void saveGifDone(DocumentData *doc, const MTPBool &result);
 

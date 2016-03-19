@@ -59,6 +59,11 @@ struct ForConstTraits {
 };
 #define for_const(range_declaration, range_expression) for (range_declaration : static_cast<ForConstTraits<decltype(range_expression)>::ExpressionType>(range_expression))
 
+template <typename Enum>
+inline QFlags<Enum> qFlags(Enum v) {
+	return QFlags<Enum>(v);
+}
+
 //typedef unsigned char uchar; // Qt has uchar
 typedef qint16 int16;
 typedef quint16 uint16;

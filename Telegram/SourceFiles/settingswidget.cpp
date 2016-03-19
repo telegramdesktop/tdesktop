@@ -1355,8 +1355,8 @@ void SettingsInner::onPasswordOff() {
 		_passwordTurnOff.hide();
 
 //		int32 flags = MTPDaccount_passwordInputSettings::flag_new_salt | MTPDaccount_passwordInputSettings::flag_new_password_hash | MTPDaccount_passwordInputSettings::flag_hint | MTPDaccount_passwordInputSettings::flag_email;
-		int32 flags = MTPDaccount_passwordInputSettings::flag_email;
-		MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_int(flags), MTP_string(QByteArray()), MTP_string(QByteArray()), MTP_string(QString()), MTP_string(QString())));
+		MTPDaccount_passwordInputSettings::Flags flags = MTPDaccount_passwordInputSettings::Flag::f_email;
+		MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_flags(flags), MTP_string(QByteArray()), MTP_string(QByteArray()), MTP_string(QString()), MTP_string(QString())));
 		MTP::send(MTPaccount_UpdatePasswordSettings(MTP_string(QByteArray()), settings), rpcDone(&SettingsInner::offPasswordDone), rpcFail(&SettingsInner::offPasswordFail));
 	} else {
 		PasscodeBox *box = new PasscodeBox(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint, true);

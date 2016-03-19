@@ -115,8 +115,8 @@ public:
 
 	virtual void sendData(mtpBuffer &buffer) = 0; // has size + 3, buffer[0] = len, buffer[1] = packetnum, buffer[last] = crc32
 	virtual void disconnectFromServer() = 0;
-	virtual void connectTcp(const QString &addr, int32 port, int32 flags) = 0;
-	virtual void connectHttp(const QString &addr, int32 port, int32 flags) = 0;
+	virtual void connectTcp(const QString &addr, int32 port, MTPDdcOption::Flags flags) = 0;
+	virtual void connectHttp(const QString &addr, int32 port, MTPDdcOption::Flags flags) = 0;
 	virtual bool isConnected() const = 0;
 	virtual bool usingHttpWait() {
 		return false;
@@ -182,17 +182,17 @@ public:
 
 	MTPautoConnection(QThread *thread);
 
-	void sendData(mtpBuffer &buffer);
-	void disconnectFromServer();
-	void connectTcp(const QString &addr, int32 port, int32 flags);
-	void connectHttp(const QString &addr, int32 port, int32 flags);
-	bool isConnected() const;
-	bool usingHttpWait();
-	bool needHttpWait();
+	void sendData(mtpBuffer &buffer) override;
+	void disconnectFromServer() override;
+	void connectTcp(const QString &addr, int32 port, MTPDdcOption::Flags flags) override;
+	void connectHttp(const QString &addr, int32 port, MTPDdcOption::Flags flags) override;
+	bool isConnected() const override;
+	bool usingHttpWait() override;
+	bool needHttpWait() override;
 
-	int32 debugState() const;
+	int32 debugState() const override;
 
-	QString transport() const;
+	QString transport() const override;
 
 public slots:
 
@@ -233,7 +233,8 @@ private:
 	Requests requests;
 
 	QString _addrTcp, _addrHttp;
-	int32 _portTcp, _portHttp, _flagsTcp, _flagsHttp;
+	int32 _portTcp, _portHttp;
+	MTPDdcOption::Flags _flagsTcp, _flagsHttp;
 	int32 _tcpTimeout;
 	QTimer tcpTimeoutTimer;
 
@@ -246,16 +247,16 @@ public:
 
 	MTPtcpConnection(QThread *thread);
 
-	void sendData(mtpBuffer &buffer);
-	void disconnectFromServer();
-	void connectTcp(const QString &addr, int32 port, int32 flags);
-	void connectHttp(const QString &addr, int32 port, int32 flags) { // not supported
+	void sendData(mtpBuffer &buffer) override;
+	void disconnectFromServer() override;
+	void connectTcp(const QString &addr, int32 port, MTPDdcOption::Flags flags) override;
+	void connectHttp(const QString &addr, int32 port, MTPDdcOption::Flags flags) override { // not supported
 	}
-	bool isConnected() const;
+	bool isConnected() const override;
 
-	int32 debugState() const;
+	int32 debugState() const override;
 
-	QString transport() const;
+	QString transport() const override;
 
 public slots:
 
@@ -281,7 +282,8 @@ private:
 	MTPint128 tcpNonce;
 
 	QString _addr;
-	int32 _port, _tcpTimeout, _flags;
+	int32 _port, _tcpTimeout;
+	MTPDdcOption::Flags _flags;
 	QTimer tcpTimeoutTimer;
 
 };
@@ -293,18 +295,18 @@ public:
 
 	MTPhttpConnection(QThread *thread);
 
-	void sendData(mtpBuffer &buffer);
-	void disconnectFromServer();
-	void connectTcp(const QString &addr, int32 port, int32 flags) { // not supported
+	void sendData(mtpBuffer &buffer) override;
+	void disconnectFromServer() override;
+	void connectTcp(const QString &addr, int32 port, MTPDdcOption::Flags flags) override { // not supported
 	}
-	void connectHttp(const QString &addr, int32 port, int32 flags);
-	bool isConnected() const;
-	bool usingHttpWait();
-	bool needHttpWait();
+	void connectHttp(const QString &addr, int32 port, MTPDdcOption::Flags flags) override;
+	bool isConnected() const override;
+	bool usingHttpWait() override;
+	bool needHttpWait() override;
 
-	int32 debugState() const;
+	int32 debugState() const override;
 
-	QString transport() const;
+	QString transport() const override;
 
 public slots:
 
@@ -319,7 +321,7 @@ private:
 	};
 	Status status;
 	MTPint128 httpNonce;
-	int32 _flags;
+	MTPDdcOption::Flags _flags;
 
 	QNetworkAccessManager manager;
 	QUrl address;

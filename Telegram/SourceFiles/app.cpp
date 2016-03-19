@@ -57,7 +57,7 @@ namespace {
 
 	typedef QMap<MsgId, ReplyMarkup> ReplyMarkups;
 	ReplyMarkups replyMarkups;
-	ReplyMarkup zeroMarkup(MTPDreplyKeyboardMarkup_flag_ZERO);
+	ReplyMarkup zeroMarkup(qFlags(MTPDreplyKeyboardMarkup_ClientFlag::f_zero));
 	typedef QMap<ChannelId, ReplyMarkups> ChannelReplyMarkups;
 	ChannelReplyMarkups channelReplyMarkups;
 
@@ -507,7 +507,7 @@ namespace App {
 					const MTPDinputChannel &c(d.vmigrated_to.c_inputChannel());
 					ChannelData *channel = App::channel(peerFromChannel(c.vchannel_id));
 					if (!channel->mgInfo) {
-						channel->flags |= MTPDchannel::flag_megagroup;
+						channel->flags |= MTPDchannel::Flag::f_megagroup;
 						channel->flagsUpdated();
 					}
 					if (!channel->access) {
@@ -538,7 +538,7 @@ namespace App {
 					}
 				}
 
-				if (!(cdata->flags & MTPDchat::flag_admins_enabled) && (d.vflags.v & MTPDchat::flag_admins_enabled)) {
+				if (!(cdata->flags & MTPDchat::Flag::f_admins_enabled) && (d.vflags.v & MTPDchat::Flag::f_admins_enabled)) {
 					cdata->invalidateParticipants();
 				}
 				cdata->flags = d.vflags.v;
@@ -583,7 +583,7 @@ namespace App {
 
 				ChannelData *cdata = data->asChannel();
 				if (minimal) {
-					int32 mask = MTPDchannel::flag_broadcast | MTPDchannel::flag_verified | MTPDchannel::flag_megagroup | MTPDchannel::flag_democracy;
+					int32 mask = MTPDchannel::Flag::f_broadcast | MTPDchannel::Flag::f_verified | MTPDchannel::Flag::f_megagroup | MTPDchannel::Flag::f_democracy;
 					cdata->flags = (cdata->flags & ~mask) | (d.vflags.v & mask);
 				} else {
 					cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
@@ -654,7 +654,7 @@ namespace App {
 				int32 pversion = chat->participants.isEmpty() ? 1 : (chat->participants.begin().value() + 1);
 				chat->invitedByMe = ChatData::InvitedByMe();
 				chat->admins = ChatData::Admins();
-				chat->flags &= ~MTPDchat::flag_admin;
+				chat->flags &= ~MTPDchat::Flag::f_admin;
 				for (QVector<MTPChatParticipant>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
 					int32 uid = 0, inviter = 0;
 					switch (i->type()) {
@@ -685,7 +685,7 @@ namespace App {
 						if (i->type() == mtpc_chatParticipantAdmin) {
 							chat->admins.insert(user);
 							if (user->isSelf()) {
-								chat->flags |= MTPDchat::flag_admin;
+								chat->flags |= MTPDchat::Flag::f_admin;
 							}
 						}
 					} else {
@@ -805,7 +805,7 @@ namespace App {
 						chat->invitedByMe.remove(user);
 						chat->admins.remove(user);
 						if (user->isSelf()) {
-							chat->flags &= ~MTPDchat::flag_admin;
+							chat->flags &= ~MTPDchat::Flag::f_admin;
 						}
 
 						History *h = App::historyLoaded(chat->id);
@@ -852,13 +852,13 @@ namespace App {
 			}
 			chat->version = d.vversion.v;
 			if (mtpIsTrue(d.venabled)) {
-				chat->flags |= MTPDchat::flag_admins_enabled;
+				chat->flags |= MTPDchat::Flag::f_admins_enabled;
 				if (!badVersion) {
 					chat->invalidateParticipants();
 				}
 			} else {
-				chat->flags &= ~MTPDchat::flag_admins_enabled;
-				chat->flags &= ~MTPDchat::flag_admin;
+				chat->flags &= ~MTPDchat::Flag::f_admins_enabled;
+				chat->flags &= ~MTPDchat::Flag::f_admin;
 			}
 			if (emitPeerUpdated) {
 				App::main()->peerUpdated(chat);
@@ -887,7 +887,7 @@ namespace App {
 			if (user) {
 				if (mtpIsTrue(d.vis_admin)) {
 					if (user->isSelf()) {
-						chat->flags |= MTPDchat::flag_admin;
+						chat->flags |= MTPDchat::Flag::f_admin;
 					}
 					if (chat->noParticipantInfo()) {
 						App::api()->requestFullPeer(chat);
@@ -896,7 +896,7 @@ namespace App {
 					}
 				} else {
 					if (user->isSelf()) {
-						chat->flags &= ~MTPDchat::flag_admin;
+						chat->flags &= ~MTPDchat::Flag::f_admin;
 					}
 					chat->admins.remove(user);
 				}
@@ -921,10 +921,7 @@ namespace App {
 		if (HistoryItem *existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
 			existing->setText(qs(m.vmessage), m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText());
 			existing->updateMedia(m.has_media() ? (&m.vmedia) : 0);
-			existing->setViewsCount(m.has_views() ? m.vviews.v : -1, false);
-			existing->initDimensions();
-			Notify::historyItemResized(existing);
-
+			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
 			existing->addToOverview(AddToOverviewNew);
 
 			if (!existing->detached()) {
@@ -945,16 +942,13 @@ namespace App {
 		if (HistoryItem *existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
 			existing->setText(qs(m.vmessage), m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText());
 			existing->updateMedia(m.has_media() ? (&m.vmedia) : 0, true);
-			existing->setViewsCount(m.has_views() ? m.vviews.v : -1, false);
-			existing->initDimensions();
+			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
 			if (existing->history()->textCachedFor == existing) {
 				existing->history()->textCachedFor = 0;
 			}
 			if (App::main()) {
 				App::main()->dlgUpdated(existing->history(), existing->id);
 			}
-			App::historyUpdateDependent(existing);
-			Notify::historyItemResized(existing);
 		}
 	}
 
@@ -1095,7 +1089,6 @@ namespace App {
 	}
 
 	void feedWereDeleted(ChannelId channelId, const QVector<MTPint> &msgsIds) {
-		bool resized = false;
 		MsgsData *data = fetchMsgsData(channelId, false);
 		if (!data) return;
 
@@ -1106,9 +1099,6 @@ namespace App {
 			MsgsData::const_iterator j = data->constFind(i->v);
 			if (j != data->cend()) {
 				History *h = (*j)->history();
-				if (App::main() && (h->peer == App::main()->peer() || (App::main()->peer() && h->peer->migrateTo() == App::main()->peer())) && !(*j)->detached()) {
-					resized = true;
-				}
 				(*j)->destroy();
 				if (!h->lastMsg) historiesToCheck.insert(h, true);
 			} else {
@@ -1119,9 +1109,6 @@ namespace App {
 					}
 				}
 			}
-		}
-		if (resized) {
-			Notify::historyItemsResized();
 		}
 		if (main()) {
 			for (QMap<History*, bool>::const_iterator i = historiesToCheck.cbegin(), e = historiesToCheck.cend(); i != e; ++i) {
@@ -1788,6 +1775,7 @@ namespace App {
 		if (App::wnd()) {
 			App::wnd()->notifyItemRemoved(item);
 		}
+		item->history()->setPendingResize();
 	}
 
 	void historyUnregItem(HistoryItem *item) {
@@ -1878,9 +1866,9 @@ namespace App {
 		webPagesData.clear();
 		if (api()) api()->clearWebPageRequests();
 		cSetRecentStickers(RecentStickerPack());
-		cSetStickerSets(StickerSets());
-		cSetStickerSetsOrder(StickerSetsOrder());
-		cSetLastStickersUpdate(0);
+		Global::SetStickerSets(Stickers::Sets());
+		Global::SetStickerSetsOrder(Stickers::Order());
+		Global::SetLastStickersUpdate(0);
 		cSetSavedGifs(SavedGifs());
 		cSetLastSavedGifsUpdate(0);
 		cSetReportSpamStatuses(ReportSpamStatuses());
@@ -2446,13 +2434,13 @@ namespace App {
 		case mtpc_replyKeyboardHide: {
 			const MTPDreplyKeyboardHide &d(markup.c_replyKeyboardHide());
 			if (d.vflags.v) {
-				insertReplyMarkup(channelId, msgId, ReplyMarkup(d.vflags.v | MTPDreplyKeyboardMarkup_flag_ZERO));
+				insertReplyMarkup(channelId, msgId, ReplyMarkup(mtpCastFlags(d.vflags.v) | MTPDreplyKeyboardMarkup_ClientFlag::f_zero));
 			}
 		} break;
 
 		case mtpc_replyKeyboardForceReply: {
 			const MTPDreplyKeyboardForceReply &d(markup.c_replyKeyboardForceReply());
-			insertReplyMarkup(channelId, msgId, ReplyMarkup(d.vflags.v | MTPDreplyKeyboardMarkup_flag_FORCE_REPLY));
+			insertReplyMarkup(channelId, msgId, ReplyMarkup(mtpCastFlags(d.vflags.v) | MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply));
 		} break;
 		}
 	}

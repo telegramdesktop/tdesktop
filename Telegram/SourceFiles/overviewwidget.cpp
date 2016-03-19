@@ -778,14 +778,20 @@ void OverviewInner::preloadMore() {
 		if (!_searchRequest) {
 			MTPmessagesFilter filter = (_type == OverviewLinks) ? MTP_inputMessagesFilterUrl() : MTP_inputMessagesFilterDocument();
 			if (!_searchFull) {
-				int32 flags = (_history->peer->isChannel() && !_history->peer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
-				_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _history->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, _lastSearchId ? SearchFromOffset : SearchFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchId ? SearchFromOffset : SearchFromStart));
+				MTPmessages_Search::Flags flags = 0;
+				if (_history->peer->isChannel() && !_history->peer->isMegagroup()) {
+					flags |= MTPmessages_Search::Flag::f_important_only;
+				}
+				_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _history->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, _lastSearchId ? SearchFromOffset : SearchFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchId ? SearchFromOffset : SearchFromStart));
 				if (!_lastSearchId) {
 					_searchQueries.insert(_searchRequest, _searchQuery);
 				}
 			} else if (_migrated && !_searchFullMigrated) {
-				int32 flags = (_migrated->peer->isChannel() && !_migrated->peer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
-				_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _migrated->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchMigratedId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, _lastSearchMigratedId ? SearchMigratedFromOffset : SearchMigratedFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchMigratedId ? SearchMigratedFromOffset : SearchMigratedFromStart));
+				MTPmessages_Search::Flags flags = 0;
+				if (_migrated->peer->isChannel() && !_migrated->peer->isMegagroup()) {
+					flags |= MTPmessages_Search::Flag::f_important_only;
+				}
+				_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _migrated->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchMigratedId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, _lastSearchMigratedId ? SearchMigratedFromOffset : SearchMigratedFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchMigratedId ? SearchMigratedFromOffset : SearchMigratedFromStart));
 			}
 		}
 	} else if (App::main()) {
@@ -1530,9 +1536,12 @@ bool OverviewInner::onSearchMessages(bool searchCache) {
 	} else if (_searchQuery != q) {
 		_searchQuery = q;
 		_searchFull = _searchFullMigrated = false;
-		int32 flags = (_history->peer->isChannel() && !_history->peer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
+		MTPmessages_Search::Flags flags = 0;
+		if (_history->peer->isChannel() && !_history->peer->isMegagroup()) {
+			flags |= MTPmessages_Search::Flag::f_important_only;
+		}
 		MTPmessagesFilter filter = (_type == OverviewLinks) ? MTP_inputMessagesFilterUrl() : MTP_inputMessagesFilterDocument();
-		_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _history->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, SearchFromStart), rpcFail(&OverviewInner::searchFailed, SearchFromStart));
+		_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _history->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, SearchFromStart), rpcFail(&OverviewInner::searchFailed, SearchFromStart));
 		_searchQueries.insert(_searchRequest, _searchQuery);
 	}
 	return false;
@@ -2386,7 +2395,6 @@ void OverviewWidget::onDeleteSelectedSure() {
 	for (SelectedItemSet::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
 		i.value()->destroy();
 	}
-	Notify::historyItemsResized();
 	Ui::hideLayer();
 
 	for (QMap<PeerData*, QVector<MTPint> >::const_iterator i = ids.cbegin(), e = ids.cend(); i != e; ++i) {
@@ -2408,7 +2416,6 @@ void OverviewWidget::onDeleteContextSure() {
 		App::main()->checkPeerHistory(h->peer);
 	}
 
-	Notify::historyItemsResized();
 	Ui::hideLayer();
 
 	if (wasOnServer) {

@@ -615,20 +615,21 @@ void MainWidget::finishForwarding(History *hist, bool broadcast, bool silent) {
 		PeerData *forwardFrom = 0;
 		App::main()->readServerHistory(hist, false);
 
-		int32 sendFlags = 0, flags = 0;
+		MTPDmessage::Flags flags = 0;
+		MTPmessages_ForwardMessages::Flags sendFlags = 0;
 		bool channelPost = hist->peer->isChannel() && !hist->peer->isMegagroup() && hist->peer->asChannel()->canPublish() && (hist->peer->asChannel()->isBroadcast() || broadcast);
 		bool showFromName = !channelPost || hist->peer->asChannel()->addsSignature();
 		bool silentPost = channelPost && silent;
 		if (channelPost) {
-			sendFlags |= MTPmessages_ForwardMessages::flag_broadcast;
-			flags |= MTPDmessage::flag_views;
-			flags |= MTPDmessage::flag_post;
+			sendFlags |= MTPmessages_ForwardMessages::Flag::f_broadcast;
+			flags |= MTPDmessage::Flag::f_views;
+			flags |= MTPDmessage::Flag::f_post;
 		}
 		if (showFromName) {
-			flags |= MTPDmessage::flag_from_id;
+			flags |= MTPDmessage::Flag::f_from_id;
 		}
 		if (silentPost) {
-			sendFlags |= MTPmessages_ForwardMessages::flag_silent;
+			sendFlags |= MTPmessages_ForwardMessages::Flag::f_silent;
 		}
 
 		QVector<MTPint> ids;
@@ -650,7 +651,7 @@ void MainWidget::finishForwarding(History *hist, bool broadcast, bool silent) {
 			}
 			if (forwardFrom != i.value()->history()->peer) {
 				if (forwardFrom) {
-					hist->sendRequestId = MTP::send(MTPmessages_ForwardMessages(MTP_int(sendFlags), forwardFrom->input, MTP_vector<MTPint>(ids), MTP_vector<MTPlong>(randomIds), hist->peer->input), rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+					hist->sendRequestId = MTP::send(MTPmessages_ForwardMessages(MTP_flags(sendFlags), forwardFrom->input, MTP_vector<MTPint>(ids), MTP_vector<MTPlong>(randomIds), hist->peer->input), rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 					ids.resize(0);
 					randomIds.resize(0);
 				}
@@ -659,7 +660,7 @@ void MainWidget::finishForwarding(History *hist, bool broadcast, bool silent) {
 			ids.push_back(MTP_int(i.value()->id));
 			randomIds.push_back(MTP_long(randomId));
 		}
-		hist->sendRequestId = MTP::send(MTPmessages_ForwardMessages(MTP_int(sendFlags), forwardFrom->input, MTP_vector<MTPint>(ids), MTP_vector<MTPlong>(randomIds), hist->peer->input), rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+		hist->sendRequestId = MTP::send(MTPmessages_ForwardMessages(MTP_flags(sendFlags), forwardFrom->input, MTP_vector<MTPint>(ids), MTP_vector<MTPlong>(randomIds), hist->peer->input), rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 
 		if (history.peer() == hist->peer) {
 			history.peerMessagesUpdated();
@@ -687,8 +688,7 @@ void MainWidget::webPagesUpdate() {
 		WebPageItems::const_iterator j = items.constFind(App::webPage(i.key()));
 		if (j != items.cend()) {
 			for (HistoryItemsMap::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
-				k.key()->initDimensions();
-				Notify::historyItemResized(k.key());
+				k.key()->setPendingInitDimensions();
 			}
 		}
 	}
@@ -783,8 +783,7 @@ void MainWidget::notify_userIsContactChanged(UserData *user, bool fromThisApp) {
 	SharedContactItems::const_iterator i = items.constFind(peerToUser(user->id));
 	if (i != items.cend()) {
 		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			j.key()->initDimensions();
-			Ui::repaintHistoryItem(j.key());
+			j.key()->setPendingInitDimensions();
 		}
 	}
 
@@ -830,6 +829,10 @@ void MainWidget::notify_automaticLoadSettingsChangedGif() {
 	history.notify_automaticLoadSettingsChangedGif();
 }
 
+void MainWidget::notify_handlePendingHistoryUpdate() {
+	history.notify_handlePendingHistoryUpdate();
+}
+
 void MainWidget::cmd_search() {
 	history.cmd_search();
 }
@@ -840,18 +843,6 @@ void MainWidget::cmd_next_chat() {
 
 void MainWidget::cmd_previous_chat() {
 	history.cmd_previous_chat();
-}
-
-void MainWidget::notify_historyItemResized(const HistoryItem *item, bool scrollToIt) {
-	if (!item || ((history.peer() == item->history()->peer || (history.peer() && history.peer() == item->history()->peer->migrateTo())) && !item->detached())) {
-		history.notify_historyItemResized(item, scrollToIt);
-	} else if (item) {
-		item->history()->width = 0;
-		if (history.peer() == item->history()->peer || (history.peer() && history.peer() == item->history()->peer->migrateTo())) {
-			history.resizeEvent(0);
-		}
-	}
-	if (item) Ui::repaintHistoryItem(item);
 }
 
 void MainWidget::noHider(HistoryHider *destroyed) {
@@ -1379,40 +1370,40 @@ void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, 
 		App::historyRegSentData(randomId, hist->peer->id, sendingText);
 
 		MTPstring msgText(MTP_string(sendingText));
-		int32 flags = newMessageFlags(hist->peer) | MTPDmessage::flag_entities; // unread, out
-		int32 sendFlags = 0;
+		MTPDmessage::Flags flags = newMessageFlags(hist->peer) | MTPDmessage::Flag::f_entities; // unread, out
+		MTPmessages_SendMessage::Flags sendFlags = 0;
 		if (replyTo) {
-			flags |= MTPDmessage::flag_reply_to_msg_id;
-			sendFlags |= MTPmessages_SendMessage::flag_reply_to_msg_id;
+			flags |= MTPDmessage::Flag::f_reply_to_msg_id;
+			sendFlags |= MTPmessages_SendMessage::Flag::f_reply_to_msg_id;
 		}
 		MTPMessageMedia media = MTP_messageMediaEmpty();
 		if (webPageId == CancelledWebPageId) {
-			sendFlags |= MTPmessages_SendMessage::flag_no_webpage;
+			sendFlags |= MTPmessages_SendMessage::Flag::f_no_webpage;
 		} else if (webPageId) {
 			WebPageData *page = App::webPage(webPageId);
 			media = MTP_messageMediaWebPage(MTP_webPagePending(MTP_long(page->id), MTP_int(page->pendingTill)));
-			flags |= MTPDmessage::flag_media;
+			flags |= MTPDmessage::Flag::f_media;
 		}
 		bool channelPost = hist->peer->isChannel() && !hist->peer->isMegagroup() && hist->peer->asChannel()->canPublish() && (hist->peer->asChannel()->isBroadcast() || broadcast);
 		bool showFromName = !channelPost || hist->peer->asChannel()->addsSignature();
 		bool silentPost = channelPost && silent;
 		if (channelPost) {
-			sendFlags |= MTPmessages_SendMessage::flag_broadcast;
-			flags |= MTPDmessage::flag_views;
-			flags |= MTPDmessage::flag_post;
+			sendFlags |= MTPmessages_SendMessage::Flag::f_broadcast;
+			flags |= MTPDmessage::Flag::f_views;
+			flags |= MTPDmessage::Flag::f_post;
 		}
 		if (showFromName) {
-			flags |= MTPDmessage::flag_from_id;
+			flags |= MTPDmessage::Flag::f_from_id;
 		}
 		if (silentPost) {
-			sendFlags |= MTPmessages_SendMessage::flag_silent;
+			sendFlags |= MTPmessages_SendMessage::Flag::f_silent;
 		}
 		MTPVector<MTPMessageEntity> localEntities = linksToMTP(sendingEntities), sentEntities = linksToMTP(sendingEntities, true);
 		if (!sentEntities.c_vector().v.isEmpty()) {
-			sendFlags |= MTPmessages_SendMessage::flag_entities;
+			sendFlags |= MTPmessages_SendMessage::Flag::f_entities;
 		}
-		hist->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(hist->peer->id), MTPnullFwdHeader, MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, localEntities, MTP_int(1), MTPint()), NewMessageUnread);
-		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, sentEntities), rpcDone(&MainWidget::sentUpdatesReceived, randomId), rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
+		hist->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(hist->peer->id), MTPnullFwdHeader, MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, localEntities, MTP_int(1), MTPint()), NewMessageUnread);
+		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_flags(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, sentEntities), rpcDone(&MainWidget::sentUpdatesReceived, randomId), rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 	}
 
 	finishForwarding(hist, broadcast, silent);
@@ -1502,8 +1493,11 @@ bool MainWidget::preloadOverview(PeerData *peer, MediaOverviewType type) {
 		return false;
 	}
 
-	int32 flags = (peer->isChannel() && !peer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
-	_overviewPreload[type].insert(peer, MTP::send(MTPmessages_Search(MTP_int(flags), peer->input, MTP_string(""), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::overviewPreloaded, peer), rpcFail(&MainWidget::overviewFailed, peer), 0, 10));
+	MTPmessages_Search::Flags flags = 0;
+	if (peer->isChannel() && !peer->isMegagroup()) {
+		flags |= MTPmessages_Search::Flag::f_important_only;
+	}
+	_overviewPreload[type].insert(peer, MTP::send(MTPmessages_Search(MTP_flags(flags), peer->input, MTP_string(""), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::overviewPreloaded, peer), rpcFail(&MainWidget::overviewFailed, peer), 0, 10));
 	return true;
 }
 
@@ -1635,8 +1629,11 @@ void MainWidget::loadMediaBack(PeerData *peer, MediaOverviewType type, bool many
 	MTPMessagesFilter filter = typeToMediaFilter(type);
 	if (type == OverviewCount) return;
 
-	int32 flags = (peer->isChannel() && !peer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
-	_overviewLoad[type].insert(peer, MTP::send(MTPmessages_Search(MTP_int(flags), peer->input, MTPstring(), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(minId), MTP_int(limit)), rpcDone(&MainWidget::overviewLoaded, history)));
+	MTPmessages_Search::Flags flags = 0;
+	if (peer->isChannel() && !peer->isMegagroup()) {
+		flags |= MTPmessages_Search::Flag::f_important_only;
+	}
+	_overviewLoad[type].insert(peer, MTP::send(MTPmessages_Search(MTP_flags(flags), peer->input, MTPstring(), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(minId), MTP_int(limit)), rpcDone(&MainWidget::overviewLoaded, history)));
 }
 
 void MainWidget::peerUsernameChanged(PeerData *peer) {
@@ -1760,6 +1757,14 @@ void MainWidget::onDownloadPathSettings() {
 
 void MainWidget::ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId) {
 	Ui::showPeerHistory(peerId, showAtMsgId);
+}
+
+void MainWidget::ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId) {
+	if (HistoryItem *item = App::histItemById(channelId, msgId)) {
+		if (HistoryMedia *media = item->getMedia()) {
+			media->playInline(item, true);
+		}
+	}
 }
 
 void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
@@ -1953,13 +1958,13 @@ void MainWidget::dialogsCancelled() {
 }
 
 void MainWidget::serviceNotification(const QString &msg, const MTPMessageMedia &media) {
-	int32 flags = MTPDmessage::flag_unread | MTPDmessage::flag_entities | MTPDmessage::flag_from_id;
+	MTPDmessage::Flags flags = MTPDmessage::Flag::f_unread | MTPDmessage::Flag::f_entities | MTPDmessage::Flag::f_from_id;
 	QString sendingText, leftText = msg;
 	EntitiesInText sendingEntities, leftEntities = textParseEntities(leftText, _historyTextNoMonoOptions.flags);
 	HistoryItem *item = 0;
 	while (textSplit(sendingText, sendingEntities, leftText, leftEntities, MaxMessageSize)) {
 		MTPVector<MTPMessageEntity> localEntities = linksToMTP(sendingEntities);
-		item = App::histories().addNewMessage(MTP_message(MTP_int(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(MTP::authedId())), MTPnullFwdHeader, MTPint(), MTPint(), MTP_int(unixtime()), MTP_string(sendingText), media, MTPnullMarkup, localEntities, MTPint(), MTPint()), NewMessageUnread);
+		item = App::histories().addNewMessage(MTP_message(MTP_flags(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(MTP::authedId())), MTPnullFwdHeader, MTPint(), MTPint(), MTP_int(unixtime()), MTP_string(sendingText), media, MTPnullMarkup, localEntities, MTPint(), MTPint()), NewMessageUnread);
 	}
 	if (item) {
 		history.peerMessagesUpdated(item->history()->peer->id);
@@ -2910,7 +2915,7 @@ void MainWidget::onUpdateNotifySettings() {
 		if (peer->notify == UnknownNotifySettings || peer->notify == EmptyNotifySettings) {
 			peer->notify = new NotifySettings();
 		}
-		MTP::send(MTPaccount_UpdateNotifySettings(MTP_inputNotifyPeer(peer->input), MTP_inputPeerNotifySettings(MTP_int(peer->notify->flags), MTP_int(peer->notify->mute), MTP_string(peer->notify->sound))), RPCResponseHandler(), 0, updateNotifySettingPeers.isEmpty() ? 0 : 10);
+		MTP::send(MTPaccount_UpdateNotifySettings(MTP_inputNotifyPeer(peer->input), MTP_inputPeerNotifySettings(MTP_flags(mtpCastFlags(peer->notify->flags)), MTP_int(peer->notify->mute), MTP_string(peer->notify->sound))), RPCResponseHandler(), 0, updateNotifySettingPeers.isEmpty() ? 0 : 10);
 	}
 }
 
@@ -3799,9 +3804,9 @@ void MainWidget::updateNotifySetting(PeerData *peer, NotifySettingStatus notify,
 			peer->notify->mute = (notify == NotifySettingSetMuted) ? (unixtime() + muteFor) : 0;
 		}
 		if (silent == SilentNotifiesSetSilent) {
-			peer->notify->flags |= MTPDpeerNotifySettings::flag_silent;
+			peer->notify->flags |= MTPDpeerNotifySettings::Flag::f_silent;
 		} else if (silent == SilentNotifiesSetNotify) {
-			peer->notify->flags &= ~MTPDpeerNotifySettings::flag_silent;
+			peer->notify->flags &= ~MTPDpeerNotifySettings::Flag::f_silent;
 		}
 	}
 	if (notify != NotifySettingDontChange) {
@@ -3864,9 +3869,9 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	case mtpc_inputStickerSetID: setId = sticker->sticker()->set.c_inputStickerSetID().vid.v; break;
 	case mtpc_inputStickerSetShortName: setName = qs(sticker->sticker()->set.c_inputStickerSetShortName().vshort_name).toLower().trimmed(); break;
 	}
-	StickerSets &sets(cRefStickerSets());
-	for (StickerSets::const_iterator i = sets.cbegin(); i != sets.cend(); ++i) {
-		if (i->id == CustomStickerSetId || i->id == DefaultStickerSetId || (setId && i->id == setId) || (!setName.isEmpty() && i->shortName.toLower().trimmed() == setName)) {
+	Stickers::Sets &sets(Global::RefStickerSets());
+	for (auto i = sets.cbegin(); i != sets.cend(); ++i) {
+		if (i->id == Stickers::CustomSetId || i->id == Stickers::DefaultSetId || (setId && i->id == setId) || (!setName.isEmpty() && i->shortName.toLower().trimmed() == setName)) {
 			for (int32 j = 0, l = i->stickers.size(); j < l; ++j) {
 				if (i->stickers.at(j) == sticker) {
 					found = true;
@@ -3877,9 +3882,9 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 		}
 	}
 	if (!found) {
-		StickerSets::iterator it = sets.find(CustomStickerSetId);
+		Stickers::Sets::iterator it = sets.find(Stickers::CustomSetId);
 		if (it == sets.cend()) {
-			it = sets.insert(CustomStickerSetId, StickerSet(CustomStickerSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, 0));
+			it = sets.insert(Stickers::CustomSetId, Stickers::Set(Stickers::CustomSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, 0));
 		}
 		it->stickers.push_back(sticker);
 		++it->count;
@@ -4094,8 +4099,8 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 		}
 
 		// update before applying skipped
-		int32 flags = d.vflags.v | MTPDmessage::flag_from_id;
-		HistoryItem *item = App::histories().addNewMessage(MTP_message(MTP_int(flags), d.vid, d.is_out() ? MTP_int(MTP::authedId()) : d.vuser_id, MTP_peerUser(d.is_out() ? d.vuser_id : MTP_int(MTP::authedId())), d.vfwd_from, d.vvia_bot_id, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, d.has_entities() ? d.ventities : MTPnullEntities, MTPint(), MTPint()), NewMessageUnread);
+		MTPDmessage::Flags flags = mtpCastFlags(d.vflags.v) | MTPDmessage::Flag::f_from_id;
+		HistoryItem *item = App::histories().addNewMessage(MTP_message(MTP_flags(flags), d.vid, d.is_out() ? MTP_int(MTP::authedId()) : d.vuser_id, MTP_peerUser(d.is_out() ? d.vuser_id : MTP_int(MTP::authedId())), d.vfwd_from, d.vvia_bot_id, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, d.has_entities() ? d.ventities : MTPnullEntities, MTPint(), MTPint()), NewMessageUnread);
 		if (item) {
 			history.peerMessagesUpdated(item->history()->peer->id);
 		}
@@ -4129,8 +4134,8 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 		}
 
 		// update before applying skipped
-		int32 flags = d.vflags.v | MTPDmessage::flag_from_id;
-		HistoryItem *item = App::histories().addNewMessage(MTP_message(MTP_int(flags), d.vid, d.vfrom_id, MTP_peerChat(d.vchat_id), d.vfwd_from, d.vvia_bot_id, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, d.has_entities() ? d.ventities : MTPnullEntities, MTPint(), MTPint()), NewMessageUnread);
+		MTPDmessage::Flags flags = mtpCastFlags(d.vflags.v) | MTPDmessage::Flag::f_from_id;
+		HistoryItem *item = App::histories().addNewMessage(MTP_message(MTP_flags(flags), d.vid, d.vfrom_id, MTP_peerChat(d.vchat_id), d.vfwd_from, d.vvia_bot_id, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, d.has_entities() ? d.ventities : MTPnullEntities, MTPint(), MTPint()), NewMessageUnread);
 		if (item) {
 			history.peerMessagesUpdated(item->history()->peer->id);
 		}
@@ -4152,9 +4157,6 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 				if (HistoryItem *item = App::histItemById(peerToChannel(peerId), d.vid.v)) {
 					item->setText(text, d.has_entities() ? entitiesFromMTP(d.ventities.c_vector().v) : EntitiesInText());
 					item->updateMedia(d.has_media() ? (&d.vmedia) : 0);
-					item->initDimensions();
-					Notify::historyItemResized(item);
-
 					item->addToOverview(AddToOverviewNew);
 				}
 			}
@@ -4437,7 +4439,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		UserData *user = App::userLoaded(d.vuser_id.v);
 		if (user) {
 			if (App::history(user->id)->loadedAtBottom()) {
-				App::history(user->id)->addNewService(clientMsgId(), date(d.vdate), lng_action_user_registered(lt_from, user->name), MTPDmessage::flag_unread);
+				App::history(user->id)->addNewService(clientMsgId(), date(d.vdate), lng_action_user_registered(lt_from, user->name), MTPDmessage::Flag::f_unread);
 			}
 		}
 	} break;
@@ -4660,10 +4662,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			if (set.vset.type() == mtpc_stickerSet) {
 				const MTPDstickerSet &s(set.vset.c_stickerSet());
 
-				StickerSets &sets(cRefStickerSets());
-				StickerSets::iterator it = sets.find(s.vid.v);
+				Stickers::Sets &sets(Global::RefStickerSets());
+				auto it = sets.find(s.vid.v);
 				if (it == sets.cend()) {
-					it = sets.insert(s.vid.v, StickerSet(s.vid.v, s.vaccess_hash.v, stickerSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v));
+					it = sets.insert(s.vid.v, Stickers::Set(s.vid.v, s.vaccess_hash.v, stickerSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v));
 				}
 
 				const QVector<MTPDocument> &v(set.vdocuments.c_vector().v);
@@ -4694,7 +4696,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					}
 				}
 
-				StickerSetsOrder &order(cRefStickerSetsOrder());
+				auto &order(Global::RefStickerSetsOrder());
 				int32 insertAtIndex = 0, currentIndex = order.indexOf(s.vid.v);
 				if (currentIndex != insertAtIndex) {
 					if (currentIndex > 0) {
@@ -4703,7 +4705,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					order.insert(insertAtIndex, s.vid.v);
 				}
 
-				StickerSets::iterator custom = sets.find(CustomStickerSetId);
+				auto custom = sets.find(Stickers::CustomSetId);
 				if (custom != sets.cend()) {
 					for (int32 i = 0, l = it->stickers.size(); i < l; ++i) {
 						int32 removeIndex = custom->stickers.indexOf(it->stickers.at(i));
@@ -4722,26 +4724,26 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateStickerSetsOrder: {
 		const MTPDupdateStickerSetsOrder &d(update.c_updateStickerSetsOrder());
 		const QVector<MTPlong> &order(d.vorder.c_vector().v);
-		const StickerSets &sets(cStickerSets());
-		StickerSetsOrder result;
+		const Stickers::Sets &sets(Global::StickerSets());
+		Stickers::Order result;
 		for (int32 i = 0, l = order.size(); i < l; ++i) {
 			if (sets.constFind(order.at(i).v) == sets.cend()) {
 				break;
 			}
 			result.push_back(order.at(i).v);
 		}
-		if (result.size() != cStickerSetsOrder().size() || result.size() != order.size()) {
-			cSetLastStickersUpdate(0);
+		if (result.size() != Global::StickerSetsOrder().size() || result.size() != order.size()) {
+			Global::SetLastStickersUpdate(0);
 			App::main()->updateStickers();
 		} else {
-			cSetStickerSetsOrder(result);
+			Global::SetStickerSetsOrder(result);
 			Local::writeStickers();
 			emit stickersUpdated();
 		}
 	} break;
 
 	case mtpc_updateStickerSets: {
-		cSetLastStickersUpdate(0);
+		Global::SetLastStickersUpdate(0);
 		App::main()->updateStickers();
 	} break;
 

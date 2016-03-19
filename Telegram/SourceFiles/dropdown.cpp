@@ -1097,7 +1097,7 @@ void EmojiPanInner::fillPanels(QVector<EmojiPanel*> &panels) {
 	int y = 0;
 	panels.reserve(emojiTabCount);
 	for (int c = 0; c < emojiTabCount; ++c) {
-		panels.push_back(new EmojiPanel(parentWidget(), lang(LangKey(lng_emoji_category0 + c)), NoneStickerSetId, true, y));
+		panels.push_back(new EmojiPanel(parentWidget(), lang(LangKey(lng_emoji_category0 + c)), Stickers::NoneSetId, true, y));
 		connect(panels.back(), SIGNAL(mousePressed()), this, SLOT(checkPickerHide()));
 		int cnt = _counts[c], rows = (cnt / EmojiPanPerRow) + ((cnt % EmojiPanPerRow) ? 1 : 0);
 		panels.back()->show();
@@ -1352,7 +1352,7 @@ void StickerPanInner::paintStickers(Painter &p, const QRect &r) {
 		tilly = y + st::emojiPanHeader + (rows * st::stickerPanSize.height());
 		if (r.top() >= tilly) continue;
 
-		bool special = (_sets[c].flags & MTPDstickerSet::flag_official);
+		bool special = (_sets[c].flags & MTPDstickerSet::Flag::f_official);
 		y += st::emojiPanHeader;
 
 		int32 fromrow = floorclamp(r.y() - y, st::stickerPanSize.height(), 0, rows);
@@ -1395,7 +1395,7 @@ void StickerPanInner::paintStickers(Painter &p, const QRect &r) {
 					p.drawPixmapLeft(ppos, width(), sticker->sticker()->img->pix(w, h));
 				}
 
-				if (hover > 0 && _sets[c].id == RecentStickerSetId && _custom.at(index)) {
+				if (hover > 0 && _sets[c].id == Stickers::RecentSetId && _custom.at(index)) {
 					float64 xHover = _sets[c].hovers[_sets[c].pack.size() + index];
 
 					QPoint xPos = pos + QPoint(st::stickerPanSize.width() - st::stickerPanDelete.pxWidth(), 0);
@@ -1509,7 +1509,7 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 	}
 
 	int tab = (_selected / MatrixRowShift), sel = _selected % MatrixRowShift;
-	if (_sets[tab].id == RecentStickerSetId && sel >= _sets[tab].pack.size() && sel < _sets[tab].pack.size() * 2 && _custom.at(sel - _sets[tab].pack.size())) {
+	if (_sets[tab].id == Stickers::RecentSetId && sel >= _sets[tab].pack.size() && sel < _sets[tab].pack.size() * 2 && _custom.at(sel - _sets[tab].pack.size())) {
 		clearSelection(true);
 		bool refresh = false;
 		DocumentData *sticker = _sets[tab].pack.at(sel - _sets[tab].pack.size());
@@ -1522,8 +1522,8 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 				break;
 			}
 		}
-		StickerSets &sets(cRefStickerSets());
-		StickerSets::iterator it = sets.find(CustomStickerSetId);
+		Stickers::Sets &sets(Global::RefStickerSets());
+		auto it = sets.find(Stickers::CustomSetId);
 		if (it != sets.cend()) {
 			for (int32 i = 0, l = it->stickers.size(); i < l; ++i) {
 				if (it->stickers.at(i) == sticker) {
@@ -1595,7 +1595,7 @@ void StickerPanInner::clearSelection(bool fast) {
 		_animations.clear();
 		if (_selected >= 0) {
 			int index = qAbs(_selected), tab = (index / MatrixRowShift), sel = index % MatrixRowShift;
-			if (index >= 0 && tab < _sets.size() && _sets[tab].id == RecentStickerSetId && sel >= tab * MatrixRowShift + _sets[tab].pack.size()) {
+			if (index >= 0 && tab < _sets.size() && _sets[tab].id == Stickers::RecentSetId && sel >= tab * MatrixRowShift + _sets[tab].pack.size()) {
 				_sets[tab].hovers[sel] = 0;
 				sel -= _sets[tab].pack.size();
 			}
@@ -1603,7 +1603,7 @@ void StickerPanInner::clearSelection(bool fast) {
 		}
 		if (_pressedSel >= 0) {
 			int index = qAbs(_pressedSel), tab = (index / MatrixRowShift), sel = index % MatrixRowShift;
-			if (index >= 0 && tab < _sets.size() && _sets[tab].id == RecentStickerSetId && sel >= tab * MatrixRowShift + _sets[tab].pack.size()) {
+			if (index >= 0 && tab < _sets.size() && _sets[tab].id == Stickers::RecentSetId && sel >= tab * MatrixRowShift + _sets[tab].pack.size()) {
 				_sets[tab].hovers[sel] = 0;
 				sel -= _sets[tab].pack.size();
 			}
@@ -1640,11 +1640,11 @@ void StickerPanInner::hideFinish(bool completely) {
 void StickerPanInner::refreshStickers() {
 	clearSelection(true);
 
-	const StickerSets &sets(cStickerSets());
+	const Stickers::Sets &sets(Global::StickerSets());
 	_sets.clear(); _sets.reserve(sets.size() + 1);
 
 	refreshRecentStickers(false);
-	for (StickerSetsOrder::const_iterator i = cStickerSetsOrder().cbegin(), e = cStickerSetsOrder().cend(); i != e; ++i) {
+	for (auto i = Global::StickerSetsOrder().cbegin(), e = Global::StickerSetsOrder().cend(); i != e; ++i) {
 		appendSet(*i);
 	}
 
@@ -1703,7 +1703,7 @@ void StickerPanInner::refreshSavedGifs() {
 		if (_showingInlineItems) {
 			const SavedGifs &saved(cSavedGifs());
 			if (saved.isEmpty()) {
-				showStickerSet(RecentStickerSetId);
+				showStickerSet(Stickers::RecentSetId);
 				return;
 			} else {
 				_inlineRows.reserve(saved.size());
@@ -1871,7 +1871,7 @@ void StickerPanInner::preloadImages() {
 }
 
 uint64 StickerPanInner::currentSet(int yOffset) const {
-	if (_showingInlineItems) return NoneStickerSetId;
+	if (_showingInlineItems) return Stickers::NoneSetId;
 
 	int y, ytill = 0;
 	for (int i = 0, l = _sets.size(); i < l; ++i) {
@@ -1882,7 +1882,7 @@ uint64 StickerPanInner::currentSet(int yOffset) const {
 			return _sets.at(i).id;
 		}
 	}
-	return _sets.isEmpty() ? RecentStickerSetId : _sets.back().id;
+	return _sets.isEmpty() ? Stickers::RecentSetId : _sets.back().id;
 }
 
 void StickerPanInner::hideInlineRowsPanel() {
@@ -1894,7 +1894,7 @@ void StickerPanInner::hideInlineRowsPanel() {
 			emit scrollToY(0);
 			emit scrollUpdated();
 		} else {
-			showStickerSet(RecentStickerSetId);
+			showStickerSet(Stickers::RecentSetId);
 		}
 	}
 }
@@ -2039,9 +2039,9 @@ bool StickerPanInner::ui_isInlineItemBeingChosen() {
 }
 
 void StickerPanInner::appendSet(uint64 setId) {
-	const StickerSets &sets(cStickerSets());
-	StickerSets::const_iterator it = sets.constFind(setId);
-	if (it == sets.cend() || (it->flags & MTPDstickerSet::flag_disabled) || it->stickers.isEmpty()) return;
+	const Stickers::Sets &sets(Global::StickerSets());
+	auto it = sets.constFind(setId);
+	if (it == sets.cend() || (it->flags & MTPDstickerSet::Flag::f_disabled) || it->stickers.isEmpty()) return;
 
 	StickerPack pack;
 	pack.reserve(it->stickers.size());
@@ -2064,14 +2064,14 @@ void StickerPanInner::refreshRecent() {
 void StickerPanInner::refreshRecentStickers(bool performResize) {
 	_custom.clear();
 	clearSelection(true);
-	StickerSets::const_iterator customIt = cStickerSets().constFind(CustomStickerSetId);
-	if (cGetRecentStickers().isEmpty() && (customIt == cStickerSets().cend() || customIt->stickers.isEmpty())) {
-		if (!_sets.isEmpty() && _sets.at(0).id == RecentStickerSetId) {
+	auto customIt = Global::StickerSets().constFind(Stickers::CustomSetId);
+	if (cGetRecentStickers().isEmpty() && (customIt == Global::StickerSets().cend() || customIt->stickers.isEmpty())) {
+		if (!_sets.isEmpty() && _sets.at(0).id == Stickers::RecentSetId) {
 			_sets.pop_front();
 		}
 	} else {
 		StickerPack recent;
-		int32 customCnt = (customIt == cStickerSets().cend() ? 0 : customIt->stickers.size());
+		int32 customCnt = (customIt == Global::StickerSets().cend() ? 0 : customIt->stickers.size());
 		QMap<DocumentData*, bool> recentOnly;
 		recent.reserve(cGetRecentStickers().size() + customCnt);
 		_custom.reserve(cGetRecentStickers().size() + customCnt);
@@ -2090,8 +2090,8 @@ void StickerPanInner::refreshRecentStickers(bool performResize) {
 				_custom.push_back(true);
 			}
 		}
-		if (_sets.isEmpty() || _sets.at(0).id != RecentStickerSetId) {
-			_sets.push_back(DisplayedSet(RecentStickerSetId, MTPDstickerSet::flag_official, lang(lng_emoji_category0), recent.size() * 2, recent));
+		if (_sets.isEmpty() || _sets.at(0).id != Stickers::RecentSetId) {
+			_sets.push_back(DisplayedSet(Stickers::RecentSetId, MTPDstickerSet::Flag::f_official, lang(lng_emoji_category0), recent.size() * 2, recent));
 		} else {
 			_sets[0].pack = recent;
 			_sets[0].hovers.resize(recent.size() * 2);
@@ -2112,12 +2112,12 @@ void StickerPanInner::refreshRecentStickers(bool performResize) {
 void StickerPanInner::fillIcons(QList<StickerIcon> &icons) {
 	icons.clear();
 	icons.reserve(_sets.size() + 1);
-	if (!cSavedGifs().isEmpty()) icons.push_back(StickerIcon(NoneStickerSetId));
+	if (!cSavedGifs().isEmpty()) icons.push_back(StickerIcon(Stickers::NoneSetId));
 
 	if (_sets.isEmpty()) return;
 	int32 i = 0;
-	if (_sets.at(0).id == RecentStickerSetId) ++i;
-	if (i > 0) icons.push_back(StickerIcon(RecentStickerSetId));
+	if (_sets.at(0).id == Stickers::RecentSetId) ++i;
+	if (i > 0) icons.push_back(StickerIcon(Stickers::RecentSetId));
 	for (int32 l = _sets.size(); i < l; ++i) {
 		DocumentData *s = _sets.at(i).pack.at(0);
 		int32 availw = st::rbEmoji.width - 2 * st::stickerIconPadding, availh = st::rbEmoji.height - 2 * st::stickerIconPadding;
@@ -2143,7 +2143,7 @@ void StickerPanInner::fillPanels(QVector<EmojiPanel*> &panels) {
 	panels.clear();
 
 	if (_showingInlineItems) {
-		panels.push_back(new EmojiPanel(parentWidget(), _showingSavedGifs ? lang(lng_saved_gifs) : _inlineBotTitle, NoneStickerSetId, true, 0));
+		panels.push_back(new EmojiPanel(parentWidget(), _showingSavedGifs ? lang(lng_saved_gifs) : _inlineBotTitle, Stickers::NoneSetId, true, 0));
 		panels.back()->show();
 		return;
 	}
@@ -2153,7 +2153,7 @@ void StickerPanInner::fillPanels(QVector<EmojiPanel*> &panels) {
 	int y = 0;
 	panels.reserve(_sets.size());
 	for (int32 i = 0, l = _sets.size(); i < l; ++i) {
-		bool special = (_sets.at(i).flags & MTPDstickerSet::flag_official);
+		bool special = (_sets.at(i).flags & MTPDstickerSet::Flag::f_official);
 		panels.push_back(new EmojiPanel(parentWidget(), _sets.at(i).title, _sets.at(i).id, special, y));
 		panels.back()->show();
 		connect(panels.back(), SIGNAL(deleteClicked(quint64)), this, SIGNAL(removing(quint64)));
@@ -2260,7 +2260,7 @@ void StickerPanInner::updateSelected() {
 	for (int c = 0, l = _sets.size(); c < l; ++c) {
 		const DisplayedSet &set(_sets.at(c));
 		int cnt = set.pack.size();
-		bool special = (set.flags & MTPDstickerSet::flag_official);
+		bool special = (set.flags & MTPDstickerSet::Flag::f_official);
 
 		y = ytill;
 		ytill = y + st::emojiPanHeader + ((cnt / StickerPanPerRow) + ((cnt % StickerPanPerRow) ? 1 : 0)) * st::stickerPanSize.height();
@@ -2271,7 +2271,7 @@ void StickerPanInner::updateSelected() {
 				if (selIndex >= set.pack.size()) {
 					selIndex = -1;
 				} else {
-					if (set.id == RecentStickerSetId && _custom[selIndex]) {
+					if (set.id == Stickers::RecentSetId && _custom[selIndex]) {
 						int32 inx = sx - (selIndex % StickerPanPerRow) * st::stickerPanSize.width(), iny = p.y() - y - ((selIndex / StickerPanPerRow) * st::stickerPanSize.height());
 						if (inx >= st::stickerPanSize.width() - st::stickerPanDelete.pxWidth() && iny < st::stickerPanDelete.pxHeight()) {
 							selIndex += set.pack.size();
@@ -2286,11 +2286,11 @@ void StickerPanInner::updateSelected() {
 
 	bool startanim = false;
 	int oldSel = _selected, oldSelTab = oldSel / MatrixRowShift, xOldSel = -1, newSel = selIndex, newSelTab = newSel / MatrixRowShift, xNewSel = -1;
-	if (oldSel >= 0 && oldSelTab < _sets.size() && _sets[oldSelTab].id == RecentStickerSetId && oldSel >= oldSelTab * MatrixRowShift + _sets[oldSelTab].pack.size()) {
+	if (oldSel >= 0 && oldSelTab < _sets.size() && _sets[oldSelTab].id == Stickers::RecentSetId && oldSel >= oldSelTab * MatrixRowShift + _sets[oldSelTab].pack.size()) {
 		xOldSel = oldSel;
 		oldSel -= _sets[oldSelTab].pack.size();
 	}
-	if (newSel >= 0 && newSelTab < _sets.size() && _sets[newSelTab].id == RecentStickerSetId && newSel >= newSelTab * MatrixRowShift + _sets[newSelTab].pack.size()) {
+	if (newSel >= 0 && newSelTab < _sets.size() && _sets[newSelTab].id == Stickers::RecentSetId && newSel >= newSelTab * MatrixRowShift + _sets[newSelTab].pack.size()) {
 		xNewSel = newSel;
 		newSel -= _sets[newSelTab].pack.size();
 	}
@@ -2390,7 +2390,7 @@ void StickerPanInner::step_selected(uint64 ms, bool timer) {
 void StickerPanInner::showStickerSet(uint64 setId) {
 	clearSelection(true);
 
-	if (setId == NoneStickerSetId) {
+	if (setId == Stickers::NoneSetId) {
 		bool wasNotShowingGifs = !_showingInlineItems;
 		if (wasNotShowingGifs) {
 			_showingInlineItems = true;
@@ -2460,7 +2460,7 @@ EmojiPanel::EmojiPanel(QWidget *parent, const QString &text, uint64 setId, bool 
 , _setId(setId)
 , _special(special)
 , _deleteVisible(false)
-, _delete(special ? 0 : new IconedButton(this, st::notifyClose)) { // NoneStickerSetId if in emoji
+, _delete(special ? 0 : new IconedButton(this, st::notifyClose)) { // Stickers::NoneSetId if in emoji
 	resize(st::emojiPanWidth, st::emojiPanHeader);
 	setMouseTracking(true);
 	setFocusPolicy(Qt::NoFocus);
@@ -2484,11 +2484,11 @@ void EmojiPanel::setText(const QString &text) {
 void EmojiPanel::updateText() {
 	int32 availw = st::emojiPanWidth - st::emojiPanHeaderLeft * 2;
 	if (_deleteVisible) {
-		if (!_special && _setId != NoneStickerSetId) {
+		if (!_special && _setId != Stickers::NoneSetId) {
 			availw -= st::notifyClose.icon.pxWidth() + st::emojiPanHeaderLeft;
 		}
 	} else {
-		QString switchText = lang((_setId != NoneStickerSetId) ? lng_switch_emoji : (cSavedGifs().isEmpty() ? lng_switch_stickers : lng_switch_stickers_gifs));
+		QString switchText = lang((_setId != Stickers::NoneSetId) ? lng_switch_emoji : (cSavedGifs().isEmpty() ? lng_switch_stickers : lng_switch_stickers_gifs));
 		availw -= st::emojiSwitchSkip + st::emojiPanHeaderFont->width(switchText);
 	}
 	_text = st::emojiPanHeaderFont->elided(_fullText, availw);
@@ -2781,7 +2781,7 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 				if (!_icons.isEmpty()) {
 					int32 x = _iconsLeft, i = 0, selxrel = _iconsLeft + _iconSelX.current(), selx = selxrel - _iconsX.current();
 					for (int32 l = _icons.size(); i < l && !_icons.at(i).sticker; ++i) {
-						bool gifs = (_icons.at(i).setId == NoneStickerSetId);
+						bool gifs = (_icons.at(i).setId == Stickers::NoneSetId);
 						if (selxrel != x) {
 							p.drawSpriteLeft(x + st::rbEmojiRecent.imagePos.x(), _iconsTop + st::rbEmojiRecent.imagePos.y(), width(), gifs ? st::savedGifsOver : st::rbEmojiRecent.imageRect);
 						}
@@ -3512,9 +3512,9 @@ void EmojiPan::onSwitch() {
 		Notify::clipStopperHidden(ClipStopperSavedGifsPanel);
 	} else {
 		if (cShowingSavedGifs() && cSavedGifs().isEmpty()) {
-			s_inner.showStickerSet(DefaultStickerSetId);
-		} else if (!cShowingSavedGifs() && !cSavedGifs().isEmpty() && cStickerSets().isEmpty()) {
-			s_inner.showStickerSet(NoneStickerSetId);
+			s_inner.showStickerSet(Stickers::DefaultSetId);
+		} else if (!cShowingSavedGifs() && !cSavedGifs().isEmpty() && Global::StickerSets().isEmpty()) {
+			s_inner.showStickerSet(Stickers::NoneSetId);
 		} else {
 			s_inner.updateShowingSavedGifs();
 		}
@@ -3552,8 +3552,8 @@ void EmojiPan::onSwitch() {
 }
 
 void EmojiPan::onRemoveSet(quint64 setId) {
-	StickerSets::const_iterator it = cStickerSets().constFind(setId);
-	if (it != cStickerSets().cend() && !(it->flags & MTPDstickerSet::flag_official)) {
+	auto it = Global::StickerSets().constFind(setId);
+	if (it != Global::StickerSets().cend() && !(it->flags & MTPDstickerSet::Flag::f_official)) {
 		_removingSetId = it->id;
 		ConfirmBox *box = new ConfirmBox(lng_stickers_remove_pack(lt_sticker_pack, it->title), lang(lng_box_remove));
 		connect(box, SIGNAL(confirmed()), this, SLOT(onRemoveSetSure()));
@@ -3564,8 +3564,8 @@ void EmojiPan::onRemoveSet(quint64 setId) {
 
 void EmojiPan::onRemoveSetSure() {
 	Ui::hideLayer();
-	StickerSets::iterator it = cRefStickerSets().find(_removingSetId);
-	if (it != cRefStickerSets().cend() && !(it->flags & MTPDstickerSet::flag_official)) {
+	auto it = Global::RefStickerSets().find(_removingSetId);
+	if (it != Global::RefStickerSets().cend() && !(it->flags & MTPDstickerSet::Flag::f_official)) {
 		if (it->id && it->access) {
 			MTP::send(MTPmessages_UninstallStickerSet(MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access))));
 		} else if (!it->shortName.isEmpty()) {
@@ -3581,9 +3581,9 @@ void EmojiPan::onRemoveSetSure() {
 				++i;
 			}
 		}
-		cRefStickerSets().erase(it);
-		int32 removeIndex = cStickerSetsOrder().indexOf(_removingSetId);
-		if (removeIndex >= 0) cRefStickerSetsOrder().removeAt(removeIndex);
+		Global::RefStickerSets().erase(it);
+		int removeIndex = Global::StickerSetsOrder().indexOf(_removingSetId);
+		if (removeIndex >= 0) Global::RefStickerSetsOrder().removeAt(removeIndex);
 		refreshStickers();
 		Local::writeStickers();
 		if (writeRecent) Local::writeUserSettings();
@@ -4371,15 +4371,15 @@ void MentionsDropdown::updateFiltered(bool resetScroll) {
 	StickerPack srows;
 	if (_emoji) {
 		QMap<uint64, uint64> setsToRequest;
-		StickerSets &sets(cRefStickerSets());
-		const StickerSetsOrder &order(cStickerSetsOrder());
-		for (int32 i = 0, l = order.size(); i < l; ++i) {
-			StickerSets::iterator it = sets.find(order.at(i));
+		Stickers::Sets &sets(Global::RefStickerSets());
+		const Stickers::Order &order(Global::StickerSetsOrder());
+		for (int i = 0, l = order.size(); i < l; ++i) {
+			auto it = sets.find(order.at(i));
 			if (it != sets.cend()) {
 				if (it->emoji.isEmpty()) {
 					setsToRequest.insert(it->id, it->access);
-					it->flags |= MTPDstickerSet_flag_NOT_LOADED;
-				} else if (!(it->flags & MTPDstickerSet::flag_disabled)) {
+					it->flags |= MTPDstickerSet_ClientFlag::f_not_loaded;
+				} else if (!(it->flags & MTPDstickerSet::Flag::f_disabled)) {
 					StickersByEmojiMap::const_iterator i = it->emoji.constFind(emojiGetNoColor(_emoji));
 					if (i != it->emoji.cend()) {
 						srows += *i;

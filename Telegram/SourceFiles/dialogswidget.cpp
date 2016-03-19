@@ -2052,8 +2052,11 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 			MTP::cancel(_searchRequest);
 		}
 		if (_searchInPeer) {
-			int32 flags = (_searchInPeer->isChannel() && !_searchInPeer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
-			_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _searchInPeer->input, MTP_string(_searchQuery), MTP_inputMessagesFilterEmpty(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, DialogsSearchPeerFromStart), rpcFail(&DialogsWidget::searchFailed, DialogsSearchPeerFromStart));
+			MTPmessages_Search::Flags flags = 0;
+			if (_searchInPeer->isChannel() && !_searchInPeer->isMegagroup()) {
+				flags |= MTPmessages_Search::Flag::f_important_only;
+			}
+			_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _searchInPeer->input, MTP_string(_searchQuery), MTP_inputMessagesFilterEmpty(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, DialogsSearchPeerFromStart), rpcFail(&DialogsWidget::searchFailed, DialogsSearchPeerFromStart));
 		} else {
 			_searchRequest = MTP::send(MTPmessages_SearchGlobal(MTP_string(_searchQuery), MTP_int(0), MTP_inputPeerEmpty(), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, DialogsSearchFromStart), rpcFail(&DialogsWidget::searchFailed, DialogsSearchFromStart));
 		}
@@ -2113,8 +2116,11 @@ void DialogsWidget::onSearchMore() {
 			PeerData *offsetPeer = _inner.lastSearchPeer();
 			MsgId offsetId = _inner.lastSearchId();
 			if (_searchInPeer) {
-				int32 flags = (_searchInPeer->isChannel() && !_searchInPeer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
-				_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _searchInPeer->input, MTP_string(_searchQuery), MTP_inputMessagesFilterEmpty(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(offsetId), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, offsetId ? DialogsSearchPeerFromOffset : DialogsSearchPeerFromStart), rpcFail(&DialogsWidget::searchFailed, offsetId ? DialogsSearchPeerFromOffset : DialogsSearchPeerFromStart));
+				MTPmessages_Search::Flags flags = 0;
+				if (_searchInPeer->isChannel() && !_searchInPeer->isMegagroup()) {
+					flags |= MTPmessages_Search::Flag::f_important_only;
+				}
+				_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _searchInPeer->input, MTP_string(_searchQuery), MTP_inputMessagesFilterEmpty(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(offsetId), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, offsetId ? DialogsSearchPeerFromOffset : DialogsSearchPeerFromStart), rpcFail(&DialogsWidget::searchFailed, offsetId ? DialogsSearchPeerFromOffset : DialogsSearchPeerFromStart));
 			} else {
 				_searchRequest = MTP::send(MTPmessages_SearchGlobal(MTP_string(_searchQuery), MTP_int(offsetDate), offsetPeer ? offsetPeer->input : MTP_inputPeerEmpty(), MTP_int(offsetId), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, offsetId ? DialogsSearchFromOffset : DialogsSearchFromStart), rpcFail(&DialogsWidget::searchFailed, offsetId ? DialogsSearchFromOffset : DialogsSearchFromStart));
 			}
@@ -2123,8 +2129,11 @@ void DialogsWidget::onSearchMore() {
 			}
 		} else if (_searchInMigrated && !_searchFullMigrated) {
 			MsgId offsetMigratedId = _inner.lastSearchMigratedId();
-			int32 flags = (_searchInMigrated->isChannel() && !_searchInMigrated->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
-			_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _searchInMigrated->input, MTP_string(_searchQuery), MTP_inputMessagesFilterEmpty(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(offsetMigratedId), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, offsetMigratedId ? DialogsSearchMigratedFromOffset : DialogsSearchMigratedFromStart), rpcFail(&DialogsWidget::searchFailed, offsetMigratedId ? DialogsSearchMigratedFromOffset : DialogsSearchMigratedFromStart));
+			MTPmessages_Search::Flags flags = 0;
+			if (_searchInMigrated->isChannel() && !_searchInMigrated->isMegagroup()) {
+				flags |= MTPmessages_Search::Flag::f_important_only;
+			}
+			_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _searchInMigrated->input, MTP_string(_searchQuery), MTP_inputMessagesFilterEmpty(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(offsetMigratedId), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, offsetMigratedId ? DialogsSearchMigratedFromOffset : DialogsSearchMigratedFromStart), rpcFail(&DialogsWidget::searchFailed, offsetMigratedId ? DialogsSearchMigratedFromOffset : DialogsSearchMigratedFromStart));
 		}
 	}
 }

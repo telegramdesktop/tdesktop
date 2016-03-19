@@ -2505,7 +2505,7 @@ MTPDocumentAttribute audioReadSongAttributes(const QString &fname, const QByteAr
 			cover = reader.cover();
 			coverBytes = reader.coverBytes();
 			coverFormat = reader.coverFormat();
-			return MTP_documentAttributeAudio(MTP_int(MTPDdocumentAttributeAudio::flag_title | MTPDdocumentAttributeAudio::flag_performer), MTP_int(duration), MTP_string(reader.title()), MTP_string(reader.performer()), MTPstring());
+			return MTP_documentAttributeAudio(MTP_flags(MTPDdocumentAttributeAudio::Flag::f_title | MTPDdocumentAttributeAudio::Flag::f_performer), MTP_int(duration), MTP_string(reader.title()), MTP_string(reader.performer()), MTPstring());
 		}
 	}
 	return MTP_documentAttributeFilename(MTP_string(fname));

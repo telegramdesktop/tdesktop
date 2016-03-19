@@ -135,9 +135,9 @@ void PeerData::updateName(const QString &newName, const QString &newNameOrPhone,
 		if (asChannel()->username != newUsername) {
 			asChannel()->username = newUsername;
 			if (newUsername.isEmpty()) {
-				asChannel()->flags &= ~MTPDchannel::flag_username;
+				asChannel()->flags &= ~MTPDchannel::Flag::f_username;
 			} else {
-				asChannel()->flags |= MTPDchannel::flag_username;
+				asChannel()->flags |= MTPDchannel::Flag::f_username;
 			}
 			if (App::main()) {
 				App::main()->peerUsernameChanged(this);
@@ -802,14 +802,14 @@ QString saveFileName(const QString &title, const QString &filter, const QString 
 bool StickerData::setInstalled() const {
 	switch (set.type()) {
 	case mtpc_inputStickerSetID: {
-		StickerSets::const_iterator it = cStickerSets().constFind(set.c_inputStickerSetID().vid.v);
-		return (it != cStickerSets().cend()) && !(it->flags & MTPDstickerSet::flag_disabled);
+		auto it = Global::StickerSets().constFind(set.c_inputStickerSetID().vid.v);
+		return (it != Global::StickerSets().cend()) && !(it->flags & MTPDstickerSet::Flag::f_disabled);
 	} break;
 	case mtpc_inputStickerSetShortName: {
 		QString name = qs(set.c_inputStickerSetShortName().vshort_name).toLower();
-		for (StickerSets::const_iterator it = cStickerSets().cbegin(), e = cStickerSets().cend(); it != e; ++it) {
+		for (auto it = Global::StickerSets().cbegin(), e = Global::StickerSets().cend(); it != e; ++it) {
 			if (it->shortName.toLower() == name) {
-				return !(it->flags & MTPDstickerSet::flag_disabled);
+				return !(it->flags & MTPDstickerSet::Flag::f_disabled);
 			}
 		}
 	} break;

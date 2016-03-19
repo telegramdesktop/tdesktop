@@ -444,9 +444,9 @@ public:
 	void notify_userIsContactChanged(UserData *user, bool fromThisApp);
 	void notify_migrateUpdated(PeerData *peer);
 	void notify_clipStopperHidden(ClipStopperType type);
-	void notify_historyItemResized(const HistoryItem *row, bool scrollToIt);
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
 	void notify_automaticLoadSettingsChangedGif();
+	void notify_handlePendingHistoryUpdate();
 
 	void cmd_search();
 	void cmd_next_chat();
@@ -520,6 +520,7 @@ public slots:
 	void onDownloadPathSettings();
 
 	void ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId);
+	void ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId);
 
 private:
 

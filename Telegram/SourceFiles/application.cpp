@@ -899,6 +899,10 @@ void AppClass::onAppStateChanged(Qt::ApplicationState state) {
 	}
 }
 
+void AppClass::call_handleHistoryUpdate() {
+	Notify::handlePendingHistoryUpdate();
+}
+
 void AppClass::killDownloadSessions() {
 	uint64 ms = getms(), left = MTPAckSendWaiting + MTPKillFileSessionTimeout;
 	for (QMap<int32, uint64>::iterator i = killDownloadSessionTimes.begin(); i != killDownloadSessionTimes.end(); ) {

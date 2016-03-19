@@ -53,6 +53,7 @@ namespace Ui {
 	void repaintHistoryItem(const HistoryItem *item);
 	void repaintInlineItem(const LayoutInlineItem *layout);
 	bool isInlineItemVisible(const LayoutInlineItem *reader);
+	void autoplayMediaInlineAsync(const FullMsgId &msgId);
 
 	void showPeerHistory(const PeerId &peer, MsgId msgId, bool back = false);
 	inline void showPeerHistory(const PeerData *peer, MsgId msgId, bool back = false) {
@@ -90,13 +91,12 @@ namespace Notify {
 
 	void clipStopperHidden(ClipStopperType type);
 
-	void historyItemResized(const HistoryItem *item, bool scrollToIt = false);
-	inline void historyItemsResized() {
-		historyItemResized(0);
-	}
 	void historyItemLayoutChanged(const HistoryItem *item);
 
 	void automaticLoadSettingsChangedGif();
+
+	// handle pending resize() / paint() on history items
+	void handlePendingHistoryUpdate();
 
 };
 
@@ -137,6 +137,24 @@ namespace DebugLogging {
 	};
 }
 
+namespace Stickers {
+	static const uint64 DefaultSetId = 0; // for backward compatibility
+	static const uint64 CustomSetId = 0xFFFFFFFFFFFFFFFFULL, RecentSetId = 0xFFFFFFFFFFFFFFFEULL;
+	static const uint64 NoneSetId = 0xFFFFFFFFFFFFFFFDULL; // for emoji/stickers panel
+	struct Set {
+		Set(uint64 id, uint64 access, const QString &title, const QString &shortName, int32 count, int32 hash, MTPDstickerSet::Flags flags) : id(id), access(access), title(title), shortName(shortName), count(count), hash(hash), flags(flags) {
+		}
+		uint64 id, access;
+		QString title, shortName;
+		int32 count, hash;
+		MTPDstickerSet::Flags flags;
+		StickerPack stickers;
+		StickersByEmojiMap emoji;
+	};
+	typedef QMap<uint64, Set> Sets;
+	typedef QList<uint64> Order;
+}
+
 namespace Global {
 
 	bool started();
@@ -144,6 +162,7 @@ namespace Global {
 	void finish();
 
 	DeclareReadOnlyVar(uint64, LaunchId);
+	DeclareRefVar(SingleDelayedCall, HandleHistoryUpdate);
 
 	DeclareVar(Adaptive::Layout, AdaptiveLayout);
 	DeclareVar(bool, AdaptiveForWide);
@@ -171,8 +190,13 @@ namespace Global {
 	DeclareVar(HiddenPinnedMessagesMap, HiddenPinnedMessages);
 
 	typedef OrderedSet<HistoryItem*> PendingItemsMap;
-	DeclareRefVar(PendingItemsMap, PendingInitDimensionsItems);
 	DeclareRefVar(PendingItemsMap, PendingRepaintItems);
+
+	DeclareVar(Stickers::Sets, StickerSets);
+	DeclareVar(Stickers::Order, StickerSetsOrder);
+	DeclareVar(uint64, LastStickersUpdate);
+
+	DeclareVar(MTP::DcOptions, DcOptions);
 
 	typedef QMap<uint64, QPixmap> CircleMasksMap;
 	DeclareRefVar(CircleMasksMap, CircleMasks);
