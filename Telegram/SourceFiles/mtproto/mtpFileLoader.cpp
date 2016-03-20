@@ -771,9 +771,11 @@ private:
 };
 
 void reinitWebLoadManager() {
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	if (webLoadManager()) {
 		webLoadManager()->setProxySettings(App::getHttpProxySettings());
 	}
+#endif
 }
 
 void stopWebLoadManager() {
@@ -790,11 +792,13 @@ void stopWebLoadManager() {
 	}
 }
 
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 void WebLoadManager::setProxySettings(const QNetworkProxy &proxy) {
 	QMutexLocker lock(&_loaderPointersMutex);
 	_proxySettings = proxy;
 	emit proxyApplyDelayed();
 }
+#endif
 
 WebLoadManager::WebLoadManager(QThread *thread) {
 	moveToThread(thread);
@@ -1021,8 +1025,10 @@ void WebLoadManager::sendRequest(webFileLoaderPrivate *loader, const QString &re
 }
 
 void WebLoadManager::proxyApply() {
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	QMutexLocker lock(&_loaderPointersMutex);
 	_manager.setProxy(_proxySettings);
+#endif
 }
 
 void WebLoadManager::finish() {

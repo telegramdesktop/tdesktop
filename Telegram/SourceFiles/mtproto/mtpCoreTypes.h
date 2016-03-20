@@ -831,19 +831,6 @@ public:
 	VType v;
 };
 
-
-
-template <typename T>
-class MTPvector;
-template <typename T>
-MTPvector<T> MTP_vector(uint32 count);
-
-template <typename T>
-MTPvector<T> MTP_vector(uint32 count, const T &value);
-
-template <typename T>
-MTPvector<T> MTP_vector(const QVector<T> &v);
-
 template <typename T>
 class MTPvector : private mtpDataOwner {
 public:
@@ -897,9 +884,12 @@ private:
 	explicit MTPvector(MTPDvector<T> *_data) : mtpDataOwner(_data) {
 	}
 
-	friend MTPvector<T> MTP_vector<T>(uint32 count);
-	friend MTPvector<T> MTP_vector<T>(uint32 count, const T &value);
-	friend MTPvector<T> MTP_vector<T>(const QVector<T> &v);
+	template <typename U>
+	friend MTPvector<U> MTP_vector(uint32 count);
+	template <typename U>
+	friend MTPvector<U> MTP_vector(uint32 count, const U &value);
+	template <typename U>
+	friend MTPvector<U> MTP_vector(const QVector<U> &v);
 	typedef typename MTPDvector<T>::VType VType;
 };
 template <typename T>

@@ -761,7 +761,9 @@ AppClass::AppClass() : QObject()
 		_window->showSettings();
 	}
 
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
+#endif
 
 	if (state != Local::ReadMapPassNeeded) {
 		checkMapVersion();

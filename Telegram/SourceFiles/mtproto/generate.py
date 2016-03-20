@@ -722,7 +722,7 @@ for restype in typesList:
 
   typesText += '\tvoid write(mtpBuffer &to) const;\n'; # write method
   inlineMethods += 'inline void MTP' + restype + '::write(mtpBuffer &to) const {\n';
-  if (withType):
+  if (withType and writer != ''):
     inlineMethods += '\tswitch (_type) {\n';
     inlineMethods += writer;
     inlineMethods += '\t}\n';

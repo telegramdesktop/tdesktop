@@ -613,8 +613,6 @@ void OverviewInner::onDragExec() {
 
 	bool uponSelected = false;
 	if (_dragItem) {
-		bool afterDragSymbol;
-		uint16 symbol;
 		if (!_selected.isEmpty() && _selected.cbegin().value() == FullSelection) {
 			uponSelected = _selected.contains(_dragItem);
 		} else {

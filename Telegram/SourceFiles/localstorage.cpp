@@ -3663,7 +3663,7 @@ namespace Local {
 
 			QString name, invitationUrl;
 			quint64 access;
-			qint32 date, version, adminned, forbidden, flags;
+			qint32 date, version, forbidden, flags;
 			from.stream >> name >> access >> date >> version >> forbidden >> flags >> invitationUrl;
 
 			if (!wasLoaded) {

@@ -642,14 +642,26 @@ namespace SignalHandlers {
         return stream;
     }
 
+	template <bool Unsigned, typename Type>
+	struct _writeNumberSignAndRemoveIt {
+		static void call(Type &number) {
+			if (number < 0) {
+				_writeChar('-');
+				number = -number;
+			}
+		}
+	};
+	template <typename Type>
+	struct _writeNumberSignAndRemoveIt<true, Type> {
+		static void call(Type &number) {
+		}
+	};
+
 	template <typename Type>
 	const dump &_writeNumber(const dump &stream, Type number) {
 		if (!CrashDumpFile) return stream;
 
-		if (number < 0) {
-			_writeChar('-');
-			number = -number;
-		}
+		_writeNumberSignAndRemoveIt<(Type(-1) > Type(0)), Type>::call(number);
 		Type upper = 1, prev = number / 10;
 		while (prev >= upper) {
 			upper *= 10;
@@ -937,7 +949,10 @@ namespace SignalHandlers {
 	Status start() {
 		CrashDumpPath = cWorkingDir() + qsl("tdata/working");
 #ifdef Q_OS_WIN
-		if (FILE *f = _wfopen(CrashDumpPath.toStdWString().c_str(), L"rb")) {
+		FILE *f = nullptr;
+		if (_wfopen_s(&f, CrashDumpPath.toStdWString().c_str(), L"rb") != 0) {
+			f = nullptr;
+		} else {
 #else
 		if (FILE *f = fopen(QFile::encodeName(CrashDumpPath).constData(), "rb")) {
 #endif
@@ -964,12 +979,18 @@ namespace SignalHandlers {
 		}
 
 #ifdef Q_OS_WIN
-		CrashDumpFile = _wfopen(CrashDumpPath.toStdWString().c_str(), L"wb");
+		if (_wfopen_s(&CrashDumpFile, CrashDumpPath.toStdWString().c_str(), L"wb") != 0) {
+			CrashDumpFile = nullptr;
+		}
 #else
 		CrashDumpFile = fopen(QFile::encodeName(CrashDumpPath).constData(), "wb");
 #endif
 		if (CrashDumpFile) {
+#ifdef Q_OS_WIN
+			CrashDumpFileNo = _fileno(CrashDumpFile);
+#else
 			CrashDumpFileNo = fileno(CrashDumpFile);
+#endif
 			if (SetSignalHandlers) {
 #ifndef Q_OS_WIN
 				struct sigaction sigact;

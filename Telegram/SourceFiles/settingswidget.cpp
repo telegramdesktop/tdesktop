@@ -319,7 +319,9 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	connect(&_autoLock, SIGNAL(clicked()), this, SLOT(onAutoLock()));
 	connect(&_passwordEdit, SIGNAL(clicked()), this, SLOT(onPassword()));
 	connect(&_passwordTurnOff, SIGNAL(clicked()), this, SLOT(onPasswordOff()));
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	connect(&_connectionType, SIGNAL(clicked()), this, SLOT(onConnectionType()));
+#endif
 	connect(&_showSessions, SIGNAL(clicked()), this, SLOT(onShowSessions()));
 	connect(&_askQuestion, SIGNAL(clicked()), this, SLOT(onAskQuestion()));
 	connect(&_telegramFAQ, SIGNAL(clicked()), this, SLOT(onTelegramFAQ()));
@@ -1377,11 +1379,13 @@ void SettingsInner::onAutoLock() {
 	Ui::showLayer(box);
 }
 
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 void SettingsInner::onConnectionType() {
 	ConnectionBox *box = new ConnectionBox();
 	connect(box, SIGNAL(closed()), this, SLOT(updateConnectionType()), Qt::QueuedConnection);
 	Ui::showLayer(box);
 }
+#endif
 
 void SettingsInner::onUsername() {
 	UsernameBox *box = new UsernameBox();

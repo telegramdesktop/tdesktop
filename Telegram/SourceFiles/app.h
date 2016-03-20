@@ -250,7 +250,9 @@ namespace App {
 	const ReplyMarkup &replyMarkup(ChannelId channelId, MsgId msgId);
 
 	void setProxySettings(QNetworkAccessManager &manager);
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	QNetworkProxy getHttpProxySettings();
+#endif
 	void setProxySettings(QTcpSocket &socket);
 
 	QImage **cornersMask();

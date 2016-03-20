@@ -440,7 +440,7 @@ private:
 	MTPabstractConnection *_conn, *_conn4, *_conn6;
 
 	SingleTimer retryTimer; // exp retry timer
-	uint32 retryTimeout;
+	int retryTimeout;
 	quint64 retryWillFinish;
 
 	SingleTimer oldConnectionTimer;

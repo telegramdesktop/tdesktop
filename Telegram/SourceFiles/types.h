@@ -598,7 +598,7 @@ public:
 		return _index.loadAcquire() - 1;
 	}
 	static uint64 Bit() {
-		return (1 << Index());
+		return (1ULL << Index());
 	}
 
 };

@@ -641,7 +641,9 @@ MTPautoConnection::MTPautoConnection(QThread *thread) : MTPabstractTcpConnection
 	moveToThread(thread);
 
 	manager.moveToThread(thread);
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	manager.setProxy(QNetworkProxy(QNetworkProxy::DefaultProxy));
+#endif
 
 	httpStartTimer.moveToThread(thread);
 	httpStartTimer.setSingleShot(true);
@@ -652,7 +654,9 @@ MTPautoConnection::MTPautoConnection(QThread *thread) : MTPabstractTcpConnection
 	connect(&tcpTimeoutTimer, SIGNAL(timeout()), this, SLOT(onTcpTimeoutTimer()));
 
 	sock.moveToThread(thread);
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	sock.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
+#endif
 	connect(&sock, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(socketError(QAbstractSocket::SocketError)));
 	connect(&sock, SIGNAL(connected()), this, SLOT(onSocketConnected()));
 	connect(&sock, SIGNAL(disconnected()), this, SLOT(onSocketDisconnected()));
@@ -2722,7 +2726,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 				MTPMsgResendReq request(rFrom, rEnd);
 				handleMsgsStates(request.c_msg_resend_req().vmsg_ids.c_vector().v, states, toAck);
 			}
-		} catch(Exception &e) {
+		} catch(Exception &) {
 			LOG(("Message Error: could not parse sent msgs_state_req"));
 			throw;
 		}
@@ -2942,7 +2946,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 
 	}
 
-	} catch (Exception &e) {
+	} catch (Exception &) {
 		return -1;
 	}
 
@@ -3548,7 +3552,7 @@ void MTProtoConnectionPrivate::dhClientParamsSend() {
 	client_dh_inner_data.vg_b._string().v.resize(256);
 
 	// gen rand 'b'
-	uint32 b[64], *g_b((uint32*)&client_dh_inner_data.vg_b._string().v[0]), g_b_len;
+	uint32 b[64], *g_b((uint32*)&client_dh_inner_data.vg_b._string().v[0]);
 	memset_rand(b, sizeof(b));
 
 	// count g_b and auth_key using openssl BIGNUM methods
@@ -3807,7 +3811,7 @@ void MTProtoConnectionPrivate::sendRequestNotSecure(const TRequest &request) {
 
 		onSentSome(buffer.size() * sizeof(mtpPrime));
 
-	} catch (Exception &e) {
+	} catch (Exception &) {
 		return restart();
 	}
 }
@@ -3844,7 +3848,7 @@ bool MTProtoConnectionPrivate::readResponseNotSecure(TResponse &response) {
 		}
 		const mtpPrime *from(answer + 5), *end(from + len - 5);
 		response.read(from, end);
-	} catch (Exception &e) {
+	} catch (Exception &) {
 		return false;
 	}
 	return true;

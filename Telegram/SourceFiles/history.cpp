@@ -2646,7 +2646,6 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 	}
 	// myIndex can be invalid now, because of destroying previous blocks
 
-	dh = item->height();
 	items.remove(index);
 	if ((!item->out() || item->isPost()) && item->unread() && history->unreadCount) {
 		history->setUnreadCount(history->unreadCount - 1);
@@ -4725,7 +4724,7 @@ void HistorySticker::draw(Painter &p, const HistoryItem *parent, const QRect &r,
 	_data->checkSticker();
 	bool loaded = _data->loaded();
 
-	bool out = parent->out(), isPost = parent->isPost(), outbg = out && !isPost, hovered, pressed;
+	bool out = parent->out(), isPost = parent->isPost(), outbg = out && !isPost;
 
 	int32 usew = _maxw, usex = 0;
 	const HistoryReply *reply = toHistoryReply(parent);

@@ -2474,9 +2474,12 @@ namespace App {
 	}
 
 	void setProxySettings(QNetworkAccessManager &manager) {
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 		manager.setProxy(getHttpProxySettings());
+#endif
 	}
 
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	QNetworkProxy getHttpProxySettings() {
 		const ConnectionProxy *proxy = 0;
 		if (Global::started()) {
@@ -2489,14 +2492,17 @@ namespace App {
 		}
 		return QNetworkProxy(QNetworkProxy::DefaultProxy);
 	}
+#endif
 
 	void setProxySettings(QTcpSocket &socket) {
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 		if (cConnectionType() == dbictTcpProxy) {
 			const ConnectionProxy &p(cConnectionProxy());
 			socket.setProxy(QNetworkProxy(QNetworkProxy::Socks5Proxy, p.host, p.port, p.user, p.password));
 		} else {
 			socket.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
 		}
+#endif
 	}
 
 	QImage **cornersMask() {

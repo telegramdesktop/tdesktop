@@ -4027,7 +4027,7 @@ void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 				feedUpdates(updates);
 			}
 			App::emitPeerUpdated();
-		} catch (mtpErrorUnexpected &e) { // just some other type
+		} catch (mtpErrorUnexpected &) { // just some other type
 		}
 	}
 	update();

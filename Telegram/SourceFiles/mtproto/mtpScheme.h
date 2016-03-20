@@ -23307,8 +23307,6 @@ inline void MTPbool::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId 
 	}
 }
 inline void MTPbool::write(mtpBuffer &to) const {
-	switch (_type) {
-	}
 }
 inline MTPbool::MTPbool(mtpTypeId type) : _type(type) {
 	switch (type) {
@@ -24329,8 +24327,6 @@ inline void MTPstorage_fileType::read(const mtpPrime *&from, const mtpPrime *end
 	}
 }
 inline void MTPstorage_fileType::write(mtpBuffer &to) const {
-	switch (_type) {
-	}
 }
 inline MTPstorage_fileType::MTPstorage_fileType(mtpTypeId type) : _type(type) {
 	switch (type) {
@@ -26148,8 +26144,6 @@ inline void MTPinputPeerNotifyEvents::read(const mtpPrime *&from, const mtpPrime
 	}
 }
 inline void MTPinputPeerNotifyEvents::write(mtpBuffer &to) const {
-	switch (_type) {
-	}
 }
 inline MTPinputPeerNotifyEvents::MTPinputPeerNotifyEvents(mtpTypeId type) : _type(type) {
 	switch (type) {
@@ -26212,8 +26206,6 @@ inline void MTPpeerNotifyEvents::read(const mtpPrime *&from, const mtpPrime *end
 	}
 }
 inline void MTPpeerNotifyEvents::write(mtpBuffer &to) const {
-	switch (_type) {
-	}
 }
 inline MTPpeerNotifyEvents::MTPpeerNotifyEvents(mtpTypeId type) : _type(type) {
 	switch (type) {
@@ -27077,8 +27069,6 @@ inline void MTPmessagesFilter::read(const mtpPrime *&from, const mtpPrime *end, 
 	}
 }
 inline void MTPmessagesFilter::write(mtpBuffer &to) const {
-	switch (_type) {
-	}
 }
 inline MTPmessagesFilter::MTPmessagesFilter(mtpTypeId type) : _type(type) {
 	switch (type) {
@@ -29763,8 +29753,6 @@ inline void MTPinputPrivacyKey::read(const mtpPrime *&from, const mtpPrime *end,
 	}
 }
 inline void MTPinputPrivacyKey::write(mtpBuffer &to) const {
-	switch (_type) {
-	}
 }
 inline MTPinputPrivacyKey::MTPinputPrivacyKey(mtpTypeId type) : _type(type) {
 	switch (type) {
@@ -29795,8 +29783,6 @@ inline void MTPprivacyKey::read(const mtpPrime *&from, const mtpPrime *end, mtpT
 	}
 }
 inline void MTPprivacyKey::write(mtpBuffer &to) const {
-	switch (_type) {
-	}
 }
 inline MTPprivacyKey::MTPprivacyKey(mtpTypeId type) : _type(type) {
 	switch (type) {
@@ -30382,8 +30368,6 @@ inline void MTPcontactLink::read(const mtpPrime *&from, const mtpPrime *end, mtp
 	}
 }
 inline void MTPcontactLink::write(mtpBuffer &to) const {
-	switch (_type) {
-	}
 }
 inline MTPcontactLink::MTPcontactLink(mtpTypeId type) : _type(type) {
 	switch (type) {
@@ -32054,8 +32038,6 @@ inline void MTPchannelParticipantsFilter::read(const mtpPrime *&from, const mtpP
 	}
 }
 inline void MTPchannelParticipantsFilter::write(mtpBuffer &to) const {
-	switch (_type) {
-	}
 }
 inline MTPchannelParticipantsFilter::MTPchannelParticipantsFilter(mtpTypeId type) : _type(type) {
 	switch (type) {
@@ -32095,8 +32077,6 @@ inline void MTPchannelParticipantRole::read(const mtpPrime *&from, const mtpPrim
 	}
 }
 inline void MTPchannelParticipantRole::write(mtpBuffer &to) const {
-	switch (_type) {
-	}
 }
 inline MTPchannelParticipantRole::MTPchannelParticipantRole(mtpTypeId type) : _type(type) {
 	switch (type) {
@@ -32808,8 +32788,6 @@ inline void MTPauth_codeType::read(const mtpPrime *&from, const mtpPrime *end, m
 	}
 }
 inline void MTPauth_codeType::write(mtpBuffer &to) const {
-	switch (_type) {
-	}
 }
 inline MTPauth_codeType::MTPauth_codeType(mtpTypeId type) : _type(type) {
 	switch (type) {
