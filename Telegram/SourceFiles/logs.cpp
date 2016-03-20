@@ -1044,7 +1044,7 @@ namespace SignalHandlers {
 
 	void finish() {
 #ifndef TDESKTOP_DISABLE_CRASH_REPORTS
-		FinishBreakpad();
+		FinishCrashHandler();
 		if (CrashDumpFile) {
 			fclose(CrashDumpFile);
 			CrashDumpFile = nullptr;

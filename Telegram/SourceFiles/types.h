@@ -663,7 +663,7 @@ public:
 		if (mask) {
 			const InterfacesMetadata *meta = GetInterfacesMetadata(mask);
 			int32 size = sizeof(const InterfacesMetadata *) + meta->size;
-			void *data = malloc(size);
+			void *data = operator new(size);
 			if (!data) { // terminate if we can't allocate memory
 				throw "Can't allocate memory!";
 			}
@@ -719,7 +719,7 @@ public:
 					InterfaceWraps[i].Destruct(_dataptrunsafe(offset));
 				}
 			}
-			free(_data);
+			operator delete(_data);
 		}
 	}
 
