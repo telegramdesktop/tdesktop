@@ -165,9 +165,6 @@
     <ClCompile Include="SourceFiles\gui\boxshadow.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\pspecific_wnd.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\sysbuttons.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -283,15 +280,6 @@
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_scrollarea.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_pspecific_wnd.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_pspecific_wnd.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_pspecific_wnd.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_profilewidget.cpp">
@@ -909,6 +897,30 @@
     <ClCompile Include="SourceFiles\intro\introwidget.cpp">
       <Filter>intro</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_pspecific_win.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_pspecific_win.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_pspecific_win.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\pspecific_win.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\pspecific_winrt.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_pspecific_winrt.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_pspecific_winrt.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_pspecific_winrt.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1084,9 +1096,6 @@
     <CustomBuild Include="SourceFiles\gui\twidget.h">
       <Filter>gui</Filter>
     </CustomBuild>
-    <CustomBuild Include="SourceFiles\pspecific_wnd.h">
-      <Filter>Source Files</Filter>
-    </CustomBuild>
     <CustomBuild Include="SourceFiles\sysbuttons.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
@@ -1233,6 +1242,12 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\intro\introwidget.h">
       <Filter>intro</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\pspecific_win.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\pspecific_winrt.h">
+      <Filter>Source Files</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
