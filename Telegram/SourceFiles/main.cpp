@@ -30,8 +30,10 @@ int main(int argc, char *argv[]) {
 		return psFixPrevious();
 	} else if (cLaunchMode() == LaunchModeCleanup) {
 		return psCleanup();
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 	} else if (cLaunchMode() == LaunchModeShowCrash) {
 		return showCrashReportWindow(QFileInfo(cStartUrl()).absoluteFilePath());
+#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
 	}
 
 	// both are finished in Application::closeApplication
@@ -72,4 +74,6 @@ int main(int argc, char *argv[]) {
 	SignalHandlers::finish();
 	PlatformSpecific::finish();
 	Logs::finish();
+
+	return result;
 }

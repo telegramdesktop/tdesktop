@@ -104,7 +104,7 @@ protected:
 
 private:
 	HWND ps_hWnd;
-	HWND ps_tbHider_hWnd;
+//	HWND ps_tbHider_hWnd;
 	HMENU ps_menu;
 	HICON ps_iconBig, ps_iconSmall, ps_iconOverlay;
 
@@ -115,7 +115,6 @@ private:
 
 void psWriteDump();
 void psWriteStackTrace();
-QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile);
 
 void psDeleteDir(const QString &dir);
 

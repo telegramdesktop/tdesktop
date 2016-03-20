@@ -149,7 +149,7 @@ bool _filedialogGetFiles(QStringList &files, QByteArray &remoteContent, const QS
 		cSetDialogLastPath(path);
 		Local::writeUserSettings();
 	}
-	
+
 	if (res == QDialog::Accepted) {
 		if (multipleFiles > 0) {
 			files = dialog.selectedFiles();
@@ -157,9 +157,9 @@ bool _filedialogGetFiles(QStringList &files, QByteArray &remoteContent, const QS
 			files = dialog.selectedFiles().mid(0, 1);
 		}
 		if (multipleFiles >= 0) {
-#ifdef Q_OS_WIN
+#if defined Q_OS_WIN && !defined Q_OS_WINRT
 			remoteContent = dialog.selectedRemoteContent();
-#endif
+#endif // Q_OS_WIN && !Q_OS_WINRT
 		}
 		return true;
 	}

@@ -82,9 +82,9 @@ NotifyWindow::NotifyWindow(HistoryItem *msg, int32 x, int32 y, int32 fwdCount) :
 , history(msg->history())
 , item(msg)
 , fwdCount(fwdCount)
-#ifdef Q_OS_WIN
+#if defined Q_OS_WIN && !defined Q_OS_WINRT
 , started(GetTickCount())
-#endif
+#endif // Q_OS_WIN && !Q_OS_WINRT
 , close(this, st::notifyClose)
 , alphaDuration(st::notifyFastAnim)
 , posDuration(st::notifyFastAnim)
@@ -126,7 +126,7 @@ NotifyWindow::NotifyWindow(HistoryItem *msg, int32 x, int32 y, int32 fwdCount) :
 }
 
 void NotifyWindow::checkLastInput() {
-#ifdef Q_OS_WIN
+#if defined Q_OS_WIN && !defined Q_OS_WINRT
 	LASTINPUTINFO lii;
 	lii.cbSize = sizeof(LASTINPUTINFO);
 	BOOL res = GetLastInputInfo(&lii);
@@ -135,14 +135,14 @@ void NotifyWindow::checkLastInput() {
 	} else {
 		inputTimer.start(300);
 	}
-#else
+#else // Q_OS_WIN && !Q_OS_WINRT
     // TODO
 	if (true) {
 		hideTimer.start(st::notifyWaitLongHide);
 	} else {
 		inputTimer.start(300);
 	}
-#endif
+#endif // else for Q_OS_WIN && !Q_OS_WINRT
 }
 
 void NotifyWindow::moveTo(int32 x, int32 y, int32 index) {
@@ -3096,6 +3096,7 @@ void ShowCrashReportWindow::closeEvent(QCloseEvent *e) {
     deleteLater();
 }
 
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 int showCrashReportWindow(const QString &crashdump) {
 	QString text;
 
@@ -3120,3 +3121,4 @@ int showCrashReportWindow(const QString &crashdump) {
 	ShowCrashReportWindow *wnd = new ShowCrashReportWindow(text);
 	return app.exec();
 }
+#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
