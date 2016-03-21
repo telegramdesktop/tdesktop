@@ -1036,8 +1036,11 @@ enum class MTPDmessage_ClientFlag : int32 {
 	// message needs paint()
 	f_pending_paint = (1 << 26),
 
+	// message is attached to previous one when displaying the history
+	f_attach_to_previous = (1 << 25),
+
 	// update this when adding new client side flags
-	MIN_FIELD = (1 << 26),
+	MIN_FIELD = (1 << 25),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDmessage)
 

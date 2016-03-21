@@ -3012,7 +3012,7 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 			}
 			if (history.peer() == channel) {
 				history.updateToEndVisibility();
-				history.onListScroll();
+				history.preloadHistoryIfNeeded();
 			}
 			h->asChannelHistory()->getRangeDifference();
 		}
@@ -3412,8 +3412,7 @@ void MainWidget::getChannelDifference(ChannelData *channel, GetChannelDifference
 				int32 fixInScrollMsgTop = 0;
 				history->asChannelHistory()->getSwitchReadyFor(SwitchAtTopMsgId, fixInScrollMsgId, fixInScrollMsgTop);
 				history->getReadyFor(ShowAtTheEndMsgId, fixInScrollMsgId, fixInScrollMsgTop);
-				history->lastWidth = 0;
-				history->lastScrollTop = INT_MAX;
+				history->forgetScrollState();
 			}
 		}
 	}

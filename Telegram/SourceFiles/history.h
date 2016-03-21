@@ -303,7 +303,7 @@ public:
 	MsgId maxMsgId() const;
 	MsgId msgIdForRead() const;
 
-	int resize(int newWidth, int32 *ytransform = nullptr); // return new size
+	int resizeGetHeight(int newWidth);
 
 	void removeNotification(HistoryItem *item) {
 		if (!notifies.isEmpty()) {
@@ -373,8 +373,38 @@ public:
 		editDraft = draft;
 	}
 
-	int32 lastWidth, lastScrollTop;
-	MsgId lastShowAtMsgId;
+	// some fields below are a property of a currently displayed instance of this
+	// conversation history not a property of the conversation history itself
+public:
+	// we save the last showAtMsgId to restore the state when switching
+	// between different conversation histories
+	MsgId showAtMsgId;
+
+	// we save a pointer of the history item at the top of the displayed window
+	// together with an offset from the window top to the top of this message
+	// resulting scrollTop = top(scrollTopItem) + scrollTopOffset
+	HistoryItem *scrollTopItem;
+	int scrollTopOffset;
+	void forgetScrollState() {
+		scrollTopItem = nullptr;
+	}
+
+	// find the correct scrollTopItem and scrollTopOffset using given top
+	// of the displayed window relative to the history start coord
+	void countScrollState(int top);
+
+protected:
+	// when this item is destroyed scrollTopItem just points to the next one
+	// and scrollTopOffset remains the same
+	// if we are at the bottom of the window scrollTopItem == nullptr and
+	// scrollTopOffset is undefined
+	void getNextScrollTopItem(HistoryBlock *block, int32 i);
+
+	// helper method for countScrollState(int top)
+	void countScrollTopItem(int top);
+
+public:
+
 	bool mute;
 
 	bool lastKeyboardInited, lastKeyboardUsed;
@@ -468,10 +498,10 @@ private:
 	HistoryItem *createItemPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption);
 
 	HistoryItem *addItemAfterPrevToBlock(HistoryItem *item, HistoryItem *prev, HistoryBlock *block);
-	HistoryItem *addNewInTheMiddle(HistoryItem *newItem, int32 blockIndex, int32 itemIndex);
 	HistoryItem *addNewItem(HistoryItem *adding, bool newMsg);
 	HistoryItem *addMessageGroupAfterPrevToBlock(const MTPDmessageGroup &group, HistoryItem *prev, HistoryBlock *block);
 	HistoryItem *addMessageGroupAfterPrev(HistoryItem *newItem, HistoryItem *prev);
+	HistoryItem *addNewInTheMiddle(HistoryItem *newItem, int32 blockIndex, int32 itemIndex);
 
 	History(const History &) = delete;
 	History &operator=(const History &) = delete;
@@ -844,15 +874,23 @@ public:
 	}
 	void removeItem(HistoryItem *item);
 
-	int resize(int newWidth, int *ytransform, bool force); // return new size
+	int resizeGetHeight(int newWidth, bool resizeAllItems);
 	int32 y, height;
 	History *history;
 
 	HistoryBlock *previous() const {
+		t_assert(_indexInHistory >= 0);
+
 		return (_indexInHistory > 0) ? history->blocks.at(_indexInHistory - 1) : nullptr;
 	}
 	void setIndexInHistory(int index) {
 		_indexInHistory = index;
+	}
+	int indexInHistory() const {
+		t_assert(_indexInHistory >= 0);
+		t_assert(history->blocks.at(_indexInHistory) == this);
+
+		return _indexInHistory;
 	}
 
 protected:
@@ -1002,7 +1040,7 @@ public:
 	HistoryItem(const HistoryItem &) = delete;
 	HistoryItem &operator=(const HistoryItem &) = delete;
 
-	int resize(int width) {
+	int resizeGetHeight(int width) {
 		if (_flags & MTPDmessage_ClientFlag::f_pending_init_dimensions) {
 			_flags &= ~MTPDmessage_ClientFlag::f_pending_init_dimensions;
 			initDimensions();
@@ -1010,7 +1048,7 @@ public:
 		if (_flags & MTPDmessage_ClientFlag::f_pending_resize) {
 			_flags &= ~MTPDmessage_ClientFlag::f_pending_resize;
 		}
-		return resizeImpl(width);
+		return resizeGetHeight_(width);
 	}
 	virtual void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const = 0;
 
@@ -1059,6 +1097,16 @@ public:
 	}
 	void setIndexInBlock(int index) {
 		_indexInBlock = index;
+	}
+	int indexInBlock() const {
+		if (_indexInBlock >= 0) {
+			t_assert(_block != nullptr);
+			t_assert(_block->items.at(_indexInBlock) == this);
+		} else if (_block != nullptr) {
+			t_assert(_indexInBlock >= 0);
+			t_assert(_block->items.at(_indexInBlock) == this);
+		}
+		return _indexInBlock;
 	}
 	bool out() const {
 		return _flags & MTPDmessage::Flag::f_out;
@@ -1163,9 +1211,6 @@ public:
 	virtual void setViewsCount(int32 count) {
 	}
 	virtual void setId(MsgId newId);
-	virtual void setDate(const QDateTime &date) { // for date items
-		this->date = date;
-	}
 	virtual void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const = 0;
     virtual QString notificationHeader() const {
         return QString();
@@ -1272,7 +1317,6 @@ public:
 	PeerData *author() const {
 		return isPost() ? history()->peer : _from;
 	}
-	bool displayFromPhoto() const;
 
 	PeerData *fromOriginal() const {
 		if (const HistoryMessageForwarded *fwd = Get<HistoryMessageForwarded>()) {
@@ -1315,6 +1359,29 @@ public:
 		setPendingResize();
 	}
 
+	int displayedDateHeight() const {
+		if (auto *date = Get<HistoryMessageDate>()) {
+			return date->height();
+		}
+		return 0;
+	}
+	int marginTop() const {
+		int result = 0;
+		if (isAttachedToPrevious()) {
+			result += st::msgMarginTopAttached;
+		} else {
+			result += st::msgMargin.top();
+		}
+		result += displayedDateHeight();
+		if (auto *unreadbar = Get<HistoryMessageUnreadBar>()) {
+			result += unreadbar->height();
+		}
+		return result;
+	}
+	int marginBottom() const {
+		return st::msgMargin.bottom();
+	}
+
 	void clipCallback(ClipReaderNotification notification);
 
 	virtual ~HistoryItem();
@@ -1327,9 +1394,10 @@ protected:
 	// a virtual method, it can not be done from constructor
 	virtual void finishCreate();
 
-	// called from resize() when MTPDmessage_ClientFlag::f_pending_init_dimensions is set
+	// called from resizeGetHeight() when MTPDmessage_ClientFlag::f_pending_init_dimensions is set
 	virtual void initDimensions() = 0;
-	virtual int resizeImpl(int width) = 0;
+
+	virtual int resizeGetHeight_(int width) = 0;
 
 	PeerData *_from;
 	History *_history;
@@ -1358,6 +1426,19 @@ protected:
 		}
 		return true;
 	}
+
+	// this should be used only in previousItemChanged() or when
+	// HistoryMessageDate or HistoryMessageUnreadBar bit is changed in the Interfaces mask
+	// then the result should be cached in a client side flag MTPDmessage_ClientFlag::f_attach_to_previous
+	void recountAttachToPrevious();
+	bool isAttachedToPrevious() const {
+		return _flags & MTPDmessage_ClientFlag::f_attach_to_previous;
+	}
+
+	// hasFromPhoto() returns true even if we don't display the photo
+	// but we need to skip a place at the left side for this photo
+	bool displayFromPhoto() const;
+	bool hasFromPhoto() const;
 
 };
 
@@ -2313,7 +2394,10 @@ public:
 		return drawBubble();
 	}
 	bool displayFromName() const {
-		return hasFromName() && (!emptyText() || !_media || !_media->isDisplayed() || toHistoryReply() || Is<HistoryMessageForwarded>() || viaBot() || !_media->hideFromName());
+		if (!hasFromName()) return false;
+		if (isAttachedToPrevious()) return false;
+
+		return (!emptyText() || !_media || !_media->isDisplayed() || toHistoryReply() || Is<HistoryMessageForwarded>() || viaBot() || !_media->hideFromName());
 	}
 	bool uploading() const {
 		return _media && _media->uploading();
@@ -2420,7 +2504,7 @@ protected:
 	friend class HistoryItemInstantiated<HistoryMessage>;
 
 	void initDimensions() override;
-	int resizeImpl(int width) override;
+	int resizeGetHeight_(int width) override;
 
 	void createInterfaces(int32 viaBotId, int32 viewsCount, const PeerId &authorIdOriginal = 0, const PeerId &fromIdOriginal = 0, MsgId originalId = 0);
 
@@ -2473,7 +2557,6 @@ public:
 	void drawReplyTo(Painter &p, int32 x, int32 y, int32 w, bool selected, bool likeService = false) const;
 	void drawMessageText(Painter &p, QRect trect, uint32 selection) const override;
 	void resizeVia(int32 w) const;
-	bool hasPoint(int32 x, int32 y) const override;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const override;
 	void getStateFromMessageText(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const QRect &r) const override;
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const override;
@@ -2501,7 +2584,7 @@ protected:
 	friend class HistoryItemInstantiated<HistoryReply>;
 
 	void initDimensions() override;
-	int resizeImpl(int width) override;
+	int resizeGetHeight_(int width) override;
 
 	bool updateReplyTo(bool force = false);
 	void replyToNameUpdated() const;
@@ -2555,13 +2638,13 @@ struct HistoryServicePinned : public BasicInterface<HistoryServicePinned> {
 	TextLinkPtr lnk;
 };
 
-class HistoryServiceMsg : public HistoryItem, private HistoryItemInstantiated<HistoryServiceMsg> {
+class HistoryServiceMessage : public HistoryItem, private HistoryItemInstantiated<HistoryServiceMessage> {
 public:
 
-	static HistoryServiceMsg *create(History *history, const MTPDmessageService &msg) {
+	static HistoryServiceMessage *create(History *history, const MTPDmessageService &msg) {
 		return _create(history, msg);
 	}
-	static HistoryServiceMsg *create(History *history, MsgId msgId, QDateTime date, const QString &msg, MTPDmessage::Flags flags = 0, HistoryMedia *media = 0, int32 from = 0) {
+	static HistoryServiceMessage *create(History *history, MsgId msgId, QDateTime date, const QString &msg, MTPDmessage::Flags flags = 0, HistoryMedia *media = 0, int32 from = 0) {
 		return _create(history, msgId, date, msg, flags, media, from);
 	}
 
@@ -2615,16 +2698,16 @@ public:
 
 	void setServiceText(const QString &text);
 
-	~HistoryServiceMsg();
+	~HistoryServiceMessage();
 
 protected:
 
-	HistoryServiceMsg(History *history, const MTPDmessageService &msg);
-	HistoryServiceMsg(History *history, MsgId msgId, QDateTime date, const QString &msg, MTPDmessage::Flags flags = 0, HistoryMedia *media = 0, int32 from = 0);
-	friend class HistoryItemInstantiated<HistoryServiceMsg>;
+	HistoryServiceMessage(History *history, const MTPDmessageService &msg);
+	HistoryServiceMessage(History *history, MsgId msgId, QDateTime date, const QString &msg, MTPDmessage::Flags flags = 0, HistoryMedia *media = 0, int32 from = 0);
+	friend class HistoryItemInstantiated<HistoryServiceMessage>;
 
 	void initDimensions() override;
-	int resizeImpl(int width) override;
+	int resizeGetHeight_(int width) override;
 
 	void setMessageByAction(const MTPmessageAction &action);
 	bool updatePinned(bool force = false);
@@ -2636,7 +2719,7 @@ protected:
 	int32 _textWidth, _textHeight;
 };
 
-class HistoryGroup : public HistoryServiceMsg, private HistoryItemInstantiated<HistoryGroup> {
+class HistoryGroup : public HistoryServiceMessage, private HistoryItemInstantiated<HistoryGroup> {
 public:
 
 	static HistoryGroup *create(History *history, const MTPDmessageGroup &group, const QDateTime &date) {
@@ -2692,7 +2775,7 @@ private:
 
 };
 
-class HistoryCollapse : public HistoryServiceMsg, private HistoryItemInstantiated<HistoryCollapse> {
+class HistoryCollapse : public HistoryServiceMessage, private HistoryItemInstantiated<HistoryCollapse> {
 public:
 
 	static HistoryCollapse *create(History *history, MsgId wasMinId, const QDateTime &date) {
@@ -2727,7 +2810,7 @@ private:
 
 };
 
-class HistoryJoined : public HistoryServiceMsg, private HistoryItemInstantiated<HistoryJoined> {
+class HistoryJoined : public HistoryServiceMessage, private HistoryItemInstantiated<HistoryJoined> {
 public:
 
 	static HistoryJoined *create(History *history, const QDateTime &date, UserData *from, MTPDmessage::Flags flags) {

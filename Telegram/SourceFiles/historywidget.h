@@ -66,7 +66,7 @@ public:
 	void touchScrollUpdated(const QPoint &screenPos);
 	QPoint mapMouseToItem(QPoint p, HistoryItem *item);
 
-	int32 recountHeight();
+	void recountHeight();
 	void updateSize();
 
 	void repaintItem(const HistoryItem *item);
@@ -88,11 +88,15 @@ public:
 
 	HistoryItem *atTopImportantMsg(int32 top, int32 height, int32 &bottomUnderScrollTop) const;
 
-	int32 historyHeight() const;
-	int32 migratedTop() const;
-	int32 historyTop() const;
-	int32 historyDrawTop() const;
-	int32 itemTop(const HistoryItem *item) const; // -1 if should not be visible, -2 if bad history()
+	// updates history->scrollTopItem/scrollTopOffset
+	void visibleAreaUpdated(int top, int bottom);
+
+	int historyHeight() const;
+	int historyScrollTop() const;
+	int migratedTop() const;
+	int historyTop() const;
+	int historyDrawTop() const;
+	int itemTop(const HistoryItem *item) const; // -1 if should not be visible, -2 if bad history()
 
 	void notifyIsBotChanged();
 	void notifyMigrateUpdated();
@@ -646,7 +650,7 @@ public slots:
 	void onReportSpamHide();
 	void onReportSpamClear();
 
-	void onListScroll();
+	void onScroll();
 	void onHistoryToEnd();
 	void onCollapseComments();
 	void onSend(bool ctrlShiftEnter = false, MsgId replyTo = -1);
@@ -676,7 +680,7 @@ public slots:
 	void onPhotoSend(PhotoData *photo);
 	void onInlineResultSend(InlineResult *result, UserData *bot);
 
-	void onVisibleChanged();
+	void onWindowVisibleChanged();
 
 	void deleteMessage();
 	void forwardMessage();
@@ -708,6 +712,10 @@ public slots:
 	void onRecordUpdate(quint16 level, qint32 samples);
 
 	void onUpdateHistoryItems();
+
+	// checks if we are too close to the top or to the bottom
+	// in the scroll area and preloads history if needed
+	void preloadHistoryIfNeeded();
 
 private:
 

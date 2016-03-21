@@ -161,7 +161,10 @@ void PeerData::setUserpic(ImagePtr userpic) {
 ImagePtr PeerData::currentUserpic() const {
 	if (_userpic->loaded()) {
 		return _userpic;
-	} else if (isUser()) {
+	}
+	_userpic->load();
+
+	if (isUser()) {
 		return userDefPhoto(colorIndex);
 	} else if (isMegagroup() || isChat()) {
 		return chatDefPhoto(colorIndex);

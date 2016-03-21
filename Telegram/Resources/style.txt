@@ -1049,10 +1049,11 @@ msgServiceNameFont: semiboldFont;
 msgServicePhotoWidth: 100px;
 msgDateFont: font(13px);
 msgMinWidth: 190px;
-msgPhotoSize: 30px;
+msgPhotoSize: 35px;
 msgPhotoSkip: 40px;
 msgPadding: margins(13px, 7px, 13px, 8px);
-msgMargin: margins(13px, 4px, 53px, 4px);
+msgMargin: margins(13px, 6px, 53px, 2px);
+msgMarginTopAttached: 2px;
 msgLnkPadding: 2px; // for media open / save links
 msgBorder: #f0f0f0;
 msgInBg: #fff;
