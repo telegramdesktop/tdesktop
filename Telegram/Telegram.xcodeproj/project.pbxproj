@@ -284,8 +284,6 @@
 		071AD86E1C5E8536008C9E90 /* zip.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = zip.h; path = ThirdParty/minizip/zip.h; sourceTree = SOURCE_ROOT; };
 		071AD8D11C5E8E6D008C9E90 /* zip.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = zip.c; path = ThirdParty/minizip/zip.c; sourceTree = SOURCE_ROOT; };
 		071AD8F71C5E99D6008C9E90 /* ioapi.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ioapi.c; path = ThirdParty/minizip/ioapi.c; sourceTree = SOURCE_ROOT; };
-		071AD9091C5EA2A5008C9E90 /* Breakpad.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Breakpad.framework; path = Users/antanubis/TBuild/Libraries/breakpad/Breakpad.framework; sourceTree = "<group>"; };
-		071AD90B1C5EA37D008C9E90 /* Breakpad.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Breakpad.framework; path = "Users/antanubis/Library/Developer/Xcode/DerivedData/Breakpad-ffxagkgqghkohhawycvgjexmnjhs/Build/Products/Debug/Breakpad.framework"; sourceTree = "<group>"; };
 		072E117A1A56EB9400A87ACC /* lang_pt_BR.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_pt_BR.strings; path = SourceFiles/langs/lang_pt_BR.strings; sourceTree = SOURCE_ROOT; };
 		0732E4A7199E262300D50FE7 /* overviewwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = overviewwidget.cpp; path = SourceFiles/overviewwidget.cpp; sourceTree = SOURCE_ROOT; };
 		0732E4A8199E262300D50FE7 /* overviewwidget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = overviewwidget.h; path = SourceFiles/overviewwidget.h; sourceTree = SOURCE_ROOT; };
@@ -1256,8 +1254,6 @@
 		AF39DD055C3EF8226FBE929D /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				071AD90B1C5EA37D008C9E90 /* Breakpad.framework */,
-				071AD9091C5EA2A5008C9E90 /* Breakpad.framework */,
 				0752F8741C2C89F40026D0BC /* VideoToolbox.framework */,
 				0752F8721C2C89220026D0BC /* VideoDecodeAcceleration.framework */,
 				07CAACD71AEA64F00058E508 /* AudioUnit.framework */,
