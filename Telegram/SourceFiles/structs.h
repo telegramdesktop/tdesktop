@@ -286,6 +286,7 @@ public:
 	}
 	StorageKey userpicUniqueKey() const;
 	void saveUserpic(const QString &path) const;
+	QPixmap genUserpic(int size) const;
 
 	PhotoId photoId;
 	StorageImageLocation photoLoc;

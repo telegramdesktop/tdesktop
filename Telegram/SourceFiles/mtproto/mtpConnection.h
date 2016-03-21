@@ -207,7 +207,7 @@ public slots:
 
 protected:
 
-	void socketPacket(const char *packet, uint32 length);
+	void socketPacket(const char *packet, uint32 length) override;
 
 private:
 
@@ -269,7 +269,7 @@ public slots:
 
 protected:
 
-	void socketPacket(const char *packet, uint32 length);
+	void socketPacket(const char *packet, uint32 length) override;
 
 private:
 

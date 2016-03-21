@@ -187,6 +187,10 @@ void PeerData::saveUserpic(const QString &path) const {
 	currentUserpic()->pixCircled().save(path, "PNG");
 }
 
+QPixmap PeerData::genUserpic(int size) const {
+	return currentUserpic()->pixCircled(size, size);
+}
+
 const Text &BotCommand::descriptionText() const {
 	if (_descriptionText.isEmpty() && !_description.isEmpty()) {
 		_descriptionText.setText(st::mentionFont, _description, _textNameOptions);

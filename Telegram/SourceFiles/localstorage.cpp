@@ -3641,7 +3641,7 @@ namespace Local {
 				flags = flagsData;
 			} else {
 				// flagsData was haveLeft
-				flags = (flagsData == 1 ? MTPDchat::Flags(MTPDchat::Flag::f_left) : 0);
+				flags = (flagsData == 1) ? MTPDchat::Flags(MTPDchat::Flag::f_left) : MTPDchat::Flags(0);
 			}
 			if (!wasLoaded) {
 				chat->updateName(name, QString(), QString());

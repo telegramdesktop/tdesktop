@@ -416,6 +416,7 @@ const QPixmap &circleMask(int width, int height) {
 			p.setPen(Qt::NoPen);
 			p.drawEllipse(0, 0, width, height);
 		}
+		mask.setDevicePixelRatio(cRetinaFactor());
 		i = masks.insert(key, QPixmap::fromImage(mask));
 	}
 	return i.value();
