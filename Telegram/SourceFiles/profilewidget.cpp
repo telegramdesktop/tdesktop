@@ -282,7 +282,7 @@ void ProfileInner::loadProfilePhotos(int32 yFrom) {
 	if (yFrom >= _participants.size()) return;
 	if (yTo > _participants.size()) yTo = _participants.size();
 	for (int32 i = yFrom; i < yTo; ++i) {
-		_participants[i]->photo->load();
+		_participants[i]->loadUserpic();
 	}
 }
 
@@ -832,7 +832,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	// profile
 	top += st::profilePadding.top();
 	if (_photoLink || _peerUser || (_peerChat && !_peerChat->canEdit()) || (_peerChannel && !_amCreator)) {
-		p.drawPixmap(_left, top, _peer->photo->pix(st::profilePhotoSize));
+		_peer->paintUserpic(p, st::profilePhotoSize, _left, top);
 	} else {
 		if (a_photoOver.current() < 1) {
 			p.drawPixmap(QPoint(_left, top), App::sprite(), st::setPhotoImg);
@@ -1019,7 +1019,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 				}
 
 				UserData *user = *i;
-				p.drawPixmap(_left, top + st::profileListPadding.height(), user->photo->pix(st::profileListPhotoSize));
+				user->paintUserpic(p, st::profileListPhotoSize, _left, top + st::profileListPadding.height());
 				ParticipantData *data = _participantsData[cnt];
 				if (!data) {
 					data = _participantsData[cnt] = new ParticipantData();

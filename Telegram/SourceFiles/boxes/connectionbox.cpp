@@ -201,8 +201,10 @@ void ConnectionBox::onSave() {
 	} else {
 		cSetConnectionType(dbictAuto);
 		cSetConnectionProxy(ConnectionProxy());
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 		QNetworkProxyFactory::setUseSystemConfiguration(false);
 		QNetworkProxyFactory::setUseSystemConfiguration(true);
+#endif
 	}
 	if (cPlatform() == dbipWindows && cTryIPv6() != _tryIPv6.checked()) {
 		cSetTryIPv6(_tryIPv6.checked());

@@ -362,7 +362,7 @@ void ContactsInner::loadProfilePhotos(int32 yFrom) {
 				preloadFrom != _contacts->list.end && (_newItemHeight + preloadFrom->pos * _rowHeight) < yTo;
 				preloadFrom = preloadFrom->next
 			) {
-				preloadFrom->history->peer->photo->load();
+				preloadFrom->history->peer->loadUserpic();
 			}
 		}
 	} else if (!_filtered.isEmpty()) {
@@ -373,7 +373,7 @@ void ContactsInner::loadProfilePhotos(int32 yFrom) {
 			if (to > _filtered.size()) to = _filtered.size();
 
 			for (; from < to; ++from) {
-				_filtered[from]->history->peer->photo->load();
+				_filtered[from]->history->peer->loadUserpic();
 			}
 		}
 	}
@@ -445,7 +445,7 @@ void ContactsInner::paintDialog(Painter &p, PeerData *peer, ContactData *data, b
 	}
 	p.fillRect(0, 0, width(), _rowHeight, inverse ? st::contactsBgActive : (sel ? st::contactsBgOver : st::white));
 	p.setPen(inverse ? st::white : st::black);
-	p.drawPixmapLeft(st::contactsPadding.left(), st::contactsPadding.top(), width(), peer->photo->pix(st::contactsPhotoSize));
+	peer->paintUserpicLeft(p, st::contactsPhotoSize, st::contactsPadding.left(), st::contactsPadding.top(), width());
 
 	int32 namex = st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left();
 	int32 iconw = (_chat || _creating != CreatingGroupNone) ? (st::contactsCheckPosition.x() * 2 + st::contactsCheckIcon.pxWidth()) : 0;
@@ -1909,7 +1909,7 @@ void MembersInner::paintDialog(Painter &p, PeerData *peer, MemberData *data, boo
 	UserData *user = peer->asUser();
 
 	p.fillRect(0, 0, width(), _rowHeight, (sel ? st::contactsBgOver : st::white)->b);
-	p.drawPixmapLeft(st::contactsPadding.left(), st::contactsPadding.top(), width(), peer->photo->pix(st::contactsPhotoSize));
+	peer->paintUserpicLeft(p, st::contactsPhotoSize, st::contactsPadding.left(), st::contactsPadding.top(), width());
 
 	p.setPen(st::black);
 
@@ -1994,7 +1994,7 @@ void MembersInner::loadProfilePhotos(int32 yFrom) {
 			if (to > _rows.size()) to = _rows.size();
 
 			for (; from < to; ++from) {
-				_rows[from]->photo->load();
+				_rows[from]->loadUserpic();
 			}
 		}
 	}

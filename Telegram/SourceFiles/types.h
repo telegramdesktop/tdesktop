@@ -59,6 +59,11 @@ struct ForConstTraits {
 };
 #define for_const(range_declaration, range_expression) for (range_declaration : static_cast<ForConstTraits<decltype(range_expression)>::ExpressionType>(range_expression))
 
+template <typename Enum>
+inline QFlags<Enum> qFlags(Enum v) {
+	return QFlags<Enum>(v);
+}
+
 //typedef unsigned char uchar; // Qt has uchar
 typedef qint16 int16;
 typedef quint16 uint16;
@@ -533,21 +538,21 @@ inline void destroyImplementation(I *&ptr) {
 class Interfaces;
 typedef void(*InterfaceConstruct)(void *location, Interfaces *interfaces);
 typedef void(*InterfaceDestruct)(void *location);
-typedef void(*InterfaceAssign)(void *location, void *waslocation);
+typedef void(*InterfaceMove)(void *location, void *waslocation);
 
 struct InterfaceWrapStruct {
 	InterfaceWrapStruct() : Size(0), Construct(0), Destruct(0) {
 	}
-	InterfaceWrapStruct(int size, InterfaceConstruct construct, InterfaceDestruct destruct, InterfaceAssign assign)
+	InterfaceWrapStruct(int size, InterfaceConstruct construct, InterfaceDestruct destruct, InterfaceMove move)
 	: Size(size)
 	, Construct(construct)
 	, Destruct(destruct)
-	, Assign(assign) {
+	, Move(move) {
 	}
 	int Size;
 	InterfaceConstruct Construct;
 	InterfaceDestruct Destruct;
-	InterfaceAssign Assign;
+	InterfaceMove Move;
 };
 
 template <int Value, int Denominator>
@@ -564,8 +569,8 @@ struct InterfaceWrapTemplate {
 	static void Destruct(void *location) {
 		((Type*)location)->~Type();
 	}
-	static void Assign(void *location, void *waslocation) {
-		*((Type*)location) = *((Type*)waslocation);
+	static void Move(void *location, void *waslocation) {
+		*(Type*)location = *(Type*)waslocation;
 	}
 };
 
@@ -585,7 +590,7 @@ public:
 			if (InterfaceIndexLast.testAndSetOrdered(last, last + 1)) {
 				t_assert(last < 64);
 				if (_index.testAndSetOrdered(0, last + 1)) {
-					InterfaceWraps[last] = InterfaceWrapStruct(InterfaceWrapTemplate<Type>::Size, InterfaceWrapTemplate<Type>::Construct, InterfaceWrapTemplate<Type>::Destruct, InterfaceWrapTemplate<Type>::Assign);
+					InterfaceWraps[last] = InterfaceWrapStruct(InterfaceWrapTemplate<Type>::Size, InterfaceWrapTemplate<Type>::Construct, InterfaceWrapTemplate<Type>::Destruct, InterfaceWrapTemplate<Type>::Move);
 				}
 				break;
 			}
@@ -593,7 +598,7 @@ public:
 		return _index.loadAcquire() - 1;
 	}
 	static uint64 Bit() {
-		return (1 << Index());
+		return (1ULL << Index());
 	}
 
 };
@@ -634,8 +639,14 @@ public:
 	int size, last;
 	int offsets[64];
 
-	bool equals(const uint64 &mask) const {
+	bool equals(uint64 mask) const {
 		return _mask == mask;
+	}
+	uint64 maskadd(uint64 mask) const {
+		return _mask | mask;
+	}
+	uint64 maskremove(uint64 mask) const {
+		return _mask & (~mask);
 	}
 
 private:
@@ -652,7 +663,7 @@ public:
 		if (mask) {
 			const InterfacesMetadata *meta = GetInterfacesMetadata(mask);
 			int32 size = sizeof(const InterfacesMetadata *) + meta->size;
-			void *data = malloc(size);
+			void *data = operator new(size);
 			if (!data) { // terminate if we can't allocate memory
 				throw "Can't allocate memory!";
 			}
@@ -682,17 +693,22 @@ public:
 		if (!_meta()->equals(mask)) {
 			Interfaces tmp(mask);
 			tmp.swap(*this);
-
 			if (_data != zerodata() && tmp._data != zerodata()) {
 				const InterfacesMetadata *meta = _meta(), *wasmeta = tmp._meta();
 				for (int i = 0; i < meta->last; ++i) {
 					int offset = meta->offsets[i], wasoffset = wasmeta->offsets[i];
 					if (offset >= 0 && wasoffset >= 0) {
-						InterfaceWraps[i].Assign(_dataptrunsafe(offset), tmp._dataptrunsafe(wasoffset));
+						InterfaceWraps[i].Move(_dataptrunsafe(offset), tmp._dataptrunsafe(wasoffset));
 					}
 				}
 			}
 		}
+	}
+	void AddInterfaces(uint64 mask = 0) {
+		UpdateInterfaces(_meta()->maskadd(mask));
+	}
+	void RemoveInterfaces(uint64 mask = 0) {
+		UpdateInterfaces(_meta()->maskremove(mask));
 	}
 	~Interfaces() {
 		if (_data != zerodata()) {
@@ -703,7 +719,7 @@ public:
 					InterfaceWraps[i].Destruct(_dataptrunsafe(offset));
 				}
 			}
-			free(_data);
+			operator delete(_data);
 		}
 	}
 

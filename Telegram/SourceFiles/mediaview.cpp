@@ -967,7 +967,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 			if (!_doc->data().isEmpty() && _doc->isAnimation()) {
 				if (!_gif) {
 					if (_doc->dimensions.width() && _doc->dimensions.height()) {
-						_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), true, true, false, _doc->dimensions.width(), _doc->dimensions.height());
+						_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), ImagePixSmooth | ImagePixBlurred, _doc->dimensions.width(), _doc->dimensions.height());
 					}
 					_gif = new ClipReader(location, _doc->data(), func(this, &MediaView::clipCallback));
 				}
@@ -975,7 +975,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 				if (_doc->isAnimation()) {
 					if (!_gif) {
 						if (_doc->dimensions.width() && _doc->dimensions.height()) {
-							_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), true, true, false, _doc->dimensions.width(), _doc->dimensions.height());
+							_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), ImagePixSmooth | ImagePixBlurred, _doc->dimensions.width(), _doc->dimensions.height());
 						}
 						_gif = new ClipReader(location, _doc->data(), func(this, &MediaView::clipCallback));
 					}
@@ -1116,17 +1116,17 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		int32 w = _width * cIntRetinaFactor();
 		if (_full <= 0 && _photo->loaded()) {
 			int32 h = int((_photo->full->height() * (qreal(w) / qreal(_photo->full->width()))) + 0.9999);
-			_current = _photo->full->pixNoCache(w, h, true);
+			_current = _photo->full->pixNoCache(w, h, ImagePixSmooth);
 			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
 			_full = 1;
 		} else if (_full < 0 && _photo->medium->loaded()) {
 			int32 h = int((_photo->full->height() * (qreal(w) / qreal(_photo->full->width()))) + 0.9999);
-			_current = _photo->medium->pixNoCache(w, h, true, true);
+			_current = _photo->medium->pixNoCache(w, h, ImagePixSmooth | ImagePixBlurred);
 			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
 			_full = 0;
 		} else if (_current.isNull() && _photo->thumb->loaded()) {
 			int32 h = int((_photo->full->height() * (qreal(w) / qreal(_photo->full->width()))) + 0.9999);
-			_current = _photo->thumb->pixNoCache(w, h, true, true);
+			_current = _photo->thumb->pixNoCache(w, h, ImagePixSmooth | ImagePixBlurred);
 			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
 		} else if (_current.isNull()) {
 			_current = _photo->thumb->pix();

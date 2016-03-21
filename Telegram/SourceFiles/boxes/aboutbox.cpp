@@ -107,6 +107,7 @@ void AboutBox::paintEvent(QPaintEvent *e) {
 	paintTitle(p, qsl("Telegram Desktop"));
 }
 
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 QString _getCrashReportFile(const QMimeData *m) {
 	if (!m || m->urls().size() != 1) return QString();
 
@@ -115,19 +116,24 @@ QString _getCrashReportFile(const QMimeData *m) {
 
 	return file.endsWith(qstr(".telegramcrash"), Qt::CaseInsensitive) ? file : QString();
 }
+#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
 
 void AboutBox::dragEnterEvent(QDragEnterEvent *e) {
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 	if (!_getCrashReportFile(e->mimeData()).isEmpty()) {
 		e->setDropAction(Qt::CopyAction);
 		e->accept();
 	}
+#endif
 }
 
 void AboutBox::dropEvent(QDropEvent *e) {
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 	if (!_getCrashReportFile(e->mimeData()).isEmpty()) {
 		e->acceptProposedAction();
 		showCrashReportWindow(_getCrashReportFile(e->mimeData()));
 	}
+#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
 }
 
 QString telegramFaqLink() {

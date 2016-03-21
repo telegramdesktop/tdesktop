@@ -125,7 +125,8 @@ GeneratedFiles/Debug/moc_application.cpp: ../../Libraries/QtStatic/qtbase/includ
 		SourceFiles/pspecific.h \
 		../../Libraries/QtStatic/qtbase/include/QtWidgets/QMainWindow \
 		SourceFiles/pspecific_mac.h \
-		SourceFiles/pspecific_wnd.h \
+		SourceFiles/pspecific_win.h \
+		SourceFiles/pspecific_winrt.h \
 		SourceFiles/gui/boxshadow.h \
 		SourceFiles/application.h
 	/usr/local/Qt-5.5.1/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.5.1/mkspecs/macx-clang -I. -I/usr/local/Qt-5.5.1/include/QtGui/5.5.1/QtGui -I/usr/local/Qt-5.5.1/include/QtCore/5.5.1/QtCore -I/usr/local/Qt-5.5.1/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.5.1/include -I/usr/local/Qt-5.5.1/include/QtMultimedia -I/usr/local/Qt-5.5.1/include/QtWidgets -I/usr/local/Qt-5.5.1/include/QtNetwork -I/usr/local/Qt-5.5.1/include/QtGui -I/usr/local/Qt-5.5.1/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/application.h -o GeneratedFiles/Debug/moc_application.cpp
@@ -284,7 +285,8 @@ GeneratedFiles/Debug/moc_window.cpp: SourceFiles/title.h \
 		../../Libraries/QtStatic/qtbase/include/QtWidgets/QMainWindow \
 		../../Libraries/QtStatic/qtbase/include/QtNetwork/QNetworkReply \
 		SourceFiles/pspecific_mac.h \
-		SourceFiles/pspecific_wnd.h \
+		SourceFiles/pspecific_win.h \
+		SourceFiles/pspecific_winrt.h \
 		SourceFiles/passcodewidget.h \
 		SourceFiles/gui/boxshadow.h \
 		SourceFiles/window.h

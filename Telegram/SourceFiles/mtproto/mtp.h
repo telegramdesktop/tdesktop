@@ -158,6 +158,17 @@ namespace MTP {
 
 	QReadWriteLock *dcOptionsMutex();
 
+	struct DcOption {
+		DcOption(int id, MTPDdcOption::Flags flags, const string &ip, int port) : id(id), flags(flags), ip(ip), port(port) {
+		}
+
+		int id;
+		MTPDdcOption::Flags flags;
+		string ip;
+		int port;
+	};
+	typedef QMap<int, DcOption> DcOptions;
+
 };
 
 #include "mtproto/mtpSessionImpl.h"

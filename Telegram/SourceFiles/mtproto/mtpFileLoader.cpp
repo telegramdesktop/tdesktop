@@ -376,9 +376,33 @@ int32 mtpFileLoader::currentOffset(bool includeSkipped) const {
 	return (_fileIsOpen ? _file.size() : _data.size()) - (includeSkipped ? 0 : _skippedBytes);
 }
 
+namespace {
+	QString serializereqs(const QMap<mtpRequestId, int32> &reqs) { // serialize requests map in json-like format
+		QString result;
+		result.reserve(reqs.size() * 16 + 4);
+		result.append(qsl("{ "));
+		for (auto i = reqs.cbegin(), e = reqs.cend(); i != e;) {
+			result.append(QString::number(i.key())).append(qsl(" : ")).append(QString::number(i.value()));
+			if (++i == e) {
+				break;
+			} else {
+				result.append(qsl(", "));
+			}
+		}
+		result.append(qsl(" }"));
+		return result;
+	}
+}
+
 bool mtpFileLoader::loadPart() {
-	if (_complete || _lastComplete || (!_requests.isEmpty() && !_size)) return false;
-	if (_size && _nextRequestOffset >= _size) return false;
+	if (_complete || _lastComplete || (!_requests.isEmpty() && !_size)) {
+		if (DebugLogging::FileLoader() && _id) DEBUG_LOG(("FileLoader(%1): loadPart() returned, _complete=%2, _lastComplete=%3, _requests.size()=%4, _size=%5").arg(_id).arg(Logs::b(_complete)).arg(Logs::b(_lastComplete)).arg(_requests.size()).arg(_size));
+		return false;
+	}
+	if (_size && _nextRequestOffset >= _size) {
+		if (DebugLogging::FileLoader() && _id) DEBUG_LOG(("FileLoader(%1): loadPart() returned, _size=%2, _nextRequestOffset=%3, _requests=%4").arg(_id).arg(_size).arg(_nextRequestOffset).arg(serializereqs(_requests)));
+		return false;
+	}
 
 	int32 limit = DocumentDownloadPartSize;
 	MTPInputFileLocation loc;
@@ -412,12 +436,21 @@ bool mtpFileLoader::loadPart() {
 	_requests.insert(reqId, dcIndex);
 	_nextRequestOffset += limit;
 
+	if (DebugLogging::FileLoader() && _id) DEBUG_LOG(("FileLoader(%1): requested part with offset=%2, _queue->queries=%3, _nextRequestOffset=%4, _requests=%5").arg(_id).arg(offset).arg(_queue->queries).arg(_nextRequestOffset).arg(serializereqs(_requests)));
+
 	return true;
 }
 
 void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRequestId req) {
 	Requests::iterator i = _requests.find(req);
-	if (i == _requests.cend()) return loadNext();
+	if (i == _requests.cend()) {
+		if (DebugLogging::FileLoader() && _id) DEBUG_LOG(("FileLoader(%1): request req=%2 for offset=%3 not found in _requests=%4").arg(_id).arg(req).arg(offset).arg(serializereqs(_requests)));
+		return loadNext();
+	}
+	if (result.type() != mtpc_upload_file) {
+		if (DebugLogging::FileLoader() && _id) DEBUG_LOG(("FileLoader(%1): bad cons received! %2").arg(_id).arg(result.type()));
+		return cancel(true);
+	}
 
 	int32 limit = (_locationType == UnknownFileLocation) ? DownloadPartSize : DocumentDownloadPartSize;
 	int32 dcIndex = i.value();
@@ -428,6 +461,9 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 
 	const MTPDupload_file &d(result.c_upload_file());
 	const string &bytes(d.vbytes.c_string().v);
+
+	if (DebugLogging::FileLoader() && _id) DEBUG_LOG(("FileLoader(%1): got part with offset=%2, bytes=%3, _queue->queries=%4, _nextRequestOffset=%5, _requests=%6").arg(_id).arg(offset).arg(bytes.size()).arg(_queue->queries).arg(_nextRequestOffset).arg(serializereqs(_requests)));
+
 	if (bytes.size()) {
 		if (_fileIsOpen) {
 			int64 fsize = _file.size();
@@ -502,6 +538,8 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 				Local::writeImage(storageKey(*_location), StorageImageSaved(mtpToStorageType(_type), _data));
 			}
 		}
+	} else {
+		if (DebugLogging::FileLoader() && _id) DEBUG_LOG(("FileLoader(%1): not done yet, _lastComplete=%2, _size=%3, _nextRequestOffset=%4, _requests=%5").arg(_id).arg(Logs::b(_lastComplete)).arg(_size).arg(_nextRequestOffset).arg(serializereqs(_requests)));
 	}
 	emit progress(this);
 	loadNext();
@@ -733,9 +771,11 @@ private:
 };
 
 void reinitWebLoadManager() {
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	if (webLoadManager()) {
 		webLoadManager()->setProxySettings(App::getHttpProxySettings());
 	}
+#endif
 }
 
 void stopWebLoadManager() {
@@ -752,11 +792,13 @@ void stopWebLoadManager() {
 	}
 }
 
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 void WebLoadManager::setProxySettings(const QNetworkProxy &proxy) {
 	QMutexLocker lock(&_loaderPointersMutex);
 	_proxySettings = proxy;
 	emit proxyApplyDelayed();
 }
+#endif
 
 WebLoadManager::WebLoadManager(QThread *thread) {
 	moveToThread(thread);
@@ -983,8 +1025,10 @@ void WebLoadManager::sendRequest(webFileLoaderPrivate *loader, const QString &re
 }
 
 void WebLoadManager::proxyApply() {
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	QMutexLocker lock(&_loaderPointersMutex);
 	_manager.setProxy(_proxySettings);
+#endif
 }
 
 void WebLoadManager::finish() {

@@ -82,9 +82,9 @@ NotifyWindow::NotifyWindow(HistoryItem *msg, int32 x, int32 y, int32 fwdCount) :
 , history(msg->history())
 , item(msg)
 , fwdCount(fwdCount)
-#ifdef Q_OS_WIN
+#if defined Q_OS_WIN && !defined Q_OS_WINRT
 , started(GetTickCount())
-#endif
+#endif // Q_OS_WIN && !Q_OS_WINRT
 , close(this, st::notifyClose)
 , alphaDuration(st::notifyFastAnim)
 , posDuration(st::notifyFastAnim)
@@ -126,7 +126,7 @@ NotifyWindow::NotifyWindow(HistoryItem *msg, int32 x, int32 y, int32 fwdCount) :
 }
 
 void NotifyWindow::checkLastInput() {
-#ifdef Q_OS_WIN
+#if defined Q_OS_WIN && !defined Q_OS_WINRT
 	LASTINPUTINFO lii;
 	lii.cbSize = sizeof(LASTINPUTINFO);
 	BOOL res = GetLastInputInfo(&lii);
@@ -135,14 +135,14 @@ void NotifyWindow::checkLastInput() {
 	} else {
 		inputTimer.start(300);
 	}
-#else
+#else // Q_OS_WIN && !Q_OS_WINRT
     // TODO
 	if (true) {
 		hideTimer.start(st::notifyWaitLongHide);
 	} else {
 		inputTimer.start(300);
 	}
-#endif
+#endif // else for Q_OS_WIN && !Q_OS_WINRT
 }
 
 void NotifyWindow::moveTo(int32 x, int32 y, int32 index) {
@@ -172,13 +172,8 @@ void NotifyWindow::updateNotifyDisplay() {
 		p.fillRect(0, st::notifyBorderWidth, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder->b);
 
 		if (!App::passcoded() && cNotifyView() <= dbinvShowName) {
-			if (history->peer->photo->loaded()) {
-				p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), history->peer->photo->pix(st::notifyPhotoSize));
-			} else {
-				MTP::clearLoaderPriorities();
-				peerPhoto = history->peer->photo;
-				peerPhoto->load(true, true);
-			}
+			history->peer->loadUserpic(true, true);
+			history->peer->paintUserpicLeft(p, st::notifyPhotoSize, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width());
 		} else {
 			static QPixmap icon = QPixmap::fromImage(App::wnd()->iconLarge().scaled(st::notifyPhotoSize, st::notifyPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
 			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), icon);
@@ -666,8 +661,8 @@ void Window::sendServiceHistoryRequest() {
 
 	UserData *user = App::userLoaded(ServiceUserId);
 	if (!user) {
-		int32 userFlags = MTPDuser::flag_first_name | MTPDuser::flag_phone | MTPDuser::flag_status | MTPDuser::flag_verified;
-		user = App::feedUsers(MTP_vector<MTPUser>(1, MTP_user(MTP_int(userFlags), MTP_int(ServiceUserId), MTPlong(), MTP_string("Telegram"), MTPstring(), MTPstring(), MTP_string("42777"), MTP_userProfilePhotoEmpty(), MTP_userStatusRecently(), MTPint(), MTPstring(), MTPstring())));
+		MTPDuser::Flags userFlags = MTPDuser::Flag::f_first_name | MTPDuser::Flag::f_phone | MTPDuser::Flag::f_status | MTPDuser::Flag::f_verified;
+		user = App::feedUsers(MTP_vector<MTPUser>(1, MTP_user(MTP_flags(userFlags), MTP_int(ServiceUserId), MTPlong(), MTP_string("Telegram"), MTPstring(), MTPstring(), MTP_string("42777"), MTP_userProfilePhotoEmpty(), MTP_userStatusRecently(), MTPint(), MTPstring(), MTPstring())));
 	}
 	_serviceHistoryRequest = MTP::send(MTPmessages_GetHistory(user->input, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), main->rpcDone(&MainWidget::serviceHistoryDone), main->rpcFail(&MainWidget::serviceHistoryFail));
 }
@@ -1042,7 +1037,6 @@ bool Window::eventFilter(QObject *obj, QEvent *e) {
 		break;
 
 	case QEvent::ShortcutOverride: // handle shortcuts ourselves
-		DEBUG_LOG(("Shortcut override declined: %1").arg(static_cast<QKeyEvent*>(e)->key()));
 		return true;
 
 	case QEvent::Shortcut:
@@ -3102,6 +3096,7 @@ void ShowCrashReportWindow::closeEvent(QCloseEvent *e) {
     deleteLater();
 }
 
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 int showCrashReportWindow(const QString &crashdump) {
 	QString text;
 
@@ -3126,3 +3121,4 @@ int showCrashReportWindow(const QString &crashdump) {
 	ShowCrashReportWindow *wnd = new ShowCrashReportWindow(text);
 	return app.exec();
 }
+#endif // !TDESKTOP_DISABLE_CRASH_REPORTS

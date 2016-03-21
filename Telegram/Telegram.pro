@@ -263,9 +263,16 @@ HEADERS += \
 
 win32 {
 SOURCES += \
-  ./SourceFiles/pspecific_wnd.cpp
+  ./SourceFiles/pspecific_win.cpp
 HEADERS += \
-  ./SourceFiles/pspecific_wnd.h
+  ./SourceFiles/pspecific_win.h
+}
+
+winrt {
+SOURCES += \
+  ./SourceFiles/pspecific_winrt.cpp
+HEADERS += \
+  ./SourceFiles/pspecific_winrt.h
 }
 
 macx {

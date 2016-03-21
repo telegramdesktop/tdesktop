@@ -400,11 +400,11 @@ void PasscodeBox::onSave(bool force) {
 			if (!_oldPasscode.isHidden()) {
 				hashSha256(oldPasswordData.constData(), oldPasswordData.size(), oldPasswordHash.data());
 			}
-			int32 flags = MTPDaccount_passwordInputSettings::flag_new_salt | MTPDaccount_passwordInputSettings::flag_new_password_hash | MTPDaccount_passwordInputSettings::flag_hint;
+			MTPDaccount_passwordInputSettings::Flags flags = MTPDaccount_passwordInputSettings::Flag::f_new_salt | MTPDaccount_passwordInputSettings::Flag::f_new_password_hash | MTPDaccount_passwordInputSettings::Flag::f_hint;
 			if (_oldPasscode.isHidden() || _newPasscode.isHidden()) {
-				flags |= MTPDaccount_passwordInputSettings::flag_email;
+				flags |= MTPDaccount_passwordInputSettings::Flag::f_email;
 			}
-			MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_int(flags), MTP_string(_newSalt), MTP_string(newPasswordHash), MTP_string(hint), MTP_string(email)));
+			MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_flags(flags), MTP_string(_newSalt), MTP_string(newPasswordHash), MTP_string(hint), MTP_string(email)));
 			_setRequest = MTP::send(MTPaccount_UpdatePasswordSettings(MTP_string(oldPasswordHash), settings), rpcDone(&PasscodeBox::setPasswordDone), rpcFail(&PasscodeBox::setPasswordFail));
 		}
 	} else {

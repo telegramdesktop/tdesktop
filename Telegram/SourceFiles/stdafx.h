@@ -18,10 +18,19 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
+#ifdef TDESKTOP_WINRT
+
+#include <wrl.h>
+#include <wrl/client.h>
+
+#else // TDESKTOP_WINRT
+
 #define __HUGE
 #define PSAPI_VERSION 1 // fix WinXP
 
 #define __STDC_FORMAT_MACROS // fix breakpad for mac
+
+#endif // else of TDESKTOP_WINRT
 
 #ifdef __cplusplus
 
@@ -43,9 +52,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #ifdef Q_OS_WIN // use Lzma SDK for win
 #include <LzmaLib.h>
-#else
+#else // Q_OS_WIN
 #include <lzma.h>
-#endif
+#endif // else of Q_OS_WIN
 
 extern "C" {
 

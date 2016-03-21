@@ -761,7 +761,9 @@ AppClass::AppClass() : QObject()
 		_window->showSettings();
 	}
 
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
+#endif
 
 	if (state != Local::ReadMapPassNeeded) {
 		checkMapVersion();
@@ -897,6 +899,10 @@ void AppClass::onAppStateChanged(Qt::ApplicationState state) {
 	if (state != Qt::ApplicationActive) {
 		PopupTooltip::Hide();
 	}
+}
+
+void AppClass::call_handleHistoryUpdate() {
+	Notify::handlePendingHistoryUpdate();
 }
 
 void AppClass::killDownloadSessions() {

@@ -21,6 +21,28 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 import glob
 import re
 
+# define some checked flag convertions
+# the key flag type should be a subset of the value flag type
+# with exact the same names, then the key flag can be implicitly
+# casted to the value flag type
+parentFlags = {};
+parentFlagsList = [];
+def addChildParentFlags(child, parent):
+  parentFlagsList.append(child);
+  parentFlags[child] = parent;
+addChildParentFlags('MTPDmessageService', 'MTPDmessage');
+addChildParentFlags('MTPDupdateShortMessage', 'MTPDmessage');
+addChildParentFlags('MTPDupdateShortChatMessage', 'MTPDmessage');
+addChildParentFlags('MTPDupdateShortSentMessage', 'MTPDmessage');
+addChildParentFlags('MTPDreplyKeyboardHide', 'MTPDreplyKeyboardMarkup');
+addChildParentFlags('MTPDreplyKeyboardForceReply', 'MTPDreplyKeyboardMarkup');
+addChildParentFlags('MTPDinputPeerNotifySettings', 'MTPDpeerNotifySettings');
+addChildParentFlags('MTPDpeerNotifySettings', 'MTPDinputPeerNotifySettings');
+
+# this is a map (key flags -> map (flag name -> flag bit))
+# each key flag of parentFlags should be a subset of the value flag here
+parentFlagsCheck = {};
+
 funcs = 0
 types = 0;
 consts = 0
@@ -35,6 +57,7 @@ boxed = {};
 funcsText = '';
 typesText = '';
 dataTexts = '';
+creatorProxyText = '';
 inlineMethods = '';
 textSerializeInit = '';
 textSerializeMethods = '';
@@ -150,7 +173,10 @@ with open('scheme.tl') as f:
           continue;
       elif (ptypewide == '#'):
         hasFlags = pname;
-        ptype = 'int';
+        if funcsNow:
+          ptype = 'flags<MTP' + name + '::Flags>';
+        else:
+          ptype = 'flags<MTPD' + name + '::Flags>';
       else:
         ptype = ptypewide;
         if (ptype.find('?') >= 0):
@@ -195,6 +221,27 @@ with open('scheme.tl') as f:
       prmsStr = [];
       prmsInit = [];
       prmsNames = [];
+      if (len(conditions)):
+        funcsText += '\tenum class Flag : int32 {\n';
+        maxbit = 0;
+        parentFlagsCheck['MTP' + name] = {};
+        for paramName in conditionsList:
+          funcsText += '\t\tf_' + paramName + ' = (1 << ' + conditions[paramName] + '),\n';
+          parentFlagsCheck['MTP' + name][paramName] = conditions[paramName];
+          maxbit = max(maxbit, int(conditions[paramName]));
+        if (maxbit > 0):
+          funcsText += '\n\t\tMAX_FIELD = (1 << ' + str(maxbit) + '),\n';
+        funcsText += '\t};\n';
+        funcsText += '\tQ_DECLARE_FLAGS(Flags, Flag);\n';
+        funcsText += '\tfriend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }\n';
+        funcsText += '\n';
+        for paramName in conditionsList:
+          if (paramName in trivialConditions):
+            funcsText += '\tbool is_' + paramName + '() const { return v' + hasFlags + '.v & Flag::f_' + paramName + '; }\n';
+          else:
+            funcsText += '\tbool has_' + paramName + '() const { return v' + hasFlags + '.v & Flag::f_' + paramName + '; }\n';
+        funcsText += '\n';
+
       if (len(prms) > len(trivialConditions)):
         for paramName in prmsList:
           if (paramName in trivialConditions):
@@ -207,7 +254,7 @@ with open('scheme.tl') as f:
           else:
             ptypeFull = 'MTP' + paramType;
           funcsText += '\t' + ptypeFull + ' v' + paramName + ';\n';
-          if (paramType in ['int', 'Int', 'bool', 'Bool']):
+          if (paramType in ['int', 'Int', 'bool', 'Bool', 'flags<Flags>']):
             prmsStr.append(ptypeFull + ' _' + paramName);
           else:
             prmsStr.append('const ' + ptypeFull + ' &_' + paramName);
@@ -217,19 +264,6 @@ with open('scheme.tl') as f:
       funcsText += '\tMTP' + name + '(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_' + name + ') {\n\t\tread(from, end, cons);\n\t}\n'; # stream constructor
       if (len(prms) > len(trivialConditions)):
         funcsText += '\tMTP' + name + '(' + ', '.join(prmsStr) + ') : ' + ', '.join(prmsInit) + ' {\n\t}\n';
-
-      if (len(conditions)):
-        funcsText += '\n';
-        funcsText += '\tenum {\n';
-        for paramName in conditionsList:
-          funcsText += '\t\tflag_' + paramName + ' = (1 << ' + conditions[paramName] + '),\n';
-        funcsText += '\t};\n';
-        funcsText += '\n';
-        for paramName in conditionsList:
-          if (paramName in trivialConditions):
-            funcsText += '\tbool is_' + paramName + '() const { return v' + hasFlags + '.v & flag_' + paramName + '; }\n';
-          else:
-            funcsText += '\tbool has_' + paramName + '() const { return v' + hasFlags + '.v & flag_' + paramName + '; }\n';
 
       funcsText += '\n';
       funcsText += '\tuint32 innerLength() const {\n'; # count size
@@ -274,6 +308,8 @@ with open('scheme.tl') as f:
         funcsText += '\n\ttypedef MTP' + resType + ' ResponseType;\n'; # method return type
 
       funcsText += '};\n'; # class ending
+      if (len(conditionsList)):
+        funcsText += 'Q_DECLARE_OPERATORS_FOR_FLAGS(MTP' + name + '::Flags)\n\n';
       if (isTemplate != ''):
         funcsText += 'template <typename TQueryType>\n';
         funcsText += 'class MTP' + Name + ' : public MTPBoxed<MTP' + name + '<TQueryType> > {\n';
@@ -325,7 +361,9 @@ def addTextSerialize(lst, dct, dataLetter):
       conditions = data[6];
       trivialConditions = data[7];
 
-      result += 'void _serialize_' + name + '(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {\n';
+      result += 'void _serialize_' + name + '(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {\n';
+      if (len(conditions)):
+        result += '\tMTP' + dataLetter + name + '::Flags flag(iflag);\n\n';
       if (len(prms)):
         result += '\tif (stage) {\n';
         result += '\t\tto.add(",\\n").addSpaces(lev);\n';
@@ -341,12 +379,12 @@ def addTextSerialize(lst, dct, dataLetter):
           if (k == hasFlags):
             result += 'if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; ';
           if (k in trivialConditions):
-            result += 'if (flag & MTP' + dataLetter + name + '::flag_' + k + ') { ';
+            result += 'if (flag & MTP' + dataLetter + name + '::Flag::f_' + k + ') { ';
             result += 'to.add("YES [ BY BIT ' + conditions[k] + ' IN FIELD ' + hasFlags + ' ]"); ';
             result += '} else { to.add("[ SKIPPED BY BIT ' + conditions[k] + ' IN FIELD ' + hasFlags + ' ]"); } ';
           else:
             if (k in conditions):
-              result += 'if (flag & MTP' + dataLetter + name + '::flag_' + k + ') { ';
+              result += 'if (flag & MTP' + dataLetter + name + '::Flag::f_' + k + ') { ';
             result += 'types.push_back(';
             vtypeget = re.match(r'^[Vv]ector<MTP([A-Za-z0-9\._]+)>', v);
             if (vtypeget):
@@ -383,7 +421,10 @@ def addTextSerialize(lst, dct, dataLetter):
               except KeyError:
                 if (vtypeget):
                   result += '); vtypes.push_back(';
-                result += 'mtpc_' + restype;
+                if (re.match(r'^flags<', restype)):
+                  result += 'mtpc_flags';
+                else:
+                  result += 'mtpc_' + restype + '+0';
                 if (not vtypeget):
                   result += '); vtypes.push_back(0';
             else:
@@ -455,6 +496,28 @@ for restype in typesList:
     creatorParamsList = [];
     readText = '';
     writeText = '';
+
+    if (len(conditions)):
+      dataText += '\tenum class Flag : int32 {\n';
+      maxbit = 0;
+      parentFlagsCheck['MTPD' + name] = {};
+      for paramName in conditionsList:
+        dataText += '\t\tf_' + paramName + ' = (1 << ' + conditions[paramName] + '),\n';
+        parentFlagsCheck['MTPD' + name][paramName] = conditions[paramName];
+        maxbit = max(maxbit, int(conditions[paramName]));
+      if (maxbit > 0):
+        dataText += '\n\t\tMAX_FIELD = (1 << ' + str(maxbit) + '),\n';
+      dataText += '\t};\n';
+      dataText += '\tQ_DECLARE_FLAGS(Flags, Flag);\n';
+      dataText += '\tfriend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }\n';
+      dataText += '\n';
+      for paramName in conditionsList:
+        if (paramName in trivialConditions):
+          dataText += '\tbool is_' + paramName + '() const { return v' + hasFlags + '.v & Flag::f_' + paramName + '; }\n';
+        else:
+          dataText += '\tbool has_' + paramName + '() const { return v' + hasFlags + '.v & Flag::f_' + paramName + '; }\n';
+      dataText += '\n';
+
     dataText += '\tMTPD' + name + '() {\n\t}\n'; # default constructor
     switchLines += '\t\tcase mtpc_' + name + ': '; # for by-type-id type constructor
     if (len(prms) > len(trivialConditions)):
@@ -530,33 +593,25 @@ for restype in typesList:
       sizeFast = '\treturn 0;\n';
 
     switchLines += 'break;\n';
-
-    if (len(conditions)):
-      dataText += '\n';
-      dataText += '\tenum {\n';
-      for paramName in conditionsList:
-        dataText += '\t\tflag_' + paramName + ' = (1 << ' + conditions[paramName] + '),\n';
-      dataText += '\t};\n';
-      dataText += '\n';
-      for paramName in conditionsList:
-        if (paramName in trivialConditions):
-          dataText += '\tbool is_' + paramName + '() const { return v' + hasFlags + '.v & flag_' + paramName + '; }\n';
-        else:
-          dataText += '\tbool has_' + paramName + '() const { return v' + hasFlags + '.v & flag_' + paramName + '; }\n';
     dataText += '};\n'; # class ending
 
     if (len(prms) > len(trivialConditions)):
       dataTexts += dataText; # add data class
 
-    friendDecl += '\tfriend MTP' + restype + ' MTP_' + name + '(' + ', '.join(creatorParams) + ');\n';
-    creatorsText += 'inline MTP' + restype + ' MTP_' + name + '(' + ', '.join(creatorParams) + ') {\n';
+    friendDecl += '\tfriend class MTP::internal::TypeCreator;\n';
+    creatorProxyText += '\t\tinline static MTP' + restype + ' new_' + name + '(' + ', '.join(creatorParams) + ') {\n';
     if (len(prms) > len(trivialConditions)): # creator with params
-      creatorsText += '\treturn MTP' + restype + '(new MTPD' + name + '(' + ', '.join(creatorParamsList) + '));\n';
+      creatorProxyText += '\t\t\treturn MTP' + restype + '(new MTPD' + name + '(' + ', '.join(creatorParamsList) + '));\n';
     else:
       if (withType): # creator by type
-        creatorsText += '\treturn MTP' + restype + '(mtpc_' + name + ');\n';
+        creatorProxyText += '\t\t\treturn MTP' + restype + '(mtpc_' + name + ');\n';
       else: # single creator
-        creatorsText += '\treturn MTP' + restype + '();\n';
+        creatorProxyText += '\t\t\treturn MTP' + restype + '();\n';
+    creatorProxyText += '\t\t}\n';
+    if (len(conditionsList)):
+      creatorsText += 'Q_DECLARE_OPERATORS_FOR_FLAGS(MTPD' + name + '::Flags)\n';
+    creatorsText += 'inline MTP' + restype + ' MTP_' + name + '(' + ', '.join(creatorParams) + ') {\n';
+    creatorsText += '\treturn MTP::internal::TypeCreator::new_' + name + '(' + ', '.join(creatorParamsList) + ');\n';
     creatorsText += '}\n';
 
     if (withType):
@@ -667,7 +722,7 @@ for restype in typesList:
 
   typesText += '\tvoid write(mtpBuffer &to) const;\n'; # write method
   inlineMethods += 'inline void MTP' + restype + '::write(mtpBuffer &to) const {\n';
-  if (withType):
+  if (withType and writer != ''):
     inlineMethods += '\tswitch (_type) {\n';
     inlineMethods += writer;
     inlineMethods += '\t}\n';
@@ -705,8 +760,19 @@ for restype in typesList:
   inlineMethods += creatorsText;
   typesText += 'typedef MTPBoxed<MTP' + restype + '> MTP' + resType + ';\n'; # boxed type definition
 
+for childName in parentFlagsList:
+  parentName = parentFlags[childName];
+  for flag in parentFlagsCheck[childName]:
+    if (not flag in parentFlagsCheck[parentName]):
+      print('Flag ' + flag + ' not found in ' + parentName + ' which should be a flags-parent of ' + childName);
+      error
+    elif (parentFlagsCheck[childName][flag] != parentFlagsCheck[parentName][flag]):
+      print('Flag ' + flag + ' has different value in ' + parentName + ' which should be a flags-parent of ' + childName);
+      error
+  inlineMethods += 'inline ' + parentName + '::Flags mtpCastFlags(' + childName + '::Flags flags) { return ' + parentName + '::Flags(QFlag(flags)); }\n';
+
 # manual types added here
-textSerializeMethods += 'void _serialize_rpc_result(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {\n';
+textSerializeMethods += 'void _serialize_rpc_result(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {\n';
 textSerializeMethods += '\tif (stage) {\n';
 textSerializeMethods += '\t\tto.add(",\\n").addSpaces(lev);\n';
 textSerializeMethods += '\t} else {\n';
@@ -721,7 +787,7 @@ textSerializeMethods += '\t}\n';
 textSerializeMethods += '}\n\n';
 textSerializeInit += '\t\t_serializers.insert(mtpc_rpc_result, _serialize_rpc_result);\n';
 
-textSerializeMethods += 'void _serialize_msg_container(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {\n';
+textSerializeMethods += 'void _serialize_msg_container(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {\n';
 textSerializeMethods += '\tif (stage) {\n';
 textSerializeMethods += '\t\tto.add(",\\n").addSpaces(lev);\n';
 textSerializeMethods += '\t} else {\n';
@@ -735,7 +801,7 @@ textSerializeMethods += '\t}\n';
 textSerializeMethods += '}\n\n';
 textSerializeInit += '\t\t_serializers.insert(mtpc_msg_container, _serialize_msg_container);\n';
 
-textSerializeMethods += 'void _serialize_core_message(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag) {\n';
+textSerializeMethods += 'void _serialize_core_message(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {\n';
 textSerializeMethods += '\tif (stage) {\n';
 textSerializeMethods += '\t\tto.add(",\\n").addSpaces(lev);\n';
 textSerializeMethods += '\t} else {\n';
@@ -786,12 +852,14 @@ textSerializeFull += '\t\t}\n';
 textSerializeFull += '\t}\n';
 textSerializeFull += '}\n';
 
+out.write('\n// Creator proxy class declaration\nnamespace MTP {\nnamespace internal {\n\tclass TypeCreator;\n}\n}\n');
 out.write('\n// Type id constants\nenum {\n' + ',\n'.join(enums) + '\n};\n');
 out.write('\n// Type forward declarations\n' + forwards);
 out.write('\n// Boxed types definitions\n' + forwTypedefs);
 out.write('\n// Type classes definitions\n' + typesText);
 out.write('\n// Type constructors with data\n' + dataTexts);
 out.write('\n// RPC methods\n' + funcsText);
+out.write('\n// Creator proxy class definition\nnamespace MTP {\nnamespace internal {\n\tclass TypeCreator {\n\tpublic:\n' + creatorProxyText + '\t};\n}\n}\n');
 out.write('\n// Inline methods definition\n' + inlineMethods);
 out.write('\n// Human-readable text serialization\nvoid mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons);\n');
 
@@ -819,7 +887,7 @@ outCpp.write('#include "stdafx.h"\n#include "mtpScheme.h"\n\n');
 outCpp.write('typedef QVector<mtpTypeId> Types;\ntypedef QVector<int32> StagesFlags;\n\n');
 outCpp.write(textSerializeMethods);
 outCpp.write('namespace {\n');
-outCpp.write('\ttypedef void(*mtpTextSerializer)(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 flag);\n');
+outCpp.write('\ttypedef void(*mtpTextSerializer)(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag);\n');
 outCpp.write('\ttypedef QMap<mtpTypeId, mtpTextSerializer> TextSerializers;\n\tTextSerializers _serializers;\n\n');
 outCpp.write('\tvoid initTextSerializers() {\n');
 outCpp.write(textSerializeInit);

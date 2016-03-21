@@ -103,10 +103,10 @@ PeerData::PeerData(const PeerId &id) : id(id)
 , loaded(false)
 , colorIndex(peerColorIndex(id))
 , color(peerColor(colorIndex))
-, photo((isChat() || isMegagroup()) ? chatDefPhoto(colorIndex) : (isChannel() ? channelDefPhoto(colorIndex) : userDefPhoto(colorIndex)))
 , photoId(UnknownPeerPhotoId)
 , nameVersion(0)
-, notify(UnknownNotifySettings) {
+, notify(UnknownNotifySettings)
+, _userpic(isUser() ? userDefPhoto(colorIndex) : ((isChat() || isMegagroup()) ? chatDefPhoto(colorIndex) : channelDefPhoto(colorIndex))) {
 	if (!peerIsUser(id) && !peerIsChannel(id)) updateName(QString(), QString(), QString());
 }
 
@@ -135,9 +135,9 @@ void PeerData::updateName(const QString &newName, const QString &newNameOrPhone,
 		if (asChannel()->username != newUsername) {
 			asChannel()->username = newUsername;
 			if (newUsername.isEmpty()) {
-				asChannel()->flags &= ~MTPDchannel::flag_username;
+				asChannel()->flags &= ~MTPDchannel::Flag::f_username;
 			} else {
-				asChannel()->flags |= MTPDchannel::flag_username;
+				asChannel()->flags |= MTPDchannel::Flag::f_username;
 			}
 			if (App::main()) {
 				App::main()->peerUsernameChanged(this);
@@ -154,6 +154,39 @@ void PeerData::updateName(const QString &newName, const QString &newNameOrPhone,
 	}
 }
 
+void PeerData::setUserpic(ImagePtr userpic) {
+	_userpic = userpic;
+}
+
+ImagePtr PeerData::currentUserpic() const {
+	if (_userpic->loaded()) {
+		return _userpic;
+	}
+	_userpic->load();
+
+	if (isUser()) {
+		return userDefPhoto(colorIndex);
+	} else if (isMegagroup() || isChat()) {
+		return chatDefPhoto(colorIndex);
+	}
+	return channelDefPhoto(colorIndex);
+}
+
+void PeerData::paintUserpic(Painter &p, int size, int x, int y) const {
+	p.drawPixmap(x, y, currentUserpic()->pixCircled(size, size));
+}
+
+StorageKey PeerData::userpicUniqueKey() const {
+	if (photoLoc.isNull() || !_userpic->loaded()) {
+		return StorageKey(0, (isUser() ? 0x1000 : ((isChat() || isMegagroup()) ? 0x2000 : 0x3000)) | colorIndex);
+	}
+	return storageKey(photoLoc);
+}
+
+void PeerData::saveUserpic(const QString &path) const {
+	currentUserpic()->pixCircled().save(path, "PNG");
+}
+
 const Text &BotCommand::descriptionText() const {
 	if (_descriptionText.isEmpty() && !_description.isEmpty()) {
 		_descriptionText.setText(st::mentionFont, _description, _textNameOptions);
@@ -163,7 +196,7 @@ const Text &BotCommand::descriptionText() const {
 
 void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer as well
 	PhotoId newPhotoId = photoId;
-	ImagePtr newPhoto = photo;
+	ImagePtr newPhoto = _userpic;
 	StorageImageLocation newPhotoLoc = photoLoc;
 	switch (p.type()) {
 	case mtpc_userProfilePhoto: {
@@ -176,7 +209,7 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer a
 	default: {
 		newPhotoId = 0;
 		if (id == ServiceUserId) {
-			if (photo->isNull()) {
+			if (_userpic->isNull()) {
 				newPhoto = ImagePtr(QPixmap::fromImage(App::wnd()->iconLarge().scaledToWidth(160, Qt::SmoothTransformation), Qt::ColorOnly), "PNG");
 			}
 		} else {
@@ -185,9 +218,9 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer a
 		newPhotoLoc = StorageImageLocation();
 	} break;
 	}
-	if (newPhotoId != photoId || newPhoto.v() != photo.v() || newPhotoLoc != photoLoc) {
+	if (newPhotoId != photoId || newPhoto.v() != _userpic.v() || newPhotoLoc != photoLoc) {
 		photoId = newPhotoId;
-		photo = newPhoto;
+		setUserpic(newPhoto);
 		photoLoc = newPhotoLoc;
 		if (App::main()) {
 			emit App::main()->peerPhotoChanged(this);
@@ -338,7 +371,7 @@ void UserData::madeAction() {
 
 void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Local::readPeer as well
 	PhotoId newPhotoId = photoId;
-	ImagePtr newPhoto = photo;
+	ImagePtr newPhoto = _userpic;
 	StorageImageLocation newPhotoLoc = photoLoc;
 	switch (p.type()) {
 	case mtpc_chatPhoto: {
@@ -357,9 +390,9 @@ void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Loc
 //		photoFull = ImagePtr();
 	} break;
 	}
-	if (newPhotoId != photoId || newPhoto.v() != photo.v() || newPhotoLoc != photoLoc) {
+	if (newPhotoId != photoId || newPhoto.v() != _userpic.v() || newPhotoLoc != photoLoc) {
 		photoId = newPhotoId;
-		photo = newPhoto;
+		setUserpic(newPhoto);
 		photoLoc = newPhotoLoc;
 		emit App::main()->peerPhotoChanged(this);
 	}
@@ -367,7 +400,7 @@ void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Loc
 
 void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Local::readPeer as well
 	PhotoId newPhotoId = photoId;
-	ImagePtr newPhoto = photo;
+	ImagePtr newPhoto = _userpic;
 	StorageImageLocation newPhotoLoc = photoLoc;
 	switch (p.type()) {
 	case mtpc_chatPhoto: {
@@ -386,9 +419,9 @@ void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see 
 //		photoFull = ImagePtr();
 	} break;
 	}
-	if (newPhotoId != photoId || newPhoto.v() != photo.v() || newPhotoLoc != photoLoc) {
+	if (newPhotoId != photoId || newPhoto.v() != _userpic.v() || newPhotoLoc != photoLoc) {
 		photoId = newPhotoId;
-		photo = newPhoto;
+		setUserpic(newPhoto);
 		photoLoc = newPhotoLoc;
 		if (App::main()) emit App::main()->peerPhotoChanged(this);
 	}
@@ -772,14 +805,14 @@ QString saveFileName(const QString &title, const QString &filter, const QString 
 bool StickerData::setInstalled() const {
 	switch (set.type()) {
 	case mtpc_inputStickerSetID: {
-		StickerSets::const_iterator it = cStickerSets().constFind(set.c_inputStickerSetID().vid.v);
-		return (it != cStickerSets().cend()) && !(it->flags & MTPDstickerSet::flag_disabled);
+		auto it = Global::StickerSets().constFind(set.c_inputStickerSetID().vid.v);
+		return (it != Global::StickerSets().cend()) && !(it->flags & MTPDstickerSet::Flag::f_disabled);
 	} break;
 	case mtpc_inputStickerSetShortName: {
 		QString name = qs(set.c_inputStickerSetShortName().vshort_name).toLower();
-		for (StickerSets::const_iterator it = cStickerSets().cbegin(), e = cStickerSets().cend(); it != e; ++it) {
+		for (auto it = Global::StickerSets().cbegin(), e = Global::StickerSets().cend(); it != e; ++it) {
 			if (it->shortName.toLower() == name) {
-				return !(it->flags & MTPDstickerSet::flag_disabled);
+				return !(it->flags & MTPDstickerSet::Flag::f_disabled);
 			}
 		}
 	} break;

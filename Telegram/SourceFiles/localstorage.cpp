@@ -864,7 +864,7 @@ namespace {
 		}
 	}
 
-	mtpDcOptions *_dcOpts = 0;
+	MTP::DcOptions *_dcOpts = 0;
 	bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		switch (blockId) {
 		case dbiDcOptionOld: {
@@ -873,16 +873,17 @@ namespace {
 			stream >> dcId >> host >> ip >> port;
 			if (!_checkStreamStatus(stream)) return false;
 
-			if (_dcOpts) _dcOpts->insert(dcId, mtpDcOption(dcId, 0, ip.toUtf8().constData(), port));
+			if (_dcOpts) _dcOpts->insert(dcId, MTP::DcOption(dcId, 0, ip.toUtf8().constData(), port));
 		} break;
 
 		case dbiDcOption: {
-			quint32 dcIdWithShift, flags, port;
+			quint32 dcIdWithShift, port;
+			qint32 flags;
 			QString ip;
 			stream >> dcIdWithShift >> flags >> ip >> port;
 			if (!_checkStreamStatus(stream)) return false;
 
-			if (_dcOpts) _dcOpts->insert(dcIdWithShift, mtpDcOption(dcIdWithShift % _mtp_internal::dcShift, flags, ip.toUtf8().constData(), port));
+			if (_dcOpts) _dcOpts->insert(dcIdWithShift, MTP::DcOption(dcIdWithShift % _mtp_internal::dcShift, MTPDdcOption::Flags(flags), ip.toUtf8().constData(), port));
 		} break;
 
 		case dbiChatSizeMax: {
@@ -1462,16 +1463,16 @@ namespace {
 			LOG(("App Info: reading old user config.."));
 			qint32 version = 0;
 
-			mtpDcOptions dcOpts;
+			MTP::DcOptions dcOpts;
 			{
 				QReadLocker lock(MTP::dcOptionsMutex());
-				dcOpts = cDcOptions();
+				dcOpts = Global::DcOptions();
 			}
 			_dcOpts = &dcOpts;
 			_readOldUserSettingsFields(&file, version);
 			{
 				QWriteLocker lock(MTP::dcOptionsMutex());
-				cSetDcOptions(dcOpts);
+				Global::SetDcOptions(dcOpts);
 			}
 
 			file.close();
@@ -1549,16 +1550,16 @@ namespace {
 			LOG(("App Info: reading old keys.."));
 			qint32 version = 0;
 
-			mtpDcOptions dcOpts;
+			MTP::DcOptions dcOpts;
 			{
 				QReadLocker lock(MTP::dcOptionsMutex());
-				dcOpts = cDcOptions();
+				dcOpts = Global::DcOptions();
 			}
 			_dcOpts = &dcOpts;
 			_readOldMtpDataFields(&file, version);
 			{
 				QWriteLocker lock(MTP::dcOptionsMutex());
-				cSetDcOptions(dcOpts);
+				Global::SetDcOptions(dcOpts);
 			}
 
 			file.close();
@@ -2116,10 +2117,10 @@ namespace Local {
 			LOG(("App Error: could not decrypt settings from settings file, maybe bad passcode.."));
 			return writeSettings();
 		}
-		mtpDcOptions dcOpts;
+		MTP::DcOptions dcOpts;
 		{
 			QReadLocker lock(MTP::dcOptionsMutex());
-			dcOpts = cDcOptions();
+			dcOpts = Global::DcOptions();
 		}
 		_dcOpts = &dcOpts;
 		LOG(("App Info: reading encrypted settings.."));
@@ -2137,20 +2138,23 @@ namespace Local {
 		if (dcOpts.isEmpty()) {
 			const BuiltInDc *bdcs = builtInDcs();
 			for (int i = 0, l = builtInDcsCount(); i < l; ++i) {
-				dcOpts.insert(bdcs[i].id, mtpDcOption(bdcs[i].id, 0, bdcs[i].ip, bdcs[i].port));
+				MTPDdcOption::Flags flags = 0;
+				int idWithShift = bdcs[i].id + (flags * _mtp_internal::dcShift);
+				dcOpts.insert(idWithShift, MTP::DcOption(bdcs[i].id, flags, bdcs[i].ip, bdcs[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
 			}
 
 			const BuiltInDc *bdcsipv6 = builtInDcsIPv6();
 			for (int i = 0, l = builtInDcsCountIPv6(); i < l; ++i) {
-				int32 flags = MTPDdcOption::flag_ipv6, idWithShift = bdcsipv6[i].id + (flags * _mtp_internal::dcShift);
-				dcOpts.insert(idWithShift, mtpDcOption(bdcsipv6[i].id, flags, bdcsipv6[i].ip, bdcsipv6[i].port));
+				MTPDdcOption::Flags flags = MTPDdcOption::Flag::f_ipv6;
+				int idWithShift = bdcsipv6[i].id + (flags * _mtp_internal::dcShift);
+				dcOpts.insert(idWithShift, MTP::DcOption(bdcsipv6[i].id, flags, bdcsipv6[i].ip, bdcsipv6[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: %2:%3").arg(bdcsipv6[i].id).arg(bdcsipv6[i].ip).arg(bdcsipv6[i].port));
 			}
 		}
 		{
 			QWriteLocker lock(MTP::dcOptionsMutex());
-			cSetDcOptions(dcOpts);
+			Global::SetDcOptions(dcOpts);
 		}
 
 		_oldSettingsVersion = settingsData.version;
@@ -2173,30 +2177,34 @@ namespace Local {
 		}
 		settings.writeData(_settingsSalt);
 
-		mtpDcOptions dcOpts;
+		MTP::DcOptions dcOpts;
 		{
 			QReadLocker lock(MTP::dcOptionsMutex());
-			dcOpts = cDcOptions();
+			dcOpts = Global::DcOptions();
 		}
 		if (dcOpts.isEmpty()) {
 			const BuiltInDc *bdcs = builtInDcs();
 			for (int i = 0, l = builtInDcsCount(); i < l; ++i) {
-				dcOpts.insert(bdcs[i].id, mtpDcOption(bdcs[i].id, 0, bdcs[i].ip, bdcs[i].port));
+				MTPDdcOption::Flags flags = 0;
+				int idWithShift = bdcs[i].id + (flags * _mtp_internal::dcShift);
+				dcOpts.insert(idWithShift, MTP::DcOption(bdcs[i].id, flags, bdcs[i].ip, bdcs[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
 			}
 
 			const BuiltInDc *bdcsipv6 = builtInDcsIPv6();
 			for (int i = 0, l = builtInDcsCountIPv6(); i < l; ++i) {
-				dcOpts.insert(bdcsipv6[i].id + (MTPDdcOption::flag_ipv6 * _mtp_internal::dcShift), mtpDcOption(bdcsipv6[i].id, MTPDdcOption::flag_ipv6, bdcsipv6[i].ip, bdcsipv6[i].port));
+				MTPDdcOption::Flags flags = MTPDdcOption::Flag::f_ipv6;
+				int idWithShift = bdcsipv6[i].id + (flags * _mtp_internal::dcShift);
+				dcOpts.insert(idWithShift, MTP::DcOption(bdcsipv6[i].id, flags, bdcsipv6[i].ip, bdcsipv6[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: %2:%3").arg(bdcsipv6[i].id).arg(bdcsipv6[i].ip).arg(bdcsipv6[i].port));
 			}
 
 			QWriteLocker lock(MTP::dcOptionsMutex());
-			cSetDcOptions(dcOpts);
+			Global::SetDcOptions(dcOpts);
 		}
 
 		quint32 size = 12 * (sizeof(quint32) + sizeof(qint32));
-		for (mtpDcOptions::const_iterator i = dcOpts.cbegin(), e = dcOpts.cend(); i != e; ++i) {
+		for (auto i = dcOpts.cbegin(), e = dcOpts.cend(); i != e; ++i) {
 			size += sizeof(quint32) + sizeof(quint32) + sizeof(quint32);
 			size += sizeof(quint32) + _stringSize(QString::fromUtf8(i->ip.data(), i->ip.size()));
 		}
@@ -2223,9 +2231,9 @@ namespace Local {
 		data.stream << quint32(dbiLastUpdateCheck) << qint32(cLastUpdateCheck());
 		data.stream << quint32(dbiScale) << qint32(cConfigScale());
 		data.stream << quint32(dbiLang) << qint32(cLang());
-		for (mtpDcOptions::const_iterator i = dcOpts.cbegin(), e = dcOpts.cend(); i != e; ++i) {
+		for (auto i = dcOpts.cbegin(), e = dcOpts.cend(); i != e; ++i) {
 			data.stream << quint32(dbiDcOption) << quint32(i.key());
-			data.stream << quint32(i->flags) << QString::fromUtf8(i->ip.data(), i->ip.size());
+			data.stream << qint32(i->flags) << QString::fromUtf8(i->ip.data(), i->ip.size());
 			data.stream << quint32(i->port);
 		}
 		data.stream << quint32(dbiLangFile) << cLangFile();
@@ -3019,10 +3027,10 @@ namespace Local {
 	}
 
 	void _writeStickerSet(QDataStream &stream, uint64 setId) {
-		StickerSets::const_iterator it = cStickerSets().constFind(setId);
-		if (it == cStickerSets().cend()) return;
+		auto it = Global::StickerSets().constFind(setId);
+		if (it == Global::StickerSets().cend()) return;
 
-		bool notLoaded = (it->flags & MTPDstickerSet_flag_NOT_LOADED);
+		bool notLoaded = (it->flags & MTPDstickerSet_ClientFlag::f_not_loaded);
 		if (notLoaded) {
 			stream << quint64(it->id) << quint64(it->access) << it->title << it->shortName << qint32(-it->count) << qint32(it->hash) << qint32(it->flags);
 			return;
@@ -3063,7 +3071,7 @@ namespace Local {
 	void writeStickers() {
 		if (!_working()) return;
 
-		const StickerSets &sets(cStickerSets());
+		const Stickers::Sets &sets(Global::StickerSets());
 		if (sets.isEmpty()) {
 			if (_stickersKey) {
 				clearKey(_stickersKey);
@@ -3075,10 +3083,10 @@ namespace Local {
 			int32 setsCount = 0;
 			QByteArray hashToWrite;
 			quint32 size = sizeof(quint32) + _bytearraySize(hashToWrite);
-			for (StickerSets::const_iterator i = sets.cbegin(); i != sets.cend(); ++i) {
-				bool notLoaded = (i->flags & MTPDstickerSet_flag_NOT_LOADED);
+			for (auto i = sets.cbegin(); i != sets.cend(); ++i) {
+				bool notLoaded = (i->flags & MTPDstickerSet_ClientFlag::f_not_loaded);
 				if (notLoaded) {
-					if (!(i->flags & MTPDstickerSet::flag_disabled) || (i->flags & MTPDstickerSet::flag_official)) { // waiting to receive
+					if (!(i->flags & MTPDstickerSet::Flag::f_disabled) || (i->flags & MTPDstickerSet::Flag::f_official)) { // waiting to receive
 						return;
 					}
 				} else {
@@ -3114,8 +3122,8 @@ namespace Local {
 			}
 			EncryptedDescriptor data(size);
 			data.stream << quint32(setsCount) << hashToWrite;
-			_writeStickerSet(data.stream, CustomStickerSetId);
-			for (StickerSetsOrder::const_iterator i = cStickerSetsOrder().cbegin(), e = cStickerSetsOrder().cend(); i != e; ++i) {
+			_writeStickerSet(data.stream, Stickers::CustomSetId);
+			for (auto i = Global::StickerSetsOrder().cbegin(), e = Global::StickerSetsOrder().cend(); i != e; ++i) {
 				_writeStickerSet(data.stream, *i);
 			}
 			FileWriteDescriptor file(_stickersKey);
@@ -3134,17 +3142,17 @@ namespace Local {
 			return;
 		}
 
-		StickerSets &sets(cRefStickerSets());
+		Stickers::Sets &sets(Global::RefStickerSets());
 		sets.clear();
 
-		StickerSetsOrder &order(cRefStickerSetsOrder());
+		Stickers::Order &order(Global::RefStickerSetsOrder());
 		order.clear();
 
 		RecentStickerPack &recent(cRefRecentStickers());
 		recent.clear();
 
-		StickerSet &def(sets.insert(DefaultStickerSetId, StickerSet(DefaultStickerSetId, 0, lang(lng_stickers_default_set), QString(), 0, 0, MTPDstickerSet::flag_official)).value());
-		StickerSet &custom(sets.insert(CustomStickerSetId, StickerSet(CustomStickerSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, 0)).value());
+		Stickers::Set &def(sets.insert(Stickers::DefaultSetId, Stickers::Set(Stickers::DefaultSetId, 0, lang(lng_stickers_default_set), QString(), 0, 0, MTPDstickerSet::Flag::f_official)).value());
+		Stickers::Set &custom(sets.insert(Stickers::CustomSetId, Stickers::Set(Stickers::CustomSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, 0)).value());
 
 		QMap<uint64, bool> read;
 		while (!stickers.stream.atEnd()) {
@@ -3183,11 +3191,11 @@ namespace Local {
 			if (recent.size() < StickerPanPerRow * StickerPanRowsPerPage && qAbs(value) > 1) recent.push_back(qMakePair(doc, qAbs(value)));
 		}
 		if (def.stickers.isEmpty()) {
-			sets.remove(DefaultStickerSetId);
+			sets.remove(Stickers::DefaultSetId);
 		} else {
-			order.push_front(DefaultStickerSetId);
+			order.push_front(Stickers::DefaultSetId);
 		}
-		if (custom.stickers.isEmpty()) sets.remove(CustomStickerSetId);
+		if (custom.stickers.isEmpty()) sets.remove(Stickers::CustomSetId);
 
 		writeStickers();
 		writeUserSettings();
@@ -3210,10 +3218,10 @@ namespace Local {
 			return;
 		}
 
-		StickerSets &sets(cRefStickerSets());
+		Stickers::Sets &sets(Global::RefStickerSets());
 		sets.clear();
 
-		StickerSetsOrder &order(cRefStickerSetsOrder());
+		Stickers::Order &order(Global::RefStickerSetsOrder());
 		order.clear();
 
 		quint32 cnt;
@@ -3231,20 +3239,24 @@ namespace Local {
 			qint32 setHash = 0, setFlags = 0;
 			if (stickers.version > 8033) {
 				stickers.stream >> setHash >> setFlags;
+				if (setFlags & qFlags(MTPDstickerSet_ClientFlag::f_not_loaded__old)) {
+					setFlags &= ~qFlags(MTPDstickerSet_ClientFlag::f_not_loaded__old);
+					setFlags |= qFlags(MTPDstickerSet_ClientFlag::f_not_loaded);
+				}
 			}
 
-			if (setId == DefaultStickerSetId) {
+			if (setId == Stickers::DefaultSetId) {
 				setTitle = lang(lng_stickers_default_set);
-				setFlags |= MTPDstickerSet::flag_official;
+				setFlags |= qFlags(MTPDstickerSet::Flag::f_official);
 				order.push_front(setId);
-			} else if (setId == CustomStickerSetId) {
+			} else if (setId == Stickers::CustomSetId) {
 				setTitle = lang(lng_custom_stickers);
 			} else if (setId) {
 				order.push_back(setId);
 			} else {
 				continue;
 			}
-			StickerSet &set(sets.insert(setId, StickerSet(setId, setAccess, setTitle, setShortName, 0, setHash, setFlags)).value());
+			Stickers::Set &set(sets.insert(setId, Stickers::Set(setId, setAccess, setTitle, setShortName, 0, setHash, MTPDstickerSet::Flags(setFlags))).value());
 			if (scnt < 0) { // disabled not loaded set
 				set.count = -scnt;
 				continue;
@@ -3264,7 +3276,7 @@ namespace Local {
 				if (read.contains(id)) continue;
 				read.insert(id, true);
 
-				if (setId == DefaultStickerSetId || setId == CustomStickerSetId) {
+				if (setId == Stickers::DefaultSetId || setId == Stickers::CustomSetId) {
 					typeOfSet = StickerSetTypeEmpty;
 				}
 
@@ -3325,17 +3337,17 @@ namespace Local {
 	int32 countStickersHash(bool checkOfficial) {
 		uint32 acc = 0;
 		bool foundOfficial = false, foundBad = false;;
-		const StickerSets &sets(cStickerSets());
-		const StickerSetsOrder &order(cStickerSetsOrder());
-		for (StickerSetsOrder::const_iterator i = order.cbegin(), e = order.cend(); i != e; ++i) {
-			StickerSets::const_iterator j = sets.constFind(*i);
+		const Stickers::Sets &sets(Global::StickerSets());
+		const Stickers::Order &order(Global::StickerSetsOrder());
+		for (auto i = order.cbegin(), e = order.cend(); i != e; ++i) {
+			auto j = sets.constFind(*i);
 			if (j != sets.cend()) {
 				if (j->id == 0) {
 					foundBad = true;
-				} else if (j->flags & MTPDstickerSet::flag_official) {
+				} else if (j->flags & MTPDstickerSet::Flag::f_official) {
 					foundOfficial = true;
 				}
-				if (!(j->flags & MTPDstickerSet::flag_disabled)) {
+				if (!(j->flags & MTPDstickerSet::Flag::f_disabled)) {
 					acc = (acc * 20261) + j->hash;
 				}
 			}
@@ -3600,7 +3612,7 @@ namespace Local {
 				user->setName(first, last, pname, username);
 
 				user->access = access;
-				user->flags = flags;
+				user->flags = MTPDuser::Flags(flags);
 				user->onlineTill = onlineTill;
 				user->contact = contact;
 				user->setBotInfoVersion(botInfoVersion);
@@ -3616,7 +3628,7 @@ namespace Local {
 					user->inputUser = MTP_inputUser(MTP_int(peerToUser(user->id)), MTP_long((user->access == UserNoAccess) ? 0 : user->access));
 				}
 
-				user->photo = photoLoc.isNull() ? ImagePtr(userDefPhoto(user->colorIndex)) : ImagePtr(photoLoc);
+				user->setUserpic(photoLoc.isNull() ? ImagePtr(userDefPhoto(user->colorIndex)) : ImagePtr(photoLoc));
 			}
 		} else if (result->isChat()) {
 			ChatData *chat = result->asChat();
@@ -3629,7 +3641,7 @@ namespace Local {
 				flags = flagsData;
 			} else {
 				// flagsData was haveLeft
-				flags = (flagsData == 1 ? MTPDchat::flag_left : 0);
+				flags = (flagsData == 1 ? MTPDchat::Flags(MTPDchat::Flag::f_left) : 0);
 			}
 			if (!wasLoaded) {
 				chat->updateName(name, QString(), QString());
@@ -3638,20 +3650,20 @@ namespace Local {
 				chat->version = version;
 				chat->creator = creator;
 				chat->isForbidden = (forbidden == 1);
-				chat->flags = flags;
+				chat->flags = MTPDchat::Flags(flags);
 				chat->invitationUrl = invitationUrl;
 
 				chat->input = MTP_inputPeerChat(MTP_int(peerToChat(chat->id)));
 				chat->inputChat = MTP_int(peerToChat(chat->id));
 
-				chat->photo = photoLoc.isNull() ? ImagePtr(chatDefPhoto(chat->colorIndex)) : ImagePtr(photoLoc);
+				chat->setUserpic(photoLoc.isNull() ? ImagePtr(chatDefPhoto(chat->colorIndex)) : ImagePtr(photoLoc));
 			}
 		} else if (result->isChannel()) {
 			ChannelData *channel = result->asChannel();
 
 			QString name, invitationUrl;
 			quint64 access;
-			qint32 date, version, adminned, forbidden, flags;
+			qint32 date, version, forbidden, flags;
 			from.stream >> name >> access >> date >> version >> forbidden >> flags >> invitationUrl;
 
 			if (!wasLoaded) {
@@ -3660,13 +3672,13 @@ namespace Local {
 				channel->date = date;
 				channel->version = version;
 				channel->isForbidden = (forbidden == 1);
-				channel->flags = flags;
+				channel->flags = MTPDchannel::Flags(flags);
 				channel->invitationUrl = invitationUrl;
 
 				channel->input = MTP_inputPeerChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 				channel->inputChannel = MTP_inputChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 
-				channel->photo = photoLoc.isNull() ? ImagePtr((channel->isMegagroup() ? chatDefPhoto(channel->colorIndex) : channelDefPhoto(channel->colorIndex))) : ImagePtr(photoLoc);
+				channel->setUserpic(photoLoc.isNull() ? ImagePtr((channel->isMegagroup() ? chatDefPhoto(channel->colorIndex) : channelDefPhoto(channel->colorIndex))) : ImagePtr(photoLoc));
 			}
 		}
 		if (!wasLoaded) {

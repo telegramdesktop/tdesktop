@@ -45,11 +45,11 @@ typedef QHash<PhotoId, PhotoData*> PhotosData;
 typedef QHash<DocumentId, DocumentData*> DocumentsData;
 
 struct ReplyMarkup {
-	ReplyMarkup(int32 flags = 0) : flags(flags) {
+	ReplyMarkup(MTPDreplyKeyboardMarkup::Flags flags = 0) : flags(flags) {
 	}
 	typedef QList<QList<QString> > Commands;
 	Commands commands;
-	int32 flags;
+	MTPDreplyKeyboardMarkup::Flags flags;
 };
 
 class LayeredWidget;
@@ -250,7 +250,9 @@ namespace App {
 	const ReplyMarkup &replyMarkup(ChannelId channelId, MsgId msgId);
 
 	void setProxySettings(QNetworkAccessManager &manager);
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	QNetworkProxy getHttpProxySettings();
+#endif
 	void setProxySettings(QTcpSocket &socket);
 
 	QImage **cornersMask();

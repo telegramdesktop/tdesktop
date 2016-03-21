@@ -185,28 +185,28 @@ namespace {
 void mtpUpdateDcOptions(const QVector<MTPDcOption> &options) {
 	QSet<int32> already, restart;
 	{
-		mtpDcOptions opts;
+		MTP::DcOptions opts;
 		{
 			QReadLocker lock(mtpDcOptionsMutex());
-			opts = cDcOptions();
+			opts = Global::DcOptions();
 		}
 		for (QVector<MTPDcOption>::const_iterator i = options.cbegin(), e = options.cend(); i != e; ++i) {
 			const MTPDdcOption &optData(i->c_dcOption());
 			int32 id = optData.vid.v, idWithShift = id + (optData.vflags.v * _mtp_internal::dcShift);
 			if (already.constFind(idWithShift) == already.cend()) {
 				already.insert(idWithShift);
-				mtpDcOptions::const_iterator a = opts.constFind(idWithShift);
+				auto a = opts.constFind(idWithShift);
 				if (a != opts.cend()) {
 					if (a.value().ip != optData.vip_address.c_string().v || a.value().port != optData.vport.v) {
 						restart.insert(id);
 					}
 				}
-				opts.insert(idWithShift, mtpDcOption(id, optData.vflags.v, optData.vip_address.c_string().v, optData.vport.v));
+				opts.insert(idWithShift, MTP::DcOption(id, optData.vflags.v, optData.vip_address.c_string().v, optData.vport.v));
 			}
 		}
 		{
 			QWriteLocker lock(mtpDcOptionsMutex());
-			cSetDcOptions(opts);
+			Global::SetDcOptions(opts);
 		}
 	}
 	for (QSet<int32>::const_iterator i = restart.cbegin(), e = restart.cend(); i != e; ++i) {
@@ -261,8 +261,8 @@ void MTProtoConfigLoader::enumDC() {
 	OrderedSet<int32> dcs;
 	{
 		QReadLocker lock(mtpDcOptionsMutex());
-		const mtpDcOptions &options(cDcOptions());
-		for (mtpDcOptions::const_iterator i = options.cbegin(), e = options.cend(); i != e; ++i) {
+		const MTP::DcOptions &options(Global::DcOptions());
+		for (auto i = options.cbegin(), e = options.cend(); i != e; ++i) {
 			dcs.insert(i.key() % _mtp_internal::dcShift);
 		}
 	}

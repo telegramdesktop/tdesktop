@@ -101,6 +101,9 @@ enum {
 	MediaOverviewStartPerPage = 5,
 	MediaOverviewPreloadCount = 4,
 
+	// a new message from the same sender is attached to previous within 30 seconds
+	AttachMessageToPreviousSecondsDelta = 30,
+
 	AudioVoiceMsgSimultaneously = 4,
 	AudioSongSimultaneously = 4,
 	AudioCheckPositionTimeout = 100, // 100ms per check audio pos

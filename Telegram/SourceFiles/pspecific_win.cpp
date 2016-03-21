@@ -2185,7 +2185,6 @@ namespace PlatformSpecific {
 
 namespace {
 	void _psLogError(const char *str, LSTATUS code) {
-		WCHAR errMsg[2048];
 		LPTSTR errorText = NULL, errorTextDefault = L"(Unknown error)";
 		FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&errorText, 0, 0);
 		if (!errorText) {
@@ -2523,11 +2522,11 @@ bool LoadDbgHelp(bool extended = false) {
 
 	WCHAR szTemp[4096];
 	if (GetModuleFileName(NULL, szTemp, 4096) > 0) {
-		wcscat(szTemp, L".local");
+		wcscat_s(szTemp, L".local");
 		if (GetFileAttributes(szTemp) == INVALID_FILE_ATTRIBUTES) {
 			// ".local" file does not exist, so we can try to load the dbghelp.dll from the "Debugging Tools for Windows"
 			if (GetEnvironmentVariable(L"ProgramFiles", szTemp, 4096) > 0) {
-				wcscat(szTemp, L"\\Debugging Tools for Windows\\dbghelp.dll");
+				wcscat_s(szTemp, L"\\Debugging Tools for Windows\\dbghelp.dll");
 				// now check if the file exists:
 				if (GetFileAttributes(szTemp) != INVALID_FILE_ATTRIBUTES) {
 					hDll = LoadLibrary(szTemp);
@@ -2535,7 +2534,7 @@ bool LoadDbgHelp(bool extended = false) {
 			}
 			// Still not found? Then try to load the 64-Bit version:
 			if (!hDll && (GetEnvironmentVariable(L"ProgramFiles", szTemp, 4096) > 0)) {
-				wcscat(szTemp, L"\\Debugging Tools for Windows 64-Bit\\dbghelp.dll");
+				wcscat_s(szTemp, L"\\Debugging Tools for Windows 64-Bit\\dbghelp.dll");
 				if (GetFileAttributes(szTemp) != INVALID_FILE_ATTRIBUTES) {
 					hDll = LoadLibrary(szTemp);
 				}
@@ -2729,12 +2728,6 @@ BOOL _getModuleInfo(HANDLE hProcess, DWORD64 baseAddr, IMAGEHLP_MODULEW64 *pModu
 }
 
 void psWriteDump() {
-	OSVERSIONINFOEXA version;
-	ZeroMemory(&version, sizeof(OSVERSIONINFOEXA));
-	version.dwOSVersionInfoSize = sizeof(version);
-	if (GetVersionExA((OSVERSIONINFOA*)&version) != FALSE) {
-		SignalHandlers::dump() << "OS-Version: " << version.dwMajorVersion << "." << version.dwMinorVersion << "." << version.dwBuildNumber << "\n";
-	}
 }
 
 char ImageHlpSymbol64[sizeof(IMAGEHLP_SYMBOL64) + StackEntryMaxNameLength];
@@ -2902,6 +2895,7 @@ QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile) {
 }
 
 void psWriteStackTrace() {
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 	if (!LoadDbgHelp()) {
 		SignalHandlers::dump() << "ERROR: Could not load dbghelp.dll!\n";
 		return;
@@ -2977,6 +2971,7 @@ void psWriteStackTrace() {
 			break;
 		}
 	}
+#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
 }
 
 class StringReferenceWrapper {
@@ -3247,10 +3242,8 @@ QString toastImage(const StorageKey &key, PeerData *peer) {
 			v.until = 0;
 		}
 		v.path = cWorkingDir() + qsl("tdata/temp/") + QString::number(MTP::nonce<uint64>(), 16) + qsl(".png");
-		if (peer->photo->loaded() && (key.first || key.second)) {
-			peer->photo->pix().save(v.path, "PNG");
-		} else if (!key.first && key.second) {
-			(peer->isUser() ? userDefPhoto : chatDefPhoto)(peer->colorIndex)->pix().save(v.path, "PNG");
+		if (key.first || key.second) {
+			peer->saveUserpic(v.path);
 		} else {
 			App::wnd()->iconLarge().save(v.path, "PNG");
 		}
@@ -3275,11 +3268,7 @@ bool CreateToast(PeerData *peer, int32 msgId, bool showpix, const QString &title
 	StorageKey key;
 	QString imagePath;
 	if (showpix) {
-		if (peer->photoLoc.isNull() || !peer->photo->loaded()) {
-			key = StorageKey(0, (peer->isUser() ? 0x1000 : 0x2000) | peer->colorIndex);
-		} else {
-			key = storageKey(peer->photoLoc);
-		}
+		key = peer->userpicUniqueKey();
 	} else {
 		key = StorageKey(0, 0);
 	}
@@ -3297,7 +3286,7 @@ bool CreateToast(PeerData *peer, int32 msgId, bool showpix, const QString &title
 	hr = nodeList->get_Length(&nodeListLength);
 	if (!SUCCEEDED(hr)) return false;
 
-	if (nodeListLength < (withSubtitle ? 3 : 2)) return false;
+	if (nodeListLength < (withSubtitle ? 3U : 2U)) return false;
 
 	{
 		ComPtr<IXmlNode> textNode;
