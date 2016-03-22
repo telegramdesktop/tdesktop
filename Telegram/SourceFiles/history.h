@@ -2519,7 +2519,7 @@ protected:
 	}
 	void paintForwardedInfo(Painter &p, int32 x, int32 y, int32 w, bool selected) const;
 
-	Text _text = { st::msgMinWidth };
+	Text _text = { int(st::msgMinWidth) };
 
 	int _textWidth = 0;
 	int _textHeight = 0;
