@@ -598,7 +598,8 @@ for restype in typesList:
     if (len(prms) > len(trivialConditions)):
       dataTexts += dataText; # add data class
 
-    friendDecl += '\tfriend class MTP::internal::TypeCreator;\n';
+    if (not friendDecl):
+      friendDecl += '\tfriend class MTP::internal::TypeCreator;\n';
     creatorProxyText += '\t\tinline static MTP' + restype + ' new_' + name + '(' + ', '.join(creatorParams) + ') {\n';
     if (len(prms) > len(trivialConditions)): # creator with params
       creatorProxyText += '\t\t\treturn MTP' + restype + '(new MTPD' + name + '(' + ', '.join(creatorParamsList) + '));\n';

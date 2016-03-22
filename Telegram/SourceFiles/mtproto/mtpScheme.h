@@ -1546,7 +1546,6 @@ private:
 	explicit MTPserver_DH_Params(MTPDserver_DH_params_ok *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -1672,8 +1671,6 @@ private:
 	explicit MTPset_client_DH_params_answer(MTPDdh_gen_fail *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -1754,7 +1751,6 @@ private:
 	explicit MTPbadMsgNotification(MTPDbad_msg_notification *_data);
 	explicit MTPbadMsgNotification(MTPDbad_server_salt *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -1899,7 +1895,6 @@ private:
 	explicit MTPmsgDetailedInfo(MTPDmsg_new_detailed_info *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -1998,8 +1993,6 @@ private:
 	explicit MTPrpcDropAnswer(mtpTypeId type);
 	explicit MTPrpcDropAnswer(MTPDrpc_answer_dropped *_data);
 
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -2144,7 +2137,6 @@ private:
 	explicit MTPdestroySessionRes(MTPDdestroy_session_none *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -2230,7 +2222,6 @@ public:
 private:
 	explicit MTPbool(mtpTypeId type);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -2368,10 +2359,6 @@ private:
 	explicit MTPinputPeer(MTPDinputPeerChannel *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -2408,8 +2395,6 @@ private:
 	explicit MTPinputUser(mtpTypeId type);
 	explicit MTPinputUser(MTPDinputUser *_data);
 
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -2491,7 +2476,6 @@ private:
 	explicit MTPinputFile(MTPDinputFile *_data);
 	explicit MTPinputFile(MTPDinputFileBig *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -2634,15 +2618,6 @@ private:
 	explicit MTPinputMedia(MTPDinputMediaGifExternal *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -2693,8 +2668,6 @@ private:
 	explicit MTPinputChatPhoto(MTPDinputChatPhoto *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -2732,7 +2705,6 @@ private:
 	explicit MTPinputGeoPoint(MTPDinputGeoPoint *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -2769,7 +2741,6 @@ private:
 	explicit MTPinputPhoto(mtpTypeId type);
 	explicit MTPinputPhoto(MTPDinputPhoto *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -2834,8 +2805,6 @@ private:
 	explicit MTPinputFileLocation(MTPDinputDocumentFileLocation *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -2872,7 +2841,6 @@ private:
 	explicit MTPinputPhotoCrop(mtpTypeId type);
 	explicit MTPinputPhotoCrop(MTPDinputPhotoCrop *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -2968,8 +2936,6 @@ private:
 	explicit MTPpeer(MTPDpeerChannel *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -2993,15 +2959,6 @@ public:
 private:
 	explicit MTPstorage_fileType(mtpTypeId type);
 
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -3053,7 +3010,6 @@ private:
 	explicit MTPfileLocation(MTPDfileLocation *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -3104,7 +3060,6 @@ private:
 	explicit MTPuser(MTPDuser *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -3141,7 +3096,6 @@ private:
 	explicit MTPuserProfilePhoto(mtpTypeId type);
 	explicit MTPuserProfilePhoto(MTPDuserProfilePhoto *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -3192,11 +3146,6 @@ private:
 	explicit MTPuserStatus(MTPDuserStatusOnline *_data);
 	explicit MTPuserStatus(MTPDuserStatusOffline *_data);
 
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -3287,10 +3236,6 @@ private:
 	explicit MTPchat(MTPDchannelForbidden *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -3340,7 +3285,6 @@ private:
 	explicit MTPchatFull(MTPDchatFull *_data);
 	explicit MTPchatFull(MTPDchannelFull *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -3405,8 +3349,6 @@ private:
 	explicit MTPchatParticipant(MTPDchatParticipantAdmin *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -3457,7 +3399,6 @@ private:
 	explicit MTPchatParticipants(MTPDchatParticipants *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -3494,7 +3435,6 @@ private:
 	explicit MTPchatPhoto(mtpTypeId type);
 	explicit MTPchatPhoto(MTPDchatPhoto *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -3558,8 +3498,6 @@ private:
 	explicit MTPmessage(MTPDmessage *_data);
 	explicit MTPmessage(MTPDmessageService *_data);
 
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -3662,13 +3600,6 @@ private:
 	explicit MTPmessageMedia(MTPDmessageMediaWebPage *_data);
 	explicit MTPmessageMedia(MTPDmessageMediaVenue *_data);
 
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -3811,17 +3742,6 @@ private:
 	explicit MTPmessageAction(MTPDmessageActionChannelMigrateFrom *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -3872,7 +3792,6 @@ private:
 	explicit MTPdialog(MTPDdialogChannel *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -3922,7 +3841,6 @@ private:
 	explicit MTPphoto(MTPDphotoEmpty *_data);
 	explicit MTPphoto(MTPDphoto *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -3987,8 +3905,6 @@ private:
 	explicit MTPphotoSize(MTPDphotoCachedSize *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -4025,7 +3941,6 @@ private:
 	explicit MTPgeoPoint(mtpTypeId type);
 	explicit MTPgeoPoint(MTPDgeoPoint *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -4188,9 +4103,6 @@ private:
 	explicit MTPinputNotifyPeer(MTPDinputNotifyPeer *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -4214,7 +4126,6 @@ public:
 private:
 	explicit MTPinputPeerNotifyEvents(mtpTypeId type);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -4271,7 +4182,6 @@ private:
 	explicit MTPpeerNotifyEvents(mtpTypeId type);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -4308,7 +4218,6 @@ private:
 	explicit MTPpeerNotifySettings(mtpTypeId type);
 	explicit MTPpeerNotifySettings(MTPDpeerNotifySettings *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -4391,7 +4300,6 @@ private:
 	explicit MTPwallPaper(MTPDwallPaperSolid *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -4428,9 +4336,6 @@ private:
 	explicit MTPreportReason(mtpTypeId type);
 	explicit MTPreportReason(MTPDinputReportReasonOther *_data);
 
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -4655,7 +4560,6 @@ private:
 	explicit MTPcontacts_contacts(MTPDcontacts_contacts *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -4737,7 +4641,6 @@ private:
 	explicit MTPcontacts_blocked(MTPDcontacts_blockedSlice *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -4787,7 +4690,6 @@ private:
 	explicit MTPmessages_dialogs(MTPDmessages_dialogs *_data);
 	explicit MTPmessages_dialogs(MTPDmessages_dialogsSlice *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -4851,8 +4753,6 @@ private:
 	explicit MTPmessages_messages(MTPDmessages_messagesSlice *_data);
 	explicit MTPmessages_messages(MTPDmessages_channelMessages *_data);
 
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -4970,15 +4870,6 @@ public:
 private:
 	explicit MTPmessagesFilter(mtpTypeId type);
 
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -5563,50 +5454,6 @@ private:
 	explicit MTPupdate(MTPDupdateChannelPinnedMessage *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -5700,8 +5547,6 @@ private:
 	explicit MTPupdates_difference(MTPDupdates_difference *_data);
 	explicit MTPupdates_difference(MTPDupdates_differenceSlice *_data);
 
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -5805,12 +5650,6 @@ private:
 	explicit MTPupdates(MTPDupdateShortSentMessage *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -5860,7 +5699,6 @@ private:
 	explicit MTPphotos_photos(MTPDphotos_photos *_data);
 	explicit MTPphotos_photos(MTPDphotos_photosSlice *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -6054,7 +5892,6 @@ private:
 	explicit MTPhelp_appUpdate(MTPDhelp_appUpdate *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -6175,10 +6012,6 @@ private:
 	explicit MTPencryptedChat(MTPDencryptedChatDiscarded *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -6247,7 +6080,6 @@ private:
 	explicit MTPencryptedFile(MTPDencryptedFile *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -6311,9 +6143,6 @@ private:
 	explicit MTPinputEncryptedFile(MTPDinputEncryptedFileBigUploaded *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -6363,7 +6192,6 @@ private:
 	explicit MTPencryptedMessage(MTPDencryptedMessage *_data);
 	explicit MTPencryptedMessage(MTPDencryptedMessageService *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -6415,7 +6243,6 @@ private:
 	explicit MTPmessages_dhConfig(MTPDmessages_dhConfig *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -6466,7 +6293,6 @@ private:
 	explicit MTPmessages_sentEncryptedMessage(MTPDmessages_sentEncryptedFile *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -6503,7 +6329,6 @@ private:
 	explicit MTPinputDocument(mtpTypeId type);
 	explicit MTPinputDocument(MTPDinputDocument *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -6554,7 +6379,6 @@ private:
 	explicit MTPdocument(MTPDdocumentEmpty *_data);
 	explicit MTPdocument(MTPDdocument *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -6623,9 +6447,6 @@ private:
 	explicit MTPnotifyPeer(mtpTypeId type);
 	explicit MTPnotifyPeer(MTPDnotifyPeer *_data);
 
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -6703,15 +6524,6 @@ private:
 	explicit MTPsendMessageAction(MTPDsendMessageUploadDocumentAction *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -6767,7 +6579,6 @@ private:
 	explicit MTPinputPrivacyKey(mtpTypeId type);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -6791,7 +6602,6 @@ public:
 private:
 	explicit MTPprivacyKey(mtpTypeId type);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -6843,11 +6653,6 @@ private:
 	explicit MTPinputPrivacyRule(MTPDinputPrivacyValueDisallowUsers *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -6897,11 +6702,6 @@ private:
 	explicit MTPprivacyRule(MTPDprivacyValueAllowUsers *_data);
 	explicit MTPprivacyRule(MTPDprivacyValueDisallowUsers *_data);
 
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -7054,11 +6854,6 @@ private:
 	explicit MTPdocumentAttribute(MTPDdocumentAttributeFilename *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -7095,7 +6890,6 @@ private:
 	explicit MTPmessages_stickers(mtpTypeId type);
 	explicit MTPmessages_stickers(MTPDmessages_stickers *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -7164,7 +6958,6 @@ private:
 	explicit MTPmessages_allStickers(mtpTypeId type);
 	explicit MTPmessages_allStickers(MTPDmessages_allStickers *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -7252,9 +7045,6 @@ private:
 	explicit MTPcontactLink(mtpTypeId type);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -7317,8 +7107,6 @@ private:
 	explicit MTPwebPage(MTPDwebPagePending *_data);
 	explicit MTPwebPage(MTPDwebPage *_data);
 
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -7431,7 +7219,6 @@ private:
 	explicit MTPaccount_password(MTPDaccount_noPassword *_data);
 	explicit MTPaccount_password(MTPDaccount_password *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -7594,7 +7381,6 @@ private:
 	explicit MTPexportedChatInvite(MTPDchatInviteExported *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -7645,7 +7431,6 @@ private:
 	explicit MTPchatInvite(MTPDchatInvite *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -7695,8 +7480,6 @@ private:
 	explicit MTPinputStickerSet(MTPDinputStickerSetID *_data);
 	explicit MTPinputStickerSet(MTPDinputStickerSetShortName *_data);
 
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -7947,8 +7730,6 @@ private:
 	explicit MTPreplyMarkup(MTPDreplyKeyboardMarkup *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -7985,7 +7766,6 @@ private:
 	explicit MTPhelp_appChangelog(mtpTypeId type);
 	explicit MTPhelp_appChangelog(MTPDhelp_appChangelog *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -8154,16 +7934,6 @@ private:
 	explicit MTPmessageEntity(MTPDmessageEntityTextUrl *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -8200,7 +7970,6 @@ private:
 	explicit MTPinputChannel(mtpTypeId type);
 	explicit MTPinputChannel(MTPDinputChannel *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -8358,8 +8127,6 @@ private:
 	explicit MTPupdates_channelDifference(MTPDupdates_channelDifference *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -8396,8 +8163,6 @@ private:
 	explicit MTPchannelMessagesFilter(mtpTypeId type);
 	explicit MTPchannelMessagesFilter(MTPDchannelMessagesFilter *_data);
 
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -8501,11 +8266,6 @@ private:
 	explicit MTPchannelParticipant(MTPDchannelParticipantCreator *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -8530,9 +8290,6 @@ private:
 	explicit MTPchannelParticipantsFilter(mtpTypeId type);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -8556,8 +8313,6 @@ public:
 private:
 	explicit MTPchannelParticipantRole(mtpTypeId type);
 
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -8702,7 +8457,6 @@ private:
 	explicit MTPfoundGif(MTPDfoundGifCached *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -8771,7 +8525,6 @@ private:
 	explicit MTPmessages_savedGifs(MTPDmessages_savedGifs *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -8821,7 +8574,6 @@ private:
 	explicit MTPinputBotInlineMessage(MTPDinputBotInlineMessageMediaAuto *_data);
 	explicit MTPinputBotInlineMessage(MTPDinputBotInlineMessageText *_data);
 
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -8904,7 +8656,6 @@ private:
 	explicit MTPbotInlineMessage(MTPDbotInlineMessageText *_data);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -8967,8 +8718,6 @@ private:
 	explicit MTPbotInlineResult(MTPDbotInlineMediaResultPhoto *_data);
 	explicit MTPbotInlineResult(MTPDbotInlineResult *_data);
 
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
@@ -9118,8 +8867,6 @@ private:
 	explicit MTPauth_codeType(mtpTypeId type);
 
 	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
 };
@@ -9195,9 +8942,6 @@ private:
 	explicit MTPauth_sentCodeType(MTPDauth_sentCodeTypeCall *_data);
 	explicit MTPauth_sentCodeType(MTPDauth_sentCodeTypeFlashCall *_data);
 
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
-	friend class MTP::internal::TypeCreator;
 	friend class MTP::internal::TypeCreator;
 
 	mtpTypeId _type;
