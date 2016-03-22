@@ -145,10 +145,11 @@ namespace App {
 	History *historyLoaded(const PeerId &peer);
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId);
 	inline History *history(const PeerData *peer) {
+		t_assert(peer != nullptr);
 		return history(peer->id);
 	}
 	inline History *historyLoaded(const PeerData *peer) {
-		return historyLoaded(peer->id);
+		return peer ? historyLoaded(peer->id) : nullptr;
 	}
 	inline HistoryItem *histItemById(const ChannelData *channel, MsgId itemId) {
 		return histItemById(channel ? peerToChannel(channel->id) : 0, itemId);

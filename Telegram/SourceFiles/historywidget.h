@@ -197,6 +197,8 @@ private:
 
 	PopupMenu *_menu;
 
+	int _visibleAreaTop = 0;
+
 };
 
 class MessageField : public FlatTextarea {

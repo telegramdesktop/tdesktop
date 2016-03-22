@@ -1359,6 +1359,8 @@ HistoryItem *HistoryInner::atTopImportantMsg(int32 top, int32 height, int32 &bot
 }
 
 void HistoryInner::visibleAreaUpdated(int top, int bottom) {
+	_visibleAreaTop = top;
+
 	// if history has pending resize events we should not update scrollTopItem
 	if (_history->hasPendingResizedItems()) {
 		return;
@@ -1469,59 +1471,59 @@ void HistoryInner::adjustCurrent(int32 y, History *history) const {
 		_curBlock = history->blocks.size() - 1;
 		_curItem = 0;
 	}
-	while (history->blocks[_curBlock]->y > y && _curBlock > 0) {
+	while (history->blocks.at(_curBlock)->y > y && _curBlock > 0) {
 		--_curBlock;
 		_curItem = 0;
 	}
-	while (history->blocks[_curBlock]->y + history->blocks[_curBlock]->height <= y && _curBlock + 1 < history->blocks.size()) {
+	while (history->blocks.at(_curBlock)->y + history->blocks.at(_curBlock)->height <= y && _curBlock + 1 < history->blocks.size()) {
 		++_curBlock;
 		_curItem = 0;
 	}
-	HistoryBlock *block = history->blocks[_curBlock];
+	HistoryBlock *block = history->blocks.at(_curBlock);
 	if (_curItem >= block->items.size()) {
 		_curItem = block->items.size() - 1;
 	}
-	int32 by = block->y;
-	while (block->items[_curItem]->y + by > y && _curItem > 0) {
+	int by = block->y;
+	while (block->items.at(_curItem)->y + by > y && _curItem > 0) {
 		--_curItem;
 	}
-	while (block->items[_curItem]->y + block->items[_curItem]->height() + by <= y && _curItem + 1 < block->items.size()) {
+	while (block->items.at(_curItem)->y + block->items.at(_curItem)->height() + by <= y && _curItem + 1 < block->items.size()) {
 		++_curItem;
 	}
 }
 
 HistoryItem *HistoryInner::prevItem(HistoryItem *item) {
-	if (!item) return 0;
+	if (!item || item->detached()) return nullptr;
+
 	HistoryBlock *block = item->block();
-	int32 blockIndex = item->history()->blocks.indexOf(block), itemIndex = block->items.indexOf(item);
-	if (blockIndex < 0  || itemIndex < 0) return 0;
+	int blockIndex = block->indexInHistory(), itemIndex = item->indexInBlock();
 	if (itemIndex > 0) {
-		return block->items[itemIndex - 1];
+		return block->items.at(itemIndex - 1);
 	}
 	if (blockIndex > 0) {
-		return item->history()->blocks[blockIndex - 1]->items.back();
+		return item->history()->blocks.at(blockIndex - 1)->items.back();
 	}
 	if (item->history() == _history && _migrated && _history->loadedAtTop() && !_migrated->isEmpty() && _migrated->loadedAtBottom()) {
 		return _migrated->blocks.back()->items.back();
 	}
-	return 0;
+	return nullptr;
 }
 
 HistoryItem *HistoryInner::nextItem(HistoryItem *item) {
-	if (!item) return 0;
+	if (!item || item->detached()) return nullptr;
+
 	HistoryBlock *block = item->block();
-	int32 blockIndex = item->history()->blocks.indexOf(block), itemIndex = block->items.indexOf(item);
-	if (blockIndex < 0  || itemIndex < 0) return 0;
+	int blockIndex = block->indexInHistory(), itemIndex = item->indexInBlock();
 	if (itemIndex + 1 < block->items.size()) {
-		return block->items[itemIndex + 1];
+		return block->items.at(itemIndex + 1);
 	}
 	if (blockIndex + 1 < item->history()->blocks.size()) {
-		return item->history()->blocks[blockIndex + 1]->items.front();
+		return item->history()->blocks.at(blockIndex + 1)->items.front();
 	}
 	if (item->history() == _migrated && _history && _migrated->loadedAtBottom() && _history->loadedAtTop() && !_history->isEmpty()) {
 		return _history->blocks.front()->items.front();
 	}
-	return 0;
+	return nullptr;
 }
 
 bool HistoryInner::canCopySelected() const {
@@ -1877,8 +1879,8 @@ void HistoryInner::applyDragSelection(SelectedItems *toItems) const {
 		toItems->clear();
 	}
 	if (_dragSelecting) {
-		int32 fromblock = _dragSelFrom->history()->blocks.indexOf(_dragSelFrom->block()), fromitem = _dragSelFrom->block()->items.indexOf(_dragSelFrom);
-		int32 toblock = _dragSelTo->history()->blocks.indexOf(_dragSelTo->block()), toitem = _dragSelTo->block()->items.indexOf(_dragSelTo);
+		int32 fromblock = _dragSelFrom->block()->indexInHistory(), fromitem = _dragSelFrom->indexInBlock();
+		int32 toblock = _dragSelTo->block()->indexInHistory(), toitem = _dragSelTo->indexInBlock();
 		if (_migrated) {
 			if (_dragSelFrom->history() == _migrated) {
 				if (_dragSelTo->history() == _migrated) {
@@ -3571,6 +3573,9 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	if (_history) {
 		if (_peer->id == peerId && !reload) {
 			_history->forgetScrollState();
+			if (_migrated) {
+				_migrated->forgetScrollState();
+			}
 
 			bool wasOnlyImportant = _history->isChannel() ? _history->asChannelHistory()->onlyImportant() : true;
 
@@ -3715,6 +3720,9 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 			}
 		} else {
 			_history->forgetScrollState();
+			if (_migrated) {
+				_migrated->forgetScrollState();
+			}
 		}
 
 		_list = new HistoryInner(this, &_scroll, _history);
@@ -3726,7 +3734,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		_updateHistoryItems.stop();
 
 		pinnedMsgVisibilityUpdated();
-		if (_history->scrollTopItem || _history->isReadyFor(_showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop)) {
+		if (_history->scrollTopItem || (_migrated && _migrated->scrollTopItem) || _history->isReadyFor(_showAtMsgId, _fixedInScrollMsgId, _fixedInScrollMsgTop)) {
 			_fixedInScrollMsgId = 0;
 			_fixedInScrollMsgTop = 0;
 			historyLoaded();
@@ -4191,6 +4199,9 @@ void HistoryWidget::newUnreadMsg(History *history, HistoryItem *item) {
 
 void HistoryWidget::historyToDown(History *history) {
 	history->forgetScrollState();
+	if (History *migrated = App::historyLoaded(history->peer->migrateFrom())) {
+		migrated->forgetScrollState();
+	}
 	if (history == _history) {
 		_scroll.scrollToY(_scroll.scrollTopMax());
 	}
@@ -6406,7 +6417,7 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 	}
 
 	int32 toY = ScrollMax;
-	if (initial && _history->scrollTopItem) {
+	if (initial && (_history->scrollTopItem || (_migrated && _migrated->scrollTopItem))) {
 		toY = _list->historyScrollTop();
 	} else if (initial && _migrated && _showAtMsgId < 0 && -_showAtMsgId < ServerMaxMsgId) {
 		HistoryItem *item = App::histItemById(0, -_showAtMsgId);
@@ -7059,8 +7070,8 @@ void HistoryWidget::onReplyToMessage() {
 	if (!to || to->id <= 0 || !_canSendMessages) return;
 
 	if (to->history() == _migrated) {
-		if (to->isGroupMigrate() && _history->blocks.size() > 1 && _history->blocks.at(1)->items.front()->isGroupMigrate() && _history != _migrated) {
-			App::contextItem(_history->blocks.at(1)->items.front());
+		if (to->isGroupMigrate() && !_history->isEmpty() && _history->blocks.front()->items.front()->isGroupMigrate() && _history != _migrated) {
+			App::contextItem(_history->blocks.front()->items.front());
 			onReplyToMessage();
 			App::contextItem(to);
 		} else {

@@ -258,7 +258,7 @@ public:
 	void newItemAdded(HistoryItem *item);
 	void unregTyping(UserData *from);
 
-	int32 countUnread(MsgId upTo);
+	int countUnread(MsgId upTo);
 	void updateShowFrom();
 	MsgId inboxRead(MsgId upTo);
 	MsgId inboxRead(HistoryItem *wasRead);
@@ -267,9 +267,9 @@ public:
 
 	HistoryItem *lastImportantMessage() const;
 
-	void setUnreadCount(int32 newUnreadCount, bool psUpdate = true);
+	void setUnreadCount(int newUnreadCount, bool psUpdate = true);
 	void setMute(bool newMute);
-	void getNextShowFrom(HistoryBlock *block, int32 i);
+	void getNextShowFrom(HistoryBlock *block, int i);
 	void addUnreadBar();
 	void destroyUnreadBar();
 	void clearNotifications();
@@ -500,14 +500,13 @@ private:
 	HistoryItem *createItemDocument(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption);
 	HistoryItem *createItemPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption);
 
-	HistoryItem *addItemAfterPrevToBlock(HistoryItem *item, HistoryItem *prev, HistoryBlock *block);
+	HistoryItem *addItemToBlock(HistoryItem *item, HistoryBlock *block);
 	HistoryItem *addNewItem(HistoryItem *adding, bool newMsg);
 	HistoryItem *addMessageGroupAfterPrevToBlock(const MTPDmessageGroup &group, HistoryItem *prev, HistoryBlock *block);
-	HistoryItem *addMessageGroupAfterPrev(HistoryItem *newItem, HistoryItem *prev);
 	HistoryItem *addNewInTheMiddle(HistoryItem *newItem, int32 blockIndex, int32 itemIndex);
 
-	HistoryBlock *addNewLastBlock();
-	HistoryBlock *addNewFirstBlock();
+	HistoryBlock *pushBackNewBlock();
+	HistoryBlock *pushFrontNewBlock();
 
  };
 
