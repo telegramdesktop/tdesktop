@@ -27,8 +27,8 @@ void deleteAndMark(T *&link) {
 }
 
 template <typename T>
-T *exchange(T *&ptr) {
-	T *result = 0;
+T *getPointerAndReset(T *&ptr) {
+	T *result = nullptr;
 	qSwap(result, ptr);
 	return result;
 }
@@ -792,7 +792,7 @@ class FunctionCreator {
 public:
 	FunctionCreator(FunctionImplementation<R> *ptr) : _ptr(ptr) {}
 	FunctionCreator(const FunctionCreator<R> &other) : _ptr(other.create()) {}
-	FunctionImplementation<R> *create() const { return exchange(_ptr); }
+	FunctionImplementation<R> *create() const { return getPointerAndReset(_ptr); }
 	~FunctionCreator() { destroyImplementation(_ptr); }
 private:
 	FunctionCreator<R> &operator=(const FunctionCreator<R> &other);
@@ -861,7 +861,7 @@ class Function1Creator {
 public:
 	Function1Creator(Function1Implementation<R, A1> *ptr) : _ptr(ptr) {}
 	Function1Creator(const Function1Creator<R, A1> &other) : _ptr(other.create()) {}
-	Function1Implementation<R, A1> *create() const { return exchange(_ptr); }
+	Function1Implementation<R, A1> *create() const { return getPointerAndReset(_ptr); }
 	~Function1Creator() { destroyImplementation(_ptr); }
 private:
 	Function1Creator<R, A1> &operator=(const Function1Creator<R, A1> &other);
@@ -930,7 +930,7 @@ class Function2Creator {
 public:
 	Function2Creator(Function2Implementation<R, A1, A2> *ptr) : _ptr(ptr) {}
 	Function2Creator(const Function2Creator<R, A1, A2> &other) : _ptr(other.create()) {}
-	Function2Implementation<R, A1, A2> *create() const { return exchange(_ptr); }
+	Function2Implementation<R, A1, A2> *create() const { return getPointerAndReset(_ptr); }
 	~Function2Creator() { destroyImplementation(_ptr); }
 private:
 	Function2Creator<R, A1, A2> &operator=(const Function2Creator<R, A1, A2> &other);

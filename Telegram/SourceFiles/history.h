@@ -220,6 +220,9 @@ class History {
 public:
 
 	History(const PeerId &peerId);
+	History(const History &) = delete;
+	History &operator=(const History &) = delete;
+
 	ChannelId channelId() const {
 		return peerToChannel(peer->id);
 	}
@@ -503,9 +506,10 @@ private:
 	HistoryItem *addMessageGroupAfterPrev(HistoryItem *newItem, HistoryItem *prev);
 	HistoryItem *addNewInTheMiddle(HistoryItem *newItem, int32 blockIndex, int32 itemIndex);
 
-	History(const History &) = delete;
-	History &operator=(const History &) = delete;
-};
+	HistoryBlock *addNewLastBlock();
+	HistoryBlock *addNewFirstBlock();
+
+ };
 
 class HistoryGroup;
 class HistoryCollapse;

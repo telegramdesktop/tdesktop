@@ -572,15 +572,9 @@ void ChannelHistory::addNewGroup(const MTPMessageGroup &group) {
 
 	if (onlyImportant()) {
 		if (newLoaded) {
-			HistoryBlock *block = blocks.isEmpty() ? nullptr : blocks.back();
-			HistoryItem *prev = nullptr;
-			if (block) {
-				prev = block->items.back();
-			} else {
-				block = new HistoryBlock(this);
-				block->setIndexInHistory(blocks.size());
-				blocks.push_back(block);
-			}
+			HistoryBlock *block = blocks.isEmpty() ? addNewLastBlock() : blocks.back();
+			HistoryItem *prev = block->items.isEmpty() ? nullptr : block->items.back();
+
 			prev = addMessageGroupAfterPrevToBlock(d, prev, block);
 			if (block->items.isEmpty()) {
 				blocks.pop_back();
@@ -643,12 +637,7 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 	}
 
 	// adding new item to new block
-	HistoryBlock *block = new HistoryBlock(this);
-	block->setIndexInHistory(0);
-	blocks.push_front(block);
-	for (int i = 1, l = blocks.size(); i < l; ++i) {
-		blocks.at(i)->setIndexInHistory(i);
-	}
+	HistoryBlock *block = addNewFirstBlock();
 
 	_joinedMessage = HistoryJoined::create(this, inviteDate, inviter, flags);
 	addItemAfterPrevToBlock(_joinedMessage, nullptr, block);
@@ -827,9 +816,7 @@ void ChannelHistory::switchMode() {
 
 		HistoryItem *prev = 0;
 		for (int32 i = 0; i < count;) {
-			HistoryBlock *block = new HistoryBlock(this);
-			block->setIndexInHistory(blocks.size());
-			blocks.push_back(block);
+			HistoryBlock *block = addNewLastBlock();
 
 			int32 willAddToBlock = qMin(int32(MessagesPerPage), count - i);
 			block->items.reserve(willAddToBlock);
@@ -1560,11 +1547,7 @@ HistoryItem *History::addNewItem(HistoryItem *adding, bool newMsg) {
 	t_assert(adding != nullptr);
 	t_assert(adding->detached());
 
-	if (blocks.isEmpty()) {
-		blocks.push_back(new HistoryBlock(this));
-		blocks.back()->setIndexInHistory(blocks.size());
-	}
-	HistoryBlock *block = blocks.back();
+	HistoryBlock *block = blocks.isEmpty() ? addNewLastBlock() : blocks.back();
 
 	adding->attachToBlock(block, block->items.size());
 	block->items.push_back(adding);
@@ -1726,13 +1709,8 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 
 	const MTPMessageGroup *groupsBegin = (isChannel() && collapsed) ? collapsed->constData() : 0, *groupsIt = groupsBegin, *groupsEnd = (isChannel() && collapsed) ? (groupsBegin + collapsed->size()) : 0;
 
-	HistoryItem *last = nullptr;
-	HistoryBlock *block = new HistoryBlock(this);
-	block->setIndexInHistory(0);
-	blocks.push_front(block);
-	for (int i = 1, l = blocks.size(); i < l; ++i) {
-		blocks.at(i)->setIndexInHistory(i);
-	}
+	HistoryItem *prev = nullptr;
+	HistoryBlock *block = addNewFirstBlock();
 
 	block->items.reserve(slice.size() + (collapsed ? collapsed->size() : 0));
 	for (auto i = slice.cend(), e = slice.cbegin(); i != e;) {
@@ -1745,16 +1723,16 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 			const MTPDmessageGroup &group(groupsIt->c_messageGroup());
 			if (group.vmin_id.v >= adding->id) break;
 
-			last = addMessageGroupAfterPrevToBlock(group, last, block);
+			prev = addMessageGroupAfterPrevToBlock(group, prev, block);
 		}
 
-		last = addItemAfterPrevToBlock(adding, last, block);
+		prev = addItemAfterPrevToBlock(adding, prev, block);
 	}
 	for (; groupsIt != groupsEnd; ++groupsIt) {
 		if (groupsIt->type() != mtpc_messageGroup) continue;
 		const MTPDmessageGroup &group(groupsIt->c_messageGroup());
 
-		last = addMessageGroupAfterPrevToBlock(group, last, block);
+		prev = addMessageGroupAfterPrevToBlock(group, prev, block);
 	}
 
 	if (block->items.isEmpty()) {
@@ -1839,17 +1817,26 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 		}
 	}
 
-	// we've added a new front block, now we check if both
-	// last message of the first block and first message of
-	// the last block are groups, if they are - unite them
-	HistoryItem *first = (block && blocks.size() > 1) ? blocks.at(1)->items.front() : nullptr;
-	if (first && last && first->type() == HistoryItemGroup && last->type() == HistoryItemGroup) {
-		static_cast<HistoryGroup*>(first)->uniteWith(static_cast<HistoryGroup*>(last));
-		last->destroy();
+	// some checks if there was some message history already
+	if (block && blocks.size() > 1) {
+		HistoryItem *last = block->items.back(); // .. item, item, item, last ], [ first, item, item ..
+		HistoryItem *first = blocks.at(1)->items.front();
 
-		// last->destroy() could've destroyed this new block
-		// so we can't rely on this pointer any more
-		block = nullptr;
+		// we've added a new front block, so previous item for
+		// the old first item of a first block was changed
+		first->previousItemChanged();
+
+		// we've added a new front block, now we check if both
+		// last message of the first block and first message of
+		// the second block are groups, if they are - unite them
+		if (first->type() == HistoryItemGroup && last->type() == HistoryItemGroup) {
+			static_cast<HistoryGroup*>(first)->uniteWith(static_cast<HistoryGroup*>(last));
+			last->destroy();
+
+			// last->destroy() could've destroyed this new block
+			// so we can't rely on this pointer any more
+			block = nullptr;
+		}
 	}
 
 	if (isChannel()) {
@@ -1872,9 +1859,7 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 
 		HistoryItem *prev = blocks.isEmpty() ? nullptr : blocks.back()->items.back();
 
-		HistoryBlock *block = new HistoryBlock(this);
-		block->setIndexInHistory(blocks.size());
-		blocks.push_back(block);
+		HistoryBlock *block = addNewLastBlock();
 
 		block->items.reserve(slice.size() + (collapsed ? collapsed->size() : 0));
 		for (auto i = slice.cend(), e = slice.cbegin(); i != e;) {
@@ -2203,6 +2188,23 @@ HistoryItem *History::addNewInTheMiddle(HistoryItem *newItem, int32 blockIndex, 
 	}
 
 	return newItem;
+}
+
+HistoryBlock *History::addNewLastBlock() {
+	HistoryBlock *result = new HistoryBlock(this);
+	result->setIndexInHistory(blocks.size());
+	blocks.push_back(result);
+	return result;
+}
+
+HistoryBlock *History::addNewFirstBlock() {
+	HistoryBlock *result = new HistoryBlock(this);
+	result->setIndexInHistory(0);
+	blocks.push_front(result);
+	for (int i = 1, l = blocks.size(); i < l; ++i) {
+		blocks.at(i)->setIndexInHistory(i);
+	}
+	return result;
 }
 
 void History::clearNotifications() {
@@ -6605,8 +6607,12 @@ void HistoryMessage::draw(Painter &p, const QRect &r, uint32 selection, uint64 m
 	textstyleSet(&(outbg ? st::outTextStyle : st::inTextStyle));
 
 	if (displayFromPhoto()) {
-		int32 photoleft = left + ((outbg && !Adaptive::Wide()) ? (width + (st::msgPhotoSkip - st::msgPhotoSize)) : (-st::msgPhotoSkip));
-		author()->paintUserpic(p, st::msgPhotoSize, photoleft, marginTop());
+		int photoleft = left + ((outbg && !Adaptive::Wide()) ? (width + (st::msgPhotoSkip - st::msgPhotoSize)) : (-st::msgPhotoSkip));
+		int phototop = marginTop();
+//		if (history()->scrollTopItem == this) {
+//			phototop = qMax(qMin(history()->scrollTopOffset, _height - marginBottom() - int(st::msgPhotoSize)), phototop);
+//		}
+		author()->paintUserpic(p, st::msgPhotoSize, photoleft, phototop);
 	}
 
 	if (bubble) {
