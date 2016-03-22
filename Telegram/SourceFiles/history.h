@@ -1384,6 +1384,9 @@ public:
 	int marginBottom() const {
 		return st::msgMargin.bottom();
 	}
+	bool isAttachedToPrevious() const {
+		return _flags & MTPDmessage_ClientFlag::f_attach_to_previous;
+	}
 
 	void clipCallback(ClipReaderNotification notification);
 
@@ -1434,14 +1437,6 @@ protected:
 	// HistoryMessageDate or HistoryMessageUnreadBar bit is changed in the Interfaces mask
 	// then the result should be cached in a client side flag MTPDmessage_ClientFlag::f_attach_to_previous
 	void recountAttachToPrevious();
-	bool isAttachedToPrevious() const {
-		return _flags & MTPDmessage_ClientFlag::f_attach_to_previous;
-	}
-
-	// hasFromPhoto() returns true even if we don't display the photo
-	// but we need to skip a place at the left side for this photo
-	bool displayFromPhoto() const;
-	bool hasFromPhoto() const;
 
 };
 
@@ -2495,6 +2490,11 @@ public:
 		return this;
 	}
 
+	// hasFromPhoto() returns true even if we don't display the photo
+	// but we need to skip a place at the left side for this photo
+	bool displayFromPhoto() const;
+	bool hasFromPhoto() const;
+
 	~HistoryMessage();
 
 protected:
@@ -2519,13 +2519,14 @@ protected:
 	}
 	void paintForwardedInfo(Painter &p, int32 x, int32 y, int32 w, bool selected) const;
 
-	Text _text;
+	Text _text = { st::msgMinWidth };
 
-	int32 _textWidth, _textHeight;
+	int _textWidth = 0;
+	int _textHeight = 0;
 
-	HistoryMedia *_media;
+	HistoryMedia *_media = nullptr;
 	QString _timeText;
-	int32 _timeWidth;
+	int _timeWidth = 0;
 
 };
 

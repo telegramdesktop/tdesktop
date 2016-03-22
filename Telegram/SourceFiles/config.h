@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 static const int32 AppVersion = 9034;
 static const wchar_t *AppVersionStr = L"0.9.34";
 static const bool DevVersion = false;
-#define BETA_VERSION (9034001ULL) // just comment this line to build public version
+#define BETA_VERSION (9034002ULL) // just comment this line to build public version
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -101,8 +101,8 @@ enum {
 	MediaOverviewStartPerPage = 5,
 	MediaOverviewPreloadCount = 4,
 
-	// a new message from the same sender is attached to previous within 30 seconds
-	AttachMessageToPreviousSecondsDelta = 30,
+	// a new message from the same sender is attached to previous within 15 minutes
+	AttachMessageToPreviousSecondsDelta = 900,
 
 	AudioVoiceMsgSimultaneously = 4,
 	AudioSongSimultaneously = 4,

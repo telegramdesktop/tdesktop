@@ -2843,7 +2843,7 @@ void HistoryItem::recountAttachToPrevious() {
 	bool attach = false;
 	if (!isPost() && !Is<HistoryMessageDate>() && !Is<HistoryMessageUnreadBar>()) {
 		if (HistoryItem *prev = previous()) {
-			attach = !prev->isPost() && !prev->serviceMsg() && prev->from() == from()/* && qAbs(prev->date.secsTo(date)) < AttachMessageToPreviousSecondsDelta*/;
+			attach = !prev->isPost() && !prev->serviceMsg() && prev->from() == from() && qAbs(prev->date.secsTo(date)) < AttachMessageToPreviousSecondsDelta;
 		}
 	}
 	if (attach && !(_flags & MTPDmessage_ClientFlag::f_attach_to_previous)) {
@@ -2858,14 +2858,6 @@ void HistoryItem::recountAttachToPrevious() {
 void HistoryItem::setId(MsgId newId) {
 	history()->changeMsgId(id, newId);
 	id = newId;
-}
-
-bool HistoryItem::displayFromPhoto() const {
-	return hasFromPhoto() && !isAttachedToPrevious();
-}
-
-bool HistoryItem::hasFromPhoto() const {
-	return (Adaptive::Wide() || (!out() && !history()->peer->isUser())) && !isPost();
 }
 
 bool HistoryItem::canEdit(const QDateTime &cur) const {
@@ -6039,10 +6031,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 
 HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg) :
 	HistoryItem(history, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0)
-, _text(st::msgMinWidth)
-, _textWidth(0)
-, _textHeight(0)
-, _media(0) {
+, _text(st::msgMinWidth) {
 	PeerId authorOriginalId = 0, fromOriginalId = 0;
 	MsgId originalId = 0;
 	if (msg.has_fwd_from() && msg.vfwd_from.type() == mtpc_messageFwdHeader) {
@@ -6061,11 +6050,7 @@ HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg) :
 }
 
 HistoryMessage::HistoryMessage(History *history, MsgId id, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *fwd)
-: HistoryItem(history, id, newForwardedFlags(history->peer, from, fwd) | flags, date, from)
-, _text(st::msgMinWidth)
-, _textWidth(0)
-, _textHeight(0)
-, _media(nullptr) {
+: HistoryItem(history, id, newForwardedFlags(history->peer, from, fwd) | flags, date, from) {
 	UserData *fwdViaBot = fwd->viaBot();
 	int32 viaBotId = fwdViaBot ? peerToUser(fwdViaBot->id) : 0;
 	int32 fwdViewsCount = fwd->viewsCount(), views = (fwdViewsCount > 0) ? fwdViewsCount : (isPost() ? 1 : -1);
@@ -6079,22 +6064,14 @@ HistoryMessage::HistoryMessage(History *history, MsgId id, MTPDmessage::Flags fl
 }
 
 HistoryMessage::HistoryMessage(History *history, MsgId id, MTPDmessage::Flags flags, int32 viaBotId, QDateTime date, int32 from, const QString &msg, const EntitiesInText &entities)
-	: HistoryItem(history, id, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0)
-	, _text(st::msgMinWidth)
-	, _textWidth(0)
-	, _textHeight(0)
-	, _media(nullptr) {
+	: HistoryItem(history, id, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
 	createInterfaces((flags & MTPDmessage::Flag::f_via_bot_id) ? viaBotId : 0, isPost() ? 1 : -1);
 
 	setText(msg, entities);
 }
 
 HistoryMessage::HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, int32 viaBotId, QDateTime date, int32 from, DocumentData *doc, const QString &caption) :
-HistoryItem(history, msgId, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0)
-, _text(st::msgMinWidth)
-, _textWidth(0)
-, _textHeight(0)
-, _media(nullptr) {
+HistoryItem(history, msgId, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
 	createInterfaces((flags & MTPDmessage::Flag::f_via_bot_id) ? viaBotId : 0, isPost() ? 1 : -1);
 
 	initMediaFromDocument(doc, caption);
@@ -6102,11 +6079,7 @@ HistoryItem(history, msgId, flags, date, (flags & MTPDmessage::Flag::f_from_id) 
 }
 
 HistoryMessage::HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, int32 viaBotId, QDateTime date, int32 from, PhotoData *photo, const QString &caption) :
-HistoryItem(history, msgId, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0)
-, _text(st::msgMinWidth)
-, _textWidth(0)
-, _textHeight(0)
-, _media(nullptr) {
+HistoryItem(history, msgId, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
 	createInterfaces((flags & MTPDmessage::Flag::f_via_bot_id) ? viaBotId : 0, isPost() ? 1 : -1);
 
 	_media = new HistoryPhoto(photo, caption, this);
@@ -6598,14 +6571,11 @@ void HistoryMessage::draw(Painter &p, const QRect &r, uint32 selection, uint64 m
 
 	textstyleSet(&(outbg ? st::outTextStyle : st::inTextStyle));
 
-	if (displayFromPhoto()) {
-		int photoleft = left + ((outbg && !Adaptive::Wide()) ? (width + (st::msgPhotoSkip - st::msgPhotoSize)) : (-st::msgPhotoSkip));
-		int phototop = marginTop();
-//		if (history()->scrollTopItem == this) {
-//			phototop = qMax(qMin(history()->scrollTopOffset, _height - marginBottom() - int(st::msgPhotoSize)), phototop);
-//		}
-		author()->paintUserpic(p, st::msgPhotoSize, photoleft, phototop);
-	}
+	//if (displayFromPhoto()) {
+	//	int photoleft = left + ((outbg && !Adaptive::Wide()) ? (width + (st::msgPhotoSkip - st::msgPhotoSize)) : (-st::msgPhotoSkip));
+	//	int phototop = marginTop();
+	//	author()->paintUserpic(p, st::msgPhotoSize, photoleft, phototop);
+	//}
 
 	if (bubble) {
 		const HistoryMessageForwarded *fwd = Get<HistoryMessageForwarded>();
@@ -6809,13 +6779,13 @@ void HistoryMessage::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32
 	int left = 0, width = 0, height = _height;
 	countPositionAndSize(left, width);
 
-	if (displayFromPhoto()) {
-		int32 photoleft = left + ((!isPost() && out() && !Adaptive::Wide()) ? (width + (st::msgPhotoSkip - st::msgPhotoSize)) : (-st::msgPhotoSkip));
-		if (x >= photoleft && x < photoleft + st::msgPhotoSize && y >= marginTop() && y < height - marginBottom()) {
-			lnk = author()->lnk;
-			return;
-		}
-	}
+	//if (displayFromPhoto()) {
+	//	int32 photoleft = left + ((!isPost() && out() && !Adaptive::Wide()) ? (width + (st::msgPhotoSkip - st::msgPhotoSize)) : (-st::msgPhotoSkip));
+	//	if (x >= photoleft && x < photoleft + st::msgPhotoSize && y >= marginTop() && y < height - marginBottom()) {
+	//		lnk = author()->lnk;
+	//		return;
+	//	}
+	//}
 	if (width < 1) return;
 
 	if (drawBubble()) {
@@ -6970,6 +6940,14 @@ QString HistoryMessage::notificationText() const {
 	QString msg(inDialogsText());
     if (msg.size() > 0xFF) msg = msg.mid(0, 0xFF) + qsl("..");
     return msg;
+}
+
+bool HistoryMessage::displayFromPhoto() const {
+	return hasFromPhoto() && !isAttachedToPrevious();
+}
+
+bool HistoryMessage::hasFromPhoto() const {
+	return (Adaptive::Wide() || (!out() && !history()->peer->isUser())) && !isPost();
 }
 
 HistoryMessage::~HistoryMessage() {
@@ -7224,12 +7202,12 @@ void HistoryReply::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 	if (drawBubble()) {
 		int32 left = 0, width = 0;
 		countPositionAndSize(left, width);
-		if (displayFromPhoto()) {
-			int32 photoleft = left + ((!isPost() && out()) ? (width + (st::msgPhotoSkip - st::msgPhotoSize)) : (-st::msgPhotoSkip));
-			if (x >= photoleft && x < photoleft + st::msgPhotoSize) {
-				return HistoryMessage::getState(lnk, state, x, y);
-			}
-		}
+		//if (displayFromPhoto()) {
+		//	int32 photoleft = left + ((!isPost() && out()) ? (width + (st::msgPhotoSkip - st::msgPhotoSize)) : (-st::msgPhotoSkip));
+		//	if (x >= photoleft && x < photoleft + st::msgPhotoSize) {
+		//		return HistoryMessage::getState(lnk, state, x, y);
+		//	}
+		//}
 		if (width < 1) return;
 
 		int top = marginTop();

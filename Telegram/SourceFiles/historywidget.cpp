@@ -38,41 +38,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
-HistoryInner::HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, History *history) : TWidget(0)
+HistoryInner::HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, History *history) : TWidget(nullptr)
 , _peer(history->peer)
-, _migrated(history->peer->migrateFrom() ? App::history(history->peer->migrateFrom()->id) : 0)
+, _migrated(history->peer->migrateFrom() ? App::history(history->peer->migrateFrom()->id) : nullptr)
 , _history(history)
-, _historyOffset(0)
-, _historySkipHeight(0)
-, _botInfo(history->peer->isUser() ? history->peer->asUser()->botInfo : 0)
-, _botDescWidth(0)
-, _botDescHeight(0)
+, _botInfo(history->peer->isUser() ? history->peer->asUser()->botInfo : nullptr)
 , _widget(historyWidget)
-, _scroll(scroll)
-, _curHistory(0)
-, _curBlock(0)
-, _curItem(0)
-, _firstLoading(false)
-, _cursor(style::cur_default)
-, _dragAction(NoDrag)
-, _dragSelType(TextSelectLetters)
-, _dragItem(0)
-, _dragCursorState(HistoryDefaultCursorState)
-, _dragWasInactive(false)
-, _dragSelFrom(0)
-, _dragSelTo(0)
-, _dragSelecting(false)
-, _wasSelectedText(false)
-, _touchScroll(false)
-, _touchSelect(false)
-, _touchInProgress(false)
-, _touchScrollState(TouchScrollManual)
-, _touchPrevPosValid(false)
-, _touchWaitingAcceleration(false)
-, _touchSpeedTime(0)
-, _touchAccelerationTime(0)
-, _touchTime(0)
-, _menu(0) {
+, _scroll(scroll) {
 	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 
 	_touchSelectTimer.setSingleShot(true);
@@ -119,6 +91,69 @@ void HistoryInner::repaintItem(const HistoryItem *item) {
 	int32 msgy = itemTop(item);
 	if (msgy >= 0) {
 		update(0, msgy, width(), item->height());
+	}
+}
+
+template <typename Method>
+void HistoryInner::enumerateUserpicsInHistory(History *h, int htop, Method method) {
+	// no displayed messages in this history
+	if (htop < 0) return;
+
+	// find and remember the bottom of an attached messages pack
+	// -1 means we didn't find an attached to previous message yet
+	int lowestAttachedItemBottom = -1;
+
+	int blockIndex = h->blocks.size();
+	int itemIndex = 0;
+	while (blockIndex > 0) {
+		HistoryBlock *block = h->blocks.at(--blockIndex);
+		itemIndex = block->items.size();
+
+		int blocktop = htop + block->y;
+		while (itemIndex > 0) {
+			HistoryItem *item = block->items.at(--itemIndex);
+			int itemtop = blocktop + item->y;
+			int itembottom = itemtop + item->height();
+
+			// skip items that are below the visible area
+			if (itemtop >= _visibleAreaBottom) {
+				continue;
+			}
+
+			if (HistoryMessage *message = item->toHistoryMessage()) {
+				if (lowestAttachedItemBottom < 0 && message->isAttachedToPrevious()) {
+					lowestAttachedItemBottom = itembottom - message->marginBottom();
+				}
+
+				// draw userpic for all messages that have it and for those who are not showing it
+				// because of their attachment to the previous message if they are top-most visible
+				if (message->displayFromPhoto() || (message->hasFromPhoto() && itemtop <= _visibleAreaTop)) {
+					if (lowestAttachedItemBottom < 0) {
+						lowestAttachedItemBottom = itembottom - message->marginBottom();
+					}
+					int userpicTop = qMin(qMax(itemtop + message->marginTop(), _visibleAreaTop + st::msgMargin.left()), lowestAttachedItemBottom - int(st::msgPhotoSize));
+
+					// call the template callback function that was passed
+					// and return if it finished everything it needed
+					if (!method(message, userpicTop)) {
+						return;
+					}
+
+					// forget the found bottom of the pack, search for the next one from scratch
+					lowestAttachedItemBottom = -1;
+				}
+			}
+
+			// skip all the items that are above the visible area
+			if (itemtop <= _visibleAreaTop) {
+				return;
+			}
+		}
+
+		// skip all the rest blocks that are above the visible area
+		if (blocktop <= _visibleAreaTop) {
+			return;
+		}
 	}
 }
 
@@ -252,6 +287,19 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				item = block->items[iItem];
 			}
 			p.restore();
+
+			enumerateUserpics([&p, &r](HistoryMessage *message, int userpicTop) -> bool {
+				// stop the enumeration if the userpic is above the painted rect
+				if (userpicTop + st::msgPhotoSize <= r.top()) {
+					return false;
+				}
+
+				// paint the userpic if it intersects the painted rect
+				if (userpicTop < r.top() + r.height()) {
+					message->from()->paintUserpicLeft(p, st::msgPhotoSize, st::msgMargin.left(), userpicTop, message->history()->width);
+				}
+				return true;
+			});
 		}
 	}
 }
@@ -1360,6 +1408,7 @@ HistoryItem *HistoryInner::atTopImportantMsg(int32 top, int32 height, int32 &bot
 
 void HistoryInner::visibleAreaUpdated(int top, int bottom) {
 	_visibleAreaTop = top;
+	_visibleAreaBottom = bottom;
 
 	// if history has pending resize events we should not update scrollTopItem
 	if (_history->hasPendingResizedItems()) {
@@ -1637,6 +1686,25 @@ void HistoryInner::onUpdateSelected() {
 		}
 	} else if (item) {
 		item->getState(lnk, cursorState, m.x(), m.y());
+		if (!lnk && m.x() >= st::msgMargin.left() && m.x() < st::msgMargin.left() + st::msgPhotoSize) {
+			if (HistoryMessage *msg = item->toHistoryMessage()) {
+				if (msg->hasFromPhoto()) {
+					enumerateUserpics([&lnk, msg, &point](HistoryMessage *message, int userpicTop) -> bool {
+						// stop enumeration if the userpic is above our point
+						if (userpicTop + st::msgPhotoSize <= point.y()) {
+							return false;
+						}
+
+						// stop enumeration if we've found a userpic under the cursor
+						if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
+							lnk = message->from()->lnk;
+							return false;
+						}
+						return true;
+					});
+				}
+			}
+		}
 	}
 	if (lnk != textlnkOver()) {
 		lnkChanged = true;
@@ -2690,52 +2758,17 @@ QPoint SilentToggle::tooltipPos() const {
 }
 
 HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
-, _replyToId(0)
-, _replyToNameVersion(0)
-, _editMsgId(0)
-, _replyEditMsg(0)
 , _fieldBarCancel(this, st::replyCancel)
-, _pinnedBar(0)
-, _saveEditMsgRequestId(0)
-, _reportSpamStatus(dbiprsUnknown)
-, _reportSpamSettingRequestId(ReportSpamRequestNeeded)
-, _previewData(0)
-, _previewRequest(0)
-, _previewCancelled(false)
-, _replyForwardPressed(false)
-, _replyReturn(0)
-, _stickersUpdateRequest(0)
-, _savedGifsUpdateRequest(0)
-, _peer(0)
-, _clearPeer(0)
-, _channel(NoChannel)
-, _showAtMsgId(0)
-, _fixedInScrollMsgId(0)
-, _fixedInScrollMsgTop(0)
-, _firstLoadRequest(0), _preloadRequest(0), _preloadDownRequest(0)
-, _delayedShowAtMsgId(-1)
-, _delayedShowAtRequest(0)
-, _activeAnimMsgId(0)
 , _scroll(this, st::historyScroll, false)
-, _list(0)
-, _migrated(0)
-, _history(0)
-, _histInited(false)
-, _lastScroll(0)
-, _lastScrolled(0)
 , _toHistoryEnd(this, st::historyToEnd)
 , _collapseComments(this)
 , _attachMention(this)
-, _inlineBot(0)
-, _inlineBotResolveRequestId(0)
 , _reportSpamPanel(this)
 , _send(this, lang(lng_send_button), st::btnSend)
 , _unblock(this, lang(lng_unblock_button), st::btnUnblock)
 , _botStart(this, lang(lng_bot_start), st::btnSend)
 , _joinChannel(this, lang(lng_channel_join), st::btnSend)
 , _muteUnmute(this, lang(lng_channel_mute), st::btnSend)
-, _unblockRequest(0)
-, _reportSpamRequest(0)
 , _attachDocument(this, st::btnAttachDocument)
 , _attachPhoto(this, st::btnAttachPhoto)
 , _attachEmoji(this, st::btnAttachEmoji)
@@ -2744,42 +2777,20 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _cmdStart(this, st::btnBotCmdStart)
 , _broadcast(this, QString(), true, st::broadcastToggle)
 , _silent(this)
-, _cmdStartShown(false)
 , _field(this, st::taMsgField, lang(lng_message_ph))
 , _a_record(animation(this, &HistoryWidget::step_record))
 , _a_recording(animation(this, &HistoryWidget::step_recording))
-, _recording(false)
-, _inRecord(false)
-, _inField(false)
-, _inReplyEdit(false)
-, _inPinnedMsg(false)
-, a_recordingLevel(0, 0)
-, _recordingSamples(0)
-, a_recordOver(0, 0)
-, a_recordDown(0, 0)
 , a_recordCancel(st::recordCancel->c, st::recordCancel->c)
 , _recordCancelWidth(st::recordFont->width(lang(lng_record_cancel)))
-, _kbShown(false)
-, _kbReplyTo(0)
 , _kbScroll(this, st::botKbScroll)
-, _keyboard()
 , _attachType(this)
 , _emojiPan(this)
-, _attachDrag(DragStateNone)
 , _attachDragDocument(this)
 , _attachDragPhoto(this)
 , _fileLoader(this, FileLoaderQueueStopTimeout)
-, _textUpdateEventsFlags(TextUpdateEventsSaveDraft | TextUpdateEventsSendTyping)
-, _serviceImageCacheSize(0)
-, _confirmWithTextId(0)
-, _titlePeerTextWidth(0)
 , _a_show(animation(this, &HistoryWidget::step_show))
-, _scrollDelta(0)
-, _saveDraftStart(0)
-, _saveDraftText(false)
 , _sideShadow(this, st::shadowColor)
-, _topShadow(this, st::shadowColor)
-, _inGrab(false) {
+, _topShadow(this, st::shadowColor) {
 	_scroll.setFocusPolicy(Qt::NoFocus);
 
 	setAcceptDrops(true);
@@ -3658,7 +3669,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	_fieldBarCancel.hide();
 
 	if (_list) _list->deleteLater();
-	_list = 0;
+	_list = nullptr;
 	_scroll.takeWidget();
 	updateTopBarSelection();
 
@@ -3730,6 +3741,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		_scroll.hide();
 		_scroll.setWidget(_list);
 		_list->show();
+		visibleAreaUpdated();
 
 		_updateHistoryItems.stop();
 
@@ -3965,9 +3977,9 @@ void HistoryWidget::updateControlsVisibility() {
 		_pinnedBar->cancel.show();
 		_pinnedBar->shadow.show();
 	}
-	if (_firstLoadRequest) {
+	if (_firstLoadRequest && !_scroll.isHidden()) {
 		_scroll.hide();
-	} else {
+	} else if (!_firstLoadRequest && _scroll.isHidden()) {
 		_scroll.show();
 	}
 	if (_reportSpamStatus == dbiprsShowButton || _reportSpamStatus == dbiprsReportSent) {
@@ -4578,7 +4590,10 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 void HistoryWidget::onScroll() {
 	App::checkImageCacheSize();
 	preloadHistoryIfNeeded();
+	visibleAreaUpdated();
+}
 
+void HistoryWidget::visibleAreaUpdated() {
 	if (_list && !_scroll.isHidden()) {
 		int st = _scroll.scrollTop();
 		_list->visibleAreaUpdated(st, st + _scroll.height());
@@ -6385,6 +6400,8 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 	bool wasAtBottom = _scroll.scrollTop() + 1 > _scroll.scrollTopMax(), needResize = _scroll.width() != width() || _scroll.height() != newScrollHeight;
 	if (needResize) {
 		_scroll.resize(width(), newScrollHeight);
+		visibleAreaUpdated();
+
 		_attachMention.setBoundings(_scroll.geometry());
 		_toHistoryEnd.move((width() - _toHistoryEnd.width()) / 2, _scroll.y() + _scroll.height() - _toHistoryEnd.height() - st::historyToEndSkip);
 		updateCollapseCommentsVisibility();
@@ -6402,13 +6419,19 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 	}
 
 	if ((!initial && !wasAtBottom) || (loadedDown && (!_history->showFrom || _history->unreadBar || _history->loadedAtBottom()) && (!_migrated || !_migrated->showFrom || _migrated->unreadBar || _history->loadedAtBottom()))) {
-		int32 addToY = 0;
+		int addToY = 0;
 		if (change.type == ScrollChangeAdd) {
 			addToY = change.value;
 		} else if (change.type == ScrollChangeOldHistoryHeight) {
 			addToY = _list->historyHeight() - change.value;
 		}
-		_scroll.scrollToY(_list->historyScrollTop() + addToY);
+		int toY = _list->historyScrollTop() + addToY;
+		if (toY > _scroll.scrollTopMax()) toY = _scroll.scrollTopMax();
+		if (_scroll.scrollTop() == toY) {
+			visibleAreaUpdated();
+		} else {
+			_scroll.scrollToY(toY);
+		}
 		return;
 	}
 
@@ -6511,7 +6534,12 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 		}
 	} else {
 	}
-	_scroll.scrollToY(toY);
+	if (toY > _scroll.scrollTopMax()) toY = _scroll.scrollTopMax();
+	if (_scroll.scrollTop() == toY) {
+		visibleAreaUpdated();
+	} else {
+		_scroll.scrollToY(toY);
+	}
 }
 
 void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed) {

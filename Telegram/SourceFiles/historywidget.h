@@ -139,22 +139,30 @@ private:
 	HistoryItem *nextItem(HistoryItem *item);
 	void updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dragSelTo, bool dragSelecting, bool force = false);
 
-	PeerData *_peer;
-	History *_migrated, *_history;
-	int32 _historyOffset, _historySkipHeight; // height of first date and first sys msg
+	PeerData *_peer = nullptr;
+	History *_migrated = nullptr;
+	History *_history = nullptr;
+	int _historyOffset = 0;
 
-	BotInfo *_botInfo;
-	int32 _botDescWidth, _botDescHeight;
+	// with migrated history we perhaps do not need to display first _history message
+	// (if last _migrated message and first _history message are both isGroupMigrate)
+	// or at least we don't need to display first _history date (just skip it by height)
+	int _historySkipHeight = 0;
+
+	BotInfo *_botInfo = nullptr;
+	int _botDescWidth = 0;
+	int _botDescHeight = 0;
 	QRect _botDescRect;
 
-	HistoryWidget *_widget;
-	ScrollArea *_scroll;
-	mutable History *_curHistory;
-	mutable int32 _curBlock, _curItem;
+	HistoryWidget *_widget = nullptr;
+	ScrollArea *_scroll = nullptr;
+	mutable History *_curHistory = nullptr;
+	mutable int _curBlock = 0;
+	mutable int _curItem = 0;
 
-	bool _firstLoading;
+	bool _firstLoading = false;
 
-	Qt::CursorShape _cursor;
+	style::cursor _cursor = style::cur_default;
 	typedef QMap<HistoryItem*, uint32> SelectedItems;
 	SelectedItems _selected;
 	void applyDragSelection();
@@ -168,36 +176,60 @@ private:
 		PrepareSelect = 0x03,
 		Selecting     = 0x04,
 	};
-	DragAction _dragAction;
-	TextSelectType _dragSelType;
+	DragAction _dragAction = NoDrag;
+	TextSelectType _dragSelType = TextSelectLetters;
 	QPoint _dragStartPos, _dragPos;
-	HistoryItem *_dragItem;
-	HistoryCursorState _dragCursorState;
-	uint16 _dragSymbol;
-	bool _dragWasInactive;
+	HistoryItem *_dragItem = nullptr;
+	HistoryCursorState _dragCursorState = HistoryDefaultCursorState;
+	uint16 _dragSymbol = 0;
+	bool _dragWasInactive = false;
 
 	QPoint _trippleClickPoint;
 	QTimer _trippleClickTimer;
 
 	TextLinkPtr _contextMenuLnk;
 
-	HistoryItem *_dragSelFrom, *_dragSelTo;
-	bool _dragSelecting;
-	bool _wasSelectedText; // was some text selected in current drag action
+	HistoryItem *_dragSelFrom = nullptr;
+	HistoryItem *_dragSelTo = nullptr;
+	bool _dragSelecting = false;
+	bool _wasSelectedText = false; // was some text selected in current drag action
 
-	bool _touchScroll, _touchSelect, _touchInProgress;
+	// scroll by touch support (at least Windows Surface tablets)
+	bool _touchScroll = false;
+	bool _touchSelect = false;
+	bool _touchInProgress = false;
 	QPoint _touchStart, _touchPrevPos, _touchPos;
 	QTimer _touchSelectTimer;
 
-	TouchScrollState _touchScrollState;
-	bool _touchPrevPosValid, _touchWaitingAcceleration;
+	TouchScrollState _touchScrollState = TouchScrollManual;
+	bool _touchPrevPosValid = false;
+	bool _touchWaitingAcceleration = false;
 	QPoint _touchSpeed;
-	uint64 _touchSpeedTime, _touchAccelerationTime, _touchTime;
+	uint64 _touchSpeedTime = 0;
+	uint64 _touchAccelerationTime = 0;
+	uint64 _touchTime = 0;
 	QTimer _touchScrollTimer;
 
-	PopupMenu *_menu;
+	// context menu
+	PopupMenu *_menu = nullptr;
 
+	// save visible area coords for painting / pressing userpics
 	int _visibleAreaTop = 0;
+	int _visibleAreaBottom = 0;
+
+	// this function finds all userpics on the left that are displayed and calls template method
+	// for each found userpic (from the bottom to the top) in the passed history with passed top offset
+	//
+	// method has "bool (*Method)(HistoryMessage *message, int userpicTop)" signature
+	// if it returns false the enumeration stops immidiately
+	template <typename Method>
+	void enumerateUserpicsInHistory(History *h, int htop, Method method);
+
+	template <typename Method>
+	void enumerateUserpics(Method method) {
+		enumerateUserpicsInHistory(_history, historyTop(), method);
+		enumerateUserpicsInHistory(_migrated, migratedTop(), method);
+	}
 
 };
 
@@ -721,14 +753,14 @@ public slots:
 
 private:
 
-	MsgId _replyToId;
+	MsgId _replyToId = 0;
 	Text _replyToName;
-	int32 _replyToNameVersion;
+	int _replyToNameVersion = 0;
 	void updateReplyToName();
 
-	MsgId _editMsgId;
+	MsgId _editMsgId = 0;
 
-	HistoryItem *_replyEditMsg;
+	HistoryItem *_replyEditMsg = nullptr;
 	Text _replyEditMsgText;
 
 	IconedButton _fieldBarCancel;
@@ -737,13 +769,13 @@ private:
 	struct PinnedBar {
 		PinnedBar(MsgId msgId, HistoryWidget *parent);
 
-		MsgId msgId;
-		HistoryItem *msg;
+		MsgId msgId = 0;
+		HistoryItem *msg = nullptr;
 		Text text;
 		IconedButton cancel;
 		PlainShadow shadow;
 	};
-	PinnedBar *_pinnedBar;
+	PinnedBar *_pinnedBar = nullptr;
 	void updatePinnedBar(bool force = false);
 	bool pinnedMsgVisibilityUpdated();
 	void destroyPinnedBar();
@@ -767,32 +799,33 @@ private:
 	// destroys _history and _migrated unread bars
 	void destroyUnreadBar();
 
-	mtpRequestId _saveEditMsgRequestId;
+	mtpRequestId _saveEditMsgRequestId = 0;
 	void saveEditMsg();
 	void saveEditMsgDone(History *history, const MTPUpdates &updates, mtpRequestId req);
 	bool saveEditMsgFail(History *history, const RPCError &error, mtpRequestId req);
 
-	DBIPeerReportSpamStatus _reportSpamStatus;
-	mtpRequestId _reportSpamSettingRequestId;
 	static const mtpRequestId ReportSpamRequestNeeded = -1;
+	DBIPeerReportSpamStatus _reportSpamStatus = dbiprsUnknown;
+	mtpRequestId _reportSpamSettingRequestId = ReportSpamRequestNeeded;
 	void updateReportSpamStatus();
 	void requestReportSpamSetting();
 	void reportSpamSettingDone(const MTPPeerSettings &result, mtpRequestId req);
 	bool reportSpamSettingFail(const RPCError &error, mtpRequestId req);
 
 	QString _previewLinks;
-	WebPageData *_previewData;
+	WebPageData *_previewData = nullptr;
 	typedef QMap<QString, WebPageId> PreviewCache;
 	PreviewCache _previewCache;
-	mtpRequestId _previewRequest;
-	Text _previewTitle, _previewDescription;
+	mtpRequestId _previewRequest = 0;
+	Text _previewTitle;
+	Text _previewDescription;
 	SingleTimer _previewTimer;
-	bool _previewCancelled;
+	bool _previewCancelled = false;
 	void gotPreview(QString links, const MTPMessageMedia &media, mtpRequestId req);
 
-	bool _replyForwardPressed;
+	bool _replyForwardPressed = false;
 
-	HistoryItem *_replyReturn;
+	HistoryItem *_replyReturn = nullptr;
 	QList<MsgId> _replyReturns;
 
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
@@ -824,11 +857,11 @@ private:
 
 	void countHistoryShowFrom();
 
-	mtpRequestId _stickersUpdateRequest;
+	mtpRequestId _stickersUpdateRequest = 0;
 	void stickersGot(const MTPmessages_AllStickers &stickers);
 	bool stickersFailed(const RPCError &error);
 
-	mtpRequestId _savedGifsUpdateRequest;
+	mtpRequestId _savedGifsUpdateRequest = 0;
 	void savedGifsGot(const MTPmessages_SavedGifs &gifs);
 	bool savedGifsFailed(const RPCError &error);
 
@@ -840,39 +873,51 @@ private:
 
 	void updateDragAreas();
 
+	// when scroll position or scroll area size changed this method
+	// updates the boundings of the visible area in HistoryInner
+	void visibleAreaUpdated();
+
 	bool readyToForward() const;
 	bool hasBroadcastToggle() const;
 	bool hasSilentToggle() const;
 
-	PeerData *_peer, *_clearPeer; // cache _peer in _clearPeer when showing clear history box
-	ChannelId _channel;
-	bool _canSendMessages;
-	MsgId _showAtMsgId, _fixedInScrollMsgId;
-	int32 _fixedInScrollMsgTop;
+	PeerData *_peer = nullptr;
 
-	mtpRequestId _firstLoadRequest, _preloadRequest, _preloadDownRequest;
+	// cache current _peer in _clearPeer when showing clear history box
+	PeerData *_clearPeer = nullptr;
 
-	MsgId _delayedShowAtMsgId;
-	mtpRequestId _delayedShowAtRequest;
+	ChannelId _channel = NoChannel;
+	bool _canSendMessages = false;
+	MsgId _showAtMsgId = ShowAtUnreadMsgId;
+	MsgId _fixedInScrollMsgId = 0;
+	int32 _fixedInScrollMsgTop = 0;
 
-	MsgId _activeAnimMsgId;
+	mtpRequestId _firstLoadRequest = 0;
+	mtpRequestId _preloadRequest = 0;
+	mtpRequestId _preloadDownRequest = 0;
+
+	MsgId _delayedShowAtMsgId = -1; // wtf?
+	mtpRequestId _delayedShowAtRequest = 0;
+
+	MsgId _activeAnimMsgId = 0;
 
 	ScrollArea _scroll;
-	HistoryInner *_list;
-	History *_migrated, *_history;
-	bool _histInited; // initial updateListSize() called
+	HistoryInner *_list = nullptr;
+	History *_migrated = nullptr;
+	History *_history = nullptr;
+	bool _histInited = false; // initial updateListSize() called
 
-	int32 _lastScroll;
-	uint64 _lastScrolled;
+	int32 _lastScroll = 0;
+	uint64 _lastScrolled = 0;
 	QTimer _updateHistoryItems; // gifs optimization
 
 	IconedButton _toHistoryEnd;
 	CollapseButton _collapseComments;
 
 	MentionsDropdown _attachMention;
-	UserData *_inlineBot;
+	UserData *_inlineBot = nullptr;
 	QString _inlineBotUsername;
-	mtpRequestId _inlineBotResolveRequestId;
+	mtpRequestId _inlineBotResolveRequestId = 0;
 	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
 	bool inlineBotResolveFail(QString name, const RPCError &error);
 
@@ -885,46 +930,52 @@ private:
 	ReportSpamPanel _reportSpamPanel;
 
 	FlatButton _send, _unblock, _botStart, _joinChannel, _muteUnmute;
-	mtpRequestId _unblockRequest, _reportSpamRequest;
+	mtpRequestId _unblockRequest = 0;
+	mtpRequestId _reportSpamRequest = 0;
 	IconedButton _attachDocument, _attachPhoto;
 	EmojiButton _attachEmoji;
 	IconedButton _kbShow, _kbHide, _cmdStart;
 	FlatCheckbox _broadcast;
 	SilentToggle _silent;
-	bool _cmdStartShown;
+	bool _cmdStartShown = false;
 	MessageField _field;
 	Animation _a_record, _a_recording;
-	bool _recording, _inRecord, _inField, _inReplyEdit, _inPinnedMsg;
-	anim::ivalue a_recordingLevel;
-	int32 _recordingSamples;
-	anim::fvalue a_recordOver, a_recordDown;
+	bool _recording = false;
+	bool _inRecord = false;
+	bool _inField = false;
+	bool _inReplyEdit = false;
+	bool _inPinnedMsg = false;
+	anim::ivalue a_recordingLevel = { 0, 0 };
+	int32 _recordingSamples = 0;
+	anim::fvalue a_recordOver = { 0, 0 };
+	anim::fvalue a_recordDown = { 0, 0 };
 	anim::cvalue a_recordCancel;
 	int32 _recordCancelWidth;
 
 	bool kbWasHidden() const;
 
-	bool _kbShown;
-	HistoryItem *_kbReplyTo;
+	bool _kbShown = false;
+	HistoryItem *_kbReplyTo = nullptr;
 	ScrollArea _kbScroll;
 	BotKeyboard _keyboard;
 
 	Dropdown _attachType;
 	EmojiPan _emojiPan;
-	DragState _attachDrag;
+	DragState _attachDrag = DragStateNone;
 	DragArea _attachDragDocument, _attachDragPhoto;
 
 	int32 _selCount; // < 0 - text selected, focus list, not _field
 
 	TaskQueue _fileLoader;
-	int32 _textUpdateEventsFlags;
+	int32 _textUpdateEventsFlags = (TextUpdateEventsSaveDraft | TextUpdateEventsSendTyping);
 
-	int64 _serviceImageCacheSize;
+	int64 _serviceImageCacheSize = 0;
 	QString _confirmSource;
 
-	uint64 _confirmWithTextId;
+	uint64 _confirmWithTextId = 0;
 
 	QString _titlePeerText;
-	int32 _titlePeerTextWidth;
+	int32 _titlePeerTextWidth = 0;
 
 	Animation _a_show;
 	QPixmap _cacheUnder, _cacheOver, _cacheTopBarUnder, _cacheTopBarOver;
@@ -932,20 +983,20 @@ private:
 	anim::fvalue a_shadow;
 
 	QTimer _scrollTimer;
-	int32 _scrollDelta;
+	int32 _scrollDelta = 0;
 
 	QTimer _animActiveTimer;
-	float64 _animActiveStart;
+	float64 _animActiveStart = 0;
 
 	QMap<QPair<History*, SendActionType>, mtpRequestId> _sendActionRequests;
 	QTimer _sendActionStopTimer;
 
-	uint64 _saveDraftStart;
-	bool _saveDraftText;
+	uint64 _saveDraftStart = 0;
+	bool _saveDraftText = false;
 	QTimer _saveDraftTimer;
 
 	PlainShadow _sideShadow, _topShadow;
-	bool _inGrab;
+	bool _inGrab = false;
 
 };
 
