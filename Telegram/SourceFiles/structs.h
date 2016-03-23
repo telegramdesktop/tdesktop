@@ -214,6 +214,12 @@ class UserData;
 class ChatData;
 class ChannelData;
 class PeerData {
+protected:
+
+	PeerData(const PeerId &id);
+	PeerData(const PeerData &other) = delete;
+	PeerData &operator=(const PeerData &other) = delete;
+
 public:
 
 	virtual ~PeerData() {
@@ -295,12 +301,14 @@ public:
 
 	NotifySettingsPtr notify;
 
-	PeerData(const PeerData &other) = delete;
-	PeerData &operator=(const PeerData &other) = delete;
+	// if this string is not empty we must not allow to open the
+	// conversation and we must show this string instead
+	virtual QString restrictionReason() const {
+		return QString();
+	}
 
 protected:
 
-	PeerData(const PeerId &id);
 	ImagePtr _userpic;
 	ImagePtr currentUserpic() const;
 };
@@ -368,14 +376,7 @@ class PhotoData;
 class UserData : public PeerData {
 public:
 
-	UserData(const PeerId &id) : PeerData(id)
-		, access(0)
-		, flags(0)
-		, onlineTill(0)
-		, contact(-1)
-		, blocked(UserBlockUnknown)
-		, photosCount(-1)
-		, botInfo(0) {
+	UserData(const PeerId &id) : PeerData(id) {
 		setName(QString(), QString(), QString(), QString());
 	}
 	void setPhoto(const MTPUserProfilePhoto &photo);
@@ -388,9 +389,9 @@ public:
 
 	void madeAction(); // pseudo-online
 
-	uint64 access;
+	uint64 access = 0;
 
-	MTPDuser::Flags flags;
+	MTPDuser::Flags flags = { 0 };
 	bool isVerified() const {
 		return flags & MTPDuser::Flag::f_verified;
 	}
@@ -406,17 +407,28 @@ public:
 	QString phone;
 	QString nameOrPhone;
 	Text phoneText;
-	int32 onlineTill;
-	int32 contact; // -1 - not contact, cant add (self, empty, deleted, foreign), 0 - not contact, can add (request), 1 - contact
-	UserBlockedStatus blocked;
+	int32 onlineTill = 0;
+	int32 contact = -1; // -1 - not contact, cant add (self, empty, deleted, foreign), 0 - not contact, can add (request), 1 - contact
+	UserBlockedStatus blocked = UserBlockUnknown;
 
 	typedef QList<PhotoData*> Photos;
 	Photos photos;
-	int32 photosCount; // -1 not loaded, 0 all loaded
+	int32 photosCount = -1; // -1 not loaded, 0 all loaded
 
 	QString about;
 
-	BotInfo *botInfo;
+	BotInfo *botInfo = nullptr;
+
+	QString restrictionReason() const override {
+		return _restrictionReason;
+	}
+	void setRestrictionReason(const QString &reason) {
+		_restrictionReason = reason;
+	}
+
+private:
+	QString _restrictionReason;
+
 };
 static UserData * const InlineBotLookingUpData = SharedMemoryLocation<UserData, 0>();
 
@@ -600,18 +612,8 @@ class ChannelData : public PeerData {
 public:
 
 	ChannelData(const PeerId &id) : PeerData(id)
-		, access(0)
 		, inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0)))
-		, count(1)
-		, adminsCount(1)
-		, date(0)
-		, version(0)
-		, flags(0)
-		, flagsFull(0)
-		, mgInfo(nullptr)
-		, isForbidden(true)
-		, inviter(0)
-		, _lastFullUpdate(0) {
+		, mgInfo(nullptr) {
 		setName(QString(), QString());
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
@@ -620,18 +622,19 @@ public:
 	void updateFull(bool force = false);
 	void fullUpdated();
 
-	uint64 access;
+	uint64 access = 0;
 
 	MTPinputChannel inputChannel;
 
 	QString username, about;
 
-	int32 count, adminsCount;
-	int32 date;
-	int32 version;
-	MTPDchannel::Flags flags;
-	MTPDchannelFull::Flags flagsFull;
-	MegagroupInfo *mgInfo;
+	int count = 1;
+	int adminsCount = 1;
+	int32 date = 0;
+	int version = 0;
+	MTPDchannel::Flags flags = { 0 };
+	MTPDchannelFull::Flags flagsFull = { 0 };
+	MegagroupInfo *mgInfo = nullptr;
 	bool lastParticipantsCountOutdated() const {
 		if (!mgInfo || !(mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsCountOutdated)) {
 			return false;
@@ -685,7 +688,7 @@ public:
 	bool addsSignature() const {
 		return flags & MTPDchannel::Flag::f_signatures;
 	}
-	bool isForbidden;
+	bool isForbidden = true;
 	bool isVerified() const {
 		return flags & MTPDchannel::Flag::f_verified;
 	}
@@ -696,7 +699,7 @@ public:
 //	ImagePtr photoFull;
 	QString invitationUrl;
 
-	int32 inviter; // > 0 - user who invited me to channel, < 0 - not in channel
+	int32 inviter = 0; // > 0 - user who invited me to channel, < 0 - not in channel
 	QDateTime inviteDate;
 
 	void ptsInit(int32 pts) {
@@ -732,12 +735,22 @@ public:
 		return _ptsWaiter.setWaitingForShortPoll(this, ms);
 	}
 
+	QString restrictionReason() const override {
+		return _restrictionReason;
+	}
+	void setRestrictionReason(const QString &reason) {
+		_restrictionReason = reason;
+	}
+
 	~ChannelData();
 
 private:
 
 	PtsWaiter _ptsWaiter;
-	uint64 _lastFullUpdate;
+	uint64 _lastFullUpdate = 0;
+
+	QString _restrictionReason;
+
 };
 
 inline UserData *PeerData::asUser() {

@@ -326,6 +326,25 @@ namespace App {
 		return lng_status_lastseen_date(lt_date, dOnline.date().toString(qsl("dd.MM.yy")));
 	}
 
+	namespace {
+		// we should get a full restriction in "{fulltype}: {reason}" format and we
+		// need to find a "-all" tag in {fulltype}, otherwise ignore this restriction
+		QString extractRestrictionReason(const QString &fullRestriction) {
+			int fullTypeEnd = fullRestriction.indexOf(':');
+			if (fullTypeEnd <= 0) {
+				return QString();
+			}
+
+			// {fulltype} is in "{type}-{tag}-{tag}-{tag}" format
+			// if we find "all" tag we return the restriction string
+			QStringList typeTags = fullRestriction.mid(0, fullTypeEnd).split('-').mid(1);
+			if (typeTags.contains(qsl("all"))) {
+				return fullRestriction.midRef(fullTypeEnd + 1).trimmed().toString();
+			}
+			return QString();
+		}
+	}
+
 	bool onlineColorUse(UserData *user, int32 now) {
 		if (isServiceUser(user->id) || user->botInfo) {
 			return false;
@@ -387,6 +406,11 @@ namespace App {
 					} else {
 						data->input = MTP_inputPeerUser(d.vid, d.vaccess_hash);
 						data->inputUser = MTP_inputUser(d.vid, d.vaccess_hash);
+					}
+					if (d.is_restricted()) {
+						data->setRestrictionReason(extractRestrictionReason(qs(d.vrestriction_reason)));
+					} else {
+						data->setRestrictionReason(QString());
 					}
 				}
 				if (d.is_deleted()) {
@@ -592,6 +616,11 @@ namespace App {
 					cdata->flags = d.vflags.v;
 					if (cdata->version < d.vversion.v) {
 						cdata->version = d.vversion.v;
+					}
+					if (d.is_restricted()) {
+						cdata->setRestrictionReason(extractRestrictionReason(qs(d.vrestriction_reason)));
+					} else {
+						cdata->setRestrictionReason(QString());
 					}
 				}
 				QString uname = d.has_username() ? textOneLine(qs(d.vusername)) : QString();

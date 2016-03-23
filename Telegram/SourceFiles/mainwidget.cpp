@@ -2244,8 +2244,15 @@ void MainWidget::ctrlEnterSubmitUpdated() {
 void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) {
 	if (PeerData *peer = App::peerLoaded(peerId)) {
 		if (peer->migrateTo()) {
-			peerId = peer->migrateTo()->id;
+			peer = peer->migrateTo();
+			peerId = peer->id;
 			if (showAtMsgId > 0) showAtMsgId = -showAtMsgId;
+		}
+		QString restriction = peer->restrictionReason();
+		if (!restriction.isEmpty()) {
+			Ui::showChatsList();
+			Ui::showLayer(new InformBox(restriction));
+			return;
 		}
 	}
 	if (!back && (!peerId || (_stack.size() == 1 && _stack[0]->type() == HistoryStackItem && _stack[0]->peer->id == peerId))) {

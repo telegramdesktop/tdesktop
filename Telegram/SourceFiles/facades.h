@@ -69,6 +69,9 @@ namespace Ui {
 	inline void showChatsList() {
 		showPeerHistory(PeerId(0), 0);
 	}
+	inline void showChatsListAsync() {
+		showPeerHistoryAsync(PeerId(0), 0);
+	}
 
 	bool hideWindowNoQuit();
 

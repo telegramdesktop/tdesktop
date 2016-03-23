@@ -7566,6 +7566,12 @@ void HistoryWidget::peerUpdated(PeerData *data) {
 			QTimer::singleShot(ReloadChannelMembersTimeout, App::api(), SLOT(delayedRequestParticipantsCount()));
 			return;
 		}
+		QString restriction = _peer->restrictionReason();
+		if (!restriction.isEmpty()) {
+			Ui::showChatsList();
+			Ui::showLayer(new InformBox(restriction));
+			return;
+		}
 		bool resize = false;
 		if (pinnedMsgVisibilityUpdated()) {
 			resize = true;
