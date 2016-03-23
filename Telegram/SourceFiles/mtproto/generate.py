@@ -63,7 +63,7 @@ textSerializeInit = '';
 textSerializeMethods = '';
 forwards = '';
 forwTypedefs = '';
-out = open('mtpScheme.h', 'w')
+out = open('scheme_auto.h', 'w')
 out.write('/*\n');
 out.write('Created from \'/SourceFiles/mtproto/scheme.tl\' by \'/SourceFiles/mtproto/generate.py\' script\n\n');
 out.write('WARNING! All changes made in this file will be lost!\n\n');
@@ -86,7 +86,7 @@ out.write('\n');
 out.write('Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n');
 out.write('Copyright (c) 2014 John Preston, https://desktop.telegram.org\n');
 out.write('*/\n');
-out.write('#pragma once\n\n#include "mtpCoreTypes.h"\n');
+out.write('#pragma once\n\n#include "mtproto/core_types.h"\n');
 with open('scheme.tl') as f:
   for line in f:
     nocomment = re.match(r'^(.*?)//', line)
@@ -600,15 +600,15 @@ for restype in typesList:
 
     if (not friendDecl):
       friendDecl += '\tfriend class MTP::internal::TypeCreator;\n';
-    creatorProxyText += '\t\tinline static MTP' + restype + ' new_' + name + '(' + ', '.join(creatorParams) + ') {\n';
+    creatorProxyText += '\tinline static MTP' + restype + ' new_' + name + '(' + ', '.join(creatorParams) + ') {\n';
     if (len(prms) > len(trivialConditions)): # creator with params
-      creatorProxyText += '\t\t\treturn MTP' + restype + '(new MTPD' + name + '(' + ', '.join(creatorParamsList) + '));\n';
+      creatorProxyText += '\t\treturn MTP' + restype + '(new MTPD' + name + '(' + ', '.join(creatorParamsList) + '));\n';
     else:
       if (withType): # creator by type
-        creatorProxyText += '\t\t\treturn MTP' + restype + '(mtpc_' + name + ');\n';
+        creatorProxyText += '\t\treturn MTP' + restype + '(mtpc_' + name + ');\n';
       else: # single creator
-        creatorProxyText += '\t\t\treturn MTP' + restype + '();\n';
-    creatorProxyText += '\t\t}\n';
+        creatorProxyText += '\t\treturn MTP' + restype + '();\n';
+    creatorProxyText += '\t}\n';
     if (len(conditionsList)):
       creatorsText += 'Q_DECLARE_OPERATORS_FOR_FLAGS(MTPD' + name + '::Flags)\n';
     creatorsText += 'inline MTP' + restype + ' MTP_' + name + '(' + ', '.join(creatorParams) + ') {\n';
@@ -853,18 +853,18 @@ textSerializeFull += '\t\t}\n';
 textSerializeFull += '\t}\n';
 textSerializeFull += '}\n';
 
-out.write('\n// Creator proxy class declaration\nnamespace MTP {\nnamespace internal {\n\tclass TypeCreator;\n}\n}\n');
+out.write('\n// Creator proxy class declaration\nnamespace MTP {\nnamespace internal {\n\nclass TypeCreator;\n\n} // namespace internal\n} // namespace MTP\n');
 out.write('\n// Type id constants\nenum {\n' + ',\n'.join(enums) + '\n};\n');
 out.write('\n// Type forward declarations\n' + forwards);
 out.write('\n// Boxed types definitions\n' + forwTypedefs);
 out.write('\n// Type classes definitions\n' + typesText);
 out.write('\n// Type constructors with data\n' + dataTexts);
 out.write('\n// RPC methods\n' + funcsText);
-out.write('\n// Creator proxy class definition\nnamespace MTP {\nnamespace internal {\n\tclass TypeCreator {\n\tpublic:\n' + creatorProxyText + '\t};\n}\n}\n');
+out.write('\n// Creator proxy class definition\nnamespace MTP {\nnamespace internal {\n\nclass TypeCreator {\npublic:\n' + creatorProxyText + '\t};\n\n} // namespace internal\n} // namespace MTP\n');
 out.write('\n// Inline methods definition\n' + inlineMethods);
 out.write('\n// Human-readable text serialization\nvoid mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons);\n');
 
-outCpp = open('mtpScheme.cpp', 'w');
+outCpp = open('scheme_auto.cpp', 'w');
 outCpp.write('/*\n');
 outCpp.write('Created from \'/SourceFiles/mtproto/scheme.tl\' by \'/SourceFiles/mtproto/generate.py\' script\n\n');
 outCpp.write('WARNING! All changes made in this file will be lost!\n\n');
@@ -884,7 +884,7 @@ outCpp.write('\n');
 outCpp.write('Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n');
 outCpp.write('Copyright (c) 2014 John Preston, https://desktop.telegram.org\n');
 outCpp.write('*/\n');
-outCpp.write('#include "stdafx.h"\n#include "mtpScheme.h"\n\n');
+outCpp.write('#include "stdafx.h"\n\n#include "mtproto/scheme_auto.h"\n\n');
 outCpp.write('typedef QVector<mtpTypeId> Types;\ntypedef QVector<int32> StagesFlags;\n\n');
 outCpp.write(textSerializeMethods);
 outCpp.write('namespace {\n');

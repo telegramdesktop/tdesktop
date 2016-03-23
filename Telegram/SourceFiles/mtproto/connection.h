@@ -20,8 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "mtproto/mtpCoreTypes.h"
-#include "mtproto/mtpAuthKey.h"
+#include "mtproto/core_types.h"
+#include "mtproto/auth_key.h"
 
 inline bool mtpRequestData::isSentContainer(const mtpRequest &request) { // "request-like" wrap for msgIds vector
 	if (request->size() < 9) return false;

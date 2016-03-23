@@ -19,7 +19,8 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "mtp.h"
+
+#include "mtproto/facade.h"
 
 #include "localstorage.h"
 

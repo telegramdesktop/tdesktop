@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
-#include "mtproto/mtpConnection.h"
+#include "mtproto/connection.h"
 
 #include <openssl/bn.h>
 #include <openssl/err.h>

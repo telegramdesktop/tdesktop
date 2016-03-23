@@ -20,9 +20,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "mtpConnection.h"
-#include "mtpDC.h"
-#include "mtpRPC.h"
+#include "mtproto/connection.h"
+#include "mtproto/dcenter.h"
+#include "mtproto/rpc_sender.h"
 
 class MTProtoSession;
 

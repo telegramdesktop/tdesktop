@@ -65,7 +65,7 @@ extern "C" {
 #include "types.h"
 #include "config.h"
 
-#include "mtproto/mtp.h"
+#include "mtproto/facade.h"
 
 #include "gui/style_core.h"
 #include "gui/twidget.h"

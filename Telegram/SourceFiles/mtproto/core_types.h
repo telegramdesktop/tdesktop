@@ -21,7 +21,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "types.h"
-#include <zlib.h>
 
 #undef min
 #undef max
@@ -986,7 +985,7 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end) {
 	return QString::fromUtf8(to.p, to.size);
 }
 
-#include "mtpScheme.h"
+#include "mtproto/scheme_auto.h"
 
 inline MTPbool MTP_bool(bool v) {
 	return v ? MTP_boolTrue() : MTP_boolFalse();

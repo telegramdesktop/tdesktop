@@ -20,6 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
+#include "mtproto/auth_key.h"
+
 #include <openssl/aes.h>
 
 void aesEncrypt(const void *src, void *dst, uint32 len, void *key, void *iv) {

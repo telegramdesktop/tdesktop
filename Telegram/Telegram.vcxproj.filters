@@ -63,15 +63,6 @@
     <ClCompile Include="SourceFiles\logs.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\mtproto\mtpConnection.cpp">
-      <Filter>mtproto</Filter>
-    </ClCompile>
-    <ClCompile Include="SourceFiles\mtproto\mtpSession.cpp">
-      <Filter>mtproto</Filter>
-    </ClCompile>
-    <ClCompile Include="SourceFiles\mtproto\mtpDC.cpp">
-      <Filter>mtproto</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\application.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -102,9 +93,6 @@
     <ClCompile Include="SourceFiles\gui\scrollarea.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\mtproto\mtp.cpp">
-      <Filter>mtproto</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\mainwidget.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -116,9 +104,6 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\window.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="SourceFiles\mtproto\mtpRPC.cpp">
-      <Filter>mtproto</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\dialogswidget.cpp">
       <Filter>Source Files</Filter>
@@ -137,9 +122,6 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\gui\images.cpp">
       <Filter>gui</Filter>
-    </ClCompile>
-    <ClCompile Include="SourceFiles\mtproto\mtpFileLoader.cpp">
-      <Filter>mtproto</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\layerwidget.cpp">
       <Filter>Source Files</Filter>
@@ -307,51 +289,6 @@
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_photocropbox.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_mtpSession.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_mtpSession.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_mtpSession.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_mtpFileLoader.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_mtpFileLoader.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_mtpFileLoader.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_mtpDC.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_mtpDC.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_mtpDC.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_mtpConnection.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_mtpConnection.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_mtpConnection.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_mtp.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_mtp.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_mtp.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_mainwidget.cpp">
@@ -624,12 +561,6 @@
     <ClCompile Include="GeneratedFiles\Release\moc_audio.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\mtproto\mtpCoreTypes.cpp">
-      <Filter>mtproto</Filter>
-    </ClCompile>
-    <ClCompile Include="SourceFiles\mtproto\mtpScheme.cpp">
-      <Filter>mtproto</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\boxes\usernamebox.cpp">
       <Filter>boxes</Filter>
     </ClCompile>
@@ -861,9 +792,6 @@
     <ClCompile Include="SourceFiles\facades.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\mtproto\mtpAuthKey.cpp">
-      <Filter>mtproto</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\layout.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -924,19 +852,82 @@
     <ClCompile Include="SourceFiles\mtproto\rsa_public_key.cpp">
       <Filter>mtproto</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_facade.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_facade.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_facade.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\facade.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\auth_key.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_connection.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_connection.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_connection.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\connection.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\core_types.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_dcenter.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_dcenter.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_dcenter.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\dcenter.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_file_download.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_file_download.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_file_download.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\file_download.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\rpc_sender.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\scheme_auto.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_session.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_session.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_session.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\session.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
       <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\mtproto\mtpCoreTypes.h">
-      <Filter>mtproto</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\mtproto\mtpScheme.h">
-      <Filter>mtproto</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\mtproto\mtpAuthKey.h">
-      <Filter>mtproto</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\logs.h">
       <Filter>Source Files</Filter>
@@ -952,9 +943,6 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\countries.h">
       <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\mtproto\mtpRPC.h">
-      <Filter>mtproto</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\app.h">
       <Filter>Source Files</Filter>
@@ -985,9 +973,6 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\pspecific.h">
       <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\mtproto\mtpSessionImpl.h">
-      <Filter>mtproto</Filter>
     </ClInclude>
     <ClInclude Include="GeneratedFiles\lang_auto.h">
       <Filter>Generated Files</Filter>
@@ -1025,17 +1010,20 @@
     <ClInclude Include="SourceFiles\mtproto\rsa_public_key.h">
       <Filter>mtproto</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\mtproto\auth_key.h">
+      <Filter>mtproto</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\mtproto\core_types.h">
+      <Filter>mtproto</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\mtproto\rpc_sender.h">
+      <Filter>mtproto</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\mtproto\scheme_auto.h">
+      <Filter>mtproto</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="SourceFiles\mtproto\mtpConnection.h">
-      <Filter>mtproto</Filter>
-    </CustomBuild>
-    <CustomBuild Include="SourceFiles\mtproto\mtpSession.h">
-      <Filter>mtproto</Filter>
-    </CustomBuild>
-    <CustomBuild Include="SourceFiles\mtproto\mtpDC.h">
-      <Filter>mtproto</Filter>
-    </CustomBuild>
     <CustomBuild Include="SourceFiles\application.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
@@ -1075,17 +1063,11 @@
     <CustomBuild Include="SourceFiles\gui\images.h">
       <Filter>gui</Filter>
     </CustomBuild>
-    <CustomBuild Include="SourceFiles\mtproto\mtpFileLoader.h">
-      <Filter>mtproto</Filter>
-    </CustomBuild>
     <CustomBuild Include="SourceFiles\layerwidget.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\localimageloader.h">
       <Filter>Source Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="SourceFiles\mtproto\mtp.h">
-      <Filter>mtproto</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\gui\flatcheckbox.h">
       <Filter>gui</Filter>
@@ -1251,6 +1233,21 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\pspecific_winrt.h">
       <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\mtproto\facade.h">
+      <Filter>mtproto</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\mtproto\connection.h">
+      <Filter>mtproto</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\mtproto\dcenter.h">
+      <Filter>mtproto</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\mtproto\file_download.h">
+      <Filter>mtproto</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\mtproto\session.h">
+      <Filter>mtproto</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
