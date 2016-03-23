@@ -293,8 +293,8 @@ History::History(const PeerId &peerId) : width(0), height(0)
 	if (peer->isChannel() || (peer->isUser() && peer->asUser()->botInfo)) {
 		outboxReadBefore = INT_MAX;
 	}
-	for (int32 i = 0; i < OverviewCount; ++i) {
-		overviewCountData[i] = -1; // not loaded yet
+	for (auto &countData : overviewCountData) {
+		countData = -1; // not loaded yet
 	}
 }
 
@@ -307,6 +307,15 @@ void History::clearLastKeyboard() {
 	}
 	lastKeyboardInited = true;
 	lastKeyboardFrom = 0;
+}
+
+bool History::canHaveFromPhotos() const {
+	if (peer->isUser() && !Adaptive::Wide()) {
+		return false;
+	} else if (isChannel() && asChannelHistory()->onlyImportant()) {
+		return false;
+	}
+	return true;
 }
 
 void History::setHasPendingResizedItems() {
@@ -6030,8 +6039,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 }
 
 HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg) :
-	HistoryItem(history, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0)
-, _text(st::msgMinWidth) {
+	HistoryItem(history, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0) {
 	PeerId authorOriginalId = 0, fromOriginalId = 0;
 	MsgId originalId = 0;
 	if (msg.has_fwd_from() && msg.vfwd_from.type() == mtpc_messageFwdHeader) {
@@ -7540,9 +7548,7 @@ bool HistoryServiceMessage::updatePinnedText(const QString *pfrom, QString *ptex
 }
 
 HistoryServiceMessage::HistoryServiceMessage(History *history, const MTPDmessageService &msg) :
-	HistoryItem(history, msg.vid.v, mtpCastFlags(msg.vflags.v), ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0)
-, _text(st::msgMinWidth)
-, _media(0) {
+	HistoryItem(history, msg.vid.v, mtpCastFlags(msg.vflags.v), ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0) {
 	if (msg.has_reply_to_msg_id()) {
 		UpdateInterfaces(HistoryServicePinned::Bit());
 		MsgId pinnedMsgId = Get<HistoryServicePinned>()->msgId = msg.vreply_to_msg_id.v;

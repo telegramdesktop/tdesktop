@@ -89,6 +89,7 @@
       <ImageHasSafeExceptionHandlers />
       <IgnoreSpecificDefaultLibraries>LIBCMT</IgnoreSpecificDefaultLibraries>
       <ImportLibrary>$(SolutionDir)$(Platform)\$(Configuration)Intermediate\$(TargetName).lib</ImportLibrary>
+      <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <CustomBuildStep>
     </CustomBuildStep>

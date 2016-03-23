@@ -1066,12 +1066,7 @@ namespace {
 	}
 }
 
-LayoutOverviewLink::LayoutOverviewLink(HistoryMedia *media, HistoryItem *parent) : LayoutMediaItem(OverviewItemInfo::Bit(), parent)
-, _titlew(0)
-, _page(0)
-, _pixw(0)
-, _pixh(0)
-, _text(st::msgMinWidth) {
+LayoutOverviewLink::LayoutOverviewLink(HistoryMedia *media, HistoryItem *parent) : LayoutMediaItem(OverviewItemInfo::Bit(), parent) {
 	QString text = _parent->originalText();
 	EntitiesInText entities = _parent->originalEntities();
 

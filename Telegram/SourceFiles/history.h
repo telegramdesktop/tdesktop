@@ -346,6 +346,10 @@ public:
 	bool updateTyping(uint64 ms, bool force = false);
 	void clearLastKeyboard();
 
+	// optimization for userpics displayed on the left
+	// if this returns false there is no need to even try to handle them
+	bool canHaveFromPhotos() const;
+
 	typedef QList<HistoryBlock*> Blocks;
 	Blocks blocks;
 
@@ -2717,8 +2721,8 @@ protected:
 	bool updatePinned(bool force = false);
 	bool updatePinnedText(const QString *pfrom = nullptr, QString *ptext = nullptr);
 
-	Text _text;
-	HistoryMedia *_media;
+	Text _text = { int(st::msgMinWidth) };
+	HistoryMedia *_media = nullptr;
 
 	int32 _textWidth, _textHeight;
 };

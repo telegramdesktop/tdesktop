@@ -94,32 +94,53 @@ void HistoryInner::repaintItem(const HistoryItem *item) {
 	}
 }
 
+namespace {
+	// helper binary search for an item in a list that is not completely below the given bottom of the visible area
+	// is applied once for blocks list in a history and once for items list in the found block
+	template <typename T>
+	int binarySearchBlocksOrItems(const T &list, int bottom) {
+		int start = 0, end = list.size();
+		while (end - start > 1) {
+			int middle = (start + end) / 2;
+			if (list.at(middle)->y >= bottom) {
+				end = middle;
+			} else {
+				start = middle;
+			}
+		}
+		return start;
+	}
+}
+
 template <typename Method>
 void HistoryInner::enumerateUserpicsInHistory(History *h, int htop, Method method) {
 	// no displayed messages in this history
-	if (htop < 0) return;
+	if (htop < 0 || h->isEmpty() || !h->canHaveFromPhotos() || _visibleAreaBottom <= htop) {
+		return;
+	}
 
 	// find and remember the bottom of an attached messages pack
 	// -1 means we didn't find an attached to previous message yet
 	int lowestAttachedItemBottom = -1;
 
-	int blockIndex = h->blocks.size();
-	int itemIndex = 0;
-	while (blockIndex > 0) {
-		HistoryBlock *block = h->blocks.at(--blockIndex);
-		itemIndex = block->items.size();
+	// binary search for blockIndex of the first block that is not completely below the visible area
+	int blockIndex = binarySearchBlocksOrItems(h->blocks, _visibleAreaBottom - htop);
 
-		int blocktop = htop + block->y;
-		while (itemIndex > 0) {
-			HistoryItem *item = block->items.at(--itemIndex);
+	// binary search for itemIndex of the first item that is not completely below the visible area
+	HistoryBlock *block = h->blocks.at(blockIndex);
+	int blocktop = htop + block->y;
+	int itemIndex = binarySearchBlocksOrItems(block->items, _visibleAreaBottom - blocktop);
+
+	while (true) {
+		while (itemIndex >= 0) {
+			HistoryItem *item = block->items.at(itemIndex--);
 			int itemtop = blocktop + item->y;
 			int itembottom = itemtop + item->height();
 
-			// skip items that are below the visible area
-			if (itemtop >= _visibleAreaBottom) {
-				continue;
-			}
+			// binary search should've skipped all the items that are below the visible area
+			t_assert(itemtop < _visibleAreaBottom);
 
+			// skip all service messages
 			if (HistoryMessage *message = item->toHistoryMessage()) {
 				if (lowestAttachedItemBottom < 0 && message->isAttachedToPrevious()) {
 					lowestAttachedItemBottom = itembottom - message->marginBottom();
@@ -131,15 +152,21 @@ void HistoryInner::enumerateUserpicsInHistory(History *h, int htop, Method metho
 					if (lowestAttachedItemBottom < 0) {
 						lowestAttachedItemBottom = itembottom - message->marginBottom();
 					}
-					int userpicTop = qMin(qMax(itemtop + message->marginTop(), _visibleAreaTop + st::msgMargin.left()), lowestAttachedItemBottom - int(st::msgPhotoSize));
+					// attach userpic to the top of the visible area with the same margin as it is from the left side
+					int userpicTop = qMax(itemtop + message->marginTop(), _visibleAreaTop + st::msgMargin.left());
+
+					// do not let the userpic go below the attached messages pack bottom line
+					userpicTop = qMin(userpicTop, lowestAttachedItemBottom - int(st::msgPhotoSize));
 
 					// call the template callback function that was passed
 					// and return if it finished everything it needed
 					if (!method(message, userpicTop)) {
 						return;
 					}
+				}
 
-					// forget the found bottom of the pack, search for the next one from scratch
+				// forget the found bottom of the pack, search for the next one from scratch
+				if (!message->isAttachedToPrevious()) {
 					lowestAttachedItemBottom = -1;
 				}
 			}
@@ -153,6 +180,14 @@ void HistoryInner::enumerateUserpicsInHistory(History *h, int htop, Method metho
 		// skip all the rest blocks that are above the visible area
 		if (blocktop <= _visibleAreaTop) {
 			return;
+		}
+
+		if (--blockIndex < 0) {
+			return;
+		} else {
+			block = h->blocks.at(blockIndex);
+			blocktop = htop + block->y;
+			itemIndex = block->items.size() - 1;
 		}
 	}
 }
