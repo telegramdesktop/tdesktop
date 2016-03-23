@@ -46,6 +46,10 @@ public:
 
 };
 
+// thanks Chromium see https://blogs.msdn.microsoft.com/the1/2004/05/07/how-would-you-get-the-count-of-an-array-in-c-2/
+template <typename T, size_t N> char(&ArraySizeHelper(T(&array)[N]))[N];
+#define arraysize(array) (sizeof(ArraySizeHelper(array)))
+
 #define qsl(s) QStringLiteral(s)
 #define qstr(s) QLatin1String(s, sizeof(s) - 1)
 

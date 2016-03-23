@@ -200,7 +200,7 @@ inline const char *cGUIDStr() {
 	return gGuidStr;
 }
 
-inline const char **cPublicRSAKeys(uint32 &cnt) {
+inline const char **cPublicRSAKeys(int &keysCount) {
 	static const char *(keys[]) = {"\
 -----BEGIN RSA PUBLIC KEY-----\n\
 MIIBCgKCAQEAwVACPi9w23mF3tBkdZz+zwrzKOaaQdr01vAbU4E1pvkfj4sqDsm6\n\
@@ -210,7 +210,7 @@ Efzk2DWgkBluml8OREmvfraX3bkHZJTKX4EQSjBbbdJ2ZXIsRrYOXfaA+xayEGB+\n\
 8hdlLmAjbCVfaigxX0CDqWeR1yFL9kwd9P0NsZRPsmoqVwMbMu7mStFai6aIhc3n\n\
 Slv8kg9qv1m6XHVQY3PnEw+QQtqSIXklHwIDAQAB\n\
 -----END RSA PUBLIC KEY-----"};
-	cnt = sizeof(keys) / sizeof(const char*);
+	keysCount = arraysize(keys);
 	return keys;
 }
 

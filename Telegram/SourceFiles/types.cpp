@@ -20,6 +20,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
+#include "types.h"
+
+#include <openssl/crypto.h>
+#include <openssl/sha.h>
+
 #include "application.h"
 
 uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };

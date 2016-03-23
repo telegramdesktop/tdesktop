@@ -577,7 +577,7 @@
 		A022AF919D1977534CA66BB8 /* /usr/local/Qt-5.5.1/mkspecs/modules/qt_lib_widgets.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.1/mkspecs/modules/qt_lib_widgets.pri"; sourceTree = "<absolute>"; };
 		A1479F94376F9732B57C69DB /* moc_animation.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_animation.cpp; path = GeneratedFiles/Debug/moc_animation.cpp; sourceTree = "<absolute>"; };
 		A1A67BEAA744704B29168D39 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = /System/Library/Frameworks/IOKit.framework; sourceTree = "<absolute>"; };
-		A3622760CEC6D6827A25E710 /* mtpPublicRSA.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = mtpPublicRSA.h; path = SourceFiles/mtproto/mtpPublicRSA.h; sourceTree = "<absolute>"; };
+		A3622760CEC6D6827A25E710 /* rsa_public_key.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = rsa_public_key.h; path = SourceFiles/mtproto/rsa_public_key.h; sourceTree = "<absolute>"; };
 		A37C7E516201B0264A4CDA38 /* moc_introwidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_introwidget.cpp; path = GeneratedFiles/Debug/moc_introwidget.cpp; sourceTree = "<absolute>"; };
 		A4D8AC60897F435C1C3B9D02 /* /usr/local/Qt-5.5.1/mkspecs/modules/qt_plugin_qtsensors_generic.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.1/mkspecs/modules/qt_plugin_qtsensors_generic.pri"; sourceTree = "<absolute>"; };
 		A59F74CD76FDC2B4B9910E18 /* /usr/local/Qt-5.5.1/mkspecs/modules/qt_lib_scripttools_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.1/mkspecs/modules/qt_lib_scripttools_private.pri"; sourceTree = "<absolute>"; };
@@ -830,7 +830,7 @@
 				27E7471A4EC90E84353AA16F /* mtpCoreTypes.h */,
 				B3D42654F18B1FE49512C404 /* mtpDC.h */,
 				96ACDDE3DCB798B97F9EA2F4 /* mtpFileLoader.h */,
-				A3622760CEC6D6827A25E710 /* mtpPublicRSA.h */,
+				A3622760CEC6D6827A25E710 /* rsa_public_key.h */,
 				FB61F72601D91BF3AC730D20 /* mtpRPC.h */,
 				7DBFC0B5EAF874BA10E3D603 /* mtpScheme.h */,
 				4D1099F2D3696E8A0E17D37D /* mtpSession.h */,

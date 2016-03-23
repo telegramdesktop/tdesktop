@@ -21,7 +21,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "mtproto/mtpCoreTypes.h"
-#include "mtproto/mtpPublicRSA.h"
 #include "mtproto/mtpAuthKey.h"
 
 inline bool mtpRequestData::isSentContainer(const mtpRequest &request) { // "request-like" wrap for msgIds vector

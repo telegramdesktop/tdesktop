@@ -1043,6 +1043,7 @@
     <ClCompile Include="SourceFiles\mtproto\mtpRPC.cpp" />
     <ClCompile Include="SourceFiles\mtproto\mtpScheme.cpp" />
     <ClCompile Include="SourceFiles\mtproto\mtpSession.cpp" />
+    <ClCompile Include="SourceFiles\mtproto\rsa_public_key.cpp" />
     <ClCompile Include="SourceFiles\overviewwidget.cpp" />
     <ClCompile Include="SourceFiles\passcodewidget.cpp" />
     <ClCompile Include="SourceFiles\playerwidget.cpp" />
@@ -1924,7 +1925,7 @@
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
     </CustomBuild>
-    <ClInclude Include="SourceFiles\mtproto\mtpPublicRSA.h" />
+    <ClInclude Include="SourceFiles\mtproto\rsa_public_key.h" />
     <ClInclude Include="SourceFiles\mtproto\mtpScheme.h" />
     <CustomBuild Include="SourceFiles\mtproto\mtpSession.h">
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Moc%27ing mtpSession.h...</Message>

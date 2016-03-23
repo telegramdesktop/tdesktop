@@ -120,6 +120,7 @@ SOURCES += \
     ./SourceFiles/mtproto/mtpCoreTypes.cpp \
     ./SourceFiles/mtproto/mtpDC.cpp \
     ./SourceFiles/mtproto/mtpFileLoader.cpp \
+    ./SourceFiles/mtproto/rsa_public_key.cpp \
     ./SourceFiles/mtproto/mtpRPC.cpp \
     ./SourceFiles/mtproto/mtpScheme.cpp \
     ./SourceFiles/mtproto/mtpSession.cpp \
@@ -212,7 +213,7 @@ HEADERS += \
     ./SourceFiles/mtproto/mtpCoreTypes.h \
     ./SourceFiles/mtproto/mtpDC.h \
     ./SourceFiles/mtproto/mtpFileLoader.h \
-    ./SourceFiles/mtproto/mtpPublicRSA.h \
+    ./SourceFiles/mtproto/rsa_public_key.h \
     ./SourceFiles/mtproto/mtpRPC.h \
     ./SourceFiles/mtproto/mtpScheme.h \
     ./SourceFiles/mtproto/mtpSession.h \

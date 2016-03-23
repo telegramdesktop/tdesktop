@@ -20,260 +20,271 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
+#include "mtproto/mtpConnection.h"
+
+#include <openssl/bn.h>
+#include <openssl/err.h>
+#include <openssl/aes.h>
+#include <openssl/sha.h>
+#include <openssl/md5.h>
 #include <openssl/rand.h>
 
-namespace {
-	bool parsePQ(const std::string &pqStr, std::string &pStr, std::string &qStr) {
-		if (pqStr.length() > 8) return false; // more than 64 bit pq
+#include "mtproto/rsa_public_key.h"
 
-		uint64 pq = 0, p, q;
-		const uchar *pqChars = (const uchar*)&pqStr[0];
-		for (uint32 i = 0, l = pqStr.length(); i < l; ++i) {
-			pq <<= 8;
-			pq |= (uint64)pqChars[i];
-		}
-		uint64 pqSqrt = (uint64)sqrtl((long double)pq), ySqr, y;
-		while (pqSqrt * pqSqrt > pq) --pqSqrt;
-		while (pqSqrt * pqSqrt < pq) ++pqSqrt;
-		for (ySqr = pqSqrt * pqSqrt - pq; ; ++pqSqrt, ySqr = pqSqrt * pqSqrt - pq) {
-			y = (uint64)sqrtl((long double)ySqr);
-			while (y * y > ySqr) --y;
-			while (y * y < ySqr) ++y;
-			if (!ySqr || y + pqSqrt >= pq) return false;
-			if (y * y == ySqr) {
-				p = pqSqrt + y;
-				q = (pqSqrt > y) ? (pqSqrt - y) : (y - pqSqrt);
-				break;
-			}
-		}
-		if (p > q) swap(p, q);
+using std::string;
 
-		pStr.resize(4);
-		uchar *pChars = (uchar*)&pStr[0];
-		for (uint32 i = 0; i < 4; ++i) {
-			*(pChars + 3 - i) = (uchar)(p & 0xFF);
-			p >>= 8;
+namespace MTP {
+namespace internal {
+
+bool parsePQ(const string &pqStr, string &pStr, string &qStr) {
+	if (pqStr.length() > 8) return false; // more than 64 bit pq
+
+	uint64 pq = 0, p, q;
+	const uchar *pqChars = (const uchar*)&pqStr[0];
+	for (uint32 i = 0, l = pqStr.length(); i < l; ++i) {
+		pq <<= 8;
+		pq |= (uint64)pqChars[i];
+	}
+	uint64 pqSqrt = (uint64)sqrtl((long double)pq), ySqr, y;
+	while (pqSqrt * pqSqrt > pq) --pqSqrt;
+	while (pqSqrt * pqSqrt < pq) ++pqSqrt;
+	for (ySqr = pqSqrt * pqSqrt - pq; ; ++pqSqrt, ySqr = pqSqrt * pqSqrt - pq) {
+		y = (uint64)sqrtl((long double)ySqr);
+		while (y * y > ySqr) --y;
+		while (y * y < ySqr) ++y;
+		if (!ySqr || y + pqSqrt >= pq) return false;
+		if (y * y == ySqr) {
+			p = pqSqrt + y;
+			q = (pqSqrt > y) ? (pqSqrt - y) : (y - pqSqrt);
+			break;
+		}
+	}
+	if (p > q) swap(p, q);
+
+	pStr.resize(4);
+	uchar *pChars = (uchar*)&pStr[0];
+	for (uint32 i = 0; i < 4; ++i) {
+		*(pChars + 3 - i) = (uchar)(p & 0xFF);
+		p >>= 8;
+	}
+
+	qStr.resize(4);
+	uchar *qChars = (uchar*)&qStr[0];
+	for (uint32 i = 0; i < 4; ++i) {
+		*(qChars + 3 - i) = (uchar)(q & 0xFF);
+		q >>= 8;
+	}
+
+	return true;
+}
+
+class BigNumCounter {
+public:
+	bool count(const void *power, const void *modul, uint32 g, void *gResult, const void *g_a, void *g_aResult) {
+		DEBUG_LOG(("BigNum Info: counting g_b = g ^ b % dh_prime and auth_key = g_a ^ b % dh_prime"));
+		uint32 g_be = qToBigEndian(g);
+		if (
+			!BN_bin2bn((const uchar*)power, 64 * sizeof(uint32), &bnPower) ||
+			!BN_bin2bn((const uchar*)modul, 64 * sizeof(uint32), &bnModul) ||
+			!BN_bin2bn((const uchar*)&g_be, sizeof(uint32), &bn_g) ||
+			!BN_bin2bn((const uchar*)g_a, 64 * sizeof(uint32), &bn_g_a)
+			) {
+			ERR_load_crypto_strings();
+			LOG(("BigNum Error: BN_bin2bn failed, error: %1").arg(ERR_error_string(ERR_get_error(), 0)));
+			DEBUG_LOG(("BigNum Error: base %1, power %2, modul %3").arg(Logs::mb(&g_be, sizeof(uint32)).str()).arg(Logs::mb(power, 64 * sizeof(uint32)).str()).arg(Logs::mb(modul, 64 * sizeof(uint32)).str()));
+			return false;
 		}
 
-		qStr.resize(4);
-		uchar *qChars = (uchar*)&qStr[0];
-		for (uint32 i = 0; i < 4; ++i) {
-			*(qChars + 3 - i) = (uchar)(q & 0xFF);
-			q >>= 8;
+		if (!BN_mod_exp(&bnResult, &bn_g, &bnPower, &bnModul, ctx)) {
+			ERR_load_crypto_strings();
+			LOG(("BigNum Error: BN_mod_exp failed, error: %1").arg(ERR_error_string(ERR_get_error(), 0)));
+			DEBUG_LOG(("BigNum Error: base %1, power %2, modul %3").arg(Logs::mb(&g_be, sizeof(uint32)).str()).arg(Logs::mb(power, 64 * sizeof(uint32)).str()).arg(Logs::mb(modul, 64 * sizeof(uint32)).str()));
+			return false;
+		}
+
+		uint32 resultLen = BN_num_bytes(&bnResult);
+		if (resultLen != 64 * sizeof(uint32)) {
+			DEBUG_LOG(("BigNum Error: bad gResult len (%1)").arg(resultLen));
+			return false;
+		}
+		resultLen = BN_bn2bin(&bnResult, (uchar*)gResult);
+		if (resultLen != 64 * sizeof(uint32)) {
+			DEBUG_LOG(("BigNum Error: bad gResult export len (%1)").arg(resultLen));
+			return false;
+		}
+
+		BN_add_word(&bnResult, 1); // check g_b < dh_prime - 1
+		if (BN_cmp(&bnResult, &bnModul) >= 0) {
+			DEBUG_LOG(("BigNum Error: bad g_b >= dh_prime - 1"));
+			return false;
+		}
+
+		if (!BN_mod_exp(&bnResult, &bn_g_a, &bnPower, &bnModul, ctx)) {
+			ERR_load_crypto_strings();
+			LOG(("BigNum Error: BN_mod_exp failed, error: %1").arg(ERR_error_string(ERR_get_error(), 0)));
+			DEBUG_LOG(("BigNum Error: base %1, power %2, modul %3").arg(Logs::mb(&g_be, sizeof(uint32)).str()).arg(Logs::mb(power, 64 * sizeof(uint32)).str()).arg(Logs::mb(modul, 64 * sizeof(uint32)).str()));
+			return false;
+		}
+
+		resultLen = BN_num_bytes(&bnResult);
+		if (resultLen != 64 * sizeof(uint32)) {
+			DEBUG_LOG(("BigNum Error: bad g_aResult len (%1)").arg(resultLen));
+			return false;
+		}
+		resultLen = BN_bn2bin(&bnResult, (uchar*)g_aResult);
+		if (resultLen != 64 * sizeof(uint32)) {
+			DEBUG_LOG(("BigNum Error: bad g_aResult export len (%1)").arg(resultLen));
+			return false;
+		}
+
+		BN_add_word(&bn_g_a, 1); // check g_a < dh_prime - 1
+		if (BN_cmp(&bn_g_a, &bnModul) >= 0) {
+			DEBUG_LOG(("BigNum Error: bad g_a >= dh_prime - 1"));
+			return false;
 		}
 
 		return true;
 	}
 
-	class _BigNumCounter {
-	public:
-		bool count(const void *power, const void *modul, uint32 g, void *gResult, const void *g_a, void *g_aResult) {
-			DEBUG_LOG(("BigNum Info: counting g_b = g ^ b % dh_prime and auth_key = g_a ^ b % dh_prime"));
-			uint32 g_be = qToBigEndian(g);
-			if (
-				!BN_bin2bn((const uchar*)power, 64 * sizeof(uint32), &bnPower) ||
-				!BN_bin2bn((const uchar*)modul, 64 * sizeof(uint32), &bnModul) ||
-				!BN_bin2bn((const uchar*)&g_be, sizeof(uint32), &bn_g) ||
-				!BN_bin2bn((const uchar*)g_a, 64 * sizeof(uint32), &bn_g_a)
-			) {
-				ERR_load_crypto_strings();
-				LOG(("BigNum Error: BN_bin2bn failed, error: %1").arg(ERR_error_string(ERR_get_error(), 0)));
-				DEBUG_LOG(("BigNum Error: base %1, power %2, modul %3").arg(Logs::mb(&g_be, sizeof(uint32)).str()).arg(Logs::mb(power, 64 * sizeof(uint32)).str()).arg(Logs::mb(modul, 64 * sizeof(uint32)).str()));
-				return false;
-			}
-
-			if (!BN_mod_exp(&bnResult, &bn_g, &bnPower, &bnModul, ctx)) {
-				ERR_load_crypto_strings();
-				LOG(("BigNum Error: BN_mod_exp failed, error: %1").arg(ERR_error_string(ERR_get_error(), 0)));
-				DEBUG_LOG(("BigNum Error: base %1, power %2, modul %3").arg(Logs::mb(&g_be, sizeof(uint32)).str()).arg(Logs::mb(power, 64 * sizeof(uint32)).str()).arg(Logs::mb(modul, 64 * sizeof(uint32)).str()));
-				return false;
-			}
-
-			uint32 resultLen = BN_num_bytes(&bnResult);
-			if (resultLen != 64 * sizeof(uint32)) {
-				DEBUG_LOG(("BigNum Error: bad gResult len (%1)").arg(resultLen));
-				return false;
-			}
-			resultLen = BN_bn2bin(&bnResult, (uchar*)gResult);
-			if (resultLen != 64 * sizeof(uint32)) {
-				DEBUG_LOG(("BigNum Error: bad gResult export len (%1)").arg(resultLen));
-				return false;
-			}
-
-			BN_add_word(&bnResult, 1); // check g_b < dh_prime - 1
-			if (BN_cmp(&bnResult, &bnModul) >= 0) {
-				DEBUG_LOG(("BigNum Error: bad g_b >= dh_prime - 1"));
-				return false;
-			}
-
-			if (!BN_mod_exp(&bnResult, &bn_g_a, &bnPower, &bnModul, ctx)) {
-				ERR_load_crypto_strings();
-				LOG(("BigNum Error: BN_mod_exp failed, error: %1").arg(ERR_error_string(ERR_get_error(), 0)));
-				DEBUG_LOG(("BigNum Error: base %1, power %2, modul %3").arg(Logs::mb(&g_be, sizeof(uint32)).str()).arg(Logs::mb(power, 64 * sizeof(uint32)).str()).arg(Logs::mb(modul, 64 * sizeof(uint32)).str()));
-				return false;
-			}
-
-			resultLen = BN_num_bytes(&bnResult);
-			if (resultLen != 64 * sizeof(uint32)) {
-				DEBUG_LOG(("BigNum Error: bad g_aResult len (%1)").arg(resultLen));
-				return false;
-			}
-			resultLen = BN_bn2bin(&bnResult, (uchar*)g_aResult);
-			if (resultLen != 64 * sizeof(uint32)) {
-				DEBUG_LOG(("BigNum Error: bad g_aResult export len (%1)").arg(resultLen));
-				return false;
-			}
-
-			BN_add_word(&bn_g_a, 1); // check g_a < dh_prime - 1
-			if (BN_cmp(&bn_g_a, &bnModul) >= 0) {
-				DEBUG_LOG(("BigNum Error: bad g_a >= dh_prime - 1"));
-				return false;
-			}
-
-			return true;
-		}
-
-		_BigNumCounter() : ctx(BN_CTX_new()) {
-			BN_init(&bnPower);
-			BN_init(&bnModul);
-			BN_init(&bn_g);
-			BN_init(&bn_g_a);
-			BN_init(&bnResult);
-		}
-		~_BigNumCounter() {
-			BN_CTX_free(ctx);
-			BN_clear_free(&bnPower);
-			BN_clear_free(&bnModul);
-			BN_clear_free(&bn_g);
-			BN_clear_free(&bn_g_a);
-			BN_clear_free(&bnResult);
-		}
-
-	private:
-		BIGNUM bnPower, bnModul, bn_g, bn_g_a, bnResult;
-		BN_CTX *ctx;
-	};
-
-	// Miller-Rabin primality test
-	class _BigNumPrimeTest {
-	public:
-
-		bool isPrimeAndGood(const void *pData, uint32 iterCount, int32 g) {
-			if (!memcmp(pData, "\xC7\x1C\xAE\xB9\xC6\xB1\xC9\x04\x8E\x6C\x52\x2F\x70\xF1\x3F\x73\x98\x0D\x40\x23\x8E\x3E\x21\xC1\x49\x34\xD0\x37\x56\x3D\x93\x0F\x48\x19\x8A\x0A\xA7\xC1\x40\x58\x22\x94\x93\xD2\x25\x30\xF4\xDB\xFA\x33\x6F\x6E\x0A\xC9\x25\x13\x95\x43\xAE\xD4\x4C\xCE\x7C\x37\x20\xFD\x51\xF6\x94\x58\x70\x5A\xC6\x8C\xD4\xFE\x6B\x6B\x13\xAB\xDC\x97\x46\x51\x29\x69\x32\x84\x54\xF1\x8F\xAF\x8C\x59\x5F\x64\x24\x77\xFE\x96\xBB\x2A\x94\x1D\x5B\xCD\x1D\x4A\xC8\xCC\x49\x88\x07\x08\xFA\x9B\x37\x8E\x3C\x4F\x3A\x90\x60\xBE\xE6\x7C\xF9\xA4\xA4\xA6\x95\x81\x10\x51\x90\x7E\x16\x27\x53\xB5\x6B\x0F\x6B\x41\x0D\xBA\x74\xD8\xA8\x4B\x2A\x14\xB3\x14\x4E\x0E\xF1\x28\x47\x54\xFD\x17\xED\x95\x0D\x59\x65\xB4\xB9\xDD\x46\x58\x2D\xB1\x17\x8D\x16\x9C\x6B\xC4\x65\xB0\xD6\xFF\x9C\xA3\x92\x8F\xEF\x5B\x9A\xE4\xE4\x18\xFC\x15\xE8\x3E\xBE\xA0\xF8\x7F\xA9\xFF\x5E\xED\x70\x05\x0D\xED\x28\x49\xF4\x7B\xF9\x59\xD9\x56\x85\x0C\xE9\x29\x85\x1F\x0D\x81\x15\xF6\x35\xB1\x05\xEE\x2E\x4E\x15\xD0\x4B\x24\x54\xBF\x6F\x4F\xAD\xF0\x34\xB1\x04\x03\x11\x9C\xD8\xE3\xB9\x2F\xCC\x5B", 256)) {
-				if (g == 3 || g == 4 || g == 5 || g == 7) {
-					return true;
-				}
-			}
-			if (
-				!BN_bin2bn((const uchar*)pData, 64 * sizeof(uint32), &bnPrime)
-			) {
-				ERR_load_crypto_strings();
-				LOG(("BigNum PT Error: BN_bin2bn failed, error: %1").arg(ERR_error_string(ERR_get_error(), 0)));
-				DEBUG_LOG(("BigNum PT Error: prime %1").arg(Logs::mb(pData, 64 * sizeof(uint32)).str()));
-				return false;
-			}
-
-			int32 numBits = BN_num_bits(&bnPrime);
-			if (numBits != 2048) {
-				LOG(("BigNum PT Error: BN_bin2bn failed, bad dh_prime num bits: %1").arg(numBits));
-				return false;
-			}
-
-			if (BN_is_prime_ex(&bnPrime, MTPMillerRabinIterCount, ctx, NULL) == 0) {
-				return false;
-			}
-
-			switch (g) {
-			case 2: {
-				int32 mod8 = BN_mod_word(&bnPrime, 8);
-				if (mod8 != 7) {
-					LOG(("BigNum PT Error: bad g value: %1, mod8: %2").arg(g).arg(mod8));
-					return false;
-				}
-			} break;
-			case 3: {
-				int32 mod3 = BN_mod_word(&bnPrime, 3);
-				if (mod3 != 2) {
-					LOG(("BigNum PT Error: bad g value: %1, mod3: %2").arg(g).arg(mod3));
-					return false;
-				}
-			} break;
-			case 4: break;
-			case 5: {
-				int32 mod5 = BN_mod_word(&bnPrime, 5);
-				if (mod5 != 1 && mod5 != 4) {
-					LOG(("BigNum PT Error: bad g value: %1, mod5: %2").arg(g).arg(mod5));
-					return false;
-				}
-			} break;
-			case 6: {
-				int32 mod24 = BN_mod_word(&bnPrime, 24);
-				if (mod24 != 19 && mod24 != 23) {
-					LOG(("BigNum PT Error: bad g value: %1, mod24: %2").arg(g).arg(mod24));
-					return false;
-				}
-			} break;
-			case 7: {
-				int32 mod7 = BN_mod_word(&bnPrime, 7);
-				if (mod7 != 3 && mod7 != 5 && mod7 != 6) {
-					LOG(("BigNum PT Error: bad g value: %1, mod7: %2").arg(g).arg(mod7));
-					return false;
-				}
-			} break;
-			default:
-				LOG(("BigNum PT Error: bad g value: %1").arg(g));
-				return false;
-				break;
-			}
-
-			BN_sub_word(&bnPrime, 1); // (p - 1) / 2
-			BN_div_word(&bnPrime, 2);
-
-			if (BN_is_prime_ex(&bnPrime, MTPMillerRabinIterCount, ctx, NULL) == 0) {
-				return false;
-			}
-
-			return true;
-		}
-
-		_BigNumPrimeTest() : ctx(BN_CTX_new()) {
-			BN_init(&bnPrime);
-		}
-		~_BigNumPrimeTest() {
-			BN_CTX_free(ctx);
-			BN_clear_free(&bnPrime);
-		}
-
-	private:
-		BIGNUM bnPrime;
-		BN_CTX *ctx;
-	};
-
-	typedef QMap<uint64, mtpPublicRSA> PublicRSAKeys;
-	PublicRSAKeys gPublicRSA;
-
-	bool gConfigInited = false;
-	void initRSAConfig() {
-		if (gConfigInited) return;
-		gConfigInited = true;
-
-		DEBUG_LOG(("MTP Info: MTP config init"));
-
-		// read all public keys
-		uint32 keysCnt;
-		const char **keys = cPublicRSAKeys(keysCnt);
-		for (uint32 i = 0; i < keysCnt; ++i) {
-			mtpPublicRSA key(keys[i]);
-			if (key.key()) {
-				gPublicRSA.insert(key.fingerPrint(), key);
-			} else {
-				LOG(("MTP Error: could not read this public RSA key:"));
-				LOG((keys[i]));
-			}
-		}
-		DEBUG_LOG(("MTP Info: read %1 public RSA keys").arg(gPublicRSA.size()));
+	BigNumCounter() : ctx(BN_CTX_new()) {
+		BN_init(&bnPower);
+		BN_init(&bnModul);
+		BN_init(&bn_g);
+		BN_init(&bn_g_a);
+		BN_init(&bnResult);
 	}
+	~BigNumCounter() {
+		BN_CTX_free(ctx);
+		BN_clear_free(&bnPower);
+		BN_clear_free(&bnModul);
+		BN_clear_free(&bn_g);
+		BN_clear_free(&bn_g_a);
+		BN_clear_free(&bnResult);
+	}
+
+private:
+	BIGNUM bnPower, bnModul, bn_g, bn_g_a, bnResult;
+	BN_CTX *ctx;
+};
+
+// Miller-Rabin primality test
+class BigNumPrimeTest {
+public:
+
+	bool isPrimeAndGood(const void *pData, uint32 iterCount, int32 g) {
+		if (!memcmp(pData, "\xC7\x1C\xAE\xB9\xC6\xB1\xC9\x04\x8E\x6C\x52\x2F\x70\xF1\x3F\x73\x98\x0D\x40\x23\x8E\x3E\x21\xC1\x49\x34\xD0\x37\x56\x3D\x93\x0F\x48\x19\x8A\x0A\xA7\xC1\x40\x58\x22\x94\x93\xD2\x25\x30\xF4\xDB\xFA\x33\x6F\x6E\x0A\xC9\x25\x13\x95\x43\xAE\xD4\x4C\xCE\x7C\x37\x20\xFD\x51\xF6\x94\x58\x70\x5A\xC6\x8C\xD4\xFE\x6B\x6B\x13\xAB\xDC\x97\x46\x51\x29\x69\x32\x84\x54\xF1\x8F\xAF\x8C\x59\x5F\x64\x24\x77\xFE\x96\xBB\x2A\x94\x1D\x5B\xCD\x1D\x4A\xC8\xCC\x49\x88\x07\x08\xFA\x9B\x37\x8E\x3C\x4F\x3A\x90\x60\xBE\xE6\x7C\xF9\xA4\xA4\xA6\x95\x81\x10\x51\x90\x7E\x16\x27\x53\xB5\x6B\x0F\x6B\x41\x0D\xBA\x74\xD8\xA8\x4B\x2A\x14\xB3\x14\x4E\x0E\xF1\x28\x47\x54\xFD\x17\xED\x95\x0D\x59\x65\xB4\xB9\xDD\x46\x58\x2D\xB1\x17\x8D\x16\x9C\x6B\xC4\x65\xB0\xD6\xFF\x9C\xA3\x92\x8F\xEF\x5B\x9A\xE4\xE4\x18\xFC\x15\xE8\x3E\xBE\xA0\xF8\x7F\xA9\xFF\x5E\xED\x70\x05\x0D\xED\x28\x49\xF4\x7B\xF9\x59\xD9\x56\x85\x0C\xE9\x29\x85\x1F\x0D\x81\x15\xF6\x35\xB1\x05\xEE\x2E\x4E\x15\xD0\x4B\x24\x54\xBF\x6F\x4F\xAD\xF0\x34\xB1\x04\x03\x11\x9C\xD8\xE3\xB9\x2F\xCC\x5B", 256)) {
+			if (g == 3 || g == 4 || g == 5 || g == 7) {
+				return true;
+			}
+		}
+		if (
+			!BN_bin2bn((const uchar*)pData, 64 * sizeof(uint32), &bnPrime)
+			) {
+			ERR_load_crypto_strings();
+			LOG(("BigNum PT Error: BN_bin2bn failed, error: %1").arg(ERR_error_string(ERR_get_error(), 0)));
+			DEBUG_LOG(("BigNum PT Error: prime %1").arg(Logs::mb(pData, 64 * sizeof(uint32)).str()));
+			return false;
+		}
+
+		int32 numBits = BN_num_bits(&bnPrime);
+		if (numBits != 2048) {
+			LOG(("BigNum PT Error: BN_bin2bn failed, bad dh_prime num bits: %1").arg(numBits));
+			return false;
+		}
+
+		if (BN_is_prime_ex(&bnPrime, MTPMillerRabinIterCount, ctx, NULL) == 0) {
+			return false;
+		}
+
+		switch (g) {
+		case 2: {
+			int32 mod8 = BN_mod_word(&bnPrime, 8);
+			if (mod8 != 7) {
+				LOG(("BigNum PT Error: bad g value: %1, mod8: %2").arg(g).arg(mod8));
+				return false;
+			}
+		} break;
+		case 3: {
+			int32 mod3 = BN_mod_word(&bnPrime, 3);
+			if (mod3 != 2) {
+				LOG(("BigNum PT Error: bad g value: %1, mod3: %2").arg(g).arg(mod3));
+				return false;
+			}
+		} break;
+		case 4: break;
+		case 5: {
+			int32 mod5 = BN_mod_word(&bnPrime, 5);
+			if (mod5 != 1 && mod5 != 4) {
+				LOG(("BigNum PT Error: bad g value: %1, mod5: %2").arg(g).arg(mod5));
+				return false;
+			}
+		} break;
+		case 6: {
+			int32 mod24 = BN_mod_word(&bnPrime, 24);
+			if (mod24 != 19 && mod24 != 23) {
+				LOG(("BigNum PT Error: bad g value: %1, mod24: %2").arg(g).arg(mod24));
+				return false;
+			}
+		} break;
+		case 7: {
+			int32 mod7 = BN_mod_word(&bnPrime, 7);
+			if (mod7 != 3 && mod7 != 5 && mod7 != 6) {
+				LOG(("BigNum PT Error: bad g value: %1, mod7: %2").arg(g).arg(mod7));
+				return false;
+			}
+		} break;
+		default:
+		LOG(("BigNum PT Error: bad g value: %1").arg(g));
+		return false;
+		break;
+		}
+
+		BN_sub_word(&bnPrime, 1); // (p - 1) / 2
+		BN_div_word(&bnPrime, 2);
+
+		if (BN_is_prime_ex(&bnPrime, MTPMillerRabinIterCount, ctx, NULL) == 0) {
+			return false;
+		}
+
+		return true;
+	}
+
+	BigNumPrimeTest() : ctx(BN_CTX_new()) {
+		BN_init(&bnPrime);
+	}
+	~BigNumPrimeTest() {
+		BN_CTX_free(ctx);
+		BN_clear_free(&bnPrime);
+	}
+
+private:
+	BIGNUM bnPrime;
+	BN_CTX *ctx;
+};
+
+typedef QMap<uint64, MTP::internal::RSAPublicKey> RSAPublicKeys;
+RSAPublicKeys InitRSAPublicKeys() {
+	DEBUG_LOG(("MTP Info: RSA public keys list creation"));
+
+	RSAPublicKeys result;
+
+	int keysCount;
+	const char **keys = cPublicRSAKeys(keysCount);
+	for (int i = 0; i < keysCount; ++i) {
+		RSAPublicKey key(keys[i]);
+		if (key.isValid()) {
+			result.insert(key.getFingerPrint(), key);
+		} else {
+			LOG(("MTP Error: could not read this public RSA key:"));
+			LOG((keys[i]));
+		}
+	}
+	DEBUG_LOG(("MTP Info: read %1 public RSA keys").arg(result.size()));
+	return result;
 }
+
+} // namespace internal
+} // namespace MTP
 
 uint32 MTPThreadIdIncrement = 0;
 
@@ -293,8 +304,6 @@ MTProtoConnection::MTProtoConnection() : thread(nullptr), data(nullptr) {
 
 int32 MTProtoConnection::start(MTPSessionData *sessionData, int32 dc) {
 	t_assert(thread == nullptr && data == nullptr);
-
-	initRSAConfig();
 
 	thread = new MTPThread();
 	data = new MTProtoConnectionPrivate(thread, this, sessionData, dc);
@@ -3330,22 +3339,22 @@ void MTProtoConnectionPrivate::pqAnswered() {
 		return restart();
 	}
 
-	mtpPublicRSA *rsaKey = 0;
+	static MTP::internal::RSAPublicKeys RSAKeys = MTP::internal::InitRSAPublicKeys();
+	const MTP::internal::RSAPublicKey *rsaKey = nullptr;
 	const QVector<MTPlong> &fingerPrints(res_pq.c_resPQ().vserver_public_key_fingerprints.c_vector().v);
-	for (uint32 i = 0, l = fingerPrints.size(); i < l; ++i) {
-		uint64 print(fingerPrints[i].v);
-		PublicRSAKeys::iterator rsaIndex = gPublicRSA.find(print);
-		if (rsaIndex != gPublicRSA.end()) {
-			rsaKey = &rsaIndex.value();
+	for (const MTPlong &fingerPrint : fingerPrints) {
+		auto it = RSAKeys.constFind(fingerPrint.v);
+		if (it != RSAKeys.cend()) {
+			rsaKey = &it.value();
 			break;
 		}
 	}
 	if (!rsaKey) {
 		QStringList suggested, my;
-		for (uint32 i = 0, l = fingerPrints.size(); i < l; ++i) {
-			suggested.push_back(QString("%1").arg(fingerPrints[i].v));
+		for (const MTPlong &fingerPrint : fingerPrints) {
+			suggested.push_back(QString("%1").arg(fingerPrint.v));
 		}
-		for (PublicRSAKeys::const_iterator i = gPublicRSA.cbegin(), e = gPublicRSA.cend(); i != e; ++i) {
+		for (auto i = RSAKeys.cbegin(), e = RSAKeys.cend(); i != e; ++i) {
 			my.push_back(QString("%1").arg(i.key()));
 		}
 		LOG(("AuthKey Error: could not choose public RSA key, suggested fingerprints: %1, my fingerprints: %2").arg(suggested.join(", ")).arg(my.join(", ")));
@@ -3363,7 +3372,7 @@ void MTProtoConnectionPrivate::pqAnswered() {
 	const string &pq(res_pq_data.vpq.c_string().v);
 	string &p(p_q_inner_data.vp._string().v), &q(p_q_inner_data.vq._string().v);
 
-	if (!parsePQ(pq, p, q)) {
+	if (!MTP::internal::parsePQ(pq, p, q)) {
 		LOG(("AuthKey Error: could not factor pq!"));
 		DEBUG_LOG(("AuthKey Error: problematic pq: %1").arg(Logs::mb(&pq[0], pq.length()).str()));
 		return restart();
@@ -3375,7 +3384,7 @@ void MTProtoConnectionPrivate::pqAnswered() {
 	MTPReq_DH_params req_DH_params;
 	req_DH_params.vnonce = authKeyData->nonce;
 	req_DH_params.vserver_nonce = authKeyData->server_nonce;
-	req_DH_params.vpublic_key_fingerprint = MTP_long(rsaKey->fingerPrint());
+	req_DH_params.vpublic_key_fingerprint = MTP_long(rsaKey->getFingerPrint());
 	req_DH_params.vp = p_q_inner_data.vp;
 	req_DH_params.vq = p_q_inner_data.vq;
 
@@ -3403,14 +3412,9 @@ void MTProtoConnectionPrivate::pqAnswered() {
 		memset_rand(&encBuffer[encSize], (65 - encSize) * sizeof(mtpPrime));
 	}
 
-	dhEncString.resize(256);
-	int32 res = RSA_public_encrypt(256, ((const uchar*)&encBuffer[0]) + 3, (uchar*)&dhEncString[0], rsaKey->key(), RSA_NO_PADDING);
-	if (res != 256) {
-		ERR_load_crypto_strings();
-		LOG(("RSA Error: RSA_public_encrypt failed, key fp: %1, result: %2, error: %3").arg(rsaKey->fingerPrint()).arg(res).arg(ERR_error_string(ERR_get_error(), 0)));
+	if (!rsaKey->encrypt(reinterpret_cast<const char*>(&encBuffer[0]) + 3, dhEncString)) {
 		return restart();
 	}
-
 	connect(_conn, SIGNAL(receivedData()), this, SLOT(dhParamsAnswered()));
 
 	DEBUG_LOG(("AuthKey Info: sending Req_DH_params.."));
@@ -3498,7 +3502,7 @@ void MTProtoConnectionPrivate::dhParamsAnswered() {
 		}
 
 		// check that dhPrime and (dhPrime - 1) / 2 are really prime using openssl BIGNUM methods
-		_BigNumPrimeTest bnPrimeTest;
+		MTP::internal::BigNumPrimeTest bnPrimeTest;
 		if (!bnPrimeTest.isPrimeAndGood(&dhPrime[0], MTPMillerRabinIterCount, dh_inner_data.vg.v)) {
 			LOG(("AuthKey Error: bad dh_prime primality!").arg(dhPrime.length()).arg(g_a.length()));
 			DEBUG_LOG(("AuthKey Error: dh_prime %1").arg(Logs::mb(&dhPrime[0], dhPrime.length()).str()));
@@ -3556,7 +3560,7 @@ void MTProtoConnectionPrivate::dhClientParamsSend() {
 	memset_rand(b, sizeof(b));
 
 	// count g_b and auth_key using openssl BIGNUM methods
-	_BigNumCounter bnCounter;
+	MTP::internal::BigNumCounter bnCounter;
 	if (!bnCounter.count(b, authKeyStrings->dh_prime.constData(), authKeyData->g, g_b, authKeyStrings->g_a.constData(), authKeyData->auth_key)) {
 		return dhClientParamsSend();
 	}

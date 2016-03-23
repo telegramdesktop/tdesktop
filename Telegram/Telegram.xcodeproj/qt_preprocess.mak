@@ -299,7 +299,7 @@ GeneratedFiles/Debug/moc_mtp.cpp: SourceFiles/mtproto/mtpSession.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		SourceFiles/mtproto/mtpScheme.h \
-		SourceFiles/mtproto/mtpPublicRSA.h \
+		SourceFiles/mtproto/rsa_public_key.h \
 		SourceFiles/mtproto/mtpAuthKey.h \
 		SourceFiles/mtproto/mtpDC.h \
 		SourceFiles/mtproto/mtpRPC.h \
@@ -313,7 +313,7 @@ GeneratedFiles/Debug/moc_mtpConnection.cpp: SourceFiles/mtproto/mtpCoreTypes.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		SourceFiles/mtproto/mtpScheme.h \
-		SourceFiles/mtproto/mtpPublicRSA.h \
+		SourceFiles/mtproto/rsa_public_key.h \
 		SourceFiles/mtproto/mtpAuthKey.h \
 		SourceFiles/mtproto/mtpConnection.h
 	/usr/local/Qt-5.5.1/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.5.1/mkspecs/macx-clang -I. -I/usr/local/Qt-5.5.1/include/QtGui/5.5.1/QtGui -I/usr/local/Qt-5.5.1/include/QtCore/5.5.1/QtCore -I/usr/local/Qt-5.5.1/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.5.1/include -I/usr/local/Qt-5.5.1/include/QtMultimedia -I/usr/local/Qt-5.5.1/include/QtWidgets -I/usr/local/Qt-5.5.1/include/QtNetwork -I/usr/local/Qt-5.5.1/include/QtGui -I/usr/local/Qt-5.5.1/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/mtproto/mtpConnection.h -o GeneratedFiles/Debug/moc_mtpConnection.cpp
@@ -330,7 +330,7 @@ GeneratedFiles/Debug/moc_mtpSession.cpp: SourceFiles/mtproto/mtpConnection.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		SourceFiles/mtproto/mtpScheme.h \
-		SourceFiles/mtproto/mtpPublicRSA.h \
+		SourceFiles/mtproto/rsa_public_key.h \
 		SourceFiles/mtproto/mtpAuthKey.h \
 		SourceFiles/mtproto/mtpDC.h \
 		SourceFiles/mtproto/mtpRPC.h \

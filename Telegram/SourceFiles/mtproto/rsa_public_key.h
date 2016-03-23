@@ -18,26 +18,31 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
+#pragma once
 
-#include <openssl/aes.h>
+namespace MTP {
+namespace internal {
 
-void aesEncrypt(const void *src, void *dst, uint32 len, void *key, void *iv) {
-	uchar aes_key[32], aes_iv[32];
-	memcpy(aes_key, key, 32);
-	memcpy(aes_iv, iv, 32);
+// this class holds an RSA public key and can encrypt fixed-size messages with it
+class RSAPublicKey final {
+public:
 
-	AES_KEY aes;
-	AES_set_encrypt_key(aes_key, 256, &aes);
-	AES_ige_encrypt((const uchar*)src, (uchar*)dst, len, &aes, aes_iv, AES_ENCRYPT);
-}
+	// key in RSAPublicKey "-----BEGIN RSA PUBLIC KEY----- ..." format
+	RSAPublicKey(const char *key);
 
-void aesDecrypt(const void *src, void *dst, uint32 len, void *key, void *iv) {
-	uchar aes_key[32], aes_iv[32];
-	memcpy(aes_key, key, 32);
-	memcpy(aes_iv, iv, 32);
+	bool isValid() const;
+	uint64 getFingerPrint() const;
 
-	AES_KEY aes;
-	AES_set_decrypt_key(aes_key, 256, &aes);
-	AES_ige_encrypt((const uchar*)src, (uchar*)dst, len, &aes, aes_iv, AES_DECRYPT);
-}
+	// data has exactly 256 chars to be encrypted
+	bool encrypt(const void *data, string &result) const;
+
+private:
+
+	struct Impl;
+	typedef QSharedPointer<Impl> ImplPtr;
+	ImplPtr impl_;
+
+};
+
+} // namespace internal
+} // namespace MTP

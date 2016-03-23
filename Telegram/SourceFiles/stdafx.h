@@ -36,16 +36,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include <numeric>
 
-#include <openssl/bn.h>
-#include <openssl/rsa.h>
-#include <openssl/pem.h>
-#include <openssl/bio.h>
-#include <openssl/err.h>
-#include <openssl/aes.h>
-#include <openssl/evp.h>
-#include <openssl/sha.h>
-#include <openssl/md5.h>
-
 #include <QtCore/QtCore>
 #include <QtWidgets/QtWidgets>
 #include <QtNetwork/QtNetwork>

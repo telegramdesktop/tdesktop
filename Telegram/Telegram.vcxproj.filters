@@ -921,6 +921,9 @@
     <ClCompile Include="GeneratedFiles\Release\moc_pspecific_winrt.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\rsa_public_key.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -937,9 +940,6 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\logs.h">
       <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\mtproto\mtpPublicRSA.h">
-      <Filter>mtproto</Filter>
     </ClInclude>
     <ClInclude Include="GeneratedFiles\style_auto.h">
       <Filter>Generated Files</Filter>
@@ -1021,6 +1021,9 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\intro\introstart.h">
       <Filter>intro</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\mtproto\rsa_public_key.h">
+      <Filter>mtproto</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
