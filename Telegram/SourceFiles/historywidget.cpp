@@ -3776,7 +3776,6 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		_scroll.hide();
 		_scroll.setWidget(_list);
 		_list->show();
-		visibleAreaUpdated();
 
 		_updateHistoryItems.stop();
 
@@ -6411,11 +6410,11 @@ MsgId HistoryWidget::replyToId() const {
 
 void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollChange &change) {
 	if (!_history || (initial && _histInited) || (!initial && !_histInited)) return;
-	if (_firstLoadRequest) {
+	if (_firstLoadRequest || _a_show.animating()) {
 		return; // scrollTopMax etc are not working after recountHeight()
 	}
 
-	int32 newScrollHeight = height();
+	int newScrollHeight = height();
 	if (isBlocked() || isBotStart() || isJoinChannel() || isMuteUnmute()) {
 		newScrollHeight -= _unblock.height();
 	} else {
@@ -6435,7 +6434,11 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 	bool wasAtBottom = _scroll.scrollTop() + 1 > _scroll.scrollTopMax(), needResize = _scroll.width() != width() || _scroll.height() != newScrollHeight;
 	if (needResize) {
 		_scroll.resize(width(), newScrollHeight);
-		visibleAreaUpdated();
+		// on initial updateListSize we didn't put the _scroll.scrollTop correctly yet
+		// so visibleAreaUpdated() call will erase it with the new (undefined) value
+		if (!initial) {
+			visibleAreaUpdated();
+		}
 
 		_attachMention.setBoundings(_scroll.geometry());
 		_toHistoryEnd.move((width() - _toHistoryEnd.width()) / 2, _scroll.y() + _scroll.height() - _toHistoryEnd.height() - st::historyToEndSkip);
