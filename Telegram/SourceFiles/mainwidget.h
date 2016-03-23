@@ -251,6 +251,7 @@ public:
 	void sentUpdatesReceived(const MTPUpdates &updates) {
 		return sentUpdatesReceived(0, updates);
 	}
+	bool deleteChannelFailed(const RPCError &error);
 	void inviteToChannelDone(ChannelData *channel, const MTPUpdates &updates);
 	void historyToDown(History *hist);
 	void dialogsToUp();

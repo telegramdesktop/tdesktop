@@ -191,6 +191,7 @@ private:
 	UserBlockedStatus _wasBlocked;
 	mtpRequestId _blockRequest;
 	LinkButton _blockUser, _deleteChannel;
+	bool canDeleteChannel() const;
 
 	// participants
 	int32 _pHeight;

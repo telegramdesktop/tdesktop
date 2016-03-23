@@ -364,7 +364,7 @@ void ProfileInner::onDeleteChannelSure() {
 		if (_peerChannel->migrateFrom()) {
 			App::main()->deleteConversation(_peerChannel->migrateFrom());
 		}
-		MTP::send(MTPchannels_DeleteChannel(_peerChannel->inputChannel), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
+		MTP::send(MTPchannels_DeleteChannel(_peerChannel->inputChannel), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::deleteChannelFailed));
 	}
 }
 void ProfileInner::onBlockUser() {
@@ -978,7 +978,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	}
 	if (_peerUser && peerToUser(_peerUser->id) != MTP::authedId()) {
 		top += st::setSectionSkip + _blockUser.height();
-	} else if (_peerChannel && _amCreator) {
+	} else if (canDeleteChannel()) {
 		top += (_peerChannel->isMegagroup() ? 0 : (st::setSectionSkip - st::setLittleSkip)) + _deleteChannel.height();
 	}
 
@@ -1115,8 +1115,10 @@ void ProfileInner::updateSelected() {
 	}
 
 	int32 participantsTop = 0;
-	if (_peerChannel && _amCreator) {
+	if (canDeleteChannel()) {
 		participantsTop = _deleteChannel.y() + _deleteChannel.height();
+	} else if (_peerChannel && _amCreator) {
+		participantsTop = _searchInPeer.y() + _searchInPeer.height();
 	} else {
 		participantsTop = _deleteConversation.y() + _deleteConversation.height();
 	}
@@ -1365,6 +1367,10 @@ bool ProfileInner::migrateFail(const RPCError &error) {
 	return true;
 }
 
+bool ProfileInner::canDeleteChannel() const {
+	return _peerChannel && _amCreator && (_peerChannel->count <= 1000);
+}
+
 void ProfileInner::resizeEvent(QResizeEvent *e) {
 	_width = qMin(width() - st::profilePadding.left() - st::profilePadding.right(), int(st::profileMaxWidth));
 	_left = (width() - _width) / 2;
@@ -1482,7 +1488,7 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	if (_peerUser && peerToUser(_peerUser->id) != MTP::authedId()) {
 		top += st::setSectionSkip;
 		_blockUser.move(_left, top); top += _blockUser.height();
-	} else if (_peerChannel && _amCreator) {
+	} else if (canDeleteChannel()) {
 		top += (_peerChannel->isMegagroup() ? 0 : (st::setSectionSkip - st::setLittleSkip));
 		_deleteChannel.move(_left, top); top += _deleteChannel.height();
 	}
@@ -1602,9 +1608,9 @@ int32 ProfileInner::countMinHeight() {
 			h += st::profileHeaderSkip;
 		}
 	} else if (_peerChannel) {
-		if (_amCreator) {
+		if (canDeleteChannel()) {
 			h = _deleteChannel.y() + _deleteChannel.height() + st::profileHeaderSkip;
-		} else if (_peerChannel->amIn()) {
+		} else if (_peerChannel->amIn() && !_amCreator) {
 			h = _deleteConversation.y() + _deleteConversation.height() + st::profileHeaderSkip;
 		} else {
 			h = _searchInPeer.y() + _searchInPeer.height() + st::profileHeaderSkip;
@@ -1755,7 +1761,7 @@ void ProfileInner::showAll() {
 			_addParticipant.hide();
 		}
 		_blockUser.hide();
-		if (_amCreator) {
+		if (canDeleteChannel()) {
 			_deleteChannel.show();
 		} else {
 			_deleteChannel.hide();

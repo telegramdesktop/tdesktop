@@ -1147,7 +1147,9 @@ bool MainWidget::addParticipantFail(UserData *user, const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
 
 	QString text = lang(lng_failed_add_participant);
-	if (error.type() == "USER_LEFT_CHAT") { // trying to return banned user to his group
+	if (error.type() == "USER_LEFT_CHAT") { // trying to return a user who has left
+	} else if (error.type() == "USER_KICKED") { // trying to return a user who was kicked by admin
+		text = lang(lng_cant_invite_banned);
 	} else if (error.type() == "USER_PRIVACY_RESTRICTED") {
 		text = lang(lng_cant_invite_privacy);
 	} else if (error.type() == "USER_NOT_MUTUAL_CONTACT") { // trying to return user who does not have me in contacts
@@ -1166,8 +1168,10 @@ bool MainWidget::addParticipantsFail(ChannelData *channel, const RPCError &error
 
 	QString text = lang(lng_failed_add_participant);
 	if (error.type() == "USER_LEFT_CHAT") { // trying to return banned user to his group
+	} else if (error.type() == "USER_KICKED") { // trying to return a user who was kicked by admin
+		text = lang(lng_cant_invite_banned);
 	} else if (error.type() == "USER_PRIVACY_RESTRICTED") {
-		text = lang(lng_cant_invite_privacy_channel);
+		text = lang(channel->isMegagroup() ? lng_cant_invite_privacy : lng_cant_invite_privacy_channel);
 	} else if (error.type() == "USER_NOT_MUTUAL_CONTACT") { // trying to return user who does not have me in contacts
 		text = lang(channel->isMegagroup() ? lng_failed_add_not_mutual : lng_failed_add_not_mutual_channel);
 	} else if (error.type() == "PEER_FLOOD") {
@@ -2593,6 +2597,16 @@ void MainWidget::windowShown() {
 void MainWidget::sentUpdatesReceived(uint64 randomId, const MTPUpdates &result) {
 	feedUpdates(result, randomId);
 	App::emitPeerUpdated();
+}
+
+bool MainWidget::deleteChannelFailed(const RPCError &error) {
+	if (mtpIsFlood(error)) return false;
+
+	//if (error.type() == qstr("CHANNEL_TOO_LARGE")) {
+	//	Ui::showLayer(new InformBox(lang(lng_cant_delete_channel)));
+	//}
+
+	return true;
 }
 
 void MainWidget::inviteToChannelDone(ChannelData *channel, const MTPUpdates &updates) {
