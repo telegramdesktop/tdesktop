@@ -109,6 +109,7 @@ public slots:
 	void onMediaLinks();
 
 	void onMenuDestroy(QObject *obj);
+	void onCopyFullName();
 	void onCopyPhone();
 	void onCopyUsername();
 
