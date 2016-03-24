@@ -1537,7 +1537,7 @@ void ProfileInner::onMenuDestroy(QObject *obj) {
 
 void ProfileInner::onCopyFullName() {
 	if (!_peerUser) return;
-	QApplication::clipboard()->setText(lng_full_name(lt_first_name, _peerUser->firstName, lt_last_name, _peerUser->lastName));
+	QApplication::clipboard()->setText(lng_full_name(lt_first_name, _peerUser->firstName, lt_last_name, _peerUser->lastName).trimmed());
 }
 
 void ProfileInner::onCopyPhone() {

@@ -54,7 +54,7 @@ public:
 	}
 
 	void prepareAES(const MTPint128 &msgKey, MTPint256 &aesKey, MTPint256 &aesIV, bool send = true) const {
-		if (!_isset) throw mtpErrorKeyNotReady(QString("prepareAES(.., %1)").arg(Logs::b(send)));
+		if (!_isset) throw mtpErrorKeyNotReady(QString("prepareAES(..., %1)").arg(Logs::b(send)));
 
 		uint32 x = send ? 0 : 8;
 
@@ -90,7 +90,7 @@ public:
 	}
 
 	void write(QDataStream &to) const {
-		if (!_isset) throw mtpErrorKeyNotReady("write(..)");
+		if (!_isset) throw mtpErrorKeyNotReady("write(...)");
 		to.writeRawData(_key, 256);
 	}
 

@@ -120,16 +120,16 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
 #endif
 
 	if (cManyInstance()) {
-		LOG(("Many instance allowed, starting.."));
+		LOG(("Many instance allowed, starting..."));
 		singleInstanceChecked();
 	} else {
-        LOG(("Connecting local socket to %1..").arg(_localServerName));
+        LOG(("Connecting local socket to %1...").arg(_localServerName));
 		_localSocket.connectToServer(_localServerName);
 	}
 }
 
 void Application::socketConnected() {
-	LOG(("Socket connected, this is not the first application instance, sending show command.."));
+	LOG(("Socket connected, this is not the first application instance, sending show command..."));
 	_secondInstance = true;
 
 	QString commands;
@@ -154,7 +154,7 @@ void Application::socketWritten(qint64/* bytes*/) {
 	if (_localSocket.bytesToWrite()) {
 		return;
 	}
-	LOG(("Show command written, waiting response.."));
+	LOG(("Show command written, waiting response..."));
 }
 
 void Application::socketReading() {
@@ -166,7 +166,7 @@ void Application::socketReading() {
 	if (QRegularExpression("RES:(\\d+);").match(_localSocketReadData).hasMatch()) {
 		uint64 pid = _localSocketReadData.mid(4, _localSocketReadData.length() - 5).toULongLong();
 		psActivateProcess(pid);
-		LOG(("Show command response received, pid = %1, activating and quitting..").arg(pid));
+		LOG(("Show command response received, pid = %1, activating and quitting...").arg(pid));
 		return App::quit();
 	}
 }
@@ -175,14 +175,14 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 	if (App::quitting()) return;
 
 	if (_secondInstance) {
-		LOG(("Could not write show command, error %1, quitting..").arg(e));
+		LOG(("Could not write show command, error %1, quitting...").arg(e));
 		return App::quit();
 	}
 
 	if (e == QLocalSocket::ServerNotFoundError) {
-		LOG(("This is the only instance of Telegram, starting server and app.."));
+		LOG(("This is the only instance of Telegram, starting server and app..."));
 	} else {
-		LOG(("Socket connect error %1, starting server and app..").arg(e));
+		LOG(("Socket connect error %1, starting server and app...").arg(e));
 	}
 	_localSocket.close();
 
@@ -196,7 +196,7 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if (!cNoStartUpdate() && checkReadyUpdate()) {
 		cSetRestartingUpdate(true);
-		DEBUG_LOG(("Application Info: installing update instead of starting app.."));
+		DEBUG_LOG(("Application Info: installing update instead of starting app..."));
 		return App::quit();
 	}
 #endif
@@ -235,7 +235,7 @@ void Application::singleInstanceChecked() {
 
 void Application::socketDisconnected() {
 	if (_secondInstance) {
-		DEBUG_LOG(("Application Error: socket disconnected before command response received, quitting.."));
+		DEBUG_LOG(("Application Error: socket disconnected before command response received, quitting..."));
 		return App::quit();
 	}
 }
@@ -704,7 +704,7 @@ AppClass::AppClass() : QObject()
 	anim::startManager();
 	historyInit();
 
-	DEBUG_LOG(("Application Info: inited.."));
+	DEBUG_LOG(("Application Info: inited..."));
 
 	application()->installNativeEventFilter(psNativeEventFilter());
 
@@ -714,7 +714,7 @@ AppClass::AppClass() : QObject()
 
 	connect(&killDownloadSessionsTimer, SIGNAL(timeout()), this, SLOT(killDownloadSessions()));
 
-	DEBUG_LOG(("Application Info: starting app.."));
+	DEBUG_LOG(("Application Info: starting app..."));
 
 	QMimeDatabase().mimeTypeForName(qsl("text/plain")); // create mime database
 
@@ -724,7 +724,7 @@ AppClass::AppClass() : QObject()
 
 	Sandbox::connect(SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
 
-	DEBUG_LOG(("Application Info: window created.."));
+	DEBUG_LOG(("Application Info: window created..."));
 
 	Shortcuts::start();
 
@@ -734,16 +734,16 @@ AppClass::AppClass() : QObject()
 	Local::ReadMapState state = Local::readMap(QByteArray());
 	if (state == Local::ReadMapPassNeeded) {
 		cSetHasPasscode(true);
-		DEBUG_LOG(("Application Info: passcode nneded.."));
+		DEBUG_LOG(("Application Info: passcode needed..."));
 	} else {
-		DEBUG_LOG(("Application Info: local map read.."));
+		DEBUG_LOG(("Application Info: local map read..."));
 		MTP::start();
 	}
 
 	MTP::setStateChangedHandler(mtpStateChanged);
 	MTP::setSessionResetHandler(mtpSessionReset);
 
-	DEBUG_LOG(("Application Info: MTP started.."));
+	DEBUG_LOG(("Application Info: MTP started..."));
 
 	DEBUG_LOG(("Application Info: showing."));
 	if (state == Local::ReadMapPassNeeded) {

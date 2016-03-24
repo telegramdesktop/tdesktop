@@ -62,12 +62,12 @@ int main(int argc, char *argv[]) {
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if (cRestartingUpdate()) {
-		DEBUG_LOG(("Application Info: executing updater to install update.."));
+		DEBUG_LOG(("Application Info: executing updater to install update..."));
 		psExecUpdater();
 	} else
 #endif
 	if (cRestarting()) {
-		DEBUG_LOG(("Application Info: executing Telegram, because of restart.."));
+		DEBUG_LOG(("Application Info: executing Telegram, because of restart..."));
 		psExecTelegram();
 	}
 

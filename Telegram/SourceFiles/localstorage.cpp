@@ -1370,7 +1370,7 @@ namespace {
 		bool result = false;
 		QFile file(cWorkingDir() + qsl("tdata/config"));
 		if (file.open(QIODevice::ReadOnly)) {
-			LOG(("App Info: reading old config.."));
+			LOG(("App Info: reading old config..."));
 			QDataStream stream(&file);
 			stream.setVersion(QDataStream::Qt_5_1);
 
@@ -1450,7 +1450,7 @@ namespace {
 				QBuffer decryptedStream(&decrypted);
 				decryptedStream.open(QIODevice::ReadOnly);
 				decryptedStream.seek(4); // skip size
-				LOG(("App Info: reading encrypted old user config.."));
+				LOG(("App Info: reading encrypted old user config..."));
 
 				_readOldUserSettingsFields(&decryptedStream, version);
 			} else if (!_readSetting(blockId, stream, version)) {
@@ -1463,7 +1463,7 @@ namespace {
 		bool result = false;
 		QFile file(cWorkingDir() + cDataFile() + (cTestMode() ? qsl("_test") : QString()) + qsl("_config"));
 		if (file.open(QIODevice::ReadOnly)) {
-			LOG(("App Info: reading old user config.."));
+			LOG(("App Info: reading old user config..."));
 			qint32 version = 0;
 
 			MTP::DcOptions dcOpts;
@@ -1537,7 +1537,7 @@ namespace {
 				QBuffer decryptedStream(&decrypted);
 				decryptedStream.open(QIODevice::ReadOnly);
 				decryptedStream.seek(4); // skip size
-				LOG(("App Info: reading encrypted old keys.."));
+				LOG(("App Info: reading encrypted old keys..."));
 
 				_readOldMtpDataFields(&decryptedStream, version);
 			} else if (!_readSetting(blockId, stream, version)) {
@@ -1550,7 +1550,7 @@ namespace {
 		bool result = false;
 		QFile file(cWorkingDir() + cDataFile() + (cTestMode() ? qsl("_test") : QString()));
 		if (file.open(QIODevice::ReadOnly)) {
-			LOG(("App Info: reading old keys.."));
+			LOG(("App Info: reading old keys..."));
 			qint32 version = 0;
 
 			MTP::DcOptions dcOpts;
@@ -1647,7 +1647,7 @@ namespace {
 			return _writeUserSettings();
 		}
 
-		LOG(("App Info: reading encrypted user settings.."));
+		LOG(("App Info: reading encrypted user settings..."));
 		while (!userSettings.stream.atEnd()) {
 			quint32 blockId;
 			userSettings.stream >> blockId;
@@ -1693,7 +1693,7 @@ namespace {
 			return;
 		}
 
-		LOG(("App Info: reading encrypted mtp data.."));
+		LOG(("App Info: reading encrypted mtp data..."));
 		while (!mtp.stream.atEnd()) {
 			quint32 blockId;
 			mtp.stream >> blockId;
@@ -1719,7 +1719,7 @@ namespace {
 		if (!readFile(mapData, qsl("map"))) {
 			return Local::ReadMapFailed;
 		}
-		LOG(("App Info: reading map.."));
+		LOG(("App Info: reading map..."));
 
 		QByteArray salt, keyEncrypted, mapEncrypted;
 		mapData.stream >> salt >> keyEncrypted >> mapEncrypted;
@@ -1735,7 +1735,7 @@ namespace {
 
 		EncryptedDescriptor keyData, map;
 		if (!decryptLocal(keyData, keyEncrypted, _passKey)) {
-			LOG(("App Info: could not decrypt pass-protected key from map file, maybe bad password.."));
+			LOG(("App Info: could not decrypt pass-protected key from map file, maybe bad password..."));
 			return Local::ReadMapPassNeeded;
 		}
 		uchar key[LocalEncryptKeySize] = { 0 };
@@ -1752,7 +1752,7 @@ namespace {
 			LOG(("App Error: could not decrypt map."));
 			return Local::ReadMapFailed;
 		}
-		LOG(("App Info: reading encrypted map.."));
+		LOG(("App Info: reading encrypted map..."));
 
 		DraftsMap draftsMap, draftCursorsMap;
 		DraftsNotReadMap draftsNotReadMap;
@@ -2101,7 +2101,7 @@ namespace Local {
 			_readOldMtpData(false); // needed further in _readMtpData
 			return writeSettings();
 		}
-		LOG(("App Info: reading settings.."));
+		LOG(("App Info: reading settings..."));
 
 		QByteArray salt, settingsEncrypted;
 		settingsData.stream >> salt >> settingsEncrypted;
@@ -2117,7 +2117,7 @@ namespace Local {
 
 		EncryptedDescriptor settings;
 		if (!decryptLocal(settings, settingsEncrypted, _settingsKey)) {
-			LOG(("App Error: could not decrypt settings from settings file, maybe bad passcode.."));
+			LOG(("App Error: could not decrypt settings from settings file, maybe bad passcode..."));
 			return writeSettings();
 		}
 		MTP::DcOptions dcOpts;
@@ -2126,7 +2126,7 @@ namespace Local {
 			dcOpts = Global::DcOptions();
 		}
 		_dcOpts = &dcOpts;
-		LOG(("App Info: reading encrypted settings.."));
+		LOG(("App Info: reading encrypted settings..."));
 		while (!settings.stream.atEnd()) {
 			quint32 blockId;
 			settings.stream >> blockId;

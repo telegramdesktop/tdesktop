@@ -447,7 +447,7 @@ ConnectionPrivate::ConnectionPrivate(QThread *thread, Connection *owner, Session
 			return;
 		}
 		dc = options.cbegin().value().id;
-		DEBUG_LOG(("MTP Info: searching for any DC, %1 selected..").arg(dc));
+		DEBUG_LOG(("MTP Info: searching for any DC, %1 selected...").arg(dc));
 	}
 
 	connect(thread, SIGNAL(started()), this, SLOT(socketStart()));
@@ -1154,8 +1154,8 @@ void ConnectionPrivate::socketStart(bool afterConfig) {
 	_pingId = _pingMsgId = _pingIdToSend = _pingSendAt = 0;
 	_pingSender.stop();
 
-	if (!noIPv4) DEBUG_LOG(("MTP Info: creating IPv4 connection to %1:%2 (tcp) and %3:%4 (http)..").arg(ip[IPv4address][TcpProtocol].c_str()).arg(port[IPv4address][TcpProtocol]).arg(ip[IPv4address][HttpProtocol].c_str()).arg(port[IPv4address][HttpProtocol]));
-	if (!noIPv6) DEBUG_LOG(("MTP Info: creating IPv6 connection to [%1]:%2 (tcp) and [%3]:%4 (http)..").arg(ip[IPv6address][TcpProtocol].c_str()).arg(port[IPv6address][TcpProtocol]).arg(ip[IPv4address][HttpProtocol].c_str()).arg(port[IPv4address][HttpProtocol]));
+	if (!noIPv4) DEBUG_LOG(("MTP Info: creating IPv4 connection to %1:%2 (tcp) and %3:%4 (http)...").arg(ip[IPv4address][TcpProtocol].c_str()).arg(port[IPv4address][TcpProtocol]).arg(ip[IPv4address][HttpProtocol].c_str()).arg(port[IPv4address][HttpProtocol]));
+	if (!noIPv6) DEBUG_LOG(("MTP Info: creating IPv6 connection to [%1]:%2 (tcp) and [%3]:%4 (http)...").arg(ip[IPv6address][TcpProtocol].c_str()).arg(port[IPv6address][TcpProtocol]).arg(ip[IPv4address][HttpProtocol].c_str()).arg(port[IPv4address][HttpProtocol]));
 
 	_waitForConnectedTimer.start(_waitForConnected);
 	if (auto conn = _conn4) {
@@ -1188,7 +1188,7 @@ void ConnectionPrivate::restart(bool mayBeBadKey) {
 				clearMessages();
 				keyId = AuthKey::RecreateKeyId;
 //				retryTimeout = 1; // no ddos please
-				LOG(("MTP Info: key may be bad and was not checked - but won't be destroyed, no log outs because of bad server right now.."));
+				LOG(("MTP Info: key may be bad and was not checked - but won't be destroyed, no log outs because of bad server right now..."));
 			}
 		} else {
 			sessionData->setCheckedKey(false);
@@ -1254,7 +1254,7 @@ void ConnectionPrivate::onOldConnection() {
 void ConnectionPrivate::onPingSender() {
 	if (_pingId) {
 			if (_pingSendAt + (MTPPingSendAfter - MTPPingSendAfterAuto - 1) * 1000ULL < getms(true)) {
-			LOG(("Could not send ping for MTPPingSendAfter seconds, restarting.."));
+			LOG(("Could not send ping for MTPPingSendAfter seconds, restarting..."));
 			return restart();
 		} else {
 			_pingSender.start(_pingSendAt + (MTPPingSendAfter - MTPPingSendAfterAuto) * 1000ULL - getms(true));
@@ -1440,7 +1440,7 @@ void ConnectionPrivate::handleReceived() {
 		bool wasConnected = (getState() == ConnectedState);
 		if (serverSalt != mySalt) {
 			if (!badTime) {
-				DEBUG_LOG(("MTP Info: other salt received.. received: %1, my salt: %2, updating..").arg(serverSalt).arg(mySalt));
+				DEBUG_LOG(("MTP Info: other salt received... received: %1, my salt: %2, updating...").arg(serverSalt).arg(mySalt));
 				sessionData->setSalt(serverSalt);
 				if (setState(ConnectedState, ConnectingState)) { // only connected
 					if (restarted) {
@@ -1449,7 +1449,7 @@ void ConnectionPrivate::handleReceived() {
 					}
 				}
 			} else {
-				DEBUG_LOG(("MTP Info: other salt received.. received: %1, my salt: %2").arg(serverSalt).arg(mySalt));
+				DEBUG_LOG(("MTP Info: other salt received... received: %1, my salt: %2").arg(serverSalt).arg(mySalt));
 			}
 		} else {
 			serverSalt = 0; // dont pass to handle method, so not to lock in setSalt()
@@ -1659,7 +1659,7 @@ int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime 
 				if (serverSalt) sessionData->setSalt(serverSalt);
 				unixtimeSet(serverTime, true);
 
-				DEBUG_LOG(("Message Info: unixtime updated, now %1, resending in container..").arg(serverTime));
+				DEBUG_LOG(("Message Info: unixtime updated, now %1, resending in container...").arg(serverTime));
 
 				resend(resendId, 0, true);
 			} else { // must create new session, because msg_id and msg_seqno are inconsistent
@@ -1710,13 +1710,13 @@ int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime 
 
 		badTime = false;
 
-		DEBUG_LOG(("Message Info: unixtime updated, now %1, server_salt updated, now %2, resending..").arg(serverTime).arg(serverSalt));
+		DEBUG_LOG(("Message Info: unixtime updated, now %1, server_salt updated, now %2, resending...").arg(serverTime).arg(serverSalt));
 		resend(resendId);
 	} return 1;
 
 	case mtpc_msgs_state_req: {
 		if (badTime) {
-			DEBUG_LOG(("Message Info: skipping with bad time.."));
+			DEBUG_LOG(("Message Info: skipping with bad time..."));
 			return 0;
 		}
 		MTPMsgsStateReq msg(from, end);
@@ -1818,7 +1818,7 @@ int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime 
 
 	case mtpc_msgs_all_info: {
 		if (badTime) {
-			DEBUG_LOG(("Message Info: skipping with bad time.."));
+			DEBUG_LOG(("Message Info: skipping with bad time..."));
 			return 0;
 		}
 
@@ -1862,14 +1862,14 @@ int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime 
 		if (received) {
 			ackRequestData.push_back(resMsgId);
 		} else {
-			DEBUG_LOG(("Message Info: answer message %1 was not received, requesting..").arg(resMsgId.v));
+			DEBUG_LOG(("Message Info: answer message %1 was not received, requesting...").arg(resMsgId.v));
 			resendRequestData.push_back(resMsgId);
 		}
 	} return 1;
 
 	case mtpc_msg_new_detailed_info: {
 		if (badTime) {
-			DEBUG_LOG(("Message Info: skipping msg_new_detailed_info with bad time.."));
+			DEBUG_LOG(("Message Info: skipping msg_new_detailed_info with bad time..."));
 			return 0;
 		}
 		MTPMsgDetailedInfo msg(from, end);
@@ -1887,7 +1887,7 @@ int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime 
 		if (received) {
 			ackRequestData.push_back(resMsgId);
 		} else {
-			DEBUG_LOG(("Message Info: answer message %1 was not received, requesting..").arg(resMsgId.v));
+			DEBUG_LOG(("Message Info: answer message %1 was not received, requesting...").arg(resMsgId.v));
 			resendRequestData.push_back(resMsgId);
 		}
 	} return 1;
@@ -1914,7 +1914,7 @@ int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime 
 		MTPlong reqMsgId(++from, end);
 		mtpTypeId typeId = from[0];
 
-		DEBUG_LOG(("RPC Info: response received for %1, queueing..").arg(reqMsgId.v));
+		DEBUG_LOG(("RPC Info: response received for %1, queueing...").arg(reqMsgId.v));
 
 		QVector<MTPlong> ids(1, reqMsgId);
 		if (badTime) {
@@ -1995,7 +1995,7 @@ int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime 
 		if (badTime) return 0;
 
 		MTPPing msg(from, end);
-		DEBUG_LOG(("Message Info: ping received, ping_id: %1, sending pong..").arg(msg.vping_id.v));
+		DEBUG_LOG(("Message Info: ping received, ping_id: %1, sending pong...").arg(msg.vping_id.v));
 
 		emit sendPongAsync(msgId, msg.vping_id.v);
 	} return 1;
@@ -2012,7 +2012,7 @@ int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime 
 		if (data.vping_id.v == _pingId) {
 			_pingId = 0;
 		} else {
-			DEBUG_LOG(("Message Info: just pong.."));
+			DEBUG_LOG(("Message Info: just pong..."));
 		}
 
 		QVector<MTPlong> ids(1, data.vmsg_id);
@@ -2154,7 +2154,7 @@ void ConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byRespon
 						}
 					}
 				} else {
-					DEBUG_LOG(("Message Info: msgId %1 was not found in recent sent, while acking requests, searching in resend..").arg(msgId));
+					DEBUG_LOG(("Message Info: msgId %1 was not found in recent sent, while acking requests, searching in resend...").arg(msgId));
 					QWriteLocker locker3(sessionData->toResendMutex());
 					mtpRequestIdsMap &toResend(sessionData->toResendMap());
 					mtpRequestIdsMap::iterator reqIt = toResend.find(msgId);
@@ -2228,7 +2228,7 @@ void ConnectionPrivate::handleMsgsStates(const QVector<MTPlong> &ids, const stri
 			const mtpRequestMap &haveSent(sessionData->haveSentMap());
 			mtpRequestMap::const_iterator haveSentEnd = haveSent.cend();
 			if (haveSent.find(requestMsgId) == haveSentEnd) {
-				DEBUG_LOG(("Message Info: state was received for msgId %1, but request is not found, looking in resent requests..").arg(requestMsgId));
+				DEBUG_LOG(("Message Info: state was received for msgId %1, but request is not found, looking in resent requests...").arg(requestMsgId));
 				QWriteLocker locker2(sessionData->toResendMutex());
 				mtpRequestIdsMap &toResend(sessionData->toResendMap());
 				mtpRequestIdsMap::iterator reqIt = toResend.find(requestMsgId);
@@ -2385,7 +2385,7 @@ void ConnectionPrivate::updateAuthKey() 	{
 
 	connect(_conn, SIGNAL(receivedData()), this, SLOT(pqAnswered()));
 
-	DEBUG_LOG(("AuthKey Info: sending Req_pq.."));
+	DEBUG_LOG(("AuthKey Info: sending Req_pq..."));
 	lockFinished.unlock();
 	sendRequestNotSecure(req_pq);
 }
@@ -2398,7 +2398,7 @@ void ConnectionPrivate::clearMessages() {
 
 void ConnectionPrivate::pqAnswered() {
 	disconnect(_conn, SIGNAL(receivedData()), this, SLOT(pqAnswered()));
-	DEBUG_LOG(("AuthKey Info: receiving Req_pq answer.."));
+	DEBUG_LOG(("AuthKey Info: receiving Req_pq answer..."));
 
 	MTPReq_pq::ResponseType res_pq;
 	if (!readResponseNotSecure(res_pq)) {
@@ -2490,13 +2490,13 @@ void ConnectionPrivate::pqAnswered() {
 	}
 	connect(_conn, SIGNAL(receivedData()), this, SLOT(dhParamsAnswered()));
 
-	DEBUG_LOG(("AuthKey Info: sending Req_DH_params.."));
+	DEBUG_LOG(("AuthKey Info: sending Req_DH_params..."));
 	sendRequestNotSecure(req_DH_params);
 }
 
 void ConnectionPrivate::dhParamsAnswered() {
 	disconnect(_conn, SIGNAL(receivedData()), this, SLOT(dhParamsAnswered()));
-	DEBUG_LOG(("AuthKey Info: receiving Req_DH_params answer.."));
+	DEBUG_LOG(("AuthKey Info: receiving Req_DH_params answer..."));
 
 	MTPReq_DH_params::ResponseType res_DH_params;
 	if (!readResponseNotSecure(res_DH_params)) {
@@ -2672,7 +2672,7 @@ void ConnectionPrivate::dhClientParamsSend() {
 
 	connect(_conn, SIGNAL(receivedData()), this, SLOT(dhClientParamsAnswered()));
 
-	DEBUG_LOG(("AuthKey Info: sending Req_client_DH_params.."));
+	DEBUG_LOG(("AuthKey Info: sending Req_client_DH_params..."));
 	sendRequestNotSecure(req_client_DH_params);
 }
 
@@ -2681,7 +2681,7 @@ void ConnectionPrivate::dhClientParamsAnswered() {
 	if (!sessionData) return;
 
 	disconnect(_conn, SIGNAL(receivedData()), this, SLOT(dhClientParamsAnswered()));
-	DEBUG_LOG(("AuthKey Info: receiving Req_client_DH_params answer.."));
+	DEBUG_LOG(("AuthKey Info: receiving Req_client_DH_params answer..."));
 
 	MTPSet_client_DH_params::ResponseType res_client_DH_params;
 	if (!readResponseNotSecure(res_client_DH_params)) {
@@ -2839,7 +2839,7 @@ void ConnectionPrivate::onError4(bool mayBeBadKey) {
 		destroyConn();
 		_waitForConnectedTimer.stop();
 
-		MTP_LOG(dc, ("Restarting after error in IPv4 connection, maybe bad key: %1..").arg(Logs::b(mayBeBadKey)));
+		MTP_LOG(dc, ("Restarting after error in IPv4 connection, maybe bad key: %1...").arg(Logs::b(mayBeBadKey)));
 		return restart(mayBeBadKey);
 	} else {
 		destroyConn(&_conn4);
@@ -2853,7 +2853,7 @@ void ConnectionPrivate::onError6(bool mayBeBadKey) {
 		destroyConn();
 		_waitForConnectedTimer.stop();
 
-		MTP_LOG(dc, ("Restarting after error in IPv6 connection, maybe bad key: %1..").arg(Logs::b(mayBeBadKey)));
+		MTP_LOG(dc, ("Restarting after error in IPv6 connection, maybe bad key: %1...").arg(Logs::b(mayBeBadKey)));
 		return restart(mayBeBadKey);
 	} else {
 		destroyConn(&_conn6);
@@ -2940,7 +2940,7 @@ bool ConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResponse, Q
 
 	ReadLockerAttempt lock(sessionData->keyMutex());
 	if (!lock) {
-		DEBUG_LOG(("MTP Info: could not lock key for read in sendBuffer(), dc %1, restarting..").arg(dc));
+		DEBUG_LOG(("MTP Info: could not lock key for read in sendBuffer(), dc %1, restarting...").arg(dc));
 
 		lockFinished.unlock();
 		restart();

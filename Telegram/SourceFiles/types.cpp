@@ -290,7 +290,7 @@ namespace ThirdParty {
 			uchar sha256Buffer[32];
 			RAND_seed(hashSha256(buf, 16, sha256Buffer), 32);
 			if (!RAND_status()) {
-				LOG(("MTP Error: Could not init OpenSSL rand, RAND_status() is 0.."));
+				LOG(("MTP Error: Could not init OpenSSL rand, RAND_status() is 0..."));
 			}
 		}
 

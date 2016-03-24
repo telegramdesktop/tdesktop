@@ -3471,7 +3471,7 @@ TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResi
 	if (length) {
 		style::font blockFont = font;
 		if (!flags && lnkIndex) {
-			// should use textStyle lnkFlags somehow.. not supported
+			// should use textStyle lnkFlags somehow... not supported
 		}
 
 		if ((flags & TextBlockFPre) || (flags & TextBlockFCode)) {

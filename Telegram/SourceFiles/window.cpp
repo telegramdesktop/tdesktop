@@ -2348,7 +2348,7 @@ void LastCrashedWindow::onSendReport() {
 	connect(_checkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onSendingError(QNetworkReply::NetworkError)));
 	connect(_checkReply, SIGNAL(finished()), this, SLOT(onCheckingFinished()));
 
-	_pleaseSendReport.setText(qsl("Sending crash report.."));
+	_pleaseSendReport.setText(qsl("Sending crash report..."));
 	_sendingState = SendingProgress;
 	_reportShown = false;
 	updateControls();
@@ -2816,7 +2816,7 @@ void LastCrashedWindow::setUpdatingState(UpdatingState state, bool force) {
 			}
 		break;
 		case UpdatingCheck:
-			_updating.setText(qsl("Checking for updates.."));
+			_updating.setText(qsl("Checking for updates..."));
 		break;
 		case UpdatingFail:
 			_updating.setText(qsl("Update check failed :("));
@@ -2923,9 +2923,9 @@ void LastCrashedWindow::onSendingProgress(qint64 uploaded, qint64 total) {
 	_sendingState = SendingUploading;
 
 	if (total < 0) {
-		_pleaseSendReport.setText(qsl("Sending crash report %1 KB..").arg(uploaded / 1024));
+		_pleaseSendReport.setText(qsl("Sending crash report %1 KB...").arg(uploaded / 1024));
 	} else {
-		_pleaseSendReport.setText(qsl("Sending crash report %1 / %2 KB..").arg(uploaded / 1024).arg(total / 1024));
+		_pleaseSendReport.setText(qsl("Sending crash report %1 / %2 KB...").arg(uploaded / 1024).arg(total / 1024));
 	}
 	updateControls();
 }
