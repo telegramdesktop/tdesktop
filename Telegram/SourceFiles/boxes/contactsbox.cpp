@@ -284,6 +284,8 @@ bool ContactsInner::addAdminFail(const RPCError &error, mtpRequestId req) {
 		Ui::showLayer(new MaxInviteBox(_channel->invitationUrl), KeepOtherLayers);
 	} else if (error.type() == "ADMINS_TOO_MUCH") {
 		Ui::showLayer(new InformBox(lang(lng_channel_admins_too_much)), KeepOtherLayers);
+	} else if (error.type() == qstr("USER_RESTRICTED")) {
+		Ui::showLayer(new InformBox(lang(lng_cant_do_this)), KeepOtherLayers);
 	} else  {
 		emit adminAdded();
 	}
@@ -783,7 +785,9 @@ void ContactsInner::changeCheckState(ContactData *data, PeerData *peer) {
 		data->check = true;
 		_checkedContacts.insert(peer, true);
 		++_selCount;
-	} else if ((!_channel || !_channel->isMegagroup()) && selectedCount() >= Global::ChatSizeMax() && selectedCount() < Global::MegagroupSizeMax()) {
+	} else if (_channel && !_channel->isMegagroup()) {
+		Ui::showLayer(new MaxInviteBox(_channel->invitationUrl), KeepOtherLayers);
+	} else if (!_channel && selectedCount() >= Global::ChatSizeMax() && selectedCount() < Global::MegagroupSizeMax()) {
 		Ui::showLayer(new InformBox(lng_profile_add_more_after_upgrade(lt_count, Global::MegagroupSizeMax())), KeepOtherLayers);
 	}
 	if (cnt != _selCount) emit chosenChanged();
@@ -1549,7 +1553,7 @@ void ContactsBox::paintEvent(QPaintEvent *e) {
 		paintTitle(p, lang(lng_channel_admins));
 	} else if (_inner.chat() || _inner.creating() != CreatingGroupNone) {
 		QString title(lang(addingAdmin ? lng_channel_add_admin : lng_profile_add_participant));
-		QString additional(addingAdmin ? QString() : QString("%1 / %2").arg(_inner.selectedCount()).arg(Global::MegagroupSizeMax()));
+		QString additional((addingAdmin || (_inner.channel() && !_inner.channel()->isMegagroup())) ? QString() : QString("%1 / %2").arg(_inner.selectedCount()).arg(Global::MegagroupSizeMax()));
 		paintTitle(p, title, additional);
 	} else if (_inner.bot()) {
 		paintTitle(p, lang(lng_bot_choose_group));
@@ -1718,7 +1722,13 @@ bool ContactsBox::editAdminFail(const RPCError &error) {
 	if (mtpIsFlood(error)) return true;
 	--_saveRequestId;
 	_inner.chat()->invalidateParticipants();
-	if (!_saveRequestId) onClose();
+	if (!_saveRequestId) {
+		if (error.type() == qstr("USER_RESTRICTED")) {
+			Ui::showLayer(new InformBox(lang(lng_cant_do_this)));
+			return true;
+		}
+		onClose();
+	}
 	return false;
 }
 
@@ -1764,6 +1774,9 @@ bool ContactsBox::creationFail(const RPCError &error) {
 		return true;
 	} else if (error.type() == "PEER_FLOOD") {
 		Ui::showLayer(new InformBox(lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)))), KeepOtherLayers);
+		return true;
+	} else if (error.type() == qstr("USER_RESTRICTED")) {
+		Ui::showLayer(new InformBox(lang(lng_cant_do_this)));
 		return true;
 	}
 	return false;

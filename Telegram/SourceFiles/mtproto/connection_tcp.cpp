@@ -132,7 +132,7 @@ void AbstractTCPConnection::socketRead() {
 			emit error();
 			return;
 		} else {
-			TCP_LOG(("TCP Info: no bytes read, but bytes available was true.."));
+			TCP_LOG(("TCP Info: no bytes read, but bytes available was true..."));
 			break;
 		}
 	} while (sock.state() == QAbstractSocket::ConnectedState && sock.bytesAvailable());

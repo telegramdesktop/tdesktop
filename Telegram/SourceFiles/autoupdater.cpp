@@ -569,7 +569,7 @@ bool checkReadyUpdate() {
 	}
 #elif defined Q_OS_MAC
 	QDir().mkpath(QFileInfo(curUpdater).absolutePath());
-	DEBUG_LOG(("Update Info: moving %1 to %2..").arg(updater.absoluteFilePath()).arg(curUpdater));
+	DEBUG_LOG(("Update Info: moving %1 to %2...").arg(updater.absoluteFilePath()).arg(curUpdater));
 	if (!objc_moveFile(updater.absoluteFilePath(), curUpdater)) {
 		UpdateChecker::clearAll();
 		return false;

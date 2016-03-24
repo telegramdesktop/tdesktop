@@ -540,6 +540,9 @@ bool GroupInfoBox::creationFail(const RPCError &error) {
 		_title.setFocus();
 		_title.showError();
 		return true;
+	} else if (error.type() == qstr("USER_RESTRICTED")) {
+		Ui::showLayer(new InformBox(lang(lng_cant_do_this)));
+		return true;
 	}
 	return false;
 }

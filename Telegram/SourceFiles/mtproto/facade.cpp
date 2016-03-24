@@ -388,7 +388,7 @@ void registerRequest(mtpRequestId requestId, int32 dcWithShift) {
 		QMutexLocker locker(&requestByDCLock);
 		requestsByDC.insert(requestId, dcWithShift);
 	}
-	internal::performDelayedClear(); // need to do it somewhere..
+	internal::performDelayedClear(); // need to do it somewhere...
 }
 
 void unregisterRequest(mtpRequestId requestId) {
@@ -517,7 +517,7 @@ void execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *
 			h = i.value();
 			parserMap.erase(i);
 
-			DEBUG_LOG(("RPC Info: found parser for request %1, trying to parse response..").arg(requestId));
+			DEBUG_LOG(("RPC Info: found parser for request %1, trying to parse response...").arg(requestId));
 		}
 	}
 	if (h.onDone || h.onFail) {

@@ -1828,15 +1828,26 @@ StickerPanInner::InlineRow &StickerPanInner::layoutInlineRow(InlineRow &row, int
 	int32 count = row.items.size();
 	t_assert(count <= SavedGifsMaxPerRow);
 
+	// enumerate items in the order of growing maxWidth()
+	// for that sort item indices by maxWidth()
+	int indices[SavedGifsMaxPerRow];
+	for (int i = 0; i < count; ++i) {
+		indices[i] = i;
+	}
+	std::sort(indices, indices + count, [&row](int a, int b) -> bool {
+		return row.items.at(a)->maxWidth() < row.items.at(b)->maxWidth();
+	});
+
 	row.height = 0;
-	int32 availw = width() - st::inlineResultsLeft - st::inlineResultsSkip * (count - 1);
-	for (int32 i = 0; i < count; ++i) {
-		int32 w = sumWidth ? (row.items.at(i)->maxWidth() * availw / sumWidth) : row.items.at(i)->maxWidth();
-		int32 actualw = qMax(w, int32(st::inlineResultsMinWidth));
-		row.height = qMax(row.height, row.items.at(i)->resizeGetHeight(actualw));
+	int availw = width() - st::inlineResultsLeft - st::inlineResultsSkip * (count - 1);
+	for (int i = 0; i < count; ++i) {
+		int index = indices[i];
+		int w = sumWidth ? (row.items.at(index)->maxWidth() * availw / sumWidth) : row.items.at(index)->maxWidth();
+		int actualw = qMax(w, int(st::inlineResultsMinWidth));
+		row.height = qMax(row.height, row.items.at(index)->resizeGetHeight(actualw));
 		if (sumWidth) {
 			availw -= actualw;
-			sumWidth -= row.items.at(i)->maxWidth();
+			sumWidth -= row.items.at(index)->maxWidth();
 		}
 	}
 	return row;

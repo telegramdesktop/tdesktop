@@ -8021,6 +8021,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 			drawPinnedBar(p);
 		}
 		if (_scroll.isHidden()) {
+			p.setClipRect(_scroll.geometry());
 			QPoint dogPos((width() - st::msgDogImg.pxWidth()) / 2, ((height() - _field.height() - 2 * st::sendPadding - st::msgDogImg.pxHeight()) * 4) / 9);
 			p.drawPixmap(dogPos, *cChatDogImage());
 		}

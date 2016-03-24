@@ -88,7 +88,7 @@ void LanguageBox::mousePressEvent(QMouseEvent *e) {
 				return;
 			} else if (!loader.warnings().isEmpty()) {
 				QString warn = loader.warnings();
-				if (warn.size() > 256) warn = warn.mid(0, 254) + qsl("..");
+				if (warn.size() > 256) warn = warn.mid(0, 253) + qsl("...");
 				Ui::showLayer(new InformBox(qsl("Lang \"") + LanguageCodes[i] + qsl("\" warnings :(\n\nWarnings: ") + warn));
 				return;
 			}

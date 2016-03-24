@@ -1034,7 +1034,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 						data->online = App::onlineText(user, l_time);
 					}
 					if (_peerChat) {
-						data->admin = (peerFromUser(_peerChat->creator) == user->id) || (_peerChat->admins.constFind(user) != _peerChat->admins.cend());
+						data->admin = (peerFromUser(_peerChat->creator) == user->id) || (_peerChat->adminsEnabled() && (_peerChat->admins.constFind(user) != _peerChat->admins.cend()));
 					} else if (_peerChannel) {
 						data->admin = (_peerChannel->mgInfo->lastAdmins.constFind(user) != _peerChannel->mgInfo->lastAdmins.cend());
 					} else {
@@ -1509,10 +1509,13 @@ void ProfileInner::contextMenuEvent(QContextMenuEvent *e) {
 		_menu->deleteLater();
 		_menu = 0;
 	}
-	if (!_phoneText.isEmpty() || (_peerUser && !_peerUser->username.isEmpty())) {
+	if (!_phoneText.isEmpty() || _peerUser) {
 		QRect info(_left + st::profilePhotoSize + st::profilePhoneLeft, st::profilePadding.top(), _width - st::profilePhotoSize - st::profilePhoneLeft, st::profilePhotoSize);
 		if (info.contains(mapFromGlobal(e->globalPos()))) {
 			_menu = new PopupMenu();
+			if (_peerUser) {
+				_menu->addAction(lang(lng_profile_copy_fullname), this, SLOT(onCopyFullName()))->setEnabled(true);
+			}
 			if (!_phoneText.isEmpty()) {
 				_menu->addAction(lang(lng_profile_copy_phone), this, SLOT(onCopyPhone()))->setEnabled(true);
 			}
@@ -1530,6 +1533,11 @@ void ProfileInner::onMenuDestroy(QObject *obj) {
 	if (_menu == obj) {
 		_menu = 0;
 	}
+}
+
+void ProfileInner::onCopyFullName() {
+	if (!_peerUser) return;
+	QApplication::clipboard()->setText(lng_full_name(lt_first_name, _peerUser->firstName, lt_last_name, _peerUser->lastName).trimmed());
 }
 
 void ProfileInner::onCopyPhone() {

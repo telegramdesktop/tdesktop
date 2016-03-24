@@ -491,7 +491,7 @@ public:
 		return flags & MTPDchat::Flag::f_creator;
 	}
 	bool amAdmin() const {
-		return flags & MTPDchat::Flag::f_admin;
+		return (flags & MTPDchat::Flag::f_admin) && adminsEnabled();
 	}
 	bool isDeactivated() const {
 		return flags & MTPDchat::Flag::f_deactivated;

@@ -66,7 +66,7 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 		} else if (strUtf8.size() < 64) {
 			to.add(Logs::mb(strUtf8.constData(), strUtf8.size()).str()).add(" [").add(mtpWrapNumber(strUtf8.size())).add(" BYTES]");
 		} else {
-			to.add(Logs::mb(strUtf8.constData(), 16).str()).add(".. [").add(mtpWrapNumber(strUtf8.size())).add(" BYTES]");
+			to.add(Logs::mb(strUtf8.constData(), 16).str()).add("... [").add(mtpWrapNumber(strUtf8.size())).add(" BYTES]");
 		}
 	} break;
 

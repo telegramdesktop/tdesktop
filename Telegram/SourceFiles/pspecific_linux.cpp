@@ -347,7 +347,7 @@ namespace {
     }
 
     bool loadLibrary(QLibrary &lib, const char *name, int version) {
-        DEBUG_LOG(("Loading '%1' with version %2..").arg(QLatin1String(name)).arg(version));
+        DEBUG_LOG(("Loading '%1' with version %2...").arg(QLatin1String(name)).arg(version));
         lib.setFileNameAndVersion(QLatin1String(name), version);
         if (lib.load()) {
             DEBUG_LOG(("Loaded '%1' with version %2!").arg(QLatin1String(name)).arg(version));
@@ -443,7 +443,7 @@ namespace {
         }
 
         if (!useGtkBase && lib_gtk.isLoaded()) {
-            LOG(("Could not load appindicator, trying to load gtk.."));
+            LOG(("Could not load appindicator, trying to load gtk..."));
             setupGtkBase(lib_gtk);
         }
         if (!useGtkBase) {

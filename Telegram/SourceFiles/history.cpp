@@ -1819,7 +1819,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 
 	// some checks if there was some message history already
 	if (block && blocks.size() > 1) {
-		HistoryItem *last = block->items.back(); // .. item, item, item, last ], [ first, item, item ..
+		HistoryItem *last = block->items.back(); // ... item, item, item, last ], [ first, item, item ...
 		HistoryItem *first = blocks.at(1)->items.front();
 
 		// we've added a new front block, so previous item for
@@ -3902,6 +3902,9 @@ void HistoryDocument::initDimensions(const HistoryItem *parent) {
 
 	if (thumbed) {
 		_minh = st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom();
+		if (!captioned && parent->Is<HistoryMessageSigned>()) {
+			_minh += st::msgDateFont->height - st::msgDateDelta.y();
+		}
 	} else {
 		_minh = st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom();
 	}
@@ -6946,7 +6949,7 @@ QString HistoryMessage::notificationHeader() const {
 
 QString HistoryMessage::notificationText() const {
 	QString msg(inDialogsText());
-    if (msg.size() > 0xFF) msg = msg.mid(0, 0xFF) + qsl("..");
+    if (msg.size() > 0xFF) msg = msg.mid(0, 0xFF) + qsl("...");
     return msg;
 }
 
@@ -7513,7 +7516,7 @@ bool HistoryServiceMessage::updatePinnedText(const QString *pfrom, QString *ptex
 				}
 			}
 			if (!limit && cutat + 5 < size) {
-				original = original.mid(0, cutat) + qstr("..");
+				original = original.mid(0, cutat) + qstr("...");
 			}
 			text = lng_action_pinned_message(lt_from, from, lt_text, textcmdLink(2, original));
 		} else {
@@ -7796,7 +7799,7 @@ void HistoryServiceMessage::drawInDialog(Painter &p, const QRect &r, bool act, c
 
 QString HistoryServiceMessage::notificationText() const {
     QString msg = _text.original();
-    if (msg.size() > 0xFF) msg = msg.mid(0, 0xFF) + qsl("..");
+    if (msg.size() > 0xFF) msg = msg.mid(0, 0xFF) + qsl("...");
     return msg;
 }
 
@@ -7817,7 +7820,7 @@ HistoryServiceMessage::~HistoryServiceMessage() {
 }
 
 HistoryGroup::HistoryGroup(History *history, const MTPDmessageGroup &group, const QDateTime &date)
-	: HistoryServiceMessage(history, clientMsgId(), date, lng_channel_comments_count(lt_count, group.vcount.v)/* + qsl(" (%1 .. %2)").arg(group.vmin_id.v).arg(group.vmax_id.v)*/)
+	: HistoryServiceMessage(history, clientMsgId(), date, lng_channel_comments_count(lt_count, group.vcount.v)/* + qsl(" (%1 ... %2)").arg(group.vmin_id.v).arg(group.vmax_id.v)*/)
 	, _minId(group.vmin_id.v)
 	, _maxId(group.vmax_id.v)
 	, _count(group.vcount.v)
@@ -7825,7 +7828,7 @@ HistoryGroup::HistoryGroup(History *history, const MTPDmessageGroup &group, cons
 }
 
 HistoryGroup::HistoryGroup(History *history, HistoryItem *newItem, const QDateTime &date)
-	: HistoryServiceMessage(history, clientMsgId(), date, lng_channel_comments_count(lt_count, 1)/* + qsl(" (%1 .. %2)").arg(newItem->id - 1).arg(newItem->id + 1)*/)
+	: HistoryServiceMessage(history, clientMsgId(), date, lng_channel_comments_count(lt_count, 1)/* + qsl(" (%1 ... %2)").arg(newItem->id - 1).arg(newItem->id + 1)*/)
 	, _minId(newItem->id - 1)
 	, _maxId(newItem->id + 1)
 	, _count(1)
@@ -7891,7 +7894,7 @@ bool HistoryGroup::decrementCount() {
 }
 
 void HistoryGroup::updateText() {
-	setServiceText(lng_channel_comments_count(lt_count, _count)/* + qsl(" (%1 .. %2)").arg(_minId).arg(_maxId)*/);
+	setServiceText(lng_channel_comments_count(lt_count, _count)/* + qsl(" (%1 ... %2)").arg(_minId).arg(_maxId)*/);
 }
 
 HistoryCollapse::HistoryCollapse(History *history, MsgId wasMinId, const QDateTime &date)

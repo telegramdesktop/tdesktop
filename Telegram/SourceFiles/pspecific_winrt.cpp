@@ -2210,7 +2210,7 @@ namespace {
 	//}
 
 	//bool _psOpenRegKey(LPCWSTR key, PHKEY rkey) {
-	//	DEBUG_LOG(("App Info: opening reg key %1..").arg(QString::fromStdWString(key)));
+	//	DEBUG_LOG(("App Info: opening reg key %1...").arg(QString::fromStdWString(key)));
 	//	LSTATUS status = RegOpenKeyEx(HKEY_CURRENT_USER, key, 0, KEY_QUERY_VALUE | KEY_WRITE, rkey);
 	//	if (status != ERROR_SUCCESS) {
 	//		if (status == ERROR_FILE_NOT_FOUND) {
@@ -2249,7 +2249,7 @@ namespace {
 
 void RegisterCustomScheme() {
 #ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
-	DEBUG_LOG(("App Info: Checking custom scheme 'tg'.."));
+	DEBUG_LOG(("App Info: Checking custom scheme 'tg'..."));
 
 	//HKEY rkey;
 	//QString exe = QDir::toNativeSeparators(cExeDir() + cExeName());
@@ -2799,7 +2799,7 @@ void CheckPinnedAppUserModelId() {
 	//BOOL srcres = GetFileInformationByHandle(srcfile, &srcinfo);
 	//CloseHandle(srcfile);
 	//if (!srcres) return;
-	//LOG(("Checking.."));
+	//LOG(("Checking..."));
 	//WIN32_FIND_DATA findData;
 	//HANDLE findHandle = FindFirstFileEx((p + L"*").c_str(), FindExInfoStandard, &findData, FindExSearchNameMatch, 0, 0);
 	//if (findHandle == INVALID_HANDLE_VALUE) {
@@ -2845,7 +2845,7 @@ void CheckPinnedAppUserModelId() {
 	//			PROPVARIANT appIdPropVar;
 	//			hr = propertyStore->GetValue(pkey_AppUserModel_ID, &appIdPropVar);
 	//			if (!SUCCEEDED(hr)) return;
-	//			LOG(("Reading.."));
+	//			LOG(("Reading..."));
 	//			WCHAR already[MAX_PATH];
 	//			hr = propVariantToString(appIdPropVar, already, MAX_PATH);
 	//			if (SUCCEEDED(hr)) {
