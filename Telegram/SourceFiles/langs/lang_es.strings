@@ -31,9 +31,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_disable_notifications_from_tray" = "Desactivar notificaciones";
 "lng_enable_notifications_from_tray" = "Activar notificaciones";
 "lng_open_from_tray" = "Abrir Telegram";
-"lng_minimize_to_tray" = "Minimizar al icono";
+"lng_minimize_to_tray" = "Minimizar al ícono";
 "lng_quit_from_tray" = "Salir de Telegram";
-"lng_tray_icon_text" = "Telegram aún está funcionando,\npuedes cambiar esto en los ajustes. \nSi este icono desaparece del menú, \npuedes arrastrarlo aquí desde los iconos ocultos.";
+"lng_tray_icon_text" = "Telegram aún está funcionando,\npuedes cambiar esto en los ajustes. \nSi este ícono desaparece del menú, \npuedes arrastrarlo aquí desde los íconos ocultos.";
 
 "lng_month1" = "enero";
 "lng_month2" = "febrero";
@@ -253,8 +253,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_update_ready" = "La nueva versión está lista";
 "lng_settings_update_now" = "Reiniciar ahora";
 "lng_settings_update_fail" = "Revisión de actualización fallida :(";
-"lng_settings_workmode_tray" = "Mostrar el icono";
-"lng_settings_workmode_window" = "Mostrar icono de la barra de tareas";
+"lng_settings_workmode_tray" = "Mostrar el ícono";
+"lng_settings_workmode_window" = "Mostrar ícono de la barra de tareas";
 "lng_settings_auto_start" = "Abrir Telegram cuando el sistema inicie";
 "lng_settings_start_min" = "Abrir minimizada";
 "lng_settings_add_sendto" = "Poner Telegram en el menú «Enviar a»";
@@ -444,8 +444,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_no_media" = "No hay multimedia en este chat.";
 "lng_profile_photos" = "{count:_not_used_|# foto|# fotos} »";
 "lng_profile_photos_header" = "Todas las fotos";
-"lng_profile_videos" = "{count:_not_used_|# vídeo|# vídeos} »";
-"lng_profile_videos_header" = "Vídeos";
+"lng_profile_videos" = "{count:_not_used_|# video|# videos} »";
+"lng_profile_videos_header" = "Videos";
 "lng_profile_songs" = "{count:_not_used_|# audio|# audios} »";
 "lng_profile_songs_header" = "Audios";
 "lng_profile_files" = "{count:_not_used_|# archivo|# archivos} »";
@@ -606,7 +606,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_media_type" = "Formato multimedia";
 "lng_media_type_photos" = "Fotos";
-"lng_media_type_videos" = "Vídeos";
+"lng_media_type_videos" = "Videos";
 "lng_media_type_songs" = "Audios";
 "lng_media_type_files" = "Archivos";
 "lng_media_type_audios" = "Mensajes de voz";
@@ -615,7 +615,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_media_open_with" = "Abrir con";
 "lng_media_download" = "Descargar";
 "lng_media_cancel" = "Cancelar";
-"lng_media_video" = "Vídeo";
+"lng_media_video" = "Video";
 "lng_media_audio" = "Mensaje de voz";
 
 "lng_media_auto_settings" = "Ajustes de descarga automática de multimedia";
@@ -662,7 +662,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_count" = "{count:Cargando...|# sticker|# stickers}";
 
 "lng_in_dlg_photo" = "Foto";
-"lng_in_dlg_video" = "Vídeo";
+"lng_in_dlg_video" = "Video";
 "lng_in_dlg_contact" = "Contacto";
 "lng_in_dlg_audio" = "Audio";
 "lng_in_dlg_file" = "Archivo";
@@ -717,10 +717,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_user_typing" = "{user} está escribiendo";
 "lng_users_typing" = "{user} y {second_user} están escribiendo";
 "lng_many_typing" = "{count:_not_used_|# está|# están} escribiendo";
-"lng_send_action_record_video" = "grabando vídeo";
-"lng_user_action_record_video" = "{user} está grabando un vídeo";
-"lng_send_action_upload_video" = "enviando vídeo";
-"lng_user_action_upload_video" = "{user} está enviando un vídeo";
+"lng_send_action_record_video" = "grabando video";
+"lng_user_action_record_video" = "{user} está grabando un video";
+"lng_send_action_upload_video" = "enviando video";
+"lng_user_action_upload_video" = "{user} está enviando un video";
 "lng_send_action_record_audio" = "grabando audio";
 "lng_user_action_record_audio" = "{user} está grabando un audio";
 "lng_send_action_upload_audio" = "enviando audio";
@@ -737,7 +737,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_maps_point" = "Ubicación";
 "lng_save_photo" = "Guardar imagen";
-"lng_save_video" = "Guardar vídeo";
+"lng_save_video" = "Guardar video";
 "lng_save_audio" = "Guardar audio";
 "lng_save_file" = "Guardar archivo";
 "lng_save_downloaded" = "{ready} / {total} {mb}";
