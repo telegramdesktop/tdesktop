@@ -686,6 +686,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_cant_invite_banned" = "Sorry, only admin can add this user.";
 "lng_cant_invite_privacy" = "Sorry, you cannot add this user to groups because of the privacy settings.";
 "lng_cant_invite_privacy_channel" = "Sorry, you cannot add this user to channels because of the privacy settings.";
+"lng_cant_do_this" = "Sorry, this action is unavailable.";
 
 "lng_send_button" = "Send";
 "lng_message_ph" = "Write a message...";

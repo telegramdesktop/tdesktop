@@ -284,6 +284,8 @@ bool ContactsInner::addAdminFail(const RPCError &error, mtpRequestId req) {
 		Ui::showLayer(new MaxInviteBox(_channel->invitationUrl), KeepOtherLayers);
 	} else if (error.type() == "ADMINS_TOO_MUCH") {
 		Ui::showLayer(new InformBox(lang(lng_channel_admins_too_much)), KeepOtherLayers);
+	} else if (error.type() == qstr("USER_RESTRICTED")) {
+		Ui::showLayer(new InformBox(lang(lng_cant_do_this)), KeepOtherLayers);
 	} else  {
 		emit adminAdded();
 	}
@@ -1718,7 +1720,13 @@ bool ContactsBox::editAdminFail(const RPCError &error) {
 	if (mtpIsFlood(error)) return true;
 	--_saveRequestId;
 	_inner.chat()->invalidateParticipants();
-	if (!_saveRequestId) onClose();
+	if (!_saveRequestId) {
+		if (error.type() == qstr("USER_RESTRICTED")) {
+			Ui::showLayer(new InformBox(lang(lng_cant_do_this)));
+			return true;
+		}
+		onClose();
+	}
 	return false;
 }
 
@@ -1764,6 +1772,9 @@ bool ContactsBox::creationFail(const RPCError &error) {
 		return true;
 	} else if (error.type() == "PEER_FLOOD") {
 		Ui::showLayer(new InformBox(lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)))), KeepOtherLayers);
+		return true;
+	} else if (error.type() == qstr("USER_RESTRICTED")) {
+		Ui::showLayer(new InformBox(lang(lng_cant_do_this)));
 		return true;
 	}
 	return false;
