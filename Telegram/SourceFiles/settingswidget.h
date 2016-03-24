@@ -101,10 +101,10 @@ public slots:
 	void onUpdatePhoto();
 	void onUpdatePhotoCancel();
 
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void onAutoUpdate();
 	void onCheckNow();
-	#endif
+#endif
 	void onRestartNow();
 
 	void onFullPeerUpdated(PeerData *peer);
@@ -116,7 +116,9 @@ public slots:
 	void onPasswordOff();
 	void onReloadPassword(Qt::ApplicationState state = Qt::ApplicationActive);
 
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	void onConnectionType();
+#endif
 
 	void onUsername();
 
@@ -162,13 +164,13 @@ public slots:
 
 	void onLocalStorageClear();
 
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void onUpdateChecking();
 	void onUpdateLatest();
 	void onUpdateDownloading(qint64 ready, qint64 total);
 	void onUpdateReady();
 	void onUpdateFailed();
-	#endif
+#endif
 
 	void onShowSessions();
 

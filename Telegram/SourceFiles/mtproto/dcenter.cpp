@@ -19,44 +19,47 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "mtpDC.h"
-#include "mtp.h"
 
+#include "mtproto/dcenter.h"
+
+#include "mtproto/facade.h"
 #include "localstorage.h"
 
-namespace {
+namespace MTP {
+namespace internal {
 
-	MTProtoDCMap gDCs;
+namespace {
+	DcenterMap gDCs;
 	bool configLoadedOnce = false;
 	bool mainDCChanged = false;
-	int32 mainDC = 2;
+	int32 _mainDC = 2;
 	int32 userId = 0;
 
-	typedef QMap<int32, mtpAuthKeyPtr> _KeysMapForWrite;
+	typedef QMap<int32, AuthKeyPtr> _KeysMapForWrite;
 	_KeysMapForWrite _keysMapForWrite;
 	QMutex _keysMapForWriteMutex;
-}
+} // namespace
 
-int32 mtpAuthed() {
+int32 authed() {
 	return userId;
 }
 
-void mtpAuthed(int32 uid) {
+void authed(int32 uid) {
 	if (userId != uid) {
 		userId = uid;
 	}
 }
 
-MTProtoDCMap &mtpDCMap() {
+DcenterMap &DCMap() {
 	return gDCs;
 }
 
-bool mtpNeedConfig() {
+bool configNeeded() {
 	return !configLoadedOnce;
 }
 
-int32 mtpMainDC() {
-	return mainDC;
+int32 mainDC() {
+	return _mainDC;
 }
 
 namespace {
@@ -73,7 +76,7 @@ namespace {
 	}
 }
 
-void mtpLogoutOtherDCs() {
+void logoutOtherDCs() {
 	QList<int32> dcs;
 	{
 		QMutexLocker lock(&_keysMapForWriteMutex);
@@ -81,20 +84,20 @@ void mtpLogoutOtherDCs() {
 	}
 	for (int32 i = 0, cnt = dcs.size(); i != cnt; ++i) {
 		if (dcs[i] != MTP::maindc()) {
-			logoutGuestMap.insert(MTP::lgt + dcs[i], MTP::send(MTPauth_LogOut(), rpcDone(&logoutDone), rpcFail(&logoutDone), MTP::lgt + dcs[i]));
+			logoutGuestMap.insert(MTP::lgtDcId(dcs[i]), MTP::send(MTPauth_LogOut(), rpcDone(&logoutDone), rpcFail(&logoutDone), MTP::lgtDcId(dcs[i])));
 		}
 	}
 }
 
-void mtpSetDC(int32 dc, bool firstOnly) {
+void setDC(int32 dc, bool firstOnly) {
 	if (!dc || (firstOnly && mainDCChanged)) return;
 	mainDCChanged = true;
-	if (dc != mainDC) {
-		mainDC = dc;
+	if (dc != _mainDC) {
+		_mainDC = dc;
 	}
 }
 
-MTProtoDC::MTProtoDC(int32 id, const mtpAuthKeyPtr &key) : _id(id), _key(key), _connectionInited(false) {
+Dcenter::Dcenter(int32 id, const AuthKeyPtr &key) : _id(id), _key(key), _connectionInited(false) {
 	connect(this, SIGNAL(authKeyCreated()), this, SLOT(authKeyWrite()), Qt::QueuedConnection);
 
 	QMutexLocker lock(&_keysMapForWriteMutex);
@@ -105,14 +108,14 @@ MTProtoDC::MTProtoDC(int32 id, const mtpAuthKeyPtr &key) : _id(id), _key(key), _
 	}
 }
 
-void MTProtoDC::authKeyWrite() {
+void Dcenter::authKeyWrite() {
 	DEBUG_LOG(("AuthKey Info: MTProtoDC::authKeyWrite() slot, dc %1").arg(_id));
 	if (_key) {
 		Local::writeMtpData();
 	}
 }
 
-void MTProtoDC::setKey(const mtpAuthKeyPtr &key) {
+void Dcenter::setKey(const AuthKeyPtr &key) {
 	DEBUG_LOG(("AuthKey Info: MTProtoDC::setKey(%1), emitting authKeyCreated, dc %2").arg(key ? key->keyId() : 0).arg(_id));
 	_key = key;
 	_connectionInited = false;
@@ -126,23 +129,23 @@ void MTProtoDC::setKey(const mtpAuthKeyPtr &key) {
 	}
 }
 
-QReadWriteLock *MTProtoDC::keyMutex() const {
+QReadWriteLock *Dcenter::keyMutex() const {
 	return &keyLock;
 }
 
-const mtpAuthKeyPtr &MTProtoDC::getKey() const {
+const AuthKeyPtr &Dcenter::getKey() const {
 	return _key;
 }
 
-void MTProtoDC::destroyKey() {
-	setKey(mtpAuthKeyPtr());
+void Dcenter::destroyKey() {
+	setKey(AuthKeyPtr());
 
 	QMutexLocker lock(&_keysMapForWriteMutex);
 	_keysMapForWrite.remove(_id);
 }
 
 namespace {
-	MTProtoConfigLoader *configLoader = 0;
+	ConfigLoader *_configLoader = nullptr;
 	bool loadingConfig = false;
 	void configLoaded(const MTPConfig &result) {
 		loadingConfig = false;
@@ -151,7 +154,7 @@ namespace {
 
 		DEBUG_LOG(("MTP Info: got config, chat_size_max: %1, date: %2, test_mode: %3, this_dc: %4, dc_options.length: %5").arg(data.vchat_size_max.v).arg(data.vdate.v).arg(mtpIsTrue(data.vtest_mode)).arg(data.vthis_dc.v).arg(data.vdc_options.c_vector().v.size()));
 
-		mtpUpdateDcOptions(data.vdc_options.c_vector().v);
+		updateDcOptions(data.vdc_options.c_vector().v);
 
 		Global::SetChatSizeMax(data.vchat_size_max.v);
 		Global::SetMegagroupSizeMax(data.vmegagroup_size_max.v);
@@ -171,7 +174,7 @@ namespace {
 		configLoadedOnce = true;
 		Local::writeSettings();
 
-		mtpConfigLoader()->done();
+		configLoader()->done();
 	}
 	bool configFailed(const RPCError &error) {
 		if (mtpIsFlood(error)) return false;
@@ -182,31 +185,31 @@ namespace {
 	}
 };
 
-void mtpUpdateDcOptions(const QVector<MTPDcOption> &options) {
+void updateDcOptions(const QVector<MTPDcOption> &options) {
 	QSet<int32> already, restart;
 	{
-		mtpDcOptions opts;
+		MTP::DcOptions opts;
 		{
-			QReadLocker lock(mtpDcOptionsMutex());
-			opts = cDcOptions();
+			QReadLocker lock(dcOptionsMutex());
+			opts = Global::DcOptions();
 		}
 		for (QVector<MTPDcOption>::const_iterator i = options.cbegin(), e = options.cend(); i != e; ++i) {
 			const MTPDdcOption &optData(i->c_dcOption());
-			int32 id = optData.vid.v, idWithShift = id + (optData.vflags.v * _mtp_internal::dcShift);
+			int32 id = optData.vid.v, idWithShift = MTP::shiftDcId(id, optData.vflags.v);
 			if (already.constFind(idWithShift) == already.cend()) {
 				already.insert(idWithShift);
-				mtpDcOptions::const_iterator a = opts.constFind(idWithShift);
+				auto a = opts.constFind(idWithShift);
 				if (a != opts.cend()) {
 					if (a.value().ip != optData.vip_address.c_string().v || a.value().port != optData.vport.v) {
 						restart.insert(id);
 					}
 				}
-				opts.insert(idWithShift, mtpDcOption(id, optData.vflags.v, optData.vip_address.c_string().v, optData.vport.v));
+				opts.insert(idWithShift, MTP::DcOption(id, optData.vflags.v, optData.vip_address.c_string().v, optData.vport.v));
 			}
 		}
 		{
-			QWriteLocker lock(mtpDcOptionsMutex());
-			cSetDcOptions(opts);
+			QWriteLocker lock(dcOptionsMutex());
+			Global::SetDcOptions(opts);
 		}
 	}
 	for (QSet<int32>::const_iterator i = restart.cbegin(), e = restart.cend(); i != e; ++i) {
@@ -218,15 +221,15 @@ namespace {
 	QReadWriteLock _dcOptionsMutex;
 }
 
-QReadWriteLock *mtpDcOptionsMutex() {
+QReadWriteLock *dcOptionsMutex() {
 	return &_dcOptionsMutex;
 }
 
-MTProtoConfigLoader::MTProtoConfigLoader() : _enumCurrent(0), _enumRequest(0) {
+ConfigLoader::ConfigLoader() : _enumCurrent(0), _enumRequest(0) {
 	connect(&_enumDCTimer, SIGNAL(timeout()), this, SLOT(enumDC()));
 }
 
-void MTProtoConfigLoader::load() {
+void ConfigLoader::load() {
 	if (loadingConfig) return;
 	loadingConfig = true;
 
@@ -235,35 +238,35 @@ void MTProtoConfigLoader::load() {
 	_enumDCTimer.start(MTPEnumDCTimeout);
 }
 
-void MTProtoConfigLoader::done() {
+void ConfigLoader::done() {
 	_enumDCTimer.stop();
 	if (_enumRequest) {
 		MTP::cancel(_enumRequest);
 		_enumRequest = 0;
 	}
 	if (_enumCurrent) {
-		MTP::killSession(MTP::cfg + _enumCurrent);
+		MTP::killSession(MTP::cfgDcId(_enumCurrent));
 		_enumCurrent = 0;
 	}
 	emit loaded();
 }
 
-void MTProtoConfigLoader::enumDC() {
+void ConfigLoader::enumDC() {
 	if (!loadingConfig) return;
 
 	if (_enumRequest) MTP::cancel(_enumRequest);
 
 	if (!_enumCurrent) {
-		_enumCurrent = mainDC;
+		_enumCurrent = _mainDC;
 	} else {
-		MTP::killSession(MTP::cfg + _enumCurrent);
+		MTP::killSession(MTP::cfgDcId(_enumCurrent));
 	}
 	OrderedSet<int32> dcs;
 	{
-		QReadLocker lock(mtpDcOptionsMutex());
-		const mtpDcOptions &options(cDcOptions());
-		for (mtpDcOptions::const_iterator i = options.cbegin(), e = options.cend(); i != e; ++i) {
-			dcs.insert(i.key() % _mtp_internal::dcShift);
+		QReadLocker lock(dcOptionsMutex());
+		const MTP::DcOptions &options(Global::DcOptions());
+		for (auto i = options.cbegin(), e = options.cend(); i != e; ++i) {
+			dcs.insert(MTP::bareDcId(i.key()));
 		}
 	}
 	OrderedSet<int32>::const_iterator i = dcs.constFind(_enumCurrent);
@@ -272,31 +275,34 @@ void MTProtoConfigLoader::enumDC() {
 	} else {
 		_enumCurrent = i.key();
 	}
-	_enumRequest = MTP::send(MTPhelp_GetConfig(), rpcDone(configLoaded), rpcFail(configFailed), MTP::cfg + _enumCurrent);
+	_enumRequest = MTP::send(MTPhelp_GetConfig(), rpcDone(configLoaded), rpcFail(configFailed), MTP::cfgDcId(_enumCurrent));
 
 	_enumDCTimer.start(MTPEnumDCTimeout);
 }
 
-MTProtoConfigLoader *mtpConfigLoader() {
-	if (!configLoader) configLoader = new MTProtoConfigLoader();
-	return configLoader;
+ConfigLoader *configLoader() {
+	if (!_configLoader) _configLoader = new ConfigLoader();
+	return _configLoader;
 }
 
-void mtpDestroyConfigLoader() {
-	delete configLoader;
-	configLoader = 0;
+void destroyConfigLoader() {
+	delete _configLoader;
+	_configLoader = nullptr;
 }
 
-mtpKeysMap mtpGetKeys() {
-	mtpKeysMap result;
+AuthKeysMap getAuthKeys() {
+	AuthKeysMap result;
 	QMutexLocker lock(&_keysMapForWriteMutex);
-	for (_KeysMapForWrite::const_iterator i = _keysMapForWrite.cbegin(), e = _keysMapForWrite.cend(); i != e; ++i) {
-		result.push_back(i.value());
+	for_const (const AuthKeyPtr &key, _keysMapForWrite) {
+		result.push_back(key);
 	}
 	return result;
 }
 
-void mtpSetKey(int32 dcId, mtpAuthKeyPtr key) {
-	MTProtoDCPtr dc(new MTProtoDC(dcId, key));
+void setAuthKey(int32 dcId, AuthKeyPtr key) {
+	DcenterPtr dc(new Dcenter(dcId, key));
 	gDCs.insert(dcId, dc);
 }
+
+} // namespace internal
+} // namespace MTP

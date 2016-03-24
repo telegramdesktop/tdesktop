@@ -1654,6 +1654,7 @@ public:
 				*_getSymbolUpon = true;
 				return false;
 			} else if (_p) {
+#ifndef TDESKTOP_WINRT // temp
 				QTextCharFormat format;
 				QTextItemInt gf(glyphs.mid(glyphsStart, glyphsEnd - glyphsStart),
 								&_e->fnt, engine.layoutData->string.unicode() + itemStart,
@@ -1662,7 +1663,7 @@ public:
 				gf.width = itemWidth;
 				gf.justified = false;
 				gf.initWithScriptItem(si);
-
+#endif // !TDESKTOP_WINRT
 				if (_localFrom + itemStart < _selectedTo && _localFrom + itemEnd > _selectedFrom) {
 					QFixed selX = x, selWidth = itemWidth;
 					if (_localFrom + itemEnd > _selectedTo || _localFrom + itemStart < _selectedFrom) {
@@ -1703,7 +1704,9 @@ public:
 					_p->fillRect(QRectF(selX.toReal(), _y + _yDelta, selWidth.toReal(), _fontHeight), _textStyle->selectBg->b);
 				}
 
+#ifndef TDESKTOP_WINRT // temp
 				_p->drawTextItem(QPointF(x.toReal(), textY), gf);
+#endif // !TDESKTOP_WINRT
 			}
 
 			x += itemWidth;
@@ -3468,7 +3471,7 @@ TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResi
 	if (length) {
 		style::font blockFont = font;
 		if (!flags && lnkIndex) {
-			// should use textStyle lnkFlags somehow.. not supported
+			// should use textStyle lnkFlags somehow... not supported
 		}
 
 		if ((flags & TextBlockFPre) || (flags & TextBlockFCode)) {

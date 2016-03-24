@@ -18,21 +18,31 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
-#include "mtproto/mtpRPC.h"
+#pragma once
 
-RPCOwnedDoneHandler::RPCOwnedDoneHandler(RPCSender *owner) : _owner(owner) {
-	_owner->_rpcRegHandler(this);
-}
+namespace MTP {
+namespace internal {
 
-RPCOwnedDoneHandler::~RPCOwnedDoneHandler() {
-	if (_owner) _owner->_rpcUnregHandler(this);
-}
+// this class holds an RSA public key and can encrypt fixed-size messages with it
+class RSAPublicKey final {
+public:
 
-RPCOwnedFailHandler::RPCOwnedFailHandler(RPCSender *owner) : _owner(owner) {
-	_owner->_rpcRegHandler(this);
-}
+	// key in RSAPublicKey "-----BEGIN RSA PUBLIC KEY----- ..." format
+	RSAPublicKey(const char *key);
 
-RPCOwnedFailHandler::~RPCOwnedFailHandler() {
-	if (_owner) _owner->_rpcUnregHandler(this);
-}
+	bool isValid() const;
+	uint64 getFingerPrint() const;
+
+	// data has exactly 256 chars to be encrypted
+	bool encrypt(const void *data, string &result) const;
+
+private:
+
+	struct Impl;
+	typedef QSharedPointer<Impl> ImplPtr;
+	ImplPtr impl_;
+
+};
+
+} // namespace internal
+} // namespace MTP

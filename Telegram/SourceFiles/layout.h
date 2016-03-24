@@ -440,10 +440,11 @@ private:
 	TextLinkPtr _photol;
 
 	QString _title, _letter;
-	int32 _titlew;
-	WebPageData *_page;
-	int32 _pixw, _pixh;
-	Text _text;
+	int _titlew = 0;
+	WebPageData *_page = nullptr;
+	int _pixw = 0;
+	int _pixh = 0;
+	Text _text = { int(st::msgMinWidth) };
 
 	struct Link {
 		Link() : width(0) {

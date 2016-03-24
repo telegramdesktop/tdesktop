@@ -45,11 +45,11 @@ typedef QHash<PhotoId, PhotoData*> PhotosData;
 typedef QHash<DocumentId, DocumentData*> DocumentsData;
 
 struct ReplyMarkup {
-	ReplyMarkup(int32 flags = 0) : flags(flags) {
+	ReplyMarkup(MTPDreplyKeyboardMarkup::Flags flags = 0) : flags(flags) {
 	}
 	typedef QList<QList<QString> > Commands;
 	Commands commands;
-	int32 flags;
+	MTPDreplyKeyboardMarkup::Flags flags;
 };
 
 class LayeredWidget;
@@ -145,10 +145,11 @@ namespace App {
 	History *historyLoaded(const PeerId &peer);
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId);
 	inline History *history(const PeerData *peer) {
+		t_assert(peer != nullptr);
 		return history(peer->id);
 	}
 	inline History *historyLoaded(const PeerData *peer) {
-		return historyLoaded(peer->id);
+		return peer ? historyLoaded(peer->id) : nullptr;
 	}
 	inline HistoryItem *histItemById(const ChannelData *channel, MsgId itemId) {
 		return histItemById(channel ? peerToChannel(channel->id) : 0, itemId);
@@ -250,7 +251,9 @@ namespace App {
 	const ReplyMarkup &replyMarkup(ChannelId channelId, MsgId msgId);
 
 	void setProxySettings(QNetworkAccessManager &manager);
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	QNetworkProxy getHttpProxySettings();
+#endif
 	void setProxySettings(QTcpSocket &socket);
 
 	QImage **cornersMask();

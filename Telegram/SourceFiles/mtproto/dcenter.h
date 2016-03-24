@@ -20,16 +20,19 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-class MTProtoDC : public QObject {
+namespace MTP {
+namespace internal {
+
+class Dcenter : public QObject {
 	Q_OBJECT
 
 public:
 
-	MTProtoDC(int32 id, const mtpAuthKeyPtr &key);
+	Dcenter(int32 id, const AuthKeyPtr &key);
 
 	QReadWriteLock *keyMutex() const;
-	const mtpAuthKeyPtr &getKey() const;
-	void setKey(const mtpAuthKeyPtr &key);
+	const AuthKeyPtr &getKey() const;
+	void setKey(const AuthKeyPtr &key);
 	void destroyKey();
 
 	bool connectionInited() const {
@@ -56,19 +59,19 @@ private:
 	mutable QReadWriteLock keyLock;
 	mutable QMutex initLock;
 	int32 _id;
-	mtpAuthKeyPtr _key;
+	AuthKeyPtr _key;
 	bool _connectionInited;
 };
 
-typedef QSharedPointer<MTProtoDC> MTProtoDCPtr;
-typedef QMap<uint32, MTProtoDCPtr> MTProtoDCMap;
+typedef QSharedPointer<Dcenter> DcenterPtr;
+typedef QMap<uint32, DcenterPtr> DcenterMap;
 
-class MTProtoConfigLoader : public QObject {
+class ConfigLoader : public QObject {
 	Q_OBJECT
 
 public:
 
-	MTProtoConfigLoader();
+	ConfigLoader();
 	void load();
 	void done();
 
@@ -88,21 +91,23 @@ private:
 
 };
 
-MTProtoConfigLoader *mtpConfigLoader();
-void mtpDestroyConfigLoader();
+ConfigLoader *configLoader();
+void destroyConfigLoader();
 
-MTProtoDCMap &mtpDCMap();
-bool mtpNeedConfig();
-int32 mtpMainDC();
-void mtpLogoutOtherDCs();
-void mtpSetDC(int32 dc, bool firstOnly = false);
-uint32 mtpMaxChatSize();
+DcenterMap &DCMap();
+bool configNeeded();
+int32 mainDC();
+void logoutOtherDCs();
+void setDC(int32 dc, bool firstOnly = false);
 
-int32 mtpAuthed();
-void mtpAuthed(int32 uid);
+int32 authed();
+void authed(int32 uid);
 
-mtpKeysMap mtpGetKeys();
-void mtpSetKey(int32 dc, mtpAuthKeyPtr key);
+AuthKeysMap getAuthKeys();
+void setAuthKey(int32 dc, AuthKeyPtr key);
 
-void mtpUpdateDcOptions(const QVector<MTPDcOption> &options);
-QReadWriteLock *mtpDcOptionsMutex();
+void updateDcOptions(const QVector<MTPDcOption> &options);
+QReadWriteLock *dcOptionsMutex();
+
+} // namespace internal
+} // namespace MTP

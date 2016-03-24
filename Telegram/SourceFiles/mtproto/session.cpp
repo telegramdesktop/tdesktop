@@ -19,9 +19,13 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include <QtCore/QSharedPointer>
 
-void MTPSessionData::clear() {
+#include "mtproto/session.h"
+
+namespace MTP {
+namespace internal {
+
+void SessionData::clear() {
 	RPCCallbackClears clearCallbacks;
 	{
 		QReadLocker locker1(haveSentMutex()), locker2(toResendMutex()), locker3(haveReceivedMutex()), locker4(wereAckedMutex());
@@ -62,11 +66,11 @@ void MTPSessionData::clear() {
 		QWriteLocker locker(receivedIdsMutex());
 		receivedIds.clear();
 	}
-	_mtp_internal::clearCallbacksDelayed(clearCallbacks);
+	clearCallbacksDelayed(clearCallbacks);
 }
 
 
-MTProtoSession::MTProtoSession(int32 dcenter) : QObject()
+Session::Session(int32 dcenter) : QObject()
 , _connection(0)
 , _killed(false)
 , _needToReceive(false)
@@ -92,9 +96,9 @@ MTProtoSession::MTProtoSession(int32 dcenter) : QObject()
 
 	connect(&sender, SIGNAL(timeout()), this, SLOT(needToResumeAndSend()));
 
-	MTProtoDCMap &dcs(mtpDCMap());
+	DcenterMap &dcs(DCMap());
 
-	_connection = new MTProtoConnection();
+	_connection = new Connection();
 	dcWithShift = _connection->start(&data, dcenter);
 	if (!dcWithShift) {
 		delete _connection;
@@ -104,17 +108,17 @@ MTProtoSession::MTProtoSession(int32 dcenter) : QObject()
 	}
 	if (!dc) {
 		dcenter = dcWithShift;
-		int32 dcId = dcWithShift % _mtp_internal::dcShift;
-		MTProtoDCMap::const_iterator dcIndex = dcs.constFind(dcId);
+		int32 dcId = bareDcId(dcWithShift);
+		auto dcIndex = dcs.constFind(dcId);
 		if (dcIndex == dcs.cend()) {
-			dc = MTProtoDCPtr(new MTProtoDC(dcId, mtpAuthKeyPtr()));
-			dcs.insert(dcWithShift % _mtp_internal::dcShift, dc);
+			dc = DcenterPtr(new Dcenter(dcId, AuthKeyPtr()));
+			dcs.insert(dcId, dc);
 		} else {
 			dc = dcIndex.value();
 		}
 
 		ReadLockerAttempt lock(keyMutex());
-		data.setKey(lock ? dc->getKey() : mtpAuthKeyPtr(0));
+		data.setKey(lock ? dc->getKey() : AuthKeyPtr());
 		if (lock && dc->connectionInited()) {
 			data.setLayerWasInited(true);
 		}
@@ -123,7 +127,7 @@ MTProtoSession::MTProtoSession(int32 dcenter) : QObject()
 	}
 }
 
-void MTProtoSession::restart() {
+void Session::restart() {
 	if (_killed) {
 		DEBUG_LOG(("Session Error: can't restart a killed session"));
 		return;
@@ -131,7 +135,7 @@ void MTProtoSession::restart() {
 	emit needToRestart();
 }
 
-void MTProtoSession::stop() {
+void Session::stop() {
 	if (_killed) {
 		DEBUG_LOG(("Session Error: can't kill a killed session"));
 		return;
@@ -143,20 +147,20 @@ void MTProtoSession::stop() {
 	}
 }
 
-void MTProtoSession::kill() {
+void Session::kill() {
 	stop();
 	_killed = true;
 	DEBUG_LOG(("Session Info: marked session dcWithShift %1 as killed").arg(dcWithShift));
 }
 
-void MTProtoSession::unpaused() {
+void Session::unpaused() {
 	if (_needToReceive) {
 		_needToReceive = false;
 		QTimer::singleShot(0, this, SLOT(tryToReceive()));
 	}
 }
 
-void MTProtoSession::sendAnything(quint64 msCanWait) {
+void Session::sendAnything(quint64 msCanWait) {
 	if (_killed) {
 		DEBUG_LOG(("Session Error: can't send anything in a killed session"));
 		return;
@@ -186,16 +190,16 @@ void MTProtoSession::sendAnything(quint64 msCanWait) {
 	}
 }
 
-void MTProtoSession::needToResumeAndSend() {
+void Session::needToResumeAndSend() {
 	if (_killed) {
 		DEBUG_LOG(("Session Info: can't resume a killed session"));
 		return;
 	}
 	if (!_connection) {
 		DEBUG_LOG(("Session Info: resuming session dcWithShift %1").arg(dcWithShift));
-		MTProtoDCMap &dcs(mtpDCMap());
+		DcenterMap &dcs(DCMap());
 
-		_connection = new MTProtoConnection();
+		_connection = new Connection();
 		if (!_connection->start(&data, dcWithShift)) {
 			delete _connection;
 			_connection = 0;
@@ -212,11 +216,11 @@ void MTProtoSession::needToResumeAndSend() {
 	}
 }
 
-void MTProtoSession::sendPong(quint64 msgId, quint64 pingId) {
+void Session::sendPong(quint64 msgId, quint64 pingId) {
 	send(MTP_pong(MTP_long(msgId), MTP_long(pingId)));
 }
 
-void MTProtoSession::sendMsgsStateInfo(quint64 msgId, QByteArray data) {
+void Session::sendMsgsStateInfo(quint64 msgId, QByteArray data) {
 	MTPMsgsStateInfo req(MTP_msgs_state_info(MTP_long(msgId), MTPstring()));
 	string &info(req._msgs_state_info().vinfo._string().v);
 	info.resize(data.size());
@@ -226,7 +230,7 @@ void MTProtoSession::sendMsgsStateInfo(quint64 msgId, QByteArray data) {
 	send(req);
 }
 
-void MTProtoSession::checkRequestsByTimer() {
+void Session::checkRequestsByTimer() {
 	QVector<mtpMsgId> resendingIds;
 	QVector<mtpMsgId> removingIds; // remove very old (10 minutes) containers and resend requests
 	QVector<mtpMsgId> stateRequestIds;
@@ -287,19 +291,19 @@ void MTProtoSession::checkRequestsByTimer() {
 				}
 			}
 		}
-		_mtp_internal::clearCallbacksDelayed(clearCallbacks);
+		clearCallbacksDelayed(clearCallbacks);
 	}
 }
 
-void MTProtoSession::onConnectionStateChange(qint32 newState) {
-	_mtp_internal::onStateChange(dcWithShift, newState);
+void Session::onConnectionStateChange(qint32 newState) {
+	onStateChange(dcWithShift, newState);
 }
 
-void MTProtoSession::onResetDone() {
-	_mtp_internal::onSessionReset(dcWithShift);
+void Session::onResetDone() {
+	onSessionReset(dcWithShift);
 }
 
-void MTProtoSession::cancel(mtpRequestId requestId, mtpMsgId msgId) {
+void Session::cancel(mtpRequestId requestId, mtpMsgId msgId) {
 	if (requestId) {
 		QWriteLocker locker(data.toSendMutex());
 		data.toSendMap().remove(requestId);
@@ -310,20 +314,20 @@ void MTProtoSession::cancel(mtpRequestId requestId, mtpMsgId msgId) {
 	}
 }
 
-void MTProtoSession::ping() {
+void Session::ping() {
 	_ping = true;
 	sendAnything(0);
 }
 
-int32 MTProtoSession::requestState(mtpRequestId requestId) const {
+int32 Session::requestState(mtpRequestId requestId) const {
 	int32 result = MTP::RequestSent;
 
 	bool connected = false;
 	if (_connection) {
 		int32 s = _connection->state();
-		if (s == MTProtoConnection::Connected) {
+		if (s == ConnectedState) {
 			connected = true;
-		} else if (s == MTProtoConnection::Connecting || s == MTProtoConnection::Disconnected) {
+		} else if (s == ConnectingState || s == DisconnectedState) {
 			if (result < 0 || result == MTP::RequestSent) {
 				result = MTP::RequestConnecting;
 			}
@@ -348,14 +352,14 @@ int32 MTProtoSession::requestState(mtpRequestId requestId) const {
 	}
 }
 
-int32 MTProtoSession::getState() const {
+int32 Session::getState() const {
 	int32 result = -86400000;
 
 	if (_connection) {
 		int32 s = _connection->state();
-		if (s == MTProtoConnection::Connected) {
+		if (s == ConnectedState) {
 			return s;
-		} else if (s == MTProtoConnection::Connecting || s == MTProtoConnection::Disconnected) {
+		} else if (s == ConnectingState || s == DisconnectedState) {
 			if (result < 0) {
 				return s;
 			}
@@ -366,16 +370,16 @@ int32 MTProtoSession::getState() const {
 		}
 	}
 	if (result == -86400000) {
-		result = MTProtoConnection::Disconnected;
+		result = DisconnectedState;
 	}
 	return result;
 }
 
-QString MTProtoSession::transport() const {
+QString Session::transport() const {
 	return _connection ? _connection->transport() : QString();
 }
 
-mtpRequestId MTProtoSession::resend(quint64 msgId, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
+mtpRequestId Session::resend(quint64 msgId, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
 	mtpRequest request;
 	{
 		QWriteLocker locker(data.haveSentMutex());
@@ -415,13 +419,13 @@ mtpRequestId MTProtoSession::resend(quint64 msgId, quint64 msCanWait, bool force
 	}
 }
 
-void MTProtoSession::resendMany(QVector<quint64> msgIds, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
+void Session::resendMany(QVector<quint64> msgIds, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
 	for (int32 i = 0, l = msgIds.size(); i < l; ++i) {
 		resend(msgIds.at(i), msCanWait, forceContainer, sendMsgStateInfo);
 	}
 }
 
-void MTProtoSession::resendAll() {
+void Session::resendAll() {
 	QVector<mtpMsgId> toResend;
 	{
 		QReadLocker locker(data.haveSentMutex());
@@ -436,7 +440,7 @@ void MTProtoSession::resendAll() {
 	}
 }
 
-void MTProtoSession::sendPrepared(const mtpRequest &request, uint64 msCanWait, bool newRequest) { // returns true, if emit of needToSend() is needed
+void Session::sendPrepared(const mtpRequest &request, uint64 msCanWait, bool newRequest) { // returns true, if emit of needToSend() is needed
 	{
 		QWriteLocker locker(data.toSendMutex());
 		data.toSendMap().insert(request->requestId, request);
@@ -452,33 +456,33 @@ void MTProtoSession::sendPrepared(const mtpRequest &request, uint64 msCanWait, b
 	sendAnything(msCanWait);
 }
 
-QReadWriteLock *MTProtoSession::keyMutex() const {
+QReadWriteLock *Session::keyMutex() const {
 	return dc->keyMutex();
 }
 
-void MTProtoSession::authKeyCreatedForDC() {
+void Session::authKeyCreatedForDC() {
 	DEBUG_LOG(("AuthKey Info: MTProtoSession::authKeyCreatedForDC slot, emitting authKeyCreated(), dcWithShift %1").arg(dcWithShift));
 	data.setKey(dc->getKey());
 	emit authKeyCreated();
 }
 
-void MTProtoSession::notifyKeyCreated(const mtpAuthKeyPtr &key) {
+void Session::notifyKeyCreated(const AuthKeyPtr &key) {
 	DEBUG_LOG(("AuthKey Info: MTProtoSession::keyCreated(), setting, dcWithShift %1").arg(dcWithShift));
 	dc->setKey(key);
 }
 
-void MTProtoSession::layerWasInitedForDC(bool wasInited) {
+void Session::layerWasInitedForDC(bool wasInited) {
 	DEBUG_LOG(("MTP Info: MTProtoSession::layerWasInitedForDC slot, dcWithShift %1").arg(dcWithShift));
 	data.setLayerWasInited(wasInited);
 }
 
-void MTProtoSession::notifyLayerInited(bool wasInited) {
+void Session::notifyLayerInited(bool wasInited) {
 	DEBUG_LOG(("MTP Info: emitting MTProtoDC::layerWasInited(%1), dcWithShift %2").arg(Logs::b(wasInited)).arg(dcWithShift));
 	dc->setConnectionInited(wasInited);
 	emit dc->layerWasInited(wasInited);
 }
 
-void MTProtoSession::destroyKey() {
+void Session::destroyKey() {
 	if (!dc) return;
 
 	if (data.getKey()) {
@@ -486,20 +490,20 @@ void MTProtoSession::destroyKey() {
 		if (data.getKey() == dc->getKey()) {
 			dc->destroyKey();
 		}
-		data.setKey(mtpAuthKeyPtr(0));
+		data.setKey(AuthKeyPtr());
 	}
 }
 
-int32 MTProtoSession::getDcWithShift() const {
+int32 Session::getDcWithShift() const {
 	return dcWithShift;
 }
 
-void MTProtoSession::tryToReceive() {
+void Session::tryToReceive() {
 	if (_killed) {
 		DEBUG_LOG(("Session Error: can't receive in a killed session"));
 		return;
 	}
-	if (_mtp_internal::paused()) {
+	if (paused()) {
 		_needToReceive = true;
 		return;
 	}
@@ -518,20 +522,23 @@ void MTProtoSession::tryToReceive() {
 			responses.erase(i);
 		}
 		if (requestId <= 0) {
-			if (dcWithShift < int(_mtp_internal::dcShift)) { // call globalCallback only in main session
-				_mtp_internal::globalCallback(response.constData(), response.constData() + response.size());
+			if (dcWithShift == bareDcId(dcWithShift)) { // call globalCallback only in main session
+				globalCallback(response.constData(), response.constData() + response.size());
 			}
 		} else {
-			_mtp_internal::execCallback(requestId, response.constData(), response.constData() + response.size());
+			execCallback(requestId, response.constData(), response.constData() + response.size());
 		}
 		++cnt;
 	}
 }
 
-MTProtoSession::~MTProtoSession() {
+Session::~Session() {
 	t_assert(_connection == 0);
 }
 
 MTPrpcError rpcClientError(const QString &type, const QString &description) {
 	return MTP_rpc_error(MTP_int(0), MTP_string(("CLIENT_" + type + (description.length() ? (": " + description) : "")).toUtf8().constData()));
 }
+
+} // namespace internal
+} // namespace MTP

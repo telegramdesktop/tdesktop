@@ -27,8 +27,8 @@ void deleteAndMark(T *&link) {
 }
 
 template <typename T>
-T *exchange(T *&ptr) {
-	T *result = 0;
+T *getPointerAndReset(T *&ptr) {
+	T *result = nullptr;
 	qSwap(result, ptr);
 	return result;
 }
@@ -46,6 +46,10 @@ public:
 
 };
 
+// thanks Chromium see https://blogs.msdn.microsoft.com/the1/2004/05/07/how-would-you-get-the-count-of-an-array-in-c-2/
+template <typename T, size_t N> char(&ArraySizeHelper(T(&array)[N]))[N];
+#define arraysize(array) (sizeof(ArraySizeHelper(array)))
+
 #define qsl(s) QStringLiteral(s)
 #define qstr(s) QLatin1String(s, sizeof(s) - 1)
 
@@ -58,6 +62,11 @@ struct ForConstTraits {
 	typedef const T &ExpressionType;
 };
 #define for_const(range_declaration, range_expression) for (range_declaration : static_cast<ForConstTraits<decltype(range_expression)>::ExpressionType>(range_expression))
+
+template <typename Enum>
+inline QFlags<Enum> qFlags(Enum v) {
+	return QFlags<Enum>(v);
+}
 
 //typedef unsigned char uchar; // Qt has uchar
 typedef qint16 int16;
@@ -230,11 +239,13 @@ inline char *hashMd5Hex(const void *data, uint32 len, void *dest) { // dest = pt
 	return hashMd5Hex(HashMd5(data, len).result(), dest);
 }
 
+// good random (using openssl implementation)
 void memset_rand(void *data, uint32 len);
-
 template <typename T>
-inline void memsetrnd(T &value) {
-	memset_rand(&value, sizeof(value));
+T rand_value() {
+	T result;
+	memset_rand(&result, sizeof(result));
+	return result;
 }
 
 inline void memset_rand_bad(void *data, uint32 len) {
@@ -533,21 +544,21 @@ inline void destroyImplementation(I *&ptr) {
 class Interfaces;
 typedef void(*InterfaceConstruct)(void *location, Interfaces *interfaces);
 typedef void(*InterfaceDestruct)(void *location);
-typedef void(*InterfaceAssign)(void *location, void *waslocation);
+typedef void(*InterfaceMove)(void *location, void *waslocation);
 
 struct InterfaceWrapStruct {
 	InterfaceWrapStruct() : Size(0), Construct(0), Destruct(0) {
 	}
-	InterfaceWrapStruct(int size, InterfaceConstruct construct, InterfaceDestruct destruct, InterfaceAssign assign)
+	InterfaceWrapStruct(int size, InterfaceConstruct construct, InterfaceDestruct destruct, InterfaceMove move)
 	: Size(size)
 	, Construct(construct)
 	, Destruct(destruct)
-	, Assign(assign) {
+	, Move(move) {
 	}
 	int Size;
 	InterfaceConstruct Construct;
 	InterfaceDestruct Destruct;
-	InterfaceAssign Assign;
+	InterfaceMove Move;
 };
 
 template <int Value, int Denominator>
@@ -564,8 +575,8 @@ struct InterfaceWrapTemplate {
 	static void Destruct(void *location) {
 		((Type*)location)->~Type();
 	}
-	static void Assign(void *location, void *waslocation) {
-		*((Type*)location) = *((Type*)waslocation);
+	static void Move(void *location, void *waslocation) {
+		*(Type*)location = *(Type*)waslocation;
 	}
 };
 
@@ -585,7 +596,7 @@ public:
 			if (InterfaceIndexLast.testAndSetOrdered(last, last + 1)) {
 				t_assert(last < 64);
 				if (_index.testAndSetOrdered(0, last + 1)) {
-					InterfaceWraps[last] = InterfaceWrapStruct(InterfaceWrapTemplate<Type>::Size, InterfaceWrapTemplate<Type>::Construct, InterfaceWrapTemplate<Type>::Destruct, InterfaceWrapTemplate<Type>::Assign);
+					InterfaceWraps[last] = InterfaceWrapStruct(InterfaceWrapTemplate<Type>::Size, InterfaceWrapTemplate<Type>::Construct, InterfaceWrapTemplate<Type>::Destruct, InterfaceWrapTemplate<Type>::Move);
 				}
 				break;
 			}
@@ -593,7 +604,7 @@ public:
 		return _index.loadAcquire() - 1;
 	}
 	static uint64 Bit() {
-		return (1 << Index());
+		return (1ULL << Index());
 	}
 
 };
@@ -634,8 +645,14 @@ public:
 	int size, last;
 	int offsets[64];
 
-	bool equals(const uint64 &mask) const {
+	bool equals(uint64 mask) const {
 		return _mask == mask;
+	}
+	uint64 maskadd(uint64 mask) const {
+		return _mask | mask;
+	}
+	uint64 maskremove(uint64 mask) const {
+		return _mask & (~mask);
 	}
 
 private:
@@ -652,7 +669,7 @@ public:
 		if (mask) {
 			const InterfacesMetadata *meta = GetInterfacesMetadata(mask);
 			int32 size = sizeof(const InterfacesMetadata *) + meta->size;
-			void *data = malloc(size);
+			void *data = operator new(size);
 			if (!data) { // terminate if we can't allocate memory
 				throw "Can't allocate memory!";
 			}
@@ -682,17 +699,22 @@ public:
 		if (!_meta()->equals(mask)) {
 			Interfaces tmp(mask);
 			tmp.swap(*this);
-
 			if (_data != zerodata() && tmp._data != zerodata()) {
 				const InterfacesMetadata *meta = _meta(), *wasmeta = tmp._meta();
 				for (int i = 0; i < meta->last; ++i) {
 					int offset = meta->offsets[i], wasoffset = wasmeta->offsets[i];
 					if (offset >= 0 && wasoffset >= 0) {
-						InterfaceWraps[i].Assign(_dataptrunsafe(offset), tmp._dataptrunsafe(wasoffset));
+						InterfaceWraps[i].Move(_dataptrunsafe(offset), tmp._dataptrunsafe(wasoffset));
 					}
 				}
 			}
 		}
+	}
+	void AddInterfaces(uint64 mask = 0) {
+		UpdateInterfaces(_meta()->maskadd(mask));
+	}
+	void RemoveInterfaces(uint64 mask = 0) {
+		UpdateInterfaces(_meta()->maskremove(mask));
 	}
 	~Interfaces() {
 		if (_data != zerodata()) {
@@ -703,7 +725,7 @@ public:
 					InterfaceWraps[i].Destruct(_dataptrunsafe(offset));
 				}
 			}
-			free(_data);
+			operator delete(_data);
 		}
 	}
 
@@ -776,7 +798,7 @@ class FunctionCreator {
 public:
 	FunctionCreator(FunctionImplementation<R> *ptr) : _ptr(ptr) {}
 	FunctionCreator(const FunctionCreator<R> &other) : _ptr(other.create()) {}
-	FunctionImplementation<R> *create() const { return exchange(_ptr); }
+	FunctionImplementation<R> *create() const { return getPointerAndReset(_ptr); }
 	~FunctionCreator() { destroyImplementation(_ptr); }
 private:
 	FunctionCreator<R> &operator=(const FunctionCreator<R> &other);
@@ -845,7 +867,7 @@ class Function1Creator {
 public:
 	Function1Creator(Function1Implementation<R, A1> *ptr) : _ptr(ptr) {}
 	Function1Creator(const Function1Creator<R, A1> &other) : _ptr(other.create()) {}
-	Function1Implementation<R, A1> *create() const { return exchange(_ptr); }
+	Function1Implementation<R, A1> *create() const { return getPointerAndReset(_ptr); }
 	~Function1Creator() { destroyImplementation(_ptr); }
 private:
 	Function1Creator<R, A1> &operator=(const Function1Creator<R, A1> &other);
@@ -914,7 +936,7 @@ class Function2Creator {
 public:
 	Function2Creator(Function2Implementation<R, A1, A2> *ptr) : _ptr(ptr) {}
 	Function2Creator(const Function2Creator<R, A1, A2> &other) : _ptr(other.create()) {}
-	Function2Implementation<R, A1, A2> *create() const { return exchange(_ptr); }
+	Function2Implementation<R, A1, A2> *create() const { return getPointerAndReset(_ptr); }
 	~Function2Creator() { destroyImplementation(_ptr); }
 private:
 	Function2Creator<R, A1, A2> &operator=(const Function2Creator<R, A1, A2> &other);

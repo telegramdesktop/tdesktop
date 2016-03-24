@@ -98,9 +98,9 @@ public slots:
 
 private:
 
-#ifdef Q_OS_WIN
+#if defined Q_OS_WIN && !defined Q_OS_WINRT
 	DWORD started;
-#endif
+#endif // Q_OS_WIN && !Q_OS_WINRT
 	History *history;
 	HistoryItem *item;
 	int32 fwdCount;
@@ -573,4 +573,6 @@ private:
 
 };
 
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 int showCrashReportWindow(const QString &crashdump);
+#endif // !TDESKTOP_DISABLE_CRASH_REPORTS

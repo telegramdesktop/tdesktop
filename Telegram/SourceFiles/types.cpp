@@ -20,6 +20,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
+#include "types.h"
+
+#include <openssl/crypto.h>
+#include <openssl/sha.h>
+
+extern "C" {
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+}
+
 #include "application.h"
 
 uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
@@ -280,7 +290,7 @@ namespace ThirdParty {
 			uchar sha256Buffer[32];
 			RAND_seed(hashSha256(buf, 16, sha256Buffer), 32);
 			if (!RAND_status()) {
-				LOG(("MTP Error: Could not init OpenSSL rand, RAND_status() is 0.."));
+				LOG(("MTP Error: Could not init OpenSSL rand, RAND_status() is 0..."));
 			}
 		}
 

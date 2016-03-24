@@ -32,8 +32,8 @@ public:
 
 	IntroPwdCheck(IntroWidget *parent);
 
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 	void step_error(float64 ms, bool timer);
 

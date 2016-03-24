@@ -866,7 +866,9 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 				if (_data->thumb->loaded()) {
 					if (_thumb.isNull() || loaded != _thumbForLoaded) {
 						_thumbForLoaded = loaded;
-						_thumb = _data->thumb->pixNoCache(_thumbw, 0, true, !_thumbForLoaded, false, st::overviewFileSize, st::overviewFileSize);
+						ImagePixOptions options = ImagePixSmooth;
+						if (!_thumbForLoaded) options |= ImagePixBlurred;
+						_thumb = _data->thumb->pixNoCache(_thumbw, 0, options, st::overviewFileSize, st::overviewFileSize);
 					}
 					p.drawPixmap(rthumb.topLeft(), _thumb);
 				} else {
@@ -1064,12 +1066,7 @@ namespace {
 	}
 }
 
-LayoutOverviewLink::LayoutOverviewLink(HistoryMedia *media, HistoryItem *parent) : LayoutMediaItem(OverviewItemInfo::Bit(), parent)
-, _titlew(0)
-, _page(0)
-, _pixw(0)
-, _pixh(0)
-, _text(st::msgMinWidth) {
+LayoutOverviewLink::LayoutOverviewLink(HistoryMedia *media, HistoryItem *parent) : LayoutMediaItem(OverviewItemInfo::Bit(), parent) {
 	QString text = _parent->originalText();
 	EntitiesInText entities = _parent->originalEntities();
 
@@ -1574,7 +1571,7 @@ void LayoutInlineGif::prepareThumb(int32 width, int32 height, const QSize &frame
 	if (doc && !doc->thumb->isNull()) {
 		if (doc->thumb->loaded()) {
 			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				_thumb = doc->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+				_thumb = doc->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixSmooth, width, height);
 			}
 		} else {
 			doc->thumb->load();
@@ -1582,7 +1579,7 @@ void LayoutInlineGif::prepareThumb(int32 width, int32 height, const QSize &frame
 	} else if (_result && !_result->thumb_url.isEmpty()) {
 		if (_result->thumb->loaded()) {
 			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				_thumb = _result->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+				_thumb = _result->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixSmooth, width, height);
 			}
 		} else {
 			_result->thumb->load();
@@ -1792,13 +1789,13 @@ void LayoutInlinePhoto::prepareThumb(int32 width, int32 height, const QSize &fra
 	if (photo) {
 		if (photo->medium->loaded()) {
 			if (!_thumbLoaded || _thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				_thumb = photo->medium->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+				_thumb = photo->medium->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixSmooth, width, height);
 			}
 			_thumbLoaded = true;
 		} else {
 			if (photo->thumb->loaded()) {
 				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-					_thumb = photo->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+					_thumb = photo->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixSmooth, width, height);
 				}
 			}
 			photo->medium->load();
@@ -1806,7 +1803,7 @@ void LayoutInlinePhoto::prepareThumb(int32 width, int32 height, const QSize &fra
 	} else {
 		if (_result->thumb->loaded()) {
 			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				_thumb = _result->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
+				_thumb = _result->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixSmooth, width, height);
 			}
 		} else {
 			_result->thumb->load();
@@ -1933,7 +1930,7 @@ void LayoutInlineWebVideo::prepareThumb(int32 width, int32 height) const {
 					w = width;
 				}
 			}
-			_thumb = _result->thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), true, false, false, width, height);
+			_thumb = _result->thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixSmooth, width, height);
 		}
 	} else {
 		_result->thumb->load();
@@ -2081,7 +2078,7 @@ void LayoutInlineArticle::prepareThumb(int32 width, int32 height) const {
 					w = width;
 				}
 			}
-			_thumb = _result->thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), true, false, false, width, height);
+			_thumb = _result->thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixSmooth, width, height);
 		}
 	} else {
 		_result->thumb->load();

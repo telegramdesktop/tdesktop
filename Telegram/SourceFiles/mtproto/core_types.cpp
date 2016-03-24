@@ -19,7 +19,10 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "mtpCoreTypes.h"
+
+#include "mtproto/core_types.h"
+
+#include "zlib.h"
 
 #include "lang.h"
 
@@ -63,7 +66,7 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 		} else if (strUtf8.size() < 64) {
 			to.add(Logs::mb(strUtf8.constData(), strUtf8.size()).str()).add(" [").add(mtpWrapNumber(strUtf8.size())).add(" BYTES]");
 		} else {
-			to.add(Logs::mb(strUtf8.constData(), 16).str()).add(".. [").add(mtpWrapNumber(strUtf8.size())).add(" BYTES]");
+			to.add(Logs::mb(strUtf8.constData(), 16).str()).add("... [").add(mtpWrapNumber(strUtf8.size())).add(" BYTES]");
 		}
 	} break;
 
@@ -149,13 +152,13 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 	}
 }
 
-const MTPReplyMarkup MTPnullMarkup = MTP_replyKeyboardMarkup(MTP_int(0), MTP_vector<MTPKeyboardButtonRow>(0));
+const MTPReplyMarkup MTPnullMarkup = MTP_replyKeyboardMarkup(MTP_flags(MTPDreplyKeyboardMarkup::Flags(0)), MTP_vector<MTPKeyboardButtonRow>(0));
 const MTPVector<MTPMessageEntity> MTPnullEntities = MTP_vector<MTPMessageEntity>(0);
-const MTPMessageFwdHeader MTPnullFwdHeader = MTP_messageFwdHeader(MTPint(), MTPint(), MTPint(), MTPint(), MTPint());
+const MTPMessageFwdHeader MTPnullFwdHeader = MTP_messageFwdHeader(MTP_flags(MTPDmessageFwdHeader::Flags(0)), MTPint(), MTPint(), MTPint(), MTPint());
 
 QString stickerSetTitle(const MTPDstickerSet &s) {
 	QString title = qs(s.vtitle);
-	if ((s.vflags.v & MTPDstickerSet::flag_official) && !title.compare(qstr("Great Minds"), Qt::CaseInsensitive)) {
+	if ((s.vflags.v & MTPDstickerSet::Flag::f_official) && !title.compare(qstr("Great Minds"), Qt::CaseInsensitive)) {
 		return lang(lng_stickers_default_set);
 	}
 	return title;

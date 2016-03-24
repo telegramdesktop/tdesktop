@@ -80,7 +80,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 * ### MetaLang
 
-  Creates from languagepack file `Resources/lang.txt` language constants code and language file parse code:
+  Creates from languagepack file `Resources/lang.strings` language constants code and language file parse code:
   * GeneratedFiles/lang.h
   * GeneratedFiles/lang.cpp
 

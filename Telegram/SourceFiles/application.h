@@ -200,6 +200,8 @@ public slots:
 	void killDownloadSessions();
 	void onAppStateChanged(Qt::ApplicationState state);
 
+	void call_handleHistoryUpdate();
+
 private:
 
 	QMap<FullMsgId, PeerId> photoUpdates;

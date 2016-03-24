@@ -188,11 +188,11 @@ void AddContactBox::onSave() {
 	}
 	_sentName = firstName;
 	if (_user) {
-		_contactId = MTP::nonce<uint64>();
+		_contactId = rand_value<uint64>();
 		QVector<MTPInputContact> v(1, MTP_inputPhoneContact(MTP_long(_contactId), MTP_string(_user->phone), MTP_string(firstName), MTP_string(lastName)));
 		_addRequest = MTP::send(MTPcontacts_ImportContacts(MTP_vector<MTPInputContact>(v), MTP_bool(false)), rpcDone(&AddContactBox::onSaveUserDone), rpcFail(&AddContactBox::onSaveUserFail));
 	} else {
-		_contactId = MTP::nonce<uint64>();
+		_contactId = rand_value<uint64>();
 		QVector<MTPInputContact> v(1, MTP_inputPhoneContact(MTP_long(_contactId), MTP_string(phone), MTP_string(firstName), MTP_string(lastName)));
 		_addRequest = MTP::send(MTPcontacts_ImportContacts(MTP_vector<MTPInputContact>(v), MTP_bool(false)), rpcDone(&AddContactBox::onImportDone));
 	}
@@ -499,8 +499,8 @@ void GroupInfoBox::onNext() {
 		Ui::showLayer(new ContactsBox(title, _photoBig), KeepOtherLayers);
 	} else {
 		bool mega = false;
-		int32 flags = mega ? MTPchannels_CreateChannel::flag_megagroup : MTPchannels_CreateChannel::flag_broadcast;
-		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_int(flags), MTP_string(title), MTP_string(description)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
+		MTPchannels_CreateChannel::Flags flags = mega ? MTPchannels_CreateChannel::Flag::f_megagroup : MTPchannels_CreateChannel::Flag::f_broadcast;
+		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_flags(flags), MTP_string(title), MTP_string(description)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
 	}
 }
 
@@ -539,6 +539,9 @@ bool GroupInfoBox::creationFail(const RPCError &error) {
 	if (error.type() == "NO_CHAT_TITLE") {
 		_title.setFocus();
 		_title.showError();
+		return true;
+	} else if (error.type() == qstr("USER_RESTRICTED")) {
+		Ui::showLayer(new InformBox(lang(lng_cant_do_this)));
 		return true;
 	}
 	return false;
@@ -839,7 +842,7 @@ void SetupChannelBox::onChange() {
 		}
 		_checkTimer.stop();
 	} else {
-		int32 i, len = name.size();
+		int32 len = name.size();
 		for (int32 i = 0; i < len; ++i) {
 			QChar ch = name.at(i);
 			if ((ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z') && (ch < '0' || ch > '9') && ch != '_') {
@@ -1115,8 +1118,8 @@ void EditNameTitleBox::onSave() {
 	}
 	_sentName = first;
 	if (_peer == App::self()) {
-		int32 flags = MTPaccount_UpdateProfile::flag_first_name | MTPaccount_UpdateProfile::flag_last_name;
-		_requestId = MTP::send(MTPaccount_UpdateProfile(MTP_int(flags), MTP_string(first), MTP_string(last), MTPstring()), rpcDone(&EditNameTitleBox::onSaveSelfDone), rpcFail(&EditNameTitleBox::onSaveSelfFail));
+		MTPaccount_UpdateProfile::Flags flags = MTPaccount_UpdateProfile::Flag::f_first_name | MTPaccount_UpdateProfile::Flag::f_last_name;
+		_requestId = MTP::send(MTPaccount_UpdateProfile(MTP_flags(flags), MTP_string(first), MTP_string(last), MTPstring()), rpcDone(&EditNameTitleBox::onSaveSelfDone), rpcFail(&EditNameTitleBox::onSaveSelfFail));
 	} else if (_peer->isChat()) {
 		_requestId = MTP::send(MTPmessages_EditChatTitle(_peer->asChat()->inputChat, MTP_string(first)), rpcDone(&EditNameTitleBox::onSaveChatDone), rpcFail(&EditNameTitleBox::onSaveChatFail));
 	}

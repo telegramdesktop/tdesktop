@@ -21,37 +21,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "types.h"
-#include <zlib.h>
 
-#undef min
-#undef max
+namespace MTP {
 
-//#define DEBUG_MTPPRIME
+// type DcId represents actual data center id, while in most cases
+// we use some shifted ids, like DcId() + X * DCShift
+typedef int32 DcId;
+typedef int32 ShiftedDcId;
 
-#ifdef DEBUG_MTPPRIME
-class mtpPrime { // for debug visualization, not like int32 :( in default constructor
-public:
-	explicit mtpPrime() : _v(0) {
-	}
-	mtpPrime(int32 v) : _v(v) {
-	}
-	mtpPrime &operator=(int32 v) {
-		_v = v;
-		return (*this);
-	}
-	operator int32&() {
-		return _v;
-	}
-	operator const int32 &() const {
-		return _v;
-	}
-private:
-	int32 _v;
-};
-#else
+}
+
 typedef int32 mtpPrime;
-#endif
-
 typedef int32 mtpRequestId;
 typedef uint64 mtpMsgId;
 typedef uint64 mtpPingId;
@@ -346,6 +326,7 @@ enum {
 	mtpc_gzip_packed = 0x3072cfa1
 };
 static const mtpTypeId mtpc_bytes = mtpc_string;
+static const mtpTypeId mtpc_flags = mtpc_int;
 static const mtpTypeId mtpc_core_message = -1; // undefined type, but is used
 static const mtpTypeId mtpLayers[] = {
 	mtpTypeId(mtpc_invokeWithLayer1),
@@ -445,6 +426,49 @@ inline MTPint MTP_int(int32 v) {
 	return MTPint(v);
 }
 typedef MTPBoxed<MTPint> MTPInt;
+
+template <typename Flags>
+class MTPflags {
+public:
+	Flags v;
+	static_assert(sizeof(Flags) == sizeof(int32), "MTPflags are allowed only wrapping int32 flag types!");
+
+	MTPflags() {
+	}
+	MTPflags(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_flags) {
+		read(from, end, cons);
+	}
+
+	uint32 innerLength() const {
+		return sizeof(Flags);
+	}
+	mtpTypeId type() const {
+		return mtpc_flags;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_flags) {
+		if (from + 1 > end) throw mtpErrorInsufficient();
+		if (cons != mtpc_flags) throw mtpErrorUnexpected(cons, "MTPflags");
+		v = static_cast<Flags>(*(from++));
+	}
+	void write(mtpBuffer &to) const {
+		to.push_back(static_cast<mtpPrime>(v));
+	}
+
+private:
+	explicit MTPflags(Flags val) : v(val) {
+	}
+
+	template <typename T>
+	friend MTPflags<T> MTP_flags(T v);
+};
+
+template <typename T>
+inline MTPflags<T> MTP_flags(T v) {
+	return MTPflags<T>(v);
+}
+
+template <typename Flags>
+using MTPFlags = MTPBoxed<MTPflags<Flags>>;
 
 inline bool operator==(const MTPint &a, const MTPint &b) {
 	return a.v == b.v;
@@ -787,19 +811,6 @@ public:
 	VType v;
 };
 
-
-
-template <typename T>
-class MTPvector;
-template <typename T>
-MTPvector<T> MTP_vector(uint32 count);
-
-template <typename T>
-MTPvector<T> MTP_vector(uint32 count, const T &value);
-
-template <typename T>
-MTPvector<T> MTP_vector(const QVector<T> &v);
-
 template <typename T>
 class MTPvector : private mtpDataOwner {
 public:
@@ -853,9 +864,12 @@ private:
 	explicit MTPvector(MTPDvector<T> *_data) : mtpDataOwner(_data) {
 	}
 
-	friend MTPvector<T> MTP_vector<T>(uint32 count);
-	friend MTPvector<T> MTP_vector<T>(uint32 count, const T &value);
-	friend MTPvector<T> MTP_vector<T>(const QVector<T> &v);
+	template <typename U>
+	friend MTPvector<U> MTP_vector(uint32 count);
+	template <typename U>
+	friend MTPvector<U> MTP_vector(uint32 count, const U &value);
+	template <typename U>
+	friend MTPvector<U> MTP_vector(const QVector<U> &v);
 	typedef typename MTPDvector<T>::VType VType;
 };
 template <typename T>
@@ -871,19 +885,7 @@ inline MTPvector<T> MTP_vector(const QVector<T> &v) {
 	return MTPvector<T>(new MTPDvector<T>(v));
 }
 template <typename T>
-class MTPVector : public MTPBoxed<MTPvector<T> > {
-public:
-	MTPVector() {
-	}
-	MTPVector(uint32 count) : MTPBoxed<MTPvector<T> >(MTP_vector<T>(count)) {
-	}
-	MTPVector(uint32 count, const T &value) : MTPBoxed<MTPvector<T> >(MTP_vector<T>(count, value)) {
-	}
-	MTPVector(const MTPvector<T> &v) : MTPBoxed<MTPvector<T> >(v) {
-	}
-	MTPVector(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPvector<T> >(from, end, cons) {
-	}
-};
+using MTPVector = MTPBoxed<MTPvector<T>>;
 
 template <typename T>
 inline bool operator==(const MTPvector<T> &a, const MTPvector<T> &b) {
@@ -943,7 +945,7 @@ struct MTPStringLogger {
 		char *b = new char[newsize];
 		memcpy(b, p, size);
 		alloced = newsize;
-		delete p;
+		delete[] p;
 		p = b;
 	}
 	char *p;
@@ -964,7 +966,7 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end) {
 	return QString::fromUtf8(to.p, to.size);
 }
 
-#include "mtpScheme.h"
+#include "mtproto/scheme_auto.h"
 
 inline MTPbool MTP_bool(bool v) {
 	return v ? MTP_boolTrue() : MTP_boolFalse();
@@ -977,16 +979,104 @@ inline bool mtpIsFalse(const MTPBool &v) {
 	return !mtpIsTrue(v);
 }
 
-enum { // client side flags
-	MTPDmessage_flag_HAS_TEXT_LINKS = (1 << 31), // message has links for "shared links" indexing
-	MTPDmessage_flag_IS_GROUP_MIGRATE = (1 << 30), // message is a group migrate (group -> supergroup) service message
-	MTPDreplyKeyboardMarkup_flag_FORCE_REPLY = (1 << 30), // markup just wants a text reply
-	MTPDreplyKeyboardMarkup_flag_ZERO = (1 << 31), // none (zero) markup
-	MTPDstickerSet_flag_NOT_LOADED = (1 << 31), // sticker set is not yet loaded
+#define CHECK_MTP_SCHEME_AND_CLIENT_FLAGS_CONFLICT(Type) \
+
+// we must validate that MTProto scheme flags don't intersect with client side flags
+// and define common bit operators which allow use Type_ClientFlag together with Type::Flag
+#define DEFINE_MTP_CLIENT_FLAGS(Type) \
+static_assert(static_cast<int32>(Type::Flag::MAX_FIELD) < static_cast<int32>(Type##_ClientFlag::MIN_FIELD), \
+	"MTProto flags conflict with client side flags!"); \
+inline Type::Flags qFlags(Type##_ClientFlag v) { return Type::Flags(static_cast<int32>(v)); } \
+inline Type::Flags operator&(Type::Flags i, Type##_ClientFlag v) { return i & qFlags(v); } \
+inline Type::Flags operator&(Type::Flag i, Type##_ClientFlag v) { return qFlags(i) & v; } \
+inline Type::Flags operator&(Type##_ClientFlag i, Type##_ClientFlag v) { return qFlags(i) & v; } \
+inline Type::Flags operator&(Type##_ClientFlag i, Type::Flag v) { return qFlags(i) & v; } \
+inline Type::Flags &operator&=(Type::Flags &i, Type##_ClientFlag v) { return i &= qFlags(v); } \
+inline Type::Flags operator|(Type::Flags i, Type##_ClientFlag v) { return i | qFlags(v); } \
+inline Type::Flags operator|(Type::Flag i, Type##_ClientFlag v) { return qFlags(i) | v; } \
+inline Type::Flags operator|(Type##_ClientFlag i, Type##_ClientFlag v) { return qFlags(i) | v; } \
+inline Type::Flags operator|(Type##_ClientFlag i, Type::Flag v) { return qFlags(i) | v; } \
+inline Type::Flags &operator|=(Type::Flags &i, Type##_ClientFlag v) { return i |= qFlags(v); } \
+inline Type::Flags operator~(Type##_ClientFlag v) { return ~qFlags(v); }
+
+// we use the same flags field for some additional client side flags
+enum class MTPDmessage_ClientFlag : int32 {
+	// message has links for "shared links" indexing
+	f_has_text_links = (1 << 30),
+
+	// message is a group migrate (group -> supergroup) service message
+	f_is_group_migrate = (1 << 29),
+
+	// message needs initDimensions() + resize() + paint()
+	f_pending_init_dimensions = (1 << 28),
+
+	// message needs resize() + paint()
+	f_pending_resize = (1 << 27),
+
+	// message needs paint()
+	f_pending_paint = (1 << 26),
+
+	// message is attached to previous one when displaying the history
+	f_attach_to_previous = (1 << 25),
+
+	// update this when adding new client side flags
+	MIN_FIELD = (1 << 25),
 };
+DEFINE_MTP_CLIENT_FLAGS(MTPDmessage)
+
+enum class MTPDreplyKeyboardMarkup_ClientFlag : int32 {
+	// none (zero) markup
+	f_zero = (1 << 30),
+
+	// markup just wants a text reply
+	f_force_reply = (1 << 29),
+
+	// update this when adding new client side flags
+	MIN_FIELD = (1 << 29),
+};
+DEFINE_MTP_CLIENT_FLAGS(MTPDreplyKeyboardMarkup)
+
+enum class MTPDstickerSet_ClientFlag : int32 {
+	// old value for sticker set is not yet loaded flag
+	f_not_loaded__old = (1 << 31),
+
+	// sticker set is not yet loaded
+	f_not_loaded = (1 << 30),
+
+	// update this when adding new client side flags
+	MIN_FIELD = (1 << 30),
+};
+DEFINE_MTP_CLIENT_FLAGS(MTPDstickerSet)
 
 extern const MTPReplyMarkup MTPnullMarkup;
 extern const MTPVector<MTPMessageEntity> MTPnullEntities;
 extern const MTPMessageFwdHeader MTPnullFwdHeader;
 
 QString stickerSetTitle(const MTPDstickerSet &s);
+
+inline bool mtpRequestData::isSentContainer(const mtpRequest &request) { // "request-like" wrap for msgIds vector
+	if (request->size() < 9) return false;
+	return (!request->msDate && !(*request)[6]); // msDate = 0, seqNo = 0
+}
+inline bool mtpRequestData::isStateRequest(const mtpRequest &request) {
+	if (request->size() < 9) return false;
+	return (mtpTypeId((*request)[8]) == mtpc_msgs_state_req);
+}
+inline bool mtpRequestData::needAck(const mtpRequest &request) {
+	if (request->size() < 9) return false;
+	return mtpRequestData::needAckByType((*request)[8]);
+}
+inline bool mtpRequestData::needAckByType(mtpTypeId type) {
+	switch (type) {
+	case mtpc_msg_container:
+	case mtpc_msgs_ack:
+	case mtpc_http_wait:
+	case mtpc_bad_msg_notification:
+	case mtpc_msgs_all_info:
+	case mtpc_msgs_state_info:
+	case mtpc_msg_detailed_info:
+	case mtpc_msg_new_detailed_info:
+	return false;
+	}
+	return true;
+}

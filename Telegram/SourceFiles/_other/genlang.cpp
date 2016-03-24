@@ -189,7 +189,7 @@ void readKeyValue(const char *&from, const char *end) {
 
 			if (*from == ':') {
 				start = ++from;
-				
+
 				QVector<QString> &counted(keysCounted[varName][tagName]);
 				QByteArray subvarValue;
 				bool foundtag = false;
@@ -396,7 +396,7 @@ bool genLang(const QString &lang_in, const QString &lang_out) {
 			th.setCodec("ISO 8859-1");
 			th << "\
 /*\n\
-Created from \'/Resources/lang.txt\' by \'/MetaLang\' project\n\
+Created from \'/Resources/lang.strings\' by \'/MetaLang\' project\n\
 \n\
 WARNING! All changes made in this file will be lost!\n\
 \n\
@@ -480,7 +480,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 
 			tcpp << "\
 /*\n\
-Created from \'/Resources/lang.txt\' by \'/MetaLang\' project\n\
+Created from \'/Resources/lang.strings\' by \'/MetaLang\' project\n\
 \n\
 WARNING! All changes made in this file will be lost!\n\
 \n\
@@ -611,13 +611,22 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 						++depth;
 						current += ich;
 
-						if (tag == current) {
+						bool exact = (tag == current);
+						if (exact) {
 							tcpp << tab.repeated(depth + 1) << "if (ch + " << depth << " == e) {\n";
 							tcpp << tab.repeated(depth + 1) << "\treturn lt_" << tag << ";\n";
 							tcpp << tab.repeated(depth + 1) << "}\n";
 						}
 
-						tcpp << tab.repeated(depth + 1) << "if (ch + " << depth << " < e) switch (*(ch + " << depth << ")) {\n";
+						QByteArray nexttag = j.key();
+						if (exact && depth > 0 && nexttag.mid(0, depth) != current) {
+							current.chop(1);
+							--depth;
+							tcpp << tab.repeated(depth + 1) << "break;\n";
+							break;
+						} else {
+							tcpp << tab.repeated(depth + 1) << "if (ch + " << depth << " < e) switch (*(ch + " << depth << ")) {\n";
+						}
 					} while (true);
 					++j;
 				}
@@ -642,7 +651,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 				tcpp << "\tswitch (*(ch + " << depth << ")) {\n";
 				for (LangKeys::const_iterator i = keys.cbegin(), j = i + 1, e = keys.cend(); i != e; ++i) {
 					QByteArray key = i.key();
-					while (key.mid(0, depth) != current) {
+					while (depth > 0 && key.mid(0, depth) != current) {
 						tcpp << tab.repeated(depth - 3) << "}\n";
 						current.chop(1);
 						--depth;
@@ -650,7 +659,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 					}
 					do {
 						if (key == current) break;
-							
+
 						char ich = i.key().at(current.size());
 						tcpp << tab.repeated(current.size() - 3) << "case '" << ich << "':\n";
 						if (j == e || ich != ((j.key().size() > depth) ? j.key().at(depth) : 0)) {
@@ -666,13 +675,22 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 						++depth;
 						current += ich;
 
-						if (key == current) {
+						bool exact = (key == current);
+						if (exact) {
 							tcpp << tab.repeated(depth - 3) << "if (ch + " << depth << " == e) {\n";
 							tcpp << tab.repeated(depth - 3) << "\treturn " << key << (keysTags[key].isEmpty() ? "" : "__tagged") << ";\n";
 							tcpp << tab.repeated(depth - 3) << "}\n";
 						}
 
-						tcpp << tab.repeated(depth - 3) << "if (ch + " << depth << " < e) switch (*(ch + " << depth << ")) {\n";
+						QByteArray nextkey = j.key();
+						if (exact && depth > 0 && nextkey.mid(0, depth) != current) {
+							current.chop(1);
+							--depth;
+							tcpp << tab.repeated(depth - 3) << "break;\n";
+							break;
+						} else {
+							tcpp << tab.repeated(depth - 3) << "if (ch + " << depth << " < e) switch (*(ch + " << depth << ")) {\n";
+						}
 					} while (true);
 					++j;
 				}
@@ -712,16 +730,25 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 			tcpp << "\tif (index >= lngtags_max_counted_values) return lngkeys_cnt;\n\n";
 			if (!tags.isEmpty()) {
 				tcpp << "\tswitch (key) {\n";
-				for (int i = 0, l = keysOrder.size(); i < l; ++i) {
-					QVector<QByteArray> &tagsList(keysTags[keysOrder[i]]);
+				for (auto key : keysOrder) {
+					QVector<QByteArray> &tagsList(keysTags[key]);
 					if (tagsList.isEmpty()) continue;
 
-					QMap<QByteArray, QVector<QString> > &countedTags(keysCounted[keysOrder[i]]);
-					tcpp << "\tcase " << keysOrder[i] << "__tagged: {\n";
+					QMap<QByteArray, QVector<QString> > &countedTags(keysCounted[key]);
+					bool hasCounted = false;
+					for (auto tag : tagsList) {
+						if (!countedTags[tag].isEmpty()) {
+							hasCounted = true;
+							break;
+						}
+					}
+					if (!hasCounted) continue;
+
+					tcpp << "\tcase " << key << "__tagged: {\n";
 					tcpp << "\t\tswitch (tag) {\n";
-					for (int j = 0, s = tagsList.size(); j < s; ++j) {
-						if (!countedTags[tagsList[j]].isEmpty()) {
-							tcpp << "\t\tcase lt_" << tagsList[j] << ": return LangKey(" << keysOrder[i] << "__" << tagsList[j] << "0 + index);\n";
+					for (auto tag : tagsList) {
+						if (!countedTags[tag].isEmpty()) {
+							tcpp << "\t\tcase lt_" << tag << ": return LangKey(" << key << "__" << tag << "0 + index);\n";
 						}
 					}
 					tcpp << "\t\t}\n";
@@ -729,7 +756,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 				}
 				tcpp << "\t}\n\n";
 			}
-			tcpp << "\treturn lngkeys_cnt;";
+			tcpp << "\treturn lngkeys_cnt;\n";
 			tcpp << "}\n\n";
 
 			tcpp << "bool LangLoader::feedKeyValue(LangKey key, const QString &value) {\n";

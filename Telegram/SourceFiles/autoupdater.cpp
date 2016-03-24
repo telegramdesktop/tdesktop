@@ -20,9 +20,22 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 
 #include "stdafx.h"
+
+#include "autoupdater.h"
+
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
+#include <openssl/bio.h>
+#include <openssl/err.h>
+
+#ifdef Q_OS_WIN // use Lzma SDK for win
+#include <LzmaLib.h>
+#else // Q_OS_WIN
+#include <lzma.h>
+#endif // else of Q_OS_WIN
+
 #include "application.h"
 #include "pspecific.h"
-#include "autoupdater.h"
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 
@@ -51,7 +64,7 @@ void UpdateChecker::initOutput() {
 		fileName = m.captured(1).replace(QRegularExpression(qsl("[^a-zA-Z0-9_\\-]")), QString());
 	}
 	if (fileName.isEmpty()) {
-		fileName = qsl("tupdate-%1").arg(MTP::nonce<uint32>() % 1000000);
+		fileName = qsl("tupdate-%1").arg(rand_value<uint32>() % 1000000);
 	}
 	QString dirStr = cWorkingDir() + qsl("tupdates/");
 	fileName = dirStr + fileName;
@@ -556,7 +569,7 @@ bool checkReadyUpdate() {
 	}
 #elif defined Q_OS_MAC
 	QDir().mkpath(QFileInfo(curUpdater).absolutePath());
-	DEBUG_LOG(("Update Info: moving %1 to %2..").arg(updater.absoluteFilePath()).arg(curUpdater));
+	DEBUG_LOG(("Update Info: moving %1 to %2...").arg(updater.absoluteFilePath()).arg(curUpdater));
 	if (!objc_moveFile(updater.absoluteFilePath(), curUpdater)) {
 		UpdateChecker::clearAll();
 		return false;

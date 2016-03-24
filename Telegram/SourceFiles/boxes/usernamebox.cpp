@@ -160,7 +160,7 @@ void UsernameBox::onChanged() {
 		}
 		_checkTimer.stop();
 	} else {
-		int32 i, len = name.size();
+		int32 len = name.size();
 		for (int32 i = 0; i < len; ++i) {
 			QChar ch = name.at(i);
 			if ((ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z') && (ch < '0' || ch > '9') && ch != '_' && (ch != '@' || i > 0)) {

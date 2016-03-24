@@ -26,15 +26,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #ifdef Q_OS_MAC
 #include "pspecific_mac.h"
-#endif
+#endif // Q_OS_MAC
 
 #ifdef Q_OS_LINUX
 #include "pspecific_linux.h"
-#endif
+#endif // Q_OS_LINUX
 
-#ifdef Q_OS_WIN
-#include "pspecific_wnd.h"
-#endif
+#ifdef Q_OS_WINRT
+#include "pspecific_winrt.h"
+#elif defined Q_OS_WIN // Q_OS_WINRT
+#include "pspecific_win.h"
+#endif // Q_OS_WIN*
 
 namespace PlatformSpecific {
 

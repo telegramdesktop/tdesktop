@@ -19,6 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
+
 #include "audio.h"
 
 #include <AL/al.h>
@@ -27,10 +28,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #define AL_ALEXT_PROTOTYPES
 #include <AL/alext.h>
 
-#ifdef Q_OS_MAC
+#include <numeric>
 
 extern "C" {
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/opt.h>
+#include <libswresample/swresample.h>
 
+#ifdef Q_OS_MAC
 #include <iconv.h>
 
 #undef iconv_open
@@ -46,10 +52,9 @@ size_t iconv (iconv_t cd,  char* * inbuf, size_t *inbytesleft, char* * outbuf, s
 int iconv_close (iconv_t cd) {
 	return libiconv_close(cd);
 }
+#endif // Q_OS_MAC
 
-}
-
-#endif
+} // extern "C"
 
 namespace {
 	ALCdevice *audioDevice = 0;
@@ -226,10 +231,10 @@ void audioPlayNotify() {
 
 void audioFinish() {
 	if (player) {
-		delete player;
+		deleteAndMark(player);
 	}
 	if (capture) {
-		delete capture;
+		deleteAndMark(capture);
 	}
 
 	alSourceStop(notifySource);
@@ -243,14 +248,14 @@ void audioFinish() {
 	}
 
 	if (audioContext) {
-		alcMakeContextCurrent(NULL);
+		alcMakeContextCurrent(nullptr);
 		alcDestroyContext(audioContext);
-		audioContext = 0;
+		audioContext = nullptr;
 	}
 
 	if (audioDevice) {
 		alcCloseDevice(audioDevice);
-		audioDevice = 0;
+		audioDevice = nullptr;
 	}
 
 	cSetHasAudioCapture(false);
@@ -1685,7 +1690,7 @@ AudioPlayerLoader *AudioPlayerLoaders::setupLoader(MediaOverviewType type, const
 	err = SetupErrorAtStart;
 	QMutexLocker lock(&playerMutex);
 	AudioPlayer *voice = audioPlayer();
-	if (!voice) return 0;
+	if (!voice) return nullptr;
 
 	bool isGoodId = false;
 	AudioPlayer::Msg *m = 0;
@@ -1717,7 +1722,7 @@ AudioPlayerLoader *AudioPlayerLoaders::setupLoader(MediaOverviewType type, const
 	if (!l || !m) {
 		LOG(("Audio Error: trying to load part of audio, that is not current at the moment"));
 		err = SetupErrorNotPlaying;
-		return 0;
+		return nullptr;
 	}
 
 	if (*l && (!isGoodId || !(*l)->check(m->file, m->data))) {
@@ -1741,27 +1746,26 @@ AudioPlayerLoader *AudioPlayerLoaders::setupLoader(MediaOverviewType type, const
 //			if (!f.open(QIODevice::ReadOnly)) {
 //				LOG(("Audio Error: could not open file '%1'").arg(m->fname));
 //				m->state = AudioPlayerStoppedAtStart;
-//				return 0;
+//				return nullptr;
 //			}
 //			header = f.read(8);
 //		}
 //		if (header.size() < 8) {
 //			LOG(("Audio Error: could not read header from file '%1', data size %2").arg(m->fname).arg(m->data.isEmpty() ? QFileInfo(m->fname).size() : m->data.size()));
 //			m->state = AudioPlayerStoppedAtStart;
-//			return 0;
+//			return nullptr;
 //		}
 
 		*l = new FFMpegLoader(m->file, m->data);
 
-		int ret;
 		if (!(*l)->open(position)) {
 			m->state = AudioPlayerStoppedAtStart;
-			return 0;
+			return nullptr;
 		}
 		int64 duration = (*l)->duration();
 		if (duration <= 0) {
 			m->state = AudioPlayerStoppedAtStart;
-			return 0;
+			return nullptr;
 		}
 		m->duration = duration;
 		m->frequency = (*l)->frequency();
@@ -1771,7 +1775,7 @@ AudioPlayerLoader *AudioPlayerLoaders::setupLoader(MediaOverviewType type, const
 		if (!m->skipEnd) {
 			err = SetupErrorLoadedFull;
 			LOG(("Audio Error: trying to load part of audio, that is already loaded to the end"));
-			return 0;
+			return nullptr;
 		}
 	}
 	return *l;
@@ -2029,7 +2033,7 @@ void AudioCaptureInner::onStart() {
 	}
 
 	// Open audio stream
-	if ((res = avcodec_open2(d->codecContext, d->codec, NULL)) < 0) {
+	if ((res = avcodec_open2(d->codecContext, d->codec, nullptr)) < 0) {
 		LOG(("Audio Error: Unable to avcodec_open2 for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 		onStop(false);
 		emit error();
@@ -2505,7 +2509,7 @@ MTPDocumentAttribute audioReadSongAttributes(const QString &fname, const QByteAr
 			cover = reader.cover();
 			coverBytes = reader.coverBytes();
 			coverFormat = reader.coverFormat();
-			return MTP_documentAttributeAudio(MTP_int(MTPDdocumentAttributeAudio::flag_title | MTPDdocumentAttributeAudio::flag_performer), MTP_int(duration), MTP_string(reader.title()), MTP_string(reader.performer()), MTPstring());
+			return MTP_documentAttributeAudio(MTP_flags(MTPDdocumentAttributeAudio::Flag::f_title | MTPDdocumentAttributeAudio::Flag::f_performer), MTP_int(duration), MTP_string(reader.title()), MTP_string(reader.performer()), MTPstring());
 		}
 	}
 	return MTP_documentAttributeFilename(MTP_string(fname));

@@ -20,10 +20,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-class mtpAuthKey {
+namespace MTP {
+
+class AuthKey {
 public:
 
-	mtpAuthKey() : _isset(false), _dc(0) {
+	AuthKey() : _isset(false), _dc(0) {
 	}
 
 	bool created() const {
@@ -52,7 +54,7 @@ public:
 	}
 
 	void prepareAES(const MTPint128 &msgKey, MTPint256 &aesKey, MTPint256 &aesIV, bool send = true) const {
-		if (!_isset) throw mtpErrorKeyNotReady(QString("prepareAES(.., %1)").arg(Logs::b(send)));
+		if (!_isset) throw mtpErrorKeyNotReady(QString("prepareAES(..., %1)").arg(Logs::b(send)));
 
 		uint32 x = send ? 0 : 8;
 
@@ -88,13 +90,13 @@ public:
 	}
 
 	void write(QDataStream &to) const {
-		if (!_isset) throw mtpErrorKeyNotReady("write(..)");
+		if (!_isset) throw mtpErrorKeyNotReady("write(...)");
 		to.writeRawData(_key, 256);
 	}
 
 	static const uint64 RecreateKeyId = 0xFFFFFFFFFFFFFFFFL;
 
-	friend bool operator==(const mtpAuthKey &a, const mtpAuthKey &b);
+	friend bool operator==(const AuthKey &a, const AuthKey &b);
 
 private:
 
@@ -105,40 +107,54 @@ private:
 
 };
 
-inline bool operator==(const mtpAuthKey &a, const mtpAuthKey &b) {
+inline bool operator==(const AuthKey &a, const AuthKey &b) {
 	return !memcmp(a._key, b._key, 256);
 }
 
-typedef QSharedPointer<mtpAuthKey> mtpAuthKeyPtr;
-typedef QVector<mtpAuthKeyPtr> mtpKeysMap;
+typedef QSharedPointer<AuthKey> AuthKeyPtr;
+typedef QVector<AuthKeyPtr> AuthKeysMap;
 
-void aesEncrypt(const void *src, void *dst, uint32 len, void *key, void *iv);
-void aesDecrypt(const void *src, void *dst, uint32 len, void *key, void *iv);
+void aesIgeEncrypt(const void *src, void *dst, uint32 len, const void *key, const void *iv);
+void aesIgeDecrypt(const void *src, void *dst, uint32 len, const void *key, const void *iv);
 
-inline void aesEncrypt(const void *src, void *dst, uint32 len, const mtpAuthKeyPtr &authKey, const MTPint128 &msgKey) {
+inline void aesIgeEncrypt(const void *src, void *dst, uint32 len, const AuthKeyPtr &authKey, const MTPint128 &msgKey) {
 	MTPint256 aesKey, aesIV;
 	authKey->prepareAES(msgKey, aesKey, aesIV);
 
-	return aesEncrypt(src, dst, len, &aesKey, &aesIV);
+	return aesIgeEncrypt(src, dst, len, static_cast<const void*>(&aesKey), static_cast<const void*>(&aesIV));
 }
 
-inline void aesEncryptLocal(const void *src, void *dst, uint32 len, const mtpAuthKey *authKey, const void *key128) {
+inline void aesEncryptLocal(const void *src, void *dst, uint32 len, const AuthKey *authKey, const void *key128) {
 	MTPint256 aesKey, aesIV;
 	authKey->prepareAES(*(const MTPint128*)key128, aesKey, aesIV, false);
 
-	return aesEncrypt(src, dst, len, &aesKey, &aesIV);
+	return aesIgeEncrypt(src, dst, len, static_cast<const void*>(&aesKey), static_cast<const void*>(&aesIV));
 }
 
-inline void aesDecrypt(const void *src, void *dst, uint32 len, const mtpAuthKeyPtr &authKey, const MTPint128 &msgKey) {
+inline void aesIgeDecrypt(const void *src, void *dst, uint32 len, const AuthKeyPtr &authKey, const MTPint128 &msgKey) {
 	MTPint256 aesKey, aesIV;
 	authKey->prepareAES(msgKey, aesKey, aesIV, false);
 
-	return aesDecrypt(src, dst, len, &aesKey, &aesIV);
+	return aesIgeDecrypt(src, dst, len, static_cast<const void*>(&aesKey), static_cast<const void*>(&aesIV));
 }
 
-inline void aesDecryptLocal(const void *src, void *dst, uint32 len, const mtpAuthKey *authKey, const void *key128) {
+inline void aesDecryptLocal(const void *src, void *dst, uint32 len, const AuthKey *authKey, const void *key128) {
 	MTPint256 aesKey, aesIV;
 	authKey->prepareAES(*(const MTPint128*)key128, aesKey, aesIV, false);
 
-	return aesDecrypt(src, dst, len, &aesKey, &aesIV);
+	return aesIgeDecrypt(src, dst, len, static_cast<const void*>(&aesKey), static_cast<const void*>(&aesIV));
 }
+
+// ctr used inplace, encrypt the data and leave it at the same place
+struct CTRState {
+	static constexpr int KeySize = 32;
+	static constexpr int IvecSize = 16;
+	static constexpr int EcountSize = 16;
+
+	uchar ivec[IvecSize] = { 0 };
+	uint32 num = 0;
+	uchar ecount[EcountSize] = { 0 };
+};
+void aesCtrEncrypt(void *data, uint32 len, const void *key, CTRState *state);
+
+} // namespace MTP

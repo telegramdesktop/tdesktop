@@ -109,6 +109,7 @@ public slots:
 	void onMediaLinks();
 
 	void onMenuDestroy(QObject *obj);
+	void onCopyFullName();
 	void onCopyPhone();
 	void onCopyUsername();
 
@@ -191,6 +192,7 @@ private:
 	UserBlockedStatus _wasBlocked;
 	mtpRequestId _blockRequest;
 	LinkButton _blockUser, _deleteChannel;
+	bool canDeleteChannel() const;
 
 	// participants
 	int32 _pHeight;

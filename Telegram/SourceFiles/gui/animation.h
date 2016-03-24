@@ -208,7 +208,7 @@ class AnimationCreator {
 public:
 	AnimationCreator(AnimationImplementation *ptr) : _ptr(ptr) {}
 	AnimationCreator(const AnimationCreator &other) : _ptr(other.create()) {}
-	AnimationImplementation *create() const { return exchange(_ptr); }
+	AnimationImplementation *create() const { return getPointerAndReset(_ptr); }
 	~AnimationCreator() { deleteAndMark(_ptr); }
 private:
 	AnimationCreator &operator=(const AnimationCreator &other);

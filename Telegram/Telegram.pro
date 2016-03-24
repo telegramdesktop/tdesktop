@@ -114,15 +114,16 @@ SOURCES += \
     ./SourceFiles/title.cpp \
     ./SourceFiles/types.cpp \
     ./SourceFiles/window.cpp \
-    ./SourceFiles/mtproto/mtp.cpp \
-    ./SourceFiles/mtproto/mtpAuthKey.cpp \
-    ./SourceFiles/mtproto/mtpConnection.cpp \
-    ./SourceFiles/mtproto/mtpCoreTypes.cpp \
-    ./SourceFiles/mtproto/mtpDC.cpp \
-    ./SourceFiles/mtproto/mtpFileLoader.cpp \
-    ./SourceFiles/mtproto/mtpRPC.cpp \
-    ./SourceFiles/mtproto/mtpScheme.cpp \
-    ./SourceFiles/mtproto/mtpSession.cpp \
+    ./SourceFiles/mtproto/facade.cpp \
+    ./SourceFiles/mtproto/auth_key.cpp \
+    ./SourceFiles/mtproto/connection.cpp \
+    ./SourceFiles/mtproto/core_types.cpp \
+    ./SourceFiles/mtproto/dcenter.cpp \
+    ./SourceFiles/mtproto/file_download.cpp \
+    ./SourceFiles/mtproto/rsa_public_key.cpp \
+    ./SourceFiles/mtproto/rpc_sender.cpp \
+    ./SourceFiles/mtproto/scheme_auto.cpp \
+    ./SourceFiles/mtproto/session.cpp \
     ./SourceFiles/gui/animation.cpp \
     ./SourceFiles/gui/boxshadow.cpp \
     ./SourceFiles/gui/button.cpp \
@@ -205,17 +206,16 @@ HEADERS += \
     ./SourceFiles/title.h \
     ./SourceFiles/types.h \
     ./SourceFiles/window.h \
-    ./SourceFiles/mtproto/mtpSessionImpl.h \
-    ./SourceFiles/mtproto/mtp.h \
-    ./SourceFiles/mtproto/mtpAuthKey.h \
-    ./SourceFiles/mtproto/mtpConnection.h \
-    ./SourceFiles/mtproto/mtpCoreTypes.h \
-    ./SourceFiles/mtproto/mtpDC.h \
-    ./SourceFiles/mtproto/mtpFileLoader.h \
-    ./SourceFiles/mtproto/mtpPublicRSA.h \
-    ./SourceFiles/mtproto/mtpRPC.h \
-    ./SourceFiles/mtproto/mtpScheme.h \
-    ./SourceFiles/mtproto/mtpSession.h \
+    ./SourceFiles/mtproto/facade.h \
+    ./SourceFiles/mtproto/auth_key.h \
+    ./SourceFiles/mtproto/connection.h \
+    ./SourceFiles/mtproto/core_types.h \
+    ./SourceFiles/mtproto/dcenter.h \
+    ./SourceFiles/mtproto/file_download.h \
+    ./SourceFiles/mtproto/rsa_public_key.h \
+    ./SourceFiles/mtproto/rpc_sender.h \
+    ./SourceFiles/mtproto/scheme_auto.h \
+    ./SourceFiles/mtproto/session.h \
     ./SourceFiles/pspecific.h \
     ./SourceFiles/gui/animation.h \
     ./SourceFiles/gui/boxshadow.h \
@@ -263,9 +263,16 @@ HEADERS += \
 
 win32 {
 SOURCES += \
-  ./SourceFiles/pspecific_wnd.cpp
+  ./SourceFiles/pspecific_win.cpp
 HEADERS += \
-  ./SourceFiles/pspecific_wnd.h
+  ./SourceFiles/pspecific_win.h
+}
+
+winrt {
+SOURCES += \
+  ./SourceFiles/pspecific_winrt.cpp
+HEADERS += \
+  ./SourceFiles/pspecific_winrt.h
 }
 
 macx {
