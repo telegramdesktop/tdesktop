@@ -36,6 +36,8 @@ using std::string;
 namespace MTP {
 namespace internal {
 
+namespace {
+
 bool parsePQ(const string &pqStr, string &pStr, string &qStr) {
 	if (pqStr.length() > 8) return false; // more than 64 bit pq
 
@@ -262,7 +264,7 @@ private:
 	BN_CTX *ctx;
 };
 
-typedef QMap<uint64, MTP::internal::RSAPublicKey> RSAPublicKeys;
+typedef QMap<uint64, RSAPublicKey> RSAPublicKeys;
 RSAPublicKeys InitRSAPublicKeys() {
 	DEBUG_LOG(("MTP Info: RSA public keys list creation"));
 
@@ -283,30 +285,29 @@ RSAPublicKeys InitRSAPublicKeys() {
 	return result;
 }
 
-} // namespace internal
-} // namespace MTP
+} // namespace
 
-uint32 MTPThreadIdIncrement = 0;
+uint32 ThreadIdIncrement = 0;
 
-MTPThread::MTPThread() : QThread(0)
-, _threadId(++MTPThreadIdIncrement) {
+Thread::Thread() : QThread(nullptr)
+, _threadId(++ThreadIdIncrement) {
 }
 
-uint32 MTPThread::getThreadId() const {
+uint32 Thread::getThreadId() const {
 	return _threadId;
 }
 
-MTPThread::~MTPThread() {
+Thread::~Thread() {
 }
 
-MTProtoConnection::MTProtoConnection() : thread(nullptr), data(nullptr) {
+Connection::Connection() : thread(nullptr), data(nullptr) {
 }
 
-int32 MTProtoConnection::start(MTPSessionData *sessionData, int32 dc) {
+int32 Connection::start(SessionData *sessionData, int32 dc) {
 	t_assert(thread == nullptr && data == nullptr);
 
-	thread = new MTPThread();
-	data = new MTProtoConnectionPrivate(thread, this, sessionData, dc);
+	thread = new Thread();
+	data = new ConnectionPrivate(thread, this, sessionData, dc);
 
 	dc = data->getDC();
 	if (!dc) {
@@ -321,15 +322,15 @@ int32 MTProtoConnection::start(MTPSessionData *sessionData, int32 dc) {
 	return dc;
 }
 
-void MTProtoConnection::kill() {
+void Connection::kill() {
 	t_assert(data != nullptr && thread != nullptr);
 	data->stop();
 	data = nullptr; // will be deleted in thread::finished signal
 	thread->quit();
-	_mtp_internal::queueQuittingConnection(this);
+	queueQuittingConnection(this);
 }
 
-void MTProtoConnection::waitTillFinish() {
+void Connection::waitTillFinish() {
 	t_assert(data == nullptr && thread != nullptr);
 
 	DEBUG_LOG(("Waiting for connectionThread to finish"));
@@ -338,224 +339,229 @@ void MTProtoConnection::waitTillFinish() {
 	thread = nullptr;
 }
 
-int32 MTProtoConnection::state() const {
+int32 Connection::state() const {
 	t_assert(data != nullptr && thread != nullptr);
 
 	return data->getState();
 }
 
-QString MTProtoConnection::transport() const {
+QString Connection::transport() const {
 	t_assert(data != nullptr && thread != nullptr);
 
 	return data->transport();
 }
 
-MTProtoConnection::~MTProtoConnection() {
+Connection::~Connection() {
 	t_assert(data == nullptr && thread == nullptr);
 }
 
 namespace {
-	mtpBuffer _handleHttpResponse(QNetworkReply *reply) {
-		QByteArray response = reply->readAll();
-		TCP_LOG(("HTTP Info: read %1 bytes").arg(response.size()));
 
-		if (response.isEmpty()) return mtpBuffer();
+mtpBuffer _handleHttpResponse(QNetworkReply *reply) {
+	QByteArray response = reply->readAll();
+	TCP_LOG(("HTTP Info: read %1 bytes").arg(response.size()));
 
-		if (response.size() & 0x03 || response.size() < 8) {
-			LOG(("HTTP Error: bad response size %1").arg(response.size()));
-			return mtpBuffer(1, -500);
-		}
+	if (response.isEmpty()) return mtpBuffer();
 
-		mtpBuffer data(response.size() >> 2);
-		memcpy(data.data(), response.constData(), response.size());
-
-		return data;
+	if (response.size() & 0x03 || response.size() < 8) {
+		LOG(("HTTP Error: bad response size %1").arg(response.size()));
+		return mtpBuffer(1, -500);
 	}
 
-	bool _handleHttpError(QNetworkReply *reply) { // returnes "maybe bad key"
-		bool mayBeBadKey = false;
+	mtpBuffer data(response.size() >> 2);
+	memcpy(data.data(), response.constData(), response.size());
 
-		QVariant statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
-		if (statusCode.isValid()) {
-			int status = statusCode.toInt();
-			mayBeBadKey = (status == 410);
-			if (status == 429) {
-				LOG(("Protocol Error: 429 flood code returned!"));
-			}
-		}
-
-		switch (reply->error()) {
-		case QNetworkReply::ConnectionRefusedError: LOG(("HTTP Error: connection refused - %1").arg(reply->errorString())); break;
-		case QNetworkReply::RemoteHostClosedError: LOG(("HTTP Error: remote host closed - %1").arg(reply->errorString())); break;
-		case QNetworkReply::HostNotFoundError: LOG(("HTTP Error: host not found - %2").arg(reply->error()).arg(reply->errorString())); break;
-		case QNetworkReply::TimeoutError: LOG(("HTTP Error: timeout - %2").arg(reply->error()).arg(reply->errorString())); break;
-		case QNetworkReply::OperationCanceledError: LOG(("HTTP Error: cancelled - %2").arg(reply->error()).arg(reply->errorString())); break;
-		case QNetworkReply::SslHandshakeFailedError:
-		case QNetworkReply::TemporaryNetworkFailureError:
-		case QNetworkReply::NetworkSessionFailedError:
-		case QNetworkReply::BackgroundRequestNotAllowedError:
-		case QNetworkReply::UnknownNetworkError: LOG(("HTTP Error: network error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
-
-			// proxy errors (101-199):
-		case QNetworkReply::ProxyConnectionRefusedError:
-		case QNetworkReply::ProxyConnectionClosedError:
-		case QNetworkReply::ProxyNotFoundError:
-		case QNetworkReply::ProxyTimeoutError:
-		case QNetworkReply::ProxyAuthenticationRequiredError:
-		case QNetworkReply::UnknownProxyError:LOG(("HTTP Error: proxy error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
-
-			// content errors (201-299):
-		case QNetworkReply::ContentAccessDenied:
-		case QNetworkReply::ContentOperationNotPermittedError:
-		case QNetworkReply::ContentNotFoundError:
-		case QNetworkReply::AuthenticationRequiredError:
-		case QNetworkReply::ContentReSendError:
-		case QNetworkReply::UnknownContentError: LOG(("HTTP Error: content error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
-
-			// protocol errors
-		case QNetworkReply::ProtocolUnknownError:
-		case QNetworkReply::ProtocolInvalidOperationError:
-		case QNetworkReply::ProtocolFailure: LOG(("HTTP Error: protocol error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
-		};
-		TCP_LOG(("HTTP Error %1, restarting! - %2").arg(reply->error()).arg(reply->errorString()));
-
-		return mayBeBadKey;
-	}
-
-	uint32 _tcpPacketSize(const char *packet) { // must have at least 4 bytes readable
-		uint32 result = (packet[0] > 0) ? packet[0] : 0;
-		if (result == 0x7f) {
-			const uchar *bytes = reinterpret_cast<const uchar*>(packet);
-			result = (((uint32(bytes[3]) << 8) | uint32(bytes[2])) << 8) | uint32(bytes[1]);
-			return (result << 2) + 4;
-		}
-		return (result << 2) + 1;
-	}
-
-	mtpBuffer _handleTcpResponse(const char *packet, uint32 length) {
-		if (length < 5 || length > MTPPacketSizeMax) {
-			LOG(("TCP Error: bad packet size %1").arg(length));
-			return mtpBuffer(1, -500);
-		}
-		int32 size = packet[0], len = length - 1;
-		if (size == 0x7f) {
-			const uchar *bytes = reinterpret_cast<const uchar*>(packet);
-			size = (((uint32(bytes[3]) << 8) | uint32(bytes[2])) << 8) | uint32(bytes[1]);
-			len -= 3;
-		}
-		if (size * int32(sizeof(mtpPrime)) != len) {
-			LOG(("TCP Error: bad packet header"));
-			TCP_LOG(("TCP Error: bad packet header, packet: %1").arg(Logs::mb(packet, length).str()));
-			return mtpBuffer(1, -500);
-		}
-		const mtpPrime *packetdata = reinterpret_cast<const mtpPrime*>(packet + (length - len));
-		TCP_LOG(("TCP Info: packet received, size = %1").arg(size * sizeof(mtpPrime)));
-		if (size == 1) {
-			if (*packetdata == -429) {
-				LOG(("Protocol Error: -429 flood code returned!"));
-			} else {
-				LOG(("TCP Error: error packet received, code = %1").arg(*packetdata));
-			}
-			return mtpBuffer(1, *packetdata);
-		}
-
-		mtpBuffer data(size);
-		memcpy(data.data(), packetdata, size * sizeof(mtpPrime));
-
-		return data;
-	}
-
-	void _handleTcpError(QAbstractSocket::SocketError e, QTcpSocket &sock) {
-		switch (e) {
-		case QAbstractSocket::ConnectionRefusedError:
-			LOG(("TCP Error: socket connection refused - %1").arg(sock.errorString()));
-			break;
-
-		case QAbstractSocket::RemoteHostClosedError:
-			TCP_LOG(("TCP Info: remote host closed socket connection - %1").arg(sock.errorString()));
-			break;
-
-		case QAbstractSocket::HostNotFoundError:
-			LOG(("TCP Error: host not found - %1").arg(sock.errorString()));
-			break;
-
-		case QAbstractSocket::SocketTimeoutError:
-			LOG(("TCP Error: socket timeout - %1").arg(sock.errorString()));
-			break;
-
-		case QAbstractSocket::NetworkError:
-			LOG(("TCP Error: network - %1").arg(sock.errorString()));
-			break;
-
-		case QAbstractSocket::ProxyAuthenticationRequiredError:
-		case QAbstractSocket::ProxyConnectionRefusedError:
-		case QAbstractSocket::ProxyConnectionClosedError:
-		case QAbstractSocket::ProxyConnectionTimeoutError:
-		case QAbstractSocket::ProxyNotFoundError:
-		case QAbstractSocket::ProxyProtocolError:
-			LOG(("TCP Error: proxy (%1) - %2").arg(e).arg(sock.errorString()));
-			break;
-
-		default:
-			LOG(("TCP Error: other (%1) - %2").arg(e).arg(sock.errorString()));
-			break;
-		}
-
-		TCP_LOG(("TCP Error %1, restarting! - %2").arg(e).arg(sock.errorString()));
-	}
-
-	mtpBuffer _preparePQFake(const MTPint128 &nonce) {
-		MTPReq_pq req_pq(nonce);
-		mtpBuffer buffer;
-		uint32 requestSize = req_pq.innerLength() >> 2;
-
-		buffer.resize(0);
-		buffer.reserve(8 + requestSize);
-		buffer.push_back(0); // tcp packet len
-		buffer.push_back(0); // tcp packet num
-		buffer.push_back(0);
-		buffer.push_back(0);
-		buffer.push_back(0);
-		buffer.push_back(unixtime());
-		buffer.push_back(requestSize * 4);
-		req_pq.write(buffer);
-		buffer.push_back(0); // tcp crc32 hash
-
-		return buffer;
-	}
-
-	MTPResPQ _readPQFakeReply(const mtpBuffer &buffer) {
-		const mtpPrime *answer(buffer.constData());
-		uint32 len = buffer.size();
-		if (len < 5) {
-			LOG(("Fake PQ Error: bad request answer, len = %1").arg(len * sizeof(mtpPrime)));
-			DEBUG_LOG(("Fake PQ Error: answer bytes %1").arg(Logs::mb(answer, len * sizeof(mtpPrime)).str()));
-			throw Exception("bad pq reply");
-		}
-		if (answer[0] != 0 || answer[1] != 0 || (((uint32)answer[2]) & 0x03) != 1/* || (unixtime() - answer[3] > 300) || (answer[3] - unixtime() > 60)*/) { // didnt sync time yet
-			LOG(("Fake PQ Error: bad request answer start (%1 %2 %3)").arg(answer[0]).arg(answer[1]).arg(answer[2]));
-			DEBUG_LOG(("Fake PQ Error: answer bytes %1").arg(Logs::mb(answer, len * sizeof(mtpPrime)).str()));
-			throw Exception("bad pq reply");
-		}
-		uint32 answerLen = (uint32)answer[4];
-		if (answerLen != (len - 5) * sizeof(mtpPrime)) {
-			LOG(("Fake PQ Error: bad request answer %1 <> %2").arg(answerLen).arg((len - 5) * sizeof(mtpPrime)));
-			DEBUG_LOG(("Fake PQ Error: answer bytes %1").arg(Logs::mb(answer, len * sizeof(mtpPrime)).str()));
-			throw Exception("bad pq reply");
-		}
-		const mtpPrime *from(answer + 5), *end(from + len - 5);
-		MTPResPQ response;
-		response.read(from, end);
-		return response;
-	}
-
+	return data;
 }
 
-MTPabstractTcpConnection::MTPabstractTcpConnection() :
-packetNum(0), packetRead(0), packetLeft(0), readingToShort(true), currentPos((char*)shortBuffer) {
+bool _handleHttpError(QNetworkReply *reply) { // returnes "maybe bad key"
+	bool mayBeBadKey = false;
+
+	QVariant statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
+	if (statusCode.isValid()) {
+		int status = statusCode.toInt();
+		mayBeBadKey = (status == 410);
+		if (status == 429) {
+			LOG(("Protocol Error: 429 flood code returned!"));
+		}
+	}
+
+	switch (reply->error()) {
+	case QNetworkReply::ConnectionRefusedError: LOG(("HTTP Error: connection refused - %1").arg(reply->errorString())); break;
+	case QNetworkReply::RemoteHostClosedError: LOG(("HTTP Error: remote host closed - %1").arg(reply->errorString())); break;
+	case QNetworkReply::HostNotFoundError: LOG(("HTTP Error: host not found - %2").arg(reply->error()).arg(reply->errorString())); break;
+	case QNetworkReply::TimeoutError: LOG(("HTTP Error: timeout - %2").arg(reply->error()).arg(reply->errorString())); break;
+	case QNetworkReply::OperationCanceledError: LOG(("HTTP Error: cancelled - %2").arg(reply->error()).arg(reply->errorString())); break;
+	case QNetworkReply::SslHandshakeFailedError:
+	case QNetworkReply::TemporaryNetworkFailureError:
+	case QNetworkReply::NetworkSessionFailedError:
+	case QNetworkReply::BackgroundRequestNotAllowedError:
+	case QNetworkReply::UnknownNetworkError: LOG(("HTTP Error: network error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
+
+		// proxy errors (101-199):
+	case QNetworkReply::ProxyConnectionRefusedError:
+	case QNetworkReply::ProxyConnectionClosedError:
+	case QNetworkReply::ProxyNotFoundError:
+	case QNetworkReply::ProxyTimeoutError:
+	case QNetworkReply::ProxyAuthenticationRequiredError:
+	case QNetworkReply::UnknownProxyError:LOG(("HTTP Error: proxy error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
+
+		// content errors (201-299):
+	case QNetworkReply::ContentAccessDenied:
+	case QNetworkReply::ContentOperationNotPermittedError:
+	case QNetworkReply::ContentNotFoundError:
+	case QNetworkReply::AuthenticationRequiredError:
+	case QNetworkReply::ContentReSendError:
+	case QNetworkReply::UnknownContentError: LOG(("HTTP Error: content error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
+
+		// protocol errors
+	case QNetworkReply::ProtocolUnknownError:
+	case QNetworkReply::ProtocolInvalidOperationError:
+	case QNetworkReply::ProtocolFailure: LOG(("HTTP Error: protocol error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
+	};
+	TCP_LOG(("HTTP Error %1, restarting! - %2").arg(reply->error()).arg(reply->errorString()));
+
+	return mayBeBadKey;
 }
 
-void MTPabstractTcpConnection::socketRead() {
+uint32 _tcpPacketSize(const char *packet) { // must have at least 4 bytes readable
+	uint32 result = (packet[0] > 0) ? packet[0] : 0;
+	if (result == 0x7f) {
+		const uchar *bytes = reinterpret_cast<const uchar*>(packet);
+		result = (((uint32(bytes[3]) << 8) | uint32(bytes[2])) << 8) | uint32(bytes[1]);
+		return (result << 2) + 4;
+	}
+	return (result << 2) + 1;
+}
+
+mtpBuffer _handleTcpResponse(const char *packet, uint32 length) {
+	if (length < 5 || length > MTPPacketSizeMax) {
+		LOG(("TCP Error: bad packet size %1").arg(length));
+		return mtpBuffer(1, -500);
+	}
+	int32 size = packet[0], len = length - 1;
+	if (size == 0x7f) {
+		const uchar *bytes = reinterpret_cast<const uchar*>(packet);
+		size = (((uint32(bytes[3]) << 8) | uint32(bytes[2])) << 8) | uint32(bytes[1]);
+		len -= 3;
+	}
+	if (size * int32(sizeof(mtpPrime)) != len) {
+		LOG(("TCP Error: bad packet header"));
+		TCP_LOG(("TCP Error: bad packet header, packet: %1").arg(Logs::mb(packet, length).str()));
+		return mtpBuffer(1, -500);
+	}
+	const mtpPrime *packetdata = reinterpret_cast<const mtpPrime*>(packet + (length - len));
+	TCP_LOG(("TCP Info: packet received, size = %1").arg(size * sizeof(mtpPrime)));
+	if (size == 1) {
+		if (*packetdata == -429) {
+			LOG(("Protocol Error: -429 flood code returned!"));
+		} else {
+			LOG(("TCP Error: error packet received, code = %1").arg(*packetdata));
+		}
+		return mtpBuffer(1, *packetdata);
+	}
+
+	mtpBuffer data(size);
+	memcpy(data.data(), packetdata, size * sizeof(mtpPrime));
+
+	return data;
+}
+
+void _handleTcpError(QAbstractSocket::SocketError e, QTcpSocket &sock) {
+	switch (e) {
+	case QAbstractSocket::ConnectionRefusedError:
+		LOG(("TCP Error: socket connection refused - %1").arg(sock.errorString()));
+		break;
+
+	case QAbstractSocket::RemoteHostClosedError:
+		TCP_LOG(("TCP Info: remote host closed socket connection - %1").arg(sock.errorString()));
+		break;
+
+	case QAbstractSocket::HostNotFoundError:
+		LOG(("TCP Error: host not found - %1").arg(sock.errorString()));
+		break;
+
+	case QAbstractSocket::SocketTimeoutError:
+		LOG(("TCP Error: socket timeout - %1").arg(sock.errorString()));
+		break;
+
+	case QAbstractSocket::NetworkError:
+		LOG(("TCP Error: network - %1").arg(sock.errorString()));
+		break;
+
+	case QAbstractSocket::ProxyAuthenticationRequiredError:
+	case QAbstractSocket::ProxyConnectionRefusedError:
+	case QAbstractSocket::ProxyConnectionClosedError:
+	case QAbstractSocket::ProxyConnectionTimeoutError:
+	case QAbstractSocket::ProxyNotFoundError:
+	case QAbstractSocket::ProxyProtocolError:
+		LOG(("TCP Error: proxy (%1) - %2").arg(e).arg(sock.errorString()));
+		break;
+
+	default:
+		LOG(("TCP Error: other (%1) - %2").arg(e).arg(sock.errorString()));
+		break;
+	}
+
+	TCP_LOG(("TCP Error %1, restarting! - %2").arg(e).arg(sock.errorString()));
+}
+
+mtpBuffer _preparePQFake(const MTPint128 &nonce) {
+	MTPReq_pq req_pq(nonce);
+	mtpBuffer buffer;
+	uint32 requestSize = req_pq.innerLength() >> 2;
+
+	buffer.resize(0);
+	buffer.reserve(8 + requestSize);
+	buffer.push_back(0); // tcp packet len
+	buffer.push_back(0); // tcp packet num
+	buffer.push_back(0);
+	buffer.push_back(0);
+	buffer.push_back(0);
+	buffer.push_back(unixtime());
+	buffer.push_back(requestSize * 4);
+	req_pq.write(buffer);
+	buffer.push_back(0); // tcp crc32 hash
+
+	return buffer;
+}
+
+MTPResPQ _readPQFakeReply(const mtpBuffer &buffer) {
+	const mtpPrime *answer(buffer.constData());
+	uint32 len = buffer.size();
+	if (len < 5) {
+		LOG(("Fake PQ Error: bad request answer, len = %1").arg(len * sizeof(mtpPrime)));
+		DEBUG_LOG(("Fake PQ Error: answer bytes %1").arg(Logs::mb(answer, len * sizeof(mtpPrime)).str()));
+		throw Exception("bad pq reply");
+	}
+	if (answer[0] != 0 || answer[1] != 0 || (((uint32)answer[2]) & 0x03) != 1/* || (unixtime() - answer[3] > 300) || (answer[3] - unixtime() > 60)*/) { // didnt sync time yet
+		LOG(("Fake PQ Error: bad request answer start (%1 %2 %3)").arg(answer[0]).arg(answer[1]).arg(answer[2]));
+		DEBUG_LOG(("Fake PQ Error: answer bytes %1").arg(Logs::mb(answer, len * sizeof(mtpPrime)).str()));
+		throw Exception("bad pq reply");
+	}
+	uint32 answerLen = (uint32)answer[4];
+	if (answerLen != (len - 5) * sizeof(mtpPrime)) {
+		LOG(("Fake PQ Error: bad request answer %1 <> %2").arg(answerLen).arg((len - 5) * sizeof(mtpPrime)));
+		DEBUG_LOG(("Fake PQ Error: answer bytes %1").arg(Logs::mb(answer, len * sizeof(mtpPrime)).str()));
+		throw Exception("bad pq reply");
+	}
+	const mtpPrime *from(answer + 5), *end(from + len - 5);
+	MTPResPQ response;
+	response.read(from, end);
+	return response;
+}
+
+} // namespace
+
+AbstractTcpConnection::AbstractTcpConnection()
+	: packetNum(0)
+	, packetRead(0)
+	, packetLeft(0)
+	, readingToShort(true)
+	, currentPos((char*)shortBuffer) {
+}
+
+void AbstractTcpConnection::socketRead() {
 	if (sock.state() != QAbstractSocket::ConnectedState) {
 		LOG(("MTP error: socket not connected in socketRead(), state: %1").arg(sock.state()));
 		emit error();
@@ -640,7 +646,7 @@ void MTPabstractTcpConnection::socketRead() {
 	} while (sock.state() == QAbstractSocket::ConnectedState && sock.bytesAvailable());
 }
 
-MTPautoConnection::MTPautoConnection(QThread *thread) : MTPabstractTcpConnection()
+AutoConnection::AutoConnection(QThread *thread) : AbstractTcpConnection()
 , status(WaitingBoth)
 , tcpNonce(MTP::nonce<MTPint128>())
 , httpNonce(MTP::nonce<MTPint128>())
@@ -671,7 +677,7 @@ MTPautoConnection::MTPautoConnection(QThread *thread) : MTPabstractTcpConnection
 	connect(&sock, SIGNAL(disconnected()), this, SLOT(onSocketDisconnected()));
 }
 
-void MTPautoConnection::onHttpStart() {
+void AutoConnection::onHttpStart() {
 	if (status == HttpReady) {
 		DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by timer").arg((_flagsHttp & MTPDdcOption::Flag::f_ipv6) ? "IPv6" : "IPv4"));
 		status = UsingHttp;
@@ -680,7 +686,7 @@ void MTPautoConnection::onHttpStart() {
 	}
 }
 
-void MTPautoConnection::onSocketConnected() {
+void AutoConnection::onSocketConnected() {
 	if (status == HttpReady || status == WaitingBoth || status == WaitingTcp) {
 		mtpBuffer buffer(_preparePQFake(tcpNonce));
 
@@ -695,7 +701,7 @@ void MTPautoConnection::onSocketConnected() {
 	}
 }
 
-void MTPautoConnection::onTcpTimeoutTimer() {
+void AutoConnection::onTcpTimeoutTimer() {
 	if (status == HttpReady || status == WaitingBoth || status == WaitingTcp) {
 		if (_tcpTimeout < MTPMaxReceiveDelay) _tcpTimeout *= 2;
 		_tcpTimeout = -_tcpTimeout;
@@ -709,7 +715,7 @@ void MTPautoConnection::onTcpTimeoutTimer() {
 	}
 }
 
-void MTPautoConnection::onSocketDisconnected() {
+void AutoConnection::onSocketDisconnected() {
 	if (_tcpTimeout < 0) {
 		_tcpTimeout = -_tcpTimeout;
 		if (status == HttpReady || status == WaitingBoth || status == WaitingTcp) {
@@ -728,7 +734,7 @@ void MTPautoConnection::onSocketDisconnected() {
 	}
 }
 
-void MTPautoConnection::sendData(mtpBuffer &buffer) {
+void AutoConnection::sendData(mtpBuffer &buffer) {
 	if (status == FinishedWork) return;
 
 	if (buffer.size() < 3) {
@@ -750,7 +756,7 @@ uint32 FourCharsToUInt(char ch1, char ch2, char ch3, char ch4) {
 	return *reinterpret_cast<uint32*>(ch);
 }
 
-void MTPautoConnection::tcpSend(mtpBuffer &buffer) {
+void AutoConnection::tcpSend(mtpBuffer &buffer) {
 	if (!packetNum) {
 		char nonce[64];
 		uint32 *first = reinterpret_cast<uint32*>(nonce), *second = first + 1;
@@ -782,7 +788,7 @@ void MTPautoConnection::tcpSend(mtpBuffer &buffer) {
 	}
 }
 
-void MTPautoConnection::httpSend(mtpBuffer &buffer) {
+void AutoConnection::httpSend(mtpBuffer &buffer) {
 	int32 requestSize = (buffer.size() - 3) * sizeof(mtpPrime);
 
 	QNetworkRequest request(address);
@@ -793,7 +799,7 @@ void MTPautoConnection::httpSend(mtpBuffer &buffer) {
 	requests.insert(manager.post(request, QByteArray((const char*)(&buffer[2]), requestSize)));
 }
 
-void MTPautoConnection::disconnectFromServer() {
+void AutoConnection::disconnectFromServer() {
 	if (status == FinishedWork) return;
 	status = FinishedWork;
 
@@ -814,7 +820,7 @@ void MTPautoConnection::disconnectFromServer() {
 	httpStartTimer.stop();
 }
 
-void MTPautoConnection::connectTcp(const QString &addr, int32 port, MTPDdcOption::Flags flags) {
+void AutoConnection::connectTcp(const QString &addr, int32 port, MTPDdcOption::Flags flags) {
 	_addrTcp = addr;
 	_portTcp = port;
 	_flagsTcp = flags;
@@ -823,7 +829,7 @@ void MTPautoConnection::connectTcp(const QString &addr, int32 port, MTPDdcOption
 	sock.connectToHost(QHostAddress(_addrTcp), _portTcp);
 }
 
-void MTPautoConnection::connectHttp(const QString &addr, int32 port, MTPDdcOption::Flags flags) {
+void AutoConnection::connectHttp(const QString &addr, int32 port, MTPDdcOption::Flags flags) {
 	address = QUrl(((flags & MTPDdcOption::Flag::f_ipv6) ? qsl("http://[%1]:%2/api") : qsl("http://%1:%2/api")).arg(addr).arg(80));//not p - always 80 port for http transport
 	TCP_LOG(("HTTP Info: address is %1").arg(address.toDisplayString()));
 	connect(&manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(requestFinished(QNetworkReply*)));
@@ -839,11 +845,11 @@ void MTPautoConnection::connectHttp(const QString &addr, int32 port, MTPDdcOptio
 	httpSend(buffer);
 }
 
-bool MTPautoConnection::isConnected() const {
+bool AutoConnection::isConnected() const {
 	return (status == UsingTcp) || (status == UsingHttp);
 }
 
-void MTPautoConnection::requestFinished(QNetworkReply *reply) {
+void AutoConnection::requestFinished(QNetworkReply *reply) {
 	if (status == FinishedWork) return;
 
 	reply->deleteLater();
@@ -904,7 +910,7 @@ void MTPautoConnection::requestFinished(QNetworkReply *reply) {
 	}
 }
 
-void MTPautoConnection::socketPacket(const char *packet, uint32 length) {
+void AutoConnection::socketPacket(const char *packet, uint32 length) {
 	if (status == FinishedWork) return;
 
 	mtpBuffer data = _handleTcpResponse(packet, length);
@@ -953,19 +959,19 @@ void MTPautoConnection::socketPacket(const char *packet, uint32 length) {
 	}
 }
 
-bool MTPautoConnection::usingHttpWait() {
+bool AutoConnection::usingHttpWait() {
 	return (status == UsingHttp);
 }
 
-bool MTPautoConnection::needHttpWait() {
+bool AutoConnection::needHttpWait() {
 	return (status == UsingHttp) ? requests.isEmpty() : false;
 }
 
-int32 MTPautoConnection::debugState() const {
+int32 AutoConnection::debugState() const {
 	return (status == UsingHttp) ? -1 : (UsingTcp ? sock.state() : -777);
 }
 
-QString MTPautoConnection::transport() const {
+QString AutoConnection::transport() const {
 	if (status == UsingTcp) {
 		return qsl("TCP");
 	} else if (status == UsingHttp) {
@@ -975,7 +981,7 @@ QString MTPautoConnection::transport() const {
 	}
 }
 
-void MTPautoConnection::socketError(QAbstractSocket::SocketError e) {
+void AutoConnection::socketError(QAbstractSocket::SocketError e) {
 	if (status == FinishedWork) return;
 
 	_handleTcpError(e, sock);
@@ -992,8 +998,11 @@ void MTPautoConnection::socketError(QAbstractSocket::SocketError e) {
 	}
 }
 
-MTPtcpConnection::MTPtcpConnection(QThread *thread) : status(WaitingTcp),
-tcpNonce(MTP::nonce<MTPint128>()), _tcpTimeout(MTPMinReceiveDelay), _flags(0) {
+TCPConnection::TCPConnection(QThread *thread)
+	: status(WaitingTcp)
+	, tcpNonce(MTP::nonce<MTPint128>())
+	, _tcpTimeout(MTPMinReceiveDelay)
+	, _flags(0) {
 	moveToThread(thread);
 
 	tcpTimeoutTimer.moveToThread(thread);
@@ -1007,7 +1016,7 @@ tcpNonce(MTP::nonce<MTPint128>()), _tcpTimeout(MTPMinReceiveDelay), _flags(0) {
 	connect(&sock, SIGNAL(disconnected()), this, SLOT(onSocketDisconnected()));
 }
 
-void MTPtcpConnection::onSocketConnected() {
+void TCPConnection::onSocketConnected() {
 	if (status == WaitingTcp) {
 		mtpBuffer buffer(_preparePQFake(tcpNonce));
 
@@ -1020,7 +1029,7 @@ void MTPtcpConnection::onSocketConnected() {
 	}
 }
 
-void MTPtcpConnection::onTcpTimeoutTimer() {
+void TCPConnection::onTcpTimeoutTimer() {
 	if (status == WaitingTcp) {
 		if (_tcpTimeout < MTPMaxReceiveDelay) _tcpTimeout *= 2;
 		_tcpTimeout = -_tcpTimeout;
@@ -1034,7 +1043,7 @@ void MTPtcpConnection::onTcpTimeoutTimer() {
 	}
 }
 
-void MTPtcpConnection::onSocketDisconnected() {
+void TCPConnection::onSocketDisconnected() {
 	if (_tcpTimeout < 0) {
 		_tcpTimeout = -_tcpTimeout;
 		if (status == WaitingTcp) {
@@ -1047,7 +1056,7 @@ void MTPtcpConnection::onSocketDisconnected() {
 	}
 }
 
-void MTPtcpConnection::sendData(mtpBuffer &buffer) {
+void TCPConnection::sendData(mtpBuffer &buffer) {
 	if (status == FinishedWork) return;
 
 	if (buffer.size() < 3) {
@@ -1088,7 +1097,7 @@ void MTPtcpConnection::sendData(mtpBuffer &buffer) {
 	}
 }
 
-void MTPtcpConnection::disconnectFromServer() {
+void TCPConnection::disconnectFromServer() {
 	if (status == FinishedWork) return;
 	status = FinishedWork;
 
@@ -1096,7 +1105,7 @@ void MTPtcpConnection::disconnectFromServer() {
 	sock.close();
 }
 
-void MTPtcpConnection::connectTcp(const QString &addr, int32 port, MTPDdcOption::Flags flags) {
+void TCPConnection::connectTcp(const QString &addr, int32 port, MTPDdcOption::Flags flags) {
 	_addr = addr;
 	_port = port;
 	_flags = flags;
@@ -1105,7 +1114,7 @@ void MTPtcpConnection::connectTcp(const QString &addr, int32 port, MTPDdcOption:
 	sock.connectToHost(QHostAddress(_addr), _port);
 }
 
-void MTPtcpConnection::socketPacket(const char *packet, uint32 length) {
+void TCPConnection::socketPacket(const char *packet, uint32 length) {
 	if (status == FinishedWork) return;
 
 	mtpBuffer data = _handleTcpResponse(packet, length);
@@ -1132,32 +1141,35 @@ void MTPtcpConnection::socketPacket(const char *packet, uint32 length) {
 	}
 }
 
-bool MTPtcpConnection::isConnected() const {
+bool TCPConnection::isConnected() const {
 	return (status == UsingTcp);
 }
 
-int32 MTPtcpConnection::debugState() const {
+int32 TCPConnection::debugState() const {
 	return sock.state();
 }
 
-QString MTPtcpConnection::transport() const {
+QString TCPConnection::transport() const {
 	return isConnected() ? qsl("TCP") : QString();
 }
 
-void MTPtcpConnection::socketError(QAbstractSocket::SocketError e) {
+void TCPConnection::socketError(QAbstractSocket::SocketError e) {
 	if (status == FinishedWork) return;
 
 	_handleTcpError(e, sock);
 	emit error();
 }
 
-MTPhttpConnection::MTPhttpConnection(QThread *thread) : status(WaitingHttp), httpNonce(MTP::nonce<MTPint128>()), _flags(0) {
+HTTPConnection::HTTPConnection(QThread *thread)
+	: status(WaitingHttp)
+	, httpNonce(MTP::nonce<MTPint128>())
+	, _flags(0) {
 	moveToThread(thread);
 	manager.moveToThread(thread);
 	App::setProxySettings(manager);
 }
 
-void MTPhttpConnection::sendData(mtpBuffer &buffer) {
+void HTTPConnection::sendData(mtpBuffer &buffer) {
 	if (status == FinishedWork) return;
 
 	if (buffer.size() < 3) {
@@ -1177,7 +1189,7 @@ void MTPhttpConnection::sendData(mtpBuffer &buffer) {
 	requests.insert(manager.post(request, QByteArray((const char*)(&buffer[2]), requestSize)));
 }
 
-void MTPhttpConnection::disconnectFromServer() {
+void HTTPConnection::disconnectFromServer() {
 	if (status == FinishedWork) return;
 	status = FinishedWork;
 
@@ -1193,7 +1205,7 @@ void MTPhttpConnection::disconnectFromServer() {
 	address = QUrl();
 }
 
-void MTPhttpConnection::connectHttp(const QString &addr, int32 p, MTPDdcOption::Flags flags) {
+void HTTPConnection::connectHttp(const QString &addr, int32 p, MTPDdcOption::Flags flags) {
 	address = QUrl(((flags & MTPDdcOption::Flag::f_ipv6) ? qsl("http://[%1]:%2/api") : qsl("http://%1:%2/api")).arg(addr).arg(80));//not p - always 80 port for http transport
 	TCP_LOG(("HTTP Info: address is %1").arg(address.toDisplayString()));
 	connect(&manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(requestFinished(QNetworkReply*)));
@@ -1207,11 +1219,11 @@ void MTPhttpConnection::connectHttp(const QString &addr, int32 p, MTPDdcOption::
 	sendData(buffer);
 }
 
-bool MTPhttpConnection::isConnected() const {
+bool HTTPConnection::isConnected() const {
 	return (status == UsingHttp);
 }
 
-void MTPhttpConnection::requestFinished(QNetworkReply *reply) {
+void HTTPConnection::requestFinished(QNetworkReply *reply) {
 	if (status == FinishedWork) return;
 
 	reply->deleteLater();
@@ -1251,19 +1263,19 @@ void MTPhttpConnection::requestFinished(QNetworkReply *reply) {
 	}
 }
 
-bool MTPhttpConnection::usingHttpWait() {
+bool HTTPConnection::usingHttpWait() {
 	return true;
 }
 
-bool MTPhttpConnection::needHttpWait() {
+bool HTTPConnection::needHttpWait() {
 	return requests.isEmpty();
 }
 
-int32 MTPhttpConnection::debugState() const {
+int32 HTTPConnection::debugState() const {
 	return -1;
 }
 
-QString MTPhttpConnection::transport() const {
+QString HTTPConnection::transport() const {
 	if (status == UsingHttp) {
 		return qsl("HTTP");
 	} else {
@@ -1271,16 +1283,16 @@ QString MTPhttpConnection::transport() const {
 	}
 }
 
-void MTProtoConnectionPrivate::createConn(bool createIPv4, bool createIPv6) {
+void ConnectionPrivate::createConn(bool createIPv4, bool createIPv6) {
 	destroyConn();
 	if (createIPv4) {
 		QWriteLocker lock(&stateConnMutex);
 		if (cConnectionType() == dbictAuto) {
-			_conn4 = new MTPautoConnection(thread());
+			_conn4 = new AutoConnection(thread());
 		} else if (cConnectionType() == dbictTcpProxy) {
-			_conn4 = new MTPtcpConnection(thread());
+			_conn4 = new TCPConnection(thread());
 		} else {
-			_conn4 = new MTPhttpConnection(thread());
+			_conn4 = new HTTPConnection(thread());
 		}
 		connect(_conn4, SIGNAL(error(bool)), this, SLOT(onError4(bool)));
 		connect(_conn4, SIGNAL(receivedSome()), this, SLOT(onReceivedSome()));
@@ -1288,11 +1300,11 @@ void MTProtoConnectionPrivate::createConn(bool createIPv4, bool createIPv6) {
 	if (createIPv6) {
 		QWriteLocker lock(&stateConnMutex);
 		if (cConnectionType() == dbictAuto) {
-			_conn6 = new MTPautoConnection(thread());
+			_conn6 = new AutoConnection(thread());
 		} else if (cConnectionType() == dbictTcpProxy) {
-			_conn6 = new MTPtcpConnection(thread());
+			_conn6 = new TCPConnection(thread());
 		} else {
-			_conn6 = new MTPhttpConnection(thread());
+			_conn6 = new HTTPConnection(thread());
 		}
 		connect(_conn6, SIGNAL(error(bool)), this, SLOT(onError6(bool)));
 		connect(_conn6, SIGNAL(receivedSome()), this, SLOT(onReceivedSome()));
@@ -1305,19 +1317,19 @@ void MTProtoConnectionPrivate::createConn(bool createIPv4, bool createIPv6) {
 	oldConnectionTimer.start(MTPConnectionOldTimeout);
 }
 
-void MTProtoConnectionPrivate::destroyConn(MTPabstractConnection **conn) {
+void ConnectionPrivate::destroyConn(AbstractConnection **conn) {
 	if (conn) {
-		MTPabstractConnection *toDisconnect = nullptr;
+		AbstractConnection *toDisconnect = nullptr;
 
 		{
 			QWriteLocker lock(&stateConnMutex);
 			if (*conn) {
 				toDisconnect = *conn;
-				disconnect(*conn, SIGNAL(connected()), 0, 0);
-				disconnect(*conn, SIGNAL(disconnected()), 0, 0);
-				disconnect(*conn, SIGNAL(error(bool)), 0, 0);
-				disconnect(*conn, SIGNAL(receivedData()), 0, 0);
-				disconnect(*conn, SIGNAL(receivedSome()), 0, 0);
+				disconnect(*conn, SIGNAL(connected()), nullptr, nullptr);
+				disconnect(*conn, SIGNAL(disconnected()), nullptr, nullptr);
+				disconnect(*conn, SIGNAL(error(bool)), nullptr, nullptr);
+				disconnect(*conn, SIGNAL(receivedData()), nullptr, nullptr);
+				disconnect(*conn, SIGNAL(receivedSome()), nullptr, nullptr);
 				*conn = nullptr;
 			}
 		}
@@ -1332,8 +1344,8 @@ void MTProtoConnectionPrivate::destroyConn(MTPabstractConnection **conn) {
 	}
 }
 
-MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConnection *owner, MTPSessionData *data, uint32 _dc) : QObject(0)
-, _state(MTProtoConnection::Disconnected)
+ConnectionPrivate::ConnectionPrivate(QThread *thread, Connection *owner, SessionData *data, uint32 _dc) : QObject(nullptr)
+, _state(DisconnectedState)
 , _needSessionReset(false)
 , dc(_dc)
 , _owner(owner)
@@ -1379,7 +1391,7 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
 
 	connect(thread, SIGNAL(started()), this, SLOT(socketStart()));
 	connect(thread, SIGNAL(finished()), this, SLOT(doFinish()));
-	connect(this, SIGNAL(finished(MTProtoConnection*)), _mtp_internal::globalSlotCarrier(), SLOT(connectionFinished(MTProtoConnection*)), Qt::QueuedConnection);
+	connect(this, SIGNAL(finished(MTProtoConnection*)), globalSlotCarrier(), SLOT(connectionFinished(MTProtoConnection*)), Qt::QueuedConnection);
 
 	connect(&retryTimer, SIGNAL(timeout()), this, SLOT(retryByTimer()));
 	connect(&_waitForConnectedTimer, SIGNAL(timeout()), this, SLOT(onWaitConnectedFailed()));
@@ -1412,15 +1424,15 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
 	connect(this, SIGNAL(resendAllAsync()), sessionData->owner(), SLOT(resendAll()));
 }
 
-void MTProtoConnectionPrivate::onConfigLoaded() {
+void ConnectionPrivate::onConfigLoaded() {
 	socketStart(true);
 }
 
-int32 MTProtoConnectionPrivate::getDC() const {
+int32 ConnectionPrivate::getDC() const {
 	return dc;
 }
 
-int32 MTProtoConnectionPrivate::getState() const {
+int32 ConnectionPrivate::getState() const {
 	QReadLocker lock(&stateConnMutex);
 	int32 result = _state;
 	if (_state < 0) {
@@ -1434,7 +1446,7 @@ int32 MTProtoConnectionPrivate::getState() const {
 	return result;
 }
 
-QString MTProtoConnectionPrivate::transport() const {
+QString ConnectionPrivate::transport() const {
 	QReadLocker lock(&stateConnMutex);
 	if ((!_conn4 && !_conn6) || (_conn4 && _conn6) || (_state < 0)) {
 		return QString();
@@ -1444,8 +1456,8 @@ QString MTProtoConnectionPrivate::transport() const {
 	return result;
 }
 
-bool MTProtoConnectionPrivate::setState(int32 state, int32 ifState) {
-	if (ifState != MTProtoConnection::UpdateAlways) {
+bool ConnectionPrivate::setState(int32 state, int32 ifState) {
+	if (ifState != Connection::UpdateAlways) {
 		QReadLocker lock(&stateConnMutex);
 		if (_state != ifState) return false;
 	}
@@ -1461,7 +1473,7 @@ bool MTProtoConnectionPrivate::setState(int32 state, int32 ifState) {
 	return true;
 }
 
-void MTProtoConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
+void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 	_needSessionReset = false;
 
 	QWriteLocker locker1(sessionData->haveSentMutex());
@@ -1581,7 +1593,7 @@ void MTProtoConnectionPrivate::resetSession() { // recreate all msg_id and msg_s
 	emit sessionResetDone();
 }
 
-mtpMsgId MTProtoConnectionPrivate::prepareToSend(mtpRequest &request, mtpMsgId currentLastId) {
+mtpMsgId ConnectionPrivate::prepareToSend(mtpRequest &request, mtpMsgId currentLastId) {
 	if (request->size() < 9) return 0;
 	mtpMsgId msgId = *(mtpMsgId*)(request->constData() + 4);
 	if (msgId) { // resending this request
@@ -1598,7 +1610,7 @@ mtpMsgId MTProtoConnectionPrivate::prepareToSend(mtpRequest &request, mtpMsgId c
 	return msgId;
 }
 
-mtpMsgId MTProtoConnectionPrivate::replaceMsgId(mtpRequest &request, mtpMsgId newId) {
+mtpMsgId ConnectionPrivate::replaceMsgId(mtpRequest &request, mtpMsgId newId) {
 	if (request->size() < 9) return 0;
 
 	mtpMsgId oldMsgId = *(mtpMsgId*)(request->constData() + 4);
@@ -1661,7 +1673,7 @@ mtpMsgId MTProtoConnectionPrivate::replaceMsgId(mtpRequest &request, mtpMsgId ne
 	return newId;
 }
 
-mtpMsgId MTProtoConnectionPrivate::placeToContainer(mtpRequest &toSendRequest, mtpMsgId &bigMsgId, mtpMsgId *&haveSentArr, mtpRequest &req) {
+mtpMsgId ConnectionPrivate::placeToContainer(mtpRequest &toSendRequest, mtpMsgId &bigMsgId, mtpMsgId *&haveSentArr, mtpRequest &req) {
 	mtpMsgId msgId = prepareToSend(req, bigMsgId);
 	if (msgId > bigMsgId) msgId = replaceMsgId(req, bigMsgId);
 	if (msgId >= bigMsgId) bigMsgId = msgid();
@@ -1674,7 +1686,7 @@ mtpMsgId MTProtoConnectionPrivate::placeToContainer(mtpRequest &toSendRequest, m
 	return msgId;
 }
 
-void MTProtoConnectionPrivate::tryToSend() {
+void ConnectionPrivate::tryToSend() {
 	QReadLocker lockFinished(&sessionDataMutex);
 	if (!sessionData || !_conn) {
 		return;
@@ -1682,15 +1694,15 @@ void MTProtoConnectionPrivate::tryToSend() {
 
 	bool needsLayer = !sessionData->layerWasInited();
 	int32 state = getState();
-	bool prependOnly = (state != MTProtoConnection::Connected);
+	bool prependOnly = (state != ConnectedState);
 	mtpRequest pingRequest;
-	if (dc < _mtp_internal::dcShift) { // main session
+	if (dc == bareDcId(dc)) { // main session
 		if (!prependOnly && !_pingIdToSend && !_pingId && _pingSendAt <= getms(true)) {
 			_pingIdToSend = MTP::nonce<mtpPingId>();
 		}
 	}
 	if (_pingIdToSend) {
-		if (prependOnly || dc >= _mtp_internal::dcShift) {
+		if (prependOnly || dc != bareDcId(dc)) {
 			MTPPing ping(MTPping(MTP_long(_pingIdToSend)));
 			uint32 pingSize = ping.innerLength() >> 2; // copy from MTProtoSession::send
 			pingRequest = mtpRequestData::prepare(pingSize);
@@ -1708,7 +1720,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 		_pingSendAt = pingRequest->msDate + (MTPPingSendAfterAuto * 1000ULL);
 		pingRequest->requestId = 0; // dont add to haveSent / wereAcked maps
 
-		if (dc < _mtp_internal::dcShift && !prependOnly) { // main session
+		if (dc == bareDcId(dc) && !prependOnly) { // main session
 			_pingSender.start(MTPPingSendAfter * 1000);
 		}
 
@@ -1834,7 +1846,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 						mtpRequest wrappedRequest(mtpRequestData::prepare(toSendSize, toSendSize + 3)); // cons + msg_id
 						wrappedRequest->resize(4);
 						memcpy(wrappedRequest->data(), toSendRequest->constData(), 4 * sizeof(mtpPrime));
-						_mtp_internal::wrapInvokeAfter(wrappedRequest, toSendRequest, haveSent);
+						wrapInvokeAfter(wrappedRequest, toSendRequest, haveSent);
 						toSendRequest = wrappedRequest;
 					}
 					if (needsLayer) {
@@ -1912,7 +1924,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 						req->msDate = mtpRequestData::isStateRequest(req) ? 0 : getms(true);
 						int32 reqNeedsLayer = (needsLayer && req->needsLayer) ? toSendRequest->size() : 0;
 						if (req->after) {
-							_mtp_internal::wrapInvokeAfter(toSendRequest, req, haveSent, reqNeedsLayer ? initSizeInInts : 0);
+							wrapInvokeAfter(toSendRequest, req, haveSent, reqNeedsLayer ? initSizeInInts : 0);
 							if (reqNeedsLayer) {
 								memcpy(toSendRequest->data() + reqNeedsLayer + 4, initSerialized.constData(), initSize);
 								*(toSendRequest->data() + reqNeedsLayer + 3) += initSize;
@@ -1959,7 +1971,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 	sendRequest(toSendRequest, needAnyResponse, lockFinished);
 }
 
-void MTProtoConnectionPrivate::retryByTimer() {
+void ConnectionPrivate::retryByTimer() {
 	QReadLocker lockFinished(&sessionDataMutex);
 	if (!sessionData) return;
 
@@ -1982,18 +1994,18 @@ void MTProtoConnectionPrivate::retryByTimer() {
 	socketStart();
 }
 
-void MTProtoConnectionPrivate::restartNow() {
+void ConnectionPrivate::restartNow() {
 	retryTimeout = 1;
 	retryTimer.stop();
 	restart();
 }
 
-void MTProtoConnectionPrivate::socketStart(bool afterConfig) {
+void ConnectionPrivate::socketStart(bool afterConfig) {
 	if (_finished) {
 		DEBUG_LOG(("MTP Error: socketStart() called for finished connection!"));
 		return;
 	}
-	bool isDldDc = (dc >= MTP::dldStart) && (dc < MTP::dldEnd);
+	bool isDldDc = isDldDcId(dc);
 	if (isDldDc) { // using media_only addresses only if key for this dc is already created
 		QReadLocker lockFinished(&sessionDataMutex);
 		if (sessionData) {
@@ -2003,7 +2015,7 @@ void MTProtoConnectionPrivate::socketStart(bool afterConfig) {
 		}
 
 	}
-	int32 baseDc = (dc % _mtp_internal::dcShift);
+	int32 bareDc = bareDcId(dc);
 
 	static const int IPv4address = 0, IPv6address = 1;
 	static const int TcpProtocol = 0, HttpProtocol = 1;
@@ -2046,7 +2058,7 @@ void MTProtoConnectionPrivate::socketStart(bool afterConfig) {
 					int32 mask = shifts[address][protocol][shift];
 					if (mask < 0) continue;
 
-					auto index = options.constFind(baseDc + _mtp_internal::dcShift * mask);
+					auto index = options.constFind(shiftDcId(bareDc, mask));
 					if (index != options.cend()) {
 						ip[address][protocol] = index->ip;
 						flags[address][protocol] = index->flags;
@@ -2077,7 +2089,7 @@ void MTProtoConnectionPrivate::socketStart(bool afterConfig) {
 	retryTimer.stop();
 	_waitForConnectedTimer.stop();
 
-	setState(MTProtoConnection::Connecting);
+	setState(ConnectingState);
 	_pingId = _pingMsgId = _pingIdToSend = _pingSendAt = 0;
 	_pingSender.stop();
 
@@ -2099,7 +2111,7 @@ void MTProtoConnectionPrivate::socketStart(bool afterConfig) {
 	}
 }
 
-void MTProtoConnectionPrivate::restart(bool mayBeBadKey) {
+void ConnectionPrivate::restart(bool mayBeBadKey) {
 	QReadLocker lockFinished(&sessionDataMutex);
 	if (!sessionData) return;
 
@@ -2136,7 +2148,7 @@ void MTProtoConnectionPrivate::restart(bool mayBeBadKey) {
 	setState(-retryTimeout);
 }
 
-void MTProtoConnectionPrivate::onSentSome(uint64 size) {
+void ConnectionPrivate::onSentSome(uint64 size) {
 	if (!_waitForReceivedTimer.isActive()) {
 		uint64 remain = _waitForReceived;
 		if (!oldConnection) {
@@ -2146,9 +2158,9 @@ void MTProtoConnectionPrivate::onSentSome(uint64 size) {
 				DEBUG_LOG(("Checking connect for request with size %1 bytes, delay will be %2").arg(size).arg(remain));
 			}
 		}
-		if (dc >= MTP::uplStart && dc < MTP::uplEnd) {
+		if (isUplDcId(dc)) {
 			remain *= MTPUploadSessionsCount;
-		} else if (dc >= MTP::dldStart && dc < MTP::dldEnd) {
+		} else if (isDldDcId(dc)) {
 			remain *= MTPDownloadSessionsCount;
 		}
 		_waitForReceivedTimer.start(remain);
@@ -2156,7 +2168,7 @@ void MTProtoConnectionPrivate::onSentSome(uint64 size) {
 	if (!firstSentAt) firstSentAt = getms(true);
 }
 
-void MTProtoConnectionPrivate::onReceivedSome() {
+void ConnectionPrivate::onReceivedSome() {
 	if (oldConnection) {
 		oldConnection = false;
 		DEBUG_LOG(("This connection marked as not old!"));
@@ -2172,13 +2184,13 @@ void MTProtoConnectionPrivate::onReceivedSome() {
 	}
 }
 
-void MTProtoConnectionPrivate::onOldConnection() {
+void ConnectionPrivate::onOldConnection() {
 	oldConnection = true;
 	_waitForReceived = MTPMinReceiveDelay;
 	DEBUG_LOG(("This connection marked as old! _waitForReceived now %1ms").arg(_waitForReceived));
 }
 
-void MTProtoConnectionPrivate::onPingSender() {
+void ConnectionPrivate::onPingSender() {
 	if (_pingId) {
 			if (_pingSendAt + (MTPPingSendAfter - MTPPingSendAfterAuto - 1) * 1000ULL < getms(true)) {
 			LOG(("Could not send ping for MTPPingSendAfter seconds, restarting.."));
@@ -2191,7 +2203,7 @@ void MTProtoConnectionPrivate::onPingSender() {
 	}
 }
 
-void MTProtoConnectionPrivate::onPingSendForce() {
+void ConnectionPrivate::onPingSendForce() {
 	if (!_pingId) {
 		_pingSendAt = 0;
 		DEBUG_LOG(("Will send ping!"));
@@ -2199,7 +2211,7 @@ void MTProtoConnectionPrivate::onPingSendForce() {
 	}
 }
 
-void MTProtoConnectionPrivate::onWaitReceivedFailed() {
+void ConnectionPrivate::onWaitReceivedFailed() {
 	if (cConnectionType() != dbictAuto && cConnectionType() != dbictTcpProxy) {
 		return;
 	}
@@ -2216,7 +2228,7 @@ void MTProtoConnectionPrivate::onWaitReceivedFailed() {
 	QTimer::singleShot(0, this, SLOT(socketStart()));
 }
 
-void MTProtoConnectionPrivate::onWaitConnectedFailed() {
+void ConnectionPrivate::onWaitConnectedFailed() {
 	DEBUG_LOG(("MTP Info: can't connect in %1ms").arg(_waitForConnected));
 	if (_waitForConnected < MTPMaxConnectDelay) _waitForConnected *= 2;
 
@@ -2227,7 +2239,7 @@ void MTProtoConnectionPrivate::onWaitConnectedFailed() {
 	QTimer::singleShot(0, this, SLOT(socketStart()));
 }
 
-void MTProtoConnectionPrivate::onWaitIPv4Failed() {
+void ConnectionPrivate::onWaitIPv4Failed() {
 	_conn = _conn6;
 	destroyConn(&_conn4);
 
@@ -2240,7 +2252,7 @@ void MTProtoConnectionPrivate::onWaitIPv4Failed() {
 	}
 }
 
-void MTProtoConnectionPrivate::doDisconnect() {
+void ConnectionPrivate::doDisconnect() {
 	destroyConn();
 
 	{
@@ -2252,18 +2264,18 @@ void MTProtoConnectionPrivate::doDisconnect() {
 
 	clearAuthKeyData();
 
-	setState(MTProtoConnection::Disconnected);
+	setState(DisconnectedState);
 	restarted = false;
 }
 
-void MTProtoConnectionPrivate::doFinish() {
+void ConnectionPrivate::doFinish() {
 	doDisconnect();
 	_finished = true;
 	emit finished(_owner);
 	deleteLater();
 }
 
-void MTProtoConnectionPrivate::handleReceived() {
+void ConnectionPrivate::handleReceived() {
 	QReadLocker lockFinished(&sessionDataMutex);
 	if (!sessionData) return;
 
@@ -2364,12 +2376,12 @@ void MTProtoConnectionPrivate::handleReceived() {
 			badTime = true;
 		}
 
-		bool wasConnected = (getState() == MTProtoConnection::Connected);
+		bool wasConnected = (getState() == ConnectedState);
 		if (serverSalt != mySalt) {
 			if (!badTime) {
 				DEBUG_LOG(("MTP Info: other salt received.. received: %1, my salt: %2, updating..").arg(serverSalt).arg(mySalt));
 				sessionData->setSalt(serverSalt);
-				if (setState(MTProtoConnection::Connected, MTProtoConnection::Connecting)) { // only connected
+				if (setState(ConnectedState, ConnectingState)) { // only connected
 					if (restarted) {
 						emit resendAllAsync();
 						restarted = false;
@@ -2441,7 +2453,7 @@ void MTProtoConnectionPrivate::handleReceived() {
 		}
 
 		if (!wasConnected) {
-			if (getState() == MTProtoConnection::Connected) {
+			if (getState() == ConnectedState) {
 				emit needToSendAsync();
 			}
 		}
@@ -2451,7 +2463,7 @@ void MTProtoConnectionPrivate::handleReceived() {
 	}
 }
 
-int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime *end, uint64 msgId, int32 serverTime, uint64 serverSalt, bool badTime) {
+int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime *end, uint64 msgId, int32 serverTime, uint64 serverSalt, bool badTime) {
 	mtpTypeId cons = *from;
 	try {
 
@@ -2603,7 +2615,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 			mtpRequestId requestId = wasSent(resendId);
 			if (requestId) {
 				LOG(("Message Error: bad message notification received, msgId %1, error_code %2, fatal: clearing callbacks").arg(data.vbad_msg_id.v).arg(errorCode));
-				_mtp_internal::clearCallbacksDelayed(RPCCallbackClears(1, RPCCallbackClear(requestId, -errorCode)));
+				clearCallbacksDelayed(RPCCallbackClears(1, RPCCallbackClear(requestId, -errorCode)));
 			} else {
 				DEBUG_LOG(("Message Error: such message was not sent recently %1").arg(resendId));
 			}
@@ -2628,7 +2640,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 		sessionData->setSalt(serverSalt);
 		unixtimeSet(serverTime);
 
-		if (setState(MTProtoConnection::Connected, MTProtoConnection::Connecting)) { // maybe only connected
+		if (setState(ConnectedState, ConnectingState)) { // maybe only connected
 			if (restarted) {
 				emit resendAllAsync();
 				restarted = false;
@@ -2979,7 +2991,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 	return 1;
 }
 
-mtpBuffer MTProtoConnectionPrivate::ungzip(const mtpPrime *from, const mtpPrime *end) const {
+mtpBuffer ConnectionPrivate::ungzip(const mtpPrime *from, const mtpPrime *end) const {
 	MTPstring packed(from, end); // read packed string as serialized mtp string type
 	uint32 packedLen = packed.c_string().v.size(), unpackedChunk = packedLen, unpackedLen = 0;
 
@@ -3026,7 +3038,7 @@ mtpBuffer MTProtoConnectionPrivate::ungzip(const mtpPrime *from, const mtpPrime 
 	return result;
 }
 
-bool MTProtoConnectionPrivate::requestsFixTimeSalt(const QVector<MTPlong> &ids, int32 serverTime, uint64 serverSalt) {
+bool ConnectionPrivate::requestsFixTimeSalt(const QVector<MTPlong> &ids, int32 serverTime, uint64 serverSalt) {
 	uint32 idsCount = ids.size();
 
 	for (uint32 i = 0; i < idsCount; ++i) {
@@ -3039,7 +3051,7 @@ bool MTProtoConnectionPrivate::requestsFixTimeSalt(const QVector<MTPlong> &ids, 
 	return false;
 }
 
-void MTProtoConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byResponse) {
+void ConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byResponse) {
 	uint32 idsCount = ids.size();
 
 	DEBUG_LOG(("Message Info: requests acked, ids %1").arg(Logs::vector(ids)));
@@ -3071,7 +3083,7 @@ void MTProtoConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool b
 						mtpRequestId reqId = req.value()->requestId;
 						bool moveToAcked = byResponse;
 						if (!moveToAcked) { // ignore ACK, if we need a response (if we have a handler)
-							moveToAcked = !_mtp_internal::hasCallbacks(reqId);
+							moveToAcked = !hasCallbacks(reqId);
 						}
 						if (moveToAcked) {
 							wereAcked.insert(msgId, reqId);
@@ -3089,7 +3101,7 @@ void MTProtoConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool b
 						mtpRequestId reqId = reqIt.value();
 						bool moveToAcked = byResponse;
 						if (!moveToAcked) { // ignore ACK, if we need a response (if we have a handler)
-							moveToAcked = !_mtp_internal::hasCallbacks(reqId);
+							moveToAcked = !hasCallbacks(reqId);
 						}
 						if (moveToAcked) {
 							QWriteLocker locker4(sessionData->toSendMutex());
@@ -3130,7 +3142,7 @@ void MTProtoConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool b
 	}
 
 	if (clearedAcked.size()) {
-		_mtp_internal::clearCallbacksDelayed(clearedAcked);
+		clearCallbacksDelayed(clearedAcked);
 	}
 
 	if (toAckMore.size()) {
@@ -3138,7 +3150,7 @@ void MTProtoConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool b
 	}
 }
 
-void MTProtoConnectionPrivate::handleMsgsStates(const QVector<MTPlong> &ids, const string &states, QVector<MTPlong> &acked) {
+void ConnectionPrivate::handleMsgsStates(const QVector<MTPlong> &ids, const string &states, QVector<MTPlong> &acked) {
 	uint32 idsCount = ids.size();
 	if (!idsCount) {
 		DEBUG_LOG(("Message Info: void ids vector in handleMsgsStates()"));
@@ -3182,12 +3194,12 @@ void MTProtoConnectionPrivate::handleMsgsStates(const QVector<MTPlong> &ids, con
 	}
 }
 
-void MTProtoConnectionPrivate::resend(quint64 msgId, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
+void ConnectionPrivate::resend(quint64 msgId, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
 	if (msgId == _pingMsgId) return;
 	emit resendAsync(msgId, msCanWait, forceContainer, sendMsgStateInfo);
 }
 
-void MTProtoConnectionPrivate::resendMany(QVector<quint64> msgIds, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
+void ConnectionPrivate::resendMany(QVector<quint64> msgIds, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
 	for (int32 i = 0, l = msgIds.size(); i < l; ++i) {
 		if (msgIds.at(i) == _pingMsgId) {
 			msgIds.remove(i);
@@ -3197,7 +3209,7 @@ void MTProtoConnectionPrivate::resendMany(QVector<quint64> msgIds, quint64 msCan
 	emit resendManyAsync(msgIds, msCanWait, forceContainer, sendMsgStateInfo);
 }
 
-void MTProtoConnectionPrivate::onConnected4() {
+void ConnectionPrivate::onConnected4() {
 	_waitForConnected = MTPMinConnectDelay;
 	_waitForConnectedTimer.stop();
 
@@ -3223,7 +3235,7 @@ void MTProtoConnectionPrivate::onConnected4() {
 	updateAuthKey();
 }
 
-void MTProtoConnectionPrivate::onConnected6() {
+void ConnectionPrivate::onConnected6() {
 	_waitForConnected = MTPMinConnectDelay;
 	_waitForConnectedTimer.stop();
 
@@ -3243,7 +3255,7 @@ void MTProtoConnectionPrivate::onConnected6() {
 	_waitForIPv4Timer.start(MTPIPv4ConnectionWaitTimeout);
 }
 
-void MTProtoConnectionPrivate::onDisconnected4() {
+void ConnectionPrivate::onDisconnected4() {
 	if (_conn && _conn == _conn6) return; // disconnected the unused
 
 	if (_conn || !_conn6) {
@@ -3254,7 +3266,7 @@ void MTProtoConnectionPrivate::onDisconnected4() {
 	}
 }
 
-void MTProtoConnectionPrivate::onDisconnected6() {
+void ConnectionPrivate::onDisconnected6() {
 	if (_conn && _conn == _conn4) return; // disconnected the unused
 
 	if (_conn || !_conn4) {
@@ -3265,7 +3277,7 @@ void MTProtoConnectionPrivate::onDisconnected6() {
 	}
 }
 
-void MTProtoConnectionPrivate::updateAuthKey() 	{
+void ConnectionPrivate::updateAuthKey() 	{
 	QReadLocker lockFinished(&sessionDataMutex);
 	if (!sessionData || !_conn) return;
 
@@ -3302,8 +3314,8 @@ void MTProtoConnectionPrivate::updateAuthKey() 	{
 		return authKeyCreated();
 	}
 
-	authKeyData = new MTProtoConnectionPrivate::AuthKeyCreateData();
-	authKeyStrings = new MTProtoConnectionPrivate::AuthKeyCreateStrings();
+	authKeyData = new ConnectionPrivate::AuthKeyCreateData();
+	authKeyStrings = new ConnectionPrivate::AuthKeyCreateStrings();
 	authKeyData->req_num = 0;
 	authKeyData->nonce = MTP::nonce<MTPint128>();
 
@@ -3317,13 +3329,13 @@ void MTProtoConnectionPrivate::updateAuthKey() 	{
 	sendRequestNotSecure(req_pq);
 }
 
-void MTProtoConnectionPrivate::clearMessages() {
+void ConnectionPrivate::clearMessages() {
 	if (keyId && keyId != mtpAuthKey::RecreateKeyId && _conn) {
 		_conn->received().clear();
 	}
 }
 
-void MTProtoConnectionPrivate::pqAnswered() {
+void ConnectionPrivate::pqAnswered() {
 	disconnect(_conn, SIGNAL(receivedData()), this, SLOT(pqAnswered()));
 	DEBUG_LOG(("AuthKey Info: receiving Req_pq answer.."));
 
@@ -3421,7 +3433,7 @@ void MTProtoConnectionPrivate::pqAnswered() {
 	sendRequestNotSecure(req_DH_params);
 }
 
-void MTProtoConnectionPrivate::dhParamsAnswered() {
+void ConnectionPrivate::dhParamsAnswered() {
 	disconnect(_conn, SIGNAL(receivedData()), this, SLOT(dhParamsAnswered()));
 	DEBUG_LOG(("AuthKey Info: receiving Req_DH_params answer.."));
 
@@ -3542,7 +3554,7 @@ void MTProtoConnectionPrivate::dhParamsAnswered() {
 	return restart();
 }
 
-void MTProtoConnectionPrivate::dhClientParamsSend() {
+void ConnectionPrivate::dhClientParamsSend() {
 	if (++authKeyData->retries > 5) {
 		LOG(("AuthKey Error: could not create auth_key for %1 retries").arg(authKeyData->retries - 1));
 		return restart();
@@ -3603,7 +3615,7 @@ void MTProtoConnectionPrivate::dhClientParamsSend() {
 	sendRequestNotSecure(req_client_DH_params);
 }
 
-void MTProtoConnectionPrivate::dhClientParamsAnswered() {
+void ConnectionPrivate::dhClientParamsAnswered() {
 	QReadLocker lockFinished(&sessionDataMutex);
 	if (!sessionData) return;
 
@@ -3648,7 +3660,7 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 
 		mtpAuthKeyPtr authKey(new mtpAuthKey());
 		authKey->setKey(authKeyData->auth_key);
-		authKey->setDC(dc % _mtp_internal::dcShift);
+		authKey->setDC(bareDcId(dc));
 
 		DEBUG_LOG(("AuthKey Info: auth key gen succeed, id: %1, server salt: %2, auth key: %3").arg(authKey->keyId()).arg(serverSalt).arg(Logs::mb(authKeyData->auth_key, 256).str()));
 
@@ -3723,13 +3735,13 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 	return restart();
 }
 
-void MTProtoConnectionPrivate::authKeyCreated() {
+void ConnectionPrivate::authKeyCreated() {
 	clearAuthKeyData();
 
 	connect(_conn, SIGNAL(receivedData()), this, SLOT(handleReceived()));
 
 	if (sessionData->getSalt()) { // else receive salt in bad_server_salt first, then try to send all the requests
-		setState(MTProtoConnection::Connected);
+		setState(ConnectedState);
 		if (restarted) {
 			emit resendAllAsync();
 			restarted = false;
@@ -3741,7 +3753,7 @@ void MTProtoConnectionPrivate::authKeyCreated() {
 	emit needToSendAsync();
 }
 
-void MTProtoConnectionPrivate::clearAuthKeyData() {
+void ConnectionPrivate::clearAuthKeyData() {
 	if (authKeyData) {
 #ifdef Q_OS_WIN
 		SecureZeroMemory(authKeyData, sizeof(AuthKeyCreateData));
@@ -3759,7 +3771,7 @@ void MTProtoConnectionPrivate::clearAuthKeyData() {
 	}
 }
 
-void MTProtoConnectionPrivate::onError4(bool mayBeBadKey) {
+void ConnectionPrivate::onError4(bool mayBeBadKey) {
 	if (_conn && _conn == _conn6) return; // error in the unused
 
 	if (_conn || !_conn6) {
@@ -3773,7 +3785,7 @@ void MTProtoConnectionPrivate::onError4(bool mayBeBadKey) {
 	}
 }
 
-void MTProtoConnectionPrivate::onError6(bool mayBeBadKey) {
+void ConnectionPrivate::onError6(bool mayBeBadKey) {
 	if (_conn && _conn == _conn4) return; // error in the unused
 
 	if (_conn || !_conn4) {
@@ -3787,11 +3799,11 @@ void MTProtoConnectionPrivate::onError6(bool mayBeBadKey) {
 	}
 }
 
-void MTProtoConnectionPrivate::onReadyData() {
+void ConnectionPrivate::onReadyData() {
 }
 
 template <typename TRequest>
-void MTProtoConnectionPrivate::sendRequestNotSecure(const TRequest &request) {
+void ConnectionPrivate::sendRequestNotSecure(const TRequest &request) {
 	try {
 		mtpBuffer buffer;
 		uint32 requestSize = request.innerLength() >> 2;
@@ -3821,7 +3833,7 @@ void MTProtoConnectionPrivate::sendRequestNotSecure(const TRequest &request) {
 }
 
 template <typename TResponse>
-bool MTProtoConnectionPrivate::readResponseNotSecure(TResponse &response) {
+bool ConnectionPrivate::readResponseNotSecure(TResponse &response) {
 	onReceivedSome();
 
 	try {
@@ -3858,7 +3870,7 @@ bool MTProtoConnectionPrivate::readResponseNotSecure(TResponse &response) {
 	return true;
 }
 
-bool MTProtoConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResponse, QReadLocker &lockFinished) {
+bool ConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResponse, QReadLocker &lockFinished) {
 	uint32 fullSize = request->size();
 	if (fullSize < 9) return false;
 
@@ -3915,7 +3927,7 @@ bool MTProtoConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResp
 	return true;
 }
 
-mtpRequestId MTProtoConnectionPrivate::wasSent(mtpMsgId msgId) const {
+mtpRequestId ConnectionPrivate::wasSent(mtpMsgId msgId) const {
 	if (msgId == _pingMsgId) return mtpRequestId(0xFFFFFFFF);
 	{
 		QReadLocker locker(sessionData->haveSentMutex());
@@ -3938,24 +3950,24 @@ mtpRequestId MTProtoConnectionPrivate::wasSent(mtpMsgId msgId) const {
 	return 0;
 }
 
-void MTProtoConnectionPrivate::lockKey() {
+void ConnectionPrivate::lockKey() {
 	unlockKey();
 	sessionData->keyMutex()->lockForWrite();
 	myKeyLock = true;
 }
 
-void MTProtoConnectionPrivate::unlockKey() {
+void ConnectionPrivate::unlockKey() {
 	if (myKeyLock) {
 		myKeyLock = false;
 		sessionData->keyMutex()->unlock();
 	}
 }
 
-MTProtoConnectionPrivate::~MTProtoConnectionPrivate() {
+ConnectionPrivate::~ConnectionPrivate() {
 	t_assert(_finished && _conn == nullptr && _conn4 == nullptr && _conn6 == nullptr);
 }
 
-void MTProtoConnectionPrivate::stop() {
+void ConnectionPrivate::stop() {
 	QWriteLocker lockFinished(&sessionDataMutex);
 	if (sessionData) {
 		if (myKeyLock) {
@@ -3966,3 +3978,6 @@ void MTProtoConnectionPrivate::stop() {
 		sessionData = nullptr;
 	}
 }
+
+} // namespace internal
+} // namespace MTP

@@ -83,7 +83,7 @@ QString _logsEntryStart() {
 	QDateTime tm(QDateTime::currentDateTime());
 
 	QThread *thread = QThread::currentThread();
-	MTPThread *mtpThread = qobject_cast<MTPThread*>(thread);
+	MTP::internal::Thread *mtpThread = qobject_cast<MTP::internal::Thread*>(thread);
 	uint threadId = mtpThread ? mtpThread->getThreadId() : 0;
 
 	return QString("[%1 %2-%3]").arg(tm.toString("hh:mm:ss.zzz")).arg(QString("%1").arg(threadId, 2, 10, QChar('0'))).arg(++index, 7, 10, QChar('0'));

@@ -82,7 +82,7 @@ void mtpLogoutOtherDCs() {
 	}
 	for (int32 i = 0, cnt = dcs.size(); i != cnt; ++i) {
 		if (dcs[i] != MTP::maindc()) {
-			logoutGuestMap.insert(MTP::lgt + dcs[i], MTP::send(MTPauth_LogOut(), rpcDone(&logoutDone), rpcFail(&logoutDone), MTP::lgt + dcs[i]));
+			logoutGuestMap.insert(MTP::lgtDcId(dcs[i]), MTP::send(MTPauth_LogOut(), rpcDone(&logoutDone), rpcFail(&logoutDone), MTP::lgtDcId(dcs[i])));
 		}
 	}
 }
@@ -193,7 +193,7 @@ void mtpUpdateDcOptions(const QVector<MTPDcOption> &options) {
 		}
 		for (QVector<MTPDcOption>::const_iterator i = options.cbegin(), e = options.cend(); i != e; ++i) {
 			const MTPDdcOption &optData(i->c_dcOption());
-			int32 id = optData.vid.v, idWithShift = id + (optData.vflags.v * _mtp_internal::dcShift);
+			int32 id = optData.vid.v, idWithShift = MTP::shiftDcId(id, optData.vflags.v);
 			if (already.constFind(idWithShift) == already.cend()) {
 				already.insert(idWithShift);
 				auto a = opts.constFind(idWithShift);
@@ -243,7 +243,7 @@ void MTProtoConfigLoader::done() {
 		_enumRequest = 0;
 	}
 	if (_enumCurrent) {
-		MTP::killSession(MTP::cfg + _enumCurrent);
+		MTP::killSession(MTP::cfgDcId(_enumCurrent));
 		_enumCurrent = 0;
 	}
 	emit loaded();
@@ -257,14 +257,14 @@ void MTProtoConfigLoader::enumDC() {
 	if (!_enumCurrent) {
 		_enumCurrent = mainDC;
 	} else {
-		MTP::killSession(MTP::cfg + _enumCurrent);
+		MTP::killSession(MTP::cfgDcId(_enumCurrent));
 	}
 	OrderedSet<int32> dcs;
 	{
 		QReadLocker lock(mtpDcOptionsMutex());
 		const MTP::DcOptions &options(Global::DcOptions());
 		for (auto i = options.cbegin(), e = options.cend(); i != e; ++i) {
-			dcs.insert(i.key() % _mtp_internal::dcShift);
+			dcs.insert(MTP::bareDcId(i.key()));
 		}
 	}
 	OrderedSet<int32>::const_iterator i = dcs.constFind(_enumCurrent);
@@ -273,7 +273,7 @@ void MTProtoConfigLoader::enumDC() {
 	} else {
 		_enumCurrent = i.key();
 	}
-	_enumRequest = MTP::send(MTPhelp_GetConfig(), rpcDone(configLoaded), rpcFail(configFailed), MTP::cfg + _enumCurrent);
+	_enumRequest = MTP::send(MTPhelp_GetConfig(), rpcDone(configLoaded), rpcFail(configFailed), MTP::cfgDcId(_enumCurrent));
 
 	_enumDCTimer.start(MTPEnumDCTimeout);
 }

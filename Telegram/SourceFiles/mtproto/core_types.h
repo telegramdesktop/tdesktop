@@ -22,35 +22,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "types.h"
 
-#undef min
-#undef max
+namespace MTP {
 
-//#define DEBUG_MTPPRIME
+// type DcId represents actual data center id, while in most cases
+// we use some shifted ids, like DcId() + X * DCShift
+typedef int32 DcId;
+typedef int32 ShiftedDcId;
 
-#ifdef DEBUG_MTPPRIME
-class mtpPrime { // for debug visualization, not like int32 :( in default constructor
-public:
-	explicit mtpPrime() : _v(0) {
-	}
-	mtpPrime(int32 v) : _v(v) {
-	}
-	mtpPrime &operator=(int32 v) {
-		_v = v;
-		return (*this);
-	}
-	operator int32&() {
-		return _v;
-	}
-	operator const int32 &() const {
-		return _v;
-	}
-private:
-	int32 _v;
-};
-#else
+}
+
 typedef int32 mtpPrime;
-#endif
-
 typedef int32 mtpRequestId;
 typedef uint64 mtpMsgId;
 typedef uint64 mtpPingId;
@@ -1072,3 +1053,30 @@ extern const MTPVector<MTPMessageEntity> MTPnullEntities;
 extern const MTPMessageFwdHeader MTPnullFwdHeader;
 
 QString stickerSetTitle(const MTPDstickerSet &s);
+
+inline bool mtpRequestData::isSentContainer(const mtpRequest &request) { // "request-like" wrap for msgIds vector
+	if (request->size() < 9) return false;
+	return (!request->msDate && !(*request)[6]); // msDate = 0, seqNo = 0
+}
+inline bool mtpRequestData::isStateRequest(const mtpRequest &request) {
+	if (request->size() < 9) return false;
+	return (mtpTypeId((*request)[8]) == mtpc_msgs_state_req);
+}
+inline bool mtpRequestData::needAck(const mtpRequest &request) {
+	if (request->size() < 9) return false;
+	return mtpRequestData::needAckByType((*request)[8]);
+}
+inline bool mtpRequestData::needAckByType(mtpTypeId type) {
+	switch (type) {
+	case mtpc_msg_container:
+	case mtpc_msgs_ack:
+	case mtpc_http_wait:
+	case mtpc_bad_msg_notification:
+	case mtpc_msgs_all_info:
+	case mtpc_msgs_state_info:
+	case mtpc_msg_detailed_info:
+	case mtpc_msg_new_detailed_info:
+	return false;
+	}
+	return true;
+}

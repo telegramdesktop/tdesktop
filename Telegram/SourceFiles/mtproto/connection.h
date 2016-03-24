@@ -23,50 +23,26 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mtproto/core_types.h"
 #include "mtproto/auth_key.h"
 
-inline bool mtpRequestData::isSentContainer(const mtpRequest &request) { // "request-like" wrap for msgIds vector
-	if (request->size() < 9) return false;
-	return (!request->msDate && !(*request)[6]); // msDate = 0, seqNo = 0
-}
-inline bool mtpRequestData::isStateRequest(const mtpRequest &request) {
-	if (request->size() < 9) return false;
-	return (mtpTypeId((*request)[8]) == mtpc_msgs_state_req);
-}
-inline bool mtpRequestData::needAck(const mtpRequest &request) {
-	if (request->size() < 9) return false;
-	return mtpRequestData::needAckByType((*request)[8]);
-}
-inline bool mtpRequestData::needAckByType(mtpTypeId type) {
-	switch (type) {
-	case mtpc_msg_container:
-	case mtpc_msgs_ack:
-	case mtpc_http_wait:
-	case mtpc_bad_msg_notification:
-	case mtpc_msgs_all_info:
-	case mtpc_msgs_state_info:
-	case mtpc_msg_detailed_info:
-	case mtpc_msg_new_detailed_info:
-		return false;
-	}
-	return true;
-}
+namespace MTP {
+namespace internal {
 
-class MTProtoConnectionPrivate;
-class MTPSessionData;
+class ConnectionPrivate;
+class SessionData;
 
-class MTPThread : public QThread {
+class Thread : public QThread {
 	Q_OBJECT
 
 public:
-	MTPThread();
+	Thread();
 	uint32 getThreadId() const;
-	~MTPThread();
+	~Thread();
 
 private:
 	uint32 _threadId;
 
 };
 
-class MTProtoConnection {
+class Connection {
 public:
 
 	enum ConnectionType {
@@ -74,19 +50,13 @@ public:
 		HttpConnection
 	};
 
-	MTProtoConnection();
-	int32 start(MTPSessionData *data, int32 dc = 0); // return dc
+	Connection();
+	int32 start(SessionData *data, int32 dc = 0); // return dc
 	void kill();
 	void waitTillFinish();
-	~MTProtoConnection();
+	~Connection();
 
-	enum {
-		Disconnected = 0,
-		Connecting = 1,
-		Connected = 2,
-
-		UpdateAlways = 666
-	};
+	static const int UpdateAlways = 666;
 
 	int32 state() const;
 	QString transport() const;
@@ -94,18 +64,22 @@ public:
 private:
 
 	QThread *thread;
-	MTProtoConnectionPrivate *data;
+	ConnectionPrivate *data;
 
 };
 
-class MTPabstractConnection : public QObject {
+class AbstractConnection : public QObject {
 	Q_OBJECT
 
 	typedef QList<mtpBuffer> BuffersQueue;
 
 public:
 
-	MTPabstractConnection() : _sentEncrypted(false) {
+	AbstractConnection() : _sentEncrypted(false) {
+	}
+	AbstractConnection(const AbstractConnection &other) = delete;
+	AbstractConnection &operator=(const AbstractConnection &other) = delete;
+	virtual ~AbstractConnection() = 0{
 	}
 
 	void setSentEncrypted() {
@@ -149,12 +123,14 @@ protected:
 
 };
 
-class MTPabstractTcpConnection : public MTPabstractConnection {
+class AbstractTcpConnection : public AbstractConnection {
 	Q_OBJECT
 
 public:
 
-	MTPabstractTcpConnection();
+	AbstractTcpConnection();
+	virtual ~AbstractTcpConnection() = 0 {
+	}
 
 public slots:
 
@@ -174,12 +150,12 @@ protected:
 
 };
 
-class MTPautoConnection : public MTPabstractTcpConnection {
+class AutoConnection : public AbstractTcpConnection {
 	Q_OBJECT
 
 public:
 
-	MTPautoConnection(QThread *thread);
+	AutoConnection(QThread *thread);
 
 	void sendData(mtpBuffer &buffer) override;
 	void disconnectFromServer() override;
@@ -239,12 +215,12 @@ private:
 
 };
 
-class MTPtcpConnection : public MTPabstractTcpConnection {
+class TCPConnection : public AbstractTcpConnection {
 	Q_OBJECT
 
 public:
 
-	MTPtcpConnection(QThread *thread);
+	TCPConnection(QThread *thread);
 
 	void sendData(mtpBuffer &buffer) override;
 	void disconnectFromServer() override;
@@ -287,12 +263,12 @@ private:
 
 };
 
-class MTPhttpConnection : public MTPabstractConnection {
+class HTTPConnection : public AbstractConnection {
 	Q_OBJECT
 
 public:
 
-	MTPhttpConnection(QThread *thread);
+	HTTPConnection(QThread *thread);
 
 	void sendData(mtpBuffer &buffer) override;
 	void disconnectFromServer() override;
@@ -330,13 +306,13 @@ private:
 
 };
 
-class MTProtoConnectionPrivate : public QObject {
+class ConnectionPrivate : public QObject {
 	Q_OBJECT
 
 public:
 
-	MTProtoConnectionPrivate(QThread *thread, MTProtoConnection *owner, MTPSessionData *data, uint32 dc);
-	~MTProtoConnectionPrivate();
+	ConnectionPrivate(QThread *thread, Connection *owner, SessionData *data, uint32 dc);
+	~ConnectionPrivate();
 
 	void stop();
 
@@ -361,7 +337,7 @@ signals:
 	void resendManyAsync(QVector<quint64> msgIds, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
 	void resendAllAsync();
 
-	void finished(MTProtoConnection *connection);
+	void finished(Connection *connection);
 
 public slots:
 
@@ -412,7 +388,7 @@ private:
 	void doDisconnect();
 
 	void createConn(bool createIPv4, bool createIPv6);
-	void destroyConn(MTPabstractConnection **conn = 0); // 0 - destory all
+	void destroyConn(AbstractConnection **conn = 0); // 0 - destory all
 
 	mtpMsgId placeToContainer(mtpRequest &toSendRequest, mtpMsgId &bigMsgId, mtpMsgId *&haveSentArr, mtpRequest &req);
 	mtpMsgId prepareToSend(mtpRequest &request, mtpMsgId currentLastId);
@@ -427,7 +403,7 @@ private:
 
 	void clearMessages();
 
-	bool setState(int32 state, int32 ifState = MTProtoConnection::UpdateAlways);
+	bool setState(int32 state, int32 ifState = Connection::UpdateAlways);
 	mutable QReadWriteLock stateConnMutex;
 	int32 _state;
 
@@ -435,8 +411,8 @@ private:
 	void resetSession();
 
 	uint32 dc;
-	MTProtoConnection *_owner;
-	MTPabstractConnection *_conn, *_conn4, *_conn6;
+	Connection *_owner;
+	AbstractConnection *_conn, *_conn4, *_conn6;
 
 	SingleTimer retryTimer; // exp retry timer
 	int retryTimeout;
@@ -475,7 +451,8 @@ private:
 
 	uint64 keyId;
 	QReadWriteLock sessionDataMutex;
-	MTPSessionData *sessionData;
+	SessionData *sessionData;
+
 	bool myKeyLock;
 	void lockKey();
 	void unlockKey();
@@ -523,3 +500,6 @@ private:
 	void clearAuthKeyData();
 
 };
+
+} // namespace internal
+} // namespace MTP

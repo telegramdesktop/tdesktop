@@ -18,6 +18,9 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
+
+#define NOMINMAX // no min() and max() macro declarations
+
 #ifdef TDESKTOP_WINRT
 
 #include <wrl.h>

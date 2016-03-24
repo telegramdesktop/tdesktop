@@ -765,7 +765,7 @@ void Window::mtpStateChanged(int32 dc, int32 state) {
 
 void Window::updateTitleStatus() {
 	int32 state = MTP::dcstate();
-	if (state == MTProtoConnection::Connecting || state == MTProtoConnection::Disconnected || (state < 0 && state > -600)) {
+	if (state == MTP::ConnectingState || state == MTP::DisconnectedState || (state < 0 && state > -600)) {
 		if (main || getms() > 5000 || _connecting) {
 			showConnecting(lang(lng_connecting));
 		}

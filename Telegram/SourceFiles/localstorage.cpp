@@ -886,7 +886,7 @@ namespace {
 			stream >> dcIdWithShift >> flags >> ip >> port;
 			if (!_checkStreamStatus(stream)) return false;
 
-			if (_dcOpts) _dcOpts->insert(dcIdWithShift, MTP::DcOption(dcIdWithShift % _mtp_internal::dcShift, MTPDdcOption::Flags(flags), ip.toUtf8().constData(), port));
+			if (_dcOpts) _dcOpts->insert(dcIdWithShift, MTP::DcOption(MTP::bareDcId(dcIdWithShift), MTPDdcOption::Flags(flags), ip.toUtf8().constData(), port));
 		} break;
 
 		case dbiChatSizeMax: {
@@ -931,7 +931,7 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			DEBUG_LOG(("MTP Info: key found, dc %1, key: %2").arg(dcId).arg(Logs::mb(key, 256).str()));
-			dcId = dcId % _mtp_internal::dcShift;
+			dcId = MTP::bareDcId(dcId);
 			mtpAuthKeyPtr keyPtr(new mtpAuthKey());
 			keyPtr->setKey(key);
 			keyPtr->setDC(dcId);
@@ -2142,7 +2142,7 @@ namespace Local {
 			const BuiltInDc *bdcs = builtInDcs();
 			for (int i = 0, l = builtInDcsCount(); i < l; ++i) {
 				MTPDdcOption::Flags flags = 0;
-				int idWithShift = bdcs[i].id + (flags * _mtp_internal::dcShift);
+				MTP::ShiftedDcId idWithShift = MTP::shiftDcId(bdcs[i].id, flags);
 				dcOpts.insert(idWithShift, MTP::DcOption(bdcs[i].id, flags, bdcs[i].ip, bdcs[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
 			}
@@ -2150,7 +2150,7 @@ namespace Local {
 			const BuiltInDc *bdcsipv6 = builtInDcsIPv6();
 			for (int i = 0, l = builtInDcsCountIPv6(); i < l; ++i) {
 				MTPDdcOption::Flags flags = MTPDdcOption::Flag::f_ipv6;
-				int idWithShift = bdcsipv6[i].id + (flags * _mtp_internal::dcShift);
+				MTP::ShiftedDcId idWithShift = MTP::shiftDcId(bdcsipv6[i].id, flags);
 				dcOpts.insert(idWithShift, MTP::DcOption(bdcsipv6[i].id, flags, bdcsipv6[i].ip, bdcsipv6[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: %2:%3").arg(bdcsipv6[i].id).arg(bdcsipv6[i].ip).arg(bdcsipv6[i].port));
 			}
@@ -2189,7 +2189,7 @@ namespace Local {
 			const BuiltInDc *bdcs = builtInDcs();
 			for (int i = 0, l = builtInDcsCount(); i < l; ++i) {
 				MTPDdcOption::Flags flags = 0;
-				int idWithShift = bdcs[i].id + (flags * _mtp_internal::dcShift);
+				MTP::ShiftedDcId idWithShift = MTP::shiftDcId(bdcs[i].id, flags);
 				dcOpts.insert(idWithShift, MTP::DcOption(bdcs[i].id, flags, bdcs[i].ip, bdcs[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
 			}
@@ -2197,7 +2197,7 @@ namespace Local {
 			const BuiltInDc *bdcsipv6 = builtInDcsIPv6();
 			for (int i = 0, l = builtInDcsCountIPv6(); i < l; ++i) {
 				MTPDdcOption::Flags flags = MTPDdcOption::Flag::f_ipv6;
-				int idWithShift = bdcsipv6[i].id + (flags * _mtp_internal::dcShift);
+				MTP::ShiftedDcId idWithShift = MTP::shiftDcId(bdcsipv6[i].id, flags);
 				dcOpts.insert(idWithShift, MTP::DcOption(bdcsipv6[i].id, flags, bdcsipv6[i].ip, bdcsipv6[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: %2:%3").arg(bdcsipv6[i].id).arg(bdcsipv6[i].ip).arg(bdcsipv6[i].port));
 			}
