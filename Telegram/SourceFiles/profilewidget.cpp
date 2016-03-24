@@ -1034,7 +1034,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 						data->online = App::onlineText(user, l_time);
 					}
 					if (_peerChat) {
-						data->admin = (peerFromUser(_peerChat->creator) == user->id) || (_peerChat->admins.constFind(user) != _peerChat->admins.cend());
+						data->admin = (peerFromUser(_peerChat->creator) == user->id) || (_peerChat->adminsEnabled() && (_peerChat->admins.constFind(user) != _peerChat->admins.cend()));
 					} else if (_peerChannel) {
 						data->admin = (_peerChannel->mgInfo->lastAdmins.constFind(user) != _peerChannel->mgInfo->lastAdmins.cend());
 					} else {

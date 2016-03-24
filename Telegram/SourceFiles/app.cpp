@@ -891,7 +891,6 @@ namespace App {
 				}
 			} else {
 				chat->flags &= ~MTPDchat::Flag::f_admins_enabled;
-				chat->flags &= ~MTPDchat::Flag::f_admin;
 			}
 			if (emitPeerUpdated) {
 				App::main()->peerUpdated(chat);
