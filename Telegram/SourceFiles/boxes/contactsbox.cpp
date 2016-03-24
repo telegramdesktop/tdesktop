@@ -224,7 +224,7 @@ void ContactsInner::onPeerNameChanged(PeerData *peer, const PeerData::Names &old
 
 void ContactsInner::onAddBot() {
 	if (_bot->botInfo && !_bot->botInfo->startGroupToken.isEmpty()) {
-		MTP::send(MTPmessages_StartBot(_bot->inputUser, _addToPeer->input, MTP_long(MTP::nonce<uint64>()), MTP_string(_bot->botInfo->startGroupToken)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _bot));
+		MTP::send(MTPmessages_StartBot(_bot->inputUser, _addToPeer->input, MTP_long(rand_value<uint64>()), MTP_string(_bot->botInfo->startGroupToken)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _bot));
 	} else {
 		App::main()->addParticipants(_addToPeer, QVector<UserData*>(1, _bot));
 	}

@@ -78,8 +78,7 @@ public:
 	}
 	void setKey(const mtpAuthKeyPtr &key) {
 		if (_authKey != key) {
-			uint64 session;
-			memsetrnd(session);
+			uint64 session = rand_value<uint64>();
 			_authKey = key;
 
 			DEBUG_LOG(("MTP Info: new auth key set in SessionData, id %1, setting random server_session %2").arg(key ? key->keyId() : 0).arg(session));

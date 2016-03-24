@@ -420,9 +420,13 @@ namespace App {
 					data->access = UserNoAccess;
 					status = &emptyStatus;
 				} else {
+					// apply first_name and last_name from minimal user only if we don't have
+					// local values for first name and last name already, otherwise skip
+					bool noLocalName = data->firstName.isEmpty() && data->lastName.isEmpty();
+					QString fname = (!minimal || noLocalName) ? (d.has_first_name() ? textOneLine(qs(d.vfirst_name)) : QString()) : data->firstName;
+					QString lname = (!minimal || noLocalName) ? (d.has_last_name() ? textOneLine(qs(d.vlast_name)) : QString()) : data->lastName;
+
 					QString phone = minimal ? data->phone : (d.has_phone() ? qs(d.vphone) : QString());
-					QString fname = d.has_first_name() ? textOneLine(qs(d.vfirst_name)) : QString();
-					QString lname = d.has_last_name() ? textOneLine(qs(d.vlast_name)) : QString();
 					QString uname = minimal ? data->username : (d.has_username() ? textOneLine(qs(d.vusername)) : QString());
 
 					bool phoneChanged = (data->phone != phone);

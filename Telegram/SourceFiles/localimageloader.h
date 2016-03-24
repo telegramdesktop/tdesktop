@@ -29,13 +29,13 @@ enum PrepareMediaType {
 };
 
 struct ToPrepareMedia {
-	ToPrepareMedia(const QString &file, const PeerId &peer, PrepareMediaType t, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) : id(MTP::nonce<PhotoId>()), file(file), peer(peer), type(t), duration(0), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
+	ToPrepareMedia(const QString &file, const PeerId &peer, PrepareMediaType t, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) : id(rand_value<PhotoId>()), file(file), peer(peer), type(t), duration(0), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
 	}
-	ToPrepareMedia(const QImage &img, const PeerId &peer, PrepareMediaType t, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) : id(MTP::nonce<PhotoId>()), img(img), peer(peer), type(t), duration(0), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
+	ToPrepareMedia(const QImage &img, const PeerId &peer, PrepareMediaType t, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) : id(rand_value<PhotoId>()), img(img), peer(peer), type(t), duration(0), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
 	}
-	ToPrepareMedia(const QByteArray &data, const PeerId &peer, PrepareMediaType t, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) : id(MTP::nonce<PhotoId>()), data(data), peer(peer), type(t), duration(0), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
+	ToPrepareMedia(const QByteArray &data, const PeerId &peer, PrepareMediaType t, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) : id(rand_value<PhotoId>()), data(data), peer(peer), type(t), duration(0), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
 	}
-	ToPrepareMedia(const QByteArray &data, int32 duration, const PeerId &peer, PrepareMediaType t, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) : id(MTP::nonce<PhotoId>()), data(data), peer(peer), type(t), duration(duration), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
+	ToPrepareMedia(const QByteArray &data, int32 duration, const PeerId &peer, PrepareMediaType t, bool broadcast, bool ctrlShiftEnter, MsgId replyTo) : id(rand_value<PhotoId>()), data(data), peer(peer), type(t), duration(duration), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
 	}
 	PhotoId id;
 	QString file;

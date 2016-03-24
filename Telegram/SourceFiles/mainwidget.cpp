@@ -637,7 +637,7 @@ void MainWidget::finishForwarding(History *hist, bool broadcast, bool silent) {
 		ids.reserve(_toForward.size());
 		randomIds.reserve(_toForward.size());
 		for (SelectedItemSet::const_iterator i = _toForward.cbegin(), e = _toForward.cend(); i != e; ++i) {
-			uint64 randomId = MTP::nonce<uint64>();
+			uint64 randomId = rand_value<uint64>();
 			if (genClientSideMessage) {
 				FullMsgId newId(peerToChannel(hist->peer->id), clientMsgId());
 				HistoryMessage *msg = static_cast<HistoryMessage*>(_toForward.cbegin().value());
@@ -1366,7 +1366,7 @@ void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, 
 	if (replyTo < 0) replyTo = history.replyToId();
 	while (textSplit(sendingText, sendingEntities, leftText, leftEntities, MaxMessageSize)) {
 		FullMsgId newId(peerToChannel(hist->peer->id), clientMsgId());
-		uint64 randomId = MTP::nonce<uint64>();
+		uint64 randomId = rand_value<uint64>();
 
 		trimTextWithEntities(sendingText, sendingEntities);
 

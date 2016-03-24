@@ -192,13 +192,6 @@ void clearGlobalHandlers();
 
 void updateDcOptions(const QVector<MTPDcOption> &options);
 
-template <typename T>
-T nonce() {
-	T result;
-	memset_rand(&result, sizeof(T));
-	return result;
-}
-
 mtpKeysMap getKeys();
 void setKey(int32 dc, mtpAuthKeyPtr key);
 

@@ -113,7 +113,7 @@ namespace {
 		path.reserve(base.size() + 0x11);
 		path += base;
 		do {
-			result = MTP::nonce<FileKey>();
+			result = rand_value<FileKey>();
 			path.resize(base.size());
 			path += toFilePart(result);
 		} while (!result || keyAlreadyUsed(path, options));

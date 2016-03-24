@@ -4836,7 +4836,7 @@ void HistoryWidget::onBotStart() {
 	if (token.isEmpty()) {
 		sendBotCommand(qsl("/start"), 0);
 	} else {
-		uint64 randomId = MTP::nonce<uint64>();
+		uint64 randomId = rand_value<uint64>();
 		MTP::send(MTPmessages_StartBot(_peer->asUser()->inputUser, MTP_inputPeerEmpty(), MTP_long(randomId), MTP_string(token)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _peer->asUser()));
 
 		_peer->asUser()->botInfo->startToken = QString();
@@ -4897,7 +4897,7 @@ void HistoryWidget::onShareContact(const PeerId &peer, UserData *contact) {
 void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, int32 userId) {
 	History *h = App::history(peer);
 
-	uint64 randomId = MTP::nonce<uint64>();
+	uint64 randomId = rand_value<uint64>();
 	FullMsgId newId(peerToChannel(peer), clientMsgId());
 
 	App::main()->readServerHistory(h, false);
@@ -5993,7 +5993,7 @@ void HistoryWidget::onPhotoUploaded(const FullMsgId &newId, bool silent, const M
 	if (!MTP::authedId()) return;
 	HistoryItem *item = App::histItemById(newId);
 	if (item) {
-		uint64 randomId = MTP::nonce<uint64>();
+		uint64 randomId = rand_value<uint64>();
 		App::historyRegRandom(randomId, newId);
 		History *hist = item->history();
 		MsgId replyTo = item->toHistoryReply() ? item->toHistoryReply()->replyToId() : 0;
@@ -6045,7 +6045,7 @@ void HistoryWidget::onDocumentUploaded(const FullMsgId &newId, bool silent, cons
 	if (item) {
 		DocumentData *document = item->getMedia() ? item->getMedia()->getDocument() : 0;
 		if (document) {
-			uint64 randomId = MTP::nonce<uint64>();
+			uint64 randomId = rand_value<uint64>();
 			App::historyRegRandom(randomId, newId);
 			History *hist = item->history();
 			MsgId replyTo = item->toHistoryReply() ? item->toHistoryReply()->replyToId() : 0;
@@ -6074,7 +6074,7 @@ void HistoryWidget::onThumbDocumentUploaded(const FullMsgId &newId, bool silent,
 	if (item) {
 		DocumentData *document = item->getMedia() ? item->getMedia()->getDocument() : 0;
 		if (document) {
-			uint64 randomId = MTP::nonce<uint64>();
+			uint64 randomId = rand_value<uint64>();
 			App::historyRegRandom(randomId, newId);
 			History *hist = item->history();
 			MsgId replyTo = item->toHistoryReply() ? item->toHistoryReply()->replyToId() : 0;
@@ -6799,7 +6799,7 @@ void HistoryWidget::onInlineResultSend(InlineResult *result, UserData *bot) {
 	App::main()->readServerHistory(_history, false);
 	fastShowAtEnd(_history);
 
-	uint64 randomId = MTP::nonce<uint64>();
+	uint64 randomId = rand_value<uint64>();
 	FullMsgId newId(_channel, clientMsgId());
 
 	bool lastKeyboardUsed = lastForceReplyReplied();
@@ -6854,7 +6854,7 @@ void HistoryWidget::onInlineResultSend(InlineResult *result, UserData *bot) {
 				tw = th = 0;
 				thumbSize = MTP_photoSizeEmpty(MTP_string(""));
 			}
-			uint64 docId = MTP::nonce<uint64>();
+			uint64 docId = rand_value<uint64>();
 			QVector<MTPDocumentAttribute> attributes(1, MTP_documentAttributeFilename(MTP_string((result->content_type == qstr("video/mp4") ? "animation.gif.mp4" : "animation.gif"))));
 			attributes.push_back(MTP_documentAttributeAnimated());
 			attributes.push_back(MTP_documentAttributeVideo(MTP_int(result->duration), MTP_int(result->width), MTP_int(result->height)));
@@ -6878,7 +6878,7 @@ void HistoryWidget::onInlineResultSend(InlineResult *result, UserData *bot) {
 
 			photoSizes.push_back(MTP_photoSize(MTP_string("x"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(result->width), MTP_int(result->height), MTP_int(0)));
 
-			uint64 photoId = MTP::nonce<uint64>();
+			uint64 photoId = rand_value<uint64>();
 			PhotoData *ph = App::photoSet(photoId, 0, 0, unixtime(), thumbPtr, ImagePtr(medium.width(), medium.height()), ImagePtr(result->width, result->height));
 			MTPPhoto photo = MTP_photo(MTP_long(photoId), MTP_long(0), MTP_int(ph->date), MTP_vector<MTPPhotoSize>(photoSizes));
 
@@ -7020,7 +7020,7 @@ void HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 	App::main()->readServerHistory(_history, false);
 	fastShowAtEnd(_history);
 
-	uint64 randomId = MTP::nonce<uint64>();
+	uint64 randomId = rand_value<uint64>();
 	FullMsgId newId(_channel, clientMsgId());
 
 	bool lastKeyboardUsed = lastForceReplyReplied();
@@ -7076,7 +7076,7 @@ void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption) 
 	App::main()->readServerHistory(_history, false);
 	fastShowAtEnd(_history);
 
-	uint64 randomId = MTP::nonce<uint64>();
+	uint64 randomId = rand_value<uint64>();
 	FullMsgId newId(_channel, clientMsgId());
 
 	bool lastKeyboardUsed = lastForceReplyReplied();

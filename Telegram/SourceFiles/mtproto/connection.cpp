@@ -648,8 +648,8 @@ void AbstractTcpConnection::socketRead() {
 
 AutoConnection::AutoConnection(QThread *thread) : AbstractTcpConnection()
 , status(WaitingBoth)
-, tcpNonce(MTP::nonce<MTPint128>())
-, httpNonce(MTP::nonce<MTPint128>())
+, tcpNonce(rand_value<MTPint128>())
+, httpNonce(rand_value<MTPint128>())
 , _flagsTcp(0)
 , _flagsHttp(0)
 , _tcpTimeout(MTPMinReceiveDelay) {
@@ -1000,7 +1000,7 @@ void AutoConnection::socketError(QAbstractSocket::SocketError e) {
 
 TCPConnection::TCPConnection(QThread *thread)
 	: status(WaitingTcp)
-	, tcpNonce(MTP::nonce<MTPint128>())
+	, tcpNonce(rand_value<MTPint128>())
 	, _tcpTimeout(MTPMinReceiveDelay)
 	, _flags(0) {
 	moveToThread(thread);
@@ -1162,7 +1162,7 @@ void TCPConnection::socketError(QAbstractSocket::SocketError e) {
 
 HTTPConnection::HTTPConnection(QThread *thread)
 	: status(WaitingHttp)
-	, httpNonce(MTP::nonce<MTPint128>())
+	, httpNonce(rand_value<MTPint128>())
 	, _flags(0) {
 	moveToThread(thread);
 	manager.moveToThread(thread);
@@ -1541,7 +1541,7 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 		}
 	}
 
-	uint64 session = MTP::nonce<uint64>();
+	uint64 session = rand_value<uint64>();
 	DEBUG_LOG(("MTP Info: creating new session after bad_msg_notification, setting random server_session %1").arg(session));
 	sessionData->setSession(session);
 
@@ -1698,7 +1698,7 @@ void ConnectionPrivate::tryToSend() {
 	mtpRequest pingRequest;
 	if (dc == bareDcId(dc)) { // main session
 		if (!prependOnly && !_pingIdToSend && !_pingId && _pingSendAt <= getms(true)) {
-			_pingIdToSend = MTP::nonce<mtpPingId>();
+			_pingIdToSend = rand_value<mtpPingId>();
 		}
 	}
 	if (_pingIdToSend) {
@@ -3317,7 +3317,7 @@ void ConnectionPrivate::updateAuthKey() 	{
 	authKeyData = new ConnectionPrivate::AuthKeyCreateData();
 	authKeyStrings = new ConnectionPrivate::AuthKeyCreateStrings();
 	authKeyData->req_num = 0;
-	authKeyData->nonce = MTP::nonce<MTPint128>();
+	authKeyData->nonce = rand_value<MTPint128>();
 
 	MTPReq_pq req_pq;
 	req_pq.vnonce = authKeyData->nonce;
@@ -3390,7 +3390,7 @@ void ConnectionPrivate::pqAnswered() {
 		return restart();
 	}
 
-	authKeyData->new_nonce = MTP::nonce<MTPint256>();
+	authKeyData->new_nonce = rand_value<MTPint256>();
 	p_q_inner_data.vnew_nonce = authKeyData->new_nonce;
 
 	MTPReq_DH_params req_DH_params;
@@ -3748,7 +3748,7 @@ void ConnectionPrivate::authKeyCreated() {
 		}
 	}
 
-	_pingIdToSend = MTP::nonce<uint64>(); // get server_salt
+	_pingIdToSend = rand_value<uint64>(); // get server_salt
 
 	emit needToSendAsync();
 }

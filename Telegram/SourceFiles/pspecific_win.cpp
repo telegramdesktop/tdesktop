@@ -3241,7 +3241,7 @@ QString toastImage(const StorageKey &key, PeerData *peer) {
 		} else {
 			v.until = 0;
 		}
-		v.path = cWorkingDir() + qsl("tdata/temp/") + QString::number(MTP::nonce<uint64>(), 16) + qsl(".png");
+		v.path = cWorkingDir() + qsl("tdata/temp/") + QString::number(rand_value<uint64>(), 16) + qsl(".png");
 		if (key.first || key.second) {
 			peer->saveUserpic(v.path);
 		} else {

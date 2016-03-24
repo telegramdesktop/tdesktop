@@ -239,11 +239,13 @@ inline char *hashMd5Hex(const void *data, uint32 len, void *dest) { // dest = pt
 	return hashMd5Hex(HashMd5(data, len).result(), dest);
 }
 
+// good random (using openssl implementation)
 void memset_rand(void *data, uint32 len);
-
 template <typename T>
-inline void memsetrnd(T &value) {
-	memset_rand(&value, sizeof(value));
+T rand_value() {
+	T result;
+	memset_rand(&result, sizeof(result));
+	return result;
 }
 
 inline void memset_rand_bad(void *data, uint32 len) {

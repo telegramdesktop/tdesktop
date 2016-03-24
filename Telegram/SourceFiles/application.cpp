@@ -1004,7 +1004,7 @@ void AppClass::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId) {
 	QBuffer jpegBuffer(&jpeg);
 	full.save(&jpegBuffer, "JPG", 87);
 
-	PhotoId id = MTP::nonce<PhotoId>();
+	PhotoId id = rand_value<PhotoId>();
 
 	MTPPhoto photo(MTP_photo(MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_vector<MTPPhotoSize>(photoSizes)));
 
