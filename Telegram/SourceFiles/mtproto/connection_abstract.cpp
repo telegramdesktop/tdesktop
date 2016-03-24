@@ -29,6 +29,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace MTP {
 namespace internal {
 
+AbstractConnection::~AbstractConnection() {
+}
+
 mtpBuffer AbstractConnection::preparePQFake(const MTPint128 &nonce) {
 	MTPReq_pq req_pq(nonce);
 	mtpBuffer buffer;

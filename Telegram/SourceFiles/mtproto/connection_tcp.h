@@ -33,8 +33,7 @@ class AbstractTCPConnection : public AbstractConnection {
 public:
 
 	AbstractTCPConnection(QThread *thread);
-	virtual ~AbstractTCPConnection() = 0 {
-	}
+	virtual ~AbstractTCPConnection() = 0;
 
 public slots:
 

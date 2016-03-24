@@ -293,8 +293,7 @@ public:
 		return !_chatListLinks.isEmpty();
 	}
 	int32 posInChatList() const {
-		t_assert(inChatList());
-		return _chatListLinks[0]->pos;
+		return mainChatListLink()->pos;
 	}
 	DialogRow *addToChatList(DialogsIndexed &indexed);
 	void removeFromChatList(DialogsIndexed &indexed);
@@ -488,6 +487,11 @@ private:
 	Flags _flags;
 
 	ChatListLinksMap _chatListLinks;
+	DialogRow *mainChatListLink() const {
+		auto it = _chatListLinks.constFind(0);
+		t_assert(it != _chatListLinks.cend());
+		return it.value();
+	}
 	uint64 _sortKeyInChatList; // like ((unixtime) << 32) | (incremented counter)
 
 	typedef QMap<MsgId, NullType> MediaOverviewIds;

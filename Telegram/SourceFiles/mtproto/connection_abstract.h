@@ -35,8 +35,7 @@ public:
 	}
 	AbstractConnection(const AbstractConnection &other) = delete;
 	AbstractConnection &operator=(const AbstractConnection &other) = delete;
-	virtual ~AbstractConnection() = 0 {
-	}
+	virtual ~AbstractConnection() = 0;
 
 	// virtual constructor
 	static AbstractConnection *create(QThread *thread);

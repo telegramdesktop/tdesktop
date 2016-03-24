@@ -173,7 +173,7 @@ private:
 	bool _needSessionReset;
 	void resetSession();
 
-	uint32 dc;
+	ShiftedDcId dc;
 	Connection *_owner;
 	AbstractConnection *_conn, *_conn4, *_conn6;
 

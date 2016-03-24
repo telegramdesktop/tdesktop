@@ -945,7 +945,7 @@ struct MTPStringLogger {
 		char *b = new char[newsize];
 		memcpy(b, p, size);
 		alloced = newsize;
-		delete p;
+		delete[] p;
 		p = b;
 	}
 	char *p;
