@@ -849,22 +849,31 @@
     <ClCompile Include="GeneratedFiles\Release\moc_pspecific_winrt.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\mtproto\rsa_public_key.cpp">
-      <Filter>mtproto</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_facade.cpp">
+    <ClCompile Include="GeneratedFiles\Deploy\moc_connection_tcp.cpp">
       <Filter>Generated Files\Deploy</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_facade.cpp">
+    <ClCompile Include="SourceFiles\mtproto\connection_tcp.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_connection_tcp.cpp">
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_facade.cpp">
+    <ClCompile Include="GeneratedFiles\Release\moc_connection_tcp.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\mtproto\facade.cpp">
+    <ClCompile Include="GeneratedFiles\Deploy\moc_connection_http.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\connection_http.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\connection_auto.cpp">
       <Filter>mtproto</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\mtproto\auth_key.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\connection.cpp">
       <Filter>mtproto</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_connection.cpp">
@@ -876,10 +885,10 @@
     <ClCompile Include="GeneratedFiles\Release\moc_connection.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\mtproto\connection.cpp">
+    <ClCompile Include="SourceFiles\mtproto\core_types.cpp">
       <Filter>mtproto</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\mtproto\core_types.cpp">
+    <ClCompile Include="SourceFiles\mtproto\dcenter.cpp">
       <Filter>mtproto</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_dcenter.cpp">
@@ -891,7 +900,19 @@
     <ClCompile Include="GeneratedFiles\Release\moc_dcenter.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\mtproto\dcenter.cpp">
+    <ClCompile Include="SourceFiles\mtproto\facade.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_facade.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_facade.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_facade.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\file_download.cpp">
       <Filter>mtproto</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_file_download.cpp">
@@ -903,13 +924,16 @@
     <ClCompile Include="GeneratedFiles\Release\moc_file_download.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\mtproto\file_download.cpp">
-      <Filter>mtproto</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\mtproto\rpc_sender.cpp">
       <Filter>mtproto</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\rsa_public_key.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
     <ClCompile Include="SourceFiles\mtproto\scheme_auto.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\session.cpp">
       <Filter>mtproto</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_session.cpp">
@@ -921,8 +945,32 @@
     <ClCompile Include="GeneratedFiles\Release\moc_session.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\mtproto\session.cpp">
+    <ClCompile Include="SourceFiles\mtproto\connection_abstract.cpp">
       <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_connection_abstract.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_connection_abstract.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_connection_abstract.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_connection_http.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_connection_http.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_connection_auto.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_connection_auto.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_connection_auto.cpp">
+      <Filter>Generated Files\Release</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1007,9 +1055,6 @@
     <ClInclude Include="SourceFiles\intro\introstart.h">
       <Filter>intro</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\mtproto\rsa_public_key.h">
-      <Filter>mtproto</Filter>
-    </ClInclude>
     <ClInclude Include="SourceFiles\mtproto\auth_key.h">
       <Filter>mtproto</Filter>
     </ClInclude>
@@ -1017,6 +1062,9 @@
       <Filter>mtproto</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\mtproto\rpc_sender.h">
+      <Filter>mtproto</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\mtproto\rsa_public_key.h">
       <Filter>mtproto</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\mtproto\scheme_auto.h">
@@ -1234,7 +1282,10 @@
     <CustomBuild Include="SourceFiles\pspecific_winrt.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
-    <CustomBuild Include="SourceFiles\mtproto\facade.h">
+    <CustomBuild Include="SourceFiles\mtproto\connection_tcp.h">
+      <Filter>mtproto</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\mtproto\connection_http.h">
       <Filter>mtproto</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\mtproto\connection.h">
@@ -1243,10 +1294,19 @@
     <CustomBuild Include="SourceFiles\mtproto\dcenter.h">
       <Filter>mtproto</Filter>
     </CustomBuild>
+    <CustomBuild Include="SourceFiles\mtproto\facade.h">
+      <Filter>mtproto</Filter>
+    </CustomBuild>
     <CustomBuild Include="SourceFiles\mtproto\file_download.h">
       <Filter>mtproto</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\mtproto\session.h">
+      <Filter>mtproto</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\mtproto\connection_abstract.h">
+      <Filter>mtproto</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\mtproto\connection_auto.h">
       <Filter>mtproto</Filter>
     </CustomBuild>
   </ItemGroup>
@@ -1286,6 +1346,12 @@
     </None>
     <None Include="Telegram.pro">
       <Filter>Version</Filter>
+    </None>
+    <None Include="SourceFiles\mtproto\generate.py">
+      <Filter>mtproto</Filter>
+    </None>
+    <None Include="SourceFiles\mtproto\scheme.tl">
+      <Filter>mtproto</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
