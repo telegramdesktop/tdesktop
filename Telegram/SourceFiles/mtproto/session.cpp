@@ -96,7 +96,7 @@ Session::Session(int32 dcenter) : QObject()
 
 	connect(&sender, SIGNAL(timeout()), this, SLOT(needToResumeAndSend()));
 
-	MTProtoDCMap &dcs(mtpDCMap());
+	DcenterMap &dcs(DCMap());
 
 	_connection = new Connection();
 	dcWithShift = _connection->start(&data, dcenter);
@@ -109,16 +109,16 @@ Session::Session(int32 dcenter) : QObject()
 	if (!dc) {
 		dcenter = dcWithShift;
 		int32 dcId = bareDcId(dcWithShift);
-		MTProtoDCMap::const_iterator dcIndex = dcs.constFind(dcId);
+		auto dcIndex = dcs.constFind(dcId);
 		if (dcIndex == dcs.cend()) {
-			dc = MTProtoDCPtr(new MTProtoDC(dcId, mtpAuthKeyPtr()));
+			dc = DcenterPtr(new Dcenter(dcId, AuthKeyPtr()));
 			dcs.insert(dcId, dc);
 		} else {
 			dc = dcIndex.value();
 		}
 
 		ReadLockerAttempt lock(keyMutex());
-		data.setKey(lock ? dc->getKey() : mtpAuthKeyPtr(0));
+		data.setKey(lock ? dc->getKey() : AuthKeyPtr());
 		if (lock && dc->connectionInited()) {
 			data.setLayerWasInited(true);
 		}
@@ -197,7 +197,7 @@ void Session::needToResumeAndSend() {
 	}
 	if (!_connection) {
 		DEBUG_LOG(("Session Info: resuming session dcWithShift %1").arg(dcWithShift));
-		MTProtoDCMap &dcs(mtpDCMap());
+		DcenterMap &dcs(DCMap());
 
 		_connection = new Connection();
 		if (!_connection->start(&data, dcWithShift)) {
@@ -466,7 +466,7 @@ void Session::authKeyCreatedForDC() {
 	emit authKeyCreated();
 }
 
-void Session::notifyKeyCreated(const mtpAuthKeyPtr &key) {
+void Session::notifyKeyCreated(const AuthKeyPtr &key) {
 	DEBUG_LOG(("AuthKey Info: MTProtoSession::keyCreated(), setting, dcWithShift %1").arg(dcWithShift));
 	dc->setKey(key);
 }
@@ -490,7 +490,7 @@ void Session::destroyKey() {
 		if (data.getKey() == dc->getKey()) {
 			dc->destroyKey();
 		}
-		data.setKey(mtpAuthKeyPtr(0));
+		data.setKey(AuthKeyPtr());
 	}
 }
 

@@ -160,8 +160,8 @@ namespace {
 
 	QByteArray _settingsSalt, _passKeySalt, _passKeyEncrypted;
 
-	mtpAuthKey _oldKey, _settingsKey, _passKey, _localKey;
-	void createLocalKey(const QByteArray &pass, QByteArray *salt, mtpAuthKey *result) {
+	MTP::AuthKey _oldKey, _settingsKey, _passKey, _localKey;
+	void createLocalKey(const QByteArray &pass, QByteArray *salt, MTP::AuthKey *result) {
 		uchar key[LocalEncryptKeySize] = { 0 };
 		int32 iterCount = pass.size() ? LocalEncryptIterCount : LocalEncryptNoPwdIterCount; // dont slow down for no password
 		QByteArray newSalt;
@@ -282,7 +282,7 @@ namespace {
 
 			return true;
 		}
-		static QByteArray prepareEncrypted(EncryptedDescriptor &data, const mtpAuthKey &key = _localKey) {
+		static QByteArray prepareEncrypted(EncryptedDescriptor &data, const MTP::AuthKey &key = _localKey) {
 			data.finish();
 			QByteArray &toEncrypt(data.data);
 
@@ -296,11 +296,11 @@ namespace {
 			*(uint32*)toEncrypt.data() = size;
 			QByteArray encrypted(0x10 + fullSize, Qt::Uninitialized); // 128bit of sha1 - key128, sizeof(data), data
 			hashSha1(toEncrypt.constData(), toEncrypt.size(), encrypted.data());
-			aesEncryptLocal(toEncrypt.constData(), encrypted.data() + 0x10, fullSize, &key, encrypted.constData());
+			MTP::aesEncryptLocal(toEncrypt.constData(), encrypted.data() + 0x10, fullSize, &key, encrypted.constData());
 
 			return encrypted;
 		}
-		bool writeEncrypted(EncryptedDescriptor &data, const mtpAuthKey &key = _localKey) {
+		bool writeEncrypted(EncryptedDescriptor &data, const MTP::AuthKey &key = _localKey) {
 			return writeData(prepareEncrypted(data, key));
 		}
 		void finish() {
@@ -468,7 +468,7 @@ namespace {
 		return false;
 	}
 
-	bool decryptLocal(EncryptedDescriptor &result, const QByteArray &encrypted, const mtpAuthKey &key = _localKey) {
+	bool decryptLocal(EncryptedDescriptor &result, const QByteArray &encrypted, const MTP::AuthKey &key = _localKey) {
 		if (encrypted.size() <= 16 || (encrypted.size() & 0x0F)) {
 			LOG(("App Error: bad encrypted part size: %1").arg(encrypted.size()));
 			return false;
@@ -504,7 +504,7 @@ namespace {
 		return true;
 	}
 
-	bool readEncryptedFile(FileReadDescriptor &result, const QString &name, int options = UserPath | SafePath, const mtpAuthKey &key = _localKey) {
+	bool readEncryptedFile(FileReadDescriptor &result, const QString &name, int options = UserPath | SafePath, const MTP::AuthKey &key = _localKey) {
 		if (!readFile(result, name, options)) {
 			return false;
 		}
@@ -534,7 +534,7 @@ namespace {
 		return true;
 	}
 
-	bool readEncryptedFile(FileReadDescriptor &result, const FileKey &fkey, int options = UserPath | SafePath, const mtpAuthKey &key = _localKey) {
+	bool readEncryptedFile(FileReadDescriptor &result, const FileKey &fkey, int options = UserPath | SafePath, const MTP::AuthKey &key = _localKey) {
 		return readEncryptedFile(result, toFilePart(fkey), options, key);
 	}
 
@@ -932,7 +932,7 @@ namespace {
 
 			DEBUG_LOG(("MTP Info: key found, dc %1, key: %2").arg(dcId).arg(Logs::mb(key, 256).str()));
 			dcId = MTP::bareDcId(dcId);
-			mtpAuthKeyPtr keyPtr(new mtpAuthKey());
+			MTP::AuthKeyPtr keyPtr(new MTP::AuthKey());
 			keyPtr->setKey(key);
 			keyPtr->setDC(dcId);
 
@@ -1668,16 +1668,16 @@ namespace {
 			return;
 		}
 
-		mtpKeysMap keys = MTP::getKeys();
+		MTP::AuthKeysMap keys = MTP::getKeys();
 
 		quint32 size = sizeof(quint32) + sizeof(qint32) + sizeof(quint32);
 		size += keys.size() * (sizeof(quint32) + sizeof(quint32) + 256);
 
 		EncryptedDescriptor data(size);
 		data.stream << quint32(dbiUser) << qint32(MTP::authedId()) << quint32(MTP::maindc());
-		for (mtpKeysMap::const_iterator i = keys.cbegin(), e = keys.cend(); i != e; ++i) {
-			data.stream << quint32(dbiKey) << quint32((*i)->getDC());
-			(*i)->write(data.stream);
+		for_const (const MTP::AuthKeyPtr &key, keys) {
+			data.stream << quint32(dbiKey) << quint32(key->getDC());
+			key->write(data.stream);
 		}
 
 		mtp.writeEncrypted(data, _localKey);
@@ -2291,7 +2291,7 @@ namespace Local {
 	}
 
 	bool checkPasscode(const QByteArray &passcode) {
-		mtpAuthKey tmp;
+		MTP::AuthKey tmp;
 		createLocalKey(passcode, &_passKeySalt, &tmp);
 		return (tmp == _passKey);
 	}

@@ -73,10 +73,10 @@ public:
 		return _salt;
 	}
 
-	const mtpAuthKeyPtr &getKey() const {
+	const AuthKeyPtr &getKey() const {
 		return _authKey;
 	}
-	void setKey(const mtpAuthKeyPtr &key) {
+	void setKey(const AuthKeyPtr &key) {
 		if (_authKey != key) {
 			uint64 session = rand_value<uint64>();
 			_authKey = key;
@@ -200,7 +200,7 @@ private:
 
 	Session *_owner;
 
-	mtpAuthKeyPtr _authKey;
+	AuthKeyPtr _authKey;
 	bool _keyChecked, _layerInited;
 
 	mtpPreRequestMap toSend; // map of request_id -> request, that is waiting to be sent
@@ -240,7 +240,7 @@ public:
 	~Session();
 
 	QReadWriteLock *keyMutex() const;
-	void notifyKeyCreated(const mtpAuthKeyPtr &key);
+	void notifyKeyCreated(const AuthKeyPtr &key);
 	void destroyKey();
 	void notifyLayerInited(bool wasInited);
 
@@ -292,7 +292,7 @@ private:
 	SessionData data;
 
 	int32 dcWithShift;
-	MTProtoDCPtr dc;
+	DcenterPtr dc;
 
 	uint64 msSendCall, msWait;
 

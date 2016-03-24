@@ -22,6 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "mtproto/core_types.h"
 
+#include "zlib.h"
+
 #include "lang.h"
 
 QString mtpWrapNumber(float64 number) {

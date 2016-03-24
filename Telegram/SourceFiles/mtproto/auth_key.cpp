@@ -24,22 +24,36 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include <openssl/aes.h>
 
-void aesEncrypt(const void *src, void *dst, uint32 len, void *key, void *iv) {
+namespace MTP {
+
+void aesIgeEncrypt(const void *src, void *dst, uint32 len, const void *key, const void *iv) {
 	uchar aes_key[32], aes_iv[32];
 	memcpy(aes_key, key, 32);
 	memcpy(aes_iv, iv, 32);
 
 	AES_KEY aes;
 	AES_set_encrypt_key(aes_key, 256, &aes);
-	AES_ige_encrypt((const uchar*)src, (uchar*)dst, len, &aes, aes_iv, AES_ENCRYPT);
+	AES_ige_encrypt(static_cast<const uchar*>(src), static_cast<uchar*>(dst), len, &aes, aes_iv, AES_ENCRYPT);
 }
 
-void aesDecrypt(const void *src, void *dst, uint32 len, void *key, void *iv) {
+void aesIgeDecrypt(const void *src, void *dst, uint32 len, const void *key, const void *iv) {
 	uchar aes_key[32], aes_iv[32];
 	memcpy(aes_key, key, 32);
 	memcpy(aes_iv, iv, 32);
 
 	AES_KEY aes;
 	AES_set_decrypt_key(aes_key, 256, &aes);
-	AES_ige_encrypt((const uchar*)src, (uchar*)dst, len, &aes, aes_iv, AES_DECRYPT);
+	AES_ige_encrypt(static_cast<const uchar*>(src), static_cast<uchar*>(dst), len, &aes, aes_iv, AES_DECRYPT);
 }
+
+void aesCtrEncrypt(void *data, uint32 len, const void *key, CTRState *state) {
+	AES_KEY aes;
+	AES_set_encrypt_key(static_cast<const uchar*>(key), 256, &aes);
+
+	static_assert(CTRState::IvecSize == AES_BLOCK_SIZE, "Wrong size of ctr ivec!");
+	static_assert(CTRState::EcountSize == AES_BLOCK_SIZE, "Wrong size of ctr ecount!");
+
+	AES_ctr128_encrypt(static_cast<const uchar*>(data), static_cast<uchar*>(data), len, &aes, state->ivec, state->ecount, &state->num);
+}
+
+} // namespace MTP

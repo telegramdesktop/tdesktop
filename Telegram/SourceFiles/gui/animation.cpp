@@ -22,6 +22,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "animation.h"
 
+extern "C" {
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/opt.h>
+#include <libswscale/swscale.h>
+}
+
 #include "mainwidget.h"
 #include "window.h"
 

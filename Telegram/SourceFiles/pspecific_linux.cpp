@@ -33,12 +33,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include <iostream>
 
-#undef signals
 extern "C" {
-    #include <libappindicator/app-indicator.h>
-    #include <gtk/gtk.h>
-}
+#undef signals
+#include <libappindicator/app-indicator.h>
+#include <gtk/gtk.h>
 #define signals public
+} // extern "C"
 
 #include <unity/unity/unity.h>
 

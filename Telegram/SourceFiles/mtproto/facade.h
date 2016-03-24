@@ -192,8 +192,8 @@ void clearGlobalHandlers();
 
 void updateDcOptions(const QVector<MTPDcOption> &options);
 
-mtpKeysMap getKeys();
-void setKey(int32 dc, mtpAuthKeyPtr key);
+AuthKeysMap getKeys();
+void setKey(int32 dc, AuthKeyPtr key);
 
 QReadWriteLock *dcOptionsMutex();
 

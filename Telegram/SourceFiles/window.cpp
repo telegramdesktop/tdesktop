@@ -19,14 +19,15 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "style.h"
-#include "lang.h"
-
-#include "shortcuts.h"
 
 #include "window.h"
-#include "application.h"
 
+#include "zip.h"
+
+#include "style.h"
+#include "lang.h"
+#include "shortcuts.h"
+#include "application.h"
 #include "pspecific.h"
 #include "title.h"
 #include "passcodewidget.h"
@@ -37,9 +38,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "boxes/contactsbox.h"
 #include "boxes/addcontactbox.h"
-
 #include "autoupdater.h"
-
 #include "mediaview.h"
 #include "localstorage.h"
 

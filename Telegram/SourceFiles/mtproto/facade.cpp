@@ -249,7 +249,7 @@ namespace {
 				}
 			}
 			int32 newdc = bareDcId(qAbs(dcWithShift));
-			if (!newdc || newdc == mtpMainDC() || !authedId()) {
+			if (!newdc || newdc == internal::mainDC() || !authedId()) {
 				if (!badGuestDC && globalHandler.onFail) (*globalHandler.onFail)(requestId, error); // auth failed in main dc
 				return false;
 			}
@@ -649,17 +649,17 @@ void start() {
 
     unixtimeInit();
 
-	MTProtoDCMap &dcs(mtpDCMap());
+	internal::DcenterMap &dcs(internal::DCMap());
 
 	_globalSlotCarrier = new internal::GlobalSlotCarrier();
 
-	mainSession = new internal::Session(mtpMainDC());
+	mainSession = new internal::Session(internal::mainDC());
 	sessions.insert(mainSession->getDcWithShift(), mainSession);
 
 	_started = true;
 
-	if (mtpNeedConfig()) {
-		mtpConfigLoader()->load();
+	if (internal::configNeeded()) {
+		internal::configLoader()->load();
 	}
 }
 
@@ -701,13 +701,13 @@ void unpause() {
 
 void configure(int32 dc, int32 user) {
 	if (_started) return;
-	mtpSetDC(dc);
-	mtpAuthed(user);
+	internal::setDC(dc);
+	internal::authed(user);
 }
 
 void setdc(int32 dc, bool fromZeroOnly) {
 	if (!dc || !_started) return;
-	mtpSetDC(dc, fromZeroOnly);
+	internal::setDC(dc, fromZeroOnly);
 	int32 oldMainDc = mainSession->getDcWithShift();
 	if (maindc() != oldMainDc) {
 		killSession(oldMainDc);
@@ -716,7 +716,7 @@ void setdc(int32 dc, bool fromZeroOnly) {
 }
 
 int32 maindc() {
-	return mtpMainDC();
+	return internal::mainDC();
 }
 
 int32 dcstate(int32 dc) {
@@ -789,7 +789,7 @@ void killSession(int32 dc) {
 		sessions.erase(i);
 
 		if (wasMain) {
-			mainSession = new internal::Session(mtpMainDC());
+			mainSession = new internal::Session(internal::mainDC());
 			int32 newdc = mainSession->getDcWithShift();
 			i = sessions.find(newdc);
 			if (i != sessions.cend()) {
@@ -846,22 +846,22 @@ void finish() {
 	delete _globalSlotCarrier;
 	_globalSlotCarrier = nullptr;
 
-	mtpDestroyConfigLoader();
+	internal::destroyConfigLoader();
 
 	_started = false;
 }
 
 void authed(int32 uid) {
-	mtpAuthed(uid);
+	internal::authed(uid);
 }
 
 int32 authedId() {
-	return mtpAuthed();
+	return internal::authed();
 }
 
 void logoutKeys(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail) {
 	mtpRequestId req = MTP::send(MTPauth_LogOut(), onDone, onFail);
-	mtpLogoutOtherDCs();
+	internal::logoutOtherDCs();
 }
 
 void setGlobalDoneHandler(RPCDoneHandlerPtr handler) {
@@ -888,20 +888,20 @@ void clearGlobalHandlers() {
 }
 
 void updateDcOptions(const QVector<MTPDcOption> &options) {
-	mtpUpdateDcOptions(options);
+	internal::updateDcOptions(options);
 	Local::writeSettings();
 }
 
-mtpKeysMap getKeys() {
-	return mtpGetKeys();
+AuthKeysMap getKeys() {
+	return internal::getAuthKeys();
 }
 
-void setKey(int32 dc, mtpAuthKeyPtr key) {
-	return mtpSetKey(dc, key);
+void setKey(int32 dc, AuthKeyPtr key) {
+	return internal::setAuthKey(dc, key);
 }
 
 QReadWriteLock *dcOptionsMutex() {
-	return mtpDcOptionsMutex();
+	return internal::dcOptionsMutex();
 }
 
 } // namespace MTP

@@ -25,6 +25,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <openssl/crypto.h>
 #include <openssl/sha.h>
 
+extern "C" {
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+}
+
 #include "application.h"
 
 uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };

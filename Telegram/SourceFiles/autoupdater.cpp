@@ -28,6 +28,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <openssl/bio.h>
 #include <openssl/err.h>
 
+#ifdef Q_OS_WIN // use Lzma SDK for win
+#include <LzmaLib.h>
+#else // Q_OS_WIN
+#include <lzma.h>
+#endif // else of Q_OS_WIN
+
 #include "application.h"
 #include "pspecific.h"
 

@@ -20,50 +20,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 
 #define NOMINMAX // no min() and max() macro declarations
-
-#ifdef TDESKTOP_WINRT
-
-#include <wrl.h>
-#include <wrl/client.h>
-
-#else // TDESKTOP_WINRT
-
 #define __HUGE
-#define PSAPI_VERSION 1 // fix WinXP
-
 #define __STDC_FORMAT_MACROS // fix breakpad for mac
 
-#endif // else of TDESKTOP_WINRT
-
 #ifdef __cplusplus
-
-#include <numeric>
 
 #include <QtCore/QtCore>
 #include <QtWidgets/QtWidgets>
 #include <QtNetwork/QtNetwork>
-
-#ifdef Q_OS_WIN // use Lzma SDK for win
-#include <LzmaLib.h>
-#else // Q_OS_WIN
-#include <lzma.h>
-#endif // else of Q_OS_WIN
-
-extern "C" {
-
-#endif
-
-#include "zip.h"
-
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/opt.h>
-#include <libswresample/swresample.h>
-#include <libswscale/swscale.h>
-
-#ifdef __cplusplus
-
-}
 
 #include "types.h"
 #include "config.h"
@@ -85,4 +49,4 @@ extern "C" {
 
 #include "app.h"
 
-#endif
+#endif // __cplusplus

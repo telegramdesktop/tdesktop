@@ -28,6 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <openssl/sha.h>
 #include <openssl/md5.h>
 #include <openssl/rand.h>
+#include "zlib.h"
 
 #include "mtproto/rsa_public_key.h"
 
@@ -438,7 +439,7 @@ ConnectionPrivate::ConnectionPrivate(QThread *thread, Connection *owner, Session
 	moveToThread(thread);
 
 	if (!dc) {
-		QReadLocker lock(mtpDcOptionsMutex());
+		QReadLocker lock(dcOptionsMutex());
 		const MTP::DcOptions &options(Global::DcOptions());
 		if (options.isEmpty()) {
 			LOG(("MTP Error: connect failed, no DCs"));
@@ -1042,7 +1043,7 @@ void ConnectionPrivate::retryByTimer() {
 	} else if (retryTimeout < 64000) {
 		retryTimeout *= 2;
 	}
-	if (keyId == mtpAuthKey::RecreateKeyId) {
+	if (keyId == AuthKey::RecreateKeyId) {
 		if (sessionData->getKey()) {
 			unlockKey();
 
@@ -1083,7 +1084,7 @@ void ConnectionPrivate::socketStart(bool afterConfig) {
 	string ip[2][2];
 	uint32 port[2][2] = { { 0 } };
 	{
-		QReadLocker lock(mtpDcOptionsMutex());
+		QReadLocker lock(dcOptionsMutex());
 		const MTP::DcOptions &options(Global::DcOptions());
 		int32 shifts[2][2][4] = {
 			{ // IPv4
@@ -1138,8 +1139,8 @@ void ConnectionPrivate::socketStart(bool afterConfig) {
 		}
 		if (noIPv4) DEBUG_LOG(("MTP Info: DC %1 options for IPv4 over HTTP not found, waiting for config").arg(dc));
 		if (cTryIPv6() && noIPv6) DEBUG_LOG(("MTP Info: DC %1 options for IPv6 over HTTP not found, waiting for config").arg(dc));
-		connect(mtpConfigLoader(), SIGNAL(loaded()), this, SLOT(onConfigLoaded()));
-		mtpConfigLoader()->load();
+		connect(configLoader(), SIGNAL(loaded()), this, SLOT(onConfigLoaded()));
+		configLoader()->load();
 		return;
 	}
 
@@ -1180,12 +1181,12 @@ void ConnectionPrivate::restart(bool mayBeBadKey) {
 	_waitForReceivedTimer.stop();
 	_waitForConnectedTimer.stop();
 
-	mtpAuthKeyPtr key(sessionData->getKey());
+	AuthKeyPtr key(sessionData->getKey());
 	if (key) {
 		if (!sessionData->isCheckedKey()) {
 			if (mayBeBadKey) {
 				clearMessages();
-				keyId = mtpAuthKey::RecreateKeyId;
+				keyId = AuthKey::RecreateKeyId;
 //				retryTimeout = 1; // no ddos please
 				LOG(("MTP Info: key may be bad and was not checked - but won't be destroyed, no log outs because of bad server right now.."));
 			}
@@ -1351,7 +1352,7 @@ void ConnectionPrivate::handleReceived() {
 		return restart();
 	}
 
-	mtpAuthKeyPtr key(sessionData->getKey());
+	AuthKeyPtr key(sessionData->getKey());
 	if (!key || key->keyId() != keyId) {
 		DEBUG_LOG(("MTP Error: auth_key id for dc %1 changed").arg(dc));
 
@@ -1383,7 +1384,7 @@ void ConnectionPrivate::handleReceived() {
 		const mtpPrime *from(msg), *end;
 		MTPint128 msgKey(*(MTPint128*)(encrypted + 2));
 
-		aesDecrypt(encrypted + 6, data, dataBuffer.size(), key, msgKey);
+		aesIgeDecrypt(encrypted + 6, data, dataBuffer.size(), key, msgKey);
 
 		uint64 serverSalt = *(uint64*)&data[0], session = *(uint64*)&data[2], msgId = *(uint64*)&data[4];
 		uint32 seqNo = *(uint32*)&data[6], msgLen = *(uint32*)&data[7];
@@ -2351,7 +2352,7 @@ void ConnectionPrivate::updateAuthKey() 	{
 			keyId = newKeyId;
 			return; // some other connection is getting key
 		}
-		const mtpAuthKeyPtr &key(sessionData->getKey());
+		const AuthKeyPtr &key(sessionData->getKey());
 		newKeyId = key ? key->keyId() : 0;
 	}
 	if (keyId != newKeyId) {
@@ -2366,7 +2367,7 @@ void ConnectionPrivate::updateAuthKey() 	{
 	DEBUG_LOG(("AuthKey Info: No key in updateAuthKey(), will be creating auth_key"));
 	lockKey();
 
-	const mtpAuthKeyPtr &key(sessionData->getKey());
+	const AuthKeyPtr &key(sessionData->getKey());
 	if (key) {
 		if (keyId != key->keyId()) clearMessages();
 		keyId = key->keyId();
@@ -2390,7 +2391,7 @@ void ConnectionPrivate::updateAuthKey() 	{
 }
 
 void ConnectionPrivate::clearMessages() {
-	if (keyId && keyId != mtpAuthKey::RecreateKeyId && _conn) {
+	if (keyId && keyId != AuthKey::RecreateKeyId && _conn) {
 		_conn->received().clear();
 	}
 }
@@ -2543,7 +2544,7 @@ void ConnectionPrivate::dhParamsAnswered() {
 		memcpy(authKeyData->aesIV + 8, sha1nn, 20);
 		memcpy(authKeyData->aesIV + 28, &authKeyData->new_nonce, 4);
 
-		aesDecrypt(&encDHStr[0], &decBuffer[0], encDHLen, authKeyData->aesKey, authKeyData->aesIV);
+		aesIgeDecrypt(&encDHStr[0], &decBuffer[0], encDHLen, authKeyData->aesKey, authKeyData->aesIV);
 
 		const mtpPrime *from(&decBuffer[5]), *to(from), *end(from + (encDHBufLen - 5));
 		MTPServer_DH_inner_data dh_inner(to, end);
@@ -2667,7 +2668,7 @@ void ConnectionPrivate::dhClientParamsSend() {
 
 	sdhEncString.resize(encFullSize * 4);
 
-	aesEncrypt(&encBuffer[0], &sdhEncString[0], encFullSize * sizeof(mtpPrime), authKeyData->aesKey, authKeyData->aesIV);
+	aesIgeEncrypt(&encBuffer[0], &sdhEncString[0], encFullSize * sizeof(mtpPrime), authKeyData->aesKey, authKeyData->aesIV);
 
 	connect(_conn, SIGNAL(receivedData()), this, SLOT(dhClientParamsAnswered()));
 
@@ -2718,7 +2719,7 @@ void ConnectionPrivate::dhClientParamsAnswered() {
 		uint64 salt1 = authKeyData->new_nonce.l.l, salt2 = authKeyData->server_nonce.l, serverSalt = salt1 ^ salt2;
 		sessionData->setSalt(serverSalt);
 
-		mtpAuthKeyPtr authKey(new mtpAuthKey());
+		AuthKeyPtr authKey(new AuthKey());
 		authKey->setKey(authKeyData->auth_key);
 		authKey->setDC(bareDcId(dc));
 
@@ -2946,7 +2947,7 @@ bool ConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResponse, Q
 		return false;
 	}
 
-	mtpAuthKeyPtr key(sessionData->getKey());
+	AuthKeyPtr key(sessionData->getKey());
 	if (!key || key->keyId() != keyId) {
 		DEBUG_LOG(("MTP Error: auth_key id for dc %1 changed").arg(dc));
 
@@ -2973,7 +2974,7 @@ bool ConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResponse, Q
 	*((uint64*)&result[2]) = keyId;
 	*((MTPint128*)&result[4]) = msgKey;
 
-	aesEncrypt(request->constData(), &result[8], fullSize * sizeof(mtpPrime), key, msgKey);
+	aesIgeEncrypt(request->constData(), &result[8], fullSize * sizeof(mtpPrime), key, msgKey);
 
 	DEBUG_LOG(("MTP Info: sending request, size: %1, num: %2, time: %3").arg(fullSize + 6).arg((*request)[4]).arg((*request)[5]));
 
@@ -3031,7 +3032,7 @@ void ConnectionPrivate::stop() {
 	QWriteLocker lockFinished(&sessionDataMutex);
 	if (sessionData) {
 		if (myKeyLock) {
-			sessionData->owner()->notifyKeyCreated(mtpAuthKeyPtr()); // release key lock, let someone else create it
+			sessionData->owner()->notifyKeyCreated(AuthKeyPtr()); // release key lock, let someone else create it
 			sessionData->keyMutex()->unlock();
 			myKeyLock = false;
 		}

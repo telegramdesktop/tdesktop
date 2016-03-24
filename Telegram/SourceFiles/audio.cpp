@@ -19,6 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
+
 #include "audio.h"
 
 #include <AL/al.h>
@@ -27,10 +28,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #define AL_ALEXT_PROTOTYPES
 #include <AL/alext.h>
 
-#ifdef Q_OS_MAC
-
 extern "C" {
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/opt.h>
+#include <libswresample/swresample.h>
 
+#ifdef Q_OS_MAC
 #include <iconv.h>
 
 #undef iconv_open
@@ -46,10 +50,9 @@ size_t iconv (iconv_t cd,  char* * inbuf, size_t *inbytesleft, char* * outbuf, s
 int iconv_close (iconv_t cd) {
 	return libiconv_close(cd);
 }
+#endif // Q_OS_MAC
 
-}
-
-#endif
+} // extern "C"
 
 namespace {
 	ALCdevice *audioDevice = 0;
