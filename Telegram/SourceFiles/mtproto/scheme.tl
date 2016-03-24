@@ -557,12 +557,16 @@ botCommand#c27ac8c7 command:string description:string = BotCommand;
 botInfo#98e81d3a user_id:int description:string commands:Vector<BotCommand> = BotInfo;
 
 keyboardButton#a2fa4880 text:string = KeyboardButton;
+keyboardButtonUrl#258aff05 text:string url:string = KeyboardButton;
+keyboardButtonCallback#2aae4183 text:string = KeyboardButton;
+keyboardButtonRequestPhone#b16a6c29 text:string = KeyboardButton;
+keyboardButtonRequestGeoLocation#fc796b3f text:string = KeyboardButton;
 
 keyboardButtonRow#77608b83 buttons:Vector<KeyboardButton> = KeyboardButtonRow;
 
 replyKeyboardHide#a03e5b85 flags:# selective:flags.2?true = ReplyMarkup;
 replyKeyboardForceReply#f4108aa0 flags:# single_use:flags.1?true selective:flags.2?true = ReplyMarkup;
-replyKeyboardMarkup#3502758c flags:# resize:flags.0?true single_use:flags.1?true selective:flags.2?true rows:Vector<KeyboardButtonRow> = ReplyMarkup;
+replyKeyboardMarkup#3502758c flags:# resize:flags.0?true single_use:flags.1?true selective:flags.2?true inline:flags.3?true rows:Vector<KeyboardButtonRow> = ReplyMarkup;
 
 help.appChangelogEmpty#af7e0394 = help.AppChangelog;
 help.appChangelog#4668e6bd text:string = help.AppChangelog;

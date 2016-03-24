@@ -398,6 +398,10 @@ enum {
 	mtpc_botCommand = 0xc27ac8c7,
 	mtpc_botInfo = 0x98e81d3a,
 	mtpc_keyboardButton = 0xa2fa4880,
+	mtpc_keyboardButtonUrl = 0x258aff05,
+	mtpc_keyboardButtonCallback = 0x2aae4183,
+	mtpc_keyboardButtonRequestPhone = 0xb16a6c29,
+	mtpc_keyboardButtonRequestGeoLocation = 0xfc796b3f,
 	mtpc_keyboardButtonRow = 0x77608b83,
 	mtpc_replyKeyboardHide = 0xa03e5b85,
 	mtpc_replyKeyboardForceReply = 0xf4108aa0,
@@ -1160,6 +1164,10 @@ class MTPDbotInfo;
 
 class MTPkeyboardButton;
 class MTPDkeyboardButton;
+class MTPDkeyboardButtonUrl;
+class MTPDkeyboardButtonCallback;
+class MTPDkeyboardButtonRequestPhone;
+class MTPDkeyboardButtonRequestGeoLocation;
 
 class MTPkeyboardButtonRow;
 class MTPDkeyboardButtonRow;
@@ -7614,32 +7622,90 @@ typedef MTPBoxed<MTPbotInfo> MTPBotInfo;
 
 class MTPkeyboardButton : private mtpDataOwner {
 public:
-	MTPkeyboardButton();
-	MTPkeyboardButton(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_keyboardButton) : mtpDataOwner(0) {
+	MTPkeyboardButton() : mtpDataOwner(0), _type(0) {
+	}
+	MTPkeyboardButton(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : mtpDataOwner(0), _type(0) {
 		read(from, end, cons);
 	}
 
 	MTPDkeyboardButton &_keyboardButton() {
 		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_keyboardButton) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButton);
 		split();
 		return *(MTPDkeyboardButton*)data;
 	}
 	const MTPDkeyboardButton &c_keyboardButton() const {
 		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_keyboardButton) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButton);
 		return *(const MTPDkeyboardButton*)data;
+	}
+
+	MTPDkeyboardButtonUrl &_keyboardButtonUrl() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_keyboardButtonUrl) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButtonUrl);
+		split();
+		return *(MTPDkeyboardButtonUrl*)data;
+	}
+	const MTPDkeyboardButtonUrl &c_keyboardButtonUrl() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_keyboardButtonUrl) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButtonUrl);
+		return *(const MTPDkeyboardButtonUrl*)data;
+	}
+
+	MTPDkeyboardButtonCallback &_keyboardButtonCallback() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_keyboardButtonCallback) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButtonCallback);
+		split();
+		return *(MTPDkeyboardButtonCallback*)data;
+	}
+	const MTPDkeyboardButtonCallback &c_keyboardButtonCallback() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_keyboardButtonCallback) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButtonCallback);
+		return *(const MTPDkeyboardButtonCallback*)data;
+	}
+
+	MTPDkeyboardButtonRequestPhone &_keyboardButtonRequestPhone() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_keyboardButtonRequestPhone) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButtonRequestPhone);
+		split();
+		return *(MTPDkeyboardButtonRequestPhone*)data;
+	}
+	const MTPDkeyboardButtonRequestPhone &c_keyboardButtonRequestPhone() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_keyboardButtonRequestPhone) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButtonRequestPhone);
+		return *(const MTPDkeyboardButtonRequestPhone*)data;
+	}
+
+	MTPDkeyboardButtonRequestGeoLocation &_keyboardButtonRequestGeoLocation() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_keyboardButtonRequestGeoLocation) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButtonRequestGeoLocation);
+		split();
+		return *(MTPDkeyboardButtonRequestGeoLocation*)data;
+	}
+	const MTPDkeyboardButtonRequestGeoLocation &c_keyboardButtonRequestGeoLocation() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_keyboardButtonRequestGeoLocation) throw mtpErrorWrongTypeId(_type, mtpc_keyboardButtonRequestGeoLocation);
+		return *(const MTPDkeyboardButtonRequestGeoLocation*)data;
 	}
 
 	uint32 innerLength() const;
 	mtpTypeId type() const;
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_keyboardButton);
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
 	void write(mtpBuffer &to) const;
 
 	typedef void ResponseType;
 
 private:
+	explicit MTPkeyboardButton(mtpTypeId type);
 	explicit MTPkeyboardButton(MTPDkeyboardButton *_data);
+	explicit MTPkeyboardButton(MTPDkeyboardButtonUrl *_data);
+	explicit MTPkeyboardButton(MTPDkeyboardButtonCallback *_data);
+	explicit MTPkeyboardButton(MTPDkeyboardButtonRequestPhone *_data);
+	explicit MTPkeyboardButton(MTPDkeyboardButtonRequestGeoLocation *_data);
 
 	friend class MTP::internal::TypeCreator;
+
+	mtpTypeId _type;
 };
 typedef MTPBoxed<MTPkeyboardButton> MTPKeyboardButton;
 
@@ -12503,6 +12569,47 @@ public:
 	MTPstring vtext;
 };
 
+class MTPDkeyboardButtonUrl : public mtpDataImpl<MTPDkeyboardButtonUrl> {
+public:
+	MTPDkeyboardButtonUrl() {
+	}
+	MTPDkeyboardButtonUrl(const MTPstring &_text, const MTPstring &_url) : vtext(_text), vurl(_url) {
+	}
+
+	MTPstring vtext;
+	MTPstring vurl;
+};
+
+class MTPDkeyboardButtonCallback : public mtpDataImpl<MTPDkeyboardButtonCallback> {
+public:
+	MTPDkeyboardButtonCallback() {
+	}
+	MTPDkeyboardButtonCallback(const MTPstring &_text) : vtext(_text) {
+	}
+
+	MTPstring vtext;
+};
+
+class MTPDkeyboardButtonRequestPhone : public mtpDataImpl<MTPDkeyboardButtonRequestPhone> {
+public:
+	MTPDkeyboardButtonRequestPhone() {
+	}
+	MTPDkeyboardButtonRequestPhone(const MTPstring &_text) : vtext(_text) {
+	}
+
+	MTPstring vtext;
+};
+
+class MTPDkeyboardButtonRequestGeoLocation : public mtpDataImpl<MTPDkeyboardButtonRequestGeoLocation> {
+public:
+	MTPDkeyboardButtonRequestGeoLocation() {
+	}
+	MTPDkeyboardButtonRequestGeoLocation(const MTPstring &_text) : vtext(_text) {
+	}
+
+	MTPstring vtext;
+};
+
 class MTPDkeyboardButtonRow : public mtpDataImpl<MTPDkeyboardButtonRow> {
 public:
 	MTPDkeyboardButtonRow() {
@@ -12561,8 +12668,9 @@ public:
 		f_resize = (1 << 0),
 		f_single_use = (1 << 1),
 		f_selective = (1 << 2),
+		f_inline = (1 << 3),
 
-		MAX_FIELD = (1 << 2),
+		MAX_FIELD = (1 << 3),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
 	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
@@ -12570,6 +12678,7 @@ public:
 	bool is_resize() const { return vflags.v & Flag::f_resize; }
 	bool is_single_use() const { return vflags.v & Flag::f_single_use; }
 	bool is_selective() const { return vflags.v & Flag::f_selective; }
+	bool is_inline() const { return vflags.v & Flag::f_inline; }
 
 	MTPDreplyKeyboardMarkup() {
 	}
@@ -21936,6 +22045,18 @@ public:
 	inline static MTPkeyboardButton new_keyboardButton(const MTPstring &_text) {
 		return MTPkeyboardButton(new MTPDkeyboardButton(_text));
 	}
+	inline static MTPkeyboardButton new_keyboardButtonUrl(const MTPstring &_text, const MTPstring &_url) {
+		return MTPkeyboardButton(new MTPDkeyboardButtonUrl(_text, _url));
+	}
+	inline static MTPkeyboardButton new_keyboardButtonCallback(const MTPstring &_text) {
+		return MTPkeyboardButton(new MTPDkeyboardButtonCallback(_text));
+	}
+	inline static MTPkeyboardButton new_keyboardButtonRequestPhone(const MTPstring &_text) {
+		return MTPkeyboardButton(new MTPDkeyboardButtonRequestPhone(_text));
+	}
+	inline static MTPkeyboardButton new_keyboardButtonRequestGeoLocation(const MTPstring &_text) {
+		return MTPkeyboardButton(new MTPDkeyboardButtonRequestGeoLocation(_text));
+	}
 	inline static MTPkeyboardButtonRow new_keyboardButtonRow(const MTPVector<MTPKeyboardButton> &_buttons) {
 		return MTPkeyboardButtonRow(new MTPDkeyboardButtonRow(_buttons));
 	}
@@ -30840,31 +30961,126 @@ inline MTPbotInfo MTP_botInfo(MTPint _user_id, const MTPstring &_description, co
 	return MTP::internal::TypeCreator::new_botInfo(_user_id, _description, _commands);
 }
 
-inline MTPkeyboardButton::MTPkeyboardButton() : mtpDataOwner(new MTPDkeyboardButton()) {
-}
-
 inline uint32 MTPkeyboardButton::innerLength() const {
-	const MTPDkeyboardButton &v(c_keyboardButton());
-	return v.vtext.innerLength();
+	switch (_type) {
+		case mtpc_keyboardButton: {
+			const MTPDkeyboardButton &v(c_keyboardButton());
+			return v.vtext.innerLength();
+		}
+		case mtpc_keyboardButtonUrl: {
+			const MTPDkeyboardButtonUrl &v(c_keyboardButtonUrl());
+			return v.vtext.innerLength() + v.vurl.innerLength();
+		}
+		case mtpc_keyboardButtonCallback: {
+			const MTPDkeyboardButtonCallback &v(c_keyboardButtonCallback());
+			return v.vtext.innerLength();
+		}
+		case mtpc_keyboardButtonRequestPhone: {
+			const MTPDkeyboardButtonRequestPhone &v(c_keyboardButtonRequestPhone());
+			return v.vtext.innerLength();
+		}
+		case mtpc_keyboardButtonRequestGeoLocation: {
+			const MTPDkeyboardButtonRequestGeoLocation &v(c_keyboardButtonRequestGeoLocation());
+			return v.vtext.innerLength();
+		}
+	}
+	return 0;
 }
 inline mtpTypeId MTPkeyboardButton::type() const {
-	return mtpc_keyboardButton;
+	if (!_type) throw mtpErrorUninitialized();
+	return _type;
 }
 inline void MTPkeyboardButton::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	if (cons != mtpc_keyboardButton) throw mtpErrorUnexpected(cons, "MTPkeyboardButton");
-
-	if (!data) setData(new MTPDkeyboardButton());
-	MTPDkeyboardButton &v(_keyboardButton());
-	v.vtext.read(from, end);
+	if (cons != _type) setData(0);
+	switch (cons) {
+		case mtpc_keyboardButton: _type = cons; {
+			if (!data) setData(new MTPDkeyboardButton());
+			MTPDkeyboardButton &v(_keyboardButton());
+			v.vtext.read(from, end);
+		} break;
+		case mtpc_keyboardButtonUrl: _type = cons; {
+			if (!data) setData(new MTPDkeyboardButtonUrl());
+			MTPDkeyboardButtonUrl &v(_keyboardButtonUrl());
+			v.vtext.read(from, end);
+			v.vurl.read(from, end);
+		} break;
+		case mtpc_keyboardButtonCallback: _type = cons; {
+			if (!data) setData(new MTPDkeyboardButtonCallback());
+			MTPDkeyboardButtonCallback &v(_keyboardButtonCallback());
+			v.vtext.read(from, end);
+		} break;
+		case mtpc_keyboardButtonRequestPhone: _type = cons; {
+			if (!data) setData(new MTPDkeyboardButtonRequestPhone());
+			MTPDkeyboardButtonRequestPhone &v(_keyboardButtonRequestPhone());
+			v.vtext.read(from, end);
+		} break;
+		case mtpc_keyboardButtonRequestGeoLocation: _type = cons; {
+			if (!data) setData(new MTPDkeyboardButtonRequestGeoLocation());
+			MTPDkeyboardButtonRequestGeoLocation &v(_keyboardButtonRequestGeoLocation());
+			v.vtext.read(from, end);
+		} break;
+		default: throw mtpErrorUnexpected(cons, "MTPkeyboardButton");
+	}
 }
 inline void MTPkeyboardButton::write(mtpBuffer &to) const {
-	const MTPDkeyboardButton &v(c_keyboardButton());
-	v.vtext.write(to);
+	switch (_type) {
+		case mtpc_keyboardButton: {
+			const MTPDkeyboardButton &v(c_keyboardButton());
+			v.vtext.write(to);
+		} break;
+		case mtpc_keyboardButtonUrl: {
+			const MTPDkeyboardButtonUrl &v(c_keyboardButtonUrl());
+			v.vtext.write(to);
+			v.vurl.write(to);
+		} break;
+		case mtpc_keyboardButtonCallback: {
+			const MTPDkeyboardButtonCallback &v(c_keyboardButtonCallback());
+			v.vtext.write(to);
+		} break;
+		case mtpc_keyboardButtonRequestPhone: {
+			const MTPDkeyboardButtonRequestPhone &v(c_keyboardButtonRequestPhone());
+			v.vtext.write(to);
+		} break;
+		case mtpc_keyboardButtonRequestGeoLocation: {
+			const MTPDkeyboardButtonRequestGeoLocation &v(c_keyboardButtonRequestGeoLocation());
+			v.vtext.write(to);
+		} break;
+	}
 }
-inline MTPkeyboardButton::MTPkeyboardButton(MTPDkeyboardButton *_data) : mtpDataOwner(_data) {
+inline MTPkeyboardButton::MTPkeyboardButton(mtpTypeId type) : mtpDataOwner(0), _type(type) {
+	switch (type) {
+		case mtpc_keyboardButton: setData(new MTPDkeyboardButton()); break;
+		case mtpc_keyboardButtonUrl: setData(new MTPDkeyboardButtonUrl()); break;
+		case mtpc_keyboardButtonCallback: setData(new MTPDkeyboardButtonCallback()); break;
+		case mtpc_keyboardButtonRequestPhone: setData(new MTPDkeyboardButtonRequestPhone()); break;
+		case mtpc_keyboardButtonRequestGeoLocation: setData(new MTPDkeyboardButtonRequestGeoLocation()); break;
+		default: throw mtpErrorBadTypeId(type, "MTPkeyboardButton");
+	}
+}
+inline MTPkeyboardButton::MTPkeyboardButton(MTPDkeyboardButton *_data) : mtpDataOwner(_data), _type(mtpc_keyboardButton) {
+}
+inline MTPkeyboardButton::MTPkeyboardButton(MTPDkeyboardButtonUrl *_data) : mtpDataOwner(_data), _type(mtpc_keyboardButtonUrl) {
+}
+inline MTPkeyboardButton::MTPkeyboardButton(MTPDkeyboardButtonCallback *_data) : mtpDataOwner(_data), _type(mtpc_keyboardButtonCallback) {
+}
+inline MTPkeyboardButton::MTPkeyboardButton(MTPDkeyboardButtonRequestPhone *_data) : mtpDataOwner(_data), _type(mtpc_keyboardButtonRequestPhone) {
+}
+inline MTPkeyboardButton::MTPkeyboardButton(MTPDkeyboardButtonRequestGeoLocation *_data) : mtpDataOwner(_data), _type(mtpc_keyboardButtonRequestGeoLocation) {
 }
 inline MTPkeyboardButton MTP_keyboardButton(const MTPstring &_text) {
 	return MTP::internal::TypeCreator::new_keyboardButton(_text);
+}
+inline MTPkeyboardButton MTP_keyboardButtonUrl(const MTPstring &_text, const MTPstring &_url) {
+	return MTP::internal::TypeCreator::new_keyboardButtonUrl(_text, _url);
+}
+inline MTPkeyboardButton MTP_keyboardButtonCallback(const MTPstring &_text) {
+	return MTP::internal::TypeCreator::new_keyboardButtonCallback(_text);
+}
+inline MTPkeyboardButton MTP_keyboardButtonRequestPhone(const MTPstring &_text) {
+	return MTP::internal::TypeCreator::new_keyboardButtonRequestPhone(_text);
+}
+inline MTPkeyboardButton MTP_keyboardButtonRequestGeoLocation(const MTPstring &_text) {
+	return MTP::internal::TypeCreator::new_keyboardButtonRequestGeoLocation(_text);
 }
 
 inline MTPkeyboardButtonRow::MTPkeyboardButtonRow() : mtpDataOwner(new MTPDkeyboardButtonRow()) {

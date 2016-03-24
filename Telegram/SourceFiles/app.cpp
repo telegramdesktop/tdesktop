@@ -2450,6 +2450,22 @@ namespace App {
 								case mtpc_keyboardButton: {
 									btns.push_back(qs(b.at(j).c_keyboardButton().vtext));
 								} break;
+
+								case mtpc_keyboardButtonCallback: {
+
+								} break;
+
+								case mtpc_keyboardButtonRequestGeoLocation: {
+
+								} break;
+
+								case mtpc_keyboardButtonRequestPhone: {
+
+								} break;
+
+								case mtpc_keyboardButtonUrl: {
+
+								} break;
 								}
 							}
 							if (!btns.isEmpty()) commands.push_back(btns);
