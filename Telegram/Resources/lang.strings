@@ -455,6 +455,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_shared_links" = "{count:_not_used_|# shared link|# shared links} »";
 "lng_profile_shared_links_header" = "Shared links overview";
 "lng_profile_copy_phone" = "Copy phone number";
+"lng_profile_copy_fullname" = "Copy name";
 
 "lng_channel_add_admins" = "New administrator";
 "lng_channel_add_members" = "Add members";
