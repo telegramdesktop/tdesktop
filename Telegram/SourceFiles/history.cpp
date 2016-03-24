@@ -2447,9 +2447,10 @@ void History::clearOnDestroy() {
 }
 
 QPair<int32, int32> History::adjustByPosInChatsList(DialogsIndexed &indexed) {
-	int32 movedFrom = _chatListLinks[0]->pos * st::dlgHeight;
+	DialogRow *lnk = mainChatListLink();
+	int32 movedFrom = lnk->pos * st::dlgHeight;
 	indexed.adjustByPos(_chatListLinks);
-	int32 movedTo = _chatListLinks[0]->pos * st::dlgHeight;
+	int32 movedTo = lnk->pos * st::dlgHeight;
 	return qMakePair(movedFrom, movedTo);
 }
 
@@ -2461,8 +2462,7 @@ DialogRow *History::addToChatList(DialogsIndexed &indexed) {
 			if (App::wnd()) App::wnd()->updateCounter();
 		}
 	}
-	t_assert(!_chatListLinks.isEmpty());
-	return _chatListLinks[0];
+	return mainChatListLink();
 }
 
 void History::removeFromChatList(DialogsIndexed &indexed) {
@@ -2493,7 +2493,7 @@ void History::addChatListEntryByLetter(QChar letter, DialogRow *row) {
 void History::updateChatListEntry() const {
 	if (MainWidget *m = App::main()) {
 		if (inChatList()) {
-			m->dlgUpdated(_chatListLinks[0]);
+			m->dlgUpdated(mainChatListLink());
 		}
 	}
 }

@@ -64,6 +64,17 @@
 		075FEBEC1C82336D0003ECA3 /* shortcuts.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 075FEBEA1C82336D0003ECA3 /* shortcuts.cpp */; };
 		0764D55A1ABAD6F900FBFEED /* apiwrap.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0764D5581ABAD6F900FBFEED /* apiwrap.cpp */; };
 		0764D55D1ABAD71B00FBFEED /* moc_apiwrap.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0764D55C1ABAD71B00FBFEED /* moc_apiwrap.cpp */; };
+		077A4AF71CA41C38002188D2 /* connection_abstract.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 077A4AEC1CA41C38002188D2 /* connection_abstract.cpp */; };
+		077A4AF81CA41C38002188D2 /* connection_auto.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 077A4AEE1CA41C38002188D2 /* connection_auto.cpp */; };
+		077A4AF91CA41C38002188D2 /* connection_http.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 077A4AF01CA41C38002188D2 /* connection_http.cpp */; };
+		077A4AFA1CA41C38002188D2 /* connection_tcp.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 077A4AF21CA41C38002188D2 /* connection_tcp.cpp */; };
+		077A4AFB1CA41C38002188D2 /* generate.py in Resources */ = {isa = PBXBuildFile; fileRef = 077A4AF41CA41C38002188D2 /* generate.py */; };
+		077A4AFC1CA41C38002188D2 /* rsa_public_key.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 077A4AF51CA41C38002188D2 /* rsa_public_key.cpp */; };
+		077A4AFD1CA41C38002188D2 /* scheme.tl in Resources */ = {isa = PBXBuildFile; fileRef = 077A4AF61CA41C38002188D2 /* scheme.tl */; };
+		077A4B031CA41EE2002188D2 /* moc_connection_abstract.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 077A4AFF1CA41EE2002188D2 /* moc_connection_abstract.cpp */; };
+		077A4B041CA41EE2002188D2 /* moc_connection_auto.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 077A4B001CA41EE2002188D2 /* moc_connection_auto.cpp */; };
+		077A4B051CA41EE2002188D2 /* moc_connection_http.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 077A4B011CA41EE2002188D2 /* moc_connection_http.cpp */; };
+		077A4B061CA41EE2002188D2 /* moc_connection_tcp.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 077A4B021CA41EE2002188D2 /* moc_connection_tcp.cpp */; };
 		078A2FCA1A811C5900CCC7A0 /* moc_backgroundbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078A2FC91A811C5900CCC7A0 /* moc_backgroundbox.cpp */; };
 		078A2FCD1A811CA600CCC7A0 /* backgroundbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078A2FCB1A811CA600CCC7A0 /* backgroundbox.cpp */; };
 		07A69332199277BA0099CB9F /* mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A69330199277BA0099CB9F /* mediaview.cpp */; };
@@ -312,6 +323,21 @@
 		0764D5591ABAD6F900FBFEED /* apiwrap.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = apiwrap.h; path = SourceFiles/apiwrap.h; sourceTree = SOURCE_ROOT; };
 		0764D55C1ABAD71B00FBFEED /* moc_apiwrap.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_apiwrap.cpp; path = GeneratedFiles/Debug/moc_apiwrap.cpp; sourceTree = SOURCE_ROOT; };
 		0771C4C94B623FC34BF62983 /* introwidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = introwidget.cpp; path = SourceFiles/intro/introwidget.cpp; sourceTree = "<absolute>"; };
+		077A4AEC1CA41C38002188D2 /* connection_abstract.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = connection_abstract.cpp; path = SourceFiles/mtproto/connection_abstract.cpp; sourceTree = SOURCE_ROOT; };
+		077A4AED1CA41C38002188D2 /* connection_abstract.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = connection_abstract.h; path = SourceFiles/mtproto/connection_abstract.h; sourceTree = SOURCE_ROOT; };
+		077A4AEE1CA41C38002188D2 /* connection_auto.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = connection_auto.cpp; path = SourceFiles/mtproto/connection_auto.cpp; sourceTree = SOURCE_ROOT; };
+		077A4AEF1CA41C38002188D2 /* connection_auto.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = connection_auto.h; path = SourceFiles/mtproto/connection_auto.h; sourceTree = SOURCE_ROOT; };
+		077A4AF01CA41C38002188D2 /* connection_http.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = connection_http.cpp; path = SourceFiles/mtproto/connection_http.cpp; sourceTree = SOURCE_ROOT; };
+		077A4AF11CA41C38002188D2 /* connection_http.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = connection_http.h; path = SourceFiles/mtproto/connection_http.h; sourceTree = SOURCE_ROOT; };
+		077A4AF21CA41C38002188D2 /* connection_tcp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = connection_tcp.cpp; path = SourceFiles/mtproto/connection_tcp.cpp; sourceTree = SOURCE_ROOT; };
+		077A4AF31CA41C38002188D2 /* connection_tcp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = connection_tcp.h; path = SourceFiles/mtproto/connection_tcp.h; sourceTree = SOURCE_ROOT; };
+		077A4AF41CA41C38002188D2 /* generate.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = generate.py; path = SourceFiles/mtproto/generate.py; sourceTree = SOURCE_ROOT; };
+		077A4AF51CA41C38002188D2 /* rsa_public_key.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = rsa_public_key.cpp; path = SourceFiles/mtproto/rsa_public_key.cpp; sourceTree = SOURCE_ROOT; };
+		077A4AF61CA41C38002188D2 /* scheme.tl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = scheme.tl; path = SourceFiles/mtproto/scheme.tl; sourceTree = SOURCE_ROOT; };
+		077A4AFF1CA41EE2002188D2 /* moc_connection_abstract.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_connection_abstract.cpp; path = GeneratedFiles/Debug/moc_connection_abstract.cpp; sourceTree = SOURCE_ROOT; };
+		077A4B001CA41EE2002188D2 /* moc_connection_auto.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_connection_auto.cpp; path = GeneratedFiles/Debug/moc_connection_auto.cpp; sourceTree = SOURCE_ROOT; };
+		077A4B011CA41EE2002188D2 /* moc_connection_http.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_connection_http.cpp; path = GeneratedFiles/Debug/moc_connection_http.cpp; sourceTree = SOURCE_ROOT; };
+		077A4B021CA41EE2002188D2 /* moc_connection_tcp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_connection_tcp.cpp; path = GeneratedFiles/Debug/moc_connection_tcp.cpp; sourceTree = SOURCE_ROOT; };
 		078A2FC91A811C5900CCC7A0 /* moc_backgroundbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_backgroundbox.cpp; path = GeneratedFiles/Debug/moc_backgroundbox.cpp; sourceTree = SOURCE_ROOT; };
 		078A2FCB1A811CA600CCC7A0 /* backgroundbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = backgroundbox.cpp; path = SourceFiles/boxes/backgroundbox.cpp; sourceTree = SOURCE_ROOT; };
 		078A2FCC1A811CA600CCC7A0 /* backgroundbox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = backgroundbox.h; path = SourceFiles/boxes/backgroundbox.h; sourceTree = SOURCE_ROOT; };
@@ -813,25 +839,36 @@
 		1A6AA22F4A758C4B5F5138FB /* mtproto */ = {
 			isa = PBXGroup;
 			children = (
-				6D50D70712776D7ED3B00E5C /* facade.cpp */,
 				07129D691C16D230002DC495 /* auth_key.cpp */,
-				B8D9AFA42E8633154A9817A2 /* connection.cpp */,
-				07D8509219F5C97E00623D75 /* core_types.cpp */,
-				315C7FACB4A9E18AA95486CA /* dcenter.cpp */,
-				01D6341DC31FE5997F7BB159 /* file_download.cpp */,
-				89F92B278CA31C393E245056 /* rpc_sender.cpp */,
-				07D8509319F5C97E00623D75 /* scheme_auto.cpp */,
-				0FBED3C6654EA3753EB39831 /* session.cpp */,
-				8880067F9BFD46108777E134 /* facade.h */,
 				748F1BCCBEEB3675768960FB /* auth_key.h */,
+				B8D9AFA42E8633154A9817A2 /* connection.cpp */,
 				963123025C466CB8DD9CF4AF /* connection.h */,
+				077A4AEC1CA41C38002188D2 /* connection_abstract.cpp */,
+				077A4AED1CA41C38002188D2 /* connection_abstract.h */,
+				077A4AEE1CA41C38002188D2 /* connection_auto.cpp */,
+				077A4AEF1CA41C38002188D2 /* connection_auto.h */,
+				077A4AF01CA41C38002188D2 /* connection_http.cpp */,
+				077A4AF11CA41C38002188D2 /* connection_http.h */,
+				077A4AF21CA41C38002188D2 /* connection_tcp.cpp */,
+				077A4AF31CA41C38002188D2 /* connection_tcp.h */,
+				07D8509219F5C97E00623D75 /* core_types.cpp */,
 				27E7471A4EC90E84353AA16F /* core_types.h */,
+				315C7FACB4A9E18AA95486CA /* dcenter.cpp */,
 				B3D42654F18B1FE49512C404 /* dcenter.h */,
+				6D50D70712776D7ED3B00E5C /* facade.cpp */,
+				8880067F9BFD46108777E134 /* facade.h */,
+				01D6341DC31FE5997F7BB159 /* file_download.cpp */,
 				96ACDDE3DCB798B97F9EA2F4 /* file_download.h */,
-				A3622760CEC6D6827A25E710 /* rsa_public_key.h */,
+				89F92B278CA31C393E245056 /* rpc_sender.cpp */,
 				FB61F72601D91BF3AC730D20 /* rpc_sender.h */,
+				077A4AF51CA41C38002188D2 /* rsa_public_key.cpp */,
+				A3622760CEC6D6827A25E710 /* rsa_public_key.h */,
+				07D8509319F5C97E00623D75 /* scheme_auto.cpp */,
 				7DBFC0B5EAF874BA10E3D603 /* scheme_auto.h */,
+				0FBED3C6654EA3753EB39831 /* session.cpp */,
 				4D1099F2D3696E8A0E17D37D /* session.h */,
+				077A4AF41CA41C38002188D2 /* generate.py */,
+				077A4AF61CA41C38002188D2 /* scheme.tl */,
 			);
 			name = mtproto;
 			sourceTree = "<Group>";
@@ -1142,6 +1179,10 @@
 		801973D3334D0FCA849CF485 /* Debug */ = {
 			isa = PBXGroup;
 			children = (
+				077A4AFF1CA41EE2002188D2 /* moc_connection_abstract.cpp */,
+				077A4B001CA41EE2002188D2 /* moc_connection_auto.cpp */,
+				077A4B011CA41EE2002188D2 /* moc_connection_http.cpp */,
+				077A4B021CA41EE2002188D2 /* moc_connection_tcp.cpp */,
 				07B604341B46A20900CA29FE /* moc_playerwidget.cpp */,
 				07C759711B1F7E2800662169 /* moc_autoupdater.cpp */,
 				0710CA041B0B9404001B4272 /* moc_stickersetbox.cpp */,
@@ -1427,9 +1468,11 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				077A4AFB1CA41C38002188D2 /* generate.py in Resources */,
 				0749CE69194D723400345D61 /* Images.xcassets in Resources */,
 				07AF95FA1AFD03C80060B057 /* telegram_mac.qrc in Resources */,
 				07D7EABA1A597DD000838BA2 /* Localizable.strings in Resources */,
+				077A4AFD1CA41C38002188D2 /* scheme.tl in Resources */,
 				07AF95F91AFD03C80060B057 /* telegram_emojis.qrc in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1536,6 +1579,7 @@
 				6E4DB0CBEF415196AFD4149F /* fileuploader.cpp in Compile Sources */,
 				700925F3B2C6163D38140CEA /* history.cpp in Compile Sources */,
 				0732E4A9199E262300D50FE7 /* overviewwidget.cpp in Compile Sources */,
+				077A4B041CA41EE2002188D2 /* moc_connection_auto.cpp in Compile Sources */,
 				1DF53374E3B6A31661548D08 /* historywidget.cpp in Compile Sources */,
 				078A2FCD1A811CA600CCC7A0 /* backgroundbox.cpp in Compile Sources */,
 				37A3C6C782A0E4BC7B09536B /* langloaderplain.cpp in Compile Sources */,
@@ -1545,9 +1589,11 @@
 				113AA97DEE7847C7D2DCFF71 /* logs.cpp in Compile Sources */,
 				E3194392BD6D0726F75FA72E /* mainwidget.cpp in Compile Sources */,
 				DF36EA42D67ED39E58CB7DF9 /* settings.cpp in Compile Sources */,
+				077A4B031CA41EE2002188D2 /* moc_connection_abstract.cpp in Compile Sources */,
 				B99CCE43EEFCD3E18F6D16D1 /* settingswidget.cpp in Compile Sources */,
 				B8DA82DA1B195A933A0805E7 /* sysbuttons.cpp in Compile Sources */,
 				5CE57D44510AB2A11886AB52 /* title.cpp in Compile Sources */,
+				077A4AF81CA41C38002188D2 /* connection_auto.cpp in Compile Sources */,
 				4078D5D614EB3ECF7F1848C7 /* types.cpp in Compile Sources */,
 				68FFEB7CA30BF0149161B809 /* window.cpp in Compile Sources */,
 				0CB7DE9A54CC9BF86FB7B5CA /* facade.cpp in Compile Sources */,
@@ -1580,6 +1626,7 @@
 				90085DF442550A0845D5AF37 /* style_core.cpp in Compile Sources */,
 				074FCB8E19D36851004C6EB2 /* popupmenu.cpp in Compile Sources */,
 				3AA6E7264581F82856FB37F7 /* text.cpp in Compile Sources */,
+				077A4B061CA41EE2002188D2 /* moc_connection_tcp.cpp in Compile Sources */,
 				FCE6518C548DF7BC82228A4A /* twidget.cpp in Compile Sources */,
 				071AD8D21C5E8E6D008C9E90 /* zip.c in Compile Sources */,
 				E9F1CE7F9B18C7C85A50E62D /* style_auto.cpp in Compile Sources */,
@@ -1608,9 +1655,11 @@
 				C1F9D5CA8AF3AD8EBC9D7310 /* moc_application.cpp in Compile Sources */,
 				D846C6F212B438DC2FD5FF71 /* moc_dialogswidget.cpp in Compile Sources */,
 				6C79FBC5CFA36AC3EA6ABBD4 /* moc_dropdown.cpp in Compile Sources */,
+				077A4AFA1CA41C38002188D2 /* connection_tcp.cpp in Compile Sources */,
 				822C2860FBFAF3EAE42C5A3F /* moc_fileuploader.cpp in Compile Sources */,
 				352349751855EF76DECA4D60 /* moc_historywidget.cpp in Compile Sources */,
 				4B0036C794BEA27AF9419768 /* moc_layerwidget.cpp in Compile Sources */,
+				077A4AF71CA41C38002188D2 /* connection_abstract.cpp in Compile Sources */,
 				C14E6C902F6435B3149ECD64 /* moc_profilewidget.cpp in Compile Sources */,
 				071AD8F81C5E99D6008C9E90 /* ioapi.c in Compile Sources */,
 				074756191A1372C600CA07F7 /* moc_types.cpp in Compile Sources */,
@@ -1632,6 +1681,7 @@
 				B780F9E21269259B90A1F32A /* moc_dcenter.cpp in Compile Sources */,
 				07080BCF1A43588C00741A51 /* lang_auto.cpp in Compile Sources */,
 				07539B1D1A1416AF00083EFC /* moc_history.cpp in Compile Sources */,
+				077A4AFC1CA41C38002188D2 /* rsa_public_key.cpp in Compile Sources */,
 				2A500B102B7CE80F3EB6E13E /* moc_file_download.cpp in Compile Sources */,
 				07A6933519927B160099CB9F /* moc_mediaview.cpp in Compile Sources */,
 				07A69332199277BA0099CB9F /* mediaview.cpp in Compile Sources */,
@@ -1653,6 +1703,7 @@
 				07DB674D1AD07C9200A51329 /* abstractbox.cpp in Compile Sources */,
 				3F6EB1F5B98E704960FEA686 /* moc_scrollarea.cpp in Compile Sources */,
 				60CB4898955209B665E7B07D /* moc_twidget.cpp in Compile Sources */,
+				077A4B051CA41EE2002188D2 /* moc_connection_http.cpp in Compile Sources */,
 				7062978F12EEA525893A5E6F /* moc_aboutbox.cpp in Compile Sources */,
 				E8B28580819B882A5964561A /* moc_addcontactbox.cpp in Compile Sources */,
 				07B604321B46A0EC00CA29FE /* playerwidget.cpp in Compile Sources */,
@@ -1661,6 +1712,7 @@
 				ED2557A57C6782721DC494AF /* moc_connectionbox.cpp in Compile Sources */,
 				5FC914F652D1B16FDA8F0634 /* moc_contactsbox.cpp in Compile Sources */,
 				074968D01A44D14C00394F46 /* languagebox.cpp in Compile Sources */,
+				077A4AF91CA41C38002188D2 /* connection_http.cpp in Compile Sources */,
 				07BE85121A20961F008ACB9F /* moc_localstorage.cpp in Compile Sources */,
 				07AF95F41AFD03B90060B057 /* qrc_telegram_emojis.cpp in Compile Sources */,
 				07C759721B1F7E2800662169 /* moc_autoupdater.cpp in Compile Sources */,

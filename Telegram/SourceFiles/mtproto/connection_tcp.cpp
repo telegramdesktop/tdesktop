@@ -49,6 +49,9 @@ AbstractTCPConnection::AbstractTCPConnection(QThread *thread) : AbstractConnecti
 , currentPos((char*)shortBuffer) {
 }
 
+AbstractTCPConnection::~AbstractTCPConnection() {
+}
+
 void AbstractTCPConnection::socketRead() {
 	if (sock.state() != QAbstractSocket::ConnectedState) {
 		LOG(("MTP error: socket not connected in socketRead(), state: %1").arg(sock.state()));

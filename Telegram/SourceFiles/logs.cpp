@@ -19,6 +19,9 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
+
+#include "logs.h"
+
 #include <signal.h>
 #include "pspecific.h"
 
@@ -34,6 +37,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #elif defined Q_OS_MAC // Q_OS_WIN
 
+#include <unistd.h>
 #ifdef MAC_USE_BREAKPAD
 #include "client/mac/handler/exception_handler.h"
 #else // MAC_USE_BREAKPAD
