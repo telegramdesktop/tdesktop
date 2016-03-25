@@ -6096,11 +6096,7 @@ void HistoryMessageReply::resize(int width) const {
 
 void HistoryMessageReply::itemRemoved(HistoryMessage *holder, HistoryItem *removed) {
 	if (replyToMsg == removed) {
-		delete _replyToVia;
-		_replyToVia = nullptr;
-
-		replyToMsg = nullptr;
-		replyToMsgId = 0;
+		clearData(holder);
 		holder->setPendingInitDimensions();
 	}
 }
