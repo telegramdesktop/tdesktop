@@ -88,7 +88,7 @@ public:
 
 	private:
 		IteratorImpl impl_;
-		friend class Self;
+		friend class OrderedSet<T>;
 
 	};
 	friend class iterator;
@@ -118,11 +118,11 @@ public:
 
 		friend class iterator;
 		inline bool operator==(const iterator &other) const { return impl_ == other.impl_; }
-		inline bool operator!=(const iterator &o) const { return impl_ != other.impl_; }
+		inline bool operator!=(const iterator &other) const { return impl_ != other.impl_; }
 
 	private:
 		ConstIteratorImpl impl_;
-		friend class Self;
+		friend class OrderedSet<T>;
 
 	};
 	friend class const_iterator;
