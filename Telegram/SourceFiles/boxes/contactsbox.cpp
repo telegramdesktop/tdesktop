@@ -1670,12 +1670,15 @@ void ContactsBox::getAdminsDone(const MTPmessages_ChatFull &result) {
 		}
 	}
 	_saveRequestId = 0;
-	for (ChatData::Admins::const_iterator i = curadmins.cbegin(), e = curadmins.cend(); i != e; ++i) {
-		MTP::send(MTPmessages_EditChatAdmin(_inner.chat()->inputChat, i.key()->inputUser, MTP_boolFalse()), rpcDone(&ContactsBox::removeAdminDone, i.key()), rpcFail(&ContactsBox::editAdminFail), 0, (appoint.isEmpty() && i + 1 == e) ? 0 : 10);
+
+	for_const (UserData *user, curadmins) {
+		MTP::send(MTPmessages_EditChatAdmin(_inner.chat()->inputChat, user->inputUser, MTP_boolFalse()), rpcDone(&ContactsBox::removeAdminDone, user), rpcFail(&ContactsBox::editAdminFail), 0, 10);
 	}
-	for (int32 i = 0, l = appoint.size(); i < l; ++i) {
-		MTP::send(MTPmessages_EditChatAdmin(_inner.chat()->inputChat, appoint.at(i)->inputUser, MTP_boolTrue()), rpcDone(&ContactsBox::setAdminDone, appoint.at(i)), rpcFail(&ContactsBox::editAdminFail), 0, (i + 1 == l) ? 0 : 10);
+	for_const (UserData *user, appoint) {
+		MTP::send(MTPmessages_EditChatAdmin(_inner.chat()->inputChat, user->inputUser, MTP_boolTrue()), rpcDone(&ContactsBox::setAdminDone, user), rpcFail(&ContactsBox::editAdminFail), 0, 10);
 	}
+	MTP::sendAnything();
+
 	_saveRequestId = curadmins.size() + appoint.size();
 	if (!_saveRequestId) {
 		onClose();

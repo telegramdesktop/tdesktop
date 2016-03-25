@@ -216,8 +216,8 @@ namespace Notify {
 		if (MainWidget *m = App::main()) {
 			m->notify_handlePendingHistoryUpdate();
 		}
-		for (auto i = Global::PendingRepaintItems().cbegin(), e = Global::PendingRepaintItems().cend(); i != e; ++i) {
-			Ui::repaintHistoryItem(i.key());
+		for_const (HistoryItem *item, Global::PendingRepaintItems()) {
+			Ui::repaintHistoryItem(item);
 		}
 		Global::RefPendingRepaintItems().clear();
 	}

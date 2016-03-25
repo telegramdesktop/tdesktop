@@ -269,11 +269,11 @@ void ConfigLoader::enumDC() {
 			dcs.insert(MTP::bareDcId(i.key()));
 		}
 	}
-	OrderedSet<int32>::const_iterator i = dcs.constFind(_enumCurrent);
+	auto i = dcs.constFind(_enumCurrent);
 	if (i == dcs.cend() || (++i) == dcs.cend()) {
-		_enumCurrent = dcs.cbegin().key();
+		_enumCurrent = *dcs.cbegin();
 	} else {
-		_enumCurrent = i.key();
+		_enumCurrent = *i;
 	}
 	_enumRequest = MTP::send(MTPhelp_GetConfig(), rpcDone(configLoaded), rpcFail(configFailed), MTP::cfgDcId(_enumCurrent));
 

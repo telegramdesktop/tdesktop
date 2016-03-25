@@ -837,9 +837,9 @@ void finish() {
 	sessions.clear();
 	mainSession = nullptr;
 
-	for (MTPQuittingConnections::const_iterator i = quittingConnections.cbegin(), e = quittingConnections.cend(); i != e; ++i) {
-		i.key()->waitTillFinish();
-		delete i.key();
+	for_const (internal::Connection *connection, quittingConnections) {
+		connection->waitTillFinish();
+		delete connection;
 	}
 	quittingConnections.clear();
 

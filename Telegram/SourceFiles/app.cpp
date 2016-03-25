@@ -1794,17 +1794,17 @@ namespace App {
 		MsgsData *data = fetchMsgsData(item->channelId(), false);
 		if (!data) return;
 
-		MsgsData::iterator i = data->find(item->id);
+		auto i = data->find(item->id);
 		if (i != data->cend()) {
 			if (i.value() == item) {
 				data->erase(i);
 			}
 		}
 		historyItemDetached(item);
-		DependentItems::iterator j = ::dependentItems.find(item);
+		auto j = ::dependentItems.find(item);
 		if (j != ::dependentItems.cend()) {
-			for (OrderedSet<HistoryItem*>::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
-				k.key()->dependencyItemRemoved(item);
+			for_const (HistoryItem *dependent, j.value()) {
+				dependent->dependencyItemRemoved(item);
 			}
 			::dependentItems.erase(j);
 		}
@@ -1816,8 +1816,8 @@ namespace App {
 	void historyUpdateDependent(HistoryItem *item) {
 		DependentItems::iterator j = ::dependentItems.find(item);
 		if (j != ::dependentItems.cend()) {
-			for (OrderedSet<HistoryItem*>::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
-				k.key()->updateDependencyItem();
+			for_const (HistoryItem *dependent, j.value()) {
+				dependent->updateDependencyItem();
 			}
 		}
 		if (App::main()) {
@@ -1829,15 +1829,15 @@ namespace App {
 		::dependentItems.clear();
 
 		QVector<HistoryItem*> toDelete;
-		for (MsgsData::const_iterator i = msgsData.cbegin(), e = msgsData.cend(); i != e; ++i) {
-			if ((*i)->detached()) {
-				toDelete.push_back(*i);
+		for_const (HistoryItem *item, msgsData) {
+			if (item->detached()) {
+				toDelete.push_back(item);
 			}
 		}
-		for (ChannelMsgsData::const_iterator j = channelMsgsData.cbegin(), end = channelMsgsData.cend(); j != end; ++j) {
-			for (MsgsData::const_iterator i = j->cbegin(), e = j->cend(); i != e; ++i) {
-				if ((*i)->detached()) {
-					toDelete.push_back(*i);
+		for_const (const MsgsData &chMsgsData, channelMsgsData) {
+			for_const (HistoryItem *item, chMsgsData) {
+				if (item->detached()) {
+					toDelete.push_back(item);
 				}
 			}
 		}
