@@ -117,6 +117,10 @@ SOURCES += \
     ./SourceFiles/mtproto/facade.cpp \
     ./SourceFiles/mtproto/auth_key.cpp \
     ./SourceFiles/mtproto/connection.cpp \
+    ./SourceFiles/mtproto/connection_abstract.cpp \
+    ./SourceFiles/mtproto/connection_auto.cpp \
+    ./SourceFiles/mtproto/connection_http.cpp \
+    ./SourceFiles/mtproto/connection_tcp.cpp \
     ./SourceFiles/mtproto/core_types.cpp \
     ./SourceFiles/mtproto/dcenter.cpp \
     ./SourceFiles/mtproto/file_download.cpp \
@@ -209,6 +213,10 @@ HEADERS += \
     ./SourceFiles/mtproto/facade.h \
     ./SourceFiles/mtproto/auth_key.h \
     ./SourceFiles/mtproto/connection.h \
+    ./SourceFiles/mtproto/connection_abstract.h \
+    ./SourceFiles/mtproto/connection_auto.h \
+    ./SourceFiles/mtproto/connection_http.h \
+    ./SourceFiles/mtproto/connection_tcp.h \
     ./SourceFiles/mtproto/core_types.h \
     ./SourceFiles/mtproto/dcenter.h \
     ./SourceFiles/mtproto/file_download.h \
