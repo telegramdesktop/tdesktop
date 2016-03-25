@@ -82,12 +82,20 @@ prepare() {
 
 	local options=""
 	
-	if [[ $BUILD_VERSION == *"no_autoupdate"* ]]; then
+	if [[ $BUILD_VERSION == *"disable_autoupdate"* ]]; then
 		options+="\nDEFINES += TDESKTOP_DISABLE_AUTOUPDATE"
 	fi
 
-	if [[ $BUILD_VERSION == *"no_custom_scheme"* ]]; then
+	if [[ $BUILD_VERSION == *"disable_register_custom_scheme"* ]]; then
 		options+="\nDEFINES += TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME"
+	fi
+
+	if [[ $BUILD_VERSION == *"disable_crash_reports"* ]]; then
+		options+="\nDEFINES += TDESKTOP_DISABLE_CRASH_REPORTS"
+	fi
+
+	if [[ $BUILD_VERSION == *"disable_network_proxy"* ]]; then
+		options+="\nDEFINES += TDESKTOP_DISABLE_NETWORK_PROXY"
 	fi
 
 	options+='\nINCLUDEPATH += "/usr/lib/glib-2.0/include"'
