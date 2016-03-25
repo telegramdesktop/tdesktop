@@ -1025,10 +1025,10 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cDevVersion() || cBetaVersion()) && Local::oldMapVersion() < 9031) {
+			if ((cDevVersion() || cBetaVersion()) && Local::oldMapVersion() < 9035) {
 //				QString ctrl = (cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? qsl("Cmd") : qsl("Ctrl");
-//				versionFeatures = QString::fromUtf8("\xe2\x80\x94 %1+W or %2+F4 for close window\n\xe2\x80\x94 %3+L to lock Telegram if you use a local passcode\n\xe2\x80\x94 Bug fixes and other minor improvements").arg(ctrl).arg(ctrl).arg(ctrl);// .replace('@', qsl("@") + QChar(0x200D));
-				versionFeatures = lng_new_version_text(lt_link, qsl("https://telegram.org/blog/supergroups5k")).trimmed();
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Design improvements\n\xe2\x80\x94 Bug fixes and other minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
+//				versionFeatures = lng_new_version_text(lt_link, qsl("https://telegram.org/blog/supergroups5k")).trimmed();
 			} else if (Local::oldMapVersion() < 9031) {
 				versionFeatures = lng_new_version_text(lt_link, qsl("https://telegram.org/blog/supergroups5k")).trimmed();
 			} else {
