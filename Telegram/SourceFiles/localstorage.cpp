@@ -3550,7 +3550,7 @@ namespace Local {
 		return result;
 	}
 
-	void _writePeer(QDataStream &stream, PeerData *peer, int32 fileVersion = AppVersion) {
+	void _writePeer(QDataStream &stream, PeerData *peer) {
 		stream << quint64(peer->id) << quint64(peer->photoId);
 		_writeStorageImageLocation(stream, peer->photoLoc);
 		if (peer->isUser()) {
@@ -3560,7 +3560,7 @@ namespace Local {
 			if (AppVersion >= 9012) {
 				stream << qint32(user->flags);
 			}
-			if (AppVersion >= 9016 || fileVersion >= 9016) {
+			if (AppVersion >= 9016) {
 				stream << (user->botInfo ? user->botInfo->inlinePlaceholder : QString());
 			}
 			stream << qint32(user->onlineTill) << qint32(user->contact) << qint32(user->botInfo ? user->botInfo->version : -1);
@@ -3580,18 +3580,16 @@ namespace Local {
 	}
 
 	PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
-		PeerData *result = 0;
 		quint64 peerId = 0, photoId = 0;
 		from.stream >> peerId >> photoId;
 
 		StorageImageLocation photoLoc(_readStorageImageLocation(from));
 
-		result = App::peerLoaded(peerId);
-		bool wasLoaded = (result && result->loaded);
-
+		PeerData *result = App::peerLoaded(peerId);
+		bool wasLoaded = (result != nullptr);
 		if (!wasLoaded) {
 			result = App::peer(peerId);
-			result->loaded = true;
+			result->loadedStatus = PeerData::FullLoaded;
 		}
 		if (result->isUser()) {
 			UserData *user = result->asUser();
@@ -3737,7 +3735,7 @@ namespace Local {
 			}
 			data.stream << quint32(botsCnt);
 			for (RecentInlineBots::const_iterator i = bots.cbegin(), e = bots.cend(); i != e; ++i) {
-				_writePeer(data.stream, *i, 9016);
+				_writePeer(data.stream, *i);
 			}
 			FileWriteDescriptor file(_recentHashtagsAndBotsKey);
 			file.writeEncrypted(data);

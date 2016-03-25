@@ -224,18 +224,15 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 	App::feedUsers(d.vusers);
 
 	const QVector<MTPImportedContact> &v(d.vimported.c_vector().v);
-	int32 uid = 0;
+	UserData *user = nullptr;
 	if (!v.isEmpty()) {
 		const MTPDimportedContact &c(v.front().c_importedContact());
 		if (c.vclient_id.v != _contactId) return;
 
-		uid = c.vuser_id.v;
-		if (uid && !App::userLoaded(uid)) {
-			uid = 0;
-		}
+		user = App::userLoaded(c.vuser_id.v);
 	}
-	if (uid) {
-		Notify::userIsContactChanged(App::userLoaded(peerFromUser(uid)), true);
+	if (user) {
+		Notify::userIsContactChanged(user, true);
 		Ui::hideLayer();
 	} else {
 		_save.hide();
