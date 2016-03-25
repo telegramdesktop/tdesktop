@@ -830,6 +830,7 @@ void ChannelHistory::switchMode() {
 			int willAddToBlock = qMin(int(MessagesPerPage), count - i);
 			block->items.reserve(willAddToBlock);
 			for (int till = i + willAddToBlock; i < till; ++i) {
+				t_assert(_otherList.at(i)->detached());
 				addItemToBlock(_otherList.at(i), block);
 			}
 
@@ -2565,6 +2566,8 @@ void History::changeMsgId(MsgId oldId, MsgId newId) {
 void History::removeBlock(HistoryBlock *block) {
 	setPendingResize();
 
+	t_assert(block->items.isEmpty());
+
 	int index = block->indexInHistory();
 	blocks.removeAt(index);
 	for (int i = index, l = blocks.size(); i < l; ++i) {
@@ -2614,7 +2617,7 @@ void HistoryBlock::clear(bool leaveItems) {
 void HistoryBlock::removeItem(HistoryItem *item) {
 	t_assert(item->block() == this);
 
-	int32 itemIndex = item->indexInBlock();
+	int itemIndex = item->indexInBlock();
 	if (history->showFrom == item) {
 		history->getNextShowFrom(this, itemIndex);
 	}
@@ -2625,13 +2628,14 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 		history->getNextScrollTopItem(this, itemIndex);
 	}
 
-	int myIndex = indexInHistory();
-	if (myIndex >= 0) { // fix message groups
+	int blockIndex = indexInHistory();
+	if (blockIndex >= 0) { // fix message groups
 		if (item->isImportant()) { // unite message groups around this important message
-			HistoryGroup *nextGroup = 0, *prevGroup = 0;
-			HistoryCollapse *nextCollapse = 0;
-			HistoryItem *prevItem = 0;
-			for (int32 nextBlock = myIndex, nextIndex = qMin(items.size(), itemIndex + 1); nextBlock < history->blocks.size(); ++nextBlock) {
+			HistoryGroup *nextGroup = nullptr;
+			HistoryGroup *prevGroup = nullptr;
+			HistoryCollapse *nextCollapse = nullptr;
+			HistoryItem *prevItem = nullptr;
+			for (int nextBlock = blockIndex, nextIndex = qMin(items.size(), itemIndex + 1); nextBlock < history->blocks.size(); ++nextBlock) {
 				HistoryBlock *block = history->blocks.at(nextBlock);
 				for (; nextIndex < block->items.size(); ++nextIndex) {
 					HistoryItem *item = block->items.at(nextIndex);
@@ -2651,7 +2655,7 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 					break;
 				}
 			}
-			for (int32 prevBlock = myIndex + 1, prevIndex = qMax(1, itemIndex); prevBlock > 0;) {
+			for (int prevBlock = blockIndex + 1, prevIndex = qMax(1, itemIndex); prevBlock > 0;) {
 				--prevBlock;
 				HistoryBlock *block = history->blocks.at(prevBlock);
 				if (!prevIndex) prevIndex = block->items.size();
@@ -2680,7 +2684,9 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 			}
 		}
 	}
-	// myIndex can be invalid now, because of destroying previous blocks
+	// blockIndex can be invalid now, because of destroying previous blocks
+	blockIndex = indexInHistory();
+	itemIndex = item->indexInBlock();
 
 	items.remove(itemIndex);
 	for (int i = itemIndex, l = items.size(); i < l; ++i) {
