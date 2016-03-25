@@ -1163,7 +1163,10 @@ public:
 		return !_block;
 	}
 	void attachToBlock(HistoryBlock *block, int index) {
-		t_assert(_block == nullptr && _indexInBlock < 0);
+		t_assert(_block == nullptr);
+		t_assert(_indexInBlock < 0);
+		t_assert(block != nullptr);
+		t_assert(index >= 0);
 
 		_block = block;
 		_indexInBlock = index;
@@ -1172,6 +1175,9 @@ public:
 		}
 	}
 	void setIndexInBlock(int index) {
+		t_assert(_block != nullptr);
+		t_assert(index >= 0);
+
 		_indexInBlock = index;
 	}
 	int indexInBlock() const {

@@ -759,12 +759,12 @@ HistoryItem *ChannelHistory::addNewToBlocks(const MTPMessage &msg, NewMessageTyp
 
 		if (prev && prev->type() == HistoryItemGroup) {
 			static_cast<HistoryGroup*>(prev)->uniteWith(item);
-			return prev;
+		} else {
+			QDateTime date = prev ? prev->date : item->date;
+			HistoryBlock *block = prev ? prev->block() : pushBackNewBlock();
+			addItemToBlock(HistoryGroup::create(this, item, date), block);
 		}
-
-		QDateTime date = prev ? prev->date : item->date;
-		HistoryBlock *block = prev ? prev->block() : pushBackNewBlock();
-		return addItemToBlock(HistoryGroup::create(this, item, date), block);
+		return item;
 	}
 
 	// when we are receiving channel dialog rows we get one important and one not important
