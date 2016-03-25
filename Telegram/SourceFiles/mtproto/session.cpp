@@ -85,7 +85,7 @@ Session::Session(int32 dcenter) : QObject()
 		return;
 	}
 	if (dcWithShift) {
-		DEBUG_LOG(("Session Info: MTProtoSession::start called on already started session"));
+		DEBUG_LOG(("Session Info: Session::start called on already started session"));
 		return;
 	}
 
@@ -461,18 +461,18 @@ QReadWriteLock *Session::keyMutex() const {
 }
 
 void Session::authKeyCreatedForDC() {
-	DEBUG_LOG(("AuthKey Info: MTProtoSession::authKeyCreatedForDC slot, emitting authKeyCreated(), dcWithShift %1").arg(dcWithShift));
+	DEBUG_LOG(("AuthKey Info: Session::authKeyCreatedForDC slot, emitting authKeyCreated(), dcWithShift %1").arg(dcWithShift));
 	data.setKey(dc->getKey());
 	emit authKeyCreated();
 }
 
 void Session::notifyKeyCreated(const AuthKeyPtr &key) {
-	DEBUG_LOG(("AuthKey Info: MTProtoSession::keyCreated(), setting, dcWithShift %1").arg(dcWithShift));
+	DEBUG_LOG(("AuthKey Info: Session::keyCreated(), setting, dcWithShift %1").arg(dcWithShift));
 	dc->setKey(key);
 }
 
 void Session::layerWasInitedForDC(bool wasInited) {
-	DEBUG_LOG(("MTP Info: MTProtoSession::layerWasInitedForDC slot, dcWithShift %1").arg(dcWithShift));
+	DEBUG_LOG(("MTP Info: Session::layerWasInitedForDC slot, dcWithShift %1").arg(dcWithShift));
 	data.setLayerWasInited(wasInited);
 }
 
