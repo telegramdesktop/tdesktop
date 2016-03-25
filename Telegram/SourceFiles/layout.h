@@ -101,10 +101,11 @@ public:
 };
 
 class LayoutMediaItem;
-class LayoutItem : public Interfaces {
+class LayoutItem : public Composer {
 public:
-	LayoutItem(uint64 i_mask) : Interfaces(i_mask), _maxw(0), _minh(0) {
+	LayoutItem() {
 	}
+	LayoutItem &operator=(const LayoutItem &) = delete;
 
 	int32 maxWidth() const {
 		return _maxw;
@@ -167,14 +168,16 @@ public:
 	}
 
 protected:
-	int32 _width, _height, _maxw, _minh;
-	LayoutItem &operator=(const LayoutItem &);
+	int _width = 0;
+	int _height = 0;
+	int _maxw = 0;
+	int _minh = 0;
 
 };
 
 class LayoutMediaItem : public LayoutItem {
 public:
-	LayoutMediaItem(uint64 i_mask, HistoryItem *parent) : LayoutItem(i_mask), _parent(parent) {
+	LayoutMediaItem(HistoryItem *parent) : _parent(parent) {
 	}
 
 	virtual LayoutMediaItem *toLayoutMediaItem() {
@@ -194,7 +197,7 @@ protected:
 
 class LayoutRadialProgressItem : public LayoutMediaItem {
 public:
-	LayoutRadialProgressItem(uint64 i_mask, HistoryItem *parent) : LayoutMediaItem(i_mask, parent)
+	LayoutRadialProgressItem(HistoryItem *parent) : LayoutMediaItem(parent)
 		, _radial(0)
 		, a_iconOver(0, 0)
 		, _a_iconOver(animation(this, &LayoutRadialProgressItem::step_iconOver)) {
@@ -240,7 +243,7 @@ private:
 
 class LayoutAbstractFileItem : public LayoutRadialProgressItem {
 public:
-	LayoutAbstractFileItem(uint64 i_mask, HistoryItem *parent) : LayoutRadialProgressItem(i_mask, parent) {
+	LayoutAbstractFileItem(HistoryItem *parent) : LayoutRadialProgressItem(parent) {
 	}
 
 protected:
@@ -268,19 +271,19 @@ public:
 
 };
 
-class OverviewItemInfo : public BasicInterface<OverviewItemInfo> {
+class OverviewItemInfo : public BaseComponent<OverviewItemInfo> {
 public:
-	OverviewItemInfo(Interfaces *) : _top(0) {
+	OverviewItemInfo(Composer*) {
 	}
-	int32 top() const {
+	int top() const {
 		return _top;
 	}
-	void setTop(int32 top) {
+	void setTop(int top) {
 		_top = top;
 	}
 
 private:
-	int32 _top;
+	int _top = 0;
 
 };
 

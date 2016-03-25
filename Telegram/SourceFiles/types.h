@@ -104,6 +104,30 @@ using std::string;
 using std::exception;
 using std::swap;
 
+// we copy some parts of C++11 std:: library, because on OS X 10.6+
+// version we can use C++11, but we can't use its library :(
+namespace std11 {
+
+template <typename T>
+struct remove_reference {
+	typedef T type;
+};
+template <typename T>
+struct remove_reference<T&> {
+	typedef T type;
+};
+template <typename T>
+struct remove_reference<T&&> {
+	typedef T type;
+};
+
+template <typename T>
+inline typename remove_reference<T>::type &&move(T &&value) {
+	return static_cast<typename remove_reference<T>::type&&>(value);
+}
+
+} // namespace std11
+
 #include "logs.h"
 
 static volatile int *t_assert_nullptr = 0;
@@ -140,12 +164,12 @@ private:
 };
 
 class MTPint;
-
-int32 myunixtime();
+typedef int32 TimeId;
+TimeId myunixtime();
 void unixtimeInit();
-void unixtimeSet(int32 servertime, bool force = false);
-int32 unixtime();
-int32 fromServerTime(const MTPint &serverTime);
+void unixtimeSet(TimeId servertime, bool force = false);
+TimeId unixtime();
+TimeId fromServerTime(const MTPint &serverTime);
 uint64 msgid();
 int32 reqid();
 
@@ -541,24 +565,26 @@ inline void destroyImplementation(I *&ptr) {
 	deleteAndMark(ptr);
 }
 
-class Interfaces;
-typedef void(*InterfaceConstruct)(void *location, Interfaces *interfaces);
-typedef void(*InterfaceDestruct)(void *location);
-typedef void(*InterfaceMove)(void *location, void *waslocation);
+class Composer;
+typedef void(*ComponentConstruct)(void *location, Composer *composer);
+typedef void(*ComponentDestruct)(void *location);
+typedef void(*ComponentMove)(void *location, void *waslocation);
 
-struct InterfaceWrapStruct {
-	InterfaceWrapStruct() : Size(0), Construct(0), Destruct(0) {
+struct ComponentWrapStruct {
+	// don't init any fields, because it is only created in
+	// global scope, so it will be filled by zeros from the start
+	ComponentWrapStruct() {
 	}
-	InterfaceWrapStruct(int size, InterfaceConstruct construct, InterfaceDestruct destruct, InterfaceMove move)
+	ComponentWrapStruct(int size, ComponentConstruct construct, ComponentDestruct destruct, ComponentMove move)
 	: Size(size)
 	, Construct(construct)
 	, Destruct(destruct)
 	, Move(move) {
 	}
 	int Size;
-	InterfaceConstruct Construct;
-	InterfaceDestruct Destruct;
-	InterfaceMove Move;
+	ComponentConstruct Construct;
+	ComponentDestruct Destruct;
+	ComponentMove Move;
 };
 
 template <int Value, int Denominator>
@@ -567,36 +593,43 @@ struct CeilDivideMinimumOne {
 };
 
 template <typename Type>
-struct InterfaceWrapTemplate {
+struct ComponentWrapTemplate {
 	static const int Size = CeilDivideMinimumOne<sizeof(Type), sizeof(uint64)>::Result * sizeof(uint64);
-	static void Construct(void *location, Interfaces *interfaces) {
-		new (location) Type(interfaces);
+	static void Construct(void *location, Composer *composer) {
+		new (location) Type(composer);
 	}
 	static void Destruct(void *location) {
 		((Type*)location)->~Type();
 	}
 	static void Move(void *location, void *waslocation) {
-		*(Type*)location = *(Type*)waslocation;
+		*(Type*)location = std11::move(*(Type*)waslocation);
 	}
 };
 
-extern InterfaceWrapStruct InterfaceWraps[64];
-extern QAtomicInt InterfaceIndexLast;
+extern ComponentWrapStruct ComponentWraps[64];
+extern QAtomicInt ComponentIndexLast;
 
 template <typename Type>
-class BasicInterface {
+class BaseComponent {
 public:
+	BaseComponent() {
+	}
+	BaseComponent(const BaseComponent &other) = delete;
+	BaseComponent &operator=(const BaseComponent &other) = delete;
+	BaseComponent(BaseComponent &&other) = delete;
+	BaseComponent &operator=(BaseComponent &&other) = default;
+
 	static int Index() {
 		static QAtomicInt _index(0);
 		if (int index = _index.loadAcquire()) {
 			return index - 1;
 		}
 		while (true) {
-			int last = InterfaceIndexLast.loadAcquire();
-			if (InterfaceIndexLast.testAndSetOrdered(last, last + 1)) {
+			int last = ComponentIndexLast.loadAcquire();
+			if (ComponentIndexLast.testAndSetOrdered(last, last + 1)) {
 				t_assert(last < 64);
 				if (_index.testAndSetOrdered(0, last + 1)) {
-					InterfaceWraps[last] = InterfaceWrapStruct(InterfaceWrapTemplate<Type>::Size, InterfaceWrapTemplate<Type>::Construct, InterfaceWrapTemplate<Type>::Destruct, InterfaceWrapTemplate<Type>::Move);
+					ComponentWraps[last] = ComponentWrapStruct(ComponentWrapTemplate<Type>::Size, ComponentWrapTemplate<Type>::Construct, ComponentWrapTemplate<Type>::Destruct, ComponentWrapTemplate<Type>::Move);
 				}
 				break;
 			}
@@ -609,22 +642,14 @@ public:
 
 };
 
-template <typename Type>
-class BasicInterfaceWithPointer : public BasicInterface<Type> {
-public:
-	BasicInterfaceWithPointer(Interfaces *interfaces) : interfaces(interfaces) {
-	}
-	Interfaces *interfaces = 0;
-};
-
-class InterfacesMetadata {
+class ComposerMetadata {
 public:
 
-	InterfacesMetadata(uint64 mask) : size(0), last(64), _mask(mask) {
+	ComposerMetadata(uint64 mask) : size(0), last(64), _mask(mask) {
 		for (int i = 0; i < 64; ++i) {
 			uint64 m = (1 << i);
 			if (_mask & m) {
-				int s = InterfaceWraps[i].Size;
+				int s = ComponentWraps[i].Size;
 				if (s) {
 					offsets[i] = size;
 					size += s;
@@ -660,15 +685,15 @@ private:
 
 };
 
-const InterfacesMetadata *GetInterfacesMetadata(uint64 mask);
+const ComposerMetadata *GetComposerMetadata(uint64 mask);
 
-class Interfaces {
+class Composer {
 public:
 
-	Interfaces(uint64 mask = 0) : _data(zerodata()) {
+	Composer(uint64 mask = 0) : _data(zerodata()) {
 		if (mask) {
-			const InterfacesMetadata *meta = GetInterfacesMetadata(mask);
-			int32 size = sizeof(const InterfacesMetadata *) + meta->size;
+			const ComposerMetadata *meta = GetComposerMetadata(mask);
+			int size = sizeof(meta) + meta->size;
 			void *data = operator new(size);
 			if (!data) { // terminate if we can't allocate memory
 				throw "Can't allocate memory!";
@@ -680,13 +705,13 @@ public:
 				int offset = meta->offsets[i];
 				if (offset >= 0) {
 					try {
-						InterfaceWraps[i].Construct(_dataptrunsafe(offset), this);
+						ComponentWraps[i].Construct(_dataptrunsafe(offset), this);
 					} catch (...) {
 						while (i > 0) {
 							--i;
 							offset = meta->offsets[--i];
 							if (offset >= 0) {
-								InterfaceWraps[i].Destruct(_dataptrunsafe(offset));
+								ComponentWraps[i].Destruct(_dataptrunsafe(offset));
 							}
 						}
 						throw;
@@ -695,38 +720,41 @@ public:
 			}
 		}
 	}
-	void UpdateInterfaces(uint64 mask = 0) {
+	Composer(const Composer &other) = delete;
+	Composer &operator=(const Composer &other) = delete;
+	~Composer() {
+		if (_data != zerodata()) {
+			const ComposerMetadata *meta = _meta();
+			for (int i = 0; i < meta->last; ++i) {
+				int offset = meta->offsets[i];
+				if (offset >= 0) {
+					ComponentWraps[i].Destruct(_dataptrunsafe(offset));
+				}
+			}
+			operator delete(_data);
+		}
+	}
+
+	void UpdateComponents(uint64 mask = 0) {
 		if (!_meta()->equals(mask)) {
-			Interfaces tmp(mask);
+			Composer tmp(mask);
 			tmp.swap(*this);
 			if (_data != zerodata() && tmp._data != zerodata()) {
-				const InterfacesMetadata *meta = _meta(), *wasmeta = tmp._meta();
+				const ComposerMetadata *meta = _meta(), *wasmeta = tmp._meta();
 				for (int i = 0; i < meta->last; ++i) {
 					int offset = meta->offsets[i], wasoffset = wasmeta->offsets[i];
 					if (offset >= 0 && wasoffset >= 0) {
-						InterfaceWraps[i].Move(_dataptrunsafe(offset), tmp._dataptrunsafe(wasoffset));
+						ComponentWraps[i].Move(_dataptrunsafe(offset), tmp._dataptrunsafe(wasoffset));
 					}
 				}
 			}
 		}
 	}
-	void AddInterfaces(uint64 mask = 0) {
-		UpdateInterfaces(_meta()->maskadd(mask));
+	void AddComponents(uint64 mask = 0) {
+		UpdateComponents(_meta()->maskadd(mask));
 	}
-	void RemoveInterfaces(uint64 mask = 0) {
-		UpdateInterfaces(_meta()->maskremove(mask));
-	}
-	~Interfaces() {
-		if (_data != zerodata()) {
-			const InterfacesMetadata *meta = _meta();
-			for (int i = 0; i < meta->last; ++i) {
-				int offset = meta->offsets[i];
-				if (offset >= 0) {
-					InterfaceWraps[i].Destruct(_dataptrunsafe(offset));
-				}
-			}
-			operator delete(_data);
-		}
+	void RemoveComponents(uint64 mask = 0) {
+		UpdateComponents(_meta()->maskremove(mask));
 	}
 
 	template <typename Type>
@@ -738,31 +766,28 @@ public:
 		return static_cast<const Type*>(_dataptr(_meta()->offsets[Type::Index()]));
 	}
 	template <typename Type>
-	bool Is() const {
+	bool Has() const {
 		return (_meta()->offsets[Type::Index()] >= 0);
 	}
 
 private:
-	static const InterfacesMetadata *ZeroInterfacesMetadata;
+	static const ComposerMetadata *ZeroComposerMetadata;
 	static void *zerodata() {
-		return &ZeroInterfacesMetadata;
+		return &ZeroComposerMetadata;
 	}
 
 	void *_dataptrunsafe(int skip) const {
-		return (char*)_data + sizeof(const InterfacesMetadata*) + skip;
+		return (char*)_data + sizeof(_meta()) + skip;
 	}
 	void *_dataptr(int skip) const {
 		return (skip >= 0) ? _dataptrunsafe(skip) : 0;
 	}
-	const InterfacesMetadata *&_meta() const {
-		return *static_cast<const InterfacesMetadata**>(_data);
+	const ComposerMetadata *&_meta() const {
+		return *static_cast<const ComposerMetadata**>(_data);
 	}
 	void *_data;
 
-	Interfaces(const Interfaces &other);
-	Interfaces &operator=(const Interfaces &other);
-
-	void swap(Interfaces &other) {
+	void swap(Composer &other) {
 		std::swap(_data, other._data);
 	}
 

@@ -293,9 +293,10 @@ void LayoutAbstractFileItem::setStatusSize(int32 newSize, int32 fullSize, int32 
 	}
 }
 
-LayoutOverviewDate::LayoutOverviewDate(const QDate &date, bool month) : LayoutItem(OverviewItemInfo::Bit())
+LayoutOverviewDate::LayoutOverviewDate(const QDate &date, bool month) : LayoutItem()
 , _date(date)
 , _text(month ? langMonthFull(date) : langDayOfMonthFull(date)) {
+	AddComponents(OverviewItemInfo::Bit());
 }
 
 void LayoutOverviewDate::initDimensions() {
@@ -311,7 +312,7 @@ void LayoutOverviewDate::paint(Painter &p, const QRect &clip, uint32 selection, 
 	}
 }
 
-LayoutOverviewPhoto::LayoutOverviewPhoto(PhotoData *photo, HistoryItem *parent) : LayoutMediaItem(0, parent)
+LayoutOverviewPhoto::LayoutOverviewPhoto(PhotoData *photo, HistoryItem *parent) : LayoutMediaItem(parent)
 , _data(photo)
 , _link(new PhotoLink(photo))
 , _goodLoaded(false) {
@@ -385,7 +386,7 @@ void LayoutOverviewPhoto::getState(TextLinkPtr &link, HistoryCursorState &cursor
 	}
 }
 
-LayoutOverviewVideo::LayoutOverviewVideo(DocumentData *video, HistoryItem *parent) : LayoutAbstractFileItem(0, parent)
+LayoutOverviewVideo::LayoutOverviewVideo(DocumentData *video, HistoryItem *parent) : LayoutAbstractFileItem(parent)
 , _data(video)
 , _duration(formatDurationText(_data->duration()))
 , _thumbLoaded(false) {
@@ -549,9 +550,11 @@ void LayoutOverviewVideo::updateStatusText() const {
 	}
 }
 
-LayoutOverviewVoice::LayoutOverviewVoice(DocumentData *voice, HistoryItem *parent) : LayoutAbstractFileItem(OverviewItemInfo::Bit(), parent)
+LayoutOverviewVoice::LayoutOverviewVoice(DocumentData *voice, HistoryItem *parent) : LayoutAbstractFileItem(parent)
 , _data(voice)
 , _namel(new DocumentOpenLink(_data)) {
+	AddComponents(OverviewItemInfo::Bit());
+
 	t_assert(_data->voice() != 0);
 
 	setLinks(new DocumentOpenLink(_data), new DocumentOpenLink(_data), new DocumentCancelLink(_data));
@@ -741,7 +744,7 @@ bool LayoutOverviewVoice::updateStatusText() const {
 	return showPause;
 }
 
-LayoutOverviewDocument::LayoutOverviewDocument(DocumentData *document, HistoryItem *parent) : LayoutAbstractFileItem(OverviewItemInfo::Bit(), parent)
+LayoutOverviewDocument::LayoutOverviewDocument(DocumentData *document, HistoryItem *parent) : LayoutAbstractFileItem(parent)
 , _data(document)
 , _msgl(new MessageLink(parent))
 , _namel(new DocumentOpenLink(_data))
@@ -751,6 +754,8 @@ LayoutOverviewDocument::LayoutOverviewDocument(DocumentData *document, HistoryIt
 , _namew(st::semiboldFont->width(_name))
 , _datew(st::normalFont->width(_date))
 , _colorIndex(documentColorIndex(_data, _ext)) {
+	AddComponents(OverviewItemInfo::Bit());
+
 	setLinks(new DocumentOpenLink(_data), new DocumentSaveLink(_data), new DocumentCancelLink(_data));
 
 	setStatusSize(FileStatusSizeReady, _data->size, _data->song() ? _data->song()->duration : -1, 0);
@@ -1066,7 +1071,9 @@ namespace {
 	}
 }
 
-LayoutOverviewLink::LayoutOverviewLink(HistoryMedia *media, HistoryItem *parent) : LayoutMediaItem(OverviewItemInfo::Bit(), parent) {
+LayoutOverviewLink::LayoutOverviewLink(HistoryMedia *media, HistoryItem *parent) : LayoutMediaItem(parent) {
+	AddComponents(OverviewItemInfo::Bit());
+
 	QString text = _parent->originalText();
 	EntitiesInText entities = _parent->originalEntities();
 
@@ -1319,7 +1326,7 @@ LayoutOverviewLink::Link::Link(const QString &url, const QString &text)
 , lnk(linkFromUrl(url)) {
 }
 
-LayoutInlineItem::LayoutInlineItem(InlineResult *result, DocumentData *doc, PhotoData *photo) : LayoutItem(0)
+LayoutInlineItem::LayoutInlineItem(InlineResult *result, DocumentData *doc, PhotoData *photo) : LayoutItem()
 , _result(result)
 , _doc(doc)
 , _photo(photo)
