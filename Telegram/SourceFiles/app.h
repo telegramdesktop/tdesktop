@@ -110,21 +110,47 @@ namespace App {
 	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert = 0);
 	WebPageData *feedWebPage(const MTPWebPage &webpage);
 
-	PeerData *peerLoaded(const PeerId &id);
-	UserData *userLoaded(const PeerId &id);
-	ChatData *chatLoaded(const PeerId &id);
-	ChannelData *channelLoaded(const PeerId &id);
-	UserData *userLoaded(int32 user);
-	ChatData *chatLoaded(int32 chat);
-	ChannelData *channelLoaded(int32 channel);
+	PeerData *peer(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded);
+	inline UserData *user(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
+		return asUser(peer(id, restriction));
+	}
+	inline ChatData *chat(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
+		return asChat(peer(id, restriction));
+	}
+	inline ChannelData *channel(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
+		return asChannel(peer(id, restriction));
+	}
+	inline UserData *user(UserId userId, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
+		return asUser(peer(peerFromUser(userId), restriction));
+	}
+	inline ChatData *chat(ChatId chatId, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
+		return asChat(peer(peerFromChat(chatId), restriction));
+	}
+	inline ChannelData *channel(ChannelId channelId, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
+		return asChannel(peer(peerFromChannel(channelId), restriction));
+	}
+	inline PeerData *peerLoaded(const PeerId &id) {
+		return peer(id, PeerData::FullLoaded);
+	}
+	inline UserData *userLoaded(const PeerId &id) {
+		return user(id, PeerData::FullLoaded);
+	}
+	inline ChatData *chatLoaded(const PeerId &id) {
+		return chat(id, PeerData::FullLoaded);
+	}
+	inline ChannelData *channelLoaded(const PeerId &id) {
+		return channel(id, PeerData::FullLoaded);
+	}
+	inline UserData *userLoaded(UserId userId) {
+		return user(userId, PeerData::FullLoaded);
+	}
+	inline ChatData *chatLoaded(ChatId chatId) {
+		return chat(chatId, PeerData::FullLoaded);
+	}
+	inline ChannelData *channelLoaded(ChannelId channelId) {
+		return channel(channelId, PeerData::FullLoaded);
+	}
 
-	PeerData *peer(const PeerId &id);
-	UserData *user(const PeerId &id);
-	ChatData *chat(const PeerId &id);
-	ChannelData *channel(const PeerId &id);
-	UserData *user(int32 user_id);
-	ChatData *chat(int32 chat_id);
-	ChannelData *channel(int32 channel_id);
 	UserData *self();
 	PeerData *peerByName(const QString &username);
 	QString peerName(const PeerData *peer, bool forDialogs = false);

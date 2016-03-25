@@ -4099,17 +4099,17 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 
 	case mtpc_updateShortMessage: {
 		const MTPDupdateShortMessage &d(updates.c_updateShortMessage());
-		if (!App::userLoaded(d.vuser_id.v) || (d.has_via_bot_id() && !App::peerLoaded(peerFromUser(d.vvia_bot_id)))) {
+		if (!App::userLoaded(d.vuser_id.v) || (d.has_via_bot_id() && !App::userLoaded(d.vvia_bot_id.v))) {
 			MTP_LOG(0, ("getDifference { good - getting user for updateShortMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
 			return getDifference();
 		}
 		if (d.has_fwd_from() && d.vfwd_from.type() == mtpc_messageFwdHeader) {
 			const MTPDmessageFwdHeader &f(d.vfwd_from.c_messageFwdHeader());
-			if (f.has_from_id() && !App::peerLoaded(peerFromUser(f.vfrom_id))) {
+			if (f.has_from_id() && !App::userLoaded(f.vfrom_id.v)) {
 				MTP_LOG(0, ("getDifference { good - getting user for updateShortMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
 				return getDifference();
 			}
-			if (f.has_channel_id() && !App::peerLoaded(peerFromChannel(f.vchannel_id))) {
+			if (f.has_channel_id() && !App::channelLoaded(f.vchannel_id.v)) {
 				MTP_LOG(0, ("getDifference { good - getting user for updateShortMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
 				return getDifference();
 			}
@@ -4133,18 +4133,18 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	case mtpc_updateShortChatMessage: {
 		const MTPDupdateShortChatMessage &d(updates.c_updateShortChatMessage());
 		bool noFrom = !App::userLoaded(d.vfrom_id.v);
-		if (!App::chatLoaded(d.vchat_id.v) || noFrom || (d.has_via_bot_id() && !App::peerLoaded(peerFromUser(d.vvia_bot_id)))) {
+		if (!App::chatLoaded(d.vchat_id.v) || noFrom || (d.has_via_bot_id() && !App::userLoaded(d.vvia_bot_id.v))) {
 			MTP_LOG(0, ("getDifference { good - getting user for updateShortChatMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
 			if (noFrom && App::api()) App::api()->requestFullPeer(App::chatLoaded(d.vchat_id.v));
 			return getDifference();
 		}
 		if (d.has_fwd_from() && d.vfwd_from.type() == mtpc_messageFwdHeader) {
 			const MTPDmessageFwdHeader &f(d.vfwd_from.c_messageFwdHeader());
-			if (f.has_from_id() && !App::peerLoaded(peerFromUser(f.vfrom_id))) {
+			if (f.has_from_id() && !App::userLoaded(f.vfrom_id.v)) {
 				MTP_LOG(0, ("getDifference { good - getting user for updateShortChatMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
 				return getDifference();
 			}
-			if (f.has_channel_id() && !App::peerLoaded(peerFromChannel(f.vchannel_id))) {
+			if (f.has_channel_id() && !App::channelLoaded(f.vchannel_id.v)) {
 				MTP_LOG(0, ("getDifference { good - getting user for updateShortChatMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
 				return getDifference();
 			}
@@ -4357,9 +4357,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateChatUserTyping: {
 		const MTPDupdateChatUserTyping &d(update.c_updateChatUserTyping());
 		History *history = 0;
-		if (PeerData *chat = App::peerLoaded(peerFromChat(d.vchat_id.v))) {
+		if (PeerData *chat = App::chatLoaded(d.vchat_id.v)) {
 			history = App::historyLoaded(chat->id);
-		} else if (PeerData *channel = App::peerLoaded(peerFromChannel(d.vchat_id.v))) {
+		} else if (PeerData *channel = App::channelLoaded(d.vchat_id.v)) {
 			history = App::historyLoaded(channel->id);
 		}
 		UserData *user = (d.vuser_id.v == MTP::authedId()) ? 0 : App::userLoaded(d.vuser_id.v);

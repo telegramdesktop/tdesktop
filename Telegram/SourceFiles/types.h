@@ -36,13 +36,126 @@ T *getPointerAndReset(T *&ptr) {
 struct NullType {
 };
 
+// ordered set template based on QMap
 template <typename T>
-class OrderedSet : public QMap<T, NullType> {
+class OrderedSet {
+	typedef OrderedSet<T> Self;
+	typedef QMap<T, NullType> Impl;
+	typedef typename Impl::iterator IteratorImpl;
+	typedef typename Impl::const_iterator ConstIteratorImpl;
+	Impl impl_;
+
 public:
 
-	void insert(const T &v) {
-		QMap<T, NullType>::insert(v, NullType());
-	}
+	inline bool operator==(const Self &other) const { return impl_ == other.impl_; }
+	inline bool operator!=(const Self &other) const { return impl_ != other.impl_; }
+	inline int size() const { return impl_.size(); }
+	inline bool isEmpty() const { return impl_.isEmpty(); }
+	inline void detach() { return impl_.detach(); }
+	inline bool isDetached() const { return impl_.isDetached(); }
+	inline void clear() { return impl_.clear(); }
+	inline QList<T> values() const { return impl_.keys(); }
+	inline const T &first() const { return impl_.firstKey(); }
+	inline const T &last() const { return impl_.lastKey(); }
+
+	class const_iterator;
+	class iterator {
+	public:
+		typedef typename IteratorImpl::iterator_category iterator_category;
+		typedef typename IteratorImpl::difference_type difference_type;
+		typedef T value_type;
+		typedef T *pointer;
+		typedef T &reference;
+
+		explicit iterator(const IteratorImpl &impl) : impl_(impl) {
+		}
+		inline const T &operator*() const { return impl_.key(); }
+		inline const T *operator->() const { return &impl_.key(); }
+		inline bool operator==(const iterator &other) const { return impl_ == other.impl_; }
+		inline bool operator!=(const iterator &other) const { return impl_ != other.impl_; }
+		inline iterator &operator++() { ++impl_; return *this; }
+		inline iterator operator++(int) { return iterator(impl_++); }
+		inline iterator &operator--() { --impl_; return *this; }
+		inline iterator operator--(int) { return iterator(impl_--); }
+		inline iterator operator+(int j) const { return iterator(impl_ + j); }
+		inline iterator operator-(int j) const { return iterator(impl_ - j); }
+		inline iterator &operator+=(int j) { impl_ += j; return *this; }
+		inline iterator &operator-=(int j) { impl_ -= j; return *this; }
+
+		friend class const_iterator;
+		inline bool operator==(const const_iterator &other) const { return impl_ == other.impl_; }
+		inline bool operator!=(const const_iterator &other) const { return impl_ != other.impl_; }
+
+	private:
+		IteratorImpl impl_;
+		friend class Self;
+
+	};
+	friend class iterator;
+
+	class const_iterator {
+	public:
+		typedef typename IteratorImpl::iterator_category iterator_category;
+		typedef typename IteratorImpl::difference_type difference_type;
+		typedef T value_type;
+		typedef T *pointer;
+		typedef T &reference;
+
+		explicit const_iterator(const ConstIteratorImpl &impl) : impl_(impl) {
+		}
+		inline const T &operator*() const { return impl_.key(); }
+		inline const T *operator->() const { return &impl_.key(); }
+		inline bool operator==(const const_iterator &other) const { return impl_ == other.impl_; }
+		inline bool operator!=(const const_iterator &other) const { return impl_ != other.impl_; }
+		inline const_iterator &operator++() { ++impl_; return *this; }
+		inline const_iterator operator++(int) { return const_iterator(impl_++); }
+		inline const_iterator &operator--() { --impl_; return *this; }
+		inline const_iterator operator--(int) { return const_iterator(impl_--); }
+		inline const_iterator operator+(int j) const { return const_iterator(impl_ + j); }
+		inline const_iterator operator-(int j) const { return const_iterator(impl_ - j); }
+		inline const_iterator &operator+=(int j) { impl_ += j; return *this; }
+		inline const_iterator &operator-=(int j) { impl_ -= j; return *this; }
+
+		friend class iterator;
+		inline bool operator==(const iterator &other) const { return impl_ == other.impl_; }
+		inline bool operator!=(const iterator &o) const { return impl_ != other.impl_; }
+
+	private:
+		ConstIteratorImpl impl_;
+		friend class Self;
+
+	};
+	friend class const_iterator;
+
+	// STL style
+	inline iterator begin() { return iterator(impl_.begin()); }
+	inline const_iterator begin() const { return const_iterator(impl_.cbegin()); }
+	inline const_iterator constBegin() const { return const_iterator(impl_.cbegin()); }
+	inline const_iterator cbegin() const { return const_iterator(impl_.cbegin()); }
+	inline iterator end() { detach(); return iterator(impl_.end()); }
+	inline const_iterator end() const { return const_iterator(impl_.cend()); }
+	inline const_iterator constEnd() const { return const_iterator(impl_.cend()); }
+	inline const_iterator cend() const { return const_iterator(impl_.cend()); }
+	inline iterator erase(iterator it) { return iterator(impl_.erase(it.impl_)); }
+
+	inline iterator insert(const T &value) { return iterator(impl_.insert(value, NullType())); }
+	inline iterator insert(const_iterator pos, const T &value) { return iterator(impl_.insert(pos.impl_, value, NullType())); }
+	inline int remove(const T &value) { return impl_.remove(value); }
+	inline bool contains(const T &value) const { return impl_.contains(value); }
+
+	// more Qt
+	typedef iterator Iterator;
+	typedef const_iterator ConstIterator;
+	inline int count() const { return impl_.count(); }
+	inline iterator find(const T &value) { return iterator(impl_.find(value)); }
+	inline const_iterator find(const T &value) const { return const_iterator(impl_.constFind(value)); }
+	inline const_iterator constFind(const T &value) const { return const_iterator(impl_.constFind(value)); }
+	inline Self &unite(const Self &other) { impl_.unite(other.impl_); return *this; }
+
+	// STL compatibility
+	typedef typename Impl::difference_type difference_type;
+	typedef typename Impl::size_type size_type;
+	inline bool empty() const { return impl_.empty(); }
 
 };
 
@@ -104,6 +217,30 @@ using std::string;
 using std::exception;
 using std::swap;
 
+// we copy some parts of C++11 std:: library, because on OS X 10.6+
+// version we can use C++11, but we can't use its library :(
+namespace std11 {
+
+template <typename T>
+struct remove_reference {
+	typedef T type;
+};
+template <typename T>
+struct remove_reference<T&> {
+	typedef T type;
+};
+template <typename T>
+struct remove_reference<T&&> {
+	typedef T type;
+};
+
+template <typename T>
+inline typename remove_reference<T>::type &&move(T &&value) {
+	return static_cast<typename remove_reference<T>::type&&>(value);
+}
+
+} // namespace std11
+
 #include "logs.h"
 
 static volatile int *t_assert_nullptr = 0;
@@ -140,12 +277,12 @@ private:
 };
 
 class MTPint;
-
-int32 myunixtime();
+typedef int32 TimeId;
+TimeId myunixtime();
 void unixtimeInit();
-void unixtimeSet(int32 servertime, bool force = false);
-int32 unixtime();
-int32 fromServerTime(const MTPint &serverTime);
+void unixtimeSet(TimeId servertime, bool force = false);
+TimeId unixtime();
+TimeId fromServerTime(const MTPint &serverTime);
 uint64 msgid();
 int32 reqid();
 
@@ -541,24 +678,26 @@ inline void destroyImplementation(I *&ptr) {
 	deleteAndMark(ptr);
 }
 
-class Interfaces;
-typedef void(*InterfaceConstruct)(void *location, Interfaces *interfaces);
-typedef void(*InterfaceDestruct)(void *location);
-typedef void(*InterfaceMove)(void *location, void *waslocation);
+class Composer;
+typedef void(*ComponentConstruct)(void *location, Composer *composer);
+typedef void(*ComponentDestruct)(void *location);
+typedef void(*ComponentMove)(void *location, void *waslocation);
 
-struct InterfaceWrapStruct {
-	InterfaceWrapStruct() : Size(0), Construct(0), Destruct(0) {
+struct ComponentWrapStruct {
+	// don't init any fields, because it is only created in
+	// global scope, so it will be filled by zeros from the start
+	ComponentWrapStruct() {
 	}
-	InterfaceWrapStruct(int size, InterfaceConstruct construct, InterfaceDestruct destruct, InterfaceMove move)
+	ComponentWrapStruct(int size, ComponentConstruct construct, ComponentDestruct destruct, ComponentMove move)
 	: Size(size)
 	, Construct(construct)
 	, Destruct(destruct)
 	, Move(move) {
 	}
 	int Size;
-	InterfaceConstruct Construct;
-	InterfaceDestruct Destruct;
-	InterfaceMove Move;
+	ComponentConstruct Construct;
+	ComponentDestruct Destruct;
+	ComponentMove Move;
 };
 
 template <int Value, int Denominator>
@@ -567,36 +706,43 @@ struct CeilDivideMinimumOne {
 };
 
 template <typename Type>
-struct InterfaceWrapTemplate {
+struct ComponentWrapTemplate {
 	static const int Size = CeilDivideMinimumOne<sizeof(Type), sizeof(uint64)>::Result * sizeof(uint64);
-	static void Construct(void *location, Interfaces *interfaces) {
-		new (location) Type(interfaces);
+	static void Construct(void *location, Composer *composer) {
+		new (location) Type(composer);
 	}
 	static void Destruct(void *location) {
 		((Type*)location)->~Type();
 	}
 	static void Move(void *location, void *waslocation) {
-		*(Type*)location = *(Type*)waslocation;
+		*(Type*)location = std11::move(*(Type*)waslocation);
 	}
 };
 
-extern InterfaceWrapStruct InterfaceWraps[64];
-extern QAtomicInt InterfaceIndexLast;
+extern ComponentWrapStruct ComponentWraps[64];
+extern QAtomicInt ComponentIndexLast;
 
 template <typename Type>
-class BasicInterface {
+class BaseComponent {
 public:
+	BaseComponent() {
+	}
+	BaseComponent(const BaseComponent &other) = delete;
+	BaseComponent &operator=(const BaseComponent &other) = delete;
+	BaseComponent(BaseComponent &&other) = delete;
+	BaseComponent &operator=(BaseComponent &&other) = default;
+
 	static int Index() {
 		static QAtomicInt _index(0);
 		if (int index = _index.loadAcquire()) {
 			return index - 1;
 		}
 		while (true) {
-			int last = InterfaceIndexLast.loadAcquire();
-			if (InterfaceIndexLast.testAndSetOrdered(last, last + 1)) {
+			int last = ComponentIndexLast.loadAcquire();
+			if (ComponentIndexLast.testAndSetOrdered(last, last + 1)) {
 				t_assert(last < 64);
 				if (_index.testAndSetOrdered(0, last + 1)) {
-					InterfaceWraps[last] = InterfaceWrapStruct(InterfaceWrapTemplate<Type>::Size, InterfaceWrapTemplate<Type>::Construct, InterfaceWrapTemplate<Type>::Destruct, InterfaceWrapTemplate<Type>::Move);
+					ComponentWraps[last] = ComponentWrapStruct(ComponentWrapTemplate<Type>::Size, ComponentWrapTemplate<Type>::Construct, ComponentWrapTemplate<Type>::Destruct, ComponentWrapTemplate<Type>::Move);
 				}
 				break;
 			}
@@ -609,22 +755,14 @@ public:
 
 };
 
-template <typename Type>
-class BasicInterfaceWithPointer : public BasicInterface<Type> {
-public:
-	BasicInterfaceWithPointer(Interfaces *interfaces) : interfaces(interfaces) {
-	}
-	Interfaces *interfaces = 0;
-};
-
-class InterfacesMetadata {
+class ComposerMetadata {
 public:
 
-	InterfacesMetadata(uint64 mask) : size(0), last(64), _mask(mask) {
+	ComposerMetadata(uint64 mask) : size(0), last(64), _mask(mask) {
 		for (int i = 0; i < 64; ++i) {
 			uint64 m = (1 << i);
 			if (_mask & m) {
-				int s = InterfaceWraps[i].Size;
+				int s = ComponentWraps[i].Size;
 				if (s) {
 					offsets[i] = size;
 					size += s;
@@ -660,15 +798,15 @@ private:
 
 };
 
-const InterfacesMetadata *GetInterfacesMetadata(uint64 mask);
+const ComposerMetadata *GetComposerMetadata(uint64 mask);
 
-class Interfaces {
+class Composer {
 public:
 
-	Interfaces(uint64 mask = 0) : _data(zerodata()) {
+	Composer(uint64 mask = 0) : _data(zerodata()) {
 		if (mask) {
-			const InterfacesMetadata *meta = GetInterfacesMetadata(mask);
-			int32 size = sizeof(const InterfacesMetadata *) + meta->size;
+			const ComposerMetadata *meta = GetComposerMetadata(mask);
+			int size = sizeof(meta) + meta->size;
 			void *data = operator new(size);
 			if (!data) { // terminate if we can't allocate memory
 				throw "Can't allocate memory!";
@@ -680,13 +818,13 @@ public:
 				int offset = meta->offsets[i];
 				if (offset >= 0) {
 					try {
-						InterfaceWraps[i].Construct(_dataptrunsafe(offset), this);
+						ComponentWraps[i].Construct(_dataptrunsafe(offset), this);
 					} catch (...) {
 						while (i > 0) {
 							--i;
 							offset = meta->offsets[--i];
 							if (offset >= 0) {
-								InterfaceWraps[i].Destruct(_dataptrunsafe(offset));
+								ComponentWraps[i].Destruct(_dataptrunsafe(offset));
 							}
 						}
 						throw;
@@ -695,38 +833,41 @@ public:
 			}
 		}
 	}
-	void UpdateInterfaces(uint64 mask = 0) {
+	Composer(const Composer &other) = delete;
+	Composer &operator=(const Composer &other) = delete;
+	~Composer() {
+		if (_data != zerodata()) {
+			const ComposerMetadata *meta = _meta();
+			for (int i = 0; i < meta->last; ++i) {
+				int offset = meta->offsets[i];
+				if (offset >= 0) {
+					ComponentWraps[i].Destruct(_dataptrunsafe(offset));
+				}
+			}
+			operator delete(_data);
+		}
+	}
+
+	void UpdateComponents(uint64 mask = 0) {
 		if (!_meta()->equals(mask)) {
-			Interfaces tmp(mask);
+			Composer tmp(mask);
 			tmp.swap(*this);
 			if (_data != zerodata() && tmp._data != zerodata()) {
-				const InterfacesMetadata *meta = _meta(), *wasmeta = tmp._meta();
+				const ComposerMetadata *meta = _meta(), *wasmeta = tmp._meta();
 				for (int i = 0; i < meta->last; ++i) {
 					int offset = meta->offsets[i], wasoffset = wasmeta->offsets[i];
 					if (offset >= 0 && wasoffset >= 0) {
-						InterfaceWraps[i].Move(_dataptrunsafe(offset), tmp._dataptrunsafe(wasoffset));
+						ComponentWraps[i].Move(_dataptrunsafe(offset), tmp._dataptrunsafe(wasoffset));
 					}
 				}
 			}
 		}
 	}
-	void AddInterfaces(uint64 mask = 0) {
-		UpdateInterfaces(_meta()->maskadd(mask));
+	void AddComponents(uint64 mask = 0) {
+		UpdateComponents(_meta()->maskadd(mask));
 	}
-	void RemoveInterfaces(uint64 mask = 0) {
-		UpdateInterfaces(_meta()->maskremove(mask));
-	}
-	~Interfaces() {
-		if (_data != zerodata()) {
-			const InterfacesMetadata *meta = _meta();
-			for (int i = 0; i < meta->last; ++i) {
-				int offset = meta->offsets[i];
-				if (offset >= 0) {
-					InterfaceWraps[i].Destruct(_dataptrunsafe(offset));
-				}
-			}
-			operator delete(_data);
-		}
+	void RemoveComponents(uint64 mask = 0) {
+		UpdateComponents(_meta()->maskremove(mask));
 	}
 
 	template <typename Type>
@@ -738,31 +879,28 @@ public:
 		return static_cast<const Type*>(_dataptr(_meta()->offsets[Type::Index()]));
 	}
 	template <typename Type>
-	bool Is() const {
+	bool Has() const {
 		return (_meta()->offsets[Type::Index()] >= 0);
 	}
 
 private:
-	static const InterfacesMetadata *ZeroInterfacesMetadata;
+	static const ComposerMetadata *ZeroComposerMetadata;
 	static void *zerodata() {
-		return &ZeroInterfacesMetadata;
+		return &ZeroComposerMetadata;
 	}
 
 	void *_dataptrunsafe(int skip) const {
-		return (char*)_data + sizeof(const InterfacesMetadata*) + skip;
+		return (char*)_data + sizeof(_meta()) + skip;
 	}
 	void *_dataptr(int skip) const {
 		return (skip >= 0) ? _dataptrunsafe(skip) : 0;
 	}
-	const InterfacesMetadata *&_meta() const {
-		return *static_cast<const InterfacesMetadata**>(_data);
+	const ComposerMetadata *&_meta() const {
+		return *static_cast<const ComposerMetadata**>(_data);
 	}
 	void *_data;
 
-	Interfaces(const Interfaces &other);
-	Interfaces &operator=(const Interfaces &other);
-
-	void swap(Interfaces &other) {
+	void swap(Composer &other) {
 		std::swap(_data, other._data);
 	}
 

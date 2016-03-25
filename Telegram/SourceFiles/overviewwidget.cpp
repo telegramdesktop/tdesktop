@@ -1267,8 +1267,9 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	_contextMenuLnk = textlnkOver();
 	PhotoLink *lnkPhoto = dynamic_cast<PhotoLink*>(_contextMenuLnk.data());
 	DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	bool lnkIsAudio = lnkDocument ? (lnkDocument->document()->voice() != 0) : false;
 	bool lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideo() : false;
+	bool lnkIsAudio = lnkDocument ? (lnkDocument->document()->voice() != nullptr) : false;
+	bool lnkIsSong = lnkDocument ? (lnkDocument->document()->song() != nullptr) : false;
 	if (lnkPhoto || lnkDocument) {
 		_menu = new PopupMenu();
 		if (App::hoveredLinkItem()) {
@@ -1282,7 +1283,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (lnkDocument && !lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
 					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 				}
-				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsAudio ? lng_context_save_audio : lng_context_save_file)), this, SLOT(saveContextFile()))->setEnabled(true);
+				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsAudio ? lng_context_save_audio : (lnkIsSong ? lng_context_save_audio_file : lng_context_save_file))), this, SLOT(saveContextFile()))->setEnabled(true);
 			}
 		}
 		if (isUponSelected > 1) {

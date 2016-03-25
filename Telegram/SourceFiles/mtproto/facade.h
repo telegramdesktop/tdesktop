@@ -122,8 +122,9 @@ namespace internal {
 
 // send(req, callbacks, MTP::uplDcId(index)) - for upload shifted dc id
 // uploading always to the main dc so bareDcId == 0
-inline ShiftedDcId uplDcId(DcId dcId) {
-	return internal::uploadDcId(dcId, 0);
+inline ShiftedDcId uplDcId(int index) {
+	t_assert(index >= 0 && index < MTPUploadSessionsCount);
+	return internal::uploadDcId(0, index);
 };
 constexpr bool isUplDcId(ShiftedDcId shiftedDcId) {
 	return (shiftedDcId >= internal::uploadDcId(0, 0)) && (shiftedDcId < internal::uploadDcId(0, MTPUploadSessionsCount - 1) + DCShift);

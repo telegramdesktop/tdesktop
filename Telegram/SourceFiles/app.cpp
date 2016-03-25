@@ -478,7 +478,13 @@ namespace App {
 
             if (!data) continue;
 
-			data->loaded = true;
+			if (minimal) {
+				if (data->loadedStatus == PeerData::NotLoaded) {
+					data->loadedStatus = PeerData::MinimalLoaded;
+				}
+			} else if (data->loadedStatus != PeerData::FullLoaded) {
+				data->loadedStatus = PeerData::FullLoaded;
+			}
 			if (status && !minimal) switch (status->type()) {
 			case mtpc_userStatusEmpty: data->onlineTill = 0; break;
 			case mtpc_userStatusRecently:
@@ -655,7 +661,13 @@ namespace App {
 			}
 			if (!data) continue;
 
-			data->loaded = true;
+			if (minimal) {
+				if (data->loadedStatus == PeerData::NotLoaded) {
+					data->loadedStatus = PeerData::MinimalLoaded;
+				}
+			} else if (data->loadedStatus != PeerData::FullLoaded) {
+				data->loadedStatus = PeerData::FullLoaded;
+			}
 			if (App::main()) {
 				if (emitPeerUpdated) {
 					App::main()->peerUpdated(data);
@@ -1000,7 +1012,7 @@ namespace App {
 	}
 
 	void checkSavedGif(HistoryItem *item) {
-		if (!item->Is<HistoryMessageForwarded>() && (item->out() || item->history()->peer == App::self())) {
+		if (!item->Has<HistoryMessageForwarded>() && (item->out() || item->history()->peer == App::self())) {
 			if (HistoryMedia *media = item->getMedia()) {
 				if (DocumentData *doc = media->getDocument()) {
 					if (doc->isGifv()) {
@@ -1394,41 +1406,16 @@ namespace App {
 		return 0;
 	}
 
-	PeerData *peerLoaded(const PeerId &peer) {
-		PeersData::const_iterator i = peersData.constFind(peer);
-		return (i != peersData.cend()) ? i.value() : 0;
-	}
-
-	UserData *userLoaded(const PeerId &id) {
-		PeerData *peer = peerLoaded(id);
-		return (peer && peer->loaded) ? peer->asUser() : 0;
-	}
-	ChatData *chatLoaded(const PeerId &id) {
-		PeerData *peer = peerLoaded(id);
-		return (peer && peer->loaded) ? peer->asChat() : 0;
-	}
-	ChannelData *channelLoaded(const PeerId &id) {
-		PeerData *peer = peerLoaded(id);
-		return (peer && peer->loaded) ? peer->asChannel() : 0;
-	}
-	UserData *userLoaded(int32 user_id) {
-		return userLoaded(peerFromUser(user_id));
-	}
-	ChatData *chatLoaded(int32 chat_id) {
-		return chatLoaded(peerFromChat(chat_id));
-	}
-	ChannelData *channelLoaded(int32 channel_id) {
-		return channelLoaded(peerFromChannel(channel_id));
-	}
-
 	UserData *curUser() {
 		return user(MTP::authedId());
 	}
 
-	PeerData *peer(const PeerId &id) {
-		PeersData::const_iterator i = peersData.constFind(id);
+	PeerData *peer(const PeerId &id, PeerData::LoadedStatus restriction) {
+		if (!id) return nullptr;
+
+		auto i = peersData.constFind(id);
 		if (i == peersData.cend()) {
-			PeerData *newData = 0;
+			PeerData *newData = nullptr;
 			if (peerIsUser(id)) {
 				newData = new UserData(id);
 			} else if (peerIsChat(id)) {
@@ -1436,31 +1423,24 @@ namespace App {
 			} else if (peerIsChannel(id)) {
 				newData = new ChannelData(id);
 			}
-			if (!newData) return 0;
+			t_assert(newData != nullptr);
 
 			newData->input = MTPinputPeer(MTP_inputPeerEmpty());
 			i = peersData.insert(id, newData);
 		}
+		switch (restriction) {
+		case PeerData::MinimalLoaded: {
+			if (i.value()->loadedStatus == PeerData::NotLoaded) {
+				return nullptr;
+			}
+		} break;
+		case PeerData::FullLoaded: {
+			if (i.value()->loadedStatus != PeerData::FullLoaded) {
+				return nullptr;
+			}
+		} break;
+		}
 		return i.value();
-	}
-
-	UserData *user(const PeerId &id) {
-		return peer(id)->asUser();
-	}
-	ChatData *chat(const PeerId &id) {
-		return peer(id)->asChat();
-	}
-	ChannelData *channel(const PeerId &id) {
-		return peer(id)->asChannel();
-	}
-	UserData *user(int32 user_id) {
-		return user(peerFromUser(user_id));
-	}
-	ChatData *chat(int32 chat_id) {
-		return chat(peerFromChat(chat_id));
-	}
-	ChannelData *channel(int32 channel_id) {
-		return channel(peerFromChannel(channel_id));
 	}
 
 	UserData *self() {
@@ -1814,17 +1794,17 @@ namespace App {
 		MsgsData *data = fetchMsgsData(item->channelId(), false);
 		if (!data) return;
 
-		MsgsData::iterator i = data->find(item->id);
+		auto i = data->find(item->id);
 		if (i != data->cend()) {
 			if (i.value() == item) {
 				data->erase(i);
 			}
 		}
 		historyItemDetached(item);
-		DependentItems::iterator j = ::dependentItems.find(item);
+		auto j = ::dependentItems.find(item);
 		if (j != ::dependentItems.cend()) {
-			for (OrderedSet<HistoryItem*>::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
-				k.key()->dependencyItemRemoved(item);
+			for_const (HistoryItem *dependent, j.value()) {
+				dependent->dependencyItemRemoved(item);
 			}
 			::dependentItems.erase(j);
 		}
@@ -1836,8 +1816,8 @@ namespace App {
 	void historyUpdateDependent(HistoryItem *item) {
 		DependentItems::iterator j = ::dependentItems.find(item);
 		if (j != ::dependentItems.cend()) {
-			for (OrderedSet<HistoryItem*>::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
-				k.key()->updateDependencyItem();
+			for_const (HistoryItem *dependent, j.value()) {
+				dependent->updateDependencyItem();
 			}
 		}
 		if (App::main()) {
@@ -1849,15 +1829,15 @@ namespace App {
 		::dependentItems.clear();
 
 		QVector<HistoryItem*> toDelete;
-		for (MsgsData::const_iterator i = msgsData.cbegin(), e = msgsData.cend(); i != e; ++i) {
-			if ((*i)->detached()) {
-				toDelete.push_back(*i);
+		for_const (HistoryItem *item, msgsData) {
+			if (item->detached()) {
+				toDelete.push_back(item);
 			}
 		}
-		for (ChannelMsgsData::const_iterator j = channelMsgsData.cbegin(), end = channelMsgsData.cend(); j != end; ++j) {
-			for (MsgsData::const_iterator i = j->cbegin(), e = j->cend(); i != e; ++i) {
-				if ((*i)->detached()) {
-					toDelete.push_back(*i);
+		for_const (const MsgsData &chMsgsData, channelMsgsData) {
+			for_const (HistoryItem *item, chMsgsData) {
+				if (item->detached()) {
+					toDelete.push_back(item);
 				}
 			}
 		}

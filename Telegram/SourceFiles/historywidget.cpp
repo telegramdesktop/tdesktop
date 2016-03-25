@@ -948,7 +948,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	PhotoLink *lnkPhoto = dynamic_cast<PhotoLink*>(_contextMenuLnk.data());
     DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
 	bool lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideo() : false;
-	bool lnkIsAudio = lnkDocument ? (lnkDocument->document()->voice() != 0) : false;
+	bool lnkIsAudio = lnkDocument ? (lnkDocument->document()->voice() != nullptr) : false;
+	bool lnkIsSong = lnkDocument ? (lnkDocument->document()->song() != nullptr) : false;
 	if (lnkPhoto || lnkDocument) {
 		if (isUponSelected > 0) {
 			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
@@ -978,7 +979,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (lnkDocument && !lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
 					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 				}
-				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsAudio ? lng_context_save_audio : lng_context_save_file)), this, SLOT(saveContextFile()))->setEnabled(true);
+				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsAudio ? lng_context_save_audio : (lnkIsSong ? lng_context_save_audio_file : lng_context_save_file))), this, SLOT(saveContextFile()))->setEnabled(true);
 			}
 		}
 		if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
@@ -5996,7 +5997,7 @@ void HistoryWidget::onPhotoUploaded(const FullMsgId &newId, bool silent, const M
 		uint64 randomId = rand_value<uint64>();
 		App::historyRegRandom(randomId, newId);
 		History *hist = item->history();
-		MsgId replyTo = item->toHistoryReply() ? item->toHistoryReply()->replyToId() : 0;
+		MsgId replyTo = item->replyToId();
 		MTPmessages_SendMedia::Flags sendFlags = 0;
 		if (replyTo) {
 			sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
@@ -6048,7 +6049,7 @@ void HistoryWidget::onDocumentUploaded(const FullMsgId &newId, bool silent, cons
 			uint64 randomId = rand_value<uint64>();
 			App::historyRegRandom(randomId, newId);
 			History *hist = item->history();
-			MsgId replyTo = item->toHistoryReply() ? item->toHistoryReply()->replyToId() : 0;
+			MsgId replyTo = item->replyToId();
 			MTPmessages_SendMedia::Flags sendFlags = 0;
 			if (replyTo) {
 				sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
@@ -6077,7 +6078,7 @@ void HistoryWidget::onThumbDocumentUploaded(const FullMsgId &newId, bool silent,
 			uint64 randomId = rand_value<uint64>();
 			App::historyRegRandom(randomId, newId);
 			History *hist = item->history();
-			MsgId replyTo = item->toHistoryReply() ? item->toHistoryReply()->replyToId() : 0;
+			MsgId replyTo = item->replyToId();
 			MTPmessages_SendMedia::Flags sendFlags = 0;
 			if (replyTo) {
 				sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
@@ -6986,7 +6987,7 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 		} else if (_pinnedBar->msgId != pinnedMsgId) {
 			_pinnedBar->msgId = pinnedMsgId;
 			_pinnedBar->msg = 0;
-			_pinnedBar->text.clean();
+			_pinnedBar->text.clear();
 			updatePinnedBar();
 			update();
 		}

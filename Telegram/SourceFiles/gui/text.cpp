@@ -2534,18 +2534,30 @@ Text::Text(style::font font, const QString &text, const TextParseOptions &option
 	}
 }
 
-Text::Text(const Text &other) :
-_minResizeWidth(other._minResizeWidth), _maxWidth(other._maxWidth),
-_minHeight(other._minHeight),
-_text(other._text),
-_font(other._font),
-_blocks(other._blocks.size()),
-_links(other._links),
-_startDir(other._startDir)
-{
+Text::Text(const Text &other)
+: _minResizeWidth(other._minResizeWidth)
+, _maxWidth(other._maxWidth)
+, _minHeight(other._minHeight)
+, _text(other._text)
+, _font(other._font)
+, _blocks(other._blocks.size())
+, _links(other._links)
+, _startDir(other._startDir) {
 	for (int32 i = 0, l = _blocks.size(); i < l; ++i) {
 		_blocks[i] = other._blocks.at(i)->clone();
 	}
+}
+
+Text::Text(Text &&other)
+: _minResizeWidth(other._minResizeWidth)
+, _maxWidth(other._maxWidth)
+, _minHeight(other._minHeight)
+, _text(other._text)
+, _font(other._font)
+, _blocks(other._blocks)
+, _links(other._links)
+, _startDir(other._startDir) {
+	other.clearFields();
 }
 
 Text &Text::operator=(const Text &other) {
@@ -2563,10 +2575,23 @@ Text &Text::operator=(const Text &other) {
 	return *this;
 }
 
+Text &Text::operator=(Text &&other) {
+	_minResizeWidth = other._minResizeWidth;
+	_maxWidth = other._maxWidth;
+	_minHeight = other._minHeight;
+	_text = other._text;
+	_font = other._font;
+	_blocks = other._blocks;
+	_links = other._links;
+	_startDir = other._startDir;
+	other.clearFields();
+	return *this;
+}
+
 void Text::setText(style::font font, const QString &text, const TextParseOptions &options) {
 	if (!_textStyle) _initDefault();
 	_font = font;
-	clean();
+	clear();
 	{
 		TextParser parser(this, text, options);
 	}
@@ -2644,7 +2669,7 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 void Text::setMarkedText(style::font font, const QString &text, const EntitiesInText &entities, const TextParseOptions &options) {
 	if (!_textStyle) _initDefault();
 	_font = font;
-	clean();
+	clear();
 	{
 //		QString newText; // utf16 of the text for emoji
 //		newText.reserve(8 * text.size());
@@ -3216,10 +3241,14 @@ EntitiesInText Text::originalEntities() const {
 	return result;
 }
 
-void Text::clean() {
+void Text::clear() {
 	for (TextBlocks::iterator i = _blocks.begin(), e = _blocks.end(); i != e; ++i) {
 		delete *i;
 	}
+	clearFields();
+}
+
+void Text::clearFields() {
 	_blocks.clear();
 	_links.clear();
 	_maxWidth = _minHeight = 0;

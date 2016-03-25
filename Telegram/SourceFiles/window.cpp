@@ -1410,7 +1410,7 @@ void Window::notifySchedule(History *history, HistoryItem *item) {
 		haveSetting = false;
 	}
 
-	int delay = item->Is<HistoryMessageForwarded>() ? 500 : 100, t = unixtime();
+	int delay = item->Has<HistoryMessageForwarded>() ? 500 : 100, t = unixtime();
 	uint64 ms = getms(true);
 	bool isOnline = main->lastWasOnline(), otherNotOld = ((cOtherOnline() * uint64(1000)) + Global::OnlineCloudTimeout() > t * uint64(1000));
 	bool otherLaterThanMe = (cOtherOnline() * uint64(1000) + (ms - main->lastSetOnline()) > t * uint64(1000));
@@ -1629,7 +1629,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 				notifyWaitTimer.start(next - ms);
 				break;
 			} else {
-				HistoryItem *fwd = notifyItem->Is<HistoryMessageForwarded>() ? notifyItem : 0; // forwarded notify grouping
+				HistoryItem *fwd = notifyItem->Has<HistoryMessageForwarded>() ? notifyItem : nullptr; // forwarded notify grouping
 				int32 fwdCount = 1;
 
 				uint64 ms = getms(true);
@@ -1657,7 +1657,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 						} while (history->hasNotification());
 						if (nextNotify) {
 							if (fwd) {
-								HistoryItem *nextFwd = nextNotify->Is<HistoryMessageForwarded>() ? nextNotify : 0;
+								HistoryItem *nextFwd = nextNotify->Has<HistoryMessageForwarded>() ? nextNotify : nullptr;
 								if (nextFwd && fwd->author() == nextFwd->author() && qAbs(int64(nextFwd->date.toTime_t()) - int64(fwd->date.toTime_t())) < 2) {
 									fwd = nextFwd;
 									++fwdCount;

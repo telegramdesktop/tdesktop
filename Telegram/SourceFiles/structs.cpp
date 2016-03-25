@@ -35,8 +35,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 
 namespace {
-	int32 peerColorIndex(const PeerId &peer) {
-		int32 myId(MTP::authedId()), peerId(peerToBareInt(peer));
+	int peerColorIndex(const PeerId &peer) {
+		UserId myId(MTP::authedId()), peerId(peerToBareInt(peer));
 		QByteArray both(qsl("%1%2").arg(peerId).arg(myId).toUtf8());
 		if (both.size() > 15) {
 			both = both.mid(0, 15);
@@ -47,7 +47,7 @@ namespace {
 	}
 }
 
-style::color peerColor(int32 index) {
+style::color peerColor(int index) {
 	static const style::color peerColors[8] = {
 		style::color(st::color1),
 		style::color(st::color2),
@@ -61,7 +61,7 @@ style::color peerColor(int32 index) {
 	return peerColors[index];
 }
 
-ImagePtr userDefPhoto(int32 index) {
+ImagePtr userDefPhoto(int index) {
 	static const ImagePtr userDefPhotos[UserColorsCount] = {
 		ImagePtr(qsl(":/ava/art/usercolor1.png"), "PNG"),
 		ImagePtr(qsl(":/ava/art/usercolor2.png"), "PNG"),
@@ -75,7 +75,7 @@ ImagePtr userDefPhoto(int32 index) {
 	return userDefPhotos[index];
 }
 
-ImagePtr chatDefPhoto(int32 index) {
+ImagePtr chatDefPhoto(int index) {
 	static const ImagePtr chatDefPhotos[4] = {
 		ImagePtr(qsl(":/ava/art/chatcolor1.png"), "PNG"),
 		ImagePtr(qsl(":/ava/art/chatcolor2.png"), "PNG"),
@@ -85,7 +85,7 @@ ImagePtr chatDefPhoto(int32 index) {
 	return chatDefPhotos[index];
 }
 
-ImagePtr channelDefPhoto(int32 index) {
+ImagePtr channelDefPhoto(int index) {
 	static const ImagePtr channelDefPhotos[4] = {
 		ImagePtr(qsl(":/ava/art/channelcolor1.png"), "PNG"),
 		ImagePtr(qsl(":/ava/art/channelcolor2.png"), "PNG"),
@@ -100,7 +100,7 @@ NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersP
 
 PeerData::PeerData(const PeerId &id) : id(id)
 , lnk(new PeerLink(this))
-, loaded(false)
+, loadedStatus(NotLoaded)
 , colorIndex(peerColorIndex(id))
 , color(peerColor(colorIndex))
 , photoId(UnknownPeerPhotoId)
@@ -279,7 +279,7 @@ void UserData::setPhone(const QString &newPhone) {
 	phone = newPhone;
 }
 
-void UserData::setBotInfoVersion(int32 version) {
+void UserData::setBotInfoVersion(int version) {
 	if (version < 0) {
 		if (botInfo) {
 			if (!botInfo->commands.isEmpty()) {
@@ -866,7 +866,7 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 		} else {
 			filter = mimeType.filterString() + qsl(";;All files (*.*)");
 		}
-		caption = lang(lng_save_file);
+		caption = lang(data->song() ? lng_save_audio_file : lng_save_file);
 		prefix = qsl("doc");
 	}
 

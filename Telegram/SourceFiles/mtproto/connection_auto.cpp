@@ -255,7 +255,7 @@ void AutoConnection::requestFinished(QNetworkReply *reply) {
 void AutoConnection::socketPacket(const char *packet, uint32 length) {
 	if (status == FinishedWork) return;
 
-	mtpBuffer data = TCPConnection::handleResponse(packet, length);
+	mtpBuffer data = AbstractTCPConnection::handleResponse(packet, length);
 	if (data.size() == 1) {
 		if (status == WaitingBoth) {
 			status = WaitingHttp;
@@ -326,7 +326,7 @@ QString AutoConnection::transport() const {
 void AutoConnection::socketError(QAbstractSocket::SocketError e) {
 	if (status == FinishedWork) return;
 
-	TCPConnection::handleError(e, sock);
+	AbstractTCPConnection::handleError(e, sock);
 	if (status == WaitingBoth) {
 		status = WaitingHttp;
 	} else if (status == HttpReady) {

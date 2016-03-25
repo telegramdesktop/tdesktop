@@ -600,7 +600,9 @@ public:
 	Text(int32 minResizeWidth = QFIXED_MAX);
 	Text(style::font font, const QString &text, const TextParseOptions &options = _defaultOptions, int32 minResizeWidth = QFIXED_MAX, bool richText = false);
 	Text(const Text &other);
+	Text(Text &&other);
 	Text &operator=(const Text &other);
+	Text &operator=(Text &&other);
 
 	int32 countWidth(int32 width) const;
 	int32 countHeight(int32 width) const;
@@ -688,14 +690,18 @@ public:
 		return true;
 	}
 
-	void clean();
+	void clear();
 	~Text() {
-		clean();
+		clear();
 	}
 
 private:
 
 	void recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir = Qt::LayoutDirectionAuto);
+
+	// clear() deletes all blocks and calls this method
+	// it is also called from move constructor / assignment operator
+	void clearFields();
 
 	QFixed _minResizeWidth, _maxWidth;
 	int32 _minHeight;
