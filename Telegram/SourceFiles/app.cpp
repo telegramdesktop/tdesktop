@@ -67,7 +67,8 @@ namespace {
 	SharedContactItems sharedContactItems;
 	GifItems gifItems;
 
-	typedef QMap<HistoryItem*, OrderedSet<HistoryItem*> > DependentItems;
+	typedef OrderedSet<HistoryItem*> DependentItemsSet;
+	typedef QMap<HistoryItem*, DependentItemsSet> DependentItems;
 	DependentItems dependentItems;
 
 	Histories histories;
@@ -1787,7 +1788,6 @@ namespace App {
 		if (App::wnd()) {
 			App::wnd()->notifyItemRemoved(item);
 		}
-		item->history()->setPendingResize();
 	}
 
 	void historyUnregItem(HistoryItem *item) {
@@ -1803,10 +1803,13 @@ namespace App {
 		historyItemDetached(item);
 		auto j = ::dependentItems.find(item);
 		if (j != ::dependentItems.cend()) {
-			for_const (HistoryItem *dependent, j.value()) {
+			DependentItemsSet items;
+			std::swap(items, j.value());
+			::dependentItems.erase(j);
+
+			for_const (HistoryItem *dependent, items) {
 				dependent->dependencyItemRemoved(item);
 			}
-			::dependentItems.erase(j);
 		}
 		if (App::main() && !App::quitting()) {
 			App::main()->itemRemoved(item);
@@ -1903,7 +1906,7 @@ namespace App {
 	}
 
 	void historyUnregDependency(HistoryItem *dependent, HistoryItem *dependency) {
-		DependentItems::iterator i = ::dependentItems.find(dependency);
+		auto i = ::dependentItems.find(dependency);
 		if (i != ::dependentItems.cend()) {
 			i.value().remove(dependent);
 			if (i.value().isEmpty()) {
