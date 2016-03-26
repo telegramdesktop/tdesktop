@@ -759,12 +759,12 @@ HistoryItem *ChannelHistory::addNewToBlocks(const MTPMessage &msg, NewMessageTyp
 
 		if (prev && prev->type() == HistoryItemGroup) {
 			static_cast<HistoryGroup*>(prev)->uniteWith(item);
-			return prev;
+		} else {
+			QDateTime date = prev ? prev->date : item->date;
+			HistoryBlock *block = prev ? prev->block() : pushBackNewBlock();
+			addItemToBlock(HistoryGroup::create(this, item, date), block);
 		}
-
-		QDateTime date = prev ? prev->date : item->date;
-		HistoryBlock *block = prev ? prev->block() : pushBackNewBlock();
-		return addItemToBlock(HistoryGroup::create(this, item, date), block);
+		return item;
 	}
 
 	// when we are receiving channel dialog rows we get one important and one not important
@@ -830,6 +830,7 @@ void ChannelHistory::switchMode() {
 			int willAddToBlock = qMin(int(MessagesPerPage), count - i);
 			block->items.reserve(willAddToBlock);
 			for (int till = i + willAddToBlock; i < till; ++i) {
+				t_assert(_otherList.at(i)->detached());
 				addItemToBlock(_otherList.at(i), block);
 			}
 
@@ -1136,6 +1137,10 @@ void Histories::clear() {
 	App::historyClearMsgs();
 	for (Map::const_iterator i = map.cbegin(), e = map.cend(); i != e; ++i) {
 		delete i.value();
+	}
+	_unreadFull = _unreadMuted = 0;
+	if (App::wnd()) {
+		App::wnd()->updateCounter();
 	}
 	App::historyClearItems();
 	typing.clear();
@@ -1998,7 +2003,7 @@ void History::setUnreadCount(int newUnreadCount, bool psUpdate) {
 			if (loadedAtBottom()) showFrom = lastImportantMessage();
 			inboxReadBefore = qMax(inboxReadBefore, msgIdForRead());
 		} else if (!newUnreadCount) {
-			showFrom = 0;
+			showFrom = nullptr;
 			inboxReadBefore = qMax(inboxReadBefore, msgIdForRead() + 1);
 		}
 		if (inChatList()) {
@@ -2563,7 +2568,7 @@ void History::changeMsgId(MsgId oldId, MsgId newId) {
 }
 
 void History::removeBlock(HistoryBlock *block) {
-	setPendingResize();
+	t_assert(block->items.isEmpty());
 
 	int index = block->indexInHistory();
 	blocks.removeAt(index);
@@ -2573,7 +2578,6 @@ void History::removeBlock(HistoryBlock *block) {
 	if (index < blocks.size()) {
 		blocks.at(index)->items.front()->previousItemChanged();
 	}
-	delete block;
 }
 
 History::~History() {
@@ -2614,7 +2618,7 @@ void HistoryBlock::clear(bool leaveItems) {
 void HistoryBlock::removeItem(HistoryItem *item) {
 	t_assert(item->block() == this);
 
-	int32 itemIndex = item->indexInBlock();
+	int itemIndex = item->indexInBlock();
 	if (history->showFrom == item) {
 		history->getNextShowFrom(this, itemIndex);
 	}
@@ -2625,13 +2629,14 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 		history->getNextScrollTopItem(this, itemIndex);
 	}
 
-	int myIndex = indexInHistory();
-	if (myIndex >= 0) { // fix message groups
+	int blockIndex = indexInHistory();
+	if (blockIndex >= 0) { // fix message groups
 		if (item->isImportant()) { // unite message groups around this important message
-			HistoryGroup *nextGroup = 0, *prevGroup = 0;
-			HistoryCollapse *nextCollapse = 0;
-			HistoryItem *prevItem = 0;
-			for (int32 nextBlock = myIndex, nextIndex = qMin(items.size(), itemIndex + 1); nextBlock < history->blocks.size(); ++nextBlock) {
+			HistoryGroup *nextGroup = nullptr;
+			HistoryGroup *prevGroup = nullptr;
+			HistoryCollapse *nextCollapse = nullptr;
+			HistoryItem *prevItem = nullptr;
+			for (int nextBlock = blockIndex, nextIndex = qMin(items.size(), itemIndex + 1); nextBlock < history->blocks.size(); ++nextBlock) {
 				HistoryBlock *block = history->blocks.at(nextBlock);
 				for (; nextIndex < block->items.size(); ++nextIndex) {
 					HistoryItem *item = block->items.at(nextIndex);
@@ -2651,7 +2656,7 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 					break;
 				}
 			}
-			for (int32 prevBlock = myIndex + 1, prevIndex = qMax(1, itemIndex); prevBlock > 0;) {
+			for (int prevBlock = blockIndex + 1, prevIndex = qMax(1, itemIndex); prevBlock > 0;) {
 				--prevBlock;
 				HistoryBlock *block = history->blocks.at(prevBlock);
 				if (!prevIndex) prevIndex = block->items.size();
@@ -2680,24 +2685,26 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 			}
 		}
 	}
-	// myIndex can be invalid now, because of destroying previous blocks
 
+	// itemIndex/blockIndex can be invalid now, because of destroying previous items/blocks
+	blockIndex = indexInHistory();
+	itemIndex = item->indexInBlock();
+
+	item->detachFast();
 	items.remove(itemIndex);
 	for (int i = itemIndex, l = items.size(); i < l; ++i) {
 		items.at(i)->setIndexInBlock(i);
 	}
-	if (itemIndex < items.size()) {
+	if (items.isEmpty()) {
+		history->removeBlock(this);
+	} else if (itemIndex < items.size()) {
 		items.at(itemIndex)->previousItemChanged();
-	} else if (_indexInHistory + 1 < history->blocks.size()) {
-		history->blocks.at(_indexInHistory + 1)->items.front()->previousItemChanged();
-	}
-
-	if ((!item->out() || item->isPost()) && item->unread() && history->unreadCount) {
-		history->setUnreadCount(history->unreadCount - 1);
+	} else if (blockIndex + 1 < history->blocks.size()) {
+		history->blocks.at(blockIndex + 1)->items.front()->previousItemChanged();
 	}
 
 	if (items.isEmpty()) {
-		history->removeBlock(this);
+		delete this;
 	}
 }
 
@@ -2790,6 +2797,9 @@ void HistoryItem::destroy() {
 		history()->clearLastKeyboard();
 		if (App::main()) App::main()->updateBotKeyboard(history());
 	}
+	if ((!out() || isPost()) && unread() && history()->unreadCount > 0) {
+		history()->setUnreadCount(history()->unreadCount - 1);
+	}
 	delete this;
 }
 
@@ -2800,7 +2810,6 @@ void HistoryItem::detach() {
 		_history->asChannelHistory()->messageDetached(this);
 	}
 	_block->removeItem(this);
-	detachFast();
 	App::historyItemDetached(this);
 
 	_history->setPendingResize();

@@ -985,27 +985,27 @@ void WebLoadManager::process() {
 				i.value() = 0;
 			}
 		}
-		for (Loaders::iterator i = _loaders.begin(), e = _loaders.end(); i != e;) {
-			LoaderPointers::iterator it = _loaderPointers.find(i.key()->_interface);
-			if (it != _loaderPointers.cend() && it.key()->_private != i.key()) {
+		for (auto i = _loaders.begin(), e = _loaders.end(); i != e;) {
+			LoaderPointers::iterator it = _loaderPointers.find((*i)->_interface);
+			if (it != _loaderPointers.cend() && it.key()->_private != (*i)) {
 				it = _loaderPointers.end();
 			}
 			if (it == _loaderPointers.cend()) {
-				if (QNetworkReply *reply = i.key()->reply()) {
+				if (QNetworkReply *reply = (*i)->reply()) {
 					_replies.remove(reply);
 					reply->abort();
 					reply->deleteLater();
 				}
-				delete i.key();
+				delete (*i);
 				i = _loaders.erase(i);
 			} else {
 				++i;
 			}
 		}
 	}
-	for (Loaders::const_iterator i = newLoaders.cbegin(), e = newLoaders.cend(); i != e; ++i) {
-		if (_loaders.contains(i.key())) {
-			sendRequest(i.key());
+	for_const (webFileLoaderPrivate *loader, newLoaders) {
+		if (_loaders.contains(loader)) {
+			sendRequest(loader);
 		}
 	}
 }
@@ -1047,8 +1047,8 @@ void WebLoadManager::clear() {
 	}
 	_loaderPointers.clear();
 
-	for (Loaders::iterator i = _loaders.begin(), e = _loaders.end(); i != e; ++i) {
-		delete i.key();
+	for_const (webFileLoaderPrivate *loader, _loaders) {
+		delete loader;
 	}
 	_loaders.clear();
 

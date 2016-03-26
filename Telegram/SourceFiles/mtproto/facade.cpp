@@ -100,7 +100,7 @@ namespace {
 					LOG(("MTP Error: could not find request %1 for resending").arg(requestId));
 					continue;
 				}
-				int32 dcWithShift = newdc;
+				ShiftedDcId dcWithShift = newdc;
 				{
 					RequestsByDC::iterator k = requestsByDC.find(requestId);
 					if (k == requestsByDC.cend()) {
@@ -111,7 +111,7 @@ namespace {
 						setdc(newdc);
 						k.value() = -newdc;
 					} else {
-						dcWithShift += getDcIdShift(k.value());
+						dcWithShift = shiftDcId(newdc, getDcIdShift(k.value()));
 						k.value() = dcWithShift;
 					}
 					DEBUG_LOG(("MTP Info: resending request %1 to dc %2 after import auth").arg(requestId).arg(k.value()));
@@ -167,7 +167,7 @@ namespace {
 		if ((m = QRegularExpression("^(FILE|PHONE|NETWORK|USER)_MIGRATE_(\\d+)$").match(err)).hasMatch()) {
 			if (!requestId) return false;
 
-			int32 dcWithShift = 0, newdcWithShift = m.captured(2).toInt();
+			ShiftedDcId dcWithShift = 0, newdcWithShift = m.captured(2).toInt();
 			{
 				QMutexLocker locker(&requestByDCLock);
 				RequestsByDC::iterator i = requestsByDC.find(requestId);
@@ -193,7 +193,7 @@ namespace {
 					MTP::setdc(newdcWithShift);
 				}
 			} else {
-				newdcWithShift += MTP::getDcIdShift(dcWithShift);
+				newdcWithShift = shiftDcId(newdcWithShift, getDcIdShift(dcWithShift));
 			}
 
 			mtpRequest req;
@@ -837,9 +837,9 @@ void finish() {
 	sessions.clear();
 	mainSession = nullptr;
 
-	for (MTPQuittingConnections::const_iterator i = quittingConnections.cbegin(), e = quittingConnections.cend(); i != e; ++i) {
-		i.key()->waitTillFinish();
-		delete i.key();
+	for_const (internal::Connection *connection, quittingConnections) {
+		connection->waitTillFinish();
+		delete connection;
 	}
 	quittingConnections.clear();
 

@@ -227,12 +227,15 @@ void audioPlayNotify() {
 	emit audioPlayer()->faderOnTimer();
 }
 
+// can be called at any moment when audio error
 void audioFinish() {
 	if (player) {
-		deleteAndMark(player);
+		delete player;
+		player = nullptr;
 	}
 	if (capture) {
-		deleteAndMark(capture);
+		delete capture;
+		capture = nullptr;
 	}
 
 	alSourceStop(notifySource);

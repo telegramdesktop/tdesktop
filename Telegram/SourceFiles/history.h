@@ -239,7 +239,6 @@ public:
 		return blocks.isEmpty();
 	}
 	void clear(bool leaveItems = false);
-	void removeBlock(HistoryBlock *block);
 
 	virtual ~History();
 
@@ -498,10 +497,15 @@ private:
 	MediaOverviewIds overviewIds[OverviewCount];
 	int32 overviewCountData[OverviewCount]; // -1 - not loaded, 0 - all loaded, > 0 - count, but not all loaded
 
-	void clearBlocks(bool leaveItems);
-
 	friend class HistoryBlock;
 	friend class ChannelHistory;
+
+	// this method just removes a block from the blocks list
+	// when the last item from this block was detached and
+	// calls the required previousItemChanged()
+	void removeBlock(HistoryBlock *block);
+
+	void clearBlocks(bool leaveItems);
 
 	HistoryItem *createItem(const MTPMessage &msg, bool applyServiceAction, bool detachExistingItem);
 	HistoryItem *createItemForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *msg);
@@ -1163,7 +1167,10 @@ public:
 		return !_block;
 	}
 	void attachToBlock(HistoryBlock *block, int index) {
-		t_assert(_block == nullptr && _indexInBlock < 0);
+		t_assert(_block == nullptr);
+		t_assert(_indexInBlock < 0);
+		t_assert(block != nullptr);
+		t_assert(index >= 0);
 
 		_block = block;
 		_indexInBlock = index;
@@ -1172,6 +1179,9 @@ public:
 		}
 	}
 	void setIndexInBlock(int index) {
+		t_assert(_block != nullptr);
+		t_assert(index >= 0);
+
 		_indexInBlock = index;
 	}
 	int indexInBlock() const {

@@ -1148,7 +1148,7 @@ collapseButton: flatButton(btnDefFlat) {
 	textTop: 3px;
 	overTextTop: 3px;
 	downTextTop: 3px;
-	height: 24px;
+	height: 25px;
 }
 collapseHideDuration: 200;
 collapseShowDuration: 200;

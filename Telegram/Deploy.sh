@@ -57,7 +57,11 @@ elif [ "$BuildTarget" == "mac" ]; then
     echo "Deploying version $AppVersionStrFull for Windows.."
   else
     DeployMac="1"
-    DeployMac32="1"
+    if [ "$BetaVersion" != "0" ]; then
+      DeployMac32="0"
+    else
+      DeployMac32="1"
+    fi
     DeployWin="1"
     echo "Deploying three versions of $AppVersionStrFull: for Windows, OS X 10.6 and 10.7 and OS X 10.8+.."
   fi

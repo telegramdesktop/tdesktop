@@ -452,7 +452,7 @@ ConnectionPrivate::ConnectionPrivate(QThread *thread, Connection *owner, Session
 
 	connect(thread, SIGNAL(started()), this, SLOT(socketStart()));
 	connect(thread, SIGNAL(finished()), this, SLOT(doFinish()));
-	connect(this, SIGNAL(finished(MTProtoConnection*)), globalSlotCarrier(), SLOT(connectionFinished(MTProtoConnection*)), Qt::QueuedConnection);
+	connect(this, SIGNAL(finished(Connection*)), globalSlotCarrier(), SLOT(connectionFinished(Connection*)), Qt::QueuedConnection);
 
 	connect(&retryTimer, SIGNAL(timeout()), this, SLOT(retryByTimer()));
 	connect(&_waitForConnectedTimer, SIGNAL(timeout()), this, SLOT(onWaitConnectedFailed()));
@@ -765,13 +765,13 @@ void ConnectionPrivate::tryToSend() {
 	if (_pingIdToSend) {
 		if (prependOnly || dc != bareDcId(dc)) {
 			MTPPing ping(MTPping(MTP_long(_pingIdToSend)));
-			uint32 pingSize = ping.innerLength() >> 2; // copy from MTProtoSession::send
+			uint32 pingSize = ping.innerLength() >> 2; // copy from Session::send
 			pingRequest = mtpRequestData::prepare(pingSize);
 			ping.write(*pingRequest);
 			DEBUG_LOG(("MTP Info: sending ping, ping_id: %1").arg(_pingIdToSend));
 		} else {
 			MTPPing_delay_disconnect ping(MTP_long(_pingIdToSend), MTP_int(MTPPingDelayDisconnect));
-			uint32 pingSize = ping.innerLength() >> 2; // copy from MTProtoSession::send
+			uint32 pingSize = ping.innerLength() >> 2; // copy from Session::send
 			pingRequest = mtpRequestData::prepare(pingSize);
 			ping.write(*pingRequest);
 			DEBUG_LOG(("MTP Info: sending ping_delay_disconnect, ping_id: %1").arg(_pingIdToSend));
@@ -1176,7 +1176,7 @@ void ConnectionPrivate::restart(bool mayBeBadKey) {
 	QReadLocker lockFinished(&sessionDataMutex);
 	if (!sessionData) return;
 
-	DEBUG_LOG(("MTP Info: restarting MTProtoConnection, maybe bad key = %1").arg(Logs::b(mayBeBadKey)));
+	DEBUG_LOG(("MTP Info: restarting Connection, maybe bad key = %1").arg(Logs::b(mayBeBadKey)));
 
 	_waitForReceivedTimer.stop();
 	_waitForConnectedTimer.stop();
@@ -2342,7 +2342,7 @@ void ConnectionPrivate::updateAuthKey() 	{
 	QReadLocker lockFinished(&sessionDataMutex);
 	if (!sessionData || !_conn) return;
 
-	DEBUG_LOG(("AuthKey Info: MTProtoConnection updating key from MTProtoSession, dc %1").arg(dc));
+	DEBUG_LOG(("AuthKey Info: Connection updating key from Session, dc %1").arg(dc));
 	uint64 newKeyId = 0;
 	{
 		ReadLockerAttempt lock(sessionData->keyMutex());
@@ -2359,7 +2359,7 @@ void ConnectionPrivate::updateAuthKey() 	{
 		clearMessages();
 		keyId = newKeyId;
 	}
-	DEBUG_LOG(("AuthKey Info: MTProtoConnection update key from MTProtoSession, dc %1 result: %2").arg(dc).arg(Logs::mb(&keyId, sizeof(keyId)).str()));
+	DEBUG_LOG(("AuthKey Info: Connection update key from Session, dc %1 result: %2").arg(dc).arg(Logs::mb(&keyId, sizeof(keyId)).str()));
 	if (keyId) {
 		return authKeyCreated();
 	}

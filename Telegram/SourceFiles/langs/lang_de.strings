@@ -663,10 +663,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_count" = "{count:Lade...|# Sticker|# Sticker}";
 
 "lng_in_dlg_photo" = "Bild";
-"lng_in_dlg_video" = "Video file";
-"lng_in_dlg_audio_file" = "Audio file";
+"lng_in_dlg_video" = "Videodatei";
+"lng_in_dlg_audio_file" = "Audiodatei";
 "lng_in_dlg_contact" = "Kontakt";
-"lng_in_dlg_audio" = "Voice message";
+"lng_in_dlg_audio" = "Sprachnachricht";
 "lng_in_dlg_file" = "Datei";
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} (Sticker)";
@@ -741,9 +741,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_maps_point" = "Standort";
 "lng_save_photo" = "Bild speichern";
-"lng_save_video" = "Save video file";
-"lng_save_audio_file" = "Save audio file";
-"lng_save_audio" = "Save voice message";
+"lng_save_video" = "Videodatei speichern";
+"lng_save_audio_file" = "Audiodatei speichern";
+"lng_save_audio" = "Sprachnachricht speichern";
 "lng_save_file" = "Datei speichern";
 "lng_save_downloaded" = "{ready} / {total} {mb}";
 "lng_duration_and_size" = "{duration}, {size}";
@@ -768,9 +768,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_cancel_download" = "Download abbrechen";
 "lng_context_show_in_folder" = "Im Ordner anzeigen";
 "lng_context_show_in_finder" = "Im Finder zeigen";
-"lng_context_save_video" = "Save Video File As...";
-"lng_context_save_audio_file" = "Save Audio File As...";
-"lng_context_save_audio" = "Save Voice Message As...";
+"lng_context_save_video" = "Videodatei speichern unter...";
+"lng_context_save_audio_file" = "Audiodatei speichern unter...";
+"lng_context_save_audio" = "Sprachnachricht speichern unter...";
 "lng_context_pack_info" = "Sticker-Paket";
 "lng_context_pack_add" = "Sticker hinzufügen";
 "lng_context_save_file" = "Datei speichern unter...";

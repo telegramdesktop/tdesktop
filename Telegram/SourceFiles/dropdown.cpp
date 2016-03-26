@@ -4501,8 +4501,7 @@ void MentionsDropdown::updateFiltered(bool resetScroll) {
 			if (_channel->mgInfo->bots.isEmpty()) {
 				if (!_channel->mgInfo->botStatus && App::api()) App::api()->requestBots(_channel);
 			} else {
-				for (MegagroupInfo::Bots::const_iterator i = _channel->mgInfo->bots.cbegin(), e = _channel->mgInfo->bots.cend(); i != e; ++i) {
-					UserData *user = i.key();
+				for_const (auto *user, _channel->mgInfo->bots) {
 					if (!user->botInfo) continue;
 					if (!user->botInfo->inited && App::api()) App::api()->requestFullPeer(user);
 					if (user->botInfo->commands.isEmpty()) continue;
