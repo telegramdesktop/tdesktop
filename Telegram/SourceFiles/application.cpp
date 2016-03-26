@@ -120,16 +120,16 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
 #endif
 
 	if (cManyInstance()) {
-		LOG(("Many instance allowed, starting.."));
+		LOG(("Many instance allowed, starting..."));
 		singleInstanceChecked();
 	} else {
-        LOG(("Connecting local socket to %1..").arg(_localServerName));
+        LOG(("Connecting local socket to %1...").arg(_localServerName));
 		_localSocket.connectToServer(_localServerName);
 	}
 }
 
 void Application::socketConnected() {
-	LOG(("Socket connected, this is not the first application instance, sending show command.."));
+	LOG(("Socket connected, this is not the first application instance, sending show command..."));
 	_secondInstance = true;
 
 	QString commands;
@@ -154,7 +154,7 @@ void Application::socketWritten(qint64/* bytes*/) {
 	if (_localSocket.bytesToWrite()) {
 		return;
 	}
-	LOG(("Show command written, waiting response.."));
+	LOG(("Show command written, waiting response..."));
 }
 
 void Application::socketReading() {
@@ -166,7 +166,7 @@ void Application::socketReading() {
 	if (QRegularExpression("RES:(\\d+);").match(_localSocketReadData).hasMatch()) {
 		uint64 pid = _localSocketReadData.mid(4, _localSocketReadData.length() - 5).toULongLong();
 		psActivateProcess(pid);
-		LOG(("Show command response received, pid = %1, activating and quitting..").arg(pid));
+		LOG(("Show command response received, pid = %1, activating and quitting...").arg(pid));
 		return App::quit();
 	}
 }
@@ -175,14 +175,14 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 	if (App::quitting()) return;
 
 	if (_secondInstance) {
-		LOG(("Could not write show command, error %1, quitting..").arg(e));
+		LOG(("Could not write show command, error %1, quitting...").arg(e));
 		return App::quit();
 	}
 
 	if (e == QLocalSocket::ServerNotFoundError) {
-		LOG(("This is the only instance of Telegram, starting server and app.."));
+		LOG(("This is the only instance of Telegram, starting server and app..."));
 	} else {
-		LOG(("Socket connect error %1, starting server and app..").arg(e));
+		LOG(("Socket connect error %1, starting server and app...").arg(e));
 	}
 	_localSocket.close();
 
@@ -196,7 +196,7 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if (!cNoStartUpdate() && checkReadyUpdate()) {
 		cSetRestartingUpdate(true);
-		DEBUG_LOG(("Application Info: installing update instead of starting app.."));
+		DEBUG_LOG(("Application Info: installing update instead of starting app..."));
 		return App::quit();
 	}
 #endif
@@ -235,7 +235,7 @@ void Application::singleInstanceChecked() {
 
 void Application::socketDisconnected() {
 	if (_secondInstance) {
-		DEBUG_LOG(("Application Error: socket disconnected before command response received, quitting.."));
+		DEBUG_LOG(("Application Error: socket disconnected before command response received, quitting..."));
 		return App::quit();
 	}
 }
@@ -704,7 +704,7 @@ AppClass::AppClass() : QObject()
 	anim::startManager();
 	historyInit();
 
-	DEBUG_LOG(("Application Info: inited.."));
+	DEBUG_LOG(("Application Info: inited..."));
 
 	application()->installNativeEventFilter(psNativeEventFilter());
 
@@ -714,7 +714,7 @@ AppClass::AppClass() : QObject()
 
 	connect(&killDownloadSessionsTimer, SIGNAL(timeout()), this, SLOT(killDownloadSessions()));
 
-	DEBUG_LOG(("Application Info: starting app.."));
+	DEBUG_LOG(("Application Info: starting app..."));
 
 	QMimeDatabase().mimeTypeForName(qsl("text/plain")); // create mime database
 
@@ -724,7 +724,7 @@ AppClass::AppClass() : QObject()
 
 	Sandbox::connect(SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
 
-	DEBUG_LOG(("Application Info: window created.."));
+	DEBUG_LOG(("Application Info: window created..."));
 
 	Shortcuts::start();
 
@@ -734,16 +734,16 @@ AppClass::AppClass() : QObject()
 	Local::ReadMapState state = Local::readMap(QByteArray());
 	if (state == Local::ReadMapPassNeeded) {
 		cSetHasPasscode(true);
-		DEBUG_LOG(("Application Info: passcode nneded.."));
+		DEBUG_LOG(("Application Info: passcode needed..."));
 	} else {
-		DEBUG_LOG(("Application Info: local map read.."));
+		DEBUG_LOG(("Application Info: local map read..."));
 		MTP::start();
 	}
 
 	MTP::setStateChangedHandler(mtpStateChanged);
 	MTP::setSessionResetHandler(mtpSessionReset);
 
-	DEBUG_LOG(("Application Info: MTP started.."));
+	DEBUG_LOG(("Application Info: MTP started..."));
 
 	DEBUG_LOG(("Application Info: showing."));
 	if (state == Local::ReadMapPassNeeded) {
@@ -761,7 +761,9 @@ AppClass::AppClass() : QObject()
 		_window->showSettings();
 	}
 
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
+#endif
 
 	if (state != Local::ReadMapPassNeeded) {
 		checkMapVersion();
@@ -899,12 +901,16 @@ void AppClass::onAppStateChanged(Qt::ApplicationState state) {
 	}
 }
 
+void AppClass::call_handleHistoryUpdate() {
+	Notify::handlePendingHistoryUpdate();
+}
+
 void AppClass::killDownloadSessions() {
 	uint64 ms = getms(), left = MTPAckSendWaiting + MTPKillFileSessionTimeout;
 	for (QMap<int32, uint64>::iterator i = killDownloadSessionTimes.begin(); i != killDownloadSessionTimes.end(); ) {
 		if (i.value() <= ms) {
 			for (int j = 0; j < MTPDownloadSessionsCount; ++j) {
-				MTP::stopSession(MTP::dld(j) + i.key());
+				MTP::stopSession(MTP::dldDcId(i.key(), j));
 			}
 			i = killDownloadSessionTimes.erase(i);
 		} else {
@@ -998,7 +1004,7 @@ void AppClass::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId) {
 	QBuffer jpegBuffer(&jpeg);
 	full.save(&jpegBuffer, "JPG", 87);
 
-	PhotoId id = MTP::nonce<PhotoId>();
+	PhotoId id = rand_value<PhotoId>();
 
 	MTPPhoto photo(MTP_photo(MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_vector<MTPPhotoSize>(photoSizes)));
 
@@ -1019,10 +1025,10 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cDevVersion() || cBetaVersion()) && Local::oldMapVersion() < 9031) {
+			if ((cDevVersion() || cBetaVersion()) && Local::oldMapVersion() < 9035) {
 //				QString ctrl = (cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? qsl("Cmd") : qsl("Ctrl");
-//				versionFeatures = QString::fromUtf8("\xe2\x80\x94 %1+W or %2+F4 for close window\n\xe2\x80\x94 %3+L to lock Telegram if you use a local passcode\n\xe2\x80\x94 Bug fixes and other minor improvements").arg(ctrl).arg(ctrl).arg(ctrl);// .replace('@', qsl("@") + QChar(0x200D));
-				versionFeatures = lng_new_version_text(lt_link, qsl("https://telegram.org/blog/supergroups5k")).trimmed();
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Design improvements\n\xe2\x80\x94 Bug fixes and other minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
+//				versionFeatures = lng_new_version_text(lt_link, qsl("https://telegram.org/blog/supergroups5k")).trimmed();
 			} else if (Local::oldMapVersion() < 9031) {
 				versionFeatures = lng_new_version_text(lt_link, qsl("https://telegram.org/blog/supergroups5k")).trimmed();
 			} else {

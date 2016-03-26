@@ -57,7 +57,7 @@ namespace {
 
 	typedef QMap<MsgId, ReplyMarkup> ReplyMarkups;
 	ReplyMarkups replyMarkups;
-	ReplyMarkup zeroMarkup(MTPDreplyKeyboardMarkup_flag_ZERO);
+	ReplyMarkup zeroMarkup(qFlags(MTPDreplyKeyboardMarkup_ClientFlag::f_zero));
 	typedef QMap<ChannelId, ReplyMarkups> ChannelReplyMarkups;
 	ChannelReplyMarkups channelReplyMarkups;
 
@@ -67,7 +67,8 @@ namespace {
 	SharedContactItems sharedContactItems;
 	GifItems gifItems;
 
-	typedef QMap<HistoryItem*, OrderedSet<HistoryItem*> > DependentItems;
+	typedef OrderedSet<HistoryItem*> DependentItemsSet;
+	typedef QMap<HistoryItem*, DependentItemsSet> DependentItems;
 	DependentItems dependentItems;
 
 	Histories histories;
@@ -326,6 +327,25 @@ namespace App {
 		return lng_status_lastseen_date(lt_date, dOnline.date().toString(qsl("dd.MM.yy")));
 	}
 
+	namespace {
+		// we should get a full restriction in "{fulltype}: {reason}" format and we
+		// need to find a "-all" tag in {fulltype}, otherwise ignore this restriction
+		QString extractRestrictionReason(const QString &fullRestriction) {
+			int fullTypeEnd = fullRestriction.indexOf(':');
+			if (fullTypeEnd <= 0) {
+				return QString();
+			}
+
+			// {fulltype} is in "{type}-{tag}-{tag}-{tag}" format
+			// if we find "all" tag we return the restriction string
+			QStringList typeTags = fullRestriction.mid(0, fullTypeEnd).split('-').mid(1);
+			if (typeTags.contains(qsl("all"))) {
+				return fullRestriction.midRef(fullTypeEnd + 1).trimmed().toString();
+			}
+			return QString();
+		}
+	}
+
 	bool onlineColorUse(UserData *user, int32 now) {
 		if (isServiceUser(user->id) || user->botInfo) {
 			return false;
@@ -388,6 +408,11 @@ namespace App {
 						data->input = MTP_inputPeerUser(d.vid, d.vaccess_hash);
 						data->inputUser = MTP_inputUser(d.vid, d.vaccess_hash);
 					}
+					if (d.is_restricted()) {
+						data->setRestrictionReason(extractRestrictionReason(qs(d.vrestriction_reason)));
+					} else {
+						data->setRestrictionReason(QString());
+					}
 				}
 				if (d.is_deleted()) {
 					data->setPhone(QString());
@@ -396,9 +421,13 @@ namespace App {
 					data->access = UserNoAccess;
 					status = &emptyStatus;
 				} else {
+					// apply first_name and last_name from minimal user only if we don't have
+					// local values for first name and last name already, otherwise skip
+					bool noLocalName = data->firstName.isEmpty() && data->lastName.isEmpty();
+					QString fname = (!minimal || noLocalName) ? (d.has_first_name() ? textOneLine(qs(d.vfirst_name)) : QString()) : data->firstName;
+					QString lname = (!minimal || noLocalName) ? (d.has_last_name() ? textOneLine(qs(d.vlast_name)) : QString()) : data->lastName;
+
 					QString phone = minimal ? data->phone : (d.has_phone() ? qs(d.vphone) : QString());
-					QString fname = d.has_first_name() ? textOneLine(qs(d.vfirst_name)) : QString();
-					QString lname = d.has_last_name() ? textOneLine(qs(d.vlast_name)) : QString();
 					QString uname = minimal ? data->username : (d.has_username() ? textOneLine(qs(d.vusername)) : QString());
 
 					bool phoneChanged = (data->phone != phone);
@@ -450,7 +479,13 @@ namespace App {
 
             if (!data) continue;
 
-			data->loaded = true;
+			if (minimal) {
+				if (data->loadedStatus == PeerData::NotLoaded) {
+					data->loadedStatus = PeerData::MinimalLoaded;
+				}
+			} else if (data->loadedStatus != PeerData::FullLoaded) {
+				data->loadedStatus = PeerData::FullLoaded;
+			}
 			if (status && !minimal) switch (status->type()) {
 			case mtpc_userStatusEmpty: data->onlineTill = 0; break;
 			case mtpc_userStatusRecently:
@@ -507,7 +542,7 @@ namespace App {
 					const MTPDinputChannel &c(d.vmigrated_to.c_inputChannel());
 					ChannelData *channel = App::channel(peerFromChannel(c.vchannel_id));
 					if (!channel->mgInfo) {
-						channel->flags |= MTPDchannel::flag_megagroup;
+						channel->flags |= MTPDchannel::Flag::f_megagroup;
 						channel->flagsUpdated();
 					}
 					if (!channel->access) {
@@ -538,7 +573,7 @@ namespace App {
 					}
 				}
 
-				if (!(cdata->flags & MTPDchat::flag_admins_enabled) && (d.vflags.v & MTPDchat::flag_admins_enabled)) {
+				if (!(cdata->flags & MTPDchat::Flag::f_admins_enabled) && (d.vflags.v & MTPDchat::Flag::f_admins_enabled)) {
 					cdata->invalidateParticipants();
 				}
 				cdata->flags = d.vflags.v;
@@ -583,7 +618,7 @@ namespace App {
 
 				ChannelData *cdata = data->asChannel();
 				if (minimal) {
-					int32 mask = MTPDchannel::flag_broadcast | MTPDchannel::flag_verified | MTPDchannel::flag_megagroup | MTPDchannel::flag_democracy;
+					int32 mask = MTPDchannel::Flag::f_broadcast | MTPDchannel::Flag::f_verified | MTPDchannel::Flag::f_megagroup | MTPDchannel::Flag::f_democracy;
 					cdata->flags = (cdata->flags & ~mask) | (d.vflags.v & mask);
 				} else {
 					cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
@@ -592,6 +627,11 @@ namespace App {
 					cdata->flags = d.vflags.v;
 					if (cdata->version < d.vversion.v) {
 						cdata->version = d.vversion.v;
+					}
+					if (d.is_restricted()) {
+						cdata->setRestrictionReason(extractRestrictionReason(qs(d.vrestriction_reason)));
+					} else {
+						cdata->setRestrictionReason(QString());
 					}
 				}
 				QString uname = d.has_username() ? textOneLine(qs(d.vusername)) : QString();
@@ -622,7 +662,13 @@ namespace App {
 			}
 			if (!data) continue;
 
-			data->loaded = true;
+			if (minimal) {
+				if (data->loadedStatus == PeerData::NotLoaded) {
+					data->loadedStatus = PeerData::MinimalLoaded;
+				}
+			} else if (data->loadedStatus != PeerData::FullLoaded) {
+				data->loadedStatus = PeerData::FullLoaded;
+			}
 			if (App::main()) {
 				if (emitPeerUpdated) {
 					App::main()->peerUpdated(data);
@@ -654,7 +700,7 @@ namespace App {
 				int32 pversion = chat->participants.isEmpty() ? 1 : (chat->participants.begin().value() + 1);
 				chat->invitedByMe = ChatData::InvitedByMe();
 				chat->admins = ChatData::Admins();
-				chat->flags &= ~MTPDchat::flag_admin;
+				chat->flags &= ~MTPDchat::Flag::f_admin;
 				for (QVector<MTPChatParticipant>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
 					int32 uid = 0, inviter = 0;
 					switch (i->type()) {
@@ -685,7 +731,7 @@ namespace App {
 						if (i->type() == mtpc_chatParticipantAdmin) {
 							chat->admins.insert(user);
 							if (user->isSelf()) {
-								chat->flags |= MTPDchat::flag_admin;
+								chat->flags |= MTPDchat::Flag::f_admin;
 							}
 						}
 					} else {
@@ -805,7 +851,7 @@ namespace App {
 						chat->invitedByMe.remove(user);
 						chat->admins.remove(user);
 						if (user->isSelf()) {
-							chat->flags &= ~MTPDchat::flag_admin;
+							chat->flags &= ~MTPDchat::Flag::f_admin;
 						}
 
 						History *h = App::historyLoaded(chat->id);
@@ -852,13 +898,12 @@ namespace App {
 			}
 			chat->version = d.vversion.v;
 			if (mtpIsTrue(d.venabled)) {
-				chat->flags |= MTPDchat::flag_admins_enabled;
+				chat->flags |= MTPDchat::Flag::f_admins_enabled;
 				if (!badVersion) {
 					chat->invalidateParticipants();
 				}
 			} else {
-				chat->flags &= ~MTPDchat::flag_admins_enabled;
-				chat->flags &= ~MTPDchat::flag_admin;
+				chat->flags &= ~MTPDchat::Flag::f_admins_enabled;
 			}
 			if (emitPeerUpdated) {
 				App::main()->peerUpdated(chat);
@@ -887,7 +932,7 @@ namespace App {
 			if (user) {
 				if (mtpIsTrue(d.vis_admin)) {
 					if (user->isSelf()) {
-						chat->flags |= MTPDchat::flag_admin;
+						chat->flags |= MTPDchat::Flag::f_admin;
 					}
 					if (chat->noParticipantInfo()) {
 						App::api()->requestFullPeer(chat);
@@ -896,7 +941,7 @@ namespace App {
 					}
 				} else {
 					if (user->isSelf()) {
-						chat->flags &= ~MTPDchat::flag_admin;
+						chat->flags &= ~MTPDchat::Flag::f_admin;
 					}
 					chat->admins.remove(user);
 				}
@@ -921,10 +966,7 @@ namespace App {
 		if (HistoryItem *existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
 			existing->setText(qs(m.vmessage), m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText());
 			existing->updateMedia(m.has_media() ? (&m.vmedia) : 0);
-			existing->setViewsCount(m.has_views() ? m.vviews.v : -1, false);
-			existing->initDimensions();
-			Notify::historyItemResized(existing);
-
+			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
 			existing->addToOverview(AddToOverviewNew);
 
 			if (!existing->detached()) {
@@ -945,16 +987,13 @@ namespace App {
 		if (HistoryItem *existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
 			existing->setText(qs(m.vmessage), m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText());
 			existing->updateMedia(m.has_media() ? (&m.vmedia) : 0, true);
-			existing->setViewsCount(m.has_views() ? m.vviews.v : -1, false);
-			existing->initDimensions();
+			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
 			if (existing->history()->textCachedFor == existing) {
 				existing->history()->textCachedFor = 0;
 			}
 			if (App::main()) {
 				App::main()->dlgUpdated(existing->history(), existing->id);
 			}
-			App::historyUpdateDependent(existing);
-			Notify::historyItemResized(existing);
 		}
 	}
 
@@ -974,7 +1013,7 @@ namespace App {
 	}
 
 	void checkSavedGif(HistoryItem *item) {
-		if (!item->Is<HistoryMessageForwarded>() && (item->out() || item->history()->peer == App::self())) {
+		if (!item->Has<HistoryMessageForwarded>() && (item->out() || item->history()->peer == App::self())) {
 			if (HistoryMedia *media = item->getMedia()) {
 				if (DocumentData *doc = media->getDocument()) {
 					if (doc->isGifv()) {
@@ -1095,7 +1134,6 @@ namespace App {
 	}
 
 	void feedWereDeleted(ChannelId channelId, const QVector<MTPint> &msgsIds) {
-		bool resized = false;
 		MsgsData *data = fetchMsgsData(channelId, false);
 		if (!data) return;
 
@@ -1106,9 +1144,6 @@ namespace App {
 			MsgsData::const_iterator j = data->constFind(i->v);
 			if (j != data->cend()) {
 				History *h = (*j)->history();
-				if (App::main() && (h->peer == App::main()->peer() || (App::main()->peer() && h->peer->migrateTo() == App::main()->peer())) && !(*j)->detached()) {
-					resized = true;
-				}
 				(*j)->destroy();
 				if (!h->lastMsg) historiesToCheck.insert(h, true);
 			} else {
@@ -1119,9 +1154,6 @@ namespace App {
 					}
 				}
 			}
-		}
-		if (resized) {
-			Notify::historyItemsResized();
 		}
 		if (main()) {
 			for (QMap<History*, bool>::const_iterator i = historiesToCheck.cbegin(), e = historiesToCheck.cend(); i != e; ++i) {
@@ -1375,41 +1407,16 @@ namespace App {
 		return 0;
 	}
 
-	PeerData *peerLoaded(const PeerId &peer) {
-		PeersData::const_iterator i = peersData.constFind(peer);
-		return (i != peersData.cend()) ? i.value() : 0;
-	}
-
-	UserData *userLoaded(const PeerId &id) {
-		PeerData *peer = peerLoaded(id);
-		return (peer && peer->loaded) ? peer->asUser() : 0;
-	}
-	ChatData *chatLoaded(const PeerId &id) {
-		PeerData *peer = peerLoaded(id);
-		return (peer && peer->loaded) ? peer->asChat() : 0;
-	}
-	ChannelData *channelLoaded(const PeerId &id) {
-		PeerData *peer = peerLoaded(id);
-		return (peer && peer->loaded) ? peer->asChannel() : 0;
-	}
-	UserData *userLoaded(int32 user_id) {
-		return userLoaded(peerFromUser(user_id));
-	}
-	ChatData *chatLoaded(int32 chat_id) {
-		return chatLoaded(peerFromChat(chat_id));
-	}
-	ChannelData *channelLoaded(int32 channel_id) {
-		return channelLoaded(peerFromChannel(channel_id));
-	}
-
 	UserData *curUser() {
 		return user(MTP::authedId());
 	}
 
-	PeerData *peer(const PeerId &id) {
-		PeersData::const_iterator i = peersData.constFind(id);
+	PeerData *peer(const PeerId &id, PeerData::LoadedStatus restriction) {
+		if (!id) return nullptr;
+
+		auto i = peersData.constFind(id);
 		if (i == peersData.cend()) {
-			PeerData *newData = 0;
+			PeerData *newData = nullptr;
 			if (peerIsUser(id)) {
 				newData = new UserData(id);
 			} else if (peerIsChat(id)) {
@@ -1417,31 +1424,24 @@ namespace App {
 			} else if (peerIsChannel(id)) {
 				newData = new ChannelData(id);
 			}
-			if (!newData) return 0;
+			t_assert(newData != nullptr);
 
 			newData->input = MTPinputPeer(MTP_inputPeerEmpty());
 			i = peersData.insert(id, newData);
 		}
+		switch (restriction) {
+		case PeerData::MinimalLoaded: {
+			if (i.value()->loadedStatus == PeerData::NotLoaded) {
+				return nullptr;
+			}
+		} break;
+		case PeerData::FullLoaded: {
+			if (i.value()->loadedStatus != PeerData::FullLoaded) {
+				return nullptr;
+			}
+		} break;
+		}
 		return i.value();
-	}
-
-	UserData *user(const PeerId &id) {
-		return peer(id)->asUser();
-	}
-	ChatData *chat(const PeerId &id) {
-		return peer(id)->asChat();
-	}
-	ChannelData *channel(const PeerId &id) {
-		return peer(id)->asChannel();
-	}
-	UserData *user(int32 user_id) {
-		return user(peerFromUser(user_id));
-	}
-	ChatData *chat(int32 chat_id) {
-		return chat(peerFromChat(chat_id));
-	}
-	ChannelData *channel(int32 channel_id) {
-		return channel(peerFromChannel(channel_id));
 	}
 
 	UserData *self() {
@@ -1794,19 +1794,22 @@ namespace App {
 		MsgsData *data = fetchMsgsData(item->channelId(), false);
 		if (!data) return;
 
-		MsgsData::iterator i = data->find(item->id);
+		auto i = data->find(item->id);
 		if (i != data->cend()) {
 			if (i.value() == item) {
 				data->erase(i);
 			}
 		}
 		historyItemDetached(item);
-		DependentItems::iterator j = ::dependentItems.find(item);
+		auto j = ::dependentItems.find(item);
 		if (j != ::dependentItems.cend()) {
-			for (OrderedSet<HistoryItem*>::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
-				k.key()->dependencyItemRemoved(item);
-			}
+			DependentItemsSet items;
+			std::swap(items, j.value());
 			::dependentItems.erase(j);
+
+			for_const (HistoryItem *dependent, items) {
+				dependent->dependencyItemRemoved(item);
+			}
 		}
 		if (App::main() && !App::quitting()) {
 			App::main()->itemRemoved(item);
@@ -1816,8 +1819,8 @@ namespace App {
 	void historyUpdateDependent(HistoryItem *item) {
 		DependentItems::iterator j = ::dependentItems.find(item);
 		if (j != ::dependentItems.cend()) {
-			for (OrderedSet<HistoryItem*>::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
-				k.key()->updateDependencyItem();
+			for_const (HistoryItem *dependent, j.value()) {
+				dependent->updateDependencyItem();
 			}
 		}
 		if (App::main()) {
@@ -1829,15 +1832,15 @@ namespace App {
 		::dependentItems.clear();
 
 		QVector<HistoryItem*> toDelete;
-		for (MsgsData::const_iterator i = msgsData.cbegin(), e = msgsData.cend(); i != e; ++i) {
-			if ((*i)->detached()) {
-				toDelete.push_back(*i);
+		for_const (HistoryItem *item, msgsData) {
+			if (item->detached()) {
+				toDelete.push_back(item);
 			}
 		}
-		for (ChannelMsgsData::const_iterator j = channelMsgsData.cbegin(), end = channelMsgsData.cend(); j != end; ++j) {
-			for (MsgsData::const_iterator i = j->cbegin(), e = j->cend(); i != e; ++i) {
-				if ((*i)->detached()) {
-					toDelete.push_back(*i);
+		for_const (const MsgsData &chMsgsData, channelMsgsData) {
+			for_const (HistoryItem *item, chMsgsData) {
+				if (item->detached()) {
+					toDelete.push_back(item);
 				}
 			}
 		}
@@ -1878,9 +1881,9 @@ namespace App {
 		webPagesData.clear();
 		if (api()) api()->clearWebPageRequests();
 		cSetRecentStickers(RecentStickerPack());
-		cSetStickerSets(StickerSets());
-		cSetStickerSetsOrder(StickerSetsOrder());
-		cSetLastStickersUpdate(0);
+		Global::SetStickerSets(Stickers::Sets());
+		Global::SetStickerSetsOrder(Stickers::Order());
+		Global::SetLastStickersUpdate(0);
 		cSetSavedGifs(SavedGifs());
 		cSetLastSavedGifsUpdate(0);
 		cSetReportSpamStatuses(ReportSpamStatuses());
@@ -1903,7 +1906,7 @@ namespace App {
 	}
 
 	void historyUnregDependency(HistoryItem *dependent, HistoryItem *dependency) {
-		DependentItems::iterator i = ::dependentItems.find(dependency);
+		auto i = ::dependentItems.find(dependency);
 		if (i != ::dependentItems.cend()) {
 			i.value().remove(dependent);
 			if (i.value().isEmpty()) {
@@ -2446,13 +2449,13 @@ namespace App {
 		case mtpc_replyKeyboardHide: {
 			const MTPDreplyKeyboardHide &d(markup.c_replyKeyboardHide());
 			if (d.vflags.v) {
-				insertReplyMarkup(channelId, msgId, ReplyMarkup(d.vflags.v | MTPDreplyKeyboardMarkup_flag_ZERO));
+				insertReplyMarkup(channelId, msgId, ReplyMarkup(mtpCastFlags(d.vflags.v) | MTPDreplyKeyboardMarkup_ClientFlag::f_zero));
 			}
 		} break;
 
 		case mtpc_replyKeyboardForceReply: {
 			const MTPDreplyKeyboardForceReply &d(markup.c_replyKeyboardForceReply());
-			insertReplyMarkup(channelId, msgId, ReplyMarkup(d.vflags.v | MTPDreplyKeyboardMarkup_flag_FORCE_REPLY));
+			insertReplyMarkup(channelId, msgId, ReplyMarkup(mtpCastFlags(d.vflags.v) | MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply));
 		} break;
 		}
 	}
@@ -2486,9 +2489,12 @@ namespace App {
 	}
 
 	void setProxySettings(QNetworkAccessManager &manager) {
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 		manager.setProxy(getHttpProxySettings());
+#endif
 	}
 
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	QNetworkProxy getHttpProxySettings() {
 		const ConnectionProxy *proxy = 0;
 		if (Global::started()) {
@@ -2501,14 +2507,17 @@ namespace App {
 		}
 		return QNetworkProxy(QNetworkProxy::DefaultProxy);
 	}
+#endif
 
 	void setProxySettings(QTcpSocket &socket) {
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 		if (cConnectionType() == dbictTcpProxy) {
 			const ConnectionProxy &p(cConnectionProxy());
 			socket.setProxy(QNetworkProxy(QNetworkProxy::Socks5Proxy, p.host, p.port, p.user, p.password));
 		} else {
 			socket.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
 		}
+#endif
 	}
 
 	QImage **cornersMask() {

@@ -19,7 +19,10 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
+
 #include "localstorage.h"
+
+#include <openssl/evp.h>
 
 #include "mainwidget.h"
 #include "window.h"
@@ -110,7 +113,7 @@ namespace {
 		path.reserve(base.size() + 0x11);
 		path += base;
 		do {
-			result = MTP::nonce<FileKey>();
+			result = rand_value<FileKey>();
 			path.resize(base.size());
 			path += toFilePart(result);
 		} while (!result || keyAlreadyUsed(path, options));
@@ -157,8 +160,8 @@ namespace {
 
 	QByteArray _settingsSalt, _passKeySalt, _passKeyEncrypted;
 
-	mtpAuthKey _oldKey, _settingsKey, _passKey, _localKey;
-	void createLocalKey(const QByteArray &pass, QByteArray *salt, mtpAuthKey *result) {
+	MTP::AuthKey _oldKey, _settingsKey, _passKey, _localKey;
+	void createLocalKey(const QByteArray &pass, QByteArray *salt, MTP::AuthKey *result) {
 		uchar key[LocalEncryptKeySize] = { 0 };
 		int32 iterCount = pass.size() ? LocalEncryptIterCount : LocalEncryptNoPwdIterCount; // dont slow down for no password
 		QByteArray newSalt;
@@ -279,7 +282,7 @@ namespace {
 
 			return true;
 		}
-		static QByteArray prepareEncrypted(EncryptedDescriptor &data, const mtpAuthKey &key = _localKey) {
+		static QByteArray prepareEncrypted(EncryptedDescriptor &data, const MTP::AuthKey &key = _localKey) {
 			data.finish();
 			QByteArray &toEncrypt(data.data);
 
@@ -293,11 +296,11 @@ namespace {
 			*(uint32*)toEncrypt.data() = size;
 			QByteArray encrypted(0x10 + fullSize, Qt::Uninitialized); // 128bit of sha1 - key128, sizeof(data), data
 			hashSha1(toEncrypt.constData(), toEncrypt.size(), encrypted.data());
-			aesEncryptLocal(toEncrypt.constData(), encrypted.data() + 0x10, fullSize, &key, encrypted.constData());
+			MTP::aesEncryptLocal(toEncrypt.constData(), encrypted.data() + 0x10, fullSize, &key, encrypted.constData());
 
 			return encrypted;
 		}
-		bool writeEncrypted(EncryptedDescriptor &data, const mtpAuthKey &key = _localKey) {
+		bool writeEncrypted(EncryptedDescriptor &data, const MTP::AuthKey &key = _localKey) {
 			return writeData(prepareEncrypted(data, key));
 		}
 		void finish() {
@@ -465,7 +468,7 @@ namespace {
 		return false;
 	}
 
-	bool decryptLocal(EncryptedDescriptor &result, const QByteArray &encrypted, const mtpAuthKey &key = _localKey) {
+	bool decryptLocal(EncryptedDescriptor &result, const QByteArray &encrypted, const MTP::AuthKey &key = _localKey) {
 		if (encrypted.size() <= 16 || (encrypted.size() & 0x0F)) {
 			LOG(("App Error: bad encrypted part size: %1").arg(encrypted.size()));
 			return false;
@@ -501,7 +504,7 @@ namespace {
 		return true;
 	}
 
-	bool readEncryptedFile(FileReadDescriptor &result, const QString &name, int options = UserPath | SafePath, const mtpAuthKey &key = _localKey) {
+	bool readEncryptedFile(FileReadDescriptor &result, const QString &name, int options = UserPath | SafePath, const MTP::AuthKey &key = _localKey) {
 		if (!readFile(result, name, options)) {
 			return false;
 		}
@@ -531,7 +534,7 @@ namespace {
 		return true;
 	}
 
-	bool readEncryptedFile(FileReadDescriptor &result, const FileKey &fkey, int options = UserPath | SafePath, const mtpAuthKey &key = _localKey) {
+	bool readEncryptedFile(FileReadDescriptor &result, const FileKey &fkey, int options = UserPath | SafePath, const MTP::AuthKey &key = _localKey) {
 		return readEncryptedFile(result, toFilePart(fkey), options, key);
 	}
 
@@ -864,7 +867,7 @@ namespace {
 		}
 	}
 
-	mtpDcOptions *_dcOpts = 0;
+	MTP::DcOptions *_dcOpts = 0;
 	bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		switch (blockId) {
 		case dbiDcOptionOld: {
@@ -873,16 +876,17 @@ namespace {
 			stream >> dcId >> host >> ip >> port;
 			if (!_checkStreamStatus(stream)) return false;
 
-			if (_dcOpts) _dcOpts->insert(dcId, mtpDcOption(dcId, 0, ip.toUtf8().constData(), port));
+			if (_dcOpts) _dcOpts->insert(dcId, MTP::DcOption(dcId, 0, ip.toUtf8().constData(), port));
 		} break;
 
 		case dbiDcOption: {
-			quint32 dcIdWithShift, flags, port;
+			quint32 dcIdWithShift, port;
+			qint32 flags;
 			QString ip;
 			stream >> dcIdWithShift >> flags >> ip >> port;
 			if (!_checkStreamStatus(stream)) return false;
 
-			if (_dcOpts) _dcOpts->insert(dcIdWithShift, mtpDcOption(dcIdWithShift % _mtp_internal::dcShift, flags, ip.toUtf8().constData(), port));
+			if (_dcOpts) _dcOpts->insert(dcIdWithShift, MTP::DcOption(MTP::bareDcId(dcIdWithShift), MTPDdcOption::Flags(flags), ip.toUtf8().constData(), port));
 		} break;
 
 		case dbiChatSizeMax: {
@@ -927,8 +931,8 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			DEBUG_LOG(("MTP Info: key found, dc %1, key: %2").arg(dcId).arg(Logs::mb(key, 256).str()));
-			dcId = dcId % _mtp_internal::dcShift;
-			mtpAuthKeyPtr keyPtr(new mtpAuthKey());
+			dcId = MTP::bareDcId(dcId);
+			MTP::AuthKeyPtr keyPtr(new MTP::AuthKey());
 			keyPtr->setKey(key);
 			keyPtr->setDC(dcId);
 
@@ -1366,7 +1370,7 @@ namespace {
 		bool result = false;
 		QFile file(cWorkingDir() + qsl("tdata/config"));
 		if (file.open(QIODevice::ReadOnly)) {
-			LOG(("App Info: reading old config.."));
+			LOG(("App Info: reading old config..."));
 			QDataStream stream(&file);
 			stream.setVersion(QDataStream::Qt_5_1);
 
@@ -1446,7 +1450,7 @@ namespace {
 				QBuffer decryptedStream(&decrypted);
 				decryptedStream.open(QIODevice::ReadOnly);
 				decryptedStream.seek(4); // skip size
-				LOG(("App Info: reading encrypted old user config.."));
+				LOG(("App Info: reading encrypted old user config..."));
 
 				_readOldUserSettingsFields(&decryptedStream, version);
 			} else if (!_readSetting(blockId, stream, version)) {
@@ -1459,19 +1463,19 @@ namespace {
 		bool result = false;
 		QFile file(cWorkingDir() + cDataFile() + (cTestMode() ? qsl("_test") : QString()) + qsl("_config"));
 		if (file.open(QIODevice::ReadOnly)) {
-			LOG(("App Info: reading old user config.."));
+			LOG(("App Info: reading old user config..."));
 			qint32 version = 0;
 
-			mtpDcOptions dcOpts;
+			MTP::DcOptions dcOpts;
 			{
 				QReadLocker lock(MTP::dcOptionsMutex());
-				dcOpts = cDcOptions();
+				dcOpts = Global::DcOptions();
 			}
 			_dcOpts = &dcOpts;
 			_readOldUserSettingsFields(&file, version);
 			{
 				QWriteLocker lock(MTP::dcOptionsMutex());
-				cSetDcOptions(dcOpts);
+				Global::SetDcOptions(dcOpts);
 			}
 
 			file.close();
@@ -1533,7 +1537,7 @@ namespace {
 				QBuffer decryptedStream(&decrypted);
 				decryptedStream.open(QIODevice::ReadOnly);
 				decryptedStream.seek(4); // skip size
-				LOG(("App Info: reading encrypted old keys.."));
+				LOG(("App Info: reading encrypted old keys..."));
 
 				_readOldMtpDataFields(&decryptedStream, version);
 			} else if (!_readSetting(blockId, stream, version)) {
@@ -1546,19 +1550,19 @@ namespace {
 		bool result = false;
 		QFile file(cWorkingDir() + cDataFile() + (cTestMode() ? qsl("_test") : QString()));
 		if (file.open(QIODevice::ReadOnly)) {
-			LOG(("App Info: reading old keys.."));
+			LOG(("App Info: reading old keys..."));
 			qint32 version = 0;
 
-			mtpDcOptions dcOpts;
+			MTP::DcOptions dcOpts;
 			{
 				QReadLocker lock(MTP::dcOptionsMutex());
-				dcOpts = cDcOptions();
+				dcOpts = Global::DcOptions();
 			}
 			_dcOpts = &dcOpts;
 			_readOldMtpDataFields(&file, version);
 			{
 				QWriteLocker lock(MTP::dcOptionsMutex());
-				cSetDcOptions(dcOpts);
+				Global::SetDcOptions(dcOpts);
 			}
 
 			file.close();
@@ -1643,7 +1647,7 @@ namespace {
 			return _writeUserSettings();
 		}
 
-		LOG(("App Info: reading encrypted user settings.."));
+		LOG(("App Info: reading encrypted user settings..."));
 		while (!userSettings.stream.atEnd()) {
 			quint32 blockId;
 			userSettings.stream >> blockId;
@@ -1664,16 +1668,16 @@ namespace {
 			return;
 		}
 
-		mtpKeysMap keys = MTP::getKeys();
+		MTP::AuthKeysMap keys = MTP::getKeys();
 
 		quint32 size = sizeof(quint32) + sizeof(qint32) + sizeof(quint32);
 		size += keys.size() * (sizeof(quint32) + sizeof(quint32) + 256);
 
 		EncryptedDescriptor data(size);
 		data.stream << quint32(dbiUser) << qint32(MTP::authedId()) << quint32(MTP::maindc());
-		for (mtpKeysMap::const_iterator i = keys.cbegin(), e = keys.cend(); i != e; ++i) {
-			data.stream << quint32(dbiKey) << quint32((*i)->getDC());
-			(*i)->write(data.stream);
+		for_const (const MTP::AuthKeyPtr &key, keys) {
+			data.stream << quint32(dbiKey) << quint32(key->getDC());
+			key->write(data.stream);
 		}
 
 		mtp.writeEncrypted(data, _localKey);
@@ -1689,7 +1693,7 @@ namespace {
 			return;
 		}
 
-		LOG(("App Info: reading encrypted mtp data.."));
+		LOG(("App Info: reading encrypted mtp data..."));
 		while (!mtp.stream.atEnd()) {
 			quint32 blockId;
 			mtp.stream >> blockId;
@@ -1715,7 +1719,7 @@ namespace {
 		if (!readFile(mapData, qsl("map"))) {
 			return Local::ReadMapFailed;
 		}
-		LOG(("App Info: reading map.."));
+		LOG(("App Info: reading map..."));
 
 		QByteArray salt, keyEncrypted, mapEncrypted;
 		mapData.stream >> salt >> keyEncrypted >> mapEncrypted;
@@ -1731,7 +1735,7 @@ namespace {
 
 		EncryptedDescriptor keyData, map;
 		if (!decryptLocal(keyData, keyEncrypted, _passKey)) {
-			LOG(("App Info: could not decrypt pass-protected key from map file, maybe bad password.."));
+			LOG(("App Info: could not decrypt pass-protected key from map file, maybe bad password..."));
 			return Local::ReadMapPassNeeded;
 		}
 		uchar key[LocalEncryptKeySize] = { 0 };
@@ -1748,7 +1752,7 @@ namespace {
 			LOG(("App Error: could not decrypt map."));
 			return Local::ReadMapFailed;
 		}
-		LOG(("App Info: reading encrypted map.."));
+		LOG(("App Info: reading encrypted map..."));
 
 		DraftsMap draftsMap, draftCursorsMap;
 		DraftsNotReadMap draftsNotReadMap;
@@ -2097,7 +2101,7 @@ namespace Local {
 			_readOldMtpData(false); // needed further in _readMtpData
 			return writeSettings();
 		}
-		LOG(("App Info: reading settings.."));
+		LOG(("App Info: reading settings..."));
 
 		QByteArray salt, settingsEncrypted;
 		settingsData.stream >> salt >> settingsEncrypted;
@@ -2113,16 +2117,16 @@ namespace Local {
 
 		EncryptedDescriptor settings;
 		if (!decryptLocal(settings, settingsEncrypted, _settingsKey)) {
-			LOG(("App Error: could not decrypt settings from settings file, maybe bad passcode.."));
+			LOG(("App Error: could not decrypt settings from settings file, maybe bad passcode..."));
 			return writeSettings();
 		}
-		mtpDcOptions dcOpts;
+		MTP::DcOptions dcOpts;
 		{
 			QReadLocker lock(MTP::dcOptionsMutex());
-			dcOpts = cDcOptions();
+			dcOpts = Global::DcOptions();
 		}
 		_dcOpts = &dcOpts;
-		LOG(("App Info: reading encrypted settings.."));
+		LOG(("App Info: reading encrypted settings..."));
 		while (!settings.stream.atEnd()) {
 			quint32 blockId;
 			settings.stream >> blockId;
@@ -2137,20 +2141,23 @@ namespace Local {
 		if (dcOpts.isEmpty()) {
 			const BuiltInDc *bdcs = builtInDcs();
 			for (int i = 0, l = builtInDcsCount(); i < l; ++i) {
-				dcOpts.insert(bdcs[i].id, mtpDcOption(bdcs[i].id, 0, bdcs[i].ip, bdcs[i].port));
+				MTPDdcOption::Flags flags = 0;
+				MTP::ShiftedDcId idWithShift = MTP::shiftDcId(bdcs[i].id, flags);
+				dcOpts.insert(idWithShift, MTP::DcOption(bdcs[i].id, flags, bdcs[i].ip, bdcs[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
 			}
 
 			const BuiltInDc *bdcsipv6 = builtInDcsIPv6();
 			for (int i = 0, l = builtInDcsCountIPv6(); i < l; ++i) {
-				int32 flags = MTPDdcOption::flag_ipv6, idWithShift = bdcsipv6[i].id + (flags * _mtp_internal::dcShift);
-				dcOpts.insert(idWithShift, mtpDcOption(bdcsipv6[i].id, flags, bdcsipv6[i].ip, bdcsipv6[i].port));
+				MTPDdcOption::Flags flags = MTPDdcOption::Flag::f_ipv6;
+				MTP::ShiftedDcId idWithShift = MTP::shiftDcId(bdcsipv6[i].id, flags);
+				dcOpts.insert(idWithShift, MTP::DcOption(bdcsipv6[i].id, flags, bdcsipv6[i].ip, bdcsipv6[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: %2:%3").arg(bdcsipv6[i].id).arg(bdcsipv6[i].ip).arg(bdcsipv6[i].port));
 			}
 		}
 		{
 			QWriteLocker lock(MTP::dcOptionsMutex());
-			cSetDcOptions(dcOpts);
+			Global::SetDcOptions(dcOpts);
 		}
 
 		_oldSettingsVersion = settingsData.version;
@@ -2173,30 +2180,34 @@ namespace Local {
 		}
 		settings.writeData(_settingsSalt);
 
-		mtpDcOptions dcOpts;
+		MTP::DcOptions dcOpts;
 		{
 			QReadLocker lock(MTP::dcOptionsMutex());
-			dcOpts = cDcOptions();
+			dcOpts = Global::DcOptions();
 		}
 		if (dcOpts.isEmpty()) {
 			const BuiltInDc *bdcs = builtInDcs();
 			for (int i = 0, l = builtInDcsCount(); i < l; ++i) {
-				dcOpts.insert(bdcs[i].id, mtpDcOption(bdcs[i].id, 0, bdcs[i].ip, bdcs[i].port));
+				MTPDdcOption::Flags flags = 0;
+				MTP::ShiftedDcId idWithShift = MTP::shiftDcId(bdcs[i].id, flags);
+				dcOpts.insert(idWithShift, MTP::DcOption(bdcs[i].id, flags, bdcs[i].ip, bdcs[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
 			}
 
 			const BuiltInDc *bdcsipv6 = builtInDcsIPv6();
 			for (int i = 0, l = builtInDcsCountIPv6(); i < l; ++i) {
-				dcOpts.insert(bdcsipv6[i].id + (MTPDdcOption::flag_ipv6 * _mtp_internal::dcShift), mtpDcOption(bdcsipv6[i].id, MTPDdcOption::flag_ipv6, bdcsipv6[i].ip, bdcsipv6[i].port));
+				MTPDdcOption::Flags flags = MTPDdcOption::Flag::f_ipv6;
+				MTP::ShiftedDcId idWithShift = MTP::shiftDcId(bdcsipv6[i].id, flags);
+				dcOpts.insert(idWithShift, MTP::DcOption(bdcsipv6[i].id, flags, bdcsipv6[i].ip, bdcsipv6[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: %2:%3").arg(bdcsipv6[i].id).arg(bdcsipv6[i].ip).arg(bdcsipv6[i].port));
 			}
 
 			QWriteLocker lock(MTP::dcOptionsMutex());
-			cSetDcOptions(dcOpts);
+			Global::SetDcOptions(dcOpts);
 		}
 
 		quint32 size = 12 * (sizeof(quint32) + sizeof(qint32));
-		for (mtpDcOptions::const_iterator i = dcOpts.cbegin(), e = dcOpts.cend(); i != e; ++i) {
+		for (auto i = dcOpts.cbegin(), e = dcOpts.cend(); i != e; ++i) {
 			size += sizeof(quint32) + sizeof(quint32) + sizeof(quint32);
 			size += sizeof(quint32) + _stringSize(QString::fromUtf8(i->ip.data(), i->ip.size()));
 		}
@@ -2223,9 +2234,9 @@ namespace Local {
 		data.stream << quint32(dbiLastUpdateCheck) << qint32(cLastUpdateCheck());
 		data.stream << quint32(dbiScale) << qint32(cConfigScale());
 		data.stream << quint32(dbiLang) << qint32(cLang());
-		for (mtpDcOptions::const_iterator i = dcOpts.cbegin(), e = dcOpts.cend(); i != e; ++i) {
+		for (auto i = dcOpts.cbegin(), e = dcOpts.cend(); i != e; ++i) {
 			data.stream << quint32(dbiDcOption) << quint32(i.key());
-			data.stream << quint32(i->flags) << QString::fromUtf8(i->ip.data(), i->ip.size());
+			data.stream << qint32(i->flags) << QString::fromUtf8(i->ip.data(), i->ip.size());
 			data.stream << quint32(i->port);
 		}
 		data.stream << quint32(dbiLangFile) << cLangFile();
@@ -2280,7 +2291,7 @@ namespace Local {
 	}
 
 	bool checkPasscode(const QByteArray &passcode) {
-		mtpAuthKey tmp;
+		MTP::AuthKey tmp;
 		createLocalKey(passcode, &_passKeySalt, &tmp);
 		return (tmp == _passKey);
 	}
@@ -3019,10 +3030,10 @@ namespace Local {
 	}
 
 	void _writeStickerSet(QDataStream &stream, uint64 setId) {
-		StickerSets::const_iterator it = cStickerSets().constFind(setId);
-		if (it == cStickerSets().cend()) return;
+		auto it = Global::StickerSets().constFind(setId);
+		if (it == Global::StickerSets().cend()) return;
 
-		bool notLoaded = (it->flags & MTPDstickerSet_flag_NOT_LOADED);
+		bool notLoaded = (it->flags & MTPDstickerSet_ClientFlag::f_not_loaded);
 		if (notLoaded) {
 			stream << quint64(it->id) << quint64(it->access) << it->title << it->shortName << qint32(-it->count) << qint32(it->hash) << qint32(it->flags);
 			return;
@@ -3063,7 +3074,7 @@ namespace Local {
 	void writeStickers() {
 		if (!_working()) return;
 
-		const StickerSets &sets(cStickerSets());
+		const Stickers::Sets &sets(Global::StickerSets());
 		if (sets.isEmpty()) {
 			if (_stickersKey) {
 				clearKey(_stickersKey);
@@ -3075,10 +3086,10 @@ namespace Local {
 			int32 setsCount = 0;
 			QByteArray hashToWrite;
 			quint32 size = sizeof(quint32) + _bytearraySize(hashToWrite);
-			for (StickerSets::const_iterator i = sets.cbegin(); i != sets.cend(); ++i) {
-				bool notLoaded = (i->flags & MTPDstickerSet_flag_NOT_LOADED);
+			for (auto i = sets.cbegin(); i != sets.cend(); ++i) {
+				bool notLoaded = (i->flags & MTPDstickerSet_ClientFlag::f_not_loaded);
 				if (notLoaded) {
-					if (!(i->flags & MTPDstickerSet::flag_disabled) || (i->flags & MTPDstickerSet::flag_official)) { // waiting to receive
+					if (!(i->flags & MTPDstickerSet::Flag::f_disabled) || (i->flags & MTPDstickerSet::Flag::f_official)) { // waiting to receive
 						return;
 					}
 				} else {
@@ -3114,8 +3125,8 @@ namespace Local {
 			}
 			EncryptedDescriptor data(size);
 			data.stream << quint32(setsCount) << hashToWrite;
-			_writeStickerSet(data.stream, CustomStickerSetId);
-			for (StickerSetsOrder::const_iterator i = cStickerSetsOrder().cbegin(), e = cStickerSetsOrder().cend(); i != e; ++i) {
+			_writeStickerSet(data.stream, Stickers::CustomSetId);
+			for (auto i = Global::StickerSetsOrder().cbegin(), e = Global::StickerSetsOrder().cend(); i != e; ++i) {
 				_writeStickerSet(data.stream, *i);
 			}
 			FileWriteDescriptor file(_stickersKey);
@@ -3134,17 +3145,17 @@ namespace Local {
 			return;
 		}
 
-		StickerSets &sets(cRefStickerSets());
+		Stickers::Sets &sets(Global::RefStickerSets());
 		sets.clear();
 
-		StickerSetsOrder &order(cRefStickerSetsOrder());
+		Stickers::Order &order(Global::RefStickerSetsOrder());
 		order.clear();
 
 		RecentStickerPack &recent(cRefRecentStickers());
 		recent.clear();
 
-		StickerSet &def(sets.insert(DefaultStickerSetId, StickerSet(DefaultStickerSetId, 0, lang(lng_stickers_default_set), QString(), 0, 0, MTPDstickerSet::flag_official)).value());
-		StickerSet &custom(sets.insert(CustomStickerSetId, StickerSet(CustomStickerSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, 0)).value());
+		Stickers::Set &def(sets.insert(Stickers::DefaultSetId, Stickers::Set(Stickers::DefaultSetId, 0, lang(lng_stickers_default_set), QString(), 0, 0, MTPDstickerSet::Flag::f_official)).value());
+		Stickers::Set &custom(sets.insert(Stickers::CustomSetId, Stickers::Set(Stickers::CustomSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, 0)).value());
 
 		QMap<uint64, bool> read;
 		while (!stickers.stream.atEnd()) {
@@ -3183,11 +3194,11 @@ namespace Local {
 			if (recent.size() < StickerPanPerRow * StickerPanRowsPerPage && qAbs(value) > 1) recent.push_back(qMakePair(doc, qAbs(value)));
 		}
 		if (def.stickers.isEmpty()) {
-			sets.remove(DefaultStickerSetId);
+			sets.remove(Stickers::DefaultSetId);
 		} else {
-			order.push_front(DefaultStickerSetId);
+			order.push_front(Stickers::DefaultSetId);
 		}
-		if (custom.stickers.isEmpty()) sets.remove(CustomStickerSetId);
+		if (custom.stickers.isEmpty()) sets.remove(Stickers::CustomSetId);
 
 		writeStickers();
 		writeUserSettings();
@@ -3210,10 +3221,10 @@ namespace Local {
 			return;
 		}
 
-		StickerSets &sets(cRefStickerSets());
+		Stickers::Sets &sets(Global::RefStickerSets());
 		sets.clear();
 
-		StickerSetsOrder &order(cRefStickerSetsOrder());
+		Stickers::Order &order(Global::RefStickerSetsOrder());
 		order.clear();
 
 		quint32 cnt;
@@ -3231,20 +3242,24 @@ namespace Local {
 			qint32 setHash = 0, setFlags = 0;
 			if (stickers.version > 8033) {
 				stickers.stream >> setHash >> setFlags;
+				if (setFlags & qFlags(MTPDstickerSet_ClientFlag::f_not_loaded__old)) {
+					setFlags &= ~qFlags(MTPDstickerSet_ClientFlag::f_not_loaded__old);
+					setFlags |= qFlags(MTPDstickerSet_ClientFlag::f_not_loaded);
+				}
 			}
 
-			if (setId == DefaultStickerSetId) {
+			if (setId == Stickers::DefaultSetId) {
 				setTitle = lang(lng_stickers_default_set);
-				setFlags |= MTPDstickerSet::flag_official;
+				setFlags |= qFlags(MTPDstickerSet::Flag::f_official);
 				order.push_front(setId);
-			} else if (setId == CustomStickerSetId) {
+			} else if (setId == Stickers::CustomSetId) {
 				setTitle = lang(lng_custom_stickers);
 			} else if (setId) {
 				order.push_back(setId);
 			} else {
 				continue;
 			}
-			StickerSet &set(sets.insert(setId, StickerSet(setId, setAccess, setTitle, setShortName, 0, setHash, setFlags)).value());
+			Stickers::Set &set(sets.insert(setId, Stickers::Set(setId, setAccess, setTitle, setShortName, 0, setHash, MTPDstickerSet::Flags(setFlags))).value());
 			if (scnt < 0) { // disabled not loaded set
 				set.count = -scnt;
 				continue;
@@ -3264,7 +3279,7 @@ namespace Local {
 				if (read.contains(id)) continue;
 				read.insert(id, true);
 
-				if (setId == DefaultStickerSetId || setId == CustomStickerSetId) {
+				if (setId == Stickers::DefaultSetId || setId == Stickers::CustomSetId) {
 					typeOfSet = StickerSetTypeEmpty;
 				}
 
@@ -3325,17 +3340,17 @@ namespace Local {
 	int32 countStickersHash(bool checkOfficial) {
 		uint32 acc = 0;
 		bool foundOfficial = false, foundBad = false;;
-		const StickerSets &sets(cStickerSets());
-		const StickerSetsOrder &order(cStickerSetsOrder());
-		for (StickerSetsOrder::const_iterator i = order.cbegin(), e = order.cend(); i != e; ++i) {
-			StickerSets::const_iterator j = sets.constFind(*i);
+		const Stickers::Sets &sets(Global::StickerSets());
+		const Stickers::Order &order(Global::StickerSetsOrder());
+		for (auto i = order.cbegin(), e = order.cend(); i != e; ++i) {
+			auto j = sets.constFind(*i);
 			if (j != sets.cend()) {
 				if (j->id == 0) {
 					foundBad = true;
-				} else if (j->flags & MTPDstickerSet::flag_official) {
+				} else if (j->flags & MTPDstickerSet::Flag::f_official) {
 					foundOfficial = true;
 				}
-				if (!(j->flags & MTPDstickerSet::flag_disabled)) {
+				if (!(j->flags & MTPDstickerSet::Flag::f_disabled)) {
 					acc = (acc * 20261) + j->hash;
 				}
 			}
@@ -3535,7 +3550,7 @@ namespace Local {
 		return result;
 	}
 
-	void _writePeer(QDataStream &stream, PeerData *peer, int32 fileVersion = AppVersion) {
+	void _writePeer(QDataStream &stream, PeerData *peer) {
 		stream << quint64(peer->id) << quint64(peer->photoId);
 		_writeStorageImageLocation(stream, peer->photoLoc);
 		if (peer->isUser()) {
@@ -3545,7 +3560,7 @@ namespace Local {
 			if (AppVersion >= 9012) {
 				stream << qint32(user->flags);
 			}
-			if (AppVersion >= 9016 || fileVersion >= 9016) {
+			if (AppVersion >= 9016) {
 				stream << (user->botInfo ? user->botInfo->inlinePlaceholder : QString());
 			}
 			stream << qint32(user->onlineTill) << qint32(user->contact) << qint32(user->botInfo ? user->botInfo->version : -1);
@@ -3565,18 +3580,16 @@ namespace Local {
 	}
 
 	PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
-		PeerData *result = 0;
 		quint64 peerId = 0, photoId = 0;
 		from.stream >> peerId >> photoId;
 
 		StorageImageLocation photoLoc(_readStorageImageLocation(from));
 
-		result = App::peerLoaded(peerId);
-		bool wasLoaded = (result && result->loaded);
-
+		PeerData *result = App::peerLoaded(peerId);
+		bool wasLoaded = (result != nullptr);
 		if (!wasLoaded) {
 			result = App::peer(peerId);
-			result->loaded = true;
+			result->loadedStatus = PeerData::FullLoaded;
 		}
 		if (result->isUser()) {
 			UserData *user = result->asUser();
@@ -3600,7 +3613,7 @@ namespace Local {
 				user->setName(first, last, pname, username);
 
 				user->access = access;
-				user->flags = flags;
+				user->flags = MTPDuser::Flags(flags);
 				user->onlineTill = onlineTill;
 				user->contact = contact;
 				user->setBotInfoVersion(botInfoVersion);
@@ -3616,7 +3629,7 @@ namespace Local {
 					user->inputUser = MTP_inputUser(MTP_int(peerToUser(user->id)), MTP_long((user->access == UserNoAccess) ? 0 : user->access));
 				}
 
-				user->photo = photoLoc.isNull() ? ImagePtr(userDefPhoto(user->colorIndex)) : ImagePtr(photoLoc);
+				user->setUserpic(photoLoc.isNull() ? ImagePtr(userDefPhoto(user->colorIndex)) : ImagePtr(photoLoc));
 			}
 		} else if (result->isChat()) {
 			ChatData *chat = result->asChat();
@@ -3629,7 +3642,7 @@ namespace Local {
 				flags = flagsData;
 			} else {
 				// flagsData was haveLeft
-				flags = (flagsData == 1 ? MTPDchat::flag_left : 0);
+				flags = (flagsData == 1) ? MTPDchat::Flags(MTPDchat::Flag::f_left) : MTPDchat::Flags(0);
 			}
 			if (!wasLoaded) {
 				chat->updateName(name, QString(), QString());
@@ -3638,20 +3651,20 @@ namespace Local {
 				chat->version = version;
 				chat->creator = creator;
 				chat->isForbidden = (forbidden == 1);
-				chat->flags = flags;
+				chat->flags = MTPDchat::Flags(flags);
 				chat->invitationUrl = invitationUrl;
 
 				chat->input = MTP_inputPeerChat(MTP_int(peerToChat(chat->id)));
 				chat->inputChat = MTP_int(peerToChat(chat->id));
 
-				chat->photo = photoLoc.isNull() ? ImagePtr(chatDefPhoto(chat->colorIndex)) : ImagePtr(photoLoc);
+				chat->setUserpic(photoLoc.isNull() ? ImagePtr(chatDefPhoto(chat->colorIndex)) : ImagePtr(photoLoc));
 			}
 		} else if (result->isChannel()) {
 			ChannelData *channel = result->asChannel();
 
 			QString name, invitationUrl;
 			quint64 access;
-			qint32 date, version, adminned, forbidden, flags;
+			qint32 date, version, forbidden, flags;
 			from.stream >> name >> access >> date >> version >> forbidden >> flags >> invitationUrl;
 
 			if (!wasLoaded) {
@@ -3660,13 +3673,13 @@ namespace Local {
 				channel->date = date;
 				channel->version = version;
 				channel->isForbidden = (forbidden == 1);
-				channel->flags = flags;
+				channel->flags = MTPDchannel::Flags(flags);
 				channel->invitationUrl = invitationUrl;
 
 				channel->input = MTP_inputPeerChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 				channel->inputChannel = MTP_inputChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 
-				channel->photo = photoLoc.isNull() ? ImagePtr((channel->isMegagroup() ? chatDefPhoto(channel->colorIndex) : channelDefPhoto(channel->colorIndex))) : ImagePtr(photoLoc);
+				channel->setUserpic(photoLoc.isNull() ? ImagePtr((channel->isMegagroup() ? chatDefPhoto(channel->colorIndex) : channelDefPhoto(channel->colorIndex))) : ImagePtr(photoLoc));
 			}
 		}
 		if (!wasLoaded) {
@@ -3722,7 +3735,7 @@ namespace Local {
 			}
 			data.stream << quint32(botsCnt);
 			for (RecentInlineBots::const_iterator i = bots.cbegin(), e = bots.cend(); i != e; ++i) {
-				_writePeer(data.stream, *i, 9016);
+				_writePeer(data.stream, *i);
 			}
 			FileWriteDescriptor file(_recentHashtagsAndBotsKey);
 			file.writeEncrypted(data);

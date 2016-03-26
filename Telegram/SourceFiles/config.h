@@ -20,10 +20,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 9033;
-static const wchar_t *AppVersionStr = L"0.9.33";
-static const bool DevVersion = false;
-//#define BETA_VERSION (9030002ULL) // just comment this line to build public version
+static const int32 AppVersion = 9036;
+static const wchar_t *AppVersionStr = L"0.9.36";
+static const bool DevVersion = true;
+//#define BETA_VERSION (9034004ULL) // just comment this line to build public version
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -100,6 +100,9 @@ enum {
 	LinksOverviewPerPage = 12,
 	MediaOverviewStartPerPage = 5,
 	MediaOverviewPreloadCount = 4,
+
+	// a new message from the same sender is attached to previous within 15 minutes
+	AttachMessageToPreviousSecondsDelta = 900,
 
 	AudioVoiceMsgSimultaneously = 4,
 	AudioSongSimultaneously = 4,
@@ -197,7 +200,7 @@ inline const char *cGUIDStr() {
 	return gGuidStr;
 }
 
-inline const char **cPublicRSAKeys(uint32 &cnt) {
+inline const char **cPublicRSAKeys(int &keysCount) {
 	static const char *(keys[]) = {"\
 -----BEGIN RSA PUBLIC KEY-----\n\
 MIIBCgKCAQEAwVACPi9w23mF3tBkdZz+zwrzKOaaQdr01vAbU4E1pvkfj4sqDsm6\n\
@@ -207,7 +210,7 @@ Efzk2DWgkBluml8OREmvfraX3bkHZJTKX4EQSjBbbdJ2ZXIsRrYOXfaA+xayEGB+\n\
 8hdlLmAjbCVfaigxX0CDqWeR1yFL9kwd9P0NsZRPsmoqVwMbMu7mStFai6aIhc3n\n\
 Slv8kg9qv1m6XHVQY3PnEw+QQtqSIXklHwIDAQAB\n\
 -----END RSA PUBLIC KEY-----"};
-	cnt = sizeof(keys) / sizeof(const char*);
+	keysCount = arraysize(keys);
 	return keys;
 }
 

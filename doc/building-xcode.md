@@ -215,7 +215,7 @@ From **/Users/user/TBuild/Libraries/QtStatic/qtbase**, run:
 
 Go to **/Users/user/TBuild/Libraries/QtStatic** and run:
 
-    ./configure -debug-and-release -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang
+    ./configure -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang
     make -j4
     sudo make -j4 install
 

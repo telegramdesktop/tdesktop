@@ -20,22 +20,20 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
-void aesEncrypt(const void *src, void *dst, uint32 len, void *key, void *iv) {
-	uchar aes_key[32], aes_iv[32];
-	memcpy(aes_key, key, 32);
-	memcpy(aes_iv, iv, 32);
+#include "mtproto/rpc_sender.h"
 
-	AES_KEY aes;
-	AES_set_encrypt_key(aes_key, 256, &aes);
-	AES_ige_encrypt((const uchar*)src, (uchar*)dst, len, &aes, aes_iv, AES_ENCRYPT);
+RPCOwnedDoneHandler::RPCOwnedDoneHandler(RPCSender *owner) : _owner(owner) {
+	_owner->_rpcRegHandler(this);
 }
 
-void aesDecrypt(const void *src, void *dst, uint32 len, void *key, void *iv) {
-	uchar aes_key[32], aes_iv[32];
-	memcpy(aes_key, key, 32);
-	memcpy(aes_iv, iv, 32);
+RPCOwnedDoneHandler::~RPCOwnedDoneHandler() {
+	if (_owner) _owner->_rpcUnregHandler(this);
+}
 
-	AES_KEY aes;
-	AES_set_decrypt_key(aes_key, 256, &aes);
-	AES_ige_encrypt((const uchar*)src, (uchar*)dst, len, &aes, aes_iv, AES_DECRYPT);
+RPCOwnedFailHandler::RPCOwnedFailHandler(RPCSender *owner) : _owner(owner) {
+	_owner->_rpcRegHandler(this);
+}
+
+RPCOwnedFailHandler::~RPCOwnedFailHandler() {
+	if (_owner) _owner->_rpcUnregHandler(this);
 }

@@ -20,19 +20,26 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "mtpConnection.h"
-#include "mtpDC.h"
-#include "mtpRPC.h"
+#include "mtproto/connection.h"
+#include "mtproto/dcenter.h"
+#include "mtproto/rpc_sender.h"
 
-class MTProtoSession;
+namespace MTP {
+namespace internal {
 
-class MTPSessionData {
+class Session;
+
+class SessionData {
 public:
 
-	MTPSessionData(MTProtoSession *creator)
-	: _session(0), _salt(0)
-	, _messagesSent(0), _fakeRequestId(-2000000000)
-	, _owner(creator), _keyChecked(false), _layerInited(false) {
+	SessionData(Session *creator)
+	: _session(0)
+	, _salt(0)
+	, _messagesSent(0)
+	, _fakeRequestId(-2000000000)
+	, _owner(creator)
+	, _keyChecked(false)
+	, _layerInited(false) {
 	}
 
 	void setSession(uint64 session) {
@@ -66,13 +73,12 @@ public:
 		return _salt;
 	}
 
-	const mtpAuthKeyPtr &getKey() const {
+	const AuthKeyPtr &getKey() const {
 		return _authKey;
 	}
-	void setKey(const mtpAuthKeyPtr &key) {
+	void setKey(const AuthKeyPtr &key) {
 		if (_authKey != key) {
-			uint64 session;
-			memsetrnd(session);
+			uint64 session = rand_value<uint64>();
 			_authKey = key;
 
 			DEBUG_LOG(("MTP Info: new auth key set in SessionData, id %1, setting random server_session %2").arg(key ? key->keyId() : 0).arg(session));
@@ -170,10 +176,10 @@ public:
 		return _fakeRequestId;
 	}
 
-	MTProtoSession *owner() {
+	Session *owner() {
 		return _owner;
 	}
-	const MTProtoSession *owner() const {
+	const Session *owner() const {
 		return _owner;
 	}
 
@@ -192,9 +198,9 @@ private:
 	uint32 _messagesSent;
 	mtpRequestId _fakeRequestId;
 
-	MTProtoSession *_owner;
+	Session *_owner;
 
-	mtpAuthKeyPtr _authKey;
+	AuthKeyPtr _authKey;
 	bool _keyChecked, _layerInited;
 
 	mtpPreRequestMap toSend; // map of request_id -> request, that is waiting to be sent
@@ -217,12 +223,12 @@ private:
 
 };
 
-class MTProtoSession : public QObject {
+class Session : public QObject {
 	Q_OBJECT
 
 public:
 
-	MTProtoSession(int32 dcenter);
+	Session(int32 dcenter);
 
 	void restart();
 	void stop();
@@ -231,10 +237,10 @@ public:
 	void unpaused();
 
 	int32 getDcWithShift() const;
-	~MTProtoSession();
+	~Session();
 
 	QReadWriteLock *keyMutex() const;
-	void notifyKeyCreated(const mtpAuthKeyPtr &key);
+	void notifyKeyCreated(const AuthKeyPtr &key);
 	void destroyKey();
 	void notifyLayerInited(bool wasInited);
 
@@ -278,15 +284,15 @@ public slots:
 
 private:
 
-	MTProtoConnection *_connection;
+	Connection *_connection;
 
 	bool _killed;
 	bool _needToReceive;
 
-	MTPSessionData data;
+	SessionData data;
 
 	int32 dcWithShift;
-	MTProtoDCPtr dc;
+	DcenterPtr dc;
 
 	uint64 msSendCall, msWait;
 
@@ -297,8 +303,11 @@ private:
 
 };
 
-inline QReadWriteLock *MTPSessionData::keyMutex() const {
+inline QReadWriteLock *SessionData::keyMutex() const {
 	return _owner->keyMutex();
 }
 
 MTPrpcError rpcClientError(const QString &type, const QString &description = QString());
+
+} // namespace internal
+} // namespace MTP

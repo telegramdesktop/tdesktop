@@ -20,28 +20,29 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "gui/flatbutton.h"
-#include "intro.h"
+namespace MTP {
+namespace internal {
 
-class IntroSteps : public IntroStage {
+// this class holds an RSA public key and can encrypt fixed-size messages with it
+class RSAPublicKey final {
 public:
 
-	IntroSteps(IntroWidget *parent);
+	// key in RSAPublicKey "-----BEGIN RSA PUBLIC KEY----- ..." format
+	RSAPublicKey(const char *key);
 
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
+	bool isValid() const;
+	uint64 getFingerPrint() const;
 
-	void activate();
-	void deactivate();
-	void onNext();
-	void onBack();
+	// data has exactly 256 chars to be encrypted
+	bool encrypt(const void *data, string &result) const;
 
 private:
 
-	FlatLabel _intro;
+	struct Impl;
+	typedef QSharedPointer<Impl> ImplPtr;
+	ImplPtr impl_;
 
-	LinkButton _changeLang;
-
-	FlatButton _next;
-	int32 _headerWidth;
 };
+
+} // namespace internal
+} // namespace MTP

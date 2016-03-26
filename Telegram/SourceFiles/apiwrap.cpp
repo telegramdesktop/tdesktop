@@ -230,7 +230,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		}
 		if (f.has_migrated_from_chat_id()) {
 			if (!channel->mgInfo) {
-				channel->flags |= MTPDchannel::flag_megagroup;
+				channel->flags |= MTPDchannel::Flag::f_megagroup;
 				channel->flagsUpdated();
 			}
 			ChatData *cfrom = App::chat(peerFromChat(f.vmigrated_from_chat_id));
@@ -685,8 +685,8 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 	if (d.vset.type() != mtpc_stickerSet) return;
 	const MTPDstickerSet &s(d.vset.c_stickerSet());
 
-	StickerSets &sets(cRefStickerSets());
-	StickerSets::iterator it = sets.find(setId);
+	Stickers::Sets &sets(Global::RefStickerSets());
+	auto it = sets.find(setId);
 	if (it == sets.cend()) return;
 
 	it->access = s.vaccess_hash.v;
@@ -696,7 +696,7 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 	it->flags = s.vflags.v;
 
 	const QVector<MTPDocument> &d_docs(d.vdocuments.c_vector().v);
-	StickerSets::iterator custom = sets.find(CustomStickerSetId);
+	auto custom = sets.find(Stickers::CustomSetId);
 
 	StickerPack pack;
 	pack.reserve(d_docs.size());
@@ -729,8 +729,8 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 	}
 
 	if (pack.isEmpty()) {
-		int32 removeIndex = cStickerSetsOrder().indexOf(setId);
-		if (removeIndex >= 0) cRefStickerSetsOrder().removeAt(removeIndex);
+		int removeIndex = Global::StickerSetsOrder().indexOf(setId);
+		if (removeIndex >= 0) Global::RefStickerSetsOrder().removeAt(removeIndex);
 		sets.erase(it);
 	} else {
 		it->stickers = pack;
@@ -903,10 +903,8 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 	}
 
 	for (QMap<uint64, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
-		HistoryItem *item = App::histories().addNewMessage(v->at(i.value()), NewMessageExisting);
-		if (item) {
-			item->initDimensions();
-			Notify::historyItemResized(item);
+		if (HistoryItem *item = App::histories().addNewMessage(v->at(i.value()), NewMessageExisting)) {
+			item->setPendingInitDimensions();
 		}
 	}
 
@@ -918,8 +916,7 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 				WebPageItems::const_iterator j = items.constFind(i.key());
 				if (j != items.cend()) {
 					for (HistoryItemsMap::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
-						k.key()->initDimensions();
-						Notify::historyItemResized(k.key());
+						k.key()->setPendingInitDimensions();
 					}
 				}
 			}

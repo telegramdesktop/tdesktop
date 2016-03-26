@@ -30,8 +30,10 @@ int main(int argc, char *argv[]) {
 		return psFixPrevious();
 	} else if (cLaunchMode() == LaunchModeCleanup) {
 		return psCleanup();
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 	} else if (cLaunchMode() == LaunchModeShowCrash) {
 		return showCrashReportWindow(QFileInfo(cStartUrl()).absoluteFilePath());
+#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
 	}
 
 	// both are finished in Application::closeApplication
@@ -60,16 +62,18 @@ int main(int argc, char *argv[]) {
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if (cRestartingUpdate()) {
-		DEBUG_LOG(("Application Info: executing updater to install update.."));
+		DEBUG_LOG(("Application Info: executing updater to install update..."));
 		psExecUpdater();
 	} else
 #endif
 	if (cRestarting()) {
-		DEBUG_LOG(("Application Info: executing Telegram, because of restart.."));
+		DEBUG_LOG(("Application Info: executing Telegram, because of restart..."));
 		psExecTelegram();
 	}
 
 	SignalHandlers::finish();
 	PlatformSpecific::finish();
 	Logs::finish();
+
+	return result;
 }

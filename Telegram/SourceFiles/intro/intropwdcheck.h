@@ -23,24 +23,23 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <QtWidgets/QWidget>
 #include "gui/flatbutton.h"
 #include "gui/flatinput.h"
-#include "intro.h"
+#include "intro/introwidget.h"
 
-class IntroPwdCheck final : public IntroStage, public RPCSender {
+class IntroPwdCheck final : public IntroStep {
 	Q_OBJECT
 
 public:
 
 	IntroPwdCheck(IntroWidget *parent);
 
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 	void step_error(float64 ms, bool timer);
 
-	void activate();
-	void deactivate();
-	void onNext();
-	void onBack();
+	void activate() override;
+	void cancelled() override;
+	void onSubmit() override;
 
 	void pwdSubmitDone(bool recover, const MTPauth_Authorization &result);
 	bool pwdSubmitFail(const RPCError &error);

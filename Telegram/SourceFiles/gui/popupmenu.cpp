@@ -561,7 +561,7 @@ void PopupTooltip::onShow() {
 }
 
 void PopupTooltip::onWndActiveChanged() {
-	if (!App::wnd()->windowHandle()->isActive()) {
+	if (!App::wnd() || !App::wnd()->windowHandle() || !App::wnd()->windowHandle()->isActive()) {
 		PopupTooltip::Hide();
 	}
 }

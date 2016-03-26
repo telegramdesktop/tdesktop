@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "window.h"
 #include "mainwidget.h"
+#include "application.h"
 
 #include "layerwidget.h"
 #include "lang.h"
@@ -143,6 +144,12 @@ namespace Ui {
 		return false;
 	}
 
+	void autoplayMediaInlineAsync(const FullMsgId &msgId) {
+		if (MainWidget *m = App::main()) {
+			QMetaObject::invokeMethod(m, "ui_autoplayMediaInlineAsync", Qt::QueuedConnection, Q_ARG(qint32, msgId.channel), Q_ARG(qint32, msgId.msg));
+		}
+	}
+
 	void showPeerHistory(const PeerId &peer, MsgId msgId, bool back) {
 		if (MainWidget *m = App::main()) m->ui_showPeerHistory(peer, msgId, back);
 	}
@@ -197,16 +204,22 @@ namespace Notify {
 		if (MainWidget *m = App::main()) m->notify_clipStopperHidden(type);
 	}
 
-	void historyItemResized(const HistoryItem *item, bool scrollToIt) {
-		if (MainWidget *m = App::main()) m->notify_historyItemResized(item, scrollToIt);
-	}
-
 	void historyItemLayoutChanged(const HistoryItem *item) {
 		if (MainWidget *m = App::main()) m->notify_historyItemLayoutChanged(item);
 	}
 
 	void automaticLoadSettingsChangedGif() {
 		if (MainWidget *m = App::main()) m->notify_automaticLoadSettingsChangedGif();
+	}
+
+	void handlePendingHistoryUpdate() {
+		if (MainWidget *m = App::main()) {
+			m->notify_handlePendingHistoryUpdate();
+		}
+		for_const (HistoryItem *item, Global::PendingRepaintItems()) {
+			Ui::repaintHistoryItem(item);
+		}
+		Global::RefPendingRepaintItems().clear();
 	}
 
 }
@@ -226,14 +239,22 @@ void Set##Name(const Type &Name) { \
 	Namespace##Data->Name = Name; \
 }
 
-struct SandboxDataStruct {
-	QString LangSystemISO;
-	int32 LangSystem = languageDefault;
+namespace Sandbox {
 
-	QByteArray LastCrashDump;
-	ConnectionProxy PreLaunchProxy;
-};
-SandboxDataStruct *SandboxData = 0;
+	namespace internal {
+
+		struct Data {
+			QString LangSystemISO;
+			int32 LangSystem = languageDefault;
+
+			QByteArray LastCrashDump;
+			ConnectionProxy PreLaunchProxy;
+		};
+
+	}
+
+}
+Sandbox::internal::Data *SandboxData = 0;
 uint64 SandboxUserTag = 0;
 
 namespace Sandbox {
@@ -320,7 +341,7 @@ namespace Sandbox {
 	}
 
 	void start() {
-		SandboxData = new SandboxDataStruct();
+		SandboxData = new internal::Data();
 
 		SandboxData->LangSystemISO = psCurrentLanguage();
 		if (SandboxData->LangSystemISO.isEmpty()) SandboxData->LangSystemISO = qstr("en");
@@ -349,32 +370,52 @@ namespace Sandbox {
 
 }
 
-struct GlobalDataStruct {
-	uint64 LaunchId = 0;
+namespace Global {
+	namespace internal {
 
-	Adaptive::Layout AdaptiveLayout = Adaptive::NormalLayout;
-	bool AdaptiveForWide = true;
+		struct Data {
+			uint64 LaunchId = 0;
+			SingleDelayedCall HandleHistoryUpdate = { App::app(), "call_handleHistoryUpdate" };
 
-	// config
-	int32 ChatSizeMax = 200;
-	int32 MegagroupSizeMax = 1000;
-	int32 ForwardedCountMax = 100;
-	int32 OnlineUpdatePeriod = 120000;
-	int32 OfflineBlurTimeout = 5000;
-	int32 OfflineIdleTimeout = 30000;
-	int32 OnlineFocusTimeout = 1000;
-	int32 OnlineCloudTimeout = 300000;
-	int32 NotifyCloudDelay = 30000;
-	int32 NotifyDefaultDelay = 1500;
-	int32 ChatBigSize = 10;
-	int32 PushChatPeriod = 60000;
-	int32 PushChatLimit = 2;
-	int32 SavedGifsLimit = 200;
-	int32 EditTimeLimit = 172800;
+			Adaptive::Layout AdaptiveLayout = Adaptive::NormalLayout;
+			bool AdaptiveForWide = true;
 
-	Global::HiddenPinnedMessagesMap HiddenPinnedMessages;
-};
-GlobalDataStruct *GlobalData = 0;
+			int32 DebugLoggingFlags = 0;
+
+			// config
+			int32 ChatSizeMax = 200;
+			int32 MegagroupSizeMax = 1000;
+			int32 ForwardedCountMax = 100;
+			int32 OnlineUpdatePeriod = 120000;
+			int32 OfflineBlurTimeout = 5000;
+			int32 OfflineIdleTimeout = 30000;
+			int32 OnlineFocusTimeout = 1000;
+			int32 OnlineCloudTimeout = 300000;
+			int32 NotifyCloudDelay = 30000;
+			int32 NotifyDefaultDelay = 1500;
+			int32 ChatBigSize = 10;
+			int32 PushChatPeriod = 60000;
+			int32 PushChatLimit = 2;
+			int32 SavedGifsLimit = 200;
+			int32 EditTimeLimit = 172800;
+
+			HiddenPinnedMessagesMap HiddenPinnedMessages;
+
+			PendingItemsMap PendingRepaintItems;
+
+			Stickers::Sets StickerSets;
+			Stickers::Order StickerSetsOrder;
+			uint64 LastStickersUpdate = 0;
+
+			MTP::DcOptions DcOptions;
+
+			CircleMasksMap CircleMasks;
+		};
+
+	}
+}
+
+Global::internal::Data *GlobalData = 0;
 
 namespace Global {
 
@@ -383,7 +424,7 @@ namespace Global {
 	}
 
 	void start() {
-		GlobalData = new GlobalDataStruct();
+		GlobalData = new internal::Data();
 
 		memset_rand(&GlobalData->LaunchId, sizeof(GlobalData->LaunchId));
 	}
@@ -394,9 +435,12 @@ namespace Global {
 	}
 
 	DefineReadOnlyVar(Global, uint64, LaunchId);
+	DefineRefVar(Global, SingleDelayedCall, HandleHistoryUpdate);
 
 	DefineVar(Global, Adaptive::Layout, AdaptiveLayout);
 	DefineVar(Global, bool, AdaptiveForWide);
+
+	DefineVar(Global, int32, DebugLoggingFlags);
 
 	// config
 	DefineVar(Global, int32, ChatSizeMax);
@@ -416,5 +460,15 @@ namespace Global {
 	DefineVar(Global, int32, EditTimeLimit);
 
 	DefineVar(Global, HiddenPinnedMessagesMap, HiddenPinnedMessages);
+
+	DefineRefVar(Global, PendingItemsMap, PendingRepaintItems);
+
+	DefineVar(Global, Stickers::Sets, StickerSets);
+	DefineVar(Global, Stickers::Order, StickerSetsOrder);
+	DefineVar(Global, uint64, LastStickersUpdate);
+
+	DefineVar(Global, MTP::DcOptions, DcOptions);
+
+	DefineRefVar(Global, CircleMasksMap, CircleMasks);
 
 };

@@ -313,7 +313,7 @@ void MediaView::updateControls() {
 				_docRadial.start(_doc->progress());
 			}
 		} else {
-			if (_doc->loaded(true)) {
+			if (_doc->loaded(DocumentData::FilePathResolveChecked)) {
 				_docDownload.hide();
 				_docSaveAs.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocIconSize, _docRect.y() + st::mvDocPadding + st::mvDocLinksTop);
 				_docSaveAs.show();
@@ -333,7 +333,7 @@ void MediaView::updateControls() {
 		_docCancel.hide();
 	}
 
-	_saveVisible = ((_photo && _photo->loaded()) || (_doc && (_doc->loaded(true) || (!fileShown() && (_photo || _doc)))));
+	_saveVisible = ((_photo && _photo->loaded()) || (_doc && (_doc->loaded(DocumentData::FilePathResolveChecked) || (!fileShown() && (_photo || _doc)))));
 	_saveNav = myrtlrect(width() - st::mvIconSize.width() * 2, height() - st::mvIconSize.height(), st::mvIconSize.width(), st::mvIconSize.height());
 	_saveNavIcon = centersprite(_saveNav, st::mvSave);
 	_moreNav = myrtlrect(width() - st::mvIconSize.width(), height() - st::mvIconSize.height(), st::mvIconSize.width(), st::mvIconSize.height());
@@ -394,7 +394,7 @@ void MediaView::updateControls() {
 void MediaView::updateDropdown() {
 	_btnSaveCancel->setVisible(_doc && _doc->loading());
 	_btnToMessage->setVisible(_msgid > 0);
-	_btnShowInFolder->setVisible(_doc && !_doc->already(true).isEmpty());
+	_btnShowInFolder->setVisible(_doc && !_doc->filepath(DocumentData::FilePathResolveChecked).isEmpty());
 	_btnSaveAs->setVisible(true);
 	_btnCopy->setVisible((_doc && fileShown()) || (_photo && _photo->loaded()));
 	_btnForward->setVisible(_canForward);
@@ -685,8 +685,11 @@ void MediaView::onSaveCancel() {
 
 void MediaView::onShowInFolder() {
 	if (!_doc) return;
-	QString already(_doc->already(true));
-	if (!already.isEmpty()) psShowInFolder(already);
+
+	QString filepath = _doc->filepath(DocumentData::FilePathResolveChecked);
+	if (!filepath.isEmpty()) {
+		psShowInFolder(filepath);
+	}
 }
 
 void MediaView::onForward() {
@@ -964,7 +967,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 			if (!_doc->data().isEmpty() && _doc->isAnimation()) {
 				if (!_gif) {
 					if (_doc->dimensions.width() && _doc->dimensions.height()) {
-						_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), true, true, false, _doc->dimensions.width(), _doc->dimensions.height());
+						_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), ImagePixSmooth | ImagePixBlurred, _doc->dimensions.width(), _doc->dimensions.height());
 					}
 					_gif = new ClipReader(location, _doc->data(), func(this, &MediaView::clipCallback));
 				}
@@ -972,7 +975,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 				if (_doc->isAnimation()) {
 					if (!_gif) {
 						if (_doc->dimensions.width() && _doc->dimensions.height()) {
-							_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), true, true, false, _doc->dimensions.width(), _doc->dimensions.height());
+							_current = _doc->thumb->pixNoCache(_doc->dimensions.width(), _doc->dimensions.height(), ImagePixSmooth | ImagePixBlurred, _doc->dimensions.width(), _doc->dimensions.height());
 						}
 						_gif = new ClipReader(location, _doc->data(), func(this, &MediaView::clipCallback));
 					}
@@ -1113,17 +1116,17 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		int32 w = _width * cIntRetinaFactor();
 		if (_full <= 0 && _photo->loaded()) {
 			int32 h = int((_photo->full->height() * (qreal(w) / qreal(_photo->full->width()))) + 0.9999);
-			_current = _photo->full->pixNoCache(w, h, true);
+			_current = _photo->full->pixNoCache(w, h, ImagePixSmooth);
 			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
 			_full = 1;
 		} else if (_full < 0 && _photo->medium->loaded()) {
 			int32 h = int((_photo->full->height() * (qreal(w) / qreal(_photo->full->width()))) + 0.9999);
-			_current = _photo->medium->pixNoCache(w, h, true, true);
+			_current = _photo->medium->pixNoCache(w, h, ImagePixSmooth | ImagePixBlurred);
 			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
 			_full = 0;
 		} else if (_current.isNull() && _photo->thumb->loaded()) {
 			int32 h = int((_photo->full->height() * (qreal(w) / qreal(_photo->full->width()))) + 0.9999);
-			_current = _photo->thumb->pixNoCache(w, h, true, true);
+			_current = _photo->thumb->pixNoCache(w, h, ImagePixSmooth | ImagePixBlurred);
 			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
 		} else if (_current.isNull()) {
 			_current = _photo->thumb->pix();

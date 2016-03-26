@@ -10,6 +10,7 @@
 *.suo
 *.sdf
 *.opensdf
+*.opendb
 /Telegram/*.aps
 /Win32/
 ipch/

@@ -20,26 +20,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-class Window;
-class IntroSteps;
-class IntroPhone;
-class IntroCode;
-class IntroSignup;
-class IntroPwdCheck;
-class IntroStage;
-class Text;
-
+class IntroStep;
 class IntroWidget final : public TWidget {
 	Q_OBJECT
 
 public:
 
-	IntroWidget(Window *window);
+	IntroWidget(QWidget *window);
 
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void keyPressEvent(QKeyEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 	void updateAdaptiveLayout();
 
@@ -52,9 +43,19 @@ public:
 	QRect innerRect() const;
 	QString currentCountry() const;
 
+	enum CallStatusType {
+		CallWaiting,
+		CallCalling,
+		CallCalled,
+		CallDisabled,
+	};
+	struct CallStatus {
+		CallStatusType type;
+		int timeout;
+	};
 	void setPhone(const QString &phone, const QString &phone_hash, bool registered);
 	void setCode(const QString &code);
-	void setCallTimeout(int32 callTimeout);
+	void setCallStatus(const CallStatus &status);
 	void setPwdSalt(const QByteArray &salt);
 	void setHasRecovery(bool hasRecovery);
 	void setPwdHint(const QString &hint);
@@ -63,7 +64,7 @@ public:
 	const QString &getPhone() const;
 	const QString &getPhoneHash() const;
 	const QString &getCode() const;
-	int32 getCallTimeout() const;
+	const CallStatus &getCallStatus() const;
 	const QByteArray &getPwdSalt() const;
 	bool getHasRecovery() const;
 	const QString &getPwdHint() const;
@@ -74,13 +75,19 @@ public:
 	void rpcClear();
 	void langChangeTo(int32 langId);
 
-	~IntroWidget();
+	void nextStep(IntroStep *step) {
+		pushStep(step, MoveForward);
+	}
+	void replaceStep(IntroStep *step) {
+		pushStep(step, MoveReplace);
+	}
+
+	~IntroWidget() override;
 
 public slots:
 
-	void onIntroNext();
-	void onIntroBack();
-	void onDoneStateChanged(int oldState, ButtonStateChangeSource source);
+	void onStepSubmit();
+	void onBack();
 	void onParentResize(const QSize &newSize);
 	void onChangeLang();
 
@@ -90,12 +97,9 @@ signals:
 
 private:
 
-	void makeHideCache(int stage = -1);
-	void makeShowCache(int stage = -1);
-	void prepareMove();
-	bool createNext();
+	QPixmap grabStep(int skip = 0);
 
-	int32 _langChangeTo;
+	int _langChangeTo;
 
 	Animation _a_stage;
 	QPixmap _cacheHide, _cacheShow;
@@ -108,16 +112,21 @@ private:
 	anim::ivalue a_coordUnder, a_coordOver;
 	anim::fvalue a_shadow;
 
-	IntroSteps *steps;
-	IntroPhone *phone;
-	IntroCode *code;
-	IntroSignup *signup;
-	IntroPwdCheck *pwdcheck;
-	IntroStage *stages[5];
-	int current, moving;
+	QVector<IntroStep*> _stepHistory;
+	IntroStep *step(int skip = 0) {
+		t_assert(_stepHistory.size() + skip > 0);
+		return _stepHistory.at(_stepHistory.size() - skip - 1);
+	}
+	enum MoveType {
+		MoveBack,
+		MoveForward,
+		MoveReplace,
+	};
+	void historyMove(MoveType type);
+	void pushStep(IntroStep *step, MoveType type);
 
 	QString _phone, _phone_hash;
-	int32 _callTimeout;
+	CallStatus _callStatus;
 	bool _registered;
 
 	QString _code;
@@ -133,26 +142,31 @@ private:
 
 };
 
-class IntroStage : public TWidget {
+class IntroStep : public TWidget, public RPCSender {
 public:
 
-	IntroStage(IntroWidget *parent) : TWidget(parent) {
+	IntroStep(IntroWidget *parent) : TWidget(parent) {
 	}
 
-	virtual void activate() = 0; // show and activate
-	virtual void prepareShow() {
-	}
-	virtual void deactivate() = 0; // deactivate and hide
-	virtual void onNext() = 0;
-	virtual void onBack() = 0;
 	virtual bool hasBack() const {
 		return false;
 	}
+	virtual void activate() {
+		show();
+	}
+	virtual void cancelled() {
+	}
+	virtual void finished() {
+		hide();
+	}
+	virtual void onSubmit() = 0;
 
 protected:
 
 	IntroWidget *intro() {
-		return qobject_cast<IntroWidget*>(parent());
+		IntroWidget *result = qobject_cast<IntroWidget*>(parentWidget());
+		t_assert(result != nullptr);
+		return result;
 	}
 
 };

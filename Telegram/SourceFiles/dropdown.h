@@ -420,10 +420,10 @@ private:
 	int32 _top;
 
 	struct DisplayedSet {
-		DisplayedSet(uint64 id, int32 flags, const QString &title, int32 hoversSize, const StickerPack &pack = StickerPack()) : id(id), flags(flags), title(title), hovers(hoversSize, 0), pack(pack) {
+		DisplayedSet(uint64 id, MTPDstickerSet::Flags flags, const QString &title, int32 hoversSize, const StickerPack &pack = StickerPack()) : id(id), flags(flags), title(title), hovers(hoversSize, 0), pack(pack) {
 		}
 		uint64 id;
-		int32 flags;
+		MTPDstickerSet::Flags flags;
 		QString title;
 		QVector<float64> hovers;
 		StickerPack pack;
@@ -482,7 +482,7 @@ class EmojiPanel : public TWidget {
 
 public:
 
-	EmojiPanel(QWidget *parent, const QString &text, uint64 setId, bool special, int32 wantedY); // NoneStickerSetId if in emoji
+	EmojiPanel(QWidget *parent, const QString &text, uint64 setId, bool special, int32 wantedY); // Stickers::NoneSetId if in emoji
 	void setText(const QString &text);
 	void setDeleteVisible(bool isVisible);
 

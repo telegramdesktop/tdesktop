@@ -18,21 +18,26 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
-#include "mtproto/mtpRPC.h"
+#pragma once
 
-RPCOwnedDoneHandler::RPCOwnedDoneHandler(RPCSender *owner) : _owner(owner) {
-	_owner->_rpcRegHandler(this);
-}
+#include "intro/introwidget.h"
 
-RPCOwnedDoneHandler::~RPCOwnedDoneHandler() {
-	if (_owner) _owner->_rpcUnregHandler(this);
-}
+class IntroStart final : public IntroStep {
+public:
 
-RPCOwnedFailHandler::RPCOwnedFailHandler(RPCSender *owner) : _owner(owner) {
-	_owner->_rpcRegHandler(this);
-}
+	IntroStart(IntroWidget *parent);
 
-RPCOwnedFailHandler::~RPCOwnedFailHandler() {
-	if (_owner) _owner->_rpcUnregHandler(this);
-}
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+
+	void onSubmit() override;
+
+private:
+
+	FlatLabel _intro;
+
+	LinkButton _changeLang;
+
+	FlatButton _next;
+	int32 _headerWidth;
+};

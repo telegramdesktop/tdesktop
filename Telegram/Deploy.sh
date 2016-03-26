@@ -57,7 +57,11 @@ elif [ "$BuildTarget" == "mac" ]; then
     echo "Deploying version $AppVersionStrFull for Windows.."
   else
     DeployMac="1"
-    DeployMac32="1"
+    if [ "$BetaVersion" != "0" ]; then
+      DeployMac32="0"
+    else
+      DeployMac32="1"
+    fi
     DeployWin="1"
     echo "Deploying three versions of $AppVersionStrFull: for Windows, OS X 10.6 and 10.7 and OS X 10.8+.."
   fi
@@ -188,7 +192,6 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ] || [ "$Build
     fi
 
     if [ "$DeployMac" == "1" ]; then
-      cp -v "$DeployPath/$UpdateFile" "$DropboxDeployPath/"
       cp -v "$DeployPath/$SetupFile" "$DropboxDeployPath/$DropboxSetupFile"
       if [ -d "$DropboxDeployPath/Telegram.app.dSYM" ]; then
         rm -rf "$DropboxDeployPath/Telegram.app.dSYM"
@@ -196,7 +199,6 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ] || [ "$Build
       cp -rv "$DeployPath/Telegram.app.dSYM" "$DropboxDeployPath/"
     fi
     if [ "$DeployMac32" == "1" ]; then
-      mv -v "$Mac32DeployPath/$Mac32UpdateFile" "$DropboxDeployPath/"
       mv -v "$Mac32DeployPath/$Mac32SetupFile" "$DropboxDeployPath/$DropboxMac32SetupFile"
       if [ -d "$DropboxDeployPath/Telegram32.app.dSYM" ]; then
         rm -rf "$DropboxDeployPath/Telegram32.app.dSYM"
@@ -207,7 +209,6 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ] || [ "$Build
       mv -v "$WinDeployPath/Telegram.pdb" "$DropboxDeployPath/"
       mv -v "$WinDeployPath/Updater.exe" "$DropboxDeployPath/"
       mv -v "$WinDeployPath/Updater.pdb" "$DropboxDeployPath/"
-      mv -v "$WinDeployPath/$WinUpdateFile" "$DropboxDeployPath/"
       if [ "$BetaVersion" == "0" ]; then
         mv -v "$WinDeployPath/$WinSetupFile" "$DropboxDeployPath/"
       fi
