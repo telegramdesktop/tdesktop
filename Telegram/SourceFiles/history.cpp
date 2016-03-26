@@ -1138,6 +1138,10 @@ void Histories::clear() {
 	for (Map::const_iterator i = map.cbegin(), e = map.cend(); i != e; ++i) {
 		delete i.value();
 	}
+	_unreadFull = _unreadMuted = 0;
+	if (App::wnd()) {
+		App::wnd()->updateCounter();
+	}
 	App::historyClearItems();
 	typing.clear();
 	map.clear();
@@ -1999,7 +2003,7 @@ void History::setUnreadCount(int newUnreadCount, bool psUpdate) {
 			if (loadedAtBottom()) showFrom = lastImportantMessage();
 			inboxReadBefore = qMax(inboxReadBefore, msgIdForRead());
 		} else if (!newUnreadCount) {
-			showFrom = 0;
+			showFrom = nullptr;
 			inboxReadBefore = qMax(inboxReadBefore, msgIdForRead() + 1);
 		}
 		if (inChatList()) {
@@ -2564,8 +2568,6 @@ void History::changeMsgId(MsgId oldId, MsgId newId) {
 }
 
 void History::removeBlock(HistoryBlock *block) {
-	setPendingResize();
-
 	t_assert(block->items.isEmpty());
 
 	int index = block->indexInHistory();
@@ -2576,7 +2578,6 @@ void History::removeBlock(HistoryBlock *block) {
 	if (index < blocks.size()) {
 		blocks.at(index)->items.front()->previousItemChanged();
 	}
-	delete block;
 }
 
 History::~History() {
@@ -2684,26 +2685,26 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 			}
 		}
 	}
-	// blockIndex can be invalid now, because of destroying previous blocks
+
+	// itemIndex/blockIndex can be invalid now, because of destroying previous items/blocks
 	blockIndex = indexInHistory();
 	itemIndex = item->indexInBlock();
 
+	item->detachFast();
 	items.remove(itemIndex);
 	for (int i = itemIndex, l = items.size(); i < l; ++i) {
 		items.at(i)->setIndexInBlock(i);
 	}
-	if (itemIndex < items.size()) {
+	if (items.isEmpty()) {
+		history->removeBlock(this);
+	} else if (itemIndex < items.size()) {
 		items.at(itemIndex)->previousItemChanged();
-	} else if (_indexInHistory + 1 < history->blocks.size()) {
-		history->blocks.at(_indexInHistory + 1)->items.front()->previousItemChanged();
-	}
-
-	if ((!item->out() || item->isPost()) && item->unread() && history->unreadCount) {
-		history->setUnreadCount(history->unreadCount - 1);
+	} else if (blockIndex + 1 < history->blocks.size()) {
+		history->blocks.at(blockIndex + 1)->items.front()->previousItemChanged();
 	}
 
 	if (items.isEmpty()) {
-		history->removeBlock(this);
+		delete this;
 	}
 }
 
@@ -2796,6 +2797,9 @@ void HistoryItem::destroy() {
 		history()->clearLastKeyboard();
 		if (App::main()) App::main()->updateBotKeyboard(history());
 	}
+	if ((!out() || isPost()) && unread() && history()->unreadCount > 0) {
+		history()->setUnreadCount(history()->unreadCount - 1);
+	}
 	delete this;
 }
 
@@ -2806,7 +2810,6 @@ void HistoryItem::detach() {
 		_history->asChannelHistory()->messageDetached(this);
 	}
 	_block->removeItem(this);
-	detachFast();
 	App::historyItemDetached(this);
 
 	_history->setPendingResize();
