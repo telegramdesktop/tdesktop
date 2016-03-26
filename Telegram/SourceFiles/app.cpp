@@ -1788,7 +1788,6 @@ namespace App {
 		if (App::wnd()) {
 			App::wnd()->notifyItemRemoved(item);
 		}
-		item->history()->setPendingResize();
 	}
 
 	void historyUnregItem(HistoryItem *item) {
