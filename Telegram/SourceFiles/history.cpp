@@ -2705,6 +2705,192 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 	}
 }
 
+ReplyKeyboard::ReplyKeyboard(const HistoryItem *item, StylePtr &&s)
+: _item(item)
+, _a_selected(animation(this, &ReplyKeyboard::step_selected))
+, _st(std_::forward<StylePtr>(s)) {
+	if (auto *markup = item->Get<HistoryMessageReplyMarkup>()) {
+		_rows.reserve(markup->rows.size());
+		for (int i = 0, l = markup->rows.size(); i != l; ++i) {
+			const HistoryMessageReplyMarkup::ButtonRow &row(markup->rows.at(i));
+			int s = row.size();
+			ButtonRow newRow(s, Button());
+			for (int j = 0; j != s; ++j) {
+				Button &button(newRow[j]);
+				QString str = row.at(j).text;
+				button.link.reset(new TextLink(qsl("https://telegram.org")));
+				button.text.setText(_st->textFont(), textOneLine(str), _textPlainOptions);
+				button.characters = str.isEmpty() ? 1 : str.size();
+			}
+			_rows.push_back(newRow);
+		}
+	}
+}
+
+void ReplyKeyboard::resize(int width, int height) {
+	_width = width;
+
+	auto *markup = _item->Get<HistoryMessageReplyMarkup>();
+	float64 y = 0, buttonHeight = _rows.isEmpty() ? _st->buttonHeight() : (float64(height + _st->buttonSkip()) / _rows.size());
+	for (ButtonRow &row : _rows) {
+		int s = row.size();
+
+		float64 widthForText = _width - ((s - 1) * _st->buttonSkip() + s * 2 * _st->buttonPadding()), widthOfText = 0.;
+		for_const (const Button &button, row) {
+			widthOfText += qMax(button.text.maxWidth(), 1);
+		}
+
+		float64 x = 0, coef = widthForText / widthOfText;
+		for (Button &button : row) {
+			float64 tw = widthForText / float64(s), w = 2 * _st->buttonPadding() + tw;
+			if (w < _st->buttonPadding()) w = _st->buttonPadding();
+
+			button.rect = QRect(qRound(x), qRound(y), qRound(w), qRound(buttonHeight - _st->buttonSkip()));
+			x += w + _st->buttonSkip();
+
+			button.full = (tw >= button.text.maxWidth());
+		}
+		y += buttonHeight;
+	}
+}
+
+bool ReplyKeyboard::isEnoughSpace(int width, const style::botKeyboardButton &st) const {
+	for_const (const ButtonRow &row, _rows) {
+		int s = row.size();
+		int widthLeft = width - ((s - 1) * st.margin + s * 2 * st.padding);
+		for_const (const Button &button, row) {
+			widthLeft -= qMax(button.text.maxWidth(), 1);
+			if (widthLeft < 0) {
+				if (row.size() > 3) {
+					return false;
+				} else {
+					break;
+				}
+			}
+		}
+	}
+	return true;
+}
+
+void ReplyKeyboard::setStyle(StylePtr &&st) {
+	_st = std_::move(st);
+}
+
+int ReplyKeyboard::naturalHeight() const {
+	return (_rows.size() - 1) * _st->buttonSkip() + _rows.size() * _st->buttonHeight();
+}
+
+void ReplyKeyboard::paint(Painter &p, const QRect &clip) const {
+	t_assert(!_st.isNull());
+	t_assert(_width > 0);
+
+	_st->startPaint(p);
+	for_const (const ButtonRow &row, _rows) {
+		for_const (const Button &button, row) {
+			QRect rect(button.rect);
+			if (rect.y() >= clip.y() + clip.height()) return;
+			if (rect.y() + rect.height() < clip.y()) continue;
+
+			if (rtl()) rect.moveLeft(_width - rect.left() - rect.width());
+
+			bool down = (textlnkDown() == button.link);
+			float64 howMuchOver = button.howMuchOver;
+			_st->paintButton(p, rect, button.text, down, howMuchOver);
+		}
+	}
+}
+
+void ReplyKeyboard::getState(TextLinkPtr &lnk, int x, int y) const {
+	t_assert(_width > 0);
+
+	lnk.reset();
+	for_const(const ButtonRow &row, _rows) {
+		for_const(const Button &button, row) {
+			QRect rect(button.rect);
+
+			if (rtl()) rect.moveLeft(_width - rect.left() - rect.width());
+
+			if (rect.contains(x, y)) {
+				lnk = button.link;
+				return;
+			}
+		}
+	}
+}
+
+void ReplyKeyboard::linkOver(const TextLinkPtr &lnk) {
+	/*if (newSel != _sel) {
+		if (newSel < 0) {
+			setCursor(style::cur_default);
+		} else if (_sel < 0) {
+			setCursor(style::cur_pointer);
+		}
+		bool startanim = false;
+		if (_sel >= 0) {
+			_animations.remove(_sel + 1);
+			if (_animations.find(-_sel - 1) == _animations.end()) {
+				if (_animations.isEmpty()) startanim = true;
+				_animations.insert(-_sel - 1, getms());
+			}
+		}
+		_sel = newSel;
+		if (_sel >= 0) {
+			_animations.remove(-_sel - 1);
+			if (_animations.find(_sel + 1) == _animations.end()) {
+				if (_animations.isEmpty()) startanim = true;
+				_animations.insert(_sel + 1, getms());
+			}
+		}
+		if (startanim && !_a_selected.animating()) _a_selected.start();
+	}*/
+}
+
+void ReplyKeyboard::linkOut(const TextLinkPtr &lnk) {
+
+}
+
+void ReplyKeyboard::step_selected(uint64 ms, bool timer) {
+	for (Animations::iterator i = _animations.begin(); i != _animations.end();) {
+		int index = qAbs(i.key()) - 1, row = (index / MatrixRowShift), col = index % MatrixRowShift;
+		float64 dt = float64(ms - i.value()) / st::botKbDuration;
+		if (dt >= 1) {
+			_rows[row][col].howMuchOver = (i.key() > 0) ? 1 : 0;
+			i = _animations.erase(i);
+		} else {
+			_rows[row][col].howMuchOver = (i.key() > 0) ? dt : (1 - dt);
+			++i;
+		}
+	}
+	if (timer) _st->repaint(_item);
+	if (_animations.isEmpty()) {
+		_a_selected.stop();
+	}
+}
+
+void ReplyKeyboard::clearSelection() {
+	for (auto i = _animations.cbegin(), e = _animations.cend(); i != e; ++i) {
+		int index = qAbs(i.key()) - 1, row = (index / MatrixRowShift), col = index % MatrixRowShift;
+		_rows[row][col].howMuchOver = 0;
+	}
+	_animations.clear();
+	_a_selected.stop();
+}
+
+void ReplyKeyboard::Style::paintButton(Painter &p, const QRect &rect, const Text &text, bool down, float64 howMuchOver) const {
+	paintButtonBg(p, rect, down, howMuchOver);
+
+	int tx = rect.x(), tw = rect.width();
+	if (tw > st::botKbFont->elidew + _st->padding * 2) {
+		tx += _st->padding;
+		tw -= _st->padding * 2;
+	} else if (tw > st::botKbFont->elidew) {
+		tx += (tw - st::botKbFont->elidew) / 2;
+		tw = st::botKbFont->elidew;
+	}
+	int textTop = rect.y() + (down ? _st->downTextTop : _st->textTop);
+	text.drawElided(p, tx, textTop + ((rect.height() - _st->height) / 2), tw, 1, style::al_top);
+}
+
 void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
 	switch (markup.type()) {
 	case mtpc_replyKeyboardMarkup: {
@@ -6215,6 +6401,22 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 	}
 }
 
+void HistoryMessage::KeyboardStyle::startPaint(Painter &p) const {
+	p.setPen(st::msgServiceColor);
+}
+
+style::font HistoryMessage::KeyboardStyle::textFont() const {
+	return st::msgServiceFont;
+}
+
+void HistoryMessage::KeyboardStyle::repaint(const HistoryItem *item) const {
+	Ui::repaintHistoryItem(item);
+}
+
+void HistoryMessage::KeyboardStyle::paintButtonBg(Painter &p, const QRect &rect, bool down, float64 howMuchOver) const {
+	App::roundRect(p, rect, App::msgServiceBg(), ServiceCorners);
+}
+
 HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg)
 : HistoryItem(history, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0) {
 	CreateConfig config;
@@ -6513,6 +6715,9 @@ void HistoryMessage::initDimensions() {
 		}
 	}
 	if (HistoryMessageReplyMarkup *markup = inlineReplyMarkup()) {
+		if (!markup->inlineKeyboard) {
+			markup->inlineKeyboard = new ReplyKeyboard(this, MakeUnique<KeyboardStyle>(st::msgBotKbButton));
+		}
 	}
 }
 
@@ -6818,14 +7023,13 @@ void HistoryMessage::draw(Painter &p, const QRect &r, uint32 selection, uint64 m
 
 	textstyleSet(&(outbg ? st::outTextStyle : st::inTextStyle));
 
-	if (auto *markup = inlineReplyMarkup()) {
-		height -= markup->rows.size() * (st::msgBotKbButton.margin + st::msgBotKbButton.height);
-		int y = marginTop() + height + st::msgBotKbButton.margin;
-		for_const (const HistoryMessageReplyMarkup::ButtonRow &row, markup->rows) {
-			for_const (const HistoryMessageReplyMarkup::Button &button, row) {
-
-			}
-		}
+	if (const ReplyKeyboard *keyboard = inlineReplyKeyboard()) {
+		int h = st::msgBotKbButton.margin + keyboard->naturalHeight();
+		height -= h;
+		int top = marginTop() + height;
+		p.translate(left, top);
+		keyboard->paint(p, r.translated(-left, -top));
+		p.translate(-left, -top);
 	}
 
 	auto *reply = Get<HistoryMessageReply>();
@@ -7026,8 +7230,10 @@ int HistoryMessage::resizeGetHeight_(int width) {
 	} else {
 		_height = _media->resize(width, this);
 	}
-	if (HistoryMessageReplyMarkup *markup = inlineReplyMarkup()) {
-		_height += (st::msgBotKbButton.margin + st::msgBotKbButton.height) * markup->rows.size();
+	if (ReplyKeyboard *keyboard = inlineReplyKeyboard()) {
+		int h = st::msgBotKbButton.margin + keyboard->naturalHeight();
+		_height += h;
+		keyboard->resize(width, h - st::msgBotKbButton.margin);
 	}
 
 	_height += marginTop() + marginBottom();
@@ -7072,17 +7278,15 @@ void HistoryMessage::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32
 	int left = 0, width = 0, height = _height;
 	countPositionAndSize(left, width);
 
-	//if (displayFromPhoto()) {
-	//	int32 photoleft = left + ((!isPost() && out() && !Adaptive::Wide()) ? (width + (st::msgPhotoSkip - st::msgPhotoSize)) : (-st::msgPhotoSkip));
-	//	if (x >= photoleft && x < photoleft + st::msgPhotoSize && y >= marginTop() && y < height - marginBottom()) {
-	//		lnk = author()->lnk;
-	//		return;
-	//	}
-	//}
 	if (width < 1) return;
 
-	if (const HistoryMessageReplyMarkup *markup = inlineReplyMarkup()) {
-		height -= (st::msgBotKbButton.margin + st::msgBotKbButton.height) * markup->rows.size();
+	if (const ReplyKeyboard *keyboard = inlineReplyKeyboard()) {
+		int h = st::msgBotKbButton.margin + keyboard->naturalHeight();
+		height -= h;
+		int top = marginTop() + height;
+		if (x >= left && x < left + width && y >= top && y < _height - marginBottom()) {
+			return keyboard->getState(lnk, x - left, y - top);
+		}
 	}
 
 	if (drawBubble()) {

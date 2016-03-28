@@ -304,7 +304,7 @@ public:
 	bool forceReply() const;
 
 	void step_selected(uint64 ms, bool timer);
-	void resizeToWidth(int32 width, int32 maxOuterHeight);
+	void resizeToWidth(int width, int maxOuterHeight);
 
 	bool maximizeSize() const;
 	bool singleUse() const;
@@ -327,30 +327,32 @@ private:
 	void clearSelection();
 
 	FullMsgId _wasForMsgId;
-	int32 _height, _maxOuterHeight;
-	bool _maximizeSize, _singleUse, _forceReply;
+	int _height = 0;
+	int _maxOuterHeight = 0;
+	bool _maximizeSize = false;
+	bool _singleUse = false;
+	bool _forceReply = false;
 
 	QPoint _lastMousePos;
-	struct Button {
-		Button() = default;
-		Button(const HistoryMessageReplyMarkup::Button &button) : button(button) {
+	UniquePointer<ReplyKeyboard> _impl;
+
+	class Style : public ReplyKeyboard::Style {
+	public:
+		Style(BotKeyboard *parent, const style::botKeyboardButton &st) : ReplyKeyboard::Style(st), _parent(parent) {
 		}
-		HistoryMessageReplyMarkup::Button button;
 
-		Text text = { 1 };
-		QRect rect;
-		int cwidth = 0;
-		float64 hover = 0.;
-		bool full = true;
+		void startPaint(Painter &p) const override;
+		style::font textFont() const override;
+		void repaint(const HistoryItem *item) const override;
+
+	protected:
+		void paintButtonBg(Painter &p, const QRect &rect, bool down, float64 howMuchOver) const override;
+
+	private:
+		BotKeyboard *_parent;
+
 	};
-	int32 _sel, _down;
-	QList<QList<Button> > _btns;
-
-	typedef QMap<int32, uint64> Animations;
-	Animations _animations;
-	Animation _a_selected;
-
-	const style::botKeyboardButton *_st;
+	const style::botKeyboardButton *_st = &st::botKbButton;
 
 };
 

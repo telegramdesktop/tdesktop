@@ -1052,10 +1052,77 @@ struct HistoryMessageReply : public BaseComponent<HistoryMessageReply> {
 };
 Q_DECLARE_OPERATORS_FOR_FLAGS(HistoryMessageReply::PaintFlags);
 
-class ReplyKeyboard {
+class ReplyKeyboard final {
 public:
-	ReplyKeyboard(HistoryItem *item);
+	class Style {
+	public:
+		Style(const style::botKeyboardButton &st) : _st(&st) {
+		}
 
+		virtual void startPaint(Painter &p) const = 0;
+		virtual style::font textFont() const = 0;
+
+		void paintButton(Painter &p, const QRect &rect, const Text &text, bool down, float64 howMuchOver) const;
+
+		int buttonSkip() const {
+			return _st->margin;
+		}
+		int buttonPadding() const {
+			return _st->padding;
+		}
+		int buttonHeight() const {
+			return _st->height;
+		}
+
+		virtual void repaint(const HistoryItem *item) const = 0;
+
+	protected:
+		virtual void paintButtonBg(Painter &p, const QRect &rect, bool down, float64 howMuchOver) const = 0;
+
+	private:
+		const style::botKeyboardButton *_st;
+
+	};
+	typedef UniquePointer<Style> StylePtr;
+
+	ReplyKeyboard(const HistoryItem *item, StylePtr &&s);
+	ReplyKeyboard(const ReplyKeyboard &other) = delete;
+	ReplyKeyboard &operator=(const ReplyKeyboard &other) = delete;
+
+	bool isEnoughSpace(int width, const style::botKeyboardButton &st) const;
+	void setStyle(StylePtr &&s);
+	void resize(int width, int height);
+	int naturalHeight() const;
+
+	void paint(Painter &p, const QRect &clip) const;
+	void getState(TextLinkPtr &lnk, int x, int y) const;
+
+	void linkOver(const TextLinkPtr &lnk);
+	void linkOut(const TextLinkPtr &lnk);
+	void clearSelection();
+
+private:
+	const HistoryItem *_item;
+	int _width = 0;
+
+	struct Button {
+		Text text = { 1 };
+		QRect rect;
+		int characters = 0;
+		float64 howMuchOver = 0.;
+		bool full = true;
+		TextLinkPtr link;
+	};
+	using ButtonRow = QVector<Button>;
+	using ButtonRows = QVector<ButtonRow>;
+	ButtonRows _rows;
+
+	using Animations = QMap<int, uint64>;
+	Animations _animations;
+	Animation _a_selected;
+	void step_selected(uint64 ms, bool timer);
+
+	StylePtr _st;
 };
 
 struct HistoryMessageReplyMarkup : public BaseComponent<HistoryMessageReplyMarkup> {
@@ -1303,8 +1370,18 @@ public:
 		return (from << 16) | to;
 	}
 	virtual void linkOver(const TextLinkPtr &lnk) {
+		if (auto *markup = Get<HistoryMessageReplyMarkup>()) {
+			if (markup->inlineKeyboard) {
+				markup->inlineKeyboard->linkOver(lnk);
+			}
+		}
 	}
 	virtual void linkOut(const TextLinkPtr &lnk) {
+		if (auto *markup = Get<HistoryMessageReplyMarkup>()) {
+			if (markup->inlineKeyboard) {
+				markup->inlineKeyboard->linkOut(lnk);
+			}
+		}
 	}
 	virtual HistoryItemType type() const {
 		return HistoryItemMsg;
@@ -1569,8 +1646,17 @@ protected:
 		}
 		return nullptr;
 	}
+	const ReplyKeyboard *inlineReplyKeyboard() const {
+		if (auto *markup = inlineReplyMarkup()) {
+			return markup->inlineKeyboard;
+		}
+		return nullptr;
+	}
 	HistoryMessageReplyMarkup *inlineReplyMarkup() {
 		return const_cast<HistoryMessageReplyMarkup*>(static_cast<const HistoryItem*>(this)->inlineReplyMarkup());
+	}
+	ReplyKeyboard *inlineReplyKeyboard() {
+		return const_cast<ReplyKeyboard*>(static_cast<const HistoryItem*>(this)->inlineReplyKeyboard());
 	}
 
 };
@@ -2545,9 +2631,11 @@ public:
 	}
 	void linkOver(const TextLinkPtr &lnk) override {
 		if (_media) _media->linkOver(this, lnk);
+		HistoryItem::linkOver(lnk);
 	}
 	void linkOut(const TextLinkPtr &lnk) override {
 		if (_media) _media->linkOut(this, lnk);
+		HistoryItem::linkOut(lnk);
 	}
 
 	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const override;
@@ -2676,6 +2764,19 @@ protected:
 	void createComponentsHelper(MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId);
 	void createComponents(const CreateConfig &config);
 
+	class KeyboardStyle : public ReplyKeyboard::Style {
+	public:
+		using ReplyKeyboard::Style::Style;
+
+		void startPaint(Painter &p) const override;
+		style::font textFont() const override;
+		void repaint(const HistoryItem *item) const override;
+
+	protected:
+		void paintButtonBg(Painter &p, const QRect &rect, bool down, float64 howMuchOver) const override;
+
+	};
+
 };
 
 inline MTPDmessage::Flags newMessageFlags(PeerData *p) {
@@ -2752,9 +2853,11 @@ public:
 
 	void linkOver(const TextLinkPtr &lnk) override {
 		if (_media) _media->linkOver(this, lnk);
+		HistoryItem::linkOver(lnk);
 	}
 	void linkOut(const TextLinkPtr &lnk) override {
 		if (_media) _media->linkOut(this, lnk);
+		HistoryItem::linkOut(lnk);
 	}
 
 	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const override;

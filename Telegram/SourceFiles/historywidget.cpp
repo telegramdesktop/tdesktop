@@ -1754,7 +1754,7 @@ void HistoryInner::onUpdateSelected() {
 		}
 		textlnkOver(lnk);
 		PopupTooltip::Hide();
-		App::hoveredLinkItem((lnk && !lnkInDesc) ? item : 0);
+		App::hoveredLinkItem((lnk && !lnkInDesc) ? item : nullptr);
 		if (textlnkOver()) {
 			if (HistoryItem *item = App::hoveredLinkItem()) {
 				item->linkOver(textlnkOver());
@@ -2164,16 +2164,7 @@ void ReportSpamPanel::setReported(bool reported, PeerData *onPeer) {
 	update();
 }
 
-BotKeyboard::BotKeyboard() : TWidget()
-, _height(0)
-, _maxOuterHeight(0)
-, _maximizeSize(false)
-, _singleUse(false)
-, _forceReply(false)
-, _sel(-1)
-, _down(-1)
-, _a_selected(animation(this, &BotKeyboard::step_selected))
-, _st(&st::botKbButton) {
+BotKeyboard::BotKeyboard() {
 	setGeometry(0, 0, _st->margin, _st->margin);
 	_height = _st->margin;
 	setMouseTracking(true);
@@ -2182,90 +2173,65 @@ BotKeyboard::BotKeyboard() : TWidget()
 void BotKeyboard::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	QRect r(e->rect());
-	p.setClipRect(r);
-	p.fillRect(r, st::white->b);
+	QRect clip(e->rect());
+	p.fillRect(clip, st::white);
 
-	p.setPen(st::botKbColor->p);
-	p.setFont(st::botKbFont->f);
-	for (int32 i = 0, l = _btns.size(); i != l; ++i) {
-		int32 j = 0, s = _btns.at(i).size();
-		for (; j != s; ++j) {
-			const Button &btn(_btns.at(i).at(j));
-			QRect rect(btn.rect);
-			if (rect.y() >= r.y() + r.height()) break;
-			if (rect.y() + rect.height() < r.y()) continue;
+	if (_impl) {
+		int x = rtl() ? st::botKbScroll.width : _st->margin;
+		p.translate(x, _st->margin);
+		_impl->paint(p, clip.translated(-x, -_st->margin));
+	}
+}
 
-			if (rtl()) rect.moveLeft(width() - rect.left() - rect.width());
+void BotKeyboard::Style::startPaint(Painter &p) const {
+	p.setPen(st::botKbColor);
+	p.setFont(st::botKbFont);
+}
 
-			int32 tx = rect.x(), tw = rect.width();
-			if (tw > st::botKbFont->elidew + _st->padding * 2) {
-				tx += _st->padding;
-				tw -= _st->padding * 2;
-			} else if (tw > st::botKbFont->elidew) {
-				tx += (tw - st::botKbFont->elidew) / 2;
-				tw = st::botKbFont->elidew;
-			}
-			if (_down == i * MatrixRowShift + j) {
-				App::roundRect(p, rect, st::botKbDownBg, BotKeyboardDownCorners);
-				btn.text.drawElided(p, tx, rect.y() + _st->downTextTop + ((rect.height() - _st->height) / 2), tw, 1, style::al_top);
-			} else {
-				App::roundRect(p, rect, st::botKbBg, BotKeyboardCorners);
-				float64 hover = btn.hover;
-				if (hover > 0) {
-					p.setOpacity(hover);
-					App::roundRect(p, rect, st::botKbOverBg, BotKeyboardOverCorners);
-					p.setOpacity(1);
-				}
-				btn.text.drawElided(p, tx, rect.y() + _st->textTop + ((rect.height() - _st->height) / 2), tw, 1, style::al_top);
-			}
+style::font BotKeyboard::Style::textFont() const {
+	return st::botKbFont;
+}
+
+void BotKeyboard::Style::repaint(const HistoryItem *item) const {
+	_parent->update();
+}
+
+void BotKeyboard::Style::paintButtonBg(Painter &p, const QRect &rect, bool down, float64 howMuchOver) const {
+	if (down) {
+		App::roundRect(p, rect, st::botKbDownBg, BotKeyboardDownCorners);
+	} else {
+		App::roundRect(p, rect, st::botKbBg, BotKeyboardCorners);
+		if (howMuchOver > 0) {
+			p.setOpacity(howMuchOver);
+			App::roundRect(p, rect, st::botKbOverBg, BotKeyboardOverCorners);
+			p.setOpacity(1);
 		}
-		if (j < s) break;
 	}
 }
 
 void BotKeyboard::resizeEvent(QResizeEvent *e) {
 	updateStyle();
 
-	_height = (_btns.size() + 1) * _st->margin + _btns.size() * _st->height;
+	_height = _impl->naturalHeight() + 2 * _st->margin;
 	if (_maximizeSize) _height = qMax(_height, _maxOuterHeight);
 	if (height() != _height) {
 		resize(width(), _height);
 		return;
 	}
 
-	float64 y = _st->margin, btnh = _btns.isEmpty() ? _st->height : (float64(_height - _st->margin) / _btns.size());
-	for (int32 i = 0, l = _btns.size(); i != l; ++i) {
-		int32 j = 0, s = _btns.at(i).size();
-
-		float64 widthForText = width() - (s * _st->margin + st::botKbScroll.width + s * 2 * _st->padding), widthOfText = 0.;
-		for (; j != s; ++j) {
-			Button &btn(_btns[i][j]);
-			if (btn.text.isEmpty()) btn.text.setText(st::botKbFont, textOneLine(btn.button.text), _textPlainOptions);
-			if (!btn.cwidth) btn.cwidth = btn.button.text.size();
-			if (!btn.cwidth) btn.cwidth = 1;
-			widthOfText += qMax(btn.text.maxWidth(), 1);
-		}
-
-		float64 x = _st->margin, coef = widthForText / widthOfText;
-		for (j = 0; j != s; ++j) {
-			Button &btn(_btns[i][j]);
-			float64 tw = widthForText / float64(s), w = 2 * _st->padding + tw;
-			if (w < _st->padding) w = _st->padding;
-
-			btn.rect = QRect(qRound(x), qRound(y), qRound(w), qRound(btnh - _st->margin));
-			x += w + _st->margin;
-
-			btn.full = tw >= btn.text.maxWidth();
-		}
-		y += btnh;
-	}
+	_impl->resize(width() - _st->margin - st::botKbScroll.width, _height - 2 * _st->margin);
 }
 
 void BotKeyboard::mousePressEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateSelected();
-	_down = _sel;
+	if (textlnkDown() != textlnkOver()) {
+		Ui::repaintHistoryItem(App::pressedLinkItem());
+		textlnkDown(textlnkOver());
+		App::hoveredLinkItem(nullptr);
+		App::pressedLinkItem(App::hoveredLinkItem());
+		Ui::repaintHistoryItem(App::pressedLinkItem());
+	}
 	update();
 }
 
@@ -2275,14 +2241,13 @@ void BotKeyboard::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void BotKeyboard::mouseReleaseEvent(QMouseEvent *e) {
-	int32 down = _down;
-	_down = -1;
+	TextLinkPtr down(textlnkDown());
+	textlnkDown(TextLinkPtr());
 
 	_lastMousePos = e->globalPos();
 	updateSelected();
-	if (_sel == down && down >= 0) {
-		int row = (down / MatrixRowShift), col = down % MatrixRowShift;
-		App::activateBotCommand(_btns.at(row).at(col).button, _wasForMsgId.msg);
+	if (down && textlnkOver() == down) {
+		down->onClick(e->button());
 	}
 }
 
@@ -2297,37 +2262,21 @@ bool BotKeyboard::updateMarkup(HistoryItem *to) {
 
 		_wasForMsgId = FullMsgId(to->channelId(), to->id);
 		clearSelection();
-		_btns.clear();
 
 		const auto *markup = to->Get<HistoryMessageReplyMarkup>();
 		_forceReply = markup->flags & MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply;
 		_maximizeSize = !(markup->flags & MTPDreplyKeyboardMarkup::Flag::f_resize);
 		_singleUse = _forceReply || (markup->flags & MTPDreplyKeyboardMarkup::Flag::f_single_use);
 
-		const HistoryMessageReplyMarkup::ButtonRows &rows(markup->rows);
-		if (!rows.isEmpty()) {
-			_btns.reserve(rows.size());
-			for_const (const HistoryMessageReplyMarkup::ButtonRow &row, rows) {
-				QList<Button> btns;
-				btns.reserve(row.size());
-				for_const (const HistoryMessageReplyMarkup::Button &button, row) {
-					btns.push_back(Button(button));
-					if (btns.size() > 16) break;
-				}
-				if (!btns.isEmpty()) {
-					_btns.push_back(btns);
-					if (_btns.size() > 512) break;
-				}
-			}
+		_impl.reset(markup->rows.isEmpty() ? nullptr : new ReplyKeyboard(to, MakeUnique<Style>(this, *_st)));
 
-			updateStyle();
-			_height = (_btns.size() + 1) * _st->margin + _btns.size() * _st->height;
-			if (_maximizeSize) _height = qMax(_height, _maxOuterHeight);
-			if (height() != _height) {
-				resize(width(), _height);
-			} else {
-				resizeEvent(0);
-			}
+		updateStyle();
+		_height = 2 * _st->margin + (_impl ? _impl->naturalHeight() : 0);
+		if (_maximizeSize) _height = qMax(_height, _maxOuterHeight);
+		if (height() != _height) {
+			resize(width(), _height);
+		} else {
+			resizeEvent(0);
 		}
 		return true;
 	}
@@ -2335,41 +2284,23 @@ bool BotKeyboard::updateMarkup(HistoryItem *to) {
 		_maximizeSize = _singleUse = _forceReply = false;
 		_wasForMsgId = FullMsgId();
 		clearSelection();
-		_btns.clear();
+		_impl.reset();
 		return true;
 	}
 	return false;
 }
 
 bool BotKeyboard::hasMarkup() const {
-	return !_btns.isEmpty();
+	return !_impl.isNull();
 }
 
 bool BotKeyboard::forceReply() const {
 	return _forceReply;
 }
 
-void  BotKeyboard::step_selected(uint64 ms, bool timer) {
-	for (Animations::iterator i = _animations.begin(); i != _animations.end();) {
-		int index = qAbs(i.key()) - 1, row = (index / MatrixRowShift), col = index % MatrixRowShift;
-		float64 dt = float64(ms - i.value()) / st::botKbDuration;
-		if (dt >= 1) {
-			_btns[row][col].hover = (i.key() > 0) ? 1 : 0;
-			i = _animations.erase(i);
-		} else {
-			_btns[row][col].hover = (i.key() > 0) ? dt : (1 - dt);
-			++i;
-		}
-	}
-	if (timer) update();
-	if (_animations.isEmpty()) {
-		_a_selected.stop();
-	}
-}
-
-void BotKeyboard::resizeToWidth(int32 width, int32 maxOuterHeight) {
+void BotKeyboard::resizeToWidth(int width, int maxOuterHeight) {
 	updateStyle(width);
-	_height = (_btns.size() + 1) * _st->margin + _btns.size() * _st->height;
+	_height = 2 * _st->margin + (_impl ? _impl->naturalHeight() : 0);
 	_maxOuterHeight = maxOuterHeight;
 
 	if (_maximizeSize) _height = qMax(_height, _maxOuterHeight);
@@ -2385,35 +2316,17 @@ bool BotKeyboard::singleUse() const {
 }
 
 void BotKeyboard::updateStyle(int32 w) {
-	if (w < 0) w = width();
-	_st = &st::botKbButton;
-	for (int32 i = 0, l = _btns.size(); i != l; ++i) {
-		int32 j = 0, s = _btns.at(i).size();
-		int32 widthLeft = w - (s * _st->margin + st::botKbScroll.width + s * 2 * _st->padding);
-		for (; j != s; ++j) {
-			Button &btn(_btns[i][j]);
-			if (btn.text.isEmpty()) btn.text.setText(st::botKbFont, textOneLine(btn.button.text), _textPlainOptions);
-			widthLeft -= qMax(btn.text.maxWidth(), 1);
-			if (widthLeft < 0) break;
-		}
-		if (j != s && s > 3) {
-			_st = &st::botKbTinyButton;
-			break;
-		}
-	}
+	if (!_impl) return;
+
+	int implWidth = ((w < 0) ? width() : w) - _st->margin - st::botKbScroll.width;
+	_st = _impl->isEnoughSpace(implWidth, st::botKbButton) ? &st::botKbButton : &st::botKbTinyButton;
+
+	_impl->setStyle(MakeUnique<Style>(this, *_st));
 }
 
 void BotKeyboard::clearSelection() {
-	for (Animations::const_iterator i = _animations.cbegin(), e = _animations.cend(); i != e; ++i) {
-		int index = qAbs(i.key()) - 1, row = (index / MatrixRowShift), col = index % MatrixRowShift;
-		_btns[row][col].hover = 0;
-	}
-	_animations.clear();
-	_a_selected.stop();
-	if (_sel >= 0) {
-		int row = (_sel / MatrixRowShift), col = _sel % MatrixRowShift;
-		_btns[row][col].hover = 0;
-		_sel = -1;
+	if (_impl) {
+		_impl->clearSelection();
 	}
 }
 
@@ -2422,11 +2335,9 @@ QPoint BotKeyboard::tooltipPos() const {
 }
 
 QString BotKeyboard::tooltipText() const {
-	if (_sel >= 0) {
-		int row = (_sel / MatrixRowShift), col = _sel % MatrixRowShift;
-		if (!_btns.at(row).at(col).full) {
-			return _btns.at(row).at(col).button.text;
-		}
+	TextLinkPtr lnk = textlnkOver();
+	if (lnk && !lnk->fullDisplayed()) {
+		return lnk->readable();
 	}
 	return QString();
 }
@@ -2434,47 +2345,29 @@ QString BotKeyboard::tooltipText() const {
 void BotKeyboard::updateSelected() {
 	PopupTooltip::Show(1000, this);
 
-	if (_down >= 0) return;
+	if (textlnkDown() || !_impl) return;
 
 	QPoint p(mapFromGlobal(_lastMousePos));
-	int32 newSel = -1;
-	for (int32 i = 0, l = _btns.size(); i != l; ++i) {
-		for (int32 j = 0, s = _btns.at(i).size(); j != s; ++j) {
-			QRect r(_btns.at(i).at(j).rect);
+	int x = rtl() ? st::botKbScroll.width : _st->margin;
 
-			if (rtl()) r.moveLeft(width() - r.left() - r.width());
-
-			if (r.contains(p)) {
-				newSel = i * MatrixRowShift + j;
-				break;
+	TextLinkPtr lnk;
+	_impl->getState(lnk, p.x() - x, p.y() - _st->margin);
+	if (lnk != textlnkOver()) {
+		if (textlnkOver()) {
+			if (HistoryItem *item = App::hoveredLinkItem()) {
+				item->linkOut(textlnkOver());
+				Ui::repaintHistoryItem(item);
+			} else {
+				App::main()->update();// update(_botDescRect);
+				_impl->linkOut(textlnkOver());
 			}
 		}
-		if (newSel >= 0) break;
-	}
-	if (newSel != _sel) {
+		textlnkOver(lnk);
+		_impl->linkOver(lnk);
 		PopupTooltip::Hide();
-		if (newSel < 0) {
-			setCursor(style::cur_default);
-		} else if (_sel < 0) {
-			setCursor(style::cur_pointer);
-		}
-		bool startanim = false;
-		if (_sel >= 0) {
-			_animations.remove(_sel + 1);
-			if (_animations.find(-_sel - 1) == _animations.end()) {
-				if (_animations.isEmpty()) startanim = true;
-				_animations.insert(-_sel - 1, getms());
-			}
-		}
-		_sel = newSel;
-		if (_sel >= 0) {
-			_animations.remove(-_sel - 1);
-			if (_animations.find(_sel + 1) == _animations.end()) {
-				if (_animations.isEmpty()) startanim = true;
-				_animations.insert(_sel + 1, getms());
-			}
-		}
-		if (startanim && !_a_selected.animating()) _a_selected.start();
+		App::hoveredLinkItem(nullptr);
+		setCursor(lnk ? style::cur_pointer : style::cur_default);
+		update();
 	}
 }
 
@@ -3740,12 +3633,12 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	_selCount = 0;
 	App::main()->topBar()->showSelected(0);
 
-	App::hoveredItem(0);
-	App::pressedItem(0);
-	App::hoveredLinkItem(0);
-	App::pressedLinkItem(0);
-	App::contextItem(0);
-	App::mousedItem(0);
+	App::hoveredItem(nullptr);
+	App::pressedItem(nullptr);
+	App::hoveredLinkItem(nullptr);
+	App::pressedLinkItem(nullptr);
+	App::contextItem(nullptr);
+	App::mousedItem(nullptr);
 
 	if (_peer) {
 		App::forgetMedia();
