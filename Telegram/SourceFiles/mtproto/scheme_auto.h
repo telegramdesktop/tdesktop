@@ -32872,13 +32872,21 @@ inline MTPauth_sentCodeType MTP_auth_sentCodeTypeFlashCall(const MTPstring &_pat
 	return MTP::internal::TypeCreator::new_auth_sentCodeTypeFlashCall(_pattern);
 }
 inline MTPDmessage::Flags mtpCastFlags(MTPDmessageService::Flags flags) { return MTPDmessage::Flags(QFlag(flags)); }
+inline MTPDmessage::Flags mtpCastFlags(MTPflags<MTPDmessageService::Flags> flags) { return mtpCastFlags(flags.v); }
 inline MTPDmessage::Flags mtpCastFlags(MTPDupdateShortMessage::Flags flags) { return MTPDmessage::Flags(QFlag(flags)); }
+inline MTPDmessage::Flags mtpCastFlags(MTPflags<MTPDupdateShortMessage::Flags> flags) { return mtpCastFlags(flags.v); }
 inline MTPDmessage::Flags mtpCastFlags(MTPDupdateShortChatMessage::Flags flags) { return MTPDmessage::Flags(QFlag(flags)); }
+inline MTPDmessage::Flags mtpCastFlags(MTPflags<MTPDupdateShortChatMessage::Flags> flags) { return mtpCastFlags(flags.v); }
 inline MTPDmessage::Flags mtpCastFlags(MTPDupdateShortSentMessage::Flags flags) { return MTPDmessage::Flags(QFlag(flags)); }
+inline MTPDmessage::Flags mtpCastFlags(MTPflags<MTPDupdateShortSentMessage::Flags> flags) { return mtpCastFlags(flags.v); }
 inline MTPDreplyKeyboardMarkup::Flags mtpCastFlags(MTPDreplyKeyboardHide::Flags flags) { return MTPDreplyKeyboardMarkup::Flags(QFlag(flags)); }
+inline MTPDreplyKeyboardMarkup::Flags mtpCastFlags(MTPflags<MTPDreplyKeyboardHide::Flags> flags) { return mtpCastFlags(flags.v); }
 inline MTPDreplyKeyboardMarkup::Flags mtpCastFlags(MTPDreplyKeyboardForceReply::Flags flags) { return MTPDreplyKeyboardMarkup::Flags(QFlag(flags)); }
+inline MTPDreplyKeyboardMarkup::Flags mtpCastFlags(MTPflags<MTPDreplyKeyboardForceReply::Flags> flags) { return mtpCastFlags(flags.v); }
 inline MTPDpeerNotifySettings::Flags mtpCastFlags(MTPDinputPeerNotifySettings::Flags flags) { return MTPDpeerNotifySettings::Flags(QFlag(flags)); }
+inline MTPDpeerNotifySettings::Flags mtpCastFlags(MTPflags<MTPDinputPeerNotifySettings::Flags> flags) { return mtpCastFlags(flags.v); }
 inline MTPDinputPeerNotifySettings::Flags mtpCastFlags(MTPDpeerNotifySettings::Flags flags) { return MTPDinputPeerNotifySettings::Flags(QFlag(flags)); }
+inline MTPDinputPeerNotifySettings::Flags mtpCastFlags(MTPflags<MTPDpeerNotifySettings::Flags> flags) { return mtpCastFlags(flags.v); }
 
 // Human-readable text serialization
 void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons);

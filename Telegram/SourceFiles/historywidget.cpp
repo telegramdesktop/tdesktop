@@ -2241,8 +2241,8 @@ void BotKeyboard::resizeEvent(QResizeEvent *e) {
 		float64 widthForText = width() - (s * _st->margin + st::botKbScroll.width + s * 2 * _st->padding), widthOfText = 0.;
 		for (; j != s; ++j) {
 			Button &btn(_btns[i][j]);
-			if (btn.text.isEmpty()) btn.text.setText(st::botKbFont, textOneLine(btn.cmd), _textPlainOptions);
-			if (!btn.cwidth) btn.cwidth = btn.cmd.size();
+			if (btn.text.isEmpty()) btn.text.setText(st::botKbFont, textOneLine(btn.button.text), _textPlainOptions);
+			if (!btn.cwidth) btn.cwidth = btn.button.text.size();
 			if (!btn.cwidth) btn.cwidth = 1;
 			widthOfText += qMax(btn.text.maxWidth(), 1);
 		}
@@ -2282,8 +2282,7 @@ void BotKeyboard::mouseReleaseEvent(QMouseEvent *e) {
 	updateSelected();
 	if (_sel == down && down >= 0) {
 		int row = (down / MatrixRowShift), col = down % MatrixRowShift;
-		QString cmd(_btns.at(row).at(col).cmd);
-		App::sendBotCommand(cmd, _wasForMsgId.msg);
+		App::activateBotCommand(_btns.at(row).at(col).button, _wasForMsgId.msg);
 	}
 }
 
@@ -2293,30 +2292,32 @@ void BotKeyboard::leaveEvent(QEvent *e) {
 }
 
 bool BotKeyboard::updateMarkup(HistoryItem *to) {
-	if (to && to->hasReplyMarkup()) {
+	if (to && to->definesReplyKeyboard()) {
 		if (_wasForMsgId == FullMsgId(to->channelId(), to->id)) return false;
 
 		_wasForMsgId = FullMsgId(to->channelId(), to->id);
 		clearSelection();
 		_btns.clear();
-		const ReplyMarkup &markup(App::replyMarkup(to->channelId(), to->id));
-		_forceReply = markup.flags & MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply;
-		_maximizeSize = !(markup.flags & MTPDreplyKeyboardMarkup::Flag::f_resize);
-		_singleUse = _forceReply || (markup.flags & MTPDreplyKeyboardMarkup::Flag::f_single_use);
 
-		const ReplyMarkup::Commands &commands(markup.commands);
-		if (!commands.isEmpty()) {
-			int32 i = 0, l = qMin(commands.size(), 512);
-			_btns.reserve(l);
-			for (; i != l; ++i) {
-				const QList<QString> &row(commands.at(i));
+		const auto *markup = to->Get<HistoryMessageReplyMarkup>();
+		_forceReply = markup->flags & MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply;
+		_maximizeSize = !(markup->flags & MTPDreplyKeyboardMarkup::Flag::f_resize);
+		_singleUse = _forceReply || (markup->flags & MTPDreplyKeyboardMarkup::Flag::f_single_use);
+
+		const HistoryMessageReplyMarkup::ButtonRows &rows(markup->rows);
+		if (!rows.isEmpty()) {
+			_btns.reserve(rows.size());
+			for_const (const HistoryMessageReplyMarkup::ButtonRow &row, rows) {
 				QList<Button> btns;
-				int32 j = 0, s = qMin(row.size(), 16);
-				btns.reserve(s);
-				for (; j != s; ++j) {
-					btns.push_back(Button(row.at(j)));
+				btns.reserve(row.size());
+				for_const (const HistoryMessageReplyMarkup::Button &button, row) {
+					btns.push_back(Button(button));
+					if (btns.size() > 16) break;
 				}
-				if (!btns.isEmpty()) _btns.push_back(btns);
+				if (!btns.isEmpty()) {
+					_btns.push_back(btns);
+					if (_btns.size() > 512) break;
+				}
 			}
 
 			updateStyle();
@@ -2391,7 +2392,7 @@ void BotKeyboard::updateStyle(int32 w) {
 		int32 widthLeft = w - (s * _st->margin + st::botKbScroll.width + s * 2 * _st->padding);
 		for (; j != s; ++j) {
 			Button &btn(_btns[i][j]);
-			if (btn.text.isEmpty()) btn.text.setText(st::botKbFont, textOneLine(btn.cmd), _textPlainOptions);
+			if (btn.text.isEmpty()) btn.text.setText(st::botKbFont, textOneLine(btn.button.text), _textPlainOptions);
 			widthLeft -= qMax(btn.text.maxWidth(), 1);
 			if (widthLeft < 0) break;
 		}
@@ -2424,7 +2425,7 @@ QString BotKeyboard::tooltipText() const {
 	if (_sel >= 0) {
 		int row = (_sel / MatrixRowShift), col = _sel % MatrixRowShift;
 		if (!_btns.at(row).at(col).full) {
-			return _btns.at(row).at(col).cmd;
+			return _btns.at(row).at(col).button.text;
 		}
 	}
 	return QString();

@@ -169,12 +169,8 @@ template <typename T, size_t N> char(&ArraySizeHelper(T(&array)[N]))[N];
 // using for_const instead of plain range-based for loop to ensure usage of const_iterator
 // it is important for the copy-on-write Qt containers
 // if you have "QVector<T*> v" then "for (T * const p : v)" will still call QVector::detach(),
-// while "for_const(T *p, v)" won't and "for_const(T *&p, v)" won't compile
-template <typename T>
-struct ForConstTraits {
-	typedef const T &ExpressionType;
-};
-#define for_const(range_declaration, range_expression) for (range_declaration : static_cast<ForConstTraits<decltype(range_expression)>::ExpressionType>(range_expression))
+// while "for_const (T *p, v)" won't and "for_const (T *&p, v)" won't compile
+#define for_const(range_declaration, range_expression) for (range_declaration : std_::as_const(range_expression))
 
 template <typename Enum>
 inline QFlags<Enum> qFlags(Enum v) {
@@ -217,9 +213,9 @@ using std::string;
 using std::exception;
 using std::swap;
 
-// we copy some parts of C++11 std:: library, because on OS X 10.6+
-// version we can use C++11, but we can't use its library :(
-namespace std11 {
+// we copy some parts of C++11/14/17 std:: library, because on OS X 10.6+
+// version we can use C++11/14/17, but we can not use its library :(
+namespace std_ {
 
 template <typename T>
 struct remove_reference {
@@ -239,7 +235,23 @@ inline typename remove_reference<T>::type &&move(T &&value) {
 	return static_cast<typename remove_reference<T>::type&&>(value);
 }
 
-} // namespace std11
+template <typename T>
+struct add_const {
+	using type = const T;
+};
+
+template <typename T>
+using add_const_t = typename add_const<T>::type;
+
+template <typename T>
+constexpr add_const_t<T> &as_const(T& t) noexcept {
+	return t;
+}
+
+template <typename T>
+void as_const(const T&&) = delete;
+
+} // namespace std_
 
 #include "logs.h"
 
@@ -669,6 +681,47 @@ inline RefPairImplementation<T1, T2> RefPairCreator(T1 &first, T2 &second) {
 
 #define RefPair(Type1, Name1, Type2, Name2) Type1 Name1; Type2 Name2; RefPairCreator(Name1, Name2)
 
+template <typename T>
+class UniquePointer {
+public:
+	explicit UniquePointer(T *p = nullptr) : _p(p) {
+	}
+	UniquePointer(const UniquePointer<T> &other) = delete;
+	UniquePointer &operator=(const UniquePointer<T> &other) = delete;
+	UniquePointer(UniquePointer<T> &&other) : _p(getPointerAndReset(other._p)) {
+	}
+	UniquePointer &operator=(UniquePointer<T> &&other) {
+		std::swap(_p, other._p);
+		return *this;
+	}
+	T *data() const {
+		return _p;
+	}
+	void reset(T *p = nullptr) {
+		*this = UniquePointer<T>(p);
+	}
+	void clear() {
+		reset();
+	}
+	T *operator->() const {
+		return data();
+	}
+	T &operator*() const {
+		t_assert(data() != nullptr);
+		return *data();
+	}
+	explicit operator bool() const {
+		return data() != nullptr;
+	}
+	~UniquePointer() {
+		delete _p;
+	}
+
+private:
+	T *_p;
+
+};
+
 template <typename I>
 inline void destroyImplementation(I *&ptr) {
 	if (ptr) {
@@ -705,26 +758,11 @@ struct CeilDivideMinimumOne {
 	static const int Result = ((Value / Denominator) + ((!Value || (Value % Denominator)) ? 1 : 0));
 };
 
-template <typename Type>
-struct ComponentWrapTemplate {
-	static const int Size = CeilDivideMinimumOne<sizeof(Type), sizeof(uint64)>::Result * sizeof(uint64);
-	static void Construct(void *location, Composer *composer) {
-		new (location) Type(composer);
-	}
-	static void Destruct(void *location) {
-		((Type*)location)->~Type();
-	}
-	static void Move(void *location, void *waslocation) {
-		*(Type*)location = std11::move(*(Type*)waslocation);
-	}
-};
-
 extern ComponentWrapStruct ComponentWraps[64];
 extern QAtomicInt ComponentIndexLast;
 
 template <typename Type>
-class BaseComponent {
-public:
+struct BaseComponent {
 	BaseComponent() {
 	}
 	BaseComponent(const BaseComponent &other) = delete;
@@ -742,7 +780,9 @@ public:
 			if (ComponentIndexLast.testAndSetOrdered(last, last + 1)) {
 				t_assert(last < 64);
 				if (_index.testAndSetOrdered(0, last + 1)) {
-					ComponentWraps[last] = ComponentWrapStruct(ComponentWrapTemplate<Type>::Size, ComponentWrapTemplate<Type>::Construct, ComponentWrapTemplate<Type>::Destruct, ComponentWrapTemplate<Type>::Move);
+					ComponentWraps[last] = ComponentWrapStruct(
+						CeilDivideMinimumOne<sizeof(Type), sizeof(uint64)>::Result * sizeof(uint64),
+						Type::ComponentConstruct, Type::ComponentDestruct, Type::ComponentMove);
 				}
 				break;
 			}
@@ -751,6 +791,17 @@ public:
 	}
 	static uint64 Bit() {
 		return (1ULL << Index());
+	}
+
+protected:
+	static void ComponentConstruct(void *location, Composer *composer) {
+		new (location) Type();
+	}
+	static void ComponentDestruct(void *location) {
+		((Type*)location)->~Type();
+	}
+	static void ComponentMove(void *location, void *waslocation) {
+		*(Type*)location = std_::move(*(Type*)waslocation);
 	}
 
 };
@@ -848,6 +899,21 @@ public:
 		}
 	}
 
+	template <typename Type>
+	bool Has() const {
+		return (_meta()->offsets[Type::Index()] >= 0);
+	}
+
+	template <typename Type>
+	Type *Get() {
+		return static_cast<Type*>(_dataptr(_meta()->offsets[Type::Index()]));
+	}
+	template <typename Type>
+	const Type *Get() const {
+		return static_cast<const Type*>(_dataptr(_meta()->offsets[Type::Index()]));
+	}
+
+protected:
 	void UpdateComponents(uint64 mask = 0) {
 		if (!_meta()->equals(mask)) {
 			Composer tmp(mask);
@@ -868,19 +934,6 @@ public:
 	}
 	void RemoveComponents(uint64 mask = 0) {
 		UpdateComponents(_meta()->maskremove(mask));
-	}
-
-	template <typename Type>
-	Type *Get() {
-		return static_cast<Type*>(_dataptr(_meta()->offsets[Type::Index()]));
-	}
-	template <typename Type>
-	const Type *Get() const {
-		return static_cast<const Type*>(_dataptr(_meta()->offsets[Type::Index()]));
-	}
-	template <typename Type>
-	bool Has() const {
-		return (_meta()->offsets[Type::Index()] >= 0);
 	}
 
 private:
@@ -906,13 +959,13 @@ private:
 
 };
 
-template <typename R, typename A1, typename A2>
-class SharedCallback2 {
+template <typename R, typename ... Args>
+class SharedCallback {
 public:
-	virtual R call(A1 channel, A2 msgId) const = 0;
-	virtual ~SharedCallback2() {
+	virtual R call(Args ... args) const = 0;
+	virtual ~SharedCallback() {
 	}
-	typedef QSharedPointer<SharedCallback2<R, A1, A2> > Ptr;
+	typedef QSharedPointer<SharedCallback<R, Args ...>> Ptr;
 };
 
 template <typename R>

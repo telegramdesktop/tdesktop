@@ -271,20 +271,8 @@ public:
 
 };
 
-class OverviewItemInfo : public BaseComponent<OverviewItemInfo> {
-public:
-	OverviewItemInfo(Composer*) {
-	}
-	int top() const {
-		return _top;
-	}
-	void setTop(int top) {
-		_top = top;
-	}
-
-private:
-	int _top = 0;
-
+struct OverviewItemInfo : public BaseComponent<OverviewItemInfo> {
+	int top = 0;
 };
 
 class LayoutOverviewDate : public LayoutItem {

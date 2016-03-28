@@ -44,14 +44,6 @@ typedef QHash<ClipReader*, HistoryItem*> GifItems;
 typedef QHash<PhotoId, PhotoData*> PhotosData;
 typedef QHash<DocumentId, DocumentData*> DocumentsData;
 
-struct ReplyMarkup {
-	ReplyMarkup(MTPDreplyKeyboardMarkup::Flags flags = 0) : flags(flags) {
-	}
-	typedef QList<QList<QString> > Commands;
-	Commands commands;
-	MTPDreplyKeyboardMarkup::Flags flags;
-};
-
 class LayeredWidget;
 
 namespace App {
@@ -271,10 +263,6 @@ namespace App {
 	void regInlineResultLoader(FileLoader *loader, InlineResult *result);
 	void unregInlineResultLoader(FileLoader *loader);
 	InlineResult *inlineResultFromLoader(FileLoader *loader);
-
-	void feedReplyMarkup(ChannelId channelId, MsgId msgId, const MTPReplyMarkup &markup);
-	void clearReplyMarkup(ChannelId channelId, MsgId msgId);
-	const ReplyMarkup &replyMarkup(ChannelId channelId, MsgId msgId);
 
 	void setProxySettings(QNetworkAccessManager &manager);
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY

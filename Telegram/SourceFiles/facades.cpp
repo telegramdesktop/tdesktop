@@ -41,6 +41,11 @@ namespace App {
 		return false;
 	}
 
+	void activateBotCommand(const HistoryMessageReplyMarkup::Button &button, MsgId replyTo) {
+		QString cmd(button.text);
+		App::sendBotCommand(cmd, replyTo);
+	}
+
 	void searchByHashtag(const QString &tag, PeerData *inPeer) {
 		if (MainWidget *m = main()) m->searchMessages(tag + ' ', (inPeer && inPeer->isChannel()) ? inPeer : 0);
 	}

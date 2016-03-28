@@ -966,8 +966,6 @@ enum HistoryItemType {
 };
 
 struct HistoryMessageVia : public BaseComponent<HistoryMessageVia> {
-	HistoryMessageVia(Composer*) {
-	}
 	void create(int32 userId);
 	void resize(int32 availw) const;
 
@@ -979,18 +977,12 @@ struct HistoryMessageVia : public BaseComponent<HistoryMessageVia> {
 };
 
 struct HistoryMessageViews : public BaseComponent<HistoryMessageViews> {
-	HistoryMessageViews(Composer*) {
-	}
-
 	QString _viewsText;
 	int _views = 0;
 	int _viewsWidth = 0;
 };
 
 struct HistoryMessageSigned : public BaseComponent<HistoryMessageSigned> {
-	HistoryMessageSigned(Composer*) {
-	}
-
 	void create(UserData *from, const QDateTime &date);
 	int maxWidth() const;
 
@@ -998,8 +990,6 @@ struct HistoryMessageSigned : public BaseComponent<HistoryMessageSigned> {
 };
 
 struct HistoryMessageForwarded : public BaseComponent<HistoryMessageForwarded> {
-	HistoryMessageForwarded(Composer*) {
-	}
 	void create(const HistoryMessageVia *via) const;
 
 	PeerData *_authorOriginal = nullptr;
@@ -1009,24 +999,23 @@ struct HistoryMessageForwarded : public BaseComponent<HistoryMessageForwarded> {
 };
 
 struct HistoryMessageReply : public BaseComponent<HistoryMessageReply> {
-	HistoryMessageReply(Composer*) {
-	}
 	HistoryMessageReply &operator=(HistoryMessageReply &&other) {
 		replyToMsgId = other.replyToMsgId;
 		std::swap(replyToMsg, other.replyToMsg);
-		replyToLnk = std11::move(other.replyToLnk);
-		replyToName = std11::move(other.replyToName);
-		replyToText = std11::move(other.replyToText);
+		replyToLnk = std_::move(other.replyToLnk);
+		replyToName = std_::move(other.replyToName);
+		replyToText = std_::move(other.replyToText);
 		replyToVersion = other.replyToVersion;
 		_maxReplyWidth = other._maxReplyWidth;
-		std::swap(_replyToVia, other._replyToVia);
+		_replyToVia = std_::move(other._replyToVia);
 		return *this;
 	}
 	~HistoryMessageReply() {
 		// clearData() should be called by holder
 		t_assert(replyToMsg == nullptr);
-		t_assert(_replyToVia == nullptr);
+		t_assert(_replyToVia.data() == nullptr);
 	}
+
 	bool updateData(HistoryMessage *holder, bool force = false);
 	void clearData(HistoryMessage *holder); // must be called before destructor
 
@@ -1058,12 +1047,45 @@ struct HistoryMessageReply : public BaseComponent<HistoryMessageReply> {
 	mutable Text replyToName, replyToText;
 	mutable int replyToVersion = 0;
 	mutable int _maxReplyWidth = 0;
-	HistoryMessageVia *_replyToVia = nullptr;
+	UniquePointer<HistoryMessageVia> _replyToVia;
 	int toWidth = 0;
 };
 Q_DECLARE_OPERATORS_FOR_FLAGS(HistoryMessageReply::PaintFlags);
 
-class HistoryDependentItemCallback : public SharedCallback2<void, ChannelData*, MsgId> {
+class ReplyKeyboard {
+public:
+	ReplyKeyboard(HistoryItem *item);
+
+};
+
+struct HistoryMessageReplyMarkup : public BaseComponent<HistoryMessageReplyMarkup> {
+	HistoryMessageReplyMarkup() = default;
+	HistoryMessageReplyMarkup(MTPDreplyKeyboardMarkup::Flags f) : flags(f) {
+	}
+
+	void create(const MTPReplyMarkup &markup);
+
+	struct Button {
+		enum Type {
+			Default,
+			Url,
+			Callback,
+			RequestPhone,
+			RequestLocation,
+		};
+		Type type;
+		QString text, url;
+	};
+	using ButtonRow = QVector<Button>;
+	using ButtonRows = QVector<ButtonRow>;
+
+	ButtonRows rows;
+	MTPDreplyKeyboardMarkup::Flags flags = 0;
+
+	ReplyKeyboard *inlineKeyboard = nullptr;
+};
+
+class HistoryDependentItemCallback : public SharedCallback<void, ChannelData*, MsgId> {
 public:
 	HistoryDependentItemCallback(FullMsgId dependent) : _dependent(dependent) {
 	}
@@ -1077,8 +1099,6 @@ private:
 // any HistoryItem can have this Interface for
 // displaying the day mark above the message
 struct HistoryMessageDate : public BaseComponent<HistoryMessageDate> {
-	HistoryMessageDate(Composer*) {
-	}
 	void init(const QDateTime &date);
 
 	int height() const;
@@ -1091,8 +1111,6 @@ struct HistoryMessageDate : public BaseComponent<HistoryMessageDate> {
 // any HistoryItem can have this Interface for
 // displaying the unread messages bar above the message
 struct HistoryMessageUnreadBar : public BaseComponent<HistoryMessageUnreadBar> {
-	HistoryMessageUnreadBar(Composer*) {
-	}
 	void init(int count);
 
 	int height() const;
@@ -1216,8 +1234,27 @@ public:
 	void markMediaRead() {
 		_flags &= ~MTPDmessage::Flag::f_media_unread;
 	}
-	bool hasReplyMarkup() const {
-		return _flags & MTPDmessage::Flag::f_reply_markup;
+	bool definesReplyKeyboard() const {
+		if (auto *markup = Get<HistoryMessageReplyMarkup>()) {
+			if (markup->flags & MTPDreplyKeyboardMarkup::Flag::f_inline) {
+				return false;
+			}
+			return true;
+		}
+
+		// optimization: don't create markup component for the case
+		// MTPDreplyKeyboardHide with flags = 0, assume it has f_zero flag
+		return (_flags & MTPDmessage::Flag::f_reply_markup);
+	}
+	MTPDreplyKeyboardMarkup::Flags replyKeyboardFlags() const {
+		t_assert(definesReplyKeyboard());
+		if (auto *markup = Get<HistoryMessageReplyMarkup>()) {
+			return markup->flags;
+		}
+
+		// optimization: don't create markup component for the case
+		// MTPDreplyKeyboardHide with flags = 0, assume it has f_zero flag
+		return qFlags(MTPDreplyKeyboardMarkup_ClientFlag::f_zero);
 	}
 	bool hasTextLinks() const {
 		return _flags & MTPDmessage_ClientFlag::f_has_text_links;
@@ -1510,7 +1547,7 @@ protected:
 	}
 
 	// this should be used only in previousItemChanged()
-	// to add required bits to the Interfaces mask
+	// to add required bits to the Composer mask
 	// after that always use Has<HistoryMessageDate>()
 	bool displayDate() const {
 		if (HistoryItem *prev = previous()) {
@@ -1520,9 +1557,21 @@ protected:
 	}
 
 	// this should be used only in previousItemChanged() or when
-	// HistoryMessageDate or HistoryMessageUnreadBar bit is changed in the Interfaces mask
+	// HistoryMessageDate or HistoryMessageUnreadBar bit is changed in the Composer mask
 	// then the result should be cached in a client side flag MTPDmessage_ClientFlag::f_attach_to_previous
 	void recountAttachToPrevious();
+
+	const HistoryMessageReplyMarkup *inlineReplyMarkup() const {
+		if (auto *markup = Get<HistoryMessageReplyMarkup>()) {
+			if (markup->flags & MTPDreplyKeyboardMarkup::Flag::f_inline) {
+				return markup;
+			}
+		}
+		return nullptr;
+	}
+	HistoryMessageReplyMarkup *inlineReplyMarkup() {
+		return const_cast<HistoryMessageReplyMarkup*>(static_cast<const HistoryItem*>(this)->inlineReplyMarkup());
+	}
 
 };
 
@@ -1929,8 +1978,6 @@ private:
 };
 
 struct HistoryDocumentThumbed : public BaseComponent<HistoryDocumentThumbed> {
-	HistoryDocumentThumbed(Composer*) {
-	}
 	TextLinkPtr _linksavel, _linkcancell;
 	int _thumbw = 0;
 
@@ -1938,13 +1985,9 @@ struct HistoryDocumentThumbed : public BaseComponent<HistoryDocumentThumbed> {
 	mutable QString _link;
 };
 struct HistoryDocumentCaptioned : public BaseComponent<HistoryDocumentCaptioned> {
-	HistoryDocumentCaptioned(Composer*) : _caption(st::msgFileMinWidth - st::msgPadding.left() - st::msgPadding.right()) {
-	}
-	Text _caption;
+	Text _caption = { st::msgFileMinWidth - st::msgPadding.left() - st::msgPadding.right() };
 };
 struct HistoryDocumentNamed : public BaseComponent<HistoryDocumentNamed> {
-	HistoryDocumentNamed(Composer*) {
-	}
 	QString _name;
 	int _namew = 0;
 };
@@ -1957,8 +2000,6 @@ struct HistoryDocumentVoicePlayback {
 	Animation _a_progress;
 };
 struct HistoryDocumentVoice : public BaseComponent<HistoryDocumentVoice> {
-	HistoryDocumentVoice(Composer*) {
-	}
 	HistoryDocumentVoice &operator=(HistoryDocumentVoice &&other) {
 		std::swap(_playback, other._playback);
 		return *this;
@@ -2045,7 +2086,7 @@ protected:
 
 private:
 
-	void createInterfaces(bool caption);
+	void createComponents(bool caption);
 	const HistoryItem *_parent;
 	DocumentData *_data;
 
@@ -2623,8 +2664,17 @@ protected:
 	QString _timeText;
 	int _timeWidth = 0;
 
-	void createInterfacesHelper(MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId);
-	void createInterfaces(MsgId replyTo, int32 viaBotId, int32 viewsCount, const PeerId &authorIdOriginal = 0, const PeerId &fromIdOriginal = 0, MsgId originalId = 0);
+	struct CreateConfig {
+		MsgId replyTo = 0;
+		UserId viaBotId = 0;
+		int viewsCount = -1;
+		PeerId authorIdOriginal = 0;
+		PeerId fromIdOriginal = 0;
+		MsgId originalId = 0;
+		const MTPReplyMarkup *markup = nullptr;
+	};
+	void createComponentsHelper(MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId);
+	void createComponents(const CreateConfig &config);
 
 };
 
@@ -2659,9 +2709,6 @@ inline MTPDmessage::Flags newForwardedFlags(PeerData *p, int32 from, HistoryMess
 }
 
 struct HistoryServicePinned : public BaseComponent<HistoryServicePinned> {
-	HistoryServicePinned(Composer*) {
-	}
-
 	MsgId msgId = 0;
 	HistoryItem *msg = nullptr;
 	TextLinkPtr lnk;

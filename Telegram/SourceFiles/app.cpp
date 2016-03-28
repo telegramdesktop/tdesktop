@@ -55,12 +55,6 @@ namespace {
 	typedef QHash<WebPageId, WebPageData*> WebPagesData;
 	WebPagesData webPagesData;
 
-	typedef QMap<MsgId, ReplyMarkup> ReplyMarkups;
-	ReplyMarkups replyMarkups;
-	ReplyMarkup zeroMarkup(qFlags(MTPDreplyKeyboardMarkup_ClientFlag::f_zero));
-	typedef QMap<ChannelId, ReplyMarkups> ChannelReplyMarkups;
-	ChannelReplyMarkups channelReplyMarkups;
-
 	PhotoItems photoItems;
 	DocumentItems documentItems;
 	WebPageItems webPageItems;
@@ -1851,8 +1845,6 @@ namespace App {
 		}
 
 		::hoveredItem = ::pressedItem = ::hoveredLinkItem = ::pressedLinkItem = ::contextItem = 0;
-		replyMarkups.clear();
-		channelReplyMarkups.clear();
 	}
 
 	void historyClearItems() {
@@ -2394,114 +2386,6 @@ namespace App {
 
 	void unregInlineResultLoader(FileLoader *loader) {
 		::inlineResultLoaders.remove(loader);
-	}
-
-	InlineResult *inlineResultFromLoader(FileLoader *loader) {
-		InlineResultLoaders::const_iterator i = ::inlineResultLoaders.find(loader);
-		return (i == ::inlineResultLoaders.cend()) ? 0 : i.value();
-	}
-
-	inline void insertReplyMarkup(ChannelId channelId, MsgId msgId, const ReplyMarkup &markup) {
-		if (channelId == NoChannel) {
-			replyMarkups.insert(msgId, markup);
-		} else {
-			channelReplyMarkups[channelId].insert(msgId, markup);
-		}
-	}
-
-	void feedReplyMarkup(ChannelId channelId, MsgId msgId, const MTPReplyMarkup &markup) {
-		ReplyMarkup data;
-		ReplyMarkup::Commands &commands(data.commands);
-		switch (markup.type()) {
-		case mtpc_replyKeyboardMarkup: {
-			const MTPDreplyKeyboardMarkup &d(markup.c_replyKeyboardMarkup());
-			data.flags = d.vflags.v;
-
-			const QVector<MTPKeyboardButtonRow> &v(d.vrows.c_vector().v);
-			if (!v.isEmpty()) {
-				commands.reserve(v.size());
-				for (int32 i = 0, l = v.size(); i < l; ++i) {
-					switch (v.at(i).type()) {
-					case mtpc_keyboardButtonRow: {
-						const MTPDkeyboardButtonRow &r(v.at(i).c_keyboardButtonRow());
-						const QVector<MTPKeyboardButton> &b(r.vbuttons.c_vector().v);
-						if (!b.isEmpty()) {
-							QList<QString> btns;
-							btns.reserve(b.size());
-							for (int32 j = 0, s = b.size(); j < s; ++j) {
-								switch (b.at(j).type()) {
-								case mtpc_keyboardButton: {
-									btns.push_back(qs(b.at(j).c_keyboardButton().vtext));
-								} break;
-
-								case mtpc_keyboardButtonCallback: {
-
-								} break;
-
-								case mtpc_keyboardButtonRequestGeoLocation: {
-
-								} break;
-
-								case mtpc_keyboardButtonRequestPhone: {
-
-								} break;
-
-								case mtpc_keyboardButtonUrl: {
-
-								} break;
-								}
-							}
-							if (!btns.isEmpty()) commands.push_back(btns);
-						}
-					} break;
-					}
-				}
-				if (!commands.isEmpty()) {
-					insertReplyMarkup(channelId, msgId, data);
-				}
-			}
-		} break;
-
-		case mtpc_replyKeyboardHide: {
-			const MTPDreplyKeyboardHide &d(markup.c_replyKeyboardHide());
-			if (d.vflags.v) {
-				insertReplyMarkup(channelId, msgId, ReplyMarkup(mtpCastFlags(d.vflags.v) | MTPDreplyKeyboardMarkup_ClientFlag::f_zero));
-			}
-		} break;
-
-		case mtpc_replyKeyboardForceReply: {
-			const MTPDreplyKeyboardForceReply &d(markup.c_replyKeyboardForceReply());
-			insertReplyMarkup(channelId, msgId, ReplyMarkup(mtpCastFlags(d.vflags.v) | MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply));
-		} break;
-		}
-	}
-
-	void clearReplyMarkup(ChannelId channelId, MsgId msgId) {
-		if (channelId == NoChannel) {
-			replyMarkups.remove(msgId);
-		} else {
-			ChannelReplyMarkups::iterator i = channelReplyMarkups.find(channelId);
-			if (i != channelReplyMarkups.cend()) {
-				i->remove(msgId);
-				if (i->isEmpty()) {
-					channelReplyMarkups.erase(i);
-				}
-			}
-		}
-	}
-
-	inline const ReplyMarkup &replyMarkup(const ReplyMarkups &markups, MsgId msgId) {
-		ReplyMarkups::const_iterator i = markups.constFind(msgId);
-		if (i == markups.cend()) return zeroMarkup;
-		return i.value();
-	}
-	const ReplyMarkup &replyMarkup(ChannelId channelId, MsgId msgId) {
-		if (channelId == NoChannel) {
-			return replyMarkup(replyMarkups, msgId);
-		}
-		ChannelReplyMarkups::const_iterator j = channelReplyMarkups.constFind(channelId);
-		if (j == channelReplyMarkups.cend()) return zeroMarkup;
-		return replyMarkup(*j, msgId);
 	}
 
 	void setProxySettings(QNetworkAccessManager &manager) {

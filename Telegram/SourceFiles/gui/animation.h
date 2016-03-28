@@ -211,7 +211,7 @@ public:
 	AnimationImplementation *create() const { return getPointerAndReset(_ptr); }
 	~AnimationCreator() { deleteAndMark(_ptr); }
 private:
-	AnimationCreator &operator=(const AnimationCreator &other);
+	AnimationCreator &operator=(const AnimationCreator &other) = delete;
 	mutable AnimationImplementation *_ptr;
 };
 class AnimationCallbacks {
@@ -222,7 +222,7 @@ public:
 	~AnimationCallbacks() { deleteAndMark(_implementation); }
 private:
 	AnimationCallbacks(const AnimationCallbacks &other);
-	AnimationCallbacks &operator=(const AnimationCallbacks &other);
+	AnimationCallbacks &operator=(const AnimationCallbacks &other) = delete;
 	AnimationImplementation *_implementation;
 };
 

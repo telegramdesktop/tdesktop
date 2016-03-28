@@ -332,14 +332,16 @@ private:
 
 	QPoint _lastMousePos;
 	struct Button {
-		Button(const QString &str = QString()) : cmd(str), text(1), cwidth(0), hover(0), full(true) {
+		Button() = default;
+		Button(const HistoryMessageReplyMarkup::Button &button) : button(button) {
 		}
+		HistoryMessageReplyMarkup::Button button;
+
+		Text text = { 1 };
 		QRect rect;
-		QString cmd;
-		Text text;
-		int32 cwidth;
-		float64 hover;
-		bool full;
+		int cwidth = 0;
+		float64 hover = 0.;
+		bool full = true;
 	};
 	int32 _sel, _down;
 	QList<QList<Button> > _btns;
@@ -781,7 +783,7 @@ private:
 	void destroyPinnedBar();
 	void unpinDone(const MTPUpdates &updates);
 
-	class ReplyEditMessageDataCallback : public SharedCallback2<void, ChannelData*, MsgId> {
+	class ReplyEditMessageDataCallback : public SharedCallback<void, ChannelData*, MsgId> {
 	public:
 		void call(ChannelData *channel, MsgId msgId) const override;
 	};

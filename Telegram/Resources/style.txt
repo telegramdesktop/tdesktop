@@ -1085,6 +1085,16 @@ msgInReplyBarColor: #2fa9e2;
 msgOutReplyBarSelColor: #4da79f;
 msgInReplyBarSelColor: #2fa9e2;
 
+msgBotKbDuration: 200;
+msgBotKbFont: semiboldFont;
+msgBotKbButton: botKeyboardButton {
+	margin: 5px;
+	padding: 10px;
+	height: 36px;
+	textTop: 8px;
+	downTextTop: 9px;
+}
+
 msgServiceBg: #89a0b47f;
 msgServiceSelectBg: #bbc8d4a2;
 msgServiceColor: #FFF;
