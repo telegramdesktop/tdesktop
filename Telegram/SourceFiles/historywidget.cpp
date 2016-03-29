@@ -197,6 +197,16 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 	if (!App::main()) return;
 
+	if ((_history && _history->hasPendingResizedItems()) || (_migrated && _migrated->hasPendingResizedItems())) {
+		Notify::handlePendingHistoryUpdate();
+		if (_history) {
+			t_assert(!_history->hasPendingResizedItems());
+		}
+		if (_migrated) {
+			t_assert(!_migrated->hasPendingResizedItems());
+		}
+	}
+
 	Painter p(this);
 	QRect r(e->rect());
 	bool trivial = (rect() == r);
@@ -1677,7 +1687,9 @@ void HistoryInner::onTouchSelect() {
 }
 
 void HistoryInner::onUpdateSelected() {
-	if (!_history) return;
+	if (!_history || _history->hasPendingResizedItems() || (_migrated && _migrated->hasPendingResizedItems())) {
+		return;
+	}
 
 	QPoint mousePos(mapFromGlobal(_dragPos));
 	QPoint point(_widget->clampMousePosition(mousePos));
@@ -6286,7 +6298,7 @@ void HistoryWidget::notify_automaticLoadSettingsChangedGif() {
 }
 
 void HistoryWidget::notify_handlePendingHistoryUpdate() {
-	if (_history && _history->hasPendingResizedItems()) {
+	if ((_history && _history->hasPendingResizedItems()) || (_migrated && _migrated->hasPendingResizedItems())) {
 		updateListSize();
 		_list->update();
 	}
