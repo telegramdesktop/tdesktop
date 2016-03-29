@@ -377,11 +377,13 @@ bool History::updateTyping(uint64 ms, bool force) {
 	return changed;
 }
 
-ChannelHistory::ChannelHistory(const PeerId &peer) : History(peer),
-unreadCountAll(0),
-_onlyImportant(!isMegagroup()),
-_otherOldLoaded(false), _otherNewLoaded(true),
-_collapseMessage(0), _joinedMessage(0) {
+ChannelHistory::ChannelHistory(const PeerId &peer) : History(peer)
+, unreadCountAll(0)
+, _onlyImportant(!isMegagroup())
+, _otherOldLoaded(false)
+, _otherNewLoaded(true)
+, _collapseMessage(nullptr)
+, _joinedMessage(nullptr) {
 }
 
 bool ChannelHistory::isSwitchReadyFor(MsgId switchId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop) {

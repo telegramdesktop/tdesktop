@@ -6557,8 +6557,14 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 		}
 	} else if (initial && _migrated && _migrated->unreadBar) {
 		toY = _list->itemTop(_migrated->unreadBar);
+		if (_migrated->unreadBar->Has<HistoryMessageDate>()) {
+			toY += _migrated->unreadBar->Get<HistoryMessageDate>()->height();
+		}
 	} else if (initial && _history->unreadBar) {
 		toY = _list->itemTop(_history->unreadBar);
+		if (_history->unreadBar->Has<HistoryMessageDate>()) {
+			toY += _history->unreadBar->Get<HistoryMessageDate>()->height();
+		}
 	} else if (_migrated && _migrated->showFrom) {
 		toY = _list->itemTop(_migrated->showFrom);
 		if (toY < _scroll.scrollTopMax() + st::unreadBarHeight) {
