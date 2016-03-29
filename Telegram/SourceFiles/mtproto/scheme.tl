@@ -387,6 +387,7 @@ updateBotInlineQuery#c01eea08 query_id:long user_id:int query:string offset:stri
 updateBotInlineSend#f69e113 user_id:int query:string id:string = Update;
 updateEditChannelMessage#1b3f4df7 message:Message pts:int pts_count:int = Update;
 updateChannelPinnedMessage#98592475 channel_id:int id:int = Update;
+updateBotCallbackQuery#5024c2b0 query_id:long user_id:int peer:Peer msg_id:int text:string = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -659,6 +660,8 @@ auth.sentCodeTypeSms#c000bba2 length:int = auth.SentCodeType;
 auth.sentCodeTypeCall#5353e5a7 length:int = auth.SentCodeType;
 auth.sentCodeTypeFlashCall#ab03c6d9 pattern:string = auth.SentCodeType;
 
+messages.botCallbackAnswer#b4868d29 message:string = messages.BotCallbackAnswer;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -783,6 +786,8 @@ messages.saveGif#327a30cb id:InputDocument unsave:Bool = Bool;
 messages.getInlineBotResults#9324600d bot:InputUser query:string offset:string = messages.BotResults;
 messages.setInlineBotResults#3f23ec12 flags:# gallery:flags.0?true private:flags.1?true query_id:long results:Vector<InputBotInlineResult> cache_time:int next_offset:flags.2?string = Bool;
 messages.sendInlineBotResult#b16e06fe flags:# broadcast:flags.4?true silent:flags.5?true background:flags.6?true peer:InputPeer reply_to_msg_id:flags.0?int random_id:long query_id:long id:string = Updates;
+messages.getBotCallbackAnswer#d3157edf peer:InputPeer msg_id:int text:string = messages.BotCallbackAnswer;
+messages.setBotCallbackAnswer#a13a9254 query_id:long message:string = Bool;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#a041495 pts:int date:int qts:int = updates.Difference;

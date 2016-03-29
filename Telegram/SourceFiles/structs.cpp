@@ -99,7 +99,6 @@ NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
 NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersPtr = UnknownNotifySettings, globalNotifyChatsPtr = UnknownNotifySettings;
 
 PeerData::PeerData(const PeerId &id) : id(id)
-, lnk(new PeerLink(this))
 , loadedStatus(NotLoaded)
 , colorIndex(peerColorIndex(id))
 , color(peerColor(colorIndex))
@@ -684,24 +683,18 @@ PhotoData::~PhotoData() {
 	deleteAndMark(uploadingData);
 }
 
-void PhotoLink::onClick(Qt::MouseButton button) const {
-	if (button == Qt::LeftButton) {
-		App::wnd()->showPhoto(this, App::hoveredLinkItem() ? App::hoveredLinkItem() : App::contextItem());
-	}
+void PhotoOpenClickHandler::onClickImpl() const {
+	App::wnd()->showPhoto(this, App::hoveredLinkItem() ? App::hoveredLinkItem() : App::contextItem());
 }
 
-void PhotoSaveLink::onClick(Qt::MouseButton button) const {
-	if (button != Qt::LeftButton) return;
-
+void PhotoSaveClickHandler::onClickImpl() const {
 	PhotoData *data = photo();
 	if (!data->date) return;
 
 	data->download();
 }
 
-void PhotoCancelLink::onClick(Qt::MouseButton button) const {
-	if (button != Qt::LeftButton) return;
-
+void PhotoCancelClickHandler::onClickImpl() const {
 	PhotoData *data = photo();
 	if (!data->date) return;
 
@@ -857,7 +850,7 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 	return saveFileName(caption, filter, prefix, name, forceSavingAs, dir);
 }
 
-void DocumentOpenLink::doOpen(DocumentData *data, ActionOnLoad action) {
+void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 	if (!data->date) return;
 
 	HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0);
@@ -933,22 +926,15 @@ void DocumentOpenLink::doOpen(DocumentData *data, ActionOnLoad action) {
 	data->save(filename, action, item ? item->fullId() : FullMsgId());
 }
 
-void DocumentOpenLink::onClick(Qt::MouseButton button) const {
-	if (button != Qt::LeftButton) return;
+void DocumentOpenClickHandler::onClickImpl() const {
 	doOpen(document(), document()->voice() ? ActionOnLoadNone : ActionOnLoadOpen);
 }
 
-void VoiceSaveLink::onClick(Qt::MouseButton button) const {
-	if (button != Qt::LeftButton) return;
-	doOpen(document(), ActionOnLoadNone);
-}
-
-void GifOpenLink::onClick(Qt::MouseButton button) const {
-	if (button != Qt::LeftButton) return;
+void GifOpenClickHandler::onClickImpl() const {
 	doOpen(document(), ActionOnLoadPlayInline);
 }
 
-void DocumentSaveLink::doSave(DocumentData *data, bool forceSavingAs) {
+void DocumentSaveClickHandler::doSave(DocumentData *data, bool forceSavingAs) {
 	if (!data->date) return;
 
 	QString filepath = data->filepath(DocumentData::FilePathResolveSaveFromDataSilent, forceSavingAs);
@@ -970,14 +956,11 @@ void DocumentSaveLink::doSave(DocumentData *data, bool forceSavingAs) {
 	}
 }
 
-void DocumentSaveLink::onClick(Qt::MouseButton button) const {
-	if (button != Qt::LeftButton) return;
+void DocumentSaveClickHandler::onClickImpl() const {
 	doSave(document());
 }
 
-void DocumentCancelLink::onClick(Qt::MouseButton button) const {
-	if (button != Qt::LeftButton) return;
-
+void DocumentCancelClickHandler::onClickImpl() const {
 	DocumentData *data = document();
 	if (!data->date) return;
 
@@ -1557,8 +1540,8 @@ InlineResult::~InlineResult() {
 	cancelFile();
 }
 
-void PeerLink::onClick(Qt::MouseButton button) const {
-	if (button == Qt::LeftButton && App::main()) {
+void PeerOpenClickHandler::onClickImpl() const {
+	if (App::main()) {
 		if (peer() && peer()->isChannel() && App::main()->historyPeer() != peer()) {
 			if (!peer()->asChannel()->isPublic() && !peer()->asChannel()->amIn()) {
 				Ui::showLayer(new InformBox(lang((peer()->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
@@ -1568,22 +1551,6 @@ void PeerLink::onClick(Qt::MouseButton button) const {
 		} else {
 			App::main()->showPeerProfile(peer());
 		}
-	}
-}
-
-void MessageLink::onClick(Qt::MouseButton button) const {
-	if (button == Qt::LeftButton && App::main()) {
-		HistoryItem *current = App::mousedItem();
-		if (current && current->history()->peer->id == peer()) {
-			App::main()->pushReplyReturn(current);
-		}
-		Ui::showPeerHistory(peer(), msgid());
-	}
-}
-
-void CommentsLink::onClick(Qt::MouseButton button) const {
-	if (button == Qt::LeftButton && App::main() && _item->history()->isChannel()) {
-		Ui::showPeerHistoryAtItem(_item);
 	}
 }
 

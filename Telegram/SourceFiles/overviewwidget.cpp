@@ -474,12 +474,7 @@ void OverviewInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton but
 	dragActionUpdate(screenPos);
 	if (button != Qt::LeftButton) return;
 
-	if (textlnkDown() != textlnkOver()) {
-		repaintItem(App::pressedLinkItem());
-		textlnkDown(textlnkOver());
-		App::pressedLinkItem(App::hoveredLinkItem());
-		repaintItem(App::pressedLinkItem());
-	}
+	ClickHandler::pressed();
 
 	_dragAction = NoDrag;
 	_dragItem = _mousedItem;
@@ -487,11 +482,11 @@ void OverviewInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton but
 	_dragStartPos = mapMouseToItem(mapFromGlobal(screenPos), _dragItem, _dragItemIndex);
 	_dragWasInactive = App::wnd()->inactivePress();
 	if (_dragWasInactive) App::wnd()->inactivePress(false);
-	if (textlnkDown() && _selected.isEmpty()) {
+	if (ClickHandler::getPressed() && _selected.isEmpty()) {
 		_dragAction = PrepareDrag;
 	} else if (!_selected.isEmpty()) {
 		if (_selected.cbegin().value() == FullSelection) {
-			if (_selected.constFind(_dragItem) != _selected.cend() && textlnkDown()) {
+			if (_selected.constFind(_dragItem) != _selected.cend() && ClickHandler::getPressed()) {
 				_dragAction = PrepareDrag; // start items drag
 			} else {
 				_dragAction = PrepareSelect; // start items select
@@ -499,27 +494,8 @@ void OverviewInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton but
 		}
 	}
 	if (_dragAction == NoDrag && _dragItem) {
-		bool afterDragSymbol = false , uponSymbol = false;
-		uint16 symbol = 0;
 		if (!_dragWasInactive) {
-			if (textlnkDown()) {
-				_dragSymbol = symbol;
-				uint32 selStatus = (_dragSymbol << 16) | _dragSymbol;
-				if (selStatus != FullSelection && (_selected.isEmpty() || _selected.cbegin().value() != FullSelection)) {
-					if (!_selected.isEmpty()) {
-						repaintItem(_selected.cbegin().key(), -1);
-						_selected.clear();
-					}
-					_selected.insert(_dragItem, selStatus);
-					_dragAction = Selecting;
-					repaintItem(_dragItem, _dragItemIndex);
-					_overview->updateTopBarSelection();
-				} else {
-					_dragAction = PrepareSelect;
-				}
-			} else {
-				_dragAction = PrepareSelect; // start items select
-			}
+			_dragAction = PrepareSelect;
 		}
 	}
 
@@ -541,31 +517,22 @@ void OverviewInner::dragActionCancel() {
 }
 
 void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton button) {
-	TextLinkPtr needClick;
-
 	dragActionUpdate(screenPos);
 
-	if (textlnkOver()) {
-		if (textlnkDown() == textlnkOver() && _dragAction != Dragging && !_selMode) {
-			needClick = textlnkDown();
-		}
+	ClickHandlerPtr activated = ClickHandler::unpressed();
+	if (_dragAction == Dragging || _selMode) {
+		activated.clear();
 	}
-	if (textlnkDown()) {
-		repaintItem(App::pressedLinkItem());
-		textlnkDown(TextLinkPtr());
-		App::pressedLinkItem(0);
-		if (!textlnkOver() && _cursor != style::cur_default) {
-			_cursor = style::cur_default;
-			setCursor(_cursor);
-		}
+	if (!ClickHandler::getActive() && _cursor != style::cur_default) {
+		_cursor = style::cur_default;
+		setCursor(_cursor);
 	}
-	if (needClick) {
-		DEBUG_LOG(("Will click link: %1 (%2) %3").arg(needClick->text()).arg(needClick->readable()).arg(needClick->encoded()));
+	if (activated) {
 		dragActionCancel();
-		App::activateTextLink(needClick, button);
+		App::activateClickHandler(activated, button);
 		return;
 	}
-	if (_dragAction == PrepareSelect && !needClick && !_dragWasInactive && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection) {
+	if (_dragAction == PrepareSelect && !_dragWasInactive && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection) {
 		SelectedItems::iterator i = _selected.find(_dragItem);
 		if (i == _selected.cend() && itemMsgId(_dragItem) > 0) {
 			if (_selected.size() < MaxSelectedItems) {
@@ -578,7 +545,7 @@ void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 			_selected.erase(i);
 		}
 		repaintItem(_dragItem, _dragItemIndex);
-	} else if (_dragAction == PrepareDrag && !needClick && !_dragWasInactive && button != Qt::RightButton) {
+	} else if (_dragAction == PrepareDrag && !_dragWasInactive && button != Qt::RightButton) {
 		SelectedItems::iterator i = _selected.find(_dragItem);
 		if (i != _selected.cend() && i.value() == FullSelection) {
 			_selected.erase(i);
@@ -619,16 +586,17 @@ void OverviewInner::onDragExec() {
 			uponSelected = false;
 		}
 	}
+	ClickHandlerPtr pressedHandler = ClickHandler::getPressed();
 	QString sel;
 	QList<QUrl> urls;
 	bool forwardSelected = false;
 	if (uponSelected) {
 		forwardSelected = !_selected.isEmpty() && _selected.cbegin().value() == FullSelection && !Adaptive::OneColumn();
-	} else if (textlnkDown()) {
-		sel = textlnkDown()->encoded();
-		if (!sel.isEmpty() && sel.at(0) != '/' && sel.at(0) != '@' && sel.at(0) != '#') {
-//			urls.push_back(QUrl::fromEncoded(sel.toUtf8())); // Google Chrome crashes in Mac OS X O_o
-		}
+	} else if (pressedHandler) {
+		sel = pressedHandler->dragText();
+		//if (!sel.isEmpty() && sel.at(0) != '/' && sel.at(0) != '@' && sel.at(0) != '#') {
+		//	urls.push_back(QUrl::fromEncoded(sel.toUtf8())); // Google Chrome crashes in Mac OS X O_o
+		//}
 	}
 	if (!sel.isEmpty() || forwardSelected) {
 		updateDragSelection(0, -1, 0, -1, false);
@@ -647,19 +615,22 @@ void OverviewInner::onDragExec() {
 		if (App::main()) App::main()->updateAfterDrag();
 		return;
 	} else {
-		HistoryItem *pressedLnkItem = App::pressedLinkItem(), *pressedItem = App::pressedItem();
-		QLatin1String lnkType = (textlnkDown() && pressedLnkItem) ? textlnkDown()->type() : qstr("");
-		bool lnkPhoto = (lnkType == qstr("PhotoLink")),
-			lnkVideo = (lnkType == qstr("VideoOpenLink")),
-			lnkAudio = (lnkType == qstr("AudioOpenLink")),
-			lnkDocument = (lnkType == qstr("DocumentOpenLink") || lnkType == qstr("GifOpenLink"));
-		if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument) {
+		QString forwardMimeType;
+		HistoryMedia *pressedMedia = nullptr;
+		if (HistoryItem *pressedLnkItem = App::pressedLinkItem()) {
+			if ((pressedMedia = pressedLnkItem->getMedia())) {
+				if (forwardMimeType.isEmpty() && pressedMedia->dragItemByHandler(pressedHandler)) {
+					forwardMimeType = qsl("application/x-td-forward-pressed-link");
+				}
+			}
+		}
+		if (!forwardMimeType.isEmpty()) {
 			QDrag *drag = new QDrag(App::wnd());
 			QMimeData *mimeData = new QMimeData;
 
 			mimeData->setData(qsl("application/x-td-forward-pressed-link"), "1");
-			if (lnkDocument) {
-				QString filepath = static_cast<DocumentOpenLink*>(textlnkDown().data())->document()->filepath(DocumentData::FilePathResolveChecked);
+			if (DocumentData *document = (pressedMedia ? pressedMedia->getDocument() : nullptr)) {
+				QString filepath = document->filepath(DocumentData::FilePathResolveChecked);
 				if (!filepath.isEmpty()) {
 					QList<QUrl> urls;
 					urls.push_back(QUrl::fromLocalFile(filepath));
@@ -901,7 +872,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 }
 
 void OverviewInner::mouseMoveEvent(QMouseEvent *e) {
-	if (!(e->buttons() & (Qt::LeftButton | Qt::MiddleButton)) && (textlnkDown() || _dragAction != NoDrag)) {
+	if (!(e->buttons() & (Qt::LeftButton | Qt::MiddleButton)) && _dragAction != NoDrag) {
 		mouseReleaseEvent(e);
 	}
 	dragActionUpdate(e->globalPos());
@@ -913,7 +884,8 @@ void OverviewInner::onUpdateSelected() {
 	QPoint mousePos(mapFromGlobal(_dragPos));
 	QPoint m(_overview->clampMousePosition(mousePos));
 
-	TextLinkPtr lnk;
+	ClickHandlerPtr lnk;
+	ClickHandlerHost *lnkhost = nullptr;
 	HistoryItem *item = 0;
 	int32 index = -1;
 	int32 newsel = 0;
@@ -941,6 +913,7 @@ void OverviewInner::onUpdateSelected() {
 				index = i;
 				if (upon) {
 					media->getState(lnk, cursorState, m.x() - col * w - st::overviewPhotoSkip, m.y() - _marginTop - row * vsize - st::overviewPhotoSkip);
+					lnkhost = media;
 				}
 			}
 		}
@@ -976,6 +949,7 @@ void OverviewInner::onUpdateSelected() {
 					item = media->getItem();
 					index = i;
 					media->getState(lnk, cursorState, m.x() - _rowsLeft, m.y() - _marginTop - top);
+					lnkhost = media;
 				}
 				break;
 			}
@@ -989,37 +963,15 @@ void OverviewInner::onUpdateSelected() {
 	m = mapMouseToItem(m, _mousedItem, _mousedItemIndex);
 
 	Qt::CursorShape cur = style::cur_default;
-	bool lnkChanged = false;
-	if (lnk != textlnkOver()) {
-		lnkChanged = true;
-		if (textlnkOver()) {
-			if (HistoryItem *item = App::hoveredLinkItem()) {
-				MsgId itemId = complexMsgId(item);
-				int32 itemIndex = oldMousedItemIndex;
-				fixItemIndex(itemIndex, itemId);
-				if (itemIndex >= 0) {
-					_items.at(itemIndex)->linkOut(textlnkOver());
-					repaintItem(itemId, itemIndex);
-				}
-			}
-		}
-		textlnkOver(lnk);
+	bool lnkChanged = ClickHandler::setActive(lnk, lnkhost);
+	if (lnkChanged) {
 		PopupTooltip::Hide();
-		App::hoveredLinkItem(lnk ? item : 0);
-		if (textlnkOver()) {
-			if (item && index >= 0) {
-				_items.at(index)->linkOver(textlnkOver());
-				repaintItem(complexMsgId(item), index);
-			}
-		}
-	} else {
-		App::mousedItem(item);
 	}
+	App::mousedItem(item);
 	if (_mousedItem != oldMousedItem) {
-		lnkChanged = true;
+		PopupTooltip::Hide();
 		if (oldMousedItem) repaintItem(oldMousedItem, oldMousedItemIndex);
 		if (item) repaintItem(item);
-		PopupTooltip::Hide();
 	}
 	if (_cursorState == HistoryInDateCursorState && cursorState != HistoryInDateCursorState) {
 		PopupTooltip::Hide();
@@ -1050,7 +1002,6 @@ void OverviewInner::onUpdateSelected() {
 				_dragAction = Selecting;
 			}
 		}
-		cur = textlnkDown() ? style::cur_pointer : style::cur_default;
 		if (_dragAction == Selecting) {
 			bool canSelectMany = (_peer != 0);
 			if (_mousedItem == _dragItem && lnk && !_selected.isEmpty() && _selected.cbegin().value() != FullSelection) {
@@ -1123,7 +1074,7 @@ void OverviewInner::onUpdateSelected() {
 		} else if (_dragAction == Dragging) {
 		}
 
-		if (textlnkDown()) {
+		if (ClickHandler::getPressed()) {
 			cur = style::cur_pointer;
 		} else if (_dragAction == Selecting && !_selected.isEmpty() && _selected.cbegin().value() != FullSelection) {
 			if (!_dragSelFrom || !_dragSelTo) {
@@ -1148,13 +1099,12 @@ QPoint OverviewInner::tooltipPos() const {
 }
 
 QString OverviewInner::tooltipText() const {
-	TextLinkPtr lnk = textlnkOver();
-	if (lnk && !lnk->fullDisplayed()) {
-		return lnk->readable();
-	} else if (_cursorState == HistoryInDateCursorState && _dragAction == NoDrag && _mousedItem) {
+	if (_cursorState == HistoryInDateCursorState && _dragAction == NoDrag && _mousedItem) {
 		if (HistoryItem *item = App::histItemById(itemChannel(_mousedItem), itemMsgId(_mousedItem))) {
 			return item->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat));
 		}
+	} else if (ClickHandlerPtr lnk = ClickHandler::getActive()) {
+		return lnk->tooltip();
 	}
 	return QString();
 }
@@ -1208,14 +1158,10 @@ void OverviewInner::leaveEvent(QEvent *e) {
 		repaintItem(_selectedMsgId, -1);
 		_selectedMsgId = 0;
 	}
-	if (textlnkOver()) {
-		repaintItem(App::hoveredLinkItem());
-		textlnkOver(TextLinkPtr());
-		App::hoveredLinkItem(0);
-		if (!textlnkDown() && _cursor != style::cur_default) {
-			_cursor = style::cur_default;
-			setCursor(_cursor);
-		}
+	ClickHandler::clearActive();
+	if (!ClickHandler::getPressed() && _cursor != style::cur_default) {
+		_cursor = style::cur_default;
+		setCursor(_cursor);
 	}
 	return QWidget::leaveEvent(e);
 }
@@ -1264,9 +1210,9 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		isUponSelected = hasSelected;
 	}
 
-	_contextMenuLnk = textlnkOver();
-	PhotoLink *lnkPhoto = dynamic_cast<PhotoLink*>(_contextMenuLnk.data());
-	DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
+	_contextMenuLnk = ClickHandler::getActive();
+	PhotoClickHandler *lnkPhoto = dynamic_cast<PhotoClickHandler*>(_contextMenuLnk.data());
+	DocumentClickHandler *lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLnk.data());
 	bool lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideo() : false;
 	bool lnkIsAudio = lnkDocument ? (lnkDocument->document()->voice() != nullptr) : false;
 	bool lnkIsSong = lnkDocument ? (lnkDocument->document()->song() != nullptr) : false;
@@ -1310,16 +1256,9 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (_selectedMsgId) repaintItem(_selectedMsgId, -1);
 	} else if (!ignoreMousedItem && App::mousedItem() && App::mousedItem()->channelId() == itemChannel(_mousedItem) && App::mousedItem()->id == itemMsgId(_mousedItem)) {
 		_menu = new PopupMenu();
-		QLatin1String linktype = _contextMenuLnk ? _contextMenuLnk->type() : qstr("");
-		if (linktype == qstr("TextLink") || linktype == qstr("LocationLink")) {
-			_menu->addAction(lang(lng_context_copy_link), this, SLOT(copyContextUrl()))->setEnabled(true);
-		} else if (linktype == qstr("EmailLink")) {
-			_menu->addAction(lang(lng_context_copy_email), this, SLOT(copyContextUrl()))->setEnabled(true);
-		} else if (linktype == qstr("MentionLink")) {
-			_menu->addAction(lang(lng_context_copy_mention), this, SLOT(copyContextUrl()))->setEnabled(true);
-		} else if (linktype == qstr("HashtagLink")) {
-			_menu->addAction(lang(lng_context_copy_hashtag), this, SLOT(copyContextUrl()))->setEnabled(true);
-		} else {
+		QString copyToClipboardContextItem = _contextMenuLnk ? _contextMenuLnk->copyToClipboardContextItem() : QString();
+		if (!copyToClipboardContextItem.isEmpty()) {
+			_menu->addAction(copyToClipboardContextItem, this, SLOT(copyContextUrl()))->setEnabled(true);
 		}
 		_menu->addAction(lang(lng_context_to_msg), this, SLOT(goToMessage()))->setEnabled(true);
 		if (isUponSelected > 1) {
@@ -1447,9 +1386,8 @@ void OverviewInner::setSelectMode(bool enabled) {
 }
 
 void OverviewInner::copyContextUrl() {
-	QString enc = _contextMenuLnk ? _contextMenuLnk->encoded() : QString();
-	if (!enc.isEmpty()) {
-		QApplication::clipboard()->setText(enc);
+	if (_contextMenuLnk) {
+		_contextMenuLnk->copyToClipboard();
 	}
 }
 
@@ -1494,14 +1432,14 @@ void OverviewInner::selectMessage() {
 }
 
 void OverviewInner::cancelContextDownload() {
-	DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
+	DocumentClickHandler *lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLnk.data());
 	if (lnkDocument) {
 		lnkDocument->document()->cancel();
 	}
 }
 
 void OverviewInner::showContextInFolder() {
-	if (DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data())) {
+	if (DocumentClickHandler *lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLnk.data())) {
 		QString filepath = lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked);
 		if (!filepath.isEmpty()) {
 			psShowInFolder(filepath);
@@ -1510,8 +1448,8 @@ void OverviewInner::showContextInFolder() {
 }
 
 void OverviewInner::saveContextFile() {
-	DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	if (lnkDocument) DocumentSaveLink::doSave(lnkDocument->document(), true);
+	DocumentClickHandler *lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLnk.data());
+	if (lnkDocument) DocumentSaveClickHandler::doSave(lnkDocument->document(), true);
 }
 
 bool OverviewInner::onSearchMessages(bool searchCache) {

@@ -325,7 +325,7 @@ void PlayerWidget::preloadNext() {
 		if (HistoryDocument *document = static_cast<HistoryDocument*>(next->getMedia())) {
 			DocumentData *d = document->getDocument();
 			if (!d->loaded(DocumentData::FilePathResolveSaveFromDataSilent)) {
-				DocumentOpenLink::doOpen(d, ActionOnLoadNone);
+				DocumentOpenClickHandler::doOpen(d, ActionOnLoadNone);
 			}
 		}
 	}

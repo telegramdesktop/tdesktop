@@ -775,6 +775,11 @@ inline UniquePointer<T> MakeUnique(Args&&... args) {
 	return UniquePointer<T>(new T(std_::forward<Args>(args)...));
 }
 
+template <typename T, class... Args>
+inline QSharedPointer<T> MakeShared(Args&&... args) {
+	return QSharedPointer<T>(new T(std_::forward<Args>(args)...));
+}
+
 template <typename I>
 inline void destroyImplementation(I *&ptr) {
 	if (ptr) {

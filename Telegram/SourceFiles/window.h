@@ -180,7 +180,7 @@ public:
 	void hideConnecting();
 	bool connectingVisible() const;
 
-	void showPhoto(const PhotoLink *lnk, HistoryItem *item = 0);
+	void showPhoto(const PhotoOpenClickHandler *lnk, HistoryItem *item = 0);
 	void showPhoto(PhotoData *photo, HistoryItem *item);
 	void showPhoto(PhotoData *photo, PeerData *item);
 	void showDocument(DocumentData *doc, HistoryItem *item);
@@ -241,6 +241,7 @@ public:
 	bool ui_isMediaViewShown();
 	void ui_showStickerPreview(DocumentData *sticker);
 	void ui_hideStickerPreview();
+	PeerData *ui_getPeerForMouseAction();
 
 public slots:
 
@@ -283,7 +284,7 @@ public slots:
 
 	void notifyUpdateAllPhotos();
 
-	void app_activateTextLink(TextLinkPtr link, Qt::MouseButton button);
+	void app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
 
 signals:
 

@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 class ProfileWidget;
-class ProfileInner : public TWidget, public RPCSender {
+class ProfileInner : public TWidget, public RPCSender, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
@@ -65,6 +65,10 @@ public:
 	void allowDecreaseHeight(int32 decreaseBy);
 
 	~ProfileInner();
+
+	// ClickHandlerHost interface
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
 public slots:
 
@@ -158,7 +162,7 @@ private:
 	Text _nameText;
 	QString _nameCache;
 	QString _phoneText;
-	TextLinkPtr _photoLink;
+	ClickHandlerPtr _photoLink;
 	FlatButton _uploadPhoto, _addParticipant;
 	FlatButton _sendMessage, _shareContact, _inviteToGroup;
 	LinkButton _cancelPhoto, _createInvitationLink, _invitationLink;
@@ -270,6 +274,8 @@ public:
 		_inner.rpcClear();
 		RPCSender::rpcClear();
 	}
+
+	PeerData *ui_getPeerForMouseAction();
 
 	void clear();
 	~ProfileWidget();

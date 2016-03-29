@@ -28,20 +28,19 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "intro/introcode.h"
 
 namespace {
-	class SignUpLink : public ITextLink {
-		TEXT_LINK_CLASS(SignUpLink)
-
+	class SignUpClickHandler : public LeftButtonClickHandler {
 	public:
-
-		SignUpLink(IntroPhone *widget) : _widget(widget) {
+		SignUpClickHandler(IntroPhone *widget) : _widget(widget) {
 		}
 
-		void onClick(Qt::MouseButton) const {
+	protected:
+		void onClickImpl() const override {
 			_widget->toSignUp();
 		}
 
 	private:
 		IntroPhone *_widget;
+
 	};
 }
 
@@ -71,7 +70,7 @@ IntroPhone::IntroPhone(IntroWidget *parent) : IntroStep(parent)
 	connect(intro(), SIGNAL(countryChanged()), this, SLOT(countryChanged()));
 	connect(&checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
 
-	_signup.setLink(1, TextLinkPtr(new SignUpLink(this)));
+	_signup.setLink(1, MakeShared<SignUpClickHandler>(this));
 	_signup.hide();
 
 	_signupCache = myGrab(&_signup);

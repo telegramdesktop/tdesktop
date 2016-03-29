@@ -1045,7 +1045,7 @@ FileLocation::FileLocation(StorageFileType type, const QString &name) : type(typ
 			qint64 s = f.size();
 			if (s > INT_MAX) {
 				fname = QString();
-				_bookmark.reset(0);
+				_bookmark.clear();
 				size = 0;
 				type = StorageFileUnknown;
 			} else {
@@ -1054,7 +1054,7 @@ FileLocation::FileLocation(StorageFileType type, const QString &name) : type(typ
 			}
 		} else {
 			fname = QString();
-			_bookmark.reset(0);
+			_bookmark.clear();
 			size = 0;
 			type = StorageFileUnknown;
 		}
@@ -1066,7 +1066,7 @@ bool FileLocation::check() const {
 
 	ReadAccessEnabler enabler(_bookmark);
 	if (enabler.failed()) {
-		const_cast<FileLocation*>(this)->_bookmark.reset(0);
+		const_cast<FileLocation*>(this)->_bookmark.clear();
 	}
 
 	QFileInfo f(name());
@@ -1087,11 +1087,7 @@ QByteArray FileLocation::bookmark() const {
 }
 
 void FileLocation::setBookmark(const QByteArray &bm) {
-	if (bm.isEmpty()) {
-		_bookmark.reset(0);
-	} else {
-		_bookmark.reset(new PsFileBookmark(bm));
-	}
+	_bookmark.reset(bm.isEmpty() ? nullptr : new PsFileBookmark(bm));
 }
 
 bool FileLocation::accessEnable() const {

@@ -101,9 +101,9 @@ public:
 	void notifyIsBotChanged();
 	void notifyMigrateUpdated();
 
-	// AbstractTooltipShower
-	virtual QString tooltipText() const;
-	virtual QPoint tooltipPos() const;
+	// AbstractTooltipShower interface
+	QString tooltipText() const override;
+	QPoint tooltipPos() const override;
 
 	~HistoryInner();
 
@@ -149,10 +149,24 @@ private:
 	// or at least we don't need to display first _history date (just skip it by height)
 	int _historySkipHeight = 0;
 
-	BotInfo *_botInfo = nullptr;
-	int _botDescWidth = 0;
-	int _botDescHeight = 0;
-	QRect _botDescRect;
+	class BotAbout : public ClickHandlerHost {
+	public:
+		BotAbout(HistoryInner *parent, BotInfo *info) : _parent(parent), info(info) {
+		}
+		BotInfo *info = nullptr;
+		int width = 0;
+		int height = 0;
+		QRect rect;
+
+		// ClickHandlerHost interface
+		void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
+		void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
+
+	private:
+		HistoryInner *_parent;
+
+	};
+	UniquePointer<BotAbout> _botAbout;
 
 	HistoryWidget *_widget = nullptr;
 	ScrollArea *_scroll = nullptr;
@@ -187,7 +201,7 @@ private:
 	QPoint _trippleClickPoint;
 	QTimer _trippleClickTimer;
 
-	TextLinkPtr _contextMenuLnk;
+	ClickHandlerPtr _contextMenuLnk;
 
 	HistoryItem *_dragSelFrom = nullptr;
 	HistoryItem *_dragSelTo = nullptr;
@@ -285,7 +299,7 @@ private:
 
 };
 
-class BotKeyboard : public TWidget, public AbstractTooltipShower {
+class BotKeyboard : public TWidget, public AbstractTooltipShower, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
@@ -313,9 +327,13 @@ public:
 		return _wasForMsgId;
 	}
 
-	// AbstractTooltipShower
-	virtual QString tooltipText() const;
-	virtual QPoint tooltipPos() const;
+	// AbstractTooltipShower interface
+	QString tooltipText() const override;
+	QPoint tooltipPos() const override;
+
+	// ClickHandlerHost interface
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed);
 
 public slots:
 
@@ -439,9 +457,9 @@ public:
 	void mouseReleaseEvent(QMouseEvent *e);
 	void leaveEvent(QEvent *e);
 
-	// AbstractTooltipShower
-	virtual QString tooltipText() const;
-	virtual QPoint tooltipPos() const;
+	// AbstractTooltipShower interface
+	QString tooltipText() const override;
+	QPoint tooltipPos() const override;
 
 };
 
@@ -582,7 +600,8 @@ public:
 
 	void onListEscapePressed();
 
-	void sendBotCommand(const QString &cmd, MsgId replyTo);
+	void sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo);
+	void sendBotCallback(PeerData *peer, const QString &cmd, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd, bool specialGif);
 
 	bool eventFilter(QObject *obj, QEvent *e) override;
@@ -629,6 +648,7 @@ public:
 	void ui_repaintInlineItem(const LayoutInlineItem *gif);
 	bool ui_isInlineItemVisible(const LayoutInlineItem *layout);
 	bool ui_isInlineItemBeingChosen();
+	PeerData *ui_getPeerForMouseAction();
 
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
 	void notify_botCommandsChanged(UserData *user);
@@ -835,6 +855,9 @@ private:
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
 	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
+
+	void botCallbackDone(const MTPmessages_BotCallbackAnswer &answer);
+	bool botCallbackFail(const RPCError &error);
 
 	enum ScrollChangeType {
 		ScrollChangeNone,

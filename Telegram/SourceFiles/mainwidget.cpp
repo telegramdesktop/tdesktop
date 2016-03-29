@@ -1470,8 +1470,12 @@ void MainWidget::stopAnimActive() {
 	history.stopAnimActive();
 }
 
-void MainWidget::sendBotCommand(const QString &cmd, MsgId replyTo) {
-	history.sendBotCommand(cmd, replyTo);
+void MainWidget::sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo) {
+	history.sendBotCommand(peer, cmd, replyTo);
+}
+
+void MainWidget::sendBotCallback(PeerData *peer, const QString &cmd, MsgId replyTo) {
+	history.sendBotCallback(peer, cmd, replyTo);
 }
 
 bool MainWidget::insertBotCommand(const QString &cmd, bool specialGif) {
@@ -2350,6 +2354,13 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool bac
 		dialogs.update();
 	}
 	App::wnd()->getTitle()->updateBackButton();
+}
+
+PeerData *MainWidget::ui_getPeerForMouseAction() {
+	if (profile) {
+		return profile->ui_getPeerForMouseAction();
+	}
+	return history.ui_getPeerForMouseAction();
 }
 
 void MainWidget::peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) {

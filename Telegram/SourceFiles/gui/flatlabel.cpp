@@ -60,7 +60,7 @@ void FlatLabel::resizeToWidth(int32 width) {
 	resize(w, h);
 }
 
-void FlatLabel::setLink(uint16 lnkIndex, const TextLinkPtr &lnk) {
+void FlatLabel::setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk) {
 	_text.setLink(lnkIndex, lnk);
 }
 
@@ -72,30 +72,28 @@ void FlatLabel::mouseMoveEvent(QMouseEvent *e) {
 void FlatLabel::mousePressEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateHover();
-	if (textlnkOver()) {
-		textlnkDown(textlnkOver());
-		update();
-	}
+	ClickHandler::pressed();
 }
 
 void FlatLabel::mouseReleaseEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateHover();
-	if (textlnkOver() && textlnkOver() == textlnkDown()) {
-		textlnkOver()->onClick(e->button());
+	if (ClickHandlerPtr activated = ClickHandler::unpressed()) {
+		App::activateClickHandler(activated, e->button());
 	}
-	textlnkDown(TextLinkPtr());
 }
 
 void FlatLabel::leaveEvent(QEvent *e) {
-	if (_myLink) {
-		if (textlnkOver() == _myLink) {
-			textlnkOver(TextLinkPtr());
-			update();
-		}
-		_myLink = TextLinkPtr();
-		setCursor(style::cur_default);
-	}
+	ClickHandler::clearActive(this);
+}
+
+void FlatLabel::clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
+	setCursor(active ? style::cur_pointer : style::cur_default);
+	update();
+}
+
+void FlatLabel::clickHandlerPressedChanged(const ClickHandlerPtr &action, bool active) {
+	update();
 }
 
 void FlatLabel::updateLink() {
@@ -105,17 +103,12 @@ void FlatLabel::updateLink() {
 
 void FlatLabel::updateHover() {
 	QPoint m(mapFromGlobal(_lastMousePos));
-	bool wasMy = (_myLink == textlnkOver());
+
 	textstyleSet(&_tst);
-	_myLink = _text.link(m.x(), m.y(), width(), _st.align);
+	ClickHandlerPtr handler = _text.link(m.x(), m.y(), width(), _st.align);
 	textstyleRestore();
-	if (_myLink != textlnkOver()) {
-		if (wasMy || _myLink || rect().contains(m)) {
-			textlnkOver(_myLink);
-		}
-		setCursor(_myLink ? style::cur_pointer : style::cur_default);
-		update();
-	}
+
+	ClickHandler::setActive(handler, this);
 }
 
 void FlatLabel::setOpacity(float64 o) {

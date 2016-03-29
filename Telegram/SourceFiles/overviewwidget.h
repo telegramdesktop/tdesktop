@@ -76,9 +76,9 @@ public:
 	void clearSelectedItems(bool onlyTextSelection = false);
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
 
-	// AbstractTooltipShower
-	virtual QString tooltipText() const;
-	virtual QPoint tooltipPos() const;
+	// AbstractTooltipShower interface
+	QString tooltipText() const override;
+	QPoint tooltipPos() const override;
 
 	~OverviewInner();
 
@@ -217,7 +217,7 @@ private:
 	uint16 _dragSymbol;
 	bool _dragWasInactive;
 
-	TextLinkPtr _contextMenuLnk;
+	ClickHandlerPtr _contextMenuLnk;
 
 	MsgId _dragSelFrom, _dragSelTo;
 	int32 _dragSelFromIndex, _dragSelToIndex;

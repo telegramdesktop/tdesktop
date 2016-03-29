@@ -343,7 +343,8 @@ public:
 	uint64 animActiveTimeStart(const HistoryItem *msg) const;
 	void stopAnimActive();
 
-	void sendBotCommand(const QString &cmd, MsgId msgId);
+	void sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo);
+	void sendBotCallback(PeerData *peer, const QString &cmd, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd, bool specialGif);
 
 	void searchMessages(const QString &query, PeerData *inPeer);
@@ -438,6 +439,7 @@ public:
 	bool ui_isInlineItemVisible(const LayoutInlineItem *layout);
 	bool ui_isInlineItemBeingChosen();
 	void ui_showPeerHistory(quint64 peer, qint32 msgId, bool back);
+	PeerData *ui_getPeerForMouseAction();
 
 	void notify_botCommandsChanged(UserData *bot);
 	void notify_inlineBotRequesting(bool requesting);

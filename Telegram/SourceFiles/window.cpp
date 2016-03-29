@@ -792,7 +792,7 @@ PasscodeWidget *Window::passcodeWidget() {
 	return _passcode;
 }
 
-void Window::showPhoto(const PhotoLink *lnk, HistoryItem *item) {
+void Window::showPhoto(const PhotoOpenClickHandler *lnk, HistoryItem *item) {
 	return lnk->peer() ? showPhoto(lnk->photo(), lnk->peer()) : showPhoto(lnk->photo(), item);
 }
 
@@ -877,6 +877,15 @@ void Window::ui_showStickerPreview(DocumentData *sticker) {
 void Window::ui_hideStickerPreview() {
 	if (!_stickerPreview) return;
 	_stickerPreview->hidePreview();
+}
+
+PeerData *Window::ui_getPeerForMouseAction() {
+	if (_mediaView && !_mediaView->isHidden()) {
+		return _mediaView->ui_getPeerForMouseAction();
+	} else if (main) {
+		return main->ui_getPeerForMouseAction();
+	}
+	return nullptr;
 }
 
 void Window::showConnecting(const QString &text, const QString &reconnect) {
@@ -1736,8 +1745,8 @@ void Window::notifyUpdateAllPhotos() {
 	if (_mediaView && !_mediaView->isHidden()) _mediaView->updateControls();
 }
 
-void Window::app_activateTextLink(TextLinkPtr link, Qt::MouseButton button) {
-	link->onClick(button);
+void Window::app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
+	handler->onClick(button);
 }
 
 void Window::notifyUpdateAll() {

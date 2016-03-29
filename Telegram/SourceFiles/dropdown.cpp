@@ -1413,8 +1413,7 @@ void StickerPanInner::mousePressEvent(QMouseEvent *e) {
 	updateSelected();
 
 	_pressedSel = _selected;
-	textlnkDown(textlnkOver());
-	_linkDown = _linkOver;
+	ClickHandler::pressed();
 	_previewTimer.start(QApplication::startDragTime());
 }
 
@@ -1422,10 +1421,9 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 	_previewTimer.stop();
 
 	int32 pressed = _pressedSel;
-	TextLinkPtr down(_linkDown);
 	_pressedSel = -1;
-	_linkDown.reset();
-	textlnkDown(TextLinkPtr());
+
+	ClickHandlerPtr activated = ClickHandler::unpressed();
 
 	_lastMousePos = e->globalPos();
 	updateSelected();
@@ -1435,71 +1433,71 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 		return;
 	}
 
-	if (_selected < 0 || _selected != pressed || _linkOver != down) return;
+	if (_selected < 0 || _selected != pressed || (_showingInlineItems && !activated)) return;
 	if (_showingInlineItems) {
-		int32 row = _selected / MatrixRowShift, col = _selected % MatrixRowShift;
-		if (row < _inlineRows.size() && col < _inlineRows.at(row).items.size()) {
-			if (down) {
-				if (down->type() == qstr("SendInlineItemLink") && e->button() == Qt::LeftButton) {
-					LayoutInlineItem *item = _inlineRows.at(row).items.at(col);
-					PhotoData *photo = item->photo();
-					DocumentData *doc = item->document();
-					InlineResult *result = item->result();
-					if (doc) {
-						if (doc->loaded()) {
-							emit selected(doc);
-						} else if (doc->loading()) {
-							doc->cancel();
-						} else {
-							DocumentOpenLink::doOpen(doc, ActionOnLoadNone);
-						}
-					} else if (photo) {
-						if (photo->medium->loaded() || photo->thumb->loaded()) {
-							emit selected(photo);
-						} else if (!photo->medium->loading()) {
-							photo->thumb->loadEvenCancelled();
-							photo->medium->loadEvenCancelled();
-						}
-					} else if (result) {
-						if (result->type == qstr("gif")) {
-							if (result->doc) {
-								if (result->doc->loaded()) {
-									emit selected(result, _inlineBot);
-								} else if (result->doc->loading()) {
-									result->doc->cancel();
-								} else {
-									DocumentOpenLink::doOpen(result->doc, ActionOnLoadNone);
-								}
-							} else if (result->loaded()) {
-								emit selected(result, _inlineBot);
-							} else if (result->loading()) {
-								result->cancelFile();
-								Ui::repaintInlineItem(item);
-							} else {
-								result->saveFile(QString(), LoadFromCloudOrLocal, false);
-								Ui::repaintInlineItem(item);
-							}
-						} else if (result->type == qstr("photo")) {
-							if (result->photo) {
-								if (result->photo->medium->loaded() || result->photo->thumb->loaded()) {
-									emit selected(result, _inlineBot);
-								} else if (!result->photo->medium->loading()) {
-									result->photo->thumb->loadEvenCancelled();
-									result->photo->medium->loadEvenCancelled();
-								}
-							} else if (result->thumb->loaded()) {
-								emit selected(result, _inlineBot);
-							} else if (!result->thumb->loading()) {
-								result->thumb->loadEvenCancelled();
-								Ui::repaintInlineItem(item);
-							}
-						} else {
-							emit selected(result, _inlineBot);
-						}
+		if (!dynamic_cast<SendInlineItemClickHandler*>(activated.data())) {
+			App::activateClickHandler(activated, e->button());
+			return;
+		}
+		int row = _selected / MatrixRowShift, col = _selected % MatrixRowShift;
+		if (row >= _inlineRows.size() || col >= _inlineRows.at(row).items.size()) {
+			return;
+		}
+
+		LayoutInlineItem *item = _inlineRows.at(row).items.at(col);
+		PhotoData *photo = item->photo();
+		DocumentData *doc = item->document();
+		InlineResult *result = item->result();
+		if (doc) {
+			if (doc->loaded()) {
+				emit selected(doc);
+			} else if (doc->loading()) {
+				doc->cancel();
+			} else {
+				DocumentOpenClickHandler::doOpen(doc, ActionOnLoadNone);
+			}
+		} else if (photo) {
+			if (photo->medium->loaded() || photo->thumb->loaded()) {
+				emit selected(photo);
+			} else if (!photo->medium->loading()) {
+				photo->thumb->loadEvenCancelled();
+				photo->medium->loadEvenCancelled();
+			}
+		} else if (result) {
+			if (result->type == qstr("gif")) {
+				if (result->doc) {
+					if (result->doc->loaded()) {
+						emit selected(result, _inlineBot);
+					} else if (result->doc->loading()) {
+						result->doc->cancel();
+					} else {
+						DocumentOpenClickHandler::doOpen(result->doc, ActionOnLoadNone);
 					}
+				} else if (result->loaded()) {
+					emit selected(result, _inlineBot);
+				} else if (result->loading()) {
+					result->cancelFile();
+					Ui::repaintInlineItem(item);
 				} else {
-					down->onClick(e->button());
+					result->saveFile(QString(), LoadFromCloudOrLocal, false);
+					Ui::repaintInlineItem(item);
 				}
+			} else if (result->type == qstr("photo")) {
+				if (result->photo) {
+					if (result->photo->medium->loaded() || result->photo->thumb->loaded()) {
+						emit selected(result, _inlineBot);
+					} else if (!result->photo->medium->loading()) {
+						result->photo->thumb->loadEvenCancelled();
+						result->photo->medium->loadEvenCancelled();
+					}
+				} else if (result->thumb->loaded()) {
+					emit selected(result, _inlineBot);
+				} else if (!result->thumb->loading()) {
+					result->thumb->loadEvenCancelled();
+					Ui::repaintInlineItem(item);
+				}
+			} else {
+				emit selected(result, _inlineBot);
 			}
 		}
 		return;
@@ -1578,11 +1576,7 @@ void StickerPanInner::clearSelection(bool fast) {
 			if (_selected >= 0) {
 				int32 srow = _selected / MatrixRowShift, scol = _selected % MatrixRowShift;
 				t_assert(srow >= 0 && srow < _inlineRows.size() && scol >= 0 && scol < _inlineRows.at(srow).items.size());
-				if (_linkOver) {
-					_inlineRows.at(srow).items.at(scol)->linkOut(_linkOver);
-					_linkOver = TextLinkPtr();
-					textlnkOver(_linkOver);
-				}
+				ClickHandler::clearActive(_inlineRows.at(srow).items.at(scol));
 				setCursor(style::cur_default);
 			}
 			_selected = _pressedSel = -1;
@@ -2197,7 +2191,8 @@ void StickerPanInner::updateSelected() {
 	if (_showingInlineItems) {
 		int sx = (rtl() ? width() - p.x() : p.x()) - st::inlineResultsLeft, sy = p.y() - st::emojiPanHeader;
 		int32 row = -1, col = -1, sel = -1;
-		TextLinkPtr lnk;
+		ClickHandlerPtr lnk;
+		ClickHandlerHost *lnkhost = nullptr;
 		HistoryCursorState cursor = HistoryDefaultCursorState;
 		if (sy >= 0) {
 			row = 0;
@@ -2221,6 +2216,7 @@ void StickerPanInner::updateSelected() {
 			if (col < inlineItems.size()) {
 				sel = row * MatrixRowShift + col;
 				inlineItems.at(col)->getState(lnk, cursor, sx, sy);
+				lnkhost = inlineItems.at(col);
 			} else {
 				row = col = -1;
 			}
@@ -2246,23 +2242,8 @@ void StickerPanInner::updateSelected() {
 				}
 			}
 		}
-		if (_linkOver != lnk) {
-			if (_linkOver && srow >= 0 && scol >= 0) {
-				t_assert(srow >= 0 && srow < _inlineRows.size() && scol >= 0 && scol < _inlineRows.at(srow).items.size());
-				_inlineRows.at(srow).items.at(scol)->linkOut(_linkOver);
-				Ui::repaintInlineItem(_inlineRows.at(srow).items.at(scol));
-			}
-			if ((_linkOver && !lnk) || (!_linkOver && lnk)) {
-				setCursor(lnk ? style::cur_pointer : style::cur_default);
-			}
-			_linkOver = lnk;
-			textlnkOver(lnk);
-			if (_linkOver && row >= 0 && col >= 0) {
-				t_assert(row >= 0 && row < _inlineRows.size() && col >= 0 && col < _inlineRows.at(row).items.size());
-				_inlineRows.at(row).items.at(col)->linkOver(_linkOver);
-				Ui::repaintInlineItem(_inlineRows.at(row).items.at(col));
-			}
-
+		if (ClickHandler::setActive(lnk, lnkhost)) {
+			setCursor(lnk ? style::cur_pointer : style::cur_default);
 		}
 		return;
 	}

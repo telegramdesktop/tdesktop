@@ -24,16 +24,22 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "application.h"
 
+#include "boxes/confirmbox.h"
+
 #include "layerwidget.h"
 #include "lang.h"
 
-Q_DECLARE_METATYPE(TextLinkPtr);
+Q_DECLARE_METATYPE(ClickHandlerPtr);
 Q_DECLARE_METATYPE(Qt::MouseButton);
 
 namespace App {
 
-	void sendBotCommand(const QString &cmd, MsgId replyTo) {
-		if (MainWidget *m = main()) m->sendBotCommand(cmd, replyTo);
+	void sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo) {
+		if (MainWidget *m = main()) m->sendBotCommand(peer, cmd, replyTo);
+	}
+
+	void sendBotCallback(PeerData *peer, const QString &cmd, MsgId replyTo) {
+		if (MainWidget *m = main()) m->sendBotCallback(peer, cmd, replyTo);
 	}
 
 	bool insertBotCommand(const QString &cmd, bool specialGif) {
@@ -41,13 +47,36 @@ namespace App {
 		return false;
 	}
 
-	void activateBotCommand(const HistoryMessageReplyMarkup::Button &button, MsgId replyTo) {
-		QString cmd(button.text);
-		App::sendBotCommand(cmd, replyTo);
+	void activateBotCommand(PeerData *peer, const HistoryMessageReplyMarkup::Button &button, MsgId replyTo) {
+		switch (button.type) {
+		case HistoryMessageReplyMarkup::Button::Default: {
+			// copy string before passing it to the sending method
+			// the original button can be destroyed inside
+			sendBotCommand(peer, QString(button.text), replyTo);
+		} break;
+
+		case HistoryMessageReplyMarkup::Button::Callback: {
+			sendBotCallback(peer, QString(button.text), replyTo);
+		} break;
+
+		case HistoryMessageReplyMarkup::Button::Url: {
+			HiddenUrlClickHandler(button.url).onClick(Qt::LeftButton);
+		} break;
+
+		case HistoryMessageReplyMarkup::Button::RequestLocation: {
+			Ui::showLayer(new InformBox(lang(lng_bot_share_location_unavailable)));
+		} break;
+
+		case HistoryMessageReplyMarkup::Button::RequestPhone: {
+			ConfirmBox *box = new ConfirmBox(lang(lng_bot_share_phone), lang(lng_bot_share_phone_confirm));
+			box->connect(box, SIGNAL(confirmed()), App::main(), SLOT(onShareBotLocation()));
+			Ui::showLayer(box);
+		} break;
+		}
 	}
 
 	void searchByHashtag(const QString &tag, PeerData *inPeer) {
-		if (MainWidget *m = main()) m->searchMessages(tag + ' ', (inPeer && inPeer->isChannel()) ? inPeer : 0);
+		if (MainWidget *m = main()) m->searchMessages(tag + ' ', (inPeer && inPeer->isChannel() && !inPeer->isMegagroup()) ? inPeer : 0);
 	}
 
 	void openPeerByName(const QString &username, MsgId msgId, const QString &startToken) {
@@ -83,11 +112,11 @@ namespace App {
 		}
 	}
 
-	void activateTextLink(TextLinkPtr link, Qt::MouseButton button) {
+	void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
 		if (Window *w = wnd()) {
-			qRegisterMetaType<TextLinkPtr>();
+			qRegisterMetaType<ClickHandlerPtr>();
 			qRegisterMetaType<Qt::MouseButton>();
-			QMetaObject::invokeMethod(w, "app_activateTextLink", Qt::QueuedConnection, Q_ARG(TextLinkPtr, link), Q_ARG(Qt::MouseButton, button));
+			QMetaObject::invokeMethod(w, "app_activateClickHandler", Qt::QueuedConnection, Q_ARG(ClickHandlerPtr, handler), Q_ARG(Qt::MouseButton, button));
 		}
 	}
 
@@ -163,6 +192,13 @@ namespace Ui {
 		if (MainWidget *m = App::main()) {
 			QMetaObject::invokeMethod(m, "ui_showPeerHistoryAsync", Qt::QueuedConnection, Q_ARG(quint64, peer), Q_ARG(qint32, msgId));
 		}
+	}
+
+	PeerData *getPeerForMouseAction() {
+		if (Window *w = App::wnd()) {
+			return w->ui_getPeerForMouseAction();
+		}
+		return nullptr;
 	}
 
 	bool hideWindowNoQuit() {

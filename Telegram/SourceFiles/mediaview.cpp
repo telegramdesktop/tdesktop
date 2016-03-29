@@ -28,12 +28,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "gui/filedialog.h"
 
 namespace {
-	class SaveMsgLink : public ITextLink {
-		TEXT_LINK_CLASS(SaveMsgLink)
-
+	class SaveMsgClickHandler : public ClickHandler {
 	public:
 
-		SaveMsgLink(MediaView *view) : _view(view) {
+		SaveMsgClickHandler(MediaView *view) : _view(view) {
 		}
 
 		void onClick(Qt::MouseButton button) const {
@@ -123,7 +121,7 @@ MediaView::MediaView() : TWidget(App::wnd())
 	custom.insert(QChar('c'), qMakePair(textcmdStartLink(1), textcmdStopLink()));
 	_saveMsgText.setRichText(st::medviewSaveMsgFont, lang(lng_mediaview_saved), _textDlgOptions, custom);
 	_saveMsg = QRect(0, 0, _saveMsgText.maxWidth() + st::medviewSaveMsgPadding.left() + st::medviewSaveMsgPadding.right(), st::medviewSaveMsgFont->height + st::medviewSaveMsgPadding.top() + st::medviewSaveMsgPadding.bottom());
-	_saveMsgText.setLink(1, TextLinkPtr(new SaveMsgLink(this)));
+	_saveMsgText.setLink(1, MakeShared<SaveMsgClickHandler>(this));
 
 	_transparentBrush = QBrush(App::sprite().copy(st::mvTransparentBrush));
 
@@ -478,6 +476,15 @@ MediaView::~MediaView() {
 	deleteAndMark(_menu);
 }
 
+void MediaView::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
+	setCursor((active || ClickHandler::getPressed()) ? style::cur_pointer : style::cur_default);
+	update(QRegion(_saveMsg) + _captionRect);
+}
+void MediaView::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
+	setCursor((pressed || ClickHandler::getActive()) ? style::cur_pointer : style::cur_default);
+	update(QRegion(_saveMsg) + _captionRect);
+}
+
 void MediaView::showSaveMsgFile() {
 	psShowInFolder(_saveMsgFilename);
 }
@@ -565,7 +572,7 @@ void MediaView::onSaveAs() {
 			if (_doc->data().isEmpty()) location.accessDisable();
 		} else {
 			if (!fileShown()) {
-				DocumentSaveLink::doSave(_doc, true);
+				DocumentSaveClickHandler::doSave(_doc, true);
 				updateControls();
 			} else {
 				_saveVisible = false;
@@ -594,7 +601,7 @@ void MediaView::onDocClick() {
 	if (_doc->loading()) {
 		onSaveCancel();
 	} else {
-		DocumentOpenLink::doOpen(_doc, ActionOnLoadNone);
+		DocumentOpenClickHandler::doOpen(_doc, ActionOnLoadNone);
 		if (_doc->loading() && !_docRadial.animating()) {
 			_docRadial.start(_doc->progress());
 		}
@@ -624,6 +631,10 @@ void MediaView::clipCallback(ClipReaderNotification notification) {
 	}
 }
 
+PeerData *MediaView::ui_getPeerForMouseAction() {
+	return _history ? _history->peer : nullptr;
+}
+
 void MediaView::onDownload() {
 	if (cAskDownloadPath()) {
 		return onSaveAs();
@@ -649,7 +660,7 @@ void MediaView::onDownload() {
 			location.accessDisable();
 		} else {
 			if (!fileShown()) {
-				DocumentSaveLink::doSave(_doc);
+				DocumentSaveClickHandler::doSave(_doc);
 				updateControls();
 			} else {
 				_saveVisible = false;
@@ -1631,13 +1642,11 @@ void MediaView::mousePressEvent(QMouseEvent *e) {
 	updateOver(e->pos());
 	if (_menu || !_receiveMouse) return;
 
-	if (textlnkDown() != textlnkOver()) {
-		textlnkDown(textlnkOver());
-	}
+	ClickHandler::pressed();
 
 	if (e->button() == Qt::LeftButton) {
 		_down = OverNone;
-		if (!textlnkDown()) {
+		if (!ClickHandler::getPressed()) {
 			if (_over == OverLeftNav && _index >= 0) {
 				moveToNext(-1);
 				_lastAction = e->pos();
@@ -1766,13 +1775,16 @@ bool MediaView::updateOverState(OverState newState) {
 }
 
 void MediaView::updateOver(QPoint pos) {
-	TextLinkPtr lnk;
+	ClickHandlerPtr lnk;
+	ClickHandlerHost *lnkhost = nullptr;
 	bool inText;
 
 	if (_saveMsgStarted && _saveMsg.contains(pos)) {
         _saveMsgText.getState(lnk, inText, pos.x() - _saveMsg.x() - st::medviewSaveMsgPadding.left(), pos.y() - _saveMsg.y() - st::medviewSaveMsgPadding.top(), _saveMsg.width() - st::medviewSaveMsgPadding.left() - st::medviewSaveMsgPadding.right());
+		lnkhost = this;
 	} else if (_captionRect.contains(pos)) {
 		_caption.getState(lnk, inText, pos.x() - _captionRect.x(), pos.y() - _captionRect.y(), _captionRect.width());
+		lnkhost = this;
 	}
 
 	// retina
@@ -1783,11 +1795,7 @@ void MediaView::updateOver(QPoint pos) {
 		pos.setY(pos.y() - 1);
 	}
 
-	if (lnk != textlnkOver()) {
-		textlnkOver(lnk);
-		setCursor((textlnkOver() || textlnkDown()) ? style::cur_pointer : style::cur_default);
-		update(QRegion(_saveMsg) + _captionRect);
-	}
+	ClickHandler::setActive(lnk, lnkhost);
 
 	if (_pressed || _dragging) return;
 
@@ -1816,21 +1824,12 @@ void MediaView::updateOver(QPoint pos) {
 
 void MediaView::mouseReleaseEvent(QMouseEvent *e) {
 	updateOver(e->pos());
-	TextLinkPtr lnk = textlnkDown();
-	textlnkDown(TextLinkPtr());
-	if (lnk && textlnkOver() == lnk) {
-		if (reHashtag().match(lnk->encoded()).hasMatch() && _history && _history->isChannel() && !_history->isMegagroup()) {
-			App::wnd()->hideMediaview();
-			App::searchByHashtag(lnk->encoded(), _history->peer);
-		} else {
-			if (reBotCommand().match(lnk->encoded()).hasMatch() && _history) {
-				App::wnd()->hideMediaview();
-				Ui::showPeerHistory(_history, ShowAtTheEndMsgId);
-			}
-			lnk->onClick(e->button());
-		}
+
+	if (ClickHandlerPtr activated = ClickHandler::unpressed()) {
+		App::activateClickHandler(activated, e->button());
 		return;
 	}
+
 	if (_over == OverName && _down == OverName) {
 		if (App::wnd() && _from) {
 			close();

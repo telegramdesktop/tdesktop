@@ -2040,8 +2040,8 @@ namespace App {
 	}
 
 	void clearHistories() {
-		textlnkOver(TextLinkPtr());
-		textlnkDown(TextLinkPtr());
+		ClickHandler::clearActive();
+		ClickHandler::unpressed();
 
 		histories().clear();
 

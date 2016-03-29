@@ -469,7 +469,6 @@ private:
 	int32 validateExistingInlineRows(const InlineResults &results);
 	int32 _selected, _pressedSel;
 	QPoint _lastMousePos;
-	TextLinkPtr _linkOver, _linkDown;
 
 	LinkButton _settings;
 

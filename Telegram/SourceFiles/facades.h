@@ -24,9 +24,10 @@ class LayeredWidget;
 
 namespace App {
 
-	void sendBotCommand(const QString &cmd, MsgId replyTo = 0);
+	void sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo = 0);
+	void sendBotCallback(PeerData *peer, const QString &cmd, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd, bool specialGif = false);
-	void activateBotCommand(const HistoryMessageReplyMarkup::Button &button, MsgId replyTo = 0);
+	void activateBotCommand(PeerData *peer, const HistoryMessageReplyMarkup::Button &button, MsgId replyTo = 0);
 	void searchByHashtag(const QString &tag, PeerData *inPeer);
 	void openPeerByName(const QString &username, MsgId msgId = ShowAtUnreadMsgId, const QString &startToken = QString());
 	void joinGroupByHash(const QString &hash);
@@ -36,7 +37,7 @@ namespace App {
 	void removeDialog(History *history);
 	void showSettings();
 
-	void activateTextLink(TextLinkPtr link, Qt::MouseButton button);
+	void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
 
 };
 
@@ -73,6 +74,7 @@ namespace Ui {
 	inline void showChatsListAsync() {
 		showPeerHistoryAsync(PeerId(0), 0);
 	}
+	PeerData *getPeerForMouseAction();
 
 	bool hideWindowNoQuit();
 

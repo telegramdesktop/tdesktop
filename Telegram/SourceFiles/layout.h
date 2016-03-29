@@ -92,16 +92,16 @@ public:
 	bool selecting;
 
 	virtual const OverviewPaintContext *toOverviewPaintContext() const {
-		return 0;
+		return nullptr;
 	}
 	virtual const InlinePaintContext *toInlinePaintContext() const {
-		return 0;
+		return nullptr;
 	}
 
 };
 
 class LayoutMediaItem;
-class LayoutItem : public Composer {
+class LayoutItem : public Composer, public ClickHandlerHost {
 public:
 	LayoutItem() {
 	}
@@ -121,18 +121,14 @@ public:
 	}
 
 	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const = 0;
-	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
-		link = TextLinkPtr();
+	virtual void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+		link.clear();
 		cursor = HistoryDefaultCursorState;
 	}
 	virtual void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const { // from text
 		upon = hasPoint(x, y);
 		symbol = upon ? 0xFFFF : 0;
 		after = false;
-	}
-	virtual void linkOver(const TextLinkPtr &lnk) {
-	}
-	virtual void linkOut(const TextLinkPtr &lnk) {
 	}
 
 	int32 width() const {
@@ -150,17 +146,17 @@ public:
 	}
 
 	virtual LayoutMediaItem *toLayoutMediaItem() {
-		return 0;
+		return nullptr;
 	}
 	virtual const LayoutMediaItem *toLayoutMediaItem() const {
-		return 0;
+		return nullptr;
 	}
 
 	virtual HistoryItem *getItem() const {
-		return 0;
+		return nullptr;
 	}
 	virtual DocumentData *getDocument() const {
-		return 0;
+		return nullptr;
 	}
 	MsgId msgId() const {
 		const HistoryItem *item = getItem();
@@ -180,15 +176,18 @@ public:
 	LayoutMediaItem(HistoryItem *parent) : _parent(parent) {
 	}
 
-	virtual LayoutMediaItem *toLayoutMediaItem() {
+	LayoutMediaItem *toLayoutMediaItem() override {
 		return this;
 	}
-	virtual const LayoutMediaItem *toLayoutMediaItem() const {
+	const LayoutMediaItem *toLayoutMediaItem() const override {
 		return this;
 	}
-	virtual HistoryItem *getItem() const {
+	HistoryItem *getItem() const override {
 		return _parent;
 	}
+
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool active) override;
 
 protected:
 	HistoryItem *_parent;
@@ -203,14 +202,23 @@ public:
 		, _a_iconOver(animation(this, &LayoutRadialProgressItem::step_iconOver)) {
 	}
 
-	void linkOver(const TextLinkPtr &lnk);
-	void linkOut(const TextLinkPtr &lnk);
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool active) override;
 
 	~LayoutRadialProgressItem();
 
 protected:
-	TextLinkPtr _openl, _savel, _cancell;
-	void setLinks(ITextLink *openl, ITextLink *savel, ITextLink *cancell);
+	ClickHandlerPtr _openl, _savel, _cancell;
+	void setLinks(ClickHandlerPtr &&openl, ClickHandlerPtr &&savel, ClickHandlerPtr &&cancell);
+	void setDocumentLinks(DocumentData *document) {
+		ClickHandlerPtr save;
+		if (document->voice()) {
+			save.reset(new DocumentOpenClickHandler(document));
+		} else {
+			save.reset(new DocumentSaveClickHandler(document));
+		}
+		setLinks(MakeShared<DocumentOpenClickHandler>(document), std_::move(save), MakeShared<DocumentCancelClickHandler>(document));
+	}
 
 	void step_iconOver(float64 ms, bool timer);
 	void step_radial(uint64 ms, bool timer);
@@ -279,8 +287,8 @@ class LayoutOverviewDate : public LayoutItem {
 public:
 	LayoutOverviewDate(const QDate &date, bool month);
 
-	virtual void initDimensions();
-	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
+	void initDimensions() override;
+	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
 
 private:
 	QDate _date;
@@ -292,14 +300,14 @@ class LayoutOverviewPhoto : public LayoutMediaItem {
 public:
 	LayoutOverviewPhoto(PhotoData *photo, HistoryItem *parent);
 
-	virtual void initDimensions();
-	virtual int32 resizeGetHeight(int32 width);
-	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
-	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
+	void initDimensions() override;
+	int32 resizeGetHeight(int32 width) override;
+	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
 
 private:
 	PhotoData *_data;
-	TextLinkPtr _link;
+	ClickHandlerPtr _link;
 
 	mutable QPixmap _pix;
 	mutable bool _goodLoaded;
@@ -310,22 +318,22 @@ class LayoutOverviewVideo : public LayoutAbstractFileItem {
 public:
 	LayoutOverviewVideo(DocumentData *video, HistoryItem *parent);
 
-	virtual void initDimensions();
-	virtual int32 resizeGetHeight(int32 width);
-	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
-	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
+	void initDimensions() override;
+	int32 resizeGetHeight(int32 width) override;
+	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
 
 protected:
-	virtual float64 dataProgress() const {
+	float64 dataProgress() const override {
 		return _data->progress();
 	}
-	virtual bool dataFinished() const {
+	bool dataFinished() const override {
 		return !_data->loading();
 	}
-	virtual bool dataLoaded() const {
+	bool dataLoaded() const override {
 		return _data->loaded();
 	}
-	virtual bool iconAnimated() const {
+	bool iconAnimated() const override {
 		return true;
 	}
 
@@ -344,27 +352,27 @@ class LayoutOverviewVoice : public LayoutAbstractFileItem {
 public:
 	LayoutOverviewVoice(DocumentData *voice, HistoryItem *parent);
 
-	virtual void initDimensions();
-	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
-	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
+	void initDimensions() override;
+	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
 
 protected:
-	virtual float64 dataProgress() const {
+	float64 dataProgress() const override {
 		return _data->progress();
 	}
-	virtual bool dataFinished() const {
+	bool dataFinished() const override {
 		return !_data->loading();
 	}
-	virtual bool dataLoaded() const {
+	bool dataLoaded() const override {
 		return _data->loaded();
 	}
-	virtual bool iconAnimated() const {
+	bool iconAnimated() const override {
 		return true;
 	}
 
 private:
 	DocumentData *_data;
-	TextLinkPtr _namel;
+	ClickHandlerPtr _namel;
 
 	mutable Text _name, _details;
 	mutable int32 _nameVersion;
@@ -378,31 +386,31 @@ class LayoutOverviewDocument : public LayoutAbstractFileItem {
 public:
 	LayoutOverviewDocument(DocumentData *document, HistoryItem *parent);
 
-	virtual void initDimensions();
-	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
-	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
+	void initDimensions() override;
+	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
 
 	virtual DocumentData *getDocument() const {
 		return _data;
 	}
 
 protected:
-	virtual float64 dataProgress() const {
+	float64 dataProgress() const override {
 		return _data->progress();
 	}
-	virtual bool dataFinished() const {
+	bool dataFinished() const override {
 		return !_data->loading();
 	}
-	virtual bool dataLoaded() const {
+	bool dataLoaded() const override {
 		return _data->loaded();
 	}
-	virtual bool iconAnimated() const {
+	bool iconAnimated() const override {
 		return _data->song() || !_data->loaded() || (_radial && _radial->animating());
 	}
 
 private:
 	DocumentData *_data;
-	TextLinkPtr _msgl, _namel;
+	ClickHandlerPtr _msgl, _namel;
 
 	mutable bool _thumbForLoaded;
 	mutable QPixmap _thumb;
@@ -422,13 +430,13 @@ class LayoutOverviewLink : public LayoutMediaItem {
 public:
 	LayoutOverviewLink(HistoryMedia *media, HistoryItem *parent);
 
-	virtual void initDimensions();
-	virtual int32 resizeGetHeight(int32 width);
-	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
-	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
+	void initDimensions() override;
+	int32 resizeGetHeight(int32 width) override;
+	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
 
 private:
-	TextLinkPtr _photol;
+	ClickHandlerPtr _photol;
 
 	QString _title, _letter;
 	int _titlew = 0;
@@ -443,7 +451,7 @@ private:
 		Link(const QString &url, const QString &text);
 		QString text;
 		int32 width;
-		TextLinkPtr lnk;
+		TextClickHandlerPtr lnk;
 	};
 	QVector<Link> _links;
 
@@ -456,7 +464,7 @@ public:
 		, paused(paused)
 		, lastRow(lastRow) {
 	}
-	virtual const InlinePaintContext *toInlinePaintContext() const {
+	const InlinePaintContext *toInlinePaintContext() const override {
 		return this;
 	}
 	bool paused, lastRow;
@@ -481,6 +489,14 @@ public:
 
 	void update();
 
+	// ClickHandlerHost interface
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override {
+		update();
+	}
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override {
+		update();
+	}
+
 protected:
 	InlineResult *_result;
 	DocumentData *_doc;
@@ -490,22 +506,20 @@ protected:
 
 };
 
-class SendInlineItemLink : public ITextLink {
-	TEXT_LINK_CLASS(SendInlineItemLink)
-
+// this type used as a flag, we dynamic_cast<> to it
+class SendInlineItemClickHandler : public ClickHandler {
 public:
-	virtual void onClick(Qt::MouseButton) const {
+	void onClick(Qt::MouseButton) const override {
 	}
-
 };
 
-class DeleteSavedGifLink : public ITextLink {
-	TEXT_LINK_CLASS(DeleteSavedGifLink)
-
+class DeleteSavedGifClickHandler : public LeftButtonClickHandler {
 public:
-	DeleteSavedGifLink(DocumentData *data) : _data(data) {
+	DeleteSavedGifClickHandler(DocumentData *data) : _data(data) {
 	}
-	virtual void onClick(Qt::MouseButton) const;
+
+protected:
+	void onClickImpl() const override;
 
 private:
 	DocumentData  *_data;
@@ -516,17 +530,19 @@ class LayoutInlineGif : public LayoutInlineItem {
 public:
 	LayoutInlineGif(InlineResult *result, DocumentData *doc, bool saved);
 
-	virtual void setPosition(int32 position);
-	virtual void initDimensions();
+	void setPosition(int32 position) override;
+	void initDimensions() override;
 
-	virtual bool fullLine() const {
+	bool fullLine() const override {
 		return false;
 	}
 
-	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
-	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
-	virtual void linkOver(const TextLinkPtr &lnk);
-	virtual void linkOut(const TextLinkPtr &lnk);
+	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
+
+	// ClickHandlerHost interface
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
 	~LayoutInlineGif();
 
@@ -551,7 +567,7 @@ private:
 	int32 _state;
 
 	ClipReader *_gif;
-	TextLinkPtr _send, _delete;
+	ClickHandlerPtr _send, _delete;
 	bool gif() const {
 		return (!_gif || _gif == BadClipReader) ? false : true;
 	}
@@ -582,14 +598,14 @@ class LayoutInlinePhoto : public LayoutInlineItem {
 public:
 	LayoutInlinePhoto(InlineResult *result, PhotoData *photo);
 
-	virtual void initDimensions();
+	void initDimensions() override;
 
-	virtual bool fullLine() const {
+	bool fullLine() const override {
 		return false;
 	}
 
-	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
-	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
+	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
 
 private:
 	QSize countFrameSize() const;
@@ -599,7 +615,7 @@ private:
 	bool content_loaded() const;
 	void content_forget();
 
-	TextLinkPtr _send;
+	ClickHandlerPtr _send;
 
 	mutable QPixmap _thumb;
 	mutable bool _thumbLoaded;
@@ -611,14 +627,14 @@ class LayoutInlineWebVideo : public LayoutInlineItem {
 public:
 	LayoutInlineWebVideo(InlineResult *result);
 
-	virtual void initDimensions();
+	void initDimensions() override;
 
-	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
-	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
+	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
 
 private:
 
-	TextLinkPtr _send, _link;
+	ClickHandlerPtr _send, _link;
 
 	mutable QPixmap _thumb;
 	Text _title, _description;
@@ -633,15 +649,15 @@ class LayoutInlineArticle : public LayoutInlineItem {
 public:
 	LayoutInlineArticle(InlineResult *result, bool withThumb);
 
-	virtual void initDimensions();
-	virtual int32 resizeGetHeight(int32 width);
+	void initDimensions() override;
+	int32 resizeGetHeight(int32 width) override;
 
-	virtual void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const;
-	virtual void getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const;
+	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
 
 private:
 
-	TextLinkPtr _send, _url, _link;
+	ClickHandlerPtr _send, _url, _link;
 
 	bool _withThumb;
 	mutable QPixmap _thumb;

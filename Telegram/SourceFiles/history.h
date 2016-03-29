@@ -242,7 +242,7 @@ public:
 
 	virtual ~History();
 
-	HistoryItem *addNewService(MsgId msgId, QDateTime date, const QString &text, MTPDmessage::Flags flags = 0, HistoryMedia *media = 0, bool newMsg = true);
+	HistoryItem *addNewService(MsgId msgId, QDateTime date, const QString &text, MTPDmessage::Flags flags = 0, bool newMsg = true);
 	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
 	HistoryItem *addToHistory(const MTPMessage &msg);
 	HistoryItem *addNewForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *item);
@@ -973,7 +973,7 @@ struct HistoryMessageVia : public BaseComponent<HistoryMessageVia> {
 	mutable QString _text;
 	mutable int _width = 0;
 	mutable int _maxWidth = 0;
-	TextLinkPtr _lnk;
+	ClickHandlerPtr _lnk;
 };
 
 struct HistoryMessageViews : public BaseComponent<HistoryMessageViews> {
@@ -1037,13 +1037,13 @@ struct HistoryMessageReply : public BaseComponent<HistoryMessageReply> {
 	int replyToWidth() const {
 		return _maxReplyWidth;
 	}
-	TextLinkPtr replyToLink() const {
+	ClickHandlerPtr replyToLink() const {
 		return replyToLnk;
 	}
 
 	MsgId replyToMsgId = 0;
 	HistoryItem *replyToMsg = nullptr;
-	TextLinkPtr replyToLnk;
+	ClickHandlerPtr replyToLnk;
 	mutable Text replyToName, replyToText;
 	mutable int replyToVersion = 0;
 	mutable int _maxReplyWidth = 0;
@@ -1052,7 +1052,21 @@ struct HistoryMessageReply : public BaseComponent<HistoryMessageReply> {
 };
 Q_DECLARE_OPERATORS_FOR_FLAGS(HistoryMessageReply::PaintFlags);
 
-class ReplyKeyboard final {
+class ReplyMarkupClickHandler : public LeftButtonClickHandler {
+public:
+	ReplyMarkupClickHandler(const FullMsgId &msgId, int row, int col) : _msgId(msgId), _row(row), _col(col) {
+	}
+
+protected:
+	void onClickImpl() const override;
+
+private:
+	FullMsgId _msgId;
+	int _row, _col;
+
+};
+
+class ReplyKeyboard {
 public:
 	class Style {
 	public:
@@ -1062,7 +1076,7 @@ public:
 		virtual void startPaint(Painter &p) const = 0;
 		virtual style::font textFont() const = 0;
 
-		void paintButton(Painter &p, const QRect &rect, const Text &text, bool down, float64 howMuchOver) const;
+		void paintButton(Painter &p, const QRect &rect, const Text &text, bool pressed, float64 howMuchOver) const;
 
 		int buttonSkip() const {
 			return _st->margin;
@@ -1077,7 +1091,7 @@ public:
 		virtual void repaint(const HistoryItem *item) const = 0;
 
 	protected:
-		virtual void paintButtonBg(Painter &p, const QRect &rect, bool down, float64 howMuchOver) const = 0;
+		virtual void paintButtonBg(Painter &p, const QRect &rect, bool pressed, float64 howMuchOver) const = 0;
 
 	private:
 		const style::botKeyboardButton *_st;
@@ -1095,10 +1109,11 @@ public:
 	int naturalHeight() const;
 
 	void paint(Painter &p, const QRect &clip) const;
-	void getState(TextLinkPtr &lnk, int x, int y) const;
+	void getState(ClickHandlerPtr &lnk, int x, int y) const;
 
-	void linkOver(const TextLinkPtr &lnk);
-	void linkOut(const TextLinkPtr &lnk);
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed);
+
 	void clearSelection();
 
 private:
@@ -1111,7 +1126,7 @@ private:
 		int characters = 0;
 		float64 howMuchOver = 0.;
 		bool full = true;
-		TextLinkPtr link;
+		ClickHandlerPtr link;
 	};
 	using ButtonRow = QVector<Button>;
 	using ButtonRows = QVector<ButtonRow>;
@@ -1195,8 +1210,45 @@ struct HistoryMessageUnreadBar : public BaseComponent<HistoryMessageUnreadBar> {
 	bool _freezed = false;
 };
 
+// HistoryMedia has a special owning smart pointer
+// which regs/unregs this media to the holding HistoryItem
 class HistoryMedia;
-class HistoryItem : public HistoryElem, public Composer {
+class HistoryMediaPtr {
+public:
+	HistoryMediaPtr() = default;
+	HistoryMediaPtr(const HistoryMediaPtr &other) = delete;
+	HistoryMediaPtr &operator=(const HistoryMediaPtr &other) = delete;
+	HistoryMedia *data() const {
+		return _p;
+	}
+	void reset(HistoryItem *host, HistoryMedia *p = nullptr);
+	bool isNull() const {
+		return data() == nullptr;
+	}
+
+	void clear(HistoryItem *host) {
+		reset(host);
+	}
+	HistoryMedia *operator->() const {
+		return data();
+	}
+	HistoryMedia &operator*() const {
+		t_assert(!isNull());
+		return *data();
+	}
+	explicit operator bool() const {
+		return !isNull();
+	}
+	~HistoryMediaPtr() {
+		t_assert(isNull());
+	}
+
+private:
+	HistoryMedia *_p;
+
+};
+
+class HistoryItem : public HistoryElem, public Composer, public ClickHandlerHost {
 public:
 
 	HistoryItem(const HistoryItem &) = delete;
@@ -1357,8 +1409,8 @@ public:
 	virtual bool hasPoint(int32 x, int32 y) const {
 		return false;
 	}
-	virtual void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const {
-		lnk = TextLinkPtr();
+	virtual void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const {
+		lnk.clear();
 		state = HistoryDefaultCursorState;
 	}
 	virtual void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const { // from text
@@ -1369,20 +1421,11 @@ public:
 	virtual uint32 adjustSelection(uint16 from, uint16 to, TextSelectType type) const {
 		return (from << 16) | to;
 	}
-	virtual void linkOver(const TextLinkPtr &lnk) {
-		if (auto *markup = Get<HistoryMessageReplyMarkup>()) {
-			if (markup->inlineKeyboard) {
-				markup->inlineKeyboard->linkOver(lnk);
-			}
-		}
-	}
-	virtual void linkOut(const TextLinkPtr &lnk) {
-		if (auto *markup = Get<HistoryMessageReplyMarkup>()) {
-			if (markup->inlineKeyboard) {
-				markup->inlineKeyboard->linkOut(lnk);
-			}
-		}
-	}
+
+	// ClickHandlerHost interface
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
+
 	virtual HistoryItemType type() const {
 		return HistoryItemMsg;
 	}
@@ -1463,8 +1506,8 @@ public:
 		return FullMsgId(channelId(), id);
 	}
 
-	virtual HistoryMedia *getMedia(bool inOverview = false) const {
-		return 0;
+	virtual HistoryMedia *getMedia() const {
+		return nullptr;
 	}
 	virtual void setText(const QString &text, const EntitiesInText &links) {
 	}
@@ -1478,13 +1521,13 @@ public:
 		return false;
 	}
 
-	virtual int32 infoWidth() const {
+	virtual int infoWidth() const {
 		return 0;
 	}
-	virtual int32 timeLeft() const {
+	virtual int timeLeft() const {
 		return 0;
 	}
-	virtual int32 timeWidth() const {
+	virtual int timeWidth() const {
 		return 0;
 	}
 	virtual bool pointInTime(int32 right, int32 bottom, int32 x, int32 y, InfoDisplayType type) const {
@@ -1502,10 +1545,10 @@ public:
 	}
 
 	virtual HistoryMessage *toHistoryMessage() { // dynamic_cast optimize
-		return 0;
+		return nullptr;
 	}
 	virtual const HistoryMessage *toHistoryMessage() const { // dynamic_cast optimize
-		return 0;
+		return nullptr;
 	}
 	MsgId replyToId() const {
 		if (auto *reply = Get<HistoryMessageReply>()) {
@@ -1659,6 +1702,11 @@ protected:
 		return const_cast<ReplyKeyboard*>(static_cast<const HistoryItem*>(this)->inlineReplyKeyboard());
 	}
 
+	Text _text = { int(st::msgMinWidth) };
+	int32 _textWidth, _textHeight;
+
+	HistoryMediaPtr _media;
+
 };
 
 // make all the constructors in HistoryItem children protected
@@ -1676,15 +1724,12 @@ public:
 	}
 };
 
-class MessageLink : public ITextLink {
-	TEXT_LINK_CLASS(MessageLink)
-
+class MessageClickHandler : public LeftButtonClickHandler {
 public:
-	MessageLink(PeerId peer, MsgId msgid) : _peer(peer), _msgid(msgid) {
+	MessageClickHandler(PeerId peer, MsgId msgid) : _peer(peer), _msgid(msgid) {
 	}
-	MessageLink(HistoryItem *item) : _peer(item->history()->peer->id), _msgid(item->id) {
+	MessageClickHandler(HistoryItem *item) : _peer(item->history()->peer->id), _msgid(item->id) {
 	}
-	void onClick(Qt::MouseButton button) const;
 	PeerId peer() const {
 		return _peer;
 	}
@@ -1695,18 +1740,21 @@ public:
 private:
 	PeerId _peer;
 	MsgId _msgid;
+
 };
 
-class CommentsLink : public ITextLink {
-	TEXT_LINK_CLASS(CommentsLink)
-
+class GoToMessageClickHandler : public MessageClickHandler {
 public:
-	CommentsLink(HistoryItem *item) : _item(item) {
-	}
-	void onClick(Qt::MouseButton button) const;
+	using MessageClickHandler::MessageClickHandler;
+protected:
+	void onClickImpl() const override;
+};
 
-private:
-	HistoryItem *_item;
+class CommentsClickHandler : public MessageClickHandler {
+public:
+	using MessageClickHandler::MessageClickHandler;
+protected:
+	void onClickImpl() const override;
 };
 
 class RadialAnimation {
@@ -1766,11 +1814,23 @@ public:
 		return _height;
 	}
 	virtual void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const = 0;
-	virtual void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const = 0;
+	virtual void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const = 0;
 
-	virtual void linkOver(HistoryItem *parent, const TextLinkPtr &lnk) {
+	// if we are in selecting items mode perhaps we want to
+	// toggle selection instead of activating the pressed link
+	virtual bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const = 0;
+
+	// if we press and drag on this media should we drag the item
+	virtual bool dragItem() const {
+		return false;
 	}
-	virtual void linkOut(HistoryItem *parent, const TextLinkPtr &lnk) {
+
+	// if we press and drag this link should we drag the item
+	virtual bool dragItemByHandler(const ClickHandlerPtr &p) const = 0;
+
+	virtual void clickHandlerActiveChanged(HistoryItem *parent, const ClickHandlerPtr &p, bool active) {
+	}
+	virtual void clickHandlerPressedChanged(HistoryItem *parent, const ClickHandlerPtr &p, bool pressed) {
 	}
 
 	virtual bool uploading() const {
@@ -1860,15 +1920,38 @@ public:
 
 	HistoryFileMedia();
 
-	void linkOver(HistoryItem *parent, const TextLinkPtr &lnk);
-	void linkOut(HistoryItem *parent, const TextLinkPtr &lnk);
+	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
+		return p == _openl || p == _savel || p == _cancell;
+	}
+	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
+		return p == _openl || p == _savel || p == _cancell;
+	}
+
+	void clickHandlerActiveChanged(HistoryItem *parent, const ClickHandlerPtr &p, bool active) override;
+	void clickHandlerPressedChanged(HistoryItem *parent, const ClickHandlerPtr &p, bool pressed) override;
 
 	~HistoryFileMedia();
 
 protected:
 
-	TextLinkPtr _openl, _savel, _cancell;
-	void setLinks(ITextLink *openl, ITextLink *savel, ITextLink *cancell);
+	ClickHandlerPtr _openl, _savel, _cancell;
+	void setLinks(ClickHandlerPtr &&openl, ClickHandlerPtr &&savel, ClickHandlerPtr &&cancell);
+	void setDocumentLinks(DocumentData *document, bool inlinegif = false) {
+		ClickHandlerPtr open, save;
+		if (inlinegif) {
+			open.reset(new GifOpenClickHandler(document));
+		} else {
+			open.reset(new DocumentOpenClickHandler(document));
+		}
+		if (inlinegif) {
+			save.reset(new GifOpenClickHandler(document));
+		} else if (document->voice()) {
+			save.reset(new DocumentOpenClickHandler(document));
+		} else {
+			save.reset(new DocumentSaveClickHandler(document));
+		}
+		setLinks(std_::move(open), std_::move(save), MakeShared<DocumentCancelClickHandler>(document));
+	}
 
 	// >= 0 will contain download / upload string, _statusSize = loaded bytes
 	// < 0 will contain played string, _statusSize = -(seconds + 1) played
@@ -1940,7 +2023,7 @@ public:
 	int32 resize(int32 width, const HistoryItem *parent) override;
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const override;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
+	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
 
 	const QString inDialogsText() const override;
 	const QString inHistoryText() const override;
@@ -1986,7 +2069,8 @@ protected:
 
 private:
 	PhotoData *_data;
-	int16 _pixw, _pixh;
+	int16 _pixw = 1;
+	int16 _pixh = 1;
 	Text _caption;
 
 };
@@ -2007,7 +2091,7 @@ public:
 	int32 resize(int32 width, const HistoryItem *parent) override;
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const override;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
+	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
 
 	const QString inDialogsText() const override;
 	const QString inHistoryText() const override;
@@ -2064,7 +2148,7 @@ private:
 };
 
 struct HistoryDocumentThumbed : public BaseComponent<HistoryDocumentThumbed> {
-	TextLinkPtr _linksavel, _linkcancell;
+	ClickHandlerPtr _linksavel, _linkcancell;
 	int _thumbw = 0;
 
 	mutable int _linkw = 0;
@@ -2114,7 +2198,7 @@ public:
 	int32 resize(int32 width, const HistoryItem *parent) override;
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const override;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
+	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
 
 	const QString inDialogsText() const override;
 	const QString inHistoryText() const override;
@@ -2197,7 +2281,7 @@ public:
 	int32 resize(int32 width, const HistoryItem *parent) override;
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const override;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
+	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
 
 	const QString inDialogsText() const override;
 	const QString inHistoryText() const override;
@@ -2282,7 +2366,17 @@ public:
 	int32 resize(int32 width, const HistoryItem *parent) override;
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const override;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
+	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
+
+	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
+		return true;
+	}
+	bool dragItem() const override {
+		return true;
+	}
+	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
+		return true;
+	}
 
 	const QString inDialogsText() const override;
 	const QString inHistoryText() const override;
@@ -2311,24 +2405,18 @@ private:
 
 };
 
-class SendMessageLink : public PeerLink {
-	TEXT_LINK_CLASS(SendMessageLink)
-
+class SendMessageClickHandler : public PeerClickHandler {
 public:
-	SendMessageLink(PeerData *peer) : PeerLink(peer) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
+	using PeerClickHandler::PeerClickHandler;
+protected:
+	void onClickImpl() const override;
 };
 
-class AddContactLink : public MessageLink {
-	TEXT_LINK_CLASS(AddContactLink)
-
+class AddContactClickHandler : public MessageClickHandler {
 public:
-	AddContactLink(PeerId peer, MsgId msgid) : MessageLink(peer, msgid) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
+	using MessageClickHandler::MessageClickHandler;
+protected:
+	void onClickImpl() const override;
 };
 
 class HistoryContact : public HistoryMedia {
@@ -2345,7 +2433,14 @@ public:
 	void initDimensions(const HistoryItem *parent) override;
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const override;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
+	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
+
+	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
+		return true;
+	}
+	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
+		return true;
+	}
 
 	const QString inDialogsText() const override;
 	const QString inHistoryText() const override;
@@ -2381,7 +2476,7 @@ private:
 	QString _fname, _lname, _phone;
 	Text _name;
 
-	TextLinkPtr _linkl;
+	ClickHandlerPtr _linkl;
 	int32 _linkw;
 	QString _link;
 };
@@ -2402,13 +2497,20 @@ public:
 	int32 resize(int32 width, const HistoryItem *parent) override;
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const override;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
+	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
+
+	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
+		return _attach && _attach->toggleSelectionByHandlerClick(p);
+	}
+	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
+		return _attach && _attach->dragItemByHandler(p);
+	}
 
 	const QString inDialogsText() const override;
 	const QString inHistoryText() const override;
 
-	void linkOver(HistoryItem *parent, const TextLinkPtr &lnk) override;
-	void linkOut(HistoryItem *parent, const TextLinkPtr &lnk) override;
+	void clickHandlerActiveChanged(HistoryItem *parent, const ClickHandlerPtr &p, bool active) override;
+	void clickHandlerPressedChanged(HistoryItem *parent, const ClickHandlerPtr &p, bool pressed) override;
 
 	bool isDisplayed() const override {
 		return !_data->pendingTill;
@@ -2453,7 +2555,7 @@ public:
 
 private:
 	WebPageData *_data;
-	TextLinkPtr _openl;
+	ClickHandlerPtr _openl;
 	HistoryMedia *_attach;
 
 	bool _asArticle;
@@ -2526,7 +2628,14 @@ public:
 	int32 resize(int32 width, const HistoryItem *parent);
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
+	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
+
+	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
+		return p == _link;
+	}
+	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
+		return p == _link;
+	}
 
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
@@ -2545,20 +2654,20 @@ public:
 private:
 	LocationData *_data;
 	Text _title, _description;
-	TextLinkPtr _link;
+	ClickHandlerPtr _link;
 
 	int32 fullWidth() const;
 	int32 fullHeight() const;
 
 };
 
-class ViaInlineBotLink : public ITextLink {
-	TEXT_LINK_CLASS(ViaInlineBotLink)
-
+class ViaInlineBotClickHandler : public LeftButtonClickHandler {
 public:
-	ViaInlineBotLink(UserData *bot) : _bot(bot) {
+	ViaInlineBotClickHandler(UserData *bot) : _bot(bot) {
 	}
-	void onClick(Qt::MouseButton button) const;
+
+protected:
+	void onClickImpl() const override;
 
 private:
 	UserData *_bot;
@@ -2623,19 +2732,21 @@ public:
 	bool hasPoint(int32 x, int32 y) const override;
 	bool pointInTime(int32 right, int32 bottom, int32 x, int32 y, InfoDisplayType type) const override;
 
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const override;
+	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const override;
 
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const override;
 	uint32 adjustSelection(uint16 from, uint16 to, TextSelectType type) const override {
 		return _text.adjustSelection(from, to, type);
 	}
-	void linkOver(const TextLinkPtr &lnk) override {
-		if (_media) _media->linkOver(this, lnk);
-		HistoryItem::linkOver(lnk);
+
+	// ClickHandlerHost interface
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override {
+		if (_media) _media->clickHandlerActiveChanged(this, p, active);
+		HistoryItem::clickHandlerActiveChanged(p, active);
 	}
-	void linkOut(const TextLinkPtr &lnk) override {
-		if (_media) _media->linkOut(this, lnk);
-		HistoryItem::linkOut(lnk);
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override {
+		if (_media) _media->clickHandlerActiveChanged(this, p, pressed);
+		HistoryItem::clickHandlerPressedChanged(p, pressed);
 	}
 
 	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const override;
@@ -2655,7 +2766,7 @@ public:
 
 	QString selectedText(uint32 selection) const override;
 	QString inDialogsText() const override;
-	HistoryMedia *getMedia(bool inOverview = false) const override;
+	HistoryMedia *getMedia() const override;
 	void setMedia(const MTPMessageMedia *media);
 	void setText(const QString &text, const EntitiesInText &entities) override;
 	QString originalText() const override;
@@ -2743,12 +2854,6 @@ protected:
 	// this method draws "via @bot" if it is not painted in forwarded info or in from name
 	void paintViaBotIdInfo(Painter &p, QRect &trect, bool selected) const;
 
-	Text _text = { int(st::msgMinWidth) };
-
-	int _textWidth = 0;
-	int _textHeight = 0;
-
-	HistoryMedia *_media = nullptr;
 	QString _timeText;
 	int _timeWidth = 0;
 
@@ -2812,7 +2917,7 @@ inline MTPDmessage::Flags newForwardedFlags(PeerData *p, int32 from, HistoryMess
 struct HistoryServicePinned : public BaseComponent<HistoryServicePinned> {
 	MsgId msgId = 0;
 	HistoryItem *msg = nullptr;
-	TextLinkPtr lnk;
+	ClickHandlerPtr lnk;
 };
 
 class HistoryService : public HistoryItem, private HistoryItemInstantiated<HistoryService> {
@@ -2821,8 +2926,8 @@ public:
 	static HistoryService *create(History *history, const MTPDmessageService &msg) {
 		return _create(history, msg);
 	}
-	static HistoryService *create(History *history, MsgId msgId, QDateTime date, const QString &msg, MTPDmessage::Flags flags = 0, HistoryMedia *media = 0, int32 from = 0) {
-		return _create(history, msgId, date, msg, flags, media, from);
+	static HistoryService *create(History *history, MsgId msgId, QDateTime date, const QString &msg, MTPDmessage::Flags flags = 0, int32 from = 0) {
+		return _create(history, msgId, date, msg, flags, from);
 	}
 
 	bool updateDependencyItem() override {
@@ -2845,19 +2950,19 @@ public:
 
 	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const override;
 	bool hasPoint(int32 x, int32 y) const override;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const override;
+	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const override;
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const override;
 	uint32 adjustSelection(uint16 from, uint16 to, TextSelectType type) const override {
 		return _text.adjustSelection(from, to, type);
 	}
 
-	void linkOver(const TextLinkPtr &lnk) override {
-		if (_media) _media->linkOver(this, lnk);
-		HistoryItem::linkOver(lnk);
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override {
+		if (_media) _media->clickHandlerActiveChanged(this, p, active);
+		HistoryItem::clickHandlerActiveChanged(p, active);
 	}
-	void linkOut(const TextLinkPtr &lnk) override {
-		if (_media) _media->linkOut(this, lnk);
-		HistoryItem::linkOut(lnk);
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override {
+		if (_media) _media->clickHandlerPressedChanged(this, p, pressed);
+		HistoryItem::clickHandlerPressedChanged(p, pressed);
 	}
 
 	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const override;
@@ -2873,7 +2978,7 @@ public:
 	QString inDialogsText() const override;
 	QString inReplyText() const override;
 
-	HistoryMedia *getMedia(bool inOverview = false) const override;
+	HistoryMedia *getMedia() const override;
 
 	void setServiceText(const QString &text);
 
@@ -2882,7 +2987,7 @@ public:
 protected:
 
 	HistoryService(History *history, const MTPDmessageService &msg);
-	HistoryService(History *history, MsgId msgId, QDateTime date, const QString &msg, MTPDmessage::Flags flags = 0, HistoryMedia *media = 0, int32 from = 0);
+	HistoryService(History *history, MsgId msgId, QDateTime date, const QString &msg, MTPDmessage::Flags flags = 0, int32 from = 0);
 	friend class HistoryItemInstantiated<HistoryService>;
 
 	void initDimensions() override;
@@ -2892,10 +2997,6 @@ protected:
 	bool updatePinned(bool force = false);
 	bool updatePinnedText(const QString *pfrom = nullptr, QString *ptext = nullptr);
 
-	Text _text = { int(st::msgMinWidth) };
-	HistoryMedia *_media = nullptr;
-
-	int32 _textWidth, _textHeight;
 };
 
 class HistoryGroup : public HistoryService, private HistoryItemInstantiated<HistoryGroup> {
@@ -2908,7 +3009,7 @@ public:
 		return _create(history, newItem, date);
 	}
 
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
+	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const {
 		symbol = 0xFFFF;
 		after = false;
@@ -2948,7 +3049,7 @@ private:
 	MsgId _minId, _maxId;
 	int32 _count;
 
-	TextLinkPtr _lnk;
+	ClickHandlerPtr _lnk;
 
 	void updateText();
 
@@ -2962,7 +3063,7 @@ public:
 	}
 
 	void draw(Painter &p, const QRect &r, uint32 selection, uint64 ms) const;
-	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
+	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const {
 		symbol = 0xFFFF;
 		after = false;

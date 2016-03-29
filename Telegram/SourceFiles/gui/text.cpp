@@ -44,8 +44,6 @@ namespace {
 
 	const style::textStyle *_textStyle = 0;
 
-	TextLinkPtr _overLnk, _downLnk, _zeroLnk;
-
 	void _initDefault() {
 		_textStyle = &st::defaultTextStyle;
 	}
@@ -57,6 +55,49 @@ namespace {
 	inline QFixed _blockRBearing(const ITextBlock *b) {
 		return (b->type() == TextBlockTText) ? static_cast<const TextBlock*>(b)->f_rbearing() : 0;
 	}
+}
+
+ClickHandlerHost::~ClickHandlerHost() {
+	ClickHandler::hostDestroyed(this);
+}
+
+ClickHandlerPtr *ClickHandler::_active = nullptr;
+ClickHandlerPtr *ClickHandler::_pressed = nullptr;
+ClickHandlerHost *ClickHandler::_activeHost = nullptr;
+ClickHandlerHost *ClickHandler::_pressedHost = nullptr;
+
+bool ClickHandler::setActive(const ClickHandlerPtr &p, ClickHandlerHost *host) {
+	if ((_active && (*_active == p)) || (!_active && !p)) {
+		return false;
+	}
+
+	// emit clickHandlerActiveChanged only when there is no
+	// other pressed click handler currently, if there is
+	// this method will be called when it is unpressed
+	if (_active && *_active) {
+		bool emitClickHandlerActiveChanged = (!_pressed || !*_pressed || *_pressed == *_active);
+		ClickHandlerPtr wasactive = *_active;
+		(*_active).clear();
+		if (_activeHost) {
+			if (emitClickHandlerActiveChanged) {
+				_activeHost->clickHandlerActiveChanged(wasactive, false);
+			}
+			_activeHost = nullptr;
+		}
+	}
+	if (p) {
+		if (!_active) {
+			_active = new ClickHandlerPtr(); // won't be deleted
+		}
+		*_active = p;
+		if ((_activeHost = host)) {
+			bool emitClickHandlerActiveChanged = (!_pressed || !*_pressed || *_pressed == *_active);
+			if (emitClickHandlerActiveChanged) {
+				_activeHost->clickHandlerActiveChanged(*_active, true);
+			}
+		}
+	}
+	return true;
 }
 
 const QRegularExpression &reDomain() {
@@ -85,26 +126,6 @@ const style::textStyle *textstyleCurrent() {
 
 void textstyleSet(const style::textStyle *style) {
 	_textStyle = style ? style : &st::defaultTextStyle;
-}
-
-void textlnkOver(const TextLinkPtr &lnk) {
-	_overLnk = lnk;
-}
-
-const TextLinkPtr &textlnkOver() {
-	return _overLnk;
-}
-
-void textlnkDown(const TextLinkPtr &lnk) {
-	_downLnk = lnk;
-}
-
-const TextLinkPtr &textlnkDown() {
-	return _downLnk;
-}
-
-bool textlnkDrawOver(const TextLinkPtr &lnk) {
-	return (_overLnk == lnk) && (!_downLnk || _downLnk == lnk);
 }
 
 QString textOneLine(const QString &text, bool trim, bool rich) {
@@ -766,31 +787,31 @@ public:
 				if (_t->_links.size() < lnkIndex) {
 					_t->_links.resize(lnkIndex);
 					const TextLinkData &data(links[lnkIndex - maxLnkIndex - 1]);
-					TextLinkPtr lnk;
+					ClickHandlerPtr lnk;
 					if (data.fullDisplayed < -4) { // hidden link
-						lnk = TextLinkPtr(new CustomTextLink(data.url));
+						lnk.reset(new HiddenUrlClickHandler(data.url));
 					} else if (data.fullDisplayed < -3) { // bot command
-						lnk = TextLinkPtr(new BotCommandLink(data.url));
+						lnk.reset(new BotCommandClickHandler(data.url));
 					} else if (data.fullDisplayed < -2) { // mention
 						if (options.flags & TextTwitterMentions) {
-							lnk = TextLinkPtr(new TextLink(qsl("https://twitter.com/") + data.url.mid(1), true));
+							lnk.reset(new UrlClickHandler(qsl("https://twitter.com/") + data.url.mid(1), true));
 						} else if (options.flags & TextInstagramMentions) {
-							lnk = TextLinkPtr(new TextLink(qsl("https://instagram.com/") + data.url.mid(1) + '/', true));
+							lnk.reset(new UrlClickHandler(qsl("https://instagram.com/") + data.url.mid(1) + '/', true));
 						} else {
-							lnk = TextLinkPtr(new MentionLink(data.url));
+							lnk.reset(new MentionClickHandler(data.url));
 						}
 					} else if (data.fullDisplayed < -1) { // hashtag
 						if (options.flags & TextTwitterMentions) {
-							lnk = TextLinkPtr(new TextLink(qsl("https://twitter.com/hashtag/") + data.url.mid(1) + qsl("?src=hash"), true));
+							lnk.reset(new UrlClickHandler(qsl("https://twitter.com/hashtag/") + data.url.mid(1) + qsl("?src=hash"), true));
 						} else if (options.flags & TextInstagramMentions) {
-							lnk = TextLinkPtr(new TextLink(qsl("https://instagram.com/explore/tags/") + data.url.mid(1) + '/', true));
+							lnk.reset(new UrlClickHandler(qsl("https://instagram.com/explore/tags/") + data.url.mid(1) + '/', true));
 						} else {
-							lnk = TextLinkPtr(new HashtagLink(data.url));
+							lnk.reset(new HashtagClickHandler(data.url));
 						}
 					} else if (data.fullDisplayed < 0) { // email
-						lnk = TextLinkPtr(new EmailLink(data.url));
+						lnk.reset(new EmailClickHandler(data.url));
 					} else {
-						lnk = TextLinkPtr(new TextLink(data.url, data.fullDisplayed > 0));
+						lnk.reset(new UrlClickHandler(data.url, data.fullDisplayed > 0));
 					}
 					_t->setLink(lnkIndex, lnk);
 				}
@@ -937,78 +958,98 @@ namespace {
 	}
 }
 
-void TextLink::onClick(Qt::MouseButton button) const {
-	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		PopupTooltip::Hide();
+QString UrlClickHandler::copyToClipboardContextItem() const {
+	return lang(lng_context_copy_link);
+}
 
-		QString url = TextLink::encoded();
-		QRegularExpressionMatch telegramMeUser = QRegularExpression(qsl("^https?://telegram\\.me/([a-zA-Z0-9\\.\\_]+)(/?\\?|/?$|/(\\d+)/?(?:\\?|$))"), QRegularExpression::CaseInsensitiveOption).match(url);
-		QRegularExpressionMatch telegramMeGroup = QRegularExpression(qsl("^https?://telegram\\.me/joinchat/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
-		QRegularExpressionMatch telegramMeStickers = QRegularExpression(qsl("^https?://telegram\\.me/addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
-		QRegularExpressionMatch telegramMeShareUrl = QRegularExpression(qsl("^https?://telegram\\.me/share/url\\?(.+)$"), QRegularExpression::CaseInsensitiveOption).match(url);
-		if (telegramMeGroup.hasMatch()) {
-			url = qsl("tg://join?invite=") + myUrlEncode(telegramMeGroup.captured(1));
-		} else if (telegramMeStickers.hasMatch()) {
-			url = qsl("tg://addstickers?set=") + myUrlEncode(telegramMeStickers.captured(1));
-		} else if (telegramMeShareUrl.hasMatch()) {
-			url = qsl("tg://msg_url?") + telegramMeShareUrl.captured(1);
-		} else if (telegramMeUser.hasMatch()) {
-			QString params = url.mid(telegramMeUser.captured(0).size()), postParam;
-			if (QRegularExpression(qsl("^/\\d+/?(?:\\?|$)")).match(telegramMeUser.captured(2)).hasMatch()) {
-				postParam = qsl("&post=") + telegramMeUser.captured(3);
-			}
-			url = qsl("tg://resolve/?domain=") + myUrlEncode(telegramMeUser.captured(1)) + postParam + (params.isEmpty() ? QString() : '&' + params);
-		}
+void UrlClickHandler::doOpen(QString url) {
+	PopupTooltip::Hide();
 
-		if (QRegularExpression(qsl("^tg://[a-zA-Z0-9]+"), QRegularExpression::CaseInsensitiveOption).match(url).hasMatch()) {
-			App::openLocalUrl(url);
-		} else {
-			QDesktopServices::openUrl(url);
+	QRegularExpressionMatch telegramMeUser = QRegularExpression(qsl("^https?://telegram\\.me/([a-zA-Z0-9\\.\\_]+)(/?\\?|/?$|/(\\d+)/?(?:\\?|$))"), QRegularExpression::CaseInsensitiveOption).match(url);
+	QRegularExpressionMatch telegramMeGroup = QRegularExpression(qsl("^https?://telegram\\.me/joinchat/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
+	QRegularExpressionMatch telegramMeStickers = QRegularExpression(qsl("^https?://telegram\\.me/addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
+	QRegularExpressionMatch telegramMeShareUrl = QRegularExpression(qsl("^https?://telegram\\.me/share/url\\?(.+)$"), QRegularExpression::CaseInsensitiveOption).match(url);
+	if (telegramMeGroup.hasMatch()) {
+		url = qsl("tg://join?invite=") + myUrlEncode(telegramMeGroup.captured(1));
+	} else if (telegramMeStickers.hasMatch()) {
+		url = qsl("tg://addstickers?set=") + myUrlEncode(telegramMeStickers.captured(1));
+	} else if (telegramMeShareUrl.hasMatch()) {
+		url = qsl("tg://msg_url?") + telegramMeShareUrl.captured(1);
+	} else if (telegramMeUser.hasMatch()) {
+		QString params = url.mid(telegramMeUser.captured(0).size()), postParam;
+		if (QRegularExpression(qsl("^/\\d+/?(?:\\?|$)")).match(telegramMeUser.captured(2)).hasMatch()) {
+			postParam = qsl("&post=") + telegramMeUser.captured(3);
 		}
+		url = qsl("tg://resolve/?domain=") + myUrlEncode(telegramMeUser.captured(1)) + postParam + (params.isEmpty() ? QString() : '&' + params);
+	}
+
+	if (QRegularExpression(qsl("^tg://[a-zA-Z0-9]+"), QRegularExpression::CaseInsensitiveOption).match(url).hasMatch()) {
+		App::openLocalUrl(url);
+	} else {
+		QDesktopServices::openUrl(url);
 	}
 }
 
-void EmailLink::onClick(Qt::MouseButton button) const {
-	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		PopupTooltip::Hide();
-		QUrl url(qstr("mailto:") + _email);
-		if (!QDesktopServices::openUrl(url)) {
-			psOpenFile(url.toString(QUrl::FullyEncoded), true);
-		}
+QString EmailClickHandler::copyToClipboardContextItem() const {
+	return lang(lng_context_copy_email);
+}
+
+void EmailClickHandler::doOpen(QString email) {
+	PopupTooltip::Hide();
+
+	QUrl url(qstr("mailto:") + email);
+	if (!QDesktopServices::openUrl(url)) {
+		psOpenFile(url.toString(QUrl::FullyEncoded), true);
 	}
 }
 
-void CustomTextLink::onClick(Qt::MouseButton button) const {
-	Ui::showLayer(new ConfirmLinkBox(text()));
+void HiddenUrlClickHandler::onClick(Qt::MouseButton button) const {
+	Ui::showLayer(new ConfirmLinkBox(url()));
 }
 
-void LocationLink::onClick(Qt::MouseButton button) const {
+QString LocationClickHandler::copyToClipboardContextItem() const {
+	return lang(lng_context_copy_link);
+}
+
+void LocationClickHandler::onClick(Qt::MouseButton button) const {
 	if (!psLaunchMaps(_coords)) {
 		QDesktopServices::openUrl(_text);
 	}
 }
 
-void LocationLink::setup() {
+void LocationClickHandler::setup() {
 	QString latlon(qsl("%1,%2").arg(_coords.lat).arg(_coords.lon));
 	_text = qsl("https://maps.google.com/maps?q=") + latlon + qsl("&ll=") + latlon + qsl("&z=16");
 }
 
-void MentionLink::onClick(Qt::MouseButton button) const {
+QString MentionClickHandler::copyToClipboardContextItem() const {
+	return lang(lng_context_copy_mention);
+}
+
+void MentionClickHandler::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
 		App::openPeerByName(_tag.mid(1), ShowAtProfileMsgId);
 	}
 }
 
-void HashtagLink::onClick(Qt::MouseButton button) const {
+QString HashtagClickHandler::copyToClipboardContextItem() const {
+	return lang(lng_context_copy_hashtag);
+}
+
+void HashtagClickHandler::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		App::searchByHashtag(_tag, App::mousedItem() ? App::mousedItem()->history()->peer : 0);
+		App::searchByHashtag(_tag, Ui::getPeerForMouseAction());
 	}
 }
 
-void BotCommandLink::onClick(Qt::MouseButton button) const {
+void BotCommandClickHandler::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-//		App::insertBotCommand(_cmd);
-		App::sendBotCommand(_cmd);
+		if (PeerData *peer = Ui::getPeerForMouseAction()) {
+			Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
+			App::sendBotCommand(peer, _cmd);
+		} else {
+			App::insertBotCommand(_cmd);
+		}
 	}
 }
 
@@ -1291,18 +1332,19 @@ public:
 		draw(left, top, w, align, yFrom, yTo);
 	}
 
-	const TextLinkPtr &link(int32 x, int32 y, int32 w, style::align align) {
+	const ClickHandlerPtr &link(int32 x, int32 y, int32 w, style::align align) {
+		static const ClickHandlerPtr *zero = new ClickHandlerPtr(); // won't be deleted
 		_lnkX = x;
 		_lnkY = y;
-		_lnkResult = &_zeroLnk;
+		_lnkResult = zero;
 		if (!_t->isNull() && _lnkX >= 0 && _lnkX < w && _lnkY >= 0) {
 			draw(0, 0, w, align, _lnkY, _lnkY + 1);
 		}
 		return *_lnkResult;
 	}
 
-	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, int32 w, style::align align, bool breakEverywhere) {
-		lnk = TextLinkPtr();
+	void getState(ClickHandlerPtr &lnk, bool &inText, int32 x, int32 y, int32 w, style::align align, bool breakEverywhere) {
+		lnk.clear();
 		inText = false;
 
 		if (!_t->isNull() && x >= 0 && x < w && y >= 0) {
@@ -1335,11 +1377,8 @@ public:
 			return block->color()->p;
 		}
 		if (block->lnkIndex()) {
-			const TextLinkPtr &l(_t->_links.at(block->lnkIndex() - 1));
-			if (l == _overLnk) {
-				if (l == _downLnk) {
-					return _textStyle->linkFgDown->p;
-				}
+			if (ClickHandler::showAsPressed(_t->_links.at(block->lnkIndex() - 1))) {
+				return _textStyle->linkFgDown->p;
 			}
 			return _textStyle->linkFg->p;
 		}
@@ -1900,15 +1939,14 @@ public:
 			newFont = applyFlags(flags, _t->_font);
 		}
 		if (block->lnkIndex()) {
-			const TextLinkPtr &l(_t->_links.at(block->lnkIndex() - 1));
-			if (l == _overLnk) {
-				if (l == _downLnk || !_downLnk) {
-					if (_t->_font != _textStyle->linkFlagsOver) newFont = _textStyle->linkFlagsOver;
-				} else {
-					if (_t->_font != _textStyle->linkFlags) newFont = _textStyle->linkFlags;
+			if (ClickHandler::showAsActive(_t->_links.at(block->lnkIndex() - 1))) {
+				if (_t->_font != _textStyle->linkFlagsOver) {
+					newFont = _textStyle->linkFlagsOver;
 				}
 			} else {
-				if (_t->_font != _textStyle->linkFlags) newFont = _textStyle->linkFlags;
+				if (_t->_font != _textStyle->linkFlags) {
+					newFont = _textStyle->linkFlags;
+				}
 			}
 		}
 		if (newFont != _f) {
@@ -2502,7 +2540,7 @@ private:
 	// link and symbol resolve
 	QFixed _lnkX;
 	int32 _lnkY;
-	const TextLinkPtr *_lnkResult;
+	const ClickHandlerPtr *_lnkResult;
 	bool *_inTextFlag;
 	uint16 *_getSymbol;
 	bool *_getSymbolAfter, *_getSymbolUpon;
@@ -2784,7 +2822,7 @@ void Text::setRichText(style::font font, const QString &text, TextParseOptions o
 	setText(font, parsed, options);
 }
 
-void Text::setLink(uint16 lnkIndex, const TextLinkPtr &lnk) {
+void Text::setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk) {
 	if (!lnkIndex || lnkIndex > _links.size()) return;
 	_links[lnkIndex - 1] = lnk;
 }
@@ -3048,12 +3086,12 @@ void Text::drawElided(QPainter &painter, int32 left, int32 top, int32 w, int32 l
 	p.drawElided(left, top, w, align, lines, yFrom, yTo, removeFromEnd, breakEverywhere);
 }
 
-const TextLinkPtr &Text::link(int32 x, int32 y, int32 width, style::align align) const {
+const ClickHandlerPtr &Text::link(int32 x, int32 y, int32 width, style::align align) const {
 	TextPainter p(0, this);
 	return p.link(x, y, width, align);
 }
 
-void Text::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, int32 width, style::align align, bool breakEverywhere) const {
+void Text::getState(ClickHandlerPtr &lnk, bool &inText, int32 x, int32 y, int32 width, style::align align, bool breakEverywhere) const {
 	TextPainter p(0, this);
 	p.getState(lnk, inText, x, y, width, align, breakEverywhere);
 }
@@ -3102,7 +3140,7 @@ uint32 Text::adjustSelection(uint16 from, uint16 to, TextSelectType selectType) 
 }
 
 QString Text::original(uint16 selectedFrom, uint16 selectedTo, ExpandLinksMode mode) const {
-	QString result;
+	QString result, emptyurl;
 	result.reserve(_text.size());
 
 	int32 lnkFrom = 0, lnkIndex = 0;
@@ -3111,14 +3149,14 @@ QString Text::original(uint16 selectedFrom, uint16 selectedTo, ExpandLinksMode m
 		int32 blockFrom = (i == e) ? _text.size() : (*i)->from();
 		if (blockLnkIndex != lnkIndex) {
 			if (lnkIndex) { // write link
-				const TextLinkPtr &lnk(_links.at(lnkIndex - 1));
-				const QString &url(lnk ? lnk->text() : QString());
+				const ClickHandlerPtr &lnk(_links.at(lnkIndex - 1));
+				const QString &url = (mode == ExpandLinksNone || !lnk) ? emptyurl : lnk->text();
 
 				int32 rangeFrom = qMax(int32(selectedFrom), lnkFrom), rangeTo = qMin(blockFrom, int32(selectedTo));
 
 				if (rangeTo > rangeFrom) {
 					QStringRef r = _text.midRef(rangeFrom, rangeTo - rangeFrom);
-					if (url.isEmpty() || mode == ExpandLinksNone || lnkFrom != rangeFrom || blockFrom != rangeTo) {
+					if (url.isEmpty() || lnkFrom != rangeFrom || blockFrom != rangeTo) {
 						result += r;
 					} else {
 						QUrl u(url);
@@ -3155,6 +3193,7 @@ QString Text::original(uint16 selectedFrom, uint16 selectedTo, ExpandLinksMode m
 
 EntitiesInText Text::originalEntities() const {
 	EntitiesInText result;
+	QString emptyurl;
 
 	int32 originalLength = 0, lnkStart = 0, italicStart = 0, boldStart = 0, codeStart = 0, preStart = 0;
 	int32 lnkFrom = 0, lnkIndex = 0, flags = 0;
@@ -3187,8 +3226,8 @@ EntitiesInText Text::originalEntities() const {
 		}
 		if (blockLnkIndex != lnkIndex) {
 			if (lnkIndex) { // write link
-				const TextLinkPtr &lnk(_links.at(lnkIndex - 1));
-				const QString &url(lnk ? lnk->text() : QString());
+				const ClickHandlerPtr &lnk(_links.at(lnkIndex - 1));
+				const QString &url(lnk ? lnk->text() : emptyurl);
 
 				int32 rangeFrom = lnkFrom, rangeTo = blockFrom;
 				if (rangeTo > rangeFrom) {

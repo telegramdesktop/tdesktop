@@ -215,7 +215,9 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 
 		_nameText.setText(st::setNameFont, _nameCache, _textNameOptions);
 		PhotoData *selfPhoto = (self()->photoId && self()->photoId != UnknownPeerPhotoId) ? App::photo(self()->photoId) : 0;
-		if (selfPhoto && selfPhoto->date) _photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
+		if (selfPhoto && selfPhoto->date) {
+			_photoLink.reset(new PhotoOpenClickHandler(selfPhoto, self()));
+		}
 		App::api()->requestFullPeer(self());
 		onReloadPassword();
 
@@ -354,13 +356,13 @@ void SettingsInner::peerUpdated(PeerData *data) {
 		if (self()->photoId && self()->photoId != UnknownPeerPhotoId) {
 			PhotoData *selfPhoto = App::photo(self()->photoId);
 			if (selfPhoto->date) {
-				_photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
+				_photoLink.reset(new PhotoOpenClickHandler(selfPhoto, self()));
 			} else {
-				_photoLink = TextLinkPtr();
+				_photoLink.clear();
 				App::api()->requestFullPeer(self());
 			}
 		} else {
-			_photoLink = TextLinkPtr();
+			_photoLink.clear();
 		}
 
 		if (_nameCache != self()->name) {
@@ -940,9 +942,9 @@ void SettingsInner::onFullPeerUpdated(PeerData *peer) {
 
 	PhotoData *selfPhoto = (self()->photoId && self()->photoId != UnknownPeerPhotoId) ? App::photo(self()->photoId) : 0;
 	if (selfPhoto && selfPhoto->date) {
-		_photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
+		_photoLink.reset(new PhotoOpenClickHandler(selfPhoto, self()));
 	} else {
-		_photoLink = TextLinkPtr();
+		_photoLink.clear();
 	}
 }
 

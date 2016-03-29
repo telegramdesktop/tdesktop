@@ -2946,6 +2946,23 @@ void _serialize_updateChannelPinnedMessage(MTPStringLogger &to, int32 stage, int
 	}
 }
 
+void _serialize_updateBotCallbackQuery(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ updateBotCallbackQuery");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  query_id: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  user_id: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 2: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 3: to.add("  msg_id: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 4: to.add("  text: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
 void _serialize_updates_state(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
@@ -5339,6 +5356,19 @@ void _serialize_auth_sentCodeTypeFlashCall(MTPStringLogger &to, int32 stage, int
 	}
 }
 
+void _serialize_messages_botCallbackAnswer(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ messages_botCallbackAnswer");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  message: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
 void _serialize_req_pq(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
@@ -5883,6 +5913,20 @@ void _serialize_messages_setInlineBotResults(MTPStringLogger &to, int32 stage, i
 	case 4: to.add("  results: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 5: to.add("  cache_time: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	case 6: to.add("  next_offset: "); ++stages.back(); if (flag & MTPmessages_setInlineBotResults::Flag::f_next_offset) { types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
+void _serialize_messages_setBotCallbackAnswer(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ messages_setBotCallbackAnswer");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  query_id: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  message: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -7526,6 +7570,21 @@ void _serialize_messages_getInlineBotResults(MTPStringLogger &to, int32 stage, i
 	}
 }
 
+void _serialize_messages_getBotCallbackAnswer(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ messages_getBotCallbackAnswer");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  msg_id: "); ++stages.back(); types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 2: to.add("  text: "); ++stages.back(); types.push_back(mtpc_string+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
 void _serialize_updates_getState(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	to.add("{ updates_getState }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
 }
@@ -8034,6 +8093,7 @@ namespace {
 		_serializers.insert(mtpc_updateBotInlineSend, _serialize_updateBotInlineSend);
 		_serializers.insert(mtpc_updateEditChannelMessage, _serialize_updateEditChannelMessage);
 		_serializers.insert(mtpc_updateChannelPinnedMessage, _serialize_updateChannelPinnedMessage);
+		_serializers.insert(mtpc_updateBotCallbackQuery, _serialize_updateBotCallbackQuery);
 		_serializers.insert(mtpc_updates_state, _serialize_updates_state);
 		_serializers.insert(mtpc_updates_differenceEmpty, _serialize_updates_differenceEmpty);
 		_serializers.insert(mtpc_updates_difference, _serialize_updates_difference);
@@ -8223,6 +8283,7 @@ namespace {
 		_serializers.insert(mtpc_auth_sentCodeTypeSms, _serialize_auth_sentCodeTypeSms);
 		_serializers.insert(mtpc_auth_sentCodeTypeCall, _serialize_auth_sentCodeTypeCall);
 		_serializers.insert(mtpc_auth_sentCodeTypeFlashCall, _serialize_auth_sentCodeTypeFlashCall);
+		_serializers.insert(mtpc_messages_botCallbackAnswer, _serialize_messages_botCallbackAnswer);
 
 		_serializers.insert(mtpc_req_pq, _serialize_req_pq);
 		_serializers.insert(mtpc_req_DH_params, _serialize_req_DH_params);
@@ -8265,6 +8326,7 @@ namespace {
 		_serializers.insert(mtpc_messages_reorderStickerSets, _serialize_messages_reorderStickerSets);
 		_serializers.insert(mtpc_messages_saveGif, _serialize_messages_saveGif);
 		_serializers.insert(mtpc_messages_setInlineBotResults, _serialize_messages_setInlineBotResults);
+		_serializers.insert(mtpc_messages_setBotCallbackAnswer, _serialize_messages_setBotCallbackAnswer);
 		_serializers.insert(mtpc_upload_saveFilePart, _serialize_upload_saveFilePart);
 		_serializers.insert(mtpc_upload_saveBigFilePart, _serialize_upload_saveBigFilePart);
 		_serializers.insert(mtpc_help_saveAppLog, _serialize_help_saveAppLog);
@@ -8381,6 +8443,7 @@ namespace {
 		_serializers.insert(mtpc_messages_searchGifs, _serialize_messages_searchGifs);
 		_serializers.insert(mtpc_messages_getSavedGifs, _serialize_messages_getSavedGifs);
 		_serializers.insert(mtpc_messages_getInlineBotResults, _serialize_messages_getInlineBotResults);
+		_serializers.insert(mtpc_messages_getBotCallbackAnswer, _serialize_messages_getBotCallbackAnswer);
 		_serializers.insert(mtpc_updates_getState, _serialize_updates_getState);
 		_serializers.insert(mtpc_updates_getDifference, _serialize_updates_getDifference);
 		_serializers.insert(mtpc_updates_getChannelDifference, _serialize_updates_getChannelDifference);

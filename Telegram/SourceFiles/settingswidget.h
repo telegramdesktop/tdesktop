@@ -206,7 +206,7 @@ private:
 	// profile
 	Text _nameText;
 	QString _nameCache;
-	TextLinkPtr _photoLink;
+	ClickHandlerPtr _photoLink;
 	FlatButton _uploadPhoto;
 	LinkButton _cancelPhoto;
 	bool _nameOver, _photoOver;

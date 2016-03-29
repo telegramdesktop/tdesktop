@@ -22,7 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "dropdown.h"
 
-class MediaView : public TWidget, public RPCSender {
+class MediaView : public TWidget, public RPCSender, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
@@ -30,7 +30,7 @@ public:
 	MediaView();
 
 	void paintEvent(QPaintEvent *e);
-	
+
 	void keyPressEvent(QKeyEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void mouseMoveEvent(QMouseEvent *e);
@@ -72,8 +72,13 @@ public:
 	void onDocClick();
 
 	void clipCallback(ClipReaderNotification notification);
+	PeerData *ui_getPeerForMouseAction();
 
 	~MediaView();
+
+	// ClickHandlerHost interface
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
 public slots:
 
@@ -161,7 +166,7 @@ private:
 	History *_migrated, *_history; // if conversation photos or files overview
 	PeerData *_peer;
 	UserData *_user; // if user profile photos overview
-	
+
 	PeerData *_from;
 	Text _fromName;
 

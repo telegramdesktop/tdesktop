@@ -22,7 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "style.h"
 
-class FlatLabel : public TWidget {
+class FlatLabel : public TWidget, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
@@ -42,7 +42,11 @@ public:
 
 	void resizeToWidth(int32 width);
 
-	void setLink(uint16 lnkIndex, const TextLinkPtr &lnk);
+	void setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk);
+
+	// ClickHandlerHost interface
+	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
+	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
 
 private:
 
@@ -54,6 +58,5 @@ private:
 	float64 _opacity;
 
 	QPoint _lastMousePos;
-	TextLinkPtr _myLink;
 
 };

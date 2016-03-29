@@ -213,22 +213,40 @@ inline const QString &emptyUsername() {
 	return empty;
 }
 
+class PeerClickHandler : public LeftButtonClickHandler {
+public:
+	PeerClickHandler(PeerData *peer) : _peer(peer) {
+	}
+	PeerData *peer() const {
+		return _peer;
+	}
+
+private:
+	PeerData *_peer;
+
+};
+
+class PeerOpenClickHandler : public PeerClickHandler {
+public:
+	using PeerClickHandler::PeerClickHandler;
+protected:
+	void onClickImpl() const override;
+};
+
 class UserData;
 class ChatData;
 class ChannelData;
+
 class PeerData {
 protected:
-
 	PeerData(const PeerId &id);
 	PeerData(const PeerData &other) = delete;
 	PeerData &operator=(const PeerData &other) = delete;
 
 public:
-
 	virtual ~PeerData() {
 		if (notify != UnknownNotifySettings && notify != EmptyNotifySettings) {
-			delete notify;
-			notify = UnknownNotifySettings;
+			deleteAndMark(notify);
 		}
 	}
 
@@ -269,8 +287,6 @@ public:
 	int32 bareId() const {
 		return int32(uint32(id & 0xFFFFFFFFULL));
 	}
-
-	TextLinkPtr lnk;
 
 	QString name;
 	Text nameText;
@@ -315,28 +331,23 @@ public:
 		return QString();
 	}
 
-protected:
+	const ClickHandlerPtr &openLink() {
+		if (!_openLink) {
+			_openLink.reset(new PeerOpenClickHandler(this));
+		}
+		return _openLink;
+	}
 
+protected:
 	ImagePtr _userpic;
 	ImagePtr currentUserpic() const;
+
+private:
+	ClickHandlerPtr _openLink;
+
 };
 
 static const uint64 UserNoAccess = 0xFFFFFFFFFFFFFFFFULL;
-
-class PeerLink : public ITextLink {
-	TEXT_LINK_CLASS(PeerLink)
-
-public:
-	PeerLink(PeerData *peer) : _peer(peer) {
-	}
-	void onClick(Qt::MouseButton button) const;
-	PeerData *peer() const {
-		return _peer;
-	}
-
-private:
-	PeerData *_peer;
-};
 
 class BotCommand {
 public:
@@ -885,13 +896,10 @@ private:
 
 };
 
-class PhotoLink : public ITextLink {
-	TEXT_LINK_CLASS(PhotoLink)
-
+class PhotoClickHandler : public LeftButtonClickHandler {
 public:
-	PhotoLink(PhotoData *photo, PeerData *peer = 0) : _photo(photo), _peer(peer) {
+	PhotoClickHandler(PhotoData *photo, PeerData *peer = 0) : _photo(photo), _peer(peer) {
 	}
-	void onClick(Qt::MouseButton button) const;
 	PhotoData *photo() const {
 		return _photo;
 	}
@@ -905,24 +913,25 @@ private:
 
 };
 
-class PhotoSaveLink : public PhotoLink {
-	TEXT_LINK_CLASS(PhotoSaveLink)
-
+class PhotoOpenClickHandler : public PhotoClickHandler {
 public:
-	PhotoSaveLink(PhotoData *photo, PeerData *peer = 0) : PhotoLink(photo, peer) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
+	using PhotoClickHandler::PhotoClickHandler;
+protected:
+	void onClickImpl() const override;
 };
 
-class PhotoCancelLink : public PhotoLink {
-	TEXT_LINK_CLASS(PhotoCancelLink)
-
+class PhotoSaveClickHandler : public PhotoClickHandler {
 public:
-	PhotoCancelLink(PhotoData *photo, PeerData *peer = 0) : PhotoLink(photo, peer) {
-	}
-	void onClick(Qt::MouseButton button) const;
+	using PhotoClickHandler::PhotoClickHandler;
+protected:
+	void onClickImpl() const override;
+};
 
+class PhotoCancelClickHandler : public PhotoClickHandler {
+public:
+	using PhotoClickHandler::PhotoClickHandler;
+protected:
+	void onClickImpl() const override;
 };
 
 enum FileStatus {
@@ -1160,11 +1169,9 @@ inline bool operator!=(const AudioMsgId &a, const AudioMsgId &b) {
 	return !(a == b);
 }
 
-class DocumentLink : public ITextLink {
-	TEXT_LINK_CLASS(DocumentLink)
-
+class DocumentClickHandler : public LeftButtonClickHandler {
 public:
-	DocumentLink(DocumentData *document) : _document(document) {
+	DocumentClickHandler(DocumentData *document) : _document(document) {
 	}
 	DocumentData *document() const {
 		return _document;
@@ -1175,56 +1182,34 @@ private:
 
 };
 
-class DocumentSaveLink : public DocumentLink {
-	TEXT_LINK_CLASS(DocumentSaveLink)
-
+class DocumentSaveClickHandler : public DocumentClickHandler {
 public:
-	DocumentSaveLink(DocumentData *document) : DocumentLink(document) {
-	}
+	using DocumentClickHandler::DocumentClickHandler;
 	static void doSave(DocumentData *document, bool forceSavingAs = false);
-	void onClick(Qt::MouseButton button) const;
-
+protected:
+	void onClickImpl() const override;
 };
 
-class DocumentOpenLink : public DocumentLink {
-	TEXT_LINK_CLASS(DocumentOpenLink)
-
+class DocumentOpenClickHandler : public DocumentClickHandler {
 public:
-	DocumentOpenLink(DocumentData *document) : DocumentLink(document) {
-	}
+	using DocumentClickHandler::DocumentClickHandler;
 	static void doOpen(DocumentData *document, ActionOnLoad action = ActionOnLoadOpen);
-	void onClick(Qt::MouseButton button) const;
-
+protected:
+	void onClickImpl() const override;
 };
 
-class VoiceSaveLink : public DocumentOpenLink {
-	TEXT_LINK_CLASS(VoiceSaveLink)
-
+class GifOpenClickHandler : public DocumentOpenClickHandler {
 public:
-	VoiceSaveLink(DocumentData *document) : DocumentOpenLink(document) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
+	using DocumentOpenClickHandler::DocumentOpenClickHandler;
+protected:
+	void onClickImpl() const override;
 };
 
-class GifOpenLink : public DocumentOpenLink {
-	TEXT_LINK_CLASS(GifOpenLink)
-
+class DocumentCancelClickHandler : public DocumentClickHandler {
 public:
-	GifOpenLink(DocumentData *document) : DocumentOpenLink(document) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
-};
-
-class DocumentCancelLink : public DocumentLink {
-	TEXT_LINK_CLASS(DocumentCancelLink)
-
-public:
-	DocumentCancelLink(DocumentData *document) : DocumentLink(document) {
-	}
-	void onClick(Qt::MouseButton button) const;
-
+	using DocumentClickHandler::DocumentClickHandler;
+protected:
+	void onClickImpl() const override;
 };
 
 enum WebPageType {
