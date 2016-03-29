@@ -437,6 +437,10 @@ namespace App {
 
 					bool showPhone = !isServiceUser(data->id) && !d.is_self() && !d.is_contact() && !d.is_mutual_contact();
 					bool showPhoneChanged = !isServiceUser(data->id) && !d.is_self() && ((showPhone && data->contact) || (!showPhone && !data->contact));
+					if (minimal) {
+						showPhoneChanged = false;
+						showPhone = !isServiceUser(data->id) && (data->id != peerFromUser(MTP::authedId())) && !data->contact;
+					}
 
 					// see also Local::readPeer
 
