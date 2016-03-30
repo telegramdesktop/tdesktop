@@ -1483,6 +1483,7 @@ void HistoryInner::updateSize() {
 }
 
 void HistoryInner::enterEvent(QEvent *e) {
+	dragActionUpdate(QCursor::pos());
 	return QWidget::enterEvent(e);
 }
 
@@ -1685,10 +1686,11 @@ void HistoryInner::onUpdateSelected() {
 		}
 	} else if (item) {
 		item->getState(lnk, cursorState, m.x(), m.y());
+		lnkhost = item;
 		if (!lnk && m.x() >= st::msgMargin.left() && m.x() < st::msgMargin.left() + st::msgPhotoSize) {
 			if (HistoryMessage *msg = item->toHistoryMessage()) {
 				if (msg->hasFromPhoto()) {
-					enumerateUserpics([&lnk, &lnkhost, msg, &point](HistoryMessage *message, int userpicTop) -> bool {
+					enumerateUserpics([&lnk, &lnkhost, &point](HistoryMessage *message, int userpicTop) -> bool {
 						// stop enumeration if the userpic is above our point
 						if (userpicTop + st::msgPhotoSize <= point.y()) {
 							return false;
@@ -1697,7 +1699,7 @@ void HistoryInner::onUpdateSelected() {
 						// stop enumeration if we've found a userpic under the cursor
 						if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
 							lnk = message->from()->openLink();
-							lnkhost = msg;
+							lnkhost = message;
 							return false;
 						}
 						return true;
@@ -2204,15 +2206,24 @@ void BotKeyboard::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
+void BotKeyboard::enterEvent(QEvent *e) {
+	_lastMousePos = QCursor::pos();
+	updateSelected();
+}
+
 void BotKeyboard::leaveEvent(QEvent *e) {
 	_lastMousePos = QPoint(-1, -1);
 	updateSelected();
 }
 
 void BotKeyboard::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
+	if (!_impl) return;
+	_impl->clickHandlerActiveChanged(p, active);
 }
 
 void BotKeyboard::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
+	if (!_impl) return;
+	_impl->clickHandlerPressedChanged(p, pressed);
 }
 
 bool BotKeyboard::updateMarkup(HistoryItem *to) {

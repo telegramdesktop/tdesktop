@@ -83,6 +83,11 @@ void FlatLabel::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
+void FlatLabel::enterEvent(QEvent *e) {
+	_lastMousePos = QCursor::pos();
+	updateHover();
+}
+
 void FlatLabel::leaveEvent(QEvent *e) {
 	ClickHandler::clearActive(this);
 }

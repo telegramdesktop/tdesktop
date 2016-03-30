@@ -2012,6 +2012,7 @@ namespace App {
 			::cornersMask[i]->setDevicePixelRatio(cRetinaFactor());
 		}
 		prepareCorners(BlackCorners, st::msgRadius, st::black);
+		prepareCorners(WhiteCorners, st::msgRadius, st::white);
 		prepareCorners(ServiceCorners, st::msgRadius, st::msgServiceBg);
 		prepareCorners(ServiceSelectedCorners, st::msgRadius, st::msgServiceSelectBg);
 		prepareCorners(SelectedOverlayCorners, st::msgRadius, st::msgSelectOverlay);

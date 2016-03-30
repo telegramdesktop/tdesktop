@@ -2830,34 +2830,36 @@ void ReplyKeyboard::getState(ClickHandlerPtr &lnk, int x, int y) const {
 }
 
 void ReplyKeyboard::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
-	/*if (newSel != _sel) {
-		if (newSel < 0) {
-			setCursor(style::cur_default);
-		} else if (_sel < 0) {
-			setCursor(style::cur_pointer);
-		}
-		bool startanim = false;
-		if (_sel >= 0) {
-			_animations.remove(_sel + 1);
-			if (_animations.find(-_sel - 1) == _animations.end()) {
-				if (_animations.isEmpty()) startanim = true;
-				_animations.insert(-_sel - 1, getms());
+	if (!p) return;
+
+	bool startAnimation = false;
+	for (int i = 0, rows = _rows.size(); i != rows; ++i) {
+		const ButtonRow &row(_rows.at(i));
+		for (int j = 0, cols = row.size(); j != cols; ++j) {
+			if (row.at(j).link == p) {
+				bool startAnimation = _animations.isEmpty();
+
+				int indexForAnimation = i * MatrixRowShift + j + 1;
+				if (!active) {
+					indexForAnimation = -indexForAnimation;
+				}
+
+				_animations.remove(-indexForAnimation);
+				if (!_animations.contains(indexForAnimation)) {
+					_animations.insert(indexForAnimation, getms());
+				}
+
+				if (startAnimation && !_a_selected.animating()) {
+					_a_selected.start();
+				}
+				return;
 			}
 		}
-		_sel = newSel;
-		if (_sel >= 0) {
-			_animations.remove(-_sel - 1);
-			if (_animations.find(_sel + 1) == _animations.end()) {
-				if (_animations.isEmpty()) startanim = true;
-				_animations.insert(_sel + 1, getms());
-			}
-		}
-		if (startanim && !_a_selected.animating()) _a_selected.start();
-	}*/
+	}
 }
 
 void ReplyKeyboard::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
-
+	_st->repaint(_item);
 }
 
 void ReplyKeyboard::step_selected(uint64 ms, bool timer) {
@@ -6451,6 +6453,14 @@ void HistoryMessage::KeyboardStyle::repaint(const HistoryItem *item) const {
 
 void HistoryMessage::KeyboardStyle::paintButtonBg(Painter &p, const QRect &rect, bool down, float64 howMuchOver) const {
 	App::roundRect(p, rect, App::msgServiceBg(), ServiceCorners);
+	if (down) {
+		howMuchOver = 1.;
+	}
+	if (howMuchOver > 0) {
+		p.setOpacity(howMuchOver * 0.1);
+		App::roundRect(p, rect, st::white, WhiteCorners);
+		p.setOpacity(1);
+	}
 }
 
 HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg)
@@ -7055,7 +7065,7 @@ void HistoryMessage::draw(Painter &p, const QRect &r, uint32 selection, uint64 m
 	if (const ReplyKeyboard *keyboard = inlineReplyKeyboard()) {
 		int h = st::msgBotKbButton.margin + keyboard->naturalHeight();
 		height -= h;
-		int top = marginTop() + height;
+		int top = height + st::msgBotKbButton.margin - marginBottom();
 		p.translate(left, top);
 		keyboard->paint(p, r.translated(-left, -top));
 		p.translate(-left, -top);
@@ -7312,7 +7322,7 @@ void HistoryMessage::getState(ClickHandlerPtr &lnk, HistoryCursorState &state, i
 	if (const ReplyKeyboard *keyboard = inlineReplyKeyboard()) {
 		int h = st::msgBotKbButton.margin + keyboard->naturalHeight();
 		height -= h;
-		int top = marginTop() + height;
+		int top = height + st::msgBotKbButton.margin - marginBottom();
 		if (x >= left && x < left + width && y >= top && y < _height - marginBottom()) {
 			return keyboard->getState(lnk, x - left, y - top);
 		}

@@ -33,6 +33,7 @@ public:
 	void mouseMoveEvent(QMouseEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void mouseReleaseEvent(QMouseEvent *e);
+	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
 	void updateLink();
 	void setOpacity(float64 o);

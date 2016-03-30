@@ -1244,7 +1244,7 @@ public:
 	}
 
 private:
-	HistoryMedia *_p;
+	HistoryMedia *_p = nullptr;
 
 };
 
