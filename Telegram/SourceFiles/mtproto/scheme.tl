@@ -388,6 +388,7 @@ updateBotInlineSend#f69e113 user_id:int query:string id:string = Update;
 updateEditChannelMessage#1b3f4df7 message:Message pts:int pts_count:int = Update;
 updateChannelPinnedMessage#98592475 channel_id:int id:int = Update;
 updateBotCallbackQuery#5024c2b0 query_id:long user_id:int peer:Peer msg_id:int text:string = Update;
+updateEditMessage#e40370a3 message:Message pts:int pts_count:int = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -649,8 +650,6 @@ exportedMessageLink#1f486803 link:string = ExportedMessageLink;
 
 messageFwdHeader#c786ddcb flags:# from_id:flags.0?int date:int channel_id:flags.1?int channel_post:flags.2?int = MessageFwdHeader;
 
-channels.messageEditData#67e1255f flags:# caption:flags.0?true = channels.MessageEditData;
-
 auth.codeTypeSms#72a3158c = auth.CodeType;
 auth.codeTypeCall#741cd3e3 = auth.CodeType;
 auth.codeTypeFlashCall#226ccefb = auth.CodeType;
@@ -661,6 +660,8 @@ auth.sentCodeTypeCall#5353e5a7 length:int = auth.SentCodeType;
 auth.sentCodeTypeFlashCall#ab03c6d9 pattern:string = auth.SentCodeType;
 
 messages.botCallbackAnswer#b4868d29 message:string = messages.BotCallbackAnswer;
+
+messages.messageEditData#26b5dde6 flags:# caption:flags.0?true = messages.MessageEditData;
 
 ---functions---
 
@@ -786,6 +787,8 @@ messages.saveGif#327a30cb id:InputDocument unsave:Bool = Bool;
 messages.getInlineBotResults#9324600d bot:InputUser query:string offset:string = messages.BotResults;
 messages.setInlineBotResults#3f23ec12 flags:# gallery:flags.0?true private:flags.1?true query_id:long results:Vector<InputBotInlineResult> cache_time:int next_offset:flags.2?string = Bool;
 messages.sendInlineBotResult#b16e06fe flags:# broadcast:flags.4?true silent:flags.5?true background:flags.6?true peer:InputPeer reply_to_msg_id:flags.0?int random_id:long query_id:long id:string = Updates;
+messages.getMessageEditData#fda68d36 peer:InputPeer id:int = messages.MessageEditData;
+messages.editMessage#d2003257 flags:# no_webpage:flags.1?true peer:InputPeer id:int message:string entities:flags.3?Vector<MessageEntity> reply_markup:flags.2?ReplyMarkup = Updates;
 messages.getBotCallbackAnswer#d3157edf peer:InputPeer msg_id:int text:string = messages.BotCallbackAnswer;
 messages.setBotCallbackAnswer#a13a9254 query_id:long message:string = Bool;
 
@@ -839,6 +842,4 @@ channels.deleteChannel#c0111fe3 channel:InputChannel = Updates;
 channels.toggleInvites#49609307 channel:InputChannel enabled:Bool = Updates;
 channels.exportMessageLink#c846d22d channel:InputChannel id:int = ExportedMessageLink;
 channels.toggleSignatures#1f69b606 channel:InputChannel enabled:Bool = Updates;
-channels.getMessageEditData#27ea3a28 channel:InputChannel id:int = channels.MessageEditData;
-channels.editMessage#dcda80ed flags:# no_webpage:flags.1?true channel:InputChannel id:int message:string entities:flags.3?Vector<MessageEntity> = Updates;
 channels.updatePinnedMessage#a72ded52 flags:# silent:flags.0?true channel:InputChannel id:int = Updates;

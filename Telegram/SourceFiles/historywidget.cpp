@@ -4577,15 +4577,15 @@ void HistoryWidget::saveEditMsg() {
 		return;
 	}
 
-	MTPchannels_EditMessage::Flags sendFlags = 0;
+	MTPmessages_EditMessage::Flags sendFlags = 0;
 	if (webPageId == CancelledWebPageId) {
-		sendFlags |= MTPchannels_EditMessage::Flag::f_no_webpage;
+		sendFlags |= MTPmessages_EditMessage::Flag::f_no_webpage;
 	}
 	MTPVector<MTPMessageEntity> localEntities = linksToMTP(sendingEntities), sentEntities = linksToMTP(sendingEntities, true);
 	if (!sentEntities.c_vector().v.isEmpty()) {
-		sendFlags |= MTPchannels_EditMessage::Flag::f_entities;
+		sendFlags |= MTPmessages_EditMessage::Flag::f_entities;
 	}
-	_saveEditMsgRequestId = MTP::send(MTPchannels_EditMessage(MTP_flags(sendFlags), _history->peer->asChannel()->inputChannel, MTP_int(_editMsgId), MTP_string(sendingText), sentEntities), rpcDone(&HistoryWidget::saveEditMsgDone, _history), rpcFail(&HistoryWidget::saveEditMsgFail, _history));
+	_saveEditMsgRequestId = MTP::send(MTPmessages_EditMessage(MTP_flags(sendFlags), _history->peer->input, MTP_int(_editMsgId), MTP_string(sendingText), sentEntities, MTPnullMarkup), rpcDone(&HistoryWidget::saveEditMsgDone, _history), rpcFail(&HistoryWidget::saveEditMsgFail, _history));
 }
 
 void HistoryWidget::saveEditMsgDone(History *history, const MTPUpdates &updates, mtpRequestId req) {
@@ -7077,7 +7077,7 @@ void HistoryWidget::onReplyToMessage() {
 
 void HistoryWidget::onEditMessage() {
 	HistoryItem *to = App::contextItem();
-	if (!to || !to->history()->peer->isChannel()) return;
+	if (!to) return;
 
 	EditCaptionBox *box = new EditCaptionBox(to);
 	if (box->captionFound()) {

@@ -648,15 +648,15 @@ void EditCaptionBox::onSave(bool ctrlShiftEnter) {
 		return;
 	}
 
-	MTPchannels_EditMessage::Flags flags = 0;
+	MTPmessages_EditMessage::Flags flags = 0;
 	if (_previewCancelled) {
-		flags |= MTPchannels_EditMessage::Flag::f_no_webpage;
+		flags |= MTPmessages_EditMessage::Flag::f_no_webpage;
 	}
 	MTPVector<MTPMessageEntity> sentEntities;
 	if (!sentEntities.c_vector().v.isEmpty()) {
-		flags |= MTPchannels_EditMessage::Flag::f_entities;
+		flags |= MTPmessages_EditMessage::Flag::f_entities;
 	}
-	_saveRequestId = MTP::send(MTPchannels_EditMessage(MTP_flags(flags), item->history()->peer->asChannel()->inputChannel, MTP_int(item->id), MTP_string(_field->getLastText()), sentEntities), rpcDone(&EditCaptionBox::saveDone), rpcFail(&EditCaptionBox::saveFail));
+	_saveRequestId = MTP::send(MTPmessages_EditMessage(MTP_flags(flags), item->history()->peer->input, MTP_int(item->id), MTP_string(_field->getLastText()), sentEntities, MTPnullMarkup), rpcDone(&EditCaptionBox::saveDone), rpcFail(&EditCaptionBox::saveFail));
 }
 
 void EditCaptionBox::saveDone(const MTPUpdates &updates) {

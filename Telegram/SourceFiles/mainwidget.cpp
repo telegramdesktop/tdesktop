@@ -4627,6 +4627,20 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	case mtpc_updateEditMessage: {
+		const MTPDupdateEditMessage &d(update.c_updateEditMessage());
+
+		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
+			return;
+		}
+
+		// update before applying skipped
+		if (d.vmessage.type() == mtpc_message) { // apply message edit
+			App::updateEditedMessage(d.vmessage.c_message());
+		}
+		ptsApplySkippedUpdates();
+	} break;
+
 	case mtpc_updateChannelPinnedMessage: {
 		const MTPDupdateChannelPinnedMessage &d(update.c_updateChannelPinnedMessage());
 
