@@ -2170,6 +2170,16 @@ void BotKeyboard::Style::paintButtonBg(Painter &p, const QRect &rect, bool down,
 	}
 }
 
+void BotKeyboard::Style::paintButtonIcon(Painter &p, const QRect &rect, HistoryMessageReplyMarkup::Button::Type type) const {
+	// they should not appear here
+}
+
+int BotKeyboard::Style::minButtonWidth(HistoryMessageReplyMarkup::Button::Type type) const {
+	int result = 2 * buttonPadding();
+	// they should not appear here
+	return result;
+}
+
 void BotKeyboard::resizeEvent(QResizeEvent *e) {
 	if (!_impl) return;
 
@@ -5157,7 +5167,9 @@ void HistoryWidget::sendBotCallback(PeerData *peer, const QString &cmd, MsgId re
 }
 
 void HistoryWidget::botCallbackDone(const MTPmessages_BotCallbackAnswer &answer) {
-
+	if (answer.type() == mtpc_messages_botCallbackAnswer) {
+		Ui::showLayer(new InformBox(qs(answer.c_messages_botCallbackAnswer().vmessage)));
+	}
 }
 
 bool HistoryWidget::botCallbackFail(const RPCError &error) {

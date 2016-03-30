@@ -166,6 +166,16 @@ void ConfirmBox::resizeEvent(QResizeEvent *e) {
 	_cancel.moveToRight(st::boxButtonPadding.right() + _confirm.width() + st::boxButtonPadding.left(), _confirm.y());
 }
 
+SharePhoneConfirmBox::SharePhoneConfirmBox(PeerData *recipient)
+: ConfirmBox(lang(lng_bot_share_phone), lang(lng_bot_share_phone_confirm))
+, _recipient(recipient) {
+	connect(this, SIGNAL(confirmed()), this, SLOT(onConfirm()));
+}
+
+void SharePhoneConfirmBox::onConfirm() {
+	emit confirmed(_recipient);
+}
+
 ConfirmLinkBox::ConfirmLinkBox(const QString &url) : ConfirmBox(lang(lng_open_this_link) + qsl("\n\n") + url, lang(lng_open_link))
 , _url(url) {
 	connect(this, SIGNAL(confirmed()), this, SLOT(onOpenLink()));

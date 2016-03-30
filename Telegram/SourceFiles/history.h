@@ -1052,94 +1052,7 @@ struct HistoryMessageReply : public BaseComponent<HistoryMessageReply> {
 };
 Q_DECLARE_OPERATORS_FOR_FLAGS(HistoryMessageReply::PaintFlags);
 
-class ReplyMarkupClickHandler : public LeftButtonClickHandler {
-public:
-	ReplyMarkupClickHandler(const FullMsgId &msgId, int row, int col) : _msgId(msgId), _row(row), _col(col) {
-	}
-
-protected:
-	void onClickImpl() const override;
-
-private:
-	FullMsgId _msgId;
-	int _row, _col;
-
-};
-
-class ReplyKeyboard {
-public:
-	class Style {
-	public:
-		Style(const style::botKeyboardButton &st) : _st(&st) {
-		}
-
-		virtual void startPaint(Painter &p) const = 0;
-		virtual style::font textFont() const = 0;
-
-		void paintButton(Painter &p, const QRect &rect, const Text &text, bool pressed, float64 howMuchOver) const;
-
-		int buttonSkip() const {
-			return _st->margin;
-		}
-		int buttonPadding() const {
-			return _st->padding;
-		}
-		int buttonHeight() const {
-			return _st->height;
-		}
-
-		virtual void repaint(const HistoryItem *item) const = 0;
-
-	protected:
-		virtual void paintButtonBg(Painter &p, const QRect &rect, bool pressed, float64 howMuchOver) const = 0;
-
-	private:
-		const style::botKeyboardButton *_st;
-
-	};
-	typedef UniquePointer<Style> StylePtr;
-
-	ReplyKeyboard(const HistoryItem *item, StylePtr &&s);
-	ReplyKeyboard(const ReplyKeyboard &other) = delete;
-	ReplyKeyboard &operator=(const ReplyKeyboard &other) = delete;
-
-	bool isEnoughSpace(int width, const style::botKeyboardButton &st) const;
-	void setStyle(StylePtr &&s);
-	void resize(int width, int height);
-	int naturalHeight() const;
-
-	void paint(Painter &p, const QRect &clip) const;
-	void getState(ClickHandlerPtr &lnk, int x, int y) const;
-
-	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);
-	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed);
-
-	void clearSelection();
-
-private:
-	const HistoryItem *_item;
-	int _width = 0;
-
-	struct Button {
-		Text text = { 1 };
-		QRect rect;
-		int characters = 0;
-		float64 howMuchOver = 0.;
-		bool full = true;
-		ClickHandlerPtr link;
-	};
-	using ButtonRow = QVector<Button>;
-	using ButtonRows = QVector<ButtonRow>;
-	ButtonRows _rows;
-
-	using Animations = QMap<int, uint64>;
-	Animations _animations;
-	Animation _a_selected;
-	void step_selected(uint64 ms, bool timer);
-
-	StylePtr _st;
-};
-
+class ReplyKeyboard;
 struct HistoryMessageReplyMarkup : public BaseComponent<HistoryMessageReplyMarkup> {
 	HistoryMessageReplyMarkup() = default;
 	HistoryMessageReplyMarkup(MTPDreplyKeyboardMarkup::Flags f) : flags(f) {
@@ -1165,6 +1078,130 @@ struct HistoryMessageReplyMarkup : public BaseComponent<HistoryMessageReplyMarku
 	MTPDreplyKeyboardMarkup::Flags flags = 0;
 
 	ReplyKeyboard *inlineKeyboard = nullptr;
+};
+
+class ReplyMarkupClickHandler : public LeftButtonClickHandler {
+public:
+	ReplyMarkupClickHandler(const FullMsgId &msgId, int row, int col) : _msgId(msgId), _row(row), _col(col) {
+	}
+
+	QString tooltip() const override {
+		return _fullDisplayed ? QString() : text();
+	}
+
+	void setFullDisplayed(bool full) {
+		_fullDisplayed = full;
+	}
+
+protected:
+	void onClickImpl() const override;
+
+private:
+	FullMsgId _msgId;
+	int _row, _col;
+	bool _fullDisplayed = true;
+
+	// Finds the corresponding item and button in the items markup struct.
+	// If the item or the button is not found it returns false.
+	// Any of the two output arguments can be nullptr if its value is not needed.
+	bool getItemAndButton(
+		const HistoryItem **outItem,
+		const HistoryMessageReplyMarkup::Button **outButtonPointer) const;
+
+	// Returns the full text of the corresponding button.
+	QString text() const {
+		const HistoryMessageReplyMarkup::Button *button = nullptr;
+		if (getItemAndButton(nullptr, &button)) {
+			return button->text;
+		}
+		return QString();
+	}
+
+};
+
+class ReplyKeyboard {
+private:
+	struct Button;
+
+public:
+	class Style {
+	public:
+		Style(const style::botKeyboardButton &st) : _st(&st) {
+		}
+
+		virtual void startPaint(Painter &p) const = 0;
+		virtual style::font textFont() const = 0;
+
+		int buttonSkip() const {
+			return _st->margin;
+		}
+		int buttonPadding() const {
+			return _st->padding;
+		}
+		int buttonHeight() const {
+			return _st->height;
+		}
+
+		virtual void repaint(const HistoryItem *item) const = 0;
+
+	protected:
+		virtual void paintButtonBg(Painter &p, const QRect &rect, bool pressed, float64 howMuchOver) const = 0;
+		virtual void paintButtonIcon(Painter &p, const QRect &rect, HistoryMessageReplyMarkup::Button::Type type) const = 0;
+		virtual int minButtonWidth(HistoryMessageReplyMarkup::Button::Type type) const = 0;
+
+	private:
+		const style::botKeyboardButton *_st;
+
+		void paintButton(Painter &p, const ReplyKeyboard::Button &button) const;
+		friend class ReplyKeyboard;
+
+	};
+	typedef UniquePointer<Style> StylePtr;
+
+	ReplyKeyboard(const HistoryItem *item, StylePtr &&s);
+	ReplyKeyboard(const ReplyKeyboard &other) = delete;
+	ReplyKeyboard &operator=(const ReplyKeyboard &other) = delete;
+
+	bool isEnoughSpace(int width, const style::botKeyboardButton &st) const;
+	void setStyle(StylePtr &&s);
+	void resize(int width, int height);
+
+	// what width and height will best fit this keyboard
+	int naturalWidth() const;
+	int naturalHeight() const;
+
+	void paint(Painter &p, const QRect &clip) const;
+	void getState(ClickHandlerPtr &lnk, int x, int y) const;
+
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed);
+
+	void clearSelection();
+
+private:
+	const HistoryItem *_item;
+	int _width = 0;
+
+	friend class Style;
+	using ReplyMarkupClickHandlerPtr = QSharedPointer<ReplyMarkupClickHandler>;
+	struct Button {
+		Text text = { 1 };
+		QRect rect;
+		int characters = 0;
+		float64 howMuchOver = 0.;
+		HistoryMessageReplyMarkup::Button::Type type;
+		ReplyMarkupClickHandlerPtr link;
+	};
+	using ButtonRow = QVector<Button>;
+	using ButtonRows = QVector<ButtonRow>;
+	ButtonRows _rows;
+
+	using Animations = QMap<int, uint64>;
+	Animations _animations;
+	Animation _a_selected;
+	void step_selected(uint64 ms, bool timer);
+
+	StylePtr _st;
 };
 
 class HistoryDependentItemCallback : public SharedCallback<void, ChannelData*, MsgId> {
@@ -2879,6 +2916,8 @@ protected:
 
 	protected:
 		void paintButtonBg(Painter &p, const QRect &rect, bool down, float64 howMuchOver) const override;
+		void paintButtonIcon(Painter &p, const QRect &rect, HistoryMessageReplyMarkup::Button::Type type) const override;
+		int minButtonWidth(HistoryMessageReplyMarkup::Button::Type type) const override;
 
 	};
 

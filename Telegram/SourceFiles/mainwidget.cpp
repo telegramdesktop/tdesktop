@@ -1763,6 +1763,10 @@ void MainWidget::onDownloadPathSettings() {
 	Ui::showLayer(box);
 }
 
+void MainWidget::onSharePhoneWithBot(PeerData *recipient) {
+	onShareContact(recipient->id, App::self());
+}
+
 void MainWidget::ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId) {
 	Ui::showPeerHistory(peerId, showAtMsgId);
 }

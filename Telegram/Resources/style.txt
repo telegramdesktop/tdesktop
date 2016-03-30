@@ -1087,6 +1087,12 @@ msgInReplyBarSelColor: #2fa9e2;
 
 msgBotKbDuration: 200;
 msgBotKbFont: semiboldFont;
+msgBotKbOverOpacity: 0.1;
+msgBotKbIconPadding: 2px;
+msgBotKbUrlIcon: sprite(188px, 338px, 10px, 10px);
+msgBotKbCallbackIcon: msgBotKbUrlIcon;
+msgBotKbRequestPhoneIcon: msgBotKbUrlIcon;
+msgBotKbRequestLocationIcon: msgBotKbUrlIcon;
 msgBotKbButton: botKeyboardButton {
 	margin: 5px;
 	padding: 10px;

@@ -522,6 +522,8 @@ public slots:
 
 	void onDownloadPathSettings();
 
+	void onSharePhoneWithBot(PeerData *recipient);
+
 	void ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId);
 	void ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId);
 

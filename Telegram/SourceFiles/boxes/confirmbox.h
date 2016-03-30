@@ -83,6 +83,23 @@ public:
 	}
 };
 
+class SharePhoneConfirmBox : public ConfirmBox {
+	Q_OBJECT
+
+public:
+	SharePhoneConfirmBox(PeerData *recipient);
+
+signals:
+	void confirmed(PeerData *recipient);
+
+private slots:
+	void onConfirm();
+
+private:
+	PeerData *_recipient;
+
+};
+
 class ConfirmLinkBox : public ConfirmBox {
 	Q_OBJECT
 

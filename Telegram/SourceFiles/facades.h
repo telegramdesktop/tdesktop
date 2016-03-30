@@ -38,7 +38,6 @@ namespace App {
 	void showSettings();
 
 	void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
-
 };
 
 namespace Ui {

@@ -68,8 +68,8 @@ namespace App {
 		} break;
 
 		case HistoryMessageReplyMarkup::Button::RequestPhone: {
-			ConfirmBox *box = new ConfirmBox(lang(lng_bot_share_phone), lang(lng_bot_share_phone_confirm));
-			box->connect(box, SIGNAL(confirmed()), App::main(), SLOT(onShareBotLocation()));
+			SharePhoneConfirmBox *box = new SharePhoneConfirmBox(peer);
+			box->connect(box, SIGNAL(confirmed(PeerData*)), App::main(), SLOT(onSharePhoneWithBot(PeerData*)));
 			Ui::showLayer(box);
 		} break;
 		}

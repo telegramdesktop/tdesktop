@@ -2706,16 +2706,34 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 }
 
 void ReplyMarkupClickHandler::onClickImpl() const {
+	const HistoryItem *item = nullptr;
+	const HistoryMessageReplyMarkup::Button *button = nullptr;
+	if (getItemAndButton(&item, &button)) {
+		App::activateBotCommand(item->history()->peer, *button, _msgId.msg);
+	}
+}
+
+// We need to make sure the item still exists, so we get it by id.
+// After that we check if the reply markup is still there and that
+// there are enough button rows and buttons in the row.
+// Note: it is possible that we will point to the different button
+// than the one was used when constructing the handler, but not a big deal.
+bool ReplyMarkupClickHandler::getItemAndButton(
+	const HistoryItem **outItem,
+	const HistoryMessageReplyMarkup::Button **outButton) const {
 	if (HistoryItem *item = App::histItemById(_msgId)) {
 		if (auto *markup = item->Get<HistoryMessageReplyMarkup>()) {
 			if (_row < markup->rows.size()) {
 				const HistoryMessageReplyMarkup::ButtonRow &row(markup->rows.at(_row));
 				if (_col < row.size()) {
-					App::activateBotCommand(item->history()->peer, row.at(_col), _msgId.msg);
+					if (outItem) *outItem = item;
+					if (outButton) *outButton = &row.at(_col);
+					return true;
 				}
 			}
 		}
 	}
+	return false;
 }
 
 ReplyKeyboard::ReplyKeyboard(const HistoryItem *item, StylePtr &&s)
@@ -2731,6 +2749,7 @@ ReplyKeyboard::ReplyKeyboard(const HistoryItem *item, StylePtr &&s)
 			for (int j = 0; j != s; ++j) {
 				Button &button(newRow[j]);
 				QString str = row.at(j).text;
+				button.type = row.at(j).type;
 				button.link.reset(new ReplyMarkupClickHandler(item->fullId(), i, j));
 				button.text.setText(_st->textFont(), textOneLine(str), _textPlainOptions);
 				button.characters = str.isEmpty() ? 1 : str.size();
@@ -2756,12 +2775,14 @@ void ReplyKeyboard::resize(int width, int height) {
 		float64 x = 0, coef = widthForText / widthOfText;
 		for (Button &button : row) {
 			float64 tw = widthForText / float64(s), w = 2 * _st->buttonPadding() + tw;
-			if (w < _st->buttonPadding()) w = _st->buttonPadding();
+			int minw = _st->minButtonWidth(button.type);
+			if (w < minw) w = minw;
 
 			button.rect = QRect(qRound(x), qRound(y), qRound(w), qRound(buttonHeight - _st->buttonSkip()));
+			if (rtl()) button.rect.setX(_width - button.rect.x() - button.rect.width());
 			x += w + _st->buttonSkip();
 
-			button.full = (tw >= button.text.maxWidth());
+			button.link->setFullDisplayed(tw >= button.text.maxWidth());
 		}
 		y += buttonHeight;
 	}
@@ -2789,6 +2810,23 @@ void ReplyKeyboard::setStyle(StylePtr &&st) {
 	_st = std_::move(st);
 }
 
+int ReplyKeyboard::naturalWidth() const {
+	int result = 0;
+
+	auto *markup = _item->Get<HistoryMessageReplyMarkup>();
+	for_const (const ButtonRow &row, _rows) {
+		int rowSize = row.size();
+		int rowWidth = (rowSize - 1) * _st->buttonSkip() + rowSize * 2 * _st->buttonPadding();
+		for_const(const Button &button, row) {
+			rowWidth += qMax(button.text.maxWidth(), 1);
+		}
+		if (rowWidth > result) {
+			result = rowWidth;
+		}
+	}
+	return result;
+}
+
 int ReplyKeyboard::naturalHeight() const {
 	return (_rows.size() - 1) * _st->buttonSkip() + _rows.size() * _st->buttonHeight();
 }
@@ -2804,9 +2842,10 @@ void ReplyKeyboard::paint(Painter &p, const QRect &clip) const {
 			if (rect.y() >= clip.y() + clip.height()) return;
 			if (rect.y() + rect.height() < clip.y()) continue;
 
-			if (rtl()) rect.moveLeft(_width - rect.left() - rect.width());
+			// just ignore the buttons that didn't layout well
+			if (rect.x() + rect.width() > _width) break;
 
-			_st->paintButton(p, rect, button.text, ClickHandler::showAsPressed(button.link), button.howMuchOver);
+			_st->paintButton(p, button);
 		}
 	}
 }
@@ -2815,11 +2854,12 @@ void ReplyKeyboard::getState(ClickHandlerPtr &lnk, int x, int y) const {
 	t_assert(_width > 0);
 
 	lnk.clear();
-	for_const(const ButtonRow &row, _rows) {
-		for_const(const Button &button, row) {
+	for_const (const ButtonRow &row, _rows) {
+		for_const (const Button &button, row) {
 			QRect rect(button.rect);
 
-			if (rtl()) rect.moveLeft(_width - rect.left() - rect.width());
+			// just ignore the buttons that didn't layout well
+			if (rect.x() + rect.width() > _width) break;
 
 			if (rect.contains(x, y)) {
 				lnk = button.link;
@@ -2889,8 +2929,12 @@ void ReplyKeyboard::clearSelection() {
 	_a_selected.stop();
 }
 
-void ReplyKeyboard::Style::paintButton(Painter &p, const QRect &rect, const Text &text, bool pressed, float64 howMuchOver) const {
-	paintButtonBg(p, rect, pressed, howMuchOver);
+void ReplyKeyboard::Style::paintButton(Painter &p, const ReplyKeyboard::Button &button) const {
+	const QRect &rect = button.rect;
+	bool pressed = ClickHandler::showAsPressed(button.link);
+
+	paintButtonBg(p, rect, pressed, button.howMuchOver);
+	paintButtonIcon(p, rect, button.type);
 
 	int tx = rect.x(), tw = rect.width();
 	if (tw > st::botKbFont->elidew + _st->padding * 2) {
@@ -2901,7 +2945,7 @@ void ReplyKeyboard::Style::paintButton(Painter &p, const QRect &rect, const Text
 		tw = st::botKbFont->elidew;
 	}
 	int textTop = rect.y() + (pressed ? _st->downTextTop : _st->textTop);
-	text.drawElided(p, tx, textTop + ((rect.height() - _st->height) / 2), tw, 1, style::al_top);
+	button.text.drawElided(p, tx, textTop + ((rect.height() - _st->height) / 2), tw, 1, style::al_top);
 }
 
 void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
@@ -6457,10 +6501,38 @@ void HistoryMessage::KeyboardStyle::paintButtonBg(Painter &p, const QRect &rect,
 		howMuchOver = 1.;
 	}
 	if (howMuchOver > 0) {
-		p.setOpacity(howMuchOver * 0.1);
+		float64 o = p.opacity();
+		p.setOpacity(o * (howMuchOver * st::msgBotKbOverOpacity));
 		App::roundRect(p, rect, st::white, WhiteCorners);
-		p.setOpacity(1);
+		p.setOpacity(o);
 	}
+}
+
+void HistoryMessage::KeyboardStyle::paintButtonIcon(Painter &p, const QRect &rect, HistoryMessageReplyMarkup::Button::Type type) const {
+	style::sprite sprite;
+	switch (type) {
+	case HistoryMessageReplyMarkup::Button::Url: sprite = st::msgBotKbUrlIcon; break;
+	case HistoryMessageReplyMarkup::Button::Callback: sprite = st::msgBotKbCallbackIcon; break;
+	case HistoryMessageReplyMarkup::Button::RequestPhone: sprite = st::msgBotKbRequestPhoneIcon; break;
+	case HistoryMessageReplyMarkup::Button::RequestLocation: sprite = st::msgBotKbRequestLocationIcon; break;
+	}
+	if (!sprite.isEmpty()) {
+		p.drawSprite(rect.x() + rect.width() - sprite.pxWidth() - st::msgBotKbIconPadding, rect.y() + st::msgBotKbIconPadding, sprite);
+	}
+}
+
+int HistoryMessage::KeyboardStyle::minButtonWidth(HistoryMessageReplyMarkup::Button::Type type) const {
+	int result = 2 * buttonPadding(), iconWidth = 0;
+	switch (type) {
+	case HistoryMessageReplyMarkup::Button::Url: iconWidth = st::msgBotKbUrlIcon.pxWidth(); break;
+	case HistoryMessageReplyMarkup::Button::Callback: iconWidth = st::msgBotKbCallbackIcon.pxWidth(); break;
+	case HistoryMessageReplyMarkup::Button::RequestPhone: iconWidth = st::msgBotKbRequestPhoneIcon.pxWidth(); break;
+	case HistoryMessageReplyMarkup::Button::RequestLocation: iconWidth = st::msgBotKbRequestLocationIcon.pxWidth(); break;
+	}
+	if (iconWidth > 0) {
+		result = std::min(result, iconWidth + 2 * int(st::msgBotKbIconPadding));
+	}
+	return result;
 }
 
 HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg)
@@ -6748,7 +6820,7 @@ void HistoryMessage::initDimensions() {
 	}
 	if (auto *reply = Get<HistoryMessageReply>()) {
 		reply->updateName();
-		if (!_media) {
+		if (!_text.isEmpty()) {
 			int replyw = st::msgPadding.left() + reply->_maxReplyWidth - st::msgReplyPadding.left() - st::msgReplyPadding.right() + st::msgPadding.right();
 			if (reply->_replyToVia) {
 				replyw += st::msgServiceFont->spacew + reply->_replyToVia->_maxWidth;
@@ -6759,6 +6831,12 @@ void HistoryMessage::initDimensions() {
 	if (HistoryMessageReplyMarkup *markup = inlineReplyMarkup()) {
 		if (!markup->inlineKeyboard) {
 			markup->inlineKeyboard = new ReplyKeyboard(this, MakeUnique<KeyboardStyle>(st::msgBotKbButton));
+		}
+
+		// if we have a text bubble we can resize it to fit the keyboard
+		// but if we have only media we don't do that
+		if (!_text.isEmpty()) {
+			_maxw = qMax(_maxw, markup->inlineKeyboard->naturalWidth());
 		}
 	}
 }
@@ -7270,9 +7348,12 @@ int HistoryMessage::resizeGetHeight_(int width) {
 		_height = _media->resize(width, this);
 	}
 	if (ReplyKeyboard *keyboard = inlineReplyKeyboard()) {
+		int32 l = 0, w = 0;
+		countPositionAndSize(l, w);
+
 		int h = st::msgBotKbButton.margin + keyboard->naturalHeight();
 		_height += h;
-		keyboard->resize(width, h - st::msgBotKbButton.margin);
+		keyboard->resize(w, h - st::msgBotKbButton.margin);
 	}
 
 	_height += marginTop() + marginBottom();

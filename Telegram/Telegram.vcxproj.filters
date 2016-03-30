@@ -903,15 +903,6 @@
     <ClCompile Include="SourceFiles\mtproto\facade.cpp">
       <Filter>mtproto</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_facade.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_facade.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_facade.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\mtproto\file_download.cpp">
       <Filter>mtproto</Filter>
     </ClCompile>
@@ -970,6 +961,15 @@
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_connection_auto.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_facade.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_facade.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_facade.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
   </ItemGroup>
@@ -1036,9 +1036,6 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\config.h">
       <Filter>Version</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\facades.h">
-      <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="ThirdParty\minizip\crypt.h">
       <Filter>ThirdParty\minizip</Filter>
@@ -1308,6 +1305,9 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\mtproto\connection_auto.h">
       <Filter>mtproto</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\facades.h">
+      <Filter>Source Files</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
