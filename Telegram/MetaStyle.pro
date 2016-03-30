@@ -12,7 +12,7 @@ CONFIG(release, debug|release) {
     DESTDIR = ./../ReleaseStyle
 }
 
-CONFIG += plugin static
+CONFIG += plugin static c++11
 
 macx {
     QMAKE_INFO_PLIST = ./SourceFiles/_other/Style.plist
