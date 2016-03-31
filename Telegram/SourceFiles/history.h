@@ -1049,9 +1049,9 @@ struct HistoryMessageReply : public BaseComponent<HistoryMessageReply> {
 	HistoryMessageReply &operator=(HistoryMessageReply &&other) {
 		replyToMsgId = other.replyToMsgId;
 		std::swap(replyToMsg, other.replyToMsg);
-		replyToLnk = std11::move(other.replyToLnk);
-		replyToName = std11::move(other.replyToName);
-		replyToText = std11::move(other.replyToText);
+		replyToLnk = std_::move(other.replyToLnk);
+		replyToName = std_::move(other.replyToName);
+		replyToText = std_::move(other.replyToText);
 		replyToVersion = other.replyToVersion;
 		_maxReplyWidth = other._maxReplyWidth;
 		std::swap(_replyToVia, other._replyToVia);

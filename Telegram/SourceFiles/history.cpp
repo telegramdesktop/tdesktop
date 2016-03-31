@@ -752,7 +752,7 @@ HistoryItem *ChannelHistory::addNewToBlocks(const MTPMessage &msg, NewMessageTyp
 		HistoryItem *item = addToHistory(msg);
 
 		t_assert(!isBuildingFrontBlock());
-		addMessageGroup([item, this](HistoryItem *previous) -> HistoryItem* { // create(..)
+		addMessageGroup([item, this](HistoryItem *previous) -> HistoryGroup* { // create(..)
 			return HistoryGroup::create(this, item, previous ? previous->date : item->date);
 		}, [item](HistoryGroup *existing) { // unite(..)
 			existing->uniteWith(item);
@@ -819,7 +819,7 @@ void ChannelHistory::switchMode() {
 	oldLoaded = _otherOldLoaded;
 	if (int count = _otherList.size()) {
 		blocks.reserve((count / MessagesPerPage) + 1);
-		for (int i = 0; i < count;) {
+		for (int i = 0; i < count; ++i) {
 			t_assert(_otherList.at(i)->detached());
 			addItemToBlock(_otherList.at(i));
 		}
@@ -1652,13 +1652,13 @@ void History::newItemAdded(HistoryItem *item) {
 
 HistoryBlock *History::prepareBlockForAddingItem() {
 	if (isBuildingFrontBlock()) {
-		if (_frontBlock->block) {
-			return _frontBlock->block;
+		if (_buildingFrontBlock->block) {
+			return _buildingFrontBlock->block;
 		}
 
-		HistoryBlock *result = _frontBlock->block = new HistoryBlock(this);
-		if (_frontBlock->expectedItemsCount > 0) {
-			result->items.reserve(_frontBlock->expectedItemsCount + 1);
+		HistoryBlock *result = _buildingFrontBlock->block = new HistoryBlock(this);
+		if (_buildingFrontBlock->expectedItemsCount > 0) {
+			result->items.reserve(_buildingFrontBlock->expectedItemsCount + 1);
 		}
 		result->setIndexInHistory(0);
 		blocks.push_front(result);
@@ -1691,8 +1691,8 @@ void History::addItemToBlock(HistoryItem *item) {
 	block->items.push_back(item);
 	item->previousItemChanged();
 
-	if (isBuildingFrontBlock() && _frontBlock->expectedItemsCount > 0) {
-		--_frontBlock->expectedItemsCount;
+	if (isBuildingFrontBlock() && _buildingFrontBlock->expectedItemsCount > 0) {
+		--_buildingFrontBlock->expectedItemsCount;
 	}
 }
 
@@ -2163,8 +2163,8 @@ template <typename CreateGroup, typename UniteGroup>
 void History::addMessageGroup(CreateGroup create, UniteGroup unite) {
 	HistoryItem *previous = nullptr;
 	if (isBuildingFrontBlock()) {
-		if (_frontBlock->block) {
-			previous = _frontBlock->block->items.back();
+		if (_buildingFrontBlock->block) {
+			previous = _buildingFrontBlock->block->items.back();
 		}
 	} else {
 		if (!blocks.isEmpty()) {
@@ -2174,19 +2174,13 @@ void History::addMessageGroup(CreateGroup create, UniteGroup unite) {
 
 	if (previous && previous->type() == HistoryItemGroup) {
 		unite(static_cast<HistoryGroup*>(previous));
-		return;
-	}
-
-	HistoryGroup *result = create(previous);
-	if (isBuildingFrontBlock()) {
-		addItemToBuildingFrontBlock(result);
 	} else {
-		addItemToBackBlock(result);
+		addItemToBlock(create(previous));
 	}
 }
 
 void History::addMessageGroup(const MTPDmessageGroup &group) {
-	addMessageGroup([&group, this](HistoryItem *previous) -> HistoryItem* { // create(..)
+	addMessageGroup([&group, this](HistoryItem *previous) -> HistoryGroup* { // create(..)
 		return HistoryGroup::create(this, group, previous ? previous->date : date(group.vdate));
 	}, [&group](HistoryGroup *existing) { // unite(..)
 		existing->uniteWith(group.vmin_id.v, group.vmax_id.v, group.vcount.v);
@@ -2197,15 +2191,15 @@ void History::startBuildingFrontBlock(int expectedItemsCount) {
 	t_assert(!isBuildingFrontBlock());
 	t_assert(expectedItemsCount > 0);
 
-	_frontBlock.reset(new BuildingBlock());
-	_frontBlock->expectedItemsCount = expectedItemsCount;
+	_buildingFrontBlock.reset(new BuildingBlock());
+	_buildingFrontBlock->expectedItemsCount = expectedItemsCount;
 }
 
 HistoryBlock *History::finishBuildingFrontBlock() {
 	t_assert(isBuildingFrontBlock());
 
 	// Some checks if there was some message history already
-	HistoryBlock *block = _frontBlock->block;
+	HistoryBlock *block = _buildingFrontBlock->block;
 	if (block && blocks.size() > 1) {
 		HistoryItem *last = block->items.back(); // ... item, item, item, last ], [ first, item, item ...
 		HistoryItem *first = blocks.at(1)->items.front();
@@ -2223,11 +2217,11 @@ HistoryBlock *History::finishBuildingFrontBlock() {
 
 			// last->destroy() could've destroyed this new block
 			// so we can't rely on this pointer any more
-			block = _frontBlock->block;
+			block = _buildingFrontBlock->block;
 		}
 	}
 
-	_frontBlock.clear();
+	_buildingFrontBlock.clear();
 	return block;
 }
 
@@ -2605,8 +2599,8 @@ void History::changeMsgId(MsgId oldId, MsgId newId) {
 void History::removeBlock(HistoryBlock *block) {
 	t_assert(block->items.isEmpty());
 
-	if (_frontBlock && block == _frontBlock->block) {
-		_frontBlock->block = nullptr;
+	if (_buildingFrontBlock && block == _buildingFrontBlock->block) {
+		_buildingFrontBlock->block = nullptr;
 	}
 
 	int index = block->indexInHistory();

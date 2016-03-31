@@ -215,31 +215,86 @@ typedef double float64;
 
 using std::string;
 using std::exception;
-using std::swap;
 
-// we copy some parts of C++11 std:: library, because on OS X 10.6+
-// version we can use C++11, but we can't use its library :(
-namespace std11 {
+// we copy some parts of C++11/14/17 std:: library, because on OS X 10.6+
+// version we can use C++11/14/17, but we can not use its library :(
+namespace std_ {
+
+template <typename T, T V>
+struct integral_constant {
+	static constexpr T value = V;
+
+	using value_type = T;
+	using type = integral_constant<T, V>;
+
+	constexpr operator value_type() const noexcept {
+		return (value);
+	}
+
+	constexpr value_type operator()() const noexcept {
+		return (value);
+	}
+};
+
+using true_type = integral_constant<bool, true>;
+using false_type = integral_constant<bool, false>;
 
 template <typename T>
 struct remove_reference {
-	typedef T type;
+	using type = T;
 };
 template <typename T>
 struct remove_reference<T&> {
-	typedef T type;
+	using type = T;
 };
 template <typename T>
 struct remove_reference<T&&> {
-	typedef T type;
+	using type = T;
 };
 
 template <typename T>
-inline typename remove_reference<T>::type &&move(T &&value) {
+struct is_lvalue_reference : false_type {
+};
+template <typename T>
+struct is_lvalue_reference<T&> : true_type {
+};
+
+template <typename T>
+struct is_rvalue_reference : false_type {
+};
+template <typename T>
+struct is_rvalue_reference<T&&> : true_type {
+};
+
+template <typename T>
+inline constexpr T &&forward(typename remove_reference<T>::type &value) noexcept {
+	return static_cast<T&&>(value);
+}
+template <typename T>
+inline constexpr T &&forward(typename remove_reference<T>::type &&value) noexcept {
+	static_assert(!is_lvalue_reference<T>::value, "bad forward call");
+	return static_cast<T&&>(value);
+}
+
+template <typename T>
+inline constexpr typename remove_reference<T>::type &&move(T &&value) noexcept {
 	return static_cast<typename remove_reference<T>::type&&>(value);
 }
 
-} // namespace std11
+template <typename T>
+struct add_const {
+	using type = const T;
+};
+template <typename T>
+using add_const_t = typename add_const<T>::type;
+template <typename T>
+constexpr add_const_t<T> &as_const(T& t) noexcept {
+	return t;
+}
+template <typename T>
+void as_const(const T&&) = delete;
+
+} // namespace std_
 
 #include "logs.h"
 
@@ -669,6 +724,66 @@ inline RefPairImplementation<T1, T2> RefPairCreator(T1 &first, T2 &second) {
 
 #define RefPair(Type1, Name1, Type2, Name2) Type1 Name1; Type2 Name2; RefPairCreator(Name1, Name2)
 
+template <typename T>
+class UniquePointer {
+public:
+	explicit UniquePointer(T *p = nullptr) : _p(p) {
+	}
+	UniquePointer(const UniquePointer<T> &other) = delete;
+	UniquePointer &operator=(const UniquePointer<T> &other) = delete;
+	UniquePointer(UniquePointer<T> &&other) : _p(other.release()) {
+	}
+	UniquePointer &operator=(UniquePointer<T> &&other) {
+		std::swap(_p, other._p);
+		return *this;
+	}
+	template <typename U>
+	UniquePointer(UniquePointer<U> &&other) : _p(other.release()) {
+	}
+	T *data() const {
+		return _p;
+	}
+	T *release() {
+		return getPointerAndReset(_p);
+	}
+	void reset(T *p = nullptr) {
+		*this = UniquePointer<T>(p);
+	}
+	bool isNull() const {
+		return data() == nullptr;
+	}
+
+	void clear() {
+		reset();
+	}
+	T *operator->() const {
+		return data();
+	}
+	T &operator*() const {
+		t_assert(!isNull());
+		return *data();
+	}
+	explicit operator bool() const {
+		return !isNull();
+	}
+	~UniquePointer() {
+		delete data();
+	}
+
+private:
+	T *_p;
+
+};
+template <typename T, class... Args>
+inline UniquePointer<T> MakeUnique(Args&&... args) {
+	return UniquePointer<T>(new T(std_::forward<Args>(args)...));
+}
+
+template <typename T, class... Args>
+inline QSharedPointer<T> MakeShared(Args&&... args) {
+	return QSharedPointer<T>(new T(std_::forward<Args>(args)...));
+}
+
 template <typename I>
 inline void destroyImplementation(I *&ptr) {
 	if (ptr) {
@@ -715,7 +830,7 @@ struct ComponentWrapTemplate {
 		((Type*)location)->~Type();
 	}
 	static void Move(void *location, void *waslocation) {
-		*(Type*)location = std11::move(*(Type*)waslocation);
+		*(Type*)location = std_::move(*(Type*)waslocation);
 	}
 };
 
