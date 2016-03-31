@@ -1080,18 +1080,18 @@ namespace internal {
 	}
 
 	void setCrashAnnotation(const std::string &key, const QString &value) {
-		if (value.trimmed().isEmpty()) {
-			internal::ProcessAnnotations.erase(key);
-		} else {
+		if (!value.trimmed().isEmpty()) {
 			internal::ProcessAnnotations[key] = value.toUtf8().constData();
+		} else {
+			internal::ProcessAnnotations.erase(key);
 		}
 	}
 
 	void setCrashAnnotationRef(const std::string &key, const QString *valuePtr) {
 		if (valuePtr) {
-			internal::ProcessAnnotationRefs.erase(key);
-		} else {
 			internal::ProcessAnnotationRefs[key] = valuePtr;
+		} else {
+			internal::ProcessAnnotationRefs.erase(key);
 		}
 	}
 
