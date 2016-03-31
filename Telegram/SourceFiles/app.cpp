@@ -180,21 +180,19 @@ namespace App {
 		return main() ? main()->api() : 0;
 	}
 
+namespace {
 	bool loggedOut() {
-		Window *w(wnd());
 		if (cHasPasscode()) {
 			cSetHasPasscode(false);
 		}
 		if (audioPlayer()) {
 			audioPlayer()->stopAndClear();
 		}
-		if (w) {
+		if (Window *w = wnd()) {
 			w->tempDirDelete(Local::ClearManagerAll);
 			w->notifyClearFast();
 			w->setupIntro(true);
 		}
-		MainWidget *m(main());
-		if (m) m->destroyData();
 		MTP::authed(0);
 		Local::reset();
 
@@ -205,13 +203,14 @@ namespace App {
 		globalNotifyChatsPtr = UnknownNotifySettings;
 		if (App::uploader()) App::uploader()->clear();
 		clearStorageImages();
-		if (w) {
+		if (Window *w = wnd()) {
 			w->getTitle()->updateBackButton();
 			w->updateTitleStatus();
 			w->getTitle()->resizeEvent(0);
 		}
 		return true;
 	}
+} // namespace
 
 	void logOut() {
 		if (MTP::started()) {
@@ -1454,12 +1453,12 @@ namespace App {
 
 	PeerData *peerByName(const QString &username) {
 		QString uname(username.trimmed());
-		for (PeersData::const_iterator i = peersData.cbegin(), e = peersData.cend(); i != e; ++i) {
-			if (!i.value()->userName().compare(uname, Qt::CaseInsensitive)) {
-				return i.value();
+		for_const (PeerData *peer, peersData) {
+			if (!peer->userName().compare(uname, Qt::CaseInsensitive)) {
+				return peer;
 			}
 		}
-		return 0;
+		return nullptr;
 	}
 
 	void updateImage(ImagePtr &old, ImagePtr now) {
@@ -1867,20 +1866,20 @@ namespace App {
 		cSetSavedPeers(SavedPeers());
 		cSetSavedPeersByTime(SavedPeersByTime());
 		cSetRecentInlineBots(RecentInlineBots());
-		for (PeersData::const_iterator i = peersData.cbegin(), e = peersData.cend(); i != e; ++i) {
-			delete *i;
+		for_const (PeerData *peer, peersData) {
+			delete peer;
 		}
 		peersData.clear();
-		for (PhotosData::const_iterator i = ::photosData.cbegin(), e = ::photosData.cend(); i != e; ++i) {
-			delete *i;
+		for_const (PhotoData *photo, ::photosData) {
+			delete photo;
 		}
 		::photosData.clear();
-		for (DocumentsData::const_iterator i = ::documentsData.cbegin(), e = ::documentsData.cend(); i != e; ++i) {
-			delete *i;
+		for_const (DocumentData *document, ::documentsData) {
+			delete document;
 		}
 		::documentsData.clear();
-		for (WebPagesData::const_iterator i = webPagesData.cbegin(), e = webPagesData.cend(); i != e; ++i) {
-			delete *i;
+		for_const (WebPageData *webpage, webPagesData) {
+			delete webpage;
 		}
 		webPagesData.clear();
 		if (api()) api()->clearWebPageRequests();

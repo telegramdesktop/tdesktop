@@ -86,6 +86,12 @@ namespace App {
 		}
 	}
 
+	void logOutDelayed() {
+		if (Window *w = App::wnd()) {
+			QMetaObject::invokeMethod(w, "onLogoutSure", Qt::QueuedConnection);
+		}
+	}
+
 }
 
 namespace Ui {

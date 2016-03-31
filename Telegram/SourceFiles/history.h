@@ -987,6 +987,7 @@ enum HistoryCursorState {
 enum InfoDisplayType {
 	InfoDisplayDefault,
 	InfoDisplayOverImage,
+	InfoDisplayOverBackground,
 };
 
 inline bool isImportantChannelMessage(MsgId id, MTPDmessage::Flags flags) { // client-side important msgs always has_views or has_from_id
@@ -1130,7 +1131,9 @@ struct HistoryMessageUnreadBar : public BaseComponent<HistoryMessageUnreadBar> {
 	}
 	void init(int count);
 
-	int height() const;
+	static int height();
+	static int marginTop();
+
 	void paint(Painter &p, int y, int w) const;
 
 	QString _text;
@@ -1536,8 +1539,11 @@ protected:
 
 	HistoryItem *previous() const {
 		if (_block && _indexInBlock >= 0) {
-			if (_indexInBlock > 0) return _block->items.at(_indexInBlock - 1);
+			if (_indexInBlock > 0) {
+				return _block->items.at(_indexInBlock - 1);
+			}
 			if (HistoryBlock *previousBlock = _block->previous()) {
+				t_assert(!previousBlock->items.isEmpty());
 				return previousBlock->items.back();
 			}
 		}

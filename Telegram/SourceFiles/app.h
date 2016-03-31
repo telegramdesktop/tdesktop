@@ -64,7 +64,6 @@ namespace App {
 	ApiWrap *api();
 
 	void logOut();
-	bool loggedOut();
 
 	QString formatPhone(QString phone);
 

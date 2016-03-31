@@ -37,6 +37,8 @@ namespace App {
 
 	void activateTextLink(TextLinkPtr link, Qt::MouseButton button);
 
+	void logOutDelayed();
+
 };
 
 namespace Ui {

@@ -1125,6 +1125,8 @@ void Histories::clear() {
 	for (Map::const_iterator i = map.cbegin(), e = map.cend(); i != e; ++i) {
 		delete i.value();
 	}
+	Global::RefPendingRepaintItems().clear();
+
 	_unreadFull = _unreadMuted = 0;
 	if (App::wnd()) {
 		App::wnd()->updateCounter();
@@ -2753,13 +2755,17 @@ void HistoryMessageUnreadBar::init(int count) {
 	_width = st::semiboldFont->width(_text);
 }
 
-int HistoryMessageUnreadBar::height() const {
-	return st::unreadBarHeight;
+int HistoryMessageUnreadBar::height() {
+	return st::unreadBarHeight + st::unreadBarMargin;
+}
+
+int HistoryMessageUnreadBar::marginTop() {
+	return st::lineWidth + st::unreadBarMargin;
 }
 
 void HistoryMessageUnreadBar::paint(Painter &p, int y, int w) const {
-	p.fillRect(0, y + st::lineWidth, w, st::unreadBarHeight - 2 * st::lineWidth, st::unreadBarBG);
-	p.fillRect(0, y + st::unreadBarHeight - st::lineWidth, w, st::lineWidth, st::unreadBarBorder);
+	p.fillRect(0, y + marginTop(), w, height() - marginTop() - st::lineWidth, st::unreadBarBG);
+	p.fillRect(0, y + height() - st::lineWidth, w, st::lineWidth, st::unreadBarBorder);
 	p.setFont(st::unreadBarFont);
 	p.setPen(st::unreadBarColor);
 
@@ -2770,7 +2776,7 @@ void HistoryMessageUnreadBar::paint(Painter &p, int y, int w) const {
 	}
 	w = maxwidth;
 
-	p.drawText((w - _width) / 2, y + (st::unreadBarHeight - st::lineWidth - st::unreadBarFont->height) / 2 + st::unreadBarFont->ascent, _text);
+	p.drawText((w - _width) / 2, y + marginTop() + (st::unreadBarHeight - 2 * st::lineWidth - st::unreadBarFont->height) / 2 + st::unreadBarFont->ascent, _text);
 }
 
 void HistoryMessageDate::init(const QDateTime &date) {
@@ -2833,6 +2839,7 @@ void HistoryItem::destroy() {
 	if ((!out() || isPost()) && unread() && history()->unreadCount > 0) {
 		history()->setUnreadCount(history()->unreadCount - 1);
 	}
+	Global::RefPendingRepaintItems().remove(this);
 	delete this;
 }
 
@@ -3039,7 +3046,8 @@ void RadialAnimation::update(float64 prg, bool finished, uint64 ms) {
 		_opacity *= 1 - r;
 	}
 	float64 fromstart = fulldt / st::radialPeriod;
-	a_arcStart.update(fromstart - qFloor(fromstart), anim::linear);
+	float64 fromstartpart = fromstart - std::floor(fromstart);
+	a_arcStart.update(static_cast<int>(fromstartpart), anim::linear);
 }
 
 void RadialAnimation::stop() {
@@ -4862,7 +4870,7 @@ void HistorySticker::draw(Painter &p, const HistoryItem *parent, const QRect &r,
 	}
 
 	if (parent->getMedia() == this) {
-		parent->drawInfo(p, usex + usew, _height, usex * 2 + usew, selected, InfoDisplayOverImage);
+		parent->drawInfo(p, usex + usew, _height, usex * 2 + usew, selected, InfoDisplayOverBackground);
 
 		if (reply) {
 			int32 rw = _width - usew - st::msgReplyPadding.left(), rh = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
@@ -6630,18 +6638,24 @@ bool HistoryMessage::textHasLinks() {
 void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width, bool selected, InfoDisplayType type) const {
 	p.setFont(st::msgDateFont);
 
-	bool outbg = out() && !isPost(), overimg = (type == InfoDisplayOverImage);
+	bool outbg = out() && !isPost();
+	bool invertedsprites = (type == InfoDisplayOverImage || type == InfoDisplayOverBackground);
 	int32 infoRight = right, infoBottom = bottom;
 	switch (type) {
 	case InfoDisplayDefault:
 		infoRight -= st::msgPadding.right() - st::msgDateDelta.x();
 		infoBottom -= st::msgPadding.bottom() - st::msgDateDelta.y();
-		p.setPen((selected ? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected) : (outbg ? st::msgOutDateFg : st::msgInDateFg))->p);
+		p.setPen(selected ? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected) : (outbg ? st::msgOutDateFg : st::msgInDateFg));
 	break;
 	case InfoDisplayOverImage:
 		infoRight -= st::msgDateImgDelta + st::msgDateImgPadding.x();
 		infoBottom -= st::msgDateImgDelta + st::msgDateImgPadding.y();
-		p.setPen(st::msgDateImgColor->p);
+		p.setPen(st::msgDateImgColor);
+	break;
+	case InfoDisplayOverBackground:
+		infoRight -= st::msgDateImgDelta + st::msgDateImgPadding.x();
+		infoBottom -= st::msgDateImgDelta + st::msgDateImgPadding.y();
+		p.setPen(st::msgServiceColor);
 	break;
 	}
 
@@ -6653,6 +6667,9 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width
 	if (type == InfoDisplayOverImage) {
 		int32 dateW = infoW + 2 * st::msgDateImgPadding.x(), dateH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
 		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
+	} else if (type == InfoDisplayOverBackground) {
+		int32 dateW = infoW + 2 * st::msgDateImgPadding.x(), dateH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
+		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, App::msgServiceBg(), ServiceCorners);
 	}
 	dateX += HistoryMessage::timeLeft();
 
@@ -6668,35 +6685,35 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width
 		iconPos = QPoint(infoRight - infoW + st::msgViewsPos.x(), infoBottom - st::msgViewsImg.pxHeight() + st::msgViewsPos.y());
 		if (id > 0) {
 			if (outbg) {
-				iconRect = &(overimg ? st::msgInvViewsImg : (selected ? st::msgSelectOutViewsImg : st::msgOutViewsImg));
+				iconRect = &(invertedsprites ? st::msgInvViewsImg : (selected ? st::msgSelectOutViewsImg : st::msgOutViewsImg));
 			} else {
-				iconRect = &(overimg ? st::msgInvViewsImg : (selected ? st::msgSelectViewsImg : st::msgViewsImg));
+				iconRect = &(invertedsprites ? st::msgInvViewsImg : (selected ? st::msgSelectViewsImg : st::msgViewsImg));
 			}
 			p.drawText(iconPos.x() + st::msgViewsImg.pxWidth() + st::msgDateCheckSpace, infoBottom - st::msgDateFont->descent, views->_viewsText);
 		} else {
 			iconPos.setX(iconPos.x() + st::msgDateViewsSpace + views->_viewsWidth);
 			if (outbg) {
-				iconRect = &(overimg ? st::msgInvSendingViewsImg : st::msgSendingOutViewsImg);
+				iconRect = &(invertedsprites ? st::msgInvSendingViewsImg : st::msgSendingOutViewsImg);
 			} else {
-				iconRect = &(overimg ? st::msgInvSendingViewsImg : st::msgSendingViewsImg);
+				iconRect = &(invertedsprites ? st::msgInvSendingViewsImg : st::msgSendingViewsImg);
 			}
 		}
 		p.drawPixmap(iconPos, App::sprite(), *iconRect);
 	} else if (id < 0 && history()->peer->isSelf()) {
 		iconPos = QPoint(infoRight - infoW, infoBottom - st::msgViewsImg.pxHeight() + st::msgViewsPos.y());
-		iconRect = &(overimg ? st::msgInvSendingViewsImg : st::msgSendingViewsImg);
+		iconRect = &(invertedsprites ? st::msgInvSendingViewsImg : st::msgSendingViewsImg);
 		p.drawPixmap(iconPos, App::sprite(), *iconRect);
 	}
 	if (outbg) {
 		iconPos = QPoint(infoRight - st::msgCheckImg.pxWidth() + st::msgCheckPos.x(), infoBottom - st::msgCheckImg.pxHeight() + st::msgCheckPos.y());
 		if (id > 0) {
 			if (unread()) {
-				iconRect = &(overimg ? st::msgInvCheckImg : (selected ? st::msgSelectCheckImg : st::msgCheckImg));
+				iconRect = &(invertedsprites ? st::msgInvCheckImg : (selected ? st::msgSelectCheckImg : st::msgCheckImg));
 			} else {
-				iconRect = &(overimg ? st::msgInvDblCheckImg : (selected ? st::msgSelectDblCheckImg : st::msgDblCheckImg));
+				iconRect = &(invertedsprites ? st::msgInvDblCheckImg : (selected ? st::msgSelectDblCheckImg : st::msgDblCheckImg));
 			}
 		} else {
-			iconRect = &(overimg ? st::msgInvSendingImg : st::msgSendingImg);
+			iconRect = &(invertedsprites ? st::msgInvSendingImg : st::msgSendingImg);
 		}
 		p.drawPixmap(iconPos, App::sprite(), *iconRect);
 	}
