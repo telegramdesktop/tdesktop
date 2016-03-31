@@ -1023,13 +1023,13 @@ namespace internal {
 			internal::ReportFile = nullptr;
 		}
 #else // Q_OS_WIN
-		CrashDumpFile = fopen(QFile::encodeName(CrashDumpPath).constData(), "wb");
+		internal::ReportFile = fopen(QFile::encodeName(internal::ReportPath).constData(), "wb");
 #endif // else for Q_OS_WIN
 		if (internal::ReportFile) {
 #ifdef Q_OS_WIN
 			internal::ReportFileNo = _fileno(internal::ReportFile);
 #else // Q_OS_WIN
-			CrashDumpFileNo = fileno(internal::ReportFile);
+			internal::ReportFileNo = fileno(internal::ReportFile);
 #endif // else for Q_OS_WIN
 			if (internal::SetSignalHandlers) {
 #ifndef Q_OS_WIN
@@ -1039,12 +1039,12 @@ namespace internal {
 				sigemptyset(&sigact.sa_mask);
 				sigact.sa_flags = SA_NODEFER | SA_RESETHAND | SA_SIGINFO;
 
-				sigaction(SIGABRT, &sigact, &SIG_def[SIGABRT]);
-				sigaction(SIGSEGV, &sigact, &SIG_def[SIGSEGV]);
-				sigaction(SIGILL, &sigact, &SIG_def[SIGILL]);
-				sigaction(SIGFPE, &sigact, &SIG_def[SIGFPE]);
-				sigaction(SIGBUS, &sigact, &SIG_def[SIGBUS]);
-				sigaction(SIGSYS, &sigact, &SIG_def[SIGSYS]);
+				sigaction(SIGABRT, &sigact, &internal::SIG_def[SIGABRT]);
+				sigaction(SIGSEGV, &sigact, &internal::SIG_def[SIGSEGV]);
+				sigaction(SIGILL, &sigact, &internal::SIG_def[SIGILL]);
+				sigaction(SIGFPE, &sigact, &internal::SIG_def[SIGFPE]);
+				sigaction(SIGBUS, &sigact, &internal::SIG_def[SIGBUS]);
+				sigaction(SIGSYS, &sigact, &internal::SIG_def[SIGSYS]);
 #else // !Q_OS_WIN
 				signal(SIGABRT, SignalHandlers::internal::Handler);
 				signal(SIGSEGV, SignalHandlers::internal::Handler);
