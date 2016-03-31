@@ -287,18 +287,20 @@ void NotifyWindow::startHiding() {
 
 void NotifyWindow::mousePressEvent(QMouseEvent *e) {
 	if (!history) return;
+
 	PeerId peer = history->peer->id;
+	MsgId msgId = (!history->peer->isUser() && item && item->mentionsMe() && item->id > 0) ? item->id : ShowAtUnreadMsgId;
 
 	if (e->button() == Qt::RightButton) {
 		unlinkHistoryAndNotify();
-	} else if (history) {
+	} else {
 		App::wnd()->showFromTray();
 		if (App::passcoded()) {
 			App::wnd()->setInnerFocus();
 			App::wnd()->notifyClear();
 		} else {
 			App::wnd()->hideSettings();
-			Ui::showPeerHistory(peer, (!history->peer->isUser() && item && item->mentionsMe() && item->id > 0) ? item->id : ShowAtUnreadMsgId);
+			Ui::showPeerHistory(peer, msgId);
 		}
 		e->ignore();
 	}

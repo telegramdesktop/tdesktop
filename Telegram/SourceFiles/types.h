@@ -303,7 +303,7 @@ inline void t_noop() {}
 inline void t_assert_fail(const char *message, const char *file, int32 line) {
 	QString info(qsl("%1 %2:%3").arg(message).arg(file).arg(line));
 	LOG(("Assertion Failed! %1 %2:%3").arg(info));
-	SignalHandlers::setAssertionInfo(info);
+	SignalHandlers::setCrashAnnotation("Assertion", info);
 	*t_assert_nullptr = 0;
 }
 #define t_assert_full(condition, message, file, line) ((!(condition)) ? t_assert_fail(message, file, line) : t_noop())
