@@ -1052,8 +1052,8 @@ msgMinWidth: 190px;
 msgPhotoSize: 33px;
 msgPhotoSkip: 40px;
 msgPadding: margins(13px, 7px, 13px, 8px);
-msgMargin: margins(13px, 6px, 53px, 2px);
-msgMarginTopAttached: 2px;
+msgMargin: margins(13px, 10px, 53px, 2px);
+msgMarginTopAttached: 3px;
 msgLnkPadding: 2px; // for media open / save links
 msgBorder: #f0f0f0;
 msgInBg: #fff;
@@ -1089,7 +1089,7 @@ msgServiceBg: #89a0b47f;
 msgServiceSelectBg: #bbc8d4a2;
 msgServiceColor: #FFF;
 msgServicePadding: margins(12px, 3px, 12px, 4px);
-msgServiceMargin: margins(10px, 9px, 80px, 5px);
+msgServiceMargin: margins(10px, 10px, 80px, 2px);
 
 msgColor: #000;
 msgDateColor: #000;
@@ -1527,6 +1527,7 @@ reportSpamBg: #fffffff0;
 newMsgSound: ':/gui/art/newmsg.wav';
 
 unreadBarHeight: 32px;
+unreadBarMargin: 8px;
 unreadBarFont: semiboldFont;
 unreadBarBG: #fcfbfa;
 unreadBarBorder: shadowColor;

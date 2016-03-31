@@ -62,7 +62,7 @@ bool parsePQ(const string &pqStr, string &pStr, string &qStr) {
 			break;
 		}
 	}
-	if (p > q) swap(p, q);
+	if (p > q) std::swap(p, q);
 
 	pStr.resize(4);
 	uchar *pChars = (uchar*)&pStr[0];

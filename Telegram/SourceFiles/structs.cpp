@@ -967,7 +967,7 @@ void GifOpenLink::onClick(Qt::MouseButton button) const {
 void DocumentSaveLink::doSave(DocumentData *data, bool forceSavingAs) {
 	if (!data->date) return;
 
-	QString filepath = data->filepath(DocumentData::FilePathResolveSaveFromData, forceSavingAs);
+	QString filepath = data->filepath(DocumentData::FilePathResolveSaveFromDataSilent, forceSavingAs);
 	if (!filepath.isEmpty() && !forceSavingAs) {
 		QPoint pos(QCursor::pos());
 		if (!psShowOpenWithMenu(pos.x(), pos.y(), filepath)) {
@@ -1392,7 +1392,7 @@ QString DocumentData::filepath(FilePathResolveType type, bool forceSavingAs) con
 	if (saveFromData) {
 		if (type != FilePathResolveSaveFromData && type != FilePathResolveSaveFromDataSilent) {
 			saveFromData = false;
-		} else if (type == FilePathResolveSaveFromDataSilent && cAskDownloadPath()) {
+		} else if (type == FilePathResolveSaveFromDataSilent && (cAskDownloadPath() || forceSavingAs)) {
 			saveFromData = false;
 		}
 	}

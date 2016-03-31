@@ -197,6 +197,16 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 	if (!App::main()) return;
 
+	if ((_history && _history->hasPendingResizedItems()) || (_migrated && _migrated->hasPendingResizedItems())) {
+		Notify::handlePendingHistoryUpdate();
+		if (_history) {
+			t_assert(!_history->hasPendingResizedItems());
+		}
+		if (_migrated) {
+			t_assert(!_migrated->hasPendingResizedItems());
+		}
+	}
+
 	Painter p(this);
 	QRect r(e->rect());
 	bool trivial = (rect() == r);
@@ -1677,7 +1687,9 @@ void HistoryInner::onTouchSelect() {
 }
 
 void HistoryInner::onUpdateSelected() {
-	if (!_history) return;
+	if (!_history || _history->hasPendingResizedItems() || (_migrated && _migrated->hasPendingResizedItems())) {
+		return;
+	}
 
 	QPoint mousePos(mapFromGlobal(_dragPos));
 	QPoint point(_widget->clampMousePosition(mousePos));
@@ -6286,7 +6298,7 @@ void HistoryWidget::notify_automaticLoadSettingsChangedGif() {
 }
 
 void HistoryWidget::notify_handlePendingHistoryUpdate() {
-	if (_history && _history->hasPendingResizedItems()) {
+	if ((_history && _history->hasPendingResizedItems()) || (_migrated && _migrated->hasPendingResizedItems())) {
 		updateListSize();
 		_list->update();
 	}
@@ -6432,7 +6444,9 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 	if (_pinnedBar) {
 		newScrollHeight -= st::replyHeight;
 	}
-	bool wasAtBottom = _scroll.scrollTop() + 1 > _scroll.scrollTopMax(), needResize = _scroll.width() != width() || _scroll.height() != newScrollHeight;
+	int wasScrollTop = _scroll.scrollTop();
+	bool wasAtBottom = wasScrollTop + 1 > _scroll.scrollTopMax();
+	bool needResize = (_scroll.width() != width()) || (_scroll.height() != newScrollHeight);
 	if (needResize) {
 		_scroll.resize(width(), newScrollHeight);
 		// on initial updateListSize we didn't put the _scroll.scrollTop correctly yet
@@ -6458,14 +6472,15 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 	}
 
 	if ((!initial && !wasAtBottom) || (loadedDown && (!_history->showFrom || _history->unreadBar || _history->loadedAtBottom()) && (!_migrated || !_migrated->showFrom || _migrated->unreadBar || _history->loadedAtBottom()))) {
-		int addToY = 0;
+		int toY = _list->historyScrollTop();
 		if (change.type == ScrollChangeAdd) {
-			addToY = change.value;
-		} else if (change.type == ScrollChangeOldHistoryHeight) {
-			addToY = _list->historyHeight() - change.value;
+			toY += change.value;
+		} else if (change.type == ScrollChangeNoJumpToBottom) {
+			toY = wasScrollTop;
 		}
-		int toY = _list->historyScrollTop() + addToY;
-		if (toY > _scroll.scrollTopMax()) toY = _scroll.scrollTopMax();
+		if (toY > _scroll.scrollTopMax()) {
+			toY = _scroll.scrollTopMax();
+		}
 		if (_scroll.scrollTop() == toY) {
 			visibleAreaUpdated();
 		} else {
@@ -6543,13 +6558,11 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 		} else {
 			toY = qMax(iy + item->height() - _fixedInScrollMsgTop, 0);
 		}
-	} else if (initial && _migrated && _migrated->unreadBar) {
-		toY = _list->itemTop(_migrated->unreadBar);
-	} else if (initial && _history->unreadBar) {
-		toY = _list->itemTop(_history->unreadBar);
+	} else if (initial && (_history->unreadBar || (_migrated && _migrated->unreadBar))) {
+		toY = unreadBarTop();
 	} else if (_migrated && _migrated->showFrom) {
 		toY = _list->itemTop(_migrated->showFrom);
-		if (toY < _scroll.scrollTopMax() + st::unreadBarHeight) {
+		if (toY < _scroll.scrollTopMax() + HistoryMessageUnreadBar::height() - HistoryMessageUnreadBar::marginTop()) {
 			_migrated->addUnreadBar();
 			if (_migrated->unreadBar) {
 				setMsgId(ShowAtUnreadMsgId);
@@ -6581,6 +6594,26 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 	}
 }
 
+int HistoryWidget::unreadBarTop() const {
+	auto getUnreadBar = [this]() -> HistoryItem* {
+		if (_migrated && _migrated->unreadBar) {
+			return _migrated->unreadBar;
+		}
+		if (_history->unreadBar) {
+			return _history->unreadBar;
+		}
+		return nullptr;
+	};
+	if (HistoryItem *bar = getUnreadBar()) {
+		int result = _list->itemTop(bar) + HistoryMessageUnreadBar::marginTop();
+		if (bar->Has<HistoryMessageDate>()) {
+			result += bar->Get<HistoryMessageDate>()->height();
+		}
+		return result;
+	}
+	return -1;
+}
+
 void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed) {
 	int oldH = _list->historyHeight();
 	_list->messagesReceived(peer, messages, collapsed);
@@ -6599,7 +6632,7 @@ void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage>
 void HistoryWidget::addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed) {
 	_list->messagesReceivedDown(peer, messages, collapsed);
 	if (!_firstLoadRequest) {
-		updateListSize(false, true);
+		updateListSize(false, true, { ScrollChangeNoJumpToBottom, 0 });
 	}
 }
 
@@ -6983,7 +7016,10 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 			_topShadow.raise();
 			updatePinnedBar();
 			result = true;
-			_scroll.scrollToY(_scroll.scrollTop() + st::replyHeight);
+
+			if (_scroll.scrollTop() != unreadBarTop()) {
+				_scroll.scrollToY(_scroll.scrollTop() + st::replyHeight);
+			}
 		} else if (_pinnedBar->msgId != pinnedMsgId) {
 			_pinnedBar->msgId = pinnedMsgId;
 			_pinnedBar->msg = 0;
@@ -6997,7 +7033,9 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 	} else if (_pinnedBar) {
 		destroyPinnedBar();
 		result = true;
-		_scroll.scrollToY(_scroll.scrollTop() - st::replyHeight);
+		if (_scroll.scrollTop() != unreadBarTop()) {
+			_scroll.scrollToY(_scroll.scrollTop() - st::replyHeight);
+		}
 		resizeEvent(0);
 	}
 	return result;
