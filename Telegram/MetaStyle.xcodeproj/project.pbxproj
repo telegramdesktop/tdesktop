@@ -636,7 +636,7 @@
 					"/usr/local/Qt-5.5.1/plugins/platforms",
 					"/usr/local/Qt-5.5.1/plugins/imageformats",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.7;
+				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				OBJROOT = ./../Mac/ReleaseIntermediateStyle;
 				OTHER_CFLAGS = (
 					"-pipe",
@@ -727,7 +727,7 @@
 					"/usr/local/Qt-5.5.1/plugins/platforms",
 					"/usr/local/Qt-5.5.1/plugins/imageformats",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.7;
+				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				OBJROOT = ./../Mac/DebugIntermediateStyle;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_CFLAGS = (
