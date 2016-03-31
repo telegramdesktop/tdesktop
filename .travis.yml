@@ -39,5 +39,9 @@ arch:
    - libtool --finish /usr/lib
    - .travis/build.sh
 
+before_install:
+  - "export TRAVIS_COMMIT_MSG=\"$(git log --format=%B --no-merges -n 1)\""
+  - .travis/check.sh
+
 script:
   - .travis/arch.sh
