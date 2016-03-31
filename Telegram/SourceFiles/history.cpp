@@ -3046,8 +3046,7 @@ void RadialAnimation::update(float64 prg, bool finished, uint64 ms) {
 		_opacity *= 1 - r;
 	}
 	float64 fromstart = fulldt / st::radialPeriod;
-	float64 fromstartpart = fromstart - std::floor(fromstart);
-	a_arcStart.update(static_cast<int>(fromstartpart), anim::linear);
+	a_arcStart.update(fromstart - std::floor(fromstart), anim::linear);
 }
 
 void RadialAnimation::stop() {
