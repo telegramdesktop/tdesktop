@@ -768,9 +768,24 @@ namespace internal {
 
 		if (!ReportingHeaderWritten) {
 			ReportingHeaderWritten = true;
+			auto dec2hex = [](int value) -> char {
+				if (value >= 0 && value < 10) {
+					return '0' + value;
+				} else if (value >= 10 && value < 16) {
+					return 'a' + (value - 10);
+				}
+				return '#';
+			};
 
 			for (const auto &i : ProcessAnnotationRefs) {
-				ProcessAnnotations[i.first] = i.second->toUtf8().constData();
+				QByteArray utf8 = i.second->toUtf8();
+				std::string wrapped;
+				wrapped.reserve(4 * utf8.size());
+				for (auto ch : utf8) {
+					auto uch = static_cast<uchar>(ch);
+					wrapped.append("\\x", 2).append(1, dec2hex(uch >> 4)).append(1, dec2hex(uch & 0x0F));
+				}
+				ProcessAnnotations[i.first] = wrapped;
 			}
 
 			const Annotations c_ProcessAnnotations(ProcessAnnotations);

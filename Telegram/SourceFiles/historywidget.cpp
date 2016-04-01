@@ -193,18 +193,16 @@ void HistoryInner::enumerateUserpicsInHistory(History *h, int htop, Method metho
 }
 
 void HistoryInner::paintEvent(QPaintEvent *e) {
-	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) return;
+	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) {
+		return;
+	}
 
-	if (!App::main()) return;
+	if (!App::main()) {
+		return;
+	}
 
 	if ((_history && _history->hasPendingResizedItems()) || (_migrated && _migrated->hasPendingResizedItems())) {
-		Notify::handlePendingHistoryUpdate();
-		if (_history) {
-			t_assert(!_history->hasPendingResizedItems());
-		}
-		if (_migrated) {
-			t_assert(!_migrated->hasPendingResizedItems());
-		}
+		return;
 	}
 
 	Painter p(this);
