@@ -864,14 +864,22 @@ private:
 
 	enum ScrollChangeType {
 		ScrollChangeNone,
+
+		// When we toggle a pinned message.
 		ScrollChangeAdd,
-		ScrollChangeOldHistoryHeight,
+
+		// When loading a history part while scrolling down.
+		ScrollChangeNoJumpToBottom,
 	};
 	struct ScrollChange {
 		ScrollChangeType type;
 		int value;
 	};
 	void updateListSize(bool initial = false, bool loadedDown = false, const ScrollChange &change = { ScrollChangeNone, 0 });
+
+	// Counts scrollTop for placing the scroll right at the unread
+	// messages bar, choosing from _history and _migrated unreadBar.
+	int unreadBarTop() const;
 
 	void saveGifDone(DocumentData *doc, const MTPBool &result);
 

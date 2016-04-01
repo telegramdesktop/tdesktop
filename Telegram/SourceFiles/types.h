@@ -294,12 +294,12 @@ void as_const(const T&&) = delete;
 
 #include "logs.h"
 
-static volatile int *t_assert_nullptr = 0;
+static volatile int *t_assert_nullptr = nullptr;
 inline void t_noop() {}
 inline void t_assert_fail(const char *message, const char *file, int32 line) {
 	QString info(qsl("%1 %2:%3").arg(message).arg(file).arg(line));
 	LOG(("Assertion Failed! %1 %2:%3").arg(info));
-	SignalHandlers::setAssertionInfo(info);
+	SignalHandlers::setCrashAnnotation("Assertion", info);
 	*t_assert_nullptr = 0;
 }
 #define t_assert_full(condition, message, file, line) ((!(condition)) ? t_assert_fail(message, file, line) : t_noop())
@@ -646,20 +646,22 @@ MimeType mimeTypeForName(const QString &mime);
 MimeType mimeTypeForFile(const QFileInfo &file);
 MimeType mimeTypeForData(const QByteArray &data);
 
-inline int32 rowscount(int32 count, int32 perrow) {
-	return (count + perrow - 1) / perrow;
+#include <cmath>
+
+inline int rowscount(int fullCount, int countPerRow) {
+	return (fullCount + countPerRow - 1) / countPerRow;
 }
-inline int32 floorclamp(int32 value, int32 step, int32 lowest, int32 highest) {
+inline int floorclamp(int value, int step, int lowest, int highest) {
 	return qMin(qMax(value / step, lowest), highest);
 }
-inline int32 floorclamp(float64 value, int32 step, int32 lowest, int32 highest) {
-	return qMin(qMax(qFloor(value / step), lowest), highest);
+inline int floorclamp(float64 value, int step, int lowest, int highest) {
+	return qMin(qMax(static_cast<int>(std::floor(value / step)), lowest), highest);
 }
-inline int32 ceilclamp(int32 value, int32 step, int32 lowest, int32 highest) {
-	return qMax(qMin((value / step) + ((value % step) ? 1 : 0), highest), lowest);
+inline int ceilclamp(int value, int step, int lowest, int highest) {
+	return qMax(qMin((value + step - 1) / step, highest), lowest);
 }
-inline int32 ceilclamp(float64 value, int32 step, int32 lowest, int32 highest) {
-	return qMax(qMin(qCeil(value / step), highest), lowest);
+inline int ceilclamp(float64 value, int32 step, int32 lowest, int32 highest) {
+	return qMax(qMin(static_cast<int>(std::ceil(value / step)), highest), lowest);
 }
 
 enum ForwardWhatMessages {

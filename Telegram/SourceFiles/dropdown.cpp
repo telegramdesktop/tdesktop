@@ -941,6 +941,8 @@ void EmojiPanInner::selectEmoji(EmojiPtr emoji) {
 }
 
 void EmojiPanInner::onShowPicker() {
+	if (_pickerSel < 0) return;
+
 	int tab = (_pickerSel / MatrixRowShift), sel = _pickerSel % MatrixRowShift;
 	if (tab < emojiTabCount && sel < _emojis[tab].size() && _emojis[tab][sel]->color) {
 		int32 y = 0;

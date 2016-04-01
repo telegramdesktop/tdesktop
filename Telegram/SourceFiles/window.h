@@ -363,7 +363,7 @@ public:
 
 	PreLaunchWindow(QString title = QString());
 	void activate();
-	float64 basicSize() const {
+	int basicSize() const {
 		return _size;
 	}
 	~PreLaunchWindow();
@@ -372,7 +372,7 @@ public:
 
 protected:
 
-	float64 _size;
+	int _size;
 
 };
 

@@ -287,18 +287,20 @@ void NotifyWindow::startHiding() {
 
 void NotifyWindow::mousePressEvent(QMouseEvent *e) {
 	if (!history) return;
+
 	PeerId peer = history->peer->id;
+	MsgId msgId = (!history->peer->isUser() && item && item->mentionsMe() && item->id > 0) ? item->id : ShowAtUnreadMsgId;
 
 	if (e->button() == Qt::RightButton) {
 		unlinkHistoryAndNotify();
-	} else if (history) {
+	} else {
 		App::wnd()->showFromTray();
 		if (App::passcoded()) {
 			App::wnd()->setInnerFocus();
 			App::wnd()->notifyClear();
 		} else {
 			App::wnd()->hideSettings();
-			Ui::showPeerHistory(peer, (!history->peer->isUser() && item && item->mentionsMe() && item->id > 0) ? item->id : ShowAtUnreadMsgId);
+			Ui::showPeerHistory(peer, msgId);
 		}
 		e->ignore();
 	}
@@ -505,11 +507,8 @@ void Window::clearWidgets() {
 		settings = 0;
 	}
 	if (main) {
-		main->animStop_show();
-		main->hide();
-		main->deleteLater();
-		main->rpcClear();
-		main = 0;
+		delete main;
+		main = nullptr;
 	}
 	if (intro) {
 		intro->stop_show();
@@ -691,7 +690,7 @@ void Window::setupMain(bool anim, const MTPUser *self) {
 }
 
 void Window::updateCounter() {
-	if (App::quitting()) return;
+	if (!Global::started() || App::quitting()) return;
 
 	psUpdateCounter();
 	title->updateCounter();
@@ -1185,7 +1184,11 @@ void Window::onLogout() {
 }
 
 void Window::onLogoutSure() {
-	App::logOut();
+	if (MTP::authedId()) {
+		App::logOut();
+	} else {
+		setupIntro(true);
+	}
 }
 
 void Window::updateGlobalMenu() {
@@ -1951,7 +1954,10 @@ PreLaunchWindow::PreLaunchWindow(QString title) : TWidget(0) {
 	tmp.setText(qsl("Tmp"));
 	_size = tmp.sizeHint().height();
 
-	setStyleSheet(qsl("QPushButton { padding: %1px %2px; background-color: #ffffff; border-radius: %3px; }\nQPushButton#confirm:hover, QPushButton#cancel:hover { background-color: #edf7ff; color: #2f9fea; }\nQPushButton#confirm { color: #2f9fea; }\nQPushButton#cancel { color: #aeaeae; }\nQLineEdit { border: 1px solid #e0e0e0; padding: 5px; }\nQLineEdit:focus { border: 2px solid #62c0f7; padding: 4px; }").arg(qFloor(_size / 2)).arg(qFloor(_size)).arg(qFloor(_size / 5)));
+	int paddingVertical = (_size / 2);
+	int paddingHorizontal = _size;
+	int borderRadius = (_size / 5);
+	setStyleSheet(qsl("QPushButton { padding: %1px %2px; background-color: #ffffff; border-radius: %3px; }\nQPushButton#confirm:hover, QPushButton#cancel:hover { background-color: #edf7ff; color: #2f9fea; }\nQPushButton#confirm { color: #2f9fea; }\nQPushButton#cancel { color: #aeaeae; }\nQLineEdit { border: 1px solid #e0e0e0; padding: 5px; }\nQLineEdit:focus { border: 2px solid #62c0f7; padding: 4px; }").arg(paddingVertical).arg(paddingHorizontal).arg(borderRadius));
 	if (!PreLaunchWindowInstance) {
 		PreLaunchWindowInstance = this;
 	}

@@ -107,7 +107,13 @@ namespace SignalHandlers {
 	Status restart(); // can be only CantOpen or Started
 	void finish();
 
-	void setSelfUsername(const QString &username);
-	void setAssertionInfo(const QString &info);
+	void setCrashAnnotation(const std::string &key, const QString &value);
+
+	// Remembers value pointer and tries to add the value to the crash report.
+	// Attention! You should call clearCrashAnnotationRef(key) before destroying value.
+	void setCrashAnnotationRef(const std::string &key, const QString *valuePtr);
+	inline void clearCrashAnnotationRef(const std::string &key) {
+		setCrashAnnotationRef(key, nullptr);
+	}
 
 }

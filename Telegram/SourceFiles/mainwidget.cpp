@@ -2973,9 +2973,7 @@ void MainWidget::feedMessageIds(const MTPVector<MTPUpdate> &updates) {
 }
 
 bool MainWidget::updateFail(const RPCError &e) {
-	if (MTP::authedId()) {
-		App::logOut();
-	}
+	App::logOutDelayed();
 	return true;
 }
 
@@ -3722,7 +3720,7 @@ bool MainWidget::inviteImportFail(const RPCError &error) {
 void MainWidget::startFull(const MTPVector<MTPUser> &users) {
 	const QVector<MTPUser> &v(users.c_vector().v);
 	if (v.isEmpty() || v[0].type() != mtpc_user || !v[0].c_user().is_self()) { // wtf?..
-		return App::logOut();
+		return App::logOutDelayed();
 	}
 	start(v[0]);
 }

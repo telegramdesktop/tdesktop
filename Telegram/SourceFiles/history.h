@@ -470,18 +470,63 @@ protected:
 	void clearOnDestroy();
 	HistoryItem *addNewToLastBlock(const MTPMessage &msg, NewMessageType type);
 
+	friend class HistoryBlock;
+
+	// this method just removes a block from the blocks list
+	// when the last item from this block was detached and
+	// calls the required previousItemChanged()
+	void removeBlock(HistoryBlock *block);
+
+	void clearBlocks(bool leaveItems);
+
+	HistoryItem *createItem(const MTPMessage &msg, bool applyServiceAction, bool detachExistingItem);
+	HistoryItem *createItemForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *msg);
+	HistoryItem *createItemDocument(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption);
+	HistoryItem *createItemPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption);
+
+	HistoryItem *addNewItem(HistoryItem *adding, bool newMsg);
+	HistoryItem *addNewInTheMiddle(HistoryItem *newItem, int32 blockIndex, int32 itemIndex);
+
+	// All this methods add a new item to the first or last block
+	// depending on if we are in isBuildingFronBlock() state.
+	// The last block is created on the go if it is needed.
+
+	// If the previous item is a message group the new group is
+	// not created but is just united with the previous one.
+	// create(HistoryItem *previous) should return a new HistoryGroup*
+	// unite(HistoryGroup *existing) should unite a new group with an existing
+	template <typename CreateGroup, typename UniteGroup>
+	void addMessageGroup(CreateGroup create, UniteGroup unite);
+	void addMessageGroup(const MTPDmessageGroup &group);
+
+	// Adds the item to the back or front block, depending on
+	// isBuildingFrontBlock(), creating the block if necessary.
+	void addItemToBlock(HistoryItem *item);
+
+	// Usually all new items are added to the last block.
+	// Only when we scroll up and add a new slice to the
+	// front we want to create a new front block.
+	void startBuildingFrontBlock(int expectedItemsCount = 1);
+	HistoryBlock *finishBuildingFrontBlock(); // Returns the built block or nullptr if nothing was added.
+	bool isBuildingFrontBlock() const {
+		return !_buildingFrontBlock.isNull();
+	}
+
 private:
 
-	enum Flag {
+	enum class Flag {
 		f_has_pending_resized_items = (1 << 0),
-		f_pending_resize = (1 << 1),
+		f_pending_resize            = (1 << 1),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
-	Q_DECL_CONSTEXPR friend inline QFlags<Flags::enum_type> operator|(Flags::enum_type f1, Flags::enum_type f2) Q_DECL_NOTHROW {
+	Q_DECL_CONSTEXPR friend inline QFlags<Flags::enum_type> operator|(Flags::enum_type f1, Flags::enum_type f2) noexcept {
 		return QFlags<Flags::enum_type>(f1) | f2;
 	}
-	Q_DECL_CONSTEXPR friend inline QFlags<Flags::enum_type> operator|(Flags::enum_type f1, QFlags<Flags::enum_type> f2) Q_DECL_NOTHROW {
+	Q_DECL_CONSTEXPR friend inline QFlags<Flags::enum_type> operator|(Flags::enum_type f1, QFlags<Flags::enum_type> f2) noexcept {
 		return f2 | f1;
+	}
+	Q_DECL_CONSTEXPR friend inline QFlags<Flags::enum_type> operator~(Flags::enum_type f) noexcept {
+		return ~QFlags<Flags::enum_type>(f);
 	}
 	Flags _flags;
 
@@ -497,28 +542,18 @@ private:
 	MediaOverviewIds overviewIds[OverviewCount];
 	int32 overviewCountData[OverviewCount]; // -1 - not loaded, 0 - all loaded, > 0 - count, but not all loaded
 
-	friend class HistoryBlock;
-	friend class ChannelHistory;
+	// A pointer to the block that is currently being built.
+	// We hold this pointer so we can destroy it while building
+	// and then create a new one if it is necessary.
+	struct BuildingBlock {
+		int expectedItemsCount = 0; // optimization for block->items.reserve() call
+		HistoryBlock *block = nullptr;
+	};
+	UniquePointer<BuildingBlock> _buildingFrontBlock;
 
-	// this method just removes a block from the blocks list
-	// when the last item from this block was detached and
-	// calls the required previousItemChanged()
-	void removeBlock(HistoryBlock *block);
-
-	void clearBlocks(bool leaveItems);
-
-	HistoryItem *createItem(const MTPMessage &msg, bool applyServiceAction, bool detachExistingItem);
-	HistoryItem *createItemForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *msg);
-	HistoryItem *createItemDocument(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption);
-	HistoryItem *createItemPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption);
-
-	HistoryItem *addItemToBlock(HistoryItem *item, HistoryBlock *block);
-	HistoryItem *addNewItem(HistoryItem *adding, bool newMsg);
-	HistoryItem *addMessageGroupAfterPrevToBlock(const MTPDmessageGroup &group, HistoryItem *prev, HistoryBlock *block);
-	HistoryItem *addNewInTheMiddle(HistoryItem *newItem, int32 blockIndex, int32 itemIndex);
-
-	HistoryBlock *pushBackNewBlock();
-	HistoryBlock *pushFrontNewBlock();
+	// Creates if necessary a new block for adding item.
+	// Depending on isBuildingFrontBlock() gets front or back block.
+	HistoryBlock *prepareBlockForAddingItem();
 
  };
 
@@ -952,6 +987,7 @@ enum HistoryCursorState {
 enum InfoDisplayType {
 	InfoDisplayDefault,
 	InfoDisplayOverImage,
+	InfoDisplayOverBackground,
 };
 
 inline bool isImportantChannelMessage(MsgId id, MTPDmessage::Flags flags) { // client-side important msgs always has_views or has_from_id
@@ -1232,7 +1268,9 @@ struct HistoryMessageDate : public BaseComponent<HistoryMessageDate> {
 struct HistoryMessageUnreadBar : public BaseComponent<HistoryMessageUnreadBar> {
 	void init(int count);
 
-	int height() const;
+	static int height();
+	static int marginTop();
+
 	void paint(Painter &p, int y, int w) const;
 
 	QString _text;
@@ -1695,8 +1733,11 @@ protected:
 
 	HistoryItem *previous() const {
 		if (_block && _indexInBlock >= 0) {
-			if (_indexInBlock > 0) return _block->items.at(_indexInBlock - 1);
+			if (_indexInBlock > 0) {
+				return _block->items.at(_indexInBlock - 1);
+			}
 			if (HistoryBlock *previousBlock = _block->previous()) {
+				t_assert(!previousBlock->items.isEmpty());
 				return previousBlock->items.back();
 			}
 		}
