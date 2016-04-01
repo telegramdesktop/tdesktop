@@ -1510,7 +1510,7 @@ public:
 	}
 	virtual void applyEdition(const MTPDmessage &message) {
 	}
-	virtual void updateMedia(const MTPMessageMedia *media, bool edited = false) {
+	virtual void updateMedia(const MTPMessageMedia *media) {
 	}
 	virtual int32 addToOverview(AddToOverviewMethod method) {
 		return 0;
@@ -2835,8 +2835,8 @@ public:
     QString notificationText() const override;
 
 	void applyEdition(const MTPDmessage &message) override;
-	void updateMedia(const MTPMessageMedia *media, bool edited = false) override {
-		if (!edited && media && _media && _media->type() != MediaTypeWebPage) {
+	void updateMedia(const MTPMessageMedia *media) override {
+		if (media && _media && _media->type() != MediaTypeWebPage) {
 			_media->updateFrom(*media, this);
 		} else {
 			setMedia(media);

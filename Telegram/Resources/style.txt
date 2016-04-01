@@ -2114,17 +2114,17 @@ verifiedCheckInv: sprite(299px, 221px, 14px, 14px);
 verifiedCheckPos: point(4px, 2px);
 
 botKbDuration: 200;
-botKbBg: #f7f7f7;
-botKbOverBg: #e8ecef;
-botKbDownBg: #dfe3e6;
-botKbColor: #8a8a8f;
-botKbFont: font(16px);
+botKbBg: #edf1f5;
+botKbOverBg: #d8e2ec;
+botKbDownBg: #d8e2ec;
+botKbColor: #4b565f;
+botKbFont: font(15px semibold);
 botKbButton: botKeyboardButton {
 	margin: 10px;
 	padding: 10px;
-	height: 36px;
-	textTop: 8px;
-	downTextTop: 9px;
+	height: 38px;
+	textTop: 9px;
+	downTextTop: 10px;
 }
 botKbTinyButton: botKeyboardButton {
 	margin: 4px;

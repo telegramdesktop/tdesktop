@@ -79,6 +79,7 @@
       <Optimization>Disabled</Optimization>
       <AdditionalOptions>/Zm152 %(AdditionalOptions)</AdditionalOptions>
       <WarningLevel>Level3</WarningLevel>
+      <ForcedIncludeFiles>"stdafx.h"</ForcedIncludeFiles>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -109,6 +110,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <AdditionalOptions>/Zm110 %(AdditionalOptions)</AdditionalOptions>
+      <ForcedIncludeFiles>"stdafx.h"</ForcedIncludeFiles>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -140,6 +142,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <AdditionalOptions>/Zm110 %(AdditionalOptions)</AdditionalOptions>
+      <ForcedIncludeFiles>"stdafx.h"</ForcedIncludeFiles>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

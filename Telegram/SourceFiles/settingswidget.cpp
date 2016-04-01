@@ -205,7 +205,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _showSessions(this, lang(lng_settings_show_sessions))
 , _askQuestion(this, lang(lng_settings_ask_question))
 , _telegramFAQ(this, lang(lng_settings_faq))
-, _logOut(this, lang(lng_settings_logout), st::btnLogout)
+, _logOut(this, lang(lng_settings_logout), st::btnRedLink)
 , _supportGetRequest(0) {
 	if (self()) {
 		self()->loadUserpic();

@@ -244,6 +244,12 @@ namespace Notify {
 		if (MainWidget *m = App::main()) m->notify_inlineBotRequesting(requesting);
 	}
 
+	void replyMarkupUpdated(const HistoryItem *item) {
+		if (MainWidget *m = App::main()) {
+			m->notify_replyMarkupUpdated(item);
+		}
+	}
+
 	void migrateUpdated(PeerData *peer) {
 		if (MainWidget *m = App::main()) m->notify_migrateUpdated(peer);
 	}

@@ -94,6 +94,7 @@ namespace Notify {
 	void botCommandsChanged(UserData *user);
 
 	void inlineBotRequesting(bool requesting);
+	void replyMarkupUpdated(const HistoryItem *item);
 
 	void migrateUpdated(PeerData *peer);
 

@@ -2136,8 +2136,8 @@ void ReportSpamPanel::setReported(bool reported, PeerData *onPeer) {
 }
 
 BotKeyboard::BotKeyboard() {
-	setGeometry(0, 0, _st->margin, _st->margin);
-	_height = _st->margin;
+	setGeometry(0, 0, _st->margin, st::botKbScroll.deltat);
+	_height = st::botKbScroll.deltat;
 	setMouseTracking(true);
 }
 
@@ -2149,8 +2149,8 @@ void BotKeyboard::paintEvent(QPaintEvent *e) {
 
 	if (_impl) {
 		int x = rtl() ? st::botKbScroll.width : _st->margin;
-		p.translate(x, _st->margin);
-		_impl->paint(p, clip.translated(-x, -_st->margin));
+		p.translate(x, st::botKbScroll.deltat);
+		_impl->paint(p, clip.translated(-x, -st::botKbScroll.deltat));
 	}
 }
 
@@ -2195,14 +2195,14 @@ void BotKeyboard::resizeEvent(QResizeEvent *e) {
 
 	updateStyle();
 
-	_height = _impl->naturalHeight() + 2 * _st->margin;
+	_height = _impl->naturalHeight() + st::botKbScroll.deltat + st::botKbScroll.deltab;
 	if (_maximizeSize) _height = qMax(_height, _maxOuterHeight);
 	if (height() != _height) {
 		resize(width(), _height);
 		return;
 	}
 
-	_impl->resize(width() - _st->margin - st::botKbScroll.width, _height - 2 * _st->margin);
+	_impl->resize(width() - _st->margin - st::botKbScroll.width, _height - (st::botKbScroll.deltat + st::botKbScroll.deltab));
 }
 
 void BotKeyboard::mousePressEvent(QMouseEvent *e) {
@@ -2246,9 +2246,11 @@ void BotKeyboard::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pres
 	_impl->clickHandlerPressedChanged(p, pressed);
 }
 
-bool BotKeyboard::updateMarkup(HistoryItem *to) {
+bool BotKeyboard::updateMarkup(HistoryItem *to, bool force) {
 	if (to && to->definesReplyKeyboard()) {
-		if (_wasForMsgId == FullMsgId(to->channelId(), to->id)) return false;
+		if (_wasForMsgId == FullMsgId(to->channelId(), to->id) && !force) {
+			return false;
+		}
 
 		_wasForMsgId = FullMsgId(to->channelId(), to->id);
 		clearSelection();
@@ -2261,7 +2263,7 @@ bool BotKeyboard::updateMarkup(HistoryItem *to) {
 		_impl.reset(markup->rows.isEmpty() ? nullptr : new ReplyKeyboard(to, MakeUnique<Style>(this, *_st)));
 
 		updateStyle();
-		_height = 2 * _st->margin + (_impl ? _impl->naturalHeight() : 0);
+		_height = st::botKbScroll.deltat + st::botKbScroll.deltab + (_impl ? _impl->naturalHeight() : 0);
 		if (_maximizeSize) _height = qMax(_height, _maxOuterHeight);
 		if (height() != _height) {
 			resize(width(), _height);
@@ -2290,7 +2292,7 @@ bool BotKeyboard::forceReply() const {
 
 void BotKeyboard::resizeToWidth(int width, int maxOuterHeight) {
 	updateStyle(width);
-	_height = 2 * _st->margin + (_impl ? _impl->naturalHeight() : 0);
+	_height = st::botKbScroll.deltat + st::botKbScroll.deltab + (_impl ? _impl->naturalHeight() : 0);
 	_maxOuterHeight = maxOuterHeight;
 
 	if (_maximizeSize) _height = qMax(_height, _maxOuterHeight);
@@ -3170,6 +3172,12 @@ void HistoryWidget::notify_botCommandsChanged(UserData *user) {
 
 void HistoryWidget::notify_inlineBotRequesting(bool requesting) {
 	_attachEmoji.setLoading(requesting);
+}
+
+void HistoryWidget::notify_replyMarkupUpdated(const HistoryItem *item) {
+	if (_keyboard.forMsgId() == item->fullId()) {
+		updateBotKeyboard(item->history(), true);
+	}
 }
 
 void HistoryWidget::notify_userIsBotChanged(UserData *user) {
@@ -6540,7 +6548,7 @@ void HistoryWidget::countHistoryShowFrom() {
 	_history->updateShowFrom();
 }
 
-void HistoryWidget::updateBotKeyboard(History *h) {
+void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 	if (h && h != _history && h != _migrated) {
 		return;
 	}
@@ -6548,11 +6556,12 @@ void HistoryWidget::updateBotKeyboard(History *h) {
 	bool changed = false;
 	bool wasVisible = _kbShown || _kbReplyTo;
 	if ((_replyToId && !_replyEditMsg) || _editMsgId || !_history) {
-		changed = _keyboard.updateMarkup(0);
+		changed = _keyboard.updateMarkup(nullptr, force);
 	} else if (_replyToId && _replyEditMsg) {
-		changed = _keyboard.updateMarkup(_replyEditMsg);
+		changed = _keyboard.updateMarkup(_replyEditMsg, force);
 	} else {
-		changed = _keyboard.updateMarkup(_history->lastKeyboardId ? App::histItemById(_channel, _history->lastKeyboardId) : 0);
+		HistoryItem *keyboardItem = _history->lastKeyboardId ? App::histItemById(_channel, _history->lastKeyboardId) : nullptr;
+		changed = _keyboard.updateMarkup(keyboardItem, force);
 	}
 	updateCmdStartShown();
 	if (!changed) return;

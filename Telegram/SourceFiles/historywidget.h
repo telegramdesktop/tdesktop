@@ -314,7 +314,9 @@ public:
 	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
 
-	bool updateMarkup(HistoryItem *last);
+	// With force=true the markup is updated even if it is
+	// already shown for the passed history item.
+	bool updateMarkup(HistoryItem *last, bool force = false);
 	bool hasMarkup() const;
 	bool forceReply() const;
 
@@ -608,7 +610,10 @@ public:
 	bool insertBotCommand(const QString &cmd, bool specialGif);
 
 	bool eventFilter(QObject *obj, QEvent *e) override;
-	void updateBotKeyboard(History *h = 0);
+
+	// With force=true the markup is updated even if it is
+	// already shown for the passed history item.
+	void updateBotKeyboard(History *h = nullptr, bool force = false);
 
 	DragState getDragState(const QMimeData *d);
 
@@ -656,6 +661,7 @@ public:
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
 	void notify_botCommandsChanged(UserData *user);
 	void notify_inlineBotRequesting(bool requesting);
+	void notify_replyMarkupUpdated(const HistoryItem *item);
 	void notify_userIsBotChanged(UserData *user);
 	void notify_migrateUpdated(PeerData *peer);
 	void notify_clipStopperHidden(ClipStopperType type);

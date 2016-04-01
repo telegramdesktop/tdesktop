@@ -770,6 +770,10 @@ void MainWidget::notify_inlineBotRequesting(bool requesting) {
 	history.notify_inlineBotRequesting(requesting);
 }
 
+void MainWidget::notify_replyMarkupUpdated(const HistoryItem *item) {
+	history.notify_replyMarkupUpdated(item);
+}
+
 void MainWidget::notify_userIsBotChanged(UserData *bot) {
 	history.notify_userIsBotChanged(bot);
 }

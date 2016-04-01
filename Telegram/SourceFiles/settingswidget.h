@@ -294,8 +294,7 @@ private:
 	LinkButton _connectionType;
 	QString _connectionTypeText;
 	int32 _connectionTypeWidth;
-	LinkButton _showSessions, _askQuestion, _telegramFAQ;
-	FlatButton _logOut;
+	LinkButton _showSessions, _askQuestion, _telegramFAQ, _logOut;
 
 	mtpRequestId _supportGetRequest;
 

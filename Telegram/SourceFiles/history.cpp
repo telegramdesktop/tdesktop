@@ -3533,7 +3533,6 @@ HistoryPhoto::HistoryPhoto(PhotoData *photo, const QString &caption, const Histo
 , _data(photo)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
 	setLinks(MakeShared<PhotoOpenClickHandler>(_data), MakeShared<PhotoSaveClickHandler>(_data), MakeShared<PhotoCancelClickHandler>(_data));
-
 	if (!caption.isEmpty()) {
 		_caption.setText(st::msgFont, caption + parent->skipBlock(), itemTextNoMonoOptions(parent));
 	}
@@ -7058,6 +7057,8 @@ void HistoryMessage::setReplyMarkup(const MTPReplyMarkup *markup) {
 		if (Has<HistoryMessageReplyMarkup>()) {
 			RemoveComponents(HistoryMessageReplyMarkup::Bit());
 			setPendingInitDimensions();
+
+			Notify::replyMarkupUpdated(this);
 		}
 	} else {
 		if (!Has<HistoryMessageReplyMarkup>()) {
@@ -7065,6 +7066,8 @@ void HistoryMessage::setReplyMarkup(const MTPReplyMarkup *markup) {
 		}
 		Get<HistoryMessageReplyMarkup>()->create(*markup);
 		setPendingInitDimensions();
+
+		Notify::replyMarkupUpdated(this);
 	}
 }
 
