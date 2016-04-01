@@ -367,7 +367,7 @@ void IntroPwdCheck::onSubmitPwd(bool force) {
 
 		QByteArray pwdData = _salt + _pwdField.text().toUtf8() + _salt, pwdHash(32, Qt::Uninitialized);
 		hashSha256(pwdData.constData(), pwdData.size(), pwdHash.data());
-		sentRequest = MTP::send(MTPauth_CheckPassword(MTP_string(pwdHash)), rpcDone(&IntroPwdCheck::pwdSubmitDone, false), rpcFail(&IntroPwdCheck::pwdSubmitFail));
+		sentRequest = MTP::send(MTPauth_CheckPassword(MTP_bytes(pwdHash)), rpcDone(&IntroPwdCheck::pwdSubmitDone, false), rpcFail(&IntroPwdCheck::pwdSubmitFail));
 	}
 }
 

@@ -1474,8 +1474,8 @@ void MainWidget::sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyT
 	history.sendBotCommand(peer, cmd, replyTo);
 }
 
-void MainWidget::sendBotCallback(PeerData *peer, const QString &cmd, MsgId replyTo) {
-	history.sendBotCallback(peer, cmd, replyTo);
+void MainWidget::sendBotCallback(PeerData *peer, const QByteArray &data, MsgId replyTo) {
+	history.sendBotCallback(peer, data, replyTo);
 }
 
 bool MainWidget::insertBotCommand(const QString &cmd, bool specialGif) {
@@ -4189,7 +4189,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 			if (peerId) {
 				if (HistoryItem *item = App::histItemById(peerToChannel(peerId), d.vid.v)) {
 					item->setText(text, d.has_entities() ? entitiesFromMTP(d.ventities.c_vector().v) : EntitiesInText());
-					item->updateMedia(d.has_media() ? (&d.vmedia) : 0);
+					item->updateMedia(d.has_media() ? (&d.vmedia) : nullptr);
 					item->addToOverview(AddToOverviewNew);
 				}
 			}

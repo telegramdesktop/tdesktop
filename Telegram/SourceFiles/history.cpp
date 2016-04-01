@@ -2810,10 +2810,12 @@ void ReplyKeyboard::resize(int width, int height) {
 		float64 x = 0, coef = widthForText / widthOfText;
 		for (Button &button : row) {
 			float64 tw = widthForText / float64(s), w = 2 * _st->buttonPadding() + tw;
-			int minw = _st->minButtonWidth(button.type);
+			float64 minw = _st->minButtonWidth(button.type);
 			if (w < minw) w = minw;
 
-			button.rect = QRect(qRound(x), qRound(y), qRound(w), qRound(buttonHeight - _st->buttonSkip()));
+			int rectx = static_cast<int>(std::floor(x));
+			int rectw = static_cast<int>(std::floor(x + w)) - rectx;
+			button.rect = QRect(rectx, qRound(y), rectw, qRound(buttonHeight - _st->buttonSkip()));
 			if (rtl()) button.rect.setX(_width - button.rect.x() - button.rect.width());
 			x += w + _st->buttonSkip();
 
@@ -2984,6 +2986,10 @@ void ReplyKeyboard::Style::paintButton(Painter &p, const ReplyKeyboard::Button &
 }
 
 void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
+	flags = 0;
+	rows.clear();
+	inlineKeyboard.clear();
+
 	switch (markup.type()) {
 	case mtpc_replyKeyboardMarkup: {
 		const MTPDreplyKeyboardMarkup &d(markup.c_replyKeyboardMarkup());
@@ -3003,20 +3009,21 @@ void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
 						for_const (const MTPKeyboardButton &button, b) {
 							switch (button.type()) {
 							case mtpc_keyboardButton: {
-								buttonRow.push_back({ Button::Default, qs(button.c_keyboardButton().vtext), QString() });
+								buttonRow.push_back({ Button::Default, qs(button.c_keyboardButton().vtext), QByteArray() });
 							} break;
 							case mtpc_keyboardButtonCallback: {
-								buttonRow.push_back({ Button::Callback, qs(button.c_keyboardButtonCallback().vtext), QString() });
+								const auto &buttonData(button.c_keyboardButtonCallback());
+								buttonRow.push_back({ Button::Callback, qs(buttonData.vtext), qba(buttonData.vdata) });
 							} break;
 							case mtpc_keyboardButtonRequestGeoLocation: {
-								buttonRow.push_back({ Button::RequestLocation, qs(button.c_keyboardButtonRequestGeoLocation().vtext), QString() });
+								buttonRow.push_back({ Button::RequestLocation, qs(button.c_keyboardButtonRequestGeoLocation().vtext), QByteArray() });
 							} break;
 							case mtpc_keyboardButtonRequestPhone: {
-								buttonRow.push_back({ Button::RequestPhone, qs(button.c_keyboardButtonRequestPhone().vtext), QString() });
+								buttonRow.push_back({ Button::RequestPhone, qs(button.c_keyboardButtonRequestPhone().vtext), QByteArray() });
 							} break;
 							case mtpc_keyboardButtonUrl: {
-								const MTPDkeyboardButtonUrl &u(button.c_keyboardButtonUrl());
-								buttonRow.push_back({ Button::Url, qs(u.vtext), qs(u.vurl) });
+								const auto &buttonData(button.c_keyboardButtonUrl());
+								buttonRow.push_back({ Button::Url, qs(buttonData.vtext), qba(buttonData.vurl) });
 							} break;
 							}
 						}
@@ -6870,7 +6877,7 @@ void HistoryMessage::initDimensions() {
 	}
 	if (HistoryMessageReplyMarkup *markup = inlineReplyMarkup()) {
 		if (!markup->inlineKeyboard) {
-			markup->inlineKeyboard = new ReplyKeyboard(this, MakeUnique<KeyboardStyle>(st::msgBotKbButton));
+			markup->inlineKeyboard.reset(new ReplyKeyboard(this, MakeUnique<KeyboardStyle>(st::msgBotKbButton)));
 		}
 
 		// if we have a text bubble we can resize it to fit the keyboard
@@ -6909,6 +6916,27 @@ void HistoryMessage::fromNameUpdated(int32 width) const {
 		if (auto *via = Get<HistoryMessageVia>()) {
 			via->resize(width - st::msgPadding.left() - st::msgPadding.right() - author()->nameText.maxWidth() - st::msgServiceFont->spacew);
 		}
+	}
+}
+
+void HistoryMessage::applyEdition(const MTPDmessage &message) {
+	EntitiesInText entities;
+	if (message.has_entities()) {
+		entities = entitiesFromMTP(message.ventities.c_vector().v);
+	}
+	setText(qs(message.vmessage), entities);
+	setMedia(message.has_media() ? (&message.vmedia) : nullptr);
+	setReplyMarkup(message.has_reply_markup() ? (&message.vreply_markup) : nullptr);
+	setViewsCount(message.has_views() ? message.vviews.v : -1);
+
+	setPendingInitDimensions();
+	if (App::main()) {
+		App::main()->dlgUpdated(history(), id);
+	}
+
+	// invalidate cache for drawInDialog
+	if (history()->textCachedFor == this) {
+		history()->textCachedFor = nullptr;
 	}
 }
 
@@ -7019,6 +7047,25 @@ void HistoryMessage::setText(const QString &text, const EntitiesInText &entities
 	}
 	_textWidth = 0;
 	_textHeight = 0;
+}
+
+void HistoryMessage::setReplyMarkup(const MTPReplyMarkup *markup) {
+	if (!markup && !(_flags & MTPDmessage::Flag::f_reply_markup)) return;
+
+	// optimization: don't create markup component for the case
+	// MTPDreplyKeyboardHide with flags = 0, assume it has f_zero flag
+	if (markup->type() == mtpc_replyKeyboardHide && markup->c_replyKeyboardHide().vflags.v == 0) {
+		if (Has<HistoryMessageReplyMarkup>()) {
+			RemoveComponents(HistoryMessageReplyMarkup::Bit());
+			setPendingInitDimensions();
+		}
+	} else {
+		if (!Has<HistoryMessageReplyMarkup>()) {
+			AddComponents(HistoryMessageReplyMarkup::Bit());
+		}
+		Get<HistoryMessageReplyMarkup>()->create(*markup);
+		setPendingInitDimensions();
+	}
 }
 
 QString HistoryMessage::originalText() const {

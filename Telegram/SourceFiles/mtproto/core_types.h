@@ -758,8 +758,10 @@ private:
 
 	friend MTPstring MTP_string(const string &v);
 	friend MTPstring MTP_string(const QString &v);
-	friend MTPstring MTP_string(const QByteArray &v);
 	friend MTPstring MTP_string(const char *v);
+
+	friend MTPstring MTP_string(const QByteArray &v) = delete;
+	friend MTPstring MTP_bytes(const QByteArray &v);
 };
 inline MTPstring MTP_string(const string &v) {
 	return MTPstring(new MTPDstring(v));
@@ -767,16 +769,17 @@ inline MTPstring MTP_string(const string &v) {
 inline MTPstring MTP_string(const QString &v) {
 	return MTPstring(new MTPDstring(v));
 }
-inline MTPstring MTP_string(const QByteArray &v) {
-	return MTPstring(new MTPDstring(v));
-}
 inline MTPstring MTP_string(const char *v) {
 	return MTPstring(new MTPDstring(v));
 }
 typedef MTPBoxed<MTPstring> MTPString;
 
-typedef MTPstring MTPbytes;
-typedef MTPString MTPBytes;
+using MTPbytes = MTPstring;
+using MTPBytes = MTPBoxed<MTPbytes>;
+
+inline MTPbytes MTP_bytes(const QByteArray &v) {
+	return MTPbytes(new MTPDstring(v));
+}
 
 inline bool operator==(const MTPstring &a, const MTPstring &b) {
 	return a.c_string().v == b.c_string().v;

@@ -962,7 +962,7 @@ namespace {
 		}
 		if (HistoryItem *existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
 			existing->setText(qs(m.vmessage), m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText());
-			existing->updateMedia(m.has_media() ? (&m.vmedia) : 0);
+			existing->updateMedia(m.has_media() ? (&m.vmedia) : nullptr);
 			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
 			existing->addToOverview(AddToOverviewNew);
 
@@ -982,15 +982,7 @@ namespace {
 			peerId = peerFromUser(m.vfrom_id);
 		}
 		if (HistoryItem *existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
-			existing->setText(qs(m.vmessage), m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText());
-			existing->updateMedia(m.has_media() ? (&m.vmedia) : 0, true);
-			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
-			if (existing->history()->textCachedFor == existing) {
-				existing->history()->textCachedFor = 0;
-			}
-			if (App::main()) {
-				App::main()->dlgUpdated(existing->history(), existing->id);
-			}
+			existing->applyEdition(m);
 		}
 	}
 

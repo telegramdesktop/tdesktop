@@ -604,7 +604,7 @@ public:
 	void onListEscapePressed();
 
 	void sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo);
-	void sendBotCallback(PeerData *peer, const QString &cmd, MsgId replyTo);
+	void sendBotCallback(PeerData *peer, const QByteArray &data, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd, bool specialGif);
 
 	bool eventFilter(QObject *obj, QEvent *e) override;

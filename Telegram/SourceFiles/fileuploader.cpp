@@ -142,14 +142,14 @@ void FileUploader::sendNext() {
 			if (requestsSent.isEmpty() && docRequestsSent.isEmpty()) {
 				bool silent = i->file && i->file->to.silent;
 				if (i->type() == PreparePhoto) {
-					emit photoReady(uploading, silent, MTP_inputFile(MTP_long(i->id()), MTP_int(i->partsCount), MTP_string(i->filename()), MTP_string(i->file ? i->file->filemd5 : i->media.jpeg_md5)));
+					emit photoReady(uploading, silent, MTP_inputFile(MTP_long(i->id()), MTP_int(i->partsCount), MTP_string(i->filename()), MTP_bytes(i->file ? i->file->filemd5 : i->media.jpeg_md5)));
 				} else if (i->type() == PrepareDocument || i->type() == PrepareAudio) {
 					QByteArray docMd5(32, Qt::Uninitialized);
 					hashMd5Hex(i->md5Hash.result(), docMd5.data());
 
-					MTPInputFile doc = (i->docSize > UseBigFilesFrom) ? MTP_inputFileBig(MTP_long(i->id()), MTP_int(i->docPartsCount), MTP_string(i->filename())) : MTP_inputFile(MTP_long(i->id()), MTP_int(i->docPartsCount), MTP_string(i->filename()), MTP_string(docMd5));
+					MTPInputFile doc = (i->docSize > UseBigFilesFrom) ? MTP_inputFileBig(MTP_long(i->id()), MTP_int(i->docPartsCount), MTP_string(i->filename())) : MTP_inputFile(MTP_long(i->id()), MTP_int(i->docPartsCount), MTP_string(i->filename()), MTP_bytes(docMd5));
 					if (i->partsCount) {
-						emit thumbDocumentReady(uploading, silent, doc, MTP_inputFile(MTP_long(i->thumbId()), MTP_int(i->partsCount), MTP_string(i->file ? i->file->thumbname : (qsl("thumb.") + i->media.thumbExt)), MTP_string(i->file ? i->file->thumbmd5 : i->media.jpeg_md5)));
+						emit thumbDocumentReady(uploading, silent, doc, MTP_inputFile(MTP_long(i->thumbId()), MTP_int(i->partsCount), MTP_string(i->file ? i->file->thumbname : (qsl("thumb.") + i->media.thumbExt)), MTP_bytes(i->file ? i->file->thumbmd5 : i->media.jpeg_md5)));
 					} else {
 						emit documentReady(uploading, silent, doc);
 					}
@@ -187,9 +187,9 @@ void FileUploader::sendNext() {
 		}
 		mtpRequestId requestId;
 		if (i->docSize > UseBigFilesFrom) {
-			requestId = MTP::send(MTPupload_SaveBigFilePart(MTP_long(i->id()), MTP_int(i->docSentParts), MTP_int(i->docPartsCount), MTP_string(toSend)), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::uplDcId(todc));
+			requestId = MTP::send(MTPupload_SaveBigFilePart(MTP_long(i->id()), MTP_int(i->docSentParts), MTP_int(i->docPartsCount), MTP_bytes(toSend)), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::uplDcId(todc));
 		} else {
-			requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(i->id()), MTP_int(i->docSentParts), MTP_string(toSend)), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::uplDcId(todc));
+			requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(i->id()), MTP_int(i->docSentParts), MTP_bytes(toSend)), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::uplDcId(todc));
 		}
 		docRequestsSent.insert(requestId, i->docSentParts);
 		dcMap.insert(requestId, todc);
@@ -200,7 +200,7 @@ void FileUploader::sendNext() {
 	} else {
 		UploadFileParts::iterator part = parts.begin();
 
-		mtpRequestId requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(partsOfId), MTP_int(part.key()), MTP_string(part.value())), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::uplDcId(todc));
+		mtpRequestId requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(partsOfId), MTP_int(part.key()), MTP_bytes(part.value())), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::uplDcId(todc));
 		requestsSent.insert(requestId, part.value());
 		dcMap.insert(requestId, todc);
 		sentSize += part.value().size();

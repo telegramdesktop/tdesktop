@@ -344,7 +344,7 @@ public:
 	void stopAnimActive();
 
 	void sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo);
-	void sendBotCallback(PeerData *peer, const QString &cmd, MsgId replyTo);
+	void sendBotCallback(PeerData *peer, const QByteArray &data, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd, bool specialGif);
 
 	void searchMessages(const QString &query, PeerData *inPeer);

@@ -25,7 +25,7 @@ class LayeredWidget;
 namespace App {
 
 	void sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo = 0);
-	void sendBotCallback(PeerData *peer, const QString &cmd, MsgId replyTo);
+	void sendBotCallback(PeerData *peer, const QByteArray &data, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd, bool specialGif = false);
 	void activateBotCommand(PeerData *peer, const HistoryMessageReplyMarkup::Button &button, MsgId replyTo = 0);
 	void searchByHashtag(const QString &tag, PeerData *inPeer);

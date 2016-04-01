@@ -38,8 +38,8 @@ namespace App {
 		if (MainWidget *m = main()) m->sendBotCommand(peer, cmd, replyTo);
 	}
 
-	void sendBotCallback(PeerData *peer, const QString &cmd, MsgId replyTo) {
-		if (MainWidget *m = main()) m->sendBotCallback(peer, cmd, replyTo);
+	void sendBotCallback(PeerData *peer, const QByteArray &data, MsgId replyTo) {
+		if (MainWidget *m = main()) m->sendBotCallback(peer, data, replyTo);
 	}
 
 	bool insertBotCommand(const QString &cmd, bool specialGif) {
@@ -56,11 +56,12 @@ namespace App {
 		} break;
 
 		case HistoryMessageReplyMarkup::Button::Callback: {
-			sendBotCallback(peer, QString(button.text), replyTo);
+			sendBotCallback(peer, button.data, replyTo);
 		} break;
 
 		case HistoryMessageReplyMarkup::Button::Url: {
-			HiddenUrlClickHandler(button.url).onClick(Qt::LeftButton);
+			auto url = QString::fromUtf8(button.data);
+			HiddenUrlClickHandler(url).onClick(Qt::LeftButton);
 		} break;
 
 		case HistoryMessageReplyMarkup::Button::RequestLocation: {

@@ -5160,12 +5160,12 @@ void HistoryWidget::sendBotCommand(PeerData *peer, const QString &cmd, MsgId rep
 	_field.setFocus();
 }
 
-void HistoryWidget::sendBotCallback(PeerData *peer, const QString &cmd, MsgId replyTo) {
+void HistoryWidget::sendBotCallback(PeerData *peer, const QByteArray &data, MsgId replyTo) {
 	if (!_peer || _peer != peer) return;
 
 	bool lastKeyboardUsed = (_keyboard.forMsgId() == FullMsgId(_channel, _history->lastKeyboardId)) && (_keyboard.forMsgId() == FullMsgId(_channel, replyTo));
 
-	MTP::send(MTPmessages_GetBotCallbackAnswer(_peer->input, MTP_int(replyTo), MTP_string(cmd)), rpcDone(&HistoryWidget::botCallbackDone), rpcFail(&HistoryWidget::botCallbackFail));
+	MTP::send(MTPmessages_GetBotCallbackAnswer(_peer->input, MTP_int(replyTo), MTP_bytes(data)), rpcDone(&HistoryWidget::botCallbackDone), rpcFail(&HistoryWidget::botCallbackFail));
 
 	if (replyTo) {
 		cancelReply();
@@ -5178,7 +5178,10 @@ void HistoryWidget::sendBotCallback(PeerData *peer, const QString &cmd, MsgId re
 
 void HistoryWidget::botCallbackDone(const MTPmessages_BotCallbackAnswer &answer) {
 	if (answer.type() == mtpc_messages_botCallbackAnswer) {
-		Ui::showLayer(new InformBox(qs(answer.c_messages_botCallbackAnswer().vmessage)));
+		const auto &answerData(answer.c_messages_botCallbackAnswer());
+		if (answerData.has_message()) {
+			Ui::showLayer(new InformBox(qs(answerData.vmessage)));
+		}
 	}
 }
 
@@ -5932,7 +5935,7 @@ namespace {
 		} else if (document->type == SongDocument && document->song()) {
 			attributes.push_back(MTP_documentAttributeAudio(MTP_flags(MTPDdocumentAttributeAudio::Flag::f_title | MTPDdocumentAttributeAudio::Flag::f_performer), MTP_int(document->song()->duration), MTP_string(document->song()->title), MTP_string(document->song()->performer), MTPstring()));
 		} else if (document->type == VoiceDocument && document->voice()) {
-			attributes.push_back(MTP_documentAttributeAudio(MTP_flags(MTPDdocumentAttributeAudio::Flag::f_voice | MTPDdocumentAttributeAudio::Flag::f_waveform), MTP_int(document->voice()->duration), MTPstring(), MTPstring(), MTP_string(documentWaveformEncode5bit(document->voice()->waveform))));
+			attributes.push_back(MTP_documentAttributeAudio(MTP_flags(MTPDdocumentAttributeAudio::Flag::f_voice | MTPDdocumentAttributeAudio::Flag::f_waveform), MTP_int(document->voice()->duration), MTPstring(), MTPstring(), MTP_bytes(documentWaveformEncode5bit(document->voice()->waveform))));
 		}
 		return MTP_vector<MTPDocumentAttribute>(attributes);
 	}

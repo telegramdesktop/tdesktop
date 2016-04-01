@@ -1105,7 +1105,8 @@ struct HistoryMessageReplyMarkup : public BaseComponent<HistoryMessageReplyMarku
 			RequestLocation,
 		};
 		Type type;
-		QString text, url;
+		QString text;
+		QByteArray data;
 	};
 	using ButtonRow = QVector<Button>;
 	using ButtonRows = QVector<ButtonRow>;
@@ -1113,7 +1114,7 @@ struct HistoryMessageReplyMarkup : public BaseComponent<HistoryMessageReplyMarku
 	ButtonRows rows;
 	MTPDreplyKeyboardMarkup::Flags flags = 0;
 
-	ReplyKeyboard *inlineKeyboard = nullptr;
+	UniquePointer<ReplyKeyboard> inlineKeyboard;
 };
 
 class ReplyMarkupClickHandler : public LeftButtonClickHandler {
@@ -1507,6 +1508,8 @@ public:
 	virtual bool serviceMsg() const {
 		return false;
 	}
+	virtual void applyEdition(const MTPDmessage &message) {
+	}
 	virtual void updateMedia(const MTPMessageMedia *media, bool edited = false) {
 	}
 	virtual int32 addToOverview(AddToOverviewMethod method) {
@@ -1769,7 +1772,7 @@ protected:
 	}
 	const ReplyKeyboard *inlineReplyKeyboard() const {
 		if (auto *markup = inlineReplyMarkup()) {
-			return markup->inlineKeyboard;
+			return markup->inlineKeyboard.data();
 		}
 		return nullptr;
 	}
@@ -2831,6 +2834,7 @@ public:
     QString notificationHeader() const override;
     QString notificationText() const override;
 
+	void applyEdition(const MTPDmessage &message) override;
 	void updateMedia(const MTPMessageMedia *media, bool edited = false) override {
 		if (!edited && media && _media && _media->type() != MediaTypeWebPage) {
 			_media->updateFrom(*media, this);
@@ -2845,7 +2849,6 @@ public:
 	QString selectedText(uint32 selection) const override;
 	QString inDialogsText() const override;
 	HistoryMedia *getMedia() const override;
-	void setMedia(const MTPMessageMedia *media);
 	void setText(const QString &text, const EntitiesInText &entities) override;
 	QString originalText() const override;
 	EntitiesInText originalEntities() const override;
@@ -2907,7 +2910,7 @@ public:
 
 	~HistoryMessage();
 
-protected:
+private:
 
 	HistoryMessage(History *history, const MTPDmessage &msg);
 	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *fwd); // local forwarded
@@ -2931,6 +2934,9 @@ protected:
 
 	// this method draws "via @bot" if it is not painted in forwarded info or in from name
 	void paintViaBotIdInfo(Painter &p, QRect &trect, bool selected) const;
+
+	void setMedia(const MTPMessageMedia *media);
+	void setReplyMarkup(const MTPReplyMarkup *markup);
 
 	QString _timeText;
 	int _timeWidth = 0;
