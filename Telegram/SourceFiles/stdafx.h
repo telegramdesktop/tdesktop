@@ -25,6 +25,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #ifdef __cplusplus
 
+#include <cmath>
+
 #include <QtCore/QtCore>
 #include <QtWidgets/QtWidgets>
 #include <QtNetwork/QtNetwork>
