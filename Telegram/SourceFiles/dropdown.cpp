@@ -3743,7 +3743,14 @@ void EmojiPan::queryInlineBot(UserData *bot, QString query) {
 		inlineBotChanged();
 		_inlineBot = bot;
 		force = true;
+		if (_inlineBot->isBotInlineGeo()) {
+			Ui::showLayer(new InformBox(lang(lng_bot_inline_geo_unavailable)));
+		}
 	}
+	if (_inlineBot && _inlineBot->isBotInlineGeo()) {
+		return;
+	}
+
 	if (_inlineQuery != query || force) {
 		if (_inlineRequestId) {
 			MTP::cancel(_inlineRequestId);
@@ -3772,7 +3779,8 @@ void EmojiPan::onInlineRequest() {
 		if (nextOffset.isEmpty()) return;
 	}
 	Notify::inlineBotRequesting(true);
-	_inlineRequestId = MTP::send(MTPmessages_GetInlineBotResults(_inlineBot->inputUser, MTP_string(_inlineQuery), MTP_string(nextOffset)), rpcDone(&EmojiPan::inlineResultsDone), rpcFail(&EmojiPan::inlineResultsFail));
+	MTPmessages_GetInlineBotResults::Flags flags = 0;
+	_inlineRequestId = MTP::send(MTPmessages_GetInlineBotResults(MTP_flags(flags), _inlineBot->inputUser, MTPInputGeoPoint(), MTP_string(_inlineQuery), MTP_string(nextOffset)), rpcDone(&EmojiPan::inlineResultsDone), rpcFail(&EmojiPan::inlineResultsFail));
 }
 
 void EmojiPan::onEmptyInlineRows() {

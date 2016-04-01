@@ -26,9 +26,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "mtproto/core_types.h"
 
-// Creator proxy class declaration
+// Creator current layer and proxy class declaration
 namespace MTP {
 namespace internal {
+
+static constexpr mtpPrime CurrentLayer = 52;
 
 class TypeCreator;
 
@@ -277,8 +279,8 @@ enum {
 	mtpc_updateStickerSetsOrder = 0xf0dfb451,
 	mtpc_updateStickerSets = 0x43ae3dec,
 	mtpc_updateSavedGifs = 0x9375341e,
-	mtpc_updateBotInlineQuery = 0xc01eea08,
-	mtpc_updateBotInlineSend = 0xf69e113,
+	mtpc_updateBotInlineQuery = 0x54826690,
+	mtpc_updateBotInlineSend = 0xdaa0c53d,
 	mtpc_updateEditChannelMessage = 0x1b3f4df7,
 	mtpc_updateChannelPinnedMessage = 0x98592475,
 	mtpc_updateBotCallbackQuery = 0xa68c688c,
@@ -455,9 +457,17 @@ enum {
 	mtpc_messages_savedGifs = 0x2e0709a5,
 	mtpc_inputBotInlineMessageMediaAuto = 0x2e43e587,
 	mtpc_inputBotInlineMessageText = 0xadf0df71,
+	mtpc_inputBotInlineMessageMediaGeo = 0x197dce7e,
+	mtpc_inputBotInlineMessageMediaVenue = 0x8ab91f84,
+	mtpc_inputBotInlineMessageMediaContact = 0x52971c52,
 	mtpc_inputBotInlineResult = 0x2cbbe15a,
+	mtpc_inputBotInlineResultPhoto = 0x243edc26,
+	mtpc_inputBotInlineResultDocument = 0x11af9bcc,
 	mtpc_botInlineMessageMediaAuto = 0xfc56e87d,
 	mtpc_botInlineMessageText = 0xa56197a9,
+	mtpc_botInlineMessageMediaGeo = 0x59d1ff36,
+	mtpc_botInlineMessageMediaVenue = 0x6fa16678,
+	mtpc_botInlineMessageMediaContact = 0x89202361,
 	mtpc_botInlineMediaResultDocument = 0xf897d33e,
 	mtpc_botInlineMediaResultPhoto = 0xc5528587,
 	mtpc_botInlineResult = 0x9bebaeb9,
@@ -587,7 +597,7 @@ enum {
 	mtpc_messages_searchGifs = 0xbf9a776b,
 	mtpc_messages_getSavedGifs = 0x83bf3d52,
 	mtpc_messages_saveGif = 0x327a30cb,
-	mtpc_messages_getInlineBotResults = 0x9324600d,
+	mtpc_messages_getInlineBotResults = 0x94e7b170,
 	mtpc_messages_setInlineBotResults = 0x3f23ec12,
 	mtpc_messages_sendInlineBotResult = 0xb16e06fe,
 	mtpc_messages_getMessageEditData = 0xfda68d36,
@@ -1254,13 +1264,21 @@ class MTPDmessages_savedGifs;
 class MTPinputBotInlineMessage;
 class MTPDinputBotInlineMessageMediaAuto;
 class MTPDinputBotInlineMessageText;
+class MTPDinputBotInlineMessageMediaGeo;
+class MTPDinputBotInlineMessageMediaVenue;
+class MTPDinputBotInlineMessageMediaContact;
 
 class MTPinputBotInlineResult;
 class MTPDinputBotInlineResult;
+class MTPDinputBotInlineResultPhoto;
+class MTPDinputBotInlineResultDocument;
 
 class MTPbotInlineMessage;
 class MTPDbotInlineMessageMediaAuto;
 class MTPDbotInlineMessageText;
+class MTPDbotInlineMessageMediaGeo;
+class MTPDbotInlineMessageMediaVenue;
+class MTPDbotInlineMessageMediaContact;
 
 class MTPbotInlineResult;
 class MTPDbotInlineMediaResultDocument;
@@ -8667,6 +8685,42 @@ public:
 		return *(const MTPDinputBotInlineMessageText*)data;
 	}
 
+	MTPDinputBotInlineMessageMediaGeo &_inputBotInlineMessageMediaGeo() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputBotInlineMessageMediaGeo) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineMessageMediaGeo);
+		split();
+		return *(MTPDinputBotInlineMessageMediaGeo*)data;
+	}
+	const MTPDinputBotInlineMessageMediaGeo &c_inputBotInlineMessageMediaGeo() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputBotInlineMessageMediaGeo) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineMessageMediaGeo);
+		return *(const MTPDinputBotInlineMessageMediaGeo*)data;
+	}
+
+	MTPDinputBotInlineMessageMediaVenue &_inputBotInlineMessageMediaVenue() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputBotInlineMessageMediaVenue) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineMessageMediaVenue);
+		split();
+		return *(MTPDinputBotInlineMessageMediaVenue*)data;
+	}
+	const MTPDinputBotInlineMessageMediaVenue &c_inputBotInlineMessageMediaVenue() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputBotInlineMessageMediaVenue) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineMessageMediaVenue);
+		return *(const MTPDinputBotInlineMessageMediaVenue*)data;
+	}
+
+	MTPDinputBotInlineMessageMediaContact &_inputBotInlineMessageMediaContact() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputBotInlineMessageMediaContact) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineMessageMediaContact);
+		split();
+		return *(MTPDinputBotInlineMessageMediaContact*)data;
+	}
+	const MTPDinputBotInlineMessageMediaContact &c_inputBotInlineMessageMediaContact() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputBotInlineMessageMediaContact) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineMessageMediaContact);
+		return *(const MTPDinputBotInlineMessageMediaContact*)data;
+	}
+
 	uint32 innerLength() const;
 	mtpTypeId type() const;
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
@@ -8678,6 +8732,9 @@ private:
 	explicit MTPinputBotInlineMessage(mtpTypeId type);
 	explicit MTPinputBotInlineMessage(MTPDinputBotInlineMessageMediaAuto *_data);
 	explicit MTPinputBotInlineMessage(MTPDinputBotInlineMessageText *_data);
+	explicit MTPinputBotInlineMessage(MTPDinputBotInlineMessageMediaGeo *_data);
+	explicit MTPinputBotInlineMessage(MTPDinputBotInlineMessageMediaVenue *_data);
+	explicit MTPinputBotInlineMessage(MTPDinputBotInlineMessageMediaContact *_data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -8687,32 +8744,64 @@ typedef MTPBoxed<MTPinputBotInlineMessage> MTPInputBotInlineMessage;
 
 class MTPinputBotInlineResult : private mtpDataOwner {
 public:
-	MTPinputBotInlineResult();
-	MTPinputBotInlineResult(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_inputBotInlineResult) : mtpDataOwner(0) {
+	MTPinputBotInlineResult() : mtpDataOwner(0), _type(0) {
+	}
+	MTPinputBotInlineResult(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : mtpDataOwner(0), _type(0) {
 		read(from, end, cons);
 	}
 
 	MTPDinputBotInlineResult &_inputBotInlineResult() {
 		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputBotInlineResult) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineResult);
 		split();
 		return *(MTPDinputBotInlineResult*)data;
 	}
 	const MTPDinputBotInlineResult &c_inputBotInlineResult() const {
 		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputBotInlineResult) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineResult);
 		return *(const MTPDinputBotInlineResult*)data;
+	}
+
+	MTPDinputBotInlineResultPhoto &_inputBotInlineResultPhoto() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputBotInlineResultPhoto) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineResultPhoto);
+		split();
+		return *(MTPDinputBotInlineResultPhoto*)data;
+	}
+	const MTPDinputBotInlineResultPhoto &c_inputBotInlineResultPhoto() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputBotInlineResultPhoto) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineResultPhoto);
+		return *(const MTPDinputBotInlineResultPhoto*)data;
+	}
+
+	MTPDinputBotInlineResultDocument &_inputBotInlineResultDocument() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputBotInlineResultDocument) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineResultDocument);
+		split();
+		return *(MTPDinputBotInlineResultDocument*)data;
+	}
+	const MTPDinputBotInlineResultDocument &c_inputBotInlineResultDocument() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputBotInlineResultDocument) throw mtpErrorWrongTypeId(_type, mtpc_inputBotInlineResultDocument);
+		return *(const MTPDinputBotInlineResultDocument*)data;
 	}
 
 	uint32 innerLength() const;
 	mtpTypeId type() const;
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_inputBotInlineResult);
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
 	void write(mtpBuffer &to) const;
 
 	typedef void ResponseType;
 
 private:
+	explicit MTPinputBotInlineResult(mtpTypeId type);
 	explicit MTPinputBotInlineResult(MTPDinputBotInlineResult *_data);
+	explicit MTPinputBotInlineResult(MTPDinputBotInlineResultPhoto *_data);
+	explicit MTPinputBotInlineResult(MTPDinputBotInlineResultDocument *_data);
 
 	friend class MTP::internal::TypeCreator;
+
+	mtpTypeId _type;
 };
 typedef MTPBoxed<MTPinputBotInlineResult> MTPInputBotInlineResult;
 
@@ -8748,6 +8837,42 @@ public:
 		return *(const MTPDbotInlineMessageText*)data;
 	}
 
+	MTPDbotInlineMessageMediaGeo &_botInlineMessageMediaGeo() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_botInlineMessageMediaGeo) throw mtpErrorWrongTypeId(_type, mtpc_botInlineMessageMediaGeo);
+		split();
+		return *(MTPDbotInlineMessageMediaGeo*)data;
+	}
+	const MTPDbotInlineMessageMediaGeo &c_botInlineMessageMediaGeo() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_botInlineMessageMediaGeo) throw mtpErrorWrongTypeId(_type, mtpc_botInlineMessageMediaGeo);
+		return *(const MTPDbotInlineMessageMediaGeo*)data;
+	}
+
+	MTPDbotInlineMessageMediaVenue &_botInlineMessageMediaVenue() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_botInlineMessageMediaVenue) throw mtpErrorWrongTypeId(_type, mtpc_botInlineMessageMediaVenue);
+		split();
+		return *(MTPDbotInlineMessageMediaVenue*)data;
+	}
+	const MTPDbotInlineMessageMediaVenue &c_botInlineMessageMediaVenue() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_botInlineMessageMediaVenue) throw mtpErrorWrongTypeId(_type, mtpc_botInlineMessageMediaVenue);
+		return *(const MTPDbotInlineMessageMediaVenue*)data;
+	}
+
+	MTPDbotInlineMessageMediaContact &_botInlineMessageMediaContact() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_botInlineMessageMediaContact) throw mtpErrorWrongTypeId(_type, mtpc_botInlineMessageMediaContact);
+		split();
+		return *(MTPDbotInlineMessageMediaContact*)data;
+	}
+	const MTPDbotInlineMessageMediaContact &c_botInlineMessageMediaContact() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_botInlineMessageMediaContact) throw mtpErrorWrongTypeId(_type, mtpc_botInlineMessageMediaContact);
+		return *(const MTPDbotInlineMessageMediaContact*)data;
+	}
+
 	uint32 innerLength() const;
 	mtpTypeId type() const;
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
@@ -8759,6 +8884,9 @@ private:
 	explicit MTPbotInlineMessage(mtpTypeId type);
 	explicit MTPbotInlineMessage(MTPDbotInlineMessageMediaAuto *_data);
 	explicit MTPbotInlineMessage(MTPDbotInlineMessageText *_data);
+	explicit MTPbotInlineMessage(MTPDbotInlineMessageMediaGeo *_data);
+	explicit MTPbotInlineMessage(MTPDbotInlineMessageMediaVenue *_data);
+	explicit MTPbotInlineMessage(MTPDbotInlineMessageMediaContact *_data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -9786,6 +9914,7 @@ public:
 		f_verified = (1 << 17),
 		f_restricted = (1 << 18),
 		f_min = (1 << 20),
+		f_bot_inline_geo = (1 << 21),
 		f_access_hash = (1 << 0),
 		f_first_name = (1 << 1),
 		f_last_name = (1 << 2),
@@ -9797,7 +9926,7 @@ public:
 		f_restriction_reason = (1 << 18),
 		f_bot_inline_placeholder = (1 << 19),
 
-		MAX_FIELD = (1 << 20),
+		MAX_FIELD = (1 << 21),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
 	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
@@ -9812,6 +9941,7 @@ public:
 	bool is_verified() const { return vflags.v & Flag::f_verified; }
 	bool is_restricted() const { return vflags.v & Flag::f_restricted; }
 	bool is_min() const { return vflags.v & Flag::f_min; }
+	bool is_bot_inline_geo() const { return vflags.v & Flag::f_bot_inline_geo; }
 	bool has_access_hash() const { return vflags.v & Flag::f_access_hash; }
 	bool has_first_name() const { return vflags.v & Flag::f_first_name; }
 	bool has_last_name() const { return vflags.v & Flag::f_last_name; }
@@ -10104,6 +10234,7 @@ class MTPDchatParticipantsForbidden : public mtpDataImpl<MTPDchatParticipantsFor
 public:
 	enum class Flag : int32 {
 		f_self_participant = (1 << 0),
+		MAX_FIELD = (1 << 0),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
 	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
@@ -10639,6 +10770,7 @@ class MTPDpeerSettings : public mtpDataImpl<MTPDpeerSettings> {
 public:
 	enum class Flag : int32 {
 		f_report_spam = (1 << 0),
+		MAX_FIELD = (1 << 0),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
 	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
@@ -10879,6 +11011,7 @@ class MTPDmessages_channelMessages : public mtpDataImpl<MTPDmessages_channelMess
 public:
 	enum class Flag : int32 {
 		f_collapsed = (1 << 0),
+		MAX_FIELD = (1 << 0),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
 	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
@@ -11265,6 +11398,7 @@ class MTPDupdateChannelTooLong : public mtpDataImpl<MTPDupdateChannelTooLong> {
 public:
 	enum class Flag : int32 {
 		f_pts = (1 << 0),
+		MAX_FIELD = (1 << 0),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
 	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
@@ -11397,26 +11531,48 @@ public:
 
 class MTPDupdateBotInlineQuery : public mtpDataImpl<MTPDupdateBotInlineQuery> {
 public:
+	enum class Flag : int32 {
+		f_geo = (1 << 0),
+		MAX_FIELD = (1 << 0),
+	};
+	Q_DECLARE_FLAGS(Flags, Flag);
+	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
+
+	bool has_geo() const { return vflags.v & Flag::f_geo; }
+
 	MTPDupdateBotInlineQuery() {
 	}
-	MTPDupdateBotInlineQuery(const MTPlong &_query_id, MTPint _user_id, const MTPstring &_query, const MTPstring &_offset) : vquery_id(_query_id), vuser_id(_user_id), vquery(_query), voffset(_offset) {
+	MTPDupdateBotInlineQuery(const MTPflags<MTPDupdateBotInlineQuery::Flags> &_flags, const MTPlong &_query_id, MTPint _user_id, const MTPstring &_query, const MTPGeoPoint &_geo, const MTPstring &_offset) : vflags(_flags), vquery_id(_query_id), vuser_id(_user_id), vquery(_query), vgeo(_geo), voffset(_offset) {
 	}
 
+	MTPflags<MTPDupdateBotInlineQuery::Flags> vflags;
 	MTPlong vquery_id;
 	MTPint vuser_id;
 	MTPstring vquery;
+	MTPGeoPoint vgeo;
 	MTPstring voffset;
 };
 
 class MTPDupdateBotInlineSend : public mtpDataImpl<MTPDupdateBotInlineSend> {
 public:
+	enum class Flag : int32 {
+		f_geo = (1 << 0),
+		MAX_FIELD = (1 << 0),
+	};
+	Q_DECLARE_FLAGS(Flags, Flag);
+	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
+
+	bool has_geo() const { return vflags.v & Flag::f_geo; }
+
 	MTPDupdateBotInlineSend() {
 	}
-	MTPDupdateBotInlineSend(MTPint _user_id, const MTPstring &_query, const MTPstring &_id) : vuser_id(_user_id), vquery(_query), vid(_id) {
+	MTPDupdateBotInlineSend(const MTPflags<MTPDupdateBotInlineSend::Flags> &_flags, MTPint _user_id, const MTPstring &_query, const MTPGeoPoint &_geo, const MTPstring &_id) : vflags(_flags), vuser_id(_user_id), vquery(_query), vgeo(_geo), vid(_id) {
 	}
 
+	MTPflags<MTPDupdateBotInlineSend::Flags> vflags;
 	MTPint vuser_id;
 	MTPstring vquery;
+	MTPGeoPoint vgeo;
 	MTPstring vid;
 };
 
@@ -13256,6 +13412,42 @@ public:
 	MTPVector<MTPMessageEntity> ventities;
 };
 
+class MTPDinputBotInlineMessageMediaGeo : public mtpDataImpl<MTPDinputBotInlineMessageMediaGeo> {
+public:
+	MTPDinputBotInlineMessageMediaGeo() {
+	}
+	MTPDinputBotInlineMessageMediaGeo(const MTPInputGeoPoint &_geo_point) : vgeo_point(_geo_point) {
+	}
+
+	MTPInputGeoPoint vgeo_point;
+};
+
+class MTPDinputBotInlineMessageMediaVenue : public mtpDataImpl<MTPDinputBotInlineMessageMediaVenue> {
+public:
+	MTPDinputBotInlineMessageMediaVenue() {
+	}
+	MTPDinputBotInlineMessageMediaVenue(const MTPInputGeoPoint &_geo_point, const MTPstring &_title, const MTPstring &_address, const MTPstring &_provider, const MTPstring &_venue_id) : vgeo_point(_geo_point), vtitle(_title), vaddress(_address), vprovider(_provider), vvenue_id(_venue_id) {
+	}
+
+	MTPInputGeoPoint vgeo_point;
+	MTPstring vtitle;
+	MTPstring vaddress;
+	MTPstring vprovider;
+	MTPstring vvenue_id;
+};
+
+class MTPDinputBotInlineMessageMediaContact : public mtpDataImpl<MTPDinputBotInlineMessageMediaContact> {
+public:
+	MTPDinputBotInlineMessageMediaContact() {
+	}
+	MTPDinputBotInlineMessageMediaContact(const MTPstring &_phone_number, const MTPstring &_first_name, const MTPstring &_last_name) : vphone_number(_phone_number), vfirst_name(_first_name), vlast_name(_last_name) {
+	}
+
+	MTPstring vphone_number;
+	MTPstring vfirst_name;
+	MTPstring vlast_name;
+};
+
 class MTPDinputBotInlineResult : public mtpDataImpl<MTPDinputBotInlineResult> {
 public:
 	enum class Flag : int32 {
@@ -13304,6 +13496,56 @@ public:
 	MTPInputBotInlineMessage vsend_message;
 };
 
+class MTPDinputBotInlineResultPhoto : public mtpDataImpl<MTPDinputBotInlineResultPhoto> {
+public:
+	enum class Flag : int32 {
+		MAX_FIELD = (1 << 0),
+	};
+	Q_DECLARE_FLAGS(Flags, Flag);
+	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
+
+	MTPDinputBotInlineResultPhoto() {
+	}
+	MTPDinputBotInlineResultPhoto(const MTPflags<MTPDinputBotInlineResultPhoto::Flags> &_flags, const MTPstring &_id, const MTPstring &_type, const MTPInputPhoto &_photo, const MTPInputBotInlineMessage &_send_message) : vflags(_flags), vid(_id), vtype(_type), vphoto(_photo), vsend_message(_send_message) {
+	}
+
+	MTPflags<MTPDinputBotInlineResultPhoto::Flags> vflags;
+	MTPstring vid;
+	MTPstring vtype;
+	MTPInputPhoto vphoto;
+	MTPInputBotInlineMessage vsend_message;
+};
+
+class MTPDinputBotInlineResultDocument : public mtpDataImpl<MTPDinputBotInlineResultDocument> {
+public:
+	enum class Flag : int32 {
+		f_title = (1 << 1),
+		f_description = (1 << 2),
+		f_document = (1 << 5),
+
+		MAX_FIELD = (1 << 5),
+	};
+	Q_DECLARE_FLAGS(Flags, Flag);
+	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
+
+	bool has_title() const { return vflags.v & Flag::f_title; }
+	bool has_description() const { return vflags.v & Flag::f_description; }
+	bool has_document() const { return vflags.v & Flag::f_document; }
+
+	MTPDinputBotInlineResultDocument() {
+	}
+	MTPDinputBotInlineResultDocument(const MTPflags<MTPDinputBotInlineResultDocument::Flags> &_flags, const MTPstring &_id, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPInputDocument &_document, const MTPInputBotInlineMessage &_send_message) : vflags(_flags), vid(_id), vtype(_type), vtitle(_title), vdescription(_description), vdocument(_document), vsend_message(_send_message) {
+	}
+
+	MTPflags<MTPDinputBotInlineResultDocument::Flags> vflags;
+	MTPstring vid;
+	MTPstring vtype;
+	MTPstring vtitle;
+	MTPstring vdescription;
+	MTPInputDocument vdocument;
+	MTPInputBotInlineMessage vsend_message;
+};
+
 class MTPDbotInlineMessageMediaAuto : public mtpDataImpl<MTPDbotInlineMessageMediaAuto> {
 public:
 	MTPDbotInlineMessageMediaAuto() {
@@ -13336,6 +13578,42 @@ public:
 	MTPflags<MTPDbotInlineMessageText::Flags> vflags;
 	MTPstring vmessage;
 	MTPVector<MTPMessageEntity> ventities;
+};
+
+class MTPDbotInlineMessageMediaGeo : public mtpDataImpl<MTPDbotInlineMessageMediaGeo> {
+public:
+	MTPDbotInlineMessageMediaGeo() {
+	}
+	MTPDbotInlineMessageMediaGeo(const MTPGeoPoint &_geo) : vgeo(_geo) {
+	}
+
+	MTPGeoPoint vgeo;
+};
+
+class MTPDbotInlineMessageMediaVenue : public mtpDataImpl<MTPDbotInlineMessageMediaVenue> {
+public:
+	MTPDbotInlineMessageMediaVenue() {
+	}
+	MTPDbotInlineMessageMediaVenue(const MTPGeoPoint &_geo, const MTPstring &_title, const MTPstring &_address, const MTPstring &_provider, const MTPstring &_venue_id) : vgeo(_geo), vtitle(_title), vaddress(_address), vprovider(_provider), vvenue_id(_venue_id) {
+	}
+
+	MTPGeoPoint vgeo;
+	MTPstring vtitle;
+	MTPstring vaddress;
+	MTPstring vprovider;
+	MTPstring vvenue_id;
+};
+
+class MTPDbotInlineMessageMediaContact : public mtpDataImpl<MTPDbotInlineMessageMediaContact> {
+public:
+	MTPDbotInlineMessageMediaContact() {
+	}
+	MTPDbotInlineMessageMediaContact(const MTPstring &_phone_number, const MTPstring &_first_name, const MTPstring &_last_name) : vphone_number(_phone_number), vfirst_name(_first_name), vlast_name(_last_name) {
+	}
+
+	MTPstring vphone_number;
+	MTPstring vfirst_name;
+	MTPstring vlast_name;
 };
 
 class MTPDbotInlineMediaResultDocument : public mtpDataImpl<MTPDbotInlineMediaResultDocument> {
@@ -13542,6 +13820,7 @@ class MTPDmessages_messageEditData : public mtpDataImpl<MTPDmessages_messageEdit
 public:
 	enum class Flag : int32 {
 		f_caption = (1 << 0),
+		MAX_FIELD = (1 << 0),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
 	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
@@ -14208,6 +14487,8 @@ public:
 	enum class Flag : int32 {
 		f_allow_flashcall = (1 << 0),
 		f_current_number = (1 << 0),
+
+		MAX_FIELD = (1 << 0),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
 	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
@@ -15057,6 +15338,7 @@ public:
 		f_last_name = (1 << 1),
 		f_about = (1 << 2),
 
+
 		MAX_FIELD = (1 << 2),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
@@ -15499,6 +15781,8 @@ public:
 	enum class Flag : int32 {
 		f_allow_flashcall = (1 << 0),
 		f_current_number = (1 << 0),
+
+		MAX_FIELD = (1 << 0),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
 	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
@@ -16504,6 +16788,8 @@ class MTPmessages_search { // RPC method 'messages.search'
 public:
 	enum class Flag : int32 {
 		f_important_only = (1 << 0),
+
+		MAX_FIELD = (1 << 0),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
 	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
@@ -16788,6 +17074,7 @@ public:
 		f_reply_markup = (1 << 2),
 		f_entities = (1 << 3),
 
+
 		MAX_FIELD = (1 << 6),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
@@ -16867,6 +17154,7 @@ public:
 		f_reply_to_msg_id = (1 << 0),
 		f_reply_markup = (1 << 2),
 
+
 		MAX_FIELD = (1 << 6),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
@@ -16938,6 +17226,7 @@ public:
 		f_broadcast = (1 << 4),
 		f_silent = (1 << 5),
 		f_background = (1 << 6),
+
 
 		MAX_FIELD = (1 << 6),
 	};
@@ -18807,7 +19096,19 @@ public:
 
 class MTPmessages_getInlineBotResults { // RPC method 'messages.getInlineBotResults'
 public:
+	enum class Flag : int32 {
+		f_geo_point = (1 << 0),
+
+		MAX_FIELD = (1 << 0),
+	};
+	Q_DECLARE_FLAGS(Flags, Flag);
+	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
+
+	bool has_geo_point() const { return vflags.v & Flag::f_geo_point; }
+
+	MTPflags<MTPmessages_getInlineBotResults::Flags> vflags;
 	MTPInputUser vbot;
+	MTPInputGeoPoint vgeo_point;
 	MTPstring vquery;
 	MTPstring voffset;
 
@@ -18816,28 +19117,34 @@ public:
 	MTPmessages_getInlineBotResults(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getInlineBotResults) {
 		read(from, end, cons);
 	}
-	MTPmessages_getInlineBotResults(const MTPInputUser &_bot, const MTPstring &_query, const MTPstring &_offset) : vbot(_bot), vquery(_query), voffset(_offset) {
+	MTPmessages_getInlineBotResults(const MTPflags<MTPmessages_getInlineBotResults::Flags> &_flags, const MTPInputUser &_bot, const MTPInputGeoPoint &_geo_point, const MTPstring &_query, const MTPstring &_offset) : vflags(_flags), vbot(_bot), vgeo_point(_geo_point), vquery(_query), voffset(_offset) {
 	}
 
 	uint32 innerLength() const {
-		return vbot.innerLength() + vquery.innerLength() + voffset.innerLength();
+		return vflags.innerLength() + vbot.innerLength() + (has_geo_point() ? vgeo_point.innerLength() : 0) + vquery.innerLength() + voffset.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_messages_getInlineBotResults;
 	}
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getInlineBotResults) {
+		vflags.read(from, end);
 		vbot.read(from, end);
+		if (has_geo_point()) { vgeo_point.read(from, end); } else { vgeo_point = MTPInputGeoPoint(); }
 		vquery.read(from, end);
 		voffset.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
+		vflags.write(to);
 		vbot.write(to);
+		if (has_geo_point()) vgeo_point.write(to);
 		vquery.write(to);
 		voffset.write(to);
 	}
 
 	typedef MTPmessages_BotResults ResponseType;
 };
+Q_DECLARE_OPERATORS_FOR_FLAGS(MTPmessages_getInlineBotResults::Flags)
+
 class MTPmessages_GetInlineBotResults : public MTPBoxed<MTPmessages_getInlineBotResults> {
 public:
 	MTPmessages_GetInlineBotResults() {
@@ -18846,7 +19153,7 @@ public:
 	}
 	MTPmessages_GetInlineBotResults(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_getInlineBotResults>(from, end, cons) {
 	}
-	MTPmessages_GetInlineBotResults(const MTPInputUser &_bot, const MTPstring &_query, const MTPstring &_offset) : MTPBoxed<MTPmessages_getInlineBotResults>(MTPmessages_getInlineBotResults(_bot, _query, _offset)) {
+	MTPmessages_GetInlineBotResults(const MTPflags<MTPmessages_getInlineBotResults::Flags> &_flags, const MTPInputUser &_bot, const MTPInputGeoPoint &_geo_point, const MTPstring &_query, const MTPstring &_offset) : MTPBoxed<MTPmessages_getInlineBotResults>(MTPmessages_getInlineBotResults(_flags, _bot, _geo_point, _query, _offset)) {
 	}
 };
 
@@ -18856,6 +19163,7 @@ public:
 		f_gallery = (1 << 0),
 		f_private = (1 << 1),
 		f_next_offset = (1 << 2),
+
 
 		MAX_FIELD = (1 << 2),
 	};
@@ -18924,6 +19232,7 @@ public:
 		f_silent = (1 << 5),
 		f_background = (1 << 6),
 		f_reply_to_msg_id = (1 << 0),
+
 
 		MAX_FIELD = (1 << 6),
 	};
@@ -19038,6 +19347,7 @@ public:
 		f_entities = (1 << 3),
 		f_reply_markup = (1 << 2),
 
+
 		MAX_FIELD = (1 << 3),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
@@ -19151,6 +19461,7 @@ public:
 	enum class Flag : int32 {
 		f_alert = (1 << 1),
 		f_message = (1 << 0),
+
 
 		MAX_FIELD = (1 << 1),
 	};
@@ -20436,6 +20747,7 @@ public:
 		f_broadcast = (1 << 0),
 		f_megagroup = (1 << 1),
 
+
 		MAX_FIELD = (1 << 1),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
@@ -21159,6 +21471,8 @@ class MTPchannels_updatePinnedMessage { // RPC method 'channels.updatePinnedMess
 public:
 	enum class Flag : int32 {
 		f_silent = (1 << 0),
+
+		MAX_FIELD = (1 << 0),
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
 	friend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }
@@ -21909,11 +22223,11 @@ public:
 	inline static MTPupdate new_updateSavedGifs() {
 		return MTPupdate(mtpc_updateSavedGifs);
 	}
-	inline static MTPupdate new_updateBotInlineQuery(const MTPlong &_query_id, MTPint _user_id, const MTPstring &_query, const MTPstring &_offset) {
-		return MTPupdate(new MTPDupdateBotInlineQuery(_query_id, _user_id, _query, _offset));
+	inline static MTPupdate new_updateBotInlineQuery(const MTPflags<MTPDupdateBotInlineQuery::Flags> &_flags, const MTPlong &_query_id, MTPint _user_id, const MTPstring &_query, const MTPGeoPoint &_geo, const MTPstring &_offset) {
+		return MTPupdate(new MTPDupdateBotInlineQuery(_flags, _query_id, _user_id, _query, _geo, _offset));
 	}
-	inline static MTPupdate new_updateBotInlineSend(MTPint _user_id, const MTPstring &_query, const MTPstring &_id) {
-		return MTPupdate(new MTPDupdateBotInlineSend(_user_id, _query, _id));
+	inline static MTPupdate new_updateBotInlineSend(const MTPflags<MTPDupdateBotInlineSend::Flags> &_flags, MTPint _user_id, const MTPstring &_query, const MTPGeoPoint &_geo, const MTPstring &_id) {
+		return MTPupdate(new MTPDupdateBotInlineSend(_flags, _user_id, _query, _geo, _id));
 	}
 	inline static MTPupdate new_updateEditChannelMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count) {
 		return MTPupdate(new MTPDupdateEditChannelMessage(_message, _pts, _pts_count));
@@ -22443,14 +22757,38 @@ public:
 	inline static MTPinputBotInlineMessage new_inputBotInlineMessageText(const MTPflags<MTPDinputBotInlineMessageText::Flags> &_flags, const MTPstring &_message, const MTPVector<MTPMessageEntity> &_entities) {
 		return MTPinputBotInlineMessage(new MTPDinputBotInlineMessageText(_flags, _message, _entities));
 	}
+	inline static MTPinputBotInlineMessage new_inputBotInlineMessageMediaGeo(const MTPInputGeoPoint &_geo_point) {
+		return MTPinputBotInlineMessage(new MTPDinputBotInlineMessageMediaGeo(_geo_point));
+	}
+	inline static MTPinputBotInlineMessage new_inputBotInlineMessageMediaVenue(const MTPInputGeoPoint &_geo_point, const MTPstring &_title, const MTPstring &_address, const MTPstring &_provider, const MTPstring &_venue_id) {
+		return MTPinputBotInlineMessage(new MTPDinputBotInlineMessageMediaVenue(_geo_point, _title, _address, _provider, _venue_id));
+	}
+	inline static MTPinputBotInlineMessage new_inputBotInlineMessageMediaContact(const MTPstring &_phone_number, const MTPstring &_first_name, const MTPstring &_last_name) {
+		return MTPinputBotInlineMessage(new MTPDinputBotInlineMessageMediaContact(_phone_number, _first_name, _last_name));
+	}
 	inline static MTPinputBotInlineResult new_inputBotInlineResult(const MTPflags<MTPDinputBotInlineResult::Flags> &_flags, const MTPstring &_id, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPstring &_url, const MTPstring &_thumb_url, const MTPstring &_content_url, const MTPstring &_content_type, MTPint _w, MTPint _h, MTPint _duration, const MTPInputBotInlineMessage &_send_message) {
 		return MTPinputBotInlineResult(new MTPDinputBotInlineResult(_flags, _id, _type, _title, _description, _url, _thumb_url, _content_url, _content_type, _w, _h, _duration, _send_message));
+	}
+	inline static MTPinputBotInlineResult new_inputBotInlineResultPhoto(const MTPflags<MTPDinputBotInlineResultPhoto::Flags> &_flags, const MTPstring &_id, const MTPstring &_type, const MTPInputPhoto &_photo, const MTPInputBotInlineMessage &_send_message) {
+		return MTPinputBotInlineResult(new MTPDinputBotInlineResultPhoto(_flags, _id, _type, _photo, _send_message));
+	}
+	inline static MTPinputBotInlineResult new_inputBotInlineResultDocument(const MTPflags<MTPDinputBotInlineResultDocument::Flags> &_flags, const MTPstring &_id, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPInputDocument &_document, const MTPInputBotInlineMessage &_send_message) {
+		return MTPinputBotInlineResult(new MTPDinputBotInlineResultDocument(_flags, _id, _type, _title, _description, _document, _send_message));
 	}
 	inline static MTPbotInlineMessage new_botInlineMessageMediaAuto(const MTPstring &_caption) {
 		return MTPbotInlineMessage(new MTPDbotInlineMessageMediaAuto(_caption));
 	}
 	inline static MTPbotInlineMessage new_botInlineMessageText(const MTPflags<MTPDbotInlineMessageText::Flags> &_flags, const MTPstring &_message, const MTPVector<MTPMessageEntity> &_entities) {
 		return MTPbotInlineMessage(new MTPDbotInlineMessageText(_flags, _message, _entities));
+	}
+	inline static MTPbotInlineMessage new_botInlineMessageMediaGeo(const MTPGeoPoint &_geo) {
+		return MTPbotInlineMessage(new MTPDbotInlineMessageMediaGeo(_geo));
+	}
+	inline static MTPbotInlineMessage new_botInlineMessageMediaVenue(const MTPGeoPoint &_geo, const MTPstring &_title, const MTPstring &_address, const MTPstring &_provider, const MTPstring &_venue_id) {
+		return MTPbotInlineMessage(new MTPDbotInlineMessageMediaVenue(_geo, _title, _address, _provider, _venue_id));
+	}
+	inline static MTPbotInlineMessage new_botInlineMessageMediaContact(const MTPstring &_phone_number, const MTPstring &_first_name, const MTPstring &_last_name) {
+		return MTPbotInlineMessage(new MTPDbotInlineMessageMediaContact(_phone_number, _first_name, _last_name));
 	}
 	inline static MTPbotInlineResult new_botInlineMediaResultDocument(const MTPstring &_id, const MTPstring &_type, const MTPDocument &_document, const MTPBotInlineMessage &_send_message) {
 		return MTPbotInlineResult(new MTPDbotInlineMediaResultDocument(_id, _type, _document, _send_message));
@@ -27381,11 +27719,11 @@ inline uint32 MTPupdate::innerLength() const {
 		}
 		case mtpc_updateBotInlineQuery: {
 			const MTPDupdateBotInlineQuery &v(c_updateBotInlineQuery());
-			return v.vquery_id.innerLength() + v.vuser_id.innerLength() + v.vquery.innerLength() + v.voffset.innerLength();
+			return v.vflags.innerLength() + v.vquery_id.innerLength() + v.vuser_id.innerLength() + v.vquery.innerLength() + (v.has_geo() ? v.vgeo.innerLength() : 0) + v.voffset.innerLength();
 		}
 		case mtpc_updateBotInlineSend: {
 			const MTPDupdateBotInlineSend &v(c_updateBotInlineSend());
-			return v.vuser_id.innerLength() + v.vquery.innerLength() + v.vid.innerLength();
+			return v.vflags.innerLength() + v.vuser_id.innerLength() + v.vquery.innerLength() + (v.has_geo() ? v.vgeo.innerLength() : 0) + v.vid.innerLength();
 		}
 		case mtpc_updateEditChannelMessage: {
 			const MTPDupdateEditChannelMessage &v(c_updateEditChannelMessage());
@@ -27677,16 +28015,20 @@ inline void MTPupdate::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeI
 		case mtpc_updateBotInlineQuery: _type = cons; {
 			if (!data) setData(new MTPDupdateBotInlineQuery());
 			MTPDupdateBotInlineQuery &v(_updateBotInlineQuery());
+			v.vflags.read(from, end);
 			v.vquery_id.read(from, end);
 			v.vuser_id.read(from, end);
 			v.vquery.read(from, end);
+			if (v.has_geo()) { v.vgeo.read(from, end); } else { v.vgeo = MTPGeoPoint(); }
 			v.voffset.read(from, end);
 		} break;
 		case mtpc_updateBotInlineSend: _type = cons; {
 			if (!data) setData(new MTPDupdateBotInlineSend());
 			MTPDupdateBotInlineSend &v(_updateBotInlineSend());
+			v.vflags.read(from, end);
 			v.vuser_id.read(from, end);
 			v.vquery.read(from, end);
+			if (v.has_geo()) { v.vgeo.read(from, end); } else { v.vgeo = MTPGeoPoint(); }
 			v.vid.read(from, end);
 		} break;
 		case mtpc_updateEditChannelMessage: _type = cons; {
@@ -27945,15 +28287,19 @@ inline void MTPupdate::write(mtpBuffer &to) const {
 		} break;
 		case mtpc_updateBotInlineQuery: {
 			const MTPDupdateBotInlineQuery &v(c_updateBotInlineQuery());
+			v.vflags.write(to);
 			v.vquery_id.write(to);
 			v.vuser_id.write(to);
 			v.vquery.write(to);
+			if (v.has_geo()) v.vgeo.write(to);
 			v.voffset.write(to);
 		} break;
 		case mtpc_updateBotInlineSend: {
 			const MTPDupdateBotInlineSend &v(c_updateBotInlineSend());
+			v.vflags.write(to);
 			v.vuser_id.write(to);
 			v.vquery.write(to);
+			if (v.has_geo()) v.vgeo.write(to);
 			v.vid.write(to);
 		} break;
 		case mtpc_updateEditChannelMessage: {
@@ -28249,11 +28595,13 @@ inline MTPupdate MTP_updateStickerSets() {
 inline MTPupdate MTP_updateSavedGifs() {
 	return MTP::internal::TypeCreator::new_updateSavedGifs();
 }
-inline MTPupdate MTP_updateBotInlineQuery(const MTPlong &_query_id, MTPint _user_id, const MTPstring &_query, const MTPstring &_offset) {
-	return MTP::internal::TypeCreator::new_updateBotInlineQuery(_query_id, _user_id, _query, _offset);
+Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDupdateBotInlineQuery::Flags)
+inline MTPupdate MTP_updateBotInlineQuery(const MTPflags<MTPDupdateBotInlineQuery::Flags> &_flags, const MTPlong &_query_id, MTPint _user_id, const MTPstring &_query, const MTPGeoPoint &_geo, const MTPstring &_offset) {
+	return MTP::internal::TypeCreator::new_updateBotInlineQuery(_flags, _query_id, _user_id, _query, _geo, _offset);
 }
-inline MTPupdate MTP_updateBotInlineSend(MTPint _user_id, const MTPstring &_query, const MTPstring &_id) {
-	return MTP::internal::TypeCreator::new_updateBotInlineSend(_user_id, _query, _id);
+Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDupdateBotInlineSend::Flags)
+inline MTPupdate MTP_updateBotInlineSend(const MTPflags<MTPDupdateBotInlineSend::Flags> &_flags, MTPint _user_id, const MTPstring &_query, const MTPGeoPoint &_geo, const MTPstring &_id) {
+	return MTP::internal::TypeCreator::new_updateBotInlineSend(_flags, _user_id, _query, _geo, _id);
 }
 inline MTPupdate MTP_updateEditChannelMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count) {
 	return MTP::internal::TypeCreator::new_updateEditChannelMessage(_message, _pts, _pts_count);
@@ -32602,6 +32950,18 @@ inline uint32 MTPinputBotInlineMessage::innerLength() const {
 			const MTPDinputBotInlineMessageText &v(c_inputBotInlineMessageText());
 			return v.vflags.innerLength() + v.vmessage.innerLength() + (v.has_entities() ? v.ventities.innerLength() : 0);
 		}
+		case mtpc_inputBotInlineMessageMediaGeo: {
+			const MTPDinputBotInlineMessageMediaGeo &v(c_inputBotInlineMessageMediaGeo());
+			return v.vgeo_point.innerLength();
+		}
+		case mtpc_inputBotInlineMessageMediaVenue: {
+			const MTPDinputBotInlineMessageMediaVenue &v(c_inputBotInlineMessageMediaVenue());
+			return v.vgeo_point.innerLength() + v.vtitle.innerLength() + v.vaddress.innerLength() + v.vprovider.innerLength() + v.vvenue_id.innerLength();
+		}
+		case mtpc_inputBotInlineMessageMediaContact: {
+			const MTPDinputBotInlineMessageMediaContact &v(c_inputBotInlineMessageMediaContact());
+			return v.vphone_number.innerLength() + v.vfirst_name.innerLength() + v.vlast_name.innerLength();
+		}
 	}
 	return 0;
 }
@@ -32624,6 +32984,27 @@ inline void MTPinputBotInlineMessage::read(const mtpPrime *&from, const mtpPrime
 			v.vmessage.read(from, end);
 			if (v.has_entities()) { v.ventities.read(from, end); } else { v.ventities = MTPVector<MTPMessageEntity>(); }
 		} break;
+		case mtpc_inputBotInlineMessageMediaGeo: _type = cons; {
+			if (!data) setData(new MTPDinputBotInlineMessageMediaGeo());
+			MTPDinputBotInlineMessageMediaGeo &v(_inputBotInlineMessageMediaGeo());
+			v.vgeo_point.read(from, end);
+		} break;
+		case mtpc_inputBotInlineMessageMediaVenue: _type = cons; {
+			if (!data) setData(new MTPDinputBotInlineMessageMediaVenue());
+			MTPDinputBotInlineMessageMediaVenue &v(_inputBotInlineMessageMediaVenue());
+			v.vgeo_point.read(from, end);
+			v.vtitle.read(from, end);
+			v.vaddress.read(from, end);
+			v.vprovider.read(from, end);
+			v.vvenue_id.read(from, end);
+		} break;
+		case mtpc_inputBotInlineMessageMediaContact: _type = cons; {
+			if (!data) setData(new MTPDinputBotInlineMessageMediaContact());
+			MTPDinputBotInlineMessageMediaContact &v(_inputBotInlineMessageMediaContact());
+			v.vphone_number.read(from, end);
+			v.vfirst_name.read(from, end);
+			v.vlast_name.read(from, end);
+		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPinputBotInlineMessage");
 	}
 }
@@ -32639,18 +33020,45 @@ inline void MTPinputBotInlineMessage::write(mtpBuffer &to) const {
 			v.vmessage.write(to);
 			if (v.has_entities()) v.ventities.write(to);
 		} break;
+		case mtpc_inputBotInlineMessageMediaGeo: {
+			const MTPDinputBotInlineMessageMediaGeo &v(c_inputBotInlineMessageMediaGeo());
+			v.vgeo_point.write(to);
+		} break;
+		case mtpc_inputBotInlineMessageMediaVenue: {
+			const MTPDinputBotInlineMessageMediaVenue &v(c_inputBotInlineMessageMediaVenue());
+			v.vgeo_point.write(to);
+			v.vtitle.write(to);
+			v.vaddress.write(to);
+			v.vprovider.write(to);
+			v.vvenue_id.write(to);
+		} break;
+		case mtpc_inputBotInlineMessageMediaContact: {
+			const MTPDinputBotInlineMessageMediaContact &v(c_inputBotInlineMessageMediaContact());
+			v.vphone_number.write(to);
+			v.vfirst_name.write(to);
+			v.vlast_name.write(to);
+		} break;
 	}
 }
 inline MTPinputBotInlineMessage::MTPinputBotInlineMessage(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_inputBotInlineMessageMediaAuto: setData(new MTPDinputBotInlineMessageMediaAuto()); break;
 		case mtpc_inputBotInlineMessageText: setData(new MTPDinputBotInlineMessageText()); break;
+		case mtpc_inputBotInlineMessageMediaGeo: setData(new MTPDinputBotInlineMessageMediaGeo()); break;
+		case mtpc_inputBotInlineMessageMediaVenue: setData(new MTPDinputBotInlineMessageMediaVenue()); break;
+		case mtpc_inputBotInlineMessageMediaContact: setData(new MTPDinputBotInlineMessageMediaContact()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputBotInlineMessage");
 	}
 }
 inline MTPinputBotInlineMessage::MTPinputBotInlineMessage(MTPDinputBotInlineMessageMediaAuto *_data) : mtpDataOwner(_data), _type(mtpc_inputBotInlineMessageMediaAuto) {
 }
 inline MTPinputBotInlineMessage::MTPinputBotInlineMessage(MTPDinputBotInlineMessageText *_data) : mtpDataOwner(_data), _type(mtpc_inputBotInlineMessageText) {
+}
+inline MTPinputBotInlineMessage::MTPinputBotInlineMessage(MTPDinputBotInlineMessageMediaGeo *_data) : mtpDataOwner(_data), _type(mtpc_inputBotInlineMessageMediaGeo) {
+}
+inline MTPinputBotInlineMessage::MTPinputBotInlineMessage(MTPDinputBotInlineMessageMediaVenue *_data) : mtpDataOwner(_data), _type(mtpc_inputBotInlineMessageMediaVenue) {
+}
+inline MTPinputBotInlineMessage::MTPinputBotInlineMessage(MTPDinputBotInlineMessageMediaContact *_data) : mtpDataOwner(_data), _type(mtpc_inputBotInlineMessageMediaContact) {
 }
 inline MTPinputBotInlineMessage MTP_inputBotInlineMessageMediaAuto(const MTPstring &_caption) {
 	return MTP::internal::TypeCreator::new_inputBotInlineMessageMediaAuto(_caption);
@@ -32659,57 +33067,142 @@ Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDinputBotInlineMessageText::Flags)
 inline MTPinputBotInlineMessage MTP_inputBotInlineMessageText(const MTPflags<MTPDinputBotInlineMessageText::Flags> &_flags, const MTPstring &_message, const MTPVector<MTPMessageEntity> &_entities) {
 	return MTP::internal::TypeCreator::new_inputBotInlineMessageText(_flags, _message, _entities);
 }
-
-inline MTPinputBotInlineResult::MTPinputBotInlineResult() : mtpDataOwner(new MTPDinputBotInlineResult()) {
+inline MTPinputBotInlineMessage MTP_inputBotInlineMessageMediaGeo(const MTPInputGeoPoint &_geo_point) {
+	return MTP::internal::TypeCreator::new_inputBotInlineMessageMediaGeo(_geo_point);
+}
+inline MTPinputBotInlineMessage MTP_inputBotInlineMessageMediaVenue(const MTPInputGeoPoint &_geo_point, const MTPstring &_title, const MTPstring &_address, const MTPstring &_provider, const MTPstring &_venue_id) {
+	return MTP::internal::TypeCreator::new_inputBotInlineMessageMediaVenue(_geo_point, _title, _address, _provider, _venue_id);
+}
+inline MTPinputBotInlineMessage MTP_inputBotInlineMessageMediaContact(const MTPstring &_phone_number, const MTPstring &_first_name, const MTPstring &_last_name) {
+	return MTP::internal::TypeCreator::new_inputBotInlineMessageMediaContact(_phone_number, _first_name, _last_name);
 }
 
 inline uint32 MTPinputBotInlineResult::innerLength() const {
-	const MTPDinputBotInlineResult &v(c_inputBotInlineResult());
-	return v.vflags.innerLength() + v.vid.innerLength() + v.vtype.innerLength() + (v.has_title() ? v.vtitle.innerLength() : 0) + (v.has_description() ? v.vdescription.innerLength() : 0) + (v.has_url() ? v.vurl.innerLength() : 0) + (v.has_thumb_url() ? v.vthumb_url.innerLength() : 0) + (v.has_content_url() ? v.vcontent_url.innerLength() : 0) + (v.has_content_type() ? v.vcontent_type.innerLength() : 0) + (v.has_w() ? v.vw.innerLength() : 0) + (v.has_h() ? v.vh.innerLength() : 0) + (v.has_duration() ? v.vduration.innerLength() : 0) + v.vsend_message.innerLength();
+	switch (_type) {
+		case mtpc_inputBotInlineResult: {
+			const MTPDinputBotInlineResult &v(c_inputBotInlineResult());
+			return v.vflags.innerLength() + v.vid.innerLength() + v.vtype.innerLength() + (v.has_title() ? v.vtitle.innerLength() : 0) + (v.has_description() ? v.vdescription.innerLength() : 0) + (v.has_url() ? v.vurl.innerLength() : 0) + (v.has_thumb_url() ? v.vthumb_url.innerLength() : 0) + (v.has_content_url() ? v.vcontent_url.innerLength() : 0) + (v.has_content_type() ? v.vcontent_type.innerLength() : 0) + (v.has_w() ? v.vw.innerLength() : 0) + (v.has_h() ? v.vh.innerLength() : 0) + (v.has_duration() ? v.vduration.innerLength() : 0) + v.vsend_message.innerLength();
+		}
+		case mtpc_inputBotInlineResultPhoto: {
+			const MTPDinputBotInlineResultPhoto &v(c_inputBotInlineResultPhoto());
+			return v.vflags.innerLength() + v.vid.innerLength() + v.vtype.innerLength() + v.vphoto.innerLength() + v.vsend_message.innerLength();
+		}
+		case mtpc_inputBotInlineResultDocument: {
+			const MTPDinputBotInlineResultDocument &v(c_inputBotInlineResultDocument());
+			return v.vflags.innerLength() + v.vid.innerLength() + v.vtype.innerLength() + (v.has_title() ? v.vtitle.innerLength() : 0) + (v.has_description() ? v.vdescription.innerLength() : 0) + (v.has_document() ? v.vdocument.innerLength() : 0) + v.vsend_message.innerLength();
+		}
+	}
+	return 0;
 }
 inline mtpTypeId MTPinputBotInlineResult::type() const {
-	return mtpc_inputBotInlineResult;
+	if (!_type) throw mtpErrorUninitialized();
+	return _type;
 }
 inline void MTPinputBotInlineResult::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	if (cons != mtpc_inputBotInlineResult) throw mtpErrorUnexpected(cons, "MTPinputBotInlineResult");
-
-	if (!data) setData(new MTPDinputBotInlineResult());
-	MTPDinputBotInlineResult &v(_inputBotInlineResult());
-	v.vflags.read(from, end);
-	v.vid.read(from, end);
-	v.vtype.read(from, end);
-	if (v.has_title()) { v.vtitle.read(from, end); } else { v.vtitle = MTPstring(); }
-	if (v.has_description()) { v.vdescription.read(from, end); } else { v.vdescription = MTPstring(); }
-	if (v.has_url()) { v.vurl.read(from, end); } else { v.vurl = MTPstring(); }
-	if (v.has_thumb_url()) { v.vthumb_url.read(from, end); } else { v.vthumb_url = MTPstring(); }
-	if (v.has_content_url()) { v.vcontent_url.read(from, end); } else { v.vcontent_url = MTPstring(); }
-	if (v.has_content_type()) { v.vcontent_type.read(from, end); } else { v.vcontent_type = MTPstring(); }
-	if (v.has_w()) { v.vw.read(from, end); } else { v.vw = MTPint(); }
-	if (v.has_h()) { v.vh.read(from, end); } else { v.vh = MTPint(); }
-	if (v.has_duration()) { v.vduration.read(from, end); } else { v.vduration = MTPint(); }
-	v.vsend_message.read(from, end);
+	if (cons != _type) setData(0);
+	switch (cons) {
+		case mtpc_inputBotInlineResult: _type = cons; {
+			if (!data) setData(new MTPDinputBotInlineResult());
+			MTPDinputBotInlineResult &v(_inputBotInlineResult());
+			v.vflags.read(from, end);
+			v.vid.read(from, end);
+			v.vtype.read(from, end);
+			if (v.has_title()) { v.vtitle.read(from, end); } else { v.vtitle = MTPstring(); }
+			if (v.has_description()) { v.vdescription.read(from, end); } else { v.vdescription = MTPstring(); }
+			if (v.has_url()) { v.vurl.read(from, end); } else { v.vurl = MTPstring(); }
+			if (v.has_thumb_url()) { v.vthumb_url.read(from, end); } else { v.vthumb_url = MTPstring(); }
+			if (v.has_content_url()) { v.vcontent_url.read(from, end); } else { v.vcontent_url = MTPstring(); }
+			if (v.has_content_type()) { v.vcontent_type.read(from, end); } else { v.vcontent_type = MTPstring(); }
+			if (v.has_w()) { v.vw.read(from, end); } else { v.vw = MTPint(); }
+			if (v.has_h()) { v.vh.read(from, end); } else { v.vh = MTPint(); }
+			if (v.has_duration()) { v.vduration.read(from, end); } else { v.vduration = MTPint(); }
+			v.vsend_message.read(from, end);
+		} break;
+		case mtpc_inputBotInlineResultPhoto: _type = cons; {
+			if (!data) setData(new MTPDinputBotInlineResultPhoto());
+			MTPDinputBotInlineResultPhoto &v(_inputBotInlineResultPhoto());
+			v.vflags.read(from, end);
+			v.vid.read(from, end);
+			v.vtype.read(from, end);
+			v.vphoto.read(from, end);
+			v.vsend_message.read(from, end);
+		} break;
+		case mtpc_inputBotInlineResultDocument: _type = cons; {
+			if (!data) setData(new MTPDinputBotInlineResultDocument());
+			MTPDinputBotInlineResultDocument &v(_inputBotInlineResultDocument());
+			v.vflags.read(from, end);
+			v.vid.read(from, end);
+			v.vtype.read(from, end);
+			if (v.has_title()) { v.vtitle.read(from, end); } else { v.vtitle = MTPstring(); }
+			if (v.has_description()) { v.vdescription.read(from, end); } else { v.vdescription = MTPstring(); }
+			if (v.has_document()) { v.vdocument.read(from, end); } else { v.vdocument = MTPInputDocument(); }
+			v.vsend_message.read(from, end);
+		} break;
+		default: throw mtpErrorUnexpected(cons, "MTPinputBotInlineResult");
+	}
 }
 inline void MTPinputBotInlineResult::write(mtpBuffer &to) const {
-	const MTPDinputBotInlineResult &v(c_inputBotInlineResult());
-	v.vflags.write(to);
-	v.vid.write(to);
-	v.vtype.write(to);
-	if (v.has_title()) v.vtitle.write(to);
-	if (v.has_description()) v.vdescription.write(to);
-	if (v.has_url()) v.vurl.write(to);
-	if (v.has_thumb_url()) v.vthumb_url.write(to);
-	if (v.has_content_url()) v.vcontent_url.write(to);
-	if (v.has_content_type()) v.vcontent_type.write(to);
-	if (v.has_w()) v.vw.write(to);
-	if (v.has_h()) v.vh.write(to);
-	if (v.has_duration()) v.vduration.write(to);
-	v.vsend_message.write(to);
+	switch (_type) {
+		case mtpc_inputBotInlineResult: {
+			const MTPDinputBotInlineResult &v(c_inputBotInlineResult());
+			v.vflags.write(to);
+			v.vid.write(to);
+			v.vtype.write(to);
+			if (v.has_title()) v.vtitle.write(to);
+			if (v.has_description()) v.vdescription.write(to);
+			if (v.has_url()) v.vurl.write(to);
+			if (v.has_thumb_url()) v.vthumb_url.write(to);
+			if (v.has_content_url()) v.vcontent_url.write(to);
+			if (v.has_content_type()) v.vcontent_type.write(to);
+			if (v.has_w()) v.vw.write(to);
+			if (v.has_h()) v.vh.write(to);
+			if (v.has_duration()) v.vduration.write(to);
+			v.vsend_message.write(to);
+		} break;
+		case mtpc_inputBotInlineResultPhoto: {
+			const MTPDinputBotInlineResultPhoto &v(c_inputBotInlineResultPhoto());
+			v.vflags.write(to);
+			v.vid.write(to);
+			v.vtype.write(to);
+			v.vphoto.write(to);
+			v.vsend_message.write(to);
+		} break;
+		case mtpc_inputBotInlineResultDocument: {
+			const MTPDinputBotInlineResultDocument &v(c_inputBotInlineResultDocument());
+			v.vflags.write(to);
+			v.vid.write(to);
+			v.vtype.write(to);
+			if (v.has_title()) v.vtitle.write(to);
+			if (v.has_description()) v.vdescription.write(to);
+			if (v.has_document()) v.vdocument.write(to);
+			v.vsend_message.write(to);
+		} break;
+	}
 }
-inline MTPinputBotInlineResult::MTPinputBotInlineResult(MTPDinputBotInlineResult *_data) : mtpDataOwner(_data) {
+inline MTPinputBotInlineResult::MTPinputBotInlineResult(mtpTypeId type) : mtpDataOwner(0), _type(type) {
+	switch (type) {
+		case mtpc_inputBotInlineResult: setData(new MTPDinputBotInlineResult()); break;
+		case mtpc_inputBotInlineResultPhoto: setData(new MTPDinputBotInlineResultPhoto()); break;
+		case mtpc_inputBotInlineResultDocument: setData(new MTPDinputBotInlineResultDocument()); break;
+		default: throw mtpErrorBadTypeId(type, "MTPinputBotInlineResult");
+	}
+}
+inline MTPinputBotInlineResult::MTPinputBotInlineResult(MTPDinputBotInlineResult *_data) : mtpDataOwner(_data), _type(mtpc_inputBotInlineResult) {
+}
+inline MTPinputBotInlineResult::MTPinputBotInlineResult(MTPDinputBotInlineResultPhoto *_data) : mtpDataOwner(_data), _type(mtpc_inputBotInlineResultPhoto) {
+}
+inline MTPinputBotInlineResult::MTPinputBotInlineResult(MTPDinputBotInlineResultDocument *_data) : mtpDataOwner(_data), _type(mtpc_inputBotInlineResultDocument) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDinputBotInlineResult::Flags)
 inline MTPinputBotInlineResult MTP_inputBotInlineResult(const MTPflags<MTPDinputBotInlineResult::Flags> &_flags, const MTPstring &_id, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPstring &_url, const MTPstring &_thumb_url, const MTPstring &_content_url, const MTPstring &_content_type, MTPint _w, MTPint _h, MTPint _duration, const MTPInputBotInlineMessage &_send_message) {
 	return MTP::internal::TypeCreator::new_inputBotInlineResult(_flags, _id, _type, _title, _description, _url, _thumb_url, _content_url, _content_type, _w, _h, _duration, _send_message);
+}
+inline MTPinputBotInlineResult MTP_inputBotInlineResultPhoto(const MTPflags<MTPDinputBotInlineResultPhoto::Flags> &_flags, const MTPstring &_id, const MTPstring &_type, const MTPInputPhoto &_photo, const MTPInputBotInlineMessage &_send_message) {
+	return MTP::internal::TypeCreator::new_inputBotInlineResultPhoto(_flags, _id, _type, _photo, _send_message);
+}
+Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDinputBotInlineResultDocument::Flags)
+inline MTPinputBotInlineResult MTP_inputBotInlineResultDocument(const MTPflags<MTPDinputBotInlineResultDocument::Flags> &_flags, const MTPstring &_id, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPInputDocument &_document, const MTPInputBotInlineMessage &_send_message) {
+	return MTP::internal::TypeCreator::new_inputBotInlineResultDocument(_flags, _id, _type, _title, _description, _document, _send_message);
 }
 
 inline uint32 MTPbotInlineMessage::innerLength() const {
@@ -32721,6 +33214,18 @@ inline uint32 MTPbotInlineMessage::innerLength() const {
 		case mtpc_botInlineMessageText: {
 			const MTPDbotInlineMessageText &v(c_botInlineMessageText());
 			return v.vflags.innerLength() + v.vmessage.innerLength() + (v.has_entities() ? v.ventities.innerLength() : 0);
+		}
+		case mtpc_botInlineMessageMediaGeo: {
+			const MTPDbotInlineMessageMediaGeo &v(c_botInlineMessageMediaGeo());
+			return v.vgeo.innerLength();
+		}
+		case mtpc_botInlineMessageMediaVenue: {
+			const MTPDbotInlineMessageMediaVenue &v(c_botInlineMessageMediaVenue());
+			return v.vgeo.innerLength() + v.vtitle.innerLength() + v.vaddress.innerLength() + v.vprovider.innerLength() + v.vvenue_id.innerLength();
+		}
+		case mtpc_botInlineMessageMediaContact: {
+			const MTPDbotInlineMessageMediaContact &v(c_botInlineMessageMediaContact());
+			return v.vphone_number.innerLength() + v.vfirst_name.innerLength() + v.vlast_name.innerLength();
 		}
 	}
 	return 0;
@@ -32744,6 +33249,27 @@ inline void MTPbotInlineMessage::read(const mtpPrime *&from, const mtpPrime *end
 			v.vmessage.read(from, end);
 			if (v.has_entities()) { v.ventities.read(from, end); } else { v.ventities = MTPVector<MTPMessageEntity>(); }
 		} break;
+		case mtpc_botInlineMessageMediaGeo: _type = cons; {
+			if (!data) setData(new MTPDbotInlineMessageMediaGeo());
+			MTPDbotInlineMessageMediaGeo &v(_botInlineMessageMediaGeo());
+			v.vgeo.read(from, end);
+		} break;
+		case mtpc_botInlineMessageMediaVenue: _type = cons; {
+			if (!data) setData(new MTPDbotInlineMessageMediaVenue());
+			MTPDbotInlineMessageMediaVenue &v(_botInlineMessageMediaVenue());
+			v.vgeo.read(from, end);
+			v.vtitle.read(from, end);
+			v.vaddress.read(from, end);
+			v.vprovider.read(from, end);
+			v.vvenue_id.read(from, end);
+		} break;
+		case mtpc_botInlineMessageMediaContact: _type = cons; {
+			if (!data) setData(new MTPDbotInlineMessageMediaContact());
+			MTPDbotInlineMessageMediaContact &v(_botInlineMessageMediaContact());
+			v.vphone_number.read(from, end);
+			v.vfirst_name.read(from, end);
+			v.vlast_name.read(from, end);
+		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPbotInlineMessage");
 	}
 }
@@ -32759,12 +33285,33 @@ inline void MTPbotInlineMessage::write(mtpBuffer &to) const {
 			v.vmessage.write(to);
 			if (v.has_entities()) v.ventities.write(to);
 		} break;
+		case mtpc_botInlineMessageMediaGeo: {
+			const MTPDbotInlineMessageMediaGeo &v(c_botInlineMessageMediaGeo());
+			v.vgeo.write(to);
+		} break;
+		case mtpc_botInlineMessageMediaVenue: {
+			const MTPDbotInlineMessageMediaVenue &v(c_botInlineMessageMediaVenue());
+			v.vgeo.write(to);
+			v.vtitle.write(to);
+			v.vaddress.write(to);
+			v.vprovider.write(to);
+			v.vvenue_id.write(to);
+		} break;
+		case mtpc_botInlineMessageMediaContact: {
+			const MTPDbotInlineMessageMediaContact &v(c_botInlineMessageMediaContact());
+			v.vphone_number.write(to);
+			v.vfirst_name.write(to);
+			v.vlast_name.write(to);
+		} break;
 	}
 }
 inline MTPbotInlineMessage::MTPbotInlineMessage(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_botInlineMessageMediaAuto: setData(new MTPDbotInlineMessageMediaAuto()); break;
 		case mtpc_botInlineMessageText: setData(new MTPDbotInlineMessageText()); break;
+		case mtpc_botInlineMessageMediaGeo: setData(new MTPDbotInlineMessageMediaGeo()); break;
+		case mtpc_botInlineMessageMediaVenue: setData(new MTPDbotInlineMessageMediaVenue()); break;
+		case mtpc_botInlineMessageMediaContact: setData(new MTPDbotInlineMessageMediaContact()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPbotInlineMessage");
 	}
 }
@@ -32772,12 +33319,27 @@ inline MTPbotInlineMessage::MTPbotInlineMessage(MTPDbotInlineMessageMediaAuto *_
 }
 inline MTPbotInlineMessage::MTPbotInlineMessage(MTPDbotInlineMessageText *_data) : mtpDataOwner(_data), _type(mtpc_botInlineMessageText) {
 }
+inline MTPbotInlineMessage::MTPbotInlineMessage(MTPDbotInlineMessageMediaGeo *_data) : mtpDataOwner(_data), _type(mtpc_botInlineMessageMediaGeo) {
+}
+inline MTPbotInlineMessage::MTPbotInlineMessage(MTPDbotInlineMessageMediaVenue *_data) : mtpDataOwner(_data), _type(mtpc_botInlineMessageMediaVenue) {
+}
+inline MTPbotInlineMessage::MTPbotInlineMessage(MTPDbotInlineMessageMediaContact *_data) : mtpDataOwner(_data), _type(mtpc_botInlineMessageMediaContact) {
+}
 inline MTPbotInlineMessage MTP_botInlineMessageMediaAuto(const MTPstring &_caption) {
 	return MTP::internal::TypeCreator::new_botInlineMessageMediaAuto(_caption);
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDbotInlineMessageText::Flags)
 inline MTPbotInlineMessage MTP_botInlineMessageText(const MTPflags<MTPDbotInlineMessageText::Flags> &_flags, const MTPstring &_message, const MTPVector<MTPMessageEntity> &_entities) {
 	return MTP::internal::TypeCreator::new_botInlineMessageText(_flags, _message, _entities);
+}
+inline MTPbotInlineMessage MTP_botInlineMessageMediaGeo(const MTPGeoPoint &_geo) {
+	return MTP::internal::TypeCreator::new_botInlineMessageMediaGeo(_geo);
+}
+inline MTPbotInlineMessage MTP_botInlineMessageMediaVenue(const MTPGeoPoint &_geo, const MTPstring &_title, const MTPstring &_address, const MTPstring &_provider, const MTPstring &_venue_id) {
+	return MTP::internal::TypeCreator::new_botInlineMessageMediaVenue(_geo, _title, _address, _provider, _venue_id);
+}
+inline MTPbotInlineMessage MTP_botInlineMessageMediaContact(const MTPstring &_phone_number, const MTPstring &_first_name, const MTPstring &_last_name) {
+	return MTP::internal::TypeCreator::new_botInlineMessageMediaContact(_phone_number, _first_name, _last_name);
 }
 
 inline uint32 MTPbotInlineResult::innerLength() const {

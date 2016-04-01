@@ -915,7 +915,7 @@ void ConnectionPrivate::tryToSend() {
 						mtpRequest wrappedRequest(mtpRequestData::prepare(toSendSize));
 						memcpy(wrappedRequest->data(), toSendRequest->constData(), 7 * sizeof(mtpPrime)); // all except length
 						wrappedRequest->push_back(mtpc_invokeWithLayer);
-						wrappedRequest->push_back(mtpCurrentLayer);
+						wrappedRequest->push_back(MTP::internal::CurrentLayer);
 						initWrapper->write(*wrappedRequest);
 						wrappedRequest->resize(wrappedRequest->size() + noWrapSize);
 						memcpy(wrappedRequest->data() + wrappedRequest->size() - noWrapSize, toSendRequest->constData() + 8, noWrapSize * sizeof(mtpPrime));
@@ -947,7 +947,7 @@ void ConnectionPrivate::tryToSend() {
 			if (willNeedInit) {
 				initSerialized.reserve(initSizeInInts);
 				initSerialized.push_back(mtpc_invokeWithLayer);
-				initSerialized.push_back(mtpCurrentLayer);
+				initSerialized.push_back(MTP::internal::CurrentLayer);
 				initWrapper->write(initSerialized);
 			}
 			toSendRequest = mtpRequestData::prepare(containerSize, containerSize + 3 * toSend.size()); // prepare container + each in invoke after

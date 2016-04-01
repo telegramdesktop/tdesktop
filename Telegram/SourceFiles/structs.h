@@ -414,6 +414,9 @@ public:
 	bool isVerified() const {
 		return flags & MTPDuser::Flag::f_verified;
 	}
+	bool isBotInlineGeo() const {
+		return flags & MTPDuser::Flag::f_bot_inline_geo;
+	}
 	bool canWrite() const {
 		return access != UserNoAccess;
 	}

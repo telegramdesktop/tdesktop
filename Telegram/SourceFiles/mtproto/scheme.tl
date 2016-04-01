@@ -194,7 +194,7 @@ fileLocationUnavailable#7c596b46 volume_id:long local_id:int secret:long = FileL
 fileLocation#53d69076 dc_id:int volume_id:long local_id:int secret:long = FileLocation;
 
 userEmpty#200250ba id:int = User;
-user#d10d979a flags:# self:flags.10?true contact:flags.11?true mutual_contact:flags.12?true deleted:flags.13?true bot:flags.14?true bot_chat_history:flags.15?true bot_nochats:flags.16?true verified:flags.17?true restricted:flags.18?true min:flags.20?true id:int access_hash:flags.0?long first_name:flags.1?string last_name:flags.2?string username:flags.3?string phone:flags.4?string photo:flags.5?UserProfilePhoto status:flags.6?UserStatus bot_info_version:flags.14?int restriction_reason:flags.18?string bot_inline_placeholder:flags.19?string = User;
+user#d10d979a flags:# self:flags.10?true contact:flags.11?true mutual_contact:flags.12?true deleted:flags.13?true bot:flags.14?true bot_chat_history:flags.15?true bot_nochats:flags.16?true verified:flags.17?true restricted:flags.18?true min:flags.20?true bot_inline_geo:flags.21?true id:int access_hash:flags.0?long first_name:flags.1?string last_name:flags.2?string username:flags.3?string phone:flags.4?string photo:flags.5?UserProfilePhoto status:flags.6?UserStatus bot_info_version:flags.14?int restriction_reason:flags.18?string bot_inline_placeholder:flags.19?string = User;
 
 userProfilePhotoEmpty#4f11bae1 = UserProfilePhoto;
 userProfilePhoto#d559d8c8 photo_id:long photo_small:FileLocation photo_big:FileLocation = UserProfilePhoto;
@@ -383,8 +383,8 @@ updateNewStickerSet#688a30aa stickerset:messages.StickerSet = Update;
 updateStickerSetsOrder#f0dfb451 order:Vector<long> = Update;
 updateStickerSets#43ae3dec = Update;
 updateSavedGifs#9375341e = Update;
-updateBotInlineQuery#c01eea08 query_id:long user_id:int query:string offset:string = Update;
-updateBotInlineSend#f69e113 user_id:int query:string id:string = Update;
+updateBotInlineQuery#54826690 flags:# query_id:long user_id:int query:string geo:flags.0?GeoPoint offset:string = Update;
+updateBotInlineSend#daa0c53d flags:# user_id:int query:string geo:flags.0?GeoPoint id:string = Update;
 updateEditChannelMessage#1b3f4df7 message:Message pts:int pts_count:int = Update;
 updateChannelPinnedMessage#98592475 channel_id:int id:int = Update;
 updateBotCallbackQuery#a68c688c query_id:long user_id:int peer:Peer msg_id:int data:bytes = Update;
@@ -634,11 +634,19 @@ messages.savedGifs#2e0709a5 hash:int gifs:Vector<Document> = messages.SavedGifs;
 
 inputBotInlineMessageMediaAuto#2e43e587 caption:string = InputBotInlineMessage;
 inputBotInlineMessageText#adf0df71 flags:# no_webpage:flags.0?true message:string entities:flags.1?Vector<MessageEntity> = InputBotInlineMessage;
+inputBotInlineMessageMediaGeo#197dce7e geo_point:InputGeoPoint = InputBotInlineMessage;
+inputBotInlineMessageMediaVenue#8ab91f84 geo_point:InputGeoPoint title:string address:string provider:string venue_id:string = InputBotInlineMessage;
+inputBotInlineMessageMediaContact#52971c52 phone_number:string first_name:string last_name:string = InputBotInlineMessage;
 
 inputBotInlineResult#2cbbe15a flags:# id:string type:string title:flags.1?string description:flags.2?string url:flags.3?string thumb_url:flags.4?string content_url:flags.5?string content_type:flags.5?string w:flags.6?int h:flags.6?int duration:flags.7?int send_message:InputBotInlineMessage = InputBotInlineResult;
+inputBotInlineResultPhoto#243edc26 flags:# id:string type:string photo:InputPhoto send_message:InputBotInlineMessage = InputBotInlineResult;
+inputBotInlineResultDocument#11af9bcc flags:# id:string type:string title:flags.1?string description:flags.2?string document:flags.5?InputDocument send_message:InputBotInlineMessage = InputBotInlineResult;
 
 botInlineMessageMediaAuto#fc56e87d caption:string = BotInlineMessage;
 botInlineMessageText#a56197a9 flags:# no_webpage:flags.0?true message:string entities:flags.1?Vector<MessageEntity> = BotInlineMessage;
+botInlineMessageMediaGeo#59d1ff36 geo:GeoPoint = BotInlineMessage;
+botInlineMessageMediaVenue#6fa16678 geo:GeoPoint title:string address:string provider:string venue_id:string = BotInlineMessage;
+botInlineMessageMediaContact#89202361 phone_number:string first_name:string last_name:string = BotInlineMessage;
 
 botInlineMediaResultDocument#f897d33e id:string type:string document:Document send_message:BotInlineMessage = BotInlineResult;
 botInlineMediaResultPhoto#c5528587 id:string type:string photo:Photo send_message:BotInlineMessage = BotInlineResult;
@@ -784,7 +792,7 @@ messages.getDocumentByHash#338e2464 sha256:bytes size:int mime_type:string = Doc
 messages.searchGifs#bf9a776b q:string offset:int = messages.FoundGifs;
 messages.getSavedGifs#83bf3d52 hash:int = messages.SavedGifs;
 messages.saveGif#327a30cb id:InputDocument unsave:Bool = Bool;
-messages.getInlineBotResults#9324600d bot:InputUser query:string offset:string = messages.BotResults;
+messages.getInlineBotResults#94e7b170 flags:# bot:InputUser geo_point:flags.0?InputGeoPoint query:string offset:string = messages.BotResults;
 messages.setInlineBotResults#3f23ec12 flags:# gallery:flags.0?true private:flags.1?true query_id:long results:Vector<InputBotInlineResult> cache_time:int next_offset:flags.2?string = Bool;
 messages.sendInlineBotResult#b16e06fe flags:# broadcast:flags.4?true silent:flags.5?true background:flags.6?true peer:InputPeer reply_to_msg_id:flags.0?int random_id:long query_id:long id:string = Updates;
 messages.getMessageEditData#fda68d36 peer:InputPeer id:int = messages.MessageEditData;
@@ -843,3 +851,5 @@ channels.toggleInvites#49609307 channel:InputChannel enabled:Bool = Updates;
 channels.exportMessageLink#c846d22d channel:InputChannel id:int = ExportedMessageLink;
 channels.toggleSignatures#1f69b606 channel:InputChannel enabled:Bool = Updates;
 channels.updatePinnedMessage#a72ded52 flags:# silent:flags.0?true channel:InputChannel id:int = Updates;
+
+// LAYER 52
