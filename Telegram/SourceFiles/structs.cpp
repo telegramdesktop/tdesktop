@@ -1442,6 +1442,10 @@ WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &u
 , pendingTill(pendingTill) {
 }
 
+QString InlineResultSendData::getLayoutDescription(InlineResult *owner) const {
+	return owner->description;
+}
+
 InlineResultSendData::SentMTPMessageFields InlineResultSendText::getSentMessageFields(InlineResult*) const {
 	SentMTPMessageFields result;
 	result.text = MTP_string(_message);
@@ -1465,6 +1469,10 @@ InlineResultSendData::SentMTPMessageFields InlineResultSendContact::getSentMessa
 	SentMTPMessageFields result;
 	result.media = MTP_messageMediaContact(MTP_string(_phoneNumber), MTP_string(_firstName), MTP_string(_lastName), MTP_int(0));
 	return result;
+}
+
+QString InlineResultSendContact::getLayoutDescription(InlineResult *owner) const {
+	return App::formatPhone(_phoneNumber) + '\n' + owner->description;
 }
 
 InlineResultSendData::SentMTPMessageFields InlineResultSendPhoto::getSentMessageFields(InlineResult *owner) const {

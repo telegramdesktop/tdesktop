@@ -1276,6 +1276,14 @@ public:
 	};
 	virtual SentMTPMessageFields getSentMessageFields(InlineResult *owner) const = 0;
 
+	virtual bool hasLocationCoords() const {
+		return false;
+	}
+	virtual bool getLocationCoords(LocationCoords *location) const {
+		return false;
+	}
+	virtual QString getLayoutDescription(InlineResult *owner) const;
+
 };
 
 // Plain text message.
@@ -1312,6 +1320,15 @@ public:
 
 	SentMTPMessageFields getSentMessageFields(InlineResult *owner) const override;
 
+	bool hasLocationCoords() const override {
+		return true;
+	}
+	bool getLocationCoords(LocationCoords *location) const override {
+		t_assert(location != nullptr);
+		*location = _location;
+		return true;
+	}
+
 private:
 	LocationCoords _location;
 
@@ -1335,6 +1352,13 @@ public:
 
 	SentMTPMessageFields getSentMessageFields(InlineResult *owner) const override;
 
+	bool getLocationCoords(LocationCoords *location) const override {
+		if (location) {
+			*location = _location;
+		}
+		return true;
+	}
+
 private:
 	LocationCoords _location;
 	QString _venueId, _provider, _title, _address;
@@ -1355,6 +1379,8 @@ public:
 	}
 
 	SentMTPMessageFields getSentMessageFields(InlineResult *owner) const override;
+
+	QString getLayoutDescription(InlineResult *owner) const override;
 
 private:
 	QString _firstName, _lastName, _phoneNumber;

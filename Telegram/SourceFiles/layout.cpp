@@ -2026,6 +2026,21 @@ LayoutInlineArticle::LayoutInlineArticle(InlineResult *result, bool withThumb) :
 	}
 	if (!result->content_url.isEmpty()) {
 		_link = clickHandlerFromUrl(result->content_url);
+	} else {
+		LocationCoords location;
+		if (result->sendData->getLocationCoords(&location)) {
+			_link.reset(new LocationClickHandler(location));
+			int32 w = st::inlineThumbSize, h = st::inlineThumbSize;
+			int32 zoom = 13, scale = 1;
+			if (cScale() == dbisTwo || cRetina()) {
+				scale = 2;
+				w /= 2;
+				h /= 2;
+			}
+			QString coords = qsl("%1,%2").arg(location.lat).arg(location.lon);
+			QString url = qsl("https://maps.googleapis.com/maps/api/staticmap?center=") + coords + qsl("&zoom=%1&size=%2x%3&maptype=roadmap&scale=%4&markers=color:red|size:big|").arg(zoom).arg(w).arg(h).arg(scale) + coords + qsl("&sensor=false");
+			result->thumb = ImagePtr(url);
+		}
 	}
 	QVector<QStringRef> parts = _result->url.splitRef('/');
 	if (!parts.isEmpty()) {
@@ -2052,9 +2067,9 @@ void LayoutInlineArticle::initDimensions() {
 	int32 titleHeight = qMin(_title.countHeight(_maxw), 2 * st::semiboldFont->height);
 
 	int32 descriptionLines = (_withThumb || _url) ? 2 : 3;
-
+	QString description = _result->sendData->getLayoutDescription(_result);
 	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, descriptionLines * st::normalFont->height, Qt::LayoutDirectionAuto };
-	_description.setText(st::normalFont, _result->description, descriptionOpts);
+	_description.setText(st::normalFont, description, descriptionOpts);
 	int32 descriptionHeight = qMin(_description.countHeight(_maxw), descriptionLines * st::normalFont->height);
 
 	_minh = titleHeight + descriptionHeight;
@@ -2145,7 +2160,14 @@ void LayoutInlineArticle::getState(ClickHandlerPtr &link, HistoryCursorState &cu
 }
 
 void LayoutInlineArticle::prepareThumb(int32 width, int32 height) const {
-	if (_result->thumb->isNull()) return;
+	if (_result->thumb->isNull()) {
+		if (_result->type == InlineResult::Type::Contact) {
+			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+				_thumb = userDefPhoto(qHash(_result->id) % UserColorsCount)->pixCircled(width, height);
+			}
+		}
+		return;
+	}
 
 	if (_result->thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {

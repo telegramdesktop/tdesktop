@@ -2027,8 +2027,20 @@ int32 StickerPanInner::validateExistingInlineRows(const InlineResults &results) 
 
 	if (_inlineRows.isEmpty()) {
 		_inlineWithThumb = false;
+		auto hasThumbDisplay = [](InlineResult *inlineResult) -> bool {
+			if (!inlineResult->thumb->isNull()) {
+				return true;
+			}
+			if (inlineResult->type == InlineResult::Type::Contact) {
+				return true;
+			}
+			if (inlineResult->sendData->hasLocationCoords()) {
+				return true;
+			}
+			return false;
+		};
 		for (int32 i = until; i < count; ++i) {
-			if (!results.at(i)->thumb->isNull()) {
+			if (hasThumbDisplay(results.at(i))) {
 				_inlineWithThumb = true;
 				break;
 			}
