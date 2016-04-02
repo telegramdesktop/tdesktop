@@ -1040,9 +1040,6 @@ void AppClass::checkMapVersion() {
 			}
 		}
 	}
-	if (cNeedConfigResave()) {
-		Local::writeUserSettings();
-	}
 }
 
 AppClass::~AppClass() {

@@ -1026,13 +1026,13 @@ public:
 	ImagePtr makeReplyPreview();
 
 	StickerData *sticker() {
-		return (type == StickerDocument) ? static_cast<StickerData*>(_additional) : 0;
+		return (type == StickerDocument) ? static_cast<StickerData*>(_additional) : nullptr;
 	}
 	void checkSticker() {
 		StickerData *s = sticker();
 		if (!s) return;
 
-		automaticLoad(0);
+		automaticLoad(nullptr);
 		if (s->img->isNull() && loaded()) {
 			if (_data.isEmpty()) {
 				const FileLocation &loc(location(true));
@@ -1046,16 +1046,16 @@ public:
 		}
 	}
 	SongData *song() {
-		return (type == SongDocument) ? static_cast<SongData*>(_additional) : 0;
+		return (type == SongDocument) ? static_cast<SongData*>(_additional) : nullptr;
 	}
 	const SongData *song() const {
-		return (type == SongDocument) ? static_cast<const SongData*>(_additional) : 0;
+		return (type == SongDocument) ? static_cast<const SongData*>(_additional) : nullptr;
 	}
 	VoiceData *voice() {
-		return (type == VoiceDocument) ? static_cast<VoiceData*>(_additional) : 0;
+		return (type == VoiceDocument) ? static_cast<VoiceData*>(_additional) : nullptr;
 	}
 	const VoiceData *voice() const {
-		return (type == VoiceDocument) ? static_cast<const VoiceData*>(_additional) : 0;
+		return (type == VoiceDocument) ? static_cast<const VoiceData*>(_additional) : nullptr;
 	}
 	bool isAnimation() const {
 		return (type == AnimatedDocument) || !mime.compare(qstr("image/gif"), Qt::CaseInsensitive);
@@ -1246,30 +1246,220 @@ struct WebPageData {
 
 };
 
+class InlineResult;
+
+// Abstract class describing the message that will be
+// sent if the user chooses this inline bot result.
+// For each type of message that can be sent there will be a subclass.
+class InlineResultSendData {
+public:
+	InlineResultSendData() = default;
+	InlineResultSendData(const InlineResultSendData &other) = delete;
+	InlineResultSendData &operator=(const InlineResultSendData &other) = delete;
+	virtual ~InlineResultSendData() = default;
+
+	virtual bool isValid() const = 0;
+
+	virtual DocumentData *getSentDocument() const {
+		return nullptr;
+	}
+	virtual PhotoData *getSentPhoto() const {
+		return nullptr;
+	}
+	virtual QString getSentCaption() const {
+		return QString();
+	}
+	struct SentMTPMessageFields {
+		MTPString text = MTP_string("");
+		MTPVector<MTPMessageEntity> entities = MTPnullEntities;
+		MTPMessageMedia media = MTP_messageMediaEmpty();
+	};
+	virtual SentMTPMessageFields getSentMessageFields(InlineResult *owner) const = 0;
+
+};
+
+// Plain text message.
+class InlineResultSendText : public InlineResultSendData {
+public:
+	InlineResultSendText(const QString &message, const EntitiesInText &entities, bool noWebPage)
+		: _message(message)
+		, _entities(entities)
+		, _noWebPage(noWebPage) {
+	}
+
+	bool isValid() const override {
+		return !_message.isEmpty();
+	}
+
+	SentMTPMessageFields getSentMessageFields(InlineResult *owner) const override;
+
+private:
+	QString _message;
+	EntitiesInText _entities;
+	bool _noWebPage;
+
+};
+
+// Message with geo location point media.
+class InlineResultSendGeo : public InlineResultSendData {
+public:
+	InlineResultSendGeo(const MTPDgeoPoint &point) : _location(point) {
+	}
+
+	bool isValid() const override {
+		return true;
+	}
+
+	SentMTPMessageFields getSentMessageFields(InlineResult *owner) const override;
+
+private:
+	LocationCoords _location;
+
+};
+
+// Message with venue media.
+class InlineResultSendVenue : public InlineResultSendData {
+public:
+	InlineResultSendVenue(const MTPDgeoPoint &point, const QString &venueId,
+		const QString &provider, const QString &title, const QString &address)
+		: _location(point)
+		, _venueId(venueId)
+		, _provider(provider)
+		, _title(title)
+		, _address(address) {
+	}
+
+	bool isValid() const override {
+		return true;
+	}
+
+	SentMTPMessageFields getSentMessageFields(InlineResult *owner) const override;
+
+private:
+	LocationCoords _location;
+	QString _venueId, _provider, _title, _address;
+
+};
+
+// Message with shared contact media.
+class InlineResultSendContact : public InlineResultSendData {
+public:
+	InlineResultSendContact(const QString &firstName, const QString &lastName, const QString &phoneNumber)
+		: _firstName(firstName)
+		, _lastName(lastName)
+		, _phoneNumber(phoneNumber) {
+	}
+
+	bool isValid() const override {
+		return (!_firstName.isEmpty() || !_lastName.isEmpty()) && !_phoneNumber.isEmpty();
+	}
+
+	SentMTPMessageFields getSentMessageFields(InlineResult *owner) const override;
+
+private:
+	QString _firstName, _lastName, _phoneNumber;
+
+};
+
+// Message with photo.
+class InlineResultSendPhoto : public InlineResultSendData {
+public:
+	InlineResultSendPhoto(PhotoData *photo, const QString &url, const QString &caption)
+		: _photo(photo)
+		, _url(url)
+		, _caption(caption) {
+	}
+
+	bool isValid() const override {
+		return _photo || !_url.isEmpty();
+	}
+
+	PhotoData *getSentPhoto() const override {
+		return _photo;
+	}
+	QString getSentCaption() const override {
+		return _caption;
+	}
+	SentMTPMessageFields getSentMessageFields(InlineResult *owner) const override;
+
+private:
+	PhotoData *_photo;
+	QString _url, _caption;
+
+};
+
+// Message with file.
+class InlineResultSendFile : public InlineResultSendData {
+public:
+	InlineResultSendFile(DocumentData *document, const QString &url, const QString &caption)
+		: _document(document)
+		, _url(url)
+		, _caption(caption) {
+	}
+
+	bool isValid() const override {
+		return _document || !_url.isEmpty();
+	}
+
+	DocumentData *getSentDocument() const override {
+		return _document;
+	}
+	QString getSentCaption() const override {
+		return _caption;
+	}
+	SentMTPMessageFields getSentMessageFields(InlineResult *owner) const override;
+
+private:
+	DocumentData *_document;
+	QString _url, _caption;
+
+};
+
 class InlineResult {
 public:
-	InlineResult(uint64 queryId)
-		: queryId(queryId)
-		, doc(0)
-		, photo(0)
-		, width(0)
-		, height(0)
-		, duration(0)
-		, noWebPage(false)
-		, _loader(0) {
+	enum class Type {
+		Unknown,
+		Photo,
+		Video,
+		Audio,
+		Sticker,
+		File,
+		Gif,
+		Article,
+		Contact,
+		Venue,
+	};
+	static QMap<QString, Type> getTypesMap() {
+		QMap<QString, Type> result;
+		result.insert(qsl("photo"), Type::Photo);
+		result.insert(qsl("video"), Type::Video);
+		result.insert(qsl("audio"), Type::Audio);
+		result.insert(qsl("sticker"), Type::Sticker);
+		result.insert(qsl("file"), Type::File);
+		result.insert(qsl("gif"), Type::Gif);
+		result.insert(qsl("article"), Type::Article);
+		result.insert(qsl("contact"), Type::Contact);
+		result.insert(qsl("venue"), Type::Venue);
+		return result;
 	}
+
+	InlineResult(uint64 queryId, Type type) : queryId(queryId), type(type) {
+	}
+	InlineResult(const InlineResult &other) = delete;
+	InlineResult &operator=(const InlineResult &other) = delete;
+
 	uint64 queryId;
-	QString id, type;
-	DocumentData *doc;
-	PhotoData *photo;
+	QString id;
+	Type type;
+	DocumentData *document = nullptr;
+	PhotoData *photo = nullptr;
 	QString title, description, url, thumb_url;
 	QString content_type, content_url;
-	int32 width, height, duration;
+	int width = 0;
+	int height = 0;
+	int duration = 0;
 
-	QString message; // botContextMessageText
-	bool noWebPage; //currently not used
-	EntitiesInText entities;
-	QString caption; // if message.isEmpty() use botContextMessageMediaAuto
+	UniquePointer<InlineResultSendData> sendData;
 
 	ImagePtr thumb;
 
@@ -1289,7 +1479,7 @@ public:
 
 private:
 	QByteArray _data;
-	mutable webFileLoader *_loader;
+	mutable webFileLoader *_loader = nullptr;
 
 };
 typedef QList<InlineResult*> InlineResults;

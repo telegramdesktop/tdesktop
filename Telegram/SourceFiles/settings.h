@@ -99,7 +99,6 @@ DeclareSetting(bool, TileBackground);
 
 DeclareSetting(bool, SoundNotify);
 DeclareSetting(bool, IncludeMuted);
-DeclareSetting(bool, NeedConfigResave);
 DeclareSetting(bool, DesktopNotify);
 DeclareSetting(DBINotifyView, NotifyView);
 DeclareSetting(bool, AutoUpdate);

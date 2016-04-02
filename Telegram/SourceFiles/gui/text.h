@@ -560,6 +560,8 @@ struct LocationCoords {
 	}
 	LocationCoords(float64 lat, float64 lon) : lat(lat), lon(lon) {
 	}
+	LocationCoords(const MTPDgeoPoint &point) : lat(point.vlat.v), lon(point.vlong.v) {
+	}
 	float64 lat, lon;
 };
 inline bool operator==(const LocationCoords &a, const LocationCoords &b) {

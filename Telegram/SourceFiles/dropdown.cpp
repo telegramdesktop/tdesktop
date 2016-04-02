@@ -1447,59 +1447,77 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 		}
 
 		LayoutInlineItem *item = _inlineRows.at(row).items.at(col);
-		PhotoData *photo = item->photo();
-		DocumentData *doc = item->document();
-		InlineResult *result = item->result();
-		if (doc) {
-			if (doc->loaded()) {
-				emit selected(doc);
-			} else if (doc->loading()) {
-				doc->cancel();
-			} else {
-				DocumentOpenClickHandler::doOpen(doc, ActionOnLoadNone);
+		PhotoData *photo = item->getPhoto();
+		DocumentData *document = item->getDocument();
+		InlineResult *inlineResult = item->getInlineResult();
+		using Type = InlineResult::Type;
+		auto getShownPhoto = [photo, inlineResult]() -> PhotoData* {
+			if (photo) {
+				return photo;
+			} else if (inlineResult && inlineResult->type == Type::Photo) {
+				return inlineResult->photo;
 			}
-		} else if (photo) {
-			if (photo->medium->loaded() || photo->thumb->loaded()) {
+			return nullptr;
+		};
+		auto getShownDocument = [document, inlineResult]() -> DocumentData* {
+			auto inlineResultIsFileType = [](InlineResult *inlineResult) {
+				return inlineResult->type == Type::Video ||
+					inlineResult->type == Type::Audio ||
+					inlineResult->type == Type::Sticker ||
+					inlineResult->type == Type::File ||
+					inlineResult->type == Type::Gif;
+			};
+			if (document) {
+				return document;
+			} else if (inlineResult && inlineResultIsFileType(inlineResult)) {
+				return inlineResult->document;
+			}
+			return nullptr;
+		};
+		auto sendInlineItem = [photo, document, inlineResult, this]() -> void {
+			if (photo) {
 				emit selected(photo);
-			} else if (!photo->medium->loading()) {
-				photo->thumb->loadEvenCancelled();
-				photo->medium->loadEvenCancelled();
+			} else if (document) {
+				emit selected(document);
+			} else if (inlineResult) {
+				emit selected(inlineResult, _inlineBot);
 			}
-		} else if (result) {
-			if (result->type == qstr("gif")) {
-				if (result->doc) {
-					if (result->doc->loaded()) {
-						emit selected(result, _inlineBot);
-					} else if (result->doc->loading()) {
-						result->doc->cancel();
-					} else {
-						DocumentOpenClickHandler::doOpen(result->doc, ActionOnLoadNone);
-					}
-				} else if (result->loaded()) {
-					emit selected(result, _inlineBot);
-				} else if (result->loading()) {
-					result->cancelFile();
+		};
+		if (PhotoData *shownPhoto = getShownPhoto()) {
+			if (shownPhoto->medium->loaded() || shownPhoto->thumb->loaded()) {
+				sendInlineItem();
+			} else if (!shownPhoto->medium->loading()) {
+				shownPhoto->thumb->loadEvenCancelled();
+				shownPhoto->medium->loadEvenCancelled();
+			}
+		} else if (DocumentData *shownDocument = getShownDocument()) {
+			if (shownDocument->loaded()) {
+				sendInlineItem();
+			} else if (shownDocument->loading()) {
+				shownDocument->cancel();
+			} else {
+				DocumentOpenClickHandler::doOpen(shownDocument, ActionOnLoadNone);
+			}
+		} else if (inlineResult) {
+			if (inlineResult->type == Type::Photo) {
+				if (inlineResult->thumb->loaded()) {
+					sendInlineItem();
+				} else if (!inlineResult->thumb->loading()) {
+					inlineResult->thumb->loadEvenCancelled();
+					Ui::repaintInlineItem(item);
+				}
+			} else if (inlineResult->type == Type::File) {
+				if (inlineResult->loaded()) {
+					sendInlineItem();
+				} else if (inlineResult->loading()) {
+					inlineResult->cancelFile();
 					Ui::repaintInlineItem(item);
 				} else {
-					result->saveFile(QString(), LoadFromCloudOrLocal, false);
-					Ui::repaintInlineItem(item);
-				}
-			} else if (result->type == qstr("photo")) {
-				if (result->photo) {
-					if (result->photo->medium->loaded() || result->photo->thumb->loaded()) {
-						emit selected(result, _inlineBot);
-					} else if (!result->photo->medium->loading()) {
-						result->photo->thumb->loadEvenCancelled();
-						result->photo->medium->loadEvenCancelled();
-					}
-				} else if (result->thumb->loaded()) {
-					emit selected(result, _inlineBot);
-				} else if (!result->thumb->loading()) {
-					result->thumb->loadEvenCancelled();
+					inlineResult->saveFile(QString(), LoadFromCloudOrLocal, false);
 					Ui::repaintInlineItem(item);
 				}
 			} else {
-				emit selected(result, _inlineBot);
+				sendInlineItem();
 			}
 		}
 		return;
@@ -1616,14 +1634,14 @@ void StickerPanInner::hideFinish(bool completely) {
 	if (completely) {
 		clearInlineRows(false);
 		for (GifLayouts::const_iterator i = _gifLayouts.cbegin(), e = _gifLayouts.cend(); i != e; ++i) {
-			i.value()->document()->forget();
+			i.value()->getDocument()->forget();
 		}
 		for (InlineLayouts::const_iterator i = _inlineLayouts.cbegin(), e = _inlineLayouts.cend(); i != e; ++i) {
-			if (i.value()->result()->doc) {
-				i.value()->result()->doc->forget();
+			if (i.value()->getInlineResult()->document) {
+				i.value()->getInlineResult()->document->forget();
 			}
-			if (i.value()->result()->photo) {
-				i.value()->result()->photo->forget();
+			if (i.value()->getInlineResult()->photo) {
+				i.value()->getInlineResult()->photo->forget();
 			}
 		}
 	}
@@ -1660,7 +1678,7 @@ void StickerPanInner::refreshStickers() {
 }
 
 bool StickerPanInner::inlineRowsAddItem(DocumentData *savedGif, InlineResult *result, InlineRow &row, int32 &sumWidth) {
-	LayoutInlineItem *layout = 0;
+	LayoutInlineItem *layout = nullptr;
 	if (savedGif) {
 		layout = layoutPrepareSavedGif(savedGif, (_inlineRows.size() * MatrixRowShift) + row.items.size());
 	} else if (result) {
@@ -1751,7 +1769,7 @@ void StickerPanInner::clearInlineRows(bool resultsDeleted) {
 LayoutInlineGif *StickerPanInner::layoutPrepareSavedGif(DocumentData *doc, int32 position) {
 	GifLayouts::const_iterator i = _gifLayouts.constFind(doc);
 	if (i == _gifLayouts.cend()) {
-		i = _gifLayouts.insert(doc, new LayoutInlineGif(0, doc, true));
+		i = _gifLayouts.insert(doc, new LayoutInlineGif(doc, true));
 		i.value()->initDimensions();
 	}
 	if (!i.value()->maxWidth()) return 0;
@@ -1763,17 +1781,20 @@ LayoutInlineGif *StickerPanInner::layoutPrepareSavedGif(DocumentData *doc, int32
 LayoutInlineItem *StickerPanInner::layoutPrepareInlineResult(InlineResult *result, int32 position) {
 	InlineLayouts::const_iterator i = _inlineLayouts.constFind(result);
 	if (i == _inlineLayouts.cend()) {
-		LayoutInlineItem *layout = 0;
-		if (result->type == qstr("gif")) {
-			layout = new LayoutInlineGif(result, 0, false);
-		} else if (result->type == qstr("photo")) {
-			layout = new LayoutInlinePhoto(result, 0);
-		} else if (result->type == qstr("video")) {
-			layout = new LayoutInlineWebVideo(result);
-		} else if (result->type == qstr("article")) {
-			layout = new LayoutInlineArticle(result, _inlineWithThumb);
+		LayoutInlineItem *layout = nullptr;
+		using Type = InlineResult::Type;
+		switch (result->type) {
+		case Type::Photo: layout = new LayoutInlinePhoto(result); break;
+		case Type::Video: layout = new LayoutInlineWebVideo(result); break;
+		case Type::Sticker: layout = new LayoutInlineSticker(result); break;
+		case Type::Audio:
+		case Type::File: //layout = new LayoutInlineFile(result); break;
+		case Type::Gif: layout = new LayoutInlineGif(result); break;
+		case Type::Article:
+		case Type::Contact:
+		case Type::Venue: layout = new LayoutInlineArticle(result, _inlineWithThumb); break;
 		}
-		if (!layout) return 0;
+		if (!layout) return nullptr;
 
 		i = _inlineLayouts.insert(result, layout);
 		layout->initDimensions();
@@ -1959,7 +1980,7 @@ int32 StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &res
 int32 StickerPanInner::validateExistingInlineRows(const InlineResults &results) {
 	int32 count = results.size(), until = 0, untilrow = 0, untilcol = 0;
 	for (; until < count;) {
-		if (untilrow >= _inlineRows.size() || _inlineRows.at(untilrow).items.at(untilcol)->result() != results.at(until)) {
+		if (untilrow >= _inlineRows.size() || _inlineRows.at(untilrow).items.at(untilcol)->getInlineResult() != results.at(until)) {
 			break;
 		}
 		++until;
@@ -2239,8 +2260,8 @@ void StickerPanInner::updateSelected() {
 			}
 			if (_pressedSel >= 0 && _selected >= 0 && _pressedSel != _selected) {
 				_pressedSel = _selected;
-				if (row >= 0 && col >= 0 && _inlineRows.at(row).items.at(col)->document()) {
-					Ui::showStickerPreview(_inlineRows.at(row).items.at(col)->document());
+				if (row >= 0 && col >= 0 && _inlineRows.at(row).items.at(col)->getDocument()) {
+					Ui::showStickerPreview(_inlineRows.at(row).items.at(col)->getDocument());
 				}
 			}
 		}
@@ -2339,8 +2360,8 @@ void StickerPanInner::onPreview() {
 	if (_pressedSel < 0) return;
 	if (_showingInlineItems) {
 		int32 row = _pressedSel / MatrixRowShift, col = _pressedSel % MatrixRowShift;
-		if (row < _inlineRows.size() && col < _inlineRows.at(row).items.size() && _inlineRows.at(row).items.at(col)->document() && _inlineRows.at(row).items.at(col)->document()->loaded()) {
-			Ui::showStickerPreview(_inlineRows.at(row).items.at(col)->document());
+		if (row < _inlineRows.size() && col < _inlineRows.at(row).items.size() && _inlineRows.at(row).items.at(col)->getDocument() && _inlineRows.at(row).items.at(col)->getDocument()->loaded()) {
+			Ui::showStickerPreview(_inlineRows.at(row).items.at(col)->getDocument());
 			_previewShown = true;
 		}
 	} else if (_pressedSel < MatrixRowShift * _sets.size()) {
@@ -3646,28 +3667,26 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 		if (count) {
 			it.value()->results.reserve(it.value()->results.size() + count);
 		}
+		auto inlineResultTypes = InlineResult::getTypesMap();
+		auto getInlineResultType = [&inlineResultTypes](const MTPBotInlineResult &inlineResult) -> InlineResult::Type {
+			QString type;
+			switch (inlineResult.type()) {
+			case mtpc_botInlineResult: type = qs(inlineResult.c_botInlineResult().vtype); break;
+			case mtpc_botInlineMediaResult: type = qs(inlineResult.c_botInlineMediaResult().vtype); break;
+			}
+			return inlineResultTypes.value(type, InlineResult::Type::Unknown);
+		};
 		for (int32 i = 0; i < count; ++i) {
-			InlineResult *result = new InlineResult(queryId);
-			const MTPBotInlineMessage *message = 0;
+			InlineResult::Type type = getInlineResultType(v.at(i));
+			if (type == InlineResult::Type::Unknown) continue;
+
+			UniquePointer<InlineResult> result = MakeUnique<InlineResult>(queryId, type);
+
+			const MTPBotInlineMessage *message = nullptr;
 			switch (v.at(i).type()) {
-			case mtpc_botInlineMediaResultPhoto: {
-				const MTPDbotInlineMediaResultPhoto &r(v.at(i).c_botInlineMediaResultPhoto());
-				result->id = qs(r.vid);
-				result->type = qs(r.vtype);
-				result->photo = App::feedPhoto(r.vphoto);
-				message = &r.vsend_message;
-			} break;
-			case mtpc_botInlineMediaResultDocument: {
-				const MTPDbotInlineMediaResultDocument &r(v.at(i).c_botInlineMediaResultDocument());
-				result->id = qs(r.vid);
-				result->type = qs(r.vtype);
-				result->doc = App::feedDocument(r.vdocument);
-				message = &r.vsend_message;
-			} break;
 			case mtpc_botInlineResult: {
 				const MTPDbotInlineResult &r(v.at(i).c_botInlineResult());
 				result->id = qs(r.vid);
-				result->type = qs(r.vtype);
 				result->title = r.has_title() ? qs(r.vtitle) : QString();
 				result->description = r.has_description() ? qs(r.vdescription) : QString();
 				result->url = r.has_url() ? qs(r.vurl) : QString();
@@ -3682,24 +3701,56 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 				}
 				message = &r.vsend_message;
 			} break;
+			case mtpc_botInlineMediaResult: {
+				const MTPDbotInlineMediaResult &r(v.at(i).c_botInlineMediaResult());
+				result->id = qs(r.vid);
+				if (r.has_photo()) result->photo = App::feedPhoto(r.vphoto);
+				if (r.has_document()) result->document = App::feedDocument(r.vdocument);
+				message = &r.vsend_message;
+			} break;
 			}
-			bool badAttachment = (result->photo && !result->photo->access) || (result->doc && !result->doc->access);
+			bool badAttachment = (result->photo && !result->photo->access) || (result->document && !result->document->access);
 
 			if (!message) {
-				delete result;
 				continue;
 			}
 			switch (message->type()) {
 			case mtpc_botInlineMessageMediaAuto: {
 				const MTPDbotInlineMessageMediaAuto &r(message->c_botInlineMessageMediaAuto());
-				result->caption = qs(r.vcaption);
+				if (result->type == InlineResult::Type::Photo) {
+					result->sendData.reset(new InlineResultSendPhoto(result->photo, result->content_url, qs(r.vcaption)));
+				} else {
+					result->sendData.reset(new InlineResultSendFile(result->document, result->content_url, qs(r.vcaption)));
+				}
 			} break;
 
 			case mtpc_botInlineMessageText: {
 				const MTPDbotInlineMessageText &r(message->c_botInlineMessageText());
-				result->message = qs(r.vmessage);
-				if (r.has_entities()) result->entities = entitiesFromMTP(r.ventities.c_vector().v);
-				result->noWebPage = r.is_no_webpage();
+				EntitiesInText entities = r.has_entities() ? entitiesFromMTP(r.ventities.c_vector().v) : EntitiesInText();
+				result->sendData.reset(new InlineResultSendText(qs(r.vmessage), entities, r.is_no_webpage()));
+			} break;
+
+			case mtpc_botInlineMessageMediaGeo: {
+				const MTPDbotInlineMessageMediaGeo &r(message->c_botInlineMessageMediaGeo());
+				if (r.vgeo.type() == mtpc_geoPoint) {
+					result->sendData.reset(new InlineResultSendGeo(r.vgeo.c_geoPoint()));
+				} else {
+					badAttachment = true;
+				}
+			} break;
+
+			case mtpc_botInlineMessageMediaVenue: {
+				const MTPDbotInlineMessageMediaVenue &r(message->c_botInlineMessageMediaVenue());
+				if (r.vgeo.type() == mtpc_geoPoint) {
+					result->sendData.reset(new InlineResultSendVenue(r.vgeo.c_geoPoint(), qs(r.vvenue_id), qs(r.vprovider), qs(r.vtitle), qs(r.vaddress)));
+				} else {
+					badAttachment = true;
+				}
+			} break;
+
+			case mtpc_botInlineMessageMediaContact: {
+				const MTPDbotInlineMessageMediaContact &r(message->c_botInlineMessageMediaContact());
+				result->sendData.reset(new InlineResultSendContact(qs(r.vfirst_name), qs(r.vlast_name), qs(r.vphone_number)));
 			} break;
 
 			default: {
@@ -3707,13 +3758,12 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 			} break;
 			}
 
-			bool canSend = (result->photo || result->doc || !result->message.isEmpty() || (!result->content_url.isEmpty() && (result->type == qstr("gif") || result->type == qstr("photo"))));
-			if (result->type.isEmpty() || badAttachment || !canSend) {
-				delete result;
-			} else {
-				++added;
-				it.value()->results.push_back(result);
+			if (badAttachment || !result->sendData || !result->sendData->isValid()) {
+				continue;
 			}
+
+			++added;
+			it.value()->results.push_back(result.release());
 		}
 
 		if (!added) {

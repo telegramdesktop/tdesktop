@@ -6751,15 +6751,13 @@ void HistoryMessage::initMedia(const MTPMessageMedia *media, QString &currentTex
 	case mtpc_messageMediaGeo: {
 		const MTPGeoPoint &point(media->c_messageMediaGeo().vgeo);
 		if (point.type() == mtpc_geoPoint) {
-			const MTPDgeoPoint &d(point.c_geoPoint());
-			_media.reset(this, new HistoryLocation(LocationCoords(d.vlat.v, d.vlong.v)));
+			_media.reset(this, new HistoryLocation(LocationCoords(point.c_geoPoint())));
 		}
 	} break;
 	case mtpc_messageMediaVenue: {
 		const MTPDmessageMediaVenue &d(media->c_messageMediaVenue());
 		if (d.vgeo.type() == mtpc_geoPoint) {
-			const MTPDgeoPoint &g(d.vgeo.c_geoPoint());
-			_media.reset(this, new HistoryLocation(LocationCoords(g.vlat.v, g.vlong.v), qs(d.vtitle), qs(d.vaddress)));
+			_media.reset(this, new HistoryLocation(LocationCoords(d.vgeo.c_geoPoint()), qs(d.vtitle), qs(d.vaddress)));
 		}
 	} break;
 	case mtpc_messageMediaPhoto: {

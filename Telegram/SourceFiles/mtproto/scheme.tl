@@ -639,8 +639,6 @@ inputBotInlineMessageMediaVenue#8ab91f84 geo_point:InputGeoPoint title:string ad
 inputBotInlineMessageMediaContact#52971c52 phone_number:string first_name:string last_name:string = InputBotInlineMessage;
 
 inputBotInlineResult#2cbbe15a flags:# id:string type:string title:flags.1?string description:flags.2?string url:flags.3?string thumb_url:flags.4?string content_url:flags.5?string content_type:flags.5?string w:flags.6?int h:flags.6?int duration:flags.7?int send_message:InputBotInlineMessage = InputBotInlineResult;
-inputBotInlineResultPhoto#243edc26 flags:# id:string type:string photo:InputPhoto send_message:InputBotInlineMessage = InputBotInlineResult;
-inputBotInlineResultDocument#11af9bcc flags:# id:string type:string title:flags.1?string description:flags.2?string document:flags.5?InputDocument send_message:InputBotInlineMessage = InputBotInlineResult;
 
 botInlineMessageMediaAuto#fc56e87d caption:string = BotInlineMessage;
 botInlineMessageText#a56197a9 flags:# no_webpage:flags.0?true message:string entities:flags.1?Vector<MessageEntity> = BotInlineMessage;
@@ -648,9 +646,8 @@ botInlineMessageMediaGeo#59d1ff36 geo:GeoPoint = BotInlineMessage;
 botInlineMessageMediaVenue#6fa16678 geo:GeoPoint title:string address:string provider:string venue_id:string = BotInlineMessage;
 botInlineMessageMediaContact#89202361 phone_number:string first_name:string last_name:string = BotInlineMessage;
 
-botInlineMediaResultDocument#f897d33e id:string type:string document:Document send_message:BotInlineMessage = BotInlineResult;
-botInlineMediaResultPhoto#c5528587 id:string type:string photo:Photo send_message:BotInlineMessage = BotInlineResult;
 botInlineResult#9bebaeb9 flags:# id:string type:string title:flags.1?string description:flags.2?string url:flags.3?string thumb_url:flags.4?string content_url:flags.5?string content_type:flags.5?string w:flags.6?int h:flags.6?int duration:flags.7?int send_message:BotInlineMessage = BotInlineResult;
+botInlineMediaResult#17db940b flags:# id:string type:string photo:flags.0?Photo document:flags.1?Document title:flags.2?string description:flags.3?string send_message:BotInlineMessage = BotInlineResult;
 
 messages.botResults#1170b0a3 flags:# gallery:flags.0?true query_id:long next_offset:flags.1?string results:Vector<BotInlineResult> = messages.BotResults;
 

@@ -1442,8 +1442,100 @@ WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &u
 , pendingTill(pendingTill) {
 }
 
+InlineResultSendData::SentMTPMessageFields InlineResultSendText::getSentMessageFields(InlineResult*) const {
+	SentMTPMessageFields result;
+	result.text = MTP_string(_message);
+	result.entities = linksToMTP(_entities);
+	return result;
+}
+
+InlineResultSendData::SentMTPMessageFields InlineResultSendGeo::getSentMessageFields(InlineResult*) const {
+	SentMTPMessageFields result;
+	result.media = MTP_messageMediaGeo(MTP_geoPoint(MTP_double(_location.lon), MTP_double(_location.lat)));
+	return result;
+}
+
+InlineResultSendData::SentMTPMessageFields InlineResultSendVenue::getSentMessageFields(InlineResult*) const {
+	SentMTPMessageFields result;
+	result.media = MTP_messageMediaVenue(MTP_geoPoint(MTP_double(_location.lon), MTP_double(_location.lat)), MTP_string(_title), MTP_string(_address), MTP_string(_provider), MTP_string(_venueId));
+	return result;
+}
+
+InlineResultSendData::SentMTPMessageFields InlineResultSendContact::getSentMessageFields(InlineResult*) const {
+	SentMTPMessageFields result;
+	result.media = MTP_messageMediaContact(MTP_string(_phoneNumber), MTP_string(_firstName), MTP_string(_lastName), MTP_int(0));
+	return result;
+}
+
+InlineResultSendData::SentMTPMessageFields InlineResultSendPhoto::getSentMessageFields(InlineResult *owner) const {
+	SentMTPMessageFields result;
+
+	QImage fileThumb(owner->thumb->pix().toImage());
+
+	QVector<MTPPhotoSize> photoSizes;
+
+	QPixmap thumb = (fileThumb.width() > 100 || fileThumb.height() > 100) ? QPixmap::fromImage(fileThumb.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(fileThumb);
+	ImagePtr thumbPtr = ImagePtr(thumb, "JPG");
+	photoSizes.push_back(MTP_photoSize(MTP_string("s"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0)));
+
+	QSize medium = resizeKeepAspect(owner->width, owner->height, 320, 320);
+	photoSizes.push_back(MTP_photoSize(MTP_string("m"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
+
+	photoSizes.push_back(MTP_photoSize(MTP_string("x"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(owner->width), MTP_int(owner->height), MTP_int(0)));
+
+	uint64 photoId = rand_value<uint64>();
+	PhotoData *ph = App::photoSet(photoId, 0, 0, unixtime(), thumbPtr, ImagePtr(medium.width(), medium.height()), ImagePtr(owner->width, owner->height));
+	MTPPhoto photo = MTP_photo(MTP_long(photoId), MTP_long(0), MTP_int(ph->date), MTP_vector<MTPPhotoSize>(photoSizes));
+
+	result.media = MTP_messageMediaPhoto(photo, MTP_string(_caption));
+
+	return result;
+}
+
+InlineResultSendData::SentMTPMessageFields InlineResultSendFile::getSentMessageFields(InlineResult *owner) const {
+	SentMTPMessageFields result;
+
+	MTPPhotoSize thumbSize;
+	QPixmap thumb;
+	int32 tw = owner->thumb->width(), th = owner->thumb->height();
+	if (tw > 0 && th > 0 && tw < 20 * th && th < 20 * tw && owner->thumb->loaded()) {
+		if (tw > th) {
+			if (tw > 90) {
+				th = th * 90 / tw;
+				tw = 90;
+			}
+		} else if (th > 90) {
+			tw = tw * 90 / th;
+			th = 90;
+		}
+		thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(tw), MTP_int(th), MTP_int(0));
+		thumb = owner->thumb->pixNoCache(tw, th, ImagePixSmooth);
+	} else {
+		tw = th = 0;
+		thumbSize = MTP_photoSizeEmpty(MTP_string(""));
+	}
+	uint64 docId = rand_value<uint64>();
+	QVector<MTPDocumentAttribute> attributes;
+
+	using Type = InlineResult::Type;
+	if (owner->type == Type::Gif) {
+		attributes.push_back(MTP_documentAttributeFilename(MTP_string((owner->content_type == qstr("video/mp4") ? "animation.gif.mp4" : "animation.gif"))));
+		attributes.push_back(MTP_documentAttributeAnimated());
+		attributes.push_back(MTP_documentAttributeVideo(MTP_int(owner->duration), MTP_int(owner->width), MTP_int(owner->height)));
+	}
+	MTPDocument document = MTP_document(MTP_long(docId), MTP_long(0), MTP_int(unixtime()), MTP_string(owner->content_type), MTP_int(owner->data().size()), thumbSize, MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));
+	if (tw > 0 && th > 0) {
+		App::feedDocument(document, thumb);
+	}
+	Local::writeStickerImage(mediaKey(DocumentFileLocation, MTP::maindc(), docId), owner->data());
+
+	result.media = MTP_messageMediaDocument(document, MTP_string(_caption));
+
+	return result;
+}
+
 void InlineResult::automaticLoadGif() {
-	if (loaded() || type != qstr("gif") || (content_type != qstr("video/mp4") && content_type != "image/gif")) return;
+	if (loaded() || type != Type::Gif || (content_type != qstr("video/mp4") && content_type != "image/gif")) return;
 
 	if (_loader != CancelledWebFileLoader) {
 		// if load at least anywhere

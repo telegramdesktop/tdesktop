@@ -471,10 +471,23 @@ public:
 	bool paused, lastRow;
 };
 
+// this type used as a flag, we dynamic_cast<> to it
+class SendInlineItemClickHandler : public ClickHandler {
+public:
+	void onClick(Qt::MouseButton) const override {
+	}
+};
+
 class LayoutInlineItem : public LayoutItem {
 public:
 
-	LayoutInlineItem(InlineResult *result, DocumentData *doc, PhotoData *photo);
+	LayoutInlineItem(InlineResult *result) : _result(result) {
+	}
+	LayoutInlineItem(DocumentData *doc) : _doc(doc) {
+	}
+	// Not used anywhere currently.
+	//LayoutInlineItem(PhotoData *photo) : _photo(photo) {
+	//}
 
 	virtual void setPosition(int32 position);
 	int32 position() const;
@@ -483,9 +496,9 @@ public:
 		return true;
 	}
 
-	InlineResult *result() const;
-	DocumentData *document() const;
-	PhotoData *photo() const;
+	InlineResult *getInlineResult() const;
+	DocumentData *getDocument() const;
+	PhotoData *getPhoto() const;
 	void preload();
 
 	void update();
@@ -499,19 +512,43 @@ public:
 	}
 
 protected:
-	InlineResult *_result;
-	DocumentData *_doc;
-	PhotoData *_photo;
+	InlineResult *_result = nullptr;
+	DocumentData *_doc = nullptr;
+	PhotoData *_photo = nullptr;
 
-	int32 _position; // < 0 means removed from layout
+	ClickHandlerPtr _send = ClickHandlerPtr{ new SendInlineItemClickHandler() };
+
+	int _position = 0; // < 0 means removed from layout
 
 };
 
-// this type used as a flag, we dynamic_cast<> to it
-class SendInlineItemClickHandler : public ClickHandler {
+class LayoutInlineAbstractFile : public LayoutInlineItem {
 public:
-	void onClick(Qt::MouseButton) const override {
+	LayoutInlineAbstractFile(InlineResult *result);
+	// for saved gif layouts
+	LayoutInlineAbstractFile(DocumentData *doc);
+
+protected:
+	DocumentData *getShownDocument() const {
+		if (DocumentData *result = getDocument()) {
+			return result;
+		} else if (InlineResult *result = getInlineResult()) {
+			return result->document;
+		}
+		return nullptr;
 	}
+
+	int content_width() const;
+	int content_height() const;
+	bool content_loading() const;
+	bool content_displayLoading() const;
+	bool content_loaded() const;
+	float64 content_progress() const;
+	void content_automaticLoad() const;
+	void content_forget();
+	FileLocation content_location() const;
+	QByteArray content_data() const;
+
 };
 
 class DeleteSavedGifClickHandler : public LeftButtonClickHandler {
@@ -527,9 +564,10 @@ private:
 
 };
 
-class LayoutInlineGif : public LayoutInlineItem {
+class LayoutInlineGif : public LayoutInlineAbstractFile {
 public:
-	LayoutInlineGif(InlineResult *result, DocumentData *doc, bool saved);
+	LayoutInlineGif(InlineResult *result);
+	LayoutInlineGif(DocumentData *doc, bool hasDeleteButton);
 
 	void setPosition(int32 position) override;
 	void initDimensions() override;
@@ -548,27 +586,21 @@ public:
 	~LayoutInlineGif();
 
 private:
+
 	QSize countFrameSize() const;
 
-	int32 content_width() const;
-	int32 content_height() const;
-	bool content_loading() const;
-	bool content_displayLoading() const;
-	bool content_loaded() const;
-	float64 content_progress() const;
-	void content_automaticLoad() const;
-	void content_forget();
-	FileLocation content_location() const;
-	QByteArray content_data() const;
-
-	enum StateFlags {
-		StateOver       = 0x01,
-		StateDeleteOver = 0x02,
+	enum class StateFlag {
+		Over       = 0x01,
+		DeleteOver = 0x02,
 	};
-	int32 _state;
+	Q_DECLARE_FLAGS(StateFlags, StateFlag);
+	StateFlags _state;
+	friend inline StateFlags operator~(StateFlag flag) {
+		return ~StateFlags(flag);
+	}
 
-	ClipReader *_gif;
-	ClickHandlerPtr _send, _delete;
+	ClipReader *_gif = nullptr;
+	ClickHandlerPtr _delete;
 	bool gif() const {
 		return (!_gif || _gif == BadClipReader) ? false : true;
 	}
@@ -590,14 +622,16 @@ private:
 		FloatAnimation _a_over;
 		RadialAnimation radial;
 	};
-	mutable AnimationData *_animation;
+	mutable AnimationData *_animation = nullptr;
 	mutable FloatAnimation _a_deleteOver;
 
 };
 
 class LayoutInlinePhoto : public LayoutInlineItem {
 public:
-	LayoutInlinePhoto(InlineResult *result, PhotoData *photo);
+	LayoutInlinePhoto(InlineResult *result);
+	// Not used anywhere currently.
+	//LayoutInlinePhoto(PhotoData *photo);
 
 	void initDimensions() override;
 
@@ -609,18 +643,50 @@ public:
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
 
 private:
+	PhotoData *getShownPhoto() const {
+		if (PhotoData *result = getPhoto()) {
+			return result;
+		} else if (InlineResult *result = getInlineResult()) {
+			return result->photo;
+		}
+		return nullptr;
+	}
+
 	QSize countFrameSize() const;
 
-	int32 content_width() const;
-	int32 content_height() const;
+	int content_width() const;
+	int content_height() const;
 	bool content_loaded() const;
 	void content_forget();
 
-	ClickHandlerPtr _send;
+	mutable QPixmap _thumb;
+	mutable bool _thumbLoaded = false;
+	void prepareThumb(int32 width, int32 height, const QSize &frame) const;
+
+};
+
+class LayoutInlineSticker : public LayoutInlineAbstractFile {
+public:
+	LayoutInlineSticker(InlineResult *result);
+	// Not used anywhere currently.
+	//LayoutInlineSticker(DocumentData *document);
+
+	void initDimensions() override;
+
+	bool fullLine() const override {
+		return false;
+	}
+
+	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
+
+private:
+
+	QSize getThumbSize() const;
 
 	mutable QPixmap _thumb;
-	mutable bool _thumbLoaded;
-	void prepareThumb(int32 width, int32 height, const QSize &frame) const;
+	mutable bool _thumbLoaded = false;
+	void prepareThumb() const;
 
 };
 
@@ -635,12 +701,33 @@ public:
 
 private:
 
-	ClickHandlerPtr _send, _link;
+	ClickHandlerPtr _link;
 
 	mutable QPixmap _thumb;
 	Text _title, _description;
 	QString _duration;
 	int32 _durationWidth;
+
+	void prepareThumb(int32 width, int32 height) const;
+
+};
+
+class LayoutInlineFile : public LayoutInlineAbstractFile {
+public:
+	LayoutInlineFile(InlineResult *result);
+
+	void initDimensions() override;
+	int32 resizeGetHeight(int32 width) override;
+
+	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
+
+private:
+
+	mutable QPixmap _thumb;
+	Text _title, _description;
+	QString _letter, _urlText;
+	int32 _urlWidth;
 
 	void prepareThumb(int32 width, int32 height) const;
 
@@ -658,7 +745,7 @@ public:
 
 private:
 
-	ClickHandlerPtr _send, _url, _link;
+	ClickHandlerPtr _url, _link;
 
 	bool _withThumb;
 	mutable QPixmap _thumb;

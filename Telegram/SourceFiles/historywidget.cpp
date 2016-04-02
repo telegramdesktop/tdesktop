@@ -3588,7 +3588,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	updateTopBarSelection();
 
 	if (_inlineBot) {
-		_inlineBot = 0;
+		_inlineBot = nullptr;
 		_emojiPan.clearInlineBot();
 		updateFieldPlaceholder();
 	}
@@ -5358,7 +5358,7 @@ bool HistoryWidget::inlineBotResolveFail(QString name, const RPCError &error) {
 	_inlineBotResolveRequestId = 0;
 //	Notify::inlineBotRequesting(false);
 	if (name == _inlineBotUsername) {
-		_inlineBot = 0;
+		_inlineBot = nullptr;
 		onCheckMentionDropdown();
 	}
 	return true;
@@ -6765,65 +6765,22 @@ void HistoryWidget::onInlineResultSend(InlineResult *result, UserData *bot) {
 		flags |= MTPDmessage::Flag::f_via_bot_id;
 	}
 
-	if (result->message.isEmpty()) {
-		if (result->doc) {
-			_history->addNewDocument(newId.msg, flags, bot ? peerToUser(bot->id) : 0, replyToId(), date(MTP_int(unixtime())), showFromName ? MTP::authedId() : 0, result->doc, result->caption);
-		} else if (result->photo) {
-			_history->addNewPhoto(newId.msg, flags, bot ? peerToUser(bot->id) : 0, replyToId(), date(MTP_int(unixtime())), showFromName ? MTP::authedId() : 0, result->photo, result->caption);
-		} else if (result->type == qstr("gif")) {
-			MTPPhotoSize thumbSize;
-			QPixmap thumb;
-			int32 tw = result->thumb->width(), th = result->thumb->height();
-			if (tw > 0 && th > 0 && tw < 20 * th && th < 20 * tw && result->thumb->loaded()) {
-				if (tw > th) {
-					if (tw > 90) {
-						th = th * 90 / tw;
-						tw = 90;
-					}
-				} else if (th > 90) {
-					tw = tw * 90 / th;
-					th = 90;
-				}
-				thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(tw), MTP_int(th), MTP_int(0));
-				thumb = result->thumb->pixNoCache(tw, th, ImagePixSmooth);
-			} else {
-				tw = th = 0;
-				thumbSize = MTP_photoSizeEmpty(MTP_string(""));
-			}
-			uint64 docId = rand_value<uint64>();
-			QVector<MTPDocumentAttribute> attributes(1, MTP_documentAttributeFilename(MTP_string((result->content_type == qstr("video/mp4") ? "animation.gif.mp4" : "animation.gif"))));
-			attributes.push_back(MTP_documentAttributeAnimated());
-			attributes.push_back(MTP_documentAttributeVideo(MTP_int(result->duration), MTP_int(result->width), MTP_int(result->height)));
-			MTPDocument document = MTP_document(MTP_long(docId), MTP_long(0), MTP_int(unixtime()), MTP_string(result->content_type), MTP_int(result->data().size()), thumbSize, MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));
-			if (tw > 0 && th > 0) {
-				App::feedDocument(document, thumb);
-			}
-			Local::writeStickerImage(mediaKey(DocumentFileLocation, MTP::maindc(), docId), result->data());
-			_history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(_history->peer->id), MTPnullFwdHeader, MTP_int(bot ? peerToUser(bot->id) : 0), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(document, MTP_string(result->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint()), NewMessageUnread);
-		} else if (result->type == qstr("photo")) {
-			QImage fileThumb(result->thumb->pix().toImage());
-
-			QVector<MTPPhotoSize> photoSizes;
-
-			QPixmap thumb = (fileThumb.width() > 100 || fileThumb.height() > 100) ? QPixmap::fromImage(fileThumb.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(fileThumb);
-			ImagePtr thumbPtr = ImagePtr(thumb, "JPG");
-			photoSizes.push_back(MTP_photoSize(MTP_string("s"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0)));
-
-			QSize medium = resizeKeepAspect(result->width, result->height, 320, 320);
-			photoSizes.push_back(MTP_photoSize(MTP_string("m"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
-
-			photoSizes.push_back(MTP_photoSize(MTP_string("x"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(result->width), MTP_int(result->height), MTP_int(0)));
-
-			uint64 photoId = rand_value<uint64>();
-			PhotoData *ph = App::photoSet(photoId, 0, 0, unixtime(), thumbPtr, ImagePtr(medium.width(), medium.height()), ImagePtr(result->width, result->height));
-			MTPPhoto photo = MTP_photo(MTP_long(photoId), MTP_long(0), MTP_int(ph->date), MTP_vector<MTPPhotoSize>(photoSizes));
-
-			_history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(_history->peer->id), MTPnullFwdHeader, MTP_int(bot ? peerToUser(bot->id) : 0), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(photo, MTP_string(result->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint()), NewMessageUnread);
-		}
+	UserId messageFromId = showFromName ? MTP::authedId() : 0;
+	MTPint messageDate = MTP_int(unixtime());
+	UserId messageViaBotId = bot ? peerToUser(bot->id) : 0;
+	MsgId messageId = newId.msg;
+	if (DocumentData *document = result->sendData->getSentDocument()) {
+		_history->addNewDocument(messageId, flags, messageViaBotId, replyToId(), date(messageDate), messageFromId, document, result->sendData->getSentCaption());
+	} else if (PhotoData *photo = result->sendData->getSentPhoto()) {
+		_history->addNewPhoto(messageId, flags, messageViaBotId, replyToId(), date(messageDate), messageFromId, photo, result->sendData->getSentCaption());
 	} else {
-		flags |= MTPDmessage::Flag::f_entities;
-		_history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(_history->peer->id), MTPnullFwdHeader, MTP_int(bot ? peerToUser(bot->id) : 0), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(result->message), MTP_messageMediaEmpty(), MTPnullMarkup, linksToMTP(result->entities), MTP_int(1), MTPint()), NewMessageUnread);
+		InlineResultSendData::SentMTPMessageFields fields = result->sendData->getSentMessageFields(result);
+		if (!fields.entities.c_vector().v.isEmpty()) {
+			flags |= MTPDmessage::Flag::f_entities;
+		}
+		_history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(messageId), MTP_int(messageFromId), peerToMTP(_history->peer->id), MTPnullFwdHeader, MTP_int(messageViaBotId), MTP_int(replyToId()), messageDate, fields.text, fields.media, MTPnullMarkup, fields.entities, MTP_int(1), MTPint()), NewMessageUnread);
 	}
+
 	_history->sendRequestId = MTP::send(MTPmessages_SendInlineBotResult(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_long(randomId), MTP_long(result->queryId), MTP_string(result->id)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
 	App::main()->finishForwarding(_history, _broadcast.checked(), _silent.checked());
 	cancelReply(lastKeyboardUsed);
