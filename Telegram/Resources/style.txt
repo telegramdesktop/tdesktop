@@ -2477,7 +2477,7 @@ linksDateMargin: margins(0px, 15px, 0px, 2px);
 linksPhotoCheck: sprite(184px, 196px, 16px, 16px);
 linksPhotoChecked: sprite(168px, 196px, 16px, 16px);
 
-inlineResultsLeft: 15px;
+inlineResultsLeft: 11px;
 inlineResultsSkip: 3px;
 inlineMediaHeight: 96px;
 inlineThumbSize: 64px;

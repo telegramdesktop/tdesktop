@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "application.h"
-#include "style.h"
+#include "gui/style.h"
 
 #include "shortcuts.h"
 

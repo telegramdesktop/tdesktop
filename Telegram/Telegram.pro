@@ -205,7 +205,7 @@ HEADERS += \
     ./SourceFiles/settingswidget.h \
 	./SourceFiles/shortcuts.h \
     ./SourceFiles/structs.h \
-    ./SourceFiles/style.h \
+    ./SourceFiles/gui/style.h \
     ./SourceFiles/sysbuttons.h \
     ./SourceFiles/title.h \
     ./SourceFiles/types.h \

@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "style.h"
+#include "gui/style.h"
 #include "lang.h"
 
 #include "mainwidget.h"
@@ -1355,7 +1355,7 @@ PhotoData *LayoutInlineItem::getPhoto() const {
 	return _photo;
 }
 
-void LayoutInlineItem::preload() {
+void LayoutInlineItem::preload() const {
 	if (_result) {
 		if (_result->photo) {
 			_result->photo->thumb->load();
@@ -1626,10 +1626,6 @@ void LayoutInlineGif::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool a
 	LayoutInlineItem::clickHandlerActiveChanged(p, active);
 }
 
-void LayoutInlineGif::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
-	LayoutInlineItem::clickHandlerPressedChanged(p, pressed);
-}
-
 QSize LayoutInlineGif::countFrameSize() const {
 	bool animating = (gif() && _gif->ready());
 	int32 framew = animating ? _gif->width() : content_width(), frameh = animating ? _gif->height() : content_height(), height = st::inlineMediaHeight;
@@ -1749,8 +1745,28 @@ void LayoutInlineSticker::initDimensions() {
 	_minh = st::stickerPanSize.height();
 }
 
+void LayoutInlineSticker::preload() const {
+	if (DocumentData *document = getShownDocument()) {
+		bool goodThumb = !document->thumb->isNull() && ((document->thumb->width() >= 128) || (document->thumb->height() >= 128));
+		if (goodThumb) {
+			document->thumb->load();
+		} else {
+			document->checkSticker();
+		}
+	} else if (!_result->thumb->isNull()) {
+		_result->thumb->load();
+	}
+}
+
 void LayoutInlineSticker::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
 	bool loaded = content_loaded();
+
+	float64 over = _a_over.isNull() ? (_active ? 1 : 0) : _a_over.current();
+	if (over > 0) {
+		p.setOpacity(over);
+		App::roundRect(p, QRect(QPoint(0, 0), st::stickerPanSize), st::emojiPanHover, StickerHoverCorners);
+		p.setOpacity(1);
+	}
 
 	prepareThumb();
 	if (!_thumb.isNull()) {
@@ -1764,6 +1780,21 @@ void LayoutInlineSticker::getState(ClickHandlerPtr &link, HistoryCursorState &cu
 	if (x >= 0 && x < _width && y >= 0 && y < st::inlineMediaHeight) {
 		link = _send;
 	}
+}
+
+void LayoutInlineSticker::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
+	if (!p) return;
+
+	if (p == _send) {
+		if (active != _active) {
+			_active = active;
+
+			float64 from = _active ? 0 : 1, to = _active ? 1 : 0;
+			EnsureAnimation(_a_over, from, func(this, &LayoutInlineSticker::update));
+			_a_over.start(to, st::stickersRowDuration);
+		}
+	}
+	LayoutInlineItem::clickHandlerActiveChanged(p, active);
 }
 
 QSize LayoutInlineSticker::getThumbSize() const {
@@ -1924,41 +1955,49 @@ void LayoutInlinePhoto::content_forget() {
 	}
 }
 
-LayoutInlineWebVideo::LayoutInlineWebVideo(InlineResult *result) : LayoutInlineItem(result)
+LayoutInlineVideo::LayoutInlineVideo(InlineResult *result) : LayoutInlineItem(result)
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
 	if (!result->content_url.isEmpty()) {
 		_link = clickHandlerFromUrl(result->content_url);
 	}
-	if (_result->duration) {
-		_duration = formatDurationText(_result->duration);
+	if (int duration = getDuration()) {
+		_duration = formatDurationText(duration);
 	}
 }
 
-void LayoutInlineWebVideo::initDimensions() {
+void LayoutInlineVideo::initDimensions() {
+	bool withThumb = !getThumb()->isNull();
+
 	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
-	int32 textWidth = _maxw - (_result->thumb->isNull() ? 0 : (st::inlineThumbSize + st::inlineThumbSkip));
+	int32 textWidth = _maxw - (withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0);
 	TextParseOptions titleOpts = { 0, _maxw, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
-	_title.setText(st::semiboldFont, textOneLine(_result->title), titleOpts);
+	_title.setText(st::semiboldFont, textOneLine(_result->sendData->getLayoutTitle(_result)), titleOpts);
 	int32 titleHeight = qMin(_title.countHeight(_maxw), 2 * st::semiboldFont->height);
 
-	int32 descriptionLines = _result->thumb->isNull() ? 3 : (titleHeight > st::semiboldFont->height ? 1 : 2);
+	int32 descriptionLines = withThumb ? (titleHeight > st::semiboldFont->height ? 1 : 2) : 3;
 
 	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, descriptionLines * st::normalFont->height, Qt::LayoutDirectionAuto };
-	_description.setText(st::normalFont, _result->description, descriptionOpts);
+	_description.setText(st::normalFont, _result->sendData->getLayoutDescription(_result), descriptionOpts);
 	int32 descriptionHeight = qMin(_description.countHeight(_maxw), descriptionLines * st::normalFont->height);
 
-	_minh = _result->thumb->isNull() ? titleHeight + descriptionHeight : st::inlineThumbSize;
+	_minh = st::inlineThumbSize;
 	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
 }
 
-void LayoutInlineWebVideo::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void LayoutInlineVideo::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
 	int32 left = st::inlineThumbSize + st::inlineThumbSkip;
-	prepareThumb(st::inlineThumbSize, st::inlineThumbSize);
-	if (_thumb.isNull()) {
-		p.fillRect(rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width), _result->thumb->isNull() ? st::black : st::overviewPhotoBg);
+
+	bool withThumb = !getThumb()->isNull();
+	if (withThumb) {
+		prepareThumb(st::inlineThumbSize, st::inlineThumbSize);
+		if (_thumb.isNull()) {
+			p.fillRect(rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width), st::overviewPhotoBg);
+		} else {
+			p.drawPixmapLeft(0, st::inlineRowMargin, _width, _thumb);
+		}
 	} else {
-		p.drawPixmapLeft(0, st::inlineRowMargin, _width, _thumb);
+		p.fillRect(rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width), st::black);
 	}
 
 	if (!_duration.isEmpty()) {
@@ -1974,17 +2013,17 @@ void LayoutInlineWebVideo::paint(Painter &p, const QRect &clip, uint32 selection
 	int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
 
 	p.setPen(st::inlineDescriptionFg);
-	int32 descriptionLines = _result->thumb->isNull() ? 3 : (titleHeight > st::semiboldFont->height ? 1 : 2);
+	int32 descriptionLines = withThumb ? (titleHeight > st::semiboldFont->height ? 1 : 2) : 3;
 	_description.drawLeftElided(p, left, st::inlineRowMargin + titleHeight, _width - left, _width, descriptionLines);
 
 	const InlinePaintContext *ctx = context->toInlinePaintContext();
-	t_assert(ctx);
+	t_assert(ctx != nullptr);
 	if (!ctx->lastRow) {
 		p.fillRect(rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
 	}
 }
 
-void LayoutInlineWebVideo::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+void LayoutInlineVideo::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
 	if (x >= 0 && x < st::inlineThumbSize && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::inlineThumbSize) {
 		link = _link;
 		return;
@@ -1995,10 +2034,11 @@ void LayoutInlineWebVideo::getState(ClickHandlerPtr &link, HistoryCursorState &c
 	}
 }
 
-void LayoutInlineWebVideo::prepareThumb(int32 width, int32 height) const {
-	if (_result->thumb->loaded()) {
+void LayoutInlineVideo::prepareThumb(int32 width, int32 height) const {
+	ImagePtr thumb = getThumb();
+	if (thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-			int32 w = qMax(convertScale(_result->thumb->width()), 1), h = qMax(convertScale(_result->thumb->height()), 1);
+			int32 w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
 			if (w * height > h * width) {
 				if (height < h) {
 					w = w * height / h;
@@ -2010,10 +2050,10 @@ void LayoutInlineWebVideo::prepareThumb(int32 width, int32 height) const {
 					w = width;
 				}
 			}
-			_thumb = _result->thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixSmooth, width, height);
+			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixSmooth, width, height);
 		}
 	} else {
-		_result->thumb->load();
+		thumb->load();
 	}
 }
 

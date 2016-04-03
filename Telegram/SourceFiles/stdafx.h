@@ -31,7 +31,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include <QtWidgets/QtWidgets>
 #include <QtNetwork/QtNetwork>
 
-#include "types.h"
+#include "basic_types.h"
 #include "config.h"
 
 #include "mtproto/facade.h"

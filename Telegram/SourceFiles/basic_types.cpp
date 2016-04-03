@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
-#include "types.h"
+#include "basic_types.h"
 
 #include <openssl/crypto.h>
 #include <openssl/sha.h>

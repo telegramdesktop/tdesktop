@@ -1282,6 +1282,7 @@ public:
 	virtual bool getLocationCoords(LocationCoords *location) const {
 		return false;
 	}
+	virtual QString getLayoutTitle(InlineResult *owner) const;
 	virtual QString getLayoutDescription(InlineResult *owner) const;
 
 };

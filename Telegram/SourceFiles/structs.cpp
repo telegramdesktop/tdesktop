@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "style.h"
+#include "gui/style.h"
 #include "lang.h"
 
 #include "history.h"
@@ -1440,6 +1440,10 @@ WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &u
 , photo(photo)
 , doc(doc)
 , pendingTill(pendingTill) {
+}
+
+QString InlineResultSendData::getLayoutTitle(InlineResult *owner) const {
+	return owner->title;
 }
 
 QString InlineResultSendData::getLayoutDescription(InlineResult *owner) const {

@@ -424,7 +424,7 @@
 		1A4C47331E186344291B8178 /* dropdown.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = dropdown.h; path = SourceFiles/dropdown.h; sourceTree = "<absolute>"; };
 		1B4A65B84270FF2FED008EB6 /* moc_introphone.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_introphone.cpp; path = GeneratedFiles/Debug/moc_introphone.cpp; sourceTree = "<absolute>"; };
 		1D7899ACAA9F973CADFA34C1 /* moc_localimageloader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_localimageloader.cpp; path = GeneratedFiles/Debug/moc_localimageloader.cpp; sourceTree = "<absolute>"; };
-		1DC02F674A7192FF8BE391A7 /* types.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = types.h; path = SourceFiles/types.h; sourceTree = "<absolute>"; };
+		1DC02F674A7192FF8BE391A7 /* basic_types.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = basic_types.h; path = SourceFiles/basic_types.h; sourceTree = "<absolute>"; };
 		1DEFC0760BB9340529F582F7 /* confirmbox.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = confirmbox.h; path = SourceFiles/boxes/confirmbox.h; sourceTree = "<absolute>"; };
 		1E5EEB5782B6357057356F9E /* moc_flatinput.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_flatinput.cpp; path = GeneratedFiles/Debug/moc_flatinput.cpp; sourceTree = "<absolute>"; };
 		1FAE75C970AA73F2DEDDB508 /* /usr/local/Qt-5.5.1/mkspecs/modules/qt_plugin_qavfcamera.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.1/mkspecs/modules/qt_plugin_qavfcamera.pri"; sourceTree = "<absolute>"; };
@@ -658,7 +658,7 @@
 		C505A18319B9B63C63877858 /* /usr/local/Qt-5.5.1/mkspecs/modules/qt_lib_script_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.1/mkspecs/modules/qt_lib_script_private.pri"; sourceTree = "<absolute>"; };
 		C63C6D083EBEB13A60256DF3 /* historywidget.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = historywidget.h; path = SourceFiles/historywidget.h; sourceTree = "<absolute>"; };
 		C84546C18DCBB04166195DCF /* /usr/local/Qt-5.5.1/mkspecs/modules/qt_plugin_qtposition_positionpoll.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.1/mkspecs/modules/qt_plugin_qtposition_positionpoll.pri"; sourceTree = "<absolute>"; };
-		C913E6A1001E07EE7C13CE93 /* style.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = style.h; path = SourceFiles/style.h; sourceTree = "<absolute>"; };
+		C913E6A1001E07EE7C13CE93 /* style.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = style.h; path = SourceFiles/gui/style.h; sourceTree = "<absolute>"; };
 		C9FFCCE4FCB845744636795F /* moc_flatbutton.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_flatbutton.cpp; path = GeneratedFiles/Debug/moc_flatbutton.cpp; sourceTree = "<absolute>"; };
 		CA56ACFB53D87637192CC9B2 /* window.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = window.cpp; path = SourceFiles/window.cpp; sourceTree = "<absolute>"; };
 		CCF75CFFB857487FB18F99F9 /* /usr/local/Qt-5.5.1/mkspecs/modules/qt_plugin_qoffscreen.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.1/mkspecs/modules/qt_plugin_qoffscreen.pri"; sourceTree = "<absolute>"; };
@@ -1036,7 +1036,7 @@
 				C913E6A1001E07EE7C13CE93 /* style.h */,
 				3BE70E2A82DC2BF402165ED5 /* sysbuttons.h */,
 				4D504A849F15EB58E53A4E5F /* title.h */,
-				1DC02F674A7192FF8BE391A7 /* types.h */,
+				1DC02F674A7192FF8BE391A7 /* basic_types.h */,
 				301BB513F2F5D447B3BF22DF /* window.h */,
 				83728F60A64483E0AA933D76 /* pspecific.h */,
 				CE0D5EFE401BF9815FACE579 /* pspecific_mac.h */,

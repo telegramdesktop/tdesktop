@@ -492,14 +492,18 @@ public:
 	virtual void setPosition(int32 position);
 	int32 position() const;
 
-	virtual bool fullLine() const {
+	virtual bool isFullLine() const {
 		return true;
+	}
+	virtual bool hasRightSkip() const {
+		return false;
 	}
 
 	InlineResult *getInlineResult() const;
 	DocumentData *getDocument() const;
 	PhotoData *getPhoto() const;
-	void preload();
+
+	virtual void preload() const;
 
 	void update();
 
@@ -572,8 +576,11 @@ public:
 	void setPosition(int32 position) override;
 	void initDimensions() override;
 
-	bool fullLine() const override {
+	bool isFullLine() const override {
 		return false;
+	}
+	bool hasRightSkip() const override {
+		return true;
 	}
 
 	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
@@ -581,7 +588,6 @@ public:
 
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
-	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
 	~LayoutInlineGif();
 
@@ -635,8 +641,11 @@ public:
 
 	void initDimensions() override;
 
-	bool fullLine() const override {
+	bool isFullLine() const override {
 		return false;
+	}
+	bool hasRightSkip() const override {
+		return true;
 	}
 
 	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
@@ -673,16 +682,26 @@ public:
 
 	void initDimensions() override;
 
-	bool fullLine() const override {
+	bool isFullLine() const override {
 		return false;
 	}
+	bool hasRightSkip() const override {
+		return false;
+	}
+	void preload() const override;
 
 	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
 
+	// ClickHandlerHost interface
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
+
 private:
 
 	QSize getThumbSize() const;
+
+	mutable FloatAnimation _a_over;
+	mutable bool _active = false;
 
 	mutable QPixmap _thumb;
 	mutable bool _thumbLoaded = false;
@@ -690,9 +709,9 @@ private:
 
 };
 
-class LayoutInlineWebVideo : public LayoutInlineItem {
+class LayoutInlineVideo : public LayoutInlineItem {
 public:
-	LayoutInlineWebVideo(InlineResult *result);
+	LayoutInlineVideo(InlineResult *result);
 
 	void initDimensions() override;
 
@@ -701,6 +720,20 @@ public:
 
 private:
 
+	ImagePtr getThumb() const {
+		if (_result->document && !_result->document->thumb->isNull()) {
+			return _result->document->thumb;
+		} else if (_result->photo && !_result->photo->thumb->isNull()) {
+			return _result->photo->thumb;
+		}
+		return _result->thumb;
+	}
+	int getDuration() const {
+		if (_result->document && _result->document->duration() > 0) {
+			return _result->document->duration();
+		}
+		return _result->duration;
+	}
 	ClickHandlerPtr _link;
 
 	mutable QPixmap _thumb;

@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "gui/button.h"
 #include "gui/flatcheckbox.h"
 #include "gui/animation.h"
-#include "style.h"
+#include "gui/style.h"
 
 class FlatButton : public Button {
 	Q_OBJECT

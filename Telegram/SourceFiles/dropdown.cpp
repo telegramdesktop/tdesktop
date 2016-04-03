@@ -1324,13 +1324,17 @@ void StickerPanInner::paintInlineItems(Painter &p, const QRect &r) {
 			for (int32 col = 0, cols = inlineRow.items.size(); col < cols; ++col) {
 				if (left >= tox) break;
 
-				int32 w = inlineRow.items.at(col)->width();
+				const LayoutInlineItem *item = inlineRow.items.at(col);
+				int32 w = item->width();
 				if (left + w > fromx) {
 					p.translate(left, top);
-					inlineRow.items.at(col)->paint(p, r.translated(-left, -top), 0, &context);
+					item->paint(p, r.translated(-left, -top), 0, &context);
 					p.translate(-left, -top);
 				}
-				left += w + st::inlineResultsSkip;
+				left += w;
+				if (item->hasRightSkip()) {
+					left += st::inlineResultsSkip;
+				}
 			}
 		}
 		top += inlineRow.height;
@@ -1491,12 +1495,16 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 				shownPhoto->medium->loadEvenCancelled();
 			}
 		} else if (DocumentData *shownDocument = getShownDocument()) {
-			if (shownDocument->loaded()) {
-				sendInlineItem();
-			} else if (shownDocument->loading()) {
-				shownDocument->cancel();
+			if (inlineResult->type == Type::Gif) {
+				if (shownDocument->loaded()) {
+					sendInlineItem();
+				} else if (shownDocument->loading()) {
+					shownDocument->cancel();
+				} else {
+					DocumentOpenClickHandler::doOpen(shownDocument, ActionOnLoadNone);
+				}
 			} else {
-				DocumentOpenClickHandler::doOpen(shownDocument, ActionOnLoadNone);
+				sendInlineItem();
 			}
 		} else if (inlineResult) {
 			if (inlineResult->type == Type::Photo) {
@@ -1506,7 +1514,7 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 					inlineResult->thumb->loadEvenCancelled();
 					Ui::repaintInlineItem(item);
 				}
-			} else if (inlineResult->type == Type::File) {
+			} else if (inlineResult->type == Type::Gif) {
 				if (inlineResult->loaded()) {
 					sendInlineItem();
 				} else if (inlineResult->loading()) {
@@ -1687,11 +1695,16 @@ bool StickerPanInner::inlineRowsAddItem(DocumentData *savedGif, InlineResult *re
 	if (!layout) return false;
 
 	layout->preload();
-	if (inlineRowFinalize(row, sumWidth, layout->fullLine())) {
+	if (inlineRowFinalize(row, sumWidth, layout->isFullLine())) {
 		layout->setPosition(_inlineRows.size() * MatrixRowShift);
 	}
-	row.items.push_back(layout);
+
 	sumWidth += layout->maxWidth();
+	if (!row.items.isEmpty() && row.items.back()->hasRightSkip()) {
+		sumWidth += st::inlineResultsSkip;
+	}
+
+	row.items.push_back(layout);
 	return true;
 }
 
@@ -1699,7 +1712,7 @@ bool StickerPanInner::inlineRowFinalize(InlineRow &row, int32 &sumWidth, bool fo
 	if (row.items.isEmpty()) return false;
 
 	bool full = (row.items.size() >= SavedGifsMaxPerRow);
-	bool big = (sumWidth >= st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - (row.items.size() - 1) * st::inlineResultsSkip);
+	bool big = (sumWidth >= st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft);
 	if (full || big || force) {
 		_inlineRows.push_back(layoutInlineRow(row, (full || big) ? sumWidth : 0));
 		row = InlineRow();
@@ -1785,7 +1798,7 @@ LayoutInlineItem *StickerPanInner::layoutPrepareInlineResult(InlineResult *resul
 		using Type = InlineResult::Type;
 		switch (result->type) {
 		case Type::Photo: layout = new LayoutInlinePhoto(result); break;
-		case Type::Video: layout = new LayoutInlineWebVideo(result); break;
+		case Type::Video: layout = new LayoutInlineVideo(result); break;
 		case Type::Sticker: layout = new LayoutInlineSticker(result); break;
 		case Type::Audio:
 		case Type::File: //layout = new LayoutInlineFile(result); break;
@@ -1856,7 +1869,7 @@ StickerPanInner::InlineRow &StickerPanInner::layoutInlineRow(InlineRow &row, int
 	});
 
 	row.height = 0;
-	int availw = width() - st::inlineResultsLeft - st::inlineResultsSkip * (count - 1);
+	int availw = width() - st::inlineResultsLeft;
 	for (int i = 0; i < count; ++i) {
 		int index = indices[i];
 		int w = sumWidth ? (row.items.at(index)->maxWidth() * availw / sumWidth) : row.items.at(index)->maxWidth();
@@ -1865,6 +1878,10 @@ StickerPanInner::InlineRow &StickerPanInner::layoutInlineRow(InlineRow &row, int
 		if (sumWidth) {
 			availw -= actualw;
 			sumWidth -= row.items.at(index)->maxWidth();
+			if (index > 0 && row.items.at(index - 1)->hasRightSkip()) {
+				availw -= st::inlineResultsSkip;
+				sumWidth -= st::inlineResultsSkip;
+			}
 		}
 	}
 	return row;
@@ -2246,7 +2263,10 @@ void StickerPanInner::updateSelected() {
 				if (sx < width) {
 					break;
 				}
-				sx -= width + st::inlineResultsSkip;
+				sx -= width;
+				if (inlineItems.at(col)->hasRightSkip()) {
+					sx -= st::inlineResultsSkip;
+				}
 			}
 			if (col < inlineItems.size()) {
 				sel = row * MatrixRowShift + col;
@@ -3699,15 +3719,15 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 			case mtpc_botInlineResult: {
 				const MTPDbotInlineResult &r(v.at(i).c_botInlineResult());
 				result->id = qs(r.vid);
-				result->title = r.has_title() ? qs(r.vtitle) : QString();
-				result->description = r.has_description() ? qs(r.vdescription) : QString();
-				result->url = r.has_url() ? qs(r.vurl) : QString();
-				result->thumb_url = r.has_thumb_url() ? qs(r.vthumb_url) : QString();
-				result->content_type = r.has_content_type() ? qs(r.vcontent_type) : QString();
-				result->content_url = r.has_content_url() ? qs(r.vcontent_url) : QString();
-				result->width = r.has_w() ? r.vw.v : 0;
-				result->height = r.has_h() ? r.vh.v : 0;
-				result->duration = r.has_duration() ? r.vduration.v : 0;
+				if (r.has_title()) result->title = qs(r.vtitle);
+				if (r.has_description()) result->description = qs(r.vdescription);
+				if (r.has_url()) result->url = qs(r.vurl);
+				if (r.has_thumb_url()) result->thumb_url = qs(r.vthumb_url);
+				if (r.has_content_type()) result->content_type = qs(r.vcontent_type);
+				if (r.has_content_url()) result->content_url = qs(r.vcontent_url);
+				if (r.has_w()) result->width = r.vw.v;
+				if (r.has_h()) result->height = r.vh.v;
+				if (r.has_duration()) result->duration = r.vduration.v;
 				if (!result->thumb_url.isEmpty() && (result->thumb_url.startsWith(qstr("http://"), Qt::CaseInsensitive) || result->thumb_url.startsWith(qstr("https://"), Qt::CaseInsensitive))) {
 					result->thumb = ImagePtr(result->thumb_url);
 				}
@@ -3716,6 +3736,8 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 			case mtpc_botInlineMediaResult: {
 				const MTPDbotInlineMediaResult &r(v.at(i).c_botInlineMediaResult());
 				result->id = qs(r.vid);
+				if (r.has_title()) result->title = qs(r.vtitle);
+				if (r.has_description()) result->description = qs(r.vdescription);
 				if (r.has_photo()) result->photo = App::feedPhoto(r.vphoto);
 				if (r.has_document()) result->document = App::feedDocument(r.vdocument);
 				message = &r.vsend_message;

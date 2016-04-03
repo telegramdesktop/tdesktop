@@ -573,18 +573,6 @@
     <ClCompile Include="GeneratedFiles\Release\moc_usernamebox.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\types.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_types.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_types.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_types.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\localstorage.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -972,6 +960,18 @@
     <ClCompile Include="GeneratedFiles\Release\moc_facade.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\basic_types.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_basic_types.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_basic_types.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_basic_types.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1192,9 +1192,6 @@
     <CustomBuild Include="SourceFiles\history.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
-    <CustomBuild Include="SourceFiles\types.h">
-      <Filter>Source Files</Filter>
-    </CustomBuild>
     <CustomBuild Include="SourceFiles\localstorage.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
@@ -1307,6 +1304,9 @@
       <Filter>mtproto</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\facades.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\basic_types.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
   </ItemGroup>

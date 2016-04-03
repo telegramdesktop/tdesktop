@@ -314,6 +314,8 @@ struct StickerIcon {
 	int32 pixw, pixh;
 };
 
+static constexpr int SavedGifsMaxPerRow = 5;
+
 class StickerPanInner : public TWidget {
 	Q_OBJECT
 

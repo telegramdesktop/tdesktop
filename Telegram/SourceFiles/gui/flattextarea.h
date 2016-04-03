@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <QtWidgets/QTextEdit>
-#include "style.h"
+#include "gui/style.h"
 #include "animation.h"
 
 class UserData;
