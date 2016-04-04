@@ -1529,11 +1529,15 @@ InlineResultSendData::SentMTPMessageFields InlineResultSendFile::getSentMessageF
 	uint64 docId = rand_value<uint64>();
 	QVector<MTPDocumentAttribute> attributes;
 
+	int duration = getSentDuration(owner);
+	QSize dimensions = getSentDimensions(owner);
 	using Type = InlineResult::Type;
 	if (owner->type == Type::Gif) {
 		attributes.push_back(MTP_documentAttributeFilename(MTP_string((owner->content_type == qstr("video/mp4") ? "animation.gif.mp4" : "animation.gif"))));
 		attributes.push_back(MTP_documentAttributeAnimated());
-		attributes.push_back(MTP_documentAttributeVideo(MTP_int(owner->duration), MTP_int(owner->width), MTP_int(owner->height)));
+		attributes.push_back(MTP_documentAttributeVideo(MTP_int(duration), MTP_int(dimensions.width()), MTP_int(dimensions.height())));
+	} else if (owner->type == Type::Video) {
+		attributes.push_back(MTP_documentAttributeVideo(MTP_int(duration), MTP_int(dimensions.width()), MTP_int(dimensions.height())));
 	}
 	MTPDocument document = MTP_document(MTP_long(docId), MTP_long(0), MTP_int(unixtime()), MTP_string(owner->content_type), MTP_int(owner->data().size()), thumbSize, MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));
 	if (tw > 0 && th > 0) {
@@ -1544,6 +1548,13 @@ InlineResultSendData::SentMTPMessageFields InlineResultSendFile::getSentMessageF
 	result.media = MTP_messageMediaDocument(document, MTP_string(_caption));
 
 	return result;
+}
+
+int InlineResultSendFile::getSentDuration(InlineResult *owner) const {
+	return (_document && _document->duration()) ? _document->duration() : owner->duration;
+}
+QSize InlineResultSendFile::getSentDimensions(InlineResult *owner) const {
+	return (!_document || _document->dimensions.isEmpty()) ? QSize(owner->width, owner->height) : _document->dimensions;
 }
 
 void InlineResult::automaticLoadGif() {

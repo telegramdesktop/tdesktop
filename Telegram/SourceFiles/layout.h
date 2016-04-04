@@ -552,7 +552,8 @@ protected:
 	void content_forget();
 	FileLocation content_location() const;
 	QByteArray content_data() const;
-
+	ImagePtr content_thumb() const;
+	int content_duration() const;
 };
 
 class DeleteSavedGifClickHandler : public LeftButtonClickHandler {
@@ -709,7 +710,7 @@ private:
 
 };
 
-class LayoutInlineVideo : public LayoutInlineItem {
+class LayoutInlineVideo : public LayoutInlineAbstractFile {
 public:
 	LayoutInlineVideo(InlineResult *result);
 
@@ -720,20 +721,6 @@ public:
 
 private:
 
-	ImagePtr getThumb() const {
-		if (_result->document && !_result->document->thumb->isNull()) {
-			return _result->document->thumb;
-		} else if (_result->photo && !_result->photo->thumb->isNull()) {
-			return _result->photo->thumb;
-		}
-		return _result->thumb;
-	}
-	int getDuration() const {
-		if (_result->document && _result->document->duration() > 0) {
-			return _result->document->duration();
-		}
-		return _result->duration;
-	}
 	ClickHandlerPtr _link;
 
 	mutable QPixmap _thumb;
@@ -750,19 +737,13 @@ public:
 	LayoutInlineFile(InlineResult *result);
 
 	void initDimensions() override;
-	int32 resizeGetHeight(int32 width) override;
 
 	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
 
 private:
 
-	mutable QPixmap _thumb;
 	Text _title, _description;
-	QString _letter, _urlText;
-	int32 _urlWidth;
-
-	void prepareThumb(int32 width, int32 height) const;
 
 };
 

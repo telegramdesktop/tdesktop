@@ -1440,6 +1440,9 @@ private:
 	DocumentData *_document;
 	QString _url, _caption;
 
+	int getSentDuration(InlineResult *owner) const;
+	QSize getSentDimensions(InlineResult *owner) const;
+
 };
 
 class InlineResult {

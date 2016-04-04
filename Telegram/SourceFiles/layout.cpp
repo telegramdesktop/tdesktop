@@ -1469,6 +1469,31 @@ QByteArray LayoutInlineAbstractFile::content_data() const {
 	return _result->data();
 }
 
+ImagePtr LayoutInlineAbstractFile::content_thumb() const {
+	if (DocumentData *document = getShownDocument()) {
+		if (!document->thumb->isNull()) {
+			return document->thumb;
+		}
+	}
+	if (_result->photo && !_result->photo->thumb->isNull()) {
+		return _result->photo->thumb;
+	}
+	return _result->thumb;
+}
+
+int LayoutInlineAbstractFile::content_duration() const {
+	if (_result->document) {
+		if (_result->document->duration() > 0) {
+			return _result->document->duration();
+		} else if (SongData *song = _result->document->song()) {
+			if (song->duration) {
+				return song->duration;
+			}
+		}
+	}
+	return _result->duration;
+}
+
 LayoutInlineGif::LayoutInlineGif(InlineResult *result) : LayoutInlineAbstractFile(result) {
 }
 
@@ -1955,19 +1980,19 @@ void LayoutInlinePhoto::content_forget() {
 	}
 }
 
-LayoutInlineVideo::LayoutInlineVideo(InlineResult *result) : LayoutInlineItem(result)
+LayoutInlineVideo::LayoutInlineVideo(InlineResult *result) : LayoutInlineAbstractFile(result)
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
 	if (!result->content_url.isEmpty()) {
 		_link = clickHandlerFromUrl(result->content_url);
 	}
-	if (int duration = getDuration()) {
+	if (int duration = content_duration()) {
 		_duration = formatDurationText(duration);
 	}
 }
 
 void LayoutInlineVideo::initDimensions() {
-	bool withThumb = !getThumb()->isNull();
+	bool withThumb = !content_thumb()->isNull();
 
 	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
 	int32 textWidth = _maxw - (withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0);
@@ -1988,7 +2013,7 @@ void LayoutInlineVideo::initDimensions() {
 void LayoutInlineVideo::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
 	int32 left = st::inlineThumbSize + st::inlineThumbSkip;
 
-	bool withThumb = !getThumb()->isNull();
+	bool withThumb = !content_thumb()->isNull();
 	if (withThumb) {
 		prepareThumb(st::inlineThumbSize, st::inlineThumbSize);
 		if (_thumb.isNull()) {
@@ -2035,7 +2060,7 @@ void LayoutInlineVideo::getState(ClickHandlerPtr &link, HistoryCursorState &curs
 }
 
 void LayoutInlineVideo::prepareThumb(int32 width, int32 height) const {
-	ImagePtr thumb = getThumb();
+	ImagePtr thumb = content_thumb();
 	if (thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
 			int32 w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
@@ -2054,6 +2079,88 @@ void LayoutInlineVideo::prepareThumb(int32 width, int32 height) const {
 		}
 	} else {
 		thumb->load();
+	}
+}
+
+LayoutInlineFile::LayoutInlineFile(InlineResult *result) : LayoutInlineAbstractFile(result)
+, _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::msgFileSize - st::inlineThumbSkip)
+, _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::msgFileSize - st::inlineThumbSkip) {
+}
+
+void LayoutInlineFile::initDimensions() {
+	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
+	int32 textWidth = _maxw - (st::msgFileSize + st::inlineThumbSkip);
+	TextParseOptions titleOpts = { 0, _maxw, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
+	_title.setText(st::semiboldFont, textOneLine(_result->sendData->getLayoutTitle(_result)), titleOpts);
+	int32 titleHeight = qMin(_title.countHeight(_maxw), 2 * st::semiboldFont->height);
+
+	int32 descriptionLines = 1;
+
+	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, descriptionLines * st::normalFont->height, Qt::LayoutDirectionAuto };
+	_description.setText(st::normalFont, _result->sendData->getLayoutDescription(_result), descriptionOpts);
+	int32 descriptionHeight = qMin(_description.countHeight(_maxw), descriptionLines * st::normalFont->height);
+
+	_minh = st::msgFileSize;
+	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
+}
+
+void LayoutInlineFile::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+	int32 left = st::msgFileSize + st::inlineThumbSkip;
+
+	QRect iconCircle = rtlrect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize, _width);
+	p.setPen(Qt::NoPen);
+	//if (isThumbAnimation(ms)) {
+	//	float64 over = _animation->a_thumbOver.current();
+	//	p.setBrush(style::interpolate(outbg ? st::msgFileOutBg : st::msgFileInBg, outbg ? st::msgFileOutBgOver : st::msgFileInBgOver, over));
+	//} else {
+		bool over = ClickHandler::showAsActive(_send/*_data->loading() ? _cancell : _savel*/);
+		p.setBrush((over ? st::msgFileInBgOver : st::msgFileInBg));
+	//}
+
+	p.setRenderHint(QPainter::HighQualityAntialiasing);
+	p.drawEllipse(iconCircle);
+	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+
+	style::sprite icon;
+	if (bool showPause = false) {
+		icon = st::msgFileInPause;
+	//} else if (radial || _data->loading()) {
+	//	icon = st::msgFileInCancel;
+	//} else if (loaded) {
+	//	if (_data->song() || _data->voice()) {
+	//		icon = outbg ? (selected ? st::msgFileOutPlaySelected : st::msgFileOutPlay) : (selected ? st::msgFileInPlaySelected : st::msgFileInPlay);
+	//	} else if (_data->isImage()) {
+	//		icon = outbg ? (selected ? st::msgFileOutImageSelected : st::msgFileOutImage) : (selected ? st::msgFileInImageSelected : st::msgFileInImage);
+	//	} else {
+	//		icon = outbg ? (selected ? st::msgFileOutFileSelected : st::msgFileOutFile) : (selected ? st::msgFileInFileSelected : st::msgFileInFile);
+	//	}
+	} else {
+		icon = st::msgFileInDownload;
+	}
+	p.drawSpriteCenter(iconCircle, icon);
+
+	p.setPen(st::black);
+	_title.drawLeftElided(p, left, st::inlineRowMargin, _width - left, _width, 2);
+	int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
+
+	p.setPen(st::inlineDescriptionFg);
+	int32 descriptionLines = 1;
+	_description.drawLeftElided(p, left, st::inlineRowMargin + titleHeight, _width - left, _width, descriptionLines);
+
+	const InlinePaintContext *ctx = context->toInlinePaintContext();
+	t_assert(ctx != nullptr);
+	if (!ctx->lastRow) {
+		p.fillRect(rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
+	}
+}
+
+void LayoutInlineFile::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+	if (x >= 0 && x < st::msgFileSize && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::msgFileSize) {
+		return;
+	}
+	if (x >= st::msgFileSize + st::inlineThumbSkip && x < _width && y >= 0 && y < _height) {
+		link = _send;
+		return;
 	}
 }
 

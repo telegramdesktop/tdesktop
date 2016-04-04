@@ -986,9 +986,6 @@
     <ClInclude Include="GeneratedFiles\style_classes.h">
       <Filter>Generated Files</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\style.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="SourceFiles\countries.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -1066,6 +1063,9 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\mtproto\scheme_auto.h">
       <Filter>mtproto</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\gui\style.h">
+      <Filter>gui</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

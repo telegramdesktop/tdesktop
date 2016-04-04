@@ -1798,10 +1798,10 @@ LayoutInlineItem *StickerPanInner::layoutPrepareInlineResult(InlineResult *resul
 		using Type = InlineResult::Type;
 		switch (result->type) {
 		case Type::Photo: layout = new LayoutInlinePhoto(result); break;
+		case Type::Audio:
+		case Type::File: layout = new LayoutInlineFile(result); break;
 		case Type::Video: layout = new LayoutInlineVideo(result); break;
 		case Type::Sticker: layout = new LayoutInlineSticker(result); break;
-		case Type::Audio:
-		case Type::File: //layout = new LayoutInlineFile(result); break;
 		case Type::Gif: layout = new LayoutInlineGif(result); break;
 		case Type::Article:
 		case Type::Contact:
