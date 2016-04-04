@@ -197,6 +197,14 @@ enum NotifySettingStatus {
 	NotifySettingSetNotify,
 };
 
+namespace InlineBots {
+namespace Layout {
+
+class ItemBase;
+
+} // namespace Layout
+} // namespace InlineBots
+
 class MainWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
@@ -435,8 +443,8 @@ public:
 	bool isItemVisible(HistoryItem *item);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
-	void ui_repaintInlineItem(const LayoutInlineItem *layout);
-	bool ui_isInlineItemVisible(const LayoutInlineItem *layout);
+	void ui_repaintInlineItem(const InlineBots::Layout::ItemBase *layout);
+	bool ui_isInlineItemVisible(const InlineBots::Layout::ItemBase *layout);
 	bool ui_isInlineItemBeingChosen();
 	void ui_showPeerHistory(quint64 peer, qint32 msgId, bool back);
 	PeerData *ui_getPeerForMouseAction();

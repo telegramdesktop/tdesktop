@@ -105,9 +105,6 @@ namespace {
 	typedef QHash<PhotoData*, LastPhotosList::iterator> LastPhotosMap;
 	LastPhotosMap lastPhotosMap;
 
-	typedef QMap<FileLoader*, InlineResult*> InlineResultLoaders;
-	InlineResultLoaders inlineResultLoaders;
-
 	style::color _msgServiceBg;
 	style::color _msgServiceSelectBg;
 	style::color _historyScrollBarColor;
@@ -2374,14 +2371,6 @@ namespace {
 			}
 		}
 		if (changeInMin) App::main()->updateMutedIn(changeInMin);
-	}
-
-	void regInlineResultLoader(FileLoader *loader, InlineResult *result) {
-		::inlineResultLoaders.insert(loader, result);
-	}
-
-	void unregInlineResultLoader(FileLoader *loader) {
-		::inlineResultLoaders.remove(loader);
 	}
 
 	void setProxySettings(QNetworkAccessManager &manager) {

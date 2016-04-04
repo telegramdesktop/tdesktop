@@ -259,10 +259,6 @@ namespace App {
 	void unregMuted(PeerData *peer);
 	void updateMuted();
 
-	void regInlineResultLoader(FileLoader *loader, InlineResult *result);
-	void unregInlineResultLoader(FileLoader *loader);
-	InlineResult *inlineResultFromLoader(FileLoader *loader);
-
 	void setProxySettings(QNetworkAccessManager &manager);
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	QNetworkProxy getHttpProxySettings();

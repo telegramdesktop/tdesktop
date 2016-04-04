@@ -812,11 +812,11 @@ void MainWidget::ui_repaintHistoryItem(const HistoryItem *item) {
 	if (overview) overview->ui_repaintHistoryItem(item);
 }
 
-void MainWidget::ui_repaintInlineItem(const LayoutInlineItem *layout) {
+void MainWidget::ui_repaintInlineItem(const InlineBots::Layout::ItemBase *layout) {
 	history.ui_repaintInlineItem(layout);
 }
 
-bool MainWidget::ui_isInlineItemVisible(const LayoutInlineItem *layout) {
+bool MainWidget::ui_isInlineItemVisible(const InlineBots::Layout::ItemBase *layout) {
 	return history.ui_isInlineItemVisible(layout);
 }
 
@@ -1895,7 +1895,7 @@ void MainWidget::documentLoadRetry() {
 }
 
 void MainWidget::inlineResultLoadProgress(FileLoader *loader) {
-	//InlineResult *result = App::inlineResultFromLoader(loader);
+	//InlineBots::Result *result = InlineBots::resultFromLoader(loader);
 	//if (!result) return;
 
 	//result->loaded();
@@ -1904,7 +1904,7 @@ void MainWidget::inlineResultLoadProgress(FileLoader *loader) {
 }
 
 void MainWidget::inlineResultLoadFailed(FileLoader *loader, bool started) {
-	//InlineResult *result = App::inlineResultFromLoader(loader);
+	//InlineBots::Result *result = InlineBots::resultFromLoader(loader);
 	//if (!result) return;
 
 	//result->loaded();

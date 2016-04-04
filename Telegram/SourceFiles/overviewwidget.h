@@ -152,15 +152,15 @@ private:
 
 	int32 _rowsLeft, _rowWidth;
 
-	typedef QVector<LayoutItem*> Items;
+	typedef QVector<LayoutOverviewItemBase*> Items;
 	Items _items;
-	typedef QMap<HistoryItem*, LayoutMediaItem*> LayoutItems;
+	typedef QMap<HistoryItem*, LayoutMediaItemBase*> LayoutItems;
 	LayoutItems _layoutItems;
 	typedef QMap<int32, LayoutOverviewDate*> LayoutDates;
 	LayoutDates _layoutDates;
-	LayoutMediaItem *layoutPrepare(HistoryItem *item);
-	LayoutItem *layoutPrepare(const QDate &date, bool month);
-	int32 setLayoutItem(int32 index, LayoutItem *item, int32 top);
+	LayoutMediaItemBase *layoutPrepare(HistoryItem *item);
+	LayoutOverviewItemBase *layoutPrepare(const QDate &date, bool month);
+	int32 setLayoutItem(int32 index, LayoutOverviewItemBase *item, int32 top);
 
 	FlatInput _search;
 	IconedButton _cancelSearch;

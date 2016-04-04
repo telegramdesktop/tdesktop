@@ -809,7 +809,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 		p.setClipRect(r);
 	}
 	uint64 ms = getms();
-	OverviewPaintContext context(ms, _selMode);
+	PaintContextOverview context(ms, _selMode);
 
 	if (_history->overview[_type].isEmpty() && (!_migrated || !_history->overviewLoaded(_type) || _migrated->overview[_type].isEmpty())) {
 		QPoint dogPos((_width - st::msgDogImg.pxWidth()) / 2, ((height() - st::msgDogImg.pxHeight()) * 4) / 9);
@@ -908,7 +908,7 @@ void OverviewInner::onUpdateSelected() {
 			upon = false;
 		}
 		if (i >= 0) {
-			if (LayoutMediaItem *media = _items.at(i)->toLayoutMediaItem()) {
+			if (LayoutMediaItemBase *media = _items.at(i)->toLayoutMediaItem()) {
 				item = media->getItem();
 				index = i;
 				if (upon) {
@@ -945,7 +945,7 @@ void OverviewInner::onUpdateSelected() {
 					j = _reversed ? (l - i - 1) : i;
 				}
 
-				if (LayoutMediaItem *media = _items.at(i)->toLayoutMediaItem()) {
+				if (LayoutMediaItemBase *media = _items.at(i)->toLayoutMediaItem()) {
 					item = media->getItem();
 					index = i;
 					media->getState(lnk, cursorState, m.x() - _rowsLeft, m.y() - _marginTop - top);
@@ -1632,7 +1632,7 @@ void OverviewInner::mediaOverviewUpdated() {
 				allGood = false;
 			}
 			HistoryItem *item = App::histItemById(itemChannel(msgid), itemMsgId(msgid));
-			LayoutMediaItem *layout = layoutPrepare(item);
+			LayoutMediaItemBase *layout = layoutPrepare(item);
 			if (!layout) continue;
 
 			setLayoutItem(index, layout, 0);
@@ -1678,7 +1678,7 @@ void OverviewInner::mediaOverviewUpdated() {
 				allGood = false;
 			}
 			HistoryItem *item = App::histItemById(itemChannel(msgid), itemMsgId(msgid));
-			LayoutMediaItem *layout = layoutPrepare(item);
+			LayoutMediaItemBase *layout = layoutPrepare(item);
 			if (!layout) continue;
 
 			if (withDates) {
@@ -1840,8 +1840,8 @@ void OverviewInner::recountMargins() {
 	}
 }
 
-LayoutMediaItem *OverviewInner::layoutPrepare(HistoryItem *item) {
-	if (!item) return 0;
+LayoutMediaItemBase *OverviewInner::layoutPrepare(HistoryItem *item) {
+	if (!item) return nullptr;
 
 	LayoutItems::const_iterator i = _layoutItems.cend();
 	HistoryMedia *media = item->getMedia();
@@ -1879,10 +1879,10 @@ LayoutMediaItem *OverviewInner::layoutPrepare(HistoryItem *item) {
 			i.value()->initDimensions();
 		}
 	}
-	return (i == _layoutItems.cend()) ? 0 : i.value();
+	return (i == _layoutItems.cend()) ? nullptr : i.value();
 }
 
-LayoutItem *OverviewInner::layoutPrepare(const QDate &date, bool month) {
+LayoutOverviewItemBase *OverviewInner::layoutPrepare(const QDate &date, bool month) {
 	int32 key = date.year() * 100 + date.month();
 	if (!month) key = key * 100 + date.day();
 	LayoutDates::const_iterator i = _layoutDates.constFind(key);
@@ -1893,7 +1893,7 @@ LayoutItem *OverviewInner::layoutPrepare(const QDate &date, bool month) {
 	return i.value();
 }
 
-int32 OverviewInner::setLayoutItem(int32 index, LayoutItem *item, int32 top) {
+int32 OverviewInner::setLayoutItem(int32 index, LayoutOverviewItemBase *item, int32 top) {
 	if (_items.size() > index) {
 		_items[index] = item;
 	} else {

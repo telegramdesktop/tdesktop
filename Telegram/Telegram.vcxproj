@@ -1075,6 +1075,10 @@
     <ClCompile Include="SourceFiles\gui\twidget.cpp" />
     <ClCompile Include="SourceFiles\history.cpp" />
     <ClCompile Include="SourceFiles\historywidget.cpp" />
+    <ClCompile Include="SourceFiles\inline_bots\inline_bot_layout_internal.cpp" />
+    <ClCompile Include="SourceFiles\inline_bots\inline_bot_layout_item.cpp" />
+    <ClCompile Include="SourceFiles\inline_bots\inline_bot_result.cpp" />
+    <ClCompile Include="SourceFiles\inline_bots\inline_bot_send_data.cpp" />
     <ClCompile Include="SourceFiles\intro\introwidget.cpp" />
     <ClCompile Include="SourceFiles\intro\introcode.cpp" />
     <ClCompile Include="SourceFiles\intro\introphone.cpp" />
@@ -1204,6 +1208,10 @@
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/basic_types.h"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG -D_SCL_SECURE_NO_WARNINGS "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\openssl\Release\include" "-I.\..\..\Libraries\ffmpeg" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I.\..\..\Libraries\breakpad\src" "-I.\ThirdParty\minizip" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.5.1\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.5.1\QtGui"</Command>
     </CustomBuild>
     <ClInclude Include="SourceFiles\gui\style.h" />
+    <ClInclude Include="SourceFiles\inline_bots\inline_bot_layout_internal.h" />
+    <ClInclude Include="SourceFiles\inline_bots\inline_bot_layout_item.h" />
+    <ClInclude Include="SourceFiles\inline_bots\inline_bot_result.h" />
+    <ClInclude Include="SourceFiles\inline_bots\inline_bot_send_data.h" />
     <ClInclude Include="SourceFiles\mtproto\auth_key.h" />
     <CustomBuild Include="SourceFiles\mtproto\connection.h">
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>

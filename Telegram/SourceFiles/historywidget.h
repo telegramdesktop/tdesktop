@@ -473,6 +473,17 @@ enum TextUpdateEventsFlags {
 	TextUpdateEventsSendTyping = 0x02,
 };
 
+namespace InlineBots {
+namespace Layout {
+
+class ItemBase;
+
+} // namespace Layout
+
+class Result;
+
+} // namespace InlineBots
+
 class HistoryWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
@@ -653,8 +664,8 @@ public:
 	bool isItemVisible(HistoryItem *item);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
-	void ui_repaintInlineItem(const LayoutInlineItem *gif);
-	bool ui_isInlineItemVisible(const LayoutInlineItem *layout);
+	void ui_repaintInlineItem(const InlineBots::Layout::ItemBase *gif);
+	bool ui_isInlineItemVisible(const InlineBots::Layout::ItemBase *layout);
 	bool ui_isInlineItemBeingChosen();
 	PeerData *ui_getPeerForMouseAction();
 
@@ -745,7 +756,7 @@ public slots:
 	void onFieldTabbed();
 	void onStickerSend(DocumentData *sticker);
 	void onPhotoSend(PhotoData *photo);
-	void onInlineResultSend(InlineResult *result, UserData *bot);
+	void onInlineResultSend(InlineBots::Result *result, UserData *bot);
 
 	void onWindowVisibleChanged();
 

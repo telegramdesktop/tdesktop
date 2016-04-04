@@ -25,6 +25,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "animation.h"
 
 class UserData;
+static UserData * const LookingUpInlineBot = SharedMemoryLocation<UserData, 0>();
+
 class FlatTextarea : public QTextEdit {
 	Q_OBJECT
 	T_WIDGET

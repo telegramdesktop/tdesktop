@@ -175,12 +175,12 @@ namespace Ui {
 		if (MainWidget *m = App::main()) m->ui_repaintHistoryItem(item);
 	}
 
-	void repaintInlineItem(const LayoutInlineItem *layout) {
+	void repaintInlineItem(const InlineBots::Layout::ItemBase *layout) {
 		if (!layout) return;
 		if (MainWidget *m = App::main()) m->ui_repaintInlineItem(layout);
 	}
 
-	bool isInlineItemVisible(const LayoutInlineItem *layout) {
+	bool isInlineItemVisible(const InlineBots::Layout::ItemBase *layout) {
 		if (MainWidget *m = App::main()) return m->ui_isInlineItemVisible(layout);
 		return false;
 	}

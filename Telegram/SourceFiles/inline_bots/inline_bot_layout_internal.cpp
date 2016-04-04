@@ -1,0 +1,1082 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+*/
+#include "stdafx.h"
+#include "inline_bots/inline_bot_layout_internal.h"
+
+#include "inline_bots/inline_bot_result.h"
+#include "localstorage.h"
+#include "mainwidget.h"
+
+namespace InlineBots {
+namespace Layout {
+namespace internal {
+
+FileBase::FileBase(Result *result) : ItemBase(result) {
+}
+
+FileBase::FileBase(DocumentData *document) : ItemBase(document) {
+}
+
+DocumentData *FileBase::getShownDocument() const {
+	if (DocumentData *result = getDocument()) {
+		return result;
+	} else if (Result *result = getResult()) {
+		return result->document;
+	}
+	return nullptr;
+}
+
+int FileBase::content_width() const {
+	if (DocumentData *document = getShownDocument()) {
+		if (document->dimensions.width() > 0) {
+			return document->dimensions.width();
+		}
+		if (!document->thumb->isNull()) {
+			return convertScale(document->thumb->width());
+		}
+	} else if (_result) {
+		return _result->width;
+	}
+	return 0;
+}
+
+int FileBase::content_height() const {
+	if (DocumentData *document = getShownDocument()) {
+		if (document->dimensions.height() > 0) {
+			return document->dimensions.height();
+		}
+		if (!document->thumb->isNull()) {
+			return convertScale(document->thumb->height());
+		}
+	} else if (_result) {
+		return _result->height;
+	}
+	return 0;
+}
+
+bool FileBase::content_loading() const {
+	if (DocumentData *document = getShownDocument()) {
+		return document->loading();
+	}
+	return  _result->loading();
+}
+
+bool FileBase::content_displayLoading() const {
+	if (DocumentData *document = getShownDocument()) {
+		return document->displayLoading();
+	}
+	return _result->displayLoading();
+}
+
+bool FileBase::content_loaded() const {
+	if (DocumentData *document = getShownDocument()) {
+		return document->loaded();
+	}
+	return _result->loaded();
+}
+
+float64 FileBase::content_progress() const {
+	if (DocumentData *document = getShownDocument()) {
+		return document->progress();
+	}
+	return _result->progress();
+}
+
+void FileBase::content_automaticLoad() const {
+	if (DocumentData *document = getShownDocument()) {
+		document->automaticLoad(nullptr);
+	} else {
+		_result->automaticLoadGif();
+	}
+}
+
+void FileBase::content_forget() {
+	if (DocumentData *document = getShownDocument()) {
+		document->forget();
+	} else {
+		_result->forget();
+	}
+}
+
+FileLocation FileBase::content_location() const {
+	if (DocumentData *document = getShownDocument()) {
+		return document->location();
+	}
+	return FileLocation();
+}
+
+QByteArray FileBase::content_data() const {
+	if (DocumentData *document = getShownDocument()) {
+		return document->data();
+	}
+	return _result->data();
+}
+
+ImagePtr FileBase::content_thumb() const {
+	if (DocumentData *document = getShownDocument()) {
+		if (!document->thumb->isNull()) {
+			return document->thumb;
+		}
+	}
+	if (_result->photo && !_result->photo->thumb->isNull()) {
+		return _result->photo->thumb;
+	}
+	return _result->thumb;
+}
+
+int FileBase::content_duration() const {
+	if (_result->document) {
+		if (_result->document->duration() > 0) {
+			return _result->document->duration();
+		} else if (SongData *song = _result->document->song()) {
+			if (song->duration) {
+				return song->duration;
+			}
+		}
+	}
+	return _result->duration;
+}
+
+Gif::Gif(Result *result) : FileBase(result) {
+}
+
+Gif::Gif(DocumentData *document, bool hasDeleteButton) : FileBase(document)
+, _delete(hasDeleteButton ? new DeleteSavedGifClickHandler(document) : nullptr) {
+}
+
+void Gif::initDimensions() {
+	int32 w = content_width(), h = content_height();
+	if (w <= 0 || h <= 0) {
+		_maxw = 0;
+	} else {
+		w = w * st::inlineMediaHeight / h;
+		_maxw = qMax(w, int32(st::inlineResultsMinWidth));
+	}
+	_minh = st::inlineMediaHeight + st::inlineResultsSkip;
+}
+
+void Gif::setPosition(int32 position) {
+	ItemBase::setPosition(position);
+	if (_position < 0) {
+		if (gif()) delete _gif;
+		_gif = 0;
+	}
+}
+
+void DeleteSavedGifClickHandler::onClickImpl() const {
+	int32 index = cSavedGifs().indexOf(_data);
+	if (index >= 0) {
+		cRefSavedGifs().remove(index);
+		Local::writeSavedGifs();
+
+		MTP::send(MTPmessages_SaveGif(MTP_inputDocument(MTP_long(_data->id), MTP_long(_data->access)), MTP_bool(true)));
+	}
+	if (App::main()) emit App::main()->savedGifsUpdated();
+}
+
+void Gif::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+	content_automaticLoad();
+
+	bool loaded = content_loaded(), loading = content_loading(), displayLoading = content_displayLoading();
+	if (loaded && !gif() && _gif != BadClipReader) {
+		Gif *that = const_cast<Gif*>(this);
+		that->_gif = new ClipReader(content_location(), content_data(), func(that, &Gif::clipCallback));
+		if (gif()) _gif->setAutoplay();
+	}
+
+	bool animating = (gif() && _gif->started());
+	if (displayLoading) {
+		ensureAnimation();
+		if (!_animation->radial.animating()) {
+			_animation->radial.start(content_progress());
+		}
+	}
+	bool radial = isRadialAnimation(context->ms);
+
+	int32 height = st::inlineMediaHeight;
+	QSize frame = countFrameSize();
+
+	QRect r(0, 0, _width, height);
+	if (animating) {
+		if (!_thumb.isNull()) _thumb = QPixmap();
+		p.drawPixmap(r.topLeft(), _gif->current(frame.width(), frame.height(), _width, height, context->paused ? 0 : context->ms));
+	} else {
+		prepareThumb(_width, height, frame);
+		if (_thumb.isNull()) {
+			p.fillRect(r, st::overviewPhotoBg);
+		} else {
+			p.drawPixmap(r.topLeft(), _thumb);
+		}
+	}
+
+	if (radial || (!_gif && !loaded && !loading) || (_gif == BadClipReader)) {
+		float64 radialOpacity = (radial && loaded) ? _animation->radial.opacity() : 1;
+		if (_animation && _animation->_a_over.animating(context->ms)) {
+			float64 over = _animation->_a_over.current();
+			p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
+			p.fillRect(r, st::black);
+		} else {
+			p.fillRect(r, (_state & StateFlag::Over) ? st::msgDateImgBgOver : st::msgDateImgBg);
+		}
+		p.setOpacity(radialOpacity * p.opacity());
+
+		p.setOpacity(radialOpacity);
+		style::sprite icon;
+		if (loaded && !radial) {
+			icon = st::msgFileInPlay;
+		} else if (radial || loading) {
+			icon = st::msgFileInCancel;
+		} else {
+			icon = st::msgFileInDownload;
+		}
+		QRect inner((_width - st::msgFileSize) / 2, (height - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
+		p.drawSpriteCenter(inner, icon);
+		if (radial) {
+			p.setOpacity(1);
+			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
+			_animation->radial.draw(p, rinner, st::msgFileRadialLine, st::msgInBg);
+		}
+	}
+
+	if (_delete && (_state & StateFlag::Over)) {
+		float64 deleteOver = _a_deleteOver.current(context->ms, (_state & StateFlag::DeleteOver) ? 1 : 0);
+		QPoint deletePos = QPoint(_width - st::stickerPanDelete.pxWidth(), 0);
+		p.setOpacity(deleteOver + (1 - deleteOver) * st::stickerPanDeleteOpacity);
+		p.drawSpriteLeft(deletePos, _width, st::stickerPanDelete);
+		p.setOpacity(1);
+	}
+}
+
+void Gif::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+	if (x >= 0 && x < _width && y >= 0 && y < st::inlineMediaHeight) {
+		if (_delete && (rtl() ? _width - x : x) >= _width - st::stickerPanDelete.pxWidth() && y < st::stickerPanDelete.pxHeight()) {
+			link = _delete;
+		} else {
+			link = _send;
+		}
+	}
+}
+
+void Gif::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
+	if (!p) return;
+
+	if (_delete && p == _delete) {
+		bool wasactive = (_state & StateFlag::DeleteOver);
+		if (active != wasactive) {
+			float64 from = active ? 0 : 1, to = active ? 1 : 0;
+			EnsureAnimation(_a_deleteOver, from, func(this, &Gif::update));
+			_a_deleteOver.start(to, st::stickersRowDuration);
+			if (active) {
+				_state |= StateFlag::DeleteOver;
+			} else {
+				_state &= ~StateFlag::DeleteOver;
+			}
+		}
+	}
+	if (p == _delete || p == _send) {
+		bool wasactive = (_state & StateFlag::Over);
+		if (active != wasactive) {
+			if (!content_loaded()) {
+				ensureAnimation();
+				float64 from = active ? 0 : 1, to = active ? 1 : 0;
+				EnsureAnimation(_animation->_a_over, from, func(this, &Gif::update));
+				_animation->_a_over.start(to, st::stickersRowDuration);
+			}
+			if (active) {
+				_state |= StateFlag::Over;
+			} else {
+				_state &= ~StateFlag::Over;
+			}
+		}
+	}
+	ItemBase::clickHandlerActiveChanged(p, active);
+}
+
+QSize Gif::countFrameSize() const {
+	bool animating = (gif() && _gif->ready());
+	int32 framew = animating ? _gif->width() : content_width(), frameh = animating ? _gif->height() : content_height(), height = st::inlineMediaHeight;
+	if (framew * height > frameh * _width) {
+		if (framew < st::maxStickerSize || frameh > height) {
+			if (frameh > height || (framew * height / frameh) <= st::maxStickerSize) {
+				framew = framew * height / frameh;
+				frameh = height;
+			} else {
+				frameh = int32(frameh * st::maxStickerSize) / framew;
+				framew = st::maxStickerSize;
+			}
+		}
+	} else {
+		if (frameh < st::maxStickerSize || framew > _width) {
+			if (framew > _width || (frameh * _width / framew) <= st::maxStickerSize) {
+				frameh = frameh * _width / framew;
+				framew = _width;
+			} else {
+				framew = int32(framew * st::maxStickerSize) / frameh;
+				frameh = st::maxStickerSize;
+			}
+		}
+	}
+	return QSize(framew, frameh);
+}
+
+Gif::~Gif() {
+	if (gif()) deleteAndMark(_gif);
+	deleteAndMark(_animation);
+}
+
+void Gif::prepareThumb(int32 width, int32 height, const QSize &frame) const {
+	if (DocumentData *document = getShownDocument()) {
+		if (!document->thumb->isNull()) {
+			if (document->thumb->loaded()) {
+				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+					_thumb = document->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixSmooth, width, height);
+				}
+			} else {
+				document->thumb->load();
+			}
+		}
+	} else {
+		if (!_result->thumb_url.isEmpty()) {
+			if (_result->thumb->loaded()) {
+				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+					_thumb = _result->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixSmooth, width, height);
+				}
+			} else {
+				_result->thumb->load();
+			}
+		}
+	}
+}
+
+void Gif::ensureAnimation() const {
+	if (!_animation) {
+		_animation = new AnimationData(animation(const_cast<Gif*>(this), &Gif::step_radial));
+	}
+}
+
+bool Gif::isRadialAnimation(uint64 ms) const {
+	if (!_animation || !_animation->radial.animating()) return false;
+
+	_animation->radial.step(ms);
+	return _animation && _animation->radial.animating();
+}
+
+void Gif::step_radial(uint64 ms, bool timer) {
+	if (timer) {
+		update();
+	} else {
+		_animation->radial.update(content_progress(), !content_loading() || content_loaded(), ms);
+		if (!_animation->radial.animating() && content_loaded()) {
+			delete _animation;
+			_animation = 0;
+		}
+	}
+}
+
+void Gif::clipCallback(ClipReaderNotification notification) {
+	switch (notification) {
+	case ClipReaderReinit: {
+		if (gif()) {
+			if (_gif->state() == ClipError) {
+				delete _gif;
+				_gif = BadClipReader;
+				content_forget();
+			} else if (_gif->ready() && !_gif->started()) {
+				int32 height = st::inlineMediaHeight;
+				QSize frame = countFrameSize();
+				_gif->start(frame.width(), frame.height(), _width, height, false);
+			} else if (_gif->paused() && !Ui::isInlineItemVisible(this)) {
+				delete _gif;
+				_gif = 0;
+				content_forget();
+			}
+		}
+
+		update();
+	} break;
+
+	case ClipReaderRepaint: {
+		if (gif() && !_gif->currentDisplayed()) {
+			update();
+		}
+	} break;
+	}
+}
+
+Sticker::Sticker(Result *result) : FileBase(result) {
+}
+
+void Sticker::initDimensions() {
+	_maxw = st::stickerPanSize.width();
+	_minh = st::stickerPanSize.height();
+}
+
+void Sticker::preload() const {
+	if (DocumentData *document = getShownDocument()) {
+		bool goodThumb = !document->thumb->isNull() && ((document->thumb->width() >= 128) || (document->thumb->height() >= 128));
+		if (goodThumb) {
+			document->thumb->load();
+		} else {
+			document->checkSticker();
+		}
+	} else if (!_result->thumb->isNull()) {
+		_result->thumb->load();
+	}
+}
+
+void Sticker::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+	bool loaded = content_loaded();
+
+	float64 over = _a_over.isNull() ? (_active ? 1 : 0) : _a_over.current();
+	if (over > 0) {
+		p.setOpacity(over);
+		App::roundRect(p, QRect(QPoint(0, 0), st::stickerPanSize), st::emojiPanHover, StickerHoverCorners);
+		p.setOpacity(1);
+	}
+
+	prepareThumb();
+	if (!_thumb.isNull()) {
+		int w = _thumb.width() / cIntRetinaFactor(), h = _thumb.height() / cIntRetinaFactor();
+		QPoint pos = QPoint((st::stickerPanSize.width() - w) / 2, (st::stickerPanSize.height() - h) / 2);
+		p.drawPixmap(pos, _thumb);
+	}
+}
+
+void Sticker::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+	if (x >= 0 && x < _width && y >= 0 && y < st::inlineMediaHeight) {
+		link = _send;
+	}
+}
+
+void Sticker::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
+	if (!p) return;
+
+	if (p == _send) {
+		if (active != _active) {
+			_active = active;
+
+			float64 from = _active ? 0 : 1, to = _active ? 1 : 0;
+			EnsureAnimation(_a_over, from, func(this, &Sticker::update));
+			_a_over.start(to, st::stickersRowDuration);
+		}
+	}
+	ItemBase::clickHandlerActiveChanged(p, active);
+}
+
+QSize Sticker::getThumbSize() const {
+	int width = qMax(content_width(), 1), height = qMax(content_height(), 1);
+	float64 coefw = (st::stickerPanSize.width() - st::msgRadius * 2) / float64(width);
+	float64 coefh = (st::stickerPanSize.height() - st::msgRadius * 2) / float64(height);
+	float64 coef = qMin(qMin(coefw, coefh), 1.);
+	int w = qRound(coef * content_width()), h = qRound(coef * content_height());
+	return QSize(qMax(w, 1), qMax(h, 1));
+}
+
+void Sticker::prepareThumb() const {
+	if (DocumentData *document = getShownDocument()) {
+		bool goodThumb = !document->thumb->isNull() && ((document->thumb->width() >= 128) || (document->thumb->height() >= 128));
+		if (goodThumb) {
+			document->thumb->load();
+		} else {
+			document->checkSticker();
+		}
+
+		ImagePtr sticker = goodThumb ? document->thumb : document->sticker()->img;
+		if (!_thumbLoaded && sticker->loaded()) {
+			QSize thumbSize = getThumbSize();
+			_thumb = sticker->pix(thumbSize.width(), thumbSize.height());
+			_thumbLoaded = true;
+		}
+	} else {
+		if (_result->thumb->loaded()) {
+			if (!_thumbLoaded) {
+				QSize thumbSize = getThumbSize();
+				_thumb = _result->thumb->pix(thumbSize.width(), thumbSize.height());
+				_thumbLoaded = true;
+			}
+		} else {
+			_result->thumb->load();
+		}
+	}
+}
+
+Photo::Photo(Result *result) : ItemBase(result) {
+}
+
+void Photo::initDimensions() {
+	int32 w = content_width(), h = content_height();
+	if (w <= 0 || h <= 0) {
+		_maxw = 0;
+	} else {
+		w = w * st::inlineMediaHeight / h;
+		_maxw = qMax(w, int32(st::inlineResultsMinWidth));
+	}
+	_minh = st::inlineMediaHeight + st::inlineResultsSkip;
+}
+
+void Photo::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+	bool loaded = content_loaded();
+
+	int32 height = st::inlineMediaHeight;
+	QSize frame = countFrameSize();
+
+	QRect r(0, 0, _width, height);
+
+	prepareThumb(_width, height, frame);
+	if (_thumb.isNull()) {
+		p.fillRect(r, st::overviewPhotoBg);
+	} else {
+		p.drawPixmap(r.topLeft(), _thumb);
+	}
+}
+
+void Photo::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+	if (x >= 0 && x < _width && y >= 0 && y < st::inlineMediaHeight) {
+		link = _send;
+	}
+}
+
+PhotoData *Photo::getShownPhoto() const {
+	if (PhotoData *result = getPhoto()) {
+		return result;
+	} else if (Result *result = getResult()) {
+		return result->photo;
+	}
+	return nullptr;
+}
+
+QSize Photo::countFrameSize() const {
+	int32 framew = content_width(), frameh = content_height(), height = st::inlineMediaHeight;
+	if (framew * height > frameh * _width) {
+		if (framew < st::maxStickerSize || frameh > height) {
+			if (frameh > height || (framew * height / frameh) <= st::maxStickerSize) {
+				framew = framew * height / frameh;
+				frameh = height;
+			} else {
+				frameh = int32(frameh * st::maxStickerSize) / framew;
+				framew = st::maxStickerSize;
+			}
+		}
+	} else {
+		if (frameh < st::maxStickerSize || framew > _width) {
+			if (framew > _width || (frameh * _width / framew) <= st::maxStickerSize) {
+				frameh = frameh * _width / framew;
+				framew = _width;
+			} else {
+				framew = int32(framew * st::maxStickerSize) / frameh;
+				frameh = st::maxStickerSize;
+			}
+		}
+	}
+	return QSize(framew, frameh);
+}
+
+void Photo::prepareThumb(int32 width, int32 height, const QSize &frame) const {
+	if (PhotoData *photo = getShownPhoto()) {
+		if (photo->medium->loaded()) {
+			if (!_thumbLoaded || _thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+				_thumb = photo->medium->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixSmooth, width, height);
+			}
+			_thumbLoaded = true;
+		} else {
+			if (photo->thumb->loaded()) {
+				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+					_thumb = photo->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixSmooth, width, height);
+				}
+			}
+			photo->medium->load();
+		}
+	} else {
+		if (_result->thumb->loaded()) {
+			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+				_thumb = _result->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixSmooth, width, height);
+			}
+		} else {
+			_result->thumb->load();
+		}
+	}
+}
+
+int Photo::content_width() const {
+	if (PhotoData *photo = getShownPhoto()) {
+		return photo->full->width();
+	} else if (_result) {
+		return _result->width;
+	}
+	return 0;
+}
+
+int Photo::content_height() const {
+	if (PhotoData *photo = getShownPhoto()) {
+		return photo->full->height();
+	} else if (_result) {
+		return _result->height;
+	}
+	return 0;
+}
+
+bool Photo::content_loaded() const {
+	if (PhotoData *photo = getShownPhoto()) {
+		return photo->loaded();
+	}
+	return _result->loaded();
+}
+
+void Photo::content_forget() {
+	if (PhotoData *photo = getShownPhoto()) {
+		photo->forget();
+	} else {
+		_result->forget();
+	}
+}
+
+Video::Video(Result *result) : FileBase(result)
+, _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
+, _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
+	if (!result->content_url.isEmpty()) {
+		_link = clickHandlerFromUrl(result->content_url);
+	}
+	if (int duration = content_duration()) {
+		_duration = formatDurationText(duration);
+	}
+}
+
+void Video::initDimensions() {
+	bool withThumb = !content_thumb()->isNull();
+
+	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
+	int32 textWidth = _maxw - (withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0);
+	TextParseOptions titleOpts = { 0, _maxw, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
+	_title.setText(st::semiboldFont, textOneLine(_result->getLayoutTitle()), titleOpts);
+	int32 titleHeight = qMin(_title.countHeight(_maxw), 2 * st::semiboldFont->height);
+
+	int32 descriptionLines = withThumb ? (titleHeight > st::semiboldFont->height ? 1 : 2) : 3;
+
+	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, descriptionLines * st::normalFont->height, Qt::LayoutDirectionAuto };
+	_description.setText(st::normalFont, _result->getLayoutDescription(), descriptionOpts);
+	int32 descriptionHeight = qMin(_description.countHeight(_maxw), descriptionLines * st::normalFont->height);
+
+	_minh = st::inlineThumbSize;
+	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
+}
+
+void Video::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+	int32 left = st::inlineThumbSize + st::inlineThumbSkip;
+
+	bool withThumb = !content_thumb()->isNull();
+	if (withThumb) {
+		prepareThumb(st::inlineThumbSize, st::inlineThumbSize);
+		if (_thumb.isNull()) {
+			p.fillRect(rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width), st::overviewPhotoBg);
+		} else {
+			p.drawPixmapLeft(0, st::inlineRowMargin, _width, _thumb);
+		}
+	} else {
+		p.fillRect(rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width), st::black);
+	}
+
+	if (!_duration.isEmpty()) {
+		int32 durationTop = st::inlineRowMargin + st::inlineThumbSize - st::normalFont->height - st::inlineDurationMargin;
+		p.fillRect(rtlrect(0, durationTop - st::inlineDurationMargin, st::inlineThumbSize, st::normalFont->height + 2 * st::inlineDurationMargin, _width), st::msgDateImgBg);
+		p.setPen(st::white);
+		p.setFont(st::normalFont);
+		p.drawTextRight(_width - st::inlineThumbSize + st::inlineDurationMargin, durationTop, _width, _duration);
+	}
+
+	p.setPen(st::black);
+	_title.drawLeftElided(p, left, st::inlineRowMargin, _width - left, _width, 2);
+	int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
+
+	p.setPen(st::inlineDescriptionFg);
+	int32 descriptionLines = withThumb ? (titleHeight > st::semiboldFont->height ? 1 : 2) : 3;
+	_description.drawLeftElided(p, left, st::inlineRowMargin + titleHeight, _width - left, _width, descriptionLines);
+
+	if (!context->lastRow) {
+		p.fillRect(rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
+	}
+}
+
+void Video::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+	if (x >= 0 && x < st::inlineThumbSize && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::inlineThumbSize) {
+		link = _link;
+		return;
+	}
+	if (x >= st::inlineThumbSize + st::inlineThumbSkip && x < _width && y >= 0 && y < _height) {
+		link = _send;
+		return;
+	}
+}
+
+void Video::prepareThumb(int32 width, int32 height) const {
+	ImagePtr thumb = content_thumb();
+	if (thumb->loaded()) {
+		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+			int32 w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
+			if (w * height > h * width) {
+				if (height < h) {
+					w = w * height / h;
+					h = height;
+				}
+			} else {
+				if (width < w) {
+					h = h * width / w;
+					w = width;
+				}
+			}
+			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixSmooth, width, height);
+		}
+	} else {
+		thumb->load();
+	}
+}
+
+void OpenFileClickHandler::onClickImpl() const {
+	_result->automaticLoadGif();
+}
+
+void CancelFileClickHandler::onClickImpl() const {
+	_result->cancelFile();
+}
+
+File::File(Result *result) : FileBase(result)
+, _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::msgFileSize - st::inlineThumbSkip)
+, _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::msgFileSize - st::inlineThumbSkip)
+, _open(new OpenFileClickHandler(result))
+, _cancel(new CancelFileClickHandler(result)) {
+}
+
+void File::initDimensions() {
+	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
+	int32 textWidth = _maxw - (st::msgFileSize + st::inlineThumbSkip);
+	TextParseOptions titleOpts = { 0, _maxw, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
+	_title.setText(st::semiboldFont, textOneLine(_result->getLayoutTitle()), titleOpts);
+	int32 titleHeight = qMin(_title.countHeight(_maxw), 2 * st::semiboldFont->height);
+
+	int32 descriptionLines = 1;
+
+	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, descriptionLines * st::normalFont->height, Qt::LayoutDirectionAuto };
+	_description.setText(st::normalFont, _result->getLayoutDescription(), descriptionOpts);
+	int32 descriptionHeight = qMin(_description.countHeight(_maxw), descriptionLines * st::normalFont->height);
+
+	_minh = st::msgFileSize;
+	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
+}
+
+void File::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+	int32 left = st::msgFileSize + st::inlineThumbSkip;
+
+	bool loaded = content_loaded(), displayLoading = content_displayLoading();
+	if (displayLoading) {
+		ensureAnimation();
+		if (!_animation->radial.animating()) {
+			_animation->radial.start(content_progress());
+		}
+	}
+	bool showPause = false;// updateStatusText(parent);
+	bool radial = isRadialAnimation(context->ms);
+
+	QRect iconCircle = rtlrect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize, _width);
+	p.setPen(Qt::NoPen);
+	if (isThumbAnimation(context->ms)) {
+		float64 over = _animation->a_thumbOver.current();
+		p.setBrush(style::interpolate(st::msgFileInBg, st::msgFileInBgOver, over));
+	} else {
+		bool over = ClickHandler::showAsActive(content_loading() ? _cancel : _open);
+		p.setBrush((over ? st::msgFileInBgOver : st::msgFileInBg));
+	}
+
+	p.setRenderHint(QPainter::HighQualityAntialiasing);
+	p.drawEllipse(iconCircle);
+	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+
+	style::sprite icon;
+	if (bool showPause = false) {
+		icon = st::msgFileInPause;
+	} else if (radial || content_loading()) {
+		icon = st::msgFileInCancel;
+	} else if (loaded) {
+		//if (_data->song() || _data->voice()) {
+			icon = st::msgFileInPlay;
+		//} else if (_data->isImage()) {
+		//	icon = st::msgFileInImage;
+		//} else {
+		//	icon = st::msgFileInFile;
+		//}
+	} else {
+		icon = st::msgFileInDownload;
+	}
+	p.drawSpriteCenter(iconCircle, icon);
+
+	int titleTop = st::inlineRowMargin + st::inlineRowFileNameTop;
+	int descriptionTop = st::inlineRowMargin + st::inlineRowFileDescriptionTop;
+
+	p.setPen(st::black);
+	_title.drawLeftElided(p, left, titleTop, _width - left, _width, 2);
+	int32 titleHeight = st::semiboldFont->height;
+
+	p.setPen(st::inlineDescriptionFg);
+	int32 descriptionLines = 1;
+	_description.drawLeftElided(p, left, descriptionTop, _width - left, _width, descriptionLines);
+
+	if (!context->lastRow) {
+		p.fillRect(rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
+	}
+}
+
+void File::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+	if (x >= 0 && x < st::msgFileSize && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::msgFileSize) {
+		link = content_loading() ? _cancel : _open;
+		return;
+	}
+	if (x >= st::msgFileSize + st::inlineThumbSkip && x < _width && y >= 0 && y < _height) {
+		link = _send;
+		return;
+	}
+}
+
+void File::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
+	if (p == _open || p == _cancel) {
+		if (active && !content_loaded()) {
+			ensureAnimation();
+			_animation->a_thumbOver.start(1);
+			_animation->_a_thumbOver.start();
+		} else if (!active && _animation) {
+			_animation->a_thumbOver.start(0);
+			_animation->_a_thumbOver.start();
+		}
+	}
+}
+
+void File::step_thumbOver(float64 ms, bool timer) {
+	float64 dt = ms / st::msgFileOverDuration;
+	if (dt >= 1) {
+		_animation->a_thumbOver.finish();
+		_animation->_a_thumbOver.stop();
+		checkAnimationFinished();
+	} else if (!timer) {
+		_animation->a_thumbOver.update(dt, anim::linear);
+	}
+	if (timer) {
+		Ui::repaintInlineItem(this);
+	}
+}
+
+void File::step_radial(uint64 ms, bool timer) {
+	if (timer) {
+		Ui::repaintInlineItem(this);
+	} else {
+		_animation->radial.update(content_progress(), content_loaded(), ms);
+		if (!_animation->radial.animating()) {
+			checkAnimationFinished();
+		}
+	}
+}
+
+void File::ensureAnimation() const {
+	if (!_animation) {
+		_animation.reset(new AnimationData(
+			animation(const_cast<File*>(this), &File::step_thumbOver),
+			animation(const_cast<File*>(this), &File::step_radial)));
+	}
+}
+
+void File::checkAnimationFinished() {
+	if (_animation && !_animation->_a_thumbOver.animating() && !_animation->radial.animating()) {
+		if (content_loaded()) {
+			_animation.clear();
+		}
+	}
+}
+
+Article::Article(Result *result, bool withThumb) : ItemBase(result)
+, _withThumb(withThumb)
+, _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
+, _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
+	if (!result->url.isEmpty()) {
+		_url = clickHandlerFromUrl(result->url);
+	}
+	if (!result->content_url.isEmpty()) {
+		_link = clickHandlerFromUrl(result->content_url);
+	} else {
+		LocationCoords location;
+		if (result->getLocationCoords(&location)) {
+			_link.reset(new LocationClickHandler(location));
+			int32 w = st::inlineThumbSize, h = st::inlineThumbSize;
+			int32 zoom = 13, scale = 1;
+			if (cScale() == dbisTwo || cRetina()) {
+				scale = 2;
+				w /= 2;
+				h /= 2;
+			}
+			QString coords = qsl("%1,%2").arg(location.lat).arg(location.lon);
+			QString url = qsl("https://maps.googleapis.com/maps/api/staticmap?center=") + coords + qsl("&zoom=%1&size=%2x%3&maptype=roadmap&scale=%4&markers=color:red|size:big|").arg(zoom).arg(w).arg(h).arg(scale) + coords + qsl("&sensor=false");
+			result->thumb = ImagePtr(url);
+		}
+	}
+	QVector<QStringRef> parts = _result->url.splitRef('/');
+	if (!parts.isEmpty()) {
+		QStringRef domain = parts.at(0);
+		if (parts.size() > 2 && domain.endsWith(':') && parts.at(1).isEmpty()) { // http:// and others
+			domain = parts.at(2);
+		}
+
+		parts = domain.split('@').back().split('.');
+		if (parts.size() > 1) {
+			_letter = parts.at(parts.size() - 2).at(0).toUpper();
+		}
+	}
+	if (_letter.isEmpty() && !_result->title.isEmpty()) {
+		_letter = _result->title.at(0).toUpper();
+	}
+}
+
+void Article::initDimensions() {
+	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
+	int32 textWidth = _maxw - (_withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0);
+	TextParseOptions titleOpts = { 0, _maxw, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
+	_title.setText(st::semiboldFont, textOneLine(_result->title), titleOpts);
+	int32 titleHeight = qMin(_title.countHeight(_maxw), 2 * st::semiboldFont->height);
+
+	int32 descriptionLines = (_withThumb || _url) ? 2 : 3;
+	QString description = _result->getLayoutDescription();
+	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, descriptionLines * st::normalFont->height, Qt::LayoutDirectionAuto };
+	_description.setText(st::normalFont, description, descriptionOpts);
+	int32 descriptionHeight = qMin(_description.countHeight(_maxw), descriptionLines * st::normalFont->height);
+
+	_minh = titleHeight + descriptionHeight;
+	if (_url) _minh += st::normalFont->height;
+	if (_withThumb) _minh = qMax(_minh, int32(st::inlineThumbSize));
+	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
+}
+
+int32 Article::resizeGetHeight(int32 width) {
+	_width = qMin(width, _maxw);
+	if (_url) {
+		_urlText = _result->url;
+		_urlWidth = st::normalFont->width(_urlText);
+		if (_urlWidth > _width - st::inlineThumbSize - st::inlineThumbSkip) {
+			_urlText = st::normalFont->elided(_result->url, _width - st::inlineThumbSize - st::inlineThumbSkip);
+			_urlWidth = st::normalFont->width(_urlText);
+		}
+	}
+	_height = _minh;
+	return _height;
+}
+
+void Article::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+	int32 left = st::emojiPanHeaderLeft - st::inlineResultsLeft;
+	if (_withThumb) {
+		left = st::inlineThumbSize + st::inlineThumbSkip;
+		prepareThumb(st::inlineThumbSize, st::inlineThumbSize);
+		QRect rthumb(rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width));
+		if (_thumb.isNull()) {
+			if (_result->thumb->isNull() && !_letter.isEmpty()) {
+				int32 index = (_letter.at(0).unicode() % 4);
+				style::color colors[] = { st::msgFileRedColor, st::msgFileYellowColor, st::msgFileGreenColor, st::msgFileBlueColor };
+
+				p.fillRect(rthumb, colors[index]);
+				if (!_letter.isEmpty()) {
+					p.setFont(st::linksLetterFont);
+					p.setPen(st::white);
+					p.drawText(rthumb, _letter, style::al_center);
+				}
+			} else {
+				p.fillRect(rthumb, st::overviewPhotoBg);
+			}
+		} else {
+			p.drawPixmapLeft(rthumb.topLeft(), _width, _thumb);
+		}
+	}
+
+	p.setPen(st::black);
+	_title.drawLeftElided(p, left, st::inlineRowMargin, _width - left, _width, 2);
+	int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
+
+	p.setPen(st::inlineDescriptionFg);
+	int32 descriptionLines = (_withThumb || _url) ? 2 : 3;
+	_description.drawLeftElided(p, left, st::inlineRowMargin + titleHeight, _width - left, _width, descriptionLines);
+
+	if (_url) {
+		int32 descriptionHeight = qMin(_description.countHeight(_width - left), st::normalFont->height * descriptionLines);
+		p.drawTextLeft(left, st::inlineRowMargin + titleHeight + descriptionHeight, _width, _urlText, _urlWidth);
+	}
+
+	if (!context->lastRow) {
+		p.fillRect(rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
+	}
+}
+
+void Article::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+	int32 left = _withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0;
+	if (x >= 0 && x < left - st::inlineThumbSkip && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::inlineThumbSize) {
+		link = _link;
+		return;
+	}
+	if (x >= left && x < _width && y >= 0 && y < _height) {
+		if (_url) {
+			int32 left = st::inlineThumbSize + st::inlineThumbSkip;
+			int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
+			int32 descriptionLines = 2;
+			int32 descriptionHeight = qMin(_description.countHeight(_width - left), st::normalFont->height * descriptionLines);
+			if (rtlrect(left, st::inlineRowMargin + titleHeight + descriptionHeight, _urlWidth, st::normalFont->height, _width).contains(x, y)) {
+				link = _url;
+				return;
+			}
+		}
+		link = _send;
+		return;
+	}
+}
+
+void Article::prepareThumb(int32 width, int32 height) const {
+	if (_result->thumb->isNull()) {
+		if (_result->type == Result::Type::Contact) {
+			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+				_thumb = userDefPhoto(qHash(_result->id) % UserColorsCount)->pixCircled(width, height);
+			}
+		}
+		return;
+	}
+
+	if (_result->thumb->loaded()) {
+		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+			int32 w = qMax(convertScale(_result->thumb->width()), 1), h = qMax(convertScale(_result->thumb->height()), 1);
+			if (w * height > h * width) {
+				if (height < h) {
+					w = w * height / h;
+					h = height;
+				}
+			} else {
+				if (width < w) {
+					h = h * width / w;
+					w = width;
+				}
+			}
+			_thumb = _result->thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixSmooth, width, height);
+		}
+	} else {
+		_result->thumb->load();
+	}
+}
+
+} // namespace internal
+} // namespace Layout
+} // namespace InlineBots

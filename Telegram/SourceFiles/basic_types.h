@@ -782,6 +782,56 @@ inline QSharedPointer<T> MakeShared(Args&&... args) {
 	return QSharedPointer<T>(new T(std_::forward<Args>(args)...));
 }
 
+// This pointer is used for global non-POD variables that are allocated
+// on demand by createIfNull(lambda) and are never automatically freed.
+template <typename T>
+class NeverFreedPointer {
+public:
+	explicit NeverFreedPointer() {
+	}
+	NeverFreedPointer(const NeverFreedPointer<T> &other) = delete;
+	NeverFreedPointer &operator=(const NeverFreedPointer<T> &other) = delete;
+
+	template <typename U>
+	void createIfNull(U creator) {
+		if (isNull()) {
+			reset(creator());
+		}
+	}
+
+	T *data() const {
+		return _p;
+	}
+	T *release() {
+		return getPointerAndReset(_p);
+	}
+	void reset(T *p = nullptr) {
+		delete _p;
+		_p = p;
+	}
+	bool isNull() const {
+		return data() == nullptr;
+	}
+
+	void clear() {
+		reset();
+	}
+	T *operator->() const {
+		return data();
+	}
+	T &operator*() const {
+		t_assert(!isNull());
+		return *data();
+	}
+	explicit operator bool() const {
+		return !isNull();
+	}
+
+private:
+	T *_p = nullptr;
+
+};
+
 template <typename I>
 inline void destroyImplementation(I *&ptr) {
 	if (ptr) {

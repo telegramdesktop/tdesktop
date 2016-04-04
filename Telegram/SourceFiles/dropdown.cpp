@@ -19,19 +19,18 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-
 #include "dropdown.h"
-#include "historywidget.h"
-
-#include "localstorage.h"
-#include "lang.h"
-
-#include "window.h"
-#include "apiwrap.h"
-#include "mainwidget.h"
 
 #include "boxes/confirmbox.h"
 #include "boxes/stickersetbox.h"
+#include "inline_bots/inline_bot_result.h"
+#include "inline_bots/inline_bot_layout_item.h"
+#include "historywidget.h"
+#include "localstorage.h"
+#include "lang.h"
+#include "window.h"
+#include "apiwrap.h"
+#include "mainwidget.h"
 
 Dropdown::Dropdown(QWidget *parent, const style::dropdown &st) : TWidget(parent)
 , _ignore(false)
@@ -456,6 +455,8 @@ void DragArea::step_appearance(float64 ms, bool timer) {
 	}
 	if (timer) update();
 }
+
+namespace internal {
 
 EmojiColorPicker::EmojiColorPicker() : TWidget()
 , _ignoreShow(false)
@@ -1272,6 +1273,12 @@ int32 StickerPanInner::countHeight(bool plain) {
 	return qMax(minLastH, result) + st::stickerPanPadding;
 }
 
+StickerPanInner::~StickerPanInner() {
+	clearInlineRows(true);
+	deleteUnusedGifLayouts();
+	deleteUnusedInlineLayouts();
+}
+
 QRect StickerPanInner::stickerRect(int tab, int sel) {
 	int x = 0, y = 0;
 	for (int i = 0; i < _sets.size(); ++i) {
@@ -1311,7 +1318,7 @@ void StickerPanInner::paintInlineItems(Painter &p, const QRect &r) {
 		p.drawText(QRect(0, 0, width(), (height() / 3) * 2 + st::normalFont->height), lang(lng_inline_bot_no_results), style::al_center);
 		return;
 	}
-	InlinePaintContext context(getms(), false, Ui::isLayerShown() || Ui::isMediaViewShown() || _previewShown, false);
+	InlineBots::Layout::PaintContext context(getms(), false, Ui::isLayerShown() || Ui::isMediaViewShown() || _previewShown, false);
 
 	int32 top = st::emojiPanHeader;
 	int32 fromx = rtl() ? (width() - r.x() - r.width()) : r.x(), tox = rtl() ? (width() - r.x()) : (r.x() + r.width());
@@ -1324,7 +1331,7 @@ void StickerPanInner::paintInlineItems(Painter &p, const QRect &r) {
 			for (int32 col = 0, cols = inlineRow.items.size(); col < cols; ++col) {
 				if (left >= tox) break;
 
-				const LayoutInlineItem *item = inlineRow.items.at(col);
+				const InlineItem *item = inlineRow.items.at(col);
 				int32 w = item->width();
 				if (left + w > fromx) {
 					p.translate(left, top);
@@ -1441,7 +1448,7 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 
 	if (_selected < 0 || _selected != pressed || (_showingInlineItems && !activated)) return;
 	if (_showingInlineItems) {
-		if (!dynamic_cast<SendInlineItemClickHandler*>(activated.data())) {
+		if (!dynamic_cast<InlineBots::Layout::SendClickHandler*>(activated.data())) {
 			App::activateClickHandler(activated, e->button());
 			return;
 		}
@@ -1450,10 +1457,10 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 			return;
 		}
 
-		LayoutInlineItem *item = _inlineRows.at(row).items.at(col);
+		InlineItem *item = _inlineRows.at(row).items.at(col);
 		PhotoData *photo = item->getPhoto();
 		DocumentData *document = item->getDocument();
-		InlineResult *inlineResult = item->getInlineResult();
+		InlineResult *inlineResult = item->getResult();
 		using Type = InlineResult::Type;
 		auto getShownPhoto = [photo, inlineResult]() -> PhotoData* {
 			if (photo) {
@@ -1495,7 +1502,7 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 				shownPhoto->medium->loadEvenCancelled();
 			}
 		} else if (DocumentData *shownDocument = getShownDocument()) {
-			if (inlineResult->type == Type::Gif) {
+			if (!inlineResult || inlineResult->type == Type::Gif) {
 				if (shownDocument->loaded()) {
 					sendInlineItem();
 				} else if (shownDocument->loading()) {
@@ -1640,17 +1647,28 @@ void StickerPanInner::clearSelection(bool fast) {
 
 void StickerPanInner::hideFinish(bool completely) {
 	if (completely) {
+		auto itemForget = [](const InlineItem *item) {
+			if (DocumentData *document = item->getDocument()) {
+				document->forget();
+			}
+			if (PhotoData *photo = item->getPhoto()) {
+				photo->forget();
+			}
+			if (InlineResult *result = item->getResult()) {
+				if (DocumentData *document = result->document) {
+					document->forget();
+				}
+				if (PhotoData *photo = result->photo) {
+					photo->forget();
+				}
+			}
+		};
 		clearInlineRows(false);
-		for (GifLayouts::const_iterator i = _gifLayouts.cbegin(), e = _gifLayouts.cend(); i != e; ++i) {
-			i.value()->getDocument()->forget();
+		for_const (InlineItem *item, _gifLayouts) {
+			itemForget(item);
 		}
-		for (InlineLayouts::const_iterator i = _inlineLayouts.cbegin(), e = _inlineLayouts.cend(); i != e; ++i) {
-			if (i.value()->getInlineResult()->document) {
-				i.value()->getInlineResult()->document->forget();
-			}
-			if (i.value()->getInlineResult()->photo) {
-				i.value()->getInlineResult()->photo->forget();
-			}
+		for_const (InlineItem *item, _inlineLayouts) {
+			itemForget(item);
 		}
 	}
 	if (_setGifCommand && _showingSavedGifs) {
@@ -1686,7 +1704,7 @@ void StickerPanInner::refreshStickers() {
 }
 
 bool StickerPanInner::inlineRowsAddItem(DocumentData *savedGif, InlineResult *result, InlineRow &row, int32 &sumWidth) {
-	LayoutInlineItem *layout = nullptr;
+	InlineItem *layout = nullptr;
 	if (savedGif) {
 		layout = layoutPrepareSavedGif(savedGif, (_inlineRows.size() * MatrixRowShift) + row.items.size());
 	} else if (result) {
@@ -1711,12 +1729,12 @@ bool StickerPanInner::inlineRowsAddItem(DocumentData *savedGif, InlineResult *re
 bool StickerPanInner::inlineRowFinalize(InlineRow &row, int32 &sumWidth, bool force) {
 	if (row.items.isEmpty()) return false;
 
-	bool full = (row.items.size() >= SavedGifsMaxPerRow);
+	bool full = (row.items.size() >= InlineItemsMaxPerRow);
 	bool big = (sumWidth >= st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft);
 	if (full || big || force) {
 		_inlineRows.push_back(layoutInlineRow(row, (full || big) ? sumWidth : 0));
 		row = InlineRow();
-		row.items.reserve(SavedGifsMaxPerRow);
+		row.items.reserve(InlineItemsMaxPerRow);
 		sumWidth = 0;
 		return true;
 	}
@@ -1735,7 +1753,7 @@ void StickerPanInner::refreshSavedGifs() {
 			} else {
 				_inlineRows.reserve(saved.size());
 				InlineRow row;
-				row.items.reserve(SavedGifsMaxPerRow);
+				row.items.reserve(InlineItemsMaxPerRow);
 				int32 sumWidth = 0;
 				for (SavedGifs::const_iterator i = saved.cbegin(), e = saved.cend(); i != e; ++i) {
 					inlineRowsAddItem(*i, 0, row, sumWidth);
@@ -1779,40 +1797,33 @@ void StickerPanInner::clearInlineRows(bool resultsDeleted) {
 	_inlineRows.clear();
 }
 
-LayoutInlineGif *StickerPanInner::layoutPrepareSavedGif(DocumentData *doc, int32 position) {
-	GifLayouts::const_iterator i = _gifLayouts.constFind(doc);
+InlineItem *StickerPanInner::layoutPrepareSavedGif(DocumentData *doc, int32 position) {
+	auto i = _gifLayouts.constFind(doc);
 	if (i == _gifLayouts.cend()) {
-		i = _gifLayouts.insert(doc, new LayoutInlineGif(doc, true));
-		i.value()->initDimensions();
+		if (auto layout = InlineItem::createLayoutGif(doc)) {
+			i = _gifLayouts.insert(doc, layout.release());
+			i.value()->initDimensions();
+		} else {
+			return nullptr;
+		}
 	}
-	if (!i.value()->maxWidth()) return 0;
+	if (!i.value()->maxWidth()) return nullptr;
 
 	i.value()->setPosition(position);
 	return i.value();
 }
 
-LayoutInlineItem *StickerPanInner::layoutPrepareInlineResult(InlineResult *result, int32 position) {
-	InlineLayouts::const_iterator i = _inlineLayouts.constFind(result);
+InlineItem *StickerPanInner::layoutPrepareInlineResult(InlineResult *result, int32 position) {
+	auto i = _inlineLayouts.constFind(result);
 	if (i == _inlineLayouts.cend()) {
-		LayoutInlineItem *layout = nullptr;
-		using Type = InlineResult::Type;
-		switch (result->type) {
-		case Type::Photo: layout = new LayoutInlinePhoto(result); break;
-		case Type::Audio:
-		case Type::File: layout = new LayoutInlineFile(result); break;
-		case Type::Video: layout = new LayoutInlineVideo(result); break;
-		case Type::Sticker: layout = new LayoutInlineSticker(result); break;
-		case Type::Gif: layout = new LayoutInlineGif(result); break;
-		case Type::Article:
-		case Type::Contact:
-		case Type::Venue: layout = new LayoutInlineArticle(result, _inlineWithThumb); break;
+		if (auto layout = InlineItem::createLayout(result, _inlineWithThumb)) {
+			i = _inlineLayouts.insert(result, layout.release());
+			i.value()->initDimensions();
+		} else {
+			return nullptr;
 		}
-		if (!layout) return nullptr;
-
-		i = _inlineLayouts.insert(result, layout);
-		layout->initDimensions();
 	}
-	if (!i.value()->maxWidth()) return 0;
+	if (!i.value()->maxWidth()) return nullptr;
 
 	i.value()->setPosition(position);
 	return i.value();
@@ -1820,8 +1831,8 @@ LayoutInlineItem *StickerPanInner::layoutPrepareInlineResult(InlineResult *resul
 
 void StickerPanInner::deleteUnusedGifLayouts() {
 	if (_inlineRows.isEmpty() || !_showingSavedGifs) { // delete all
-		for (GifLayouts::const_iterator i = _gifLayouts.cbegin(), e = _gifLayouts.cend(); i != e; ++i) {
-			delete i.value();
+		for_const (const InlineItem *item, _gifLayouts) {
+			delete item;
 		}
 		_gifLayouts.clear();
 	} else {
@@ -1838,8 +1849,8 @@ void StickerPanInner::deleteUnusedGifLayouts() {
 
 void StickerPanInner::deleteUnusedInlineLayouts() {
 	if (_inlineRows.isEmpty() || _showingSavedGifs) { // delete all
-		for (InlineLayouts::const_iterator i = _inlineLayouts.cbegin(), e = _inlineLayouts.cend(); i != e; ++i) {
-			delete i.value();
+		for_const (const InlineItem *item, _inlineLayouts) {
+			delete item;
 		}
 		_inlineLayouts.clear();
 	} else {
@@ -1856,11 +1867,11 @@ void StickerPanInner::deleteUnusedInlineLayouts() {
 
 StickerPanInner::InlineRow &StickerPanInner::layoutInlineRow(InlineRow &row, int32 sumWidth) {
 	int32 count = row.items.size();
-	t_assert(count <= SavedGifsMaxPerRow);
+	t_assert(count <= InlineItemsMaxPerRow);
 
 	// enumerate items in the order of growing maxWidth()
 	// for that sort item indices by maxWidth()
-	int indices[SavedGifsMaxPerRow];
+	int indices[InlineItemsMaxPerRow];
 	for (int i = 0; i < count; ++i) {
 		indices[i] = i;
 	}
@@ -1972,7 +1983,7 @@ int32 StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &res
 	if (count) {
 		_inlineRows.reserve(count);
 		InlineRow row;
-		row.items.reserve(SavedGifsMaxPerRow);
+		row.items.reserve(InlineItemsMaxPerRow);
 		int32 sumWidth = 0;
 		for (int32 i = from; i < count; ++i) {
 			if (inlineRowsAddItem(0, results.at(i), row, sumWidth)) {
@@ -1997,7 +2008,7 @@ int32 StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &res
 int32 StickerPanInner::validateExistingInlineRows(const InlineResults &results) {
 	int32 count = results.size(), until = 0, untilrow = 0, untilcol = 0;
 	for (; until < count;) {
-		if (untilrow >= _inlineRows.size() || _inlineRows.at(untilrow).items.at(untilcol)->getInlineResult() != results.at(until)) {
+		if (untilrow >= _inlineRows.size() || _inlineRows.at(untilrow).items.at(untilcol)->getResult() != results.at(until)) {
 			break;
 		}
 		++until;
@@ -2044,20 +2055,8 @@ int32 StickerPanInner::validateExistingInlineRows(const InlineResults &results) 
 
 	if (_inlineRows.isEmpty()) {
 		_inlineWithThumb = false;
-		auto hasThumbDisplay = [](InlineResult *inlineResult) -> bool {
-			if (!inlineResult->thumb->isNull()) {
-				return true;
-			}
-			if (inlineResult->type == InlineResult::Type::Contact) {
-				return true;
-			}
-			if (inlineResult->sendData->hasLocationCoords()) {
-				return true;
-			}
-			return false;
-		};
 		for (int32 i = until; i < count; ++i) {
-			if (hasThumbDisplay(results.at(i))) {
+			if (results.at(i)->hasThumbDisplay()) {
 				_inlineWithThumb = true;
 				break;
 			}
@@ -2066,7 +2065,7 @@ int32 StickerPanInner::validateExistingInlineRows(const InlineResults &results) 
 	return until;
 }
 
-void StickerPanInner::ui_repaintInlineItem(const LayoutInlineItem *layout) {
+void StickerPanInner::ui_repaintInlineItem(const InlineItem *layout) {
 	uint64 ms = getms();
 	if (_lastScrolled + 100 <= ms) {
 		update();
@@ -2075,7 +2074,7 @@ void StickerPanInner::ui_repaintInlineItem(const LayoutInlineItem *layout) {
 	}
 }
 
-bool StickerPanInner::ui_isInlineItemVisible(const LayoutInlineItem *layout) {
+bool StickerPanInner::ui_isInlineItemVisible(const InlineItem *layout) {
 	int32 position = layout->position();
 	if (!_showingInlineItems || position < 0) return false;
 
@@ -2614,6 +2613,8 @@ void EmojiSwitchButton::paintEvent(QPaintEvent *e) {
 	}
 }
 
+} // namespace internal
+
 EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 , _maxHeight(st::emojiPanMaxHeight)
 , _contentMaxHeight(st::emojiPanMaxHeight)
@@ -2708,7 +2709,7 @@ EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 	connect(&e_inner, SIGNAL(selected(EmojiPtr)), this, SIGNAL(emojiSelected(EmojiPtr)));
 	connect(&s_inner, SIGNAL(selected(DocumentData*)), this, SIGNAL(stickerSelected(DocumentData*)));
 	connect(&s_inner, SIGNAL(selected(PhotoData*)), this, SIGNAL(photoSelected(PhotoData*)));
-	connect(&s_inner, SIGNAL(selected(InlineResult*,UserData*)), this, SIGNAL(inlineResultSelected(InlineResult*,UserData*)));
+	connect(&s_inner, SIGNAL(selected(InlineBots::Result*,UserData*)), this, SIGNAL(inlineResultSelected(InlineBots::Result*,UserData*)));
 
 	connect(&s_inner, SIGNAL(emptyInlineRows()), this, SLOT(onEmptyInlineRows()));
 
@@ -2848,7 +2849,7 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 					i += _iconsX.current() / int(st::rbEmoji.width);
 					x -= _iconsX.current() % int(st::rbEmoji.width);
 					for (int32 l = qMin(_icons.size(), i + 8 - skip); i < l; ++i) {
-						const StickerIcon &s(_icons.at(i));
+						const internal::StickerIcon &s(_icons.at(i));
 						s.sticker->thumb->load();
 						QPixmap pix(s.sticker->thumb->pix(s.pixw, s.pixh));
 
@@ -3393,13 +3394,13 @@ void EmojiPan::stickersInstalled(uint64 setId) {
 	showStart();
 }
 
-void EmojiPan::ui_repaintInlineItem(const LayoutInlineItem *layout) {
+void EmojiPan::ui_repaintInlineItem(const InlineBots::Layout::ItemBase *layout) {
 	if (_stickersShown && !isHidden()) {
 		s_inner.ui_repaintInlineItem(layout);
 	}
 }
 
-bool EmojiPan::ui_isInlineItemVisible(const LayoutInlineItem *layout) {
+bool EmojiPan::ui_isInlineItemVisible(const InlineBots::Layout::ItemBase *layout) {
 	if (_stickersShown && !isHidden()) {
 		return s_inner.ui_isInlineItemVisible(layout);
 	}
@@ -3414,9 +3415,9 @@ bool EmojiPan::ui_isInlineItemBeingChosen() {
 }
 
 void EmojiPan::notify_automaticLoadSettingsChangedGif() {
-	for (InlineCache::const_iterator i = _inlineCache.cbegin(), ei = _inlineCache.cend(); i != ei; ++i) {
-		for (InlineResults::const_iterator j = i.value()->results.cbegin(), ej = i.value()->results.cend(); j != ej; ++j) {
-			(*j)->automaticLoadSettingsChangedGif();
+	for_const (const InlineCacheEntry *entry, _inlineCache) {
+		for_const (InlineBots::Result *l, entry->results) {
+			l->automaticLoadSettingsChangedGif();
 		}
 	}
 }
@@ -3475,7 +3476,7 @@ void EmojiPan::onTabChange() {
 	e_inner.showEmojiPack(newTab);
 }
 
-void EmojiPan::updatePanelsPositions(const QVector<EmojiPanel*> &panels, int32 st) {
+void EmojiPan::updatePanelsPositions(const QVector<internal::EmojiPanel*> &panels, int32 st) {
 	for (int32 i = 0, l = panels.size(); i < l; ++i) {
 		int32 y = panels.at(i)->wantedY() - st;
 		if (y < 0) {
@@ -3655,6 +3656,13 @@ bool EmojiPan::hideOnNoInlineResults() {
 	return _inlineBot && _stickersShown && s_inner.inlineResultsShown() && (_shownFromInlineQuery || _inlineBot->username != cInlineGifBotUsername());
 }
 
+void EmojiPan::InlineCacheEntry::clearResults() {
+	for_const (const InlineBots::Result *result, results) {
+		delete result;
+	}
+	results.clear();
+}
+
 void EmojiPan::inlineBotChanged() {
 	if (!_inlineBot) return;
 
@@ -3677,7 +3685,7 @@ void EmojiPan::inlineBotChanged() {
 
 	Notify::inlineBotRequesting(false);
 }
-
+#include <memory>
 void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 	_inlineRequestId = 0;
 	Notify::inlineBotRequesting(false);
@@ -3699,105 +3707,11 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 		if (count) {
 			it.value()->results.reserve(it.value()->results.size() + count);
 		}
-		auto inlineResultTypes = InlineResult::getTypesMap();
-		auto getInlineResultType = [&inlineResultTypes](const MTPBotInlineResult &inlineResult) -> InlineResult::Type {
-			QString type;
-			switch (inlineResult.type()) {
-			case mtpc_botInlineResult: type = qs(inlineResult.c_botInlineResult().vtype); break;
-			case mtpc_botInlineMediaResult: type = qs(inlineResult.c_botInlineMediaResult().vtype); break;
-			}
-			return inlineResultTypes.value(type, InlineResult::Type::Unknown);
-		};
 		for (int32 i = 0; i < count; ++i) {
-			InlineResult::Type type = getInlineResultType(v.at(i));
-			if (type == InlineResult::Type::Unknown) continue;
-
-			UniquePointer<InlineResult> result = MakeUnique<InlineResult>(queryId, type);
-
-			const MTPBotInlineMessage *message = nullptr;
-			switch (v.at(i).type()) {
-			case mtpc_botInlineResult: {
-				const MTPDbotInlineResult &r(v.at(i).c_botInlineResult());
-				result->id = qs(r.vid);
-				if (r.has_title()) result->title = qs(r.vtitle);
-				if (r.has_description()) result->description = qs(r.vdescription);
-				if (r.has_url()) result->url = qs(r.vurl);
-				if (r.has_thumb_url()) result->thumb_url = qs(r.vthumb_url);
-				if (r.has_content_type()) result->content_type = qs(r.vcontent_type);
-				if (r.has_content_url()) result->content_url = qs(r.vcontent_url);
-				if (r.has_w()) result->width = r.vw.v;
-				if (r.has_h()) result->height = r.vh.v;
-				if (r.has_duration()) result->duration = r.vduration.v;
-				if (!result->thumb_url.isEmpty() && (result->thumb_url.startsWith(qstr("http://"), Qt::CaseInsensitive) || result->thumb_url.startsWith(qstr("https://"), Qt::CaseInsensitive))) {
-					result->thumb = ImagePtr(result->thumb_url);
-				}
-				message = &r.vsend_message;
-			} break;
-			case mtpc_botInlineMediaResult: {
-				const MTPDbotInlineMediaResult &r(v.at(i).c_botInlineMediaResult());
-				result->id = qs(r.vid);
-				if (r.has_title()) result->title = qs(r.vtitle);
-				if (r.has_description()) result->description = qs(r.vdescription);
-				if (r.has_photo()) result->photo = App::feedPhoto(r.vphoto);
-				if (r.has_document()) result->document = App::feedDocument(r.vdocument);
-				message = &r.vsend_message;
-			} break;
+			if (UniquePointer<InlineBots::Result> result = InlineBots::Result::create(queryId, v.at(i))) {
+				++added;
+				it.value()->results.push_back(result.release());
 			}
-			bool badAttachment = (result->photo && !result->photo->access) || (result->document && !result->document->access);
-
-			if (!message) {
-				continue;
-			}
-			switch (message->type()) {
-			case mtpc_botInlineMessageMediaAuto: {
-				const MTPDbotInlineMessageMediaAuto &r(message->c_botInlineMessageMediaAuto());
-				if (result->type == InlineResult::Type::Photo) {
-					result->sendData.reset(new InlineResultSendPhoto(result->photo, result->content_url, qs(r.vcaption)));
-				} else {
-					result->sendData.reset(new InlineResultSendFile(result->document, result->content_url, qs(r.vcaption)));
-				}
-			} break;
-
-			case mtpc_botInlineMessageText: {
-				const MTPDbotInlineMessageText &r(message->c_botInlineMessageText());
-				EntitiesInText entities = r.has_entities() ? entitiesFromMTP(r.ventities.c_vector().v) : EntitiesInText();
-				result->sendData.reset(new InlineResultSendText(qs(r.vmessage), entities, r.is_no_webpage()));
-			} break;
-
-			case mtpc_botInlineMessageMediaGeo: {
-				const MTPDbotInlineMessageMediaGeo &r(message->c_botInlineMessageMediaGeo());
-				if (r.vgeo.type() == mtpc_geoPoint) {
-					result->sendData.reset(new InlineResultSendGeo(r.vgeo.c_geoPoint()));
-				} else {
-					badAttachment = true;
-				}
-			} break;
-
-			case mtpc_botInlineMessageMediaVenue: {
-				const MTPDbotInlineMessageMediaVenue &r(message->c_botInlineMessageMediaVenue());
-				if (r.vgeo.type() == mtpc_geoPoint) {
-					result->sendData.reset(new InlineResultSendVenue(r.vgeo.c_geoPoint(), qs(r.vvenue_id), qs(r.vprovider), qs(r.vtitle), qs(r.vaddress)));
-				} else {
-					badAttachment = true;
-				}
-			} break;
-
-			case mtpc_botInlineMessageMediaContact: {
-				const MTPDbotInlineMessageMediaContact &r(message->c_botInlineMessageMediaContact());
-				result->sendData.reset(new InlineResultSendContact(qs(r.vfirst_name), qs(r.vlast_name), qs(r.vphone_number)));
-			} break;
-
-			default: {
-				badAttachment = true;
-			} break;
-			}
-
-			if (badAttachment || !result->sendData || !result->sendData->isValid()) {
-				continue;
-			}
-
-			++added;
-			it.value()->results.push_back(result.release());
 		}
 
 		if (!added) {
@@ -3885,7 +3799,7 @@ bool EmojiPan::refreshInlineRows(int32 *added) {
 		_inlineNextOffset = i.value()->nextOffset;
 	}
 	if (clear) prepareShowHideCache();
-	int32 result = s_inner.refreshInlineRows(_inlineBot, clear ? InlineResults() : i.value()->results, false);
+	int32 result = s_inner.refreshInlineRows(_inlineBot, clear ? internal::InlineResults() : i.value()->results, false);
 	if (added) *added = result;
 	return !clear;
 }

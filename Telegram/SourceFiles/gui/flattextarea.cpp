@@ -19,9 +19,9 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "gui/style.h"
-
 #include "flattextarea.h"
+
+#include "gui/style.h"
 #include "window.h"
 
 FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v) : QTextEdit(parent)
@@ -298,10 +298,10 @@ QString FlatTextarea::getInlineBotQuery(UserData *&inlineBot, QString &inlineBot
 						inlineBot = 0;
 					}
 				} else {
-					inlineBot = InlineBotLookingUpData;
+					inlineBot = LookingUpInlineBot;
 				}
 			}
-			if (inlineBot == InlineBotLookingUpData) return QString();
+			if (inlineBot == LookingUpInlineBot) return QString();
 
 			if (inlineBot && (!inlineBot->botInfo || inlineBot->botInfo->inlinePlaceholder.isEmpty())) {
 				inlineBot = 0;

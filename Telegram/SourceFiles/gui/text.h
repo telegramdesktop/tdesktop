@@ -555,6 +555,14 @@ private:
 
 };
 
+inline TextClickHandlerPtr clickHandlerFromUrl(const QString &url) {
+	int32 at = url.indexOf('@'), slash = url.indexOf('/');
+	if ((at > 0) && (slash < 0 || slash > at)) {
+		return MakeShared<EmailClickHandler>(url);
+	}
+	return MakeShared<UrlClickHandler>(url);
+}
+
 struct LocationCoords {
 	LocationCoords() : lat(0), lon(0) {
 	}

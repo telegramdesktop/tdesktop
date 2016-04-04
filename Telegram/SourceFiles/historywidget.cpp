@@ -19,21 +19,21 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "gui/style.h"
-#include "lang.h"
-
-#include "application.h"
-#include "boxes/confirmbox.h"
 #include "historywidget.h"
-#include "gui/filedialog.h"
+
+#include "boxes/confirmbox.h"
 #include "boxes/photosendbox.h"
+#include "gui/filedialog.h"
+#include "gui/style.h"
+#include "inline_bots/inline_bot_result.h"
+#include "lang.h"
+#include "application.h"
 #include "mainwidget.h"
 #include "window.h"
 #include "passcodewidget.h"
 #include "window.h"
 #include "fileuploader.h"
 #include "audio.h"
-
 #include "localstorage.h"
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
@@ -2733,7 +2733,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(&_emojiPan, SIGNAL(emojiSelected(EmojiPtr)), &_field, SLOT(onEmojiInsert(EmojiPtr)));
 	connect(&_emojiPan, SIGNAL(stickerSelected(DocumentData*)), this, SLOT(onStickerSend(DocumentData*)));
 	connect(&_emojiPan, SIGNAL(photoSelected(PhotoData*)), this, SLOT(onPhotoSend(PhotoData*)));
-	connect(&_emojiPan, SIGNAL(inlineResultSelected(InlineResult*,UserData*)), this, SLOT(onInlineResultSend(InlineResult*,UserData*)));
+	connect(&_emojiPan, SIGNAL(inlineResultSelected(InlineBots::Result*,UserData*)), this, SLOT(onInlineResultSend(InlineBots::Result*,UserData*)));
 	connect(&_emojiPan, SIGNAL(updateStickers()), this, SLOT(updateStickers()));
 	connect(&_sendActionStopTimer, SIGNAL(timeout()), this, SLOT(onCancelSendAction()));
 	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreviewTimeout()));
@@ -2861,12 +2861,12 @@ void HistoryWidget::updateInlineBotQuery() {
 			MTP::cancel(_inlineBotResolveRequestId);
 			_inlineBotResolveRequestId = 0;
 		}
-		if (_inlineBot == InlineBotLookingUpData) {
+		if (_inlineBot == LookingUpInlineBot) {
 //			Notify::inlineBotRequesting(true);
 			_inlineBotResolveRequestId = MTP::send(MTPcontacts_ResolveUsername(MTP_string(_inlineBotUsername)), rpcDone(&HistoryWidget::inlineBotResolveDone), rpcFail(&HistoryWidget::inlineBotResolveFail, _inlineBotUsername));
 			return;
 		}
-	} else if (_inlineBot == InlineBotLookingUpData) {
+	} else if (_inlineBot == LookingUpInlineBot) {
 		return;
 	}
 
@@ -5748,7 +5748,7 @@ void HistoryWidget::updateFieldPlaceholder() {
 		_field.setPlaceholder(lang(lng_edit_message_text));
 		_send.setText(lang(lng_settings_save));
 	} else {
-		if (_inlineBot && _inlineBot != InlineBotLookingUpData) {
+		if (_inlineBot && _inlineBot != LookingUpInlineBot) {
 			_field.setPlaceholder(_inlineBot->botInfo->inlinePlaceholder.mid(1), _inlineBot->username.size() + 2);
 		} else if (hasBroadcastToggle()) {
 			_field.setPlaceholder(lang(_broadcast.checked() ? (_silent.checked() ? lng_broadcast_silent_ph : lng_broadcast_ph) : lng_comment_ph));
@@ -6172,11 +6172,11 @@ void HistoryWidget::onUpdateHistoryItems() {
 	}
 }
 
-void HistoryWidget::ui_repaintInlineItem(const LayoutInlineItem *layout) {
+void HistoryWidget::ui_repaintInlineItem(const InlineBots::Layout::ItemBase *layout) {
 	_emojiPan.ui_repaintInlineItem(layout);
 }
 
-bool HistoryWidget::ui_isInlineItemVisible(const LayoutInlineItem *layout) {
+bool HistoryWidget::ui_isInlineItemVisible(const InlineBots::Layout::ItemBase *layout) {
 	return _emojiPan.ui_isInlineItemVisible(layout);
 }
 
@@ -6729,7 +6729,7 @@ void HistoryWidget::onPhotoSend(PhotoData *photo) {
 	sendExistingPhoto(photo, QString());
 }
 
-void HistoryWidget::onInlineResultSend(InlineResult *result, UserData *bot) {
+void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot) {
 	if (!_history || !result || !canSendMessages(_peer)) return;
 
 	App::main()->readServerHistory(_history, false);
@@ -6769,17 +6769,8 @@ void HistoryWidget::onInlineResultSend(InlineResult *result, UserData *bot) {
 	MTPint messageDate = MTP_int(unixtime());
 	UserId messageViaBotId = bot ? peerToUser(bot->id) : 0;
 	MsgId messageId = newId.msg;
-	if (DocumentData *document = result->sendData->getSentDocument()) {
-		_history->addNewDocument(messageId, flags, messageViaBotId, replyToId(), date(messageDate), messageFromId, document, result->sendData->getSentCaption());
-	} else if (PhotoData *photo = result->sendData->getSentPhoto()) {
-		_history->addNewPhoto(messageId, flags, messageViaBotId, replyToId(), date(messageDate), messageFromId, photo, result->sendData->getSentCaption());
-	} else {
-		InlineResultSendData::SentMTPMessageFields fields = result->sendData->getSentMessageFields(result);
-		if (!fields.entities.c_vector().v.isEmpty()) {
-			flags |= MTPDmessage::Flag::f_entities;
-		}
-		_history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(messageId), MTP_int(messageFromId), peerToMTP(_history->peer->id), MTPnullFwdHeader, MTP_int(messageViaBotId), MTP_int(replyToId()), messageDate, fields.text, fields.media, MTPnullMarkup, fields.entities, MTP_int(1), MTPint()), NewMessageUnread);
-	}
+
+	result->addToHistory(_history, flags, messageId, messageFromId, messageDate, messageViaBotId, replyToId());
 
 	_history->sendRequestId = MTP::send(MTPmessages_SendInlineBotResult(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_long(randomId), MTP_long(result->queryId), MTP_string(result->id)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
 	App::main()->finishForwarding(_history, _broadcast.checked(), _silent.checked());

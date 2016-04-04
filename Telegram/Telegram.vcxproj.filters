@@ -52,6 +52,9 @@
     <Filter Include="ThirdParty\minizip">
       <UniqueIdentifier>{1abe710c-3c36-484c-b2a5-881c29a051c2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="inline_bots">
+      <UniqueIdentifier>{da3d0334-a011-41dd-a8e0-9b701afacfb3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SourceFiles\main.cpp">
@@ -972,6 +975,18 @@
     <ClCompile Include="GeneratedFiles\Release\moc_basic_types.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\inline_bots\inline_bot_result.cpp">
+      <Filter>inline_bots</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\inline_bots\inline_bot_layout_item.cpp">
+      <Filter>inline_bots</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\inline_bots\inline_bot_send_data.cpp">
+      <Filter>inline_bots</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\inline_bots\inline_bot_layout_internal.cpp">
+      <Filter>inline_bots</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1066,6 +1081,18 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\gui\style.h">
       <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\inline_bots\inline_bot_layout_item.h">
+      <Filter>inline_bots</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\inline_bots\inline_bot_result.h">
+      <Filter>inline_bots</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\inline_bots\inline_bot_send_data.h">
+      <Filter>inline_bots</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\inline_bots\inline_bot_layout_internal.h">
+      <Filter>inline_bots</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

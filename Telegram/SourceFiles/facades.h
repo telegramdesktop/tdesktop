@@ -43,6 +43,14 @@ namespace App {
 
 };
 
+namespace InlineBots {
+namespace Layout {
+
+class ItemBase;
+
+} // namespace Layout
+} // namespace InlineBots
+
 namespace Ui {
 
 	void showStickerPreview(DocumentData *sticker);
@@ -55,8 +63,8 @@ namespace Ui {
 	bool isInlineItemBeingChosen();
 
 	void repaintHistoryItem(const HistoryItem *item);
-	void repaintInlineItem(const LayoutInlineItem *layout);
-	bool isInlineItemVisible(const LayoutInlineItem *reader);
+	void repaintInlineItem(const InlineBots::Layout::ItemBase *layout);
+	bool isInlineItemVisible(const InlineBots::Layout::ItemBase *reader);
 	void autoplayMediaInlineAsync(const FullMsgId &msgId);
 
 	void showPeerHistory(const PeerId &peer, MsgId msgId, bool back = false);
