@@ -1196,6 +1196,10 @@ void SettingsInner::onUpdatePhotoCancel() {
 }
 
 void SettingsInner::onUpdatePhoto() {
+	if (!self()) {
+		return;
+	}
+
 	saveError();
 
 	QStringList imgExtensions(cImgExtensions());

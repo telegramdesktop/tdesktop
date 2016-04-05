@@ -886,7 +886,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "ÖFFENTLICHE GRUPPEN, NACHRICHTEN ANHEFTEN, 5000 MITGLIEDER\n\n— Gruppen dürfen nun 5.000 Mitglieder haben (zuvor waren es 1.000)\n— Jede Gruppe - egal wie groß -  kann ab sofort in eine Supergruppe geändert werden\n\nNeue Werkzeuge für Supergruppen-Admins:\n\n— Mache deine Gruppe öffentlich: Jeder kann den Inhalt einsehen und sie betreten\n— Hefte Nachrichten an: Perfekt um Gruppenmitglieder über Neuigkeiten zu informieren\n— Lösche mehrere Nachrichten, melde sie aufgrund von Spam, blockiere Mitglieder oder entferne alle Nachrichten von bestimmten Nutzern\n\nMehr Infos zum neuen Update:\n{link}";
+"lng_new_version_text" = "— Optische Verbesserungen (u.a. runde Profilbilder)";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

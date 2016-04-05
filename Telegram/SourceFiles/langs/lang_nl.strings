@@ -663,10 +663,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_count" = "{count:Laden..|# sticker|# stickers}";
 
 "lng_in_dlg_photo" = "Foto";
-"lng_in_dlg_video" = "Video file";
-"lng_in_dlg_audio_file" = "Audio file";
+"lng_in_dlg_video" = "Video";
+"lng_in_dlg_audio_file" = "Audiobestand";
 "lng_in_dlg_contact" = "Contact";
-"lng_in_dlg_audio" = "Voice message";
+"lng_in_dlg_audio" = "Spraakbericht";
 "lng_in_dlg_file" = "Bestand";
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
@@ -741,9 +741,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_maps_point" = "Locatie";
 "lng_save_photo" = "Afbeelding opslaan";
-"lng_save_video" = "Save video file";
-"lng_save_audio_file" = "Save audio file";
-"lng_save_audio" = "Save voice message";
+"lng_save_video" = "Video opslaan";
+"lng_save_audio_file" = "Audio opslaan";
+"lng_save_audio" = "Spraakbericht opslaan";
 "lng_save_file" = "Bestand opslaan";
 "lng_save_downloaded" = "{ready} / {total} {mb}";
 "lng_duration_and_size" = "{duration}, {size}";
@@ -768,9 +768,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_cancel_download" = "Download annuleren";
 "lng_context_show_in_folder" = "Weergeven in map";
 "lng_context_show_in_finder" = "Weergeven in Finder";
-"lng_context_save_video" = "Save Video File As...";
-"lng_context_save_audio_file" = "Save Audio File As...";
-"lng_context_save_audio" = "Save Voice Message As...";
+"lng_context_save_video" = "Video opslaan als...";
+"lng_context_save_audio_file" = "Video opslaan als...";
+"lng_context_save_audio" = "Spraakbericht opslaan als...";
 "lng_context_pack_info" = "Bundelinformatie";
 "lng_context_pack_add" = "Stickers toevoegen";
 "lng_context_save_file" = "Bestand opslaan als...";
@@ -886,7 +886,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "PUBLIEKE GROEPEN, BERICHTEN VASTZETTEN, 5000 LEDEN\n\n— Ledenlimiet voor iedere groepsvorm opgehoogd naar 5000 (voorheen 1000).\n— Iedere groep met een willekeurig aantal leden kan nu worden opgewaardeerd naar een supergroep.\n\nNieuwe functies voor  beheerders van supergroepen:\n\n— Maak je groep openbaar door een publieke link in te stellen - iedereen kan de chat zien en er lid van worden.\n— Zet berichten vast om belangrijke informatie weer te geven en alle leden te informeren.\n— Selecteer berichten om te verwijderen, ze als spam te melden, gebruikers te blokkeren of om alle berichten van bepaalde gebruikers ineens te verwijderen.\n\nMeer informatie over deze update:\n{link}";
+"lng_new_version_text" = "— Visuele verbeteringen";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

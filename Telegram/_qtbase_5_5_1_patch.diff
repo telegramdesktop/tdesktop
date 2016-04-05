@@ -43,6 +43,19 @@ index 8b2b988..9de806d 100644
      virtual void setFilter() = 0;
      virtual void selectNameFilter(const QString &filter) = 0;
      virtual QString selectedNameFilter() const = 0;
+diff --git a/src/gui/kernel/qwindow.cpp b/src/gui/kernel/qwindow.cpp
+index b54e85a..49ccec6 100644
+--- a/src/gui/kernel/qwindow.cpp
++++ b/src/gui/kernel/qwindow.cpp
+@@ -2460,7 +2460,7 @@ void QWindowPrivate::setCursor(const QCursor *newCursor)
+ void QWindowPrivate::applyCursor()
+ {
+     Q_Q(QWindow);
+-    if (platformWindow) {
++    if (platformWindow && q->screen() && q->screen()->handle()) {
+         if (QPlatformCursor *platformCursor = q->screen()->handle()->cursor()) {
+             QCursor *c = QGuiApplication::overrideCursor();
+             if (!c && hasCursor)
 diff --git a/src/gui/painting/qpaintengine_p.h b/src/gui/painting/qpaintengine_p.h
 index c58662e..432f2cd 100644
 --- a/src/gui/painting/qpaintengine_p.h
@@ -11662,7 +11675,7 @@ index cc697ba..e1d9bce 100644
      // but that cannot handle a Windows command line [yet].
      command.replace(QStringLiteral("%1"), url.toString(QUrl::FullyEncoded));
 diff --git a/src/plugins/platforms/windows/qwindowswindow.cpp b/src/plugins/platforms/windows/qwindowswindow.cpp
-index 288f73c..73230ed 100644
+index 288f73c..c859833 100644
 --- a/src/plugins/platforms/windows/qwindowswindow.cpp
 +++ b/src/plugins/platforms/windows/qwindowswindow.cpp
 @@ -973,7 +973,8 @@ void QWindowsWindow::destroyWindow()
@@ -11703,6 +11716,15 @@ index 288f73c..73230ed 100644
  static inline bool testShowWithoutActivating(const QWindow *window)
  {
      // QWidget-attribute Qt::WA_ShowWithoutActivating .
+@@ -1626,7 +1642,7 @@ void QWindowsWindow::setWindowState(Qt::WindowState state)
+ 
+ bool QWindowsWindow::isFullScreen_sys() const
+ {
+-    return window()->isTopLevel()
++    return window()->isTopLevel() && window()->screen()
+         && geometry_sys() == QWindowsScaling::mapToNative(window()->screen()->geometry());
+ }
+ 
 diff --git a/src/plugins/platforms/windows/qwindowswindow.h b/src/plugins/platforms/windows/qwindowswindow.h
 index fff90b4..47375a7 100644
 --- a/src/plugins/platforms/windows/qwindowswindow.h
