@@ -650,6 +650,8 @@ MimeType mimeTypeForName(const QString &mime);
 MimeType mimeTypeForFile(const QFileInfo &file);
 MimeType mimeTypeForData(const QByteArray &data);
 
+#include <cmath>
+
 inline int rowscount(int fullCount, int countPerRow) {
 	return (fullCount + countPerRow - 1) / countPerRow;
 }
