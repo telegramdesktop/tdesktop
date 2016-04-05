@@ -193,14 +193,9 @@ void HistoryInner::enumerateUserpicsInHistory(History *h, int htop, Method metho
 }
 
 void HistoryInner::paintEvent(QPaintEvent *e) {
-	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) {
+	if (!App::main() || (App::wnd() && App::wnd()->contentOverlapped(this, e))) {
 		return;
 	}
-
-	if (!App::main()) {
-		return;
-	}
-
 	if (hasPendingResizedItems()) {
 		return;
 	}
@@ -8004,7 +7999,12 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 }
 
 void HistoryWidget::paintEvent(QPaintEvent *e) {
-	if (!App::main() || (App::wnd() && App::wnd()->contentOverlapped(this, e))) return;
+	if (!App::main() || (App::wnd() && App::wnd()->contentOverlapped(this, e))) {
+		return;
+	}
+	if (hasPendingResizedItems()) {
+		updateListSize();
+	}
 
 	Painter p(this);
 	QRect r(e->rect());
