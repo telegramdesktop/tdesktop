@@ -832,6 +832,49 @@ private:
 
 };
 
+// This pointer is used for static non-POD variables that are allocated
+// on first use by constructor and are never automatically freed.
+template <typename T>
+class StaticNeverFreedPointer {
+public:
+	explicit StaticNeverFreedPointer(T *p) : _p(p) {
+	}
+	StaticNeverFreedPointer(const StaticNeverFreedPointer<T> &other) = delete;
+	StaticNeverFreedPointer &operator=(const StaticNeverFreedPointer<T> &other) = delete;
+
+	T *data() const {
+		return _p;
+	}
+	T *release() {
+		return getPointerAndReset(_p);
+	}
+	void reset(T *p = nullptr) {
+		delete _p;
+		_p = p;
+	}
+	bool isNull() const {
+		return data() == nullptr;
+	}
+
+	void clear() {
+		reset();
+	}
+	T *operator->() const {
+		return data();
+	}
+	T &operator*() const {
+		t_assert(!isNull());
+		return *data();
+	}
+	explicit operator bool() const {
+		return !isNull();
+	}
+
+private:
+	T *_p = nullptr;
+
+};
+
 template <typename I>
 inline void destroyImplementation(I *&ptr) {
 	if (ptr) {

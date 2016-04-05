@@ -89,6 +89,18 @@ public:
 	static UniquePointer<ItemBase> createLayoutGif(DocumentData *document);
 
 protected:
+	DocumentData *getResultDocument() const;
+	PhotoData *getResultPhoto() const;
+	int getResultWidth() const;
+	int getResultHeight() const;
+	ImagePtr getResultThumb() const;
+	QPixmap getResultContactAvatar(int width, int height) const;
+	int getResultDuration() const;
+	QString getResultUrl() const;
+	ClickHandlerPtr getResultUrlHandler() const;
+	ClickHandlerPtr getResultContentUrlHandler() const;
+	QString getResultThumbLetter() const;
+
 	Result *_result = nullptr;
 	DocumentData *_doc = nullptr;
 	PhotoData *_photo = nullptr;

@@ -313,7 +313,7 @@ private:
 	bool _withThumb;
 	mutable QPixmap _thumb;
 	Text _title, _description;
-	QString _letter, _urlText;
+	QString _thumbLetter, _urlText;
 	int32 _urlWidth;
 
 	void prepareThumb(int32 width, int32 height) const;

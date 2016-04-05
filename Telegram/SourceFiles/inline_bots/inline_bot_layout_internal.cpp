@@ -38,10 +38,8 @@ FileBase::FileBase(DocumentData *document) : ItemBase(document) {
 DocumentData *FileBase::getShownDocument() const {
 	if (DocumentData *result = getDocument()) {
 		return result;
-	} else if (Result *result = getResult()) {
-		return result->document;
 	}
-	return nullptr;
+	return getResultDocument();
 }
 
 int FileBase::content_width() const {
@@ -52,10 +50,8 @@ int FileBase::content_width() const {
 		if (!document->thumb->isNull()) {
 			return convertScale(document->thumb->width());
 		}
-	} else if (_result) {
-		return _result->width;
 	}
-	return 0;
+	return getResultWidth();
 }
 
 int FileBase::content_height() const {
@@ -66,10 +62,8 @@ int FileBase::content_height() const {
 		if (!document->thumb->isNull()) {
 			return convertScale(document->thumb->height());
 		}
-	} else if (_result) {
-		return _result->height;
 	}
-	return 0;
+	return getResultHeight();
 }
 
 bool FileBase::content_loading() const {
@@ -136,23 +130,20 @@ ImagePtr FileBase::content_thumb() const {
 			return document->thumb;
 		}
 	}
-	if (_result->photo && !_result->photo->thumb->isNull()) {
-		return _result->photo->thumb;
-	}
-	return _result->thumb;
+	return getResultThumb();
 }
 
 int FileBase::content_duration() const {
-	if (_result->document) {
-		if (_result->document->duration() > 0) {
-			return _result->document->duration();
-		} else if (SongData *song = _result->document->song()) {
+	if (DocumentData *document = getShownDocument()) {
+		if (document->duration() > 0) {
+			return document->duration();
+		} else if (SongData *song = document->song()) {
 			if (song->duration) {
 				return song->duration;
 			}
 		}
 	}
-	return _result->duration;
+	return getResultDuration();
 }
 
 Gif::Gif(Result *result) : FileBase(result) {
@@ -354,13 +345,14 @@ void Gif::prepareThumb(int32 width, int32 height, const QSize &frame) const {
 			}
 		}
 	} else {
-		if (!_result->thumb_url.isEmpty()) {
-			if (_result->thumb->loaded()) {
+		ImagePtr thumb = getResultThumb();
+		if (!thumb->isNull()) {
+			if (thumb->loaded()) {
 				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-					_thumb = _result->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixSmooth, width, height);
+					_thumb = thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixSmooth, width, height);
 				}
 			} else {
-				_result->thumb->load();
+				thumb->load();
 			}
 		}
 	}
@@ -437,8 +429,11 @@ void Sticker::preload() const {
 		} else {
 			document->checkSticker();
 		}
-	} else if (!_result->thumb->isNull()) {
-		_result->thumb->load();
+	} else {
+		ImagePtr thumb = getResultThumb();
+		if (!thumb->isNull()) {
+			thumb->load();
+		}
 	}
 }
 
@@ -506,14 +501,15 @@ void Sticker::prepareThumb() const {
 			_thumbLoaded = true;
 		}
 	} else {
-		if (_result->thumb->loaded()) {
+		ImagePtr thumb = getResultThumb();
+		if (thumb->loaded()) {
 			if (!_thumbLoaded) {
 				QSize thumbSize = getThumbSize();
-				_thumb = _result->thumb->pix(thumbSize.width(), thumbSize.height());
+				_thumb = thumb->pix(thumbSize.width(), thumbSize.height());
 				_thumbLoaded = true;
 			}
 		} else {
-			_result->thumb->load();
+			thumb->load();
 		}
 	}
 }
@@ -557,10 +553,8 @@ void Photo::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x,
 PhotoData *Photo::getShownPhoto() const {
 	if (PhotoData *result = getPhoto()) {
 		return result;
-	} else if (Result *result = getResult()) {
-		return result->photo;
 	}
-	return nullptr;
+	return getResultPhoto();
 }
 
 QSize Photo::countFrameSize() const {
@@ -605,12 +599,13 @@ void Photo::prepareThumb(int32 width, int32 height, const QSize &frame) const {
 			photo->medium->load();
 		}
 	} else {
-		if (_result->thumb->loaded()) {
+		ImagePtr thumb = getResultThumb();
+		if (thumb->loaded()) {
 			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				_thumb = _result->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixSmooth, width, height);
+				_thumb = thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixSmooth, width, height);
 			}
 		} else {
-			_result->thumb->load();
+			thumb->load();
 		}
 	}
 }
@@ -618,19 +613,15 @@ void Photo::prepareThumb(int32 width, int32 height, const QSize &frame) const {
 int Photo::content_width() const {
 	if (PhotoData *photo = getShownPhoto()) {
 		return photo->full->width();
-	} else if (_result) {
-		return _result->width;
 	}
-	return 0;
+	return getResultWidth();
 }
 
 int Photo::content_height() const {
 	if (PhotoData *photo = getShownPhoto()) {
 		return photo->full->height();
-	} else if (_result) {
-		return _result->height;
 	}
-	return 0;
+	return getResultHeight();
 }
 
 bool Photo::content_loaded() const {
@@ -649,11 +640,9 @@ void Photo::content_forget() {
 }
 
 Video::Video(Result *result) : FileBase(result)
+, _link(getResultContentUrlHandler())
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
-	if (!result->content_url.isEmpty()) {
-		_link = clickHandlerFromUrl(result->content_url);
-	}
 	if (int duration = content_duration()) {
 		_duration = formatDurationText(duration);
 	}
@@ -749,7 +738,7 @@ void Video::prepareThumb(int32 width, int32 height) const {
 }
 
 void OpenFileClickHandler::onClickImpl() const {
-	_result->automaticLoadGif();
+	_result->openFile();
 }
 
 void CancelFileClickHandler::onClickImpl() const {
@@ -907,52 +896,23 @@ void File::checkAnimationFinished() {
 }
 
 Article::Article(Result *result, bool withThumb) : ItemBase(result)
+, _url(getResultUrlHandler())
+, _link(getResultContentUrlHandler())
 , _withThumb(withThumb)
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
-	if (!result->url.isEmpty()) {
-		_url = clickHandlerFromUrl(result->url);
+	LocationCoords location;
+	if (!_link && result->getLocationCoords(&location)) {
+		_link.reset(new LocationClickHandler(location));
 	}
-	if (!result->content_url.isEmpty()) {
-		_link = clickHandlerFromUrl(result->content_url);
-	} else {
-		LocationCoords location;
-		if (result->getLocationCoords(&location)) {
-			_link.reset(new LocationClickHandler(location));
-			int32 w = st::inlineThumbSize, h = st::inlineThumbSize;
-			int32 zoom = 13, scale = 1;
-			if (cScale() == dbisTwo || cRetina()) {
-				scale = 2;
-				w /= 2;
-				h /= 2;
-			}
-			QString coords = qsl("%1,%2").arg(location.lat).arg(location.lon);
-			QString url = qsl("https://maps.googleapis.com/maps/api/staticmap?center=") + coords + qsl("&zoom=%1&size=%2x%3&maptype=roadmap&scale=%4&markers=color:red|size:big|").arg(zoom).arg(w).arg(h).arg(scale) + coords + qsl("&sensor=false");
-			result->thumb = ImagePtr(url);
-		}
-	}
-	QVector<QStringRef> parts = _result->url.splitRef('/');
-	if (!parts.isEmpty()) {
-		QStringRef domain = parts.at(0);
-		if (parts.size() > 2 && domain.endsWith(':') && parts.at(1).isEmpty()) { // http:// and others
-			domain = parts.at(2);
-		}
-
-		parts = domain.split('@').back().split('.');
-		if (parts.size() > 1) {
-			_letter = parts.at(parts.size() - 2).at(0).toUpper();
-		}
-	}
-	if (_letter.isEmpty() && !_result->title.isEmpty()) {
-		_letter = _result->title.at(0).toUpper();
-	}
+	_thumbLetter = getResultThumbLetter();
 }
 
 void Article::initDimensions() {
 	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
 	int32 textWidth = _maxw - (_withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0);
 	TextParseOptions titleOpts = { 0, _maxw, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
-	_title.setText(st::semiboldFont, textOneLine(_result->title), titleOpts);
+	_title.setText(st::semiboldFont, textOneLine(_result->getLayoutTitle()), titleOpts);
 	int32 titleHeight = qMin(_title.countHeight(_maxw), 2 * st::semiboldFont->height);
 
 	int32 descriptionLines = (_withThumb || _url) ? 2 : 3;
@@ -970,10 +930,10 @@ void Article::initDimensions() {
 int32 Article::resizeGetHeight(int32 width) {
 	_width = qMin(width, _maxw);
 	if (_url) {
-		_urlText = _result->url;
+		_urlText = getResultUrl();
 		_urlWidth = st::normalFont->width(_urlText);
 		if (_urlWidth > _width - st::inlineThumbSize - st::inlineThumbSkip) {
-			_urlText = st::normalFont->elided(_result->url, _width - st::inlineThumbSize - st::inlineThumbSkip);
+			_urlText = st::normalFont->elided(_urlText, _width - st::inlineThumbSize - st::inlineThumbSkip);
 			_urlWidth = st::normalFont->width(_urlText);
 		}
 	}
@@ -988,15 +948,16 @@ void Article::paint(Painter &p, const QRect &clip, uint32 selection, const Paint
 		prepareThumb(st::inlineThumbSize, st::inlineThumbSize);
 		QRect rthumb(rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width));
 		if (_thumb.isNull()) {
-			if (_result->thumb->isNull() && !_letter.isEmpty()) {
-				int32 index = (_letter.at(0).unicode() % 4);
+			ImagePtr thumb = getResultThumb();
+			if (thumb->isNull() && !_thumbLetter.isEmpty()) {
+				int32 index = (_thumbLetter.at(0).unicode() % 4);
 				style::color colors[] = { st::msgFileRedColor, st::msgFileYellowColor, st::msgFileGreenColor, st::msgFileBlueColor };
 
 				p.fillRect(rthumb, colors[index]);
-				if (!_letter.isEmpty()) {
+				if (!_thumbLetter.isEmpty()) {
 					p.setFont(st::linksLetterFont);
 					p.setPen(st::white);
-					p.drawText(rthumb, _letter, style::al_center);
+					p.drawText(rthumb, _thumbLetter, style::al_center);
 				}
 			} else {
 				p.fillRect(rthumb, st::overviewPhotoBg);
@@ -1047,18 +1008,17 @@ void Article::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 
 }
 
 void Article::prepareThumb(int32 width, int32 height) const {
-	if (_result->thumb->isNull()) {
-		if (_result->type == Result::Type::Contact) {
-			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				_thumb = userDefPhoto(qHash(_result->id) % UserColorsCount)->pixCircled(width, height);
-			}
+	ImagePtr thumb = getResultThumb();
+	if (thumb->isNull()) {
+		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+			_thumb = getResultContactAvatar(width, height);
 		}
 		return;
 	}
 
-	if (_result->thumb->loaded()) {
+	if (thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-			int32 w = qMax(convertScale(_result->thumb->width()), 1), h = qMax(convertScale(_result->thumb->height()), 1);
+			int32 w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
 			if (w * height > h * width) {
 				if (height < h) {
 					w = w * height / h;
@@ -1070,10 +1030,10 @@ void Article::prepareThumb(int32 width, int32 height) const {
 					w = width;
 				}
 			}
-			_thumb = _result->thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixSmooth, width, height);
+			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixSmooth, width, height);
 		}
 	} else {
-		_result->thumb->load();
+		thumb->load();
 	}
 }
 

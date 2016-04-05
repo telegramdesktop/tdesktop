@@ -6775,7 +6775,7 @@ void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot
 
 	result->addToHistory(_history, flags, messageId, messageFromId, messageDate, messageViaBotId, replyToId());
 
-	_history->sendRequestId = MTP::send(MTPmessages_SendInlineBotResult(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_long(randomId), MTP_long(result->queryId), MTP_string(result->id)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
+	_history->sendRequestId = MTP::send(MTPmessages_SendInlineBotResult(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_long(randomId), MTP_long(result->getQueryId()), MTP_string(result->getId())), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
 	App::main()->finishForwarding(_history, _broadcast.checked(), _silent.checked());
 	cancelReply(lastKeyboardUsed);
 

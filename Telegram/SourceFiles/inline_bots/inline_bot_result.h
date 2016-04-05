@@ -42,18 +42,6 @@ private:
 	struct Creator;
 
 public:
-	enum class Type {
-		Unknown,
-		Photo,
-		Video,
-		Audio,
-		Sticker,
-		File,
-		Gif,
-		Article,
-		Contact,
-		Venue,
-	};
 
 	// Constructor is public only for MakeUnique<>() to work.
 	// You should use create() static method instead.
@@ -62,22 +50,21 @@ public:
 	Result(const Result &other) = delete;
 	Result &operator=(const Result &other) = delete;
 
-	uint64 queryId;
-	QString id;
-	Type type;
-	DocumentData *document = nullptr;
-	PhotoData *photo = nullptr;
-	QString title, description, url, thumb_url;
-	QString content_type, content_url;
-	int width = 0;
-	int height = 0;
-	int duration = 0;
+	uint64 getQueryId() const {
+		return _queryId;
+	}
+	QString getId() const {
+		return _id;
+	}
 
-	ImagePtr thumb;
+	// This is real SendClickHandler::onClick implementation for the specified
+	// inline bot result. If it returns true you need to send this result.
+	bool onChoose(Layout::ItemBase *layout);
 
 	void automaticLoadGif();
 	void automaticLoadSettingsChangedGif();
 	void saveFile(const QString &toFile, LoadFromCloudSetting fromCloud, bool autoLoading);
+	void openFile();
 	void cancelFile();
 
 	QByteArray data() const;
@@ -99,10 +86,42 @@ public:
 	~Result();
 
 private:
+	enum class Type {
+		Unknown,
+		Photo,
+		Video,
+		Audio,
+		Sticker,
+		File,
+		Gif,
+		Article,
+		Contact,
+		Venue,
+	};
+
+	friend class internal::SendData;
+	friend class Layout::ItemBase;
 	struct Creator {
 		uint64 queryId;
 		Type type;
 	};
+
+	uint64 _queryId = 0;
+	QString _id;
+	Type _type = Type::Unknown;
+	QString _title, _description, _url, _thumb_url;
+	QString _content_type, _content_url;
+	int _width = 0;
+	int _height = 0;
+	int _duration = 0;
+
+	mutable MTPDocument _mtpDocument = MTP_documentEmpty(MTP_long(0));
+	DocumentData *_document = nullptr;
+
+	mutable MTPPhoto _mtpPhoto = MTP_photoEmpty(MTP_long(0));
+	PhotoData *_photo = nullptr;
+
+	ImagePtr _thumb, _locationThumb;
 
 	UniquePointer<internal::SendData> sendData;
 

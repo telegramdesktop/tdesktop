@@ -56,18 +56,12 @@ Result *getResultFromLoader(FileLoader *loader) {
 	return ResultsByLoader->value(loader, nullptr);
 }
 
-namespace {
-
-using StringToTypeMap = QMap<QString, Result::Type>;
-NeverFreedPointer<StringToTypeMap> stringToTypeMap;
-
-} // namespace
-
-Result::Result(const Creator &creator) : queryId(creator.queryId), type(creator.type) {
+Result::Result(const Creator &creator) : _queryId(creator.queryId), _type(creator.type) {
 }
 
 UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &mtpData) {
-	stringToTypeMap.createIfNull([]() -> StringToTypeMap* {
+	using StringToTypeMap = QMap<QString, Result::Type>;
+	StaticNeverFreedPointer<StringToTypeMap> stringToTypeMap{ ([]() -> StringToTypeMap* {
 		auto result = MakeUnique<StringToTypeMap>();
 		result->insert(qsl("photo"), Result::Type::Photo);
 		result->insert(qsl("video"), Result::Type::Video);
@@ -79,8 +73,9 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 		result->insert(qsl("contact"), Result::Type::Contact);
 		result->insert(qsl("venue"), Result::Type::Venue);
 		return result.release();
-	});
-	auto getInlineResultType = [](const MTPBotInlineResult &inlineResult) -> Type {
+	})() };
+
+	auto getInlineResultType = [&stringToTypeMap](const MTPBotInlineResult &inlineResult) -> Type {
 		QString type;
 		switch (inlineResult.type()) {
 		case mtpc_botInlineResult: type = qs(inlineResult.c_botInlineResult().vtype); break;
@@ -98,32 +93,38 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 	switch (mtpData.type()) {
 	case mtpc_botInlineResult: {
 		const MTPDbotInlineResult &r(mtpData.c_botInlineResult());
-		result->id = qs(r.vid);
-		if (r.has_title()) result->title = qs(r.vtitle);
-		if (r.has_description()) result->description = qs(r.vdescription);
-		if (r.has_url()) result->url = qs(r.vurl);
-		if (r.has_thumb_url()) result->thumb_url = qs(r.vthumb_url);
-		if (r.has_content_type()) result->content_type = qs(r.vcontent_type);
-		if (r.has_content_url()) result->content_url = qs(r.vcontent_url);
-		if (r.has_w()) result->width = r.vw.v;
-		if (r.has_h()) result->height = r.vh.v;
-		if (r.has_duration()) result->duration = r.vduration.v;
-		if (!result->thumb_url.isEmpty() && (result->thumb_url.startsWith(qstr("http://"), Qt::CaseInsensitive) || result->thumb_url.startsWith(qstr("https://"), Qt::CaseInsensitive))) {
-			result->thumb = ImagePtr(result->thumb_url);
+		result->_id = qs(r.vid);
+		if (r.has_title()) result->_title = qs(r.vtitle);
+		if (r.has_description()) result->_description = qs(r.vdescription);
+		if (r.has_url()) result->_url = qs(r.vurl);
+		if (r.has_thumb_url()) result->_thumb_url = qs(r.vthumb_url);
+		if (r.has_content_type()) result->_content_type = qs(r.vcontent_type);
+		if (r.has_content_url()) result->_content_url = qs(r.vcontent_url);
+		if (r.has_w()) result->_width = r.vw.v;
+		if (r.has_h()) result->_height = r.vh.v;
+		if (r.has_duration()) result->_duration = r.vduration.v;
+		if (!result->_thumb_url.isEmpty() && (result->_thumb_url.startsWith(qstr("http://"), Qt::CaseInsensitive) || result->_thumb_url.startsWith(qstr("https://"), Qt::CaseInsensitive))) {
+			result->_thumb = ImagePtr(result->_thumb_url);
 		}
 		message = &r.vsend_message;
 	} break;
 	case mtpc_botInlineMediaResult: {
 		const MTPDbotInlineMediaResult &r(mtpData.c_botInlineMediaResult());
-		result->id = qs(r.vid);
-		if (r.has_title()) result->title = qs(r.vtitle);
-		if (r.has_description()) result->description = qs(r.vdescription);
-		if (r.has_photo()) result->photo = App::feedPhoto(r.vphoto);
-		if (r.has_document()) result->document = App::feedDocument(r.vdocument);
+		result->_id = qs(r.vid);
+		if (r.has_title()) result->_title = qs(r.vtitle);
+		if (r.has_description()) result->_description = qs(r.vdescription);
+		if (r.has_photo()) {
+			result->_mtpPhoto = r.vphoto;
+			result->_photo = App::feedPhoto(r.vphoto);
+		}
+		if (r.has_document()) {
+			result->_mtpDocument = r.vdocument;
+			result->_document = App::feedDocument(r.vdocument);
+		}
 		message = &r.vsend_message;
 	} break;
 	}
-	bool badAttachment = (result->photo && !result->photo->access) || (result->document && !result->document->access);
+	bool badAttachment = (result->_photo && !result->_photo->access) || (result->_document && !result->_document->access);
 
 	if (!message) {
 		return UniquePointer<Result>();
@@ -132,10 +133,10 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 	switch (message->type()) {
 	case mtpc_botInlineMessageMediaAuto: {
 		const MTPDbotInlineMessageMediaAuto &r(message->c_botInlineMessageMediaAuto());
-		if (result->type == Type::Photo) {
-			result->sendData.reset(new internal::SendPhoto(result->photo, result->content_url, qs(r.vcaption)));
+		if (result->_type == Type::Photo) {
+			result->sendData.reset(new internal::SendPhoto(result->_photo, result->_content_url, qs(r.vcaption)));
 		} else {
-			result->sendData.reset(new internal::SendFile(result->document, result->content_url, qs(r.vcaption)));
+			result->sendData.reset(new internal::SendFile(result->_document, result->_content_url, qs(r.vcaption)));
 		}
 	} break;
 
@@ -176,11 +177,81 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 	if (badAttachment || !result->sendData || !result->sendData->isValid()) {
 		return UniquePointer<Result>();
 	}
+
+	LocationCoords location;
+	if (result->getLocationCoords(&location)) {
+		int32 w = st::inlineThumbSize, h = st::inlineThumbSize;
+		int32 zoom = 13, scale = 1;
+		if (cScale() == dbisTwo || cRetina()) {
+			scale = 2;
+			w /= 2;
+			h /= 2;
+		}
+		QString coords = qsl("%1,%2").arg(location.lat).arg(location.lon);
+		QString url = qsl("https://maps.googleapis.com/maps/api/staticmap?center=") + coords + qsl("&zoom=%1&size=%2x%3&maptype=roadmap&scale=%4&markers=color:red|size:big|").arg(zoom).arg(w).arg(h).arg(scale) + coords + qsl("&sensor=false");
+		result->_locationThumb = ImagePtr(url);
+	}
+
 	return result;
 }
 
+bool Result::onChoose(Layout::ItemBase *layout) {
+	if (_photo && _type == Type::Photo) {
+		if (_photo->medium->loaded() || _photo->thumb->loaded()) {
+			return true;
+		} else if (!_photo->medium->loading()) {
+			_photo->thumb->loadEvenCancelled();
+			_photo->medium->loadEvenCancelled();
+		}
+	}
+	if (_document && (
+		_type == Type::Video ||
+		_type == Type::Audio ||
+		_type == Type::Sticker ||
+		_type == Type::File ||
+		_type == Type::Gif)) {
+		if (_type == Type::Gif) {
+			if (_document->loaded()) {
+				return true;
+			} else if (_document->loading()) {
+				_document->cancel();
+			} else {
+				DocumentOpenClickHandler::doOpen(_document, ActionOnLoadNone);
+			}
+		} else {
+			return true;
+		}
+	}
+	if (_type == Type::Photo) {
+		if (_thumb->loaded()) {
+			return true;
+		} else if (!_thumb->loading()) {
+			_thumb->loadEvenCancelled();
+			Ui::repaintInlineItem(layout);
+		}
+	} else if (_type == Type::Gif) {
+		if (loaded()) {
+			return true;
+		} else if (loading()) {
+			cancelFile();
+			Ui::repaintInlineItem(layout);
+		} else {
+			saveFile(QString(), LoadFromCloudOrLocal, false);
+			Ui::repaintInlineItem(layout);
+		}
+	} else {
+		return true;
+	}
+	return false;
+}
+
 void Result::automaticLoadGif() {
-	if (loaded() || type != Type::Gif || (content_type != qstr("video/mp4") && content_type != "image/gif")) return;
+	if (loaded() || _type != Type::Gif) {
+		return;
+	}
+	if (_content_type != qstr("video/mp4") && _content_type != qstr("image/gif")) {
+		return;
+	}
 
 	if (_loader != CancelledWebFileLoader) {
 		// if load at least anywhere
@@ -191,7 +262,7 @@ void Result::automaticLoadGif() {
 
 void Result::automaticLoadSettingsChangedGif() {
 	if (loaded() || _loader != CancelledWebFileLoader) return;
-	_loader = 0;
+	_loader = nullptr;
 }
 
 void Result::saveFile(const QString &toFile, LoadFromCloudSetting fromCloud, bool autoLoading) {
@@ -199,24 +270,98 @@ void Result::saveFile(const QString &toFile, LoadFromCloudSetting fromCloud, boo
 		return;
 	}
 
-	if (_loader == CancelledWebFileLoader) _loader = 0;
+	if (_loader == CancelledWebFileLoader) _loader = nullptr;
 	if (_loader) {
 		if (!_loader->setFileName(toFile)) {
 			cancelFile();
-			_loader = 0;
+			_loader = nullptr;
 		}
 	}
 
 	if (_loader) {
 		if (fromCloud == LoadFromCloudOrLocal) _loader->permitLoadFromCloud();
 	} else {
-		_loader = new webFileLoader(content_url, toFile, fromCloud, autoLoading);
+		_loader = new webFileLoader(_content_url, toFile, fromCloud, autoLoading);
 		regLoader(_loader, this);
 
 		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(inlineResultLoadProgress(FileLoader*)));
 		_loader->connect(_loader, SIGNAL(failed(FileLoader*, bool)), App::main(), SLOT(inlineResultLoadFailed(FileLoader*, bool)));
 		_loader->start();
 	}
+}
+
+void Result::openFile() {
+	//if (loaded()) {
+	//	bool playVoice = data->voice() && audioPlayer() && item;
+	//	bool playMusic = data->song() && audioPlayer() && item;
+	//	bool playAnimation = data->isAnimation() && item && item->getMedia();
+	//	const FileLocation &location(data->location(true));
+	//	if (!location.isEmpty() || (!data->data().isEmpty() && (playVoice || playMusic || playAnimation))) {
+	//		if (playVoice) {
+	//			AudioMsgId playing;
+	//			AudioPlayerState playingState = AudioPlayerStopped;
+	//			audioPlayer()->currentState(&playing, &playingState);
+	//			if (playing.msgId == item->fullId() && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+	//				audioPlayer()->pauseresume(OverviewVoiceFiles);
+	//			} else {
+	//				AudioMsgId audio(data, item->fullId());
+	//				audioPlayer()->play(audio);
+	//				if (App::main()) {
+	//					App::main()->audioPlayProgress(audio);
+	//					App::main()->mediaMarkRead(data);
+	//				}
+	//			}
+	//		} else if (playMusic) {
+	//			SongMsgId playing;
+	//			AudioPlayerState playingState = AudioPlayerStopped;
+	//			audioPlayer()->currentState(&playing, &playingState);
+	//			if (playing.msgId == item->fullId() && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+	//				audioPlayer()->pauseresume(OverviewFiles);
+	//			} else {
+	//				SongMsgId song(data, item->fullId());
+	//				audioPlayer()->play(song);
+	//				if (App::main()) App::main()->documentPlayProgress(song);
+	//			}
+	//		} else if (data->voice() || data->isVideo()) {
+	//			psOpenFile(location.name());
+	//			if (App::main()) App::main()->mediaMarkRead(data);
+	//		} else if (data->size < MediaViewImageSizeLimit) {
+	//			if (!data->data().isEmpty() && playAnimation) {
+	//				if (action == ActionOnLoadPlayInline && item->getMedia()) {
+	//					item->getMedia()->playInline(item);
+	//				} else {
+	//					App::wnd()->showDocument(data, item);
+	//				}
+	//			} else if (location.accessEnable()) {
+	//				if (item && (data->isAnimation() || QImageReader(location.name()).canRead())) {
+	//					if (action == ActionOnLoadPlayInline && item->getMedia()) {
+	//						item->getMedia()->playInline(item);
+	//					} else {
+	//						App::wnd()->showDocument(data, item);
+	//					}
+	//				} else {
+	//					psOpenFile(location.name());
+	//				}
+	//				location.accessDisable();
+	//			} else {
+	//				psOpenFile(location.name());
+	//			}
+	//		} else {
+	//			psOpenFile(location.name());
+	//		}
+	//		return;
+	//	}
+	//}
+
+	//QString filename = documentSaveFilename(data);
+	//if (filename.isEmpty()) return;
+	//if (!data->saveToCache()) {
+	//	filename = documentSaveFilename(data);
+	//	if (filename.isEmpty()) return;
+	//}
+
+	//saveFile()
+	//data->save(filename, action, item ? item->fullId() : FullMsgId());
 }
 
 void Result::cancelFile() {
@@ -254,7 +399,7 @@ bool Result::loaded() const {
 
 			_loader->deleteLater();
 			_loader->stop();
-			_loader = 0;
+			_loader = nullptr;
 		}
 	}
 	return !_data.isEmpty();
@@ -265,8 +410,14 @@ bool Result::displayLoading() const {
 }
 
 void Result::forget() {
-	thumb->forget();
+	_thumb->forget();
 	_data.clear();
+	if (_document) {
+		_document->forget();
+	}
+	if (_photo) {
+		_photo->forget();
+	}
 }
 
 float64 Result::progress() const {
@@ -274,10 +425,10 @@ float64 Result::progress() const {
 }
 
 bool Result::hasThumbDisplay() const {
-	if (!thumb->isNull()) {
+	if (!_thumb->isNull()) {
 		return true;
 	}
-	if (type == Type::Contact) {
+	if (_type == Type::Contact) {
 		return true;
 	}
 	if (sendData->hasLocationCoords()) {

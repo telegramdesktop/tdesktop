@@ -1458,81 +1458,24 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 		}
 
 		InlineItem *item = _inlineRows.at(row).items.at(col);
-		PhotoData *photo = item->getPhoto();
-		DocumentData *document = item->getDocument();
-		InlineResult *inlineResult = item->getResult();
-		using Type = InlineResult::Type;
-		auto getShownPhoto = [photo, inlineResult]() -> PhotoData* {
-			if (photo) {
-				return photo;
-			} else if (inlineResult && inlineResult->type == Type::Photo) {
-				return inlineResult->photo;
-			}
-			return nullptr;
-		};
-		auto getShownDocument = [document, inlineResult]() -> DocumentData* {
-			auto inlineResultIsFileType = [](InlineResult *inlineResult) {
-				return inlineResult->type == Type::Video ||
-					inlineResult->type == Type::Audio ||
-					inlineResult->type == Type::Sticker ||
-					inlineResult->type == Type::File ||
-					inlineResult->type == Type::Gif;
-			};
-			if (document) {
-				return document;
-			} else if (inlineResult && inlineResultIsFileType(inlineResult)) {
-				return inlineResult->document;
-			}
-			return nullptr;
-		};
-		auto sendInlineItem = [photo, document, inlineResult, this]() -> void {
-			if (photo) {
+		if (PhotoData *photo = item->getPhoto()) {
+			if (photo->medium->loaded() || photo->thumb->loaded()) {
 				emit selected(photo);
-			} else if (document) {
+			} else if (!photo->medium->loading()) {
+				photo->thumb->loadEvenCancelled();
+				photo->medium->loadEvenCancelled();
+			}
+		} else if (DocumentData *document = item->getDocument()) {
+			if (document->loaded()) {
 				emit selected(document);
-			} else if (inlineResult) {
+			} else if (document->loading()) {
+				document->cancel();
+			} else {
+				DocumentOpenClickHandler::doOpen(document, ActionOnLoadNone);
+			}
+		} else if (InlineResult *inlineResult = item->getResult()) {
+			if (inlineResult->onChoose(item)) {
 				emit selected(inlineResult, _inlineBot);
-			}
-		};
-		if (PhotoData *shownPhoto = getShownPhoto()) {
-			if (shownPhoto->medium->loaded() || shownPhoto->thumb->loaded()) {
-				sendInlineItem();
-			} else if (!shownPhoto->medium->loading()) {
-				shownPhoto->thumb->loadEvenCancelled();
-				shownPhoto->medium->loadEvenCancelled();
-			}
-		} else if (DocumentData *shownDocument = getShownDocument()) {
-			if (!inlineResult || inlineResult->type == Type::Gif) {
-				if (shownDocument->loaded()) {
-					sendInlineItem();
-				} else if (shownDocument->loading()) {
-					shownDocument->cancel();
-				} else {
-					DocumentOpenClickHandler::doOpen(shownDocument, ActionOnLoadNone);
-				}
-			} else {
-				sendInlineItem();
-			}
-		} else if (inlineResult) {
-			if (inlineResult->type == Type::Photo) {
-				if (inlineResult->thumb->loaded()) {
-					sendInlineItem();
-				} else if (!inlineResult->thumb->loading()) {
-					inlineResult->thumb->loadEvenCancelled();
-					Ui::repaintInlineItem(item);
-				}
-			} else if (inlineResult->type == Type::Gif) {
-				if (inlineResult->loaded()) {
-					sendInlineItem();
-				} else if (inlineResult->loading()) {
-					inlineResult->cancelFile();
-					Ui::repaintInlineItem(item);
-				} else {
-					inlineResult->saveFile(QString(), LoadFromCloudOrLocal, false);
-					Ui::repaintInlineItem(item);
-				}
-			} else {
-				sendInlineItem();
 			}
 		}
 		return;
@@ -1655,12 +1598,7 @@ void StickerPanInner::hideFinish(bool completely) {
 				photo->forget();
 			}
 			if (InlineResult *result = item->getResult()) {
-				if (DocumentData *document = result->document) {
-					document->forget();
-				}
-				if (PhotoData *photo = result->photo) {
-					photo->forget();
-				}
+				result->forget();
 			}
 		};
 		clearInlineRows(false);

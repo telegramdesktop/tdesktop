@@ -51,12 +51,12 @@ PhotoData *ItemBase::getPhoto() const {
 
 void ItemBase::preload() const {
 	if (_result) {
-		if (_result->photo) {
-			_result->photo->thumb->load();
-		} else if (_result->document) {
-			_result->document->thumb->load();
-		} else if (!_result->thumb->isNull()) {
-			_result->thumb->load();
+		if (_result->_photo) {
+			_result->_photo->thumb->load();
+		} else if (_result->_document) {
+			_result->_document->thumb->load();
+		} else if (!_result->_thumb->isNull()) {
+			_result->_thumb->load();
 		}
 	} else if (_doc) {
 		_doc->thumb->load();
@@ -74,7 +74,7 @@ void ItemBase::update() {
 UniquePointer<ItemBase> ItemBase::createLayout(Result *result, bool forceThumb) {
 	using Type = Result::Type;
 
-	switch (result->type) {
+	switch (result->_type) {
 	case Type::Photo: return MakeUnique<internal::Photo>(result); break;
 	case Type::Audio:
 	case Type::File: return MakeUnique<internal::File>(result); break;
@@ -90,6 +90,83 @@ UniquePointer<ItemBase> ItemBase::createLayout(Result *result, bool forceThumb) 
 
 UniquePointer<ItemBase> ItemBase::createLayoutGif(DocumentData *document) {
 	return MakeUnique<internal::Gif>(document, true);
+}
+
+DocumentData *ItemBase::getResultDocument() const {
+	return _result ? _result->_document : nullptr;
+}
+
+PhotoData *ItemBase::getResultPhoto() const {
+	return _result ? _result->_photo : nullptr;
+}
+
+int ItemBase::getResultWidth() const {
+	return _result ? _result->_width : 0;
+}
+
+int ItemBase::getResultHeight() const {
+	return _result ? _result->_height : 0;
+}
+
+ImagePtr ItemBase::getResultThumb() const {
+	if (_result) {
+		if (_result->_photo && !_result->_photo->thumb->isNull()) {
+			return _result->_photo->thumb;
+		}
+		if (!_result->_thumb->isNull()) {
+			return _result->_thumb;
+		}
+		return _result->_locationThumb;
+	}
+	return ImagePtr();
+}
+
+QPixmap ItemBase::getResultContactAvatar(int width, int height) const {
+	if (_result->_type == Result::Type::Contact) {
+		return userDefPhoto(qHash(_result->_id) % UserColorsCount)->pixCircled(width, height);
+	}
+	return QPixmap();
+}
+
+int ItemBase::getResultDuration() const {
+	return _result->_duration;
+}
+
+QString ItemBase::getResultUrl() const {
+	return _result->_url;
+}
+
+ClickHandlerPtr ItemBase::getResultUrlHandler() const {
+	if (!_result->_url.isEmpty()) {
+		return clickHandlerFromUrl(_result->_url);
+	}
+	return ClickHandlerPtr();
+}
+
+ClickHandlerPtr ItemBase::getResultContentUrlHandler() const {
+	if (!_result->_content_url.isEmpty()) {
+		return clickHandlerFromUrl(_result->_content_url);
+	}
+	return ClickHandlerPtr();
+}
+
+QString ItemBase::getResultThumbLetter() const {
+	QVector<QStringRef> parts = _result->_url.splitRef('/');
+	if (!parts.isEmpty()) {
+		QStringRef domain = parts.at(0);
+		if (parts.size() > 2 && domain.endsWith(':') && parts.at(1).isEmpty()) { // http:// and others
+			domain = parts.at(2);
+		}
+
+		parts = domain.split('@').back().split('.');
+		if (parts.size() > 1) {
+			return parts.at(parts.size() - 2).at(0).toUpper();
+		}
+	}
+	if (!_result->_title.isEmpty()) {
+		return _result->_title.at(0).toUpper();
+	}
+	return QString();
 }
 
 } // namespace Layout
