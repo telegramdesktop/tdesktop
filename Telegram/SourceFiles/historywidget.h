@@ -183,6 +183,11 @@ private:
 	void applyDragSelection(SelectedItems *toItems) const;
 	void addSelectionRange(SelectedItems *toItems, int32 fromblock, int32 fromitem, int32 toblock, int32 toitem, History *h) const;
 
+	// Does any of the shown histories has this flag set.
+	bool hasPendingResizedItems() const {
+		return (_history && _history->hasPendingResizedItems()) || (_migrated && _migrated->hasPendingResizedItems());
+	}
+
 	enum DragAction {
 		NoDrag        = 0x00,
 		PrepareDrag   = 0x01,
@@ -893,6 +898,11 @@ private:
 		int value;
 	};
 	void updateListSize(bool initial = false, bool loadedDown = false, const ScrollChange &change = { ScrollChangeNone, 0 });
+
+	// Does any of the shown histories has this flag set.
+	bool hasPendingResizedItems() const {
+		return (_history && _history->hasPendingResizedItems()) || (_migrated && _migrated->hasPendingResizedItems());
+	}
 
 	// Counts scrollTop for placing the scroll right at the unread
 	// messages bar, choosing from _history and _migrated unreadBar.

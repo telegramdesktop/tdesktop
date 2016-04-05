@@ -190,15 +190,10 @@ void HistoryInner::enumerateUserpicsInHistory(History *h, int htop, Method metho
 }
 
 void HistoryInner::paintEvent(QPaintEvent *e) {
-	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) {
+	if (!App::main() || (App::wnd() && App::wnd()->contentOverlapped(this, e))) {
 		return;
 	}
-
-	if (!App::main()) {
-		return;
-	}
-
-	if ((_history && _history->hasPendingResizedItems()) || (_migrated && _migrated->hasPendingResizedItems())) {
+	if (hasPendingResizedItems()) {
 		return;
 	}
 
@@ -1427,9 +1422,7 @@ void HistoryInner::visibleAreaUpdated(int top, int bottom) {
 	_visibleAreaBottom = bottom;
 
 	// if history has pending resize events we should not update scrollTopItem
-	if (_history->hasPendingResizedItems()) {
-		return;
-	} else if (_migrated && _migrated->hasPendingResizedItems()) {
+	if (hasPendingResizedItems()) {
 		return;
 	}
 
@@ -1651,7 +1644,7 @@ void HistoryInner::onTouchSelect() {
 }
 
 void HistoryInner::onUpdateSelected() {
-	if (!_history || _history->hasPendingResizedItems() || (_migrated && _migrated->hasPendingResizedItems())) {
+	if (!_history || hasPendingResizedItems()) {
 		return;
 	}
 
@@ -3103,7 +3096,13 @@ void HistoryWidget::sendActionDone(const MTPBool &result, mtpRequestId req) {
 }
 
 void HistoryWidget::activate() {
-	if (_history) updateListSize(true);
+	if (_history) {
+		if (!_histInited) {
+			updateListSize(true);
+		} else if (hasPendingResizedItems()) {
+			updateListSize();
+		}
+	}
 	if (App::wnd()) App::wnd()->setInnerFocus();
 }
 
@@ -4932,7 +4931,11 @@ void HistoryWidget::doneShow() {
 	updateReportSpamStatus();
 	updateBotKeyboard();
 	updateControlsVisibility();
-	updateListSize(true);
+	if (!_histInited) {
+		updateListSize(true);
+	} else if (hasPendingResizedItems()) {
+		updateListSize();
+	}
 	preloadHistoryIfNeeded();
 	if (App::wnd()) {
 		App::wnd()->checkHistoryActivation();
@@ -6199,7 +6202,7 @@ void HistoryWidget::notify_automaticLoadSettingsChangedGif() {
 }
 
 void HistoryWidget::notify_handlePendingHistoryUpdate() {
-	if ((_history && _history->hasPendingResizedItems()) || (_migrated && _migrated->hasPendingResizedItems())) {
+	if (hasPendingResizedItems()) {
 		updateListSize();
 		_list->update();
 	}
@@ -7848,7 +7851,12 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 }
 
 void HistoryWidget::paintEvent(QPaintEvent *e) {
-	if (!App::main() || (App::wnd() && App::wnd()->contentOverlapped(this, e))) return;
+	if (!App::main() || (App::wnd() && App::wnd()->contentOverlapped(this, e))) {
+		return;
+	}
+	if (hasPendingResizedItems()) {
+		updateListSize();
+	}
 
 	Painter p(this);
 	QRect r(e->rect());

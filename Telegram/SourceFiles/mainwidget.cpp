@@ -39,6 +39,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "audio.h"
 
+#include "langloaderplain.h"
+
 TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
 , a_over(0)
 , _a_appearance(animation(this, &TopBarWidget::step_appearance))
@@ -1354,6 +1356,46 @@ DialogsIndexed &MainWidget::dialogsList() {
 	return dialogs.dialogsList();
 }
 
+namespace {
+QString parseCommandFromMessage(History *history, const QString &message) {
+	if (history->peer->id != peerFromUser(ServiceUserId)) {
+		return QString();
+	}
+	if (message.size() < 3 || message.at(0) != '*' || message.at(message.size() - 1) != '*') {
+		return QString();
+	}
+	QString command = message.mid(1, message.size() - 2);
+	QStringList commands;
+	commands.push_back(qsl("new_version_text"));
+	commands.push_back(qsl("all_new_version_texts"));
+	if (commands.indexOf(command) < 0) {
+		return QString();
+	}
+	return command;
+}
+
+void executeParsedCommand(const QString &command) {
+	if (command.isEmpty() || !App::wnd()) {
+		return;
+	}
+	if (command == qsl("new_version_text")) {
+		App::wnd()->serviceNotification(langNewVersionText());
+	} else if (command == qsl("all_new_version_texts")) {
+		for (int i = 0; i < languageCount; ++i) {
+			LangLoaderResult result;
+			if (i) {
+				LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i] + qsl(".strings"), LangLoaderRequest(lng_language_name, lng_new_version_text));
+				result = loader.found();
+			} else {
+				result.insert(lng_language_name, langOriginal(lng_language_name));
+				result.insert(lng_new_version_text, langOriginal(lng_new_version_text));
+			}
+			App::wnd()->serviceNotification(result.value(lng_language_name, LanguageCodes[i] + qsl(" language")) + qsl(":\n\n") + result.value(lng_new_version_text, qsl("--none--")));
+		}
+	}
+}
+} // namespace
+
 void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, bool broadcast, bool silent, WebPageId webPageId) {
 	readServerHistory(hist, false);
 	history.fastShowAtEnd(hist);
@@ -1367,8 +1409,10 @@ void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, 
 	EntitiesInText sendingEntities, leftEntities;
 	QString sendingText, leftText = prepareTextWithEntities(text, leftEntities, itemTextOptions(hist, App::self()).flags);
 
+	QString command = parseCommandFromMessage(hist, text);
+
 	if (replyTo < 0) replyTo = history.replyToId();
-	while (textSplit(sendingText, sendingEntities, leftText, leftEntities, MaxMessageSize)) {
+	while (command.isEmpty() && textSplit(sendingText, sendingEntities, leftText, leftEntities, MaxMessageSize)) {
 		FullMsgId newId(peerToChannel(hist->peer->id), clientMsgId());
 		uint64 randomId = rand_value<uint64>();
 
@@ -1415,6 +1459,8 @@ void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo, 
 	}
 
 	finishForwarding(hist, broadcast, silent);
+
+	executeParsedCommand(command);
 }
 
 void MainWidget::saveRecentHashtags(const QString &text) {

@@ -886,7 +886,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras melhorias menores";
-"lng_new_version_text" = "GRUPOS PÚBLICOS, POSTS FIXADOS, 5.000 MEMBROS\n\n— Grupos agora podem ter até 5.000 membros (mais que 1.000)\n— Grupos de qualquer tamanho podem ser convertidos a supergrupos\n\nNovas ferramentas para administradores dos supergrupos:\n\n— Torne seu grupo público configurando um link público - qualquer um poderá ver a conversa e entrar nela\n— Fixe mensagens para manter as atualizações mais importantes visíveis e notificar todos os membros\n— Selecione várias mensagens para apagar, reporte por spam, bloqueie usuários ou remova todas as mensagens de certos usuários\n\nMais sobre essa atualização:\n{link}";
+"lng_new_version_text" = "— Melhorias no visual";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 
