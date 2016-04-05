@@ -1025,12 +1025,11 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cDevVersion() || cBetaVersion()) && Local::oldMapVersion() < 9035) {
-//				QString ctrl = (cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? qsl("Cmd") : qsl("Ctrl");
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Design improvements\n\xe2\x80\x94 Bug fixes and other minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
-//				versionFeatures = lng_new_version_text(lt_link, qsl("https://telegram.org/blog/supergroups5k")).trimmed();
-			} else if (Local::oldMapVersion() < 9031) {
-				versionFeatures = lng_new_version_text(lt_link, qsl("https://telegram.org/blog/supergroups5k")).trimmed();
+			if ((cDevVersion() || cBetaVersion()) && Local::oldMapVersion() < 9040) {
+//				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Design improvements\n\xe2\x80\x94 Bug fixes and other minor improvements");
+				versionFeatures = langNewVersionText();
+			} else if (Local::oldMapVersion() < 9040) {
+				versionFeatures = langNewVersionText();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}

@@ -886,7 +886,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "PUBLIC GROUPS, PINNED POSTS, 5,000 MEMBERS\n\n— Groups can now have 5,000 members (up from 1,000)\n— Groups of any size may be converted to supergroups\n\nNew tools for supergroup admins:\n\n— Make your group public by setting up a public link – anyone will be able to view the chat and join it\n— Pin messages to keep important updates visible and notify all members\n— Select messages to delete, report as spam, block users, or remove all messages from a user\n\nMore about this update:\n{link}";
+"lng_new_version_text" = "— Visual improvements";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 
