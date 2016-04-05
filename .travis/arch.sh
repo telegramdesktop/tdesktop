@@ -50,10 +50,11 @@ setup_chroot() {
 
   if [ ! -f $archive ]; then
     # get root fs
-    local curl=$(curl --fail -O "$ARCH_TRAVIS_MIRROR/iso/$ARCH_TRAVIS_ARCH_ISO/$archive" 2>&1)
+    curl --fail -O "$ARCH_TRAVIS_MIRROR/iso/$ARCH_TRAVIS_ARCH_ISO/$archive" 2>&1
+    local ret=$?
 
     # if it fails, try arch iso form the previous month
-    if [ $? -gt 0 ]; then
+    if [ $ret -gt 0 ]; then
       ARCH_TRAVIS_ARCH_ISO="$(date +%Y.%m -d "-1 month").01"
       archive="archlinux-bootstrap-$ARCH_TRAVIS_ARCH_ISO-x86_64.tar.gz"
       as_normal "curl -O $ARCH_TRAVIS_MIRROR/iso/$ARCH_TRAVIS_ARCH_ISO/$archive"
