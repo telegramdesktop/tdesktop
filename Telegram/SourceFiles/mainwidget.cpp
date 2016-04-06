@@ -3579,6 +3579,9 @@ void MainWidget::openPeerByName(const QString &username, MsgId msgId, const QStr
 			if (peer->isUser() && peer->asUser()->botInfo && !peer->asUser()->botInfo->cantJoinGroups && !startToken.isEmpty()) {
 				peer->asUser()->botInfo->startGroupToken = startToken;
 				Ui::showLayer(new ContactsBox(peer->asUser()));
+			} else if (peer->isUser() && peer->asUser()->botInfo) {
+				// Always open bot chats, even from mention links.
+				Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId);
 			} else {
 				showPeerProfile(peer);
 			}
@@ -4242,6 +4245,73 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	}
 }
 
+namespace {
+
+enum class DataIsLoadedResult {
+	NotLoaded = 0,
+	FromNotLoaded = 1,
+	Ok = 2,
+};
+DataIsLoadedResult allDataLoadedForMessage(const MTPMessage &msg) {
+	switch (msg.type()) {
+	case mtpc_message: {
+		const MTPDmessage &d(msg.c_message());
+		if (!d.is_post() && d.has_from_id()) {
+			if (!App::userLoaded(peerFromUser(d.vfrom_id))) {
+				return DataIsLoadedResult::FromNotLoaded;
+			}
+		}
+		if (d.has_via_bot_id()) {
+			if (!App::userLoaded(peerFromUser(d.vvia_bot_id))) {
+				return DataIsLoadedResult::NotLoaded;
+			}
+		}
+		if (d.has_fwd_from() && d.vfwd_from.type() == mtpc_messageFwdHeader) {
+			ChannelId fromChannelId = d.vfwd_from.c_messageFwdHeader().vchannel_id.v;
+			if (fromChannelId) {
+				if (!App::channelLoaded(peerFromChannel(fromChannelId))) {
+					return DataIsLoadedResult::NotLoaded;
+				}
+			} else {
+				if (!App::userLoaded(peerFromUser(d.vfwd_from.c_messageFwdHeader().vfrom_id))) {
+					return DataIsLoadedResult::NotLoaded;
+				}
+			}
+		}
+	} break;
+	case mtpc_messageService: {
+		const MTPDmessageService &d(msg.c_messageService());
+		if (!d.is_post() && d.has_from_id()) {
+			if (!App::userLoaded(peerFromUser(d.vfrom_id))) {
+				return DataIsLoadedResult::FromNotLoaded;
+			}
+		}
+		switch (d.vaction.type()) {
+		case mtpc_messageActionChatAddUser: {
+			for_const(const MTPint &userId, d.vaction.c_messageActionChatAddUser().vusers.c_vector().v) {
+				if (!App::userLoaded(peerFromUser(userId))) {
+					return DataIsLoadedResult::NotLoaded;
+				}
+			}
+		} break;
+		case mtpc_messageActionChatJoinedByLink: {
+			if (!App::userLoaded(peerFromUser(d.vaction.c_messageActionChatJoinedByLink().vinviter_id))) {
+				return DataIsLoadedResult::NotLoaded;
+			}
+		} break;
+		case mtpc_messageActionChatDeleteUser: {
+			if (!App::userLoaded(peerFromUser(d.vaction.c_messageActionChatDeleteUser().vuser_id))) {
+				return DataIsLoadedResult::NotLoaded;
+			}
+		} break;
+		}
+	} break;
+	}
+	return DataIsLoadedResult::Ok;
+}
+
+} // namespace
+
 void MainWidget::feedUpdate(const MTPUpdate &update) {
 	if (!MTP::authedId()) return;
 
@@ -4601,8 +4671,18 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateNewChannelMessage: {
 		const MTPDupdateNewChannelMessage &d(update.c_updateNewChannelMessage());
 		ChannelData *channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
-		if (!channel && !_ptsWaiter.requesting()) {
-			MTP_LOG(0, ("getDifference { good - after no channel in updateNewChannelMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
+		DataIsLoadedResult isDataLoaded = allDataLoadedForMessage(d.vmessage);
+		if (!_ptsWaiter.requesting() && (!channel || isDataLoaded != DataIsLoadedResult::Ok)) {
+			MTP_LOG(0, ("getDifference { good - after not all data loaded in updateNewChannelMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
+
+			// Request last active supergroup participants if the 'from' user was not loaded yet.
+			// This will optimize similar getDifference() calls for almost all next messages.
+			if (isDataLoaded == DataIsLoadedResult::FromNotLoaded && channel && channel->isMegagroup() && App::api()) {
+				if (channel->mgInfo->lastParticipants.size() < Global::ChatSizeMax() && (channel->mgInfo->lastParticipants.isEmpty() || channel->mgInfo->lastParticipants.size() < channel->count)) {
+					App::api()->requestLastParticipants(channel);
+				}
+			}
+
 			if (!_byMinChannelTimer.isActive()) { // getDifference after timeout
 				_byMinChannelTimer.start(WaitForSkippedTimeout);
 			}

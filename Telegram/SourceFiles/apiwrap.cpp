@@ -399,7 +399,7 @@ void ApiWrap::requestLastParticipants(ChannelData *peer, bool fromStart) {
 	if ((needAdmins && adminsOutdated) || peer->lastParticipantsCountOutdated()) {
 		fromStart = true;
 	}
-	QMap<PeerData*, mtpRequestId>::iterator i = _participantsRequests.find(peer);
+	auto i = _participantsRequests.find(peer);
 	if (i != _participantsRequests.cend()) {
 		if (fromStart && i.value() < 0) { // was not loading from start
 			_participantsRequests.erase(i);
