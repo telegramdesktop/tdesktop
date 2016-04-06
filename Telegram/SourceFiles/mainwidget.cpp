@@ -1524,8 +1524,8 @@ void MainWidget::sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyT
 	history.sendBotCommand(peer, cmd, replyTo);
 }
 
-void MainWidget::sendBotCallback(PeerData *peer, const QByteArray &data, MsgId replyTo) {
-	history.sendBotCallback(peer, data, replyTo);
+void MainWidget::app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col) {
+	history.app_sendBotCallback(button, msg, row, col);
 }
 
 bool MainWidget::insertBotCommand(const QString &cmd, bool specialGif) {

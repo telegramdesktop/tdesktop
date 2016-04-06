@@ -2753,19 +2753,6 @@ public:
 		_fullDisplayed = full;
 	}
 
-protected:
-	void onClickImpl() const override {
-		if (auto button = getButton()) {
-			MsgId replyTo = (_item->id > 0) ? _item->id : 0;
-			App::activateBotCommand(_item->history()->peer, *button, replyTo);
-		}
-	}
-
-private:
-	const HistoryItem *_item = nullptr;
-	int _row, _col;
-	bool _fullDisplayed = true;
-
 	// Finds the corresponding button in the items markup struct.
 	// If the button is not found it returns nullptr.
 	// Note: it is possible that we will point to the different button
@@ -2781,6 +2768,16 @@ private:
 		}
 		return nullptr;
 	}
+
+protected:
+	void onClickImpl() const override {
+		App::activateBotCommand(_item, _row, _col);
+	}
+
+private:
+	const HistoryItem *_item = nullptr;
+	int _row, _col;
+	bool _fullDisplayed = true;
 
 	// Returns the full text of the corresponding button.
 	QString text() const {
@@ -2993,6 +2990,13 @@ void ReplyKeyboard::Style::paintButton(Painter &p, const ReplyKeyboard::Button &
 
 	paintButtonBg(p, rect, pressed, button.howMuchOver);
 	paintButtonIcon(p, rect, button.type);
+	if (button.type == HistoryMessageReplyMarkup::Button::Callback) {
+		if (const HistoryMessageReplyMarkup::Button *data = button.link->getButton()) {
+			if (data->requestId) {
+				paintButtonLoading(p, rect);
+			}
+		}
+	}
 
 	int tx = rect.x(), tw = rect.width();
 	if (tw > st::botKbFont->elidew + _st->padding * 2) {
@@ -3024,21 +3028,21 @@ void HistoryMessageReplyMarkup::createFromButtonRows(const QVector<MTPKeyboardBu
 				for_const(const MTPKeyboardButton &button, b) {
 					switch (button.type()) {
 					case mtpc_keyboardButton: {
-						buttonRow.push_back({ Button::Default, qs(button.c_keyboardButton().vtext), QByteArray() });
+						buttonRow.push_back({ Button::Default, qs(button.c_keyboardButton().vtext), QByteArray(), 0 });
 					} break;
 					case mtpc_keyboardButtonCallback: {
 						const auto &buttonData(button.c_keyboardButtonCallback());
-						buttonRow.push_back({ Button::Callback, qs(buttonData.vtext), qba(buttonData.vdata) });
+						buttonRow.push_back({ Button::Callback, qs(buttonData.vtext), qba(buttonData.vdata), 0 });
 					} break;
 					case mtpc_keyboardButtonRequestGeoLocation: {
-						buttonRow.push_back({ Button::RequestLocation, qs(button.c_keyboardButtonRequestGeoLocation().vtext), QByteArray() });
+						buttonRow.push_back({ Button::RequestLocation, qs(button.c_keyboardButtonRequestGeoLocation().vtext), QByteArray(), 0 });
 					} break;
 					case mtpc_keyboardButtonRequestPhone: {
-						buttonRow.push_back({ Button::RequestPhone, qs(button.c_keyboardButtonRequestPhone().vtext), QByteArray() });
+						buttonRow.push_back({ Button::RequestPhone, qs(button.c_keyboardButtonRequestPhone().vtext), QByteArray(), 0 });
 					} break;
 					case mtpc_keyboardButtonUrl: {
 						const auto &buttonData(button.c_keyboardButtonUrl());
-						buttonRow.push_back({ Button::Url, qs(buttonData.vtext), qba(buttonData.vurl) });
+						buttonRow.push_back({ Button::Url, qs(buttonData.vtext), qba(buttonData.vurl), 0 });
 					} break;
 					}
 				}
@@ -6628,7 +6632,6 @@ void HistoryMessage::KeyboardStyle::paintButtonIcon(Painter &p, const QRect &rec
 	style::sprite sprite;
 	switch (type) {
 	case HistoryMessageReplyMarkup::Button::Url: sprite = st::msgBotKbUrlIcon; break;
-	case HistoryMessageReplyMarkup::Button::Callback: sprite = st::msgBotKbCallbackIcon; break;
 	case HistoryMessageReplyMarkup::Button::RequestPhone: sprite = st::msgBotKbRequestPhoneIcon; break;
 	case HistoryMessageReplyMarkup::Button::RequestLocation: sprite = st::msgBotKbRequestLocationIcon; break;
 	}
@@ -6637,13 +6640,18 @@ void HistoryMessage::KeyboardStyle::paintButtonIcon(Painter &p, const QRect &rec
 	}
 }
 
+void HistoryMessage::KeyboardStyle::paintButtonLoading(Painter &p, const QRect &rect) const {
+	style::sprite sprite = st::msgInvSendingImg;
+	p.drawSprite(rect.x() + rect.width() - sprite.pxWidth() - st::msgBotKbIconPadding, rect.y() + rect.height() - sprite.pxHeight() - st::msgBotKbIconPadding, sprite);
+}
+
 int HistoryMessage::KeyboardStyle::minButtonWidth(HistoryMessageReplyMarkup::Button::Type type) const {
 	int result = 2 * buttonPadding(), iconWidth = 0;
 	switch (type) {
 	case HistoryMessageReplyMarkup::Button::Url: iconWidth = st::msgBotKbUrlIcon.pxWidth(); break;
-	case HistoryMessageReplyMarkup::Button::Callback: iconWidth = st::msgBotKbCallbackIcon.pxWidth(); break;
 	case HistoryMessageReplyMarkup::Button::RequestPhone: iconWidth = st::msgBotKbRequestPhoneIcon.pxWidth(); break;
 	case HistoryMessageReplyMarkup::Button::RequestLocation: iconWidth = st::msgBotKbRequestLocationIcon.pxWidth(); break;
+	case HistoryMessageReplyMarkup::Button::Callback: iconWidth = st::msgInvSendingImg.pxWidth(); break;
 	}
 	if (iconWidth > 0) {
 		result = std::min(result, iconWidth + 2 * int(st::msgBotKbIconPadding));

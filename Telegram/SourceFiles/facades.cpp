@@ -38,29 +38,39 @@ namespace App {
 		if (MainWidget *m = main()) m->sendBotCommand(peer, cmd, replyTo);
 	}
 
-	void sendBotCallback(PeerData *peer, const QByteArray &data, MsgId replyTo) {
-		if (MainWidget *m = main()) m->sendBotCallback(peer, data, replyTo);
-	}
-
 	bool insertBotCommand(const QString &cmd, bool specialGif) {
 		if (MainWidget *m = main()) return m->insertBotCommand(cmd, specialGif);
 		return false;
 	}
 
-	void activateBotCommand(PeerData *peer, const HistoryMessageReplyMarkup::Button &button, MsgId replyTo) {
-		switch (button.type) {
+	void activateBotCommand(const HistoryItem *msg, int row, int col) {
+		const HistoryMessageReplyMarkup::Button *button = nullptr;
+		if (auto *markup = msg->Get<HistoryMessageReplyMarkup>()) {
+			if (row < markup->rows.size()) {
+				const HistoryMessageReplyMarkup::ButtonRow &buttonRow(markup->rows.at(row));
+				if (col < buttonRow.size()) {
+					button = &buttonRow.at(col);
+				}
+			}
+		}
+		if (!button) return;
+
+		switch (button->type) {
 		case HistoryMessageReplyMarkup::Button::Default: {
-			// copy string before passing it to the sending method
-			// the original button can be destroyed inside
-			sendBotCommand(peer, QString(button.text), replyTo);
+			// Copy string before passing it to the sending method
+			// because the original button can be destroyed inside.
+			MsgId replyTo = (msg->id > 0) ? msg->id : 0;
+			sendBotCommand(msg->history()->peer, QString(button->text), replyTo);
 		} break;
 
 		case HistoryMessageReplyMarkup::Button::Callback: {
-			sendBotCallback(peer, button.data, replyTo);
+			if (MainWidget *m = main()) {
+				m->app_sendBotCallback(button, msg, row, col);
+			}
 		} break;
 
 		case HistoryMessageReplyMarkup::Button::Url: {
-			auto url = QString::fromUtf8(button.data);
+			auto url = QString::fromUtf8(button->data);
 			HiddenUrlClickHandler(url).onClick(Qt::LeftButton);
 		} break;
 
@@ -69,7 +79,7 @@ namespace App {
 		} break;
 
 		case HistoryMessageReplyMarkup::Button::RequestPhone: {
-			SharePhoneConfirmBox *box = new SharePhoneConfirmBox(peer);
+			SharePhoneConfirmBox *box = new SharePhoneConfirmBox(msg->history()->peer);
 			box->connect(box, SIGNAL(confirmed(PeerData*)), App::main(), SLOT(onSharePhoneWithBot(PeerData*)));
 			Ui::showLayer(box);
 		} break;

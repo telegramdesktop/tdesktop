@@ -2174,12 +2174,15 @@ void BotKeyboard::Style::paintButtonBg(Painter &p, const QRect &rect, bool down,
 }
 
 void BotKeyboard::Style::paintButtonIcon(Painter &p, const QRect &rect, HistoryMessageReplyMarkup::Button::Type type) const {
-	// they should not appear here
+	// Buttons with icons should not appear here.
+}
+
+void BotKeyboard::Style::paintButtonLoading(Painter &p, const QRect &rect) const {
+	// Buttons with loading progress should not appear here.
 }
 
 int BotKeyboard::Style::minButtonWidth(HistoryMessageReplyMarkup::Button::Type type) const {
 	int result = 2 * buttonPadding();
-	// they should not appear here
 	return result;
 }
 
@@ -5161,7 +5164,9 @@ void HistoryWidget::sendBotCommand(PeerData *peer, const QString &cmd, MsgId rep
 
 	App::main()->sendMessage(_history, toSend, replyTo ? ((!_peer->isUser()/* && (botStatus == 0 || botStatus == 2)*/) ? replyTo : -1) : 0, false, false);
 	if (replyTo) {
-		cancelReply();
+		if (_replyToId == replyTo) {
+			cancelReply();
+		}
 		if (_keyboard.singleUse() && _keyboard.hasMarkup() && lastKeyboardUsed) {
 			if (_kbShown) onKbToggle(false);
 			_history->lastKeyboardUsed = true;
@@ -5171,23 +5176,37 @@ void HistoryWidget::sendBotCommand(PeerData *peer, const QString &cmd, MsgId rep
 	_field.setFocus();
 }
 
-void HistoryWidget::sendBotCallback(PeerData *peer, const QByteArray &data, MsgId replyTo) {
-	if (!_peer || _peer != peer) return;
+void HistoryWidget::app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col) {
+	if (msg->id < 0 || _peer != msg->history()->peer) {
+		return;
+	}
 
-	bool lastKeyboardUsed = (_keyboard.forMsgId() == FullMsgId(_channel, _history->lastKeyboardId)) && (_keyboard.forMsgId() == FullMsgId(_channel, replyTo));
+	bool lastKeyboardUsed = (_keyboard.forMsgId() == FullMsgId(_channel, _history->lastKeyboardId)) && (_keyboard.forMsgId() == FullMsgId(_channel, msg->id));
 
-	MTP::send(MTPmessages_GetBotCallbackAnswer(_peer->input, MTP_int(replyTo), MTP_bytes(data)), rpcDone(&HistoryWidget::botCallbackDone), rpcFail(&HistoryWidget::botCallbackFail));
+	BotCallbackInfo info = { msg->fullId(), row, col };
+	button->requestId = MTP::send(MTPmessages_GetBotCallbackAnswer(_peer->input, MTP_int(msg->id), MTP_bytes(button->data)), rpcDone(&HistoryWidget::botCallbackDone, info), rpcFail(&HistoryWidget::botCallbackFail, info));
+	Ui::repaintHistoryItem(msg);
 
-	if (replyTo) {
+	if (_replyToId == msg->id) {
 		cancelReply();
-		if (_keyboard.singleUse() && _keyboard.hasMarkup() && lastKeyboardUsed) {
-			if (_kbShown) onKbToggle(false);
-			_history->lastKeyboardUsed = true;
-		}
+	}
+	if (_keyboard.singleUse() && _keyboard.hasMarkup() && lastKeyboardUsed) {
+		if (_kbShown) onKbToggle(false);
+		_history->lastKeyboardUsed = true;
 	}
 }
 
-void HistoryWidget::botCallbackDone(const MTPmessages_BotCallbackAnswer &answer) {
+void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotCallbackAnswer &answer, mtpRequestId req) {
+	if (HistoryItem *item = App::histItemById(info.msgId)) {
+		if (auto *markup = item->Get<HistoryMessageReplyMarkup>()) {
+			if (info.row < markup->rows.size() && info.col < markup->rows.at(info.row).size()) {
+				if (markup->rows.at(info.row).at(info.col).requestId == req) {
+					markup->rows.at(info.row).at(info.col).requestId = 0;
+					Ui::repaintHistoryItem(item);
+				}
+			}
+		}
+	}
 	if (answer.type() == mtpc_messages_botCallbackAnswer) {
 		const auto &answerData(answer.c_messages_botCallbackAnswer());
 		if (answerData.has_message()) {
@@ -5196,8 +5215,19 @@ void HistoryWidget::botCallbackDone(const MTPmessages_BotCallbackAnswer &answer)
 	}
 }
 
-bool HistoryWidget::botCallbackFail(const RPCError &error) {
+bool HistoryWidget::botCallbackFail(BotCallbackInfo info, const RPCError &error, mtpRequestId req) {
 	if (mtpIsFlood(error)) return false;
+
+	if (HistoryItem *item = App::histItemById(info.msgId)) {
+		if (auto *markup = item->Get<HistoryMessageReplyMarkup>()) {
+			if (info.row < markup->rows.size() && info.col < markup->rows.at(info.row).size()) {
+				if (markup->rows.at(info.row).at(info.col).requestId == req) {
+					markup->rows.at(info.row).at(info.col).requestId = 0;
+					Ui::repaintHistoryItem(item);
+				}
+			}
+		}
+	}
 
 	return true;
 }

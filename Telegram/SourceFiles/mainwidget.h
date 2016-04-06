@@ -352,7 +352,6 @@ public:
 	void stopAnimActive();
 
 	void sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo);
-	void sendBotCallback(PeerData *peer, const QByteArray &data, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd, bool specialGif);
 
 	void searchMessages(const QString &query, PeerData *inPeer);
@@ -441,6 +440,8 @@ public:
 	}
 
 	bool isItemVisible(HistoryItem *item);
+
+	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
 	void ui_repaintInlineItem(const InlineBots::Layout::ItemBase *layout);

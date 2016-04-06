@@ -374,6 +374,7 @@ private:
 	protected:
 		void paintButtonBg(Painter &p, const QRect &rect, bool down, float64 howMuchOver) const override;
 		void paintButtonIcon(Painter &p, const QRect &rect, HistoryMessageReplyMarkup::Button::Type type) const override;
+		void paintButtonLoading(Painter &p, const QRect &rect) const override;
 		int minButtonWidth(HistoryMessageReplyMarkup::Button::Type type) const override;
 
 	private:
@@ -622,7 +623,6 @@ public:
 	void onListEscapePressed();
 
 	void sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo);
-	void sendBotCallback(PeerData *peer, const QByteArray &data, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd, bool specialGif);
 
 	bool eventFilter(QObject *obj, QEvent *e) override;
@@ -667,6 +667,8 @@ public:
 	}
 
 	bool isItemVisible(HistoryItem *item);
+
+	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
 	void ui_repaintInlineItem(const InlineBots::Layout::ItemBase *gif);
@@ -881,8 +883,12 @@ private:
 	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 
-	void botCallbackDone(const MTPmessages_BotCallbackAnswer &answer);
-	bool botCallbackFail(const RPCError &error);
+	struct BotCallbackInfo {
+		FullMsgId msgId;
+		int row, col;
+	};
+	void botCallbackDone(BotCallbackInfo info, const MTPmessages_BotCallbackAnswer &answer, mtpRequestId req);
+	bool botCallbackFail(BotCallbackInfo info, const RPCError &error, mtpRequestId req);
 
 	enum ScrollChangeType {
 		ScrollChangeNone,
