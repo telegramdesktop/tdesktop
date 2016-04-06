@@ -19,27 +19,26 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "style.h"
-#include "lang.h"
-
-#include "shortcuts.h"
 
 #include "window.h"
-#include "application.h"
 
+#include "zip.h"
+
+#include "style.h"
+#include "lang.h"
+#include "shortcuts.h"
+#include "application.h"
 #include "pspecific.h"
 #include "title.h"
 #include "passcodewidget.h"
-#include "intro/intro.h"
+#include "intro/introwidget.h"
 #include "mainwidget.h"
 #include "layerwidget.h"
 #include "settingswidget.h"
 #include "boxes/confirmbox.h"
 #include "boxes/contactsbox.h"
 #include "boxes/addcontactbox.h"
-
 #include "autoupdater.h"
-
 #include "mediaview.h"
 #include "localstorage.h"
 
@@ -82,9 +81,9 @@ NotifyWindow::NotifyWindow(HistoryItem *msg, int32 x, int32 y, int32 fwdCount) :
 , history(msg->history())
 , item(msg)
 , fwdCount(fwdCount)
-#ifdef Q_OS_WIN
+#if defined Q_OS_WIN && !defined Q_OS_WINRT
 , started(GetTickCount())
-#endif
+#endif // Q_OS_WIN && !Q_OS_WINRT
 , close(this, st::notifyClose)
 , alphaDuration(st::notifyFastAnim)
 , posDuration(st::notifyFastAnim)
@@ -126,7 +125,7 @@ NotifyWindow::NotifyWindow(HistoryItem *msg, int32 x, int32 y, int32 fwdCount) :
 }
 
 void NotifyWindow::checkLastInput() {
-#ifdef Q_OS_WIN
+#if defined Q_OS_WIN && !defined Q_OS_WINRT
 	LASTINPUTINFO lii;
 	lii.cbSize = sizeof(LASTINPUTINFO);
 	BOOL res = GetLastInputInfo(&lii);
@@ -135,14 +134,14 @@ void NotifyWindow::checkLastInput() {
 	} else {
 		inputTimer.start(300);
 	}
-#else
+#else // Q_OS_WIN && !Q_OS_WINRT
     // TODO
 	if (true) {
 		hideTimer.start(st::notifyWaitLongHide);
 	} else {
 		inputTimer.start(300);
 	}
-#endif
+#endif // else for Q_OS_WIN && !Q_OS_WINRT
 }
 
 void NotifyWindow::moveTo(int32 x, int32 y, int32 index) {
@@ -172,13 +171,8 @@ void NotifyWindow::updateNotifyDisplay() {
 		p.fillRect(0, st::notifyBorderWidth, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder->b);
 
 		if (!App::passcoded() && cNotifyView() <= dbinvShowName) {
-			if (history->peer->photo->loaded()) {
-				p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), history->peer->photo->pix(st::notifyPhotoSize));
-			} else {
-				MTP::clearLoaderPriorities();
-				peerPhoto = history->peer->photo;
-				peerPhoto->load(true, true);
-			}
+			history->peer->loadUserpic(true, true);
+			history->peer->paintUserpicLeft(p, st::notifyPhotoSize, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width());
 		} else {
 			static QPixmap icon = QPixmap::fromImage(App::wnd()->iconLarge().scaled(st::notifyPhotoSize, st::notifyPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
 			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), icon);
@@ -293,18 +287,20 @@ void NotifyWindow::startHiding() {
 
 void NotifyWindow::mousePressEvent(QMouseEvent *e) {
 	if (!history) return;
+
 	PeerId peer = history->peer->id;
+	MsgId msgId = (!history->peer->isUser() && item && item->mentionsMe() && item->id > 0) ? item->id : ShowAtUnreadMsgId;
 
 	if (e->button() == Qt::RightButton) {
 		unlinkHistoryAndNotify();
-	} else if (history) {
+	} else {
 		App::wnd()->showFromTray();
 		if (App::passcoded()) {
 			App::wnd()->setInnerFocus();
 			App::wnd()->notifyClear();
 		} else {
 			App::wnd()->hideSettings();
-			Ui::showPeerHistory(peer, (!history->peer->isUser() && item && item->mentionsMe() && item->id > 0) ? item->id : ShowAtUnreadMsgId);
+			Ui::showPeerHistory(peer, msgId);
 		}
 		e->ignore();
 	}
@@ -511,11 +507,8 @@ void Window::clearWidgets() {
 		settings = 0;
 	}
 	if (main) {
-		main->animStop_show();
-		main->hide();
-		main->deleteLater();
-		main->rpcClear();
-		main = 0;
+		delete main;
+		main = nullptr;
 	}
 	if (intro) {
 		intro->stop_show();
@@ -666,8 +659,8 @@ void Window::sendServiceHistoryRequest() {
 
 	UserData *user = App::userLoaded(ServiceUserId);
 	if (!user) {
-		int32 userFlags = MTPDuser::flag_first_name | MTPDuser::flag_phone | MTPDuser::flag_status | MTPDuser::flag_verified;
-		user = App::feedUsers(MTP_vector<MTPUser>(1, MTP_user(MTP_int(userFlags), MTP_int(ServiceUserId), MTPlong(), MTP_string("Telegram"), MTPstring(), MTPstring(), MTP_string("42777"), MTP_userProfilePhotoEmpty(), MTP_userStatusRecently(), MTPint(), MTPstring(), MTPstring())));
+		MTPDuser::Flags userFlags = MTPDuser::Flag::f_first_name | MTPDuser::Flag::f_phone | MTPDuser::Flag::f_status | MTPDuser::Flag::f_verified;
+		user = App::feedUsers(MTP_vector<MTPUser>(1, MTP_user(MTP_flags(userFlags), MTP_int(ServiceUserId), MTPlong(), MTP_string("Telegram"), MTPstring(), MTPstring(), MTP_string("42777"), MTP_userProfilePhotoEmpty(), MTP_userStatusRecently(), MTPint(), MTPstring(), MTPstring())));
 	}
 	_serviceHistoryRequest = MTP::send(MTPmessages_GetHistory(user->input, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), main->rpcDone(&MainWidget::serviceHistoryDone), main->rpcFail(&MainWidget::serviceHistoryFail));
 }
@@ -697,6 +690,8 @@ void Window::setupMain(bool anim, const MTPUser *self) {
 }
 
 void Window::updateCounter() {
+	if (!Global::started() || App::quitting()) return;
+
 	psUpdateCounter();
 	title->updateCounter();
 }
@@ -768,7 +763,7 @@ void Window::mtpStateChanged(int32 dc, int32 state) {
 
 void Window::updateTitleStatus() {
 	int32 state = MTP::dcstate();
-	if (state == MTProtoConnection::Connecting || state == MTProtoConnection::Disconnected || (state < 0 && state > -600)) {
+	if (state == MTP::ConnectingState || state == MTP::DisconnectedState || (state < 0 && state > -600)) {
 		if (main || getms() > 5000 || _connecting) {
 			showConnecting(lang(lng_connecting));
 		}
@@ -1040,7 +1035,6 @@ bool Window::eventFilter(QObject *obj, QEvent *e) {
 		break;
 
 	case QEvent::ShortcutOverride: // handle shortcuts ourselves
-		DEBUG_LOG(("Shortcut override declined: %1").arg(static_cast<QKeyEvent*>(e)->key()));
 		return true;
 
 	case QEvent::Shortcut:
@@ -1181,7 +1175,11 @@ void Window::onLogout() {
 }
 
 void Window::onLogoutSure() {
-	App::logOut();
+	if (MTP::authedId()) {
+		App::logOut();
+	} else {
+		setupIntro(true);
+	}
 }
 
 void Window::updateGlobalMenu() {
@@ -1415,7 +1413,7 @@ void Window::notifySchedule(History *history, HistoryItem *item) {
 		haveSetting = false;
 	}
 
-	int delay = item->Is<HistoryMessageForwarded>() ? 500 : 100, t = unixtime();
+	int delay = item->Has<HistoryMessageForwarded>() ? 500 : 100, t = unixtime();
 	uint64 ms = getms(true);
 	bool isOnline = main->lastWasOnline(), otherNotOld = ((cOtherOnline() * uint64(1000)) + Global::OnlineCloudTimeout() > t * uint64(1000));
 	bool otherLaterThanMe = (cOtherOnline() * uint64(1000) + (ms - main->lastSetOnline()) > t * uint64(1000));
@@ -1634,7 +1632,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 				notifyWaitTimer.start(next - ms);
 				break;
 			} else {
-				HistoryItem *fwd = notifyItem->Is<HistoryMessageForwarded>() ? notifyItem : 0; // forwarded notify grouping
+				HistoryItem *fwd = notifyItem->Has<HistoryMessageForwarded>() ? notifyItem : nullptr; // forwarded notify grouping
 				int32 fwdCount = 1;
 
 				uint64 ms = getms(true);
@@ -1662,7 +1660,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 						} while (history->hasNotification());
 						if (nextNotify) {
 							if (fwd) {
-								HistoryItem *nextFwd = nextNotify->Is<HistoryMessageForwarded>() ? nextNotify : 0;
+								HistoryItem *nextFwd = nextNotify->Has<HistoryMessageForwarded>() ? nextNotify : nullptr;
 								if (nextFwd && fwd->author() == nextFwd->author() && qAbs(int64(nextFwd->date.toTime_t()) - int64(fwd->date.toTime_t())) < 2) {
 									fwd = nextFwd;
 									++fwdCount;
@@ -1947,7 +1945,10 @@ PreLaunchWindow::PreLaunchWindow(QString title) : TWidget(0) {
 	tmp.setText(qsl("Tmp"));
 	_size = tmp.sizeHint().height();
 
-	setStyleSheet(qsl("QPushButton { padding: %1px %2px; background-color: #ffffff; border-radius: %3px; }\nQPushButton#confirm:hover, QPushButton#cancel:hover { background-color: #edf7ff; color: #2f9fea; }\nQPushButton#confirm { color: #2f9fea; }\nQPushButton#cancel { color: #aeaeae; }\nQLineEdit { border: 1px solid #e0e0e0; padding: 5px; }\nQLineEdit:focus { border: 2px solid #62c0f7; padding: 4px; }").arg(qFloor(_size / 2)).arg(qFloor(_size)).arg(qFloor(_size / 5)));
+	int paddingVertical = (_size / 2);
+	int paddingHorizontal = _size;
+	int borderRadius = (_size / 5);
+	setStyleSheet(qsl("QPushButton { padding: %1px %2px; background-color: #ffffff; border-radius: %3px; }\nQPushButton#confirm:hover, QPushButton#cancel:hover { background-color: #edf7ff; color: #2f9fea; }\nQPushButton#confirm { color: #2f9fea; }\nQPushButton#cancel { color: #aeaeae; }\nQLineEdit { border: 1px solid #e0e0e0; padding: 5px; }\nQLineEdit:focus { border: 2px solid #62c0f7; padding: 4px; }").arg(paddingVertical).arg(paddingHorizontal).arg(borderRadius));
 	if (!PreLaunchWindowInstance) {
 		PreLaunchWindowInstance = this;
 	}
@@ -2353,7 +2354,7 @@ void LastCrashedWindow::onSendReport() {
 	connect(_checkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onSendingError(QNetworkReply::NetworkError)));
 	connect(_checkReply, SIGNAL(finished()), this, SLOT(onCheckingFinished()));
 
-	_pleaseSendReport.setText(qsl("Sending crash report.."));
+	_pleaseSendReport.setText(qsl("Sending crash report..."));
 	_sendingState = SendingProgress;
 	_reportShown = false;
 	updateControls();
@@ -2821,7 +2822,7 @@ void LastCrashedWindow::setUpdatingState(UpdatingState state, bool force) {
 			}
 		break;
 		case UpdatingCheck:
-			_updating.setText(qsl("Checking for updates.."));
+			_updating.setText(qsl("Checking for updates..."));
 		break;
 		case UpdatingFail:
 			_updating.setText(qsl("Update check failed :("));
@@ -2928,9 +2929,9 @@ void LastCrashedWindow::onSendingProgress(qint64 uploaded, qint64 total) {
 	_sendingState = SendingUploading;
 
 	if (total < 0) {
-		_pleaseSendReport.setText(qsl("Sending crash report %1 KB..").arg(uploaded / 1024));
+		_pleaseSendReport.setText(qsl("Sending crash report %1 KB...").arg(uploaded / 1024));
 	} else {
-		_pleaseSendReport.setText(qsl("Sending crash report %1 / %2 KB..").arg(uploaded / 1024).arg(total / 1024));
+		_pleaseSendReport.setText(qsl("Sending crash report %1 / %2 KB...").arg(uploaded / 1024).arg(total / 1024));
 	}
 	updateControls();
 }
@@ -3100,6 +3101,7 @@ void ShowCrashReportWindow::closeEvent(QCloseEvent *e) {
     deleteLater();
 }
 
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 int showCrashReportWindow(const QString &crashdump) {
 	QString text;
 
@@ -3124,3 +3126,4 @@ int showCrashReportWindow(const QString &crashdump) {
 	ShowCrashReportWindow *wnd = new ShowCrashReportWindow(text);
 	return app.exec();
 }
+#endif // !TDESKTOP_DISABLE_CRASH_REPORTS

@@ -975,6 +975,21 @@ topBarBackAlpha: 0.8;
 topBarBackImg: sprite(65px, 112px, 9px, 16px);
 topBarBackColor: #005faf;
 topBarBackFont: font(16px);
+topBarSearch: iconedButton(btnDefIconed) {
+	bgColor: transparent;
+	overBgColor: transparent;
+
+	icon: sprite(84px, 374px, 18px, 18px);
+	iconPos: point(13px, 18px);
+	downIcon: sprite(84px, 374px, 18px, 18px);
+	downIconPos: point(13px, 18px);
+
+	opacity: 0.22;
+	overOpacity: 0.36;
+
+	width: 44px;
+	height: topBarHeight;
+}
 topBarMinPadding: 5px;
 topBarButton: flatButton(btnDefFlat) {
 	color: btnYesColor;
@@ -1034,10 +1049,11 @@ msgServiceNameFont: semiboldFont;
 msgServicePhotoWidth: 100px;
 msgDateFont: font(13px);
 msgMinWidth: 190px;
-msgPhotoSize: 30px;
+msgPhotoSize: 33px;
 msgPhotoSkip: 40px;
 msgPadding: margins(13px, 7px, 13px, 8px);
-msgMargin: margins(13px, 4px, 53px, 4px);
+msgMargin: margins(13px, 10px, 53px, 2px);
+msgMarginTopAttached: 3px;
 msgLnkPadding: 2px; // for media open / save links
 msgBorder: #f0f0f0;
 msgInBg: #fff;
@@ -1073,7 +1089,7 @@ msgServiceBg: #89a0b47f;
 msgServiceSelectBg: #bbc8d4a2;
 msgServiceColor: #FFF;
 msgServicePadding: margins(12px, 3px, 12px, 4px);
-msgServiceMargin: margins(10px, 7px, 80px, 7px);
+msgServiceMargin: margins(10px, 10px, 80px, 2px);
 
 msgColor: #000;
 msgDateColor: #000;
@@ -1132,7 +1148,7 @@ collapseButton: flatButton(btnDefFlat) {
 	textTop: 3px;
 	overTextTop: 3px;
 	downTextTop: 3px;
-	height: 24px;
+	height: 25px;
 }
 collapseHideDuration: 200;
 collapseShowDuration: 200;
@@ -1511,6 +1527,7 @@ reportSpamBg: #fffffff0;
 newMsgSound: ':/gui/art/newmsg.wav';
 
 unreadBarHeight: 32px;
+unreadBarMargin: 8px;
 unreadBarFont: semiboldFont;
 unreadBarBG: #fcfbfa;
 unreadBarBorder: shadowColor;

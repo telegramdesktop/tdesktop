@@ -35,8 +35,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 
 namespace {
-	int32 peerColorIndex(const PeerId &peer) {
-		int32 myId(MTP::authedId()), peerId(peerToBareInt(peer));
+	int peerColorIndex(const PeerId &peer) {
+		UserId myId(MTP::authedId()), peerId(peerToBareInt(peer));
 		QByteArray both(qsl("%1%2").arg(peerId).arg(myId).toUtf8());
 		if (both.size() > 15) {
 			both = both.mid(0, 15);
@@ -47,7 +47,7 @@ namespace {
 	}
 }
 
-style::color peerColor(int32 index) {
+style::color peerColor(int index) {
 	static const style::color peerColors[8] = {
 		style::color(st::color1),
 		style::color(st::color2),
@@ -61,7 +61,7 @@ style::color peerColor(int32 index) {
 	return peerColors[index];
 }
 
-ImagePtr userDefPhoto(int32 index) {
+ImagePtr userDefPhoto(int index) {
 	static const ImagePtr userDefPhotos[UserColorsCount] = {
 		ImagePtr(qsl(":/ava/art/usercolor1.png"), "PNG"),
 		ImagePtr(qsl(":/ava/art/usercolor2.png"), "PNG"),
@@ -75,7 +75,7 @@ ImagePtr userDefPhoto(int32 index) {
 	return userDefPhotos[index];
 }
 
-ImagePtr chatDefPhoto(int32 index) {
+ImagePtr chatDefPhoto(int index) {
 	static const ImagePtr chatDefPhotos[4] = {
 		ImagePtr(qsl(":/ava/art/chatcolor1.png"), "PNG"),
 		ImagePtr(qsl(":/ava/art/chatcolor2.png"), "PNG"),
@@ -85,7 +85,7 @@ ImagePtr chatDefPhoto(int32 index) {
 	return chatDefPhotos[index];
 }
 
-ImagePtr channelDefPhoto(int32 index) {
+ImagePtr channelDefPhoto(int index) {
 	static const ImagePtr channelDefPhotos[4] = {
 		ImagePtr(qsl(":/ava/art/channelcolor1.png"), "PNG"),
 		ImagePtr(qsl(":/ava/art/channelcolor2.png"), "PNG"),
@@ -100,13 +100,13 @@ NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersP
 
 PeerData::PeerData(const PeerId &id) : id(id)
 , lnk(new PeerLink(this))
-, loaded(false)
+, loadedStatus(NotLoaded)
 , colorIndex(peerColorIndex(id))
 , color(peerColor(colorIndex))
-, photo((isChat() || isMegagroup()) ? chatDefPhoto(colorIndex) : (isChannel() ? channelDefPhoto(colorIndex) : userDefPhoto(colorIndex)))
 , photoId(UnknownPeerPhotoId)
 , nameVersion(0)
-, notify(UnknownNotifySettings) {
+, notify(UnknownNotifySettings)
+, _userpic(isUser() ? userDefPhoto(colorIndex) : ((isChat() || isMegagroup()) ? chatDefPhoto(colorIndex) : channelDefPhoto(colorIndex))) {
 	if (!peerIsUser(id) && !peerIsChannel(id)) updateName(QString(), QString(), QString());
 }
 
@@ -135,9 +135,9 @@ void PeerData::updateName(const QString &newName, const QString &newNameOrPhone,
 		if (asChannel()->username != newUsername) {
 			asChannel()->username = newUsername;
 			if (newUsername.isEmpty()) {
-				asChannel()->flags &= ~MTPDchannel::flag_username;
+				asChannel()->flags &= ~MTPDchannel::Flag::f_username;
 			} else {
-				asChannel()->flags |= MTPDchannel::flag_username;
+				asChannel()->flags |= MTPDchannel::Flag::f_username;
 			}
 			if (App::main()) {
 				App::main()->peerUsernameChanged(this);
@@ -154,6 +154,43 @@ void PeerData::updateName(const QString &newName, const QString &newNameOrPhone,
 	}
 }
 
+void PeerData::setUserpic(ImagePtr userpic) {
+	_userpic = userpic;
+}
+
+ImagePtr PeerData::currentUserpic() const {
+	if (_userpic->loaded()) {
+		return _userpic;
+	}
+	_userpic->load();
+
+	if (isUser()) {
+		return userDefPhoto(colorIndex);
+	} else if (isMegagroup() || isChat()) {
+		return chatDefPhoto(colorIndex);
+	}
+	return channelDefPhoto(colorIndex);
+}
+
+void PeerData::paintUserpic(Painter &p, int size, int x, int y) const {
+	p.drawPixmap(x, y, currentUserpic()->pixCircled(size, size));
+}
+
+StorageKey PeerData::userpicUniqueKey() const {
+	if (photoLoc.isNull() || !_userpic->loaded()) {
+		return StorageKey(0, (isUser() ? 0x1000 : ((isChat() || isMegagroup()) ? 0x2000 : 0x3000)) | colorIndex);
+	}
+	return storageKey(photoLoc);
+}
+
+void PeerData::saveUserpic(const QString &path) const {
+	currentUserpic()->pixCircled().save(path, "PNG");
+}
+
+QPixmap PeerData::genUserpic(int size) const {
+	return currentUserpic()->pixCircled(size, size);
+}
+
 const Text &BotCommand::descriptionText() const {
 	if (_descriptionText.isEmpty() && !_description.isEmpty()) {
 		_descriptionText.setText(st::mentionFont, _description, _textNameOptions);
@@ -163,7 +200,7 @@ const Text &BotCommand::descriptionText() const {
 
 void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer as well
 	PhotoId newPhotoId = photoId;
-	ImagePtr newPhoto = photo;
+	ImagePtr newPhoto = _userpic;
 	StorageImageLocation newPhotoLoc = photoLoc;
 	switch (p.type()) {
 	case mtpc_userProfilePhoto: {
@@ -176,7 +213,7 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer a
 	default: {
 		newPhotoId = 0;
 		if (id == ServiceUserId) {
-			if (photo->isNull()) {
+			if (_userpic->isNull()) {
 				newPhoto = ImagePtr(QPixmap::fromImage(App::wnd()->iconLarge().scaledToWidth(160, Qt::SmoothTransformation), Qt::ColorOnly), "PNG");
 			}
 		} else {
@@ -185,9 +222,9 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer a
 		newPhotoLoc = StorageImageLocation();
 	} break;
 	}
-	if (newPhotoId != photoId || newPhoto.v() != photo.v() || newPhotoLoc != photoLoc) {
+	if (newPhotoId != photoId || newPhoto.v() != _userpic.v() || newPhotoLoc != photoLoc) {
 		photoId = newPhotoId;
-		photo = newPhoto;
+		setUserpic(newPhoto);
 		photoLoc = newPhotoLoc;
 		if (App::main()) {
 			emit App::main()->peerPhotoChanged(this);
@@ -242,7 +279,7 @@ void UserData::setPhone(const QString &newPhone) {
 	phone = newPhone;
 }
 
-void UserData::setBotInfoVersion(int32 version) {
+void UserData::setBotInfoVersion(int version) {
 	if (version < 0) {
 		if (botInfo) {
 			if (!botInfo->commands.isEmpty()) {
@@ -338,7 +375,7 @@ void UserData::madeAction() {
 
 void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Local::readPeer as well
 	PhotoId newPhotoId = photoId;
-	ImagePtr newPhoto = photo;
+	ImagePtr newPhoto = _userpic;
 	StorageImageLocation newPhotoLoc = photoLoc;
 	switch (p.type()) {
 	case mtpc_chatPhoto: {
@@ -357,9 +394,9 @@ void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Loc
 //		photoFull = ImagePtr();
 	} break;
 	}
-	if (newPhotoId != photoId || newPhoto.v() != photo.v() || newPhotoLoc != photoLoc) {
+	if (newPhotoId != photoId || newPhoto.v() != _userpic.v() || newPhotoLoc != photoLoc) {
 		photoId = newPhotoId;
-		photo = newPhoto;
+		setUserpic(newPhoto);
 		photoLoc = newPhotoLoc;
 		emit App::main()->peerPhotoChanged(this);
 	}
@@ -367,7 +404,7 @@ void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Loc
 
 void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Local::readPeer as well
 	PhotoId newPhotoId = photoId;
-	ImagePtr newPhoto = photo;
+	ImagePtr newPhoto = _userpic;
 	StorageImageLocation newPhotoLoc = photoLoc;
 	switch (p.type()) {
 	case mtpc_chatPhoto: {
@@ -386,9 +423,9 @@ void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see 
 //		photoFull = ImagePtr();
 	} break;
 	}
-	if (newPhotoId != photoId || newPhoto.v() != photo.v() || newPhotoLoc != photoLoc) {
+	if (newPhotoId != photoId || newPhoto.v() != _userpic.v() || newPhotoLoc != photoLoc) {
 		photoId = newPhotoId;
-		photo = newPhoto;
+		setUserpic(newPhoto);
 		photoLoc = newPhotoLoc;
 		if (App::main()) emit App::main()->peerPhotoChanged(this);
 	}
@@ -772,14 +809,14 @@ QString saveFileName(const QString &title, const QString &filter, const QString 
 bool StickerData::setInstalled() const {
 	switch (set.type()) {
 	case mtpc_inputStickerSetID: {
-		StickerSets::const_iterator it = cStickerSets().constFind(set.c_inputStickerSetID().vid.v);
-		return (it != cStickerSets().cend()) && !(it->flags & MTPDstickerSet::flag_disabled);
+		auto it = Global::StickerSets().constFind(set.c_inputStickerSetID().vid.v);
+		return (it != Global::StickerSets().cend()) && !(it->flags & MTPDstickerSet::Flag::f_disabled);
 	} break;
 	case mtpc_inputStickerSetShortName: {
 		QString name = qs(set.c_inputStickerSetShortName().vshort_name).toLower();
-		for (StickerSets::const_iterator it = cStickerSets().cbegin(), e = cStickerSets().cend(); it != e; ++it) {
+		for (auto it = Global::StickerSets().cbegin(), e = Global::StickerSets().cend(); it != e; ++it) {
 			if (it->shortName.toLower() == name) {
-				return !(it->flags & MTPDstickerSet::flag_disabled);
+				return !(it->flags & MTPDstickerSet::Flag::f_disabled);
 			}
 		}
 	} break;
@@ -787,7 +824,7 @@ bool StickerData::setInstalled() const {
 	return false;
 }
 
-QString documentSaveFilename(DocumentData *data, bool forceSavingAs = false, const QString already = QString(), const QDir &dir = QDir()) {
+QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = false, const QString already = QString(), const QDir &dir = QDir()) {
 	QString name, filter, caption, prefix;
 	MimeType mimeType = mimeTypeForName(data->mime);
 	QStringList p = mimeType.globPatterns();
@@ -813,7 +850,7 @@ QString documentSaveFilename(DocumentData *data, bool forceSavingAs = false, con
 		} else {
 			filter = mimeType.filterString() + qsl(";;All files (*.*)");
 		}
-		caption = lang(lng_save_file);
+		caption = lang(data->song() ? lng_save_audio_file : lng_save_file);
 		prefix = qsl("doc");
 	}
 
@@ -914,22 +951,21 @@ void GifOpenLink::onClick(Qt::MouseButton button) const {
 void DocumentSaveLink::doSave(DocumentData *data, bool forceSavingAs) {
 	if (!data->date) return;
 
-	QString already = data->already(true);
-	bool openWith = !already.isEmpty();
-	if (openWith && !forceSavingAs) {
+	QString filepath = data->filepath(DocumentData::FilePathResolveSaveFromDataSilent, forceSavingAs);
+	if (!filepath.isEmpty() && !forceSavingAs) {
 		QPoint pos(QCursor::pos());
-		if (!psShowOpenWithMenu(pos.x(), pos.y(), already)) {
-			psOpenFile(already, true);
+		if (!psShowOpenWithMenu(pos.x(), pos.y(), filepath)) {
+			psOpenFile(filepath, true);
 		}
 	} else {
-		QFileInfo alreadyInfo(already);
-		QDir alreadyDir(already.isEmpty() ? QDir() : alreadyInfo.dir());
-		QString alreadyName(already.isEmpty() ? QString() : alreadyInfo.fileName());
-		QString filename = documentSaveFilename(data, forceSavingAs, alreadyName, alreadyDir);
-		if (!filename.isEmpty()) {
-			ActionOnLoad action = already.isEmpty() ? ActionOnLoadNone : ActionOnLoadOpenWith;
+		QFileInfo fileinfo(filepath);
+		QDir filedir(filepath.isEmpty() ? QDir() : fileinfo.dir());
+		QString filename(filepath.isEmpty() ? QString() : fileinfo.fileName());
+		QString newfname = documentSaveFilename(data, forceSavingAs, filename, filedir);
+		if (!newfname.isEmpty()) {
+			ActionOnLoad action = filename.isEmpty() ? ActionOnLoadNone : ActionOnLoadOpenWith;
 			FullMsgId actionMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->fullId() : (App::contextItem() ? App::contextItem()->fullId() : FullMsgId());
-			data->save(filename, action, actionMsgId);
+			data->save(newfname, action, actionMsgId);
 		}
 	}
 }
@@ -1180,7 +1216,7 @@ void DocumentData::performActionOnLoad() {
 	_actionOnLoad = ActionOnLoadNone;
 }
 
-bool DocumentData::loaded(bool check) const {
+bool DocumentData::loaded(FilePathResolveType type) const {
 	if (loading() && _loader->done()) {
 		if (_loader->fileType() == mtpc_storage_fileUnknown) {
 			_loader->deleteLater();
@@ -1200,7 +1236,7 @@ bool DocumentData::loaded(bool check) const {
 		}
 		notifyLayoutChanged();
 	}
-	return !_data.isEmpty() || !already(check).isEmpty();
+	return !data().isEmpty() || !filepath(type).isEmpty();
 }
 
 bool DocumentData::loading() const {
@@ -1230,18 +1266,26 @@ bool DocumentData::uploading() const {
 }
 
 void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMsgId &actionMsgId, LoadFromCloudSetting fromCloud, bool autoLoading) {
-	if (loaded(true)) {
+	_actionOnLoad = action;
+	_actionOnLoadMsgId = actionMsgId;
+
+	if (loaded(FilePathResolveChecked)) {
 		const FileLocation &l(location(true));
 		if (!toFile.isEmpty()) {
 			if (!_data.isEmpty()) {
 				QFile f(toFile);
 				f.open(QIODevice::WriteOnly);
 				f.write(_data);
+				f.close();
+
+				setLocation(FileLocation(StorageFilePartial, toFile));
+				Local::writeFileLocation(mediaKey(), FileLocation(mtpToStorageType(mtpc_storage_filePartial), toFile));
 			} else if (l.accessEnable()) {
 				QFile(l.name()).copy(toFile);
 				l.accessDisable();
 			}
 		}
+		performActionOnLoad();
 		return;
 	}
 
@@ -1253,15 +1297,11 @@ void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMs
 		}
 	}
 
-	_actionOnLoad = action;
-	_actionOnLoadMsgId = actionMsgId;
-
 	if (_loader) {
 		if (fromCloud == LoadFromCloudOrLocal) _loader->permitLoadFromCloud();
 	} else {
 		status = FileReady;
-		LocationType type = voice() ? AudioFileLocation : (isVideo() ? VideoFileLocation : DocumentFileLocation);
-		_loader = new mtpFileLoader(dc, id, access, type, toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
+		_loader = new mtpFileLoader(dc, id, access, locationType(), toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
 		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(documentLoadProgress(FileLoader*)));
 		_loader->connect(_loader, SIGNAL(failed(FileLoader*,bool)), App::main(), SLOT(documentLoadFailed(FileLoader*,bool)));
 		_loader->start();
@@ -1312,11 +1352,6 @@ QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform) {
 	return result;
 }
 
-QString DocumentData::already(bool check) const {
-	if (check && _location.name().isEmpty()) return QString();
-	return location(check).name();
-}
-
 QByteArray DocumentData::data() const {
 	return _data;
 }
@@ -1332,6 +1367,34 @@ void DocumentData::setLocation(const FileLocation &loc) {
 	if (loc.check()) {
 		_location = loc;
 	}
+}
+
+QString DocumentData::filepath(FilePathResolveType type, bool forceSavingAs) const {
+	bool check = (type != FilePathResolveCached);
+	QString result = (check && _location.name().isEmpty()) ? QString() : location(check).name();
+	bool saveFromData = result.isEmpty() && !data().isEmpty();
+	if (saveFromData) {
+		if (type != FilePathResolveSaveFromData && type != FilePathResolveSaveFromDataSilent) {
+			saveFromData = false;
+		} else if (type == FilePathResolveSaveFromDataSilent && (cAskDownloadPath() || forceSavingAs)) {
+			saveFromData = false;
+		}
+	}
+	if (saveFromData) {
+		QString filename = documentSaveFilename(this, forceSavingAs);
+		if (!filename.isEmpty()) {
+			QFile f(filename);
+			if (f.open(QIODevice::WriteOnly)) {
+				if (f.write(data()) == data().size()) {
+					f.close();
+					const_cast<DocumentData*>(this)->_location = FileLocation(StorageFilePartial, filename);
+					Local::writeFileLocation(mediaKey(), _location);
+					result = filename;
+				}
+			}
+		}
+	}
+	return result;
 }
 
 ImagePtr DocumentData::makeReplyPreview() {

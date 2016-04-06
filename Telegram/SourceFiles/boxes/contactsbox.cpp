@@ -224,7 +224,7 @@ void ContactsInner::onPeerNameChanged(PeerData *peer, const PeerData::Names &old
 
 void ContactsInner::onAddBot() {
 	if (_bot->botInfo && !_bot->botInfo->startGroupToken.isEmpty()) {
-		MTP::send(MTPmessages_StartBot(_bot->inputUser, _addToPeer->input, MTP_long(MTP::nonce<uint64>()), MTP_string(_bot->botInfo->startGroupToken)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _bot));
+		MTP::send(MTPmessages_StartBot(_bot->inputUser, _addToPeer->input, MTP_long(rand_value<uint64>()), MTP_string(_bot->botInfo->startGroupToken)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _bot));
 	} else {
 		App::main()->addParticipants(_addToPeer, QVector<UserData*>(1, _bot));
 	}
@@ -284,6 +284,8 @@ bool ContactsInner::addAdminFail(const RPCError &error, mtpRequestId req) {
 		Ui::showLayer(new MaxInviteBox(_channel->invitationUrl), KeepOtherLayers);
 	} else if (error.type() == "ADMINS_TOO_MUCH") {
 		Ui::showLayer(new InformBox(lang(lng_channel_admins_too_much)), KeepOtherLayers);
+	} else if (error.type() == qstr("USER_RESTRICTED")) {
+		Ui::showLayer(new InformBox(lang(lng_cant_do_this)), KeepOtherLayers);
 	} else  {
 		emit adminAdded();
 	}
@@ -362,7 +364,7 @@ void ContactsInner::loadProfilePhotos(int32 yFrom) {
 				preloadFrom != _contacts->list.end && (_newItemHeight + preloadFrom->pos * _rowHeight) < yTo;
 				preloadFrom = preloadFrom->next
 			) {
-				preloadFrom->history->peer->photo->load();
+				preloadFrom->history->peer->loadUserpic();
 			}
 		}
 	} else if (!_filtered.isEmpty()) {
@@ -373,7 +375,7 @@ void ContactsInner::loadProfilePhotos(int32 yFrom) {
 			if (to > _filtered.size()) to = _filtered.size();
 
 			for (; from < to; ++from) {
-				_filtered[from]->history->peer->photo->load();
+				_filtered[from]->history->peer->loadUserpic();
 			}
 		}
 	}
@@ -445,7 +447,7 @@ void ContactsInner::paintDialog(Painter &p, PeerData *peer, ContactData *data, b
 	}
 	p.fillRect(0, 0, width(), _rowHeight, inverse ? st::contactsBgActive : (sel ? st::contactsBgOver : st::white));
 	p.setPen(inverse ? st::white : st::black);
-	p.drawPixmapLeft(st::contactsPadding.left(), st::contactsPadding.top(), width(), peer->photo->pix(st::contactsPhotoSize));
+	peer->paintUserpicLeft(p, st::contactsPhotoSize, st::contactsPadding.left(), st::contactsPadding.top(), width());
 
 	int32 namex = st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left();
 	int32 iconw = (_chat || _creating != CreatingGroupNone) ? (st::contactsCheckPosition.x() * 2 + st::contactsCheckIcon.pxWidth()) : 0;
@@ -783,7 +785,9 @@ void ContactsInner::changeCheckState(ContactData *data, PeerData *peer) {
 		data->check = true;
 		_checkedContacts.insert(peer, true);
 		++_selCount;
-	} else if ((!_channel || !_channel->isMegagroup()) && selectedCount() >= Global::ChatSizeMax() && selectedCount() < Global::MegagroupSizeMax()) {
+	} else if (_channel && !_channel->isMegagroup()) {
+		Ui::showLayer(new MaxInviteBox(_channel->invitationUrl), KeepOtherLayers);
+	} else if (!_channel && selectedCount() >= Global::ChatSizeMax() && selectedCount() < Global::MegagroupSizeMax()) {
 		Ui::showLayer(new InformBox(lng_profile_add_more_after_upgrade(lt_count, Global::MegagroupSizeMax())), KeepOtherLayers);
 	}
 	if (cnt != _selCount) emit chosenChanged();
@@ -1549,7 +1553,7 @@ void ContactsBox::paintEvent(QPaintEvent *e) {
 		paintTitle(p, lang(lng_channel_admins));
 	} else if (_inner.chat() || _inner.creating() != CreatingGroupNone) {
 		QString title(lang(addingAdmin ? lng_channel_add_admin : lng_profile_add_participant));
-		QString additional(addingAdmin ? QString() : QString("%1 / %2").arg(_inner.selectedCount()).arg(Global::MegagroupSizeMax()));
+		QString additional((addingAdmin || (_inner.channel() && !_inner.channel()->isMegagroup())) ? QString() : QString("%1 / %2").arg(_inner.selectedCount()).arg(Global::MegagroupSizeMax()));
 		paintTitle(p, title, additional);
 	} else if (_inner.bot()) {
 		paintTitle(p, lang(lng_bot_choose_group));
@@ -1666,12 +1670,15 @@ void ContactsBox::getAdminsDone(const MTPmessages_ChatFull &result) {
 		}
 	}
 	_saveRequestId = 0;
-	for (ChatData::Admins::const_iterator i = curadmins.cbegin(), e = curadmins.cend(); i != e; ++i) {
-		MTP::send(MTPmessages_EditChatAdmin(_inner.chat()->inputChat, i.key()->inputUser, MTP_boolFalse()), rpcDone(&ContactsBox::removeAdminDone, i.key()), rpcFail(&ContactsBox::editAdminFail), 0, (appoint.isEmpty() && i + 1 == e) ? 0 : 10);
+
+	for_const (UserData *user, curadmins) {
+		MTP::send(MTPmessages_EditChatAdmin(_inner.chat()->inputChat, user->inputUser, MTP_boolFalse()), rpcDone(&ContactsBox::removeAdminDone, user), rpcFail(&ContactsBox::editAdminFail), 0, 10);
 	}
-	for (int32 i = 0, l = appoint.size(); i < l; ++i) {
-		MTP::send(MTPmessages_EditChatAdmin(_inner.chat()->inputChat, appoint.at(i)->inputUser, MTP_boolTrue()), rpcDone(&ContactsBox::setAdminDone, appoint.at(i)), rpcFail(&ContactsBox::editAdminFail), 0, (i + 1 == l) ? 0 : 10);
+	for_const (UserData *user, appoint) {
+		MTP::send(MTPmessages_EditChatAdmin(_inner.chat()->inputChat, user->inputUser, MTP_boolTrue()), rpcDone(&ContactsBox::setAdminDone, user), rpcFail(&ContactsBox::editAdminFail), 0, 10);
 	}
+	MTP::sendAnything();
+
 	_saveRequestId = curadmins.size() + appoint.size();
 	if (!_saveRequestId) {
 		onClose();
@@ -1718,7 +1725,13 @@ bool ContactsBox::editAdminFail(const RPCError &error) {
 	if (mtpIsFlood(error)) return true;
 	--_saveRequestId;
 	_inner.chat()->invalidateParticipants();
-	if (!_saveRequestId) onClose();
+	if (!_saveRequestId) {
+		if (error.type() == qstr("USER_RESTRICTED")) {
+			Ui::showLayer(new InformBox(lang(lng_cant_do_this)));
+			return true;
+		}
+		onClose();
+	}
 	return false;
 }
 
@@ -1764,6 +1777,9 @@ bool ContactsBox::creationFail(const RPCError &error) {
 		return true;
 	} else if (error.type() == "PEER_FLOOD") {
 		Ui::showLayer(new InformBox(lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)))), KeepOtherLayers);
+		return true;
+	} else if (error.type() == qstr("USER_RESTRICTED")) {
+		Ui::showLayer(new InformBox(lang(lng_cant_do_this)));
 		return true;
 	}
 	return false;
@@ -1909,7 +1925,7 @@ void MembersInner::paintDialog(Painter &p, PeerData *peer, MemberData *data, boo
 	UserData *user = peer->asUser();
 
 	p.fillRect(0, 0, width(), _rowHeight, (sel ? st::contactsBgOver : st::white)->b);
-	p.drawPixmapLeft(st::contactsPadding.left(), st::contactsPadding.top(), width(), peer->photo->pix(st::contactsPhotoSize));
+	peer->paintUserpicLeft(p, st::contactsPhotoSize, st::contactsPadding.left(), st::contactsPadding.top(), width());
 
 	p.setPen(st::black);
 
@@ -1994,7 +2010,7 @@ void MembersInner::loadProfilePhotos(int32 yFrom) {
 			if (to > _rows.size()) to = _rows.size();
 
 			for (; from < to; ++from) {
-				_rows[from]->photo->load();
+				_rows[from]->loadUserpic();
 			}
 		}
 	}

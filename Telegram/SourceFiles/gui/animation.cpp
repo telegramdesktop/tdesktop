@@ -22,6 +22,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "animation.h"
 
+extern "C" {
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/opt.h>
+#include <libswscale/swscale.h>
+}
+
 #include "mainwidget.h"
 #include "window.h"
 
@@ -245,7 +252,7 @@ ClipReader::ClipReader(const FileLocation &location, const QByteArray &data, Cal
 		_clipManagers.push_back(new ClipReadManager(_clipThreads.back()));
 		_clipThreads.back()->start();
 	} else {
-		_threadIndex = int32(MTP::nonce<uint32>() % _clipThreads.size());
+		_threadIndex = int32(rand_value<uint32>() % _clipThreads.size());
 		int32 loadLevel = 0x7FFFFFFF;
 		for (int32 i = 0, l = _clipThreads.size(); i < l; ++i) {
 			int32 level = _clipManagers.at(i)->loadLevel();

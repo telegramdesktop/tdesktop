@@ -613,8 +613,6 @@ void OverviewInner::onDragExec() {
 
 	bool uponSelected = false;
 	if (_dragItem) {
-		bool afterDragSymbol;
-		uint16 symbol;
 		if (!_selected.isEmpty() && _selected.cbegin().value() == FullSelection) {
 			uponSelected = _selected.contains(_dragItem);
 		} else {
@@ -661,10 +659,10 @@ void OverviewInner::onDragExec() {
 
 			mimeData->setData(qsl("application/x-td-forward-pressed-link"), "1");
 			if (lnkDocument) {
-				QString already = static_cast<DocumentOpenLink*>(textlnkDown().data())->document()->already(true);
-				if (!already.isEmpty()) {
+				QString filepath = static_cast<DocumentOpenLink*>(textlnkDown().data())->document()->filepath(DocumentData::FilePathResolveChecked);
+				if (!filepath.isEmpty()) {
 					QList<QUrl> urls;
-					urls.push_back(QUrl::fromLocalFile(already));
+					urls.push_back(QUrl::fromLocalFile(filepath));
 					mimeData->setUrls(urls);
 				}
 			}
@@ -778,14 +776,20 @@ void OverviewInner::preloadMore() {
 		if (!_searchRequest) {
 			MTPmessagesFilter filter = (_type == OverviewLinks) ? MTP_inputMessagesFilterUrl() : MTP_inputMessagesFilterDocument();
 			if (!_searchFull) {
-				int32 flags = (_history->peer->isChannel() && !_history->peer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
-				_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _history->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, _lastSearchId ? SearchFromOffset : SearchFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchId ? SearchFromOffset : SearchFromStart));
+				MTPmessages_Search::Flags flags = 0;
+				if (_history->peer->isChannel() && !_history->peer->isMegagroup()) {
+					flags |= MTPmessages_Search::Flag::f_important_only;
+				}
+				_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _history->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, _lastSearchId ? SearchFromOffset : SearchFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchId ? SearchFromOffset : SearchFromStart));
 				if (!_lastSearchId) {
 					_searchQueries.insert(_searchRequest, _searchQuery);
 				}
 			} else if (_migrated && !_searchFullMigrated) {
-				int32 flags = (_migrated->peer->isChannel() && !_migrated->peer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
-				_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _migrated->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchMigratedId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, _lastSearchMigratedId ? SearchMigratedFromOffset : SearchMigratedFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchMigratedId ? SearchMigratedFromOffset : SearchMigratedFromStart));
+				MTPmessages_Search::Flags flags = 0;
+				if (_migrated->peer->isChannel() && !_migrated->peer->isMegagroup()) {
+					flags |= MTPmessages_Search::Flag::f_important_only;
+				}
+				_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _migrated->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchMigratedId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, _lastSearchMigratedId ? SearchMigratedFromOffset : SearchMigratedFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchMigratedId ? SearchMigratedFromOffset : SearchMigratedFromStart));
 			}
 		}
 	} else if (App::main()) {
@@ -1263,8 +1267,9 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	_contextMenuLnk = textlnkOver();
 	PhotoLink *lnkPhoto = dynamic_cast<PhotoLink*>(_contextMenuLnk.data());
 	DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	bool lnkIsAudio = lnkDocument ? (lnkDocument->document()->voice() != 0) : false;
 	bool lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideo() : false;
+	bool lnkIsAudio = lnkDocument ? (lnkDocument->document()->voice() != nullptr) : false;
+	bool lnkIsSong = lnkDocument ? (lnkDocument->document()->song() != nullptr) : false;
 	if (lnkPhoto || lnkDocument) {
 		_menu = new PopupMenu();
 		if (App::hoveredLinkItem()) {
@@ -1275,10 +1280,10 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			if (lnkDocument && lnkDocument->document()->loading()) {
 				_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
 			} else {
-				if (lnkDocument && !lnkDocument->document()->already(true).isEmpty()) {
+				if (lnkDocument && !lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
 					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 				}
-				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsAudio ? lng_context_save_audio : lng_context_save_file)), this, SLOT(saveContextFile()))->setEnabled(true);
+				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsAudio ? lng_context_save_audio : (lnkIsSong ? lng_context_save_audio_file : lng_context_save_file))), this, SLOT(saveContextFile()))->setEnabled(true);
 			}
 		}
 		if (isUponSelected > 1) {
@@ -1496,9 +1501,12 @@ void OverviewInner::cancelContextDownload() {
 }
 
 void OverviewInner::showContextInFolder() {
-	DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	QString already = lnkDocument ? lnkDocument->document()->already(true) : QString();
-	if (!already.isEmpty()) psShowInFolder(already);
+	if (DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data())) {
+		QString filepath = lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked);
+		if (!filepath.isEmpty()) {
+			psShowInFolder(filepath);
+		}
+	}
 }
 
 void OverviewInner::saveContextFile() {
@@ -1527,9 +1535,12 @@ bool OverviewInner::onSearchMessages(bool searchCache) {
 	} else if (_searchQuery != q) {
 		_searchQuery = q;
 		_searchFull = _searchFullMigrated = false;
-		int32 flags = (_history->peer->isChannel() && !_history->peer->isMegagroup()) ? MTPmessages_Search::flag_important_only : 0;
+		MTPmessages_Search::Flags flags = 0;
+		if (_history->peer->isChannel() && !_history->peer->isMegagroup()) {
+			flags |= MTPmessages_Search::Flag::f_important_only;
+		}
 		MTPmessagesFilter filter = (_type == OverviewLinks) ? MTP_inputMessagesFilterUrl() : MTP_inputMessagesFilterDocument();
-		_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _history->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, SearchFromStart), rpcFail(&OverviewInner::searchFailed, SearchFromStart));
+		_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _history->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, SearchFromStart), rpcFail(&OverviewInner::searchFailed, SearchFromStart));
 		_searchQueries.insert(_searchRequest, _searchQuery);
 	}
 	return false;
@@ -2383,7 +2394,6 @@ void OverviewWidget::onDeleteSelectedSure() {
 	for (SelectedItemSet::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
 		i.value()->destroy();
 	}
-	Notify::historyItemsResized();
 	Ui::hideLayer();
 
 	for (QMap<PeerData*, QVector<MTPint> >::const_iterator i = ids.cbegin(), e = ids.cend(); i != e; ++i) {
@@ -2405,7 +2415,6 @@ void OverviewWidget::onDeleteContextSure() {
 		App::main()->checkPeerHistory(h->peer);
 	}
 
-	Notify::historyItemsResized();
 	Ui::hideLayer();
 
 	if (wasOnServer) {

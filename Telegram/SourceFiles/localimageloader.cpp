@@ -171,7 +171,7 @@ void TaskQueueWorker::onTaskAdded() {
 	_inTaskAdded = false;
 }
 
-FileLoadTask::FileLoadTask(const QString &filepath, PrepareMediaType type, const FileLoadTo &to, FileLoadForceConfirmType confirm) : _id(MTP::nonce<uint64>())
+FileLoadTask::FileLoadTask(const QString &filepath, PrepareMediaType type, const FileLoadTo &to, FileLoadForceConfirmType confirm) : _id(rand_value<uint64>())
 , _to(to)
 , _filepath(filepath)
 , _duration(0)
@@ -180,7 +180,7 @@ FileLoadTask::FileLoadTask(const QString &filepath, PrepareMediaType type, const
 , _result(0) {
 }
 
-FileLoadTask::FileLoadTask(const QByteArray &content, PrepareMediaType type, const FileLoadTo &to) : _id(MTP::nonce<uint64>())
+FileLoadTask::FileLoadTask(const QByteArray &content, PrepareMediaType type, const FileLoadTo &to) : _id(rand_value<uint64>())
 , _to(to)
 , _content(content)
 , _duration(0)
@@ -189,7 +189,7 @@ FileLoadTask::FileLoadTask(const QByteArray &content, PrepareMediaType type, con
 , _result(0) {
 }
 
-FileLoadTask::FileLoadTask(const QImage &image, PrepareMediaType type, const FileLoadTo &to, FileLoadForceConfirmType confirm, const QString &originalText) : _id(MTP::nonce<uint64>())
+FileLoadTask::FileLoadTask(const QImage &image, PrepareMediaType type, const FileLoadTo &to, FileLoadForceConfirmType confirm, const QString &originalText) : _id(rand_value<uint64>())
 , _to(to)
 , _image(image)
 , _duration(0)
@@ -199,7 +199,7 @@ FileLoadTask::FileLoadTask(const QImage &image, PrepareMediaType type, const Fil
 , _result(0) {
 }
 
-FileLoadTask::FileLoadTask(const QByteArray &voice, int32 duration, const VoiceWaveform &waveform, const FileLoadTo &to) : _id(MTP::nonce<uint64>())
+FileLoadTask::FileLoadTask(const QByteArray &voice, int32 duration, const VoiceWaveform &waveform, const FileLoadTo &to) : _id(rand_value<uint64>())
 , _to(to)
 , _content(voice)
 , _duration(duration)
@@ -323,7 +323,7 @@ void FileLoadTask::process() {
 						thumb = full;
 						thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0));
 
-						thumbId = MTP::nonce<uint64>();
+						thumbId = rand_value<uint64>();
 					}
 				}
 			}
@@ -350,7 +350,7 @@ void FileLoadTask::process() {
 					thumb = full;
 					thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0));
 
-					thumbId = MTP::nonce<uint64>();
+					thumbId = rand_value<uint64>();
 
 					if (filename.endsWith(qstr(".mp4"), Qt::CaseInsensitive)) {
 						filemime = qstr("video/mp4");
@@ -406,12 +406,12 @@ void FileLoadTask::process() {
 			thumb = full;
 			thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0));
 
-			thumbId = MTP::nonce<uint64>();
+			thumbId = rand_value<uint64>();
 		}
 	}
 
 	if (voice) {
-		attributes[0] = MTP_documentAttributeAudio(MTP_int(MTPDdocumentAttributeAudio::flag_voice | MTPDdocumentAttributeAudio::flag_waveform), MTP_int(_duration), MTPstring(), MTPstring(), MTP_string(documentWaveformEncode5bit(_waveform)));
+		attributes[0] = MTP_documentAttributeAudio(MTP_flags(MTPDdocumentAttributeAudio::Flag::f_voice | MTPDdocumentAttributeAudio::Flag::f_waveform), MTP_int(_duration), MTPstring(), MTPstring(), MTP_string(documentWaveformEncode5bit(_waveform)));
 		attributes.resize(1);
 		document = MTP_document(MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_string(filemime), MTP_int(filesize), thumbSize, MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));
 	} else {

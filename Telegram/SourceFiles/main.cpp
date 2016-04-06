@@ -30,22 +30,31 @@ int main(int argc, char *argv[]) {
 		return psFixPrevious();
 	} else if (cLaunchMode() == LaunchModeCleanup) {
 		return psCleanup();
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 	} else if (cLaunchMode() == LaunchModeShowCrash) {
 		return showCrashReportWindow(QFileInfo(cStartUrl()).absoluteFilePath());
+#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
 	}
 
 	// both are finished in Application::closeApplication
 	Logs::start(); // must be started before PlatformSpecific is started
 	PlatformSpecific::start(); // must be started before QApplication is created
 
-	//QByteArray args[] = { "-style=0" }; // prepare fake args to disable QT_STYLE_OVERRIDE env variable
-	//static const int a_cnt = sizeof(args) / sizeof(args[0]);
-	//int a_argc = a_cnt + 1;
-	//char *a_argv[a_cnt + 1] = { argv[0], args[0].data() };
+	// prepare fake args to disable QT_STYLE_OVERRIDE env variable
+	// currently this is required in some desktop environments, including Xubuntu 15.10
+	// when we don't default style to "none" Qt dynamically loads GTK somehow internally and
+	// our own GTK dynamic load and usage leads GTK errors and freeze of the current main thread
+	// we can't disable our own GTK loading because it is required by libappindicator, which
+	// provides the tray icon for this system, because Qt tray icon is broken there
+	// see https://github.com/telegramdesktop/tdesktop/issues/1774
+	QByteArray args[] = { "-style=0" };
+	static const int a_cnt = sizeof(args) / sizeof(args[0]);
+	int a_argc = a_cnt + 1;
+	char *a_argv[a_cnt + 1] = { argv[0], args[0].data() };
 
 	int result = 0;
 	{
-		Application app(argc, argv);
+		Application app(a_argc, a_argv);
 		result = app.exec();
 	}
 
@@ -53,16 +62,18 @@ int main(int argc, char *argv[]) {
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if (cRestartingUpdate()) {
-		DEBUG_LOG(("Application Info: executing updater to install update.."));
+		DEBUG_LOG(("Application Info: executing updater to install update..."));
 		psExecUpdater();
 	} else
 #endif
 	if (cRestarting()) {
-		DEBUG_LOG(("Application Info: executing Telegram, because of restart.."));
+		DEBUG_LOG(("Application Info: executing Telegram, because of restart..."));
 		psExecTelegram();
 	}
 
 	SignalHandlers::finish();
 	PlatformSpecific::finish();
 	Logs::finish();
+
+	return result;
 }

@@ -90,10 +90,6 @@ In Terminal go to **/Users/user/TBuild/Libraries/xz-5.0.5** and there run:
     make
     sudo make install
 
-####zlib 1.2.8
-
-Using the system lib
-
 ####libexif 0.6.20
 #####Get the source code
 
@@ -219,7 +215,7 @@ From **/Users/user/TBuild/Libraries/QtStatic/qtbase**, run:
 
 Go to **/Users/user/TBuild/Libraries/QtStatic** and run:
 
-    ./configure -debug-and-release -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang
+    ./configure -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang
     make -j4
     sudo make -j4 install
 
@@ -235,7 +231,7 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
     cd gyp
     ./setup.py build
-    sudo setup.py install
+    sudo ./setup.py install
     cd ..
 
 #####Build crashpad

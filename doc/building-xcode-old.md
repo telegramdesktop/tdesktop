@@ -183,7 +183,7 @@ From **/Users/user/TBuild/Libraries/QtStatic/qtimageformats**, run:
 
 Go to **/Users/user/TBuild/Libraries/QtStatic** and run:
 
-    ./configure -debug-and-release -opensource -confirm-license -static -opengl desktop -nomake examples -nomake tests -platform macx-g++
+    ./configure -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -nomake examples -nomake tests -platform macx-g++
     make -j4
     sudo make -j4 install
 

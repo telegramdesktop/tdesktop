@@ -20,6 +20,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
+#include "types.h"
+
+#include <openssl/crypto.h>
+#include <openssl/sha.h>
+
+extern "C" {
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+}
+
 #include "application.h"
 
 uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
@@ -110,8 +120,8 @@ namespace {
 	}
 }
 
-int32 myunixtime() {
-	return (int32)time(NULL);
+TimeId myunixtime() {
+	return (TimeId)time(NULL);
 }
 
 void unixtimeInit() {
@@ -139,19 +149,19 @@ void unixtimeSet(int32 serverTime, bool force) {
 	_initMsgIdConstants();
 }
 
-int32 unixtime() {
-	int32 result = myunixtime();
+TimeId unixtime() {
+	TimeId result = myunixtime();
 
 	QReadLocker locker(&unixtimeLock);
 	return result + unixtimeDelta;
 }
 
-int32 fromServerTime(const MTPint &serverTime) {
+TimeId fromServerTime(const MTPint &serverTime) {
 	QReadLocker locker(&unixtimeLock);
 	return serverTime.v - unixtimeDelta;
 }
 
-MTPint toServerTime(const int32 &clientTime) {
+MTPint toServerTime(const TimeId &clientTime) {
 	QReadLocker locker(&unixtimeLock);
 	return MTP_int(clientTime + unixtimeDelta);
 }
@@ -280,7 +290,7 @@ namespace ThirdParty {
 			uchar sha256Buffer[32];
 			RAND_seed(hashSha256(buf, 16, sha256Buffer), 32);
 			if (!RAND_status()) {
-				LOG(("MTP Error: Could not init OpenSSL rand, RAND_status() is 0.."));
+				LOG(("MTP Error: Could not init OpenSSL rand, RAND_status() is 0..."));
 			}
 		}
 
@@ -1024,35 +1034,32 @@ MimeType mimeTypeForData(const QByteArray &data) {
 	return MimeType(QMimeDatabase().mimeTypeForData(data));
 }
 
-class InterfacesMetadatasMap : public QMap<uint64, InterfacesMetadata*> {
-public:
-	~InterfacesMetadatasMap() {
-		for (const_iterator i = cbegin(), e = cend(); i != e; ++i) {
-			delete i.value();
+struct ComposerMetadatasMap {
+	QMap<uint64, ComposerMetadata*> data;
+	~ComposerMetadatasMap() {
+		for_const (const ComposerMetadata *p, data) {
+			delete p;
 		}
 	}
 };
 
-const InterfacesMetadata *GetInterfacesMetadata(uint64 mask) {
-	typedef QMap<uint64, InterfacesMetadata*> InterfacesMetadatasMap;
-	static InterfacesMetadatasMap InterfacesMetadatas;
-	static QMutex InterfacesMetadatasMutex;
+const ComposerMetadata *GetComposerMetadata(uint64 mask) {
+	static ComposerMetadatasMap ComposerMetadatas;
+	static QMutex ComposerMetadatasMutex;
 
-	QMutexLocker lock(&InterfacesMetadatasMutex);
-	InterfacesMetadatasMap::const_iterator i = InterfacesMetadatas.constFind(mask);
-	if (i == InterfacesMetadatas.cend()) {
-		InterfacesMetadata *meta = new InterfacesMetadata(mask);
-		if (!meta) { // terminate if we can't allocate memory
-			throw "Can't allocate memory!";
-		}
+	QMutexLocker lock(&ComposerMetadatasMutex);
+	auto i = ComposerMetadatas.data.constFind(mask);
+	if (i == ComposerMetadatas.data.cend()) {
+		ComposerMetadata *meta = new ComposerMetadata(mask);
+		t_assert(meta != nullptr);
 
-		i = InterfacesMetadatas.insert(mask, meta);
+		i = ComposerMetadatas.data.insert(mask, meta);
 	}
 	return i.value();
 }
 
-const InterfacesMetadata *Interfaces::ZeroInterfacesMetadata = GetInterfacesMetadata(0);
+const ComposerMetadata *Composer::ZeroComposerMetadata = GetComposerMetadata(0);
 
-InterfaceWrapStruct InterfaceWraps[64];
+ComponentWrapStruct ComponentWraps[64];
 
-QAtomicInt InterfaceIndexLast(0);
+QAtomicInt ComponentIndexLast;

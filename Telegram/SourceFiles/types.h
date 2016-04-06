@@ -27,8 +27,8 @@ void deleteAndMark(T *&link) {
 }
 
 template <typename T>
-T *exchange(T *&ptr) {
-	T *result = 0;
+T *getPointerAndReset(T *&ptr) {
+	T *result = nullptr;
 	qSwap(result, ptr);
 	return result;
 }
@@ -36,37 +36,150 @@ T *exchange(T *&ptr) {
 struct NullType {
 };
 
-#if __cplusplus < 199711L
-#define TDESKTOP_CUSTOM_NULLPTR
-#endif
-
-#ifdef TDESKTOP_CUSTOM_NULLPTR
-class NullPointerClass {
-public:
-	template <typename T>
-	operator T*() const {
-		return 0;
-	}
-	template <typename C, typename T>
-	operator T C::*() const {
-		return 0;
-	}
-
-private:
-	void operator&() const;
-};
-extern NullPointerClass nullptr;
-#endif
-
+// ordered set template based on QMap
 template <typename T>
-class OrderedSet : public QMap<T, NullType> {
+class OrderedSet {
+	typedef OrderedSet<T> Self;
+	typedef QMap<T, NullType> Impl;
+	typedef typename Impl::iterator IteratorImpl;
+	typedef typename Impl::const_iterator ConstIteratorImpl;
+	Impl impl_;
+
 public:
 
-	void insert(const T &v) {
-		QMap<T, NullType>::insert(v, NullType());
-	}
+	inline bool operator==(const Self &other) const { return impl_ == other.impl_; }
+	inline bool operator!=(const Self &other) const { return impl_ != other.impl_; }
+	inline int size() const { return impl_.size(); }
+	inline bool isEmpty() const { return impl_.isEmpty(); }
+	inline void detach() { return impl_.detach(); }
+	inline bool isDetached() const { return impl_.isDetached(); }
+	inline void clear() { return impl_.clear(); }
+	inline QList<T> values() const { return impl_.keys(); }
+	inline const T &first() const { return impl_.firstKey(); }
+	inline const T &last() const { return impl_.lastKey(); }
+
+	class const_iterator;
+	class iterator {
+	public:
+		typedef typename IteratorImpl::iterator_category iterator_category;
+		typedef typename IteratorImpl::difference_type difference_type;
+		typedef T value_type;
+		typedef T *pointer;
+		typedef T &reference;
+
+		explicit iterator(const IteratorImpl &impl) : impl_(impl) {
+		}
+		inline const T &operator*() const { return impl_.key(); }
+		inline const T *operator->() const { return &impl_.key(); }
+		inline bool operator==(const iterator &other) const { return impl_ == other.impl_; }
+		inline bool operator!=(const iterator &other) const { return impl_ != other.impl_; }
+		inline iterator &operator++() { ++impl_; return *this; }
+		inline iterator operator++(int) { return iterator(impl_++); }
+		inline iterator &operator--() { --impl_; return *this; }
+		inline iterator operator--(int) { return iterator(impl_--); }
+		inline iterator operator+(int j) const { return iterator(impl_ + j); }
+		inline iterator operator-(int j) const { return iterator(impl_ - j); }
+		inline iterator &operator+=(int j) { impl_ += j; return *this; }
+		inline iterator &operator-=(int j) { impl_ -= j; return *this; }
+
+		friend class const_iterator;
+		inline bool operator==(const const_iterator &other) const { return impl_ == other.impl_; }
+		inline bool operator!=(const const_iterator &other) const { return impl_ != other.impl_; }
+
+	private:
+		IteratorImpl impl_;
+		friend class OrderedSet<T>;
+
+	};
+	friend class iterator;
+
+	class const_iterator {
+	public:
+		typedef typename IteratorImpl::iterator_category iterator_category;
+		typedef typename IteratorImpl::difference_type difference_type;
+		typedef T value_type;
+		typedef T *pointer;
+		typedef T &reference;
+
+		explicit const_iterator(const ConstIteratorImpl &impl) : impl_(impl) {
+		}
+		inline const T &operator*() const { return impl_.key(); }
+		inline const T *operator->() const { return &impl_.key(); }
+		inline bool operator==(const const_iterator &other) const { return impl_ == other.impl_; }
+		inline bool operator!=(const const_iterator &other) const { return impl_ != other.impl_; }
+		inline const_iterator &operator++() { ++impl_; return *this; }
+		inline const_iterator operator++(int) { return const_iterator(impl_++); }
+		inline const_iterator &operator--() { --impl_; return *this; }
+		inline const_iterator operator--(int) { return const_iterator(impl_--); }
+		inline const_iterator operator+(int j) const { return const_iterator(impl_ + j); }
+		inline const_iterator operator-(int j) const { return const_iterator(impl_ - j); }
+		inline const_iterator &operator+=(int j) { impl_ += j; return *this; }
+		inline const_iterator &operator-=(int j) { impl_ -= j; return *this; }
+
+		friend class iterator;
+		inline bool operator==(const iterator &other) const { return impl_ == other.impl_; }
+		inline bool operator!=(const iterator &other) const { return impl_ != other.impl_; }
+
+	private:
+		ConstIteratorImpl impl_;
+		friend class OrderedSet<T>;
+
+	};
+	friend class const_iterator;
+
+	// STL style
+	inline iterator begin() { return iterator(impl_.begin()); }
+	inline const_iterator begin() const { return const_iterator(impl_.cbegin()); }
+	inline const_iterator constBegin() const { return const_iterator(impl_.cbegin()); }
+	inline const_iterator cbegin() const { return const_iterator(impl_.cbegin()); }
+	inline iterator end() { detach(); return iterator(impl_.end()); }
+	inline const_iterator end() const { return const_iterator(impl_.cend()); }
+	inline const_iterator constEnd() const { return const_iterator(impl_.cend()); }
+	inline const_iterator cend() const { return const_iterator(impl_.cend()); }
+	inline iterator erase(iterator it) { return iterator(impl_.erase(it.impl_)); }
+
+	inline iterator insert(const T &value) { return iterator(impl_.insert(value, NullType())); }
+	inline iterator insert(const_iterator pos, const T &value) { return iterator(impl_.insert(pos.impl_, value, NullType())); }
+	inline int remove(const T &value) { return impl_.remove(value); }
+	inline bool contains(const T &value) const { return impl_.contains(value); }
+
+	// more Qt
+	typedef iterator Iterator;
+	typedef const_iterator ConstIterator;
+	inline int count() const { return impl_.count(); }
+	inline iterator find(const T &value) { return iterator(impl_.find(value)); }
+	inline const_iterator find(const T &value) const { return const_iterator(impl_.constFind(value)); }
+	inline const_iterator constFind(const T &value) const { return const_iterator(impl_.constFind(value)); }
+	inline Self &unite(const Self &other) { impl_.unite(other.impl_); return *this; }
+
+	// STL compatibility
+	typedef typename Impl::difference_type difference_type;
+	typedef typename Impl::size_type size_type;
+	inline bool empty() const { return impl_.empty(); }
 
 };
+
+// thanks Chromium see https://blogs.msdn.microsoft.com/the1/2004/05/07/how-would-you-get-the-count-of-an-array-in-c-2/
+template <typename T, size_t N> char(&ArraySizeHelper(T(&array)[N]))[N];
+#define arraysize(array) (sizeof(ArraySizeHelper(array)))
+
+#define qsl(s) QStringLiteral(s)
+#define qstr(s) QLatin1String(s, sizeof(s) - 1)
+
+// using for_const instead of plain range-based for loop to ensure usage of const_iterator
+// it is important for the copy-on-write Qt containers
+// if you have "QVector<T*> v" then "for (T * const p : v)" will still call QVector::detach(),
+// while "for_const(T *p, v)" won't and "for_const(T *&p, v)" won't compile
+template <typename T>
+struct ForConstTraits {
+	typedef const T &ExpressionType;
+};
+#define for_const(range_declaration, range_expression) for (range_declaration : static_cast<ForConstTraits<decltype(range_expression)>::ExpressionType>(range_expression))
+
+template <typename Enum>
+inline QFlags<Enum> qFlags(Enum v) {
+	return QFlags<Enum>(v);
+}
 
 //typedef unsigned char uchar; // Qt has uchar
 typedef qint16 int16;
@@ -102,14 +215,95 @@ typedef double float64;
 
 using std::string;
 using std::exception;
-using std::swap;
+
+// we copy some parts of C++11/14/17 std:: library, because on OS X 10.6+
+// version we can use C++11/14/17, but we can not use its library :(
+namespace std_ {
+
+template <typename T, T V>
+struct integral_constant {
+	static constexpr T value = V;
+
+	using value_type = T;
+	using type = integral_constant<T, V>;
+
+	constexpr operator value_type() const noexcept {
+		return (value);
+	}
+
+	constexpr value_type operator()() const noexcept {
+		return (value);
+	}
+};
+
+using true_type = integral_constant<bool, true>;
+using false_type = integral_constant<bool, false>;
+
+template <typename T>
+struct remove_reference {
+	using type = T;
+};
+template <typename T>
+struct remove_reference<T&> {
+	using type = T;
+};
+template <typename T>
+struct remove_reference<T&&> {
+	using type = T;
+};
+
+template <typename T>
+struct is_lvalue_reference : false_type {
+};
+template <typename T>
+struct is_lvalue_reference<T&> : true_type {
+};
+
+template <typename T>
+struct is_rvalue_reference : false_type {
+};
+template <typename T>
+struct is_rvalue_reference<T&&> : true_type {
+};
+
+template <typename T>
+inline constexpr T &&forward(typename remove_reference<T>::type &value) noexcept {
+	return static_cast<T&&>(value);
+}
+template <typename T>
+inline constexpr T &&forward(typename remove_reference<T>::type &&value) noexcept {
+	static_assert(!is_lvalue_reference<T>::value, "bad forward call");
+	return static_cast<T&&>(value);
+}
+
+template <typename T>
+inline constexpr typename remove_reference<T>::type &&move(T &&value) noexcept {
+	return static_cast<typename remove_reference<T>::type&&>(value);
+}
+
+template <typename T>
+struct add_const {
+	using type = const T;
+};
+template <typename T>
+using add_const_t = typename add_const<T>::type;
+template <typename T>
+constexpr add_const_t<T> &as_const(T& t) noexcept {
+	return t;
+}
+template <typename T>
+void as_const(const T&&) = delete;
+
+} // namespace std_
 
 #include "logs.h"
 
 static volatile int *t_assert_nullptr = 0;
 inline void t_noop() {}
 inline void t_assert_fail(const char *message, const char *file, int32 line) {
-	LOG(("Assertion Failed! %1 %2:%3").arg(message).arg(file).arg(line));
+	QString info(qsl("%1 %2:%3").arg(message).arg(file).arg(line));
+	LOG(("Assertion Failed! %1 %2:%3").arg(info));
+	SignalHandlers::setCrashAnnotation("Assertion", info);
 	*t_assert_nullptr = 0;
 }
 #define t_assert_full(condition, message, file, line) ((!(condition)) ? t_assert_fail(message, file, line) : t_noop())
@@ -138,12 +332,12 @@ private:
 };
 
 class MTPint;
-
-int32 myunixtime();
+typedef int32 TimeId;
+TimeId myunixtime();
 void unixtimeInit();
-void unixtimeSet(int32 servertime, bool force = false);
-int32 unixtime();
-int32 fromServerTime(const MTPint &serverTime);
+void unixtimeSet(TimeId servertime, bool force = false);
+TimeId unixtime();
+TimeId fromServerTime(const MTPint &serverTime);
 uint64 msgid();
 int32 reqid();
 
@@ -237,11 +431,13 @@ inline char *hashMd5Hex(const void *data, uint32 len, void *dest) { // dest = pt
 	return hashMd5Hex(HashMd5(data, len).result(), dest);
 }
 
+// good random (using openssl implementation)
 void memset_rand(void *data, uint32 len);
-
 template <typename T>
-inline void memsetrnd(T &value) {
-	memset_rand(&value, sizeof(value));
+T rand_value() {
+	T result;
+	memset_rand(&result, sizeof(result));
+	return result;
 }
 
 inline void memset_rand_bad(void *data, uint32 len) {
@@ -276,9 +472,6 @@ private:
 	QReadWriteLock *lock;
 
 };
-
-#define qsl(s) QStringLiteral(s)
-#define qstr(s) QLatin1String(s, sizeof(s) - 1)
 
 inline QString fromUtf8Safe(const char *str, int32 size = -1) {
 	if (!str || !size) return QString();
@@ -457,20 +650,22 @@ MimeType mimeTypeForName(const QString &mime);
 MimeType mimeTypeForFile(const QFileInfo &file);
 MimeType mimeTypeForData(const QByteArray &data);
 
-inline int32 rowscount(int32 count, int32 perrow) {
-	return (count + perrow - 1) / perrow;
+#include <cmath>
+
+inline int rowscount(int fullCount, int countPerRow) {
+	return (fullCount + countPerRow - 1) / countPerRow;
 }
-inline int32 floorclamp(int32 value, int32 step, int32 lowest, int32 highest) {
+inline int floorclamp(int value, int step, int lowest, int highest) {
 	return qMin(qMax(value / step, lowest), highest);
 }
-inline int32 floorclamp(float64 value, int32 step, int32 lowest, int32 highest) {
-	return qMin(qMax(qFloor(value / step), lowest), highest);
+inline int floorclamp(float64 value, int step, int lowest, int highest) {
+	return qMin(qMax(static_cast<int>(std::floor(value / step)), lowest), highest);
 }
-inline int32 ceilclamp(int32 value, int32 step, int32 lowest, int32 highest) {
-	return qMax(qMin((value / step) + ((value % step) ? 1 : 0), highest), lowest);
+inline int ceilclamp(int value, int step, int lowest, int highest) {
+	return qMax(qMin((value + step - 1) / step, highest), lowest);
 }
-inline int32 ceilclamp(float64 value, int32 step, int32 lowest, int32 highest) {
-	return qMax(qMin(qCeil(value / step), highest), lowest);
+inline int ceilclamp(float64 value, int32 step, int32 lowest, int32 highest) {
+	return qMax(qMin(static_cast<int>(std::ceil(value / step)), highest), lowest);
 }
 
 enum ForwardWhatMessages {
@@ -531,6 +726,66 @@ inline RefPairImplementation<T1, T2> RefPairCreator(T1 &first, T2 &second) {
 
 #define RefPair(Type1, Name1, Type2, Name2) Type1 Name1; Type2 Name2; RefPairCreator(Name1, Name2)
 
+template <typename T>
+class UniquePointer {
+public:
+	explicit UniquePointer(T *p = nullptr) : _p(p) {
+	}
+	UniquePointer(const UniquePointer<T> &other) = delete;
+	UniquePointer &operator=(const UniquePointer<T> &other) = delete;
+	UniquePointer(UniquePointer<T> &&other) : _p(other.release()) {
+	}
+	UniquePointer &operator=(UniquePointer<T> &&other) {
+		std::swap(_p, other._p);
+		return *this;
+	}
+	template <typename U>
+	UniquePointer(UniquePointer<U> &&other) : _p(other.release()) {
+	}
+	T *data() const {
+		return _p;
+	}
+	T *release() {
+		return getPointerAndReset(_p);
+	}
+	void reset(T *p = nullptr) {
+		*this = UniquePointer<T>(p);
+	}
+	bool isNull() const {
+		return data() == nullptr;
+	}
+
+	void clear() {
+		reset();
+	}
+	T *operator->() const {
+		return data();
+	}
+	T &operator*() const {
+		t_assert(!isNull());
+		return *data();
+	}
+	explicit operator bool() const {
+		return !isNull();
+	}
+	~UniquePointer() {
+		delete data();
+	}
+
+private:
+	T *_p;
+
+};
+template <typename T, class... Args>
+inline UniquePointer<T> MakeUnique(Args&&... args) {
+	return UniquePointer<T>(new T(std_::forward<Args>(args)...));
+}
+
+template <typename T, class... Args>
+inline QSharedPointer<T> MakeShared(Args&&... args) {
+	return QSharedPointer<T>(new T(std_::forward<Args>(args)...));
+}
+
 template <typename I>
 inline void destroyImplementation(I *&ptr) {
 	if (ptr) {
@@ -540,24 +795,26 @@ inline void destroyImplementation(I *&ptr) {
 	deleteAndMark(ptr);
 }
 
-class Interfaces;
-typedef void(*InterfaceConstruct)(void *location, Interfaces *interfaces);
-typedef void(*InterfaceDestruct)(void *location);
-typedef void(*InterfaceAssign)(void *location, void *waslocation);
+class Composer;
+typedef void(*ComponentConstruct)(void *location, Composer *composer);
+typedef void(*ComponentDestruct)(void *location);
+typedef void(*ComponentMove)(void *location, void *waslocation);
 
-struct InterfaceWrapStruct {
-	InterfaceWrapStruct() : Size(0), Construct(0), Destruct(0) {
+struct ComponentWrapStruct {
+	// don't init any fields, because it is only created in
+	// global scope, so it will be filled by zeros from the start
+	ComponentWrapStruct() {
 	}
-	InterfaceWrapStruct(int size, InterfaceConstruct construct, InterfaceDestruct destruct, InterfaceAssign assign)
+	ComponentWrapStruct(int size, ComponentConstruct construct, ComponentDestruct destruct, ComponentMove move)
 	: Size(size)
 	, Construct(construct)
 	, Destruct(destruct)
-	, Assign(assign) {
+	, Move(move) {
 	}
 	int Size;
-	InterfaceConstruct Construct;
-	InterfaceDestruct Destruct;
-	InterfaceAssign Assign;
+	ComponentConstruct Construct;
+	ComponentDestruct Destruct;
+	ComponentMove Move;
 };
 
 template <int Value, int Denominator>
@@ -566,36 +823,43 @@ struct CeilDivideMinimumOne {
 };
 
 template <typename Type>
-struct InterfaceWrapTemplate {
+struct ComponentWrapTemplate {
 	static const int Size = CeilDivideMinimumOne<sizeof(Type), sizeof(uint64)>::Result * sizeof(uint64);
-	static void Construct(void *location, Interfaces *interfaces) {
-		new (location) Type(interfaces);
+	static void Construct(void *location, Composer *composer) {
+		new (location) Type(composer);
 	}
 	static void Destruct(void *location) {
 		((Type*)location)->~Type();
 	}
-	static void Assign(void *location, void *waslocation) {
-		*((Type*)location) = *((Type*)waslocation);
+	static void Move(void *location, void *waslocation) {
+		*(Type*)location = std_::move(*(Type*)waslocation);
 	}
 };
 
-extern InterfaceWrapStruct InterfaceWraps[64];
-extern QAtomicInt InterfaceIndexLast;
+extern ComponentWrapStruct ComponentWraps[64];
+extern QAtomicInt ComponentIndexLast;
 
 template <typename Type>
-class BasicInterface {
+class BaseComponent {
 public:
+	BaseComponent() {
+	}
+	BaseComponent(const BaseComponent &other) = delete;
+	BaseComponent &operator=(const BaseComponent &other) = delete;
+	BaseComponent(BaseComponent &&other) = delete;
+	BaseComponent &operator=(BaseComponent &&other) = default;
+
 	static int Index() {
 		static QAtomicInt _index(0);
 		if (int index = _index.loadAcquire()) {
 			return index - 1;
 		}
 		while (true) {
-			int last = InterfaceIndexLast.loadAcquire();
-			if (InterfaceIndexLast.testAndSetOrdered(last, last + 1)) {
+			int last = ComponentIndexLast.loadAcquire();
+			if (ComponentIndexLast.testAndSetOrdered(last, last + 1)) {
 				t_assert(last < 64);
 				if (_index.testAndSetOrdered(0, last + 1)) {
-					InterfaceWraps[last] = InterfaceWrapStruct(InterfaceWrapTemplate<Type>::Size, InterfaceWrapTemplate<Type>::Construct, InterfaceWrapTemplate<Type>::Destruct, InterfaceWrapTemplate<Type>::Assign);
+					ComponentWraps[last] = ComponentWrapStruct(ComponentWrapTemplate<Type>::Size, ComponentWrapTemplate<Type>::Construct, ComponentWrapTemplate<Type>::Destruct, ComponentWrapTemplate<Type>::Move);
 				}
 				break;
 			}
@@ -603,27 +867,19 @@ public:
 		return _index.loadAcquire() - 1;
 	}
 	static uint64 Bit() {
-		return (1 << Index());
+		return (1ULL << Index());
 	}
 
 };
 
-template <typename Type>
-class BasicInterfaceWithPointer : public BasicInterface<Type> {
-public:
-	BasicInterfaceWithPointer(Interfaces *interfaces) : interfaces(interfaces) {
-	}
-	Interfaces *interfaces = 0;
-};
-
-class InterfacesMetadata {
+class ComposerMetadata {
 public:
 
-	InterfacesMetadata(uint64 mask) : size(0), last(64), _mask(mask) {
+	ComposerMetadata(uint64 mask) : size(0), last(64), _mask(mask) {
 		for (int i = 0; i < 64; ++i) {
 			uint64 m = (1 << i);
 			if (_mask & m) {
-				int s = InterfaceWraps[i].Size;
+				int s = ComponentWraps[i].Size;
 				if (s) {
 					offsets[i] = size;
 					size += s;
@@ -644,8 +900,14 @@ public:
 	int size, last;
 	int offsets[64];
 
-	bool equals(const uint64 &mask) const {
+	bool equals(uint64 mask) const {
 		return _mask == mask;
+	}
+	uint64 maskadd(uint64 mask) const {
+		return _mask | mask;
+	}
+	uint64 maskremove(uint64 mask) const {
+		return _mask & (~mask);
 	}
 
 private:
@@ -653,16 +915,16 @@ private:
 
 };
 
-const InterfacesMetadata *GetInterfacesMetadata(uint64 mask);
+const ComposerMetadata *GetComposerMetadata(uint64 mask);
 
-class Interfaces {
+class Composer {
 public:
 
-	Interfaces(uint64 mask = 0) : _data(zerodata()) {
+	Composer(uint64 mask = 0) : _data(zerodata()) {
 		if (mask) {
-			const InterfacesMetadata *meta = GetInterfacesMetadata(mask);
-			int32 size = sizeof(const InterfacesMetadata *) + meta->size;
-			void *data = malloc(size);
+			const ComposerMetadata *meta = GetComposerMetadata(mask);
+			int size = sizeof(meta) + meta->size;
+			void *data = operator new(size);
 			if (!data) { // terminate if we can't allocate memory
 				throw "Can't allocate memory!";
 			}
@@ -673,13 +935,13 @@ public:
 				int offset = meta->offsets[i];
 				if (offset >= 0) {
 					try {
-						InterfaceWraps[i].Construct(_dataptrunsafe(offset), this);
+						ComponentWraps[i].Construct(_dataptrunsafe(offset), this);
 					} catch (...) {
 						while (i > 0) {
 							--i;
 							offset = meta->offsets[--i];
 							if (offset >= 0) {
-								InterfaceWraps[i].Destruct(_dataptrunsafe(offset));
+								ComponentWraps[i].Destruct(_dataptrunsafe(offset));
 							}
 						}
 						throw;
@@ -688,33 +950,41 @@ public:
 			}
 		}
 	}
-	void UpdateInterfaces(uint64 mask = 0) {
-		if (!_meta()->equals(mask)) {
-			Interfaces tmp(mask);
-			tmp.swap(*this);
+	Composer(const Composer &other) = delete;
+	Composer &operator=(const Composer &other) = delete;
+	~Composer() {
+		if (_data != zerodata()) {
+			const ComposerMetadata *meta = _meta();
+			for (int i = 0; i < meta->last; ++i) {
+				int offset = meta->offsets[i];
+				if (offset >= 0) {
+					ComponentWraps[i].Destruct(_dataptrunsafe(offset));
+				}
+			}
+			operator delete(_data);
+		}
+	}
 
+	void UpdateComponents(uint64 mask = 0) {
+		if (!_meta()->equals(mask)) {
+			Composer tmp(mask);
+			tmp.swap(*this);
 			if (_data != zerodata() && tmp._data != zerodata()) {
-				const InterfacesMetadata *meta = _meta(), *wasmeta = tmp._meta();
+				const ComposerMetadata *meta = _meta(), *wasmeta = tmp._meta();
 				for (int i = 0; i < meta->last; ++i) {
 					int offset = meta->offsets[i], wasoffset = wasmeta->offsets[i];
 					if (offset >= 0 && wasoffset >= 0) {
-						InterfaceWraps[i].Assign(_dataptrunsafe(offset), tmp._dataptrunsafe(wasoffset));
+						ComponentWraps[i].Move(_dataptrunsafe(offset), tmp._dataptrunsafe(wasoffset));
 					}
 				}
 			}
 		}
 	}
-	~Interfaces() {
-		if (_data != zerodata()) {
-			const InterfacesMetadata *meta = _meta();
-			for (int i = 0; i < meta->last; ++i) {
-				int offset = meta->offsets[i];
-				if (offset >= 0) {
-					InterfaceWraps[i].Destruct(_dataptrunsafe(offset));
-				}
-			}
-			free(_data);
-		}
+	void AddComponents(uint64 mask = 0) {
+		UpdateComponents(_meta()->maskadd(mask));
+	}
+	void RemoveComponents(uint64 mask = 0) {
+		UpdateComponents(_meta()->maskremove(mask));
 	}
 
 	template <typename Type>
@@ -726,31 +996,28 @@ public:
 		return static_cast<const Type*>(_dataptr(_meta()->offsets[Type::Index()]));
 	}
 	template <typename Type>
-	bool Is() const {
+	bool Has() const {
 		return (_meta()->offsets[Type::Index()] >= 0);
 	}
 
 private:
-	static const InterfacesMetadata *ZeroInterfacesMetadata;
+	static const ComposerMetadata *ZeroComposerMetadata;
 	static void *zerodata() {
-		return &ZeroInterfacesMetadata;
+		return &ZeroComposerMetadata;
 	}
 
 	void *_dataptrunsafe(int skip) const {
-		return (char*)_data + sizeof(const InterfacesMetadata*) + skip;
+		return (char*)_data + sizeof(_meta()) + skip;
 	}
 	void *_dataptr(int skip) const {
 		return (skip >= 0) ? _dataptrunsafe(skip) : 0;
 	}
-	const InterfacesMetadata *&_meta() const {
-		return *static_cast<const InterfacesMetadata**>(_data);
+	const ComposerMetadata *&_meta() const {
+		return *static_cast<const ComposerMetadata**>(_data);
 	}
 	void *_data;
 
-	Interfaces(const Interfaces &other);
-	Interfaces &operator=(const Interfaces &other);
-
-	void swap(Interfaces &other) {
+	void swap(Composer &other) {
 		std::swap(_data, other._data);
 	}
 
@@ -786,7 +1053,7 @@ class FunctionCreator {
 public:
 	FunctionCreator(FunctionImplementation<R> *ptr) : _ptr(ptr) {}
 	FunctionCreator(const FunctionCreator<R> &other) : _ptr(other.create()) {}
-	FunctionImplementation<R> *create() const { return exchange(_ptr); }
+	FunctionImplementation<R> *create() const { return getPointerAndReset(_ptr); }
 	~FunctionCreator() { destroyImplementation(_ptr); }
 private:
 	FunctionCreator<R> &operator=(const FunctionCreator<R> &other);
@@ -855,7 +1122,7 @@ class Function1Creator {
 public:
 	Function1Creator(Function1Implementation<R, A1> *ptr) : _ptr(ptr) {}
 	Function1Creator(const Function1Creator<R, A1> &other) : _ptr(other.create()) {}
-	Function1Implementation<R, A1> *create() const { return exchange(_ptr); }
+	Function1Implementation<R, A1> *create() const { return getPointerAndReset(_ptr); }
 	~Function1Creator() { destroyImplementation(_ptr); }
 private:
 	Function1Creator<R, A1> &operator=(const Function1Creator<R, A1> &other);
@@ -924,7 +1191,7 @@ class Function2Creator {
 public:
 	Function2Creator(Function2Implementation<R, A1, A2> *ptr) : _ptr(ptr) {}
 	Function2Creator(const Function2Creator<R, A1, A2> &other) : _ptr(other.create()) {}
-	Function2Implementation<R, A1, A2> *create() const { return exchange(_ptr); }
+	Function2Implementation<R, A1, A2> *create() const { return getPointerAndReset(_ptr); }
 	~Function2Creator() { destroyImplementation(_ptr); }
 private:
 	Function2Creator<R, A1, A2> &operator=(const Function2Creator<R, A1, A2> &other);

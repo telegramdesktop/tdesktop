@@ -266,8 +266,7 @@ geoPoint#2049d70c long:double lat:double = GeoPoint;
 
 auth.checkedPhone#811ea28e phone_registered:Bool = auth.CheckedPhone;
 
-auth.sentCode#efed51d9 phone_registered:Bool phone_code_hash:string send_call_timeout:int is_password:Bool = auth.SentCode;
-auth.sentAppCode#e325edcf phone_registered:Bool phone_code_hash:string send_call_timeout:int is_password:Bool = auth.SentCode;
+auth.sentCode#5e002502 flags:# phone_registered:flags.0?true type:auth.SentCodeType phone_code_hash:string next_type:flags.1?auth.CodeType timeout:flags.2?int = auth.SentCode;
 
 auth.authorization#ff036af1 user:User = auth.Authorization;
 
@@ -496,8 +495,6 @@ account.privacyRules#554abb6f rules:Vector<PrivacyRule> users:Vector<User> = acc
 
 accountDaysTTL#b8d0afdf days:int = AccountDaysTTL;
 
-account.sentChangePhoneCode#a4f58c4c phone_code_hash:string send_call_timeout:int = account.SentChangePhoneCode;
-
 documentAttributeImageSize#6c37c15c w:int h:int = DocumentAttribute;
 documentAttributeAnimated#11b58939 = DocumentAttribute;
 documentAttributeSticker#3a556302 alt:string stickerset:InputStickerSet = DocumentAttribute;
@@ -649,6 +646,15 @@ messageFwdHeader#c786ddcb flags:# from_id:flags.0?int date:int channel_id:flags.
 
 channels.messageEditData#67e1255f flags:# caption:flags.0?true = channels.MessageEditData;
 
+auth.codeTypeSms#72a3158c = auth.CodeType;
+auth.codeTypeCall#741cd3e3 = auth.CodeType;
+auth.codeTypeFlashCall#226ccefb = auth.CodeType;
+
+auth.sentCodeTypeApp#3dbb5986 length:int = auth.SentCodeType;
+auth.sentCodeTypeSms#c000bba2 length:int = auth.SentCodeType;
+auth.sentCodeTypeCall#5353e5a7 length:int = auth.SentCodeType;
+auth.sentCodeTypeFlashCall#ab03c6d9 pattern:string = auth.SentCodeType;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -658,8 +664,7 @@ invokeWithLayer#da9b0d0d {X:Type} layer:int query:!X = X;
 invokeWithoutUpdates#bf9459b7 {X:Type} query:!X = X;
 
 auth.checkPhone#6fe51dfb phone_number:string = auth.CheckedPhone;
-auth.sendCode#768d5f4d phone_number:string sms_type:int api_id:int api_hash:string lang_code:string = auth.SentCode;
-auth.sendCall#3c51564 phone_number:string phone_code_hash:string = Bool;
+auth.sendCode#ccfd70cf flags:# allow_flashcall:flags.0?true phone_number:string current_number:flags.0?Bool api_id:int api_hash:string lang_code:string = auth.SentCode;
 auth.signUp#1b067634 phone_number:string phone_code_hash:string phone_code:string first_name:string last_name:string = auth.Authorization;
 auth.signIn#bcd51581 phone_number:string phone_code_hash:string phone_code:string = auth.Authorization;
 auth.logOut#5717da40 = Bool;
@@ -668,11 +673,12 @@ auth.sendInvites#771c1d97 phone_numbers:Vector<string> message:string = Bool;
 auth.exportAuthorization#e5bfffcd dc_id:int = auth.ExportedAuthorization;
 auth.importAuthorization#e3ef9613 id:int bytes:bytes = auth.Authorization;
 auth.bindTempAuthKey#cdd42a05 perm_auth_key_id:long nonce:long expires_at:int encrypted_message:bytes = Bool;
-auth.sendSms#da9f3e8 phone_number:string phone_code_hash:string = Bool;
 auth.importBotAuthorization#67a3ff2c flags:int api_id:int api_hash:string bot_auth_token:string = auth.Authorization;
 auth.checkPassword#a63011e password_hash:bytes = auth.Authorization;
 auth.requestPasswordRecovery#d897bc66 = auth.PasswordRecovery;
 auth.recoverPassword#4ea56e92 code:string = auth.Authorization;
+auth.resendCode#3ef1a9bf phone_number:string phone_code_hash:string = auth.SentCode;
+auth.cancelCode#1f040578 phone_number:string phone_code_hash:string = Bool;
 
 account.registerDevice#446c712c token_type:int token:string device_model:string system_version:string app_version:string app_sandbox:Bool lang_code:string = Bool;
 account.unregisterDevice#65c55b40 token_type:int token:string = Bool;
@@ -690,7 +696,7 @@ account.setPrivacy#c9f81ce8 key:InputPrivacyKey rules:Vector<InputPrivacyRule> =
 account.deleteAccount#418d4e0b reason:string = Bool;
 account.getAccountTTL#8fc711d = AccountDaysTTL;
 account.setAccountTTL#2442485e ttl:AccountDaysTTL = Bool;
-account.sendChangePhoneCode#a407a8f4 phone_number:string = account.SentChangePhoneCode;
+account.sendChangePhoneCode#8e57deb flags:# allow_flashcall:flags.0?true phone_number:string current_number:flags.0?Bool = auth.SentCode;
 account.changePhone#70c32edb phone_number:string phone_code_hash:string phone_code:string = User;
 account.updateDeviceLocked#38df3532 period:int = Bool;
 account.getAuthorizations#e320c158 = account.Authorizations;

@@ -45,11 +45,11 @@ typedef QHash<PhotoId, PhotoData*> PhotosData;
 typedef QHash<DocumentId, DocumentData*> DocumentsData;
 
 struct ReplyMarkup {
-	ReplyMarkup(int32 flags = 0) : flags(flags) {
+	ReplyMarkup(MTPDreplyKeyboardMarkup::Flags flags = 0) : flags(flags) {
 	}
 	typedef QList<QList<QString> > Commands;
 	Commands commands;
-	int32 flags;
+	MTPDreplyKeyboardMarkup::Flags flags;
 };
 
 class LayeredWidget;
@@ -64,7 +64,6 @@ namespace App {
 	ApiWrap *api();
 
 	void logOut();
-	bool loggedOut();
 
 	QString formatPhone(QString phone);
 
@@ -110,21 +109,47 @@ namespace App {
 	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert = 0);
 	WebPageData *feedWebPage(const MTPWebPage &webpage);
 
-	PeerData *peerLoaded(const PeerId &id);
-	UserData *userLoaded(const PeerId &id);
-	ChatData *chatLoaded(const PeerId &id);
-	ChannelData *channelLoaded(const PeerId &id);
-	UserData *userLoaded(int32 user);
-	ChatData *chatLoaded(int32 chat);
-	ChannelData *channelLoaded(int32 channel);
+	PeerData *peer(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded);
+	inline UserData *user(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
+		return asUser(peer(id, restriction));
+	}
+	inline ChatData *chat(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
+		return asChat(peer(id, restriction));
+	}
+	inline ChannelData *channel(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
+		return asChannel(peer(id, restriction));
+	}
+	inline UserData *user(UserId userId, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
+		return asUser(peer(peerFromUser(userId), restriction));
+	}
+	inline ChatData *chat(ChatId chatId, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
+		return asChat(peer(peerFromChat(chatId), restriction));
+	}
+	inline ChannelData *channel(ChannelId channelId, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
+		return asChannel(peer(peerFromChannel(channelId), restriction));
+	}
+	inline PeerData *peerLoaded(const PeerId &id) {
+		return peer(id, PeerData::FullLoaded);
+	}
+	inline UserData *userLoaded(const PeerId &id) {
+		return user(id, PeerData::FullLoaded);
+	}
+	inline ChatData *chatLoaded(const PeerId &id) {
+		return chat(id, PeerData::FullLoaded);
+	}
+	inline ChannelData *channelLoaded(const PeerId &id) {
+		return channel(id, PeerData::FullLoaded);
+	}
+	inline UserData *userLoaded(UserId userId) {
+		return user(userId, PeerData::FullLoaded);
+	}
+	inline ChatData *chatLoaded(ChatId chatId) {
+		return chat(chatId, PeerData::FullLoaded);
+	}
+	inline ChannelData *channelLoaded(ChannelId channelId) {
+		return channel(channelId, PeerData::FullLoaded);
+	}
 
-	PeerData *peer(const PeerId &id);
-	UserData *user(const PeerId &id);
-	ChatData *chat(const PeerId &id);
-	ChannelData *channel(const PeerId &id);
-	UserData *user(int32 user_id);
-	ChatData *chat(int32 chat_id);
-	ChannelData *channel(int32 channel_id);
 	UserData *self();
 	PeerData *peerByName(const QString &username);
 	QString peerName(const PeerData *peer, bool forDialogs = false);
@@ -145,10 +170,11 @@ namespace App {
 	History *historyLoaded(const PeerId &peer);
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId);
 	inline History *history(const PeerData *peer) {
+		t_assert(peer != nullptr);
 		return history(peer->id);
 	}
 	inline History *historyLoaded(const PeerData *peer) {
-		return historyLoaded(peer->id);
+		return peer ? historyLoaded(peer->id) : nullptr;
 	}
 	inline HistoryItem *histItemById(const ChannelData *channel, MsgId itemId) {
 		return histItemById(channel ? peerToChannel(channel->id) : 0, itemId);
@@ -250,7 +276,9 @@ namespace App {
 	const ReplyMarkup &replyMarkup(ChannelId channelId, MsgId msgId);
 
 	void setProxySettings(QNetworkAccessManager &manager);
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	QNetworkProxy getHttpProxySettings();
+#endif
 	void setProxySettings(QTcpSocket &socket);
 
 	QImage **cornersMask();

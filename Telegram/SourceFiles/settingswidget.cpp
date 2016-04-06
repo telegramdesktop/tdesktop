@@ -208,7 +208,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _logOut(this, lang(lng_settings_logout), st::btnLogout)
 , _supportGetRequest(0) {
 	if (self()) {
-		self()->photo->load();
+		self()->loadUserpic();
 
 		connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 		connect(App::api(), SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
@@ -319,7 +319,9 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	connect(&_autoLock, SIGNAL(clicked()), this, SLOT(onAutoLock()));
 	connect(&_passwordEdit, SIGNAL(clicked()), this, SLOT(onPassword()));
 	connect(&_passwordTurnOff, SIGNAL(clicked()), this, SLOT(onPasswordOff()));
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	connect(&_connectionType, SIGNAL(clicked()), this, SLOT(onConnectionType()));
+#endif
 	connect(&_showSessions, SIGNAL(clicked()), this, SLOT(onShowSessions()));
 	connect(&_askQuestion, SIGNAL(clicked()), this, SLOT(onAskQuestion()));
 	connect(&_telegramFAQ, SIGNAL(clicked()), this, SLOT(onTelegramFAQ()));
@@ -382,7 +384,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		updateChatBackground();
 	}
 
-	QPainter p(this);
+	Painter p(this);
 
 	p.setClipRect(e->rect());
 
@@ -399,7 +401,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		}
 
 		if (_photoLink) {
-			p.drawPixmap(_left, top, self()->photo->pix(st::setPhotoSize));
+			self()->paintUserpicLeft(p, st::setPhotoSize, _left, top, st::setWidth);
 		} else {
 			if (a_photoOver.current() < 1) {
 				p.drawPixmap(QPoint(_left, top), App::sprite(), st::setPhotoImg);
@@ -812,11 +814,23 @@ void SettingsInner::keyPressEvent(QKeyEvent *e) {
 			Ui::showLayer(box);
 			from = size;
 			break;
-        } else if (str == qstr("loadlang")) {
-            chooseCustomLang();
+		} else if (str == qstr("loadlang")) {
+			chooseCustomLang();
+		} else if (str == qstr("debugfiles") && cDebug()) {
+			if (DebugLogging::FileLoader()) {
+				Global::RefDebugLoggingFlags() &= ~DebugLogging::FileLoaderFlag;
+			} else {
+				Global::RefDebugLoggingFlags() |= DebugLogging::FileLoaderFlag;
+			}
+			Ui::showLayer(new InformBox(DebugLogging::FileLoader() ? "Enabled file download logging" : "Disabled file download logging"));
 		} else if (str == qstr("crashplease")) {
 			t_assert(!"Crashed in Settings!");
-		} else if (qsl("debugmode").startsWith(str) || qsl("testmode").startsWith(str) || qsl("loadlang").startsWith(str) || qsl("crashplease").startsWith(str)) {
+		} else if (
+			qsl("debugmode").startsWith(str) ||
+			qsl("testmode").startsWith(str) ||
+			qsl("loadlang").startsWith(str) ||
+			qsl("debugfiles").startsWith(str) ||
+			qsl("crashplease").startsWith(str)) {
 			break;
 		}
 		++from;
@@ -1183,6 +1197,10 @@ void SettingsInner::onUpdatePhotoCancel() {
 }
 
 void SettingsInner::onUpdatePhoto() {
+	if (!self()) {
+		return;
+	}
+
 	saveError();
 
 	QStringList imgExtensions(cImgExtensions());
@@ -1344,8 +1362,8 @@ void SettingsInner::onPasswordOff() {
 		_passwordTurnOff.hide();
 
 //		int32 flags = MTPDaccount_passwordInputSettings::flag_new_salt | MTPDaccount_passwordInputSettings::flag_new_password_hash | MTPDaccount_passwordInputSettings::flag_hint | MTPDaccount_passwordInputSettings::flag_email;
-		int32 flags = MTPDaccount_passwordInputSettings::flag_email;
-		MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_int(flags), MTP_string(QByteArray()), MTP_string(QByteArray()), MTP_string(QString()), MTP_string(QString())));
+		MTPDaccount_passwordInputSettings::Flags flags = MTPDaccount_passwordInputSettings::Flag::f_email;
+		MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_flags(flags), MTP_string(QByteArray()), MTP_string(QByteArray()), MTP_string(QString()), MTP_string(QString())));
 		MTP::send(MTPaccount_UpdatePasswordSettings(MTP_string(QByteArray()), settings), rpcDone(&SettingsInner::offPasswordDone), rpcFail(&SettingsInner::offPasswordFail));
 	} else {
 		PasscodeBox *box = new PasscodeBox(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint, true);
@@ -1366,11 +1384,13 @@ void SettingsInner::onAutoLock() {
 	Ui::showLayer(box);
 }
 
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 void SettingsInner::onConnectionType() {
 	ConnectionBox *box = new ConnectionBox();
 	connect(box, SIGNAL(closed()), this, SLOT(updateConnectionType()), Qt::QueuedConnection);
 	Ui::showLayer(box);
 }
+#endif
 
 void SettingsInner::onUsername() {
 	UsernameBox *box = new UsernameBox();

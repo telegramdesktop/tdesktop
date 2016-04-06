@@ -86,8 +86,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_cancel" = "취소";
 "lng_continue" = "계속";
 "lng_close" = "닫기";
-"lng_connecting" = "연결중입니다..";
-"lng_reconnecting" = " {count:지금| #초 후에| #초 후에} 다시 연결합니다..";
+"lng_connecting" = "연결중...";
+"lng_reconnecting" = "재연결중..{count:now|in # 초|in # 초}...";
 "lng_reconnecting_try_now" = "다시 시도";
 
 "lng_status_service_notifications" = "서비스 알림";
@@ -108,7 +108,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_status_lastseen_date" = "{date}에 마지막으로 접속";
 "lng_status_lastseen_date_time" = "{date}일 {time}에 마지막으로 접속";
 "lng_status_online" = "온라인";
-"lng_status_connecting" = "연결중..";
+"lng_status_connecting" = "연결중...";
 
 "lng_chat_status_unaccessible" = "그룹 접근 불가";
 "lng_chat_status_members" = "{count:맴버 없음|#명|#명}";
@@ -127,7 +127,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_edit_deleted" = "메시지는 삭제 되었습니다.";
 "lng_edit_too_long" = "메시지 길이가 너무 깁니다.";
 "lng_edit_message" = "메시지 수정";
-"lng_edit_message_text" = "새로운 메시지 내용.";
+"lng_edit_message_text" = "새로운 메시지...";
 "lng_deleted" = "알 수 없음";
 "lng_deleted_message" = "삭제된 메시지";
 "lng_pinned_message" = "고정된 메시지";
@@ -162,7 +162,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_code_telegram" = "[b]텔레그램[/b] 앱으로 부터 방금 수신받은,\n코드를 입력해주세요.";
 "lng_code_no_telegram" = "코드를 SMS로 전송";
 "lng_code_call" = "텔레그램이  {minutes}:{seconds}후에는 전화를 겁니다.";
-"lng_code_calling" = "텔레그램으로부터 전화 요청을 하고 있습니다..";
+"lng_code_calling" = "텔레그램으로부터 전화 요청을 하고 있습니다...";
 "lng_code_called" = "텔레그램이 회원님의 전화번호로 전화를 걸었습니다.";
 
 "lng_bad_phone" = "잘못된 전화번호입니다. 다시 시도해주세요.";
@@ -201,7 +201,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_dlg_new_channel_name" = "채널명";
 "lng_no_contacts" = "연락처가 없습니다.";
 "lng_no_chats" = "대화시 대화방이 존재 할 곳입니다.";
-"lng_contacts_loading" = "로드중..";
+"lng_contacts_loading" = "로딩중...";
 "lng_contacts_not_found" = "연락처를 찾을 수 없음";
 "lng_dlg_search_chat" = "이 채팅에서 검색";
 "lng_dlg_search_channel" = "이 채널방에서 검색";
@@ -210,7 +210,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_save" = "저장";
 "lng_settings_upload" = "프로필 이미지 선택";
 "lng_settings_crop_profile" = "프로필 사진으로 사용할 사각영역을 선택하세요";
-"lng_settings_uploading_photo" = "사진 업로드중..";
+"lng_settings_uploading_photo" = "사진 업로드 중...";
 
 "lng_username_title" = "아이디";
 "lng_username_about" = "텔레그램 아이디를 설정할 수 있습니다. \n아이디를 설정하면 회원님의 전화번호를 몰라도 아이디로 회원님을 찾아 대화를 나눌 수 있습니다.\n아이디는 영문, 밑줄, 숫자로 a-z, _, 0-9, \n다섯 글자 이상으로 설정해 주세요.";
@@ -247,9 +247,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_auto_update" = "자동 업데이트";
 "lng_settings_current_version" = " {version}";
 "lng_settings_check_now" = "업데이트 확인";
-"lng_settings_update_checking" = "업데이트 확인 중..";
+"lng_settings_update_checking" = "업데이트 확인 중...";
 "lng_settings_latest_installed" = "최신 버전이 설치되어 있습니다.";
-"lng_settings_downloading" = "업데이트를 다운로드중입니다.. {ready} / {total} MB..";
+"lng_settings_downloading" = "데이트를 다운로드 중 {ready} / {total} MB..";
 "lng_settings_update_ready" = "새로운 버전을 설치 할 수 있습니다.";
 "lng_settings_update_now" = "재시작 합니다.";
 "lng_settings_update_fail" = "업데이트 확인 실패 :(";
@@ -358,7 +358,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_cloud_password_is_same" = "비밀번호가 변경되지 않았습니다.";
 
 "lng_connection_type" = "연결 유형:";
-"lng_connection_auto_connecting" = "기본값 (연결중..)";
+"lng_connection_auto_connecting" = "기본값 (연결중...)";
 "lng_connection_auto" = "기본값 ({transport} 사용)";
 "lng_connection_proxy_connecting" = "프록시 연결 중...";
 "lng_connection_proxy" = "{transport} 프록시 연결";
@@ -439,7 +439,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_sure_kick" = "{user}를 추방하시겠습니까?";
 "lng_profile_sure_kick_channel" = "{user}를 추방하시겠습니까?";
 "lng_profile_sure_kick_admin" = "{user}를 관리자에서 제외 하시겠습니까?";
-"lng_profile_loading" = "로딩중..";
+"lng_profile_loading" = "로드중..";
 "lng_profile_shared_media" = "공유된 미디어";
 "lng_profile_no_media" = "대화에 미디어가 존재하지 않습니다.";
 "lng_profile_photos" = "{count:_not_used_|#개의 사진|#개의 사진} »";
@@ -455,6 +455,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_shared_links" = "{count:_not_used_|# 공유된 링크|# 공유된 링크} »";
 "lng_profile_shared_links_header" = "공유된 링크 현황";
 "lng_profile_copy_phone" = "전화번호 복사";
+"lng_profile_copy_fullname" = "이름 복사";
 
 "lng_channel_add_admins" = "새로운 관리자";
 "lng_channel_add_members" = "구성원 추가";
@@ -659,12 +660,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_stickers_remove" = "삭제";
 "lng_stickers_return" = "실행취소";
 "lng_stickers_restore" = "복구";
-"lng_stickers_count" = "{count:Loading..|# 스티커|# 스티커} ";
+"lng_stickers_count" = "{count:Loading...|# 스티커|# 스티커}";
 
 "lng_in_dlg_photo" = "사진";
-"lng_in_dlg_video" = "비디오";
+"lng_in_dlg_video" = "비디오 파일";
+"lng_in_dlg_audio_file" = "음성 파일";
 "lng_in_dlg_contact" = "연락처";
-"lng_in_dlg_audio" = "음성";
+"lng_in_dlg_audio" = "음성 메시지";
 "lng_in_dlg_file" = "파일";
 "lng_in_dlg_sticker" = "스티커";
 "lng_in_dlg_sticker_emoji" = "{emoji} (스티커)";
@@ -678,18 +680,20 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_report_spam_sure_group" = "선택한 그룹메시지를 스팸으로 신고하시겠습니까?";
 "lng_report_spam_sure_channel" = "선택한 채널메시지를 스팸으로 신고하시겠습니까?";
 "lng_report_spam_ok" = "신고하기";
-"lng_cant_send_to_not_contact" = "죄송하지만, 현재 서로 연락처가 추가된\n회원들끼리만 전송이 가능합니다. {more_info}";
-"lng_cant_invite_not_contact" = "죄송하지만, 현재 서로 연락처가 추가된\n회원들끼리만 추가 가능합니다. {more_info}";
-"lng_cant_invite_not_contact_channel" = "죄송하지만, 현재 서로 연락처가 추가된\n회원들끼리만 추가 가능합니다. {more_info}";
+"lng_cant_send_to_not_contact" = "죄송하지만, 현재 서로 연락처가 추가된 \n회원들끼리만 전송이 가능합니다. \n{more_info}";
+"lng_cant_invite_not_contact" = "죄송하지만, 현재 그룹방에 서로 연락처가 추가된 \n회원들끼리만 추가 가능합니다. {more_info}";
+"lng_cant_invite_not_contact_channel" = "죄송하지만, 현재 채널방에 서로 연락처가 추가된 \n회원들끼리만 추가 가능합니다. \n{more_info}";
 "lng_cant_more_info" = "자세한 정보 »";
+"lng_cant_invite_banned" = "죄송하지만, 관리자만 회원 추가가 가능합니다.";
 "lng_cant_invite_privacy" = "죄송합니다, 개인설정으로 인하여 이 사용자를 그룹에 초대할 수 없습니다.";
 "lng_cant_invite_privacy_channel" = "죄송합니다, 개인설정으로 인하여 이 사용자를 채널에 초대할 수 없습니다.";
+"lng_cant_do_this" = "죄송하지만, 할 수 없는 기능입니다.";
 
 "lng_send_button" = "보내기";
-"lng_message_ph" = "메시지 쓰기";
-"lng_comment_ph" = "코멘트 쓰기..";
-"lng_broadcast_ph" = "단체메시지 쓰기.";
-"lng_broadcast_silent_ph" = "음소거 메시지..";
+"lng_message_ph" = "메시지 쓰기..";
+"lng_comment_ph" = "코멘트 쓰기...";
+"lng_broadcast_ph" = "단체메시지 쓰기...";
+"lng_broadcast_silent_ph" = "음소거 메시지...";
 "lng_record_cancel" = "이 영역 밖에서 마우스 클릭을 해제하시면 취소가 됩니다.";
 "lng_will_be_notified" = "메시지 작성시 구성원들에게 알림이 갑니다.";
 "lng_wont_be_notified" = "메시지 작성시 구성원들에게 알림이 가지 않습니다.";
@@ -718,27 +722,28 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_users_typing" = "{user}님과 {second_user}님이 입력중입니다.";
 "lng_many_typing" = "{count:_not_used_|#명이|#명이} 입력중입니다";
 "lng_send_action_record_video" = "비디오 녹화 중";
-"lng_user_action_record_video" = "{user}님이 녹화중입니다.";
+"lng_user_action_record_video" = "{user}님이 녹화중입니다";
 "lng_send_action_upload_video" = "비디오 전송 중";
 "lng_user_action_upload_video" = "{user}님이 비디오를 전송 중입니다.";
-"lng_send_action_record_audio" = "오디오 녹음 중";
-"lng_user_action_record_audio" = "{user}님이 오디오를 녹음 중입니다.";
-"lng_send_action_upload_audio" = "오디오 전송 중";
-"lng_user_action_upload_audio" = "{user}님이 오디오를 전송 중입니다.";
+"lng_send_action_record_audio" = "음송 메시지 녹음 중";
+"lng_user_action_record_audio" = "{user}님이 오디오를 녹음 중입니다";
+"lng_send_action_upload_audio" = "음성 메시지 전송 중";
+"lng_user_action_upload_audio" = "{user}님이 음성 메시지는 전송 중입니다";
 "lng_send_action_upload_photo" = "사진 전송 중";
-"lng_user_action_upload_photo" = "{user}님이 사진을 전송 중입니다.";
-"lng_send_action_upload_file" = "파일을 전송 중";
-"lng_user_action_upload_file" = "{user}님이 사진을 전송 중입니다.";
+"lng_user_action_upload_photo" = "{user}님이 사진을 전송 중입니다";
+"lng_send_action_upload_file" = "파일 전송 중";
+"lng_user_action_upload_file" = "{user}님이 파일을 전송 중입니다";
 "lng_send_action_geo_location" = "위치 선택 중";
-"lng_user_action_geo_location" = "{user}님이 위치를 선택 중입니다.";
+"lng_user_action_geo_location" = "{user}님이 위치를 선택 중입닏";
 "lng_send_action_choose_contact" = "연락처 선택 중";
-"lng_user_action_choose_contact" = "{user}님이 연락처를 선택 중입니다.";
+"lng_user_action_choose_contact" = "{user}님이 연락처를 선택 중입니다";
 "lng_unread_bar" = "{count:_not_used_|#개의 읽지 않은 메시지|#개의 읽지 않은 메시지}";
 
 "lng_maps_point" = "위치";
 "lng_save_photo" = "사진 저장";
 "lng_save_video" = "동영상 저장";
-"lng_save_audio" = "음성 저장";
+"lng_save_audio_file" = "음성파일 저장";
+"lng_save_audio" = "음성 메시지 저장";
 "lng_save_file" = "파일 저장";
 "lng_save_downloaded" = "{ready} / {total} {mb}";
 "lng_duration_and_size" = "{duration}, {size}";
@@ -763,11 +768,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_cancel_download" = "다운로드 취소";
 "lng_context_show_in_folder" = "탐색기에서 보기";
 "lng_context_show_in_finder" = "탐색기에서 보기";
-"lng_context_save_video" = "비디오 이름을 다른이름으로 저장.";
-"lng_context_save_audio" = "음성메시지를 다른 이름으로 저장..";
+"lng_context_save_video" = "비디오를 다른 이름으로 저장...";
+"lng_context_save_audio_file" = "음성파일을 다른 이름으로 저장...";
+"lng_context_save_audio" = "음성메시지를 다른 이름으로 저장...";
 "lng_context_pack_info" = "팩 정보";
 "lng_context_pack_add" = "스티커 추가";
-"lng_context_save_file" = "파일을 다른 이름으로 저장..";
+"lng_context_save_file" = "파일을 다른 이름으로 저장...";
 "lng_context_forward_file" = "파일 전달";
 "lng_context_delete_file" = "파일 삭제";
 "lng_context_close_file" = "파일 닫기";
@@ -794,7 +800,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_send_image_too_large" = "파일이 1.5GB 보다 큼으로 전송 할 수 없습니다 :(";
 "lng_send_folder" = " «{name}»은 폴더이기 때문에 전송 할 수 없습니다 :(";
 
-"lng_forward_choose" = "수신자를 선택하세요..";
+"lng_forward_choose" = "수신자를 선택..";
 "lng_forward_cant" = "이쪽으로 전달 할 수 없습니다 :(";
 "lng_forward_confirm" = "{recipient} 님에게 전달하시겠습니까?";
 "lng_forward_share_contact" = "{recipient} 님에게 연락처를 공유하시겠습니까?";
@@ -857,7 +863,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_search_global_results" = "아이디 검색 결과";
 
 "lng_media_save_progress" = "{ready} / {total} {mb}";
-"lng_mediaview_save_as" = "다른 이름으로 저장하기";
+"lng_mediaview_save_as" = " 다른 이름으로 저장...";
 "lng_mediaview_copy" = "복사하기";
 "lng_mediaview_forward" = "전달";
 "lng_mediaview_delete" = "삭제";
@@ -880,7 +886,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "공개 그룹, 메시지 고정, 5,000명\n\n— 그룹은 5,000명까지 가능 (기존 1,000명)\n— 모든 그룹은 구성원 크기에 상관 없이 슈퍼그룹으로 변환 가능\n\n슈퍼그룹 관리기능 추가:\n\n— 공개링크를 생성하여 그룹공개 가능 - 누구나 참여하여 대화가능\n— 메시지를 고정하여 중요한 내용을 표시하고 모두에게 알림\n— 여러 메시지를 선택하여 삭제, 스팸신고, 차단 혹은 특정 유저에게 메시지 삭제 가능\n\n자세한 사항:\n{link}";
+"lng_new_version_text" = "— 비주얼 향상";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

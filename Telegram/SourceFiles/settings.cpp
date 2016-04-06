@@ -28,8 +28,6 @@ Qt::LayoutDirection gLangDir = gRtl ? Qt::RightToLeft : Qt::LeftToRight;
 
 QString gArguments;
 
-mtpDcOptions gDcOptions;
-
 bool gDevVersion = DevVersion;
 uint64 gBetaVersion = BETA_VERSION;
 uint64 gRealBetaVersion = BETA_VERSION;
@@ -110,9 +108,6 @@ EmojiColorVariants gEmojiVariants;
 
 RecentStickerPreload gRecentStickersPreload;
 RecentStickerPack gRecentStickers;
-StickerSets gStickerSets;
-StickerSetsOrder gStickerSetsOrder;
-uint64 gLastStickersUpdate = 0;
 
 SavedGifs gSavedGifs;
 uint64 gLastSavedGifsUpdate = 0;

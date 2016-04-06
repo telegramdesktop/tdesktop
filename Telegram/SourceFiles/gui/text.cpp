@@ -1654,6 +1654,7 @@ public:
 				*_getSymbolUpon = true;
 				return false;
 			} else if (_p) {
+#ifndef TDESKTOP_WINRT // temp
 				QTextCharFormat format;
 				QTextItemInt gf(glyphs.mid(glyphsStart, glyphsEnd - glyphsStart),
 								&_e->fnt, engine.layoutData->string.unicode() + itemStart,
@@ -1662,7 +1663,7 @@ public:
 				gf.width = itemWidth;
 				gf.justified = false;
 				gf.initWithScriptItem(si);
-
+#endif // !TDESKTOP_WINRT
 				if (_localFrom + itemStart < _selectedTo && _localFrom + itemEnd > _selectedFrom) {
 					QFixed selX = x, selWidth = itemWidth;
 					if (_localFrom + itemEnd > _selectedTo || _localFrom + itemStart < _selectedFrom) {
@@ -1703,7 +1704,9 @@ public:
 					_p->fillRect(QRectF(selX.toReal(), _y + _yDelta, selWidth.toReal(), _fontHeight), _textStyle->selectBg->b);
 				}
 
+#ifndef TDESKTOP_WINRT // temp
 				_p->drawTextItem(QPointF(x.toReal(), textY), gf);
+#endif // !TDESKTOP_WINRT
 			}
 
 			x += itemWidth;
@@ -2531,18 +2534,30 @@ Text::Text(style::font font, const QString &text, const TextParseOptions &option
 	}
 }
 
-Text::Text(const Text &other) :
-_minResizeWidth(other._minResizeWidth), _maxWidth(other._maxWidth),
-_minHeight(other._minHeight),
-_text(other._text),
-_font(other._font),
-_blocks(other._blocks.size()),
-_links(other._links),
-_startDir(other._startDir)
-{
+Text::Text(const Text &other)
+: _minResizeWidth(other._minResizeWidth)
+, _maxWidth(other._maxWidth)
+, _minHeight(other._minHeight)
+, _text(other._text)
+, _font(other._font)
+, _blocks(other._blocks.size())
+, _links(other._links)
+, _startDir(other._startDir) {
 	for (int32 i = 0, l = _blocks.size(); i < l; ++i) {
 		_blocks[i] = other._blocks.at(i)->clone();
 	}
+}
+
+Text::Text(Text &&other)
+: _minResizeWidth(other._minResizeWidth)
+, _maxWidth(other._maxWidth)
+, _minHeight(other._minHeight)
+, _text(other._text)
+, _font(other._font)
+, _blocks(other._blocks)
+, _links(other._links)
+, _startDir(other._startDir) {
+	other.clearFields();
 }
 
 Text &Text::operator=(const Text &other) {
@@ -2560,10 +2575,23 @@ Text &Text::operator=(const Text &other) {
 	return *this;
 }
 
+Text &Text::operator=(Text &&other) {
+	_minResizeWidth = other._minResizeWidth;
+	_maxWidth = other._maxWidth;
+	_minHeight = other._minHeight;
+	_text = other._text;
+	_font = other._font;
+	_blocks = other._blocks;
+	_links = other._links;
+	_startDir = other._startDir;
+	other.clearFields();
+	return *this;
+}
+
 void Text::setText(style::font font, const QString &text, const TextParseOptions &options) {
 	if (!_textStyle) _initDefault();
 	_font = font;
-	clean();
+	clear();
 	{
 		TextParser parser(this, text, options);
 	}
@@ -2641,7 +2669,7 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 void Text::setMarkedText(style::font font, const QString &text, const EntitiesInText &entities, const TextParseOptions &options) {
 	if (!_textStyle) _initDefault();
 	_font = font;
-	clean();
+	clear();
 	{
 //		QString newText; // utf16 of the text for emoji
 //		newText.reserve(8 * text.size());
@@ -3213,10 +3241,14 @@ EntitiesInText Text::originalEntities() const {
 	return result;
 }
 
-void Text::clean() {
+void Text::clear() {
 	for (TextBlocks::iterator i = _blocks.begin(), e = _blocks.end(); i != e; ++i) {
 		delete *i;
 	}
+	clearFields();
+}
+
+void Text::clearFields() {
 	_blocks.clear();
 	_links.clear();
 	_maxWidth = _minHeight = 0;
@@ -3468,7 +3500,7 @@ TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResi
 	if (length) {
 		style::font blockFont = font;
 		if (!flags && lnkIndex) {
-			// should use textStyle lnkFlags somehow.. not supported
+			// should use textStyle lnkFlags somehow... not supported
 		}
 
 		if ((flags & TextBlockFPre) || (flags & TextBlockFCode)) {
@@ -3501,7 +3533,14 @@ TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResi
 		layout.beginLayout();
 		layout.createLine();
 
+		bool logCrashString = (rand_value<uchar>() % 4 == 1);
+		if (logCrashString) {
+			SignalHandlers::setCrashAnnotationRef("CrashString", &part);
+		}
 		BlockParser parser(&engine, this, minResizeWidth, _from, part);
+		if (logCrashString) {
+			SignalHandlers::clearCrashAnnotationRef("CrashString");
+		}
 
 		layout.endLayout();
 	}
@@ -4559,6 +4598,7 @@ namespace {
 		case 65359: return QChar(111);
 		case 65363: return QChar(115);
 		case 65367: return QChar(119);
+		case 1105: return QChar(1077);
 		default:
 			break;
 		}

@@ -7,9 +7,11 @@
 /Telegram/SourceFiles/art/sprite_125x.png
 /Telegram/SourceFiles/art/sprite_150x.png
 /Telegram/*.user
+*.vcxproj.user
 *.suo
 *.sdf
 *.opensdf
+*.opendb
 /Telegram/*.aps
 /Win32/
 ipch/

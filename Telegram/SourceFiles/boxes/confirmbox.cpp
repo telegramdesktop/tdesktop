@@ -404,8 +404,11 @@ void PinMessageBox::resizeEvent(QResizeEvent *e) {
 void PinMessageBox::onPin() {
 	if (_requestId) return;
 
-	int32 flags = _notify.checked() ? 0 : MTPchannels_UpdatePinnedMessage::flag_silent;
-	_requestId = MTP::send(MTPchannels_UpdatePinnedMessage(MTP_int(flags), _channel->inputChannel, MTP_int(_msgId)), rpcDone(&PinMessageBox::pinDone), rpcFail(&PinMessageBox::pinFail));
+	MTPchannels_UpdatePinnedMessage::Flags flags = 0;
+	if (_notify.checked()) {
+		flags |= MTPchannels_UpdatePinnedMessage::Flag::f_silent;
+	}
+	_requestId = MTP::send(MTPchannels_UpdatePinnedMessage(MTP_flags(flags), _channel->inputChannel, MTP_int(_msgId)), rpcDone(&PinMessageBox::pinDone), rpcFail(&PinMessageBox::pinFail));
 }
 
 void PinMessageBox::showAll() {
@@ -473,7 +476,7 @@ void RichDeleteMessageBox::onDelete() {
 	if (_deleteAll.checked()) {
 		App::main()->deleteAllFromUser(_channel, _from);
 	}
-	if (auto item = App::histItemById(_channel ? peerToChannel(_channel->id) : 0, _msgId)) {
+	if (HistoryItem *item = App::histItemById(_channel ? peerToChannel(_channel->id) : 0, _msgId)) {
 		bool wasLast = (item->history()->lastMsg == item);
 		item->destroy();
 		if (_msgId > 0) {
@@ -482,7 +485,6 @@ void RichDeleteMessageBox::onDelete() {
 			App::main()->checkPeerHistory(_channel);
 		}
 	}
-	Notify::historyItemsResized();
 	Ui::hideLayer();
 }
 
