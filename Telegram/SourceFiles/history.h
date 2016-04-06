@@ -2485,6 +2485,7 @@ public:
 private:
 
 	int16 _pixw, _pixh;
+	ClickHandlerPtr _packLink;
 	DocumentData *_data;
 	QString _emoji;
 

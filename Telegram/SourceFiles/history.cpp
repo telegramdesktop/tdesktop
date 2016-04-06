@@ -5138,6 +5138,33 @@ bool HistoryGif::dataLoaded() const {
 	return (!_parent || _parent->id > 0) ? _data->loaded() : false;
 }
 
+namespace {
+
+class StickerClickHandler : public LeftButtonClickHandler {
+public:
+	StickerClickHandler(const HistoryItem *item) : _item(item) {
+	}
+
+protected:
+	void onClickImpl() const override {
+		if (HistoryMedia *media = _item->getMedia()) {
+			if (DocumentData *document = media->getDocument()) {
+				if (StickerData *sticker = document->sticker()) {
+					if (sticker->set.type() != mtpc_inputStickerSetEmpty && App::main()) {
+						App::main()->stickersBox(sticker->set);
+					}
+				}
+			}
+		}
+	}
+
+private:
+	const HistoryItem *_item;
+
+};
+
+} // namespace
+
 HistorySticker::HistorySticker(DocumentData *document) : HistoryMedia()
 , _pixw(1)
 , _pixh(1)
@@ -5150,6 +5177,9 @@ HistorySticker::HistorySticker(DocumentData *document) : HistoryMedia()
 }
 
 void HistorySticker::initDimensions(const HistoryItem *parent) {
+	if (!_packLink && _data->sticker() && _data->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
+		_packLink = ClickHandlerPtr(new StickerClickHandler(parent));
+	}
 	_pixw = _data->dimensions.width();
 	_pixh = _data->dimensions.height();
 	if (_pixw > st::maxStickerSize) {
@@ -5261,6 +5291,12 @@ void HistorySticker::getState(ClickHandlerPtr &lnk, HistoryCursorState &state, i
 		if (inDate) {
 			state = HistoryInDateCursorState;
 		}
+	}
+
+	int pixLeft = usex + (usew - _pixw) / 2, pixTop = (_minh - _pixh) / 2;
+	if (x >= pixLeft && x < pixLeft + _pixw && y >= pixTop && y < pixTop + _pixh) {
+		lnk = _packLink;
+		return;
 	}
 }
 

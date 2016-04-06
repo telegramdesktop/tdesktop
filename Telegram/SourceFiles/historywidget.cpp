@@ -1020,7 +1020,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(lang(ispinned ? lng_context_unpin_msg : lng_context_pin_msg), _widget, ispinned ? SLOT(onUnpinMessage()) : SLOT(onPinMessage()));
 				}
 			}
-			if (item && !isUponSelected && !_contextMenuLnk) {
+			if (item && !isUponSelected) {
 				if (HistoryMedia *media = (msg ? msg->getMedia() : 0)) {
 					if (media->type() == MediaTypeWebPage && static_cast<HistoryWebPage*>(media)->attach()) {
 						media = static_cast<HistoryWebPage*>(media)->attach();
@@ -1032,7 +1032,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						}
 
 						_menu->addAction(lang(lng_context_save_image), this, SLOT(saveContextFile()))->setEnabled(true);
-					} else if (media->type() == MediaTypeGif) {
+					} else if (media->type() == MediaTypeGif && !_contextMenuLnk) {
 						DocumentData *doc = media->getDocument();
 						if (doc) {
 							if (doc->loading()) {
@@ -7287,11 +7287,14 @@ void HistoryWidget::onFieldBarCancel() {
 }
 
 void HistoryWidget::onStickerPackInfo() {
-	if (HistoryMedia *media = (App::contextItem() ? App::contextItem()->getMedia() : 0)) {
-		if (media->type() == MediaTypeSticker) {
-			DocumentData *doc = media->getDocument();
-			if (doc && doc->sticker() && doc->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
-				App::main()->stickersBox(doc->sticker()->set);
+	if (!App::contextItem()) return;
+
+	if (HistoryMedia *media = App::contextItem()->getMedia()) {
+		if (DocumentData *doc = media->getDocument()) {
+			if (StickerData *sticker = doc->sticker()) {
+				if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
+					App::main()->stickersBox(sticker->set);
+				}
 			}
 		}
 	}
@@ -7300,7 +7303,7 @@ void HistoryWidget::onStickerPackInfo() {
 void HistoryWidget::previewCancel() {
 	MTP::cancel(_previewRequest);
 	_previewRequest = 0;
-	_previewData = 0;
+	_previewData = nullptr;
 	_previewLinks.clear();
 	updatePreview();
 	if (!_editMsgId && !_replyToId && !readyToForward() && !_kbReplyTo) {
