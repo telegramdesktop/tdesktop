@@ -49,6 +49,24 @@ PhotoData *ItemBase::getPhoto() const {
 	return _photo;
 }
 
+DocumentData *ItemBase::getPreviewDocument() const {
+	auto previewDocument = [this]() -> DocumentData* {
+		if (_doc) {
+			return _doc;
+		}
+		if (_result) {
+			return _result->_document;
+		}
+		return nullptr;
+	};
+	if (DocumentData *result = previewDocument()) {
+		if (result->sticker() || result->loaded()) {
+			return result;
+		}
+	}
+	return nullptr;
+}
+
 void ItemBase::preload() const {
 	if (_result) {
 		if (_result->_photo) {

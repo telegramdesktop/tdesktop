@@ -217,7 +217,7 @@ with open('scheme.tl') as f:
 
     if funcsNow:
       if (isTemplate != ''):
-        funcsText += '\ntemplate <class TQueryType>';
+        funcsText += '\ntemplate <typename TQueryType>';
       funcsText += '\nclass MTP' + name + ' { // RPC method \'' + nametype.group(1) + '\'\n'; # class
 
       funcsText += 'public:\n';

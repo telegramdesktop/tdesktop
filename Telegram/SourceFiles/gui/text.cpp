@@ -61,8 +61,8 @@ ClickHandlerHost::~ClickHandlerHost() {
 	ClickHandler::hostDestroyed(this);
 }
 
-ClickHandlerPtr *ClickHandler::_active = nullptr;
-ClickHandlerPtr *ClickHandler::_pressed = nullptr;
+NeverFreedPointer<ClickHandlerPtr> ClickHandler::_active;
+NeverFreedPointer<ClickHandlerPtr> ClickHandler::_pressed;
 ClickHandlerHost *ClickHandler::_activeHost = nullptr;
 ClickHandlerHost *ClickHandler::_pressedHost = nullptr;
 
@@ -86,9 +86,7 @@ bool ClickHandler::setActive(const ClickHandlerPtr &p, ClickHandlerHost *host) {
 		}
 	}
 	if (p) {
-		if (!_active) {
-			_active = new ClickHandlerPtr(); // won't be deleted
-		}
+		_active.createIfNull(MakeNeverFreedCreator<ClickHandlerPtr>());
 		*_active = p;
 		if ((_activeHost = host)) {
 			bool emitClickHandlerActiveChanged = (!_pressed || !*_pressed || *_pressed == *_active);

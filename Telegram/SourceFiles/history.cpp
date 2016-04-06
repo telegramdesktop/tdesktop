@@ -2740,36 +2740,57 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 	}
 }
 
-void ReplyMarkupClickHandler::onClickImpl() const {
-	const HistoryItem *item = nullptr;
-	const HistoryMessageReplyMarkup::Button *button = nullptr;
-	if (getItemAndButton(&item, &button)) {
-		App::activateBotCommand(item->history()->peer, *button, _msgId.msg);
+class ReplyMarkupClickHandler : public LeftButtonClickHandler {
+public:
+	ReplyMarkupClickHandler(const HistoryItem *item, int row, int col) : _item(item), _row(row), _col(col) {
 	}
-}
 
-// We need to make sure the item still exists, so we get it by id.
-// After that we check if the reply markup is still there and that
-// there are enough button rows and buttons in the row.
-// Note: it is possible that we will point to the different button
-// than the one was used when constructing the handler, but not a big deal.
-bool ReplyMarkupClickHandler::getItemAndButton(
-	const HistoryItem **outItem,
-	const HistoryMessageReplyMarkup::Button **outButton) const {
-	if (HistoryItem *item = App::histItemById(_msgId)) {
-		if (auto *markup = item->Get<HistoryMessageReplyMarkup>()) {
+	QString tooltip() const override {
+		return _fullDisplayed ? QString() : text();
+	}
+
+	void setFullDisplayed(bool full) {
+		_fullDisplayed = full;
+	}
+
+protected:
+	void onClickImpl() const override {
+		if (auto button = getButton()) {
+			MsgId replyTo = (_item->id > 0) ? _item->id : 0;
+			App::activateBotCommand(_item->history()->peer, *button, replyTo);
+		}
+	}
+
+private:
+	const HistoryItem *_item = nullptr;
+	int _row, _col;
+	bool _fullDisplayed = true;
+
+	// Finds the corresponding button in the items markup struct.
+	// If the button is not found it returns nullptr.
+	// Note: it is possible that we will point to the different button
+	// than the one was used when constructing the handler, but not a big deal.
+	const HistoryMessageReplyMarkup::Button *getButton() const {
+		if (auto *markup = _item->Get<HistoryMessageReplyMarkup>()) {
 			if (_row < markup->rows.size()) {
 				const HistoryMessageReplyMarkup::ButtonRow &row(markup->rows.at(_row));
 				if (_col < row.size()) {
-					if (outItem) *outItem = item;
-					if (outButton) *outButton = &row.at(_col);
-					return true;
+					return &row.at(_col);
 				}
 			}
 		}
+		return nullptr;
 	}
-	return false;
-}
+
+	// Returns the full text of the corresponding button.
+	QString text() const {
+		if (auto button = getButton()) {
+			return button->text;
+		}
+		return QString();
+	}
+
+};
 
 ReplyKeyboard::ReplyKeyboard(const HistoryItem *item, StylePtr &&s)
 : _item(item)
@@ -2785,7 +2806,7 @@ ReplyKeyboard::ReplyKeyboard(const HistoryItem *item, StylePtr &&s)
 				Button &button(newRow[j]);
 				QString str = row.at(j).text;
 				button.type = row.at(j).type;
-				button.link.reset(new ReplyMarkupClickHandler(item->fullId(), i, j));
+				button.link.reset(new ReplyMarkupClickHandler(item, i, j));
 				button.text.setText(_st->textFont(), textOneLine(str), _textPlainOptions);
 				button.characters = str.isEmpty() ? 1 : str.size();
 			}

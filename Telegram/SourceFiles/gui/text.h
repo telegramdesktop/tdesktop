@@ -366,9 +366,7 @@ public:
 		if (!_active || !*_active) {
 			return;
 		}
-		if (!_pressed) {
-			_pressed = new ClickHandlerPtr(); // won't be deleted
-		}
+		_pressed.createIfNull(MakeNeverFreedCreator<ClickHandlerPtr>());
 		*_pressed = *_active;
 		if ((_pressedHost = _activeHost)) {
 			_pressedHost->clickHandlerPressedChanged(*_pressed, true);
@@ -428,8 +426,8 @@ public:
 
 private:
 
-	static ClickHandlerPtr *_active;
-	static ClickHandlerPtr *_pressed;
+	static NeverFreedPointer<ClickHandlerPtr> _active;
+	static NeverFreedPointer<ClickHandlerPtr> _pressed;
 	static ClickHandlerHost *_activeHost;
 	static ClickHandlerHost *_pressedHost;
 

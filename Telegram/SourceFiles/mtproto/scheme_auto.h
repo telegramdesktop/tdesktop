@@ -14423,7 +14423,7 @@ public:
 	}
 };
 
-template <class TQueryType>
+template <typename TQueryType>
 class MTPinvokeAfterMsg { // RPC method 'invokeAfterMsg'
 public:
 	MTPlong vmsg_id;
@@ -14465,7 +14465,7 @@ public:
 	}
 };
 
-template <class TQueryType>
+template <typename TQueryType>
 class MTPinvokeAfterMsgs { // RPC method 'invokeAfterMsgs'
 public:
 	MTPVector<MTPlong> vmsg_ids;
@@ -14507,7 +14507,7 @@ public:
 	}
 };
 
-template <class TQueryType>
+template <typename TQueryType>
 class MTPinitConnection { // RPC method 'initConnection'
 public:
 	MTPint vapi_id;
@@ -14561,7 +14561,7 @@ public:
 	}
 };
 
-template <class TQueryType>
+template <typename TQueryType>
 class MTPinvokeWithLayer { // RPC method 'invokeWithLayer'
 public:
 	MTPint vlayer;
@@ -14603,7 +14603,7 @@ public:
 	}
 };
 
-template <class TQueryType>
+template <typename TQueryType>
 class MTPinvokeWithoutUpdates { // RPC method 'invokeWithoutUpdates'
 public:
 	TQueryType vquery;

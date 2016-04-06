@@ -73,6 +73,10 @@ public:
 	DocumentData *getDocument() const;
 	PhotoData *getPhoto() const;
 
+	// Get document (possibly from InlineBots::Result) for
+	// showing sticker or GIF preview.
+	DocumentData *getPreviewDocument() const;
+
 	virtual void preload() const;
 
 	void update();

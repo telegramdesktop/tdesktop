@@ -1121,45 +1121,7 @@ private:
 
 };
 
-class ReplyMarkupClickHandler : public LeftButtonClickHandler {
-public:
-	ReplyMarkupClickHandler(const FullMsgId &msgId, int row, int col) : _msgId(msgId), _row(row), _col(col) {
-	}
-
-	QString tooltip() const override {
-		return _fullDisplayed ? QString() : text();
-	}
-
-	void setFullDisplayed(bool full) {
-		_fullDisplayed = full;
-	}
-
-protected:
-	void onClickImpl() const override;
-
-private:
-	FullMsgId _msgId;
-	int _row, _col;
-	bool _fullDisplayed = true;
-
-	// Finds the corresponding item and button in the items markup struct.
-	// If the item or the button is not found it returns false.
-	// Any of the two output arguments can be nullptr if its value is not needed.
-	bool getItemAndButton(
-		const HistoryItem **outItem,
-		const HistoryMessageReplyMarkup::Button **outButtonPointer) const;
-
-	// Returns the full text of the corresponding button.
-	QString text() const {
-		const HistoryMessageReplyMarkup::Button *button = nullptr;
-		if (getItemAndButton(nullptr, &button)) {
-			return button->text;
-		}
-		return QString();
-	}
-
-};
-
+class ReplyMarkupClickHandler;
 class ReplyKeyboard {
 private:
 	struct Button;

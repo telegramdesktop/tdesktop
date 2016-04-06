@@ -2172,7 +2172,9 @@ void StickerPanInner::refreshPanels(QVector<EmojiPanel*> &panels) {
 }
 
 void StickerPanInner::updateSelected() {
-	if (_pressedSel >= 0 && !_previewShown) return;
+	if (_pressedSel >= 0 && !_previewShown) {
+		return;
+	}
 
 	int32 selIndex = -1;
 	QPoint p(mapFromGlobal(_lastMousePos));
@@ -2229,8 +2231,10 @@ void StickerPanInner::updateSelected() {
 			}
 			if (_pressedSel >= 0 && _selected >= 0 && _pressedSel != _selected) {
 				_pressedSel = _selected;
-				if (row >= 0 && col >= 0 && _inlineRows.at(row).items.at(col)->getDocument()) {
-					Ui::showStickerPreview(_inlineRows.at(row).items.at(col)->getDocument());
+				if (row >= 0 && col >= 0) {
+					if (DocumentData *previewDocument = _inlineRows.at(row).items.at(col)->getPreviewDocument()) {
+						Ui::showStickerPreview(previewDocument);
+					}
 				}
 			}
 		}
@@ -2329,9 +2333,11 @@ void StickerPanInner::onPreview() {
 	if (_pressedSel < 0) return;
 	if (_showingInlineItems) {
 		int32 row = _pressedSel / MatrixRowShift, col = _pressedSel % MatrixRowShift;
-		if (row < _inlineRows.size() && col < _inlineRows.at(row).items.size() && _inlineRows.at(row).items.at(col)->getDocument() && _inlineRows.at(row).items.at(col)->getDocument()->loaded()) {
-			Ui::showStickerPreview(_inlineRows.at(row).items.at(col)->getDocument());
-			_previewShown = true;
+		if (row < _inlineRows.size() && col < _inlineRows.at(row).items.size()) {
+			if (DocumentData *previewDocument = _inlineRows.at(row).items.at(col)->getPreviewDocument()) {
+				Ui::showStickerPreview(previewDocument);
+				_previewShown = true;
+			}
 		}
 	} else if (_pressedSel < MatrixRowShift * _sets.size()) {
 		int tab = (_pressedSel / MatrixRowShift), sel = _pressedSel % MatrixRowShift;

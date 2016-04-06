@@ -772,12 +772,12 @@ private:
 	T *_p;
 
 };
-template <typename T, class... Args>
+template <typename T, typename... Args>
 inline UniquePointer<T> MakeUnique(Args&&... args) {
 	return UniquePointer<T>(new T(std_::forward<Args>(args)...));
 }
 
-template <typename T, class... Args>
+template <typename T, typename... Args>
 inline QSharedPointer<T> MakeShared(Args&&... args) {
 	return QSharedPointer<T>(new T(std_::forward<Args>(args)...));
 }
@@ -831,6 +831,13 @@ private:
 	T *_p = nullptr;
 
 };
+
+template <typename T>
+using NeverFreedPointerCreator = T*(*)();
+template <typename T, typename... Args>
+inline NeverFreedPointerCreator<T> MakeNeverFreedCreator(Args&&... args) {
+	return []() -> T* { return new T(std_::forward<Args>(args)...); };
+}
 
 // This pointer is used for static non-POD variables that are allocated
 // on first use by constructor and are never automatically freed.
