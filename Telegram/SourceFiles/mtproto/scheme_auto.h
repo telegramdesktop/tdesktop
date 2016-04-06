@@ -30,7 +30,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 namespace MTP {
 namespace internal {
 
-static constexpr mtpPrime CurrentLayer = 52;
+static constexpr mtpPrime CurrentLayer = 51;
 
 class TypeCreator;
 

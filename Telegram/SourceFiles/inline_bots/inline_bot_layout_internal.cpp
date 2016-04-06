@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "inline_bots/inline_bot_result.h"
 #include "localstorage.h"
 #include "mainwidget.h"
+#include "lang.h"
 
 namespace InlineBots {
 namespace Layout {
@@ -654,13 +655,21 @@ void Video::initDimensions() {
 	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
 	int32 textWidth = _maxw - (withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0);
 	TextParseOptions titleOpts = { 0, _maxw, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
-	_title.setText(st::semiboldFont, textOneLine(_result->getLayoutTitle()), titleOpts);
+	QString title = textOneLine(_result->getLayoutTitle());
+	if (title.isEmpty()) {
+		title = lang(lng_media_video);
+	}
+	_title.setText(st::semiboldFont, title, titleOpts);
 	int32 titleHeight = qMin(_title.countHeight(_maxw), 2 * st::semiboldFont->height);
 
 	int32 descriptionLines = withThumb ? (titleHeight > st::semiboldFont->height ? 1 : 2) : 3;
 
 	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, descriptionLines * st::normalFont->height, Qt::LayoutDirectionAuto };
-	_description.setText(st::normalFont, _result->getLayoutDescription(), descriptionOpts);
+	QString description = _result->getLayoutDescription();
+	if (description.isEmpty()) {
+		description = _duration;
+	}
+	_description.setText(st::normalFont, description, descriptionOpts);
 	int32 descriptionHeight = qMin(_description.countHeight(_maxw), descriptionLines * st::normalFont->height);
 
 	_minh = st::inlineThumbSize;
