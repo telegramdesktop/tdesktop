@@ -28,6 +28,8 @@ enum MembersFilter {
 };
 typedef QMap<UserData*, bool> MembersAlreadyIn;
 
+QString cantInviteError();
+
 class ConfirmBox;
 class ContactsInner : public TWidget, public RPCSender {
 	Q_OBJECT
@@ -51,7 +53,7 @@ public:
 	void mouseMoveEvent(QMouseEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void resizeEvent(QResizeEvent *e);
-	
+
 	void paintDialog(Painter &p, PeerData *peer, ContactData *data, bool sel);
 	void updateFilter(QString filter = QString());
 
@@ -136,7 +138,7 @@ private:
 	UserData *_addAdmin;
 	mtpRequestId _addAdminRequestId;
 	ConfirmBox *_addAdminBox;
-	
+
 	int32 _time;
 
 	DialogsIndexed *_contacts;

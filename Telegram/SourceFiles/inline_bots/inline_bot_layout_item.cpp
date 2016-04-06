@@ -138,14 +138,14 @@ QString ItemBase::getResultUrl() const {
 
 ClickHandlerPtr ItemBase::getResultUrlHandler() const {
 	if (!_result->_url.isEmpty()) {
-		return clickHandlerFromUrl(_result->_url);
+		return MakeShared<UrlClickHandler>(_result->_url);
 	}
 	return ClickHandlerPtr();
 }
 
 ClickHandlerPtr ItemBase::getResultContentUrlHandler() const {
 	if (!_result->_content_url.isEmpty()) {
-		return clickHandlerFromUrl(_result->_content_url);
+		return MakeShared<UrlClickHandler>(_result->_content_url);
 	}
 	return ClickHandlerPtr();
 }

@@ -481,8 +481,12 @@ protected:
 class UrlClickHandler : public TextClickHandler {
 public:
 	UrlClickHandler(const QString &url, bool fullDisplayed = true) : TextClickHandler(fullDisplayed), _url(url) {
-		QUrl u(_url), good(u.isValid() ? u.toEncoded() : QString());
-		_readable = good.isValid() ? good.toDisplayString() : _url;
+		if (isEmail()) {
+			_readable = _url;
+		} else {
+			QUrl u(_url), good(u.isValid() ? u.toEncoded() : QString());
+			_readable = good.isValid() ? good.toDisplayString() : _url;
+		}
 	}
 	QString copyToClipboardContextItem() const override;
 
@@ -502,6 +506,10 @@ public:
 
 protected:
 	QString url() const override {
+		if (isEmail()) {
+			return _url;
+		}
+
 		QUrl u(_url), good(u.isValid() ? u.toEncoded() : QString());
 		QString result(good.isValid() ? QString::fromUtf8(good.toEncoded()) : _url);
 
@@ -515,6 +523,14 @@ protected:
 	}
 
 private:
+	static bool isEmail(const QString &url) {
+		int at = url.indexOf('@'), slash = url.indexOf('/');
+		return ((at > 0) && (slash < 0 || slash > at));
+	}
+	bool isEmail() const {
+		return isEmail(_url);
+	}
+
 	QString _url, _readable;
 
 };
@@ -527,41 +543,6 @@ public:
 	void onClick(Qt::MouseButton button) const override;
 
 };
-
-class EmailClickHandler : public TextClickHandler {
-public:
-	EmailClickHandler(const QString &email) : _email(email) {
-	}
-	QString copyToClipboardContextItem() const override;
-
-	QString text() const override {
-		return _email;
-	}
-
-	static void doOpen(QString email);
-	void onClick(Qt::MouseButton button) const override {
-		if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-			doOpen(_email);
-		}
-	}
-
-protected:
-	QString url() const override {
-		return _email;
-	}
-
-private:
-	QString _email;
-
-};
-
-inline TextClickHandlerPtr clickHandlerFromUrl(const QString &url) {
-	int32 at = url.indexOf('@'), slash = url.indexOf('/');
-	if ((at > 0) && (slash < 0 || slash > at)) {
-		return MakeShared<EmailClickHandler>(url);
-	}
-	return MakeShared<UrlClickHandler>(url);
-}
 
 struct LocationCoords {
 	LocationCoords() : lat(0), lon(0) {

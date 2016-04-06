@@ -1109,17 +1109,17 @@ LayoutOverviewLink::LayoutOverviewLink(HistoryMedia *media, HistoryItem *parent)
 			_photol.reset(new DocumentOpenClickHandler(_page->doc));
 		} else if (_page->photo) {
 			if (_page->type == WebPageProfile || _page->type == WebPageVideo) {
-				_photol = clickHandlerFromUrl(_page->url);
+				_photol = MakeShared<UrlClickHandler>(_page->url);
 			} else if (_page->type == WebPagePhoto || _page->siteName == qstr("Twitter") || _page->siteName == qstr("Facebook")) {
 				_photol.reset(new PhotoOpenClickHandler(_page->photo));
 			} else {
-				_photol = clickHandlerFromUrl(_page->url);
+				_photol = MakeShared<UrlClickHandler>(_page->url);
 			}
 		} else {
-			_photol = clickHandlerFromUrl(_page->url);
+			_photol = MakeShared<UrlClickHandler>(_page->url);
 		}
 	} else if (!_links.isEmpty()) {
-		_photol = clickHandlerFromUrl(_links.front().lnk->text());
+		_photol = MakeShared<UrlClickHandler>(_links.front().lnk->text());
 	}
 	if (from >= till && _page) {
 		text = _page->description;
@@ -1318,5 +1318,5 @@ void LayoutOverviewLink::getState(ClickHandlerPtr &link, HistoryCursorState &cur
 LayoutOverviewLink::Link::Link(const QString &url, const QString &text)
 : text(text)
 , width(st::normalFont->width(text))
-, lnk(clickHandlerFromUrl(url)) {
+, lnk(MakeShared<UrlClickHandler>(url)) {
 }

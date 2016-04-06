@@ -808,10 +808,8 @@ public:
 						} else {
 							lnk.reset(new HashtagClickHandler(data.url));
 						}
-					} else if (data.fullDisplayed < 0) { // email
-						lnk.reset(new EmailClickHandler(data.url));
-					} else {
-						lnk.reset(new UrlClickHandler(data.url, data.fullDisplayed > 0));
+					} else { // email or url
+						lnk.reset(new UrlClickHandler(data.url, data.fullDisplayed != 0));
 					}
 					_t->setLink(lnkIndex, lnk);
 				}
@@ -959,52 +957,64 @@ namespace {
 }
 
 QString UrlClickHandler::copyToClipboardContextItem() const {
-	return lang(lng_context_copy_link);
+	return lang(isEmail() ? lng_context_copy_email : lng_context_copy_link);
 }
 
-void UrlClickHandler::doOpen(QString url) {
-	PopupTooltip::Hide();
+namespace {
 
+QString tryConvertUrlToLocal(const QString &url) {
 	QRegularExpressionMatch telegramMeUser = QRegularExpression(qsl("^https?://telegram\\.me/([a-zA-Z0-9\\.\\_]+)(/?\\?|/?$|/(\\d+)/?(?:\\?|$))"), QRegularExpression::CaseInsensitiveOption).match(url);
 	QRegularExpressionMatch telegramMeGroup = QRegularExpression(qsl("^https?://telegram\\.me/joinchat/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
 	QRegularExpressionMatch telegramMeStickers = QRegularExpression(qsl("^https?://telegram\\.me/addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
 	QRegularExpressionMatch telegramMeShareUrl = QRegularExpression(qsl("^https?://telegram\\.me/share/url\\?(.+)$"), QRegularExpression::CaseInsensitiveOption).match(url);
 	if (telegramMeGroup.hasMatch()) {
-		url = qsl("tg://join?invite=") + myUrlEncode(telegramMeGroup.captured(1));
+		return qsl("tg://join?invite=") + myUrlEncode(telegramMeGroup.captured(1));
 	} else if (telegramMeStickers.hasMatch()) {
-		url = qsl("tg://addstickers?set=") + myUrlEncode(telegramMeStickers.captured(1));
+		return qsl("tg://addstickers?set=") + myUrlEncode(telegramMeStickers.captured(1));
 	} else if (telegramMeShareUrl.hasMatch()) {
-		url = qsl("tg://msg_url?") + telegramMeShareUrl.captured(1);
+		return qsl("tg://msg_url?") + telegramMeShareUrl.captured(1);
 	} else if (telegramMeUser.hasMatch()) {
 		QString params = url.mid(telegramMeUser.captured(0).size()), postParam;
 		if (QRegularExpression(qsl("^/\\d+/?(?:\\?|$)")).match(telegramMeUser.captured(2)).hasMatch()) {
 			postParam = qsl("&post=") + telegramMeUser.captured(3);
 		}
-		url = qsl("tg://resolve/?domain=") + myUrlEncode(telegramMeUser.captured(1)) + postParam + (params.isEmpty() ? QString() : '&' + params);
+		return qsl("tg://resolve/?domain=") + myUrlEncode(telegramMeUser.captured(1)) + postParam + (params.isEmpty() ? QString() : '&' + params);
+	}
+	return url;
+}
+
+} // namespace
+
+void UrlClickHandler::doOpen(QString url) {
+	PopupTooltip::Hide();
+
+	if (isEmail(url)) {
+		QUrl u(qstr("mailto:") + url);
+		if (!QDesktopServices::openUrl(u)) {
+			psOpenFile(u.toString(QUrl::FullyEncoded), true);
+		}
+		return;
 	}
 
-	if (QRegularExpression(qsl("^tg://[a-zA-Z0-9]+"), QRegularExpression::CaseInsensitiveOption).match(url).hasMatch()) {
+	url = tryConvertUrlToLocal(url);
+
+	if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
 		App::openLocalUrl(url);
 	} else {
 		QDesktopServices::openUrl(url);
 	}
 }
 
-QString EmailClickHandler::copyToClipboardContextItem() const {
-	return lang(lng_context_copy_email);
-}
-
-void EmailClickHandler::doOpen(QString email) {
-	PopupTooltip::Hide();
-
-	QUrl url(qstr("mailto:") + email);
-	if (!QDesktopServices::openUrl(url)) {
-		psOpenFile(url.toString(QUrl::FullyEncoded), true);
-	}
-}
-
 void HiddenUrlClickHandler::onClick(Qt::MouseButton button) const {
-	Ui::showLayer(new ConfirmLinkBox(url()));
+	QString u = url();
+
+	u = tryConvertUrlToLocal(u);
+
+	if (u.startsWith(qstr("tg://"))) {
+		App::openLocalUrl(u);
+	} else {
+		Ui::showLayer(new ConfirmLinkBox(u));
+	}
 }
 
 QString LocationClickHandler::copyToClipboardContextItem() const {
@@ -1333,10 +1343,11 @@ public:
 	}
 
 	const ClickHandlerPtr &link(int32 x, int32 y, int32 w, style::align align) {
-		static const ClickHandlerPtr *zero = new ClickHandlerPtr(); // won't be deleted
+		StaticNeverFreedPointer<ClickHandlerPtr> zero(new ClickHandlerPtr());
+
 		_lnkX = x;
 		_lnkY = y;
-		_lnkResult = zero;
+		_lnkResult = zero.data();
 		if (!_t->isNull() && _lnkX >= 0 && _lnkX < w && _lnkY >= 0) {
 			draw(0, 0, w, align, _lnkY, _lnkY + 1);
 		}

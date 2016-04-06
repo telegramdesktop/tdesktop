@@ -1163,7 +1163,7 @@ bool MainWidget::addParticipantFail(UserData *user, const RPCError &error) {
 	} else if (error.type() == "USER_ALREADY_PARTICIPANT" && user->botInfo) {
 		text = lang(lng_bot_already_in_group);
 	} else if (error.type() == "PEER_FLOOD") {
-		text = lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)));
+		text = cantInviteError();
 	}
 	Ui::showLayer(new InformBox(text));
 	return false;
@@ -1181,7 +1181,7 @@ bool MainWidget::addParticipantsFail(ChannelData *channel, const RPCError &error
 	} else if (error.type() == "USER_NOT_MUTUAL_CONTACT") { // trying to return user who does not have me in contacts
 		text = lang(channel->isMegagroup() ? lng_failed_add_not_mutual : lng_failed_add_not_mutual_channel);
 	} else if (error.type() == "PEER_FLOOD") {
-		text = lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)));
+		text = cantInviteError();
 	}
 	Ui::showLayer(new InformBox(text));
 	return false;
@@ -1288,7 +1288,7 @@ bool MainWidget::sendMessageFail(const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
 
 	if (error.type() == qsl("PEER_FLOOD")) {
-		Ui::showLayer(new InformBox(lng_cant_send_to_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)))));
+		Ui::showLayer(new InformBox(cantInviteError()));
 		return true;
 	}
 	return false;

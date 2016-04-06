@@ -33,6 +33,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "confirmbox.h"
 
+QString cantInviteError() {
+	return lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.me/spambot"), lang(lng_cant_more_info)));
+}
+
 ContactsInner::ContactsInner(CreatingGroupType creating) : TWidget()
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _newItemHeight(creating == CreatingGroupNone ? st::contactsNewItemHeight : 0)
@@ -1776,7 +1780,7 @@ bool ContactsBox::creationFail(const RPCError &error) {
 		_filter.showError();
 		return true;
 	} else if (error.type() == "PEER_FLOOD") {
-		Ui::showLayer(new InformBox(lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)))), KeepOtherLayers);
+		Ui::showLayer(new InformBox(cantInviteError()), KeepOtherLayers);
 		return true;
 	} else if (error.type() == qstr("USER_RESTRICTED")) {
 		Ui::showLayer(new InformBox(lang(lng_cant_do_this)));

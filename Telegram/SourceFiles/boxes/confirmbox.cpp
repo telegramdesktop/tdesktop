@@ -118,7 +118,7 @@ void ConfirmBox::updateHover() {
 	QPoint m(mapFromGlobal(_lastMousePos));
 
 	textstyleSet(&st::boxTextStyle);
-	ClickHandlerPtr handler = _text.linkLeft(m.x() - st::boxPadding.left(), m.y() - st::boxPadding.top(), _textWidth, width(), (_text.maxWidth() < width()) ? style::al_center : style::al_left);
+	ClickHandlerPtr handler = _text.linkLeft(m.x() - st::boxPadding.left(), m.y() - st::boxPadding.top(), _textWidth, width(), style::al_left);
 	textstyleRestore();
 
 	ClickHandler::setActive(handler, this);
@@ -183,11 +183,7 @@ ConfirmLinkBox::ConfirmLinkBox(const QString &url) : ConfirmBox(lang(lng_open_th
 
 void ConfirmLinkBox::onOpenLink() {
 	Ui::hideLayer();
-	if (reMailStart().match(_url).hasMatch()) {
-		EmailClickHandler::doOpen(_url);
-	} else {
-		UrlClickHandler::doOpen(_url);
-	}
+	UrlClickHandler::doOpen(_url);
 }
 
 MaxInviteBox::MaxInviteBox(const QString &link) : AbstractBox(st::boxWidth)
