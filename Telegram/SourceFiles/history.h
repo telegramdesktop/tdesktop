@@ -246,8 +246,8 @@ public:
 	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
 	HistoryItem *addToHistory(const MTPMessage &msg);
 	HistoryItem *addNewForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *item);
-	HistoryItem *addNewDocument(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption);
-	HistoryItem *addNewPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption);
+	HistoryItem *addNewDocument(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup);
+	HistoryItem *addNewPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup);
 
 	void addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPMessageGroup> *collapsed);
 	void addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPMessageGroup> *collapsed);
@@ -481,8 +481,8 @@ protected:
 
 	HistoryItem *createItem(const MTPMessage &msg, bool applyServiceAction, bool detachExistingItem);
 	HistoryItem *createItemForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *msg);
-	HistoryItem *createItemDocument(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption);
-	HistoryItem *createItemPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption);
+	HistoryItem *createItemDocument(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup);
+	HistoryItem *createItemPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup);
 
 	HistoryItem *addNewItem(HistoryItem *adding, bool newMsg);
 	HistoryItem *addNewInTheMiddle(HistoryItem *newItem, int32 blockIndex, int32 itemIndex);
@@ -1115,6 +1115,10 @@ struct HistoryMessageReplyMarkup : public BaseComponent<HistoryMessageReplyMarku
 	MTPDreplyKeyboardMarkup::Flags flags = 0;
 
 	UniquePointer<ReplyKeyboard> inlineKeyboard;
+
+private:
+	void createFromButtonRows(const QVector<MTPKeyboardButtonRow> &v);
+
 };
 
 class ReplyMarkupClickHandler : public LeftButtonClickHandler {
@@ -1431,7 +1435,7 @@ public:
 	}
 	bool definesReplyKeyboard() const {
 		if (auto *markup = Get<HistoryMessageReplyMarkup>()) {
-			if (markup->flags & MTPDreplyKeyboardMarkup::Flag::f_inline) {
+			if (markup->flags & MTPDreplyKeyboardMarkup_ClientFlag::f_inline) {
 				return false;
 			}
 			return true;
@@ -1764,7 +1768,7 @@ protected:
 
 	const HistoryMessageReplyMarkup *inlineReplyMarkup() const {
 		if (auto *markup = Get<HistoryMessageReplyMarkup>()) {
-			if (markup->flags & MTPDreplyKeyboardMarkup::Flag::f_inline) {
+			if (markup->flags & MTPDreplyKeyboardMarkup_ClientFlag::f_inline) {
 				return markup;
 			}
 		}
@@ -2767,11 +2771,11 @@ public:
 	static HistoryMessage *create(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, const QString &msg, const EntitiesInText &entities) {
 		return _create(history, msgId, flags, replyTo, viaBotId, date, from, msg, entities);
 	}
-	static HistoryMessage *create(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, DocumentData *doc, const QString &caption) {
-		return _create(history, msgId, flags, replyTo, viaBotId, date, from, doc, caption);
+	static HistoryMessage *create(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup) {
+		return _create(history, msgId, flags, replyTo, viaBotId, date, from, doc, caption, markup);
 	}
-	static HistoryMessage *create(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, PhotoData *photo, const QString &caption) {
-		return _create(history, msgId, flags, replyTo, viaBotId, date, from, photo, caption);
+	static HistoryMessage *create(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup) {
+		return _create(history, msgId, flags, replyTo, viaBotId, date, from, photo, caption, markup);
 	}
 
 	void initTime();
@@ -2835,14 +2839,7 @@ public:
     QString notificationText() const override;
 
 	void applyEdition(const MTPDmessage &message) override;
-	void updateMedia(const MTPMessageMedia *media) override {
-		if (media && _media && _media->type() != MediaTypeWebPage) {
-			_media->updateFrom(*media, this);
-		} else {
-			setMedia(media);
-		}
-		setPendingInitDimensions();
-	}
+	void updateMedia(const MTPMessageMedia *media) override;
 	int32 addToOverview(AddToOverviewMethod method) override;
 	void eraseFromOverview();
 
@@ -2915,8 +2912,8 @@ private:
 	HistoryMessage(History *history, const MTPDmessage &msg);
 	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *fwd); // local forwarded
 	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, const QString &msg, const EntitiesInText &entities); // local message
-	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, DocumentData *doc, const QString &caption); // local document
-	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, PhotoData *photo, const QString &caption); // local photo
+	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup); // local document
+	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup); // local photo
 	friend class HistoryItemInstantiated<HistoryMessage>;
 
 	void initDimensions() override;
@@ -2950,7 +2947,7 @@ private:
 		MsgId originalId = 0;
 		const MTPReplyMarkup *markup = nullptr;
 	};
-	void createComponentsHelper(MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId);
+	void createComponentsHelper(MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, const MTPReplyMarkup &markup);
 	void createComponents(const CreateConfig &config);
 
 	class KeyboardStyle : public ReplyKeyboard::Style {

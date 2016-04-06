@@ -121,6 +121,8 @@ private:
 	mutable MTPPhoto _mtpPhoto = MTP_photoEmpty(MTP_long(0));
 	PhotoData *_photo = nullptr;
 
+	UniquePointer<MTPReplyMarkup> _mtpKeyboard;
+
 	ImagePtr _thumb, _locationThumb;
 
 	UniquePointer<internal::SendData> sendData;

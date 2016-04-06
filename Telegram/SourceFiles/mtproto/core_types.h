@@ -1021,8 +1021,11 @@ enum class MTPDmessage_ClientFlag : int32 {
 	// message is attached to previous one when displaying the history
 	f_attach_to_previous = (1 << 25),
 
+	// message was sent from inline bot, need to re-set media when sent
+	f_from_inline_bot = (1 << 24),
+
 	// update this when adding new client side flags
-	MIN_FIELD = (1 << 25),
+	MIN_FIELD = (1 << 24),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDmessage)
 
@@ -1033,8 +1036,11 @@ enum class MTPDreplyKeyboardMarkup_ClientFlag : int32 {
 	// markup just wants a text reply
 	f_force_reply = (1 << 29),
 
+	// markup keyboard is inline
+	f_inline = (1 << 28),
+
 	// update this when adding new client side flags
-	MIN_FIELD = (1 << 29),
+	MIN_FIELD = (1 << 28),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDreplyKeyboardMarkup)
 

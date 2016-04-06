@@ -754,16 +754,13 @@ File::File(Result *result) : FileBase(result)
 
 void File::initDimensions() {
 	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
-	int32 textWidth = _maxw - (st::msgFileSize + st::inlineThumbSkip);
-	TextParseOptions titleOpts = { 0, _maxw, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
+	int textWidth = _maxw - (st::msgFileSize + st::inlineThumbSkip);
+
+	TextParseOptions titleOpts = { 0, _maxw, st::semiboldFont->height, Qt::LayoutDirectionAuto };
 	_title.setText(st::semiboldFont, textOneLine(_result->getLayoutTitle()), titleOpts);
-	int32 titleHeight = qMin(_title.countHeight(_maxw), 2 * st::semiboldFont->height);
 
-	int32 descriptionLines = 1;
-
-	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, descriptionLines * st::normalFont->height, Qt::LayoutDirectionAuto };
+	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, st::normalFont->height, Qt::LayoutDirectionAuto };
 	_description.setText(st::normalFont, _result->getLayoutDescription(), descriptionOpts);
-	int32 descriptionHeight = qMin(_description.countHeight(_maxw), descriptionLines * st::normalFont->height);
 
 	_minh = st::msgFileSize;
 	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
@@ -818,12 +815,10 @@ void File::paint(Painter &p, const QRect &clip, uint32 selection, const PaintCon
 	int descriptionTop = st::inlineRowMargin + st::inlineRowFileDescriptionTop;
 
 	p.setPen(st::black);
-	_title.drawLeftElided(p, left, titleTop, _width - left, _width, 2);
-	int32 titleHeight = st::semiboldFont->height;
+	_title.drawLeftElided(p, left, titleTop, _width - left, _width);
 
 	p.setPen(st::inlineDescriptionFg);
-	int32 descriptionLines = 1;
-	_description.drawLeftElided(p, left, descriptionTop, _width - left, _width, descriptionLines);
+	_description.drawLeftElided(p, left, descriptionTop, _width - left, _width);
 
 	if (!context->lastRow) {
 		p.fillRect(rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);

@@ -384,11 +384,12 @@ updateStickerSetsOrder#f0dfb451 order:Vector<long> = Update;
 updateStickerSets#43ae3dec = Update;
 updateSavedGifs#9375341e = Update;
 updateBotInlineQuery#54826690 flags:# query_id:long user_id:int query:string geo:flags.0?GeoPoint offset:string = Update;
-updateBotInlineSend#daa0c53d flags:# user_id:int query:string geo:flags.0?GeoPoint id:string = Update;
+updateBotInlineSend#e48f964 flags:# user_id:int query:string geo:flags.0?GeoPoint id:string msg_id:flags.1?InputBotInlineMessageID = Update;
 updateEditChannelMessage#1b3f4df7 message:Message pts:int pts_count:int = Update;
 updateChannelPinnedMessage#98592475 channel_id:int id:int = Update;
 updateBotCallbackQuery#a68c688c query_id:long user_id:int peer:Peer msg_id:int data:bytes = Update;
 updateEditMessage#e40370a3 message:Message pts:int pts_count:int = Update;
+updateInlineBotCallbackQuery#8bad2883 flags:# query_id:long user_id:int msg_id:flags.0?InputBotInlineMessageID data:bytes = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -568,7 +569,8 @@ keyboardButtonRow#77608b83 buttons:Vector<KeyboardButton> = KeyboardButtonRow;
 
 replyKeyboardHide#a03e5b85 flags:# selective:flags.2?true = ReplyMarkup;
 replyKeyboardForceReply#f4108aa0 flags:# single_use:flags.1?true selective:flags.2?true = ReplyMarkup;
-replyKeyboardMarkup#3502758c flags:# resize:flags.0?true single_use:flags.1?true selective:flags.2?true inline:flags.3?true rows:Vector<KeyboardButtonRow> = ReplyMarkup;
+replyKeyboardMarkup#3502758c flags:# resize:flags.0?true single_use:flags.1?true selective:flags.2?true rows:Vector<KeyboardButtonRow> = ReplyMarkup;
+replyInlineMarkup#48a30254 rows:Vector<KeyboardButtonRow> = ReplyMarkup;
 
 help.appChangelogEmpty#af7e0394 = help.AppChangelog;
 help.appChangelog#4668e6bd text:string = help.AppChangelog;
@@ -632,19 +634,21 @@ messages.foundGifs#450a1c0a next_offset:int results:Vector<FoundGif> = messages.
 messages.savedGifsNotModified#e8025ca2 = messages.SavedGifs;
 messages.savedGifs#2e0709a5 hash:int gifs:Vector<Document> = messages.SavedGifs;
 
-inputBotInlineMessageMediaAuto#2e43e587 caption:string = InputBotInlineMessage;
-inputBotInlineMessageText#adf0df71 flags:# no_webpage:flags.0?true message:string entities:flags.1?Vector<MessageEntity> = InputBotInlineMessage;
-inputBotInlineMessageMediaGeo#197dce7e geo_point:InputGeoPoint = InputBotInlineMessage;
-inputBotInlineMessageMediaVenue#8ab91f84 geo_point:InputGeoPoint title:string address:string provider:string venue_id:string = InputBotInlineMessage;
-inputBotInlineMessageMediaContact#52971c52 phone_number:string first_name:string last_name:string = InputBotInlineMessage;
+inputBotInlineMessageMediaAuto#292fed13 flags:# caption:string reply_markup:flags.2?ReplyMarkup = InputBotInlineMessage;
+inputBotInlineMessageText#3dcd7a87 flags:# no_webpage:flags.0?true message:string entities:flags.1?Vector<MessageEntity> reply_markup:flags.2?ReplyMarkup = InputBotInlineMessage;
+inputBotInlineMessageMediaGeo#f4a59de1 flags:# geo_point:InputGeoPoint reply_markup:flags.2?ReplyMarkup = InputBotInlineMessage;
+inputBotInlineMessageMediaVenue#aaafadc8 flags:# geo_point:InputGeoPoint title:string address:string provider:string venue_id:string reply_markup:flags.2?ReplyMarkup = InputBotInlineMessage;
+inputBotInlineMessageMediaContact#2daf01a7 flags:# phone_number:string first_name:string last_name:string reply_markup:flags.2?ReplyMarkup = InputBotInlineMessage;
 
 inputBotInlineResult#2cbbe15a flags:# id:string type:string title:flags.1?string description:flags.2?string url:flags.3?string thumb_url:flags.4?string content_url:flags.5?string content_type:flags.5?string w:flags.6?int h:flags.6?int duration:flags.7?int send_message:InputBotInlineMessage = InputBotInlineResult;
+inputBotInlineResultPhoto#a8d864a7 id:string type:string photo:InputPhoto send_message:InputBotInlineMessage = InputBotInlineResult;
+inputBotInlineResultDocument#fff8fdc4 flags:# id:string type:string title:flags.1?string description:flags.2?string document:InputDocument send_message:InputBotInlineMessage = InputBotInlineResult;
 
-botInlineMessageMediaAuto#fc56e87d caption:string = BotInlineMessage;
-botInlineMessageText#a56197a9 flags:# no_webpage:flags.0?true message:string entities:flags.1?Vector<MessageEntity> = BotInlineMessage;
-botInlineMessageMediaGeo#59d1ff36 geo:GeoPoint = BotInlineMessage;
-botInlineMessageMediaVenue#6fa16678 geo:GeoPoint title:string address:string provider:string venue_id:string = BotInlineMessage;
-botInlineMessageMediaContact#89202361 phone_number:string first_name:string last_name:string = BotInlineMessage;
+botInlineMessageMediaAuto#a74b15b flags:# caption:string reply_markup:flags.2?ReplyMarkup = BotInlineMessage;
+botInlineMessageText#8c7f65e2 flags:# no_webpage:flags.0?true message:string entities:flags.1?Vector<MessageEntity> reply_markup:flags.2?ReplyMarkup = BotInlineMessage;
+botInlineMessageMediaGeo#3a8fd8b8 flags:# geo:GeoPoint reply_markup:flags.2?ReplyMarkup = BotInlineMessage;
+botInlineMessageMediaVenue#4366232e flags:# geo:GeoPoint title:string address:string provider:string venue_id:string reply_markup:flags.2?ReplyMarkup = BotInlineMessage;
+botInlineMessageMediaContact#35edb4d4 flags:# phone_number:string first_name:string last_name:string reply_markup:flags.2?ReplyMarkup = BotInlineMessage;
 
 botInlineResult#9bebaeb9 flags:# id:string type:string title:flags.1?string description:flags.2?string url:flags.3?string thumb_url:flags.4?string content_url:flags.5?string content_type:flags.5?string w:flags.6?int h:flags.6?int duration:flags.7?int send_message:BotInlineMessage = BotInlineResult;
 botInlineMediaResult#17db940b flags:# id:string type:string photo:flags.0?Photo document:flags.1?Document title:flags.2?string description:flags.3?string send_message:BotInlineMessage = BotInlineResult;
@@ -667,6 +671,8 @@ auth.sentCodeTypeFlashCall#ab03c6d9 pattern:string = auth.SentCodeType;
 messages.botCallbackAnswer#1264f1c6 flags:# alert:flags.1?true message:flags.0?string = messages.BotCallbackAnswer;
 
 messages.messageEditData#26b5dde6 flags:# caption:flags.0?true = messages.MessageEditData;
+
+inputBotInlineMessageID#890c3d89 dc_id:int id:long access_hash:long = InputBotInlineMessageID;
 
 ---functions---
 
@@ -796,6 +802,7 @@ messages.getMessageEditData#fda68d36 peer:InputPeer id:int = messages.MessageEdi
 messages.editMessage#d2003257 flags:# no_webpage:flags.1?true peer:InputPeer id:int message:string entities:flags.3?Vector<MessageEntity> reply_markup:flags.2?ReplyMarkup = Updates;
 messages.getBotCallbackAnswer#a6e94f04 peer:InputPeer msg_id:int data:bytes = messages.BotCallbackAnswer;
 messages.setBotCallbackAnswer#481c591a flags:# alert:flags.1?true query_id:long message:flags.0?string = Bool;
+messages.editInlineBotMessage#a39b97fa flags:# no_webpage:flags.1?true id:InputBotInlineMessageID message:string entities:flags.3?Vector<MessageEntity> reply_markup:flags.2?ReplyMarkup = Bool;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#a041495 pts:int date:int qts:int = updates.Difference;

@@ -138,12 +138,18 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 		} else {
 			result->sendData.reset(new internal::SendFile(result->_document, result->_content_url, qs(r.vcaption)));
 		}
+		if (r.has_reply_markup()) {
+			result->_mtpKeyboard = MakeUnique<MTPReplyMarkup>(r.vreply_markup);
+		}
 	} break;
 
 	case mtpc_botInlineMessageText: {
 		const MTPDbotInlineMessageText &r(message->c_botInlineMessageText());
 		EntitiesInText entities = r.has_entities() ? entitiesFromMTP(r.ventities.c_vector().v) : EntitiesInText();
 		result->sendData.reset(new internal::SendText(qs(r.vmessage), entities, r.is_no_webpage()));
+		if (r.has_reply_markup()) {
+			result->_mtpKeyboard = MakeUnique<MTPReplyMarkup>(r.vreply_markup);
+		}
 	} break;
 
 	case mtpc_botInlineMessageMediaGeo: {
@@ -152,6 +158,9 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 			result->sendData.reset(new internal::SendGeo(r.vgeo.c_geoPoint()));
 		} else {
 			badAttachment = true;
+		}
+		if (r.has_reply_markup()) {
+			result->_mtpKeyboard = MakeUnique<MTPReplyMarkup>(r.vreply_markup);
 		}
 	} break;
 
@@ -162,11 +171,17 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 		} else {
 			badAttachment = true;
 		}
+		if (r.has_reply_markup()) {
+			result->_mtpKeyboard = MakeUnique<MTPReplyMarkup>(r.vreply_markup);
+		}
 	} break;
 
 	case mtpc_botInlineMessageMediaContact: {
 		const MTPDbotInlineMessageMediaContact &r(message->c_botInlineMessageMediaContact());
 		result->sendData.reset(new internal::SendContact(qs(r.vfirst_name), qs(r.vlast_name), qs(r.vphone_number)));
+		if (r.has_reply_markup()) {
+			result->_mtpKeyboard = MakeUnique<MTPReplyMarkup>(r.vreply_markup);
+		}
 	} break;
 
 	default: {
@@ -438,16 +453,23 @@ bool Result::hasThumbDisplay() const {
 };
 
 void Result::addToHistory(History *history, MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate, UserId viaBotId, MsgId replyToId) const {
+	flags |= MTPDmessage_ClientFlag::f_from_inline_bot;
+
+	MTPReplyMarkup markup = MTPnullMarkup;
+	if (_mtpKeyboard) {
+		flags |= MTPDmessage::Flag::f_reply_markup;
+		markup = *_mtpKeyboard;
+	}
 	if (DocumentData *document = sendData->getSentDocument()) {
-		history->addNewDocument(msgId, flags, viaBotId, replyToId, date(mtpDate), fromId, document, sendData->getSentCaption());
+		history->addNewDocument(msgId, flags, viaBotId, replyToId, date(mtpDate), fromId, document, sendData->getSentCaption(), markup);
 	} else if (PhotoData *photo = sendData->getSentPhoto()) {
-		history->addNewPhoto(msgId, flags, viaBotId, replyToId, date(mtpDate), fromId, photo, sendData->getSentCaption());
+		history->addNewPhoto(msgId, flags, viaBotId, replyToId, date(mtpDate), fromId, photo, sendData->getSentCaption(), markup);
 	} else {
 		internal::SendData::SentMTPMessageFields fields = sendData->getSentMessageFields(this);
 		if (!fields.entities.c_vector().v.isEmpty()) {
 			flags |= MTPDmessage::Flag::f_entities;
 		}
-		history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(msgId), MTP_int(fromId), peerToMTP(history->peer->id), MTPnullFwdHeader, MTP_int(viaBotId), MTP_int(replyToId), mtpDate, fields.text, fields.media, MTPnullMarkup, fields.entities, MTP_int(1), MTPint()), NewMessageUnread);
+		history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(msgId), MTP_int(fromId), peerToMTP(history->peer->id), MTPnullFwdHeader, MTP_int(viaBotId), MTP_int(replyToId), mtpDate, fields.text, fields.media, markup, fields.entities, MTP_int(1), MTPint()), NewMessageUnread);
 	}
 
 }

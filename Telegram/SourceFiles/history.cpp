@@ -1435,12 +1435,12 @@ HistoryItem *History::createItemForwarded(MsgId id, MTPDmessage::Flags flags, QD
 	return HistoryMessage::create(this, id, flags, date, from, msg);
 }
 
-HistoryItem *History::createItemDocument(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption) {
-	return HistoryMessage::create(this, id, flags, replyTo, viaBotId, date, from, doc, caption);
+HistoryItem *History::createItemDocument(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup) {
+	return HistoryMessage::create(this, id, flags, replyTo, viaBotId, date, from, doc, caption, markup);
 }
 
-HistoryItem *History::createItemPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption) {
-	return HistoryMessage::create(this, id, flags, replyTo, viaBotId, date, from, photo, caption);
+HistoryItem *History::createItemPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup) {
+	return HistoryMessage::create(this, id, flags, replyTo, viaBotId, date, from, photo, caption, markup);
 }
 
 HistoryItem *History::addNewService(MsgId msgId, QDateTime date, const QString &text, MTPDmessage::Flags flags, bool newMsg) {
@@ -1482,12 +1482,12 @@ HistoryItem *History::addNewForwarded(MsgId id, MTPDmessage::Flags flags, QDateT
 	return addNewItem(createItemForwarded(id, flags, date, from, item), true);
 }
 
-HistoryItem *History::addNewDocument(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption) {
-	return addNewItem(createItemDocument(id, flags, viaBotId, replyTo, date, from, doc, caption), true);
+HistoryItem *History::addNewDocument(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup) {
+	return addNewItem(createItemDocument(id, flags, viaBotId, replyTo, date, from, doc, caption, markup), true);
 }
 
-HistoryItem *History::addNewPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption) {
-	return addNewItem(createItemPhoto(id, flags, viaBotId, replyTo, date, from, photo, caption), true);
+HistoryItem *History::addNewPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup) {
+	return addNewItem(createItemPhoto(id, flags, viaBotId, replyTo, date, from, photo, caption, markup), true);
 }
 
 bool History::addToOverview(MediaOverviewType type, MsgId msgId, AddToOverviewMethod method) {
@@ -2985,6 +2985,49 @@ void ReplyKeyboard::Style::paintButton(Painter &p, const ReplyKeyboard::Button &
 	button.text.drawElided(p, tx, textTop + ((rect.height() - _st->height) / 2), tw, 1, style::al_top);
 }
 
+void HistoryMessageReplyMarkup::createFromButtonRows(const QVector<MTPKeyboardButtonRow> &v) {
+	if (v.isEmpty()) {
+		rows.clear();
+		return;
+	}
+
+	rows.reserve(v.size());
+	for_const(const MTPKeyboardButtonRow &row, v) {
+		switch (row.type()) {
+		case mtpc_keyboardButtonRow: {
+			const MTPDkeyboardButtonRow &r(row.c_keyboardButtonRow());
+			const QVector<MTPKeyboardButton> &b(r.vbuttons.c_vector().v);
+			if (!b.isEmpty()) {
+				ButtonRow buttonRow;
+				buttonRow.reserve(b.size());
+				for_const(const MTPKeyboardButton &button, b) {
+					switch (button.type()) {
+					case mtpc_keyboardButton: {
+						buttonRow.push_back({ Button::Default, qs(button.c_keyboardButton().vtext), QByteArray() });
+					} break;
+					case mtpc_keyboardButtonCallback: {
+						const auto &buttonData(button.c_keyboardButtonCallback());
+						buttonRow.push_back({ Button::Callback, qs(buttonData.vtext), qba(buttonData.vdata) });
+					} break;
+					case mtpc_keyboardButtonRequestGeoLocation: {
+						buttonRow.push_back({ Button::RequestLocation, qs(button.c_keyboardButtonRequestGeoLocation().vtext), QByteArray() });
+					} break;
+					case mtpc_keyboardButtonRequestPhone: {
+						buttonRow.push_back({ Button::RequestPhone, qs(button.c_keyboardButtonRequestPhone().vtext), QByteArray() });
+					} break;
+					case mtpc_keyboardButtonUrl: {
+						const auto &buttonData(button.c_keyboardButtonUrl());
+						buttonRow.push_back({ Button::Url, qs(buttonData.vtext), qba(buttonData.vurl) });
+					} break;
+					}
+				}
+				if (!buttonRow.isEmpty()) rows.push_back(buttonRow);
+			}
+		} break;
+		}
+	}
+}
+
 void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
 	flags = 0;
 	rows.clear();
@@ -2995,44 +3038,14 @@ void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
 		const MTPDreplyKeyboardMarkup &d(markup.c_replyKeyboardMarkup());
 		flags = d.vflags.v;
 
-		const QVector<MTPKeyboardButtonRow> &v(d.vrows.c_vector().v);
-		if (!v.isEmpty()) {
-			rows.reserve(v.size());
-			for_const (const MTPKeyboardButtonRow &row, v) {
-				switch (row.type()) {
-				case mtpc_keyboardButtonRow: {
-					const MTPDkeyboardButtonRow &r(row.c_keyboardButtonRow());
-					const QVector<MTPKeyboardButton> &b(r.vbuttons.c_vector().v);
-					if (!b.isEmpty()) {
-						ButtonRow buttonRow;
-						buttonRow.reserve(b.size());
-						for_const (const MTPKeyboardButton &button, b) {
-							switch (button.type()) {
-							case mtpc_keyboardButton: {
-								buttonRow.push_back({ Button::Default, qs(button.c_keyboardButton().vtext), QByteArray() });
-							} break;
-							case mtpc_keyboardButtonCallback: {
-								const auto &buttonData(button.c_keyboardButtonCallback());
-								buttonRow.push_back({ Button::Callback, qs(buttonData.vtext), qba(buttonData.vdata) });
-							} break;
-							case mtpc_keyboardButtonRequestGeoLocation: {
-								buttonRow.push_back({ Button::RequestLocation, qs(button.c_keyboardButtonRequestGeoLocation().vtext), QByteArray() });
-							} break;
-							case mtpc_keyboardButtonRequestPhone: {
-								buttonRow.push_back({ Button::RequestPhone, qs(button.c_keyboardButtonRequestPhone().vtext), QByteArray() });
-							} break;
-							case mtpc_keyboardButtonUrl: {
-								const auto &buttonData(button.c_keyboardButtonUrl());
-								buttonRow.push_back({ Button::Url, qs(buttonData.vtext), qba(buttonData.vurl) });
-							} break;
-							}
-						}
-						if (!buttonRow.isEmpty()) rows.push_back(buttonRow);
-					}
-				} break;
-				}
-			}
-		}
+		createFromButtonRows(d.vrows.c_vector().v);
+	} break;
+
+	case mtpc_replyInlineMarkup: {
+		const MTPDreplyInlineMarkup &d(markup.c_replyInlineMarkup());
+		flags = MTPDreplyKeyboardMarkup::Flags(0) | MTPDreplyKeyboardMarkup_ClientFlag::f_inline;
+
+		createFromButtonRows(d.vrows.c_vector().v);
 	} break;
 
 	case mtpc_replyKeyboardHide: {
@@ -6628,32 +6641,33 @@ HistoryMessage::HistoryMessage(History *history, MsgId id, MTPDmessage::Flags fl
 
 HistoryMessage::HistoryMessage(History *history, MsgId id, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, const QString &msg, const EntitiesInText &entities)
 : HistoryItem(history, id, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
-	createComponentsHelper(flags, replyTo, viaBotId);
+	createComponentsHelper(flags, replyTo, viaBotId, MTPnullMarkup);
 
 	setText(msg, entities);
 }
 
-HistoryMessage::HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, DocumentData *doc, const QString &caption)
+HistoryMessage::HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup)
 : HistoryItem(history, msgId, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
-	createComponentsHelper(flags, replyTo, viaBotId);
+	createComponentsHelper(flags, replyTo, viaBotId, markup);
 
 	initMediaFromDocument(doc, caption);
 	setText(QString(), EntitiesInText());
 }
 
-HistoryMessage::HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, PhotoData *photo, const QString &caption)
+HistoryMessage::HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup)
 : HistoryItem(history, msgId, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
-	createComponentsHelper(flags, replyTo, viaBotId);
+	createComponentsHelper(flags, replyTo, viaBotId, markup);
 
 	_media.reset(this, new HistoryPhoto(photo, caption, this));
 	setText(QString(), EntitiesInText());
 }
 
-void HistoryMessage::createComponentsHelper(MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId) {
+void HistoryMessage::createComponentsHelper(MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, const MTPReplyMarkup &markup) {
 	CreateConfig config;
 
 	if (flags & MTPDmessage::Flag::f_via_bot_id) config.viaBotId = viaBotId;
 	if (flags & MTPDmessage::Flag::f_reply_to_msg_id) config.replyTo = replyTo;
+	if (flags & MTPDmessage::Flag::f_reply_markup) config.markup = &markup;
 	if (isPost()) config.viewsCount = 1;
 
 	createComponents(config);
@@ -6935,6 +6949,19 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 	if (history()->textCachedFor == this) {
 		history()->textCachedFor = nullptr;
 	}
+}
+
+void HistoryMessage::updateMedia(const MTPMessageMedia *media) {
+	bool fromInlineBot = (_flags & MTPDmessage_ClientFlag::f_from_inline_bot);
+	if (media && _media && _media->type() != MediaTypeWebPage && !fromInlineBot) {
+		_media->updateFrom(*media, this);
+	} else {
+		setMedia(media);
+	}
+	if (fromInlineBot) {
+		_flags &= ~MTPDmessage_ClientFlag::f_from_inline_bot;
+	}
+	setPendingInitDimensions();
 }
 
 int32 HistoryMessage::addToOverview(AddToOverviewMethod method) {
