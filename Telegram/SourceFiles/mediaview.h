@@ -29,16 +29,16 @@ public:
 
 	MediaView();
 
-	void paintEvent(QPaintEvent *e);
+	void paintEvent(QPaintEvent *e) override;
 
-	void keyPressEvent(QKeyEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void contextMenuEvent(QContextMenuEvent *e);
+	void keyPressEvent(QKeyEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 	void touchEvent(QTouchEvent *e);
 
-	bool event(QEvent *e);
+	bool event(QEvent *e) override;
 
 	void hide();
 
@@ -51,10 +51,10 @@ public:
 	void moveToNext(int32 delta);
 	void preloadData(int32 delta);
 
-	void leaveToChildEvent(QEvent *e) { // e -- from enterEvent() of child TWidget
+	void leaveToChildEvent(QEvent *e) override { // e -- from enterEvent() of child TWidget
 		updateOverState(OverNone);
 	}
-	void enterFromChildEvent(QEvent *e) { // e -- from leaveEvent() of child TWidget
+	void enterFromChildEvent(QEvent *e) override { // e -- from leaveEvent() of child TWidget
 		updateOver(mapFromGlobal(QCursor::pos()));
 	}
 

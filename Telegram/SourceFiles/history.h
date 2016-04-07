@@ -1148,6 +1148,8 @@ public:
 		}
 
 		virtual void repaint(const HistoryItem *item) const = 0;
+		virtual ~Style() {
+		}
 
 	protected:
 		virtual void paintButtonBg(Painter &p, const QRect &rect, bool pressed, float64 howMuchOver) const = 0;
@@ -1913,10 +1915,6 @@ public:
 	virtual void updateFrom(const MTPMessageMedia &media, HistoryItem *parent) {
 	}
 
-	virtual bool isImageLink() const {
-		return false;
-	}
-
 	virtual bool animating() const {
 		return false;
 	}
@@ -2205,7 +2203,7 @@ struct HistoryDocumentThumbed : public BaseComponent<HistoryDocumentThumbed> {
 	mutable QString _link;
 };
 struct HistoryDocumentCaptioned : public BaseComponent<HistoryDocumentCaptioned> {
-	Text _caption = { st::msgFileMinWidth - st::msgPadding.left() - st::msgPadding.right() };
+	Text _caption = { int(st::msgFileMinWidth) - st::msgPadding.left() - st::msgPadding.right() };
 };
 struct HistoryDocumentNamed : public BaseComponent<HistoryDocumentNamed> {
 	QString _name;
@@ -2673,18 +2671,18 @@ class HistoryLocation : public HistoryMedia {
 public:
 
 	HistoryLocation(const LocationCoords &coords, const QString &title = QString(), const QString &description = QString());
-	HistoryMediaType type() const {
+	HistoryMediaType type() const override {
 		return MediaTypeLocation;
 	}
-	HistoryMedia *clone() const {
+	HistoryMedia *clone() const override {
 		return new HistoryLocation(*this);
 	}
 
-	void initDimensions(const HistoryItem *parent);
+	void initDimensions(const HistoryItem *parent) override;
 	int32 resize(int32 width, const HistoryItem *parent);
 
-	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const;
-	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const;
+	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const override;
+	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return p == _link;
@@ -2693,17 +2691,13 @@ public:
 		return p == _link;
 	}
 
-	const QString inDialogsText() const;
-	const QString inHistoryText() const;
+	const QString inDialogsText() const override;
+	const QString inHistoryText() const override;
 
-	bool isImageLink() const {
-		return true;
-	}
-
-	bool needsBubble(const HistoryItem *parent) const {
+	bool needsBubble(const HistoryItem *parent) const override {
 		return !_title.isEmpty() || !_description.isEmpty() || parent->Has<HistoryMessageForwarded>() || parent->Has<HistoryMessageReply>() || parent->viaBot();
 	}
-	bool customInfoLayout() const {
+	bool customInfoLayout() const override {
 		return true;
 	}
 

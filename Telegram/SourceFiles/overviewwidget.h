@@ -36,16 +36,16 @@ public:
 	bool preloadLocal();
 	void preloadMore();
 
-	bool event(QEvent *e);
+	bool event(QEvent *e) override;
 	void touchEvent(QTouchEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void keyPressEvent(QKeyEvent *e);
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
-	void resizeEvent(QResizeEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
 

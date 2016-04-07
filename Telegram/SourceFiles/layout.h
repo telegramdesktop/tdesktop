@@ -385,7 +385,7 @@ public:
 	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContextOverview *context) const override;
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
 
-	virtual DocumentData *getDocument() const {
+	virtual DocumentData *getDocument() const override {
 		return _data;
 	}
 

@@ -213,7 +213,6 @@ private:
 	mutable QPixmap _thumb;
 	Text _title, _description;
 	QString _duration;
-	int32 _durationWidth;
 
 	void prepareThumb(int32 width, int32 height) const;
 

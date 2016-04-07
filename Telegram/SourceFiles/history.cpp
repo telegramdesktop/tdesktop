@@ -2746,7 +2746,7 @@ public:
 	}
 
 	QString tooltip() const override {
-		return _fullDisplayed ? QString() : text();
+		return _fullDisplayed ? QString() : buttonText();
 	}
 
 	void setFullDisplayed(bool full) {
@@ -2780,7 +2780,7 @@ private:
 	bool _fullDisplayed = true;
 
 	// Returns the full text of the corresponding button.
-	QString text() const {
+	QString buttonText() const {
 		if (auto button = getButton()) {
 			return button->text;
 		}
@@ -7169,7 +7169,7 @@ HistoryMedia *HistoryMessage::getMedia() const {
 }
 
 void HistoryMessage::setMedia(const MTPMessageMedia *media) {
-	if ((!_media || _media->isImageLink()) && (!media || media->type() == mtpc_messageMediaEmpty)) return;
+	if (!_media && (!media || media->type() == mtpc_messageMediaEmpty)) return;
 
 	bool mediaWasDisplayed = false;
 	if (_media) {

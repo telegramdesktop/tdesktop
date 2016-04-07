@@ -861,7 +861,7 @@ template <typename T>
 using NeverFreedPointerCreator = T*(*)();
 template <typename T, typename... Args>
 inline NeverFreedPointerCreator<T> MakeNeverFreedCreator(Args&&... args) {
-	return []() -> T* { return new T(std_::forward<Args>(args)...); };
+	return [&args...]() -> T* { return new T(std_::forward<Args>(args)...); };
 }
 
 // This pointer is used for static non-POD variables that are allocated

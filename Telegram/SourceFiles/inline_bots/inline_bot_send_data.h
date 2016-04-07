@@ -86,10 +86,9 @@ protected:
 // Plain text message.
 class SendText : public SendData {
 public:
-	SendText(const QString &message, const EntitiesInText &entities, bool noWebPage)
+	SendText(const QString &message, const EntitiesInText &entities, bool/* noWebPage*/)
 		: _message(message)
-		, _entities(entities)
-		, _noWebPage(noWebPage) {
+		, _entities(entities) {
 	}
 
 	bool isValid() const override {
@@ -101,7 +100,6 @@ public:
 private:
 	QString _message;
 	EntitiesInText _entities;
-	bool _noWebPage;
 
 };
 

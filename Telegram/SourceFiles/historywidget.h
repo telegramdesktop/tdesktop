@@ -43,17 +43,17 @@ public:
 	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 
-	bool event(QEvent *e); // calls touchEvent when necessary
+	bool event(QEvent *e) override; // calls touchEvent when necessary
 	void touchEvent(QTouchEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void mouseDoubleClickEvent(QMouseEvent *e);
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void keyPressEvent(QKeyEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void mouseDoubleClickEvent(QMouseEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
 
 	QString getSelectedText() const;
@@ -151,7 +151,7 @@ private:
 
 	class BotAbout : public ClickHandlerHost {
 	public:
-		BotAbout(HistoryInner *parent, BotInfo *info) : _parent(parent), info(info) {
+		BotAbout(HistoryInner *parent, BotInfo *info) : info(info), _parent(parent) {
 		}
 		BotInfo *info = nullptr;
 		int width = 0;
@@ -311,13 +311,13 @@ public:
 
 	BotKeyboard();
 
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
 
 	// With force=true the markup is updated even if it is
 	// already shown for the passed history item.
@@ -340,8 +340,8 @@ public:
 	QPoint tooltipPos() const override;
 
 	// ClickHandlerHost interface
-	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);
-	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed);
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
 public slots:
 
@@ -464,9 +464,9 @@ class SilentToggle : public FlatCheckbox, public AbstractTooltipShower {
 public:
 
 	SilentToggle(QWidget *parent);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void leaveEvent(QEvent *e);
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void leaveEvent(QEvent *e) override;
 
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
