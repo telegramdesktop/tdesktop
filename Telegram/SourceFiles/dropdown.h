@@ -166,8 +166,8 @@ class Result;
 
 namespace internal {
 
-static constexpr int InlineItemsMaxPerRow = 5;
-static constexpr int EmojiColorsCount = 5;
+constexpr int InlineItemsMaxPerRow = 5;
+constexpr int EmojiColorsCount = 5;
 
 using InlineResult = InlineBots::Result;
 using InlineResults = QList<InlineBots::Result*>;
@@ -710,6 +710,7 @@ private:
 			clearResults();
 		}
 		QString nextOffset;
+		QString switchPmText, switchPmStartParam;
 		internal::InlineResults results;
 		void clearResults();
 	};

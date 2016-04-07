@@ -3044,6 +3044,10 @@ void HistoryMessageReplyMarkup::createFromButtonRows(const QVector<MTPKeyboardBu
 						const auto &buttonData(button.c_keyboardButtonUrl());
 						buttonRow.push_back({ Button::Url, qs(buttonData.vtext), qba(buttonData.vurl), 0 });
 					} break;
+					case mtpc_keyboardButtonSwitchInline: {
+						const auto &buttonData(button.c_keyboardButtonSwitchInline());
+						buttonRow.push_back({ Button::SwitchInline, qs(buttonData.vtext), qba(buttonData.vquery), 0 });
+					} break;
 					}
 				}
 				if (!buttonRow.isEmpty()) rows.push_back(buttonRow);
@@ -3637,10 +3641,10 @@ void HistoryPhoto::initDimensions(const HistoryItem *parent) {
 	}
 }
 
-int32 HistoryPhoto::resize(int32 width, const HistoryItem *parent) {
+int HistoryPhoto::resizeGetHeight(int width, const HistoryItem *parent) {
 	bool bubble = parent->hasBubble();
 
-	int32 tw = convertScale(_data->full->width()), th = convertScale(_data->full->height());
+	int tw = convertScale(_data->full->width()), th = convertScale(_data->full->height());
 	if (tw > st::maxMediaSize) {
 		th = (st::maxMediaSize * th) / tw;
 		tw = st::maxMediaSize;
@@ -3667,14 +3671,14 @@ int32 HistoryPhoto::resize(int32 width, const HistoryItem *parent) {
 	if (_pixw < 1) _pixw = 1;
 	if (_pixh < 1) _pixh = 1;
 
-	int32 minWidth = qMax(st::minPhotoSize, parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
+	int minWidth = qMax(st::minPhotoSize, parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	_width = qMax(_pixw, int16(minWidth));
 	_height = qMax(_pixh, int16(st::minPhotoSize));
 	if (bubble) {
 		_width += st::mediaPadding.left() + st::mediaPadding.right();
 		_height += st::mediaPadding.top() + st::mediaPadding.bottom();
 		if (!_caption.isEmpty()) {
-			int32 captionw = _width - st::msgPadding.left() - st::msgPadding.right();
+			int captionw = _width - st::msgPadding.left() - st::msgPadding.right();
 			_height += st::mediaCaptionSkip + _caption.countHeight(captionw) + st::msgPadding.bottom();
 		}
 	}
@@ -3688,11 +3692,11 @@ void HistoryPhoto::draw(Painter &p, const HistoryItem *parent, const QRect &r, b
 	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
 
 	bool notChild = (parent->getMedia() == this);
-	int32 skipx = 0, skipy = 0, width = _width, height = _height;
+	int skipx = 0, skipy = 0, width = _width, height = _height;
 	bool bubble = parent->hasBubble();
 	bool out = parent->out(), isPost = parent->isPost(), outbg = out && !isPost;
 
-	int32 captionw = width - st::msgPadding.left() - st::msgPadding.right();
+	int captionw = width - st::msgPadding.left() - st::msgPadding.right();
 
 	if (displayLoading) {
 		ensureAnimation(parent);
@@ -3782,16 +3786,16 @@ void HistoryPhoto::draw(Painter &p, const HistoryItem *parent, const QRect &r, b
 	}
 }
 
-void HistoryPhoto::getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const {
+void HistoryPhoto::getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y, const HistoryItem *parent) const {
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
-	int32 skipx = 0, skipy = 0, width = _width, height = _height;
+	int skipx = 0, skipy = 0, width = _width, height = _height;
 	bool bubble = parent->hasBubble();
 
 	if (bubble) {
 		skipx = st::mediaPadding.left();
 		skipy = st::mediaPadding.top();
 		if (!_caption.isEmpty()) {
-			int32 captionw = width - st::msgPadding.left() - st::msgPadding.right();
+			int captionw = width - st::msgPadding.left() - st::msgPadding.right();
 			height -= _caption.countHeight(captionw) + st::msgPadding.bottom();
 			if (x >= st::msgPadding.left() && y >= height && x < st::msgPadding.left() + captionw && y < _height) {
 				bool inText = false;
@@ -3953,10 +3957,10 @@ void HistoryVideo::initDimensions(const HistoryItem *parent) {
 	}
 }
 
-int32 HistoryVideo::resize(int32 width, const HistoryItem *parent) {
+int HistoryVideo::resizeGetHeight(int width, const HistoryItem *parent) {
 	bool bubble = parent->hasBubble();
 
-	int32 tw = convertScale(_data->thumb->width()), th = convertScale(_data->thumb->height());
+	int tw = convertScale(_data->thumb->width()), th = convertScale(_data->thumb->height());
 	if (!tw || !th) {
 		tw = th = 1;
 	}
@@ -3977,15 +3981,15 @@ int32 HistoryVideo::resize(int32 width, const HistoryItem *parent) {
 	}
 
 	_thumbw = qMax(tw, 1);
-	int32 minWidth = qMax(st::minPhotoSize, parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
-	minWidth = qMax(minWidth, documentMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
-	_width = qMax(_thumbw, int32(minWidth));
-	_height = qMax(th, int32(st::minPhotoSize));
+	int minWidth = qMax(st::minPhotoSize, parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
+	minWidth = qMax(minWidth, documentMaxStatusWidth(_data) + 2 * int(st::msgDateImgDelta + st::msgDateImgPadding.x()));
+	_width = qMax(_thumbw, int(minWidth));
+	_height = qMax(th, int(st::minPhotoSize));
 	if (bubble) {
 		_width += st::mediaPadding.left() + st::mediaPadding.right();
 		_height += st::mediaPadding.top() + st::mediaPadding.bottom();
 		if (!_caption.isEmpty()) {
-			int32 captionw = _width - st::msgPadding.left() - st::msgPadding.right();
+			int captionw = _width - st::msgPadding.left() - st::msgPadding.right();
 			_height += st::mediaCaptionSkip + _caption.countHeight(captionw) + st::msgPadding.bottom();
 		}
 	}
@@ -3998,11 +4002,11 @@ void HistoryVideo::draw(Painter &p, const HistoryItem *parent, const QRect &r, b
 	_data->automaticLoad(parent);
 	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
 
-	int32 skipx = 0, skipy = 0, width = _width, height = _height;
+	int skipx = 0, skipy = 0, width = _width, height = _height;
 	bool bubble = parent->hasBubble();
 	bool out = parent->out(), isPost = parent->isPost(), outbg = out && !isPost;
 
-	int32 captionw = width - st::msgPadding.left() - st::msgPadding.right();
+	int captionw = width - st::msgPadding.left() - st::msgPadding.right();
 
 	if (displayLoading) {
 		ensureAnimation(parent);
@@ -4087,7 +4091,7 @@ void HistoryVideo::draw(Painter &p, const HistoryItem *parent, const QRect &r, b
 	}
 }
 
-void HistoryVideo::getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const {
+void HistoryVideo::getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y, const HistoryItem *parent) const {
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
 	bool loaded = _data->loaded();
@@ -4313,10 +4317,10 @@ void HistoryDocument::initDimensions(const HistoryItem *parent) {
 	}
 }
 
-int32 HistoryDocument::resize(int32 width, const HistoryItem *parent) {
+int HistoryDocument::resizeGetHeight(int width, const HistoryItem *parent) {
 	auto *captioned = Get<HistoryDocumentCaptioned>();
 	if (!captioned) {
-		return HistoryFileMedia::resize(width, parent);
+		return HistoryFileMedia::resizeGetHeight(width, parent);
 	}
 
 	_width = qMin(width, _maxw);
@@ -4336,7 +4340,7 @@ void HistoryDocument::draw(Painter &p, const HistoryItem *parent, const QRect &r
 	_data->automaticLoad(parent);
 	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
 
-	int32 captionw = _width - st::msgPadding.left() - st::msgPadding.right();
+	int captionw = _width - st::msgPadding.left() - st::msgPadding.right();
 
 	bool out = parent->out(), isPost = parent->isPost(), outbg = out && !isPost;
 
@@ -4349,7 +4353,7 @@ void HistoryDocument::draw(Painter &p, const HistoryItem *parent, const QRect &r
 	bool showPause = updateStatusText(parent);
 	bool radial = isRadialAnimation(ms);
 
-	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, linktop = 0, bottom = 0;
+	int nameleft = 0, nametop = 0, nameright = 0, statustop = 0, linktop = 0, bottom = 0;
 	if (auto *thumbed = Get<HistoryDocumentThumbed>()) {
 		nameleft = st::msgFileThumbPadding.left() + st::msgFileThumbSize + st::msgFileThumbPadding.right();
 		nametop = st::msgFileThumbNameTop;
@@ -4550,7 +4554,7 @@ void HistoryDocument::draw(Painter &p, const HistoryItem *parent, const QRect &r
 	}
 }
 
-void HistoryDocument::getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const {
+void HistoryDocument::getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y, const HistoryItem *parent) const {
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
 	bool out = parent->out(), isPost = parent->isPost(), outbg = out && !isPost;
@@ -4862,10 +4866,10 @@ void HistoryGif::initDimensions(const HistoryItem *parent) {
 	}
 }
 
-int32 HistoryGif::resize(int32 width, const HistoryItem *parent) {
+int HistoryGif::resizeGetHeight(int width, const HistoryItem *parent) {
 	bool bubble = parent->hasBubble();
 
-	int32 tw = 0, th = 0;
+	int tw = 0, th = 0;
 	if (gif() && _gif->ready()) {
 		tw = convertScale(_gif->width());
 		th = convertScale(_gif->height());
@@ -5031,7 +5035,7 @@ void HistoryGif::draw(Painter &p, const HistoryItem *parent, const QRect &r, boo
 	}
 }
 
-void HistoryGif::getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const {
+void HistoryGif::getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y, const HistoryItem *parent) const {
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	int32 skipx = 0, skipy = 0, width = _width, height = _height;
 	bool bubble = parent->hasBubble();
@@ -5219,18 +5223,27 @@ void HistorySticker::initDimensions(const HistoryItem *parent) {
 	if (_pixh < 1) _pixh = 1;
 	_maxw = qMax(_pixw, int16(st::minPhotoSize));
 	_minh = qMax(_pixh, int16(st::minPhotoSize));
-	if (auto *reply = parent->Get<HistoryMessageReply>()) {
-		_maxw += st::msgReplyPadding.left() + reply->replyToWidth();
+	if (parent->getMedia() == this) {
+		_maxw += additionalWidth(parent);
 	}
 	_height = _minh;
 }
 
-int32 HistorySticker::resize(int32 width, const HistoryItem *parent) { // return new height
+int HistorySticker::resizeGetHeight(int width, const HistoryItem *parent) { // return new height
 	_width = qMin(width, _maxw);
-	if (auto *reply = parent->Get<HistoryMessageReply>()) {
-		int32 usew = _maxw - st::msgReplyPadding.left() - reply->replyToWidth();
-		int32 rw = _width - usew - st::msgReplyPadding.left() - st::msgReplyPadding.left() - st::msgReplyPadding.right();
-		reply->resize(rw);
+	if (parent->getMedia() == this) {
+		auto *via = parent->Get<HistoryMessageVia>();
+		auto *reply = parent->Get<HistoryMessageReply>();
+		if (via || reply) {
+			int usew = _maxw - additionalWidth(via, reply);
+			int availw = _width - usew - st::msgReplyPadding.left() - st::msgReplyPadding.left() - st::msgReplyPadding.left();
+			if (via) {
+				via->resize(availw);
+			}
+			if (reply) {
+				reply->resize(availw);
+			}
+		}
 	}
 	return _height;
 }
@@ -5241,12 +5254,13 @@ void HistorySticker::draw(Painter &p, const HistoryItem *parent, const QRect &r,
 	_data->checkSticker();
 	bool loaded = _data->loaded();
 
-	bool out = parent->out(), isPost = parent->isPost(), outbg = out && !isPost;
+	bool out = parent->out(), isPost = parent->isPost(), childmedia = (parent->getMedia() != this);
 
-	int32 usew = _maxw, usex = 0;
-	auto *reply = parent->Get<HistoryMessageReply>();
-	if (reply) {
-		usew -= st::msgReplyPadding.left() + reply->replyToWidth();
+	int usew = _maxw, usex = 0;
+	auto *via = childmedia ? nullptr : parent->Get<HistoryMessageVia>();
+	auto *reply = childmedia ? nullptr : parent->Get<HistoryMessageReply>();
+	if (via || reply) {
+		usew -= additionalWidth(via, reply);
 		if (isPost) {
 		} else if (out) {
 			usex = _width - usew;
@@ -5268,21 +5282,40 @@ void HistorySticker::draw(Painter &p, const HistoryItem *parent, const QRect &r,
 		}
 	}
 
-	if (parent->getMedia() == this) {
+	if (!childmedia) {
 		parent->drawInfo(p, usex + usew, _height, usex * 2 + usew, selected, InfoDisplayOverBackground);
 
-		if (reply) {
-			int32 rw = _width - usew - st::msgReplyPadding.left(), rh = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-			int32 rx = isPost ? (usew + st::msgReplyPadding.left()) : (out ? 0 : (usew + st::msgReplyPadding.left())), ry = _height - rh;
-			if (rtl()) rx = _width - rx - rw;
-
-			App::roundRect(p, rx, ry, rw, rh, selected ? App::msgServiceSelectBg() : App::msgServiceBg(), selected ? ServiceSelectedCorners : ServiceCorners);
-
-			HistoryMessageReply::PaintFlags flags = 0;
-			if (selected) {
-				flags |= HistoryMessageReply::PaintSelected;
+		if (via || reply) {
+			int rectw = _width - usew - st::msgReplyPadding.left();
+			int recth = st::msgReplyPadding.top() + st::msgReplyPadding.bottom();
+			if (via) {
+				recth += st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
 			}
-			reply->paint(p, parent, rx + st::msgReplyPadding.left(), ry, rw - st::msgReplyPadding.left() - st::msgReplyPadding.right(), flags);
+			if (reply) {
+				recth += st::msgReplyBarSize.height();
+			}
+			int rectx = isPost ? (usew + st::msgReplyPadding.left()) : (out ? 0 : (usew + st::msgReplyPadding.left()));
+			int recty = _height - recth;
+			if (rtl()) rectx = _width - rectx - rectw;
+
+			// Make the bottom of the rect at the same level as the bottom of the info rect.
+			recty -= st::msgDateImgDelta;
+
+			App::roundRect(p, rectx, recty, rectw, recth, selected ? App::msgServiceSelectBg() : App::msgServiceBg(), selected ? ServiceSelectedCorners : ServiceCorners);
+			rectx += st::msgReplyPadding.left();
+			rectw -= st::msgReplyPadding.left() + st::msgReplyPadding.right();
+			if (via) {
+				p.drawTextLeft(rectx, recty + st::msgReplyPadding.top(), 2 * rectx + rectw, via->_text);
+				int skip = st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
+				recty += skip;
+			}
+			if (reply) {
+				HistoryMessageReply::PaintFlags flags = 0;
+				if (selected) {
+					flags |= HistoryMessageReply::PaintSelected;
+				}
+				reply->paint(p, parent, rectx, recty, rectw, flags);
+			}
 		}
 	}
 }
@@ -5290,25 +5323,51 @@ void HistorySticker::draw(Painter &p, const HistoryItem *parent, const QRect &r,
 void HistorySticker::getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const {
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
-	bool out = parent->out(), isPost = parent->isPost(), outbg = out && !isPost;
+	bool out = parent->out(), isPost = parent->isPost(), childmedia = (parent->getMedia() != this);
 
-	int32 usew = _maxw, usex = 0;
-	auto *reply = parent->Get<HistoryMessageReply>();
-	if (reply) {
-		usew -= reply->replyToWidth();
+	int usew = _maxw, usex = 0;
+	auto *via = childmedia ? nullptr : parent->Get<HistoryMessageVia>();
+	auto *reply = childmedia ? nullptr : parent->Get<HistoryMessageReply>();
+	if (via || reply) {
+		usew -= additionalWidth(via, reply);
 		if (isPost) {
 		} else if (out) {
 			usex = _width - usew;
 		}
 	}
 	if (rtl()) usex = _width - usex - usew;
-	if (reply) {
-		int32 rw = _width - usew, rh = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-		int32 rx = isPost ? (usew + st::msgReplyPadding.left()) : (out ? 0 : (usew + st::msgReplyPadding.left())), ry = _height - rh;
-		if (rtl()) rx = _width - rx - rw;
-		if (x >= rx && y >= ry && x < rx + rw && y < ry + rh) {
-			lnk = reply->replyToLink();
-			return;
+
+	if (via || reply) {
+		int rectw = _width - usew - st::msgReplyPadding.left();
+		int recth = st::msgReplyPadding.top() + st::msgReplyPadding.bottom();
+		if (via) {
+			recth += st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
+		}
+		if (reply) {
+			recth += st::msgReplyBarSize.height();
+		}
+		int rectx = isPost ? (usew + st::msgReplyPadding.left()) : (out ? 0 : (usew + st::msgReplyPadding.left()));
+		int recty = _height - recth;
+		if (rtl()) rectx = _width - rectx - rectw;
+
+		// Make the bottom of the rect at the same level as the bottom of the info rect.
+		recty -= st::msgDateImgDelta;
+
+		if (via) {
+			int viah = st::msgReplyPadding.top() + st::msgServiceNameFont->height + (reply ? 0 : st::msgReplyPadding.bottom());
+			if (x >= rectx && y >= recty && x < rectx + rectw && y < recty + viah) {
+				lnk = via->_lnk;
+				return;
+			}
+			int skip = st::msgServiceNameFont->height + (reply ? 2 * st::msgReplyPadding.top() : 0);
+			recty += skip;
+			recth -= skip;
+		}
+		if (reply) {
+			if (x >= rectx && y >= recty && x < rectx + rectw && y < recty + recth) {
+				lnk = reply->replyToLink();
+				return;
+			}
 		}
 	}
 	if (parent->getMedia() == this) {
@@ -5348,6 +5407,17 @@ void HistorySticker::updateFrom(const MTPMessageMedia &media, HistoryItem *paren
 			Local::writeStickerImage(_data->mediaKey(), _data->data());
 		}
 	}
+}
+
+int HistorySticker::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const {
+	int result = 0;
+	if (via) {
+		accumulate_max(result, st::msgReplyPadding.left() + st::msgReplyPadding.left() + via->_maxWidth + st::msgReplyPadding.left());
+	}
+	if (reply) {
+		accumulate_max(result, st::msgReplyPadding.left() + reply->replyToWidth());
+	}
+	return result;
 }
 
 void SendMessageClickHandler::onClickImpl() const {
@@ -5702,12 +5772,12 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 	_maxw += st::msgPadding.left() + st::webPageLeft + st::msgPadding.right();
 	_minh += st::msgPadding.bottom();
 	if (_asArticle) {
-		_minh = resize(_maxw, parent); // hack
+		_minh = resizeGetHeight(_maxw, parent); // hack
 //		_minh += st::msgDateFont->height;
 	}
 }
 
-int32 HistoryWebPage::resize(int32 width, const HistoryItem *parent) {
+int HistoryWebPage::resizeGetHeight(int width, const HistoryItem *parent) {
 	if (_data->pendingTill) {
 		_width = width;
 		_height = _minh;
@@ -5784,7 +5854,7 @@ int32 HistoryWebPage::resize(int32 width, const HistoryItem *parent) {
 
 			QMargins bubble(_attach->bubbleMargins());
 
-			_attach->resize(width + bubble.left() + bubble.right(), parent);
+			_attach->resizeGetHeight(width + bubble.left() + bubble.right(), parent);
 			_height += _attach->height() - bubble.top() - bubble.bottom();
 			if (_attach->customInfoLayout() && _attach->currentWidth() + parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
 				_height += st::msgDateFont->height;
@@ -7207,7 +7277,7 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width
 		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
 	} else if (type == InfoDisplayOverBackground) {
 		int32 dateW = infoW + 2 * st::msgDateImgPadding.x(), dateH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
-		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, App::msgServiceBg(), ServiceCorners);
+		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? App::msgServiceSelectBg() : App::msgServiceBg(), selected ? ServiceSelectedCorners : ServiceCorners);
 	}
 	dateX += HistoryMessage::timeLeft();
 
@@ -7476,7 +7546,7 @@ int HistoryMessage::resizeGetHeight_(int width) {
 		bool media = (_media && _media->isDisplayed());
 		if (width >= _maxw) {
 			_height = _minh;
-			if (media) _media->resize(_maxw, this);
+			if (media) _media->resizeGetHeight(_maxw, this);
 		} else {
 			if (_text.isEmpty()) {
 				_height = 0;
@@ -7490,7 +7560,7 @@ int HistoryMessage::resizeGetHeight_(int width) {
 				}
 				_height = st::msgPadding.top() + _textHeight + st::msgPadding.bottom();
 			}
-			if (media) _height += _media->resize(width, this);
+			if (media) _height += _media->resizeGetHeight(width, this);
 		}
 
 		if (displayFromName()) {
@@ -7534,7 +7604,7 @@ int HistoryMessage::resizeGetHeight_(int width) {
 			reply->resize(width - st::msgPadding.left() - st::msgPadding.right());
 		}
 	} else {
-		_height = _media->resize(width, this);
+		_height = _media->resizeGetHeight(width, this);
 	}
 	if (ReplyKeyboard *keyboard = inlineReplyKeyboard()) {
 		int32 l = 0, w = 0;
@@ -8175,7 +8245,7 @@ int32 HistoryService::resizeGetHeight_(int32 width) {
 	}
 	_height += st::msgServicePadding.top() + st::msgServicePadding.bottom() + st::msgServiceMargin.top() + st::msgServiceMargin.bottom();
 	if (_media) {
-		_height += st::msgServiceMargin.top() + _media->resize(_media->currentWidth(), this);
+		_height += st::msgServiceMargin.top() + _media->resizeGetHeight(_media->currentWidth(), this);
 	}
 	_height += displayedDateHeight();
 	if (auto *unreadbar = Get<HistoryMessageUnreadBar>()) {

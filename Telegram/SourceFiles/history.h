@@ -1103,6 +1103,7 @@ struct HistoryMessageReplyMarkup : public BaseComponent<HistoryMessageReplyMarku
 			Callback,
 			RequestPhone,
 			RequestLocation,
+			SwitchInline,
 		};
 		Type type;
 		QString text;
@@ -1850,7 +1851,7 @@ public:
 	virtual const QString inDialogsText() const = 0;
 	virtual const QString inHistoryText() const = 0;
 
-	bool hasPoint(int32 x, int32 y, const HistoryItem *parent) const {
+	bool hasPoint(int x, int y, const HistoryItem *parent) const {
 		return (x >= 0 && y >= 0 && x < _width && y < _height);
 	}
 
@@ -1858,12 +1859,12 @@ public:
 		return true;
 	}
 	virtual void initDimensions(const HistoryItem *parent) = 0;
-	virtual int32 resize(int32 width, const HistoryItem *parent) { // return new height
+	virtual int resizeGetHeight(int width, const HistoryItem *parent) {
 		_width = qMin(width, _maxw);
 		return _height;
 	}
 	virtual void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const = 0;
-	virtual void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const = 0;
+	virtual void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y, const HistoryItem *parent) const = 0;
 
 	// if we are in selecting items mode perhaps we want to
 	// toggle selection instead of activating the pressed link
@@ -1888,10 +1889,10 @@ public:
 	virtual HistoryMedia *clone() const = 0;
 
 	virtual DocumentData *getDocument() {
-		return 0;
+		return nullptr;
 	}
 	virtual ClipReader *getClipReader() {
-		return 0;
+		return nullptr;
 	}
 
 	bool playInline(HistoryItem *item/*, bool autoplay = false*/) {
@@ -1941,13 +1942,13 @@ public:
 		return false;
 	}
 
-	int32 currentWidth() const {
+	int currentWidth() const {
 		return _width;
 	}
 
 protected:
 
-	int32 _width;
+	int _width;
 
 };
 
@@ -2069,10 +2070,10 @@ public:
 	}
 
 	void initDimensions(const HistoryItem *parent) override;
-	int32 resize(int32 width, const HistoryItem *parent) override;
+	int resizeGetHeight(int width, const HistoryItem *parent) override;
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const override;
-	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
+	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y, const HistoryItem *parent) const override;
 
 	const QString inDialogsText() const override;
 	const QString inHistoryText() const override;
@@ -2137,10 +2138,10 @@ public:
 	}
 
 	void initDimensions(const HistoryItem *parent) override;
-	int32 resize(int32 width, const HistoryItem *parent) override;
+	int resizeGetHeight(int width, const HistoryItem *parent) override;
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const override;
-	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
+	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y, const HistoryItem *parent) const override;
 
 	const QString inDialogsText() const override;
 	const QString inHistoryText() const override;
@@ -2244,7 +2245,7 @@ public:
 	}
 
 	void initDimensions(const HistoryItem *parent) override;
-	int32 resize(int32 width, const HistoryItem *parent) override;
+	int resizeGetHeight(int width, const HistoryItem *parent) override;
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const override;
 	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
@@ -2327,10 +2328,10 @@ public:
 	}
 
 	void initDimensions(const HistoryItem *parent) override;
-	int32 resize(int32 width, const HistoryItem *parent) override;
+	int resizeGetHeight(int width, const HistoryItem *parent) override;
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const override;
-	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
+	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y, const HistoryItem *parent) const override;
 
 	const QString inDialogsText() const override;
 	const QString inHistoryText() const override;
@@ -2412,10 +2413,10 @@ public:
 	}
 
 	void initDimensions(const HistoryItem *parent) override;
-	int32 resize(int32 width, const HistoryItem *parent) override;
+	int resizeGetHeight(int width, const HistoryItem *parent) override;
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const override;
-	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
+	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y, const HistoryItem *parent) const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return true;
@@ -2447,6 +2448,11 @@ public:
 	}
 
 private:
+
+	int additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const;
+	int additionalWidth(const HistoryItem *parent) const {
+		return additionalWidth(parent->Get<HistoryMessageVia>(), parent->Get<HistoryMessageReply>());
+	}
 
 	int16 _pixw, _pixh;
 	ClickHandlerPtr _packLink;
@@ -2544,10 +2550,10 @@ public:
 	}
 
 	void initDimensions(const HistoryItem *parent) override;
-	int32 resize(int32 width, const HistoryItem *parent) override;
+	int resizeGetHeight(int width, const HistoryItem *parent) override;
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const override;
-	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
+	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int x, int y, const HistoryItem *parent) const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return _attach && _attach->toggleSelectionByHandlerClick(p);

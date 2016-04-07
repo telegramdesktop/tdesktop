@@ -3629,7 +3629,7 @@ void EmojiPan::inlineBotChanged() {
 
 	Notify::inlineBotRequesting(false);
 }
-#include <memory>
+
 void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 	_inlineRequestId = 0;
 	Notify::inlineBotRequesting(false);
@@ -3638,7 +3638,7 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 
 	bool adding = (it != _inlineCache.cend());
 	if (result.type() == mtpc_messages_botResults) {
-		const MTPDmessages_botResults &d(result.c_messages_botResults());
+		const auto &d(result.c_messages_botResults());
 		const QVector<MTPBotInlineResult> &v(d.vresults.c_vector().v);
 		uint64 queryId(d.vquery_id.v);
 
@@ -3646,13 +3646,18 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 			it = _inlineCache.insert(_inlineQuery, new InlineCacheEntry());
 		}
 		it.value()->nextOffset = qs(d.vnext_offset);
+		if (d.has_switch_pm() && d.vswitch_pm.type() == mtpc_inlineBotSwitchPM) {
+			const auto &switchPm = d.vswitch_pm.c_inlineBotSwitchPM();
+			it.value()->switchPmText = qs(switchPm.vtext);
+			it.value()->switchPmStartParam = qs(switchPm.vstart_param);
+		}
 
-		int32 count = v.size(), added = 0;
-		if (count) {
+		if (int count = v.size()) {
 			it.value()->results.reserve(it.value()->results.size() + count);
 		}
-		for (int32 i = 0; i < count; ++i) {
-			if (UniquePointer<InlineBots::Result> result = InlineBots::Result::create(queryId, v.at(i))) {
+		int added = 0;
+		for_const (const MTPBotInlineResult &res, v) {
+			if (UniquePointer<InlineBots::Result> result = InlineBots::Result::create(queryId, res)) {
 				++added;
 				it.value()->results.push_back(result.release());
 			}
