@@ -759,7 +759,6 @@ private:
 	friend MTPstring MTP_string(const QString &v);
 	friend MTPstring MTP_string(const char *v);
 
-	friend MTPstring MTP_string(const QByteArray &v) = delete;
 	friend MTPstring MTP_bytes(const QByteArray &v);
 };
 inline MTPstring MTP_string(const string &v) {
@@ -771,6 +770,7 @@ inline MTPstring MTP_string(const QString &v) {
 inline MTPstring MTP_string(const char *v) {
 	return MTPstring(new MTPDstring(v));
 }
+MTPstring MTP_string(const QByteArray &v) = delete;
 typedef MTPBoxed<MTPstring> MTPString;
 
 using MTPbytes = MTPstring;

@@ -112,7 +112,7 @@ SOURCES += \
     ./SourceFiles/structs.cpp \
     ./SourceFiles/sysbuttons.cpp \
     ./SourceFiles/title.cpp \
-    ./SourceFiles/types.cpp \
+    ./SourceFiles/basic_types.cpp \
     ./SourceFiles/window.cpp \
     ./SourceFiles/mtproto/facade.cpp \
     ./SourceFiles/mtproto/auth_key.cpp \
@@ -165,6 +165,10 @@ SOURCES += \
     ./SourceFiles/boxes/sessionsbox.cpp \
     ./SourceFiles/boxes/stickersetbox.cpp \
     ./SourceFiles/boxes/usernamebox.cpp \
+    ./SourceFiles/inline_bots/inline_bot_layout_internal.cpp \
+    ./SourceFiles/inline_bots/inline_bot_layout_item.cpp \
+    ./SourceFiles/inline_bots/inline_bot_result.cpp \
+    ./SourceFiles/inline_bots/inline_bot_send_data.cpp \
     ./SourceFiles/intro/introwidget.cpp \
     ./SourceFiles/intro/introcode.cpp \
     ./SourceFiles/intro/introphone.cpp \
@@ -208,7 +212,7 @@ HEADERS += \
     ./SourceFiles/gui/style.h \
     ./SourceFiles/sysbuttons.h \
     ./SourceFiles/title.h \
-    ./SourceFiles/types.h \
+    ./SourceFiles/basic_types.h \
     ./SourceFiles/window.h \
     ./SourceFiles/mtproto/facade.h \
     ./SourceFiles/mtproto/auth_key.h \
@@ -262,6 +266,10 @@ HEADERS += \
     ./SourceFiles/boxes/sessionsbox.h \
     ./SourceFiles/boxes/stickersetbox.h \
     ./SourceFiles/boxes/usernamebox.h \
+    ./SourceFiles/inline_bots/inline_bot_layout_internal.h \
+    ./SourceFiles/inline_bots/inline_bot_layout_item.h \
+    ./SourceFiles/inline_bots/inline_bot_result.h \
+    ./SourceFiles/inline_bots/inline_bot_send_data.h \
     ./SourceFiles/intro/introwidget.h \
     ./SourceFiles/intro/introcode.h \
     ./SourceFiles/intro/introphone.h \

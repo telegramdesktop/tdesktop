@@ -1064,7 +1064,7 @@ ScalarValue prepareFont(int variant, const string &name, const char *&text, cons
 
 	string size, family;
 	int flags = 0;
-	bool sizepx;
+	bool sizepx = false;
 
 	readStyleGenToken(text, end, type, token);
 	if (type != stConsStart) throw Exception(QString("Unexpected token %1 (%2) while reading font() cons!").arg(type).arg(token.c_str()));
