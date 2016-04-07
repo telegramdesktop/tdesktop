@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -71,6 +71,8 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void contextMenuEvent(QContextMenuEvent *e);
 
+	void updateAdaptiveLayout();
+
 	void step_photo(float64 ms, bool timer);
 
 	void updateSize(int32 newWidth);
@@ -99,10 +101,10 @@ public slots:
 	void onUpdatePhoto();
 	void onUpdatePhotoCancel();
 
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void onAutoUpdate();
 	void onCheckNow();
-	#endif
+#endif
 	void onRestartNow();
 
 	void onFullPeerUpdated(PeerData *peer);
@@ -114,7 +116,9 @@ public slots:
 	void onPasswordOff();
 	void onReloadPassword(Qt::ApplicationState state = Qt::ApplicationActive);
 
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	void onConnectionType();
+#endif
 
 	void onUsername();
 
@@ -156,16 +160,17 @@ public slots:
 	void onBackFromGallery();
 	void onBackFromFile();
 	void onTileBackground();
+	void onAdaptiveForWide();
 
 	void onLocalStorageClear();
 
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void onUpdateChecking();
 	void onUpdateLatest();
 	void onUpdateDownloading(qint64 ready, qint64 total);
 	void onUpdateReady();
 	void onUpdateFailed();
-	#endif
+#endif
 
 	void onShowSessions();
 
@@ -201,7 +206,7 @@ private:
 	// profile
 	Text _nameText;
 	QString _nameCache;
-	TextLinkPtr _photoLink;
+	ClickHandlerPtr _photoLink;
 	FlatButton _uploadPhoto;
 	LinkButton _cancelPhoto;
 	bool _nameOver, _photoOver;
@@ -233,6 +238,7 @@ private:
 	QString _curVersionText, _newVersionText;
 	int32 _curVersionWidth, _newVersionWidth;
 
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	enum UpdatingState {
 		UpdatingNone,
 		UpdatingCheck,
@@ -243,6 +249,7 @@ private:
 	};
 	UpdatingState _updatingState;
 	QString _newVersionDownload;
+#endif
 
 	// chat options
 	FlatCheckbox _replaceEmojis;
@@ -271,7 +278,7 @@ private:
 	// chat background
 	QPixmap _background;
 	LinkButton _backFromGallery, _backFromFile;
-	FlatCheckbox _tileBackground;
+	FlatCheckbox _tileBackground, _adaptiveForWide;
 	bool _needBackgroundUpdate;
 
 	// advanced
@@ -287,8 +294,7 @@ private:
 	LinkButton _connectionType;
 	QString _connectionTypeText;
 	int32 _connectionTypeWidth;
-	LinkButton _showSessions, _askQuestion, _telegramFAQ;
-	FlatButton _logOut;
+	LinkButton _showSessions, _askQuestion, _telegramFAQ, _logOut;
 
 	mtpRequestId _supportGetRequest;
 
@@ -296,12 +302,10 @@ private:
 	void offPasswordDone(const MTPBool &result);
 	bool offPasswordFail(const RPCError &error);
 
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void setUpdatingState(UpdatingState state, bool force = false);
 	void setDownloadProgress(qint64 ready, qint64 total);
-	#endif
-
-
+#endif
 };
 
 class SettingsWidget : public TWidget {
@@ -316,7 +320,7 @@ public:
 	void dragEnterEvent(QDragEnterEvent *e);
 	void dropEvent(QDropEvent *e);
 
-	void updateWideMode();
+	void updateAdaptiveLayout();
 
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
 	void step_show(float64 ms, bool timer);
@@ -327,7 +331,7 @@ public:
 
 	void updateDisplayNotify();
 
-	void rpcInvalidate();
+	void rpcClear();
 	void usernameChanged();
 
 	void setInnerFocus();
@@ -338,7 +342,7 @@ public:
 public slots:
 
 	void onParentResize(const QSize &newSize);
-	
+
 private:
 
 	void showAll();

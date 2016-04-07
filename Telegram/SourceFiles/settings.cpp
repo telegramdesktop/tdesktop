@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "pspecific.h"
@@ -26,7 +26,7 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 bool gRtl = false;
 Qt::LayoutDirection gLangDir = gRtl ? Qt::RightToLeft : Qt::LeftToRight;
 
-mtpDcOptions gDcOptions;
+QString gArguments;
 
 bool gDevVersion = DevVersion;
 uint64 gBetaVersion = BETA_VERSION;
@@ -57,7 +57,7 @@ bool gAutoStart = false;
 bool gSendToMenu = false;
 bool gAutoUpdate = true;
 TWindowPos gWindowPos;
-bool gFromAutoStart = false;
+LaunchMode gLaunchMode = LaunchModeNormal;
 bool gSupportTray = true;
 DBIWorkMode gWorkMode = dbiwmWindowAndTray;
 DBIConnectionType gConnectionType = dbictAuto;
@@ -72,15 +72,11 @@ bool gRestartingUpdate = false, gRestarting = false, gRestartingToSettings = fal
 int32 gLastUpdateCheck = 0;
 bool gNoStartUpdate = false;
 bool gStartToSettings = false;
-int32 gMaxGroupCount = 200;
-int32 gMaxMegaGroupCount = 500;
 DBIDefaultAttach gDefaultAttach = dbidaDocument;
 bool gReplaceEmojis = true;
 bool gAskDownloadPath = false;
 QString gDownloadPath;
 QByteArray gDownloadPathBookmark;
-
-bool gNeedConfigResave = false;
 
 bool gCtrlEnter = false;
 
@@ -110,14 +106,10 @@ EmojiColorVariants gEmojiVariants;
 
 RecentStickerPreload gRecentStickersPreload;
 RecentStickerPack gRecentStickers;
-StickerSets gStickerSets;
-StickerSetsOrder gStickerSetsOrder;
-uint64 gLastStickersUpdate = 0;
 
 SavedGifs gSavedGifs;
 uint64 gLastSavedGifsUpdate = 0;
 bool gShowingSavedGifs = false;
-int32 gSavedGifsLimit = 100;
 
 RecentHashtagPack gRecentWriteHashtags, gRecentSearchHashtags;
 
@@ -134,37 +126,24 @@ bool gRetina = false;
 float64 gRetinaFactor = 1.;
 int32 gIntRetinaFactor = 1;
 bool gCustomNotifies = true;
-uint64 gInstance = 0.;
 
 #ifdef Q_OS_WIN
 DBIPlatform gPlatform = dbipWindows;
-QUrl gUpdateURL = QUrl(qsl("http://tdesktop.com/win/tupdates/current"));
 #elif defined Q_OS_MAC
 DBIPlatform gPlatform = dbipMac;
-QUrl gUpdateURL = QUrl(qsl("http://tdesktop.com/mac/tupdates/current"));
-#elif defined Q_OS_LINUX32
-DBIPlatform gPlatform = dbipLinux32;
-QUrl gUpdateURL = QUrl(qsl("http://tdesktop.com/linux32/tupdates/current"));
 #elif defined Q_OS_LINUX64
 DBIPlatform gPlatform = dbipLinux64;
-QUrl gUpdateURL = QUrl(qsl("http://tdesktop.com/linux/tupdates/current"));
+#elif defined Q_OS_LINUX32
+DBIPlatform gPlatform = dbipLinux32;
 #else
 #error Unknown platform
 #endif
+QString gPlatformString;
+QUrl gUpdateURL;
 bool gIsElCapitan = false;
 
 bool gContactsReceived = false;
 bool gDialogsReceived = false;
-
-bool gWideMode = true;
-
-int gOnlineUpdatePeriod = 120000;
-int gOfflineBlurTimeout = 5000;
-int gOfflineIdleTimeout = 30000;
-int gOnlineFocusTimeout = 1000;
-int gOnlineCloudTimeout = 300000;
-int gNotifyCloudDelay = 30000;
-int gNotifyDefaultDelay = 1500;
 
 int gOtherOnline = 0;
 
@@ -182,17 +161,49 @@ bool gAutoPlayGif = true;
 
 void settingsParseArgs(int argc, char *argv[]) {
 #ifdef Q_OS_MAC
-	gIsElCapitan = (QSysInfo::macVersion() >= QSysInfo::MV_10_11);
-	if (QSysInfo::macVersion() < QSysInfo::MV_10_8) {
-		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac32/tupdates/current"));
+	if (QSysInfo::macVersion() >= QSysInfo::MV_10_11) {
+		gIsElCapitan = true;
+	} else if (QSysInfo::macVersion() < QSysInfo::MV_10_8) {
 		gPlatform = dbipMacOld;
-	} else {
-		gCustomNotifies = false;
 	}
 #endif
-    memset_rand(&gInstance, sizeof(gInstance));
+
+	switch (cPlatform()) {
+	case dbipWindows:
+		gUpdateURL = QUrl(qsl("http://tdesktop.com/win/tupdates/current"));
+		gPlatformString = qsl("Windows");
+	break;
+	case dbipMac:
+		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac/tupdates/current"));
+		gPlatformString = qsl("MacOS");
+		gCustomNotifies = false;
+	break;
+	case dbipMacOld:
+		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac32/tupdates/current"));
+		gPlatformString = qsl("MacOSold");
+	break;
+	case dbipLinux64:
+		gUpdateURL = QUrl(qsl("http://tdesktop.com/linux/tupdates/current"));
+		gPlatformString = qsl("Linux64bit");
+	break;
+	case dbipLinux32:
+		gUpdateURL = QUrl(qsl("http://tdesktop.com/linux32/tupdates/current"));
+		gPlatformString = qsl("Linux32bit");
+	break;
+	}
+
+	QStringList args;
+	for (int32 i = 0; i < argc; ++i) {
+		args.push_back('"' + fromUtf8Safe(argv[i]) + '"');
+	}
+	gArguments = args.join(' ');
+
 	gExeDir = psCurrentExeDirectory(argc, argv);
 	gExeName = psCurrentExeName(argc, argv);
+	if (argc == 2 && fromUtf8Safe(argv[1]).endsWith(qstr(".telegramcrash")) && QFile(fromUtf8Safe(argv[1])).exists()) {
+		gLaunchMode = LaunchModeShowCrash;
+		gStartUrl = fromUtf8Safe(argv[1]);
+	}
     for (int32 i = 0; i < argc; ++i) {
 		if (string("-testmode") == argv[i]) {
 			gTestMode = true;
@@ -201,9 +212,16 @@ void settingsParseArgs(int argc, char *argv[]) {
 		} else if (string("-many") == argv[i]) {
 			gManyInstance = true;
 		} else if (string("-key") == argv[i] && i + 1 < argc) {
-			gKeyFile = QString::fromLocal8Bit(argv[++i]);
+			gKeyFile = fromUtf8Safe(argv[++i]);
 		} else if (string("-autostart") == argv[i]) {
-			gFromAutoStart = true;
+			gLaunchMode = LaunchModeAutoStart;
+		} else if (string("-fixprevious") == argv[i]) {
+			gLaunchMode = LaunchModeFixPrevious;
+		} else if (string("-cleanup") == argv[i]) {
+			gLaunchMode = LaunchModeCleanup;
+		} else if (string("-crash") == argv[i] && i + 1 < argc) {
+			gLaunchMode = LaunchModeShowCrash;
+			gStartUrl = fromUtf8Safe(argv[++i]);
 		} else if (string("-noupdate") == argv[i]) {
 			gNoStartUpdate = true;
 		} else if (string("-tosettings") == argv[i]) {
@@ -212,15 +230,15 @@ void settingsParseArgs(int argc, char *argv[]) {
 			gStartInTray = true;
 		} else if (string("-sendpath") == argv[i] && i + 1 < argc) {
 			for (++i; i < argc; ++i) {
-				gSendPaths.push_back(QString::fromLocal8Bit(argv[i]));
+				gSendPaths.push_back(fromUtf8Safe(argv[i]));
 			}
 		} else if (string("-workdir") == argv[i] && i + 1 < argc) {
-			QString dir = QString::fromLocal8Bit(argv[++i]);
+			QString dir = fromUtf8Safe(argv[++i]);
 			if (QDir().exists(dir)) {
 				gWorkingDir = dir;
 			}
 		} else if (string("--") == argv[i] && i + 1 < argc) {
-			gStartUrl = QString::fromLocal8Bit(argv[++i]);
+			gStartUrl = fromUtf8Safe(argv[++i]);
 		}
 	}
 }

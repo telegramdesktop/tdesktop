@@ -16,80 +16,104 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#ifdef Q_OS_WIN
-#define OUTPUT_LOG(msg) (OutputDebugString((QString msg + "\n").toStdWString().c_str()))
-#endif
-
-#if (defined _DEBUG || defined _WITH_DEBUG)
-
-struct DebugLogMemoryBuffer {
-	DebugLogMemoryBuffer(const void *ptr, uint32 size) : p(ptr), s(size) {
-	}
-	QString str() const {
-		QString result;
-		const uchar *buf((const uchar*)p);
-		const char *hex = "0123456789ABCDEF";
-		result.reserve(s * 3);
-		for (uint32 i = 0; i < s; ++i) {
-			result += hex[(buf[i] >> 4)];
-			result += hex[buf[i] & 0x0F];
-			result += ' ';
-		}
-		result.chop(1);
-		return result;
-	}
-
-	const void *p;
-	uint32 s;
-};
-
-inline DebugLogMemoryBuffer mb(const void *ptr, uint32 size) {
-	return DebugLogMemoryBuffer(ptr, size);
-}
-
-void debugLogWrite(const char *file, int32 line, const QString &v);
-#define DEBUG_LOG(msg) { if (cDebug()) debugLogWrite(__FILE__, __LINE__, QString msg); }
-//usage DEBUG_LOG(("log: %1 %2").arg(1).arg(2))
-
-void tcpLogWrite(const QString &v);
-#define TCP_LOG(msg) { if (cDebug()) tcpLogWrite(QString msg); }
-//usage TCP_LOG(("log: %1 %2").arg(1).arg(2))
-
-void mtpLogWrite(int32 dc, const QString &v);
-#define MTP_LOG(dc, msg) { if (cDebug()) mtpLogWrite(dc, QString msg); }
-//usage MTP_LOG(dc, ("log: %1 %2").arg(1).arg(2))
-
-#else
-#define DEBUG_LOG(msg) (void(0))
-#define TCP_LOG(msg) (void(0))
-#define MTP_LOG(dc, msg) (void(0))
-#endif
-
-inline const char *logBool(bool v) {
-	return v ? "[TRUE]" : "[FALSE]";
-}
-
 class MTPlong;
-QString logVectorLong(const QVector<MTPlong> &ids);
-QString logVectorLong(const QVector<uint64> &ids);
+namespace Logs {
 
-void logWrite(const QString &v);
+	void start();
+	bool started();
+	void finish();
 
-#define LOG(msg) (logWrite(QString msg))
+	bool instanceChecked();
+	void multipleInstances();
+
+	void closeMain();
+
+	void writeMain(const QString &v);
+
+	void writeDebug(const char *file, int32 line, const QString &v);
+	void writeTcp(const QString &v);
+	void writeMtp(int32 dc, const QString &v);
+
+	QString full();
+
+	inline const char *b(bool v) {
+		return v ? "[TRUE]" : "[FALSE]";
+	}
+
+	struct MemoryBuffer {
+		MemoryBuffer(const void *ptr, uint32 size) : p(ptr), s(size) {
+		}
+		QString str() const {
+			QString result;
+			const uchar *buf((const uchar*)p);
+			const char *hex = "0123456789ABCDEF";
+			result.reserve(s * 3);
+			for (uint32 i = 0; i < s; ++i) {
+				result += hex[(buf[i] >> 4)];
+				result += hex[buf[i] & 0x0F];
+				result += ' ';
+			}
+			result.chop(1);
+			return result;
+		}
+
+		const void *p;
+		uint32 s;
+	};
+
+	inline MemoryBuffer mb(const void *ptr, uint32 size) {
+		return MemoryBuffer(ptr, size);
+	}
+
+	QString vector(const QVector<MTPlong> &ids);
+	QString vector(const QVector<uint64> &ids);
+
+}
+
+#define LOG(msg) (Logs::writeMain(QString msg))
 //usage LOG(("log: %1 %2").arg(1).arg(2))
 
-static volatile int *t_assert_nullptr = 0;
-inline void t_noop() {}
-inline void t_assert_fail(const char *condition, const char *file, int32 line) {
-	LOG(("Assertion Failed! \"%1\" %2:%3").arg(condition).arg(file).arg(line));
-	*t_assert_nullptr = 0;
-}
-#define t_assert(cond) ((!(cond)) ? t_assert_fail(#cond, __FILE__, __LINE__) : t_noop())
+#define DEBUG_LOG(msg) { if (cDebug() || !Logs::started()) Logs::writeDebug(__FILE__, __LINE__, QString msg); }
+//usage DEBUG_LOG(("log: %1 %2").arg(1).arg(2))
 
-void logsInit();
-void logsInitDebug();
-void logsClose();
+#define TCP_LOG(msg) { if (cDebug() || !Logs::started()) Logs::writeTcp(QString msg); }
+//usage TCP_LOG(("log: %1 %2").arg(1).arg(2))
+
+#define MTP_LOG(dc, msg) { if (cDebug() || !Logs::started()) Logs::writeMtp(dc, QString msg); }
+//usage MTP_LOG(dc, ("log: %1 %2").arg(1).arg(2))
+
+namespace SignalHandlers {
+
+	struct dump {
+		~dump();
+	};
+	const dump &operator<<(const dump &stream, const char *str);
+    const dump &operator<<(const dump &stream, const wchar_t *str);
+	const dump &operator<<(const dump &stream, int num);
+	const dump &operator<<(const dump &stream, unsigned int num);
+	const dump &operator<<(const dump &stream, unsigned long num);
+	const dump &operator<<(const dump &stream, unsigned long long num);
+	const dump &operator<<(const dump &stream, double num);
+	enum Status {
+		CantOpen,
+		LastCrashed,
+		Started
+	};
+	Status start();
+	Status restart(); // can be only CantOpen or Started
+	void finish();
+
+	void setCrashAnnotation(const std::string &key, const QString &value);
+
+	// Remembers value pointer and tries to add the value to the crash report.
+	// Attention! You should call clearCrashAnnotationRef(key) before destroying value.
+	void setCrashAnnotationRef(const std::string &key, const QString *valuePtr);
+	inline void clearCrashAnnotationRef(const std::string &key) {
+		setCrashAnnotationRef(key, nullptr);
+	}
+
+}

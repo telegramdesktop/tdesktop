@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -48,18 +48,15 @@ public slots:
 
 signals:
 
-	void photoReady(const FullMsgId &msgId, const MTPInputFile &file);
-	void documentReady(const FullMsgId &msgId, const MTPInputFile &file);
-	void thumbDocumentReady(const FullMsgId &msgId, const MTPInputFile &file, const MTPInputFile &thumb);
-	void audioReady(const FullMsgId &msgId, const MTPInputFile &file);
+	void photoReady(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
+	void documentReady(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
+	void thumbDocumentReady(const FullMsgId &msgId, bool silent, const MTPInputFile &file, const MTPInputFile &thumb);
 
 	void photoProgress(const FullMsgId &msgId);
 	void documentProgress(const FullMsgId &msgId);
-	void audioProgress(const FullMsgId &msgId);
 
 	void photoFailed(const FullMsgId &msgId);
 	void documentFailed(const FullMsgId &msgId);
-	void audioFailed(const FullMsgId &msgId);
 
 private:
 
@@ -138,7 +135,7 @@ private:
 	QMap<mtpRequestId, int32> dcMap;
 	uint32 sentSize;
 	uint32 sentSizes[MTPUploadSessionsCount];
-	
+
 	FullMsgId uploading, _paused;
 	Queue queue;
 	Queue uploaded;

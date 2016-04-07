@@ -16,15 +16,15 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "style.h"
+#include "gui/style.h"
 #include "lang.h"
 
+#include "shortcuts.h"
+
 #include "sysbuttons.h"
-#include "passcodewidget.h"
-#include "window.h"
 #include "application.h"
 #include "autoupdater.h"
 
@@ -79,7 +79,7 @@ void SysBtn::paintEvent(QPaintEvent *e) {
 	}
 	p.fillRect(x, y, _st.img.pxWidth(), _st.img.pxHeight(), c);
 	p.drawPixmap(QPoint(x, y), App::sprite(), _st.img);
-	
+
 	if (!_text.isEmpty()) {
 		p.setFont(st::titleTextButton.font->f);
 		p.setPen(c);
@@ -148,12 +148,13 @@ UpdateBtn::UpdateBtn(QWidget *parent, Window *window, const QString &text) : Sys
 }
 
 void UpdateBtn::onClick() {
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	checkReadyUpdate();
-	#endif
-	if (App::app()->updatingState() == Application::UpdatingReady) {
+	if (Sandbox::updatingState() == Application::UpdatingReady) {
 		cSetRestartingUpdate(true);
-	} else {
+	} else
+#endif
+	{
 		cSetRestarting(true);
 		cSetRestartingToSettings(false);
 	}
@@ -165,9 +166,5 @@ LockBtn::LockBtn(QWidget *parent, Window *window) : SysBtn(parent, st::sysLock),
 }
 
 void LockBtn::onClick() {
-	if (App::passcoded()) {
-		App::wnd()->passcodeWidget()->onSubmit();
-	} else {
-		App::wnd()->setupPasscode(true);
-	}
+	Shortcuts::launch(qsl("lock_telegram"));
 }

@@ -16,11 +16,11 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "types.h"
+#include "basic_types.h"
 
 namespace _local_inner {
 
@@ -54,7 +54,7 @@ namespace _local_inner {
 namespace Local {
 
 	void start();
-	void stop();
+	void finish();
 
 	void readSettings();
 	void writeSettings();
@@ -106,17 +106,16 @@ namespace Local {
 	int32 oldSettingsVersion();
 
 	struct MessageDraft {
-		MessageDraft(MsgId replyTo = 0, QString text = QString(), bool previewCancelled = false) : replyTo(replyTo), text(text), previewCancelled(previewCancelled) {
+		MessageDraft(MsgId msgId = 0, QString text = QString(), bool previewCancelled = false) : msgId(msgId), text(text), previewCancelled(previewCancelled) {
 		}
-		MsgId replyTo;
+		MsgId msgId;
 		QString text;
 		bool previewCancelled;
 	};
-	void writeDraft(const PeerId &peer, const MessageDraft &draft);
-	MessageDraft readDraft(const PeerId &peer);
-	void writeDraftPositions(const PeerId &peer, const MessageCursor &cur);
-	MessageCursor readDraftPositions(const PeerId &peer);
-	bool hasDraftPositions(const PeerId &peer);
+	void writeDrafts(const PeerId &peer, const MessageDraft &msgDraft, const MessageDraft &editDraft);
+	void readDraftsWithCursors(History *h);
+	void writeDraftCursors(const PeerId &peer, const MessageCursor &msgCursor, const MessageCursor &editCursor);
+	bool hasDraftCursors(const PeerId &peer);
 
 	void writeFileLocation(MediaKey location, const FileLocation &local);
 	FileLocation readFileLocation(MediaKey location, bool check = true);
@@ -143,6 +142,8 @@ namespace Local {
 	TaskId startWebFileLoad(const QString &url, webFileLoader *loader);
 	int32 hasWebFiles();
 	qint64 storageWebFilesSize();
+
+	void countVoiceWaveform(DocumentData *document);
 
 	void cancelTask(TaskId id);
 

@@ -16,10 +16,10 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "style.h"
+#include "gui/style.h"
 #include "lang.h"
 
 #include "mainwidget.h"
@@ -217,24 +217,32 @@ RoundCorners documentCorners(int32 colorIndex) {
 	return RoundCorners(DocBlueCorners + (colorIndex & 3));
 }
 
-void LayoutRadialProgressItem::linkOver(const TextLinkPtr &lnk) {
-	if (lnk == _openl || lnk == _savel || lnk == _cancell) {
-		a_iconOver.start(1);
-		_a_iconOver.start();
-	}
+void LayoutMediaItemBase::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
+	App::hoveredLinkItem(active ? _parent : nullptr);
+	Ui::repaintHistoryItem(_parent);
 }
 
-void LayoutRadialProgressItem::linkOut(const TextLinkPtr &lnk) {
-	if (lnk == _openl || lnk == _savel || lnk == _cancell) {
-		a_iconOver.start(0);
-		_a_iconOver.start();
-	}
+void LayoutMediaItemBase::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
+	App::pressedLinkItem(pressed ? _parent : nullptr);
+	Ui::repaintHistoryItem(_parent);
 }
 
-void LayoutRadialProgressItem::setLinks(ITextLink *openl, ITextLink *savel, ITextLink *cancell) {
-	_openl.reset(openl);
-	_savel.reset(savel);
-	_cancell.reset(cancell);
+void LayoutRadialProgressItem::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
+	if (p == _openl || p == _savel || p == _cancell) {
+		a_iconOver.start(active ? 1 : 0);
+		_a_iconOver.start();
+	}
+	LayoutMediaItemBase::clickHandlerActiveChanged(p, active);
+}
+
+void LayoutRadialProgressItem::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
+	LayoutMediaItemBase::clickHandlerPressedChanged(p, pressed);
+}
+
+void LayoutRadialProgressItem::setLinks(ClickHandlerPtr &&openl, ClickHandlerPtr &&savel, ClickHandlerPtr &&cancell) {
+	_openl = std_::move(openl);
+	_savel = std_::move(savel);
+	_cancell = std_::move(cancell);
 }
 
 void LayoutRadialProgressItem::step_iconOver(float64 ms, bool timer) {
@@ -294,8 +302,9 @@ void LayoutAbstractFileItem::setStatusSize(int32 newSize, int32 fullSize, int32 
 }
 
 LayoutOverviewDate::LayoutOverviewDate(const QDate &date, bool month)
-	: _date(date)
-	, _text(month ? langMonthFull(date) : langDayOfMonthFull(date)) {
+: _date(date)
+, _text(month ? langMonthFull(date) : langDayOfMonthFull(date)) {
+	AddComponents(OverviewItemInfo::Bit());
 }
 
 void LayoutOverviewDate::initDimensions() {
@@ -303,7 +312,7 @@ void LayoutOverviewDate::initDimensions() {
 	_minh = st::linksDateMargin.top() + st::normalFont->height + st::linksDateMargin.bottom() + st::linksBorder;
 }
 
-void LayoutOverviewDate::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void LayoutOverviewDate::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContextOverview *context) const {
 	if (clip.intersects(QRect(0, st::linksDateMargin.top(), _width, st::normalFont->height))) {
 		p.setPen(st::linksDateColor);
 		p.setFont(st::semiboldFont);
@@ -311,9 +320,9 @@ void LayoutOverviewDate::paint(Painter &p, const QRect &clip, uint32 selection, 
 	}
 }
 
-LayoutOverviewPhoto::LayoutOverviewPhoto(PhotoData *photo, HistoryItem *parent) : LayoutMediaItem(parent)
+LayoutOverviewPhoto::LayoutOverviewPhoto(PhotoData *photo, HistoryItem *parent) : LayoutMediaItemBase(parent)
 , _data(photo)
-, _link(new PhotoLink(photo))
+, _link(new PhotoOpenClickHandler(photo))
 , _goodLoaded(false) {
 
 }
@@ -332,7 +341,7 @@ int32 LayoutOverviewPhoto::resizeGetHeight(int32 width) {
 	return _height;
 }
 
-void LayoutOverviewPhoto::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void LayoutOverviewPhoto::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContextOverview *context) const {
 	bool good = _data->loaded();
 	if (!good) {
 		_data->medium->automaticLoad(_parent);
@@ -379,17 +388,17 @@ void LayoutOverviewPhoto::paint(Painter &p, const QRect &clip, uint32 selection,
 	}
 }
 
-void LayoutOverviewPhoto::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+void LayoutOverviewPhoto::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
 	if (hasPoint(x, y)) {
 		link = _link;
 	}
 }
 
-LayoutOverviewVideo::LayoutOverviewVideo(VideoData *video, HistoryItem *parent) : LayoutAbstractFileItem(parent)
+LayoutOverviewVideo::LayoutOverviewVideo(DocumentData *video, HistoryItem *parent) : LayoutAbstractFileItem(parent)
 , _data(video)
-, _duration(formatDurationText(_data->duration))
+, _duration(formatDurationText(_data->duration()))
 , _thumbLoaded(false) {
-	setLinks(new VideoOpenLink(_data), new VideoSaveLink(_data), new VideoCancelLink(_data));
+	setDocumentLinks(_data);
 }
 
 void LayoutOverviewVideo::initDimensions() {
@@ -403,7 +412,7 @@ int32 LayoutOverviewVideo::resizeGetHeight(int32 width) {
 	return _height;
 }
 
-void LayoutOverviewVideo::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void LayoutOverviewVideo::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContextOverview *context) const {
 	bool selected = (selection == FullSelection), thumbLoaded = _data->thumb->loaded();
 
 	_data->automaticLoad(_parent);
@@ -422,8 +431,7 @@ void LayoutOverviewVideo::paint(Painter &p, const QRect &clip, uint32 selection,
 
 		if (_thumbLoaded && !_data->thumb->isNull()) {
 			int32 size = _width * cIntRetinaFactor();
-			QImage img = _data->thumb->pix().toImage();
-			img = imageBlur(img);
+			QImage img = imageBlur(_data->thumb->pix().toImage());
 			if (img.width() == img.height()) {
 				if (img.width() != size) {
 					img = img.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
@@ -485,7 +493,7 @@ void LayoutOverviewVideo::paint(Painter &p, const QRect &clip, uint32 selection,
 			p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
 			p.setBrush(st::black);
 		} else {
-			bool over = textlnkDrawOver(loaded ? _openl : (_data->loading() ? _cancell : _savel));
+			bool over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _savel));
 			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
 		}
 
@@ -517,7 +525,7 @@ void LayoutOverviewVideo::paint(Painter &p, const QRect &clip, uint32 selection,
 	}
 }
 
-void LayoutOverviewVideo::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+void LayoutOverviewVideo::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
 	bool loaded = _data->loaded();
 
 	if (hasPoint(x, y)) {
@@ -534,7 +542,7 @@ void LayoutOverviewVideo::updateStatusText() const {
 		statusSize = _data->uploadOffset;
 	} else if (_data->loading()) {
 		statusSize = _data->loadOffset();
-	} else if (!_data->already().isEmpty()) {
+	} else if (_data->loaded()) {
 		statusSize = FileStatusSizeLoaded;
 	} else {
 		statusSize = FileStatusSizeReady;
@@ -550,23 +558,28 @@ void LayoutOverviewVideo::updateStatusText() const {
 	}
 }
 
-LayoutOverviewAudio::LayoutOverviewAudio(AudioData *audio, HistoryItem *parent) : LayoutAbstractFileItem(parent)
-, _data(audio)
-, _namel(new AudioOpenLink(_data)) {
-	setLinks(new AudioOpenLink(_data), new AudioOpenLink(_data), new AudioCancelLink(_data));
+LayoutOverviewVoice::LayoutOverviewVoice(DocumentData *voice, HistoryItem *parent) : LayoutAbstractFileItem(parent)
+, _data(voice)
+, _namel(new DocumentOpenClickHandler(_data)) {
+	AddComponents(OverviewItemInfo::Bit());
+
+	t_assert(_data->voice() != 0);
+
+	setDocumentLinks(_data);
+
 	updateName();
 	QString d = textcmdLink(1, textRichPrepare(langDateTime(date(_data->date))));
 	TextParseOptions opts = { TextParseRichText, 0, 0, Qt::LayoutDirectionAuto };
-	_details.setText(st::normalFont, lng_date_and_duration(lt_date, d, lt_duration, formatDurationText(_data->duration)), opts);
-	_details.setLink(1, TextLinkPtr(new MessageLink(parent)));
+	_details.setText(st::normalFont, lng_date_and_duration(lt_date, d, lt_duration, formatDurationText(_data->voice()->duration)), opts);
+	_details.setLink(1, MakeShared<GoToMessageClickHandler>(parent));
 }
 
-void LayoutOverviewAudio::initDimensions() {
+void LayoutOverviewVoice::initDimensions() {
 	_maxw = st::profileMaxWidth;
 	_minh = st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom() + st::lineWidth;
 }
 
-void LayoutOverviewAudio::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void LayoutOverviewVoice::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContextOverview *context) const {
 	bool selected = (selection == FullSelection);
 
 	_data->automaticLoad(_parent);
@@ -579,8 +592,7 @@ void LayoutOverviewAudio::paint(Painter &p, const QRect &clip, uint32 selection,
 		}
 	}
 	bool showPause = updateStatusText();
-	int32 nameVersion = _parent->from()->nameVersion;
-	if (HistoryForwarded *fwd = _parent->toHistoryForwarded()) nameVersion = fwd->fromForwarded()->nameVersion;
+	int32 nameVersion = _parent->fromOriginal()->nameVersion;
 	if (nameVersion > _nameVersion) {
 		updateName();
 	}
@@ -607,7 +619,7 @@ void LayoutOverviewAudio::paint(Painter &p, const QRect &clip, uint32 selection,
 			float64 over = a_iconOver.current();
 			p.setBrush(style::interpolate(st::msgFileInBg, st::msgFileInBgOver, over));
 		} else {
-			bool over = textlnkDrawOver(loaded ? _openl : (_data->loading() ? _cancell : _openl));
+			bool over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _openl));
 			p.setBrush(over ? st::msgFileInBgOver : st::msgFileInBg);
 		}
 
@@ -666,7 +678,7 @@ void LayoutOverviewAudio::paint(Painter &p, const QRect &clip, uint32 selection,
 	}
 }
 
-void LayoutOverviewAudio::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+void LayoutOverviewVoice::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
 	bool loaded = _data->loaded();
 
 	bool showPause = updateStatusText();
@@ -696,19 +708,22 @@ void LayoutOverviewAudio::getState(TextLinkPtr &link, HistoryCursorState &cursor
 	}
 }
 
-void LayoutOverviewAudio::updateName() const {
+void LayoutOverviewVoice::updateName() const {
 	int32 version = 0;
-	if (HistoryForwarded *fwd = _parent->toHistoryForwarded()) {
-		_name.setText(st::semiboldFont, lang(lng_forwarded_from) + ' ' + App::peerName(fwd->fromForwarded()), _textNameOptions);
-		version = fwd->fromForwarded()->nameVersion;
+	if (const HistoryMessageForwarded *fwd = _parent->Get<HistoryMessageForwarded>()) {
+		if (_parent->fromOriginal()->isChannel()) {
+			_name.setText(st::semiboldFont, lng_forwarded_channel(lt_channel, App::peerName(_parent->fromOriginal())), _textNameOptions);
+		} else {
+			_name.setText(st::semiboldFont, lng_forwarded(lt_user, App::peerName(_parent->fromOriginal())), _textNameOptions);
+		}
 	} else {
 		_name.setText(st::semiboldFont, App::peerName(_parent->from()), _textNameOptions);
-		version = _parent->from()->nameVersion;
 	}
+	version = _parent->fromOriginal()->nameVersion;
 	_nameVersion = version;
 }
 
-bool LayoutOverviewAudio::updateStatusText() const {
+bool LayoutOverviewVoice::updateStatusText() const {
 	bool showPause = false;
 	int32 statusSize = 0, realDuration = 0;
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
@@ -733,28 +748,30 @@ bool LayoutOverviewAudio::updateStatusText() const {
 		statusSize = FileStatusSizeReady;
 	}
 	if (statusSize != _statusSize) {
-		setStatusSize(statusSize, _data->size, _data->duration, realDuration);
+		setStatusSize(statusSize, _data->size, _data->voice()->duration, realDuration);
 	}
 	return showPause;
 }
 
 LayoutOverviewDocument::LayoutOverviewDocument(DocumentData *document, HistoryItem *parent) : LayoutAbstractFileItem(parent)
 , _data(document)
-, _msgl(new MessageLink(parent))
-, _namel(new DocumentOpenLink(_data))
+, _msgl(new GoToMessageClickHandler(parent))
+, _namel(new DocumentOpenClickHandler(_data))
 , _thumbForLoaded(false)
 , _name(documentName(_data))
 , _date(langDateTime(date(_data->date)))
 , _namew(st::semiboldFont->width(_name))
 , _datew(st::normalFont->width(_date))
 , _colorIndex(documentColorIndex(_data, _ext)) {
-	setLinks(new DocumentOpenLink(_data), new DocumentSaveLink(_data), new DocumentCancelLink(_data));
+	AddComponents(OverviewItemInfo::Bit());
+
+	setDocumentLinks(_data);
 
 	setStatusSize(FileStatusSizeReady, _data->size, _data->song() ? _data->song()->duration : -1, 0);
 
 	if (withThumb()) {
 		_data->thumb->load();
-		int32 tw = _data->thumb->width(), th = _data->thumb->height();
+		int32 tw = convertScale(_data->thumb->width()), th = convertScale(_data->thumb->height());
 		if (tw > th) {
 			_thumbw = (tw * st::overviewFileSize) / th;
 		} else {
@@ -764,10 +781,10 @@ LayoutOverviewDocument::LayoutOverviewDocument(DocumentData *document, HistoryIt
 		_thumbw = 0;
 	}
 
-	_extw = st::semiboldFont->width(_ext);
-	if (_extw > st::overviewFileSize - st::msgFileExtPadding * 2) {
-		_ext = st::semiboldFont->elided(_ext, st::overviewFileSize - st::msgFileExtPadding * 2, Qt::ElideMiddle);
-		_extw = st::semiboldFont->width(_ext);
+	_extw = st::overviewFileExtFont->width(_ext);
+	if (_extw > st::overviewFileSize - st::overviewFileExtPadding * 2) {
+		_ext = st::overviewFileExtFont->elided(_ext, st::overviewFileSize - st::overviewFileExtPadding * 2, Qt::ElideMiddle);
+		_extw = st::overviewFileExtFont->width(_ext);
 	}
 }
 
@@ -780,7 +797,7 @@ void LayoutOverviewDocument::initDimensions() {
 	}
 }
 
-void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContextOverview *context) const {
 	bool selected = (selection == FullSelection);
 
 	_data->automaticLoad(_parent);
@@ -818,7 +835,7 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 				float64 over = a_iconOver.current();
 				p.setBrush(style::interpolate(st::msgFileInBg, st::msgFileInBgOver, over));
 			} else {
-				bool over = textlnkDrawOver(loaded ? _openl : (_data->loading() ? _cancell : _openl));
+				bool over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _openl));
 				p.setBrush(over ? st::msgFileInBgOver : st::msgFileInBg);
 			}
 
@@ -850,10 +867,8 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 		statustop = st::linksBorder + st::overviewFileStatusTop;
 		datetop = st::linksBorder + st::overviewFileDateTop;
 
-		const OverviewPaintContext *pcontext = context->toOverviewPaintContext();
-		t_assert(pcontext != 0);
 		QRect border(rtlrect(nameleft, 0, _width - nameleft, st::linksBorder, _width));
-		if (!pcontext->isAfterDate && clip.intersects(border)) {
+		if (!context->isAfterDate && clip.intersects(border)) {
 			p.fillRect(clip.intersected(border), st::linksBorderFg);
 		}
 
@@ -863,7 +878,9 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 				if (_data->thumb->loaded()) {
 					if (_thumb.isNull() || loaded != _thumbForLoaded) {
 						_thumbForLoaded = loaded;
-						_thumb = _data->thumb->pixNoCache(_thumbw, 0, true, !_thumbForLoaded, false, st::overviewFileSize, st::overviewFileSize);
+						ImagePixOptions options = ImagePixSmooth;
+						if (!_thumbForLoaded) options |= ImagePixBlurred;
+						_thumb = _data->thumb->pixNoCache(_thumbw, 0, options, st::overviewFileSize, st::overviewFileSize);
 					}
 					p.drawPixmap(rthumb.topLeft(), _thumb);
 				} else {
@@ -872,9 +889,9 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 			} else {
 				p.fillRect(rthumb, documentColor(_colorIndex));
 				if (!radial && loaded && !_ext.isEmpty()) {
-					p.setFont(st::semiboldFont);
+					p.setFont(st::overviewFileExtFont);
 					p.setPen(st::white);
-					p.drawText(rthumb.left() + (rthumb.width() - _extw) / 2, rthumb.top() + st::msgFileExtTop + st::semiboldFont->ascent, _ext);
+					p.drawText(rthumb.left() + (rthumb.width() - _extw) / 2, rthumb.top() + st::overviewFileExtTop + st::overviewFileExtFont->ascent, _ext);
 				}
 			}
 			if (selected) {
@@ -898,7 +915,7 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 							p.setBrush(style::interpolate(documentDarkColor(_colorIndex), documentOverColor(_colorIndex), over));
 						}
 					} else {
-						bool over = textlnkDrawOver(_data->loading() ? _cancell : _savel);
+						bool over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
 						p.setBrush(over ? (wthumb ? st::msgDateImgBgOver : documentOverColor(_colorIndex)) : (wthumb ? st::msgDateImgBg : documentDarkColor(_colorIndex)));
 					}
 					p.setOpacity(radialOpacity * p.opacity());
@@ -949,13 +966,13 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 		p.drawTextLeft(nameleft, statustop, _width, _statusText);
 	}
 	if (datetop >= 0 && clip.intersects(rtlrect(nameleft, datetop, _datew, st::normalFont->height, _width))) {
-		p.setFont(textlnkDrawOver(_msgl) ? st::normalFont->underline() : st::normalFont);
+		p.setFont(ClickHandler::showAsActive(_msgl) ? st::normalFont->underline() : st::normalFont);
 		p.setPen(st::mediaInFg);
 		p.drawTextLeft(nameleft, datetop, _width, _date, _datew);
 	}
 }
 
-void LayoutOverviewDocument::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+void LayoutOverviewDocument::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
 	bool loaded = _data->loaded() || Local::willStickerImageLoad(mediaKey(DocumentFileLocation, _data->dc, _data->id));
 
 	bool showPause = updateStatusText();
@@ -1051,22 +1068,9 @@ bool LayoutOverviewDocument::updateStatusText() const {
 	return showPause;
 }
 
-namespace {
-	ITextLink *linkFromUrl(const QString &url) {
-		int32 at = url.indexOf('@'), slash = url.indexOf('/');
-		if ((at > 0) && (slash < 0 || slash > at)) {
-			return new EmailLink(url);
-		}
-		return new TextLink(url);
-	}
-}
+LayoutOverviewLink::LayoutOverviewLink(HistoryMedia *media, HistoryItem *parent) : LayoutMediaItemBase(parent) {
+	AddComponents(OverviewItemInfo::Bit());
 
-LayoutOverviewLink::LayoutOverviewLink(HistoryMedia *media, HistoryItem *parent) : LayoutMediaItem(parent)
-, _titlew(0)
-, _page(0)
-, _pixw(0)
-, _pixh(0)
-, _text(st::msgMinWidth) {
 	QString text = _parent->originalText();
 	EntitiesInText entities = _parent->originalEntities();
 
@@ -1102,20 +1106,20 @@ LayoutOverviewLink::LayoutOverviewLink(HistoryMedia *media, HistoryItem *parent)
 	_page = (media && media->type() == MediaTypeWebPage) ? static_cast<HistoryWebPage*>(media)->webpage() : 0;
 	if (_page) {
 		if (_page->doc) {
-			_photol = TextLinkPtr(new DocumentOpenLink(_page->doc));
+			_photol.reset(new DocumentOpenClickHandler(_page->doc));
 		} else if (_page->photo) {
 			if (_page->type == WebPageProfile || _page->type == WebPageVideo) {
-				_photol = TextLinkPtr(linkFromUrl(_page->url));
+				_photol = MakeShared<UrlClickHandler>(_page->url);
 			} else if (_page->type == WebPagePhoto || _page->siteName == qstr("Twitter") || _page->siteName == qstr("Facebook")) {
-				_photol = TextLinkPtr(new PhotoLink(_page->photo));
+				_photol.reset(new PhotoOpenClickHandler(_page->photo));
 			} else {
-				_photol = TextLinkPtr(linkFromUrl(_page->url));
+				_photol = MakeShared<UrlClickHandler>(_page->url);
 			}
 		} else {
-			_photol = TextLinkPtr(linkFromUrl(_page->url));
+			_photol = MakeShared<UrlClickHandler>(_page->url);
 		}
 	} else if (!_links.isEmpty()) {
-		_photol = TextLinkPtr(linkFromUrl(_links.at(0).lnk->text()));
+		_photol = MakeShared<UrlClickHandler>(_links.front().lnk->text());
 	}
 	if (from >= till && _page) {
 		text = _page->description;
@@ -1205,7 +1209,7 @@ int32 LayoutOverviewLink::resizeGetHeight(int32 width) {
 	return _height;
 }
 
-void LayoutOverviewLink::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+void LayoutOverviewLink::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContextOverview *context) const {
 	int32 left = st::dlgPhotoSize + st::dlgPhotoPadding, top = st::linksMargin.top() + st::linksBorder, w = _width - left;
 	if (clip.intersects(rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width))) {
 		if (_page && _page->photo) {
@@ -1270,21 +1274,19 @@ void LayoutOverviewLink::paint(Painter &p, const QRect &clip, uint32 selection, 
 	p.setPen(st::btnYesColor);
 	for (int32 i = 0, l = _links.size(); i < l; ++i) {
 		if (clip.intersects(rtlrect(left, top, qMin(w, _links.at(i).width), st::normalFont->height, _width))) {
-			p.setFont(textlnkDrawOver(_links.at(i).lnk) ? st::normalFont->underline() : st::normalFont);
+			p.setFont(ClickHandler::showAsActive(_links.at(i).lnk) ? st::normalFont->underline() : st::normalFont);
 			p.drawTextLeft(left, top, _width, (w < _links.at(i).width) ? st::normalFont->elided(_links.at(i).text, w) : _links.at(i).text);
 		}
 		top += st::normalFont->height;
 	}
 
-	const OverviewPaintContext *pcontext = context->toOverviewPaintContext();
-	t_assert(pcontext != 0);
 	QRect border(rtlrect(left, 0, w, st::linksBorder, _width));
-	if (!pcontext->isAfterDate && clip.intersects(border)) {
+	if (!context->isAfterDate && clip.intersects(border)) {
 		p.fillRect(clip.intersected(border), st::linksBorderFg);
 	}
 }
 
-void LayoutOverviewLink::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+void LayoutOverviewLink::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
 	int32 left = st::dlgPhotoSize + st::dlgPhotoPadding, top = st::linksMargin.top() + st::linksBorder, w = _width - left;
 	if (rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width).contains(x, y)) {
 		link = _photol;
@@ -1316,771 +1318,5 @@ void LayoutOverviewLink::getState(TextLinkPtr &link, HistoryCursorState &cursor,
 LayoutOverviewLink::Link::Link(const QString &url, const QString &text)
 : text(text)
 , width(st::normalFont->width(text))
-, lnk(linkFromUrl(url)) {
-}
-
-LayoutInlineItem::LayoutInlineItem(InlineResult *result, DocumentData *doc, PhotoData *photo)
-: _result(result)
-, _doc(doc)
-, _photo(photo)
-, _position(0) {
-}
-
-void LayoutInlineItem::setPosition(int32 position) {
-	_position = position;
-}
-
-int32 LayoutInlineItem::position() const {
-	return _position;
-}
-
-InlineResult *LayoutInlineItem::result() const {
-	return _result;
-}
-
-DocumentData *LayoutInlineItem::document() const {
-	return _doc;
-}
-
-PhotoData *LayoutInlineItem::photo() const {
-	return _photo;
-}
-
-void LayoutInlineItem::preload() {
-	if (_result) {
-		if (_result->photo) {
-			_result->photo->thumb->load();
-		} else if (_result->doc) {
-			_result->doc->thumb->load();
-		} else if (!_result->thumb->isNull()) {
-			_result->thumb->load();
-		}
-	} else if (_doc) {
-		_doc->thumb->load();
-	} else if (_photo) {
-		_photo->medium->load();
-	}
-}
-
-void LayoutInlineItem::update() {
-	if (_position >= 0) {
-		Ui::repaintInlineItem(this);
-	}
-}
-
-LayoutInlineGif::LayoutInlineGif(InlineResult *result, DocumentData *doc, bool saved) : LayoutInlineItem(result, doc, 0)
-, _state(0)
-, _gif(0)
-, _send(new SendInlineItemLink())
-, _delete((doc && saved) ? new DeleteSavedGifLink(doc) : 0)
-, _animation(0) {
-}
-
-void LayoutInlineGif::initDimensions() {
-	int32 w = content_width(), h = content_height();
-	if (w <= 0 || h <= 0) {
-		_maxw = 0;
-	} else {
-		w = w * st::inlineMediaHeight / h;
-		_maxw = qMax(w, int32(st::inlineResultsMinWidth));
-	}
-	_minh = st::inlineMediaHeight + st::inlineResultsSkip;
-}
-
-void LayoutInlineGif::setPosition(int32 position) {
-	LayoutInlineItem::setPosition(position);
-	if (_position < 0) {
-		if (gif()) delete _gif;
-		_gif = 0;
-	}
-}
-
-void DeleteSavedGifLink::onClick(Qt::MouseButton button) const {
-	if (button != Qt::LeftButton) return;
-
-	int32 index = cSavedGifs().indexOf(_data);
-	if (index >= 0) {
-		cRefSavedGifs().remove(index);
-		Local::writeSavedGifs();
-
-		MTP::send(MTPmessages_SaveGif(MTP_inputDocument(MTP_long(_data->id), MTP_long(_data->access)), MTP_bool(true)));
-	}
-	if (App::main()) emit App::main()->savedGifsUpdated();
-}
-
-void LayoutInlineGif::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
-	content_automaticLoad();
-
-	bool loaded = content_loaded(), loading = content_loading(), displayLoading = content_displayLoading();
-	if (loaded && !gif() && _gif != BadClipReader) {
-		LayoutInlineGif *that = const_cast<LayoutInlineGif*>(this);
-		that->_gif = new ClipReader(content_location(), content_data(), func(that, &LayoutInlineGif::clipCallback));
-		if (gif()) _gif->setAutoplay();
-	}
-
-	bool animating = (gif() && _gif->started());
-	if (displayLoading) {
-		ensureAnimation();
-		if (!_animation->radial.animating()) {
-			_animation->radial.start(content_progress());
-		}
-	}
-	bool radial = isRadialAnimation(context->ms);
-
-	int32 height = st::inlineMediaHeight;
-	QSize frame = countFrameSize();
-
-	QRect r(0, 0, _width, height);
-	if (animating) {
-		if (!_thumb.isNull()) _thumb = QPixmap();
-		const InlinePaintContext *ctx = context->toInlinePaintContext();
-		t_assert(ctx);
-		p.drawPixmap(r.topLeft(), _gif->current(frame.width(), frame.height(), _width, height, ctx->paused ? 0 : context->ms));
-	} else {
-		prepareThumb(_width, height, frame);
-		if (_thumb.isNull()) {
-			p.fillRect(r, st::overviewPhotoBg);
-		} else {
-			p.drawPixmap(r.topLeft(), _thumb);
-		}
-	}
-
-	if (radial || (!_gif && !loaded && !loading) || (_gif == BadClipReader)) {
-		float64 radialOpacity = (radial && loaded) ? _animation->radial.opacity() : 1;
-		if (_animation && _animation->_a_over.animating(context->ms)) {
-			float64 over = _animation->_a_over.current();
-			p.setOpacity((st::msgDateImgBg->c.alphaF() * (1 - over)) + (st::msgDateImgBgOver->c.alphaF() * over));
-			p.fillRect(r, st::black);
-		} else {
-			p.fillRect(r, (_state & StateOver) ? st::msgDateImgBgOver : st::msgDateImgBg);
-		}
-		p.setOpacity(radialOpacity * p.opacity());
-
-		p.setOpacity(radialOpacity);
-		style::sprite icon;
-		if (loaded && !radial) {
-			icon = st::msgFileInPlay;
-		} else if (radial || loading) {
-			icon = st::msgFileInCancel;
-		} else {
-			icon = st::msgFileInDownload;
-		}
-		QRect inner((_width - st::msgFileSize) / 2, (height - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
-		p.drawSpriteCenter(inner, icon);
-		if (radial) {
-			p.setOpacity(1);
-			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-			_animation->radial.draw(p, rinner, st::msgFileRadialLine, st::msgInBg);
-		}
-	}
-
-	if (_delete && (_state & StateOver)) {
-		float64 deleteOver = _a_deleteOver.current(context->ms, (_state & StateDeleteOver) ? 1 : 0);
-		QPoint deletePos = QPoint(_width - st::stickerPanDelete.pxWidth(), 0);
-		p.setOpacity(deleteOver + (1 - deleteOver) * st::stickerPanDeleteOpacity);
-		p.drawSpriteLeft(deletePos, _width, st::stickerPanDelete);
-		p.setOpacity(1);
-	}
-}
-
-void LayoutInlineGif::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
-	if (x >= 0 && x < _width && y >= 0 && y < st::inlineMediaHeight) {
-		if (_delete && (rtl() ? _width - x : x) >= _width - st::stickerPanDelete.pxWidth() && y < st::stickerPanDelete.pxHeight()) {
-			link = _delete;
-		} else {
-			link = _send;
-		}
-	}
-}
-
-void LayoutInlineGif::linkOver(const TextLinkPtr &link) {
-	if (_delete && link == _delete) {
-		if (!(_state & StateDeleteOver)) {
-			EnsureAnimation(_a_deleteOver, 0, func(this, &LayoutInlineGif::update));
-			_state |= StateDeleteOver;
-			_a_deleteOver.start(1, st::stickersRowDuration);
-		}
-	}
-	if ((_delete && link == _delete) || link == _send) {
-		if (!content_loaded()) {
-			ensureAnimation();
-			if (!(_state & StateOver)) {
-				EnsureAnimation(_animation->_a_over, 0, func(this, &LayoutInlineGif::update));
-				_animation->_a_over.start(1, st::stickersRowDuration);
-			}
-		}
-		_state |= StateOver;
-	}
-}
-
-void LayoutInlineGif::linkOut(const TextLinkPtr &link) {
-	if (_delete && link == _delete) {
-		if (_state & StateDeleteOver) {
-			update();
-			EnsureAnimation(_a_deleteOver, 1, func(this, &LayoutInlineItem::update));
-			_state &= ~StateDeleteOver;
-			_a_deleteOver.start(0, st::stickersRowDuration);
-		}
-	}
-	if ((_delete && link == _delete) || link == _send) {
-		if (!content_loaded()) {
-			ensureAnimation();
-			if (_state & StateOver) {
-				EnsureAnimation(_animation->_a_over, 1, func(this, &LayoutInlineItem::update));
-				_animation->_a_over.start(0, st::stickersRowDuration);
-			}
-		}
-		_state &= ~StateOver;
-	}
-}
-
-QSize LayoutInlineGif::countFrameSize() const {
-	bool animating = (gif() && _gif->ready());
-	int32 framew = animating ? _gif->width() : content_width(), frameh = animating ? _gif->height() : content_height(), height = st::inlineMediaHeight;
-	if (framew * height > frameh * _width) {
-		if (framew < st::maxStickerSize || frameh > height) {
-			if (frameh > height || (framew * height / frameh) <= st::maxStickerSize) {
-				framew = framew * height / frameh;
-				frameh = height;
-			} else {
-				frameh = int32(frameh * st::maxStickerSize) / framew;
-				framew = st::maxStickerSize;
-			}
-		}
-	} else {
-		if (frameh < st::maxStickerSize || framew > _width) {
-			if (framew > _width || (frameh * _width / framew) <= st::maxStickerSize) {
-				frameh = frameh * _width / framew;
-				framew = _width;
-			} else {
-				framew = int32(framew * st::maxStickerSize) / frameh;
-				frameh = st::maxStickerSize;
-			}
-		}
-	}
-	return QSize(framew, frameh);
-}
-
-LayoutInlineGif::~LayoutInlineGif() {
-	if (gif()) deleteAndMark(_gif);
-	deleteAndMark(_animation);
-}
-
-void LayoutInlineGif::prepareThumb(int32 width, int32 height, const QSize &frame) const {
-	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
-	if (doc && !doc->thumb->isNull()) {
-		if (doc->thumb->loaded()) {
-			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				_thumb = doc->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
-			}
-		} else {
-			doc->thumb->load();
-		}
-	} else if (_result && !_result->thumb_url.isEmpty()) {
-		if (_result->thumb->loaded()) {
-			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				_thumb = _result->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
-			}
-		} else {
-			_result->thumb->load();
-		}
-	}
-}
-
-void LayoutInlineGif::ensureAnimation() const {
-	if (!_animation) {
-		_animation = new AnimationData(animation(const_cast<LayoutInlineGif*>(this), &LayoutInlineGif::step_radial));
-	}
-}
-
-bool LayoutInlineGif::isRadialAnimation(uint64 ms) const {
-	if (!_animation || !_animation->radial.animating()) return false;
-
-	_animation->radial.step(ms);
-	return _animation && _animation->radial.animating();
-}
-
-void LayoutInlineGif::step_radial(uint64 ms, bool timer) {
-	if (timer) {
-		update();
-	} else {
-		_animation->radial.update(content_progress(), !content_loading() || content_loaded(), ms);
-		if (!_animation->radial.animating() && content_loaded()) {
-			delete _animation;
-			_animation = 0;
-		}
-	}
-}
-
-void LayoutInlineGif::clipCallback(ClipReaderNotification notification) {
-	switch (notification) {
-	case ClipReaderReinit: {
-		if (gif()) {
-			if (_gif->state() == ClipError) {
-				delete _gif;
-				_gif = BadClipReader;
-				content_forget();
-			} else if (_gif->ready() && !_gif->started()) {
-				int32 height = st::inlineMediaHeight;
-				QSize frame = countFrameSize();
-				_gif->start(frame.width(), frame.height(), _width, height, false);
-			} else if (_gif->paused() && !Ui::isInlineItemVisible(this)) {
-				delete _gif;
-				_gif = 0;
-				content_forget();
-			}
-		}
-
-		update();
-	} break;
-
-	case ClipReaderRepaint: {
-		if (gif() && !_gif->currentDisplayed()) {
-			update();
-		}
-	} break;
-	}
-}
-
-int32 LayoutInlineGif::content_width() const {
-	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
-	if (doc) {
-		if (doc->dimensions.width() > 0) {
-			return doc->dimensions.width();
-		}
-		if (!doc->thumb->isNull()) {
-			return doc->thumb->width();
-		}
-	} else if (_result) {
-		return _result->width;
-	}
-	return 0;
-}
-
-int32 LayoutInlineGif::content_height() const {
-	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
-	if (doc) {
-		if (doc->dimensions.height() > 0) {
-			return doc->dimensions.height();
-		}
-		if (!doc->thumb->isNull()) {
-			return doc->thumb->height();
-		}
-	} else if (_result) {
-		return _result->height;
-	}
-	return 0;
-}
-
-bool LayoutInlineGif::content_loading() const {
-	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
-	return doc ? doc->loading() : _result->loading();
-}
-
-bool LayoutInlineGif::content_displayLoading() const {
-	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
-	return doc ? doc->displayLoading() : _result->displayLoading();
-}
-
-bool LayoutInlineGif::content_loaded() const {
-	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
-	return doc ? doc->loaded() : _result->loaded();
-}
-
-float64 LayoutInlineGif::content_progress() const {
-	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
-	return doc ? doc->progress() : _result->progress();
-}
-
-void LayoutInlineGif::content_automaticLoad() const {
-	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
-	if (doc) {
-		doc->automaticLoad(0);
-	} else {
-		_result->automaticLoadGif();
-	}
-}
-
-void LayoutInlineGif::content_forget() {
-	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
-	if (doc) {
-		doc->forget();
-	} else {
-		_result->forget();
-	}
-}
-
-FileLocation LayoutInlineGif::content_location() const {
-	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
-	return doc ? doc->location() : FileLocation();
-}
-
-QByteArray LayoutInlineGif::content_data() const {
-	DocumentData *doc = _doc ? _doc : (_result ? _result->doc : 0);
-	return doc ? doc->data() : _result->data();
-}
-
-LayoutInlinePhoto::LayoutInlinePhoto(InlineResult *result, PhotoData *photo) : LayoutInlineItem(result, 0, photo)
-, _send(new SendInlineItemLink())
-, _thumbLoaded(false) {
-}
-
-void LayoutInlinePhoto::initDimensions() {
-	int32 w = content_width(), h = content_height();
-	if (w <= 0 || h <= 0) {
-		_maxw = 0;
-	} else {
-		w = w * st::inlineMediaHeight / h;
-		_maxw = qMax(w, int32(st::inlineResultsMinWidth));
-	}
-	_minh = st::inlineMediaHeight + st::inlineResultsSkip;
-}
-
-void LayoutInlinePhoto::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
-	bool loaded = content_loaded();
-
-	int32 height = st::inlineMediaHeight;
-	QSize frame = countFrameSize();
-
-	QRect r(0, 0, _width, height);
-
-	prepareThumb(_width, height, frame);
-	if (_thumb.isNull()) {
-		p.fillRect(r, st::overviewPhotoBg);
-	} else {
-		p.drawPixmap(r.topLeft(), _thumb);
-	}
-}
-
-void LayoutInlinePhoto::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
-	if (x >= 0 && x < _width && y >= 0 && y < st::inlineMediaHeight) {
-		link = _send;
-	}
-}
-
-QSize LayoutInlinePhoto::countFrameSize() const {
-	int32 framew = content_width(), frameh = content_height(), height = st::inlineMediaHeight;
-	if (framew * height > frameh * _width) {
-		if (framew < st::maxStickerSize || frameh > height) {
-			if (frameh > height || (framew * height / frameh) <= st::maxStickerSize) {
-				framew = framew * height / frameh;
-				frameh = height;
-			} else {
-				frameh = int32(frameh * st::maxStickerSize) / framew;
-				framew = st::maxStickerSize;
-			}
-		}
-	} else {
-		if (frameh < st::maxStickerSize || framew > _width) {
-			if (framew > _width || (frameh * _width / framew) <= st::maxStickerSize) {
-				frameh = frameh * _width / framew;
-				framew = _width;
-			} else {
-				framew = int32(framew * st::maxStickerSize) / frameh;
-				frameh = st::maxStickerSize;
-			}
-		}
-	}
-	return QSize(framew, frameh);
-}
-
-void LayoutInlinePhoto::prepareThumb(int32 width, int32 height, const QSize &frame) const {
-	PhotoData *photo = _photo ? _photo : (_result ? _result->photo : 0);
-	if (photo) {
-		if (photo->medium->loaded()) {
-			if (!_thumbLoaded || _thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				_thumb = photo->medium->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
-			}
-			_thumbLoaded = true;
-		} else {
-			if (photo->thumb->loaded()) {
-				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-					_thumb = photo->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
-				}
-			}
-			photo->medium->load();
-		}
-	} else {
-		if (_result->thumb->loaded()) {
-			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				_thumb = _result->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), true, false, false, width, height);
-			}
-		} else {
-			_result->thumb->load();
-		}
-	}
-}
-
-int32 LayoutInlinePhoto::content_width() const {
-	PhotoData *photo = _photo ? _photo : (_result ? _result->photo : 0);
-	if (photo) {
-		return photo->full->width();
-	} else if (_result) {
-		return _result->width;
-	}
-	return 0;
-}
-
-int32 LayoutInlinePhoto::content_height() const {
-	PhotoData *photo = _photo ? _photo : (_result ? _result->photo : 0);
-	if (photo) {
-		return photo->full->height();
-	} else if (_result) {
-		return _result->height;
-	}
-	return 0;
-}
-
-bool LayoutInlinePhoto::content_loaded() const {
-	PhotoData *photo = _photo ? _photo : (_result ? _result->photo : 0);
-	return photo ? photo->loaded() : _result->loaded();
-}
-
-void LayoutInlinePhoto::content_forget() {
-	PhotoData *photo = _photo ? _photo : (_result ? _result->photo : 0);
-	if (photo) {
-		photo->forget();
-	} else {
-		_result->forget();
-	}
-}
-
-LayoutInlineWebVideo::LayoutInlineWebVideo(InlineResult *result) : LayoutInlineItem(result, 0, 0)
-, _send(new SendInlineItemLink())
-, _link(result->content_url.isEmpty() ? 0 : linkFromUrl(result->content_url))
-, _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
-, _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
-	if (_result->duration) {
-		_duration = formatDurationText(_result->duration);
-	}
-}
-
-void LayoutInlineWebVideo::initDimensions() {
-	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
-	int32 textWidth = _maxw - (_result->thumb->isNull() ? 0 : (st::inlineThumbSize + st::inlineThumbSkip));
-	TextParseOptions titleOpts = { 0, _maxw, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
-	_title.setText(st::semiboldFont, textOneLine(_result->title), titleOpts);
-	int32 titleHeight = qMin(_title.countHeight(_maxw), 2 * st::semiboldFont->height);
-
-	int32 descriptionLines = _result->thumb->isNull() ? 3 : (titleHeight > st::semiboldFont->height ? 1 : 2);
-
-	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, descriptionLines * st::normalFont->height, Qt::LayoutDirectionAuto };
-	_description.setText(st::normalFont, _result->description, descriptionOpts);
-	int32 descriptionHeight = qMin(_description.countHeight(_maxw), descriptionLines * st::normalFont->height);
-
-	_minh = _result->thumb->isNull() ? titleHeight + descriptionHeight : st::inlineThumbSize;
-	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
-}
-
-void LayoutInlineWebVideo::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
-	int32 left = st::inlineThumbSize + st::inlineThumbSkip;
-	prepareThumb(st::inlineThumbSize, st::inlineThumbSize);
-	if (_thumb.isNull()) {
-		p.fillRect(rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width), _result->thumb->isNull() ? st::black : st::overviewPhotoBg);
-	} else {
-		p.drawPixmapLeft(0, st::inlineRowMargin, _width, _thumb);
-	}
-
-	if (!_duration.isEmpty()) {
-		int32 durationTop = st::inlineRowMargin + st::inlineThumbSize - st::normalFont->height - st::inlineDurationMargin;
-		p.fillRect(rtlrect(0, durationTop - st::inlineDurationMargin, st::inlineThumbSize, st::normalFont->height + 2 * st::inlineDurationMargin, _width), st::msgDateImgBg);
-		p.setPen(st::white);
-		p.setFont(st::normalFont);
-		p.drawTextRight(_width - st::inlineThumbSize + st::inlineDurationMargin, durationTop, _width, _duration);
-	}
-
-	p.setPen(st::black);
-	_title.drawLeftElided(p, left, st::inlineRowMargin, _width - left, _width, 2);
-	int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
-
-	p.setPen(st::inlineDescriptionFg);
-	int32 descriptionLines = _result->thumb->isNull() ? 3 : (titleHeight > st::semiboldFont->height ? 1 : 2);
-	_description.drawLeftElided(p, left, st::inlineRowMargin + titleHeight, _width - left, _width, descriptionLines);
-
-	const InlinePaintContext *ctx = context->toInlinePaintContext();
-	t_assert(ctx);
-	if (!ctx->lastRow) {
-		p.fillRect(rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
-	}
-}
-
-void LayoutInlineWebVideo::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
-	if (x >= 0 && x < st::inlineThumbSize && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::inlineThumbSize) {
-		link = _link;
-		return;
-	}
-	if (x >= st::inlineThumbSize + st::inlineThumbSkip && x < _width && y >= 0 && y < _height) {
-		link = _send;
-		return;
-	}
-}
-
-void LayoutInlineWebVideo::prepareThumb(int32 width, int32 height) const {
-	if (_result->thumb->loaded()) {
-		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-			int32 w = qMax(_result->thumb->width(), 1), h = qMax(_result->thumb->height(), 1);
-			if (w * height > h * width) {
-				if (height < h) {
-					w = w * height / h;
-					h = height;
-				}
-			} else {
-				if (width < w) {
-					h = h * width / w;
-					w = width;
-				}
-			}
-			_thumb = _result->thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), true, false, false, width, height);
-		}
-	} else {
-		_result->thumb->load();
-	}
-}
-
-LayoutInlineArticle::LayoutInlineArticle(InlineResult *result, bool withThumb) : LayoutInlineItem(result, 0, 0)
-, _send(new SendInlineItemLink())
-, _url(result->url.isEmpty() ? 0 : linkFromUrl(result->url))
-, _link(result->content_url.isEmpty() ? 0 : linkFromUrl(result->content_url))
-, _withThumb(withThumb)
-, _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
-, _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
-	QVector<QStringRef> parts = _result->url.splitRef('/');
-	if (!parts.isEmpty()) {
-		QStringRef domain = parts.at(0);
-		if (parts.size() > 2 && domain.endsWith(':') && parts.at(1).isEmpty()) { // http:// and others
-			domain = parts.at(2);
-		}
-
-		parts = domain.split('@').back().split('.');
-		if (parts.size() > 1) {
-			_letter = parts.at(parts.size() - 2).at(0).toUpper();
-		}
-	}
-	if (_letter.isEmpty() && !_result->title.isEmpty()) {
-		_letter = _result->title.at(0).toUpper();
-	}
-}
-
-void LayoutInlineArticle::initDimensions() {
-	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
-	int32 textWidth = _maxw - (_withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0);
-	TextParseOptions titleOpts = { 0, _maxw, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
-	_title.setText(st::semiboldFont, textOneLine(_result->title), titleOpts);
-	int32 titleHeight = qMin(_title.countHeight(_maxw), 2 * st::semiboldFont->height);
-
-	int32 descriptionLines = (_withThumb || _url) ? 2 : 3;
-
-	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, descriptionLines * st::normalFont->height, Qt::LayoutDirectionAuto };
-	_description.setText(st::normalFont, _result->description, descriptionOpts);
-	int32 descriptionHeight = qMin(_description.countHeight(_maxw), descriptionLines * st::normalFont->height);
-
-	_minh = titleHeight + descriptionHeight;
-	if (_url) _minh += st::normalFont->height;
-	if (_withThumb) _minh = qMax(_minh, int32(st::inlineThumbSize));
-	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
-}
-
-int32 LayoutInlineArticle::resizeGetHeight(int32 width) {
-	_width = qMin(width, _maxw);
-	if (_url) {
-		_urlText = _result->url;
-		_urlWidth = st::normalFont->width(_urlText);
-		if (_urlWidth > _width - st::inlineThumbSize - st::inlineThumbSkip) {
-			_urlText = st::normalFont->elided(_result->url, _width - st::inlineThumbSize - st::inlineThumbSkip);
-			_urlWidth = st::normalFont->width(_urlText);
-		}
-	}
-	_height = _minh;
-	return _height;
-}
-
-void LayoutInlineArticle::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
-	int32 left = st::emojiPanHeaderLeft - st::inlineResultsLeft;
-	if (_withThumb) {
-		left = st::inlineThumbSize + st::inlineThumbSkip;
-		prepareThumb(st::inlineThumbSize, st::inlineThumbSize);
-		QRect rthumb(rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width));
-		if (_thumb.isNull()) {
-			if (_result->thumb->isNull() && !_letter.isEmpty()) {
-				int32 index = (_letter.at(0).unicode() % 4);
-				style::color colors[] = { st::msgFileRedColor, st::msgFileYellowColor, st::msgFileGreenColor, st::msgFileBlueColor };
-
-				p.fillRect(rthumb, colors[index]);
-				if (!_letter.isEmpty()) {
-					p.setFont(st::linksLetterFont);
-					p.setPen(st::white);
-					p.drawText(rthumb, _letter, style::al_center);
-				}
-			} else {
-				p.fillRect(rthumb, st::overviewPhotoBg);
-			}
-		} else {
-			p.drawPixmapLeft(rthumb.topLeft(), _width, _thumb);
-		}
-	}
-
-	p.setPen(st::black);
-	_title.drawLeftElided(p, left, st::inlineRowMargin, _width - left, _width, 2);
-	int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
-
-	p.setPen(st::inlineDescriptionFg);
-	int32 descriptionLines = (_withThumb || _url) ? 2 : 3;
-	_description.drawLeftElided(p, left, st::inlineRowMargin + titleHeight, _width - left, _width, descriptionLines);
-
-	if (_url) {
-		int32 descriptionHeight = qMin(_description.countHeight(_width - left), st::normalFont->height * descriptionLines);
-		p.drawTextLeft(left, st::inlineRowMargin + titleHeight + descriptionHeight, _width, _urlText, _urlWidth);
-	}
-
-	const InlinePaintContext *ctx = context->toInlinePaintContext();
-	t_assert(ctx);
-	if (!ctx->lastRow) {
-		p.fillRect(rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
-	}
-}
-
-void LayoutInlineArticle::getState(TextLinkPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
-	int32 left = _withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0;
-	if (x >= 0 && x < left - st::inlineThumbSkip && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::inlineThumbSize) {
-		link = _link;
-		return;
-	}
-	if (x >= left && x < _width && y >= 0 && y < _height) {
-		if (_url) {
-			int32 left = st::inlineThumbSize + st::inlineThumbSkip;
-			int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
-			int32 descriptionLines = 2;
-			int32 descriptionHeight = qMin(_description.countHeight(_width - left), st::normalFont->height * descriptionLines);
-			if (rtlrect(left, st::inlineRowMargin + titleHeight + descriptionHeight, _urlWidth, st::normalFont->height, _width).contains(x, y)) {
-				link = _url;
-				return;
-			}
-		}
-		link = _send;
-		return;
-	}
-}
-
-void LayoutInlineArticle::prepareThumb(int32 width, int32 height) const {
-	if (_result->thumb->isNull()) return;
-
-	if (_result->thumb->loaded()) {
-		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-			int32 w = qMax(_result->thumb->width(), 1), h = qMax(_result->thumb->height(), 1);
-			if (w * height > h * width) {
-				if (height < h) {
-					w = w * height / h;
-					h = height;
-				}
-			} else {
-				if (width < w) {
-					h = h * width / w;
-					w = width;
-				}
-			}
-			_thumb = _result->thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), true, false, false, width, height);
-		}
-	} else {
-		_result->thumb->load();
-	}
+, lnk(MakeShared<UrlClickHandler>(url)) {
 }

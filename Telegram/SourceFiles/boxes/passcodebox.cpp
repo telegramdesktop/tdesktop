@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -400,12 +400,12 @@ void PasscodeBox::onSave(bool force) {
 			if (!_oldPasscode.isHidden()) {
 				hashSha256(oldPasswordData.constData(), oldPasswordData.size(), oldPasswordHash.data());
 			}
-			int32 flags = MTPDaccount_passwordInputSettings::flag_new_salt | MTPDaccount_passwordInputSettings::flag_new_password_hash | MTPDaccount_passwordInputSettings::flag_hint;
+			MTPDaccount_passwordInputSettings::Flags flags = MTPDaccount_passwordInputSettings::Flag::f_new_salt | MTPDaccount_passwordInputSettings::Flag::f_new_password_hash | MTPDaccount_passwordInputSettings::Flag::f_hint;
 			if (_oldPasscode.isHidden() || _newPasscode.isHidden()) {
-				flags |= MTPDaccount_passwordInputSettings::flag_email;
+				flags |= MTPDaccount_passwordInputSettings::Flag::f_email;
 			}
-			MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_int(flags), MTP_string(_newSalt), MTP_string(newPasswordHash), MTP_string(hint), MTP_string(email)));
-			_setRequest = MTP::send(MTPaccount_UpdatePasswordSettings(MTP_string(oldPasswordHash), settings), rpcDone(&PasscodeBox::setPasswordDone), rpcFail(&PasscodeBox::setPasswordFail));
+			MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_flags(flags), MTP_bytes(_newSalt), MTP_bytes(newPasswordHash), MTP_string(hint), MTP_string(email)));
+			_setRequest = MTP::send(MTPaccount_UpdatePasswordSettings(MTP_bytes(oldPasswordHash), settings), rpcDone(&PasscodeBox::setPasswordDone), rpcFail(&PasscodeBox::setPasswordFail));
 		}
 	} else {
 		cSetPasscodeBadTries(0);

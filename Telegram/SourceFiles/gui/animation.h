@@ -16,11 +16,11 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "types.h"
+#include "basic_types.h"
 #include <QtCore/QTimer>
 #include <QtGui/QColor>
 
@@ -208,10 +208,10 @@ class AnimationCreator {
 public:
 	AnimationCreator(AnimationImplementation *ptr) : _ptr(ptr) {}
 	AnimationCreator(const AnimationCreator &other) : _ptr(other.create()) {}
-	AnimationImplementation *create() const { return exchange(_ptr); }
+	AnimationImplementation *create() const { return getPointerAndReset(_ptr); }
 	~AnimationCreator() { deleteAndMark(_ptr); }
 private:
-	AnimationCreator &operator=(const AnimationCreator &other);
+	AnimationCreator &operator=(const AnimationCreator &other) = delete;
 	mutable AnimationImplementation *_ptr;
 };
 class AnimationCallbacks {
@@ -222,7 +222,7 @@ public:
 	~AnimationCallbacks() { deleteAndMark(_implementation); }
 private:
 	AnimationCallbacks(const AnimationCallbacks &other);
-	AnimationCallbacks &operator=(const AnimationCallbacks &other);
+	AnimationCallbacks &operator=(const AnimationCallbacks &other) = delete;
 	AnimationImplementation *_implementation;
 };
 

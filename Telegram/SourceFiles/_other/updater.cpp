@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "updater.h"
 
@@ -255,7 +255,7 @@ bool update() {
 				} else {
 					break;
 				}
-			} while (copyTries < 30);
+			} while (copyTries < 100);
 			if (!copyResult) {
 				writeLog(L"Error: failed to copy, asking to retry..");
 				WCHAR errMsg[2048];
@@ -328,14 +328,11 @@ void updateRegistry() {
 	}
 }
 
-#include <ShlObj.h>
-
 int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdParamarg, int cmdShow) {
 	openLog();
 
-#ifdef _NEED_WIN_GENERATE_DUMP
 	_oldWndExceptionFilter = SetUnhandledExceptionFilter(_exceptionFilter);
-#endif
+//	CAPIHook apiHook("kernel32.dll", "SetUnhandledExceptionFilter", (PROC)RedirectedSetUnhandledExceptionFilter);
 
 	writeLog(L"Updaters started..");
 
@@ -459,13 +456,12 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 		ShellExecute(0, 0, (updateTo + L"Telegram.exe").c_str(), (L"-noupdate" + targs).c_str(), 0, SW_SHOWNORMAL);
 	}
 
-	writeLog(L"Executed Telegram.exe, closing log and quiting..");
+	writeLog(L"Executed Telegram.exe, closing log and quitting..");
 	closeLog();
 
 	return 0;
 }
 
-#ifdef _NEED_WIN_GENERATE_DUMP
 static const WCHAR *_programName = L"Telegram Desktop"; // folder in APPDATA, if current path is unavailable for writing
 static const WCHAR *_exeName = L"Updater.exe";
 
@@ -486,9 +482,14 @@ HANDLE _generateDumpFileAtPath(const WCHAR *path) {
 	static const int maxFileLen = MAX_PATH * 10;
 
 	WCHAR szPath[maxFileLen];
-	wsprintf(szPath, L"%stdumps\\", path);
-
+	wsprintf(szPath, L"%stdata\\", path);
     if (!CreateDirectory(szPath, NULL)) {
+		if (GetLastError() != ERROR_ALREADY_EXISTS) {
+			return 0;
+		}
+	}
+	wsprintf(szPath, L"%sdumps\\", path);
+	if (!CreateDirectory(szPath, NULL)) {
 		if (GetLastError() != ERROR_ALREADY_EXISTS) {
 			return 0;
 		}
@@ -507,10 +508,10 @@ HANDLE _generateDumpFileAtPath(const WCHAR *path) {
 
     GetLocalTime(&stLocalTime);
 
-    wsprintf(szFileName, L"%s%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp", 
-             szPath, szExeName, updaterVersionStr, 
-             stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay, 
-             stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond, 
+    wsprintf(szFileName, L"%s%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp",
+             szPath, szExeName, updaterVersionStr,
+             stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay,
+             stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond,
              GetCurrentProcessId(), GetCurrentThreadId());
     return CreateFile(szFileName, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
 }
@@ -546,7 +547,7 @@ void _generateDump(EXCEPTION_POINTERS* pExceptionPointers) {
 			hDumpFile = _generateDumpFileAtPath(wstrPath);
 		}
 	}
-	
+
 	if (!hDumpFile || hDumpFile == INVALID_HANDLE_VALUE) {
 		return;
 	}
@@ -564,4 +565,10 @@ LONG CALLBACK _exceptionFilter(EXCEPTION_POINTERS* pExceptionPointers) {
     return _oldWndExceptionFilter ? (*_oldWndExceptionFilter)(pExceptionPointers) : EXCEPTION_CONTINUE_SEARCH;
 }
 
-#endif
+// see http://www.codeproject.com/Articles/154686/SetUnhandledExceptionFilter-and-the-C-C-Runtime-Li
+LPTOP_LEVEL_EXCEPTION_FILTER WINAPI RedirectedSetUnhandledExceptionFilter(_In_opt_ LPTOP_LEVEL_EXCEPTION_FILTER lpTopLevelExceptionFilter) {
+	// When the CRT calls SetUnhandledExceptionFilter with NULL parameter
+	// our handler will not get removed.
+	_oldWndExceptionFilter = lpTopLevelExceptionFilter;
+	return 0;
+}

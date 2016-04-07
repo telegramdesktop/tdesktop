@@ -16,12 +16,12 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "style.h"
-
 #include "flattextarea.h"
+
+#include "gui/style.h"
 #include "window.h"
 
 FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v) : QTextEdit(parent)
@@ -298,10 +298,10 @@ QString FlatTextarea::getInlineBotQuery(UserData *&inlineBot, QString &inlineBot
 						inlineBot = 0;
 					}
 				} else {
-					inlineBot = InlineBotLookingUpData;
+					inlineBot = LookingUpInlineBot;
 				}
 			}
-			if (inlineBot == InlineBotLookingUpData) return QString();
+			if (inlineBot == LookingUpInlineBot) return QString();
 
 			if (inlineBot && (!inlineBot->botInfo || inlineBot->botInfo->inlinePlaceholder.isEmpty())) {
 				inlineBot = 0;
@@ -392,7 +392,7 @@ void FlatTextarea::onMentionHashtagOrBotCommandInsert(QString str) {
 		QString t(fr.text());
 		for (int i = pos - p; i > 0; --i) {
 			if (t.at(i - 1) == '@' || t.at(i - 1) == '#' || t.at(i - 1) == '/') {
-				if ((i == pos - p || t.at(i).isLetter() || t.at(i - 1) == '#') && (i < 2 || !(t.at(i - 2).isLetterOrNumber() || t.at(i - 2) == '_'))) {
+				if ((i == pos - p || (t.at(i - 1) == '/' ? t.at(i).isLetterOrNumber() : t.at(i).isLetter()) || t.at(i - 1) == '#') && (i < 2 || !(t.at(i - 2).isLetterOrNumber() || t.at(i - 2) == '_'))) {
 					c.setPosition(p + i - 1, QTextCursor::MoveAnchor);
 					int till = p + i;
 					for (; (till < e) && (till - p - i + 1 < str.size()); ++till) {
@@ -738,7 +738,7 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 				const QChar *ch = t.constData(), *e = ch + t.size();
 				for (; ch != e; ++ch, ++fp) {
 					int32 emojiLen = 0;
-					emoji = emojiFromText(ch, e, emojiLen);
+					emoji = emojiFromText(ch, e, &emojiLen);
 					if (emoji) {
 						if (replacePosition >= 0) {
 							emoji = 0; // replace tilde char format first

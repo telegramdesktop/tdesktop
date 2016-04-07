@@ -16,10 +16,10 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "style.h"
+#include "gui/style.h"
 
 #include "flatinput.h"
 #include "window.h"
@@ -66,7 +66,7 @@ FlatInput::FlatInput(QWidget *parent, const style::flatInput &st, const QString 
 , _notingBene(0)
 , _st(st) {
 	resize(_st.width, _st.height);
-	
+
 	setFont(_st.font->f);
 	setAlignment(_st.align);
 
@@ -959,7 +959,7 @@ void InputArea::processDocumentContentsChange(int position, int charsAdded) {
 				const QChar *ch = t.constData(), *e = ch + t.size();
 				for (; ch != e; ++ch, ++fp) {
 					int32 emojiLen = 0;
-					emoji = emojiFromText(ch, e, emojiLen);
+					emoji = emojiFromText(ch, e, &emojiLen);
 					if (emoji) {
 						if (replacePosition >= 0) {
 							emoji = 0; // replace tilde char format first
@@ -1331,7 +1331,7 @@ InputField::InputField(QWidget *parent, const style::InputField &st, const QStri
 	connect(&_inner, SIGNAL(undoAvailable(bool)), this, SLOT(onUndoAvailable(bool)));
 	connect(&_inner, SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
 	if (App::wnd()) connect(&_inner, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
-	
+
 	setCursor(style::cur_text);
 	if (!val.isEmpty()) {
 		_inner.setPlainText(val);
@@ -1412,7 +1412,7 @@ void InputField::paintEvent(QPaintEvent *e) {
 	if (_st.iconSprite.pxWidth()) {
 		p.drawSpriteLeft(_st.iconPosition, width(), _st.iconSprite);
 	}
-	
+
 	bool drawPlaceholder = _placeholderVisible;
 	if (_a_placeholderShift.animating()) {
 		p.setOpacity(a_placeholderOpacity.current());
@@ -1425,11 +1425,11 @@ void InputField::paintEvent(QPaintEvent *e) {
 		QRect r(rect().marginsRemoved(_st.textMargins + _st.placeholderMargins));
 		r.moveLeft(r.left() + a_placeholderLeft.current());
 		if (rtl()) r.moveLeft(width() - r.left() - r.width());
-	
+
 		p.setFont(_st.font);
 		p.setPen(a_placeholderFg.current());
 		p.drawText(r, _placeholder, _st.placeholderAlign);
-	
+
 		p.restore();
 	}
 	TWidget::paintEvent(e);
@@ -1663,7 +1663,7 @@ void InputField::processDocumentContentsChange(int position, int charsAdded) {
 					}
 
 					int32 emojiLen = 0;
-					emoji = emojiFromText(ch, e, emojiLen);
+					emoji = emojiFromText(ch, e, &emojiLen);
 					if (emoji) {
 						if (replacePosition >= 0) {
 							emoji = 0; // replace tilde char format first
@@ -2028,7 +2028,7 @@ MaskedInputField::MaskedInputField(QWidget *parent, const style::InputField &st,
 	setStyle(&_inputFieldStyle);
 	QLineEdit::setTextMargins(0, 0, 0, 0);
 	setContentsMargins(0, 0, 0, 0);
-	
+
 	setAttribute(Qt::WA_AcceptTouchEvents);
 	_touchTimer.setSingleShot(true);
 	connect(&_touchTimer, SIGNAL(timeout()), this, SLOT(onTouchTimer()));

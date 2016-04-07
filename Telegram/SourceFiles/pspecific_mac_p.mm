@@ -1,19 +1,19 @@
 /*
 This file is part of Telegram Desktop,
 the official desktop version of Telegram messaging app, see https://telegram.org
- 
+
 Telegram Desktop is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
- 
+
 It is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
- 
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "pspecific_mac_p.h"
@@ -142,7 +142,7 @@ QString objcString(NSString *str) {
 
 class PsMacWindowData {
 public:
-    
+
     PsMacWindowData(PsMacWindowPrivate *wnd) :
     wnd(wnd),
     observerHelper([[ObserverHelper alloc] init:wnd]),
@@ -156,7 +156,7 @@ public:
 		int msgId = msgObj ? [msgObj intValue] : 0;
         wnd->notifyClicked(peerLong, msgId);
     }
-    
+
     void onNotifyReply(NSUserNotification *notification) {
 		NSDictionary *dict = [notification userInfo];
 		NSNumber *peerObj = [dict objectForKey:@"peer"], *msgObj = [dict objectForKey:@"msgid"];
@@ -164,12 +164,12 @@ public:
 		int msgId = msgObj ? [msgObj intValue] : 0;
         wnd->notifyReplied(peerLong, msgId, [[[notification response] string] UTF8String]);
     }
-    
+
     ~PsMacWindowData() {
         [observerHelper release];
         [notifyHandler release];
     }
-    
+
     PsMacWindowPrivate *wnd;
     ObserverHelper *observerHelper;
     NotifyHandler *notifyHandler;
@@ -208,10 +208,10 @@ public:
 }
 
 - (void) userNotificationCenter:(NSUserNotificationCenter *)center didActivateNotification:(NSUserNotification *)notification {
-    NSNumber *instObj = [[notification userInfo] objectForKey:@"inst"];
+    NSNumber *instObj = [[notification userInfo] objectForKey:@"launch"];
 	unsigned long long instLong = instObj ? [instObj unsignedLongLongValue] : 0;
 	DEBUG_LOG(("Received notification with instance %1").arg(instLong));
-    if (instLong != cInstance()) { // other app instance notification
+	if (instLong != Global::LaunchId()) { // other app instance notification
         return;
     }
     if (notification.activationType == NSUserNotificationActivationTypeReplied) {
@@ -283,8 +283,8 @@ void PsMacWindowPrivate::showNotify(uint64 peer, int32 msgId, const QPixmap &pix
     NSUserNotification *notification = [[NSUserNotification alloc] init];
 	NSImage *img = qt_mac_create_nsimage(pix);
 
-	DEBUG_LOG(("Sending notification with userinfo: peer %1, msgId %2 and instance %3").arg(peer).arg(msgId).arg(cInstance()));
-    [notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer],@"peer",[NSNumber numberWithInt:msgId],@"msgid",[NSNumber numberWithUnsignedLongLong:cInstance()],@"inst",nil]];
+	DEBUG_LOG(("Sending notification with userinfo: peer %1, msgId %2 and instance %3").arg(peer).arg(msgId).arg(Global::LaunchId()));
+    [notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer],@"peer",[NSNumber numberWithInt:msgId],@"msgid",[NSNumber numberWithUnsignedLongLong:Global::LaunchId()],@"launch",nil]];
 
 	[notification setTitle:QNSString(title).s()];
     [notification setSubtitle:QNSString(subtitle).s()];
@@ -352,7 +352,7 @@ void PsMacWindowPrivate::clearNotifies(unsigned long long peer) {
         NSArray *notifies = [center deliveredNotifications];
         for (id notify in notifies) {
 			NSDictionary *dict = [notify userInfo];
-			if ([[dict objectForKey:@"peer"] unsignedLongLongValue] == peer && [[dict objectForKey:@"inst"] unsignedLongLongValue] == cInstance()) {
+			if ([[dict objectForKey:@"peer"] unsignedLongLongValue] == peer && [[dict objectForKey:@"launch"] unsignedLongLongValue] == Global::LaunchId()) {
                 [center removeDeliveredNotification:notify];
             }
         }
@@ -384,9 +384,9 @@ bool objc_idleTime(int64 &idleTime) { // taken from https://github.com/trueinter
     mach_port_t masterPort;
     io_iterator_t iter;
     io_registry_entry_t curObj;
-    
+
     IOMasterPort(MACH_PORT_NULL, &masterPort);
-    
+
     /* Get IOHIDSystem */
     IOServiceGetMatchingServices(masterPort, IOServiceMatching("IOHIDSystem"), &iter);
     if (iter == 0) {
@@ -400,11 +400,11 @@ bool objc_idleTime(int64 &idleTime) { // taken from https://github.com/trueinter
     } else {
         return false;
     }
-    
+
     uint64 err = ~0L, result = err;
     if (obj) {
         CFTypeID type = CFGetTypeID(obj);
-        
+
         if (type == CFDataGetTypeID()) {
             CFDataGetBytes((CFDataRef) obj, CFRangeMake(0, sizeof(result)), (UInt8*)&result);
         } else if (type == CFNumberGetTypeID()) {
@@ -412,16 +412,16 @@ bool objc_idleTime(int64 &idleTime) { // taken from https://github.com/trueinter
         } else {
             // error
         }
-        
+
         CFRelease(obj);
-        
+
         if (result != err) {
             result /= 1000000; // return as ms
         }
     } else {
         // error
     }
-    
+
     CFRelease((CFTypeRef)properties);
     IOObjectRelease(curObj);
     IOObjectRelease(iter);
@@ -761,7 +761,7 @@ void objc_showInFinder(const QString &file, const QString &path) {
             }
         }
     }
-    
+
     return NO;
 }
 
@@ -790,20 +790,20 @@ void objc_openFile(const QString &f, bool openwith) {
             NSArray *names =[url pathComponents];
             NSString *name = [names count] ? [names lastObject] : @"";
             NSArray *apps = (NSArray*)LSCopyApplicationURLsForURL(CFURLRef(url), kLSRolesAll);
-            
+
             NSOpenPanel *openPanel = [NSOpenPanel openPanel];
 
 			NSRect fullRect = { { 0., 0. }, { st::macAccessory.width() * 1., st::macAccessory.height() * 1. } };
 			NSView *accessory = [[NSView alloc] initWithFrame:fullRect];
-			
+
             [accessory setAutoresizesSubviews:YES];
-            
+
             NSPopUpButton *selector = [[NSPopUpButton alloc] init];
             [accessory addSubview:selector];
             [selector addItemWithTitle:objc_lang(lng_mac_recommended_apps).s()];
             [selector addItemWithTitle:objc_lang(lng_mac_all_apps).s()];
             [selector sizeToFit];
-            
+
             NSTextField *enableLabel = [[NSTextField alloc] init];
             [accessory addSubview:enableLabel];
             [enableLabel setStringValue:objc_lang(lng_mac_enable_filter).s()];
@@ -848,7 +848,7 @@ void objc_openFile(const QString &f, bool openwith) {
             goodFrame.origin.x = (fullRect.size.width - goodFrame.size.width) / 2.;
             goodFrame.origin.y = alwaysRect.origin.y - goodFrame.size.height - st::macAppHintTop;
             [goodLabel setFrame:goodFrame];
-            
+
             NSTextField *badLabel = [[NSTextField alloc] init];
             [badLabel setStringValue:QNSString(lng_mac_not_known_app(lt_file, objcString(name))).s()];
             [badLabel setFont:[goodLabel font]];
@@ -861,7 +861,7 @@ void objc_openFile(const QString &f, bool openwith) {
             NSImage *badImage = [NSImage imageNamed:NSImageNameCaution];
             [badIcon setImage:badImage];
             [badIcon setFrame:NSMakeRect(0, 0, st::macCautionIconSize.width(), st::macCautionIconSize.height())];
-            
+
             NSRect badFrame = [badLabel frame], badIconFrame = [badIcon frame];
             badFrame.origin.x = (fullRect.size.width - badFrame.size.width + badIconFrame.size.width) / 2.;
             badIconFrame.origin.x = (fullRect.size.width - badFrame.size.width - badIconFrame.size.width) / 2.;
@@ -874,14 +874,14 @@ void objc_openFile(const QString &f, bool openwith) {
 
             ChooseApplicationDelegate *delegate = [[ChooseApplicationDelegate alloc] init:apps withPanel:openPanel withSelector:selector withGood:goodLabel withBad:badLabel withIcon:badIcon withAccessory:accessory];
             [openPanel setDelegate:delegate];
-            
+
             [openPanel setCanChooseDirectories:NO];
             [openPanel setCanChooseFiles:YES];
             [openPanel setAllowsMultipleSelection:NO];
             [openPanel setResolvesAliases:YES];
             [openPanel setTitle:objc_lang(lng_mac_choose_app).s()];
             [openPanel setMessage:QNSString(lng_mac_choose_text(lt_file, objcString(name))).s()];
-            
+
             NSArray *appsPaths = [[NSFileManager defaultManager] URLsForDirectory:NSApplicationDirectory inDomains:NSLocalDomainMask];
             if ([appsPaths count]) [openPanel setDirectoryURL:[appsPaths firstObject]];
             [openPanel beginWithCompletionHandler:^(NSInteger result){
@@ -950,7 +950,7 @@ void objc_registerCustomScheme() {
 	#endif
 }
 
-BOOL _execUpdater(BOOL update = YES) {
+BOOL _execUpdater(BOOL update = YES, const QString &crashreport = QString()) {
 	NSString *path = @"", *args = @"";
 	@try {
 		path = [[NSBundle mainBundle] bundlePath];
@@ -964,7 +964,7 @@ BOOL _execUpdater(BOOL update = YES) {
 		[args addObject:[NSString stringWithFormat:@"%d", [[NSProcessInfo processInfo] processIdentifier]]];
 		if (cRestartingToSettings()) [args addObject:@"-tosettings"];
 		if (!update) [args addObject:@"-noupdate"];
-		if (cFromAutoStart()) [args addObject:@"-autostart"];
+		if (cLaunchMode() == LaunchModeAutoStart) [args addObject:@"-autostart"];
 		if (cDebug()) [args addObject:@"-debug"];
 		if (cStartInTray()) [args addObject:@"-startintray"];
 		if (cTestMode()) [args addObject:@"-testmode"];
@@ -972,10 +972,16 @@ BOOL _execUpdater(BOOL update = YES) {
 			[args addObject:@"-key"];
 			[args addObject:QNSString(cDataFile()).s()];
 		}
+		if (!crashreport.isEmpty()) {
+			[args addObject:@"-crashreport"];
+			[args addObject:QNSString(crashreport).s()];
+		}
 
 		DEBUG_LOG(("Application Info: executing %1 %2").arg(objcString(path)).arg(objcString([args componentsJoinedByString:@" "])));
+		Logs::closeMain();
+		SignalHandlers::finish();
 		if (![NSTask launchedTaskWithLaunchPath:path arguments:args]) {
-			LOG(("Task not launched while executing %1 %2").arg(objcString(path)).arg(objcString([args componentsJoinedByString:@" "])));
+			DEBUG_LOG(("Task not launched while executing %1 %2").arg(objcString(path)).arg(objcString([args componentsJoinedByString:@" "])));
 			return NO;
 		}
 	}
@@ -992,8 +998,8 @@ bool objc_execUpdater() {
 	return !!_execUpdater();
 }
 
-void objc_execTelegram() {
-	_execUpdater(NO);
+void objc_execTelegram(const QString &crashreport) {
+	_execUpdater(NO, crashreport);
 }
 
 void objc_activateProgram(WId winId) {
@@ -1025,6 +1031,10 @@ bool objc_moveFile(const QString &from, const QString &to) {
 
 void objc_deleteDir(const QString &dir) {
 	[[NSFileManager defaultManager] removeItemAtPath:QNSString(dir).s() error:nil];
+}
+
+double objc_appkitVersion() {
+	return NSAppKitVersionNumber;
 }
 
 QString objc_appDataPath() {

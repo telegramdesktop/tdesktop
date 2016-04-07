@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "gui/flatbutton.h"
@@ -311,21 +311,19 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 		p.drawPixmap(t, App::sprite(), i);
 	}
 
-	QRect inner(QPoint((width() - st::emojiCircle.width()) / 2, st::emojiCircleTop), st::emojiCircle);
-	int32 full = 5760;
-	int32 start = qRound(full * float64(ms % uint64(st::emojiCirclePeriod)) / st::emojiCirclePeriod), part = qRound(full / st::emojiCirclePart);
-
-	p.setBrush(Qt::NoBrush);
-	p.setRenderHint(QPainter::HighQualityAntialiasing);
-
-	p.setPen(QPen(st::emojiCircleFg->c, st::emojiCircleLine));
 	p.setOpacity(a_opacity.current() * _opacity);
-	p.drawEllipse(inner);
+	p.setPen(QPen(st::emojiCircleFg, st::emojiCircleLine));
+	p.setBrush(Qt::NoBrush);
 
-	p.setPen(QPen(st::white->c, st::emojiCircleLine));
-	p.setOpacity(loading);
-	p.drawArc(inner, (full - start) % full, part);
-
+	p.setRenderHint(QPainter::HighQualityAntialiasing);
+	QRect inner(QPoint((width() - st::emojiCircle.width()) / 2, st::emojiCircleTop), st::emojiCircle);
+	if (loading > 0) {
+		int32 full = 5760;
+		int32 start = qRound(full * float64(ms % uint64(st::emojiCirclePeriod)) / st::emojiCirclePeriod), part = qRound(loading * full / st::emojiCirclePart);
+		p.drawArc(inner, start, full - part);
+	} else {
+		p.drawEllipse(inner);
+	}
 	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 }
 

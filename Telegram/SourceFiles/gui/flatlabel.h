@@ -16,31 +16,38 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "style.h"
+#include "gui/style.h"
 
-class FlatLabel : public TWidget {
+class FlatLabel : public TWidget, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
 
 	FlatLabel(QWidget *parent, const QString &text, const style::flatLabel &st = st::labelDefFlat, const style::textStyle &tst = st::defaultTextStyle);
 
-	void paintEvent(QPaintEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void leaveEvent(QEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
 	void updateLink();
 	void setOpacity(float64 o);
 
 	void setText(const QString &text);
 	void setRichText(const QString &text);
 
-	void setLink(uint16 lnkIndex, const TextLinkPtr &lnk);
+	void resizeToWidth(int32 width);
+
+	void setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk);
+
+	// ClickHandlerHost interface
+	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
+	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
 
 private:
 
@@ -52,6 +59,5 @@ private:
 	float64 _opacity;
 
 	QPoint _lastMousePos;
-	TextLinkPtr _myLink;
 
 };

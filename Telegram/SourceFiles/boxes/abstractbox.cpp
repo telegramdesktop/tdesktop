@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -178,6 +178,14 @@ void AbstractBox::resizeMaxHeight(int32 newWidth, int32 maxHeight) {
 		_maxHeight = maxHeight;
 		resize(newWidth, countHeight());
 		if (parentWidget()) {
+			QRect r = geometry();
+			int32 parenth = parentWidget()->height();
+			if (r.top() + r.height() + st::boxVerticalMargin > parenth) {
+				int32 newTop = qMax(parenth - int(st::boxVerticalMargin) - r.height(), (parenth - r.height()) / 2);
+				if (newTop != r.top()) {
+					move(r.left(), newTop);
+				}
+			}
 			parentWidget()->update(geometry().united(g).marginsAdded(QMargins(st::boxShadow.pxWidth(), st::boxShadow.pxHeight(), st::boxShadow.pxWidth(), st::boxShadow.pxHeight())));
 		}
 	}

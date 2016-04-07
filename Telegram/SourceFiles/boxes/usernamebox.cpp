@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -160,7 +160,7 @@ void UsernameBox::onChanged() {
 		}
 		_checkTimer.stop();
 	} else {
-		int32 i, len = name.size();
+		int32 len = name.size();
 		for (int32 i = 0; i < len; ++i) {
 			QChar ch = name.at(i);
 			if ((ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z') && (ch < '0' || ch > '9') && ch != '_' && (ch != '@' || i > 0)) {
@@ -191,7 +191,7 @@ void UsernameBox::onChanged() {
 }
 
 void UsernameBox::onLinkClick() {
-	App::app()->clipboard()->setText(qsl("https://telegram.me/") + getName());
+	Application::clipboard()->setText(qsl("https://telegram.me/") + getName());
 	_copiedTextLink = lang(lng_username_copied);
 	update();
 }

@@ -16,13 +16,26 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 
 #include "stdafx.h"
+
+#include "autoupdater.h"
+
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
+#include <openssl/bio.h>
+#include <openssl/err.h>
+
+#ifdef Q_OS_WIN // use Lzma SDK for win
+#include <LzmaLib.h>
+#else // Q_OS_WIN
+#include <lzma.h>
+#endif // else of Q_OS_WIN
+
 #include "application.h"
 #include "pspecific.h"
-#include "autoupdater.h"
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 
@@ -34,7 +47,7 @@ typedef int VerInt;
 typedef wchar_t VerChar;
 #endif
 
-UpdateDownloader::UpdateDownloader(QThread *thread, const QString &url) : reply(0), already(0), full(0) {
+UpdateChecker::UpdateChecker(QThread *thread, const QString &url) : reply(0), already(0), full(0) {
 	updateUrl = url;
 	moveToThread(thread);
 	manager.moveToThread(thread);
@@ -44,14 +57,14 @@ UpdateDownloader::UpdateDownloader(QThread *thread, const QString &url) : reply(
 	initOutput();
 }
 
-void UpdateDownloader::initOutput() {
+void UpdateChecker::initOutput() {
 	QString fileName;
 	QRegularExpressionMatch m = QRegularExpression(qsl("/([^/\\?]+)(\\?|$)")).match(updateUrl);
 	if (m.hasMatch()) {
 		fileName = m.captured(1).replace(QRegularExpression(qsl("[^a-zA-Z0-9_\\-]")), QString());
 	}
 	if (fileName.isEmpty()) {
-		fileName = qsl("tupdate-%1").arg(MTP::nonce<uint32>() % 1000000);
+		fileName = qsl("tupdate-%1").arg(rand_value<uint32>() % 1000000);
 	}
 	QString dirStr = cWorkingDir() + qsl("tupdates/");
 	fileName = dirStr + fileName;
@@ -99,11 +112,11 @@ void UpdateDownloader::initOutput() {
 	}
 }
 
-void UpdateDownloader::start() {
+void UpdateChecker::start() {
 	sendRequest();
 }
 
-void UpdateDownloader::sendRequest() {
+void UpdateChecker::sendRequest() {
 	QNetworkRequest req(updateUrl);
 	QByteArray rangeHeaderValue = "bytes=" + QByteArray::number(already) + "-";
 	req.setRawHeader("Range", rangeHeaderValue);
@@ -115,7 +128,7 @@ void UpdateDownloader::sendRequest() {
 	connect(reply, SIGNAL(metaDataChanged()), this, SLOT(partMetaGot()));
 }
 
-void UpdateDownloader::partMetaGot() {
+void UpdateChecker::partMetaGot() {
 	typedef QList<QNetworkReply::RawHeaderPair> Pairs;
 	Pairs pairs = reply->rawHeaderPairs();
 	for (Pairs::iterator i = pairs.begin(), e = pairs.end(); i != e; ++i) {
@@ -126,23 +139,24 @@ void UpdateDownloader::partMetaGot() {
 					QMutexLocker lock(&mutex);
 					full = m.captured(1).toInt();
 				}
-				emit App::app()->updateDownloading(already, full);
+
+				Sandbox::updateProgress(already, full);
 			}
 		}
 	}
 }
 
-int32 UpdateDownloader::ready() {
+int32 UpdateChecker::ready() {
 	QMutexLocker lock(&mutex);
 	return already;
 }
 
-int32 UpdateDownloader::size() {
+int32 UpdateChecker::size() {
 	QMutexLocker lock(&mutex);
 	return full;
 }
 
-void UpdateDownloader::partFinished(qint64 got, qint64 total) {
+void UpdateChecker::partFinished(qint64 got, qint64 total) {
 	if (!reply) return;
 
 	QVariant statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
@@ -179,11 +193,11 @@ void UpdateDownloader::partFinished(qint64 got, qint64 total) {
 		outputFile.close();
 		unpackUpdate();
 	} else {
-		emit App::app()->updateDownloading(already, full);
+		Sandbox::updateProgress(already, full);
 	}
 }
 
-void UpdateDownloader::partFailed(QNetworkReply::NetworkError e) {
+void UpdateChecker::partFailed(QNetworkReply::NetworkError e) {
 	if (!reply) return;
 
 	QVariant statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
@@ -198,15 +212,15 @@ void UpdateDownloader::partFailed(QNetworkReply::NetworkError e) {
 		}
 	}
 	LOG(("Update Error: failed to download part starting from %1, error %2").arg(already).arg(e));
-	emit App::app()->updateFailed();
+	Sandbox::updateFailed();
 }
 
-void UpdateDownloader::fatalFail() {
+void UpdateChecker::fatalFail() {
 	clearAll();
-	emit App::app()->updateFailed();
+	Sandbox::updateFailed();
 }
 
-void UpdateDownloader::clearAll() {
+void UpdateChecker::clearAll() {
 	psDeleteDir(cWorkingDir() + qsl("tupdates"));
 }
 
@@ -225,7 +239,7 @@ void UpdateDownloader::clearAll() {
 //	return QString::fromWCharArray(errMsg);
 //}
 
-void UpdateDownloader::unpackUpdate() {
+void UpdateChecker::unpackUpdate() {
 	QByteArray packed;
 	if (!outputFile.open(QIODevice::ReadOnly)) {
 		LOG(("Update Error: cant read updates file!"));
@@ -465,10 +479,10 @@ void UpdateDownloader::unpackUpdate() {
 	}
 	outputFile.remove();
 
-	emit App::app()->updateReady();
+	Sandbox::updateReady();
 }
 
-UpdateDownloader::~UpdateDownloader() {
+UpdateChecker::~UpdateChecker() {
 	delete reply;
 	reply = 0;
 }
@@ -477,7 +491,7 @@ bool checkReadyUpdate() {
 	QString readyFilePath = cWorkingDir() + qsl("tupdates/temp/ready"), readyPath = cWorkingDir() + qsl("tupdates/temp");
 	if (!QFile(readyFilePath).exists()) {
 		if (QDir(cWorkingDir() + qsl("tupdates/ready")).exists() || QDir(cWorkingDir() + qsl("tupdates/temp")).exists()) {
-			UpdateDownloader::clearAll();
+			UpdateChecker::clearAll();
 		}
 		return false;
 	}
@@ -488,30 +502,30 @@ bool checkReadyUpdate() {
 		QFile fVersion(versionPath);
 		if (!fVersion.open(QIODevice::ReadOnly)) {
 			LOG(("Update Error: cant read version file '%1'").arg(versionPath));
-			UpdateDownloader::clearAll();
+			UpdateChecker::clearAll();
 			return false;
 		}
 		VerInt versionNum;
 		if (fVersion.read((char*)&versionNum, sizeof(VerInt)) != sizeof(VerInt)) {
 			LOG(("Update Error: cant read version from file '%1'").arg(versionPath));
-			UpdateDownloader::clearAll();
+			UpdateChecker::clearAll();
 			return false;
 		}
 		if (versionNum == 0x7FFFFFFF) { // beta version
 			quint64 betaVersion = 0;
 			if (fVersion.read((char*)&betaVersion, sizeof(quint64)) != sizeof(quint64)) {
 				LOG(("Update Error: cant read beta version from file '%1'").arg(versionPath));
-				UpdateDownloader::clearAll();
+				UpdateChecker::clearAll();
 				return false;
 			}
 			if (!cBetaVersion() || betaVersion <= cBetaVersion()) {
 				LOG(("Update Error: cant install beta version %1 having beta version %2").arg(betaVersion).arg(cBetaVersion()));
-				UpdateDownloader::clearAll();
+				UpdateChecker::clearAll();
 				return false;
 			}
 		} else if (versionNum <= AppVersion) {
 			LOG(("Update Error: cant install version %1 having version %2").arg(versionNum).arg(AppVersion));
-			UpdateDownloader::clearAll();
+			UpdateChecker::clearAll();
 			return false;
 		}
 		fVersion.close();
@@ -530,11 +544,11 @@ bool checkReadyUpdate() {
 	if (!updater.exists()) {
 		QFileInfo current(curUpdater);
 		if (!current.exists()) {
-			UpdateDownloader::clearAll();
+			UpdateChecker::clearAll();
 			return false;
 		}
 		if (!QFile(current.absoluteFilePath()).copy(updater.absoluteFilePath())) {
-			UpdateDownloader::clearAll();
+			UpdateChecker::clearAll();
 			return false;
 		}
 	}
@@ -545,24 +559,24 @@ bool checkReadyUpdate() {
 			cSetWriteProtected(true);
 			return true;
 		} else {
-			UpdateDownloader::clearAll();
+			UpdateChecker::clearAll();
 			return false;
 		}
 	}
 	if (DeleteFile(updater.absoluteFilePath().toStdWString().c_str()) == FALSE) {
-		UpdateDownloader::clearAll();
+		UpdateChecker::clearAll();
 		return false;
 	}
 #elif defined Q_OS_MAC
 	QDir().mkpath(QFileInfo(curUpdater).absolutePath());
-	DEBUG_LOG(("Update Info: moving %1 to %2..").arg(updater.absoluteFilePath()).arg(curUpdater));
+	DEBUG_LOG(("Update Info: moving %1 to %2...").arg(updater.absoluteFilePath()).arg(curUpdater));
 	if (!objc_moveFile(updater.absoluteFilePath(), curUpdater)) {
-		UpdateDownloader::clearAll();
+		UpdateChecker::clearAll();
 		return false;
 	}
 #elif defined Q_OS_LINUX
 	if (!linuxMoveFile(QFile::encodeName(updater.absoluteFilePath()).constData(), QFile::encodeName(curUpdater).constData())) {
-		UpdateDownloader::clearAll();
+		UpdateChecker::clearAll();
 		return false;
 	}
 #endif
@@ -578,7 +592,7 @@ QString countBetaVersionSignature(uint64 version) { // duplicated in packer.cpp
 	}
 
 	QByteArray signedData = (qstr("TelegramBeta_") + QString::number(version, 16).toLower()).toUtf8();
-	
+
 	static const int32 shaSize = 20, keySize = 128;
 
 	uchar sha1Buffer[shaSize];

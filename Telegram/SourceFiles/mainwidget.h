@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -39,13 +39,13 @@ public:
 
 	TopBarWidget(MainWidget *w);
 
-	void enterEvent(QEvent *e);
-	void enterFromChildEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
-	void leaveToChildEvent(QEvent *e);
-	void paintEvent(QPaintEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void resizeEvent(QResizeEvent *e);
+	void enterEvent(QEvent *e) override;
+	void enterFromChildEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void leaveToChildEvent(QEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 	void step_appearance(float64 ms, bool timer);
 	void enableShadow(bool enable = true);
@@ -55,15 +55,15 @@ public:
 	void showAll();
 	void showSelected(uint32 selCount, bool canDelete = false);
 
-	void updateWideMode();
+	void updateAdaptiveLayout();
 
 	FlatButton *mediaTypeButton();
 
-	void grabStart() {
+	void grabStart() override {
 		_sideShadow.hide();
 	}
-	void grabFinish() {
-		_sideShadow.setVisible(cWideMode());
+	void grabFinish() override {
+		_sideShadow.setVisible(!Adaptive::OneColumn());
 	}
 
 public slots:
@@ -78,6 +78,7 @@ public slots:
 	void onDeleteContactSure();
 	void onDeleteAndExit();
 	void onDeleteAndExitSure();
+	void onSearch();
 
 signals:
 
@@ -104,6 +105,8 @@ private:
 	FlatButton _info;
 	FlatButton _edit, _leaveGroup, _addContact, _deleteContact;
 	FlatButton _mediaType;
+
+	IconedButton _search;
 
 	PlainShadow _sideShadow;
 
@@ -179,7 +182,28 @@ public:
 	}
 };
 
-class StickerPreviewWidget;
+inline int chatsListWidth(int windowWidth) {
+	return snap<int>((windowWidth * 5) / 14, st::dlgMinWidth, st::dlgMaxWidth);
+}
+
+enum SilentNotifiesStatus {
+	SilentNotifiesDontChange,
+	SilentNotifiesSetSilent,
+	SilentNotifiesSetNotify,
+};
+enum NotifySettingStatus {
+	NotifySettingDontChange,
+	NotifySettingSetMuted,
+	NotifySettingSetNotify,
+};
+
+namespace InlineBots {
+namespace Layout {
+
+class ItemBase;
+
+} // namespace Layout
+} // namespace InlineBots
 
 class MainWidget : public TWidget, public RPCSender {
 	Q_OBJECT
@@ -188,11 +212,11 @@ public:
 
 	MainWidget(Window *window);
 
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void keyPressEvent(QKeyEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
-	void updateWideMode();
+	void updateAdaptiveLayout();
 	bool needBackButton();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
@@ -208,7 +232,7 @@ public:
 	void start(const MTPUser &user);
 
 	void openLocalUrl(const QString &str);
-	void openPeerByName(const QString &name, bool toProfile = false, const QString &startToken = QString());
+	void openPeerByName(const QString &name, MsgId msgId = ShowAtUnreadMsgId, const QString &startToken = QString());
 	void joinGroupByHash(const QString &hash);
 	void stickersBox(const MTPInputStickerSet &set);
 
@@ -218,7 +242,7 @@ public:
 	void gotNotifySetting(MTPInputNotifyPeer peer, const MTPPeerNotifySettings &settings);
 	bool failNotifySetting(MTPInputNotifyPeer peer, const RPCError &error);
 
-	void updateNotifySetting(PeerData *peer, bool enabled);
+	void updateNotifySetting(PeerData *peer, NotifySettingStatus notify, SilentNotifiesStatus silent = SilentNotifiesDontChange);
 
 	void incrementSticker(DocumentData *sticker);
 
@@ -235,6 +259,7 @@ public:
 	void sentUpdatesReceived(const MTPUpdates &updates) {
 		return sentUpdatesReceived(0, updates);
 	}
+	bool deleteChannelFailed(const RPCError &error);
 	void inviteToChannelDone(ChannelData *channel, const MTPUpdates &updates);
 	void historyToDown(History *hist);
 	void dialogsToUp();
@@ -293,11 +318,11 @@ public:
 
 	bool leaveChatFailed(PeerData *peer, const RPCError &e);
 	void deleteHistoryAfterLeave(PeerData *peer, const MTPUpdates &updates);
-	void deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result);
 	void deleteMessages(PeerData *peer, const QVector<MTPint> &ids);
 	void deletedContact(UserData *user, const MTPcontacts_Link &result);
 	void deleteConversation(PeerData *peer, bool deleteHistory = true);
 	void clearHistory(PeerData *peer);
+	void deleteAllFromUser(ChannelData *channel, UserData *from);
 
 	void addParticipants(PeerData *chatOrChannel, const QVector<UserData*> &users);
 	bool addParticipantFail(UserData *user, const RPCError &e);
@@ -318,7 +343,7 @@ public:
 	DialogsIndexed &contactsList();
 	DialogsIndexed &dialogsList();
 
-	void sendMessage(History *hist, const QString &text, MsgId replyTo, bool broadcast, WebPageId webPageId = 0);
+	void sendMessage(History *hist, const QString &text, MsgId replyTo, bool broadcast, bool silent, WebPageId webPageId = 0);
 	void saveRecentHashtags(const QString &text);
 
     void readServerHistory(History *history, bool force = true);
@@ -326,7 +351,7 @@ public:
 	uint64 animActiveTimeStart(const HistoryItem *msg) const;
 	void stopAnimActive();
 
-	void sendBotCommand(const QString &cmd, MsgId msgId);
+	void sendBotCommand(PeerData *peer, const QString &cmd, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd, bool specialGif);
 
 	void searchMessages(const QString &query, PeerData *inPeer);
@@ -335,6 +360,7 @@ public:
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void itemRemoved(HistoryItem *item);
+	void itemEdited(HistoryItem *item);
 
 	void loadMediaBack(PeerData *peer, MediaOverviewType type, bool many = false);
 	void peerUsernameChanged(PeerData *peer);
@@ -360,7 +386,7 @@ public:
 	ImagePtr newBackgroundThumb();
 
 	ApiWrap *api();
-	void updateReplyTo();
+	void messageDataReceived(ChannelData *channel, MsgId msgId);
 	void updateBotKeyboard(History *h);
 
 	void pushReplyReturn(HistoryItem *item);
@@ -369,10 +395,9 @@ public:
 	void fillForwardingInfo(Text *&from, Text *&text, bool &serviceColor, ImagePtr &preview);
 	void updateForwardingTexts();
 	void cancelForwarding();
-	void finishForwarding(History *hist, bool broadcast); // send them
+	void finishForwarding(History *hist, bool broadcast, bool silent); // send them
 
-	void audioMarkRead(AudioData *data);
-	void videoMarkRead(VideoData *data);
+	void mediaMarkRead(DocumentData *data);
 	void mediaMarkRead(const HistoryItemsMap &items);
 
 	void webPageUpdated(WebPageData *page);
@@ -405,25 +430,40 @@ public:
 	QPixmap grabTopBar();
 	QPixmap grabInner();
 
+	void rpcClear() override {
+		history.rpcClear();
+		dialogs.rpcClear();
+		if (profile) profile->rpcClear();
+		if (overview) overview->rpcClear();
+		if (_api) _api->rpcClear();
+		RPCSender::rpcClear();
+	}
+
 	bool isItemVisible(HistoryItem *item);
 
-	void ui_showStickerPreview(DocumentData *sticker);
-	void ui_hideStickerPreview();
+	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col);
+
 	void ui_repaintHistoryItem(const HistoryItem *item);
-	void ui_repaintInlineItem(const LayoutInlineItem *layout);
-	bool ui_isInlineItemVisible(const LayoutInlineItem *layout);
+	void ui_repaintInlineItem(const InlineBots::Layout::ItemBase *layout);
+	bool ui_isInlineItemVisible(const InlineBots::Layout::ItemBase *layout);
 	bool ui_isInlineItemBeingChosen();
 	void ui_showPeerHistory(quint64 peer, qint32 msgId, bool back);
+	PeerData *ui_getPeerForMouseAction();
 
 	void notify_botCommandsChanged(UserData *bot);
 	void notify_inlineBotRequesting(bool requesting);
+	void notify_replyMarkupUpdated(const HistoryItem *item);
 	void notify_userIsBotChanged(UserData *bot);
 	void notify_userIsContactChanged(UserData *user, bool fromThisApp);
 	void notify_migrateUpdated(PeerData *peer);
 	void notify_clipStopperHidden(ClipStopperType type);
-	void notify_historyItemResized(const HistoryItem *row, bool scrollToIt);
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
 	void notify_automaticLoadSettingsChangedGif();
+	void notify_handlePendingHistoryUpdate();
+
+	void cmd_search();
+	void cmd_next_chat();
+	void cmd_previous_chat();
 
 	~MainWidget();
 
@@ -441,12 +481,6 @@ public slots:
 
 	void webPagesUpdate();
 
-	void videoLoadProgress(FileLoader *loader);
-	void videoLoadFailed(FileLoader *loader, bool started);
-	void videoLoadRetry();
-	void audioLoadProgress(FileLoader *loader);
-	void audioLoadFailed(FileLoader *loader, bool started);
-	void audioLoadRetry();
 	void audioPlayProgress(const AudioMsgId &audioId);
 	void documentLoadProgress(FileLoader *loader);
 	void documentLoadFailed(FileLoader *loader, bool started);
@@ -498,7 +532,10 @@ public slots:
 
 	void onDownloadPathSettings();
 
+	void onSharePhoneWithBot(PeerData *recipient);
+
 	void ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId);
+	void ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId);
 
 private:
 
@@ -544,10 +581,17 @@ private:
 	void feedUpdateVector(const MTPVector<MTPUpdate> &updates, bool skipMessageIds = false);
 	void feedMessageIds(const MTPVector<MTPUpdate> &updates);
 
+	void deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result);
+	struct DeleteAllFromUserParams {
+		ChannelData *channel;
+		UserData *from;
+	};
+	void deleteAllFromUserPart(DeleteAllFromUserParams params, const MTPmessages_AffectedHistory &result);
+
 	void updateReceived(const mtpPrime *from, const mtpPrime *end);
 	bool updateFail(const RPCError &e);
 
-	void usernameResolveDone(QPair<bool, QString> toProfileStartToken, const MTPcontacts_ResolvedPeer &result);
+	void usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, const MTPcontacts_ResolvedPeer &result);
 	bool usernameResolveFail(QString name, const RPCError &error);
 
 	void inviteCheckDone(QString hash, const MTPChatInvite &invite);
@@ -581,8 +625,6 @@ private:
 	PeerData *_peerInStack;
 	MsgId _msgIdInStack;
 
-	StickerPreviewWidget *_stickerPreview;
-
 	int32 _playerHeight;
 	int32 _contentScrollAddToY;
 
@@ -608,6 +650,8 @@ private:
 
 	QMap<int32, MTPUpdates> _bySeqUpdates;
 	SingleTimer _bySeqTimer;
+
+	SingleTimer _byMinChannelTimer;
 
 	mtpRequestId _onlineRequest;
 	SingleTimer _onlineTimer, _onlineUpdater, _idleFinishTimer;

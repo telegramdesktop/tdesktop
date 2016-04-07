@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include <cstdio>
 #include <sys/stat.h>
@@ -324,7 +324,7 @@ bool update() {
 int main(int argc, char *argv[]) {
     bool needupdate = true, autostart = false, debug = false, tosettings = false, startintray = false, testmode = false;
 
-    char *key = 0;
+    char *key = 0, *crashreport = 0;
     for (int i = 1; i < argc; ++i) {
         if (equal(argv[i], "-noupdate")) {
             needupdate = false;
@@ -342,7 +342,9 @@ int main(int argc, char *argv[]) {
             key = argv[i];
         } else if (equal(argv[i], "-workpath") && ++i < argc) {
             workDir = argv[i];
-        }
+		} else if (equal(argv[i], "-crashreport") && ++i < argc) {
+			crashreport = argv[i];
+		}
     }
     openLog();
 
@@ -408,24 +410,27 @@ int main(int argc, char *argv[]) {
     char *args[MaxArgsCount] = {0}, p_noupdate[] = "-noupdate", p_autostart[] = "-autostart", p_debug[] = "-debug", p_tosettings[] = "-tosettings", p_key[] = "-key", p_startintray[] = "-startintray", p_testmode[] = "-testmode";
     int argIndex = 0;
     args[argIndex++] = path;
-    args[argIndex++] = p_noupdate;
-    if (autostart) args[argIndex++] = p_autostart;
-    if (debug) args[argIndex++] = p_debug;
-	if (startintray) args[argIndex++] = p_startintray;
-	if (testmode) args[argIndex++] = p_testmode;
-    if (tosettings) args[argIndex++] = p_tosettings;
-    if (key) {
-        args[argIndex++] = p_key;
-        args[argIndex++] = key;
-    }
-
+	if (crashreport) {
+		args[argIndex++] = crashreport;
+	} else {
+		args[argIndex++] = p_noupdate;
+		if (autostart) args[argIndex++] = p_autostart;
+		if (debug) args[argIndex++] = p_debug;
+		if (startintray) args[argIndex++] = p_startintray;
+		if (testmode) args[argIndex++] = p_testmode;
+		if (tosettings) args[argIndex++] = p_tosettings;
+		if (key) {
+			args[argIndex++] = p_key;
+			args[argIndex++] = key;
+		}
+	}
     pid_t pid = fork();
     switch (pid) {
     case -1: writeLog("fork() failed!"); return 1;
     case 0: execv(path, args); return 1;
     }
 
-    writeLog("Executed Telegram, closing log and quiting..");
+    writeLog("Executed Telegram, closing log and quitting..");
 	closeLog();
 
 	return 0;

@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
@@ -46,7 +46,6 @@ void FlatLabel::setText(const QString &text) {
 
 void FlatLabel::setRichText(const QString &text) {
 	textstyleSet(&_tst);
-    const char *t = text.toUtf8().constData();
 	_text.setRichText(_st.font, text, _labelOptions);
 	int32 w = _st.width ? _st.width : _text.maxWidth(), h = _text.countHeight(w);
 	textstyleRestore();
@@ -54,7 +53,14 @@ void FlatLabel::setRichText(const QString &text) {
 	setMouseTracking(_text.hasLinks());
 }
 
-void FlatLabel::setLink(uint16 lnkIndex, const TextLinkPtr &lnk) {
+void FlatLabel::resizeToWidth(int32 width) {
+	textstyleSet(&_tst);
+	int32 w = width, h = _text.countHeight(w);
+	textstyleRestore();
+	resize(w, h);
+}
+
+void FlatLabel::setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk) {
 	_text.setLink(lnkIndex, lnk);
 }
 
@@ -66,30 +72,33 @@ void FlatLabel::mouseMoveEvent(QMouseEvent *e) {
 void FlatLabel::mousePressEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateHover();
-	if (textlnkOver()) {
-		textlnkDown(textlnkOver());
-		update();
-	}
+	ClickHandler::pressed();
 }
 
 void FlatLabel::mouseReleaseEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateHover();
-	if (textlnkOver() && textlnkOver() == textlnkDown()) {
-		textlnkOver()->onClick(e->button());
+	if (ClickHandlerPtr activated = ClickHandler::unpressed()) {
+		App::activateClickHandler(activated, e->button());
 	}
-	textlnkDown(TextLinkPtr());
+}
+
+void FlatLabel::enterEvent(QEvent *e) {
+	_lastMousePos = QCursor::pos();
+	updateHover();
 }
 
 void FlatLabel::leaveEvent(QEvent *e) {
-	if (_myLink) {
-		if (textlnkOver() == _myLink) {
-			textlnkOver(TextLinkPtr());
-			update();
-		}
-		_myLink = TextLinkPtr();
-		setCursor(style::cur_default);
-	}
+	ClickHandler::clearActive(this);
+}
+
+void FlatLabel::clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
+	setCursor(active ? style::cur_pointer : style::cur_default);
+	update();
+}
+
+void FlatLabel::clickHandlerPressedChanged(const ClickHandlerPtr &action, bool active) {
+	update();
 }
 
 void FlatLabel::updateLink() {
@@ -99,17 +108,12 @@ void FlatLabel::updateLink() {
 
 void FlatLabel::updateHover() {
 	QPoint m(mapFromGlobal(_lastMousePos));
-	bool wasMy = (_myLink == textlnkOver());
+
 	textstyleSet(&_tst);
-	_myLink = _text.link(m.x(), m.y(), width(), _st.align);
+	ClickHandlerPtr handler = _text.link(m.x(), m.y(), width(), _st.align);
 	textstyleRestore();
-	if (_myLink != textlnkOver()) {
-		if (wasMy || _myLink || rect().contains(m)) {
-			textlnkOver(_myLink);
-		}
-		setCursor(_myLink ? style::cur_pointer : style::cur_default);
-		update();
-	}
+
+	ClickHandler::setActive(handler, this);
 }
 
 void FlatLabel::setOpacity(float64 o) {

@@ -1,0 +1,469 @@
+diff --git a/src/client/mac/Breakpad.xcodeproj/project.pbxproj b/src/client/mac/Breakpad.xcodeproj/project.pbxproj
+index 584ec5d..1c7214f 100644
+--- a/src/client/mac/Breakpad.xcodeproj/project.pbxproj
++++ b/src/client/mac/Breakpad.xcodeproj/project.pbxproj
+@@ -35,6 +35,19 @@
+ /* End PBXAggregateTarget section */
+ 
+ /* Begin PBXBuildFile section */
++		0748C0431C63C409004489BF /* MachIPC.mm in Sources */ = {isa = PBXBuildFile; fileRef = F92C53790ECCE635009BE4BA /* MachIPC.mm */; };
++		0748C0441C63C43C004489BF /* minidump_generator.cc in Sources */ = {isa = PBXBuildFile; fileRef = F92C536F0ECCE3FD009BE4BA /* minidump_generator.cc */; };
++		0748C0451C63C46C004489BF /* string_utilities.cc in Sources */ = {isa = PBXBuildFile; fileRef = F92C53820ECCE635009BE4BA /* string_utilities.cc */; };
++		0748C0461C63C484004489BF /* minidump_file_writer.cc in Sources */ = {isa = PBXBuildFile; fileRef = F92C538F0ECCE70A009BE4BA /* minidump_file_writer.cc */; };
++		0748C0471C63C4A1004489BF /* dynamic_images.cc in Sources */ = {isa = PBXBuildFile; fileRef = F92C536B0ECCE3FD009BE4BA /* dynamic_images.cc */; };
++		0748C0491C63C4CF004489BF /* macho_id.cc in Sources */ = {isa = PBXBuildFile; fileRef = F92C537A0ECCE635009BE4BA /* macho_id.cc */; };
++		0748C04A1C63C4D4004489BF /* string_conversion.cc in Sources */ = {isa = PBXBuildFile; fileRef = F92C53850ECCE6AD009BE4BA /* string_conversion.cc */; };
++		0748C04B1C63C4DB004489BF /* convert_UTF.c in Sources */ = {isa = PBXBuildFile; fileRef = F92C53870ECCE6C0009BE4BA /* convert_UTF.c */; };
++		0748C04C1C63C4EA004489BF /* macho_utilities.cc in Sources */ = {isa = PBXBuildFile; fileRef = F92C537C0ECCE635009BE4BA /* macho_utilities.cc */; };
++		0748C04D1C63C50F004489BF /* file_id.cc in Sources */ = {isa = PBXBuildFile; fileRef = F92C53740ECCE635009BE4BA /* file_id.cc */; };
++		0748C04E1C63C51C004489BF /* md5.cc in Sources */ = {isa = PBXBuildFile; fileRef = 4D72CA0D13DFAD5C006CABE3 /* md5.cc */; };
++		0748C04F1C63C523004489BF /* macho_walker.cc in Sources */ = {isa = PBXBuildFile; fileRef = F92C537E0ECCE635009BE4BA /* macho_walker.cc */; };
++		0748C0501C63C52D004489BF /* bootstrap_compat.cc in Sources */ = {isa = PBXBuildFile; fileRef = 4D61A25D14F43CFC002D5862 /* bootstrap_compat.cc */; };
+ 		162F64F2161C577500CD68D5 /* arch_utilities.cc in Sources */ = {isa = PBXBuildFile; fileRef = 162F64F0161C577500CD68D5 /* arch_utilities.cc */; };
+ 		162F64F3161C577500CD68D5 /* arch_utilities.h in Headers */ = {isa = PBXBuildFile; fileRef = 162F64F1161C577500CD68D5 /* arch_utilities.h */; };
+ 		162F64F4161C579B00CD68D5 /* arch_utilities.cc in Sources */ = {isa = PBXBuildFile; fileRef = 162F64F0161C577500CD68D5 /* arch_utilities.cc */; };
+@@ -170,11 +183,8 @@
+ 		F92C564A0ECD10CA009BE4BA /* string_conversion.cc in Sources */ = {isa = PBXBuildFile; fileRef = F92C53850ECCE6AD009BE4BA /* string_conversion.cc */; };
+ 		F92C564C0ECD10DD009BE4BA /* breakpadUtilities.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = F92C563C0ECD10B3009BE4BA /* breakpadUtilities.dylib */; };
+ 		F92C56570ECD113E009BE4BA /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F92C554A0ECCF530009BE4BA /* Carbon.framework */; };
+-		F92C565C0ECD1158009BE4BA /* breakpadUtilities.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = F92C563C0ECD10B3009BE4BA /* breakpadUtilities.dylib */; };
+ 		F92C565F0ECD116B009BE4BA /* protected_memory_allocator.cc in Sources */ = {isa = PBXBuildFile; fileRef = F92C53720ECCE3FD009BE4BA /* protected_memory_allocator.cc */; };
+ 		F92C56630ECD1179009BE4BA /* exception_handler.cc in Sources */ = {isa = PBXBuildFile; fileRef = F92C536D0ECCE3FD009BE4BA /* exception_handler.cc */; };
+-		F92C56650ECD1185009BE4BA /* breakpadUtilities.dylib in Resources */ = {isa = PBXBuildFile; fileRef = F92C563C0ECD10B3009BE4BA /* breakpadUtilities.dylib */; };
+-		F92C568A0ECD15F9009BE4BA /* Inspector in Resources */ = {isa = PBXBuildFile; fileRef = F92C53540ECCE349009BE4BA /* Inspector */; };
+ 		F92C56A90ECE04C5009BE4BA /* crash_report_sender.m in Sources */ = {isa = PBXBuildFile; fileRef = F92C56A80ECE04C5009BE4BA /* crash_report_sender.m */; };
+ 		F93803CD0F8083B7004D428B /* dynamic_images.cc in Sources */ = {isa = PBXBuildFile; fileRef = F92C536B0ECCE3FD009BE4BA /* dynamic_images.cc */; };
+ 		F93803CE0F8083B7004D428B /* exception_handler.cc in Sources */ = {isa = PBXBuildFile; fileRef = F92C536D0ECCE3FD009BE4BA /* exception_handler.cc */; };
+@@ -213,7 +223,6 @@
+ 		F9C44DBD0EF072A0003AEBAA /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = F9C44DBA0EF072A0003AEBAA /* MainMenu.xib */; };
+ 		F9C44E000EF077CD003AEBAA /* Breakpad.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8DC2EF5B0486A6940098B216 /* Breakpad.framework */; };
+ 		F9C44E3C0EF08B12003AEBAA /* Breakpad.framework in Copy Frameworks */ = {isa = PBXBuildFile; fileRef = 8DC2EF5B0486A6940098B216 /* Breakpad.framework */; };
+-		F9C44E980EF09F56003AEBAA /* crash_report_sender.app in Resources */ = {isa = PBXBuildFile; fileRef = F92C56A00ECE04A7009BE4BA /* crash_report_sender.app */; };
+ 		F9C44EA20EF09F93003AEBAA /* HTTPMultipartUpload.m in Sources */ = {isa = PBXBuildFile; fileRef = F92C53770ECCE635009BE4BA /* HTTPMultipartUpload.m */; };
+ 		F9C44EE50EF0A006003AEBAA /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F9C44EE40EF0A006003AEBAA /* SystemConfiguration.framework */; };
+ 		F9C44EE90EF0A3C1003AEBAA /* GTMLogger.m in Sources */ = {isa = PBXBuildFile; fileRef = F9C44EE80EF0A3C1003AEBAA /* GTMLogger.m */; };
+@@ -410,20 +419,6 @@
+ 			remoteGlobalIDString = F92C563B0ECD10B3009BE4BA;
+ 			remoteInfo = breakpadUtilities;
+ 		};
+-		F92C56850ECD15EF009BE4BA /* PBXContainerItemProxy */ = {
+-			isa = PBXContainerItemProxy;
+-			containerPortal = 0867D690FE84028FC02AAC07 /* Project object */;
+-			proxyType = 1;
+-			remoteGlobalIDString = F92C563B0ECD10B3009BE4BA;
+-			remoteInfo = breakpadUtilities;
+-		};
+-		F92C56870ECD15F1009BE4BA /* PBXContainerItemProxy */ = {
+-			isa = PBXContainerItemProxy;
+-			containerPortal = 0867D690FE84028FC02AAC07 /* Project object */;
+-			proxyType = 1;
+-			remoteGlobalIDString = F92C53530ECCE349009BE4BA;
+-			remoteInfo = Inspector;
+-		};
+ 		F93DE2FB0F82C3C600608B94 /* PBXContainerItemProxy */ = {
+ 			isa = PBXContainerItemProxy;
+ 			containerPortal = 0867D690FE84028FC02AAC07 /* Project object */;
+@@ -536,13 +531,6 @@
+ 			remoteGlobalIDString = 8DC2EF4F0486A6940098B216;
+ 			remoteInfo = Breakpad;
+ 		};
+-		F9C44E960EF09F4B003AEBAA /* PBXContainerItemProxy */ = {
+-			isa = PBXContainerItemProxy;
+-			containerPortal = 0867D690FE84028FC02AAC07 /* Project object */;
+-			proxyType = 1;
+-			remoteGlobalIDString = F92C569F0ECE04A7009BE4BA;
+-			remoteInfo = crash_report_sender;
+-		};
+ /* End PBXContainerItemProxy section */
+ 
+ /* Begin PBXCopyFilesBuildPhase section */
+@@ -715,7 +703,6 @@
+ 			isa = PBXFrameworksBuildPhase;
+ 			buildActionMask = 2147483647;
+ 			files = (
+-				F92C565C0ECD1158009BE4BA /* breakpadUtilities.dylib in Frameworks */,
+ 				8DC2EF570486A6940098B216 /* Cocoa.framework in Frameworks */,
+ 			);
+ 			runOnlyForDeploymentPostprocessing = 0;
+@@ -1183,18 +1170,13 @@
+ 			isa = PBXNativeTarget;
+ 			buildConfigurationList = 1DEB91AD08733DA50010E9CD /* Build configuration list for PBXNativeTarget "Breakpad" */;
+ 			buildPhases = (
+-				F97A0E850ED4EC15008784D3 /* Change install name of breakpadUtilities */,
+ 				8DC2EF500486A6940098B216 /* Headers */,
+-				8DC2EF520486A6940098B216 /* Resources */,
+ 				8DC2EF540486A6940098B216 /* Sources */,
+ 				8DC2EF560486A6940098B216 /* Frameworks */,
+ 			);
+ 			buildRules = (
+ 			);
+ 			dependencies = (
+-				F92C56860ECD15EF009BE4BA /* PBXTargetDependency */,
+-				F92C56880ECD15F1009BE4BA /* PBXTargetDependency */,
+-				F9C44E970EF09F4B003AEBAA /* PBXTargetDependency */,
+ 			);
+ 			name = Breakpad;
+ 			productInstallPath = "$(HOME)/Library/Frameworks";
+@@ -1401,6 +1383,8 @@
+ /* Begin PBXProject section */
+ 		0867D690FE84028FC02AAC07 /* Project object */ = {
+ 			isa = PBXProject;
++			attributes = {
++			};
+ 			buildConfigurationList = 1DEB91B108733DA50010E9CD /* Build configuration list for PBXProject "Breakpad" */;
+ 			compatibilityVersion = "Xcode 3.1";
+ 			developmentRegion = English;
+@@ -1585,16 +1569,6 @@
+ /* End PBXReferenceProxy section */
+ 
+ /* Begin PBXResourcesBuildPhase section */
+-		8DC2EF520486A6940098B216 /* Resources */ = {
+-			isa = PBXResourcesBuildPhase;
+-			buildActionMask = 2147483647;
+-			files = (
+-				F9C44E980EF09F56003AEBAA /* crash_report_sender.app in Resources */,
+-				F92C568A0ECD15F9009BE4BA /* Inspector in Resources */,
+-				F92C56650ECD1185009BE4BA /* breakpadUtilities.dylib in Resources */,
+-			);
+-			runOnlyForDeploymentPostprocessing = 0;
+-		};
+ 		F92C569C0ECE04A7009BE4BA /* Resources */ = {
+ 			isa = PBXResourcesBuildPhase;
+ 			buildActionMask = 2147483647;
+@@ -1642,20 +1616,6 @@
+ 			shellPath = /bin/sh;
+ 			shellScript = "install_name_tool -id \"@executable_path/../Resources/breakpadUtilities.dylib\" \"${BUILT_PRODUCTS_DIR}/breakpadUtilities.dylib\"\n";
+ 		};
+-		F97A0E850ED4EC15008784D3 /* Change install name of breakpadUtilities */ = {
+-			isa = PBXShellScriptBuildPhase;
+-			buildActionMask = 2147483647;
+-			files = (
+-			);
+-			inputPaths = (
+-			);
+-			name = "Change install name of breakpadUtilities";
+-			outputPaths = (
+-			);
+-			runOnlyForDeploymentPostprocessing = 0;
+-			shellPath = /bin/sh;
+-			shellScript = "#!/bin/bash\ninstall_name_tool -id \"@executable_path/../Frameworks/Breakpad.framework/Resources/breakpadUtilities.dylib\" \"${BUILT_PRODUCTS_DIR}/breakpadUtilities.dylib\"\n";
+-		};
+ 		F9C77DD80F7DD5CF0045F7DB /* ShellScript */ = {
+ 			isa = PBXShellScriptBuildPhase;
+ 			buildActionMask = 2147483647;
+@@ -1676,6 +1636,19 @@
+ 			isa = PBXSourcesBuildPhase;
+ 			buildActionMask = 2147483647;
+ 			files = (
++				0748C0501C63C52D004489BF /* bootstrap_compat.cc in Sources */,
++				0748C04F1C63C523004489BF /* macho_walker.cc in Sources */,
++				0748C04E1C63C51C004489BF /* md5.cc in Sources */,
++				0748C04D1C63C50F004489BF /* file_id.cc in Sources */,
++				0748C04C1C63C4EA004489BF /* macho_utilities.cc in Sources */,
++				0748C04B1C63C4DB004489BF /* convert_UTF.c in Sources */,
++				0748C04A1C63C4D4004489BF /* string_conversion.cc in Sources */,
++				0748C0491C63C4CF004489BF /* macho_id.cc in Sources */,
++				0748C0471C63C4A1004489BF /* dynamic_images.cc in Sources */,
++				0748C0461C63C484004489BF /* minidump_file_writer.cc in Sources */,
++				0748C0451C63C46C004489BF /* string_utilities.cc in Sources */,
++				0748C0441C63C43C004489BF /* minidump_generator.cc in Sources */,
++				0748C0431C63C409004489BF /* MachIPC.mm in Sources */,
+ 				F92C565F0ECD116B009BE4BA /* protected_memory_allocator.cc in Sources */,
+ 				F92C56630ECD1179009BE4BA /* exception_handler.cc in Sources */,
+ 				F92C55D10ECD0064009BE4BA /* Breakpad.mm in Sources */,
+@@ -1957,16 +1930,6 @@
+ 			target = F92C563B0ECD10B3009BE4BA /* breakpadUtilities */;
+ 			targetProxy = F92C564D0ECD10E5009BE4BA /* PBXContainerItemProxy */;
+ 		};
+-		F92C56860ECD15EF009BE4BA /* PBXTargetDependency */ = {
+-			isa = PBXTargetDependency;
+-			target = F92C563B0ECD10B3009BE4BA /* breakpadUtilities */;
+-			targetProxy = F92C56850ECD15EF009BE4BA /* PBXContainerItemProxy */;
+-		};
+-		F92C56880ECD15F1009BE4BA /* PBXTargetDependency */ = {
+-			isa = PBXTargetDependency;
+-			target = F92C53530ECCE349009BE4BA /* Inspector */;
+-			targetProxy = F92C56870ECD15F1009BE4BA /* PBXContainerItemProxy */;
+-		};
+ 		F93DE2FC0F82C3C600608B94 /* PBXTargetDependency */ = {
+ 			isa = PBXTargetDependency;
+ 			target = F93803BD0F80820F004D428B /* generator_test */;
+@@ -2027,11 +1990,6 @@
+ 			target = 8DC2EF4F0486A6940098B216 /* Breakpad */;
+ 			targetProxy = F9C44E190EF0790F003AEBAA /* PBXContainerItemProxy */;
+ 		};
+-		F9C44E970EF09F4B003AEBAA /* PBXTargetDependency */ = {
+-			isa = PBXTargetDependency;
+-			target = F92C569F0ECE04A7009BE4BA /* crash_report_sender */;
+-			targetProxy = F9C44E960EF09F4B003AEBAA /* PBXContainerItemProxy */;
+-		};
+ /* End PBXTargetDependency section */
+ 
+ /* Begin PBXVariantGroup section */
+@@ -2128,8 +2086,12 @@
+ 			isa = XCBuildConfiguration;
+ 			baseConfigurationReference = 8B31027711F0D3AF00FCF3E4 /* BreakpadDebug.xcconfig */;
+ 			buildSettings = {
++				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
++				CLANG_CXX_LIBRARY = "libc++";
+ 				GCC_TREAT_WARNINGS_AS_ERRORS = NO;
+-				SDKROOT = macosx10.5;
++				GCC_VERSION = "";
++				MACOSX_DEPLOYMENT_TARGET = 10.8;
++				SDKROOT = macosx;
+ 			};
+ 			name = Debug;
+ 		};
+@@ -2137,7 +2099,12 @@
+ 			isa = XCBuildConfiguration;
+ 			baseConfigurationReference = 8B31027811F0D3AF00FCF3E4 /* BreakpadRelease.xcconfig */;
+ 			buildSettings = {
++				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
++				CLANG_CXX_LIBRARY = "libc++";
+ 				GCC_TREAT_WARNINGS_AS_ERRORS = NO;
++				GCC_VERSION = "";
++				MACOSX_DEPLOYMENT_TARGET = 10.8;
++				SDKROOT = macosx;
+ 			};
+ 			name = Release;
+ 		};
+@@ -2456,7 +2423,12 @@
+ 			isa = XCBuildConfiguration;
+ 			baseConfigurationReference = 8B31027711F0D3AF00FCF3E4 /* BreakpadDebug.xcconfig */;
+ 			buildSettings = {
++				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
++				CLANG_CXX_LIBRARY = "libc++";
+ 				GCC_TREAT_WARNINGS_AS_ERRORS = NO;
++				GCC_VERSION = "";
++				MACOSX_DEPLOYMENT_TARGET = 10.8;
++				SDKROOT = macosx;
+ 			};
+ 			name = "Debug With Code Coverage";
+ 		};
+diff --git a/src/client/mac/Framework/Breakpad.mm b/src/client/mac/Framework/Breakpad.mm
+index 1d2e519..943310f 100644
+--- a/src/client/mac/Framework/Breakpad.mm
++++ b/src/client/mac/Framework/Breakpad.mm
+@@ -355,10 +355,10 @@ bool Breakpad::Initialize(NSDictionary *parameters) {
+     return false;
+   }
+ 
+-  if ([[parameters objectForKey:@BREAKPAD_IN_PROCESS] boolValue])
++//  if ([[parameters objectForKey:@BREAKPAD_IN_PROCESS] boolValue])
+     return InitializeInProcess(parameters);
+-  else
+-    return InitializeOutOfProcess(parameters);
++//  else
++//    return InitializeOutOfProcess(parameters);
+ }
+ 
+ //=============================================================================
+@@ -373,52 +373,52 @@ bool Breakpad::InitializeInProcess(NSDictionary* parameters) {
+ }
+ 
+ //=============================================================================
+-bool Breakpad::InitializeOutOfProcess(NSDictionary* parameters) {
+-  // Get path to Inspector executable.
+-  NSString *inspectorPathString = KeyValue(@BREAKPAD_INSPECTOR_LOCATION);
+-
+-  // Standardize path (resolve symlinkes, etc.)  and escape spaces
+-  inspectorPathString = [inspectorPathString stringByStandardizingPath];
+-  inspectorPathString = [[inspectorPathString componentsSeparatedByString:@" "]
+-                                              componentsJoinedByString:@"\\ "];
+-
+-  // Create an on-demand server object representing the Inspector.
+-  // In case of a crash, we simply need to call the LaunchOnDemand()
+-  // method on it, then send a mach message to its service port.
+-  // It will then launch and perform a process inspection of our crashed state.
+-  // See the HandleException() method for the details.
+-#define RECEIVE_PORT_NAME "com.Breakpad.Inspector"
+-
+-  name_t portName;
+-  snprintf(portName, sizeof(name_t),  "%s%d", RECEIVE_PORT_NAME, getpid());
+-
+-  // Save the location of the Inspector
+-  strlcpy(inspector_path_, [inspectorPathString fileSystemRepresentation],
+-          sizeof(inspector_path_));
+-
+-  // Append a single command-line argument to the Inspector path
+-  // representing the bootstrap name of the launch-on-demand receive port.
+-  // When the Inspector is launched, it can use this to lookup the port
+-  // by calling bootstrap_check_in().
+-  strlcat(inspector_path_, " ", sizeof(inspector_path_));
+-  strlcat(inspector_path_, portName, sizeof(inspector_path_));
+-
+-  kern_return_t kr = inspector_.Initialize(inspector_path_,
+-                                           portName,
+-                                           true);        // shutdown on exit
+-
+-  if (kr != KERN_SUCCESS) {
+-    return false;
+-  }
+-
+-  // Create the handler (allocating it in our special protected pool)
+-  handler_ =
+-      new (gBreakpadAllocator->Allocate(
+-          sizeof(google_breakpad::ExceptionHandler)))
+-          google_breakpad::ExceptionHandler(
+-              Breakpad::ExceptionHandlerDirectCallback, this, true);
+-  return true;
+-}
++//bool Breakpad::InitializeOutOfProcess(NSDictionary* parameters) {
++//  // Get path to Inspector executable.
++//  NSString *inspectorPathString = KeyValue(@BREAKPAD_INSPECTOR_LOCATION);
++//
++//  // Standardize path (resolve symlinkes, etc.)  and escape spaces
++//  inspectorPathString = [inspectorPathString stringByStandardizingPath];
++//  inspectorPathString = [[inspectorPathString componentsSeparatedByString:@" "]
++//                                              componentsJoinedByString:@"\\ "];
++//
++//  // Create an on-demand server object representing the Inspector.
++//  // In case of a crash, we simply need to call the LaunchOnDemand()
++//  // method on it, then send a mach message to its service port.
++//  // It will then launch and perform a process inspection of our crashed state.
++//  // See the HandleException() method for the details.
++//#define RECEIVE_PORT_NAME "com.Breakpad.Inspector"
++//
++//  name_t portName;
++//  snprintf(portName, sizeof(name_t),  "%s%d", RECEIVE_PORT_NAME, getpid());
++//
++//  // Save the location of the Inspector
++//  strlcpy(inspector_path_, [inspectorPathString fileSystemRepresentation],
++//          sizeof(inspector_path_));
++//
++//  // Append a single command-line argument to the Inspector path
++//  // representing the bootstrap name of the launch-on-demand receive port.
++//  // When the Inspector is launched, it can use this to lookup the port
++//  // by calling bootstrap_check_in().
++//  strlcat(inspector_path_, " ", sizeof(inspector_path_));
++//  strlcat(inspector_path_, portName, sizeof(inspector_path_));
++//
++//  kern_return_t kr = inspector_.Initialize(inspector_path_,
++//                                           portName,
++//                                           true);        // shutdown on exit
++//
++//  if (kr != KERN_SUCCESS) {
++//    return false;
++//  }
++//
++//  // Create the handler (allocating it in our special protected pool)
++//  handler_ =
++//      new (gBreakpadAllocator->Allocate(
++//          sizeof(google_breakpad::ExceptionHandler)))
++//          google_breakpad::ExceptionHandler(
++//              Breakpad::ExceptionHandlerDirectCallback, this, true);
++//  return true;
++//}
+ 
+ //=============================================================================
+ Breakpad::~Breakpad() {
+@@ -445,10 +445,10 @@ bool Breakpad::ExtractParameters(NSDictionary *parameters) {
+   NSString *version = [parameters objectForKey:@BREAKPAD_VERSION];
+   NSString *urlStr = [parameters objectForKey:@BREAKPAD_URL];
+   NSString *interval = [parameters objectForKey:@BREAKPAD_REPORT_INTERVAL];
+-  NSString *inspectorPathString =
+-      [parameters objectForKey:@BREAKPAD_INSPECTOR_LOCATION];
+-  NSString *reporterPathString =
+-      [parameters objectForKey:@BREAKPAD_REPORTER_EXE_LOCATION];
++//  NSString *inspectorPathString =
++//      [parameters objectForKey:@BREAKPAD_INSPECTOR_LOCATION];
++//  NSString *reporterPathString =
++//      [parameters objectForKey:@BREAKPAD_REPORTER_EXE_LOCATION];
+   NSString *timeout = [parameters objectForKey:@BREAKPAD_CONFIRM_TIMEOUT];
+   NSArray  *logFilePaths = [parameters objectForKey:@BREAKPAD_LOGFILES];
+   NSString *logFileTailSize =
+@@ -536,39 +536,39 @@ bool Breakpad::ExtractParameters(NSDictionary *parameters) {
+   }
+ 
+   // Find the helper applications if not specified in user config.
+-  NSString *resourcePath = nil;
+-  if (!inspectorPathString || !reporterPathString) {
+-    resourcePath = GetResourcePath();
+-    if (!resourcePath) {
+-      return false;
+-    }
+-  }
++//  NSString *resourcePath = nil;
++//  if (!inspectorPathString || !reporterPathString) {
++//    resourcePath = GetResourcePath();
++//    if (!resourcePath) {
++//      return false;
++//    }
++//  }
+ 
+   // Find Inspector.
+-  if (!inspectorPathString) {
+-    inspectorPathString =
+-        [resourcePath stringByAppendingPathComponent:@"Inspector"];
+-  }
+-
+-  // Verify that there is an Inspector tool.
+-  if (![[NSFileManager defaultManager] fileExistsAtPath:inspectorPathString]) {
+-    return false;
+-  }
++//  if (!inspectorPathString) {
++//    inspectorPathString =
++//        [resourcePath stringByAppendingPathComponent:@"Inspector"];
++//  }
++//
++//  // Verify that there is an Inspector tool.
++//  if (![[NSFileManager defaultManager] fileExistsAtPath:inspectorPathString]) {
++//    return false;
++//  }
+ 
+   // Find Reporter.
+-  if (!reporterPathString) {
+-    reporterPathString =
+-        [resourcePath
+-         stringByAppendingPathComponent:@"crash_report_sender.app"];
+-    reporterPathString =
+-        [[NSBundle bundleWithPath:reporterPathString] executablePath];
+-  }
++//  if (!reporterPathString) {
++//    reporterPathString =
++//        [resourcePath
++//         stringByAppendingPathComponent:@"crash_report_sender.app"];
++//    reporterPathString =
++//        [[NSBundle bundleWithPath:reporterPathString] executablePath];
++//  }
+ 
+   // Verify that there is a Reporter application.
+-  if (![[NSFileManager defaultManager]
+-             fileExistsAtPath:reporterPathString]) {
+-    return false;
+-  }
++//  if (![[NSFileManager defaultManager]
++//             fileExistsAtPath:reporterPathString]) {
++//    return false;
++//  }
+ 
+   if (!dumpSubdirectory) {
+     dumpSubdirectory = @"";
+@@ -601,10 +601,10 @@ bool Breakpad::ExtractParameters(NSDictionary *parameters) {
+   dictionary.SetKeyValue(BREAKPAD_REPORT_INTERVAL, [interval UTF8String]);
+   dictionary.SetKeyValue(BREAKPAD_SKIP_CONFIRM,    [skipConfirm UTF8String]);
+   dictionary.SetKeyValue(BREAKPAD_CONFIRM_TIMEOUT, [timeout UTF8String]);
+-  dictionary.SetKeyValue(BREAKPAD_INSPECTOR_LOCATION,
+-                         [inspectorPathString fileSystemRepresentation]);
+-  dictionary.SetKeyValue(BREAKPAD_REPORTER_EXE_LOCATION,
+-                         [reporterPathString fileSystemRepresentation]);
++//  dictionary.SetKeyValue(BREAKPAD_INSPECTOR_LOCATION,
++//                         [inspectorPathString fileSystemRepresentation]);
++//  dictionary.SetKeyValue(BREAKPAD_REPORTER_EXE_LOCATION,
++//                         [reporterPathString fileSystemRepresentation]);
+   dictionary.SetKeyValue(BREAKPAD_LOGFILE_UPLOAD_SIZE,
+                          [logFileTailSize UTF8String]);
+   dictionary.SetKeyValue(BREAKPAD_REQUEST_COMMENTS,
+@@ -762,9 +762,9 @@ bool Breakpad::HandleException(int exception_type,
+ bool Breakpad::HandleMinidump(const char *dump_dir, const char *minidump_id) {
+   google_breakpad::ConfigFile config_file;
+   config_file.WriteFile(dump_dir, config_params_, dump_dir, minidump_id);
+-  google_breakpad::LaunchReporter(
+-      config_params_->GetValueForKey(BREAKPAD_REPORTER_EXE_LOCATION),
+-      config_file.GetFilePath());
++//  google_breakpad::LaunchReporter(
++//      config_params_->GetValueForKey(BREAKPAD_REPORTER_EXE_LOCATION),
++//      config_file.GetFilePath());
+   return true;
+ }
+ 

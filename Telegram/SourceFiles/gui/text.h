@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -110,6 +110,7 @@ inline MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool 
 	return result;
 }
 EntitiesInText textParseEntities(QString &text, int32 flags, bool rich = false); // changes text if (flags & TextParseMono)
+QString textApplyEntities(const QString &text, const EntitiesInText &entities);
 
 #include "gui/emoji_config.h"
 
@@ -308,201 +309,340 @@ private:
 	friend class TextPainter;
 };
 
-class ITextLink {
-public:
+class ClickHandler;
+using ClickHandlerPtr = QSharedPointer<ClickHandler>;
 
-	virtual void onClick(Qt::MouseButton) const = 0;
-	virtual const QString &text() const {
-		static const QString _tmp;
-		return _tmp;
+class ClickHandlerHost {
+protected:
+
+	virtual void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
 	}
-	virtual const QString &readable() const {
-		static const QString _tmp;
-		return _tmp;
+	virtual void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) {
 	}
-	virtual bool fullDisplayed() const {
-		return true;
-	}
-	virtual void setFullDisplayed(bool full) {
-	}
-	virtual QString encoded() const {
-		return QString();
-	}
-	virtual const QLatin1String &type() const = 0;
-	virtual ~ITextLink() {
-	}
+	virtual ~ClickHandlerHost() = 0;
+	friend class ClickHandler;
 
 };
 
-#define TEXT_LINK_CLASS(ClassName) public: \
-const QLatin1String &type() const { \
-	static const QLatin1String _type(qstr(#ClassName)); \
-	return _type; \
-}
-
-typedef QSharedPointer<ITextLink> TextLinkPtr;
-
-class TextLink : public ITextLink {
-	TEXT_LINK_CLASS(TextLink)
-
+class ClickHandler {
 public:
 
-	TextLink(const QString &url, bool fullDisplayed = true) : _url(url), _fullDisplayed(fullDisplayed) {
-		QUrl u(_url), good(u.isValid() ? u.toEncoded() : QString());
-		_readable = good.isValid() ? good.toDisplayString() : _url;
+	virtual void onClick(Qt::MouseButton) const = 0;
+
+	virtual QString tooltip() const {
+		return QString();
+	}
+	virtual void copyToClipboard() const {
+	}
+	virtual QString copyToClipboardContextItem() const {
+		return QString();
+	}
+	virtual QString text() const {
+		return QString();
+	}
+	virtual QString dragText() const {
+		return text();
 	}
 
-	const QString &text() const {
-		return _url;
+	virtual ~ClickHandler() {
 	}
 
-	void onClick(Qt::MouseButton button) const;
+	// this method should be called on mouse over a click handler
+	// it returns true if something was changed or false otherwise
+	static bool setActive(const ClickHandlerPtr &p, ClickHandlerHost *host = nullptr);
 
-	const QString &readable() const {
-		return _readable;
+	// this method should be called when mouse leaves the host
+	// it returns true if something was changed or false otherwise
+	static bool clearActive(ClickHandlerHost *host = nullptr) {
+		if (host && _activeHost != host) {
+			return false;
+		}
+		return setActive(ClickHandlerPtr(), host);
 	}
 
-	bool fullDisplayed() const {
-		return _fullDisplayed;
+	// this method should be called on mouse pressed
+	static void pressed() {
+		unpressed();
+		if (!_active || !*_active) {
+			return;
+		}
+		_pressed.makeIfNull();
+		*_pressed = *_active;
+		if ((_pressedHost = _activeHost)) {
+			_pressedHost->clickHandlerPressedChanged(*_pressed, true);
+		}
+	}
+
+	// this method should be called on mouse released
+	// the activated click handler is returned
+	static ClickHandlerPtr unpressed() {
+		if (_pressed && *_pressed) {
+			bool activated = (_active && *_active == *_pressed);
+			ClickHandlerPtr waspressed = *_pressed;
+			(*_pressed).clear();
+			if (_pressedHost) {
+				_pressedHost->clickHandlerPressedChanged(waspressed, false);
+				_pressedHost = nullptr;
+			}
+
+			if (activated) {
+				return *_active;
+			} else if (_active && *_active && _activeHost) {
+				// emit clickHandlerActiveChanged for current active
+				// click handler, which we didn't emit while we has
+				// a pressed click handler
+				_activeHost->clickHandlerActiveChanged(*_active, true);
+			}
+		}
+		return ClickHandlerPtr();
+	}
+
+	static ClickHandlerPtr getActive() {
+		return _active ? *_active : ClickHandlerPtr();
+	}
+	static ClickHandlerPtr getPressed() {
+		return _pressed ? *_pressed : ClickHandlerPtr();
+	}
+
+	static bool showAsActive(const ClickHandlerPtr &p) {
+		if (!p || !_active || p != *_active) {
+			return false;
+		}
+		return !_pressed || !*_pressed || (p == *_pressed);
+	}
+	static bool showAsPressed(const ClickHandlerPtr &p) {
+		if (!p || !_active || p != *_active) {
+			return false;
+		}
+		return _pressed && (p == *_pressed);
+	}
+	static void hostDestroyed(ClickHandlerHost *host) {
+		if (_activeHost == host) {
+			_activeHost = nullptr;
+		} else if (_pressedHost == host) {
+			_pressedHost = nullptr;
+		}
+	}
+
+private:
+
+	static NeverFreedPointer<ClickHandlerPtr> _active;
+	static NeverFreedPointer<ClickHandlerPtr> _pressed;
+	static ClickHandlerHost *_activeHost;
+	static ClickHandlerHost *_pressedHost;
+
+};
+
+class LeftButtonClickHandler : public ClickHandler {
+public:
+	void onClick(Qt::MouseButton button) const override final {
+		if (button != Qt::LeftButton) return;
+		onClickImpl();
+	}
+
+protected:
+	virtual void onClickImpl() const = 0;
+
+};
+
+class TextClickHandler : public ClickHandler {
+public:
+
+	TextClickHandler(bool fullDisplayed = true) : _fullDisplayed(fullDisplayed) {
+	}
+
+	void copyToClipboard() const override {
+		QString u = url();
+		if (!u.isEmpty()) {
+			QApplication::clipboard()->setText(u);
+		}
+	}
+
+	QString tooltip() const override {
+		return _fullDisplayed ? QString() : readable();
 	}
 
 	void setFullDisplayed(bool full) {
 		_fullDisplayed = full;
 	}
 
-	QString encoded() const {
-		QUrl u(_url), good(u.isValid() ? u.toEncoded() : QString());
-		QString result(good.isValid() ? QString::fromUtf8(good.toEncoded()) : _url);
-
-		if (!QRegularExpression(qsl("^[a-zA-Z]+://")).match(result).hasMatch()) { // no protocol
-			return qsl("http://") + result;
-		}
-		return result;
+protected:
+	virtual QString url() const = 0;
+	virtual QString readable() const {
+		return url();
 	}
 
-private:
-
-	QString _url, _readable;
 	bool _fullDisplayed;
 
 };
 
-class CustomTextLink : public TextLink {
+class UrlClickHandler : public TextClickHandler {
 public:
-
-	CustomTextLink(const QString &url) : TextLink(url, false) {
+	UrlClickHandler(const QString &url, bool fullDisplayed = true) : TextClickHandler(fullDisplayed), _url(url) {
+		if (isEmail()) {
+			_readable = _url;
+		} else {
+			QUrl u(_url), good(u.isValid() ? u.toEncoded() : QString());
+			_readable = good.isValid() ? good.toDisplayString() : _url;
+		}
 	}
-	void onClick(Qt::MouseButton button) const;
+	QString copyToClipboardContextItem() const override;
+
+	QString text() const override {
+		return _url;
+	}
+	QString dragText() const override {
+		return url();
+	}
+
+	static void doOpen(QString url);
+	void onClick(Qt::MouseButton button) const override {
+		if (button == Qt::LeftButton || button == Qt::MiddleButton) {
+			doOpen(url());
+		}
+	}
+
+protected:
+	QString url() const override {
+		if (isEmail()) {
+			return _url;
+		}
+
+		QUrl u(_url), good(u.isValid() ? u.toEncoded() : QString());
+		QString result(good.isValid() ? QString::fromUtf8(good.toEncoded()) : _url);
+
+		if (!QRegularExpression(qsl("^[a-zA-Z]+:")).match(result).hasMatch()) { // no protocol
+			return qsl("http://") + result;
+		}
+		return result;
+	}
+	QString readable() const override {
+		return _readable;
+	}
+
+private:
+	static bool isEmail(const QString &url) {
+		int at = url.indexOf('@'), slash = url.indexOf('/');
+		return ((at > 0) && (slash < 0 || slash > at));
+	}
+	bool isEmail() const {
+		return isEmail(_url);
+	}
+
+	QString _url, _readable;
+
+};
+typedef QSharedPointer<TextClickHandler> TextClickHandlerPtr;
+
+class HiddenUrlClickHandler : public UrlClickHandler {
+public:
+	HiddenUrlClickHandler(QString url) : UrlClickHandler(url, false) {
+	}
+	void onClick(Qt::MouseButton button) const override;
+
 };
 
-class EmailLink : public ITextLink {
-	TEXT_LINK_CLASS(EmailLink)
+struct LocationCoords {
+	LocationCoords() : lat(0), lon(0) {
+	}
+	LocationCoords(float64 lat, float64 lon) : lat(lat), lon(lon) {
+	}
+	LocationCoords(const MTPDgeoPoint &point) : lat(point.vlat.v), lon(point.vlong.v) {
+	}
+	float64 lat, lon;
+};
+inline bool operator==(const LocationCoords &a, const LocationCoords &b) {
+	return (a.lat == b.lat) && (a.lon == b.lon);
+}
+inline bool operator<(const LocationCoords &a, const LocationCoords &b) {
+	return (a.lat < b.lat) || ((a.lat == b.lat) && (a.lon < b.lon));
+}
+inline uint qHash(const LocationCoords &t, uint seed = 0) {
+	return qHash(QtPrivate::QHashCombine().operator()(qHash(t.lat), t.lon), seed);
+}
 
+class LocationClickHandler : public TextClickHandler {
 public:
-
-	EmailLink(const QString &email) : _email(email) {
+	LocationClickHandler(const LocationCoords &coords) : _coords(coords) {
+		setup();
 	}
+	QString copyToClipboardContextItem() const override;
 
-	const QString &text() const {
-		return _email;
+	QString text() const override {
+		return _text;
 	}
+	void onClick(Qt::MouseButton button) const override;
 
-	void onClick(Qt::MouseButton button) const;
-
-	const QString &readable() const {
-		return _email;
-	}
-
-	QString encoded() const {
-		return _email;
+protected:
+	QString url() const override {
+		return _text;
 	}
 
 private:
 
-	QString _email;
+	void setup();
+	LocationCoords _coords;
+	QString _text;
 
 };
 
-class MentionLink : public ITextLink {
-	TEXT_LINK_CLASS(MentionLink)
-
+class MentionClickHandler : public TextClickHandler {
 public:
-
-	MentionLink(const QString &tag) : _tag(tag) {
+	MentionClickHandler(const QString &tag) : _tag(tag) {
 	}
+	QString copyToClipboardContextItem() const override;
 
-	const QString &text() const {
+	QString text() const override {
 		return _tag;
 	}
+	void onClick(Qt::MouseButton button) const override;
 
-	void onClick(Qt::MouseButton button) const;
-
-	const QString &readable() const {
-		return _tag;
-	}
-
-	QString encoded() const {
+protected:
+	QString url() const override {
 		return _tag;
 	}
 
 private:
-
 	QString _tag;
 
 };
 
-class HashtagLink : public ITextLink {
-	TEXT_LINK_CLASS(HashtagLink)
-
+class HashtagClickHandler : public TextClickHandler {
 public:
-
-	HashtagLink(const QString &tag) : _tag(tag) {
+	HashtagClickHandler(const QString &tag) : _tag(tag) {
 	}
+	QString copyToClipboardContextItem() const override;
 
-	const QString &text() const {
+	QString text() const override {
 		return _tag;
 	}
+	void onClick(Qt::MouseButton button) const override;
 
-	void onClick(Qt::MouseButton button) const;
-
-	const QString &readable() const {
-		return _tag;
-	}
-
-	QString encoded() const {
+protected:
+	QString url() const override {
 		return _tag;
 	}
 
 private:
-
 	QString _tag;
 
 };
 
-class BotCommandLink : public ITextLink {
-	TEXT_LINK_CLASS(BotCommandLink)
-
+class BotCommandClickHandler : public TextClickHandler {
 public:
-
-	BotCommandLink(const QString &cmd) : _cmd(cmd) {
+	BotCommandClickHandler(const QString &cmd) : _cmd(cmd) {
 	}
-
-	const QString &text() const {
+	QString text() const override {
 		return _cmd;
 	}
+	void onClick(Qt::MouseButton button) const override;
 
-	void onClick(Qt::MouseButton button) const;
-
-	const QString &readable() const {
-		return _cmd;
-	}
-
-	QString encoded() const {
+protected:
+	QString url() const override {
 		return _cmd;
 	}
 
 private:
-
 	QString _cmd;
 
 };
@@ -515,11 +655,13 @@ enum TextCommands {
 	TextCommandNoItalic    = 0x04,
 	TextCommandUnderline   = 0x05,
 	TextCommandNoUnderline = 0x06,
-	TextCommandLinkIndex   = 0x07, // 0 - NoLink
-	TextCommandLinkText    = 0x08,
-	TextCommandColor       = 0x09,
-	TextCommandNoColor     = 0x0A,
-	TextCommandSkipBlock   = 0x0B,
+	TextCommandSemibold    = 0x07,
+	TextCommandNoSemibold  = 0x08,
+	TextCommandLinkIndex   = 0x09, // 0 - NoLink
+	TextCommandLinkText    = 0x0A,
+	TextCommandColor       = 0x0B,
+	TextCommandNoColor     = 0x0C,
+	TextCommandSkipBlock   = 0x0D,
 
 	TextCommandLangTag     = 0x20,
 };
@@ -547,14 +689,17 @@ public:
 	Text(int32 minResizeWidth = QFIXED_MAX);
 	Text(style::font font, const QString &text, const TextParseOptions &options = _defaultOptions, int32 minResizeWidth = QFIXED_MAX, bool richText = false);
 	Text(const Text &other);
+	Text(Text &&other);
 	Text &operator=(const Text &other);
+	Text &operator=(Text &&other);
 
+	int32 countWidth(int32 width) const;
 	int32 countHeight(int32 width) const;
 	void setText(style::font font, const QString &text, const TextParseOptions &options = _defaultOptions);
 	void setRichText(style::font font, const QString &text, TextParseOptions options = _defaultOptions, const TextCustomTagsMap &custom = TextCustomTagsMap());
 	void setMarkedText(style::font font, const QString &text, const EntitiesInText &entities, const TextParseOptions &options = _defaultOptions);
 
-	void setLink(uint16 lnkIndex, const TextLinkPtr &lnk);
+	void setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk);
 	bool hasLinks() const;
 
 	bool hasSkipBlock() const {
@@ -573,27 +718,27 @@ public:
 	void replaceFont(style::font f); // does not recount anything, use at your own risk!
 
 	void draw(QPainter &p, int32 left, int32 top, int32 width, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, uint16 selectedFrom = 0, uint16 selectedTo = 0) const;
-	void drawElided(QPainter &p, int32 left, int32 top, int32 width, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0) const;
+	void drawElided(QPainter &p, int32 left, int32 top, int32 width, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0, bool breakEverywhere = false) const;
 	void drawLeft(QPainter &p, int32 left, int32 top, int32 width, int32 outerw, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, uint16 selectedFrom = 0, uint16 selectedTo = 0) const {
 		draw(p, rtl() ? (outerw - left - width) : left, top, width, align, yFrom, yTo, selectedFrom, selectedTo);
 	}
-	void drawLeftElided(QPainter &p, int32 left, int32 top, int32 width, int32 outerw, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0) const {
-		drawElided(p, rtl() ? (outerw - left - width) : left, top, width, lines, align, yFrom, yTo, removeFromEnd);
+	void drawLeftElided(QPainter &p, int32 left, int32 top, int32 width, int32 outerw, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0, bool breakEverywhere = false) const {
+		drawElided(p, rtl() ? (outerw - left - width) : left, top, width, lines, align, yFrom, yTo, removeFromEnd, breakEverywhere);
 	}
 	void drawRight(QPainter &p, int32 right, int32 top, int32 width, int32 outerw, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, uint16 selectedFrom = 0, uint16 selectedTo = 0) const {
 		draw(p, rtl() ? right : (outerw - right - width), top, width, align, yFrom, yTo, selectedFrom, selectedTo);
 	}
-	void drawRightElided(QPainter &p, int32 right, int32 top, int32 width, int32 outerw, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0) const {
-		drawElided(p, rtl() ? right : (outerw - right - width), top, width, lines, align, yFrom, yTo, removeFromEnd);
+	void drawRightElided(QPainter &p, int32 right, int32 top, int32 width, int32 outerw, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0, bool breakEverywhere = false) const {
+		drawElided(p, rtl() ? right : (outerw - right - width), top, width, lines, align, yFrom, yTo, removeFromEnd, breakEverywhere);
 	}
 
-	const TextLinkPtr &link(int32 x, int32 y, int32 width, style::align align = style::al_left) const;
-	const TextLinkPtr &linkLeft(int32 x, int32 y, int32 width, int32 outerw, style::align align = style::al_left) const {
+	const ClickHandlerPtr &link(int32 x, int32 y, int32 width, style::align align = style::al_left) const;
+	const ClickHandlerPtr &linkLeft(int32 x, int32 y, int32 width, int32 outerw, style::align align = style::al_left) const {
 		return link(rtl() ? (outerw - x - width) : x, y, width, align);
 	}
-	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, int32 width, style::align align = style::al_left) const;
-	void getStateLeft(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, int32 width, int32 outerw, style::align align = style::al_left) const {
-		return getState(lnk, inText, rtl() ? (outerw - x - width) : x, y, width, align);
+	void getState(ClickHandlerPtr &lnk, bool &inText, int32 x, int32 y, int32 width, style::align align = style::al_left, bool breakEverywhere = false) const;
+	void getStateLeft(ClickHandlerPtr &lnk, bool &inText, int32 x, int32 y, int32 width, int32 outerw, style::align align = style::al_left, bool breakEverywhere = false) const {
+		return getState(lnk, inText, rtl() ? (outerw - x - width) : x, y, width, align, breakEverywhere);
 	}
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y, int32 width, style::align align = style::al_left) const;
 	void getSymbolLeft(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y, int32 width, int32 outerw, style::align align = style::al_left) const {
@@ -634,14 +779,18 @@ public:
 		return true;
 	}
 
-	void clean();
+	void clear();
 	~Text() {
-		clean();
+		clear();
 	}
 
 private:
 
 	void recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir = Qt::LayoutDirectionAuto);
+
+	// clear() deletes all blocks and calls this method
+	// it is also called from move constructor / assignment operator
+	void clearFields();
 
 	QFixed _minResizeWidth, _maxWidth;
 	int32 _minHeight;
@@ -652,7 +801,7 @@ private:
 	typedef QVector<ITextBlock*> TextBlocks;
 	TextBlocks _blocks;
 
-	typedef QVector<TextLinkPtr> TextLinks;
+	typedef QVector<ClickHandlerPtr> TextLinks;
 	TextLinks _links;
 
 	Qt::LayoutDirection _startDir;
@@ -679,15 +828,6 @@ inline void textstyleRestore() {
 	textstyleSet(0);
 }
 
-// textlnk
-void textlnkOver(const TextLinkPtr &lnk);
-const TextLinkPtr &textlnkOver();
-
-void textlnkDown(const TextLinkPtr &lnk);
-const TextLinkPtr &textlnkDown();
-
-bool textlnkDrawOver(const TextLinkPtr &lnk);
-
 // textcmd
 QString textcmdSkipBlock(ushort w, ushort h);
 QString textcmdStartLink(ushort lnkIndex);
@@ -697,6 +837,8 @@ QString textcmdLink(ushort lnkIndex, const QString &text);
 QString textcmdLink(const QString &url, const QString &text);
 QString textcmdStartColor(const style::color &color);
 QString textcmdStopColor();
+QString textcmdStartSemibold();
+QString textcmdStopSemibold();
 const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink = true);
 
 inline bool chIsSpace(QChar ch, bool rich = false) {

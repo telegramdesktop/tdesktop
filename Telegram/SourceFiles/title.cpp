@@ -16,11 +16,11 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
-#include "style.h"
+#include "gui/style.h"
 
 #include "title.h"
 #include "mainwidget.h"
@@ -73,7 +73,12 @@ TitleWidget::TitleWidget(Window *window) : TWidget(window)
 	_update.hide();
     _cancel.hide();
     _back.hide();
-	if (App::app()->updatingState() == Application::UpdatingReady || cHasPasscode()) {
+	if (
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+		Sandbox::updatingState() == Application::UpdatingReady ||
+#endif
+		cHasPasscode()
+	) {
 		showUpdateBtn();
 	}
 	stateChanged();
@@ -84,10 +89,11 @@ TitleWidget::TitleWidget(Window *window) : TWidget(window)
 	connect(&_contacts, SIGNAL(clicked()), this, SLOT(onContacts()));
 	connect(&_about, SIGNAL(clicked()), this, SLOT(onAbout()));
 	connect(wnd->windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(stateChanged(Qt::WindowState)));
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	connect(App::app(), SIGNAL(updateReady()), this, SLOT(showUpdateBtn()));
-	#endif
-	
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	Sandbox::connect(SIGNAL(updateReady()), this, SLOT(showUpdateBtn()));
+#endif
+
     if (cPlatform() != dbipWindows) {
         _minimize.hide();
         _maximize.hide();
@@ -105,7 +111,7 @@ void TitleWidget::paintEvent(QPaintEvent *e) {
 		p.drawText(st::titleMenuOffset - st::titleTextButton.width / 2, st::titleTextButton.textTop + st::titleTextButton.font->ascent, lang(lng_forward_choose));
 	}
 	p.drawPixmap(st::titleIconPos, App::sprite(), st::titleIconImg);
-	if (!cWideMode() && !_counter.isNull() && App::main()) {
+	if (Adaptive::OneColumn() && !_counter.isNull() && App::main()) {
 		p.drawPixmap(st::titleIconPos.x() + st::titleIconImg.pxWidth() - (_counter.width() / cIntRetinaFactor()), st::titleIconPos.y() + st::titleIconImg.pxHeight() - (_counter.height() / cIntRetinaFactor()), _counter);
 	}
 }
@@ -124,10 +130,10 @@ void TitleWidget::setHideLevel(float64 level) {
 				hider = new TitleHider(this);
 				hider->move(0, 0);
 				hider->resize(size());
-				if (cWideMode()) {
-					hider->show();
-				} else {
+				if (Adaptive::OneColumn()) {
 					hider->hide();
+				} else {
+					hider->show();
 				}
 			}
 			hider->setLevel(hideLevel);
@@ -173,10 +179,10 @@ void TitleWidget::resizeEvent(QResizeEvent *e) {
     if (cPlatform() == dbipWindows) {
         p.setX(p.x() - _close.width());
         _close.move(p);
-        
+
         p.setX(p.x() - _maximize.width());
         _restore.move(p); _maximize.move(p);
-        
+
         p.setX(p.x() - _minimize.width());
         _minimize.move(p);
     }
@@ -210,7 +216,7 @@ void TitleWidget::updateBackButton() {
 		_lock.setSysBtnStyle(st::sysUnlock);
 	} else {
 		_lock.setSysBtnStyle(st::sysLock);
-		if (!cWideMode() && App::main() && App::main()->selectingPeer()) {
+		if (Adaptive::OneColumn() && App::main() && App::main()->selectingPeer()) {
 			_cancel.show();
 			if (!_back.isHidden()) _back.hide();
 			if (!_settings.isHidden()) _settings.hide();
@@ -219,12 +225,7 @@ void TitleWidget::updateBackButton() {
 		} else {
 			if (!_cancel.isHidden()) _cancel.hide();
 			bool authed = (MTP::authedId() > 0);
-			if (cWideMode()) {
-				if (!_back.isHidden()) _back.hide();
-				if (_settings.isHidden()) _settings.show();
-				if (authed && _contacts.isHidden()) _contacts.show();
-				if (_about.isHidden()) _about.show();
-			} else {
+			if (Adaptive::OneColumn()) {
 				if (App::wnd()->needBackButton()) {
 					if (_back.isHidden()) _back.show();
 					if (!_settings.isHidden()) _settings.hide();
@@ -236,6 +237,11 @@ void TitleWidget::updateBackButton() {
 					if (authed && _contacts.isHidden()) _contacts.show();
 					if (_about.isHidden()) _about.show();
 				}
+			} else {
+				if (!_back.isHidden()) _back.hide();
+				if (_settings.isHidden()) _settings.show();
+				if (authed && _contacts.isHidden()) _contacts.show();
+				if (_about.isHidden()) _about.show();
 			}
 		}
 	}
@@ -243,28 +249,28 @@ void TitleWidget::updateBackButton() {
 	update();
 }
 
-void TitleWidget::updateWideMode() {
+void TitleWidget::updateAdaptiveLayout() {
 	updateBackButton();
-	if (!cWideMode()) {
+	if (Adaptive::OneColumn()) {
 		updateCounter();
 	}
 	if (hider) {
-		if (cWideMode()) {
-			hider->show();
-		} else {
+		if (Adaptive::OneColumn()) {
 			hider->hide();
+		} else {
+			hider->show();
 		}
 	}
 }
 
 void TitleWidget::updateCounter() {
-	if (cWideMode() || !MTP::authedId()) return;
+	if (!Adaptive::OneColumn() || !MTP::authedId()) return;
 
-	int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted);
-	bool muted = cIncludeMuted() ? (App::histories().unreadMuted >= counter) : false;
+	int32 counter = App::histories().unreadBadge();
+	bool muted = App::histories().unreadOnlyMuted();
 
 	style::color bg = muted ? st::counterMuteBG : st::counterBG;
-	
+
 	if (counter > 0) {
 		int32 size = cRetina() ? -32 : -16;
 		switch (cScale()) {
@@ -307,7 +313,7 @@ void TitleWidget::stateChanged(Qt::WindowState state) {
 }
 
 void TitleWidget::showUpdateBtn() {
-	if (!cWideMode() && App::main() && App::main()->selectingPeer()) {
+	if (Adaptive::OneColumn() && App::main() && App::main()->selectingPeer()) {
 		_cancel.show();
 		_lock.hide();
 		_update.hide();
@@ -322,7 +328,11 @@ void TitleWidget::showUpdateBtn() {
 	} else {
 		_lock.hide();
 	}
-	bool updateReady = App::app()->updatingState() == Application::UpdatingReady;
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	bool updateReady = (Sandbox::updatingState() == Application::UpdatingReady);
+#else
+	bool updateReady = false;
+#endif
 	if (updateReady || cEvalScale(cConfigScale()) != cEvalScale(cRealScale())) {
 		_update.setText(lang(updateReady ? lng_menu_update : lng_menu_restart));
 		_update.show();
@@ -367,7 +377,7 @@ HitTestType TitleWidget::hitTest(const QPoint &p) {
 	if (App::wnd() && Ui::isLayerShown()) return HitTestNone;
 
 	int x(p.x()), y(p.y()), w(width()), h(height());
-	if (cWideMode() && hider && x >= App::main()->dlgsWidth()) return HitTestNone;
+	if (!Adaptive::OneColumn() && hider && x >= App::main()->dlgsWidth()) return HitTestNone;
 
 	if (x >= st::titleIconPos.x() && y >= st::titleIconPos.y() && x < st::titleIconPos.x() + st::titleIconImg.pxWidth() && y < st::titleIconPos.y() + st::titleIconImg.pxHeight()) {
 		return HitTestIcon;

@@ -13,7 +13,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
  
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -69,13 +69,15 @@ void objc_openFile(const QString &file, bool openwith);
 void objc_start();
 void objc_finish();
 bool objc_execUpdater();
-void objc_execTelegram();
+void objc_execTelegram(const QString &crashreport);
 
 void objc_registerCustomScheme();
 
 void objc_activateProgram(WId winId);
 bool objc_moveFile(const QString &from, const QString &to);
 void objc_deleteDir(const QString &dir);
+
+double objc_appkitVersion();
 
 QString objc_appDataPath();
 QString objc_downloadPath();

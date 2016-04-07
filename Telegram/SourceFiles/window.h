@@ -16,10 +16,9 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#pragma once
 
 #include "title.h"
 #include "pspecific.h"
@@ -99,9 +98,9 @@ public slots:
 
 private:
 
-#ifdef Q_OS_WIN
+#if defined Q_OS_WIN && !defined Q_OS_WINRT
 	DWORD started;
-#endif
+#endif // Q_OS_WIN && !Q_OS_WINRT
 	History *history;
 	HistoryItem *item;
 	int32 fwdCount;
@@ -121,6 +120,8 @@ private:
 };
 
 typedef QList<NotifyWindow*> NotifyWindows;
+
+class StickerPreviewWidget;
 
 class Window : public PsMainWindow {
 	Q_OBJECT
@@ -147,7 +148,7 @@ public:
 	void paintEvent(QPaintEvent *e);
 
 	void resizeEvent(QResizeEvent *e);
-	void updateWideMode();
+	void updateAdaptiveLayout();
 	bool needBackButton();
 
 	void setupPasscode(bool anim);
@@ -169,7 +170,7 @@ public:
 
 	QRect clientRect() const;
 	QRect photoRect() const;
-	
+
 	IntroWidget *introWidget();
 	MainWidget *mainWidget();
 	SettingsWidget *settingsWidget();
@@ -179,7 +180,7 @@ public:
 	void hideConnecting();
 	bool connectingVisible() const;
 
-	void showPhoto(const PhotoLink *lnk, HistoryItem *item = 0);
+	void showPhoto(const PhotoOpenClickHandler *lnk, HistoryItem *item = 0);
 	void showPhoto(PhotoData *photo, HistoryItem *item);
 	void showPhoto(PhotoData *photo, PeerData *item);
 	void showDocument(DocumentData *doc, HistoryItem *item);
@@ -204,8 +205,6 @@ public:
 	TempDirState tempDirState();
 	TempDirState localStorageState();
 	void tempDirDelete(int task);
-
-	void quit();
 
     void notifySettingGot();
 	void notifySchedule(History *history, HistoryItem *item);
@@ -240,17 +239,20 @@ public:
 	void ui_showLayer(LayeredWidget *box, ShowLayerOptions options);
 	bool ui_isLayerShown();
 	bool ui_isMediaViewShown();
+	void ui_showStickerPreview(DocumentData *sticker);
+	void ui_hideStickerPreview();
+	PeerData *ui_getPeerForMouseAction();
 
 public slots:
 
 	void updateIsActive(int timeout = 0);
 	void stateChanged(Qt::WindowState state);
-	
+
 	void checkHistoryActivation();
 	void updateCounter();
 
 	void checkAutoLock();
-    
+
 	void showSettings();
 	void hideSettings(bool fast = false);
 	void layerHidden();
@@ -282,6 +284,8 @@ public slots:
 
 	void notifyUpdateAllPhotos();
 
+	void app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
+
 signals:
 
 	void resized(const QSize &size);
@@ -310,6 +314,7 @@ private:
 	MainWidget *main;
 	SettingsWidget *settings;
 	BackgroundWidget *layerBg;
+	StickerPreviewWidget *_stickerPreview;
 
 	QTimer _isActiveTimer;
 	bool _isActive;
@@ -353,4 +358,222 @@ private:
 	MediaView *_mediaView;
 };
 
-#endif // MAINWINDOW_H
+class PreLaunchWindow : public TWidget {
+public:
+
+	PreLaunchWindow(QString title = QString());
+	void activate();
+	int basicSize() const {
+		return _size;
+	}
+	~PreLaunchWindow();
+
+	static PreLaunchWindow *instance();
+
+protected:
+
+	int _size;
+
+};
+
+class PreLaunchLabel : public QLabel {
+public:
+	PreLaunchLabel(QWidget *parent);
+	void setText(const QString &text);
+};
+
+class PreLaunchInput : public QLineEdit {
+public:
+	PreLaunchInput(QWidget *parent, bool password = false);
+};
+
+class PreLaunchLog : public QTextEdit {
+public:
+	PreLaunchLog(QWidget *parent);
+};
+
+class PreLaunchButton : public QPushButton {
+public:
+	PreLaunchButton(QWidget *parent, bool confirm = true);
+	void setText(const QString &text);
+};
+
+class PreLaunchCheckbox : public QCheckBox {
+public:
+	PreLaunchCheckbox(QWidget *parent);
+	void setText(const QString &text);
+};
+
+class NotStartedWindow : public PreLaunchWindow {
+public:
+
+	NotStartedWindow();
+
+protected:
+
+	void closeEvent(QCloseEvent *e);
+	void resizeEvent(QResizeEvent *e);
+
+private:
+
+	void updateControls();
+
+	PreLaunchLabel _label;
+	PreLaunchLog _log;
+	PreLaunchButton _close;
+
+};
+
+class LastCrashedWindow : public PreLaunchWindow {
+	 Q_OBJECT
+
+public:
+
+	LastCrashedWindow();
+
+public slots:
+
+	void onViewReport();
+	void onSaveReport();
+	void onSendReport();
+	void onGetApp();
+
+	void onNetworkSettings();
+	void onNetworkSettingsSaved(QString host, quint32 port, QString username, QString password);
+	void onContinue();
+
+	void onCheckingFinished();
+	void onSendingError(QNetworkReply::NetworkError e);
+	void onSendingFinished();
+	void onSendingProgress(qint64 uploaded, qint64 total);
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	void onUpdateRetry();
+	void onUpdateSkip();
+
+	void onUpdateChecking();
+	void onUpdateLatest();
+	void onUpdateDownloading(qint64 ready, qint64 total);
+	void onUpdateReady();
+	void onUpdateFailed();
+#endif
+
+protected:
+
+	void closeEvent(QCloseEvent *e);
+	void resizeEvent(QResizeEvent *e);
+
+private:
+
+	QString minidumpFileName();
+	void updateControls();
+
+	QString _host, _username, _password;
+	quint32 _port;
+
+	PreLaunchLabel _label, _pleaseSendReport, _yourReportName, _minidump;
+	PreLaunchLog _report;
+	PreLaunchButton _send, _sendSkip, _networkSettings, _continue, _showReport, _saveReport, _getApp;
+	PreLaunchCheckbox _includeUsername;
+
+	QString _minidumpName, _minidumpFull, _reportText;
+	QString _reportUsername, _reportTextNoUsername;
+	QByteArray getCrashReportRaw() const;
+
+	bool _reportShown, _reportSaved;
+
+	void excludeReportUsername();
+
+	enum SendingState {
+		SendingNoReport,
+		SendingUpdateCheck,
+		SendingNone,
+		SendingTooOld,
+		SendingTooMany,
+		SendingUnofficial,
+		SendingProgress,
+		SendingUploading,
+		SendingFail,
+		SendingDone,
+	};
+	SendingState _sendingState;
+
+	PreLaunchLabel _updating;
+	qint64 _sendingProgress, _sendingTotal;
+
+	QNetworkAccessManager _sendManager;
+	QNetworkReply *_checkReply, *_sendReply;
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	PreLaunchButton _updatingCheck, _updatingSkip;
+	enum UpdatingState {
+		UpdatingNone,
+		UpdatingCheck,
+		UpdatingLatest,
+		UpdatingDownload,
+		UpdatingFail,
+		UpdatingReady
+	};
+	UpdatingState _updatingState;
+	QString _newVersionDownload;
+
+	void setUpdatingState(UpdatingState state, bool force = false);
+	void setDownloadProgress(qint64 ready, qint64 total);
+#endif
+
+	QString getReportField(const QLatin1String &name, const QLatin1String &prefix);
+	void addReportFieldPart(const QLatin1String &name, const QLatin1String &prefix, QHttpMultiPart *multipart);
+
+};
+
+class NetworkSettingsWindow : public PreLaunchWindow {
+	Q_OBJECT
+
+public:
+
+	NetworkSettingsWindow(QWidget *parent, QString host, quint32 port, QString username, QString password);
+
+signals:
+
+	void saved(QString host, quint32 port, QString username, QString password);
+
+public slots:
+
+	void onSave();
+
+protected:
+
+	void closeEvent(QCloseEvent *e);
+	void resizeEvent(QResizeEvent *e);
+
+private:
+
+	void updateControls();
+
+	PreLaunchLabel _hostLabel, _portLabel, _usernameLabel, _passwordLabel;
+	PreLaunchInput _hostInput, _portInput, _usernameInput, _passwordInput;
+	PreLaunchButton _save, _cancel;
+
+	QWidget *_parent;
+
+};
+
+class ShowCrashReportWindow : public PreLaunchWindow {
+public:
+
+	ShowCrashReportWindow(const QString &text);
+
+protected:
+
+	void resizeEvent(QResizeEvent *e);
+    void closeEvent(QCloseEvent *e);
+
+private:
+
+	PreLaunchLog _log;
+
+};
+
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
+int showCrashReportWindow(const QString &crashdump);
+#endif // !TDESKTOP_DISABLE_CRASH_REPORTS

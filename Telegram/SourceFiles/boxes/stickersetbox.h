@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -29,10 +29,12 @@ public:
 
 	StickerSetInner(const MTPInputStickerSet &set);
 
-	void init();
+	void mousePressEvent(QMouseEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+	void mouseReleaseEvent(QMouseEvent *e);
 
 	void paintEvent(QPaintEvent *e);
-	
+
 	bool loaded() const;
 	int32 notInstalled() const;
 	bool official() const;
@@ -42,9 +44,11 @@ public:
 	void setScrollBottom(int32 bottom);
 	void install();
 
-	QString getTitle() const;
-
 	~StickerSetInner();
+
+public slots:
+
+	void onPreview();
 
 signals:
 
@@ -53,6 +57,8 @@ signals:
 
 private:
 
+	int32 stickerFromGlobalPos(const QPoint &p) const;
+
 	void gotSet(const MTPmessages_StickerSet &set);
 	bool failedSet(const RPCError &error);
 
@@ -60,15 +66,20 @@ private:
 	bool installFailed(const RPCError &error);
 
 	StickerPack _pack;
+	StickersByEmojiMap _emoji;
 	bool _loaded;
 	uint64 _setId, _setAccess;
 	QString _title, _setTitle, _setShortName;
-	int32 _setCount, _setHash, _setFlags;
+	int32 _setCount, _setHash;
+	MTPDstickerSet::Flags _setFlags;
 
 	int32 _bottom;
 	MTPInputStickerSet _input;
 
 	mtpRequestId _installRequest;
+
+	QTimer _previewTimer;
+	int32 _previewShown;
 };
 
 class StickerSetBox : public ScrollableBox, public RPCSender {
@@ -118,7 +129,7 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void mouseMoveEvent(QMouseEvent *e);
 	void mouseReleaseEvent(QMouseEvent *e);
-	
+
 	void rebuild();
 	bool savingStart() {
 		if (_saving) return false;
@@ -201,7 +212,7 @@ public:
 	StickersBox();
 	void resizeEvent(QResizeEvent *e);
 	void paintEvent(QPaintEvent *e);
-	
+
 	void closePressed();
 
 public slots:

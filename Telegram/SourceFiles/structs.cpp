@@ -16,10 +16,10 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "style.h"
+#include "gui/style.h"
 #include "lang.h"
 
 #include "history.h"
@@ -35,8 +35,8 @@ Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 
 namespace {
-	int32 peerColorIndex(const PeerId &peer) {
-		int32 myId(MTP::authedId()), peerId(peerToBareInt(peer));
+	int peerColorIndex(const PeerId &peer) {
+		UserId myId(MTP::authedId()), peerId(peerToBareInt(peer));
 		QByteArray both(qsl("%1%2").arg(peerId).arg(myId).toUtf8());
 		if (both.size() > 15) {
 			both = both.mid(0, 15);
@@ -47,7 +47,7 @@ namespace {
 	}
 }
 
-style::color peerColor(int32 index) {
+style::color peerColor(int index) {
 	static const style::color peerColors[8] = {
 		style::color(st::color1),
 		style::color(st::color2),
@@ -61,7 +61,7 @@ style::color peerColor(int32 index) {
 	return peerColors[index];
 }
 
-ImagePtr userDefPhoto(int32 index) {
+ImagePtr userDefPhoto(int index) {
 	static const ImagePtr userDefPhotos[UserColorsCount] = {
 		ImagePtr(qsl(":/ava/art/usercolor1.png"), "PNG"),
 		ImagePtr(qsl(":/ava/art/usercolor2.png"), "PNG"),
@@ -75,7 +75,7 @@ ImagePtr userDefPhoto(int32 index) {
 	return userDefPhotos[index];
 }
 
-ImagePtr chatDefPhoto(int32 index) {
+ImagePtr chatDefPhoto(int index) {
 	static const ImagePtr chatDefPhotos[4] = {
 		ImagePtr(qsl(":/ava/art/chatcolor1.png"), "PNG"),
 		ImagePtr(qsl(":/ava/art/chatcolor2.png"), "PNG"),
@@ -85,7 +85,7 @@ ImagePtr chatDefPhoto(int32 index) {
 	return chatDefPhotos[index];
 }
 
-ImagePtr channelDefPhoto(int32 index) {
+ImagePtr channelDefPhoto(int index) {
 	static const ImagePtr channelDefPhotos[4] = {
 		ImagePtr(qsl(":/ava/art/channelcolor1.png"), "PNG"),
 		ImagePtr(qsl(":/ava/art/channelcolor2.png"), "PNG"),
@@ -98,15 +98,14 @@ ImagePtr channelDefPhoto(int32 index) {
 NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
 NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersPtr = UnknownNotifySettings, globalNotifyChatsPtr = UnknownNotifySettings;
 
-PeerData::PeerData(const PeerId &id) : id(id), lnk(new PeerLink(this))
-, loaded(false)
+PeerData::PeerData(const PeerId &id) : id(id)
+, loadedStatus(NotLoaded)
 , colorIndex(peerColorIndex(id))
 , color(peerColor(colorIndex))
-, photo((isChat() || isMegagroup()) ? chatDefPhoto(colorIndex) : (isChannel() ? channelDefPhoto(colorIndex) : userDefPhoto(colorIndex)))
 , photoId(UnknownPeerPhotoId)
 , nameVersion(0)
 , notify(UnknownNotifySettings)
-{
+, _userpic(isUser() ? userDefPhoto(colorIndex) : ((isChat() || isMegagroup()) ? chatDefPhoto(colorIndex) : channelDefPhoto(colorIndex))) {
 	if (!peerIsUser(id) && !peerIsChannel(id)) updateName(QString(), QString(), QString());
 }
 
@@ -135,9 +134,9 @@ void PeerData::updateName(const QString &newName, const QString &newNameOrPhone,
 		if (asChannel()->username != newUsername) {
 			asChannel()->username = newUsername;
 			if (newUsername.isEmpty()) {
-				asChannel()->flags &= ~MTPDchannel::flag_username;
+				asChannel()->flags &= ~MTPDchannel::Flag::f_username;
 			} else {
-				asChannel()->flags |= MTPDchannel::flag_username;
+				asChannel()->flags |= MTPDchannel::Flag::f_username;
 			}
 			if (App::main()) {
 				App::main()->peerUsernameChanged(this);
@@ -154,6 +153,43 @@ void PeerData::updateName(const QString &newName, const QString &newNameOrPhone,
 	}
 }
 
+void PeerData::setUserpic(ImagePtr userpic) {
+	_userpic = userpic;
+}
+
+ImagePtr PeerData::currentUserpic() const {
+	if (_userpic->loaded()) {
+		return _userpic;
+	}
+	_userpic->load();
+
+	if (isUser()) {
+		return userDefPhoto(colorIndex);
+	} else if (isMegagroup() || isChat()) {
+		return chatDefPhoto(colorIndex);
+	}
+	return channelDefPhoto(colorIndex);
+}
+
+void PeerData::paintUserpic(Painter &p, int size, int x, int y) const {
+	p.drawPixmap(x, y, currentUserpic()->pixCircled(size, size));
+}
+
+StorageKey PeerData::userpicUniqueKey() const {
+	if (photoLoc.isNull() || !_userpic->loaded()) {
+		return StorageKey(0, (isUser() ? 0x1000 : ((isChat() || isMegagroup()) ? 0x2000 : 0x3000)) | colorIndex);
+	}
+	return storageKey(photoLoc);
+}
+
+void PeerData::saveUserpic(const QString &path) const {
+	currentUserpic()->pixCircled().save(path, "PNG");
+}
+
+QPixmap PeerData::genUserpic(int size) const {
+	return currentUserpic()->pixCircled(size, size);
+}
+
 const Text &BotCommand::descriptionText() const {
 	if (_descriptionText.isEmpty() && !_description.isEmpty()) {
 		_descriptionText.setText(st::mentionFont, _description, _textNameOptions);
@@ -163,7 +199,7 @@ const Text &BotCommand::descriptionText() const {
 
 void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer as well
 	PhotoId newPhotoId = photoId;
-	ImagePtr newPhoto = photo;
+	ImagePtr newPhoto = _userpic;
 	StorageImageLocation newPhotoLoc = photoLoc;
 	switch (p.type()) {
 	case mtpc_userProfilePhoto: {
@@ -176,7 +212,7 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer a
 	default: {
 		newPhotoId = 0;
 		if (id == ServiceUserId) {
-			if (photo->isNull()) {
+			if (_userpic->isNull()) {
 				newPhoto = ImagePtr(QPixmap::fromImage(App::wnd()->iconLarge().scaledToWidth(160, Qt::SmoothTransformation), Qt::ColorOnly), "PNG");
 			}
 		} else {
@@ -185,11 +221,13 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer a
 		newPhotoLoc = StorageImageLocation();
 	} break;
 	}
-	if (newPhotoId != photoId || newPhoto.v() != photo.v() || newPhotoLoc != photoLoc) {
+	if (newPhotoId != photoId || newPhoto.v() != _userpic.v() || newPhotoLoc != photoLoc) {
 		photoId = newPhotoId;
-		photo = newPhoto;
+		setUserpic(newPhoto);
 		photoLoc = newPhotoLoc;
-		emit App::main()->peerPhotoChanged(this);
+		if (App::main()) {
+			emit App::main()->peerPhotoChanged(this);
+		}
 	}
 }
 
@@ -197,14 +235,14 @@ void PeerData::fillNames() {
 	names.clear();
 	chars.clear();
 	QString toIndex = textAccentFold(name);
+	if (cRussianLetters().match(toIndex).hasMatch()) {
+		toIndex += ' ' + translitRusEng(toIndex);
+	}
 	if (isUser()) {
 		if (!asUser()->nameOrPhone.isEmpty() && asUser()->nameOrPhone != name) toIndex += ' ' + textAccentFold(asUser()->nameOrPhone);
 		if (!asUser()->username.isEmpty()) toIndex += ' ' + textAccentFold(asUser()->username);
 	} else if (isChannel()) {
 		if (!asChannel()->username.isEmpty()) toIndex += ' ' + textAccentFold(asChannel()->username);
-	}
-	if (cRussianLetters().match(toIndex).hasMatch()) {
-		toIndex += ' ' + translitRusEng(toIndex);
 	}
 	toIndex += ' ' + rusKeyboardLayoutSwitch(toIndex);
 
@@ -240,7 +278,7 @@ void UserData::setPhone(const QString &newPhone) {
 	phone = newPhone;
 }
 
-void UserData::setBotInfoVersion(int32 version) {
+void UserData::setBotInfoVersion(int version) {
 	if (version < 0) {
 		if (botInfo) {
 			if (!botInfo->commands.isEmpty()) {
@@ -261,7 +299,6 @@ void UserData::setBotInfoVersion(int32 version) {
 			Notify::botCommandsChanged(this);
 		}
 		botInfo->description.clear();
-		botInfo->shareText.clear();
 		botInfo->version = version;
 		botInfo->inited = false;
 	}
@@ -269,33 +306,15 @@ void UserData::setBotInfoVersion(int32 version) {
 
 void UserData::setBotInfo(const MTPBotInfo &info) {
 	switch (info.type()) {
-	case mtpc_botInfoEmpty:
-		if (botInfo) {
-			if (!botInfo->commands.isEmpty()) {
-				botInfo->commands.clear();
-				Notify::botCommandsChanged(this);
-			}
-			delete botInfo;
-			botInfo = 0;
-			Notify::userIsBotChanged(this);
-		}
-	break;
 	case mtpc_botInfo: {
 		const MTPDbotInfo &d(info.c_botInfo());
-		if (peerFromUser(d.vuser_id.v) != id) return;
-
-		if (botInfo) {
-			botInfo->version = d.vversion.v;
-		} else {
-			setBotInfoVersion(d.vversion.v);
-		}
+		if (peerFromUser(d.vuser_id.v) != id || !botInfo) return;
 
 		QString desc = qs(d.vdescription);
 		if (botInfo->description != desc) {
 			botInfo->description = desc;
 			botInfo->text = Text(st::msgMinWidth);
 		}
-		botInfo->shareText = qs(d.vshare_text);
 
 		const QVector<MTPBotCommand> &v(d.vcommands.c_vector().v);
 		botInfo->commands.reserve(v.size());
@@ -355,7 +374,7 @@ void UserData::madeAction() {
 
 void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Local::readPeer as well
 	PhotoId newPhotoId = photoId;
-	ImagePtr newPhoto = photo;
+	ImagePtr newPhoto = _userpic;
 	StorageImageLocation newPhotoLoc = photoLoc;
 	switch (p.type()) {
 	case mtpc_chatPhoto: {
@@ -374,9 +393,9 @@ void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Loc
 //		photoFull = ImagePtr();
 	} break;
 	}
-	if (newPhotoId != photoId || newPhoto.v() != photo.v() || newPhotoLoc != photoLoc) {
+	if (newPhotoId != photoId || newPhoto.v() != _userpic.v() || newPhotoLoc != photoLoc) {
 		photoId = newPhotoId;
-		photo = newPhoto;
+		setUserpic(newPhoto);
 		photoLoc = newPhotoLoc;
 		emit App::main()->peerPhotoChanged(this);
 	}
@@ -384,7 +403,7 @@ void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Loc
 
 void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Local::readPeer as well
 	PhotoId newPhotoId = photoId;
-	ImagePtr newPhoto = photo;
+	ImagePtr newPhoto = _userpic;
 	StorageImageLocation newPhotoLoc = photoLoc;
 	switch (p.type()) {
 	case mtpc_chatPhoto: {
@@ -403,9 +422,9 @@ void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see 
 //		photoFull = ImagePtr();
 	} break;
 	}
-	if (newPhotoId != photoId || newPhoto.v() != photo.v() || newPhotoLoc != photoLoc) {
+	if (newPhotoId != photoId || newPhoto.v() != _userpic.v() || newPhotoLoc != photoLoc) {
 		photoId = newPhotoId;
-		photo = newPhoto;
+		setUserpic(newPhoto);
 		photoLoc = newPhotoLoc;
 		if (App::main()) emit App::main()->peerPhotoChanged(this);
 	}
@@ -664,33 +683,28 @@ PhotoData::~PhotoData() {
 	deleteAndMark(uploadingData);
 }
 
-void PhotoLink::onClick(Qt::MouseButton button) const {
-	if (button == Qt::LeftButton) {
-		App::wnd()->showPhoto(this, App::hoveredLinkItem() ? App::hoveredLinkItem() : App::contextItem());
-	}
+void PhotoOpenClickHandler::onClickImpl() const {
+	App::wnd()->showPhoto(this, App::hoveredLinkItem() ? App::hoveredLinkItem() : App::contextItem());
 }
 
-void PhotoSaveLink::onClick(Qt::MouseButton button) const {
-	if (button != Qt::LeftButton) return;
-
+void PhotoSaveClickHandler::onClickImpl() const {
 	PhotoData *data = photo();
 	if (!data->date) return;
 
 	data->download();
 }
 
-void PhotoCancelLink::onClick(Qt::MouseButton button) const {
-	if (button != Qt::LeftButton) return;
-
+void PhotoCancelClickHandler::onClickImpl() const {
 	PhotoData *data = photo();
 	if (!data->date) return;
 
 	if (data->uploading()) {
-		HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0);
-		if (HistoryMessage *msg = item->toHistoryMessage()) {
-			if (msg->getMedia() && msg->getMedia()->type() == MediaTypePhoto && static_cast<HistoryPhoto*>(msg->getMedia())->photo() == data) {
-				App::contextItem(item);
-				App::main()->deleteLayer(-2);
+		if (HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0)) {
+			if (HistoryMessage *msg = item->toHistoryMessage()) {
+				if (msg->getMedia() && msg->getMedia()->type() == MediaTypePhoto && static_cast<HistoryPhoto*>(msg->getMedia())->photo() == data) {
+					App::contextItem(item);
+					App::main()->deleteLayer(-2);
+				}
 			}
 		}
 	} else {
@@ -785,336 +799,17 @@ QString saveFileName(const QString &title, const QString &filter, const QString 
 	return name;
 }
 
-void VideoOpenLink::onClick(Qt::MouseButton button) const {
-	if (button != Qt::LeftButton) return;
-	VideoData *data = video();
-
-	if (!data->date) return;
-
-	HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0);
-
-	const FileLocation &location(data->location(true));
-	if (!location.isEmpty()) {
-		psOpenFile(location.name());
-		if (App::main()) App::main()->videoMarkRead(data);
-		return;
-	}
-
-	if (data->status != FileReady) return;
-
-	QString filename;
-	if (!data->saveToCache()) {
-		filename = saveFileName(lang(lng_save_video), qsl("MOV Video (*.mov);;All files (*.*)"), qsl("video"), qsl(".mov"), false);
-		if (filename.isEmpty()) return;
-	}
-
-	data->save(filename, ActionOnLoadOpen, item ? item->fullId() : FullMsgId());
-}
-
-void VideoSaveLink::doSave(VideoData *data, bool forceSavingAs) {
-	if (!data->date) return;
-
-	QString already = data->already(true);
-	bool openWith = !already.isEmpty();
-	if (openWith && !forceSavingAs) {
-		QPoint pos(QCursor::pos());
-		if (!psShowOpenWithMenu(pos.x(), pos.y(), already)) {
-			psOpenFile(already, true);
-		}
-	} else {
-		QFileInfo alreadyInfo(already);
-		QDir alreadyDir(already.isEmpty() ? QDir() : alreadyInfo.dir());
-		QString name = already.isEmpty() ? QString(".mov") : alreadyInfo.fileName();
-		QString filename = saveFileName(lang(lng_save_video), qsl("MOV Video (*.mov);;All files (*.*)"), qsl("video"), name, forceSavingAs, alreadyDir);
-		if (!filename.isEmpty()) {
-			ActionOnLoad action = already.isEmpty() ? ActionOnLoadNone : ActionOnLoadOpenWith;
-			FullMsgId actionMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->fullId() : (App::contextItem() ? App::contextItem()->fullId() : FullMsgId());
-			data->save(filename, action, actionMsgId);
-		}
-	}
-}
-
-void VideoSaveLink::onClick(Qt::MouseButton button) const {
-	if (button != Qt::LeftButton) return;
-	doSave(video());
-}
-
-void VideoCancelLink::onClick(Qt::MouseButton button) const {
-	VideoData *data = video();
-	if (!data->date || button != Qt::LeftButton) return;
-
-	data->cancel();
-}
-
-VideoData::VideoData(const VideoId &id, const uint64 &access, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size)
-: id(id)
-, access(access)
-, date(date)
-, duration(duration)
-, w(w)
-, h(h)
-, thumb(thumb)
-, dc(dc)
-, size(size)
-, status(FileReady)
-, uploadOffset(0)
-, _actionOnLoad(ActionOnLoadNone)
-, _loader(0) {
-	_location = Local::readFileLocation(mediaKey(VideoFileLocation, dc, id));
-}
-
-void VideoData::forget() {
-	replyPreview->forget();
-	thumb->forget();
-}
-
-void VideoData::performActionOnLoad() {
-	if (_actionOnLoad == ActionOnLoadNone) return;
-
-	const FileLocation &loc(location(true));
-	QString already = loc.name();
-	if (already.isEmpty()) return;
-
-	if (_actionOnLoad == ActionOnLoadOpenWith) {
-		QPoint pos(QCursor::pos());
-		if (!psShowOpenWithMenu(pos.x(), pos.y(), already)) {
-			psOpenFile(already, true);
-		}
-	} else if (_actionOnLoad == ActionOnLoadOpen || _actionOnLoad == ActionOnLoadPlayInline) {
-		psOpenFile(already);
-	}
-	_actionOnLoad = ActionOnLoadNone;
-}
-
-bool VideoData::loaded(bool check) const {
-	if (loading() && _loader->done()) {
-		if (_loader->fileType() == mtpc_storage_fileUnknown) {
-			_loader->deleteLater();
-			_loader->rpcInvalidate();
-			_loader = CancelledMtpFileLoader;
-		} else {
-			VideoData *that = const_cast<VideoData*>(this);
-			that->_location = FileLocation(mtpToStorageType(_loader->fileType()), _loader->fileName());
-
-			_loader->deleteLater();
-			_loader->rpcInvalidate();
-			_loader = 0;
-		}
-		notifyLayoutChanged();
-	}
-	return !already(check).isEmpty();
-}
-
-bool VideoData::loading() const {
-	return _loader && _loader != CancelledMtpFileLoader;
-}
-
-bool VideoData::displayLoading() const {
-	return loading() ? (!_loader->loadingLocal() || !_loader->autoLoading()) : uploading();
-}
-
-float64 VideoData::progress() const {
-	if (uploading()) {
-		if (size > 0) {
-			return float64(uploadOffset) / size;
-		}
-		return 0;
-	}
-	return loading() ? _loader->currentProgress() : (loaded() ? 1 : 0);
-}
-
-int32 VideoData::loadOffset() const {
-	return loading() ? _loader->currentOffset() : 0;
-}
-
-bool VideoData::uploading() const {
-	return status == FileUploading;
-}
-
-void VideoData::save(const QString &toFile, ActionOnLoad action, const FullMsgId &actionMsgId, LoadFromCloudSetting fromCloud, bool autoLoading) {
-	if (loaded(true)) {
-		const FileLocation &l(location(true));
-		if (!toFile.isEmpty()) {
-			if (l.accessEnable()) {
-				QFile(l.name()).copy(toFile);
-				l.accessDisable();
-			}
-		}
-		return;
-	}
-
-	if (_loader == CancelledMtpFileLoader) _loader = 0;
-	if (_loader) {
-		if (!_loader->setFileName(toFile)) {
-			cancel();
-			_loader = 0;
-		}
-	}
-
-	_actionOnLoad = action;
-	_actionOnLoadMsgId = actionMsgId;
-
-	if (_loader) {
-		if (fromCloud == LoadFromCloudOrLocal) _loader->permitLoadFromCloud();
-	} else {
-		status = FileReady;
-		_loader = new mtpFileLoader(dc, id, access, VideoFileLocation, toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
-		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(videoLoadProgress(FileLoader*)));
-		_loader->connect(_loader, SIGNAL(failed(FileLoader*,bool)), App::main(), SLOT(videoLoadFailed(FileLoader*,bool)));
-		_loader->start();
-	}
-
-	notifyLayoutChanged();
-}
-
-void VideoData::cancel() {
-	if (!loading()) return;
-
-	mtpFileLoader *l = _loader;
-	_loader = CancelledMtpFileLoader;
-	if (l) {
-		l->cancel();
-		l->deleteLater();
-		l->rpcInvalidate();
-
-		notifyLayoutChanged();
-	}
-	_actionOnLoad = ActionOnLoadNone;
-}
-
-void VideoData::notifyLayoutChanged() const {
-	const VideoItems &items(App::videoItems());
-	VideoItems::const_iterator i = items.constFind(const_cast<VideoData*>(this));
-	if (i != items.cend()) {
-		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			Notify::historyItemLayoutChanged(j.key());
-		}
-	}
-}
-
-QString VideoData::already(bool check) const {
-	return location(check).name();
-}
-
-QByteArray VideoData::data() const {
-	return QByteArray();
-}
-
-const FileLocation &VideoData::location(bool check) const {
-	if (check && !_location.check()) {
-		const_cast<VideoData*>(this)->_location = Local::readFileLocation(mediaKey(VideoFileLocation, dc, id));
-	}
-	return _location;
-}
-
-void VideoData::setLocation(const FileLocation &loc) {
-	if (loc.check()) {
-		_location = loc;
-	}
-}
-
-void AudioOpenLink::onClick(Qt::MouseButton button) const {
-	if (button != Qt::LeftButton) return;
-	AudioData *data = audio();
-
-	if (!data->date) return;
-
-	HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0);
-
-	bool play = audioPlayer() && item;
-	const FileLocation &location(data->location(true));
-	if (!location.isEmpty() || (!data->data().isEmpty() && play)) {
-		if (play) {
-			AudioMsgId playing;
-			AudioPlayerState playingState = AudioPlayerStopped;
-			audioPlayer()->currentState(&playing, &playingState);
-			if (playing.msgId == item->fullId() && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(OverviewAudios);
-			} else {
-				AudioMsgId audio(data, item->fullId());
-				audioPlayer()->play(audio);
-				if (App::main()) {
-					App::main()->audioPlayProgress(audio);
-					App::main()->audioMarkRead(data);
-				}
-			}
-		} else {
-			psOpenFile(location.name());
-			if (App::main()) App::main()->audioMarkRead(data);
-		}
-		return;
-	}
-
-	if (data->status != FileReady) return;
-
-	QString filename;
-	if (!data->saveToCache()) {
-		bool mp3 = (data->mime == qstr("audio/mp3"));
-		filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), mp3 ? qsl(".mp3") : qsl(".ogg"), false);
-
-		if (filename.isEmpty()) return;
-	}
-
-	data->save(filename, ActionOnLoadOpen, item ? item->fullId() : FullMsgId());
-}
-
-void AudioSaveLink::doSave(AudioData *data, bool forceSavingAs) {
-	if (!data->date) return;
-
-	QString already = data->already(true);
-	bool openWith = !already.isEmpty();
-	if (openWith && !forceSavingAs) {
-		QPoint pos(QCursor::pos());
-		if (!psShowOpenWithMenu(pos.x(), pos.y(), already)) {
-			psOpenFile(already, true);
-		}
-	} else {
-		QFileInfo alreadyInfo(already);
-		QDir alreadyDir(already.isEmpty() ? QDir() : alreadyInfo.dir());
-		bool mp3 = (data->mime == qstr("audio/mp3"));
-		QString name = already.isEmpty() ? (mp3 ? qsl(".mp3") : qsl(".ogg")) : alreadyInfo.fileName();
-		QString filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), name, forceSavingAs, alreadyDir);
-		if (!filename.isEmpty()) {
-			ActionOnLoad action = already.isEmpty() ? ActionOnLoadNone : ActionOnLoadOpenWith;
-			FullMsgId actionMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->fullId() : (App::contextItem() ? App::contextItem()->fullId() : FullMsgId());
-			data->save(filename, action, actionMsgId);
-		}
-	}
-}
-
-void AudioSaveLink::onClick(Qt::MouseButton button) const {
-	if (button != Qt::LeftButton) return;
-	doSave(audio());
-}
-
-void AudioCancelLink::onClick(Qt::MouseButton button) const {
-	AudioData *data = audio();
-	if (!data->date || button != Qt::LeftButton) return;
-
-	if (data->uploading()) {
-		HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0);
-		if (HistoryMessage *msg = item->toHistoryMessage()) {
-			if (msg->getMedia() && msg->getMedia()->type() == MediaTypeAudio && static_cast<HistoryAudio*>(msg->getMedia())->audio() == data) {
-				App::contextItem(item);
-				App::main()->deleteLayer(-2);
-			}
-		}
-	} else {
-		data->cancel();
-	}
-}
-
 bool StickerData::setInstalled() const {
 	switch (set.type()) {
 	case mtpc_inputStickerSetID: {
-		StickerSets::const_iterator it = cStickerSets().constFind(set.c_inputStickerSetID().vid.v);
-		return (it != cStickerSets().cend()) && !(it->flags & MTPDstickerSet::flag_disabled);
+		auto it = Global::StickerSets().constFind(set.c_inputStickerSetID().vid.v);
+		return (it != Global::StickerSets().cend()) && !(it->flags & MTPDstickerSet::Flag::f_disabled);
 	} break;
 	case mtpc_inputStickerSetShortName: {
 		QString name = qs(set.c_inputStickerSetShortName().vshort_name).toLower();
-		for (StickerSets::const_iterator it = cStickerSets().cbegin(), e = cStickerSets().cend(); it != e; ++it) {
+		for (auto it = Global::StickerSets().cbegin(), e = Global::StickerSets().cend(); it != e; ++it) {
 			if (it->shortName.toLower() == name) {
-				return !(it->flags & MTPDstickerSet::flag_disabled);
+				return !(it->flags & MTPDstickerSet::Flag::f_disabled);
 			}
 		}
 	} break;
@@ -1122,249 +817,87 @@ bool StickerData::setInstalled() const {
 	return false;
 }
 
-AudioData::AudioData(const AudioId &id, const uint64 &access, int32 date, const QString &mime, int32 duration, int32 dc, int32 size)
-: id(id)
-, access(access)
-, date(date)
-, mime(mime)
-, duration(duration)
-, dc(dc)
-, size(size)
-, status(FileReady)
-, uploadOffset(0)
-, _actionOnLoad(ActionOnLoadNone)
-, _loader(0) {
-	_location = Local::readFileLocation(mediaKey(AudioFileLocation, dc, id));
-}
-
-bool AudioData::saveToCache() const {
-	return size < AudioVoiceMsgInMemory;
-}
-
-void AudioData::forget() {
-	_data.clear();
-}
-
-void AudioData::automaticLoad(const HistoryItem *item) {
-	if (loaded() || status != FileReady) return;
-
-	if (saveToCache() && _loader != CancelledMtpFileLoader) {
-		if (item) {
-			bool loadFromCloud = false;
-			if (item->history()->peer->isUser()) {
-				loadFromCloud = !(cAutoDownloadAudio() & dbiadNoPrivate);
-			} else {
-				loadFromCloud = !(cAutoDownloadAudio() & dbiadNoGroups);
-			}
-			save(QString(), _actionOnLoad, _actionOnLoadMsgId, loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly, true);
-		}
-	}
-}
-
-void AudioData::automaticLoadSettingsChanged() {
-	if (loaded() || status != FileReady || !saveToCache() || _loader != CancelledMtpFileLoader) return;
-	_loader = 0;
-}
-
-void AudioData::performActionOnLoad() {
-	if (_actionOnLoad == ActionOnLoadNone) return;
-
-	const FileLocation &loc(location(true));
-	QString already = loc.name();
-	bool play = _actionOnLoadMsgId.msg && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen) && audioPlayer();
-
-	if (play) {
-		if (loaded()) {
-			AudioMsgId playing;
-			AudioPlayerState state = AudioPlayerStopped;
-			audioPlayer()->currentState(&playing, &state);
-			if (playing.msgId == _actionOnLoadMsgId && !(state & AudioPlayerStoppedMask) && state != AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(OverviewAudios);
-			} else {
-				audioPlayer()->play(AudioMsgId(this, _actionOnLoadMsgId));
-				if (App::main()) App::main()->audioMarkRead(this);
-			}
-		}
+QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = false, const QString already = QString(), const QDir &dir = QDir()) {
+	QString name, filter, caption, prefix;
+	MimeType mimeType = mimeTypeForName(data->mime);
+	QStringList p = mimeType.globPatterns();
+	QString pattern = p.isEmpty() ? QString() : p.front();
+	if (data->voice()) {
+		bool mp3 = (data->mime == qstr("audio/mp3"));
+		name = already.isEmpty() ? (mp3 ? qsl(".mp3") : qsl(".ogg")) : already;
+		filter = mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)");
+		caption = lang(lng_save_audio);
+		prefix = qsl("audio");
+	} else if (data->isVideo()) {
+		name = already.isEmpty() ? qsl(".mov") : already;
+		filter = qsl("MOV Video (*.mov);;All files (*.*)");
+		caption = lang(lng_save_video);
+		prefix = qsl("video");
 	} else {
-		if (already.isEmpty()) return;
-		if (_actionOnLoad == ActionOnLoadOpenWith) {
-			if (already.isEmpty()) return;
-
-			QPoint pos(QCursor::pos());
-			if (!psShowOpenWithMenu(pos.x(), pos.y(), already)) {
-				psOpenFile(already, true);
-			}
-			if (App::main()) App::main()->audioMarkRead(this);
-		} else if (_actionOnLoad == ActionOnLoadOpen || _actionOnLoad == ActionOnLoadPlayInline) {
-			psOpenFile(already);
-			if (App::main()) App::main()->audioMarkRead(this);
+		name = already.isEmpty() ? data->name : already;
+		if (name.isEmpty()) {
+			name = pattern.isEmpty() ? qsl(".unknown") : pattern.replace('*', QString());
 		}
-	}
-	_actionOnLoad = ActionOnLoadNone;
-}
-
-bool AudioData::loaded(bool check) const {
-	if (loading() && _loader->done()) {
-		if (_loader->fileType() == mtpc_storage_fileUnknown) {
-			_loader->deleteLater();
-			_loader->rpcInvalidate();
-			_loader = CancelledMtpFileLoader;
+		if (pattern.isEmpty()) {
+			filter = QString();
 		} else {
-			AudioData *that = const_cast<AudioData*>(this);
-			that->_location = FileLocation(mtpToStorageType(_loader->fileType()), _loader->fileName());
-			that->_data = _loader->bytes();
-
-			_loader->deleteLater();
-			_loader->rpcInvalidate();
-			_loader = 0;
+			filter = mimeType.filterString() + qsl(";;All files (*.*)");
 		}
-		notifyLayoutChanged();
-	}
-	return !_data.isEmpty() || !already(check).isEmpty();
-}
-
-bool AudioData::loading() const {
-	return _loader && _loader != CancelledMtpFileLoader;
-}
-
-bool AudioData::displayLoading() const {
-	return loading() ? (!_loader->loadingLocal() || !_loader->autoLoading()) : uploading();
-}
-
-float64 AudioData::progress() const {
-	if (uploading()) {
-		if (size > 0) {
-			return float64(uploadOffset) / size;
-		}
-		return 0;
-	}
-	return loading() ? _loader->currentProgress() : (loaded() ? 1 : 0);
-}
-
-int32 AudioData::loadOffset() const {
-	return loading() ? _loader->currentOffset() : 0;
-}
-
-bool AudioData::uploading() const {
-	return status == FileUploading;
-}
-
-void AudioData::save(const QString &toFile, ActionOnLoad action, const FullMsgId &actionMsgId, LoadFromCloudSetting fromCloud, bool autoLoading) {
-	if (loaded(true)) {
-		const FileLocation &l(location(true));
-		if (!toFile.isEmpty()) {
-			if (!_data.isEmpty()) {
-				QFile f(toFile);
-				f.open(QIODevice::WriteOnly);
-				f.write(_data);
-			} else if (l.accessEnable()) {
-				QFile(l.name()).copy(toFile);
-				l.accessDisable();
-			}
-		}
-		return;
+		caption = lang(data->song() ? lng_save_audio_file : lng_save_file);
+		prefix = qsl("doc");
 	}
 
-	if (_loader == CancelledMtpFileLoader) _loader = 0;
-	if (_loader) {
-		if (!_loader->setFileName(toFile)) {
-			cancel();
-			_loader = 0;
-		}
-	}
-
-	_actionOnLoad = action;
-	_actionOnLoadMsgId = actionMsgId;
-
-	if (_loader) {
-		if (fromCloud == LoadFromCloudOrLocal) _loader->permitLoadFromCloud();
-	} else {
-		status = FileReady;
-		_loader = new mtpFileLoader(dc, id, access, AudioFileLocation, toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
-		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(audioLoadProgress(FileLoader*)));
-		_loader->connect(_loader, SIGNAL(failed(FileLoader*,bool)), App::main(), SLOT(audioLoadFailed(FileLoader*,bool)));
-		_loader->start();
-	}
-
-	notifyLayoutChanged();
+	return saveFileName(caption, filter, prefix, name, forceSavingAs, dir);
 }
 
-void AudioData::cancel() {
-	if (!loading()) return;
-
-	mtpFileLoader *l = _loader;
-	_loader = CancelledMtpFileLoader;
-	if (l) {
-		l->cancel();
-		l->deleteLater();
-		l->rpcInvalidate();
-
-		notifyLayoutChanged();
-	}
-	_actionOnLoad = ActionOnLoadNone;
-}
-
-void AudioData::notifyLayoutChanged() const {
-	const AudioItems &items(App::audioItems());
-	AudioItems::const_iterator i = items.constFind(const_cast<AudioData*>(this));
-	if (i != items.cend()) {
-		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			Notify::historyItemLayoutChanged(j.key());
-		}
-	}
-}
-
-QString AudioData::already(bool check) const {
-	return location(check).name();
-}
-
-QByteArray AudioData::data() const {
-	return _data;
-}
-
-const FileLocation &AudioData::location(bool check) const {
-	if (check && !_location.check()) {
-		const_cast<AudioData*>(this)->_location = Local::readFileLocation(mediaKey(AudioFileLocation, dc, id));
-	}
-	return _location;
-}
-
-void AudioData::setLocation(const FileLocation &loc) {
-	if (loc.check()) {
-		_location = loc;
-	}
-}
-
-void DocumentOpenLink::doOpen(DocumentData *data, ActionOnLoad action) {
+void DocumentOpenClickHandler::doOpen(DocumentData *data, ActionOnLoad action) {
 	if (!data->date) return;
 
 	HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0);
 
+	bool playVoice = data->voice() && audioPlayer() && item;
 	bool playMusic = data->song() && audioPlayer() && item;
 	bool playAnimation = data->isAnimation() && item && item->getMedia();
 	const FileLocation &location(data->location(true));
-	if (!location.isEmpty() || (!data->data().isEmpty() && (playMusic || playAnimation))) {
-		if (playMusic) {
+	if (!location.isEmpty() || (!data->data().isEmpty() && (playVoice || playMusic || playAnimation))) {
+		if (playVoice) {
+			AudioMsgId playing;
+			AudioPlayerState playingState = AudioPlayerStopped;
+			audioPlayer()->currentState(&playing, &playingState);
+			if (playing.msgId == item->fullId() && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+				audioPlayer()->pauseresume(OverviewVoiceFiles);
+			} else {
+				AudioMsgId audio(data, item->fullId());
+				audioPlayer()->play(audio);
+				if (App::main()) {
+					App::main()->audioPlayProgress(audio);
+					App::main()->mediaMarkRead(data);
+				}
+			}
+		} else if (playMusic) {
 			SongMsgId playing;
 			AudioPlayerState playingState = AudioPlayerStopped;
 			audioPlayer()->currentState(&playing, &playingState);
 			if (playing.msgId == item->fullId() && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(OverviewDocuments);
+				audioPlayer()->pauseresume(OverviewFiles);
 			} else {
 				SongMsgId song(data, item->fullId());
 				audioPlayer()->play(song);
 				if (App::main()) App::main()->documentPlayProgress(song);
 			}
+		} else if (data->voice() || data->isVideo()) {
+			psOpenFile(location.name());
+			if (App::main()) App::main()->mediaMarkRead(data);
 		} else if (data->size < MediaViewImageSizeLimit) {
 			if (!data->data().isEmpty() && playAnimation) {
-				if (action == ActionOnLoadPlayInline) {
+				if (action == ActionOnLoadPlayInline && item->getMedia()) {
 					item->getMedia()->playInline(item);
 				} else {
 					App::wnd()->showDocument(data, item);
 				}
 			} else if (location.accessEnable()) {
-				if ((App::hoveredLinkItem() || App::contextItem()) && (data->isAnimation() || QImageReader(location.name()).canRead())) {
-					if (action == ActionOnLoadPlayInline) {
+				if (item && (data->isAnimation() || QImageReader(location.name()).canRead())) {
+					if (action == ActionOnLoadPlayInline && item->getMedia()) {
 						item->getMedia()->playInline(item);
 					} else {
 						App::wnd()->showDocument(data, item);
@@ -1386,99 +919,70 @@ void DocumentOpenLink::doOpen(DocumentData *data, ActionOnLoad action) {
 
 	QString filename;
 	if (!data->saveToCache()) {
-		QString name = data->name, filter;
-		MimeType mimeType = mimeTypeForName(data->mime);
-		QStringList p = mimeType.globPatterns();
-		QString pattern = p.isEmpty() ? QString() : p.front();
-		if (name.isEmpty()) {
-			name = pattern.isEmpty() ? qsl(".unknown") : pattern.replace('*', QString());
-		}
-
-		if (pattern.isEmpty()) {
-			filter = QString();
-		} else {
-			filter = mimeType.filterString() + qsl(";;All files (*.*)");
-		}
-
-		filename = saveFileName(lang(lng_save_file), filter, qsl("doc"), name, false);
-
+		filename = documentSaveFilename(data);
 		if (filename.isEmpty()) return;
 	}
 
 	data->save(filename, action, item ? item->fullId() : FullMsgId());
 }
 
-void DocumentOpenLink::onClick(Qt::MouseButton button) const {
-	if (button != Qt::LeftButton) return;
-	doOpen(document());
+void DocumentOpenClickHandler::onClickImpl() const {
+	doOpen(document(), document()->voice() ? ActionOnLoadNone : ActionOnLoadOpen);
 }
 
-void GifOpenLink::doOpen(DocumentData *data) {
-	return DocumentOpenLink::doOpen(data, ActionOnLoadPlayInline);
+void GifOpenClickHandler::onClickImpl() const {
+	doOpen(document(), ActionOnLoadPlayInline);
 }
 
-void GifOpenLink::onClick(Qt::MouseButton button) const {
-	if (button != Qt::LeftButton) return;
-	doOpen(document());
-}
-
-void DocumentSaveLink::doSave(DocumentData *data, bool forceSavingAs) {
+void DocumentSaveClickHandler::doSave(DocumentData *data, bool forceSavingAs) {
 	if (!data->date) return;
 
-	QString already = data->already(true);
-	bool openWith = !already.isEmpty();
-	if (openWith && !forceSavingAs) {
+	QString filepath = data->filepath(DocumentData::FilePathResolveSaveFromDataSilent, forceSavingAs);
+	if (!filepath.isEmpty() && !forceSavingAs) {
 		QPoint pos(QCursor::pos());
-		if (!psShowOpenWithMenu(pos.x(), pos.y(), already)) {
-			psOpenFile(already, true);
+		if (!psShowOpenWithMenu(pos.x(), pos.y(), filepath)) {
+			psOpenFile(filepath, true);
 		}
 	} else {
-		QFileInfo alreadyInfo(already);
-		QDir alreadyDir(already.isEmpty() ? QDir() : alreadyInfo.dir());
-		QString name = already.isEmpty() ? data->name : alreadyInfo.fileName(), filter;
-		MimeType mimeType = mimeTypeForName(data->mime);
-		QStringList p = mimeType.globPatterns();
-		QString pattern = p.isEmpty() ? QString() : p.front();
-		if (name.isEmpty()) {
-			name = pattern.isEmpty() ? qsl(".unknown") : pattern.replace('*', QString());
-		}
-
-		if (pattern.isEmpty()) {
-			filter = QString();
-		} else {
-			filter = mimeType.filterString() + qsl(";;All files (*.*)");
-		}
-
-		QString filename = saveFileName(lang(lng_save_file), filter, qsl("doc"), name, forceSavingAs, alreadyDir);
-		if (!filename.isEmpty()) {
-			ActionOnLoad action = already.isEmpty() ? ActionOnLoadNone : ActionOnLoadOpenWith;
+		QFileInfo fileinfo(filepath);
+		QDir filedir(filepath.isEmpty() ? QDir() : fileinfo.dir());
+		QString filename(filepath.isEmpty() ? QString() : fileinfo.fileName());
+		QString newfname = documentSaveFilename(data, forceSavingAs, filename, filedir);
+		if (!newfname.isEmpty()) {
+			ActionOnLoad action = filename.isEmpty() ? ActionOnLoadNone : ActionOnLoadOpenWith;
 			FullMsgId actionMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->fullId() : (App::contextItem() ? App::contextItem()->fullId() : FullMsgId());
-			data->save(filename, action, actionMsgId);
+			data->save(newfname, action, actionMsgId);
 		}
 	}
 }
 
-void DocumentSaveLink::onClick(Qt::MouseButton button) const {
-	if (button != Qt::LeftButton) return;
+void DocumentSaveClickHandler::onClickImpl() const {
 	doSave(document());
 }
 
-void DocumentCancelLink::onClick(Qt::MouseButton button) const {
-	if (button != Qt::LeftButton) return;
-
+void DocumentCancelClickHandler::onClickImpl() const {
 	DocumentData *data = document();
 	if (!data->date) return;
 
 	if (data->uploading()) {
-		HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0);
-		if (HistoryMessage *msg = item->toHistoryMessage()) {
-			if (msg->getMedia() && msg->getMedia()->getDocument() == data) {
-				App::contextItem(item);
-				App::main()->deleteLayer(-2);
+		if (HistoryItem *item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : 0)) {
+			if (HistoryMessage *msg = item->toHistoryMessage()) {
+				if (msg->getMedia() && msg->getMedia()->getDocument() == data) {
+					App::contextItem(item);
+					App::main()->deleteLayer(-2);
+				}
 			}
 		}
 	} else {
 		data->cancel();
+	}
+}
+
+VoiceData::~VoiceData() {
+	if (!waveform.isEmpty() && waveform.at(0) == -1 && waveform.size() > int32(sizeof(TaskId))) {
+		TaskId taskId = 0;
+		memcpy(&taskId, waveform.constData() + 1, sizeof(taskId));
+		Local::cancelTask(taskId);
 	}
 }
 
@@ -1496,8 +1000,8 @@ DocumentData::DocumentData(const DocumentId &id, const uint64 &access, int32 dat
 , _duration(-1)
 , _actionOnLoad(ActionOnLoadNone)
 , _loader(0) {
-	_location = Local::readFileLocation(mediaKey(DocumentFileLocation, dc, id));
 	setattributes(attributes);
+	_location = Local::readFileLocation(mediaKey());
 }
 
 void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes) {
@@ -1535,11 +1039,27 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 		case mtpc_documentAttributeAudio: {
 			const MTPDdocumentAttributeAudio &d(attributes[i].c_documentAttributeAudio());
 			if (type == FileDocument) {
-				type = SongDocument;
-				SongData *song = new SongData();
-				_additional = song;
+				if (d.is_voice()) {
+					type = VoiceDocument;
+					VoiceData *voice = new VoiceData();
+					_additional = voice;
+				} else {
+					type = SongDocument;
+					SongData *song = new SongData();
+					_additional = song;
+				}
 			}
-			if (song()) {
+			if (voice()) {
+				voice()->duration = d.vduration.v;
+				VoiceWaveform waveform = documentWaveformDecode(qba(d.vwaveform));
+				uchar wavemax = 0;
+				for (int32 i = 0, l = waveform.size(); i < l; ++i) {
+					uchar waveat = waveform.at(i);
+					if (wavemax < waveat) wavemax = waveat;
+				}
+				voice()->waveform = waveform;
+				voice()->wavemax = wavemax;
+			} else if (song()) {
 				song()->duration = d.vduration.v;
 				song()->title = qs(d.vtitle);
 				song()->performer = qs(d.vperformer);
@@ -1558,7 +1078,7 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 }
 
 bool DocumentData::saveToCache() const {
-	return (type == StickerDocument) || (isAnimation() && size < AnimationInMemory);
+	return (type == StickerDocument) || (isAnimation() && size < AnimationInMemory) || (voice() && size < AudioVoiceMsgInMemory);
 }
 
 void DocumentData::forget() {
@@ -1586,12 +1106,22 @@ void DocumentData::automaticLoad(const HistoryItem *item) {
 				loadFromCloud = !(cAutoDownloadGif() & dbiadNoPrivate) || !(cAutoDownloadGif() & dbiadNoGroups);
 			}
 			save(QString(), _actionOnLoad, _actionOnLoadMsgId, loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly, true);
+		} else if (voice()) {
+			if (item) {
+				bool loadFromCloud = false;
+				if (item->history()->peer->isUser()) {
+					loadFromCloud = !(cAutoDownloadAudio() & dbiadNoPrivate);
+				} else {
+					loadFromCloud = !(cAutoDownloadAudio() & dbiadNoGroups);
+				}
+				save(QString(), _actionOnLoad, _actionOnLoadMsgId, loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly, true);
+			}
 		}
 	}
 }
 
 void DocumentData::automaticLoadSettingsChanged() {
-	if (loaded() || status != FileReady || !isAnimation() || !saveToCache() || _loader != CancelledMtpFileLoader) return;
+	if (loaded() || status != FileReady || (!isAnimation() && !voice()) || !saveToCache() || _loader != CancelledMtpFileLoader) return;
 	_loader = 0;
 }
 
@@ -1601,16 +1131,29 @@ void DocumentData::performActionOnLoad() {
 	const FileLocation &loc(location(true));
 	QString already = loc.name();
 	HistoryItem *item = _actionOnLoadMsgId.msg ? App::histItemById(_actionOnLoadMsgId) : 0;
-	bool showImage = item && (size < MediaViewImageSizeLimit);
+	bool showImage = !isVideo() && item && (size < MediaViewImageSizeLimit);
+	bool playVoice = voice() && audioPlayer() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen) && item;
 	bool playMusic = song() && audioPlayer() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen) && item;
 	bool playAnimation = isAnimation() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen) && showImage && item->getMedia();
-	if (playMusic) {
+	if (playVoice) {
+		if (loaded()) {
+			AudioMsgId playing;
+			AudioPlayerState state = AudioPlayerStopped;
+			audioPlayer()->currentState(&playing, &state);
+			if (playing.msgId == _actionOnLoadMsgId && !(state & AudioPlayerStoppedMask) && state != AudioPlayerFinishing) {
+				audioPlayer()->pauseresume(OverviewVoiceFiles);
+			} else {
+				audioPlayer()->play(AudioMsgId(this, _actionOnLoadMsgId));
+				if (App::main()) App::main()->mediaMarkRead(this);
+			}
+		}
+	} else if (playMusic) {
 		if (loaded()) {
 			SongMsgId playing;
 			AudioPlayerState playingState = AudioPlayerStopped;
 			audioPlayer()->currentState(&playing, &playingState);
 			if (playing.msgId == item->fullId() && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(OverviewDocuments);
+				audioPlayer()->pauseresume(OverviewFiles);
 			} else {
 				SongMsgId song(this, item->fullId());
 				audioPlayer()->play(song);
@@ -1619,7 +1162,7 @@ void DocumentData::performActionOnLoad() {
 		}
 	} else if (playAnimation) {
 		if (loaded()) {
-			if (_actionOnLoad == ActionOnLoadPlayInline) {
+			if (_actionOnLoad == ActionOnLoadPlayInline && item->getMedia()) {
 				item->getMedia()->playInline(item);
 			} else {
 				App::wnd()->showDocument(this, item);
@@ -1629,16 +1172,17 @@ void DocumentData::performActionOnLoad() {
 		if (already.isEmpty()) return;
 
 		if (_actionOnLoad == ActionOnLoadOpenWith) {
-			if (already.isEmpty()) return;
-
 			QPoint pos(QCursor::pos());
 			if (!psShowOpenWithMenu(pos.x(), pos.y(), already)) {
 				psOpenFile(already, true);
 			}
 		} else if (_actionOnLoad == ActionOnLoadOpen || _actionOnLoad == ActionOnLoadPlayInline) {
-			if (loc.accessEnable()) {
+			if (voice() || isVideo()) {
+				psOpenFile(already);
+				if (App::main()) App::main()->mediaMarkRead(this);
+			} else if (loc.accessEnable()) {
 				if (showImage && QImageReader(loc.name()).canRead()) {
-					if (_actionOnLoad == ActionOnLoadPlayInline) {
+					if (_actionOnLoad == ActionOnLoadPlayInline && item->getMedia()) {
 						item->getMedia()->playInline(item);
 					} else {
 						App::wnd()->showDocument(this, item);
@@ -1655,11 +1199,11 @@ void DocumentData::performActionOnLoad() {
 	_actionOnLoad = ActionOnLoadNone;
 }
 
-bool DocumentData::loaded(bool check) const {
+bool DocumentData::loaded(FilePathResolveType type) const {
 	if (loading() && _loader->done()) {
 		if (_loader->fileType() == mtpc_storage_fileUnknown) {
 			_loader->deleteLater();
-			_loader->rpcInvalidate();
+			_loader->rpcClear();
 			_loader = CancelledMtpFileLoader;
 		} else {
 			DocumentData *that = const_cast<DocumentData*>(this);
@@ -1670,12 +1214,12 @@ bool DocumentData::loaded(bool check) const {
 			}
 
 			_loader->deleteLater();
-			_loader->rpcInvalidate();
+			_loader->rpcClear();
 			_loader = 0;
 		}
 		notifyLayoutChanged();
 	}
-	return !_data.isEmpty() || !already(check).isEmpty();
+	return !data().isEmpty() || !filepath(type).isEmpty();
 }
 
 bool DocumentData::loading() const {
@@ -1705,18 +1249,26 @@ bool DocumentData::uploading() const {
 }
 
 void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMsgId &actionMsgId, LoadFromCloudSetting fromCloud, bool autoLoading) {
-	if (loaded(true)) {
+	_actionOnLoad = action;
+	_actionOnLoadMsgId = actionMsgId;
+
+	if (loaded(FilePathResolveChecked)) {
 		const FileLocation &l(location(true));
 		if (!toFile.isEmpty()) {
 			if (!_data.isEmpty()) {
 				QFile f(toFile);
 				f.open(QIODevice::WriteOnly);
 				f.write(_data);
+				f.close();
+
+				setLocation(FileLocation(StorageFilePartial, toFile));
+				Local::writeFileLocation(mediaKey(), FileLocation(mtpToStorageType(mtpc_storage_filePartial), toFile));
 			} else if (l.accessEnable()) {
 				QFile(l.name()).copy(toFile);
 				l.accessDisable();
 			}
 		}
+		performActionOnLoad();
 		return;
 	}
 
@@ -1728,19 +1280,15 @@ void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMs
 		}
 	}
 
-	_actionOnLoad = action;
-	_actionOnLoadMsgId = actionMsgId;
-
 	if (_loader) {
 		if (fromCloud == LoadFromCloudOrLocal) _loader->permitLoadFromCloud();
 	} else {
 		status = FileReady;
-		_loader = new mtpFileLoader(dc, id, access, DocumentFileLocation, toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
+		_loader = new mtpFileLoader(dc, id, access, locationType(), toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
 		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(documentLoadProgress(FileLoader*)));
 		_loader->connect(_loader, SIGNAL(failed(FileLoader*,bool)), App::main(), SLOT(documentLoadFailed(FileLoader*,bool)));
 		_loader->start();
 	}
-
 	notifyLayoutChanged();
 }
 
@@ -1752,7 +1300,7 @@ void DocumentData::cancel() {
 	if (l) {
 		l->cancel();
 		l->deleteLater();
-		l->rpcInvalidate();
+		l->rpcClear();
 
 		notifyLayoutChanged();
 	}
@@ -1769,9 +1317,22 @@ void DocumentData::notifyLayoutChanged() const {
 	}
 }
 
-QString DocumentData::already(bool check) const {
-	if (check && _location.name().isEmpty()) return QString();
-	return location(check).name();
+VoiceWaveform documentWaveformDecode(const QByteArray &encoded5bit) {
+	VoiceWaveform result((encoded5bit.size() * 8) / 5, 0);
+	for (int32 i = 0, l = result.size(); i < l; ++i) { // read each 5 bit of encoded5bit as 0-31 unsigned char
+		int32 byte = (i * 5) / 8, shift = (i * 5) % 8;
+		result[i] = (((*(uint16*)(encoded5bit.constData() + byte)) >> shift) & 0x1F);
+	}
+	return result;
+}
+
+QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform) {
+	QByteArray result((waveform.size() * 5 + 7) / 8, 0);
+	for (int32 i = 0, l = waveform.size(); i < l; ++i) { // write each 0-31 unsigned char as 5 bit to result
+		int32 byte = (i * 5) / 8, shift = (i * 5) % 8;
+		(*(uint16*)(result.data() + byte)) |= (uint16(waveform.at(i) & 0x1F) << shift);
+	}
+	return result;
 }
 
 QByteArray DocumentData::data() const {
@@ -1780,7 +1341,7 @@ QByteArray DocumentData::data() const {
 
 const FileLocation &DocumentData::location(bool check) const {
 	if (check && !_location.check()) {
-		const_cast<DocumentData*>(this)->_location = Local::readFileLocation(mediaKey(DocumentFileLocation, dc, id));
+		const_cast<DocumentData*>(this)->_location = Local::readFileLocation(mediaKey());
 	}
 	return _location;
 }
@@ -1789,6 +1350,34 @@ void DocumentData::setLocation(const FileLocation &loc) {
 	if (loc.check()) {
 		_location = loc;
 	}
+}
+
+QString DocumentData::filepath(FilePathResolveType type, bool forceSavingAs) const {
+	bool check = (type != FilePathResolveCached);
+	QString result = (check && _location.name().isEmpty()) ? QString() : location(check).name();
+	bool saveFromData = result.isEmpty() && !data().isEmpty();
+	if (saveFromData) {
+		if (type != FilePathResolveSaveFromData && type != FilePathResolveSaveFromDataSilent) {
+			saveFromData = false;
+		} else if (type == FilePathResolveSaveFromDataSilent && (cAskDownloadPath() || forceSavingAs)) {
+			saveFromData = false;
+		}
+	}
+	if (saveFromData) {
+		QString filename = documentSaveFilename(this, forceSavingAs);
+		if (!filename.isEmpty()) {
+			QFile f(filename);
+			if (f.open(QIODevice::WriteOnly)) {
+				if (f.write(data()) == data().size()) {
+					f.close();
+					const_cast<DocumentData*>(this)->_location = FileLocation(StorageFilePartial, filename);
+					Local::writeFileLocation(mediaKey(), _location);
+					result = filename;
+				}
+			}
+		}
+	}
+	return result;
 }
 
 ImagePtr DocumentData::makeReplyPreview() {
@@ -1825,12 +1414,18 @@ bool fileIsImage(const QString &name, const QString &mime) {
 }
 
 void DocumentData::recountIsImage() {
-	if (isAnimation() || type == VideoDocument) return;
+	if (isAnimation() || isVideo()) return;
 	_duration = fileIsImage(name, mime) ? 1 : -1; // hack
 }
 
 DocumentData::~DocumentData() {
 	delete _additional;
+
+	if (loading()) {
+		_loader->deleteLater();
+		_loader->stop();
+		_loader = 0;
+	}
 }
 
 WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill) : id(id)
@@ -1847,106 +1442,8 @@ WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &u
 , pendingTill(pendingTill) {
 }
 
-void InlineResult::automaticLoadGif() {
-	if (loaded() || type != qstr("gif") || (content_type != qstr("video/mp4") && content_type != "image/gif")) return;
-
-	if (_loader != CancelledWebFileLoader) {
-		// if load at least anywhere
-		bool loadFromCloud = !(cAutoDownloadGif() & dbiadNoPrivate) || !(cAutoDownloadGif() & dbiadNoGroups);
-		saveFile(QString(), loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly, true);
-	}
-}
-
-void InlineResult::automaticLoadSettingsChangedGif() {
-	if (loaded() || _loader != CancelledWebFileLoader) return;
-	_loader = 0;
-}
-
-void InlineResult::saveFile(const QString &toFile, LoadFromCloudSetting fromCloud, bool autoLoading) {
-	if (loaded()) {
-		return;
-	}
-
-	if (_loader == CancelledWebFileLoader) _loader = 0;
-	if (_loader) {
-		if (!_loader->setFileName(toFile)) {
-			cancelFile();
-			_loader = 0;
-		}
-	}
-
-	if (_loader) {
-		if (fromCloud == LoadFromCloudOrLocal) _loader->permitLoadFromCloud();
-	} else {
-		_loader = new webFileLoader(content_url, toFile, fromCloud, autoLoading);
-		App::regInlineResultLoader(_loader, this);
-
-		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(inlineResultLoadProgress(FileLoader*)));
-		_loader->connect(_loader, SIGNAL(failed(FileLoader*,bool)), App::main(), SLOT(inlineResultLoadFailed(FileLoader*,bool)));
-		_loader->start();
-	}
-}
-
-void InlineResult::cancelFile() {
-	if (!loading()) return;
-
-	App::unregInlineResultLoader(_loader);
-
-	webFileLoader *l = _loader;
-	_loader = CancelledWebFileLoader;
-	if (l) {
-		l->cancel();
-		l->deleteLater();
-		l->stop();
-	}
-}
-
-QByteArray InlineResult::data() const {
-	return _data;
-}
-
-bool InlineResult::loading() const {
-	return _loader && _loader != CancelledWebFileLoader;
-}
-
-bool InlineResult::loaded() const {
-	if (loading() && _loader->done()) {
-		App::unregInlineResultLoader(_loader);
-		if (_loader->fileType() == mtpc_storage_fileUnknown) {
-			_loader->deleteLater();
-			_loader->stop();
-			_loader = CancelledWebFileLoader;
-		} else {
-			InlineResult *that = const_cast<InlineResult*>(this);
-			that->_data = _loader->bytes();
-
-			_loader->deleteLater();
-			_loader->stop();
-			_loader = 0;
-		}
-	}
-	return !_data.isEmpty();
-}
-
-bool InlineResult::displayLoading() const {
-	return loading() ? (!_loader->loadingLocal() || !_loader->autoLoading()) : false;
-}
-
-void InlineResult::forget() {
-	thumb->forget();
-	_data.clear();
-}
-
-float64 InlineResult::progress() const {
-	return loading() ? _loader->currentProgress() : (loaded() ? 1 : 0);	return false;
-}
-
-InlineResult::~InlineResult() {
-	cancelFile();
-}
-
-void PeerLink::onClick(Qt::MouseButton button) const {
-	if (button == Qt::LeftButton && App::main()) {
+void PeerOpenClickHandler::onClickImpl() const {
+	if (App::main()) {
 		if (peer() && peer()->isChannel() && App::main()->historyPeer() != peer()) {
 			if (!peer()->asChannel()->isPublic() && !peer()->asChannel()->amIn()) {
 				Ui::showLayer(new InformBox(lang((peer()->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
@@ -1956,22 +1453,6 @@ void PeerLink::onClick(Qt::MouseButton button) const {
 		} else {
 			App::main()->showPeerProfile(peer());
 		}
-	}
-}
-
-void MessageLink::onClick(Qt::MouseButton button) const {
-	if (button == Qt::LeftButton && App::main()) {
-		HistoryItem *current = App::mousedItem();
-		if (current && current->history()->peer->id == peer()) {
-			App::main()->pushReplyReturn(current);
-		}
-		Ui::showPeerHistory(peer(), msgid());
-	}
-}
-
-void CommentsLink::onClick(Qt::MouseButton button) const {
-	if (button == Qt::LeftButton && App::main() && _item->history()->isChannel()) {
-		Ui::showPeerHistoryAtItem(_item);
 	}
 }
 

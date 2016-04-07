@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -27,6 +27,8 @@ enum MembersFilter {
 	MembersFilterAdmins,
 };
 typedef QMap<UserData*, bool> MembersAlreadyIn;
+
+QString cantInviteError();
 
 class ConfirmBox;
 class ContactsInner : public TWidget, public RPCSender {
@@ -51,7 +53,7 @@ public:
 	void mouseMoveEvent(QMouseEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void resizeEvent(QResizeEvent *e);
-	
+
 	void paintDialog(Painter &p, PeerData *peer, ContactData *data, bool sel);
 	void updateFilter(QString filter = QString());
 
@@ -136,7 +138,7 @@ private:
 	UserData *_addAdmin;
 	mtpRequestId _addAdminRequestId;
 	ConfirmBox *_addAdminBox;
-	
+
 	int32 _time;
 
 	DialogsIndexed *_contacts;

@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
@@ -58,6 +58,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 , _invitationLink(this, qsl("telegram.me/joinchat/"))
 , _botSettings(this, lang(lng_profile_bot_settings))
 , _botHelp(this, lang(lng_profile_bot_help))
+, _pinnedMessage(this, lang(lng_pinned_message))
 , _username(this, (_peerChannel && _peerChannel->isPublic()) ? (qsl("telegram.me/") + _peerChannel->username) : lang(lng_profile_create_public_link))
 , _members(this, lng_channel_members_link(lt_count, (_peerChannel && _peerChannel->count > 0) ? _peerChannel->count : 1))
 , _admins(this, lng_channel_admins_link(lt_count, (_peerChannel ? (_peerChannel->adminsCount > 0 ? _peerChannel->adminsCount : 1) : ((_peerChat && _peerChat->adminsEnabled()) ? (_peerChat->admins.size() + 1) : 0))))
@@ -72,7 +73,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 , _photoOver(false)
 
 // migrate to megagroup
-, _showMigrate(_peerChat && _amCreator && !_peerChat->isMigrated() && _peerChat->count >= cMaxGroupCount())
+, _showMigrate(_peerChat && _amCreator && !_peerChat->isMigrated() && _peerChat->count >= Global::ChatSizeMax())
 , _forceShowMigrate(false)
 , _aboutMigrate(st::normalFont, lang(lng_profile_migrate_about), _defaultOptions, st::wndMinWidth - st::profilePadding.left() - st::profilePadding.right())
 , _migrate(this, lang(lng_profile_migrate_button), st::btnMigrateToMega)
@@ -85,6 +86,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 
 // actions
 , _searchInPeer(this, lang(lng_profile_search_messages))
+, _convertToSupergroup(this, lang(lng_profile_convert_button))
 , _clearHistory(this, lang(lng_profile_clear_history))
 , _deleteConversation(this, lang(_peer->isUser() ? lng_profile_delete_conversation : (_peer->isChat() ? lng_profile_clear_and_exit : (_peer->isMegagroup() ? lng_profile_leave_group : lng_profile_leave_channel))))
 , _wasBlocked(_peerUser ? _peerUser->blocked : UserBlockUnknown)
@@ -101,8 +103,9 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 , _kickOver(0)
 , _kickDown(0)
 , _kickConfirm(0)
-	
-, _menu(0) {
+
+, _menu(0)
+, _updateDelayed(false) {
 	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 
 	connect(App::api(), SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
@@ -114,7 +117,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 		_phoneText = App::formatPhone(_peerUser->phone.isEmpty() ? App::phoneFromSharedContact(peerToUser(_peerUser->id)) : _peerUser->phone);
 		PhotoData *userPhoto = (_peerUser->photoId && _peerUser->photoId != UnknownPeerPhotoId) ? App::photo(_peerUser->photoId) : 0;
 		if (userPhoto && userPhoto->date) {
-			_photoLink = TextLinkPtr(new PhotoLink(userPhoto, _peer));
+			_photoLink.reset(new PhotoOpenClickHandler(userPhoto, _peer));
 		}
 		if ((_peerUser->botInfo && !_peerUser->botInfo->inited) || (_peerUser->photoId == UnknownPeerPhotoId) || (_peerUser->photoId && !userPhoto->date) || (_peerUser->blocked == UserBlockUnknown)) {
 			if (App::api()) App::api()->requestFullPeer(_peer);
@@ -122,7 +125,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 	} else if (_peerChat) {
 		PhotoData *chatPhoto = (_peerChat->photoId && _peerChat->photoId != UnknownPeerPhotoId) ? App::photo(_peerChat->photoId) : 0;
 		if (chatPhoto && chatPhoto->date) {
-			_photoLink = TextLinkPtr(new PhotoLink(chatPhoto, _peer));
+			_photoLink.reset(new PhotoOpenClickHandler(chatPhoto, _peer));
 		}
 		if (_peerChat->photoId == UnknownPeerPhotoId) {
 			if (App::api()) App::api()->requestFullPeer(_peer);
@@ -130,7 +133,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 	} else if (_peerChannel) {
 		PhotoData *chatPhoto = (_peerChannel->photoId && _peerChannel->photoId != UnknownPeerPhotoId) ? App::photo(_peerChannel->photoId) : 0;
 		if (chatPhoto && chatPhoto->date) {
-			_photoLink = TextLinkPtr(new PhotoLink(chatPhoto, _peer));
+			_photoLink.reset(new PhotoOpenClickHandler(chatPhoto, _peer));
 		}
 		bool needAdmins = (_peerChannel->isMegagroup() && _peerChannel->amEditor()), adminsOutdated = (_peerChannel->isMegagroup() && (_peerChannel->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated));
 		if (_peerChannel->isMegagroup() && (_peerChannel->mgInfo->lastParticipants.isEmpty() || (needAdmins && adminsOutdated) || _peerChannel->lastParticipantsCountOutdated())) {
@@ -178,6 +181,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 
 	connect(&_botSettings, SIGNAL(clicked()), this, SLOT(onBotSettings()));
 	connect(&_botHelp, SIGNAL(clicked()), this, SLOT(onBotHelp()));
+	connect(&_pinnedMessage, SIGNAL(clicked()), this, SLOT(onPinnedMessage()));
 
 	connect(App::app(), SIGNAL(peerPhotoDone(PeerId)), this, SLOT(onPhotoUpdateDone(PeerId)));
 	connect(App::app(), SIGNAL(peerPhotoFail(PeerId)), this, SLOT(onPhotoUpdateFail(PeerId)));
@@ -187,9 +191,9 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 	connect(App::main(), SIGNAL(peerNameChanged(PeerData *, const PeerData::Names &, const PeerData::NameFirstChars &)), this, SLOT(peerUpdated(PeerData *)));
 
 	// about
-	if (_peerUser && _peerUser->botInfo) {
-		if (!_peerUser->botInfo->shareText.isEmpty()) {
-			_about.setText(st::linkFont, _peerUser->botInfo->shareText, _historyBotNoMonoOptions);
+	if (_peerUser) {
+		if (!_peerUser->about.isEmpty()) {
+			_about.setText(st::linkFont, _peerUser->about, _peerUser->botInfo ? _historyBotNoMonoOptions : _historyTextNoMonoOptions);
 		}
 		updateBotLinksVisibility();
 	} else {
@@ -199,6 +203,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 		_botSettings.hide();
 		_botHelp.hide();
 	}
+	updatePinnedMessageVisibility();
 
 	// migrate to megagroup
 	connect(&_migrate, SIGNAL(clicked()), this, SLOT(onMigrate()));
@@ -209,14 +214,15 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData 
 	// shared media
 	connect((_mediaButtons[OverviewPhotos] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaPhotos()));
 	connect((_mediaButtons[OverviewVideos] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaVideos()));
-	connect((_mediaButtons[OverviewAudioDocuments] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaSongs()));
-	connect((_mediaButtons[OverviewDocuments] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaDocuments()));
-	connect((_mediaButtons[OverviewAudios] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaAudios()));
+	connect((_mediaButtons[OverviewMusicFiles] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaSongs()));
+	connect((_mediaButtons[OverviewFiles] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaDocuments()));
+	connect((_mediaButtons[OverviewVoiceFiles] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaAudios()));
 	connect((_mediaButtons[OverviewLinks] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaLinks()));
 	updateMediaLinks();
 
 	// actions
 	connect(&_searchInPeer, SIGNAL(clicked()), this, SLOT(onSearchInPeer()));
+	connect(&_convertToSupergroup, SIGNAL(clicked()), this, SLOT(onConvertToSupergroup()));
 	connect(&_clearHistory, SIGNAL(clicked()), this, SLOT(onClearHistory()));
 	connect(&_deleteConversation, SIGNAL(clicked()), this, SLOT(onDeleteConversation()));
 	connect(&_blockUser, SIGNAL(clicked()), this, SLOT(onBlockUser()));
@@ -244,8 +250,12 @@ void ProfileInner::onSearchInPeer() {
 	App::main()->searchInPeer(_peer);
 }
 
+void ProfileInner::onConvertToSupergroup() {
+	Ui::showLayer(new ConvertToSupergroupBox(_peerChat));
+}
+
 void ProfileInner::onEnableNotifications() {
-	App::main()->updateNotifySetting(_peer, _enableNotifications.checked());
+	App::main()->updateNotifySetting(_peer, _enableNotifications.checked() ? NotifySettingSetNotify : NotifySettingSetMuted);
 }
 
 void ProfileInner::saveError(const QString &str) {
@@ -261,7 +271,7 @@ void ProfileInner::loadProfilePhotos(int32 yFrom) {
 	int32 yTo = yFrom + (parentWidget() ? parentWidget()->height() : App::wnd()->height()) * 5;
 	MTP::clearLoaderPriorities();
 
-	int32 partfrom = _mediaButtons[OverviewAudios]->y() + _mediaButtons[OverviewAudios]->height() + st::profileHeaderSkip;
+	int32 partfrom = _mediaButtons[OverviewVoiceFiles]->y() + _mediaButtons[OverviewVoiceFiles]->height() + st::profileHeaderSkip;
 	yFrom -= partfrom;
 	yTo -= partfrom;
 
@@ -272,14 +282,14 @@ void ProfileInner::loadProfilePhotos(int32 yFrom) {
 	if (yFrom >= _participants.size()) return;
 	if (yTo > _participants.size()) yTo = _participants.size();
 	for (int32 i = yFrom; i < yTo; ++i) {
-		_participants[i]->photo->load();
+		_participants[i]->loadUserpic();
 	}
 }
 
 void ProfileInner::onUpdatePhoto() {
 	saveError();
 
-	QStringList imgExtensions(cImgExtensions());	
+	QStringList imgExtensions(cImgExtensions());
 	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;All files (*.*)"));
 
 	QImage img;
@@ -354,7 +364,7 @@ void ProfileInner::onDeleteChannelSure() {
 		if (_peerChannel->migrateFrom()) {
 			App::main()->deleteConversation(_peerChannel->migrateFrom());
 		}
-		MTP::send(MTPchannels_DeleteChannel(_peerChannel->inputChannel), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
+		MTP::send(MTPchannels_DeleteChannel(_peerChannel->inputChannel), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::deleteChannelFailed));
 	}
 }
 void ProfileInner::onBlockUser() {
@@ -440,15 +450,15 @@ void ProfileInner::onMediaVideos() {
 }
 
 void ProfileInner::onMediaSongs() {
-	App::main()->showMediaOverview(_peer, OverviewAudioDocuments);
+	App::main()->showMediaOverview(_peer, OverviewMusicFiles);
 }
 
 void ProfileInner::onMediaDocuments() {
-	App::main()->showMediaOverview(_peer, OverviewDocuments);
+	App::main()->showMediaOverview(_peer, OverviewFiles);
 }
 
 void ProfileInner::onMediaAudios() {
-	App::main()->showMediaOverview(_peer, OverviewAudios);
+	App::main()->showMediaOverview(_peer, OverviewVoiceFiles);
 }
 
 void ProfileInner::onMediaLinks() {
@@ -464,7 +474,7 @@ void ProfileInner::onInvitationLink() {
 
 void ProfileInner::onPublicLink() {
 	if (!_peerChannel) return;
-	
+
 	if (_peerChannel->isPublic()) {
 		QApplication::clipboard()->setText(qsl("https://telegram.me/") + _peerChannel->username);
 		Ui::showLayer(new InformBox(lang(lng_channel_public_link_copied)));
@@ -522,22 +532,22 @@ void ProfileInner::onFullPeerUpdated(PeerData *peer) {
 	if (_peerUser) {
 		PhotoData *userPhoto = (_peerUser->photoId && _peerUser->photoId != UnknownPeerPhotoId) ? App::photo(_peerUser->photoId) : 0;
 		if (userPhoto && userPhoto->date) {
-			_photoLink = TextLinkPtr(new PhotoLink(userPhoto, _peer));
+			_photoLink.reset(new PhotoOpenClickHandler(userPhoto, _peer));
 		} else {
-			_photoLink = TextLinkPtr();
+			_photoLink.clear();
 		}
-		if (_peerUser->botInfo) {
-			if (_peerUser->botInfo->shareText.isEmpty()) {
+		if (_peerUser) {
+			if (_peerUser->about.isEmpty()) {
 				_about = Text(st::wndMinWidth - st::profilePadding.left() - st::profilePadding.right());
 			} else {
-				_about.setText(st::linkFont, _peerUser->botInfo->shareText, _historyBotNoMonoOptions);
+				_about.setText(st::linkFont, _peerUser->about, _peerUser->botInfo ? _historyBotNoMonoOptions : _historyTextNoMonoOptions);
 			}
 			updateBotLinksVisibility();
 			resizeEvent(0);
 		}
 	} else if (_peerChat) {
 		updateInvitationLink();
-		_showMigrate = (_peerChat && _amCreator && !_peerChat->isMigrated() && (_forceShowMigrate || _peerChat->count >= cMaxGroupCount()));
+		_showMigrate = (_peerChat && _amCreator && !_peerChat->isMigrated() && (_forceShowMigrate || _peerChat->count >= Global::ChatSizeMax()));
 		showAll();
 		resizeEvent(0);
 		_admins.setText(lng_channel_admins_link(lt_count, _peerChat->adminsEnabled() ? (_peerChat->admins.size() + 1) : 0));
@@ -563,7 +573,7 @@ void ProfileInner::onBotSettings() {
 		QString cmd = _peerUser->botInfo->commands.at(i).command;
 		if (!cmd.compare(qsl("settings"), Qt::CaseInsensitive)) {
 			Ui::showPeerHistory(_peer, ShowAtTheEndMsgId);
-			App::main()->sendBotCommand('/' + cmd, 0);
+			App::sendBotCommand(_peerUser, '/' + cmd);
 			return;
 		}
 	}
@@ -577,11 +587,19 @@ void ProfileInner::onBotHelp() {
 		QString cmd = _peerUser->botInfo->commands.at(i).command;
 		if (!cmd.compare(qsl("help"), Qt::CaseInsensitive)) {
 			Ui::showPeerHistory(_peer, ShowAtTheEndMsgId);
-			App::main()->sendBotCommand('/' + cmd, 0);
+			App::sendBotCommand(_peerUser, '/' + cmd);
 			return;
 		}
 	}
 	updateBotLinksVisibility();
+}
+
+void ProfileInner::onPinnedMessage() {
+	if (!_peerChannel || !_peerChannel->isMegagroup() || !_peerChannel->mgInfo->pinnedMsgId) {
+		updatePinnedMessageVisibility();
+		return;
+	}
+	Ui::showPeerHistory(_peer, _peerChannel->mgInfo->pinnedMsgId);
 }
 
 void ProfileInner::peerUpdated(PeerData *data) {
@@ -597,7 +615,7 @@ void ProfileInner::peerUpdated(PeerData *data) {
 		} else if (_peerChat) {
 			if (_peerChat->photoId && _peerChat->photoId != UnknownPeerPhotoId) photo = App::photo(_peerChat->photoId);
 			_admins.setText(lng_channel_admins_link(lt_count, _peerChat->adminsEnabled() ? (_peerChat->admins.size() + 1) : 0));
-			_showMigrate = (_peerChat && _amCreator && !_peerChat->isMigrated() && (_forceShowMigrate || _peerChat->count >= cMaxGroupCount()));
+			_showMigrate = (_peerChat && _amCreator && !_peerChat->isMigrated() && (_forceShowMigrate || _peerChat->count >= Global::ChatSizeMax()));
 			if (App::main()) App::main()->topBar()->showAll();
 		} else if (_peerChannel) {
 			if (_peerChannel->photoId && _peerChannel->photoId != UnknownPeerPhotoId) photo = App::photo(_peerChannel->photoId);
@@ -607,17 +625,28 @@ void ProfileInner::peerUpdated(PeerData *data) {
 			_members.setText(lng_channel_members_link(lt_count, (_peerChannel->count > 0) ? _peerChannel->count : 1));
 			_admins.setText(lng_channel_admins_link(lt_count, (_peerChannel->adminsCount > 0) ? _peerChannel->adminsCount : 1));
 			_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
+			updatePinnedMessageVisibility();
 		}
-		_photoLink = (photo && photo->date) ? TextLinkPtr(new PhotoLink(photo, _peer)) : TextLinkPtr();
+		if (photo && photo->date) {
+			_photoLink.reset(new PhotoOpenClickHandler(photo, _peer));
+		} else {
+			_photoLink.clear();
+		}
 		if (_peer->name != _nameCache) {
 			_nameCache = _peer->name;
 			_nameText.setText(st::profileNameFont, _nameCache, _textNameOptions);
 		}
-		showAll();
-		resizeEvent(0);
-	} else {
-		showAll();
 	}
+	if (!_updateDelayed) {
+		_updateDelayed = true;
+		QMetaObject::invokeMethod(this, "onUpdateDelayed", Qt::QueuedConnection);
+	}
+}
+
+void ProfileInner::onUpdateDelayed() {
+	_updateDelayed = false;
+	showAll();
+	resizeEvent(0);
 	update();
 }
 
@@ -688,34 +717,76 @@ void ProfileInner::reorderParticipants() {
 		}
 		loadProfilePhotos(_lastPreload);
 	} else if (_peerChannel && _peerChannel->isMegagroup() && _peerChannel->amIn() && !_peerChannel->mgInfo->lastParticipants.isEmpty()) {
-		bool needAdmins = _peerChannel->amEditor(), adminsOutdated = (_peerChannel->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated);
+		bool needAdmins = true, adminsOutdated = (_peerChannel->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated);
+		bool orderByOnline = (_peerChannel->count > 0) && (_peerChannel->count <= Global::ChatSizeMax());
+
+		_onlineText.clear();
 		if (_peerChannel->mgInfo->lastParticipants.isEmpty() || (needAdmins && adminsOutdated) || _peerChannel->lastParticipantsCountOutdated()) {
 			if (App::api()) App::api()->requestLastParticipants(_peerChannel);
 		} else if (!_peerChannel->mgInfo->lastParticipants.isEmpty()) {
 			const MegagroupInfo::LastParticipants &list(_peerChannel->mgInfo->lastParticipants);
 			int32 s = list.size();
-			for (int32 i = 0, l = _participants.size(); i < l; ++i) {
-				if (i >= s || _participants.at(i) != list.at(i)) {
-					if (_participantsData.at(i)) {
-						delete _participantsData.at(i);
-						_participantsData[i] = 0;
-					}
-					if (i < s) {
-						_participants[i] = list.at(i);
+			if (orderByOnline) {
+				_participants.clear();
+				for (ParticipantsData::iterator i = _participantsData.begin(), e = _participantsData.end(); i != e; ++i) {
+					if (*i) {
+						delete *i;
+						*i = 0;
 					}
 				}
-			}
-			if (_participants.size() > s) {
-				_participants.resize(s);
-			} else {
 				_participants.reserve(s);
-				for (int32 i = _participants.size(); i < s; ++i) {
-					_participants.push_back(list.at(i));
+
+				UserData *self = App::self();
+				bool onlyMe = true;
+				for (int32 i = 0; i < s; ++i) {
+					UserData *user = list.at(i);
+					int32 until = App::onlineForSort(user, t);
+					Participants::iterator before = _participants.begin();
+					if (user != self) {
+						if (before != _participants.end() && (*before) == self) {
+							++before;
+						}
+						while (before != _participants.end() && App::onlineForSort(*before, t) >= until) {
+							++before;
+						}
+						if (until > t && onlyMe) onlyMe = false;
+					}
+					_participants.insert(before, user);
+					if (until > t) {
+						++onlineCount;
+					}
+				}
+				if (onlineCount && !onlyMe) {
+					_onlineText = lng_chat_status_members_online(lt_count, _peerChannel->count, lt_count_online, onlineCount);
+				} else {
+					_onlineText = lng_chat_status_members(lt_count, _peerChannel->count);
+				}
+			} else {
+				for (int32 i = 0, l = _participants.size(); i < l; ++i) {
+					if (i >= s || _participants.at(i) != list.at(i)) {
+						if (_participantsData.at(i)) {
+							delete _participantsData.at(i);
+							_participantsData[i] = 0;
+						}
+						if (i < s) {
+							_participants[i] = list.at(i);
+						}
+					}
+				}
+				if (_participants.size() > s) {
+					_participants.resize(s);
+				} else {
+					_participants.reserve(s);
+					for (int32 i = _participants.size(); i < s; ++i) {
+						_participants.push_back(list.at(i));
+					}
 				}
 			}
 			_participantsData.resize(s);
 		}
-		_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
+		if (_onlineText.isEmpty()) {
+			_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
+		}
 		loadProfilePhotos(_lastPreload);
 	} else {
 		_participants.clear();
@@ -765,7 +836,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	// profile
 	top += st::profilePadding.top();
 	if (_photoLink || _peerUser || (_peerChat && !_peerChat->canEdit()) || (_peerChannel && !_amCreator)) {
-		p.drawPixmap(_left, top, _peer->photo->pix(st::profilePhotoSize));
+		_peer->paintUserpic(p, st::profilePhotoSize, _left, top);
 	} else {
 		if (a_photoOver.current() < 1) {
 			p.drawPixmap(QPoint(_left, top), App::sprite(), st::setPhotoImg);
@@ -776,7 +847,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 			p.setOpacity(1);
 		}
 	}
-	
+
 	int32 namew = _width - st::profilePhotoSize - st::profileNameLeft;
 	p.setPen(st::black->p);
 	if (_peer->isVerified()) {
@@ -792,7 +863,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 		addbyname = st::profileStatusTop + st::linkFont->ascent - (st::profileNameTop + st::profileNameFont->ascent);
 		p.setPen(st::black->p);
 		p.drawText(_left + st::profilePhotoSize + st::profileStatusLeft, top + st::profileStatusTop + st::linkFont->ascent, '@' + _peerUser->username);
-	} else if (_peerChannel && !_peerChannel->isMegagroup() && (_peerChannel->isPublic() || _amCreator )) {
+	} else if (_peerChannel && (_peerChannel->isPublic() || _peerChannel->canEditUsername())) {
 		addbyname = st::profileStatusTop + st::linkFont->ascent - (st::profileNameTop + st::profileNameFont->ascent);
 	}
 	if (!_peerChannel || !_peerChannel->canViewParticipants() || _peerChannel->isMegagroup()) {
@@ -817,7 +888,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	top += st::profilePhotoSize;
 	top += st::profileButtonTop;
 
-	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->amEditor() && _peerChannel->isMegagroup()))) {
+	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->canAddParticipants() && _peerChannel->isMegagroup()))) {
 		top += _shareContact.height();
 	} else {
 		top -= st::profileButtonTop;
@@ -838,13 +909,13 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	if (_showMigrate) {
 		p.setFont(st::profileHeaderFont->f);
 		p.setPen(st::profileHeaderColor->p);
-		p.drawText(_left + st::profileHeaderLeft, top + st::profileHeaderTop + st::profileHeaderFont->ascent, lng_profile_migrate_reached(lt_count, cMaxGroupCount()));
+		p.drawText(_left + st::profileHeaderLeft, top + st::profileHeaderTop + st::profileHeaderFont->ascent, lng_profile_migrate_reached(lt_count, Global::ChatSizeMax()));
 		top += st::profileHeaderSkip;
 
 		_aboutMigrate.draw(p, _left, top, _width); top += _aboutMigrate.countHeight(_width) + st::setLittleSkip;
 		p.setFont(st::normalFont);
 		p.setPen(st::black);
-		p.drawText(_left, top + st::normalFont->ascent, lng_profile_migrate_feature1(lt_count, cMaxMegaGroupCount())); top += st::normalFont->height + st::setLittleSkip;
+		p.drawText(_left, top + st::normalFont->ascent, lng_profile_migrate_feature1(lt_count, Global::MegagroupSizeMax())); top += st::normalFont->height + st::setLittleSkip;
 		p.drawText(_left, top + st::normalFont->ascent, lang(lng_profile_migrate_feature2)); top += st::normalFont->height + st::setLittleSkip;
 		p.drawText(_left, top + st::normalFont->ascent, lang(lng_profile_migrate_feature3)); top += st::normalFont->height + st::setLittleSkip;
 		p.drawText(_left, top + st::normalFont->ascent, lang(lng_profile_migrate_feature4)); top += st::normalFont->height + st::setSectionSkip;
@@ -900,6 +971,9 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	top += st::profileHeaderSkip;
 
 	top += _searchInPeer.height() + st::setLittleSkip;
+	if (_peerChat && _amCreator && !_showMigrate) {
+		top += _convertToSupergroup.height() + st::setLittleSkip;
+	}
 	if (_peerUser || _peerChat) {
 		top += _clearHistory.height() + st::setLittleSkip;
 	}
@@ -908,7 +982,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	}
 	if (_peerUser && peerToUser(_peerUser->id) != MTP::authedId()) {
 		top += st::setSectionSkip + _blockUser.height();
-	} else if (_peerChannel && _amCreator) {
+	} else if (canDeleteChannel()) {
 		top += (_peerChannel->isMegagroup() ? 0 : (st::setSectionSkip - st::setLittleSkip)) + _deleteChannel.height();
 	}
 
@@ -922,6 +996,22 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 
 		int32 partfrom = top;
 		if (!_participants.isEmpty()) {
+			if (App::self()) {
+				if (_peerChat) {
+					if (_peerChat->amAdmin() && _peerChat->admins.constFind(App::self()) == _peerChat->admins.cend()) {
+						_peerChat->admins.insert(App::self());
+					} else if (!_peerChat->amAdmin() && _peerChat->admins.constFind(App::self()) != _peerChat->admins.cend()) {
+						_peerChat->admins.remove(App::self());
+					}
+				} else if (_peerChannel && _peerChannel->isMegagroup()) {
+					if ((_peerChannel->amCreator() || _peerChannel->amEditor()) && _peerChannel->mgInfo->lastAdmins.constFind(App::self()) == _peerChannel->mgInfo->lastAdmins.cend()) {
+						_peerChannel->mgInfo->lastAdmins.insert(App::self());
+					} else if (!_peerChannel->amCreator() && !_peerChannel->amEditor() && _peerChannel->mgInfo->lastAdmins.constFind(App::self()) != _peerChannel->mgInfo->lastAdmins.cend()) {
+						_peerChannel->mgInfo->lastAdmins.remove(App::self());
+					}
+				}
+			}
+
 			int32 cnt = 0, fullCnt = _participants.size();
 			for (Participants::const_iterator i = _participants.cbegin(), e = _participants.cend(); i != e; ++i, ++cnt) {
 				int32 top = partfrom + cnt * _pHeight;
@@ -933,7 +1023,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 				}
 
 				UserData *user = *i;
-				p.drawPixmap(_left, top + st::profileListPadding.height(), user->photo->pix(st::profileListPhotoSize));
+				user->paintUserpic(p, st::profileListPhotoSize, _left, top + st::profileListPadding.height());
 				ParticipantData *data = _participantsData[cnt];
 				if (!data) {
 					data = _participantsData[cnt] = new ParticipantData();
@@ -947,24 +1037,31 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 					} else {
 						data->online = App::onlineText(user, l_time);
 					}
+					if (_peerChat) {
+						data->admin = (peerFromUser(_peerChat->creator) == user->id) || (_peerChat->adminsEnabled() && (_peerChat->admins.constFind(user) != _peerChat->admins.cend()));
+					} else if (_peerChannel) {
+						data->admin = (_peerChannel->mgInfo->lastAdmins.constFind(user) != _peerChannel->mgInfo->lastAdmins.cend());
+					} else {
+						data->admin = false;
+					}
 					if (_amCreator) {
 						data->cankick = (user != App::self());
 					} else if (_peerChat && _peerChat->amAdmin()) {
-						data->cankick = (user != App::self()) && (_peerChat->admins.constFind(user) == _peerChat->admins.cend()) && (peerFromUser(_peerChat->creator) != user->id);
+						data->cankick = (user != App::self()) && !data->admin;
 					} else if (_peerChannel && _peerChannel->amEditor()) {
-						data->cankick = (user != App::self()) && (_peerChannel->mgInfo->lastAdmins.constFind(user) == _peerChannel->mgInfo->lastAdmins.cend());
+						data->cankick = (user != App::self()) && !data->admin;
 					} else {
 						data->cankick = (user != App::self()) && !_peerChannel && (_peerChat->invitedByMe.constFind(user) != _peerChat->invitedByMe.cend());
 					}
 				}
-				p.setPen(st::profileListNameColor->p);
-				p.setFont(st::linkFont->f);
+				p.setPen(st::profileListNameColor);
+				p.setFont(st::linkFont);
 				data->name.drawElided(p, _left + st::profileListPhotoSize + st::profileListPadding.width(), top + st::profileListNameTop, _width - _kickWidth - st::profileListPadding.width() - st::profileListPhotoSize - st::profileListPadding.width());
-				p.setFont(st::profileSubFont->f);
-				p.setPen((App::onlineColorUse(user, l_time) ? st::profileOnlineColor : st::profileOfflineColor)->p);
+				p.setFont(st::profileSubFont);
+				p.setPen(App::onlineColorUse(user, l_time) ? st::profileOnlineColor : st::profileOfflineColor);
 				p.drawText(_left + st::profileListPhotoSize + st::profileListPadding.width(), top + st::profileListPadding.height() + st::profileListPhotoSize - st::profileListStatusBottom, data->online);
 
-				if (data->cankick) {
+				if (_selectedRow == cnt && data->cankick) {
 					bool over = (user == _kickOver && (!_kickDown || _kickDown == _kickOver));
 					p.setFont((over ? st::linkOverFont : st::linkFont)->f);
 					if (user == _kickOver && _kickOver == _kickDown) {
@@ -972,7 +1069,11 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 					} else {
 						p.setPen(st::btnDefLink.color->p);
 					}
-					p.drawText(_left + _width - _kickWidth, top + st::profileListNameTop + st::linkFont->ascent, lang(lng_profile_kick));
+					p.drawTextRight(width() - _left - _width, top + st::profileListNameTop, width(), lang(lng_profile_kick), _kickWidth);
+				} else if (data->admin) {
+					p.setFont(st::profileSubFont);
+					p.setPen(st::profileOfflineColor);
+					p.drawTextRight(width() - _left - _width, top + st::profileListNameTop, width(), lang(lng_profile_admin));
 				}
 			}
 			top += fullCnt * _pHeight;
@@ -996,10 +1097,18 @@ void ProfileInner::mouseMoveEvent(QMouseEvent *e) {
 		}
 	}
 	if (!_photoLink && (_peerUser || (_peerChat && !_peerChat->canEdit()) || (_peerChannel && !_amCreator))) {
-		setCursor((_kickOver || _kickDown || textlnkOver()) ? style::cur_pointer : style::cur_default);
+		setCursor((_kickOver || _kickDown || ClickHandler::getActive()) ? style::cur_pointer : style::cur_default);
 	} else {
-		setCursor((_kickOver || _kickDown || _photoOver || textlnkOver()) ? style::cur_pointer : style::cur_default);
+		setCursor((_kickOver || _kickDown || _photoOver || ClickHandler::getActive()) ? style::cur_pointer : style::cur_default);
 	}
+}
+
+void ProfileInner::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
+	update(QRect(_left, _aboutTop, _width, _aboutHeight));
+}
+
+void ProfileInner::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
+	update(QRect(_left, _aboutTop, _width, _aboutHeight));
 }
 
 void ProfileInner::updateSelected() {
@@ -1007,19 +1116,20 @@ void ProfileInner::updateSelected() {
 
 	QPoint lp = mapFromGlobal(_lastPos);
 
-	TextLinkPtr lnk;
+	ClickHandlerPtr lnk;
+	ClickHandlerHost *lnkhost = nullptr;
 	bool inText = false;
 	if (!_about.isEmpty() && lp.y() >= _aboutTop && lp.y() < _aboutTop + _aboutHeight && lp.x() >= _left && lp.x() < _left + _width) {
 		_about.getState(lnk, inText, lp.x() - _left, lp.y() - _aboutTop, _width);
+		lnkhost = this;
 	}
-	if (textlnkOver() != lnk) {
-		textlnkOver(lnk);
-		update(QRect(_left, _aboutTop, _width, _aboutHeight));
-	}
+	ClickHandler::setActive(lnk, lnkhost);
 
 	int32 participantsTop = 0;
-	if (_peerChannel && _amCreator) {
+	if (canDeleteChannel()) {
 		participantsTop = _deleteChannel.y() + _deleteChannel.height();
+	} else if (_peerChannel && _amCreator) {
+		participantsTop = _searchInPeer.y() + _searchInPeer.height();
 	} else {
 		participantsTop = _deleteConversation.y() + _deleteConversation.height();
 	}
@@ -1051,6 +1161,9 @@ void ProfileInner::updateSelected() {
 void ProfileInner::mousePressEvent(QMouseEvent *e) {
 	_lastPos = e->globalPos();
 	updateSelected();
+
+	ClickHandler::pressed();
+
 	if (e->button() == Qt::LeftButton) {
 		if (_kickOver) {
 			_kickDown = _kickOver;
@@ -1064,7 +1177,6 @@ void ProfileInner::mousePressEvent(QMouseEvent *e) {
 				onUpdatePhoto();
 			}
 		}
-		textlnkDown(textlnkOver());
 	}
 }
 
@@ -1077,27 +1189,18 @@ void ProfileInner::mouseReleaseEvent(QMouseEvent *e) {
 		connect(box, SIGNAL(confirmed()), this, SLOT(onKickConfirm()));
 		Ui::showLayer(box);
 	}
-	if (textlnkDown()) {
-		TextLinkPtr lnk = textlnkDown();
-		textlnkDown(TextLinkPtr());
-		if (lnk == textlnkOver()) {
-			if (reHashtag().match(lnk->encoded()).hasMatch() && _peerChannel) {
-				App::searchByHashtag(lnk->encoded(), _peerChannel);
-			} else {
-				if (reBotCommand().match(lnk->encoded()).hasMatch()) {
-					Ui::showPeerHistory(_peer, ShowAtTheEndMsgId);
-				}
-				lnk->onClick(e->button());
-			}
-		}
-	}
+
 	_kickDown = 0;
 	if (!_photoLink && (_peerUser || (_peerChat && !_peerChat->canEdit()) || (_peerChannel && !_amCreator))) {
-		setCursor((_kickOver || _kickDown || textlnkOver()) ? style::cur_pointer : style::cur_default);
+		setCursor((_kickOver || _kickDown || ClickHandler::getActive()) ? style::cur_pointer : style::cur_default);
 	} else {
-		setCursor((_kickOver || _kickDown || _photoOver || textlnkOver()) ? style::cur_pointer : style::cur_default);
+		setCursor((_kickOver || _kickDown || _photoOver || ClickHandler::getActive()) ? style::cur_pointer : style::cur_default);
 	}
 	update();
+
+	if (ClickHandlerPtr activated = ClickHandler::unpressed()) {
+		App::activateClickHandler(activated, e->button());
+	}
 }
 
 void ProfileInner::onKickConfirm() {
@@ -1266,22 +1369,29 @@ bool ProfileInner::migrateFail(const RPCError &error) {
 	return true;
 }
 
+bool ProfileInner::canDeleteChannel() const {
+	return _peerChannel && _amCreator && (_peerChannel->count <= 1000);
+}
+
 void ProfileInner::resizeEvent(QResizeEvent *e) {
 	_width = qMin(width() - st::profilePadding.left() - st::profilePadding.right(), int(st::profileMaxWidth));
 	_left = (width() - _width) / 2;
 
 	int32 top = 0, btnWidth = (_width - st::profileButtonSkip) / 2;
-	
+
 	// profile
 	top += st::profilePadding.top();
 	int32 addbyname = 0;
-	if (_peerChannel && !_peerChannel->isMegagroup() && (_amCreator || _peerChannel->isPublic())) {
+	if (_peerChannel && (_peerChannel->isPublic() || _peerChannel->canEditUsername())) {
 		_username.move(_left + st::profilePhotoSize + st::profileStatusLeft, top + st::profileStatusTop);
 		addbyname = st::profileStatusTop + st::linkFont->ascent - (st::profileNameTop + st::profileNameFont->ascent);
 	}
 	_members.move(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop);
 	addbyname += st::profileStatusTop + st::linkFont->ascent - (st::profileNameTop + st::profileNameFont->ascent);
-	_admins.move(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop);
+	if (!_admins.isHidden()) {
+		_admins.move(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop);
+		addbyname += st::profileStatusTop + st::linkFont->ascent - (st::profileNameTop + st::profileNameFont->ascent);
+	}
 	if ((_peerChat && _amCreator && _peerChat->canEdit()) || (_peerChannel && (_amCreator || _peerChannel->amEditor() || _peerChannel->amModerator()))) {
 		_cancelPhoto.move(_left + _width - _cancelPhoto.width(), top + st::profilePhotoSize - st::linkFont->height);
 	} else {
@@ -1289,18 +1399,23 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 		_botSettings.move(_left + st::profilePhotoSize + st::profilePhoneLeft, top + st::profileStatusTop + st::linkFont->ascent - (st::profileNameTop + st::profileNameFont->ascent) + st::profilePhoneTop);
 		_botHelp.move(_botSettings.x() + (_botSettings.isHidden() ? 0 : _botSettings.width() + st::profilePhoneLeft), _botSettings.y());
 	}
+	_pinnedMessage.move(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop);
 	top += st::profilePhotoSize;
 
 	top += st::profileButtonTop;
 
 	_uploadPhoto.setGeometry(_left, top, btnWidth, _uploadPhoto.height());
-	_addParticipant.setGeometry(_left + _width - btnWidth, top, btnWidth, _addParticipant.height());
+	if (_peerChannel && _peerChannel->count < Global::MegagroupSizeMax() && _peerChannel->isMegagroup() && !_amCreator && !_peerChannel->amEditor() && _peerChannel->canAddParticipants()) {
+		_addParticipant.setGeometry(_left, top, btnWidth, _addParticipant.height());
+	} else {
+		_addParticipant.setGeometry(_left + _width - btnWidth, top, btnWidth, _addParticipant.height());
+	}
 
 	_sendMessage.setGeometry(_left, top, btnWidth, _sendMessage.height());
 	_shareContact.setGeometry(_left + _width - btnWidth, top, btnWidth, _shareContact.height());
 	_inviteToGroup.setGeometry(_left + _width - btnWidth, top, btnWidth, _inviteToGroup.height());
 
-	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->amEditor() && _peerChannel->isMegagroup()))) {
+	if ((!_peerChat || _peerChat->canEdit()) && (!_peerChannel || _amCreator || (_peerChannel->canAddParticipants() && _peerChannel->isMegagroup()))) {
 		top += _shareContact.height();
 	} else {
 		top -= st::profileButtonTop;
@@ -1363,6 +1478,9 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	// actions
 	top += st::profileHeaderSkip;
 	_searchInPeer.move(_left, top);	top += _searchInPeer.height() + st::setLittleSkip;
+	if (_peerChat && _amCreator && !_showMigrate) {
+		_convertToSupergroup.move(_left, top); top += _convertToSupergroup.height() + st::setLittleSkip;
+	}
 	if (_peerUser || _peerChat) {
 		_clearHistory.move(_left, top); top += _clearHistory.height() + st::setLittleSkip;
 	}
@@ -1372,7 +1490,7 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	if (_peerUser && peerToUser(_peerUser->id) != MTP::authedId()) {
 		top += st::setSectionSkip;
 		_blockUser.move(_left, top); top += _blockUser.height();
-	} else if (_peerChannel && _amCreator) {
+	} else if (canDeleteChannel()) {
 		top += (_peerChannel->isMegagroup() ? 0 : (st::setSectionSkip - st::setLittleSkip));
 		_deleteChannel.move(_left, top); top += _deleteChannel.height();
 	}
@@ -1393,10 +1511,13 @@ void ProfileInner::contextMenuEvent(QContextMenuEvent *e) {
 		_menu->deleteLater();
 		_menu = 0;
 	}
-	if (!_phoneText.isEmpty() || (_peerUser && !_peerUser->username.isEmpty())) {
+	if (!_phoneText.isEmpty() || _peerUser) {
 		QRect info(_left + st::profilePhotoSize + st::profilePhoneLeft, st::profilePadding.top(), _width - st::profilePhotoSize - st::profilePhoneLeft, st::profilePhotoSize);
 		if (info.contains(mapFromGlobal(e->globalPos()))) {
 			_menu = new PopupMenu();
+			if (_peerUser) {
+				_menu->addAction(lang(lng_profile_copy_fullname), this, SLOT(onCopyFullName()))->setEnabled(true);
+			}
 			if (!_phoneText.isEmpty()) {
 				_menu->addAction(lang(lng_profile_copy_phone), this, SLOT(onCopyPhone()))->setEnabled(true);
 			}
@@ -1414,6 +1535,11 @@ void ProfileInner::onMenuDestroy(QObject *obj) {
 	if (_menu == obj) {
 		_menu = 0;
 	}
+}
+
+void ProfileInner::onCopyFullName() {
+	if (!_peerUser) return;
+	QApplication::clipboard()->setText(lng_full_name(lt_first_name, _peerUser->firstName, lt_last_name, _peerUser->lastName).trimmed());
 }
 
 void ProfileInner::onCopyPhone() {
@@ -1446,7 +1572,7 @@ ProfileInner::~ProfileInner() {
 	}
 	_participantsData.clear();
 }
-	
+
 void ProfileInner::openContextImage() {
 }
 
@@ -1492,9 +1618,9 @@ int32 ProfileInner::countMinHeight() {
 			h += st::profileHeaderSkip;
 		}
 	} else if (_peerChannel) {
-		if (_amCreator) {
+		if (canDeleteChannel()) {
 			h = _deleteChannel.y() + _deleteChannel.height() + st::profileHeaderSkip;
-		} else if (_peerChannel->amIn()) {
+		} else if (_peerChannel->amIn() && !_amCreator) {
 			h = _deleteConversation.y() + _deleteConversation.height() + st::profileHeaderSkip;
 		} else {
 			h = _searchInPeer.y() + _searchInPeer.height() + st::profileHeaderSkip;
@@ -1519,6 +1645,11 @@ void ProfileInner::allowDecreaseHeight(int32 decreaseBy) {
 
 void ProfileInner::showAll() {
 	_searchInPeer.show();
+	if (_peerChat && _amCreator && !_showMigrate) {
+		_convertToSupergroup.show();
+	} else {
+		_convertToSupergroup.hide();
+	}
 	if (_peerUser || _peerChat) {
 		_clearHistory.show();
 	} else {
@@ -1586,7 +1717,7 @@ void ProfileInner::showAll() {
 				_createInvitationLink.hide();
 				_invitationLink.hide();
 			}
-			if (_peerChat->count < cMaxGroupCount() && !_showMigrate) {
+			if (_peerChat->count < Global::ChatSizeMax() && !_showMigrate) {
 				_addParticipant.show();
 			} else {
 				_addParticipant.hide();
@@ -1634,18 +1765,18 @@ void ProfileInner::showAll() {
 				_invitationLink.hide();
 			}
 		}
-		if (_peerChannel->count < cMaxMegaGroupCount() && _peerChannel->isMegagroup() && (_amCreator || _peerChannel->amEditor())) {
+		if (_peerChannel->count < Global::MegagroupSizeMax() && _peerChannel->isMegagroup() && _peerChannel->canAddParticipants()) {
 			_addParticipant.show();
 		} else {
 			_addParticipant.hide();
 		}
 		_blockUser.hide();
-		if (_amCreator) {
+		if (canDeleteChannel()) {
 			_deleteChannel.show();
 		} else {
 			_deleteChannel.hide();
 		}
-		if (!_peerChannel->isMegagroup() && (_peerChannel->isPublic() || _amCreator)) {
+		if (_peerChannel->isPublic() || _peerChannel->canEditUsername()) {
 			_username.show();
 		} else {
 			_username.hide();
@@ -1690,12 +1821,21 @@ void ProfileInner::updateInvitationLink() {
 	}
 }
 
+void ProfileInner::updatePinnedMessageVisibility() {
+	if (_peerChannel && _peerChannel->isMegagroup() && _peerChannel->mgInfo->pinnedMsgId && !_amCreator && !_peerChannel->amEditor()) {
+		_pinnedMessage.show();
+	} else {
+		_pinnedMessage.hide();
+	}
+}
+
 void ProfileInner::updateBotLinksVisibility() {
 	if (!_peerUser || !_peerUser->botInfo || _peerUser->botInfo->commands.isEmpty()) {
 		_botSettings.hide();
 		_botHelp.hide();
 		return;
 	}
+
 	bool hasSettings = false, hasHelp = false;
 	for (int32 i = 0, l = _peerUser->botInfo->commands.size(); i != l; ++i) {
 		QString cmd = _peerUser->botInfo->commands.at(i).command;
@@ -1711,9 +1851,9 @@ QString ProfileInner::overviewLinkText(int32 type, int32 count) {
 	switch (type) {
 	case OverviewPhotos: return lng_profile_photos(lt_count, count);
 	case OverviewVideos: return lng_profile_videos(lt_count, count);
-	case OverviewAudioDocuments: return lng_profile_songs(lt_count, count);
-	case OverviewDocuments: return lng_profile_files(lt_count, count);
-	case OverviewAudios: return lng_profile_audios(lt_count, count);
+	case OverviewMusicFiles: return lng_profile_songs(lt_count, count);
+	case OverviewFiles: return lng_profile_files(lt_count, count);
+	case OverviewVoiceFiles: return lng_profile_audios(lt_count, count);
 	case OverviewLinks: return lng_profile_shared_links(lt_count, count);
 	}
 	return QString();
@@ -1731,7 +1871,7 @@ ProfileWidget::ProfileWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 	_inner.move(0, 0);
 	_scroll.show();
 
-	_sideShadow.setVisible(cWideMode());
+	_sideShadow.setVisible(!Adaptive::OneColumn());
 
 	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(updateSelected()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
@@ -1763,8 +1903,8 @@ void ProfileWidget::resizeEvent(QResizeEvent *e) {
 		}
 	}
 
-	_topShadow.resize(width() - ((cWideMode() && !_inGrab) ? st::lineWidth : 0), st::lineWidth);
-	_topShadow.moveToLeft((cWideMode() && !_inGrab) ? st::lineWidth : 0, 0);
+	_topShadow.resize(width() - ((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0), st::lineWidth);
+	_topShadow.moveToLeft((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0, 0);
 	_sideShadow.resize(st::lineWidth, height());
 	_sideShadow.moveToLeft(0, 0);
 }
@@ -1862,7 +2002,7 @@ void ProfileWidget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
 	if (dt >= 1) {
 		_a_show.stop();
-		_sideShadow.setVisible(cWideMode());
+		_sideShadow.setVisible(!Adaptive::OneColumn());
 		_topShadow.show();
 
 		a_coordUnder.finish();
@@ -1914,8 +2054,12 @@ void ProfileWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type)
 	}
 }
 
-void ProfileWidget::updateWideMode() {
-	_sideShadow.setVisible(cWideMode());
+void ProfileWidget::updateAdaptiveLayout() {
+	_sideShadow.setVisible(!Adaptive::OneColumn());
+}
+
+PeerData *ProfileWidget::ui_getPeerForMouseAction() {
+	return _inner.peer();
 }
 
 void ProfileWidget::clear() {

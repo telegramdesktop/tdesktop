@@ -16,29 +16,29 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
 #include "dropdown.h"
 
-class MediaView : public TWidget, public RPCSender {
+class MediaView : public TWidget, public RPCSender, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
 
 	MediaView();
 
-	void paintEvent(QPaintEvent *e);
-	
-	void keyPressEvent(QKeyEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void contextMenuEvent(QContextMenuEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+
+	void keyPressEvent(QKeyEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 	void touchEvent(QTouchEvent *e);
 
-	bool event(QEvent *e);
+	bool event(QEvent *e) override;
 
 	void hide();
 
@@ -51,10 +51,10 @@ public:
 	void moveToNext(int32 delta);
 	void preloadData(int32 delta);
 
-	void leaveToChildEvent(QEvent *e) { // e -- from enterEvent() of child TWidget
+	void leaveToChildEvent(QEvent *e) override { // e -- from enterEvent() of child TWidget
 		updateOverState(OverNone);
 	}
-	void enterFromChildEvent(QEvent *e) { // e -- from leaveEvent() of child TWidget
+	void enterFromChildEvent(QEvent *e) override { // e -- from leaveEvent() of child TWidget
 		updateOver(mapFromGlobal(QCursor::pos()));
 	}
 
@@ -72,8 +72,13 @@ public:
 	void onDocClick();
 
 	void clipCallback(ClipReaderNotification notification);
+	PeerData *ui_getPeerForMouseAction();
 
 	~MediaView();
+
+	// ClickHandlerHost interface
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
 public slots:
 
@@ -107,7 +112,9 @@ private:
 	void loadBack();
 
 	void userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mtpRequestId req);
-	void filesLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req);
+
+	void deletePhotosDone(const MTPVector<MTPlong> &result);
+	bool deletePhotosFail(const RPCError &error);
 
 	void updateHeader();
 	void snapXY();
@@ -159,7 +166,7 @@ private:
 	History *_migrated, *_history; // if conversation photos or files overview
 	PeerData *_peer;
 	UserData *_user; // if user profile photos overview
-	
+
 	PeerData *_from;
 	Text _fromName;
 

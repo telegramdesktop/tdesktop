@@ -16,10 +16,10 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "style.h"
+#include "gui/style.h"
 #include "lang.h"
 
 #include "boxes/aboutbox.h"
@@ -187,6 +187,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _backFromGallery(this, lang(lng_settings_bg_from_gallery))
 , _backFromFile(this, lang(lng_settings_bg_from_file))
 , _tileBackground(this, lang(lng_settings_bg_tile), cTileBackground())
+, _adaptiveForWide(this, lang(lng_settings_adaptive_wide), Global::AdaptiveForWide())
 , _needBackgroundUpdate(false)
 
 // advanced
@@ -204,24 +205,26 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 , _showSessions(this, lang(lng_settings_show_sessions))
 , _askQuestion(this, lang(lng_settings_ask_question))
 , _telegramFAQ(this, lang(lng_settings_faq))
-, _logOut(this, lang(lng_settings_logout), st::btnLogout)
+, _logOut(this, lang(lng_settings_logout), st::btnRedLink)
 , _supportGetRequest(0) {
 	if (self()) {
-		self()->photo->load();
+		self()->loadUserpic();
 
 		connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 		connect(App::api(), SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
 
 		_nameText.setText(st::setNameFont, _nameCache, _textNameOptions);
 		PhotoData *selfPhoto = (self()->photoId && self()->photoId != UnknownPeerPhotoId) ? App::photo(self()->photoId) : 0;
-		if (selfPhoto && selfPhoto->date) _photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
+		if (selfPhoto && selfPhoto->date) {
+			_photoLink.reset(new PhotoOpenClickHandler(selfPhoto, self()));
+		}
 		App::api()->requestFullPeer(self());
 		onReloadPassword();
 
 		connect(App::main(), SIGNAL(peerPhotoChanged(PeerData *)), this, SLOT(peerUpdated(PeerData *)));
 		connect(App::main(), SIGNAL(peerNameChanged(PeerData *, const PeerData::Names &, const PeerData::NameFirstChars &)), this, SLOT(peerUpdated(PeerData *)));
 
-		connect(App::app(), SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onReloadPassword(Qt::ApplicationState)));
+		Sandbox::connect(SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onReloadPassword(Qt::ApplicationState)));
 	}
 
 	// profile
@@ -269,11 +272,11 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	_newVersionWidth = st::linkFont->width(_newVersionText);
 
 	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	connect(App::app(), SIGNAL(updateChecking()), this, SLOT(onUpdateChecking()));
-	connect(App::app(), SIGNAL(updateLatest()), this, SLOT(onUpdateLatest()));
-	connect(App::app(), SIGNAL(updateDownloading(qint64,qint64)), this, SLOT(onUpdateDownloading(qint64,qint64)));
-	connect(App::app(), SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
-	connect(App::app(), SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
+	Sandbox::connect(SIGNAL(updateChecking()), this, SLOT(onUpdateChecking()));
+	Sandbox::connect(SIGNAL(updateLatest()), this, SLOT(onUpdateLatest()));
+	Sandbox::connect(SIGNAL(updateProgress(qint64,qint64)), this, SLOT(onUpdateDownloading(qint64,qint64)));
+	Sandbox::connect(SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
+	Sandbox::connect(SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
 	#endif
 
 	// chat options
@@ -310,6 +313,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	connect(&_backFromGallery, SIGNAL(clicked()), this, SLOT(onBackFromGallery()));
 	connect(&_backFromFile, SIGNAL(clicked()), this, SLOT(onBackFromFile()));
 	connect(&_tileBackground, SIGNAL(changed()), this, SLOT(onTileBackground()));
+	connect(&_adaptiveForWide, SIGNAL(changed()), this, SLOT(onAdaptiveForWide()));
 
 	// advanced
 	connect(&_passcodeEdit, SIGNAL(clicked()), this, SLOT(onPasscode()));
@@ -317,7 +321,9 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 	connect(&_autoLock, SIGNAL(clicked()), this, SLOT(onAutoLock()));
 	connect(&_passwordEdit, SIGNAL(clicked()), this, SLOT(onPassword()));
 	connect(&_passwordTurnOff, SIGNAL(clicked()), this, SLOT(onPasswordOff()));
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	connect(&_connectionType, SIGNAL(clicked()), this, SLOT(onConnectionType()));
+#endif
 	connect(&_showSessions, SIGNAL(clicked()), this, SLOT(onShowSessions()));
 	connect(&_askQuestion, SIGNAL(clicked()), this, SLOT(onAskQuestion()));
 	connect(&_telegramFAQ, SIGNAL(clicked()), this, SLOT(onTelegramFAQ()));
@@ -329,18 +335,16 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : TWidget(parent)
 
 	updateOnlineDisplay();
 
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	switch (App::app()->updatingState()) {
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	switch (Sandbox::updatingState()) {
 	case Application::UpdatingDownload:
 		setUpdatingState(UpdatingDownload, true);
-		setDownloadProgress(App::app()->updatingReady(), App::app()->updatingSize());
+		setDownloadProgress(Sandbox::updatingReady(), Sandbox::updatingSize());
 	break;
 	case Application::UpdatingReady: setUpdatingState(UpdatingReady, true); break;
 	default: setUpdatingState(UpdatingNone, true); break;
 	}
-	#else
-	_updatingState = UpdatingNone;
-	#endif
+#endif
 
 	updateConnectionType();
 
@@ -352,13 +356,13 @@ void SettingsInner::peerUpdated(PeerData *data) {
 		if (self()->photoId && self()->photoId != UnknownPeerPhotoId) {
 			PhotoData *selfPhoto = App::photo(self()->photoId);
 			if (selfPhoto->date) {
-				_photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
+				_photoLink.reset(new PhotoOpenClickHandler(selfPhoto, self()));
 			} else {
-				_photoLink = TextLinkPtr();
+				_photoLink.clear();
 				App::api()->requestFullPeer(self());
 			}
 		} else {
-			_photoLink = TextLinkPtr();
+			_photoLink.clear();
 		}
 
 		if (_nameCache != self()->name) {
@@ -382,7 +386,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		updateChatBackground();
 	}
 
-	QPainter p(this);
+	Painter p(this);
 
 	p.setClipRect(e->rect());
 
@@ -399,7 +403,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		}
 
 		if (_photoLink) {
-			p.drawPixmap(_left, top, self()->photo->pix(st::setPhotoSize));
+			self()->paintUserpicLeft(p, st::setPhotoSize, _left, top, st::setWidth);
 		} else {
 			if (a_photoOver.current() < 1) {
 				p.drawPixmap(QPoint(_left, top), App::sprite(), st::setPhotoImg);
@@ -637,6 +641,10 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		top += st::setBackgroundSize;
 		top += st::setLittleSkip;
 		top += _tileBackground.height();
+		if (Global::AdaptiveLayout() == Adaptive::WideLayout) {
+			top += st::setLittleSkip;
+			top += _adaptiveForWide.height();
+		}
 	}
 
 	// advanced
@@ -755,6 +763,10 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 
 		top += st::setLittleSkip;
 		_tileBackground.move(_left, top); top += _tileBackground.height();
+		if (Global::AdaptiveLayout() == Adaptive::WideLayout) {
+			top += st::setLittleSkip;
+			_adaptiveForWide.move(_left, top); top += _adaptiveForWide.height();
+		}
 	}
 
 	// advanced
@@ -803,9 +815,23 @@ void SettingsInner::keyPressEvent(QKeyEvent *e) {
 			Ui::showLayer(box);
 			from = size;
 			break;
-        } else if (str == qstr("loadlang")) {
-            chooseCustomLang();
-        } else if (qsl("debugmode").startsWith(str) || qsl("testmode").startsWith(str) || qsl("loadlang").startsWith(str)) {
+		} else if (str == qstr("loadlang")) {
+			chooseCustomLang();
+		} else if (str == qstr("debugfiles") && cDebug()) {
+			if (DebugLogging::FileLoader()) {
+				Global::RefDebugLoggingFlags() &= ~DebugLogging::FileLoaderFlag;
+			} else {
+				Global::RefDebugLoggingFlags() |= DebugLogging::FileLoaderFlag;
+			}
+			Ui::showLayer(new InformBox(DebugLogging::FileLoader() ? "Enabled file download logging" : "Disabled file download logging"));
+		} else if (str == qstr("crashplease")) {
+			t_assert(!"Crashed in Settings!");
+		} else if (
+			qsl("debugmode").startsWith(str) ||
+			qsl("testmode").startsWith(str) ||
+			qsl("loadlang").startsWith(str) ||
+			qsl("debugfiles").startsWith(str) ||
+			qsl("crashplease").startsWith(str)) {
 			break;
 		}
 		++from;
@@ -853,6 +879,11 @@ void SettingsInner::mousePressEvent(QMouseEvent *e) {
 }
 
 void SettingsInner::contextMenuEvent(QContextMenuEvent *e) {
+}
+
+void SettingsInner::updateAdaptiveLayout() {
+	showAll();
+	resizeEvent(0);
 }
 
 void SettingsInner::step_photo(float64 ms, bool timer) {
@@ -911,9 +942,9 @@ void SettingsInner::onFullPeerUpdated(PeerData *peer) {
 
 	PhotoData *selfPhoto = (self()->photoId && self()->photoId != UnknownPeerPhotoId) ? App::photo(self()->photoId) : 0;
 	if (selfPhoto && selfPhoto->date) {
-		_photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
+		_photoLink.reset(new PhotoOpenClickHandler(selfPhoto, self()));
 	} else {
-		_photoLink = TextLinkPtr();
+		_photoLink.clear();
 	}
 }
 
@@ -1093,10 +1124,16 @@ void SettingsInner::showAll() {
 		_backFromGallery.show();
 		_backFromFile.show();
 		_tileBackground.show();
+		if (Global::AdaptiveLayout() == Adaptive::WideLayout) {
+			_adaptiveForWide.show();
+		} else {
+			_adaptiveForWide.hide();
+		}
 	} else {
 		_backFromGallery.hide();
 		_backFromFile.hide();
 		_tileBackground.hide();
+		_adaptiveForWide.hide();
 	}
 
 	// advanced
@@ -1161,6 +1198,10 @@ void SettingsInner::onUpdatePhotoCancel() {
 }
 
 void SettingsInner::onUpdatePhoto() {
+	if (!self()) {
+		return;
+	}
+
 	saveError();
 
 	QStringList imgExtensions(cImgExtensions());
@@ -1261,14 +1302,14 @@ void SettingsInner::onAutoUpdate() {
 	Local::writeSettings();
 	resizeEvent(0);
 	if (cAutoUpdate()) {
-		App::app()->startUpdateCheck();
+		Sandbox::startUpdateCheck();
 		if (_updatingState == UpdatingNone) {
 			_checkNow.show();
 		} else if (_updatingState == UpdatingReady) {
 			_restartNow.show();
 		}
 	} else {
-		App::app()->stopUpdate();
+		Sandbox::stopUpdate();
 		_restartNow.hide();
 		_checkNow.hide();
 	}
@@ -1279,12 +1320,12 @@ void SettingsInner::onCheckNow() {
 	if (!cAutoUpdate()) return;
 
 	cSetLastUpdateCheck(0);
-	App::app()->startUpdateCheck();
+	Sandbox::startUpdateCheck();
 }
 #endif
 
 void SettingsInner::onRestartNow() {
-	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	checkReadyUpdate();
 	if (_updatingState == UpdatingReady) {
 		cSetRestartingUpdate(true);
@@ -1292,10 +1333,10 @@ void SettingsInner::onRestartNow() {
 		cSetRestarting(true);
 		cSetRestartingToSettings(true);
 	}
-	#else
+#else
 	cSetRestarting(true);
 	cSetRestartingToSettings(true);
-	#endif
+#endif
 	App::quit();
 }
 
@@ -1322,9 +1363,9 @@ void SettingsInner::onPasswordOff() {
 		_passwordTurnOff.hide();
 
 //		int32 flags = MTPDaccount_passwordInputSettings::flag_new_salt | MTPDaccount_passwordInputSettings::flag_new_password_hash | MTPDaccount_passwordInputSettings::flag_hint | MTPDaccount_passwordInputSettings::flag_email;
-		int32 flags = MTPDaccount_passwordInputSettings::flag_email;
-		MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_int(flags), MTP_string(QByteArray()), MTP_string(QByteArray()), MTP_string(QString()), MTP_string(QString())));
-		MTP::send(MTPaccount_UpdatePasswordSettings(MTP_string(QByteArray()), settings), rpcDone(&SettingsInner::offPasswordDone), rpcFail(&SettingsInner::offPasswordFail));
+		MTPDaccount_passwordInputSettings::Flags flags = MTPDaccount_passwordInputSettings::Flag::f_email;
+		MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_flags(flags), MTP_bytes(QByteArray()), MTP_bytes(QByteArray()), MTP_string(QString()), MTP_string(QString())));
+		MTP::send(MTPaccount_UpdatePasswordSettings(MTP_bytes(QByteArray()), settings), rpcDone(&SettingsInner::offPasswordDone), rpcFail(&SettingsInner::offPasswordFail));
 	} else {
 		PasscodeBox *box = new PasscodeBox(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint, true);
 		connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
@@ -1344,11 +1385,13 @@ void SettingsInner::onAutoLock() {
 	Ui::showLayer(box);
 }
 
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 void SettingsInner::onConnectionType() {
 	ConnectionBox *box = new ConnectionBox();
 	connect(box, SIGNAL(closed()), this, SLOT(updateConnectionType()), Qt::QueuedConnection);
 	Ui::showLayer(box);
 }
+#endif
 
 void SettingsInner::onUsername() {
 	UsernameBox *box = new UsernameBox();
@@ -1628,6 +1671,16 @@ void SettingsInner::onTileBackground() {
 	}
 }
 
+void SettingsInner::onAdaptiveForWide() {
+	if (Global::AdaptiveForWide() != _adaptiveForWide.checked()) {
+		Global::SetAdaptiveForWide(_adaptiveForWide.checked());
+		if (App::wnd()) {
+			App::wnd()->updateAdaptiveLayout();
+		}
+		Local::writeUserSettings();
+	}
+}
+
 void SettingsInner::onDontAskDownloadPath() {
 	cSetAskDownloadPath(!_dontAskDownloadPath.checked());
 	Local::writeUserSettings();
@@ -1785,7 +1838,7 @@ SettingsWidget::SettingsWidget(Window *parent) : TWidget(parent)
 	connect(App::wnd(), SIGNAL(resized(const QSize&)), this, SLOT(onParentResize(const QSize&)));
 	connect(&_close, SIGNAL(clicked()), App::wnd(), SLOT(showSettings()));
 
-	setGeometry(QRect(0, st::titleHeight, Application::wnd()->width(), Application::wnd()->height() - st::titleHeight));
+	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 
 	showAll();
 }
@@ -1867,10 +1920,10 @@ void SettingsWidget::showAll() {
 	_scroll.show();
 	_inner.show();
 	_inner.showAll();
-	if (cWideMode()) {
-		_close.show();
-	} else {
+	if (Adaptive::OneColumn()) {
 		_close.hide();
+	} else {
+		_close.show();
 	}
 }
 
@@ -1892,16 +1945,17 @@ void SettingsWidget::dragEnterEvent(QDragEnterEvent *e) {
 void SettingsWidget::dropEvent(QDropEvent *e) {
 }
 
-void SettingsWidget::updateWideMode() {
-	if (cWideMode()) {
-		_close.show();
-	} else {
+void SettingsWidget::updateAdaptiveLayout() {
+	if (Adaptive::OneColumn()) {
 		_close.hide();
+	} else {
+		_close.show();
 	}
+	_inner.updateAdaptiveLayout();
+	resizeEvent(0);
 }
 
-void SettingsWidget::updateDisplayNotify()
-{
+void SettingsWidget::updateDisplayNotify() {
 	_inner.enableDisplayNotify(cDesktopNotify());
 }
 
@@ -1913,8 +1967,8 @@ void SettingsWidget::updateConnectionType() {
 	_inner.updateConnectionType();
 }
 
-void SettingsWidget::rpcInvalidate() {
-	_inner.rpcInvalidate();
+void SettingsWidget::rpcClear() {
+	_inner.rpcClear();
 }
 
 void SettingsWidget::usernameChanged() {

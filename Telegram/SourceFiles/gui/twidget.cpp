@@ -16,11 +16,27 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
 #include "application.h"
+#include "window.h"
+
+namespace Fonts {
+
+	bool Started = false;
+	void start() {
+		if (!Started) {
+			Started = true;
+
+			QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Regular.ttf"));
+			QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Bold.ttf"));
+			QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Semibold.ttf"));
+		}
+	}
+
+}
 
 namespace {
 	void _sendResizeEvents(QWidget *target) {
@@ -37,6 +53,10 @@ namespace {
 	}
 }
 
+bool TWidget::inFocusChain() const {
+	return !isHidden() && App::wnd() && (App::wnd()->focusWidget() == this || isAncestorOf(App::wnd()->focusWidget()));
+}
+
 void myEnsureResized(QWidget *target) {
 	if (target && (target->testAttribute(Qt::WA_PendingResizeEvent) || !target->testAttribute(Qt::WA_WState_Created))) {
 		_sendResizeEvents(target);
@@ -44,7 +64,7 @@ void myEnsureResized(QWidget *target) {
 }
 
 QPixmap myGrab(TWidget *target, QRect rect) {
-	myEnsureResized(target);    
+	myEnsureResized(target);
 	if (rect.isNull()) rect = target->rect();
 
     QPixmap result(rect.size() * cRetinaFactor());

@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -107,7 +107,15 @@ inline bool operator!=(const StorageImageLocation &a, const StorageImageLocation
 	return !(a == b);
 }
 
-QPixmap imagePix(QImage img, int32 w, int32 h, bool smooth, bool blurred, bool rounded, int32 outerw, int32 outerh);
+enum ImagePixOption {
+	ImagePixSmooth = 0x01,
+	ImagePixBlurred = 0x02,
+	ImagePixRounded = 0x04,
+	ImagePixCircled = 0x08,
+};
+Q_DECLARE_FLAGS(ImagePixOptions, ImagePixOption);
+Q_DECLARE_OPERATORS_FOR_FLAGS(ImagePixOptions);
+QPixmap imagePix(QImage img, int w, int h, ImagePixOptions options, int outerw, int outerh);
 
 class DelayedStorageImage;
 
@@ -145,23 +153,22 @@ public:
 
 	const QPixmap &pix(int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixRounded(int32 w = 0, int32 h = 0) const;
+	const QPixmap &pixCircled(int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixBlurred(int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixColored(const style::color &add, int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixBlurredColored(const style::color &add, int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixSingle(int32 w, int32 h, int32 outerw, int32 outerh) const;
 	const QPixmap &pixBlurredSingle(int32 w, int32 h, int32 outerw, int32 outerh) const;
-	QPixmap pixNoCache(int32 w = 0, int32 h = 0, bool smooth = false, bool blurred = false, bool rounded = false, int32 outerw = -1, int32 outerh = -1) const;
+	QPixmap pixNoCache(int w = 0, int h = 0, ImagePixOptions options = 0, int outerw = -1, int outerh = -1) const;
 	QPixmap pixColoredNoCache(const style::color &add, int32 w = 0, int32 h = 0, bool smooth = false) const;
 	QPixmap pixBlurredColoredNoCache(const style::color &add, int32 w, int32 h = 0) const;
 
-	virtual int32 width() const {
-		restore();
-		return _data.width();
+	int32 width() const {
+		return qMax(countWidth(), 1);
 	}
 
-	virtual int32 height() const {
-		restore();
-		return _data.height();
+	int32 height() const {
+		return qMax(countHeight(), 1);
 	}
 
 	virtual void load(bool loadFirst = false, bool prior = true) {
@@ -202,6 +209,16 @@ protected:
 	virtual void checkload() const {
 	}
 	void invalidateSizeCache() const;
+
+	virtual int32 countWidth() const {
+		restore();
+		return _data.width();
+	}
+
+	virtual int32 countHeight() const {
+		restore();
+		return _data.height();
+	}
 
 	mutable QByteArray _saved, _format;
 	mutable bool _forgot;
@@ -283,9 +300,6 @@ public:
 	StorageImage(const StorageImageLocation &location, int32 size = 0);
 	StorageImage(const StorageImageLocation &location, QByteArray &bytes);
 
-	int32 width() const;
-	int32 height() const;
-
 	virtual void setInformation(int32 size, int32 width, int32 height);
 	virtual FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading);
 
@@ -296,6 +310,9 @@ public:
 protected:
 	StorageImageLocation _location;
 	int32 _size;
+
+	virtual int32 countWidth() const;
+	virtual int32 countHeight() const;
 
 };
 
@@ -341,11 +358,13 @@ public:
 
 	WebImage(const QString &url);
 
-	int32 width() const;
-	int32 height() const;
-
 	virtual void setInformation(int32 size, int32 width, int32 height);
 	virtual FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading);
+
+protected:
+
+	virtual int32 countWidth() const;
+	virtual int32 countHeight() const;
 
 private:
 	QString _url;

@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 defaultFontFamily: 'Open Sans';
 semibold: 'Open Sans Semibold';
@@ -51,7 +51,10 @@ color7: #2996ad; // sea
 color8: #ce671b; // orange
 
 wndMinWidth: 380px;
-wideModeWidth: 640px;
+
+adaptiveNormalWidth: 640px;
+adaptiveWideWidth: 1366px;
+
 wndMinHeight: 480px;
 wndDefWidth: 800px;
 wndDefHeight: 600px;
@@ -64,6 +67,13 @@ layerBg: black;
 
 overBg: #edf2f5;
 
+labelDefFlat: flatLabel {
+	font: font(fsize);
+	minWidth: 100px;
+	width: 0px;
+	align: align(left);
+}
+
 boxBg: white;
 boxVerticalMargin: 10px;
 boxWidth: 320px;
@@ -72,6 +82,8 @@ boxPadding: margins(26px, 30px, 34px, 8px);
 boxMaxListHeight: 600px;
 boxFontSize: 14px;
 boxTextFont: font(boxFontSize);
+boxLittleSkip: 10px;
+boxMediumSkip: 20px;
 
 boxTitleFg: #444444;
 boxTitleFont: font(boxFontSize bold);
@@ -122,6 +134,10 @@ redBoxLinkButton: linkButton(defaultBoxLinkButton) {
 	color: #d15948;
 	overColor: #d15948;
 	downColor: #db6352;
+}
+boxLabel: flatLabel(labelDefFlat) {
+	font: font(boxFontSize);
+	align: align(topleft);
 }
 
 defaultInputArea: InputArea {
@@ -269,6 +285,21 @@ defaultPopupMenu: PopupMenu {
 	widthMin: 180px;
 	widthMax: 300px;
 }
+
+defaultTooltip: Tooltip {
+	textBg: #eef2f5;
+	textFg: #5d6c80;
+	textFont: normalFont;
+	textBorder: #c9d1db;
+	textPadding: margins(5px, 2px, 5px, 2px);
+
+	shift: point(-20px, 20px);
+	skip: 10px;
+
+	widthMax: 800px;
+	linesMax: 12;
+}
+
 almostTransparent: #ffffff0d;
 boxScroll: flatScroll(solidScroll) {
 	width: 18px;
@@ -592,13 +623,6 @@ scrollCountries: flatScroll(scrollDef) {
 }
 
 lnkText: #0f7dc7;
-
-labelDefFlat: flatLabel {
-	font: font(fsize);
-	minWidth: 100px;
-	width: 0px;
-	align: align(left);
-}
 
 introBtnTop: 288px;
 introSkip: 45px;
@@ -937,6 +961,7 @@ dlgActiveUnreadColor: #5b94bf;
 dlgActiveUnreadBG: white;
 dlgActiveColor: white;
 dlgActiveDateColor: #d3e2ee;
+dlgActiveUnreadMutedBG: dlgActiveDateColor;
 
 topBarHeight: 54px;
 topBarBG: white;
@@ -950,6 +975,21 @@ topBarBackAlpha: 0.8;
 topBarBackImg: sprite(65px, 112px, 9px, 16px);
 topBarBackColor: #005faf;
 topBarBackFont: font(16px);
+topBarSearch: iconedButton(btnDefIconed) {
+	bgColor: transparent;
+	overBgColor: transparent;
+
+	icon: sprite(84px, 374px, 18px, 18px);
+	iconPos: point(13px, 18px);
+	downIcon: sprite(84px, 374px, 18px, 18px);
+	downIconPos: point(13px, 18px);
+
+	opacity: 0.22;
+	overOpacity: 0.36;
+
+	width: 44px;
+	height: topBarHeight;
+}
 topBarMinPadding: 5px;
 topBarButton: flatButton(btnDefFlat) {
 	color: btnYesColor;
@@ -1009,10 +1049,11 @@ msgServiceNameFont: semiboldFont;
 msgServicePhotoWidth: 100px;
 msgDateFont: font(13px);
 msgMinWidth: 190px;
-msgPhotoSize: 30px;
+msgPhotoSize: 33px;
 msgPhotoSkip: 40px;
 msgPadding: margins(13px, 7px, 13px, 8px);
-msgMargin: margins(13px, 4px, 53px, 4px);
+msgMargin: margins(13px, 10px, 53px, 2px);
+msgMarginTopAttached: 3px;
 msgLnkPadding: 2px; // for media open / save links
 msgBorder: #f0f0f0;
 msgInBg: #fff;
@@ -1044,11 +1085,27 @@ msgInReplyBarColor: #2fa9e2;
 msgOutReplyBarSelColor: #4da79f;
 msgInReplyBarSelColor: #2fa9e2;
 
+msgBotKbDuration: 200;
+msgBotKbFont: semiboldFont;
+msgBotKbOverOpacity: 0.1;
+msgBotKbIconPadding: 2px;
+msgBotKbUrlIcon: sprite(188px, 338px, 10px, 10px);
+msgBotKbCallbackIcon: msgBotKbUrlIcon;
+msgBotKbRequestPhoneIcon: msgBotKbUrlIcon;
+msgBotKbRequestLocationIcon: msgBotKbUrlIcon;
+msgBotKbButton: botKeyboardButton {
+	margin: 5px;
+	padding: 10px;
+	height: 36px;
+	textTop: 8px;
+	downTextTop: 9px;
+}
+
 msgServiceBg: #89a0b47f;
 msgServiceSelectBg: #bbc8d4a2;
 msgServiceColor: #FFF;
 msgServicePadding: margins(12px, 3px, 12px, 4px);
-msgServiceMargin: margins(10px, 7px, 80px, 7px);
+msgServiceMargin: margins(10px, 10px, 80px, 2px);
 
 msgColor: #000;
 msgDateColor: #000;
@@ -1107,7 +1164,7 @@ collapseButton: flatButton(btnDefFlat) {
 	textTop: 3px;
 	overTextTop: 3px;
 	downTextTop: 3px;
-	height: 24px;
+	height: 25px;
 }
 collapseHideDuration: 200;
 collapseShowDuration: 200;
@@ -1143,6 +1200,24 @@ outTextStyle: textStyle(defaultTextStyle) {
 	monoFg: #469165;
 	selectBg: msgOutBgSelected;
 	selectOverlay: msgSelectOverlay;
+}
+inFwdTextStyle: textStyle(defaultTextStyle) {
+	linkFlags: semiboldFont;
+	linkFlagsOver: semiboldFont;
+	linkFg: msgInServiceFg;
+	linkFgDown: msgInServiceFg;
+}
+outFwdTextStyle: textStyle(inFwdTextStyle) {
+	linkFg: msgOutServiceFg;
+	linkFgDown: msgOutServiceFg;
+}
+inFwdTextStyleSelected: textStyle(inFwdTextStyle) {
+	linkFg: msgInServiceFgSelected;
+	linkFgDown: msgInServiceFgSelected;
+}
+outFwdTextStyleSelected: textStyle(inFwdTextStyle) {
+	linkFg: msgOutServiceFgSelected;
+	linkFgDown: msgOutServiceFgSelected;
 }
 medviewSaveAsTextStyle: textStyle(defaultTextStyle) {
 	linkFg: #91d9ff;
@@ -1265,10 +1340,20 @@ msgFileBlue: sprite(60px, 425px, 20px, 20px);
 msgFileOverDuration: 200;
 msgFileRadialLine: 3px;
 
-msgFileExtPadding: 8px;
-msgFileExtTop: 30px;
-
 msgVideoSize: size(320px, 240px);
+
+msgWaveformBar: 2px;
+msgWaveformSkip: 1px;
+msgWaveformMin: 2px;
+msgWaveformMax: 20px;
+msgWaveformInActive: #59b6eb;
+msgWaveformInActiveSelected: #51a3d3;
+msgWaveformInInactive: #d4dee6;
+msgWaveformInInactiveSelected: #9cc1e1;
+msgWaveformOutActive: #78c67f;
+msgWaveformOutActiveSelected: #6badad;
+msgWaveformOutInactive: #b3e2b4;
+msgWaveformOutInactiveSelected: #91c3c3;
 
 sendPadding: 9px;
 btnSend: flatButton(btnDefFlat) {
@@ -1349,7 +1434,7 @@ broadcastToggle: flatCheckbox {
 	bgColor: white;
 	disColor: black;
 
-	width: 36px;
+	width: 34px;
 	height: 46px;
 	duration: 200;
 	bgFunc: transition(easeOutCirc);
@@ -1364,13 +1449,23 @@ broadcastToggle: flatCheckbox {
 	disImageRect: sprite(18px, 125px, 22px, 21px);
 	chkDisImageRect: sprite(18px, 125px, 22px, 21px);
 
-	imagePos: point(7px, 12px);
+	imagePos: point(6px, 12px);
+}
+silentToggle: flatCheckbox(broadcastToggle) {
+	width: 33px;
+
+	imageRect: sprite(354px, 242px, 21px, 21px);
+	chkImageRect: sprite(354px, 221px, 21px, 21px);
+	overImageRect: sprite(375px, 242px, 21px, 21px);
+	chkOverImageRect: sprite(375px, 221px, 21px, 21px);
+	disImageRect: sprite(354px, 242px, 21px, 21px);
+	chkDisImageRect: sprite(354px, 221px, 21px, 21px);
 }
 btnRecordAudio: sprite(379px, 390px, 16px, 24px);
 btnRecordAudioActive: sprite(379px, 366px, 16px, 24px);
 recordSignalColor: #f17077;
 recordSignalMin: 5px;
-recordSignalMax: 10px;
+recordSignalMax: 12px;
 recordCancel: #aaa;
 recordCancelActive: #ec6466;
 recordFont: font(13px);
@@ -1383,6 +1478,7 @@ replyTop: 8px;
 replyBottom: 6px;
 replyIconPos: point(13px, 13px);
 replyIcon: sprite(343px, 197px, 24px, 24px);
+editIcon: sprite(371px, 286px, 24px, 24px);
 replyCancel: iconedButton(btnDefIconed) {
 	icon: sprite(165px, 24px, 14px, 14px);
 	iconPos: point(17px, 17px);
@@ -1447,6 +1543,7 @@ reportSpamBg: #fffffff0;
 newMsgSound: ':/gui/art/newmsg.wav';
 
 unreadBarHeight: 32px;
+unreadBarMargin: 8px;
 unreadBarFont: semiboldFont;
 unreadBarBG: #fcfbfa;
 unreadBarBorder: shadowColor;
@@ -2017,17 +2114,17 @@ verifiedCheckInv: sprite(299px, 221px, 14px, 14px);
 verifiedCheckPos: point(4px, 2px);
 
 botKbDuration: 200;
-botKbBg: #f7f7f7;
-botKbOverBg: #e8ecef;
-botKbDownBg: #dfe3e6;
-botKbColor: #8a8a8f;
-botKbFont: font(16px);
+botKbBg: #edf1f5;
+botKbOverBg: #d8e2ec;
+botKbDownBg: #d8e2ec;
+botKbColor: #4b565f;
+botKbFont: font(15px semibold);
 botKbButton: botKeyboardButton {
 	margin: 10px;
 	padding: 10px;
-	height: 36px;
-	textTop: 8px;
-	downTextTop: 9px;
+	height: 38px;
+	textTop: 9px;
+	downTextTop: 10px;
 }
 botKbTinyButton: botKeyboardButton {
 	margin: 4px;
@@ -2045,6 +2142,7 @@ minPhotoSize: 100px;
 maxMediaSize: 420px;
 maxStickerSize: 256px;
 maxGifSize: 320px;
+maxSignatureSize: 144px;
 
 mvBgColor: #222;
 mvBgOpacity: 0.92;
@@ -2180,6 +2278,9 @@ overviewFileStatusTop: 27px;
 overviewFileDateTop: 49px;
 overviewFileChecked: #2fa9e2;
 overviewFileCheck: #00000066;
+overviewFileExtPadding: 5px;
+overviewFileExtTop: 24px;
+overviewFileExtFont: font(18px semibold);
 
 // Mac specific
 
@@ -2376,7 +2477,7 @@ linksDateMargin: margins(0px, 15px, 0px, 2px);
 linksPhotoCheck: sprite(184px, 196px, 16px, 16px);
 linksPhotoChecked: sprite(168px, 196px, 16px, 16px);
 
-inlineResultsLeft: 15px;
+inlineResultsLeft: 11px;
 inlineResultsSkip: 3px;
 inlineMediaHeight: 96px;
 inlineThumbSize: 64px;
@@ -2385,5 +2486,12 @@ inlineDescriptionFg: #8a8a8a;
 inlineRowMargin: 6px;
 inlineRowBorder: linksBorder;
 inlineRowBorderFg: linksBorderFg;
+inlineRowFileNameTop: 2px;
+inlineRowFileDescriptionTop: 23px;
 inlineResultsMinWidth: 64px;
 inlineDurationMargin: 3px;
+
+editTextArea: InputArea(defaultInputArea) {
+	textMargins: margins(1px, 6px, 1px, 4px);
+	heightMax: 256px;
+}

@@ -10,7 +10,7 @@ CONFIG(debug, debug|release) {
     DESTDIR = ./../Debug
 }
 CONFIG(release, debug|release) {
-    DEFINES += _WITH_DEBUG CUSTOM_API_ID
+    DEFINES += CUSTOM_API_ID
     OBJECTS_DIR = ./../ReleaseIntermediate
     MOC_DIR = ./GenFiles/Release
     RCC_DIR = ./GenFiles
@@ -47,7 +47,7 @@ style_classes_h.depends = ./../../Telegram/Resources/style_classes.txt
 numbers_cpp.target = ./GeneratedFiles/numbers.cpp
 numbers_cpp.depends = FORCE
 numbers_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
-numbers_cpp.depends = ./../../Telegram/Resources/numbers.txt 
+numbers_cpp.depends = ./../../Telegram/Resources/numbers.txt
 
 lang_auto_cpp.target = ./GeneratedFiles/lang_auto.cpp
 lang_auto_cpp.depends = FORCE
@@ -108,20 +108,26 @@ SOURCES += \
     ./SourceFiles/mainwidget.cpp \
     ./SourceFiles/settings.cpp \
     ./SourceFiles/settingswidget.cpp \
+	./SourceFiles/shortcuts.cpp \
     ./SourceFiles/structs.cpp \
     ./SourceFiles/sysbuttons.cpp \
     ./SourceFiles/title.cpp \
     ./SourceFiles/types.cpp \
     ./SourceFiles/window.cpp \
-    ./SourceFiles/mtproto/mtp.cpp \
-    ./SourceFiles/mtproto/mtpAuthKey.cpp \
-    ./SourceFiles/mtproto/mtpConnection.cpp \
-    ./SourceFiles/mtproto/mtpCoreTypes.cpp \
-    ./SourceFiles/mtproto/mtpDC.cpp \
-    ./SourceFiles/mtproto/mtpFileLoader.cpp \
-    ./SourceFiles/mtproto/mtpRPC.cpp \
-    ./SourceFiles/mtproto/mtpScheme.cpp \
-    ./SourceFiles/mtproto/mtpSession.cpp \
+    ./SourceFiles/mtproto/facade.cpp \
+    ./SourceFiles/mtproto/auth_key.cpp \
+    ./SourceFiles/mtproto/connection.cpp \
+    ./SourceFiles/mtproto/connection_abstract.cpp \
+    ./SourceFiles/mtproto/connection_auto.cpp \
+    ./SourceFiles/mtproto/connection_http.cpp \
+    ./SourceFiles/mtproto/connection_tcp.cpp \
+    ./SourceFiles/mtproto/core_types.cpp \
+    ./SourceFiles/mtproto/dcenter.cpp \
+    ./SourceFiles/mtproto/file_download.cpp \
+    ./SourceFiles/mtproto/rsa_public_key.cpp \
+    ./SourceFiles/mtproto/rpc_sender.cpp \
+    ./SourceFiles/mtproto/scheme_auto.cpp \
+    ./SourceFiles/mtproto/session.cpp \
     ./SourceFiles/gui/animation.cpp \
     ./SourceFiles/gui/boxshadow.cpp \
     ./SourceFiles/gui/button.cpp \
@@ -159,12 +165,12 @@ SOURCES += \
     ./SourceFiles/boxes/sessionsbox.cpp \
     ./SourceFiles/boxes/stickersetbox.cpp \
     ./SourceFiles/boxes/usernamebox.cpp \
-    ./SourceFiles/intro/intro.cpp \
+    ./SourceFiles/intro/introwidget.cpp \
     ./SourceFiles/intro/introcode.cpp \
     ./SourceFiles/intro/introphone.cpp \
     ./SourceFiles/intro/intropwdcheck.cpp \
     ./SourceFiles/intro/introsignup.cpp \
-    ./SourceFiles/intro/introsteps.cpp
+    ./SourceFiles/intro/introstart.cpp
 
 HEADERS += \
     ./SourceFiles/stdafx.h \
@@ -197,23 +203,27 @@ HEADERS += \
     ./SourceFiles/mainwidget.h \
     ./SourceFiles/settings.h \
     ./SourceFiles/settingswidget.h \
+	./SourceFiles/shortcuts.h \
     ./SourceFiles/structs.h \
-    ./SourceFiles/style.h \
+    ./SourceFiles/gui/style.h \
     ./SourceFiles/sysbuttons.h \
     ./SourceFiles/title.h \
     ./SourceFiles/types.h \
     ./SourceFiles/window.h \
-    ./SourceFiles/mtproto/mtpSessionImpl.h \
-    ./SourceFiles/mtproto/mtp.h \
-    ./SourceFiles/mtproto/mtpAuthKey.h \
-    ./SourceFiles/mtproto/mtpConnection.h \
-    ./SourceFiles/mtproto/mtpCoreTypes.h \
-    ./SourceFiles/mtproto/mtpDC.h \
-    ./SourceFiles/mtproto/mtpFileLoader.h \
-    ./SourceFiles/mtproto/mtpPublicRSA.h \
-    ./SourceFiles/mtproto/mtpRPC.h \
-    ./SourceFiles/mtproto/mtpScheme.h \
-    ./SourceFiles/mtproto/mtpSession.h \
+    ./SourceFiles/mtproto/facade.h \
+    ./SourceFiles/mtproto/auth_key.h \
+    ./SourceFiles/mtproto/connection.h \
+    ./SourceFiles/mtproto/connection_abstract.h \
+    ./SourceFiles/mtproto/connection_auto.h \
+    ./SourceFiles/mtproto/connection_http.h \
+    ./SourceFiles/mtproto/connection_tcp.h \
+    ./SourceFiles/mtproto/core_types.h \
+    ./SourceFiles/mtproto/dcenter.h \
+    ./SourceFiles/mtproto/file_download.h \
+    ./SourceFiles/mtproto/rsa_public_key.h \
+    ./SourceFiles/mtproto/rpc_sender.h \
+    ./SourceFiles/mtproto/scheme_auto.h \
+    ./SourceFiles/mtproto/session.h \
     ./SourceFiles/pspecific.h \
     ./SourceFiles/gui/animation.h \
     ./SourceFiles/gui/boxshadow.h \
@@ -252,18 +262,25 @@ HEADERS += \
     ./SourceFiles/boxes/sessionsbox.h \
     ./SourceFiles/boxes/stickersetbox.h \
     ./SourceFiles/boxes/usernamebox.h \
-    ./SourceFiles/intro/intro.h \
+    ./SourceFiles/intro/introwidget.h \
     ./SourceFiles/intro/introcode.h \
     ./SourceFiles/intro/introphone.h \
     ./SourceFiles/intro/intropwdcheck.h \
     ./SourceFiles/intro/introsignup.h \
-    ./SourceFiles/intro/introsteps.h
+    ./SourceFiles/intro/introstart.h
 
 win32 {
 SOURCES += \
-  ./SourceFiles/pspecific_wnd.cpp
+  ./SourceFiles/pspecific_win.cpp
 HEADERS += \
-  ./SourceFiles/pspecific_wnd.h
+  ./SourceFiles/pspecific_win.h
+}
+
+winrt {
+SOURCES += \
+  ./SourceFiles/pspecific_winrt.cpp
+HEADERS += \
+  ./SourceFiles/pspecific_winrt.h
 }
 
 macx {
@@ -273,25 +290,36 @@ HEADERS += \
   ./SourceFiles/pspecific_mac.h
 }
 
+SOURCES += \
+  ./ThirdParty/minizip/zip.c \
+  ./ThirdParty/minizip/ioapi.c
+
 CONFIG += precompile_header
 
 PRECOMPILED_HEADER = ./SourceFiles/stdafx.h
 
 QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-result -Wno-unused-parameter -Wno-unused-variable -Wno-switch -Wno-comment -Wno-unused-but-set-variable
+QMAKE_CFLAGS_WARN_ON += -Wno-unused-result -Wno-unused-parameter -Wno-unused-variable -Wno-switch -Wno-comment -Wno-unused-but-set-variable
 
 CONFIG(release, debug|release) {
     QMAKE_CXXFLAGS_RELEASE -= -O2
-    QMAKE_CXXFLAGS_RELEASE += -Ofast -flto -fno-strict-aliasing
+    QMAKE_CXXFLAGS_RELEASE += -Ofast -flto -fno-strict-aliasing -g
     QMAKE_LFLAGS_RELEASE -= -O1
-    QMAKE_LFLAGS_RELEASE += -Ofast -flto
+    QMAKE_LFLAGS_RELEASE += -Ofast -flto -g -rdynamic
+}
+CONFIG(debug, debug|release) {
+	QMAKE_LFLAGS_DEBUG += -g -rdynamic
 }
 
 INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.5.1/QtGui\
                ./../../Libraries/QtStatic/qtbase/include/QtCore/5.5.1/QtCore\
                ./../../Libraries/QtStatic/qtbase/include\
+               /usr/local/include\
                /usr/local/include/opus\
                ./SourceFiles\
-               ./GeneratedFiles
+               ./GeneratedFiles\
+               ./ThirdParty/minizip\
+               ./../../Libraries/breakpad/src
 
 INCLUDEPATH += "/usr/include/libappindicator-0.1"
 INCLUDEPATH += "/usr/include/gtk-2.0"
@@ -308,11 +336,13 @@ INCLUDEPATH += "/usr/include/atk-1.0"
 INCLUDEPATH += "/usr/include/dee-1.0"
 INCLUDEPATH += "/usr/include/libdbusmenu-glib-0.4"
 
-LIBS += -lcrypto -lssl -lz -ldl -llzma -lexif -lopenal -lavformat -lavcodec -lswresample -lswscale -lavutil -lopus -lva
+LIBS += -ldl -llzma -lopenal -lavformat -lavcodec -lswresample -lswscale -lavutil -lopus -lva
 LIBS += ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libcomposeplatforminputcontextplugin.a \
         ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libibusplatforminputcontextplugin.a \
         ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.a
+LIBS += /usr/local/lib/libz.a
 LIBS += /usr/local/lib/libxkbcommon.a
+LIBS += ./../../../Libraries/breakpad/src/client/linux/libbreakpad_client.a
 
 RESOURCES += \
     ./SourceFiles/telegram.qrc \

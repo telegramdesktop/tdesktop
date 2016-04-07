@@ -16,12 +16,16 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
 namespace App {
 	const QPixmap &sprite();
+}
+
+namespace Fonts {
+	void start();
 }
 
 class Painter : public QPainter {
@@ -179,6 +183,8 @@ public:
 	virtual void grabFinish() {
 	}
 
+	bool inFocusChain() const;
+
 private:
 
 };
@@ -196,5 +202,30 @@ public:
 
 private:
 	const style::color &_color;
+
+};
+
+class SingleDelayedCall : public QObject {
+	Q_OBJECT
+
+public:
+	SingleDelayedCall(QObject *parent, const char *member) : QObject(parent), _pending(false), _member(member) {
+	}
+	void call() {
+		if (!_pending) {
+			_pending = true;
+			QMetaObject::invokeMethod(this, "makeDelayedCall", Qt::QueuedConnection);
+		}
+	}
+
+private slots:
+	void makeDelayedCall() {
+		_pending = false;
+		QMetaObject::invokeMethod(parent(), _member);
+	}
+
+private:
+	bool _pending;
+	const char *_member;
 
 };

@@ -16,11 +16,18 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
 #include "animation.h"
+
+extern "C" {
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/opt.h>
+#include <libswscale/swscale.h>
+}
 
 #include "mainwidget.h"
 #include "window.h"
@@ -93,6 +100,7 @@ namespace anim {
 		if (!_clipThreads.isEmpty()) {
 			for (int32 i = 0, l = _clipThreads.size(); i < l; ++i) {
 				_clipThreads.at(i)->quit();
+				DEBUG_LOG(("Waiting for clipThread to finish: %1").arg(i));
 				_clipThreads.at(i)->wait();
 				delete _clipManagers.at(i);
 				delete _clipThreads.at(i);
@@ -142,7 +150,7 @@ void AnimationManager::stop(Animation *obj) {
 	if (_iterating) {
 		_stopping.insert(obj, NullType());
 		if (!_starting.isEmpty()) {
-			_starting.insert(obj, NullType());
+			_starting.remove(obj);
 		}
 	} else {
 		AnimatingObjects::iterator i = _objects.find(obj);
@@ -159,7 +167,9 @@ void AnimationManager::timeout() {
 	_iterating = true;
 	uint64 ms = getms();
 	for (AnimatingObjects::const_iterator i = _objects.begin(), e = _objects.end(); i != e; ++i) {
-		i.key()->step(ms, true);
+		if (!_stopping.contains(i.key())) {
+			i.key()->step(ms, true);
+		}
 	}
 	_iterating = false;
 
@@ -189,18 +199,25 @@ QPixmap _prepareFrame(const ClipFrameRequest &request, const QImage &original, b
 	bool needOuter = (request.outerw != request.framew) || (request.outerh != request.frameh);
 	if (badSize || needOuter || hasAlpha || request.rounded) {
 		int32 factor(request.factor);
-		bool fill = false;
-		if (cache.width() != request.outerw || cache.height() != request.outerh) {
+		bool newcache = (cache.width() != request.outerw || cache.height() != request.outerh);
+		if (newcache) {
 			cache = QImage(request.outerw, request.outerh, QImage::Format_ARGB32_Premultiplied);
-			if (request.framew < request.outerw || request.frameh < request.outerh || hasAlpha) {
-				fill = true;
-			}
 			cache.setDevicePixelRatio(factor);
 		}
 		{
 			Painter p(&cache);
-			if (fill) {
-				p.fillRect(0, 0, cache.width() / factor, cache.height() / factor, st::black);
+			if (newcache) {
+				if (request.framew < request.outerw) {
+					p.fillRect(0, 0, (request.outerw - request.framew) / (2 * factor), cache.height() / factor, st::black);
+					p.fillRect((request.outerw - request.framew) / (2 * factor) + (request.framew / factor), 0, (cache.width() / factor) - ((request.outerw - request.framew) / (2 * factor) + (request.framew / factor)), cache.height() / factor, st::black);
+				}
+				if (request.frameh < request.outerh) {
+					p.fillRect(qMax(0, (request.outerw - request.framew) / (2 * factor)), 0, qMin(cache.width(), request.framew) / factor, (request.outerh - request.frameh) / (2 * factor), st::black);
+					p.fillRect(qMax(0, (request.outerw - request.framew) / (2 * factor)), (request.outerh - request.frameh) / (2 * factor) + (request.frameh / factor), qMin(cache.width(), request.framew) / factor, (cache.height() / factor) - ((request.outerh - request.frameh) / (2 * factor) + (request.frameh / factor)), st::black);
+				}
+			}
+			if (hasAlpha) {
+				p.fillRect(qMax(0, (request.outerw - request.framew) / (2 * factor)), qMax(0, (request.outerh - request.frameh) / (2 * factor)), qMin(cache.width(), request.framew) / factor, qMin(cache.height(), request.frameh) / factor, st::white);
 			}
 			QPoint position((request.outerw - request.framew) / (2 * factor), (request.outerh - request.frameh) / (2 * factor));
 			if (badSize) {
@@ -235,7 +252,7 @@ ClipReader::ClipReader(const FileLocation &location, const QByteArray &data, Cal
 		_clipManagers.push_back(new ClipReadManager(_clipThreads.back()));
 		_clipThreads.back()->start();
 	} else {
-		_threadIndex = int32(MTP::nonce<uint32>() % _clipThreads.size());
+		_threadIndex = int32(rand_value<uint32>() % _clipThreads.size());
 		int32 loadLevel = 0x7FFFFFFF;
 		for (int32 i = 0, l = _clipThreads.size(); i < l; ++i) {
 			int32 level = _clipManagers.at(i)->loadLevel();
@@ -369,6 +386,7 @@ QPixmap ClipReader::current(int32 framew, int32 frameh, int32 outerw, int32 oute
 	frame->request.outerh = outerh * factor;
 
 	QImage cacheForResize;
+	frame->original.setDevicePixelRatio(factor);
 	frame->pix = QPixmap();
 	frame->pix = _prepareFrame(frame->request, frame->original, true, cacheForResize);
 
@@ -418,7 +436,6 @@ void ClipReader::stop() {
 }
 
 void ClipReader::error() {
-	_private = 0;
 	_state = ClipError;
 }
 
@@ -477,7 +494,7 @@ public:
 	, _frameDelay(0) {
 	}
 
-	bool readNextFrame(QImage &to, bool &hasAlpha, const QSize &size) {
+	bool readNextFrame() {
 		if (_reader) _frameDelay = _reader->nextImageDelay();
 		if (_framesLeft < 1 && !jumpToStart()) {
 			return false;
@@ -587,6 +604,11 @@ public:
 	}
 
 	bool readNextFrame() {
+		if (_frameRead) {
+			av_frame_unref(_frame);
+			_frameRead = false;
+		}
+
 		int res;
 		while (true) {
 			if (_avpkt.size > 0) { // previous packet not finished
@@ -638,6 +660,20 @@ public:
 			}
 
 			if (got_frame) {
+				int64 duration = av_frame_get_pkt_duration(_frame);
+				int64 framePts = (_frame->pkt_pts == AV_NOPTS_VALUE) ? _frame->pkt_dts : _frame->pkt_pts;
+				int64 frameMs = (framePts * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
+				_currentFrameDelay = _nextFrameDelay;
+				if (_frameMs + _currentFrameDelay < frameMs) {
+					_currentFrameDelay = int32(frameMs - _frameMs);
+				}
+				if (duration == AV_NOPTS_VALUE) {
+					_nextFrameDelay = 0;
+				} else {
+					_nextFrameDelay = (duration * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
+				}
+				_frameMs = frameMs;
+
 				_hadFrame = _frameRead = true;
 				return true;
 			}
@@ -699,20 +735,6 @@ public:
 				return false;
 			}
 		}
-
-		int64 duration = av_frame_get_pkt_duration(_frame);
-		int64 framePts = (_frame->pkt_pts == AV_NOPTS_VALUE) ? _frame->pkt_dts : _frame->pkt_pts;
-		int64 frameMs = (framePts * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
-		_currentFrameDelay = _nextFrameDelay;
-		if (_frameMs + _currentFrameDelay < frameMs) {
-			_currentFrameDelay = int32(frameMs - _frameMs);
-		}
-		if (duration == AV_NOPTS_VALUE) {
-			_nextFrameDelay = 0;
-		} else {
-			_nextFrameDelay = (duration * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
-		}
-		_frameMs = frameMs;
 
 		av_frame_unref(_frame);
 		return true;
@@ -792,6 +814,10 @@ public:
 	}
 
 	~FFMpegReaderImplementation() {
+		if (_frameRead) {
+			av_frame_unref(_frame);
+			_frameRead = false;
+		}
 		if (_ioContext) av_free(_ioContext);
 		if (_codecContext) avcodec_close(_codecContext);
 		if (_swsContext) sws_freeContext(_swsContext);
