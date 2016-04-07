@@ -824,6 +824,13 @@ public:
 		}
 	}
 
+	template <typename... Args>
+	void makeIfNull(Args&&... args) {
+		if (isNull()) {
+			reset(new T(std::forward<Args>(args)...));
+		}
+	};
+
 	T *data() const {
 		return _p;
 	}
@@ -856,13 +863,6 @@ private:
 	T *_p = nullptr;
 
 };
-
-template <typename T>
-using NeverFreedPointerCreator = T*(*)();
-template <typename T, typename... Args>
-inline NeverFreedPointerCreator<T> MakeNeverFreedCreator(Args&&... args) {
-	return [&args...]() -> T* { return new T(std_::forward<Args>(args)...); };
-}
 
 // This pointer is used for static non-POD variables that are allocated
 // on first use by constructor and are never automatically freed.

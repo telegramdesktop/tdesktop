@@ -86,7 +86,7 @@ bool ClickHandler::setActive(const ClickHandlerPtr &p, ClickHandlerHost *host) {
 		}
 	}
 	if (p) {
-		_active.createIfNull(MakeNeverFreedCreator<ClickHandlerPtr>());
+		_active.makeIfNull();
 		*_active = p;
 		if ((_activeHost = host)) {
 			bool emitClickHandlerActiveChanged = (!_pressed || !*_pressed || *_pressed == *_active);
