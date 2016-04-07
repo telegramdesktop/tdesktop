@@ -24,7 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "zip.h"
 
-#include "gui/style.h"
+#include "ui/style.h"
 #include "lang.h"
 #include "shortcuts.h"
 #include "application.h"

@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "gui/flatbutton.h"
+#include "ui/flatbutton.h"
 
 FlatButton::FlatButton(QWidget *parent, const QString &text, const style::flatButton &st) : Button(parent)
 , _text(text)

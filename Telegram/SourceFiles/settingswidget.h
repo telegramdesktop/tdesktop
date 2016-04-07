@@ -20,8 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "gui/flatbutton.h"
-#include "gui/flatcheckbox.h"
+#include "ui/flatbutton.h"
+#include "ui/flatcheckbox.h"
 #include "sysbuttons.h"
 
 #include <QtWidgets/QWidget>

@@ -22,7 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "layout.h"
 #include "structs.h"
-#include "gui/text.h"
+#include "ui/text.h"
 
 namespace InlineBots {
 class Result;

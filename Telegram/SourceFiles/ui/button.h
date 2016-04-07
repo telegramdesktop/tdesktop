@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <QtWidgets/QWidget>
-#include "gui/twidget.h"
+#include "ui/twidget.h"
 
 typedef enum {
 	ButtonByUser  = 0x00, // by clearState() call

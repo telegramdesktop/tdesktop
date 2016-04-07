@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "window.h"
 #include "application.h"
-#include "gui/filedialog.h"
+#include "ui/filedialog.h"
 
 namespace {
 	class SaveMsgClickHandler : public ClickHandler {

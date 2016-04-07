@@ -22,7 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "title.h"
 #include "pspecific.h"
-#include "gui/boxshadow.h"
+#include "ui/boxshadow.h"
 
 class MediaView;
 class TitleWidget;

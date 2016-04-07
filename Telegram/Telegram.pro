@@ -128,23 +128,23 @@ SOURCES += \
     ./SourceFiles/mtproto/rpc_sender.cpp \
     ./SourceFiles/mtproto/scheme_auto.cpp \
     ./SourceFiles/mtproto/session.cpp \
-    ./SourceFiles/gui/animation.cpp \
-    ./SourceFiles/gui/boxshadow.cpp \
-    ./SourceFiles/gui/button.cpp \
-    ./SourceFiles/gui/popupmenu.cpp \
-    ./SourceFiles/gui/countryinput.cpp \
-    ./SourceFiles/gui/emoji_config.cpp \
-    ./SourceFiles/gui/filedialog.cpp \
-    ./SourceFiles/gui/flatbutton.cpp \
-    ./SourceFiles/gui/flatcheckbox.cpp \
-    ./SourceFiles/gui/flatinput.cpp \
-    ./SourceFiles/gui/flatlabel.cpp \
-    ./SourceFiles/gui/flattextarea.cpp \
-    ./SourceFiles/gui/images.cpp \
-    ./SourceFiles/gui/scrollarea.cpp \
-    ./SourceFiles/gui/style_core.cpp \
-    ./SourceFiles/gui/text.cpp \
-    ./SourceFiles/gui/twidget.cpp \
+    ./SourceFiles/ui/animation.cpp \
+    ./SourceFiles/ui/boxshadow.cpp \
+    ./SourceFiles/ui/button.cpp \
+    ./SourceFiles/ui/popupmenu.cpp \
+    ./SourceFiles/ui/countryinput.cpp \
+    ./SourceFiles/ui/emoji_config.cpp \
+    ./SourceFiles/ui/filedialog.cpp \
+    ./SourceFiles/ui/flatbutton.cpp \
+    ./SourceFiles/ui/flatcheckbox.cpp \
+    ./SourceFiles/ui/flatinput.cpp \
+    ./SourceFiles/ui/flatlabel.cpp \
+    ./SourceFiles/ui/flattextarea.cpp \
+    ./SourceFiles/ui/images.cpp \
+    ./SourceFiles/ui/scrollarea.cpp \
+    ./SourceFiles/ui/style_core.cpp \
+    ./SourceFiles/ui/text.cpp \
+    ./SourceFiles/ui/twidget.cpp \
     ./GeneratedFiles/lang_auto.cpp \
     ./GeneratedFiles/style_auto.cpp \
     ./GeneratedFiles/numbers.cpp \
@@ -229,23 +229,23 @@ HEADERS += \
     ./SourceFiles/mtproto/scheme_auto.h \
     ./SourceFiles/mtproto/session.h \
     ./SourceFiles/pspecific.h \
-    ./SourceFiles/gui/animation.h \
-    ./SourceFiles/gui/boxshadow.h \
-    ./SourceFiles/gui/button.h \
-    ./SourceFiles/gui/popupmenu.h \
-    ./SourceFiles/gui/countryinput.h \
-    ./SourceFiles/gui/emoji_config.h \
-    ./SourceFiles/gui/filedialog.h \
-    ./SourceFiles/gui/flatbutton.h \
-    ./SourceFiles/gui/flatcheckbox.h \
-    ./SourceFiles/gui/flatinput.h \
-    ./SourceFiles/gui/flatlabel.h \
-    ./SourceFiles/gui/flattextarea.h \
-    ./SourceFiles/gui/images.h \
-    ./SourceFiles/gui/scrollarea.h \
-    ./SourceFiles/gui/style_core.h \
-    ./SourceFiles/gui/text.h \
-    ./SourceFiles/gui/twidget.h \
+    ./SourceFiles/ui/animation.h \
+    ./SourceFiles/ui/boxshadow.h \
+    ./SourceFiles/ui/button.h \
+    ./SourceFiles/ui/popupmenu.h \
+    ./SourceFiles/ui/countryinput.h \
+    ./SourceFiles/ui/emoji_config.h \
+    ./SourceFiles/ui/filedialog.h \
+    ./SourceFiles/ui/flatbutton.h \
+    ./SourceFiles/ui/flatcheckbox.h \
+    ./SourceFiles/ui/flatinput.h \
+    ./SourceFiles/ui/flatlabel.h \
+    ./SourceFiles/ui/flattextarea.h \
+    ./SourceFiles/ui/images.h \
+    ./SourceFiles/ui/scrollarea.h \
+    ./SourceFiles/ui/style_core.h \
+    ./SourceFiles/ui/text.h \
+    ./SourceFiles/ui/twidget.h \
     ./GeneratedFiles/lang_auto.h \
     ./GeneratedFiles/style_auto.h \
     ./GeneratedFiles/style_classes.h \

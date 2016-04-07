@@ -112,7 +112,7 @@ inline MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool 
 EntitiesInText textParseEntities(QString &text, int32 flags, bool rich = false); // changes text if (flags & TextParseMono)
 QString textApplyEntities(const QString &text, const EntitiesInText &entities);
 
-#include "gui/emoji_config.h"
+#include "ui/emoji_config.h"
 
 void emojiDraw(QPainter &p, EmojiPtr e, int x, int y);
 

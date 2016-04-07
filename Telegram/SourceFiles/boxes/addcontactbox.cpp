@@ -26,7 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "contactsbox.h"
 #include "confirmbox.h"
 #include "photocropbox.h"
-#include "gui/filedialog.h"
+#include "ui/filedialog.h"
 #include "mainwidget.h"
 #include "window.h"
 

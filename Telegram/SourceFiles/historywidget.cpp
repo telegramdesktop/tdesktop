@@ -23,8 +23,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "boxes/confirmbox.h"
 #include "boxes/photosendbox.h"
-#include "gui/filedialog.h"
-#include "gui/style.h"
+#include "ui/filedialog.h"
+#include "ui/style.h"
 #include "inline_bots/inline_bot_result.h"
 #include "lang.h"
 #include "application.h"

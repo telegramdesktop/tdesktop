@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "gui/text.h"
+#include "ui/text.h"
 
 void emojiInit();
 EmojiPtr emojiGet(uint32 code);

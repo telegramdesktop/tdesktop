@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "gui/button.h"
+#include "ui/button.h"
 
 class FlatCheckbox : public Button {
 	Q_OBJECT

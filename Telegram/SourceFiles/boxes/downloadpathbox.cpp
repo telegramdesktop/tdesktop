@@ -24,7 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 
 #include "downloadpathbox.h"
-#include "gui/filedialog.h"
+#include "ui/filedialog.h"
 #include "pspecific.h"
 
 DownloadPathBox::DownloadPathBox() : AbstractBox()

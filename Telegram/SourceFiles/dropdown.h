@@ -20,8 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "gui/twidget.h"
-#include "gui/boxshadow.h"
+#include "ui/twidget.h"
+#include "ui/boxshadow.h"
 
 class Dropdown : public TWidget {
 	Q_OBJECT

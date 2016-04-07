@@ -29,7 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/photocropbox.h"
 #include "application.h"
 #include "boxes/contactsbox.h"
-#include "gui/filedialog.h"
+#include "ui/filedialog.h"
 
 ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, PeerData *peer) : TWidget(0)
 , _profile(profile)

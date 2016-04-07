@@ -20,12 +20,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "gui/style.h"
+#include "ui/style.h"
 
-#include "gui/flatinput.h"
-#include "gui/scrollarea.h"
-#include "gui/flatbutton.h"
-#include "gui/boxshadow.h"
+#include "ui/flatinput.h"
+#include "ui/scrollarea.h"
+#include "ui/flatbutton.h"
+#include "ui/boxshadow.h"
 #include "boxes/abstractbox.h"
 
 QString findValidCode(QString fullCode);

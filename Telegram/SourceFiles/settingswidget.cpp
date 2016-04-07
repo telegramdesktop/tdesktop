@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "gui/style.h"
+#include "ui/style.h"
 #include "lang.h"
 
 #include "boxes/aboutbox.h"
@@ -40,7 +40,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/sessionsbox.h"
 #include "boxes/stickersetbox.h"
 #include "langloaderplain.h"
-#include "gui/filedialog.h"
+#include "ui/filedialog.h"
 
 #include "autoupdater.h"
 

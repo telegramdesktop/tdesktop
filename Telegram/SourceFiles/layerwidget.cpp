@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "window.h"
 #include "mainwidget.h"
-#include "gui/filedialog.h"
+#include "ui/filedialog.h"
 
 BackgroundWidget::BackgroundWidget(QWidget *parent, LayeredWidget *w) : TWidget(parent)
 , w(w)

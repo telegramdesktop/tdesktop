@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "localimageloader.h"
-#include "gui/boxshadow.h"
+#include "ui/boxshadow.h"
 
 #include "dropdown.h"
 

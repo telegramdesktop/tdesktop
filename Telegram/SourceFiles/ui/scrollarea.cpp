@@ -19,9 +19,9 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "gui/style.h"
+#include "ui/style.h"
 
-#include "gui/scrollarea.h"
+#include "ui/scrollarea.h"
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 

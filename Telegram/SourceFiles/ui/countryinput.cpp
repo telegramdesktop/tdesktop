@@ -19,12 +19,12 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "gui/style.h"
+#include "ui/style.h"
 #include "lang.h"
 
 #include "application.h"
-#include "gui/countryinput.h"
-#include "gui/scrollarea.h"
+#include "ui/countryinput.h"
+#include "ui/scrollarea.h"
 #include "boxes/contactsbox.h"
 
 #include "countries.h"

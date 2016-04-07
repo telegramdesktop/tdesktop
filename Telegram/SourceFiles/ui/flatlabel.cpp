@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 
-#include "gui/flatlabel.h"
+#include "ui/flatlabel.h"
 
 namespace {
 	TextParseOptions _labelOptions = {

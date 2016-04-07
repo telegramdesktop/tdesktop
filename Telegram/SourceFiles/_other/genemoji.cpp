@@ -1944,7 +1944,7 @@ to link the code of portions of this program with the OpenSSL library.\n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 */\n";
-			tcpp << "#include \"stdafx.h\"\n#include \"gui/emoji_config.h\"\n\n";
+			tcpp << "#include \"stdafx.h\"\n#include \"ui/emoji_config.h\"\n\n";
 
 			tcpp << "namespace {\n"; // namespace with data
 			tcpp << "\tEmojiData *emojis = 0;\n";

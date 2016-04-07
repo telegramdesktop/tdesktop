@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "localimageloader.h"
-#include "gui/filedialog.h"
+#include "ui/filedialog.h"
 #include "audio.h"
 
 #include "boxes/photosendbox.h"

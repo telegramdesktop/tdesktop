@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "flattextarea.h"
 
-#include "gui/style.h"
+#include "ui/style.h"
 #include "window.h"
 
 FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v) : QTextEdit(parent)
