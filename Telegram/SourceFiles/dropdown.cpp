@@ -1194,6 +1194,13 @@ void EmojiPanInner::step_selected(uint64 ms, bool timer) {
 	if (_animations.isEmpty()) _a_selected.stop();
 }
 
+void InlineCacheEntry::clearResults() {
+	for_const (const InlineBots::Result *result, results) {
+		delete result;
+	}
+	results.clear();
+}
+
 void EmojiPanInner::showEmojiPack(DBIEmojiTab packIndex) {
 	clearSelection(true);
 
@@ -1259,6 +1266,9 @@ int32 StickerPanInner::countHeight(bool plain) {
 	int result = 0, minLastH = plain ? 0 : (_maxHeight - st::stickerPanPadding);
 	if (_showingInlineItems) {
 		result = st::emojiPanHeader;
+		if (_switchPmButton) {
+			result += _switchPmButton->height() + st::inlineResultsSkip;
+		}
 		for (int i = 0, l = _inlineRows.count(); i < l; ++i) {
 			result += _inlineRows.at(i).height;
 		}
@@ -1320,19 +1330,23 @@ void StickerPanInner::paintInlineItems(Painter &p, const QRect &r) {
 	}
 	InlineBots::Layout::PaintContext context(getms(), false, Ui::isLayerShown() || Ui::isMediaViewShown() || _previewShown, false);
 
-	int32 top = st::emojiPanHeader;
-	int32 fromx = rtl() ? (width() - r.x() - r.width()) : r.x(), tox = rtl() ? (width() - r.x()) : (r.x() + r.width());
-	for (int32 row = 0, rows = _inlineRows.size(); row < rows; ++row) {
+	int top = st::emojiPanHeader;
+	if (_switchPmButton) {
+		top += _switchPmButton->height() + st::inlineResultsSkip;
+	}
+
+	int fromx = rtl() ? (width() - r.x() - r.width()) : r.x(), tox = rtl() ? (width() - r.x()) : (r.x() + r.width());
+	for (int row = 0, rows = _inlineRows.size(); row < rows; ++row) {
 		const InlineRow &inlineRow(_inlineRows.at(row));
 		if (top >= r.top() + r.height()) break;
 		if (top + inlineRow.height > r.top()) {
-			int32 left = st::inlineResultsLeft;
+			int left = st::inlineResultsLeft;
 			if (row == rows - 1) context.lastRow = true;
-			for (int32 col = 0, cols = inlineRow.items.size(); col < cols; ++col) {
+			for (int col = 0, cols = inlineRow.items.size(); col < cols; ++col) {
 				if (left >= tox) break;
 
 				const InlineItem *item = inlineRow.items.at(col);
-				int32 w = item->width();
+				int w = item->width();
 				if (left + w > fromx) {
 					p.translate(left, top);
 					item->paint(p, r.translated(-left, -top), 0, &context);
@@ -1713,7 +1727,7 @@ void StickerPanInner::refreshSavedGifs() {
 
 void StickerPanInner::inlineBotChanged() {
 	_setGifCommand = false;
-	refreshInlineRows(0, InlineResults(), true);
+	refreshInlineRows(nullptr, nullptr, true);
 	deleteUnusedInlineLayouts();
 }
 
@@ -1897,9 +1911,27 @@ void StickerPanInner::clearInlineRowsPanel() {
 	clearInlineRows(false);
 }
 
-int32 StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &results, bool resultsDeleted) {
+void StickerPanInner::refreshSwitchPmButton(const InlineCacheEntry *entry) {
+	if (!entry || entry->switchPmText.isEmpty()) {
+		_switchPmButton.reset();
+		_switchPmStartToken.clear();
+	} else {
+		if (!_switchPmButton) {
+			_switchPmButton = MakeUnique<BoxButton>(this, QString(), st::switchPmButton);
+			_switchPmButton->show();
+			_switchPmButton->move(st::inlineResultsLeft, st::emojiPanHeader);
+			connect(_switchPmButton.data(), SIGNAL(clicked()), this, SLOT(onSwitchPm()));
+		}
+		_switchPmButton->setText(entry->switchPmText); // doesn't perform text.toUpper()
+		_switchPmStartToken = entry->switchPmStartToken;
+	}
+	update();
+}
+
+int StickerPanInner::refreshInlineRows(UserData *bot, const InlineCacheEntry *entry, bool resultsDeleted) {
 	_inlineBot = bot;
-	if (results.isEmpty() && (!_inlineBot || _inlineBot->username != cInlineGifBotUsername())) {
+	refreshSwitchPmButton(entry);
+	if (!entry || entry->results.isEmpty() && (!_inlineBot || _inlineBot->username != cInlineGifBotUsername())) {
 		if (resultsDeleted) {
 			clearInlineRows(true);
 		}
@@ -1916,7 +1948,7 @@ int32 StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &res
 	_showingSavedGifs = false;
 	_settings.hide();
 
-	int32 count = results.size(), from = validateExistingInlineRows(results), added = 0;
+	int32 count = entry->results.size(), from = validateExistingInlineRows(entry->results), added = 0;
 
 	if (count) {
 		_inlineRows.reserve(count);
@@ -1924,7 +1956,7 @@ int32 StickerPanInner::refreshInlineRows(UserData *bot, const InlineResults &res
 		row.items.reserve(InlineItemsMaxPerRow);
 		int32 sumWidth = 0;
 		for (int32 i = from; i < count; ++i) {
-			if (inlineRowsAddItem(0, results.at(i), row, sumWidth)) {
+			if (inlineRowsAddItem(0, entry->results.at(i), row, sumWidth)) {
 				++added;
 			}
 		}
@@ -2180,14 +2212,18 @@ void StickerPanInner::updateSelected() {
 	QPoint p(mapFromGlobal(_lastMousePos));
 
 	if (_showingInlineItems) {
-		int sx = (rtl() ? width() - p.x() : p.x()) - st::inlineResultsLeft, sy = p.y() - st::emojiPanHeader;
-		int32 row = -1, col = -1, sel = -1;
+		int sx = (rtl() ? width() - p.x() : p.x()) - st::inlineResultsLeft;
+		int sy = p.y() - st::emojiPanHeader;
+		if (_switchPmButton) {
+			sy -= _switchPmButton->height() + st::inlineResultsSkip;
+		}
+		int row = -1, col = -1, sel = -1;
 		ClickHandlerPtr lnk;
 		ClickHandlerHost *lnkhost = nullptr;
 		HistoryCursorState cursor = HistoryDefaultCursorState;
 		if (sy >= 0) {
 			row = 0;
-			for (int32 rows = _inlineRows.size(); row < rows; ++row) {
+			for (int rows = _inlineRows.size(); row < rows; ++row) {
 				if (sy < _inlineRows.at(row).height) {
 					break;
 				}
@@ -2356,6 +2392,13 @@ void StickerPanInner::onUpdateInlineItems() {
 		update();
 	} else {
 		_updateInlineItems.start(_lastScrolled + 100 - ms);
+	}
+}
+
+void StickerPanInner::onSwitchPm() {
+	if (_inlineBot && _inlineBot->botInfo) {
+		_inlineBot->botInfo->startToken = _switchPmStartToken;
+		Ui::showPeerHistory(_inlineBot, ShowAndStartBotMsgId);
 	}
 }
 
@@ -3359,7 +3402,7 @@ bool EmojiPan::ui_isInlineItemBeingChosen() {
 }
 
 void EmojiPan::notify_automaticLoadSettingsChangedGif() {
-	for_const (const InlineCacheEntry *entry, _inlineCache) {
+	for_const (const internal::InlineCacheEntry *entry, _inlineCache) {
 		for_const (InlineBots::Result *l, entry->results) {
 			l->automaticLoadSettingsChangedGif();
 		}
@@ -3600,13 +3643,6 @@ bool EmojiPan::hideOnNoInlineResults() {
 	return _inlineBot && _stickersShown && s_inner.inlineResultsShown() && (_shownFromInlineQuery || _inlineBot->username != cInlineGifBotUsername());
 }
 
-void EmojiPan::InlineCacheEntry::clearResults() {
-	for_const (const InlineBots::Result *result, results) {
-		delete result;
-	}
-	results.clear();
-}
-
 void EmojiPan::inlineBotChanged() {
 	if (!_inlineBot) return;
 
@@ -3643,13 +3679,13 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 		uint64 queryId(d.vquery_id.v);
 
 		if (!adding) {
-			it = _inlineCache.insert(_inlineQuery, new InlineCacheEntry());
+			it = _inlineCache.insert(_inlineQuery, new internal::InlineCacheEntry());
 		}
 		it.value()->nextOffset = qs(d.vnext_offset);
 		if (d.has_switch_pm() && d.vswitch_pm.type() == mtpc_inlineBotSwitchPM) {
 			const auto &switchPm = d.vswitch_pm.c_inlineBotSwitchPM();
 			it.value()->switchPmText = qs(switchPm.vtext);
-			it.value()->switchPmStartParam = qs(switchPm.vstart_param);
+			it.value()->switchPmStartToken = qs(switchPm.vstart_param);
 		}
 
 		if (int count = v.size()) {
@@ -3657,7 +3693,7 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 		}
 		int added = 0;
 		for_const (const auto &res, v) {
-			if (UniquePointer<InlineBots::Result> result = InlineBots::Result::create(queryId, res)) {
+			if (auto result = InlineBots::Result::create(queryId, res)) {
 				++added;
 				it.value()->results.push_back(result.release());
 			}
@@ -3740,16 +3776,18 @@ void EmojiPan::onEmptyInlineRows() {
 }
 
 bool EmojiPan::refreshInlineRows(int32 *added) {
-	bool clear = true;
-	InlineCache::const_iterator i = _inlineCache.constFind(_inlineQuery);
+	auto i = _inlineCache.constFind(_inlineQuery);
+	const internal::InlineCacheEntry *entry = nullptr;
 	if (i != _inlineCache.cend()) {
-		clear = i.value()->results.isEmpty();
+		if (!i.value()->results.isEmpty()) {
+			entry = i.value();
+		}
 		_inlineNextOffset = i.value()->nextOffset;
 	}
-	if (clear) prepareShowHideCache();
-	int32 result = s_inner.refreshInlineRows(_inlineBot, clear ? internal::InlineResults() : i.value()->results, false);
+	if (!entry) prepareShowHideCache();
+	int32 result = s_inner.refreshInlineRows(_inlineBot, entry, false);
 	if (added) *added = result;
-	return !clear;
+	return (entry != nullptr);
 }
 
 int32 EmojiPan::showInlineRows(bool newResults) {

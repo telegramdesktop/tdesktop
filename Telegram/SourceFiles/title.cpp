@@ -108,7 +108,9 @@ void TitleWidget::paintEvent(QPaintEvent *e) {
 	if (!_cancel.isHidden()) {
 		p.setPen(st::titleTextButton.color->p);
 		p.setFont(st::titleTextButton.font->f);
-		p.drawText(st::titleMenuOffset - st::titleTextButton.width / 2, st::titleTextButton.textTop + st::titleTextButton.font->ascent, lang(lng_forward_choose));
+		bool inlineSwitchChoose = (App::main() && App::main()->selectingPeerForInlineSwitch());
+		auto chooseText = lang(inlineSwitchChoose ? lng_inline_switch_choose : lng_forward_choose);
+		p.drawText(st::titleMenuOffset - st::titleTextButton.width / 2, st::titleTextButton.textTop + st::titleTextButton.font->ascent, chooseText);
 	}
 	p.drawPixmap(st::titleIconPos, App::sprite(), st::titleIconImg);
 	if (Adaptive::OneColumn() && !_counter.isNull() && App::main()) {

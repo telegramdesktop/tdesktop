@@ -2404,6 +2404,23 @@ HistoryHider::HistoryHider(MainWidget *parent) : TWidget(parent)
 	init();
 }
 
+HistoryHider::HistoryHider(MainWidget *parent, const QString &botAndQuery) : TWidget(parent)
+, _sharedContact(0)
+, _forwardSelected(false)
+, _sendPath(false)
+, _botAndQuery(botAndQuery)
+, _send(this, lang(lng_forward_send), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
+, offered(0)
+, a_opacity(0, 1)
+, _a_appearance(animation(this, &HistoryHider::step_appearance))
+, hiding(false)
+, _forwardRequest(0)
+, toTextWidth(0)
+, shadow(st::boxShadow) {
+	init();
+}
+
 HistoryHider::HistoryHider(MainWidget *parent, const QString &url, const QString &text) : TWidget(parent)
 , _sharedContact(0)
 , _forwardSelected(false)
@@ -2427,7 +2444,7 @@ void HistoryHider::init() {
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(startHide()));
 	connect(App::wnd()->getTitle(), SIGNAL(hiderClicked()), this, SLOT(startHide()));
 
-	_chooseWidth = st::forwardFont->width(lang(lng_forward_choose));
+	_chooseWidth = st::forwardFont->width(lang(_botAndQuery.isEmpty() ? lng_forward_choose : lng_inline_switch_choose));
 
 	resizeEvent(0);
 	_a_appearance.start();
@@ -2474,7 +2491,7 @@ void HistoryHider::paintEvent(QPaintEvent *e) {
 			App::roundRect(p, (width() - w) / 2, (height() - h) / 2, w, h, st::forwardBg, ForwardCorners);
 
 			p.setPen(st::white->p);
-			p.drawText(box, lang(lng_forward_choose), QTextOption(style::al_center));
+			p.drawText(box, lang(_botAndQuery.isEmpty() ? lng_forward_choose : lng_inline_switch_choose), QTextOption(style::al_center));
 		}
 	} else {
 		p.drawPixmap(box.left(), box.top(), cacheForAnim);
@@ -2529,6 +2546,8 @@ void HistoryHider::forward() {
 			parent()->onSendPaths(offered->id);
 		} else if (!_shareUrl.isEmpty()) {
 			parent()->onShareUrl(offered->id, _shareUrl, _shareText);
+		} else if (!_botAndQuery.isEmpty()) {
+			parent()->onInlineSwitchChosen(offered->id, _botAndQuery);
 		} else {
 			parent()->onForward(offered->id, _forwardSelected ? ForwardSelectedMessages : ForwardContextMessage);
 		}
@@ -2590,6 +2609,13 @@ bool HistoryHider::offerPeer(PeerId peer) {
 		PeerId to = offered->id;
 		offered = 0;
 		if (parent()->onShareUrl(to, _shareUrl, _shareText)) {
+			startHide();
+		}
+		return false;
+	} else if (!_botAndQuery.isEmpty()) {
+		PeerId to = offered->id;
+		offered = 0;
+		if (parent()->onInlineSwitchChosen(to, _botAndQuery)) {
 			startHide();
 		}
 		return false;
@@ -2974,7 +3000,8 @@ void HistoryWidget::onDraftSave(bool delayed) {
 }
 
 void HistoryWidget::writeDrafts(HistoryDraft **msgDraft, HistoryEditDraft **editDraft) {
-	if (!msgDraft && _editMsgId) msgDraft = &_history->msgDraft;
+	HistoryDraft *historyMsgDraft = _history ? _history->msgDraft() : nullptr;
+	if (!msgDraft && _editMsgId) msgDraft = &historyMsgDraft;
 
 	bool save = _peer && (_saveDraftStart > 0);
 	_saveDraftStart = 0;
@@ -3029,13 +3056,13 @@ void HistoryWidget::writeDrafts(HistoryDraft **msgDraft, HistoryEditDraft **edit
 void HistoryWidget::writeDrafts(History *history) {
 	Local::MessageDraft localMsgDraft, localEditDraft;
 	MessageCursor msgCursor, editCursor;
-	if (history->msgDraft) {
-		localMsgDraft = Local::MessageDraft(history->msgDraft->msgId, history->msgDraft->text, history->msgDraft->previewCancelled);
-		msgCursor = history->msgDraft->cursor;
+	if (auto msgDraft = history->msgDraft()) {
+		localMsgDraft = Local::MessageDraft(msgDraft->msgId, msgDraft->text, msgDraft->previewCancelled);
+		msgCursor = msgDraft->cursor;
 	}
-	if (history->editDraft) {
-		localEditDraft = Local::MessageDraft(history->editDraft->msgId, history->editDraft->text, history->editDraft->previewCancelled);
-		editCursor = history->editDraft->cursor;
+	if (auto editDraft = history->editDraft()) {
+		localEditDraft = Local::MessageDraft(editDraft->msgId, editDraft->text, editDraft->previewCancelled);
+		editCursor = editDraft->cursor;
 	}
 	Local::writeDrafts(history->peer->id, localMsgDraft, localEditDraft);
 	Local::writeDraftCursors(history->peer->id, msgCursor, editCursor);
@@ -3197,6 +3224,25 @@ void HistoryWidget::notify_inlineKeyboardMoved(const HistoryItem *item, int oldK
 	if (_history == item->history() || _migrated == item->history()) {
 		if (int move = _list->moveScrollFollowingInlineKeyboard(item, oldKeyboardTop, newKeyboardTop)) {
 			_addToScroll = move;
+		}
+	}
+}
+
+void HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query) {
+	if (!_peer) {
+		return;
+	}
+	if (UserData *bot = _peer->asUser()) {
+		if (!bot->botInfo || !bot->botInfo->inlineReturnPeerId) {
+			return;
+		}
+		History *h = App::history(bot->botInfo->inlineReturnPeerId);
+		auto text = '@' + bot->username + ' ' + query;
+		h->setMsgDraft(MakeUnique<HistoryDraft>(text, 0, MessageCursor(text.size(), text.size(), QFIXED_MAX), false));
+		if (h == _history) {
+			applyDraft();
+		} else {
+			Ui::showPeerHistory(bot->botInfo->inlineReturnPeerId, ShowAtUnreadMsgId);
 		}
 	}
 }
@@ -3480,7 +3526,7 @@ void HistoryWidget::fastShowAtEnd(History *h) {
 }
 
 void HistoryWidget::applyDraft(bool parseLinks) {
-	HistoryDraft *draft = _history ? _history->draft() : 0;
+	HistoryDraft *draft = _history ? _history->draft() : nullptr;
 	if (!draft) {
 		setFieldText(QString());
 		_field.setFocus();
@@ -3494,12 +3540,12 @@ void HistoryWidget::applyDraft(bool parseLinks) {
 	draft->cursor.applyTo(_field);
 	_textUpdateEventsFlags = TextUpdateEventsSaveDraft | TextUpdateEventsSendTyping;
 	_previewCancelled = draft->previewCancelled;
-	if (_history->editDraft) {
-		_editMsgId = _history->editDraft->msgId;
+	if (auto editDraft = _history->editDraft()) {
+		_editMsgId = editDraft->msgId;
 		_replyToId = 0;
 	} else {
 		_editMsgId = 0;
-		_replyToId = readyToForward() ? 0 : _history->msgDraft->msgId;
+		_replyToId = readyToForward() ? 0 : _history->msgDraft()->msgId;
 	}
 	if (parseLinks) {
 		onPreviewParse();
@@ -3515,6 +3561,11 @@ void HistoryWidget::applyDraft(bool parseLinks) {
 void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool reload) {
 	MsgId wasMsgId = _showAtMsgId;
 	History *wasHistory = _history;
+
+	bool startBot = (showAtMsgId == ShowAndStartBotMsgId);
+	if (startBot) {
+		showAtMsgId = ShowAtTheEndMsgId;
+	}
 
 	if (_history) {
 		if (_peer->id == peerId && !reload) {
@@ -3555,6 +3606,13 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 			App::main()->topBar()->update();
 			update();
+
+			if (startBot && _peer->isUser() && _peer->asUser()->botInfo) {
+				if (wasHistory) _peer->asUser()->botInfo->inlineReturnPeerId = wasHistory->peer->id;
+				onBotStart();
+				_history->clearMsgDraft();
+				applyDraft();
+			}
 			return;
 		}
 		if (_history->mySendActions.contains(SendActionTyping)) {
@@ -3571,21 +3629,23 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 	if (_history) {
 		if (_editMsgId) {
-			_history->setEditDraft(new HistoryEditDraft(_field, _editMsgId, _previewCancelled, _saveEditMsgRequestId));
+			_history->setEditDraft(MakeUnique<HistoryEditDraft>(_field, _editMsgId, _previewCancelled, _saveEditMsgRequestId));
 		} else {
 			if (_replyToId || !_field.getLastText().isEmpty()) {
-				_history->setMsgDraft(new HistoryDraft(_field, _replyToId, _previewCancelled));
+				_history->setMsgDraft(MakeUnique<HistoryDraft>(_field, _replyToId, _previewCancelled));
 			} else {
-				_history->setMsgDraft(nullptr);
+				_history->clearMsgDraft();
 			}
-			_history->setEditDraft(nullptr);
+			_history->clearEditDraft();
 		}
 		if (_migrated) {
-			_migrated->setMsgDraft(nullptr); // use migrated draft only once
-			_migrated->setEditDraft(nullptr);
+			_migrated->clearEditDraft(); // use migrated draft only once
+			_migrated->clearEditDraft();
 		}
 
-		writeDrafts(&_history->msgDraft, &_history->editDraft);
+		auto msgDraft = _history->msgDraft();
+		auto editDraft = _history->editDraft();
+		writeDrafts(&msgDraft, &editDraft);
 
 		_history->showAtMsgId = _showAtMsgId;
 
@@ -3618,7 +3678,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	_showAtMsgId = showAtMsgId;
 	_histInited = false;
 
-	_peer = peerId ? App::peer(peerId) : 0;
+	_peer = peerId ? App::peer(peerId) : nullptr;
 	_channel = _peer ? peerToChannel(_peer->id) : NoChannel;
 	_canSendMessages = canSendMessages(_peer);
 	if (_peer && _peer->isChannel()) {
@@ -3695,14 +3755,8 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		Local::readDraftsWithCursors(_history);
 		if (_migrated) {
 			Local::readDraftsWithCursors(_migrated);
-			_migrated->setEditDraft(nullptr);
-			if (_migrated->msgDraft && !_migrated->msgDraft->text.isEmpty()) {
-				_migrated->msgDraft->msgId = 0; // edit and reply to drafts can't migrate
-				if (!_history->msgDraft) {
-					_history->setMsgDraft(new HistoryDraft(*_migrated->msgDraft));
-				}
-			}
-			_migrated->setMsgDraft(nullptr);
+			_migrated->clearEditDraft();
+			_history->takeMsgDraft(_migrated);
 		}
 		applyDraft(false);
 
@@ -3713,6 +3767,11 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 		connect(&_scroll, SIGNAL(geometryChanged()), _list, SLOT(onParentGeometryChanged()));
 		connect(&_scroll, SIGNAL(scrolled()), _list, SLOT(onUpdateSelected()));
+
+		if (startBot && _peer->isUser() && _peer->asUser()->botInfo) {
+			if (wasHistory) _peer->asUser()->botInfo->inlineReturnPeerId = wasHistory->peer->id;
+			onBotStart();
+		}
 	} else {
 		setFieldText(QString());
 		doneShow();
@@ -4636,9 +4695,11 @@ void HistoryWidget::saveEditMsgDone(History *history, const MTPUpdates &updates,
 		_saveEditMsgRequestId = 0;
 		cancelEdit();
 	}
-	if (history->editDraft && history->editDraft->saveRequest == req) {
-		history->setEditDraft(nullptr);
-		writeDrafts(history);
+	if (auto editDraft = history->editDraft()) {
+		if (editDraft->saveRequest == req) {
+			history->clearEditDraft();
+			writeDrafts(history);
+		}
 	}
 }
 
@@ -4647,8 +4708,10 @@ bool HistoryWidget::saveEditMsgFail(History *history, const RPCError &error, mtp
 	if (req == _saveEditMsgRequestId) {
 		_saveEditMsgRequestId = 0;
 	}
-	if (history->editDraft && history->editDraft->saveRequest == req) {
-		history->editDraft->saveRequest = 0;
+	if (auto editDraft = history->editDraft()) {
+		if (editDraft->saveRequest == req) {
+			editDraft->saveRequest = 0;
+		}
 	}
 
 	QString err = error.type();
@@ -7105,10 +7168,10 @@ void HistoryWidget::onReplyToMessage() {
 	App::main()->cancelForwarding();
 
 	if (_editMsgId) {
-		if (!_history->msgDraft) {
-			_history->setMsgDraft(new HistoryDraft(QString(), to->id, MessageCursor(), false));
+		if (auto msgDraft = _history->msgDraft()) {
+			msgDraft->msgId = to->id;
 		} else {
-			_history->msgDraft->msgId = to->id;
+			_history->setMsgDraft(MakeUnique<HistoryDraft>(QString(), to->id, MessageCursor(), false));
 		}
 	} else {
 		_replyEditMsg = to;
@@ -7142,13 +7205,13 @@ void HistoryWidget::onEditMessage() {
 		delete box;
 
 		if (_replyToId || !_field.getLastText().isEmpty()) {
-			_history->setMsgDraft(new HistoryDraft(_field, _replyToId, _previewCancelled));
+			_history->setMsgDraft(MakeUnique<HistoryDraft>(_field, _replyToId, _previewCancelled));
 		} else {
-			_history->setMsgDraft(nullptr);
+			_history->clearMsgDraft();
 		}
 
 		QString text(textApplyEntities(to->originalText(), to->originalEntities()));
-		_history->setEditDraft(new HistoryEditDraft(text, to->id, MessageCursor(text.size(), text.size(), QFIXED_MAX), false));
+		_history->setEditDraft(MakeUnique<HistoryEditDraft>(text, to->id, MessageCursor(text.size(), text.size(), QFIXED_MAX), false));
 		applyDraft(false);
 
 		_previewData = 0;
@@ -7249,8 +7312,10 @@ bool HistoryWidget::lastForceReplyReplied(const FullMsgId &replyTo) const {
 }
 
 void HistoryWidget::cancelReply(bool lastKeyboardUsed) {
-	bool wasReply = _replyToId || (_history && _history->msgDraft && _history->msgDraft->msgId);
+	bool wasReply = false; ;
 	if (_replyToId) {
+		wasReply = true;
+
 		_replyEditMsg = 0;
 		_replyToId = 0;
 		mouseMoveEvent(0);
@@ -7263,11 +7328,13 @@ void HistoryWidget::cancelReply(bool lastKeyboardUsed) {
 
 		resizeEvent(0);
 		update();
-	} else if (wasReply) {
-		if (_history->msgDraft->text.isEmpty()) {
-			_history->setMsgDraft(nullptr);
-		} else {
-			_history->msgDraft->msgId = 0;
+	} else if (auto msgDraft = (_history ? _history->msgDraft() : nullptr)) {
+		if (msgDraft->msgId) {
+			if (msgDraft->text.isEmpty()) {
+				_history->clearMsgDraft();
+			} else {
+				msgDraft->msgId = 0;
+			}
 		}
 	}
 	if (wasReply) {
@@ -7287,7 +7354,7 @@ void HistoryWidget::cancelEdit() {
 
 	_editMsgId = 0;
 	_replyEditMsg = 0;
-	_history->setEditDraft(nullptr);
+	_history->clearEditDraft();
 	applyDraft();
 
 	if (_saveEditMsgRequestId) {

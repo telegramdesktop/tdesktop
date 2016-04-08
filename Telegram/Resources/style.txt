@@ -1090,9 +1090,9 @@ msgBotKbFont: semiboldFont;
 msgBotKbOverOpacity: 0.1;
 msgBotKbIconPadding: 2px;
 msgBotKbUrlIcon: sprite(188px, 338px, 10px, 10px);
-msgBotKbCallbackIcon: msgBotKbUrlIcon;
-msgBotKbRequestPhoneIcon: msgBotKbUrlIcon;
-msgBotKbRequestLocationIcon: msgBotKbUrlIcon;
+//msgBotKbRequestPhoneIcon: msgBotKbUrlIcon;
+//msgBotKbRequestLocationIcon: msgBotKbUrlIcon;
+msgBotKbSwitchPmIcon: sprite(188px, 348px, 10px, 10px);
 msgBotKbButton: botKeyboardButton {
 	margin: 5px;
 	padding: 10px;
@@ -2124,18 +2124,23 @@ botKbButton: botKeyboardButton {
 	padding: 10px;
 	height: 38px;
 	textTop: 9px;
-	downTextTop: 10px;
+	downTextTop: 9px;
 }
 botKbTinyButton: botKeyboardButton {
 	margin: 4px;
 	padding: 3px;
 	height: 25px;
 	textTop: 2px;
-	downTextTop: 3px;
+	downTextTop: 2px;
 }
 botKbScroll: flatScroll(solidScroll) {
 	deltax: 3px;
 	width: 10px;
+}
+switchPmButton: BoxButton(defaultBoxButton) {
+	width: 320px;
+	height: 34px;
+	textTop: 7px;
 }
 
 minPhotoSize: 100px;

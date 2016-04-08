@@ -83,6 +83,14 @@ namespace App {
 			box->connect(box, SIGNAL(confirmed(PeerData*)), App::main(), SLOT(onSharePhoneWithBot(PeerData*)));
 			Ui::showLayer(box);
 		} break;
+
+		case HistoryMessageReplyMarkup::Button::SwitchInline: {
+			if (MainWidget *m = App::main()) {
+				if (UserData *bot = msg->history()->peer->asUser()) {
+					m->inlineSwitchLayer('@' + bot->username + ' ' + QString::fromUtf8(button->data));
+				}
+			}
+		} break;
 		}
 	}
 
@@ -263,6 +271,12 @@ namespace Notify {
 	void inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop) {
 		if (MainWidget *m = App::main()) {
 			m->notify_inlineKeyboardMoved(item, oldKeyboardTop, newKeyboardTop);
+		}
+	}
+
+	void switchInlineBotButtonReceived(const QString &query) {
+		if (MainWidget *m = App::main()) {
+			m->notify_switchInlineBotButtonReceived(query);
 		}
 	}
 

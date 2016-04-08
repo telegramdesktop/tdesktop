@@ -258,32 +258,9 @@ void FakeDialogRow::paint(Painter &p, int32 w, bool act, bool sel, bool onlyBack
 	history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
-History::History(const PeerId &peerId) : width(0), height(0)
-, unreadCount(0)
-, inboxReadBefore(1)
-, outboxReadBefore(1)
-, showFrom(nullptr)
-, unreadBar(nullptr)
-, peer(App::peer(peerId))
-, oldLoaded(false)
-, newLoaded(true)
-, lastMsg(0)
-, msgDraft(0)
-, editDraft(0)
-, showAtMsgId(ShowAtUnreadMsgId)
-, scrollTopItem(nullptr)
-, scrollTopOffset(0)
-, mute(isNotifyMuted(peer->notify))
-, lastKeyboardInited(false)
-, lastKeyboardUsed(false)
-, lastKeyboardId(0)
-, lastKeyboardHiddenId(0)
-, lastKeyboardFrom(0)
-, sendRequestId(0)
-, textCachedFor(0)
-, lastItemTextCache(st::dlgRichMinWidth)
-, typingText(st::dlgRichMinWidth)
-, _sortKeyInChatList(0) {
+History::History(const PeerId &peerId)
+: peer(App::peer(peerId))
+, mute(isNotifyMuted(peer->notify)) {
 	if (peer->isChannel() || (peer->isUser() && peer->asUser()->botInfo)) {
 		outboxReadBefore = INT_MAX;
 	}
@@ -1191,11 +1168,40 @@ void Histories::remove(const PeerId &peer) {
 	}
 }
 
+namespace {
+
+void checkForSwitchInlineButton(HistoryItem *item) {
+	if (item->out() || !item->hasSwitchInlineButton()) {
+		return;
+	}
+	if (UserData *user = item->history()->peer->asUser()) {
+		if (!user->botInfo || !user->botInfo->inlineReturnPeerId) {
+			return;
+		}
+		if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
+			for_const (const auto &row, markup->rows) {
+				for_const (const auto &button, row) {
+					if (button.type == HistoryMessageReplyMarkup::Button::SwitchInline) {
+						Notify::switchInlineBotButtonReceived(QString::fromUtf8(button.data));
+						return;
+					}
+				}
+			}
+		}
+	}
+}
+
+} // namespace
+
 HistoryItem *Histories::addNewMessage(const MTPMessage &msg, NewMessageType type) {
 	PeerId peer = peerFromMessage(msg);
-	if (!peer) return 0;
+	if (!peer) return nullptr;
 
-	return findOrInsert(peer, 0, 0)->addNewMessage(msg, type);
+	HistoryItem *result = findOrInsert(peer, 0, 0)->addNewMessage(msg, type);
+	if (result && type == NewMessageUnread) {
+		checkForSwitchInlineButton(result);
+	}
+	return result;
 }
 
 HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction, bool detachExistingItem) {
@@ -2614,8 +2620,6 @@ void History::removeBlock(HistoryBlock *block) {
 
 History::~History() {
 	clearOnDestroy();
-	deleteAndMark(msgDraft);
-	deleteAndMark(editDraft);
 }
 
 int HistoryBlock::resizeGetHeight(int newWidth, bool resizeAllItems) {
@@ -3047,6 +3051,7 @@ void HistoryMessageReplyMarkup::createFromButtonRows(const QVector<MTPKeyboardBu
 					case mtpc_keyboardButtonSwitchInline: {
 						const auto &buttonData(button.c_keyboardButtonSwitchInline());
 						buttonRow.push_back({ Button::SwitchInline, qs(buttonData.vtext), qba(buttonData.vquery), 0 });
+						flags |= MTPDreplyKeyboardMarkup_ClientFlag::f_has_switch_inline_button;
 					} break;
 					}
 				}
@@ -6699,11 +6704,13 @@ void HistoryMessage::KeyboardStyle::paintButtonBg(Painter &p, const QRect &rect,
 }
 
 void HistoryMessage::KeyboardStyle::paintButtonIcon(Painter &p, const QRect &rect, HistoryMessageReplyMarkup::Button::Type type) const {
+	using Button = HistoryMessageReplyMarkup::Button;
 	style::sprite sprite;
 	switch (type) {
-	case HistoryMessageReplyMarkup::Button::Url: sprite = st::msgBotKbUrlIcon; break;
-	case HistoryMessageReplyMarkup::Button::RequestPhone: sprite = st::msgBotKbRequestPhoneIcon; break;
-	case HistoryMessageReplyMarkup::Button::RequestLocation: sprite = st::msgBotKbRequestLocationIcon; break;
+	case Button::Url: sprite = st::msgBotKbUrlIcon; break;
+//	case Button::RequestPhone: sprite = st::msgBotKbRequestPhoneIcon; break;
+//	case Button::RequestLocation: sprite = st::msgBotKbRequestLocationIcon; break;
+	case Button::SwitchInline: sprite = st::msgBotKbSwitchPmIcon; break;
 	}
 	if (!sprite.isEmpty()) {
 		p.drawSprite(rect.x() + rect.width() - sprite.pxWidth() - st::msgBotKbIconPadding, rect.y() + st::msgBotKbIconPadding, sprite);
@@ -6716,12 +6723,14 @@ void HistoryMessage::KeyboardStyle::paintButtonLoading(Painter &p, const QRect &
 }
 
 int HistoryMessage::KeyboardStyle::minButtonWidth(HistoryMessageReplyMarkup::Button::Type type) const {
+	using Button = HistoryMessageReplyMarkup::Button;
 	int result = 2 * buttonPadding(), iconWidth = 0;
 	switch (type) {
-	case HistoryMessageReplyMarkup::Button::Url: iconWidth = st::msgBotKbUrlIcon.pxWidth(); break;
-	case HistoryMessageReplyMarkup::Button::RequestPhone: iconWidth = st::msgBotKbRequestPhoneIcon.pxWidth(); break;
-	case HistoryMessageReplyMarkup::Button::RequestLocation: iconWidth = st::msgBotKbRequestLocationIcon.pxWidth(); break;
-	case HistoryMessageReplyMarkup::Button::Callback: iconWidth = st::msgInvSendingImg.pxWidth(); break;
+	case Button::Url: iconWidth = st::msgBotKbUrlIcon.pxWidth(); break;
+	//case Button::RequestPhone: iconWidth = st::msgBotKbRequestPhoneIcon.pxWidth(); break;
+	//case Button::RequestLocation: iconWidth = st::msgBotKbRequestLocationIcon.pxWidth(); break;
+	case Button::SwitchInline: iconWidth = st::msgBotKbSwitchPmIcon.pxWidth(); break;
+	case Button::Callback: iconWidth = st::msgInvSendingImg.pxWidth(); break;
 	}
 	if (iconWidth > 0) {
 		result = std::min(result, iconWidth + 2 * int(st::msgBotKbIconPadding));
@@ -6855,6 +6864,9 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	}
 	if (auto markup = Get<HistoryMessageReplyMarkup>()) {
 		markup->create(*config.markup);
+		if (markup->flags & MTPDreplyKeyboardMarkup_ClientFlag::f_has_switch_inline_button) {
+			_flags |= MTPDmessage_ClientFlag::f_has_switch_inline_button;
+		}
 	}
 	initTime();
 }

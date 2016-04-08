@@ -2441,14 +2441,14 @@ namespace Local {
 		_readDraftCursors(peer, msgCursor, editCursor);
 
 		if (msgText.isEmpty() && !msgReplyTo) {
-			h->setMsgDraft(nullptr);
+			h->clearMsgDraft();
 		} else {
-			h->setMsgDraft(new HistoryDraft(msgText, msgReplyTo, msgCursor, msgPreviewCancelled));
+			h->setMsgDraft(MakeUnique<HistoryDraft>(msgText, msgReplyTo, msgCursor, msgPreviewCancelled));
 		}
 		if (!editMsgId) {
-			h->setEditDraft(nullptr);
+			h->clearEditDraft();
 		} else {
-			h->setEditDraft(new HistoryEditDraft(editText, editMsgId, editCursor, editPreviewCancelled));
+			h->setEditDraft(MakeUnique<HistoryEditDraft>(editText, editMsgId, editCursor, editPreviewCancelled));
 		}
 	}
 

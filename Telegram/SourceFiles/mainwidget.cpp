@@ -508,8 +508,26 @@ bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QStrin
 		return false;
 	}
 	History *h = App::history(peer);
-	h->setMsgDraft(new HistoryDraft(url + '\n' + text, 0, MessageCursor(url.size() + 1, url.size() + 1 + text.size(), QFIXED_MAX), false));
-	h->setEditDraft(nullptr);
+	h->setMsgDraft(MakeUnique<HistoryDraft>(url + '\n' + text, 0, MessageCursor(url.size() + 1, url.size() + 1 + text.size(), QFIXED_MAX), false));
+	h->clearEditDraft();
+	bool opened = history.peer() && (history.peer()->id == peer);
+	if (opened) {
+		history.applyDraft();
+	} else {
+		Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
+	}
+	return true;
+}
+
+bool MainWidget::onInlineSwitchChosen(const PeerId &peer, const QString &botAndQuery) {
+	PeerData *p = App::peer(peer);
+	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
+		Ui::showLayer(new InformBox(lang(lng_inline_switch_cant)));
+		return false;
+	}
+	History *h = App::history(peer);
+	h->setMsgDraft(MakeUnique<HistoryDraft>(botAndQuery, 0, MessageCursor(botAndQuery.size(), botAndQuery.size(), QFIXED_MAX), false));
+	h->clearEditDraft();
 	bool opened = history.peer() && (history.peer()->id == peer);
 	if (opened) {
 		history.applyDraft();
@@ -752,6 +770,10 @@ void MainWidget::notify_inlineKeyboardMoved(const HistoryItem *item, int oldKeyb
 	history.notify_inlineKeyboardMoved(item, oldKeyboardTop, newKeyboardTop);
 }
 
+void MainWidget::notify_switchInlineBotButtonReceived(const QString &query) {
+	history.notify_switchInlineBotButtonReceived(query);
+}
+
 void MainWidget::notify_userIsBotChanged(UserData *bot) {
 	history.notify_userIsBotChanged(bot);
 }
@@ -931,8 +953,16 @@ void MainWidget::shareUrlLayer(const QString &url, const QString &text) {
 	hiderLayer(new HistoryHider(this, url, text));
 }
 
+void MainWidget::inlineSwitchLayer(const QString &botAndQuery) {
+	hiderLayer(new HistoryHider(this, botAndQuery));
+}
+
 bool MainWidget::selectingPeer(bool withConfirm) {
 	return _hider ? (withConfirm ? _hider->withConfirm() : true) : false;
+}
+
+bool MainWidget::selectingPeerForInlineSwitch() {
+	return selectingPeer() ? !_hider->botAndQuery().isEmpty() : false;
 }
 
 void MainWidget::offerPeer(PeerId peer) {

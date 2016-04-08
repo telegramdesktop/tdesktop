@@ -303,14 +303,17 @@ public:
 	void deleteLayer(int32 selectedCount = -1); // -1 - context item, else selected, -2 - cancel upload
 	void shareContactLayer(UserData *contact);
 	void shareUrlLayer(const QString &url, const QString &text);
+	void inlineSwitchLayer(const QString &botAndQuery);
 	void hiderLayer(HistoryHider *h);
 	void noHider(HistoryHider *destroyed);
 	bool onForward(const PeerId &peer, ForwardWhatMessages what);
 	bool onShareUrl(const PeerId &peer, const QString &url, const QString &text);
+	bool onInlineSwitchChosen(const PeerId &peer, const QString &botAndQuery);
 	void onShareContact(const PeerId &peer, UserData *contact);
 	void onSendPaths(const PeerId &peer);
 	void onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data);
 	bool selectingPeer(bool withConfirm = false);
+	bool selectingPeerForInlineSwitch();
 	void offerPeer(PeerId peer);
 	void dialogsActivate();
 
@@ -454,6 +457,7 @@ public:
 	void notify_inlineBotRequesting(bool requesting);
 	void notify_replyMarkupUpdated(const HistoryItem *item);
 	void notify_inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
+	void notify_switchInlineBotButtonReceived(const QString &query);
 	void notify_userIsBotChanged(UserData *bot);
 	void notify_userIsContactChanged(UserData *user, bool fromThisApp);
 	void notify_migrateUpdated(PeerData *peer);

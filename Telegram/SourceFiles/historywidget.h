@@ -398,6 +398,7 @@ public:
 	HistoryHider(MainWidget *parent, UserData *sharedContact); // share contact
 	HistoryHider(MainWidget *parent); // send path from command line argument
 	HistoryHider(MainWidget *parent, const QString &url, const QString &text); // share url
+	HistoryHider(MainWidget *parent, const QString &botAndQuery); // inline switch button handler
 
 	void step_appearance(float64 ms, bool timer);
 	bool withConfirm() const;
@@ -409,6 +410,9 @@ public:
 
 	bool offerPeer(PeerId peer);
 	QString offeredText() const;
+	QString botAndQuery() const {
+		return _botAndQuery;
+	}
 
 	bool wasOffered() const;
 
@@ -434,6 +438,7 @@ private:
 	bool _forwardSelected, _sendPath;
 
 	QString _shareUrl, _shareText;
+	QString _botAndQuery;
 
 	BoxButton _send, _cancel;
 	PeerData *offered;
@@ -685,6 +690,7 @@ public:
 	void notify_inlineBotRequesting(bool requesting);
 	void notify_replyMarkupUpdated(const HistoryItem *item);
 	void notify_inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
+	void notify_switchInlineBotButtonReceived(const QString &query);
 	void notify_userIsBotChanged(UserData *user);
 	void notify_migrateUpdated(PeerData *peer);
 	void notify_clipStopperHidden(ClipStopperType type);

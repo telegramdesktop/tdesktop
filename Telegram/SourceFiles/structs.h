@@ -156,16 +156,17 @@ inline bool operator<(const FullMsgId &a, const FullMsgId &b) {
 	return a.channel < b.channel;
 }
 
-static const MsgId StartClientMsgId = -0x7FFFFFFF;
-static const MsgId EndClientMsgId = -0x40000000;
-inline bool isClientMsgId(MsgId id) {
+constexpr const MsgId StartClientMsgId = -0x7FFFFFFF;
+constexpr const MsgId EndClientMsgId = -0x40000000;
+inline constexpr bool isClientMsgId(MsgId id) {
 	return id >= StartClientMsgId && id < EndClientMsgId;
 }
-static const MsgId ShowAtTheEndMsgId = -0x40000000;
-static const MsgId SwitchAtTopMsgId = -0x3FFFFFFF;
-static const MsgId ShowAtProfileMsgId = -0x3FFFFFFE;
-static const MsgId ServerMaxMsgId = 0x3FFFFFFF;
-static const MsgId ShowAtUnreadMsgId = 0;
+constexpr const MsgId ShowAtTheEndMsgId = -0x40000000;
+constexpr const MsgId SwitchAtTopMsgId = -0x3FFFFFFF;
+constexpr const MsgId ShowAtProfileMsgId = -0x3FFFFFFE;
+constexpr const MsgId ShowAndStartBotMsgId = -0x3FFFFFD;
+constexpr const MsgId ServerMaxMsgId = 0x3FFFFFFF;
+constexpr const MsgId ShowAtUnreadMsgId = 0;
 
 struct NotifySettings {
 	NotifySettings() : flags(MTPDpeerNotifySettings::Flag::f_show_previews), mute(0), sound("default") {
@@ -373,16 +374,16 @@ private:
 };
 
 struct BotInfo {
-	BotInfo() : inited(false), readsAllHistory(false), cantJoinGroups(false), version(0), text(st::msgMinWidth) {
-	}
-	bool inited;
-	bool readsAllHistory, cantJoinGroups;
-	int version;
+	bool inited = false;
+	bool readsAllHistory = false;
+	bool cantJoinGroups = false;
+	int version = 0;
 	QString description, inlinePlaceholder;
 	QList<BotCommand> commands;
-	Text text; // description
+	Text text = Text{ int(st::msgMinWidth) }; // description
 
 	QString startToken, startGroupToken;
+	PeerId inlineReturnPeerId = 0;
 };
 
 enum UserBlockedStatus {

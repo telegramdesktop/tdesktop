@@ -1024,8 +1024,11 @@ enum class MTPDmessage_ClientFlag : int32 {
 	// message was sent from inline bot, need to re-set media when sent
 	f_from_inline_bot = (1 << 24),
 
+	// message has a switch inline keyboard button, need to return to inline
+	f_has_switch_inline_button = (1 << 23),
+
 	// update this when adding new client side flags
-	MIN_FIELD = (1 << 24),
+	MIN_FIELD = (1 << 23),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDmessage)
 
@@ -1039,8 +1042,11 @@ enum class MTPDreplyKeyboardMarkup_ClientFlag : int32 {
 	// markup keyboard is inline
 	f_inline = (1 << 28),
 
+	// markup has a switch inline keyboard button
+	f_has_switch_inline_button = (1 << 27),
+
 	// update this when adding new client side flags
-	MIN_FIELD = (1 << 28),
+	MIN_FIELD = (1 << 27),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDreplyKeyboardMarkup)
 

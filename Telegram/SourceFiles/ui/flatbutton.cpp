@@ -348,6 +348,23 @@ BoxButton::BoxButton(QWidget *parent, const QString &text, const style::BoxButto
 , a_textBgOverOpacity(0)
 , a_textFg(st.textFg->c)
 , _a_over(animation(this, &BoxButton::step_over)) {
+	resizeToText();
+
+	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
+
+	setCursor(style::cur_pointer);
+
+	setAttribute(Qt::WA_OpaquePaintEvent);
+}
+
+void BoxButton::setText(const QString &text) {
+	_text = text;
+	_fullText = text;
+	_textWidth = _st.font->width(_text);
+	resizeToText();
+}
+
+void BoxButton::resizeToText() {
 	if (_st.width <= 0) {
 		resize(_textWidth - _st.width, _st.height);
 	} else {
@@ -357,12 +374,6 @@ BoxButton::BoxButton(QWidget *parent, const QString &text, const style::BoxButto
 		}
 		resize(_st.width, _st.height);
 	}
-
-	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
-
-	setCursor(style::cur_pointer);
-
-	setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
 void BoxButton::paintEvent(QPaintEvent *e) {

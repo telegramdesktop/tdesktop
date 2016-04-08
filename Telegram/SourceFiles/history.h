@@ -351,31 +351,53 @@ public:
 	typedef QList<HistoryBlock*> Blocks;
 	Blocks blocks;
 
-	int32 width, height, msgCount, unreadCount;
-	int32 inboxReadBefore, outboxReadBefore;
-	HistoryItem *showFrom;
-	HistoryItem *unreadBar;
+	int width = 0;
+	int height = 0;
+	int32 msgCount = 0;
+	int32 unreadCount = 0;
+	MsgId inboxReadBefore = 1;
+	MsgId outboxReadBefore = 1;
+	HistoryItem *showFrom = nullptr;
+	HistoryItem *unreadBar = nullptr;
 
 	PeerData *peer;
-	bool oldLoaded, newLoaded;
-	HistoryItem *lastMsg;
+	bool oldLoaded = false;
+	bool newLoaded = true;
+	HistoryItem *lastMsg = nullptr;
 	QDateTime lastMsgDate;
 
 	typedef QList<HistoryItem*> NotifyQueue;
 	NotifyQueue notifies;
 
-	HistoryDraft *msgDraft;
-	HistoryEditDraft *editDraft;
+	HistoryDraft *msgDraft() {
+		return _msgDraft.data();
+	}
+	HistoryEditDraft *editDraft() {
+		return _editDraft.data();
+	}
+	void setMsgDraft(UniquePointer<HistoryDraft> &&draft) {
+		_msgDraft = std_::move(draft);
+	}
+	void takeMsgDraft(History *from) {
+		if (auto &draft = from->_msgDraft) {
+			if (!draft->text.isEmpty() && !_msgDraft) {
+				_msgDraft = std_::move(draft);
+				_msgDraft->msgId = 0; // edit and reply to drafts can't migrate
+			}
+			from->clearMsgDraft();
+		}
+	}
+	void setEditDraft(UniquePointer<HistoryEditDraft> &&draft) {
+		_editDraft = std_::move(draft);
+	}
+	void clearMsgDraft() {
+		_msgDraft.clear();
+	}
+	void clearEditDraft() {
+		_editDraft.clear();
+	}
 	HistoryDraft *draft() {
-		return editDraft ? editDraft : msgDraft;
-	}
-	void setMsgDraft(HistoryDraft *draft) {
-		if (msgDraft) delete msgDraft;
-		msgDraft = draft;
-	}
-	void setEditDraft(HistoryEditDraft *draft) {
-		if (editDraft) delete editDraft;
-		editDraft = draft;
+		return _editDraft ? editDraft() : msgDraft();
 	}
 
 	// some fields below are a property of a currently displayed instance of this
@@ -383,13 +405,13 @@ public:
 public:
 	// we save the last showAtMsgId to restore the state when switching
 	// between different conversation histories
-	MsgId showAtMsgId;
+	MsgId showAtMsgId = ShowAtUnreadMsgId;
 
 	// we save a pointer of the history item at the top of the displayed window
 	// together with an offset from the window top to the top of this message
 	// resulting scrollTop = top(scrollTopItem) + scrollTopOffset
-	HistoryItem *scrollTopItem;
-	int scrollTopOffset;
+	HistoryItem *scrollTopItem = nullptr;
+	int scrollTopOffset = 0;
 	void forgetScrollState() {
 		scrollTopItem = nullptr;
 	}
@@ -412,21 +434,23 @@ public:
 
 	bool mute;
 
-	bool lastKeyboardInited, lastKeyboardUsed;
-	MsgId lastKeyboardId, lastKeyboardHiddenId;
-	PeerId lastKeyboardFrom;
+	bool lastKeyboardInited = false;
+	bool lastKeyboardUsed = false;
+	MsgId lastKeyboardId = 0;
+	MsgId lastKeyboardHiddenId = 0;
+	PeerId lastKeyboardFrom = 0;
 
-	mtpRequestId sendRequestId;
+	mtpRequestId sendRequestId = 0;
 
-	mutable const HistoryItem *textCachedFor; // cache
-	mutable Text lastItemTextCache;
+	mutable const HistoryItem *textCachedFor = nullptr; // cache
+	mutable Text lastItemTextCache = Text{ int(st::dlgRichMinWidth) };
 
 	typedef QMap<UserData*, uint64> TypingUsers;
 	TypingUsers typing;
 	typedef QMap<UserData*, SendAction> SendActionUsers;
 	SendActionUsers sendActions;
 	QString typingStr;
-	Text typingText;
+	Text typingText = Text{ int(st::dlgRichMinWidth) };
 	uint32 typingDots;
 	QMap<SendActionType, uint64> mySendActions;
 
@@ -536,7 +560,7 @@ private:
 		t_assert(it != _chatListLinks.cend());
 		return it.value();
 	}
-	uint64 _sortKeyInChatList; // like ((unixtime) << 32) | (incremented counter)
+	uint64 _sortKeyInChatList = 0; // like ((unixtime) << 32) | (incremented counter)
 
 	typedef QMap<MsgId, NullType> MediaOverviewIds;
 	MediaOverviewIds overviewIds[OverviewCount];
@@ -554,6 +578,9 @@ private:
 	// Creates if necessary a new block for adding item.
 	// Depending on isBuildingFrontBlock() gets front or back block.
 	HistoryBlock *prepareBlockForAddingItem();
+
+	UniquePointer<HistoryDraft> _msgDraft;
+	UniquePointer<HistoryEditDraft> _editDraft;
 
  };
 
@@ -1424,6 +1451,9 @@ public:
 		// optimization: don't create markup component for the case
 		// MTPDreplyKeyboardHide with flags = 0, assume it has f_zero flag
 		return qFlags(MTPDreplyKeyboardMarkup_ClientFlag::f_zero);
+	}
+	bool hasSwitchInlineButton() const {
+		return _flags & MTPDmessage_ClientFlag::f_has_switch_inline_button;
 	}
 	bool hasTextLinks() const {
 		return _flags & MTPDmessage_ClientFlag::f_has_text_links;
