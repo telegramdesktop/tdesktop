@@ -2373,7 +2373,7 @@ MsgId History::msgIdForRead() const {
 }
 
 int History::resizeGetHeight(int newWidth) {
-	bool resizeAllItems = (_flags | Flag::f_pending_resize) || (width != newWidth);
+	bool resizeAllItems = (_flags & Flag::f_pending_resize) || (width != newWidth);
 
 	if (!resizeAllItems && !hasPendingResizedItems()) {
 		return height;
@@ -2758,7 +2758,7 @@ public:
 	// Note: it is possible that we will point to the different button
 	// than the one was used when constructing the handler, but not a big deal.
 	const HistoryMessageReplyMarkup::Button *getButton() const {
-		if (auto *markup = _item->Get<HistoryMessageReplyMarkup>()) {
+		if (auto markup = _item->Get<HistoryMessageReplyMarkup>()) {
 			if (_row < markup->rows.size()) {
 				const HistoryMessageReplyMarkup::ButtonRow &row(markup->rows.at(_row));
 				if (_col < row.size()) {
@@ -2793,7 +2793,7 @@ ReplyKeyboard::ReplyKeyboard(const HistoryItem *item, StylePtr &&s)
 : _item(item)
 , _a_selected(animation(this, &ReplyKeyboard::step_selected))
 , _st(std_::forward<StylePtr>(s)) {
-	if (auto *markup = item->Get<HistoryMessageReplyMarkup>()) {
+	if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 		_rows.reserve(markup->rows.size());
 		for (int i = 0, l = markup->rows.size(); i != l; ++i) {
 			const HistoryMessageReplyMarkup::ButtonRow &row(markup->rows.at(i));
@@ -2815,7 +2815,7 @@ ReplyKeyboard::ReplyKeyboard(const HistoryItem *item, StylePtr &&s)
 void ReplyKeyboard::resize(int width, int height) {
 	_width = width;
 
-	auto *markup = _item->Get<HistoryMessageReplyMarkup>();
+	auto markup = _item->Get<HistoryMessageReplyMarkup>();
 	float64 y = 0, buttonHeight = _rows.isEmpty() ? _st->buttonHeight() : (float64(height + _st->buttonSkip()) / _rows.size());
 	for (ButtonRow &row : _rows) {
 		int s = row.size();
@@ -2868,7 +2868,7 @@ void ReplyKeyboard::setStyle(StylePtr &&st) {
 int ReplyKeyboard::naturalWidth() const {
 	int result = 0;
 
-	auto *markup = _item->Get<HistoryMessageReplyMarkup>();
+	auto markup = _item->Get<HistoryMessageReplyMarkup>();
 	for_const (const ButtonRow &row, _rows) {
 		int rowSize = row.size();
 		int rowWidth = (rowSize - 1) * _st->buttonSkip() + rowSize * 2 * _st->buttonPadding();
@@ -3177,7 +3177,7 @@ void HistoryItem::finishCreate() {
 }
 
 void HistoryItem::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
-	if (auto *markup = Get<HistoryMessageReplyMarkup>()) {
+	if (auto markup = Get<HistoryMessageReplyMarkup>()) {
 		if (markup->inlineKeyboard) {
 			markup->inlineKeyboard->clickHandlerActiveChanged(p, active);
 		}
@@ -3187,7 +3187,7 @@ void HistoryItem::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool activ
 }
 
 void HistoryItem::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
-	if (auto *markup = Get<HistoryMessageReplyMarkup>()) {
+	if (auto markup = Get<HistoryMessageReplyMarkup>()) {
 		if (markup->inlineKeyboard) {
 			markup->inlineKeyboard->clickHandlerPressedChanged(p, pressed);
 		}
@@ -3337,7 +3337,7 @@ void HistoryItem::setUnreadBarCount(int count) {
 }
 
 void HistoryItem::setUnreadBarFreezed() {
-	if (auto *bar = Get<HistoryMessageUnreadBar>()) {
+	if (auto bar = Get<HistoryMessageUnreadBar>()) {
 		bar->_freezed = true;
 	}
 }
@@ -4204,7 +4204,7 @@ HistoryDocument::HistoryDocument(DocumentData *document, const QString &caption,
 , _parent(nullptr)
 , _data(document) {
 	createComponents(!caption.isEmpty());
-	if (auto *named = Get<HistoryDocumentNamed>()) {
+	if (auto named = Get<HistoryDocumentNamed>()) {
 		named->_name = documentName(_data);
 		named->_namew = st::semiboldFont->width(named->_name);
 	}
@@ -4213,7 +4213,7 @@ HistoryDocument::HistoryDocument(DocumentData *document, const QString &caption,
 
 	setStatusSize(FileStatusSizeReady);
 
-	if (auto *captioned = Get<HistoryDocumentCaptioned>()) {
+	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
 		captioned->_caption.setText(st::msgFont, caption + parent->skipBlock(), itemTextNoMonoOptions(parent));
 	}
 }
@@ -4222,10 +4222,10 @@ HistoryDocument::HistoryDocument(const HistoryDocument &other) : HistoryFileMedi
 , Composer()
 , _parent(nullptr)
 , _data(other._data) {
-	auto *captioned = other.Get<HistoryDocumentCaptioned>();
+	auto captioned = other.Get<HistoryDocumentCaptioned>();
 	createComponents(captioned != 0);
-	if (auto *named = Get<HistoryDocumentNamed>()) {
-		if (auto *othernamed = other.Get<HistoryDocumentNamed>()) {
+	if (auto named = Get<HistoryDocumentNamed>()) {
+		if (auto othernamed = other.Get<HistoryDocumentNamed>()) {
 			named->_name = othernamed->_name;
 			named->_namew = othernamed->_namew;
 		} else {
@@ -4257,7 +4257,7 @@ void HistoryDocument::createComponents(bool caption) {
 		mask |= HistoryDocumentCaptioned::Bit();
 	}
 	UpdateComponents(mask);
-	if (auto *thumbed = Get<HistoryDocumentThumbed>()) {
+	if (auto thumbed = Get<HistoryDocumentThumbed>()) {
 		thumbed->_linksavel.reset(new DocumentSaveClickHandler(_data));
 		thumbed->_linkcancell.reset(new DocumentCancelClickHandler(_data));
 	}
@@ -4266,12 +4266,12 @@ void HistoryDocument::createComponents(bool caption) {
 void HistoryDocument::initDimensions(const HistoryItem *parent) {
 	_parent = parent;
 
-	auto *captioned = Get<HistoryDocumentCaptioned>();
+	auto captioned = Get<HistoryDocumentCaptioned>();
 	if (captioned && captioned->_caption.hasSkipBlock()) {
 		captioned->_caption.setSkipBlock(parent->skipBlockWidth(), parent->skipBlockHeight());
 	}
 
-	auto *thumbed = Get<HistoryDocumentThumbed>();
+	auto thumbed = Get<HistoryDocumentThumbed>();
 	if (thumbed) {
 		_data->thumb->load();
 		int32 tw = convertScale(_data->thumb->width()), th = convertScale(_data->thumb->height());
@@ -4296,7 +4296,7 @@ void HistoryDocument::initDimensions(const HistoryItem *parent) {
 		_maxw = qMax(_maxw, tleft + documentMaxStatusWidth(_data) + unread + parent->skipBlockWidth() + st::msgPadding.right());
 	}
 
-	if (auto *named = Get<HistoryDocumentNamed>()) {
+	if (auto named = Get<HistoryDocumentNamed>()) {
 		_maxw = qMax(tleft + named->_namew + tright, _maxw);
 		_maxw = qMin(_maxw, int(st::msgMaxWidth));
 	}
@@ -4318,7 +4318,7 @@ void HistoryDocument::initDimensions(const HistoryItem *parent) {
 }
 
 int HistoryDocument::resizeGetHeight(int width, const HistoryItem *parent) {
-	auto *captioned = Get<HistoryDocumentCaptioned>();
+	auto captioned = Get<HistoryDocumentCaptioned>();
 	if (!captioned) {
 		return HistoryFileMedia::resizeGetHeight(width, parent);
 	}
@@ -4354,7 +4354,7 @@ void HistoryDocument::draw(Painter &p, const HistoryItem *parent, const QRect &r
 	bool radial = isRadialAnimation(ms);
 
 	int nameleft = 0, nametop = 0, nameright = 0, statustop = 0, linktop = 0, bottom = 0;
-	if (auto *thumbed = Get<HistoryDocumentThumbed>()) {
+	if (auto thumbed = Get<HistoryDocumentThumbed>()) {
 		nameleft = st::msgFileThumbPadding.left() + st::msgFileThumbSize + st::msgFileThumbPadding.right();
 		nametop = st::msgFileThumbNameTop;
 		nameright = st::msgFileThumbPadding.left();
@@ -4462,7 +4462,7 @@ void HistoryDocument::draw(Painter &p, const HistoryItem *parent, const QRect &r
 	}
 	int32 namewidth = _width - nameleft - nameright;
 
-	if (auto *voice = Get<HistoryDocumentVoice>()) {
+	if (auto voice = Get<HistoryDocumentVoice>()) {
 		const VoiceWaveform *wf = 0;
 		uchar norm_value = 0;
 		if (_data->voice()) {
@@ -4521,7 +4521,7 @@ void HistoryDocument::draw(Painter &p, const HistoryItem *parent, const QRect &r
 				sum_i += bar_count;
 			}
 		}
-	} else if (auto *named = Get<HistoryDocumentNamed>()) {
+	} else if (auto named = Get<HistoryDocumentNamed>()) {
 		p.setFont(st::semiboldFont);
 		p.setPen(st::black);
 		if (namewidth < named->_namew) {
@@ -4548,7 +4548,7 @@ void HistoryDocument::draw(Painter &p, const HistoryItem *parent, const QRect &r
 		}
 	}
 
-	if (auto *captioned = Get<HistoryDocumentCaptioned>()) {
+	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
 		p.setPen(st::black);
 		captioned->_caption.draw(p, st::msgPadding.left(), bottom, captionw);
 	}
@@ -4563,7 +4563,7 @@ void HistoryDocument::getState(ClickHandlerPtr &lnk, HistoryCursorState &state, 
 	bool showPause = updateStatusText(parent);
 
 	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, linktop = 0, bottom = 0;
-	if (auto *thumbed = Get<HistoryDocumentThumbed>()) {
+	if (auto thumbed = Get<HistoryDocumentThumbed>()) {
 		nameleft = st::msgFileThumbPadding.left() + st::msgFileThumbSize + st::msgFileThumbPadding.right();
 		linktop = st::msgFileThumbLinkTop;
 		bottom = st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom();
@@ -4592,7 +4592,7 @@ void HistoryDocument::getState(ClickHandlerPtr &lnk, HistoryCursorState &state, 
 	}
 
 	int32 height = _height;
-	if (auto *captioned = Get<HistoryDocumentCaptioned>()) {
+	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
 		if (y >= bottom) {
 			bool inText = false;
 			captioned->_caption.getState(lnk, inText, x - st::msgPadding.left(), y - bottom, _width - st::msgPadding.left() - st::msgPadding.right());
@@ -4614,10 +4614,10 @@ const QString HistoryDocument::inDialogsText() const {
 	} else if (_data->song()) {
 		result = lang(lng_in_dlg_audio_file);
 	} else {
-		auto *named = Get<HistoryDocumentNamed>();
+		auto named = Get<HistoryDocumentNamed>();
 		result = (!named || named->_name.isEmpty()) ? lang(lng_in_dlg_file) : named->_name;
 	}
-	if (auto *captioned = Get<HistoryDocumentCaptioned>()) {
+	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
 		if (!captioned->_caption.isEmpty()) {
 			result.append(' ').append(captioned->_caption.original(0, 0xFFFF, Text::ExpandLinksNone));
 		}
@@ -4634,12 +4634,12 @@ const QString HistoryDocument::inHistoryText() const {
 	} else {
 		result = lang(lng_in_dlg_file);
 	}
-	if (auto *named = Get<HistoryDocumentNamed>()) {
+	if (auto named = Get<HistoryDocumentNamed>()) {
 		if (!named->_name.isEmpty()) {
 			result.append(qsl(" : ")).append(named->_name);
 		}
 	}
-	if (auto *captioned = Get<HistoryDocumentCaptioned>()) {
+	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
 		if (!captioned->_caption.isEmpty()) {
 			result.append(qsl(", ")).append(captioned->_caption.original(0, 0xFFFF, Text::ExpandLinksAll));
 		}
@@ -4650,7 +4650,7 @@ const QString HistoryDocument::inHistoryText() const {
 void HistoryDocument::setStatusSize(int32 newSize, qint64 realDuration) const {
 	int32 duration = _data->song() ? _data->song()->duration : (_data->voice() ? _data->voice()->duration : -1);
 	HistoryFileMedia::setStatusSize(newSize, _data->size, duration, realDuration);
-	if (auto *thumbed = Get<HistoryDocumentThumbed>()) {
+	if (auto thumbed = Get<HistoryDocumentThumbed>()) {
 		if (_statusSize == FileStatusSizeReady) {
 			thumbed->_link = lang(lng_media_download).toUpper();
 		} else if (_statusSize == FileStatusSizeLoaded) {
@@ -4686,7 +4686,7 @@ bool HistoryDocument::updateStatusText(const HistoryItem *parent) const {
 			}
 
 			if (playing.msgId == parent->fullId() && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
-				if (auto *voice = Get<HistoryDocumentVoice>()) {
+				if (auto voice = Get<HistoryDocumentVoice>()) {
 					bool was = voice->_playback;
 					voice->ensurePlayback(this);
 					if (!was || playingPosition != voice->_playback->_position) {
@@ -4706,7 +4706,7 @@ bool HistoryDocument::updateStatusText(const HistoryItem *parent) const {
 				showPause = (playingState == AudioPlayerPlaying || playingState == AudioPlayerResuming || playingState == AudioPlayerStarting);
 			} else {
 				statusSize = FileStatusSizeLoaded;
-				if (auto *voice = Get<HistoryDocumentVoice>()) {
+				if (auto voice = Get<HistoryDocumentVoice>()) {
 					voice->checkPlaybackFinished();
 				}
 			}
@@ -4742,7 +4742,7 @@ bool HistoryDocument::updateStatusText(const HistoryItem *parent) const {
 }
 
 void HistoryDocument::step_voiceProgress(float64 ms, bool timer) {
-	if (auto *voice = Get<HistoryDocumentVoice>()) {
+	if (auto voice = Get<HistoryDocumentVoice>()) {
 		if (voice->_playback) {
 			float64 dt = ms / (2 * AudioVoiceMsgUpdateView);
 			if (dt >= 1) {
@@ -5232,8 +5232,8 @@ void HistorySticker::initDimensions(const HistoryItem *parent) {
 int HistorySticker::resizeGetHeight(int width, const HistoryItem *parent) { // return new height
 	_width = qMin(width, _maxw);
 	if (parent->getMedia() == this) {
-		auto *via = parent->Get<HistoryMessageVia>();
-		auto *reply = parent->Get<HistoryMessageReply>();
+		auto via = parent->Get<HistoryMessageVia>();
+		auto reply = parent->Get<HistoryMessageReply>();
 		if (via || reply) {
 			int usew = _maxw - additionalWidth(via, reply);
 			int availw = _width - usew - st::msgReplyPadding.left() - st::msgReplyPadding.left() - st::msgReplyPadding.left();
@@ -5257,8 +5257,8 @@ void HistorySticker::draw(Painter &p, const HistoryItem *parent, const QRect &r,
 	bool out = parent->out(), isPost = parent->isPost(), childmedia = (parent->getMedia() != this);
 
 	int usew = _maxw, usex = 0;
-	auto *via = childmedia ? nullptr : parent->Get<HistoryMessageVia>();
-	auto *reply = childmedia ? nullptr : parent->Get<HistoryMessageReply>();
+	auto via = childmedia ? nullptr : parent->Get<HistoryMessageVia>();
+	auto reply = childmedia ? nullptr : parent->Get<HistoryMessageReply>();
 	if (via || reply) {
 		usew -= additionalWidth(via, reply);
 		if (isPost) {
@@ -5326,8 +5326,8 @@ void HistorySticker::getState(ClickHandlerPtr &lnk, HistoryCursorState &state, i
 	bool out = parent->out(), isPost = parent->isPost(), childmedia = (parent->getMedia() != this);
 
 	int usew = _maxw, usex = 0;
-	auto *via = childmedia ? nullptr : parent->Get<HistoryMessageVia>();
-	auto *reply = childmedia ? nullptr : parent->Get<HistoryMessageReply>();
+	auto via = childmedia ? nullptr : parent->Get<HistoryMessageVia>();
+	auto reply = childmedia ? nullptr : parent->Get<HistoryMessageReply>();
 	if (via || reply) {
 		usew -= additionalWidth(via, reply);
 		if (isPost) {
@@ -5657,7 +5657,7 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 	if (!_data->description.isEmpty() && title.isEmpty() && _data->siteName.isEmpty() && !_data->url.isEmpty()) {
 		_data->siteName = siteNameFromUrl(_data->url);
 	}
-	if (!_data->doc && _data->photo && _data->type != WebPagePhoto && _data->type != WebPageVideo) {
+	if (!_data->document && _data->photo && _data->type != WebPagePhoto && _data->type != WebPageVideo) {
 		if (_data->type == WebPageProfile) {
 			_asArticle = true;
 		} else if (_data->siteName == qstr("Twitter") || _data->siteName == qstr("Facebook")) {
@@ -5674,15 +5674,15 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 
 	// init attach
 	if (!_asArticle && !_attach) {
-		if (_data->doc) {
-			if (_data->doc->sticker()) {
-				_attach = new HistorySticker(_data->doc);
-			} else if (_data->doc->isAnimation()) {
-				_attach = new HistoryGif(_data->doc, QString(), parent);
-			} else if (_data->doc->isVideo()) {
-				_attach = new HistoryVideo(_data->doc, QString(), parent);
+		if (_data->document) {
+			if (_data->document->sticker()) {
+				_attach = new HistorySticker(_data->document);
+			} else if (_data->document->isAnimation()) {
+				_attach = new HistoryGif(_data->document, QString(), parent);
+			} else if (_data->document->isVideo()) {
+				_attach = new HistoryVideo(_data->document, QString(), parent);
 			} else {
-				_attach = new HistoryDocument(_data->doc, QString(), parent);
+				_attach = new HistoryDocument(_data->document, QString(), parent);
 			}
 		} else if (_data->photo) {
 			_attach = new HistoryPhoto(_data->photo, QString(), parent);
@@ -6012,7 +6012,7 @@ void HistoryWebPage::getState(ClickHandlerPtr &lnk, HistoryCursorState &state, i
 			int32 attachLeft = lshift - bubble.left(), attachTop = tshift - bubble.top();
 			if (rtl()) attachLeft = _width - attachLeft - _attach->currentWidth();
 			_attach->getState(lnk, state, x - attachLeft, y - attachTop, parent);
-			if (lnk && !_data->doc && _data->photo) {
+			if (lnk && !_data->document && _data->photo) {
 				if (_data->type == WebPageProfile || _data->type == WebPageVideo) {
 					lnk = _openl;
 				} else if (_data->type == WebPagePhoto || _data->siteName == qstr("Twitter") || _data->siteName == qstr("Facebook")) {
@@ -6833,27 +6833,27 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 		}
 	}
 	UpdateComponents(mask);
-	if (auto *reply = Get<HistoryMessageReply>()) {
+	if (auto reply = Get<HistoryMessageReply>()) {
 		reply->replyToMsgId = config.replyTo;
 		if (!reply->updateData(this) && App::api()) {
 			App::api()->requestMessageData(history()->peer->asChannel(), reply->replyToMsgId, new HistoryDependentItemCallback(fullId()));
 		}
 	}
-	if (auto *via = Get<HistoryMessageVia>()) {
+	if (auto via = Get<HistoryMessageVia>()) {
 		via->create(config.viaBotId);
 	}
-	if (auto *views = Get<HistoryMessageViews>()) {
+	if (auto views = Get<HistoryMessageViews>()) {
 		views->_views = config.viewsCount;
 	}
-	if (auto *msgsigned = Get<HistoryMessageSigned>()) {
+	if (auto msgsigned = Get<HistoryMessageSigned>()) {
 		msgsigned->create(_from->asUser(), date);
 	}
-	if (auto *fwd = Get<HistoryMessageForwarded>()) {
+	if (auto fwd = Get<HistoryMessageForwarded>()) {
 		fwd->_authorOriginal = App::peer(config.authorIdOriginal);
 		fwd->_fromOriginal = App::peer(config.fromIdOriginal);
 		fwd->_originalId = config.originalId;
 	}
-	if (auto *markup = Get<HistoryMessageReplyMarkup>()) {
+	if (auto markup = Get<HistoryMessageReplyMarkup>()) {
 		markup->create(*config.markup);
 	}
 	initTime();
@@ -6879,13 +6879,13 @@ QString formatViewsCount(int32 views) {
 }
 
 void HistoryMessage::initTime() {
-	if (auto *msgsigned = Get<HistoryMessageSigned>()) {
+	if (auto msgsigned = Get<HistoryMessageSigned>()) {
 		_timeWidth = msgsigned->maxWidth();
 	} else {
 		_timeText = date.toString(cTimeFormat());
 		_timeWidth = st::msgDateFont->width(_timeText);
 	}
-	if (auto *views = Get<HistoryMessageViews>()) {
+	if (auto views = Get<HistoryMessageViews>()) {
 		views->_viewsText = (views->_views >= 0) ? formatViewsCount(views->_views) : QString();
 		views->_viewsWidth = views->_viewsText.isEmpty() ? 0 : st::msgDateFont->width(views->_viewsText);
 	}
@@ -7011,7 +7011,7 @@ void HistoryMessage::initDimensions() {
 		_maxw = _media->maxWidth();
 		_minh = _media->minHeight();
 	}
-	if (auto *reply = Get<HistoryMessageReply>()) {
+	if (auto reply = Get<HistoryMessageReply>()) {
 		reply->updateName();
 		if (!_text.isEmpty()) {
 			int replyw = st::msgPadding.left() + reply->_maxReplyWidth - st::msgReplyPadding.left() - st::msgReplyPadding.right() + st::msgPadding.right();
@@ -7059,13 +7059,21 @@ void HistoryMessage::countPositionAndSize(int32 &left, int32 &width) const {
 void HistoryMessage::fromNameUpdated(int32 width) const {
 	_authorNameVersion = author()->nameVersion;
 	if (!Has<HistoryMessageForwarded>()) {
-		if (auto *via = Get<HistoryMessageVia>()) {
+		if (auto via = Get<HistoryMessageVia>()) {
 			via->resize(width - st::msgPadding.left() - st::msgPadding.right() - author()->nameText.maxWidth() - st::msgServiceFont->spacew);
 		}
 	}
 }
 
 void HistoryMessage::applyEdition(const MTPDmessage &message) {
+	int keyboardTop = -1;
+	if (!pendingResize()) {
+		if (auto keyboard = inlineReplyKeyboard()) {
+			int h = st::msgBotKbButton.margin + keyboard->naturalHeight();
+			keyboardTop = _height - h + st::msgBotKbButton.margin - marginBottom();
+		}
+	}
+
 	EntitiesInText entities;
 	if (message.has_entities()) {
 		entities = entitiesFromMTP(message.ventities.c_vector().v);
@@ -7083,6 +7091,12 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 	// invalidate cache for drawInDialog
 	if (history()->textCachedFor == this) {
 		history()->textCachedFor = nullptr;
+	}
+
+	if (keyboardTop >= 0) {
+		if (auto keyboard = Get<HistoryMessageReplyMarkup>()) {
+			keyboard->oldTop = keyboardTop;
+		}
 	}
 }
 
@@ -7141,7 +7155,7 @@ QString HistoryMessage::selectedText(uint32 selection) const {
 		uint16 selectedTo = (selection == FullSelection) ? 0xFFFF : (selection & 0xFFFF);
 		result = _text.original(selectedFrom, selectedTo, Text::ExpandLinksAll);
 	}
-	if (auto *fwd = Get<HistoryMessageForwarded>()) {
+	if (auto fwd = Get<HistoryMessageForwarded>()) {
 		if (selection == FullSelection) {
 			QString fwdinfo = fwd->_text.original(0, 0xFFFF, Text::ExpandLinksAll), wrapped;
 			wrapped.reserve(fwdinfo.size() + 4 + result.size());
@@ -7149,7 +7163,7 @@ QString HistoryMessage::selectedText(uint32 selection) const {
 			result = wrapped;
 		}
 	}
-	if (auto *reply = Get<HistoryMessageReply>()) {
+	if (auto reply = Get<HistoryMessageReply>()) {
 		if (selection == FullSelection && reply->replyToMsg) {
 			QString wrapped;
 			wrapped.reserve(lang(lng_in_reply_to).size() + reply->replyToMsg->author()->name.size() + 4 + result.size());
@@ -7281,7 +7295,7 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width
 	}
 	dateX += HistoryMessage::timeLeft();
 
-	if (auto *msgsigned = Get<HistoryMessageSigned>()) {
+	if (auto msgsigned = Get<HistoryMessageSigned>()) {
 		msgsigned->_signature.drawElided(p, dateX, dateY, _timeWidth);
 	} else {
 		p.drawText(dateX, dateY + st::msgDateFont->ascent, _timeText);
@@ -7289,7 +7303,7 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width
 
 	QPoint iconPos;
 	const QRect *iconRect = 0;
-	if (auto *views = Get<HistoryMessageViews>()) {
+	if (auto views = Get<HistoryMessageViews>()) {
 		iconPos = QPoint(infoRight - infoW + st::msgViewsPos.x(), infoBottom - st::msgViewsImg.pxHeight() + st::msgViewsPos.y());
 		if (id > 0) {
 			if (outbg) {
@@ -7328,7 +7342,7 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width
 }
 
 void HistoryMessage::setViewsCount(int32 count) {
-	auto *views = Get<HistoryMessageViews>();
+	auto views = Get<HistoryMessageViews>();
 	if (!views || views->_views == count || (count >= 0 && views->_views > count)) return;
 
 	int32 was = views->_viewsWidth;
@@ -7370,11 +7384,11 @@ void HistoryMessage::draw(Painter &p, const QRect &r, uint32 selection, uint64 m
 	if (width < 1) return;
 
 	int dateh = 0, unreadbarh = 0;
-	if (auto *date = Get<HistoryMessageDate>()) {
+	if (auto date = Get<HistoryMessageDate>()) {
 		dateh = date->height();
 		date->paint(p, 0, _history->width);
 	}
-	if (auto *unreadbar = Get<HistoryMessageUnreadBar>()) {
+	if (auto unreadbar = Get<HistoryMessageUnreadBar>()) {
 		unreadbarh = unreadbar->height();
 		p.translate(0, dateh);
 		unreadbar->paint(p, 0, _history->width);
@@ -7408,14 +7422,14 @@ void HistoryMessage::draw(Painter &p, const QRect &r, uint32 selection, uint64 m
 		p.translate(-left, -top);
 	}
 
-	auto *reply = Get<HistoryMessageReply>();
+	auto reply = Get<HistoryMessageReply>();
 	if (reply) {
 		reply->checkNameUpdate();
 	}
 
 	if (bubble) {
-		auto *fwd = Get<HistoryMessageForwarded>();
-		auto *via = Get<HistoryMessageVia>();
+		auto fwd = Get<HistoryMessageForwarded>();
+		auto via = Get<HistoryMessageVia>();
 		if (displayFromName() && author()->nameVersion > _authorNameVersion) {
 			fromNameUpdated(width);
 		}
@@ -7483,7 +7497,7 @@ void HistoryMessage::paintForwardedInfo(Painter &p, QRect &trect, bool selected)
 		p.setPen(selected ? (hasOutLayout() ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (hasOutLayout() ? st::msgOutServiceFg : st::msgInServiceFg));
 		p.setFont(serviceFont);
 
-		auto *fwd = Get<HistoryMessageForwarded>();
+		auto fwd = Get<HistoryMessageForwarded>();
 		bool breakEverywhere = (fwd->_text.countHeight(trect.width()) > 2 * serviceFont->height);
 		textstyleSet(&(selected ? (hasOutLayout() ? st::outFwdTextStyleSelected : st::inFwdTextStyleSelected) : (hasOutLayout() ? st::outFwdTextStyle : st::inFwdTextStyle)));
 		fwd->_text.drawElided(p, trect.x(), trect.y(), trect.width(), 2, style::al_left, 0, -1, 0, breakEverywhere);
@@ -7494,7 +7508,7 @@ void HistoryMessage::paintForwardedInfo(Painter &p, QRect &trect, bool selected)
 }
 
 void HistoryMessage::paintReplyInfo(Painter &p, QRect &trect, bool selected) const {
-	if (auto *reply = Get<HistoryMessageReply>()) {
+	if (auto reply = Get<HistoryMessageReply>()) {
 		int32 h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 
 		HistoryMessageReply::PaintFlags flags = HistoryMessageReply::PaintInBubble;
@@ -7509,7 +7523,7 @@ void HistoryMessage::paintReplyInfo(Painter &p, QRect &trect, bool selected) con
 
 void HistoryMessage::paintViaBotIdInfo(Painter &p, QRect &trect, bool selected) const {
 	if (!displayFromName() && !Has<HistoryMessageForwarded>()) {
-		if (auto *via = Get<HistoryMessageVia>()) {
+		if (auto via = Get<HistoryMessageVia>()) {
 			p.setFont(st::msgServiceNameFont);
 			p.setPen(selected ? (hasOutLayout() ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (hasOutLayout() ? st::msgOutServiceFg : st::msgInServiceFg));
 			p.drawTextLeft(trect.left(), trect.top(), _history->width, via->_text);
@@ -7519,7 +7533,7 @@ void HistoryMessage::paintViaBotIdInfo(Painter &p, QRect &trect, bool selected) 
 }
 
 void HistoryMessage::dependencyItemRemoved(HistoryItem *dependency) {
-	if (auto *reply = Get<HistoryMessageReply>()) {
+	if (auto reply = Get<HistoryMessageReply>()) {
 		reply->itemRemoved(this, dependency);
 	}
 }
@@ -7530,6 +7544,27 @@ void HistoryMessage::destroy() {
 }
 
 int HistoryMessage::resizeGetHeight_(int width) {
+	int result = performResizeGetHeight(width);
+
+	auto keyboard = inlineReplyKeyboard();
+	if (auto markup = Get<HistoryMessageReplyMarkup>()) {
+		int oldTop = markup->oldTop;
+		if (oldTop >= 0) {
+			markup->oldTop = -1;
+			if (keyboard) {
+				int h = st::msgBotKbButton.margin + keyboard->naturalHeight();
+				int keyboardTop = _height - h + st::msgBotKbButton.margin - marginBottom();
+				if (keyboardTop != oldTop) {
+					Notify::inlineKeyboardMoved(this, oldTop, keyboardTop);
+				}
+			}
+		}
+	}
+
+	return result;
+}
+
+int HistoryMessage::performResizeGetHeight(int width) {
 	if (width < st::msgMinWidth) return _height;
 
 	width -= st::msgMargin.left() + st::msgMargin.right();
@@ -7539,9 +7574,9 @@ int HistoryMessage::resizeGetHeight_(int width) {
 		width = st::msgMaxWidth;
 	}
 	if (drawBubble()) {
-		auto *fwd = Get<HistoryMessageForwarded>();
-		auto *reply = Get<HistoryMessageReply>();
-		auto *via = Get<HistoryMessageVia>();
+		auto fwd = Get<HistoryMessageForwarded>();
+		auto reply = Get<HistoryMessageReply>();
+		auto via = Get<HistoryMessageVia>();
 
 		bool media = (_media && _media->isDisplayed());
 		if (width >= _maxw) {
@@ -7606,7 +7641,7 @@ int HistoryMessage::resizeGetHeight_(int width) {
 	} else {
 		_height = _media->resizeGetHeight(width, this);
 	}
-	if (ReplyKeyboard *keyboard = inlineReplyKeyboard()) {
+	if (auto keyboard = inlineReplyKeyboard()) {
 		int32 l = 0, w = 0;
 		countPositionAndSize(l, w);
 
@@ -7669,9 +7704,9 @@ void HistoryMessage::getState(ClickHandlerPtr &lnk, HistoryCursorState &state, i
 	}
 
 	if (drawBubble()) {
-		auto *fwd = Get<HistoryMessageForwarded>();
-		auto *via = Get<HistoryMessageVia>();
-		auto *reply = Get<HistoryMessageReply>();
+		auto fwd = Get<HistoryMessageForwarded>();
+		auto via = Get<HistoryMessageVia>();
+		auto reply = Get<HistoryMessageReply>();
 
 		int top = marginTop();
 		QRect r(left, top, width, height - top - marginBottom());
@@ -7765,9 +7800,9 @@ void HistoryMessage::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x,
 		countPositionAndSize(left, width);
 		if (width < 1) return;
 
-		auto *fwd = Get<HistoryMessageForwarded>();
-		auto *via = Get<HistoryMessageVia>();
-		auto *reply = Get<HistoryMessageReply>();
+		auto fwd = Get<HistoryMessageForwarded>();
+		auto via = Get<HistoryMessageVia>();
+		auto reply = Get<HistoryMessageReply>();
 
 		int top = marginTop();
 		QRect r(left, top, width, height - top - marginBottom());
@@ -7837,7 +7872,7 @@ bool HistoryMessage::hasFromPhoto() const {
 
 HistoryMessage::~HistoryMessage() {
 	_media.clear(this);
-	if (auto *reply = Get<HistoryMessageReply>()) {
+	if (auto reply = Get<HistoryMessageReply>()) {
 		reply->clearData(this);
 	}
 }
@@ -7968,7 +8003,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 
 	case mtpc_messageActionPinMessage: {
 		if (updatePinnedText(&from, &text)) {
-			auto *pinned = Get<HistoryServicePinned>();
+			auto pinned = Get<HistoryServicePinned>();
 			t_assert(pinned != nullptr);
 
 			links.push_back(pinned->lnk);
@@ -7990,7 +8025,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 }
 
 bool HistoryService::updatePinned(bool force) {
-	auto *pinned = Get<HistoryServicePinned>();
+	auto pinned = Get<HistoryServicePinned>();
 	t_assert(pinned != nullptr);
 
 	if (!force) {
@@ -8038,7 +8073,7 @@ bool HistoryService::updatePinnedText(const QString *pfrom, QString *ptext) {
 	}
 
 	ClickHandlerPtr second;
-	auto *pinned = Get<HistoryServicePinned>();
+	auto pinned = Get<HistoryServicePinned>();
 	if (pinned && pinned->msg) {
 		HistoryMedia *media = pinned->msg->getMedia();
 		QString mediaText;
@@ -8160,13 +8195,13 @@ void HistoryService::draw(Painter &p, const QRect &r, uint32 selection, uint64 m
 	if (width < 1) return;
 
 	int dateh = 0, unreadbarh = 0;
-	if (auto *date = Get<HistoryMessageDate>()) {
+	if (auto date = Get<HistoryMessageDate>()) {
 		dateh = date->height();
 		date->paint(p, 0, _history->width);
 		p.translate(0, dateh);
 		height -= dateh;
 	}
-	if (auto *unreadbar = Get<HistoryMessageUnreadBar>()) {
+	if (auto unreadbar = Get<HistoryMessageUnreadBar>()) {
 		unreadbarh = unreadbar->height();
 		unreadbar->paint(p, 0, _history->width);
 		p.translate(0, unreadbarh);
@@ -8248,7 +8283,7 @@ int32 HistoryService::resizeGetHeight_(int32 width) {
 		_height += st::msgServiceMargin.top() + _media->resizeGetHeight(_media->currentWidth(), this);
 	}
 	_height += displayedDateHeight();
-	if (auto *unreadbar = Get<HistoryMessageUnreadBar>()) {
+	if (auto unreadbar = Get<HistoryMessageUnreadBar>()) {
 		_height += unreadbar->height();
 	}
 	return _height;
@@ -8263,7 +8298,7 @@ bool HistoryService::hasPoint(int32 x, int32 y) const {
 		y -= dateh;
 		height -= dateh;
 	}
-	if (auto *unreadbar = Get<HistoryMessageUnreadBar>()) {
+	if (auto unreadbar = Get<HistoryMessageUnreadBar>()) {
 		int unreadbarh = unreadbar->height();
 		y -= unreadbarh;
 		height -= unreadbarh;
@@ -8287,7 +8322,7 @@ void HistoryService::getState(ClickHandlerPtr &lnk, HistoryCursorState &state, i
 		y -= dateh;
 		height -= dateh;
 	}
-	if (auto *unreadbar = Get<HistoryMessageUnreadBar>()) {
+	if (auto unreadbar = Get<HistoryMessageUnreadBar>()) {
 		int unreadbarh = unreadbar->height();
 		y -= unreadbarh;
 		height -= unreadbarh;
@@ -8321,7 +8356,7 @@ void HistoryService::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x,
 		y -= dateh;
 		height -= dateh;
 	}
-	if (auto *unreadbar = Get<HistoryMessageUnreadBar>()) {
+	if (auto unreadbar = Get<HistoryMessageUnreadBar>()) {
 		int unreadbarh = unreadbar->height();
 		y -= unreadbarh;
 		height -= unreadbarh;

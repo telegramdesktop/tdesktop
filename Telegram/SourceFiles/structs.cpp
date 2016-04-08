@@ -1428,7 +1428,7 @@ DocumentData::~DocumentData() {
 	}
 }
 
-WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill) : id(id)
+WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, DocumentData *document, PhotoData *photo, int32 duration, const QString &author, int32 pendingTill) : id(id)
 , type(type)
 , url(url)
 , displayUrl(displayUrl)
@@ -1438,7 +1438,7 @@ WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &u
 , duration(duration)
 , author(author)
 , photo(photo)
-, doc(doc)
+, document(document)
 , pendingTill(pendingTill) {
 }
 

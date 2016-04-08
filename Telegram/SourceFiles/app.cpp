@@ -1614,7 +1614,7 @@ namespace {
 		return i.value();
 	}
 
-	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill) {
+	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *document, int32 duration, const QString &author, int32 pendingTill) {
 		if (convert) {
 			if (convert->id != webPage) {
 				WebPagesData::iterator i = webPagesData.find(convert->id);
@@ -1631,7 +1631,7 @@ namespace {
 				convert->title = title;
 				convert->description = description;
 				convert->photo = photo;
-				convert->doc = doc;
+				convert->document = document;
 				convert->duration = duration;
 				convert->author = author;
 				if (convert->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(convert);
@@ -1645,7 +1645,7 @@ namespace {
 			if (convert) {
 				result = convert;
 			} else {
-				result = new WebPageData(webPage, toWebPageType(type), url, displayUrl, siteName, title, description, photo, doc, duration, author, (pendingTill >= -1) ? pendingTill : -1);
+				result = new WebPageData(webPage, toWebPageType(type), url, displayUrl, siteName, title, description, document, photo, duration, author, (pendingTill >= -1) ? pendingTill : -1);
 				if (pendingTill > 0 && api()) {
 					api()->requestWebPageDelayed(result);
 				}
@@ -1662,7 +1662,7 @@ namespace {
 					result->title = title;
 					result->description = description;
 					result->photo = photo;
-					result->doc = doc;
+					result->document = document;
 					result->duration = duration;
 					result->author = author;
 					if (result->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(result);

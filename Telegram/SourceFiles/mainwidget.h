@@ -223,7 +223,7 @@ public:
 	TopBarWidget *topBar();
 
 	PlayerWidget *player();
-	int32 contentScrollAddToY() const;
+	int contentScrollAddToY() const;
 
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
 	void step_show(float64 ms, bool timer);
@@ -453,6 +453,7 @@ public:
 	void notify_botCommandsChanged(UserData *bot);
 	void notify_inlineBotRequesting(bool requesting);
 	void notify_replyMarkupUpdated(const HistoryItem *item);
+	void notify_inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
 	void notify_userIsBotChanged(UserData *bot);
 	void notify_userIsContactChanged(UserData *user, bool fromThisApp);
 	void notify_migrateUpdated(PeerData *peer);
@@ -548,15 +549,15 @@ private:
 	void messagesAffected(PeerData *peer, const MTPmessages_AffectedMessages &result);
 	void overviewLoaded(History *history, const MTPmessages_Messages &result, mtpRequestId req);
 
-	bool _started;
+	bool _started = false;
 
-	uint64 failedObjId;
+	uint64 failedObjId = 0;
 	QString failedFileName;
 	void loadFailed(mtpFileLoader *loader, bool started, const char *retrySlot);
 
 	SelectedItemSet _toForward;
 	Text _toForwardFrom, _toForwardText;
-	int32 _toForwardNameVersion;
+	int32 _toForwardNameVersion = 0;
 
 	QMap<WebPageId, bool> _webPagesUpdated;
 	QTimer _webPageUpdater;
@@ -611,27 +612,29 @@ private:
 	anim::ivalue a_coordUnder, a_coordOver;
 	anim::fvalue a_shadow;
 
-	int32 _dialogsWidth;
+	int _dialogsWidth = st::dlgMinWidth;
 
 	DialogsWidget dialogs;
 	HistoryWidget history;
-	ProfileWidget *profile;
-	OverviewWidget *overview;
+	ProfileWidget *profile = nullptr;
+	OverviewWidget *overview = nullptr;
 	PlayerWidget _player;
 	TopBarWidget _topBar;
-	ConfirmBox *_forwardConfirm; // for narrow mode
-	HistoryHider *_hider;
+	ConfirmBox *_forwardConfirm = nullptr; // for single column layout
+	HistoryHider *_hider = nullptr;
 	StackItems _stack;
-	PeerData *_peerInStack;
-	MsgId _msgIdInStack;
+	PeerData *_peerInStack = nullptr;
+	MsgId _msgIdInStack = 0;
 
-	int32 _playerHeight;
-	int32 _contentScrollAddToY;
+	int _playerHeight = 0;
+	int _contentScrollAddToY = 0;
 
 	Dropdown _mediaType;
-	int32 _mediaTypeMask;
+	int32 _mediaTypeMask = 0;
 
-	int32 updDate, updQts, updSeq;
+	int32 updDate = 0;
+	int32 updQts = -1;
+	int32 updSeq = 0;
 	SingleTimer noUpdatesTimer;
 
 	bool ptsUpdated(int32 pts, int32 ptsCount);
@@ -642,7 +645,8 @@ private:
 
 	typedef QMap<ChannelData*, uint64> ChannelGetDifferenceTime;
 	ChannelGetDifferenceTime _channelGetDifferenceTimeByPts, _channelGetDifferenceTimeAfterFail;
-	uint64 _getDifferenceTimeByPts, _getDifferenceTimeAfterFail;
+	uint64 _getDifferenceTimeByPts = 0;
+	uint64 _getDifferenceTimeAfterFail = 0;
 
 	bool getDifferenceTimeChanged(ChannelData *channel, int32 ms, ChannelGetDifferenceTime &channelCurTime, uint64 &curTime);
 
@@ -653,11 +657,11 @@ private:
 
 	SingleTimer _byMinChannelTimer;
 
-	mtpRequestId _onlineRequest;
+	mtpRequestId _onlineRequest = 0;
 	SingleTimer _onlineTimer, _onlineUpdater, _idleFinishTimer;
-	bool _lastWasOnline;
-	uint64 _lastSetOnline;
-	bool _isIdle;
+	bool _lastWasOnline = false;
+	uint64 _lastSetOnline = 0;
+	bool _isIdle = false;
 
 	QSet<PeerData*> updateNotifySettingPeers;
 	SingleTimer updateNotifySettingTimer;
@@ -670,17 +674,18 @@ private:
 	typedef QMap<PeerData*, mtpRequestId> OverviewsPreload;
 	OverviewsPreload _overviewPreload[OverviewCount], _overviewLoad[OverviewCount];
 
-	int32 _failDifferenceTimeout; // growing timeout for getDifference calls, if it fails
+	int32 _failDifferenceTimeout = 1; // growing timeout for getDifference calls, if it fails
 	typedef QMap<ChannelData*, int32> ChannelFailDifferenceTimeout;
 	ChannelFailDifferenceTimeout _channelFailDifferenceTimeout; // growing timeout for getChannelDifference calls, if it fails
 	SingleTimer _failDifferenceTimer;
 
-	uint64 _lastUpdateTime;
-	bool _handlingChannelDifference;
+	uint64 _lastUpdateTime = 0;
+	bool _handlingChannelDifference = false;
 
 	QPixmap _cachedBackground;
 	QRect _cachedFor, _willCacheFor;
-	int _cachedX, _cachedY;
+	int _cachedX = 0;
+	int _cachedY = 0;
 	SingleTimer _cacheBackgroundTimer;
 
 	typedef QMap<ChannelData*, bool> UpdatedChannels;
@@ -697,7 +702,7 @@ private:
 	void viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint> &result, mtpRequestId req);
 	bool viewsIncrementFail(const RPCError &error, mtpRequestId req);
 
-	App::WallPaper *_background;
+	App::WallPaper *_background = nullptr;
 
 	ApiWrap *_api;
 

@@ -1118,6 +1118,9 @@ struct HistoryMessageReplyMarkup : public BaseComponent<HistoryMessageReplyMarku
 
 	UniquePointer<ReplyKeyboard> inlineKeyboard;
 
+	// If >= 0 it holds the y coord of the inlineKeyboard before the last edition.
+	int oldTop = -1;
+
 private:
 	void createFromButtonRows(const QVector<MTPKeyboardButtonRow> &v);
 
@@ -2586,7 +2589,7 @@ public:
 	void detachFromItem(HistoryItem *item) override;
 
 	bool hasReplyPreview() const override {
-		return (_data->photo && !_data->photo->thumb->isNull()) || (_data->doc && !_data->doc->thumb->isNull());
+		return (_data->photo && !_data->photo->thumb->isNull()) || (_data->document && !_data->document->thumb->isNull());
 	}
 	ImagePtr replyPreview() override;
 
@@ -2883,6 +2886,7 @@ private:
 
 	void initDimensions() override;
 	int resizeGetHeight_(int width) override;
+	int performResizeGetHeight(int width);
 
 	bool displayForwardedFrom() const {
 		if (const HistoryMessageForwarded *fwd = Get<HistoryMessageForwarded>()) {

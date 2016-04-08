@@ -101,6 +101,10 @@ public:
 	void notifyIsBotChanged();
 	void notifyMigrateUpdated();
 
+	// When inline keyboard has moved because of the edition of its item we want
+	// to move scroll position so that mouse points to the same button row.
+	int moveScrollFollowingInlineKeyboard(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
+
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
 	QPoint tooltipPos() const override;
@@ -680,6 +684,7 @@ public:
 	void notify_botCommandsChanged(UserData *user);
 	void notify_inlineBotRequesting(bool requesting);
 	void notify_replyMarkupUpdated(const HistoryItem *item);
+	void notify_inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
 	void notify_userIsBotChanged(UserData *user);
 	void notify_migrateUpdated(PeerData *peer);
 	void notify_clipStopperHidden(ClipStopperType type);
@@ -977,10 +982,11 @@ private:
 	History *_migrated = nullptr;
 	History *_history = nullptr;
 	bool _histInited = false; // initial updateListSize() called
+	int _addToScroll = 0;
 
-	int32 _lastScroll = 0;
+	int _lastScroll = 0;// gifs optimization
 	uint64 _lastScrolled = 0;
-	QTimer _updateHistoryItems; // gifs optimization
+	QTimer _updateHistoryItems;
 
 	IconedButton _toHistoryEnd;
 	CollapseButton _collapseComments;

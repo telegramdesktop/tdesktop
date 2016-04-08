@@ -1908,6 +1908,16 @@ void HistoryInner::notifyMigrateUpdated() {
 	_migrated = _peer->migrateFrom() ? App::history(_peer->migrateFrom()->id) : 0;
 }
 
+int HistoryInner::moveScrollFollowingInlineKeyboard(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop) {
+	if (item == App::mousedItem()) {
+		int top = itemTop(item);
+		if (top >= oldKeyboardTop) {
+			return newKeyboardTop - oldKeyboardTop;
+		}
+	}
+	return 0;
+}
+
 void HistoryInner::applyDragSelection() {
 	applyDragSelection(&_selected);
 }
@@ -3183,6 +3193,14 @@ void HistoryWidget::notify_replyMarkupUpdated(const HistoryItem *item) {
 	}
 }
 
+void HistoryWidget::notify_inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop) {
+	if (_history == item->history() || _migrated == item->history()) {
+		if (int move = _list->moveScrollFollowingInlineKeyboard(item, oldKeyboardTop, newKeyboardTop)) {
+			_addToScroll = move;
+		}
+	}
+}
+
 void HistoryWidget::notify_userIsBotChanged(UserData *user) {
 	if (_peer && _peer == user) {
 		_list->notifyIsBotChanged();
@@ -3577,6 +3595,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		updateBotKeyboard();
 	}
 
+	_addToScroll = 0;
 	_editMsgId = 0;
 	_saveEditMsgRequestId = 0;
 	_replyToId = 0;
@@ -6418,6 +6437,9 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 			toY += change.value;
 		} else if (change.type == ScrollChangeNoJumpToBottom) {
 			toY = wasScrollTop;
+		} else if (_addToScroll) {
+			toY += _addToScroll;
+			_addToScroll = 0;
 		}
 		if (toY > _scroll.scrollTopMax()) {
 			toY = _scroll.scrollTopMax();
@@ -7425,24 +7447,24 @@ void HistoryWidget::updatePreview() {
 				if (_previewData->title.isEmpty()) {
 					if (_previewData->description.isEmpty()) {
 						title = _previewData->author;
-						desc = ((_previewData->doc && !_previewData->doc->name.isEmpty()) ? _previewData->doc->name : _previewData->url);
+						desc = ((_previewData->document && !_previewData->document->name.isEmpty()) ? _previewData->document->name : _previewData->url);
 					} else {
 						title = _previewData->description;
-						desc = _previewData->author.isEmpty() ? ((_previewData->doc && !_previewData->doc->name.isEmpty()) ? _previewData->doc->name : _previewData->url) : _previewData->author;
+						desc = _previewData->author.isEmpty() ? ((_previewData->document && !_previewData->document->name.isEmpty()) ? _previewData->document->name : _previewData->url) : _previewData->author;
 					}
 				} else {
 					title = _previewData->title;
-					desc = _previewData->description.isEmpty() ? (_previewData->author.isEmpty() ? ((_previewData->doc && !_previewData->doc->name.isEmpty()) ? _previewData->doc->name : _previewData->url) : _previewData->author) : _previewData->description;
+					desc = _previewData->description.isEmpty() ? (_previewData->author.isEmpty() ? ((_previewData->document && !_previewData->document->name.isEmpty()) ? _previewData->document->name : _previewData->url) : _previewData->author) : _previewData->description;
 				}
 			} else {
 				title = _previewData->siteName;
-				desc = _previewData->title.isEmpty() ? (_previewData->description.isEmpty() ? (_previewData->author.isEmpty() ? ((_previewData->doc && !_previewData->doc->name.isEmpty()) ? _previewData->doc->name : _previewData->url) : _previewData->author) : _previewData->description) : _previewData->title;
+				desc = _previewData->title.isEmpty() ? (_previewData->description.isEmpty() ? (_previewData->author.isEmpty() ? ((_previewData->document && !_previewData->document->name.isEmpty()) ? _previewData->document->name : _previewData->url) : _previewData->author) : _previewData->description) : _previewData->title;
 			}
 			if (title.isEmpty()) {
-				if (_previewData->photo) {
-					title = lang(lng_attach_photo);
-				} else if (_previewData->doc) {
+				if (_previewData->document) {
 					title = lang(lng_attach_file);
+				} else if (_previewData->photo) {
+					title = lang(lng_attach_photo);
 				}
 			}
 			_previewTitle.setText(st::msgServiceNameFont, title, _textNameOptions);
@@ -7802,8 +7824,8 @@ void HistoryWidget::drawField(Painter &p) {
 	if (drawPreview) {
 		int32 previewLeft = st::replySkip + st::webPageLeft;
 		p.fillRect(st::replySkip, backy + st::msgReplyPadding.top(), st::webPageBar, st::msgReplyBarSize.height(), st::msgInReplyBarColor->b);
-		if ((_previewData->photo && !_previewData->photo->thumb->isNull()) || (_previewData->doc && !_previewData->doc->thumb->isNull())) {
-			ImagePtr replyPreview = _previewData->photo ? _previewData->photo->makeReplyPreview() : _previewData->doc->makeReplyPreview();
+		if ((_previewData->photo && !_previewData->photo->thumb->isNull()) || (_previewData->document && !_previewData->document->thumb->isNull())) {
+			ImagePtr replyPreview = _previewData->photo ? _previewData->photo->makeReplyPreview() : _previewData->document->makeReplyPreview();
 			if (!replyPreview->isNull()) {
 				QRect to(previewLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
 				if (replyPreview->width() == replyPreview->height()) {

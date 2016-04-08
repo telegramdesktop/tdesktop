@@ -260,6 +260,12 @@ namespace Notify {
 		}
 	}
 
+	void inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop) {
+		if (MainWidget *m = App::main()) {
+			m->notify_inlineKeyboardMoved(item, oldKeyboardTop, newKeyboardTop);
+		}
+	}
+
 	void migrateUpdated(PeerData *peer) {
 		if (MainWidget *m = App::main()) m->notify_migrateUpdated(peer);
 	}

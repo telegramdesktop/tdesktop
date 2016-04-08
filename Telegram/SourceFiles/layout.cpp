@@ -1105,8 +1105,8 @@ LayoutOverviewLink::LayoutOverviewLink(HistoryMedia *media, HistoryItem *parent)
 
 	_page = (media && media->type() == MediaTypeWebPage) ? static_cast<HistoryWebPage*>(media)->webpage() : 0;
 	if (_page) {
-		if (_page->doc) {
-			_photol.reset(new DocumentOpenClickHandler(_page->doc));
+		if (_page->document) {
+			_photol.reset(new DocumentOpenClickHandler(_page->document));
 		} else if (_page->photo) {
 			if (_page->type == WebPageProfile || _page->type == WebPageVideo) {
 				_photol = MakeShared<UrlClickHandler>(_page->url);
@@ -1136,11 +1136,11 @@ LayoutOverviewLink::LayoutOverviewLink(HistoryMedia *media, HistoryItem *parent)
 
 		tw = convertScale(_page->photo->thumb->width());
 		th = convertScale(_page->photo->thumb->height());
-	} else if (_page && _page->doc) {
-		if (!_page->doc->thumb->loaded()) _page->doc->thumb->load(false, false);
+	} else if (_page && _page->document) {
+		if (!_page->document->thumb->loaded()) _page->document->thumb->load(false, false);
 
-		tw = convertScale(_page->doc->thumb->width());
-		th = convertScale(_page->doc->thumb->height());
+		tw = convertScale(_page->document->thumb->width());
+		th = convertScale(_page->document->thumb->height());
 	}
 	if (tw > st::dlgPhotoSize) {
 		if (th > tw) {
@@ -1214,16 +1214,16 @@ void LayoutOverviewLink::paint(Painter &p, const QRect &clip, uint32 selection, 
 	if (clip.intersects(rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width))) {
 		if (_page && _page->photo) {
 			QPixmap pix;
-			if (_page->photo->loaded()) {
-				pix = _page->photo->full->pixSingle(_pixw, _pixh, st::dlgPhotoSize, st::dlgPhotoSize);
-			} else if (_page->photo->medium->loaded()) {
+			if (_page->photo->medium->loaded()) {
 				pix = _page->photo->medium->pixSingle(_pixw, _pixh, st::dlgPhotoSize, st::dlgPhotoSize);
+			} else if (_page->photo->loaded()) {
+				pix = _page->photo->full->pixSingle(_pixw, _pixh, st::dlgPhotoSize, st::dlgPhotoSize);
 			} else {
 				pix = _page->photo->thumb->pixSingle(_pixw, _pixh, st::dlgPhotoSize, st::dlgPhotoSize);
 			}
 			p.drawPixmapLeft(0, top, _width, pix);
-		} else if (_page && _page->doc && !_page->doc->thumb->isNull()) {
-			p.drawPixmapLeft(0, top, _width, _page->doc->thumb->pixSingle(_pixw, _pixh, st::dlgPhotoSize, st::dlgPhotoSize));
+		} else if (_page && _page->document && !_page->document->thumb->isNull()) {
+			p.drawPixmapLeft(0, top, _width, _page->document->thumb->pixSingle(_pixw, _pixh, st::dlgPhotoSize, st::dlgPhotoSize));
 		} else {
 			int32 index = _letter.isEmpty() ? 0 : (_letter.at(0).unicode() % 4);
 			switch (index) {

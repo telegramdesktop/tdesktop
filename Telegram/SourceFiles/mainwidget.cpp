@@ -399,40 +399,12 @@ MainWidget *TopBarWidget::main() {
 }
 
 MainWidget::MainWidget(Window *window) : TWidget(window)
-, _started(0)
-, failedObjId(0)
-, _toForwardNameVersion(0)
 , _a_show(animation(this, &MainWidget::step_show))
-, _dialogsWidth(st::dlgMinWidth)
 , dialogs(this)
 , history(this)
-, profile(0)
-, overview(0)
 , _player(this)
 , _topBar(this)
-, _forwardConfirm(0)
-, _hider(0)
-, _peerInStack(0)
-, _msgIdInStack(0)
-, _playerHeight(0)
-, _contentScrollAddToY(0)
 , _mediaType(this)
-, _mediaTypeMask(0)
-, updDate(0)
-, updQts(-1)
-, updSeq(0)
-, _getDifferenceTimeByPts(0)
-, _getDifferenceTimeAfterFail(0)
-, _onlineRequest(0)
-, _lastWasOnline(false)
-, _lastSetOnline(0)
-, _isIdle(false)
-, _failDifferenceTimeout(1)
-, _lastUpdateTime(0)
-, _handlingChannelDifference(false)
-, _cachedX(0)
-, _cachedY(0)
-, _background(0)
 , _api(new ApiWrap(this)) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 
@@ -774,6 +746,10 @@ void MainWidget::notify_inlineBotRequesting(bool requesting) {
 
 void MainWidget::notify_replyMarkupUpdated(const HistoryItem *item) {
 	history.notify_replyMarkupUpdated(item);
+}
+
+void MainWidget::notify_inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop) {
+	history.notify_inlineKeyboardMoved(item, oldKeyboardTop, newKeyboardTop);
 }
 
 void MainWidget::notify_userIsBotChanged(UserData *bot) {
@@ -2890,7 +2866,7 @@ void MainWidget::resizeEvent(QResizeEvent *e) {
 	_contentScrollAddToY = 0;
 }
 
-int32 MainWidget::contentScrollAddToY() const {
+int MainWidget::contentScrollAddToY() const {
 	return _contentScrollAddToY;
 }
 

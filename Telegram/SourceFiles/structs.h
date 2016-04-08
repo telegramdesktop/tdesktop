@@ -1228,7 +1228,7 @@ inline WebPageType toWebPageType(const QString &type) {
 }
 
 struct WebPageData {
-	WebPageData(const WebPageId &id, WebPageType type = WebPageArticle, const QString &url = QString(), const QString &displayUrl = QString(), const QString &siteName = QString(), const QString &title = QString(), const QString &description = QString(), PhotoData *photo = 0, DocumentData *doc = 0, int32 duration = 0, const QString &author = QString(), int32 pendingTill = -1);
+	WebPageData(const WebPageId &id, WebPageType type = WebPageArticle, const QString &url = QString(), const QString &displayUrl = QString(), const QString &siteName = QString(), const QString &title = QString(), const QString &description = QString(), DocumentData *doc = nullptr, PhotoData *photo = nullptr, int32 duration = 0, const QString &author = QString(), int32 pendingTill = -1);
 
 	void forget() {
 		if (photo) photo->forget();
@@ -1240,7 +1240,7 @@ struct WebPageData {
 	int32 duration;
 	QString author;
 	PhotoData *photo;
-	DocumentData *doc;
+	DocumentData *document;
 	int32 pendingTill;
 
 };

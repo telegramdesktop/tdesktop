@@ -102,6 +102,7 @@ namespace Notify {
 
 	void inlineBotRequesting(bool requesting);
 	void replyMarkupUpdated(const HistoryItem *item);
+	void inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
 
 	void migrateUpdated(PeerData *peer);
 
