@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/photosendbox.h"
 #include "ui/filedialog.h"
 #include "ui/style.h"
+#include "ui/toast/toast.h"
 #include "inline_bots/inline_bot_result.h"
 #include "lang.h"
 #include "application.h"
@@ -5210,7 +5211,13 @@ void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotC
 	if (answer.type() == mtpc_messages_botCallbackAnswer) {
 		const auto &answerData(answer.c_messages_botCallbackAnswer());
 		if (answerData.has_message()) {
-			Ui::showLayer(new InformBox(qs(answerData.vmessage)));
+			if (answerData.is_alert()) {
+				Ui::showLayer(new InformBox(qs(answerData.vmessage)));
+			} else {
+				Ui::Toast::Config toast;
+				toast.text = qs(answerData.vmessage);
+				Ui::Toast::Show(toast);
+			}
 		}
 	}
 }

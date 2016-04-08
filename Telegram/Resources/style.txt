@@ -2495,3 +2495,12 @@ editTextArea: InputArea(defaultInputArea) {
 	textMargins: margins(1px, 6px, 1px, 4px);
 	heightMax: 256px;
 }
+
+toastFont: normalFont;
+toastMaxWidth: 480px;
+toastMinMargin: 13px;
+toastBg: medviewSaveMsg;
+toastFg: #FFF;
+toastPadding: margins(19px, 13px, 19px, 12px);
+toastFadeInDuration: 200;
+toastFadeOutDuration: 1000;

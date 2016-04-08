@@ -55,6 +55,9 @@
     <Filter Include="ui">
       <UniqueIdentifier>{93203856-b459-49ec-8097-689d0feda013}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ui\toast">
+      <UniqueIdentifier>{815de139-ef13-45d6-a131-a3556eefae55}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SourceFiles\main.cpp">
@@ -987,6 +990,24 @@
     <ClCompile Include="GeneratedFiles\Release\moc_twidget.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\ui\toast\toast.cpp">
+      <Filter>ui\toast</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ui\toast\toast_manager.cpp">
+      <Filter>ui\toast</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_toast_manager.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_toast_manager.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_toast_manager.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ui\toast\toast_widget.cpp">
+      <Filter>ui\toast</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1096,6 +1117,12 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\ui\text.h">
       <Filter>ui</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ui\toast\toast.h">
+      <Filter>ui\toast</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ui\toast\toast_widget.h">
+      <Filter>ui\toast</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1335,6 +1362,9 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\ui\twidget.h">
       <Filter>ui</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\ui\toast\toast_manager.h">
+      <Filter>ui\toast</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

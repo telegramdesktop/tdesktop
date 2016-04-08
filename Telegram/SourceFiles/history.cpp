@@ -6301,7 +6301,7 @@ void HistoryLocation::initDimensions(const HistoryItem *parent) {
 	}
 }
 
-int32 HistoryLocation::resize(int32 width, const HistoryItem *parent) {
+int HistoryLocation::resizeGetHeight(int width, const HistoryItem *parent) {
 	bool bubble = parent->hasBubble();
 
 	_width = qMin(width, _maxw);

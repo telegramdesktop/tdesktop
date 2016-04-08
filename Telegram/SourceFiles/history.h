@@ -2679,7 +2679,7 @@ public:
 	}
 
 	void initDimensions(const HistoryItem *parent) override;
-	int32 resize(int32 width, const HistoryItem *parent);
+	int resizeGetHeight(int32 width, const HistoryItem *parent) override;
 
 	void draw(Painter &p, const HistoryItem *parent, const QRect &r, bool selected, uint64 ms) const override;
 	void getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent) const override;
