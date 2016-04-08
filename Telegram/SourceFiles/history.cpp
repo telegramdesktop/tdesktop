@@ -4616,8 +4616,11 @@ const QString HistoryDocument::inDialogsText() const {
 	QString result;
 	if (Has<HistoryDocumentVoice>()) {
 		result = lang(lng_in_dlg_audio);
-	} else if (_data->song()) {
-		result = lang(lng_in_dlg_audio_file);
+	} else if (auto song = _data->song()) {
+		result = documentName(_data);
+		if (result.isEmpty()) {
+			result = lang(lng_in_dlg_audio_file);
+		}
 	} else {
 		auto named = Get<HistoryDocumentNamed>();
 		result = (!named || named->_name.isEmpty()) ? lang(lng_in_dlg_file) : named->_name;

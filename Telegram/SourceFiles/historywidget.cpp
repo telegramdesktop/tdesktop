@@ -2910,7 +2910,7 @@ void HistoryWidget::updateInlineBotQuery() {
 		if (_inlineBot->username == cInlineGifBotUsername() && query.isEmpty()) {
 			_emojiPan.clearInlineBot();
 		} else {
-			_emojiPan.queryInlineBot(_inlineBot, query);
+			_emojiPan.queryInlineBot(_inlineBot, _peer, query);
 		}
 		if (!_attachMention.isHidden()) {
 			_attachMention.hideStart();

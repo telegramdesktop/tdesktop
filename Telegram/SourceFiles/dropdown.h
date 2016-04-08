@@ -594,7 +594,7 @@ public:
 	bool eventFilter(QObject *obj, QEvent *e);
 	void stickersInstalled(uint64 setId);
 
-	void queryInlineBot(UserData *bot, QString query);
+	void queryInlineBot(UserData *bot, PeerData *peer, QString query);
 	void clearInlineBot();
 
 	bool overlaps(const QRect &globalRect) {
@@ -731,6 +731,7 @@ private:
 	void recountContentMaxHeight();
 	bool refreshInlineRows(int32 *added = 0);
 	UserData *_inlineBot;
+	PeerData *_inlineQueryPeer = nullptr;
 	QString _inlineQuery, _inlineNextQuery, _inlineNextOffset;
 	mtpRequestId _inlineRequestId;
 	void inlineResultsDone(const MTPmessages_BotResults &result);

@@ -3719,19 +3719,20 @@ bool EmojiPan::inlineResultsFail(const RPCError &error) {
 	return true;
 }
 
-void EmojiPan::queryInlineBot(UserData *bot, QString query) {
+void EmojiPan::queryInlineBot(UserData *bot, PeerData *peer, QString query) {
 	bool force = false;
+	_inlineQueryPeer = peer;
 	if (bot != _inlineBot) {
 		inlineBotChanged();
 		_inlineBot = bot;
 		force = true;
-		if (_inlineBot->isBotInlineGeo()) {
-			Ui::showLayer(new InformBox(lang(lng_bot_inline_geo_unavailable)));
-		}
+		//if (_inlineBot->isBotInlineGeo()) {
+		//	Ui::showLayer(new InformBox(lang(lng_bot_inline_geo_unavailable)));
+		//}
 	}
-	if (_inlineBot && _inlineBot->isBotInlineGeo()) {
-		return;
-	}
+	//if (_inlineBot && _inlineBot->isBotInlineGeo()) {
+	//	return;
+	//}
 
 	if (_inlineQuery != query || force) {
 		if (_inlineRequestId) {
@@ -3751,7 +3752,7 @@ void EmojiPan::queryInlineBot(UserData *bot, QString query) {
 }
 
 void EmojiPan::onInlineRequest() {
-	if (_inlineRequestId || !_inlineBot) return;
+	if (_inlineRequestId || !_inlineBot || !_inlineQueryPeer) return;
 	_inlineQuery = _inlineNextQuery;
 
 	QString nextOffset;
@@ -3762,7 +3763,7 @@ void EmojiPan::onInlineRequest() {
 	}
 	Notify::inlineBotRequesting(true);
 	MTPmessages_GetInlineBotResults::Flags flags = 0;
-	_inlineRequestId = MTP::send(MTPmessages_GetInlineBotResults(MTP_flags(flags), _inlineBot->inputUser, MTPInputGeoPoint(), MTP_string(_inlineQuery), MTP_string(nextOffset)), rpcDone(&EmojiPan::inlineResultsDone), rpcFail(&EmojiPan::inlineResultsFail));
+	_inlineRequestId = MTP::send(MTPmessages_GetInlineBotResults(MTP_flags(flags), _inlineBot->inputUser, _inlineQueryPeer->input, MTPInputGeoPoint(), MTP_string(_inlineQuery), MTP_string(nextOffset)), rpcDone(&EmojiPan::inlineResultsDone), rpcFail(&EmojiPan::inlineResultsFail));
 }
 
 void EmojiPan::onEmptyInlineRows() {

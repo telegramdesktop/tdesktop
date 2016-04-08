@@ -601,7 +601,7 @@ enum {
 	mtpc_messages_searchGifs = 0xbf9a776b,
 	mtpc_messages_getSavedGifs = 0x83bf3d52,
 	mtpc_messages_saveGif = 0x327a30cb,
-	mtpc_messages_getInlineBotResults = 0x94e7b170,
+	mtpc_messages_getInlineBotResults = 0x514e999d,
 	mtpc_messages_setInlineBotResults = 0xeb5ea206,
 	mtpc_messages_sendInlineBotResult = 0xb16e06fe,
 	mtpc_messages_getMessageEditData = 0xfda68d36,
@@ -19373,6 +19373,7 @@ public:
 
 	MTPflags<MTPmessages_getInlineBotResults::Flags> vflags;
 	MTPInputUser vbot;
+	MTPInputPeer vpeer;
 	MTPInputGeoPoint vgeo_point;
 	MTPstring vquery;
 	MTPstring voffset;
@@ -19382,11 +19383,11 @@ public:
 	MTPmessages_getInlineBotResults(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getInlineBotResults) {
 		read(from, end, cons);
 	}
-	MTPmessages_getInlineBotResults(const MTPflags<MTPmessages_getInlineBotResults::Flags> &_flags, const MTPInputUser &_bot, const MTPInputGeoPoint &_geo_point, const MTPstring &_query, const MTPstring &_offset) : vflags(_flags), vbot(_bot), vgeo_point(_geo_point), vquery(_query), voffset(_offset) {
+	MTPmessages_getInlineBotResults(const MTPflags<MTPmessages_getInlineBotResults::Flags> &_flags, const MTPInputUser &_bot, const MTPInputPeer &_peer, const MTPInputGeoPoint &_geo_point, const MTPstring &_query, const MTPstring &_offset) : vflags(_flags), vbot(_bot), vpeer(_peer), vgeo_point(_geo_point), vquery(_query), voffset(_offset) {
 	}
 
 	uint32 innerLength() const {
-		return vflags.innerLength() + vbot.innerLength() + (has_geo_point() ? vgeo_point.innerLength() : 0) + vquery.innerLength() + voffset.innerLength();
+		return vflags.innerLength() + vbot.innerLength() + vpeer.innerLength() + (has_geo_point() ? vgeo_point.innerLength() : 0) + vquery.innerLength() + voffset.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_messages_getInlineBotResults;
@@ -19394,6 +19395,7 @@ public:
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getInlineBotResults) {
 		vflags.read(from, end);
 		vbot.read(from, end);
+		vpeer.read(from, end);
 		if (has_geo_point()) { vgeo_point.read(from, end); } else { vgeo_point = MTPInputGeoPoint(); }
 		vquery.read(from, end);
 		voffset.read(from, end);
@@ -19401,6 +19403,7 @@ public:
 	void write(mtpBuffer &to) const {
 		vflags.write(to);
 		vbot.write(to);
+		vpeer.write(to);
 		if (has_geo_point()) vgeo_point.write(to);
 		vquery.write(to);
 		voffset.write(to);
@@ -19418,7 +19421,7 @@ public:
 	}
 	MTPmessages_GetInlineBotResults(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_getInlineBotResults>(from, end, cons) {
 	}
-	MTPmessages_GetInlineBotResults(const MTPflags<MTPmessages_getInlineBotResults::Flags> &_flags, const MTPInputUser &_bot, const MTPInputGeoPoint &_geo_point, const MTPstring &_query, const MTPstring &_offset) : MTPBoxed<MTPmessages_getInlineBotResults>(MTPmessages_getInlineBotResults(_flags, _bot, _geo_point, _query, _offset)) {
+	MTPmessages_GetInlineBotResults(const MTPflags<MTPmessages_getInlineBotResults::Flags> &_flags, const MTPInputUser &_bot, const MTPInputPeer &_peer, const MTPInputGeoPoint &_geo_point, const MTPstring &_query, const MTPstring &_offset) : MTPBoxed<MTPmessages_getInlineBotResults>(MTPmessages_getInlineBotResults(_flags, _bot, _peer, _geo_point, _query, _offset)) {
 	}
 };
 
