@@ -203,7 +203,7 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer a
 	StorageImageLocation newPhotoLoc = photoLoc;
 	switch (p.type()) {
 	case mtpc_userProfilePhoto: {
-		const MTPDuserProfilePhoto d(p.c_userProfilePhoto());
+		const auto &d(p.c_userProfilePhoto());
 		newPhotoId = d.vphoto_id.v;
 		newPhotoLoc = App::imageLocation(160, 160, d.vphoto_small);
 		newPhoto = newPhotoLoc.isNull() ? userDefPhoto(colorIndex) : ImagePtr(newPhotoLoc);
@@ -307,7 +307,7 @@ void UserData::setBotInfoVersion(int version) {
 void UserData::setBotInfo(const MTPBotInfo &info) {
 	switch (info.type()) {
 	case mtpc_botInfo: {
-		const MTPDbotInfo &d(info.c_botInfo());
+		const auto &d(info.c_botInfo());
 		if (peerFromUser(d.vuser_id.v) != id || !botInfo) return;
 
 		QString desc = qs(d.vdescription);
@@ -316,7 +316,7 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 			botInfo->text = Text(st::msgMinWidth);
 		}
 
-		const QVector<MTPBotCommand> &v(d.vcommands.c_vector().v);
+		const auto &v(d.vcommands.c_vector().v);
 		botInfo->commands.reserve(v.size());
 		bool changedCommands = false;
 		int32 j = 0;
@@ -378,7 +378,7 @@ void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Loc
 	StorageImageLocation newPhotoLoc = photoLoc;
 	switch (p.type()) {
 	case mtpc_chatPhoto: {
-		const MTPDchatPhoto d(p.c_chatPhoto());
+		const auto &d(p.c_chatPhoto());
 		if (phId != UnknownPeerPhotoId) {
 			newPhotoId = phId;
 		}
@@ -407,7 +407,7 @@ void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see 
 	StorageImageLocation newPhotoLoc = photoLoc;
 	switch (p.type()) {
 	case mtpc_chatPhoto: {
-		const MTPDchatPhoto d(p.c_chatPhoto());
+		const auto &d(p.c_chatPhoto());
 		if (phId != UnknownPeerPhotoId) {
 			newPhotoId = phId;
 		}
@@ -1008,7 +1008,7 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 	for (int32 i = 0, l = attributes.size(); i < l; ++i) {
 		switch (attributes[i].type()) {
 		case mtpc_documentAttributeImageSize: {
-			const MTPDdocumentAttributeImageSize &d(attributes[i].c_documentAttributeImageSize());
+			const auto &d(attributes[i].c_documentAttributeImageSize());
 			dimensions = QSize(d.vw.v, d.vh.v);
 		} break;
 		case mtpc_documentAttributeAnimated: if (type == FileDocument || type == StickerDocument || type == VideoDocument) {
@@ -1017,7 +1017,7 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			_additional = 0;
 		} break;
 		case mtpc_documentAttributeSticker: {
-			const MTPDdocumentAttributeSticker &d(attributes[i].c_documentAttributeSticker());
+			const auto &d(attributes[i].c_documentAttributeSticker());
 			if (type == FileDocument) {
 				type = StickerDocument;
 				StickerData *sticker = new StickerData();
@@ -1029,7 +1029,7 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			}
 		} break;
 		case mtpc_documentAttributeVideo: {
-			const MTPDdocumentAttributeVideo &d(attributes[i].c_documentAttributeVideo());
+			const auto &d(attributes[i].c_documentAttributeVideo());
 			if (type == FileDocument) {
 				type = VideoDocument;
 			}
@@ -1037,7 +1037,7 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			dimensions = QSize(d.vw.v, d.vh.v);
 		} break;
 		case mtpc_documentAttributeAudio: {
-			const MTPDdocumentAttributeAudio &d(attributes[i].c_documentAttributeAudio());
+			const auto &d(attributes[i].c_documentAttributeAudio());
 			if (type == FileDocument) {
 				if (d.is_voice()) {
 					type = VoiceDocument;

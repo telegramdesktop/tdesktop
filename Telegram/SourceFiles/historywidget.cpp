@@ -2262,7 +2262,7 @@ bool BotKeyboard::updateMarkup(HistoryItem *to, bool force) {
 		_wasForMsgId = FullMsgId(to->channelId(), to->id);
 		clearSelection();
 
-		const auto *markup = to->Get<HistoryMessageReplyMarkup>();
+		auto markup = to->Get<HistoryMessageReplyMarkup>();
 		_forceReply = markup->flags & MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply;
 		_maximizeSize = !(markup->flags & MTPDreplyKeyboardMarkup::Flag::f_resize);
 		_singleUse = _forceReply || (markup->flags & MTPDreplyKeyboardMarkup::Flag::f_single_use);
@@ -3260,9 +3260,9 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 	_stickersUpdateRequest = 0;
 
 	if (stickers.type() != mtpc_messages_allStickers) return;
-	const MTPDmessages_allStickers &d(stickers.c_messages_allStickers());
+	const auto &d(stickers.c_messages_allStickers());
 
-	const QVector<MTPStickerSet> &d_sets(d.vsets.c_vector().v);
+	const auto &d_sets(d.vsets.c_vector().v);
 
 	Stickers::Order &setsOrder(Global::RefStickerSetsOrder());
 	setsOrder.clear();
@@ -3274,7 +3274,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 	}
 	for (int i = 0, l = d_sets.size(); i != l; ++i) {
 		if (d_sets.at(i).type() == mtpc_stickerSet) {
-			const MTPDstickerSet &set(d_sets.at(i).c_stickerSet());
+			const auto &set(d_sets.at(i).c_stickerSet());
 			auto it = sets.find(set.vid.v);
 			QString title = stickerSetTitle(set);
 			if (it == sets.cend()) {
@@ -3334,7 +3334,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 }
 
 bool HistoryWidget::stickersFailed(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	LOG(("App Fail: Failed to get stickers!"));
 
@@ -3348,9 +3348,9 @@ void HistoryWidget::savedGifsGot(const MTPmessages_SavedGifs &gifs) {
 	_savedGifsUpdateRequest = 0;
 
 	if (gifs.type() != mtpc_messages_savedGifs) return;
-	const MTPDmessages_savedGifs &d(gifs.c_messages_savedGifs());
+	const auto &d(gifs.c_messages_savedGifs());
 
-	const QVector<MTPDocument> &d_gifs(d.vgifs.c_vector().v);
+	const auto &d_gifs(d.vgifs.c_vector().v);
 
 	SavedGifs &saved(cRefSavedGifs());
 	saved.clear();
@@ -3387,7 +3387,7 @@ void HistoryWidget::saveGifDone(DocumentData *doc, const MTPBool &result) {
 }
 
 bool HistoryWidget::savedGifsFailed(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	LOG(("App Fail: Failed to get saved gifs!"));
 
@@ -3851,7 +3851,7 @@ void HistoryWidget::reportSpamSettingDone(const MTPPeerSettings &result, mtpRequ
 
 	_reportSpamSettingRequestId = 0;
 	if (result.type() == mtpc_peerSettings) {
-		const MTPDpeerSettings &d(result.c_peerSettings());
+		const auto &d(result.c_peerSettings());
 		DBIPeerReportSpamStatus status = d.is_report_spam() ? dbiprsShowButton : dbiprsHidden;
 		if (status != _reportSpamStatus) {
 			_reportSpamStatus = status;
@@ -3866,7 +3866,7 @@ void HistoryWidget::reportSpamSettingDone(const MTPPeerSettings &result, mtpRequ
 }
 
 bool HistoryWidget::reportSpamSettingFail(const RPCError &error, mtpRequestId req) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (req == _reportSpamSettingRequestId) {
 		req = 0;
@@ -4166,7 +4166,7 @@ void HistoryWidget::historyCleared(History *history) {
 }
 
 bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (error.type() == qstr("CHANNEL_PRIVATE") || error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA") || error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
 		PeerData *was = _peer;
@@ -4206,21 +4206,21 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 	const QVector<MTPMessageGroup> *histCollapsed = 0;
 	switch (messages.type()) {
 	case mtpc_messages_messages: {
-		const MTPDmessages_messages &d(messages.c_messages_messages());
+		const auto &d(messages.c_messages_messages());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		histList = &d.vmessages.c_vector().v;
 		count = histList->size();
 	} break;
 	case mtpc_messages_messagesSlice: {
-		const MTPDmessages_messagesSlice &d(messages.c_messages_messagesSlice());
+		const auto &d(messages.c_messages_messagesSlice());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		histList = &d.vmessages.c_vector().v;
 		count = d.vcount.v;
 	} break;
 	case mtpc_messages_channelMessages: {
-		const MTPDmessages_channelMessages &d(messages.c_messages_channelMessages());
+		const auto &d(messages.c_messages_channelMessages());
 		if (peer && peer->isChannel()) {
 			peer->asChannel()->ptsReceived(d.vpts.v);
 		} else {
@@ -4643,7 +4643,7 @@ void HistoryWidget::saveEditMsgDone(History *history, const MTPUpdates &updates,
 }
 
 bool HistoryWidget::saveEditMsgFail(History *history, const RPCError &error, mtpRequestId req) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 	if (req == _saveEditMsgRequestId) {
 		_saveEditMsgRequestId = 0;
 	}
@@ -4714,7 +4714,7 @@ void HistoryWidget::unblockDone(PeerData *peer, const MTPBool &result, mtpReques
 }
 
 bool HistoryWidget::unblockFail(const RPCError &error, mtpRequestId req) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (_unblockRequest == req) _unblockRequest = 0;
 	return false;
@@ -4768,7 +4768,7 @@ void HistoryWidget::joinDone(const MTPUpdates &result, mtpRequestId req) {
 }
 
 bool HistoryWidget::joinFail(const RPCError &error, mtpRequestId req) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (_unblockRequest == req) _unblockRequest = 0;
 	if (error.type() == qstr("CHANNEL_PRIVATE") || error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA") || error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
@@ -5218,7 +5218,7 @@ void HistoryWidget::app_sendBotCallback(const HistoryMessageReplyMarkup::Button 
 
 void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotCallbackAnswer &answer, mtpRequestId req) {
 	if (HistoryItem *item = App::histItemById(info.msgId)) {
-		if (auto *markup = item->Get<HistoryMessageReplyMarkup>()) {
+		if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 			if (info.row < markup->rows.size() && info.col < markup->rows.at(info.row).size()) {
 				if (markup->rows.at(info.row).at(info.col).requestId == req) {
 					markup->rows.at(info.row).at(info.col).requestId = 0;
@@ -5242,10 +5242,9 @@ void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotC
 }
 
 bool HistoryWidget::botCallbackFail(BotCallbackInfo info, const RPCError &error, mtpRequestId req) {
-	if (mtpIsFlood(error)) return false;
-
+	// show error?
 	if (HistoryItem *item = App::histItemById(info.msgId)) {
-		if (auto *markup = item->Get<HistoryMessageReplyMarkup>()) {
+		if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 			if (info.row < markup->rows.size() && info.col < markup->rows.at(info.row).size()) {
 				if (markup->rows.at(info.row).at(info.col).requestId == req) {
 					markup->rows.at(info.row).at(info.col).requestId = 0;
@@ -5254,7 +5253,6 @@ bool HistoryWidget::botCallbackFail(BotCallbackInfo info, const RPCError &error,
 			}
 		}
 	}
-
 	return true;
 }
 
@@ -5404,7 +5402,7 @@ void HistoryWidget::inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result)
 //	Notify::inlineBotRequesting(false);
 	_inlineBotUsername = QString();
 	if (result.type() == mtpc_contacts_resolvedPeer) {
-		const MTPDcontacts_resolvedPeer &d(result.c_contacts_resolvedPeer());
+		const auto &d(result.c_contacts_resolvedPeer());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 	}
@@ -5412,7 +5410,7 @@ void HistoryWidget::inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result)
 }
 
 bool HistoryWidget::inlineBotResolveFail(QString name, const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	_inlineBotResolveRequestId = 0;
 //	Notify::inlineBotRequesting(false);
@@ -6141,7 +6139,7 @@ void HistoryWidget::reportSpamDone(PeerData *peer, const MTPBool &result, mtpReq
 }
 
 bool HistoryWidget::reportSpamFail(const RPCError &error, mtpRequestId req) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (req == _reportSpamRequest) {
 		_reportSpamRequest = 0;

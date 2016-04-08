@@ -253,7 +253,7 @@ void IntroCode::codeSubmitDone(const MTPauth_Authorization &result) {
 	stopCheck();
 	sentRequest = 0;
 	code.setDisabled(false);
-	const MTPDauth_authorization &d(result.c_auth_authorization());
+	const auto &d(result.c_auth_authorization());
 	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
 		showError(lang(lng_server_error));
 		return;
@@ -263,30 +263,36 @@ void IntroCode::codeSubmitDone(const MTPauth_Authorization &result) {
 }
 
 bool IntroCode::codeSubmitFail(const RPCError &error) {
+	if (MTP::isFloodError(error)) {
+		stopCheck();
+		sentRequest = 0;
+		showError(lang(lng_flood_error));
+		code.setDisabled(false);
+		code.setFocus();
+		return true;
+	}
+	if (MTP::isDefaultHandledError(error)) return false;
+
 	stopCheck();
 	sentRequest = 0;
 	code.setDisabled(false);
 	const QString &err = error.type();
-	if (err == "PHONE_NUMBER_INVALID" || err == "PHONE_CODE_EXPIRED") { // show error
+	if (err == qstr("PHONE_NUMBER_INVALID") || err == qstr("PHONE_CODE_EXPIRED")) { // show error
 		intro()->onBack();
 		return true;
-	} else if (err == "PHONE_CODE_EMPTY" || err == "PHONE_CODE_INVALID") {
+	} else if (err == qstr("PHONE_CODE_EMPTY") || err == qstr("PHONE_CODE_INVALID")) {
 		showError(lang(lng_bad_code));
 		code.notaBene();
 		return true;
-	} else if (err == "PHONE_NUMBER_UNOCCUPIED") { // success, need to signUp
+	} else if (err == qstr("PHONE_NUMBER_UNOCCUPIED")) { // success, need to signUp
 		intro()->setCode(sentCode);
 		intro()->replaceStep(new IntroSignup(intro()));
 		return true;
-	} else if (err == "SESSION_PASSWORD_NEEDED") {
+	} else if (err == qstr("SESSION_PASSWORD_NEEDED")) {
 		intro()->setCode(sentCode);
 		code.setDisabled(false);
 		checkRequest.start(1000);
 		sentRequest = MTP::send(MTPaccount_GetPassword(), rpcDone(&IntroCode::gotPassword), rpcFail(&IntroCode::codeSubmitFail));
-		return true;
-	} else if (mtpIsFlood(error)) {
-		showError(lang(lng_flood_error));
-		code.setFocus();
 		return true;
 	}
 	if (cDebug()) { // internal server error
@@ -334,7 +340,7 @@ void IntroCode::gotPassword(const MTPaccount_Password &result) {
 	break;
 
 	case mtpc_account_password: {
-		const MTPDaccount_password &d(result.c_account_password());
+		const auto &d(result.c_account_password());
 		intro()->setPwdSalt(qba(d.vcurrent_salt));
 		intro()->setHasRecovery(mtpIsTrue(d.vhas_recovery));
 		intro()->setPwdHint(qs(d.vhint));
@@ -371,7 +377,7 @@ void IntroCode::noTelegramCodeDone(const MTPauth_SentCode &result) {
 		return;
 	}
 
-	const MTPDauth_sentCode &d(result.c_auth_sentCode());
+	const auto &d(result.c_auth_sentCode());
 	switch (d.vtype.type()) {
 	case mtpc_auth_sentCodeTypeApp: intro()->setCodeByTelegram(true);
 	case mtpc_auth_sentCodeTypeSms:
@@ -388,11 +394,13 @@ void IntroCode::noTelegramCodeDone(const MTPauth_SentCode &result) {
 }
 
 bool IntroCode::noTelegramCodeFail(const RPCError &error) {
-	if (mtpIsFlood(error)) {
+	if (MTP::isFloodError(error)) {
 		showError(lang(lng_flood_error));
 		code.setFocus();
 		return true;
 	}
+	if (MTP::isDefaultHandledError(error)) return false;
+
 	if (cDebug()) { // internal server error
 		showError(error.type() + ": " + error.description());
 	} else {

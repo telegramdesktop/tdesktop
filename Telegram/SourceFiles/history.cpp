@@ -563,7 +563,7 @@ void ChannelHistory::getRangeDifferenceNext(int32 pts) {
 
 void ChannelHistory::addNewGroup(const MTPMessageGroup &group) {
 	if (group.type() != mtpc_messageGroup) return;
-	const MTPDmessageGroup &d(group.c_messageGroup());
+	const auto &d(group.c_messageGroup());
 
 	if (onlyImportant()) {
 		_otherNewLoaded = false;
@@ -1227,7 +1227,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 	break;
 
 	case mtpc_message: {
-		const MTPDmessage m(msg.c_message());
+		const auto &m(msg.c_message());
 		int badMedia = 0; // 1 - unsupported, 2 - empty
 		if (m.has_media()) switch (m.vmedia.type()) {
 		case mtpc_messageMediaEmpty:
@@ -1284,16 +1284,16 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 	} break;
 
 	case mtpc_messageService: {
-		const MTPDmessageService &d(msg.c_messageService());
+		const auto &d(msg.c_messageService());
 		result = HistoryService::create(this, d);
 
 		if (applyServiceAction) {
-			const MTPmessageAction &action(d.vaction);
+			const auto &action(d.vaction);
 			switch (d.vaction.type()) {
 			case mtpc_messageActionChatAddUser: {
-				const MTPDmessageActionChatAddUser &d(action.c_messageActionChatAddUser());
+				const auto &d(action.c_messageActionChatAddUser());
 				if (peer->isMegagroup()) {
-					const QVector<MTPint> &v(d.vusers.c_vector().v);
+					const auto &v(d.vusers.c_vector().v);
 					for (int32 i = 0, l = v.size(); i < l; ++i) {
 						if (UserData *user = App::userLoaded(peerFromUser(v.at(i)))) {
 							if (peer->asChannel()->mgInfo->lastParticipants.indexOf(user) < 0) {
@@ -1312,7 +1312,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			} break;
 
 			case mtpc_messageActionChatJoinedByLink: {
-				const MTPDmessageActionChatJoinedByLink &d(action.c_messageActionChatJoinedByLink());
+				const auto &d(action.c_messageActionChatJoinedByLink());
 				if (peer->isMegagroup()) {
 					if (result->from()->isUser()) {
 						if (peer->asChannel()->mgInfo->lastParticipants.indexOf(result->from()->asUser()) < 0) {
@@ -1334,7 +1334,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			} break;
 
 			case mtpc_messageActionChatDeleteUser: {
-				const MTPDmessageActionChatDeleteUser &d(action.c_messageActionChatDeleteUser());
+				const auto &d(action.c_messageActionChatDeleteUser());
 				PeerId uid = peerFromUser(d.vuser_id);
 				if (lastKeyboardFrom == uid) {
 					clearLastKeyboard();
@@ -1367,13 +1367,13 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			} break;
 
 			case mtpc_messageActionChatEditPhoto: {
-				const MTPDmessageActionChatEditPhoto &d(action.c_messageActionChatEditPhoto());
+				const auto &d(action.c_messageActionChatEditPhoto());
 				if (d.vphoto.type() == mtpc_photo) {
-					const QVector<MTPPhotoSize> &sizes(d.vphoto.c_photo().vsizes.c_vector().v);
+					const auto &sizes(d.vphoto.c_photo().vsizes.c_vector().v);
 					if (!sizes.isEmpty()) {
 						PhotoData *photo = App::feedPhoto(d.vphoto.c_photo());
 						if (photo) photo->peer = peer;
-						const MTPPhotoSize &smallSize(sizes.front()), &bigSize(sizes.back());
+						const auto &smallSize(sizes.front()), &bigSize(sizes.back());
 						const MTPFileLocation *smallLoc = 0, *bigLoc = 0;
 						switch (smallSize.type()) {
 						case mtpc_photoSize: smallLoc = &smallSize.c_photoSize().vlocation; break;
@@ -1396,7 +1396,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			} break;
 
 			case mtpc_messageActionChatEditTitle: {
-				const MTPDmessageActionChatEditTitle &d(action.c_messageActionChatEditTitle());
+				const auto &d(action.c_messageActionChatEditTitle());
 				ChatData *chat = peer->asChat();
 				if (chat) chat->updateName(qs(d.vtitle), QString(), QString());
 			} break;
@@ -1404,12 +1404,12 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			case mtpc_messageActionChatMigrateTo: {
 				peer->asChat()->flags |= MTPDchat::Flag::f_deactivated;
 
-				//const MTPDmessageActionChatMigrateTo &d(action.c_messageActionChatMigrateTo());
+				//const auto &d(action.c_messageActionChatMigrateTo());
 				//PeerData *channel = App::channelLoaded(d.vchannel_id.v);
 			} break;
 
 			case mtpc_messageActionChannelMigrateFrom: {
-				//const MTPDmessageActionChannelMigrateFrom &d(action.c_messageActionChannelMigrateFrom());
+				//const auto &d(action.c_messageActionChannelMigrateFrom());
 				//PeerData *chat = App::chatLoaded(d.vchat_id.v);
 			} break;
 
@@ -1718,7 +1718,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 
 		for (; groupsIt != groupsEnd; ++groupsIt) {
 			if (groupsIt->type() != mtpc_messageGroup) continue;
-			const MTPDmessageGroup &group(groupsIt->c_messageGroup());
+			const auto &group(groupsIt->c_messageGroup());
 			if (group.vmin_id.v >= adding->id) break;
 
 			addMessageGroup(group);
@@ -1728,7 +1728,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 	}
 	for (; groupsIt != groupsEnd; ++groupsIt) {
 		if (groupsIt->type() != mtpc_messageGroup) continue;
-		const MTPDmessageGroup &group(groupsIt->c_messageGroup());
+		const auto &group(groupsIt->c_messageGroup());
 
 		addMessageGroup(group);
 	}
@@ -1840,7 +1840,7 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 
 			for (; groupsIt != groupsEnd; ++groupsIt) {
 				if (groupsIt->type() != mtpc_messageGroup) continue;
-				const MTPDmessageGroup &group(groupsIt->c_messageGroup());
+				const auto &group(groupsIt->c_messageGroup());
 				if (group.vmin_id.v >= adding->id) break;
 
 				addMessageGroup(group);
@@ -1851,7 +1851,7 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 		}
 		for (; groupsIt != groupsEnd; ++groupsIt) {
 			if (groupsIt->type() != mtpc_messageGroup) continue;
-			const MTPDmessageGroup &group(groupsIt->c_messageGroup());
+			const auto &group(groupsIt->c_messageGroup());
 
 			addMessageGroup(group);
 		}
@@ -2519,7 +2519,7 @@ void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages 
 	const QVector<MTPMessage> *v = 0;
 	switch (result.type()) {
 	case mtpc_messages_messages: {
-		const MTPDmessages_messages &d(result.c_messages_messages());
+		const auto &d(result.c_messages_messages());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		v = &d.vmessages.c_vector().v;
@@ -2527,7 +2527,7 @@ void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages 
 	} break;
 
 	case mtpc_messages_messagesSlice: {
-		const MTPDmessages_messagesSlice &d(result.c_messages_messagesSlice());
+		const auto &d(result.c_messages_messagesSlice());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		overviewCountData[overviewIndex] = d.vcount.v;
@@ -2535,7 +2535,7 @@ void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages 
 	} break;
 
 	case mtpc_messages_channelMessages: {
-		const MTPDmessages_channelMessages &d(result.c_messages_channelMessages());
+		const auto &d(result.c_messages_channelMessages());
 		if (peer->isChannel()) {
 			peer->asChannel()->ptsReceived(d.vpts.v);
 		} else {
@@ -3017,15 +3017,15 @@ void HistoryMessageReplyMarkup::createFromButtonRows(const QVector<MTPKeyboardBu
 	}
 
 	rows.reserve(v.size());
-	for_const(const MTPKeyboardButtonRow &row, v) {
+	for_const (const auto &row, v) {
 		switch (row.type()) {
 		case mtpc_keyboardButtonRow: {
-			const MTPDkeyboardButtonRow &r(row.c_keyboardButtonRow());
-			const QVector<MTPKeyboardButton> &b(r.vbuttons.c_vector().v);
+			const auto &r(row.c_keyboardButtonRow());
+			const auto &b(r.vbuttons.c_vector().v);
 			if (!b.isEmpty()) {
 				ButtonRow buttonRow;
 				buttonRow.reserve(b.size());
-				for_const(const MTPKeyboardButton &button, b) {
+				for_const (const auto &button, b) {
 					switch (button.type()) {
 					case mtpc_keyboardButton: {
 						buttonRow.push_back({ Button::Default, qs(button.c_keyboardButton().vtext), QByteArray(), 0 });
@@ -3064,26 +3064,26 @@ void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
 
 	switch (markup.type()) {
 	case mtpc_replyKeyboardMarkup: {
-		const MTPDreplyKeyboardMarkup &d(markup.c_replyKeyboardMarkup());
+		const auto &d(markup.c_replyKeyboardMarkup());
 		flags = d.vflags.v;
 
 		createFromButtonRows(d.vrows.c_vector().v);
 	} break;
 
 	case mtpc_replyInlineMarkup: {
-		const MTPDreplyInlineMarkup &d(markup.c_replyInlineMarkup());
+		const auto &d(markup.c_replyInlineMarkup());
 		flags = MTPDreplyKeyboardMarkup::Flags(0) | MTPDreplyKeyboardMarkup_ClientFlag::f_inline;
 
 		createFromButtonRows(d.vrows.c_vector().v);
 	} break;
 
 	case mtpc_replyKeyboardHide: {
-		const MTPDreplyKeyboardHide &d(markup.c_replyKeyboardHide());
+		const auto &d(markup.c_replyKeyboardHide());
 		flags = mtpCastFlags(d.vflags) | MTPDreplyKeyboardMarkup_ClientFlag::f_zero;
 	} break;
 
 	case mtpc_replyKeyboardForceReply: {
-		const MTPDreplyKeyboardForceReply &d(markup.c_replyKeyboardForceReply());
+		const auto &d(markup.c_replyKeyboardForceReply());
 		flags = mtpCastFlags(d.vflags) | MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply;
 	} break;
 	}
@@ -3834,11 +3834,11 @@ void HistoryPhoto::getState(ClickHandlerPtr &lnk, HistoryCursorState &state, int
 
 void HistoryPhoto::updateFrom(const MTPMessageMedia &media, HistoryItem *parent) {
 	if (media.type() == mtpc_messageMediaPhoto) {
-		const MTPPhoto &photo(media.c_messageMediaPhoto().vphoto);
+		const auto &photo(media.c_messageMediaPhoto().vphoto);
 		App::feedPhoto(photo, _data);
 
 		if (photo.type() == mtpc_photo) {
-			const QVector<MTPPhotoSize> &sizes(photo.c_photo().vsizes.c_vector().v);
+			const auto &sizes(photo.c_photo().vsizes.c_vector().v);
 			int32 max = 0;
 			const MTPDfileLocation *maxLocation = 0;
 			for (int32 i = 0, l = sizes.size(); i < l; ++i) {
@@ -6734,7 +6734,7 @@ HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg)
 	CreateConfig config;
 
 	if (msg.has_fwd_from() && msg.vfwd_from.type() == mtpc_messageFwdHeader) {
-		const MTPDmessageFwdHeader &f(msg.vfwd_from.c_messageFwdHeader());
+		const auto &f(msg.vfwd_from.c_messageFwdHeader());
 		if (f.has_from_id() || f.has_channel_id()) {
 			config.authorIdOriginal = f.has_channel_id() ? peerFromChannel(f.vchannel_id) : peerFromUser(f.vfrom_id);
 			config.fromIdOriginal = f.has_from_id() ? peerFromUser(f.vfrom_id) : peerFromChannel(f.vchannel_id);
@@ -6894,35 +6894,35 @@ void HistoryMessage::initTime() {
 void HistoryMessage::initMedia(const MTPMessageMedia *media, QString &currentText) {
 	switch (media ? media->type() : mtpc_messageMediaEmpty) {
 	case mtpc_messageMediaContact: {
-		const MTPDmessageMediaContact &d(media->c_messageMediaContact());
+		const auto &d(media->c_messageMediaContact());
 		_media.reset(this, new HistoryContact(d.vuser_id.v, qs(d.vfirst_name), qs(d.vlast_name), qs(d.vphone_number)));
 	} break;
 	case mtpc_messageMediaGeo: {
-		const MTPGeoPoint &point(media->c_messageMediaGeo().vgeo);
+		const auto &point(media->c_messageMediaGeo().vgeo);
 		if (point.type() == mtpc_geoPoint) {
 			_media.reset(this, new HistoryLocation(LocationCoords(point.c_geoPoint())));
 		}
 	} break;
 	case mtpc_messageMediaVenue: {
-		const MTPDmessageMediaVenue &d(media->c_messageMediaVenue());
+		const auto &d(media->c_messageMediaVenue());
 		if (d.vgeo.type() == mtpc_geoPoint) {
 			_media.reset(this, new HistoryLocation(LocationCoords(d.vgeo.c_geoPoint()), qs(d.vtitle), qs(d.vaddress)));
 		}
 	} break;
 	case mtpc_messageMediaPhoto: {
-		const MTPDmessageMediaPhoto &photo(media->c_messageMediaPhoto());
+		const auto &photo(media->c_messageMediaPhoto());
 		if (photo.vphoto.type() == mtpc_photo) {
 			_media.reset(this, new HistoryPhoto(App::feedPhoto(photo.vphoto.c_photo()), qs(photo.vcaption), this));
 		}
 	} break;
 	case mtpc_messageMediaDocument: {
-		const MTPDocument &document(media->c_messageMediaDocument().vdocument);
+		const auto &document(media->c_messageMediaDocument().vdocument);
 		if (document.type() == mtpc_document) {
 			return initMediaFromDocument(App::feedDocument(document), qs(media->c_messageMediaDocument().vcaption));
 		}
 	} break;
 	case mtpc_messageMediaWebPage: {
-		const MTPWebPage &d(media->c_messageMediaWebPage().vwebpage);
+		const auto &d(media->c_messageMediaWebPage().vwebpage);
 		switch (d.type()) {
 		case mtpc_webPageEmpty: break;
 		case mtpc_webPagePending: {
@@ -7884,8 +7884,8 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 
 	switch (action.type()) {
 	case mtpc_messageActionChatAddUser: {
-		const MTPDmessageActionChatAddUser &d(action.c_messageActionChatAddUser());
-		const QVector<MTPint> &v(d.vusers.c_vector().v);
+		const auto &d(action.c_messageActionChatAddUser());
+		const auto &v(d.vusers.c_vector().v);
 		bool foundSelf = false;
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
 			if (v.at(i).v == MTP::authedId()) {
@@ -7926,7 +7926,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	} break;
 
 	case mtpc_messageActionChatJoinedByLink: {
-		const MTPDmessageActionChatJoinedByLink &d(action.c_messageActionChatJoinedByLink());
+		const auto &d(action.c_messageActionChatJoinedByLink());
 		//if (true || peerFromUser(d.vinviter_id) == _from->id) {
 			text = lng_action_user_joined_by_link(lt_from, from);
 		//} else {
@@ -7940,12 +7940,12 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	} break;
 
 	case mtpc_messageActionChatCreate: {
-		const MTPDmessageActionChatCreate &d(action.c_messageActionChatCreate());
+		const auto &d(action.c_messageActionChatCreate());
 		text = lng_action_created_chat(lt_from, from, lt_title, textClean(qs(d.vtitle)));
 	} break;
 
 	case mtpc_messageActionChannelCreate: {
-		const MTPDmessageActionChannelCreate &d(action.c_messageActionChannelCreate());
+		const auto &d(action.c_messageActionChannelCreate());
 		if (isPost()) {
 			text = lng_action_created_channel(lt_title, textClean(qs(d.vtitle)));
 		} else {
@@ -7958,7 +7958,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	} break;
 
 	case mtpc_messageActionChatDeleteUser: {
-		const MTPDmessageActionChatDeleteUser &d(action.c_messageActionChatDeleteUser());
+		const auto &d(action.c_messageActionChatDeleteUser());
 		if (peerFromUser(d.vuser_id) == _from->id) {
 			text = lng_action_user_left(lt_from, from);
 		} else {
@@ -7969,7 +7969,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	} break;
 
 	case mtpc_messageActionChatEditPhoto: {
-		const MTPDmessageActionChatEditPhoto &d(action.c_messageActionChatEditPhoto());
+		const auto &d(action.c_messageActionChatEditPhoto());
 		if (d.vphoto.type() == mtpc_photo) {
 			_media.reset(this, new HistoryPhoto(history()->peer, d.vphoto.c_photo(), st::msgServicePhotoWidth));
 		}
@@ -7977,13 +7977,13 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	} break;
 
 	case mtpc_messageActionChatEditTitle: {
-		const MTPDmessageActionChatEditTitle &d(action.c_messageActionChatEditTitle());
+		const auto &d(action.c_messageActionChatEditTitle());
 		text = isPost() ? lng_action_changed_title_channel(lt_title, textClean(qs(d.vtitle))) : lng_action_changed_title(lt_from, from, lt_title, textClean(qs(d.vtitle)));
 	} break;
 
 	case mtpc_messageActionChatMigrateTo: {
 		_flags |= MTPDmessage_ClientFlag::f_is_group_migrate;
-		const MTPDmessageActionChatMigrateTo &d(action.c_messageActionChatMigrateTo());
+		const auto &d(action.c_messageActionChatMigrateTo());
 		if (true/*PeerData *channel = App::channelLoaded(d.vchannel_id.v)*/) {
 			text = lang(lng_action_group_migrate);
 		} else {
@@ -7993,7 +7993,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 
 	case mtpc_messageActionChannelMigrateFrom: {
 		_flags |= MTPDmessage_ClientFlag::f_is_group_migrate;
-		const MTPDmessageActionChannelMigrateFrom &d(action.c_messageActionChannelMigrateFrom());
+		const auto &d(action.c_messageActionChannelMigrateFrom());
 		if (true/*PeerData *chat = App::chatLoaded(d.vchat_id.v)*/) {
 			text = lang(lng_action_group_migrate);
 		} else {

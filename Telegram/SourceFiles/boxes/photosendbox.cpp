@@ -51,8 +51,8 @@ PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxW
 	if (_file->photo.type() != mtpc_photoEmpty) {
 		_file->type = PreparePhoto;
 	} else if (_file->document.type() == mtpc_document) {
-		const MTPDdocument &document(_file->document.c_document());
-		const QVector<MTPDocumentAttribute> &attributes(document.vattributes.c_vector().v);
+		const auto &document(_file->document.c_document());
+		const auto &attributes(document.vattributes.c_vector().v);
 		for (int32 i = 0, l = attributes.size(); i < l; ++i) {
 			if (attributes.at(i).type() == mtpc_documentAttributeAnimated) {
 				_animated = true;
@@ -668,7 +668,7 @@ void EditCaptionBox::saveDone(const MTPUpdates &updates) {
 }
 
 bool EditCaptionBox::saveFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	_saveRequestId = 0;
 	QString err = error.type();

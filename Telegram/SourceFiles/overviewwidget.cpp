@@ -214,7 +214,7 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 		const QVector<MTPMessage> *messages = 0;
 		switch (result.type()) {
 		case mtpc_messages_messages: {
-			const MTPDmessages_messages &d(result.c_messages_messages());
+			const auto &d(result.c_messages_messages());
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
 			messages = &d.vmessages.c_vector().v;
@@ -222,7 +222,7 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 		} break;
 
 		case mtpc_messages_messagesSlice: {
-			const MTPDmessages_messagesSlice &d(result.c_messages_messagesSlice());
+			const auto &d(result.c_messages_messagesSlice());
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
 			messages = &d.vmessages.c_vector().v;
@@ -230,7 +230,7 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 		} break;
 
 		case mtpc_messages_channelMessages: {
-			const MTPDmessages_channelMessages &d(result.c_messages_channelMessages());
+			const auto &d(result.c_messages_channelMessages());
 			if (_peer && _peer->isChannel()) {
 				_peer->asChannel()->ptsReceived(d.vpts.v);
 			} else {
@@ -286,7 +286,7 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 }
 
 bool OverviewInner::searchFailed(SearchRequestType type, const RPCError &error, mtpRequestId req) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (_searchRequest == req) {
 		_searchRequest = 0;

@@ -3639,7 +3639,7 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 	bool adding = (it != _inlineCache.cend());
 	if (result.type() == mtpc_messages_botResults) {
 		const auto &d(result.c_messages_botResults());
-		const QVector<MTPBotInlineResult> &v(d.vresults.c_vector().v);
+		const auto &v(d.vresults.c_vector().v);
 		uint64 queryId(d.vquery_id.v);
 
 		if (!adding) {
@@ -3656,7 +3656,7 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 			it.value()->results.reserve(it.value()->results.size() + count);
 		}
 		int added = 0;
-		for_const (const MTPBotInlineResult &res, v) {
+		for_const (const auto &res, v) {
 			if (UniquePointer<InlineBots::Result> result = InlineBots::Result::create(queryId, res)) {
 				++added;
 				it.value()->results.push_back(result.release());
@@ -3677,8 +3677,7 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 }
 
 bool EmojiPan::inlineResultsFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
-
+	// show error?
 	Notify::inlineBotRequesting(false);
 	_inlineRequestId = 0;
 	return true;
@@ -4439,7 +4438,7 @@ void MentionsDropdown::updateFiltered(bool resetScroll) {
 			if (_channel->mgInfo->bots.isEmpty()) {
 				if (!_channel->mgInfo->botStatus && App::api()) App::api()->requestBots(_channel);
 			} else {
-				for_const (auto *user, _channel->mgInfo->bots) {
+				for_const (auto user, _channel->mgInfo->bots) {
 					if (!user->botInfo) continue;
 					if (!user->botInfo->inited && App::api()) App::api()->requestFullPeer(user);
 					if (user->botInfo->commands.isEmpty()) continue;

@@ -835,7 +835,7 @@ void AppClass::chatPhotoCleared(PeerId peer, const MTPUpdates &updates) {
 
 void AppClass::selfPhotoDone(const MTPphotos_Photo &result) {
 	if (!App::self()) return;
-	const MTPDphotos_photo &photo(result.c_photos_photo());
+	const auto &photo(result.c_photos_photo());
 	App::feedPhoto(photo.vphoto);
 	App::feedUsers(photo.vusers);
 	cancelPhotoUpdate(App::self()->id);
@@ -851,7 +851,7 @@ void AppClass::chatPhotoDone(PeerId peer, const MTPUpdates &updates) {
 }
 
 bool AppClass::peerPhotoFail(PeerId peer, const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	LOG(("Application Error: update photo failed %1: %2").arg(error.type()).arg(error.description()));
 	cancelPhotoUpdate(peer);

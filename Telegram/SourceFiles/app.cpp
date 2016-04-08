@@ -356,16 +356,16 @@ namespace {
 
 	UserData *feedUsers(const MTPVector<MTPUser> &users, bool emitPeerUpdated) {
         UserData *data = 0;
-		const QVector<MTPUser> &v(users.c_vector().v);
+		const auto &v(users.c_vector().v);
 		for (QVector<MTPUser>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
-			const MTPuser &user(*i);
+			const auto &user(*i);
             data = 0;
 			bool wasContact = false, minimal = false;
 			const MTPUserStatus *status = 0, emptyStatus = MTP_userStatusEmpty();
 
 			switch (user.type()) {
 			case mtpc_userEmpty: {
-				const MTPDuserEmpty &d(user.c_userEmpty());
+				const auto &d(user.c_userEmpty());
 
 				PeerId peer(peerFromUser(d.vid.v));
 				data = App::user(peer);
@@ -381,7 +381,7 @@ namespace {
 				data->contact = -1;
 			} break;
 			case mtpc_user: {
-				const MTPDuser &d(user.c_user());
+				const auto &d(user.c_user());
 				minimal = d.is_min();
 
 				PeerId peer(peerFromUser(d.vid.v));
@@ -514,14 +514,14 @@ namespace {
 
 	PeerData *feedChats(const MTPVector<MTPChat> &chats, bool emitPeerUpdated) {
 		PeerData *data = 0;
-		const QVector<MTPChat> &v(chats.c_vector().v);
+		const auto &v(chats.c_vector().v);
 		for (QVector<MTPChat>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
-			const MTPchat &chat(*i);
+			const auto &chat(*i);
 			data = 0;
 			bool minimal = false;
 			switch (chat.type()) {
 			case mtpc_chat: {
-				const MTPDchat &d(chat.c_chat());
+				const auto &d(chat.c_chat());
 
 				data = App::chat(peerFromChat(d.vid.v));
 				data->input = MTP_inputPeerChat(d.vid);
@@ -533,7 +533,7 @@ namespace {
 				cdata->date = d.vdate.v;
 
 				if (d.has_migrated_to() && d.vmigrated_to.type() == mtpc_inputChannel) {
-					const MTPDinputChannel &c(d.vmigrated_to.c_inputChannel());
+					const auto &c(d.vmigrated_to.c_inputChannel());
 					ChannelData *channel = App::channel(peerFromChannel(c.vchannel_id));
 					if (!channel->mgInfo) {
 						channel->flags |= MTPDchannel::Flag::f_megagroup;
@@ -580,7 +580,7 @@ namespace {
 				}
 			} break;
 			case mtpc_chatForbidden: {
-				const MTPDchatForbidden &d(chat.c_chatForbidden());
+				const auto &d(chat.c_chatForbidden());
 
 				data = App::chat(peerFromChat(d.vid.v));
 				data->input = MTP_inputPeerChat(d.vid);
@@ -596,7 +596,7 @@ namespace {
 				cdata->isForbidden = true;
 			} break;
 			case mtpc_channel: {
-				const MTPDchannel &d(chat.c_channel());
+				const auto &d(chat.c_channel());
 
 				PeerId peer(peerFromChannel(d.vid.v));
 				minimal = d.is_min();
@@ -636,7 +636,7 @@ namespace {
 				cdata->setPhoto(d.vphoto);
 			} break;
 			case mtpc_channelForbidden: {
-				const MTPDchannelForbidden &d(chat.c_channelForbidden());
+				const auto &d(chat.c_channelForbidden());
 
 				PeerId peer(peerFromChannel(d.vid.v));
 				data = App::channel(peer);
@@ -678,18 +678,18 @@ namespace {
 		ChatData *chat = 0;
 		switch (p.type()) {
 		case mtpc_chatParticipantsForbidden: {
-			const MTPDchatParticipantsForbidden &d(p.c_chatParticipantsForbidden());
+			const auto &d(p.c_chatParticipantsForbidden());
 			chat = App::chat(d.vchat_id.v);
 			chat->count = -1;
 			chat->invalidateParticipants();
 		} break;
 
 		case mtpc_chatParticipants: {
-			const MTPDchatParticipants &d(p.c_chatParticipants());
+			const auto &d(p.c_chatParticipants());
 			chat = App::chat(d.vchat_id.v);
 			if (!requestBotInfos || chat->version <= d.vversion.v) { // !requestBotInfos is true on getFullChat result
 				chat->version = d.vversion.v;
-				const QVector<MTPChatParticipant> &v(d.vparticipants.c_vector().v);
+				const auto &v(d.vparticipants.c_vector().v);
 				chat->count = v.size();
 				int32 pversion = chat->participants.isEmpty() ? 1 : (chat->participants.begin().value() + 1);
 				chat->invitedByMe = ChatData::InvitedByMe();
@@ -699,17 +699,17 @@ namespace {
 					int32 uid = 0, inviter = 0;
 					switch (i->type()) {
 					case mtpc_chatParticipantCreator: {
-						const MTPDchatParticipantCreator &p(i->c_chatParticipantCreator());
+						const auto &p(i->c_chatParticipantCreator());
 						uid = p.vuser_id.v;
 						chat->creator = uid;
 					} break;
 					case mtpc_chatParticipantAdmin: {
-						const MTPDchatParticipantAdmin &p(i->c_chatParticipantAdmin());
+						const auto &p(i->c_chatParticipantAdmin());
 						uid = p.vuser_id.v;
 						inviter = p.vinviter_id.v;
 					} break;
 					case mtpc_chatParticipant: {
-						const MTPDchatParticipant &p(i->c_chatParticipant());
+						const auto &p(i->c_chatParticipant());
 						uid = p.vuser_id.v;
 						inviter = p.vinviter_id.v;
 					} break;
@@ -1013,10 +1013,10 @@ namespace {
 	void feedMsgs(const QVector<MTPMessage> &msgs, NewMessageType type) {
 		QMap<uint64, int32> msgsIds;
 		for (int32 i = 0, l = msgs.size(); i < l; ++i) {
-			const MTPMessage &msg(msgs.at(i));
+			const auto &msg(msgs.at(i));
 			switch (msg.type()) {
 			case mtpc_message: {
-				const MTPDmessage &d(msg.c_message());
+				const auto &d(msg.c_message());
 				bool needToAdd = true;
 				if (type == NewMessageUnread) { // new message, index my forwarded messages to links overview
 					if (checkEntitiesAndViewsUpdate(d)) { // already in blocks
@@ -1044,17 +1044,17 @@ namespace {
 	ImagePtr image(const MTPPhotoSize &size) {
 		switch (size.type()) {
 		case mtpc_photoSize: {
-			const MTPDphotoSize &d(size.c_photoSize());
+			const auto &d(size.c_photoSize());
 			if (d.vlocation.type() == mtpc_fileLocation) {
-				const MTPDfileLocation &l(d.vlocation.c_fileLocation());
+				const auto &l(d.vlocation.c_fileLocation());
 				return ImagePtr(StorageImageLocation(d.vw.v, d.vh.v, l.vdc_id.v, l.vvolume_id.v, l.vlocal_id.v, l.vsecret.v), d.vsize.v);
 			}
 		} break;
 		case mtpc_photoCachedSize: {
-			const MTPDphotoCachedSize &d(size.c_photoCachedSize());
+			const auto &d(size.c_photoCachedSize());
 			if (d.vlocation.type() == mtpc_fileLocation) {
-				const MTPDfileLocation &l(d.vlocation.c_fileLocation());
-				const string &s(d.vbytes.c_string().v);
+				const auto &l(d.vlocation.c_fileLocation());
+				const auto &s(d.vbytes.c_string().v);
 				QByteArray bytes(s.data(), s.size());
 				return ImagePtr(StorageImageLocation(d.vw.v, d.vh.v, l.vdc_id.v, l.vvolume_id.v, l.vlocal_id.v, l.vsecret.v), bytes);
 			} else if (d.vlocation.type() == mtpc_fileLocationUnavailable) {
@@ -1069,7 +1069,7 @@ namespace {
 
 	StorageImageLocation imageLocation(int32 w, int32 h, const MTPFileLocation &loc) {
 		if (loc.type() == mtpc_fileLocation) {
-			const MTPDfileLocation &l(loc.c_fileLocation());
+			const auto &l(loc.c_fileLocation());
 			return StorageImageLocation(w, h, l.vdc_id.v, l.vvolume_id.v, l.vlocal_id.v, l.vsecret.v);
 		}
 		return StorageImageLocation(w, h, 0, 0, 0, 0);
@@ -1078,11 +1078,11 @@ namespace {
 	StorageImageLocation imageLocation(const MTPPhotoSize &size) {
 		switch (size.type()) {
 		case mtpc_photoSize: {
-			const MTPDphotoSize &d(size.c_photoSize());
+			const auto &d(size.c_photoSize());
 			return imageLocation(d.vw.v, d.vh.v, d.vlocation);
 		} break;
 		case mtpc_photoCachedSize: {
-			const MTPDphotoCachedSize &d(size.c_photoCachedSize());
+			const auto &d(size.c_photoCachedSize());
 			return imageLocation(d.vw.v, d.vh.v, d.vlocation);
 		} break;
 		}
@@ -1149,9 +1149,9 @@ namespace {
 	}
 
 	void feedUserLinks(const MTPVector<MTPcontacts_Link> &links, bool emitPeerUpdated) {
-		const QVector<MTPcontacts_Link> &v(links.c_vector().v);
+		const auto &v(links.c_vector().v);
 		for (QVector<MTPcontacts_Link>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
-			const MTPDcontacts_link &dv(i->c_contacts_link());
+			const auto &dv(i->c_contacts_link());
 			UserData *user = feedUsers(MTP_vector<MTPUser>(1, dv.vuser), false);
 			MTPint userId(MTP_int(0));
 			switch (dv.vuser.type()) {
@@ -1284,7 +1284,7 @@ namespace {
 		}
 		switch (photo.type()) {
 		case mtpc_photo: {
-			const MTPDphoto &ph(photo.c_photo());
+			const auto &ph(photo.c_photo());
 			return App::photoSet(ph.vid.v, 0, ph.vaccess_hash.v, ph.vdate.v, ImagePtr(*thumb, "JPG"), ImagePtr(*medium, "JPG"), ImagePtr(*full, "JPG"));
 		} break;
 		case mtpc_photoEmpty: return App::photo(photo.c_photoEmpty().vid.v);
@@ -1293,7 +1293,7 @@ namespace {
 	}
 
 	PhotoData *feedPhoto(const MTPDphoto &photo, PhotoData *convert) {
-		const QVector<MTPPhotoSize> &sizes(photo.vsizes.c_vector().v);
+		const auto &sizes(photo.vsizes.c_vector().v);
 		const MTPPhotoSize *thumb = 0, *medium = 0, *full = 0;
 		int32 thumbLevel = -1, mediumLevel = -1, fullLevel = -1;
 		for (QVector<MTPPhotoSize>::const_iterator i = sizes.cbegin(), e = sizes.cend(); i != e; ++i) {
@@ -1348,7 +1348,7 @@ namespace {
 	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb) {
 		switch (document.type()) {
 		case mtpc_document: {
-			const MTPDdocument &d(document.c_document());
+			const auto &d(document.c_document());
 			return App::documentSet(d.vid.v, 0, d.vaccess_hash.v, d.vdate.v, d.vattributes.c_vector().v, qs(d.vmime_type), ImagePtr(thumb, "JPG"), d.vdc_id.v, d.vsize.v, StorageImageLocation());
 		} break;
 		case mtpc_documentEmpty: return App::document(document.c_documentEmpty().vid.v);
@@ -1698,7 +1698,7 @@ namespace {
 
 	MTPPhoto photoFromUserPhoto(MTPint userId, MTPint date, const MTPUserProfilePhoto &photo) {
 		if (photo.type() == mtpc_userProfilePhoto) {
-			const MTPDuserProfilePhoto &uphoto(photo.c_userProfilePhoto());
+			const auto &uphoto(photo.c_userProfilePhoto());
 
 			QVector<MTPPhotoSize> photoSizes;
 			photoSizes.push_back(MTP_photoSize(MTP_string("a"), uphoto.vphoto_small, MTP_int(160), MTP_int(160), MTP_int(0)));

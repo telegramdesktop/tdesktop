@@ -202,22 +202,22 @@ void UsernameBox::onUpdateDone(const MTPUser &user) {
 }
 
 bool UsernameBox::onUpdateFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	_saveRequestId = 0;
 	QString err(error.type());
-	if (err == "USERNAME_NOT_MODIFIED" || _sentUsername == App::self()->username) {
+	if (err == qstr("USERNAME_NOT_MODIFIED") || _sentUsername == App::self()->username) {
 		App::self()->setName(textOneLine(App::self()->firstName), textOneLine(App::self()->lastName), textOneLine(App::self()->nameOrPhone), textOneLine(_sentUsername));
 		emit closed();
 		return true;
-	} else if (err == "USERNAME_INVALID") {
+	} else if (err == qstr("USERNAME_INVALID")) {
 		_username.setFocus();
 		_username.showError();
 		_copiedTextLink = QString();
 		_errorText = lang(lng_username_invalid);
 		update();
 		return true;
-	} else if (err == "USERNAME_OCCUPIED" || err == "USERNAMES_UNAVAILABLE") {
+	} else if (err == qstr("USERNAME_OCCUPIED") || err == qstr("USERNAMES_UNAVAILABLE")) {
 		_username.setFocus();
 		_username.showError();
 		_copiedTextLink = QString();
@@ -242,15 +242,15 @@ void UsernameBox::onCheckDone(const MTPBool &result) {
 }
 
 bool UsernameBox::onCheckFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	_checkRequestId = 0;
 	QString err(error.type());
-	if (err == "USERNAME_INVALID") {
+	if (err == qstr("USERNAME_INVALID")) {
 		_errorText = lang(lng_username_invalid);
 		update();
 		return true;
-	} else if (err == "USERNAME_OCCUPIED" && _checkUsername != App::self()->username) {
+	} else if (err == qstr("USERNAME_OCCUPIED") && _checkUsername != App::self()->username) {
 		_errorText = lang(lng_username_occupied);
 		update();
 		return true;

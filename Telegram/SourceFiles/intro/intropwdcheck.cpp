@@ -185,7 +185,7 @@ void IntroPwdCheck::pwdSubmitDone(bool recover, const MTPauth_Authorization &res
 	}
 	_pwdField.setDisabled(false);
 	_codeField.setDisabled(false);
-	const MTPDauth_authorization &d(result.c_auth_authorization());
+	const auto &d(result.c_auth_authorization());
 	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
 		showError(lang(lng_server_error));
 		return;
@@ -194,22 +194,29 @@ void IntroPwdCheck::pwdSubmitDone(bool recover, const MTPauth_Authorization &res
 }
 
 bool IntroPwdCheck::pwdSubmitFail(const RPCError &error) {
+	if (MTP::isFloodError(error)) {
+		sentRequest = 0;
+		stopCheck();
+		_codeField.setDisabled(false);
+		showError(lang(lng_flood_error));
+		_pwdField.setDisabled(false);
+		_pwdField.notaBene();
+		return true;
+	}
+	if (MTP::isDefaultHandledError(error)) return false;
+
 	sentRequest = 0;
 	stopCheck();
 	_pwdField.setDisabled(false);
 	_codeField.setDisabled(false);
 	const QString &err = error.type();
-	if (err == "PASSWORD_HASH_INVALID") {
+	if (err == qstr("PASSWORD_HASH_INVALID")) {
 		showError(lang(lng_signin_bad_password));
 		_pwdField.selectAll();
 		_pwdField.notaBene();
 		return true;
-	} else if (err == "PASSWORD_EMPTY") {
+	} else if (err == qstr("PASSWORD_EMPTY")) {
 		intro()->onBack();
-	} else if (mtpIsFlood(error)) {
-		showError(lang(lng_flood_error));
-		_pwdField.notaBene();
-		return true;
 	}
 	if (cDebug()) { // internal server error
 		showError(err + ": " + error.description());
@@ -221,28 +228,31 @@ bool IntroPwdCheck::pwdSubmitFail(const RPCError &error) {
 }
 
 bool IntroPwdCheck::codeSubmitFail(const RPCError &error) {
+	if (MTP::isFloodError(error)) {
+		showError(lang(lng_flood_error));
+		_codeField.notaBene();
+		return true;
+	}
+	if (MTP::isDefaultHandledError(error)) return false;
+
 	sentRequest = 0;
 	stopCheck();
 	_pwdField.setDisabled(false);
 	_codeField.setDisabled(false);
 	const QString &err = error.type();
-	if (err == "PASSWORD_EMPTY") {
+	if (err == qstr("PASSWORD_EMPTY")) {
 		intro()->onBack();
 		return true;
-	} else if (err == "PASSWORD_RECOVERY_NA") {
+	} else if (err == qstr("PASSWORD_RECOVERY_NA")) {
 		recoverStartFail(error);
 		return true;
-	} else if (err == "PASSWORD_RECOVERY_EXPIRED") {
+	} else if (err == qstr("PASSWORD_RECOVERY_EXPIRED")) {
 		_emailPattern = QString();
 		onToPassword();
 		return true;
-	} else if (err == "CODE_INVALID") {
+	} else if (err == qstr("CODE_INVALID")) {
 		showError(lang(lng_signin_wrong_code));
 		_codeField.selectAll();
-		_codeField.notaBene();
-		return true;
-	} else if (mtpIsFlood(error)) {
-		showError(lang(lng_flood_error));
 		_codeField.notaBene();
 		return true;
 	}
@@ -330,7 +340,8 @@ void IntroPwdCheck::onResetSure() {
 }
 
 bool IntroPwdCheck::deleteFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
+
 	sentRequest = 0;
 	showError(lang(lng_server_error));
 	return true;

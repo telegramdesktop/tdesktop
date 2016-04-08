@@ -1404,7 +1404,7 @@ public:
 		_flags &= ~MTPDmessage::Flag::f_media_unread;
 	}
 	bool definesReplyKeyboard() const {
-		if (auto *markup = Get<HistoryMessageReplyMarkup>()) {
+		if (auto markup = Get<HistoryMessageReplyMarkup>()) {
 			if (markup->flags & MTPDreplyKeyboardMarkup_ClientFlag::f_inline) {
 				return false;
 			}
@@ -1417,7 +1417,7 @@ public:
 	}
 	MTPDreplyKeyboardMarkup::Flags replyKeyboardFlags() const {
 		t_assert(definesReplyKeyboard());
-		if (auto *markup = Get<HistoryMessageReplyMarkup>()) {
+		if (auto markup = Get<HistoryMessageReplyMarkup>()) {
 			return markup->flags;
 		}
 
@@ -1603,7 +1603,7 @@ public:
 		return nullptr;
 	}
 	MsgId replyToId() const {
-		if (auto *reply = Get<HistoryMessageReply>()) {
+		if (auto reply = Get<HistoryMessageReply>()) {
 			return reply->replyToId();
 		}
 		return 0;
@@ -1658,7 +1658,7 @@ public:
 	}
 
 	int displayedDateHeight() const {
-		if (auto *date = Get<HistoryMessageDate>()) {
+		if (auto date = Get<HistoryMessageDate>()) {
 			return date->height();
 		}
 		return 0;
@@ -1671,7 +1671,7 @@ public:
 			result += st::msgMargin.top();
 		}
 		result += displayedDateHeight();
-		if (auto *unreadbar = Get<HistoryMessageUnreadBar>()) {
+		if (auto unreadbar = Get<HistoryMessageUnreadBar>()) {
 			result += unreadbar->height();
 		}
 		return result;
@@ -1737,7 +1737,7 @@ protected:
 	void recountAttachToPrevious();
 
 	const HistoryMessageReplyMarkup *inlineReplyMarkup() const {
-		if (auto *markup = Get<HistoryMessageReplyMarkup>()) {
+		if (auto markup = Get<HistoryMessageReplyMarkup>()) {
 			if (markup->flags & MTPDreplyKeyboardMarkup_ClientFlag::f_inline) {
 				return markup;
 			}
@@ -1745,7 +1745,7 @@ protected:
 		return nullptr;
 	}
 	const ReplyKeyboard *inlineReplyKeyboard() const {
-		if (auto *markup = inlineReplyMarkup()) {
+		if (auto markup = inlineReplyMarkup()) {
 			return markup->inlineKeyboard.data();
 		}
 		return nullptr;
@@ -2852,7 +2852,7 @@ public:
 	}
 
 	bool updateDependencyItem() override {
-		if (auto *reply = Get<HistoryMessageReply>()) {
+		if (auto reply = Get<HistoryMessageReply>()) {
 			return reply->updateData(this, true);
 		}
 		return true;

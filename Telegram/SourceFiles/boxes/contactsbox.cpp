@@ -278,7 +278,7 @@ void ContactsInner::addAdminDone(const MTPUpdates &result, mtpRequestId req) {
 }
 
 bool ContactsInner::addAdminFail(const RPCError &error, mtpRequestId req) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (req != _addAdminRequestId) return true;
 
@@ -1478,7 +1478,7 @@ void ContactsBox::peopleReceived(const MTPcontacts_Found &result, mtpRequestId r
 }
 
 bool ContactsBox::peopleFailed(const RPCError &error, mtpRequestId req) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (_peopleRequest == req) {
 		_peopleRequest = 0;
@@ -1623,7 +1623,7 @@ void ContactsBox::onCreate() {
 	if (_saveRequestId) return;
 
 	MTPVector<MTPInputUser> users(MTP_vector<MTPInputUser>(_inner.selectedInputs()));
-	const QVector<MTPInputUser> &v(users.c_vector().v);
+	const auto &v(users.c_vector().v);
 	if (v.isEmpty() || (v.size() == 1 && v.at(0).type() == mtpc_inputUserSelf)) {
 		_filter.setFocus();
 		_filter.showError();
@@ -1716,7 +1716,7 @@ void ContactsBox::removeAdminDone(UserData *user, const MTPBool &result) {
 }
 
 bool ContactsBox::saveAdminsFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return true;
+	if (MTP::isDefaultHandledError(error)) return true;
 	_saveRequestId = 0;
 	_inner.saving(false);
 	if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
@@ -1726,7 +1726,7 @@ bool ContactsBox::saveAdminsFail(const RPCError &error) {
 }
 
 bool ContactsBox::editAdminFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return true;
+	if (MTP::isDefaultHandledError(error)) return true;
 	--_saveRequestId;
 	_inner.chat()->invalidateParticipants();
 	if (!_saveRequestId) {
@@ -1769,7 +1769,7 @@ void ContactsBox::creationDone(const MTPUpdates &updates) {
 }
 
 bool ContactsBox::creationFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	_saveRequestId = 0;
 	if (error.type() == "NO_CHAT_TITLE") {
@@ -2161,8 +2161,8 @@ void MembersInner::membersReceived(const MTPchannels_ChannelParticipants &result
 	_loadingRequestId = 0;
 
 	if (result.type() == mtpc_channels_channelParticipants) {
-		const MTPDchannels_channelParticipants &d(result.c_channels_channelParticipants());
-		const QVector<MTPChannelParticipant> &v(d.vparticipants.c_vector().v);
+		const auto &d(result.c_channels_channelParticipants());
+		const auto &v(d.vparticipants.c_vector().v);
 		_rows.reserve(v.size());
 		_datas.reserve(v.size());
 		_dates.reserve(v.size());
@@ -2242,7 +2242,8 @@ void MembersInner::membersReceived(const MTPchannels_ChannelParticipants &result
 }
 
 bool MembersInner::membersFailed(const RPCError &error, mtpRequestId req) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
+
 	Ui::hideLayer();
 	return true;
 }
@@ -2263,7 +2264,7 @@ void MembersInner::kickAdminDone(const MTPUpdates &result, mtpRequestId req) {
 }
 
 bool MembersInner::kickFail(const RPCError &error, mtpRequestId req) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (_kickBox) _kickBox->onClose();
 	load();

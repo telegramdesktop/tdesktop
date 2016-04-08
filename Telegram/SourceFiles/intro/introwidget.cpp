@@ -39,7 +39,7 @@ namespace {
 	IntroWidget *signalEmitOn = 0;
 	QString countryForReg;
 	void gotNearestDC(const MTPNearestDc &result) {
-		const MTPDnearestDc &nearest(result.c_nearestDc());
+		const auto &nearest(result.c_nearestDc());
 		DEBUG_LOG(("Got nearest dc, country: %1, nearest: %2, this: %3").arg(nearest.vcountry.c_string().v.c_str()).arg(nearest.vnearest_dc.v).arg(nearest.vthis_dc.v));
 		MTP::setdc(result.c_nearestDc().vnearest_dc.v, true);
 		if (countryForReg != nearest.vcountry.c_string().v.c_str()) {

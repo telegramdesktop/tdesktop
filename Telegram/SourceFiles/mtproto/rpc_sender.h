@@ -24,19 +24,18 @@ class RPCError {
 public:
 
 	RPCError(const MTPrpcError &error) : _code(error.c_rpc_error().verror_code.v) {
-		const string &msg(error.c_rpc_error().verror_message.c_string().v);
-		const QString &text(QString::fromUtf8(msg.c_str(), msg.length()));
+		QString text = qs(error.c_rpc_error().verror_message);
 		if (_code < 0 || _code >= 500) {
-			_type = "INTERNAL_SERVER_ERROR";
+			_type = qsl("INTERNAL_SERVER_ERROR");
 			_description = text;
 		} else {
-			QRegularExpressionMatch m = QRegularExpression("^([A-Z0-9_]+)(: .*)?$", reMultiline).match(text);
+			auto m = QRegularExpression("^([A-Z0-9_]+)(: .*)?$", reMultiline).match(text);
 			if (m.hasMatch()) {
 				_type = m.captured(1);
 				_description = m.captured(2).mid(2);
 			} else {
-				_type = "CLIENT_BAD_RPC_ERROR";
-				_description = "Bad rpc error received, text = '" + text + "'";
+				_type = qsl("CLIENT_BAD_RPC_ERROR");
+				_description = qsl("Bad rpc error received, text = '") + text + '\'';
 			}
 		}
 	}
@@ -64,9 +63,21 @@ private:
 	QString _type, _description;
 };
 
-inline bool mtpIsFlood(const RPCError &error) {
-	return error.type().startsWith(qsl("FLOOD_WAIT_"));
+namespace MTP {
+
+inline bool isFloodError(const RPCError &error) {
+	return error.type().startsWith(qstr("FLOOD_WAIT_"));
 }
+
+inline bool isTemporaryError(const RPCError &error) {
+	return error.code() < 0 || error.code() >= 500 || isFloodError(error);
+}
+
+inline bool isDefaultHandledError(const RPCError &error) {
+	return isTemporaryError(error);
+}
+
+} // namespace MTP
 
 class RPCAbstractDoneHandler { // abstract done
 public:

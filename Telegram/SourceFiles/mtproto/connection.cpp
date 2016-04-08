@@ -440,7 +440,7 @@ ConnectionPrivate::ConnectionPrivate(QThread *thread, Connection *owner, Session
 
 	if (!dc) {
 		QReadLocker lock(dcOptionsMutex());
-		const MTP::DcOptions &options(Global::DcOptions());
+		const auto &options(Global::DcOptions());
 		if (options.isEmpty()) {
 			LOG(("MTP Error: connect failed, no DCs"));
 			dc = 0;
@@ -1085,7 +1085,7 @@ void ConnectionPrivate::socketStart(bool afterConfig) {
 	uint32 port[2][2] = { { 0 } };
 	{
 		QReadLocker lock(dcOptionsMutex());
-		const MTP::DcOptions &options(Global::DcOptions());
+		const auto &options(Global::DcOptions());
 		int32 shifts[2][2][4] = {
 			{ // IPv4
 				{ // TCP IPv4
@@ -1592,7 +1592,7 @@ int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime 
 
 	case mtpc_msgs_ack: {
 		MTPMsgsAck msg(from, end);
-		const QVector<MTPlong> &ids(msg.c_msgs_ack().vmsg_ids.c_vector().v);
+		const auto &ids(msg.c_msgs_ack().vmsg_ids.c_vector().v);
 		uint32 idsCount = ids.size();
 
 		DEBUG_LOG(("Message Info: acks received, ids: %1").arg(Logs::vector(ids)));
@@ -1610,7 +1610,7 @@ int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime 
 
 	case mtpc_bad_msg_notification: {
 		MTPBadMsgNotification msg(from, end);
-		const MTPDbad_msg_notification &data(msg.c_bad_msg_notification());
+		const auto &data(msg.c_bad_msg_notification());
 		LOG(("Message Info: bad message notification received (error_code %3) for msg_id = %1, seq_no = %2").arg(data.vbad_msg_id.v).arg(data.vbad_msg_seqno.v).arg(data.verror_code.v));
 
 		mtpMsgId resendId = data.vbad_msg_id.v;
@@ -1686,7 +1686,7 @@ int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime 
 
 	case mtpc_bad_server_salt: {
 		MTPBadMsgNotification msg(from, end);
-		const MTPDbad_server_salt &data(msg.c_bad_server_salt());
+		const auto &data(msg.c_bad_server_salt());
 		DEBUG_LOG(("Message Info: bad server salt received (error_code %4) for msg_id = %1, seq_no = %2, new salt: %3").arg(data.vbad_msg_id.v).arg(data.vbad_msg_seqno.v).arg(data.vnew_server_salt.v).arg(data.verror_code.v));
 
 		mtpMsgId resendId = data.vbad_msg_id.v;
@@ -1720,7 +1720,7 @@ int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime 
 			return 0;
 		}
 		MTPMsgsStateReq msg(from, end);
-		const QVector<MTPlong> ids(msg.c_msgs_state_req().vmsg_ids.c_vector().v);
+		const auto &ids(msg.c_msgs_state_req().vmsg_ids.c_vector().v);
 		uint32 idsCount = ids.size();
 		DEBUG_LOG(("Message Info: msgs_state_req received, ids: %1").arg(Logs::vector(ids)));
 		if (!idsCount) return 1;
@@ -1767,10 +1767,10 @@ int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime 
 
 	case mtpc_msgs_state_info: {
 		MTPMsgsStateInfo msg(from, end);
-		const MTPDmsgs_state_info &data(msg.c_msgs_state_info());
+		const auto &data(msg.c_msgs_state_info());
 
 		uint64 reqMsgId = data.vreq_msg_id.v;
-		const string &states(data.vinfo.c_string().v);
+		const auto &states(data.vinfo.c_string().v);
 
 		DEBUG_LOG(("Message Info: msg state received, msgId %1, reqMsgId: %2, HEX states %3").arg(msgId).arg(reqMsgId).arg(Logs::mb(states.data(), states.length()).str()));
 		mtpRequest requestBuffer;
@@ -1823,9 +1823,9 @@ int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime 
 		}
 
 		MTPMsgsAllInfo msg(from, end);
-		const MTPDmsgs_all_info &data(msg.c_msgs_all_info());
-		const QVector<MTPlong> ids(data.vmsg_ids.c_vector().v);
-		const string &states(data.vinfo.c_string().v);
+		const auto &data(msg.c_msgs_all_info());
+		const auto &ids(data.vmsg_ids.c_vector().v);
+		const auto &states(data.vinfo.c_string().v);
 
 		QVector<MTPlong> toAck;
 
@@ -1837,7 +1837,7 @@ int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime 
 
 	case mtpc_msg_detailed_info: {
 		MTPMsgDetailedInfo msg(from, end);
-		const MTPDmsg_detailed_info &data(msg.c_msg_detailed_info());
+		const auto &data(msg.c_msg_detailed_info());
 
 		DEBUG_LOG(("Message Info: msg detailed info, sent msgId %1, answerId %2, status %3, bytes %4").arg(data.vmsg_id.v).arg(data.vanswer_msg_id.v).arg(data.vstatus.v).arg(data.vbytes.v));
 
@@ -1873,7 +1873,7 @@ int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime 
 			return 0;
 		}
 		MTPMsgDetailedInfo msg(from, end);
-		const MTPDmsg_new_detailed_info &data(msg.c_msg_new_detailed_info());
+		const auto &data(msg.c_msg_new_detailed_info());
 
 		DEBUG_LOG(("Message Info: msg new detailed info, answerId %2, status %3, bytes %4").arg(data.vanswer_msg_id.v).arg(data.vstatus.v).arg(data.vbytes.v));
 
@@ -1894,7 +1894,7 @@ int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime 
 
 	case mtpc_msg_resend_req: {
 		MTPMsgResendReq msg(from, end);
-		const QVector<MTPlong> &ids(msg.c_msg_resend_req().vmsg_ids.c_vector().v);
+		const auto &ids(msg.c_msg_resend_req().vmsg_ids.c_vector().v);
 
 		uint32 idsCount = ids.size();
 		DEBUG_LOG(("Message Info: resend of msgs requested, ids: %1").arg(Logs::vector(ids)));
@@ -1955,7 +1955,7 @@ int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime 
 	case mtpc_new_session_created: {
 		const mtpPrime *start = from;
 		MTPNewSession msg(from, end);
-		const MTPDnew_session_created &data(msg.c_new_session_created());
+		const auto &data(msg.c_new_session_created());
 
 		if (badTime) {
 			if (requestsFixTimeSalt(QVector<MTPlong>(1, data.vfirst_msg_id), serverTime, serverSalt)) {
@@ -2002,7 +2002,7 @@ int32 ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime 
 
 	case mtpc_pong: {
 		MTPPong msg(from, end);
-		const MTPDpong &data(msg.c_pong());
+		const auto &data(msg.c_pong());
 		DEBUG_LOG(("Message Info: pong received, msg_id: %1, ping_id: %2").arg(data.vmsg_id.v).arg(data.vping_id.v));
 
 		if (!wasSent(data.vmsg_id.v)) {
@@ -2405,7 +2405,7 @@ void ConnectionPrivate::pqAnswered() {
 		return restart();
 	}
 
-	const MTPDresPQ &res_pq_data(res_pq.c_resPQ());
+	const auto &res_pq_data(res_pq.c_resPQ());
 	if (res_pq_data.vnonce != authKeyData->nonce) {
 		LOG(("AuthKey Error: received nonce <> sent nonce (in res_pq)!"));
 		DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&res_pq_data.vnonce, 16).str()).arg(Logs::mb(&authKeyData->nonce, 16).str()));
@@ -2414,9 +2414,9 @@ void ConnectionPrivate::pqAnswered() {
 
 	static MTP::internal::RSAPublicKeys RSAKeys = MTP::internal::InitRSAPublicKeys();
 	const MTP::internal::RSAPublicKey *rsaKey = nullptr;
-	const QVector<MTPlong> &fingerPrints(res_pq.c_resPQ().vserver_public_key_fingerprints.c_vector().v);
-	for (const MTPlong &fingerPrint : fingerPrints) {
-		auto it = RSAKeys.constFind(fingerPrint.v);
+	const auto &fingerPrints(res_pq.c_resPQ().vserver_public_key_fingerprints.c_vector().v);
+	for (const auto &fingerPrint : fingerPrints) {
+		auto it = RSAKeys.constFind(static_cast<uint64>(fingerPrint.v));
 		if (it != RSAKeys.cend()) {
 			rsaKey = &it.value();
 			break;
@@ -2424,7 +2424,7 @@ void ConnectionPrivate::pqAnswered() {
 	}
 	if (!rsaKey) {
 		QStringList suggested, my;
-		for (const MTPlong &fingerPrint : fingerPrints) {
+		for (const auto &fingerPrint : fingerPrints) {
 			suggested.push_back(QString("%1").arg(fingerPrint.v));
 		}
 		for (auto i = RSAKeys.cbegin(), e = RSAKeys.cend(); i != e; ++i) {
@@ -2505,7 +2505,7 @@ void ConnectionPrivate::dhParamsAnswered() {
 
 	switch (res_DH_params.type()) {
 	case mtpc_server_DH_params_ok: {
-		const MTPDserver_DH_params_ok &encDH(res_DH_params.c_server_DH_params_ok());
+		const auto &encDH(res_DH_params.c_server_DH_params_ok());
 		if (encDH.vnonce != authKeyData->nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in server_DH_params_ok)!"));
 			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&encDH.vnonce, 16).str()).arg(Logs::mb(&authKeyData->nonce, 16).str()));
@@ -2548,7 +2548,7 @@ void ConnectionPrivate::dhParamsAnswered() {
 
 		const mtpPrime *from(&decBuffer[5]), *to(from), *end(from + (encDHBufLen - 5));
 		MTPServer_DH_inner_data dh_inner(to, end);
-		const MTPDserver_DH_inner_data &dh_inner_data(dh_inner.c_server_DH_inner_data());
+		const auto &dh_inner_data(dh_inner.c_server_DH_inner_data());
 		if (dh_inner_data.vnonce != authKeyData->nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in server_DH_inner_data)!"));
 			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&dh_inner_data.vnonce, 16).str()).arg(Logs::mb(&authKeyData->nonce, 16).str()));
@@ -2590,7 +2590,7 @@ void ConnectionPrivate::dhParamsAnswered() {
 	} return dhClientParamsSend();
 
 	case mtpc_server_DH_params_fail: {
-		const MTPDserver_DH_params_fail &encDH(res_DH_params.c_server_DH_params_fail());
+		const auto &encDH(res_DH_params.c_server_DH_params_fail());
 		if (encDH.vnonce != authKeyData->nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in server_DH_params_fail)!"));
 			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&encDH.vnonce, 16).str()).arg(Logs::mb(&authKeyData->nonce, 16).str()));
@@ -2691,7 +2691,7 @@ void ConnectionPrivate::dhClientParamsAnswered() {
 
 	switch (res_client_DH_params.type()) {
 	case mtpc_dh_gen_ok: {
-		const MTPDdh_gen_ok &resDH(res_client_DH_params.c_dh_gen_ok());
+		const auto &resDH(res_client_DH_params.c_dh_gen_ok());
 		if (resDH.vnonce != authKeyData->nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in dh_gen_ok)!"));
 			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&resDH.vnonce, 16).str()).arg(Logs::mb(&authKeyData->nonce, 16).str()));
@@ -2731,7 +2731,7 @@ void ConnectionPrivate::dhClientParamsAnswered() {
 	} return;
 
 	case mtpc_dh_gen_retry: {
-		const MTPDdh_gen_retry &resDH(res_client_DH_params.c_dh_gen_retry());
+		const auto &resDH(res_client_DH_params.c_dh_gen_retry());
 		if (resDH.vnonce != authKeyData->nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in dh_gen_retry)!"));
 			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&resDH.vnonce, 16).str()).arg(Logs::mb(&authKeyData->nonce, 16).str()));
@@ -2759,7 +2759,7 @@ void ConnectionPrivate::dhClientParamsAnswered() {
 	} return dhClientParamsSend();
 
 	case mtpc_dh_gen_fail: {
-		const MTPDdh_gen_fail &resDH(res_client_DH_params.c_dh_gen_fail());
+		const auto &resDH(res_client_DH_params.c_dh_gen_fail());
 		if (resDH.vnonce != authKeyData->nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in dh_gen_fail)!"));
 			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&resDH.vnonce, 16).str()).arg(Logs::mb(&authKeyData->nonce, 16).str()));

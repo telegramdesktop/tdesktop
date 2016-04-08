@@ -432,7 +432,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 					QMap<QByteArray, QVector<QString> > &countedTags(keysCounted[keysOrder[i]]);
 					if (!countedTags.isEmpty()) {
 						for (QMap<QByteArray, QVector<QString> >::const_iterator j = countedTags.cbegin(), e = countedTags.cend(); j != e; ++j) {
-							const QVector<QString> &counted(*j);
+							const auto &counted(*j);
 							for (int k = 0, s = counted.size(); k < s; ++k) {
 								th << "\t" << keysOrder[i] << "__" + j.key() + QString::number(k).toUtf8() << ",\n";
 							}
@@ -510,7 +510,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 					QMap<QByteArray, QVector<QString> > &countedTags(keysCounted[keysOrder[i]]);
 					if (!countedTags.isEmpty()) {
 						for (QMap<QByteArray, QVector<QString> >::const_iterator j = countedTags.cbegin(), e = countedTags.cend(); j != e; ++j) {
-							const QVector<QString> &counted(*j);
+							const auto &counted(*j);
 							for (int k = 0, s = counted.size(); k < s; ++k) {
 								tcpp << "\t\t\"" << keysOrder[i] << "__" + j.key() + QString::number(k).toUtf8() << "\",\n";
 							}
@@ -534,7 +534,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org\n\
 				QMap<QByteArray, QVector<QString> > &countedTags(keysCounted[keysOrder[i]]);
 				if (!countedTags.isEmpty()) {
 					for (QMap<QByteArray, QVector<QString> >::const_iterator j = countedTags.cbegin(), e = countedTags.cend(); j != e; ++j) {
-						const QVector<QString> &counted(*j);
+						const auto &counted(*j);
 						for (int k = 0, s = counted.size(); k < s; ++k) {
 							writeCppKey(tcpp, keysOrder[i] + "__" + j.key() + QString::number(k).toUtf8(), counted[k]);
 						}

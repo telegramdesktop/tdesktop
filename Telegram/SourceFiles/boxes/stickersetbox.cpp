@@ -56,8 +56,8 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 	_pack.clear();
 	_emoji.clear();
 	if (set.type() == mtpc_messages_stickerSet) {
-		const MTPDmessages_stickerSet &d(set.c_messages_stickerSet());
-		const QVector<MTPDocument> &v(d.vdocuments.c_vector().v);
+		const auto &d(set.c_messages_stickerSet());
+		const auto &v(d.vdocuments.c_vector().v);
 		_pack.reserve(v.size());
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
 			DocumentData *doc = App::feedDocument(v.at(i));
@@ -65,12 +65,12 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 
 			_pack.push_back(doc);
 		}
-		const QVector<MTPStickerPack> &packs(d.vpacks.c_vector().v);
+		const auto &packs(d.vpacks.c_vector().v);
 		for (int32 i = 0, l = packs.size(); i < l; ++i) {
 			if (packs.at(i).type() != mtpc_stickerPack) continue;
-			const MTPDstickerPack &pack(packs.at(i).c_stickerPack());
+			const auto &pack(packs.at(i).c_stickerPack());
 			if (EmojiPtr e = emojiGetNoColor(emojiFromText(qs(pack.vemoticon)))) {
-				const QVector<MTPlong> &stickers(pack.vdocuments.c_vector().v);
+				const auto &stickers(pack.vdocuments.c_vector().v);
 				StickerPack p;
 				p.reserve(stickers.size());
 				for (int32 j = 0, c = stickers.size(); j < c; ++j) {
@@ -83,7 +83,7 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 			}
 		}
 		if (d.vset.type() == mtpc_stickerSet) {
-			const MTPDstickerSet &s(d.vset.c_stickerSet());
+			const auto &s(d.vset.c_stickerSet());
 			_setTitle = stickerSetTitle(s);
 			_title = st::boxTitleFont->elided(_setTitle, width() - st::boxTitlePosition.x() - st::boxTitleHeight);
 			_setShortName = qs(s.vshort_name);
@@ -107,7 +107,7 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 }
 
 bool StickerSetInner::failedSet(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	_loaded = true;
 
@@ -152,7 +152,7 @@ void StickerSetInner::installDone(const MTPBool &result) {
 }
 
 bool StickerSetInner::installFailed(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	Ui::showLayer(new InformBox(lang(lng_stickers_not_found)));
 
@@ -803,7 +803,7 @@ void StickersBox::disenableDone(const MTPBool & result, mtpRequestId req) {
 }
 
 bool StickersBox::disenableFail(const RPCError &error, mtpRequestId req) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 	_disenableRequests.remove(req);
 	if (_disenableRequests.isEmpty()) {
 		saveOrder();
@@ -831,7 +831,7 @@ void StickersBox::reorderDone(const MTPBool &result) {
 }
 
 bool StickersBox::reorderFail(const RPCError &result) {
-	if (mtpIsFlood(result)) return false;
+	if (MTP::isDefaultHandledError(result)) return false;
 	_reorderRequest = 0;
 	Global::SetLastStickersUpdate(0);
 	App::main()->updateStickers();

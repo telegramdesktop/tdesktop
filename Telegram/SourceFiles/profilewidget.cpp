@@ -384,7 +384,7 @@ void ProfileInner::blockDone(bool blocked, const MTPBool &result) {
 }
 
 bool ProfileInner::blockFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	_blockRequest = 0;
 	return false;
@@ -1364,7 +1364,7 @@ void ProfileInner::migrateDone(const MTPUpdates &updates) {
 }
 
 bool ProfileInner::migrateFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 	Ui::hideLayer();
 	return true;
 }

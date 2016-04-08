@@ -2079,14 +2079,14 @@ void MediaView::userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mt
 	const QVector<MTPPhoto> *v = 0;
 	switch (photos.type()) {
 	case mtpc_photos_photos: {
-		const MTPDphotos_photos &d(photos.c_photos_photos());
+		const auto &d(photos.c_photos_photos());
 		App::feedUsers(d.vusers);
 		v = &d.vphotos.c_vector().v;
 		u->photosCount = 0;
 	} break;
 
 	case mtpc_photos_photosSlice: {
-		const MTPDphotos_photosSlice &d(photos.c_photos_photosSlice());
+		const auto &d(photos.c_photos_photosSlice());
 		App::feedUsers(d.vusers);
 		u->photosCount = d.vcount.v;
 		v = &d.vphotos.c_vector().v;
@@ -2111,7 +2111,7 @@ void MediaView::deletePhotosDone(const MTPVector<MTPlong> &result) {
 }
 
 bool MediaView::deletePhotosFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	return true;
 }

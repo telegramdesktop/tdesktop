@@ -45,9 +45,9 @@ namespace App {
 
 	void activateBotCommand(const HistoryItem *msg, int row, int col) {
 		const HistoryMessageReplyMarkup::Button *button = nullptr;
-		if (auto *markup = msg->Get<HistoryMessageReplyMarkup>()) {
+		if (auto markup = msg->Get<HistoryMessageReplyMarkup>()) {
 			if (row < markup->rows.size()) {
-				const HistoryMessageReplyMarkup::ButtonRow &buttonRow(markup->rows.at(row));
+				const auto &buttonRow(markup->rows.at(row));
 				if (col < buttonRow.size()) {
 					button = &buttonRow.at(col);
 				}

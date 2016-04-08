@@ -92,7 +92,7 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 	const MTPBotInlineMessage *message = nullptr;
 	switch (mtpData.type()) {
 	case mtpc_botInlineResult: {
-		const MTPDbotInlineResult &r(mtpData.c_botInlineResult());
+		const auto &r(mtpData.c_botInlineResult());
 		result->_id = qs(r.vid);
 		if (r.has_title()) result->_title = qs(r.vtitle);
 		if (r.has_description()) result->_description = qs(r.vdescription);
@@ -109,7 +109,7 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 		message = &r.vsend_message;
 	} break;
 	case mtpc_botInlineMediaResult: {
-		const MTPDbotInlineMediaResult &r(mtpData.c_botInlineMediaResult());
+		const auto &r(mtpData.c_botInlineMediaResult());
 		result->_id = qs(r.vid);
 		if (r.has_title()) result->_title = qs(r.vtitle);
 		if (r.has_description()) result->_description = qs(r.vdescription);
@@ -132,7 +132,7 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 
 	switch (message->type()) {
 	case mtpc_botInlineMessageMediaAuto: {
-		const MTPDbotInlineMessageMediaAuto &r(message->c_botInlineMessageMediaAuto());
+		const auto &r(message->c_botInlineMessageMediaAuto());
 		if (result->_type == Type::Photo) {
 			result->sendData.reset(new internal::SendPhoto(result->_photo, result->_content_url, qs(r.vcaption)));
 		} else {
@@ -144,7 +144,7 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 	} break;
 
 	case mtpc_botInlineMessageText: {
-		const MTPDbotInlineMessageText &r(message->c_botInlineMessageText());
+		const auto &r(message->c_botInlineMessageText());
 		EntitiesInText entities = r.has_entities() ? entitiesFromMTP(r.ventities.c_vector().v) : EntitiesInText();
 		result->sendData.reset(new internal::SendText(qs(r.vmessage), entities, r.is_no_webpage()));
 		if (r.has_reply_markup()) {
@@ -153,7 +153,7 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 	} break;
 
 	case mtpc_botInlineMessageMediaGeo: {
-		const MTPDbotInlineMessageMediaGeo &r(message->c_botInlineMessageMediaGeo());
+		const auto &r(message->c_botInlineMessageMediaGeo());
 		if (r.vgeo.type() == mtpc_geoPoint) {
 			result->sendData.reset(new internal::SendGeo(r.vgeo.c_geoPoint()));
 		} else {
@@ -165,7 +165,7 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 	} break;
 
 	case mtpc_botInlineMessageMediaVenue: {
-		const MTPDbotInlineMessageMediaVenue &r(message->c_botInlineMessageMediaVenue());
+		const auto &r(message->c_botInlineMessageMediaVenue());
 		if (r.vgeo.type() == mtpc_geoPoint) {
 			result->sendData.reset(new internal::SendVenue(r.vgeo.c_geoPoint(), qs(r.vvenue_id), qs(r.vprovider), qs(r.vtitle), qs(r.vaddress)));
 		} else {
@@ -177,7 +177,7 @@ UniquePointer<Result> Result::create(uint64 queryId, const MTPBotInlineResult &m
 	} break;
 
 	case mtpc_botInlineMessageMediaContact: {
-		const MTPDbotInlineMessageMediaContact &r(message->c_botInlineMessageMediaContact());
+		const auto &r(message->c_botInlineMessageMediaContact());
 		result->sendData.reset(new internal::SendContact(qs(r.vfirst_name), qs(r.vlast_name), qs(r.vphone_number)));
 		if (r.has_reply_markup()) {
 			result->_mtpKeyboard = MakeUnique<MTPReplyMarkup>(r.vreply_markup);

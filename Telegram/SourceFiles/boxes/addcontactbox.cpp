@@ -199,7 +199,7 @@ void AddContactBox::onSave() {
 }
 
 bool AddContactBox::onSaveUserFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	_addRequest = 0;
 	QString err(error.type());
@@ -220,13 +220,13 @@ bool AddContactBox::onSaveUserFail(const RPCError &error) {
 void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 	if (isHidden() || !App::main()) return;
 
-	const MTPDcontacts_importedContacts &d(res.c_contacts_importedContacts());
+	const auto &d(res.c_contacts_importedContacts());
 	App::feedUsers(d.vusers);
 
-	const QVector<MTPImportedContact> &v(d.vimported.c_vector().v);
+	const auto &v(d.vimported.c_vector().v);
 	UserData *user = nullptr;
 	if (!v.isEmpty()) {
-		const MTPDimportedContact &c(v.front().c_importedContact());
+		const auto &c(v.front().c_importedContact());
 		if (c.vclient_id.v != _contactId) return;
 
 		user = App::userLoaded(c.vuser_id.v);
@@ -246,7 +246,7 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 }
 
 void AddContactBox::onSaveUserDone(const MTPcontacts_ImportedContacts &res) {
-	const MTPDcontacts_importedContacts &d(res.c_contacts_importedContacts());
+	const auto &d(res.c_contacts_importedContacts());
 	App::feedUsers(d.vusers);
 	emit closed();
 }
@@ -530,7 +530,7 @@ void GroupInfoBox::creationDone(const MTPUpdates &updates) {
 }
 
 bool GroupInfoBox::creationFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	_creationRequestId = 0;
 	if (error.type() == "NO_CHAT_TITLE") {
@@ -903,7 +903,7 @@ void SetupChannelBox::onUpdateDone(const MTPBool &result) {
 }
 
 bool SetupChannelBox::onUpdateFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	_saveRequestId = 0;
 	QString err(error.type());
@@ -940,7 +940,7 @@ void SetupChannelBox::onCheckDone(const MTPBool &result) {
 }
 
 bool SetupChannelBox::onCheckFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	_checkRequestId = 0;
 	QString err(error.type());
@@ -971,7 +971,7 @@ bool SetupChannelBox::onCheckFail(const RPCError &error) {
 }
 
 bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	_checkRequestId = 0;
 	QString err(error.type());
@@ -1128,7 +1128,7 @@ void EditNameTitleBox::onSaveSelfDone(const MTPUser &user) {
 }
 
 bool EditNameTitleBox::onSaveSelfFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	QString err(error.type());
 	QString first = textOneLine(_first.getLastText().trimmed()), last = textOneLine(_last.getLastText().trimmed());
@@ -1150,7 +1150,7 @@ bool EditNameTitleBox::onSaveSelfFail(const RPCError &error) {
 }
 
 bool EditNameTitleBox::onSaveChatFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	_requestId = 0;
 	QString err(error.type());
@@ -1334,7 +1334,7 @@ void EditChannelBox::saveSign() {
 }
 
 bool EditChannelBox::onSaveFail(const RPCError &error, mtpRequestId req) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	QString err(error.type());
 	if (req == _saveTitleRequestId) {

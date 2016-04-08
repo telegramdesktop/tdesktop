@@ -965,7 +965,7 @@ DragState MainWidget::getDragState(const QMimeData *mime) {
 }
 
 bool MainWidget::leaveChatFailed(PeerData *peer, const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (error.type() == qstr("USER_NOT_PARTICIPANT") || error.type() == qstr("CHAT_ID_INVALID") || error.type() == qstr("PEER_ID_INVALID")) { // left this chat already
 		deleteConversation(peer);
@@ -980,7 +980,7 @@ void MainWidget::deleteHistoryAfterLeave(PeerData *peer, const MTPUpdates &updat
 }
 
 void MainWidget::deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result) {
-	const MTPDmessages_affectedHistory &d(result.c_messages_affectedHistory());
+	const auto &d(result.c_messages_affectedHistory());
 	if (peer && peer->isChannel()) {
 		if (peer->asChannel()->ptsUpdated(d.vpts.v, d.vpts_count.v)) {
 			peer->asChannel()->ptsApplySkippedUpdates();
@@ -1013,7 +1013,7 @@ void MainWidget::deleteMessages(PeerData *peer, const QVector<MTPint> &ids) {
 }
 
 void MainWidget::deletedContact(UserData *user, const MTPcontacts_Link &result) {
-	const MTPDcontacts_link &d(result.c_contacts_link());
+	const auto &d(result.c_contacts_link());
 	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser), false);
 	App::feedUserLink(MTP_int(peerToUser(user->id)), d.vmy_link, d.vforeign_link, false);
 	App::emitPeerUpdated();
@@ -1075,7 +1075,7 @@ void MainWidget::deleteAllFromUser(ChannelData *channel, UserData *from) {
 }
 
 void MainWidget::deleteAllFromUserPart(DeleteAllFromUserParams params, const MTPmessages_AffectedHistory &result) {
-	const MTPDmessages_affectedHistory &d(result.c_messages_affectedHistory());
+	const auto &d(result.c_messages_affectedHistory());
 	if (params.channel->ptsUpdated(d.vpts.v, d.vpts_count.v)) {
 		params.channel->ptsApplySkippedUpdates();
 		App::emitPeerUpdated();
@@ -1126,19 +1126,19 @@ void MainWidget::addParticipants(PeerData *chatOrChannel, const QVector<UserData
 }
 
 bool MainWidget::addParticipantFail(UserData *user, const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	QString text = lang(lng_failed_add_participant);
-	if (error.type() == "USER_LEFT_CHAT") { // trying to return a user who has left
-	} else if (error.type() == "USER_KICKED") { // trying to return a user who was kicked by admin
+	if (error.type() == qstr("USER_LEFT_CHAT")) { // trying to return a user who has left
+	} else if (error.type() == qstr("USER_KICKED")) { // trying to return a user who was kicked by admin
 		text = lang(lng_cant_invite_banned);
-	} else if (error.type() == "USER_PRIVACY_RESTRICTED") {
+	} else if (error.type() == qstr("USER_PRIVACY_RESTRICTED")) {
 		text = lang(lng_cant_invite_privacy);
-	} else if (error.type() == "USER_NOT_MUTUAL_CONTACT") { // trying to return user who does not have me in contacts
+	} else if (error.type() == qstr("USER_NOT_MUTUAL_CONTACT")) { // trying to return user who does not have me in contacts
 		text = lang(lng_failed_add_not_mutual);
-	} else if (error.type() == "USER_ALREADY_PARTICIPANT" && user->botInfo) {
+	} else if (error.type() == qstr("USER_ALREADY_PARTICIPANT") && user->botInfo) {
 		text = lang(lng_bot_already_in_group);
-	} else if (error.type() == "PEER_FLOOD") {
+	} else if (error.type() == qstr("PEER_FLOOD")) {
 		text = cantInviteError();
 	}
 	Ui::showLayer(new InformBox(text));
@@ -1146,17 +1146,17 @@ bool MainWidget::addParticipantFail(UserData *user, const RPCError &error) {
 }
 
 bool MainWidget::addParticipantsFail(ChannelData *channel, const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	QString text = lang(lng_failed_add_participant);
-	if (error.type() == "USER_LEFT_CHAT") { // trying to return banned user to his group
-	} else if (error.type() == "USER_KICKED") { // trying to return a user who was kicked by admin
+	if (error.type() == qstr("USER_LEFT_CHAT")) { // trying to return banned user to his group
+	} else if (error.type() == qstr("USER_KICKED")) { // trying to return a user who was kicked by admin
 		text = lang(lng_cant_invite_banned);
-	} else if (error.type() == "USER_PRIVACY_RESTRICTED") {
+	} else if (error.type() == qstr("USER_PRIVACY_RESTRICTED")) {
 		text = lang(channel->isMegagroup() ? lng_cant_invite_privacy : lng_cant_invite_privacy_channel);
-	} else if (error.type() == "USER_NOT_MUTUAL_CONTACT") { // trying to return user who does not have me in contacts
+	} else if (error.type() == qstr("USER_NOT_MUTUAL_CONTACT")) { // trying to return user who does not have me in contacts
 		text = lang(channel->isMegagroup() ? lng_failed_add_not_mutual : lng_failed_add_not_mutual_channel);
-	} else if (error.type() == "PEER_FLOOD") {
+	} else if (error.type() == qstr("PEER_FLOOD")) {
 		text = cantInviteError();
 	}
 	Ui::showLayer(new InformBox(text));
@@ -1170,7 +1170,7 @@ void MainWidget::kickParticipant(ChatData *chat, UserData *user) {
 }
 
 bool MainWidget::kickParticipantFail(ChatData *chat, const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	error.type();
 	return false;
@@ -1189,21 +1189,21 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 	const QVector<MTPMessageGroup> *collapsed = 0;
 	switch (result.type()) {
 	case mtpc_messages_messages: {
-		const MTPDmessages_messages &d(result.c_messages_messages());
+		const auto &d(result.c_messages_messages());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		v = &d.vmessages.c_vector().v;
 	} break;
 
 	case mtpc_messages_messagesSlice: {
-		const MTPDmessages_messagesSlice &d(result.c_messages_messagesSlice());
+		const auto &d(result.c_messages_messagesSlice());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		v = &d.vmessages.c_vector().v;
 	} break;
 
 	case mtpc_messages_channelMessages: {
-		const MTPDmessages_channelMessages &d(result.c_messages_channelMessages());
+		const auto &d(result.c_messages_channelMessages());
 		if (peer && peer->isChannel()) {
 			peer->asChannel()->ptsReceived(d.vpts.v);
 		} else {
@@ -1261,9 +1261,9 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 }
 
 bool MainWidget::sendMessageFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
-	if (error.type() == qsl("PEER_FLOOD")) {
+	if (error.type() == qstr("PEER_FLOOD")) {
 		Ui::showLayer(new InformBox(cantInviteError()));
 		return true;
 	}
@@ -1639,7 +1639,7 @@ void MainWidget::itemEdited(HistoryItem *item) {
 }
 
 bool MainWidget::overviewFailed(PeerData *peer, const RPCError &error, mtpRequestId req) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	MediaOverviewType type = OverviewCount;
 	for (int32 i = 0; i < OverviewCount; ++i) {
@@ -1732,7 +1732,7 @@ void MainWidget::historyWasRead(PeerData *peer, const MTPmessages_AffectedMessag
 }
 
 bool MainWidget::readRequestFail(PeerData *peer, const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	readRequestDone(peer);
 	return false;
@@ -1748,7 +1748,7 @@ void MainWidget::readRequestDone(PeerData *peer) {
 }
 
 void MainWidget::messagesAffected(PeerData *peer, const MTPmessages_AffectedMessages &result) {
-	const MTPDmessages_affectedMessages &d(result.c_messages_affectedMessages());
+	const auto &d(result.c_messages_affectedMessages());
 	if (peer && peer->isChannel()) {
 		if (peer->asChannel()->ptsUpdated(d.vpts.v, d.vpts_count.v)) {
 			peer->asChannel()->ptsApplySkippedUpdates();
@@ -2012,21 +2012,21 @@ void MainWidget::serviceNotification(const QString &msg, const MTPMessageMedia &
 void MainWidget::serviceHistoryDone(const MTPmessages_Messages &msgs) {
 	switch (msgs.type()) {
 	case mtpc_messages_messages: {
-		const MTPDmessages_messages &d(msgs.c_messages_messages());
+		const auto &d(msgs.c_messages_messages());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		App::feedMsgs(d.vmessages, NewMessageLast);
 	} break;
 
 	case mtpc_messages_messagesSlice: {
-		const MTPDmessages_messagesSlice &d(msgs.c_messages_messagesSlice());
+		const auto &d(msgs.c_messages_messagesSlice());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		App::feedMsgs(d.vmessages, NewMessageLast);
 	} break;
 
 	case mtpc_messages_channelMessages: {
-		const MTPDmessages_channelMessages &d(msgs.c_messages_channelMessages());
+		const auto &d(msgs.c_messages_channelMessages());
 		LOG(("API Error: received messages.channelMessages! (MainWidget::serviceHistoryDone)"));
 		if (d.has_collapsed()) { // should not be returned
 			LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (MainWidget::serviceHistoryDone)"));
@@ -2042,7 +2042,7 @@ void MainWidget::serviceHistoryDone(const MTPmessages_Messages &msgs) {
 }
 
 bool MainWidget::serviceHistoryFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	App::wnd()->showDelayedServiceMsgs();
 	return false;
@@ -2205,7 +2205,7 @@ void MainWidget::onViewsIncrement() {
 }
 
 void MainWidget::viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint> &result, mtpRequestId req) {
-	const QVector<MTPint> &v(result.c_vector().v);
+	const auto &v(result.c_vector().v);
 	if (ids.size() == v.size()) {
 		for (ViewsIncrementRequests::iterator i = _viewsIncrementRequests.begin(); i != _viewsIncrementRequests.cend(); ++i) {
 			if (i.value() == req) {
@@ -2227,7 +2227,7 @@ void MainWidget::viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint>
 }
 
 bool MainWidget::viewsIncrementFail(const RPCError &error, mtpRequestId req) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	for (ViewsIncrementRequests::iterator i = _viewsIncrementRequests.begin(); i != _viewsIncrementRequests.cend(); ++i) {
 		if (i.value() == req) {
@@ -2641,7 +2641,7 @@ void MainWidget::sentUpdatesReceived(uint64 randomId, const MTPUpdates &result) 
 }
 
 bool MainWidget::deleteChannelFailed(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	//if (error.type() == qstr("CHANNEL_TOO_LARGE")) {
 	//	Ui::showLayer(new InformBox(lang(lng_cant_delete_channel)));
@@ -2982,7 +2982,7 @@ void MainWidget::onUpdateNotifySettings() {
 }
 
 void MainWidget::feedUpdateVector(const MTPVector<MTPUpdate> &updates, bool skipMessageIds) {
-	const QVector<MTPUpdate> &v(updates.c_vector().v);
+	const auto &v(updates.c_vector().v);
 	for (QVector<MTPUpdate>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
 		if (skipMessageIds && i->type() == mtpc_updateMessageID) continue;
 		feedUpdate(*i);
@@ -2990,7 +2990,7 @@ void MainWidget::feedUpdateVector(const MTPVector<MTPUpdate> &updates, bool skip
 }
 
 void MainWidget::feedMessageIds(const MTPVector<MTPUpdate> &updates) {
-	const QVector<MTPUpdate> &v(updates.c_vector().v);
+	const auto &v(updates.c_vector().v);
 	for (QVector<MTPUpdate>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
 		if (i->type() == mtpc_updateMessageID) {
 			feedUpdate(*i);
@@ -3039,14 +3039,14 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 	bool isFinal = true;
 	switch (diff.type()) {
 	case mtpc_updates_channelDifferenceEmpty: {
-		const MTPDupdates_channelDifferenceEmpty &d(diff.c_updates_channelDifferenceEmpty());
+		const auto &d(diff.c_updates_channelDifferenceEmpty());
 		if (d.has_timeout()) timeout = d.vtimeout.v;
 		isFinal = d.is_final();
 		channel->ptsInit(d.vpts.v);
 	} break;
 
 	case mtpc_updates_channelDifferenceTooLong: {
-		const MTPDupdates_channelDifferenceTooLong &d(diff.c_updates_channelDifferenceTooLong());
+		const auto &d(diff.c_updates_channelDifferenceTooLong());
 
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
@@ -3083,7 +3083,7 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 	} break;
 
 	case mtpc_updates_channelDifference: {
-		const MTPDupdates_channelDifference &d(diff.c_updates_channelDifference());
+		const auto &d(diff.c_updates_channelDifference());
 
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats, false);
@@ -3093,13 +3093,13 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 
 		// feed messages and groups, copy from App::feedMsgs
 		History *h = App::history(channel->id);
-		const QVector<MTPMessage> &vmsgs(d.vnew_messages.c_vector().v);
+		const auto &vmsgs(d.vnew_messages.c_vector().v);
 		QMap<uint64, int32> msgsIds;
 		for (int32 i = 0, l = vmsgs.size(); i < l; ++i) {
-			const MTPMessage &msg(vmsgs.at(i));
+			const auto &msg(vmsgs.at(i));
 			switch (msg.type()) {
 			case mtpc_message: {
-				const MTPDmessage &d(msg.c_message());
+				const auto &d(msg.c_message());
 				if (App::checkEntitiesAndViewsUpdate(d)) { // new message, index my forwarded messages to links overview, already in blocks
 					LOG(("Skipping message, because it is already in blocks!"));
 				} else {
@@ -3110,12 +3110,12 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 			case mtpc_messageService: msgsIds.insert((uint64(uint32(msg.c_messageService().vid.v)) << 32) | uint64(i), i + 1); break;
 			}
 		}
-		const QVector<MTPUpdate> &vother(d.vother_updates.c_vector().v);
+		const auto &vother(d.vother_updates.c_vector().v);
 		for (int32 i = 0, l = vother.size(); i < l; ++i) {
 			if (vother.at(i).type() == mtpc_updateChannelGroup) {
-				const MTPDupdateChannelGroup &updateGroup(vother.at(i).c_updateChannelGroup());
+				const auto &updateGroup(vother.at(i).c_updateChannelGroup());
 				if (updateGroup.vgroup.type() == mtpc_messageGroup) {
-					const MTPDmessageGroup &group(updateGroup.vgroup.c_messageGroup());
+					const auto &group(updateGroup.vgroup.c_messageGroup());
 					if (updateGroup.vchannel_id.v != peerToChannel(channel->id)) {
 						LOG(("API Error: updateChannelGroup with invalid channel_id returned in channelDifference, channelId: %1, channel_id: %2").arg(peerToChannel(channel->id)).arg(updateGroup.vchannel_id.v));
 						continue;
@@ -3126,14 +3126,14 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 		}
 		for (QMap<uint64, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
 			if (i.value() > 0) { // add message
-				const MTPMessage &msg(vmsgs.at(i.value() - 1));
+				const auto &msg(vmsgs.at(i.value() - 1));
 				if (channel->id != peerFromMessage(msg)) {
 					LOG(("API Error: message with invalid peer returned in channelDifference, channelId: %1, peer: %2").arg(peerToChannel(channel->id)).arg(peerFromMessage(msg)));
 					continue; // wtf
 				}
 				h->addNewMessage(msg, NewMessageUnread);
 			} else { // add group
-				const MTPDupdateChannelGroup &updateGroup(vother.at(-i.value() - 1).c_updateChannelGroup());
+				const auto &updateGroup(vother.at(-i.value() - 1).c_updateChannelGroup());
 				h->asChannelHistory()->addNewGroup(updateGroup.vgroup);
 			}
 		}
@@ -3164,13 +3164,13 @@ void MainWidget::gotRangeDifference(ChannelData *channel, const MTPupdates_Chann
 	bool isFinal = true;
 	switch (diff.type()) {
 	case mtpc_updates_channelDifferenceEmpty: {
-		const MTPDupdates_channelDifferenceEmpty &d(diff.c_updates_channelDifferenceEmpty());
+		const auto &d(diff.c_updates_channelDifferenceEmpty());
 		nextRequestPts = d.vpts.v;
 		isFinal = d.is_final();
 	} break;
 
 	case mtpc_updates_channelDifferenceTooLong: {
-		const MTPDupdates_channelDifferenceTooLong &d(diff.c_updates_channelDifferenceTooLong());
+		const auto &d(diff.c_updates_channelDifferenceTooLong());
 
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
@@ -3180,7 +3180,7 @@ void MainWidget::gotRangeDifference(ChannelData *channel, const MTPupdates_Chann
 	} break;
 
 	case mtpc_updates_channelDifference: {
-		const MTPDupdates_channelDifference &d(diff.c_updates_channelDifference());
+		const auto &d(diff.c_updates_channelDifference());
 
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats, false);
@@ -3207,7 +3207,7 @@ void MainWidget::gotRangeDifference(ChannelData *channel, const MTPupdates_Chann
 }
 
 bool MainWidget::failChannelDifference(ChannelData *channel, const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	LOG(("RPC Error in getChannelDifference: %1 %2: %3").arg(error.code()).arg(error.type()).arg(error.description()));
 	failDifferenceStartTimerFor(channel);
@@ -3215,7 +3215,7 @@ bool MainWidget::failChannelDifference(ChannelData *channel, const RPCError &err
 }
 
 void MainWidget::gotState(const MTPupdates_State &state) {
-	const MTPDupdates_state &d(state.c_updates_state());
+	const auto &d(state.c_updates_state());
 	updSetState(d.vpts.v, d.vdate.v, d.vqts.v, d.vseq.v);
 
 	_lastUpdateTime = getms(true);
@@ -3233,7 +3233,7 @@ void MainWidget::gotDifference(const MTPupdates_Difference &diff) {
 
 	switch (diff.type()) {
 	case mtpc_updates_differenceEmpty: {
-		const MTPDupdates_differenceEmpty &d(diff.c_updates_differenceEmpty());
+		const auto &d(diff.c_updates_differenceEmpty());
 		updSetState(_ptsWaiter.current(), d.vdate.v, updQts, d.vseq.v);
 
 		_lastUpdateTime = getms(true);
@@ -3244,10 +3244,10 @@ void MainWidget::gotDifference(const MTPupdates_Difference &diff) {
 		App::emitPeerUpdated();
 	} break;
 	case mtpc_updates_differenceSlice: {
-		const MTPDupdates_differenceSlice &d(diff.c_updates_differenceSlice());
+		const auto &d(diff.c_updates_differenceSlice());
 		feedDifference(d.vusers, d.vchats, d.vnew_messages, d.vother_updates);
 
-		const MTPDupdates_state &s(d.vintermediate_state.c_updates_state());
+		const auto &s(d.vintermediate_state.c_updates_state());
 		updSetState(s.vpts.v, s.vdate.v, s.vqts.v, s.vseq.v);
 
 		_ptsWaiter.setRequesting(false);
@@ -3258,7 +3258,7 @@ void MainWidget::gotDifference(const MTPupdates_Difference &diff) {
 		App::emitPeerUpdated();
 	} break;
 	case mtpc_updates_difference: {
-		const MTPDupdates_difference &d(diff.c_updates_difference());
+		const auto &d(diff.c_updates_difference());
 		feedDifference(d.vusers, d.vchats, d.vnew_messages, d.vother_updates);
 
 		gotState(d.vstate);
@@ -3362,7 +3362,7 @@ void MainWidget::feedDifference(const MTPVector<MTPUser> &users, const MTPVector
 }
 
 bool MainWidget::failDifference(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	LOG(("RPC Error in getDifference: %1 %2: %3").arg(error.code()).arg(error.type()).arg(error.description()));
 	failDifferenceStartTimerFor(0);
@@ -3641,7 +3641,7 @@ void MainWidget::usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, c
 	Ui::hideLayer();
 	if (result.type() != mtpc_contacts_resolvedPeer) return;
 
-	const MTPDcontacts_resolvedPeer &d(result.c_contacts_resolvedPeer());
+	const auto &d(result.c_contacts_resolvedPeer());
 	App::feedUsers(d.vusers);
 	App::feedChats(d.vchats);
 	PeerId peerId = peerFromMTP(d.vpeer);
@@ -3673,7 +3673,7 @@ void MainWidget::usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, c
 }
 
 bool MainWidget::usernameResolveFail(QString name, const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (error.code() == 400) {
 		Ui::showLayer(new InformBox(lng_username_not_found(lt_user, name)));
@@ -3684,7 +3684,7 @@ bool MainWidget::usernameResolveFail(QString name, const RPCError &error) {
 void MainWidget::inviteCheckDone(QString hash, const MTPChatInvite &invite) {
 	switch (invite.type()) {
 	case mtpc_chatInvite: {
-		const MTPDchatInvite &d(invite.c_chatInvite());
+		const auto &d(invite.c_chatInvite());
 		ConfirmBox *box = new ConfirmBox(((d.is_channel() && !d.is_megagroup()) ? lng_group_invite_want_join_channel : lng_group_invite_want_join)(lt_title, qs(d.vtitle)), lang(lng_group_invite_join));
 		_inviteHash = hash;
 		connect(box, SIGNAL(confirmed()), this, SLOT(onInviteImport()));
@@ -3692,7 +3692,7 @@ void MainWidget::inviteCheckDone(QString hash, const MTPChatInvite &invite) {
 	} break;
 
 	case mtpc_chatInviteAlready: {
-		const MTPDchatInviteAlready &d(invite.c_chatInviteAlready());
+		const auto &d(invite.c_chatInviteAlready());
 		PeerData *chat = App::feedChats(MTP_vector<MTPChat>(1, d.vchat));
 		if (chat) {
 			Ui::showPeerHistory(chat->id, ShowAtUnreadMsgId);
@@ -3702,7 +3702,7 @@ void MainWidget::inviteCheckDone(QString hash, const MTPChatInvite &invite) {
 }
 
 bool MainWidget::inviteCheckFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (error.code() == 400) {
 		Ui::showLayer(new InformBox(lang(lng_group_invite_bad_link)));
@@ -3735,16 +3735,16 @@ void MainWidget::inviteImportDone(const MTPUpdates &updates) {
 }
 
 bool MainWidget::inviteImportFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (error.code() == 400) {
-		Ui::showLayer(new InformBox(lang(error.type() == qsl("USERS_TOO_MUCH") ? lng_group_invite_no_room : lng_group_invite_bad_link)));
+		Ui::showLayer(new InformBox(lang(error.type() == qstr("USERS_TOO_MUCH") ? lng_group_invite_no_room : lng_group_invite_bad_link)));
 	}
 	return true;
 }
 
 void MainWidget::startFull(const MTPVector<MTPUser> &users) {
-	const QVector<MTPUser> &v(users.c_vector().v);
+	const auto &v(users.c_vector().v);
 	if (v.isEmpty() || v[0].type() != mtpc_user || !v[0].c_user().is_self()) { // wtf?..
 		return App::logOutDelayed();
 	}
@@ -3774,7 +3774,7 @@ void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNoti
 		}
 	break;
 	case mtpc_peerNotifySettings: {
-		const MTPDpeerNotifySettings &d(settings.c_peerNotifySettings());
+		const auto &d(settings.c_peerNotifySettings());
 		NotifySettingsPtr setTo = UnknownNotifySettings;
 		switch (peer.type()) {
 		case mtpc_notifyAll: setTo = globalNotifyAllPtr = &globalNotifyAll; break;
@@ -3839,7 +3839,7 @@ void MainWidget::gotNotifySetting(MTPInputNotifyPeer peer, const MTPPeerNotifySe
 }
 
 bool MainWidget::failNotifySetting(MTPInputNotifyPeer peer, const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	gotNotifySetting(peer, MTP_peerNotifySettingsEmpty());
 	return true;
@@ -4095,7 +4095,7 @@ void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	switch (updates.type()) {
 	case mtpc_updates: {
-		const MTPDupdates &d(updates.c_updates());
+		const auto &d(updates.c_updates());
 		if (d.vseq.v) {
 			if (d.vseq.v <= updSeq) return;
 			if (d.vseq.v > updSeq + 1) {
@@ -4112,7 +4112,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	} break;
 
 	case mtpc_updatesCombined: {
-		const MTPDupdatesCombined &d(updates.c_updatesCombined());
+		const auto &d(updates.c_updatesCombined());
 		if (d.vseq_start.v) {
 			if (d.vseq_start.v <= updSeq) return;
 			if (d.vseq_start.v > updSeq + 1) {
@@ -4129,7 +4129,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	} break;
 
 	case mtpc_updateShort: {
-		const MTPDupdateShort &d(updates.c_updateShort());
+		const auto &d(updates.c_updateShort());
 
 		feedUpdate(d.vupdate);
 
@@ -4137,13 +4137,13 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	} break;
 
 	case mtpc_updateShortMessage: {
-		const MTPDupdateShortMessage &d(updates.c_updateShortMessage());
+		const auto &d(updates.c_updateShortMessage());
 		if (!App::userLoaded(d.vuser_id.v) || (d.has_via_bot_id() && !App::userLoaded(d.vvia_bot_id.v))) {
 			MTP_LOG(0, ("getDifference { good - getting user for updateShortMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
 			return getDifference();
 		}
 		if (d.has_fwd_from() && d.vfwd_from.type() == mtpc_messageFwdHeader) {
-			const MTPDmessageFwdHeader &f(d.vfwd_from.c_messageFwdHeader());
+			const auto &f(d.vfwd_from.c_messageFwdHeader());
 			if (f.has_from_id() && !App::userLoaded(f.vfrom_id.v)) {
 				MTP_LOG(0, ("getDifference { good - getting user for updateShortMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
 				return getDifference();
@@ -4170,7 +4170,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	} break;
 
 	case mtpc_updateShortChatMessage: {
-		const MTPDupdateShortChatMessage &d(updates.c_updateShortChatMessage());
+		const auto &d(updates.c_updateShortChatMessage());
 		bool noFrom = !App::userLoaded(d.vfrom_id.v);
 		if (!App::chatLoaded(d.vchat_id.v) || noFrom || (d.has_via_bot_id() && !App::userLoaded(d.vvia_bot_id.v))) {
 			MTP_LOG(0, ("getDifference { good - getting user for updateShortChatMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
@@ -4178,7 +4178,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 			return getDifference();
 		}
 		if (d.has_fwd_from() && d.vfwd_from.type() == mtpc_messageFwdHeader) {
-			const MTPDmessageFwdHeader &f(d.vfwd_from.c_messageFwdHeader());
+			const auto &f(d.vfwd_from.c_messageFwdHeader());
 			if (f.has_from_id() && !App::userLoaded(f.vfrom_id.v)) {
 				MTP_LOG(0, ("getDifference { good - getting user for updateShortChatMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
 				return getDifference();
@@ -4205,7 +4205,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	} break;
 
 	case mtpc_updateShortSentMessage: {
-		const MTPDupdateShortSentMessage &d(updates.c_updateShortSentMessage());
+		const auto &d(updates.c_updateShortSentMessage());
 		if (randomId) {
 			PeerId peerId = 0;
 			QString text;
@@ -4242,7 +4242,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	switch (update.type()) {
 	case mtpc_updateNewMessage: {
-		const MTPDupdateNewMessage &d(update.c_updateNewMessage());
+		const auto &d(update.c_updateNewMessage());
 
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
@@ -4266,7 +4266,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateMessageID: {
-		const MTPDupdateMessageID &d(update.c_updateMessageID());
+		const auto &d(update.c_updateMessageID());
 		FullMsgId msg = App::histItemByRandom(d.vrandom_id.v);
 		if (msg.msg) {
 			HistoryItem *msgRow = App::histItemById(msg);
@@ -4296,14 +4296,14 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateReadMessagesContents: {
-		const MTPDupdateReadMessagesContents &d(update.c_updateReadMessagesContents());
+		const auto &d(update.c_updateReadMessagesContents());
 
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
 		}
 
 		// update before applying skipped
-		const QVector<MTPint> &v(d.vmessages.c_vector().v);
+		const auto &v(d.vmessages.c_vector().v);
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
 			if (HistoryItem *item = App::histItemById(NoChannel, v.at(i).v)) {
 				if (item->isMediaUnread()) {
@@ -4320,7 +4320,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateReadHistoryInbox: {
-		const MTPDupdateReadHistoryInbox &d(update.c_updateReadHistoryInbox());
+		const auto &d(update.c_updateReadHistoryInbox());
 
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
@@ -4333,7 +4333,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateReadHistoryOutbox: {
-		const MTPDupdateReadHistoryOutbox &d(update.c_updateReadHistoryOutbox());
+		const auto &d(update.c_updateReadHistoryOutbox());
 
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
@@ -4356,7 +4356,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateWebPage: {
-		const MTPDupdateWebPage &d(update.c_updateWebPage());
+		const auto &d(update.c_updateWebPage());
 
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
@@ -4371,7 +4371,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateDeleteMessages: {
-		const MTPDupdateDeleteMessages &d(update.c_updateDeleteMessages());
+		const auto &d(update.c_updateDeleteMessages());
 
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
@@ -4385,7 +4385,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateUserTyping: {
-		const MTPDupdateUserTyping &d(update.c_updateUserTyping());
+		const auto &d(update.c_updateUserTyping());
 		History *history = App::historyLoaded(peerFromUser(d.vuser_id));
 		UserData *user = App::userLoaded(d.vuser_id.v);
 		if (history && user) {
@@ -4394,7 +4394,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateChatUserTyping: {
-		const MTPDupdateChatUserTyping &d(update.c_updateChatUserTyping());
+		const auto &d(update.c_updateChatUserTyping());
 		History *history = 0;
 		if (PeerData *chat = App::chatLoaded(d.vchat_id.v)) {
 			history = App::historyLoaded(chat->id);
@@ -4428,7 +4428,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateUserStatus: {
-		const MTPDupdateUserStatus &d(update.c_updateUserStatus());
+		const auto &d(update.c_updateUserStatus());
 		UserData *user = App::userLoaded(d.vuser_id.v);
 		if (user) {
 			switch (d.vstatus.type()) {
@@ -4458,7 +4458,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateUserName: {
-		const MTPDupdateUserName &d(update.c_updateUserName());
+		const auto &d(update.c_updateUserName());
 		UserData *user = App::userLoaded(d.vuser_id.v);
 		if (user) {
 			if (user->contact <= 0) {
@@ -4471,7 +4471,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateUserPhoto: {
-		const MTPDupdateUserPhoto &d(update.c_updateUserPhoto());
+		const auto &d(update.c_updateUserPhoto());
 		UserData *user = App::userLoaded(d.vuser_id.v);
 		if (user) {
 			user->setPhoto(d.vphoto);
@@ -4494,7 +4494,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateContactRegistered: {
-		const MTPDupdateContactRegistered &d(update.c_updateContactRegistered());
+		const auto &d(update.c_updateContactRegistered());
 		UserData *user = App::userLoaded(d.vuser_id.v);
 		if (user) {
 			if (App::history(user->id)->loadedAtBottom()) {
@@ -4504,22 +4504,22 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateContactLink: {
-		const MTPDupdateContactLink &d(update.c_updateContactLink());
+		const auto &d(update.c_updateContactLink());
 		App::feedUserLink(d.vuser_id, d.vmy_link, d.vforeign_link, false);
 	} break;
 
 	case mtpc_updateNotifySettings: {
-		const MTPDupdateNotifySettings &d(update.c_updateNotifySettings());
+		const auto &d(update.c_updateNotifySettings());
 		applyNotifySetting(d.vpeer, d.vnotify_settings);
 	} break;
 
 	case mtpc_updateDcOptions: {
-		const MTPDupdateDcOptions &d(update.c_updateDcOptions());
+		const auto &d(update.c_updateDcOptions());
 		MTP::updateDcOptions(d.vdc_options.c_vector().v);
 	} break;
 
 	case mtpc_updateUserPhone: {
-		const MTPDupdateUserPhone &d(update.c_updateUserPhone());
+		const auto &d(update.c_updateUserPhone());
 		UserData *user = App::userLoaded(d.vuser_id.v);
 		if (user) {
 			user->setPhone(qs(d.vphone));
@@ -4529,23 +4529,23 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateNewEncryptedMessage: {
-		const MTPDupdateNewEncryptedMessage &d(update.c_updateNewEncryptedMessage());
+		const auto &d(update.c_updateNewEncryptedMessage());
 	} break;
 
 	case mtpc_updateEncryptedChatTyping: {
-		const MTPDupdateEncryptedChatTyping &d(update.c_updateEncryptedChatTyping());
+		const auto &d(update.c_updateEncryptedChatTyping());
 	} break;
 
 	case mtpc_updateEncryption: {
-		const MTPDupdateEncryption &d(update.c_updateEncryption());
+		const auto &d(update.c_updateEncryption());
 	} break;
 
 	case mtpc_updateEncryptedMessagesRead: {
-		const MTPDupdateEncryptedMessagesRead &d(update.c_updateEncryptedMessagesRead());
+		const auto &d(update.c_updateEncryptedMessagesRead());
 	} break;
 
 	case mtpc_updateUserBlocked: {
-		const MTPDupdateUserBlocked &d(update.c_updateUserBlocked());
+		const auto &d(update.c_updateUserBlocked());
 		if (UserData *user = App::userLoaded(d.vuser_id.v)) {
 			user->blocked = mtpIsTrue(d.vblocked) ? UserIsBlocked : UserIsNotBlocked;
 			App::markPeerUpdated(user);
@@ -4553,7 +4553,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateNewAuthorization: {
-		const MTPDupdateNewAuthorization &d(update.c_updateNewAuthorization());
+		const auto &d(update.c_updateNewAuthorization());
 		QDateTime datetime = date(d.vdate);
 
 		QString name = App::self()->firstName;
@@ -4566,7 +4566,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateServiceNotification: {
-		const MTPDupdateServiceNotification &d(update.c_updateServiceNotification());
+		const auto &d(update.c_updateServiceNotification());
 		if (mtpIsTrue(d.vpopup)) {
 			Ui::showLayer(new InformBox(qs(d.vmessage)));
 		} else {
@@ -4575,12 +4575,12 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updatePrivacy: {
-		const MTPDupdatePrivacy &d(update.c_updatePrivacy());
+		const auto &d(update.c_updatePrivacy());
 	} break;
 
 	/////// Channel updates
 	case mtpc_updateChannel: {
-		const MTPDupdateChannel &d(update.c_updateChannel());
+		const auto &d(update.c_updateChannel());
 		if (ChannelData *channel = App::channelLoaded(d.vchannel_id.v)) {
 			App::markPeerUpdated(channel);
 			channel->inviter = 0;
@@ -4594,7 +4594,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateNewChannelMessage: {
-		const MTPDupdateNewChannelMessage &d(update.c_updateNewChannelMessage());
+		const auto &d(update.c_updateNewChannelMessage());
 		ChannelData *channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
 		if (!channel && !_ptsWaiter.requesting()) {
 			MTP_LOG(0, ("getDifference { good - after no channel in updateNewChannelMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
@@ -4631,7 +4631,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateEditChannelMessage: {
-		const MTPDupdateEditChannelMessage &d(update.c_updateEditChannelMessage());
+		const auto &d(update.c_updateEditChannelMessage());
 		ChannelData *channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
 
 		if (channel && !_handlingChannelDifference) {
@@ -4652,7 +4652,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateEditMessage: {
-		const MTPDupdateEditMessage &d(update.c_updateEditMessage());
+		const auto &d(update.c_updateEditMessage());
 
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
@@ -4666,7 +4666,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateChannelPinnedMessage: {
-		const MTPDupdateChannelPinnedMessage &d(update.c_updateChannelPinnedMessage());
+		const auto &d(update.c_updateChannelPinnedMessage());
 
 		if (ChannelData *channel = App::channelLoaded(d.vchannel_id.v)) {
 			if (channel->isMegagroup()) {
@@ -4679,13 +4679,13 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateReadChannelInbox: {
-		const MTPDupdateReadChannelInbox &d(update.c_updateReadChannelInbox());
+		const auto &d(update.c_updateReadChannelInbox());
 		ChannelData *channel = App::channelLoaded(d.vchannel_id.v);
 		App::feedInboxRead(peerFromChannel(d.vchannel_id.v), d.vmax_id.v);
 	} break;
 
 	case mtpc_updateDeleteChannelMessages: {
-		const MTPDupdateDeleteChannelMessages &d(update.c_updateDeleteChannelMessages());
+		const auto &d(update.c_updateDeleteChannelMessages());
 		ChannelData *channel = App::channelLoaded(d.vchannel_id.v);
 
 		if (channel && !_handlingChannelDifference) {
@@ -4712,7 +4712,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateChannelTooLong: {
-		const MTPDupdateChannelTooLong &d(update.c_updateChannelTooLong());
+		const auto &d(update.c_updateChannelTooLong());
 		if (ChannelData *channel = App::channelLoaded(d.vchannel_id.v)) {
 			if (!d.has_pts() || channel->pts() < d.vpts.v) {
 				getChannelDifference(channel);
@@ -4721,7 +4721,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateChannelMessageViews: {
-		const MTPDupdateChannelMessageViews &d(update.c_updateChannelMessageViews());
+		const auto &d(update.c_updateChannelMessageViews());
 		if (HistoryItem *item = App::histItemById(d.vchannel_id.v, d.vid.v)) {
 			item->setViewsCount(d.vviews.v);
 		}
@@ -4729,11 +4729,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	////// Cloud sticker sets
 	case mtpc_updateNewStickerSet: {
-		const MTPDupdateNewStickerSet &d(update.c_updateNewStickerSet());
+		const auto &d(update.c_updateNewStickerSet());
 		if (d.vstickerset.type() == mtpc_messages_stickerSet) {
-			const MTPDmessages_stickerSet &set(d.vstickerset.c_messages_stickerSet());
+			const auto &set(d.vstickerset.c_messages_stickerSet());
 			if (set.vset.type() == mtpc_stickerSet) {
-				const MTPDstickerSet &s(set.vset.c_stickerSet());
+				const auto &s(set.vset.c_stickerSet());
 
 				Stickers::Sets &sets(Global::RefStickerSets());
 				auto it = sets.find(s.vid.v);
@@ -4741,7 +4741,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					it = sets.insert(s.vid.v, Stickers::Set(s.vid.v, s.vaccess_hash.v, stickerSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v));
 				}
 
-				const QVector<MTPDocument> &v(set.vdocuments.c_vector().v);
+				const auto &v(set.vdocuments.c_vector().v);
 				it->stickers.clear();
 				it->stickers.reserve(v.size());
 				for (int32 i = 0, l = v.size(); i < l; ++i) {
@@ -4751,12 +4751,12 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					it->stickers.push_back(doc);
 				}
 				it->emoji.clear();
-				const QVector<MTPStickerPack> &packs(set.vpacks.c_vector().v);
+				const auto &packs(set.vpacks.c_vector().v);
 				for (int32 i = 0, l = packs.size(); i < l; ++i) {
 					if (packs.at(i).type() != mtpc_stickerPack) continue;
-					const MTPDstickerPack &pack(packs.at(i).c_stickerPack());
+					const auto &pack(packs.at(i).c_stickerPack());
 					if (EmojiPtr e = emojiGetNoColor(emojiFromText(qs(pack.vemoticon)))) {
-						const QVector<MTPlong> &stickers(pack.vdocuments.c_vector().v);
+						const auto &stickers(pack.vdocuments.c_vector().v);
 						StickerPack p;
 						p.reserve(stickers.size());
 						for (int32 j = 0, c = stickers.size(); j < c; ++j) {
@@ -4795,9 +4795,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateStickerSetsOrder: {
-		const MTPDupdateStickerSetsOrder &d(update.c_updateStickerSetsOrder());
-		const QVector<MTPlong> &order(d.vorder.c_vector().v);
-		const Stickers::Sets &sets(Global::StickerSets());
+		const auto &d(update.c_updateStickerSetsOrder());
+		const auto &order(d.vorder.c_vector().v);
+		const auto &sets(Global::StickerSets());
 		Stickers::Order result;
 		for (int32 i = 0, l = order.size(); i < l; ++i) {
 			if (sets.constFind(order.at(i).v) == sets.cend()) {

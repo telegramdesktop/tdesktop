@@ -335,7 +335,7 @@ void ConvertToSupergroupBox::convertDone(const MTPUpdates &updates) {
 }
 
 bool ConvertToSupergroupBox::convertFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 	Ui::hideLayer();
 	return true;
 }
@@ -431,7 +431,7 @@ void PinMessageBox::pinDone(const MTPUpdates &updates) {
 }
 
 bool PinMessageBox::pinFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 	Ui::hideLayer();
 	return true;
 }

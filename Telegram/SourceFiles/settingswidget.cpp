@@ -953,7 +953,7 @@ void SettingsInner::gotPassword(const MTPaccount_Password &result) {
 
 	switch (result.type()) {
 	case mtpc_account_noPassword: {
-		const MTPDaccount_noPassword &d(result.c_account_noPassword());
+		const auto &d(result.c_account_noPassword());
 		_curPasswordSalt = QByteArray();
 		_hasPasswordRecovery = false;
 		_curPasswordHint = QString();
@@ -963,7 +963,7 @@ void SettingsInner::gotPassword(const MTPaccount_Password &result) {
 	} break;
 
 	case mtpc_account_password: {
-		const MTPDaccount_password &d(result.c_account_password());
+		const auto &d(result.c_account_password());
 		_curPasswordSalt = qba(d.vcurrent_salt);
 		_hasPasswordRecovery = mtpIsTrue(d.vhas_recovery);
 		_curPasswordHint = qs(d.vhint);
@@ -986,7 +986,7 @@ void SettingsInner::offPasswordDone(const MTPBool &result) {
 }
 
 bool SettingsInner::offPasswordFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
+	if (MTP::isDefaultHandledError(error)) return false;
 
 	onReloadPassword();
 	return true;
@@ -1182,7 +1182,7 @@ void SettingsInner::supportGot(const MTPhelp_Support &support) {
 	if (!App::main()) return;
 
 	if (support.type() == mtpc_help_support) {
-		const MTPDhelp_support &d(support.c_help_support());
+		const auto &d(support.c_help_support());
 		UserData *u = App::feedUsers(MTP_vector<MTPUser>(1, d.vuser));
 		Ui::showPeerHistory(u, ShowAtUnreadMsgId);
 		App::wnd()->hideSettings();
