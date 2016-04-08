@@ -79,7 +79,7 @@ public:
 	}
 
 	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
-	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
@@ -144,7 +144,7 @@ public:
 	}
 
 	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
-	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 private:
 	PhotoData *getShownPhoto() const;
@@ -179,7 +179,7 @@ public:
 	void preload() const override;
 
 	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
-	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
@@ -204,7 +204,7 @@ public:
 	void initDimensions() override;
 
 	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
-	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 private:
 
@@ -213,6 +213,7 @@ private:
 	mutable QPixmap _thumb;
 	Text _title, _description;
 	QString _duration;
+	int _durationWidth = 0;
 
 	void prepareThumb(int32 width, int32 height) const;
 
@@ -251,7 +252,7 @@ public:
 	void initDimensions() override;
 
 	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
-	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
@@ -295,15 +296,34 @@ private:
 
 };
 
+class Contact : public ItemBase {
+public:
+	Contact(Result *result);
+
+	void initDimensions() override;
+	int resizeGetHeight(int width) override;
+
+	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
+
+private:
+
+	mutable QPixmap _thumb;
+	Text _title, _description;
+
+	void prepareThumb(int width, int height) const;
+
+};
+
 class Article : public ItemBase {
 public:
 	Article(Result *result, bool withThumb);
 
 	void initDimensions() override;
-	int32 resizeGetHeight(int32 width) override;
+	int resizeGetHeight(int width) override;
 
 	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const override;
-	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 private:
 
@@ -315,7 +335,7 @@ private:
 	QString _thumbLetter, _urlText;
 	int32 _urlWidth;
 
-	void prepareThumb(int32 width, int32 height) const;
+	void prepareThumb(int width, int height) const;
 
 };
 

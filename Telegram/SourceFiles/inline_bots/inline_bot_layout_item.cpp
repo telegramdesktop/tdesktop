@@ -100,8 +100,8 @@ UniquePointer<ItemBase> ItemBase::createLayout(Result *result, bool forceThumb) 
 	case Type::Sticker: return MakeUnique<internal::Sticker>(result); break;
 	case Type::Gif: return MakeUnique<internal::Gif>(result); break;
 	case Type::Article:
-	case Type::Contact:
 	case Type::Venue: return MakeUnique<internal::Article>(result, forceThumb); break;
+	case Type::Contact: return MakeUnique<internal::Contact>(result); break;
 	}
 	return UniquePointer<ItemBase>();
 }
@@ -185,6 +185,10 @@ QString ItemBase::getResultThumbLetter() const {
 		return _result->_title.at(0).toUpper();
 	}
 	return QString();
+}
+
+QString ItemBase::getResultContentType() const {
+	return _result->_content_type;
 }
 
 } // namespace Layout

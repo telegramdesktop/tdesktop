@@ -104,6 +104,7 @@ protected:
 	ClickHandlerPtr getResultUrlHandler() const;
 	ClickHandlerPtr getResultContentUrlHandler() const;
 	QString getResultThumbLetter() const;
+	QString getResultContentType() const;
 
 	Result *_result = nullptr;
 	DocumentData *_doc = nullptr;

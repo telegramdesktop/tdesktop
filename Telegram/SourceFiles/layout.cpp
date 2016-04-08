@@ -388,7 +388,7 @@ void LayoutOverviewPhoto::paint(Painter &p, const QRect &clip, uint32 selection,
 	}
 }
 
-void LayoutOverviewPhoto::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+void LayoutOverviewPhoto::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
 	if (hasPoint(x, y)) {
 		link = _link;
 	}
@@ -525,7 +525,7 @@ void LayoutOverviewVideo::paint(Painter &p, const QRect &clip, uint32 selection,
 	}
 }
 
-void LayoutOverviewVideo::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+void LayoutOverviewVideo::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
 	bool loaded = _data->loaded();
 
 	if (hasPoint(x, y)) {
@@ -678,7 +678,7 @@ void LayoutOverviewVoice::paint(Painter &p, const QRect &clip, uint32 selection,
 	}
 }
 
-void LayoutOverviewVoice::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+void LayoutOverviewVoice::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
 	bool loaded = _data->loaded();
 
 	bool showPause = updateStatusText();
@@ -972,7 +972,7 @@ void LayoutOverviewDocument::paint(Painter &p, const QRect &clip, uint32 selecti
 	}
 }
 
-void LayoutOverviewDocument::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+void LayoutOverviewDocument::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
 	bool loaded = _data->loaded() || Local::willStickerImageLoad(mediaKey(DocumentFileLocation, _data->dc, _data->id));
 
 	bool showPause = updateStatusText();
@@ -1286,7 +1286,7 @@ void LayoutOverviewLink::paint(Painter &p, const QRect &clip, uint32 selection, 
 	}
 }
 
-void LayoutOverviewLink::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+void LayoutOverviewLink::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
 	int32 left = st::dlgPhotoSize + st::dlgPhotoPadding, top = st::linksMargin.top() + st::linksBorder, w = _width - left;
 	if (rtlrect(0, top, st::dlgPhotoSize, st::dlgPhotoSize, _width).contains(x, y)) {
 		link = _photol;

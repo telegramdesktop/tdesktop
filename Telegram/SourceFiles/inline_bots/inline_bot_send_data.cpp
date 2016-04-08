@@ -63,6 +63,12 @@ QVector<MTPDocumentAttribute> SendData::prepareResultAttributes(const Result *ow
 		result.push_back(MTP_documentAttributeVideo(MTP_int(owner->_duration), MTP_int(owner->_width), MTP_int(owner->_height)));
 	} else if (owner->_type == Type::Video) {
 		result.push_back(MTP_documentAttributeVideo(MTP_int(owner->_duration), MTP_int(owner->_width), MTP_int(owner->_height)));
+	} else if (owner->_type == Type::Audio) {
+		MTPDdocumentAttributeAudio::Flags flags = 0;
+		if (owner->_content_type == qstr("audio/ogg")) {
+			flags |= MTPDdocumentAttributeAudio::Flag::f_voice;
+		}
+		result.push_back(MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(owner->_duration), MTPstring(), MTPstring(), MTPbytes()));
 	}
 	return result;
 }
@@ -109,7 +115,11 @@ SendData::SentMTPMessageFields SendContact::getSentMessageFields(const Result*) 
 }
 
 QString SendContact::getLayoutDescription(const Result *owner) const {
-	return App::formatPhone(_phoneNumber) + '\n' + SendData::getLayoutDescription(owner);
+	auto result = SendData::getLayoutDescription(owner);
+	if (result.isEmpty()) {
+		return App::formatPhone(_phoneNumber);
+	}
+	return result;
 }
 
 SendData::SentMTPMessageFields SendPhoto::getSentMessageFields(const Result *owner) const {
@@ -141,11 +151,13 @@ SendData::SentMTPMessageFields SendPhoto::getSentMessageFields(const Result *own
 void SendFile::prepareDocument(const Result *owner) const {
 	if (getResultDocument(owner).type() != mtpc_documentEmpty) return;
 
+	uint64 docId = rand_value<uint64>();
+
 	ImagePtr resultThumb = getResultThumb(owner);
 	MTPPhotoSize thumbSize;
 	QPixmap thumb;
-	int32 tw = resultThumb->width(), th = resultThumb->height();
-	if (tw > 0 && th > 0 && tw < 20 * th && th < 20 * tw && resultThumb->loaded()) {
+	int tw = resultThumb->width(), th = resultThumb->height();
+	if (!resultThumb->isNull() && tw > 0 && th > 0 && tw < 20 * th && th < 20 * tw && resultThumb->loaded()) {
 		if (tw > th) {
 			if (tw > 90) {
 				th = th * 90 / tw;
@@ -161,7 +173,6 @@ void SendFile::prepareDocument(const Result *owner) const {
 		tw = th = 0;
 		thumbSize = MTP_photoSizeEmpty(MTP_string(""));
 	}
-	uint64 docId = rand_value<uint64>();
 
 	QVector<MTPDocumentAttribute> attributes = prepareResultAttributes(owner);
 	MTPDocument document = MTP_document(MTP_long(docId), MTP_long(0), MTP_int(unixtime()), MTP_string(getResultMime(owner)), MTP_int(owner->data().size()), thumbSize, MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));

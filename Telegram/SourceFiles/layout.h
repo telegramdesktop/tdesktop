@@ -112,11 +112,11 @@ public:
 		return _height;
 	}
 
-	virtual void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+	virtual void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
 		link.clear();
 		cursor = HistoryDefaultCursorState;
 	}
-	virtual void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const { // from text
+	virtual void getSymbol(uint16 &symbol, bool &after, bool &upon, int x, int y) const { // from text
 		upon = hasPoint(x, y);
 		symbol = upon ? 0xFFFF : 0;
 		after = false;
@@ -129,7 +129,7 @@ public:
 		return _height;
 	}
 
-	bool hasPoint(int32 x, int32 y) const {
+	bool hasPoint(int x, int y) const {
 		return (x >= 0 && y >= 0 && x < width() && y < height());
 	}
 
@@ -298,7 +298,7 @@ public:
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
 	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContextOverview *context) const override;
-	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 private:
 	PhotoData *_data;
@@ -316,7 +316,7 @@ public:
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
 	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContextOverview *context) const override;
-	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 protected:
 	float64 dataProgress() const override {
@@ -349,7 +349,7 @@ public:
 
 	void initDimensions() override;
 	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContextOverview *context) const override;
-	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 protected:
 	float64 dataProgress() const override {
@@ -383,7 +383,7 @@ public:
 
 	void initDimensions() override;
 	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContextOverview *context) const override;
-	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 	virtual DocumentData *getDocument() const override {
 		return _data;
@@ -428,7 +428,7 @@ public:
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
 	void paint(Painter &p, const QRect &clip, uint32 selection, const PaintContextOverview *context) const override;
-	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 private:
 	ClickHandlerPtr _photol;

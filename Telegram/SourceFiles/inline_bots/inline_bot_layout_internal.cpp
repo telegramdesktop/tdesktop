@@ -257,7 +257,7 @@ void Gif::paint(Painter &p, const QRect &clip, uint32 selection, const PaintCont
 	}
 }
 
-void Gif::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+void Gif::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
 	if (x >= 0 && x < _width && y >= 0 && y < st::inlineMediaHeight) {
 		if (_delete && (rtl() ? _width - x : x) >= _width - st::stickerPanDelete.pxWidth() && y < st::stickerPanDelete.pxHeight()) {
 			link = _delete;
@@ -456,7 +456,7 @@ void Sticker::paint(Painter &p, const QRect &clip, uint32 selection, const Paint
 	}
 }
 
-void Sticker::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+void Sticker::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
 	if (x >= 0 && x < _width && y >= 0 && y < st::inlineMediaHeight) {
 		link = _send;
 	}
@@ -545,7 +545,7 @@ void Photo::paint(Painter &p, const QRect &clip, uint32 selection, const PaintCo
 	}
 }
 
-void Photo::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+void Photo::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
 	if (x >= 0 && x < _width && y >= 0 && y < st::inlineMediaHeight) {
 		link = _send;
 	}
@@ -646,6 +646,7 @@ Video::Video(Result *result) : FileBase(result)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
 	if (int duration = content_duration()) {
 		_duration = formatDurationText(duration);
+		_durationWidth = st::normalFont->width(_duration);
 	}
 }
 
@@ -677,7 +678,7 @@ void Video::initDimensions() {
 }
 
 void Video::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
-	int32 left = st::inlineThumbSize + st::inlineThumbSkip;
+	int left = st::inlineThumbSize + st::inlineThumbSkip;
 
 	bool withThumb = !content_thumb()->isNull();
 	if (withThumb) {
@@ -692,11 +693,13 @@ void Video::paint(Painter &p, const QRect &clip, uint32 selection, const PaintCo
 	}
 
 	if (!_duration.isEmpty()) {
-		int32 durationTop = st::inlineRowMargin + st::inlineThumbSize - st::normalFont->height - st::inlineDurationMargin;
-		p.fillRect(rtlrect(0, durationTop - st::inlineDurationMargin, st::inlineThumbSize, st::normalFont->height + 2 * st::inlineDurationMargin, _width), st::msgDateImgBg);
+		int durationTop = st::inlineRowMargin + st::inlineThumbSize - st::normalFont->height - st::inlineDurationMargin;
+		int durationW = _durationWidth + 2 * st::msgDateImgPadding.x(), durationH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
+		int durationX = (st::inlineThumbSize - durationW) / 2, durationY = st::inlineRowMargin + st::inlineThumbSize - durationH;
+		App::roundRect(p, durationX, durationY - st::msgDateImgPadding.y(), durationW, durationH, st::msgDateImgBg, DateCorners);
 		p.setPen(st::white);
 		p.setFont(st::normalFont);
-		p.drawTextRight(_width - st::inlineThumbSize + st::inlineDurationMargin, durationTop, _width, _duration);
+		p.drawText(durationX + st::msgDateImgPadding.x(), durationTop + st::normalFont->ascent, _duration);
 	}
 
 	p.setPen(st::black);
@@ -712,7 +715,7 @@ void Video::paint(Painter &p, const QRect &clip, uint32 selection, const PaintCo
 	}
 }
 
-void Video::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+void Video::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
 	if (x >= 0 && x < st::inlineThumbSize && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::inlineThumbSize) {
 		link = _link;
 		return;
@@ -756,9 +759,9 @@ void CancelFileClickHandler::onClickImpl() const {
 
 File::File(Result *result) : FileBase(result)
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::msgFileSize - st::inlineThumbSkip)
-, _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::msgFileSize - st::inlineThumbSkip)
-, _open(new OpenFileClickHandler(result))
-, _cancel(new CancelFileClickHandler(result)) {
+, _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::msgFileSize - st::inlineThumbSkip) {
+//, _open(new OpenFileClickHandler(result))
+//, _cancel(new CancelFileClickHandler(result)) {
 }
 
 void File::initDimensions() {
@@ -803,20 +806,38 @@ void File::paint(Painter &p, const QRect &clip, uint32 selection, const PaintCon
 	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
 	style::sprite icon;
-	if (bool showPause = false) {
-		icon = st::msgFileInPause;
-	} else if (radial || content_loading()) {
-		icon = st::msgFileInCancel;
-	} else if (loaded) {
-		//if (_data->song() || _data->voice()) {
+	//if (bool showPause = false) {
+	//	icon = st::msgFileInPause;
+	//} else if (radial || content_loading()) {
+	//	icon = st::msgFileInCancel;
+	//} else if (loaded) {
+	//	//if (_data->song() || _data->voice()) {
+	//		icon = st::msgFileInPlay;
+	//	//} else if (_data->isImage()) {
+	//	//	icon = st::msgFileInImage;
+	//	//} else {
+	//	//	icon = st::msgFileInFile;
+	//	//}
+	//} else {
+	//	icon = st::msgFileInDownload;
+	//}
+	if (DocumentData *doc = getShownDocument()) {
+		if (doc->isImage()) {
+			icon = st::msgFileInImage;
+		} else if (doc->voice() || doc->song()) {
 			icon = st::msgFileInPlay;
-		//} else if (_data->isImage()) {
-		//	icon = st::msgFileInImage;
-		//} else {
-		//	icon = st::msgFileInFile;
-		//}
+		} else {
+			icon = st::msgFileInFile;
+		}
 	} else {
-		icon = st::msgFileInDownload;
+		QString mime = getResultContentType();
+		if (mime.startsWith(qstr("image/"))) {
+			icon = st::msgFileInImage;
+		} else if (mime.startsWith(qstr("audio/"))) {
+			icon = st::msgFileInPlay;
+		} else {
+			icon = st::msgFileInFile;
+		}
 	}
 	p.drawSpriteCenter(iconCircle, icon);
 
@@ -834,7 +855,7 @@ void File::paint(Painter &p, const QRect &clip, uint32 selection, const PaintCon
 	}
 }
 
-void File::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
+void File::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
 	if (x >= 0 && x < st::msgFileSize && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::msgFileSize) {
 		link = content_loading() ? _cancel : _open;
 		return;
@@ -896,6 +917,95 @@ void File::checkAnimationFinished() {
 		if (content_loaded()) {
 			_animation.clear();
 		}
+	}
+}
+
+Contact::Contact(Result *result) : ItemBase(result)
+, _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
+, _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
+}
+
+void Contact::initDimensions() {
+	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
+	int32 textWidth = _maxw - (st::inlineThumbSize + st::inlineThumbSkip);
+	TextParseOptions titleOpts = { 0, _maxw, st::semiboldFont->height, Qt::LayoutDirectionAuto };
+	_title.setText(st::semiboldFont, textOneLine(_result->getLayoutTitle()), titleOpts);
+	int32 titleHeight = qMin(_title.countHeight(_maxw), st::semiboldFont->height);
+
+	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, st::normalFont->height, Qt::LayoutDirectionAuto };
+	_description.setText(st::normalFont, _result->getLayoutDescription(), descriptionOpts);
+	int32 descriptionHeight = qMin(_description.countHeight(_maxw), st::normalFont->height);
+
+	_minh = st::msgFileSize;
+	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
+}
+
+int32 Contact::resizeGetHeight(int32 width) {
+	_width = qMin(width, _maxw);
+	_height = _minh;
+	return _height;
+}
+
+void Contact::paint(Painter &p, const QRect &clip, uint32 selection, const PaintContext *context) const {
+	int32 left = st::emojiPanHeaderLeft - st::inlineResultsLeft;
+
+	left = st::msgFileSize + st::inlineThumbSkip;
+	prepareThumb(st::msgFileSize, st::msgFileSize);
+	QRect rthumb(rtlrect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize, _width));
+	p.drawPixmapLeft(rthumb.topLeft(), _width, _thumb);
+
+	int titleTop = st::inlineRowMargin + st::inlineRowFileNameTop;
+	int descriptionTop = st::inlineRowMargin + st::inlineRowFileDescriptionTop;
+
+	p.setPen(st::black);
+	_title.drawLeftElided(p, left, titleTop, _width - left, _width);
+
+	p.setPen(st::inlineDescriptionFg);
+	_description.drawLeftElided(p, left, descriptionTop, _width - left, _width);
+
+	if (!context->lastRow) {
+		p.fillRect(rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
+	}
+}
+
+void Contact::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
+	int left = (st::msgFileSize + st::inlineThumbSkip);
+	if (x >= 0 && x < left - st::inlineThumbSkip && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::inlineThumbSize) {
+		return;
+	}
+	if (x >= left && x < _width && y >= 0 && y < _height) {
+		link = _send;
+		return;
+	}
+}
+
+void Contact::prepareThumb(int width, int height) const {
+	ImagePtr thumb = getResultThumb();
+	if (thumb->isNull()) {
+		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+			_thumb = getResultContactAvatar(width, height);
+		}
+		return;
+	}
+
+	if (thumb->loaded()) {
+		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
+			int w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
+			if (w * height > h * width) {
+				if (height < h) {
+					w = w * height / h;
+					h = height;
+				}
+			} else {
+				if (width < w) {
+					h = h * width / w;
+					w = width;
+				}
+			}
+			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixSmooth, width, height);
+		}
+	} else {
+		thumb->load();
 	}
 }
 
@@ -989,8 +1099,8 @@ void Article::paint(Painter &p, const QRect &clip, uint32 selection, const Paint
 	}
 }
 
-void Article::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 x, int32 y) const {
-	int32 left = _withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0;
+void Article::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
+	int left = _withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0;
 	if (x >= 0 && x < left - st::inlineThumbSkip && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::inlineThumbSize) {
 		link = _link;
 		return;
@@ -1011,7 +1121,7 @@ void Article::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int32 
 	}
 }
 
-void Article::prepareThumb(int32 width, int32 height) const {
+void Article::prepareThumb(int width, int height) const {
 	ImagePtr thumb = getResultThumb();
 	if (thumb->isNull()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
@@ -1022,7 +1132,7 @@ void Article::prepareThumb(int32 width, int32 height) const {
 
 	if (thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-			int32 w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
+			int w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
 			if (w * height > h * width) {
 				if (height < h) {
 					w = w * height / h;
