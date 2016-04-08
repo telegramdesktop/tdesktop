@@ -1931,7 +1931,7 @@ void StickerPanInner::refreshSwitchPmButton(const InlineCacheEntry *entry) {
 int StickerPanInner::refreshInlineRows(UserData *bot, const InlineCacheEntry *entry, bool resultsDeleted) {
 	_inlineBot = bot;
 	refreshSwitchPmButton(entry);
-	if (!entry || entry->results.isEmpty() && (!_inlineBot || _inlineBot->username != cInlineGifBotUsername())) {
+	if (!entry || (entry->results.isEmpty() && (!_inlineBot || _inlineBot->username != cInlineGifBotUsername()))) {
 		if (resultsDeleted) {
 			clearInlineRows(true);
 		}

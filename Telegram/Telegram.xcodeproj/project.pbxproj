@@ -93,6 +93,10 @@
 		07C8FE021CB66D97007A8702 /* inline_bot_layout_item.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C8FDFB1CB66D97007A8702 /* inline_bot_layout_item.cpp */; };
 		07C8FE031CB66D97007A8702 /* inline_bot_result.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C8FDFD1CB66D97007A8702 /* inline_bot_result.cpp */; };
 		07C8FE041CB66D97007A8702 /* inline_bot_send_data.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C8FDFF1CB66D97007A8702 /* inline_bot_send_data.cpp */; };
+		07C8FE0E1CB80890007A8702 /* toast_manager.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C8FE081CB80890007A8702 /* toast_manager.cpp */; };
+		07C8FE0F1CB80890007A8702 /* toast_widget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C8FE0A1CB80890007A8702 /* toast_widget.cpp */; };
+		07C8FE101CB80890007A8702 /* toast.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C8FE0C1CB80890007A8702 /* toast.cpp */; };
+		07C8FE121CB80915007A8702 /* moc_toast_manager.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C8FE111CB80915007A8702 /* moc_toast_manager.cpp */; };
 		07CAACD81AEA64F00058E508 /* AudioUnit.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 07CAACD71AEA64F00058E508 /* AudioUnit.framework */; };
 		07D7034B19B8755A00C4EED2 /* audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D7034919B8755A00C4EED2 /* audio.cpp */; };
 		07D703BB19B88FB900C4EED2 /* moc_audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D703BA19B88FB900C4EED2 /* moc_audio.cpp */; };
@@ -376,6 +380,13 @@
 		07C8FDFE1CB66D97007A8702 /* inline_bot_result.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = inline_bot_result.h; path = SourceFiles/inline_bots/inline_bot_result.h; sourceTree = SOURCE_ROOT; };
 		07C8FDFF1CB66D97007A8702 /* inline_bot_send_data.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = inline_bot_send_data.cpp; path = SourceFiles/inline_bots/inline_bot_send_data.cpp; sourceTree = SOURCE_ROOT; };
 		07C8FE001CB66D97007A8702 /* inline_bot_send_data.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = inline_bot_send_data.h; path = SourceFiles/inline_bots/inline_bot_send_data.h; sourceTree = SOURCE_ROOT; };
+		07C8FE081CB80890007A8702 /* toast_manager.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = toast_manager.cpp; path = SourceFiles/ui/toast/toast_manager.cpp; sourceTree = SOURCE_ROOT; };
+		07C8FE091CB80890007A8702 /* toast_manager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = toast_manager.h; path = SourceFiles/ui/toast/toast_manager.h; sourceTree = SOURCE_ROOT; };
+		07C8FE0A1CB80890007A8702 /* toast_widget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = toast_widget.cpp; path = SourceFiles/ui/toast/toast_widget.cpp; sourceTree = SOURCE_ROOT; };
+		07C8FE0B1CB80890007A8702 /* toast_widget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = toast_widget.h; path = SourceFiles/ui/toast/toast_widget.h; sourceTree = SOURCE_ROOT; };
+		07C8FE0C1CB80890007A8702 /* toast.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = toast.cpp; path = SourceFiles/ui/toast/toast.cpp; sourceTree = SOURCE_ROOT; };
+		07C8FE0D1CB80890007A8702 /* toast.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = toast.h; path = SourceFiles/ui/toast/toast.h; sourceTree = SOURCE_ROOT; };
+		07C8FE111CB80915007A8702 /* moc_toast_manager.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_toast_manager.cpp; path = GeneratedFiles/Debug/moc_toast_manager.cpp; sourceTree = SOURCE_ROOT; };
 		07CAACD71AEA64F00058E508 /* AudioUnit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioUnit.framework; path = System/Library/Frameworks/AudioUnit.framework; sourceTree = SDKROOT; };
 		07D7034919B8755A00C4EED2 /* audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = audio.cpp; path = SourceFiles/audio.cpp; sourceTree = SOURCE_ROOT; };
 		07D7034A19B8755A00C4EED2 /* audio.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = audio.h; path = SourceFiles/audio.h; sourceTree = SOURCE_ROOT; };
@@ -850,6 +861,19 @@
 			name = inline_bots;
 			sourceTree = "<group>";
 		};
+		07C8FE071CB80884007A8702 /* toast */ = {
+			isa = PBXGroup;
+			children = (
+				07C8FE081CB80890007A8702 /* toast_manager.cpp */,
+				07C8FE091CB80890007A8702 /* toast_manager.h */,
+				07C8FE0A1CB80890007A8702 /* toast_widget.cpp */,
+				07C8FE0B1CB80890007A8702 /* toast_widget.h */,
+				07C8FE0C1CB80890007A8702 /* toast.cpp */,
+				07C8FE0D1CB80890007A8702 /* toast.h */,
+			);
+			name = toast;
+			sourceTree = "<group>";
+		};
 		130BDDB6FC4D60CF394D95AF /* GeneratedFiles */ = {
 			isa = PBXGroup;
 			children = (
@@ -924,9 +948,10 @@
 			name = SourceFiles;
 			sourceTree = "<Group>";
 		};
-		579DA7AEF5751DF4988869A0 /* gui */ = {
+		579DA7AEF5751DF4988869A0 /* ui */ = {
 			isa = PBXGroup;
 			children = (
+				07C8FE071CB80884007A8702 /* toast */,
 				D3FE9C29B6A61D7C3C4B731B /* animation.cpp */,
 				85FABD67716E36CD8B3CA4FA /* animation.h */,
 				08A7682548FB7E671FF03822 /* boxshadow.cpp */,
@@ -962,7 +987,7 @@
 				BB1602EA641643DE565005B1 /* twidget.cpp */,
 				507CCEEC4CBA3E3BD6EEDED1 /* twidget.h */,
 			);
-			name = gui;
+			name = ui;
 			sourceTree = "<Group>";
 		};
 		5E35A03E5F2C51353EBCBF00 /* intro */ = {
@@ -988,7 +1013,7 @@
 			isa = PBXGroup;
 			children = (
 				ADC8DBF4C6F26E14C77F68B4 /* boxes */,
-				579DA7AEF5751DF4988869A0 /* gui */,
+				579DA7AEF5751DF4988869A0 /* ui */,
 				07C8FDF81CB66D80007A8702 /* inline_bots */,
 				5E35A03E5F2C51353EBCBF00 /* intro */,
 				074968CB1A44D0B800394F46 /* langs */,
@@ -1207,6 +1232,7 @@
 		801973D3334D0FCA849CF485 /* Debug */ = {
 			isa = PBXGroup;
 			children = (
+				07C8FE111CB80915007A8702 /* moc_toast_manager.cpp */,
 				077A4AFF1CA41EE2002188D2 /* moc_connection_abstract.cpp */,
 				077A4B001CA41EE2002188D2 /* moc_connection_auto.cpp */,
 				077A4B011CA41EE2002188D2 /* moc_connection_http.cpp */,
@@ -1632,6 +1658,7 @@
 				07C8FE031CB66D97007A8702 /* inline_bot_result.cpp in Compile Sources */,
 				07129D6E1C16D245002DC495 /* facades.cpp in Compile Sources */,
 				B8CA3E1E11A7E0E7DF9E1CDE /* file_download.cpp in Compile Sources */,
+				07C8FE0E1CB80890007A8702 /* toast_manager.cpp in Compile Sources */,
 				0755AEDD1AD12A80004D738A /* moc_abstractbox.cpp in Compile Sources */,
 				99F0A9B2AFE5ABDCBFC04510 /* rpc_sender.cpp in Compile Sources */,
 				A297B1E3CE33CC501DFEDB6E /* session.cpp in Compile Sources */,
@@ -1671,6 +1698,7 @@
 				298BFAB73BF182297584F96F /* contactsbox.cpp in Compile Sources */,
 				BA41D511A9BBCA09365DF88C /* downloadpathbox.cpp in Compile Sources */,
 				07DB67511AD07CB800A51329 /* intropwdcheck.cpp in Compile Sources */,
+				07C8FE0F1CB80890007A8702 /* toast_widget.cpp in Compile Sources */,
 				3ABE4F9B2264F770D944106D /* emojibox.cpp in Compile Sources */,
 				07D703BB19B88FB900C4EED2 /* moc_audio.cpp in Compile Sources */,
 				77B998AC22A13EF3DDEE07AC /* photocropbox.cpp in Compile Sources */,
@@ -1691,6 +1719,7 @@
 				822C2860FBFAF3EAE42C5A3F /* moc_fileuploader.cpp in Compile Sources */,
 				352349751855EF76DECA4D60 /* moc_historywidget.cpp in Compile Sources */,
 				4B0036C794BEA27AF9419768 /* moc_layerwidget.cpp in Compile Sources */,
+				07C8FE101CB80890007A8702 /* toast.cpp in Compile Sources */,
 				077A4AF71CA41C38002188D2 /* connection_abstract.cpp in Compile Sources */,
 				C14E6C902F6435B3149ECD64 /* moc_profilewidget.cpp in Compile Sources */,
 				071AD8F81C5E99D6008C9E90 /* ioapi.c in Compile Sources */,
@@ -1713,6 +1742,7 @@
 				B780F9E21269259B90A1F32A /* moc_dcenter.cpp in Compile Sources */,
 				07080BCF1A43588C00741A51 /* lang_auto.cpp in Compile Sources */,
 				07539B1D1A1416AF00083EFC /* moc_history.cpp in Compile Sources */,
+				07C8FE121CB80915007A8702 /* moc_toast_manager.cpp in Compile Sources */,
 				077A4AFC1CA41C38002188D2 /* rsa_public_key.cpp in Compile Sources */,
 				2A500B102B7CE80F3EB6E13E /* moc_file_download.cpp in Compile Sources */,
 				07A6933519927B160099CB9F /* moc_mediaview.cpp in Compile Sources */,
